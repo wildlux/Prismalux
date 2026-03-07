@@ -349,6 +349,8 @@ def menu_apprendimento() -> None:
         t.append("      5.  🧪  Tutor AI — Chimica\n\n",                       style="bold magenta")
         t.append("      6.  🔒  Tutor AI — Sicurezza Informatica\n\n",         style="bold green")
         t.append("      7.  🌐  Simulatore Protocolli di Rete\n\n",            style="bold magenta")
+        t.append("      8.  📚  Quiz Interattivi — test con punteggio\n\n",    style="bold cyan")
+        t.append("      9.  📊  Dashboard Statistica — progressi e grafici\n\n", style="bold green")
         t.append("      0.  ←   Torna al menu principale\n",                   style="dim")
         console.print(Panel(t, title="[bold yellow]📚 Apprendimento[/]",
                             border_style="yellow"))
@@ -418,6 +420,24 @@ def menu_apprendimento() -> None:
                 pass
             except Exception as e:
                 console.print(f"  [red]Errore protocolli: {e}[/]")
+                input("  [INVIO] ")
+        elif scelta == "8":
+            try:
+                from quiz_interattivi import menu_quiz
+                menu_quiz()
+            except KeyboardInterrupt:
+                pass
+            except Exception as e:
+                console.print(f"  [red]Errore quiz: {e}[/]")
+                input("  [INVIO] ")
+        elif scelta == "9":
+            try:
+                from dashboard_statistica import menu_dashboard
+                menu_dashboard()
+            except KeyboardInterrupt:
+                pass
+            except Exception as e:
+                console.print(f"  [red]Errore dashboard: {e}[/]")
                 input("  [INVIO] ")
         else:
             console.print("  [yellow]Scelta non valida.[/]")
