@@ -418,7 +418,19 @@ def _mostra_risultato(ris: dict) -> None:
 
 
 def menu_cython_studio() -> None:
-    """Menu interattivo del Cython Studio."""
+    """
+    Menu interattivo del Cython Studio.
+    Delega a cython_menu.py che e l'implementazione completa
+    (benchmark, analisi, output, guida inclusi).
+    """
+    try:
+        from cython_menu import menu_cython
+        menu_cython()
+        return
+    except ImportError:
+        pass  # fallback al menu minimo qui sotto
+
+    # ── Fallback menu minimo (se cython_menu.py non disponibile) ─────────────
     # Importa header Prismalux se disponibile
     try:
         if _ROOT_MA not in sys.path:

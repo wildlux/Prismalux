@@ -348,6 +348,7 @@ def menu_apprendimento() -> None:
         t.append("      4.  ⚛️  Tutor AI — Fisica\n\n",                        style="bold green")
         t.append("      5.  🧪  Tutor AI — Chimica\n\n",                       style="bold magenta")
         t.append("      6.  🔒  Tutor AI — Sicurezza Informatica\n\n",         style="bold green")
+        t.append("      7.  🌐  Simulatore Protocolli di Rete\n\n",            style="bold magenta")
         t.append("      0.  ←   Torna al menu principale\n",                   style="dim")
         console.print(Panel(t, title="[bold yellow]📚 Apprendimento[/]",
                             border_style="yellow"))
@@ -408,6 +409,15 @@ def menu_apprendimento() -> None:
                 pass
             except Exception as e:
                 console.print(f"  [red]Errore tutor: {e}[/]")
+                input("  [INVIO] ")
+        elif scelta == "7":
+            try:
+                from protocolli import menu_protocolli
+                menu_protocolli()
+            except KeyboardInterrupt:
+                pass
+            except Exception as e:
+                console.print(f"  [red]Errore protocolli: {e}[/]")
                 input("  [INVIO] ")
         else:
             console.print("  [yellow]Scelta non valida.[/]")

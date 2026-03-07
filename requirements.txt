@@ -38,6 +38,9 @@ langgraph
 langchain-ollama
 langchain-core
 
+# ── Cython Studio — compilazione Python → C ───────────────────────────────────
+cython
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Note su dipendenze escluse:
 #

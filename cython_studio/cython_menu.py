@@ -675,3 +675,8 @@ def menu_cython() -> None:
         else:
             console.print("  [red]Scelta non valida.[/]")
             time.sleep(0.5)
+
+
+
+# Alias richiesto da AVVIA_Prismalux.py e cython_studio.py
+menu_cython_studio = menu_cython
