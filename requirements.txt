@@ -1,0 +1,51 @@
+# Prismalux — dipendenze
+# ─────────────────────────────────────────────────────────────────────────────
+# Installa tutto:
+#   pip install -r requirements.txt
+#
+# Aggiorna pip e tutte le dipendenze:
+#   python -m pip install --upgrade pip
+#   pip install --upgrade -r requirements.txt
+#
+# Cancella cache pip (libera spazio):
+#   pip cache purge
+#
+# Aggiorna Ollama (Windows — PowerShell come amministratore):
+#   winget upgrade Ollama.Ollama
+# Aggiorna Ollama (Linux/macOS):
+#   curl -fsSL https://ollama.com/install.sh | sh
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── UI terminale ──────────────────────────────────────────────────────────────
+rich
+textual
+
+# ── Comunicazione HTTP (Ollama + web) ─────────────────────────────────────────
+requests
+
+# ── Client Ollama ufficiale (opzionale ma consigliato su Windows) ─────────────
+# Alternativa più robusta a requests per comunicare con Ollama
+ollama
+
+# ── Ricerca offerte lavoro (DuckDuckGo) ───────────────────────────────────────
+ddgs
+
+# ── Lettura CV in PDF (opzionale) ─────────────────────────────────────────────
+pypdf
+
+# ── Multi-Agente AI (LangGraph + Ollama) ──────────────────────────────────────
+langgraph
+langchain-ollama
+langchain-core
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Note su dipendenze escluse:
+#
+#   tty / termios  → moduli stdlib SOLO Linux/macOS (non installare su Windows)
+#                    Il codice usa _HAS_TERMIOS = False come fallback su Windows
+#
+#   evdev / bcc    → Linux kernel tools, non installare
+#
+#   sqlite3        → non disponibile in Python 3.14 compilato da fonte
+#                    Il progetto usa JSON invece di SQLite
+# ─────────────────────────────────────────────────────────────────────────────
