@@ -3060,5 +3060,274 @@ def avvia_menu() -> None:
         print("\n\n🍺 Alla prossima libagione di sapere.")
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# MOTORE BYZANTINO — Verifica a 4 agenti anti-allucinazione
+# Pipeline: A (Originale) → B (Avvocato del Diavolo)
+#         → C (Gemello Indipendente) → D (Giudice Quantico)
+# Logica booleana: T = (A ∧ C) ∧ ¬B_valido
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _bq_chiama_ollama(modello: str, porta: int, system_prompt: str, user_msg: str) -> str:
+    """Chiama Ollama con streaming e restituisce la risposta completa."""
+    url = f"http://127.0.0.1:{porta}/api/chat"
+    payload = {
+        "model": modello,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": user_msg},
+        ],
+        "stream": True,
+    }
+    risposta = []
+    try:
+        with requests.post(url, json=payload, stream=True, timeout=300) as r:
+            r.raise_for_status()
+            for line in r.iter_lines():
+                if not line:
+                    continue
+                try:
+                    chunk = json.loads(line)
+                    token = chunk.get("message", {}).get("content", "")
+                    if token:
+                        risposta.append(token)
+                        print(token, end="", flush=True)
+                    if chunk.get("done"):
+                        break
+                except json.JSONDecodeError:
+                    continue
+    except requests.exceptions.ConnectionError:
+        print("\n  ❌ Ollama non risponde. Avvia con: ollama serve")
+        return ""
+    except Exception as e:
+        print(f"\n  ❌ Errore: {e}")
+        return ""
+    print()  # newline finale
+    return "".join(risposta)
+
+
+def motore_byzantino() -> None:
+    """
+    Motore Byzantino — verifica a 4 agenti anti-allucinazione.
+    Implementa ByzantineQuantumEngine da ALLUCINAZIONI_RISOLTE.txt
+    """
+    import shutil as _sh_bq
+
+    try:
+        _root_bq = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _root_bq not in sys.path:
+            sys.path.insert(0, _root_bq)
+        from check_deps import stampa_header as _stampa_h_bq
+        from rich.console import Console as _Con_bq
+        from rich.panel import Panel as _Panel_bq
+        from rich.text import Text as _Text_bq
+        from rich.rule import Rule as _Rule_bq
+        from rich.prompt import Prompt as _Prompt_bq
+    except ImportError as e:
+        print(f"\n  ❌ Import mancante: {e}\n  pip install rich requests")
+        return
+
+    _cols = _sh_bq.get_terminal_size(fallback=(120, 40)).columns
+    _con  = _Con_bq(width=_cols)
+
+    # ── Scelta modello e porta ─────────────────────────────────────────────────
+    os.system("cls" if sys.platform == "win32" else "clear")
+    _stampa_h_bq(_con)
+    _con.print("\n  [bold cyan]🔮  Motore Byzantino — Verifica a 4 Agenti[/]")
+    _con.print("[dim]  Pipeline: [cyan]A[/] (Esperto) → [red]B[/] (Avvocato) → "
+               "[yellow]C[/] (Gemello) → [magenta]D[/] (Giudice)[/]")
+    _con.print("[dim]  Logica: T = (A ∧ C) ∧ ¬B_valido[/]\n")
+
+    # Recupera modelli disponibili
+    modelli_info = get_modelli_ollama(PORTA_NVIDIA)
+    if not modelli_info:
+        _con.print("[bold red]  ❌ Ollama non risponde. Avvia con: ollama serve[/]")
+        input("\n  [INVIO per tornare] ")
+        return
+
+    nomi_modelli = [m["nome"] for m in modelli_info]
+    modello_default = trova_default(nomi_modelli,
+        ["qwen3:8b", "qwen3", "deepseek-r1:7b", "mistral", "llama3.2"])
+
+    _con.print(f"  Modello: [cyan]{modello_default}[/]  [dim](INVIO = usa questo)[/]")
+    scelta = _Prompt_bq.ask("  Modello", default=modello_default,
+                             choices=nomi_modelli + [""], show_choices=False)
+    modello = scelta.strip() or modello_default
+
+    # ── Query utente ───────────────────────────────────────────────────────────
+    _con.print()
+    query = _Prompt_bq.ask(
+        "  [bold yellow]❯ Inserisci la query da verificare[/]"
+    ).strip()
+    if not query or query in ("0", "esci", "q"):
+        return
+
+    sys_esperto = (
+        "Sei un esperto altamente qualificato. Rispondi SEMPRE e SOLO in italiano "
+        "in modo preciso e dettagliato. Fornisci solo fatti verificabili. "
+        "Se non sei sicuro di qualcosa, dillo esplicitamente."
+    )
+    sys_avvocato = (
+        "Sei l'Avvocato del Diavolo. Rispondi SEMPRE e SOLO in italiano. "
+        "Il tuo ruolo è dimostrare che l'affermazione ricevuta è sbagliata o incompleta. "
+        "Cerca contraddizioni, errori logici, storici o tecnici."
+    )
+    sys_gemello = (
+        "Sei un validatore indipendente. Rispondi SEMPRE e SOLO in italiano. "
+        "NON hai visto la risposta di altri agenti. Rispondi in modo autonomo e obiettivo. "
+        "Sii preciso e fornisci solo fatti verificabili."
+    )
+    sys_giudice = (
+        "Sei il Giudice Quantico Super-Osservatore. Rispondi SEMPRE e SOLO in italiano. "
+        "Analizza il dibattito tra i tre agenti e emetti un verdetto finale "
+        "basato sulla logica booleana. Sii imparziale, preciso e conciso."
+    )
+
+    # ── [A] Agente Originale / Esperto ────────────────────────────────────────
+    os.system("cls" if sys.platform == "win32" else "clear")
+    _stampa_h_bq(_con)
+    _con.print(_Rule_bq("[bold cyan]🧠  [A] Agente Originale (Esperto)[/]"))
+    out_a = _bq_chiama_ollama(modello, PORTA_NVIDIA, sys_esperto, query)
+
+    # ── [B] Avvocato del Diavolo ──────────────────────────────────────────────
+    _con.print(_Rule_bq("[bold red]⚔️   [B] Avvocato del Diavolo[/]"))
+    prompt_b = (
+        f"Hai ricevuto questa risposta da un esperto:\n\n{out_a}\n\n"
+        "Il tuo UNICO scopo è trovare errori, contraddizioni, imprecisioni o punti deboli. "
+        "Sii critico e severo. "
+        "Se la risposta è completamente corretta, scrivi esattamente: 'NESSUN ERRORE RILEVATO'. "
+        "Altrimenti elenca gli errori trovati."
+    )
+    out_b = _bq_chiama_ollama(modello, PORTA_NVIDIA, sys_avvocato, prompt_b)
+
+    # ── [C] Gemello Indipendente ──────────────────────────────────────────────
+    _con.print(_Rule_bq("[bold yellow]🔄  [C] Gemello Indipendente[/]"))
+    out_c = _bq_chiama_ollama(modello, PORTA_NVIDIA, sys_gemello, query)
+
+    # ── [D] Giudice Quantico ──────────────────────────────────────────────────
+    _con.print(_Rule_bq("[bold magenta]⚖️   [D] Giudice Quantico (verdetto finale)[/]"))
+    prompt_d = (
+        f"Query originale: {query}\n\n"
+        f"RISPOSTA A (Esperto Originale):\n{out_a}\n\n"
+        f"RISPOSTA B (Avvocato del Diavolo):\n{out_b}\n\n"
+        f"RISPOSTA C (Gemello Indipendente, non ha visto A):\n{out_c}\n\n"
+        "Applica la logica booleana: T = (A concordante con C) AND (B non ha trovato errori validi).\n"
+        "Emetti il verdetto:\n"
+        "- Se T=1.0: scrivi 'VERDETTO: VERIFICATO' e una sintesi della risposta corretta.\n"
+        "- Se T<1.0: scrivi 'VERDETTO: INCERTO' e spiega le discordanze rilevate."
+    )
+    out_d = _bq_chiama_ollama(modello, PORTA_NVIDIA, sys_giudice, prompt_d)
+
+    # ── Collision score e verdetto visivo ─────────────────────────────────────
+    b_senza_errori = ("NESSUN ERRORE" in out_b.upper())
+    d_verificato   = ("VERIFICATO"    in out_d.upper())
+    score = 1.0 if (b_senza_errori and d_verificato) else 0.5
+
+    _con.print()
+    if score >= 1.0:
+        _con.print(_Panel_bq(
+            "[bold green]✨  T = 1.0 — VERIFICATO\n"
+            "La verità è confermata: A e C concordano, B non ha trovato errori.[/]",
+            border_style="green"
+        ))
+    else:
+        motivo = ("L'Avvocato ha sollevato obiezioni valide."
+                  if not b_senza_errori
+                  else "Discordanza tra A e C rilevata.")
+        _con.print(_Panel_bq(
+            f"[bold yellow]⚠   T = 0.5 — INCERTO\n{motivo}[/]",
+            border_style="yellow"
+        ))
+
+    # ── Salvataggio opzionale ─────────────────────────────────────────────────
+    salva = _Prompt_bq.ask(
+        "\n  [dim]💾 Vuoi salvare il risultato?[/]",
+        choices=["s", "n"], default="s"
+    )
+    if salva.lower() == "s":
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        path_out = os.path.join(CARTELLA_OUTPUT, f"byzantino_{ts}.txt")
+        try:
+            with open(path_out, "w", encoding="utf-8") as _f:
+                _f.write(f"=== PRISMALUX MOTORE BYZANTINO ===\n")
+                _f.write(f"Data: {ts}\nQuery: {query}\nModello: {modello}\n")
+                _f.write(f"Score: {score}  |  Verdetto: {'VERIFICATO' if d_verificato else 'INCERTO'}\n\n")
+                _f.write(f"[A - Esperto Originale]\n{out_a}\n\n")
+                _f.write(f"[B - Avvocato del Diavolo]\n{out_b}\n\n")
+                _f.write(f"[C - Gemello Indipendente]\n{out_c}\n\n")
+                _f.write(f"[D - Giudice Quantico]\n{out_d}\n")
+            _con.print(f"  [green]✓ Salvato: {path_out}[/]")
+        except OSError as e:
+            _con.print(f"  [red]✗ Errore salvataggio: {e}[/]")
+
+    input("\n  [INVIO per tornare] ")
+
+
+# ── Wrapper sottomenu Agenti AI ───────────────────────────────────────────────
+
+def menu_agenti() -> None:
+    """Sottomenu: Pipeline 6 agenti | Motore Byzantino."""
+    import shutil as _sh_ag
+    try:
+        _root_ag = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _root_ag not in sys.path:
+            sys.path.insert(0, _root_ag)
+        from check_deps import stampa_header as _stampa_h_ag
+        from rich.console import Console as _Con_ag
+    except ImportError:
+        # fallback senza Rich
+        while True:
+            os.system("cls" if sys.platform == "win32" else "clear")
+            print("\n  🤖  Agenti AI\n")
+            print("  1  Pipeline 6 Agenti")
+            print("  2  Motore Byzantino")
+            print("  0  Torna\n")
+            c = input("  Scelta: ").strip()
+            if c == "1":
+                avvia_menu()
+            elif c == "2":
+                motore_byzantino()
+            elif c in ("0", "q", "Q", ""):
+                break
+        return
+
+    while True:
+        os.system("cls" if sys.platform == "win32" else "clear")
+        _cols_ag = _sh_ag.get_terminal_size(fallback=(120, 40)).columns
+        _con_ag  = _Con_ag(width=_cols_ag)
+        _stampa_h_ag(_con_ag)
+
+        from rich.text import Text as _Tx_ag
+        t = _Tx_ag()
+        t.append("\n  🤖  Agenti AI\n\n", style="bold cyan")
+        t.append("  1️⃣   Pipeline 6 Agenti     ", style="bold")
+        t.append("ricercatore → pianificatore → 2 prog → tester → ottimizzatore\n", style="dim")
+        t.append("  2️⃣   Motore Byzantino       ", style="bold")
+        t.append("verifica a 4 agenti anti-allucinazione  (T = (A∧C)∧¬B)\n", style="dim")
+        t.append("  0️⃣   Torna\n", style="dim")
+        _con_ag.print(t)
+
+        if sys.platform == "win32":
+            scelta = input("  Scelta: ").strip()
+        else:
+            import tty as _tty_ag, termios as _term_ag
+            sys.stdout.write("  Scelta: ")
+            sys.stdout.flush()
+            fd = sys.stdin.fileno()
+            old = _term_ag.tcgetattr(fd)
+            try:
+                _tty_ag.setraw(fd)
+                scelta = sys.stdin.read(1)
+            finally:
+                _term_ag.tcsetattr(fd, _term_ag.TCSADRAIN, old)
+            print(scelta)
+
+        if scelta == "1":
+            avvia_menu()
+        elif scelta == "2":
+            motore_byzantino()
+        elif scelta in ("0", "q", "Q", "\x1b", ""):
+            break
+
+
 if __name__ == "__main__":
     avvia_menu()

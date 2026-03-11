@@ -1,10 +1,12 @@
 """
 Wrapper per AVVIA_Prismalux.py — espone menu_multiagente()
-che avvia il sistema Multi-Agente AI.
+che mostra il sottomenu Agenti AI:
+  1. Pipeline 6 Agenti (avvia_menu)
+  2. Motore Byzantino  (verifica a 4 agenti anti-allucinazione)
 """
 
-from multi_agente import avvia_menu
+from multi_agente import menu_agenti
 
 
 def menu_multiagente() -> None:
-    avvia_menu()
+    menu_agenti()
