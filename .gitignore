@@ -11,12 +11,22 @@ __pycache__/
 
 # ── llama.cpp — repo clonato (si riclona dal llama Studio) ──────────────────
 llama_cpp_studio/llama.cpp/
+C_software/llama.cpp/
+
+# ── C_software — binari e oggetti compilati ───────────────────────────────────
+C_software/*.o
+C_software/prismalux
+C_software/prismalux_http
+C_software/vram_bench
+C_software/download_model
+C_software.zip
 
 # ── Modelli GGUF personali (troppo grandi per git) ───────────────────────────
 llama_cpp_studio/models/*.gguf
 *.gguf
 
-# ── Output Multi-Agente (generati a runtime) ─────────────────────────────────
+# ── Output Multi-Agente (generati a runtime, tutti in esportazioni/) ─────────
+esportazioni/
 multi_agente/output_*.py
 multi_agente/report_*.html
 
