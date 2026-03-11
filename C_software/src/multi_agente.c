@@ -632,3 +632,143 @@ void menu_multi_agente(void) {
     printf(GRY "\n  [INVIO per tornare] " RST); fflush(stdout);
     { char _b[4]; if(!fgets(_b,sizeof _b,stdin)){} }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   MOTORE BYZANTINO — Verifica a 4 agenti anti-allucinazione
+   Pipeline: A (Originale) → B (Avvocato del Diavolo)
+           → C (Gemello Indipendente) → D (Giudice Quantico)
+   Logica booleana: T = (A ∧ C) ∧ ¬B_valido
+   ══════════════════════════════════════════════════════════════ */
+
+#define BQ_BUF 32768
+
+static void bq_stream_print(const char* piece, void* ud) {
+    (void)ud; printf(GRN "%s" RST, piece); fflush(stdout);
+}
+
+void menu_byzantine_engine(void) {
+    clear_screen(); print_header();
+    printf(CYN BLD "\n  \xf0\x9f\x94\xae  Motore Byzantino \xe2\x80\x94 Verifica a 4 Agenti\n" RST);
+    printf(GRY "  Pipeline: "
+               CYN "A" GRY " (Esperto) \xe2\x86\x92 "
+               RED "B" GRY " (Avvocato del Diavolo) \xe2\x86\x92 "
+               YLW "C" GRY " (Gemello) \xe2\x86\x92 "
+               MAG "D" GRY " (Giudice Quantico)\n" RST);
+    printf(GRY "  Logica: T = (A \xe2\x88\xa7 C) \xe2\x88\xa7 \xc2\xac" "B_valido\n\n" RST);
+
+    if (!backend_ready(&g_ctx)) { ensure_ready_or_return(&g_ctx); return; }
+    if (!check_risorse_ok()) return;
+
+    printf("  Inserisci la query da verificare " GRY "(" EM_0 " o vuoto = torna)" RST ":\n");
+    char query[1024];
+    if (!input_line("  \xe2\x9d\xaf ", query, sizeof query) || !query[0]) return;
+    if (query[0] == '0' && !query[1]) return;
+
+    /* Alloca buffer output per i 4 agenti */
+    char *out_a = malloc(BQ_BUF);
+    char *out_b = malloc(BQ_BUF);
+    char *out_c = malloc(BQ_BUF);
+    char *out_d = malloc(BQ_BUF);
+    char *prompt_b = malloc(BQ_BUF + 512);
+    char *prompt_d = malloc(BQ_BUF * 3 + 1024);
+    if (!out_a || !out_b || !out_c || !out_d || !prompt_b || !prompt_d) {
+        printf(RED "  Errore: memoria insufficiente.\n" RST);
+        free(out_a); free(out_b); free(out_c); free(out_d);
+        free(prompt_b); free(prompt_d);
+        return;
+    }
+
+    /* ── [A] Agente Originale / Esperto ──────────────────────── */
+    printf(CYN BLD "\n  [A] \xf0\x9f\xa7\xa0 Agente Originale (Esperto):\n" RST);
+    ai_chat_stream(&g_ctx,
+        "Sei un esperto altamente qualificato. Rispondi SEMPRE e SOLO in italiano "
+        "in modo preciso e dettagliato. Fornisci solo fatti verificabili. "
+        "Se non sei sicuro di qualcosa, dillo esplicitamente.",
+        query, bq_stream_print, NULL, out_a, BQ_BUF);
+    printf("\n");
+
+    /* ── [B] Avvocato del Diavolo ─────────────────────────────── */
+    printf(RED BLD "\n  [B] \xe2\x9a\x94\xef\xb8\x8f  Avvocato del Diavolo (cerca errori in A):\n" RST);
+    snprintf(prompt_b, BQ_BUF + 512,
+        "Hai ricevuto questa risposta da un esperto:\n\n%s\n\n"
+        "Il tuo UNICO scopo e' trovare errori, contraddizioni, imprecisioni o punti deboli. "
+        "Sii critico e severo. "
+        "Se la risposta e' completamente corretta, scrivi esattamente: 'NESSUN ERRORE RILEVATO'. "
+        "Altrimenti elenca gli errori trovati.", out_a);
+    ai_chat_stream(&g_ctx,
+        "Sei l'Avvocato del Diavolo. Rispondi SEMPRE e SOLO in italiano. "
+        "Il tuo ruolo e' dimostrare che l'affermazione ricevuta e' sbagliata o incompleta. "
+        "Cerca contraddizioni, errori logici, storici o tecnici.",
+        prompt_b, bq_stream_print, NULL, out_b, BQ_BUF);
+    printf("\n");
+
+    /* ── [C] Gemello Indipendente ─────────────────────────────── */
+    printf(YLW BLD "\n  [C] \xf0\x9f\x94\x84 Gemello Indipendente (risponde senza vedere A):\n" RST);
+    ai_chat_stream(&g_ctx,
+        "Sei un validatore indipendente. Rispondi SEMPRE e SOLO in italiano. "
+        "NON hai visto la risposta di altri agenti. Rispondi in modo autonomo e obiettivo. "
+        "Sii preciso e fornisci solo fatti verificabili.",
+        query, bq_stream_print, NULL, out_c, BQ_BUF);
+    printf("\n");
+
+    /* ── [D] Giudice Quantico ─────────────────────────────────── */
+    printf(MAG BLD "\n  [D] \xe2\x9a\x96\xef\xb8\x8f  Giudice Quantico (verdetto finale):\n" RST);
+    snprintf(prompt_d, BQ_BUF * 3 + 1024,
+        "Query originale: %s\n\n"
+        "RISPOSTA A (Esperto Originale):\n%s\n\n"
+        "RISPOSTA B (Avvocato del Diavolo):\n%s\n\n"
+        "RISPOSTA C (Gemello Indipendente, non ha visto A):\n%s\n\n"
+        "Applica la logica booleana: T = (A concordante con C) AND (B non ha trovato errori validi).\n"
+        "Emetti il verdetto:\n"
+        "- Se T=1.0: scrivi 'VERDETTO: VERIFICATO' e una sintesi della risposta corretta.\n"
+        "- Se T<1.0: scrivi 'VERDETTO: INCERTO' e spiega le discordanze rilevate.",
+        query, out_a, out_b, out_c);
+    ai_chat_stream(&g_ctx,
+        "Sei il Giudice Quantico Super-Osservatore. Rispondi SEMPRE e SOLO in italiano. "
+        "Analizza il dibattito tra i tre agenti e emetti un verdetto finale "
+        "basato sulla logica booleana. Sii imparziale, preciso e conciso.",
+        prompt_d, bq_stream_print, NULL, out_d, BQ_BUF);
+    printf("\n");
+
+    /* ── Collision score e verdetto visivo ───────────────────── */
+    int b_senza_errori = (strstr(out_b, "NESSUN ERRORE")   != NULL ||
+                          strstr(out_b, "nessun errore")   != NULL);
+    int d_verificato   = (strstr(out_d, "VERIFICATO")      != NULL);
+    double score = (b_senza_errori && d_verificato) ? 1.0 : 0.5;
+
+    printf("\n");
+    if (score >= 1.0) {
+        printf(GRN BLD "  \xe2\x9c\xa8 T = 1.0 \xe2\x80\x94 VERIFICATO. La verit\xc3\xa0 \xc3\xa8 confermata.\n" RST);
+    } else {
+        printf(YLW BLD "  \xe2\x9a\xa0  T = 0.5 \xe2\x80\x94 INCERTO. " RST);
+        if (!b_senza_errori)
+            printf(YLW "L'Avvocato ha sollevato obiezioni valide.\n" RST);
+        else
+            printf(YLW "Discordanza tra A e C rilevata.\n" RST);
+    }
+
+    /* Salvataggio opzionale */
+    printf(GRY "\n  \xf0\x9f\x92\xbe Vuoi salvare il risultato? [S/n] " RST); fflush(stdout);
+    char yn[8];
+    if (fgets(yn, sizeof yn, stdin) &&
+        (yn[0]=='S' || yn[0]=='s' || yn[0]=='\n' || yn[0]=='\r')) {
+        char *full = malloc(BQ_BUF * 4 + 2048);
+        if (full) {
+            snprintf(full, BQ_BUF * 4 + 2048,
+                "[A - Esperto Originale]\n%s\n\n"
+                "[B - Avvocato del Diavolo]\n%s\n\n"
+                "[C - Gemello Indipendente]\n%s\n\n"
+                "[D - Giudice Quantico]\n%s\n\n"
+                "Collision score: %.1f  |  Verdetto: %s",
+                out_a, out_b, out_c, out_d,
+                score, d_verificato ? "VERIFICATO" : "INCERTO");
+            salva_output(query, full);
+            free(full);
+        }
+    }
+
+    free(out_a); free(out_b); free(out_c); free(out_d);
+    free(prompt_b); free(prompt_d);
+    printf(GRY "\n  [INVIO per tornare] " RST); fflush(stdout);
+    { char _b[4]; if(!fgets(_b, sizeof _b, stdin)){} }
+}

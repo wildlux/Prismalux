@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 void menu_multi_agente(void);
+void menu_byzantine_engine(void);
 
 #ifdef __cplusplus
 }

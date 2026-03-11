@@ -21,6 +21,25 @@
 #include "hw_detect.h"
 
 /* ══════════════════════════════════════════════════════════════
+   Voce 1 — Agenti AI (sottomenu: Pipeline 6 agenti + Motore Byzantino)
+   ══════════════════════════════════════════════════════════════ */
+static void menu_agenti(void) {
+    while(1){
+        clear_screen(); print_header();
+        printf(CYN BLD "\n  \xf0\x9f\xa4\x96  Agenti AI\n\n" RST);
+        printf("  " EM_1 "  \xf0\x9f\x94\x84  Pipeline 6 Agenti     "
+               GRY "ricercatore \xe2\x86\x92 pianificatore \xe2\x86\x92 2 prog \xe2\x86\x92 tester \xe2\x86\x92 ottimizzatore" RST "\n");
+        printf("  " EM_2 "  \xf0\x9f\x94\xae  Motore Byzantino      "
+               GRY "verifica a 4 agenti anti-allucinazione (A,B,C,D)" RST "\n");
+        printf("  " EM_0 "  Torna\n\n  " GRN "Scelta: " RST); fflush(stdout);
+        int c = getch_single(); printf("%c\n", c);
+        if      (c == '1') menu_multi_agente();
+        else if (c == '2') menu_byzantine_engine();
+        else if (c == '0' || c == 'q' || c == 'Q' || c == 27) break;
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
    Voce 3 — Impara con AI
    ══════════════════════════════════════════════════════════════ */
 static void menu_impara(void) {
@@ -237,8 +256,8 @@ static void menu_principale(void) {
 
         /* ── Voci menu ───────────────────────────────────────── */
         box_emp(W);
-        MROW(EM_1, "\xf0\x9f\xa4\x96", "Multi-Agente LLM",
-             "6 agenti: ricercatore, pianificatore, 2 prog, tester, ottimizzatore");
+        MROW(EM_1, "\xf0\x9f\xa4\x96", "Agenti AI",
+             "Pipeline 6 agenti | Motore Byzantino anti-allucinazione");
         MROW(EM_2, "\xf0\x9f\x9b\xa0\xef\xb8\x8f", "Strumento Pratico",
              "730, Partita IVA, Cerca Lavoro, CV Reader");
         MROW(EM_3, "\xf0\x9f\x93\x9a", "Impara con AI",
@@ -303,7 +322,7 @@ static void menu_principale(void) {
             return;
         }
         switch(c){
-            case '1': menu_multi_agente();       break;
+            case '1': menu_agenti();             break;
             case '2': menu_pratico();            break;
             case '3': menu_impara();             break;
             case '4': menu_personalizzazione();  break;
