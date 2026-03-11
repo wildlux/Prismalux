@@ -81,18 +81,18 @@ echo  [OK] Versione: %GCC_VER%
 echo.
 
 :: ── Controlla file sorgente ────────────────────────────────────────────
-if not exist "prismalux.c" (
-    echo  [ERRORE] prismalux.c non trovato.
+if not exist "src\main.c" (
+    echo  [ERRORE] src\main.c non trovato.
     echo  Esegui questo script dalla cartella C_software.
     pause
     exit /b 1
 )
-if not exist "hw_detect.c" (
-    echo  [ERRORE] hw_detect.c non trovato.
+if not exist "src\hw_detect.c" (
+    echo  [ERRORE] src\hw_detect.c non trovato.
     pause
     exit /b 1
 )
-echo  [OK] Sorgenti trovati: prismalux.c, hw_detect.c
+echo  [OK] Sorgenti trovati in src\
 
 :: ── Crea cartella models se non esiste ────────────────────────────────
 if not exist "models" (
@@ -101,10 +101,10 @@ if not exist "models" (
 )
 
 :: ── Opzioni di compilazione ────────────────────────────────────────────
-set CFLAGS=-O2 -Wall -DWIN32_LEAN_AND_MEAN
-set LIBS=-lws2_32
+set CFLAGS=-O2 -Wall -DWIN32_LEAN_AND_MEAN -Iinclude
+set LIBS=-lws2_32 -lm
 set TARGET=prismalux.exe
-set SOURCES=prismalux.c hw_detect.c
+set SOURCES=src\main.c src\backend.c src\terminal.c src\http.c src\ai.c src\modelli.c src\output.c src\multi_agente.c src\strumenti.c src\hw_detect.c src\agent_scheduler.c src\prismalux_ui.c
 
 :: ── Rilevamento GPU per suggerimento ──────────────────────────────────
 echo  Rilevamento GPU...

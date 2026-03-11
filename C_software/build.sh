@@ -80,43 +80,47 @@ if grep -q "llama_load_model_from_file" "$LLAMA_H" 2>/dev/null; then
     echo "   ✓ API legacy (llama_load_model_from_file) — wrapper compatibile"
 elif grep -q "llama_model_load_from_file" "$LLAMA_H" 2>/dev/null; then
     echo "   ⚠  API nuova (llama_model_load_from_file) rilevata."
-    echo "   Aggiornamento automatico llama_wrapper.cpp..."
-    sed -i 's/llama_load_model_from_file/llama_model_load_from_file/g' llama_wrapper.cpp
-    sed -i 's/llama_free_model/llama_model_free/g' llama_wrapper.cpp
-    echo "   ✓ llama_wrapper.cpp aggiornato alle API nuove."
+    echo "   Aggiornamento automatico src/llama_wrapper.cpp..."
+    sed -i 's/llama_load_model_from_file/llama_model_load_from_file/g' src/llama_wrapper.cpp
+    sed -i 's/llama_free_model/llama_model_free/g' src/llama_wrapper.cpp
+    echo "   ✓ src/llama_wrapper.cpp aggiornato alle API nuove."
 else
     echo "   ⚠  Impossibile rilevare versione API — proseguo con le API legacy."
 fi
 
 # 5. Compila llama_wrapper.cpp
-echo "🔧 Compilazione wrapper C++..."
+echo "🔧 Compilazione src/llama_wrapper.cpp..."
 g++ -O2 -std=c++17 \
     -I llama.cpp/include \
     -I llama.cpp/ggml/include \
-    -c llama_wrapper.cpp -o llama_wrapper.o
+    -I include \
+    -c src/llama_wrapper.cpp -o src/llama_wrapper.o
 
-# 6. Compila hw_detect.c
-echo "🔧 Compilazione hw_detect.c..."
-gcc -O2 -Wall -c hw_detect.c -o hw_detect.o
+# 6. Compila tutti i sorgenti C
+echo "🔧 Compilazione sorgenti C..."
+CFLAGS="-O2 -Wall -Iinclude"
+for SRC in src/hw_detect.c src/agent_scheduler.c src/prismalux_ui.c \
+           src/backend.c src/terminal.c src/http.c src/ai.c \
+           src/modelli.c src/output.c src/multi_agente.c src/strumenti.c; do
+    OBJ="${SRC%.c}.o"
+    gcc $CFLAGS -c "$SRC" -o "$OBJ"
+done
 
-# 7. Compila prismalux_ui.c
-echo "🔧 Compilazione prismalux_ui.c..."
-gcc -O2 -Wall -I . -c prismalux_ui.c -o prismalux_ui.o
+# 7. Compila main.c con -DWITH_LLAMA_STATIC
+echo "🔧 Compilazione src/main.c (statico)..."
+gcc $CFLAGS -DWITH_LLAMA_STATIC -c src/main.c -o src/main.o
 
-# 8. Compila prismalux.c
-echo "🔧 Compilazione prismalux.c..."
-gcc -O2 -Wall -DWITH_LLAMA_STATIC \
-    -I . \
-    -c prismalux.c -o prismalux.o
-
-# 9. Link finale
+# 8. Link finale
 echo "🔗 Linking..."
 g++ -O2 -o prismalux \
-    prismalux.o prismalux_ui.o llama_wrapper.o hw_detect.o \
+    src/main.o src/backend.o src/terminal.o src/http.o src/ai.o \
+    src/modelli.o src/output.o src/multi_agente.o src/strumenti.o \
+    src/prismalux_ui.o src/hw_detect.o src/agent_scheduler.o \
+    src/llama_wrapper.o \
     -Wl,--start-group $LLAMA_LIBS -Wl,--end-group \
     -lpthread -lm -ldl -lgomp $(pkg-config --libs cublas 2>/dev/null || true)
 
-# 8. Crea cartella models se non esiste
+# 9. Crea cartella models se non esiste
 mkdir -p models
 
 # Calcola dimensione binario

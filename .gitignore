@@ -15,9 +15,11 @@ C_software/llama.cpp/
 
 # ── C_software — binari e oggetti compilati ───────────────────────────────────
 C_software/*.o
+C_software/src/*.o
 C_software/prismalux
 C_software/prismalux_http
 C_software/vram_bench
+C_software/vram_bench_static
 C_software/download_model
 C_software.zip
 
@@ -30,11 +32,10 @@ esportazioni/
 multi_agente/output_*.py
 multi_agente/report_*.html
 
-# ── Cython build artifacts ────────────────────────────────────────────────────
+# ── Cython build artifacts (solo in Python_Software/) ────────────────────────
 *.so
-*.pyd
-*.c
-*.html
+Python_Software/**/*.c
+Python_Software/**/*.html
 build/
 dist/
 *.egg-info/
