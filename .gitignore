@@ -50,7 +50,9 @@ C_software/jlt_speedup_demo
 
 # ── Qt GUI — directory build (binari compilati) ────────────────────────────────
 C_software/Qt_GUI/build/
+C_software/Qt_GUI/build_dbg/
 Qt_GUI/build/
+Qt_GUI/build_dbg/
 
 # ── Artefatti generati e file personali ───────────────────────────────────────
 Prismalux_Windows_full.zip
