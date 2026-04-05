@@ -61,6 +61,10 @@ hybrid_llm/
 C_software/C_software/
 C_software/llama_cpp_studio/
 
+# ── AppImage — artefatti generati ─────────────────────────────────────────────
+*.AppImage
+AppDir/
+
 # ── Modelli GGUF personali (troppo grandi per git) ───────────────────────────
 llama_cpp_studio/models/*.gguf
 *.gguf
