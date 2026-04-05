@@ -1,5 +1,28 @@
 /*
- * hw_detect.c — Implementazione rilevamento hardware cross-platform
+ * hw_detect.c — Rilevamento hardware cross-platform (CPU + GPU + RAM/VRAM)
+ * =========================================================================
+ * Strategia di rilevamento per piattaforma:
+ *
+ *   CPU / RAM
+ *     Linux   → /proc/meminfo (MemTotal, MemAvailable) + /proc/cpuinfo
+ *     Windows → GlobalMemoryStatusEx() + wmic cpu get Name
+ *
+ *   NVIDIA GPU (tutte le piattaforme)
+ *     nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits
+ *     Riserva 15% VRAM per driver/contesto OS.
+ *
+ *   AMD GPU
+ *     Linux   → /sys/class/drm/card[N]/device/ (vendor=0x1002, mem_info_vram_total)
+ *               Fallback nome GPU: product_name oppure rocm-smi --showproductname
+ *     Windows → wmic path Win32_VideoController (filtra AMD/Radeon/ATI)
+ *
+ * La funzione hw_detect() riempie HWInfo con tutti i device trovati,
+ * ordina le GPU per VRAM decrescente e assegna primary/secondary.
+ * primary  = GPU con più VRAM disponibile (preferita per llama.cpp)
+ * secondary = seconda GPU o CPU (per split layer o fallback)
+ *
+ * hw_gpu_layers(vram_mb) restituisce n_gpu_layers ottimale per llama.cpp
+ * in base alla VRAM libera stimata.
  */
 #include "hw_detect.h"
 #include <stdio.h>
@@ -7,7 +30,9 @@
 #include <string.h>
 
 #ifdef _WIN32
-#  define WIN32_LEAN_AND_MEAN
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
 #  include <windows.h>
 #  define popen  _popen
 #  define pclose _pclose
@@ -55,6 +80,7 @@ const char* hw_dev_type_str(DevType t) {
         case DEV_CPU:    return "CPU";
         case DEV_NVIDIA: return "NVIDIA";
         case DEV_AMD:    return "AMD";
+        case DEV_INTEL:  return "INTL";
     }
     return "?";
 }
@@ -80,7 +106,7 @@ static void detect_cpu(HWDevice* dev) {
         char line[256];
         while (fgets(line, sizeof(line), f)) {
             if (strncmp(line, "Name=", 5) == 0) {
-                strncpy(dev->name, line + 5, sizeof(dev->name) - 1);
+                snprintf(dev->name, sizeof(dev->name), "%s", line + 5);
                 trim_str(dev->name);
                 break;
             }
@@ -140,7 +166,7 @@ static int detect_nvidia(HWDevice* out, int max) {
         memset(d, 0, sizeof(*d));
         d->type      = DEV_NVIDIA;
         d->gpu_index = count;
-        strncpy(d->name, line, sizeof(d->name) - 1);
+        snprintf(d->name, sizeof(d->name), "%s", line);
         trim_str(d->name);
         d->mem_mb   = strtoll(comma + 1, NULL, 10);
         d->avail_mb = d->mem_mb * 85 / 100; /* riserva 15% per driver */
@@ -170,7 +196,7 @@ static int detect_amd_linux(HWDevice* out, int max) {
         FILE* vf = fopen(path, "r");
         if (!vf) continue;
         unsigned vendor = 0;
-        fscanf(vf, "0x%x", &vendor);
+        { int _r = fscanf(vf, "0x%x", &vendor); (void)_r; }
         fclose(vf);
         if (vendor != 0x1002) { continue; } /* non AMD */
 
@@ -179,7 +205,7 @@ static int detect_amd_linux(HWDevice* out, int max) {
         FILE* mf = fopen(path, "r");
         if (!mf) { gpu_idx++; continue; }
         unsigned long long vram_bytes = 0;
-        fscanf(mf, "%llu", &vram_bytes);
+        { int _r = fscanf(mf, "%llu", &vram_bytes); (void)_r; }
         fclose(mf);
         if (vram_bytes < 64ULL * 1024 * 1024) { gpu_idx++; continue; } /* < 64MB → skip (iGPU tiny) */
 
@@ -194,7 +220,7 @@ static int detect_amd_linux(HWDevice* out, int max) {
         /* nome GPU */
         snprintf(path, sizeof(path), "/sys/class/drm/%s/device/product_name", e->d_name);
         FILE* nf = fopen(path, "r");
-        if (nf) { fgets(d->name, sizeof(d->name), nf); fclose(nf); trim_str(d->name); }
+        if (nf) { char* _r = fgets(d->name, sizeof(d->name), nf); (void)_r; fclose(nf); trim_str(d->name); }
         if (!d->name[0]) {
             /* fallback: prova via rocm-smi */
             char cmd[128];
@@ -210,6 +236,67 @@ static int detect_amd_linux(HWDevice* out, int max) {
             }
         }
         if (!d->name[0]) snprintf(d->name, sizeof(d->name), "AMD GPU card%s", e->d_name + 4);
+        count++;
+    }
+    closedir(dr);
+    return count;
+}
+#endif
+
+/* ── Intel GPU Linux (via /sys/class/drm, vendor 0x8086) ───────────── */
+#ifndef _WIN32
+static int detect_intel_linux(HWDevice* out, int max) {
+    int count = 0;
+    DIR* dr = opendir("/sys/class/drm");
+    if (!dr) return 0;
+    struct dirent* e;
+    while ((e = readdir(dr)) != NULL && count < max) {
+        if (strncmp(e->d_name, "card", 4) != 0) continue;
+        if (strchr(e->d_name + 4, '-')) continue; /* salta card0-HDMI-A-1 ecc. */
+
+        /* verifica vendor Intel (0x8086) */
+        char path[512];
+        snprintf(path, sizeof(path), "/sys/class/drm/%s/device/vendor", e->d_name);
+        FILE* vf = fopen(path, "r");
+        if (!vf) continue;
+        unsigned vendor = 0;
+        { int _r = fscanf(vf, "0x%x", &vendor); (void)_r; }
+        fclose(vf);
+        if (vendor != 0x8086) continue; /* non Intel */
+
+        HWDevice* d = &out[count];
+        memset(d, 0, sizeof(*d));
+        d->type      = DEV_INTEL;
+        /* usa il numero DRM direttamente dal nome directory (card0→0, card1→1) */
+        d->gpu_index = atoi(e->d_name + 4);
+
+        /* VRAM dedicata — esiste su Intel Arc (xe driver), non su iGPU (i915) */
+        snprintf(path, sizeof(path),
+                 "/sys/class/drm/%s/device/mem_info_vram_total", e->d_name);
+        FILE* mf = fopen(path, "r");
+        if (mf) {
+            unsigned long long vram_bytes = 0;
+            { int _r = fscanf(mf, "%llu", &vram_bytes); (void)_r; }
+            fclose(mf);
+            d->mem_mb = (long long)(vram_bytes / (1024ULL * 1024ULL));
+        }
+        /* iGPU senza VRAM dedicata: mem_mb rimane 0 */
+        d->avail_mb     = d->mem_mb * 85 / 100;
+        d->n_gpu_layers = hw_gpu_layers(d->avail_mb);
+
+        /* nome GPU */
+        snprintf(path, sizeof(path),
+                 "/sys/class/drm/%s/device/product_name", e->d_name);
+        FILE* nf = fopen(path, "r");
+        if (nf) {
+            char* _r = fgets(d->name, sizeof(d->name), nf);
+            (void)_r;
+            fclose(nf);
+            trim_str(d->name);
+        }
+        if (!d->name[0])
+            snprintf(d->name, sizeof(d->name), "Intel GPU (card%s)", e->d_name + 4);
+
         count++;
     }
     closedir(dr);
@@ -252,6 +339,44 @@ static int detect_amd_windows(HWDevice* out, int max) {
 }
 #endif
 
+/* ── Intel GPU Windows (via wmic VideoController) ──────────────────── */
+#ifdef _WIN32
+static int detect_intel_windows(HWDevice* out, int max) {
+    int count = 0;
+    FILE* f = popen("wmic path Win32_VideoController get Name,AdapterRAM /format:csv 2>nul", "r");
+    if (!f) return 0;
+    char line[512];
+    while (fgets(line, sizeof(line), f) && count < max) {
+        trim_str(line);
+        if (!line[0]) continue;
+        /* CSV: Node,AdapterRAM,Name */
+        char* p1 = strchr(line, ',');  if (!p1) continue; p1++;
+        char* p2 = strchr(p1,   ',');  if (!p2) continue; *p2 = '\0'; p2++;
+        trim_str(p2);
+        /* solo schede Intel (Arc, UHD, HD Graphics, Iris Xe) */
+        if (!strstr(p2, "Intel")) continue;
+        /* esclude eventuali match spurii con altri vendor */
+        if (strstr(p2, "NVIDIA") || strstr(p2, "AMD") ||
+            strstr(p2, "Radeon") || strstr(p2, "ATI")) continue;
+
+        long long ram_bytes = strtoll(p1, NULL, 10);
+        HWDevice* d = &out[count];
+        memset(d, 0, sizeof(*d));
+        d->type      = DEV_INTEL;
+        d->gpu_index = count;
+        strncpy(d->name, p2, sizeof(d->name) - 1);
+        d->mem_mb    = ram_bytes / (1024LL * 1024LL);
+        /* iGPU su Windows: AdapterRAM spesso 0 o sottostimato (usa RAM di sistema) */
+        if (d->mem_mb < 64) d->mem_mb = 0; /* shared memory, non dedicata */
+        d->avail_mb     = d->mem_mb * 85 / 100;
+        d->n_gpu_layers = hw_gpu_layers(d->avail_mb);
+        count++;
+    }
+    pclose(f);
+    return count;
+}
+#endif
+
 /* ── Ordina per mem_mb decrescente ─────────────────────────────────── */
 static void sort_by_mem(HWDevice* devs, int n) {
     for (int i = 0; i < n - 1; i++)
@@ -271,14 +396,16 @@ void hw_detect(HWInfo* out) {
     /* CPU — sempre presente */
     detect_cpu(&out->dev[n++]);
 
-    /* GPU — cerca NVIDIA + AMD */
+    /* GPU — cerca NVIDIA + AMD + Intel */
     HWDevice gpu_tmp[HW_MAX_DEV];
     int ng = 0;
     ng += detect_nvidia(gpu_tmp + ng, HW_MAX_DEV - ng);
 #ifdef _WIN32
     ng += detect_amd_windows(gpu_tmp + ng, HW_MAX_DEV - ng);
+    ng += detect_intel_windows(gpu_tmp + ng, HW_MAX_DEV - ng);
 #else
     ng += detect_amd_linux(gpu_tmp + ng, HW_MAX_DEV - ng);
+    ng += detect_intel_linux(gpu_tmp + ng, HW_MAX_DEV - ng);
 #endif
     sort_by_mem(gpu_tmp, ng);
     for (int i = 0; i < ng && n < HW_MAX_DEV; i++)

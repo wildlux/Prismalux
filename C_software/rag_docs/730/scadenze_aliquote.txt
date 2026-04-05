@@ -1,0 +1,23 @@
+SCADENZE E ALIQUOTE IRPEF — MODELLO 730
+
+SCADENZE 730 (anno d'imposta 2024, presentazione 2025):
+- 30 aprile 2025: termine per 730 precompilato accettato senza modifiche
+- 30 settembre 2025: termine ordinario per presentazione 730 (con CAF o professionista)
+- Luglio 2025: rimborso o trattenuta in busta paga (dipendenti) o pensione
+
+ALIQUOTE IRPEF 2024 (riforma in vigore dal 2024):
+- Fino a 28.000 euro: aliquota 23%
+- Da 28.001 a 50.000 euro: aliquota 35%
+- Oltre 50.000 euro: aliquota 43%
+
+ADDIZIONALE REGIONALE: varia per regione (0,5% - 3,33% circa)
+ADDIZIONALE COMUNALE: varia per comune (da 0% a 0,8%)
+
+DETRAZIONI DA LAVORO DIPENDENTE (2024):
+- Reddito fino a 15.000 euro: detrazione 1.955 euro
+- Reddito 15.001-28.000 euro: formula proporzionale
+- Reddito 28.001-50.000 euro: detrazione ridotta + ulteriore detrazione 65 euro
+- Oltre 50.000 euro: nessuna detrazione lavoro dipendente
+
+730 PRECOMPILATO: disponibile dal 30 aprile sul sito Agenzia delle Entrate.
+Dati precaricati: CU datore di lavoro, interessi mutuo, spese sanitarie (tessera sanitaria), contributi previdenziali.

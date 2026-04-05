@@ -1,0 +1,2 @@
+set(__QT_DEPLOY_TARGET_Prismalux_GUI_FILE /home/wildlux/Desktop/Prismalux/C_software/Qt_GUI/build_debug/Prismalux_GUI)
+set(__QT_DEPLOY_TARGET_Prismalux_GUI_TYPE EXECUTABLE)

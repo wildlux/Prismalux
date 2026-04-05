@@ -1,0 +1,24 @@
+Prismalux — Font professionali
+==============================
+
+Scarica i seguenti font e metti i file .ttf/.otf in questa cartella.
+Verranno caricati automaticamente all'avvio senza reinstallazione.
+
+── UI FONT (interfaccia) ──────────────────────────────────────────
+Inter (consigliato)
+  https://github.com/rsms/inter/releases
+  File necessari: Inter-Regular.ttf  Inter-Medium.ttf
+                  Inter-SemiBold.ttf Inter-Bold.ttf
+
+── MONO FONT (chat log, output AI) ───────────────────────────────
+JetBrains Mono
+  https://www.jetbrains.com/legalnotices/font/
+  File necessari: JetBrainsMono-Regular.ttf
+                  JetBrainsMono-Medium.ttf (opzionale)
+
+── NOTE ──────────────────────────────────────────────────────────
+- Su Linux: Inter e JetBrains Mono sono disponibili anche via
+  pacchetto (fonts-inter, fonts-jetbrains-mono su Ubuntu/Debian).
+- Su Windows: senza questi file il fallback è Segoe UI + Consolas
+  (già buoni, ma Inter dà un look più moderno e consistente).
+- Su macOS: fallback è -apple-system + Menlo (ottimi di default).

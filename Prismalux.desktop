@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Prismalux
+GenericName=Centro di Controllo AI
+Comment=Pipeline Agenti, Tutor AI, Strumenti Pratici
+Exec=/home/wildlux/Desktop/Prismalux/C_software/Qt_GUI/build/Prismalux_GUI
+Icon=applications-science
+Terminal=false
+Categories=Education;Science;Utility;
+Keywords=AI;agenti;matematica;tutor;ollama;
+StartupNotify=true

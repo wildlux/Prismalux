@@ -1,0 +1,28 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+<qresource prefix="/themes">
+    <file>dark_cyan.qss</file>
+    <file>dark_amber.qss</file>
+    <file>dark_purple.qss</file>
+    <file>light.qss</file>
+    <file>dark_green.qss</file>
+    <file>dark_sunset.qss</file>
+    <file>dark_ocean.qss</file>
+    <file>dark_lavender.qss</file>
+    <file>dark_rainbow.qss</file>
+    <file>dark_classic.qss</file>
+    <file>neon.qss</file>
+    <file>hacker.qss</file>
+    <file>solar.qss</file>
+    <file>pink.qss</file>
+    <file>military.qss</file>
+    <file>venom_green.qss</file>
+    <file>venom_orange.qss</file>
+    <file>venom_blue.qss</file>
+    <file>venom_red.qss</file>
+    <file>light_mint.qss</file>
+    <file>light_rose.qss</file>
+    <file>light_sand.qss</file>
+    <file>light_sky.qss</file>
+</qresource>
+</RCC>

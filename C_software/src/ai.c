@@ -8,6 +8,21 @@
 #include "prismalux_ui.h"
 #include "terminal.h"
 
+/* Calcola keep_alive_secs in base alla RAM libera.
+ * RAM libera > 50% del totale → -1 (default Ollama 5m, modello resta in RAM).
+ * RAM libera 20-50%           →  60 (1 minuto, poi scarica).
+ * RAM libera < 20%            →   0 (scarica subito dopo la risposta).
+ * Questo evita che modelli pesanti blocchino il sistema quando l'utente
+ * apre altri programmi dopo aver usato l'AI. */
+static int _smart_keep_alive(void) {
+    SysRes r = get_resources();
+    if(r.ram_total <= 0) return -1;  /* non rilevabile: usa default */
+    double free_pct = (r.ram_total - r.ram_used) / r.ram_total * 100.0;
+    if(free_pct > 50.0) return -1;  /* RAM abbondante: mantieni in RAM */
+    if(free_pct > 20.0) return 60;  /* RAM media: scarica dopo 1 minuto */
+    return 0;                        /* RAM scarsa: scarica subito */
+}
+
 /* ══════════════════════════════════════════════════════════════
    SEZIONE 6 — Astrazione AI: ai_chat_stream / ai_chat
    ══════════════════════════════════════════════════════════════ */
@@ -31,7 +46,8 @@ int ai_chat_stream(const BackendCtx* ctx,
 #endif
         case BACKEND_OLLAMA:
             return http_ollama_stream(ctx->host, ctx->port, ctx->model,
-                                      sys_p, usr, cb, ud, out, outmax);
+                                      sys_p, usr, cb, ud, out, outmax,
+                                      _smart_keep_alive());
         case BACKEND_LLAMASERVER:
             return http_llamaserver_stream(ctx->host, ctx->port, ctx->model,
                                            sys_p, usr, cb, ud, out, outmax);

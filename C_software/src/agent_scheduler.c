@@ -24,7 +24,9 @@
 #include <math.h>
 
 #ifdef _WIN32
-#  define WIN32_LEAN_AND_MEAN
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
 #  include <windows.h>
 #  include <unistd.h>   /* _SC_NPROCESSORS_ONLN non esiste su Win, usiamo GetSystemInfo */
 #else
@@ -37,11 +39,14 @@
 #  define HAS_LW 1
 #else
 /* Stub silenziosi: lo scheduler funziona anche senza llama statico
- * (es. quando si usa il backend Ollama HTTP). */
-static int         lw_init(const char* p, int g, int c)
+ * (es. quando si usa il backend Ollama HTTP).
+ * __attribute__((unused)) sopprime il warning -Wunused-function: questi stub
+ * non vengono chiamati direttamente ma esistono per risolvere i simboli
+ * in as_load/as_evict quando HAS_LW=0. */
+static int  __attribute__((unused)) lw_init(const char* p, int g, int c)
                    { (void)p;(void)g;(void)c; return -1; }
-static void        lw_free(void) {}
-static int         lw_is_loaded(void) { return 0; }
+static void __attribute__((unused)) lw_free(void) {}
+static int  __attribute__((unused)) lw_is_loaded(void) { return 0; }
 #  define HAS_LW 0
 #endif
 
@@ -79,9 +84,21 @@ static int _default_ctx(const char* name) {
     return 2048;   /* ricercatore, tester */
 }
 
-/* ─────────────────────────────────────────────────────────────────── */
-/*  API PUBBLICA                                                       */
-/* ─────────────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   SEZIONE — Scheduler Hot/Cold: API pubblica
+   ══════════════════════════════════════════════════════════════
+   Ciclo di vita tipico:
+     1. as_init()          → legge VRAM/RAM disponibile da HWInfo
+     2. as_add() x N       → registra ogni agente con nome, path, priorità
+     3. as_load_vram_profile() → (opzionale) carica misure reali da vram_bench
+     4. as_assign_layers() → calcola n_gpu_layers per ogni agente
+     5. for ogni agente:
+          as_load(idx)     → evict HOT se diverso, poi lw_init → HOT
+          ai_chat_stream() → inferenza
+          as_record(idx, latency) → aggiorna statistiche + promozione
+     6. as_evict()         → scarica tutto a fine pipeline
+     7. as_save_vram_profile() → (opzionale) salva misure per la prossima run
+   ══════════════════════════════════════════════════════════════ */
 
 void as_init(AgentScheduler* s, const HWInfo* hw) {
     memset(s, 0, sizeof(*s));
@@ -188,8 +205,8 @@ int as_load_vram_profile(AgentScheduler* s, const char* json_path) {
 
     char* buf = (char*)malloc((size_t)fsz + 1);
     if (!buf) { fclose(f); return -1; }
-    fread(buf, 1, (size_t)fsz, f);
-    buf[fsz] = '\0';
+    size_t nread = fread(buf, 1, (size_t)fsz, f);
+    buf[nread] = '\0';  /* null-termina i byte effettivamente letti (fread può leggere meno di fsz) */
     fclose(f);
 
     int found = 0;
@@ -336,6 +353,15 @@ int as_load(AgentScheduler* s, int idx) {
 
 /* ── as_record ────────────────────────────────────────────────────
  * Aggiorna statistiche dopo ogni chiamata riuscita.
+ *
+ * Latenza — media mobile esponenziale (EMA) con α=0.3:
+ *   avg = 0.7 × avg_precedente + 0.3 × latenza_attuale
+ *   Pesa di più la storia recente senza salti bruschi.
+ *
+ * Promozione sticky-hot:
+ *   Se call_count ≥ AS_STICKY_THRESHOLD (3) e priority > 1,
+ *   l'agente diventa priority=1: as_assign_layers gli assegna
+ *   il massimo di layer GPU e resta HOT il più a lungo possibile.
  * ────────────────────────────────────────────────────────────────── */
 void as_record(AgentScheduler* s, int idx, double latency_s) {
     if (idx < 0 || idx >= s->n) return;
@@ -344,7 +370,7 @@ void as_record(AgentScheduler* s, int idx, double latency_s) {
     a->call_count++;
     a->last_used = time(NULL);
 
-    /* Media mobile esponenziale della latenza (α=0.3) */
+    /* EMA latenza (α=0.3): inizializzazione diretta alla prima chiamata */
     if (a->avg_latency_s <= 0.0)
         a->avg_latency_s = latency_s;
     else
@@ -353,7 +379,7 @@ void as_record(AgentScheduler* s, int idx, double latency_s) {
     /* Promozione a sticky-hot se chiamato frequentemente */
     if (a->call_count >= AS_STICKY_THRESHOLD && a->priority > 1) {
         a->priority = 1;
-        printf("  ⭐  %s %s promosso a sticky-hot (chiamate: %d)\n",
+        printf("  \xe2\xad\x90  %s %s promosso a sticky-hot (chiamate: %d)\n",
                a->icon, a->name, a->call_count);
     }
 }

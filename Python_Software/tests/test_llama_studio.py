@@ -16,11 +16,11 @@ import json
 import unittest
 from unittest import mock
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_OA  = os.path.join(ROOT, "Ottimizzazioni_Avanzate")
+ROOT       = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_PRISMALUX = os.path.dirname(ROOT)   # Python_Software -> Prismalux
 sys.path.insert(0, ROOT)
-sys.path.insert(0, _OA)
-sys.path.insert(0, os.path.join(_OA, "llama_cpp_studio"))
+sys.path.insert(0, _PRISMALUX)
+sys.path.insert(0, os.path.join(_PRISMALUX, "llama_cpp_studio"))
 
 # Mock di rich prima dell'import (potrebbe non servire se già installato,
 # ma lo facciamo per sicurezza in ambienti senza rich)

@@ -446,7 +446,7 @@ def menu_principale() -> None:
                         raise
 
     def _avx_llama():
-        _add_path(os.path.join(_ROOT, "Ottimizzazioni_Avanzate", "llama_cpp_studio"))
+        _add_path(os.path.join(os.path.dirname(_ROOT), "llama_cpp_studio"))
         import llama_studio
         llama_studio.menu_llama()
 

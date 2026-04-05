@@ -17,7 +17,9 @@
 #include <string.h>
 
 #ifdef _WIN32
-#  define WIN32_LEAN_AND_MEAN
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
 #  include <windows.h>
 #else
 #  include <sys/ioctl.h>
@@ -87,6 +89,10 @@ extern int    g_hw_ready;
 /* Backend e modello corrente — aggiornati da prismalux.c prima di print_header() */
 extern char g_hdr_backend[32];
 extern char g_hdr_model[80];
+
+/* Modalità headless: se != 0, print_header() salta la misurazione CPU (no nanosleep).
+ * Usato dai test automatici per evitare il delay di 200ms per step. */
+extern int g_sim_headless;
 
 /* ── Prototipi ────────────────────────────────────── */
 

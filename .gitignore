@@ -23,6 +23,42 @@ C_software/vram_bench_static
 C_software/download_model
 C_software.zip
 
+# ── C_software — binari test compilati (tenere solo i .c sorgenti) ────────────
+C_software/test_engine
+C_software/test_guardia_math
+C_software/test_math_locale
+C_software/test_golden
+C_software/test_toon_config
+C_software/test_memory
+C_software/test_sha256
+C_software/test_version
+C_software/test_stress
+C_software/test_stress_asan
+C_software/test_stress_bin
+C_software/test_perf
+C_software/test_cs_random
+C_software/test_agent_scheduler
+C_software/test_rag
+C_software/test_rag_bench
+C_software/test_multiagente
+C_software/test_sim_smoke
+C_software/test_hw_platform
+C_software/test_security
+C_software/jlt_demo
+C_software/jlt_speed_test
+C_software/jlt_speedup_demo
+
+# ── Qt GUI — directory build (binari compilati) ────────────────────────────────
+C_software/Qt_GUI/build/
+Qt_GUI/build/
+
+# ── Artefatti generati e file personali ───────────────────────────────────────
+Prismalux_Windows_full.zip
+*.pdf
+hybrid_llm/
+C_software/C_software/
+C_software/llama_cpp_studio/
+
 # ── Modelli GGUF personali (troppo grandi per git) ───────────────────────────
 llama_cpp_studio/models/*.gguf
 *.gguf

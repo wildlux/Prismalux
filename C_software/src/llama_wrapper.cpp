@@ -1,6 +1,6 @@
 #include "llama_wrapper.h"
-#include "llama.cpp/include/llama.h"
-#include "llama.cpp/ggml/include/ggml.h"
+#include "llama.h"
+#include "ggml.h"
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -17,8 +17,18 @@ static int            g_backend_init  = 0;   /* llama_backend_init chiamata? */
 int lw_is_loaded(void) { return (g_model && g_ctx) ? 1 : 0; }
 const char* lw_model_name(void) { return g_model_name; }
 
-/* Callback no-op: sopprime tutti i messaggi di log di llama.cpp da stderr */
-static void _llama_log_suppress(ggml_log_level, const char*, void*) {}
+/* Buffer log llama.cpp: visibile solo se lw_init fallisce */
+static char  s_log_buf[4096];
+static int   s_log_pos = 0;
+static void _llama_log_cb(ggml_log_level lvl, const char* msg, void*) {
+    if (lvl == GGML_LOG_LEVEL_ERROR || lvl == GGML_LOG_LEVEL_WARN) {
+        int rem = (int)sizeof(s_log_buf) - s_log_pos - 1;
+        if (rem > 0) {
+            int n = snprintf(s_log_buf + s_log_pos, rem, "%s", msg);
+            if (n > 0) s_log_pos += n < rem ? n : rem;
+        }
+    }
+}
 
 void lw_free(void) {
     if (g_ctx)   { llama_free(g_ctx);         g_ctx   = nullptr; }
@@ -31,14 +41,15 @@ int lw_init(const char* model_path, int n_gpu_layers, int n_ctx_size) {
     lw_free();   /* libera modello precedente + backend → RAM azzerata */
     llama_backend_init();
     g_backend_init = 1;
-    llama_log_set(_llama_log_suppress, nullptr);
+    s_log_buf[0] = '\0'; s_log_pos = 0;
+    llama_log_set(_llama_log_cb, nullptr);
 
     llama_model_params mparams = llama_model_default_params();
     mparams.n_gpu_layers = n_gpu_layers;
 
     g_model = llama_model_load_from_file(model_path, mparams);
     if (!g_model) {
-        /* Fallimento: libera subito il backend per non tenere RAM occupata */
+        fprintf(stderr, "[lw_init] modello non caricato: %s\n%s\n", model_path, s_log_buf);
         llama_backend_free(); g_backend_init = 0;
         return -1;
     }
@@ -51,15 +62,14 @@ int lw_init(const char* model_path, int n_gpu_layers, int n_ctx_size) {
     int n_thr = (int)std::thread::hardware_concurrency() / 2;
     if (n_thr < 2) n_thr = 2;
     cparams.n_threads = (uint32_t)n_thr;
-    /* Flash Attention: riduce VRAM e accelera inferenza */
-    cparams.flash_attn = true;
-    /* KV cache quantizzata q8_0: modelli più grandi con meno RAM */
-    cparams.type_k = GGML_TYPE_Q8_0;
-    cparams.type_v = GGML_TYPE_Q8_0;
+    /* Flash Attention: AUTO — llama.cpp decide se il modello la supporta */
+    cparams.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO;
+    /* KV cache: default (F16) — i modelli piccoli non sempre reggono Q8_0 */
     g_n_batch = (int)cparams.n_batch;
 
     g_ctx = llama_init_from_model(g_model, cparams);
     if (!g_ctx) {
+        fprintf(stderr, "[lw_init] context non creato: %s\n%s\n", model_path, s_log_buf);
         llama_model_free(g_model); g_model = nullptr;
         llama_backend_free();      g_backend_init = 0;
         return -1;
@@ -222,6 +232,29 @@ int lw_chat(const char* system_prompt, const char* user_message,
 
     llama_sampler_free(smpl);
     return 0;
+}
+
+/* ── JLT KV-cache Advisor ────────────────────────────────────────────
+ * Usa jlt_index_kv_ctx() per calcolare il n_ctx minimo necessario
+ * a contenere il corpus RAG compresso + prompt. Riduce la RAM del
+ * KV cache di llama.cpp (KV RAM ≈ n_ctx × layers × heads × d_head × dtype).
+ *
+ * Esempio risparmio (Qwen 7B, 32 layer, F16):
+ *   n_ctx 4096 → 512 MB KV
+ *   n_ctx 1024 → 128 MB KV  (4x risparmio = 384 MB liberi per i pesi)
+ */
+int lw_jlt_advised_ctx(const JltIndex *idx,
+                        int default_ctx,
+                        int sys_toks,
+                        int user_toks,
+                        int headroom_pct)
+{
+    if (!idx) return default_ctx;
+    int suggested = jlt_index_kv_ctx(idx, sys_toks, user_toks, headroom_pct);
+    /* Non scendere sotto 512 e non superare il default */
+    if (suggested < 512)          suggested = 512;
+    if (suggested > default_ctx)  suggested = default_ctx;
+    return suggested;
 }
 
 int lw_list_models(const char* dir, char names[][256], int max_names) {

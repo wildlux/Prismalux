@@ -1,15 +1,34 @@
 """
 Sistema Multi-Agente Avanzato con LangGraph + Ollama
 =====================================================
-8 funzionalità:
-  1. Loop di correzione automatica (max 3 tentativi)
-  2. Salvataggio codice su file .py automatico
-  3. Scelta modello interattiva all'avvio
-  4. Agente OTTIMIZZATORE
-  5. Memoria dei task precedenti (JSON)
-  6. Report HTML finale
-  7. Agente RICERCATORE
-  8. Pianificatore crea 2 approcci → 2 Programmatori in parallelo → Tester sceglie il migliore
+
+Implementa una pipeline di 6 agenti AI specializzati che collaborano per
+generare, testare e ottimizzare codice Python. Ogni agente usa un modello
+Ollama dedicato, selezionabile dall'utente, e comunica tramite un dizionario
+di stato condiviso (TypedDict ``Stato``).
+
+Pipeline principale (``avvia_menu`` / ``avvia_pipeline``):
+  Ricercatore → Pianificatore → 2 Programmatori (paralleli)
+  → Tester (loop max 3 tentativi) → Ottimizzatore
+
+Motore Byzantino (``motore_byzantino``):
+  Anti-allucinazione a 4 agenti: A (Esperto) → B (Avvocato del Diavolo)
+  → C (Gemello Indipendente) → D (Giudice Quantico).
+  Logica booleana: T = (A ∧ C) ∧ ¬B_valido
+
+Funzionalità principali:
+  1. Loop di correzione automatica (max 3 tentativi con auto-retry)
+  2. Salvataggio codice su file .py e report HTML
+  3. Selezione modello interattiva con auto-detection GPU
+  4. Agente OTTIMIZZATORE: built-in C, generator, set, lru_cache
+  5. Memoria task precedenti in ~/.multi_agente_memoria.json
+  6. Report HTML dark-theme con piano A/B, codice, verdict
+  7. Agente RICERCATORE: contesto, librerie, task simili in memoria
+  8. Pianificatore: 2 approcci alternativi → 2 programmatori in parallelo
+  9. Multi-GPU: distribuzione agenti su più istanze Ollama
+ 10. Prompt di qualità predefiniti per livello (scolastico/universitario/ricercatore)
+ 11. Ottimizzatore prompt con AI prima di avviare la pipeline
+ 12. Bridge Cython: profiling cProfile + compilazione C opzionale
 
 Dipendenze:
   pip install langgraph langchain-ollama langchain-core requests
@@ -25,6 +44,19 @@ import importlib.util
 import os
 
 def _check_deps_multiagente() -> None:
+    """Verifica che tutte le dipendenze richieste siano installate.
+
+    Deve essere chiamata PRIMA di qualsiasi altro import del modulo perché
+    Python esegue gli import a livello di modulo all'avvio. Se si importasse
+    prima, ad esempio, ``langgraph`` e questo non fosse installato, Python
+    solleverebbe un ``ModuleNotFoundError`` con un traceback incomprensibile
+    per l'utente. Chiamando questa funzione per prima, si può stampare un
+    messaggio chiaro con i comandi di installazione e uscire con ``sys.exit(1)``.
+
+    In caso di dipendenze mancanti stampa un pannello Rich (se disponibile)
+    o un output plain-text con la lista dei pacchetti da installare e il
+    comando ``pip install`` pronto all'uso, poi termina il processo.
+    """
     _DIPENDENZE = [
         ("langgraph",        "langgraph",          "Grafo degli agenti"),
         ("langchain_ollama", "langchain-ollama",    "Connessione a Ollama"),
@@ -327,7 +359,19 @@ def trova_default(disponibili: list, preferenze: list) -> str:
 # ── 3. Selezione modelli interattiva ─────────────────────────────────────────
 
 def get_modelli_ollama(porta: int = PORTA_NVIDIA) -> list[dict]:
-    """Ritorna lista di dict {nome, size_gb} per tutti i modelli Ollama."""
+    """Interroga l'API Ollama e restituisce i modelli installati.
+
+    Args:
+        porta: Porta TCP dell'istanza Ollama da interrogare. Default 11434
+            (istanza principale). Passare ``PORTA_INTEL`` o ``PORTA_AMD``
+            per istanze secondarie su GPU aggiuntive.
+
+    Returns:
+        Lista di dizionari con formato ``{"nome": str, "size_gb": float}``.
+        ``size_gb`` è 0.0 per modelli cloud (non scaricati in locale).
+        Restituisce lista vuota se Ollama non risponde o si verifica un
+        errore di connessione.
+    """
     try:
         r = requests.get(f"http://localhost:{porta}/api/tags", timeout=5)
         return [
@@ -339,6 +383,27 @@ def get_modelli_ollama(porta: int = PORTA_NVIDIA) -> list[dict]:
 
 
 def scegli_modelli(solo_locali: bool = True) -> tuple[dict, dict]:
+    """Interfaccia interattiva per assegnare un modello Ollama a ogni ruolo.
+
+    Mostra la lista dei modelli disponibili in colonna singola con dimensione,
+    esegue una selezione automatica basata su ``PREFERENZE_MODELLI``, poi
+    offre all'utente di sovrascrivere singoli ruoli digitando 1–5.
+    Se vengono rilevate istanze Ollama extra (Intel/AMD su porte aggiuntive)
+    propone anche la distribuzione multi-GPU.
+
+    Args:
+        solo_locali: Se ``True`` (default), esclude i modelli cloud (size=0)
+            che non sono scaricati in locale. Utile per garantire privacy
+            e funzionamento offline.
+
+    Returns:
+        Tupla ``(scelti, porte)`` dove:
+        - ``scelti``: dizionario ``{ruolo: nome_modello}`` per i 5 ruoli.
+        - ``porte``: dizionario ``{ruolo: numero_porta}`` che indica su quale
+          istanza Ollama eseguire ciascun agente.
+        In caso di Ollama non raggiungibile ritorna i modelli di fallback
+        hardcodati tutti su ``PORTA_NVIDIA``.
+    """
     tutti = get_modelli_ollama()
 
     FALLBACK = {
@@ -786,7 +851,24 @@ def esegui_codice(codice: str) -> str:
 # ── Utility: LLM invoke con system prompt opzionale ──────────────────────────
 
 def _llm_invoke(llm, prompt: str, system_prompt: str = "") -> str:
-    """Chiama il modello con system prompt opzionale."""
+    """Wrapper LangChain per invocare il modello con system prompt opzionale.
+
+    Astraggono la differenza tra una chiamata con e senza system prompt:
+    - Con system prompt: passa una lista ``[SystemMessage, HumanMessage]``
+      che permette al modello di ricevere istruzioni di ruolo separate dal
+      contenuto del task.
+    - Senza system prompt: invoca direttamente con il prompt come stringa,
+      utile per chiamate semplici dove non è necessario il contesto di ruolo.
+
+    Args:
+        llm: Istanza ``ChatOllama`` già configurata con modello e parametri.
+        prompt: Testo del messaggio utente (il task o la query).
+        system_prompt: Istruzioni di comportamento per il modello. Se vuoto
+            viene ignorato e si usa la chiamata semplice.
+
+    Returns:
+        Testo della risposta del modello come stringa.
+    """
     if system_prompt:
         return llm.invoke([
             SystemMessage(content=system_prompt),
@@ -830,9 +912,31 @@ def _upgrade_modelli(modelli: dict, nomi_disponibili: list[str]) -> dict:
 
 
 def _genera_system_prompts(task: str, report_tester: str) -> dict[str, str]:
-    """
-    Genera system prompt specifici per ruolo basandosi sul tipo di task
-    e sugli errori rilevati dal tester.
+    """Genera system prompt adattivi per ogni ruolo in base al task e agli errori.
+
+    Viene chiamata solo quando la pipeline entra nel loop di auto-retry
+    (tentativo 2 o 3): in questi casi aggiunge contesto specifico sull'errore
+    precedente e specializzazioni per tipo di problema (matematica, file,
+    stringhe, web). I prompt risultanti vengono inseriti nello stato come
+    ``system_prompts`` e vengono passati a ``_llm_invoke`` insieme al prompt
+    principale di ogni agente.
+
+    Logica di rilevamento tipo problema: analisi lessicale semplice del testo
+    del task (parole chiave come "calcola", "file", "regex", "http") che
+    attiva appendici specializzate al prompt base dell'agente.
+
+    Args:
+        task: Testo del task originale da cui rilevare il tipo di problema.
+        report_tester: Output del tester dell'ultimo tentativo fallito.
+            Viene usato per estrarre il messaggio di errore da includere
+            nel prompt del ricercatore e del programmatore.
+
+    Returns:
+        Dizionario ``{ruolo: system_prompt}`` con un prompt specifico per
+        ciascuno dei 5 ruoli (ricercatore, pianificatore, programmatore,
+        tester, ottimizzatore). Tutti i prompt includono il contesto
+        ``"Stai elaborando un task che ha già fallito i test precedenti"``
+        per orientare il modello verso un approccio correttivo.
     """
     tl = task.lower()
     errore = ""
@@ -949,6 +1053,26 @@ def _agente_tempo(nome: str, secondi: float) -> None:
 # ── 7. Agente RICERCATORE ────────────────────────────────────────────────────
 
 def agente_ricercatore(stato: Stato) -> dict:
+    """Primo agente della pipeline: raccoglie contesto tecnico e librerie.
+
+    Analizza il task e produce un contesto che guida gli agenti successivi.
+    Il ricercatore:
+    - Elenca i file Python già presenti nella cartella output (per contesto)
+    - Cerca nella memoria i task simili usando matching su parole intere
+      (regex ``\b<parola>\b``) escludendo stop words italiane: questo evita
+      falsi positivi come "la" dentro "tabella"
+    - Chiede al modello di analizzare il task in 4-5 righe: cosa fa, librerie,
+      approccio tecnico, insidie
+
+    Args:
+        stato: Dizionario di stato LangGraph contenente almeno ``task``,
+            ``modelli``, ``porte``, ``memoria`` e opzionalmente
+            ``system_prompts["ricercatore"]``.
+
+    Returns:
+        Dizionario con chiave ``contesto_ricerca`` (stringa) da aggiungere
+        allo stato condiviso per i nodi successivi.
+    """
     _t0 = time.time()
     porta = stato["porte"]["ricercatore"]
     _agente_header("🔎  RICERCATORE", porta)
@@ -1008,6 +1132,25 @@ Task simili in memoria (solo riferimento tecnico, NON il task corrente):\n{conte
 # ── 8. Agente PIANIFICATORE (2 piani) ────────────────────────────────────────
 
 def agente_pianificatore(stato: Stato) -> dict:
+    """Secondo agente: genera due approcci architetturali alternativi al task.
+
+    Produce due piani distinti (APPROCCIO A e APPROCCIO B) che verranno
+    assegnati a due programmatori paralleli. La diversità degli approcci
+    aumenta la probabilità che almeno uno produca codice corretto al primo
+    tentativo. Usa un modello con capacità di ragionamento più profondo
+    (es. deepseek-r1) per garantire coerenza logica nei piani.
+
+    Il parsing della risposta usa ``re.split(r"APPROCCIO\\s+B", ...)`` per
+    separare i due piani: se il modello non rispetta il formato, tutto il
+    testo viene assegnato a piano_a e piano_b viene lasciato uguale a testo.
+
+    Args:
+        stato: Stato corrente con ``task``, ``contesto_ricerca``,
+            ``modelli``, ``porte``.
+
+    Returns:
+        Dizionario con ``piano_a`` e ``piano_b`` (stringhe di testo).
+    """
     _t0 = time.time()
     porta = stato["porte"]["pianificatore"]
     _agente_header("📋  PIANIFICATORE", porta)
@@ -1048,6 +1191,27 @@ Max 4 passi per approccio. Niente codice."""
 # ── 8. Programmatori in parallelo ────────────────────────────────────────────
 
 def agente_programmatori_parallelo(stato: Stato) -> dict:
+    """Terzo agente (doppio, parallelo): implementa i due piani in codice Python.
+
+    Lancia due thread simultanei, uno per piano A e uno per piano B, ognuno
+    con la propria istanza ChatOllama. Questo dimezza il tempo di attesa
+    rispetto all'esecuzione sequenziale. In configurazione multi-GPU i due
+    programmatori usano porte diverse (``programmatore_a`` e
+    ``programmatore_b``) per sfruttare GPU fisicamente distinte.
+
+    Vincolo ai modelli: usa temperature=0.15 (creatività molto bassa) per
+    massimizzare la correttezza sintattica e logica del codice generato.
+    I programmatori usano preferenzialmente modelli coder (qwen2.5-coder,
+    deepseek-coder, codellama).
+
+    Args:
+        stato: Stato corrente con ``piano_a``, ``piano_b``, ``task``,
+            ``contesto_ricerca``, ``modelli``, ``porte``.
+
+    Returns:
+        Dizionario con ``codice_a`` e ``codice_b`` (stringhe con il codice
+        Python, possibilmente incapsulato in blocchi markdown ```python).
+    """
     _t0 = time.time()
     porta = stato["porte"]["programmatore"]
     _agente_header("💻  PROGRAMMATORI", porta)
@@ -1089,6 +1253,28 @@ Scrivi SOLO il codice Python con commenti brevi."""
 # ── Agente TESTER ─────────────────────────────────────────────────────────────
 
 def agente_tester(stato: Stato) -> dict:
+    """Quarto agente (con loop): esegue il codice e valuta il risultato.
+
+    Ha due modalità operative:
+    - **Primo tentativo** (tentativi==1): esegue entrambi i codici A e B
+      tramite ``esegui_codice()``, sceglie quello senza errori (preferisce A),
+      poi chiede al modello LLM di analizzare l'output e emettere un verdict.
+    - **Tentativi successivi**: esegue solo ``codice_corrente`` (già corretto
+      dall'agente correttore) e chiede al modello di rivalutare.
+
+    La stringa ``"PASSATO"`` nel report del modello determina il verdict.
+    Il grafo LangGraph usa ``decide_dopo_tester`` per decidere se procedere
+    all'ottimizzatore o tornare al correttore (fino a ``MAX_TENTATIVI=3``).
+
+    Args:
+        stato: Stato corrente con ``codice_a``, ``codice_b``,
+            ``codice_corrente``, ``tentativi``, ``task``, ``modelli``, ``porte``.
+
+    Returns:
+        Dizionario con ``codice_corrente``, ``output_esecuzione``,
+        ``report_tester``, ``verdict`` ("PASSATO" o "FALLITO"),
+        ``tentativi`` (incrementato).
+    """
     _t0 = time.time()
     tentativi = stato.get("tentativi", 0) + 1
     porta = stato["porte"]["tester"]
@@ -1148,6 +1334,26 @@ VERDICT: ✅ PASSATO   oppure   VERDICT: ❌ FALLITO"""
 # ── 1. Agente CORRETTORE (loop) ───────────────────────────────────────────────
 
 def agente_correttore(stato: Stato) -> dict:
+    """Agente di correzione: interpreta l'errore del tester e riscrive il codice.
+
+    Viene attivato dal grafo solo quando il tester emette ``FALLITO`` e il
+    numero di tentativi è inferiore a ``MAX_TENTATIVI``. Usa lo stesso modello
+    del programmatore (specializzato nel codice) e riceve il messaggio di
+    errore completo insieme al codice difettoso, chiedendo al modello di
+    produrre SOLO il codice corretto senza spiegazioni.
+
+    Il nodo "correttore" nel grafo ha un arco diretto verso "tester", creando
+    il loop di correzione: correttore → tester → (se PASSATO) ottimizzatore
+                                                → (se FALLITO) correttore...
+
+    Args:
+        stato: Stato con ``output_esecuzione`` (errore), ``codice_corrente``
+            (codice da correggere), ``task``, ``tentativi``, ``modelli``,
+            ``porte``.
+
+    Returns:
+        Dizionario con ``codice_corrente`` aggiornato con il codice corretto.
+    """
     _t0 = time.time()
     porta = stato["porte"]["programmatore"]
     _agente_header(f"🔧  CORRETTORE  (tentativo {stato['tentativi']}/{MAX_TENTATIVI})", porta)
@@ -3137,10 +3343,16 @@ def motore_byzantino() -> None:
                "[yellow]C[/] (Gemello) → [magenta]D[/] (Giudice)[/]")
     _con.print("[dim]  Logica: T = (A ∧ C) ∧ ¬B_valido[/]\n")
 
-    # Recupera modelli disponibili
-    modelli_info = get_modelli_ollama(PORTA_NVIDIA)
-    if not modelli_info:
+    # Recupera modelli disponibili (solo locali: i cloud crashano Ollama)
+    tutti_modelli = get_modelli_ollama(PORTA_NVIDIA)
+    if not tutti_modelli:
         _con.print("[bold red]  ❌ Ollama non risponde. Avvia con: ollama serve[/]")
+        input("\n  [INVIO per tornare] ")
+        return
+
+    modelli_info = [m for m in tutti_modelli if m["size_gb"] > 0]
+    if not modelli_info:
+        _con.print("[bold red]  ❌ Nessun modello locale trovato. Esegui: ollama pull qwen3:4b[/]")
         input("\n  [INVIO per tornare] ")
         return
 

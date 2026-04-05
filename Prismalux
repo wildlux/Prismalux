@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Prismalux — launcher principale (GUI Qt)
+# Uso: ./Prismalux
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+GUI_BIN="$SCRIPT_DIR/C_software/Qt_GUI/build/Prismalux_GUI"
+
+GRN='\033[0;32m'; YLW='\033[0;33m'; RED='\033[0;31m'; CYN='\033[0;36m'; RST='\033[0m'
+
+# ── Controlla che il binario Qt esista ───────────────────────────
+if [ ! -f "$GUI_BIN" ]; then
+    echo -e "\n${RED}  ✗ GUI non compilata: $GUI_BIN${RST}"
+    echo -e "${YLW}  Compila con:${RST}"
+    echo -e "    cd '$SCRIPT_DIR/Qt_GUI'"
+    echo -e "    ./build.sh"
+    exit 1
+fi
+
+# ── Avvia la GUI Qt ──────────────────────────────────────────────
+exec "$GUI_BIN" "$@"

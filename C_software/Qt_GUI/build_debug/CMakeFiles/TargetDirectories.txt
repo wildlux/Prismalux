@@ -1,0 +1,5 @@
+/home/wildlux/Desktop/Prismalux/C_software/Qt_GUI/build_debug/CMakeFiles/Prismalux_GUI.dir
+/home/wildlux/Desktop/Prismalux/C_software/Qt_GUI/build_debug/CMakeFiles/edit_cache.dir
+/home/wildlux/Desktop/Prismalux/C_software/Qt_GUI/build_debug/CMakeFiles/rebuild_cache.dir
+/home/wildlux/Desktop/Prismalux/C_software/Qt_GUI/build_debug/CMakeFiles/Prismalux_GUI_autogen_timestamp_deps.dir
+/home/wildlux/Desktop/Prismalux/C_software/Qt_GUI/build_debug/CMakeFiles/Prismalux_GUI_autogen.dir

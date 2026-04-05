@@ -23,6 +23,16 @@ char g_prof_llama_model[256]   = "";
 /* Directory modelli .gguf */
 char g_models_dir[512] = MODELS_DIR;
 
+/* Percorso binario GUI Qt6 (configurabile via --gui-path o config) */
+#ifdef _WIN32
+char g_gui_path[512]   = "Qt_GUI\\build_win\\Prismalux_GUI.exe";
+#else
+char g_gui_path[512]   = "Qt_GUI/build/Prismalux_GUI";
+#endif
+
+/* Formato config: "json" (default) o "toon" (selezionabile via --config-format) */
+char g_config_fmt[8]   = "json";
+
 /* Hardware rilevato all'avvio (extern in prismalux_ui.h per print_header) */
 HWInfo g_hw;
 int    g_hw_ready = 0;
@@ -44,16 +54,16 @@ const char* backend_name(Backend b) {
 /* Salva g_ctx nel profilo del backend corrente */
 void _sync_to_profile(void) {
     if (g_ctx.backend == BACKEND_OLLAMA) {
-        strncpy(g_prof_ollama_host,  g_ctx.host,  sizeof g_prof_ollama_host  - 1);
+        snprintf(g_prof_ollama_host,  sizeof g_prof_ollama_host,  "%s", g_ctx.host);
         g_prof_ollama_port = g_ctx.port;
-        strncpy(g_prof_ollama_model, g_ctx.model, sizeof g_prof_ollama_model - 1);
+        snprintf(g_prof_ollama_model, sizeof g_prof_ollama_model, "%s", g_ctx.model);
     } else if (g_ctx.backend == BACKEND_LLAMASERVER) {
-        strncpy(g_prof_lserver_host,  g_ctx.host,  sizeof g_prof_lserver_host  - 1);
+        snprintf(g_prof_lserver_host,  sizeof g_prof_lserver_host,  "%s", g_ctx.host);
         g_prof_lserver_port = g_ctx.port;
-        strncpy(g_prof_lserver_model, g_ctx.model, sizeof g_prof_lserver_model - 1);
+        snprintf(g_prof_lserver_model, sizeof g_prof_lserver_model, "%s", g_ctx.model);
     } else {
         const char *m = lw_is_loaded() ? lw_model_name() : g_ctx.model;
-        if (m && m[0]) strncpy(g_prof_llama_model, m, sizeof g_prof_llama_model - 1);
+        if (m && m[0]) snprintf(g_prof_llama_model, sizeof g_prof_llama_model, "%s", m);
     }
 }
 
@@ -78,8 +88,7 @@ int scan_gguf_dir(const char* dir, char names[][256], int max) {
     HANDLE h = FindFirstFileA(pattern, &fd);
     if (h == INVALID_HANDLE_VALUE) return 0;
     do {
-        strncpy(names[count], fd.cFileName, 255);
-        names[count][255] = '\0';
+        snprintf(names[count], 256, "%s", fd.cFileName);
         count++;
     } while (FindNextFileA(h, &fd) && count < max);
     FindClose(h);

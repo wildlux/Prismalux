@@ -14,6 +14,9 @@
 #  include <time.h>
 #endif
 
+/* Modalità headless — se != 0, cpu_percent() salta nanosleep (usato dai test) */
+int g_sim_headless = 0;
+
 /* ══════════════════════════════════════════════════════════════
    Larghezza terminale
    ══════════════════════════════════════════════════════════════ */
@@ -47,6 +50,7 @@ static void read_cpu_stat(unsigned long long *idle, unsigned long long *total) {
     fclose(f);
 }
 static double cpu_percent(void) {
+    if (g_sim_headless) return 0.0;  /* skip nanosleep in headless/test mode */
     unsigned long long i1,t1,i2,t2;
     read_cpu_stat(&i1,&t1);
     struct timespec ts={0,200000000L}; nanosleep(&ts,NULL);
@@ -106,6 +110,7 @@ static void read_cpu_name(char *out,size_t n) {
 }
 #else /* _WIN32 */
 static double cpu_percent(void) {
+    if (g_sim_headless) return 0.0;  /* skip Sleep in headless/test mode */
     FILETIME i1,k1,u1,i2,k2,u2;
     GetSystemTimes(&i1,&k1,&u1); Sleep(200); GetSystemTimes(&i2,&k2,&u2);
     ULARGE_INTEGER ui;
@@ -145,7 +150,7 @@ void read_vram_mb(int gpu_index, DevType gpu_type,
             " --format=csv,noheader,nounits 2>nul", gpu_index);
         FILE* f = popen(cmd,"r");
         if (f) { long long u=0,t=0;
-                 (void)fscanf(f,"%lld, %lld",&u,&t);
+                 { int _r = fscanf(f,"%lld, %lld",&u,&t); (void)_r; }
                  pclose(f); *used_out=u; *total_out=t; }
     }
 #else
@@ -156,19 +161,20 @@ void read_vram_mb(int gpu_index, DevType gpu_type,
             " --format=csv,noheader,nounits 2>/dev/null", gpu_index);
         FILE* f = popen(cmd,"r");
         if (f) { long long u=0,t=0;
-                 (void)fscanf(f,"%lld, %lld",&u,&t);
+                 { int _r = fscanf(f,"%lld, %lld",&u,&t); (void)_r; }
                  pclose(f); *used_out=u; *total_out=t; }
-    } else if (gpu_type == DEV_AMD) {
+    } else if (gpu_type == DEV_AMD || gpu_type == DEV_INTEL) {
+        /* AMD e Intel Arc usano gli stessi path DRM per VRAM */
         char path[256];
         unsigned long long total=0, used_b=0;
         snprintf(path,sizeof path,
             "/sys/class/drm/card%d/device/mem_info_vram_total",gpu_index);
         FILE* ft = fopen(path,"r");
-        if (ft) { (void)fscanf(ft,"%llu",&total); fclose(ft); }
+        if (ft) { { int _r = fscanf(ft,"%llu",&total); (void)_r; } fclose(ft); }
         snprintf(path,sizeof path,
             "/sys/class/drm/card%d/device/mem_info_vram_used",gpu_index);
         FILE* fu = fopen(path,"r");
-        if (fu) { (void)fscanf(fu,"%llu",&used_b); fclose(fu); }
+        if (fu) { { int _r = fscanf(fu,"%llu",&used_b); (void)_r; } fclose(fu); }
         *total_out = (long long)(total  / (1024ULL*1024ULL));
         *used_out  = (long long)(used_b / (1024ULL*1024ULL));
     }
@@ -230,7 +236,8 @@ int disp_len(const char *s) {
 }
 
 void print_bar(double pct, int len) {
-    if(pct<0)pct=0; if(pct>100)pct=100;
+    if(pct<0) pct=0;
+    if(pct>100) pct=100;
     int f=(int)(pct/100.0*len);
     const char *col=(pct<70)?GRN:(pct<90)?YLW:RED;
     printf("%s",col);
@@ -294,7 +301,8 @@ const char *mem_warn(double pct) {
 
 /* Barra colorata come stringa ANSI (len blocchi da 1 display col ciascuno) */
 static void bar_to_str(char *buf, int sz, double pct, int len) {
-    if(pct<0)pct=0; if(pct>100)pct=100;
+    if(pct<0) pct=0;
+    if(pct>100) pct=100;
     int f=(int)(pct/100.0*len);
     const char *col=(pct<70)?GRN:(pct<90)?YLW:RED;
     char *p = buf + snprintf(buf, sz, "%s", col);

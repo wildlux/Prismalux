@@ -4,6 +4,10 @@
  * Windows: GlobalMemoryStatusEx, wmic, nvidia-smi
  */
 #pragma once
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+#pragma GCC diagnostic ignored "-Woverflow"
+#pragma GCC diagnostic ignored "-Wmisleading-indentation"
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,6 +18,7 @@ typedef enum {
     DEV_CPU    = 0,
     DEV_NVIDIA = 1,
     DEV_AMD    = 2,
+    DEV_INTEL  = 3,  /* Intel Arc / UHD / Iris Xe */
 } DevType;
 
 /* ── Dispositivo hardware ─────────────────────────────────── */
@@ -36,7 +41,7 @@ typedef struct {
     int       secondary;  /* indice secondo dispositivo (-1 se non esiste) */
 } HWInfo;
 
-/* Rilevamento completo: CPU + NVIDIA + AMD */
+/* Rilevamento completo: CPU + NVIDIA + AMD + Intel */
 void        hw_detect(HWInfo* out);
 
 /* Stampa riepilogo hardware a schermo */
@@ -50,7 +55,9 @@ const char* hw_dev_type_str(DevType t);
 
 /* Thread cross-platform --------------------------------------------- */
 #ifdef _WIN32
-#  define WIN32_LEAN_AND_MEAN
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
 #  include <windows.h>
    typedef HANDLE hw_thread_t;
    typedef DWORD (*hw_thread_fn)(void*);
