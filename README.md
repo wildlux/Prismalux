@@ -6,14 +6,14 @@
 
 ### *"Costruito per i mortali che aspirano alla saggezza."*
 
-[![C](https://img.shields.io/badge/C-pure-blue?style=flat-square&logo=c)](https://en.wikipedia.org/wiki/C_(programming_language))
-[![Qt6](https://img.shields.io/badge/Qt-6-green?style=flat-square&logo=qt)](https://www.qt.io/)
-[![Python](https://img.shields.io/badge/Python-3.x-yellow?style=flat-square&logo=python)](https://www.python.org/)
+[![C](https://img.shields.io/badge/TUI-C%20puro-blue?style=flat-square&logo=c)](https://en.wikipedia.org/wiki/C_(programming_language))
+[![C++](https://img.shields.io/badge/GUI-C%2B%2B%20%2F%20Qt6-green?style=flat-square&logo=qt)](https://www.qt.io/)
+[![Python](https://img.shields.io/badge/Componenti-Python%203-yellow?style=flat-square&logo=python)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
 [![Tests](https://img.shields.io/badge/Tests-897%2F897%20%E2%9C%85-brightgreen?style=flat-square)](#test-automatici)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-informational?style=flat-square)](https://github.com/wildlux/Prismalux)
 
-**Piattaforma AI locale in C puro + GUI Qt6.**  
+**Piattaforma AI locale. TUI in C puro, GUI in C++/Qt6, componenti Python opzionali.**  
 Multi-agente, anti-allucinazione, matematica locale, simulatore algoritmi.  
 Zero dipendenze cloud. Zero abbonamenti. Gira tutto sul tuo hardware.
 
@@ -40,7 +40,15 @@ Zero dipendenze cloud. Zero abbonamenti. Gira tutto sul tuo hardware.
 
 ## Cos'è Prismalux
 
-Prismalux è un **assistente AI locale** scritto interamente in C, con una GUI moderna in Qt6 e un motore Python opzionale. Nasce dall'idea che l'intelligenza artificiale debba girare sul tuo hardware, rispettando la tua privacy, senza connessioni a cloud esterni.
+Prismalux è una **piattaforma AI locale** con il nucleo scritto in **C puro**, la GUI grafica in **C++/Qt6** e componenti Python opzionali. Nasce dall'idea che l'intelligenza artificiale debba girare sul tuo hardware, rispettando la tua privacy, senza connessioni a cloud esterni.
+
+| Componente | Linguaggio |
+|---|---|
+| TUI — pipeline agenti, math locale, simulatore, HTTP client | **C puro** |
+| GUI grafica — tutte le pagine e widget | **C++/Qt6** |
+| Wrapper llama.cpp (build statica) | **C++** |
+| Script build, AppImage, ZIP | **Bash / Python** |
+| Motore Python (opzionale) | **Python 3** |
 
 ```
   ╔══════════════════════════════════════════════════════════╗
@@ -50,13 +58,14 @@ Prismalux è un **assistente AI locale** scritto interamente in C, con una GUI m
   ╚══════════════════════════════════════════════════════════╝
 ```
 
-### Perché C puro?
+### Perché C per la TUI e C++/Qt6 per la GUI?
 
-| | Python | **Prismalux (C + Qt6)** |
+| | Python (versione precedente) | **Prismalux (C + C++/Qt6)** |
 |---|---|---|
 | Avvio TUI | ~2–3 secondi | **istantaneo** |
 | Avvio GUI | ~1–2 secondi | **~0.3 secondi** |
-| Dipendenze | Python + pip + 6 librerie + venv | **gcc + Qt6** |
+| Dipendenze TUI | Python + pip + 6 librerie + venv | **solo gcc** |
+| Dipendenze GUI | — | **Qt6** |
 | Math locale | no | **sì (~0.003 ms, zero token AI)** |
 | Multi-backend | solo Ollama | **Ollama + llama-server + llama static** |
 | Motore Byzantino | no | **sì (4 agenti logici anti-allucinazione)** |
