@@ -452,6 +452,96 @@ ollama pull qwen2.5-coder:7b   # installazione consigliata per iniziare
 
 ---
 
+## Argomenti e discipline trattate
+
+Prismalux copre un'ampia gamma di discipline, sia nella TUI che nella GUI:
+
+### 💻 Informatica e Programmazione
+- **Pipeline AI multi-agente** — Ricercatore, Pianificatore, Programmatori paralleli, Tester, Ottimizzatore
+- **Correzione codice con AI** — analisi errori, refactoring, ottimizzazione
+- **Algoritmi e strutture dati** — 66 simulazioni visualizzate (ordinamento, ricerca, grafi, DP, greedy, backtracking...)
+- **Stringhe** — KMP, Rabin-Karp, Z-Algorithm
+- **Strutture dati** — Stack, Queue, Linked List, BST, Hash Table, Min-Heap
+- **RAG (Retrieval-Augmented Generation)** — recupero documenti locali con JLT similarity search
+- **Compressione** — Codifica di Huffman
+- **Crittografia** — SHA-256 puro C, Miller-Rabin (test di primalità probabilistico)
+
+### 🔢 Matematica
+- **Analisi numerica** — Horner-Ruffini, Monte Carlo π, potenza modulare
+- **Algebra** — GCD/LCM, fattoriali, triangolo di Pascal, progressioni
+- **Calcolo** — espressioni arbitrarie: `sin`, `cos`, `tan`, `ln`, `log`, `sqrt`, `cbrt`...
+- **Teoria dei numeri** — crivello di Eratostene, numeri primi, Fibonacci, fattorizzazione
+- **Costanti ad alta precisione** — π, e, φ, √2, γ (mpmath, fino a 10.000 cifre)
+- **N-esimo elemento** — N-esima cifra di π/e/φ, N-esimo primo, Fibonacci(N), 2^N
+- **Sequenze → Formula** — rilevamento pattern locale (aritmetica, geometrica, Fibonacci, quadratica, fattoriali...) + sympy per interpolazione
+
+### 📊 Statistica e Finanza
+- **Dichiarazione 730** — guida interattiva con AI, domande frequenti
+- **Partita IVA / Regime Forfettario** — calcolo coefficienti, tasse, contributi INPS
+- **Mutuo** — piano di ammortamento, rata mensile, interessi totali
+- **PAC (Piano Accumulo Capitale)** — proiezioni rendimento, montante finale
+- **Pensione INPS** — stima assegno, anni mancanti, simulazioni contributive
+
+### 🔬 Fisica e Chimica
+- **Caduta libera** — con e senza resistenza dell'aria, visualizzazione traiettoria
+- **Gas ideali** — legge PV = nRT, calcolo P/V/T/n
+- **pH** — acidi, basi, soluzioni tampone, pKa
+- **Stechiometria** — bilanciamento reazioni, resa percentuale, reagente limitante
+
+### 🤖 Intelligenza Artificiale
+- **Motore Byzantino** — anti-allucinazione a 4 agenti logici (A/B/C/D)
+- **Tutor AI** — spiegazioni personalizzate su qualsiasi argomento, con ragionamento
+- **Agenti specializzati** — scelta automatica del modello migliore per ruolo
+- **RAG locale** — risposte basate su documenti propri (senza cloud)
+- **Entropia dei pesi LLM** — visualizzazione distribuzione pesi, quantizzazione GPTQ/SparseGPT
+- **Traduzione automatica** — input inglese → pipeline in italiano
+
+### 🛠 Strumenti Pratici
+- **Ricerca lavoro** — ricerca offerte web + analisi CV
+- **Scrittura creativa** — AI per testi, articoli, storie
+- **Produttività** — sintesi documenti, brainstorming, revisione testi
+- **Grafici** — 40+ tipi (istogrammi, torte, Gantt, Sankey, boxplot, OHLC, Treemap, Chord...)
+- **Programmazione assistita** — editor con correzione AI e nome modello in header
+
+---
+
+## Test automatici
+
+Suite completa: **897/897 test superati** — nessun test saltato, nessun fallimento.
+
+```bash
+cd C_software
+make test                                         # test core (18/18)
+make test_guardia_math && ./test_guardia_math     # math pipeline (200/200)
+make test_math_locale  && ./test_math_locale      # math tutor (120/120)
+make test_multiagente  && ./test_multiagente      # pipeline end-to-end (8/8)
+make test_sim_smoke    && ./test_sim_smoke        # simulatore (66/66)
+make test_hw_platform  && ./test_hw_platform      # hardware (28/28)
+make test_agent_scheduler && ./test_agent_scheduler  # scheduler (87/87)
+make test_rag          && ./test_rag              # RAG retrieval (30/30)
+```
+
+| Suite | Pass | Cosa verifica |
+|---|---|---|
+| `test_engine` | 18/18 | TCP raw, JSON parser, stream AI Ollama, python3 |
+| `test_guardia_math` | 200/200 | Parser `_gp_*`: 200 espressioni (trig, log, costanti, GCD...) |
+| `test_math_locale` | 120/120 | Parser `_mp_*`: motore math del Tutor AI |
+| `test_golden` | 53/53 | Regression AI: keyword attesi, parole vietate, lingua italiana |
+| `test_toon_config` | 55/55 | Parser config `.toon` (flat key:value) + persistenza |
+| `test_memory` | 12/12 | Memory leak detection via `/proc/self/status` |
+| `test_sha256` | 20/20 | SHA-256 puro C — integrità file `.gguf` |
+| `test_version` | 35/35 | Versioni semver, compatibilità, changelog |
+| `test_stress` | 74/74 | JSON, buffer overflow, Unicode multibyte, API pubblica |
+| `test_perf` | 26/26 | Timing TTFT, throughput token/s, cold start |
+| `test_cs_random` | 0 fail | Context Store: precision, recall, stress con dati casuali |
+| `test_agent_scheduler` | 87/87 | Hot/Cold scheduler: evict, promozione sticky, VRAM profile |
+| `test_rag` | 30/30 | RAG retrieval: precision/recall su corpus locale |
+| `test_multiagente` | 8/8 | Pipeline 6 agenti end-to-end con modello reale |
+| `test_sim_smoke` | 66/66 | Ogni simulazione: no crash, output ≥ 10 char, timeout 5s |
+| `test_hw_platform` | 28/28 | CPU/GPU/RAM, nvidia-smi, thread cross-platform |
+
+---
+
 <div align="center">
 
 **Prismalux** è un progetto personale aperto. Contributi, segnalazioni e idee sono benvenuti.
