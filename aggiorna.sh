@@ -1,13 +1,15 @@
 #!/bin/bash
 # ══════════════════════════════════════════════════════════════
-#  aggiorna.sh — Ricompila Prismalux e rigenera il ZIP Windows
+#  aggiorna.sh — Ricompila Prismalux, ZIP Windows, AppImage Linux
 #
 #  Uso:
-#    ./aggiorna.sh              # TUI + GUI Qt + whisper-win + ZIP
+#    ./aggiorna.sh              # TUI + GUI + ZIP Windows + AppImage
 #    ./aggiorna.sh --tui        # solo TUI C
 #    ./aggiorna.sh --gui        # solo GUI Qt6
-#    ./aggiorna.sh --zip        # solo ZIP Windows (con whisper)
-#    ./aggiorna.sh --no-zip     # TUI + GUI, salta ZIP
+#    ./aggiorna.sh --zip        # solo ZIP Windows
+#    ./aggiorna.sh --appimage   # solo AppImage Linux
+#    ./aggiorna.sh --no-zip     # TUI + GUI + AppImage, salta ZIP
+#    ./aggiorna.sh --no-appimage# TUI + GUI + ZIP, salta AppImage
 #    ./aggiorna.sh --no-whisper # salta download binario whisper-cli.exe
 #    ./aggiorna.sh --whisper    # solo download binario whisper-cli.exe
 # ══════════════════════════════════════════════════════════════
@@ -24,24 +26,29 @@ QT_GUI="$C_SW/Qt_GUI"
 QT_BUILD="$QT_GUI/build"
 ZIP_SCRIPT="$SCRIPT_DIR/crea_zip_windows.py"
 ZIP_OUT="$SCRIPT_DIR/Prismalux_Windows_full.zip"
+APPIMAGE_SCRIPT="$SCRIPT_DIR/crea_appimage.sh"
+APPIMAGE_OUT="$SCRIPT_DIR/Prismalux-x86_64.AppImage"
 WHISPER_WIN_DIR="$C_SW/whisper_win"   # destinazione binario Windows
 
 # ── Flags ──────────────────────────────────────────────────────
 DO_TUI=1
 DO_GUI=1
 DO_ZIP=1
+DO_APPIMAGE=1
 DO_WHISPER_WIN=1   # scarica whisper-cli.exe precompilato per Windows
 
 for arg in "$@"; do
     case "$arg" in
-        --tui)         DO_TUI=1; DO_GUI=0; DO_ZIP=0; DO_WHISPER_WIN=0 ;;
-        --gui)         DO_TUI=0; DO_GUI=1; DO_ZIP=0; DO_WHISPER_WIN=0 ;;
-        --zip)         DO_TUI=0; DO_GUI=0; DO_ZIP=1 ;;
-        --whisper)     DO_TUI=0; DO_GUI=0; DO_ZIP=0; DO_WHISPER_WIN=1 ;;
-        --no-zip)      DO_ZIP=0 ;;
-        --no-whisper)  DO_WHISPER_WIN=0 ;;
+        --tui)          DO_TUI=1; DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=0 ;;
+        --gui)          DO_TUI=0; DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=0 ;;
+        --zip)          DO_TUI=0; DO_GUI=0; DO_ZIP=1; DO_APPIMAGE=0 ;;
+        --appimage)     DO_TUI=0; DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=1 ;;
+        --whisper)      DO_TUI=0; DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=1 ;;
+        --no-zip)       DO_ZIP=0 ;;
+        --no-appimage)  DO_APPIMAGE=0 ;;
+        --no-whisper)   DO_WHISPER_WIN=0 ;;
         -h|--help)
-            echo "Uso: $0 [--tui|--gui|--zip|--no-zip|--whisper|--no-whisper]"
+            echo "Uso: $0 [--tui|--gui|--zip|--appimage|--no-zip|--no-appimage|--whisper|--no-whisper]"
             exit 0 ;;
         *) echo -e "${R}Opzione sconosciuta: $arg${N}"; exit 1 ;;
     esac
@@ -179,6 +186,24 @@ if [ "$DO_ZIP" = "1" ]; then
 fi
 
 # ══════════════════════════════════════════════════════════════
+#  5. AppImage Linux
+# ══════════════════════════════════════════════════════════════
+if [ "$DO_APPIMAGE" = "1" ]; then
+    step "Genero AppImage Linux..."
+    cd "$SCRIPT_DIR"
+    [ -f "$APPIMAGE_SCRIPT" ] || fail "Script AppImage non trovato: $APPIMAGE_SCRIPT"
+    [ -x "$APPIMAGE_SCRIPT" ] || chmod +x "$APPIMAGE_SCRIPT"
+
+    # Passa --no-build perché la GUI è già stata compilata al passo 2
+    "$APPIMAGE_SCRIPT" --no-build 2>&1 \
+        | grep -E "(✅|❌|AppImage|Success|Genero)" || true
+
+    [ -f "$APPIMAGE_OUT" ] || fail "AppImage non generata: $APPIMAGE_OUT"
+    SIZE=$(du -sh "$APPIMAGE_OUT" | cut -f1)
+    ok "AppImage aggiornata → $APPIMAGE_OUT  ($SIZE)"
+fi
+
+# ══════════════════════════════════════════════════════════════
 #  Riepilogo
 # ══════════════════════════════════════════════════════════════
 T_END=$(date +%s)
@@ -188,11 +213,12 @@ echo ""
 echo -e "${B}════════════════════════════════════════${N}"
 echo -e "${B}  Prismalux — aggiornamento completato  ${N}"
 echo -e "${B}════════════════════════════════════════${N}"
-[ "$DO_TUI" = "1" ] && echo -e "  ${G}TUI${N}     $C_SW/prismalux"
-[ "$DO_GUI" = "1" ] && echo -e "  ${G}GUI${N}     $QT_BUILD/Prismalux_GUI"
+[ "$DO_TUI"      = "1" ] && echo -e "  ${G}TUI${N}      $C_SW/prismalux"
+[ "$DO_GUI"      = "1" ] && echo -e "  ${G}GUI${N}      $QT_BUILD/Prismalux_GUI"
+[ "$DO_ZIP"      = "1" ] && [ -f "$ZIP_OUT" ]      && echo -e "  ${G}ZIP${N}      $ZIP_OUT"
+[ "$DO_APPIMAGE" = "1" ] && [ -f "$APPIMAGE_OUT" ] && echo -e "  ${G}AppImage${N} $APPIMAGE_OUT"
 if [ "$DO_WHISPER_WIN" = "1" ] && [ -f "$WHISPER_WIN_DIR/whisper-cli.exe" ]; then
-    echo -e "  ${G}Whisper${N} $WHISPER_WIN_DIR/whisper-cli.exe"
+    echo -e "  ${G}Whisper${N}  $WHISPER_WIN_DIR/whisper-cli.exe"
 fi
-[ "$DO_ZIP" = "1" ] && echo -e "  ${G}ZIP${N}     $ZIP_OUT"
 echo -e "  ${Y}Tempo: ${ELAPSED}s${N}"
 echo ""
