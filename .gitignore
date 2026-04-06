@@ -95,11 +95,12 @@ setup_cython.py
 C_software/*_bin
 C_software/test_bench
 
-# ── File personali (screenshot, foto) ────────────────────────────────────────
+# ── Screenshot e foto personali ──────────────────────────────────────────────
 photo_*.jpg
 photo_*.png
 screenshot_*.jpg
 screenshot_*.png
+ICONA/storico/
 
 # ── File di sistema ───────────────────────────────────────────────────────────
 .DS_Store
