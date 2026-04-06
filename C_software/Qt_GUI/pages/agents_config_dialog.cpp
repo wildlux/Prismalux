@@ -173,7 +173,12 @@ QVector<AgentsConfigDialog::AgentRole> AgentsConfigDialog::roles() {
         { "\xf0\x9f\x92\xbb", "Programmatore",
           "Sei il Programmatore nella pipeline AI di Prismalux. "
           "Scrivi codice funzionante, pulito e ben commentato in italiano. "
-          "Implementa la soluzione seguendo il piano. Rispondi SEMPRE e SOLO in italiano.",
+          "Implementa la soluzione seguendo il piano. "
+          "Per formule che si ripetono usa variabili costanti (es. D=2 come base). "
+          "Per array NumPy usa vettori 1D quando sufficiente: np.zeros(N) NON np.zeros((N,1)). "
+          "Non includere procedure di verifica multi-agente nel codice. "
+          "Se l'utente corregge un errore, rispetta sempre la versione corretta indicata. "
+          "Rispondi SEMPRE e SOLO in italiano.",
           /* small */ "Scrivi il codice richiesto, funzionante, con commenti brevi in italiano. Includi import e un esempio d'uso." },
 
         { "\xf0\x9f\x94\x8e", "Controllore",
@@ -661,6 +666,10 @@ void AgentsConfigDialog::updateVisibility(int numAgents) {
         m_roleCombo[i]->setVisible(vis);
         m_modelCombo[i]->setVisible(vis);
         m_ragWidget[i]->setVisible(vis);
+        /* Sincronizza il check state con la visibilità:
+           agenti nascosti = non attivi nella pipeline;
+           agenti mostrati = attivi per default. */
+        m_enabledChk[i]->setChecked(vis);
     }
 }
 

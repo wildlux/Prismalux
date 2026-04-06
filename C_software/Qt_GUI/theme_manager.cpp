@@ -53,7 +53,21 @@ void ThemeManager::apply(const QString& id) {
     QFile f(resource);
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
 
-    qApp->setStyleSheet(QString::fromUtf8(f.readAll()));
+    /* Carica le regole base strutturali e le appende DOPO il tema.
+       Ordine deliberato: tema prima → base dopo.
+       - I colori/sfondi vengono dal tema (base non li imposta).
+       - La struttura (width 8px, add-page, sub-page) viene da base
+         e sovrascrive le eventuali impostazioni dimensionali del tema.
+       Questo garantisce scrollbar cliccabile su Windows (add-page/sub-page)
+       e una larghezza minima di 8px indipendente dal tema. */
+    QString themeCss = QString::fromUtf8(f.readAll());
+
+    QString baseCss;
+    QFile baseFile(":/themes/base.qss");
+    if (baseFile.open(QIODevice::ReadOnly | QIODevice::Text))
+        baseCss = "\n" + QString::fromUtf8(baseFile.readAll());
+
+    qApp->setStyleSheet(themeCss + baseCss);
     m_currentId = id;
 
     QSettings s("Prismalux", "GUI");

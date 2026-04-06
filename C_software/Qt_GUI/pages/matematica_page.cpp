@@ -1,4 +1,5 @@
 #include "matematica_page.h"
+#include "../prismalux_paths.h"
 
 #include <QFileDialog>
 #include <QFileInfo>
@@ -26,6 +27,8 @@
 #include <QTimer>
 #include <cmath>
 #include <limits>
+
+namespace P = PrismaluxPaths;
 
 /* ══════════════════════════════════════════════════════════════
    Costruttore — assembla il layout principale
@@ -535,7 +538,7 @@ QWidget* MatematicaPage::buildExprTab()
         { "\xcf\x80\xc2\xb2/6",        "pi**2 / 6" },
         { "e^\xcf\x80 \xe2\x88\x92 \xcf\x80^e", "exp(pi) - pi**exp(1)" },
         { "\xe2\x88\xab x\xc2\xb2 dx",  "integrate(x**2, (x, 0, 1))" },
-        { "\xe2\x88\x9a(2+\xe2\x88\x9a3)","sqrt(2 + sqrt(3))" },
+        { "\xe2\x88\x9a(2+\xe2\x88\x9a" "3)","sqrt(2 + sqrt(3))" },
         { "1000!",                        "factorial(1000)" },
         { "mcd(144,180)",                 "gcd(144, 180)" },
         { "Stirling 100",                 "log(factorial(100)).evalf()" },
@@ -920,9 +923,9 @@ void MatematicaPage::runPython(const QString& code)
     });
 
     setStatus("\xe2\x8f\xb3  Calcolo in corso...");
-    m_proc->start("python3", QStringList{"-c", code});
+    m_proc->start(P::findPython(), QStringList{"-c", code});
     if (!m_proc->waitForStarted(3000)) {
-        setStatus("\xe2\x9d\x8c  python3 non trovato nel PATH.");
+        setStatus("\xe2\x9d\x8c  Python non trovato nel PATH. Installa Python da python.org");
         m_proc->deleteLater();
         m_proc = nullptr;
     }
@@ -958,7 +961,7 @@ QString MatematicaPage::detectPatternLocal(const QVector<double>& seq) const
     if (arith) {
         if (eq(d, 0))
             return QString("Sequenza costante: a(n) = %1").arg(seq[0]);
-        return QString("Aritmetica: a(n) = %1 + (n\xe2\x88\x921)\xc2\xb7%2   [d = %2]")
+        return QString("Aritmetica: a(n) = %1 + (n\xe2\x88\x92" "1)\xc2\xb7%2   [d = %2]")
                .arg(seq[0]).arg(d);
     }
 
@@ -969,7 +972,7 @@ QString MatematicaPage::detectPatternLocal(const QVector<double>& seq) const
         for (int i = 2; i < n; ++i)
             if (!eq(seq[i] / seq[i-1], r)) { geom = false; break; }
         if (geom)
-            return QString("Geometrica: a(n) = %1 \xc2\xb7 %2^(n\xe2\x88\x921)   [r = %2]")
+            return QString("Geometrica: a(n) = %1 \xc2\xb7 %2^(n\xe2\x88\x92" "1)   [r = %2]")
                    .arg(seq[0]).arg(r);
     }
 
@@ -998,7 +1001,7 @@ QString MatematicaPage::detectPatternLocal(const QVector<double>& seq) const
         for (int i = 2; i < n; ++i)
             if (!eq(seq[i], seq[i-1] + seq[i-2])) { fib = false; break; }
         if (fib)
-            return QString("Fibonacci-like: a(n) = a(n\xe2\x88\x921) + a(n\xe2\x88\x922), "
+            return QString("Fibonacci-like: a(n) = a(n\xe2\x88\x92" "1) + a(n\xe2\x88\x92" "2), "
                            "a(1)=%1, a(2)=%2").arg(seq[0]).arg(seq[1]);
     }
 
@@ -1054,8 +1057,8 @@ QString MatematicaPage::detectPatternLocal(const QVector<double>& seq) const
         if (pr) return "Numeri primi: p(1)=2, p(2)=3, p(3)=5, ...  Usa sympy per la formula.";
     }
 
-    return QString("Pattern non riconosciuto localmente — prova \xe2\x80\x9cInterpola con sympy\xe2\x80\x9d "
-                   "oppure \xe2\x80\x9cAnalizza con AI\xe2\x80\x9d.");
+    return QString("Pattern non riconosciuto localmente — prova \xe2\x80\x9c" "Interpola con sympy\xe2\x80\x9d "
+                   "oppure \xe2\x80\x9c" "Analizza con AI\xe2\x80\x9d.");
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1259,9 +1262,9 @@ QString MatematicaPage::_runPythonSync(const QString& code, QString& err)
 {
     QProcess proc;
     proc.setProcessChannelMode(QProcess::SeparateChannels);
-    proc.start("python3", QStringList{"-c", code});
+    proc.start(P::findPython(), QStringList{"-c", code});
     if (!proc.waitForStarted(3000)) {
-        err = "python3 non trovato nel PATH.";
+        err = "Python non trovato nel PATH. Installa Python da python.org";
         return {};
     }
     proc.waitForFinished(20000);

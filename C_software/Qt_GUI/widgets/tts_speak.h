@@ -68,10 +68,14 @@ inline bool writeTtsTemp(const QString& text) {
    Nessuna dipendenza esterna, funziona su qualsiasi Windows 10/11.
    ──────────────────────────────────────────────────────────── */
 inline QString sapiCommand() {
+    /* ReadAllText con UTF-8 esplicito: necessario per accenti italiani (è, à, ù…)
+       senza questo PowerShell legge il file con l'encoding ANSI di sistema (cp1252)
+       e i caratteri accentati vengono letti in modo errato da SAPI. */
     return QString(
         "Add-Type -AssemblyName System.Speech;"
         "$s=New-Object System.Speech.Synthesis.SpeechSynthesizer;"
-        "$s.Speak([System.IO.File]::ReadAllText('%1'))"
+        "$s.Speak([System.IO.File]::ReadAllText('%1',"
+        "[System.Text.Encoding]::UTF8))"
     ).arg(QDir::toNativeSeparators(ttsTempFile()));
 }
 

@@ -16,6 +16,11 @@
 #   curl -fsSL https://ollama.com/install.sh | sh
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ── Matematica e calcolo numerico ────────────────────────────────────────────
+numpy
+sympy
+mpmath
+
 # ── UI terminale ──────────────────────────────────────────────────────────────
 rich
 textual

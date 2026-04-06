@@ -2,6 +2,8 @@
 .venv/
 venv/
 env/
+py_env/
+**/py_env/
 
 # ── Cache Python ─────────────────────────────────────────────────────────────
 __pycache__/
@@ -51,8 +53,14 @@ C_software/jlt_speedup_demo
 # ── Qt GUI — directory build (binari compilati) ────────────────────────────────
 C_software/Qt_GUI/build/
 C_software/Qt_GUI/build_dbg/
+C_software/Qt_GUI/build_tests/
 Qt_GUI/build/
 Qt_GUI/build_dbg/
+
+# ── Cartelle root duplicate/sperimentali (non fanno parte del progetto principale)
+# Nota: / iniziale ancora il pattern alla root del repo
+/Qt_GUI/
+/llama_cpp_studio/
 
 # ── Artefatti generati e file personali ───────────────────────────────────────
 Prismalux_Windows_full.zip
@@ -82,6 +90,16 @@ build/
 dist/
 *.egg-info/
 setup_cython.py
+
+# ── Binari test con suffisso _bin e altri binari test standalone ──────────────
+C_software/*_bin
+C_software/test_bench
+
+# ── File personali (screenshot, foto) ────────────────────────────────────────
+photo_*.jpg
+photo_*.png
+screenshot_*.jpg
+screenshot_*.png
 
 # ── File di sistema ───────────────────────────────────────────────────────────
 .DS_Store

@@ -80,6 +80,7 @@ static const BubClr& bc() {
 #include <QFile>
 #include <QDir>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QMessageBox>
 #include <algorithm>
 #include <QFileDialog>
@@ -218,6 +219,16 @@ void AgentiPage::setupUI() {
     m_btnCfg->setToolTip("Apri la finestra di configurazione agenti\n(ruolo, modello, contesto RAG per ciascuno)");
     toolLay->addWidget(m_btnCfg);
 
+    /* Checkbox Controller LLM — disabilitabile per calcoli matematici/semplici */
+    m_chkController = new QCheckBox("\xf0\x9f\x94\x8d Controller", toolbar);
+    m_chkController->setObjectName("cardDesc");
+    m_chkController->setChecked(true);
+    m_chkController->setToolTip(
+        "Abilita il Controller LLM dopo ogni agente nella Pipeline.\n"
+        "Disabilita per task matematici puri: il codice viene eseguito\n"
+        "e si passa al prossimo agente senza verifica aggiuntiva.");
+    toolLay->addWidget(m_chkController);
+
     lay->addWidget(toolbar);
 
     /* Stato auto-assegnazione / preset */
@@ -238,6 +249,13 @@ void AgentiPage::setupUI() {
         "L'output degli agenti appare qui...\n\n"
         "\xf0\x9f\x8d\xba Invocazione riuscita. Gli dei ascoltano.");
     lay->addWidget(m_log, 1);
+
+    /* ── Smart auto-scroll: l'utente può scorrere su durante lo streaming ── */
+    connect(m_log->verticalScrollBar(), &QScrollBar::valueChanged,
+            this, [this](int value) {
+        if (m_suppressScrollSig) return;
+        m_userScrolled = (value < m_log->verticalScrollBar()->maximum());
+    });
 
     /* ── Pannello grafico: appare automaticamente quando l'AI restituisce una formula ── */
     m_chartPanel = new QFrame(this);
@@ -283,10 +301,10 @@ void AgentiPage::setupUI() {
             if (m_chartPanel) m_chartPanel->setVisible(true);
             return;
         }
-        if (!s.startsWith("copy:") && !s.startsWith("tts:")) return;
+        if (!s.startsWith("copy:") && !s.startsWith("tts:") && !s.startsWith("edit:")) return;
         /* Formato nuovo: "copy:N:BASE64URL" — il testo è embedded nell'href.
            Formato vecchio: "copy:N"          — fallback su m_bubbleTexts. */
-        const int c1 = s.indexOf(':');              // colon dopo "copy"/"tts"
+        const int c1 = s.indexOf(':');              // colon dopo "copy"/"tts"/"edit"
         const int c2 = s.indexOf(':', c1 + 1);      // secondo colon (nuovo formato), -1 se vecchio
         bool ok = false;
         const int idx = s.mid(c1 + 1, c2 < 0 ? -1 : c2 - c1 - 1).toInt(&ok);
@@ -298,6 +316,17 @@ void AgentiPage::setupUI() {
         } else {
             if (!m_bubbleTexts.contains(idx)) return;
             text = m_bubbleTexts.value(idx);
+        }
+
+        if (s.startsWith("edit:")) {
+            /* Copia il testo dell'agente nel campo input per modifica e reinvio */
+            m_input->setPlainText(text.trimmed());
+            m_input->setFocus();
+            m_input->moveCursor(QTextCursor::End);
+            QToolTip::showText(QCursor::pos(),
+                "\xe2\x9c\x8f\xef\xb8\x8f  Testo copiato nell'input \xe2\x80\x94 modifica e premi Avvia",
+                nullptr, {}, 3000);
+            return;
         }
 
         if (s.startsWith("copy:")) {
@@ -999,7 +1028,7 @@ void AgentiPage::setupUI() {
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::_sttStartRecording()
 {
-    const QString wavPath = "/tmp/prisma_stt_in.wav";
+    const QString wavPath = QDir::tempPath() + "/prisma_stt_in.wav";
     QFile::remove(wavPath);
 
     m_sttState = SttState::Recording;
@@ -1008,8 +1037,33 @@ void AgentiPage::_sttStartRecording()
     P::repolish(m_btnVoice);
 
     m_recProc = new QProcess(this);
+#ifdef Q_OS_WIN
+    /* Windows: sox rec (https://sox.sourceforge.net) */
+    const QString recBin = QStandardPaths::findExecutable("rec");
+    const QString soxBin = QStandardPaths::findExecutable("sox");
+    if (!recBin.isEmpty()) {
+        m_recProc->start("rec",
+            {"-r","16000","-c","1","-b","16", wavPath, "trim","0","6"});
+    } else if (!soxBin.isEmpty()) {
+        m_recProc->start("sox",
+            {"-t","waveaudio","default","-r","16000","-c","1","-b","16",
+             wavPath, "trim","0","6"});
+    } else {
+        m_sttState = SttState::Idle;
+        m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
+        m_btnVoice->setProperty("danger","false");
+        P::repolish(m_btnVoice);
+        m_log->append(
+            "\xe2\x9a\xa0  <b>Registrazione audio non disponibile.</b><br>"
+            "Su Windows installa <code>sox</code> (sox.sourceforge.net) "
+            "per abilitare la trascrizione vocale.");
+        m_recProc->deleteLater(); m_recProc = nullptr;
+        return;
+    }
+#else
     m_recProc->start("arecord",
         {"-d", "6", "-r", "16000", "-c", "1", "-f", "S16_LE", "-q", wavPath});
+#endif
 
     /* Countdown nel testo del pulsante */
     auto* tick = new QTimer(this);
@@ -1256,74 +1310,47 @@ void AgentiPage::loadDroppedFile(const QString& filePath)
         return;
     }
 
-    /* ── PDF ── */
+    /* ── PDF: pdftotext (Linux) + fallback pypdf Python (cross-platform) ── */
     if (ext == "pdf") {
         m_log->append("\xf0\x9f\x93\x84  Estrazione PDF in corso...");
-        auto* proc = new QProcess(this);
-        proc->start("pdftotext", {filePath, "-"});
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, proc, filePath](int code, QProcess::ExitStatus){
-            const QString text = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
-            proc->deleteLater();
-            if (code != 0 || text.isEmpty()) {
-                m_log->append("\xe2\x9a\xa0  Estrazione PDF fallita. "
-                              "Installa <code>pdftotext</code> (poppler-utils).");
-                return;
-            }
+
+        /* Helper: applica il testo estratto al contesto */
+        auto applyPdfText = [this, filePath](const QString& text) {
             m_docContext = _sanitize_prompt(text);
             const QString fname = QFileInfo(filePath).fileName();
             m_input->setPlaceholderText(
                 QString("Allegato: %1 — fai una domanda...").arg(fname));
             m_log->append(QString("\xf0\x9f\x93\x84  PDF allegato: <b>%1</b> (%2 caratteri)")
                           .arg(fname).arg(text.length()));
-        });
+        };
+
+        /* 1. pdftotext (poppler-utils, disponibile su Linux/Mac) */
+        const QString pdftt = QStandardPaths::findExecutable("pdftotext");
+        if (!pdftt.isEmpty()) {
+            auto* proc = new QProcess(this);
+            proc->start(pdftt, {filePath, "-"});
+            connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                    this, [this, proc, filePath, applyPdfText](int code, QProcess::ExitStatus){
+                const QString text = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+                proc->deleteLater();
+                if (code == 0 && !text.isEmpty()) { applyPdfText(text); return; }
+                /* pdftotext fallito → prova Python */
+                _extractPdfPython(filePath, applyPdfText);
+            });
+            return;
+        }
+
+        /* 2. pypdf via Python (cross-platform, funziona su Windows con venv) */
+        _extractPdfPython(filePath, applyPdfText);
         return;
     }
 
     /* ── Fogli di calcolo Excel / ODS ── */
     static const QStringList xlsExts = {"xls","xlsx","ods","ots","fods","xlsm","xlsb"};
     if (xlsExts.contains(ext)) {
-        const QString outCsv = "/tmp/prisma_sheet_out.csv";
-        QFile::remove(outCsv);
         m_log->append("\xf0\x9f\x93\x8a  Conversione foglio di calcolo...");
 
-        /* Cerca ssconvert (gnumeric) o libreoffice */
-        const QString ssconv = QStandardPaths::findExecutable("ssconvert");
-        const QString lo     = QStandardPaths::findExecutable("libreoffice");
-
-        QStringList args;
-        QString tool;
-        if (!ssconv.isEmpty()) {
-            tool = ssconv;
-            args = { "--export-type=Gnumeric_stf:stf_csv", filePath, outCsv };
-        } else if (!lo.isEmpty()) {
-            tool = lo;
-            args = { "--headless", "--convert-to", "csv", "--outdir", "/tmp/", filePath };
-        } else {
-            m_log->append(
-                "\xe2\x9a\xa0  Nessun convertitore trovato. Installa uno dei seguenti:<br>"
-                "<code>sudo apt install gnumeric</code>  oppure  "
-                "<code>sudo apt install libreoffice</code>");
-            return;
-        }
-
-        auto* proc = new QProcess(this);
-        proc->start(tool, args);
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, proc, filePath, outCsv, lo](int code, QProcess::ExitStatus){
-            proc->deleteLater();
-            /* LibreOffice mette il csv in /tmp/<basename>.csv */
-            QString csvPath = outCsv;
-            if (!QFileInfo::exists(csvPath) && !lo.isEmpty()) {
-                csvPath = "/tmp/" + QFileInfo(filePath).completeBaseName() + ".csv";
-            }
-            QFile f(csvPath);
-            if (code != 0 || !f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                m_log->append("\xe2\x9d\x8c  Conversione foglio fallita.");
-                return;
-            }
-            QTextStream ts(&f);
-            const QString text = ts.readAll();
+        auto applyXls = [this, filePath](const QString& text) {
             m_docContext = _sanitize_prompt(text);
             const QString fname = QFileInfo(filePath).fileName();
             m_input->setPlaceholderText(
@@ -1331,7 +1358,51 @@ void AgentiPage::loadDroppedFile(const QString& filePath)
             m_log->append(
                 QString("\xf0\x9f\x93\x8a  Foglio allegato: <b>%1</b> (%2 righe CSV)")
                 .arg(fname).arg(text.count('\n') + 1));
-        });
+        };
+
+        /* Su Windows: Python + openpyxl/xlrd (sempre disponibile via venv) */
+        /* Su Linux/Mac: prova ssconvert o LibreOffice, poi Python come fallback */
+#ifndef Q_OS_WIN
+        const QString outCsv = QDir::tempPath() + "/prisma_sheet_out.csv";
+        QFile::remove(outCsv);
+
+        const QString ssconv = QStandardPaths::findExecutable("ssconvert");
+        const QString lo     = QStandardPaths::findExecutable("libreoffice");
+        const QString tmpDir = QDir::tempPath();
+
+        if (!ssconv.isEmpty() || !lo.isEmpty()) {
+            QStringList args;
+            QString tool;
+            if (!ssconv.isEmpty()) {
+                tool = ssconv;
+                args = { "--export-type=Gnumeric_stf:stf_csv", filePath, outCsv };
+            } else {
+                tool = lo;
+                args = { "--headless", "--convert-to", "csv", "--outdir", tmpDir, filePath };
+            }
+            auto* proc = new QProcess(this);
+            proc->start(tool, args);
+            connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                    this, [this, proc, filePath, outCsv, lo, tmpDir, applyXls]
+                    (int code, QProcess::ExitStatus){
+                proc->deleteLater();
+                /* LibreOffice mette il csv in <tmp>/<basename>.csv */
+                QString csvPath = outCsv;
+                if (!QFileInfo::exists(csvPath) && !lo.isEmpty())
+                    csvPath = tmpDir + "/" + QFileInfo(filePath).completeBaseName() + ".csv";
+                QFile f(csvPath);
+                if (code == 0 && f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                    applyXls(QTextStream(&f).readAll());
+                } else {
+                    /* ssconvert/LO falliti → Python */
+                    _extractXlsPython(filePath, applyXls);
+                }
+            });
+            return;
+        }
+#endif
+        /* Windows (o Linux senza ssconvert/LO): Python openpyxl/xlrd */
+        _extractXlsPython(filePath, applyXls);
         return;
     }
 
@@ -1349,6 +1420,187 @@ void AgentiPage::loadDroppedFile(const QString& filePath)
         QString("Allegato: %1 — fai una domanda...").arg(fname));
     m_log->append(QString("\xf0\x9f\x93\x8e  Documento allegato: <b>%1</b> (%2 caratteri)")
                   .arg(fname).arg(text.length()));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _sanitizePyCode — corregge bug tipici nel codice Python generato
+   dall'AI prima di eseguirlo.
+
+   Pattern corretti:
+   - `if name == "main":` / `if name == '__main__':` → __name__ guard corretta
+   - `print x` (Python 2 syntax) → `print(x)`
+   - import psutil / numpy / pandas / matplotlib / scipy →
+     inietta auto-install silenzioso in testa (fallback graceful su Windows)
+   ══════════════════════════════════════════════════════════════ */
+QString AgentiPage::_sanitizePyCode(const QString& code)
+{
+    QString out = code;
+
+    /* Pattern 1: __name__ guard scritto male dall'AI */
+    static const QRegularExpression reNameMain(
+        R"(if\s+_?name_?\s*==\s*['"]__?main__?['"]\s*:)",
+        QRegularExpression::CaseInsensitiveOption);
+    out.replace(reNameMain, "if __name__ == \"__main__\":");
+
+    /* Pattern 2: `if __name__ == "main":` (senza doppio underscore) */
+    static const QRegularExpression reNameMain2(
+        R"(if\s+__name__\s*==\s*['"]main['"]\s*:)");
+    out.replace(reNameMain2, "if __name__ == \"__main__\":");
+
+    /* Auto-install moduli esterni comuni che l'AI genera ma che possono
+       mancare nell'ambiente Python dell'utente (tipico su Windows senza venv).
+       Il blocco viene iniettato solo se almeno uno dei moduli è importato. */
+    static const QStringList kOptionalPkgs = {
+        "psutil", "numpy", "pandas", "matplotlib", "scipy",
+        "sklearn", "PIL", "requests", "sympy"
+    };
+    /* Mappa import-name → package-name (se diversi) */
+    static const QMap<QString,QString> kPkgMap = {
+        {"PIL", "Pillow"}, {"sklearn", "scikit-learn"}
+    };
+
+    QStringList toInstall;
+    for (const QString& mod : kOptionalPkgs) {
+        /* Cerca "import <mod>" oppure "from <mod>" nel codice */
+        QRegularExpression reImp(
+            QString(R"((?:^|\n)\s*(?:import\s+%1|from\s+%1\s))").arg(
+                QRegularExpression::escape(mod)));
+        if (reImp.match(out).hasMatch())
+            toInstall.append(kPkgMap.value(mod, mod));
+    }
+
+    if (!toInstall.isEmpty()) {
+        QString pkgList;
+        for (const QString& pkg : toInstall)
+            pkgList += QString("    \"%1\",\n").arg(pkg);
+
+        QString preamble =
+            "import subprocess, sys\n"
+            "def _prisma_ensure(*pkgs):\n"
+            "    import importlib\n"
+            "    for p in pkgs:\n"
+            "        name = p.replace('-','_').split('[')[0]\n"
+            "        try: importlib.import_module(name)\n"
+            "        except ImportError:\n"
+            "            subprocess.check_call(\n"
+            "                [sys.executable, '-m', 'pip', 'install', p, '-q'],\n"
+            "                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
+            "_prisma_ensure(\n"
+            + pkgList +
+            ")\n\n";
+
+        out = preamble + out;
+    }
+
+    return out;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _extractPdfPython — estrae testo da PDF via pypdf (Python).
+   Fallback cross-platform quando pdftotext non è disponibile
+   (tipicamente su Windows). Usa il venv creato da Avvia.bat.
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::_extractPdfPython(
+    const QString& filePath,
+    std::function<void(const QString&)> onText)
+{
+    const QString python = PrismaluxPaths::findPython();
+    const QString script = QDir::tempPath() + "/prisma_pdf_extract.py";
+
+    {
+        QFile sf(script);
+        if (!sf.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            m_log->append("\xe2\x9d\x8c  Impossibile creare script Python temporaneo.");
+            return;
+        }
+        QTextStream ts(&sf);
+        ts << "import sys\n"
+           << "try:\n"
+           << "    from pypdf import PdfReader\n"
+           << "except ImportError:\n"
+           << "    from PyPDF2 import PdfReader\n"
+           << "r = PdfReader(sys.argv[1])\n"
+           << "print(''.join(p.extract_text() or '' for p in r.pages))\n";
+    }
+
+    auto* proc = new QProcess(this);
+    proc->start(python, {script, filePath});
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc, script, onText](int code, QProcess::ExitStatus) {
+        const QString text = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+        proc->deleteLater();
+        QFile::remove(script);
+        if (code == 0 && !text.isEmpty()) {
+            onText(text);
+        } else {
+            m_log->append(
+                "\xe2\x9a\xa0  Estrazione PDF fallita.<br>"
+                "Installa <code>pypdf</code>: già incluso in "
+                "<code>requirements_python.txt</code>.<br>"
+                "Su Windows lancia <code>Avvia_Prismalux.bat</code> "
+                "per installarlo automaticamente.");
+        }
+    });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _extractXlsPython — converte foglio Excel/ODS in CSV via Python.
+   Usa openpyxl (xlsx/xlsm) con fallback xlrd (xls).
+   Cross-platform: funziona su Windows con il venv del progetto.
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::_extractXlsPython(
+    const QString& filePath,
+    std::function<void(const QString&)> onText)
+{
+    const QString python = PrismaluxPaths::findPython();
+    const QString script = QDir::tempPath() + "/prisma_xls_convert.py";
+
+    {
+        QFile sf(script);
+        if (!sf.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            m_log->append("\xe2\x9d\x8c  Impossibile creare script Python temporaneo.");
+            return;
+        }
+        QTextStream ts(&sf);
+        ts << "import sys, csv, io\n"
+           << "path = sys.argv[1]\n"
+           << "try:\n"
+           << "    import openpyxl\n"
+           << "    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)\n"
+           << "    ws = wb.active\n"
+           << "    out = io.StringIO()\n"
+           << "    w = csv.writer(out)\n"
+           << "    for row in ws.iter_rows(values_only=True):\n"
+           << "        w.writerow(['' if c is None else str(c) for c in row])\n"
+           << "    print(out.getvalue(), end='')\n"
+           << "except ImportError:\n"
+           << "    import xlrd\n"
+           << "    wb = xlrd.open_workbook(path)\n"
+           << "    ws = wb.sheet_by_index(0)\n"
+           << "    out = io.StringIO()\n"
+           << "    w = csv.writer(out)\n"
+           << "    for i in range(ws.nrows):\n"
+           << "        w.writerow([str(ws.cell_value(i,j)) for j in range(ws.ncols)])\n"
+           << "    print(out.getvalue(), end='')\n";
+    }
+
+    auto* proc = new QProcess(this);
+    proc->start(python, {script, filePath});
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc, filePath, script, onText](int code, QProcess::ExitStatus) {
+        const QString text = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+        proc->deleteLater();
+        QFile::remove(script);
+        if (code == 0 && !text.isEmpty()) {
+            onText(text);
+        } else {
+            m_log->append(
+                "\xe2\x9a\xa0  Conversione foglio fallita.<br>"
+                "Installa <code>openpyxl</code>: gi\xc3\xa0 in "
+                "<code>requirements_python.txt</code>.<br>"
+                "Su Windows lancia <code>Avvia_Prismalux.bat</code>.");
+        }
+    });
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2428,6 +2680,7 @@ bool AgentiPage::checkModelSize(const QString& model)
    Pipeline sequenziale
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::runPipeline() {
+    m_userScrolled = false;  /* nuovo task: torna in auto-scroll */
     QString task = _sanitize_prompt(m_input->toPlainText().trimmed());
     if (task.isEmpty()) { m_log->append("\xe2\x9a\xa0  Inserisci un task."); return; }
 
@@ -2643,6 +2896,7 @@ void AgentiPage::runAgent(int idx) {
    Motore Byzantino
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::runByzantine() {
+    m_userScrolled = false;  /* nuovo task: torna in auto-scroll */
     QString fact = _sanitize_prompt(m_input->toPlainText().trimmed());
     if (fact.isEmpty()) { m_log->append("\xe2\x9a\xa0  Inserisci una domanda."); return; }
 
@@ -2700,6 +2954,7 @@ void AgentiPage::runByzantine() {
    Matematico Teorico
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::runMathTheory() {
+    m_userScrolled = false;  /* nuovo task: torna in auto-scroll */
     QString problem = _sanitize_prompt(m_input->toPlainText().trimmed());
     if (problem.isEmpty()) { m_log->append("\xe2\x9a\xa0  Inserisci un problema matematico."); return; }
 
@@ -2849,6 +3104,10 @@ QString AgentiPage::buildAgentBubble(const QString& label, const QString& model,
             "<tr>"
               "<td>" + metaLeft + "</td>"
               "<td align='right' style='white-space:nowrap;'>"
+                "<a href='edit:" + id + ":" + b64 + "' style='" + lnk + "' "
+                   "title='Usa come input (modifica e reinvia)'>"
+                  "\xe2\x9c\x8f\xef\xb8\x8f</a>"
+                " &nbsp; "
                 "<a href='copy:" + id + ":" + b64 + "' style='" + lnk + "'>"
                   "\xf0\x9f\x97\x82</a>"
                 " &nbsp; "
@@ -3240,11 +3499,19 @@ void AgentiPage::onToken(const QString& t) {
         /* I peer gestiscono i loro token internamente via lambda — ignora */
         return;
     }
+    /* In modalità Idle non siamo attivi: i token appartengono ad un'altra pagina.
+       Ignorarli previene output fantasma nel log degli agenti. */
+    if (m_opMode == OpMode::Idle) return;
+
     m_waitLbl->setVisible(false);
     QTextCursor cursor(m_log->document());
     cursor.movePosition(QTextCursor::End);
     cursor.insertText(t);
-    m_log->ensureCursorVisible();
+    if (!m_userScrolled) {
+        m_suppressScrollSig = true;
+        m_log->ensureCursorVisible();
+        m_suppressScrollSig = false;
+    }
 
     if (m_opMode == OpMode::Pipeline && !m_agentOutputs.isEmpty()) {
         m_agentOutputs.last() += t;
@@ -3406,6 +3673,9 @@ void AgentiPage::onFinished(const QString& /*full*/) {
         /* ── Tool Executor: estrae ed esegue codice Python, poi avvia il Controller ── */
         QString pyCode = extractPythonCode(rawResp);
         if (!pyCode.isEmpty()) {
+            /* Corregge i bug tipici nei codici generati dall'AI */
+            pyCode = _sanitizePyCode(pyCode);
+
             /* Scrivi il codice in un file temporaneo */
             QString tmpPath = QDir::tempPath() + "/prismalux_exec.py";
             { QFile f(tmpPath); if (f.open(QIODevice::WriteOnly|QIODevice::Text)) f.write(pyCode.toUtf8()); }
@@ -3434,10 +3704,17 @@ void AgentiPage::onFinished(const QString& /*full*/) {
                 QTextCursor c(m_log->document());
                 c.movePosition(QTextCursor::End);
                 c.insertHtml(buildToolStrip(QString(), out, exitCode, ms));
-                m_log->ensureCursorVisible();
+                if (!m_userScrolled) {
+                    m_suppressScrollSig = true;
+                    m_log->ensureCursorVisible();
+                    m_suppressScrollSig = false;
+                }
 
-                /* Avvia il controller LLM */
-                runPipelineController();
+                /* Avvia il controller LLM (solo se checkbox abilitato) */
+                if (m_chkController && m_chkController->isChecked())
+                    runPipelineController();
+                else
+                    advancePipeline();
             });
 
             connect(m_execProc, &QProcess::errorOccurred,
@@ -3449,7 +3726,7 @@ void AgentiPage::onFinished(const QString& /*full*/) {
                     advancePipeline();   /* python3 non disponibile: salta executor */
                 }
             });
-            m_execProc->start("python3", {tmpPath});
+            m_execProc->start(PrismaluxPaths::findPython(), {tmpPath});
         } else {
             /* Nessun codice trovato: avanza direttamente */
             advancePipeline();

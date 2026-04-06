@@ -220,8 +220,9 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
         "\"spiega questo codice\", \"trova i bug\"");
     aiInputLay->addWidget(m_aiInput, 1);
 
-    auto* btnSend = new QPushButton("Invia \xe2\x96\xb6", aiInputRow);
-    btnSend->setObjectName("actionBtn");
+    m_btnSend = new QPushButton("Invia \xe2\x96\xb6", aiInputRow);
+    m_btnSend->setObjectName("actionBtn");
+    auto* btnSend = m_btnSend;  /* alias locale per il codice sottostante */
 
     m_btnInsert = new QPushButton("\xe2\x86\x91  Inserisci in editor", aiInputRow);
     m_btnInsert->setObjectName("actionBtn");
@@ -430,22 +431,24 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
         setRunning(true);
         m_status->setText("\xf0\x9f\xa4\x96  AI in risposta...");
 
-        auto* holder = new QObject(this);
-        connect(m_ai, &AiClient::token, holder, [this](const QString& tok){
+        /* Resetta il holder precedente prima di crearne uno nuovo —
+           evita doppie connessioni che causano output duplicato. */
+        if (m_tokenHolder) { delete m_tokenHolder; m_tokenHolder = nullptr; }
+        m_tokenHolder = new QObject(this);
+        connect(m_ai, &AiClient::token, m_tokenHolder, [this](const QString& tok){
             m_aiOutput->moveCursor(QTextCursor::End);
             m_aiOutput->insertPlainText(tok);
             m_aiOutput->ensureCursorVisible();
         });
-        connect(m_ai, &AiClient::finished, holder, [this, holder](const QString&){
-            holder->deleteLater();
+        connect(m_ai, &AiClient::finished, m_tokenHolder, [this](const QString&){
+            if (m_tokenHolder) { delete m_tokenHolder; m_tokenHolder = nullptr; }
             m_aiMode = false;
             setRunning(false);
             m_status->setText("\xe2\x9c\x85  Risposta AI completata.");
-            /* Abilita inserimento se c'è un blocco di codice nella risposta */
             m_btnInsert->setEnabled(!extractCodeBlock().isEmpty());
         });
-        connect(m_ai, &AiClient::error, holder, [this, holder](const QString& msg){
-            holder->deleteLater();
+        connect(m_ai, &AiClient::error, m_tokenHolder, [this](const QString& msg){
+            if (m_tokenHolder) { delete m_tokenHolder; m_tokenHolder = nullptr; }
             m_aiMode = false;
             setRunning(false);
             m_aiOutput->appendPlainText(QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
@@ -755,6 +758,9 @@ void ProgrammazionePage::setRunning(bool running)
     m_btnStop->setEnabled(running);
     m_lang->setEnabled(!running);
     m_btnFix->setEnabled(!running);
+    /* Disabilita "Invia" durante lo streaming per impedire
+       doppie connessioni al segnale token (causa output duplicato). */
+    if (m_btnSend) m_btnSend->setEnabled(!running);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -920,19 +926,19 @@ void ProgrammazionePage::_doFix(bool includeError,
     m_status->setText(QString("\xf0\x9f\x94\xa7  %1 sta analizzando il codice...")
                       .arg(m_ai->model().isEmpty() ? "AI" : m_ai->model()));
 
-    auto* holder = new QObject(this);
-    connect(m_ai, &AiClient::token, holder, [this](const QString& tok){
+    if (m_tokenHolder) { delete m_tokenHolder; m_tokenHolder = nullptr; }
+    m_tokenHolder = new QObject(this);
+    connect(m_ai, &AiClient::token, m_tokenHolder, [this](const QString& tok){
         m_aiOutput->moveCursor(QTextCursor::End);
         m_aiOutput->insertPlainText(tok);
         m_aiOutput->ensureCursorVisible();
     });
-    connect(m_ai, &AiClient::finished, holder,
-            [this, holder, originalModel](const QString&){
-        holder->deleteLater();
+    connect(m_ai, &AiClient::finished, m_tokenHolder,
+            [this, originalModel](const QString&){
+        if (m_tokenHolder) { delete m_tokenHolder; m_tokenHolder = nullptr; }
         m_aiMode = false;
         setRunning(false);
         m_btnFix->setText("\xf0\x9f\x94\xa7  Correggi con AI");
-        /* Inserisci automaticamente il codice corretto nell'editor */
         const QString fixed = extractCodeBlock();
         if (!fixed.isEmpty()) {
             m_editor->setPlainText(fixed);
@@ -943,18 +949,16 @@ void ProgrammazionePage::_doFix(bool includeError,
             m_status->setText("\xe2\x9c\x85  Correzione completata (nessun blocco codice estratto).");
         }
         m_btnInsert->setEnabled(false);
-        /* Ripristina il modello originale — non contaminare le altre schede */
         if (!originalModel.isEmpty() && originalModel != m_ai->model())
             m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), originalModel);
     });
-    connect(m_ai, &AiClient::error, holder,
-            [this, holder, originalModel](const QString& msg){
-        holder->deleteLater();
+    connect(m_ai, &AiClient::error, m_tokenHolder,
+            [this, originalModel](const QString& msg){
+        if (m_tokenHolder) { delete m_tokenHolder; m_tokenHolder = nullptr; }
         m_aiMode = false;
         setRunning(false);
         m_aiOutput->appendPlainText(QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
         m_status->setText("\xe2\x9d\x8c  Errore AI durante la correzione.");
-        /* Ripristina il modello originale anche in caso di errore */
         if (!originalModel.isEmpty() && originalModel != m_ai->model())
             m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), originalModel);
     });

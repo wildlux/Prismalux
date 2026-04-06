@@ -60,6 +60,12 @@ private:
     QProcess*       m_proc      = nullptr;
     bool            m_aiMode    = false;
 
+    /* Token connection holder — singolo, sostituisce il pattern holder locale.
+       Garantisce che ci sia sempre al massimo UNA connessione a m_ai->token.
+       Viene resettato esplicitamente prima di creare una nuova connessione. */
+    QObject*        m_tokenHolder = nullptr;
+    QPushButton*    m_btnSend   = nullptr;   ///< "Invia ▶" nel pannello AI (disabilitato durante streaming)
+
     /* Toolbar buttons */
     QPushButton*    m_btnRun    = nullptr;
     QPushButton*    m_btnStop   = nullptr;

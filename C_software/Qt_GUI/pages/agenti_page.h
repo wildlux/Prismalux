@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <QWidget>
 #include <QFrame>
 #include <QTextEdit>
@@ -7,6 +8,7 @@
 #include <QMap>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
 #include <QVector>
@@ -58,6 +60,8 @@ private:
 
     /* ── Widget interfaccia principale ── */
     QTextBrowser* m_log       = nullptr;  ///< log conversazione (HTML, QTextBrowser per link click)
+    bool          m_userScrolled       = false;  ///< true se l'utente ha scrollato su durante streaming
+    bool          m_suppressScrollSig  = false;  ///< sopprime il segnale valueChanged durante auto-scroll
     QMap<int,QString> m_bubbleTexts;      ///< testo plain indicizzato per copia/TTS
     int           m_bubbleIdx = 0;        ///< contatore bolle corrente
     QTextEdit*    m_input     = nullptr;
@@ -68,6 +72,7 @@ private:
     QPushButton*  m_btnTranslate = nullptr;   ///< Apre dialog traduzione
     QFrame*       m_symbolsPanel = nullptr;   ///< Pannello inline caratteri speciali (toggle)
     QComboBox*    m_cmbMode   = nullptr;
+    QCheckBox*    m_chkController = nullptr; ///< Abilita/disabilita il Controller LLM post-agente
     QLabel*       m_autoLbl   = nullptr;   ///< Stato auto-assegnazione / preset
     QLabel*       m_waitLbl   = nullptr;   ///< ⏳ durante elaborazione AI
     int           m_maxShots  = 6;
@@ -163,6 +168,11 @@ private:
     void loadDroppedFile(const QString& filePath);
     /** Converte file audio in testo (voce via whisper, o note musicali via aubionotes) */
     void _loadAudioAsText(const QString& filePath);
+    static QString _sanitizePyCode(const QString& code);
+    void _extractPdfPython(const QString& filePath,
+                            std::function<void(const QString&)> onText);
+    void _extractXlsPython(const QString& filePath,
+                            std::function<void(const QString&)> onText);
 
     /* ── Selettore LLM principale (toolbar) ── */
     QComboBox*   m_cmbLLM = nullptr;  ///< Selettore LLM singolo nella toolbar

@@ -3,7 +3,7 @@
 #  aggiorna.sh — Ricompila Prismalux, ZIP Windows, AppImage Linux
 #
 #  Uso:
-#    ./aggiorna.sh              # TUI + GUI + ZIP Windows + AppImage
+#    ./aggiorna.sh              # PyDeps + TUI + GUI + ZIP Windows + AppImage
 #    ./aggiorna.sh --tui        # solo TUI C
 #    ./aggiorna.sh --gui        # solo GUI Qt6
 #    ./aggiorna.sh --zip        # solo ZIP Windows
@@ -12,6 +12,7 @@
 #    ./aggiorna.sh --no-appimage# TUI + GUI + ZIP, salta AppImage
 #    ./aggiorna.sh --no-whisper # salta download binario whisper-cli.exe
 #    ./aggiorna.sh --whisper    # solo download binario whisper-cli.exe
+#    ./aggiorna.sh --no-pycheck # salta verifica/aggiornamento requirements Python
 # ══════════════════════════════════════════════════════════════
 set -euo pipefail
 
@@ -35,20 +36,22 @@ DO_TUI=1
 DO_GUI=1
 DO_ZIP=1
 DO_APPIMAGE=1
-DO_WHISPER_WIN=1   # scarica whisper-cli.exe precompilato per Windows
+DO_WHISPER_WIN=0   # stub non attivo — usa --whisper per forzare il download
+DO_PYCHECK=1       # controlla e aggiorna requirements_python.txt Windows
 
 for arg in "$@"; do
     case "$arg" in
-        --tui)          DO_TUI=1; DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=0 ;;
-        --gui)          DO_TUI=0; DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=0 ;;
+        --tui)          DO_TUI=1; DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=0; DO_PYCHECK=0 ;;
+        --gui)          DO_TUI=0; DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=0; DO_PYCHECK=0 ;;
         --zip)          DO_TUI=0; DO_GUI=0; DO_ZIP=1; DO_APPIMAGE=0 ;;
         --appimage)     DO_TUI=0; DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=1 ;;
         --whisper)      DO_TUI=0; DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=1 ;;
         --no-zip)       DO_ZIP=0 ;;
         --no-appimage)  DO_APPIMAGE=0 ;;
         --no-whisper)   DO_WHISPER_WIN=0 ;;
+        --no-pycheck)   DO_PYCHECK=0 ;;
         -h|--help)
-            echo "Uso: $0 [--tui|--gui|--zip|--appimage|--no-zip|--no-appimage|--whisper|--no-whisper]"
+            echo "Uso: $0 [--tui|--gui|--zip|--appimage|--no-zip|--no-appimage|--whisper|--no-whisper|--no-pycheck]"
             exit 0 ;;
         *) echo -e "${R}Opzione sconosciuta: $arg${N}"; exit 1 ;;
     esac
@@ -60,6 +63,149 @@ ok()   { echo -e "${G}✅ $*${N}"; }
 fail() { echo -e "${R}❌ $*${N}"; exit 1; }
 
 T_START=$(date +%s)
+
+# ══════════════════════════════════════════════════════════════
+#  0. Dipendenze Python Windows (requirements_python.txt + bat)
+#     Genera anche installa_pip.bat come helper standalone
+# ══════════════════════════════════════════════════════════════
+if [ "$DO_PYCHECK" = "1" ]; then
+    step "Verifico dipendenze Python Windows..."
+
+    REQS="$C_SW/requirements_python.txt"
+    BAT_HELPER="$C_SW/installa_pip.bat"
+
+    # Pacchetti attualmente richiesti (sorgente di verità)
+    REQUIRED_PKGS=(
+        "sympy" "mpmath"
+        "numpy" "pandas" "scipy" "matplotlib"
+        "psutil"
+        "pypdf" "xlrd" "openpyxl"
+        "requests"
+    )
+
+    # Controlla che tutti i pacchetti siano nel requirements_python.txt
+    MISSING_IN_REQS=()
+    for pkg in "${REQUIRED_PKGS[@]}"; do
+        if ! grep -qi "^${pkg}" "$REQS" 2>/dev/null; then
+            MISSING_IN_REQS+=("$pkg")
+        fi
+    done
+
+    if [ ${#MISSING_IN_REQS[@]} -gt 0 ]; then
+        echo -e "${Y}  ⚠  Pacchetti mancanti in requirements_python.txt: ${MISSING_IN_REQS[*]}${N}"
+        for pkg in "${MISSING_IN_REQS[@]}"; do
+            echo "$pkg" >> "$REQS"
+        done
+        echo -e "${G}  → Aggiunti a $REQS${N}"
+    else
+        echo -e "${G}  ✓ requirements_python.txt completo (${#REQUIRED_PKGS[@]} pacchetti)${N}"
+    fi
+
+    # Genera installa_pip.bat — script standalone che l'utente può eseguire
+    # se pip fallisce durante il normale avvio
+    cat > "$BAT_HELPER" << 'BATEOF'
+@echo off
+:: installa_pip.bat — Installa/ripara le dipendenze Python per Prismalux
+:: Eseguire come AMMINISTRATORE se pip fallisce con errori di permessi.
+setlocal EnableDelayedExpansion
+
+echo.
+echo +--------------------------------------------------+
+echo ^|  Prismalux — Installazione dipendenze Python     ^|
+echo +--------------------------------------------------+
+echo.
+
+set BASE=%~dp0
+set REQS=%BASE%requirements_python.txt
+set BUILD=%BASE%Qt_GUI\build_win
+set VENV=%BUILD%\py_env
+set VENV_PYTHON=%VENV%\Scripts\python.exe
+
+:: ── Trova Python ─────────────────────────────────────────────
+set PYTHON=
+where python  >nul 2>&1 && set PYTHON=python
+if not defined PYTHON ( where py >nul 2>&1 && set PYTHON=py )
+if not defined PYTHON ( where python3 >nul 2>&1 && set PYTHON=python3 )
+
+if not defined PYTHON (
+    echo [ERRORE] Python non trovato nel PATH.
+    echo Scarica da: https://www.python.org/downloads/
+    echo (spunta "Add Python to PATH" durante l'installazione^)
+    pause & exit /b 1
+)
+echo [OK] Python trovato: %PYTHON%
+echo.
+
+:: ── Ricrea venv se corrotto ───────────────────────────────────
+if exist "%VENV_PYTHON%" (
+    "%VENV_PYTHON%" -c "import sys; print('Python', sys.version)" >nul 2>&1
+    if errorlevel 1 (
+        echo [INFO] Venv sembra corrotto - lo ricreo...
+        rmdir /s /q "%VENV%" >nul 2>&1
+    )
+)
+
+if not exist "%VENV_PYTHON%" (
+    if not exist "%BUILD%" mkdir "%BUILD%"
+    echo [INFO] Creo ambiente virtuale...
+    %PYTHON% -m venv "%VENV%"
+    if not exist "%VENV_PYTHON%" (
+        echo [AVVISO] Venv non creato - uso Python di sistema.
+        set VENV_PYTHON=%PYTHON%
+    )
+)
+
+:: ── Aggiorna pip ─────────────────────────────────────────────
+echo [INFO] Aggiorno pip...
+"%VENV_PYTHON%" -m pip install --upgrade pip ^
+    --trusted-host pypi.org --trusted-host files.pythonhosted.org
+echo.
+
+:: ── Installa dipendenze ──────────────────────────────────────
+echo [INFO] Installo dipendenze da requirements_python.txt...
+echo.
+"%VENV_PYTHON%" -m pip install -r "%REQS%" ^
+    --trusted-host pypi.org --trusted-host files.pythonhosted.org
+set RC=%errorlevel%
+
+if %RC% neq 0 (
+    echo.
+    echo [INFO] Tentativo con --only-binary (evita compilazione da sorgente^)...
+    "%VENV_PYTHON%" -m pip install -r "%REQS%" ^
+        --only-binary :all: ^
+        --trusted-host pypi.org --trusted-host files.pythonhosted.org
+    set RC2=%errorlevel%
+    if !RC2! neq 0 (
+        echo.
+        echo [INFO] Installo pacchetti uno ad uno...
+        for /f "usebackq eol=# tokens=*" %%P in ("%REQS%") do (
+            if not "%%P"=="" (
+                echo   Installo: %%P
+                "%VENV_PYTHON%" -m pip install "%%P" ^
+                    --trusted-host pypi.org --trusted-host files.pythonhosted.org
+            )
+        )
+    )
+)
+
+:: ── Verifica ─────────────────────────────────────────────────
+echo.
+echo [INFO] Verifica installazione...
+"%VENV_PYTHON%" -c "import sympy, numpy, psutil, pandas; print('[OK] Pacchetti principali pronti.')"
+if errorlevel 1 (
+    echo [ERRORE] Alcuni pacchetti non sono stati installati correttamente.
+    echo Controlla i messaggi sopra e riprova come Amministratore.
+) else (
+    echo [OK] Tutte le dipendenze Python sono installate correttamente.
+    echo Puoi avviare Prismalux con Avvia_Prismalux.bat
+)
+echo.
+pause
+endlocal
+BATEOF
+
+    ok "installa_pip.bat generato → $BAT_HELPER"
+fi
 
 # ══════════════════════════════════════════════════════════════
 #  1. TUI C (modalità HTTP — solo gcc, compilazione veloce)
@@ -107,18 +253,27 @@ if [ "$DO_WHISPER_WIN" = "1" ]; then
         mkdir -p "$WHISPER_WIN_DIR"
         WHISPER_EXE="$WHISPER_WIN_DIR/whisper-cli.exe"
 
-        # Cerca l'URL del release più recente (x86_64-windows.zip)
-        WHISPER_API="https://api.github.com/repos/ggml-org/whisper.cpp/releases/latest"
+        # Cerca l'URL del release più recente — prova prima ggml-org, poi ggerganov
         echo -e "  ${C}Interrogo GitHub API...${N}"
 
-        WHISPER_ZIP_URL=$(curl -fsSL "$WHISPER_API" 2>/dev/null \
-            | grep '"browser_download_url"' \
-            | grep 'x86_64-windows' \
-            | grep -o 'https://[^"]*' | head -1 || true)
+        _whisper_fetch_url() {
+            local repo="$1"
+            curl -fsSL "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null \
+                | grep '"browser_download_url"' \
+                | grep -iE 'win(64|dows|dows-x64|dows.*x64|_x64)|x64.*win|x86_64.*win' \
+                | grep -iE '\.zip' \
+                | grep -o 'https://[^"]*' | head -1 || true
+        }
+
+        WHISPER_ZIP_URL=$(_whisper_fetch_url "ggml-org/whisper.cpp")
+        if [ -z "$WHISPER_ZIP_URL" ]; then
+            WHISPER_ZIP_URL=$(_whisper_fetch_url "ggerganov/whisper.cpp")
+        fi
 
         if [ -z "$WHISPER_ZIP_URL" ]; then
             echo -e "${Y}⚠  Impossibile trovare il release Windows su GitHub API.${N}"
             echo -e "${Y}   (forse limite rate o connessione assente — il ZIP procede senza)${N}"
+            echo -e "${Y}   Riprova con: ./aggiorna.sh --whisper${N}"
             DO_WHISPER_WIN=0
         else
             echo -e "  Release trovato: ${C}$(basename "$WHISPER_ZIP_URL")${N}"
@@ -213,6 +368,7 @@ echo ""
 echo -e "${B}════════════════════════════════════════${N}"
 echo -e "${B}  Prismalux — aggiornamento completato  ${N}"
 echo -e "${B}════════════════════════════════════════${N}"
+[ "$DO_PYCHECK"   = "1" ] && echo -e "  ${G}PyDeps${N}   $C_SW/requirements_python.txt  +  installa_pip.bat"
 [ "$DO_TUI"      = "1" ] && echo -e "  ${G}TUI${N}      $C_SW/prismalux"
 [ "$DO_GUI"      = "1" ] && echo -e "  ${G}GUI${N}      $QT_BUILD/Prismalux_GUI"
 [ "$DO_ZIP"      = "1" ] && [ -f "$ZIP_OUT" ]      && echo -e "  ${G}ZIP${N}      $ZIP_OUT"

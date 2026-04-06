@@ -1,0 +1,33 @@
+# Pacchetti Python usati dalla Qt GUI (pagina Matematica, pipeline Agenti, import file).
+# Installati automaticamente da Avvia_Prismalux.bat al primo avvio.
+#
+# Installa manuale (se necessario):
+#   python -m pip install -r requirements_python.txt
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Matematica ad alta precisione (pagina Matematica — espressioni, sequenze)
+sympy
+mpmath
+
+# Calcolo numerico (usato dagli script Python generati dalla pipeline AI)
+numpy
+
+# Data science (usato spesso negli script AI-generati)
+pandas
+scipy
+matplotlib
+
+# Monitoraggio sistema (usato da script AI-generati per info CPU/RAM/GPU)
+psutil
+
+# Import file PDF (Importa da file — pagina Matematica)
+pypdf
+
+# Import file XLS vecchio formato (.xls — opzionale)
+xlrd
+
+# Import file XLSX moderno (.xlsx/.xlsm — usato da agenti come fallback su Windows)
+openpyxl
+
+# Richieste HTTP da script AI-generati
+requests

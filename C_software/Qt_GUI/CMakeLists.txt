@@ -3,6 +3,7 @@ project(Prismalux_GUI VERSION 2.2 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+option(BUILD_TESTS "Compila la suite test_signal_lifetime" OFF)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
@@ -106,3 +107,49 @@ endif()
 configure_file(style.qss ${CMAKE_BINARY_DIR}/style.qss COPYONLY)
 
 message(STATUS "Prismalux GUI: grafico_page include SmithPrime (idx 7) + MathConst-pi-e-Primi (idx 8)")
+
+# ── Test suite: test_signal_lifetime ─────────────────────────────────────
+# Testa 3 categorie di bug invisibili:
+#   - Dangling Observer (token duplicato da doppia connessione)
+#   - Signal Leakage    (token ricevuti da pagine in stato Idle)
+#   - Invariant Violation (checkbox nascosti ≠ deselezionati)
+#
+# Build: cmake -B build_tests -DBUILD_TESTS=ON && cmake --build build_tests
+# Run:   ./build_tests/test_signal_lifetime
+if(BUILD_TESTS)
+    if(Qt6_FOUND)
+        find_package(Qt6 COMPONENTS Test REQUIRED)
+        set(QT_TEST_LIB Qt6::Test)
+    else()
+        find_package(Qt5 COMPONENTS Test REQUIRED)
+        set(QT_TEST_LIB Qt5::Test)
+    endif()
+
+    # Sorgenti condivisi con l'app principale (escluso main.cpp)
+    set(TEST_SHARED_SRCS ${CPP_SRCS})
+    list(REMOVE_ITEM TEST_SHARED_SRCS main.cpp)
+
+    add_executable(test_signal_lifetime
+        tests/test_signal_lifetime.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+        ${QRC_FILES}
+    )
+    target_include_directories(test_signal_lifetime PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/../include
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_signal_lifetime PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_signal_lifetime PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_signal_lifetime PRIVATE pthread m)
+    endif()
+
+    enable_testing()
+    add_test(NAME SignalLifetime COMMAND test_signal_lifetime)
+    message(STATUS "Build test abilitata: test_signal_lifetime")
+endif()

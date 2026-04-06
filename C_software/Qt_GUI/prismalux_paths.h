@@ -23,9 +23,11 @@
 
 #include <QString>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QFileInfoList>
 #include <QCoreApplication>
+#include <QProcess>
 #include <QWidget>
 #include <QStyle>
 
@@ -264,6 +266,82 @@ inline QString whisperBin()
 inline QString whisperModelsDir()
 {
     return root() + "/C_software/whisper/models";
+}
+
+/**
+ * findPython() — Restituisce il percorso ASSOLUTO dell'eseguibile Python.
+ *
+ * PROBLEMA WINDOWS (double-quoting bug):
+ *   Se findPython() restituisce un nome bare come "python3", QProcess può
+ *   avviare uno shim .bat tramite cmd.exe. cmd.exe aggiunge doppio quoting
+ *   agli argomenti, corrompendo il path:
+ *     atteso:  C:\Temp\prisma_code.py
+ *     ricevuto: C:\...\C_software\"C:\Temp\prisma_code.py"
+ *   Soluzione: su Windows usare SEMPRE il path completo al .exe reale.
+ *
+ * Ordine di ricerca:
+ *   1. py_env/Scripts/python.exe  — venv Windows creato da Avvia_Prismalux.bat
+ *   2. py_env/bin/python3         — venv Linux/macOS
+ *   3. Windows: where.exe → primo match .exe (esclude .bat/.cmd shim)
+ *   4. Linux/macOS: probe bare name python3 / python
+ */
+inline QString findPython()
+{
+    const QString appDir = QCoreApplication::applicationDirPath();
+
+    /* 1-2. Venv accanto all'eseguibile (priorità massima) */
+    const QStringList venvCandidates = {
+        appDir + "/py_env/Scripts/python.exe",  /* Windows venv */
+        appDir + "/py_env/bin/python3",          /* Linux/macOS venv */
+        appDir + "/py_env/bin/python",
+    };
+    for (const QString& p : venvCandidates)
+        if (QFile::exists(p)) return p;
+
+#ifdef Q_OS_WIN
+    /* 3. Windows: trova il path COMPLETO via where.exe, solo .exe, niente .bat
+       where.exe lista tutti i match in ordine PATH; prendiamo il primo .exe.
+       Verifica anche che non sia il Microsoft Store stub (esce senza "Python"). */
+    auto findExeViaWhere = [](const QString& name) -> QString {
+        QProcess w;
+        w.start("where", {name});
+        if (!w.waitForStarted(1500) || !w.waitForFinished(2000)) return {};
+        const QStringList lines =
+            QString::fromLocal8Bit(w.readAllStandardOutput())
+            .split('\n', Qt::SkipEmptyParts);
+        for (const QString& line : lines) {
+            const QString path = line.trimmed();
+            if (path.toLower().endsWith(".exe") && QFile::exists(path))
+                return path;
+        }
+        return {};
+    };
+
+    for (const QString& name : {"python", "py", "python3"}) {
+        const QString exe = findExeViaWhere(name);
+        if (exe.isEmpty()) continue;
+        /* Verifica che sia Python reale (non Store stub che apre il Market) */
+        QProcess verify;
+        verify.start(exe, {"--version"});
+        if (verify.waitForStarted(1500) && verify.waitForFinished(2000)) {
+            const QString ver = QString::fromLocal8Bit(
+                verify.readAllStandardOutput() +
+                verify.readAllStandardError()).trimmed();
+            if (ver.contains("Python", Qt::CaseInsensitive)) return exe;
+        }
+    }
+    return "python.exe";   /* fallback: almeno .exe, non .bat */
+#else
+    /* 3. Linux/macOS: bare name, nessun problema di .bat routing */
+    const QStringList sysCandidates = { "python3", "python" };
+    for (const QString& c : sysCandidates) {
+        QProcess probe;
+        probe.start(c, QStringList{"--version"});
+        if (probe.waitForStarted(1500) && probe.waitForFinished(2000))
+            return c;
+    }
+    return "python3";
+#endif
 }
 
 } // namespace PrismaluxPaths

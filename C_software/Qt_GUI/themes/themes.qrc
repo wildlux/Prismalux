@@ -1,6 +1,7 @@
 <!DOCTYPE RCC>
 <RCC version="1.0">
 <qresource prefix="/themes">
+    <file>base.qss</file>
     <file>dark_cyan.qss</file>
     <file>dark_amber.qss</file>
     <file>dark_purple.qss</file>
