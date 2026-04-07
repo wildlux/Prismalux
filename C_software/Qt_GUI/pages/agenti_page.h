@@ -12,6 +12,7 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QVector>
+#include <QStack>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QJsonDocument>
@@ -121,6 +122,9 @@ private:
 
     /* ── ID sessione corrente (per ChatHistory) ── */
     QString m_sessionId;
+
+    /* ── Stack undo per eliminazione bolle (del:) ── */
+    QStack<QString> m_undoHtmlStack;
 
     /* ── Posizione nel documento per la sostituzione post-streaming ── */
     int     m_agentBlockStart = 0; ///< prima dell'intestazione agente (include header)

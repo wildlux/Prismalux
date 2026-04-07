@@ -115,6 +115,37 @@ if exist "%VENV_PYTHON%" (
     set PRISMALUX_PYTHON=%VENV_PYTHON%
 )
 
+:: ── Verifica e copia DLL Qt6 mancanti (da MSYS2 se disponibile) ─────────────
+:: Evita "DLL non trovata" quando build.bat non e' stato eseguito su questo PC
+set MSYS2_DLL=C:\msys64\ucrt64\bin
+if exist "%GUI%" (
+    if not exist "%BUILD%\Qt6Core.dll" (
+        if exist "%MSYS2_DLL%\Qt6Core.dll" (
+            echo  [INFO] DLL Qt6 non trovate — copio da MSYS2...
+            for %%D in (Qt6Core.dll Qt6Gui.dll Qt6Widgets.dll Qt6Network.dll
+                        libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll
+                        libdouble-conversion.dll libpcre2-16-0.dll libzstd.dll zlib1.dll
+                        libfreetype-6.dll libpng16-16.dll libharfbuzz-0.dll
+                        libbz2-1.dll libiconv-2.dll libintl-8.dll libmd4c.dll) do (
+                if exist "%MSYS2_DLL%\%%D" copy /y "%MSYS2_DLL%\%%D" "%BUILD%\" >nul 2>&1
+            )
+            if not exist "%BUILD%\platforms" mkdir "%BUILD%\platforms"
+            if exist "%MSYS2_DLL%\..\share\qt6\plugins\platforms\qwindows.dll" (
+                copy /y "%MSYS2_DLL%\..\share\qt6\plugins\platforms\qwindows.dll" "%BUILD%\platforms\" >nul 2>&1
+            )
+            if not exist "%BUILD%\styles" mkdir "%BUILD%\styles"
+            if exist "%MSYS2_DLL%\..\share\qt6\plugins\styles\qwindowsvistastyle.dll" (
+                copy /y "%MSYS2_DLL%\..\share\qt6\plugins\styles\qwindowsvistastyle.dll" "%BUILD%\styles\" >nul 2>&1
+            )
+            echo  [OK] DLL copiate.
+        ) else (
+            echo  [AVVISO] DLL Qt6 mancanti e MSYS2 non trovato in C:\msys64
+            echo  Esegui build.bat almeno una volta per copiare le DLL necessarie.
+            echo.
+        )
+    )
+)
+
 if exist "%GUI%" (
     echo  [OK] Avvio GUI...
     start "" "%GUI%"

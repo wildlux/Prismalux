@@ -372,6 +372,32 @@ void AiClient::onReadyRead() {
         QByteArray line = raw.trimmed();
         if (line.isEmpty()) continue;
         if (line.startsWith("data: ")) { line = line.mid(6).trimmed(); if (line == "[DONE]") continue; }
+
+        /* ── Rilevamento errori JSON di Ollama ─────────────────────────
+           Ollama restituisce {"error":"..."} come corpo JSON flat (non NDJSON)
+           quando il modello non supporta immagini o la richiesta e' malformata.
+           Esempi:
+             {"error":"model \"deepseek-r1\" does not support vision"}
+             {"error":"unexpected EOF"}
+           ─────────────────────────────────────────────────────────────── */
+        if (line.startsWith('{') && line.contains("\"error\"")) {
+            const auto doc  = QJsonDocument::fromJson(line);
+            const QString msg = doc.object().value("error").toString();
+            if (!msg.isEmpty()) {
+                /* Messaggio leggibile con suggerimento se il modello non e' vision */
+                QString hint = msg;
+                if (msg.contains("vision", Qt::CaseInsensitive) ||
+                    msg.contains("does not support", Qt::CaseInsensitive) ||
+                    msg.contains("multimodal", Qt::CaseInsensitive)) {
+                    hint = "\xe2\x9d\x8c  " + msg +
+                           "\n\n\xf0\x9f\x92\xa1  Il modello selezionato non supporta le immagini.\n"
+                           "Usa un modello vision: llama3.2-vision, qwen2-vl:7b, minicpm-v:8b, llava:7b\n"
+                           "\xe2\x9a\xa0  I modelli DeepSeek (r1, coder, janus) non supportano vision su Ollama.";
+                }
+                emit error(hint);
+                return;
+            }
+        }
         QJsonDocument doc = QJsonDocument::fromJson(line);
         if (doc.isNull()) continue;
         QJsonObject obj = doc.object();
@@ -389,14 +415,47 @@ void AiClient::onReadyRead() {
 void AiClient::onFinished() {
     m_busy_guard = false;
     if (!m_reply) return;
-    /* Azzera m_reply prima di usarlo per evitare re-entry in caso di segnali ricorsivi */
     QNetworkReply* r = m_reply;
     m_reply = nullptr;
+
+    /* ── Errore di rete (connessione rifiutata, timeout, ecc.) ── */
     if (r->error() != QNetworkReply::NoError &&
-        r->error() != QNetworkReply::OperationCanceledError)
+        r->error() != QNetworkReply::OperationCanceledError) {
         emit error(r->errorString());
-    else
-        m_modelLoaded = true;
+        r->deleteLater();
+        emit finished(m_accum);
+        return;
+    }
+
+    /* ── HTTP 4xx / 5xx da Ollama / llama-server ─────────────────
+       Quando il modello non supporta vision o la richiesta e' invalida,
+       Ollama risponde con HTTP 400/422/500 e corpo JSON {"error":"..."}.
+       QNetworkReply::error() e' NoError perche' la connessione TCP e'
+       avvenuta, ma lo status HTTP indica un fallimento applicativo.
+       ─────────────────────────────────────────────────────────── */
+    const int httpStatus = r->attribute(
+        QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    if (httpStatus >= 400 && m_accum.isEmpty()) {
+        const QByteArray body = r->readAll();
+        const auto doc = QJsonDocument::fromJson(body.isEmpty() ? "{}" : body);
+        QString msg = doc.object().value("error").toString();
+        if (msg.isEmpty())
+            msg = QString("Errore HTTP %1 dal backend").arg(httpStatus);
+
+        /* Arricchisce il messaggio per errori vision noti */
+        if (msg.contains("vision", Qt::CaseInsensitive) ||
+            msg.contains("does not support", Qt::CaseInsensitive)) {
+            msg += "\n\n\xf0\x9f\x92\xa1  Usa un modello vision compatibile:\n"
+                   "llama3.2-vision \xe2\x80\x94 qwen2-vl:7b \xe2\x80\x94 minicpm-v:8b \xe2\x80\x94 llava:7b\n"
+                   "\xe2\x9a\xa0  I modelli DeepSeek (r1, coder, janus) non supportano immagini su Ollama.";
+        }
+        emit error(msg);
+        r->deleteLater();
+        emit finished(m_accum);
+        return;
+    }
+
+    m_modelLoaded = true;
     r->deleteLater();
     emit finished(m_accum);
 }

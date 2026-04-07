@@ -930,3 +930,44 @@ QPlainTextEdit#chatInput:hover { border-color: #4a4a4a; }
     background-color: #111111;
     border-top: 1px solid #2a2a2a;
 }
+
+/* ── Barra navigazione alternativa (modalità "Menù principale") ──── */
+#navMenuBar {
+    background-color: #1a1a1a;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+QPushButton#navMenuBtn {
+    color: #a0a0a0;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-size: 13px;
+}
+QPushButton#navMenuBtn:hover {
+    color: #e0e0e0;
+    background-color: #2a2a2a;
+}
+QPushButton#navMenuBtn:checked {
+    color: #00d4ff;
+    background-color: #1e3a4a;
+    border-color: #0ea5e9;
+}
+
+QPushButton#navMenuBackend {
+    color: #a0a0a0;
+    background: transparent;
+    border: 1px solid #3a3a3a;
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-size: 12px;
+}
+QPushButton#navMenuBackend:hover {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+}
+
+QFrame#navMenuSep {
+    color: #3a3a3a;
+}

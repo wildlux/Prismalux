@@ -105,7 +105,11 @@ private:
     void setActivePage(int idx);
 
     /* ── Componenti UI ───────────────────────────────────────── */
-    QTabWidget*     m_mainTabs    = nullptr;  ///< Tab principale: Agenti | Finanza | Impara
+    QTabWidget*     m_mainTabs       = nullptr;  ///< Tab principale: Agenti | Finanza | Impara
+    QStringList     m_tabOrigLabels;            ///< Etichette originali "icona  testo" per applyTabMode()
+    QWidget*        m_navMenuBar     = nullptr;  ///< Barra pulsanti alternativa (menù principale)
+    QWidget*        m_cornerContainer = nullptr; ///< Container del pulsante backend (corner widget)
+    QVector<QPushButton*> m_navBtns;            ///< Pulsanti nav per sincronizzare lo stato attivo
     ResourceGauge*  m_gCpu        = nullptr;  ///< Gauge CPU nell'header
     ResourceGauge*  m_gRam        = nullptr;  ///< Gauge RAM nell'header
     ResourceGauge*  m_gGpu        = nullptr;  ///< Gauge GPU nell'header
@@ -179,6 +183,26 @@ private:
      * nella Windows API quando QDialog ha sia Qt::Window che un parent widget.
      */
     void ensureSettingsDialog();
+
+    /**
+     * applyTabMode — Aggiorna le etichette di m_mainTabs in base alla modalità.
+     * @param mode  "icons_only" | "icons_text" | "text_icons" | "text_only"
+     * Usa m_tabOrigLabels come sorgente (formato "icona  testo").
+     */
+    void applyTabMode(const QString& mode);
+
+    /**
+     * applyNavStyle — Cambia stile navigazione principale.
+     * @param style  "tabs_top" = schede in alto (default) | "menu_main" = menù orizzontale
+     */
+    void applyNavStyle(const QString& style);
+
+    /**
+     * applyExecBtnMode — Aggiorna il testo di tutti i pulsanti di esecuzione.
+     * Trova tutti QPushButton con proprietà "execIcon" nel widget tree.
+     * @param mode  "icon_only" | "text_only" | "icon_text" (default)
+     */
+    void applyExecBtnMode(const QString& mode);
 
     /**
      * maybeAutoVramBench — Avvia vram_bench in background al primo avvio.

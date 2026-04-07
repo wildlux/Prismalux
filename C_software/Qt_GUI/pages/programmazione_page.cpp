@@ -18,6 +18,7 @@
 #include <QTextCursor>
 #include <QFrame>
 #include <QRegularExpression>
+#include <QTimer>
 
 namespace P = PrismaluxPaths;
 
@@ -65,14 +66,22 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     toolLay->addWidget(m_lang);
     toolLay->addSpacing(8);
 
+    auto tagExecP = [](QPushButton* btn, const char* icon, const char* text){
+        btn->setProperty("execFull", btn->text());
+        btn->setProperty("execIcon", QString::fromUtf8(icon));
+        btn->setProperty("execText", QString::fromUtf8(text));
+    };
+
     m_btnRun = new QPushButton("\xe2\x96\xb6  Esegui", toolRow);
     m_btnRun->setObjectName("actionBtn");
     m_btnRun->setToolTip("Esegui il codice nell'editor (F5)");
+    tagExecP(m_btnRun, "\xe2\x96\xb6", "Esegui");
 
     m_btnStop = new QPushButton("\xe2\x96\xa0  Stop", toolRow);
     m_btnStop->setObjectName("actionBtn");
     m_btnStop->setProperty("danger", "true");
     m_btnStop->setEnabled(false);
+    tagExecP(m_btnStop, "\xe2\x96\xa0", "Stop");
 
     auto* btnClear = new QPushButton("\xf0\x9f\x97\x91  Pulisci", toolRow);
     btnClear->setObjectName("actionBtn");
@@ -86,11 +95,13 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     m_btnAi->setObjectName("actionBtn");
     m_btnAi->setCheckable(true);
     m_btnAi->setToolTip("Apri il pannello AI per scrivere una richiesta");
+    tagExecP(m_btnAi, "\xf0\x9f\xa4\x96", "Chiedi all'AI");
     toolLay->addWidget(m_btnAi);
 
     m_btnFix = new QPushButton("\xf0\x9f\x94\xa7  Correggi con AI", toolRow);
     m_btnFix->setObjectName("actionBtn");
     m_btnFix->setProperty("highlight", "true");
+    tagExecP(m_btnFix, "\xf0\x9f\x94\xa7", "Correggi con AI");
     m_btnFix->setToolTip(
         "Invia il codice a qwen2.5-coder (o il miglior modello coder disponibile)\n"
         "e chiedi di trovare e correggere tutti i bug.\n"
@@ -222,6 +233,7 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
 
     m_btnSend = new QPushButton("Invia \xe2\x96\xb6", aiInputRow);
     m_btnSend->setObjectName("actionBtn");
+    tagExecP(m_btnSend, "\xe2\x96\xb6", "Invia");
     auto* btnSend = m_btnSend;  /* alias locale per il codice sottostante */
 
     m_btnInsert = new QPushButton("\xe2\x86\x91  Inserisci in editor", aiInputRow);
@@ -281,34 +293,83 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
                n.contains("arctic-embed") || n.contains("-embed");
     };
 
-    /* Lambda: recupera modelli e popola la combo — esclude embedding */
-    auto populateAiModels = [this, codingBadge, isEmbedOnly]() {
+    /* Score di preferenza per coding: piu' alto = meglio per programmazione */
+    auto codingScore = [](const QString& name) -> int {
+        const QString n = name.toLower();
+        if (n.contains("qwen2.5-coder") || n.contains("qwen2_5-coder")) {
+            if (n.contains("32b")) return 100;
+            if (n.contains("14b")) return 95;
+            if (n.contains("7b"))  return 90;
+            return 85;
+        }
+        if (n.contains("deepseek-coder")) {
+            if (n.contains("v2") || n.contains("33b")) return 88;
+            if (n.contains("7b") || n.contains("6.7b")) return 82;
+            return 78;
+        }
+        if (n.contains("coder") || n.contains("codellama") ||
+            n.contains("starcoder") || n.contains("codegemma")) return 70;
+        if (n.contains("deepseek") && !n.contains("math")) return 40;
+        if (n.contains("qwen")     && !n.contains("math")) return 35;
+        if (n.contains("phi"))                              return 30;
+        return 0;
+    };
+
+    /* Lambda: recupera modelli, popola la combo, auto-seleziona il miglior coder */
+    auto populateAiModels = [this, codingBadge, isEmbedOnly, codingScore]() {
         if (!m_ai) return;
         m_modelCombo->setEnabled(false);
         const QString cur = m_ai->model();
         auto* holder = new QObject(this);
         connect(m_ai, &AiClient::modelsReady, holder,
-                [this, holder, codingBadge, isEmbedOnly, cur](const QStringList& list) {
+                [this, holder, codingBadge, isEmbedOnly, codingScore, cur]
+                (const QStringList& list) {
             holder->deleteLater();
             m_modelCombo->clear();
-            int selIdx = 0;
+
+            int selIdx    = 0;
+            int curIdx    = -1;
+            int bestCoder = -1;
+            int bestScore = -1;
+
             for (const QString& mdl : list) {
-                if (isEmbedOnly(mdl)) continue;   /* salta modelli embedding */
+                if (isEmbedOnly(mdl)) continue;
+                const int pos = m_modelCombo->count();
                 m_modelCombo->addItem(mdl + codingBadge(mdl), mdl);
-                if (mdl == cur)
-                    selIdx = m_modelCombo->count() - 1;
+                if (mdl == cur) curIdx = pos;
+                const int sc = codingScore(mdl);
+                if (sc > bestScore) { bestScore = sc; bestCoder = pos; }
             }
-            if (m_modelCombo->count() == 0)
+
+            if (m_modelCombo->count() == 0) {
                 m_modelCombo->addItem(
                     cur.isEmpty() ? "(nessun modello chat)" : cur, cur);
-            else
+            } else {
+                /* Auto-seleziona il miglior coder se il modello corrente non è già
+               un coder SPECIALIZZATO (≥85 = qwen2.5-coder, deepseek-coder).
+               "Buono per Coding" (<85) NON blocca la selezione ottimale. */
+                const bool curIsCoder = (curIdx >= 0 && codingScore(cur) >= 85);
+                if (bestCoder >= 0 && !curIsCoder)
+                    selIdx = bestCoder;
+                else if (curIdx >= 0)
+                    selIdx = curIdx;
                 m_modelCombo->setCurrentIndex(selIdx);
+
+                /* Imposta il modello scelto sul backend */
+                const QString chosen = m_modelCombo->currentData().toString();
+                if (!chosen.isEmpty() && chosen != cur)
+                    m_ai->setBackend(m_ai->backend(), m_ai->host(),
+                                     m_ai->port(), chosen);
+            }
             m_modelCombo->setEnabled(true);
         });
         m_ai->fetchModels();
     };
 
     connect(btnRefreshMod, &QPushButton::clicked, this, populateAiModels);
+
+    /* Auto-popola modelli al caricamento della pagina: seleziona "Ottimizzato Coding" subito */
+    QTimer::singleShot(0, this, [populateAiModels]{ populateAiModels(); });
 
     /* ══════════════════════════════════════════════════════════
        Connessioni

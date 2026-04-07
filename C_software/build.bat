@@ -1,6 +1,9 @@
 @echo off
 setlocal EnableDelayedExpansion
 
+:: Cartella di questo script (con backslash finale)
+set BASE=%~dp0
+
 echo.
 echo +--------------------------------------------------+
 echo ^|   Prismalux v2.2 - Compilazione Windows (.exe)  ^|
@@ -270,10 +273,123 @@ if exist "%MSYS2%\ucrt64\bin\windeployqt6.exe" (
 copy /y %TARGET% "%QT_BUILD%\%TARGET%" >nul 2>&1
 echo  [OK] prismalux.exe copiato in %QT_BUILD%\
 
+:: ════════════════════════════════════════════════
+::   FASE 3 — Ambiente Python + librerie
+:: ════════════════════════════════════════════════
+echo +--------------------------------------------------+
+echo ^|   Fase 3 — Installazione librerie Python         ^|
+echo +--------------------------------------------------+
+echo.
+echo  Questa fase installa numpy, pandas, scipy, matplotlib, sympy
+echo  e le altre librerie usate dagli script generati dalla pipeline AI.
+echo.
+
+:: Cerca Python nel sistema
+set PYTHON=
+where python  >nul 2>&1 && set PYTHON=python
+if not defined PYTHON where py      >nul 2>&1 && set PYTHON=py
+if not defined PYTHON where python3 >nul 2>&1 && set PYTHON=python3
+
+if not defined PYTHON (
+    echo  [AVVISO] Python non trovato nel PATH — librerie non installate.
+    echo  Scarica Python da: https://www.python.org/downloads/
+    echo  (spunta "Add Python to PATH" durante l'installazione)
+    echo.
+    goto :avvia_gui_finale
+)
+
+:: Percorso venv (accanto all'exe della GUI)
+set VENV=%QT_BUILD%\py_env
+set VENV_PYTHON=%VENV%\Scripts\python.exe
+
+:: Crea il venv se non esiste
+if not exist "%VENV_PYTHON%" (
+    echo  [INFO] Creo ambiente virtuale Python in %VENV%\...
+    %PYTHON% -m venv "%VENV%"
+    if not exist "%VENV_PYTHON%" (
+        echo  [AVVISO] Creazione venv fallita - uso Python di sistema.
+        set VENV_PYTHON=%PYTHON%
+    ) else (
+        echo  [OK] Ambiente virtuale creato.
+    )
+) else (
+    echo  [OK] Ambiente virtuale gia' esistente.
+)
+
+:: Controlla se le librerie principali sono gia' installate
+"%VENV_PYTHON%" -c "import numpy, pandas, scipy, matplotlib, sympy, mpmath, pypdf, psutil, openpyxl, requests" >nul 2>&1
+if %errorlevel% equ 0 (
+    echo  [OK] Tutte le librerie Python gia' installate.
+    goto :avvia_gui_finale
+)
+
+:: Aggiorna pip silenziosamente
+echo  [INFO] Aggiorno pip...
+"%VENV_PYTHON%" -m pip install --quiet --upgrade pip ^
+    --trusted-host pypi.org --trusted-host files.pythonhosted.org >nul 2>&1
+
+:: Installa tutte le librerie da requirements_python.txt
+set REQS=%BASE%requirements_python.txt
+if not exist "%REQS%" (
+    :: Se non c'e' il file, installa direttamente i pacchetti essenziali
+    set REQS=
+)
+
+echo  [INFO] Installo librerie Python (numpy, pandas, scipy, matplotlib, sympy, pypdf, ...).
+echo  (solo al primo avvio — 2-5 minuti, connessione internet necessaria)
+echo.
+
+if defined REQS (
+    "%VENV_PYTHON%" -m pip install --quiet -r "%REQS%" ^
+        --trusted-host pypi.org --trusted-host files.pythonhosted.org
+) else (
+    "%VENV_PYTHON%" -m pip install --quiet ^
+        numpy pandas scipy matplotlib sympy mpmath pypdf psutil openpyxl requests xlrd ^
+        --trusted-host pypi.org --trusted-host files.pythonhosted.org
+)
+set PIP_RC=%errorlevel%
+
+if %PIP_RC% neq 0 (
+    echo  [AVVISO] Installazione standard fallita (codice %PIP_RC%).
+    echo  [INFO] Ritento con --only-binary (evita compilazione da sorgente)...
+    if defined REQS (
+        "%VENV_PYTHON%" -m pip install --quiet -r "%REQS%" ^
+            --only-binary :all: ^
+            --trusted-host pypi.org --trusted-host files.pythonhosted.org
+    ) else (
+        "%VENV_PYTHON%" -m pip install --quiet --only-binary :all: ^
+            numpy pandas scipy matplotlib sympy mpmath psutil openpyxl requests ^
+            --trusted-host pypi.org --trusted-host files.pythonhosted.org
+    )
+    if !errorlevel! neq 0 (
+        echo  [AVVISO] Secondo tentativo fallito. Installo i pacchetti uno ad uno...
+        for %%P in (numpy pandas scipy matplotlib sympy mpmath pypdf psutil openpyxl requests xlrd) do (
+            "%VENV_PYTHON%" -m pip install --quiet "%%P" ^
+                --trusted-host pypi.org --trusted-host files.pythonhosted.org >nul 2>&1
+            if errorlevel 1 (
+                echo    [!] Impossibile installare: %%P ^(continuo senza^)
+            ) else (
+                echo    [OK] %%P installato.
+            )
+        )
+    ) else (
+        echo  [OK] Librerie installate ^(modalita' binaria^).
+    )
+) else (
+    echo  [OK] Librerie Python installate con successo.
+)
+
+:: Verifica finale
+"%VENV_PYTHON%" -c "import numpy; import sympy; print('[OK] numpy', numpy.__version__, '+ sympy', sympy.__version__, 'pronti.')" 2>&1
+echo.
+
+:: Imposta PRISMALUX_PYTHON per la sessione corrente
+set PRISMALUX_PYTHON=%VENV_PYTHON%
+
+:avvia_gui_finale
 echo.
 echo +--------------------------------------------------+
 echo ^|   GUI Qt v2.2 compilata! Avvio...                ^|
-echo ^|   [7] Smith Primi  [8] Smith pi/e/Primi           ^|
 echo +--------------------------------------------------+
 echo.
 start "" "%QT_BUILD%\Prismalux_GUI.exe"

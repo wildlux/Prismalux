@@ -289,6 +289,11 @@ inline QString findPython()
 {
     const QString appDir = QCoreApplication::applicationDirPath();
 
+    /* 0. PRISMALUX_PYTHON: impostato da Avvia_Prismalux.bat / Avvia_Prismalux.sh
+       Punta direttamente al python.exe del venv con tutte le dipendenze. */
+    const QString envPy = qEnvironmentVariable("PRISMALUX_PYTHON");
+    if (!envPy.isEmpty() && QFile::exists(envPy)) return envPy;
+
     /* 1-2. Venv accanto all'eseguibile (priorità massima) */
     const QStringList venvCandidates = {
         appDir + "/py_env/Scripts/python.exe",  /* Windows venv */

@@ -91,8 +91,15 @@ public:
         QString name;
         QString sysPrompt;       /* prompt completo per modelli 7B+ */
         QString sysPromptSmall;  /* prompt corto per modelli ≤4B (direttivo, max 2-3 frasi) */
+        QString category;        /* categoria di appartenenza (es. "Matematica") */
     };
     static QVector<AgentRole> roles();
+
+    /** Seleziona il ruolo del combo agente 'agentIdx' cercando per indice vettore roles() */
+    void setRoleByVecIndex(int agentIdx, int vecIdx);
+
+    /** Stato del Controller LLM (spostato dal toolbar all'interno del dialog) */
+    bool controllerEnabled() const { return m_controllerChk && m_controllerChk->isChecked(); }
 
 private:
     QSpinBox*      m_spinShots              = nullptr;
@@ -100,6 +107,7 @@ private:
     QComboBox*     m_modelCombo[MAX_AGENTS] = {};
     QCheckBox*     m_enabledChk[MAX_AGENTS] = {};
     RagDropWidget* m_ragWidget [MAX_AGENTS] = {};
+    QCheckBox*     m_controllerChk          = nullptr;  ///< Controller LLM (ex toolbar)
 
     void setupUI();
 };

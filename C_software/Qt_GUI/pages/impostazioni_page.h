@@ -1,5 +1,6 @@
 #pragma once
 #include <QWidget>
+#include <QDialog>
 #include "../ai_client.h"
 #include "../hardware_monitor.h"
 #include "../monitor_panel.h"
@@ -17,6 +18,7 @@ class ImpostazioniPage : public QWidget {
 public:
     explicit ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* parent = nullptr);
     void onHWReady(HWInfo hw);
+
     /** Porta in primo piano il tab il cui titolo contiene @p name (case-insensitive) */
     void switchToTab(const QString& name);
 
@@ -33,6 +35,14 @@ public:
     /** Salva la voce attiva. */
     static void    savePiperActiveVoice(const QString& name);
 
+signals:
+    /** Emesso quando l'utente cambia la modalità etichette tab (in tempo reale). */
+    void tabModeChanged(const QString& mode);
+    /** Emesso quando l'utente cambia lo stile di navigazione (in tempo reale). */
+    void navStyleChanged(const QString& style);
+    /** Emesso quando l'utente cambia la modalità dei pulsanti di esecuzione. */
+    void execBtnModeChanged(const QString& mode);
+
 private:
     QWidget* buildTemaTab();
     QWidget* buildTestTab();
@@ -48,4 +58,5 @@ private:
     ManutenzioneePage* m_manutenzione  = nullptr;
     QTabWidget*        m_tabs          = nullptr;
     AiClient*          m_ai            = nullptr;
+    QDialog*           m_studioWidget  = nullptr;  ///< llama.cpp Studio dialog (lazy)
 };

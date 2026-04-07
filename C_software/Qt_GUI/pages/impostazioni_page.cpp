@@ -126,9 +126,7 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
     tabs->addTab(buildTemaTab(), "\xf0\x9f\x8e\xa8  Aspetto");
 
     /* ────────────────────────────────────────────────────────────
-       Tab 6: 📊 Avanzate — Monitor AI + RAG + Test suite
-       Monitor è live (widget autonomo) → stretch=1 in cima.
-       RAG + Test in scroll area sotto.
+       Tab 6: 📊 Avanzate — Monitor AI (solo MonitorPanel)
        ──────────────────────────────────────────────────────────── */
     {
         auto* outer = new QWidget;
@@ -139,36 +137,37 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
         auto* monPanel = new MonitorPanel(ai, hw, outer);
         monPanel->setWindowFlags(Qt::Widget);
         monPanel->setMinimumSize(0, 0);
-        oLay->addWidget(monPanel, 2);
-
-        auto* sep1 = new QFrame;
-        sep1->setFrameShape(QFrame::HLine);
-        sep1->setObjectName("sidebarSep");
-        oLay->addWidget(sep1);
-
-        auto* bottomScroll = new QScrollArea;
-        bottomScroll->setWidgetResizable(true);
-        bottomScroll->setFrameShape(QFrame::NoFrame);
-
-        auto* bottomInner = new QWidget;
-        auto* bottomLay   = new QVBoxLayout(bottomInner);
-        bottomLay->setContentsMargins(0, 0, 0, 0);
-        bottomLay->setSpacing(0);
-
-        bottomLay->addWidget(buildRagTab());
-
-        auto* sep2 = new QFrame;
-        sep2->setFrameShape(QFrame::HLine);
-        sep2->setObjectName("sidebarSep");
-        bottomLay->addWidget(sep2);
-
-        bottomLay->addWidget(buildTestTab());
-        bottomLay->addStretch();
-
-        bottomScroll->setWidget(bottomInner);
-        oLay->addWidget(bottomScroll, 1);
+        oLay->addWidget(monPanel, 1);
 
         tabs->addTab(outer, "\xf0\x9f\x93\x8a  Avanzate");
+    }
+
+    /* ────────────────────────────────────────────────────────────
+       Tab 7: 📚 RAG — Recupero Documenti Aumentato (tab dedicato)
+       ──────────────────────────────────────────────────────────── */
+    {
+        auto* scroll = new QScrollArea;
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setWidget(buildRagTab());
+        tabs->addTab(scroll, "\xf0\x9f\x93\x9a  RAG");
+    }
+
+    /* ────────────────────────────────────────────────────────────
+       Tab 8: 🧪 Test — Registro suite di test (tab dedicato)
+       ──────────────────────────────────────────────────────────── */
+    {
+        auto* scroll = new QScrollArea;
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        auto* inner  = new QWidget;
+        auto* iLay   = new QVBoxLayout(inner);
+        iLay->setContentsMargins(0, 0, 0, 0);
+        iLay->setSpacing(0);
+        iLay->addWidget(buildTestTab());
+        iLay->addStretch();
+        scroll->setWidget(inner);
+        tabs->addTab(scroll, "\xf0\x9f\xa7\xaa  Test");
     }
 
     lay->addWidget(tabs);
@@ -427,12 +426,20 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         else populateLlama();
     });
 
-    /* llama.cpp Studio → apre tab AI Locale che contiene già llama.cpp Studio
-       (l'utente può navigare da lì) — per ora mostra un messaggio informativo */
+    /* llama.cpp Studio → apre la UI completa (PersonalizzaPage::buildLlamaStudio)
+       in un dialog modale riutilizzabile (creazione lazy al primo click). */
     connect(studioBtn, &QPushButton::clicked, page, [this]() {
-        /* Il llama.cpp Studio è accessibile tramite PersonalizzaPage.
-           Apri la scheda Avanzate → oppure naviga alla vecchia posizione */
-        switchToTab("AI Locale");  /* resta nello stesso tab — TODO: link diretto */
+        if (!m_studioWidget) {
+            m_studioWidget = new QDialog(window());
+            m_studioWidget->setWindowTitle("\xf0\x9f\xa6\x99  llama.cpp Studio \xe2\x80\x94 Prismalux");
+            m_studioWidget->resize(1000, 720);
+            auto* sLay = new QVBoxLayout(m_studioWidget);
+            sLay->setContentsMargins(0, 0, 0, 0);
+            sLay->addWidget(m_personalizza->buildLlamaStudio());
+        }
+        m_studioWidget->show();
+        m_studioWidget->raise();
+        m_studioWidget->activateWindow();
     });
 
     /* Popola Ollama subito all'apertura */
@@ -702,6 +709,42 @@ QWidget* ImpostazioniPage::buildRagTab()
 
     outer->addLayout(fl);
 
+    /* ── Trasformata Johnson-Lindenstrauss ── */
+    {
+        auto* jlFrame = new QGroupBox("Ottimizzazione vettori RAG", page);
+        jlFrame->setObjectName("cardGroup");
+        auto* jlLay = new QVBoxLayout(jlFrame);
+        jlLay->setSpacing(6);
+
+        auto* jlChk = new QCheckBox(
+            "Trasformata di Johnson\xe2\x80\x93Lindenstrauss (JL)", jlFrame);
+        jlChk->setObjectName("cardDesc");
+        {
+            QSettings s("Prismalux", "GUI");
+            jlChk->setChecked(s.value("rag/jlTransform", true).toBool());
+        }
+        jlChk->setToolTip(
+            "Riduce la dimensionalit\xc3\xa0 dei vettori di embedding mantenendo le distanze.\n"
+            "Migliora le performance di ricerca RAG con grandi basi di conoscenza.\n"
+            "Consigliata: attiva.");
+
+        auto* jlHint = new QLabel(
+            "Comprime i vettori di embedding riducendo i tempi di ricerca senza "
+            "perdita significativa di accuratezza. Consigliata con pi\xc3\xb9 di 1000 documenti.", jlFrame);
+        jlHint->setObjectName("hintLabel");
+        jlHint->setWordWrap(true);
+
+        jlLay->addWidget(jlChk);
+        jlLay->addWidget(jlHint);
+
+        connect(jlChk, &QCheckBox::toggled, jlFrame, [](bool on){
+            QSettings s("Prismalux", "GUI");
+            s.setValue("rag/jlTransform", on);
+        });
+
+        outer->addWidget(jlFrame);
+    }
+
     /* ── Stato indice ── */
     auto* sep = new QFrame;
     sep->setFrameShape(QFrame::HLine);
@@ -966,6 +1009,168 @@ QWidget* ImpostazioniPage::buildTemaTab() {
     radiusLay->addStretch();
     bolleLay->addWidget(radiusRow);
     vlay->addWidget(secBolle);
+
+    /* ── Sezione: Modalità etichette barra di navigazione ── */
+    auto* secNav = new QFrame(outer);
+    secNav->setObjectName("cardFrame");
+    auto* navLay = new QVBoxLayout(secNav);
+    navLay->setContentsMargins(16, 10, 16, 10);
+    navLay->setSpacing(8);
+
+    auto* navTitle = new QLabel(
+        "\xf0\x9f\x8f\xb7\xef\xb8\x8f  <b>Modalit\xc3\xa0 etichette tab</b>", secNav);
+    navTitle->setObjectName("cardTitle");
+    navTitle->setTextFormat(Qt::RichText);
+    navLay->addWidget(navTitle);
+
+    auto* navHint = new QLabel(
+        "Scegli come visualizzare le etichette dei tab principali.", secNav);
+    navHint->setObjectName("hintLabel");
+    navLay->addWidget(navHint);
+
+    struct NavMode { const char* label; const char* value; };
+    static const NavMode kNavModes[] = {
+        { "\xf0\x9f\x94\xa4  Solo icone",              "icons_only"   },
+        { "\xf0\x9f\x94\xa4 Testo  Icone + testo",     "icons_text"   },
+        { "Testo \xf0\x9f\x94\xa4  Testo + icone",     "text_icons"   },
+        { "Aa  Solo testo",                             "text_only"    },
+    };
+
+    QSettings navSett("Prismalux", "GUI");
+    const QString curNavMode = navSett.value("nav/tabMode", "icons_text").toString();
+
+    auto* navGroup = new QButtonGroup(secNav);
+    auto* navRowW  = new QWidget(secNav);
+    auto* navRowL  = new QHBoxLayout(navRowW);
+    navRowL->setContentsMargins(0, 0, 0, 0);
+    navRowL->setSpacing(8);
+
+    for (const auto& nm : kNavModes) {
+        auto* rb = new QRadioButton(QString::fromUtf8(nm.label), secNav);
+        rb->setObjectName("cardDesc");
+        rb->setChecked(curNavMode == nm.value);
+        navGroup->addButton(rb);
+        navRowL->addWidget(rb);
+
+        connect(rb, &QRadioButton::toggled, this, [this, nm](bool checked){
+            if (!checked) return;
+            QSettings s("Prismalux", "GUI");
+            s.setValue("nav/tabMode", nm.value);
+            emit tabModeChanged(QString::fromLatin1(nm.value));
+        });
+    }
+    navRowL->addStretch();
+    navLay->addWidget(navRowW);
+
+    vlay->addWidget(secNav);
+
+    /* ── Sezione: Stile navigazione principale ── */
+    {
+        auto* secStyle = new QFrame(outer);
+        secStyle->setObjectName("cardFrame");
+        auto* sLay = new QVBoxLayout(secStyle);
+        sLay->setContentsMargins(16, 10, 16, 10);
+        sLay->setSpacing(8);
+
+        auto* sTitle = new QLabel(
+            "\xf0\x9f\x97\x82\xef\xb8\x8f  <b>Stile navigazione</b>", secStyle);
+        sTitle->setObjectName("cardTitle");
+        sTitle->setTextFormat(Qt::RichText);
+        sLay->addWidget(sTitle);
+
+        auto* sHint = new QLabel(
+            "Schede in alto (predefinito) oppure men\xc3\xb9 orizzontale a pulsanti con categorie.",
+            secStyle);
+        sHint->setObjectName("hintLabel");
+        sHint->setWordWrap(true);
+        sLay->addWidget(sHint);
+
+        struct NavStyleOpt { const char* label; const char* value; };
+        static const NavStyleOpt kStyles[] = {
+            { "\xf0\x9f\x93\x91  Schede in alto",       "tabs_top"   },
+            { "\xf0\x9f\x93\x8b  Men\xc3\xb9 principale", "menu_main" },
+        };
+
+        QSettings navSett2("Prismalux", "GUI");
+        const QString curStyle = navSett2.value("nav/navStyle", "tabs_top").toString();
+
+        auto* styleGroup = new QButtonGroup(secStyle);
+        auto* styleRow   = new QWidget(secStyle);
+        auto* styleRowL  = new QHBoxLayout(styleRow);
+        styleRowL->setContentsMargins(0, 0, 0, 0);
+        styleRowL->setSpacing(16);
+
+        for (const auto& ns : kStyles) {
+            auto* rb = new QRadioButton(QString::fromUtf8(ns.label), secStyle);
+            rb->setObjectName("cardDesc");
+            rb->setChecked(curStyle == ns.value);
+            styleGroup->addButton(rb);
+            styleRowL->addWidget(rb);
+            connect(rb, &QRadioButton::toggled, this, [this, ns](bool checked){
+                if (!checked) return;
+                QSettings s("Prismalux", "GUI");
+                s.setValue("nav/navStyle", ns.value);
+                emit navStyleChanged(QString::fromLatin1(ns.value));
+            });
+        }
+        styleRowL->addStretch();
+        sLay->addWidget(styleRow);
+        vlay->addWidget(secStyle);
+    }
+
+    /* ── Sezione: Pulsanti di esecuzione ── */
+    {
+        auto* secExec = new QFrame(outer);
+        secExec->setObjectName("cardFrame");
+        auto* eLay = new QVBoxLayout(secExec);
+        eLay->setContentsMargins(16, 10, 16, 10);
+        eLay->setSpacing(8);
+
+        auto* eTitle = new QLabel(
+            "\xe2\x96\xb6  <b>Pulsanti di esecuzione</b>", secExec);
+        eTitle->setObjectName("cardTitle");
+        eTitle->setTextFormat(Qt::RichText);
+        eLay->addWidget(eTitle);
+
+        auto* eHint = new QLabel(
+            "Avvia, Stop, Esegui, Calcola e simili \xe2\x80\x94 in tutte le schede.", secExec);
+        eHint->setObjectName("hintLabel");
+        eHint->setWordWrap(true);
+        eLay->addWidget(eHint);
+
+        struct ExecMode { const char* label; const char* value; };
+        static const ExecMode kExecModes[] = {
+            { "\xf0\x9f\x94\xa4  Solo icone",  "icon_only"  },
+            { "Aa  Solo testo",                 "text_only"  },
+            { "\xf0\x9f\x94\xa4 Aa  Icona + testo", "icon_text" },
+        };
+
+        QSettings exSett("Prismalux", "GUI");
+        const QString curExec = exSett.value("nav/execBtnMode", "icon_text").toString();
+
+        auto* execGroup = new QButtonGroup(secExec);
+        auto* execRow   = new QWidget(secExec);
+        auto* execRowL  = new QHBoxLayout(execRow);
+        execRowL->setContentsMargins(0, 0, 0, 0);
+        execRowL->setSpacing(16);
+
+        for (const auto& em : kExecModes) {
+            auto* rb = new QRadioButton(QString::fromUtf8(em.label), secExec);
+            rb->setObjectName("cardDesc");
+            rb->setChecked(curExec == em.value);
+            execGroup->addButton(rb);
+            execRowL->addWidget(rb);
+            connect(rb, &QRadioButton::toggled, this, [this, em](bool checked){
+                if (!checked) return;
+                QSettings s("Prismalux", "GUI");
+                s.setValue("nav/execBtnMode", em.value);
+                emit execBtnModeChanged(QString::fromLatin1(em.value));
+            });
+        }
+        execRowL->addStretch();
+        eLay->addWidget(execRow);
+        vlay->addWidget(secExec);
+    }
 
     vlay->addStretch();
     return outer;
@@ -2323,19 +2528,37 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
         { "deepseek-r1:7b",      "DeepSeek R1 7B",    "~4.7 GB", "Matematica",   "#92400e",
           "Ragionamento matematico passo-passo. Chain-of-thought nativo." },
         /* ── Vision ── */
-        { "llama3.2-vision",     "Llama 3.2 Vision",  "~7.9 GB", "Vision",       "#581c87",
-          "Meta. Analizza immagini, grafici e schemi. Estrae funzioni matematiche da grafici." },
-        { "llava:7b",            "LLaVA 7B",          "~4.5 GB", "Vision",       "#581c87",
-          "Buono su descrizione immagini e analisi visiva generale." },
-        { "qwen2-vl:7b",         "Qwen2-VL 7B",       "~5.5 GB", "Vision",       "#581c87",
-          "Il migliore locale per grafici e formule matematiche da immagine." },
+        { "llama3.2-vision",     "Llama 3.2 Vision \xe2\x98\x85","~7.9 GB","Vision","#581c87",
+          "Meta. Il pi\xc3\xb9 stabile su Ollama. Analizza immagini, grafici e schemi. Consigliato come primo modello vision." },
+        { "qwen2-vl:7b",         "Qwen2-VL 7B \xe2\x98\x85",  "~5.5 GB", "Vision","#581c87",
+          "Il migliore locale per grafici e formule matematiche da immagine. Stabile su Ollama." },
         { "minicpm-v:8b",        "MiniCPM-V 8B",      "~5.4 GB", "Vision",       "#581c87",
           "Compatto e preciso. Ottimo per documenti e immagini con testo." },
+        { "llava:7b",            "LLaVA 7B",          "~4.5 GB", "Vision",       "#581c87",
+          "Buono su descrizione immagini e analisi visiva generale." },
+        { "moondream2",          "Moondream 2",        "~1.7 GB", "Vision",       "#581c87",
+          "Ultraleggero per vision. Veloce su PC con poca RAM. Qualit\xc3\xa0 limitata su testi complessi." },
+        /* NOTA: deepseek-janus / deepseek-vl NON sono supportati — non includere */
         /* ── Ragionamento ── */
         { "deepseek-r1:14b",     "DeepSeek R1 14B",   "~9.0 GB", "Ragionamento", "#7c2d12",
           "Ragionamento avanzato, problemi complessi. Mostra il processo di pensiero." },
         { "qwen3:30b",           "Qwen3 30B",         "~20 GB",  "Ragionamento", "#7c2d12",
           "Modello grande, qualit\xc3\xa0 vicina ai cloud. Richiede almeno 24 GB RAM." },
+        /* ── Xeon / 64 GB ── */
+        { "qwen3:30b",           "Qwen3 30B \xe2\x98\x85",    "~20 GB",  "Xeon / 64 GB", "#1e3a5f",
+          "Ottimo italiano e ragionamento. Su Xeon 64 GB: avvia con OLLAMA_NUM_GPU=0 per modalit\xc3\xa0 CPU pura. Velocit\xc3\xa0 ottimale con AVX-512." },
+        { "deepseek-r1:32b",     "DeepSeek R1 32B \xe2\x98\x85","~20 GB","Xeon / 64 GB","#1e3a5f",
+          "Ragionamento top su CPU. Q4 a 20 GB entra comodamente nella RAM — nessuna GPU necessaria. Su Xeon 64 GB supera modelli cloud da 7B." },
+        { "qwen2.5-coder:32b",   "Qwen2.5 Coder 32B \xe2\x98\x85","~20 GB","Xeon / 64 GB","#1e3a5f",
+          "Miglior modello coding locale. Su Xeon 64 GB gira interamente in RAM. AVX-512 Xeon accelera i calcoli di matrice: ~3-5 token/s su 32 core." },
+        { "mixtral:8x7b",        "Mixtral 8x7B (MoE) \xe2\x98\x85","~26 GB","Xeon / 64 GB","#1e3a5f",
+          "Mixture of Experts: attiva solo 2/8 esperti per token \xe2\x80\x94 veloce nonostante i 46B parametri totali. Ottimo su italiano, coding e ragionamento misto." },
+        { "llama3.1:70b",        "Llama 3.1 70B",     "~40 GB",  "Xeon / 64 GB", "#1e3a5f",
+          "Meta, qualit\xc3\xa0 vicina ai modelli cloud. Richiede 48+ GB RAM. Su Xeon 64 GB: perfetto in CPU mode. Avvia con: OLLAMA_NUM_GPU=0 ollama serve." },
+        { "deepseek-coder-v2:16b","DeepSeek Coder V2 16B","~9.1 GB","Xeon / 64 GB","#1e3a5f",
+          "Coding avanzato, veloce su Xeon. Solo 9 GB in RAM \xe2\x80\x94 rimane spazio abbondante per pipeline multi-agente con modelli multipli in parallelo." },
+        { "qwen2.5:72b",         "Qwen2.5 72B",       "~44 GB",  "Xeon / 64 GB", "#1e3a5f",
+          "Modello generale di alta qualit\xc3\xa0. 44 GB Q4 entra in 64 GB RAM con margine. Prestazioni eccellenti in italiano, analisi e codice." },
     };
 
     static const GgufEntry GGUF[] = {
@@ -2396,6 +2619,27 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
           "https://huggingface.co/bartowski/QwQ-32B-GGUF/resolve/main/QwQ-32B-Q4_K_M.gguf",
           "~19.9 GB", "Ragionamento", "#7c2d12",
           "Ragionamento profondo di alta qualit\xc3\xa0. Richiede 24+ GB RAM." },
+        /* ── Xeon / 64 GB ── */
+        { "DeepSeek-R1-32B (Q5_K_M) \xe2\x98\x85", "DeepSeek-R1-Distill-Qwen-32B-Q5_K_M.gguf",
+          "https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-32B-Q5_K_M.gguf",
+          "~22 GB", "Xeon / 64 GB", "#1e3a5f",
+          "Ragionamento top in Q5 \xe2\x80\x94 qualit\xc3\xa0 superiore al Q4. Su Xeon 64 GB carica tutto in RAM senza toccare la VRAM. Chain-of-thought nativo." },
+        { "Qwen2.5-Coder-32B (Q5_K_M) \xe2\x98\x85", "qwen2.5-coder-32b-instruct-q5_k_m.gguf",
+          "https://huggingface.co/Qwen/Qwen2.5-Coder-32B-Instruct-GGUF/resolve/main/qwen2.5-coder-32b-instruct-q5_k_m.gguf",
+          "~22 GB", "Xeon / 64 GB", "#1e3a5f",
+          "Top coding locale in Q5. Su Xeon con AVX-512 raggiunge ~4-6 token/s. Pipeline a 6 agenti con questo modello produce codice di qualit\xc3\xa0 vicina a GPT-4." },
+        { "Mixtral-8x7B (Q4_K_M) \xe2\x98\x85", "mixtral-8x7b-instruct-v0.1.Q4_K_M.gguf",
+          "https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF/resolve/main/mixtral-8x7b-instruct-v0.1.Q4_K_M.gguf",
+          "~26 GB", "Xeon / 64 GB", "#1e3a5f",
+          "Mixture of Experts 46B \xe2\x80\x94 veloce nonostante la taglia. Ottimo italiano, coding e analisi. Xeon multi-core gestisce bene i pesi distribuiti." },
+        { "Llama-3.1-70B (Q4_K_M)", "Meta-Llama-3.1-70B-Instruct-Q4_K_M.gguf",
+          "https://huggingface.co/bartowski/Meta-Llama-3.1-70B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-70B-Instruct-Q4_K_M.gguf",
+          "~40 GB", "Xeon / 64 GB", "#1e3a5f",
+          "Meta top-of-line locale. 40 GB in RAM \xe2\x80\x94 su Xeon 64 GB con -ngl 0 (CPU puro). Velocit\xc3\xa0 ~1-2 token/s, qualit\xc3\xa0 superiore. Usa contesto lungo (128k)." },
+        { "Qwen2.5-72B (Q4_K_M)", "qwen2.5-72b-instruct-q4_k_m.gguf",
+          "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct-GGUF/resolve/main/qwen2.5-72b-instruct-q4_k_m.gguf",
+          "~44 GB", "Xeon / 64 GB", "#1e3a5f",
+          "Massima qualit\xc3\xa0 generale: italiano, analisi, codice. 44 GB Q4 \xe2\x80\x94 entra in 64 GB RAM con margine per il sistema operativo." },
     };
 
     const int NO = (int)(sizeof(OLLAMA) / sizeof(OLLAMA[0]));
@@ -2456,13 +2700,30 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
 
     static const char* CATS[] = {
         "Tutti", "Generale", "Coding",
-        "Matematica", "Vision", "Ragionamento"
+        "Matematica", "Vision", "Ragionamento",
+        "\xf0\x9f\x96\xa5  Xeon / 64 GB"   /* categoria hardware dedicata — etichetta UI */
     };
+    /* Chiavi di filtro: devono corrispondere esattamente a m.category */
+    static const char* CATS_KEY[] = {
+        "", "Generale", "Coding",
+        "Matematica", "Vision", "Ragionamento",
+        "Xeon / 64 GB"
+    };
+    static const int N_CATS = 7;
     auto* catBtnGroup = new QButtonGroup(leftGroup);
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < N_CATS; i++) {
         auto* rb = new QRadioButton(CATS[i], leftGroup);
         catBtnGroup->addButton(rb, i);
         if (i == 0) rb->setChecked(true);
+        /* Evidenzia la categoria Xeon */
+        if (i == N_CATS - 1) {
+            rb->setStyleSheet("color:#60a5fa;font-weight:bold;");
+            /* Separatore prima della voce Xeon */
+            auto* sepX = new QFrame(leftGroup);
+            sepX->setFrameShape(QFrame::HLine);
+            sepX->setObjectName("sidebarSep");
+            leftLay->addWidget(sepX);
+        }
         leftLay->addWidget(rb);
     }
     leftLay->addStretch(1);
@@ -2519,6 +2780,80 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
     colsLay->addWidget(rightGroup, 1);
     mainLay->addWidget(colsRow, 1);
 
+    /* ── Pannello consigli Xeon / 64 GB (visibile solo quando selezionata quella categoria) ── */
+    /* ── Pannello avviso Vision (visibile solo su categoria Vision) ── */
+    auto* visionPanel = new QWidget(page);
+    visionPanel->setVisible(false);
+    auto* visionPanelLay = new QVBoxLayout(visionPanel);
+    visionPanelLay->setContentsMargins(0, 4, 0, 0);
+    visionPanelLay->setSpacing(0);
+    auto* visionWarnLbl = new QLabel(visionPanel);
+    visionWarnLbl->setTextFormat(Qt::RichText);
+    visionWarnLbl->setWordWrap(true);
+    visionWarnLbl->setStyleSheet(
+        "background:#1a0a00;border:1px solid #92400e;border-radius:8px;"
+        "padding:10px 14px;color:#e2e8f0;font-size:12px;");
+    visionWarnLbl->setText(
+        "<b style='color:#fb923c;'>\xe2\x9a\xa0  Modelli Vision — cosa funziona e cosa no</b><br><br>"
+        "<b style='color:#fcd34d;'>Compatibili con Ollama:</b> "
+        "llama3.2-vision \xe2\x98\x85 \xe2\x80\x94 qwen2-vl:7b \xe2\x98\x85 \xe2\x80\x94 minicpm-v:8b \xe2\x80\x94 llava:7b \xe2\x80\x94 moondream2<br>"
+        "<b style='color:#f87171;'>NON compatibili (errori certi):</b> "
+        "deepseek-janus \xe2\x80\x94 deepseek-vl \xe2\x80\x94 deepseek-r1 \xe2\x80\x94 deepseek-coder "
+        "\xe2\x80\x94 qualsiasi modello DeepSeek<br><br>"
+        "<span style='color:#94a3b8;font-size:11px;'>"
+        "I modelli DeepSeek non supportano il campo \"images\" dell'API Ollama. "
+        "Se li usi con immagini riceverai l'errore: "
+        "<i>\"model does not support vision\"</i>. "
+        "Prismalux ora mostra questo errore in modo leggibile invece di bloccarsi."
+        "</span>");
+    visionPanelLay->addWidget(visionWarnLbl);
+    mainLay->addWidget(visionPanel);
+
+    /* ── Pannello consigli Xeon / 64 GB ── */
+    auto* xeonPanel = new QWidget(page);
+    xeonPanel->setVisible(false);
+    auto* xeonLay = new QVBoxLayout(xeonPanel);
+    xeonLay->setContentsMargins(0, 4, 0, 0);
+    xeonLay->setSpacing(0);
+
+    auto* xeonLbl = new QLabel(xeonPanel);
+    xeonLbl->setTextFormat(Qt::RichText);
+    xeonLbl->setWordWrap(true);
+    xeonLbl->setOpenExternalLinks(false);
+    xeonLbl->setStyleSheet(
+        "background:#0c1e3a;border:1px solid #1e3a5f;border-radius:8px;"
+        "padding:12px 16px;color:#e2e8f0;font-size:12px;line-height:160%;");
+    xeonLbl->setText(
+        "<b style='color:#60a5fa;font-size:13px;'>"
+        "\xf0\x9f\x96\xa5  Configurazione consigliata: Xeon + 64 GB RAM</b><br><br>"
+
+        "<b style='color:#93c5fd;'>Strategia ottimale per la tua macchina:</b><br>"
+        "\xe2\x80\xa2  Usa <b>CPU pura</b> (ignora la GPU AMD lenta): "
+        "<code style='background:#0f172a;padding:1px 5px;border-radius:3px;color:#4ade80;'>"
+        "set OLLAMA_NUM_GPU=0 &amp;&amp; ollama serve</code><br>"
+        "\xe2\x80\xa2  Con 64 GB RAM puoi caricare modelli da <b>20-44 GB</b> senza toccare la VRAM<br>"
+        "\xe2\x80\xa2  Il Xeon ha spesso <b>AVX-512</b>: verifica con "
+        "<code style='background:#0f172a;padding:1px 5px;border-radius:3px;color:#4ade80;'>"
+        "wmic cpu get name</code> e cerca E5/E7/Scalable/Gold/Silver<br><br>"
+
+        "<b style='color:#93c5fd;'>Modelli raccomandati (in ordine di priorit\xc3\xa0):</b><br>"
+        "\xe2\x98\x85  <b>Qwen2.5-Coder-32B Q5</b> (~22 GB) \xe2\x80\x94 coding top, ~4-6 token/s su Xeon<br>"
+        "\xe2\x98\x85  <b>DeepSeek-R1-32B Q5</b> (~22 GB) \xe2\x80\x94 ragionamento/matematica avanzata<br>"
+        "\xe2\x98\x85  <b>Mixtral 8x7B Q4</b> (~26 GB) \xe2\x80\x94 generico veloce (MoE attiva 2/8 esperti)<br>"
+        "       <b>Llama-3.1-70B Q4</b> (~40 GB) \xe2\x80\x94 massima qualit\xc3\xa0, ~1-2 token/s<br><br>"
+
+        "<b style='color:#93c5fd;'>Pipeline multi-agente consigliata su Xeon 64 GB:</b><br>"
+        "\xe2\x80\xa2  Agente 1 (Ricercatore): <b>deepseek-r1:14b</b> \xe2\x80\x94 veloce per analisi<br>"
+        "\xe2\x80\xa2  Agenti 2-3 (Programmatori): <b>deepseek-coder-v2:16b</b> \xe2\x80\x94 potente e leggero<br>"
+        "\xe2\x80\xa2  Agente 5 (Tester): <b>qwen2.5-coder:32b</b> \xe2\x80\x94 massima precisione sul codice<br>"
+        "\xe2\x80\xa2  Agente 6 (Ottimizzatore): <b>qwen3:30b</b> \xe2\x80\x94 qualit\xc3\xa0 di ragionamento superiore<br><br>"
+
+        "<span style='color:#64748b;font-size:11px;'>"
+        "Nota: modelli con \xe2\x98\x85 sono testati e ottimizzati per CPU Xeon multi-core."
+        "</span>");
+    xeonLay->addWidget(xeonLbl);
+    mainLay->addWidget(xeonPanel);
+
     /* ════════════════════════════════════════════════════════
        Logica — popola lista in base ai filtri selezionati
        ════════════════════════════════════════════════════════ */
@@ -2530,7 +2865,14 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
 
         const bool isOllama  = btnOllama->isChecked();
         const int  catId     = catBtnGroup->checkedId();
-        const QString filter = (catId == 0) ? QString() : QString(CATS[catId]);
+        /* Usa CATS_KEY (senza emoji) per la comparazione con m.category */
+        const QString filter = (catId == 0) ? QString() : QString(CATS_KEY[catId]);
+
+        /* Mostra/nascondi pannelli contestuali */
+        xeonPanel->setVisible(catId == N_CATS - 1);
+        /* Categoria Vision (indice 4 = "Vision" in CATS_KEY) */
+        const int kVisionCat = 4;
+        visionPanel->setVisible(catId == kVisionCat);
 
         if (isOllama) {
             for (int i = 0; i < NO; i++) {

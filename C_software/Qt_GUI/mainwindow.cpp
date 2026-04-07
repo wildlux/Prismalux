@@ -349,9 +349,10 @@ MainWindow::MainWindow(QWidget* parent)
     /* Pagina iniziale */
     navigateTo(0);
 
-    /* Scorciatoie da tastiera: Alt+1…8 = navigazione rapida
+    /* Scorciatoie da tastiera: Alt+1…7 = navigazione rapida
        0=Agenti  1=Strumenti  2=Grafico  3=Programmazione
-       4=Matematica  5=Finanza  6=Impara  7=Sfida */
+       4=Matematica  5=Impara(+Finanza)  6=Sfida
+       (Finanza non ha più shortcut separato: è sotto-scheda di Impara) */
     auto* sc1 = new QShortcut(QKeySequence("Alt+1"), this);
     auto* sc2 = new QShortcut(QKeySequence("Alt+2"), this);
     auto* sc3 = new QShortcut(QKeySequence("Alt+3"), this);
@@ -359,15 +360,13 @@ MainWindow::MainWindow(QWidget* parent)
     auto* sc5 = new QShortcut(QKeySequence("Alt+5"), this);
     auto* sc6 = new QShortcut(QKeySequence("Alt+6"), this);
     auto* sc7 = new QShortcut(QKeySequence("Alt+7"), this);
-    auto* sc8 = new QShortcut(QKeySequence("Alt+8"), this);
     connect(sc1, &QShortcut::activated, this, [this]{ navigateTo(0); }); /* Agenti AI */
     connect(sc2, &QShortcut::activated, this, [this]{ navigateTo(1); }); /* Strumenti */
     connect(sc3, &QShortcut::activated, this, [this]{ navigateTo(2); }); /* Grafico */
     connect(sc4, &QShortcut::activated, this, [this]{ navigateTo(3); }); /* Programmazione */
     connect(sc5, &QShortcut::activated, this, [this]{ navigateTo(4); }); /* Matematica */
-    connect(sc6, &QShortcut::activated, this, [this]{ navigateTo(5); }); /* Finanza */
-    connect(sc7, &QShortcut::activated, this, [this]{ navigateTo(6); }); /* Impara */
-    connect(sc8, &QShortcut::activated, this, [this]{ navigateTo(7); }); /* Sfida */
+    connect(sc6, &QShortcut::activated, this, [this]{ navigateTo(5); }); /* Impara (+Finanza) */
+    connect(sc7, &QShortcut::activated, this, [this]{ navigateTo(6); }); /* Sfida */
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1303,7 +1302,22 @@ QWidget* MainWindow::buildSidebar() {
    buildContent — QStackedWidget con le 5 pagine
    ══════════════════════════════════════════════════════════════ */
 QWidget* MainWindow::buildContent() {
-    m_mainTabs = new QTabWidget(this);
+    /* ── Container wrapper: navMenuBar (nascosta) + m_mainTabs ── */
+    auto* wrapper = new QWidget(this);
+    auto* wLay    = new QVBoxLayout(wrapper);
+    wLay->setContentsMargins(0, 0, 0, 0);
+    wLay->setSpacing(0);
+
+    /* ── Barra navigazione alternativa (modalità "Menù principale") ── */
+    m_navMenuBar = new QFrame(wrapper);
+    m_navMenuBar->setObjectName("navMenuBar");
+    m_navMenuBar->setFixedHeight(40);
+    m_navMenuBar->hide();
+    auto* nmLay = new QHBoxLayout(m_navMenuBar);
+    nmLay->setContentsMargins(8, 2, 8, 2);
+    nmLay->setSpacing(2);
+
+    m_mainTabs = new QTabWidget(wrapper);
     m_mainTabs->setObjectName("mainTabs");
     m_mainTabs->setTabPosition(QTabWidget::North);
     m_mainTabs->setMovable(false);
@@ -1314,13 +1328,13 @@ QWidget* MainWindow::buildContent() {
         m_btnBackend->setFixedHeight(28);
         m_btnBackend->setMinimumWidth(110);
 
-        auto* corner = new QWidget(m_mainTabs);
-        auto* cornerLay = new QHBoxLayout(corner);
-        cornerLay->setContentsMargins(4, 0, 8, 0);   /* 8px di spazio a destra tra btn e tab */
+        m_cornerContainer = new QWidget(m_mainTabs);
+        auto* cornerLay = new QHBoxLayout(m_cornerContainer);
+        cornerLay->setContentsMargins(4, 0, 8, 0);
         cornerLay->setSpacing(0);
         cornerLay->addWidget(m_btnBackend);
 
-        m_mainTabs->setCornerWidget(corner, Qt::TopLeftCorner);
+        m_mainTabs->setCornerWidget(m_cornerContainer, Qt::TopLeftCorner);
     }
 
     auto* agentiPage = new AgentiPage(m_ai, this);
@@ -1363,11 +1377,110 @@ QWidget* MainWindow::buildContent() {
     });
     m_mainTabs->addTab(new ProgrammazionePage(m_ai, this),"\xf0\x9f\x92\xbb  Programmazione");  /* 3 */
     m_mainTabs->addTab(new MatematicaPage(m_ai, this),    "\xcf\x80  Matematica");               /* 4 */
-    m_mainTabs->addTab(new PraticoPage(m_ai, this),       "\xf0\x9f\x92\xb0  Finanza");         /* 5 */
-    m_mainTabs->addTab(new ImparaPage(m_ai, this),        "\xf0\x9f\x93\x9a  Impara");          /* 6 */
-    m_mainTabs->addTab(new QuizPage(m_ai, this),           "\xf0\x9f\x8e\xaf  Sfida te stesso!");/* 7 */
+    /* Finanza (PraticoPage) spostata DENTRO il tab Impara come sotto-scheda */
+    {
+        auto* imparaContainer = new QWidget(m_mainTabs);
+        auto* ilay = new QVBoxLayout(imparaContainer);
+        ilay->setContentsMargins(0, 0, 0, 0);
+        ilay->setSpacing(0);
 
-    return m_mainTabs;
+        auto* imparaTabs = new QTabWidget(imparaContainer);
+        imparaTabs->setObjectName("imparaSubTabs");
+        imparaTabs->setTabPosition(QTabWidget::North);
+        imparaTabs->addTab(new ImparaPage(m_ai, imparaContainer),  "\xf0\x9f\x93\x9a  Impara");
+        imparaTabs->addTab(new PraticoPage(m_ai, imparaContainer), "\xf0\x9f\x92\xb0  Finanza");
+        ilay->addWidget(imparaTabs);
+
+        m_mainTabs->addTab(imparaContainer, "\xf0\x9f\x93\x9a  Impara");                   /* 5 */
+    }
+    /* QuizPage usa un AiClient SEPARATO per evitare cross-talk con AgentiPage
+       (signal token/finished condivisi causano output fantasma nelle bolle agenti). */
+    {
+        auto* quizAi = new AiClient(this);
+        quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+        /* Sincronizza backend/modello quando l'utente cambia le impostazioni principali */
+        connect(m_ai, &AiClient::modelsReady, quizAi, [this, quizAi](const QStringList&){
+            quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+        });
+        m_mainTabs->addTab(new QuizPage(quizAi, this),     "\xf0\x9f\x8e\xaf  Sfida te stesso!");/* 7 */
+    }
+
+    /* ── Salva etichette originali e applica modalità da QSettings ── */
+    for (int i = 0; i < m_mainTabs->count(); i++)
+        m_tabOrigLabels << m_mainTabs->tabText(i);
+    {
+        QSettings s("Prismalux", "GUI");
+        applyTabMode(s.value("nav/tabMode", "icons_text").toString());
+    }
+
+    /* ── Costruisci pulsanti barra navigazione ───────────────────
+       Separatore di categoria dopo tab 4 (Matematica) → gruppo AI+Crea | Impara+Sfida */
+    {
+        auto* btnGroup = new QButtonGroup(m_navMenuBar);
+        btnGroup->setExclusive(true);
+        for (int i = 0; i < m_mainTabs->count(); i++) {
+            if (i == 5) {           /* separatore prima di "Impara" */
+                auto* sep = new QFrame(m_navMenuBar);
+                sep->setFrameShape(QFrame::VLine);
+                sep->setObjectName("navMenuSep");
+                sep->setFixedWidth(1);
+                nmLay->addWidget(sep);
+            }
+            auto* btn = new QPushButton(m_tabOrigLabels.at(i), m_navMenuBar);
+            btn->setObjectName("navMenuBtn");
+            btn->setCheckable(true);
+            btn->setChecked(i == 0);
+            btn->setFlat(true);
+            const int tabIdx = i;
+            connect(btn, &QPushButton::clicked, this, [this, tabIdx]{
+                m_mainTabs->setCurrentIndex(tabIdx);
+            });
+            btnGroup->addButton(btn);
+            m_navBtns << btn;
+            nmLay->addWidget(btn);
+        }
+        nmLay->addStretch();
+
+        /* Backend button all'estrema destra della nav bar (in menu mode) */
+        if (m_btnBackend) {
+            auto* backendClone = new QPushButton(m_navMenuBar);
+            backendClone->setObjectName("navMenuBackend");
+            backendClone->setFlat(true);
+            backendClone->setFixedHeight(30);
+            /* Sincronizza testo con il pulsante principale */
+            auto syncText = [this, backendClone]{
+                backendClone->setText(m_btnBackend->text());
+                backendClone->setStyleSheet(m_btnBackend->styleSheet());
+            };
+            connect(m_btnBackend, &QPushButton::clicked, backendClone, syncText);
+            syncText();
+            connect(backendClone, &QPushButton::clicked,
+                    m_btnBackend, &QPushButton::click);
+            nmLay->addWidget(backendClone);
+        }
+
+        /* Sincronizza pulsante attivo quando cambia tab */
+        connect(m_mainTabs, &QTabWidget::currentChanged, this, [this](int idx){
+            if (idx >= 0 && idx < m_navBtns.size())
+                m_navBtns[idx]->setChecked(true);
+        });
+    }
+
+    wLay->addWidget(m_navMenuBar);
+    wLay->addWidget(m_mainTabs, 1);
+
+    /* Applica stile navigazione e modalità pulsanti da QSettings */
+    {
+        QSettings s("Prismalux", "GUI");
+        applyNavStyle(s.value("nav/navStyle", "tabs_top").toString());
+        /* Differito: i pulsanti di esecuzione vengono creati nelle pagine
+           durante addTab(); aspettiamo che il widget tree sia completo */
+        const QString execMode = s.value("nav/execBtnMode", "icon_text").toString();
+        if (execMode != "icon_text")
+            QTimer::singleShot(0, this, [this, execMode]{ applyExecBtnMode(execMode); });
+    }
+
+    return wrapper;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1392,6 +1505,65 @@ void MainWindow::ensureSettingsDialog()
     dl->addWidget(m_impPage);
     if (m_hw && m_hw->hwReady())
         m_impPage->onHWReady(m_hw->hwInfo());
+    connect(m_impPage, &ImpostazioniPage::tabModeChanged,
+            this,      &MainWindow::applyTabMode);
+    connect(m_impPage, &ImpostazioniPage::navStyleChanged,
+            this,      &MainWindow::applyNavStyle);
+    connect(m_impPage, &ImpostazioniPage::execBtnModeChanged,
+            this,      &MainWindow::applyExecBtnMode);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   applyTabMode — aggiorna le etichette di m_mainTabs in tempo reale.
+   Formato originale: "icona  testo" (separatore = 2 spazi).
+   ══════════════════════════════════════════════════════════════ */
+void MainWindow::applyTabMode(const QString& mode)
+{
+    if (!m_mainTabs || m_tabOrigLabels.isEmpty()) return;
+    const int n = qMin(m_mainTabs->count(), m_tabOrigLabels.size());
+    for (int i = 0; i < n; i++) {
+        const QString& orig = m_tabOrigLabels.at(i);
+        const int sep = orig.indexOf("  ");   /* 2 spazi tra icona e testo */
+        if (sep < 0) { m_mainTabs->setTabText(i, orig); continue; }
+        const QString icon = orig.left(sep);
+        const QString text = orig.mid(sep + 2);
+        QString label;
+        if      (mode == "icons_only") label = icon;
+        else if (mode == "text_icons") label = text + "  " + icon;
+        else if (mode == "text_only")  label = text;
+        else                           label = orig;  /* icons_text = default */
+        m_mainTabs->setTabText(i, label);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   applyExecBtnMode — aggiorna il testo di tutti i pulsanti di esecuzione.
+   Scansiona l'albero dei widget cercando QPushButton con proprietà execIcon.
+   ══════════════════════════════════════════════════════════════ */
+void MainWindow::applyExecBtnMode(const QString& mode)
+{
+    const auto btns = findChildren<QPushButton*>();
+    for (auto* btn : btns) {
+        const QVariant iconVar = btn->property("execIcon");
+        if (!iconVar.isValid() || iconVar.isNull()) continue;
+        const QString icon = iconVar.toString();
+        const QString text = btn->property("execText").toString();
+        const QString full = btn->property("execFull").toString();
+        if (mode == "icon_only") btn->setText(icon);
+        else if (mode == "text_only") btn->setText(text);
+        else btn->setText(full.isEmpty() ? icon + "  " + text : full);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   applyNavStyle — alterna tra schede in alto e menù orizzontale.
+   ══════════════════════════════════════════════════════════════ */
+void MainWindow::applyNavStyle(const QString& style)
+{
+    if (!m_mainTabs) return;
+    const bool isMenu = (style == "menu_main");
+    m_mainTabs->tabBar()->setVisible(!isMenu);
+    if (m_navMenuBar) m_navMenuBar->setVisible(isMenu);
 }
 
 /* ══════════════════════════════════════════════════════════════

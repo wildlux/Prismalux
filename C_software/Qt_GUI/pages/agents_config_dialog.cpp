@@ -14,6 +14,7 @@
 #include <QFileInfo>
 #include <QFile>
 #include <QMouseEvent>
+#include <QStandardItemModel>
 #include <algorithm>
 
 /* ══════════════════════════════════════════════════════════════
@@ -589,13 +590,53 @@ void AgentsConfigDialog::setupUI() {
     cfgGrid->addWidget(mkHdr("Modello"),  0, 2);
     cfgGrid->addWidget(mkHdr("\xf0\x9f\x93\x8e Contesto RAG"), 0, 3);
 
-    auto roleList = roles();
-    std::sort(roleList.begin(), roleList.end(),
-              [](const AgentRole& a, const AgentRole& b){ return a.name < b.name; });
-    QStringList roleNames;
-    for (const auto& r : roleList)
-        roleNames << r.icon + "  " + r.name;
+    /* Ruoli con categorie per fasce di indici (non modificare l'ordine di roles()) */
+    struct CatRange { int from; int to; const char* cat; };
+    static const CatRange kCats[] = {
+        {  0, 11, "Generale" },
+        { 12, 15, "Matematica" },
+        { 16, 18, "Architettura" },
+        { 19, 21, "Sicurezza" },
+        { 22, 23, "Fisica" },
+        { 24, 25, "Chimica" },
+        { 26, 27, "Interdisciplinare" },
+        { 28, 31, "Matematica Avanzata" },
+        { 32, 40, "CS Avanzata" },
+        { 41, 43, "Fisica Avanzata" },
+        { 44, 46, "Biologia & Farmacologia" },
+        { 47, 49, "Ingegneria Avanzata" },
+    };
+    const int kNumCats = static_cast<int>(sizeof(kCats) / sizeof(kCats[0]));
 
+    auto roleList = roles();
+
+    /* Helper: costruisce un QStandardItemModel raggruppato per categoria.
+       Ogni item selezionabile ha Qt::UserRole = indice reale in roleList.
+       Gli header categoria sono disabilitati (bold, non selezionabili). */
+    auto buildRoleModel = [&]() -> QStandardItemModel* {
+        auto* mdl = new QStandardItemModel();
+        for (int c = 0; c < kNumCats; c++) {
+            /* Separatore categoria */
+            auto* hdr = new QStandardItem(QString("\xe2\x94\x80\xe2\x94\x80 %1 \xe2\x94\x80\xe2\x94\x80").arg(kCats[c].cat));
+            hdr->setData(-1, Qt::UserRole);
+            hdr->setEnabled(false);
+            QFont f = hdr->font(); f.setBold(true); hdr->setFont(f);
+            hdr->setForeground(QColor("#88aacc"));
+            mdl->appendRow(hdr);
+            /* Ruoli della categoria */
+            for (int r = kCats[c].from; r <= kCats[c].to && r < roleList.size(); r++) {
+                /* Formato "Categoria : Nome" come richiesto dall'utente */
+                auto* item = new QStandardItem(
+                    "  " + roleList[r].icon + "  "
+                    + QString(kCats[c].cat) + " : " + roleList[r].name);
+                item->setData(r, Qt::UserRole);  /* indice in roleList */
+                mdl->appendRow(item);
+            }
+        }
+        return mdl;
+    };
+
+    /* Default: i primi 6 ruoli in ordine di roleList (Analizzatore, Pianificatore, ..., Tester) */
     const int defaults[MAX_AGENTS] = {0, 1, 2, 3, 4, 5};
 
     for (int i = 0; i < MAX_AGENTS; i++) {
@@ -603,8 +644,17 @@ void AgentsConfigDialog::setupUI() {
         m_enabledChk[i]->setChecked(true);
 
         m_roleCombo[i] = new QComboBox(cfgWidget);
-        m_roleCombo[i]->addItems(roleNames);
-        m_roleCombo[i]->setCurrentIndex(defaults[i]);
+        m_roleCombo[i]->setModel(buildRoleModel());
+        /* Seleziona il default cercando il primo item con UserRole == defaults[i] */
+        {
+            auto* mdl = qobject_cast<QStandardItemModel*>(m_roleCombo[i]->model());
+            for (int row = 0; row < mdl->rowCount(); row++) {
+                if (mdl->item(row)->data(Qt::UserRole).toInt() == defaults[i]) {
+                    m_roleCombo[i]->setCurrentIndex(row);
+                    break;
+                }
+            }
+        }
 
         m_modelCombo[i] = new QComboBox(cfgWidget);
         m_modelCombo[i]->setMinimumWidth(160);
@@ -631,6 +681,17 @@ void AgentsConfigDialog::setupUI() {
 
     scroll->setWidget(cfgWidget);
     lay->addWidget(scroll, 1);
+
+    /* ── Checkbox Controller LLM (spostato qui dalla toolbar principale) ── */
+    m_controllerChk = new QCheckBox(
+        "\xf0\x9f\x94\x8d  Abilita Controller LLM post-agente", this);
+    m_controllerChk->setObjectName("cardDesc");
+    m_controllerChk->setChecked(true);
+    m_controllerChk->setToolTip(
+        "Abilita il Controller LLM dopo ogni agente nella Pipeline.\n"
+        "Disabilita per task matematici puri: il codice viene eseguito\n"
+        "e si passa al prossimo agente senza verifica aggiuntiva.");
+    lay->addWidget(m_controllerChk);
 
     /* Pulsante chiudi */
     auto* closeBtn = new QPushButton("\xe2\x9c\x93  Applica e Chiudi", this);

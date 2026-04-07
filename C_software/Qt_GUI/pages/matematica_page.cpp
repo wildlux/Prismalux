@@ -82,6 +82,9 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     auto* btnStop = new QPushButton("\xe2\x96\xa0  Stop", outBox);
     btnStop->setObjectName("stopBtn");
     btnStop->setFixedHeight(26);
+    btnStop->setProperty("execFull", btnStop->text());
+    btnStop->setProperty("execIcon", QString::fromUtf8("\xe2\x96\xa0"));
+    btnStop->setProperty("execText", "Stop");
     connect(btnStop, &QPushButton::clicked, this, [this]{ stopPython(); });
     ctrlRow->addWidget(btnStop);
 
@@ -174,30 +177,68 @@ QWidget* MatematicaPage::buildSeqTab()
     btnRefresh->setToolTip("Aggiorna lista modelli");
     optRow->addWidget(btnRefresh);
 
+    /* Score per modelli matematici: piu' alto = migliore per matematica */
+    auto mathScore = [](const QString& name) -> int {
+        const QString n = name.toLower();
+        if (n.contains("qwen2.5-math") || n.contains("qwen2_5-math")) return 100;
+        if (n.contains("mathstral") || n.contains("math"))             return 90;
+        if (n.contains("deepseek-r1"))  return 85;  /* ragionamento chain-of-thought */
+        if (n.contains("qwq"))          return 80;
+        if (n.contains("phi-4") || n.contains("phi4")) return 75;
+        if (n.contains("deepseek") && !n.contains("coder")) return 60;
+        if (n.contains("qwen")     && !n.contains("coder")) return 50;
+        return 0;
+    };
+
+    auto isEmbed = [](const QString& n) -> bool {
+        return n.contains("embed") || n.contains("minilm") ||
+               n.contains("rerank") || n.contains("bge-") ||
+               n.contains("e5-") || n.contains("-embed");
+    };
+
+    /* Helper condiviso: popola m_modelCombo auto-selezionando il miglior modello math */
+    auto fillMathCombo = [this, mathScore, isEmbed](const QStringList& list, const QString& cur) {
+        m_modelCombo->clear();
+        int selIdx    = 0;
+        int curIdx    = -1;
+        int bestMath  = -1;
+        int bestScore = -1;
+        for (const QString& mdl : list) {
+            if (isEmbed(mdl.toLower())) continue;
+            const int pos = m_modelCombo->count();
+            /* Etichetta: aggiunge badge per modelli matematici */
+            const int sc = mathScore(mdl);
+            const QString badge = (sc >= 90) ? "  \xf0\x9f\xa7\xae Ottimizzato Math"
+                                : (sc >= 50) ? "  \xe2\x9c\x94 Buono per Math"
+                                :              "";
+            m_modelCombo->addItem(mdl + badge, mdl);
+            if (mdl == cur) curIdx = pos;
+            if (sc > bestScore) { bestScore = sc; bestMath = pos; }
+        }
+        if (m_modelCombo->count() == 0) {
+            m_modelCombo->addItem(cur.isEmpty() ? "(nessun modello)" : cur, cur);
+            return;
+        }
+        const bool curIsMath = (curIdx >= 0 && mathScore(cur) >= 50);
+        if (bestMath >= 0 && !curIsMath)
+            selIdx = bestMath;
+        else if (curIdx >= 0)
+            selIdx = curIdx;
+        m_modelCombo->setCurrentIndex(selIdx);
+        const QString chosen = m_modelCombo->currentData().toString();
+        if (!chosen.isEmpty() && chosen != cur && m_ai)
+            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), chosen);
+    };
+
     /* Lambda per popolare la combo (esclude embedding) */
-    auto populateModels = [this]() {
+    auto populateModels = [this, fillMathCombo]() {
         if (!m_ai) return;
         const QString cur = m_ai->model();
         auto* holder = new QObject(this);
         connect(m_ai, &AiClient::modelsReady, holder,
-                [this, holder, cur](const QStringList& list) {
+                [this, holder, fillMathCombo, cur](const QStringList& list) {
             holder->deleteLater();
-            m_modelCombo->clear();
-            int selIdx = 0;
-            for (const QString& mdl : list) {
-                /* salta modelli embedding-only */
-                const QString n = mdl.toLower();
-                if (n.contains("embed") || n.contains("minilm") ||
-                    n.contains("rerank") || n.contains("bge-") ||
-                    n.contains("e5-") || n.contains("-embed"))
-                    continue;
-                m_modelCombo->addItem(mdl, mdl);
-                if (mdl == cur) selIdx = m_modelCombo->count() - 1;
-            }
-            if (m_modelCombo->count() == 0)
-                m_modelCombo->addItem(cur.isEmpty() ? "(nessun modello)" : cur, cur);
-            else
-                m_modelCombo->setCurrentIndex(selIdx);
+            fillMathCombo(list, cur);
         });
         m_ai->fetchModels();
     };
@@ -208,22 +249,9 @@ QWidget* MatematicaPage::buildSeqTab()
     if (m_ai) {
         auto* holder = new QObject(this);
         connect(m_ai, &AiClient::modelsReady, holder,
-                [this, holder](const QStringList& list) {
+                [this, holder, fillMathCombo](const QStringList& list) {
             holder->deleteLater();
-            const QString cur = m_ai->model();
-            m_modelCombo->clear();
-            int selIdx = 0;
-            for (const QString& mdl : list) {
-                const QString n = mdl.toLower();
-                if (n.contains("embed") || n.contains("minilm") ||
-                    n.contains("rerank") || n.contains("bge-") ||
-                    n.contains("e5-") || n.contains("-embed"))
-                    continue;
-                m_modelCombo->addItem(mdl, mdl);
-                if (mdl == cur) selIdx = m_modelCombo->count() - 1;
-            }
-            if (m_modelCombo->count() > 0)
-                m_modelCombo->setCurrentIndex(selIdx);
+            fillMathCombo(list, m_ai ? m_ai->model() : QString());
         });
         m_ai->fetchModels();
     }
@@ -233,9 +261,16 @@ QWidget* MatematicaPage::buildSeqTab()
     /* Pulsanti */
     auto* btnRow = new QHBoxLayout;
 
+    auto tagExecM = [](QPushButton* btn, const char* icon, const char* text){
+        btn->setProperty("execFull", btn->text());
+        btn->setProperty("execIcon", QString::fromUtf8(icon));
+        btn->setProperty("execText", QString::fromUtf8(text));
+    };
+
     auto* btnLocal = new QPushButton(
         "\xf0\x9f\x94\x8d  Rileva pattern (locale, istantaneo)", w);
     btnLocal->setObjectName("actionBtn");
+    tagExecM(btnLocal, "\xf0\x9f\x94\x8d", "Rileva pattern");
     connect(btnLocal, &QPushButton::clicked, this, [this]{
         QString err;
         QVector<double> seq = parseSeq(m_seqInput->text(), err);
@@ -251,6 +286,7 @@ QWidget* MatematicaPage::buildSeqTab()
     auto* btnSympy = new QPushButton(
         "\xcf\x83  Interpola con sympy (preciso)", w);
     btnSympy->setObjectName("actionBtn");
+    tagExecM(btnSympy, "\xcf\x83", "Interpola");
     connect(btnSympy, &QPushButton::clicked, this, [this]{
         QString err;
         QVector<double> seq = parseSeq(m_seqInput->text(), err);
@@ -312,6 +348,7 @@ QWidget* MatematicaPage::buildSeqTab()
         "\xf0\x9f\xa4\x96  Analizza con AI (spiega + storia)", w);
     btnAI->setObjectName("actionBtn");
     btnAI->setProperty("highlight", "true");
+    tagExecM(btnAI, "\xf0\x9f\xa4\x96", "Analizza AI");
     connect(btnAI, &QPushButton::clicked, this, [this]{
         QString err;
         QVector<double> seq = parseSeq(m_seqInput->text(), err);
@@ -374,6 +411,8 @@ QWidget* MatematicaPage::buildConstTab()
         "\xcf\x80  Calcola", w);
     btnCalc->setObjectName("actionBtn");
     btnCalc->setProperty("highlight", "true");
+    { auto te=[](QPushButton*b,const char*i,const char*t){b->setProperty("execFull",b->text());b->setProperty("execIcon",QString::fromUtf8(i));b->setProperty("execText",QString::fromUtf8(t));};
+      te(btnCalc,"\xcf\x80","Calcola"); }
     connect(btnCalc, &QPushButton::clicked, this, [this]{ runConstant(); });
     btnRow->addWidget(btnCalc);
 
@@ -489,6 +528,9 @@ QWidget* MatematicaPage::buildNthTab()
     auto* btnCalc = new QPushButton("#\xe2\x83\xbf  Calcola", w);
     btnCalc->setObjectName("actionBtn");
     btnCalc->setProperty("highlight", "true");
+    btnCalc->setProperty("execFull", btnCalc->text());
+    btnCalc->setProperty("execIcon", QString::fromUtf8("#\xe2\x83\xbf"));
+    btnCalc->setProperty("execText", "Calcola");
     connect(btnCalc, &QPushButton::clicked, this, [this]{ runNth(); });
     btnRow->addWidget(btnCalc);
     btnRow->addStretch(1);
@@ -564,11 +606,17 @@ QWidget* MatematicaPage::buildExprTab()
     auto* btnEval = new QPushButton("\xf0\x9f\xa7\xae  Calcola", w);
     btnEval->setObjectName("actionBtn");
     btnEval->setProperty("highlight", "true");
+    btnEval->setProperty("execFull", btnEval->text());
+    btnEval->setProperty("execIcon", QString::fromUtf8("\xf0\x9f\xa7\xae"));
+    btnEval->setProperty("execText", "Calcola");
     connect(btnEval, &QPushButton::clicked, this, [this]{ runExpr(); });
     btnRow->addWidget(btnEval);
 
     auto* btnSimplify = new QPushButton("\xe2\x99\xbe  Semplifica (sympy)", w);
     btnSimplify->setObjectName("actionBtn");
+    btnSimplify->setProperty("execFull", btnSimplify->text());
+    btnSimplify->setProperty("execIcon", QString::fromUtf8("\xe2\x99\xbe"));
+    btnSimplify->setProperty("execText", "Semplifica");
     connect(btnSimplify, &QPushButton::clicked, this, [this]{
         const QString expr = m_exprInput->text().trimmed();
         if (expr.isEmpty()) return;

@@ -207,6 +207,21 @@ void AgentiPage::setupUI() {
     toolLay->addWidget(modeLbl);
     toolLay->addWidget(m_cmbMode);
 
+    /* Pulsante ↩ Torna indietro (undo cancellazione bolle) */
+    auto* btnUndo = new QPushButton("\xe2\x86\xa9  Torna indietro", toolbar);
+    btnUndo->setObjectName("actionBtn");
+    btnUndo->setToolTip("Annulla l'ultima eliminazione di un messaggio (Ctrl+Z)");
+    toolLay->addWidget(btnUndo);
+    connect(btnUndo, &QPushButton::clicked, this, [this]{
+        if (m_undoHtmlStack.isEmpty()) {
+            QToolTip::showText(QCursor::pos(),
+                "\xe2\x84\xb9\xef\xb8\x8f  Nessuna operazione da annullare.", nullptr, {}, 2000);
+            return;
+        }
+        m_log->setHtml(m_undoHtmlStack.pop());
+        m_log->moveCursor(QTextCursor::End);
+    });
+
     /* Pulsante auto-assegna */
     m_btnAuto = new QPushButton("\xf0\x9f\xaa\x84 Auto-assegna ruoli", toolbar);
     m_btnAuto->setObjectName("actionBtn");
@@ -219,15 +234,8 @@ void AgentiPage::setupUI() {
     m_btnCfg->setToolTip("Apri la finestra di configurazione agenti\n(ruolo, modello, contesto RAG per ciascuno)");
     toolLay->addWidget(m_btnCfg);
 
-    /* Checkbox Controller LLM — disabilitabile per calcoli matematici/semplici */
-    m_chkController = new QCheckBox("\xf0\x9f\x94\x8d Controller", toolbar);
-    m_chkController->setObjectName("cardDesc");
-    m_chkController->setChecked(true);
-    m_chkController->setToolTip(
-        "Abilita il Controller LLM dopo ogni agente nella Pipeline.\n"
-        "Disabilita per task matematici puri: il codice viene eseguito\n"
-        "e si passa al prossimo agente senza verifica aggiuntiva.");
-    toolLay->addWidget(m_chkController);
+    /* ── Controller LLM spostato dentro "Configura Agenti" (dialog AgentsConfigDialog) ──
+       Accessibile via m_cfgDlg->controllerEnabled() — rimosso dalla toolbar per pulizia. */
 
     lay->addWidget(toolbar);
 
@@ -301,6 +309,37 @@ void AgentiPage::setupUI() {
             if (m_chartPanel) m_chartPanel->setVisible(true);
             return;
         }
+        /* ── Elimina messaggio con conferma ── */
+        if (s.startsWith("del:")) {
+            QMessageBox ask(this);
+            ask.setWindowTitle("\xf0\x9f\x97\x91  Elimina messaggio");
+            ask.setText("<b>Eliminare questo messaggio dalla chat?</b>");
+            ask.setInformativeText(
+                "L'operazione pu\xc3\xb2 essere annullata con il pulsante \xe2\x86\xa9 nella toolbar.");
+            QPushButton* btnDel = ask.addButton("Elimina", QMessageBox::DestructiveRole);
+            ask.addButton("Annulla", QMessageBox::RejectRole);
+            ask.setDefaultButton(btnDel);
+            ask.exec();
+            if (ask.clickedButton() != btnDel) return;
+
+            /* Salva snapshot per undo */
+            m_undoHtmlStack.push(m_log->toHtml());
+
+            /* Rimuovi il blocco della bolla dall'HTML usando il del:ID univoco */
+            const QString c1s = s.mid(4, s.indexOf(':', 4) - 4); /* estrai ID */
+            QString html = m_log->toHtml();
+            /* Cerca e rimuove la <table> che contiene href='del:ID: */
+            QRegularExpression re(
+                "<table[^>]*>(?:(?!</table>).)*?" +
+                QRegularExpression::escape("del:" + c1s + ":") +
+                ".*?</table>(?:\\s*<p[^>]*>\\s*</p>)?",
+                QRegularExpression::DotMatchesEverythingOption);
+            html.remove(re);
+            m_log->setHtml(html);
+            m_log->moveCursor(QTextCursor::End);
+            return;
+        }
+
         if (!s.startsWith("copy:") && !s.startsWith("tts:") && !s.startsWith("edit:")) return;
         /* Formato nuovo: "copy:N:BASE64URL" — il testo è embedded nell'href.
            Formato vecchio: "copy:N"          — fallback su m_bubbleTexts. */
@@ -399,25 +438,36 @@ void AgentiPage::setupUI() {
     m_input->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     inputGrid->addWidget(m_input, 0, 0, 2, 1);
 
+    /* ── helper locale per taggare pulsanti di esecuzione ── */
+    auto tagExec = [](QPushButton* btn, const char* icon, const char* text){
+        btn->setProperty("execFull", btn->text());
+        btn->setProperty("execIcon", QString::fromUtf8(icon));
+        btn->setProperty("execText", QString::fromUtf8(text));
+    };
+
     /* Colonna 1 */
     m_btnRun = new QPushButton("\xe2\x96\xb6  Avvia", inputArea);
     m_btnRun->setObjectName("actionBtn");
     m_btnRun->setToolTip("Avvia la modalit\xc3\xa0 selezionata (Enter)");
+    tagExec(m_btnRun, "\xe2\x96\xb6", "Avvia");
 
     m_btnStop = new QPushButton("\xe2\x8f\xb9 Stop", inputArea);
     m_btnStop->setObjectName("actionBtn");
     m_btnStop->setProperty("danger", true);
     m_btnStop->setEnabled(false);
     m_btnStop->setToolTip("Interrompi l'elaborazione corrente");
+    tagExec(m_btnStop, "\xe2\x8f\xb9", "Stop");
 
     /* Colonna 2 */
     auto* btnQuick = new QPushButton("\xe2\x9a\xa1 Singolo", inputArea);
     btnQuick->setObjectName("actionBtn");
     btnQuick->setToolTip("Risposta immediata — 1 solo agente");
+    tagExec(btnQuick, "\xe2\x9a\xa1", "Singolo");
 
-    m_btnVoice = new QPushButton("\xf0\x9f\x8e\xa4 Trascrivi voce", inputArea);
+    m_btnVoice = new QPushButton("\xf0\x9f\x8e\xa4 Voce", inputArea);
     m_btnVoice->setObjectName("actionBtn");
     m_btnVoice->setToolTip("Parla — trascrivi la voce nel campo di testo (whisper.cpp)");
+    tagExec(m_btnVoice, "\xf0\x9f\x8e\xa4", "Voce");
 
     /* Colonna 3 */
     auto* btnSymbols = new QPushButton("\xce\xa9  Simboli", inputArea);
@@ -427,6 +477,7 @@ void AgentiPage::setupUI() {
     m_btnTranslate = new QPushButton("\xf0\x9f\x8c\x90  Traduci", inputArea);
     m_btnTranslate->setObjectName("actionBtn");
     m_btnTranslate->setToolTip("Traduci il testo selezionando lingue e modello AI");
+    tagExec(m_btnTranslate, "\xf0\x9f\x8c\x90", "Traduci");
 
     inputGrid->addWidget(m_btnRun,       0, 1);
     inputGrid->addWidget(btnQuick,       0, 2);
@@ -439,9 +490,11 @@ void AgentiPage::setupUI() {
     m_btnDoc = new QPushButton("\xf0\x9f\x93\x8e  Documenti", inputArea);
     m_btnDoc->setObjectName("actionBtn");
     m_btnDoc->setToolTip("Allega documento (.txt, .md, .csv, .json, .py, .cpp, .h, .pdf...)");
+    tagExec(m_btnDoc, "\xf0\x9f\x93\x8e", "Documenti");
     m_btnImg = new QPushButton("\xf0\x9f\x96\xbc  Immagini", inputArea);
     m_btnImg->setObjectName("actionBtn");
     m_btnImg->setToolTip("Allega immagine per vision models (.png, .jpg, .jpeg, .gif, .webp)");
+    tagExec(m_btnImg, "\xf0\x9f\x96\xbc", "Immagini");
     inputGrid->addWidget(m_btnDoc, 0, 4);
     inputGrid->addWidget(m_btnImg, 1, 4);
 
@@ -1808,21 +1861,42 @@ void AgentiPage::onModelsReady(const QStringList& list) {
         return;
     }
 
+    /* ── Nessun modello: Ollama non e' in esecuzione ── */
+    if (list.isEmpty()) {
+        /* Mostra placeholder nel combo invece di lasciarlo vuoto */
+        if (m_cmbLLM) {
+            m_cmbLLM->blockSignals(true);
+            m_cmbLLM->clear();
+            m_cmbLLM->addItem("\xe2\x9d\x8c  Ollama non attivo — avvia 'ollama serve'");
+            m_cmbLLM->setEnabled(false);
+            m_cmbLLM->blockSignals(false);
+        }
+        m_cfgDlg->setModels(QStringList{"\xe2\x9d\x8c  Ollama non attivo"});
+        m_btnAuto->setEnabled(false);
+        m_btnAuto->setToolTip(
+            "Ollama non raggiungibile.\n"
+            "Avvia Ollama con: ollama serve\n"
+            "Poi riapri Prismalux o cambia backend.");
+        return;
+    }
+
+    /* Se in precedenza era disabilitato per lista vuota, riabilitalo */
+    if (m_cmbLLM) m_cmbLLM->setEnabled(true);
+
     m_cfgDlg->setModels(list);
     populateLLMCombo(list);
 
-    /* ── Auto-assegna: richiede profilo VRAM dal benchmark ── */
+    /* ── Auto-assegna: sempre abilitato.
+       Se VRAM benchmark mancante, cliccarlo apre direttamente le impostazioni Hardware. ── */
     const bool canAutoAssign = list.size() > 1;
     const bool hasVramProfile = QFileInfo::exists(P::vramProfilePath());
+    m_btnAuto->setEnabled(true);
     if (!hasVramProfile) {
-        m_btnAuto->setEnabled(false);
         m_btnAuto->setToolTip(
-            "\xf0\x9f\x94\xac  Benchmark VRAM richiesto\n"
-            "Esegui prima il VRAM Bench in Impostazioni \xe2\x86\x92 VRAM Bench\n"
-            "Le ottimizzazioni pre-registrate vengono usate nell'auto-assegnazione.\n"
-            "Senza benchmark l'assegnazione non pu\xc3\xb2 ottimizzare il carico GPU.");
+            "\xf0\x9f\x94\xac  Benchmark VRAM non ancora eseguito\n"
+            "Clicca per aprire Hardware \xe2\x86\x92 VRAM Bench e avviare il benchmark.\n"
+            "Le ottimizzazioni pre-registrate vengono usate nell'auto-assegnazione.");
     } else {
-        m_btnAuto->setEnabled(canAutoAssign);
         m_btnAuto->setToolTip(canAutoAssign
             ? "Auto-assegna ruoli e modelli ottimali tramite orchestratore AI"
             : "Auto-assegna non disponibile: un solo modello presente.\n"
@@ -1837,6 +1911,16 @@ void AgentiPage::autoAssignRoles() {
     QString task = m_input->toPlainText().trimmed();
     if (task.isEmpty()) {
         m_log->append("\xe2\x9a\xa0  Inserisci prima un task per l'auto-assegnazione."); return;
+    }
+
+    /* ── Benchmark VRAM mancante: apri direttamente le Impostazioni Hardware ── */
+    if (!QFileInfo::exists(P::vramProfilePath())) {
+        m_log->append(
+            "\xf0\x9f\x94\xac  <b>Benchmark VRAM non trovato.</b><br>"
+            "Apertura Impostazioni \xe2\x86\x92 Hardware \xe2\x86\x92 VRAM Bench&hellip;<br>"
+            "Avvia il benchmark, poi torna qui e riprova.");
+        emit requestOpenSettings("Hardware");
+        return;
     }
 
     m_autoLbl->setText("\xf0\x9f\x94\x84  Recupero modelli disponibili...");
@@ -2076,7 +2160,8 @@ static double _gp_pow() {
     _gp_ws(); int neg=(*_gp_ptr=='-'); if(neg||*_gp_ptr=='+') _gp_ptr++;
     double v=_gp_prim(); _gp_ws();
     if (*_gp_ptr=='^'){_gp_ptr++;v=std::pow(v,_gp_pow());}
-    if (*_gp_ptr=='!'){_gp_ptr++;long long n=(long long)std::fabs(v),f=1;
+    /* '!' = fattoriale SOLO se non e' '!=' (operatore disuguaglianza) */
+    if (*_gp_ptr=='!' && *(_gp_ptr+1)!='='){_gp_ptr++;long long n=(long long)std::fabs(v),f=1;
         for(long long i=2;i<=n&&i<=20;i++)f*=i;v=(double)f;}
     return neg?-v:v;
 }
@@ -2352,6 +2437,17 @@ static QString _inject_math(const QString& task)
 
 QString AgentiPage::guardiaMath(const QString& input)
 {
+    /* Blocchi di codice: non intercettare mai come espressioni matematiche.
+       Segnali inequivocabili di codice sorgente → passa direttamente all'AI. */
+    if (input.contains('\n') && input.length() > 80) return {};
+    static const QStringList codeKw = {
+        "def ", "class ", "import ", "return ", "print(", "for ", "while ",
+        "if (", "if(", "!= ", "==", "->", "=>", "#include", "public ", "void ",
+        "np.", "pd.", "plt.", "os.", "sys.", "self."
+    };
+    for (const QString& kw : codeKw)
+        if (input.contains(kw)) return {};
+
     QString low = input.toLower().trimmed();
     while (!low.isEmpty() && (low.back()=='?' || low.back()==' ')) low.chop(1);
     if (low.isEmpty()) return {};
@@ -2554,7 +2650,8 @@ QString AgentiPage::guardiaMath(const QString& input)
     }
     /* ── Fattoriale ── */
     {
-        static QRegularExpression re("(?:fattoriale\\s+(?:di\\s+)?)?([0-9]+)\\s*!");
+        /* Lookahead negativo (?!=): esclude '!=' (operatore disuguaglianza Python/C) */
+        static QRegularExpression re("(?:fattoriale\\s+(?:di\\s+)?)?([0-9]+)\\s*!(?!=)");
         static QRegularExpression re2("fattoriale\\s+(?:di\\s+)?([0-9]+)");
         auto m = re.match(low);
         if (!m.hasMatch()) m = re2.match(low);
@@ -3030,8 +3127,14 @@ QString AgentiPage::buildUserBubble(const QString& text, int bubbleIdx)
               "<a href='copy:" + id + ":" + b64 + "' style='" + lnk + "'>"
                 "\xf0\x9f\x97\x82</a>"
               " &nbsp; "
+              "<a href='edit:" + id + ":" + b64 + "' style='" + lnk + "'>"
+                "\xe2\x9c\x8f\xef\xb8\x8f</a>"
+              " &nbsp; "
               "<a href='tts:" + id + ":" + b64 + "' style='" + lnk + "'>"
                 "\xf0\x9f\x8e\x99</a>"
+              " &nbsp; "
+              "<a href='del:" + id + ":" + b64 + "' style='" + lnk + "'>"
+                "\xf0\x9f\x97\x91</a>"
             "</p>";
     }
 
@@ -3104,15 +3207,19 @@ QString AgentiPage::buildAgentBubble(const QString& label, const QString& model,
             "<tr>"
               "<td>" + metaLeft + "</td>"
               "<td align='right' style='white-space:nowrap;'>"
-                "<a href='edit:" + id + ":" + b64 + "' style='" + lnk + "' "
-                   "title='Usa come input (modifica e reinvia)'>"
-                  "\xe2\x9c\x8f\xef\xb8\x8f</a>"
-                " &nbsp; "
                 "<a href='copy:" + id + ":" + b64 + "' style='" + lnk + "'>"
                   "\xf0\x9f\x97\x82</a>"
                 " &nbsp; "
+                "<a href='edit:" + id + ":" + b64 + "' style='" + lnk + "' "
+                   "title='Modifica e reinvia'>"
+                  "\xe2\x9c\x8f\xef\xb8\x8f</a>"
+                " &nbsp; "
                 "<a href='tts:" + id + ":" + b64 + "' style='" + lnk + "'>"
                   "\xf0\x9f\x8e\x99</a>"
+                " &nbsp; "
+                "<a href='del:" + id + ":" + b64 + "' style='" + lnk + "' "
+                   "title='Elimina questo messaggio'>"
+                  "\xf0\x9f\x97\x91</a>"
               "</td>"
             "</tr>"
             "</table>";
@@ -3696,8 +3803,83 @@ void AgentiPage::onFinished(const QString& /*full*/) {
                 QString out = QString::fromUtf8(m_execProc->readAll());
                 m_execProc->deleteLater();
                 m_execProc = nullptr;
-                QFile::remove(tmpPath);
 
+                /* ── Auto-install modulo mancante ────────────────────────────
+                   Se l'errore e' ModuleNotFoundError, installa il pacchetto
+                   con pip e riavvia l'esecuzione automaticamente (una volta). */
+                static QRegularExpression reModule(
+                    "ModuleNotFoundError: No module named '([^']+)'");
+                auto mMatch = reModule.match(out);
+                if (exitCode != 0 && mMatch.hasMatch()) {
+                    const QString pkg = mMatch.captured(1).split('.').first();
+                    const QString python = PrismaluxPaths::findPython();
+
+                    QTextCursor logC(m_log->document());
+                    logC.movePosition(QTextCursor::End);
+                    logC.insertHtml(QString(
+                        "<div style='color:#facc15;font-style:italic;margin:4px 0'>"
+                        "\xf0\x9f\x93\xa6  Installo '%1' via pip...</div>").arg(pkg));
+                    if (!m_userScrolled) m_log->ensureCursorVisible();
+
+                    /* pip install in foreground (breve — nessun blocco UI perche'
+                       eseguito in thread QProcess non bloccante) */
+                    auto* pip = new QProcess(this);
+                    pip->setProcessChannelMode(QProcess::MergedChannels);
+                    connect(pip, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                            this, [this, pip, tmpPath, pkg](int rc, QProcess::ExitStatus) {
+                        const QString pipOut = QString::fromUtf8(pip->readAll()).trimmed();
+                        pip->deleteLater();
+
+                        QTextCursor logC2(m_log->document());
+                        logC2.movePosition(QTextCursor::End);
+                        if (rc == 0) {
+                            logC2.insertHtml(QString(
+                                "<div style='color:#4ade80;margin:4px 0'>"
+                                "\xe2\x9c\x85  '%1' installato. Riprovo l'esecuzione...</div>").arg(pkg));
+                            if (!m_userScrolled) m_log->ensureCursorVisible();
+
+                            /* Riavvia il codice con il modulo ora disponibile */
+                            auto* retry = new QProcess(this);
+                            retry->setProcessChannelMode(QProcess::MergedChannels);
+                            auto* t2 = new QElapsedTimer; t2->start();
+                            connect(retry, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                                    this, [this, retry, tmpPath, t2](int rc2, QProcess::ExitStatus) {
+                                double ms2 = t2->elapsed(); delete t2;
+                                QString out2 = QString::fromUtf8(retry->readAll());
+                                retry->deleteLater();
+                                QFile::remove(tmpPath);
+                                m_executorOutput = out2;
+                                QTextCursor c2(m_log->document());
+                                c2.movePosition(QTextCursor::End);
+                                c2.insertHtml(buildToolStrip(QString(), out2, rc2, ms2));
+                                if (!m_userScrolled) m_log->ensureCursorVisible();
+                                if (m_cfgDlg->controllerEnabled())
+                                    runPipelineController();
+                                else
+                                    advancePipeline();
+                            });
+                            retry->start(PrismaluxPaths::findPython(), {tmpPath});
+                        } else {
+                            logC2.insertHtml(QString(
+                                "<div style='color:#f87171;margin:4px 0'>"
+                                "\xe2\x9d\x8c  pip install '%1' fallito. Installa manualmente:<br>"
+                                "<code>pip install %1</code></div>").arg(pkg));
+                            QFile::remove(tmpPath);
+                            m_executorOutput = pipOut;
+                            if (m_cfgDlg->controllerEnabled())
+                                runPipelineController();
+                            else
+                                advancePipeline();
+                        }
+                    });
+                    pip->start(PrismaluxPaths::findPython(), {"-m", "pip", "install", pkg,
+                        "--quiet", "--trusted-host", "pypi.org",
+                        "--trusted-host", "files.pythonhosted.org"});
+                    return;  /* non rimuovere tmpPath: lo usa il retry */
+                }
+                /* ── fine auto-install ─────────────────────────────────────── */
+
+                QFile::remove(tmpPath);
                 m_executorOutput = out;
 
                 /* Inserisce la tool strip nel log */
@@ -3711,7 +3893,7 @@ void AgentiPage::onFinished(const QString& /*full*/) {
                 }
 
                 /* Avvia il controller LLM (solo se checkbox abilitato) */
-                if (m_chkController && m_chkController->isChecked())
+                if (m_cfgDlg->controllerEnabled())
                     runPipelineController();
                 else
                     advancePipeline();
