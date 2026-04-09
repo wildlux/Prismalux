@@ -18,6 +18,7 @@
 #include <QSettings>
 #include <QString>
 #include <QStringList>
+#include <QThread>
 #include <functional>
 #include "../prismalux_paths.h"
 
@@ -39,11 +40,11 @@ inline QString whisperModel()
     if (!pref.isEmpty() && QFileInfo::exists(pref)) return pref;
 
     /* 2. Auto-detect nella cartella modelli del progetto
-       Ordine: small > base > tiny > medium > large (velocità vs precisione) */
+       Ordine: tiny > small > base > medium > large (priorità velocità) */
     const QStringList names = {
+        "ggml-tiny.bin",     "ggml-tiny.en.bin",
         "ggml-small.bin",    "ggml-small.en.bin",
         "ggml-base.bin",     "ggml-base.en.bin",
-        "ggml-tiny.bin",     "ggml-tiny.en.bin",
         "ggml-medium.bin",
         "ggml-large-v3.bin", "ggml-large-v3-turbo.bin",
     };
@@ -130,12 +131,17 @@ inline QProcess* transcribe(
             if (onDone) onDone(out, code == 0 && !out.isEmpty());
         });
 
+    /* Numero di thread: metà dei core logici, min 2, max 8 */
+    const int nThreads = qBound(2, QThread::idealThreadCount() / 2, 8);
+
     proc->start(bin, {
         "-m", model,
         "-f", wavPath,
         "-l", lang,
-        "-nt",   /* --no-timestamps: output testo puro */
-        "-np",   /* --no-prints: nessuna barra di avanzamento */
+        "-nt",                                      /* --no-timestamps: output testo puro */
+        "-np",                                      /* --no-prints: nessuna barra avanzamento */
+        "--beam-size", "1",                         /* greedy decoding: ~3x più veloce */
+        "-t",          QString::number(nThreads),   /* thread CPU */
     });
     return proc;
 }

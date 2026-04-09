@@ -123,26 +123,100 @@ set LIBS=-static -lws2_32 -lm -lshell32
 set TARGET=prismalux.exe
 set SOURCES=src\main.c src\backend.c src\terminal.c src\http.c src\ai.c src\modelli.c src\output.c src\multi_agente.c src\strumenti.c src\hw_detect.c src\agent_scheduler.c src\prismalux_ui.c src\simulatore.c src\quiz.c src\config_toon.c src\context_store.c src\key_router.c src\rag.c src\rag_embed.c src\sim_common.c src\sim_sort.c src\sim_search.c src\sim_math.c src\sim_dp.c src\sim_grafi.c src\sim_tech.c src\sim_stringhe.c src\sim_strutture.c src\sim_greedy.c src\sim_backtrack.c src\sim_llm.c
 
-:: Rilevamento GPU
-echo  Rilevamento GPU...
+:: ════════════════════════════════════════════════
+::   Stima hardware rapida (solo nomi — <1s)
+:: ════════════════════════════════════════════════
+echo +--------------------------------------------------+
+echo ^|   Stima Hardware (rilevamento rapido)            ^|
+echo +--------------------------------------------------+
+
+:: CPU — nome tramite WMIC
+set CPU_NAME=Sconosciuto
+for /f "skip=1 tokens=*" %%C in ('wmic cpu get name 2^>nul') do (
+    if not defined CPU_SET (
+        if not "%%C"=="" (
+            set CPU_NAME=%%C
+            set CPU_SET=1
+        )
+    )
+)
+echo  CPU : %CPU_NAME%
+
+:: GPU — nome tramite WMIC (primo adattatore)
+set GPU_NAME=Nessuna GPU rilevata
+for /f "skip=1 tokens=*" %%G in ('wmic path win32_videocontroller get name 2^>nul') do (
+    if not defined GPU_SET (
+        if not "%%G"=="" (
+            set GPU_NAME=%%G
+            set GPU_SET=1
+        )
+    )
+)
+echo  GPU : %GPU_NAME%
+
+:: RAM totale in GB
+set RAM_GB=?
+for /f "skip=1 tokens=*" %%R in ('wmic computersystem get totalphysicalmemory 2^>nul') do (
+    if not defined RAM_SET (
+        if not "%%R"=="" (
+            set /a RAM_GB=%%R / 1073741824
+            set RAM_SET=1
+        )
+    )
+)
+echo  RAM : %RAM_GB% GB
+
+:: Analisi e raccomandazione AI backend
 set HAS_NVIDIA=0
 set HAS_AMD=0
+set HAS_XEON=0
+set OLLAMA_GPU_REC=
+set BACKEND_REC=
 
-where nvidia-smi >nul 2>&1
+echo %CPU_NAME% | findstr /i "Xeon" >nul 2>&1
+if %errorlevel%==0 (
+    set HAS_XEON=1
+)
+
+echo %GPU_NAME% | findstr /i "NVIDIA\|GeForce\|Quadro\|RTX\|GTX\|Tesla" >nul 2>&1
 if %errorlevel%==0 (
     set HAS_NVIDIA=1
-    echo  [GPU] NVIDIA rilevata (nvidia-smi disponibile)
 )
 
-where rocm-smi >nul 2>&1
+echo %GPU_NAME% | findstr /i "AMD\|Radeon\|RX " >nul 2>&1
 if %errorlevel%==0 (
     set HAS_AMD=1
-    echo  [GPU] AMD ROCm rilevato (rocm-smi disponibile)
 )
 
-if %HAS_NVIDIA%==0 if %HAS_AMD%==0 (
-    echo  [GPU] Nessuna GPU accelerata - modalita CPU (Ollama via HTTP)
+where nvidia-smi >nul 2>&1
+if %errorlevel%==0 set HAS_NVIDIA=1
+
+where rocm-smi >nul 2>&1
+if %errorlevel%==0 set HAS_AMD=1
+
+echo.
+echo  [RACCOMANDAZIONE AI BACKEND]
+if %HAS_NVIDIA%==1 (
+    echo  [GPU] NVIDIA rilevata -^> default: GPU (OLLAMA_NUM_GPU auto)
+    set OLLAMA_GPU_REC=GPU
+    set BACKEND_REC=Ollama con GPU NVIDIA
+) else if %HAS_XEON%==1 (
+    echo  [CPU] Intel Xeon rilevato -^> default: CPU ad alte prestazioni
+    echo        Imposta OLLAMA_NUM_GPU=0 per forzare CPU (consigliato per Xeon)
+    set OLLAMA_GPU_REC=CPU-Xeon
+    set BACKEND_REC=Ollama CPU (Xeon ottimizzato)
+) else if %HAS_AMD%==1 (
+    echo  [GPU] AMD/ATI rilevata -^> Ollama CPU consigliato su Windows
+    echo        (ROCm su Windows ha supporto limitato — usa OLLAMA_NUM_GPU=0)
+    set OLLAMA_GPU_REC=CPU-AMD
+    set BACKEND_REC=Ollama CPU (AMD - ROCm instabile su Windows)
+) else (
+    echo  [CPU] Nessuna GPU accelerata rilevata - modalita CPU
+    set BACKEND_REC=Ollama CPU
 )
+echo.
+echo  Backend consigliato: %BACKEND_REC%
+echo +--------------------------------------------------+
 echo.
 
 :: Compilazione
@@ -385,6 +459,82 @@ echo.
 
 :: Imposta PRISMALUX_PYTHON per la sessione corrente
 set PRISMALUX_PYTHON=%VENV_PYTHON%
+
+::  ════════════════════════════════════════════════
+::   FASE 4 — whisper-cli (riconoscimento vocale, opzionale)
+::   Richiede MSYS2 UCRT64 con cmake + gcc
+::  ════════════════════════════════════════════════
+echo +--------------------------------------------------+
+echo ^|   Fase 4 — whisper-cli (riconoscimento vocale^)  ^|
+echo +--------------------------------------------------+
+echo.
+
+set WHISPER_SRC=%BASE%whisper.cpp
+set WHISPER_CLI=%WHISPER_SRC%\build\bin\whisper-cli.exe
+
+if exist "%WHISPER_CLI%" (
+    echo  [OK] whisper-cli gia' compilato: %WHISPER_CLI%
+    goto :avvia_gui_finale
+)
+
+echo  Vuoi compilare whisper.cpp per il riconoscimento vocale?
+echo  (richiede ~5 min, connessione internet, MSYS2 con cmake)
+echo  [S/n]:
+set /p WHISPER_REPLY=
+if /i "%WHISPER_REPLY%"=="n" goto :avvia_gui_finale
+if /i "%WHISPER_REPLY%"=="no" goto :avvia_gui_finale
+
+:: Verifica git e cmake (da MSYS2)
+where git >nul 2>&1
+if errorlevel 1 (
+    echo  [AVVISO] git non nel PATH — impossibile clonare whisper.cpp.
+    goto :avvia_gui_finale
+)
+
+set CMAKE_UCRT=%MSYS2%\ucrt64\bin\cmake.exe
+if not exist "%CMAKE_UCRT%" (
+    echo  [AVVISO] cmake non trovato in MSYS2 UCRT64 — salto whisper.
+    goto :avvia_gui_finale
+)
+
+:: Clone se non c'è
+if not exist "%WHISPER_SRC%\.git" (
+    echo  [INFO] Clone whisper.cpp...
+    git clone --depth=1 https://github.com/ggml-org/whisper.cpp "%WHISPER_SRC%"
+    if errorlevel 1 (
+        echo  [ERRORE] Clone fallito.
+        goto :avvia_gui_finale
+    )
+)
+
+:: Build
+echo  [INFO] Configuro cmake...
+"%CMAKE_UCRT%" -B "%WHISPER_SRC%\build" -S "%WHISPER_SRC%" ^
+    -G "Ninja" ^
+    -DCMAKE_BUILD_TYPE=Release ^
+    -DWHISPER_BUILD_TESTS=OFF ^
+    -DWHISPER_BUILD_EXAMPLES=ON ^
+    -DBUILD_SHARED_LIBS=OFF ^
+    -DCMAKE_PREFIX_PATH="%MSYS2%\ucrt64" ^
+    -DCMAKE_C_COMPILER="%MSYS2%\ucrt64\bin\gcc.exe" ^
+    -DCMAKE_CXX_COMPILER="%MSYS2%\ucrt64\bin\g++.exe"
+
+if errorlevel 1 (
+    echo  [ERRORE] cmake configure whisper fallito.
+    goto :avvia_gui_finale
+)
+
+echo  [INFO] Compilazione whisper-cli (3-5 minuti)...
+"%CMAKE_UCRT%" --build "%WHISPER_SRC%\build" --target whisper-cli
+
+if exist "%WHISPER_CLI%" (
+    echo  [OK] whisper-cli compilato: %WHISPER_CLI%
+    :: Copia anche nella cartella GUI per auto-detect
+    copy /y "%WHISPER_CLI%" "%QT_BUILD%\whisper-cli.exe" >nul 2>&1
+) else (
+    echo  [AVVISO] whisper-cli non trovato dopo la build.
+)
+echo.
 
 :avvia_gui_finale
 echo.

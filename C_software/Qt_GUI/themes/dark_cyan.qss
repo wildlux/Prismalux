@@ -29,7 +29,7 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
     background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
         stop:0 #1a1b28, stop:1 #13141f);
     border-bottom: 1px solid #00b8d9;
-    min-height: 72px;
+    min-height: 52px;
 }
 #headerTitle {
     font-size: 17px; font-weight: 700;
@@ -181,8 +181,15 @@ QPushButton#emergencyBtn:hover   { background: #e53935; }
 QPushButton#emergencyBtn:pressed { background: #7f0000; }
 QPushButton#emergencyBtn:disabled{ background: #555; color: #888; }
 
-QPushButton#hamburgerBtn { background: transparent; border: 1px solid #304060; border-radius: 6px; color: #a0c4d8; font-size: 18px; padding: 2px; }
-QPushButton#hamburgerBtn:hover   { background: #1a2535; border-color: #00b8d9; color: #00b8d9; }
+QPushButton#hamburgerBtn { background: transparent; border: none; border-radius: 6px; color: #a0c4d8; font-size: 18px; padding: 2px; }
+QPushButton#hamburgerBtn:hover   { background: #1a2535; color: #00b8d9; }
 QPushButton#hamburgerBtn:pressed { background: #0d1520; }
+
+/* ── Separatori QFrame (HLine/VLine) — nasconde la linea bianca di default ── */
+QFrame#sidebarSep  { background: #1a1b28; max-height: 1px; border: none; }
+QFrame#navMenuSep  { background: #1a1b28; max-width:  1px; border: none; }
+
+/* ── Rimuove bordo bianco default sui pulsanti nell'header ─────── */
+#header QPushButton { border-top: none; }
 
 #footerHints { font-size:11px; color:#3d4060; background:#0d0e17; padding:2px 6px; }

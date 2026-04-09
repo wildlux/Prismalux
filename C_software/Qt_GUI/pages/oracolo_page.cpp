@@ -18,8 +18,14 @@
 #include <QGuiApplication>
 #include <QClipboard>
 #include <QScrollArea>
+#include <QDir>
+#include <QSettings>
 #include <algorithm>
 #include <cmath>
+
+static QString ragIndexPath() {
+    return QDir::homePath() + "/.prismalux_rag.json";
+}
 
 /* ══════════════════════════════════════════════════════════════
    Event filter: Enter=invia, Shift+Enter=nuova riga
@@ -154,13 +160,31 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     m_btnStop->setProperty("danger", true);
     m_btnStop->setEnabled(false);
 
+    /* RAG toggle */
+    m_btnRag = new QPushButton("\xf0\x9f\x93\x9a", inputRow);  /* 📚 */
+    m_btnRag->setObjectName("actionBtn");
+    m_btnRag->setCheckable(true);
+    m_btnRag->setFixedSize(32, 32);
+    m_btnRag->setToolTip("Attiva/disattiva RAG (Retrieval-Augmented Generation)\n"
+                          "Inietta automaticamente i chunk pi\xc3\xb9 rilevanti dalla base di conoscenza.");
+
+    /* Label conteggio chunk RAG */
+    m_ragLbl = new QLabel("", inputRow);
+    m_ragLbl->setObjectName("hintLabel");
+
     inputLay->addWidget(m_btnSys);
     inputLay->addWidget(m_btnImg);
+    inputLay->addWidget(m_btnRag);
+    inputLay->addWidget(m_ragLbl);
     inputLay->addWidget(m_input, 1);
     inputLay->addWidget(m_btnSend);
     inputLay->addWidget(m_btnNascondi);
     inputLay->addWidget(m_btnStop);
     lay->addWidget(inputRow);
+
+    /* Carica indice RAG esistente */
+    if (m_rag.load(ragIndexPath()))
+        updateRagBtn();
 
     /* ── 6. Quick bar — pillole azione rapida ── */
     m_quickBar = new QWidget(this);
@@ -299,6 +323,52 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     connect(m_btnImg, &QPushButton::clicked,
             this, &OracoloPage::attachImage);
 
+    connect(m_btnRag, &QPushButton::toggled, this, [this](bool on) {
+        m_ragEnabled = on;
+        updateRagBtn();
+    });
+
+    /* RAG: embedding pronto → cerca context → avvia chat */
+    connect(m_ai, &AiClient::embeddingReady, this, [this](const QVector<float>& vec) {
+        if (m_pendingMsg.isEmpty()) return;
+        QString msg = m_pendingMsg;
+        m_pendingMsg.clear();
+
+        /* Ricerca top-5 chunk rilevanti */
+        QSettings ss("Prismalux", "GUI");
+        int k = ss.value("rag/maxResults", 5).toInt();
+        const QVector<RagChunk> hits = m_rag.search(vec, k);
+
+        /* Costruisce il contesto da iniettare nel system prompt */
+        QString ctx;
+        if (!hits.isEmpty()) {
+            ctx = "\n\n--- CONTESTO DALLA BASE DI CONOSCENZA ---\n";
+            for (int i = 0; i < hits.size(); ++i)
+                ctx += QString("[%1] %2\n").arg(i + 1).arg(hits[i].text.left(400));
+            ctx += "--- FINE CONTESTO ---\n"
+                   "Usa SOLO le informazioni nel contesto quando rispondi alla domanda.\n";
+        }
+
+        /* Avvia la chat con contesto iniettato */
+        QString sys = m_sysEdit->toPlainText().trimmed();
+        if (sys.isEmpty())
+            sys = "Sei un assistente AI utile e preciso. "
+                  "Rispondi SEMPRE e SOLO in italiano. "
+                  "Quando fornisci formule matematiche usa la notazione y = f(x).";
+        sys += ctx;
+
+        m_ai->chat(sys, msg);
+    });
+
+    connect(m_ai, &AiClient::embeddingError, this, [this](const QString& err) {
+        if (m_pendingMsg.isEmpty()) return;
+        QString msg = m_pendingMsg;
+        m_pendingMsg.clear();
+        /* Fallback: chat senza contesto RAG */
+        startChatWithContext(msg);
+        Q_UNUSED(err);
+    });
+
     /* ══════════════════════════════════════════════════════════
        AiClient — segnali streaming
        ══════════════════════════════════════════════════════════ */
@@ -369,11 +439,24 @@ void OracoloPage::sendMessage() {
 
     const QString model = m_ai->model().isEmpty() ? "AI" : m_ai->model();
     m_activeBubble = addAIBubble("\xf0\x9f\xa4\x96  " + model);
-
     m_btnSend->setEnabled(false);
     m_btnStop->setEnabled(true);
     m_waitLbl->setVisible(true);
 
+    /* ── Se RAG attivo e indice non vuoto: prima ottieni embedding query ── */
+    if (m_ragEnabled && m_rag.chunkCount() > 0 && m_pendingImg.isEmpty()) {
+        m_pendingMsg = text;
+        m_ai->fetchEmbedding(text);   /* → embeddingReady/embeddingError */
+        return;
+    }
+
+    startChatWithContext(text);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   startChatWithContext — avvia la chat (senza RAG o come fallback)
+   ══════════════════════════════════════════════════════════════ */
+void OracoloPage::startChatWithContext(const QString& userMsg) {
     QString sys = m_sysEdit->toPlainText().trimmed();
     if (sys.isEmpty())
         sys = "Sei un assistente AI utile e preciso. "
@@ -381,12 +464,25 @@ void OracoloPage::sendMessage() {
               "Quando fornisci formule matematiche usa la notazione y = f(x).";
 
     if (!m_pendingImg.isEmpty()) {
-        m_ai->chatWithImage(sys, text, m_pendingImg, m_pendingImgMime);
+        m_ai->chatWithImage(sys, userMsg, m_pendingImg, m_pendingImgMime);
         m_pendingImg.clear();
         m_pendingImgMime.clear();
         m_imgPreview->setVisible(false);
     } else {
-        m_ai->chat(sys, text);
+        m_ai->chat(sys, userMsg);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   updateRagBtn — aggiorna aspetto bottone RAG e label chunk
+   ══════════════════════════════════════════════════════════════ */
+void OracoloPage::updateRagBtn() {
+    int n = m_rag.chunkCount();
+    m_ragLbl->setText(n > 0 ? QString("%1\xf0\x9f\x93\x84").arg(n) : "");
+    m_btnRag->setEnabled(n > 0 || m_ragEnabled);
+    if (n == 0 && m_ragEnabled) {
+        m_ragEnabled = false;
+        m_btnRag->setChecked(false);
     }
 }
 
@@ -442,6 +538,14 @@ void OracoloPage::clearChat() {
    ══════════════════════════════════════════════════════════════ */
 ChatBubble* OracoloPage::addUserBubble(const QString& text) {
     auto* bubble = new ChatBubble(ChatBubble::User, "Tu", text, m_chatContainer);
+    connect(bubble, &ChatBubble::editRequested, this, [this](const QString& txt) {
+        if (m_ai->busy()) return;   /* non modificare mentre l'AI risponde */
+        m_input->setPlainText(txt);
+        m_input->setFocus();
+        QTextCursor cur = m_input->textCursor();
+        cur.movePosition(QTextCursor::End);
+        m_input->setTextCursor(cur);
+    });
     m_chatLay->insertWidget(m_chatLay->count() - 1, bubble);
     scrollToBottom();
     return bubble;

@@ -5,6 +5,32 @@
 #include <QProcess>
 #include <QStringList>
 #include <QElapsedTimer>
+#include <QJsonArray>
+
+/* ══════════════════════════════════════════════════════════════
+   AiChatParams — parametri campionamento che riducono le allucinazioni.
+   Valori di default conservativi (bassa temperatura = maggiore coerenza).
+   ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   AiChatParams — unica fonte di verità per i parametri AI.
+   Tutti i valori vengono letti da ~/.prismalux/ai_params.json.
+   Se il file non esiste viene creato con i default Brutal Honesty.
+   Nessun valore è hardcoded nel codice sorgente.
+   ══════════════════════════════════════════════════════════════ */
+struct AiChatParams {
+    double temperature    = 0.05;
+    double top_p          = 0.85;
+    int    top_k          = 20;
+    double repeat_penalty = 1.20;
+    int    num_predict    = 2048;
+    int    num_ctx        = 8192;
+    bool   honesty_prefix = true;
+
+    /* ── Unica fonte: ~/.prismalux/ai_params.json ── */
+    static QString     filePath();               ///< percorso del file
+    static AiChatParams load();                  ///< legge il file (lo crea se mancante)
+    static void         save(const AiChatParams&); ///< scrive il file
+};
 
 /* ══════════════════════════════════════════════════════════════
    AiClient — Ollama / llama-server (HTTP) + llama.cpp locale (QProcess)
@@ -21,6 +47,10 @@ public:
 
     /* ── configurazione backend locale ── */
     void setLocalBackend(const QString& llamaBin, const QString& modelPath);
+
+    /* ── parametri di campionamento (anti-allucinazione) ── */
+    void setChatParams(const AiChatParams& p) { m_params = p; }
+    AiChatParams chatParams() const { return m_params; }
 
     /* ── chat ── */
     void chat(const QString& systemPrompt, const QString& userMsg);
@@ -39,6 +69,14 @@ public:
     bool        busy()       const { return m_reply != nullptr || m_localBusy; }
 
     void fetchModels();
+
+    /**
+     * fetchEmbedding — richiede l'embedding vettoriale di @p text al backend.
+     * Supportato: Ollama (/api/embeddings) e llama-server (/v1/embeddings).
+     * Non bloccante: emette embeddingReady o embeddingError al termine.
+     * Usa un QNetworkReply separato: non interferisce con la chat in corso.
+     */
+    void fetchEmbedding(const QString& text);
 
     /** Chiamato da MainWindow::onHWUpdated ogni 2s per aggiornare il dato RAM. */
     void   setRamFreePct(double pct) { m_ramFreePct = pct; }
@@ -66,6 +104,10 @@ signals:
     void aborted();                        /* emesso da abort() — UI può resettarsi */
     void error(const QString& msg);
     void modelsReady(const QStringList& list);
+    /** Emesso quando fetchEmbedding() ha ottenuto il vettore dal backend. */
+    void embeddingReady(const QVector<float>& vec);
+    /** Emesso in caso di errore durante fetchEmbedding(). */
+    void embeddingError(const QString& msg);
 
     /**
      * requestStarted — emesso all'inizio di chat(), prima che parta la richiesta.
@@ -117,6 +159,9 @@ private:
 
     /* Percentuale RAM libera (aggiornata da MainWindow ogni 2s) */
     double        m_ramFreePct     = 100.0;
+
+    /* Parametri campionamento */
+    AiChatParams  m_params;
 
     /* true dopo la prima inferenza completata; false dopo unloadModel().
      * Evita che il timer auto-scarico faccia caricare il modello solo per scaricarlo. */

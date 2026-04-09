@@ -9,6 +9,7 @@
 #include <QVector>
 #include <QPointF>
 #include "ai_client.h"
+#include "rag_engine.h"
 
 class ChatBubble;
 class ChartWidget;
@@ -81,6 +82,16 @@ private:
     QByteArray  m_pendingImg;
     QString     m_pendingImgMime;
     QLabel*     m_imgPreview = nullptr;
+
+    /* ── RAG ────────────────────────────────────────────────────── */
+    RagEngine    m_rag;           ///< indice RAG con JLT
+    bool         m_ragEnabled  = false;
+    QString      m_pendingMsg;    ///< messaggio sospeso in attesa embedding RAG
+    QPushButton* m_btnRag      = nullptr;
+    QLabel*      m_ragLbl      = nullptr;  ///< "📚 N chunk"
+
+    void startChatWithContext(const QString& userMsg);
+    void updateRagBtn();
 
     /* ── Stato ── */
     bool m_streaming = false;

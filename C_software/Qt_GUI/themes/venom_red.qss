@@ -6,7 +6,7 @@ QScrollBar:vertical { background: #1a1a1a; width: 6px; margin: 0; }
 QScrollBar::handle:vertical { background: #2a2a2a; min-height: 24px; border-radius: 3px; }
 QScrollBar::handle:vertical:hover { background: #ff0000; }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
-#header { background: #111111; border-bottom: 1px solid #ff0000; min-height: 72px; }
+#header { background: #111111; border-bottom: 1px solid #ff0000; min-height: 52px; }
 #headerTitle { font-size: 17px; font-weight: 700; color: #ff0000; letter-spacing: 4px; }
 #headerSub { font-size: 11px; color: #282828; }
 #headerBeer { font-size: 22px; }

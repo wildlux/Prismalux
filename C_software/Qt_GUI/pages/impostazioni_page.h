@@ -4,6 +4,7 @@
 #include "../ai_client.h"
 #include "../hardware_monitor.h"
 #include "../monitor_panel.h"
+#include "../rag_engine.h"
 
 class PersonalizzaPage;
 class ManutenzioneePage;
@@ -53,10 +54,17 @@ private:
     QWidget* buildRagTab();
     QWidget* buildDipendenzeTab();
     QWidget* buildLlmConsigliatiTab();
+    QWidget* buildAiParamsTab();   ///< parametri anti-allucinazione + preferenze modello
 
     PersonalizzaPage*  m_personalizza  = nullptr;
     ManutenzioneePage* m_manutenzione  = nullptr;
     QTabWidget*        m_tabs          = nullptr;
     AiClient*          m_ai            = nullptr;
     QDialog*           m_studioWidget  = nullptr;  ///< llama.cpp Studio dialog (lazy)
+
+    /* RAG indexing state (usato da buildRagTab) */
+    RagEngine       m_rag;
+    QStringList     m_ragQueue;        ///< chunk da indicizzare
+    int             m_ragQueuePos = 0; ///< posizione corrente nel queue
+    QLabel*         m_ragFeedbackLbl = nullptr;
 };

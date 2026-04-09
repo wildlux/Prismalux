@@ -18,7 +18,7 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 
 #header {
     background: #001100;
-    border-bottom: 1px solid #00ff00; min-height: 72px;
+    border-bottom: 1px solid #00ff00; min-height: 52px;
 }
 #headerTitle { font-size: 17px; font-weight: 700; color: #00ff00; letter-spacing: 4px; }
 #headerSub { font-size: 11px; color: #003300; }

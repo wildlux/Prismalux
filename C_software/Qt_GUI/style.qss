@@ -425,6 +425,19 @@ QPushButton#emergencyBtn:hover {
     color: #ffffff;
 }
 
+/* ── Pulsante hamburger ☰ (mostra/nascondi sidebar) ─────────── */
+QPushButton#hamburgerBtn {
+    background-color: transparent;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    color: #6b7280;
+}
+QPushButton#hamburgerBtn:hover {
+    background-color: #262626;
+    color: #e5e7eb;
+}
+
 /* ── Pulsante ⚙️ impostazioni ────────────────────────────────── */
 QPushButton#themeBtn {
     background-color: transparent;

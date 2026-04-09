@@ -15,30 +15,34 @@ ThemeManager* ThemeManager::instance() {
 }
 
 ThemeManager::ThemeManager(QObject* parent) : QObject(parent) {
+    /* Percorso della cartella temi accanto all'eseguibile — nessun QRC,
+     * i file .qss vengono letti direttamente da disco a runtime.
+     * Vantaggio: modificabili senza ricompilare; binario più leggero. */
+    const QString d = QCoreApplication::applicationDirPath() + "/themes/";
     m_themes = {
-        { "dark_cyan",     "Dark Cyan (default)", ":/themes/dark_cyan.qss"     },
-        { "dark_amber",    "Dark Amber",          ":/themes/dark_amber.qss"    },
-        { "dark_purple",   "Dark Purple",         ":/themes/dark_purple.qss"   },
-        { "light",         "Light",               ":/themes/light.qss"         },
-        { "dark_green",    "\xf0\x9f\x8c\xbf Natura (Verde)",        ":/themes/dark_green.qss"    },
-        { "dark_sunset",   "\xf0\x9f\x8c\x85 Sunset (Arancione)",    ":/themes/dark_sunset.qss"   },
-        { "dark_ocean",    "\xf0\x9f\x8c\x8a Oceano (Azzurro)",      ":/themes/dark_ocean.qss"    },
-        { "dark_lavender", "\xf0\x9f\x92\x9c Lavanda (Viola)",       ":/themes/dark_lavender.qss" },
-        { "dark_rainbow",  "\xf0\x9f\x8c\x88 Arcobaleno",            ":/themes/dark_rainbow.qss"  },
-        { "dark_classic",  "\xf0\x9f\x94\xb5 Classico (Blu)",        ":/themes/dark_classic.qss"  },
-        { "neon",          "\xf0\x9f\x92\xa1 Neon (Verde/Blu)",       ":/themes/neon.qss"          },
-        { "hacker",        "\xf0\x9f\x96\xa5 Hacker (Matrix)",        ":/themes/hacker.qss"        },
-        { "solar",         "\xe2\x98\x80 Solarized Dark",             ":/themes/solar.qss"         },
-        { "pink",          "\xf0\x9f\x8c\xb8 Pink (Magenta)",         ":/themes/pink.qss"          },
-        { "military",      "\xf0\x9f\x8e\x96 Military (Oliva)",       ":/themes/military.qss"      },
-        { "venom_green",   "\xe2\x9a\xa1 Venom Green",                ":/themes/venom_green.qss"   },
-        { "venom_orange",  "\xe2\x9a\xa1 Venom Orange",               ":/themes/venom_orange.qss"  },
-        { "venom_blue",    "\xe2\x9a\xa1 Venom Blue",                 ":/themes/venom_blue.qss"    },
-        { "venom_red",     "\xe2\x9a\xa1 Venom Red",                  ":/themes/venom_red.qss"     },
-        { "light_mint",    "\xf0\x9f\x8c\xbf Chiaro Menta",           ":/themes/light_mint.qss"    },
-        { "light_rose",    "\xf0\x9f\x8c\xb9 Chiaro Rosa",            ":/themes/light_rose.qss"    },
-        { "light_sand",    "\xe2\x98\x80 Chiaro Sabbia",               ":/themes/light_sand.qss"    },
-        { "light_sky",     "\xf0\x9f\x8c\x8a Chiaro Cielo",           ":/themes/light_sky.qss"     },
+        { "dark_cyan",     "Dark Cyan (default)",               d + "dark_cyan.qss"     },
+        { "dark_amber",    "Dark Amber",                        d + "dark_amber.qss"    },
+        { "dark_purple",   "Dark Purple",                       d + "dark_purple.qss"   },
+        { "light",         "Light",                             d + "light.qss"         },
+        { "dark_green",    "\xf0\x9f\x8c\xbf Natura (Verde)",   d + "dark_green.qss"    },
+        { "dark_sunset",   "\xf0\x9f\x8c\x85 Sunset (Arancione)", d + "dark_sunset.qss" },
+        { "dark_ocean",    "\xf0\x9f\x8c\x8a Oceano (Azzurro)", d + "dark_ocean.qss"    },
+        { "dark_lavender", "\xf0\x9f\x92\x9c Lavanda (Viola)",  d + "dark_lavender.qss" },
+        { "dark_rainbow",  "\xf0\x9f\x8c\x88 Arcobaleno",       d + "dark_rainbow.qss"  },
+        { "dark_classic",  "\xf0\x9f\x94\xb5 Classico (Blu)",   d + "dark_classic.qss"  },
+        { "neon",          "\xf0\x9f\x92\xa1 Neon (Verde/Blu)",  d + "neon.qss"          },
+        { "hacker",        "\xf0\x9f\x96\xa5 Hacker (Matrix)",  d + "hacker.qss"        },
+        { "solar",         "\xe2\x98\x80 Solarized Dark",        d + "solar.qss"         },
+        { "pink",          "\xf0\x9f\x8c\xb8 Pink (Magenta)",   d + "pink.qss"          },
+        { "military",      "\xf0\x9f\x8e\x96 Military (Oliva)", d + "military.qss"      },
+        { "venom_green",   "\xe2\x9a\xa1 Venom Green",           d + "venom_green.qss"   },
+        { "venom_orange",  "\xe2\x9a\xa1 Venom Orange",          d + "venom_orange.qss"  },
+        { "venom_blue",    "\xe2\x9a\xa1 Venom Blue",            d + "venom_blue.qss"    },
+        { "venom_red",     "\xe2\x9a\xa1 Venom Red",             d + "venom_red.qss"     },
+        { "light_mint",    "\xf0\x9f\x8c\xbf Chiaro Menta",     d + "light_mint.qss"    },
+        { "light_rose",    "\xf0\x9f\x8c\xb9 Chiaro Rosa",      d + "light_rose.qss"    },
+        { "light_sand",    "\xe2\x98\x80 Chiaro Sabbia",         d + "light_sand.qss"    },
+        { "light_sky",     "\xf0\x9f\x8c\x8a Chiaro Cielo",     d + "light_sky.qss"     },
     };
 }
 
@@ -63,7 +67,7 @@ void ThemeManager::apply(const QString& id) {
     QString themeCss = QString::fromUtf8(f.readAll());
 
     QString baseCss;
-    QFile baseFile(":/themes/base.qss");
+    QFile baseFile(QCoreApplication::applicationDirPath() + "/themes/base.qss");
     if (baseFile.open(QIODevice::ReadOnly | QIODevice::Text))
         baseCss = "\n" + QString::fromUtf8(baseFile.readAll());
 

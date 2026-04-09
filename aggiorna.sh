@@ -36,22 +36,30 @@ DO_TUI=1
 DO_GUI=1
 DO_ZIP=1
 DO_APPIMAGE=1
-DO_WHISPER_WIN=0   # stub non attivo — usa --whisper per forzare il download
-DO_PYCHECK=1       # controlla e aggiorna requirements_python.txt Windows
+DO_WHISPER_WIN=0    # stub non attivo — usa --whisper per forzare il download
+DO_BUILD_WHISPER=0  # compila whisper.cpp da sorgente (Linux)
+DO_LLAMA_STUDIO=0   # compila llama-server + llama-cli per la GUI
+DO_PYCHECK=1        # controlla e aggiorna requirements_python.txt Windows
 
 for arg in "$@"; do
     case "$arg" in
-        --tui)          DO_TUI=1; DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=0; DO_PYCHECK=0 ;;
-        --gui)          DO_TUI=0; DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=0; DO_PYCHECK=0 ;;
-        --zip)          DO_TUI=0; DO_GUI=0; DO_ZIP=1; DO_APPIMAGE=0 ;;
-        --appimage)     DO_TUI=0; DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=1 ;;
-        --whisper)      DO_TUI=0; DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=1 ;;
-        --no-zip)       DO_ZIP=0 ;;
-        --no-appimage)  DO_APPIMAGE=0 ;;
-        --no-whisper)   DO_WHISPER_WIN=0 ;;
-        --no-pycheck)   DO_PYCHECK=0 ;;
+        --tui)           DO_TUI=1; DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=0; DO_PYCHECK=0; DO_BUILD_WHISPER=0; DO_LLAMA_STUDIO=0 ;;
+        --gui)           DO_TUI=0; DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=0; DO_PYCHECK=0 ;;
+        --zip)           DO_TUI=0; DO_GUI=0; DO_ZIP=1; DO_APPIMAGE=0 ;;
+        --appimage)      DO_TUI=0; DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=1 ;;
+        --whisper)       DO_TUI=0; DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=1 ;;
+        --build-whisper) DO_BUILD_WHISPER=1 ;;
+        --llama-studio)  DO_LLAMA_STUDIO=1 ;;
+        --no-zip)        DO_ZIP=0 ;;
+        --no-appimage)   DO_APPIMAGE=0 ;;
+        --no-whisper)    DO_WHISPER_WIN=0 ;;
+        --no-pycheck)    DO_PYCHECK=0 ;;
         -h|--help)
-            echo "Uso: $0 [--tui|--gui|--zip|--appimage|--no-zip|--no-appimage|--whisper|--no-whisper|--no-pycheck]"
+            echo "Uso: $0 [--tui|--gui|--zip|--appimage|--no-zip|--no-appimage"
+            echo "         --whisper|--build-whisper|--llama-studio|--no-whisper|--no-pycheck]"
+            echo ""
+            echo "  --build-whisper  Compila whisper.cpp da sorgente (→ C_software/whisper.cpp/)"
+            echo "  --llama-studio   Compila llama-server + llama-cli (→ C_software/llama_cpp_studio/llama.cpp/)"
             exit 0 ;;
         *) echo -e "${R}Opzione sconosciuta: $arg${N}"; exit 1 ;;
     esac
@@ -237,6 +245,110 @@ if [ "$DO_GUI" = "1" ]; then
 
     [ -f "$QT_BUILD/Prismalux_GUI" ] || fail "Binario GUI non trovato dopo la build"
     ok "GUI compilata → $QT_BUILD/Prismalux_GUI"
+
+    # Rigenera Prismalux.desktop con il percorso corretto (no hardcoded)
+    DESKTOP_OUT="$SCRIPT_DIR/Prismalux.desktop"
+    cat > "$DESKTOP_OUT" <<DESKTOP_EOF
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Prismalux
+GenericName=Centro di Controllo AI
+Comment=Pipeline Agenti, Tutor AI, Strumenti Pratici
+Exec=$QT_BUILD/Prismalux_GUI
+Icon=prismalux
+Terminal=false
+Categories=Education;Science;Utility;
+Keywords=AI;agenti;matematica;tutor;ollama;
+StartupNotify=true
+StartupWMClass=Prismalux_GUI
+DESKTOP_EOF
+    chmod +x "$DESKTOP_OUT"
+    ok "Prismalux.desktop aggiornato → $DESKTOP_OUT"
+fi
+
+# ══════════════════════════════════════════════════════════════
+#  2b. whisper.cpp — compilazione da sorgente (Linux/macOS)
+# ══════════════════════════════════════════════════════════════
+if [ "$DO_BUILD_WHISPER" = "1" ]; then
+    WHISPER_SRC="$C_SW/whisper.cpp"
+    WHISPER_CLI="$WHISPER_SRC/build/bin/whisper-cli"
+
+    if [ -f "$WHISPER_CLI" ]; then
+        ok "whisper-cli già presente → $WHISPER_CLI"
+    else
+        step "Compilo whisper.cpp da sorgente..."
+
+        if [ ! -d "$WHISPER_SRC/.git" ]; then
+            echo -e "  ${C}Clone whisper.cpp...${N}"
+            git clone --depth=1 https://github.com/ggml-org/whisper.cpp "$WHISPER_SRC"
+        else
+            echo -e "  ${C}Aggiorno sorgenti whisper.cpp...${N}"
+            git -C "$WHISPER_SRC" pull --depth=1 --rebase 2>/dev/null || true
+        fi
+
+        cmake -B "$WHISPER_SRC/build" -S "$WHISPER_SRC" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWHISPER_BUILD_TESTS=OFF \
+            -DWHISPER_BUILD_EXAMPLES=ON \
+            -DBUILD_SHARED_LIBS=OFF \
+            2>&1 | grep -E "(CMAKE|error:|Configuring|fatal)" || true
+
+        cmake --build "$WHISPER_SRC/build" --target whisper-cli -j"$(nproc)" \
+            2>&1 | grep -E "(Building|Linking|error:|Built target|fatal)" || true
+
+        [ -f "$WHISPER_CLI" ] || fail "whisper-cli non trovato dopo la build (controlla gli errori sopra)"
+        ok "whisper-cli compilato → $WHISPER_CLI"
+    fi
+fi
+
+# ══════════════════════════════════════════════════════════════
+#  2c. llama.cpp Studio — compila llama-server + llama-cli
+#      (binari usati dalla GUI in Impostazioni → AI Locale)
+# ══════════════════════════════════════════════════════════════
+if [ "$DO_LLAMA_STUDIO" = "1" ]; then
+    LLAMA_STUDIO_DIR="$C_SW/llama_cpp_studio"
+    LLAMA_SRC="$LLAMA_STUDIO_DIR/llama.cpp"
+    LLAMA_SERVER="$LLAMA_SRC/build/bin/llama-server"
+    LLAMA_CLI="$LLAMA_SRC/build/bin/llama-cli"
+
+    if [ -f "$LLAMA_SERVER" ] && [ -f "$LLAMA_CLI" ]; then
+        ok "llama-server + llama-cli già presenti → $LLAMA_SRC/build/bin/"
+    else
+        step "Compilo llama.cpp Studio (llama-server + llama-cli)..."
+
+        # Rileva GPU (stesso logic di build.sh)
+        CMAKE_GPU_FLAGS=""
+        command -v nvidia-smi &>/dev/null && CMAKE_GPU_FLAGS="-DGGML_CUDA=ON"
+        { [ -d /opt/rocm ] || command -v rocm-smi &>/dev/null; } && CMAKE_GPU_FLAGS="$CMAKE_GPU_FLAGS -DGGML_HIPBLAS=ON"
+        command -v vulkaninfo &>/dev/null && CMAKE_GPU_FLAGS="$CMAKE_GPU_FLAGS -DGGML_VULKAN=ON"
+        [ -z "$CMAKE_GPU_FLAGS" ] && CMAKE_GPU_FLAGS="-DGGML_OPENMP=ON"
+
+        if [ ! -d "$LLAMA_SRC/.git" ]; then
+            mkdir -p "$LLAMA_STUDIO_DIR"
+            echo -e "  ${C}Clone llama.cpp (llama-studio)...${N}"
+            git clone --depth=1 https://github.com/ggml-org/llama.cpp "$LLAMA_SRC"
+        else
+            echo -e "  ${C}llama.cpp già clonato, skip clone.${N}"
+        fi
+
+        cmake -B "$LLAMA_SRC/build" -S "$LLAMA_SRC" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DGGML_NATIVE=ON \
+            -DLLAMA_BUILD_TESTS=OFF \
+            -DLLAMA_BUILD_EXAMPLES=ON \
+            $CMAKE_GPU_FLAGS \
+            2>&1 | grep -E "(CMAKE|error:|Configuring|fatal)" || true
+
+        cmake --build "$LLAMA_SRC/build" \
+            --target llama-server llama-cli -j"$(nproc)" \
+            2>&1 | grep -E "(Building|Linking|error:|Built target|fatal)" || true
+
+        [ -f "$LLAMA_SERVER" ] || fail "llama-server non trovato dopo la build"
+        ok "llama-server → $LLAMA_SERVER"
+        ok "llama-cli    → $LLAMA_CLI"
+    fi
 fi
 
 # ══════════════════════════════════════════════════════════════
@@ -368,13 +480,17 @@ echo ""
 echo -e "${B}════════════════════════════════════════${N}"
 echo -e "${B}  Prismalux — aggiornamento completato  ${N}"
 echo -e "${B}════════════════════════════════════════${N}"
-[ "$DO_PYCHECK"   = "1" ] && echo -e "  ${G}PyDeps${N}   $C_SW/requirements_python.txt  +  installa_pip.bat"
-[ "$DO_TUI"      = "1" ] && echo -e "  ${G}TUI${N}      $C_SW/prismalux"
-[ "$DO_GUI"      = "1" ] && echo -e "  ${G}GUI${N}      $QT_BUILD/Prismalux_GUI"
-[ "$DO_ZIP"      = "1" ] && [ -f "$ZIP_OUT" ]      && echo -e "  ${G}ZIP${N}      $ZIP_OUT"
-[ "$DO_APPIMAGE" = "1" ] && [ -f "$APPIMAGE_OUT" ] && echo -e "  ${G}AppImage${N} $APPIMAGE_OUT"
+[ "$DO_PYCHECK"       = "1" ] && echo -e "  ${G}PyDeps${N}        $C_SW/requirements_python.txt  +  installa_pip.bat"
+[ "$DO_TUI"           = "1" ] && echo -e "  ${G}TUI${N}           $C_SW/prismalux"
+[ "$DO_GUI"           = "1" ] && echo -e "  ${G}GUI${N}           $QT_BUILD/Prismalux_GUI"
+[ "$DO_BUILD_WHISPER" = "1" ] && [ -f "$C_SW/whisper.cpp/build/bin/whisper-cli" ] && \
+    echo -e "  ${G}whisper-cli${N}   $C_SW/whisper.cpp/build/bin/whisper-cli"
+[ "$DO_LLAMA_STUDIO"  = "1" ] && [ -f "$C_SW/llama_cpp_studio/llama.cpp/build/bin/llama-server" ] && \
+    echo -e "  ${G}llama-studio${N}  $C_SW/llama_cpp_studio/llama.cpp/build/bin/"
+[ "$DO_ZIP"           = "1" ] && [ -f "$ZIP_OUT" ]      && echo -e "  ${G}ZIP${N}           $ZIP_OUT"
+[ "$DO_APPIMAGE"      = "1" ] && [ -f "$APPIMAGE_OUT" ] && echo -e "  ${G}AppImage${N}      $APPIMAGE_OUT"
 if [ "$DO_WHISPER_WIN" = "1" ] && [ -f "$WHISPER_WIN_DIR/whisper-cli.exe" ]; then
-    echo -e "  ${G}Whisper${N}  $WHISPER_WIN_DIR/whisper-cli.exe"
+    echo -e "  ${G}Whisper WIN${N}   $WHISPER_WIN_DIR/whisper-cli.exe"
 fi
 echo -e "  ${Y}Tempo: ${ELAPSED}s${N}"
 echo ""

@@ -18,9 +18,63 @@
 #include <QTextCursor>
 #include <QFrame>
 #include <QRegularExpression>
+#include <QSet>
+#include <QSettings>
+#include <QMessageBox>
+#include <QCheckBox>
+#include <QStandardPaths>
 #include <QTimer>
+#include "../widgets/toggle_switch.h"
 
 namespace P = PrismaluxPaths;
+
+/* ══════════════════════════════════════════════════════════════
+   isIntentionalError — rileva errori volutamente creati dall'utente.
+
+   Regola: se l'output contiene "SyntaxError" E il sorgente contiene
+   un'istruzione `raise SyntaxError(...)` → errore custom intenzionale.
+   Il loop si ferma: l'utente vuole quel comportamento nel codice.
+
+   Esteso anche ad altri pattern comuni di errori custom intenzionali:
+   - raise ValueError / raise TypeError / raise CustomException
+     quando la classe è definita nel sorgente stesso.
+   ══════════════════════════════════════════════════════════════ */
+bool ProgrammazionePage::isIntentionalError(const QString& errorOut,
+                                             const QString& source)
+{
+    /* Pattern 1: SyntaxError nell'output + raise SyntaxError nel sorgente */
+    if (errorOut.contains("SyntaxError")) {
+        static const QRegularExpression reRaiseSyntax(
+            R"(\braise\s+SyntaxError\b)");
+        if (reRaiseSyntax.match(source).hasMatch())
+            return true;
+    }
+
+    /* Pattern 2: qualsiasi "raise XxxError" dove la classe è definita nel sorgente
+       (es. class MyError(Exception): pass; raise MyError()) */
+    {
+        static const QRegularExpression reRaise(
+            R"(\braise\s+(\w+)\s*[(\n])");
+        static const QRegularExpression reClass(
+            R"(\bclass\s+(\w+)\s*\()");
+
+        /* Raccogli le classi definite nel sorgente */
+        QSet<QString> definedClasses;
+        auto mClass = reClass.globalMatch(source);
+        while (mClass.hasNext())
+            definedClasses.insert(mClass.next().captured(1));
+
+        /* Controlla se una raise usa una di quelle classi */
+        auto mRaise = reRaise.globalMatch(source);
+        while (mRaise.hasNext()) {
+            const QString raised = mRaise.next().captured(1);
+            if (definedClasses.contains(raised) && errorOut.contains(raised))
+                return true;
+        }
+    }
+
+    return false;
+}
 
 /* ══════════════════════════════════════════════════════════════
    ProgrammazionePage — costruttore
@@ -107,6 +161,58 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
         "e chiedi di trovare e correggere tutti i bug.\n"
         "Se c'era un errore di esecuzione, viene incluso nel contesto.");
     toolLay->addWidget(m_btnFix);
+
+    /* ── Toggle "Loop Fix" ── */
+    toolLay->addSpacing(10);
+    m_toggleAutoFix = new ToggleSwitch("Loop Fix", toolRow);
+    m_toggleAutoFix->setToolTip(
+        "ON  \xe2\x86\x92 esegue in loop: errore \xe2\x86\x92 AI corregge \xe2\x86\x92 riesegue, "
+        "fino a successo (max 6 tentativi).\n"
+        "Si ferma se trova un SyntaxError creato deliberatamente (raise SyntaxError).\n"
+        "OFF \xe2\x86\x92 esecuzione singola, correzione manuale.");
+    /* Toggle: warning one-shot alla prima attivazione, reset loop allo spegnimento */
+    connect(m_toggleAutoFix, &QAbstractButton::toggled, this, [this](bool on){
+        if (!on) {
+            /* Spento: ferma il loop in corso */
+            m_loopActive = false;
+            m_loopCount  = 0;
+            return;
+        }
+
+        /* Attivato: mostra warning una sola volta (salvato in QSettings) */
+        QSettings s("Prismalux", "GUI");
+        if (!s.value("loop_fix_warning_shown", false).toBool()) {
+            QMessageBox dlg(this);
+            dlg.setWindowTitle("Loop Fix — Esecuzione automatica di codice AI");
+            dlg.setIcon(QMessageBox::Warning);
+            dlg.setText(
+                "<b>Loop Fix eseguir\xc3\xa0 automaticamente il codice</b><br>"
+                "generato dall'AI con i tuoi privilegi utente.<br><br>"
+                "Assicurati di usare questa funzione <b>solo con AI di cui ti fidi</b> "
+                "e con codice che non accede a dati sensibili o al filesystem.<br><br>"
+                "Il loop si ferma automaticamente dopo 6 tentativi o se rileva "
+                "un errore intenzionale (SyntaxError custom).");
+            dlg.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+            dlg.button(QMessageBox::Ok)->setText("Ho capito, abilita");
+            dlg.button(QMessageBox::Cancel)->setText("Annulla");
+
+            /* Checkbox "Non mostrare più" */
+            auto* chk = new QCheckBox("Non mostrare più questo avviso", &dlg);
+            dlg.setCheckBox(chk);
+
+            if (dlg.exec() != QMessageBox::Ok) {
+                /* Utente ha annullato: disattiva il toggle senza ri-emettere toggled */
+                m_toggleAutoFix->blockSignals(true);
+                m_toggleAutoFix->setChecked(false);
+                m_toggleAutoFix->blockSignals(false);
+                return;
+            }
+            if (chk->isChecked())
+                s.setValue("loop_fix_warning_shown", true);
+        }
+    });
+    toolLay->addWidget(m_toggleAutoFix);
+
     mainLay->addWidget(toolRow);
 
     /* ── Splitter principale (editor | output+grafico) ── */
@@ -126,6 +232,10 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     m_editor->setLineWrapMode(QPlainTextEdit::NoWrap);
     m_editor->setPlaceholderText("# Scrivi il codice qui,\n# oppure usa 🤖 Chiedi all'AI per generarlo.");
     editorLay->addWidget(m_editor);
+
+    /* ── Syntax Highlighter — attivato subito sull'editor ── */
+    m_highlighter = new CodeHighlighter(m_editor->document());
+    m_highlighter->setLanguage(CodeHighlighter::Python);  /* default */
     mainSplit->addWidget(editorGroup);
 
     /* Colonna destra: output + grafico */
@@ -164,9 +274,7 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     chartLay->addWidget(m_chart);
     chartGroup->hide(); /* nascosto di default */
     rightLay->addWidget(chartGroup);
-
-    /* Salva il puntatore al chartGroup per show/hide */
-    auto* chartGroupPtr = chartGroup;
+    m_chartGroup = chartGroup;
 
     mainSplit->addWidget(rightCol);
     mainSplit->setSizes({500, 450});
@@ -376,20 +484,31 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
        ══════════════════════════════════════════════════════════ */
 
     /* Cambia linguaggio → sostituisce sempre il codice nell'editor con il template */
+    /* Mappa indice combo → CodeHighlighter::Language */
+    static const CodeHighlighter::Language kLangMap[] = {
+        CodeHighlighter::Python,
+        CodeHighlighter::C,
+        CodeHighlighter::Cpp,
+        CodeHighlighter::Bash,
+        CodeHighlighter::JavaScript,
+    };
+
     connect(m_lang, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int){
+            this, [this](int idx){
         m_editor->setPlainText(currentTemplate());
+        if (m_highlighter && idx >= 0 && idx < 5)
+            m_highlighter->setLanguage(kLangMap[idx]);
     });
 
     /* Template iniziale */
     m_editor->setPlainText(currentTemplate());
 
     /* Pulisci output */
-    connect(btnClear, &QPushButton::clicked, this, [this, chartGroupPtr]{
+    connect(btnClear, &QPushButton::clicked, this, [this]{
         m_output->clear();
         m_fullOutput.clear();
         m_chart->clearAll();
-        chartGroupPtr->hide();
+        m_chartGroup->hide();
         m_status->setText("Pronto.");
     });
 
@@ -532,96 +651,7 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     });
 
     /* ── Esegui ── */
-    connect(m_btnRun, &QPushButton::clicked, this, [this, chartGroupPtr]{
-        const QString code = m_editor->toPlainText().trimmed();
-        if (code.isEmpty()) {
-            m_status->setText("\xe2\x9d\x8c  Nessun codice da eseguire.");
-            return;
-        }
-
-        if (m_aiMode && m_ai && m_ai->busy()) m_ai->abort();
-        m_aiMode = false;
-
-        const QString ext      = m_lang->currentData().toString();
-        const QString filePath = tempFilePath(ext);
-
-        QFile f(filePath);
-        if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            m_status->setText(QString("\xe2\x9d\x8c  Impossibile creare file temp: %1").arg(filePath));
-            return;
-        }
-        f.write(code.toUtf8());
-        f.close();
-
-        const QString cmd = buildRunCommand(filePath);
-        if (cmd.isEmpty()) {
-            m_status->setText("\xe2\x9d\x8c  Linguaggio non supportato.");
-            return;
-        }
-
-        m_output->clear();
-        m_fullOutput.clear();
-        m_chart->clearAll();
-        chartGroupPtr->hide();
-        appendOutput(QString("$ %1\n").arg(cmd));
-        setRunning(true);
-        m_status->setText("\xe2\x8f\xb3  Esecuzione in corso...");
-
-        if (m_proc) { m_proc->kill(); m_proc->deleteLater(); m_proc = nullptr; }
-        m_proc = new QProcess(this);
-        m_proc->setProcessChannelMode(QProcess::MergedChannels);
-        m_proc->setWorkingDirectory(P::root());
-
-        connect(m_proc, &QProcess::readyRead, this, [this]{
-            const QString out = QString::fromLocal8Bit(m_proc->readAll());
-            m_fullOutput += out;
-            appendOutput(out);
-        });
-
-        connect(m_proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, filePath, chartGroupPtr](int code, QProcess::ExitStatus){
-            m_lastExitCode = code;
-            if (code == 0) {
-                m_lastError.clear();
-                m_status->setText(QString("\xe2\x9c\x85  Completato  \xc2\xb7  %1")
-                                  .arg(QDateTime::currentDateTime().toString("HH:mm:ss")));
-                m_btnFix->setText("\xf0\x9f\x94\xa7  Correggi con AI");
-            } else {
-                /* Salva le ultime righe di errore per passarle all'AI */
-                const QStringList lines = m_fullOutput.split('\n');
-                int start = qMax(0, lines.size() - 20); /* ultime 20 righe */
-                m_lastError = lines.mid(start).join('\n').trimmed();
-                m_status->setText(QString("\xe2\x9d\x8c  Errore (exit %1)  \xc2\xb7  "
-                                          "Premi \xf0\x9f\x94\xa7 per correggere con AI").arg(code));
-                /* Evidenzia il pulsante Fix per guidare l'utente */
-                m_btnFix->setText("\xf0\x9f\x94\xa7  Correggi errore");
-            }
-            setRunning(false);
-            m_proc = nullptr;
-            /* Rimuovi file temporaneo (non C/C++ dove il bin è separato) */
-            const QString ext2 = m_lang->currentData().toString();
-            if (ext2 != "c" && ext2 != "cpp") QFile::remove(filePath);
-            /* Prova a mostrare il grafico se l'output è numerico */
-            tryShowChart();
-            chartGroupPtr->setVisible(!m_chart->sizeHint().isEmpty()
-                                      && !parseNumbers(m_fullOutput).isEmpty());
-        });
-
-        connect(m_proc, &QProcess::errorOccurred, this,
-                [this](QProcess::ProcessError err){
-            if (err == QProcess::FailedToStart) {
-                m_status->setText("\xe2\x9d\x8c  Comando non trovato. Installa le dipendenze.");
-                setRunning(false);
-                m_proc = nullptr;
-            }
-        });
-
-#ifdef _WIN32
-        m_proc->start("cmd", {"/c", cmd});
-#else
-        m_proc->start("sh", {"-c", cmd});
-#endif
-    });
+    connect(m_btnRun, &QPushButton::clicked, this, [this]{ runCode(); });
 
     /* ── Stop ── */
     connect(m_btnStop, &QPushButton::clicked, this, [this]{
@@ -722,14 +752,26 @@ QString ProgrammazionePage::buildRunCommand(const QString& filePath) const
 {
     const QString ext    = m_lang->currentData().toString();
     const QString fp     = QDir::toNativeSeparators(filePath);
+
+    QString tmp = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    if (tmp.isEmpty() || QDir(tmp).isRelative()) tmp = QDir::homePath();
     const QString outBin = QDir::toNativeSeparators(
-        QDir::tempPath() + QDir::separator() + "prisma_code_bin"
+        tmp + "/prismalux_code_bin"
 #ifdef _WIN32
         + ".exe"
 #endif
     );
 
-    if (ext == "py")  return QString("python3 \"%1\"").arg(fp);
+    if (ext == "py") {
+#ifdef _WIN32
+        /* Su Windows: usa il Python Launcher "py -3" (sempre disponibile
+         * se Python è installato da python.org); fallback a "python" se py
+         * non è nel PATH. "python3" spesso non esiste su Windows. */
+        return QString("py -3 \"%1\" 2>&1 || python \"%1\" 2>&1").arg(fp);
+#else
+        return QString("python3 \"%1\"").arg(fp);
+#endif
+    }
     if (ext == "sh")  return QString("bash \"%1\"").arg(fp);
     if (ext == "js")  return QString("node \"%1\"").arg(fp);
     if (ext == "c")
@@ -740,11 +782,20 @@ QString ProgrammazionePage::buildRunCommand(const QString& filePath) const
 }
 
 /* ══════════════════════════════════════════════════════════════
-   tempFilePath — percorso file temporaneo
+   tempFilePath — percorso assoluto del file temporaneo.
+   Bug Windows: quando l'app gira dentro C:\...\AppData\Local\Temp\
+   il processo viene avviato con CWD = cartella app, e QDir::tempPath()
+   può restituire un path relativo ("Temp") invece di assoluto.
+   Fix: QStandardPaths::TempLocation è sempre assoluto su ogni OS.
    ══════════════════════════════════════════════════════════════ */
 QString ProgrammazionePage::tempFilePath(const QString& ext) const
 {
-    return QDir::tempPath() + QDir::separator() + "prisma_code." + ext;
+    QString tmp = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    /* Fallback: se per qualche ragione è vuoto o relativo, usa home */
+    if (tmp.isEmpty() || QDir(tmp).isRelative())
+        tmp = QDir::homePath();
+    /* Usa sempre slash forward — Qt normalizza su tutti i OS */
+    return tmp + "/prismalux_code." + ext;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -822,6 +873,142 @@ void ProgrammazionePage::setRunning(bool running)
     /* Disabilita "Invia" durante lo streaming per impedire
        doppie connessioni al segnale token (causa output duplicato). */
     if (m_btnSend) m_btnSend->setEnabled(!running);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   runCode — esegue il codice presente nell'editor.
+
+   Metodo estratto dalla lambda del pulsante "Esegui" per:
+     1. Permettere chiamate dirette da _doFix (Loop Fix) senza
+        simulare un click UI (antipattern m_btnRun->click()).
+     2. Rendere la logica testabile indipendentemente dall'UI.
+     3. Eliminare la cattura di variabili locali del costruttore.
+   ══════════════════════════════════════════════════════════════ */
+void ProgrammazionePage::runCode()
+{
+    const QString code = m_editor->toPlainText().trimmed();
+    if (code.isEmpty()) {
+        m_status->setText("\xe2\x9d\x8c  Nessun codice da eseguire.");
+        return;
+    }
+
+    if (m_aiMode && m_ai && m_ai->busy()) m_ai->abort();
+    m_aiMode = false;
+
+    const QString ext      = m_lang->currentData().toString();
+    const QString filePath = tempFilePath(ext);
+
+    QFile f(filePath);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        m_status->setText(QString("\xe2\x9d\x8c  Impossibile creare file temp: %1").arg(filePath));
+        return;
+    }
+    f.write(code.toUtf8());
+    f.close();
+
+    const QString cmd = buildRunCommand(filePath);
+    if (cmd.isEmpty()) {
+        m_status->setText("\xe2\x9d\x8c  Linguaggio non supportato.");
+        return;
+    }
+
+    m_output->clear();
+    m_fullOutput.clear();
+    m_chart->clearAll();
+    if (m_chartGroup) m_chartGroup->hide();
+    appendOutput(QString("$ %1\n").arg(cmd));
+    setRunning(true);
+    m_status->setText("\xe2\x8f\xb3  Esecuzione in corso...");
+
+    if (m_proc) { m_proc->kill(); m_proc->deleteLater(); m_proc = nullptr; }
+    m_proc = new QProcess(this);
+    m_proc->setProcessChannelMode(QProcess::MergedChannels);
+    m_proc->setWorkingDirectory(P::root());
+
+    connect(m_proc, &QProcess::readyRead, this, [this]{
+        const QString out = QString::fromLocal8Bit(m_proc->readAll());
+        m_fullOutput += out;
+        appendOutput(out);
+    });
+
+    connect(m_proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, filePath](int code, QProcess::ExitStatus){
+        m_lastExitCode = code;
+        if (code == 0) {
+            m_lastError.clear();
+            if (m_loopActive) {
+                m_status->setText(
+                    QString("\xe2\x9c\x85  Risolto in %1 tentativo/i!  \xc2\xb7  %2")
+                        .arg(m_loopCount)
+                        .arg(QDateTime::currentDateTime().toString("HH:mm:ss")));
+                m_loopActive = false;
+                m_loopCount  = 0;
+            } else {
+                m_status->setText(QString("\xe2\x9c\x85  Completato  \xc2\xb7  %1")
+                                  .arg(QDateTime::currentDateTime().toString("HH:mm:ss")));
+            }
+            m_btnFix->setText("\xf0\x9f\x94\xa7  Correggi con AI");
+        } else {
+            const QStringList lines = m_fullOutput.split('\n');
+            int start = qMax(0, lines.size() - 20);
+            m_lastError = lines.mid(start).join('\n').trimmed();
+
+            const QString sourceNow = m_editor->toPlainText();
+
+            if (m_toggleAutoFix && m_toggleAutoFix->isChecked()) {
+                if (isIntentionalError(m_lastError, sourceNow)) {
+                    m_loopActive = false;
+                    m_loopCount  = 0;
+                    m_status->setText(
+                        "\xf0\x9f\x9b\x91  Errore intenzionale rilevato (SyntaxError custom) "
+                        "\xe2\x80\x94 loop terminato. Il codice \xc3\xa8 come vuoi tu.");
+                } else if (m_loopCount >= kLoopMax) {
+                    m_loopActive = false;
+                    m_loopCount  = 0;
+                    m_status->setText(
+                        QString("\xe2\x9a\xa0  Limite iterazioni raggiunto (%1 tentativi) "
+                                "\xe2\x80\x94 loop terminato.").arg(kLoopMax));
+                } else {
+                    m_loopActive = true;
+                    m_loopCount++;
+                    m_status->setText(
+                        QString("\xf0\x9f\x94\x84  Tentativo %1/%2 \xe2\x80\x94 "
+                                "AI sta correggendo...")
+                            .arg(m_loopCount).arg(kLoopMax));
+                    m_btnFix->setText("\xf0\x9f\x94\xa7  Correggi errore");
+                    QTimer::singleShot(400, this, [this]{ triggerFix(true); });
+                }
+            } else {
+                m_status->setText(
+                    QString("\xe2\x9d\x8c  Errore (exit %1)  \xc2\xb7  "
+                            "Premi \xf0\x9f\x94\xa7 per correggere con AI").arg(code));
+                m_btnFix->setText("\xf0\x9f\x94\xa7  Correggi errore");
+            }
+        }
+        setRunning(false);
+        m_proc = nullptr;
+        const QString ext2 = m_lang->currentData().toString();
+        if (ext2 != "c" && ext2 != "cpp") QFile::remove(filePath);
+        tryShowChart();
+        if (m_chartGroup)
+            m_chartGroup->setVisible(!m_chart->sizeHint().isEmpty()
+                                     && !parseNumbers(m_fullOutput).isEmpty());
+    });
+
+    connect(m_proc, &QProcess::errorOccurred, this,
+            [this](QProcess::ProcessError err){
+        if (err == QProcess::FailedToStart) {
+            m_status->setText("\xe2\x9d\x8c  Comando non trovato. Installa le dipendenze.");
+            setRunning(false);
+            m_proc = nullptr;
+        }
+    });
+
+#ifdef _WIN32
+    m_proc->start("cmd", {"/c", cmd});
+#else
+    m_proc->start("sh", {"-c", cmd});
+#endif
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1005,8 +1192,18 @@ void ProgrammazionePage::_doFix(bool includeError,
             m_editor->setPlainText(fixed);
             m_lastExitCode = 0;
             m_lastError.clear();
-            m_status->setText("\xe2\x9c\x85  Codice corretto inserito automaticamente nell'editor.");
+            if (m_loopActive && m_toggleAutoFix && m_toggleAutoFix->isChecked()) {
+                /* Loop attivo: ri-esegui il codice corretto */
+                m_status->setText(
+                    QString("\xf0\x9f\x94\x84  Codice corretto \xe2\x80\x94 "
+                            "ri-esecuzione [tentativo %1/%2]...")
+                        .arg(m_loopCount).arg(kLoopMax));
+                QTimer::singleShot(600, this, [this]{ runCode(); });
+            } else {
+                m_status->setText("\xe2\x9c\x85  Codice corretto inserito automaticamente nell'editor.");
+            }
         } else {
+            m_loopActive = false;  /* nessun codice estratto — ferma il loop */
             m_status->setText("\xe2\x9c\x85  Correzione completata (nessun blocco codice estratto).");
         }
         m_btnInsert->setEnabled(false);

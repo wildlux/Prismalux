@@ -19,6 +19,7 @@
 #include <QFileInfo>
 #include <QObject>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QStandardPaths>
 #include <QString>
 
@@ -52,7 +53,10 @@ inline QString activeOnnx() {
 
 /* ── Percorso file temporaneo per il testo TTS ── */
 inline QString ttsTempFile() {
-    return QDir::tempPath() + "/prismalux_tts_input.txt";
+    /* QStandardPaths::TempLocation è sempre assoluto (fix Windows AppData/Temp bug) */
+    QString tmp = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    if (tmp.isEmpty() || QDir(tmp).isRelative()) tmp = QDir::homePath();
+    return tmp + "/prismalux_tts_input.txt";
 }
 
 /* ── Scrive il testo nel file temporaneo (evita shell-quoting) ── */
@@ -66,17 +70,24 @@ inline bool writeTtsTemp(const QString& text) {
 /* ── Comando PowerShell SAPI (Windows) ─────────────────────────
    Legge il testo dal file temp ed usa le voci native Windows (SAPI).
    Nessuna dipendenza esterna, funziona su qualsiasi Windows 10/11.
+
+   Sicurezza: il path viene passato via $env:PRISMA_TTS_PATH invece
+   di interpolarlo nella stringa PS — immune ad apostrofi nel path
+   (es. C:\Users\O'Brien\...) e ad altri caratteri speciali PS.
    ──────────────────────────────────────────────────────────── */
-inline QString sapiCommand() {
-    /* ReadAllText con UTF-8 esplicito: necessario per accenti italiani (è, à, ù…)
-       senza questo PowerShell legge il file con l'encoding ANSI di sistema (cp1252)
-       e i caratteri accentati vengono letti in modo errato da SAPI. */
-    return QString(
+inline QStringList sapiArgs(const QString& tempPath) {
+    /* Script PS: legge il path da variabile d'ambiente — zero interpolazione
+       ReadAllText con UTF-8 esplicito per accenti italiani (è, à, ù…). */
+    const QString script =
         "Add-Type -AssemblyName System.Speech;"
         "$s=New-Object System.Speech.Synthesis.SpeechSynthesizer;"
-        "$s.Speak([System.IO.File]::ReadAllText('%1',"
-        "[System.Text.Encoding]::UTF8))"
-    ).arg(QDir::toNativeSeparators(ttsTempFile()));
+        "$s.Speak([System.IO.File]::ReadAllText("
+            "$env:PRISMA_TTS_PATH,[System.Text.Encoding]::UTF8))";
+
+    /* Il path viaggia come variabile d'ambiente: nessun rischio di injection
+       indipendentemente dai caratteri presenti nel path stesso. */
+    Q_UNUSED(tempPath);  /* usato via setProcessEnvironment */
+    return { "-NoProfile", "-WindowStyle", "Hidden", "-Command", script };
 }
 
 /* ── Funzione principale ──────────────────────────────────────
@@ -90,22 +101,62 @@ inline void speak(const QString& text) {
     const QString t = text.left(3000);
 
 #ifdef Q_OS_WIN
-    /* Windows: voci interne SAPI — nessun piper richiesto */
+    /* Windows: voci interne SAPI via PowerShell — nessun piper richiesto.
+       Il path del file TTS viaggia tramite variabile d'ambiente (non
+       interpolato nella stringa PS) per evitare injection da apostrofi. */
+    const QString tmpPath = ttsTempFile();
     if (!writeTtsTemp(t)) return;
-    QProcess::startDetached("powershell",
-        {"-NoProfile", "-WindowStyle", "Hidden", "-Command", sapiCommand()});
+
+    auto* proc = new QProcess();
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("PRISMA_TTS_PATH", QDir::toNativeSeparators(tmpPath));
+    proc->setProcessEnvironment(env);
+    /* Auto-cleanup al termine (fire-and-forget) */
+    QObject::connect(proc,
+        QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+        proc, [proc](){ proc->deleteLater(); });
+    proc->start("powershell", sapiArgs(tmpPath));
 #else
     const QString bin  = piperBin();
     const QString onnx = activeOnnx();
 
-    /* ── 1. Piper (neurale, qualità alta) ── */
+    /* ── 1. Piper (neurale, qualità alta) ──────────────────────────
+       Pipeline: piper --output_raw  →  aplay (stdin raw audio)
+       Implementata con QProcess::setStandardOutputProcess() — zero
+       shell intermedia, immune a injection da caratteri speciali nei
+       path di bin/onnx/tempfile.
+       ──────────────────────────────────────────────────────────── */
     if (!bin.isEmpty() && QFileInfo::exists(onnx)) {
         if (!writeTtsTemp(t)) return;
-        const QString cmd =
-            QString("\"%1\" --model \"%2\" --output_raw < \"%3\""
-                    " | aplay -r 22050 -f S16_LE -t raw -q -")
-            .arg(bin, onnx, ttsTempFile());
-        QProcess::startDetached("bash", {"-c", cmd});
+
+        auto* piperProc = new QProcess();
+        auto* aplayProc = new QProcess();
+
+        /* Pipe: stdout di piper → stdin di aplay */
+        piperProc->setStandardOutputProcess(aplayProc);
+
+        /* piper legge il testo da file (stdin redirect, senza shell) */
+        piperProc->setStandardInputFile(ttsTempFile());
+
+        /* Cleanup quando aplay finisce (fine naturale della riproduzione) */
+        QObject::connect(aplayProc,
+            QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            aplayProc, [piperProc, aplayProc](){
+                piperProc->terminate();
+                piperProc->waitForFinished(300);
+                piperProc->deleteLater();
+                aplayProc->deleteLater();
+            });
+        /* Se piper finisce prima (errore), termina aplay */
+        QObject::connect(piperProc,
+            QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            piperProc, [aplayProc](int code, QProcess::ExitStatus){
+                if (code != 0) aplayProc->terminate();
+            });
+
+        /* Avvia prima aplay (legge), poi piper (scrive) */
+        aplayProc->start("aplay", {"-r", "22050", "-f", "S16_LE", "-t", "raw", "-q", "-"});
+        piperProc->start(bin, {"--model", onnx, "--output_raw"});
         return;
     }
 

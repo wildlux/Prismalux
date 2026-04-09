@@ -199,3 +199,72 @@ case "$REPLY" in
         ;;
 esac
 echo ""
+
+# ── 11. Compila whisper-cli (opzionale — per riconoscimento vocale) ──
+echo "──────────────────────────────────────────────"
+echo "  Vuoi compilare whisper.cpp (riconoscimento vocale)? [s/N]: "
+read -r -t 15 REPLY || REPLY="n"
+case "$REPLY" in
+    [Ss])
+        WHISPER_SRC="$DIR/whisper.cpp"
+        WHISPER_CLI="$WHISPER_SRC/build/bin/whisper-cli"
+        if [ -f "$WHISPER_CLI" ]; then
+            echo "  ✓ whisper-cli già presente: $WHISPER_CLI"
+        else
+            echo "📥 Clone whisper.cpp..."
+            [ ! -d "$WHISPER_SRC/.git" ] && \
+                git clone --depth=1 https://github.com/ggml-org/whisper.cpp "$WHISPER_SRC"
+            echo "🔨 Build whisper-cli..."
+            cmake -B "$WHISPER_SRC/build" -S "$WHISPER_SRC" \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DWHISPER_BUILD_TESTS=OFF \
+                -DWHISPER_BUILD_EXAMPLES=ON \
+                -DBUILD_SHARED_LIBS=OFF
+            cmake --build "$WHISPER_SRC/build" --target whisper-cli -j"$(nproc 2>/dev/null || echo 4)"
+            [ -f "$WHISPER_CLI" ] && echo "✅ whisper-cli → $WHISPER_CLI" || echo "❌ Build fallita."
+        fi
+        ;;
+    *)
+        echo "  → whisper saltato. Per compilarlo: ./aggiorna.sh --build-whisper"
+        ;;
+esac
+echo ""
+
+# ── 12. Compila llama-server + llama-cli per GUI (opzionale) ──────────
+echo "──────────────────────────────────────────────"
+echo "  Vuoi compilare llama-server + llama-cli (GUI → AI Locale)? [s/N]: "
+read -r -t 15 REPLY || REPLY="n"
+case "$REPLY" in
+    [Ss])
+        LLAMA_STUDIO_SRC="$DIR/llama_cpp_studio/llama.cpp"
+        LLAMA_SERVER_BIN="$LLAMA_STUDIO_SRC/build/bin/llama-server"
+        if [ -f "$LLAMA_SERVER_BIN" ]; then
+            echo "  ✓ llama-server già presente: $LLAMA_SERVER_BIN"
+        else
+            CMAKE_GPU_FLAGS=""
+            command -v nvidia-smi &>/dev/null && CMAKE_GPU_FLAGS="-DGGML_CUDA=ON"
+            [ -d /opt/rocm ] && CMAKE_GPU_FLAGS="$CMAKE_GPU_FLAGS -DGGML_HIPBLAS=ON"
+            [ -z "$CMAKE_GPU_FLAGS" ] && CMAKE_GPU_FLAGS="-DGGML_OPENMP=ON"
+
+            if [ ! -d "$LLAMA_STUDIO_SRC/.git" ]; then
+                mkdir -p "$(dirname "$LLAMA_STUDIO_SRC")"
+                echo "📥 Clone llama.cpp (llama-studio)..."
+                git clone --depth=1 https://github.com/ggml-org/llama.cpp "$LLAMA_STUDIO_SRC"
+            fi
+            echo "🔨 Build llama-server + llama-cli..."
+            cmake -B "$LLAMA_STUDIO_SRC/build" -S "$LLAMA_STUDIO_SRC" \
+                -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+                -DGGML_NATIVE=ON -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=ON \
+                $CMAKE_GPU_FLAGS
+            cmake --build "$LLAMA_STUDIO_SRC/build" \
+                --target llama-server llama-cli -j"$(nproc 2>/dev/null || echo 4)"
+            [ -f "$LLAMA_SERVER_BIN" ] && \
+                echo "✅ llama-server → $LLAMA_SERVER_BIN" || \
+                echo "❌ Build fallita."
+        fi
+        ;;
+    *)
+        echo "  → llama-studio saltato. Per compilarlo: ./aggiorna.sh --llama-studio"
+        ;;
+esac
+echo ""

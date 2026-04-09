@@ -19,7 +19,9 @@
    Il clone va in:   C_software/whisper.cpp/
    I modelli vanno in: C_software/whisper/models/
    ══════════════════════════════════════════════════════════════ */
+#include <QCryptographicHash>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QObject>
 #include <QProcess>
@@ -177,6 +179,17 @@ private:
         }
     }
 
+    /* ── Verifica SHA256 del file scaricato ── */
+    static QString sha256File(const QString& path) {
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly)) return {};
+        QCryptographicHash h(QCryptographicHash::Sha256);
+        /* Legge a blocchi per non caricare tutto il modello in RAM */
+        while (!f.atEnd())
+            h.addData(f.read(1024 * 1024));
+        return h.result().toHex();
+    }
+
     void _onModelDone(bool ok, const QString& dest, const QString& err)
     {
         if (!ok || !QFileInfo::exists(dest)) {
@@ -184,6 +197,34 @@ private:
             emit failed("Download modello: " + err);
             return;
         }
+
+        /* ── Integrità: SHA256 noti per ggml-base.bin (multilingual) ──
+           Hash pubblicati su: https://github.com/ggml-org/whisper.cpp
+           La lista può essere estesa con nuove release senza cambiare logica. */
+        static const QStringList kKnownHashes = {
+            /* whisper base multilingual — ggml-base.bin da whisper.cpp */
+            "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
+        };
+
+        _status("\xf0\x9f\x94\x8d  Verifica integrit\xc3\xa0 SHA256...");
+        const QString actual = sha256File(dest);
+
+        if (!actual.isEmpty() && !kKnownHashes.contains(actual)) {
+            /* Hash non riconosciuto: potrebbe essere una versione aggiornata
+               o, peggio, un file compromesso. Avvisiamo ma non blocchiamo:
+               un hash sconosciuto può essere una nuova release legittima.
+               Il file viene comunque tenuto e segnalato per verifica manuale. */
+            _status(QString(
+                "\xe2\x9a\xa0  SHA256 non corrisponde ai valori noti — "
+                "verifica manuale consigliata.\n"
+                "  Atteso: %1...\n"
+                "  Ottenuto: %2")
+                .arg(kKnownHashes.value(0).left(16), actual.left(16)));
+            /* Continuiamo comunque: il file è scaricato e potrebbe essere legittimo */
+        } else if (!actual.isEmpty()) {
+            _status("\xe2\x9c\x85  SHA256 verificato.");
+        }
+
         _status("\xe2\x9c\x85  Whisper pronto — riconoscimento vocale attivo.");
         emit ready();
     }

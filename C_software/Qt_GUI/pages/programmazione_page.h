@@ -1,7 +1,10 @@
 #pragma once
 #include <QWidget>
+#include <QRegularExpression>
 #include "../ai_client.h"
 #include "../widgets/chart_widget.h"
+#include "../widgets/code_highlighter.h"
+#include "../widgets/toggle_switch.h"
 
 class QComboBox;
 class QPlainTextEdit;
@@ -40,12 +43,14 @@ private:
     AiClient*       m_ai        = nullptr;
 
     /* Editor */
-    QComboBox*      m_lang      = nullptr;
-    QPlainTextEdit* m_editor    = nullptr;
+    QComboBox*        m_lang        = nullptr;
+    QPlainTextEdit*   m_editor      = nullptr;
+    CodeHighlighter*  m_highlighter = nullptr;
 
     /* Output */
     QPlainTextEdit* m_output    = nullptr;
     ChartWidget*    m_chart     = nullptr;
+    QGroupBox*      m_chartGroup = nullptr; ///< gruppo grafico (show/hide in base all'output)
     QLabel*         m_status    = nullptr;
     QString         m_fullOutput;        ///< tutto l'output dell'ultima esecuzione
 
@@ -72,6 +77,15 @@ private:
     QPushButton*    m_btnAi     = nullptr;
     QPushButton*    m_btnFix    = nullptr; ///< "🔧 Correggi con AI" — invia il codice + errore al coder
     QPushButton*    m_btnLint   = nullptr; ///< "🔍 Analizza" — linting statico pre-AI
+    ToggleSwitch*   m_toggleAutoFix = nullptr; ///< toggle stile aereo: loop fix automatico
+
+    /* Loop Auto-Fix */
+    bool m_loopActive = false;
+    int  m_loopCount  = 0;
+    static constexpr int kLoopMax = 6;
+
+    /** True se l'errore è intenzionale (raise SyntaxError nel sorgente) */
+    static bool isIntentionalError(const QString& errorOut, const QString& source);
 
     /* Pannello diff (mostrato dopo ogni correzione AI) */
     QGroupBox*      m_diffGroup = nullptr;
@@ -88,6 +102,7 @@ private:
     void    appendOutput(const QString& text);
     void    setRunning(bool running);
     void    tryShowChart();
+    void    runCode();                ///< esegue il codice nell'editor (logica estratta dal click Esegui)
     QString extractCodeBlock() const;
     void    selectCoderModel();
     void    triggerFix(bool includeError);

@@ -20,3 +20,16 @@ QScrollBar::sub-page:horizontal { background: transparent; }
 
 /* ── ScrollArea trasparente ── */
 QScrollArea { background: transparent; border: none; }
+
+/* ── Separatori QFrame — rimuove la linea bianca di default Qt ── */
+QFrame#sidebarSep { max-height: 1px; border: none; }
+QFrame#navMenuSep { max-width:  1px; border: none; }
+
+/* ── Pulsanti header — rimuove highlight bianca in cima (Fusion/Breeze) ── */
+#header QPushButton { border-top: none; }
+
+/* ── Separatore card ── */
+QFrame#cardSep { max-height: 1px; border: none; border-top: 1px solid rgba(255,255,255,0.08); }
+
+/* ── Item lista test — bordo strutturale (colori via setStyleSheet dinamico) ── */
+QFrame#testListItem { border-radius: 6px; padding: 2px; }

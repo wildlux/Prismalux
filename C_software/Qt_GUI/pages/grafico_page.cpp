@@ -35,7 +35,11 @@ static const QColor kPal[] = {
     {0xff,0xd7,0x6e}, {0xb0,0x90,0xff}, {0xff,0x82,0xc2},
     {0x5a,0xd7,0xff}, {0xff,0xa0,0x50}
 };
-QColor GraficoCanvas::paletteColor(int i) { return kPal[i % 8]; }
+QColor GraficoCanvas::paletteColor(int i) const {
+    if (!m_style.palette.isEmpty())
+        return m_style.palette[i % m_style.palette.size()];
+    return kPal[i % 8];
+}
 
 /* ── Numero formattato ───────────────────────────────────────── */
 QString GraficoCanvas::fmtNum(double v) {
@@ -210,7 +214,7 @@ QPointF GraficoCanvas::screenToData(const QPointF& sp, const QRectF& a) const {
    Griglia assi (usata da Cartesian + ScatterXY)
    ══════════════════════════════════════════════════════════════ */
 void GraficoCanvas::drawGrid(QPainter& p, const QRectF& a) {
-    p.setFont(QFont("Inter,Ubuntu,sans-serif", 8));
+    p.setFont(QFont(m_style.fontFamily, m_style.fontSize));
 
     double xStep = niceStep(m_xVMax - m_xVMin, 8);
     double yStep = niceStep(m_yVMax - m_yVMin, 6);
@@ -220,25 +224,29 @@ void GraficoCanvas::drawGrid(QPainter& p, const QRectF& a) {
     /* linee verticali + etichette X */
     for (double x = xFirst; x <= m_xVMax + xStep * 0.01; x += xStep) {
         double sx = a.left() + (x - m_xVMin) / (m_xVMax - m_xVMin) * a.width();
-        p.setPen(QPen(QColor(0x35,0x35,0x35), 1));
-        p.drawLine(QPointF(sx, a.top()), QPointF(sx, a.bottom()));
-        p.setPen(QColor(0x77,0x77,0x77));
+        if (m_style.showGrid) {
+            p.setPen(QPen(m_style.gridColor, 1));
+            p.drawLine(QPointF(sx, a.top()), QPointF(sx, a.bottom()));
+        }
+        p.setPen(m_style.textColor);
         p.drawText(QRectF(sx - 26, a.bottom() + 3, 52, 14), Qt::AlignCenter, fmtNum(x));
     }
 
     /* linee orizzontali + etichette Y */
     for (double y = yFirst; y <= m_yVMax + yStep * 0.01; y += yStep) {
         double sy = a.bottom() - (y - m_yVMin) / (m_yVMax - m_yVMin) * a.height();
-        p.setPen(QPen(QColor(0x35,0x35,0x35), 1));
-        p.drawLine(QPointF(a.left(), sy), QPointF(a.right(), sy));
-        p.setPen(QColor(0x77,0x77,0x77));
+        if (m_style.showGrid) {
+            p.setPen(QPen(m_style.gridColor, 1));
+            p.drawLine(QPointF(a.left(), sy), QPointF(a.right(), sy));
+        }
+        p.setPen(m_style.textColor);
         p.drawText(QRectF(0, sy - 8, a.left() - 4, 16),
                    Qt::AlignRight | Qt::AlignVCenter, fmtNum(y));
     }
 
     if (m_axes2dPos == AtData) {
         /* assi X=0 e Y=0 attraverso tutto il plot */
-        p.setPen(QPen(QColor(0x55,0x55,0x55), 1));
+        p.setPen(QPen(m_style.axisColor, 1));
         if (m_xVMin <= 0 && m_xVMax >= 0) {
             double sx = a.left() + (-m_xVMin) / (m_xVMax - m_xVMin) * a.width();
             p.drawLine(QPointF(sx, a.top()), QPointF(sx, a.bottom()));
@@ -251,7 +259,7 @@ void GraficoCanvas::drawGrid(QPainter& p, const QRectF& a) {
         /* gizmo L in angolo — X→ rosso, Y↑ verde */
         QPointF org = gizmoOrigin(m_axes2dPos, a);
         const double gs = 32.0;
-        p.setFont(QFont("Inter,Ubuntu,sans-serif", 8, QFont::Bold));
+        p.setFont(QFont(m_style.fontFamily, m_style.fontSize, QFont::Bold));
         p.setPen(QPen(QColor(0xff,0x60,0x60), 1.5));
         p.drawLine(org, org + QPointF(gs, 0));
         p.setPen(QColor(0xff,0x60,0x60));
@@ -263,7 +271,7 @@ void GraficoCanvas::drawGrid(QPainter& p, const QRectF& a) {
     }
 
     /* bordo */
-    p.setPen(QPen(QColor(0x50,0x50,0x50), 1));
+    p.setPen(QPen(m_style.axisColor, 1));
     p.drawRect(a);
 }
 
@@ -3994,7 +4002,7 @@ void GraficoCanvas::drawSmallMultiples(QPainter& p, const QRectF& area) {
    ══════════════════════════════════════════════════════════════ */
 void GraficoCanvas::paintEvent(QPaintEvent*) {
     QPainter p(this);
-    p.fillRect(rect(), QColor(0x18,0x18,0x18));
+    p.fillRect(rect(), m_style.bgColor);
     QRectF a = plotArea(this);
     switch (m_type) {
         case Cartesian:  drawCartesian(p, a);  break;
@@ -4227,51 +4235,52 @@ QWidget* GraficoPage::buildLeftPanel() {
 
     m_typeCombo = new QComboBox(panel);
     m_typeCombo->setObjectName("settingCombo");
-    m_typeCombo->addItem("Cartesiano  y = f(x)",      0);
-    m_typeCombo->addItem("Torta",                     1);
-    m_typeCombo->addItem("Istogramma",                2);
-    m_typeCombo->addItem("Scatter 2D  (x, y)",       3);
-    m_typeCombo->addItem("Grafo 2D",                  4);
-    m_typeCombo->addItem("Scatter 3D",                5);
-    m_typeCombo->addItem("Grafo 3D",                  6);
-    m_typeCombo->addItem("\xf0\x9f\x94\xb5  Smith — Numeri Primi", 7);  /* 🔵 */
-    m_typeCombo->addItem(QString::fromUtf8("\xf0\x9f\x93\x90  Smith \xe2\x80\x94 \xcf\x80 \xc2\xb7 e \xc2\xb7 Primi"), 8);  /* 📐 */
-    m_typeCombo->addItem("Linea multi-serie",              9);
-    m_typeCombo->addItem("Polare  r = f(\xce\xb8)",       10);
-    m_typeCombo->addItem("Radar (Spider)",                 11);
-    m_typeCombo->addItem("Bolle  (x, y, raggio)",         12);
-    m_typeCombo->addItem("Heatmap (matrice colori)",       13);
-    m_typeCombo->addItem("Candele OHLC",                   14);
-    m_typeCombo->addItem("Area riempita",                  15);
-    m_typeCombo->addItem("Cascata (Waterfall)",            16);
-    m_typeCombo->addItem("Scalini (Step)",                 17);
-    m_typeCombo->addItem("Colonne (Column)",               18);
-    m_typeCombo->addItem("Barre orizzontali (HBar)",       19);
-    m_typeCombo->addItem("Barre raggruppate (Grouped)",    20);
-    m_typeCombo->addItem("Barre impilate (Stacked)",       21);
-    m_typeCombo->addItem("Barre impilate 100%",            22);
-    m_typeCombo->addItem("Imbuto (Funnel)",                23);
-    m_typeCombo->addItem("Ciambella (Donut)",              24);
-    m_typeCombo->addItem("Treemap",                        25);
-    m_typeCombo->addItem("Sunburst",                       26);
-    m_typeCombo->addItem("Box Plot",                       27);
-    m_typeCombo->addItem("Dot Plot",                       28);
-    m_typeCombo->addItem("Densit\xc3\xa0 (KDE)",          29);
-    m_typeCombo->addItem("Area impilata (Stacked Area)",   30);
-    m_typeCombo->addItem("OHLC (barre)",                   31);
-    m_typeCombo->addItem("Gauge (semicerchio)",            32);
-    m_typeCombo->addItem("Bullet Chart",                   33);
-    m_typeCombo->addItem("Gantt",                          34);
-    m_typeCombo->addItem("Piramide (Pyramid)",             35);
-    m_typeCombo->addItem("Coordinate parallele",           36);
-    m_typeCombo->addItem("Sankey",                         37);
-    m_typeCombo->addItem("Albero (Tree)",                  38);
-    m_typeCombo->addItem("Chord",                          39);
-    m_typeCombo->addItem("Violin Plot",                    40);
-    m_typeCombo->addItem("Word Cloud",                     41);
-    m_typeCombo->addItem("Albero Radiale",                 42);
-    m_typeCombo->addItem("Linea Animata",                  43);
-    m_typeCombo->addItem("Small Multiples",                44);
+    /* icone UTF-8 per riconoscimento rapido del tipo */
+    m_typeCombo->addItem("\xf0\x9f\x93\x88  Cartesiano  y = f(x)",          0);  /* 📈 */
+    m_typeCombo->addItem("\xf0\x9f\xa5\xa7  Torta",                          1);  /* 🥧 */
+    m_typeCombo->addItem("\xf0\x9f\x93\x8a  Istogramma",                     2);  /* 📊 */
+    m_typeCombo->addItem("\xf0\x9f\x94\xb9  Scatter 2D  (x, y)",             3);  /* 🔹 */
+    m_typeCombo->addItem("\xf0\x9f\x95\xb8  Grafo 2D",                       4);  /* 🕸 */
+    m_typeCombo->addItem("\xf0\x9f\x8c\x90  Scatter 3D",                     5);  /* 🌐 */
+    m_typeCombo->addItem("\xf0\x9f\x94\xb7  Grafo 3D",                       6);  /* 🔷 */
+    m_typeCombo->addItem("\xf0\x9f\x94\xb5  Smith \xe2\x80\x94 Numeri Primi", 7); /* 🔵 */
+    m_typeCombo->addItem("\xf0\x9f\x93\x90  Smith \xe2\x80\x94 \xcf\x80\xc2\xb7""e\xc2\xb7Primi", 8); /* 📐 */
+    m_typeCombo->addItem("\xf0\x9f\x93\x89  Linea multi-serie",               9);  /* 📉 */
+    m_typeCombo->addItem("\xf0\x9f\x8c\x80  Polare  r = f(\xce\xb8)",        10);  /* 🌀 */
+    m_typeCombo->addItem("\xf0\x9f\x95\xb7  Radar (Spider)",                 11);  /* 🕷 */
+    m_typeCombo->addItem("\xf0\x9f\xab\xa7  Bolle  (x, y, raggio)",          12);  /* 🫧 */
+    m_typeCombo->addItem("\xf0\x9f\x94\xa5  Heatmap (matrice colori)",        13);  /* 🔥 */
+    m_typeCombo->addItem("\xf0\x9f\x95\xaf  Candele OHLC",                   14);  /* 🕯 */
+    m_typeCombo->addItem("\xf0\x9f\x8f\x94  Area riempita",                  15);  /* 🏔 */
+    m_typeCombo->addItem("\xf0\x9f\x8c\x8a  Cascata (Waterfall)",            16);  /* 🌊 */
+    m_typeCombo->addItem("\xf0\x9f\x93\xb6  Scalini (Step)",                 17);  /* 📶 */
+    m_typeCombo->addItem("\xf0\x9f\x8f\x9b  Colonne (Column)",               18);  /* 🏛 */
+    m_typeCombo->addItem("\xe2\x96\xac  Barre orizzontali (HBar)",            19);  /* ▬ */
+    m_typeCombo->addItem("\xf0\x9f\x97\x82  Barre raggruppate (Grouped)",     20);  /* 🗂 */
+    m_typeCombo->addItem("\xf0\x9f\x93\x9a  Barre impilate (Stacked)",        21);  /* 📚 */
+    m_typeCombo->addItem("\xf0\x9f\x92\xaf  Barre impilate 100%",             22);  /* 💯 */
+    m_typeCombo->addItem("\xf0\x9f\xaa\xa3  Imbuto (Funnel)",                 23);  /* 🪣 */
+    m_typeCombo->addItem("\xf0\x9f\x8d\xa9  Ciambella (Donut)",              24);  /* 🍩 */
+    m_typeCombo->addItem("\xf0\x9f\x97\xba  Treemap",                        25);  /* 🗺 */
+    m_typeCombo->addItem("\xe2\x98\x80  Sunburst",                            26);  /* ☀ */
+    m_typeCombo->addItem("\xf0\x9f\x93\xa6  Box Plot",                        27);  /* 📦 */
+    m_typeCombo->addItem("\xf0\x9f\x94\xb5  Dot Plot",                        28);  /* 🔵 */
+    m_typeCombo->addItem("\xf0\x9f\x8c\x8a  Densit\xc3\xa0 (KDE)",           29);  /* 🌊 */
+    m_typeCombo->addItem("\xf0\x9f\x8f\x94  Area impilata (Stacked Area)",    30);  /* 🏔 */
+    m_typeCombo->addItem("\xf0\x9f\x93\x8a  OHLC (barre)",                    31);  /* 📊 */
+    m_typeCombo->addItem("\xf0\x9f\x8e\xaf  Gauge (semicerchio)",             32);  /* 🎯 */
+    m_typeCombo->addItem("\xf0\x9f\x8e\xaf  Bullet Chart",                    33);  /* 🎯 */
+    m_typeCombo->addItem("\xf0\x9f\x93\x85  Gantt",                           34);  /* 📅 */
+    m_typeCombo->addItem("\xf0\x9f\x94\xba  Piramide (Pyramid)",              35);  /* 🔺 */
+    m_typeCombo->addItem("\xe2\x87\x94  Coordinate parallele",                 36);  /* ⇔ */
+    m_typeCombo->addItem("\xf0\x9f\x8c\x8a  Sankey",                          37);  /* 🌊 */
+    m_typeCombo->addItem("\xf0\x9f\x8c\xb3  Albero (Tree)",                   38);  /* 🌳 */
+    m_typeCombo->addItem("\xf0\x9f\x94\x97  Chord",                           39);  /* 🔗 */
+    m_typeCombo->addItem("\xf0\x9f\x8e\xbb  Violin Plot",                     40);  /* 🎻 */
+    m_typeCombo->addItem("\xe2\x98\x81  Word Cloud",                           41);  /* ☁ */
+    m_typeCombo->addItem("\xf0\x9f\x8c\x9f  Albero Radiale",                  42);  /* 🌟 */
+    m_typeCombo->addItem("\xe2\x96\xb6  Linea Animata",                       43);  /* ▶ */
+    m_typeCombo->addItem("\xe2\x8a\x9e  Small Multiples",                     44);  /* ⊞ */
     lay->addWidget(m_typeCombo);
 
     /* ── Stack parametri ── */

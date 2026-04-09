@@ -81,6 +81,18 @@ public:
     /** Posizione del gizmo assi (2D e 3D). */
     enum AxisPos { AtData = 0, BottomLeft, BottomRight, TopLeft, TopRight };
 
+    /** Stile visivo del canvas — colori, font, palette serie. */
+    struct ChartStyle {
+        QColor  bgColor    = QColor(0x18,0x18,0x18);   ///< sfondo
+        QColor  axisColor  = QColor(0x55,0x55,0x55);   ///< assi cartesiani
+        QColor  gridColor  = QColor(0x35,0x35,0x35);   ///< griglia
+        QColor  textColor  = QColor(0x99,0x99,0x99);   ///< etichette numeri
+        QString fontFamily = "Inter,Ubuntu,sans-serif";
+        int     fontSize   = 8;
+        bool    showGrid   = true;
+        QVector<QColor> palette;  ///< vuoto = usa palette interna kPal
+    };
+
     struct Pt3D    { double x, y, z; QString label; };
     struct Node3D  { QString name; double x, y, z; };
     struct OhlcPt  { double o, h, l, c; QString label; };
@@ -182,6 +194,10 @@ public:
     void setAxes2dPos(int pos);   ///< AxisPos per grafici 2D (Cartesiano, Scatter)
     void setAxes3dPos(int pos);   ///< AxisPos per grafici 3D (Scatter3D, Graph3D)
 
+    void              setStyle(const ChartStyle& s) { m_style = s; update(); }
+    const ChartStyle& style()  const { return m_style; }
+    ChartStyle&       style()        { return m_style; }
+
     QSize sizeHint()        const override { return {600, 440}; }
     QSize minimumSizeHint() const override { return {300, 200}; }
 
@@ -248,9 +264,12 @@ private:
     QPointF dataToScreen(double dx, double dy, const QRectF& area) const;
     QPointF screenToData(const QPointF& sp,  const QRectF& area) const;
 
-    static QColor  paletteColor(int idx);
+    QColor paletteColor(int idx) const;
     static QString fmtNum(double v);
     static double  niceStep(double range, int ticks);
+
+    /* ── stile visivo ── */
+    ChartStyle m_style;
 
     /* ── tipo corrente ── */
     ChartType m_type = Cartesian;

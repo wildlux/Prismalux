@@ -28,6 +28,7 @@
 #include <QFileInfoList>
 #include <QCoreApplication>
 #include <QProcess>
+#include <QStandardPaths>
 #include <QWidget>
 #include <QStyle>
 
@@ -213,6 +214,62 @@ inline QString vramProfilePath()
    ══════════════════════════════════════════════════════════════ */
 
 /**
+ * safeTempPath() — Cartella temporanea di sistema, SEMPRE assoluta.
+ *
+ * BUG WINDOWS: quando l'app viene estratta/lanciata da dentro
+ *   C:\Users\...\AppData\Local\Temp\Prismalux_Windows_full\
+ *   QDir::tempPath() restituisce il percorso RELATIVO "Temp" invece
+ *   dell'assoluto C:\Users\...\AppData\Local\Temp.
+ *   QStandardPaths::TempLocation è immune a questo problema.
+ *
+ * Uso:  P::safeTempPath() + "/miofile.tmp"
+ *       (sostituisce QDir::tempPath() ovunque si scrivono file temporanei)
+ */
+inline QString safeTempPath()
+{
+    QString tmp = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    if (tmp.isEmpty() || QDir(tmp).isRelative())
+        tmp = QDir::homePath();   /* fallback estremo: home è sempre assoluta */
+    return tmp;
+}
+
+/**
+ * sanitizeErrorOutput(raw, maxLines) — Limita stack trace eccessivamente lunghi.
+ *
+ * MOTIVAZIONE:
+ *   stderr di Python/llama-server può contenere centinaia di righe di traceback
+ *   con path assoluti interni, indirizzi di memoria e flag di avvio del processo.
+ *   Mostrare tutto all'utente è: 1) inutile 2) rivela la struttura interna del sistema.
+ *
+ *   Questa funzione mantiene le prime e ultime righe (le più informative) e
+ *   rimuove il centro del traceback (solitamente call stack interno alle librerie).
+ *
+ * COSA NON FILTRA:
+ *   - Errori dell'utente (SyntaxError, NameError, ValueError, ecc.)
+ *   - Numero di riga del codice sorgente dell'utente
+ *   - Messaggio finale dell'eccezione
+ *
+ * Non usare per log interni di debug — solo per output mostrato all'utente in UI.
+ */
+inline QString sanitizeErrorOutput(const QString& raw, int maxLines = 30)
+{
+    const QStringList lines = raw.split('\n');
+    if (lines.size() <= maxLines) return raw;
+
+    /* Mantieni le prime 8 righe (contesto iniziale) e le ultime 12 (errore finale) */
+    constexpr int kHead = 8;
+    constexpr int kTail = 12;
+    const int skipped = lines.size() - kHead - kTail;
+
+    QStringList result;
+    result.reserve(kHead + 2 + kTail);
+    result << lines.mid(0, kHead);
+    result << QString("... [%1 righe omesse] ...").arg(skipped);
+    result << lines.mid(lines.size() - kTail);
+    return result.join('\n');
+}
+
+/**
  * repolish(widget) — Forza il ricalcolo dello stile Qt su un widget.
  *
  * Necessario dopo aver modificato una proprietà Qt (setProperty) che
@@ -235,28 +292,39 @@ inline void repolish(QWidget* w)
 
 /**
  * whisperDir() — Cartella sorgente whisper.cpp dentro il progetto.
- *   C_software/whisper.cpp/   (clonato automaticamente al primo avvio)
+ *   root() = C_software/  →  C_software/whisper.cpp/
  */
 inline QString whisperDir()
 {
-    return root() + "/C_software/whisper.cpp";
+    return root() + "/whisper.cpp";
 }
 
 /**
- * whisperBin() — Binario whisper-cli dentro il progetto.
- * Restituisce stringa vuota se non ancora compilato.
+ * whisperBin() — Binario whisper-cli.
+ * Cerca in ordine:
+ *   1. Posizione progetto (root/whisper.cpp/build/...)
+ *   2. Vecchia posizione (~/.prismalux/whisper.cpp/build/...)
+ *   3. PATH di sistema (sudo apt install whisper-cpp)
+ * Restituisce stringa vuota se non trovato.
  */
 inline QString whisperBin()
 {
-    const QString ext = exeExt();
+    const QString ext  = exeExt();
+    const QString home = QDir::homePath();
     const QStringList candidates = {
+        /* posizione corrente del progetto */
         whisperDir() + "/build/bin/whisper-cli" + ext,
         whisperDir() + "/build/whisper-cli"     + ext,
-        whisperDir() + "/build/main"            + ext, /* vecchio nome */
+        whisperDir() + "/build/main"            + ext,
+        /* vecchia posizione usata nelle versioni precedenti */
+        home + "/.prismalux/whisper.cpp/build/bin/whisper-cli" + ext,
+        home + "/.prismalux/whisper.cpp/build/bin/main"        + ext,
+        home + "/.prismalux/whisper.cpp/build/whisper-cli"     + ext,
     };
     for (const QString& p : candidates)
         if (QFileInfo::exists(p)) return p;
-    return {};
+    /* fallback: binario nel PATH di sistema (es. apt install whisper-cpp) */
+    return QStandardPaths::findExecutable("whisper-cli");
 }
 
 /**

@@ -403,32 +403,20 @@ QWidget* MainWindow::buildHeader() {
     /* m_lblBackend tenuto per aggiornamenti interni (applyBackend) ma non mostrato */
     m_lblBackend = new QLabel("", hdr);
     m_lblBackend->hide();
-    m_lblModel   = new QLabel("", hdr);
-    m_lblModel->setObjectName("headerSub");
+    /* m_lblModel tenuto per i setText interni, non mostrato nell'header */
+    m_lblModel = new QLabel(this);
+    m_lblModel->hide();
     lay->addWidget(title);
 
     lay->addStretch(1);
 
-    /* Gauges hardware */
+    /* Gauges hardware — una sola riga: CPU · RAM · GPU */
     m_gCpu = new ResourceGauge("CPU ", hdr);
     m_gRam = new ResourceGauge("RAM ", hdr);
     m_gGpu = new ResourceGauge("GPU ", hdr);
-
-    auto* gaugeBox = new QWidget(hdr);
-    auto* gLay     = new QVBoxLayout(gaugeBox);
-    gLay->setContentsMargins(0,0,0,0);
-    gLay->setSpacing(4);
-    gLay->addWidget(m_gCpu);
-    gLay->addWidget(m_gRam);
-    lay->addWidget(gaugeBox);
-
-    auto* gaugeBox2 = new QWidget(hdr);
-    auto* gLay2     = new QVBoxLayout(gaugeBox2);
-    gLay2->setContentsMargins(0,0,0,0);
-    gLay2->setSpacing(4);
-    gLay2->addWidget(m_gGpu);
-    gLay2->addWidget(m_lblModel);
-    lay->addWidget(gaugeBox2);
+    lay->addWidget(m_gCpu);
+    lay->addWidget(m_gRam);
+    lay->addWidget(m_gGpu);
 
     /* ── Pulsante emergenza RAM 🚨 ── */
     auto* btnEmergency = new QPushButton("🚨", hdr);
@@ -884,10 +872,9 @@ static void showMathDownloadDialog(QWidget* parent, const QString& modelsDir) {
 
     QString dest = modelsDir + "/" + fname;
 
-    /* Avvia wget in background */
-    QString cmd = QString("wget -c --progress=bar:force \"%1\" -O \"%2\" 2>&1 &")
-                  .arg(url, dest);
-    QProcess::startDetached("bash", {"-c", cmd});
+    /* Avvia wget in background — args separati: immune a injection da caratteri
+       speciali in url/dest, e startDetached è già asincrono (non serve &). */
+    QProcess::startDetached("wget", {"-c", "--progress=bar:force", url, "-O", dest});
 
     QMessageBox info(parent);
     info.setWindowTitle("Download avviato");

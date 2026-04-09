@@ -57,6 +57,8 @@ public:
 signals:
     /** Utente ha cliccato "Mostra grafico": formula già estratta. */
     void chartRequested(const QString& formula);
+    /** Utente ha cliccato "Modifica": testo corrente da rimettere nell'input. */
+    void editRequested(const QString& text);
 
 private:
     void onCopy();
@@ -69,4 +71,5 @@ private:
     QPushButton*  m_btnChart      = nullptr;
     QPushButton*  m_btnCopy       = nullptr;
     QPushButton*  m_btnTts        = nullptr;
+    QPushButton*  m_btnEdit       = nullptr;   /* solo bubble utente */
 };

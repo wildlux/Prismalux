@@ -16,7 +16,6 @@ for _p in (_ROOT, _CART, os.path.join(_ROOT, "core")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from rich.console import Console as _RichConsole
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
@@ -46,7 +45,7 @@ class _ConsoleFake:
         for _markup in (True, False):
             try:
                 buf = io.StringIO()
-                tmp = _RichConsole(file=buf, no_color=False, width=self._width,
+                tmp = Console(file=buf, no_color=False, width=self._width,
                                    highlight=False, markup=_markup)
                 tmp.print(*args, **kwargs)
                 break

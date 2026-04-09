@@ -94,6 +94,15 @@ ChatBubble::ChatBubble(Role role, const QString& sender,
 
     btnLay->addWidget(m_btnCopy);
     btnLay->addWidget(m_btnTts);
+
+    /* Pulsante Modifica — solo per le bubble dell'utente */
+    if (role == User) {
+        m_btnEdit = new QPushButton("\xe2\x9c\x8f", actionBar);  /* ✏ */
+        m_btnEdit->setObjectName("bubbleBtn");
+        m_btnEdit->setToolTip("Modifica e rimanda questo messaggio");
+        btnLay->addWidget(m_btnEdit);
+    }
+
     vlay->addWidget(actionBar);
 
     /* ── Posiziona la bubble a sinistra (AI) o destra (Utente) ── */
@@ -118,6 +127,11 @@ ChatBubble::ChatBubble(Role role, const QString& sender,
         QString f = FormulaParser::tryExtract(m_plain);
         if (!f.isEmpty()) emit chartRequested(f);
     });
+    if (m_btnEdit) {
+        connect(m_btnEdit, &QPushButton::clicked, this, [this] {
+            emit editRequested(m_plain);
+        });
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════

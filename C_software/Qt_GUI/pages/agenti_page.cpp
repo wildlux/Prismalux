@@ -78,6 +78,8 @@ static const BubClr& bc() {
 #include <QNetworkRequest>
 #include <QProcess>
 #include <QFile>
+#include <QTemporaryFile>
+#include <QDateTime>
 #include <QDir>
 #include <QScrollArea>
 #include <QScrollBar>
@@ -349,22 +351,72 @@ void AgentiPage::setupUI() {
         const int idx = s.mid(c1 + 1, c2 < 0 ? -1 : c2 - c1 - 1).toInt(&ok);
         if (!ok) return;
         QString text;
+        const QString origB64 = (c2 > 0) ? s.mid(c2 + 1) : QString();
         if (c2 > 0) {
             text = QString::fromUtf8(QByteArray::fromBase64(
-                s.mid(c2 + 1).toLatin1(), QByteArray::Base64UrlEncoding));
+                origB64.toLatin1(), QByteArray::Base64UrlEncoding));
         } else {
             if (!m_bubbleTexts.contains(idx)) return;
             text = m_bubbleTexts.value(idx);
         }
 
         if (s.startsWith("edit:")) {
-            /* Copia il testo dell'agente nel campo input per modifica e reinvio */
-            m_input->setPlainText(text.trimmed());
-            m_input->setFocus();
-            m_input->moveCursor(QTextCursor::End);
-            QToolTip::showText(QCursor::pos(),
-                "\xe2\x9c\x8f\xef\xb8\x8f  Testo copiato nell'input \xe2\x80\x94 modifica e premi Avvia",
-                nullptr, {}, 3000);
+            /* Apre un dialog di modifica: l'utente può editare il testo liberamente
+               e scegliere se rimpiazzare la bolla nel log o inviare come nuovo task */
+            auto* dlg  = new QDialog(this);
+            dlg->setWindowTitle("\xe2\x9c\x8f\xef\xb8\x8f  Modifica testo");
+            dlg->setMinimumSize(520, 360);
+            auto* dlgLay = new QVBoxLayout(dlg);
+            dlgLay->setSpacing(10);
+
+            auto* hint = new QLabel(
+                "<small>\xe2\x84\xb9  Modifica il testo. <b>Invia come task</b> lo carica nel campo "
+                "input pronto per essere rielaborato dall'AI. "
+                "<b>Aggiorna bolla</b> sostituisce il testo nel log.</small>");
+            hint->setWordWrap(true);
+            dlgLay->addWidget(hint);
+
+            auto* editor = new QTextEdit(dlg);
+            editor->setPlainText(text.trimmed());
+            editor->setFocus();
+            dlgLay->addWidget(editor, 1);
+
+            auto* btnBox = new QDialogButtonBox(dlg);
+            auto* btnTask   = btnBox->addButton("Invia come task \xe2\x96\xb6",
+                                                QDialogButtonBox::AcceptRole);
+            auto* btnUpdate = btnBox->addButton("Aggiorna bolla \xf0\x9f\x94\x84",
+                                                QDialogButtonBox::ApplyRole);
+            auto* btnCancel = btnBox->addButton(QDialogButtonBox::Cancel);
+            btnCancel->setText("Annulla");
+            dlgLay->addWidget(btnBox);
+
+            connect(btnTask, &QPushButton::clicked, dlg, [=]{
+                m_input->setPlainText(editor->toPlainText().trimmed());
+                m_input->setFocus();
+                m_input->moveCursor(QTextCursor::End);
+                dlg->accept();
+            });
+            connect(btnUpdate, &QPushButton::clicked, dlg, [=]{
+                /* Rimpiazza il testo della bolla nell'HTML del log */
+                const QString newText = editor->toPlainText().trimmed();
+                if (!newText.isEmpty() && !origB64.isEmpty()) {
+                    /* Salva snapshot undo prima di modificare */
+                    m_undoHtmlStack.push(m_log->toHtml());
+                    /* Sostituisce il base64 originale nell'href con il testo aggiornato */
+                    const QString newB64 = newText.left(4096).toUtf8().toBase64(
+                        QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+                    QString html = m_log->toHtml();
+                    /* Aggiorna tutti i link della bolla che contengono il b64 originale */
+                    html.replace(origB64, newB64);
+                    m_log->setHtml(html);
+                    m_log->moveCursor(QTextCursor::End);
+                }
+                dlg->accept();
+            });
+            connect(btnBox, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+
+            dlg->exec();
+            dlg->deleteLater();
             return;
         }
 
@@ -1081,7 +1133,12 @@ void AgentiPage::setupUI() {
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::_sttStartRecording()
 {
-    const QString wavPath = QDir::tempPath() + "/prisma_stt_in.wav";
+    /* Nome univoco per sessione (timestamp): evita conflitti tra registrazioni
+       concorrenti e rende il path non predicibile a priori da altri processi. */
+    const QString wavPath = PrismaluxPaths::safeTempPath()
+        + "/prisma_stt_"
+        + QString::number(QDateTime::currentMSecsSinceEpoch())
+        + ".wav";
     QFile::remove(wavPath);
 
     m_sttState = SttState::Recording;
@@ -1558,37 +1615,42 @@ void AgentiPage::_extractPdfPython(
     std::function<void(const QString&)> onText)
 {
     const QString python = PrismaluxPaths::findPython();
-    const QString script = QDir::tempPath() + "/prisma_pdf_extract.py";
 
-    {
-        QFile sf(script);
-        if (!sf.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            m_log->append("\xe2\x9d\x8c  Impossibile creare script Python temporaneo.");
-            return;
-        }
-        QTextStream ts(&sf);
-        ts << "import sys\n"
-           << "try:\n"
-           << "    from pypdf import PdfReader\n"
-           << "except ImportError:\n"
-           << "    from PyPDF2 import PdfReader\n"
-           << "r = PdfReader(sys.argv[1])\n"
-           << "print(''.join(p.extract_text() or '' for p in r.pages))\n";
+    /* QTemporaryFile: nome casuale → immune a TOCTOU targeting di nomi fissi.
+       autoRemove=false: il file viene rimosso manualmente nel lambda finished
+       così rimane disponibile per tutta la durata del QProcess. */
+    auto* tmpScript = new QTemporaryFile(
+        PrismaluxPaths::safeTempPath() + "/prisma_pdf_XXXXXX.py", this);
+    tmpScript->setAutoRemove(false);
+    if (!tmpScript->open()) {
+        m_log->append("\xe2\x9d\x8c  Impossibile creare script Python temporaneo.");
+        return;
     }
+    QTextStream ts(tmpScript);
+    ts << "import sys\n"
+       << "try:\n"
+       << "    from pypdf import PdfReader\n"
+       << "except ImportError:\n"
+       << "    from PyPDF2 import PdfReader\n"
+       << "r = PdfReader(sys.argv[1])\n"
+       << "print(''.join(p.extract_text() or '' for p in r.pages))\n";
+    tmpScript->close();
+    const QString script = tmpScript->fileName();
 
     auto* proc = new QProcess(this);
     proc->start(python, {script, filePath});
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, proc, script, onText](int code, QProcess::ExitStatus) {
+            this, [this, proc, tmpScript, onText](int code, QProcess::ExitStatus) {
         const QString text = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
         proc->deleteLater();
-        QFile::remove(script);
+        tmpScript->remove();   /* rimuove il file dal disco */
+        tmpScript->deleteLater();
         if (code == 0 && !text.isEmpty()) {
             onText(text);
         } else {
             m_log->append(
                 "\xe2\x9a\xa0  Estrazione PDF fallita.<br>"
-                "Installa <code>pypdf</code>: già incluso in "
+                "Installa <code>pypdf</code>: gi\xc3\xa0 incluso in "
                 "<code>requirements_python.txt</code>.<br>"
                 "Su Windows lancia <code>Avvia_Prismalux.bat</code> "
                 "per installarlo automaticamente.");
@@ -1606,15 +1668,16 @@ void AgentiPage::_extractXlsPython(
     std::function<void(const QString&)> onText)
 {
     const QString python = PrismaluxPaths::findPython();
-    const QString script = QDir::tempPath() + "/prisma_xls_convert.py";
 
+    auto* tmpScript = new QTemporaryFile(
+        PrismaluxPaths::safeTempPath() + "/prisma_xls_XXXXXX.py", this);
+    tmpScript->setAutoRemove(false);
+    if (!tmpScript->open()) {
+        m_log->append("\xe2\x9d\x8c  Impossibile creare script Python temporaneo.");
+        return;
+    }
     {
-        QFile sf(script);
-        if (!sf.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            m_log->append("\xe2\x9d\x8c  Impossibile creare script Python temporaneo.");
-            return;
-        }
-        QTextStream ts(&sf);
+        QTextStream ts(tmpScript);
         ts << "import sys, csv, io\n"
            << "path = sys.argv[1]\n"
            << "try:\n"
@@ -1636,14 +1699,17 @@ void AgentiPage::_extractXlsPython(
            << "        w.writerow([str(ws.cell_value(i,j)) for j in range(ws.ncols)])\n"
            << "    print(out.getvalue(), end='')\n";
     }
+    tmpScript->close();
+    const QString script = tmpScript->fileName();
 
     auto* proc = new QProcess(this);
     proc->start(python, {script, filePath});
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, proc, filePath, script, onText](int code, QProcess::ExitStatus) {
+            this, [this, proc, filePath, tmpScript, onText](int code, QProcess::ExitStatus) {
         const QString text = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
         proc->deleteLater();
-        QFile::remove(script);
+        tmpScript->remove();
+        tmpScript->deleteLater();
         if (code == 0 && !text.isEmpty()) {
             onText(text);
         } else {
@@ -1823,9 +1889,31 @@ void AgentiPage::_loadAudioAsText(const QString& filePath)
 }
 
 /* ══════════════════════════════════════════════════════════════
+   _isEmbeddingModel — restituisce true se il modello è di embedding
+   (non supporta /api/chat e non deve essere usato dalla pipeline).
+   Pattern coperti: nomic-embed-text, mxbai-embed, all-minilm,
+   bge-*, snowflake-arctic-embed, granite-embedding, *-embed-*, ecc.
+   ══════════════════════════════════════════════════════════════ */
+static bool _isEmbeddingModel(const QString& name) {
+    const QString lo = name.toLower();
+    return lo.contains("embed")    ||
+           lo.contains("minilm")   ||
+           lo.startsWith("bge-")   ||
+           lo.contains("rerank")   ||
+           lo.contains("colbert");
+}
+
+/* ══════════════════════════════════════════════════════════════
    onModelsReady — aggiorna combo modelli nel dialog
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::onModelsReady(const QStringList& list) {
+    /* Rimuove i modelli di embedding dalla lista: non supportano /api/chat
+       e causano errore "does not support chat" se selezionati. */
+    QStringList chatOnly;
+    for (const QString& m : list)
+        if (!_isEmbeddingModel(m)) chatOnly << m;
+    /* Se il filtro elimina tutto (improbabile), usa la lista originale */
+    const QStringList& list_ref = chatOnly.isEmpty() ? list : chatOnly;
     /* Con llama.cpp (server) i modelli da configurare sono i file GGUF locali,
        non il singolo modello correntemente caricato nel server.
        L'utente sceglie quale GGUF assegnare ad ogni agente;
@@ -1849,7 +1937,7 @@ void AgentiPage::onModelsReady(const QStringList& list) {
         QStringList ggufNames;
         for (const QString& path : P::scanGgufFiles())
             ggufNames << QFileInfo(path).fileName();
-        const QStringList effective = ggufNames.isEmpty() ? list : ggufNames;
+        const QStringList effective = ggufNames.isEmpty() ? list_ref : ggufNames;
         m_cfgDlg->setModels(effective);
         populateLLMCombo(effective);
         /* Con llama.cpp un solo modello può girare alla volta — auto-assign non ha senso */
@@ -1862,7 +1950,7 @@ void AgentiPage::onModelsReady(const QStringList& list) {
     }
 
     /* ── Nessun modello: Ollama non e' in esecuzione ── */
-    if (list.isEmpty()) {
+    if (list_ref.isEmpty()) {
         /* Mostra placeholder nel combo invece di lasciarlo vuoto */
         if (m_cmbLLM) {
             m_cmbLLM->blockSignals(true);
@@ -1883,12 +1971,12 @@ void AgentiPage::onModelsReady(const QStringList& list) {
     /* Se in precedenza era disabilitato per lista vuota, riabilitalo */
     if (m_cmbLLM) m_cmbLLM->setEnabled(true);
 
-    m_cfgDlg->setModels(list);
-    populateLLMCombo(list);
+    m_cfgDlg->setModels(list_ref);
+    populateLLMCombo(list_ref);
 
     /* ── Auto-assegna: sempre abilitato.
        Se VRAM benchmark mancante, cliccarlo apre direttamente le impostazioni Hardware. ── */
-    const bool canAutoAssign = list.size() > 1;
+    const bool canAutoAssign = list_ref.size() > 1;
     const bool hasVramProfile = QFileInfo::exists(P::vramProfilePath());
     m_btnAuto->setEnabled(true);
     if (!hasVramProfile) {
@@ -2940,8 +3028,24 @@ void AgentiPage::runAgent(int idx) {
 
     QString selectedModel = m_cfgDlg->modelCombo(idx)->currentData().toString();
     if (selectedModel.isEmpty()) selectedModel = m_cfgDlg->modelCombo(idx)->currentText();
-    if (!selectedModel.isEmpty() && selectedModel != "(nessun modello)")
+
+    /* Sicurezza: se il modello è di embedding (non-chat) o non valido,
+       ricade sul modello selezionato nel combo LLM principale. */
+    if (selectedModel.isEmpty()
+        || selectedModel == "(nessun modello)"
+        || _isEmbeddingModel(selectedModel))
+    {
+        const QString fallback = m_cmbLLM ? m_cmbLLM->currentText() : QString();
+        if (!fallback.isEmpty() && !_isEmbeddingModel(fallback))
+            selectedModel = fallback;
+    }
+
+    if (!selectedModel.isEmpty()
+        && selectedModel != "(nessun modello)"
+        && !_isEmbeddingModel(selectedModel))
+    {
         m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), selectedModel);
+    }
 
     QString ts = QTime::currentTime().toString("HH:mm:ss");
 
@@ -3283,6 +3387,10 @@ QString AgentiPage::buildLocalBubble(const QString& result, double ms, int bubbl
         actionBar +=
               "<a href='copy:" + id + ":" + b64 + "' style='" + linkStyle + "'>"
                 "\xf0\x9f\x97\x82</a>"
+              " &nbsp; "
+              "<a href='edit:" + id + ":" + b64 + "' style='" + linkStyle + "' "
+                 "title='Modifica e reinvia'>"
+                "\xe2\x9c\x8f\xef\xb8\x8f</a>"
               " &nbsp; "
               "<a href='tts:" + id + ":" + b64 + "' style='" + linkStyle + "'>"
                 "\xf0\x9f\x8e\x99</a>"
@@ -3783,9 +3891,17 @@ void AgentiPage::onFinished(const QString& /*full*/) {
             /* Corregge i bug tipici nei codici generati dall'AI */
             pyCode = _sanitizePyCode(pyCode);
 
-            /* Scrivi il codice in un file temporaneo */
-            QString tmpPath = QDir::tempPath() + "/prismalux_exec.py";
-            { QFile f(tmpPath); if (f.open(QIODevice::WriteOnly|QIODevice::Text)) f.write(pyCode.toUtf8()); }
+            /* Scrivi il codice in un file temporaneo con nome casuale (anti-TOCTOU).
+               autoRemove=false: il file rimane su disco dopo close()/delete dell'oggetto.
+               Viene rimosso dai QFile::remove(tmpPath) nei lambda finished sottostanti. */
+            QTemporaryFile execTmp(
+                PrismaluxPaths::safeTempPath() + "/prisma_exec_XXXXXX.py");
+            execTmp.setAutoRemove(false);
+            if (!execTmp.open()) break;
+            execTmp.write(pyCode.toUtf8());
+            execTmp.close();
+            const QString tmpPath = execTmp.fileName();
+            /* execTmp distrutto qui — handle chiuso, file resta su disco */
 
             m_executorOutput.clear();
             if (m_execProc) { m_execProc->kill(); m_execProc->deleteLater(); m_execProc = nullptr; }
@@ -3851,7 +3967,8 @@ void AgentiPage::onFinished(const QString& /*full*/) {
                                 m_executorOutput = out2;
                                 QTextCursor c2(m_log->document());
                                 c2.movePosition(QTextCursor::End);
-                                c2.insertHtml(buildToolStrip(QString(), out2, rc2, ms2));
+                                c2.insertHtml(buildToolStrip(QString(),
+                                    PrismaluxPaths::sanitizeErrorOutput(out2), rc2, ms2));
                                 if (!m_userScrolled) m_log->ensureCursorVisible();
                                 if (m_cfgDlg->controllerEnabled())
                                     runPipelineController();
@@ -3882,10 +3999,14 @@ void AgentiPage::onFinished(const QString& /*full*/) {
                 QFile::remove(tmpPath);
                 m_executorOutput = out;
 
+                /* Tronca traceback eccessivamente lunghi prima di mostrarli in UI.
+                   L'output completo è in m_executorOutput per il controller LLM. */
+                const QString outDisplay = PrismaluxPaths::sanitizeErrorOutput(out);
+
                 /* Inserisce la tool strip nel log */
                 QTextCursor c(m_log->document());
                 c.movePosition(QTextCursor::End);
-                c.insertHtml(buildToolStrip(QString(), out, exitCode, ms));
+                c.insertHtml(buildToolStrip(QString(), outDisplay, exitCode, ms));
                 if (!m_userScrolled) {
                     m_suppressScrollSig = true;
                     m_log->ensureCursorVisible();

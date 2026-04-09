@@ -5,11 +5,70 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QUrl>
+#include <QDir>
+#include <QFile>
+#include <QStandardPaths>
 
+/* ══════════════════════════════════════════════════════════════
+   AiChatParams — unica fonte ~/.prismalux/ai_params.json
+   ══════════════════════════════════════════════════════════════ */
+QString AiChatParams::filePath()
+{
+    return QDir::homePath() + "/.prismalux/ai_params.json";
+}
+
+AiChatParams AiChatParams::load()
+{
+    AiChatParams p;   /* struct con i default Brutal Honesty come valori iniziali */
+
+    QFile f(filePath());
+    if (!f.exists()) {
+        /* Prima esecuzione: crea il file con i default */
+        save(p);
+        return p;
+    }
+    if (!f.open(QIODevice::ReadOnly)) return p;
+
+    const QJsonObject obj = QJsonDocument::fromJson(f.readAll()).object();
+    if (obj.contains("temperature"))    p.temperature    = obj["temperature"].toDouble(p.temperature);
+    if (obj.contains("top_p"))          p.top_p          = obj["top_p"].toDouble(p.top_p);
+    if (obj.contains("top_k"))          p.top_k          = obj["top_k"].toInt(p.top_k);
+    if (obj.contains("repeat_penalty")) p.repeat_penalty = obj["repeat_penalty"].toDouble(p.repeat_penalty);
+    if (obj.contains("num_predict"))    p.num_predict    = obj["num_predict"].toInt(p.num_predict);
+    if (obj.contains("num_ctx"))        p.num_ctx        = obj["num_ctx"].toInt(p.num_ctx);
+    if (obj.contains("honesty_prefix")) p.honesty_prefix = obj["honesty_prefix"].toBool(p.honesty_prefix);
+    return p;
+}
+
+void AiChatParams::save(const AiChatParams& p)
+{
+    /* Crea la cartella se non esiste */
+    QDir().mkpath(QDir::homePath() + "/.prismalux");
+
+    QJsonObject obj;
+    obj["temperature"]    = p.temperature;
+    obj["top_p"]          = p.top_p;
+    obj["top_k"]          = p.top_k;
+    obj["repeat_penalty"] = p.repeat_penalty;
+    obj["num_predict"]    = p.num_predict;
+    obj["num_ctx"]        = p.num_ctx;
+    obj["honesty_prefix"] = p.honesty_prefix;
+
+    QFile f(filePath());
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        f.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   AiClient — costruttore
+   ══════════════════════════════════════════════════════════════ */
 AiClient::AiClient(QObject* parent)
     : QObject(parent)
     , m_nam(new QNetworkAccessManager(this))
-{}
+{
+    /* Carica i parametri dall'unica fonte: ~/.prismalux/ai_params.json */
+    m_params = AiChatParams::load();
+}
 
 /* ── Anti-data-leak: verifica che l'host sia localhost ───────────────────
    Prismalux comunica solo con AI locali (Ollama / llama-server su loopback).
@@ -165,6 +224,21 @@ void AiClient::unloadModel() {
     connect(r, &QNetworkReply::finished, r, &QNetworkReply::deleteLater);
 }
 
+/* ── Prefisso di onestà assoluta (brutal honesty) ────────────────
+   Viene preposto a TUTTI i system prompt quando honesty_prefix=true.
+   Il modello riceve l'istruzione esplicita di ammettere incertezza
+   invece di inventare fatti, numeri o citazioni.
+   ──────────────────────────────────────────────────────────────── */
+static const char* kHonestyPrefix =
+    "REGOLA ASSOLUTA (non derogabile): rispondi SOLO con fatti verificati e certi. "
+    "Se non conosci qualcosa con certezza, dì esplicitamente "
+    "\"Non lo so\" o \"Non ne sono certo\". "
+    "Non inventare MAI numeri, date, nomi, citazioni, studi o fonti. "
+    "Se un dato manca, dì che manca. Preferisci una risposta incompleta ma vera "
+    "a una risposta completa ma inventata. "
+    "Non speculare. Non completare lacune con supposizioni. "
+    "Rispondi SEMPRE e SOLO in italiano.\n\n";
+
 /* ── chat ────────────────────────────────────────────────────── */
 void AiClient::chat(const QString& systemPrompt, const QString& userMsg) {
     if (busy()) return;
@@ -200,19 +274,27 @@ void AiClient::chat(const QString& systemPrompt, const QString& userMsg) {
         m_localBusy  = true;
         m_localAccum.clear();
 
+        /* Prependi prefisso di onestà anche nel backend locale */
+        QString effectiveSysLocal = systemPrompt;
+        if (m_params.honesty_prefix)
+            effectiveSysLocal = QString(kHonestyPrefix) + effectiveSysLocal;
+
         /* Costruisce il prompt ChatML */
         QString prompt;
-        if (!systemPrompt.isEmpty())
-            prompt += "<|im_start|>system\n" + systemPrompt + "\n<|im_end|>\n";
+        if (!effectiveSysLocal.isEmpty())
+            prompt += "<|im_start|>system\n" + effectiveSysLocal + "\n<|im_end|>\n";
         prompt += "<|im_start|>user\n" + userMsg + "\n<|im_end|>\n<|im_start|>assistant\n";
 
-        /* Argomenti llama-cli */
+        /* Argomenti llama-cli — tutti i parametri da ai_params.json (nessun valore hardcoded) */
         QStringList args = {
             "-m", m_localModel,
             "-p", prompt,
-            "-n", "1024",
-            "--temp", "0.3",
-            "--repeat-penalty", "1.2",
+            "-n",              QString::number(m_params.num_predict),
+            "--ctx-size",      QString::number(m_params.num_ctx),
+            "--temp",          QString::number(m_params.temperature, 'f', 3),
+            "--top-p",         QString::number(m_params.top_p,       'f', 3),
+            "--top-k",         QString::number(m_params.top_k),
+            "--repeat-penalty",QString::number(m_params.repeat_penalty, 'f', 3),
             "--no-display-prompt",
             "-no-cnv",
             "--log-disable"
@@ -243,17 +325,41 @@ void AiClient::chat(const QString& systemPrompt, const QString& userMsg) {
     m_busy_guard = true;   /* poi setta il guard (abort() lo resetta a false) */
     m_accum.clear();
 
+    /* Prependi il prefisso di onestà al system prompt (se abilitato) */
+    QString effectiveSys = systemPrompt;
+    if (m_params.honesty_prefix) {
+        effectiveSys = QString(kHonestyPrefix) + effectiveSys;
+    }
+
     QJsonObject body;
     body["model"]  = m_model;
     body["stream"] = true;
     QJsonArray messages;
-    if (!systemPrompt.isEmpty()) {
-        QJsonObject sys; sys["role"] = "system"; sys["content"] = systemPrompt;
+    if (!effectiveSys.isEmpty()) {
+        QJsonObject sys; sys["role"] = "system"; sys["content"] = effectiveSys;
         messages.append(sys);
     }
     QJsonObject usr; usr["role"] = "user"; usr["content"] = userMsg;
     messages.append(usr);
     body["messages"] = messages;
+
+    /* ── Parametri anti-allucinazione ── */
+    if (m_backend == Ollama) {
+        QJsonObject opts;
+        opts["temperature"]    = m_params.temperature;
+        opts["top_p"]          = m_params.top_p;
+        opts["top_k"]          = m_params.top_k;
+        opts["repeat_penalty"] = m_params.repeat_penalty;
+        opts["num_predict"]    = m_params.num_predict;
+        opts["num_ctx"]        = m_params.num_ctx;
+        body["options"] = opts;
+    } else {
+        /* llama-server usa il formato OpenAI */
+        body["temperature"]    = m_params.temperature;
+        body["top_p"]          = m_params.top_p;
+        body["repeat_penalty"] = m_params.repeat_penalty;
+        body["max_tokens"]     = m_params.num_predict;
+    }
 
     /* keep_alive dinamico (solo Ollama): determina per quanto tempo il modello
      * rimane in memoria dopo la risposta, in base alla RAM libera attuale.
@@ -305,9 +411,15 @@ void AiClient::chatWithImage(const QString& systemPrompt, const QString& userMsg
     body["model"]  = m_model;
     body["stream"] = true;
 
+    /* Prependi il prefisso di onestà anche alle chiamate con immagine */
+    QString effectiveSysImg = systemPrompt;
+    if (m_params.honesty_prefix) {
+        effectiveSysImg = QString(kHonestyPrefix) + effectiveSysImg;
+    }
+
     QJsonArray messages;
-    if (!systemPrompt.isEmpty()) {
-        QJsonObject sys; sys["role"] = "system"; sys["content"] = systemPrompt;
+    if (!effectiveSysImg.isEmpty()) {
+        QJsonObject sys; sys["role"] = "system"; sys["content"] = effectiveSysImg;
         messages.append(sys);
     }
 
@@ -458,4 +570,68 @@ void AiClient::onFinished() {
     m_modelLoaded = true;
     r->deleteLater();
     emit finished(m_accum);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   fetchEmbedding — richiede l'embedding vettoriale di @p text.
+   Ollama:      POST /api/embeddings  { "model": ..., "prompt": ... }
+                risposta: { "embedding": [f1, f2, ...] }
+   llama-server: POST /v1/embeddings  { "model": ..., "input": ... }
+                risposta: { "data": [{ "embedding": [...] }] }
+   Non blocca il thread UI; emette embeddingReady o embeddingError.
+   ══════════════════════════════════════════════════════════════ */
+void AiClient::fetchEmbedding(const QString& text) {
+    if (m_backend == LlamaLocal) {
+        emit embeddingError("Embedding non disponibile con llama.cpp locale (serve Ollama o llama-server)");
+        return;
+    }
+
+    QString urlStr;
+    QJsonObject body;
+    if (m_backend == Ollama) {
+        urlStr = QString("http://%1:%2/api/embeddings").arg(m_host).arg(m_port);
+        body["model"]  = m_model;
+        body["prompt"] = text;
+    } else {
+        urlStr = QString("http://%1:%2/v1/embeddings").arg(m_host).arg(m_port);
+        body["model"] = m_model;
+        body["input"] = text;
+    }
+
+    QUrl embedUrl(urlStr);
+    QNetworkRequest req(embedUrl);
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    QNetworkReply* reply = m_nam->post(req,
+        QJsonDocument(body).toJson(QJsonDocument::Compact));
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit embeddingError(reply->errorString());
+            return;
+        }
+        const QJsonObject obj =
+            QJsonDocument::fromJson(reply->readAll()).object();
+
+        /* Estrai il vettore — formato Ollama o OpenAI */
+        QJsonArray arr;
+        if (obj.contains("embedding")) {
+            arr = obj["embedding"].toArray();
+        } else if (obj.contains("data")) {
+            const QJsonArray data = obj["data"].toArray();
+            if (!data.isEmpty())
+                arr = data.first().toObject()["embedding"].toArray();
+        }
+
+        if (arr.isEmpty()) {
+            emit embeddingError("Nessun embedding nella risposta del backend");
+            return;
+        }
+
+        QVector<float> vec;
+        vec.reserve(arr.size());
+        for (const QJsonValue& v : arr)
+            vec.append((float)v.toDouble());
+        emit embeddingReady(vec);
+    });
 }

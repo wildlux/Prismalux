@@ -9,6 +9,10 @@
 #include <QDoubleSpinBox>
 #include <QSpinBox>
 #include <QTextBrowser>
+#include <QMenu>
+#include <QGuiApplication>
+#include <QClipboard>
+#include <QProcess>
 #include <memory>
 #include <cmath>
 /* ══════════════════════════════════════════════════════════════
@@ -42,6 +46,26 @@ QWidget* PraticoPage::buildChat(const QString& title,
     log->setReadOnly(true);
     log->setPlaceholderText(placeholder);
     lay->addWidget(log, 1);
+
+    /* ── Context menu: copia / leggi ── */
+    log->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(log, &QTextEdit::customContextMenuRequested, w, [log](const QPoint& pos){
+        const QString sel   = log->textCursor().selectedText();
+        const bool hasSel   = !sel.isEmpty();
+        const QString label = hasSel ? "selezione" : "tutto";
+        QMenu menu(log);
+        QAction* actCopy = menu.addAction("\xf0\x9f\x97\x82  Copia " + label);
+        QAction* actRead = menu.addAction("\xf0\x9f\x8e\x99  Leggi " + label);
+        QAction* chosen  = menu.exec(log->mapToGlobal(pos));
+        const QString txt = hasSel ? sel : log->toPlainText();
+        if (chosen == actCopy) {
+            QGuiApplication::clipboard()->setText(txt);
+        } else if (chosen == actRead) {
+            QStringList words = txt.split(' ', Qt::SkipEmptyParts);
+            if (words.size() > 400) words = words.mid(words.size() - 400);
+            QProcess::startDetached("espeak-ng", {"-v", "it+f3", "--punct=none", words.join(" ")});
+        }
+    });
 
     /* Indicatore elaborazione */
     auto* waitLbl = new QLabel("\xe2\x8f\xb3  Elaborazione in corso...", w);

@@ -32,6 +32,7 @@ set(CPP_SRCS
     ai_client.cpp
     theme_manager.cpp
     chat_history.cpp
+    rag_engine.cpp
     pages/agenti_page.cpp
     pages/agents_config_dialog.cpp
     pages/pratico_page.cpp
@@ -58,14 +59,13 @@ set(CPP_SRCS
     widgets/status_badge.h
     widgets/chat_bubble.h
     widgets/chart_widget.h
+    widgets/toggle_switch.h
     widgets/whisper_autosetup.h
+    widgets/code_highlighter.h
+    widgets/python_exec.h
 )
 
-set(QRC_FILES
-    themes/themes.qrc
-)
-
-add_executable(Prismalux_GUI ${CPP_SRCS} ${C_SRCS} ${QRC_FILES})
+add_executable(Prismalux_GUI ${CPP_SRCS} ${C_SRCS})
 
 target_include_directories(Prismalux_GUI PRIVATE
     ${CMAKE_SOURCE_DIR}
@@ -103,8 +103,14 @@ else()
     target_compile_options(Prismalux_GUI PRIVATE -Wno-overflow)
 endif()
 
-# Copia il foglio stile nella directory di build
-configure_file(style.qss ${CMAKE_BINARY_DIR}/style.qss COPYONLY)
+# Copia la cartella themes/ accanto all'eseguibile dopo ogni build.
+# I file .qss vengono letti da disco a runtime — nessun QRC embedded.
+add_custom_command(TARGET Prismalux_GUI POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/themes
+        $<TARGET_FILE_DIR:Prismalux_GUI>/themes
+    COMMENT "Copio themes/ nella build dir..."
+)
 
 message(STATUS "Prismalux GUI: grafico_page include SmithPrime (idx 7) + MathConst-pi-e-Primi (idx 8)")
 
@@ -134,7 +140,6 @@ if(BUILD_TESTS)
         tests/mock_ai_client.h
         ${TEST_SHARED_SRCS}
         ${C_SRCS}
-        ${QRC_FILES}
     )
     target_include_directories(test_signal_lifetime PRIVATE
         ${CMAKE_SOURCE_DIR}

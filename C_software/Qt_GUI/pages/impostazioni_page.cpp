@@ -18,6 +18,7 @@
 #include <QLineEdit>
 #include <QComboBox>
 #include <QSpinBox>
+#include <QDoubleSpinBox>
 #include <QSettings>
 #include <QDir>
 #include <QDirIterator>
@@ -30,10 +31,16 @@
 #include <QCoreApplication>
 #include <QTimer>
 #include <QRadioButton>
+#include <QCheckBox>
 #include <QListWidget>
 #include <QGroupBox>
 #include <QPlainTextEdit>
 #include <QThread>
+#include <functional>
+#include <QStackedWidget>
+#include <QColorDialog>
+#include <QPainter>
+#include <QPen>
 
 /* ══════════════════════════════════════════════════════════════
    ImpostazioniPage — 6 tab tematiche (da 11 originali).
@@ -170,6 +177,17 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
         tabs->addTab(scroll, "\xf0\x9f\xa7\xaa  Test");
     }
 
+    /* ────────────────────────────────────────────────────────────
+       Tab 9: ⚙️ Parametri AI — temperature, repeat_penalty, ecc.
+       ──────────────────────────────────────────────────────────── */
+    {
+        auto* scroll = new QScrollArea;
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setWidget(buildAiParamsTab());
+        tabs->addTab(scroll, "\xe2\x9a\x99\xef\xb8\x8f  Parametri AI");
+    }
+
     lay->addWidget(tabs);
 }
 
@@ -190,6 +208,109 @@ void ImpostazioniPage::switchToTab(const QString& name)
 }
 
 /* ══════════════════════════════════════════════════════════════
+   ChartPreviewWidget — mini bar chart con i colori del ChartStyle.
+   Nessun Q_OBJECT: ridisegna via paintEvent ogni volta che il canvas
+   emette update() oppure viene chiamato refresh() esplicitamente.
+   ══════════════════════════════════════════════════════════════ */
+class ChartPreviewWidget : public QWidget {
+public:
+    GraficoCanvas* m_canvas = nullptr;
+
+    explicit ChartPreviewWidget(GraficoCanvas* canvas, QWidget* parent = nullptr)
+        : QWidget(parent), m_canvas(canvas)
+    {
+        setFixedHeight(140);
+        setMinimumWidth(240);
+    }
+
+    void refresh() { update(); }
+
+protected:
+    void paintEvent(QPaintEvent*) override
+    {
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing);
+
+        GraficoCanvas::ChartStyle def;
+        const GraficoCanvas::ChartStyle& s = m_canvas ? m_canvas->style() : def;
+
+        const QRect r = rect();
+
+        // sfondo
+        p.fillRect(r, s.bgColor);
+
+        // cornice sottile
+        p.setPen(QPen(s.axisColor, 1));
+        p.drawRect(r.adjusted(0, 0, -1, -1));
+
+        // margini area di disegno
+        const int lm = 36, bm = 20, tm = 14, rm = 12;
+        const int xA = r.left()  + lm;
+        const int yA = r.bottom() - bm;
+        const int xR = r.right() - rm;
+        const int yT = r.top()   + tm;
+        const int plotH = yA - yT;
+        const int plotW = xR - xA;
+
+        // griglia orizzontale
+        if (s.showGrid) {
+            p.setPen(QPen(s.gridColor, 1, Qt::DotLine));
+            const int nLines = 4;
+            for (int i = 1; i <= nLines; i++) {
+                int gy = yA - i * plotH / nLines;
+                p.drawLine(xA, gy, xR, gy);
+            }
+        }
+
+        // etichette asse Y
+        QFont fLbl;
+        fLbl.setPointSize(7);
+        p.setFont(fLbl);
+        p.setPen(s.textColor);
+        const int nTicks = 4;
+        for (int i = 0; i <= nTicks; i++) {
+            int gy = yA - i * plotH / nTicks;
+            p.drawText(r.left() + 2, gy + 4, QString::number(i * 25));
+            // tick
+            p.setPen(QPen(s.axisColor, 1));
+            p.drawLine(xA - 3, gy, xA, gy);
+            p.setPen(s.textColor);
+        }
+
+        // assi
+        p.setPen(QPen(s.axisColor, 1.5));
+        p.drawLine(xA, yT, xA, yA);    // asse Y
+        p.drawLine(xA, yA, xR, yA);    // asse X
+
+        // barre campione (6 valori fissi)
+        static const double kVals[] = { 0.55, 0.80, 0.35, 0.90, 0.65, 0.45 };
+        const int N = 6;
+        static const QColor kDefPal[] = {
+            {0x00,0xbf,0xd8},{0xff,0x79,0x5a},{0x73,0xe2,0x73},
+            {0xff,0xd7,0x6e},{0xb0,0x90,0xff},{0xff,0x82,0xc2}
+        };
+        const int gap = 4;
+        const int barW = (plotW - gap * (N + 1)) / N;
+        for (int i = 0; i < N; i++) {
+            QColor c = (!s.palette.isEmpty() && i < s.palette.size())
+                        ? s.palette[i] : kDefPal[i];
+            int bh = int(kVals[i] * plotH);
+            int bx = xA + gap + i * (barW + gap);
+            p.fillRect(bx, yA - bh, barW, bh, c);
+        }
+
+        // etichetta "anteprima" in basso a destra
+        p.setPen(s.textColor.darker(110));
+        QFont fIt;
+        fIt.setPointSize(7);
+        fIt.setItalic(true);
+        p.setFont(fIt);
+        p.drawText(r.adjusted(0, 0, -rm, -3),
+                   Qt::AlignBottom | Qt::AlignRight, "anteprima stile");
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
    buildGraficoTab — controlli posizione assi 2D e 3D
    ══════════════════════════════════════════════════════════════ */
 QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
@@ -202,52 +323,452 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
         "\xe2\x86\x97  Alto destra"
     };
 
-    auto* page   = new QWidget;
-    auto* outer  = new QVBoxLayout(page);
-    outer->setContentsMargins(20, 20, 20, 20);
+    /* ── Helper: bottone color picker ──────────────────────────────
+       Mostra il colore attuale come sfondo; click apre QColorDialog.
+       onChange(QColor) viene chiamato ogni volta che il colore cambia. */
+    auto makeColorBtn = [](QWidget* parent, QColor initial,
+                           std::function<void(QColor)> onChange) -> QPushButton* {
+        auto* btn = new QPushButton(parent);
+        btn->setFixedSize(44, 26);
+        auto applyColor = [btn](QColor c) {
+            btn->setStyleSheet(
+                QString("QPushButton { background:%1; border:1px solid rgba(255,255,255,0.25);"
+                        " border-radius:4px; }").arg(c.name()));
+            btn->setProperty("currentColor", c.name());
+        };
+        applyColor(initial);
+        QObject::connect(btn, &QPushButton::clicked, btn,
+            [btn, onChange, applyColor]() {
+                QColor cur = QColor(btn->property("currentColor").toString());
+                QColor c   = QColorDialog::getColor(cur, btn, "Scegli colore",
+                                                    QColorDialog::ShowAlphaChannel);
+                if (c.isValid()) { applyColor(c); onChange(c); }
+            });
+        return btn;
+    };
+
+    /* ── Preview widget — creato prima di saveStyle per poterlo catturare ── */
+    auto* preview = new ChartPreviewWidget(canvas);
+
+    /* ── Helper: salva stile in QSettings + aggiorna preview ── */
+    auto saveStyle = [canvas, preview]() {
+        if (!canvas) return;
+        const auto& s = canvas->style();
+        QSettings cfg("Prismalux", "GUI");
+        cfg.beginGroup("ChartStyle");
+        cfg.setValue("bgColor",   s.bgColor.name(QColor::HexArgb));
+        cfg.setValue("axisColor", s.axisColor.name(QColor::HexArgb));
+        cfg.setValue("gridColor", s.gridColor.name(QColor::HexArgb));
+        cfg.setValue("textColor", s.textColor.name(QColor::HexArgb));
+        cfg.setValue("fontFamily",s.fontFamily);
+        cfg.setValue("fontSize",  s.fontSize);
+        cfg.setValue("showGrid",  s.showGrid);
+        QStringList pal;
+        for (const QColor& c : s.palette) pal << c.name(QColor::HexArgb);
+        cfg.setValue("palette", pal);
+        cfg.endGroup();
+        if (preview) preview->refresh();
+    };
+
+    /* ── Carica stile salvato all'avvio ── */
+    if (canvas) {
+        QSettings cfg("Prismalux", "GUI");
+        cfg.beginGroup("ChartStyle");
+        GraficoCanvas::ChartStyle s;
+        auto loadColor = [&](const char* key, QColor def) {
+            QString v = cfg.value(key).toString();
+            return v.isEmpty() ? def : QColor(v);
+        };
+        s.bgColor    = loadColor("bgColor",   s.bgColor);
+        s.axisColor  = loadColor("axisColor", s.axisColor);
+        s.gridColor  = loadColor("gridColor", s.gridColor);
+        s.textColor  = loadColor("textColor", s.textColor);
+        s.fontFamily = cfg.value("fontFamily", s.fontFamily).toString();
+        s.fontSize   = cfg.value("fontSize",   s.fontSize).toInt();
+        s.showGrid   = cfg.value("showGrid",   s.showGrid).toBool();
+        const QStringList pal = cfg.value("palette").toStringList();
+        for (const QString& c : pal) s.palette << QColor(c);
+        cfg.endGroup();
+        canvas->setStyle(s);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Layout principale: scroll area verticale
+       ═══════════════════════════════════════════════════════════════ */
+    auto* page  = new QWidget;
+    auto* scroll= new QScrollArea(page);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    auto* rootLay = new QVBoxLayout(page);
+    rootLay->setContentsMargins(0,0,0,0);
+    rootLay->addWidget(scroll);
+
+    auto* inner = new QWidget;
+    auto* outer = new QVBoxLayout(inner);
+    outer->setContentsMargins(20,20,20,20);
     outer->setSpacing(16);
+    scroll->setWidget(inner);
 
-    /* Titolo */
-    auto* title = new QLabel("\xf0\x9f\x93\x88  Posizione assi — Grafico");
-    title->setObjectName("sectionTitle");
-    outer->addWidget(title);
+    /* ── Sezione 0: Anteprima stile ───────────────────────────── */
+    auto* prevCard = new QFrame(inner);
+    prevCard->setObjectName("cardFrame");
+    auto* prevLay  = new QVBoxLayout(prevCard);
+    prevLay->setContentsMargins(14,12,14,12);
+    prevLay->setSpacing(8);
 
-    /* Descrizione */
-    auto* desc = new QLabel(
-        "Scegli dove visualizzare i gizmo degli assi cartesiani "
-        "nei grafici 2D (Cartesiano, Scatter) e 3D (Scatter 3D, Grafo 3D).");
-    desc->setWordWrap(true);
-    desc->setObjectName("hintLabel");
-    outer->addWidget(desc);
+    auto* prevTitle = new QLabel("\xf0\x9f\x96\xbc  Anteprima stile", prevCard);  /* 🖼 */
+    prevTitle->setObjectName("cardTitle");
+    prevLay->addWidget(prevTitle);
 
-    /* Form */
-    auto* fl = new QFormLayout;
-    fl->setContentsMargins(0, 8, 0, 0);
-    fl->setSpacing(10);
-    fl->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    auto* prevDesc = new QLabel(
+        "Aggiornata in tempo reale ad ogni modifica dei colori, palette e preset.", prevCard);
+    prevDesc->setObjectName("cardDesc");
+    prevDesc->setWordWrap(true);
+    prevLay->addWidget(prevDesc);
 
-    /* Assi 2D */
-    auto* cmb2d = new QComboBox;
+    preview->setParent(prevCard);
+    prevLay->addWidget(preview);
+    outer->addWidget(prevCard);
+
+    /* ── Sezione 1: Posizione Assi ─────────────────────────────── */
+    auto* axCard = new QFrame(inner);
+    axCard->setObjectName("cardFrame");
+    auto* axLay  = new QVBoxLayout(axCard);
+    axLay->setContentsMargins(14,12,14,12);
+    axLay->setSpacing(10);
+
+    auto* axTitle = new QLabel("\xf0\x9f\x93\x88  Posizione assi", axCard);  /* 📈 */
+    axTitle->setObjectName("cardTitle");
+    axLay->addWidget(axTitle);
+
+    auto* axDesc = new QLabel(
+        "Gizmo assi 2D (Cartesiano, Scatter) e 3D (Scatter 3D, Grafo 3D).", axCard);
+    axDesc->setWordWrap(true);
+    axDesc->setObjectName("cardDesc");
+    axLay->addWidget(axDesc);
+
+    auto* axForm = new QFormLayout;
+    axForm->setSpacing(8);
+    axForm->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+    auto* cmb2d = new QComboBox(axCard);
     cmb2d->setObjectName("settingCombo");
     for (auto* s : kAxisItems) cmb2d->addItem(s);
-    cmb2d->setCurrentIndex(0);  /* AtData */
+    cmb2d->setCurrentIndex(0);
     if (canvas)
         QObject::connect(cmb2d, QOverload<int>::of(&QComboBox::currentIndexChanged),
                          canvas, [canvas](int idx){ canvas->setAxes2dPos(idx); });
-    fl->addRow("Assi 2D:", cmb2d);
+    axForm->addRow("Assi 2D:", cmb2d);
 
-    /* Assi 3D */
-    auto* cmb3d = new QComboBox;
+    auto* cmb3d = new QComboBox(axCard);
     cmb3d->setObjectName("settingCombo");
     for (int i = 1; i < 5; i++) cmb3d->addItem(kAxisItems[i]);
-    cmb3d->setCurrentIndex(1);  /* BottomRight */
+    cmb3d->setCurrentIndex(1);
     if (canvas)
         QObject::connect(cmb3d, QOverload<int>::of(&QComboBox::currentIndexChanged),
                          canvas, [canvas](int idx){ canvas->setAxes3dPos(idx + 1); });
-    fl->addRow("Assi 3D:", cmb3d);
+    axForm->addRow("Assi 3D:", cmb3d);
+    axLay->addLayout(axForm);
+    outer->addWidget(axCard);
 
-    outer->addLayout(fl);
+    /* ── Sezione 2: Colori ─────────────────────────────────────── */
+    auto* colCard = new QFrame(inner);
+    colCard->setObjectName("cardFrame");
+    auto* colLay  = new QVBoxLayout(colCard);
+    colLay->setContentsMargins(14,12,14,12);
+    colLay->setSpacing(10);
+
+    auto* colTitle = new QLabel("\xf0\x9f\x8e\xa8  Colori grafico", colCard);  /* 🎨 */
+    colTitle->setObjectName("cardTitle");
+    colLay->addWidget(colTitle);
+
+    auto* colForm = new QFormLayout;
+    colForm->setSpacing(8);
+    colForm->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+    GraficoCanvas::ChartStyle defStyle;  /* valori default per inizializzare bottoni */
+    if (canvas) defStyle = canvas->style();
+
+    auto* btnBg = makeColorBtn(colCard, defStyle.bgColor, [canvas, saveStyle](QColor c){
+        if (canvas) { canvas->style().bgColor = c; canvas->update(); saveStyle(); }
+    });
+    colForm->addRow("Sfondo:", btnBg);
+
+    auto* btnAxis = makeColorBtn(colCard, defStyle.axisColor, [canvas, saveStyle](QColor c){
+        if (canvas) { canvas->style().axisColor = c; canvas->update(); saveStyle(); }
+    });
+    colForm->addRow("Assi:", btnAxis);
+
+    auto* btnGrid = makeColorBtn(colCard, defStyle.gridColor, [canvas, saveStyle](QColor c){
+        if (canvas) { canvas->style().gridColor = c; canvas->update(); saveStyle(); }
+    });
+
+    auto* gridRow = new QWidget(colCard);
+    auto* gridRowLay = new QHBoxLayout(gridRow);
+    gridRowLay->setContentsMargins(0,0,0,0);
+    gridRowLay->setSpacing(8);
+    gridRowLay->addWidget(btnGrid);
+    auto* chkGrid = new QCheckBox("Visibile", colCard);
+    chkGrid->setChecked(defStyle.showGrid);
+    if (canvas)
+        QObject::connect(chkGrid, &QCheckBox::toggled, canvas,
+            [canvas, saveStyle](bool on){ canvas->style().showGrid = on; canvas->update(); saveStyle(); });
+    gridRowLay->addWidget(chkGrid);
+    gridRowLay->addStretch();
+    colForm->addRow("Griglia:", gridRow);
+
+    auto* btnText = makeColorBtn(colCard, defStyle.textColor, [canvas, saveStyle](QColor c){
+        if (canvas) { canvas->style().textColor = c; canvas->update(); saveStyle(); }
+    });
+    colForm->addRow("Testo assi:", btnText);
+
+    colLay->addLayout(colForm);
+    outer->addWidget(colCard);
+
+    /* ── Sezione 3: Palette serie ──────────────────────────────── */
+    auto* palCard = new QFrame(inner);
+    palCard->setObjectName("cardFrame");
+    auto* palLay  = new QVBoxLayout(palCard);
+    palLay->setContentsMargins(14,12,14,12);
+    palLay->setSpacing(10);
+
+    auto* palTitle = new QLabel("\xf0\x9f\x8e\xb2  Colori serie (palette)", palCard);  /* 🎲 */
+    palTitle->setObjectName("cardTitle");
+    palLay->addWidget(palTitle);
+
+    auto* palDesc = new QLabel("8 colori ciclici per le linee/barre. Svuota per usare la palette interna.", palCard);
+    palDesc->setObjectName("cardDesc");
+    palDesc->setWordWrap(true);
+    palLay->addWidget(palDesc);
+
+    /* 8 default palette interna */
+    static const QColor kDefaultPal[] = {
+        {0x00,0xbf,0xd8}, {0xff,0x79,0x5a}, {0x73,0xe2,0x73},
+        {0xff,0xd7,0x6e}, {0xb0,0x90,0xff}, {0xff,0x82,0xc2},
+        {0x5a,0xd7,0xff}, {0xff,0xa0,0x50}
+    };
+
+    auto* palBtnRow = new QWidget(palCard);
+    auto* palBtnLay = new QHBoxLayout(palBtnRow);
+    palBtnLay->setContentsMargins(0,0,0,0);
+    palBtnLay->setSpacing(6);
+
+    /* Raccoglie i bottoni per poter aggiornare la palette completa */
+    QVector<QPushButton*> palBtns;
+    for (int pi = 0; pi < 8; pi++) {
+        QColor init = (canvas && canvas->style().palette.size() > pi)
+                       ? canvas->style().palette[pi]
+                       : kDefaultPal[pi];
+        auto* pb = makeColorBtn(palBtnRow, init, [canvas, pi, saveStyle, &palBtns](QColor c){
+            if (!canvas) return;
+            auto& pal = canvas->style().palette;
+            if (pal.size() < 8) {
+                /* inizializza con i default */
+                pal.clear();
+                for (const QColor& dc : kDefaultPal) pal << dc;
+            }
+            if (pi < pal.size()) pal[pi] = c;
+            canvas->update();
+            saveStyle();
+        });
+        palBtns.append(pb);
+        palBtnLay->addWidget(pb);
+    }
+    palBtnLay->addStretch();
+    palLay->addWidget(palBtnRow);
+
+    auto* btnResetPal = new QPushButton(
+        "\xe2\x86\xaa  Ripristina palette default", palCard);  /* ↪ */
+    btnResetPal->setObjectName("actionBtn");
+    QObject::connect(btnResetPal, &QPushButton::clicked, palCard,
+        [canvas, saveStyle, palBtns]() mutable {
+            if (!canvas) return;
+            canvas->style().palette.clear();
+            canvas->update();
+            saveStyle();
+            /* aggiorna aspetto bottoni */
+            for (int pi = 0; pi < palBtns.size(); pi++) {
+                palBtns[pi]->setStyleSheet(
+                    QString("QPushButton { background:%1; border:1px solid rgba(255,255,255,0.25);"
+                            " border-radius:4px; }").arg(kDefaultPal[pi].name()));
+                palBtns[pi]->setProperty("currentColor", kDefaultPal[pi].name());
+            }
+        });
+    palLay->addWidget(btnResetPal);
+    outer->addWidget(palCard);
+
+    /* ── Sezione 4: Font ───────────────────────────────────────── */
+    auto* fntCard = new QFrame(inner);
+    fntCard->setObjectName("cardFrame");
+    auto* fntLay  = new QVBoxLayout(fntCard);
+    fntLay->setContentsMargins(14,12,14,12);
+    fntLay->setSpacing(10);
+
+    auto* fntTitle = new QLabel("\xf0\x9f\x94\xa4  Carattere etichette", fntCard);  /* 🔤 */
+    fntTitle->setObjectName("cardTitle");
+    fntLay->addWidget(fntTitle);
+
+    auto* fntForm = new QFormLayout;
+    fntForm->setSpacing(8);
+    fntForm->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+    auto* cmbFont = new QComboBox(fntCard);
+    cmbFont->setObjectName("settingCombo");
+    cmbFont->addItems({"Inter, Ubuntu, sans-serif",
+                       "JetBrains Mono, Fira Code, monospace",
+                       "Georgia, serif",
+                       "Courier New, monospace",
+                       "Arial, Helvetica, sans-serif"});
+    if (canvas) {
+        int fi = cmbFont->findText(canvas->style().fontFamily, Qt::MatchContains);
+        if (fi >= 0) cmbFont->setCurrentIndex(fi);
+    }
+    QObject::connect(cmbFont, &QComboBox::currentTextChanged, fntCard,
+        [canvas, saveStyle](const QString& t){
+            if (canvas) { canvas->style().fontFamily = t; canvas->update(); saveStyle(); }
+        });
+    fntForm->addRow("Famiglia:", cmbFont);
+
+    auto* spnSize = new QSpinBox(fntCard);
+    spnSize->setRange(6, 24);
+    spnSize->setValue(canvas ? canvas->style().fontSize : 8);
+    spnSize->setObjectName("settingCombo");
+    QObject::connect(spnSize, QOverload<int>::of(&QSpinBox::valueChanged), fntCard,
+        [canvas, saveStyle](int v){
+            if (canvas) { canvas->style().fontSize = v; canvas->update(); saveStyle(); }
+        });
+    fntForm->addRow("Dimensione:", spnSize);
+
+    fntLay->addLayout(fntForm);
+    outer->addWidget(fntCard);
+
+    /* ── Sezione 5: Preset temi ────────────────────────────────── */
+    auto* preCard = new QFrame(inner);
+    preCard->setObjectName("cardFrame");
+    auto* preLay  = new QVBoxLayout(preCard);
+    preLay->setContentsMargins(14,12,14,12);
+    preLay->setSpacing(10);
+
+    auto* preTitle = new QLabel("\xe2\x9c\xa8  Preset stile grafico", preCard);  /* ✨ */
+    preTitle->setObjectName("cardTitle");
+    preLay->addWidget(preTitle);
+
+    struct Preset {
+        const char* name;
+        QColor bg, axis, grid, text;
+        QVector<QColor> pal;
+    };
+    static const Preset kPresets[] = {
+        { "Scuro (default)",
+          {0x18,0x18,0x18}, {0x55,0x55,0x55}, {0x35,0x35,0x35}, {0x99,0x99,0x99},
+          {} },
+        { "Chiaro",
+          {0xf8,0xf9,0xfa}, {0x99,0x99,0x99}, {0xdd,0xdd,0xdd}, {0x44,0x44,0x44},
+          {{0x1a,0x73,0xe8},{0xd9,0x30,0x25},{0x18,0x8a,0x38},
+           {0xfb,0x8c,0x00},{0x8e,0x24,0xaa},{0x00,0x89,0x7b},
+           {0x00,0x78,0xd4},{0xe6,0x4a,0x19}} },
+        { "Sepia",
+          {0x2c,0x24,0x1a}, {0x80,0x6a,0x50}, {0x4a,0x38,0x28}, {0xc4,0xa8,0x80},
+          {{0xd4,0x8a,0x2a},{0xa0,0x5a,0x2a},{0x8a,0xb8,0x70},
+           {0xd4,0xbe,0x7a},{0x9a,0x70,0xb8},{0xd4,0x80,0x80},
+           {0x70,0xb8,0xc0},{0xd4,0xa0,0x60}} },
+        { "Matrix",
+          {0x00,0x0d,0x00}, {0x00,0x66,0x00}, {0x00,0x33,0x00}, {0x00,0xcc,0x00},
+          {{0x00,0xff,0x41},{0x00,0xcc,0x33},{0x39,0xff,0x14},
+           {0x00,0xff,0x7f},{0x7f,0xff,0x00},{0x00,0xe5,0xff},
+           {0xad,0xff,0x2f},{0x00,0xff,0xd7}} },
+        { "Blueprint",
+          {0x0a,0x14,0x2e}, {0x3a,0x6e,0xd4}, {0x1a,0x3a,0x70}, {0x6a,0xaa,0xff},
+          {{0x4d,0xa6,0xff},{0xff,0x7f,0x50},{0x66,0xff,0xb3},
+           {0xff,0xd7,0x00},{0xcc,0x99,0xff},{0xff,0x66,0x99},
+           {0x66,0xcc,0xff},{0xff,0xa0,0x40}} },
+    };
+
+    auto* preRow = new QWidget(preCard);
+    auto* preRowLay = new QHBoxLayout(preRow);
+    preRowLay->setContentsMargins(0,0,0,0);
+    preRowLay->setSpacing(8);
+
+    for (const Preset& pr : kPresets) {
+        auto* pb = new QPushButton(pr.name, preCard);
+        pb->setObjectName("actionBtn");
+        const Preset prCopy = pr;
+        QObject::connect(pb, &QPushButton::clicked, preCard,
+            [canvas, prCopy, saveStyle,
+             btnBg, btnAxis, btnGrid, btnText,
+             chkGrid, palBtns, cmbFont, spnSize]() mutable {
+                if (!canvas) return;
+                auto& st = canvas->style();
+                st.bgColor   = prCopy.bg;
+                st.axisColor = prCopy.axis;
+                st.gridColor = prCopy.grid;
+                st.textColor = prCopy.text;
+                st.palette   = prCopy.pal;
+                st.showGrid  = true;
+                canvas->update();
+                saveStyle();
+                /* Aggiorna UI */
+                auto setBtn = [](QPushButton* b, QColor c) {
+                    b->setStyleSheet(
+                        QString("QPushButton { background:%1; border:1px solid rgba(255,255,255,0.25);"
+                                " border-radius:4px; }").arg(c.name()));
+                    b->setProperty("currentColor", c.name());
+                };
+                setBtn(btnBg,   prCopy.bg);
+                setBtn(btnAxis, prCopy.axis);
+                setBtn(btnGrid, prCopy.grid);
+                setBtn(btnText, prCopy.text);
+                chkGrid->setChecked(true);
+                static const QColor kDefaultPal[] = {
+                    {0x00,0xbf,0xd8},{0xff,0x79,0x5a},{0x73,0xe2,0x73},{0xff,0xd7,0x6e},
+                    {0xb0,0x90,0xff},{0xff,0x82,0xc2},{0x5a,0xd7,0xff},{0xff,0xa0,0x50}
+                };
+                for (int pi = 0; pi < palBtns.size(); pi++) {
+                    QColor c = (prCopy.pal.size() > pi) ? prCopy.pal[pi] : kDefaultPal[pi];
+                    setBtn(palBtns[pi], c);
+                }
+            });
+        preRowLay->addWidget(pb);
+    }
+    preRowLay->addStretch();
+    preLay->addWidget(preRow);
+    outer->addWidget(preCard);
+
+    /* ── Reset totale ──────────────────────────────────────────── */
+    auto* btnReset = new QPushButton(
+        "\xf0\x9f\x94\x84  Ripristina tutto ai valori default", inner);  /* 🔄 */
+    btnReset->setObjectName("actionBtn");
+    QObject::connect(btnReset, &QPushButton::clicked, inner,
+        [canvas, saveStyle,
+         btnBg, btnAxis, btnGrid, btnText,
+         chkGrid, palBtns, cmbFont, spnSize]() mutable {
+            if (!canvas) return;
+            GraficoCanvas::ChartStyle def;
+            canvas->setStyle(def);
+            saveStyle();
+            auto setBtn = [](QPushButton* b, QColor c) {
+                b->setStyleSheet(
+                    QString("QPushButton { background:%1; border:1px solid rgba(255,255,255,0.25);"
+                            " border-radius:4px; }").arg(c.name()));
+                b->setProperty("currentColor", c.name());
+            };
+            setBtn(btnBg,   def.bgColor);
+            setBtn(btnAxis, def.axisColor);
+            setBtn(btnGrid, def.gridColor);
+            setBtn(btnText, def.textColor);
+            chkGrid->setChecked(def.showGrid);
+            static const QColor kDefaultPal[] = {
+                {0x00,0xbf,0xd8},{0xff,0x79,0x5a},{0x73,0xe2,0x73},{0xff,0xd7,0x6e},
+                {0xb0,0x90,0xff},{0xff,0x82,0xc2},{0x5a,0xd7,0xff},{0xff,0xa0,0x50}
+            };
+            for (int pi = 0; pi < palBtns.size(); pi++)
+                setBtn(palBtns[pi], kDefaultPal[pi]);
+            cmbFont->setCurrentIndex(0);
+            spnSize->setValue(8);
+        });
+    outer->addWidget(btnReset);
     outer->addStretch();
+
     return page;
 }
 
@@ -796,8 +1317,11 @@ QWidget* ImpostazioniPage::buildRagTab()
         QSettings ss("Prismalux", "GUI");
         ss.setValue("rag/maxResults", v);
     });
+    /* Label feedback globale (accessibile dai lambda) */
+    m_ragFeedbackLbl = feedbackLbl;
+
     QObject::connect(reindexBtn, &QPushButton::clicked, reindexBtn,
-        [dirEdit, statusLbl, feedbackLbl, refreshStatus]() {
+        [this, dirEdit, statusLbl, feedbackLbl, refreshStatus, reindexBtn]() {
         QString dir = dirEdit->text().trimmed();
         if (dir.isEmpty() || !QDir(dir).exists()) {
             feedbackLbl->setText(
@@ -806,23 +1330,95 @@ QWidget* ImpostazioniPage::buildRagTab()
             feedbackLbl->setVisible(true);
             return;
         }
+        if (m_ai->backend() == AiClient::LlamaLocal) {
+            feedbackLbl->setText(
+                "\xe2\x9a\xa0  Embedding disponibile solo con Ollama o llama-server.");
+            feedbackLbl->setVisible(true);
+            return;
+        }
+
+        /* Raccolta chunk: leggi file di testo, spezza ogni 400 caratteri */
         QStringList filters{
-            "*.txt","*.md","*.pdf","*.csv","*.json",
-            "*.py","*.cpp","*.h","*.c","*.rst"
+            "*.txt","*.md","*.csv","*.rst","*.py","*.cpp","*.h","*.c"
         };
-        int n = 0;
-        QDirIterator it(dir, filters, QDir::Files,
-                        QDirIterator::Subdirectories);
-        while (it.hasNext()) { it.next(); ++n; }
-        QSettings ss("Prismalux", "GUI");
-        ss.setValue("rag/docCount",    n);
-        ss.setValue("rag/lastIndexed",
-            QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm"));
-        refreshStatus();
-        feedbackLbl->setText(
-            QString("\xe2\x9c\x85  Indicizzati <b>%1</b> file da <code>%2</code>.")
-                .arg(n).arg(dir));
+        m_ragQueue.clear();
+        m_ragQueuePos = 0;
+        m_rag.clear();
+
+        QDirIterator it(dir, filters, QDir::Files, QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            QFile f(it.next());
+            if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) continue;
+            const QString content = QString::fromUtf8(f.readAll());
+            /* Spezza in chunk da ~400 caratteri (finestre scorrevoli) */
+            for (int i = 0; i < content.size(); i += 400) {
+                QString chunk = content.mid(i, 500).simplified();
+                if (chunk.size() >= 30)          /* ignora chunk troppo corti */
+                    m_ragQueue << chunk;
+            }
+        }
+
+        if (m_ragQueue.isEmpty()) {
+            feedbackLbl->setText("\xf0\x9f\x8c\xab  Nessun contenuto trovato nella cartella.");
+            feedbackLbl->setVisible(true);
+            return;
+        }
+
+        reindexBtn->setEnabled(false);
+        feedbackLbl->setText(QString("\xe2\x8f\xb3  Indicizzazione: 0 / %1 chunk...").arg(m_ragQueue.size()));
         feedbackLbl->setVisible(true);
+
+        /* Funzione ricorsiva: processa un chunk alla volta tramite embeddingReady */
+        auto* indexNext = new std::function<void()>();
+        *indexNext = [this, indexNext, reindexBtn, feedbackLbl, statusLbl,
+                      refreshStatus, dir]() {
+            if (m_ragQueuePos >= m_ragQueue.size()) {
+                /* Fine indicizzazione */
+                const QString path = QDir::homePath() + "/.prismalux_rag.json";
+                m_rag.save(path);
+                int n = m_rag.chunkCount();
+                QSettings ss("Prismalux", "GUI");
+                ss.setValue("rag/docCount",    n);
+                ss.setValue("rag/lastIndexed",
+                    QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm"));
+                refreshStatus();
+                feedbackLbl->setText(
+                    QString("\xe2\x9c\x85  Indicizzati <b>%1</b> chunk da <code>%2</code>. "
+                            "Indice salvato.").arg(n).arg(dir));
+                reindexBtn->setEnabled(true);
+                delete indexNext;
+                return;
+            }
+
+            /* Aggiorna progresso */
+            feedbackLbl->setText(
+                QString("\xe2\x8f\xb3  Indicizzazione: %1 / %2 chunk...")
+                    .arg(m_ragQueuePos + 1).arg(m_ragQueue.size()));
+
+            const QString chunk = m_ragQueue[m_ragQueuePos++];
+
+            /* One-shot connection: embeddingReady → addChunk → next */
+            auto* conn = new QMetaObject::Connection;
+            *conn = connect(m_ai, &AiClient::embeddingReady, this,
+                [this, chunk, indexNext, conn](const QVector<float>& vec) {
+                    disconnect(*conn);
+                    delete conn;
+                    m_rag.addChunk(chunk, vec);
+                    (*indexNext)();
+                }, Qt::SingleShotConnection);
+
+            auto* connErr = new QMetaObject::Connection;
+            *connErr = connect(m_ai, &AiClient::embeddingError, this,
+                [this, indexNext, connErr](const QString&) {
+                    disconnect(*connErr);
+                    delete connErr;
+                    (*indexNext)();   /* salta chunk con errore */
+                }, Qt::SingleShotConnection);
+
+            m_ai->fetchEmbedding(chunk);
+        };
+
+        (*indexNext)();
     });
 
     return page;
@@ -1441,119 +2037,238 @@ QWidget* ImpostazioniPage::buildTestTab()
         },
     };
 
-    auto* outer = new QWidget(this);
-    auto* vlay  = new QVBoxLayout(outer);
-    vlay->setContentsMargins(20, 20, 20, 20);
-    vlay->setSpacing(14);
-
-    /* ── Intestazione ── */
-    auto* title = new QLabel(
-        "\xe2\x9c\x85  Registro Test \xe2\x80\x94 tutti i test superati", outer);
-    title->setStyleSheet("font-size:16px; font-weight:700; color:#e5e7eb;");
-    vlay->addWidget(title);
-
-    /* ── Sommario totale ── */
+    const int nTests = int(sizeof kTests / sizeof kTests[0]);
     int totPassed = 0, totTotal = 0;
     for (const auto& t : kTests) { totPassed += t.passed; totTotal += t.total; }
 
+    auto* outer = new QWidget(this);
+    auto* hlay  = new QHBoxLayout(outer);
+    hlay->setContentsMargins(16, 16, 16, 16);
+    hlay->setSpacing(12);
+
+    /* ════════════════════════════════════════════════════════
+       PANNELLO SINISTRO — intestazione + lista suite
+       ════════════════════════════════════════════════════════ */
+    auto* leftPanel = new QFrame(outer);
+    leftPanel->setObjectName("cardGroup");
+    auto* llay = new QVBoxLayout(leftPanel);
+    llay->setContentsMargins(12, 14, 12, 12);
+    llay->setSpacing(6);
+
+    auto* title = new QLabel(
+        "\xe2\x9c\x85  Registro Test", leftPanel);   /* ✅ */
+    title->setObjectName("cardTitle");
+    llay->addWidget(title);
+
     auto* summary = new QLabel(
-        QString("\xf0\x9f\x93\x8a  Totale: <b>%1/%2</b> test superati in <b>%3</b> suite")
-            .arg(totPassed).arg(totTotal).arg(int(sizeof kTests / sizeof kTests[0])),
-        outer);
-    summary->setStyleSheet("color:#9ca3af; font-size:13px;");
-    vlay->addWidget(summary);
+        QString("\xf0\x9f\x93\x8a  <b>%1/%2</b> test \xc2\xb7 <b>%3</b> suite")  /* 📊 · */
+            .arg(totPassed).arg(totTotal).arg(nTests),
+        leftPanel);
+    summary->setObjectName("cardDesc");
+    summary->setTextFormat(Qt::RichText);
+    llay->addWidget(summary);
 
-    /* ── Scroll area con una card per ogni suite ── */
-    auto* scroll = new QScrollArea(outer);
-    scroll->setWidgetResizable(true);
-    scroll->setFrameShape(QFrame::NoFrame);
-    auto* inner = new QWidget(scroll);
-    auto* ilay  = new QVBoxLayout(inner);
-    ilay->setSpacing(10);
-    ilay->setContentsMargins(0, 4, 0, 4);
-    scroll->setWidget(inner);
-    vlay->addWidget(scroll);
+    auto* sepH = new QFrame(leftPanel);
+    sepH->setFrameShape(QFrame::HLine);
+    sepH->setObjectName("cardSep");
+    llay->addWidget(sepH);
 
-    for (const auto& t : kTests) {
-        const bool allOk = (t.passed == t.total);
-        const QString accent = allOk ? "#22c55e" : "#f59e0b";
+    /* Lista suite scrollabile */
+    auto* listScroll = new QScrollArea(leftPanel);
+    listScroll->setWidgetResizable(true);
+    listScroll->setFrameShape(QFrame::NoFrame);
+    listScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    auto* listWidget = new QWidget(listScroll);
+    auto* listLay   = new QVBoxLayout(listWidget);
+    listLay->setContentsMargins(0, 4, 0, 4);
+    listLay->setSpacing(4);
+    listScroll->setWidget(listWidget);
+    llay->addWidget(listScroll, 1);
 
-        /* ── Card ── */
-        auto* card = new QFrame(inner);
-        card->setFrameShape(QFrame::StyledPanel);
-        card->setStyleSheet(QString(
-            "QFrame { background:#1a1b28; border:1px solid %1;"
-            " border-left: 4px solid %1; border-radius:8px; }").arg(accent));
+    /* ════════════════════════════════════════════════════════
+       PANNELLO DESTRO — dettaglio suite selezionata
+       ════════════════════════════════════════════════════════ */
+    auto* rightPanel = new QFrame(outer);
+    rightPanel->setObjectName("cardGroup");
+    auto* rlay = new QVBoxLayout(rightPanel);
+    rlay->setContentsMargins(0, 0, 0, 0);
+    rlay->setSpacing(0);
 
-        auto* clay = new QVBoxLayout(card);
-        clay->setContentsMargins(14, 12, 14, 12);
-        clay->setSpacing(6);
+    auto* detailScroll = new QScrollArea(rightPanel);
+    detailScroll->setWidgetResizable(true);
+    detailScroll->setFrameShape(QFrame::NoFrame);
+    auto* detailStack = new QStackedWidget(detailScroll);
+    detailScroll->setWidget(detailStack);
+    rlay->addWidget(detailScroll);
 
-        /* ── Riga 1: nome suite + badge + data ── */
-        auto* row1 = new QHBoxLayout;
-        auto* lblSuite = new QLabel(
-            QString("<b>%1</b>").arg(t.suite.toHtmlEscaped()), card);
-        lblSuite->setStyleSheet("color:#e5e7eb; font-size:13px; font-family: monospace;");
-        row1->addWidget(lblSuite);
-        row1->addStretch();
+    hlay->addWidget(leftPanel,  1);
+    hlay->addWidget(rightPanel, 2);
+
+    /* ════════════════════════════════════════════════════════
+       Costruisce ogni voce della lista sinistra + pagina destra
+       ════════════════════════════════════════════════════════ */
+    QList<QFrame*> itemFrames;
+    for (int i = 0; i < nTests; i++) {
+        const auto& t   = kTests[i];
+        const bool allOk  = (t.passed == t.total);
+        const QString accentColor = allOk ? "#22c55e" : "#f59e0b";
+
+        /* ── Voce lista sinistra ── */
+        auto* item = new QFrame(listWidget);
+        item->setObjectName("testListItem");
+        item->setCursor(Qt::PointingHandCursor);
+        auto* irow = new QHBoxLayout(item);
+        irow->setContentsMargins(10, 8, 10, 8);
+        irow->setSpacing(8);
+
+        /* pallino colorato pass/fail */
+        auto* dot = new QLabel(item);
+        dot->setFixedSize(10, 10);
+        dot->setStyleSheet(QString(
+            "background:%1; border-radius:5px;").arg(accentColor));
+        irow->addWidget(dot);
+
+        auto* lblName = new QLabel(t.suite, item);
+        lblName->setObjectName("cardDesc");
+        lblName->setWordWrap(false);
+        irow->addWidget(lblName, 1);
 
         auto* lblBadge = new QLabel(
-            QString("<span style='color:%1; font-weight:700; font-size:14px;'>%2/%3</span>")
-                .arg(accent).arg(t.passed).arg(t.total), card);
-        row1->addWidget(lblBadge);
+            QString("<b>%1/%2</b>").arg(t.passed).arg(t.total), item);
+        lblBadge->setTextFormat(Qt::RichText);
+        lblBadge->setStyleSheet(QString("color:%1; font-size:11px;").arg(accentColor));
+        irow->addWidget(lblBadge);
 
-        auto* lblDate = new QLabel(t.date, card);
-        lblDate->setStyleSheet("color:#6b7280; font-size:11px; margin-left:12px;");
-        row1->addWidget(lblDate);
-        clay->addLayout(row1);
+        listLay->addWidget(item);
 
-        /* ── Riga 2: descrizione breve ── */
-        auto* lblDesc = new QLabel(t.desc, card);
-        lblDesc->setWordWrap(true);
-        lblDesc->setStyleSheet("color:#d1d5db; font-size:12px; padding-bottom:4px;");
-        clay->addWidget(lblDesc);
+        /* ── Pagina destra corrispondente ── */
+        auto* page = new QWidget(detailStack);
+        auto* play = new QVBoxLayout(page);
+        play->setContentsMargins(16, 16, 16, 16);
+        play->setSpacing(10);
 
-        /* ── Separatore ── */
-        auto* sep = new QFrame(card);
-        sep->setFrameShape(QFrame::HLine);
-        sep->setStyleSheet("color:#2d2e3e;");
-        clay->addWidget(sep);
+        /* intestazione pagina */
+        auto* phdr = new QFrame(page);
+        phdr->setObjectName("cardFrame");
+        auto* phdrLay = new QVBoxLayout(phdr);
+        phdrLay->setContentsMargins(14, 12, 14, 12);
+        phdrLay->setSpacing(4);
 
-        /* ── Riga 3: lista bullet dei casi testati ── */
-        auto* lblCatTitle = new QLabel(
-            "\xf0\x9f\x94\xac  <b>Casi testati:</b>", card);   /* 🔬 */
-        lblCatTitle->setStyleSheet("color:#9ca3af; font-size:11px;");
-        clay->addWidget(lblCatTitle);
+        auto* prow1 = new QHBoxLayout;
+        auto* pSuite = new QLabel(
+            QString("<b>%1</b>").arg(t.suite.toHtmlEscaped()), phdr);
+        pSuite->setObjectName("cardTitle");
+        pSuite->setTextFormat(Qt::RichText);
+        prow1->addWidget(pSuite, 1);
+
+        auto* pBadge = new QLabel(
+            QString("<span style='color:%1; font-size:15px; font-weight:700;'>%2/%3</span>")
+                .arg(accentColor).arg(t.passed).arg(t.total), phdr);
+        pBadge->setTextFormat(Qt::RichText);
+        prow1->addWidget(pBadge);
+
+        auto* pDate = new QLabel(t.date, phdr);
+        pDate->setObjectName("cardDesc");
+        pDate->setStyleSheet("font-size:11px; margin-left:10px;");
+        prow1->addWidget(pDate);
+        phdrLay->addLayout(prow1);
+
+        auto* pDesc = new QLabel(t.desc, phdr);
+        pDesc->setObjectName("cardDesc");
+        pDesc->setWordWrap(true);
+        phdrLay->addWidget(pDesc);
+        play->addWidget(phdr);
+
+        /* casi testati */
+        auto* pCard = new QFrame(page);
+        pCard->setObjectName("cardFrame");
+        auto* pCardLay = new QVBoxLayout(pCard);
+        pCardLay->setContentsMargins(14, 12, 14, 12);
+        pCardLay->setSpacing(6);
+
+        auto* pCasesTitle = new QLabel(
+            "\xf0\x9f\x94\xac  <b>Casi testati:</b>", pCard);   /* 🔬 */
+        pCasesTitle->setObjectName("cardDesc");
+        pCasesTitle->setTextFormat(Qt::RichText);
+        pCardLay->addWidget(pCasesTitle);
 
         const QStringList items = t.details.split('\n', Qt::SkipEmptyParts);
-        QString bulletHtml = "<ul style='margin:2px 0 0 0; padding-left:18px;"
-                             " color:#6b7280; font-size:11px;'>";
-        for (const QString& item : items)
-            bulletHtml += "<li style='margin-bottom:2px;'>"
-                        + item.toHtmlEscaped() + "</li>";
+        QString bulletHtml = "<ul style='margin:4px 0 0 0; padding-left:16px;'>";
+        for (const QString& it : items)
+            bulletHtml += "<li style='margin-bottom:3px;'>"
+                        + it.toHtmlEscaped() + "</li>";
         bulletHtml += "</ul>";
-        auto* lblBullets = new QLabel(bulletHtml, card);
-        lblBullets->setTextFormat(Qt::RichText);
-        lblBullets->setWordWrap(true);
-        clay->addWidget(lblBullets);
+        auto* pBullets = new QLabel(bulletHtml, pCard);
+        pBullets->setObjectName("cardDesc");
+        pBullets->setTextFormat(Qt::RichText);
+        pBullets->setWordWrap(true);
+        pCardLay->addWidget(pBullets);
+        play->addWidget(pCard);
 
-        /* ── Riga 4: KPI in evidenza ── */
+        /* KPI */
         if (!t.kpi.isEmpty()) {
-            auto* lblKpi = new QLabel(
+            auto* pKpi = new QLabel(
                 QString("\xe2\x9a\xa1  <b>KPI:</b> %1")   /* ⚡ */
-                    .arg(t.kpi.toHtmlEscaped()), card);
-            lblKpi->setStyleSheet(
+                    .arg(t.kpi.toHtmlEscaped()), page);
+            pKpi->setTextFormat(Qt::RichText);
+            pKpi->setWordWrap(true);
+            pKpi->setStyleSheet(
                 QString("color:%1; font-size:11px; font-weight:600;"
-                        " background:#0f1020; border-radius:4px;"
-                        " padding:3px 8px;").arg(accent));
-            lblKpi->setTextFormat(Qt::RichText);
-            clay->addWidget(lblKpi);
+                        " padding:4px 10px; border-radius:4px;"
+                        " border:1px solid %1;").arg(accentColor));
+            play->addWidget(pKpi);
         }
 
-        ilay->addWidget(card);
+        play->addStretch();
+        detailStack->addWidget(page);
+
+        item->setProperty("testPageIdx", i);
+        item->setProperty("accentColor", accentColor);
+        itemFrames.append(item);
     }
 
-    ilay->addStretch();
+    listLay->addStretch();
+
+    /* ── Funzione highlight: aggiorna l'aspetto della voce selezionata ── */
+    auto selectItem = [itemFrames, detailStack](int idx) mutable {
+        detailStack->setCurrentIndex(idx);
+        for (int k = 0; k < itemFrames.size(); k++) {
+            QFrame* fr = itemFrames[k];
+            if (k == idx) {
+                /* bordo sinistro colorato con l'accent del test (verde o ambra) */
+                const QString ac = fr->property("accentColor").toString();
+                fr->setStyleSheet(
+                    QString("QFrame#testListItem { border-radius:6px; border:1px solid %1;"
+                            " border-left:3px solid %1; }").arg(ac));
+            } else {
+                fr->setStyleSheet(
+                    "QFrame#testListItem { border-radius:6px;"
+                    " border:1px solid rgba(255,255,255,0.07); }");
+            }
+        }
+    };
+
+    /* ── EventFilter click ── */
+    class ClickFilter : public QObject {
+    public:
+        std::function<void(int)> fn;
+        ClickFilter(std::function<void(int)> f, QObject* p)
+            : QObject(p), fn(std::move(f)) {}
+        bool eventFilter(QObject* obj, QEvent* ev) override {
+            if (ev->type() == QEvent::MouseButtonRelease) {
+                auto* fr = qobject_cast<QFrame*>(obj);
+                if (fr) fn(fr->property("testPageIdx").toInt());
+            }
+            return false;
+        }
+    };
+    auto* clickFilter = new ClickFilter(selectItem, outer);
+    for (QFrame* fr : itemFrames)
+        fr->installEventFilter(clickFilter);
+
+    /* Seleziona la prima voce all'avvio */
+    selectItem(0);
+
     return outer;
 }
 
@@ -1667,10 +2382,18 @@ QWidget* ImpostazioniPage::buildVoceTab()
     };
     refreshStatus();
 
-    auto* btnInstall = new QPushButton(
-        "\xf0\x9f\x93\xa5  Installa Piper", secPiper);
+    auto* btnInstall = new QPushButton(secPiper);
     btnInstall->setObjectName("actionBtn");
     btnInstall->setToolTip("Scarica e installa il binario Piper nella cartella del progetto (<appDir>/piper/)");
+
+    std::function<void()> refreshBtn = [btnInstall]() {
+        const bool installed = !ImpostazioniPage::piperBinPath().isEmpty();
+        if (installed)
+            btnInstall->setText("\xe2\x9c\x85  Installato");
+        else
+            btnInstall->setText("\xf0\x9f\x93\xa5  Installa Piper");
+    };
+    refreshBtn();
 
     piperRowLay->addWidget(lblPiperStatus, 1);
     piperRowLay->addWidget(btnInstall);
@@ -1893,7 +2616,6 @@ QWidget* ImpostazioniPage::buildVoceTab()
                                  refreshStatus, installDir](int code2, QProcess::ExitStatus) {
                         procEx->deleteLater();
                         btnInstall->setEnabled(true);
-                        btnInstall->setText("\xf0\x9f\x93\xa5  Installa Piper");
 #ifndef Q_OS_WIN
                         /* Rendi eseguibile */
                         QFile::setPermissions(installDir + "/piper",
@@ -1902,8 +2624,14 @@ QWidget* ImpostazioniPage::buildVoceTab()
                             QFileDevice::ExeGroup  | QFileDevice::ReadOther  |
                             QFileDevice::ExeOther);
 #endif
-                        if (code2 == 0) refreshStatus();
-                        else lblPiperStatus->setText("\xe2\x9d\x8c Errore estrazione.");
+                        if (code2 == 0) {
+                            refreshStatus();
+                            btnInstall->setText(!ImpostazioniPage::piperBinPath().isEmpty()
+                                ? "\xe2\x9c\x85  Installato"
+                                : "\xf0\x9f\x93\xa5  Installa Piper");
+                        } else {
+                            lblPiperStatus->setText("\xe2\x9d\x8c Errore estrazione.");
+                        }
                     });
             });
     });
@@ -2048,22 +2776,14 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     lblBin->setObjectName("cardDesc");
     lblBin->setTextFormat(Qt::RichText);
     lblBin->setWordWrap(true);
-    {
-        const QString b = SttWhisper::whisperBin();
-        if (b.isEmpty())
-            lblBin->setText(
-                "\xe2\x9d\x8c  Non trovato. Installa con:<br>"
-                "<code>sudo apt install whisper-cpp</code>"
-                "&nbsp;&nbsp;oppure&nbsp;&nbsp;"
-                "<code>sudo dnf install whisper-cpp</code><br>"
-                "Oppure compila da sorgente: "
-                "<code>git clone https://github.com/ggml-org/whisper.cpp &amp;&amp; "
-                "cd whisper.cpp &amp;&amp; cmake -B build &amp;&amp; "
-                "cmake --build build -j$(nproc)</code>");
-        else
-            lblBin->setText("\xe2\x9c\x85  Trovato: <code>" + b + "</code>");
-    }
     secBinLay->addWidget(lblBin);
+
+    /* Pulsante ricontrolla — aggiorna lo stato senza riaprire le impostazioni */
+    auto* btnRescan = new QPushButton("\xf0\x9f\x94\x84  Ricontrolla", secBin);
+    btnRescan->setObjectName("actionBtn");
+    btnRescan->setFixedHeight(28);
+    btnRescan->setToolTip("Riscansiona i percorsi noti per whisper-cli.");
+    secBinLay->addWidget(btnRescan);
 
     /* Pulsante compila da sorgente — visibile solo se binario mancante */
     auto* btnCompileWsp = new QPushButton(
@@ -2075,6 +2795,30 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
         "Clona il repo whisper.cpp in ~/.prismalux/whisper.cpp/ e lo compila.\n"
         "Richiede: git, cmake, gcc/g++ (tutti disponibili su Ubuntu/Fedora/Arch).");
     secBinLay->addWidget(btnCompileWsp);
+
+    /* Aggiorna label + visibilità pulsanti */
+    auto refreshBinStatus = [lblBin, btnCompileWsp, btnRescan]() {
+        const QString b = SttWhisper::whisperBin();
+        if (b.isEmpty()) {
+            lblBin->setText(
+                "\xe2\x9d\x8c  Non trovato. Installa con:<br>"
+                "<code>sudo apt install whisper-cpp</code>"
+                "&nbsp;&nbsp;oppure&nbsp;&nbsp;"
+                "<code>sudo dnf install whisper-cpp</code><br>"
+                "Oppure compila da sorgente: "
+                "<code>git clone https://github.com/ggml-org/whisper.cpp &amp;&amp; "
+                "cd whisper.cpp &amp;&amp; cmake -B build &amp;&amp; "
+                "cmake --build build -j$(nproc)</code>");
+        } else {
+            lblBin->setText("\xe2\x9c\x85  Trovato: <code>" + b + "</code>");
+        }
+        btnCompileWsp->setVisible(b.isEmpty());
+        btnRescan->setVisible(b.isEmpty());  /* nasconde dopo il rilevamento */
+    };
+
+    connect(btnRescan, &QPushButton::clicked, secBin, refreshBinStatus);
+    refreshBinStatus();   /* imposta lo stato corretto già all'apertura */
+
     ilay->addWidget(secBin);
 
     /* ── Card log compilazione (nascosta finché non si clicca) ── */
@@ -3033,6 +3777,200 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
     /* Popola al primo caricamento */
     QTimer::singleShot(0, page, populate);
 
+    return page;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildAiParamsTab — parametri di campionamento anti-allucinazione.
+   I valori sono salvati in QSettings("Prismalux","GUI") con prefisso "ai/".
+   AiClient li carica al costruttore e li usa in ogni richiesta.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildAiParamsTab()
+{
+    auto* page  = new QWidget;
+    auto* outer = new QVBoxLayout(page);
+    outer->setContentsMargins(20, 20, 20, 20);
+    outer->setSpacing(16);
+
+    /* Titolo */
+    auto* title = new QLabel("\xe2\x9a\x99\xef\xb8\x8f  Parametri AI \xe2\x80\x94 Anti-allucinazione e precisione");
+    title->setObjectName("sectionTitle");
+    outer->addWidget(title);
+
+    auto* desc = new QLabel(
+        "Modalit\xc3\xa0 <b>Brutal Honesty</b>: il modello ammette l'incertezza invece di inventare. "
+        "Temperatura vicina a 0 = risposte deterministiche e ripetibili. "
+        "Il prefisso di onest\xc3\xa0 istruisce il modello a dire "
+        "\xe2\x80\x9cNon lo so\xe2\x80\x9d invece di inventare fatti, numeri o citazioni.");
+    desc->setWordWrap(true);
+    desc->setObjectName("hintLabel");
+    outer->addWidget(desc);
+
+    auto* fl = new QFormLayout;
+    fl->setContentsMargins(0, 8, 0, 0);
+    fl->setSpacing(12);
+    fl->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+    /* Legge dall'unica fonte: ~/.prismalux/ai_params.json */
+    const AiChatParams cur = AiChatParams::load();
+
+    /* Mostra percorso file sotto il titolo */
+    auto* fileLbl = new QLabel(
+        "\xf0\x9f\x93\x84  Sorgente: <code>" + AiChatParams::filePath() + "</code> "
+        "(modificabile anche con un editor di testo)");
+    fileLbl->setWordWrap(true);
+    fileLbl->setObjectName("hintLabel");
+    outer->addWidget(fileLbl);
+
+    auto* sep0b = new QFrame; sep0b->setFrameShape(QFrame::HLine); sep0b->setObjectName("sidebarSep");
+    outer->addWidget(sep0b);
+
+    /* ── Temperatura ── */
+    auto* tempSpin = new QDoubleSpinBox;
+    tempSpin->setRange(0.0, 1.5);
+    tempSpin->setSingleStep(0.05);
+    tempSpin->setDecimals(2);
+    tempSpin->setValue(cur.temperature);
+    tempSpin->setToolTip("0 = deterministico puro (risposta identica ogni volta)\n"
+                         "0.05 = quasi deterministico — Brutal Honesty (default)\n"
+                         "0.3+ = creativo ma meno affidabile per fatti precisi");
+    fl->addRow("Temperatura:", tempSpin);
+
+    auto* tempHint = new QLabel(
+        "\xe2\x84\xb9  0.0" "\xe2\x80\x93" "0.1 = fatti certi e ripetibili (Brutal Honesty)  |  0.3+ = creativo/inventivo");
+    tempHint->setObjectName("hintLabel");
+    fl->addRow("", tempHint);
+
+    /* ── Top-P ── */
+    auto* topPSpin = new QDoubleSpinBox;
+    topPSpin->setRange(0.1, 1.0);
+    topPSpin->setSingleStep(0.05);
+    topPSpin->setDecimals(2);
+    topPSpin->setValue(cur.top_p);
+    topPSpin->setToolTip("Nucleus sampling: include solo i token pi\xc3\xb9 probabili.\n"
+                         "0.85 = scelte conservative (Brutal Honesty)");
+    fl->addRow("Top-P:", topPSpin);
+
+    /* ── Top-K ── */
+    auto* topKSpin = new QSpinBox;
+    topKSpin->setRange(1, 200);
+    topKSpin->setValue(cur.top_k);
+    topKSpin->setToolTip("Limita la scelta ai K token pi\xc3\xb9 probabili.\n"
+                         "20 = molto conservativo — favorisce i fatti sicuri.");
+    fl->addRow("Top-K:", topKSpin);
+
+    /* ── Penalità ripetizioni ── */
+    auto* repSpin = new QDoubleSpinBox;
+    repSpin->setRange(1.0, 2.0);
+    repSpin->setSingleStep(0.05);
+    repSpin->setDecimals(2);
+    repSpin->setValue(cur.repeat_penalty);
+    repSpin->setToolTip("Penalizza i token gi\xc3\xa0 generati per ridurre le ripetizioni.\n"
+                        "1.20 = riduce loop e riempitivi.");
+    fl->addRow("Penalità ripetizioni:", repSpin);
+
+    /* ── Max token risposta ── */
+    auto* predSpin = new QSpinBox;
+    predSpin->setRange(256, 16384);
+    predSpin->setSingleStep(256);
+    predSpin->setValue(cur.num_predict);
+    predSpin->setSuffix("  token");
+    predSpin->setToolTip("Numero massimo di token generati per risposta.\n"
+                         "2048 = risposte lunghe complete  |  512 = risposte brevi e veloci");
+    fl->addRow("Max token risposta:", predSpin);
+
+    /* ── Context window ── */
+    auto* ctxSpin = new QSpinBox;
+    ctxSpin->setRange(1024, 65536);
+    ctxSpin->setSingleStep(1024);
+    ctxSpin->setValue(cur.num_ctx);
+    ctxSpin->setSuffix("  token");
+    ctxSpin->setToolTip("Dimensione della finestra di contesto: quanti token la chat tiene in memoria.\n"
+                        "8192 = ottimo per sessioni lunghe  |  4096 = pi\xc3\xb9 veloce");
+    fl->addRow("Finestra contesto:", ctxSpin);
+
+    outer->addLayout(fl);
+
+    /* ── Prefisso di onestà assoluta ── */
+    auto* honestyCb = new QCheckBox(
+        "\xf0\x9f\x94\x92  Prefisso Brutal Honesty (consigliato)");
+    honestyCb->setChecked(cur.honesty_prefix);
+    honestyCb->setToolTip(
+        "Aggiunge all'inizio di ogni system prompt la regola:\n"
+        "\"Se non conosci qualcosa, dillo. Non inventare mai fatti, numeri o citazioni.\"\n"
+        "Questo \xc3\xa8 il metodo pi\xc3\xb9 efficace per ridurre le allucinazioni.");
+    outer->addWidget(honestyCb);
+
+    auto* honestyHint = new QLabel(
+        "\xe2\x84\xb9  Con questa opzione attiva il modello risponde "
+        "\xe2\x80\x9cNon lo so\xe2\x80\x9d invece di inventare. Disattiva solo se vuoi risposte pi\xc3\xb9 fluide.");
+    honestyHint->setWordWrap(true);
+    honestyHint->setObjectName("hintLabel");
+    outer->addWidget(honestyHint);
+
+    auto* sep1 = new QFrame; sep1->setFrameShape(QFrame::HLine); sep1->setObjectName("sidebarSep");
+    outer->addWidget(sep1);
+
+    /* ── Bottoni reset / salva ── */
+    auto* btnRow  = new QWidget;
+    auto* btnLay  = new QHBoxLayout(btnRow);
+    btnLay->setContentsMargins(0, 0, 0, 0);
+    btnLay->setSpacing(8);
+
+    auto* resetBtn = new QPushButton("\xf0\x9f\x94\x84  Ripristina default");
+    resetBtn->setObjectName("actionBtn");
+    resetBtn->setToolTip("Ripristina i valori ottimali anti-allucinazione");
+
+    auto* saveBtn  = new QPushButton("\xe2\x9c\x85  Salva");
+    saveBtn->setObjectName("actionBtn");
+
+    auto* saveStatus = new QLabel("");
+    saveStatus->setObjectName("hintLabel");
+
+    btnLay->addWidget(resetBtn);
+    btnLay->addStretch();
+    btnLay->addWidget(saveStatus);
+    btnLay->addWidget(saveBtn);
+    outer->addWidget(btnRow);
+
+    /* ── Lambda salva — scrive in ~/.prismalux/ai_params.json (unica fonte) ── */
+    auto saveParams = [=]{
+        AiChatParams p;
+        p.temperature    = tempSpin->value();
+        p.top_p          = topPSpin->value();
+        p.top_k          = topKSpin->value();
+        p.repeat_penalty = repSpin->value();
+        p.num_predict    = predSpin->value();
+        p.num_ctx        = ctxSpin->value();
+        p.honesty_prefix = honestyCb->isChecked();
+        AiChatParams::save(p);       /* scrive su disco */
+        if (m_ai) m_ai->setChatParams(p);  /* applica subito senza riavviare */
+        saveStatus->setText("\xe2\x9c\x85  Salvato in " + AiChatParams::filePath());
+        QTimer::singleShot(3000, saveStatus, [saveStatus]{ saveStatus->setText(""); });
+    };
+
+    connect(saveBtn,  &QPushButton::clicked, page, saveParams);
+    connect(resetBtn, &QPushButton::clicked, page, [=]{
+        tempSpin->setValue(0.05);
+        topPSpin->setValue(0.85);
+        topKSpin->setValue(20);
+        repSpin->setValue(1.20);
+        predSpin->setValue(2048);
+        ctxSpin->setValue(8192);
+        honestyCb->setChecked(true);
+        saveParams();
+    });
+
+    /* Salva automaticamente quando si cambia qualsiasi valore */
+    connect(tempSpin,  QOverload<double>::of(&QDoubleSpinBox::valueChanged), page, saveParams);
+    connect(topPSpin,  QOverload<double>::of(&QDoubleSpinBox::valueChanged), page, saveParams);
+    connect(topKSpin,  QOverload<int>::of(&QSpinBox::valueChanged),          page, saveParams);
+    connect(repSpin,   QOverload<double>::of(&QDoubleSpinBox::valueChanged), page, saveParams);
+    connect(predSpin,  QOverload<int>::of(&QSpinBox::valueChanged),          page, saveParams);
+    connect(ctxSpin,   QOverload<int>::of(&QSpinBox::valueChanged),          page, saveParams);
+    connect(honestyCb, &QCheckBox::toggled,                                  page, saveParams);
+
+    outer->addStretch();
     return page;
 }
 

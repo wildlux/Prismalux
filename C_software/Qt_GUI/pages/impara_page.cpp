@@ -20,6 +20,10 @@
 #include <QRegularExpression>
 #include <QStandardPaths>
 #include <QScrollBar>
+#include <QMenu>
+#include <QGuiApplication>
+#include <QClipboard>
+#include <QProcess>
 
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
@@ -213,6 +217,26 @@ QWidget* ImparaPage::buildTutor() {
     m_tutorLog->setReadOnly(true);
     m_tutorLog->setPlaceholderText("🏛️  Modalità Oracolo attiva.\n\nFai una domanda sulla materia selezionata.");
     lay->addWidget(m_tutorLog, 1);
+
+    /* ── Context menu: copia / leggi ── */
+    m_tutorLog->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_tutorLog, &QTextEdit::customContextMenuRequested, w, [this](const QPoint& pos){
+        const QString sel   = m_tutorLog->textCursor().selectedText();
+        const bool hasSel   = !sel.isEmpty();
+        const QString label = hasSel ? "selezione" : "tutto";
+        QMenu menu(m_tutorLog);
+        QAction* actCopy = menu.addAction("\xf0\x9f\x97\x82  Copia " + label);
+        QAction* actRead = menu.addAction("\xf0\x9f\x8e\x99  Leggi " + label);
+        QAction* chosen  = menu.exec(m_tutorLog->mapToGlobal(pos));
+        const QString txt = hasSel ? sel : m_tutorLog->toPlainText();
+        if (chosen == actCopy) {
+            QGuiApplication::clipboard()->setText(txt);
+        } else if (chosen == actRead) {
+            QStringList words = txt.split(' ', Qt::SkipEmptyParts);
+            if (words.size() > 400) words = words.mid(words.size() - 400);
+            QProcess::startDetached("espeak-ng", {"-v", "it+f3", "--punct=none", words.join(" ")});
+        }
+    });
 
     /* Input */
     /* Indicatore elaborazione */

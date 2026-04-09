@@ -19,7 +19,7 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 #header {
     background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
         stop:0 #21160e, stop:1 #17100a);
-    border-bottom: 1px solid #fd7e14; min-height: 72px;
+    border-bottom: 1px solid #fd7e14; min-height: 52px;
 }
 #headerTitle { font-size: 17px; font-weight: 700; color: #fd7e14; letter-spacing: 4px; }
 #headerSub { font-size: 11px; color: #382010; }
