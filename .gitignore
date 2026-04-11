@@ -53,6 +53,7 @@ C_software/jlt_speedup_demo
 # ── Qt GUI — directory build (binari compilati) ────────────────────────────────
 C_software/Qt_GUI/build/
 C_software/Qt_GUI/build_dbg/
+C_software/Qt_GUI/build_debug/
 C_software/Qt_GUI/build_tests/
 Qt_GUI/build/
 Qt_GUI/build_dbg/

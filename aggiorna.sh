@@ -22,7 +22,7 @@ C='\033[0;36m'; B='\033[1;37m'; N='\033[0m'
 # ── Percorsi ───────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 C_SW="$SCRIPT_DIR/C_software"
-QT_GUI="$SCRIPT_DIR/Qt_GUI_v3"
+QT_GUI="$C_SW/Qt_GUI"
 QT_BUILD="$QT_GUI/build"
 ZIP_SCRIPT="$SCRIPT_DIR/crea_zip_windows.py"
 ZIP_OUT="$SCRIPT_DIR/Prismalux_Windows_full.zip"
