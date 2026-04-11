@@ -98,10 +98,20 @@ mkdir -p "${APPDIR}/usr/plugins/tls"
 mkdir -p "${APPDIR}/usr/plugins/multimedia"
 mkdir -p "${APPDIR}/usr/share/icons/hicolor/256x256/apps"
 
-# ── 4. Copia binario ──────────────────────────────────────────
+# ── 4. Copia binario + temi ───────────────────────────────────
 info "Copio binario..."
 cp "$GUI_BIN" "${APPDIR}/usr/bin/Prismalux_GUI"
 chmod +x "${APPDIR}/usr/bin/Prismalux_GUI"
+
+# I temi vengono letti da disco a runtime (applicationDirPath()/themes/).
+# Nella AppImage applicationDirPath() = .../usr/bin  →  themes deve stare lì accanto.
+THEMES_SRC="$(dirname "$GUI_BIN")/themes"
+if [[ -d "$THEMES_SRC" ]]; then
+  cp -r "$THEMES_SRC" "${APPDIR}/usr/bin/themes"
+  ok "Temi copiati → AppDir/usr/bin/themes/ ($(ls "${APPDIR}/usr/bin/themes/"*.qss 2>/dev/null | wc -l) file .qss)"
+else
+  warn "Cartella themes/ non trovata accanto al binario — esegui prima ./aggiorna.sh --gui"
+fi
 
 # ── 5. Funzione: copia una .so con tutte le sue dipendenze ─────
 _copy_lib() {

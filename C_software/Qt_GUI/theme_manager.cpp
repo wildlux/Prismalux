@@ -83,7 +83,7 @@ void ThemeManager::apply(const QString& id) {
 void ThemeManager::loadSaved() {
     scanExternalThemes();   /* carica prima i temi custom dalla cartella */
     QSettings s("Prismalux", "GUI");
-    const QString saved = s.value("theme", "dark_cyan").toString();
+    const QString saved = s.value("theme", "dark_ocean").toString();
     apply(saved);
 }
 
