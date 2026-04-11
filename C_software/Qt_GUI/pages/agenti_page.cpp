@@ -3862,13 +3862,30 @@ void AgentiPage::onFinished(const QString& /*full*/) {
         if (m_currentAgent > 0 && !m_agentOutputs.isEmpty()) {
             rawResp = m_agentOutputs[m_currentAgent - 1];
             /* Rimuove blocchi <think>...</think> (reasoning models: qwen3, deepseek-r1, qwq...)
-               Il contenuto di thinking non deve essere mostrato né passato agli agenti successivi. */
+               Se dopo lo strip rimane vuoto (modelli piccoli che producono SOLO thinking
+               senza risposta finale), si usa il contenuto del <think> come fallback. */
             {
-                QRegularExpression reTh("<think>[\\s\\S]*?</think>",
+                QRegularExpression reTh("<think>([\\s\\S]*?)</think>",
                                         QRegularExpression::CaseInsensitiveOption);
-                rawResp.remove(reTh);
+                /* Salva l'originale prima di rimuovere */
+                const QString original = rawResp;
+                rawResp.remove(QRegularExpression("<think>[\\s\\S]*?</think>",
+                    QRegularExpression::CaseInsensitiveOption));
                 rawResp = rawResp.trimmed();
-                m_agentOutputs[m_currentAgent - 1] = rawResp;  /* aggiorna il contesto */
+
+                /* Fallback: se il modello ha prodotto solo reasoning, mostralo */
+                if (rawResp.isEmpty()) {
+                    auto m = reTh.match(original);
+                    if (m.hasMatch()) {
+                        rawResp = m.captured(1).trimmed();
+                        /* Non aggiornare m_agentOutputs con il think: passiamo ai prossimi
+                           agenti un placeholder chiaro invece di contenuto di ragionamento */
+                        m_agentOutputs[m_currentAgent - 1] =
+                            "[Modello ha prodotto solo ragionamento interno — nessuna risposta finale]";
+                    }
+                } else {
+                    m_agentOutputs[m_currentAgent - 1] = rawResp;
+                }
             }
             QString htmlContent = rawResp.isEmpty()
                 ? "<p style='color:#6b7280;font-style:italic;margin:0;'>Nessun output.</p>"
@@ -4040,10 +4057,22 @@ void AgentiPage::onFinished(const QString& /*full*/) {
     /* Matematico Teorico — strip think tags prima di usare l'output come contesto */
     if (m_opMode == OpMode::MathTheory) {
         {
-            static const QRegularExpression reTh("<think>[\\s\\S]*?</think>",
-                                                  QRegularExpression::CaseInsensitiveOption);
-            if (m_byzStep == 0) { m_byzA.remove(reTh); m_byzA = m_byzA.trimmed(); }
-            if (m_byzStep == 2) { m_byzC.remove(reTh); m_byzC = m_byzC.trimmed(); }
+            /* stripThink: rimuove <think>...</think>; se rimane vuoto usa il contenuto think */
+            auto stripThink = [](QString& s) {
+                static const QRegularExpression reCap("<think>([\\s\\S]*?)</think>",
+                    QRegularExpression::CaseInsensitiveOption);
+                static const QRegularExpression reRem("<think>[\\s\\S]*?</think>",
+                    QRegularExpression::CaseInsensitiveOption);
+                const QString orig = s;
+                s.remove(reRem);
+                s = s.trimmed();
+                if (s.isEmpty()) {
+                    auto m = reCap.match(orig);
+                    if (m.hasMatch()) s = m.captured(1).trimmed();
+                }
+            };
+            if (m_byzStep == 0) stripThink(m_byzA);
+            if (m_byzStep == 2) stripThink(m_byzC);
         }
         m_byzStep++;
         static const char* mathLabels[] = {
@@ -4086,10 +4115,21 @@ void AgentiPage::onFinished(const QString& /*full*/) {
 
     /* Byzantino — strip think tags prima di usare l'output come contesto */
     {
-        static const QRegularExpression reTh("<think>[\\s\\S]*?</think>",
-                                              QRegularExpression::CaseInsensitiveOption);
-        if (m_byzStep == 0) { m_byzA.remove(reTh); m_byzA = m_byzA.trimmed(); }
-        if (m_byzStep == 2) { m_byzC.remove(reTh); m_byzC = m_byzC.trimmed(); }
+        auto stripThink = [](QString& s) {
+            static const QRegularExpression reCap("<think>([\\s\\S]*?)</think>",
+                QRegularExpression::CaseInsensitiveOption);
+            static const QRegularExpression reRem("<think>[\\s\\S]*?</think>",
+                QRegularExpression::CaseInsensitiveOption);
+            const QString orig = s;
+            s.remove(reRem);
+            s = s.trimmed();
+            if (s.isEmpty()) {
+                auto m = reCap.match(orig);
+                if (m.hasMatch()) s = m.captured(1).trimmed();
+            }
+        };
+        if (m_byzStep == 0) stripThink(m_byzA);
+        if (m_byzStep == 2) stripThink(m_byzC);
     }
     m_byzStep++;
     static const char* labels[] = {
