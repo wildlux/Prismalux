@@ -19,7 +19,7 @@ endif()
 
 # ── Backend C: solo hw_detect (rilevamento GPU cross-platform) ───────────
 set(C_SRCS
-    ../C_software/src/hw_detect.c
+    hw_detect.c
 )
 set_source_files_properties(${C_SRCS} PROPERTIES LANGUAGE C)
 
@@ -55,7 +55,6 @@ add_executable(Prismalux_GUI ${CPP_SRCS} ${C_SRCS} ${QRC_FILES})
 
 target_include_directories(Prismalux_GUI PRIVATE
     ${CMAKE_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/../C_software/include
 )
 
 target_link_libraries(Prismalux_GUI PRIVATE ${QT_LIBS})
