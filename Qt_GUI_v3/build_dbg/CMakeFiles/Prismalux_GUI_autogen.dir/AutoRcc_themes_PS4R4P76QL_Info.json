@@ -1,0 +1,28 @@
+{
+	"BUILD_DIR" : "/home/wildlux/Desktop/Prismalux/Qt_GUI/build_dbg/Prismalux_GUI_autogen",
+	"CMAKE_BINARY_DIR" : "/home/wildlux/Desktop/Prismalux/Qt_GUI/build_dbg",
+	"CMAKE_CURRENT_BINARY_DIR" : "/home/wildlux/Desktop/Prismalux/Qt_GUI/build_dbg",
+	"CMAKE_CURRENT_SOURCE_DIR" : "/home/wildlux/Desktop/Prismalux/Qt_GUI",
+	"CMAKE_SOURCE_DIR" : "/home/wildlux/Desktop/Prismalux/Qt_GUI",
+	"CROSS_CONFIG" : false,
+	"GENERATOR" : "Unix Makefiles",
+	"INCLUDE_DIR" : "/home/wildlux/Desktop/Prismalux/Qt_GUI/build_dbg/Prismalux_GUI_autogen/include",
+	"INPUTS" : 
+	[
+		"/home/wildlux/Desktop/Prismalux/Qt_GUI/themes/dark_purple.qss",
+		"/home/wildlux/Desktop/Prismalux/Qt_GUI/themes/dark_cyan.qss",
+		"/home/wildlux/Desktop/Prismalux/Qt_GUI/themes/light.qss",
+		"/home/wildlux/Desktop/Prismalux/Qt_GUI/themes/dark_amber.qss"
+	],
+	"LOCK_FILE" : "/home/wildlux/Desktop/Prismalux/Qt_GUI/build_dbg/CMakeFiles/Prismalux_GUI_autogen.dir/AutoRcc_themes_PS4R4P76QL_Lock.lock",
+	"MULTI_CONFIG" : false,
+	"OPTIONS" : [ "-name", "themes" ],
+	"OUTPUT_CHECKSUM" : "PS4R4P76QL",
+	"OUTPUT_NAME" : "qrc_themes.cpp",
+	"RCC_EXECUTABLE" : "/usr/lib/qt6/libexec/rcc",
+	"RCC_LIST_OPTIONS" : [ "--list" ],
+	"SETTINGS_FILE" : "/home/wildlux/Desktop/Prismalux/Qt_GUI/build_dbg/CMakeFiles/Prismalux_GUI_autogen.dir/AutoRcc_themes_PS4R4P76QL_Used.txt",
+	"SOURCE" : "/home/wildlux/Desktop/Prismalux/Qt_GUI/themes/themes.qrc",
+	"USE_BETTER_GRAPH" : true,
+	"VERBOSITY" : 0
+}

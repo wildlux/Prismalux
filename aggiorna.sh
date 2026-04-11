@@ -1,15 +1,14 @@
 #!/bin/bash
 # ══════════════════════════════════════════════════════════════
-#  aggiorna.sh — Ricompila Prismalux, ZIP Windows, AppImage Linux
+#  aggiorna.sh — Ricompila Prismalux GUI Qt6, ZIP Windows, AppImage Linux
 #
 #  Uso:
-#    ./aggiorna.sh              # PyDeps + TUI + GUI + ZIP Windows + AppImage
-#    ./aggiorna.sh --tui        # solo TUI C
+#    ./aggiorna.sh              # PyDeps + GUI + ZIP Windows + AppImage
 #    ./aggiorna.sh --gui        # solo GUI Qt6
 #    ./aggiorna.sh --zip        # solo ZIP Windows
 #    ./aggiorna.sh --appimage   # solo AppImage Linux
-#    ./aggiorna.sh --no-zip     # TUI + GUI + AppImage, salta ZIP
-#    ./aggiorna.sh --no-appimage# TUI + GUI + ZIP, salta AppImage
+#    ./aggiorna.sh --no-zip     # GUI + AppImage, salta ZIP
+#    ./aggiorna.sh --no-appimage# GUI + ZIP, salta AppImage
 #    ./aggiorna.sh --no-whisper # salta download binario whisper-cli.exe
 #    ./aggiorna.sh --whisper    # solo download binario whisper-cli.exe
 #    ./aggiorna.sh --no-pycheck # salta verifica/aggiornamento requirements Python
@@ -23,7 +22,7 @@ C='\033[0;36m'; B='\033[1;37m'; N='\033[0m'
 # ── Percorsi ───────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 C_SW="$SCRIPT_DIR/C_software"
-QT_GUI="$C_SW/Qt_GUI"
+QT_GUI="$SCRIPT_DIR/Qt_GUI_v3"
 QT_BUILD="$QT_GUI/build"
 ZIP_SCRIPT="$SCRIPT_DIR/crea_zip_windows.py"
 ZIP_OUT="$SCRIPT_DIR/Prismalux_Windows_full.zip"
