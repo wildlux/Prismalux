@@ -56,6 +56,9 @@ C_software/Qt_GUI/build_dbg/
 C_software/Qt_GUI/build_tests/
 Qt_GUI/build/
 Qt_GUI/build_dbg/
+Qt_GUI_v3/build/
+Qt_GUI_v3/build_dbg/
+Qt_GUI_v3/build_tests/
 
 # ── Cartelle root duplicate/sperimentali (non fanno parte del progetto principale)
 # Nota: / iniziale ancora il pattern alla root del repo
