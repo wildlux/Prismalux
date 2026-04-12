@@ -399,6 +399,10 @@ QWidget* ImparaPage::buildQuiz() {
    Quiz logic
    ══════════════════════════════════════════════════════════════ */
 void ImparaPage::generateQuestion() {
+    /* Guard: ignora click multipli mentre l'AI risponde */
+    if (m_quizBusy) return;
+    m_quizBusy = true;
+
     /* Prima domanda della sessione → inizializza stato */
     if (m_quiz.currentQ == 0) {
         m_quiz.subject    = m_quizSubj->currentText();
@@ -445,11 +449,13 @@ void ImparaPage::generateQuestion() {
     });
     cFin = connect(m_ai, &AiClient::finished, this, [=](const QString& full){
         disconnect(cTok); disconnect(cFin); disconnect(cErr);
+        m_quizBusy = false;
         parseAndShowQuestion(full.isEmpty() ? m_quizRaw->toPlainText() : full);
         m_quizGen->setEnabled(false); /* non rigenerare durante il quiz */
     });
     cErr = connect(m_ai, &AiClient::error, this, [=](const QString& e){
         disconnect(cTok); disconnect(cFin); disconnect(cErr);
+        m_quizBusy = false;
         m_quizQuestion->setText(QString("❌  Errore: %1\n\nRiprova o cambia modello.").arg(e));
         m_quizGen->setEnabled(true);
     });

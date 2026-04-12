@@ -28,6 +28,10 @@
 #include <QFileDialog>
 #include <QDateTime>
 #include <QStandardPaths>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <functional>
 #include <QCoreApplication>
 #include <QTimer>
 #include <QRadioButton>
@@ -1287,6 +1291,18 @@ QWidget* ImpostazioniPage::buildRagTab()
     refreshStatus();
     outer->addWidget(statusLbl);
 
+    /* ── Pulsante: scarica documenti AdE ufficiali ── */
+    auto* downloadBtn = new QPushButton(
+        "\xf0\x9f\x93\xa5  Scarica documenti ufficiali consigliati (AdE 2026)");
+    downloadBtn->setObjectName("actionBtn");
+    downloadBtn->setFixedHeight(32);
+    downloadBtn->setToolTip(
+        "Scarica automaticamente da Agenzia delle Entrate:\n"
+        "  \xe2\x80\xa2 Istruzioni 730/2026\n"
+        "  \xe2\x80\xa2 Fascicolo 2 Persone Fisiche 2026\n"
+        "Salvati in ~/prismalux_rag_docs/ e pronti per il RAG.");
+    outer->addWidget(downloadBtn);
+
     /* Pulsante Reindicizza */
     auto* reindexBtn = new QPushButton("\xf0\x9f\x94\x84  Reindicizza ora");
     reindexBtn->setObjectName("actionBtn");
@@ -1320,6 +1336,98 @@ QWidget* ImpostazioniPage::buildRagTab()
     /* Label feedback globale (accessibile dai lambda) */
     m_ragFeedbackLbl = feedbackLbl;
 
+    /* ── Download documenti AdE consigliati ── */
+    QObject::connect(downloadBtn, &QPushButton::clicked, downloadBtn,
+        [this, dirEdit, feedbackLbl, downloadBtn]() {
+
+        const QString ragDir = QDir::homePath() + "/prismalux_rag_docs";
+        if (!QDir().mkpath(ragDir)) {
+            feedbackLbl->setText("\xe2\x9a\xa0  Impossibile creare la cartella: " + ragDir);
+            feedbackLbl->setVisible(true);
+            return;
+        }
+
+        /* File da scaricare: {url, nome locale} */
+        using DlItem = QPair<QString,QString>;
+        auto* items = new QVector<DlItem>{
+            { "https://www.agenziaentrate.gov.it/portale/documents/20143/9764684/"
+              "730_+istruzioni_2026.pdf/2ac8d27a-fa3d-ed9e-ffc1-9bf61457661e",
+              "730_istruzioni_2026.pdf" },
+            { "https://www.agenziaentrate.gov.it/portale/documents/d/guest/"
+              "pf2_2026_istruzioni_bozza-internet",
+              "fascicolo2_persone_fisiche_2026.pdf" },
+        };
+
+        downloadBtn->setEnabled(false);
+        feedbackLbl->setText(
+            QString("\xe2\x8f\xb3  Download 1/%1: %2")
+            .arg(items->size()).arg((*items)[0].second));
+        feedbackLbl->setVisible(true);
+
+        auto* nam  = new QNetworkAccessManager(this);
+        auto* idx  = new int(0);
+        auto* errN = new int(0);
+
+        /* Catena ricorsiva: un file alla volta */
+        auto* dlNext = new std::function<void()>();
+        *dlNext = [=, this]() {
+            if (*idx >= items->size()) {
+                /* Fine download */
+                if (*errN == 0) {
+                    dirEdit->setText(ragDir);
+                    QSettings s("Prismalux", "GUI");
+                    s.setValue("rag/docsDir", ragDir);
+                    feedbackLbl->setText(
+                        "\xe2\x9c\x85  Download completato! "
+                        "Cartella: <code>" + ragDir + "</code><br>"
+                        "Clicca <b>Reindicizza ora</b> per costruire il RAG.");
+                } else {
+                    feedbackLbl->setText(
+                        QString("\xe2\x9a\xa0  Download completato con %1 errori. "
+                                "Controlla la connessione e riprova.").arg(*errN));
+                }
+                downloadBtn->setEnabled(true);
+                delete items; delete idx; delete errN; delete dlNext;
+                nam->deleteLater();
+                return;
+            }
+
+            const QString url   = (*items)[*idx].first;
+            const QString fname = (*items)[*idx].second;
+            feedbackLbl->setText(
+                QString("\xe2\x8f\xb3  Download %1/%2: %3")
+                .arg(*idx + 1).arg(items->size()).arg(fname));
+
+            QNetworkRequest req{QUrl(url)};
+            req.setHeader(QNetworkRequest::UserAgentHeader,
+                          "Mozilla/5.0 Prismalux/2.2 (Qt)");
+            req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                             QNetworkRequest::NoLessSafeRedirectPolicy);
+
+            auto* reply = nam->get(req);
+            QObject::connect(reply, &QNetworkReply::finished, reply,
+                [=, this]() {
+                reply->deleteLater();
+                if (reply->error() == QNetworkReply::NoError) {
+                    QFile f(ragDir + "/" + fname);
+                    if (f.open(QIODevice::WriteOnly))
+                        f.write(reply->readAll());
+                    else
+                        ++(*errN);
+                } else {
+                    ++(*errN);
+                    feedbackLbl->setText(
+                        "\xe2\x9a\xa0  Errore: " + reply->errorString()
+                        + " — " + fname);
+                }
+                ++(*idx);
+                (*dlNext)();
+            });
+        };
+
+        (*dlNext)();
+    });
+
     QObject::connect(reindexBtn, &QPushButton::clicked, reindexBtn,
         [this, dirEdit, statusLbl, feedbackLbl, refreshStatus, reindexBtn]() {
         QString dir = dirEdit->text().trimmed();
@@ -1337,26 +1445,47 @@ QWidget* ImpostazioniPage::buildRagTab()
             return;
         }
 
-        /* Raccolta chunk: leggi file di testo, spezza ogni 400 caratteri */
-        QStringList filters{
-            "*.txt","*.md","*.csv","*.rst","*.py","*.cpp","*.h","*.c"
+        /* Raccolta chunk — helper per spezzare testo in chunk da ~400 caratteri */
+        auto addChunks = [this](const QString& content) {
+            for (int i = 0; i < content.size(); i += 400) {
+                QString chunk = content.mid(i, 500).simplified();
+                if (chunk.size() >= 30)
+                    m_ragQueue << chunk;
+            }
         };
+
         m_ragQueue.clear();
         m_ragQueuePos = 0;
         m_rag.clear();
 
+        /* ── 1. File di testo ── */
+        QStringList filters{
+            "*.txt","*.md","*.csv","*.rst","*.py","*.cpp","*.h","*.c"
+        };
         QDirIterator it(dir, filters, QDir::Files, QDirIterator::Subdirectories);
         while (it.hasNext()) {
             QFile f(it.next());
             if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) continue;
-            const QString content = QString::fromUtf8(f.readAll());
-            /* Spezza in chunk da ~400 caratteri (finestre scorrevoli) */
-            for (int i = 0; i < content.size(); i += 400) {
-                QString chunk = content.mid(i, 500).simplified();
-                if (chunk.size() >= 30)          /* ignora chunk troppo corti */
-                    m_ragQueue << chunk;
+            addChunks(QString::fromUtf8(f.readAll()));
+        }
+
+        /* ── 2. PDF tramite pdftotext (se installato) ── */
+        const QString pdfToText = QStandardPaths::findExecutable("pdftotext");
+        if (!pdfToText.isEmpty()) {
+            QDirIterator pdfIt(dir, QStringList{"*.pdf"}, QDir::Files,
+                               QDirIterator::Subdirectories);
+            while (pdfIt.hasNext()) {
+                const QString pdfPath = pdfIt.next();
+                QProcess p;
+                /* pdftotext file.pdf - → testo su stdout, nessuna shell */
+                p.start(pdfToText, {pdfPath, "-"});
+                if (!p.waitForFinished(60000)) continue;  /* timeout 60s per PDF grandi */
+                addChunks(QString::fromUtf8(p.readAllStandardOutput()));
             }
         }
+        /* pdftotext non trovato: i PDF vengono saltati silenziosamente.
+           Su Linux: sudo apt install poppler-utils
+           Su Windows: incluso in Poppler for Windows (già elencato in Dipendenze) */
 
         if (m_ragQueue.isEmpty()) {
             feedbackLbl->setText("\xf0\x9f\x8c\xab  Nessun contenuto trovato nella cartella.");

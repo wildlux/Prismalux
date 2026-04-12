@@ -52,7 +52,8 @@ private:
 
     /* ── state ── */
     AiClient*       m_ai;
-    QStackedWidget* m_inner = nullptr;
+    QStackedWidget* m_inner     = nullptr;
+    bool            m_quizBusy  = false;  ///< guard: evita richieste sovrapposte
 
     /* ── tutor ── */
     QTextEdit*   m_tutorLog  = nullptr;

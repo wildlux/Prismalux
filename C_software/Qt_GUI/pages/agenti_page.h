@@ -142,7 +142,8 @@ private:
     QProcess* m_execProc = nullptr;  ///< processo esecutore corrente
 
     /* ── TTS — processo tracciato per stop/pausa ── */
-    QProcess*    m_ttsProc    = nullptr;
+    QProcess*    m_ttsProc    = nullptr;  ///< aplay (Linux) o PowerShell (Win)
+    QProcess*    m_piperProc  = nullptr;  ///< piper TTS (solo Linux, pipe verso m_ttsProc)
     QPushButton* m_btnTtsStop = nullptr;
 
     /* ── STT — pulsante + processi tracciati ── */

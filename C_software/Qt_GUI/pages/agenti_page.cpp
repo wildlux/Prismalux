@@ -77,6 +77,7 @@ static const BubClr& bc() {
 #include <QUrl>
 #include <QNetworkRequest>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QFile>
 #include <QTemporaryFile>
 #include <QDateTime>
@@ -159,10 +160,17 @@ void AgentiPage::setupUI() {
     m_btnTtsStop->setVisible(false);
     toolLay->addWidget(m_btnTtsStop);
     connect(m_btnTtsStop, &QPushButton::clicked, this, [this]{
+        /* Ferma piper prima di aplay (evita dati residui in pipe) */
+        if (m_piperProc) {
+            m_piperProc->kill();
+            m_piperProc->waitForFinished(300);
+            m_piperProc->deleteLater();
+            m_piperProc = nullptr;
+        }
         if (m_ttsProc) { m_ttsProc->kill(); m_ttsProc->waitForFinished(300); }
 #ifndef Q_OS_WIN
-        QProcess::startDetached("pkill", {"aplay"});
-        QProcess::startDetached("pkill", {"piper"});
+        QProcess::startDetached("pkill", {"-9", "aplay"});
+        QProcess::startDetached("pkill", {"-9", "piper"});
 #endif
         m_btnTtsStop->setVisible(false);
     });
@@ -576,9 +584,10 @@ void AgentiPage::setupUI() {
     connect(m_btnRun, &QPushButton::clicked, this, [this]{
         int mode = m_cmbMode->currentIndex();
         if      (mode == 10) runConsiglioScientifico();
-        else if (mode == 0 || (mode >= 3 && mode < 10)) runPipeline();
-        else if (mode == 1) runByzantine();
         else if (mode == 2) runMathTheory();
+        /* Motore Byzantino (mode==1): usa Pipeline semplice — più veloce, stesso
+           risultato pratico. runByzantine() rimane disponibile per usi futuri. */
+        else runPipeline();
     });
     /* Invio = Avvia  |  Shift+Invio = a capo nel testo */
     {
@@ -1239,15 +1248,22 @@ void AgentiPage::_ttsPlay(const QString& tts)
 {
     if (tts.trimmed().isEmpty()) return;
 
-    /* Ferma TTS precedente se attivo */
+    /* Ferma TTS precedente se attivo — prima piper, poi aplay */
+    if (m_piperProc) {
+        m_piperProc->kill();
+        m_piperProc->waitForFinished(300);
+        m_piperProc->deleteLater();
+        m_piperProc = nullptr;
+    }
     if (m_ttsProc) {
         m_ttsProc->kill();
         m_ttsProc->waitForFinished(300);
         if (m_ttsProc) { m_ttsProc->deleteLater(); m_ttsProc = nullptr; }
     }
 #ifndef Q_OS_WIN
-    QProcess::startDetached("pkill", {"aplay"});
-    QProcess::startDetached("pkill", {"espeak-ng"});
+    QProcess::startDetached("pkill", {"-9", "aplay"});
+    QProcess::startDetached("pkill", {"-9", "espeak-ng"});
+    QProcess::startDetached("pkill", {"-9", "piper"});
 #endif
 
     /* Avviso caricamento moduli vocali */
@@ -1261,30 +1277,47 @@ void AgentiPage::_ttsPlay(const QString& tts)
             this, [this](int, QProcess::ExitStatus){
         if (m_waitLbl)    m_waitLbl->setVisible(false);
         if (m_btnTtsStop) m_btnTtsStop->setVisible(false);
+        /* Cleanup piper (produttore) quando aplay (consumatore) finisce */
+        if (m_piperProc)  {
+            m_piperProc->terminate();
+            m_piperProc->waitForFinished(300);
+            m_piperProc->deleteLater();
+            m_piperProc = nullptr;
+        }
         if (m_ttsProc)    { m_ttsProc->deleteLater(); m_ttsProc = nullptr; }
     });
 
 #ifdef Q_OS_WIN
-    /* Windows: voci native SAPI via PowerShell */
-    if (TtsSpeak::writeTtsTemp(tts)) {
-        m_ttsProc->start("powershell",
-            {"-NoProfile", "-WindowStyle", "Hidden",
-             "-Command", TtsSpeak::sapiCommand()});
-    } else {
-        if (m_waitLbl) m_waitLbl->setVisible(false);
-        m_ttsProc->deleteLater(); m_ttsProc = nullptr;
-        return;
+    /* Windows: voci native SAPI via PowerShell.
+       Il path del file TTS viaggia come variabile d'ambiente (PRISMA_TTS_PATH)
+       invece di essere interpolato nella stringa PS — immune ad apostrofi nel
+       path (es. C:\Users\O'Brien\...) e a injection da caratteri speciali. */
+    {
+        const QString tmpPath = TtsSpeak::ttsTempFile();
+        if (TtsSpeak::writeTtsTemp(tts)) {
+            QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+            env.insert("PRISMA_TTS_PATH", QDir::toNativeSeparators(tmpPath));
+            m_ttsProc->setProcessEnvironment(env);
+            m_ttsProc->start(QString("powershell"), TtsSpeak::sapiArgs(tmpPath));
+        } else {
+            if (m_waitLbl) m_waitLbl->setVisible(false);
+            m_ttsProc->deleteLater(); m_ttsProc = nullptr;
+            return;
+        }
     }
 #else
     /* Linux: Piper → espeak-ng → spd-say */
     const QString bin  = TtsSpeak::piperBin();
     const QString onnx = TtsSpeak::activeOnnx();
     if (!bin.isEmpty() && QFileInfo::exists(onnx) && TtsSpeak::writeTtsTemp(tts)) {
-        const QString cmd =
-            QString("\"%1\" --model \"%2\" --output_raw < \"%3\""
-                    " | aplay -r 22050 -f S16_LE -t raw -q -")
-            .arg(bin, onnx, TtsSpeak::ttsTempFile());
-        m_ttsProc->start("bash", {"-c", cmd});
+        /* Two-process pipe senza shell intermediaria:
+           piper --output_raw → pipe stdout/stdin → aplay
+           Immune a path injection: bin e onnx sono args, non interpolati in shell. */
+        m_piperProc = new QProcess(this);
+        m_piperProc->setStandardOutputProcess(m_ttsProc);  // piper stdout → aplay stdin
+        m_piperProc->setStandardInputFile(TtsSpeak::ttsTempFile());
+        m_ttsProc->start(QString("aplay"), {"-r","22050","-f","S16_LE","-t","raw","-q","-"});
+        m_piperProc->start(bin, {"--model", onnx, "--output_raw"});
     } else if (!QProcess::startDetached("espeak-ng",{"-v","it+f3","--punct=none",tts})) {
         /* espeak-ng non trovato: prova spd-say tracciato */
         m_ttsProc->start("spd-say", {"--lang","it","--",tts});
