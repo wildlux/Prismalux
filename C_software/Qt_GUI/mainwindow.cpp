@@ -349,24 +349,22 @@ MainWindow::MainWindow(QWidget* parent)
     /* Pagina iniziale */
     navigateTo(0);
 
-    /* Scorciatoie da tastiera: Alt+1…7 = navigazione rapida
+    /* Scorciatoie da tastiera: Alt+1…6 = navigazione rapida
        0=Agenti  1=Strumenti  2=Grafico  3=Programmazione
-       4=Matematica  5=Impara(+Finanza)  6=Sfida
-       (Finanza non ha più shortcut separato: è sotto-scheda di Impara) */
+       4=Matematica  5=Impara (+Finanza +Sfida)
+       (Finanza e Sfida sono sotto-schede di Impara, nessuna shortcut separata) */
     auto* sc1 = new QShortcut(QKeySequence("Alt+1"), this);
     auto* sc2 = new QShortcut(QKeySequence("Alt+2"), this);
     auto* sc3 = new QShortcut(QKeySequence("Alt+3"), this);
     auto* sc4 = new QShortcut(QKeySequence("Alt+4"), this);
     auto* sc5 = new QShortcut(QKeySequence("Alt+5"), this);
     auto* sc6 = new QShortcut(QKeySequence("Alt+6"), this);
-    auto* sc7 = new QShortcut(QKeySequence("Alt+7"), this);
     connect(sc1, &QShortcut::activated, this, [this]{ navigateTo(0); }); /* Agenti AI */
     connect(sc2, &QShortcut::activated, this, [this]{ navigateTo(1); }); /* Strumenti */
     connect(sc3, &QShortcut::activated, this, [this]{ navigateTo(2); }); /* Grafico */
     connect(sc4, &QShortcut::activated, this, [this]{ navigateTo(3); }); /* Programmazione */
     connect(sc5, &QShortcut::activated, this, [this]{ navigateTo(4); }); /* Matematica */
-    connect(sc6, &QShortcut::activated, this, [this]{ navigateTo(5); }); /* Impara (+Finanza) */
-    connect(sc7, &QShortcut::activated, this, [this]{ navigateTo(6); }); /* Sfida */
+    connect(sc6, &QShortcut::activated, this, [this]{ navigateTo(5); }); /* Impara (+Finanza +Sfida) */
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1364,7 +1362,7 @@ QWidget* MainWindow::buildContent() {
     });
     m_mainTabs->addTab(new ProgrammazionePage(m_ai, this),"\xf0\x9f\x92\xbb  Programmazione");  /* 3 */
     m_mainTabs->addTab(new MatematicaPage(m_ai, this),    "\xcf\x80  Matematica");               /* 4 */
-    /* Finanza (PraticoPage) spostata DENTRO il tab Impara come sotto-scheda */
+    /* Finanza + Sfida te stesso! come sotto-schede di Impara */
     {
         auto* imparaContainer = new QWidget(m_mainTabs);
         auto* ilay = new QVBoxLayout(imparaContainer);
@@ -1376,20 +1374,20 @@ QWidget* MainWindow::buildContent() {
         imparaTabs->setTabPosition(QTabWidget::North);
         imparaTabs->addTab(new ImparaPage(m_ai, imparaContainer),  "\xf0\x9f\x93\x9a  Impara");
         imparaTabs->addTab(new PraticoPage(m_ai, imparaContainer), "\xf0\x9f\x92\xb0  Finanza");
+        /* QuizPage usa AiClient SEPARATO: evita cross-talk con AgentiPage
+           (segnali token/finished condivisi causano output fantasma nelle bolle). */
+        {
+            auto* quizAi = new AiClient(this);
+            quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+            connect(m_ai, &AiClient::modelsReady, quizAi, [this, quizAi](const QStringList&){
+                quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+            });
+            imparaTabs->addTab(new QuizPage(quizAi, imparaContainer),
+                               "\xf0\x9f\x8e\xaf  Sfida te stesso!");
+        }
         ilay->addWidget(imparaTabs);
 
         m_mainTabs->addTab(imparaContainer, "\xf0\x9f\x93\x9a  Impara");                   /* 5 */
-    }
-    /* QuizPage usa un AiClient SEPARATO per evitare cross-talk con AgentiPage
-       (signal token/finished condivisi causano output fantasma nelle bolle agenti). */
-    {
-        auto* quizAi = new AiClient(this);
-        quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
-        /* Sincronizza backend/modello quando l'utente cambia le impostazioni principali */
-        connect(m_ai, &AiClient::modelsReady, quizAi, [this, quizAi](const QStringList&){
-            quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
-        });
-        m_mainTabs->addTab(new QuizPage(quizAi, this),     "\xf0\x9f\x8e\xaf  Sfida te stesso!");/* 7 */
     }
 
     /* ── Salva etichette originali e applica modalità da QSettings ── */
