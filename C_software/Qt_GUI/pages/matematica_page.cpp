@@ -25,6 +25,7 @@
 #include <QClipboard>
 #include <QApplication>
 #include <QTimer>
+#include <QEventLoop>
 #include <cmath>
 #include <limits>
 
@@ -1254,7 +1255,14 @@ QString MatematicaPage::extractNumbersFromFile(const QString& path, QString& err
             err = "catdoc non trovato. Installa con: sudo apt install catdoc";
             return {};
         }
-        proc.waitForFinished(15000);
+        {
+            QEventLoop loop;
+            QTimer t; t.setSingleShot(true); t.setInterval(15000);
+            connect(&proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                    &loop, &QEventLoop::quit);
+            connect(&t, &QTimer::timeout, &loop, &QEventLoop::quit);
+            t.start(); loop.exec();
+        }
         const QString text = QString::fromLocal8Bit(proc.readAllStandardOutput());
         if (text.isEmpty()) { err = "catdoc non ha prodotto output."; return {}; }
         return numbersFromText(text);
@@ -1290,7 +1298,14 @@ QString MatematicaPage::extractNumbersFromFile(const QString& path, QString& err
                 err = "pypdf non trovato e pdftotext non disponibile.";
                 return {};
             }
-            proc.waitForFinished(15000);
+            {
+                QEventLoop loop;
+                QTimer t; t.setSingleShot(true); t.setInterval(15000);
+                connect(&proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                        &loop, &QEventLoop::quit);
+                connect(&t, &QTimer::timeout, &loop, &QEventLoop::quit);
+                t.start(); loop.exec();
+            }
             pyOut = QString::fromLocal8Bit(proc.readAllStandardOutput());
         }
         return numbersFromText(pyOut);
@@ -1305,6 +1320,9 @@ QString MatematicaPage::extractNumbersFromFile(const QString& path, QString& err
    _runPythonSync — esegue python3 -c CODE e restituisce stdout.
    Uso SOLO per operazioni brevi (import file), non per calcoli
    lunghi — usa runPython() per quelli (streaming asincrono).
+
+   Usa QEventLoop invece di waitForFinished per mantenere l'UI
+   reattiva durante l'attesa (scroll, resize, spinner, ecc.).
    ══════════════════════════════════════════════════════════════ */
 QString MatematicaPage::_runPythonSync(const QString& code, QString& err)
 {
@@ -1315,7 +1333,19 @@ QString MatematicaPage::_runPythonSync(const QString& code, QString& err)
         err = "Python non trovato nel PATH. Installa Python da python.org";
         return {};
     }
-    proc.waitForFinished(20000);
+    /* QEventLoop al posto di waitForFinished(20000) — stesso timeout ma
+       il main thread continua a processare eventi Qt (input, resize, paint). */
+    {
+        QEventLoop loop;
+        QTimer t;
+        t.setSingleShot(true);
+        t.setInterval(20000);
+        connect(&proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                &loop, &QEventLoop::quit);
+        connect(&t, &QTimer::timeout, &loop, &QEventLoop::quit);
+        t.start();
+        loop.exec();
+    }
     const QString out    = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
     const QString errOut = QString::fromUtf8(proc.readAllStandardError()).trimmed();
     if (proc.exitCode() != 0) {

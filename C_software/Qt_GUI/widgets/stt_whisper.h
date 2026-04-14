@@ -36,7 +36,7 @@ inline QString whisperModelsDir() { return P::whisperModelsDir(); }
 inline QString whisperModel()
 {
     /* 1. Preferenza utente salvata in QSettings */
-    const QString pref = QSettings("Prismalux","GUI").value("stt/model_path").toString();
+    const QString pref = QSettings("Prismalux","GUI").value(P::SK::kSttModelPath).toString();
     if (!pref.isEmpty() && QFileInfo::exists(pref)) return pref;
 
     /* 2. Auto-detect nella cartella modelli del progetto
@@ -59,13 +59,13 @@ inline QString whisperModel()
 /* ── Legge il modello preferito da QSettings ── */
 inline QString preferredModel()
 {
-    return QSettings("Prismalux","GUI").value("stt/model_path").toString();
+    return QSettings("Prismalux","GUI").value(P::SK::kSttModelPath).toString();
 }
 
 /* ── Salva il modello preferito ── */
 inline void savePreferredModel(const QString& path)
 {
-    QSettings("Prismalux","GUI").setValue("stt/model_path", path);
+    QSettings("Prismalux","GUI").setValue(P::SK::kSttModelPath, path);
 }
 
 /* ── true se tutto il necessario è presente ── */

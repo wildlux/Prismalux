@@ -55,9 +55,13 @@ static const BubClr kLight = {
 };
 
 static const BubClr& bc() {
-    const QColor bg = qApp->palette().color(QPalette::Window);
-    const int lum = (bg.red()*299 + bg.green()*587 + bg.blue()*114) / 1000;
-    return lum > 128 ? kLight : kDark;
+    /* Usa l'ID del tema salvato — NON la palette di sistema.
+     * qApp->palette() riflette il tema GTK/KDE del desktop e può essere scuro
+     * anche quando l'utente ha selezionato un tema "light_*" in Prismalux.
+     * Leggere ThemeManager::currentId() garantisce coerenza con il tema reale. */
+    const QString tid = ThemeManager::instance()->currentId();
+    const bool isLight = tid.startsWith("light") || tid == "pink";
+    return isLight ? kLight : kDark;
 }
 } // namespace
 #include <QTime>
@@ -1084,6 +1088,20 @@ void AgentiPage::setupUI() {
     /* AI interrotta: reset UI */
     connect(m_ai, &AiClient::aborted, this, [this]{
         m_waitLbl->setVisible(false);
+
+        /* Rimuove il contenuto parziale dello streaming (testo grezzo non ancora
+           convertito in bolla) che va da m_agentBlockStart alla fine del documento.
+           Senza questo cleanup, il testo grezzo rimane visibile e la formattazione
+           appare "sballata" quando si torna sulla scheda dopo un cambio tab. */
+        if (m_agentBlockStart > 0) {
+            QTextCursor sel(m_log->document());
+            sel.setPosition(m_agentBlockStart);
+            sel.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+            if (!sel.selectedText().trimmed().isEmpty())
+                sel.removeSelectedText();
+            m_agentBlockStart = 0;
+        }
+
         m_opMode       = OpMode::Idle;
         m_currentAgent = 0;
         m_agentOutputs.clear();
@@ -1093,6 +1111,7 @@ void AgentiPage::setupUI() {
         emit pipelineStatus(0, "\xe2\x9c\x8b  Interrotto");
         for (int i = 0; i < MAX_AGENTS; i++)
             m_cfgDlg->enabledChk(i)->setStyleSheet("");
+        m_log->moveCursor(QTextCursor::End);
         m_log->append("\n\xe2\x9c\x8b  Pipeline interrotta.");
     });
 
@@ -1590,51 +1609,13 @@ QString AgentiPage::_sanitizePyCode(const QString& code)
         R"(if\s+__name__\s*==\s*['"]main['"]\s*:)");
     out.replace(reNameMain2, "if __name__ == \"__main__\":");
 
-    /* Auto-install moduli esterni comuni che l'AI genera ma che possono
-       mancare nell'ambiente Python dell'utente (tipico su Windows senza venv).
-       Il blocco viene iniettato solo se almeno uno dei moduli è importato. */
-    static const QStringList kOptionalPkgs = {
-        "psutil", "numpy", "pandas", "matplotlib", "scipy",
-        "sklearn", "PIL", "requests", "sympy"
-    };
-    /* Mappa import-name → package-name (se diversi) */
-    static const QMap<QString,QString> kPkgMap = {
-        {"PIL", "Pillow"}, {"sklearn", "scikit-learn"}
-    };
-
-    QStringList toInstall;
-    for (const QString& mod : kOptionalPkgs) {
-        /* Cerca "import <mod>" oppure "from <mod>" nel codice */
-        QRegularExpression reImp(
-            QString(R"((?:^|\n)\s*(?:import\s+%1|from\s+%1\s))").arg(
-                QRegularExpression::escape(mod)));
-        if (reImp.match(out).hasMatch())
-            toInstall.append(kPkgMap.value(mod, mod));
-    }
-
-    if (!toInstall.isEmpty()) {
-        QString pkgList;
-        for (const QString& pkg : toInstall)
-            pkgList += QString("    \"%1\",\n").arg(pkg);
-
-        QString preamble =
-            "import subprocess, sys\n"
-            "def _prisma_ensure(*pkgs):\n"
-            "    import importlib\n"
-            "    for p in pkgs:\n"
-            "        name = p.replace('-','_').split('[')[0]\n"
-            "        try: importlib.import_module(name)\n"
-            "        except ImportError:\n"
-            "            subprocess.check_call(\n"
-            "                [sys.executable, '-m', 'pip', 'install', p, '-q'],\n"
-            "                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
-            "_prisma_ensure(\n"
-            + pkgList +
-            ")\n\n";
-
-        out = preamble + out;
-    }
-
+    /* Nota: l'auto-install pip è stato rimosso deliberatamente.
+       Iniettare un preamble di `pip install` prima che l'utente veda il
+       codice nel dialog C1 bypassa la guardia C2 (conferma esplicita per
+       ogni pacchetto): l'utente clicca "Esegui" credendo di approvare il
+       codice AI, ma pip è già nel preamble invisibile.
+       Il percorso corretto è: il codice fallisce con ModuleNotFoundError →
+       C2 mostra il dialog con il nome del pacchetto → l'utente decide. */
     return out;
 }
 
@@ -2007,22 +1988,13 @@ void AgentiPage::onModelsReady(const QStringList& list) {
     m_cfgDlg->setModels(list_ref);
     populateLLMCombo(list_ref);
 
-    /* ── Auto-assegna: sempre abilitato.
-       Se VRAM benchmark mancante, cliccarlo apre direttamente le impostazioni Hardware. ── */
+    /* ── Auto-assegna: sempre abilitato. ── */
     const bool canAutoAssign = list_ref.size() > 1;
-    const bool hasVramProfile = QFileInfo::exists(P::vramProfilePath());
     m_btnAuto->setEnabled(true);
-    if (!hasVramProfile) {
-        m_btnAuto->setToolTip(
-            "\xf0\x9f\x94\xac  Benchmark VRAM non ancora eseguito\n"
-            "Clicca per aprire Hardware \xe2\x86\x92 VRAM Bench e avviare il benchmark.\n"
-            "Le ottimizzazioni pre-registrate vengono usate nell'auto-assegnazione.");
-    } else {
-        m_btnAuto->setToolTip(canAutoAssign
-            ? "Auto-assegna ruoli e modelli ottimali tramite orchestratore AI"
-            : "Auto-assegna non disponibile: un solo modello presente.\n"
-              "llama-server carica un modello alla volta — usa Ollama per la selezione automatica.");
-    }
+    m_btnAuto->setToolTip(canAutoAssign
+        ? "Auto-assegna ruoli e modelli ottimali tramite orchestratore AI"
+        : "Auto-assegna non disponibile: un solo modello presente.\n"
+          "llama-server carica un modello alla volta — usa Ollama per la selezione automatica.");
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2032,16 +2004,6 @@ void AgentiPage::autoAssignRoles() {
     QString task = m_input->toPlainText().trimmed();
     if (task.isEmpty()) {
         m_log->append("\xe2\x9a\xa0  Inserisci prima un task per l'auto-assegnazione."); return;
-    }
-
-    /* ── Benchmark VRAM mancante: apri direttamente le Impostazioni Hardware ── */
-    if (!QFileInfo::exists(P::vramProfilePath())) {
-        m_log->append(
-            "\xf0\x9f\x94\xac  <b>Benchmark VRAM non trovato.</b><br>"
-            "Apertura Impostazioni \xe2\x86\x92 Hardware \xe2\x86\x92 VRAM Bench&hellip;<br>"
-            "Avvia il benchmark, poi torna qui e riprova.");
-        emit requestOpenSettings("Hardware");
-        return;
     }
 
     m_autoLbl->setText("\xf0\x9f\x94\x84  Recupero modelli disponibili...");
@@ -2364,26 +2326,15 @@ static QString _sanitize_prompt(const QString& raw)
         }
     }
 
-    /* 3. Frasi di jailbreak comuni (substringa, case-insensitive) */
-    static const char* const kPhrases[] = {
-        "ignore previous instructions",
-        "ignore all previous",
-        "disregard your instructions",
-        "forget your system prompt",
-        nullptr
-    };
-    QString lower = s.toLower();
-    for (int i = 0; kPhrases[i]; ++i) {
-        QString pat = QString::fromUtf8(kPhrases[i]);
-        int idx = 0;
-        while ((idx = lower.indexOf(pat, idx)) != -1) {
-            /* Sostituisce con trattini per segnalare il filtraggio */
-            for (int k = 0; k < pat.size() && idx+k < s.size(); ++k)
-                s[idx+k] = u'-';
-            lower = s.toLower();
-            idx += pat.size();
-        }
-    }
+    /* NOTA SICUREZZA [C3]: NON esiste un filtro testuale affidabile contro
+       il prompt injection. Qualsiasi lista di frasi da bloccare è bypassabile
+       con testo in italiano, altre lingue, unicode lookalike, split delle
+       parole o semplice parafrasi.
+       La protezione reale contro il prompt injection è:
+         - non eseguire automaticamente azioni irreversibili (C1: dialog conferma)
+         - non fidarsi dell'output LLM come fonte di comandi sicuri
+       Il blocco kPhrases[] che filtrava "ignore previous instructions" ecc.
+       è stato rimosso perché dava falsa sicurezza senza protezione concreta. */
 
     return s;
 }
@@ -2933,12 +2884,13 @@ void AgentiPage::runPipeline() {
                     m_log->clear();
                     m_taskOriginal = task;
                     { int i = m_bubbleIdx++; m_bubbleTexts[i] = task;
+                      m_log->moveCursor(QTextCursor::End);
                       m_log->insertHtml(buildUserBubble(task, i)); }
                     m_log->append("");
                     /* Bolla chart: solo pulsante "Mostra grafico" senza testo formula */
                     {
                         const auto& _c = bc();
-                        const int br = QSettings("Prismalux","GUI").value("bubble_radius",10).toInt();
+                        const int br = QSettings("Prismalux","GUI").value(P::SK::kBubbleRadius,10).toInt();
                         const QString brs = QString::number(br) + "px";
                         const QString chartHtml =
                             "<p style='margin:6px 0;'></p>"
@@ -2969,6 +2921,7 @@ void AgentiPage::runPipeline() {
                             "</tr>"
                             "</table>"
                             "<p style='margin:4px 0;'></p>";
+                        m_log->moveCursor(QTextCursor::End);
                         m_log->insertHtml(chartHtml);
                     }
                     tryShowChart(task);
@@ -3002,6 +2955,7 @@ void AgentiPage::runPipeline() {
     /* NON si cancella il log: le Q&A si accumulano nella stessa chat */
     /* Bolla utente — mostra il task come messaggio "Tu" */
     { int i = m_bubbleIdx++; m_bubbleTexts[i] = m_taskOriginal;
+      m_log->moveCursor(QTextCursor::End);
       m_log->insertHtml(buildUserBubble(m_taskOriginal, i)); }
     m_log->append("");
 
@@ -3275,7 +3229,7 @@ QString AgentiPage::buildUserBubble(const QString& text, int bubbleIdx)
             "</p>";
     }
 
-    const int br = QSettings("Prismalux","GUI").value("bubble_radius",10).toInt();
+    const int br = QSettings("Prismalux","GUI").value(P::SK::kBubbleRadius,10).toInt();
     const QString brs = QString::number(br) + "px";
     return
         "<table width='100%' cellpadding='0' cellspacing='0'>"
@@ -3362,7 +3316,7 @@ QString AgentiPage::buildAgentBubble(const QString& label, const QString& model,
             "</table>";
     }
 
-    const int br = QSettings("Prismalux","GUI").value("bubble_radius",10).toInt();
+    const int br = QSettings("Prismalux","GUI").value(P::SK::kBubbleRadius,10).toInt();
     const QString brs = QString::number(br) + "px";
     return
         "<p style='margin:6px 0;'></p>"
@@ -3430,7 +3384,7 @@ QString AgentiPage::buildLocalBubble(const QString& result, double ms, int bubbl
             "</p>";
     }
 
-    const int br = QSettings("Prismalux","GUI").value("bubble_radius",10).toInt();
+    const int br = QSettings("Prismalux","GUI").value(P::SK::kBubbleRadius,10).toInt();
     const QString brs = QString::number(br) + "px";
     return
         "<p style='margin:6px 0;'></p>"
@@ -3813,6 +3767,7 @@ void AgentiPage::onFinished(const QString& /*full*/) {
             for (int i = 0; i < MAX_AGENTS; i++) m_cfgDlg->enabledChk(i)->setStyleSheet("");
             emit pipelineStatus(0, "Avvio pipeline...");
             { int idx = m_bubbleIdx++; m_bubbleTexts[idx] = m_taskOriginal;
+              m_log->moveCursor(QTextCursor::End);
               m_log->insertHtml(buildUserBubble(m_taskOriginal, idx)); }
             m_log->append("");
             m_waitLbl->setVisible(true);
@@ -3906,15 +3861,32 @@ void AgentiPage::onFinished(const QString& /*full*/) {
                     QRegularExpression::CaseInsensitiveOption));
                 rawResp = rawResp.trimmed();
 
-                /* Fallback: se il modello ha prodotto solo reasoning, mostralo */
+                /* Fallback: se il modello ha prodotto solo reasoning (o output vuoto),
+                 * mostra il contenuto del <think> se non vuoto.
+                 * Caso comune con modelli 0.8-1.5B: generano <think>...</think>
+                 * ma poi non aggiungono risposta finale. */
                 if (rawResp.isEmpty()) {
                     auto m = reTh.match(original);
                     if (m.hasMatch()) {
-                        rawResp = m.captured(1).trimmed();
+                        /* Prova prima il contenuto trimmed, poi raw (per preservare newline) */
+                        const QString thinkTrimmed = m.captured(1).trimmed();
+                        rawResp = thinkTrimmed.isEmpty() ? m.captured(1) : thinkTrimmed;
+                        if (rawResp.isEmpty()) {
+                            /* Modello troppo piccolo: think vuoto + nessuna risposta */
+                            rawResp = "[Il modello non ha prodotto risposta. "
+                                      "Usa un modello più grande (≥3B) o premi "
+                                      "Singolo per domande semplici.]";
+                        }
                         /* Non aggiornare m_agentOutputs con il think: passiamo ai prossimi
                            agenti un placeholder chiaro invece di contenuto di ragionamento */
                         m_agentOutputs[m_currentAgent - 1] =
                             "[Modello ha prodotto solo ragionamento interno — nessuna risposta finale]";
+                    } else {
+                        /* Nessun tag <think> e risposta vuota — modello non ha risposto */
+                        rawResp = "[Nessuna risposta dal modello. "
+                                  "Verifica che Ollama sia avviato e il modello selezionato "
+                                  "sia disponibile.]";
+                        m_agentOutputs[m_currentAgent - 1] = rawResp;
                     }
                 } else {
                     m_agentOutputs[m_currentAgent - 1] = rawResp;
@@ -3941,6 +3913,63 @@ void AgentiPage::onFinished(const QString& /*full*/) {
             /* Corregge i bug tipici nei codici generati dall'AI */
             pyCode = _sanitizePyCode(pyCode);
 
+            /* ── [C1] Dialog conferma esecuzione codice AI ───────────────────────
+               Il codice generato dall'LLM viene MOSTRATO prima dell'esecuzione.
+               L'utente deve cliccare "Esegui" esplicitamente — MAI automatico.
+               Motivazione: un LLM può produrre (per errore o per prompt injection
+               in un documento caricato) codice che cancella file o esfiltra dati. */
+            {
+                auto* dlg = new QDialog(this);
+                dlg->setWindowTitle(
+                    "\xe2\x9a\xa0  Esegui codice generato dall\xe2\x80\x99" "AI?");
+                dlg->setMinimumSize(660, 460);
+                auto* lay = new QVBoxLayout(dlg);
+
+                auto* warnLbl = new QLabel(
+                    "\xe2\x9a\xa0  Stai per eseguire codice Python generato dall\xe2\x80\x99"
+                    "AI con i tuoi permessi utente.\n"
+                    "Verifica che non faccia operazioni indesiderate prima di procedere.",
+                    dlg);
+                warnLbl->setWordWrap(true);
+                warnLbl->setStyleSheet(
+                    "color:#facc15;font-weight:bold;padding:6px;"
+                    "background:#292524;border-radius:4px;");
+                lay->addWidget(warnLbl);
+
+                auto* codeView = new QTextEdit(dlg);
+                codeView->setReadOnly(true);
+                codeView->setPlainText(pyCode);
+                codeView->setFont(QFont(
+                    "JetBrains Mono,Fira Code,Consolas,monospace", 10));
+                codeView->setStyleSheet(
+                    "background:#1e1e2e;color:#cdd6f4;"
+                    "border:1px solid #45475a;padding:4px;");
+                lay->addWidget(codeView, 1);
+
+                auto* btnBox = new QDialogButtonBox(dlg);
+                auto* btnRun = btnBox->addButton(
+                    "\xe2\x96\xb6  Esegui", QDialogButtonBox::AcceptRole);
+                btnBox->addButton(
+                    "\xe2\x9c\x96  Annulla", QDialogButtonBox::RejectRole);
+                btnRun->setStyleSheet(
+                    "background:#ef4444;color:#fff;"
+                    "font-weight:bold;padding:4px 18px;");
+                connect(btnBox, &QDialogButtonBox::accepted,
+                        dlg, &QDialog::accept);
+                connect(btnBox, &QDialogButtonBox::rejected,
+                        dlg, &QDialog::reject);
+                lay->addWidget(btnBox);
+
+                const bool accepted = (dlg->exec() == QDialog::Accepted);
+                dlg->deleteLater();
+                if (!accepted) {
+                    /* Utente ha annullato — salta executor, pipeline avanza */
+                    advancePipeline();
+                    return;
+                }
+            }
+            /* ── fine dialog conferma ─────────────────────────────────────── */
+
             /* Scrivi il codice in un file temporaneo con nome casuale (anti-TOCTOU).
                autoRemove=false: il file rimane su disco dopo close()/delete dell'oggetto.
                Viene rimosso dai QFile::remove(tmpPath) nei lambda finished sottostanti. */
@@ -3958,27 +3987,57 @@ void AgentiPage::onFinished(const QString& /*full*/) {
             m_execProc = new QProcess(this);
             m_execProc->setProcessChannelMode(QProcess::MergedChannels);
 
-            auto* tmr = new QElapsedTimer;
+            /* [B1] QSharedPointer evita il memory leak se il processo viene
+               distrutto prima che finished() scatti (es. app chiusa durante
+               esecuzione): il distruttore del shared_ptr libera il timer
+               anche se il lambda non viene mai invocato. */
+            auto tmr = QSharedPointer<QElapsedTimer>::create();
             tmr->start();
 
             connect(m_execProc,
                     QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                     this, [this, tmpPath, tmr](int exitCode, QProcess::ExitStatus) {
-                double ms = tmr->elapsed();
-                delete tmr;
+                const double ms = tmr->elapsed();
                 QString out = QString::fromUtf8(m_execProc->readAll());
                 m_execProc->deleteLater();
                 m_execProc = nullptr;
 
-                /* ── Auto-install modulo mancante ────────────────────────────
-                   Se l'errore e' ModuleNotFoundError, installa il pacchetto
-                   con pip e riavvia l'esecuzione automaticamente (una volta). */
+                /* ── [C2] Auto-install modulo mancante con conferma utente ──────
+                   Il nome del pacchetto viene dall'output dell'LLM — rischio
+                   typosquatting/supply-chain. L'utente deve autorizzare
+                   esplicitamente ogni `pip install`. Default: No (scelta sicura). */
                 static QRegularExpression reModule(
                     "ModuleNotFoundError: No module named '([^']+)'");
                 auto mMatch = reModule.match(out);
                 if (exitCode != 0 && mMatch.hasMatch()) {
                     const QString pkg = mMatch.captured(1).split('.').first();
-                    const QString python = PrismaluxPaths::findPython();
+
+                    const int ans = QMessageBox::warning(this,
+                        "\xe2\x9a\xa0  Installa pacchetto Python?",
+                        QString(
+                            "Il codice richiede il pacchetto <b>%1</b> non installato."
+                            "<br><br>"
+                            "\xe2\x9a\xa0  <b>Attenzione</b>: il nome viene da un"
+                            " suggerimento dell\xe2\x80\x99" "AI.<br>"
+                            "Verifica che <code>%1</code> sia il pacchetto corretto"
+                            " su pypi.org prima di procedere.<br><br>"
+                            "Eseguire <code>pip install %1</code>?").arg(pkg),
+                        QMessageBox::Yes | QMessageBox::No,
+                        QMessageBox::No);   /* default No — scelta sicura */
+
+                    if (ans != QMessageBox::Yes) {
+                        QFile::remove(tmpPath);
+                        QTextCursor logC(m_log->document());
+                        logC.movePosition(QTextCursor::End);
+                        logC.insertHtml(QString(
+                            "<div style='color:#f87171;margin:4px 0'>"
+                            "\xe2\x9d\x8c  Installazione di \xe2\x80\x98%1\xe2\x80\x99"
+                            " annullata dall\xe2\x80\x99utente.</div>").arg(pkg));
+                        m_executorOutput = out;
+                        if (m_cfgDlg->controllerEnabled()) runPipelineController();
+                        else advancePipeline();
+                        return;
+                    }
 
                     QTextCursor logC(m_log->document());
                     logC.movePosition(QTextCursor::End);
@@ -3987,8 +4046,6 @@ void AgentiPage::onFinished(const QString& /*full*/) {
                         "\xf0\x9f\x93\xa6  Installo '%1' via pip...</div>").arg(pkg));
                     if (!m_userScrolled) m_log->ensureCursorVisible();
 
-                    /* pip install in foreground (breve — nessun blocco UI perche'
-                       eseguito in thread QProcess non bloccante) */
                     auto* pip = new QProcess(this);
                     pip->setProcessChannelMode(QProcess::MergedChannels);
                     connect(pip, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
@@ -4001,16 +4058,18 @@ void AgentiPage::onFinished(const QString& /*full*/) {
                         if (rc == 0) {
                             logC2.insertHtml(QString(
                                 "<div style='color:#4ade80;margin:4px 0'>"
-                                "\xe2\x9c\x85  '%1' installato. Riprovo l'esecuzione...</div>").arg(pkg));
+                                "\xe2\x9c\x85  '%1' installato. Riprovo l\xe2\x80\x99"
+                                "esecuzione...</div>").arg(pkg));
                             if (!m_userScrolled) m_log->ensureCursorVisible();
 
-                            /* Riavvia il codice con il modulo ora disponibile */
                             auto* retry = new QProcess(this);
                             retry->setProcessChannelMode(QProcess::MergedChannels);
-                            auto* t2 = new QElapsedTimer; t2->start();
+                            /* [B1] QSharedPointer anche per il timer del retry */
+                            auto t2 = QSharedPointer<QElapsedTimer>::create();
+                            t2->start();
                             connect(retry, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                                     this, [this, retry, tmpPath, t2](int rc2, QProcess::ExitStatus) {
-                                double ms2 = t2->elapsed(); delete t2;
+                                const double ms2 = t2->elapsed();
                                 QString out2 = QString::fromUtf8(retry->readAll());
                                 retry->deleteLater();
                                 QFile::remove(tmpPath);
@@ -4044,7 +4103,7 @@ void AgentiPage::onFinished(const QString& /*full*/) {
                         "--trusted-host", "files.pythonhosted.org"});
                     return;  /* non rimuovere tmpPath: lo usa il retry */
                 }
-                /* ── fine auto-install ─────────────────────────────────────── */
+                /* ── fine auto-install con conferma ─────────────────────────── */
 
                 QFile::remove(tmpPath);
                 m_executorOutput = out;
@@ -4073,7 +4132,6 @@ void AgentiPage::onFinished(const QString& /*full*/) {
             connect(m_execProc, &QProcess::errorOccurred,
                     this, [this, tmr](QProcess::ProcessError err){
                 if (err == QProcess::FailedToStart) {
-                    delete tmr;
                     m_execProc->deleteLater();
                     m_execProc = nullptr;
                     advancePipeline();   /* python3 non disponibile: salta executor */
@@ -4369,6 +4427,7 @@ void AgentiPage::aggregaConsiglio()
             if (m_peers[i].weight > m_peers[bestIdx].weight) bestIdx = i;
         QString html = markdownToHtml(m_peers[bestIdx].accum.trimmed());
         { int idx = m_bubbleIdx++; m_bubbleTexts[idx] = m_peers[bestIdx].accum.trimmed();
+          m_log->moveCursor(QTextCursor::End);
           m_log->insertHtml(buildAgentBubble(
               "\xf0\x9f\x8f\x9b  Risposta Primaria",
               m_peers[bestIdx].model,
@@ -4401,6 +4460,7 @@ void AgentiPage::aggregaConsiglio()
                       .arg(m_peers[best].model).arg(bestScore, 0, 'f', 3));
         QString html = markdownToHtml(m_peers[best].accum.trimmed());
         { int idx = m_bubbleIdx++; m_bubbleTexts[idx] = m_peers[best].accum.trimmed();
+          m_log->moveCursor(QTextCursor::End);
           m_log->insertHtml(buildAgentBubble(
               "\xf0\x9f\x8f\x9b  Risposta Consenso",
               m_peers[best].model,

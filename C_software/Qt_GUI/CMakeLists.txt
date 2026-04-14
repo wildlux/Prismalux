@@ -20,7 +20,7 @@ endif()
 
 # ── Backend C: solo hw_detect (rilevamento GPU cross-platform) ───────────
 set(C_SRCS
-    ../src/hw_detect.c
+    hw_detect.c
 )
 set_source_files_properties(${C_SRCS} PROPERTIES LANGUAGE C)
 
@@ -69,7 +69,6 @@ add_executable(Prismalux_GUI ${CPP_SRCS} ${C_SRCS})
 
 target_include_directories(Prismalux_GUI PRIVATE
     ${CMAKE_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/../include
 )
 
 target_link_libraries(Prismalux_GUI PRIVATE ${QT_LIBS})
@@ -143,7 +142,6 @@ if(BUILD_TESTS)
     )
     target_include_directories(test_signal_lifetime PRIVATE
         ${CMAKE_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/../include
         ${CMAKE_SOURCE_DIR}/tests
     )
     target_link_libraries(test_signal_lifetime PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
@@ -154,7 +152,41 @@ if(BUILD_TESTS)
         target_link_libraries(test_signal_lifetime PRIVATE pthread m)
     endif()
 
+    # ── test_rag_engine: solo rag_engine.cpp + Qt (nessuna dipendenza UI) ──
+    add_executable(test_rag_engine
+        tests/test_rag_engine.cpp
+        rag_engine.cpp
+    )
+    target_include_directories(test_rag_engine PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_rag_engine PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_rag_engine PRIVATE pthread m)
+    endif()
+
+    # ── test_code_utils: extractPythonCode + _sanitizePyCode (static methods) ──
+    # Richiede l'intera sorgente di agenti_page (metodi statici non separabili
+    # senza il refactor A2). Stessa base di sorgenti di test_signal_lifetime.
+    add_executable(test_code_utils
+        tests/test_code_utils.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_code_utils PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_code_utils PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_code_utils PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_code_utils PRIVATE pthread m)
+    endif()
+
     enable_testing()
     add_test(NAME SignalLifetime COMMAND test_signal_lifetime)
-    message(STATUS "Build test abilitata: test_signal_lifetime")
+    add_test(NAME RagEngine     COMMAND test_rag_engine)
+    add_test(NAME CodeUtils     COMMAND test_code_utils)
+    message(STATUS "Build test abilitata: test_signal_lifetime, test_rag_engine, test_code_utils")
 endif()

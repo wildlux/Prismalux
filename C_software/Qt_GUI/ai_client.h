@@ -52,8 +52,34 @@ public:
     void setChatParams(const AiChatParams& p) { m_params = p; }
     AiChatParams chatParams() const { return m_params; }
 
+    /* ── Classificazione query ─────────────────────────────────────
+       Determina se una query è semplice o complessa per decidere
+       automaticamente think=true/false e num_predict dinamico.
+       QueryAuto = comportamento precedente (compatibilità con codice esistente). */
+    enum QueryType { QueryAuto, QuerySimple, QueryComplex };
+    static QueryType classifyQuery(const QString& text);
+
     /* ── chat ── */
+
+    /** Overload legacy — compatibile con tutto il codice esistente.
+     *  Equivale a chat(sys, msg, {}, QueryAuto): nessuna storia, nessun think. */
     void chat(const QString& systemPrompt, const QString& userMsg);
+
+    /** Chat con storia compressa e tipo query.
+     *  @param history  turni precedenti come array JSON [{role,content},...]
+     *                  costruito da OracoloPage::buildHistoryArray()
+     *  @param qt       QuerySimple → think=false, num_predict=512
+     *                  QueryComplex → think=true, num_predict dal config
+     *                  QueryAuto    → nessun think, num_predict dal config */
+    void chat(const QString& systemPrompt, const QString& userMsg,
+              const QJsonArray& history, QueryType qt);
+
+    /** Genera risposta singola via /api/generate (Ollama).
+     *  Preferito per query RAG senza storia attiva: più leggero di /api/chat
+     *  perché non gestisce messaggi multipli.
+     *  Fallback automatico a chat() se backend != Ollama. */
+    void generate(const QString& systemPrompt, const QString& prompt, QueryType qt);
+
     void chatWithImage(const QString& systemPrompt, const QString& userMsg,
                        const QByteArray& imageBase64,
                        const QString& mimeType = "image/jpeg");
@@ -134,7 +160,11 @@ private:
     QString   m_model;
     QStringList m_models;
     QString   m_accum;
-    bool      m_busy_guard = false;
+    bool      m_busy_guard    = false;
+    /** true se l'ultima richiesta attiva usa /api/generate invece di /api/chat.
+     *  Usato da onReadyRead() per estrarre il campo "response" anziché
+     *  "message.content". Azzerato in abort() e onFinished(). */
+    bool      m_isGenerateMode = false;
 
     /* LlamaLocal */
     QProcess* m_localProc  = nullptr;

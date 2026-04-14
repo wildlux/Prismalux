@@ -417,4 +417,50 @@ inline QString findPython()
 #endif
 }
 
+/* ══════════════════════════════════════════════════════════════
+   SK — Settings Keys (unico punto di verità per le chiavi QSettings)
+
+   MOTIVAZIONE: 43 istanze di QSettings("Prismalux","GUI") sparse in
+   8 file con chiavi letterali. Una singola typo (es. "rag/noSave" vs
+   "rag/no_save") silenziosamente produce una chiave mai letta.
+   Centralizzare qui garantisce che ogni chiave abbia un solo nome
+   nel codebase, trovabile con grep/IDE e rinominabile in un posto.
+
+   USO:
+     #include "prismalux_paths.h"
+     QSettings ss("Prismalux", "GUI");
+     ss.setValue(P::SK::kTheme, "dark_cyan");
+     QString t = ss.value(P::SK::kTheme, "dark_cyan").toString();
+   ══════════════════════════════════════════════════════════════ */
+namespace SK {
+
+/* ── Aspetto ─────────────────────────────────────── */
+constexpr const char* kTheme           = "theme";
+constexpr const char* kBubbleRadius    = "bubble_radius";
+constexpr const char* kTabsTop         = "tabs_top";
+constexpr const char* kIconsText       = "icons_text";
+
+/* ── Navigazione ─────────────────────────────────── */
+constexpr const char* kNavStyle        = "nav/navStyle";
+constexpr const char* kNavTabMode      = "nav/tabMode";
+constexpr const char* kNavExecBtnMode  = "nav/execBtnMode";
+
+/* ── RAG ─────────────────────────────────────────── */
+constexpr const char* kRagMaxResults   = "rag/maxResults";
+constexpr const char* kRagNoSave       = "rag/noSave";
+constexpr const char* kRagDocCount     = "rag/docCount";
+constexpr const char* kRagDocsDir      = "rag/docsDir";
+constexpr const char* kRagJlTransform  = "rag/jlTransform";
+constexpr const char* kRagLastIndexed  = "rag/lastIndexed";
+constexpr const char* kRagEmbedModel   = "rag/embedModel";   ///< modello Ollama per embedding (default: nomic-embed-text)
+
+/* ── STT / TTS ───────────────────────────────────── */
+constexpr const char* kSttModelPath    = "stt/model_path";
+
+/* ── Varie ───────────────────────────────────────── */
+constexpr const char* kLoopFixWarning  = "loop_fix_warning_shown";
+constexpr const char* kDefaultTheme    = "dark_ocean";   ///< valore default tema
+
+}  // namespace SK
+
 } // namespace PrismaluxPaths

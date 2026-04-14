@@ -17,20 +17,18 @@ public:
     explicit PersonalizzaPage(QWidget* parent = nullptr);
 
     /* Esposte per ImpostazioniPage che le aggiunge come tab dirette */
-    QWidget* buildVramBench();
     QWidget* buildLlamaStudio();
-    QWidget* buildCompila();
 
 private:
     /* ── helpers ── */
     QTextEdit*  makeLog(const QString& placeholder = "");
+    /** runProcArgs — versione SICURA: arglist separata, nessuna shell. */
+    void        runProcArgs(QProcess* proc, const QString& program,
+                            const QStringList& args,
+                            QTextEdit* log, QPushButton* btn);
+    /** runProc — DEPRECATO: usa sh -c. Solo per path interni, non per input utente. */
     void        runProc(QProcess* proc, const QString& cmd,
                         QTextEdit* log, QPushButton* btn);
-
-    /* ── VRAM Bench ── */
-    QTextEdit*  m_vramLog  = nullptr;
-    QPushButton* m_vramBtn = nullptr;
-    QProcess*   m_vramProc = nullptr;
 
     /* ── llama.cpp Studio — sotto-stack ── */
     QStackedWidget* m_llamaStack    = nullptr;
@@ -41,10 +39,4 @@ private:
     QLineEdit*      m_llamaPort      = nullptr;
     QProcess*       m_llamaServProc  = nullptr;
 
-    /* ── Compila ── */
-    QTextEdit*   m_compLog    = nullptr;
-    QPushButton* m_btnWinTUI  = nullptr;
-    QPushButton* m_btnLinTUI  = nullptr;
-    QPushButton* m_btnWinQt   = nullptr;
-    QPushButton* m_btnLinQt   = nullptr;
 };

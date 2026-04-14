@@ -7,11 +7,20 @@
 #include <QFileDialog>
 #include <QProcess>
 #include <QFileInfo>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QUrl>
+#include <QTimer>
+#include <QDir>
+#include <QFile>
+#include <QCoreApplication>
 
 /* ══════════════════════════════════════════════════════════════
    Tabella system prompt: [navIdx][subIdx]
    ══════════════════════════════════════════════════════════════ */
-static const char* kSysPrompts[6][8] = {
+static const char* kSysPrompts[8][8] = {
     /* 0 — Studio */
     {
         "Sei un tutor esperto. Spiega in modo chiaro e strutturato con esempi pratici. Rispondi in italiano.",
@@ -73,9 +82,111 @@ static const char* kSysPrompts[6][8] = {
         "Ricava una lista di punti di azione, raccomandazioni o prossimi passi dal documento. Rispondi in italiano.",
         nullptr, nullptr
     },
+    /* 6 — Blender MCP */
+    {
+        /* Cambia Materiale */
+        "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python puro eseguibile in Blender. "
+        "Crea o modifica un materiale Principled BSDF sull'oggetto attivo (bpy.context.active_object). "
+        "Imposta base_color, metallic, roughness secondo la richiesta. "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+        /* Trasla */
+        "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python puro per spostare un oggetto in Blender. "
+        "Usa bpy.context.active_object.location = (x, y, z). "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+        /* Ruota */
+        "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python puro per ruotare un oggetto in Blender. "
+        "Usa bpy.context.active_object.rotation_euler = (rx, ry, rz) con angoli in radianti (import math; math.radians(...)). "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+        /* Scala */
+        "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python puro per scalare un oggetto in Blender. "
+        "Usa bpy.context.active_object.scale = (sx, sy, sz). "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+        /* Visibilita' */
+        "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python puro per cambiare la visibilita' di oggetti. "
+        "Usa obj.hide_viewport e obj.hide_render. Itera su bpy.data.objects se necessario. "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+        /* Avvia Render */
+        "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python puro per configurare e avviare un render. "
+        "Usa bpy.context.scene.render per le impostazioni, bpy.ops.render.render(write_still=True) per avviare. "
+        "Imposta l'output path se richiesto. "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+        /* Script libero */
+        "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python puro eseguibile in Blender via exec(). "
+        "Il namespace disponibile: bpy, mathutils, Vector, Euler, Matrix. "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+        nullptr
+    },
+    /* 7 — Office / LibreOffice (UNO o file-based) */
+    {
+        /* Crea documento Writer / Word */
+        "Sei un esperto di LibreOffice e python-docx. Genera SOLO codice Python. "
+        "PRIORITA': se 'desktop' e' nel namespace (modalita' UNO), usa LibreOffice Writer direttamente: "
+        "  doc = desktop.loadComponentFromURL('private:factory/swriter', '_blank', 0, ()); "
+        "  text = doc.getText(); cur = text.createTextCursor(); text.insertString(cur, '...', False); "
+        "  out = Path.home()/'Desktop'/'documento.odt'; doc.storeToURL(systemPath(str(out)), ()); print(out). "
+        "FALLBACK (no desktop): usa python-docx: Document() → salva in Path.home()/'Desktop'/'documento.docx'. "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+        /* Crea foglio Calc / Excel */
+        "Sei un esperto di LibreOffice Calc e openpyxl. Genera SOLO codice Python. "
+        "PRIORITA' UNO: doc = desktop.loadComponentFromURL('private:factory/scalc', '_blank', 0, ()); "
+        "  sheet = doc.Sheets.getByIndex(0); cell = sheet.getCellByPosition(col, row); "
+        "  cell.setString('testo') oppure cell.setValue(numero); "
+        "  out = Path.home()/'Desktop'/'foglio.ods'; doc.storeToURL(systemPath(str(out)), ()); print(out). "
+        "FALLBACK: usa openpyxl Workbook → salva .xlsx in Path.home()/'Desktop'/. "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+        /* Crea Presentazione Impress / PowerPoint */
+        "Sei un esperto di LibreOffice Impress e python-pptx. Genera SOLO codice Python. "
+        "PRIORITA' UNO: doc = desktop.loadComponentFromURL('private:factory/simpress', '_blank', 0, ()); "
+        "  slide = doc.DrawPages[0]; slide.Name = 'Slide 1'; "
+        "  out = Path.home()/'Desktop'/'presentazione.odp'; doc.storeToURL(systemPath(str(out)), ()); print(out). "
+        "FALLBACK: usa python-pptx Presentation → salva .pptx in Path.home()/'Desktop'/. "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+        /* Modifica documento aperto */
+        "Sei un esperto di LibreOffice UNO. Genera SOLO codice Python. "
+        "Con UNO apri il documento con desktop.loadComponentFromURL(systemPath(percorso), '_blank', 0, ()); "
+        "modifica testo/celle/slide; salva con doc.store() (sovrascrive) o doc.storeToURL(url, ()). "
+        "Se il percorso non e' fornito, usa Path.home()/'Desktop'/'documento.odt'. "
+        "FALLBACK senza UNO: usa python-docx Document(path). "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+        /* Tabella */
+        "Sei un esperto di LibreOffice UNO e python-docx. Genera SOLO codice Python che crea una tabella formattata. "
+        "Con UNO in Writer: doc.getText().insertTextContent(cur, doc.createInstance('com.sun.star.text.TextTable'), False). "
+        "Con UNO in Calc: accedi alle celle con sheet.getCellByPosition(col, row). "
+        "FALLBACK: python-docx Document + add_table oppure openpyxl Workbook. "
+        "Salva e stampa il percorso. "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+        /* Grafici e dati */
+        "Sei un esperto di LibreOffice Calc UNO e openpyxl. Genera SOLO codice Python per grafici/analisi dati. "
+        "Con UNO in Calc: inserisci dati nelle celle, poi crea grafico con createInstance('com.sun.star.chart.ChartDocument'). "
+        "FALLBACK: usa openpyxl BarChart + Reference. "
+        "Inserisci dati di esempio se non forniti. Salva e stampa il percorso. "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+        /* Script libero */
+        "Sei un esperto di LibreOffice UNO API. Genera SOLO codice Python eseguibile via exec(). "
+        "Namespace UNO: desktop, uno, PropertyValue, createUnoService, systemPath, mkprops. "
+        "Namespace file: Document/Pt (python-docx), Workbook/Font (openpyxl), Presentation/Inches (python-pptx). "
+        "Namespace comune: Path, os, datetime. "
+        "Salva sempre in Path.home()/'Desktop'/ e stampa il percorso o la conferma. "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+        nullptr
+    },
 };
 
-static const char* kSubActions[6][8] = {
+static const char* kSubActions[8][8] = {
     { "\xf0\x9f\x92\xa1 Spiega concetto",
       "\xf0\x9f\x83\x8f Flashcard Q&A",
       "\xf0\x9f\x93\x9d Riassunto",
@@ -119,15 +230,35 @@ static const char* kSubActions[6][8] = {
       "\xf0\x9f\x9a\xa8 Punti critici",
       "\xe2\x9c\x85 Punti di azione",
       nullptr, nullptr },
+    /* 6 — Blender MCP */
+    { "\xf0\x9f\x8e\xa8 Cambia Materiale",
+      "\xe2\x86\x94 Trasla",
+      "\xf0\x9f\x94\x84 Ruota",
+      "\xf0\x9f\x93\x90 Scala",
+      "\xf0\x9f\x91\x81 Visibilit\xc3\xa0",
+      "\xf0\x9f\x8e\xac Avvia Render",
+      "\xf0\x9f\x90\x8d Script libero",
+      nullptr },
+    /* 7 — Office / LibreOffice */
+    { "\xf0\x9f\x93\x84 Crea documento Word",
+      "\xf0\x9f\x93\x8a Crea foglio Excel",
+      "\xf0\x9f\x96\xa5 Crea presentazione",
+      "\xe2\x9c\x8f Modifica documento",
+      "\xf0\x9f\x93\x8b Inserisci tabella",
+      "\xf0\x9f\x93\x88 Grafici e dati",
+      "\xf0\x9f\x94\xa7 Script libero",
+      nullptr },
 };
 
-static const char* kPlaceholders[6] = {
+static const char* kPlaceholders[8] = {
     "Incolla il testo o descrivi il concetto da studiare...",
     "Descrivi l'idea, il personaggio o la scena...",
     "Inserisci l'argomento da ricercare o l'affermazione da verificare...",
     "Incolla il testo del libro o il titolo e l'autore...",
     "Descrivi il progetto, il task o l'obiettivo...",
     "Incolla il testo del documento oppure carica un PDF con il pulsante sopra...",
+    "Descrivi cosa fare in Blender (es. 'Cambia il cubo in rosso metallico', 'Sposta il piano a Y=3', 'Ruota 45 gradi sull asse Z')...",
+    "Descrivi il documento da creare (es. 'Crea una lettera di presentazione professionale', 'Foglio Excel con budget mensile', 'Slide riassuntive su Python')...",
 };
 
 /* ══════════════════════════════════════════════════════════════
@@ -144,7 +275,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     /* Widget interni nascosti — usati dai slot tramite row/index */
     m_navList = new QListWidget(this);
     m_navList->hide();
-    for (int i = 0; i < 6; i++) m_navList->addItem("");
+    for (int i = 0; i < 8; i++) m_navList->addItem("");
     m_navList->setCurrentRow(0);
 
     m_cmbSub = new QComboBox(this);
@@ -165,6 +296,8 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         "\xf0\x9f\x93\x96  Libri",
         "\xe2\x9a\xa1  Produttivit\xc3\xa0",
         "\xf0\x9f\x93\x84  Documenti",
+        "\xf0\x9f\x8e\xa8  Blender",
+        "\xf0\x9f\x96\xa5  Office",
     };
     static const char* kCatStyle =
         "QPushButton{"
@@ -204,7 +337,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     lblSel->setText("\xe2\x9c\x85  <b>" + firstAction + "</b>");
     lblSel->setTextFormat(Qt::RichText);
 
-    for (int cat = 0; cat < 6; cat++) {
+    for (int cat = 0; cat < 8; cat++) {
         /* Tab categoria */
         auto* catBtn = new QPushButton(
             QString::fromUtf8(kCatLabels[cat]), catBar);
@@ -236,6 +369,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
 
             connect(abtn, &QPushButton::clicked, this,
                     [this, cat, act, lblSel]() {
+                m_currentCat = cat;
                 m_navList->setCurrentRow(cat);
                 m_cmbSub->setCurrentIndex(act);
                 m_inputArea->setPlaceholderText(
@@ -254,6 +388,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     /* Cambio categoria */
     connect(catGroup, QOverload<int>::of(&QButtonGroup::idClicked),
             this, [this, actStack, lblSel](int cat) {
+        m_currentCat = cat;
         actStack->setCurrentIndex(cat);
         m_navList->setCurrentRow(cat);
         m_cmbSub->setCurrentIndex(0);
@@ -264,6 +399,8 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
             QString::fromUtf8(kSubActions[cat][0]) +
             "</b>");
         m_pdfRow->setVisible(cat == 5);
+        m_blenderRow->setVisible(cat == 6);
+        m_officeRow->setVisible(cat == 7);
     });
 
     lay->addWidget(catBar);
@@ -297,6 +434,289 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         m_pdfPath = path;
         m_pdfPathLbl->setText(
             QFileInfo(path).fileName());
+    });
+
+    /* ── Riga Blender Bridge (visibile solo per categoria Blender) ── */
+    m_blenderRow = new QWidget(this);
+    auto* blenderLay = new QHBoxLayout(m_blenderRow);
+    blenderLay->setContentsMargins(0, 4, 0, 0);
+    blenderLay->setSpacing(8);
+
+    auto* blenderLbl = new QLabel("Blender:", m_blenderRow);
+    blenderLbl->setObjectName("hintLabel");
+
+    m_blenderHostEdit = new QLineEdit("localhost:6789", m_blenderRow);
+    m_blenderHostEdit->setFixedWidth(160);
+    m_blenderHostEdit->setPlaceholderText("localhost:6789");
+
+    auto* blenderPingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", m_blenderRow);
+    blenderPingBtn->setObjectName("actionBtn");
+    blenderPingBtn->setFixedWidth(100);
+
+    m_blenderStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", m_blenderRow);
+    m_blenderStatusLbl->setObjectName("hintLabel");
+
+    m_blenderExecBtn = new QPushButton(
+        "\xe2\x96\xb6  Esegui in Blender", m_blenderRow);
+    m_blenderExecBtn->setObjectName("actionBtn");
+    m_blenderExecBtn->setFixedWidth(160);
+    m_blenderExecBtn->setEnabled(false);
+
+    blenderLay->addWidget(blenderLbl);
+    blenderLay->addWidget(m_blenderHostEdit);
+    blenderLay->addWidget(blenderPingBtn);
+    blenderLay->addWidget(m_blenderStatusLbl, 1);
+    blenderLay->addWidget(m_blenderExecBtn);
+    m_blenderRow->setVisible(false);
+    lay->addWidget(m_blenderRow);
+
+    m_blenderNam = new QNetworkAccessManager(this);
+
+    /* Ping /status → verifica connessione Blender */
+    connect(blenderPingBtn, &QPushButton::clicked, this, [this]() {
+        QString addr = m_blenderHostEdit->text().trimmed();
+        if (addr.isEmpty()) addr = "localhost:6789";
+        QNetworkRequest req(QUrl("http://" + addr + "/status"));
+        req.setTransferTimeout(3000);
+        auto* reply = m_blenderNam->get(req);
+        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+            reply->deleteLater();
+            if (reply->error() == QNetworkReply::NoError) {
+                QJsonObject obj = QJsonDocument::fromJson(
+                    reply->readAll()).object();
+                QString ver = obj.value("blender").toString("?");
+                m_blenderStatusLbl->setText(
+                    "\xe2\x9c\x85  Blender " + ver + " connesso");
+            } else {
+                m_blenderStatusLbl->setText(
+                    "\xe2\x9d\x8c  " + reply->errorString());
+            }
+        });
+    });
+
+    /* POST /execute → invia codice bpy a Blender */
+    connect(m_blenderExecBtn, &QPushButton::clicked, this, [this]() {
+        if (m_blenderCode.isEmpty()) return;
+        QString addr = m_blenderHostEdit->text().trimmed();
+        if (addr.isEmpty()) addr = "localhost:6789";
+
+        QJsonObject payload;
+        payload["code"] = m_blenderCode;
+        QByteArray body =
+            QJsonDocument(payload).toJson(QJsonDocument::Compact);
+
+        QNetworkRequest req(QUrl("http://" + addr + "/execute"));
+        req.setHeader(QNetworkRequest::ContentTypeHeader,
+                      "application/json; charset=utf-8");
+        req.setTransferTimeout(20000);
+
+        m_blenderExecBtn->setEnabled(false);
+        m_blenderStatusLbl->setText(
+            "\xf0\x9f\x94\x84  Invio a Blender...");
+
+        auto* reply = m_blenderNam->post(req, body);
+        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+            reply->deleteLater();
+            m_blenderExecBtn->setEnabled(true);
+            if (reply->error() == QNetworkReply::NoError) {
+                QJsonObject res = QJsonDocument::fromJson(
+                    reply->readAll()).object();
+                if (res["ok"].toBool()) {
+                    m_blenderStatusLbl->setText("\xe2\x9c\x85  Eseguito");
+                    QString out = res["output"].toString();
+                    m_output->append(
+                        "\n\xe2\x9c\x85  Blender: " +
+                        (out.isEmpty() ? "OK" : out));
+                } else {
+                    m_blenderStatusLbl->setText("\xe2\x9d\x8c  Errore Blender");
+                    m_output->append(
+                        "\n\xe2\x9d\x8c  Blender errore:\n" +
+                        res["error"].toString());
+                }
+            } else {
+                m_blenderStatusLbl->setText(
+                    "\xe2\x9d\x8c  " + reply->errorString());
+                m_output->append(
+                    "\n\xe2\x9d\x8c  Connessione a Blender fallita: " +
+                    reply->errorString());
+            }
+        });
+    });
+
+    /* ── Riga Office Bridge (visibile solo per categoria Office) ── */
+    m_officeRow = new QWidget(this);
+    auto* officeLay = new QHBoxLayout(m_officeRow);
+    officeLay->setContentsMargins(0, 4, 0, 0);
+    officeLay->setSpacing(8);
+
+    auto* officeLbl = new QLabel("Office:", m_officeRow);
+    officeLbl->setObjectName("hintLabel");
+
+    m_officeStartBtn = new QPushButton(
+        "\xe2\x96\xb6  Avvia bridge", m_officeRow);
+    m_officeStartBtn->setObjectName("actionBtn");
+    m_officeStartBtn->setFixedWidth(120);
+
+    m_officeStatusLbl = new QLabel(
+        "\xe2\x9a\xaa  Bridge non avviato", m_officeRow);
+    m_officeStatusLbl->setObjectName("hintLabel");
+
+    m_officeExecBtn = new QPushButton(
+        "\xf0\x9f\x96\xa5  Esegui in Office", m_officeRow);
+    m_officeExecBtn->setObjectName("actionBtn");
+    m_officeExecBtn->setFixedWidth(160);
+    m_officeExecBtn->setEnabled(false);
+
+    officeLay->addWidget(officeLbl);
+    officeLay->addWidget(m_officeStartBtn);
+    officeLay->addWidget(m_officeStatusLbl, 1);
+    officeLay->addWidget(m_officeExecBtn);
+    m_officeRow->setVisible(false);
+    lay->addWidget(m_officeRow);
+
+    m_officeNam = new QNetworkAccessManager(this);
+
+    /* Legge il token Bearer scritto dal bridge in ~/.prismalux_office_token.
+       Chiamata prima di ogni request — il token cambia ad ogni avvio del bridge. */
+    auto _readToken = [this]() {
+        const QString tokenFile =
+            QDir::homePath() + "/.prismalux_office_token";
+        QFile f(tokenFile);
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
+        m_officeBridgeToken = QString::fromUtf8(f.readAll()).trimmed();
+    };
+
+    /* Trova il percorso del bridge relativo all'eseguibile */
+    auto _bridgePath = []() -> QString {
+        // cartella sorgente (sviluppo): <exe>/../../office_bridge/
+        QDir d(QCoreApplication::applicationDirPath());
+        for (int i = 0; i < 4; i++) {
+            QString p = d.filePath("office_bridge/prismalux_office_bridge.py");
+            if (QFile::exists(p)) return p;
+            d.cdUp();
+        }
+        return {};
+    };
+
+    /* Avvia / ferma bridge Python */
+    connect(m_officeStartBtn, &QPushButton::clicked, this, [this, _bridgePath, _readToken]() {
+        // Se già in esecuzione → ferma
+        if (m_officeBridgeProc &&
+            m_officeBridgeProc->state() == QProcess::Running) {
+            m_officeBridgeProc->terminate();
+            m_officeBridgeProc->waitForFinished(2000);
+            m_officeStartBtn->setText("\xe2\x96\xb6  Avvia bridge");
+            m_officeStatusLbl->setText("\xe2\x9a\xaa  Bridge fermato");
+            return;
+        }
+
+        QString path = _bridgePath();
+        if (path.isEmpty()) {
+            m_officeStatusLbl->setText(
+                "\xe2\x9d\x8c  prismalux_office_bridge.py non trovato");
+            return;
+        }
+
+        if (!m_officeBridgeProc) {
+            m_officeBridgeProc = new QProcess(this);
+            m_officeBridgeProc->setProcessChannelMode(
+                QProcess::MergedChannels);
+            connect(m_officeBridgeProc,
+                    QOverload<int,QProcess::ExitStatus>::of(
+                        &QProcess::finished),
+                    this, [this](int, QProcess::ExitStatus) {
+                m_officeStartBtn->setText("\xe2\x96\xb6  Avvia bridge");
+                m_officeStatusLbl->setText("\xe2\x9a\xaa  Bridge fermato");
+            });
+        }
+
+        m_officeStatusLbl->setText("\xf0\x9f\x94\x84  Avvio bridge...");
+        m_officeBridgeProc->start("python3", {path});
+        if (!m_officeBridgeProc->waitForStarted(3000)) {
+            // fallback a python su Windows
+            m_officeBridgeProc->start("python", {path});
+        }
+        if (m_officeBridgeProc->state() == QProcess::Running) {
+            m_officeStartBtn->setText("\xe2\x8f\xb9  Ferma bridge");
+            // Verifica /status dopo 1 secondo
+            QTimer::singleShot(1200, this, [this, _readToken]() {
+                _readToken();
+                QNetworkRequest req(
+                    QUrl("http://localhost:6790/status"));
+                req.setTransferTimeout(2000);
+                req.setRawHeader("Authorization",
+                    ("Bearer " + m_officeBridgeToken).toUtf8());
+                auto* r = m_officeNam->get(req);
+                connect(r, &QNetworkReply::finished, this, [this, r]() {
+                    r->deleteLater();
+                    if (r->error() == QNetworkReply::NoError) {
+                        QJsonObject obj =
+                            QJsonDocument::fromJson(r->readAll()).object();
+                        QJsonObject libs = obj["libraries"].toObject();
+                        QStringList ok;
+                        for (auto it = libs.begin(); it != libs.end(); ++it)
+                            if (it.value().toBool()) ok << it.key();
+                        m_officeStatusLbl->setText(
+                            "\xe2\x9c\x85  " +
+                            (ok.isEmpty() ? "Bridge pronto (nessuna lib)" :
+                             "Pronto: " + ok.join(", ")));
+                    } else {
+                        m_officeStatusLbl->setText(
+                            "\xe2\x9a\xa0  Bridge avviato (verifica fallita)");
+                    }
+                });
+            });
+        } else {
+            m_officeStatusLbl->setText(
+                "\xe2\x9d\x8c  Errore avvio (python3 non trovato?)");
+        }
+    });
+
+    /* POST /execute → invia codice office al bridge */
+    connect(m_officeExecBtn, &QPushButton::clicked, this, [this, _readToken]() {
+        if (m_officeCode.isEmpty()) return;
+
+        _readToken();  // aggiorna token in caso il bridge sia stato riavviato
+        QJsonObject payload;
+        payload["code"] = m_officeCode;
+        QByteArray body =
+            QJsonDocument(payload).toJson(QJsonDocument::Compact);
+
+        QNetworkRequest req(QUrl("http://localhost:6790/execute"));
+        req.setHeader(QNetworkRequest::ContentTypeHeader,
+                      "application/json; charset=utf-8");
+        req.setRawHeader("Authorization",
+            ("Bearer " + m_officeBridgeToken).toUtf8());
+        req.setTransferTimeout(30000);
+
+        m_officeExecBtn->setEnabled(false);
+        m_officeStatusLbl->setText("\xf0\x9f\x94\x84  Esecuzione...");
+
+        auto* reply = m_officeNam->post(req, body);
+        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+            reply->deleteLater();
+            m_officeExecBtn->setEnabled(true);
+            if (reply->error() == QNetworkReply::NoError) {
+                QJsonObject res =
+                    QJsonDocument::fromJson(reply->readAll()).object();
+                if (res["ok"].toBool()) {
+                    m_officeStatusLbl->setText("\xe2\x9c\x85  Completato");
+                    m_output->append(
+                        "\n\xe2\x9c\x85  Office: " +
+                        res["output"].toString());
+                } else {
+                    m_officeStatusLbl->setText("\xe2\x9d\x8c  Errore");
+                    m_output->append(
+                        "\n\xe2\x9d\x8c  Office errore:\n" +
+                        res["error"].toString());
+                }
+            } else {
+                m_officeStatusLbl->setText(
+                    "\xe2\x9d\x8c  Bridge non raggiungibile");
+                m_output->append(
+                    "\n\xe2\x9d\x8c  Bridge non raggiungibile (avvialo prima).");
+            }
+        });
     });
 
     /* ── Input + pulsanti affiancati ── */
@@ -434,13 +854,51 @@ void StrumentiPage::onToken(const QString& t) {
     m_output->ensureCursorVisible();
 }
 
-void StrumentiPage::onFinished(const QString&) {
+void StrumentiPage::onFinished(const QString& full) {
     if (!m_active) return;
     m_active = false;
     m_waitLbl->setVisible(false);
     m_btnRun->setEnabled(true);
     m_btnStop->setEnabled(false);
     m_output->append("\n" + QString(40, QChar(0x2500)));
+
+    /* ── Blender / Office: estrai codice Python dal blocco ```...``` ── */
+    if ((m_currentCat == 6 || m_currentCat == 7) && !full.isEmpty()) {
+        // Lambda locale: estrae il primo blocco ```python...``` o ```...```
+        auto extractCode = [](const QString& text) -> QString {
+            int start = text.indexOf("```python");
+            if (start != -1) {
+                start = text.indexOf('\n', start) + 1;
+                int end = text.indexOf("```", start);
+                if (end != -1) return text.mid(start, end - start).trimmed();
+            }
+            start = text.indexOf("```");
+            if (start != -1) {
+                start += 3;
+                if (start < text.size() && text[start] == '\n') start++;
+                int end = text.indexOf("```", start);
+                if (end != -1) return text.mid(start, end - start).trimmed();
+            }
+            return text.trimmed();
+        };
+
+        const QString code = extractCode(full);
+        if (m_currentCat == 6) {
+            m_blenderCode = code;
+            if (!m_blenderCode.isEmpty()) {
+                m_blenderExecBtn->setEnabled(true);
+                m_blenderStatusLbl->setText(
+                    "\xf0\x9f\x90\x8d  Codice pronto \xe2\x80\x94 premi Esegui in Blender");
+            }
+        } else { // cat 7 — Office
+            m_officeCode = code;
+            if (!m_officeCode.isEmpty()) {
+                m_officeExecBtn->setEnabled(true);
+                m_officeStatusLbl->setText(
+                    "\xf0\x9f\x93\x84  Codice pronto \xe2\x80\x94 premi Esegui in Office");
+            }
+        }
+    }
 }
 
 void StrumentiPage::onError(const QString& msg) {

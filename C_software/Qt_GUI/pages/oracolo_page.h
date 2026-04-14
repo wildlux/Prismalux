@@ -93,6 +93,26 @@ private:
     void startChatWithContext(const QString& userMsg);
     void updateRagBtn();
 
+    /* ── Storia conversazione compressa ─────────────────────────────
+       Strategia: manteniamo gli ultimi 3 turni completi in m_history.
+       I turni più vecchi vengono compressi in m_historySummary (testo
+       sintetico locale, senza chiamate AI extra).
+       Vantaggi: il modello ha contesto senza mandare decine di turni raw.
+       ─────────────────────────────────────────────────────────────── */
+    struct ConvTurn { QString user; QString assistant; };
+    QVector<ConvTurn> m_history;         ///< ultimi kMaxRecentTurns turni
+    QString           m_historySummary;  ///< turni vecchi compressi in testo
+    QString           m_lastUserMsg;     ///< messaggio utente corrente (per storia)
+
+    static constexpr int kMaxRecentTurns = 3;  ///< turni completi da tenere raw
+
+    /** Aggiunge un turno alla storia e comprime se supera kMaxRecentTurns. */
+    void addToHistory(const QString& user, const QString& assistant);
+    /** Comprime i turni eccedenti nel summary locale. */
+    void compressHistory();
+    /** Costruisce il QJsonArray da passare a AiClient::chat(). */
+    QJsonArray buildHistoryArray() const;
+
     /* ── Stato ── */
     bool m_streaming = false;
 };

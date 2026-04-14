@@ -1,5 +1,7 @@
 #include "theme_manager.h"
+#include "prismalux_paths.h"
 #include <QApplication>
+namespace P = PrismaluxPaths;
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -26,7 +28,7 @@ ThemeManager::ThemeManager(QObject* parent) : QObject(parent) {
         { "light",         "Light",                             d + "light.qss"         },
         { "dark_green",    "\xf0\x9f\x8c\xbf Natura (Verde)",   d + "dark_green.qss"    },
         { "dark_sunset",   "\xf0\x9f\x8c\x85 Sunset (Arancione)", d + "dark_sunset.qss" },
-        { "dark_ocean",    "\xf0\x9f\x8c\x8a Oceano (Azzurro)", d + "dark_ocean.qss"    },
+        { P::SK::kDefaultTheme,    "\xf0\x9f\x8c\x8a Oceano (Azzurro)", d + "dark_ocean.qss"    },
         { "dark_lavender", "\xf0\x9f\x92\x9c Lavanda (Viola)",  d + "dark_lavender.qss" },
         { "dark_rainbow",  "\xf0\x9f\x8c\x88 Arcobaleno",       d + "dark_rainbow.qss"  },
         { "dark_classic",  "\xf0\x9f\x94\xb5 Classico (Blu)",   d + "dark_classic.qss"  },
@@ -75,7 +77,7 @@ void ThemeManager::apply(const QString& id) {
     m_currentId = id;
 
     QSettings s("Prismalux", "GUI");
-    s.setValue("theme", id);
+    s.setValue(P::SK::kTheme, id);
 
     emit changed(id);
 }
@@ -83,7 +85,7 @@ void ThemeManager::apply(const QString& id) {
 void ThemeManager::loadSaved() {
     scanExternalThemes();   /* carica prima i temi custom dalla cartella */
     QSettings s("Prismalux", "GUI");
-    const QString saved = s.value("theme", "dark_ocean").toString();
+    const QString saved = s.value(P::SK::kTheme, P::SK::kDefaultTheme).toString();
     apply(saved);
 }
 

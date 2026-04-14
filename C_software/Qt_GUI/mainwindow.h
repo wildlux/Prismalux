@@ -42,6 +42,9 @@
 #include <QProcess>
 #include <QTimer>
 #include <QListWidget>
+#include <QDialog>
+#include <QTextEdit>
+#include <QDateTime>
 
 #include "hardware_monitor.h"
 #include "ai_client.h"
@@ -94,6 +97,13 @@ public:
     AiClient*        aiClient()  { return m_ai; }
     HardwareMonitor* hwMonitor() { return m_hw; }
 
+    /**
+     * appendLog — Aggiunge una riga al log messaggi con timestamp.
+     * Può essere chiamato da qualsiasi punto del codice (main thread).
+     * Incrementa il badge non-letto se il dialog è chiuso.
+     */
+    void appendLog(const QString& msg);
+
 private:
     /* ── Costruzione layout ──────────────────────────────────── */
     QWidget* buildHeader();   ///< Barra superiore: logo, gauges, pulsanti
@@ -116,6 +126,11 @@ private:
     QLabel*         m_lblBackend  = nullptr;  ///< Testo "🦙 Ollama → 127.0.0.1:11434"
     QLabel*         m_lblModel    = nullptr;  ///< Nome modello AI attivo
     QPushButton*    m_settingsBtn   = nullptr;  ///< Pulsante ⚙️ sidebar → pagina Impostazioni
+    QPushButton*    m_logBtn        = nullptr;  ///< Pulsante 📋 sidebar → dialog Messaggi/Log
+    QLabel*         m_logBadge      = nullptr;  ///< Badge contatore messaggi non letti
+    QDialog*        m_logDlg        = nullptr;  ///< Dialog log (creato lazy)
+    QTextEdit*      m_logView       = nullptr;  ///< Area testo del log
+    int             m_logUnread     = 0;        ///< Contatore messaggi non letti
     QWidget*        m_sidebarWidget = nullptr;  ///< Sidebar (mostra/nascondi con ☰)
     QPushButton*    m_btnUnload   = nullptr;  ///< Pulsante 🗑 Scarica LLM (diventa giallo sopra 40% RAM)
     QPushButton*    m_btnBackend  = nullptr;  ///< Backend AI: Ollama / avvia-ferma llama-server
@@ -183,6 +198,9 @@ private:
      * nella Windows API quando QDialog ha sia Qt::Window che un parent widget.
      */
     void ensureSettingsDialog();
+
+    /** Crea il dialog log la prima volta (lazy, non-modale). */
+    void ensureLogDialog();
 
     /**
      * applyTabMode — Aggiorna le etichette di m_mainTabs in base alla modalità.

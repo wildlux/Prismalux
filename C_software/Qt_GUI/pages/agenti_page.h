@@ -43,6 +43,12 @@ public:
                                     const QString& extraLinks = "");
     static QString markdownToHtml(const QString& md);
 
+    /* ── Utility testabili (pubbliche per unit test e futuro refactor A2) ── */
+    /** Estrae il primo blocco ```python...``` dall'output dell'agente */
+    static QString extractPythonCode(const QString& text);
+    /** Corregge bug tipici nel codice Python generato dall'AI (__name__ guard, ecc.) */
+    static QString _sanitizePyCode(const QString& code);
+
 signals:
     /** Emesso quando una pipeline/Byzantine/MathTheory completa — per salvare la chat */
     void chatCompleted(const QString& title, const QString& logHtml);
@@ -173,7 +179,6 @@ private:
     void loadDroppedFile(const QString& filePath);
     /** Converte file audio in testo (voce via whisper, o note musicali via aubionotes) */
     void _loadAudioAsText(const QString& filePath);
-    static QString _sanitizePyCode(const QString& code);
     void _extractPdfPython(const QString& filePath,
                             std::function<void(const QString&)> onText);
     void _extractXlsPython(const QString& filePath,
@@ -218,9 +223,6 @@ private:
 
     /** Bolla controller LLM: verde/giallo/rosso in base al verdetto */
     static QString buildControllerBubble(const QString& htmlContent);
-
-    /** Estrae il primo blocco ```python...``` dall'output dell'agente */
-    static QString extractPythonCode(const QString& text);
 
     /** Avvia il controller LLM dopo l'esecutore */
     void runPipelineController();

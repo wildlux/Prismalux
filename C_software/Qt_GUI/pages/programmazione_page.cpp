@@ -181,7 +181,7 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
 
         /* Attivato: mostra warning una sola volta (salvato in QSettings) */
         QSettings s("Prismalux", "GUI");
-        if (!s.value("loop_fix_warning_shown", false).toBool()) {
+        if (!s.value(P::SK::kLoopFixWarning, false).toBool()) {
             QMessageBox dlg(this);
             dlg.setWindowTitle("Loop Fix — Esecuzione automatica di codice AI");
             dlg.setIcon(QMessageBox::Warning);
@@ -208,7 +208,7 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
                 return;
             }
             if (chk->isChecked())
-                s.setValue("loop_fix_warning_shown", true);
+                s.setValue(P::SK::kLoopFixWarning, true);
         }
     });
     toolLay->addWidget(m_toggleAutoFix);

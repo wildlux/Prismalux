@@ -60,11 +60,11 @@ private:
     ManutenzioneePage* m_manutenzione  = nullptr;
     QTabWidget*        m_tabs          = nullptr;
     AiClient*          m_ai            = nullptr;
-    QDialog*           m_studioWidget  = nullptr;  ///< llama.cpp Studio dialog (lazy)
 
     /* RAG indexing state (usato da buildRagTab) */
     RagEngine       m_rag;
     QStringList     m_ragQueue;        ///< chunk da indicizzare
     int             m_ragQueuePos = 0; ///< posizione corrente nel queue
     QLabel*         m_ragFeedbackLbl = nullptr;
+    bool            m_ragNoSave      = false; ///< se true, non salva l'indice su disco (M2)
 };

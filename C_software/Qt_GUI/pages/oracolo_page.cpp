@@ -1,4 +1,7 @@
 #include "oracolo_page.h"
+#include "../ai_client.h"
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
 #include "../widgets/chat_bubble.h"
 #include "../widgets/chart_widget.h"
 #include "../widgets/formula_parser.h"
@@ -20,6 +23,8 @@
 #include <QScrollArea>
 #include <QDir>
 #include <QSettings>
+#include <QJsonObject>
+#include <QJsonArray>
 #include <algorithm>
 #include <cmath>
 
@@ -328,15 +333,16 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
         updateRagBtn();
     });
 
-    /* RAG: embedding pronto → cerca context → avvia chat */
+    /* RAG: embedding pronto → cerca context → avvia chat/generate */
     connect(m_ai, &AiClient::embeddingReady, this, [this](const QVector<float>& vec) {
         if (m_pendingMsg.isEmpty()) return;
         QString msg = m_pendingMsg;
         m_pendingMsg.clear();
+        m_lastUserMsg = msg;    /* per addToHistory() nel finished handler */
 
-        /* Ricerca top-5 chunk rilevanti */
+        /* Ricerca top-k chunk rilevanti */
         QSettings ss("Prismalux", "GUI");
-        int k = ss.value("rag/maxResults", 5).toInt();
+        int k = ss.value(P::SK::kRagMaxResults, 5).toInt();
         const QVector<RagChunk> hits = m_rag.search(vec, k);
 
         /* Costruisce il contesto da iniettare nel system prompt */
@@ -349,7 +355,6 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
                    "Usa SOLO le informazioni nel contesto quando rispondi alla domanda.\n";
         }
 
-        /* Avvia la chat con contesto iniettato */
         QString sys = m_sysEdit->toPlainText().trimmed();
         if (sys.isEmpty())
             sys = "Sei un assistente AI utile e preciso. "
@@ -357,7 +362,17 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
                   "Quando fornisci formule matematiche usa la notazione y = f(x).";
         sys += ctx;
 
-        m_ai->chat(sys, msg);
+        /* Endpoint: /api/generate se non c'è storia, /api/chat se c'è storia */
+        const AiClient::QueryType qt = AiClient::classifyQuery(msg);
+        const bool hasHistory = !m_history.isEmpty() || !m_historySummary.isEmpty();
+
+        if (hasHistory) {
+            /* Storia attiva: usa /api/chat con storia + contesto RAG */
+            m_ai->chat(sys, msg, buildHistoryArray(), qt);
+        } else {
+            /* Query RAG singola: usa /api/generate (più leggero) */
+            m_ai->generate(sys, msg, qt);
+        }
     });
 
     connect(m_ai, &AiClient::embeddingError, this, [this](const QString& err) {
@@ -378,7 +393,7 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
         scrollToBottom();
     });
 
-    connect(m_ai, &AiClient::finished, this, [this](const QString&) {
+    connect(m_ai, &AiClient::finished, this, [this](const QString& full) {
         if (!m_streaming) return;
         m_streaming = false;
         if (m_activeBubble) m_activeBubble->finalizeStream();
@@ -386,6 +401,12 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
         m_btnSend->setEnabled(true);
         m_btnStop->setEnabled(false);
         m_waitLbl->setVisible(false);
+
+        /* Registra il turno nella storia conversazionale */
+        if (!m_lastUserMsg.isEmpty() && !full.isEmpty())
+            addToHistory(m_lastUserMsg, full);
+        m_lastUserMsg.clear();
+
         scrollToBottom();
     });
 
@@ -455,8 +476,15 @@ void OracoloPage::sendMessage() {
 
 /* ══════════════════════════════════════════════════════════════
    startChatWithContext — avvia la chat (senza RAG o come fallback)
+
+   Logica endpoint:
+   • Immagine allegata       → chatWithImage() (sempre /api/chat)
+   • Storia attiva           → chat() con history + QueryType
+   • Nessuna storia          → generate() via /api/generate (più leggero)
    ══════════════════════════════════════════════════════════════ */
 void OracoloPage::startChatWithContext(const QString& userMsg) {
+    m_lastUserMsg = userMsg;    /* salvato per addToHistory() nel finished handler */
+
     QString sys = m_sysEdit->toPlainText().trimmed();
     if (sys.isEmpty())
         sys = "Sei un assistente AI utile e preciso. "
@@ -468,8 +496,18 @@ void OracoloPage::startChatWithContext(const QString& userMsg) {
         m_pendingImg.clear();
         m_pendingImgMime.clear();
         m_imgPreview->setVisible(false);
+        return;
+    }
+
+    const AiClient::QueryType qt = AiClient::classifyQuery(userMsg);
+    const bool hasHistory = !m_history.isEmpty() || !m_historySummary.isEmpty();
+
+    if (hasHistory) {
+        /* Storia attiva: usa /api/chat con i turni precedenti */
+        m_ai->chat(sys, userMsg, buildHistoryArray(), qt);
     } else {
-        m_ai->chat(sys, userMsg);
+        /* Prima query o storia svuotata: usa /api/generate (single-shot) */
+        m_ai->generate(sys, userMsg, qt);
     }
 }
 
@@ -484,6 +522,71 @@ void OracoloPage::updateRagBtn() {
         m_ragEnabled = false;
         m_btnRag->setChecked(false);
     }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   addToHistory — registra il turno e comprime se necessario
+   ══════════════════════════════════════════════════════════════ */
+void OracoloPage::addToHistory(const QString& user, const QString& assistant) {
+    /* Tronca risposte molto lunghe (es. codice sorgente 5000 chars)
+     * per non gonfiare il contesto nelle chiamate successive. */
+    m_history.append({ user, assistant.left(800) });
+    compressHistory();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   compressHistory — sposta i turni eccedenti nel summary locale
+   Il summary ha il formato:
+     "U: <testo utente>\nA: <risposta AI>\n"
+   per ciascun turno compresso. Questo viene poi iniettato come
+   turno sintetico "assistant" all'inizio della storia per dare
+   contesto senza mandare tutti i raw.
+   ══════════════════════════════════════════════════════════════ */
+void OracoloPage::compressHistory() {
+    if (m_history.size() <= kMaxRecentTurns) return;
+
+    const int toCompress = m_history.size() - kMaxRecentTurns;
+    QString addition;
+    for (int i = 0; i < toCompress; ++i) {
+        const ConvTurn& t = m_history[i];
+        /* Tronca ulteriormente per il summary */
+        addition += "U: " + t.user.left(200) + "\n";
+        addition += "A: " + t.assistant.left(300) + "\n";
+    }
+
+    if (!m_historySummary.isEmpty())
+        m_historySummary += "\n";
+    m_historySummary += addition;
+
+    m_history = m_history.mid(toCompress);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildHistoryArray — costruisce il QJsonArray per AiClient::chat()
+   Struttura:
+   - Se c'è un summary: 1 turno sintetico (user="[riepilogo]", assistant=summary)
+   - Poi i turni recenti nella forma [{role:user,...},{role:assistant,...}]
+   ══════════════════════════════════════════════════════════════ */
+QJsonArray OracoloPage::buildHistoryArray() const {
+    QJsonArray arr;
+
+    if (!m_historySummary.isEmpty()) {
+        QJsonObject u; u["role"] = "user";
+        u["content"] = "[Riepilogo dei turni precedenti della conversazione]";
+        QJsonObject a; a["role"] = "assistant";
+        a["content"] = m_historySummary;
+        arr.append(u);
+        arr.append(a);
+    }
+
+    for (const ConvTurn& t : m_history) {
+        QJsonObject u; u["role"] = "user";      u["content"] = t.user;
+        QJsonObject a; a["role"] = "assistant"; a["content"] = t.assistant;
+        arr.append(u);
+        arr.append(a);
+    }
+
+    return arr;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -531,6 +634,10 @@ void OracoloPage::clearChat() {
     m_pendingImg.clear();
     m_pendingImgMime.clear();
     m_imgPreview->setVisible(false);
+    /* Reset storia: una nuova conversazione parte senza contesto precedente */
+    m_history.clear();
+    m_historySummary.clear();
+    m_lastUserMsg.clear();
 }
 
 /* ══════════════════════════════════════════════════════════════

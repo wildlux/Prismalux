@@ -8,6 +8,7 @@
 #include <QStackedWidget>
 #include <QLabel>
 #include <QString>
+#include <QNetworkAccessManager>
 #include "../ai_client.h"
 
 /* ══════════════════════════════════════════════════════════════
@@ -36,6 +37,25 @@ private:
     QWidget*        m_pdfRow    = nullptr;  ///< riga picker PDF (visibile solo per cat 5)
     QLabel*         m_pdfPathLbl = nullptr; ///< mostra il nome del PDF caricato
     QString         m_pdfPath;              ///< percorso assoluto del PDF selezionato
+
+    /* ── Blender MCP (cat = 6) ── */
+    int             m_currentCat   = 0;       ///< categoria selezionata corrente
+    QWidget*        m_blenderRow   = nullptr; ///< barra connessione Blender
+    QLineEdit*      m_blenderHostEdit = nullptr; ///< host:porta del bridge Blender
+    QLabel*         m_blenderStatusLbl = nullptr;
+    QPushButton*    m_blenderExecBtn = nullptr;  ///< esegui codice in Blender
+    QNetworkAccessManager* m_blenderNam = nullptr;
+    QString         m_blenderCode;             ///< codice bpy estratto dall'ultima risposta AI
+
+    /* ── Office/LibreOffice MCP (cat = 7) ── */
+    QWidget*        m_officeRow    = nullptr; ///< barra connessione Office bridge
+    QLabel*         m_officeStatusLbl = nullptr;
+    QPushButton*    m_officeExecBtn = nullptr;  ///< esegui codice office
+    QPushButton*    m_officeStartBtn = nullptr; ///< avvia/ferma bridge Python
+    QNetworkAccessManager* m_officeNam = nullptr;
+    QProcess*       m_officeBridgeProc = nullptr; ///< processo bridge Python locale
+    QString         m_officeCode;              ///< codice office estratto dall'ultima risposta AI
+    QString         m_officeBridgeToken;       ///< token Bearer letto da ~/.prismalux_office_token
 
     /* ── Costruttori sotto-pagine ── */
     QWidget* buildSubPage(const QStringList& actions, const QString& placeholder);

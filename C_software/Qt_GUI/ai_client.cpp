@@ -8,6 +8,7 @@
 #include <QDir>
 #include <QFile>
 #include <QStandardPaths>
+#include <QSettings>
 
 /* ══════════════════════════════════════════════════════════════
    AiChatParams — unica fonte ~/.prismalux/ai_params.json
@@ -70,6 +71,34 @@ AiClient::AiClient(QObject* parent)
     m_params = AiChatParams::load();
 }
 
+/* ══════════════════════════════════════════════════════════════
+   classifyQuery — euristica veloce per decidere think e num_predict
+   Criteri:
+   • ≤ 30 caratteri e nessuna keyword complessa  → Simple
+   • > 200 caratteri                              → Complex
+   • Keyword di analisi/spiegazione/codice        → Complex
+   • Tutto il resto (30-200 chars, neutre)        → Simple
+   ══════════════════════════════════════════════════════════════ */
+AiClient::QueryType AiClient::classifyQuery(const QString& text)
+{
+    const int len = text.length();
+    if (len > 200) return QueryComplex;
+
+    static const QString kComplexKW[] = {
+        "spiega", "analizza", "confronta", "descri", "illustra",
+        "approfondisci", "come funziona", "differenza", "pro e contro",
+        "vantaggi", "svantaggi", "implementa", "algoritmo", "codice",
+        "perch\xc3\xa9", "ragiona", "dimostra", "riassumi", "elabora",
+        "architettura", "compara", "elenca tutto", "dimmi tutto"
+    };
+    const QString lower = text.toLower();
+    for (const auto& kw : kComplexKW) {
+        if (lower.contains(kw)) return QueryComplex;
+    }
+
+    return (len <= 30) ? QuerySimple : QuerySimple;
+}
+
 /* ── Anti-data-leak: verifica che l'host sia localhost ───────────────────
    Prismalux comunica solo con AI locali (Ollama / llama-server su loopback).
    Se il chiamante passa un host esterno (es. per errore di configurazione)
@@ -103,6 +132,7 @@ void AiClient::setLocalBackend(const QString& llamaBin, const QString& modelPath
 
 /* ── Abort ────────────────────────────────────────────────────── */
 void AiClient::abort() {
+    m_isGenerateMode = false;
     bool wasActive = m_reply != nullptr || m_localBusy;
     if (m_reply) {
         /* Azzera m_reply PRIMA di chiamare abort() su Windows:
@@ -239,17 +269,22 @@ static const char* kHonestyPrefix =
     "Non speculare. Non completare lacune con supposizioni. "
     "Rispondi SEMPRE e SOLO in italiano.\n\n";
 
-/* ── chat ────────────────────────────────────────────────────── */
+/* ── chat (wrapper legacy — compatibile con tutto il codice esistente) ─── */
 void AiClient::chat(const QString& systemPrompt, const QString& userMsg) {
+    chat(systemPrompt, userMsg, QJsonArray(), QueryAuto);
+}
+
+/* ── chat (implementazione completa con storia e tipo query) ─────────── */
+void AiClient::chat(const QString& systemPrompt, const QString& userMsg,
+                    const QJsonArray& history, QueryType qt)
+{
     if (busy()) return;
 
-    /* Throttle: ignora richieste ravvicinate (<400ms) — evita doppio-clic
-     * che saturano la RAM avviando due inference parallele */
+    /* Throttle: ignora richieste ravvicinate (<400ms) */
     if (m_throttleTimer.isValid() && m_throttleTimer.elapsed() < 400) return;
     m_throttleTimer.restart();
 
-    /* RAM critica: blocca la richiesta se la RAM libera è sotto il 10%
-     * per evitare che il sistema si blocchi durante il caricamento del modello */
+    /* RAM critica */
     if (m_ramFreePct < 10.0) {
         emit error(
             "\xe2\x9a\xa0  RAM critica (" +
@@ -258,7 +293,6 @@ void AiClient::chat(const QString& systemPrompt, const QString& userMsg) {
         return;
     }
 
-    /* Notifica MonitorPanel (e chiunque sia in ascolto) che sta partendo */
     {
         static const char* BKNAMES[] = {"Ollama", "llama-server", "llama-local"};
         emit requestStarted(m_backend == LlamaLocal ? m_localModel : m_model,
@@ -274,22 +308,29 @@ void AiClient::chat(const QString& systemPrompt, const QString& userMsg) {
         m_localBusy  = true;
         m_localAccum.clear();
 
-        /* Prependi prefisso di onestà anche nel backend locale */
         QString effectiveSysLocal = systemPrompt;
         if (m_params.honesty_prefix)
             effectiveSysLocal = QString(kHonestyPrefix) + effectiveSysLocal;
 
-        /* Costruisce il prompt ChatML */
+        /* Costruisce il prompt ChatML — inserisce la storia come turni precedenti */
         QString prompt;
         if (!effectiveSysLocal.isEmpty())
             prompt += "<|im_start|>system\n" + effectiveSysLocal + "\n<|im_end|>\n";
+        /* Storia */
+        for (const QJsonValue& v : history) {
+            const QJsonObject m = v.toObject();
+            const QString role = m["role"].toString();
+            const QString cont = m["content"].toString();
+            prompt += "<|im_start|>" + role + "\n" + cont + "\n<|im_end|>\n";
+        }
         prompt += "<|im_start|>user\n" + userMsg + "\n<|im_end|>\n<|im_start|>assistant\n";
 
-        /* Argomenti llama-cli — tutti i parametri da ai_params.json (nessun valore hardcoded) */
+        const int numPredict = (qt == QuerySimple) ? 512 : m_params.num_predict;
+
         QStringList args = {
             "-m", m_localModel,
             "-p", prompt,
-            "-n",              QString::number(m_params.num_predict),
+            "-n",              QString::number(numPredict),
             "--ctx-size",      QString::number(m_params.num_ctx),
             "--temp",          QString::number(m_params.temperature, 'f', 3),
             "--top-p",         QString::number(m_params.top_p,       'f', 3),
@@ -321,66 +362,155 @@ void AiClient::chat(const QString& systemPrompt, const QString& userMsg) {
     }
 
     /* ── HTTP backends ── */
-    abort();               /* prima annulla eventuali richieste precedenti */
-    m_busy_guard = true;   /* poi setta il guard (abort() lo resetta a false) */
+    abort();
+    m_busy_guard     = true;
+    m_isGenerateMode = false;   /* /api/chat, non /api/generate */
     m_accum.clear();
 
-    /* Prependi il prefisso di onestà al system prompt (se abilitato) */
     QString effectiveSys = systemPrompt;
-    if (m_params.honesty_prefix) {
+    if (m_params.honesty_prefix)
         effectiveSys = QString(kHonestyPrefix) + effectiveSys;
-    }
 
-    QJsonObject body;
-    body["model"]  = m_model;
-    body["stream"] = true;
+    /* ── Costruzione array messaggi con storia ── */
     QJsonArray messages;
     if (!effectiveSys.isEmpty()) {
         QJsonObject sys; sys["role"] = "system"; sys["content"] = effectiveSys;
         messages.append(sys);
     }
+    /* Inserisci i turni della storia (precedenti) prima del messaggio corrente */
+    for (const QJsonValue& v : history)
+        messages.append(v);
+
     QJsonObject usr; usr["role"] = "user"; usr["content"] = userMsg;
     messages.append(usr);
+
+    QJsonObject body;
+    body["model"]    = m_model;
+    body["stream"]   = true;
     body["messages"] = messages;
 
-    /* ── Parametri anti-allucinazione ── */
+    /* ── Parametri anti-allucinazione + think/num_predict dinamici ── */
     if (m_backend == Ollama) {
         QJsonObject opts;
         opts["temperature"]    = m_params.temperature;
         opts["top_p"]          = m_params.top_p;
         opts["top_k"]          = m_params.top_k;
         opts["repeat_penalty"] = m_params.repeat_penalty;
-        opts["num_predict"]    = m_params.num_predict;
         opts["num_ctx"]        = m_params.num_ctx;
+
+        if (qt == QuerySimple) {
+            opts["num_predict"] = 512;
+            opts["think"]       = false;
+        } else if (qt == QueryComplex) {
+            opts["num_predict"] = m_params.num_predict;
+            opts["think"]       = true;
+        } else {
+            /* QueryAuto: comportamento precedente, nessun think esplicito */
+            opts["num_predict"] = m_params.num_predict;
+        }
         body["options"] = opts;
     } else {
         /* llama-server usa il formato OpenAI */
         body["temperature"]    = m_params.temperature;
         body["top_p"]          = m_params.top_p;
         body["repeat_penalty"] = m_params.repeat_penalty;
-        body["max_tokens"]     = m_params.num_predict;
+        body["max_tokens"]     = (qt == QuerySimple) ? 512 : m_params.num_predict;
     }
 
-    /* keep_alive dinamico (solo Ollama): determina per quanto tempo il modello
-     * rimane in memoria dopo la risposta, in base alla RAM libera attuale.
-     *   RAM usata < 40% → default Ollama (-1 = ~5 min)
-     *   RAM usata 40-70% → 30 secondi (poi Ollama scarica da solo)
-     *   RAM usata > 70% → 0 (scarica immediatamente al termine)
-     * Questo evita che modelli pesanti rimangano in RAM quando il sistema
-     * è già sotto pressione. */
+    /* keep_alive dinamico (solo Ollama) */
     if (m_backend == Ollama) {
         const double usedPct = 100.0 - m_ramFreePct;
         if (usedPct > 70.0)
-            body["keep_alive"] = 0;   /* scarica subito */
+            body["keep_alive"] = 0;
         else if (usedPct > 40.0)
-            body["keep_alive"] = 30;  /* tieni 30s poi scarica */
-        /* else: nessun keep_alive → Ollama usa il suo default (~5 min) */
+            body["keep_alive"] = 30;
     }
 
     QString url = (m_backend == Ollama)
         ? QString("http://%1:%2/api/chat").arg(m_host).arg(m_port)
         : QString("http://%1:%2/v1/chat/completions").arg(m_host).arg(m_port);
 
+    QNetworkRequest req(url);
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    m_reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(m_reply, &QNetworkReply::readyRead, this, &AiClient::onReadyRead);
+    connect(m_reply, &QNetworkReply::finished,  this, &AiClient::onFinished);
+}
+
+/* ── generate — /api/generate per query RAG single-shot ──────────────── */
+/*
+ * Usa /api/generate (Ollama) invece di /api/chat quando non c'è storia attiva.
+ * Vantaggio: endpoint più leggero, campo "system" dedicato, no messages array.
+ * Per backend non-Ollama fa fallback automatico a chat() single-turn.
+ *
+ * Formato streaming Ollama /api/generate:
+ *   {"model":"...","response":"token","done":false}
+ *   {"model":"...","response":"","done":true,"total_duration":...}  ← fine
+ * onReadyRead() legge "response" invece di "message.content"
+ * quando m_isGenerateMode == true.
+ */
+void AiClient::generate(const QString& systemPrompt, const QString& prompt, QueryType qt)
+{
+    /* Fallback per backend non-Ollama: usa chat() single-turn */
+    if (m_backend != Ollama) {
+        chat(systemPrompt, prompt, QJsonArray(), qt);
+        return;
+    }
+
+    if (busy()) return;
+    if (m_throttleTimer.isValid() && m_throttleTimer.elapsed() < 400) return;
+    m_throttleTimer.restart();
+
+    if (m_ramFreePct < 10.0) {
+        emit error(
+            "\xe2\x9a\xa0  RAM critica (" +
+            QString::number(100.0 - m_ramFreePct, 'f', 0) +
+            "% usata). Chiudi altre applicazioni prima di continuare.");
+        return;
+    }
+
+    emit requestStarted(m_model, "Ollama");
+
+    abort();
+    m_busy_guard     = true;
+    m_isGenerateMode = true;    /* onReadyRead() leggerà "response" */
+    m_accum.clear();
+
+    QString effectiveSys = systemPrompt;
+    if (m_params.honesty_prefix)
+        effectiveSys = QString(kHonestyPrefix) + effectiveSys;
+
+    QJsonObject body;
+    body["model"]  = m_model;
+    body["stream"] = true;
+    body["prompt"] = prompt;
+    if (!effectiveSys.isEmpty())
+        body["system"] = effectiveSys;
+
+    QJsonObject opts;
+    opts["temperature"]    = m_params.temperature;
+    opts["top_p"]          = m_params.top_p;
+    opts["top_k"]          = m_params.top_k;
+    opts["repeat_penalty"] = m_params.repeat_penalty;
+    opts["num_ctx"]        = m_params.num_ctx;
+
+    if (qt == QuerySimple) {
+        opts["num_predict"] = 512;
+        opts["think"]       = false;
+    } else if (qt == QueryComplex) {
+        opts["num_predict"] = m_params.num_predict;
+        opts["think"]       = true;
+    } else {
+        opts["num_predict"] = m_params.num_predict;
+    }
+    body["options"] = opts;
+
+    /* keep_alive dinamico */
+    const double usedPct = 100.0 - m_ramFreePct;
+    if (usedPct > 70.0)      body["keep_alive"] = 0;
+    else if (usedPct > 40.0) body["keep_alive"] = 30;
+
+    QString url = QString("http://%1:%2/api/generate").arg(m_host).arg(m_port);
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     m_reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
@@ -514,9 +644,12 @@ void AiClient::onReadyRead() {
         if (doc.isNull()) continue;
         QJsonObject obj = doc.object();
         QString chunk;
-        if (m_backend == Ollama)
+        if (m_isGenerateMode && m_backend == Ollama) {
+            /* Formato /api/generate: {"response":"token","done":false} */
+            chunk = obj["response"].toString();
+        } else if (m_backend == Ollama) {
             chunk = obj["message"].toObject()["content"].toString();
-        else {
+        } else {
             auto ch = obj["choices"].toArray();
             if (!ch.isEmpty()) chunk = ch[0].toObject()["delta"].toObject()["content"].toString();
         }
@@ -525,7 +658,8 @@ void AiClient::onReadyRead() {
 }
 
 void AiClient::onFinished() {
-    m_busy_guard = false;
+    m_busy_guard     = false;
+    m_isGenerateMode = false;
     if (!m_reply) return;
     QNetworkReply* r = m_reply;
     m_reply = nullptr;
@@ -590,7 +724,12 @@ void AiClient::fetchEmbedding(const QString& text) {
     QJsonObject body;
     if (m_backend == Ollama) {
         urlStr = QString("http://%1:%2/api/embeddings").arg(m_host).arg(m_port);
-        body["model"]  = m_model;
+        /* Usa il modello embedding dedicato se configurato (rag/embedModel),
+         * altrimenti cade sul modello chat corrente — ma i modelli chat di solito
+         * NON supportano /api/embeddings: installare nomic-embed-text. */
+        QSettings ragS("Prismalux", "GUI");
+        const QString embedModel = ragS.value("rag/embedModel", "").toString();
+        body["model"]  = embedModel.isEmpty() ? m_model : embedModel;
         body["prompt"] = text;
     } else {
         urlStr = QString("http://%1:%2/v1/embeddings").arg(m_host).arg(m_port);

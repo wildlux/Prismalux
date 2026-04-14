@@ -5,6 +5,7 @@
 #include "grafico_page.h"
 #include "../theme_manager.h"
 #include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;  /* alias file-scope per P::SK::kXxx */
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -31,6 +32,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
+#include <QUrl>
 #include <functional>
 #include <QCoreApplication>
 #include <QTimer>
@@ -74,38 +76,9 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
     tabs->addTab(m_manutenzione->buildBackend(), "\xf0\x9f\x94\x8c  Connessione");
 
     /* ────────────────────────────────────────────────────────────
-       Tab 2: 🖥 Hardware — Rilevamento hw + VRAM Benchmark
+       Tab 2: 🖥 Hardware — Rilevamento hw
        ──────────────────────────────────────────────────────────── */
-    {
-        auto* hwOuter = new QWidget;
-        auto* hwOLay  = new QVBoxLayout(hwOuter);
-        hwOLay->setContentsMargins(0, 0, 0, 0);
-        hwOLay->setSpacing(0);
-
-        auto* scroll = new QScrollArea;
-        scroll->setWidgetResizable(true);
-        scroll->setFrameShape(QFrame::NoFrame);
-
-        auto* inner = new QWidget;
-        auto* iLay  = new QVBoxLayout(inner);
-        iLay->setContentsMargins(0, 0, 0, 0);
-        iLay->setSpacing(0);
-
-        iLay->addWidget(m_manutenzione->buildHardware());
-
-        auto* sep = new QFrame;
-        sep->setFrameShape(QFrame::HLine);
-        sep->setObjectName("sidebarSep");
-        iLay->addWidget(sep);
-
-        iLay->addWidget(m_personalizza->buildVramBench());
-        iLay->addStretch();
-
-        scroll->setWidget(inner);
-        hwOLay->addWidget(scroll);
-
-        tabs->addTab(hwOuter, "\xf0\x9f\x96\xa5  Hardware");
-    }
+    tabs->addTab(m_manutenzione->buildHardware(), "\xf0\x9f\x96\xa5  Hardware");
 
     /* ────────────────────────────────────────────────────────────
        Tab 3: 🦙 AI Locale — selezione gestore + modelli disponibili
@@ -844,11 +817,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     refreshBtn->setObjectName("actionBtn");
     leftLay->addWidget(refreshBtn);
 
-    /* Pulsante llama.cpp Studio (solo visibile con llama.cpp selezionato) */
-    auto* studioBtn = new QPushButton("\xe2\x9a\x99\xef\xb8\x8f  llama.cpp Studio \xe2\x86\x92", leftGroup);
-    studioBtn->setObjectName("actionBtn");
-    studioBtn->hide();
-    leftLay->addWidget(studioBtn);
+    /* llama.cpp Studio rimosso: funzionalità integrate in scheda LLM */
 
     leftLay->addStretch(1);
     colsLay->addWidget(leftGroup);
@@ -883,11 +852,40 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
 
     /* ── Logica: popola la lista in base al gestore selezionato ── */
 
+    /* Label che mostra il modello attivo corrente */
+    auto* activeLbl = new QLabel(
+        QString("\xf0\x9f\x9f\xa2  Modello attivo: <b>%1</b>").arg(
+            m_ai->model().isEmpty() ? "(nessuno)" : m_ai->model()),
+        leftGroup);
+    activeLbl->setObjectName("cardDesc");
+    activeLbl->setWordWrap(true);
+    activeLbl->setTextFormat(Qt::RichText);
+    leftLay->insertWidget(2, activeLbl);  /* sotto i radio button */
+
+    /* Pulsante "Usa modello selezionato" */
+    auto* useBtn = new QPushButton("\xe2\x9c\x94  Usa modello", leftGroup);
+    useBtn->setObjectName("actionBtn");
+    useBtn->setEnabled(false);
+    useBtn->setToolTip("Imposta il modello selezionato come modello attivo");
+    leftLay->insertWidget(3, useBtn);
+
+    /* Lambda: applica il modello selezionato */
+    auto applySelected = [=]() {
+        auto* cur = modelList->currentItem();
+        if (!cur) return;
+        const QString model = cur->data(Qt::UserRole).toString();
+        if (model.isEmpty() || model.startsWith("(")) return;
+        m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), model);
+        activeLbl->setText(QString("\xf0\x9f\x9f\xa2  Modello attivo: <b>%1</b>").arg(model));
+        statusLbl->setText(QString("\xe2\x9c\x85 Attivo: %1").arg(model));
+    };
+
     /* Lambda: carica modelli Ollama tramite AiClient::fetchModels */
     auto populateOllama = [=]() {
         modelList->clear();
         hintLbl->setText("Caricamento modelli Ollama...");
         statusLbl->setText("\xe2\x8f\xb3 Ollama...");
+        useBtn->setEnabled(false);
         auto* holder = new QObject(page);
         connect(m_ai, &AiClient::modelsReady, holder,
                 [=](const QStringList& list) {
@@ -897,13 +895,20 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
                 statusLbl->setText("\xe2\x9d\x8c Nessun modello");
                 hintLbl->setText("Ollama non raggiungibile o nessun modello installato.\n"
                                  "Avvia Ollama e riprova.");
-                modelList->addItem("(Ollama non raggiungibile)");
+                auto* ph = new QListWidgetItem("(Ollama non raggiungibile)");
+                modelList->addItem(ph);
             } else {
                 statusLbl->setText(QString("\xe2\x9c\x85 %1 modelli").arg(list.size()));
-                hintLbl->setText(QString("%1 modelli Ollama installati.")
+                hintLbl->setText(QString("%1 modelli Ollama. Doppio clic o 'Usa modello' per attivare.")
                                  .arg(list.size()));
-                for (const QString& m : list)
-                    modelList->addItem(m);
+                for (const QString& m : list) {
+                    auto* item = new QListWidgetItem(m);
+                    item->setData(Qt::UserRole, m);  /* modello = nome Ollama */
+                    /* Evidenzia il modello attivo */
+                    if (m == m_ai->model())
+                        item->setForeground(QColor("#4ade80"));
+                    modelList->addItem(item);
+                }
             }
         });
         m_ai->fetchModels();
@@ -912,15 +917,17 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     /* Lambda: scansiona file .gguf dalla cartella models/ */
     auto populateLlama = [=]() {
         modelList->clear();
+        useBtn->setEnabled(false);
         const QStringList files = PrismaluxPaths::scanGgufFiles();
         if (files.isEmpty()) {
             statusLbl->setText("0 modelli");
             hintLbl->setText("Nessun file .gguf trovato.\n"
-                             "Usa llama.cpp Studio per scaricare o compilare modelli.");
-            modelList->addItem("(Nessun modello GGUF nella cartella models/)");
+                             "Scarica un modello dalla scheda LLM.");
+            auto* ph = new QListWidgetItem("(Nessun modello GGUF nella cartella models/)");
+            modelList->addItem(ph);
         } else {
             statusLbl->setText(QString("%1 file GGUF").arg(files.size()));
-            hintLbl->setText(QString("%1 modelli GGUF nella cartella models/.")
+            hintLbl->setText(QString("%1 modelli GGUF. Doppio clic o 'Usa modello' per attivare.")
                              .arg(files.size()));
             for (const QString& path : files) {
                 QFileInfo fi(path);
@@ -928,7 +935,12 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
                 QString szStr = mb >= 1024.0
                     ? QString("%1 GB").arg(mb / 1024.0, 0, 'f', 1)
                     : QString("%1 MB").arg(mb, 0, 'f', 0);
-                modelList->addItem(QString("%1   \xe2\x80\x94  %2").arg(fi.fileName(), szStr));
+                auto* item = new QListWidgetItem(
+                    QString("%1   \xe2\x80\x94  %2").arg(fi.fileName(), szStr));
+                item->setData(Qt::UserRole, path);  /* UserRole = path completo */
+                if (path == m_ai->model())
+                    item->setForeground(QColor("#4ade80"));
+                modelList->addItem(item);
             }
         }
     };
@@ -936,12 +948,10 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     /* Cambio gestore */
     connect(btnOllama, &QRadioButton::toggled, page, [=](bool checked) {
         if (!checked) return;
-        studioBtn->hide();
         populateOllama();
     });
     connect(btnLlama, &QRadioButton::toggled, page, [=](bool checked) {
         if (!checked) return;
-        studioBtn->show();
         populateLlama();
     });
 
@@ -951,20 +961,25 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         else populateLlama();
     });
 
-    /* llama.cpp Studio → apre la UI completa (PersonalizzaPage::buildLlamaStudio)
-       in un dialog modale riutilizzabile (creazione lazy al primo click). */
-    connect(studioBtn, &QPushButton::clicked, page, [this]() {
-        if (!m_studioWidget) {
-            m_studioWidget = new QDialog(window());
-            m_studioWidget->setWindowTitle("\xf0\x9f\xa6\x99  llama.cpp Studio \xe2\x80\x94 Prismalux");
-            m_studioWidget->resize(1000, 720);
-            auto* sLay = new QVBoxLayout(m_studioWidget);
-            sLay->setContentsMargins(0, 0, 0, 0);
-            sLay->addWidget(m_personalizza->buildLlamaStudio());
-        }
-        m_studioWidget->show();
-        m_studioWidget->raise();
-        m_studioWidget->activateWindow();
+    /* Abilita "Usa modello" quando si seleziona un item */
+    connect(modelList, &QListWidget::currentItemChanged, page,
+            [=](QListWidgetItem* cur, QListWidgetItem*) {
+        if (!cur) { useBtn->setEnabled(false); return; }
+        const QString m = cur->data(Qt::UserRole).toString();
+        useBtn->setEnabled(!m.isEmpty() && !m.startsWith("("));
+    });
+
+    /* Doppio clic = attiva subito */
+    connect(modelList, &QListWidget::itemDoubleClicked, page,
+            [=](QListWidgetItem*) { applySelected(); });
+
+    /* Pulsante "Usa modello" */
+    connect(useBtn, &QPushButton::clicked, page, applySelected);
+
+    /* Aggiorna label modello attivo quando cambia dall'esterno */
+    connect(m_ai, &AiClient::modelsReady, page, [=](const QStringList&) {
+        activeLbl->setText(QString("\xf0\x9f\x9f\xa2  Modello attivo: <b>%1</b>").arg(
+            m_ai->model().isEmpty() ? "(nessuno)" : m_ai->model()));
     });
 
     /* Popola Ollama subito all'apertura */
@@ -1197,6 +1212,37 @@ QWidget* ImpostazioniPage::buildRagTab()
     desc->setObjectName("hintLabel");
     outer->addWidget(desc);
 
+    /* ── [M2] Warning privacy ── */
+    auto* privacyLbl = new QLabel(
+        "\xe2\x9a\xa0\xef\xb8\x8f  <b>Attenzione privacy</b>: i chunk indicizzati (frammenti di testo dai tuoi "
+        "documenti) vengono salvati in chiaro in <code>~/.prismalux_rag.json</code>. "
+        "Non indicizzare documenti riservati (dichiarazioni fiscali, dati medici) "
+        "se non sei l'unico utente di questo sistema.");
+    privacyLbl->setWordWrap(true);
+    privacyLbl->setTextFormat(Qt::RichText);
+    privacyLbl->setObjectName("hintLabel");
+    privacyLbl->setStyleSheet("color: #e8a020;");   /* amber di avviso */
+    outer->addWidget(privacyLbl);
+
+    auto* noSaveChk = new QCheckBox(
+        "Non salvare su disco (solo RAM \xe2\x80\x94 indice perso alla chiusura)");
+    noSaveChk->setObjectName("cardDesc");
+    noSaveChk->setToolTip(
+        "Quando attivo, l'indice RAG viene costruito in memoria ma non scritto in\n"
+        "~/.prismalux_rag.json. Utile per documenti riservati.\n"
+        "L'indice va ricostruito ad ogni avvio dell'applicazione.");
+    {
+        QSettings s("Prismalux", "GUI");
+        noSaveChk->setChecked(s.value(P::SK::kRagNoSave, false).toBool());
+        m_ragNoSave = noSaveChk->isChecked();
+    }
+    connect(noSaveChk, &QCheckBox::toggled, this, [this](bool on){
+        m_ragNoSave = on;
+        QSettings s("Prismalux", "GUI");
+        s.setValue(P::SK::kRagNoSave, on);
+    });
+    outer->addWidget(noSaveChk);
+
     /* ── Form ── */
     auto* fl = new QFormLayout;
     fl->setContentsMargins(0, 8, 0, 0);
@@ -1213,7 +1259,7 @@ QWidget* ImpostazioniPage::buildRagTab()
     dirEdit->setPlaceholderText("/percorso/documenti/");
     {
         QSettings s("Prismalux", "GUI");
-        dirEdit->setText(s.value("rag/docsDir", "").toString());
+        dirEdit->setText(s.value(P::SK::kRagDocsDir, "").toString());
     }
     auto* browseBtn = new QPushButton("Sfoglia...");
     browseBtn->setObjectName("actionBtn");
@@ -1227,7 +1273,7 @@ QWidget* ImpostazioniPage::buildRagTab()
     maxSpin->setRange(1, 20);
     {
         QSettings s("Prismalux", "GUI");
-        maxSpin->setValue(s.value("rag/maxResults", 5).toInt());
+        maxSpin->setValue(s.value(P::SK::kRagMaxResults, 5).toInt());
     }
     maxSpin->setSuffix("  risultati");
     fl->addRow("Massimi:", maxSpin);
@@ -1246,7 +1292,7 @@ QWidget* ImpostazioniPage::buildRagTab()
         jlChk->setObjectName("cardDesc");
         {
             QSettings s("Prismalux", "GUI");
-            jlChk->setChecked(s.value("rag/jlTransform", true).toBool());
+            jlChk->setChecked(s.value(P::SK::kRagJlTransform, true).toBool());
         }
         jlChk->setToolTip(
             "Riduce la dimensionalit\xc3\xa0 dei vettori di embedding mantenendo le distanze.\n"
@@ -1264,7 +1310,7 @@ QWidget* ImpostazioniPage::buildRagTab()
 
         connect(jlChk, &QCheckBox::toggled, jlFrame, [](bool on){
             QSettings s("Prismalux", "GUI");
-            s.setValue("rag/jlTransform", on);
+            s.setValue(P::SK::kRagJlTransform, on);
         });
 
         outer->addWidget(jlFrame);
@@ -1280,14 +1326,37 @@ QWidget* ImpostazioniPage::buildRagTab()
     statusLbl->setObjectName("hintLabel");
     statusLbl->setWordWrap(true);
     statusLbl->setTextFormat(Qt::RichText);
-    auto refreshStatus = [statusLbl]() {
+    /* refreshStatus legge dall'engine in-memory se disponibile (più accurato),
+     * altrimenti cade su QSettings (valore salvato dall'ultima sessione). */
+    auto refreshStatus = [this, statusLbl]() {
         QSettings ss("Prismalux", "GUI");
+        int cnt = (m_rag.chunkCount() > 0)
+                  ? m_rag.chunkCount()
+                  : ss.value(P::SK::kRagDocCount, 0).toInt();
         statusLbl->setText(
             QString("Documenti indicizzati: <b>%1</b>"
                     "&nbsp;&nbsp;&nbsp;Ultima indicizzazione: <b>%2</b>")
-                .arg(ss.value("rag/docCount", 0).toInt())
-                .arg(ss.value("rag/lastIndexed", "Mai").toString()));
+                .arg(cnt)
+                .arg(ss.value(P::SK::kRagLastIndexed, "Mai").toString()));
     };
+
+    /* Migrazione one-time: se kRagDocCount è 0 ma l'indice su disco esiste
+     * (es. indicizzato con versione precedente che non salvava il conteggio,
+     * oppure embeddings parzialmente falliti), carica l'engine da disco e
+     * aggiorna QSettings con il conteggio reale. */
+    {
+        QSettings ss("Prismalux", "GUI");
+        if (ss.value(P::SK::kRagDocCount, 0).toInt() == 0 &&
+                m_rag.chunkCount() == 0) {
+            const QString ragPath = QDir::homePath() + "/.prismalux_rag.json";
+            if (QFileInfo::exists(ragPath)) {
+                m_rag.load(ragPath);
+                const int realN = m_rag.chunkCount();
+                if (realN > 0)
+                    ss.setValue(P::SK::kRagDocCount, realN);
+            }
+        }
+    }
     refreshStatus();
     outer->addWidget(statusLbl);
 
@@ -1303,10 +1372,42 @@ QWidget* ImpostazioniPage::buildRagTab()
         "Salvati in ~/prismalux_rag_docs/ e pronti per il RAG.");
     outer->addWidget(downloadBtn);
 
+    /* ── Modello embedding ── */
+    {
+        auto* embedRow = new QHBoxLayout;
+        auto* embedLbl = new QLabel("Modello embedding:");
+        embedLbl->setObjectName("hintLabel");
+        auto* embedEdit = new QLineEdit;
+        embedEdit->setPlaceholderText("nomic-embed-text");
+        embedEdit->setFixedHeight(28);
+        {
+            QSettings ss("Prismalux", "GUI");
+            const QString saved = ss.value(P::SK::kRagEmbedModel, "").toString();
+            embedEdit->setText(saved.isEmpty() ? "nomic-embed-text" : saved);
+        }
+        embedEdit->setToolTip(
+            "Modello Ollama dedicato per gli embedding (vettorizzazione del testo).\n"
+            "I modelli chat (qwen3, llama, ecc.) NON supportano /api/embeddings.\n"
+            "Modello consigliato: nomic-embed-text\n"
+            "Installa con: ollama pull nomic-embed-text");
+        QObject::connect(embedEdit, &QLineEdit::textChanged, embedEdit, [](const QString& v) {
+            QSettings ss("Prismalux", "GUI");
+            ss.setValue(P::SK::kRagEmbedModel, v.trimmed());
+        });
+        embedRow->addWidget(embedLbl);
+        embedRow->addWidget(embedEdit, 1);
+        outer->addLayout(embedRow);
+    }
+
     /* Pulsante Reindicizza */
     auto* reindexBtn = new QPushButton("\xf0\x9f\x94\x84  Reindicizza ora");
     reindexBtn->setObjectName("actionBtn");
     reindexBtn->setFixedHeight(32);
+    reindexBtn->setToolTip(
+        QString("Indicizza i documenti dalla cartella selezionata.\n"
+                "Indice salvato in: %1\n"
+                "(disabilitabile con la checkbox \"Non salvare su disco\" sopra)")
+            .arg(QDir::homePath() + "/.prismalux_rag.json"));
     outer->addWidget(reindexBtn);
 
     /* Label feedback */
@@ -1327,11 +1428,11 @@ QWidget* ImpostazioniPage::buildRagTab()
     });
     QObject::connect(dirEdit, &QLineEdit::textChanged, dirEdit, [](const QString& t) {
         QSettings ss("Prismalux", "GUI");
-        ss.setValue("rag/docsDir", t);
+        ss.setValue(P::SK::kRagDocsDir, t);
     });
     QObject::connect(maxSpin, QOverload<int>::of(&QSpinBox::valueChanged), maxSpin, [](int v) {
         QSettings ss("Prismalux", "GUI");
-        ss.setValue("rag/maxResults", v);
+        ss.setValue(P::SK::kRagMaxResults, v);
     });
     /* Label feedback globale (accessibile dai lambda) */
     m_ragFeedbackLbl = feedbackLbl;
@@ -1376,7 +1477,7 @@ QWidget* ImpostazioniPage::buildRagTab()
                 if (*errN == 0) {
                     dirEdit->setText(ragDir);
                     QSettings s("Prismalux", "GUI");
-                    s.setValue("rag/docsDir", ragDir);
+                    s.setValue(P::SK::kRagDocsDir, ragDir);
                     feedbackLbl->setText(
                         "\xe2\x9c\x85  Download completato! "
                         "Cartella: <code>" + ragDir + "</code><br>"
@@ -1497,23 +1598,49 @@ QWidget* ImpostazioniPage::buildRagTab()
         feedbackLbl->setText(QString("\xe2\x8f\xb3  Indicizzazione: 0 / %1 chunk...").arg(m_ragQueue.size()));
         feedbackLbl->setVisible(true);
 
-        /* Funzione ricorsiva: processa un chunk alla volta tramite embeddingReady */
+        /* Funzione ricorsiva: processa un chunk alla volta tramite embeddingReady.
+         * errCount conta i chunk saltati per errore embedding: serve per mostrare
+         * un messaggio utile se il modello non supporta /api/embeddings. */
+        auto* errCount  = new int(0);
         auto* indexNext = new std::function<void()>();
-        *indexNext = [this, indexNext, reindexBtn, feedbackLbl, statusLbl,
+        *indexNext = [this, indexNext, errCount, reindexBtn, feedbackLbl, statusLbl,
                       refreshStatus, dir]() {
             if (m_ragQueuePos >= m_ragQueue.size()) {
-                /* Fine indicizzazione */
+                /* Fine indicizzazione — [M2] salva solo se l'utente non ha scelto RAM-only */
                 const QString path = QDir::homePath() + "/.prismalux_rag.json";
-                m_rag.save(path);
+                if (!m_ragNoSave)
+                    m_rag.save(path);
                 int n = m_rag.chunkCount();
                 QSettings ss("Prismalux", "GUI");
-                ss.setValue("rag/docCount",    n);
-                ss.setValue("rag/lastIndexed",
+                ss.setValue(P::SK::kRagDocCount,    n);
+                ss.setValue(P::SK::kRagLastIndexed,
                     QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm"));
                 refreshStatus();
-                feedbackLbl->setText(
-                    QString("\xe2\x9c\x85  Indicizzati <b>%1</b> chunk da <code>%2</code>. "
-                            "Indice salvato.").arg(n).arg(dir));
+                if (n == 0) {
+                    QSettings esS("Prismalux", "GUI");
+                    const QString usedModel = esS.value(P::SK::kRagEmbedModel, "").toString();
+                    feedbackLbl->setText(
+                        QString("\xe2\x9a\xa0  Nessun chunk indicizzato (%1 errori embedding). "
+                                "Il modello <b>%2</b> non supporta <code>/api/embeddings</code>. "
+                                "Verifica che sia corretto nel campo \"Modello embedding\" qui sopra "
+                                "e che Ollama sia avviato. "
+                                "Modello consigliato: <b>nomic-embed-text</b> "
+                                "(<code>ollama pull nomic-embed-text</code>).")
+                            .arg(*errCount)
+                            .arg(usedModel.isEmpty() ? "corrente" : usedModel));
+                } else {
+                    feedbackLbl->setText(
+                        QString("\xe2\x9c\x85  Indicizzati <b>%1</b> chunk da <code>%2</code>"
+                                "%3. %4")
+                            .arg(n).arg(dir)
+                            .arg(*errCount > 0
+                                ? QString(" (%1 chunk saltati per errore)").arg(*errCount)
+                                : QString())
+                            .arg(m_ragNoSave
+                                ? "Indice <b>solo in RAM</b> (non salvato su disco)."
+                                : "Indice salvato in <code>~/.prismalux_rag.json</code>."));
+                }
+                delete errCount;
                 reindexBtn->setEnabled(true);
                 delete indexNext;
                 return;
@@ -1526,21 +1653,26 @@ QWidget* ImpostazioniPage::buildRagTab()
 
             const QString chunk = m_ragQueue[m_ragQueuePos++];
 
-            /* One-shot connection: embeddingReady → addChunk → next */
-            auto* conn = new QMetaObject::Connection;
+            /* One-shot connection: embeddingReady → addChunk → next.
+             * IMPORTANTE: conn e connErr si referenziano a vicenda per garantire
+             * che scattando l'uno l'altro venga disconnesso subito, evitando
+             * connessioni stale che si accumulerebbero tra chunk successivi. */
+            auto* conn    = new QMetaObject::Connection;
+            auto* connErr = new QMetaObject::Connection;
+
             *conn = connect(m_ai, &AiClient::embeddingReady, this,
-                [this, chunk, indexNext, conn](const QVector<float>& vec) {
-                    disconnect(*conn);
-                    delete conn;
+                [this, chunk, indexNext, conn, connErr](const QVector<float>& vec) {
+                    disconnect(*conn);    delete conn;
+                    disconnect(*connErr); delete connErr;
                     m_rag.addChunk(chunk, vec);
                     (*indexNext)();
                 }, Qt::SingleShotConnection);
 
-            auto* connErr = new QMetaObject::Connection;
             *connErr = connect(m_ai, &AiClient::embeddingError, this,
-                [this, indexNext, connErr](const QString&) {
-                    disconnect(*connErr);
-                    delete connErr;
+                [this, indexNext, errCount, conn, connErr](const QString&) {
+                    disconnect(*connErr); delete connErr;
+                    disconnect(*conn);    delete conn;
+                    ++(*errCount);
                     (*indexNext)();   /* salta chunk con errore */
                 }, Qt::SingleShotConnection);
 
@@ -1705,7 +1837,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
     radiusSpin->setFixedWidth(80);
     {
         QSettings s("Prismalux", "GUI");
-        radiusSpin->setValue(s.value("bubble_radius", 10).toInt());
+        radiusSpin->setValue(s.value(P::SK::kBubbleRadius, 10).toInt());
     }
 
     auto* radiusPreview = new QLabel(secBolle);
@@ -1713,7 +1845,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
     radiusPreview->setText("(applicato alle nuove bolle)");
 
     auto updateRadius = [radiusSpin, radiusPreview]() {
-        QSettings("Prismalux", "GUI").setValue("bubble_radius", radiusSpin->value());
+        QSettings("Prismalux", "GUI").setValue(P::SK::kBubbleRadius, radiusSpin->value());
         radiusPreview->setText(
             radiusSpin->value() == 0
                 ? "Bolle con angoli netti"
@@ -1762,7 +1894,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
     };
 
     QSettings navSett("Prismalux", "GUI");
-    const QString curNavMode = navSett.value("nav/tabMode", "icons_text").toString();
+    const QString curNavMode = navSett.value(P::SK::kNavTabMode, "icons_text").toString();
 
     auto* navGroup = new QButtonGroup(secNav);
     auto* navRowW  = new QWidget(secNav);
@@ -1780,7 +1912,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         connect(rb, &QRadioButton::toggled, this, [this, nm](bool checked){
             if (!checked) return;
             QSettings s("Prismalux", "GUI");
-            s.setValue("nav/tabMode", nm.value);
+            s.setValue(P::SK::kNavTabMode, nm.value);
             emit tabModeChanged(QString::fromLatin1(nm.value));
         });
     }
@@ -1817,7 +1949,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         };
 
         QSettings navSett2("Prismalux", "GUI");
-        const QString curStyle = navSett2.value("nav/navStyle", "tabs_top").toString();
+        const QString curStyle = navSett2.value(P::SK::kNavStyle, "tabs_top").toString();
 
         auto* styleGroup = new QButtonGroup(secStyle);
         auto* styleRow   = new QWidget(secStyle);
@@ -1834,7 +1966,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             connect(rb, &QRadioButton::toggled, this, [this, ns](bool checked){
                 if (!checked) return;
                 QSettings s("Prismalux", "GUI");
-                s.setValue("nav/navStyle", ns.value);
+                s.setValue(P::SK::kNavStyle, ns.value);
                 emit navStyleChanged(QString::fromLatin1(ns.value));
             });
         }
@@ -1871,7 +2003,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         };
 
         QSettings exSett("Prismalux", "GUI");
-        const QString curExec = exSett.value("nav/execBtnMode", "icon_text").toString();
+        const QString curExec = exSett.value(P::SK::kNavExecBtnMode, "icon_text").toString();
 
         auto* execGroup = new QButtonGroup(secExec);
         auto* execRow   = new QWidget(secExec);
@@ -1888,7 +2020,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             connect(rb, &QRadioButton::toggled, this, [this, em](bool checked){
                 if (!checked) return;
                 QSettings s("Prismalux", "GUI");
-                s.setValue("nav/execBtnMode", em.value);
+                s.setValue(P::SK::kNavExecBtnMode, em.value);
                 emit execBtnModeChanged(QString::fromLatin1(em.value));
             });
         }
@@ -3649,6 +3781,70 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
         "background:#0f172a;color:#86efac;font-family:monospace;"
         "font-size:11px;padding:6px 10px;border-radius:6px;");
     rightLay->addWidget(logOut);
+
+    /* ── Download GGUF da URL personalizzato ── */
+    auto* customSep = new QFrame(rightGroup);
+    customSep->setFrameShape(QFrame::HLine);
+    customSep->setObjectName("sidebarSep");
+    rightLay->addWidget(customSep);
+
+    auto* customLbl = new QLabel(
+        "\xf0\x9f\x94\x97  Scarica GGUF da URL personalizzato (HuggingFace):", rightGroup);
+    customLbl->setObjectName("hintLabel");
+    rightLay->addWidget(customLbl);
+
+    auto* customRow = new QWidget(rightGroup);
+    auto* customRowLay = new QHBoxLayout(customRow);
+    customRowLay->setContentsMargins(0, 0, 0, 0);
+    customRowLay->setSpacing(6);
+
+    auto* customEdit = new QLineEdit(rightGroup);
+    customEdit->setObjectName("chatInput");
+    customEdit->setPlaceholderText(
+        "https://huggingface.co/.../resolve/main/modello.gguf");
+    auto* customDlBtn = new QPushButton("\xe2\xac\x87  Scarica", rightGroup);
+    customDlBtn->setObjectName("actionBtn");
+    customDlBtn->setFixedWidth(100);
+    customRowLay->addWidget(customEdit, 1);
+    customRowLay->addWidget(customDlBtn);
+    rightLay->addWidget(customRow);
+
+    connect(customDlBtn, &QPushButton::clicked, page, [=]() {
+        const QString url = customEdit->text().trimmed();
+        if (url.isEmpty()) return;
+        const QString filename = QUrl(url).fileName();
+        if (filename.isEmpty() || !filename.endsWith(".gguf", Qt::CaseInsensitive)) {
+            logOut->setText("\xe2\x9a\xa0  L'URL deve puntare a un file .gguf");
+            logOut->setVisible(true);
+            return;
+        }
+        const QString dest = PrismaluxPaths::modelsDir() + "/" + filename;
+        logOut->setText(QString("\xf0\x9f\x93\xa5  Scarico %1...").arg(filename));
+        logOut->setVisible(true);
+        customDlBtn->setEnabled(false);
+
+        auto* proc = new QProcess(page);
+        proc->setProcessChannelMode(QProcess::MergedChannels);
+        connect(proc, &QProcess::readyRead, page, [proc, logOut]() {
+            const QString s = QString::fromUtf8(proc->readAll()).trimmed();
+            if (!s.isEmpty()) logOut->setText(s);
+        });
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                page, [proc, logOut, customDlBtn, filename](int code, QProcess::ExitStatus) {
+            if (code == 0)
+                logOut->setText(QString("\xe2\x9c\x85  %1 scaricato.").arg(filename));
+            else
+                logOut->setText("\xe2\x9d\x8c  Download fallito. Controlla URL e connessione.");
+            customDlBtn->setEnabled(true);
+            proc->deleteLater();
+        });
+
+        /* wget preferito, poi curl come fallback */
+        if (!QStandardPaths::findExecutable("wget").isEmpty())
+            proc->start("wget", {"-c", "--show-progress", "-O", dest, url});
+        else
+            proc->start("curl", {"-L", "-C", "-", "--progress-bar", "-o", dest, url});
+    });
 
     colsLay->addWidget(rightGroup, 1);
     mainLay->addWidget(colsRow, 1);

@@ -20,6 +20,7 @@
 #include <QProgressBar>
 #include <QRegularExpression>
 #include <QSettings>
+#include <QThread>
 #include <functional>
 
 namespace P = PrismaluxPaths;
@@ -37,22 +38,59 @@ QTextEdit* PersonalizzaPage::makeLog(const QString& placeholder) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Helper: avvia QProcess con output live → log, riabilita btn
+   runProcArgs — avvia QProcess con argv separati (SICURO)
+   Preferire questa versione a runProc() perché non passa la
+   stringa a una shell: nessun rischio di injection su path
+   con caratteri speciali (spazi, virgolette, semicolon).
    ────────────────────────────────────────────────────────────── */
-void PersonalizzaPage::runProc(QProcess* proc, const QString& cmd,
-                                QTextEdit* log, QPushButton* btn) {
-    log->append(QString("⚙️  %1\n").arg(cmd));
+void PersonalizzaPage::runProcArgs(QProcess* proc,
+                                   const QString& program,
+                                   const QStringList& args,
+                                   QTextEdit* log, QPushButton* btn)
+{
+    log->append(QString("\xe2\x9a\x99\xef\xb8\x8f  %1 %2\n").arg(program, args.join(' ')));
     proc->setProcessChannelMode(QProcess::MergedChannels);
 
-    connect(proc, &QProcess::readyRead, this, [=]{
+    connect(proc, &QProcess::readyRead, this, [this, proc, log]{
         log->moveCursor(QTextCursor::End);
         log->insertPlainText(QString::fromLocal8Bit(proc->readAll()));
         log->ensureCursorVisible();
     });
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [=](int code, QProcess::ExitStatus){
-        if (code == 0) log->append("\n✅  Completato con successo.");
-        else           log->append(QString("\n❌  Uscito con codice %1.").arg(code));
+            this, [log, btn, proc](int code, QProcess::ExitStatus){
+        if (code == 0) log->append("\n\xe2\x9c\x85  Completato con successo.");
+        else           log->append(QString("\n\xe2\x9d\x8c  Uscito con codice %1.").arg(code));
+        if (btn) btn->setEnabled(true);
+        proc->deleteLater();
+    });
+    proc->start(program, args);
+    if (!proc->waitForStarted(4000)) {
+        log->append("\xe2\x9d\x8c  Impossibile avviare il processo. Controlla il PATH.");
+        if (btn) btn->setEnabled(true);
+        proc->deleteLater();
+    }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   runProc — DEPRECATO: usa sh -c con stringa concatenata.
+   Mantenuto per compatibilità ma non usare per nuovi chiamanti.
+   SICUREZZA: i path in cmd devono essere solo interni (non da
+   input utente). Preferire runProcArgs() per tutti i nuovi usi.
+   ────────────────────────────────────────────────────────────── */
+void PersonalizzaPage::runProc(QProcess* proc, const QString& cmd,
+                                QTextEdit* log, QPushButton* btn) {
+    log->append(QString("\xe2\x9a\x99\xef\xb8\x8f  %1\n").arg(cmd));
+    proc->setProcessChannelMode(QProcess::MergedChannels);
+
+    connect(proc, &QProcess::readyRead, this, [this, proc, log]{
+        log->moveCursor(QTextCursor::End);
+        log->insertPlainText(QString::fromLocal8Bit(proc->readAll()));
+        log->ensureCursorVisible();
+    });
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [log, btn, proc](int code, QProcess::ExitStatus){
+        if (code == 0) log->append("\n\xe2\x9c\x85  Completato con successo.");
+        else           log->append(QString("\n\xe2\x9d\x8c  Uscito con codice %1.").arg(code));
         if (btn) btn->setEnabled(true);
         proc->deleteLater();
     });
@@ -62,7 +100,7 @@ void PersonalizzaPage::runProc(QProcess* proc, const QString& cmd,
     proc->start("sh", {"-c", cmd});
 #endif
     if (!proc->waitForStarted(4000)) {
-        log->append("❌  Impossibile avviare il processo. Controlla il PATH.");
+        log->append("\xe2\x9d\x8c  Impossibile avviare il processo. Controlla il PATH.");
         if (btn) btn->setEnabled(true);
         proc->deleteLater();
     }
@@ -70,141 +108,7 @@ void PersonalizzaPage::runProc(QProcess* proc, const QString& cmd,
 
 
 /* ══════════════════════════════════════════════════════════════
-   PAGINA 1 — VRAM Benchmark
-   ══════════════════════════════════════════════════════════════ */
-QWidget* PersonalizzaPage::buildVramBench() {
-    auto* page = new QWidget(this);
-    auto* lay  = new QVBoxLayout(page);
-    lay->setContentsMargins(24, 16, 24, 16); lay->setSpacing(10);
-    auto* _hdr = new QLabel("🔬  VRAM Benchmark", page); _hdr->setObjectName("pageTitle"); lay->addWidget(_hdr);
-
-    auto* sub = new QLabel(
-        "Misura la VRAM usata da ogni modello Ollama. "
-        "Produce <b>vram_profile.json</b> usato dall'agent scheduler.", page);
-    sub->setObjectName("cardDesc"); sub->setWordWrap(true);
-    lay->addWidget(sub);
-
-    /* ── Controlli ── */
-    auto* ctrlW = new QWidget(page);
-    auto* ctrlL = new QHBoxLayout(ctrlW);
-    ctrlL->setContentsMargins(0,0,0,0); ctrlL->setSpacing(10);
-
-    m_vramBtn = new QPushButton("\xe2\x96\xb6  Avvia Benchmark", page);
-    m_vramBtn->setObjectName("actionBtn");
-
-    auto* compileBtn = new QPushButton("\xf0\x9f\x94\xa8  Compila", page);
-    compileBtn->setObjectName("actionBtn");
-    compileBtn->setToolTip("Esegue: cd C_software && make vram_bench");
-
-    auto* stopBtn = new QPushButton("\xe2\x96\xa0  Stop", page);
-    stopBtn->setObjectName("actionBtn"); stopBtn->setProperty("danger","true");
-    stopBtn->setEnabled(false);
-
-    auto* info = new QLabel("Esegue <tt>./vram_bench</tt> nella cartella C_software/", page);
-    info->setObjectName("cardDesc");
-
-    ctrlL->addWidget(m_vramBtn); ctrlL->addWidget(compileBtn);
-    ctrlL->addWidget(stopBtn); ctrlL->addWidget(info, 1);
-    lay->addWidget(ctrlW);
-
-    m_vramLog = makeLog(
-        "L'output del benchmark appare qui.\n\n"
-        "Premi \"\xf0\x9f\x94\xa8  Compila\" se vram_bench non \xc3\xa8 ancora compilato,\n"
-        "poi \"\xe2\x96\xb6  Avvia Benchmark\" con Ollama in esecuzione.");
-    lay->addWidget(m_vramLog, 1);
-
-    /* ── Compila vram_bench ── */
-    connect(compileBtn, &QPushButton::clicked, this, [=]{
-        compileBtn->setEnabled(false);
-        m_vramBtn->setEnabled(false);
-        m_vramLog->clear();
-        m_vramLog->append("\xf0\x9f\x94\xa8  Compilazione vram_bench in corso...\n");
-
-        auto* proc = new QProcess(this);
-        proc->setWorkingDirectory(P::root() + "/C_software");
-        proc->setProcessChannelMode(QProcess::MergedChannels);
-
-        connect(proc, &QProcess::readyRead, this, [=]{
-            m_vramLog->moveCursor(QTextCursor::End);
-            m_vramLog->insertPlainText(QString::fromLocal8Bit(proc->readAll()));
-            m_vramLog->ensureCursorVisible();
-        });
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [=](int code, QProcess::ExitStatus){
-            proc->deleteLater();
-            compileBtn->setEnabled(true);
-            m_vramBtn->setEnabled(true);
-            if (code == 0)
-                m_vramLog->append("\n\xe2\x9c\x85  vram_bench compilato! Ora premi Avvia Benchmark.");
-            else
-                m_vramLog->append(QString("\n\xe2\x9d\x8c  Compilazione fallita (codice %1).\n"
-                    "Verifica che gcc sia installato: sudo apt install gcc").arg(code));
-        });
-        proc->start("make", {"vram_bench"});
-        if (!proc->waitForStarted(4000)) {
-            m_vramLog->append("\xe2\x9d\x8c  make non trovato. Installa build-essential:\n"
-                              "  sudo apt install build-essential");
-            compileBtn->setEnabled(true);
-            m_vramBtn->setEnabled(true);
-            proc->deleteLater();
-        }
-    });
-
-    /* ── Avvia benchmark ── */
-    connect(m_vramBtn, &QPushButton::clicked, this, [=]{
-        m_vramLog->clear();
-        m_vramBtn->setEnabled(false);
-        compileBtn->setEnabled(false);
-        stopBtn->setEnabled(true);
-
-        QString bench = P::root() + "/C_software/vram_bench";
-#ifdef _WIN32
-        bench = QDir::toNativeSeparators(bench) + ".exe";
-#endif
-        m_vramLog->append(QString("\xf0\x9f\x94\x8d  Eseguo: %1\n").arg(bench));
-
-        m_vramProc = new QProcess(this);
-        m_vramProc->setWorkingDirectory(P::root() + "/C_software");
-        m_vramProc->setProcessChannelMode(QProcess::MergedChannels);
-
-        connect(m_vramProc, &QProcess::readyRead, this, [=]{
-            m_vramLog->moveCursor(QTextCursor::End);
-            m_vramLog->insertPlainText(QString::fromLocal8Bit(m_vramProc->readAll()));
-            m_vramLog->ensureCursorVisible();
-        });
-        connect(m_vramProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [=](int code, QProcess::ExitStatus){
-            if (code == 0)
-                m_vramLog->append("\n\xe2\x9c\x85  Benchmark completato! Profilo salvato in vram_profile.json");
-            else
-                m_vramLog->append(QString("\n\xe2\x9d\x8c  Uscito con codice %1.").arg(code));
-            m_vramBtn->setEnabled(true);
-            compileBtn->setEnabled(true);
-            stopBtn->setEnabled(false);
-            m_vramProc = nullptr;
-        });
-
-        m_vramProc->start(bench, {});
-        if (!m_vramProc->waitForStarted(4000)) {
-            m_vramLog->append("\xe2\x9d\x8c  vram_bench non trovato.\n"
-                              "Premi \"\xf0\x9f\x94\xa8  Compila\" per compilarlo.");
-            m_vramBtn->setEnabled(true);
-            compileBtn->setEnabled(true);
-            stopBtn->setEnabled(false);
-            m_vramProc = nullptr;
-        }
-    });
-
-    connect(stopBtn, &QPushButton::clicked, this, [=]{
-        if (m_vramProc) { m_vramProc->kill(); }
-        stopBtn->setEnabled(false);
-    });
-
-    return page;
-}
-
-/* ══════════════════════════════════════════════════════════════
-   PAGINA 2 — llama.cpp Studio
+   PAGINA 1 — llama.cpp Studio
    ══════════════════════════════════════════════════════════════ */
 QWidget* PersonalizzaPage::buildLlamaStudio() {
     auto* page = new QWidget(this);
@@ -221,16 +125,10 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     auto* subLay   = new QVBoxLayout(subMenu);
     subLay->setContentsMargins(0,4,0,4); subLay->setSpacing(8);
 
-    /* Card "Compila/Aggiorna" contestuale: se il binario esiste → aggiornamento */
     bool binExists = QFileInfo::exists(P::llamaServerBin());
 
     struct SubItem { QString ico; QString title; QString desc; int pg; };
     QList<SubItem> subs = {
-        { binExists ? "\xf0\x9f\x94\x84" : "\xf0\x9f\x94\xa8",
-          binExists ? "Aggiorna llama.cpp"  : "Compila llama.cpp",
-          binExists ? "Reclona/ricompila llama.cpp per aggiornarlo all'ultima versione."
-                    : "Clona e compila llama.cpp — flag GPU (CUDA/ROCm/Vulkan) rilevati automaticamente.",
-          1 },
         {"📂", "Gestisci Modelli .gguf",
          "Elenca, elimina, cerca modelli nella cartella models/.", 2},
         {"\xf0\x9f\x93\xa5", "Scarica Modelli Matematica/Logica",
@@ -288,64 +186,137 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     m_llamaLog = makeLog("Output compilazione llama.cpp...\n\nPrerequisiti: git, cmake, gcc/g++");
     compLay->addWidget(m_llamaLog, 1);
 
-    connect(m_llamaCompBtn, &QPushButton::clicked, this, [=]{
+    connect(m_llamaCompBtn, &QPushButton::clicked, this, [this]{
         m_llamaLog->clear();
         m_llamaCompBtn->setEnabled(false);
 
-        QString studio = P::llamaStudioDir();
-        QString cloneDir = studio + "/llama.cpp";
-        QString buildDir = cloneDir + "/build";
+        const QString studio   = P::llamaStudioDir();
+        const QString cloneDir = studio + "/llama.cpp";
+        const QString buildDir = cloneDir + "/build";
 
-        /* Clone se non esiste, altrimenti aggiorna */
-        QString cloneCmd = QDir(cloneDir).exists()
-            ? QString("cd \"%1\" && git pull").arg(cloneDir)
-            : QString("git clone --depth=1 https://github.com/ggerganov/llama.cpp \"%1\"").arg(cloneDir);
-
-        /* Flag cmake: rileva GPU dal sistema */
-        QString gpuFlags = "-DGGML_NATIVE=ON";
+        /* ── Flag GPU — rilevazione argomenti cmake ── */
+        QStringList gpuArgs = { "-DGGML_NATIVE=ON" };
 #ifdef _WIN32
-        gpuFlags += " -DGGML_CUDA=ON";
+        gpuArgs << "-DGGML_CUDA=ON";
 #else
         if (QFileInfo::exists("/usr/local/cuda/bin/nvcc") ||
             QFileInfo::exists("/usr/bin/nvcc"))
-            gpuFlags += " -DGGML_CUDA=ON";
+            gpuArgs << "-DGGML_CUDA=ON";
         else if (QFileInfo::exists("/opt/rocm/bin/hipcc"))
-            gpuFlags += " -DGGML_HIP=ON";
+            gpuArgs << "-DGGML_HIP=ON";
         else if (QFileInfo::exists("/usr/bin/vulkaninfo"))
-            gpuFlags += " -DGGML_VULKAN=ON";
+            gpuArgs << "-DGGML_VULKAN=ON";
 #endif
-        QString cmakeCmd = QString("cmake -B \"%1\" -S \"%2\" %3 -DCMAKE_BUILD_TYPE=Release")
-                           .arg(buildDir).arg(cloneDir).arg(gpuFlags);
-        QString buildCmd = QString("cmake --build \"%1\" --config Release -j$(nproc 2>/dev/null || echo 4)").arg(buildDir);
-        QString fullCmd  = cloneCmd + " && " + cmakeCmd + " && " + buildCmd;
+        m_llamaLog->append(QString("\xf0\x9f\x93\xa6  Flag GPU: %1\n")
+                           .arg(gpuArgs.join(" ")));
 
-        m_llamaLog->append(QString("📦  Flag GPU: %1\n").arg(gpuFlags));
-        auto* proc = new QProcess(this);
-        connect(proc, &QProcess::readyRead, this, [=]{
+        /* Numero di job paralleli — senza shell: QThread::idealThreadCount()
+         * è equivalente a nproc ma senza richiedere una shell. */
+        const int jobs = qMax(1, QThread::idealThreadCount());
+
+        /* ── SICUREZZA: 3 QProcess separati con arglist — nessuna shell ───────
+           L'approccio precedente usava `sh -c "cmd && cmd && cmd"` con path
+           costruiti a runtime. Se un path contenesse caratteri speciali (es. ")
+           il comando shell si spezzava, aprendo a injection arbitraria.
+           Ora ogni step è un QProcess::start() con argv esplicito: nessuna
+           interpolazione di shell, nessun carattere di escape da gestire. */
+
+        /* ── Step 1: git clone oppure git pull ── */
+        QStringList gitArgs;
+        if (QDir(cloneDir).exists()) {
+            /* git -C <dir> pull — non richiede cd, non richiede shell */
+            gitArgs = { "-C", cloneDir, "pull" };
+            m_llamaLog->append("\xf0\x9f\x94\x84  git pull...\n");
+        } else {
+            gitArgs = { "clone", "--depth=1",
+                        "https://github.com/ggerganov/llama.cpp",
+                        cloneDir };
+            m_llamaLog->append("\xf0\x9f\x93\xa5  git clone...\n");
+        }
+
+        auto* proc1 = new QProcess(this);
+        proc1->setProcessChannelMode(QProcess::MergedChannels);
+        connect(proc1, &QProcess::readyRead, this, [this, proc1]{
             m_llamaLog->moveCursor(QTextCursor::End);
-            m_llamaLog->insertPlainText(QString::fromLocal8Bit(proc->readAll()));
+            m_llamaLog->insertPlainText(QString::fromLocal8Bit(proc1->readAll()));
             m_llamaLog->ensureCursorVisible();
         });
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [=](int code, QProcess::ExitStatus){
-            if (code == 0)
-                m_llamaLog->append("\n✅  llama.cpp compilato!\n"
-                                   "  Binari in: llama_cpp_studio/llama.cpp/build/bin/");
-            else
-                m_llamaLog->append(QString("\n❌  Errore (code %1).").arg(code));
-            m_llamaCompBtn->setEnabled(true);
-            proc->deleteLater();
+        connect(proc1, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, proc1, cloneDir, buildDir, gpuArgs, jobs](int code, QProcess::ExitStatus){
+            proc1->deleteLater();
+            if (code != 0) {
+                m_llamaLog->append(QString("\n\xe2\x9d\x8c  git fallito (code %1).").arg(code));
+                m_llamaCompBtn->setEnabled(true);
+                return;
+            }
+            m_llamaLog->append("\n\xe2\x9c\x85  git OK.\n\xe2\x9a\x99  cmake configure...\n");
+
+            /* ── Step 2: cmake configure ── */
+            QStringList cmakeConfigArgs = {
+                "-B", buildDir,
+                "-S", cloneDir,
+                "-DCMAKE_BUILD_TYPE=Release",
+            };
+            cmakeConfigArgs += gpuArgs;
+
+            auto* proc2 = new QProcess(this);
+            proc2->setProcessChannelMode(QProcess::MergedChannels);
+            connect(proc2, &QProcess::readyRead, this, [this, proc2]{
+                m_llamaLog->moveCursor(QTextCursor::End);
+                m_llamaLog->insertPlainText(QString::fromLocal8Bit(proc2->readAll()));
+                m_llamaLog->ensureCursorVisible();
+            });
+            connect(proc2, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                    this, [this, proc2, buildDir, jobs](int code, QProcess::ExitStatus){
+                proc2->deleteLater();
+                if (code != 0) {
+                    m_llamaLog->append(QString("\n\xe2\x9d\x8c  cmake configure fallito (code %1).").arg(code));
+                    m_llamaCompBtn->setEnabled(true);
+                    return;
+                }
+                m_llamaLog->append(QString("\n\xe2\x9c\x85  cmake OK.\n\xf0\x9f\x94\xa8  cmake build (-j%1)...\n").arg(jobs));
+
+                /* ── Step 3: cmake build ── */
+                auto* proc3 = new QProcess(this);
+                proc3->setProcessChannelMode(QProcess::MergedChannels);
+                connect(proc3, &QProcess::readyRead, this, [this, proc3]{
+                    m_llamaLog->moveCursor(QTextCursor::End);
+                    m_llamaLog->insertPlainText(QString::fromLocal8Bit(proc3->readAll()));
+                    m_llamaLog->ensureCursorVisible();
+                });
+                connect(proc3, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                        this, [this, proc3](int code, QProcess::ExitStatus){
+                    proc3->deleteLater();
+                    if (code == 0)
+                        m_llamaLog->append("\n\xe2\x9c\x85  llama.cpp compilato!\n"
+                                           "  Binari in: llama_cpp_studio/llama.cpp/build/bin/");
+                    else
+                        m_llamaLog->append(QString("\n\xe2\x9d\x8c  Build fallita (code %1).").arg(code));
+                    m_llamaCompBtn->setEnabled(true);
+                });
+                proc3->start("cmake", {
+                    "--build", buildDir,
+                    "--config", "Release",
+                    "-j", QString::number(jobs)
+                });
+                if (!proc3->waitForStarted(5000)) {
+                    m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare cmake build.");
+                    m_llamaCompBtn->setEnabled(true);
+                    proc3->deleteLater();
+                }
+            });
+            proc2->start("cmake", cmakeConfigArgs);
+            if (!proc2->waitForStarted(5000)) {
+                m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare cmake configure.");
+                m_llamaCompBtn->setEnabled(true);
+                proc2->deleteLater();
+            }
         });
-        proc->setProcessChannelMode(QProcess::MergedChannels);
-#ifdef _WIN32
-        proc->start("cmd", {"/c", fullCmd});
-#else
-        proc->start("sh", {"-c", fullCmd});
-#endif
-        if (!proc->waitForStarted(5000)) {
-            m_llamaLog->append("❌  Impossibile avviare. Verifica git e cmake nel PATH.");
+        proc1->start("git", gitArgs);
+        if (!proc1->waitForStarted(8000)) {
+            m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare git. Verifica che git sia nel PATH.");
             m_llamaCompBtn->setEnabled(true);
-            proc->deleteLater();
+            proc1->deleteLater();
         }
     });
 
@@ -853,227 +824,6 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
             qobject_cast<QVBoxLayout*>(subMenu->layout())->insertWidget(0, banner);
         }
     }
-
-    return page;
-}
-
-/* ══════════════════════════════════════════════════════════════
-   PAGINA 3 — Compila Prismalux (TUI C + Qt GUI, Linux + Windows)
-   ══════════════════════════════════════════════════════════════ */
-QWidget* PersonalizzaPage::buildCompila() {
-    auto* page = new QWidget(this);
-    auto* lay  = new QVBoxLayout(page);
-    lay->setContentsMargins(24, 16, 24, 16); lay->setSpacing(10);
-    auto* _hdr = new QLabel("📦  Compila", page); _hdr->setObjectName("pageTitle"); lay->addWidget(_hdr);
-
-    /* ── 4 card in griglia 2x2 ── */
-    auto* grid  = new QWidget(page);
-    auto* gridL = new QGridLayout(grid);
-    gridL->setSpacing(10);
-
-    struct CompItem {
-        QString ico; QString title; QString desc;
-        QPushButton** btnPtr;
-        QString tag;  /* "WIN_TUI" | "LIN_TUI" | "WIN_QT" | "LIN_QT" */
-    };
-    QList<CompItem> items = {
-        {"🪟", "TUI Windows (.exe)",
-         "prismalux.exe — cross-compila da Linux (MinGW)\no compila nativo su Windows (MSYS2).",
-         &m_btnWinTUI, "WIN_TUI"},
-        {"🐧", "TUI Linux (nativo)",
-         "prismalux — gcc nativo.\nOttimizzato per la CPU locale.",
-         &m_btnLinTUI, "LIN_TUI"},
-        {"🪟🖼️", "GUI Qt Windows (.exe)",
-         "Prismalux_GUI.exe — cmake MinGW.\nRichiede Qt6 MinGW nel PATH.",
-         &m_btnWinQt, "WIN_QT"},
-        {"🐧🖼️", "GUI Qt Linux (nativo)",
-         "Prismalux_GUI — cmake + Qt6 nativi.\nProto per la tua macchina.",
-         &m_btnLinQt, "LIN_QT"},
-    };
-
-    int row = 0, col = 0;
-    for (auto& it : items) {
-        auto* card = new QFrame(grid);
-        card->setObjectName("actionCard");
-        auto* cl = new QVBoxLayout(card);
-        cl->setContentsMargins(14, 12, 14, 12); cl->setSpacing(6);
-
-        auto* hdr = new QWidget(card);
-        auto* hdrl = new QHBoxLayout(hdr);
-        hdrl->setContentsMargins(0,0,0,0); hdrl->setSpacing(8);
-        auto* ico = new QLabel(it.ico, card); ico->setObjectName("cardIcon");
-        auto* ttl = new QLabel(it.title, card); ttl->setObjectName("cardTitle");
-        hdrl->addWidget(ico); hdrl->addWidget(ttl, 1);
-        cl->addWidget(hdr);
-
-        auto* desc = new QLabel(it.desc, card);
-        desc->setObjectName("cardDesc"); desc->setWordWrap(true);
-        cl->addWidget(desc);
-
-        auto* btn = new QPushButton("▶  Compila", card);
-        btn->setObjectName("actionBtn");
-        *it.btnPtr = btn;
-        cl->addWidget(btn);
-
-        gridL->addWidget(card, row, col);
-        col++; if (col > 1) { col = 0; row++; }
-    }
-    lay->addWidget(grid);
-
-    /* ── Log condiviso ── */
-    auto* logLbl = new QLabel("📜  Output:", page);
-    logLbl->setObjectName("cardDesc");
-    lay->addWidget(logLbl);
-
-    m_compLog = makeLog(
-        "L'output del compilatore apparirà qui.\n\n"
-        "Prerequisiti TUI Windows:  sudo apt install gcc-mingw-w64-x86-64\n"
-        "Prerequisiti TUI Linux:    gcc, make\n"
-        "Prerequisiti GUI Windows:  cmake, Qt6 MinGW\n"
-        "Prerequisiti GUI Linux:    cmake, qt6-base-dev");
-    lay->addWidget(m_compLog, 1);
-
-    /* ── Helper lambda compila TUI ── */
-    auto compileTUI = [=](bool forWindows){
-        m_compLog->clear();
-        auto* btn = forWindows ? m_btnWinTUI : m_btnLinTUI;
-        btn->setEnabled(false);
-
-        QString csrc = P::root() + "/C_software/src";
-        QString cinc = P::root() + "/C_software/include";
-
-        auto S = [&](const QString& f){ return csrc + "/" + f; };
-        QStringList srcList = {
-            S("main.c"), S("backend.c"), S("terminal.c"), S("http.c"), S("ai.c"),
-            S("modelli.c"), S("output.c"), S("multi_agente.c"), S("strumenti.c"),
-            S("hw_detect.c"), S("agent_scheduler.c"), S("prismalux_ui.c")
-        };
-
-        QString compiler, outFile, extraFlags;
-        if (forWindows) {
-#ifdef _WIN32
-            compiler   = "gcc";
-#else
-            compiler   = "x86_64-w64-mingw32-gcc";
-#endif
-            outFile    = P::root() + "/prismalux.exe";
-            extraFlags = "-lws2_32";
-            m_compLog->append("🪟  Target: Windows (.exe)\n");
-        } else {
-            compiler   = "gcc";
-            outFile    = P::root() + "/prismalux";
-            extraFlags = "-lpthread";
-            m_compLog->append("🐧  Target: Linux (nativo)\n");
-        }
-
-#ifdef _WIN32
-        csrc   = QDir::toNativeSeparators(csrc);
-        cinc   = QDir::toNativeSeparators(cinc);
-        outFile = QDir::toNativeSeparators(outFile);
-#endif
-        QStringList nativeSrcs;
-        for (auto& s : srcList)
-            nativeSrcs << QDir::toNativeSeparators(s);
-
-        QString cmd = QString("\"%1\" -O2 -Wall -I\"%2\" -o \"%3\" %4 %5 -lm")
-                      .arg(compiler).arg(QDir::toNativeSeparators(cinc))
-                      .arg(outFile).arg(nativeSrcs.join(" ")).arg(extraFlags);
-
-        m_compLog->append(QString("⚙️  Comando:\n%1\n").arg(cmd));
-        auto* proc = new QProcess(this);
-        proc->setProcessChannelMode(QProcess::MergedChannels);
-        connect(proc, &QProcess::readyRead, this, [=]{
-            m_compLog->moveCursor(QTextCursor::End);
-            m_compLog->insertPlainText(QString::fromLocal8Bit(proc->readAll()));
-            m_compLog->ensureCursorVisible();
-        });
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [=](int code, QProcess::ExitStatus){
-            if (code == 0) {
-                m_compLog->append(QString("\n✅  Compilato: %1").arg(outFile));
-                if (forWindows)
-                    m_compLog->append("💡  Copia il file su Windows e avvia con:\n"
-                                      "    prismalux.exe --backend ollama");
-            } else {
-                m_compLog->append(QString("\n❌  Errore (code %1).").arg(code));
-                if (forWindows && !QProcess::execute("which x86_64-w64-mingw32-gcc", {}))
-                    m_compLog->append("🌫️  Installa: sudo apt install gcc-mingw-w64-x86-64");
-            }
-            btn->setEnabled(true);
-            proc->deleteLater();
-        });
-#ifdef _WIN32
-        proc->start("cmd", {"/c", cmd});
-#else
-        proc->start("sh", {"-c", cmd});
-#endif
-        if (!proc->waitForStarted(4000)) {
-            m_compLog->append(QString("❌  Compilatore '%1' non trovato.").arg(compiler));
-            if (forWindows)
-                m_compLog->append("  sudo apt install gcc-mingw-w64-x86-64");
-            btn->setEnabled(true);
-            proc->deleteLater();
-        }
-    };
-
-    /* ── Helper lambda compila Qt GUI ── */
-    auto compileQt = [=](bool forWindows){
-        m_compLog->clear();
-        auto* btn = forWindows ? m_btnWinQt : m_btnLinQt;
-        btn->setEnabled(false);
-
-        QString qtSrc = P::root() + "/Qt_GUI";
-        QString qtBld = P::root() + (forWindows ? "/Qt_GUI/build_win" : "/Qt_GUI/build_lin");
-
-#ifdef _WIN32
-        qtSrc = QDir::toNativeSeparators(qtSrc);
-        qtBld = QDir::toNativeSeparators(qtBld);
-#endif
-        QString generator = forWindows ? "-G \"MinGW Makefiles\"" : "-G \"Unix Makefiles\"";
-        QString cmakeConf = QString("cmake -B \"%1\" -S \"%2\" %3 -DCMAKE_BUILD_TYPE=Release")
-                            .arg(qtBld).arg(qtSrc).arg(generator);
-        QString cmakeBuild = QString("cmake --build \"%1\" --config Release -j4").arg(qtBld);
-        QString fullCmd = cmakeConf + " && " + cmakeBuild;
-
-        m_compLog->append(forWindows ? "🪟  Target: GUI Qt Windows\n" : "🐧  Target: GUI Qt Linux\n");
-        m_compLog->append(QString("⚙️  %1\n").arg(fullCmd));
-
-        auto* proc = new QProcess(this);
-        proc->setProcessChannelMode(QProcess::MergedChannels);
-        connect(proc, &QProcess::readyRead, this, [=]{
-            m_compLog->moveCursor(QTextCursor::End);
-            m_compLog->insertPlainText(QString::fromLocal8Bit(proc->readAll()));
-            m_compLog->ensureCursorVisible();
-        });
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [=](int code, QProcess::ExitStatus){
-            if (code == 0)
-                m_compLog->append(QString("\n✅  Prismalux_GUI%1 → %2/")
-                                  .arg(forWindows ? ".exe" : "").arg(qtBld));
-            else
-                m_compLog->append(QString("\n❌  Errore cmake (code %1).\n"
-                    "Controlla: cmake e Qt6 nel PATH.").arg(code));
-            btn->setEnabled(true);
-            proc->deleteLater();
-        });
-#ifdef _WIN32
-        proc->start("cmd", {"/c", fullCmd});
-#else
-        proc->start("sh", {"-c", fullCmd});
-#endif
-        if (!proc->waitForStarted(5000)) {
-            m_compLog->append("❌  cmake non trovato.\n"
-                "  Linux:   sudo apt install cmake qt6-base-dev\n"
-                "  Windows: installa cmake + Qt MINGW64");
-            btn->setEnabled(true);
-            proc->deleteLater();
-        }
-    };
-
-    connect(m_btnWinTUI, &QPushButton::clicked, this, [=]{ compileTUI(true);  });
-    connect(m_btnLinTUI, &QPushButton::clicked, this, [=]{ compileTUI(false); });
-    connect(m_btnWinQt,  &QPushButton::clicked, this, [=]{ compileQt(true);   });
-    connect(m_btnLinQt,  &QPushButton::clicked, this, [=]{ compileQt(false);  });
 
     return page;
 }

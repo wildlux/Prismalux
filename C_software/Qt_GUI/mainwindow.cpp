@@ -56,6 +56,28 @@ static bool isMathModel(const QString& filename);
 static void showMathDownloadDialog(QWidget* parent, const QString& modelsDir);
 
 /* ══════════════════════════════════════════════════════════════
+   stripBodyBackground — rimuove il background-color dal tag <body>
+   dell'HTML generato da QTextEdit::toHtml().
+
+   Qt serializza il colore QPalette::Base nel body style; quando la chat
+   viene ricaricata in un tema diverso, quel colore fisso sovrascrive il
+   background del documento e la chatLog appare con lo sfondo del tema
+   precedente.  Rimuovendo solo quella proprietà il QSS del tema attivo
+   può applicarsi correttamente tramite QPalette::Base.
+   ══════════════════════════════════════════════════════════════ */
+static QString stripBodyBackground(const QString& html)
+{
+    QString out = html;
+    /* Qt genera:  <body style=" color:#...; background-color:#RRGGBB;">
+     * Cattura tutto fino a background-color nel group 1, salta il valore. */
+    static QRegularExpression re(
+        "(<body\\b[^>]*style\\s*=\\s*\"[^\"]*?)background-color\\s*:\\s*[^;\"]+;?\\s*",
+        QRegularExpression::CaseInsensitiveOption);
+    out.replace(re, "\\1");
+    return out;
+}
+
+/* ══════════════════════════════════════════════════════════════
    migrateLegacyChat — converte le chat pre-bolla nel nuovo formato.
 
    Estrae il testo grezzo dalla vecchia HTML (QTextDocument::toPlainText),
@@ -68,8 +90,11 @@ static void showMathDownloadDialog(QWidget* parent, const QString& modelsDir);
    ══════════════════════════════════════════════════════════════ */
 static QString migrateLegacyChat(const QString& html)
 {
-    /* Già nel nuovo formato → niente da fare */
-    if (html.contains("bgcolor='#162544'") || html.contains("bgcolor=\"#162544\""))
+    /* Già nel nuovo formato → niente da fare.
+     * Controlla sia kDark.uBg (#162544) sia kLight.uBg (#dbeafe):
+     * le chat salvate in tema chiaro hanno il secondo colore nelle bolle utente. */
+    if (html.contains("bgcolor='#162544'") || html.contains("bgcolor=\"#162544\"") ||
+        html.contains("bgcolor='#dbeafe'") || html.contains("bgcolor=\"#dbeafe\""))
         return html;
 
     /* Estrai testo grezzo */
@@ -172,10 +197,12 @@ static QString migrateLegacyChat(const QString& html)
         QString safe = plain;
         safe.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
         safe.replace("\n","<br>");
-        return "<table width='100%' cellpadding='0' cellspacing='0'><tr>"
-               "<td bgcolor='#111827' style='border:1px solid #374151;"
-               "border-radius:8px;padding:12px;color:#e2e8f0;'>"
-               "<p style='color:#6b7280;font-size:11px;margin:0 0 6px 0;'>"
+        /* Usa colori neutri (grigio chiaro) così il box è leggibile
+         * sia in tema chiaro che scuro senza hardcode di palette. */
+        return "<table width='100%' cellpadding='0' cellspacing='4'><tr>"
+               "<td style='border:1px solid #888888;border-radius:8px;"
+               "padding:12px;'>"
+               "<p style='color:#888888;font-size:11px;margin:0 0 6px 0;'>"
                "\xf0\x9f\x93\x9c  Chat storica (formato precedente)</p>"
                + safe + "</td></tr></table>";
     }
@@ -737,6 +764,9 @@ void MainWindow::applyBackend(AiClient::Backend b, const QString& host, int port
     /* Lo stato viene mostrato nel testo di m_btnBackend — nessun widget extra. */
     m_lblModel->setText("(caricamento modelli...)");
 
+    appendLog(QString("\xf0\x9f\x94\x84 Backend: <b>%1</b> @ %2:%3 — recupero modelli...")
+              .arg(bkName, host, QString::number(port)));
+
     statusBar()->showMessage(
         QString("🔄  Backend cambiato: %1 @ %2:%3 — recupero modelli...")
         .arg(bkName, host, QString::number(port)));
@@ -747,11 +777,14 @@ void MainWindow::applyBackend(AiClient::Backend b, const QString& host, int port
         if (!list.isEmpty()) {
             m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), list.first());
             m_lblModel->setText(list.first());
+            appendLog(QString("\xe2\x9c\x85 Backend <b>%1</b> pronto — modello: <b>%2</b> (%3 disponibili)")
+                      .arg(bkName, list.first(), QString::number(list.size())));
             statusBar()->showMessage(
                 QString("✅  %1 | Modello: %2 | %3 disponibili")
                 .arg(bkName, list.first(), QString::number(list.size())));
         } else {
             m_lblModel->setText("(server non raggiungibile)");
+            appendLog(QString("\xe2\x9a\xa0\xef\xb8\x8f <b>%1</b> non risponde — nessun modello disponibile").arg(bkName));
             statusBar()->showMessage(
                 QString("⚠️  %1 non risponde — avvialo prima di usare l'AI").arg(bkName));
         }
@@ -915,6 +948,7 @@ void MainWindow::startLlamaServer(const QString& modelPath, int port, bool mathP
     connect(m_serverProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, [this](int code, QProcess::ExitStatus) {
         /* Il testo del pulsante verrà ripristinato da applyBackend(Ollama) sotto */
+        appendLog(QString("\xf0\x9f\x94\xb4 llama-server terminato (code <b>%1</b>) — ripristino Ollama").arg(code));
         statusBar()->showMessage(
             QString("\xf0\x9f\x94\xb4  llama-server terminato (code %1). Backend tornato a Ollama.").arg(code));
         m_serverProc->deleteLater();
@@ -997,6 +1031,7 @@ void MainWindow::startLlamaServer(const QString& modelPath, int port, bool mathP
                 m_btnBackend->setText("\xe2\x9d\x8c  Errore avvio");
                 QTimer::singleShot(3000, this, [this]{ refreshBackendBtn(); });
             }
+            appendLog("\xe2\x9d\x8c <b>llama-server</b>: impossibile avviare — verifica il percorso binario");
             statusBar()->showMessage(
                 "❌  Impossibile avviare llama-server. Verifica il percorso binario.");
             m_serverProc->deleteLater();
@@ -1004,6 +1039,7 @@ void MainWindow::startLlamaServer(const QString& modelPath, int port, bool mathP
         }
     });
 
+    appendLog(QString("\xf0\x9f\x9f\xa1 Avvio <b>llama-server</b> su porta %1...").arg(port));
     statusBar()->showMessage(
         QString("⏳  llama-server avviato — attendo che sia pronto (porta %1)...").arg(port));
 
@@ -1071,6 +1107,7 @@ void MainWindow::startLlamaServer(const QString& modelPath, int port, bool mathP
                     m_btnBackend->setText("\xe2\x9c\x85  Pronto");
                     QTimer::singleShot(2000, this, [this]{ refreshBackendBtn(); });
                 }
+                appendLog(QString("\xf0\x9f\xa6\x99 llama-server pronto su porta <b>%1</b>").arg(port));
                 statusBar()->showMessage(
                     QString("✅  llama-server pronto su porta %1 — backend commutato.").arg(port));
                 applyBackend(AiClient::LlamaServer, P::kLocalHost, port);
@@ -1170,8 +1207,10 @@ QWidget* MainWindow::buildSidebar() {
         if (id.isEmpty()) return;
         const QString rawHtml = m_chatHistory.loadLog(id);
         if (rawHtml.isEmpty()) return;
-        /* Migra al formato bolla se è una chat storica */
-        const QString html = migrateLegacyChat(rawHtml);
+        /* Migra al formato bolla se è una chat storica, poi rimuove il
+         * background-color serializzato da Qt nel <body> così il QSS del
+         * tema attivo viene rispettato. */
+        const QString html = stripBodyBackground(migrateLegacyChat(rawHtml));
         /* Mostra il log nella pagina Agenti */
         if (auto* ap = m_mainTabs ? m_mainTabs->widget(0) : nullptr) {
             if (auto* log = ap->findChild<QTextEdit*>()) {
@@ -1243,6 +1282,58 @@ QWidget* MainWindow::buildSidebar() {
     sepBot->setFrameShape(QFrame::HLine);
     sepBot->setObjectName("sidebarSep");
     lay->addWidget(sepBot);
+
+    /* ── Bottone Messaggi / Log ── */
+    m_logBtn = new QPushButton(bar);
+    m_logBtn->setObjectName("navBtn");
+    m_logBtn->setFlat(true);
+    m_logBtn->setFixedHeight(44);
+    m_logBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_logBtn->setToolTip("Messaggi \xe2\x80\x94 log eventi, errori AI, backend, pipeline");
+
+    {
+        auto* lw  = new QWidget(m_logBtn);
+        auto* lwl = new QHBoxLayout(lw);
+        lwl->setContentsMargins(12, 0, 8, 0);
+        lwl->setSpacing(10);
+
+        auto* lico = new QLabel("\xf0\x9f\x93\x8b", lw);  /* 📋 */
+        lico->setObjectName("cardIcon");
+        lico->setFixedWidth(24);
+        lico->setAlignment(Qt::AlignCenter);
+
+        auto* ltitle = new QLabel("Messaggi", lw);
+        ltitle->setObjectName("cardTitle");
+
+        /* Badge messaggi non letti — inizialmente nascosto */
+        m_logBadge = new QLabel("", lw);
+        m_logBadge->setObjectName("logBadge");
+        m_logBadge->setAlignment(Qt::AlignCenter);
+        m_logBadge->setFixedSize(20, 20);
+        m_logBadge->setVisible(false);
+        m_logBadge->setStyleSheet(
+            "background:#e03030; color:#fff; border-radius:10px;"
+            "font-size:10px; font-weight:bold;");
+
+        lwl->addWidget(lico);
+        lwl->addWidget(ltitle, 1);
+        lwl->addWidget(m_logBadge);
+
+        auto* lbtnLay = new QHBoxLayout(m_logBtn);
+        lbtnLay->setContentsMargins(0, 0, 0, 0);
+        lbtnLay->addWidget(lw);
+    }
+
+    connect(m_logBtn, &QPushButton::clicked, this, [this]{
+        ensureLogDialog();
+        /* Reset badge non-letti */
+        m_logUnread = 0;
+        m_logBadge->setVisible(false);
+        m_logDlg->show();
+        m_logDlg->raise();
+        m_logDlg->activateWindow();
+    });
+    lay->addWidget(m_logBtn);
 
     /* ── Bottone Impostazioni (stile ChatGPT — in fondo alla sidebar) ── */
     m_settingsBtn = new QPushButton(bar);
@@ -1395,7 +1486,7 @@ QWidget* MainWindow::buildContent() {
         m_tabOrigLabels << m_mainTabs->tabText(i);
     {
         QSettings s("Prismalux", "GUI");
-        applyTabMode(s.value("nav/tabMode", "icons_text").toString());
+        applyTabMode(s.value(P::SK::kNavTabMode, "icons_text").toString());
     }
 
     /* ── Costruisci pulsanti barra navigazione ───────────────────
@@ -1457,10 +1548,10 @@ QWidget* MainWindow::buildContent() {
     /* Applica stile navigazione e modalità pulsanti da QSettings */
     {
         QSettings s("Prismalux", "GUI");
-        applyNavStyle(s.value("nav/navStyle", "tabs_top").toString());
+        applyNavStyle(s.value(P::SK::kNavStyle, "tabs_top").toString());
         /* Differito: i pulsanti di esecuzione vengono creati nelle pagine
            durante addTab(); aspettiamo che il widget tree sia completo */
-        const QString execMode = s.value("nav/execBtnMode", "icon_text").toString();
+        const QString execMode = s.value(P::SK::kNavExecBtnMode, "icon_text").toString();
         if (execMode != "icon_text")
             QTimer::singleShot(0, this, [this, execMode]{ applyExecBtnMode(execMode); });
     }
@@ -1496,6 +1587,83 @@ void MainWindow::ensureSettingsDialog()
             this,      &MainWindow::applyNavStyle);
     connect(m_impPage, &ImpostazioniPage::execBtnModeChanged,
             this,      &MainWindow::applyExecBtnMode);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ensureLogDialog — dialog Messaggi/Log (creato lazy, non-modale).
+   ══════════════════════════════════════════════════════════════ */
+void MainWindow::ensureLogDialog()
+{
+    if (m_logDlg) return;
+
+    m_logDlg = new QDialog(this);
+    m_logDlg->setWindowTitle("\xf0\x9f\x93\x8b  Messaggi \xe2\x80\x94 Prismalux");
+    m_logDlg->setAttribute(Qt::WA_DeleteOnClose, false);
+    m_logDlg->resize(700, 460);
+
+    auto* lay = new QVBoxLayout(m_logDlg);
+    lay->setContentsMargins(12, 12, 12, 12);
+    lay->setSpacing(8);
+
+    /* Intestazione */
+    auto* header = new QLabel(
+        "\xf0\x9f\x93\x8b  <b>Log eventi</b> \xe2\x80\x94 backend, AI, pipeline, errori");
+    header->setTextFormat(Qt::RichText);
+    header->setObjectName("sectionTitle");
+    lay->addWidget(header);
+
+    /* Area log */
+    m_logView = new QTextEdit(m_logDlg);
+    m_logView->setReadOnly(true);
+    m_logView->setObjectName("chatLog");
+    m_logView->setPlaceholderText("Nessun messaggio. Gli eventi verranno registrati qui.");
+    lay->addWidget(m_logView, 1);
+
+    /* Pulsanti */
+    auto* btnRow = new QWidget(m_logDlg);
+    auto* btnLay = new QHBoxLayout(btnRow);
+    btnLay->setContentsMargins(0, 0, 0, 0);
+    btnLay->setSpacing(8);
+
+    auto* clearBtn = new QPushButton("\xf0\x9f\x97\x91  Pulisci log", btnRow);
+    clearBtn->setObjectName("actionBtn");
+    clearBtn->setFixedHeight(32);
+    connect(clearBtn, &QPushButton::clicked, this, [this]{
+        if (m_logView) m_logView->clear();
+    });
+
+    auto* closeBtn = new QPushButton("Chiudi", btnRow);
+    closeBtn->setObjectName("actionBtn");
+    closeBtn->setFixedHeight(32);
+    connect(closeBtn, &QPushButton::clicked, m_logDlg, &QDialog::hide);
+
+    btnLay->addStretch();
+    btnLay->addWidget(clearBtn);
+    btnLay->addWidget(closeBtn);
+    lay->addWidget(btnRow);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   appendLog — aggiunge una riga al log con timestamp.
+   Incrementa il badge se il dialog è nascosto.
+   ══════════════════════════════════════════════════════════════ */
+void MainWindow::appendLog(const QString& msg)
+{
+    ensureLogDialog();
+
+    const QString ts = QDateTime::currentDateTime().toString("HH:mm:ss");
+    const QString line = QString("<span style='color:#888;'>%1</span> &nbsp;%2")
+                         .arg(ts).arg(msg.toHtmlEscaped());
+    m_logView->moveCursor(QTextCursor::End);
+    m_logView->insertHtml(line + "<br>");
+
+    /* Badge non-letti — visibile solo se il dialog è chiuso */
+    if (!m_logDlg->isVisible()) {
+        m_logUnread++;
+        const int cap = qMin(m_logUnread, 99);
+        m_logBadge->setText(cap < 99 ? QString::number(cap) : "99+");
+        m_logBadge->setVisible(true);
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1745,6 +1913,9 @@ void MainWindow::onChatCompleted(const QString& title, const QString& logHtml) {
         m_chatHistory.saveLog(m_currentChatId, logHtml);
     }
     refreshChatList();
+
+    appendLog(QString("\xe2\x9c\x85 Pipeline completata: <b>%1</b>")
+              .arg(title.isEmpty() ? "(senza titolo)" : title.toHtmlEscaped()));
 }
 
 void MainWindow::refreshChatList() {
@@ -1752,10 +1923,24 @@ void MainWindow::refreshChatList() {
     m_chatList->clear();
 
     const auto sessions = m_chatHistory.list();
+
+    /* Conta quante sessioni hanno lo stesso titolo — per i duplicati
+     * aggiunge " · HH:mm" così l'utente può distinguerle visivamente.
+     * Il caricamento resta sempre basato sull'ID univoco (Qt::UserRole). */
+    QMap<QString, int> titleCount;
     for (const auto& s : sessions) {
-        auto* item = new QListWidgetItem(s.title.isEmpty() ? "(senza titolo)" : s.title);
+        const QString base = s.title.isEmpty() ? "(senza titolo)" : s.title;
+        titleCount[base]++;
+    }
+
+    for (const auto& s : sessions) {
+        const QString base = s.title.isEmpty() ? "(senza titolo)" : s.title;
+        QString display = base;
+        if (titleCount.value(base) > 1)
+            display += " \xc2\xb7 " + s.createdAt.toString("HH:mm");
+        auto* item = new QListWidgetItem(display);
         item->setData(Qt::UserRole, s.id);
-        item->setToolTip(s.createdAt.toString("dd/MM/yyyy HH:mm"));
+        item->setToolTip(s.createdAt.toString("dd/MM/yyyy HH:mm:ss"));
         m_chatList->addItem(item);
     }
 }
