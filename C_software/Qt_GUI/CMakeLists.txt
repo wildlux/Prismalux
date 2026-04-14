@@ -34,6 +34,17 @@ set(CPP_SRCS
     chat_history.cpp
     rag_engine.cpp
     pages/agenti_page.cpp
+    pages/agenti_page_ui.cpp
+    pages/agenti_page_voice.cpp
+    pages/agenti_page_files.cpp
+    pages/agenti_page_models.cpp
+    pages/agenti_page_math.cpp
+    pages/agenti_page_pipeline.cpp
+    pages/agenti_page_byzantine.cpp
+    pages/agenti_page_bubbles.cpp
+    pages/agenti_page_exec.cpp
+    pages/agenti_page_stream.cpp
+    pages/agenti_page_consiglio.cpp
     pages/agents_config_dialog.cpp
     pages/pratico_page.cpp
     pages/impara_page.cpp
