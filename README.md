@@ -54,9 +54,9 @@ Prismalux è una **piattaforma AI locale** con GUI grafica in **C++/Qt6**. Nasce
 
 ```
   ╔══════════════════════════════════════════════════════════╗
-  ║  🍺  PRISMALUX  v2.2  —  AI Platform                   ║
-  ║  Backend: Ollama  ·  Modello: qwen3:30b                 ║
-  ║  CPU: ████████░░ 78%  RAM: █████░░░░░ 52%  GPU: 3.2GB  ║
+  ║  🍺  PRISMALUX  v2.2  —  AI Platform                     ║
+  ║  Backend: Ollama  ·  Modello: qwen3:30b                  ║
+  ║  CPU: ████████░░ 78%  RAM: █████░░░░░ 52%  GPU: 3.2GB    ║
   ╚══════════════════════════════════════════════════════════╝
 ```
 
@@ -230,9 +230,9 @@ Ispirato al [Problema dei Generali Bizantini](https://en.wikipedia.org/wiki/Byza
        │                        │
        ▼                        ▼
 ┌─────────────┐     ┌──────────────────────────────────┐
-│  C — Gemello │     │  D — Giudice                     │
+│  C — Gemello│     │  D — Giudice                     │
 │  verifica   │──→  │  T = (A ∧ C) ∧ ¬B_valido         │
-│  da zero    │     │  Se B trova falle → incertezza    │
+│  da zero    │     │  Se B trova falle → incertezza   │
 └─────────────┘     └──────────────────────────────────┘
 ```
 
