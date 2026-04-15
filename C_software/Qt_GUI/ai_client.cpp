@@ -77,7 +77,7 @@ AiClient::AiClient(QObject* parent)
    • ≤ 30 caratteri e nessuna keyword complessa  → Simple
    • > 200 caratteri                              → Complex
    • Keyword di analisi/spiegazione/codice        → Complex
-   • Tutto il resto (30-200 chars, neutre)        → Simple
+   • Tutto il resto (30-200 chars, neutre)        → Auto  ← FIX T1 (era Simple)
    ══════════════════════════════════════════════════════════════ */
 AiClient::QueryType AiClient::classifyQuery(const QString& text)
 {
@@ -96,7 +96,7 @@ AiClient::QueryType AiClient::classifyQuery(const QString& text)
         if (lower.contains(kw)) return QueryComplex;
     }
 
-    return (len <= 30) ? QuerySimple : QuerySimple;
+    return (len <= 30) ? QuerySimple : QueryAuto;  /* FIX T1: era QuerySimple:QuerySimple */
 }
 
 /* ── Anti-data-leak: verifica che l'host sia localhost ───────────────────
@@ -121,7 +121,13 @@ void AiClient::setBackend(Backend b, const QString& host, int port, const QStrin
     m_backend = b;
     m_host    = _enforce_local_host(host);
     m_port    = port;
-    m_model   = model;
+    if (m_model != model) {
+        m_model = model;
+        if (!model.isEmpty())
+            emit modelChanged(model);   /* notifica UI (MainWindow label, Impostazioni, ecc.) */
+    } else {
+        m_model = model;
+    }
 }
 
 void AiClient::setLocalBackend(const QString& llamaBin, const QString& modelPath) {
@@ -271,7 +277,7 @@ static const char* kHonestyPrefix =
 
 /* ── chat (wrapper legacy — compatibile con tutto il codice esistente) ─── */
 void AiClient::chat(const QString& systemPrompt, const QString& userMsg) {
-    chat(systemPrompt, userMsg, QJsonArray(), QueryAuto);
+    chat(systemPrompt, userMsg, QJsonArray(), classifyQuery(userMsg));  /* FIX T2: era QueryAuto hardcoded */
 }
 
 /* ── chat (implementazione completa con storia e tipo query) ─────────── */
@@ -398,14 +404,22 @@ void AiClient::chat(const QString& systemPrompt, const QString& userMsg,
         opts["repeat_penalty"] = m_params.repeat_penalty;
         opts["num_ctx"]        = m_params.num_ctx;
 
+        /* FIX think budget: qwen3/deepseek-r1 consumano token nel blocco <think>
+           → raddoppiare num_predict quando think è attivo per non troncare la risposta */
+        const bool thinkCapable = m_model.startsWith("qwen3")       ||
+                                  m_model.startsWith("qwen3.5")     ||
+                                  m_model.startsWith("deepseek-r1") ||
+                                  m_model.startsWith("qwen2.5");
         if (qt == QuerySimple) {
             opts["num_predict"] = 512;
             opts["think"]       = false;
         } else if (qt == QueryComplex) {
-            opts["num_predict"] = m_params.num_predict;
-            opts["think"]       = true;
+            /* Se il modello usa il blocco <think>, raddoppia il budget */
+            opts["num_predict"] = thinkCapable ? m_params.num_predict * 2
+                                               : m_params.num_predict;
+            if (thinkCapable) opts["think"] = true;
         } else {
-            /* QueryAuto: comportamento precedente, nessun think esplicito */
+            /* QueryAuto: comportamento predefinito, nessun think esplicito */
             opts["num_predict"] = m_params.num_predict;
         }
         body["options"] = opts;

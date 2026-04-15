@@ -356,18 +356,37 @@ MainWindow::MainWindow(QWidget* parent)
     });
     m_idleUnloadTimer->start();
 
-    /* Imposta backend Ollama di default e carica modelli */
-    m_ai->setBackend(AiClient::Ollama, P::kLocalHost, P::kOllamaPort, "");
+    /* Imposta backend Ollama di default e carica modelli.
+       Ripristina il modello preferito dall'utente (salvato da Impostazioni > AI Locale). */
+    {
+        QSettings s("Prismalux", "GUI");
+        const QString savedModel = s.value(P::SK::kActiveModel, "").toString();
+        m_ai->setBackend(AiClient::Ollama, P::kLocalHost, P::kOllamaPort, savedModel);
+    }
     m_ai->fetchModels();
     connect(m_ai, &AiClient::modelsReady, this, [this](const QStringList& list){
         if (!list.isEmpty()) {
-            m_lblModel->setText(list.first());
+            /* Se l'utente aveva salvato un modello preferito e quel modello è nella lista,
+               mantienilo; altrimenti usa il primo disponibile. */
+            const QString current = m_ai->model();
+            const bool preferredAvail = !current.isEmpty() && list.contains(current);
+            const QString model = preferredAvail ? current : list.first();
+            if (!preferredAvail)
+                m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), model);
+            m_lblModel->setText(model);
             statusBar()->showMessage(
-                QString("🍺  Backend Ollama | Modello: %1 | Modelli disponibili: %2")
-                .arg(list.first()).arg(list.size()));
+                QString("\xf0\x9f\x8d\xba  Backend Ollama | Modello: %1 | Modelli disponibili: %2")
+                .arg(model).arg(list.size()));
         }
         /* ── Auto VRAM Benchmark al primo avvio ── */
         maybeAutoVramBench();
+    });
+
+    /* Aggiorna la label modello anche quando l'utente lo cambia da Impostazioni */
+    connect(m_ai, &AiClient::modelChanged, this, [this](const QString& model) {
+        m_lblModel->setText(model);
+        statusBar()->showMessage(
+            QString("\xe2\x9c\x85  Modello attivo: %1").arg(model), 3000);
     });
 
     /* Carica tema salvato */

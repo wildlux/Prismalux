@@ -39,6 +39,8 @@ namespace P = PrismaluxPaths;  /* alias file-scope per P::SK::kXxx */
 #include <QRadioButton>
 #include <QCheckBox>
 #include <QListWidget>
+#include <QTableWidget>
+#include <QHeaderView>
 #include <QGroupBox>
 #include <QPlainTextEdit>
 #include <QThread>
@@ -89,6 +91,12 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
        Tab 4: 🤖 LLM — catalogo compatto Ollama + GGUF (filtro+lista)
        ──────────────────────────────────────────────────────────── */
     tabs->addTab(buildLlmConsigliatiTab(), "\xf0\x9f\xa4\x96  LLM");
+
+    /* ────────────────────────────────────────────────────────────
+       Tab 5: 📊 Classifica — ranking oggettivo modelli open-weight
+       Basato su: ArtificialAnalysis.ai + benchmark locali Prismalux
+       ──────────────────────────────────────────────────────────── */
+    tabs->addTab(buildLlmClassificaTab(), "\xf0\x9f\x93\x8a  Classifica");
 
     /* ────────────────────────────────────────────────────────────
        Tab 4: 🎤 Voce & Audio — TTS (sinistra) + STT (destra)
@@ -869,13 +877,17 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     useBtn->setToolTip("Imposta il modello selezionato come modello attivo");
     leftLay->insertWidget(3, useBtn);
 
-    /* Lambda: applica il modello selezionato */
+    /* Lambda: applica il modello selezionato e lo persiste su QSettings */
     auto applySelected = [=]() {
         auto* cur = modelList->currentItem();
         if (!cur) return;
         const QString model = cur->data(Qt::UserRole).toString();
         if (model.isEmpty() || model.startsWith("(")) return;
         m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), model);
+        /* Salva su QSettings → sopravvive al riavvio */
+        QSettings s("Prismalux", "GUI");
+        s.setValue(PrismaluxPaths::SK::kActiveModel,   model);
+        s.setValue(PrismaluxPaths::SK::kActiveBackend, static_cast<int>(m_ai->backend()));
         activeLbl->setText(QString("\xf0\x9f\x9f\xa2  Modello attivo: <b>%1</b>").arg(model));
         statusLbl->setText(QString("\xe2\x9c\x85 Attivo: %1").arg(model));
     };
@@ -4299,3 +4311,363 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     return page;
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   buildLlmClassificaTab — ranking oggettivo modelli open-weight
+   ═══════════════════════════════════════════════════════════════════════
+   Fonte dati: ArtificialAnalysis.ai (intelligence index) + benchmark
+   Prismalux locali (test_prompt_levels.py, sessione 2026-04-15).
+   Colonne: Rank | Modello | Parametri | RAM (Q4) | Score | Velocità | 64GB | Categoria
+   ══════════════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildLlmClassificaTab()
+{
+    auto* page = new QWidget;
+    auto* mainLay = new QVBoxLayout(page);
+    mainLay->setContentsMargins(16, 14, 16, 14);
+    mainLay->setSpacing(10);
+
+    /* ── Titolo + fonte ── */
+    auto* titleLbl = new QLabel(
+        "\xf0\x9f\x93\x8a  <b>Classifica LLM Open-Weight</b>  "
+        "<span style='color:#94a3b8;font-size:12px;font-weight:normal;'>"
+        "Fonte: ArtificialAnalysis.ai \xe2\x80\xa2 Benchmark locali Prismalux (2026-04-15)"
+        "</span>", page);
+    titleLbl->setObjectName("sectionTitle");
+    titleLbl->setTextFormat(Qt::RichText);
+    mainLay->addWidget(titleLbl);
+
+    /* ── Filtro RAM ── */
+    auto* filterRow = new QWidget(page);
+    auto* filterLay = new QHBoxLayout(filterRow);
+    filterLay->setContentsMargins(0, 0, 0, 0);
+    filterLay->setSpacing(10);
+
+    auto* filterLbl = new QLabel("Filtra per RAM disponibile:", filterRow);
+    filterLbl->setObjectName("cardDesc");
+    auto* filterCombo = new QComboBox(filterRow);
+    filterCombo->addItem("Tutti i modelli",   0);
+    filterCombo->addItem("\xe2\x89\xa4 8 GB RAM",     8);
+    filterCombo->addItem("\xe2\x89\xa4 16 GB RAM",   16);
+    filterCombo->addItem("\xe2\x89\xa4 32 GB RAM",   32);
+    filterCombo->addItem("\xe2\x89\xa4 64 GB RAM",   64);
+    filterCombo->setCurrentIndex(4);   /* default: mostra tutto fino a 64 GB */
+    filterCombo->setFixedWidth(160);
+
+    auto* filterCatCombo = new QComboBox(filterRow);
+    filterCatCombo->addItem("Tutte le categorie", "");
+    filterCatCombo->addItem("Generale",           "Generale");
+    filterCatCombo->addItem("Coding",             "Coding");
+    filterCatCombo->addItem("Ragionamento",        "Ragionamento");
+    filterCatCombo->addItem("Matematica",          "Matematica");
+    filterCatCombo->addItem("Vision",              "Vision");
+    filterCatCombo->setFixedWidth(180);
+
+    auto* sortLbl = new QLabel("Ordina per:", filterRow);
+    sortLbl->setObjectName("cardDesc");
+    auto* sortCombo = new QComboBox(filterRow);
+    sortCombo->addItem("Score qualit\xc3\xa0 \xe2\x86\x93", 0);
+    sortCombo->addItem("RAM richiesta \xe2\x86\x91",         1);
+    sortCombo->addItem("Velocit\xc3\xa0 \xe2\x86\x93",       2);
+    sortCombo->setFixedWidth(170);
+
+    filterLay->addWidget(filterLbl);
+    filterLay->addWidget(filterCombo);
+    filterLay->addSpacing(8);
+    filterLay->addWidget(filterCatCombo);
+    filterLay->addSpacing(12);
+    filterLay->addWidget(sortLbl);
+    filterLay->addWidget(sortCombo);
+    filterLay->addStretch();
+    mainLay->addWidget(filterRow);
+
+    /* ── Tabella ── */
+    auto* table = new QTableWidget(page);
+    table->setObjectName("modelsList");
+    table->setColumnCount(8);
+    table->setHorizontalHeaderLabels({
+        "#", "Modello", "Param.", "RAM Q4",
+        "Score", "Velocit\xc3\xa0", "\xe2\x89\xa464GB", "Categoria"
+    });
+    table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    table->horizontalHeader()->setSectionResizeMode(7, QHeaderView::ResizeToContents);
+    table->setColumnWidth(0, 38);
+    table->setColumnWidth(2, 62);
+    table->setColumnWidth(3, 72);
+    table->setColumnWidth(4, 65);
+    table->setColumnWidth(5, 80);
+    table->setColumnWidth(6, 55);
+    table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setAlternatingRowColors(true);
+    table->setSortingEnabled(false);   /* sorting manuale via combo */
+    table->verticalHeader()->setVisible(false);
+    mainLay->addWidget(table, 1);
+
+    /* ── Pannello dettaglio + installazione ── */
+    auto* detailGroup = new QGroupBox("\xf0\x9f\x94\x8d  Dettaglio modello selezionato", page);
+    detailGroup->setObjectName("cardGroup");
+    auto* detailLay = new QHBoxLayout(detailGroup);
+    detailLay->setContentsMargins(10, 8, 10, 8);
+    detailLay->setSpacing(10);
+
+    auto* detailLbl = new QLabel(
+        "<span style='color:#94a3b8;'>Seleziona una riga per i dettagli e l'installazione rapida.</span>",
+        detailGroup);
+    detailLbl->setTextFormat(Qt::RichText);
+    detailLbl->setWordWrap(true);
+
+    auto* installBtn = new QPushButton("\xe2\xac\x87  Installa (Ollama)", detailGroup);
+    installBtn->setObjectName("actionBtn");
+    installBtn->setFixedWidth(160);
+    installBtn->setEnabled(false);
+
+    detailLay->addWidget(detailLbl, 1);
+    detailLay->addWidget(installBtn);
+    mainLay->addWidget(detailGroup);
+
+    /* ── Log installazione ── */
+    auto* logLbl = new QLabel(page);
+    logLbl->setWordWrap(true);
+    logLbl->setVisible(false);
+    logLbl->setStyleSheet(
+        "background:#0f172a;color:#86efac;font-family:monospace;"
+        "font-size:11px;padding:6px 10px;border-radius:6px;");
+    mainLay->addWidget(logLbl);
+
+    /* ══════════════════════════════════════════════════════════
+       Dataset modelli — classifica completa open-weight ≤ 64GB
+       Campi: display, ollama_id, params_b (float), ram_gb (Q4),
+              score (0-100), speed_tps (token/s su CPU media),
+              category, notes
+       ══════════════════════════════════════════════════════════ */
+    struct RankEntry {
+        const char* display;
+        const char* ollama;        /* vuoto = non disponibile su Ollama */
+        float params_b;
+        float ram_gb;
+        int   score;               /* intelligence index normalizzato 0-100 */
+        int   speed_tps;           /* token/s stimati su CPU 16-core (Q4) */
+        const char* category;
+        const char* notes;
+    };
+
+    static const RankEntry RANK[] = {
+        /* ── Top assoluti (entrano in 64 GB) ── */
+        { "Qwen2.5 72B",            "qwen2.5:72b",          72.0f, 44.0f,  82,  2,
+          "Generale",    "Top qualit\xc3\xa0 locale. Score vicino a GPT-4o su benchmark MMLU/GPQA. Ottimo italiano." },
+        { "Llama 3.1 70B",          "llama3.1:70b",         70.0f, 40.0f,  78,  2,
+          "Generale",    "Meta. Ragionamento generale eccellente. ~1-2 t/s su CPU 64 GB." },
+        { "DeepSeek-R1 70B distill","deepseek-r1:70b",      70.0f, 40.0f,  77,  2,
+          "Ragionamento","Chain-of-thought avanzato. Ottimo su matematica e logica. Lento su CPU." },
+        { "Qwen3 30B",              "qwen3:30b",            30.0f, 18.0f,  74,  5,
+          "Generale",    "Modello consigliato per uso quotidiano su 64 GB. Think nativo. Ottimo italiano." },
+        { "DeepSeek-R1 32B distill","deepseek-r1:32b",      32.0f, 20.0f,  72,  4,
+          "Ragionamento","Distillazione del modello 671B. Ragionamento matematico top sotto 30 GB." },
+        { "Qwen3 32B",              "qwen3:32b",            32.0f, 20.0f,  72,  4,
+          "Generale",    "Variante Qwen3 con context pi\xc3\xb9 lungo. Equivalente a Qwen3:30b." },
+        { "Qwen2.5-Coder 32B",      "qwen2.5-coder:32b",    32.0f, 20.0f,  70,  4,
+          "Coding",      "Miglior modello coding open-weight < 64 GB. HumanEval 90%+." },
+        { "Gemma 3 27B",            "gemma3:27b",           27.0f, 16.0f,  68,  5,
+          "Generale",    "Google DeepMind. Ottimo su testi lunghi e analisi. Veloce su CPU." },
+        { "Mixtral 8x7B (MoE)",     "mixtral:8x7b",         46.0f, 26.0f,  66,  7,
+          "Generale",    "Mixture of Experts: attiva 2/8 esperti per token. Veloce nonostante i 46B totali." },
+        { "Mistral Small 3.1 24B",  "mistral-small3.1:24b", 24.0f, 14.0f,  63,  7,
+          "Generale",    "Ottimo rapporto qualit\xc3\xa0/velocit\xc3\xa0. Contesto 128k. Consigliato per RAG." },
+        { "DeepSeek-R1 14B distill","deepseek-r1:14b",      14.0f,  9.0f,  60,  9,
+          "Ragionamento","Veloce e capace. Ideale come agente ricercatore nella pipeline multi-agente." },
+        { "Phi-4 14B",              "phi4:14b",             14.0f,  9.0f,  58, 10,
+          "Generale",    "Microsoft. Eccellente ragionamento per la dimensione. Ottimo per didattica." },
+        { "Qwen2.5-Coder 7B",       "qwen2.5-coder:7b",      7.0f,  4.7f,  54, 18,
+          "Coding",      "Top della categoria ~7B su HumanEval. Velocissimo. Consigliato per coding quotidiano." },
+        { "Qwen3 8B",               "qwen3:8b",              8.0f,  5.2f,  53, 16,
+          "Generale",    "Ottimo italiano, think nativo, bilanciato. Consigliato come modello principale." },
+        { "DeepSeek-R1 7B distill", "deepseek-r1:7b",        7.0f,  4.7f,  50, 18,
+          "Ragionamento","Chain-of-thought nativo. Ottimo per matematica scolastica e problemi logici." },
+        { "Qwen2.5 Math 7B",        "qwen2.5-math:7b",       7.0f,  4.7f,  50, 18,
+          "Matematica",  "Specializzato matematica. MATH benchmark: 82%. Ideale per Prismalux Matematica." },
+        { "Mistral 7B v0.3",        "mistral:7b",            7.0f,  4.1f,  46, 20,
+          "Generale",    "Classico affidabile. Veloce, buon italiano. Ottimo come fallback leggero." },
+        { "Gemma 3 4B",             "gemma3:4b",             4.0f,  3.3f,  43, 28,
+          "Generale",    "Google. Velocissimo, buona comprensione. Ideale su PC con 8 GB RAM." },
+        { "Llama 3.2 3B",           "llama3.2:3b",           3.0f,  2.0f,  40, 35,
+          "Generale",    "Meta. Ultraleggero. Ottimo per test e prototipazione rapida." },
+        { "DeepSeek-R1 1.5B",       "deepseek-r1:1.5b",      1.5f,  1.1f,  32, 50,
+          "Ragionamento","Pi\xc3\xb9 piccolo modello reasoning. Sorprendentemente capace su matematica semplice." },
+        /* ── Test locali Prismalux (2026-04-15) ── */
+        { "Mistral 7B Instruct",    "mistral:7b-instruct",   7.0f,  4.1f,  66, 20,
+          "Generale",    "Score Prismalux: 66.2/100 (test 4 livelli). Stabile, buona copertura keyword." },
+        { "Qwen3 4B",               "qwen3:4b",              4.0f,  3.0f,  55, 30,
+          "Generale",    "Score Prismalux: 55.4/100. Calo su L2 con think:ON (fix T6 applicato). Velocissimo." },
+    };
+    static const int N_RANK = static_cast<int>(sizeof(RANK) / sizeof(RANK[0]));
+
+    /* ══════════════════════════════════════════════════════════
+       Funzione populate — applica filtri e riempie la tabella
+       ══════════════════════════════════════════════════════════ */
+    auto populate = [=]() {
+        const int maxRam  = filterCombo->currentData().toInt();
+        const QString cat = filterCatCombo->currentData().toString();
+        const int sortBy  = sortCombo->currentData().toInt();
+
+        /* Raccoglie indici validi */
+        QVector<int> idxs;
+        for (int i = 0; i < N_RANK; i++) {
+            const auto& e = RANK[i];
+            if (maxRam > 0 && e.ram_gb > maxRam) continue;
+            if (!cat.isEmpty() && cat != e.category) continue;
+            idxs.append(i);
+        }
+
+        /* Ordina */
+        if (sortBy == 0) {
+            /* Score decrescente */
+            std::sort(idxs.begin(), idxs.end(),
+                      [](int a, int b){ return RANK[a].score > RANK[b].score; });
+        } else if (sortBy == 1) {
+            /* RAM crescente */
+            std::sort(idxs.begin(), idxs.end(),
+                      [](int a, int b){ return RANK[a].ram_gb < RANK[b].ram_gb; });
+        } else {
+            /* Velocità decrescente */
+            std::sort(idxs.begin(), idxs.end(),
+                      [](int a, int b){ return RANK[a].speed_tps > RANK[b].speed_tps; });
+        }
+
+        table->setRowCount(idxs.size());
+        for (int row = 0; row < idxs.size(); row++) {
+            const auto& e = RANK[idxs[row]];
+
+            /* Colonna 0: rank */
+            auto* rankItem = new QTableWidgetItem(QString::number(row + 1));
+            rankItem->setTextAlignment(Qt::AlignCenter);
+            table->setItem(row, 0, rankItem);
+
+            /* Colonna 1: nome modello */
+            auto* nameItem = new QTableWidgetItem(QString::fromUtf8(e.display));
+            nameItem->setData(Qt::UserRole, idxs[row]);
+            table->setItem(row, 1, nameItem);
+
+            /* Colonna 2: parametri */
+            const QString paramStr = (e.params_b >= 10.0f)
+                ? QString::number(qRound(e.params_b)) + "B"
+                : QString::number(e.params_b, 'f', 1) + "B";
+            auto* paramItem = new QTableWidgetItem(paramStr);
+            paramItem->setTextAlignment(Qt::AlignCenter);
+            table->setItem(row, 2, paramItem);
+
+            /* Colonna 3: RAM */
+            const QString ramStr = (e.ram_gb >= 1.0f)
+                ? "~" + QString::number(qRound(e.ram_gb)) + " GB"
+                : "< 1 GB";
+            auto* ramItem = new QTableWidgetItem(ramStr);
+            ramItem->setTextAlignment(Qt::AlignCenter);
+            table->setItem(row, 3, ramItem);
+
+            /* Colonna 4: score con barra visuale */
+            const QString scoreBar = QString("\xe2\x96\x88").repeated(e.score / 14);
+            auto* scoreItem = new QTableWidgetItem(
+                QString::number(e.score) + "  " + scoreBar);
+            scoreItem->setTextAlignment(Qt::AlignVCenter | Qt::AlignLeft);
+            /* Colore score: verde > 70, giallo > 50, rosso sotto */
+            if (e.score >= 70)
+                scoreItem->setForeground(QColor("#4ade80"));
+            else if (e.score >= 50)
+                scoreItem->setForeground(QColor("#fbbf24"));
+            else
+                scoreItem->setForeground(QColor("#f87171"));
+            table->setItem(row, 4, scoreItem);
+
+            /* Colonna 5: velocità */
+            const QString speedStr = (e.speed_tps > 0)
+                ? "~" + QString::number(e.speed_tps) + " t/s"
+                : "N/D";
+            auto* speedItem = new QTableWidgetItem(speedStr);
+            speedItem->setTextAlignment(Qt::AlignCenter);
+            table->setItem(row, 5, speedItem);
+
+            /* Colonna 6: entra in 64 GB */
+            auto* fitItem = new QTableWidgetItem(e.ram_gb <= 64.0f ? "\xe2\x9c\x85" : "\xe2\x9d\x8c");
+            fitItem->setTextAlignment(Qt::AlignCenter);
+            table->setItem(row, 6, fitItem);
+
+            /* Colonna 7: categoria */
+            auto* catItem = new QTableWidgetItem(QString::fromUtf8(e.category));
+            table->setItem(row, 7, catItem);
+        }
+    };
+    populate();
+
+    /* ── Selezione riga → aggiorna dettaglio ── */
+    connect(table, &QTableWidget::currentCellChanged, page,
+            [=](int row, int /*col*/, int, int) {
+        if (row < 0 || row >= table->rowCount()) {
+            installBtn->setEnabled(false);
+            detailLbl->setText(
+                "<span style='color:#94a3b8;'>Seleziona una riga per i dettagli.</span>");
+            return;
+        }
+        const int idx = table->item(row, 1)->data(Qt::UserRole).toInt();
+        const auto& e = RANK[idx];
+        const bool hasOllama = (e.ollama[0] != '\0');
+        installBtn->setEnabled(hasOllama);
+        installBtn->setText(hasOllama
+            ? QString("\xe2\xac\x87  ollama pull %1").arg(e.ollama)
+            : "\xe2\x9d\x8c  Non disponibile su Ollama");
+
+        const QString paramStr = (e.params_b >= 10.0f)
+            ? QString::number(qRound(e.params_b)) + "B"
+            : QString::number(e.params_b, 'f', 1) + "B";
+
+        detailLbl->setText(QString(
+            "<b style='color:#e2e8f0;'>%1</b> &nbsp;"
+            "<span style='color:#94a3b8;'>%2 &bull; %3 GB RAM (Q4) &bull; score %4/100 &bull; ~%5 t/s su CPU</span><br>"
+            "<span style='color:#cbd5e1;font-size:12px;'>%6</span>")
+            .arg(QString::fromUtf8(e.display))
+            .arg(paramStr)
+            .arg(QString::number(e.ram_gb, 'f', 0))
+            .arg(e.score)
+            .arg(e.speed_tps)
+            .arg(QString::fromUtf8(e.notes)));
+    });
+
+    /* ── Installa ── */
+    connect(installBtn, &QPushButton::clicked, page, [=]() {
+        const int row = table->currentRow();
+        if (row < 0) return;
+        const int idx = table->item(row, 1)->data(Qt::UserRole).toInt();
+        const auto& e = RANK[idx];
+        if (e.ollama[0] == '\0') return;
+
+        const QString cmd = QString("ollama pull %1").arg(e.ollama);
+        logLbl->setText(QString("\xf0\x9f\x93\xa5  Avvio: <code>%1</code>...").arg(cmd));
+        logLbl->setVisible(true);
+        installBtn->setEnabled(false);
+
+        auto* proc = new QProcess(page);
+        proc->setProcessChannelMode(QProcess::MergedChannels);
+        connect(proc, &QProcess::readyRead, page, [proc, logLbl]() {
+            const QString s = QString::fromUtf8(proc->readAll()).trimmed();
+            if (!s.isEmpty()) logLbl->setText(s);
+        });
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                page, [proc, logLbl, installBtn, e](int code, QProcess::ExitStatus) {
+            if (code == 0)
+                logLbl->setText(QString("\xe2\x9c\x85  %1 installato con successo.")
+                                 .arg(e.display));
+            else
+                logLbl->setText("\xe2\x9d\x8c  Installazione fallita. Ollama attivo?");
+            installBtn->setEnabled(true);
+            proc->deleteLater();
+        });
+        proc->start("ollama", {"pull", QString::fromUtf8(e.ollama)});
+    });
+
+    /* ── Filtri → repopulate ── */
+    connect(filterCombo,    QOverload<int>::of(&QComboBox::currentIndexChanged),
+            page, populate);
+    connect(filterCatCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            page, populate);
+    connect(sortCombo,      QOverload<int>::of(&QComboBox::currentIndexChanged),
+            page, populate);
+
+    return page;
+}

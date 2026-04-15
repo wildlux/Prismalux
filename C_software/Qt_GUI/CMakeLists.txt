@@ -56,7 +56,9 @@ set(CPP_SRCS
     pages/manutenzione_page.cpp
     pages/impostazioni_page.cpp
     pages/simulatore_page.cpp
+    pages/simulatore_algos.cpp
     pages/strumenti_page.cpp
+    pages/grafico_canvas.cpp
     pages/grafico_page.cpp
     pages/programmazione_page.cpp
     pages/matematica_page.cpp

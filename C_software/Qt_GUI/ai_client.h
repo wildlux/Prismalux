@@ -130,6 +130,8 @@ signals:
     void aborted();                        /* emesso da abort() — UI può resettarsi */
     void error(const QString& msg);
     void modelsReady(const QStringList& list);
+    /** Emesso quando il modello attivo cambia (es. l'utente seleziona un altro modello in Impostazioni). */
+    void modelChanged(const QString& newModel);
     /** Emesso quando fetchEmbedding() ha ottenuto il vettore dal backend. */
     void embeddingReady(const QVector<float>& vec);
     /** Emesso in caso di errore durante fetchEmbedding(). */

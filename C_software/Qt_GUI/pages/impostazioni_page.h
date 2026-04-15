@@ -54,6 +54,7 @@ private:
     QWidget* buildRagTab();
     QWidget* buildDipendenzeTab();
     QWidget* buildLlmConsigliatiTab();
+    QWidget* buildLlmClassificaTab();  ///< ranking oggettivo open-weight (ArtificialAnalysis + benchmark locali)
     QWidget* buildAiParamsTab();   ///< parametri anti-allucinazione + preferenze modello
 
     PersonalizzaPage*  m_personalizza  = nullptr;
