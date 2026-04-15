@@ -850,3 +850,128 @@ difficoltà media (L2). Questo penalizza modelli think-capable.
 applicare le keyword (es. solo se `len > 60`) oppure creare una categoria `QueryMedium`
 con `think:false` e `num_predict` intermedio.  
 **Priorità**: bassa — il fix T6 (raddoppio budget) mitiga il problema.
+
+---
+
+## Sessione 2026-04-16
+
+### 1. ProgrammazionePage — sub-tab "Agentica"
+
+`pages/programmazione_page.*` ora contiene un `QTabWidget* m_innerTabs` con due schede:
+
+| Tab | Widget | Contenuto |
+|-----|--------|-----------|
+| `💻 Programmazione` | `codingTab` | editor + toolRow + aiPanel (stessa UI di prima) |
+| `🤖 Agentica` | `buildAgentica()` | tipo agente, linguaggio, modello, task, output streaming |
+
+**Sei tipi di agente** (`m_agentType` QComboBox):
+
+| Tipo | Prompt system generato |
+|------|------------------------|
+| Pipeline 6 agenti | Analizza → Progetta → Implementa → Testa → Ottimizza → Documenta |
+| RAG + Codice | Recupera contesto da documenti, genera codice contestuale |
+| Refactor | Analizza e ristruttura il codice esistente |
+| Genera Test | Crea test unitari/integrazione completi |
+| Debug assistito | Diagnosi sistematica e fix del bug |
+| Byzantino (anti-allucinaz.) | 3 prospettive indipendenti + sintesi |
+
+**Metodi chiave** (in `programmazione_page.cpp`):
+- `buildAgentica(QWidget* parent)` — costruisce la UI del sub-tab Agentica
+- `runAgente()` — applica il modello selezionato, costruisce il system prompt per tipo, fa streaming via `m_agentTokenHolder` (pattern connHolder one-shot)
+- Pulsante "Apri in editor" — estrae il primo blocco ` ``` ` dall'output e lo incolla nel tab Programmazione (indice 0)
+
+### 2. Sincronizzazione modello — `modelChanged` unica fonte
+
+Tutti i QComboBox modello della pagina Programmazione condividono un unico handler:
+
+```cpp
+auto syncCombo = [](QComboBox* combo, const QString& newModel) {
+    if (!combo) return;
+    int idx = combo->findData(newModel);
+    if (idx < 0) idx = combo->findText(newModel, Qt::MatchContains);
+    if (idx >= 0 && idx != combo->currentIndex()) {
+        combo->blockSignals(true);
+        combo->setCurrentIndex(idx);
+        combo->blockSignals(false);
+    } else if (idx < 0) {
+        combo->blockSignals(true);
+        combo->setItemText(0, newModel);
+        combo->setItemData(0, newModel);
+        combo->setCurrentIndex(0);
+        combo->blockSignals(false);
+    }
+};
+connect(m_ai, &AiClient::modelChanged, this, [this, syncCombo](const QString& newModel) {
+    syncCombo(m_modelCombo, newModel);   // tab Coding
+    syncCombo(m_agentModel, newModel);   // tab Agentica
+});
+```
+
+`blockSignals(true/false)` previene loop di feedback quando il combo aggiorna sé stesso.
+
+### 3. Header — Messaggi e Impostazioni spostati dalla sidebar
+
+I pulsanti 📋 Messaggi e ⚙️ Impostazioni sono stati **rimossi dalla sidebar** e inseriti
+nell'**header**, subito a destra del pulsante hamburger ☰.
+
+**Badge overlay su 📋** — posizionamento assoluto in un container fisso:
+```cpp
+auto* logWrap = new QWidget(hdr);
+logWrap->setFixedSize(46, 36);           // extra 10px per il badge
+m_logBtn = new QPushButton("📋", logWrap);
+m_logBtn->setFixedSize(36, 36);
+m_logBtn->move(0, 0);
+m_logBadge = new QLabel("", logWrap);
+m_logBadge->setFixedSize(16, 16);
+m_logBadge->move(28, 0);                 // badge in alto a destra del bottone
+```
+Il `QLabel` badge usa `move()` assoluto dentro il container perché l'overlay tramite layout
+è complesso in Qt (richiederebbe `QStackedLayout` o z-order manuale).
+
+Header cluster risultante: `[☰]  [📋 badge]  [⚙️]  logo · backend · model · gauges`
+
+### 4. RAG — cartella default aggiornata
+
+**Cartella RAG**: `Prismalux/RAG/` (creata in questa sessione).
+**Contenuto attuale**: `2103.00564v1.pdf` (paper Johnson–Lindenstrauss Transforms).
+
+In `pages/impostazioni_page.cpp`, `buildRagTab()`:
+```cpp
+const QString defaultRagDir = QDir::cleanPath(P::root() + "/../RAG");
+QSettings s("Prismalux", "GUI");
+QString saved = s.value(P::SK::kRagDocsDir, "").toString();
+if (saved.isEmpty()) {
+    saved = defaultRagDir;
+    s.setValue(P::SK::kRagDocsDir, saved);
+}
+dirEdit->setText(saved);
+```
+
+`P::root()` = `C_software/` → `P::root() + "/../RAG"` = `Prismalux/RAG/`.  
+**Attenzione**: se `QSettings` aveva già un valore non vuoto (es. `~/prismalux_rag_docs`)
+il guard `isEmpty()` non lo sovrascrive → aggiornare manualmente `~/.config/Prismalux/GUI.conf`.
+
+### 5. Suite di test — `Test/`
+
+Tutti i file di test sono in `Test/`. Risultati su `qwen2.5-coder:7b`:
+
+| File | Descrizione | Risultato |
+|------|-------------|-----------|
+| `test_rag_paper.py` | 5 domande sul paper JLT con simulazione RAG | **5/5 ✅ 100%** |
+| `test_brutal_honesty.py` | Onestà risposte AI su affermazioni false | **9/15 60%** |
+| `test_math_column_shift.py` | Tracciamento variabili multiple + somme | **2/8 25%** — 5 timeout |
+
+`test_rag_paper.py` simula il flusso RAG completo:
+1. Estrae testo dal PDF (`pdftotext` → fallback `pypdf`)
+2. Seleziona i paragrafi più rilevanti per keyword scoring (top chunk ≤ 2000 char)
+3. Inietta il contesto nel system prompt
+4. Verifica che la risposta contenga almeno una keyword attesa (match OR, case-insensitive)
+
+### 6. Nota bug — sequenze hex in stringhe C++
+
+In `buildAgentica()`, la stringa `"...\xe2\x86\x92B..."` causava errore di compilazione
+perché il compilatore parsava `\x92B` come un'unica sequenza hex (la lettera `B` è cifra hex
+valida, fuori range per `char`). Fix: separare con concatenazione di stringe adiacenti:
+```cpp
+"\xe2\x86\x92" "B"   // → "→B" corretto
+```

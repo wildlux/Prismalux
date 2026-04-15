@@ -15,6 +15,7 @@ class QLabel;
 class QProcess;
 class QSplitter;
 class QGroupBox;
+class QTabWidget;
 
 /* ══════════════════════════════════════════════════════════════
    ProgrammazionePage — Editor codice + esecuzione + grafico + AI
@@ -33,6 +34,11 @@ class QGroupBox;
 
    Il pannello AI è nascosto finché l'utente non clicca [🤖].
    Il grafico è nascosto finché l'output non contiene numeri.
+
+   Sub-tab interni:
+   ┌─────────────────────────────────────────────────────┐
+   │  [💻 Programmazione]  [🤖 Agentica]                 │
+   └─────────────────────────────────────────────────────┘
    ══════════════════════════════════════════════════════════════ */
 class ProgrammazionePage : public QWidget {
     Q_OBJECT
@@ -41,6 +47,9 @@ public:
 
 private:
     AiClient*       m_ai        = nullptr;
+
+    /* Inner tab widget */
+    QTabWidget*     m_innerTabs  = nullptr;
 
     /* Editor */
     QComboBox*        m_lang        = nullptr;
@@ -69,6 +78,20 @@ private:
        Garantisce che ci sia sempre al massimo UNA connessione a m_ai->token.
        Viene resettato esplicitamente prima di creare una nuova connessione. */
     QObject*        m_tokenHolder = nullptr;
+
+    /* ── Agentica sub-tab ── */
+    QComboBox*      m_agentType         = nullptr;
+    QComboBox*      m_agentLang         = nullptr;
+    QComboBox*      m_agentModel        = nullptr;
+    QPlainTextEdit* m_agentTask         = nullptr;
+    QTextEdit*      m_agentOutput       = nullptr;
+    QPushButton*    m_btnAgentRun       = nullptr;
+    QPushButton*    m_btnAgentStop      = nullptr;
+    QPushButton*    m_btnAgentInsert    = nullptr;
+    QObject*        m_agentTokenHolder  = nullptr;
+
+    QWidget* buildAgentica(QWidget* parent);
+    void     runAgente();
     QPushButton*    m_btnSend   = nullptr;   ///< "Invia ▶" nel pannello AI (disabilitato durante streaming)
 
     /* Toolbar buttons */

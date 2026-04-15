@@ -125,8 +125,8 @@ private:
     ResourceGauge*  m_gGpu        = nullptr;  ///< Gauge GPU nell'header
     QLabel*         m_lblBackend  = nullptr;  ///< Testo "🦙 Ollama → 127.0.0.1:11434"
     QLabel*         m_lblModel    = nullptr;  ///< Nome modello AI attivo
-    QPushButton*    m_settingsBtn   = nullptr;  ///< Pulsante ⚙️ sidebar → pagina Impostazioni
-    QPushButton*    m_logBtn        = nullptr;  ///< Pulsante 📋 sidebar → dialog Messaggi/Log
+    QPushButton*    m_settingsBtn   = nullptr;  ///< Pulsante ⚙️ header (accanto hamburger) → Impostazioni
+    QPushButton*    m_logBtn        = nullptr;  ///< Pulsante 📋 header (accanto hamburger) → Messaggi/Log
     QLabel*         m_logBadge      = nullptr;  ///< Badge contatore messaggi non letti
     QDialog*        m_logDlg        = nullptr;  ///< Dialog log (creato lazy)
     QTextEdit*      m_logView       = nullptr;  ///< Area testo del log

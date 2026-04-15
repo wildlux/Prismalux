@@ -23,6 +23,8 @@
 #include <QMessageBox>
 #include <QCheckBox>
 #include <QStandardPaths>
+#include <QTabWidget>
+#include <QTextEdit>
 #include <QTimer>
 #include "../widgets/toggle_switch.h"
 
@@ -101,6 +103,16 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     titleLay->addWidget(title);
     titleLay->addStretch(1);
     mainLay->addWidget(titleRow);
+
+    /* ── Inner tab widget: Programmazione | Agentica ── */
+    m_innerTabs = new QTabWidget(this);
+    m_innerTabs->setObjectName("innerTabs");
+    mainLay->addWidget(m_innerTabs, 1);
+
+    auto* codingTab = new QWidget(m_innerTabs);
+    auto* codingLay = new QVBoxLayout(codingTab);
+    codingLay->setContentsMargins(0, 8, 0, 0);
+    codingLay->setSpacing(8);
 
     /* ── Toolbar ── */
     auto* toolRow = new QWidget(this);
@@ -213,7 +225,7 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     });
     toolLay->addWidget(m_toggleAutoFix);
 
-    mainLay->addWidget(toolRow);
+    codingLay->addWidget(toolRow);
 
     /* ── Splitter principale (editor | output+grafico) ── */
     auto* mainSplit = new QSplitter(Qt::Horizontal, this);
@@ -278,7 +290,7 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
 
     mainSplit->addWidget(rightCol);
     mainSplit->setSizes({500, 450});
-    mainLay->addWidget(mainSplit, 1);
+    codingLay->addWidget(mainSplit, 1);
 
     /* ── Pannello AI (nascosto di default) ── */
     m_aiPanel = new QWidget(this);
@@ -373,7 +385,13 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     aiLay->addWidget(m_aiOutput);
 
     m_aiPanel->hide();
-    mainLay->addWidget(m_aiPanel);
+    codingLay->addWidget(m_aiPanel);
+
+    /* ── Registra il tab Coding e aggiungi il tab Agentica ── */
+    m_innerTabs->addTab(codingTab,
+        "\xf0\x9f\x92\xbb  Programmazione");
+    m_innerTabs->addTab(buildAgentica(m_innerTabs),
+        "\xf0\x9f\xa4\x96  Agentica");
 
     /* ══════════════════════════════════════════════════════════
        Lambda: badge di raccomandazione per coding
@@ -670,25 +688,31 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
         triggerFix(hasError);
     });
 
-    /* Sincronizza il combo modello quando il modello cambia da Impostazioni o
-       da un'altra scheda. Cerca prima per data (nome esatto), poi per testo. */
-    connect(m_ai, &AiClient::modelChanged, this, [this](const QString& newModel) {
-        if (!m_modelCombo) return;
-        int idx = m_modelCombo->findData(newModel);
-        if (idx < 0) idx = m_modelCombo->findText(newModel, Qt::MatchContains);
-        if (idx >= 0 && idx != m_modelCombo->currentIndex()) {
-            m_modelCombo->blockSignals(true);
-            m_modelCombo->setCurrentIndex(idx);
-            m_modelCombo->blockSignals(false);
+    /* Sincronizza i combo modello (Coding + Agentica) quando il modello cambia
+       da Impostazioni o da qualsiasi altra scheda.
+       Fonte unica: segnale AiClient::modelChanged.
+       Cerca prima per data (nome esatto), poi per testo (contiene). */
+    auto syncCombo = [](QComboBox* combo, const QString& newModel) {
+        if (!combo) return;
+        int idx = combo->findData(newModel);
+        if (idx < 0) idx = combo->findText(newModel, Qt::MatchContains);
+        if (idx >= 0 && idx != combo->currentIndex()) {
+            combo->blockSignals(true);
+            combo->setCurrentIndex(idx);
+            combo->blockSignals(false);
         } else if (idx < 0) {
-            /* Modello non ancora nella lista (lista non ancora aggiornata):
-               aggiorna almeno la voce iniziale in modo da non mostrare il vecchio nome. */
-            m_modelCombo->blockSignals(true);
-            m_modelCombo->setItemText(0, newModel);
-            m_modelCombo->setItemData(0, newModel);
-            m_modelCombo->setCurrentIndex(0);
-            m_modelCombo->blockSignals(false);
+            /* Modello non ancora nella lista: aggiorna la voce iniziale */
+            combo->blockSignals(true);
+            combo->setItemText(0, newModel);
+            combo->setItemData(0, newModel);
+            combo->setCurrentIndex(0);
+            combo->blockSignals(false);
         }
+    };
+
+    connect(m_ai, &AiClient::modelChanged, this, [this, syncCombo](const QString& newModel) {
+        syncCombo(m_modelCombo,  newModel);   /* tab Coding */
+        syncCombo(m_agentModel,  newModel);   /* tab Agentica */
     });
 }
 
@@ -1240,6 +1264,395 @@ void ProgrammazionePage::_doFix(bool includeError,
         m_status->setText("\xe2\x9d\x8c  Errore AI durante la correzione.");
         if (!originalModel.isEmpty() && originalModel != m_ai->model())
             m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), originalModel);
+    });
+
+    m_ai->chat(sys, user);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildAgentica — sub-tab "🤖 Agentica"
+   Genera template di codice per sistemi agentici: pipeline,
+   RAG, refactoring AI, test generation, debugging multi-step.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
+{
+    QFont monoFont;
+    monoFont.setFamily("JetBrains Mono");
+    monoFont.setStyleHint(QFont::Monospace);
+    monoFont.setPointSize(11);
+
+    auto* w   = new QWidget(parent);
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(12, 12, 12, 12);
+    lay->setSpacing(10);
+
+    /* ── Descrizione ── */
+    auto* desc = new QLabel(
+        "\xf0\x9f\xa4\x96  <b>Programmazione Agentica</b> \xe2\x80\x94 "
+        "Genera sistemi AI multi-step: pipeline, RAG, tool-use e agenti autonomi.", w);
+    desc->setObjectName("hintLabel");
+    desc->setWordWrap(true);
+    lay->addWidget(desc);
+
+    auto* sep = new QFrame(w);
+    sep->setFrameShape(QFrame::HLine);
+    sep->setObjectName("sidebarSep");
+    lay->addWidget(sep);
+
+    /* ── Riga toolbar: Tipo agente + Linguaggio ── */
+    auto* toolRow = new QWidget(w);
+    auto* toolLay = new QHBoxLayout(toolRow);
+    toolLay->setContentsMargins(0, 0, 0, 0);
+    toolLay->setSpacing(8);
+
+    toolLay->addWidget(new QLabel("Tipo agente:", toolRow));
+    m_agentType = new QComboBox(toolRow);
+    m_agentType->setObjectName("settingCombo");
+    m_agentType->addItem("Pipeline codice (3 agenti: Analisi \xe2\x86\x92 Impl \xe2\x86\x92 Test)",
+                         QString("pipeline"));
+    m_agentType->addItem("RAG + Codice (ricerca documenti + generazione)",
+                         QString("rag"));
+    m_agentType->addItem("Refactoring AI (pattern + pulizia)",
+                         QString("refactor"));
+    m_agentType->addItem("Generatore test unitari",
+                         QString("testgen"));
+    m_agentType->addItem("Debugging agentico (analisi + fix + verifica)",
+                         QString("debug"));
+    m_agentType->addItem(
+        "Motore Byzantino \xe2\x80\x94 anti-allucinazione (A"
+        "\xe2\x86\x92" "B" "\xe2\x86\x92" "C" "\xe2\x86\x92" "D)",
+        QString("byzantine"));
+    m_agentType->setMinimumWidth(300);
+    toolLay->addWidget(m_agentType);
+
+    toolLay->addSpacing(12);
+    toolLay->addWidget(new QLabel("Linguaggio:", toolRow));
+    m_agentLang = new QComboBox(toolRow);
+    m_agentLang->setObjectName("settingCombo");
+    m_agentLang->addItems({"Python", "C", "C++", "JavaScript", "Bash"});
+    m_agentLang->setFixedWidth(110);
+    toolLay->addWidget(m_agentLang);
+
+    toolLay->addStretch(1);
+
+    m_btnAgentRun = new QPushButton("\xe2\x96\xb6  Genera", toolRow);
+    m_btnAgentRun->setObjectName("actionBtn");
+    m_btnAgentRun->setProperty("highlight", "true");
+    m_btnAgentRun->setToolTip("Genera il codice agente (F5)");
+    toolLay->addWidget(m_btnAgentRun);
+
+    m_btnAgentStop = new QPushButton("\xe2\x96\xa0  Stop", toolRow);
+    m_btnAgentStop->setObjectName("actionBtn");
+    m_btnAgentStop->setProperty("danger", "true");
+    m_btnAgentStop->setEnabled(false);
+    m_btnAgentStop->setToolTip("Interrompi la generazione");
+    toolLay->addWidget(m_btnAgentStop);
+
+    lay->addWidget(toolRow);
+
+    /* ── Task description ── */
+    auto* taskGroup = new QGroupBox(
+        "\xf0\x9f\x93\x9d  Descrizione del task (cosa vuoi costruire?)", w);
+    taskGroup->setObjectName("cardGroup");
+    auto* taskLay = new QVBoxLayout(taskGroup);
+    taskLay->setContentsMargins(4, 8, 4, 4);
+
+    m_agentTask = new QPlainTextEdit(taskGroup);
+    m_agentTask->setObjectName("codeEditor");
+    m_agentTask->setFont(monoFont);
+    m_agentTask->setMaximumHeight(140);
+    m_agentTask->setPlaceholderText(
+        "Descrivi il sistema che vuoi costruire...\n\n"
+        "Esempi:\n"
+        "  \xe2\x80\xa2 \"Sistema RAG in Python che indicizza PDF e risponde a domande con citazioni\"\n"
+        "  \xe2\x80\xa2 \"Pipeline 3 agenti: Analista \xe2\x86\x92 Programmatore \xe2\x86\x92 Tester per un parser CSV\"\n"
+        "  \xe2\x80\xa2 \"Refactoring con pattern Strategy di questo codice C++\"\n"
+        "  \xe2\x80\xa2 \"Test unitari completi (pytest) per una classe BankAccount\"");
+    taskLay->addWidget(m_agentTask);
+    lay->addWidget(taskGroup);
+
+    /* ── Selezione modello ── */
+    auto* modelRow = new QWidget(w);
+    auto* modelLay = new QHBoxLayout(modelRow);
+    modelLay->setContentsMargins(0, 0, 0, 0);
+    modelLay->setSpacing(8);
+
+    auto* lblModel = new QLabel("\xf0\x9f\xa4\x96  Modello AI:", modelRow);
+    lblModel->setObjectName("cardDesc");
+    modelLay->addWidget(lblModel);
+
+    m_agentModel = new QComboBox(modelRow);
+    m_agentModel->setObjectName("settingCombo");
+    m_agentModel->addItem(
+        m_ai ? (m_ai->model().isEmpty() ? "(nessun modello)" : m_ai->model())
+             : "(AI non disponibile)",
+        m_ai ? m_ai->model() : QString());
+    modelLay->addWidget(m_agentModel, 1);
+
+    auto* btnRefAgent = new QPushButton("\xf0\x9f\x94\x84", modelRow);
+    btnRefAgent->setObjectName("actionBtn");
+    btnRefAgent->setFixedWidth(32);
+    btnRefAgent->setToolTip("Aggiorna lista modelli disponibili");
+    modelLay->addWidget(btnRefAgent);
+    lay->addWidget(modelRow);
+
+    /* ── Output agente ── */
+    auto* outGroup = new QGroupBox("\xf0\x9f\xa4\x96  Output agente (streaming)", w);
+    outGroup->setObjectName("cardGroup");
+    auto* outLay  = new QVBoxLayout(outGroup);
+    outLay->setContentsMargins(4, 8, 4, 4);
+    outLay->setSpacing(6);
+
+    m_agentOutput = new QTextEdit(outGroup);
+    m_agentOutput->setObjectName("chatLog");
+    m_agentOutput->setReadOnly(true);
+    m_agentOutput->setFont(monoFont);
+    m_agentOutput->setPlaceholderText(
+        "L'output dell'agente appari\xc3\xa0 qui in streaming...\n\n"
+        "Scrivi il task sopra e premi \xe2\x96\xb6 Genera.");
+    outLay->addWidget(m_agentOutput, 1);
+
+    /* Pulsanti sotto l'output */
+    auto* outBtnRow = new QWidget(outGroup);
+    auto* outBtnLay = new QHBoxLayout(outBtnRow);
+    outBtnLay->setContentsMargins(0, 2, 0, 0);
+    outBtnLay->setSpacing(8);
+
+    m_btnAgentInsert = new QPushButton(
+        "\xe2\x86\x91  Apri in editor Programmazione", outBtnRow);
+    m_btnAgentInsert->setObjectName("actionBtn");
+    m_btnAgentInsert->setEnabled(false);
+    m_btnAgentInsert->setToolTip(
+        "Estrae il primo blocco codice e lo apre nel tab \xf0\x9f\x92\xbb Programmazione");
+    outBtnLay->addWidget(m_btnAgentInsert);
+
+    auto* btnClearAgent = new QPushButton(
+        "\xf0\x9f\x97\x91  Pulisci output", outBtnRow);
+    btnClearAgent->setObjectName("actionBtn");
+    outBtnLay->addWidget(btnClearAgent);
+    outBtnLay->addStretch(1);
+
+    outLay->addWidget(outBtnRow);
+    lay->addWidget(outGroup, 1);
+
+    /* ══════════════════════════════════════════════════════════
+       Connessioni — Agentica
+       ══════════════════════════════════════════════════════════ */
+
+    /* Popola modelli per il tab Agentica */
+    auto populateAgentModels = [this]() {
+        if (!m_ai) return;
+        m_agentModel->setEnabled(false);
+        const QString cur = m_ai->model();
+        auto* holder = new QObject(this);
+        connect(m_ai, &AiClient::modelsReady, holder,
+                [this, holder, cur](const QStringList& list) {
+            holder->deleteLater();
+            m_agentModel->clear();
+            bool foundCur = false;
+            for (const QString& mdl : list) {
+                const QString n = mdl.toLower();
+                const bool isEmbed = n.contains("embed") || n.contains("minilm") ||
+                                     n.contains("rerank") || n.contains("bge-");
+                if (isEmbed) continue;
+                m_agentModel->addItem(mdl, mdl);
+                if (mdl == cur) foundCur = true;
+            }
+            if (m_agentModel->count() == 0)
+                m_agentModel->addItem(cur.isEmpty() ? "(nessun modello)" : cur, cur);
+            else if (foundCur)
+                m_agentModel->setCurrentText(cur);
+            m_agentModel->setEnabled(true);
+        });
+        m_ai->fetchModels();
+    };
+
+    connect(btnRefAgent, &QPushButton::clicked, this, populateAgentModels);
+    QTimer::singleShot(0, this, [populateAgentModels]{ populateAgentModels(); });
+
+    /* Genera */
+    connect(m_btnAgentRun, &QPushButton::clicked, this, [this]{ runAgente(); });
+
+    /* Stop */
+    connect(m_btnAgentStop, &QPushButton::clicked, this, [this]{
+        if (m_ai && m_ai->busy()) m_ai->abort();
+    });
+
+    /* Pulisci */
+    connect(btnClearAgent, &QPushButton::clicked, this, [this]{
+        m_agentOutput->clear();
+        m_btnAgentInsert->setEnabled(false);
+    });
+
+    /* Apri in editor Programmazione */
+    connect(m_btnAgentInsert, &QPushButton::clicked, this, [this]{
+        /* Estrai il primo blocco codice dall'output */
+        const QString text = m_agentOutput->toPlainText();
+        static const QRegularExpression reFence(
+            R"(```[a-zA-Z]*\n([\s\S]*?)```)",
+            QRegularExpression::MultilineOption);
+        const auto match = reFence.match(text);
+        const QString code = match.hasMatch()
+                             ? match.captured(1)
+                             : text;
+        if (code.trimmed().isEmpty()) return;
+        m_editor->setPlainText(code.trimmed());
+        /* Torna al tab Programmazione (indice 0) */
+        if (m_innerTabs) m_innerTabs->setCurrentIndex(0);
+    });
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   runAgente — esegue la generazione agentica AI
+   Costruisce il system prompt in base al tipo di agente scelto
+   e lancia la chiamata streaming a m_ai->chat().
+   ══════════════════════════════════════════════════════════════ */
+void ProgrammazionePage::runAgente()
+{
+    if (!m_ai || !m_agentTask) return;
+
+    const QString task = m_agentTask->toPlainText().trimmed();
+    if (task.isEmpty()) {
+        m_agentOutput->setPlainText(
+            "\xe2\x9d\x8c  Scrivi una descrizione del task prima di premere Genera.");
+        return;
+    }
+    if (m_ai->busy()) {
+        m_agentOutput->setPlainText(
+            "\xe2\x9a\xa0\xef\xb8\x8f  AI occupata. Attendi o premi Stop.");
+        return;
+    }
+
+    const QString tipo = m_agentType ? m_agentType->currentData().toString() : "pipeline";
+    const QString lang = m_agentLang ? m_agentLang->currentText() : "Python";
+
+    /* Applica il modello scelto nel tab Agentica */
+    if (m_agentModel) {
+        const QString sel = m_agentModel->currentData().toString();
+        if (!sel.isEmpty() && sel != m_ai->model())
+            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
+    }
+
+    /* ── Costruzione system prompt in base al tipo agente ── */
+    QString sys;
+    QString user;
+
+    if (tipo == "pipeline") {
+        sys = QString(
+            "Sei un architetto software esperto in sistemi multi-agente. "
+            "Il tuo compito \xc3\xa8 progettare e implementare una pipeline a 3 agenti in %1:\n"
+            "  Agente 1 (Analista): analizza il problema, estrae requisiti\n"
+            "  Agente 2 (Implementatore): scrive il codice completo\n"
+            "  Agente 3 (Tester): genera test unitari per il codice\n\n"
+            "Per ogni agente:\n"
+            "1. Mostra il prompt/istruzione che riceve\n"
+            "2. Mostra il codice che produce in un blocco ```%2 ... ```\n"
+            "3. Breve spiegazione\n\n"
+            "Usa commenti in italiano. Rispondi SEMPRE in italiano.").arg(lang, lang.toLower());
+        user = QString("Task: %1").arg(task);
+
+    } else if (tipo == "rag") {
+        sys = QString(
+            "Sei un esperto di sistemi RAG (Retrieval-Augmented Generation) in %1. "
+            "Implementa un sistema RAG completo che:\n"
+            "  1. Indicizza documenti (chunking + embedding)\n"
+            "  2. Cerca i chunk rilevanti per una query (similarit\xc3\xa0 coseno)\n"
+            "  3. Costruisce il prompt con i chunk trovati\n"
+            "  4. Chiama il LLM e restituisce la risposta con citazioni\n\n"
+            "Usa llama.cpp / Ollama HTTP API per l'inferenza locale. "
+            "Struttura il codice in classi/funzioni chiare. "
+            "Includi un blocco ```%2 ... ``` con il codice completo. "
+            "Commenta in italiano. Rispondi SEMPRE in italiano.").arg(lang, lang.toLower());
+        user = QString("Costruisci: %1").arg(task);
+
+    } else if (tipo == "refactor") {
+        sys = QString(
+            "Sei un esperto di refactoring e design pattern in %1. "
+            "Analizza il codice richiesto e:\n"
+            "  1. Identifica i problemi (smell, violazioni SOLID, duplicazioni)\n"
+            "  2. Proponi il design pattern pi\xc3\xb9 adatto\n"
+            "  3. Scrivi il codice refactored completo in ```%2 ... ```\n"
+            "  4. Lista le modifiche applicate (puntato)\n\n"
+            "Commenta le decisioni architetturali. Rispondi SEMPRE in italiano.").arg(lang, lang.toLower());
+        user = QString("Refactoring richiesto: %1").arg(task);
+
+    } else if (tipo == "testgen") {
+        sys = QString(
+            "Sei un esperto di testing e TDD in %1. "
+            "Genera una suite di test unitari completa che:\n"
+            "  1. Copre tutti i casi normali (happy path)\n"
+            "  2. Copra i casi limite (edge cases: valori vuoti, None/null, overflow)\n"
+            "  3. Includa test negativi (input invalidi, eccezioni attese)\n"
+            "  4. Usi il framework pi\xc3\xb9 appropriato (pytest per Python, etc.)\n\n"
+            "Mostra i test in un blocco ```%2 ... ```. "
+            "Aggiungi commenti esplicativi in italiano. Rispondi SEMPRE in italiano.").arg(lang, lang.toLower());
+        user = QString("Genera test per: %1").arg(task);
+
+    } else if (tipo == "debug") {
+        sys = QString(
+            "Sei un esperto debugger che usa un approccio a 3 step in %1:\n"
+            "  Step 1 (Analisi): identifica tutti i potenziali bug e le cause radice\n"
+            "  Step 2 (Fix): scrivi il codice corretto in ```%2 ... ```\n"
+            "  Step 3 (Verifica): spiega come verificare che i bug siano risolti\n\n"
+            "Per ogni bug trovato: descrivi il problema, la causa, e il fix applicato. "
+            "Rispondi SEMPRE in italiano.").arg(lang, lang.toLower());
+        user = QString("Analizza e correggi: %1").arg(task);
+
+    } else { /* byzantine */
+        sys = QString(
+            "Sei un sistema a 4 agenti anti-allucinazione (Motore Byzantino) per codice %1:\n\n"
+            "  Agente A (Originale): genera la soluzione\n"
+            "  Agente B (Avvocato del Diavolo): trova attivamente errori in A\n"
+            "  Agente C (Gemello indipendente): risolve lo stesso problema da zero\n"
+            "  Agente D (Giudice): confronta A e C, valuta le critiche di B, emette la soluzione finale\n\n"
+            "Per ogni agente mostra il suo ragionamento e l'output. "
+            "La soluzione finale di D deve essere in un blocco ```%2 ... ```. "
+            "Commenta in italiano. Rispondi SEMPRE in italiano.").arg(lang, lang.toLower());
+        user = QString("Task da risolvere con Motore Byzantino: %1").arg(task);
+    }
+
+    /* ── Avvio streaming ── */
+    m_agentOutput->clear();
+    {
+        const QString modelName = m_ai->model().isEmpty() ? "AI" : m_ai->model();
+        const QString tipoLabel = m_agentType
+            ? m_agentType->currentText()
+            : tipo;
+        m_agentOutput->setPlainText(
+            QString("\xf0\x9f\xa4\x96  Modello: %1\n"
+                    "\xf0\x9f\x94\xa7  Tipo: %2\n"
+                    "\xf0\x9f\x92\xbb  Linguaggio: %3\n%4\n\n")
+            .arg(modelName, tipoLabel, lang,
+                 QString(qMax(modelName.length(), 20), '-')));
+    }
+    m_btnAgentRun->setEnabled(false);
+    m_btnAgentStop->setEnabled(true);
+    m_btnAgentInsert->setEnabled(false);
+
+    if (m_agentTokenHolder) { delete m_agentTokenHolder; m_agentTokenHolder = nullptr; }
+    m_agentTokenHolder = new QObject(this);
+
+    connect(m_ai, &AiClient::token, m_agentTokenHolder, [this](const QString& tok){
+        m_agentOutput->moveCursor(QTextCursor::End);
+        m_agentOutput->insertPlainText(tok);
+        m_agentOutput->ensureCursorVisible();
+    });
+    connect(m_ai, &AiClient::finished, m_agentTokenHolder, [this](const QString&){
+        if (m_agentTokenHolder) { delete m_agentTokenHolder; m_agentTokenHolder = nullptr; }
+        m_btnAgentRun->setEnabled(true);
+        m_btnAgentStop->setEnabled(false);
+        /* Abilita "Apri in editor" solo se c'è un blocco codice */
+        const QString text = m_agentOutput->toPlainText();
+        m_btnAgentInsert->setEnabled(text.contains("```"));
+    });
+    connect(m_ai, &AiClient::error, m_agentTokenHolder, [this](const QString& msg){
+        if (m_agentTokenHolder) { delete m_agentTokenHolder; m_agentTokenHolder = nullptr; }
+        m_btnAgentRun->setEnabled(true);
+        m_btnAgentStop->setEnabled(false);
+        m_agentOutput->moveCursor(QTextCursor::End);
+        m_agentOutput->insertPlainText(QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
     });
 
     m_ai->chat(sys, user);

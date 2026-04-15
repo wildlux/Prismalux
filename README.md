@@ -7,7 +7,7 @@
 ### *"Costruito per i mortali che aspirano alla saggezza."*
 
 [![C++/Qt6](https://img.shields.io/badge/GUI-C%2B%2B%20%2F%20Qt6-green?style=flat-square&logo=qt)](https://www.qt.io/)
-[![Version](https://img.shields.io/badge/versione-2.3-blue?style=flat-square)](CHANGELOG)
+[![Version](https://img.shields.io/badge/versione-2.4-blue?style=flat-square)](CHANGELOG)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-informational?style=flat-square)](https://github.com/wildlux/Prismalux)
 [![Build](https://img.shields.io/badge/Build-CMake%20%2B%20Qt6-brightgreen?style=flat-square)](C_software/Qt_GUI/CMakeLists.txt)
@@ -139,7 +139,7 @@ L'interfaccia è organizzata in **9 pagine** accessibili da sidebar o con `Alt+N
 | 2 | 🔮 **Oracolo** | `Alt+2` | Chat singola streaming · History compression · RAG contestuale |
 | 3 | 📐 **Matematica** | `Alt+3` | Sequenza→Formula · Costanti precisione arbitraria · N-esimo · Espressione locale |
 | 4 | 📊 **Grafico** | `Alt+4` | 45+ tipi di grafico · zoom/pan · export PNG · analisi AI immagine |
-| 5 | 💻 **Programmazione** | `Alt+5` | Editor + correzione AI · esecuzione Python · sandbox con conferma |
+| 5 | 💻 **Programmazione** | `Alt+5` | Editor + correzione AI · esecuzione Python · **sub-tab Agentica** (pipeline, RAG, refactor, testgen, debug, byzantino) |
 | 6 | 💰 **Strumenti** | `Alt+6` | Assistente 730 · Partita IVA · Mutuo · PAC · Pensione INPS · Cerca Lavoro |
 | 7 | 📚 **Impara** | `Alt+7` | Tutor AI · Simulatore 110 algoritmi · Quiz interattivi |
 | 8 | 🔭 **Materie** | `Alt+8` | Studio per materia (fisica, chimica, storia, diritto…) |
@@ -160,10 +160,32 @@ Pipeline attiva:
 ```
 
 - **Invio = risposta singola rapida** (`⚡ Singolo` — 1 agente): per domande veloci senza attendere la pipeline completa. Il pulsante `▶ Avvia` lancia la pipeline multi-agente solo con click esplicito.
-- **Modello sincronizzato**: il modello impostato in Impostazioni (o da qualsiasi altro tab) viene propagato automaticamente a tutti i tab principali senza dover rientrare.
+- **Modello sincronizzato**: il modello impostato in Impostazioni (o da qualsiasi altro tab) viene propagato automaticamente a tutti i tab via segnale `AiClient::modelChanged` — Agenti, Agentica, Matematica, Oracolo usano tutti la stessa fonte senza feedback loop.
 - **TTS** (Text-to-Speech): risposta AI letta ad alta voce (Piper + aplay su Linux, SAPI su Windows) — catena sicura senza shell intermediaria
 - **STT** (Speech-to-Text): dettatura con Whisper locale
 - **Correggi con AI**: rileva il codice nell'ultima risposta, lo riesegue, corregge automaticamente fino a N volte
+
+### Tab Programmazione — sub-tab Agentica
+
+Il tab Programmazione contiene due schede interne:
+
+| Sub-tab | Contenuto |
+|---------|-----------|
+| `💻 Programmazione` | Editor codice + correzione AI + esecuzione Python sandbox |
+| `🤖 Agentica` | 6 tipi di agente AI con streaming output |
+
+**Tipi di agente disponibili**:
+
+| Tipo | Comportamento |
+|------|--------------|
+| Pipeline 6 agenti | Analizza → Progetta → Implementa → Testa → Ottimizza → Documenta |
+| RAG + Codice | Recupera contesto dai documenti in `RAG/`, genera codice contestuale |
+| Refactor | Analizza e ristruttura il codice fornito |
+| Genera Test | Crea suite di test unitari/integrazione |
+| Debug assistito | Diagnosi sistematica + fix del bug |
+| Byzantino | 3 prospettive indipendenti + sintesi anti-allucinazione |
+
+Il pulsante **"Apri in editor"** estrae il primo blocco di codice dall'output e lo inserisce direttamente nel tab Programmazione.
 
 ### Tab Grafico — 45+ tipi
 
@@ -323,13 +345,17 @@ Prismalux include un motore RAG locale che arricchisce le risposte AI con i tuoi
 Configurazione in Impostazioni → RAG:
 
 ```
-Cartella documenti: ~/prismalux_rag_docs/
+Cartella documenti: Prismalux/RAG/        ← default aggiornato
 Risultati per query: 5
 JLT transform: on/off (riduzione dimensioni embedding)
 No-persist: mantieni indice solo in memoria (modalità privacy)
 
 [ ⏹  Ferma indicizzazione ]  [ 🔄 Reindicizza ora ]
 ```
+
+La cartella `RAG/` nella root del progetto è la directory default per i documenti.  
+Contiene ad esempio `2103.00564v1.pdf` — paper Johnson–Lindenstrauss Transforms, lo stesso
+algoritmo usato internamente dal motore RAG per la proiezione degli embedding.
 
 ---
 
@@ -418,18 +444,42 @@ cmake --build build_tests -j$(nproc)
 
 `test_rag_engine` include test su comportamento di sessione già indicizzata (test 11–15): verifica che l'indice caricato da disco produca gli stessi risultati dell'indice in memoria, che il top-k sia preservato, e che una reindicizzazione fallita non sovrascriva i dati validi.
 
-### Test prompt per livello utente
+### Test Python — cartella `Test/`
 
 ```bash
-cd Prismalux
-python3 test_prompt_levels.py --models mistral:7b-instruct qwen3:4b --save
+cd Prismalux/Test
+python3 test_prompt_levels.py   # benchmark LLM multi-livello
+python3 test_rag_paper.py       # domande sul paper JLT con simulazione RAG
+python3 test_brutal_honesty.py  # verifica onestà AI su affermazioni false
+python3 test_math_column_shift.py  # tracciamento variabili + somme colonne
 ```
 
-16 scenari (4 livelli × 4 domande):
+Tutti i test Python condividono `test_utils.py` (helper `ask_ollama`, `bar`).
+
+#### `test_prompt_levels.py` — 16 scenari (4 livelli × 4 domande)
 - **L1**: utente con poca esperienza (prompt brevi, vaghi)
 - **L2**: esperienza media (domande chiare, keyword tecniche)
 - **L3**: alta esperienza (prompt strutturati, multi-step)
 - **L4**: prompt engineering avanzato (zero-shot, chain-of-thought)
+
+#### `test_rag_paper.py` — simulazione RAG completa
+
+Testa il flusso RAG end-to-end su `RAG/2103.00564v1.pdf`:
+1. Estrae testo dal PDF (`pdftotext` → fallback `pypdf`)
+2. Seleziona chunk rilevanti per keyword scoring
+3. Inietta il contesto nel system prompt
+4. Verifica keyword nella risposta
+
+Risultati (qwen2.5-coder:7b): **5/5 ✅ 100%**
+
+#### Risultati test per modello
+
+| Test | qwen2.5-coder:7b | Note |
+|------|-----------------|------|
+| `test_rag_paper` | **5/5 (100%)** | Con contesto RAG |
+| `test_brutal_honesty` | **9/15 (60%)** | Verifica critica affermazioni |
+| `test_math_column_shift` | **2/8 (25%)** | 5 timeout — tracciamento variabili limite |
+| `test_prompt_levels` | 66.2/100 (mistral) | 55.4/100 (qwen3:4b) |
 
 ---
 
@@ -502,7 +552,15 @@ Prismalux/
 │           ├── test_code_utils.cpp
 │           └── mock_ai_client.h
 │
-└── test_prompt_levels.py            ← benchmark LLM multi-livello
+├── RAG/                             ← documenti per il motore RAG
+│   └── 2103.00564v1.pdf             ← paper Johnson–Lindenstrauss Transforms
+│
+└── Test/                            ← test Python automatici
+    ├── test_utils.py                ← helper condiviso (ask_ollama, bar)
+    ├── test_prompt_levels.py        ← benchmark LLM 4 livelli × 4 domande
+    ├── test_rag_paper.py            ← simulazione RAG su paper JLT (5/5 ✅)
+    ├── test_brutal_honesty.py       ← onestà AI su affermazioni false
+    └── test_math_column_shift.py    ← tracciamento variabili multiple
 ```
 
 ---

@@ -1270,8 +1270,16 @@ QWidget* ImpostazioniPage::buildRagTab()
     dirEdit->setObjectName("inputLine");
     dirEdit->setPlaceholderText("/percorso/documenti/");
     {
+        /* Default: cartella RAG nella root del progetto Prismalux */
+        const QString defaultRagDir =
+            QDir::cleanPath(P::root() + "/../RAG");
         QSettings s("Prismalux", "GUI");
-        dirEdit->setText(s.value(P::SK::kRagDocsDir, "").toString());
+        QString saved = s.value(P::SK::kRagDocsDir, "").toString();
+        if (saved.isEmpty()) {
+            saved = defaultRagDir;
+            s.setValue(P::SK::kRagDocsDir, saved);
+        }
+        dirEdit->setText(saved);
     }
     auto* browseBtn = new QPushButton("Sfoglia...");
     browseBtn->setObjectName("actionBtn");

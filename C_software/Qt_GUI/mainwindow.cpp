@@ -436,6 +436,52 @@ QWidget* MainWindow::buildHeader() {
     });
     lay->addWidget(btnHamburger);
 
+    /* ── Messaggi (📋) — accanto all'hamburger, con badge non-letti ── */
+    {
+        /* Container [pulsante + badge] in riga orizzontale */
+        auto* logWrap = new QWidget(hdr);
+        logWrap->setFixedSize(46, 36);
+        m_logBtn = new QPushButton("\xf0\x9f\x93\x8b", logWrap);  /* 📋 */
+        m_logBtn->setObjectName("hamburgerBtn");
+        m_logBtn->setFixedSize(36, 36);
+        m_logBtn->setToolTip("Messaggi \xe2\x80\x94 log eventi, errori AI, backend, pipeline");
+        m_logBtn->move(0, 0);
+
+        m_logBadge = new QLabel("", logWrap);
+        m_logBadge->setAlignment(Qt::AlignCenter);
+        m_logBadge->setFixedSize(16, 16);
+        m_logBadge->setVisible(false);
+        m_logBadge->setStyleSheet(
+            "background:#e03030; color:#fff; border-radius:8px;"
+            "font-size:9px; font-weight:bold;");
+        m_logBadge->move(28, 0);   /* angolo in alto a destra del pulsante */
+
+        connect(m_logBtn, &QPushButton::clicked, this, [this]{
+            ensureLogDialog();
+            m_logUnread = 0;
+            m_logBadge->setVisible(false);
+            m_logDlg->show();
+            m_logDlg->raise();
+            m_logDlg->activateWindow();
+        });
+        lay->addWidget(logWrap);
+    }
+
+    /* ── Impostazioni (⚙️) — accanto a Messaggi ── */
+    m_settingsBtn = new QPushButton("\xe2\x9a\x99\xef\xb8\x8f", hdr);  /* ⚙️ */
+    m_settingsBtn->setObjectName("hamburgerBtn");
+    m_settingsBtn->setFixedSize(36, 36);
+    m_settingsBtn->setToolTip("Impostazioni \xe2\x80\x94 Backend, Hardware, Monitor AI, llama.cpp");
+    connect(m_settingsBtn, &QPushButton::clicked, this, [this]{
+        ensureSettingsDialog();
+        m_impDlg->show();
+        m_impDlg->raise();
+        m_impDlg->activateWindow();
+    });
+    lay->addWidget(m_settingsBtn);
+
+    lay->addSpacing(4);  /* piccolo gap visivo prima del logo */
+
     /* Logo */
     auto* beer = new QLabel("🍺", hdr);
     beer->setObjectName("headerBeer");
@@ -1295,100 +1341,6 @@ QWidget* MainWindow::buildSidebar() {
     refreshChatList();
 
     m_sidebarWidget = bar;
-
-    /* ── Separatore inferiore ── */
-    auto* sepBot = new QFrame(bar);
-    sepBot->setFrameShape(QFrame::HLine);
-    sepBot->setObjectName("sidebarSep");
-    lay->addWidget(sepBot);
-
-    /* ── Bottone Messaggi / Log ── */
-    m_logBtn = new QPushButton(bar);
-    m_logBtn->setObjectName("navBtn");
-    m_logBtn->setFlat(true);
-    m_logBtn->setFixedHeight(44);
-    m_logBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    m_logBtn->setToolTip("Messaggi \xe2\x80\x94 log eventi, errori AI, backend, pipeline");
-
-    {
-        auto* lw  = new QWidget(m_logBtn);
-        auto* lwl = new QHBoxLayout(lw);
-        lwl->setContentsMargins(12, 0, 8, 0);
-        lwl->setSpacing(10);
-
-        auto* lico = new QLabel("\xf0\x9f\x93\x8b", lw);  /* 📋 */
-        lico->setObjectName("cardIcon");
-        lico->setFixedWidth(24);
-        lico->setAlignment(Qt::AlignCenter);
-
-        auto* ltitle = new QLabel("Messaggi", lw);
-        ltitle->setObjectName("cardTitle");
-
-        /* Badge messaggi non letti — inizialmente nascosto */
-        m_logBadge = new QLabel("", lw);
-        m_logBadge->setObjectName("logBadge");
-        m_logBadge->setAlignment(Qt::AlignCenter);
-        m_logBadge->setFixedSize(20, 20);
-        m_logBadge->setVisible(false);
-        m_logBadge->setStyleSheet(
-            "background:#e03030; color:#fff; border-radius:10px;"
-            "font-size:10px; font-weight:bold;");
-
-        lwl->addWidget(lico);
-        lwl->addWidget(ltitle, 1);
-        lwl->addWidget(m_logBadge);
-
-        auto* lbtnLay = new QHBoxLayout(m_logBtn);
-        lbtnLay->setContentsMargins(0, 0, 0, 0);
-        lbtnLay->addWidget(lw);
-    }
-
-    connect(m_logBtn, &QPushButton::clicked, this, [this]{
-        ensureLogDialog();
-        /* Reset badge non-letti */
-        m_logUnread = 0;
-        m_logBadge->setVisible(false);
-        m_logDlg->show();
-        m_logDlg->raise();
-        m_logDlg->activateWindow();
-    });
-    lay->addWidget(m_logBtn);
-
-    /* ── Bottone Impostazioni (stile ChatGPT — in fondo alla sidebar) ── */
-    m_settingsBtn = new QPushButton(bar);
-    m_settingsBtn->setObjectName("navBtn");
-    m_settingsBtn->setFlat(true);
-    m_settingsBtn->setFixedHeight(44);
-    m_settingsBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    m_settingsBtn->setToolTip("Impostazioni — Backend, Hardware, Monitor AI, llama.cpp");
-
-    auto* sw  = new QWidget(m_settingsBtn);
-    auto* swl = new QHBoxLayout(sw);
-    swl->setContentsMargins(12, 0, 8, 0);
-    swl->setSpacing(10);
-
-    auto* sico = new QLabel("\xe2\x9a\x99\xef\xb8\x8f", sw);  /* ⚙️ */
-    sico->setObjectName("cardIcon");
-    sico->setFixedWidth(24);
-    sico->setAlignment(Qt::AlignCenter);
-
-    auto* stitle = new QLabel("Impostazioni", sw);
-    stitle->setObjectName("cardTitle");
-
-    swl->addWidget(sico);
-    swl->addWidget(stitle, 1);
-
-    auto* sbtnLay = new QHBoxLayout(m_settingsBtn);
-    sbtnLay->setContentsMargins(0, 0, 0, 0);
-    sbtnLay->addWidget(sw);
-
-    connect(m_settingsBtn, &QPushButton::clicked, this, [this]{
-        ensureSettingsDialog();
-        m_impDlg->show();
-        m_impDlg->raise();
-        m_impDlg->activateWindow();
-    });
-    lay->addWidget(m_settingsBtn);
 
     return bar;
 }
