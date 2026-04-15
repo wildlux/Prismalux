@@ -39,6 +39,7 @@ set(CPP_SRCS
     pages/agenti_page_files.cpp
     pages/agenti_page_models.cpp
     pages/agenti_page_math.cpp
+    pages/agenti_page_tools.cpp
     pages/agenti_page_pipeline.cpp
     pages/agenti_page_byzantine.cpp
     pages/agenti_page_bubbles.cpp
@@ -197,9 +198,21 @@ if(BUILD_TESTS)
         target_link_libraries(test_code_utils PRIVATE pthread m)
     endif()
 
+    # ── test_random_tool: _inject_random da agenti_page_tools.cpp ──
+    add_executable(test_random_tool
+        tests/test_random_tool.cpp
+        pages/agenti_page_tools.cpp
+    )
+    target_include_directories(test_random_tool PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_random_tool PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_random_tool PRIVATE pthread m)
+    endif()
+
     enable_testing()
     add_test(NAME SignalLifetime COMMAND test_signal_lifetime)
     add_test(NAME RagEngine     COMMAND test_rag_engine)
     add_test(NAME CodeUtils     COMMAND test_code_utils)
-    message(STATUS "Build test abilitata: test_signal_lifetime, test_rag_engine, test_code_utils")
+    add_test(NAME RandomTool    COMMAND test_random_tool)
+    message(STATUS "Build test abilitata: test_signal_lifetime, test_rag_engine, test_code_utils, test_random_tool")
 endif()

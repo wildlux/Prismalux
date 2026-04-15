@@ -159,7 +159,7 @@ void AgentiPage::runPipeline() {
     if (!m_docContext.isEmpty()) {
         task += "\n\n--- DOCUMENTO ALLEGATO ---\n" + m_docContext.left(8000);
     }
-    m_taskOriginal = _inject_math(task);
+    m_taskOriginal = _inject_random(_inject_math(task));
     m_agentOutputs.clear();
     m_currentAgent = 0;
     m_maxShots     = m_cfgDlg->numAgents();

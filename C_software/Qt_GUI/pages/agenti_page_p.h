@@ -66,3 +66,7 @@ QString _buildSys(const QString& task, const QString& full,
 QString _buildSys(const QString& task, const QString& full,
                   const QString& modelName, AiClient::Backend backend);
 QString _inject_math(const QString& task);
+/** Inietta numeri casuali reali nel task se l'utente li richiede.
+ *  Usa std::random_device + std::mt19937 (= randomize C nativo con seed crittografico).
+ *  Definita in agenti_page_tools.cpp. */
+QString _inject_random(const QString& task);
