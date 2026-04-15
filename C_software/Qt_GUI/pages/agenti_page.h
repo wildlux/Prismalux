@@ -12,6 +12,7 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QVector>
+#include <QPointF>
 #include <QStack>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -60,6 +61,11 @@ signals:
     void pipelineStatus(int pct, const QString& text);
     /** Chiede a MainWindow di aprire le Impostazioni sul tab indicato (es. "trascrivi") */
     void requestOpenSettings(const QString& tabName);
+    /** Chiede a MainWindow di mostrare un grafico nel tab Grafico (Alt+3).
+     *  Se @p formula è non vuota → grafico cartesiano y=f(x) su [xMin, xMax].
+     *  Se @p formula è vuota e @p points non è vuoto → scatter di punti. */
+    void requestShowInGrafico(QString formula, double xMin, double xMax,
+                              QVector<QPointF> points);
 
 private:
     AiClient*           m_ai;

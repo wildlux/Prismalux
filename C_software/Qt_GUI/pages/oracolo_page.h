@@ -36,6 +36,13 @@ class OracoloPage : public QWidget {
 public:
     explicit OracoloPage(AiClient* ai, QWidget* parent = nullptr);
 
+signals:
+    /** Chiede a MainWindow di mostrare un grafico nel tab Grafico (Alt+3).
+     *  Se @p formula è non vuota → cartesiano y=f(x) su [xMin, xMax].
+     *  Se @p formula è vuota e @p points non è vuoto → scatter di punti. */
+    void requestShowInGrafico(QString formula, double xMin, double xMax,
+                              QVector<QPointF> points);
+
 private slots:
     void sendMessage();
     void attachImage();

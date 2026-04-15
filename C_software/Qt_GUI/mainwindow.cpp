@@ -1446,6 +1446,18 @@ QWidget* MainWindow::buildContent() {
         m_impDlg->activateWindow();
         if (m_impPage) m_impPage->switchToTab(tabName);
     });
+    connect(agentiPage, &AgentiPage::requestShowInGrafico,
+            this, [this](const QString& formula, double xMin, double xMax,
+                         const QVector<QPointF>& points){
+        if (!m_grafCanvas) return;
+        /* Naviga al tab Grafico (indice 2) */
+        if (m_mainTabs) m_mainTabs->setCurrentIndex(2);
+        /* Plotta: formula cartesiana oppure scatter di punti */
+        if (!formula.isEmpty())
+            m_grafCanvas->setCartesian(formula, xMin, xMax);
+        else if (!points.isEmpty())
+            m_grafCanvas->setScatter(points);
+    });
 
     m_mainTabs->addTab(agentiPage,                      "\xf0\x9f\xa4\x96  Agenti AI");          /* 0 */
     m_mainTabs->addTab(new StrumentiPage(m_ai, this),   "\xf0\x9f\x9b\xa0  Strumenti AI");     /* 1 */

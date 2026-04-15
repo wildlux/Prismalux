@@ -23,6 +23,7 @@ namespace P = PrismaluxPaths;
 #include <QScrollArea>
 #include <QDir>
 #include <QSettings>
+#include <QMessageBox>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <algorithm>
@@ -670,12 +671,37 @@ ChatBubble* OracoloPage::addAIBubble(const QString& senderName) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   onChartRequested — genera e incorpora il grafico nella bolla
+   _oracoloAskChartDest — chiede dove mostrare il grafico.
+   Ritorna true per "Sezione Grafico", false per inline nella bolla.
    ══════════════════════════════════════════════════════════════ */
+static bool _oracoloAskChartDest(QWidget* parent) {
+    QMessageBox dlg(parent);
+    dlg.setWindowTitle("Dove mostrare il grafico?");
+    dlg.setText(
+        "\xf0\x9f\x93\x88  \xc3\x88 stata rilevata una formula o un insieme di punti.\n\n"
+        "Vuoi mostrare il grafico <b>qui</b> nella bolla oppure aprire la sezione "
+        "<b>Grafico</b> dove puoi zoomare, esportare e personalizzarlo?");
+    dlg.setTextFormat(Qt::RichText);
+    dlg.setIcon(QMessageBox::Question);
+    auto* btnQui  = dlg.addButton("  \xf0\x9f\x96\xbc  Questa scheda  ", QMessageBox::AcceptRole);
+    auto* btnGraf = dlg.addButton("  \xf0\x9f\x93\x88  Sezione Grafico  ", QMessageBox::RejectRole);
+    dlg.setDefaultButton(btnQui);
+    Q_UNUSED(btnGraf)
+    dlg.exec();
+    return (dlg.clickedButton() == btnGraf);
+}
+
 /* ══════════════════════════════════════════════════════════════
    showCartesianChart — piano cartesiano con punti discreti
    ══════════════════════════════════════════════════════════════ */
 void OracoloPage::showCartesianChart(const QVector<QPointF>& points) {
+    if (_oracoloAskChartDest(this)) {
+        /* → tab Grafico */
+        emit requestShowInGrafico({}, 0.0, 0.0, points);
+        return;
+    }
+
+    /* → inline nella bolla */
     auto* bubble = addAIBubble("\xf0\x9f\x93\x8a  Piano Cartesiano");
 
     /* Descrizione testuale dei punti */
@@ -742,9 +768,16 @@ void OracoloPage::onChartRequested(ChatBubble* bubble, const QString& formula) {
         }
     }
 
-    auto pts = fp.sample(xMin, xMax, 500);
+    const auto pts = fp.sample(xMin, xMax, 500);
     if (pts.isEmpty()) return;
 
+    if (_oracoloAskChartDest(this)) {
+        /* → tab Grafico */
+        emit requestShowInGrafico(formula, xMin, xMax, {});
+        return;
+    }
+
+    /* → inline nella bolla */
     auto* chart = new ChartWidget;
     chart->setTitle(QString("y = %1").arg(formula));
     chart->setAxisLabels("x", "y");

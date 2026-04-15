@@ -683,17 +683,34 @@ void AgentiPage::onError(const QString& msg) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   tryShowChart — rileva formula o coppie di punti nel testo AI
-   e mostra il grafico nel pannello inferiore della pagina.
+   _askChartDestination — chiede all'utente dove mostrare il grafico.
+   Ritorna true se l'utente sceglie "Sezione Grafico", false per inline.
+   ══════════════════════════════════════════════════════════════ */
+static bool _askChartDestination(QWidget* parent) {
+    QMessageBox dlg(parent);
+    dlg.setWindowTitle("Dove mostrare il grafico?");
+    dlg.setText(
+        "\xf0\x9f\x93\x88  \xc3\x88 stata rilevata una formula o un insieme di punti.\n\n"
+        "Vuoi mostrare il grafico <b>qui</b> oppure aprire la sezione "
+        "<b>Grafico</b> dove puoi zoomare, esportare e personalizzarlo?");
+    dlg.setTextFormat(Qt::RichText);
+    dlg.setIcon(QMessageBox::Question);
+    auto* btnQui    = dlg.addButton("  \xf0\x9f\x96\xbc  Questa scheda  ", QMessageBox::AcceptRole);
+    auto* btnGraf   = dlg.addButton("  \xf0\x9f\x93\x88  Sezione Grafico  ", QMessageBox::RejectRole);
+    dlg.setDefaultButton(btnQui);
+    Q_UNUSED(btnGraf)
+    dlg.exec();
+    return (dlg.clickedButton() == btnGraf);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   tryShowChart — rileva formula o coppie di punti nel testo AI.
+   Chiede dove mostrare il grafico: inline oppure nel tab Grafico.
    Usa FormulaParser::tryExtract (pattern "y=..." o "f(x)=...")
    e FormulaParser::tryExtractPoints (coppie coordinate).
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::tryShowChart(const QString& text) {
     if (!m_chartPanel) return;
-
-    /* Rimuovi ChartWidget precedente */
-    const auto oldCharts = m_chartPanel->findChildren<ChartWidget*>();
-    for (auto* c : oldCharts) { c->setParent(nullptr); c->deleteLater(); }
 
     /* Intervallo x: cerca nel testo (es. "da x=-5 a x=5", "x ∈ [-10,10]") */
     double xMin = -10.0, xMax = 10.0;
@@ -704,8 +721,16 @@ void AgentiPage::tryShowChart(const QString& text) {
     if (!expr.isEmpty()) {
         FormulaParser fp(expr);
         if (fp.ok()) {
-            auto pts = fp.sample(xMin, xMax, 400);
+            const auto pts = fp.sample(xMin, xMax, 400);
             if (!pts.isEmpty()) {
+                if (_askChartDestination(this)) {
+                    /* → tab Grafico */
+                    emit requestShowInGrafico(expr, xMin, xMax, {});
+                    return;
+                }
+                /* → inline */
+                const auto oldCharts = m_chartPanel->findChildren<ChartWidget*>();
+                for (auto* c : oldCharts) { c->setParent(nullptr); c->deleteLater(); }
                 auto* chart = new ChartWidget(m_chartPanel);
                 chart->setTitle(expr);
                 chart->setAxisLabels("x", "y");
@@ -723,6 +748,14 @@ void AgentiPage::tryShowChart(const QString& text) {
     /* 2. Cerca coppie di coordinate "(x, y)" nel testo */
     const auto pts = FormulaParser::tryExtractPoints(text);
     if (pts.size() >= 2) {
+        if (_askChartDestination(this)) {
+            /* → tab Grafico */
+            emit requestShowInGrafico({}, xMin, xMax, pts);
+            return;
+        }
+        /* → inline */
+        const auto oldCharts = m_chartPanel->findChildren<ChartWidget*>();
+        for (auto* c : oldCharts) { c->setParent(nullptr); c->deleteLater(); }
         auto* chart = new ChartWidget(m_chartPanel);
         chart->setAxisLabels("x", "y");
         ChartWidget::Series s;
