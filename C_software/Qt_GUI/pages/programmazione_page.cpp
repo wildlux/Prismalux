@@ -669,6 +669,27 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
         const bool hasError = (m_lastExitCode != 0 && !m_lastError.isEmpty());
         triggerFix(hasError);
     });
+
+    /* Sincronizza il combo modello quando il modello cambia da Impostazioni o
+       da un'altra scheda. Cerca prima per data (nome esatto), poi per testo. */
+    connect(m_ai, &AiClient::modelChanged, this, [this](const QString& newModel) {
+        if (!m_modelCombo) return;
+        int idx = m_modelCombo->findData(newModel);
+        if (idx < 0) idx = m_modelCombo->findText(newModel, Qt::MatchContains);
+        if (idx >= 0 && idx != m_modelCombo->currentIndex()) {
+            m_modelCombo->blockSignals(true);
+            m_modelCombo->setCurrentIndex(idx);
+            m_modelCombo->blockSignals(false);
+        } else if (idx < 0) {
+            /* Modello non ancora nella lista (lista non ancora aggiornata):
+               aggiorna almeno la voce iniziale in modo da non mostrare il vecchio nome. */
+            m_modelCombo->blockSignals(true);
+            m_modelCombo->setItemText(0, newModel);
+            m_modelCombo->setItemData(0, newModel);
+            m_modelCombo->setCurrentIndex(0);
+            m_modelCombo->blockSignals(false);
+        }
+    });
 }
 
 /* ══════════════════════════════════════════════════════════════

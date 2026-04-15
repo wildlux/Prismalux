@@ -2,20 +2,19 @@
 
 <img src="https://img.shields.io/badge/Prismalux-AI%20Platform-cyan?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTEyIDJMMyA3bDkgNSA5LTV6TTMgMTdsOSA1IDktNXYtNWwtOSA1LTktNXoiLz48L3N2Zz4=" alt="Prismalux"/>
 
-# Prismalux
+# 🍺 Prismalux
 
 ### *"Costruito per i mortali che aspirano alla saggezza."*
 
-[![C](https://img.shields.io/badge/TUI-C%20puro-blue?style=flat-square&logo=c)](https://en.wikipedia.org/wiki/C_(programming_language))
-[![C++](https://img.shields.io/badge/GUI-C%2B%2B%20%2F%20Qt6-green?style=flat-square&logo=qt)](https://www.qt.io/)
-[![Python](https://img.shields.io/badge/Componenti-Python%203-yellow?style=flat-square&logo=python)](https://www.python.org/)
+[![C++/Qt6](https://img.shields.io/badge/GUI-C%2B%2B%20%2F%20Qt6-green?style=flat-square&logo=qt)](https://www.qt.io/)
+[![Version](https://img.shields.io/badge/versione-2.3-blue?style=flat-square)](CHANGELOG)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-897%2F897%20%E2%9C%85-brightgreen?style=flat-square)](#test-automatici)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-informational?style=flat-square)](https://github.com/wildlux/Prismalux)
+[![Build](https://img.shields.io/badge/Build-CMake%20%2B%20Qt6-brightgreen?style=flat-square)](C_software/Qt_GUI/CMakeLists.txt)
 
-**Piattaforma AI locale. TUI in C puro, GUI in C++/Qt6, componenti Python opzionali.**  
-Multi-agente, anti-allucinazione, matematica locale, simulatore algoritmi.  
-Zero dipendenze cloud. Zero abbonamenti. Gira tutto sul tuo hardware.
+**Piattaforma AI locale. GUI in C++/Qt6.**  
+Multi-agente, anti-allucinazione, matematica locale, 110 simulazioni algoritmi.  
+RAG in background con stop cooperativo. Zero dipendenze cloud. Zero abbonamenti. Tutto sul tuo hardware.
 
 </div>
 
@@ -24,95 +23,42 @@ Zero dipendenze cloud. Zero abbonamenti. Gira tutto sul tuo hardware.
 ## Indice
 
 - [Cos'è Prismalux](#cosè-prismalux)
-- [Funzionalità principali](#funzionalità-principali)
 - [Avvio rapido](#avvio-rapido)
 - [Compilazione](#compilazione)
-- [Backend AI](#backend-ai)
-- [GUI Qt6](#gui-qt6)
+- [GUI Qt6 — Tab e funzionalità](#gui-qt6--tab-e-funzionalità)
 - [Pipeline Multi-Agente](#pipeline-multi-agente)
-- [Motore Byzantino](#motore-byzantino-anti-allucinazione)
-- [Simulatore Algoritmi](#simulatore-algoritmi)
+- [Motore Byzantino (anti-allucinazione)](#motore-byzantino-anti-allucinazione)
+- [Classificatore query e think budget](#classificatore-query-e-think-budget)
 - [Motore Matematico Locale](#motore-matematico-locale)
+- [Simulatore Algoritmi](#simulatore-algoritmi-110-simulazioni)
+- [RAG — Retrieval-Augmented Generation](#rag--retrieval-augmented-generation)
+- [Classifica LLM open-weight](#classifica-llm-open-weight)
+- [Backend AI supportati](#backend-ai-supportati)
+- [Modelli consigliati](#modelli-consigliati)
 - [Test automatici](#test-automatici)
 - [Struttura del progetto](#struttura-del-progetto)
+- [Requisiti](#requisiti)
 
 ---
 
 ## Cos'è Prismalux
 
-Prismalux è una **piattaforma AI locale** con il nucleo scritto in **C puro**, la GUI grafica in **C++/Qt6** e componenti Python opzionali. Nasce dall'idea che l'intelligenza artificiale debba girare sul tuo hardware, rispettando la tua privacy, senza connessioni a cloud esterni.
+Prismalux è una **piattaforma AI locale** con GUI grafica in **C++/Qt6**. Nasce dall'idea che l'intelligenza artificiale debba girare sul tuo hardware, rispettando la tua privacy, senza connessioni a server esterni.
 
-| Componente | Linguaggio |
-|---|---|
-| TUI — pipeline agenti, math locale, simulatore, HTTP client | **C puro** |
-| GUI grafica — tutte le pagine e widget | **C++/Qt6** |
-| Wrapper llama.cpp (build statica) | **C++** |
-| Script build, AppImage, ZIP | **Bash / Python** |
-| Motore Python (opzionale) | **Python 3** |
+| Componente | Linguaggio | Descrizione |
+|---|---|---|
+| GUI grafica — tutte le pagine e widget | **C++/Qt6** | 10+ pagine, 45+ tipi grafico, TTS/STT |
+| Client AI (Ollama / llama-server) | **C++** | QNetworkAccessManager, streaming NDJSON |
+| Rilevamento hardware | **C** | CPU/GPU/RAM cross-platform |
+| Temi visivi | **QSS** | dark-cyan, dark-amber, dark-purple, light |
 
 ```
   ╔══════════════════════════════════════════════════════════╗
-  ║  🍺  PRISMALUX  —  AI Platform                         ║
-  ║  Backend: Ollama  ·  Modello: qwen2.5-coder:7b         ║
+  ║  🍺  PRISMALUX  v2.2  —  AI Platform                   ║
+  ║  Backend: Ollama  ·  Modello: qwen3:30b                 ║
   ║  CPU: ████████░░ 78%  RAM: █████░░░░░ 52%  GPU: 3.2GB  ║
   ╚══════════════════════════════════════════════════════════╝
 ```
-
-### Perché C per la TUI e C++/Qt6 per la GUI?
-
-| | Python (versione precedente) | **Prismalux (C + C++/Qt6)** |
-|---|---|---|
-| Avvio TUI | ~2–3 secondi | **istantaneo** |
-| Avvio GUI | ~1–2 secondi | **~0.3 secondi** |
-| Dipendenze TUI | Python + pip + 6 librerie + venv | **solo gcc** |
-| Dipendenze GUI | — | **Qt6** |
-| Math locale | no | **sì (~0.003 ms, zero token AI)** |
-| Multi-backend | solo Ollama | **Ollama + llama-server + llama static** |
-| Motore Byzantino | no | **sì (4 agenti logici anti-allucinazione)** |
-
----
-
-## Funzionalità principali
-
-### 🤖 Pipeline Multi-Agente (6 agenti)
-Ogni agente ha un ruolo distinto. I Programmatori A e B lavorano **in parallelo**. Il Tester esegue e corregge il codice in loop (max 3 tentativi).
-
-```
-Ricercatore → Pianificatore → Programmatore A ─┐ (paralleli)
-                            → Programmatore B ─┘
-             → Tester (loop correzione) → Ottimizzatore
-```
-
-### 🛡 Motore Byzantino (anti-allucinazione)
-Quattro agenti logici verificano ogni risposta critica prima di presentarla:
-
-```
-A (Generatore) ──→ B (Avvocato del Diavolo, cerca errori)
-                ──→ C (Gemello Indipendente, verifica separata)
-                ──→ D (Giudice): T = (A ∧ C) ∧ ¬B_valido
-```
-
-### ⚡ Math locale zero-token
-Il parser ricorsivo risponde istantaneamente senza consumare token AI:
-
-```
-  ✔  sin(pi/4) + sqrt(2) = 1.41421356
-  Tempo: 0.003 ms
-
-  ✔  sconto 20% su 150 € → 30 € di risparmio, prezzo finale: 120 €
-  Tempo: 0.002 ms
-
-  ✔  primi tra 1 e 50 → 2 3 5 7 11 13 17 19 23 29 31 37 41 43 47
-  Tempo: 0.011 ms
-```
-
-Supporta: `sin/cos/tan`, `ln/log/log2`, `sqrt/cbrt`, `pi/e/phi`, `gcd/lcm`, `floor/ceil/round`, alias italiani ("seno", "radice quadrata di", "logaritmo naturale di")...
-
-### 🎓 Simulatore Algoritmi (66 simulazioni, 13 categorie)
-Ogni algoritmo è visualizzato **passo per passo** nel terminale con animazioni ANSI.
-
-### 📊 GUI Qt6 moderna
-8 tab tematiche, dark theme, monitor hardware live, grafici interattivi, streaming AI.
 
 ---
 
@@ -121,120 +67,110 @@ Ogni algoritmo è visualizzato **passo per passo** nel terminale con animazioni 
 ```bash
 # Clona il repository
 git clone git@github.com:wildlux/Prismalux.git
-cd Prismalux
+cd Prismalux/C_software/Qt_GUI
 
-# Avvia la GUI Qt6 (richiede Ollama attivo)
-./Prismalux
+# Compila (richiede Qt6 + Ollama attivo)
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
 
-# Oppure la TUI da terminale
-cd C_software
-make && ./prismalux --backend ollama
+# Avvia
+./build/Prismalux_GUI
 ```
 
-> **Prerequisiti**: `gcc`, `Qt6`, `Ollama` con almeno un modello installato.
-> Per Ollama: `curl -fsSL https://ollama.com/install.sh | sh && ollama pull qwen2.5-coder:7b`
+> **Prerequisiti**: `Qt6`, `cmake`, `gcc/clang`, `Ollama` con almeno un modello installato.
+
+```bash
+# Installa Ollama e scarica un modello per iniziare
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull qwen3:8b        # consigliato: ~5 GB, ottimo italiano + think nativo
+```
 
 ---
 
 ## Compilazione
 
-### TUI — solo Ollama / llama-server (zero dipendenze extra)
+### Linux (Ubuntu/Debian)
 
 ```bash
-cd C_software
-make              # equivale a: make http
-./prismalux --backend ollama
-```
-
-### GUI Qt6
-
-```bash
-cd C_software
-./aggiorna.sh --gui                     # usa lo script aggiorna
-# oppure manualmente:
-cd Qt_GUI && cmake -B build && cmake --build build -j$(nproc)
+sudo apt install qt6-base-dev cmake build-essential
+cd C_software/Qt_GUI
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
 ./build/Prismalux_GUI
 ```
 
-### Build con llama.cpp statico (inferenza completamente embedded)
+### Linux (Arch/Manjaro)
 
 ```bash
-cd C_software
-./build.sh        # clona llama.cpp, compila con CMake, linka tutto
-make static
-./prismalux       # nessun server Ollama necessario
+sudo pacman -S qt6-base cmake gcc
 ```
 
-### Aggiornamento rapido (ricompila tutto in ~1s se già compilato)
+### Windows (MSYS2 MINGW64)
 
 ```bash
-./aggiorna.sh             # TUI + GUI Qt6 + ZIP Windows
-./aggiorna.sh --tui       # solo TUI C
-./aggiorna.sh --gui       # solo GUI Qt6
-./aggiorna.sh --zip       # solo ZIP Windows
+pacman -S --needed mingw-w64-x86_64-qt6-base mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc
+cd C_software/Qt_GUI
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
+./build/Prismalux_GUI.exe
 ```
 
-### Windows
+> Su Windows: avvia `MSYS2 MINGW64` shell, non MSYS2 generico.
 
-Scarica `Prismalux_Windows_full.zip` dalla sezione [Releases](https://github.com/wildlux/Prismalux/releases), estrai e fai doppio click su `build.bat`.
+### Build con test
 
-Requisiti Windows:
-- [Ollama per Windows](https://ollama.com/download)
-- [MSYS2](https://www.msys2.org/) con `gcc`, `cmake`, `make` — oppure WinLibs/Scoop
-
----
-
-## Backend AI
-
-Prismalux supporta **tre backend** intercambiabili a caldo dalla GUI o da riga di comando:
-
-| Backend | Descrizione | Comando |
-|---|---|---|
-| **Ollama** | Server locale, auto-gestisce i modelli | `./prismalux --backend ollama` |
-| **llama-server** | Server OpenAI-compatibile, modello fisso | `./prismalux --backend llama-server` |
-| **llama statico** | Inferenza embedded, nessun server | `./prismalux` (richiede `./build.sh`) |
-
-La configurazione viene salvata automaticamente in `~/.prismalux_config.json`:
-
-```json
-{
-  "backend": "ollama",
-  "ollama_host": "127.0.0.1",
-  "ollama_port": 11434,
-  "ollama_model": "qwen2.5-coder:7b"
-}
+```bash
+cmake -B build_tests -DBUILD_TESTS=ON
+cmake --build build_tests -j$(nproc)
+./build_tests/test_signal_lifetime
+./build_tests/test_rag_engine
+./build_tests/test_code_utils
 ```
 
 ---
 
-## GUI Qt6
+## GUI Qt6 — Tab e funzionalità
 
-L'interfaccia grafica è organizzata in **8 tab** accessibili con `Alt+1` – `Alt+8`:
+L'interfaccia è organizzata in **9 pagine** accessibili da sidebar o con `Alt+N`:
 
-| Tab | Shortcut | Contenuto |
-|---|---|---|
-| 🤖 **Agenti AI** | `Alt+1` | Pipeline 6 agenti · Motore Byzantino · Consiglio Scientifico |
-| 🔮 **Oracolo** | `Alt+2` | Chat singola streaming con qualsiasi modello |
-| 📐 **Matematica** | `Alt+3` | Sequenza→Formula · Costanti precisione arbitraria · N-esimo · Espressione |
-| 📊 **Grafico** | `Alt+4` | 40+ tipi di grafico, dati in testo libero |
-| 💻 **Programmazione** | `Alt+5` | Editor + correzione AI, nome modello in header |
-| 💰 **Finanza** | `Alt+6` | Assistente 730 · Partita IVA · Mutuo · PAC · Pensione INPS |
-| 📚 **Impara** | `Alt+7` | Tutor AI · Simulatore algoritmi · Quiz |
-| ⚙️ **Impostazioni** | — | Backend · Hardware · llama.cpp · Monitor · Tema |
+| # | Tab | Shortcut | Contenuto principale |
+|---|---|---|---|
+| 1 | 🤖 **Agenti AI** | `Alt+1` | Pipeline 6 agenti · Motore Byzantino · Pipeline · Consiglio Scientifico · TTS/STT |
+| 2 | 🔮 **Oracolo** | `Alt+2` | Chat singola streaming · History compression · RAG contestuale |
+| 3 | 📐 **Matematica** | `Alt+3` | Sequenza→Formula · Costanti precisione arbitraria · N-esimo · Espressione locale |
+| 4 | 📊 **Grafico** | `Alt+4` | 45+ tipi di grafico · zoom/pan · export PNG · analisi AI immagine |
+| 5 | 💻 **Programmazione** | `Alt+5` | Editor + correzione AI · esecuzione Python · sandbox con conferma |
+| 6 | 💰 **Strumenti** | `Alt+6` | Assistente 730 · Partita IVA · Mutuo · PAC · Pensione INPS · Cerca Lavoro |
+| 7 | 📚 **Impara** | `Alt+7` | Tutor AI · Simulatore 110 algoritmi · Quiz interattivi |
+| 8 | 🔭 **Materie** | `Alt+8` | Studio per materia (fisica, chimica, storia, diritto…) |
+| 9 | ⚙️ **Impostazioni** | — | Hardware · AI Locale · RAG · LLM · **Classifica** · Voce · Aspetto |
 
-### Tab Matematica — dettaglio
+### Tab Agenti AI — dettaglio
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  🔢 Sequenza  │  π φ e √ const  │  N-esimo  │ Espressione  │
-├─────────────────────────────────────────────────────────────┤
-│  1, 1, 2, 3, 5, 8, 13 ...   con: [qwen2.5-coder ▼] [🔄]   │
-│  📂 Apri file (TXT/CSV/XLSX/DOCX/PDF)  [Analizza con AI]   │
-│  ✔ Pattern rilevato: successione di Fibonacci               │
-└─────────────────────────────────────────────────────────────┘
+[▶ Avvia / ⏹ Stop]  [⚡ Singolo]  [Correggi con AI ▼]  [fino a: N ∞]
+
+┌── Modalità ──────────────────────────────────────────────┐
+│  ○ Pipeline 6 agenti     ○ Byzantino     ○ Consiglio     │
+└──────────────────────────────────────────────────────────┘
+
+Pipeline attiva:
+  Ricercatore → Pianificatore → Programmatori A+B (paralleli)
+              → Tester (max 3 tentativi) → Ottimizzatore
 ```
 
-Supporta import di sequenze da: `.txt`, `.csv`, `.xlsx`, `.xls`, `.docx`, `.doc`, `.pdf`
+- **Invio = risposta singola rapida** (`⚡ Singolo` — 1 agente): per domande veloci senza attendere la pipeline completa. Il pulsante `▶ Avvia` lancia la pipeline multi-agente solo con click esplicito.
+- **Modello sincronizzato**: il modello impostato in Impostazioni (o da qualsiasi altro tab) viene propagato automaticamente a tutti i tab principali senza dover rientrare.
+- **TTS** (Text-to-Speech): risposta AI letta ad alta voce (Piper + aplay su Linux, SAPI su Windows) — catena sicura senza shell intermediaria
+- **STT** (Speech-to-Text): dettatura con Whisper locale
+- **Correggi con AI**: rileva il codice nell'ultima risposta, lo riesegue, corregge automaticamente fino a N volte
+
+### Tab Grafico — 45+ tipi
+
+Linee, Barre, Area, Torta, Scatter, Istogramma, Heatmap, Boxplot, Violino,
+Candlestick (OHLC), Gantt, Sankey, Chord, Treemap, Radar, Waterfall,
+Smith Chart, Spirale di Fibonacci, Funnel, Bubble, Stem, ErrorBar,
+Ternario, Superficie 3D, Contour, e molti altri.
 
 ---
 
@@ -276,13 +212,14 @@ Supporta import di sequenze da: `.txt`, `.csv`, `.xlsx`, `.xls`, `.docx`, `.doc`
 | Tipo task | task non sembra codice | Avviso utente |
 | RAM check | > 75% RAM occupata | Avviso; blocco a > 92% |
 | Pre-calcolo | espressioni nel task | Inietta `expr[=N]` nel prompt |
-| Auto-traduzione | input in inglese | Traduce in italiano via AI |
+
+**Esecuzione Python sicura**: ogni esecuzione di codice Python generato dall'AI richiede conferma esplicita dell'utente (dialog modale). Anche l'auto-pip-install richiede approvazione separata.
 
 ---
 
 ## Motore Byzantino (anti-allucinazione)
 
-Ispirato al [Problema dei Generali Bizantini](https://en.wikipedia.org/wiki/Byzantine_fault), il motore verifica ogni affermazione critica con **quattro agenti logici indipendenti**:
+Ispirato al [Problema dei Generali Bizantini](https://en.wikipedia.org/wiki/Byzantine_fault), verifica ogni affermazione critica con **quattro agenti logici indipendenti**:
 
 ```
 ┌─────────────┐     ┌──────────────────────────────────┐
@@ -303,9 +240,52 @@ Ispirato al [Problema dei Generali Bizantini](https://en.wikipedia.org/wiki/Byza
 
 ---
 
-## Simulatore Algoritmi
+## Classificatore query e think budget
 
-**66 simulazioni, 13 categorie** — ogni algoritmo visualizzato passo per passo:
+`AiClient::classifyQuery()` categorizza ogni domanda per ottimizzare token e tempo:
+
+| Categoria | Criteri | `num_predict` | `think` |
+|---|---|---|---|
+| `QuerySimple` | ≤ 30 char, no keyword complesse | 512 | `false` |
+| `QueryAuto` | 30-200 char, neutre | default | non inviato |
+| `QueryComplex` | > 200 char **o** keyword (spiega/analizza/codice…) | default × 2* | `true`* |
+
+\* Solo per modelli think-capable: `qwen3`, `qwen3.5`, `deepseek-r1`, `qwen2.5`
+
+**Think budget** — i modelli con blocco `<think>` consumano token nel ragionamento interno. Prismalux raddoppia automaticamente `num_predict` su `QueryComplex` per evitare risposte troncate.
+
+---
+
+## Motore Matematico Locale
+
+Il parser ricorsivo valuta espressioni complesse in **microsecondi**, senza mai inviare un token all'AI:
+
+```
+  ✔  sin(pi/4) + sqrt(2) = 1.41421356     [0.003 ms]
+  ✔  sconto 20% su 150 € → 120 €          [0.002 ms]
+  ✔  primi tra 1 e 50 → 2 3 5 7 11...     [0.011 ms]
+  ✔  gcd(48, 18) = 6                       [0.001 ms]
+```
+
+Operatori e funzioni supportate:
+
+| Categoria | Funzioni |
+|---|---|
+| Costanti | `pi`, `e`, `phi` |
+| Log/Exp | `ln`, `log` (base 10), `log2`, `log10`, `exp` |
+| Trigonometria | `sin/seno`, `cos/coseno`, `tan/tangente`, `asin`, `acos`, `atan`, `atan2` |
+| Iperboliche | `sinh`, `cosh`, `tanh` |
+| Radici | `sqrt/radq`, `cbrt` + alias italiani |
+| Arrotondamento | `abs`, `floor`, `ceil`, `round`, `trunc`, `sign` |
+| Teoria num. | `gcd/mcd`, `lcm/mcm`, `pow`, `min`, `max` |
+
+Precedenza: `()` > `^` > `*/%` > `+-`
+
+---
+
+## Simulatore Algoritmi (110 simulazioni)
+
+**110 simulazioni, 13 categorie** — ogni algoritmo visualizzato passo per passo nella GUI:
 
 | Categoria | N | Algoritmi inclusi |
 |---|---|---|
@@ -323,59 +303,133 @@ Ispirato al [Problema dei Generali Bizantini](https://en.wikipedia.org/wiki/Byza
 | **Greedy** | 3 | Activity Selection, Zaino Frazionario, Codifica di Huffman |
 | **Backtracking** | 2 | N-Regine (N=5), Sudoku (4×4) |
 
+Ogni simulazione mostra: array/struttura passo per passo · complessità O-grande · descrizione teorica.
+
 ---
 
-## Motore Matematico Locale
+## RAG — Retrieval-Augmented Generation
 
-Il parser ricorsivo (`_gp_prim` / `_mp_prim`) valuta espressioni complesse in **microsecondi**, senza mai inviare un token all'AI:
+Prismalux include un motore RAG locale che arricchisce le risposte AI con i tuoi documenti:
+
+- **Formati supportati**: `.txt`, `.md`, `.pdf` (via `pdftotext`/Poppler), `.cpp`, `.py`, `.h`
+- **Algoritmo**: chunking → embedding → JLT projection → cosine similarity
+- **Modello embedding**: `nomic-embed-text` (Ollama) — configurabile da Impostazioni
+- **Indicizzazione in background**: l'indicizzazione continua anche cambiando tab o finestra — guidata da `QNetworkReply` callbacks, non blocca l'UI
+- **Stop cooperativo**: pulsante "⏹ Ferma indicizzazione" interrompe il processo in modo pulito preservando i chunk già elaborati
+- **Counter affidabile**: il contatore "Documenti indicizzati" si aggiorna solo se almeno un embedding ha successo; fallimenti silenziosi mostrano avviso con hint su `nomic-embed-text`
+- **Privacy**: l'indicizzazione avviene interamente in locale, nessun dato inviato a cloud
+- **Documenti AdE**: pulsante "Scarica documenti AdE 2026" (730/fascicolo) integrato nella scheda RAG
+
+Configurazione in Impostazioni → RAG:
 
 ```
-Costanti    pi, e, phi
-Log/Exp     ln, log (base 10), log2, log10, exp
-Trig        sin/seno, cos/coseno, tan/tangente
-            asin/arcoseno, acos/arcocoseno, atan/arcotangente, atan2
-Iperboliche sinh, cosh, tanh
-Radici      sqrt/radq, cbrt  +  "radice quadrata di X", "radice cubica di X"
-Log it.     "logaritmo naturale di X"  →  ln(X)
-Arrot.      abs, floor, ceil, round, trunc, sign
-Teoria num. gcd/mcd, lcm/mcm, pow
-Min/Max     min(a,b), max(a,b)
+Cartella documenti: ~/prismalux_rag_docs/
+Risultati per query: 5
+JLT transform: on/off (riduzione dimensioni embedding)
+No-persist: mantieni indice solo in memoria (modalità privacy)
+
+[ ⏹  Ferma indicizzazione ]  [ 🔄 Reindicizza ora ]
 ```
 
-**Precedenza**: `()` > `^` > `*/%` > `+-`
+---
+
+## Classifica LLM open-weight
+
+Il tab **📊 Classifica** in Impostazioni mostra una ranking oggettiva di **22 modelli open-weight** testabili localmente, basata su:
+
+- **ArtificialAnalysis Intelligence Index** (benchmark pubblici MMLU/GPQA/HumanEval)
+- **Benchmark locali Prismalux** (`test_prompt_levels.py`, 4 livelli × 4 domande)
+
+Filtri disponibili: RAM massima (≤8/16/32/64 GB) · categoria · ordinamento per score/RAM/velocità.
+
+Modelli testati localmente (sessione 2026-04-15):
+
+| Modello | Score Prismalux | Tempo medio | Note |
+|---|---|---|---|
+| `mistral:7b-instruct` | 66.2/100 | ~74s | Stabile, buona copertura keyword |
+| `qwen3:4b` | 55.4/100 | ~71s | Con fix think budget (T6): ottimale |
+
+Il pulsante **"ollama pull \<modello\>"** per ogni riga permette l'installazione diretta senza uscire dall'app.
+
+---
+
+## Backend AI supportati
+
+Prismalux supporta **tre backend** intercambiabili a caldo:
+
+| Backend | Descrizione | Configurazione |
+|---|---|---|
+| **Ollama** | Server locale, gestione automatica modelli | host + porta (default 127.0.0.1:11434) |
+| **llama-server** | Server OpenAI-compatibile (llama.cpp) | host + porta personalizzabili |
+| **llama statico** | Inferenza embedded, nessun server esterno | path binario + path modello .gguf |
+
+Il modello scelto dall'utente viene **persistito su QSettings** e ripristinato automaticamente al prossimo avvio.
+
+---
+
+## Modelli consigliati
+
+### Setup minimo (8 GB RAM)
+
+```bash
+ollama pull qwen3:4b           # ~3 GB — velocissimo, think nativo
+ollama pull llama3.2-vision    # ~8 GB — unico modello vision stabile su Ollama
+```
+
+### Setup bilanciato (16-32 GB RAM)
+
+```bash
+ollama pull qwen3:8b           # ~5 GB — ottimo italiano, consigliato per uso quotidiano
+ollama pull qwen2.5-coder:7b   # ~5 GB — top coding nella categoria 7B
+ollama pull deepseek-r1:7b     # ~5 GB — ragionamento matematico, chain-of-thought nativo
+```
+
+### Setup avanzato (64 GB RAM — es. Xeon)
+
+```bash
+ollama pull qwen3:30b          # ~18 GB — qualità vicina ai modelli cloud
+ollama pull deepseek-r1:32b    # ~20 GB — ragionamento matematico avanzato
+ollama pull qwen2.5-coder:32b  # ~20 GB — miglior coding open-weight < 64 GB
+ollama pull llama3.1:70b       # ~40 GB — massima qualità generale
+```
+
+> Su Xeon con GPU AMD lenta: `OLLAMA_NUM_GPU=0 ollama serve` per forzare CPU pura e sfruttare AVX-512.
 
 ---
 
 ## Test automatici
 
-Suite completa: **897/897 test superati** (nessun test saltato, nessun fallimento):
+### Qt GUI (C++)
 
 ```bash
-cd C_software
-make test                          # 18/18 — Core TUI
-make test_multiagente && ./test_multiagente   # 8/8  — Pipeline end-to-end
-make test_sim_smoke && ./test_sim_smoke       # 66/66 — Smoke test simulatore
-make test_hw_platform && ./test_hw_platform  # 28/28 — Rilevamento hardware
+cd C_software/Qt_GUI
+cmake -B build_tests -DBUILD_TESTS=ON
+cmake --build build_tests -j$(nproc)
+./build_tests/test_signal_lifetime   # lifecycle segnali Qt
+./build_tests/test_rag_engine        # RAG retrieval precision/recall
+./build_tests/test_code_utils        # extractPythonCode + _sanitizePyCode
 ```
 
-| Suite | Pass | Cosa verifica |
+| Suite Qt | Test | Cosa verifica |
 |---|---|---|
-| `test_engine` | 18/18 | TCP, JSON, stream AI, python3 |
-| `test_guardia_math` | 200/200 | Parser `_gp_*`: 200 espressioni math |
-| `test_math_locale` | 120/120 | Parser `_mp_*`: tutor math |
-| `test_golden` | 53/53 | Regression AI: keyword/forbidden/lingua |
-| `test_toon_config` | 55/55 | Config .toon + persistenza |
-| `test_memory` | 12/12 | Memory leak via `/proc/self/status` |
-| `test_sha256` | 20/20 | SHA-256 puro C, integrità .gguf |
-| `test_version` | 35/35 | Versioni, semver, changelog |
-| `test_stress` | 74/74 | JSON, buffer, Unicode, API pubblica |
-| `test_perf` | 26/26 | Timing TTFT, throughput, cold start |
-| `test_cs_random` | 0 fail | Context Store: precision/recall/stress |
-| `test_agent_scheduler` | 87/87 | Hot/Cold scheduler completo |
-| `test_rag` | 30/30 | RAG retrieval precision/recall |
-| `test_multiagente` | 8/8 | Pipeline 6 agenti end-to-end |
-| `test_sim_smoke` | 66/66 | Tutte le 66 simulazioni, no crash, timeout 5s |
-| `test_hw_platform` | 28/28 | CPU/GPU/RAM, nvidia-smi, thread |
+| `test_signal_lifetime` | 36+ | Dangling observer, signal leakage, invariant violation checkbox |
+| `test_rag_engine` | 15 | Chunking, embedding, search, save/load round-trip, stop cooperativo, multi-documento |
+| `test_code_utils` | 14+ | Estrazione codice Python da risposta AI, sanitizzazione |
+
+`test_rag_engine` include test su comportamento di sessione già indicizzata (test 11–15): verifica che l'indice caricato da disco produca gli stessi risultati dell'indice in memoria, che il top-k sia preservato, e che una reindicizzazione fallita non sovrascriva i dati validi.
+
+### Test prompt per livello utente
+
+```bash
+cd Prismalux
+python3 test_prompt_levels.py --models mistral:7b-instruct qwen3:4b --save
+```
+
+16 scenari (4 livelli × 4 domande):
+- **L1**: utente con poca esperienza (prompt brevi, vaghi)
+- **L2**: esperienza media (domande chiare, keyword tecniche)
+- **L3**: alta esperienza (prompt strutturati, multi-step)
+- **L4**: prompt engineering avanzato (zero-shot, chain-of-thought)
 
 ---
 
@@ -383,40 +437,72 @@ make test_hw_platform && ./test_hw_platform  # 28/28 — Rilevamento hardware
 
 ```
 Prismalux/
-├── Prismalux               ← launcher root (avvia GUI + check Ollama)
-├── aggiorna.sh             ← ricompila TUI + GUI + ZIP in un comando
-├── crea_zip_windows.py     ← genera il pacchetto Windows
 │
 ├── C_software/
-│   ├── src/                ← sorgenti TUI C (14+ moduli)
-│   │   ├── main.c          ← menu principale, config JSON/TOON
-│   │   ├── multi_agente.c  ← pipeline 6 agenti + 3 guardie pre-pipeline
-│   │   ├── strumenti.c     ← tutor AI, 730/P.IVA, math locale
-│   │   ├── simulatore.c    ← 66 simulazioni, 13 categorie
-│   │   ├── ai.c            ← ai_chat_stream(), astrazione backend
-│   │   ├── http.c          ← TCP raw, Ollama NDJSON, llama-server SSE
-│   │   ├── hw_detect.c     ← CPU/GPU/RAM cross-platform
-│   │   ├── agent_scheduler.c ← scheduler Hot/Cold GGUF
-│   │   ├── rag.c / rag_embed.c ← Retrieval-Augmented Generation
-│   │   ├── jlt.c / jlt_index.c ← JLT similarity search
-│   │   └── llama_wrapper.cpp   ← wrapper C++ llama.cpp (build statica)
-│   │
-│   ├── include/            ← header (14+ file)
-│   ├── Qt_GUI/             ← GUI Qt6 (auto-contenuta)
-│   │   ├── pages/          ← agenti, oracolo, matematica, grafico,
-│   │   │                      programmazione, finanza, impara, impostazioni
-│   │   ├── widgets/        ← spinner, chart, formula parser, chat bubble
-│   │   ├── themes/         ← dark-cyan, amber, purple, light
-│   │   └── build.sh        ← compila la GUI (richiede Qt6)
-│   ├── rag_docs/           ← documenti per RAG locale
-│   ├── models/             ← file .gguf (backend statico)
-│   ├── Makefile
-│   └── build.bat           ← build Windows (doppio click)
+│   └── Qt_GUI/                     ← GUI Qt6 (v2.2)
+│       ├── CMakeLists.txt           ← build (Qt6/Qt5 fallback, AUTOMOC)
+│       ├── CLAUDE.md                ← architettura, convenzioni, ottimizzazioni
+│       ├── main.cpp
+│       ├── mainwindow.h/cpp         ← finestra principale (header · sidebar · stack)
+│       ├── hardware_monitor.h/cpp   ← polling CPU/RAM/GPU
+│       ├── ai_client.h/cpp          ← client Ollama/llama-server · classifyQuery · think budget
+│       ├── rag_engine.h/cpp         ← RAG: chunking, JLT, cosine similarity
+│       ├── theme_manager.h/cpp      ← carica/salva tema QSS
+│       ├── chat_history.h/cpp       ← compressione history (summary + kMaxRecentTurns)
+│       ├── prismalux_paths.h        ← unico punto di verità per percorsi e QSettings
+│       ├── hw_detect.c/h            ← rilevamento GPU cross-platform (C puro)
+│       │
+│       ├── pages/
+│       │   ├── agenti_page.*        ← entry point + coordinatore (12 moduli)
+│       │   ├── agenti_page_ui.*     ← costruzione UI
+│       │   ├── agenti_page_voice.*  ← TTS (Piper/SAPI) + STT (Whisper)
+│       │   ├── agenti_page_exec.*   ← esecuzione Python con dialog conferma
+│       │   ├── agenti_page_stream.* ← streaming NDJSON da Ollama
+│       │   ├── agenti_page_pipeline.*  ← orchestrazione 6 agenti
+│       │   ├── agenti_page_byzantine.* ← motore Byzantino A/B/C/D
+│       │   ├── agenti_page_math.*   ← guardia math locale
+│       │   ├── agenti_page_models.* ← selezione modello per ruolo
+│       │   ├── agenti_page_files.*  ← allegati e contesto documenti
+│       │   ├── agenti_page_bubbles.*   ← chat bubble render
+│       │   ├── agenti_page_consiglio.* ← modalità Consiglio Scientifico
+│       │   ├── oracolo_page.*       ← chat singola + history + RAG
+│       │   ├── matematica_page.*    ← sequenze, costanti, N-esimo, espressioni
+│       │   ├── grafico_canvas.*     ← GraficoCanvas: 45+ tipi, zoom/pan, PNG export
+│       │   ├── grafico_page.*       ← GraficoPage: UI, plot(), analyzeImage()
+│       │   ├── simulatore_algos.*   ← implementazioni 110 algoritmi (zero UI)
+│       │   ├── simulatore_page.*    ← SimulatorePage UI + BigOWidget
+│       │   ├── programmazione_page.*   ← editor + correzione AI + run Python
+│       │   ├── strumenti_page.*     ← 730, P.IVA, mutuo, PAC, pensione, lavoro
+│       │   ├── impara_page.*        ← tutor AI + quiz (tab unificato)
+│       │   ├── materie_page.*       ← studio per materia
+│       │   ├── impostazioni_page.*  ← tutti i tab impostazioni
+│       │   └── agents_config_dialog.*  ← configurazione agenti personalizzata
+│       │
+│       ├── widgets/
+│       │   ├── chat_bubble.h/cpp    ← bubble chat (sent/received/thinking)
+│       │   ├── chart_widget.h/cpp   ← widget grafico embedding
+│       │   ├── formula_parser.h/cpp ← parser LaTeX-like per formule
+│       │   ├── spinner_widget.h     ← spinner braille animato
+│       │   ├── status_badge.h       ← dot colorato stato (Offline/Online/Error)
+│       │   ├── toggle_switch.h      ← toggle switch animato
+│       │   ├── code_highlighter.h   ← syntax highlight codice
+│       │   ├── python_exec.h        ← esecuzione Python sandboxed
+│       │   └── whisper_autosetup.h  ← auto-download modello Whisper
+│       │
+│       ├── themes/
+│       │   ├── dark_cyan.qss        ← tema default
+│       │   ├── dark_amber.qss
+│       │   ├── dark_purple.qss
+│       │   ├── dark_ocean.qss
+│       │   └── light.qss
+│       │
+│       └── tests/
+│           ├── test_signal_lifetime.cpp
+│           ├── test_rag_engine.cpp
+│           ├── test_code_utils.cpp
+│           └── mock_ai_client.h
 │
-└── Python_Software/        ← componenti Python opzionali
-    ├── AVVIA_Prismalux.py  ← launcher Python (TUI Textual)
-    ├── multi_agente/       ← motore Byzantino Python
-    └── tests/              ← test Python
+└── test_prompt_levels.py            ← benchmark LLM multi-livello
 ```
 
 ---
@@ -424,121 +510,59 @@ Prismalux/
 ## Requisiti
 
 ### Linux
-- `gcc` ≥ 9 o `clang` ≥ 10
-- `Qt6` (base + charts + multimedia): `sudo apt install qt6-base-dev`
-- `Ollama`: `curl -fsSL https://ollama.com/install.sh | sh`
-- `python3` + `mpmath` + `sympy` (solo per tab Matematica avanzata)
+
+| Dipendenza | Scopo | Installazione |
+|---|---|---|
+| `gcc` ≥ 9 / `clang` ≥ 10 | Compilazione | `apt install build-essential` |
+| `Qt6 Base` | GUI | `apt install qt6-base-dev` |
+| `cmake` ≥ 3.16 | Build system | `apt install cmake` |
+| `Ollama` | Backend AI | `curl -fsSL https://ollama.com/install.sh \| sh` |
+| `piper` + `aplay` | TTS Linux | opzionale, per lettura ad alta voce |
+| `pdftotext` | RAG su PDF | `apt install poppler-utils` |
+| `python3` | Esecuzione codice AI | già presente su Ubuntu |
 
 ### Windows
-- [Ollama per Windows](https://ollama.com/download)
-- [MSYS2](https://www.msys2.org/) — `pacman -S mingw-w64-x86_64-gcc cmake make`
-- Qt6 per Windows (opzionale, per la GUI)
 
----
-
-## Configurazione AI consigliata
-
-| Uso | Modello consigliato | Dimensione |
-|---|---|---|
-| Codice (veloce) | `qwen2.5-coder:7b` | ~4 GB |
-| Codice (preciso) | `deepseek-coder:33b` | ~19 GB |
-| Ragionamento | `deepseek-r1:7b` | ~4 GB |
-| Matematica | `qwen2.5-math:7b` | ~4 GB |
-| Chat generale | `llama3.2:3b` | ~2 GB |
-
-```bash
-ollama pull qwen2.5-coder:7b   # installazione consigliata per iniziare
-```
+| Dipendenza | Note |
+|---|---|
+| [Ollama per Windows](https://ollama.com/download) | Backend AI |
+| [MSYS2](https://www.msys2.org/) | Toolchain: `pacman -S mingw-w64-x86_64-qt6-base mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc` |
+| Windows SAPI | TTS integrato nel sistema, nessuna installazione richiesta |
 
 ---
 
 ## Argomenti e discipline trattate
 
-Prismalux copre un'ampia gamma di discipline, sia nella TUI che nella GUI:
-
 ### 💻 Informatica e Programmazione
-- **Pipeline AI multi-agente** — Ricercatore, Pianificatore, Programmatori paralleli, Tester, Ottimizzatore
-- **Correzione codice con AI** — analisi errori, refactoring, ottimizzazione
-- **Algoritmi e strutture dati** — 66 simulazioni visualizzate (ordinamento, ricerca, grafi, DP, greedy, backtracking...)
-- **Stringhe** — KMP, Rabin-Karp, Z-Algorithm
-- **Strutture dati** — Stack, Queue, Linked List, BST, Hash Table, Min-Heap
-- **RAG (Retrieval-Augmented Generation)** — recupero documenti locali con JLT similarity search
-- **Compressione** — Codifica di Huffman
-- **Crittografia** — SHA-256 puro C, Miller-Rabin (test di primalità probabilistico)
+- Pipeline AI multi-agente — Ricercatore, Pianificatore, Programmatori paralleli, Tester, Ottimizzatore
+- Correzione codice con AI — analisi errori, refactoring, ottimizzazione, esecuzione sandbox
+- 110 simulazioni algoritmi — ordinamento, ricerca, grafi, DP, greedy, backtracking
+- RAG locale — risposte basate su documenti propri con JLT similarity search
 
 ### 🔢 Matematica
-- **Analisi numerica** — Horner-Ruffini, Monte Carlo π, potenza modulare
-- **Algebra** — GCD/LCM, fattoriali, triangolo di Pascal, progressioni
-- **Calcolo** — espressioni arbitrarie: `sin`, `cos`, `tan`, `ln`, `log`, `sqrt`, `cbrt`...
-- **Teoria dei numeri** — crivello di Eratostene, numeri primi, Fibonacci, fattorizzazione
-- **Costanti ad alta precisione** — π, e, φ, √2, γ (mpmath, fino a 10.000 cifre)
-- **N-esimo elemento** — N-esima cifra di π/e/φ, N-esimo primo, Fibonacci(N), 2^N
-- **Sequenze → Formula** — rilevamento pattern locale (aritmetica, geometrica, Fibonacci, quadratica, fattoriali...) + sympy per interpolazione
+- Analisi numerica — Horner-Ruffini, Monte Carlo π, potenza modulare
+- Calcolo — espressioni arbitrarie: `sin`, `cos`, `tan`, `ln`, `log`, `sqrt`, `cbrt`...
+- Teoria dei numeri — crivello di Eratostene, numeri primi, Fibonacci, fattorizzazione
+- Costanti ad alta precisione — π, e, φ, √2, γ (fino a 10.000 cifre via mpmath)
+- Sequenze → Formula — rilevamento pattern + sympy per interpolazione
 
 ### 📊 Statistica e Finanza
-- **Dichiarazione 730** — guida interattiva con AI, domande frequenti
-- **Partita IVA / Regime Forfettario** — calcolo coefficienti, tasse, contributi INPS
-- **Mutuo** — piano di ammortamento, rata mensile, interessi totali
-- **PAC (Piano Accumulo Capitale)** — proiezioni rendimento, montante finale
-- **Pensione INPS** — stima assegno, anni mancanti, simulazioni contributive
+- Dichiarazione 730 — guida interattiva con AI
+- Partita IVA / Regime Forfettario — calcolo coefficienti, tasse, contributi INPS
+- Mutuo — piano di ammortamento, rata mensile, interessi totali
+- PAC — proiezioni rendimento, montante finale
+- Pensione INPS — stima assegno, simulazioni contributive
 
 ### 🔬 Fisica e Chimica
-- **Caduta libera** — con e senza resistenza dell'aria, visualizzazione traiettoria
-- **Gas ideali** — legge PV = nRT, calcolo P/V/T/n
-- **pH** — acidi, basi, soluzioni tampone, pKa
-- **Stechiometria** — bilanciamento reazioni, resa percentuale, reagente limitante
+- Caduta libera con resistenza dell'aria
+- Gas ideali (PV = nRT), pH, stechiometria
 
-### 🤖 Intelligenza Artificiale
-- **Motore Byzantino** — anti-allucinazione a 4 agenti logici (A/B/C/D)
-- **Tutor AI** — spiegazioni personalizzate su qualsiasi argomento, con ragionamento
-- **Agenti specializzati** — scelta automatica del modello migliore per ruolo
-- **RAG locale** — risposte basate su documenti propri (senza cloud)
-- **Entropia dei pesi LLM** — visualizzazione distribuzione pesi, quantizzazione GPTQ/SparseGPT
-- **Traduzione automatica** — input inglese → pipeline in italiano
-
-### 🛠 Strumenti Pratici
-- **Ricerca lavoro** — ricerca offerte web + analisi CV
-- **Scrittura creativa** — AI per testi, articoli, storie
-- **Produttività** — sintesi documenti, brainstorming, revisione testi
-- **Grafici** — 40+ tipi (istogrammi, torte, Gantt, Sankey, boxplot, OHLC, Treemap, Chord...)
-- **Programmazione assistita** — editor con correzione AI e nome modello in header
-
----
-
-## Test automatici
-
-Suite completa: **897/897 test superati** — nessun test saltato, nessun fallimento.
-
-```bash
-cd C_software
-make test                                         # test core (18/18)
-make test_guardia_math && ./test_guardia_math     # math pipeline (200/200)
-make test_math_locale  && ./test_math_locale      # math tutor (120/120)
-make test_multiagente  && ./test_multiagente      # pipeline end-to-end (8/8)
-make test_sim_smoke    && ./test_sim_smoke        # simulatore (66/66)
-make test_hw_platform  && ./test_hw_platform      # hardware (28/28)
-make test_agent_scheduler && ./test_agent_scheduler  # scheduler (87/87)
-make test_rag          && ./test_rag              # RAG retrieval (30/30)
-```
-
-| Suite | Pass | Cosa verifica |
-|---|---|---|
-| `test_engine` | 18/18 | TCP raw, JSON parser, stream AI Ollama, python3 |
-| `test_guardia_math` | 200/200 | Parser `_gp_*`: 200 espressioni (trig, log, costanti, GCD...) |
-| `test_math_locale` | 120/120 | Parser `_mp_*`: motore math del Tutor AI |
-| `test_golden` | 53/53 | Regression AI: keyword attesi, parole vietate, lingua italiana |
-| `test_toon_config` | 55/55 | Parser config `.toon` (flat key:value) + persistenza |
-| `test_memory` | 12/12 | Memory leak detection via `/proc/self/status` |
-| `test_sha256` | 20/20 | SHA-256 puro C — integrità file `.gguf` |
-| `test_version` | 35/35 | Versioni semver, compatibilità, changelog |
-| `test_stress` | 74/74 | JSON, buffer overflow, Unicode multibyte, API pubblica |
-| `test_perf` | 26/26 | Timing TTFT, throughput token/s, cold start |
-| `test_cs_random` | 0 fail | Context Store: precision, recall, stress con dati casuali |
-| `test_agent_scheduler` | 87/87 | Hot/Cold scheduler: evict, promozione sticky, VRAM profile |
-| `test_rag` | 30/30 | RAG retrieval: precision/recall su corpus locale |
-| `test_multiagente` | 8/8 | Pipeline 6 agenti end-to-end con modello reale |
-| `test_sim_smoke` | 66/66 | Ogni simulazione: no crash, output ≥ 10 char, timeout 5s |
-| `test_hw_platform` | 28/28 | CPU/GPU/RAM, nvidia-smi, thread cross-platform |
+### 🤖 AI e LLM
+- Motore Byzantino — anti-allucinazione a 4 agenti (A/B/C/D)
+- Classificazione query (Simple/Auto/Complex) + gestione think budget
+- Classifica 22 modelli open-weight con score oggettivi e filtro per RAM
+- RAG locale — indicizzazione PDF/TXT/MD con embedding Ollama
+- TTS/STT — voce input/output completamente locale
 
 ---
 
@@ -547,5 +571,7 @@ make test_rag          && ./test_rag              # RAG retrieval (30/30)
 **Prismalux** è un progetto personale aperto. Contributi, segnalazioni e idee sono benvenuti.
 
 *"La birra è conoscenza divina — ogni sorso un dato in più."* 🍺
+
+[![GitHub](https://img.shields.io/badge/GitHub-wildlux%2FPrismalux-181717?style=flat-square&logo=github)](https://github.com/wildlux/Prismalux)
 
 </div>

@@ -1345,11 +1345,24 @@ QWidget* ImpostazioniPage::buildRagTab()
         int cnt = (m_rag.chunkCount() > 0)
                   ? m_rag.chunkCount()
                   : ss.value(P::SK::kRagDocCount, 0).toInt();
-        statusLbl->setText(
-            QString("Documenti indicizzati: <b>%1</b>"
-                    "&nbsp;&nbsp;&nbsp;Ultima indicizzazione: <b>%2</b>")
-                .arg(cnt)
-                .arg(ss.value(P::SK::kRagLastIndexed, "Mai").toString()));
+        const QString lastIdx = ss.value(P::SK::kRagLastIndexed, "Mai").toString();
+        if (cnt == 0 && lastIdx != "Mai") {
+            /* Timestamp esiste ma count = 0: l'ultima indicizzazione è fallita
+             * (tutti gli embedding hanno restituito errore). Mostra avviso. */
+            statusLbl->setText(
+                QString("\xe2\x9a\xa0  Documenti indicizzati: <b>0</b>"
+                        "&nbsp;&nbsp;&nbsp;Ultima indicizzazione: <b>%1</b>"
+                        "&nbsp;&nbsp;&mdash;&nbsp;&nbsp;"
+                        "<span style='color:#f87171;'>Embedding falliti &mdash; "
+                        "installa <code>nomic-embed-text</code> e reindicizza.</span>")
+                    .arg(lastIdx));
+        } else {
+            statusLbl->setText(
+                QString("Documenti indicizzati: <b>%1</b>"
+                        "&nbsp;&nbsp;&nbsp;Ultima indicizzazione: <b>%2</b>")
+                    .arg(cnt)
+                    .arg(lastIdx));
+        }
     };
 
     /* Migrazione one-time: se kRagDocCount è 0 ma l'indice su disco esiste
@@ -1411,16 +1424,32 @@ QWidget* ImpostazioniPage::buildRagTab()
         outer->addLayout(embedRow);
     }
 
-    /* Pulsante Reindicizza */
+    /* Riga pulsanti: [Ferma indicizzazione]  [Reindicizza ora] */
+    auto* btnRow = new QHBoxLayout;
+    btnRow->setSpacing(8);
+
+    m_btnStopIndex = new QPushButton("\xe2\x8f\xb9  Ferma indicizzazione");
+    m_btnStopIndex->setObjectName("actionBtn");
+    m_btnStopIndex->setProperty("danger", true);
+    m_btnStopIndex->setFixedHeight(32);
+    m_btnStopIndex->setEnabled(false);   /* abilitato solo durante indexing */
+    m_btnStopIndex->setToolTip(
+        "Interrompe l'indicizzazione in corso dopo il chunk attuale.\n"
+        "I chunk già completati vengono salvati.");
+    btnRow->addWidget(m_btnStopIndex);
+
     auto* reindexBtn = new QPushButton("\xf0\x9f\x94\x84  Reindicizza ora");
     reindexBtn->setObjectName("actionBtn");
     reindexBtn->setFixedHeight(32);
     reindexBtn->setToolTip(
         QString("Indicizza i documenti dalla cartella selezionata.\n"
+                "L'indicizzazione continua in background anche cambiando finestra.\n"
                 "Indice salvato in: %1\n"
                 "(disabilitabile con la checkbox \"Non salvare su disco\" sopra)")
             .arg(QDir::homePath() + "/.prismalux_rag.json"));
-    outer->addWidget(reindexBtn);
+    btnRow->addWidget(reindexBtn);
+
+    outer->addLayout(btnRow);
 
     /* Label feedback */
     auto* feedbackLbl = new QLabel;
@@ -1541,6 +1570,16 @@ QWidget* ImpostazioniPage::buildRagTab()
         (*dlNext)();
     });
 
+    /* Pulsante "Ferma indicizzazione" — setta il flag, il prossimo ciclo si ferma */
+    QObject::connect(m_btnStopIndex, &QPushButton::clicked, this, [this, feedbackLbl]() {
+        m_indexAborted = true;
+        m_btnStopIndex->setEnabled(false);
+        if (feedbackLbl) {
+            feedbackLbl->setText("\xe2\x8f\xb3  Interruzione in corso dopo il chunk corrente...");
+            feedbackLbl->setVisible(true);
+        }
+    });
+
     QObject::connect(reindexBtn, &QPushButton::clicked, reindexBtn,
         [this, dirEdit, statusLbl, feedbackLbl, refreshStatus, reindexBtn]() {
         QString dir = dirEdit->text().trimmed();
@@ -1557,6 +1596,7 @@ QWidget* ImpostazioniPage::buildRagTab()
             feedbackLbl->setVisible(true);
             return;
         }
+        m_indexAborted = false;
 
         /* Raccolta chunk — helper per spezzare testo in chunk da ~400 caratteri */
         auto addChunks = [this](const QString& content) {
@@ -1607,37 +1647,56 @@ QWidget* ImpostazioniPage::buildRagTab()
         }
 
         reindexBtn->setEnabled(false);
+        if (m_btnStopIndex) m_btnStopIndex->setEnabled(true);
         feedbackLbl->setText(QString("\xe2\x8f\xb3  Indicizzazione: 0 / %1 chunk...").arg(m_ragQueue.size()));
         feedbackLbl->setVisible(true);
+        emit indexingProgress(0, m_ragQueue.size());
 
         /* Funzione ricorsiva: processa un chunk alla volta tramite embeddingReady.
          * errCount conta i chunk saltati per errore embedding: serve per mostrare
-         * un messaggio utile se il modello non supporta /api/embeddings. */
+         * un messaggio utile se il modello non supporta /api/embeddings.
+         * m_indexAborted: settato da "Ferma indicizzazione" — il ciclo si ferma
+         * al prossimo giro (dopo il chunk già in volo). */
         auto* errCount  = new int(0);
         auto* indexNext = new std::function<void()>();
         *indexNext = [this, indexNext, errCount, reindexBtn, feedbackLbl, statusLbl,
                       refreshStatus, dir]() {
-            if (m_ragQueuePos >= m_ragQueue.size()) {
-                /* Fine indicizzazione — [M2] salva solo se l'utente non ha scelto RAM-only */
+            /* Controlla stop (abort) O completamento naturale */
+            const bool done = (m_ragQueuePos >= m_ragQueue.size());
+            if (done || m_indexAborted) {
+                /* Fine indicizzazione (naturale o interrotta) */
                 const QString path = QDir::homePath() + "/.prismalux_rag.json";
-                if (!m_ragNoSave)
-                    m_rag.save(path);
                 int n = m_rag.chunkCount();
                 QSettings ss("Prismalux", "GUI");
-                ss.setValue(P::SK::kRagDocCount,    n);
-                ss.setValue(P::SK::kRagLastIndexed,
-                    QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm"));
+                if (n > 0) {
+                    /* Salva su QSettings solo se almeno un chunk è stato indicizzato.
+                     * Se n==0 (tutti gli embedding falliti), non sovrascrivere il
+                     * conteggio e il timestamp dell'ultima indicizzazione riuscita. */
+                    if (!m_ragNoSave)
+                        m_rag.save(path);
+                    ss.setValue(P::SK::kRagDocCount,    n);
+                    ss.setValue(P::SK::kRagLastIndexed,
+                        QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm"));
+                }
                 refreshStatus();
-                if (n == 0) {
-                    QSettings esS("Prismalux", "GUI");
-                    const QString usedModel = esS.value(P::SK::kRagEmbedModel, "").toString();
+
+                const bool wasAborted = m_indexAborted;
+                m_indexAborted = false;  /* reset flag per la prossima esecuzione */
+
+                if (wasAborted) {
                     feedbackLbl->setText(
-                        QString("\xe2\x9a\xa0  Nessun chunk indicizzato (%1 errori embedding). "
-                                "Il modello <b>%2</b> non supporta <code>/api/embeddings</code>. "
-                                "Verifica che sia corretto nel campo \"Modello embedding\" qui sopra "
-                                "e che Ollama sia avviato. "
-                                "Modello consigliato: <b>nomic-embed-text</b> "
-                                "(<code>ollama pull nomic-embed-text</code>).")
+                        QString("\xe2\x8f\xb9  Indicizzazione interrotta &mdash; "
+                                "<b>%1</b> chunk salvati su %2 totali.")
+                            .arg(n).arg(m_ragQueue.size()));
+                } else if (n == 0) {
+                    const QString usedModel = ss.value(P::SK::kRagEmbedModel, "").toString();
+                    feedbackLbl->setText(
+                        QString("\xe2\x9d\x8c  <b>Embedding falliti</b> (%1 errori). "
+                                "Il modello <b>%2</b> non supporta <code>/api/embeddings</code>.<br>"
+                                "Installa il modello embedding: "
+                                "<code>ollama pull nomic-embed-text</code><br>"
+                                "Poi verifica il campo <b>Modello embedding</b> qui sopra "
+                                "e ripeti l'indicizzazione.")
                             .arg(*errCount)
                             .arg(usedModel.isEmpty() ? "corrente" : usedModel));
                 } else {
@@ -1652,8 +1711,10 @@ QWidget* ImpostazioniPage::buildRagTab()
                                 ? "Indice <b>solo in RAM</b> (non salvato su disco)."
                                 : "Indice salvato in <code>~/.prismalux_rag.json</code>."));
                 }
-                delete errCount;
+                if (m_btnStopIndex) m_btnStopIndex->setEnabled(false);
                 reindexBtn->setEnabled(true);
+                emit indexingFinished(n, wasAborted);
+                delete errCount;
                 delete indexNext;
                 return;
             }
@@ -1662,6 +1723,7 @@ QWidget* ImpostazioniPage::buildRagTab()
             feedbackLbl->setText(
                 QString("\xe2\x8f\xb3  Indicizzazione: %1 / %2 chunk...")
                     .arg(m_ragQueuePos + 1).arg(m_ragQueue.size()));
+            emit indexingProgress(m_ragQueuePos, m_ragQueue.size());
 
             const QString chunk = m_ragQueue[m_ragQueuePos++];
 

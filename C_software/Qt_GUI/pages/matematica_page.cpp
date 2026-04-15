@@ -109,6 +109,25 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     splitter->setStretchFactor(1, 3);
 
     root->addWidget(splitter, 1);
+
+    /* Sincronizza il combo modello quando il modello cambia da Impostazioni o
+       da un'altra scheda (m_modelCombo è creato in buildSeqTab, già disponibile). */
+    connect(m_ai, &AiClient::modelChanged, this, [this](const QString& newModel) {
+        if (!m_modelCombo) return;
+        int idx = m_modelCombo->findData(newModel);
+        if (idx < 0) idx = m_modelCombo->findText(newModel, Qt::MatchContains);
+        if (idx >= 0 && idx != m_modelCombo->currentIndex()) {
+            m_modelCombo->blockSignals(true);
+            m_modelCombo->setCurrentIndex(idx);
+            m_modelCombo->blockSignals(false);
+        } else if (idx < 0) {
+            m_modelCombo->blockSignals(true);
+            m_modelCombo->setItemText(0, newModel);
+            m_modelCombo->setItemData(0, newModel);
+            m_modelCombo->setCurrentIndex(0);
+            m_modelCombo->blockSignals(false);
+        }
+    });
 }
 
 /* ══════════════════════════════════════════════════════════════

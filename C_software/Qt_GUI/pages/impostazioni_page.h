@@ -43,6 +43,10 @@ signals:
     void navStyleChanged(const QString& style);
     /** Emesso quando l'utente cambia la modalità dei pulsanti di esecuzione. */
     void execBtnModeChanged(const QString& mode);
+    /** Emesso ogni chunk durante l'indicizzazione (per progress bar in MainWindow). */
+    void indexingProgress(int done, int total);
+    /** Emesso al completamento o all'interruzione dell'indicizzazione. */
+    void indexingFinished(int n, bool aborted);
 
 private:
     QWidget* buildTemaTab();
@@ -64,8 +68,10 @@ private:
 
     /* RAG indexing state (usato da buildRagTab) */
     RagEngine       m_rag;
-    QStringList     m_ragQueue;        ///< chunk da indicizzare
-    int             m_ragQueuePos = 0; ///< posizione corrente nel queue
+    QStringList     m_ragQueue;           ///< chunk da indicizzare
+    int             m_ragQueuePos = 0;    ///< posizione corrente nel queue
     QLabel*         m_ragFeedbackLbl = nullptr;
-    bool            m_ragNoSave      = false; ///< se true, non salva l'indice su disco (M2)
+    bool            m_ragNoSave      = false;  ///< se true, non salva l'indice su disco (M2)
+    QPushButton*    m_btnStopIndex   = nullptr; ///< "Ferma indicizzazione" — abilitato durante indexing
+    bool            m_indexAborted   = false;   ///< flag settato da "Ferma" per interrompere indexNext
 };

@@ -413,7 +413,7 @@ void AgentiPage::setupUI() {
     /* Colonna 1 */
     m_btnRun = new QPushButton("\xe2\x96\xb6  Avvia", inputArea);
     m_btnRun->setObjectName("actionBtn");
-    m_btnRun->setToolTip("Avvia la modalit\xc3\xa0 selezionata (Enter)");
+    m_btnRun->setToolTip("Avvia la pipeline multi-agente completa");
     tagExec(m_btnRun, "\xe2\x96\xb6", "Avvia");
 
     m_btnStop = new QPushButton("\xe2\x8f\xb9 Stop", inputArea);
@@ -426,7 +426,7 @@ void AgentiPage::setupUI() {
     /* Colonna 2 */
     auto* btnQuick = new QPushButton("\xe2\x9a\xa1 Singolo", inputArea);
     btnQuick->setObjectName("actionBtn");
-    btnQuick->setToolTip("Risposta immediata — 1 solo agente");
+    btnQuick->setToolTip("Risposta immediata \xe2\x80\x94 1 solo agente (Invio)");
     tagExec(btnQuick, "\xe2\x9a\xa1", "Singolo");
 
     m_btnVoice = new QPushButton("\xf0\x9f\x8e\xa4 Voce", inputArea);
@@ -469,6 +469,8 @@ void AgentiPage::setupUI() {
     {
         auto* hints = new QLabel(
             "\xe2\x8c\xa8  "
+            "<b>Invio</b> = risposta singola rapida"
+            " &nbsp;&nbsp;\xc2\xb7&nbsp;&nbsp; "
             "<b>Shift+Invio</b> = a capo"
             " &nbsp;&nbsp;\xc2\xb7&nbsp;&nbsp; "
             "\xf0\x9f\x93\x88  Grafico cartesiano: es. "
@@ -494,7 +496,7 @@ void AgentiPage::setupUI() {
            risultato pratico. runByzantine() rimane disponibile per usi futuri. */
         else runPipeline();
     });
-    /* Invio = Avvia  |  Shift+Invio = a capo nel testo */
+    /* Invio = Singolo (risposta rapida 1 agente)  |  Shift+Invio = a capo nel testo */
     {
         struct EnterFilter : public QObject {
             QPushButton* btn;
@@ -512,7 +514,7 @@ void AgentiPage::setupUI() {
                 return false;
             }
         };
-        m_input->installEventFilter(new EnterFilter(m_btnRun, m_input));
+        m_input->installEventFilter(new EnterFilter(btnQuick, m_input));
     }
     connect(m_btnStop, &QPushButton::clicked, m_ai, &AiClient::abort);
 

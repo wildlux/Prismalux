@@ -290,7 +290,7 @@ Finanza e Sfida sono sotto-tab di Impara, senza shortcut separata.
 
 ---
 
-## Stato funzionalità (aggiornato 2026-04-13)
+## Stato funzionalità (aggiornato 2026-04-15)
 
 | Funzionalità | Stato | Note |
 |---|---|---|
@@ -315,10 +315,104 @@ Finanza e Sfida sono sotto-tab di Impara, senza shortcut separata.
 | Quiz Interattivi | ✅ | |
 | llama.cpp Studio | ✅ | gestisci modelli, avvia server/chat |
 | VRAM benchmark | ✅ | binario vram_bench in C_software/ |
-| RAG indicizzazione documenti | ✅ | conn/connErr fix + feedback errori embedding |
+| RAG indicizzazione documenti | ✅ | background async, stop cooperativo, counter fix |
 | Emergenza RAM | ✅ | ferma modelli Ollama + drop_caches pkexec |
 | Temi (dark cyan/amber/purple/ocean/light) | ✅ | ThemeManager + QRC |
 | Dashboard Statistica | 🌫️ stub | — |
+
+---
+
+## AgentiPage — Enter key e propagazione modello
+
+### Enter → "Singolo" (non "Avvia")
+Il tasto Invio nel campo input (`m_input`) esegue **Singolo** (1 agente, risposta rapida),
+non la pipeline completa "Avvia" (troppo lenta per uso quotidiano).
+Implementato in `agenti_page_ui.cpp` con `EnterFilter`:
+```cpp
+m_input->installEventFilter(new EnterFilter(btnQuick, m_input));
+// btnQuick = pulsante "⚡ Singolo"
+// m_btnRun = pulsante "▶ Avvia" — attivabile solo con click esplicito
+```
+
+### Propagazione modello di default → tutti i tab
+Quando l'utente cambia il modello in Impostazioni (o ovunque), il segnale
+`AiClient::modelChanged(QString)` viene emesso e ricevuto da ogni pagina:
+
+```cpp
+// Pattern usato in agenti_page.cpp, programmazione_page.cpp, matematica_page.cpp
+connect(m_ai, &AiClient::modelChanged, this, [this](const QString& newModel) {
+    if (!m_cmbLLM) return;
+    const int idx = m_cmbLLM->findText(newModel);
+    if (idx >= 0 && idx != m_cmbLLM->currentIndex()) {
+        m_cmbLLM->blockSignals(true);   // evita loop di feedback
+        m_cmbLLM->setCurrentIndex(idx);
+        m_cmbLLM->blockSignals(false);
+    }
+});
+```
+`blockSignals(true/false)` è obbligatorio per evitare che la combo stessa
+emetta `currentIndexChanged` e triggeri un nuovo `modelChanged` a cascata.
+
+---
+
+## RAG — Indicizzazione in background e stop cooperativo
+
+### L'indicizzazione è già asincrona
+Il loop `indexNext` è guidato da `QNetworkReply` callbacks: ogni chunk avanza
+solo quando il reply precedente arriva. Questo significa che l'indicizzazione
+**continua automaticamente anche se l'utente cambia tab o chiude il dialog**,
+perché il dialog ha `WA_DeleteOnClose = false` e resta in memoria.
+
+### Stop cooperativo (`m_indexAborted`)
+Il pulsante "Ferma indicizzazione" (`m_btnStopIndex`) setta il flag:
+```cpp
+m_indexAborted = true;
+m_btnStopIndex->setEnabled(false);
+```
+All'inizio di ogni iterazione di `indexNext`, se il flag è true, l'indicizzazione
+si ferma in modo pulito (salva i chunk già elaborati se `n > 0`, emette
+`indexingFinished(n, true /*aborted*/)`).
+
+### Pulsante "Ferma" — layout
+Nella buildRagTab(), i due pulsanti sono in una riga orizzontale:
+```
+[ ⏹  Ferma indicizzazione ] [ 🔄 Reindicizza ora ]
+```
+"Ferma" è disabilitato di default; si abilita all'avvio dell'indicizzazione.
+
+### Segnali verso MainWindow
+`ImpostazioniPage` emette due segnali durante l'indicizzazione:
+```cpp
+void indexingProgress(int done, int total);  // ogni chunk
+void indexingFinished(int n, bool aborted);  // fine o stop
+```
+`MainWindow::setupImpostazioni()` li connette alla status bar:
+- `progress` → "⏳ Indicizzazione RAG: X / Y chunk..."
+- `finished` aborted → "⏸ Indicizzazione interrotta a X chunk."
+- `finished` n==0 → "❌ RAG: embedding falliti — installa nomic-embed-text."
+- `finished` n>0 → "✅ RAG completato: N chunk indicizzati."
+
+### Fix contatore "documenti indicizzati: 0"
+**Causa**: la fine del loop salvava sempre `kRagDocCount` e il timestamp,
+anche quando tutti gli embedding fallivano (`n == 0`), sovrascrivendo il
+conteggio valido di una sessione precedente.  
+**Fix**: `kRagDocCount`, il timestamp e il file `m_rag.save()` vengono scritti
+**solo se `n > 0`**:
+```cpp
+if (n > 0) {
+    if (!m_ragNoSave) m_rag.save(path);
+    ss.setValue(P::SK::kRagDocCount, n);
+    ss.setValue(P::SK::kRagLastIndexed, QDateTime::currentDateTime().toString(...));
+}
+```
+
+### `refreshStatus()` — avviso embedding falliti
+Se `cnt == 0` ma `lastIdx != "Mai"` (indicizzazione eseguita in passato ma senza
+chunk validi), il label mostra un avviso rosso:
+```
+⚠  Documenti indicizzati: 0 — ultima esecuzione: DD/MM/YYYY HH:MM
+   Embedding falliti — installa nomic-embed-text e reindicizza.
+```
 
 ---
 
@@ -345,6 +439,32 @@ nome/path in `Qt::UserRole`. `itemDoubleClicked` e `currentItemChanged` connessi
 Il Makefile non era nella dir cercata; make falliva con codice 2.
 **Fix**: path corretti a `P::root()`. Aggiunto check `QFileInfo::exists(Makefile)`;
 se assente, pulsante disabilitato con tooltip esplicativo.
+
+### 2026-04-15 — AgentiPage: Enter eseguiva pipeline completa (lenta)
+**Causa**: `EnterFilter` in `agenti_page_ui.cpp` era connesso a `m_btnRun` (pipeline
+6 agenti in sequenza). Su GPU lenta la pipeline dura minuti — sbagliato come default
+per Invio, che l'utente si aspetta essere rapido.  
+**Fix**: `EnterFilter` ora trigga `btnQuick` ("⚡ Singolo" — 1 agente). La pipeline
+completa "▶ Avvia" richiede click esplicito. Tooltip aggiornati di conseguenza.
+
+### 2026-04-15 — Modello default non propagato a Agenti AI / Programmazione / Matematica
+**Causa**: `AiClient::modelChanged` non aveva subscriber nelle pagine principali.
+Cambiare modello in Impostazioni aggiornava solo il label nell'header.  
+**Fix**: aggiunta connect permanente in costruttore di `AgentiPage`, `ProgrammazionePage`,
+`MatematicaPage` — ciascuna aggiorna la propria combo con `blockSignals(true/false)`.
+
+### 2026-04-15 — RAG: reindicizzazione fallita azzerava contatore precedente
+**Causa**: il blocco di salvataggio in `indexNext` (completamento) scriveva sempre
+`kRagDocCount = n` e il timestamp, anche con `n == 0` (tutti gli embedding falliti).
+Risultato: il counter valido di una sessione precedente veniva sovrascritto con 0.  
+**Fix**: scrittura di `kRagDocCount`, timestamp e `m_rag.save()` protetta da `if (n > 0)`.
+
+### 2026-04-15 — Test `alreadyIndexedSearch` (test 11) falliva sempre
+**Causa**: i vettori `e0`, `e1`, `e2` erano costruiti con `makeEmb(d, 1/2/3)` — tutti
+sulla stessa direzione (asse 0) con magnitudini diverse. Con cosine similarity la
+magnitudine non conta: tutti avevano similarità 1.0 → top-1 arbitrario.  
+**Fix**: vettori su assi distinti: `e0[0]=1.0f`, `e1[1]=1.0f`, `e2[2]=1.0f`.
+Query su asse 0 → top-1 = `e0` in modo deterministico. Tutti e 15 i test passano.
 
 ### 2026-04-13 — RAG: contatore "documenti indicizzati" sempre 0
 **Causa (1 — conn leak)**: nel loop di indicizzazione, quando `embeddingError` scattava,
@@ -451,8 +571,30 @@ Opzione "Non salvare indice su disco" aggiunta nelle impostazioni RAG (`rag/noSa
 ### MEDIO — Zero test sul codice applicativo
 **Rischio**: `RagEngine`, `extractPythonCode()`, `markdownToHtml()`, pipeline Byzantine —
 nessun test automatico; bug come il contatore RAG trovati solo in produzione  
-**Stato**: 🔵 **APERTO** — nessun test aggiunto (fuori scope). Priorità: unit test per
-`RagEngine::addChunk/search/save/load` e `_sanitizePyCode`.
+**Stato**: ✅ **RISOLTO (parziale)** — `tests/test_rag_engine.cpp` con 15 casi:
+
+| # | Test | Cosa verifica |
+|---|------|---------------|
+| 1 | `emptyCount` | `chunkCount() == 0` su engine vuoto |
+| 2 | `projectDim` | output JLT ha dimensione `kTargetDim` |
+| 3 | `addIncreasesCount` | `chunkCount` cresce per ogni `addChunk` |
+| 4 | `searchRoundTrip` | top-1 ritrova chunk inserito con vettore identico |
+| 5 | `searchKLargerThanCount` | `k > N` → al massimo N risultati |
+| 6 | `searchOnEmpty` | engine vuoto → lista vuota |
+| 7 | `saveLoad` | round-trip file JSON, `inputDim` preservata |
+| 8 | `loadMissing` | file assente → `false`, engine vuoto |
+| 9 | `clearResetsCount` | `clear()` azzera l'indice |
+| 10 | `deterministicProjection` | due engine indipendenti stessa query → stessa risposta |
+| 11 | `alreadyIndexedSearch` | save→load→search funziona tra sessioni diverse |
+| 12 | `alreadyIndexedTopK` | ordinamento top-k preservato dopo reload |
+| 13 | `partialIndexPreservesCount` | indicizzazione interrotta a metà → count corretto |
+| 14 | `countPreservedOnFailedReindex` | reindicizzazione fallita non sovrascrive file valido |
+| 15 | `multiDocumentSearch` | chunk di documenti diversi su assi separati |
+
+**ATTENZIONE costruzione vettori**: usare assi distinti per test che verificano top-1.
+`makeEmb(d, val)` mette tutto su `v[0]` — stessa direzione, magnitudine diversa —
+cosine similarity uguale per tutti → risultato non deterministico.
+Usare invece: `QVector<float> v(d, 0.0f); v[axis] = 1.0f;`
 
 ### MEDIO — 29× `waitForFinished` bloccano il thread UI
 **File**: `matematica_page.cpp` — `proc.waitForFinished(20000)` (20 secondi congelati)  
@@ -506,7 +648,7 @@ Il file TODO.md rimane come documentazione storica delle decisioni prese.
 | C3 | Rimossa falsa sicurezza `_sanitize_prompt` kPhrases | 2026-04-13 | ✅ |
 | A1 | Shell injection gcc fix (arglist esplicita) | 2026-04-13 | ✅ parz. (cmake/git: path interni, rischio zero) |
 | A2 | Split `agenti_page.cpp` | 2026-04-11 | ✅ parz. — 12 moduli funzionali; decomposizione per tipo (tts/stt/exec) non eseguita |
-| M1 | Unit test RagEngine + extractPythonCode (12+14 test) | 2026-04-13 | ✅ |
+| M1 | Unit test RagEngine + extractPythonCode (15+14 test) | 2026-04-13/15 | ✅ |
 | M2 | Warning privacy RAG + opzione no-persist su disco | 2026-04-13 | ✅ |
 | B1 | Memory leak QElapsedTimer → QSharedPointer nei lambda | 2026-04-13 | ✅ |
 | S1 | waitForFinished → QEventLoop in matematica_page | già presente | ✅ verificato 2026-04-15 |

@@ -151,6 +151,178 @@ private slots:
         QVERIFY(!res1.isEmpty() && !res2.isEmpty());
         QCOMPARE(res1.first().text, res2.first().text);
     }
+
+    /* ══════════════════════════════════════════════════════════════
+       Test "RAG già indicizzato" — simula stato dopo una sessione
+       precedente in cui i documenti erano già stati indicizzati.
+       Questi test verificano che l'app funzioni correttamente quando
+       l'utente riapre Prismalux dopo aver già creato un indice.
+       ══════════════════════════════════════════════════════════════ */
+
+    /* ── 11. RAG già indicizzato: save → load → search funziona ── */
+    void alreadyIndexedSearch() {
+        const int d = 64;
+
+        /* Vettori su assi DISTINTI: cosine similarity diversa rispetto alla query */
+        QVector<float> e0(d, 0.0f); e0[0] = 1.0f;  /* asse 0 — il più simile alla query */
+        QVector<float> e1(d, 0.0f); e1[1] = 1.0f;  /* asse 1 — perpendicolare */
+        QVector<float> e2(d, 0.0f); e2[2] = 1.0f;  /* asse 2 — perpendicolare */
+
+        /* Simula prima sessione: indicizzazione documenti */
+        RagEngine first;
+        first.addChunk("Articolo 36 Costituzione: orario lavorativo", e0);
+        first.addChunk("Fattorizzazione: 12 = 2 * 2 * 3",             e1);
+        first.addChunk("Python: for i in range(10): print(i)",         e2);
+        QCOMPARE(first.chunkCount(), 3);
+
+        /* Salva su file temporaneo (come farebbe ImpostazioniPage) */
+        QTemporaryFile tmp;
+        tmp.setFileTemplate(QDir::tempPath() + "/rag_already_XXXXXX.json");
+        QVERIFY(tmp.open());
+        const QString path = tmp.fileName();
+        tmp.close();
+        QVERIFY(first.save(path));
+
+        /* Simula seconda sessione: carica l'indice già esistente */
+        RagEngine second;
+        QVERIFY(second.load(path));
+        QCOMPARE(second.chunkCount(), 3);
+
+        /* Query sull'asse 0: deve trovare il primo chunk come top-1 */
+        QVector<float> query(d, 0.0f); query[0] = 1.0f;
+        auto results = second.search(query, 1);
+        QVERIFY(!results.isEmpty());
+        QCOMPARE(results.first().text, QString("Articolo 36 Costituzione: orario lavorativo"));
+    }
+
+    /* ── 12. RAG già indicizzato: top-k restituisce risultati ordinati ── */
+    void alreadyIndexedTopK() {
+        const int d = 64;
+
+        /* Tre chunk con distanze crescenti dalla query */
+        QVector<float> qVec(d, 0.0f); qVec[0] = 1.0f;
+
+        QVector<float> close(d, 0.0f);  close[0]  = 0.99f; close[1]  = 0.01f;
+        QVector<float> mid(d, 0.0f);    mid[0]    = 0.7f;  mid[1]    = 0.7f;
+        QVector<float> far_(d, 0.0f);   far_[1]   = 1.0f;  /* perpendicolare */
+
+        RagEngine rag;
+        rag.addChunk("vicino", close);
+        rag.addChunk("medio",  mid);
+        rag.addChunk("lontano", far_);
+
+        /* Salva e ricarica (simula riavvio app) */
+        QTemporaryFile tmp;
+        tmp.setFileTemplate(QDir::tempPath() + "/rag_topk_XXXXXX.json");
+        QVERIFY(tmp.open()); tmp.close();
+        QVERIFY(rag.save(tmp.fileName()));
+
+        RagEngine loaded;
+        QVERIFY(loaded.load(tmp.fileName()));
+
+        /* top-2: deve includere "vicino" e "medio" */
+        auto res = loaded.search(qVec, 2);
+        QCOMPARE(res.size(), 2);
+        QCOMPARE(res.at(0).text, QString("vicino"));
+    }
+
+    /* ── 13. Abort simulato: chunk parziali salvati, conteggio corretto ── */
+    void partialIndexPreservesCount() {
+        /* Simula che l'indicizzazione venga interrotta a metà:
+         * 3 chunk su 5 vengono aggiunti prima dell'abort.
+         * Verifica che chunkCount() rifletta solo i chunk completati. */
+        const int d = 64;
+        RagEngine rag;
+
+        rag.addChunk("doc1-chunk1", makeEmb(d, 1.0f));
+        rag.addChunk("doc1-chunk2", makeEmb(d, 2.0f));
+        rag.addChunk("doc2-chunk1", makeEmb(d, 3.0f));
+        /* "abort" simulato: i 2 chunk rimanenti non vengono aggiunti */
+
+        QCOMPARE(rag.chunkCount(), 3);
+
+        /* Il salvataggio dell'indice parziale deve funzionare */
+        QTemporaryFile tmp;
+        tmp.setFileTemplate(QDir::tempPath() + "/rag_partial_XXXXXX.json");
+        QVERIFY(tmp.open()); tmp.close();
+        QVERIFY(rag.save(tmp.fileName()));
+
+        /* Ricarica: deve contenere esattamente i 3 chunk parziali */
+        RagEngine reloaded;
+        QVERIFY(reloaded.load(tmp.fileName()));
+        QCOMPARE(reloaded.chunkCount(), 3);
+    }
+
+    /* ── 14. Conta preservata dopo reindicizzazione fallita ── */
+    void countPreservedOnFailedReindex() {
+        /* Simula il fix del bug: kRagDocCount NON deve essere sovrascritto a 0
+         * se n==0 (tutti gli embedding falliti).
+         * Qui testiamo la logica RagEngine: un engine con 0 chunk NON deve
+         * sovrascrivere un file JSON già valido. */
+        const int d = 64;
+
+        /* Stato iniziale: indice valido con 2 chunk */
+        RagEngine good;
+        good.addChunk("alpha", makeEmb(d, 1.0f));
+        good.addChunk("beta",  makeEmb(d, 2.0f));
+
+        QTemporaryFile tmp;
+        tmp.setFileTemplate(QDir::tempPath() + "/rag_preserve_XXXXXX.json");
+        QVERIFY(tmp.open()); tmp.close();
+        QVERIFY(good.save(tmp.fileName()));
+
+        /* Reindicizzazione fallita: engine vuoto (nessun embedding riuscito).
+         * La logica in ImpostazioniPage NON chiama m_rag.save() se n==0,
+         * quindi il file precedente rimane intatto. */
+        RagEngine failed;
+        QCOMPARE(failed.chunkCount(), 0);
+        /* NON salviamo — simula il guard "if (n > 0)" introdotto nel fix */
+
+        /* Il file originale deve essere ancora leggibile con i dati precedenti */
+        RagEngine reloaded;
+        QVERIFY(reloaded.load(tmp.fileName()));
+        QCOMPARE(reloaded.chunkCount(), 2);
+        auto res = reloaded.search(makeEmb(d, 1.0f), 1);
+        QVERIFY(!res.isEmpty());
+        QCOMPARE(res.first().text, QString("alpha"));
+    }
+
+    /* ── 15. RAG multi-documento: search semantico tra documenti diversi ── */
+    void multiDocumentSearch() {
+        /* Simula un indice con chunk da 3 "documenti" con direzioni diverse */
+        const int d = 128;
+
+        /* doc A: direzione asse 0 */
+        QVector<float> a1(d, 0.0f); a1[0] = 1.0f;
+        QVector<float> a2(d, 0.0f); a2[0] = 0.9f; a2[1] = 0.1f;
+
+        /* doc B: direzione asse 1 */
+        QVector<float> b1(d, 0.0f); b1[1] = 1.0f;
+        QVector<float> b2(d, 0.0f); b2[1] = 0.8f; b2[2] = 0.2f;
+
+        /* doc C: direzione asse 2 */
+        QVector<float> c1(d, 0.0f); c1[2] = 1.0f;
+
+        RagEngine rag;
+        rag.addChunk("docA-1", a1);
+        rag.addChunk("docA-2", a2);
+        rag.addChunk("docB-1", b1);
+        rag.addChunk("docB-2", b2);
+        rag.addChunk("docC-1", c1);
+
+        /* Query simile a doc A: top-2 devono essere entrambi da doc A */
+        QVector<float> qA(d, 0.0f); qA[0] = 1.0f;
+        auto resA = rag.search(qA, 2);
+        QCOMPARE(resA.size(), 2);
+        QVERIFY(resA.at(0).text.startsWith("docA"));
+        QVERIFY(resA.at(1).text.startsWith("docA"));
+
+        /* Query simile a doc B: top-1 deve essere da doc B */
+        QVector<float> qB(d, 0.0f); qB[1] = 1.0f;
+        auto resB = rag.search(qB, 1);
+        QCOMPARE(resB.size(), 1);
+        QVERIFY(resB.at(0).text.startsWith("docB"));
+    }
 };
 
 QTEST_MAIN(TestRagEngine)

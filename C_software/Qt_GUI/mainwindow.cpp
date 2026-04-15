@@ -1606,6 +1606,25 @@ void MainWindow::ensureSettingsDialog()
             this,      &MainWindow::applyNavStyle);
     connect(m_impPage, &ImpostazioniPage::execBtnModeChanged,
             this,      &MainWindow::applyExecBtnMode);
+
+    /* Feedback indicizzazione RAG nella status bar — visibile anche a dialog chiuso */
+    connect(m_impPage, &ImpostazioniPage::indexingProgress,
+            this, [this](int done, int total) {
+        statusBar()->showMessage(
+            QString("\xe2\x8f\xb3  Indicizzazione RAG: %1 / %2 chunk...").arg(done).arg(total));
+    });
+    connect(m_impPage, &ImpostazioniPage::indexingFinished,
+            this, [this](int n, bool aborted) {
+        if (aborted)
+            statusBar()->showMessage(
+                QString("\xe2\x8f\xb9  RAG interrotto \xe2\x80\x94 %1 chunk salvati.").arg(n), 6000);
+        else if (n == 0)
+            statusBar()->showMessage(
+                "\xe2\x9d\x8c  RAG: embedding falliti \xe2\x80\x94 installa nomic-embed-text.", 8000);
+        else
+            statusBar()->showMessage(
+                QString("\xe2\x9c\x85  RAG completato: %1 chunk indicizzati.").arg(n), 6000);
+    });
 }
 
 /* ══════════════════════════════════════════════════════════════

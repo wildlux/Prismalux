@@ -69,6 +69,18 @@ AgentiPage::AgentiPage(AiClient* ai, QWidget* parent)
     connect(m_ai, &AiClient::error,       this, &AgentiPage::onError);
     connect(m_ai, &AiClient::modelsReady, this, &AgentiPage::onModelsReady);
 
+    /* Quando il modello cambia da Impostazioni (o da qualsiasi altra pagina),
+       aggiorna il combo locale senza innescare un nuovo setBackend (blockSignals). */
+    connect(m_ai, &AiClient::modelChanged, this, [this](const QString& newModel) {
+        if (!m_cmbLLM) return;
+        const int idx = m_cmbLLM->findText(newModel);
+        if (idx >= 0 && idx != m_cmbLLM->currentIndex()) {
+            m_cmbLLM->blockSignals(true);
+            m_cmbLLM->setCurrentIndex(idx);
+            m_cmbLLM->blockSignals(false);
+        }
+    });
+
     m_ai->fetchModels();
 }
 
