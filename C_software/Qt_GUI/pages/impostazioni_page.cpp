@@ -1,4 +1,5 @@
 #include "impostazioni_page.h"
+#include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
 #include "personalizza_page.h"
 #include "manutenzione_page.h"
@@ -4315,6 +4316,46 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     honestyHint->setObjectName("hintLabel");
     outer->addWidget(honestyHint);
 
+    /* ── Modalità Caveman (risposte dirette, zero riempitivi) ── */
+    auto* sepCaveman = new QFrame; sepCaveman->setFrameShape(QFrame::HLine);
+    sepCaveman->setObjectName("sidebarSep");
+    outer->addWidget(sepCaveman);
+
+    /* Riga: toggle + etichetta */
+    auto* cavemanRow = new QWidget;
+    auto* cavemanLay = new QHBoxLayout(cavemanRow);
+    cavemanLay->setContentsMargins(0, 4, 0, 4);
+    cavemanLay->setSpacing(12);
+
+    const bool cavemanOn = AiChatParams::load().caveman_mode;
+    auto* cavemanToggle = new ToggleSwitch({}, this);
+    cavemanToggle->setChecked(cavemanOn);
+    cavemanToggle->setFixedHeight(26);
+
+    auto* cavemanLbl = new QLabel(
+        "\xf0\x9f\xa6\x96  <b>Modalit\xc3\xa0 Caveman</b> \xe2\x80\x94 risposte dirette, senza convenevoli");
+    cavemanLbl->setWordWrap(false);
+
+    /* Badge stato ON/OFF visivo accanto al toggle */
+    auto* cavemanBadge = new QLabel(cavemanOn ? "  ON " : "  OFF");
+    cavemanBadge->setObjectName(cavemanOn ? "badgeActive" : "badgeInactive");
+    cavemanBadge->setFixedWidth(44);
+    cavemanBadge->setAlignment(Qt::AlignCenter);
+
+    cavemanLay->addWidget(cavemanToggle);
+    cavemanLay->addWidget(cavemanBadge);
+    cavemanLay->addWidget(cavemanLbl);
+    cavemanLay->addStretch();
+    outer->addWidget(cavemanRow);
+
+    auto* cavemanDesc = new QLabel(
+        "\xe2\x84\xb9  Elimina frasi come \xe2\x80\x9cCertamente!\xe2\x80\x9d o \xe2\x80\x9cSpero di averti aiutato\xe2\x80\x9d. "
+        "Il modello va dritto al contenuto. Utile per pipeline agenti e query rapide "
+        "(meno token sprecati = risposte pi\xc3\xb9 veloci).");
+    cavemanDesc->setWordWrap(true);
+    cavemanDesc->setObjectName("hintLabel");
+    outer->addWidget(cavemanDesc);
+
     auto* sep1 = new QFrame; sep1->setFrameShape(QFrame::HLine); sep1->setObjectName("sidebarSep");
     outer->addWidget(sep1);
 
@@ -4350,6 +4391,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         p.num_predict    = predSpin->value();
         p.num_ctx        = ctxSpin->value();
         p.honesty_prefix = honestyCb->isChecked();
+        p.caveman_mode   = cavemanToggle->isChecked();
         AiChatParams::save(p);       /* scrive su disco */
         if (m_ai) m_ai->setChatParams(p);  /* applica subito senza riavviare */
         saveStatus->setText("\xe2\x9c\x85  Salvato in " + AiChatParams::filePath());
@@ -4365,6 +4407,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         predSpin->setValue(2048);
         ctxSpin->setValue(8192);
         honestyCb->setChecked(true);
+        cavemanToggle->setChecked(false);
         saveParams();
     });
 
@@ -4376,6 +4419,14 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     connect(predSpin,  QOverload<int>::of(&QSpinBox::valueChanged),          page, saveParams);
     connect(ctxSpin,   QOverload<int>::of(&QSpinBox::valueChanged),          page, saveParams);
     connect(honestyCb, &QCheckBox::toggled,                                  page, saveParams);
+
+    /* Toggle Caveman: salva + aggiorna badge ON/OFF */
+    connect(cavemanToggle, &QAbstractButton::toggled, page, [=](bool on){
+        cavemanBadge->setText(on ? "  ON " : "  OFF");
+        cavemanBadge->setObjectName(on ? "badgeActive" : "badgeInactive");
+        P::repolish(cavemanBadge);
+        saveParams();
+    });
 
     outer->addStretch();
     return page;

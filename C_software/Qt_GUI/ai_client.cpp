@@ -38,6 +38,7 @@ AiChatParams AiChatParams::load()
     if (obj.contains("num_predict"))    p.num_predict    = obj["num_predict"].toInt(p.num_predict);
     if (obj.contains("num_ctx"))        p.num_ctx        = obj["num_ctx"].toInt(p.num_ctx);
     if (obj.contains("honesty_prefix")) p.honesty_prefix = obj["honesty_prefix"].toBool(p.honesty_prefix);
+    if (obj.contains("caveman_mode"))   p.caveman_mode   = obj["caveman_mode"].toBool(p.caveman_mode);
     return p;
 }
 
@@ -54,6 +55,7 @@ void AiChatParams::save(const AiChatParams& p)
     obj["num_predict"]    = p.num_predict;
     obj["num_ctx"]        = p.num_ctx;
     obj["honesty_prefix"] = p.honesty_prefix;
+    obj["caveman_mode"]   = p.caveman_mode;
 
     QFile f(filePath());
     if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
@@ -275,6 +277,17 @@ static const char* kHonestyPrefix =
     "Non speculare. Non completare lacune con supposizioni. "
     "Rispondi SEMPRE e SOLO in italiano.\n\n";
 
+/* ── Prefisso modalità Caveman: risposte dirette senza convenevoli ───────
+   Viene preposto a tutti i system prompt quando caveman_mode=true.
+   Riduce i token sprecati in introduzioni e riepiloghi inutili.
+   ──────────────────────────────────────────────────────────────────────── */
+static const char* kCavemanPrefix =
+    "STILE RISPOSTA: sii diretto e conciso. "
+    "Nessuna frase introduttiva ('Certamente!', 'Ottima domanda!', 'Certo, ecco', ecc.). "
+    "Nessun riepilogo finale. Nessun 'Spero di averti aiutato'. "
+    "Vai subito al contenuto richiesto, senza riempitivi. "
+    "Preferisci elenchi puntati a paragrafi verbosi quando il contenuto lo permette.\n\n";
+
 /* ── chat (wrapper legacy — compatibile con tutto il codice esistente) ─── */
 void AiClient::chat(const QString& systemPrompt, const QString& userMsg) {
     chat(systemPrompt, userMsg, QJsonArray(), classifyQuery(userMsg));  /* FIX T2: era QueryAuto hardcoded */
@@ -315,6 +328,8 @@ void AiClient::chat(const QString& systemPrompt, const QString& userMsg,
         m_localAccum.clear();
 
         QString effectiveSysLocal = systemPrompt;
+        if (m_params.caveman_mode)
+            effectiveSysLocal = QString(kCavemanPrefix) + effectiveSysLocal;
         if (m_params.honesty_prefix)
             effectiveSysLocal = QString(kHonestyPrefix) + effectiveSysLocal;
 
@@ -374,6 +389,8 @@ void AiClient::chat(const QString& systemPrompt, const QString& userMsg,
     m_accum.clear();
 
     QString effectiveSys = systemPrompt;
+    if (m_params.caveman_mode)
+        effectiveSys = QString(kCavemanPrefix) + effectiveSys;
     if (m_params.honesty_prefix)
         effectiveSys = QString(kHonestyPrefix) + effectiveSys;
 
@@ -491,6 +508,8 @@ void AiClient::generate(const QString& systemPrompt, const QString& prompt, Quer
     m_accum.clear();
 
     QString effectiveSys = systemPrompt;
+    if (m_params.caveman_mode)
+        effectiveSys = QString(kCavemanPrefix) + effectiveSys;
     if (m_params.honesty_prefix)
         effectiveSys = QString(kHonestyPrefix) + effectiveSys;
 

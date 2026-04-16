@@ -25,6 +25,7 @@ struct AiChatParams {
     int    num_predict    = 2048;
     int    num_ctx        = 8192;
     bool   honesty_prefix = true;
+    bool   caveman_mode   = false;  ///< risposte dirette, senza convenevoli né riepiloghi
 
     /* ── Unica fonte: ~/.prismalux/ai_params.json ── */
     static QString     filePath();               ///< percorso del file

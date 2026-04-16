@@ -464,6 +464,7 @@ constexpr const char* kActiveBackend   = "ai/activeBackend";  ///< 0=Ollama, 1=L
 /* ── Varie ───────────────────────────────────────── */
 constexpr const char* kLoopFixWarning  = "loop_fix_warning_shown";
 constexpr const char* kDefaultTheme    = "dark_ocean";   ///< valore default tema
+constexpr const char* kCavemanMode     = "ai/cavemanMode"; ///< modalità risposte dirette (Caveman)
 
 }  // namespace SK
 
