@@ -152,9 +152,10 @@ void AiClient::abort() {
         r->deleteLater();
     }
     if (m_localProc) { m_localProc->kill(); }
-    m_busy_guard = false;
-    m_localBusy  = false;
+    m_busy_guard     = false;
+    m_localBusy      = false;
     m_accum.clear();
+    m_thinkingAccum.clear();
     if (wasActive) emit aborted();
 }
 
@@ -422,14 +423,18 @@ void AiClient::chat(const QString& systemPrompt, const QString& userMsg,
         opts["num_ctx"]        = m_params.num_ctx;
 
         /* FIX think budget: qwen3/deepseek-r1 consumano token nel blocco <think>
-           → raddoppiare num_predict quando think è attivo per non troncare la risposta */
+           → raddoppiare num_predict quando think è attivo per non troncare la risposta.
+           FIX think:false su piccoli modelli: forzare think:false su qwen3/deepseek
+           con QuerySimple produce m_accum vuoto (modello 0.8B-1.5B non genera nulla
+           senza ragionamento). Per i modelli think-capable usiamo solo il cap num_predict,
+           lasciando che Ollama gestisca il think naturalmente. */
         const bool thinkCapable = m_model.startsWith("qwen3")       ||
                                   m_model.startsWith("qwen3.5")     ||
                                   m_model.startsWith("deepseek-r1") ||
                                   m_model.startsWith("qwen2.5");
         if (qt == QuerySimple) {
             opts["num_predict"] = 512;
-            opts["think"]       = false;
+            if (!thinkCapable) opts["think"] = false;   /* solo modelli non-think */
         } else if (qt == QueryComplex) {
             /* Se il modello usa il blocco <think>, raddoppia il budget */
             opts["num_predict"] = thinkCapable ? m_params.num_predict * 2
@@ -527,9 +532,14 @@ void AiClient::generate(const QString& systemPrompt, const QString& prompt, Quer
     opts["repeat_penalty"] = m_params.repeat_penalty;
     opts["num_ctx"]        = m_params.num_ctx;
 
+    /* generate() — stessa logica di chat(): think:false solo per modelli non-think-capable */
+    const bool thinkCapableGen = m_model.startsWith("qwen3")       ||
+                                 m_model.startsWith("qwen3.5")     ||
+                                 m_model.startsWith("deepseek-r1") ||
+                                 m_model.startsWith("qwen2.5");
     if (qt == QuerySimple) {
         opts["num_predict"] = 512;
-        opts["think"]       = false;
+        if (!thinkCapableGen) opts["think"] = false;
     } else if (qt == QueryComplex) {
         opts["num_predict"] = m_params.num_predict;
         opts["think"]       = true;
@@ -687,6 +697,15 @@ void AiClient::onReadyRead() {
             if (!ch.isEmpty()) chunk = ch[0].toObject()["delta"].toObject()["content"].toString();
         }
         if (!chunk.isEmpty()) { m_accum += chunk; emit token(chunk); }
+
+        /* Fallback per modelli come qwen3.5 che usano message.thinking invece di
+         * includere <think>...</think> in message.content.
+         * Accumuliamo il thinking silenziosamente: se a fine stream m_accum è vuoto,
+         * onFinished() lo wrapperà in <think>...</think> come risposta di fallback. */
+        if (chunk.isEmpty() && !m_isGenerateMode && m_backend == Ollama) {
+            const QString thinking = obj["message"].toObject()["thinking"].toString();
+            if (!thinking.isEmpty()) m_thinkingAccum += thinking;
+        }
     }
 }
 
@@ -736,6 +755,16 @@ void AiClient::onFinished() {
 
     m_modelLoaded = true;
     r->deleteLater();
+
+    /* Fallback thinking: se il modello (es. qwen3.5:0.8b) ha usato solo
+     * message.thinking e message.content è rimasto vuoto, usiamo il thinking
+     * wrappato in <think>...</think> così agenti_page_stream lo gestisce
+     * con il regex reTh esistente invece di mostrare "Nessuna risposta". */
+    if (m_accum.isEmpty() && !m_thinkingAccum.isEmpty()) {
+        m_accum = "<think>" + m_thinkingAccum + "</think>";
+    }
+    m_thinkingAccum.clear();
+
     emit finished(m_accum);
 }
 

@@ -199,4 +199,10 @@ private:
     /* true dopo la prima inferenza completata; false dopo unloadModel().
      * Evita che il timer auto-scarico faccia caricare il modello solo per scaricarlo. */
     bool          m_modelLoaded    = false;
+
+    /* Accumula il blocco <thinking> per i modelli (es. qwen3.5) che usano il campo
+     * separato "message.thinking" invece di includere <think>...</think> nel content.
+     * Se a fine stream m_accum è vuoto ma questo non lo è, viene wrappato in
+     * <think>...</think> e passato a finished() come fallback. */
+    QString       m_thinkingAccum;
 };
