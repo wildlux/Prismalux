@@ -756,12 +756,25 @@ void AiClient::onFinished() {
     m_modelLoaded = true;
     r->deleteLater();
 
-    /* Fallback thinking: se il modello (es. qwen3.5:0.8b) ha usato solo
-     * message.thinking e message.content è rimasto vuoto, usiamo il thinking
-     * wrappato in <think>...</think> così agenti_page_stream lo gestisce
-     * con il regex reTh esistente invece di mostrare "Nessuna risposta". */
+    /* Fallback thinking: se il modello ha usato solo message.thinking e
+     * message.content è rimasto vuoto, usiamo il thinking wrappato in
+     * <think>...</think> così agenti_page_stream lo gestisce con il regex reTh.
+     *
+     * Eccezione: modelli con bug noto (thinking loop infinito, content sempre
+     * vuoto anche con num_predict alto) — emettiamo error() con suggerimento. */
     if (m_accum.isEmpty() && !m_thinkingAccum.isEmpty()) {
-        m_accum = "<think>" + m_thinkingAccum + "</think>";
+        static const QStringList s_knownBroken = { "qwen3.5:0.8b" };
+        if (s_knownBroken.contains(m_model, Qt::CaseInsensitive)) {
+            m_thinkingAccum.clear();
+            emit error(
+                "\xe2\x9a\xa0  " + m_model + " ha un bug noto su Ollama: "
+                "genera solo pensiero interno (thinking loop) senza risposta finale, "
+                "anche con num_predict alto.\n"
+                "\xf0\x9f\x92\xa1  Sostituisci con: llama3.2:3b (~50 tok/s) "
+                "oppure deepseek-r1:1.5b (~41 tok/s).");
+        } else {
+            m_accum = "<think>" + m_thinkingAccum + "</think>";
+        }
     }
     m_thinkingAccum.clear();
 

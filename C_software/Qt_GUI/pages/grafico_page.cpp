@@ -54,65 +54,86 @@ QWidget* GraficoPage::buildLeftPanel() {
     lay->setContentsMargins(10,10,10,10);
     lay->setSpacing(8);
 
-    /* Titolo */
-    auto* title = new QLabel("\xf0\x9f\x93\x88  Grafico", panel);  /* 📈 */
+    /* ── Titolo + tab 2D/3D sulla stessa riga ── */
+    auto* titleRow = new QWidget(panel);
+    auto* titleLay = new QHBoxLayout(titleRow);
+    titleLay->setContentsMargins(0, 0, 0, 0);
+    titleLay->setSpacing(8);
+
+    auto* title = new QLabel("\xf0\x9f\x93\x88  Grafico", titleRow);
     title->setObjectName("pageTitle");
-    title->setFont(QFont("Inter,Ubuntu,sans-serif", 14, QFont::Bold));
-    lay->addWidget(title);
+    titleLay->addWidget(title, 1);
+
+    m_dimBar = new QTabBar(titleRow);
+    m_dimBar->setObjectName("innerTabs");
+    m_dimBar->addTab("2D");
+    m_dimBar->addTab("3D");
+    m_dimBar->setCurrentIndex(0);
+    titleLay->addWidget(m_dimBar);
+
+    lay->addWidget(titleRow);
 
     /* Tipo grafico */
     auto* lblType = new QLabel("Tipo:", panel);
     lblType->setObjectName("formLabel");
     lay->addWidget(lblType);
 
+    /* Tabella completa dei tipi — usata da populateTypeCombo() per filtrare 2D/3D */
+    struct ChartItem { const char* text; int typeId; bool is3d; };
+    static const ChartItem kChartItems[] = {
+        { "\xf0\x9f\x93\x88  Cartesiano  y = f(x)",                           0,  false },
+        { "\xf0\x9f\xa5\xa7  Torta",                                           1,  false },
+        { "\xf0\x9f\x93\x8a  Istogramma",                                      2,  false },
+        { "\xf0\x9f\x94\xb9  Scatter 2D  (x, y)",                             3,  false },
+        { "\xf0\x9f\x95\xb8  Grafo 2D",                                        4,  false },
+        { "\xf0\x9f\x8c\x90  Scatter 3D",                                      5,  true  },
+        { "\xf0\x9f\x94\xb7  Grafo 3D",                                        6,  true  },
+        { "\xf0\x9f\x94\xb5  Smith \xe2\x80\x94 Numeri Primi",                 7,  false },
+        { "\xf0\x9f\x93\x90  Smith \xe2\x80\x94 \xcf\x80\xc2\xb7""e\xc2\xb7Primi", 8, false },
+        { "\xf0\x9f\x93\x89  Linea multi-serie",                               9,  false },
+        { "\xf0\x9f\x8c\x80  Polare  r = f(\xce\xb8)",                        10,  false },
+        { "\xf0\x9f\x95\xb7  Radar (Spider)",                                  11, false },
+        { "\xf0\x9f\xab\xa7  Bolle  (x, y, raggio)",                           12, false },
+        { "\xf0\x9f\x94\xa5  Heatmap (matrice colori)",                         13, false },
+        { "\xf0\x9f\x95\xaf  Candele OHLC",                                    14, false },
+        { "\xf0\x9f\x8f\x94  Area riempita",                                   15, false },
+        { "\xf0\x9f\x8c\x8a  Cascata (Waterfall)",                             16, false },
+        { "\xf0\x9f\x93\xb6  Scalini (Step)",                                  17, false },
+        { "\xf0\x9f\x8f\x9b  Colonne (Column)",                                18, false },
+        { "\xe2\x96\xac  Barre orizzontali (HBar)",                             19, false },
+        { "\xf0\x9f\x97\x82  Barre raggruppate (Grouped)",                     20, false },
+        { "\xf0\x9f\x93\x9a  Barre impilate (Stacked)",                        21, false },
+        { "\xf0\x9f\x92\xaf  Barre impilate 100%",                             22, false },
+        { "\xf0\x9f\xaa\xa3  Imbuto (Funnel)",                                 23, false },
+        { "\xf0\x9f\x8d\xa9  Ciambella (Donut)",                               24, false },
+        { "\xf0\x9f\x97\xba  Treemap",                                         25, false },
+        { "\xe2\x98\x80  Sunburst",                                             26, false },
+        { "\xf0\x9f\x93\xa6  Box Plot",                                        27, false },
+        { "\xf0\x9f\x94\xb5  Dot Plot",                                        28, false },
+        { "\xf0\x9f\x8c\x8a  Densit\xc3\xa0 (KDE)",                           29, false },
+        { "\xf0\x9f\x8f\x94  Area impilata (Stacked Area)",                    30, false },
+        { "\xf0\x9f\x93\x8a  OHLC (barre)",                                    31, false },
+        { "\xf0\x9f\x8e\xaf  Gauge (semicerchio)",                             32, false },
+        { "\xf0\x9f\x8e\xaf  Bullet Chart",                                    33, false },
+        { "\xf0\x9f\x93\x85  Gantt",                                           34, false },
+        { "\xf0\x9f\x94\xba  Piramide (Pyramid)",                              35, false },
+        { "\xe2\x87\x94  Coordinate parallele",                                 36, false },
+        { "\xf0\x9f\x8c\x8a  Sankey",                                          37, false },
+        { "\xf0\x9f\x8c\xb3  Albero (Tree)",                                   38, false },
+        { "\xf0\x9f\x94\x97  Chord",                                           39, false },
+        { "\xf0\x9f\x8e\xbb  Violin Plot",                                     40, false },
+        { "\xe2\x98\x81  Word Cloud",                                           41, false },
+        { "\xf0\x9f\x8c\x9f  Albero Radiale",                                  42, false },
+        { "\xe2\x96\xb6  Linea Animata",                                        43, false },
+        { "\xe2\x8a\x9e  Small Multiples",                                      44, false },
+    };
+
     m_typeCombo = new QComboBox(panel);
     m_typeCombo->setObjectName("settingCombo");
-    /* icone UTF-8 per riconoscimento rapido del tipo */
-    m_typeCombo->addItem("\xf0\x9f\x93\x88  Cartesiano  y = f(x)",          0);  /* 📈 */
-    m_typeCombo->addItem("\xf0\x9f\xa5\xa7  Torta",                          1);  /* 🥧 */
-    m_typeCombo->addItem("\xf0\x9f\x93\x8a  Istogramma",                     2);  /* 📊 */
-    m_typeCombo->addItem("\xf0\x9f\x94\xb9  Scatter 2D  (x, y)",             3);  /* 🔹 */
-    m_typeCombo->addItem("\xf0\x9f\x95\xb8  Grafo 2D",                       4);  /* 🕸 */
-    m_typeCombo->addItem("\xf0\x9f\x8c\x90  Scatter 3D",                     5);  /* 🌐 */
-    m_typeCombo->addItem("\xf0\x9f\x94\xb7  Grafo 3D",                       6);  /* 🔷 */
-    m_typeCombo->addItem("\xf0\x9f\x94\xb5  Smith \xe2\x80\x94 Numeri Primi", 7); /* 🔵 */
-    m_typeCombo->addItem("\xf0\x9f\x93\x90  Smith \xe2\x80\x94 \xcf\x80\xc2\xb7""e\xc2\xb7Primi", 8); /* 📐 */
-    m_typeCombo->addItem("\xf0\x9f\x93\x89  Linea multi-serie",               9);  /* 📉 */
-    m_typeCombo->addItem("\xf0\x9f\x8c\x80  Polare  r = f(\xce\xb8)",        10);  /* 🌀 */
-    m_typeCombo->addItem("\xf0\x9f\x95\xb7  Radar (Spider)",                 11);  /* 🕷 */
-    m_typeCombo->addItem("\xf0\x9f\xab\xa7  Bolle  (x, y, raggio)",          12);  /* 🫧 */
-    m_typeCombo->addItem("\xf0\x9f\x94\xa5  Heatmap (matrice colori)",        13);  /* 🔥 */
-    m_typeCombo->addItem("\xf0\x9f\x95\xaf  Candele OHLC",                   14);  /* 🕯 */
-    m_typeCombo->addItem("\xf0\x9f\x8f\x94  Area riempita",                  15);  /* 🏔 */
-    m_typeCombo->addItem("\xf0\x9f\x8c\x8a  Cascata (Waterfall)",            16);  /* 🌊 */
-    m_typeCombo->addItem("\xf0\x9f\x93\xb6  Scalini (Step)",                 17);  /* 📶 */
-    m_typeCombo->addItem("\xf0\x9f\x8f\x9b  Colonne (Column)",               18);  /* 🏛 */
-    m_typeCombo->addItem("\xe2\x96\xac  Barre orizzontali (HBar)",            19);  /* ▬ */
-    m_typeCombo->addItem("\xf0\x9f\x97\x82  Barre raggruppate (Grouped)",     20);  /* 🗂 */
-    m_typeCombo->addItem("\xf0\x9f\x93\x9a  Barre impilate (Stacked)",        21);  /* 📚 */
-    m_typeCombo->addItem("\xf0\x9f\x92\xaf  Barre impilate 100%",             22);  /* 💯 */
-    m_typeCombo->addItem("\xf0\x9f\xaa\xa3  Imbuto (Funnel)",                 23);  /* 🪣 */
-    m_typeCombo->addItem("\xf0\x9f\x8d\xa9  Ciambella (Donut)",              24);  /* 🍩 */
-    m_typeCombo->addItem("\xf0\x9f\x97\xba  Treemap",                        25);  /* 🗺 */
-    m_typeCombo->addItem("\xe2\x98\x80  Sunburst",                            26);  /* ☀ */
-    m_typeCombo->addItem("\xf0\x9f\x93\xa6  Box Plot",                        27);  /* 📦 */
-    m_typeCombo->addItem("\xf0\x9f\x94\xb5  Dot Plot",                        28);  /* 🔵 */
-    m_typeCombo->addItem("\xf0\x9f\x8c\x8a  Densit\xc3\xa0 (KDE)",           29);  /* 🌊 */
-    m_typeCombo->addItem("\xf0\x9f\x8f\x94  Area impilata (Stacked Area)",    30);  /* 🏔 */
-    m_typeCombo->addItem("\xf0\x9f\x93\x8a  OHLC (barre)",                    31);  /* 📊 */
-    m_typeCombo->addItem("\xf0\x9f\x8e\xaf  Gauge (semicerchio)",             32);  /* 🎯 */
-    m_typeCombo->addItem("\xf0\x9f\x8e\xaf  Bullet Chart",                    33);  /* 🎯 */
-    m_typeCombo->addItem("\xf0\x9f\x93\x85  Gantt",                           34);  /* 📅 */
-    m_typeCombo->addItem("\xf0\x9f\x94\xba  Piramide (Pyramid)",              35);  /* 🔺 */
-    m_typeCombo->addItem("\xe2\x87\x94  Coordinate parallele",                 36);  /* ⇔ */
-    m_typeCombo->addItem("\xf0\x9f\x8c\x8a  Sankey",                          37);  /* 🌊 */
-    m_typeCombo->addItem("\xf0\x9f\x8c\xb3  Albero (Tree)",                   38);  /* 🌳 */
-    m_typeCombo->addItem("\xf0\x9f\x94\x97  Chord",                           39);  /* 🔗 */
-    m_typeCombo->addItem("\xf0\x9f\x8e\xbb  Violin Plot",                     40);  /* 🎻 */
-    m_typeCombo->addItem("\xe2\x98\x81  Word Cloud",                           41);  /* ☁ */
-    m_typeCombo->addItem("\xf0\x9f\x8c\x9f  Albero Radiale",                  42);  /* 🌟 */
-    m_typeCombo->addItem("\xe2\x96\xb6  Linea Animata",                       43);  /* ▶ */
-    m_typeCombo->addItem("\xe2\x8a\x9e  Small Multiples",                     44);  /* ⊞ */
+    /* Carica solo tipi 2D all'avvio — populateTypeCombo(0) */
+    for (const auto& item : kChartItems)
+        if (!item.is3d)
+            m_typeCombo->addItem(QString::fromUtf8(item.text), item.typeId);
     lay->addWidget(m_typeCombo);
 
     /* ── Stack parametri ── */
@@ -258,7 +279,7 @@ QWidget* GraficoPage::buildLeftPanel() {
                     return;
                 }
 
-                int type = m_typeCombo->currentIndex();
+                int type = m_typeCombo->currentData().toInt();
                 QString out;
                 int idx = 0;
                 for (double x = x0; x <= x1 + step * 1e-9; x += step) {
@@ -632,9 +653,11 @@ QWidget* GraficoPage::buildLeftPanel() {
         "Le linee vengono tracciate a scalini."
     };
 
-    /* Connetti combo */
+    /* Connetti combo — usa currentData().toInt() per ottenere il tipo reale
+       anche dopo il filtraggio 2D/3D (currentIndex() non coincide più con typeId) */
     connect(m_typeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int idx) {
+            this, [this](int) {
+        const int idx = m_typeCombo->currentData().toInt();
         m_canvas->setType(static_cast<GraficoCanvas::ChartType>(idx));
         if (idx == 0) {
             m_paramStack->setCurrentIndex(0);
@@ -966,6 +989,15 @@ QWidget* GraficoPage::buildLeftPanel() {
         m_imgSection->setVisible(cart);
     });
 
+    /* ── Sincronizzazione tab "2D" / "3D" ──
+       I tipi 3D sono agli indici 5 (Scatter3D) e 6 (Grafo3D) nel combo.
+       - Cliccare "3D" → seleziona Scatter3D nel combo
+       - Cliccare "2D" → mostra solo tipi 2D nel combo (ripristina tipo compatibile)
+       - Cliccare "3D" → mostra solo tipi 3D nel combo */
+    connect(m_dimBar, &QTabBar::currentChanged, this, [this](int tab){
+        populateTypeCombo(tab);
+    });
+
     m_statusLbl = new QLabel("", panel);
     m_statusLbl->setObjectName("statusLabel");
     m_statusLbl->setWordWrap(true);
@@ -975,9 +1007,75 @@ QWidget* GraficoPage::buildLeftPanel() {
     return panel;
 }
 
+/* ── populateTypeCombo ───────────────────────────────────────── */
+void GraficoPage::populateTypeCombo(int tab) {
+    struct ChartItem { const char* text; int typeId; bool is3d; };
+    static const ChartItem kItems[] = {
+        { "\xf0\x9f\x93\x88  Cartesiano  y = f(x)",                           0,  false },
+        { "\xf0\x9f\xa5\xa7  Torta",                                           1,  false },
+        { "\xf0\x9f\x93\x8a  Istogramma",                                      2,  false },
+        { "\xf0\x9f\x94\xb9  Scatter 2D  (x, y)",                             3,  false },
+        { "\xf0\x9f\x95\xb8  Grafo 2D",                                        4,  false },
+        { "\xf0\x9f\x8c\x90  Scatter 3D",                                      5,  true  },
+        { "\xf0\x9f\x94\xb7  Grafo 3D",                                        6,  true  },
+        { "\xf0\x9f\x94\xb5  Smith \xe2\x80\x94 Numeri Primi",                 7,  false },
+        { "\xf0\x9f\x93\x90  Smith \xe2\x80\x94 \xcf\x80\xc2\xb7""e\xc2\xb7Primi", 8, false },
+        { "\xf0\x9f\x93\x89  Linea multi-serie",                               9,  false },
+        { "\xf0\x9f\x8c\x80  Polare  r = f(\xce\xb8)",                        10,  false },
+        { "\xf0\x9f\x95\xb7  Radar (Spider)",                                  11, false },
+        { "\xf0\x9f\xab\xa7  Bolle  (x, y, raggio)",                           12, false },
+        { "\xf0\x9f\x94\xa5  Heatmap (matrice colori)",                         13, false },
+        { "\xf0\x9f\x95\xaf  Candele OHLC",                                    14, false },
+        { "\xf0\x9f\x8f\x94  Area riempita",                                   15, false },
+        { "\xf0\x9f\x8c\x8a  Cascata (Waterfall)",                             16, false },
+        { "\xf0\x9f\x93\xb6  Scalini (Step)",                                  17, false },
+        { "\xf0\x9f\x8f\x9b  Colonne (Column)",                                18, false },
+        { "\xe2\x96\xac  Barre orizzontali (HBar)",                             19, false },
+        { "\xf0\x9f\x97\x82  Barre raggruppate (Grouped)",                     20, false },
+        { "\xf0\x9f\x93\x9a  Barre impilate (Stacked)",                        21, false },
+        { "\xf0\x9f\x92\xaf  Barre impilate 100%",                             22, false },
+        { "\xf0\x9f\xaa\xa3  Imbuto (Funnel)",                                 23, false },
+        { "\xf0\x9f\x8d\xa9  Ciambella (Donut)",                               24, false },
+        { "\xf0\x9f\x97\xba  Treemap",                                         25, false },
+        { "\xe2\x98\x80  Sunburst",                                             26, false },
+        { "\xf0\x9f\x93\xa6  Box Plot",                                        27, false },
+        { "\xf0\x9f\x94\xb5  Dot Plot",                                        28, false },
+        { "\xf0\x9f\x8c\x8a  Densit\xc3\xa0 (KDE)",                           29, false },
+        { "\xf0\x9f\x8f\x94  Area impilata (Stacked Area)",                    30, false },
+        { "\xf0\x9f\x93\x8a  OHLC (barre)",                                    31, false },
+        { "\xf0\x9f\x8e\xaf  Gauge (semicerchio)",                             32, false },
+        { "\xf0\x9f\x8e\xaf  Bullet Chart",                                    33, false },
+        { "\xf0\x9f\x93\x85  Gantt",                                           34, false },
+        { "\xf0\x9f\x94\xba  Piramide (Pyramid)",                              35, false },
+        { "\xe2\x87\x94  Coordinate parallele",                                 36, false },
+        { "\xf0\x9f\x8c\x8a  Sankey",                                          37, false },
+        { "\xf0\x9f\x8c\xb3  Albero (Tree)",                                   38, false },
+        { "\xf0\x9f\x94\x97  Chord",                                           39, false },
+        { "\xf0\x9f\x8e\xbb  Violin Plot",                                     40, false },
+        { "\xe2\x98\x81  Word Cloud",                                           41, false },
+        { "\xf0\x9f\x8c\x9f  Albero Radiale",                                  42, false },
+        { "\xe2\x96\xb6  Linea Animata",                                        43, false },
+        { "\xe2\x8a\x9e  Small Multiples",                                      44, false },
+    };
+
+    const int prevType = m_typeCombo->count() > 0
+                       ? m_typeCombo->currentData().toInt() : 0;
+
+    m_typeCombo->blockSignals(true);
+    m_typeCombo->clear();
+    for (const auto& item : kItems)
+        if (item.is3d == (tab == 1))
+            m_typeCombo->addItem(QString::fromUtf8(item.text), item.typeId);
+    /* Ripristina il tipo precedente se compatibile, altrimenti primo della lista */
+    int idx = m_typeCombo->findData(prevType);
+    if (idx < 0) idx = 0;
+    m_typeCombo->blockSignals(false);
+    m_typeCombo->setCurrentIndex(idx);  /* fires currentIndexChanged */
+}
+
 /* ── plot() ──────────────────────────────────────────────────── */
 void GraficoPage::plot() {
-    int type = m_typeCombo->currentIndex();
+    int type = m_typeCombo->currentData().toInt();
     m_statusLbl->clear();
 
     switch (type) {

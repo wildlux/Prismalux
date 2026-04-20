@@ -62,7 +62,9 @@ set(CPP_SRCS
     pages/grafico_canvas.cpp
     pages/grafico_page.cpp
     pages/programmazione_page.cpp
+    pages/programmazione_page_git_repl.cpp
     pages/matematica_page.cpp
+    pages/app_controller_page.cpp
     monitor_panel.cpp
     # Widget nuovi: ChatBubble, ChartWidget, FormulaParser
     widgets/chat_bubble.cpp

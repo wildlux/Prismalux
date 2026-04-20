@@ -4185,6 +4185,29 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
     /* Popola al primo caricamento */
     QTimer::singleShot(0, page, populate);
 
+    /* ── Banner "Modelli con problemi noti" (sempre visibile) ── */
+    auto* brokenSep = new QFrame(page);
+    brokenSep->setFrameShape(QFrame::HLine);
+    brokenSep->setObjectName("sidebarSep");
+    mainLay->addWidget(brokenSep);
+
+    auto* brokenLbl = new QLabel(page);
+    brokenLbl->setTextFormat(Qt::RichText);
+    brokenLbl->setWordWrap(true);
+    brokenLbl->setStyleSheet(
+        "background:#1a0505;border:1px solid #7f1d1d;"
+        "border-radius:8px;padding:8px 14px;color:#e2e8f0;font-size:11px;");
+    brokenLbl->setText(
+        "<b style='color:#f87171;'>\xe2\x9a\xa0  Modelli con problemi noti (da evitare)</b><br>"
+        "<b style='color:#fca5a5;'>qwen3.5:0.8b</b> \xe2\x80\x94 "
+        "thinking loop infinito su Ollama: genera solo pensiero interno, "
+        "message.content sempre vuoto anche con 2048 token. "
+        "Prismalux mostra un errore esplicito se lo selezioni. "
+        "<span style='color:#94a3b8;'>Alternative: "
+        "llama3.2:3b (~50 tok/s, 80% matematica) "
+        "oppure deepseek-r1:1.5b (~41 tok/s).</span>");
+    mainLay->addWidget(brokenLbl);
+
     return page;
 }
 

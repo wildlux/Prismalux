@@ -25,6 +25,7 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QTimer>
+#include <QTabBar>
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QContextMenuEvent>
@@ -383,11 +384,13 @@ signals:
 private:
     QWidget* buildLeftPanel();
     void     plot();
-    void     analyzeImage();   ///< Invia immagine a modello vision → riempie formula
+    void     analyzeImage();          ///< Invia immagine a modello vision → riempie formula
+    void     populateTypeCombo(int tab); ///< Ripopola il combo con soli tipi 2D (tab=0) o 3D (tab=1)
 
     AiClient*       m_ai         = nullptr;
 
     GraficoCanvas*  m_canvas     = nullptr;
+    QTabBar*        m_dimBar     = nullptr;   ///< tab "2D" / "3D" accanto al titolo
     QComboBox*      m_typeCombo  = nullptr;
     QStackedWidget* m_paramStack = nullptr;
     QLabel*         m_statusLbl  = nullptr;

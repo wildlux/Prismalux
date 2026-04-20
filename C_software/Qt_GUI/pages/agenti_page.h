@@ -78,10 +78,12 @@ private:
     QMap<int,QString> m_bubbleTexts;      ///< testo plain indicizzato per copia/TTS
     int           m_bubbleIdx = 0;        ///< contatore bolle corrente
     QTextEdit*    m_input     = nullptr;
-    QPushButton*  m_btnRun       = nullptr;
-    QPushButton*  m_btnStop      = nullptr;
-    QPushButton*  m_btnAuto      = nullptr;   ///< Auto-assegna ruoli
-    QPushButton*  m_btnCfg       = nullptr;   ///< Apre dialog config agenti
+    QPushButton*  m_btnRun        = nullptr;
+    QPushButton*  m_btnStop       = nullptr;
+    QPushButton*  m_btnAuto       = nullptr;   ///< Auto-assegna ruoli
+    QPushButton*  m_btnCfg        = nullptr;   ///< Apre dialog config agenti
+    QPushButton*  m_btnModeToggle = nullptr;   ///< Toggle Mono-Agente / Multi-Agente
+    QWidget*      m_multiAgentBar = nullptr;   ///< Container controlli pipeline (nascosto in Mono)
     QPushButton*  m_btnTranslate = nullptr;   ///< Apre dialog traduzione
     QFrame*       m_symbolsPanel = nullptr;   ///< Pannello inline caratteri speciali (toggle)
     QComboBox*    m_cmbMode   = nullptr;

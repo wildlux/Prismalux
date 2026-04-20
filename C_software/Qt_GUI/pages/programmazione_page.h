@@ -16,6 +16,8 @@ class QProcess;
 class QSplitter;
 class QGroupBox;
 class QTabWidget;
+class QSpinBox;
+class QTableWidget;
 
 /* ══════════════════════════════════════════════════════════════
    ProgrammazionePage — Editor codice + esecuzione + grafico + AI
@@ -92,6 +94,84 @@ private:
 
     QWidget* buildAgentica(QWidget* parent);
     void     runAgente();
+
+    /* ── Reverse Engineering sub-tab ── */
+    QLabel*         m_revFilePath       = nullptr;
+    QPlainTextEdit* m_revPreview        = nullptr;
+    QComboBox*      m_revTargetLang     = nullptr;
+    QComboBox*      m_revDetail         = nullptr;
+    QComboBox*      m_revModel          = nullptr;
+    QTextEdit*      m_revOutput         = nullptr;
+    QPushButton*    m_btnRevAnalyze     = nullptr;
+    QPushButton*    m_btnRevStop        = nullptr;
+    QPushButton*    m_btnRevInsert      = nullptr;
+    QObject*        m_revTokenHolder    = nullptr;
+    QByteArray      m_revFileData;
+
+    QWidget* buildReverseEngineering(QWidget* parent);
+    void     runReverseEngineering();
+
+    /* ── Git MCP sub-tab ── */
+    QWidget*        m_gitActRow      = nullptr;
+    QLineEdit*      m_gitRepoPath    = nullptr;
+    QPlainTextEdit* m_gitOutput      = nullptr;
+    QLineEdit*      m_gitCommitMsg   = nullptr;
+    QComboBox*      m_gitAiModel     = nullptr;
+    QPlainTextEdit* m_gitAiOutput    = nullptr;
+    QObject*        m_gitTokenHolder = nullptr;
+    QWidget*        m_gitAiPanel     = nullptr;
+    QProcess*       m_gitProc        = nullptr;
+    QPushButton*    m_btnGitStop     = nullptr;
+    QString         m_gitPendingCommit;
+
+    QWidget* buildGitMcp(QWidget* parent);
+    void     gitRun(const QString& subcmd, const QStringList& args = {});
+    void     gitAiRequest(const QString& request, const QString& context);
+
+    /* ── Python REPL sub-tab ── */
+    QPlainTextEdit* m_replOutput  = nullptr;
+    QLineEdit*      m_replInput   = nullptr;
+    QProcess*       m_replProc    = nullptr;
+    QLabel*         m_replStatus  = nullptr;
+    QStringList     m_replHistory;
+    int             m_replHistIdx = -1;
+
+    QWidget* buildPythonRepl(QWidget* parent);
+    void     replStart();
+    void     replSend();
+
+    /* ── Network Analyzer sub-tab (tshark/tcpdump) ── */
+    QComboBox*      m_netIface       = nullptr;   ///< interfaccia di cattura
+    QLineEdit*      m_netFilter      = nullptr;   ///< filtro BPF / display filter
+    QSpinBox*       m_netMaxPkts     = nullptr;   ///< numero max pacchetti
+    QPlainTextEdit* m_netLog         = nullptr;   ///< log pacchetti live
+    QLabel*         m_netStatus      = nullptr;
+    QPushButton*    m_btnNetStart    = nullptr;
+    QPushButton*    m_btnNetStop     = nullptr;
+    QPushButton*    m_btnNetAnalyze  = nullptr;   ///< AI analizza il traffico catturato
+    QPushButton*    m_btnNetClear    = nullptr;
+    QProcess*       m_netProc        = nullptr;
+    QObject*        m_netTokenHolder = nullptr;
+    QTextEdit*      m_netAiOutput    = nullptr;
+    QString         m_netTool;                    ///< "tshark" o "tcpdump"
+
+    QWidget* buildNetworkAnalyzer(QWidget* parent);
+    void     netStart();
+    void     netStop();
+    void     netAiAnalyze();
+
+    /* ── Rete LAN Scanner sub-tab ── */
+    QLabel*         m_lanInfoLbl    = nullptr;  ///< info interfacce locali
+    QTableWidget*   m_lanTable      = nullptr;  ///< IP | MAC | Hostname | Stato
+    QLabel*         m_lanStatusLbl  = nullptr;  ///< stato scan / subnet info
+    QPushButton*    m_lanScanArp    = nullptr;
+    QPushButton*    m_lanScanNmap   = nullptr;
+    QPushButton*    m_lanStopBtn    = nullptr;
+    QProcess*       m_lanProc       = nullptr;
+    QString         m_lanBuf;
+
+    QWidget* buildReteLan(QWidget* parent);
+    void     lanRefreshInfo();
     QPushButton*    m_btnSend   = nullptr;   ///< "Invia ▶" nel pannello AI (disabilitato durante streaming)
 
     /* Toolbar buttons */

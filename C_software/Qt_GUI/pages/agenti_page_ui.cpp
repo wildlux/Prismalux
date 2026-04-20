@@ -82,6 +82,29 @@ void AgentiPage::setupUI() {
 
     toolLay->addStretch(1);
 
+    /* ══ Toggle Mono-Agente / Multi-Agente ══
+       Default: Mono-Agente (semplice chat LLM, nessuna pipeline).
+       Toggle ON → Multi-Agente: abilita pipeline, Motore Byzantino, configurazione agenti. */
+    static const char* kStyleMono =
+        "QPushButton{"
+          "background:#1e2d45;border:2px solid #334155;color:#64748b;"
+          "border-radius:14px;padding:4px 16px;font-weight:bold;font-size:12px;}"
+        "QPushButton:hover{background:#243650;color:#94a3b8;}";
+    static const char* kStyleMulti =
+        "QPushButton{"
+          "background:#00a37f20;border:2px solid #00a37f;color:#00a37f;"
+          "border-radius:14px;padding:4px 16px;font-weight:bold;font-size:12px;}"
+        "QPushButton:hover{background:#00a37f35;}";
+
+    m_btnModeToggle = new QPushButton("\xf0\x9f\xa4\x96  Mono-Agente", toolbar);
+    m_btnModeToggle->setCheckable(true);
+    m_btnModeToggle->setChecked(false);
+    m_btnModeToggle->setStyleSheet(kStyleMono);
+    m_btnModeToggle->setToolTip(
+        "Mono-Agente \xe2\x80\x94 risposta diretta dal modello selezionato (default)\n"
+        "Multi-Agente \xe2\x80\x94 abilita pipeline agenti, Motore Byzantino e Consiglio Scientifico");
+    toolLay->addWidget(m_btnModeToggle);
+
     /* ── Selettore LLM singolo ── */
     auto* llmLbl = new QLabel("LLM:", toolbar);
     llmLbl->setObjectName("cardDesc");
@@ -104,10 +127,23 @@ void AgentiPage::setupUI() {
         m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), mdl);
     });
 
-    /* Modalità */
-    auto* modeLbl = new QLabel("Modalit\xc3\xa0:", toolbar);
+    /* ── Container Multi-Agente (nascosto di default in modalità Mono-Agente) ── */
+    m_multiAgentBar = new QWidget(toolbar);
+    auto* maLay = new QHBoxLayout(m_multiAgentBar);
+    maLay->setContentsMargins(0, 0, 0, 0);
+    maLay->setSpacing(8);
+
+    /* Separatore visivo */
+    auto* maSep = new QFrame(m_multiAgentBar);
+    maSep->setFrameShape(QFrame::VLine);
+    maSep->setFrameShadow(QFrame::Sunken);
+    maSep->setStyleSheet("color:#334155;");
+    maLay->addWidget(maSep);
+
+    /* Modalità pipeline */
+    auto* modeLbl = new QLabel("Modalit\xc3\xa0:", m_multiAgentBar);
     modeLbl->setObjectName("cardDesc");
-    m_cmbMode = new QComboBox(toolbar);
+    m_cmbMode = new QComboBox(m_multiAgentBar);
     m_cmbMode->addItem("\xf0\x9f\x94\x84  Pipeline Agenti");           // 0
     m_cmbMode->addItem("\xf0\x9f\x94\xae  Motore Byzantino");          // 1
     m_cmbMode->addItem("\xf0\x9f\xa7\xae  Matematico Teorico");        // 2
@@ -119,10 +155,25 @@ void AgentiPage::setupUI() {
     m_cmbMode->addItem("\xf0\x9f\x8c\x90  Lingue & Traduzione");       // 8
     m_cmbMode->addItem("\xf0\x9f\x8c\x8d  Generico");                  // 9
     m_cmbMode->addItem("\xf0\x9f\x8f\x9b  Consiglio Scientifico");    // 10
-    toolLay->addWidget(modeLbl);
-    toolLay->addWidget(m_cmbMode);
+    maLay->addWidget(modeLbl);
+    maLay->addWidget(m_cmbMode);
 
-    /* Pulsante ↩ Torna indietro (undo cancellazione bolle) */
+    /* Pulsante auto-assegna */
+    m_btnAuto = new QPushButton("\xf0\x9f\xaa\x84 Auto-assegna ruoli", m_multiAgentBar);
+    m_btnAuto->setObjectName("actionBtn");
+    m_btnAuto->setToolTip("Il modello pi\xc3\xb9 grande assegna ruoli e modelli automaticamente");
+    maLay->addWidget(m_btnAuto);
+
+    /* Pulsante config agenti — apre finestra separata */
+    m_btnCfg = new QPushButton("\xe2\x9a\x99\xef\xb8\x8f  Configura Agenti", m_multiAgentBar);
+    m_btnCfg->setObjectName("actionBtn");
+    m_btnCfg->setToolTip("Apri la finestra di configurazione agenti\n(ruolo, modello, contesto RAG per ciascuno)");
+    maLay->addWidget(m_btnCfg);
+
+    m_multiAgentBar->setVisible(false);  // default: Mono-Agente
+    toolLay->addWidget(m_multiAgentBar);
+
+    /* Pulsante ↩ Torna indietro (sempre visibile in entrambe le modalità) */
     auto* btnUndo = new QPushButton("\xe2\x86\xa9  Torna indietro", toolbar);
     btnUndo->setObjectName("actionBtn");
     btnUndo->setToolTip("Annulla l'ultima eliminazione di un messaggio (Ctrl+Z)");
@@ -137,17 +188,15 @@ void AgentiPage::setupUI() {
         m_log->moveCursor(QTextCursor::End);
     });
 
-    /* Pulsante auto-assegna */
-    m_btnAuto = new QPushButton("\xf0\x9f\xaa\x84 Auto-assegna ruoli", toolbar);
-    m_btnAuto->setObjectName("actionBtn");
-    m_btnAuto->setToolTip("Il modello pi\xc3\xb9 grande assegna ruoli e modelli automaticamente");
-    toolLay->addWidget(m_btnAuto);
-
-    /* Pulsante config agenti — apre finestra separata */
-    m_btnCfg = new QPushButton("\xe2\x9a\x99\xef\xb8\x8f  Configura Agenti", toolbar);
-    m_btnCfg->setObjectName("actionBtn");
-    m_btnCfg->setToolTip("Apri la finestra di configurazione agenti\n(ruolo, modello, contesto RAG per ciascuno)");
-    toolLay->addWidget(m_btnCfg);
+    /* ── Collegamento toggle Mono / Multi-Agente ── */
+    connect(m_btnModeToggle, &QPushButton::toggled, this, [this](bool multiOn) {
+        m_multiAgentBar->setVisible(multiOn);
+        m_btnRun->setVisible(multiOn);
+        m_btnModeToggle->setText(multiOn
+            ? "\xf0\x9f\x91\xa5  Multi-Agente"
+            : "\xf0\x9f\xa4\x96  Mono-Agente");
+        m_btnModeToggle->setStyleSheet(multiOn ? kStyleMulti : kStyleMono);
+    });
 
     /* ── Controller LLM spostato dentro "Configura Agenti" (dialog AgentsConfigDialog) ──
        Accessibile via m_cfgDlg->controllerEnabled() — rimosso dalla toolbar per pulizia. */
@@ -414,6 +463,7 @@ void AgentiPage::setupUI() {
     m_btnRun = new QPushButton("\xe2\x96\xb6  Avvia", inputArea);
     m_btnRun->setObjectName("actionBtn");
     m_btnRun->setToolTip("Avvia la pipeline multi-agente completa");
+    m_btnRun->setVisible(false);  // nascosto in Mono-Agente (default)
     tagExec(m_btnRun, "\xe2\x96\xb6", "Avvia");
 
     m_btnStop = new QPushButton("\xe2\x8f\xb9 Stop", inputArea);

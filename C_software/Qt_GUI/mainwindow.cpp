@@ -10,6 +10,7 @@
 /* oracolo_page.h rimosso: OracoloPage sostituita da grafico integrato in AgentiPage */
 #include "pages/programmazione_page.h"
 #include "pages/matematica_page.h"
+#include "pages/app_controller_page.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -396,21 +397,20 @@ MainWindow::MainWindow(QWidget* parent)
     navigateTo(0);
 
     /* Scorciatoie da tastiera: Alt+1…6 = navigazione rapida
-       0=Agenti  1=Strumenti  2=Grafico  3=Programmazione
-       4=Matematica  5=Impara (+Finanza +Sfida)
-       (Finanza e Sfida sono sotto-schede di Impara, nessuna shortcut separata) */
+       0=Agenti  1=Strumenti  2=Programmazione
+       3=Matematica(+Grafico sub-tab)  4=APP Controller  5=Impara(+Finanza+Sfida) */
     auto* sc1 = new QShortcut(QKeySequence("Alt+1"), this);
     auto* sc2 = new QShortcut(QKeySequence("Alt+2"), this);
     auto* sc3 = new QShortcut(QKeySequence("Alt+3"), this);
     auto* sc4 = new QShortcut(QKeySequence("Alt+4"), this);
     auto* sc5 = new QShortcut(QKeySequence("Alt+5"), this);
     auto* sc6 = new QShortcut(QKeySequence("Alt+6"), this);
-    connect(sc1, &QShortcut::activated, this, [this]{ navigateTo(0); }); /* Agenti AI */
+    connect(sc1, &QShortcut::activated, this, [this]{ navigateTo(0); }); /* Intelligenza artificiale */
     connect(sc2, &QShortcut::activated, this, [this]{ navigateTo(1); }); /* Strumenti */
-    connect(sc3, &QShortcut::activated, this, [this]{ navigateTo(2); }); /* Grafico */
-    connect(sc4, &QShortcut::activated, this, [this]{ navigateTo(3); }); /* Programmazione */
-    connect(sc5, &QShortcut::activated, this, [this]{ navigateTo(4); }); /* Matematica */
-    connect(sc6, &QShortcut::activated, this, [this]{ navigateTo(5); }); /* Impara (+Finanza +Sfida) */
+    connect(sc3, &QShortcut::activated, this, [this]{ navigateTo(2); }); /* Programmazione */
+    connect(sc4, &QShortcut::activated, this, [this]{ navigateTo(3); }); /* Matematica+Grafico */
+    connect(sc5, &QShortcut::activated, this, [this]{ navigateTo(4); }); /* APP Controller */
+    connect(sc6, &QShortcut::activated, this, [this]{ navigateTo(5); }); /* Impara */
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1402,8 +1402,13 @@ QWidget* MainWindow::buildContent() {
             this, [this](const QString& formula, double xMin, double xMax,
                          const QVector<QPointF>& points){
         if (!m_grafCanvas) return;
-        /* Naviga al tab Grafico (indice 2) */
-        if (m_mainTabs) m_mainTabs->setCurrentIndex(2);
+        /* Naviga al container Matematica (indice 3) e attiva il sub-tab Grafico (indice 1) */
+        if (m_mainTabs) {
+            m_mainTabs->setCurrentIndex(3);
+            if (auto* mc = qobject_cast<QWidget*>(m_mainTabs->widget(3)))
+                if (auto* st = mc->findChild<QTabWidget*>("mathSubTabs"))
+                    st->setCurrentIndex(1);
+        }
         /* Plotta: formula cartesiana oppure scatter di punti */
         if (!formula.isEmpty())
             m_grafCanvas->setCartesian(formula, xMin, xMax);
@@ -1411,32 +1416,52 @@ QWidget* MainWindow::buildContent() {
             m_grafCanvas->setScatter(points);
     });
 
-    m_mainTabs->addTab(agentiPage,                      "\xf0\x9f\xa4\x96  Agenti AI");          /* 0 */
+    m_mainTabs->addTab(agentiPage,                      "\xf0\x9f\xa4\x96  Intelligenza artificiale");  /* 0 */
     m_mainTabs->addTab(new StrumentiPage(m_ai, this),   "\xf0\x9f\x9b\xa0  Strumenti AI");     /* 1 */
-    auto* grafPage = new GraficoPage(m_ai, this);
-    m_grafCanvas = grafPage->canvas();
-    /* Propaga il canvas al dialog Impostazioni se già aperto prima di buildContent() */
-    if (m_impPage) m_impPage->setGraficoCanvas(m_grafCanvas);
-    /* Quando l'utente clicca "Installa modello vision", apri Impostazioni → LLM Consigliati */
-    connect(grafPage, &GraficoPage::requestOpenSettings,
-            this, [this](const QString& tabName){
-        ensureSettingsDialog();
-        m_impDlg->show();
-        m_impDlg->raise();
-        m_impDlg->activateWindow();
-        if (m_impPage) m_impPage->switchToTab(tabName);
-    });
-    m_mainTabs->addTab(grafPage,                              "\xf0\x9f\x93\x88  Grafico");          /* 2 */
+    m_mainTabs->addTab(new ProgrammazionePage(m_ai, this),"\xf0\x9f\x92\xbb  Programmazione");  /* 2 */
 
-    /* Quando il tab Grafico diventa attivo, forza repaint con le impostazioni correnti
-       (necessario se l'utente ha cambiato la posizione assi mentre il tab era nascosto). */
-    connect(m_mainTabs, &QTabWidget::currentChanged, this, [this](int idx){
-        if (idx == 2 && m_grafCanvas)
-            m_grafCanvas->repaint();
-    });
-    m_mainTabs->addTab(new ProgrammazionePage(m_ai, this),"\xf0\x9f\x92\xbb  Programmazione");  /* 3 */
-    m_mainTabs->addTab(new MatematicaPage(m_ai, this),    "\xcf\x80  Matematica");               /* 4 */
-    /* Finanza + Sfida te stesso! come sotto-schede di Impara */
+    /* ── Matematica (container) con sub-tab Matematica + Grafico ── */
+    {
+        auto* grafPage = new GraficoPage(m_ai, this);
+        m_grafCanvas = grafPage->canvas();
+        if (m_impPage) m_impPage->setGraficoCanvas(m_grafCanvas);
+        connect(grafPage, &GraficoPage::requestOpenSettings,
+                this, [this](const QString& tabName){
+            ensureSettingsDialog();
+            m_impDlg->show();
+            m_impDlg->raise();
+            m_impDlg->activateWindow();
+            if (m_impPage) m_impPage->switchToTab(tabName);
+        });
+
+        auto* mathContainer = new QWidget(m_mainTabs);
+        auto* mcLay = new QVBoxLayout(mathContainer);
+        mcLay->setContentsMargins(0, 0, 0, 0);
+        mcLay->setSpacing(0);
+
+        auto* mathSubTabs = new QTabWidget(mathContainer);
+        mathSubTabs->setObjectName("mathSubTabs");
+        mathSubTabs->setTabPosition(QTabWidget::North);
+        mathSubTabs->addTab(new MatematicaPage(m_ai, mathContainer),
+                            "\xcf\x80  Matematica");
+        mathSubTabs->addTab(grafPage,
+                            "\xf0\x9f\x93\x88  Grafico");
+
+        /* Forza repaint del canvas quando il sub-tab Grafico diventa visibile */
+        connect(mathSubTabs, &QTabWidget::currentChanged, this, [this](int idx){
+            if (idx == 1 && m_grafCanvas)
+                m_grafCanvas->repaint();
+        });
+
+        mcLay->addWidget(mathSubTabs);
+        m_mainTabs->addTab(mathContainer, "\xcf\x80  Matematica");                        /* 3 */
+    }
+
+    /* ── APP Controller — joystick MCP bridges ── */
+    m_mainTabs->addTab(new AppControllerPage(m_ai, this),
+                       "\xf0\x9f\x95\xb9  APP Controller");                               /* 4 */
+
+    /* ── Impara: Finanza + Sfida come sotto-schede ── */
     {
         auto* imparaContainer = new QWidget(m_mainTabs);
         auto* ilay = new QVBoxLayout(imparaContainer);
@@ -1448,8 +1473,7 @@ QWidget* MainWindow::buildContent() {
         imparaTabs->setTabPosition(QTabWidget::North);
         imparaTabs->addTab(new ImparaPage(m_ai, imparaContainer),  "\xf0\x9f\x93\x9a  Impara");
         imparaTabs->addTab(new PraticoPage(m_ai, imparaContainer), "\xf0\x9f\x92\xb0  Finanza");
-        /* QuizPage usa AiClient SEPARATO: evita cross-talk con AgentiPage
-           (segnali token/finished condivisi causano output fantasma nelle bolle). */
+        /* QuizPage usa AiClient SEPARATO: evita cross-talk con AgentiPage */
         {
             auto* quizAi = new AiClient(this);
             quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
@@ -1461,7 +1485,7 @@ QWidget* MainWindow::buildContent() {
         }
         ilay->addWidget(imparaTabs);
 
-        m_mainTabs->addTab(imparaContainer, "\xf0\x9f\x93\x9a  Impara");                   /* 5 */
+        m_mainTabs->addTab(imparaContainer, "\xf0\x9f\x93\x9a  Impara");                  /* 5 */
     }
 
     /* ── Salva etichette originali e applica modalità da QSettings ── */
@@ -1473,7 +1497,7 @@ QWidget* MainWindow::buildContent() {
     }
 
     /* ── Costruisci pulsanti barra navigazione ───────────────────
-       Separatore di categoria dopo tab 4 (Matematica) → gruppo AI+Crea | Impara+Sfida */
+       Separatore prima di "Impara" (tab 5) → gruppo Lavoro | Impara+Sfida */
     {
         auto* btnGroup = new QButtonGroup(m_navMenuBar);
         btnGroup->setExclusive(true);

@@ -26,6 +26,14 @@
 #include <QTabWidget>
 #include <QTextEdit>
 #include <QTimer>
+#include <QFileDialog>
+#include <QFile>
+#include <QKeyEvent>
+#include <QSpinBox>
+#include <QNetworkInterface>
+#include <QHostAddress>
+#include <QTableWidget>
+#include <QHeaderView>
 #include "../widgets/toggle_switch.h"
 
 namespace P = PrismaluxPaths;
@@ -93,21 +101,16 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     mainLay->setContentsMargins(12, 12, 12, 12);
     mainLay->setSpacing(8);
 
-    /* ── Titolo ── */
-    auto* titleRow = new QWidget(this);
-    auto* titleLay = new QHBoxLayout(titleRow);
-    titleLay->setContentsMargins(0, 0, 0, 0);
-    titleLay->setSpacing(12);
-    auto* title = new QLabel("\xf0\x9f\x92\xbb  Programmazione", titleRow);
-    title->setObjectName("pageTitle");
-    titleLay->addWidget(title);
-    titleLay->addStretch(1);
-    mainLay->addWidget(titleRow);
-
-    /* ── Inner tab widget: Programmazione | Agentica ── */
+    /* ── Inner tab widget — il titolo è un corner widget sulla stessa riga dei tab ── */
     m_innerTabs = new QTabWidget(this);
     m_innerTabs->setObjectName("innerTabs");
     mainLay->addWidget(m_innerTabs, 1);
+
+    /* Titolo "💻 Programmazione" nella tab bar, a sinistra dei tab */
+    auto* titleCorner = new QLabel("\xf0\x9f\x92\xbb  Programmazione", m_innerTabs);
+    titleCorner->setObjectName("pageTitle");
+    titleCorner->setContentsMargins(4, 0, 16, 0);
+    m_innerTabs->setCornerWidget(titleCorner, Qt::TopLeftCorner);
 
     auto* codingTab = new QWidget(m_innerTabs);
     auto* codingLay = new QVBoxLayout(codingTab);
@@ -392,6 +395,16 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
         "\xf0\x9f\x92\xbb  Programmazione");
     m_innerTabs->addTab(buildAgentica(m_innerTabs),
         "\xf0\x9f\xa4\x96  Agentica");
+    m_innerTabs->addTab(buildReverseEngineering(m_innerTabs),
+        "\xf0\x9f\x94\x8d  Reverse Eng.");
+    m_innerTabs->addTab(buildGitMcp(m_innerTabs),
+        "\xf0\x9f\x94\xa7  Git");
+    m_innerTabs->addTab(buildPythonRepl(m_innerTabs),
+        "\xf0\x9f\x90\x8d  REPL");
+    m_innerTabs->addTab(buildNetworkAnalyzer(m_innerTabs),
+        "\xf0\x9f\x94\x8d  Network");
+    m_innerTabs->addTab(buildReteLan(m_innerTabs),
+        "\xf0\x9f\x8c\x90  Rete LAN");
 
     /* ══════════════════════════════════════════════════════════
        Lambda: badge di raccomandazione per coding
@@ -713,6 +726,8 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     connect(m_ai, &AiClient::modelChanged, this, [this, syncCombo](const QString& newModel) {
         syncCombo(m_modelCombo,  newModel);   /* tab Coding */
         syncCombo(m_agentModel,  newModel);   /* tab Agentica */
+        syncCombo(m_revModel,    newModel);   /* tab Reverse Eng. */
+        syncCombo(m_gitAiModel,  newModel);   /* tab Git */
     });
 }
 
@@ -1656,4 +1671,948 @@ void ProgrammazionePage::runAgente()
     });
 
     m_ai->chat(sys, user);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildReverseEngineering — sub-tab "🔍 Reverse Eng."
+
+   Carica un file generico (binario, bytecode, offuscato, testo),
+   ne estrae hex dump + stringhe leggibili, e chiede all'LLM di
+   ricostruire il codice sorgente originale approssimativo.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ProgrammazionePage::buildReverseEngineering(QWidget* parent)
+{
+    QFont monoFont;
+    monoFont.setFamily("JetBrains Mono");
+    monoFont.setStyleHint(QFont::Monospace);
+    monoFont.setPointSize(10);
+
+    auto* w   = new QWidget(parent);
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(12, 12, 12, 12);
+    lay->setSpacing(8);
+
+    /* ── Descrizione ── */
+    auto* desc = new QLabel(
+        "\xf0\x9f\x94\x8d  <b>Reverse Engineering</b> \xe2\x80\x94 "
+        "Carica un file compilato o offuscato: l'AI analizza i byte, "
+        "estrae le stringhe leggibili e ricostruisce il codice sorgente approssimativo.", w);
+    desc->setObjectName("hintLabel");
+    desc->setWordWrap(true);
+    lay->addWidget(desc);
+
+    auto* sep = new QFrame(w);
+    sep->setFrameShape(QFrame::HLine);
+    sep->setObjectName("sidebarSep");
+    lay->addWidget(sep);
+
+    /* ── Riga caricamento file ── */
+    auto* fileRow = new QWidget(w);
+    auto* fileLay = new QHBoxLayout(fileRow);
+    fileLay->setContentsMargins(0, 0, 0, 0);
+    fileLay->setSpacing(8);
+
+    auto* btnLoad = new QPushButton("\xf0\x9f\x93\x82  Carica file...", fileRow);
+    btnLoad->setObjectName("actionBtn");
+    fileLay->addWidget(btnLoad);
+
+    m_revFilePath = new QLabel("(nessun file caricato)", fileRow);
+    m_revFilePath->setObjectName("hintLabel");
+    fileLay->addWidget(m_revFilePath, 1);
+
+    lay->addWidget(fileRow);
+
+    /* ── Riga opzioni ── */
+    auto* optRow = new QWidget(w);
+    auto* optLay = new QHBoxLayout(optRow);
+    optLay->setContentsMargins(0, 0, 0, 0);
+    optLay->setSpacing(8);
+
+    optLay->addWidget(new QLabel("Linguaggio target:", optRow));
+    m_revTargetLang = new QComboBox(optRow);
+    m_revTargetLang->setObjectName("settingCombo");
+    m_revTargetLang->addItems({"Auto-rileva", "C", "C++", "Python",
+                                "Assembly x86", "Java", "Rust"});
+    m_revTargetLang->setFixedWidth(140);
+    optLay->addWidget(m_revTargetLang);
+
+    optLay->addSpacing(8);
+    optLay->addWidget(new QLabel("Dettaglio:", optRow));
+    m_revDetail = new QComboBox(optRow);
+    m_revDetail->setObjectName("settingCombo");
+    m_revDetail->addItem("Struttura (rapido)",  QString("fast"));
+    m_revDetail->addItem("Completo (lento)",    QString("full"));
+    m_revDetail->addItem("Con commenti estesi", QString("commented"));
+    m_revDetail->setFixedWidth(180);
+    optLay->addWidget(m_revDetail);
+
+    optLay->addStretch(1);
+
+    m_btnRevAnalyze = new QPushButton(
+        "\xf0\x9f\x94\x8d  Analizza e Ricostruisci", optRow);
+    m_btnRevAnalyze->setObjectName("actionBtn");
+    m_btnRevAnalyze->setProperty("highlight", "true");
+    m_btnRevAnalyze->setEnabled(false);
+    m_btnRevAnalyze->setToolTip("Invia il file all'AI per la ricostruzione del sorgente");
+    optLay->addWidget(m_btnRevAnalyze);
+
+    m_btnRevStop = new QPushButton("\xe2\x96\xa0  Stop", optRow);
+    m_btnRevStop->setObjectName("actionBtn");
+    m_btnRevStop->setProperty("danger", "true");
+    m_btnRevStop->setEnabled(false);
+    optLay->addWidget(m_btnRevStop);
+
+    lay->addWidget(optRow);
+
+    /* ── Selezione modello ── */
+    auto* modelRow = new QWidget(w);
+    auto* modelLay = new QHBoxLayout(modelRow);
+    modelLay->setContentsMargins(0, 0, 0, 0);
+    modelLay->setSpacing(8);
+
+    auto* lblMod = new QLabel("\xf0\x9f\xa4\x96  Modello AI:", modelRow);
+    lblMod->setObjectName("cardDesc");
+    modelLay->addWidget(lblMod);
+
+    m_revModel = new QComboBox(modelRow);
+    m_revModel->setObjectName("settingCombo");
+    m_revModel->addItem(
+        m_ai ? (m_ai->model().isEmpty() ? "(nessun modello)" : m_ai->model())
+             : "(AI non disponibile)",
+        m_ai ? m_ai->model() : QString());
+    modelLay->addWidget(m_revModel, 1);
+
+    auto* btnRefRev = new QPushButton("\xf0\x9f\x94\x84", modelRow);
+    btnRefRev->setObjectName("actionBtn");
+    btnRefRev->setFixedWidth(32);
+    btnRefRev->setToolTip("Aggiorna lista modelli disponibili");
+    modelLay->addWidget(btnRefRev);
+
+    lay->addWidget(modelRow);
+
+    /* ── Preview hex + stringhe ── */
+    auto* prevGroup = new QGroupBox(
+        "\xf0\x9f\x93\x8b  Anteprima file (hex dump + stringhe estratte)", w);
+    prevGroup->setObjectName("cardGroup");
+    auto* prevLay = new QVBoxLayout(prevGroup);
+    prevLay->setContentsMargins(4, 8, 4, 4);
+
+    m_revPreview = new QPlainTextEdit(prevGroup);
+    m_revPreview->setObjectName("codeEditor");
+    m_revPreview->setFont(monoFont);
+    m_revPreview->setReadOnly(true);
+    m_revPreview->setMaximumHeight(160);
+    m_revPreview->setPlaceholderText(
+        "Carica un file per vedere il hex dump e le stringhe ASCII estratte...");
+    prevLay->addWidget(m_revPreview);
+
+    lay->addWidget(prevGroup);
+
+    /* ── Output AI ── */
+    auto* outGroup = new QGroupBox(
+        "\xf0\x9f\xa4\x96  Codice sorgente ricostruito (streaming AI)", w);
+    outGroup->setObjectName("cardGroup");
+    auto* outLay = new QVBoxLayout(outGroup);
+    outLay->setContentsMargins(4, 8, 4, 4);
+    outLay->setSpacing(6);
+
+    m_revOutput = new QTextEdit(outGroup);
+    m_revOutput->setObjectName("chatLog");
+    m_revOutput->setReadOnly(true);
+    m_revOutput->setFont(monoFont);
+    m_revOutput->setPlaceholderText(
+        "Il codice ricostruito dall'AI appari\xc3\xa0 qui in streaming...\n\n"
+        "Carica un file e premi \xf0\x9f\x94\x8d Analizza e Ricostruisci.");
+    outLay->addWidget(m_revOutput, 1);
+
+    auto* revBtnRow = new QWidget(outGroup);
+    auto* revBtnLay = new QHBoxLayout(revBtnRow);
+    revBtnLay->setContentsMargins(0, 2, 0, 0);
+    revBtnLay->setSpacing(8);
+
+    m_btnRevInsert = new QPushButton(
+        "\xe2\x86\x91  Apri in editor Programmazione", revBtnRow);
+    m_btnRevInsert->setObjectName("actionBtn");
+    m_btnRevInsert->setEnabled(false);
+    m_btnRevInsert->setToolTip(
+        "Estrae il primo blocco codice e lo apre nel tab \xf0\x9f\x92\xbb Programmazione");
+    revBtnLay->addWidget(m_btnRevInsert);
+
+    auto* btnClearRev = new QPushButton(
+        "\xf0\x9f\x97\x91  Pulisci output", revBtnRow);
+    btnClearRev->setObjectName("actionBtn");
+    revBtnLay->addWidget(btnClearRev);
+    revBtnLay->addStretch(1);
+
+    outLay->addWidget(revBtnRow);
+    lay->addWidget(outGroup, 1);
+
+    /* ══════════════════════════════════════════════════════════
+       Connessioni
+       ══════════════════════════════════════════════════════════ */
+
+    /* Popola modelli */
+    auto populateRevModels = [this]() {
+        if (!m_ai) return;
+        m_revModel->setEnabled(false);
+        const QString cur = m_ai->model();
+        auto* holder = new QObject(this);
+        connect(m_ai, &AiClient::modelsReady, holder,
+                [this, holder, cur](const QStringList& list) {
+            holder->deleteLater();
+            m_revModel->clear();
+            for (const QString& mdl : list) {
+                const QString n = mdl.toLower();
+                if (n.contains("embed") || n.contains("minilm") ||
+                    n.contains("rerank") || n.contains("bge-"))
+                    continue;
+                m_revModel->addItem(mdl, mdl);
+            }
+            if (m_revModel->count() == 0)
+                m_revModel->addItem(cur.isEmpty() ? "(nessun modello)" : cur, cur);
+            else {
+                const int idx = m_revModel->findData(cur);
+                if (idx >= 0) m_revModel->setCurrentIndex(idx);
+            }
+            m_revModel->setEnabled(true);
+        });
+        m_ai->fetchModels();
+    };
+
+    connect(btnRefRev, &QPushButton::clicked, this, populateRevModels);
+    QTimer::singleShot(0, this, [populateRevModels]{ populateRevModels(); });
+
+    /* Carica file — legge in binario, genera hex dump + stringhe */
+    connect(btnLoad, &QPushButton::clicked, this, [this]{
+        const QString path = QFileDialog::getOpenFileName(
+            this,
+            "Carica file da analizzare",
+            QDir::homePath(),
+            "Tutti i file (*);;"
+            "Eseguibili (*.exe *.elf *.out *.bin);;"
+            "Bytecode (*.pyc *.class *.wasm);;"
+            "Librerie (*.so *.dll *.a *.lib);;"
+            "Testo / Script (*.py *.js *.sh *.rb *.php *.lua)");
+        if (path.isEmpty()) return;
+
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly)) {
+            m_revFilePath->setText("\xe2\x9d\x8c  Impossibile aprire il file.");
+            return;
+        }
+        m_revFileData = f.readAll();
+        f.close();
+
+        const QFileInfo fi(path);
+        const qint64 sz = fi.size();
+        const QString szStr =
+            sz < 1024      ? QString("%1 B").arg(sz)
+          : sz < 1024*1024 ? QString("%1 KB").arg(sz / 1024.0, 0, 'f', 1)
+                           : QString("%1 MB").arg(sz / (1024.0*1024), 0, 'f', 1);
+
+        /* Identifica tipo dal magic number */
+        QString fileType = "Tipo sconosciuto";
+        if (m_revFileData.size() >= 4) {
+            const auto* b = reinterpret_cast<const uchar*>(m_revFileData.constData());
+            if (b[0]==0x7f && b[1]=='E' && b[2]=='L' && b[3]=='F')
+                fileType = "ELF (eseguibile/libreria Linux)";
+            else if (b[0]=='M' && b[1]=='Z')
+                fileType = "PE/MZ (eseguibile Windows)";
+            else if (b[0]==0xCA && b[1]==0xFE && b[2]==0xBA && b[3]==0xBE)
+                fileType = "Java bytecode (.class)";
+            else if (b[0]==0x03 && b[1]==0xF3)
+                fileType = "Python bytecode (.pyc)";
+            else if (b[0]==0x1F && b[1]==0x8B)
+                fileType = "Archivio Gzip";
+            else if (b[0]==0x50 && b[1]==0x4B)
+                fileType = "Archivio ZIP/JAR";
+            else if (m_revFileData.startsWith("#!/"))
+                fileType = "Script (shebang)";
+            else {
+                bool isText = true;
+                for (int i = 0; i < qMin((int)m_revFileData.size(), 256); i++) {
+                    const uchar c = b[i];
+                    if (c < 0x09 || (c > 0x0D && c < 0x20) || c == 0x7F)
+                        { isText = false; break; }
+                }
+                if (isText) fileType = "File di testo / sorgente";
+            }
+        }
+
+        m_revFilePath->setText(
+            QString("\xf0\x9f\x93\x84  %1   \xe2\x80\x94   %2   \xe2\x80\x94   %3")
+            .arg(fi.fileName(), fileType, szStr));
+
+        /* Hex dump prime 128 byte */
+        const int hexBytes = (int)qMin((qint64)128, m_revFileData.size());
+        QString hexDump;
+        for (int i = 0; i < hexBytes; i += 16) {
+            hexDump += QString("%1  ").arg(i, 4, 16, QLatin1Char('0'));
+            const int lineEnd = qMin(i + 16, hexBytes);
+            QString ascii;
+            for (int j = i; j < lineEnd; j++) {
+                const uchar c = (uchar)m_revFileData[j];
+                hexDump += QString("%1 ").arg(c, 2, 16, QLatin1Char('0'));
+                ascii   += (c >= 0x20 && c < 0x7F) ? QChar(c) : QChar('.');
+            }
+            hexDump += QString((16 - (lineEnd - i)) * 3, ' ');
+            hexDump += " |" + ascii + "|\n";
+        }
+
+        /* Estrai stringhe ASCII (min 5 caratteri) */
+        QString strings;
+        int si = 0;
+        const auto* bp = reinterpret_cast<const uchar*>(m_revFileData.constData());
+        while (si < m_revFileData.size()) {
+            int start = si;
+            while (si < m_revFileData.size() &&
+                   bp[si] >= 0x20 && bp[si] < 0x7F) si++;
+            if (si - start >= 5)
+                strings += "  " +
+                    QString::fromLatin1(m_revFileData.mid(start, si - start)) + "\n";
+            si++;
+        }
+        if (strings.isEmpty())
+            strings = "  (nessuna stringa leggibile trovata)\n";
+
+        m_revPreview->setPlainText(
+            "=== HEX DUMP (prime 128 byte) ===\n" + hexDump +
+            "\n=== STRINGHE ESTRATTE ===\n" + strings.left(2000));
+
+        m_btnRevAnalyze->setEnabled(true);
+    });
+
+    /* Analizza */
+    connect(m_btnRevAnalyze, &QPushButton::clicked, this,
+            [this]{ runReverseEngineering(); });
+
+    /* Stop */
+    connect(m_btnRevStop, &QPushButton::clicked, this, [this]{
+        if (m_ai && m_ai->busy()) m_ai->abort();
+    });
+
+    /* Pulisci */
+    connect(btnClearRev, &QPushButton::clicked, this, [this]{
+        m_revOutput->clear();
+        m_btnRevInsert->setEnabled(false);
+    });
+
+    /* Apri in editor Programmazione */
+    connect(m_btnRevInsert, &QPushButton::clicked, this, [this]{
+        const QString text = m_revOutput->toPlainText();
+        static const QRegularExpression reFence(
+            R"(```[a-zA-Z]*\n([\s\S]*?)```)",
+            QRegularExpression::MultilineOption);
+        const auto match = reFence.match(text);
+        const QString code = match.hasMatch() ? match.captured(1) : text;
+        if (code.trimmed().isEmpty()) return;
+        m_editor->setPlainText(code.trimmed());
+        if (m_innerTabs) m_innerTabs->setCurrentIndex(0);
+    });
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   runReverseEngineering — compone il prompt RE e lancia lo streaming.
+
+   Invia all'LLM: tipo file, hex dump, stringhe estratte, linguaggio
+   target e livello di dettaglio. L'AI ricostruisce il sorgente
+   approssimativo in un blocco ```lang ... ```.
+   ══════════════════════════════════════════════════════════════ */
+void ProgrammazionePage::runReverseEngineering()
+{
+    if (!m_ai || m_revFileData.isEmpty()) return;
+    if (m_ai->busy()) {
+        m_revOutput->setPlainText(
+            "\xe2\x9a\xa0\xef\xb8\x8f  AI occupata. Attendi o premi Stop.");
+        return;
+    }
+
+    /* Applica modello scelto */
+    if (m_revModel) {
+        const QString sel = m_revModel->currentData().toString();
+        if (!sel.isEmpty() && sel != m_ai->model())
+            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
+    }
+
+    const QString lang     = m_revTargetLang ? m_revTargetLang->currentText() : "C";
+    const QString detail   = m_revDetail     ? m_revDetail->currentData().toString() : "full";
+    const QString fileInfo = m_revFilePath   ? m_revFilePath->text() : "";
+    const QString preview  = m_revPreview    ? m_revPreview->toPlainText() : "";
+
+    /* Estensione fence per il blocco codice */
+    const QString fence = (lang == "Auto-rileva")  ? "c"
+                        : (lang == "Assembly x86") ? "asm"
+                        : lang.toLower().section(' ', 0, 0);
+
+    const QString detailDesc =
+        (detail == "fast")
+        ? "Ricostruisci solo la struttura: dichiarazioni di funzioni/classi, tipi, "
+          "costanti e include, senza implementazione completa."
+        : (detail == "full")
+        ? "Ricostruisci il codice il pi\xc3\xb9 completo possibile, "
+          "implementando ogni funzione con la logica dedotta."
+        : "Ricostruisci il codice completo con commenti estesi che spiegano "
+          "la logica di ogni sezione e le deduzioni RE.";
+
+    const QString langTarget = (lang == "Auto-rileva")
+        ? "il linguaggio pi\xc3\xb9 probabile (deducilo dal tipo di file e dai byte)"
+        : lang;
+
+    const QString sys = QString(
+        "Sei un esperto di reverse engineering e analisi binaria. "
+        "Ti viene fornita l'analisi di un file: tipo rilevato, hex dump dei primi byte "
+        "e le stringhe ASCII estratte. "
+        "Il tuo compito \xc3\xa8 ricostruire il codice sorgente originale approssimativo in %1.\n\n"
+        "Metodologia:\n"
+        "  1. Identifica architettura, OS target e librerie dai magic byte e dalle stringhe\n"
+        "  2. Deduci le funzionalit\xc3\xa0 del programma dalle stringhe leggibili\n"
+        "  3. %2\n"
+        "  4. Documenta le ipotesi con commenti NOTE RE:\n\n"
+        "Struttura la risposta:\n"
+        "  [ANALISI] tipo file, architettura, librerie rilevate, funzionalit\xc3\xa0 dedotte\n"
+        "  [SORGENTE RICOSTRUITO] codice in un blocco ```%3 ... ```\n"
+        "  [NOTE RE] assunzioni, confidenza, punti incerti\n\n"
+        "Il codice deve essere plausibile e sintatticamente corretto. "
+        "Rispondi SEMPRE in italiano."
+    ).arg(langTarget, detailDesc, fence);
+
+    const QString user = QString(
+        "File da analizzare:\n%1\n\n"
+        "Dati estratti:\n```\n%2\n```\n\n"
+        "Ricostruisci il codice sorgente in %3."
+    ).arg(fileInfo, preview, langTarget);
+
+    /* ── Avvio streaming ── */
+    m_revOutput->clear();
+    {
+        const QString modelName = m_ai->model().isEmpty() ? "AI" : m_ai->model();
+        m_revOutput->setPlainText(
+            QString("\xf0\x9f\xa4\x96  Modello: %1\n"
+                    "\xf0\x9f\x94\x8d  Linguaggio: %2\n"
+                    "\xf0\x9f\x93\x8b  Dettaglio: %3\n%4\n\n")
+            .arg(modelName, lang,
+                 m_revDetail ? m_revDetail->currentText() : detail,
+                 QString(qMax(modelName.length(), 24), '-')));
+    }
+
+    m_btnRevAnalyze->setEnabled(false);
+    m_btnRevStop->setEnabled(true);
+    m_btnRevInsert->setEnabled(false);
+
+    if (m_revTokenHolder) { delete m_revTokenHolder; m_revTokenHolder = nullptr; }
+    m_revTokenHolder = new QObject(this);
+
+    connect(m_ai, &AiClient::token, m_revTokenHolder, [this](const QString& tok){
+        m_revOutput->moveCursor(QTextCursor::End);
+        m_revOutput->insertPlainText(tok);
+        m_revOutput->ensureCursorVisible();
+    });
+    connect(m_ai, &AiClient::finished, m_revTokenHolder, [this](const QString&){
+        if (m_revTokenHolder) { delete m_revTokenHolder; m_revTokenHolder = nullptr; }
+        m_btnRevAnalyze->setEnabled(true);
+        m_btnRevStop->setEnabled(false);
+        m_btnRevInsert->setEnabled(m_revOutput->toPlainText().contains("```"));
+    });
+    connect(m_ai, &AiClient::error, m_revTokenHolder, [this](const QString& msg){
+        if (m_revTokenHolder) { delete m_revTokenHolder; m_revTokenHolder = nullptr; }
+        m_btnRevAnalyze->setEnabled(true);
+        m_btnRevStop->setEnabled(false);
+        m_revOutput->moveCursor(QTextCursor::End);
+        m_revOutput->insertPlainText(QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
+    });
+
+    m_ai->chat(sys, user);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Network Analyzer — tshark/tcpdump wrapper + AI analysis
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ProgrammazionePage::buildNetworkAnalyzer(QWidget* parent)
+{
+    auto* w   = new QWidget(parent);
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(8, 8, 8, 8);
+    lay->setSpacing(6);
+
+    /* ── toolbar ── */
+    auto* toolRow = new QHBoxLayout;
+    toolRow->setSpacing(6);
+
+    toolRow->addWidget(new QLabel("\xf0\x9f\x93\xa1  Interfaccia:", w));
+    m_netIface = new QComboBox(w);
+    m_netIface->setMinimumWidth(110);
+    for (const QNetworkInterface& iface : QNetworkInterface::allInterfaces()) {
+        if (iface.flags().testFlag(QNetworkInterface::IsLoopBack)) continue;
+        m_netIface->addItem(iface.name());
+    }
+    if (m_netIface->count() == 0) m_netIface->addItem("any");
+    toolRow->addWidget(m_netIface);
+
+    toolRow->addWidget(new QLabel("Filtro:", w));
+    m_netFilter = new QLineEdit(w);
+    m_netFilter->setPlaceholderText("es. tcp port 80  o  icmp");
+    m_netFilter->setMinimumWidth(140);
+    toolRow->addWidget(m_netFilter, 1);
+
+    toolRow->addWidget(new QLabel("Max:", w));
+    m_netMaxPkts = new QSpinBox(w);
+    m_netMaxPkts->setRange(10, 5000);
+    m_netMaxPkts->setValue(200);
+    m_netMaxPkts->setFixedWidth(70);
+    toolRow->addWidget(m_netMaxPkts);
+
+    m_btnNetStart   = new QPushButton("\xe2\x96\xb6  Start",     w);
+    m_btnNetStop    = new QPushButton("\xe2\x96\xa0  Stop",      w);
+    m_btnNetClear   = new QPushButton("\xf0\x9f\x97\x91  Clear", w);
+    m_btnNetAnalyze = new QPushButton("\xf0\x9f\xa4\x96  Analisi AI", w);
+    m_btnNetStop->setEnabled(false);
+    m_btnNetAnalyze->setEnabled(false);
+    toolRow->addWidget(m_btnNetStart);
+    toolRow->addWidget(m_btnNetStop);
+    toolRow->addWidget(m_btnNetClear);
+    toolRow->addWidget(m_btnNetAnalyze);
+    lay->addLayout(toolRow);
+
+    m_netStatus = new QLabel(w);
+    m_netStatus->setObjectName("statusLabel");
+    lay->addWidget(m_netStatus);
+
+    auto* splitter = new QSplitter(Qt::Vertical, w);
+
+    m_netLog = new QPlainTextEdit(splitter);
+    m_netLog->setReadOnly(true);
+    m_netLog->setMaximumBlockCount(5000);
+    QFont mono("JetBrains Mono", 9);
+    mono.setStyleHint(QFont::Monospace);
+    m_netLog->setFont(mono);
+    m_netLog->setPlaceholderText("I pacchetti catturati appariranno qui...");
+    splitter->addWidget(m_netLog);
+
+    m_netAiOutput = new QTextEdit(splitter);
+    m_netAiOutput->setReadOnly(true);
+    m_netAiOutput->setPlaceholderText(
+        "\xf0\x9f\xa4\x96  L'analisi AI apparira' qui dopo aver cliccato 'Analisi AI'...");
+    splitter->addWidget(m_netAiOutput);
+    splitter->setSizes({300, 150});
+    lay->addWidget(splitter, 1);
+
+    /* ── rileva tool disponibile ── */
+    m_netTool = QStandardPaths::findExecutable("tshark");
+    if (m_netTool.isEmpty()) m_netTool = QStandardPaths::findExecutable("tcpdump");
+    if (m_netTool.isEmpty()) {
+        m_netStatus->setText(
+            "\xe2\x9d\x8c  Nessun tool trovato. Installa tshark: sudo apt install tshark");
+        m_btnNetStart->setEnabled(false);
+    } else {
+        m_netStatus->setText(QString("\xe2\x9c\x85  Tool rilevato: %1").arg(m_netTool));
+    }
+
+    connect(m_btnNetStart, &QPushButton::clicked, this, &ProgrammazionePage::netStart);
+    connect(m_btnNetStop,  &QPushButton::clicked, this, &ProgrammazionePage::netStop);
+    connect(m_btnNetClear, &QPushButton::clicked, this, [this]{
+        m_netLog->clear();
+        m_netAiOutput->clear();
+        m_btnNetAnalyze->setEnabled(false);
+    });
+    connect(m_btnNetAnalyze, &QPushButton::clicked, this, &ProgrammazionePage::netAiAnalyze);
+
+    return w;
+}
+
+void ProgrammazionePage::netStart()
+{
+    if (m_netProc && m_netProc->state() != QProcess::NotRunning) return;
+
+    const QString iface  = m_netIface->currentText();
+    const QString filter = m_netFilter->text().trimmed();
+    const int     maxPkt = m_netMaxPkts->value();
+
+    m_netLog->clear();
+    m_netAiOutput->clear();
+    m_btnNetAnalyze->setEnabled(false);
+
+    if (!m_netProc) m_netProc = new QProcess(this);
+
+    QStringList args;
+    const bool useTshark = m_netTool.contains("tshark");
+
+    if (useTshark) {
+        args << "-i" << iface
+             << "-c" << QString::number(maxPkt)
+             << "-T" << "fields"
+             << "-e" << "frame.number"
+             << "-e" << "ip.src"
+             << "-e" << "ip.dst"
+             << "-e" << "_ws.col.Protocol"
+             << "-e" << "frame.len"
+             << "-e" << "_ws.col.Info"
+             << "-E" << "separator=|"
+             << "-l";
+        if (!filter.isEmpty()) args << "-Y" << filter;
+    } else {
+        args << "-i" << iface
+             << "-c" << QString::number(maxPkt)
+             << "-l" << "-n" << "-q";
+        if (!filter.isEmpty())
+            args << filter.split(' ', Qt::SkipEmptyParts);
+    }
+
+    connect(m_netProc, &QProcess::readyReadStandardOutput, this, [this, useTshark]{
+        while (m_netProc->canReadLine()) {
+            const QString line = QString::fromLocal8Bit(m_netProc->readLine()).trimmed();
+            if (line.isEmpty()) continue;
+            QString formatted;
+            if (useTshark) {
+                const QStringList parts = line.split('|');
+                if (parts.size() >= 6)
+                    formatted = QString("[%1] %2 -> %3  %4  %5B  %6")
+                        .arg(parts[0].rightJustified(5), parts[1], parts[2],
+                             parts[3], parts[4], parts[5].left(80));
+                else
+                    formatted = line;
+            } else {
+                formatted = line;
+            }
+            m_netLog->appendPlainText(formatted);
+        }
+    });
+    connect(m_netProc, &QProcess::readyReadStandardError, this, [this]{
+        const QString err = QString::fromLocal8Bit(m_netProc->readAllStandardError()).trimmed();
+        if (!err.isEmpty())
+            m_netLog->appendPlainText("\xe2\x9a\xa0  " + err);
+    });
+    connect(m_netProc,
+            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this](int code, QProcess::ExitStatus){
+        m_btnNetStart->setEnabled(true);
+        m_btnNetStop->setEnabled(false);
+        const bool hasData = m_netLog->document()->blockCount() > 1;
+        m_btnNetAnalyze->setEnabled(hasData);
+        m_netStatus->setText(code == 0
+            ? "\xe2\x9c\x85  Cattura completata."
+            : QString("\xe2\x9a\xa0  Processo terminato (codice %1)").arg(code));
+    });
+
+    m_netProc->start(m_netTool, args);
+    if (!m_netProc->waitForStarted(2000)) {
+        m_netStatus->setText(
+            "\xe2\x9d\x8c  Impossibile avviare il tool. Permessi root necessari?");
+        return;
+    }
+    m_btnNetStart->setEnabled(false);
+    m_btnNetStop->setEnabled(true);
+    m_netStatus->setText(
+        QString("\xf0\x9f\x94\xb4  Cattura in corso su %1...").arg(iface));
+}
+
+void ProgrammazionePage::netStop()
+{
+    if (!m_netProc) return;
+    m_netProc->terminate();
+    QTimer::singleShot(1500, this, [this]{
+        if (m_netProc && m_netProc->state() != QProcess::NotRunning)
+            m_netProc->kill();
+    });
+}
+
+void ProgrammazionePage::netAiAnalyze()
+{
+    const QString logText = m_netLog->toPlainText().trimmed();
+    if (logText.isEmpty()) return;
+
+    QStringList lines = logText.split('\n', Qt::SkipEmptyParts);
+    if (lines.size() > 150) lines = lines.mid(lines.size() - 150);
+    const QString snippet = lines.join('\n');
+
+    const QString sys =
+        "Sei un esperto di sicurezza di rete e analisi del traffico. "
+        "Analizza il seguente dump di pacchetti e fornisci:\n"
+        "1. Panoramica del traffico (protocolli dominanti, host attivi)\n"
+        "2. Anomalie o comportamenti sospetti\n"
+        "3. Potenziali problemi di sicurezza (porte inusuali, scansioni, flood)\n"
+        "4. Suggerimenti pratici per approfondire o mitigare i rischi.\n"
+        "Rispondi in italiano, in modo conciso e strutturato.";
+
+    const QString user =
+        QString("Ecco i pacchetti catturati:\n\n```\n%1\n```").arg(snippet);
+
+    m_netAiOutput->clear();
+    m_netAiOutput->setPlainText("\xf0\x9f\xa4\x96  Analisi in corso...\n\n");
+    m_btnNetAnalyze->setEnabled(false);
+
+    if (m_netTokenHolder) { delete m_netTokenHolder; m_netTokenHolder = nullptr; }
+    m_netTokenHolder = new QObject(this);
+
+    connect(m_ai, &AiClient::token, m_netTokenHolder, [this](const QString& tok){
+        m_netAiOutput->moveCursor(QTextCursor::End);
+        m_netAiOutput->insertPlainText(tok);
+        m_netAiOutput->ensureCursorVisible();
+    });
+    connect(m_ai, &AiClient::finished, m_netTokenHolder, [this](const QString&){
+        if (m_netTokenHolder) { delete m_netTokenHolder; m_netTokenHolder = nullptr; }
+        m_btnNetAnalyze->setEnabled(true);
+    });
+    connect(m_ai, &AiClient::error, m_netTokenHolder, [this](const QString& msg){
+        if (m_netTokenHolder) { delete m_netTokenHolder; m_netTokenHolder = nullptr; }
+        m_btnNetAnalyze->setEnabled(true);
+        m_netAiOutput->moveCursor(QTextCursor::End);
+        m_netAiOutput->insertPlainText("\n\xe2\x9d\x8c  Errore: " + msg);
+    });
+
+    m_ai->chat(sys, user);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildReteLan — sub-tab "🌐 Rete LAN"
+   Scanner LAN: ARP cache, nmap ping-sweep, info interfacce,
+   calcolo subnet (rete/broadcast/host) — nessun AI richiesto.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ProgrammazionePage::buildReteLan(QWidget* parent)
+{
+    auto* w   = new QWidget(parent);
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(12, 12, 12, 12);
+    lay->setSpacing(8);
+
+    /* ── Info interfacce locali ── */
+    m_lanInfoLbl = new QLabel(w);
+    m_lanInfoLbl->setWordWrap(true);
+    m_lanInfoLbl->setTextFormat(Qt::RichText);
+    m_lanInfoLbl->setStyleSheet(
+        "background:#1a2032;border:1px solid #334155;border-radius:6px;"
+        "padding:8px;color:#94a3b8;font-size:12px;");
+    lanRefreshInfo();
+
+    /* ── Pulsanti di scansione ── */
+    auto* btnRow = new QWidget(w);
+    auto* btnLay = new QHBoxLayout(btnRow);
+    btnLay->setContentsMargins(0, 0, 0, 0);
+    btnLay->setSpacing(8);
+
+    m_lanScanArp  = new QPushButton("\xf0\x9f\x94\x8d  ARP Cache (rapido)", btnRow);
+    m_lanScanNmap = new QPushButton("\xf0\x9f\x8c\x90  Scan nmap (completo)", btnRow);
+    m_lanStopBtn  = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_lanStopBtn->setObjectName("actionBtn");
+    m_lanStopBtn->setProperty("danger", true);
+    m_lanStopBtn->setEnabled(false);
+    auto* btnRefresh = new QPushButton("\xf0\x9f\x94\x84  Aggiorna info", btnRow);
+
+    btnLay->addWidget(m_lanScanArp);
+    btnLay->addWidget(m_lanScanNmap);
+    btnLay->addWidget(m_lanStopBtn);
+    btnLay->addStretch();
+    btnLay->addWidget(btnRefresh);
+
+    /* ── Tabella risultati: IP | MAC | Hostname | Stato ── */
+    m_lanTable = new QTableWidget(0, 4, w);
+    m_lanTable->setHorizontalHeaderLabels({" IP", " MAC Address", " Hostname", " Stato"});
+    m_lanTable->setColumnWidth(0, 130);
+    m_lanTable->setColumnWidth(1, 158);
+    m_lanTable->setColumnWidth(3, 100);
+    m_lanTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
+    m_lanTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
+    m_lanTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+    m_lanTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Fixed);
+    m_lanTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_lanTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_lanTable->setAlternatingRowColors(true);
+    m_lanTable->verticalHeader()->setVisible(false);
+    m_lanTable->setStyleSheet(
+        "QTableWidget{background:#0a1628;color:#e2e8f0;"
+        "gridline-color:#1e3a5f;border:1px solid #1e3a5f;border-radius:6px;}"
+        "QHeaderView::section{background:#1e2d45;color:#64748b;"
+        "border:none;padding:5px;font-weight:bold;}"
+        "QTableWidget::item:selected{background:#00a37f40;}");
+
+    /* ── Status scan / info subnet ── */
+    m_lanStatusLbl = new QLabel(w);
+    m_lanStatusLbl->setStyleSheet("color:#64748b;font-size:11px;padding:2px;");
+    m_lanStatusLbl->setText(
+        "\xf0\x9f\x94\x8c Premi un pulsante per scansionare la rete locale.");
+
+    lay->addWidget(m_lanInfoLbl);
+    lay->addWidget(btnRow);
+    lay->addWidget(m_lanTable, 1);
+    lay->addWidget(m_lanStatusLbl);
+
+    /* ── Helper: aggiunge riga alla tabella ── */
+    auto addRow = [this](const QString& ip, const QString& mac,
+                         const QString& host, const QString& stato) {
+        const int r = m_lanTable->rowCount();
+        m_lanTable->insertRow(r);
+        m_lanTable->setItem(r, 0, new QTableWidgetItem(ip));
+        m_lanTable->setItem(r, 1, new QTableWidgetItem(mac));
+        m_lanTable->setItem(r, 2, new QTableWidgetItem(host));
+        auto* si = new QTableWidgetItem(stato);
+        if (stato.contains("REACHABLE", Qt::CaseInsensitive) || stato == "Up")
+            si->setForeground(QColor("#00a37f"));
+        else if (stato.contains("STALE", Qt::CaseInsensitive))
+            si->setForeground(QColor("#E5C400"));
+        else if (stato.contains("FAILED", Qt::CaseInsensitive) ||
+                 stato.contains("INCOMPLETE", Qt::CaseInsensitive))
+            si->setForeground(QColor("#ef4444"));
+        m_lanTable->setItem(r, 3, si);
+    };
+
+    auto resetBtns = [this]() {
+        m_lanScanArp->setEnabled(true);
+        m_lanScanNmap->setEnabled(true);
+        m_lanStopBtn->setEnabled(false);
+    };
+
+    /* ── ARP Cache (ip neigh show) ── */
+    connect(m_lanScanArp, &QPushButton::clicked, this, [this, addRow, resetBtns]() {
+        if (m_lanProc && m_lanProc->state() != QProcess::NotRunning) return;
+        m_lanTable->setRowCount(0);
+        m_lanScanArp->setEnabled(false);
+        m_lanScanNmap->setEnabled(false);
+        m_lanStopBtn->setEnabled(true);
+        m_lanStatusLbl->setText("\xf0\x9f\x94\x8d Lettura ARP cache (ip neigh show)...");
+
+        m_lanProc = new QProcess(this);
+        connect(m_lanProc, &QProcess::errorOccurred, this,
+                [this, resetBtns](QProcess::ProcessError err) {
+            if (err != QProcess::FailedToStart) return;
+            m_lanStatusLbl->setText(
+                "\xe2\x9d\x8c 'ip' non trovato — installa iproute2: sudo apt install iproute2");
+            resetBtns();
+            m_lanProc->deleteLater(); m_lanProc = nullptr;
+        });
+        connect(m_lanProc, &QProcess::readyReadStandardOutput, this,
+                [this, addRow]() {
+            const QString out = QString::fromUtf8(m_lanProc->readAllStandardOutput());
+            for (const QString& line : out.split('\n', Qt::SkipEmptyParts)) {
+                QStringList f = line.split(' ', Qt::SkipEmptyParts);
+                if (f.size() < 2) continue;
+                if (f[0].contains(':')) continue;  // salta IPv6
+                QString mac;
+                for (int i = 0; i+1 < f.size(); ++i)
+                    if (f[i] == "lladdr") mac = f[i+1];
+                if (mac.isEmpty()) continue;
+                addRow(f[0], mac, "", f.last());
+            }
+        });
+        connect(m_lanProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, resetBtns]() {
+            resetBtns();
+            m_lanStatusLbl->setText(
+                QString("\xe2\x9c\x85 ARP: %1 host — REACHABLE=attivo, STALE=visto di recente")
+                .arg(m_lanTable->rowCount()));
+            m_lanProc->deleteLater(); m_lanProc = nullptr;
+        });
+        m_lanProc->setProgram("ip");
+        m_lanProc->setArguments({"neigh", "show"});
+        m_lanProc->start();
+    });
+
+    /* ── Scan nmap completo ── */
+    connect(m_lanScanNmap, &QPushButton::clicked, this, [this, addRow, resetBtns]() {
+        if (m_lanProc && m_lanProc->state() != QProcess::NotRunning) return;
+
+        QString subnet;
+        for (const QNetworkInterface& iface : QNetworkInterface::allInterfaces()) {
+            if (iface.flags().testFlag(QNetworkInterface::IsLoopBack)) continue;
+            if (!iface.flags().testFlag(QNetworkInterface::IsUp)) continue;
+            for (const QNetworkAddressEntry& e : iface.addressEntries()) {
+                if (e.ip().protocol() != QAbstractSocket::IPv4Protocol) continue;
+                const quint32 ipRaw  = e.ip().toIPv4Address();
+                const quint32 mskRaw = e.netmask().toIPv4Address();
+                int pfx = 0; quint32 tmp = mskRaw;
+                while (tmp) { pfx += (tmp >> 31) & 1; tmp <<= 1; }
+                subnet = QHostAddress(ipRaw & mskRaw).toString() + "/" + QString::number(pfx);
+                break;
+            }
+            if (!subnet.isEmpty()) break;
+        }
+        if (subnet.isEmpty()) {
+            m_lanStatusLbl->setText("\xe2\x9d\x8c Impossibile rilevare la subnet locale.");
+            return;
+        }
+
+        m_lanTable->setRowCount(0);
+        m_lanBuf.clear();
+        m_lanScanArp->setEnabled(false);
+        m_lanScanNmap->setEnabled(false);
+        m_lanStopBtn->setEnabled(true);
+        m_lanStatusLbl->setText(
+            QString("\xf0\x9f\x8c\x90 Scansione nmap su %1 (1-3 min)...").arg(subnet));
+
+        m_lanProc = new QProcess(this);
+        connect(m_lanProc, &QProcess::errorOccurred, this,
+                [this, resetBtns](QProcess::ProcessError err) {
+            if (err != QProcess::FailedToStart) return;
+            m_lanStatusLbl->setText(
+                "\xe2\x9d\x8c 'nmap' non trovato — installa: sudo apt install nmap");
+            resetBtns();
+            m_lanProc->deleteLater(); m_lanProc = nullptr;
+        });
+        connect(m_lanProc, &QProcess::readyReadStandardOutput, this, [this]() {
+            m_lanBuf += QString::fromUtf8(m_lanProc->readAllStandardOutput());
+        });
+        connect(m_lanProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, addRow, resetBtns, subnet](int code) {
+            static const QRegularExpression reHost(
+                R"(Host:\s+(\S+)\s+\(([^)]*)\)\s+Status:\s+(\S+))");
+            for (const QString& line : m_lanBuf.split('\n', Qt::SkipEmptyParts)) {
+                auto mh = reHost.match(line);
+                if (mh.hasMatch())
+                    addRow(mh.captured(1), "", mh.captured(2), mh.captured(3));
+            }
+            m_lanBuf.clear();
+            resetBtns();
+            if (code != 0 && m_lanTable->rowCount() == 0)
+                m_lanStatusLbl->setText(
+                    "\xe2\x9d\x8c nmap errore — installa: sudo apt install nmap");
+            else
+                m_lanStatusLbl->setText(
+                    QString("\xe2\x9c\x85 nmap su %1: %2 host attivi")
+                    .arg(subnet).arg(m_lanTable->rowCount()));
+            m_lanProc->deleteLater(); m_lanProc = nullptr;
+        });
+        m_lanProc->setProgram("nmap");
+        m_lanProc->setArguments({"-sn", "-oG", "-", subnet});
+        m_lanProc->start();
+    });
+
+    connect(m_lanStopBtn,  &QPushButton::clicked, this, [this]() {
+        if (m_lanProc) m_lanProc->terminate();
+    });
+    connect(btnRefresh, &QPushButton::clicked, this, [this]() { lanRefreshInfo(); });
+
+    return w;
+}
+
+void ProgrammazionePage::lanRefreshInfo()
+{
+    if (!m_lanInfoLbl) return;
+    QStringList parts;
+    for (const QNetworkInterface& iface : QNetworkInterface::allInterfaces()) {
+        if (iface.flags().testFlag(QNetworkInterface::IsLoopBack)) continue;
+        if (!iface.flags().testFlag(QNetworkInterface::IsUp)) continue;
+        const QString hw = iface.hardwareAddress();
+        for (const QNetworkAddressEntry& e : iface.addressEntries()) {
+            if (e.ip().protocol() != QAbstractSocket::IPv4Protocol) continue;
+            const quint32 ipRaw  = e.ip().toIPv4Address();
+            const quint32 mskRaw = e.netmask().toIPv4Address();
+            int pfx = 0; quint32 tmp = mskRaw;
+            while (tmp) { pfx += (tmp >> 31) & 1; tmp <<= 1; }
+            const quint32 netRaw = ipRaw & mskRaw;
+            const quint32 bcRaw  = netRaw | ~mskRaw;
+            const quint32 hostCnt = (pfx < 32) ? ((1u << (32 - pfx)) - 2) : 1u;
+            parts << QString(
+                "<b>\xf0\x9f\x94\x8c %1</b>: <b>%2/%3</b>"
+                " &nbsp;|\xc2\xa0 Rete: <code>%4</code>"
+                " &nbsp;|\xc2\xa0 Broadcast: <code>%5</code>"
+                " &nbsp;|\xc2\xa0 Host disponibili: <b>%6</b>"
+                " &nbsp;|\xc2\xa0 MAC: <code>%7</code>")
+                .arg(iface.name(), e.ip().toString(), QString::number(pfx),
+                     QHostAddress(netRaw).toString(), QHostAddress(bcRaw).toString(),
+                     QString::number(hostCnt), hw.isEmpty() ? "N/D" : hw);
+        }
+    }
+    m_lanInfoLbl->setText(parts.isEmpty()
+        ? "<i>\xf0\x9f\x9f\xa1 Nessuna interfaccia IPv4 attiva</i>"
+        : parts.join("<br>"));
 }
