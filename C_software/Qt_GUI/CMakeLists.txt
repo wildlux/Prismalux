@@ -212,10 +212,31 @@ if(BUILD_TESTS)
         target_link_libraries(test_random_tool PRIVATE pthread m)
     endif()
 
+    # ── test_lavoro_page: LavoroPage isolation, filtri, DB integrità ──
+    # 5 classi × N test: cross-contamination, filtri, modelli, DB, UI
+    add_executable(test_lavoro_page
+        tests/test_lavoro_page.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_lavoro_page PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_lavoro_page PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_lavoro_page PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_lavoro_page PRIVATE pthread m)
+    endif()
+
     enable_testing()
     add_test(NAME SignalLifetime COMMAND test_signal_lifetime)
     add_test(NAME RagEngine     COMMAND test_rag_engine)
     add_test(NAME CodeUtils     COMMAND test_code_utils)
     add_test(NAME RandomTool    COMMAND test_random_tool)
-    message(STATUS "Build test abilitata: test_signal_lifetime, test_rag_engine, test_code_utils, test_random_tool")
+    add_test(NAME LavoroPage    COMMAND test_lavoro_page)
+    message(STATUS "Build test abilitata: test_signal_lifetime, test_rag_engine, test_code_utils, test_random_tool, test_lavoro_page")
 endif()

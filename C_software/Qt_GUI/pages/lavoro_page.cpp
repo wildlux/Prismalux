@@ -291,6 +291,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     llmLay->setSpacing(8);
 
     m_cmbModello = new QComboBox(llmBox);
+    m_cmbModello->setObjectName("cmbModello");
     m_cmbModello->setMinimumWidth(180);
     m_cmbModello->addItem("\xf0\x9f\x94\x84 Caricamento modelli...");
 
@@ -344,6 +345,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
 
     filtriL->addWidget(new QLabel("\xf0\x9f\x94\x8d Tipo:", filtriRow));
     m_filtroTipo = new QComboBox(filtriRow);
+    m_filtroTipo->setObjectName("filtroTipo");
     m_filtroTipo->setFixedWidth(185);
 
     const struct { const char* label; const char* data; } tipi[] = {
@@ -369,6 +371,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     filtriL->addSpacing(16);
     filtriL->addWidget(new QLabel("\xf0\x9f\x8e\x93 Istruzione:", filtriRow));
     m_filtroLivello = new QComboBox(filtriRow);
+    m_filtroLivello->setObjectName("filtroLivello");
     m_filtroLivello->setFixedWidth(210);
 
     const struct { const char* label; const char* data; } livelli[] = {
