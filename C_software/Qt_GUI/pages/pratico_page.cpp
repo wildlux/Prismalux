@@ -15,8 +15,9 @@
 #include <QProcess>
 #include <memory>
 #include <cmath>
+
 /* ══════════════════════════════════════════════════════════════
-   Chat panel riutilizzabile
+   Chat panel riutilizzabile (730, P.IVA)
    ══════════════════════════════════════════════════════════════ */
 QWidget* PraticoPage::buildChat(const QString& title,
                                  const QString& sysPrompt,
@@ -29,7 +30,7 @@ QWidget* PraticoPage::buildChat(const QString& title,
     auto* hdr = new QWidget(w);
     auto* hdrL = new QHBoxLayout(hdr);
     hdrL->setContentsMargins(0,0,0,0);
-    auto* back = new QPushButton("← Torna", hdr);
+    auto* back = new QPushButton("\xe2\x86\x90 Torna", hdr);
     back->setObjectName("actionBtn");
     auto* lbl  = new QLabel(title, hdr);
     lbl->setObjectName("pageTitle");
@@ -47,7 +48,6 @@ QWidget* PraticoPage::buildChat(const QString& title,
     log->setPlaceholderText(placeholder);
     lay->addWidget(log, 1);
 
-    /* ── Context menu: copia / leggi ── */
     log->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(log, &QTextEdit::customContextMenuRequested, w, [log](const QPoint& pos){
         const QString sel   = log->textCursor().selectedText();
@@ -67,7 +67,6 @@ QWidget* PraticoPage::buildChat(const QString& title,
         }
     });
 
-    /* Indicatore elaborazione */
     auto* waitLbl = new QLabel("\xe2\x8f\xb3  Elaborazione in corso...", w);
     waitLbl->setStyleSheet("color:#E5C400; font-style:italic; padding:2px 0;");
     waitLbl->setVisible(false);
@@ -92,18 +91,16 @@ QWidget* PraticoPage::buildChat(const QString& title,
     inL->addWidget(stop);
     lay->addWidget(inputRow);
 
-    /* Flag per ignorare segnali non destinati a questo panel */
     auto active = std::make_shared<bool>(false);
 
-    /* Connessioni */
     connect(back, &QPushButton::clicked, this, [this]{ m_inner->setCurrentIndex(0); });
     connect(stop, &QPushButton::clicked, m_ai, &AiClient::abort);
 
     auto sendFn = [=]{
         QString msg = inp->text().trimmed();
         if (msg.isEmpty()) return;
-        log->append(QString("\n👤  Tu: %1\n").arg(msg));
-        log->append("🤖  AI: ");
+        log->append(QString("\n\xf0\x9f\x91\xa4  Tu: %1\n").arg(msg));
+        log->append("\xf0\x9f\xa4\x96  AI: ");
         inp->clear();
         send->setEnabled(false); stop->setEnabled(true); waitLbl->setVisible(true);
         *active = true;
@@ -121,13 +118,12 @@ QWidget* PraticoPage::buildChat(const QString& title,
     connect(m_ai, &AiClient::finished, this, [=](const QString&){
         if (!*active) return;
         *active = false;
-        log->append("\n──────────");
+        log->append("\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80");
         send->setEnabled(true); stop->setEnabled(false); waitLbl->setVisible(false);
     });
     connect(m_ai, &AiClient::error, this, [=](const QString& err){
         if (!*active) return;
         *active = false;
-        /* Categorie errore: abort silenzioso, RAM, rete, timeout, generico */
         const QString el = err.toLower();
         if (el.contains("operation canceled") || el.contains("canceled")) {
             /* abort silenzioso */
@@ -173,14 +169,12 @@ QWidget* PraticoPage::buildMenu() {
 
     struct Item { QString icon, title, desc; int page; };
     QList<Item> items = {
-        {"📄", "Assistente 730",
+        {"\xf0\x9f\x93\x84", "Assistente 730",
          "Guida alla compilazione del 730, detrazioni, rimborsi fiscali.", 1},
-        {"💼", "Partita IVA",
+        {"\xf0\x9f\x92\xbc", "Partita IVA",
          "Regime forfettario, calcolo imposte, obblighi contributivi.", 2},
-        {"🔍", "Cerca Lavoro",
-         "Ricerca offerte, consigli CV, preparazione colloquio.", 3},
         {"\xf0\x9f\x92\xb0", "Calcolatore Finanza",
-         "Mutuo, PAC, stima pensione INPS — calcoli locali istantanei.", 4},
+         "Mutuo, PAC, stima pensione INPS \xe2\x80\x94 calcoli locali istantanei.", 3},
     };
 
     auto* grid = new QWidget(w);
@@ -189,7 +183,6 @@ QWidget* PraticoPage::buildMenu() {
     gLay->setContentsMargins(0,0,0,0);
 
     for (auto& it : items) {
-        /* Card con bottone "Apri →" integrato */
         auto* card = new QFrame(grid);
         card->setObjectName("actionCard");
         auto* cl = new QHBoxLayout(card);
@@ -207,7 +200,7 @@ QWidget* PraticoPage::buildMenu() {
         txtL->addWidget(lt); txtL->addWidget(ld);
 
         int pg = it.page;
-        auto* goBtn = new QPushButton("Apri →", card);
+        auto* goBtn = new QPushButton("Apri \xe2\x86\x92", card);
         goBtn->setObjectName("actionBtn"); goBtn->setFixedWidth(80);
         connect(goBtn, &QPushButton::clicked, this, [this, pg]{ m_inner->setCurrentIndex(pg); });
 
@@ -229,7 +222,6 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
     lay->setContentsMargins(20, 16, 20, 16);
     lay->setSpacing(14);
 
-    /* Header con pulsante torna */
     auto* hdrW = new QWidget(w);
     auto* hdrL = new QHBoxLayout(hdrW);
     hdrL->setContentsMargins(0,0,0,0);
@@ -244,7 +236,6 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
     auto* div = new QFrame(w); div->setObjectName("pageDivider");
     div->setFrameShape(QFrame::HLine); lay->addWidget(div);
 
-    /* ── Area output comune ── */
     auto* outLbl = new QTextBrowser(w);
     outLbl->setObjectName("chatLog");
     outLbl->setPlaceholderText("I risultati dei calcoli appariranno qui...");
@@ -262,11 +253,11 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
         return s;
     };
 
-    auto* capSpin  = mkSpin(1000, 2000000, 150000, 0, " \xe2\x82\xac");
-    auto* tassoSpin= mkSpin(0.01, 30.0,    3.5,    2, " %");
-    auto* anniSpin = new QSpinBox; anniSpin->setRange(1, 40); anniSpin->setValue(20);
+    auto* capSpin   = mkSpin(1000, 2000000, 150000, 0, " \xe2\x82\xac");
+    auto* tassoSpin = mkSpin(0.01, 30.0,    3.5,    2, " %");
+    auto* anniSpin  = new QSpinBox; anniSpin->setRange(1, 40); anniSpin->setValue(20);
     anniSpin->setSuffix(" anni"); anniSpin->setFixedWidth(110);
-    auto* calcMut  = new QPushButton("Calcola", mutGroup);
+    auto* calcMut   = new QPushButton("Calcola", mutGroup);
     calcMut->setObjectName("actionBtn");
 
     mutLay->addWidget(new QLabel("Capitale:")); mutLay->addWidget(capSpin);
@@ -275,32 +266,30 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
     mutLay->addWidget(calcMut); mutLay->addStretch(1);
 
     QObject::connect(calcMut, &QPushButton::clicked, w, [=]{
-        double C = capSpin->value();
+        double C     = capSpin->value();
         double tasso = tassoSpin->value() / 12.0 / 100.0;
         int    n     = anniSpin->value() * 12;
         double rata;
         if (tasso == 0) rata = C / n;
         else            rata = C * (tasso * std::pow(1+tasso, n)) / (std::pow(1+tasso, n) - 1);
-        double totPagato  = rata * n;
+        double totPagato   = rata * n;
         double totInteressi = totPagato - C;
-
         QString txt = QString(
-            "<b>\xf0\x9f\x8f\xa0 Mutuo: %1 \xe2\x82\xac — %2% — %3 anni</b><br>"
+            "<b>\xf0\x9f\x8f\xa0 Mutuo: %1 \xe2\x82\xac \xe2\x80\x94 %2% \xe2\x80\x94 %3 anni</b><br>"
             "Rata mensile: <b>%4 \xe2\x82\xac</b><br>"
             "Totale pagato: <b>%5 \xe2\x82\xac</b><br>"
             "Totale interessi: <b>%6 \xe2\x82\xac</b><br><br>"
             "<b>Piano ammortamento (prime 12 rate):</b><br>")
-            .arg(C, 0, 'f', 0).arg(tassoSpin->value(), 0, 'f', 2).arg(anniSpin->value())
-            .arg(rata, 0, 'f', 2).arg(totPagato, 0, 'f', 2).arg(totInteressi, 0, 'f', 2);
-
+            .arg(C,0,'f',0).arg(tassoSpin->value(),0,'f',2).arg(anniSpin->value())
+            .arg(rata,0,'f',2).arg(totPagato,0,'f',2).arg(totInteressi,0,'f',2);
         double debRes = C;
         for (int i = 1; i <= qMin(12, n); i++) {
             double interesse = debRes * tasso;
             double quota     = rata - interesse;
             debRes          -= quota;
-            txt += QString("Rata %1: \xe2\x82\xac%2 (quota cap: %3 — int: %4 — residuo: %5)<br>")
+            txt += QString("Rata %1: \xe2\x82\xac%2 (cap: %3 \xe2\x80\x94 int: %4 \xe2\x80\x94 res: %5)<br>")
                    .arg(i).arg(rata,0,'f',2).arg(quota,0,'f',2)
-                   .arg(interesse,0,'f',2).arg(qMax(0.0, debRes),0,'f',2);
+                   .arg(interesse,0,'f',2).arg(qMax(0.0,debRes),0,'f',2);
         }
         outLbl->setHtml(txt);
     });
@@ -329,10 +318,10 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
         double FV;
         if (r == 0) FV = rata * n;
         else        FV = rata * (std::pow(1+r, n) - 1) / r;
-        double versato  = rata * n;
+        double versato    = rata * n;
         double rendimento = FV - versato;
         outLbl->setHtml(QString(
-            "<b>\xf0\x9f\x93\x88 PAC: %1 \xe2\x82\xac/mese — %2% — %3 anni</b><br>"
+            "<b>\xf0\x9f\x93\x88 PAC: %1 \xe2\x82\xac/mese \xe2\x80\x94 %2% \xe2\x80\x94 %3 anni</b><br>"
             "Capitale accumulato: <b>%4 \xe2\x82\xac</b><br>"
             "Capitale versato: <b>%5 \xe2\x82\xac</b><br>"
             "Rendimento totale: <b>%6 \xe2\x82\xac (%7%)</b>")
@@ -346,11 +335,11 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
     auto* penLay   = new QHBoxLayout(penGroup);
     penLay->setSpacing(10);
 
-    auto* stipSpin  = mkSpin(10000, 500000, 35000, 0, " \xe2\x82\xac/anno");
-    auto* anniLav   = new QSpinBox; anniLav->setRange(1, 50); anniLav->setValue(35);
+    auto* stipSpin = mkSpin(10000, 500000, 35000, 0, " \xe2\x82\xac/anno");
+    auto* anniLav  = new QSpinBox; anniLav->setRange(1, 50); anniLav->setValue(35);
     anniLav->setSuffix(" anni"); anniLav->setFixedWidth(110);
-    auto* aliqSpin  = mkSpin(1, 50, 33, 1, " %");
-    auto* calcPen   = new QPushButton("Calcola", penGroup);
+    auto* aliqSpin = mkSpin(1, 50, 33, 1, " %");
+    auto* calcPen  = new QPushButton("Calcola", penGroup);
     calcPen->setObjectName("actionBtn");
 
     penLay->addWidget(new QLabel("Stipendio lordo:")); penLay->addWidget(stipSpin);
@@ -359,20 +348,19 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
     penLay->addWidget(calcPen); penLay->addStretch(1);
 
     QObject::connect(calcPen, &QPushButton::clicked, w, [=]{
-        double stip  = stipSpin->value();
-        int    anni  = anniLav->value();
-        double aliq  = aliqSpin->value() / 100.0;
-        double contrib = stip * aliq * anni;
-        /* Coefficiente per 67 anni: 5.723% (INPS 2024) */
+        double stip   = stipSpin->value();
+        int    anni   = anniLav->value();
+        double aliq   = aliqSpin->value() / 100.0;
+        double contrib   = stip * aliq * anni;
         double pensAnnua  = contrib * 0.05723;
         double pensMensile = pensAnnua / 13.0;
         outLbl->setHtml(QString(
             "<b>\xf0\x9f\x91\xb4 Stima Pensione INPS (metodologia contributiva semplificata)</b><br>"
-            "Stipendio lordo annuo: %1 \xe2\x82\xac — Anni: %2 — Aliquota: %3%<br>"
+            "Stipendio lordo annuo: %1 \xe2\x82\xac \xe2\x80\x94 Anni: %2 \xe2\x80\x94 Aliquota: %3%<br>"
             "Contributi totali stimati: <b>%4 \xe2\x82\xac</b><br>"
             "Pensione annua stimata: <b>%5 \xe2\x82\xac</b><br>"
             "Pensione mensile stimata (13 mensilit\xc3\xa0): <b>%6 \xe2\x82\xac</b><br><br>"
-            "<i>Stima indicativa — coeff. 5.723% per pensionamento a 67 anni (INPS 2024).</i>")
+            "<i>Stima indicativa \xe2\x80\x94 coeff. 5.723% per pensionamento a 67 anni (INPS 2024).</i>")
             .arg(stip,0,'f',0).arg(anni).arg(aliqSpin->value(),0,'f',1)
             .arg(contrib,0,'f',0).arg(pensAnnua,0,'f',0).arg(pensMensile,0,'f',0));
     });
@@ -384,6 +372,9 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
     return w;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Costruttore PraticoPage
+   ══════════════════════════════════════════════════════════════ */
 PraticoPage::PraticoPage(AiClient* ai, QWidget* parent)
     : QWidget(parent), m_ai(ai)
 {
@@ -397,32 +388,23 @@ PraticoPage::PraticoPage(AiClient* ai, QWidget* parent)
 
     /* 1 = 730 */
     m_inner->addWidget(buildChat(
-        "📄  Assistente 730",
+        "\xf0\x9f\x93\x84  Assistente 730",
         "Sei un esperto fiscalista italiano specializzato nel modello 730. "
         "Fornisci guide chiare, cita gli articoli di legge quando rilevante. "
         "Rispondi SEMPRE e SOLO in italiano.",
         "Es: Posso detrarre le spese mediche per mio figlio?\n"
-        "Es: Qual è la differenza tra 730 precompilato e ordinario?"));
+        "Es: Qual \xc3\xa8 la differenza tra 730 precompilato e ordinario?"));
 
     /* 2 = P.IVA */
     m_inner->addWidget(buildChat(
-        "💼  Partita IVA — Regime Forfettario",
+        "\xf0\x9f\x92\xbc  Partita IVA \xe2\x80\x94 Regime Forfettario",
         "Sei un commercialista italiano esperto in regime forfettario e partita IVA. "
         "Fornisci calcoli precisi e consigli pratici. "
         "Rispondi SEMPRE e SOLO in italiano.",
         "Es: Come calcolo le tasse nel regime forfettario al 15%?\n"
         "Es: Quali sono i limiti di fatturato per restare nel forfettario?"));
 
-    /* 3 = Cerca Lavoro */
-    m_inner->addWidget(buildChat(
-        "🔍  Cerca Lavoro",
-        "Sei un career coach italiano esperto in ricerca del lavoro, CV e colloqui. "
-        "Aiuta con strategie concrete e moderne. "
-        "Rispondi SEMPRE e SOLO in italiano.",
-        "Es: Come migliorare il mio CV per una posizione da sviluppatore?\n"
-        "Es: Quali domande fanno di solito nei colloqui tecnici?"));
-
-    /* 4 = Finanza */
+    /* 3 = Finanza */
     m_inner->addWidget(buildFinanza(m_inner));
 
     lay->addWidget(m_inner);

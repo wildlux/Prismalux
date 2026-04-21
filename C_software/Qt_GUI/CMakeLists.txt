@@ -48,6 +48,7 @@ set(CPP_SRCS
     pages/agenti_page_consiglio.cpp
     pages/agents_config_dialog.cpp
     pages/pratico_page.cpp
+    pages/lavoro_page.cpp
     pages/impara_page.cpp
     pages/quiz_page.cpp
     pages/oracolo_page.cpp

@@ -13,6 +13,7 @@ public:
 private:
     AiClient*       m_ai;
     QStackedWidget* m_inner;
+
     QWidget* buildMenu();
     QWidget* buildChat(const QString& title, const QString& sysPrompt, const QString& placeholder);
 };

@@ -92,3 +92,34 @@ QPushButton#emergencyBtn:pressed { background: #7f0000; }
 QPushButton#emergencyBtn:disabled{ background: #555; color: #888; }
 
 #footerHints { font-size:11px; color:#a0a8c8; background:#f0f2f8; padding:2px 6px; }
+
+/* ── QListWidget (Cerca Lavoro offerte) ── */
+QListWidget, QListView {
+    background: #ffffff;
+    color: #1a1e30;
+    border: 1px solid #e8ecf5;
+    border-radius: 6px;
+    outline: none;
+}
+QListWidget::item, QListView::item {
+    color: #1a1e30;
+    background: transparent;
+    border-bottom: 1px solid #e8ecf5;
+    padding: 6px 8px;
+}
+QListWidget::item:alternate, QListView::item:alternate {
+    background: #e8ecf5;
+    color: #1a1e30;
+}
+QListWidget::item:selected, QListView::item:selected {
+    background: #cce4f8;
+    color: #0072c6;
+    border-left: 3px solid #0072c6;
+}
+QListWidget::item:hover:!selected, QListView::item:hover:!selected {
+    background: #f0f2f8;
+    color: #1a1e30;
+}
+
+/* ── Label sottotitolo pagine ── */
+QLabel#pageSubtitle { color: #1a1e30; opacity: 0.7; font-size: 11px; }

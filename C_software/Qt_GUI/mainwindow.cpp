@@ -11,6 +11,7 @@
 #include "pages/programmazione_page.h"
 #include "pages/matematica_page.h"
 #include "pages/app_controller_page.h"
+#include "pages/lavoro_page.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -1471,8 +1472,18 @@ QWidget* MainWindow::buildContent() {
         auto* imparaTabs = new QTabWidget(imparaContainer);
         imparaTabs->setObjectName("imparaSubTabs");
         imparaTabs->setTabPosition(QTabWidget::North);
-        imparaTabs->addTab(new ImparaPage(m_ai, imparaContainer),  "\xf0\x9f\x93\x9a  Impara");
-        imparaTabs->addTab(new PraticoPage(m_ai, imparaContainer), "\xf0\x9f\x92\xb0  Finanza");
+        imparaTabs->addTab(new ImparaPage(m_ai, imparaContainer),   "\xf0\x9f\x93\x9a  Impara");
+        /* LavoroPage usa AiClient SEPARATO: evita cross-talk con AgentiPage (Byzantine) */
+        {
+            auto* lavoroAi = new AiClient(this);
+            lavoroAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+            connect(m_ai, &AiClient::modelsReady, lavoroAi, [this, lavoroAi](const QStringList&){
+                lavoroAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+            });
+            imparaTabs->addTab(new LavoroPage(lavoroAi, imparaContainer),
+                               "\xf0\x9f\x92\xbc  Cerca Lavoro");
+        }
+        imparaTabs->addTab(new PraticoPage(m_ai, imparaContainer),  "\xf0\x9f\x92\xb0  Finanza");
         /* QuizPage usa AiClient SEPARATO: evita cross-talk con AgentiPage */
         {
             auto* quizAi = new AiClient(this);
