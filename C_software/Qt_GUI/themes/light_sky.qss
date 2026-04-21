@@ -124,3 +124,10 @@ QListWidget::item:hover:!selected, QListView::item:hover:!selected {
 
 /* ── Label sottotitolo pagine ── */
 QLabel#pageSubtitle { color: #0a1828; opacity: 0.7; font-size: 11px; }
+
+/* ── QLineEdit / QTextEdit generico ── */
+QLineEdit  { background: #ffffff; color: #1a1e30; border: 1px solid #c0c8e8; border-radius: 6px; padding: 5px 10px; }
+QTextEdit  { background: #ffffff; color: #1a1e30; border: 1px solid #c0c8e8; border-radius: 6px; padding: 6px; }
+QTextEdit#outputView { background: #f4f6fc; color: #1a1e30; border: 1px solid #c0c8e8; border-radius: 6px;
+    font-family: "JetBrains Mono","Consolas","Courier New",monospace; font-size: 12px; }
+QLabel#hintLabel { color: #555; background: transparent; font-size: 12px; }

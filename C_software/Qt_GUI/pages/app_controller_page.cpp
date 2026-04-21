@@ -182,12 +182,19 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
     m_tabs->addTab(buildFreeCADTab(),      "\xf0\x9f\x94\xa9  FreeCAD");
     m_tabs->addTab(buildOfficeTab(),       "\xf0\x9f\x96\xa5  Office");
     m_tabs->addTab(buildCloudCompareTab(), "\xf0\x9f\x94\xb5  CloudCompare");
+    m_tabs->addTab(buildAnkiTab(),         "\xf0\x9f\x83\x8f  Anki MCP");
+    m_tabs->addTab(buildKiCADTab(),        "\xf0\x9f\x96\xa5  KiCAD MCP");
+    m_tabs->addTab(buildTinyMCPTab(),      "\xf0\x9f\xa4\x96  TinyMCP");
 
     lay->addWidget(m_tabs);
 
     /* Propaga modello corrente a tutte le combo */
     connect(m_ai, &AiClient::modelsReady, this, [this](const QStringList& models) {
-        for (auto* cb : {m_blenderModel, m_freecadModel, m_officeModel}) {
+        QList<QComboBox*> combos = {
+            m_blenderModel, m_freecadModel, m_officeModel,
+            m_ankiModel, m_kicadModel, m_mcuModel
+        };
+        for (auto* cb : combos) {
             if (!cb) continue;
             const QString cur = cb->count() > 0 ? cb->currentData().toString() : QString();
             cb->blockSignals(true);
@@ -223,12 +230,16 @@ QString AppControllerPage::extractCode(const QString& text)
         int end = text.indexOf("```", start);
         if (end != -1) return text.mid(start, end - start).trimmed();
     }
+    /* Fallback generico: salta il language tag (tutto fino al primo \n) */
     start = text.indexOf("```");
     if (start != -1) {
         start += 3;
-        if (start < text.size() && text[start] == '\n') start++;
-        int end = text.indexOf("```", start);
-        if (end != -1) return text.mid(start, end - start).trimmed();
+        const int nl = text.indexOf('\n', start);
+        if (nl != -1) {
+            start = nl + 1;
+            int end = text.indexOf("```", start);
+            if (end != -1) return text.mid(start, end - start).trimmed();
+        }
     }
     return text.trimmed();
 }
@@ -282,23 +293,34 @@ void AppControllerPage::runAi(int tabIdx, const QString& sys, const QString& use
         delete m_tokenHolder;
         m_tokenHolder = nullptr;
 
-        /* Estrai codice e abilita pulsante "Esegui in <App>" */
+        /* Abilita exec solo se c'era un blocco backtick reale (non testo puro) */
+        const bool hasBlock = full.contains("```");
         const QString code = extractCode(full);
-        if (m_activeTab == 0 && !code.isEmpty()) {
+        if (m_activeTab == 0 && hasBlock && !code.isEmpty()) {
             m_blenderCode = code;
             m_blenderExecBtn->setEnabled(true);
             m_blenderStatusLbl->setText(
                 "\xf0\x9f\x90\x8d  Codice pronto \xe2\x80\x94 premi Esegui in Blender");
-        } else if (m_activeTab == 1 && !code.isEmpty()) {
+        } else if (m_activeTab == 1 && hasBlock && !code.isEmpty()) {
             m_freecadCode = code;
             m_freecadExecBtn->setEnabled(true);
             m_freecadStatusLbl->setText(
                 "\xf0\x9f\x94\xa9  Codice pronto \xe2\x80\x94 premi Esegui in FreeCAD");
-        } else if (m_activeTab == 2 && !code.isEmpty()) {
+        } else if (m_activeTab == 2 && hasBlock && !code.isEmpty()) {
             m_officeCode = code;
             m_officeExecBtn->setEnabled(true);
             m_officeStatusLbl->setText(
                 "\xf0\x9f\x93\x84  Codice pronto \xe2\x80\x94 premi Esegui in Office");
+        } else if (m_activeTab == 5 && hasBlock && !code.isEmpty()) {
+            m_kicadCode = code;
+            m_kicadExecBtn->setEnabled(true);
+            m_kicadStatusLbl->setText(
+                "\xf0\x9f\x96\xa5  Codice pronto \xe2\x80\x94 premi Esegui in KiCAD");
+        } else if (m_activeTab == 6 && hasBlock && !code.isEmpty()) {
+            m_mcuCode = code;
+            m_mcuFlashBtn->setEnabled(true);
+            m_mcuStatusLbl->setText(
+                "\xf0\x9f\xa4\x96  Codice pronto \xe2\x80\x94 premi Flash MCU");
         }
     });
 
@@ -988,4 +1010,738 @@ QWidget* AppControllerPage::buildCloudCompareTab()
     lay->addWidget(m_ccOutput, 1);
 
     return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   System prompts — Anki MCP
+   ══════════════════════════════════════════════════════════════ */
+static const char* kAnkiSys[] = {
+    "Sei un esperto di apprendimento attivo e memorizzazione. "
+    "Genera carte Anki in formato JSON array. Ogni carta ha: "
+    "{\"front\": \"domanda o concetto\", \"back\": \"risposta concisa\", \"tags\": [\"tag1\"]}. "
+    "Genera da 5 a 10 carte per l'argomento richiesto. Rispondi SOLO con il JSON array tra ``` e ```.",
+
+    "Sei un esperto di lingue e traduzione. "
+    "Genera carte Anki per lo studio del vocabolario in formato JSON array. "
+    "Ogni carta: {\"front\": \"parola in italiano\", \"back\": \"traduzione + esempio\", \"tags\": [\"vocabolario\"]}. "
+    "Genera 8 carte. Rispondi SOLO con il JSON array tra ``` e ```.",
+
+    "Sei un esperto di informatica e programmazione. "
+    "Genera carte Anki tecniche in formato JSON array per l'argomento richiesto. "
+    "Ogni carta: {\"front\": \"concetto o definizione breve\", \"back\": \"spiegazione + esempio codice se rilevante\", \"tags\": [\"tech\"]}. "
+    "Genera 6-8 carte. Rispondi SOLO con il JSON array tra ``` e ```.",
+
+    "Sei un esperto di scienze. "
+    "Genera carte Anki scientifiche in formato JSON array per l'argomento richiesto. "
+    "Ogni carta: {\"front\": \"concetto\", \"back\": \"spiegazione accurata\", \"tags\": [\"scienze\"]}. "
+    "Rispondi SOLO con il JSON array tra ``` e ```.",
+
+    nullptr
+};
+
+static const char* kAnkiActions[] = {
+    "\xf0\x9f\x93\x9a  Genera carte (generico)",
+    "\xf0\x9f\x8c\x8d  Carte vocabolario",
+    "\xf0\x9f\x92\xbb  Carte informatica",
+    "\xf0\x9f\x94\xac  Carte scienze",
+    nullptr
+};
+
+/* ══════════════════════════════════════════════════════════════
+   System prompts — KiCAD MCP
+   ══════════════════════════════════════════════════════════════ */
+static const char* kKiCADSys[] = {
+    "Sei un esperto di elettronica e progettazione PCB con KiCAD. "
+    "Genera SOLO script Python per KiCAD Scripting Console (pcbnew o schematic). "
+    "Usa l'API KiCAD Python: import pcbnew; board = pcbnew.GetBoard(). "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    "Sei un esperto di elettronica. Genera uno schema circuitale testuale (netlist) "
+    "o uno script KiCAD Python per creare componenti e connessioni. "
+    "Documenta chiaramente i pin e i valori dei componenti. "
+    "Rispondi con il blocco di codice tra ``` e ```.",
+
+    "Sei un esperto di PCB layout con KiCAD. "
+    "Genera uno script Python per posizionare componenti su un PCB KiCAD. "
+    "Usa pcbnew.FOOTPRINT, pcbnew.PCB_TRACK per tracce, pcbnew.ToMM() per conversioni. "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    "Sei un esperto di verifica circuiti. "
+    "Analizza lo schema o il layout descritto e identifica: "
+    "problemi di routing, conflitti di rete, footprint mancanti, errori DRC tipici. "
+    "Fornisci una lista strutturata di problemi e soluzioni.",
+
+    nullptr
+};
+
+static const char* kKiCADActions[] = {
+    "\xf0\x9f\x96\xa5  Script PCB (Python)",
+    "\xf0\x9f\x94\x8c  Schema circuito",
+    "\xf0\x9f\x93\x90  Layout componenti",
+    "\xf0\x9f\x94\x8d  Analisi DRC",
+    nullptr
+};
+
+/* ══════════════════════════════════════════════════════════════
+   System prompts — TinyMCP (Microcontroller)
+   ══════════════════════════════════════════════════════════════ */
+static const char* kMCUSys[] = {
+    "Sei un esperto di microcontrollori Arduino/AVR/ESP32. "
+    "Genera SOLO codice C/C++ Arduino completo e compilabile. "
+    "Includi: #include necessari, setup(), loop(). "
+    "Rispondi SOLO con il blocco codice C++ tra ``` e ```, senza spiegazioni.",
+
+    "Sei un esperto di microcontrollori ESP32/ESP8266 con MicroPython. "
+    "Genera SOLO codice MicroPython completo. "
+    "Includi import, configurazione pin, loop principale. "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    "Sei un esperto di comunicazione seriale e protocolli IoT. "
+    "Genera codice Arduino per comunicazione UART, I2C, SPI o MQTT. "
+    "Documenta il pinout usato nei commenti. "
+    "Rispondi SOLO con il blocco codice C++ tra ``` e ```, senza spiegazioni.",
+
+    "Sei un esperto di sensori e attuatori per microcontrollori. "
+    "Genera codice Arduino per il sensore/attuatore richiesto. "
+    "Indica i pin da usare e la libreria necessaria. "
+    "Rispondi SOLO con il blocco codice C++ tra ``` e ```, senza spiegazioni.",
+
+    nullptr
+};
+
+static const char* kMCUActions[] = {
+    "\xe2\x9a\xa1  Arduino C++ sketch",
+    "\xf0\x9f\x90\x8d  MicroPython (ESP)",
+    "\xf0\x9f\x93\xa1  Comunicazione seriale / IoT",
+    "\xf0\x9f\x94\xa7  Sensori & Attuatori",
+    nullptr
+};
+
+/* ══════════════════════════════════════════════════════════════
+   Tab ANKI MCP
+   ══════════════════════════════════════════════════════════════ */
+QWidget* AppControllerPage::buildAnkiTab()
+{
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(8, 8, 8, 8);
+    lay->setSpacing(6);
+
+    /* ── Barra connessione AnkiConnect ── */
+    auto* connRow = new QWidget(w);
+    auto* connLay = new QHBoxLayout(connRow);
+    connLay->setContentsMargins(0, 0, 0, 0);
+    connLay->setSpacing(8);
+
+    auto* lbl = new QLabel("AnkiConnect:", connRow);
+    lbl->setObjectName("hintLabel");
+
+    m_ankiHostEdit = new QLineEdit("localhost:8765", connRow);
+    m_ankiHostEdit->setFixedWidth(150);
+
+    auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    pingBtn->setObjectName("actionBtn");
+    pingBtn->setFixedWidth(100);
+
+    m_ankiStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
+    m_ankiStatusLbl->setObjectName("hintLabel");
+
+    m_ankiSendBtn = new QPushButton(
+        "\xf0\x9f\x83\x8f  Invia ad Anki", connRow);
+    m_ankiSendBtn->setObjectName("actionBtn");
+    m_ankiSendBtn->setFixedWidth(150);
+    m_ankiSendBtn->setEnabled(false);
+
+    connLay->addWidget(lbl);
+    connLay->addWidget(m_ankiHostEdit);
+    connLay->addWidget(pingBtn);
+    connLay->addWidget(m_ankiStatusLbl, 1);
+    connLay->addWidget(m_ankiSendBtn);
+    lay->addWidget(connRow);
+
+    /* ── Hint ── */
+    auto* hintLbl = new QLabel(
+        "\xf0\x9f\x83\x8f <b>AnkiConnect non attivo?</b> "
+        "Installa il plugin <b>AnkiConnect</b> in Anki (Tools \xe2\x86\x92 Add-ons), "
+        "poi avvia Anki. Server sulla porta 8765.", w);
+    hintLbl->setObjectName("hintLabel");
+    hintLbl->setWordWrap(true);
+    lay->addWidget(hintLbl);
+
+    /* ── Azione + Deck + Modello AI ── */
+    auto* toolRow = new QWidget(w);
+    auto* toolLay = new QHBoxLayout(toolRow);
+    toolLay->setContentsMargins(0, 0, 0, 0);
+    toolLay->setSpacing(8);
+
+    m_ankiAction = new QComboBox(toolRow);
+    for (int i = 0; kAnkiActions[i]; i++)
+        m_ankiAction->addItem(QString::fromUtf8(kAnkiActions[i]));
+
+    auto* deckEdit = new QLineEdit("Default", toolRow);
+    deckEdit->setFixedWidth(120);
+    deckEdit->setToolTip("Nome deck Anki destinazione");
+
+    m_ankiModel = new QComboBox(toolRow);
+    m_ankiModel->setMinimumWidth(180);
+    populateModels(m_ankiModel);
+
+    toolLay->addWidget(new QLabel("Tipo:", toolRow));
+    toolLay->addWidget(m_ankiAction, 1);
+    toolLay->addWidget(new QLabel("Deck:", toolRow));
+    toolLay->addWidget(deckEdit);
+    toolLay->addWidget(new QLabel("Modello AI:", toolRow));
+    toolLay->addWidget(m_ankiModel, 1);
+    lay->addWidget(toolRow);
+
+    /* ── Input ── */
+    m_ankiInput = new QTextEdit(w);
+    m_ankiInput->setPlaceholderText(
+        "Descrivi l'argomento per cui vuoi generare carte Anki...\n"
+        "Es: 'Algoritmi di ordinamento (bubble sort, merge sort, quicksort)'\n"
+        "Es: 'Vocabolario inglese — verbi irregolari comuni'");
+    m_ankiInput->setFixedHeight(90);
+    lay->addWidget(m_ankiInput);
+
+    /* ── Pulsanti ── */
+    auto* btnRow = new QWidget(w);
+    auto* btnLay = new QHBoxLayout(btnRow);
+    btnLay->setContentsMargins(0, 0, 0, 0);
+    btnLay->setSpacing(8);
+
+    m_ankiRunBtn  = new QPushButton("\xf0\x9f\xa4\x96  Genera carte", btnRow);
+    m_ankiRunBtn->setObjectName("actionBtn");
+    m_ankiStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_ankiStopBtn->setObjectName("actionBtn");
+    m_ankiStopBtn->setEnabled(false);
+    btnLay->addWidget(m_ankiRunBtn);
+    btnLay->addWidget(m_ankiStopBtn);
+    btnLay->addStretch();
+    lay->addWidget(btnRow);
+
+    /* ── Output ── */
+    m_ankiOutput = new QTextEdit(w);
+    m_ankiOutput->setReadOnly(true);
+    m_ankiOutput->setObjectName("outputView");
+    m_ankiOutput->setPlaceholderText("Le carte generate appariranno qui in formato JSON...");
+    lay->addWidget(m_ankiOutput, 1);
+
+    /* ── NAM per AnkiConnect ── */
+    m_ankiNam = new QNetworkAccessManager(this);
+
+    /* ── Connessioni ── */
+    connect(pingBtn, &QPushButton::clicked, this, [this]() {
+        const QString host = m_ankiHostEdit->text().trimmed();
+        QUrl url("http://" + host);
+        QNetworkRequest req(url);
+        req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        req.setTransferTimeout(3000);
+        QJsonObject body;
+        body["action"]  = "version";
+        body["version"] = 6;
+        auto* reply = m_ankiNam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+        m_ankiStatusLbl->setText("\xf0\x9f\x94\x84  Verifica...");
+        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+            reply->deleteLater();
+            if (reply->error() == QNetworkReply::NoError) {
+                m_ankiStatusLbl->setText("\xe2\x9c\x85  AnkiConnect attivo");
+                m_ankiSendBtn->setEnabled(true);
+            } else {
+                m_ankiStatusLbl->setText("\xe2\x9d\x8c  Anki non raggiungibile (avvia Anki)");
+            }
+        });
+    });
+
+    connect(m_ankiSendBtn, &QPushButton::clicked, this, [this, deckEdit]() {
+        if (m_ankiOutput->toPlainText().trimmed().isEmpty()) return;
+        const QString raw = m_ankiOutput->toPlainText();
+        const QString json = extractCode(raw);
+        execAnkiAction(deckEdit->text().trimmed(), json);
+    });
+
+    connect(m_ankiRunBtn, &QPushButton::clicked, this, [this]() {
+        const int idx = m_ankiAction->currentIndex();
+        if (idx < 0 || !kAnkiSys[idx]) return;
+        runAi(4, QString::fromUtf8(kAnkiSys[idx]),
+              m_ankiInput->toPlainText(),
+              m_ankiOutput, m_ankiRunBtn, m_ankiStopBtn,
+              m_ankiModel);
+    });
+
+    connect(m_ankiStopBtn, &QPushButton::clicked, this, [this]() {
+        m_ai->abort();
+        m_ankiRunBtn->setEnabled(true);
+        m_ankiStopBtn->setEnabled(false);
+        m_ankiOutput->append("\n\xe2\x8f\xb9  Fermato.");
+    });
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   execAnkiAction — invia carte JSON ad AnkiConnect
+   ══════════════════════════════════════════════════════════════ */
+void AppControllerPage::execAnkiAction(const QString& deck, const QString& cardsJson)
+{
+    if (cardsJson.isEmpty()) {
+        m_ankiOutput->append("\n\xe2\x9a\xa0  Nessun JSON di carte trovato nell'output.");
+        return;
+    }
+
+    const QJsonDocument doc = QJsonDocument::fromJson(cardsJson.toUtf8());
+    if (!doc.isArray()) {
+        m_ankiOutput->append("\n\xe2\x9a\xa0  Il JSON non \xc3\xa8 un array valido. Ricontrolla l'output.");
+        return;
+    }
+
+    const QJsonArray cards = doc.array();
+    QJsonArray notes;
+    for (const auto& v : cards) {
+        const QJsonObject c = v.toObject();
+        QJsonObject note;
+        note["deckName"]  = deck;
+        note["modelName"] = "Basic";
+        QJsonObject fields;
+        fields["Front"] = c.value("front").toString(c.value("Front").toString());
+        fields["Back"]  = c.value("back").toString(c.value("Back").toString());
+        note["fields"] = fields;
+        QJsonArray tags;
+        for (const auto& t : c.value("tags").toArray())
+            tags.append(t);
+        note["tags"] = tags;
+        notes.append(note);
+    }
+
+    QJsonObject body;
+    body["action"]  = "addNotes";
+    body["version"] = 6;
+    QJsonObject params;
+    params["notes"] = notes;
+    body["params"]  = params;
+
+    QNetworkRequest req(QUrl("http://" + m_ankiHostEdit->text().trimmed()));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    req.setTransferTimeout(10000);
+
+    m_ankiStatusLbl->setText("\xf0\x9f\x94\x84  Invio carte ad Anki...");
+    auto* reply = m_ankiNam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [this, reply, notes]() {
+        reply->deleteLater();
+        if (reply->error() == QNetworkReply::NoError) {
+            m_ankiStatusLbl->setText(
+                QString("\xe2\x9c\x85  %1 carte inviate ad Anki").arg(notes.size()));
+            m_ankiOutput->append(
+                QString("\n\xe2\x9c\x85  Inviate %1 carte nel deck.").arg(notes.size()));
+        } else {
+            m_ankiStatusLbl->setText("\xe2\x9d\x8c  " + reply->errorString());
+            m_ankiOutput->append("\n\xe2\x9d\x8c  Errore invio: " + reply->errorString());
+        }
+    });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Tab KICAD MCP
+   ══════════════════════════════════════════════════════════════ */
+QWidget* AppControllerPage::buildKiCADTab()
+{
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(8, 8, 8, 8);
+    lay->setSpacing(6);
+
+    /* ── Barra connessione ── */
+    auto* connRow = new QWidget(w);
+    auto* connLay = new QHBoxLayout(connRow);
+    connLay->setContentsMargins(0, 0, 0, 0);
+    connLay->setSpacing(8);
+
+    auto* lbl = new QLabel("KiCAD MCP:", connRow);
+    lbl->setObjectName("hintLabel");
+
+    m_kicadHostEdit = new QLineEdit("localhost:3000", connRow);
+    m_kicadHostEdit->setFixedWidth(150);
+
+    auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    pingBtn->setObjectName("actionBtn");
+    pingBtn->setFixedWidth(100);
+
+    m_kicadStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
+    m_kicadStatusLbl->setObjectName("hintLabel");
+
+    m_kicadExecBtn = new QPushButton(
+        "\xf0\x9f\x96\xa5  Esegui in KiCAD", connRow);
+    m_kicadExecBtn->setObjectName("actionBtn");
+    m_kicadExecBtn->setFixedWidth(160);
+    m_kicadExecBtn->setEnabled(false);
+
+    connLay->addWidget(lbl);
+    connLay->addWidget(m_kicadHostEdit);
+    connLay->addWidget(pingBtn);
+    connLay->addWidget(m_kicadStatusLbl, 1);
+    connLay->addWidget(m_kicadExecBtn);
+    lay->addWidget(connRow);
+
+    /* ── Hint ── */
+    auto* hintLbl = new QLabel(
+        "\xf0\x9f\x93\xa6 <b>KiCAD MCP Server:</b> "
+        "installa e avvia <a href='https://github.com/mixelpixx/KiCAD-MCP-Server'>"
+        "KiCAD-MCP-Server</a> (porta 3000). "
+        "Richiede KiCAD 7+ con Scripting Console abilitata.", w);
+    hintLbl->setObjectName("hintLabel");
+    hintLbl->setOpenExternalLinks(true);
+    hintLbl->setWordWrap(true);
+    lay->addWidget(hintLbl);
+
+    /* ── Azione + Modello ── */
+    auto* toolRow = new QWidget(w);
+    auto* toolLay = new QHBoxLayout(toolRow);
+    toolLay->setContentsMargins(0, 0, 0, 0);
+    toolLay->setSpacing(8);
+
+    m_kicadAction = new QComboBox(toolRow);
+    for (int i = 0; kKiCADActions[i]; i++)
+        m_kicadAction->addItem(QString::fromUtf8(kKiCADActions[i]));
+
+    m_kicadModel = new QComboBox(toolRow);
+    m_kicadModel->setMinimumWidth(180);
+    populateModels(m_kicadModel);
+
+    toolLay->addWidget(new QLabel("Azione:", toolRow));
+    toolLay->addWidget(m_kicadAction, 1);
+    toolLay->addWidget(new QLabel("Modello AI:", toolRow));
+    toolLay->addWidget(m_kicadModel, 1);
+    lay->addWidget(toolRow);
+
+    /* ── Input ── */
+    m_kicadInput = new QTextEdit(w);
+    m_kicadInput->setPlaceholderText(
+        "Descrivi il circuito o l'operazione PCB da eseguire...\n"
+        "Es: 'Crea un circuito LED con resistore da 470\xce\xa9 alimentato a 5V'\n"
+        "Es: 'Posiziona un ESP32 con connettore USB-C e antenna Wi-Fi'");
+    m_kicadInput->setFixedHeight(90);
+    lay->addWidget(m_kicadInput);
+
+    /* ── Pulsanti ── */
+    auto* btnRow = new QWidget(w);
+    auto* btnLay = new QHBoxLayout(btnRow);
+    btnLay->setContentsMargins(0, 0, 0, 0);
+    btnLay->setSpacing(8);
+
+    m_kicadRunBtn  = new QPushButton("\xf0\x9f\xa4\x96  Genera script", btnRow);
+    m_kicadRunBtn->setObjectName("actionBtn");
+    m_kicadStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_kicadStopBtn->setObjectName("actionBtn");
+    m_kicadStopBtn->setEnabled(false);
+    btnLay->addWidget(m_kicadRunBtn);
+    btnLay->addWidget(m_kicadStopBtn);
+    btnLay->addStretch();
+    lay->addWidget(btnRow);
+
+    /* ── Output ── */
+    m_kicadOutput = new QTextEdit(w);
+    m_kicadOutput->setReadOnly(true);
+    m_kicadOutput->setObjectName("outputView");
+    m_kicadOutput->setPlaceholderText("Script Python KiCAD appari\xc3\xa0 qui...");
+    lay->addWidget(m_kicadOutput, 1);
+
+    /* ── NAM per KiCAD ── */
+    m_kicadNam = new QNetworkAccessManager(this);
+
+    /* ── Connessioni ── */
+    connect(pingBtn, &QPushButton::clicked, this, [this]() {
+        const QString host = m_kicadHostEdit->text().trimmed();
+        auto* sock = new QTcpSocket(this);
+        const QStringList parts = host.split(':');
+        const int port = parts.size() > 1 ? parts[1].toInt() : 3000;
+        m_kicadStatusLbl->setText("\xf0\x9f\x94\x84  Verifica...");
+        connect(sock, &QTcpSocket::connected, this, [this, sock]() {
+            m_kicadStatusLbl->setText("\xe2\x9c\x85  KiCAD MCP Server attivo");
+            sock->disconnectFromHost();
+            sock->deleteLater();
+        });
+        connect(sock, &QTcpSocket::errorOccurred, this, [this, sock](QAbstractSocket::SocketError) {
+            m_kicadStatusLbl->setText("\xe2\x9d\x8c  KiCAD MCP non raggiungibile");
+            sock->deleteLater();
+        });
+        sock->connectToHost(parts[0], static_cast<quint16>(port));
+    });
+
+    connect(m_kicadExecBtn, &QPushButton::clicked, this, [this]() {
+        if (m_kicadCode.isEmpty()) return;
+        execKiCADAction(m_kicadCode);
+    });
+
+    connect(m_kicadRunBtn, &QPushButton::clicked, this, [this]() {
+        const int idx = m_kicadAction->currentIndex();
+        if (idx < 0 || !kKiCADSys[idx]) return;
+        runAi(5, QString::fromUtf8(kKiCADSys[idx]),
+              m_kicadInput->toPlainText(),
+              m_kicadOutput, m_kicadRunBtn, m_kicadStopBtn,
+              m_kicadModel);
+    });
+
+    connect(m_kicadStopBtn, &QPushButton::clicked, this, [this]() {
+        m_ai->abort();
+        m_kicadRunBtn->setEnabled(true);
+        m_kicadStopBtn->setEnabled(false);
+        m_kicadOutput->append("\n\xe2\x8f\xb9  Fermato.");
+    });
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   execKiCADAction — invia script Python al KiCAD MCP Server
+   ══════════════════════════════════════════════════════════════ */
+void AppControllerPage::execKiCADAction(const QString& code)
+{
+    if (code.isEmpty()) return;
+    const QString host = m_kicadHostEdit->text().trimmed();
+    QJsonObject body;
+    body["action"] = "execute_script";
+    body["code"]   = code;
+
+    QNetworkRequest req(QUrl("http://" + host + "/execute"));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    req.setTransferTimeout(15000);
+
+    m_kicadStatusLbl->setText("\xf0\x9f\x94\x84  Invio a KiCAD...");
+    m_kicadExecBtn->setEnabled(false);
+    auto* reply = m_kicadNam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        m_kicadExecBtn->setEnabled(true);
+        if (reply->error() == QNetworkReply::NoError) {
+            const QJsonObject res = QJsonDocument::fromJson(reply->readAll()).object();
+            if (res["ok"].toBool(true)) {
+                m_kicadStatusLbl->setText("\xe2\x9c\x85  Eseguito in KiCAD");
+                m_kicadOutput->append("\n\xe2\x9c\x85  KiCAD: "
+                    + res["output"].toString("OK"));
+            } else {
+                m_kicadStatusLbl->setText("\xe2\x9d\x8c  Errore KiCAD");
+                m_kicadOutput->append("\n\xe2\x9d\x8c  Errore: "
+                    + res["error"].toString(reply->errorString()));
+            }
+        } else {
+            m_kicadStatusLbl->setText("\xe2\x9d\x8c  " + reply->errorString());
+            m_kicadOutput->append("\n\xe2\x9d\x8c  " + reply->errorString());
+        }
+    });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Tab TINYMCP (Microcontroller)
+   ══════════════════════════════════════════════════════════════ */
+QWidget* AppControllerPage::buildTinyMCPTab()
+{
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(8, 8, 8, 8);
+    lay->setSpacing(6);
+
+    /* ── Barra porta seriale ── */
+    auto* connRow = new QWidget(w);
+    auto* connLay = new QHBoxLayout(connRow);
+    connLay->setContentsMargins(0, 0, 0, 0);
+    connLay->setSpacing(8);
+
+    auto* lbl = new QLabel("Porta MCU:", connRow);
+    lbl->setObjectName("hintLabel");
+
+    m_mcuPort = new QComboBox(connRow);
+    m_mcuPort->setMinimumWidth(150);
+    m_mcuPort->setEditable(true);
+
+    auto* detectBtn = new QPushButton("\xf0\x9f\x94\x8d  Rileva", connRow);
+    detectBtn->setObjectName("actionBtn");
+    detectBtn->setFixedWidth(90);
+
+    m_mcuStatusLbl = new QLabel("\xe2\x9a\xaa  MCU non connesso", connRow);
+    m_mcuStatusLbl->setObjectName("hintLabel");
+
+    m_mcuFlashBtn = new QPushButton(
+        "\xe2\x9a\xa1  Flash MCU", connRow);
+    m_mcuFlashBtn->setObjectName("actionBtn");
+    m_mcuFlashBtn->setFixedWidth(130);
+    m_mcuFlashBtn->setEnabled(false);
+
+    connLay->addWidget(lbl);
+    connLay->addWidget(m_mcuPort, 1);
+    connLay->addWidget(detectBtn);
+    connLay->addWidget(m_mcuStatusLbl, 1);
+    connLay->addWidget(m_mcuFlashBtn);
+    lay->addWidget(connRow);
+
+    /* ── Hint ── */
+    auto* hintLbl = new QLabel(
+        "\xf0\x9f\x94\xa7 <b>TinyMCP</b>: genera codice per microcontrollori "
+        "(Arduino, ESP32, AVR, STM32). "
+        "Flash via <b>avrdude</b> o <b>esptool.py</b> (richiede installazione separata).", w);
+    hintLbl->setObjectName("hintLabel");
+    hintLbl->setWordWrap(true);
+    lay->addWidget(hintLbl);
+
+    /* ── Azione + Scheda + Modello ── */
+    auto* toolRow = new QWidget(w);
+    auto* toolLay = new QHBoxLayout(toolRow);
+    toolLay->setContentsMargins(0, 0, 0, 0);
+    toolLay->setSpacing(8);
+
+    m_mcuAction = new QComboBox(toolRow);
+    for (int i = 0; kMCUActions[i]; i++)
+        m_mcuAction->addItem(QString::fromUtf8(kMCUActions[i]));
+
+    auto* boardCombo = new QComboBox(toolRow);
+    boardCombo->setFixedWidth(160);
+    boardCombo->addItems({
+        "Arduino Uno/Nano",
+        "Arduino Mega",
+        "ESP32",
+        "ESP8266",
+        "STM32 (Blue Pill)",
+        "Raspberry Pi Pico",
+        "ATtiny85"
+    });
+
+    m_mcuModel = new QComboBox(toolRow);
+    m_mcuModel->setMinimumWidth(180);
+    populateModels(m_mcuModel);
+
+    toolLay->addWidget(new QLabel("Tipo:", toolRow));
+    toolLay->addWidget(m_mcuAction, 1);
+    toolLay->addWidget(new QLabel("Scheda:", toolRow));
+    toolLay->addWidget(boardCombo);
+    toolLay->addWidget(new QLabel("Modello AI:", toolRow));
+    toolLay->addWidget(m_mcuModel, 1);
+    lay->addWidget(toolRow);
+
+    /* ── Input ── */
+    m_mcuInput = new QTextEdit(w);
+    m_mcuInput->setPlaceholderText(
+        "Descrivi il programma da generare per il microcontrollore...\n"
+        "Es: 'Fai lampeggiare 3 LED in sequenza con intervallo 500ms'\n"
+        "Es: 'Leggi temperatura da DHT22 e invia via UART ogni secondo'");
+    m_mcuInput->setFixedHeight(90);
+    lay->addWidget(m_mcuInput);
+
+    /* ── Pulsanti ── */
+    auto* btnRow = new QWidget(w);
+    auto* btnLay = new QHBoxLayout(btnRow);
+    btnLay->setContentsMargins(0, 0, 0, 0);
+    btnLay->setSpacing(8);
+
+    m_mcuRunBtn  = new QPushButton("\xf0\x9f\xa4\x96  Genera codice", btnRow);
+    m_mcuRunBtn->setObjectName("actionBtn");
+    m_mcuStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_mcuStopBtn->setObjectName("actionBtn");
+    m_mcuStopBtn->setEnabled(false);
+    btnLay->addWidget(m_mcuRunBtn);
+    btnLay->addWidget(m_mcuStopBtn);
+    btnLay->addStretch();
+    lay->addWidget(btnRow);
+
+    /* ── Output ── */
+    m_mcuOutput = new QTextEdit(w);
+    m_mcuOutput->setReadOnly(true);
+    m_mcuOutput->setObjectName("outputView");
+    m_mcuOutput->setPlaceholderText(
+        "Il codice C++/Python per microcontrollore apparir\xc3\xa0 qui...\n"
+        "Dopo la generazione premi 'Flash MCU' per caricare sulla scheda.");
+    lay->addWidget(m_mcuOutput, 1);
+
+    /* ── Connessioni ── */
+    connect(detectBtn, &QPushButton::clicked, this, [this]() {
+        detectSerialPorts();
+    });
+
+    connect(m_mcuFlashBtn, &QPushButton::clicked, this, [this, boardCombo]() {
+        if (m_mcuCode.isEmpty()) return;
+        const QString port  = m_mcuPort->currentText().trimmed();
+        const QString board = boardCombo->currentText();
+        if (port.isEmpty()) {
+            m_mcuOutput->append("\n\xe2\x9a\xa0  Seleziona una porta seriale prima di flashare.");
+            return;
+        }
+
+        /* Salva il codice in un file temporaneo e mostra istruzioni */
+        const QString tmpPath =
+            QDir::tempPath() + "/prismalux_mcu_sketch.ino";
+        QFile f(tmpPath);
+        if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            f.write(m_mcuCode.toUtf8());
+            f.close();
+        }
+
+        m_mcuOutput->append(
+            QString("\n\xf0\x9f\x93\x9d  Codice salvato: %1\n"
+                    "\xe2\x9a\xa1  Per flashare su %2 (porta %3):\n"
+                    "   arduino-cli compile --fqbn arduino:avr:uno %1\n"
+                    "   arduino-cli upload -p %3 --fqbn arduino:avr:uno %1\n"
+                    "   (adatta l'fqbn alla tua scheda)")
+                .arg(tmpPath, board, port));
+        m_mcuStatusLbl->setText(
+            QString("\xf0\x9f\x93\x9d  Salvato — usa arduino-cli per flashare"));
+    });
+
+    connect(m_mcuRunBtn, &QPushButton::clicked, this, [this, boardCombo]() {
+        const int idx = m_mcuAction->currentIndex();
+        if (idx < 0 || !kMCUSys[idx]) return;
+        const QString sys = QString::fromUtf8(kMCUSys[idx])
+            + QString("\nScheda target: %1").arg(boardCombo->currentText());
+        runAi(6, sys,
+              m_mcuInput->toPlainText(),
+              m_mcuOutput, m_mcuRunBtn, m_mcuStopBtn,
+              m_mcuModel);
+    });
+
+    connect(m_mcuStopBtn, &QPushButton::clicked, this, [this]() {
+        m_ai->abort();
+        m_mcuRunBtn->setEnabled(true);
+        m_mcuStopBtn->setEnabled(false);
+        m_mcuOutput->append("\n\xe2\x8f\xb9  Fermato.");
+    });
+
+    /* Rileva porte al costruttore */
+    detectSerialPorts();
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   detectSerialPorts — scansione /dev/ttyUSB* /dev/ttyACM* (Linux)
+   ══════════════════════════════════════════════════════════════ */
+void AppControllerPage::detectSerialPorts()
+{
+    if (!m_mcuPort) return;
+    m_mcuPort->clear();
+
+    QStringList found;
+
+#ifdef Q_OS_LINUX
+    const QStringList patterns = {"/dev/ttyUSB", "/dev/ttyACM", "/dev/ttyS"};
+    for (const auto& pat : patterns) {
+        for (int i = 0; i < 8; i++) {
+            const QString dev = pat + QString::number(i);
+            if (QFile::exists(dev)) found << dev;
+        }
+    }
+#elif defined(Q_OS_WIN)
+    for (int i = 1; i <= 16; i++)
+        found << QString("COM%1").arg(i);
+#elif defined(Q_OS_MAC)
+    QDir dev("/dev");
+    const auto entries = dev.entryList({"cu.usbmodem*","cu.usbserial*","cu.SLAB*"});
+    for (const auto& e : entries)
+        found << "/dev/" + e;
+#endif
+
+    if (found.isEmpty()) {
+        m_mcuPort->addItem("(nessuna porta rilevata)");
+        m_mcuStatusLbl->setText("\xe2\x9a\xaa  Nessun MCU rilevato — connetti via USB");
+    } else {
+        for (const auto& p : found)
+            m_mcuPort->addItem(p);
+        m_mcuStatusLbl->setText(
+            QString("\xe2\x9c\x85  %1 porta/e trovata/e").arg(found.size()));
+    }
 }

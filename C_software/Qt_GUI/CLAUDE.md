@@ -311,7 +311,8 @@ Finanza e Sfida sono sotto-tab di Impara, senza shortcut separata.
 | Strumenti AI — Office MCP | ✅ | bridge Python locale, avvia/ferma, esegui |
 | Assistente 730 | ✅ | streaming AI, guide statiche |
 | Partita IVA / forfettario | ✅ | calcolo, streaming AI |
-| Cerca Lavoro | ✅ | ricerca web, analisi CV |
+| Cerca Lavoro | ✅ | ricerca web, analisi CV, CV fallback Paolo Lo Bello, Socratica |
+| Cerca Lavoro — LLM selector | ✅ | label modello inizializzato subito con m_ai->model() |
 | Tutor AI — Oracolo | ✅ | streaming, storico sessione |
 | Quiz Interattivi | ✅ | |
 | llama.cpp Studio | ✅ | gestisci modelli, avvia server/chat |
@@ -319,6 +320,14 @@ Finanza e Sfida sono sotto-tab di Impara, senza shortcut separata.
 | RAG indicizzazione documenti | ✅ | background async, stop cooperativo, counter fix |
 | Emergenza RAM | ✅ | ferma modelli Ollama + drop_caches pkexec |
 | Temi (dark cyan/amber/purple/ocean/light) | ✅ | ThemeManager + QRC |
+| QTextEdit/QLineEdit theme fix | ✅ | regole CSS in tutti i 24 temi (testo non nero su sfondo scuro) |
+| AppControllerPage — Anki MCP | ✅ | tab 4: genera carte JSON, invia ad AnkiConnect localhost:8765 |
+| AppControllerPage — KiCAD MCP | ✅ | tab 5: genera script Python PCB, esegui su KiCAD-MCP-Server |
+| AppControllerPage — TinyMCP (MCU) | ✅ | tab 6: genera codice Arduino/ESP32, flash via arduino-cli |
+| Bug fix: Byzantine in mono-agente | ✅ | return dopo emit error() in ai_client.cpp + Idle guard in onFinished() |
+| Bug fix: exec button su testo puro | ✅ | `hasBlock` guard: abilita exec solo con backtick block reale |
+| Bug fix: extractCode language tag | ✅ | generic fallback skippa language tag fino al primo \n |
+| Test suite AppControllerPage | ✅ | 100+ test in 9 categorie (test_app_controller.cpp) |
 | Dashboard Statistica | 🌫️ stub | — |
 
 ---
@@ -976,3 +985,57 @@ valida, fuori range per `char`). Fix: separare con concatenazione di stringe adi
 ```cpp
 "\xe2\x86\x92" "B"   // → "→B" corretto
 ```
+
+---
+
+## Sessione 2026-04-22
+
+### 1. Bug fix — Byzantine loop in mono-agente (2 file modificati)
+
+**Causa doppia**:
+1. `ai_client.cpp`: per il modello "rotto" qwen3.5:0.8b, venivano emessi sia `error()` che `finished(empty)`. Fix: aggiunto `return;` dopo `emit error()`.
+2. `agenti_page_stream.cpp::onFinished()`: nessuna guard per `m_opMode == Idle`. `finished(empty)` dopo l'errore → entrava nel ramo Byzantine → lanciava agenti B/C/D. Fix: `if (m_opMode == OpMode::Idle) return;` all'inizio di `onFinished()`.
+
+### 2. Theme fix — testo nero su sfondo scuro
+
+`QTextEdit` e `QLineEdit` senza `objectName` specifico non avevano regole colore in 23 temi. Fix: aggiunte regole CSS per `QTextEdit`, `QLineEdit`, `QTextEdit#outputView`, `QLabel#hintLabel` in tutti i 24 temi.
+
+### 3. LavoroPage — label modello inizializzato subito
+
+`m_modelloLbl` era inizializzato vuoto e si popolava solo dopo `modelsReady`. Fix: inizializzato con `m_ai->model()` nel costruttore, così è visibile fin dall'apertura della pagina.
+
+### 4. AppControllerPage — 3 nuovi tab MCP
+
+| Tab | Indice | Backend |
+|-----|--------|---------|
+| Anki MCP | 4 | AnkiConnect localhost:8765 (JSON-RPC) |
+| KiCAD MCP | 5 | KiCAD-MCP-Server localhost:3000 |
+| TinyMCP (MCU) | 6 | arduino-cli + rilevamento porte seriali /dev/tty* |
+
+Metodi aggiunti: `buildAnkiTab()`, `buildKiCADTab()`, `buildTinyMCPTab()`, `execAnkiAction()`, `execKiCADAction()`, `detectSerialPorts()`.
+
+### 5. extractCode fix — language tag nel generic fallback
+
+**Prima**: ```` ```json\n[...]\n``` ```` → restituiva `"json\n[...]"` (includeva il tag linguaggio).  
+**Dopo**: il fallback generico skippa tutto fino al primo `\n` → restituisce `"[...]"` correttamente.
+
+### 6. hasBlock guard in runAi()
+
+I pulsanti "Esegui in &lt;App&gt;" vengono abilitati solo se la risposta AI contiene almeno un blocco backtick (`` ` `` `` ` `` `` ` ``). Testo puro senza codice non abilita più i pulsanti exec.
+
+### 7. Suite test AppControllerPage — 100+ test in 9 categorie
+
+`tests/test_app_controller.cpp` con 9 classi:
+
+| Categoria | Test | Cosa verifica |
+|-----------|------|---------------|
+| A | 20 | `extractCode` (inclusi adversariali: 4 backtick, JSON, Unicode, injection) |
+| B | 14 | Stato macchina runAi (dopo finished/error, duplicazione, 100 token) |
+| C | 12 | Routing codice per tab (exec button, status label "pronto") |
+| D | 8 | Guard input vuoto |
+| E | 18 | Anki JSON parsing (5 carte, UTF-8, HTML, 100 carte, malformato) |
+| F | 12 | KiCAD + MCU (combo items, button state, default host) |
+| G | 12 | Signal isolation (token dopo finished, 50 cicli, 7 tab, nessun leak widget) |
+| H | 10 | Rapid-fire clicks (10 click vuoti, Stop→Run, tab switch durante stream) |
+| I | 10 | LavoroPage (LLM label, combo, update su cambio modello, lista offerte) |
+

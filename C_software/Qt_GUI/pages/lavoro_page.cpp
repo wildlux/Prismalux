@@ -295,7 +295,10 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_cmbModello->setMinimumWidth(180);
     m_cmbModello->addItem("\xf0\x9f\x94\x84 Caricamento modelli...");
 
-    m_modelloLbl = new QLabel("", llmBox);
+    {
+        const QString cur = m_ai->model();
+        m_modelloLbl = new QLabel(cur.isEmpty() ? "\xf0\x9f\xa4\x96 —" : "\xf0\x9f\xa4\x96 " + cur, llmBox);
+    }
     m_modelloLbl->setObjectName("pageSubtitle");
 
     auto* fetchBtn = new QPushButton("\xf0\x9f\x94\x84", llmBox);

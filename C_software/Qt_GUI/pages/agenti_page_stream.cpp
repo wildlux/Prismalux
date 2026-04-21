@@ -80,6 +80,11 @@ void AgentiPage::onToken(const QString& t) {
 void AgentiPage::onFinished(const QString& /*full*/) {
     m_waitLbl->setVisible(false);
 
+    /* Guard: se siamo in Idle, il segnale finished appartiene a un'altra pagina
+       (cross-talk su AiClient condiviso) oppure è il secondo emit dopo un error().
+       In entrambi i casi NON avanzare il motore Byzantino. */
+    if (m_opMode == OpMode::Idle) return;
+
     if (m_opMode == OpMode::Translating) {
         /* Traduzione completata — aggiorna il task e riparte con la modalità originale */
         QString translated = m_translateBuf.trimmed();

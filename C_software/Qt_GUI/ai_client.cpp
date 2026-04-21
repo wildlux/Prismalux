@@ -772,6 +772,7 @@ void AiClient::onFinished() {
                 "anche con num_predict alto.\n"
                 "\xf0\x9f\x92\xa1  Sostituisci con: llama3.2:3b (~50 tok/s) "
                 "oppure deepseek-r1:1.5b (~41 tok/s).");
+            return;  /* non emettere finished() dopo error() — evita loop Byzantino */
         } else {
             m_accum = "<think>" + m_thinkingAccum + "</think>";
         }

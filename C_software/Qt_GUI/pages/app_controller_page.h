@@ -18,7 +18,9 @@ class QTcpSocket;
    Sub-tab:
    ┌──────────┬──────────┬──────────┬──────────────────────────┐
    │🎨 Blender│🔩 FreeCAD│📄 Office │🔵 CloudCompare           │
-   └──────────┴──────────┴──────────┴──────────────────────────┘
+   ├──────────┴──────────┴──────────┴──────────────────────────┤
+   │🃏 Anki MCP │🖥️ KiCAD MCP │🤖 TinyMCP (MCU)              │
+   └──────────────────────────────────────────────────────────┘
 
    Ogni sub-tab:
    • Barra connessione (host:port / bridge toggle)
@@ -82,15 +84,62 @@ private:
     /* ── CloudCompare ── */
     QTextEdit*  m_ccOutput = nullptr;
 
+    /* ── Anki MCP ── */
+    QLineEdit*   m_ankiHostEdit  = nullptr;
+    QLabel*      m_ankiStatusLbl = nullptr;
+    QPushButton* m_ankiSendBtn   = nullptr;
+    QComboBox*   m_ankiAction    = nullptr;
+    QComboBox*   m_ankiModel     = nullptr;
+    QTextEdit*   m_ankiInput     = nullptr;
+    QTextEdit*   m_ankiOutput    = nullptr;
+    QPushButton* m_ankiRunBtn    = nullptr;
+    QPushButton* m_ankiStopBtn   = nullptr;
+    QNetworkAccessManager* m_ankiNam = nullptr;
+
+    /* ── KiCAD MCP ── */
+    QLineEdit*   m_kicadHostEdit  = nullptr;
+    QLabel*      m_kicadStatusLbl = nullptr;
+    QPushButton* m_kicadExecBtn   = nullptr;
+    QComboBox*   m_kicadAction    = nullptr;
+    QComboBox*   m_kicadModel     = nullptr;
+    QTextEdit*   m_kicadInput     = nullptr;
+    QTextEdit*   m_kicadOutput    = nullptr;
+    QPushButton* m_kicadRunBtn    = nullptr;
+    QPushButton* m_kicadStopBtn   = nullptr;
+    QString      m_kicadCode;
+    QNetworkAccessManager* m_kicadNam = nullptr;
+
+    /* ── TinyMCP (Microcontroller) ── */
+    QComboBox*   m_mcuPort       = nullptr;
+    QLabel*      m_mcuStatusLbl  = nullptr;
+    QPushButton* m_mcuFlashBtn   = nullptr;
+    QComboBox*   m_mcuAction     = nullptr;
+    QComboBox*   m_mcuModel      = nullptr;
+    QTextEdit*   m_mcuInput      = nullptr;
+    QTextEdit*   m_mcuOutput     = nullptr;
+    QPushButton* m_mcuRunBtn     = nullptr;
+    QPushButton* m_mcuStopBtn    = nullptr;
+    QString      m_mcuCode;
+    QProcess*    m_mcuFlashProc  = nullptr;
+
     QWidget* buildBlenderTab();
     QWidget* buildFreeCADTab();
     QWidget* buildOfficeTab();
     QWidget* buildCloudCompareTab();
+    QWidget* buildAnkiTab();
+    QWidget* buildKiCADTab();
+    QWidget* buildTinyMCPTab();
 
-    /* Helpers condivisi */
+    void execAnkiAction(const QString& action, const QString& payload);
+    void execKiCADAction(const QString& code);
+    void detectSerialPorts();
+
     void runAi(int tabIdx, const QString& sys, const QString& userMsg,
                QTextEdit* output, QPushButton* runBtn, QPushButton* stopBtn,
                QComboBox* modelCombo);
-    static QString extractCode(const QString& text);
     void populateModels(QComboBox* combo);
+
+public:
+    /** Estrae il primo blocco ```...``` dall'output AI. Public per testabilità. */
+    static QString extractCode(const QString& text);
 };

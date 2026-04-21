@@ -7,14 +7,14 @@
 ### *"Costruito per i mortali che aspirano alla saggezza."*
 
 [![C++/Qt6](https://img.shields.io/badge/GUI-C%2B%2B%20%2F%20Qt6-green?style=flat-square&logo=qt)](https://www.qt.io/)
-[![Version](https://img.shields.io/badge/versione-2.6-blue?style=flat-square)](CHANGELOG)
+[![Version](https://img.shields.io/badge/versione-2.7-blue?style=flat-square)](CHANGELOG)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-informational?style=flat-square)](https://github.com/wildlux/Prismalux)
 [![Build](https://img.shields.io/badge/Build-CMake%20%2B%20Qt6-brightgreen?style=flat-square)](C_software/Qt_GUI/CMakeLists.txt)
 
 **Piattaforma AI locale. GUI in C++/Qt6.**  
 Multi-agente, anti-allucinazione, matematica locale, 110 simulazioni algoritmi.  
-RAG in-page per ogni categoria · MCP Blender / FreeCAD / Office · Network Analyzer · Disegno→3D.  
+RAG in-page · MCP Blender / Office / Anki / KiCAD / Arduino+ESP32 · Network Analyzer · Disegno→3D.  
 Zero dipendenze cloud. Zero abbonamenti. Tutto sul tuo hardware.
 
 </div>
@@ -126,6 +126,9 @@ cmake --build build_tests -j$(nproc)
 ./build_tests/test_signal_lifetime
 ./build_tests/test_rag_engine
 ./build_tests/test_code_utils
+./build_tests/test_random_tool
+./build_tests/test_lavoro_page
+./build_tests/test_app_controller
 ```
 
 ---
@@ -146,18 +149,37 @@ L'interfaccia è organizzata in **9 pagine** accessibili da sidebar o con `Alt+N
 | 8 | 🔭 **Materie** | `Alt+8` | Studio per materia (fisica, chimica, storia, diritto…) |
 | 9 | ⚙️ **Impostazioni** | — | Hardware · AI Locale · RAG · LLM · **Classifica** · Voce · Aspetto |
 
-### Cerca Lavoro — dettaglio (v2.6)
+### App Controller (v2.7) — 7 tab MCP
+
+`AppControllerPage` centralizza il controllo di applicazioni esterne via protocolli MCP:
+
+| Tab | Indice | Backend | Descrizione |
+|-----|--------|---------|-------------|
+| 🎨 **Blender** | 0 | Blender MCP Server (TCP) | Genera script `bpy` Python, eseguili su Blender remoto |
+| 📄 **Office** | 1 | Office MCP locale (Python bridge) | Genera codice python-docx/openpyxl, avvia/ferma bridge |
+| 📊 **Anki** | 4 | AnkiConnect localhost:8765 | Genera carte JSON da testo, aggiunge a qualsiasi mazzo Anki |
+| 🔌 **KiCAD** | 5 | KiCAD-MCP-Server localhost:3000 | Genera script Python PCB, esegui su KiCAD via `/execute` |
+| 🔧 **TinyMCP (MCU)** | 6 | arduino-cli + /dev/ttyUSB* | Genera codice Arduino/ESP32, istruzioni flash per 7 board |
+
+**Anki MCP**: AI genera array JSON di flashcard, `execAnkiAction()` le invia ad AnkiConnect con un POST JSON-RPC.  
+**KiCAD MCP**: ping TCP verifica connessione → AI genera script PCB Python → POST `/execute` al server.  
+**TinyMCP**: rileva porte seriali (`/dev/ttyUSB0-7`, `/dev/ttyACM0-7`, `COM1-16`) → AI genera codice per board scelta (Arduino UNO/Mega, ESP32, Raspberry Pi Pico W, STM32F103, ESP8266, Teensy 4.1).
+
+---
+
+### Cerca Lavoro — dettaglio (v2.6+)
 
 Il tab "Cerca Lavoro" in **Impara** usa un `AiClient` **isolato** (separato dalla pipeline Byzantina di Agenti AI) per evitare cross-contamination dei token tra le pagine.
 
 | Feature | Descrizione |
 |---|---|
 | **LLM isolato** | AiClient dedicato — nessun output Byzantine finisce nel log Cerca Lavoro |
+| **Label modello** | Inizializzato subito con il modello attivo — visibile già all'apertura pagina |
 | **Selettore modello** | Combo LLM visibile — sai sempre quale modello genera la lettera |
 | **Metodologia Socratica** | Prompt anti-adulazione: l'AI identifica lacune reali nel profilo, non compiacenza |
 | **Tag sorgente** | Ogni risposta mostra `[CERCA LAVORO → Genera Lettera] 🤖 Modello: ...` |
 | **CV default** | Profilo Paolo Lo Bello come fallback se nessun PDF caricato |
-| **Fix tema** | `QListWidget` ora segue il tema QSS — niente più testo nero su sfondo scuro |
+| **Fix tema** | `QTextEdit`/`QLineEdit` seguono il tema QSS — nessun testo nero su sfondo scuro |
 
 ### Tab Agenti AI — dettaglio
 
@@ -273,6 +295,8 @@ Ispirato al [Problema dei Generali Bizantini](https://en.wikipedia.org/wiki/Byza
 ```
 
 **Regola**: se A e C concordano **E** B non trova errori validi → risposta confermata. Altrimenti l'incertezza viene dichiarata esplicitamente, mai nascosta.
+
+> **Fix v2.7**: il loop Byzantino non si attiva più in modalità mono-agente. Doppia guardia: `return` dopo `emit error()` in `ai_client.cpp` + guard `if (m_opMode == Idle) return` in `onFinished()` per modelli che emettono `finished(empty)` dopo un errore.
 
 ---
 
@@ -448,6 +472,9 @@ cmake --build build_tests -j$(nproc)
 ./build_tests/test_signal_lifetime   # lifecycle segnali Qt
 ./build_tests/test_rag_engine        # RAG retrieval precision/recall
 ./build_tests/test_code_utils        # extractPythonCode + _sanitizePyCode
+./build_tests/test_random_tool       # _inject_random da agenti_page_tools
+./build_tests/test_lavoro_page       # LavoroPage: isolamento, filtri, DB, UI (37 test)
+./build_tests/test_app_controller    # AppControllerPage: 100+ test in 9 categorie
 ```
 
 | Suite Qt | Test | Cosa verifica |
@@ -455,6 +482,23 @@ cmake --build build_tests -j$(nproc)
 | `test_signal_lifetime` | 36+ | Dangling observer, signal leakage, invariant violation checkbox |
 | `test_rag_engine` | 15 | Chunking, embedding, search, save/load round-trip, stop cooperativo, multi-documento |
 | `test_code_utils` | 14+ | Estrazione codice Python da risposta AI, sanitizzazione |
+| `test_random_tool` | 8+ | Iniezione tool casuale in prompt AI |
+| `test_lavoro_page` | 37 | Cross-contamination AiClient, filtri lavoro, DB, sincronizzazione modello |
+| `test_app_controller` | 100+ | extractCode (20), runAi state machine (14), tab routing (12), Anki JSON (18), KiCAD/MCU (12), signal isolation (12), rapid-fire (10), LavoroPage (10) |
+
+`test_app_controller` — 9 categorie di test difficili:
+
+| Cat. | Area | Highlights |
+|------|------|-----------|
+| A | `extractCode` | 4 backtick, JSON language tag, Unicode, code injection nel commento |
+| B | Stato macchina `runAi` | 2 sessioni consecutive, 100 token, Stop→Run, errore→recovery |
+| C | Routing codice per tab | exec button abilitato solo con backtick block reale (`hasBlock` guard) |
+| D | Guard input vuoto | nessun crash su input blank in tutti e 7 i tab |
+| E | Anki JSON | 5 carte, UTF-8, HTML entities, 100 carte, JSON malformato graceful |
+| F | KiCAD + MCU | combo items, button default state, host default |
+| G | Signal isolation | token dopo `finished`, 50 cicli, 7 tab switch, nessun widget leak |
+| H | Rapid-fire | 10 click vuoti, Stop→Run, tab switch durante stream |
+| I | LavoroPage | label LLM visibile subito, update su cambio modello |
 
 `test_rag_engine` include test su comportamento di sessione già indicizzata (test 11–15): verifica che l'indice caricato da disco produca gli stessi risultati dell'indice in memoria, che il top-k sia preservato, e che una reindicizzazione fallita non sovrascriva i dati validi.
 
@@ -564,6 +608,9 @@ Prismalux/
 │           ├── test_signal_lifetime.cpp
 │           ├── test_rag_engine.cpp
 │           ├── test_code_utils.cpp
+│           ├── test_random_tool.cpp
+│           ├── test_lavoro_page.cpp
+│           ├── test_app_controller.cpp  ← 100+ test AppControllerPage (v2.7)
 │           └── mock_ai_client.h
 │
 ├── RAG/                             ← documenti per il motore RAG

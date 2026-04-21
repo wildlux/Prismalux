@@ -232,11 +232,31 @@ if(BUILD_TESTS)
         target_link_libraries(test_lavoro_page PRIVATE pthread m)
     endif()
 
+    # ── test_app_controller: AppControllerPage 100 test in 9 categorie ──
+    add_executable(test_app_controller
+        tests/test_app_controller.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_app_controller PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_app_controller PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_app_controller PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_app_controller PRIVATE pthread m)
+    endif()
+
     enable_testing()
-    add_test(NAME SignalLifetime COMMAND test_signal_lifetime)
-    add_test(NAME RagEngine     COMMAND test_rag_engine)
-    add_test(NAME CodeUtils     COMMAND test_code_utils)
-    add_test(NAME RandomTool    COMMAND test_random_tool)
-    add_test(NAME LavoroPage    COMMAND test_lavoro_page)
+    add_test(NAME SignalLifetime    COMMAND test_signal_lifetime)
+    add_test(NAME RagEngine        COMMAND test_rag_engine)
+    add_test(NAME CodeUtils        COMMAND test_code_utils)
+    add_test(NAME RandomTool       COMMAND test_random_tool)
+    add_test(NAME LavoroPage       COMMAND test_lavoro_page)
+    add_test(NAME AppController    COMMAND test_app_controller)
     message(STATUS "Build test abilitata: test_signal_lifetime, test_rag_engine, test_code_utils, test_random_tool, test_lavoro_page")
 endif()

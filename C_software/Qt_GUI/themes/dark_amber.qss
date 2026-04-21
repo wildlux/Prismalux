@@ -123,3 +123,31 @@ QListWidget::item:hover:!selected, QListView::item:hover:!selected {
 
 /* ── Label sottotitolo pagine ── */
 QLabel#pageSubtitle { color: #f5e8cc; opacity: 0.7; font-size: 11px; }
+
+/* ── QLineEdit generico (widget senza objectName) ── */
+QLineEdit {
+    background: #211c10; color: #f5e8cc;
+    border: 1px solid #2c2414; border-radius: 6px; padding: 5px 10px;
+    selection-background-color: rgba(255,255,255,0.12);
+}
+QLineEdit:focus    { border-color: #ffb300; }
+QLineEdit:disabled { opacity: 0.45; }
+
+/* ── QTextEdit generico ── */
+QTextEdit {
+    background: #211c10; color: #f5e8cc;
+    border: 1px solid #2c2414; border-radius: 6px; padding: 6px;
+    selection-background-color: rgba(255,255,255,0.12);
+}
+QTextEdit:focus { border-color: #ffb300; }
+
+/* ── Output AI readonly (objectName="outputView") ── */
+QTextEdit#outputView {
+    background: #15100a; color: #f5e8cc;
+    border: 1px solid #2c2414; border-radius: 6px;
+    font-family: "JetBrains Mono","Consolas","Courier New",monospace;
+    font-size: 12px;
+}
+
+/* ── Hint label (objectName="hintLabel") ── */
+QLabel#hintLabel { color: #f5e8cc; opacity: 0.65; background: transparent; font-size: 12px; }
