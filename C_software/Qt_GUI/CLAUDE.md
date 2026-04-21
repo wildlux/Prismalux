@@ -38,7 +38,7 @@ MainWindow
 │   [2] Grafico           (Alt+3)  ← Visualizzazione dati
 │   [3] Programmazione    (Alt+4)  ← Assistente coding
 │   [4] Matematica        (Alt+5)  ← Assistente matematica
-│   [5] Impara            (Alt+6)  ← sub-tab: Impara · Finanza · Sfida
+│   [5] Impara            (Alt+6)  ← sub-tab: Impara · Cerca Lavoro · Finanza · Sfida
 └── ImpostazioniPage — dialog modale (⚙️ in header, non un tab)
     Tab: Tema · Test · Voce · Trascrivi · Grafico · AI Locale · RAG
          Dipendenze · LLM Consigliati · Parametri AI
@@ -60,7 +60,8 @@ MainWindow
 | `pages/agenti_page.*` | Pipeline 6 agenti + Motore Byzantino anti-allucinazione |
 | `pages/strumenti_page.*` | Assistente multi-dominio (Studio, Scrittura Creativa, Ricerca, Libri, Produttività, PDF, Blender MCP, Office MCP) |
 | `pages/impara_page.*` | Tutor AI + Quiz interattivi |
-| `pages/pratico_page.*` | 730, P.IVA, Cerca Lavoro (sub-tab Finanza) |
+| `pages/pratico_page.*` | 730, P.IVA, Finanza (mutuo, PAC, pensione) |
+| `pages/lavoro_page.*` | Cerca Lavoro standalone — AiClient isolato, LLM selector, Socratica, analisi CV |
 | `pages/personalizza_page.*` | llama.cpp Studio + VRAM benchmark |
 | `pages/impostazioni_page.*` | Dialog impostazioni: tema, voce TTS, RAG, AI locale, parametri AI |
 

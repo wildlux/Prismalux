@@ -7,7 +7,7 @@
 ### *"Costruito per i mortali che aspirano alla saggezza."*
 
 [![C++/Qt6](https://img.shields.io/badge/GUI-C%2B%2B%20%2F%20Qt6-green?style=flat-square&logo=qt)](https://www.qt.io/)
-[![Version](https://img.shields.io/badge/versione-2.5-blue?style=flat-square)](CHANGELOG)
+[![Version](https://img.shields.io/badge/versione-2.6-blue?style=flat-square)](CHANGELOG)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-informational?style=flat-square)](https://github.com/wildlux/Prismalux)
 [![Build](https://img.shields.io/badge/Build-CMake%20%2B%20Qt6-brightgreen?style=flat-square)](C_software/Qt_GUI/CMakeLists.txt)
@@ -141,10 +141,23 @@ L'interfaccia è organizzata in **9 pagine** accessibili da sidebar o con `Alt+N
 | 3 | 📐 **Matematica** | `Alt+3` | Sequenza→Formula · Costanti precisione arbitraria · N-esimo · Espressione locale |
 | 4 | 📊 **Grafico** | `Alt+4` | 45+ tipi di grafico · zoom/pan · export PNG · analisi AI immagine |
 | 5 | 💻 **Programmazione** | `Alt+5` | Editor + correzione AI · esecuzione Python · **sub-tab Agentica** (pipeline, RAG, refactor, testgen, debug, byzantino) |
-| 6 | 💰 **Strumenti** | `Alt+6` | Assistente 730 · Partita IVA · Mutuo · PAC · Pensione INPS · Cerca Lavoro |
-| 7 | 📚 **Impara** | `Alt+7` | Tutor AI · Simulatore 110 algoritmi · Quiz interattivi |
+| 6 | 💰 **Strumenti** | `Alt+6` | Assistente 730 · Partita IVA · Mutuo · PAC · Pensione INPS |
+| 7 | 📚 **Impara** | `Alt+7` | Tutor AI · **Cerca Lavoro** (LLM isolato, Socratica, analisi CV) · Quiz interattivi · Simulatore 110 algoritmi |
 | 8 | 🔭 **Materie** | `Alt+8` | Studio per materia (fisica, chimica, storia, diritto…) |
 | 9 | ⚙️ **Impostazioni** | — | Hardware · AI Locale · RAG · LLM · **Classifica** · Voce · Aspetto |
+
+### Cerca Lavoro — dettaglio (v2.6)
+
+Il tab "Cerca Lavoro" in **Impara** usa un `AiClient` **isolato** (separato dalla pipeline Byzantina di Agenti AI) per evitare cross-contamination dei token tra le pagine.
+
+| Feature | Descrizione |
+|---|---|
+| **LLM isolato** | AiClient dedicato — nessun output Byzantine finisce nel log Cerca Lavoro |
+| **Selettore modello** | Combo LLM visibile — sai sempre quale modello genera la lettera |
+| **Metodologia Socratica** | Prompt anti-adulazione: l'AI identifica lacune reali nel profilo, non compiacenza |
+| **Tag sorgente** | Ogni risposta mostra `[CERCA LAVORO → Genera Lettera] 🤖 Modello: ...` |
+| **CV default** | Profilo Paolo Lo Bello come fallback se nessun PDF caricato |
+| **Fix tema** | `QListWidget` ora segue il tema QSS — niente più testo nero su sfondo scuro |
 
 ### Tab Agenti AI — dettaglio
 
