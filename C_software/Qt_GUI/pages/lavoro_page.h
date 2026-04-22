@@ -24,6 +24,7 @@ private:
     QListWidget* m_offerteLista  = nullptr;
     QComboBox*   m_cmbModello    = nullptr;
     QLabel*      m_modelloLbl    = nullptr;
+    quint64      m_myReqId      = 0;    ///< ID dell'ultima chat() avviata da questa pagina
 
     void applicaFiltri();
     void caricaCV(const QString& path);

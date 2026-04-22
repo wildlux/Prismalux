@@ -19,7 +19,6 @@
 #include <QFile>
 #include <QDir>
 #include <QFileInfo>
-#include <memory>
 
 /* ══════════════════════════════════════════════════════════════
    caricaCV
@@ -377,7 +376,6 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     lay->addWidget(splitter, 1);
 
     /* ── Logica ── */
-    auto active = std::make_shared<bool>(false);
 
     // Profilo CV di fallback — Paolo Lo Bello (parametri di default)
     const QString cvFallback =
@@ -483,9 +481,8 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
         m_lavoroLog->append("\n\xf0\x9f\x93\x9d  Lettera:\n");
 
         send->setEnabled(false); stopBtn->setEnabled(true); waitLbl->setVisible(true);
-        *active = true;
-        m_ai->chat(sys, QString("Genera la lettera di candidatura per il ruolo di %1 presso %2.")
-                        .arg(o.ruolo, o.azienda));
+        m_myReqId = m_ai->chat(sys, QString("Genera la lettera di candidatura per il ruolo di %1 presso %2.")
+                                        .arg(o.ruolo, o.azienda));
     };
 
     connect(genBtn, &QPushButton::clicked, this, genLettera);
@@ -512,36 +509,32 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
         m_lavoroLog->append("\xf0\x9f\xa4\x96  AI: ");
         inp->clear();
         send->setEnabled(false); stopBtn->setEnabled(true); waitLbl->setVisible(true);
-        *active = true;
-        m_ai->chat(sys, msg);
+        m_myReqId = m_ai->chat(sys, msg);
     };
     connect(send, &QPushButton::clicked, this, sendFn);
     connect(inp,  &QLineEdit::returnPressed, this, sendFn);
     connect(stopBtn, &QPushButton::clicked, m_ai, &AiClient::abort);
 
-    // Connessioni AI: usano `active` per ignorare segnali da altri tab (AiClient dedicato)
-    connect(m_ai, &AiClient::token, this, [=](const QString& t){
-        if (!*active) return;
+    // Connessioni AI: filtrate per request ID — solo risposte di questa pagina
+    connect(m_ai, &AiClient::token, this, [this](const QString& t){
+        if (m_ai->currentReqId() != m_myReqId) return;
         QTextCursor c(m_lavoroLog->document()); c.movePosition(QTextCursor::End);
         c.insertText(t); m_lavoroLog->ensureCursorVisible();
     });
-    connect(m_ai, &AiClient::finished, this, [=](const QString&){
-        if (!*active) return;
-        *active = false;
+    connect(m_ai, &AiClient::finished, this, [this, send, stopBtn, waitLbl](const QString&){
+        if (m_ai->currentReqId() != m_myReqId) return;
         m_lavoroLog->append("\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80");
         send->setEnabled(true); stopBtn->setEnabled(false); waitLbl->setVisible(false);
     });
-    connect(m_ai, &AiClient::error, this, [=](const QString& err){
-        if (!*active) return;
-        *active = false;
+    connect(m_ai, &AiClient::error, this, [this, send, stopBtn, waitLbl](const QString& err){
+        if (m_ai->currentReqId() != m_myReqId) return;
         const QString el = err.toLower();
         if (!el.contains("canceled") && !el.contains("operation canceled"))
             m_lavoroLog->append(QString("\n\xe2\x9d\x8c  [CERCA LAVORO] Errore: %1").arg(err));
         send->setEnabled(true); stopBtn->setEnabled(false); waitLbl->setVisible(false);
     });
-    connect(m_ai, &AiClient::aborted, this, [=]{
-        if (!*active) return;
-        *active = false;
+    connect(m_ai, &AiClient::aborted, this, [this, send, stopBtn, waitLbl]{
+        if (m_ai->currentReqId() != m_myReqId) return;
         m_lavoroLog->append("\n\xe2\x8f\xb9  Interrotto.\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80");
         send->setEnabled(true); stopBtn->setEnabled(false); waitLbl->setVisible(false);
     });

@@ -55,7 +55,7 @@ Prismalux è una **piattaforma AI locale** con GUI grafica in **C++/Qt6**. Nasce
 
 ```
   ╔══════════════════════════════════════════════════════════╗
-  ║  🍺  PRISMALUX  v2.2  —  AI Platform                     ║
+  ║  🍺  PRISMALUX  v2.7  —  AI Platform                     ║
   ║  Backend: Ollama  ·  Modello: qwen3:30b                  ║
   ║  CPU: ████████░░ 78%  RAM: █████░░░░░ 52%  GPU: 3.2GB    ║
   ╚══════════════════════════════════════════════════════════╝
@@ -180,6 +180,7 @@ Il tab "Cerca Lavoro" in **Impara** usa un `AiClient` **isolato** (separato dall
 | **Tag sorgente** | Ogni risposta mostra `[CERCA LAVORO → Genera Lettera] 🤖 Modello: ...` |
 | **CV default** | Profilo Paolo Lo Bello come fallback se nessun PDF caricato |
 | **Fix tema** | `QTextEdit`/`QLineEdit` seguono il tema QSS — nessun testo nero su sfondo scuro |
+| **Request ID** | Ogni `chat()` ritorna un ID univoco (`currentReqId()`): i callback filtrano solo le risposte della propria richiesta, mai quelle di altri tab |
 
 ### Tab Agenti AI — dettaglio
 
@@ -547,7 +548,7 @@ Risultati (qwen2.5-coder:7b): **5/5 ✅ 100%**
 Prismalux/
 │
 ├── C_software/
-│   └── Qt_GUI/                     ← GUI Qt6 (v2.2)
+│   └── Qt_GUI/                     ← GUI Qt6 (v2.7)
 │       ├── CMakeLists.txt           ← build (Qt6/Qt5 fallback, AUTOMOC)
 │       ├── CLAUDE.md                ← architettura, convenzioni, ottimizzazioni
 │       ├── main.cpp
@@ -579,6 +580,7 @@ Prismalux/
 │       │   ├── grafico_page.*       ← GraficoPage: UI, plot(), analyzeImage()
 │       │   ├── simulatore_algos.*   ← implementazioni 110 algoritmi (zero UI)
 │       │   ├── simulatore_page.*    ← SimulatorePage UI + BigOWidget
+│       │   ├── lavoro_data.*        ← database offerte Catania (nessuna dep UI)
 │       │   ├── programmazione_page.*   ← editor + correzione AI + run Python
 │       │   ├── strumenti_page.*     ← 730, P.IVA, mutuo, PAC, pensione, lavoro
 │       │   ├── impara_page.*        ← tutor AI + quiz (tab unificato)

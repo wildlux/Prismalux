@@ -63,17 +63,19 @@ public:
     /* ── chat ── */
 
     /** Overload legacy — compatibile con tutto il codice esistente.
-     *  Equivale a chat(sys, msg, {}, QueryAuto): nessuna storia, nessun think. */
-    void chat(const QString& systemPrompt, const QString& userMsg);
+     *  Equivale a chat(sys, msg, {}, QueryAuto): nessuna storia, nessun think.
+     *  Ritorna il request ID assegnato a questa chiamata (usabile per routing). */
+    quint64 chat(const QString& systemPrompt, const QString& userMsg);
 
     /** Chat con storia compressa e tipo query.
      *  @param history  turni precedenti come array JSON [{role,content},...]
      *                  costruito da OracoloPage::buildHistoryArray()
      *  @param qt       QuerySimple → think=false, num_predict=512
      *                  QueryComplex → think=true, num_predict dal config
-     *                  QueryAuto    → nessun think, num_predict dal config */
-    void chat(const QString& systemPrompt, const QString& userMsg,
-              const QJsonArray& history, QueryType qt);
+     *                  QueryAuto    → nessun think, num_predict dal config
+     *  Ritorna il request ID assegnato a questa chiamata. */
+    quint64 chat(const QString& systemPrompt, const QString& userMsg,
+                 const QJsonArray& history, QueryType qt);
 
     /** Genera risposta singola via /api/generate (Ollama).
      *  Preferito per query RAG senza storia attiva: più leggero di /api/chat
@@ -94,6 +96,11 @@ public:
     QString     localModel() const { return m_localModel; }
     QStringList models()     const { return m_models; }
     bool        busy()       const { return m_reply != nullptr || m_localBusy; }
+
+    /** Identificatore incrementale dell'ultima chat() avviata.
+     *  Ogni pagina può catturare questo valore dopo aver chiamato chat() e
+     *  confrontarlo nei callback per ignorare segnali di richieste altrui. */
+    quint64     currentReqId() const { return m_reqId; }
 
     virtual void fetchModels();
 
@@ -205,4 +212,8 @@ private:
      * Se a fine stream m_accum è vuoto ma questo non lo è, viene wrappato in
      * <think>...</think> e passato a finished() come fallback. */
     QString       m_thinkingAccum;
+
+    /* Contatore richieste — incrementato a ogni chat() avviata con successo.
+     * Usato da currentReqId() per il routing delle risposte nelle pagine. */
+    quint64       m_reqId = 0;
 };

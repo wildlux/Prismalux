@@ -290,19 +290,20 @@ static const char* kCavemanPrefix =
     "Preferisci elenchi puntati a paragrafi verbosi quando il contenuto lo permette.\n\n";
 
 /* ── chat (wrapper legacy — compatibile con tutto il codice esistente) ─── */
-void AiClient::chat(const QString& systemPrompt, const QString& userMsg) {
-    chat(systemPrompt, userMsg, QJsonArray(), classifyQuery(userMsg));  /* FIX T2: era QueryAuto hardcoded */
+quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg) {
+    return chat(systemPrompt, userMsg, QJsonArray(), classifyQuery(userMsg));  /* FIX T2: era QueryAuto hardcoded */
 }
 
 /* ── chat (implementazione completa con storia e tipo query) ─────────── */
-void AiClient::chat(const QString& systemPrompt, const QString& userMsg,
-                    const QJsonArray& history, QueryType qt)
+quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
+                       const QJsonArray& history, QueryType qt)
 {
-    if (busy()) return;
+    if (busy()) return m_reqId;
 
     /* Throttle: ignora richieste ravvicinate (<400ms) */
-    if (m_throttleTimer.isValid() && m_throttleTimer.elapsed() < 400) return;
+    if (m_throttleTimer.isValid() && m_throttleTimer.elapsed() < 400) return m_reqId;
     m_throttleTimer.restart();
+    ++m_reqId;  /* nuovo ID per questa richiesta — visibile via currentReqId() */
 
     /* RAM critica */
     if (m_ramFreePct < 10.0) {
@@ -310,7 +311,7 @@ void AiClient::chat(const QString& systemPrompt, const QString& userMsg,
             "\xe2\x9a\xa0  RAM critica (" +
             QString::number(100.0 - m_ramFreePct, 'f', 0) +
             "% usata). Chiudi altre applicazioni prima di continuare.");
-        return;
+        return m_reqId;
     }
 
     {
@@ -323,7 +324,7 @@ void AiClient::chat(const QString& systemPrompt, const QString& userMsg,
     if (m_backend == LlamaLocal) {
         if (m_llamaBin.isEmpty() || m_localModel.isEmpty()) {
             emit error("Backend locale non configurato. Seleziona un modello .gguf.");
-            return;
+            return m_reqId;
         }
         m_localBusy  = true;
         m_localAccum.clear();
@@ -380,7 +381,7 @@ void AiClient::chat(const QString& systemPrompt, const QString& userMsg,
             m_localProc->deleteLater();
             m_localProc = nullptr;
         }
-        return;
+        return m_reqId;
     }
 
     /* ── HTTP backends ── */
@@ -471,6 +472,7 @@ void AiClient::chat(const QString& systemPrompt, const QString& userMsg,
     m_reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
     connect(m_reply, &QNetworkReply::readyRead, this, &AiClient::onReadyRead);
     connect(m_reply, &QNetworkReply::finished,  this, &AiClient::onFinished);
+    return m_reqId;
 }
 
 /* ── generate — /api/generate per query RAG single-shot ──────────────── */
