@@ -13,9 +13,12 @@
 [![Build](https://img.shields.io/badge/Build-CMake%20%2B%20Qt6-brightgreen?style=flat-square)](C_software/Qt_GUI/CMakeLists.txt)
 
 **Piattaforma AI locale. GUI in C++/Qt6.**  
-Multi-agente, anti-allucinazione, matematica locale, 110 simulazioni algoritmi.  
-RAG in-page · MCP Blender / Office / Anki / KiCAD / Arduino+ESP32 · Network Analyzer · Disegno→3D.  
-Zero dipendenze cloud. Zero abbonamenti. Tutto sul tuo hardware.
+Multi-agente, anti-allucinazione, 
+· matematica locale, 110 simulazioni algoritmi.  
+· RAG in-page 
+· MCPs : Blender / Office / Anki / KiCAD / Arduino+ESP32 
+· Network Analyzer · Disegno→3D.  
+· Zero dipendenze cloud - Zero abbonamenti - Tutto Locale sul tuo Hardware!
 
 </div>
 
