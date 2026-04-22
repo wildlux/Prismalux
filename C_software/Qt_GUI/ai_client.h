@@ -95,7 +95,7 @@ public:
     QStringList models()     const { return m_models; }
     bool        busy()       const { return m_reply != nullptr || m_localBusy; }
 
-    void fetchModels();
+    virtual void fetchModels();
 
     /**
      * fetchEmbedding — richiede l'embedding vettoriale di @p text al backend.

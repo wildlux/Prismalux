@@ -355,7 +355,7 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     aiInputLay->addWidget(m_aiInput, 1);
 
     m_btnSend = new QPushButton("Invia \xe2\x96\xb6", aiInputRow);
-    m_btnSend->setObjectName("actionBtn");
+    m_btnSend->setObjectName("m_btnSend");
     tagExecP(m_btnSend, "\xe2\x96\xb6", "Invia");
     auto* btnSend = m_btnSend;  /* alias locale per il codice sottostante */
 

@@ -7,11 +7,7 @@
 #include <QListWidget>
 #include <QLabel>
 #include "../ai_client.h"
-
-struct Offerta {
-    QString azienda, ruolo, sede, tipo, livello, email, requisiti;
-};
-Q_DECLARE_METATYPE(Offerta)
+#include "lavoro_data.h"
 
 class LavoroPage : public QWidget {
     Q_OBJECT

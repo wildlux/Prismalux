@@ -11,6 +11,7 @@
      - Invariant Violation (stato logico ≠ stato visivo)
    ══════════════════════════════════════════════════════════════ */
 #include "../ai_client.h"
+#include <QTimer>
 
 class MockAiClient : public AiClient {
     Q_OBJECT
@@ -49,4 +50,10 @@ public:
 
     /** Resetta lo stato busy senza avviare reti — per poter chiamare chat() nei test. */
     void resetBusy() { abort(); }
+
+    /** Sovrascrive fetchModels() per evitare chiamate HTTP reali a Ollama durante i test.
+     *  Emette modelsReady con lista minima in modo deterministico (nessuna rete). */
+    void fetchModels() override {
+        QTimer::singleShot(0, this, [this]{ emit modelsReady({"test-model"}); });
+    }
 };
