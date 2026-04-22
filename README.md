@@ -12,13 +12,13 @@
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-informational?style=flat-square)](https://github.com/wildlux/Prismalux)
 [![Build](https://img.shields.io/badge/Build-CMake%20%2B%20Qt6-brightgreen?style=flat-square)](C_software/Qt_GUI/CMakeLists.txt)
 
-**Piattaforma AI locale. GUI in C++/Qt6.**  
-Multi-agente, anti-allucinazione, 
-· matematica locale, 110 simulazioni algoritmi.  
-· RAG in-page 
-· MCPs : Blender / Office / Anki / KiCAD / Arduino+ESP32 
-· Network Analyzer · Disegno→3D.  
-· Zero dipendenze cloud - Zero abbonamenti - Tutto Locale sul tuo Hardware!
+**Piattaforma AI locale. GUI in C++/Qt6.**  <br>
+Multi-agente, anti-allucinazione, <br>
+· matematica locale, 110 simulazioni algoritmi.  <br>
+· RAG in-page <br>
+· MCPs : Blender / Office / Anki / KiCAD / Arduino+ESP32 <br>
+· Network Analyzer · Disegno→3D.  <br>
+· Zero dipendenze cloud - Zero abbonamenti - Tutto Locale sul tuo Hardware!<br>
 
 </div>
 
