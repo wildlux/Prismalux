@@ -57,45 +57,10 @@ void LavoroPage::applicaFiltri() {
     const QString tipo    = m_filtroTipo->currentData().toString();
     const QString livello = m_filtroLivello->currentData().toString();
 
-    QStringList livCompat{"qualsiasi"};
-    if (livello == "diploma" || livello == "laurea_t" || livello == "laurea_m" || livello == "tutti")
-        livCompat << "diploma";
-    if (livello == "laurea_t" || livello == "laurea_m" || livello == "tutti")
-        livCompat << "laurea_t";
-    if (livello == "laurea_m" || livello == "tutti")
-        livCompat << "laurea_m";
-
-    auto tipoIcon = [](const QString& t) -> QString {
-        if (t == "IT")           return "\xf0\x9f\x92\xbb ";
-        if (t == "Retail")       return "\xf0\x9f\x9b\x92 ";
-        if (t == "Ristorazione") return "\xf0\x9f\x8d\xbd ";
-        if (t == "Edilizia")     return "\xf0\x9f\x8f\x97 ";
-        if (t == "Logistica")    return "\xf0\x9f\x93\xa6 ";
-        if (t == "Finanza")      return "\xf0\x9f\x92\xb0 ";
-        if (t == "Sanitario")    return "\xf0\x9f\x8f\xa5 ";
-        if (t == "Produzione")   return "\xe2\x9a\x99\xef\xb8\x8f ";
-        if (t == "Tecnico")      return "\xf0\x9f\x94\xa7 ";
-        if (t == "Turismo")      return "\xe2\x9c\x88\xef\xb8\x8f ";
-        if (t == "Admin")        return "\xf0\x9f\x93\x8b ";
-        if (t == "Commerciale")  return "\xf0\x9f\x93\x8a ";
-        return "\xf0\x9f\x94\xb9 ";
-    };
-
-    auto livLabel = [](const QString& l) -> QString {
-        if (l == "qualsiasi") return "  \xf0\x9f\x9f\xa2";
-        if (l == "diploma")   return "  \xf0\x9f\x9f\xa1";
-        if (l == "laurea_t")  return "  \xf0\x9f\x9f\xa0";
-        if (l == "laurea_m")  return "  \xf0\x9f\x94\xb4";
-        return "";
-    };
-
     m_offerteLista->clear();
-    for (const auto& o : kOfferte()) {
-        if (tipo != "tutti" && o.tipo != tipo) continue;
-        if (livello != "tutti" && !livCompat.contains(o.livello)) continue;
-
-        QString emailStr = o.email.isEmpty() ? ""
-                         : QString("  \xe2\x9c\x89 %1").arg(o.email);
+    for (const auto& o : offerteFiltrate(tipo, livello)) {
+        const QString emailStr = o.email.isEmpty() ? ""
+                               : QString("  \xe2\x9c\x89 %1").arg(o.email);
         const QString text = tipoIcon(o.tipo) + o.azienda + " \xe2\x80\x94 " + o.ruolo
                            + "\n   \xf0\x9f\x93\x8d " + o.sede + livLabel(o.livello) + emailStr;
 

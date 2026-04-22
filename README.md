@@ -181,6 +181,7 @@ Il tab "Cerca Lavoro" in **Impara** usa un `AiClient` **isolato** (separato dall
 | **CV default** | Profilo Paolo Lo Bello come fallback se nessun PDF caricato |
 | **Fix tema** | `QTextEdit`/`QLineEdit` seguono il tema QSS — nessun testo nero su sfondo scuro |
 | **Request ID** | Ogni `chat()` ritorna un ID univoco (`currentReqId()`): i callback filtrano solo le risposte della propria richiesta, mai quelle di altri tab |
+| **Algoritmo filtro isolato** | `offerteFiltrate(tipo, livello)` in `lavoro_data.cpp` — puro, zero Qt Widgets, testabile in isolamento |
 
 ### Tab Agenti AI — dettaglio
 
@@ -580,7 +581,7 @@ Prismalux/
 │       │   ├── grafico_page.*       ← GraficoPage: UI, plot(), analyzeImage()
 │       │   ├── simulatore_algos.*   ← implementazioni 110 algoritmi (zero UI)
 │       │   ├── simulatore_page.*    ← SimulatorePage UI + BigOWidget
-│       │   ├── lavoro_data.*        ← database offerte Catania (nessuna dep UI)
+│       │   ├── lavoro_data.*        ← dati + algoritmo puro: kOfferte, offerteFiltrate, tipoIcon, livLabel
 │       │   ├── programmazione_page.*   ← editor + correzione AI + run Python
 │       │   ├── strumenti_page.*     ← 730, P.IVA, mutuo, PAC, pensione, lavoro
 │       │   ├── impara_page.*        ← tutor AI + quiz (tab unificato)

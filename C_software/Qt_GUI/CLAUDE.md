@@ -61,7 +61,8 @@ MainWindow
 | `pages/strumenti_page.*` | Assistente multi-dominio (Studio, Scrittura Creativa, Ricerca, Libri, Produttività, PDF, Blender MCP, Office MCP) |
 | `pages/impara_page.*` | Tutor AI + Quiz interattivi |
 | `pages/pratico_page.*` | 730, P.IVA, Finanza (mutuo, PAC, pensione) |
-| `pages/lavoro_page.*` | Cerca Lavoro standalone — AiClient isolato, LLM selector, Socratica, analisi CV |
+| `pages/lavoro_data.*` | Dati + algoritmo puro Cerca Lavoro: `kOfferte()`, `offerteFiltrate()`, `tipoIcon()`, `livLabel()` — zero Qt Widgets |
+| `pages/lavoro_page.*` | UI Cerca Lavoro — AiClient isolato, LLM selector, Socratica, analisi CV |
 | `pages/personalizza_page.*` | llama.cpp Studio + VRAM benchmark |
 | `pages/impostazioni_page.*` | Dialog impostazioni: tema, voce TTS, RAG, AI locale, parametri AI |
 
@@ -1038,4 +1039,34 @@ I pulsanti "Esegui in &lt;App&gt;" vengono abilitati solo se la risposta AI cont
 | G | 12 | Signal isolation (token dopo finished, 50 cicli, 7 tab, nessun leak widget) |
 | H | 10 | Rapid-fire clicks (10 click vuoti, Stop→Run, tab switch durante stream) |
 | I | 10 | LavoroPage (LLM label, combo, update su cambio modello, lista offerte) |
+
+## Sessione 2026-04-22 (continua)
+
+### 8. Request ID in AiClient
+
+`AiClient::chat()` ora ritorna `quint64` — ID incrementale per il routing delle risposte:
+- `++m_reqId` ad ogni `chat()` avviata con successo (tutti i rami: Ollama, LlamaServer, LlamaLocal, guardie)
+- `currentReqId()` espone l'ID corrente
+- `LavoroPage` cattura l'ID al momento del `chat()` in `m_myReqId` e filtra i callback con `m_ai->currentReqId() != m_myReqId`
+- Sostituisce il vecchio `std::shared_ptr<bool> active` — più robusto e testabile
+- **Compatibilità**: i callers che non catturano il valore di ritorno compilano invariati
+
+### 9. Split lavoro_data — algoritmo e presentazione
+
+`lavoro_data.h/cpp` ora contiene tre livelli, tutti senza dipendenze Qt Widgets:
+
+| Funzione | Livello | Descrizione |
+|---|---|---|
+| `kOfferte()` | Dati | Lista statica ~90 offerte Catania |
+| `offerteFiltrate(tipo, livello)` | Algoritmo | Filtro transitivo per tipo e livello di studio |
+| `tipoIcon(tipo)` | Presentazione | Mappa tipo → emoji Unicode |
+| `livLabel(livello)` | Presentazione | Mappa livello → dot colorato Unicode |
+
+`LavoroPage::applicaFiltri()` è ora pura UI: chiama `offerteFiltrate()` e popola `QListWidget`.
+
+**Regola di compatibilità livello** (transitiva, implementata in `offerteFiltrate`):
+- `laurea_m` include `laurea_t`, `diploma`, `qualsiasi`
+- `laurea_t` include `diploma`, `qualsiasi`
+- `diploma` include `qualsiasi`
+- `tutti` = nessun filtro
 

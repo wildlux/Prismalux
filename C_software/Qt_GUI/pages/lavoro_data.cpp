@@ -1,9 +1,9 @@
 /*
- * lavoro_data.cpp — Database offerte di lavoro
- * =============================================
+ * lavoro_data.cpp — Database offerte di lavoro + algoritmo di filtro
+ * ==================================================================
  * Fonte: Centro per l'Impiego di Catania, Aprile 2026
- * Nessuna dipendenza da Qt UI — solo QList<Offerta>.
- * La UI di LavoroPage è in lavoro_page.cpp.
+ * Nessuna dipendenza da Qt Widgets — solo QString/QList.
+ * La UI (QListWidget, segnali, AI) è in lavoro_page.cpp.
  */
 #include "lavoro_data.h"
 
@@ -126,4 +126,58 @@ const QList<Offerta>& kOfferte() {
         {"Silaq Consulting",      "Consulente Tecnico Sicurezza sul Lavoro",  "Catania",              "Altro",       "laurea_t",  "", "Laurea ingegneria edile o tecniche della prevenzione"},
     };
     return s;
+}
+
+/* ── Algoritmo di filtro ─────────────────────────────────────────────────
+   Restituisce le offerte che soddisfano tipo e livello.
+   "tutti" su qualsiasi parametro significa nessun filtro su quella colonna.
+   La compatibilità livello è transitiva: laurea_m include laurea_t e diploma.
+   ───────────────────────────────────────────────────────────────────────── */
+QList<Offerta> offerteFiltrate(const QString& tipo, const QString& livello)
+{
+    QStringList livCompat{"qualsiasi"};
+    if (livello == "diploma"  || livello == "laurea_t" || livello == "laurea_m" || livello == "tutti")
+        livCompat << "diploma";
+    if (livello == "laurea_t" || livello == "laurea_m" || livello == "tutti")
+        livCompat << "laurea_t";
+    if (livello == "laurea_m" || livello == "tutti")
+        livCompat << "laurea_m";
+
+    QList<Offerta> result;
+    for (const auto& o : kOfferte()) {
+        if (tipo    != "tutti" && o.tipo    != tipo)                  continue;
+        if (livello != "tutti" && !livCompat.contains(o.livello))     continue;
+        result << o;
+    }
+    return result;
+}
+
+/* ── Presentazione campi dati ────────────────────────────────────────────
+   Mappano i valori enum-like di Offerta::tipo e Offerta::livello
+   a icone Unicode. Funzioni pure — nessuna dipendenza Qt Widgets.
+   ───────────────────────────────────────────────────────────────────────── */
+QString tipoIcon(const QString& t)
+{
+    if (t == "IT")           return "\xf0\x9f\x92\xbb ";
+    if (t == "Retail")       return "\xf0\x9f\x9b\x92 ";
+    if (t == "Ristorazione") return "\xf0\x9f\x8d\xbd ";
+    if (t == "Edilizia")     return "\xf0\x9f\x8f\x97 ";
+    if (t == "Logistica")    return "\xf0\x9f\x93\xa6 ";
+    if (t == "Finanza")      return "\xf0\x9f\x92\xb0 ";
+    if (t == "Sanitario")    return "\xf0\x9f\x8f\xa5 ";
+    if (t == "Produzione")   return "\xe2\x9a\x99\xef\xb8\x8f ";
+    if (t == "Tecnico")      return "\xf0\x9f\x94\xa7 ";
+    if (t == "Turismo")      return "\xe2\x9c\x88\xef\xb8\x8f ";
+    if (t == "Admin")        return "\xf0\x9f\x93\x8b ";
+    if (t == "Commerciale")  return "\xf0\x9f\x93\x8a ";
+    return "\xf0\x9f\x94\xb9 ";
+}
+
+QString livLabel(const QString& l)
+{
+    if (l == "qualsiasi") return "  \xf0\x9f\x9f\xa2";
+    if (l == "diploma")   return "  \xf0\x9f\x9f\xa1";
+    if (l == "laurea_t")  return "  \xf0\x9f\x9f\xa0";
+    if (l == "laurea_m")  return "  \xf0\x9f\x94\xb4";
+    return "";
 }
