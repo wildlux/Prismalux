@@ -1,0 +1,17 @@
+build/
+build_check/
+build_dbg/
+build_debug/
+build_tests/
+*.o
+*.a
+*.so
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+.qmake.stash
+CMakeUserPresets.json
+# binari test compilati senza estensione (esclude solo gli eseguibili)
+test_buildsys
+test_golden
+test_security
