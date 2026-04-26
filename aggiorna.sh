@@ -25,10 +25,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 QT_GUI="$SCRIPT_DIR/gui"
 QT_BUILD="$QT_GUI/build"
 ZIP_SCRIPT="$SCRIPT_DIR/scripts/crea_zip_windows.py"
-ZIP_OUT="$SCRIPT_DIR/Prismalux_Windows_full.zip"
 APPIMAGE_SCRIPT="$SCRIPT_DIR/scripts/crea_appimage.sh"
 APPIMAGE_OUT="$SCRIPT_DIR/Prismalux-x86_64.AppImage"
 WHISPER_WIN_DIR="$SCRIPT_DIR/whisper_win"
+
+# ── Versione letta da CMakeLists.txt (fonte unica di verità) ───
+PRISMA_VERSION=$(grep -m1 'project(Prismalux_GUI VERSION' "$QT_GUI/CMakeLists.txt" \
+                 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+PRISMA_VERSION="${PRISMA_VERSION:-2.8}"
+ZIP_OUT="$SCRIPT_DIR/Prismalux_v${PRISMA_VERSION}_Windows.zip"
 
 # ── Flags ──────────────────────────────────────────────────────
 DO_GUI=1
@@ -324,7 +329,7 @@ fi
 T_END=$(date +%s)
 echo ""
 echo -e "${B}════════════════════════════════════════${N}"
-echo -e "${B}  Prismalux — aggiornamento completato  ${N}"
+echo -e "${B}  Prismalux v${PRISMA_VERSION} — aggiornamento completato  ${N}"
 echo -e "${B}════════════════════════════════════════${N}"
 [ "$DO_GUI"           = "1" ] && echo -e "  ${G}GUI${N}           $QT_BUILD/Prismalux_GUI"
 [ "$DO_BUILD_WHISPER" = "1" ] && [ -f "$SCRIPT_DIR/whisper.cpp/build/bin/whisper-cli" ] && \

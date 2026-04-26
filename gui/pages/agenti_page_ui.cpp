@@ -80,6 +80,40 @@ void AgentiPage::setupUI() {
         m_btnTtsStop->setVisible(false);
     });
 
+    /* ── Esporta conversazione ── */
+    auto* btnExport = new QPushButton("\xf0\x9f\x92\xbe", toolbar);
+    btnExport->setObjectName("actionBtn");
+    btnExport->setToolTip("Esporta conversazione (.md)");
+    btnExport->setFixedWidth(32);
+    toolLay->addWidget(btnExport);
+    connect(btnExport, &QPushButton::clicked, this, [this](){
+        if (!m_log || m_log->toPlainText().trimmed().isEmpty()) return;
+        const QString ts   = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+        const QString name = QString("prismalux_chat_%1.md").arg(ts);
+        const QString path = QFileDialog::getSaveFileName(
+            this, "Esporta conversazione", QDir::homePath() + "/" + name,
+            "Markdown (*.md);;HTML (*.html);;Testo (*.txt)");
+        if (path.isEmpty()) return;
+
+        QFile f(path);
+        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
+        QTextStream out(&f);
+
+        if (path.endsWith(".html", Qt::CaseInsensitive)) {
+            out << m_log->toHtml();
+        } else if (path.endsWith(".txt", Qt::CaseInsensitive)) {
+            out << m_log->toPlainText();
+        } else {
+            /* Markdown: intestazione + conversione QTextDocument */
+            QTextDocument doc;
+            doc.setHtml(m_log->toHtml());
+            out << "# Prismalux — Conversazione\n";
+            out << "_Esportata il " << QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm") << "_\n\n";
+            out << "---\n\n";
+            out << doc.toMarkdown();
+        }
+    });
+
     toolLay->addStretch(1);
 
     /* ══ Toggle Mono-Agente / Multi-Agente ══
