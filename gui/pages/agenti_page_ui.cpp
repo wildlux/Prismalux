@@ -123,7 +123,7 @@ void AgentiPage::setupUI() {
     /* ── Esporta conversazione ── */
     auto* btnExport = new QPushButton("\xf0\x9f\x92\xbe", toolbar);
     btnExport->setObjectName("actionBtn");
-    btnExport->setToolTip("Esporta conversazione (.md)");
+    btnExport->setToolTip("Esporta conversazione (.md / .html / .txt)");
     btnExport->setFixedWidth(32);
     toolLay->addWidget(btnExport);
     connect(btnExport, &QPushButton::clicked, this, [this](){
@@ -132,17 +132,8 @@ void AgentiPage::setupUI() {
         const QString name = QString("prismalux_chat_%1.md").arg(ts);
         const QString path = QFileDialog::getSaveFileName(
             this, "Esporta conversazione", QDir::homePath() + "/" + name,
-            "PDF (*.pdf);;Markdown (*.md);;HTML (*.html);;Testo (*.txt)");
+            "Markdown (*.md);;HTML (*.html);;Testo (*.txt)");
         if (path.isEmpty()) return;
-
-        if (path.endsWith(".pdf", Qt::CaseInsensitive)) {
-            QPrinter printer(QPrinter::HighResolution);
-            printer.setOutputFormat(QPrinter::PdfFormat);
-            printer.setOutputFileName(path);
-            printer.setPageSize(QPageSize::A4);
-            m_log->document()->print(&printer);
-            return;
-        }
 
         QFile f(path);
         if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
@@ -153,7 +144,6 @@ void AgentiPage::setupUI() {
         } else if (path.endsWith(".txt", Qt::CaseInsensitive)) {
             out << m_log->toPlainText();
         } else {
-            /* Markdown: intestazione + conversione QTextDocument */
             QTextDocument doc;
             doc.setHtml(m_log->toHtml());
             out << "# Prismalux — Conversazione\n";
@@ -161,6 +151,27 @@ void AgentiPage::setupUI() {
             out << "---\n\n";
             out << doc.toMarkdown();
         }
+    });
+
+    /* ── Esporta come PDF ── */
+    auto* btnExportPdf = new QPushButton("\xf0\x9f\x93\x84", toolbar);
+    btnExportPdf->setObjectName("actionBtn");
+    btnExportPdf->setToolTip("Esporta conversazione (.pdf)");
+    btnExportPdf->setFixedWidth(32);
+    toolLay->addWidget(btnExportPdf);
+    connect(btnExportPdf, &QPushButton::clicked, this, [this](){
+        if (!m_log || m_log->toPlainText().trimmed().isEmpty()) return;
+        const QString ts   = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+        const QString name = QString("prismalux_chat_%1.pdf").arg(ts);
+        const QString path = QFileDialog::getSaveFileName(
+            this, "Esporta come PDF", QDir::homePath() + "/" + name,
+            "PDF (*.pdf)");
+        if (path.isEmpty()) return;
+        QPrinter printer(QPrinter::HighResolution);
+        printer.setOutputFormat(QPrinter::PdfFormat);
+        printer.setOutputFileName(path);
+        printer.setPageSize(QPageSize::A4);
+        m_log->document()->print(&printer);
     });
 
     toolLay->addStretch(1);
