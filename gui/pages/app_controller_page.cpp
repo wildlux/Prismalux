@@ -584,8 +584,12 @@ QWidget* AppControllerPage::buildFreeCADTab()
     connLay->addWidget(lbl);
     connLay->addWidget(m_freecadHostEdit);
     connLay->addWidget(pingBtn);
+    auto* freecadHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    freecadHelpBtn->setObjectName("actionBtn");
+    freecadHelpBtn->setFixedWidth(80);
     connLay->addWidget(m_freecadStatusLbl, 1);
     connLay->addWidget(m_freecadExecBtn);
+    connLay->addWidget(freecadHelpBtn);
     lay->addWidget(connRow);
 
     /* ── Hint ── */
@@ -733,6 +737,35 @@ QWidget* AppControllerPage::buildFreeCADTab()
         m_freecadOutput->append("\n\xe2\x8f\xb9  Fermato.");
     });
 
+    connect(freecadHelpBtn, &QPushButton::clicked, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("\xf0\x9f\x94\xa9  Installazione FreeCAD MCP");
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->resize(540, 440);
+        auto* dlay = new QVBoxLayout(dlg);
+        auto* browser = new QTextBrowser(dlg);
+        browser->setOpenExternalLinks(true);
+        browser->setHtml(
+            "<h3>\xf0\x9f\x94\xa9 FreeCAD MCP</h3>"
+            "<h4>1. Installa FreeCAD</h4>"
+            "<p><code>sudo apt install freecad</code> oppure "
+            "<a href='https://www.freecad.org/downloads.php'>freecad.org</a></p>"
+            "<h4>2. Clona il bridge</h4>"
+            "<pre>git clone https://github.com/manuelbb-upb/FreeCAD-MCP</pre>"
+            "<p>Segui il README per installare il modulo addon in FreeCAD.</p>"
+            "<h4>3. Avvia il server</h4>"
+            "<p>FreeCAD \xe2\x86\x92 Strumenti \xe2\x86\x92 Macro \xe2\x86\x92 esegui lo script bridge "
+            "(porta <b>9876</b>)</p>"
+            "<h4>4. Collega</h4>"
+            "<p>Torna qui \xe2\x86\x92 clicca <b>\xf0\x9f\x94\x97 Verifica</b>.</p>");
+        auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+        btnClose->setObjectName("actionBtn");
+        connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
+        dlay->addWidget(browser);
+        dlay->addWidget(btnClose);
+        dlg->exec();
+    });
+
     return w;
 }
 
@@ -769,9 +802,13 @@ QWidget* AppControllerPage::buildOfficeTab()
     m_officeExecBtn->setEnabled(false);
 
     connLay->addWidget(lbl);
+    auto* officeHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    officeHelpBtn->setObjectName("actionBtn");
+    officeHelpBtn->setFixedWidth(80);
     connLay->addWidget(m_officeStartBtn);
     connLay->addWidget(m_officeStatusLbl, 1);
     connLay->addWidget(m_officeExecBtn);
+    connLay->addWidget(officeHelpBtn);
     lay->addWidget(connRow);
 
     /* ── Hint ── */
@@ -965,6 +1002,35 @@ QWidget* AppControllerPage::buildOfficeTab()
         m_officeOutput->append("\n\xe2\x8f\xb9  Fermato.");
     });
 
+    connect(officeHelpBtn, &QPushButton::clicked, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("\xf0\x9f\x96\xa5  Installazione Office Bridge");
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->resize(540, 420);
+        auto* dlay = new QVBoxLayout(dlg);
+        auto* browser = new QTextBrowser(dlg);
+        browser->setOpenExternalLinks(true);
+        browser->setHtml(
+            "<h3>\xf0\x9f\x96\xa5 Office Bridge (LibreOffice)</h3>"
+            "<h4>1. Installa LibreOffice + python-uno</h4>"
+            "<p><code>sudo apt install libreoffice python3-uno</code></p>"
+            "<h4>2. Avvia il bridge</h4>"
+            "<p>Clicca <b>\xe2\x96\xb6 Avvia bridge</b> in questa scheda: avvia automaticamente "
+            "<code>prismalux_office_bridge.py</code> (porta <b>6790</b>).</p>"
+            "<h4>3. Genera ed esegui</h4>"
+            "<p>Scrivi l'istruzione nel campo testo \xe2\x86\x92 "
+            "<b>Genera codice AI</b> \xe2\x86\x92 <b>Esegui in Office</b>.</p>"
+            "<h4>Nota</h4>"
+            "<p>Il bridge controlla LibreOffice Writer / Calc / Impress via API UNO. "
+            "LibreOffice deve essere installato ma non necessariamente aperto.</p>");
+        auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+        btnClose->setObjectName("actionBtn");
+        connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
+        dlay->addWidget(browser);
+        dlay->addWidget(btnClose);
+        dlg->exec();
+    });
+
     return w;
 }
 
@@ -1001,7 +1067,43 @@ QWidget* AppControllerPage::buildCloudCompareTab()
     statusLbl->setOpenExternalLinks(true);
     statusLbl->setObjectName("hintLabel");
     glay->addWidget(statusLbl);
+
+    auto* ccHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto — CloudComPy", group);
+    ccHelpBtn->setObjectName("actionBtn");
+    ccHelpBtn->setFixedWidth(200);
+    glay->addWidget(ccHelpBtn, 0, Qt::AlignLeft);
     glay->addStretch();
+
+    connect(ccHelpBtn, &QPushButton::clicked, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("\xf0\x9f\x94\xb5  Installazione CloudComPy");
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->resize(560, 460);
+        auto* dlay = new QVBoxLayout(dlg);
+        auto* browser = new QTextBrowser(dlg);
+        browser->setOpenExternalLinks(true);
+        browser->setHtml(
+            "<h3>\xf0\x9f\x94\xb5 CloudCompare + CloudComPy</h3>"
+            "<h4>1. Installa CloudCompare</h4>"
+            "<p><code>sudo apt install cloudcompare</code> oppure "
+            "<a href='https://www.danielgm.net/cc/'>danielgm.net/cc</a></p>"
+            "<h4>2. Installa CloudComPy (Python wrapper)</h4>"
+            "<pre>pip install cloudcompy</pre>"
+            "<p>Oppure compila dal sorgente: "
+            "<a href='https://github.com/CloudCompare/CloudComPy'>"
+            "github.com/CloudCompare/CloudComPy</a></p>"
+            "<h4>3. Formati supportati</h4>"
+            "<p>LAS · PLY · E57 · PCD · BIN (formato nativo CC)</p>"
+            "<h4>Stato attuale</h4>"
+            "<p>\xe2\x8f\xb3 Il bridge \xc3\xa8 in fase di integrazione in Prismalux. "
+            "Questa scheda sar\xc3\xa0 abilitata in una versione futura.</p>");
+        auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+        btnClose->setObjectName("actionBtn");
+        connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
+        dlay->addWidget(browser);
+        dlay->addWidget(btnClose);
+        dlg->exec();
+    });
 
     m_ccOutput = new QTextEdit(w);
     m_ccOutput->setReadOnly(true);
@@ -1157,8 +1259,12 @@ QWidget* AppControllerPage::buildAnkiTab()
     connLay->addWidget(lbl);
     connLay->addWidget(m_ankiHostEdit);
     connLay->addWidget(pingBtn);
+    auto* ankiHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    ankiHelpBtn->setObjectName("actionBtn");
+    ankiHelpBtn->setFixedWidth(80);
     connLay->addWidget(m_ankiStatusLbl, 1);
     connLay->addWidget(m_ankiSendBtn);
+    connLay->addWidget(ankiHelpBtn);
     lay->addWidget(connRow);
 
     /* ── Hint ── */
@@ -1277,6 +1383,36 @@ QWidget* AppControllerPage::buildAnkiTab()
         m_ankiOutput->append("\n\xe2\x8f\xb9  Fermato.");
     });
 
+    connect(ankiHelpBtn, &QPushButton::clicked, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("\xf0\x9f\x83\x8f  Installazione AnkiConnect");
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->resize(540, 420);
+        auto* dlay = new QVBoxLayout(dlg);
+        auto* browser = new QTextBrowser(dlg);
+        browser->setOpenExternalLinks(true);
+        browser->setHtml(
+            "<h3>\xf0\x9f\x83\x8f Anki MCP — AnkiConnect</h3>"
+            "<h4>1. Installa Anki</h4>"
+            "<p><a href='https://apps.ankiweb.net/'>apps.ankiweb.net</a> "
+            "oppure <code>sudo apt install anki</code></p>"
+            "<h4>2. Installa il plugin AnkiConnect</h4>"
+            "<p>Anki \xe2\x86\x92 <b>Strumenti</b> \xe2\x86\x92 <b>Componenti aggiuntivi</b> "
+            "\xe2\x86\x92 <b>Sfoglia e installa</b> \xe2\x86\x92 inserisci il codice:</p>"
+            "<pre>2055492159</pre>"
+            "<h4>3. Avvia Anki</h4>"
+            "<p>AnkiConnect si avvia automaticamente con Anki (porta <b>8765</b>). "
+            "Non chiudere Anki durante l'uso.</p>"
+            "<h4>4. Collega</h4>"
+            "<p>Torna qui \xe2\x86\x92 clicca <b>\xf0\x9f\x94\x97 Verifica</b>.</p>");
+        auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+        btnClose->setObjectName("actionBtn");
+        connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
+        dlay->addWidget(browser);
+        dlay->addWidget(btnClose);
+        dlg->exec();
+    });
+
     return w;
 }
 
@@ -1379,8 +1515,12 @@ QWidget* AppControllerPage::buildKiCADTab()
     connLay->addWidget(lbl);
     connLay->addWidget(m_kicadHostEdit);
     connLay->addWidget(pingBtn);
+    auto* kicadHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    kicadHelpBtn->setObjectName("actionBtn");
+    kicadHelpBtn->setFixedWidth(80);
     connLay->addWidget(m_kicadStatusLbl, 1);
     connLay->addWidget(m_kicadExecBtn);
+    connLay->addWidget(kicadHelpBtn);
     lay->addWidget(connRow);
 
     /* ── Hint ── */
@@ -1489,6 +1629,38 @@ QWidget* AppControllerPage::buildKiCADTab()
         m_kicadOutput->append("\n\xe2\x8f\xb9  Fermato.");
     });
 
+    connect(kicadHelpBtn, &QPushButton::clicked, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("\xf0\x9f\x96\xa5  Installazione KiCAD MCP Server");
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->resize(540, 460);
+        auto* dlay = new QVBoxLayout(dlg);
+        auto* browser = new QTextBrowser(dlg);
+        browser->setOpenExternalLinks(true);
+        browser->setHtml(
+            "<h3>\xf0\x9f\x96\xa5 KiCAD MCP Server</h3>"
+            "<h4>1. Installa KiCAD 7+</h4>"
+            "<p><code>sudo apt install kicad</code> oppure "
+            "<a href='https://www.kicad.org/download/'>kicad.org</a></p>"
+            "<h4>2. Installa e avvia il server MCP</h4>"
+            "<pre>git clone https://github.com/mixelpixx/KiCAD-MCP-Server\n"
+            "cd KiCAD-MCP-Server\n"
+            "npm install\n"
+            "node server.js</pre>"
+            "<p>Il server ascolta sulla porta <b>3000</b>.</p>"
+            "<h4>3. Abilita Scripting Console in KiCAD</h4>"
+            "<p>PCB Editor \xe2\x86\x92 Strumenti \xe2\x86\x92 <b>Console Scripting</b> "
+            "(deve essere abilitata nel build di KiCAD)</p>"
+            "<h4>4. Collega</h4>"
+            "<p>Torna qui \xe2\x86\x92 clicca <b>\xf0\x9f\x94\x97 Verifica</b>.</p>");
+        auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+        btnClose->setObjectName("actionBtn");
+        connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
+        dlay->addWidget(browser);
+        dlay->addWidget(btnClose);
+        dlg->exec();
+    });
+
     return w;
 }
 
@@ -1570,8 +1742,12 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     connLay->addWidget(lbl);
     connLay->addWidget(m_mcuPort, 1);
     connLay->addWidget(detectBtn);
+    auto* mcuHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    mcuHelpBtn->setObjectName("actionBtn");
+    mcuHelpBtn->setFixedWidth(80);
     connLay->addWidget(m_mcuStatusLbl, 1);
     connLay->addWidget(m_mcuFlashBtn);
+    connLay->addWidget(mcuHelpBtn);
     lay->addWidget(connRow);
 
     /* ── Hint ── */
@@ -1701,6 +1877,42 @@ QWidget* AppControllerPage::buildTinyMCPTab()
         m_mcuRunBtn->setEnabled(true);
         m_mcuStopBtn->setEnabled(false);
         m_mcuOutput->append("\n\xe2\x8f\xb9  Fermato.");
+    });
+
+    connect(mcuHelpBtn, &QPushButton::clicked, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("\xe2\x9a\xa1  TinyMCP — Microcontrollori");
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->resize(560, 500);
+        auto* dlay = new QVBoxLayout(dlg);
+        auto* browser = new QTextBrowser(dlg);
+        browser->setOpenExternalLinks(true);
+        browser->setHtml(
+            "<h3>\xe2\x9a\xa1 TinyMCP — Microcontrollori</h3>"
+            "<h4>Arduino CLI (Arduino Uno / Nano / Mega)</h4>"
+            "<pre>sudo apt install arduino-cli\n"
+            "arduino-cli core install arduino:avr</pre>"
+            "<h4>ESP32 / ESP8266</h4>"
+            "<pre>pip install esptool\n"
+            "arduino-cli core install esp32:esp32</pre>"
+            "<h4>MicroPython (ESP)</h4>"
+            "<p>Scarica il firmware da "
+            "<a href='https://micropython.org/download/'>micropython.org</a>, poi:</p>"
+            "<pre>esptool.py erase_flash\n"
+            "esptool.py write_flash 0x1000 firmware.bin</pre>"
+            "<h4>Raspberry Pi Pico</h4>"
+            "<p>Tieni premuto BOOTSEL \xe2\x86\x92 collega USB \xe2\x86\x92 trascina il file "
+            "<code>.uf2</code> nel drive che appare.</p>"
+            "<h4>Connessione</h4>"
+            "<p>Collega il microcontrollore via USB \xe2\x86\x92 clicca "
+            "<b>\xf0\x9f\x94\x8d Rileva</b> \xe2\x86\x92 genera il codice \xe2\x86\x92 "
+            "<b>\xe2\x9a\xa1 Flash MCU</b> per salvare e ottenere il comando di upload.</p>");
+        auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+        btnClose->setObjectName("actionBtn");
+        connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
+        dlay->addWidget(browser);
+        dlay->addWidget(btnClose);
+        dlg->exec();
     });
 
     /* Rileva porte al costruttore */
