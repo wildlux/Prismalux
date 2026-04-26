@@ -52,10 +52,25 @@ namespace P = PrismaluxPaths;  /* alias file-scope per P::SK::kXxx */
 #include <QPen>
 
 /* ══════════════════════════════════════════════════════════════
-   ImpostazioniPage — 6 tab tematiche (da 11 originali).
-   Nomi comprensibili anche per utenti non esperti.
-   Nessun QTabWidget annidato (evita rendering blank in Qt6).
+   ImpostazioniPage — 4 tab raggruppate + Grafico (dinamico).
+   ┌─────────────────────────────────────────────────────┐
+   │  🦙 AI Locale │ 🤖 LLM │ 🎨 Aspetto │ 🔧 Sistema  │
+   └─────────────────────────────────────────────────────┘
+   Ogni tab principale contiene un QTabWidget interno con
+   objectName("settingsInnerTabs") così gli stylesheet
+   possono distinguerli dal tab bar esterno.
    ══════════════════════════════════════════════════════════════ */
+
+/* Helper locale: crea QTabWidget interno con stile uniforme */
+static QTabWidget* _makeInner(QWidget* parent)
+{
+    auto* t = new QTabWidget(parent);
+    t->setObjectName("settingsInnerTabs");
+    t->setDocumentMode(true);
+    t->setUsesScrollButtons(true);
+    return t;
+}
+
 ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* parent)
     : QWidget(parent), m_ai(ai)
 {
@@ -73,127 +88,125 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
     m_personalizza = new PersonalizzaPage(this);
     m_personalizza->hide();
 
-    /* ────────────────────────────────────────────────────────────
-       Tab 1: 🔌 Connessione — Backend (compatto, nessun scroll)
-       ──────────────────────────────────────────────────────────── */
-    tabs->addTab(m_manutenzione->buildBackend(), "\xf0\x9f\x94\x8c  Connessione");
-
-    /* ────────────────────────────────────────────────────────────
-       Tab 2: 🖥 Hardware — Rilevamento hw
-       ──────────────────────────────────────────────────────────── */
-    tabs->addTab(m_manutenzione->buildHardware(), "\xf0\x9f\x96\xa5  Hardware");
-
-    /* ────────────────────────────────────────────────────────────
-       Tab 3: 🦙 AI Locale — selezione gestore + modelli disponibili
-       ──────────────────────────────────────────────────────────── */
-    tabs->addTab(buildAiLocaleTab(), "\xf0\x9f\xa6\x99  AI Locale");
-
-    /* ────────────────────────────────────────────────────────────
-       Tab 4: 🤖 LLM — catalogo compatto Ollama + GGUF (filtro+lista)
-       ──────────────────────────────────────────────────────────── */
-    tabs->addTab(buildLlmConsigliatiTab(), "\xf0\x9f\xa4\x96  LLM");
-
-    /* ────────────────────────────────────────────────────────────
-       Tab 5: 📊 Classifica — ranking oggettivo modelli open-weight
-       Basato su: ArtificialAnalysis.ai + benchmark locali Prismalux
-       ──────────────────────────────────────────────────────────── */
-    tabs->addTab(buildLlmClassificaTab(), "\xf0\x9f\x93\x8a  Classifica");
-
-    /* ────────────────────────────────────────────────────────────
-       Tab 4: 🎤 Voce & Audio — TTS (sinistra) + STT (destra)
-       Layout 2 colonne — nessun scroll, tutto visibile.
-       ──────────────────────────────────────────────────────────── */
+    /* ════════════════════════════════════════════════════════════
+       Gruppo 1: 🦙 AI Locale
+       Connessione · Hardware · AI Locale · Parametri AI · RAG
+       · Voce & Audio · Avanzate
+       ════════════════════════════════════════════════════════════ */
     {
-        auto* outer = new QWidget;
-        auto* oLay  = new QHBoxLayout(outer);
-        oLay->setContentsMargins(14, 12, 14, 12);
-        oLay->setSpacing(14);
-        oLay->addWidget(buildVoceTab());
-        oLay->addWidget(buildTrascriviTab());
-        tabs->addTab(outer, "\xf0\x9f\x8e\xa4  Voce & Audio");
+        m_tabAiLocale = _makeInner(this);
+        auto* t = m_tabAiLocale;
+
+        t->addTab(m_manutenzione->buildBackend(),
+                  "\xf0\x9f\x94\x8c  Connessione");
+
+        t->addTab(m_manutenzione->buildHardware(),
+                  "\xf0\x9f\x96\xa5  Hardware");
+
+        t->addTab(buildAiLocaleTab(),
+                  "\xf0\x9f\xa6\x99  AI Locale");
+
+        {
+            auto* sc = new QScrollArea;
+            sc->setWidgetResizable(true);
+            sc->setFrameShape(QFrame::NoFrame);
+            sc->setWidget(buildAiParamsTab());
+            t->addTab(sc, "\xe2\x9a\x99\xef\xb8\x8f  Parametri AI");
+        }
+
+        {
+            auto* sc = new QScrollArea;
+            sc->setWidgetResizable(true);
+            sc->setFrameShape(QFrame::NoFrame);
+            sc->setWidget(buildRagTab());
+            t->addTab(sc, "\xf0\x9f\x93\x9a  RAG");
+        }
+
+        {
+            auto* w = new QWidget;
+            auto* l = new QHBoxLayout(w);
+            l->setContentsMargins(14, 12, 14, 12);
+            l->setSpacing(14);
+            l->addWidget(buildVoceTab());
+            l->addWidget(buildTrascriviTab());
+            t->addTab(w, "\xf0\x9f\x8e\xa4  Voce & Audio");
+        }
+
+        {
+            auto* w = new QWidget;
+            auto* l = new QVBoxLayout(w);
+            l->setContentsMargins(0, 0, 0, 0);
+            l->setSpacing(0);
+            auto* mon = new MonitorPanel(ai, hw, w);
+            mon->setWindowFlags(Qt::Widget);
+            mon->setMinimumSize(0, 0);
+            l->addWidget(mon, 1);
+            t->addTab(w, "\xf0\x9f\x93\x8a  Avanzate");
+        }
+
+        tabs->addTab(t, "\xf0\x9f\xa6\x99  AI Locale");
     }
 
-    /* ────────────────────────────────────────────────────────────
-       Tab 5: 🎨 Aspetto — Selezione tema visivo
-       ──────────────────────────────────────────────────────────── */
+    /* ════════════════════════════════════════════════════════════
+       Gruppo 2: 🤖 LLM
+       LLM Consigliati · Classifica · Test
+       ════════════════════════════════════════════════════════════ */
+    {
+        m_tabLlm = _makeInner(this);
+        auto* t  = m_tabLlm;
+
+        t->addTab(buildLlmConsigliatiTab(),
+                  "\xf0\x9f\xa4\x96  LLM");
+
+        t->addTab(buildLlmClassificaTab(),
+                  "\xf0\x9f\x93\x8a  Classifica");
+
+        {
+            auto* sc  = new QScrollArea;
+            sc->setWidgetResizable(true);
+            sc->setFrameShape(QFrame::NoFrame);
+            auto* w   = new QWidget;
+            auto* l   = new QVBoxLayout(w);
+            l->setContentsMargins(0, 0, 0, 0);
+            l->setSpacing(0);
+            l->addWidget(buildTestTab());
+            l->addStretch();
+            sc->setWidget(w);
+            t->addTab(sc, "\xf0\x9f\xa7\xaa  Test");
+        }
+
+        tabs->addTab(t, "\xf0\x9f\xa4\x96  LLM");
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       Tab 3: 🎨 Aspetto — tema visivo (standalone, nessun sub-tab)
+       ════════════════════════════════════════════════════════════ */
     tabs->addTab(buildTemaTab(), "\xf0\x9f\x8e\xa8  Aspetto");
 
-    /* ────────────────────────────────────────────────────────────
-       Tab 6: 📊 Avanzate — Monitor AI (solo MonitorPanel)
-       ──────────────────────────────────────────────────────────── */
+    /* ════════════════════════════════════════════════════════════
+       Gruppo 4: 🔧 Sistema
+       Pulizia · Bug Tracker · Cron
+       ════════════════════════════════════════════════════════════ */
     {
-        auto* outer = new QWidget;
-        auto* oLay  = new QVBoxLayout(outer);
-        oLay->setContentsMargins(0, 0, 0, 0);
-        oLay->setSpacing(0);
+        m_tabSistema = _makeInner(this);
+        auto* t      = m_tabSistema;
 
-        auto* monPanel = new MonitorPanel(ai, hw, outer);
-        monPanel->setWindowFlags(Qt::Widget);
-        monPanel->setMinimumSize(0, 0);
-        oLay->addWidget(monPanel, 1);
+        {
+            auto* sc = new QScrollArea;
+            sc->setWidgetResizable(true);
+            sc->setFrameShape(QFrame::NoFrame);
+            sc->setWidget(buildPuliziaTab());
+            t->addTab(sc, "\xf0\x9f\xa7\xb9  Pulizia");
+        }
 
-        tabs->addTab(outer, "\xf0\x9f\x93\x8a  Avanzate");
+        t->addTab(m_manutenzione->buildBugTracker(),
+                  "\xf0\x9f\x94\x8d  Bug Tracker");
+
+        t->addTab(m_manutenzione->buildCronTab(),
+                  "\xe2\x8f\xb0  Cron");
+
+        tabs->addTab(t, "\xf0\x9f\x94\xa7  Sistema");
     }
-
-    /* ────────────────────────────────────────────────────────────
-       Tab 7: 📚 RAG — Recupero Documenti Aumentato (tab dedicato)
-       ──────────────────────────────────────────────────────────── */
-    {
-        auto* scroll = new QScrollArea;
-        scroll->setWidgetResizable(true);
-        scroll->setFrameShape(QFrame::NoFrame);
-        scroll->setWidget(buildRagTab());
-        tabs->addTab(scroll, "\xf0\x9f\x93\x9a  RAG");
-    }
-
-    /* ────────────────────────────────────────────────────────────
-       Tab 8: 🧪 Test — Registro suite di test (tab dedicato)
-       ──────────────────────────────────────────────────────────── */
-    {
-        auto* scroll = new QScrollArea;
-        scroll->setWidgetResizable(true);
-        scroll->setFrameShape(QFrame::NoFrame);
-        auto* inner  = new QWidget;
-        auto* iLay   = new QVBoxLayout(inner);
-        iLay->setContentsMargins(0, 0, 0, 0);
-        iLay->setSpacing(0);
-        iLay->addWidget(buildTestTab());
-        iLay->addStretch();
-        scroll->setWidget(inner);
-        tabs->addTab(scroll, "\xf0\x9f\xa7\xaa  Test");
-    }
-
-    /* ────────────────────────────────────────────────────────────
-       Tab 9: ⚙️ Parametri AI — temperature, repeat_penalty, ecc.
-       ──────────────────────────────────────────────────────────── */
-    {
-        auto* scroll = new QScrollArea;
-        scroll->setWidgetResizable(true);
-        scroll->setFrameShape(QFrame::NoFrame);
-        scroll->setWidget(buildAiParamsTab());
-        tabs->addTab(scroll, "\xe2\x9a\x99\xef\xb8\x8f  Parametri AI");
-    }
-
-    /* ────────────────────────────────────────────────────────────
-       Tab 10: 🧹 Pulizia — rimozione file temporanei, build, cache
-       ──────────────────────────────────────────────────────────── */
-    {
-        auto* scroll = new QScrollArea;
-        scroll->setWidgetResizable(true);
-        scroll->setFrameShape(QFrame::NoFrame);
-        scroll->setWidget(buildPuliziaTab());
-        tabs->addTab(scroll, "\xf0\x9f\xa7\xb9  Pulizia");
-    }
-
-    /* ────────────────────────────────────────────────────────────
-       Bug Tracker — ricerca + analisi AI bug per modello
-       ──────────────────────────────────────────────────────────── */
-    tabs->addTab(m_manutenzione->buildBugTracker(), "\xf0\x9f\x94\x8d  Bug Tracker");
-
-    /* ────────────────────────────────────────────────────────────
-       Cron — job pianificati AI (giornalieri, a intervallo, ecc.)
-       ──────────────────────────────────────────────────────────── */
-    tabs->addTab(m_manutenzione->buildCronTab(), "\xe2\x8f\xb0  Cron");
 
     lay->addWidget(tabs);
 }
@@ -204,12 +217,20 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
 void ImpostazioniPage::switchToTab(const QString& name)
 {
     if (!m_tabs) return;
-    /* "LLM" ha ora il suo tab dedicato — ricerca diretta */
-    const QString resolved = name;
     for (int i = 0; i < m_tabs->count(); i++) {
-        if (m_tabs->tabText(i).contains(resolved, Qt::CaseInsensitive)) {
+        if (m_tabs->tabText(i).contains(name, Qt::CaseInsensitive)) {
             m_tabs->setCurrentIndex(i);
             return;
+        }
+        // Cerca nei QTabWidget annidati (settingsInnerTabs)
+        if (auto* inner = qobject_cast<QTabWidget*>(m_tabs->widget(i))) {
+            for (int j = 0; j < inner->count(); j++) {
+                if (inner->tabText(j).contains(name, Qt::CaseInsensitive)) {
+                    m_tabs->setCurrentIndex(i);
+                    inner->setCurrentIndex(j);
+                    return;
+                }
+            }
         }
     }
 }

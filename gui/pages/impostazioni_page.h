@@ -67,6 +67,9 @@ private:
     PersonalizzaPage*  m_personalizza  = nullptr;
     ManutenzioneePage* m_manutenzione  = nullptr;
     QTabWidget*        m_tabs          = nullptr;
+    QTabWidget*        m_tabAiLocale   = nullptr;  ///< inner tab: Connessione/HW/RAG/Voce/…
+    QTabWidget*        m_tabLlm        = nullptr;  ///< inner tab: LLM/Classifica/Test
+    QTabWidget*        m_tabSistema    = nullptr;  ///< inner tab: Pulizia/BugTracker/Cron
     AiClient*          m_ai            = nullptr;
 
     /* RAG indexing state (usato da buildRagTab) */
