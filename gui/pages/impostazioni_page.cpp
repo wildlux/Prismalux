@@ -5456,9 +5456,9 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
 }
 
 /* ══════════════════════════════════════════════════════════════
-   buildRingraziamentiTab — licenza MIT + crediti autore e librerie.
-   Costruito con widget Qt nativi (nessun colore hardcodato) così
-   eredita automaticamente la palette del tema attivo.
+   buildRingraziamentiTab — licenza MIT + crediti autore, librerie e MCPs.
+   Widget Qt nativi (nessun colore hardcodato): palette tema automatica.
+   Link cliccabili via setCellWidget + QLabel HTML (QPalette::Link).
    ══════════════════════════════════════════════════════════════ */
 QWidget* ImpostazioniPage::buildRingraziamentiTab()
 {
@@ -5471,7 +5471,7 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
     lay->setContentsMargins(36, 28, 36, 36);
     lay->setSpacing(0);
 
-    /* ── helper: separatore orizzontale ── */
+    /* ── separatore orizzontale ── */
     auto makeSep = [&]() {
         auto* f = new QFrame;
         f->setFrameShape(QFrame::HLine);
@@ -5481,7 +5481,7 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
         lay->addSpacing(14);
     };
 
-    /* ── helper: intestazione sezione ── */
+    /* ── intestazione sezione ── */
     auto makeH2 = [](const QString& txt) {
         auto* l = new QLabel(txt);
         QFont f = l->font();
@@ -5491,7 +5491,7 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
         return l;
     };
 
-    /* ── helper: tabella (palette del tema, nessun colore fisso) ── */
+    /* ── tabella nativa (palette tema) ── */
     auto makeTable = [](const QStringList& hdrs, int rows) {
         auto* t = new QTableWidget(rows, hdrs.size());
         t->setHorizontalHeaderLabels(hdrs);
@@ -5506,19 +5506,31 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
         return t;
     };
 
+    /* ── cella testo ── */
     auto setCell = [](QTableWidget* t, int r, int c,
                       const QString& txt, bool bold = false) {
         auto* item = new QTableWidgetItem(txt);
-        if (bold) {
-            QFont f = item->font(); f.setBold(true); item->setFont(f);
-        }
+        if (bold) { QFont f = item->font(); f.setBold(true); item->setFont(f); }
         item->setFlags(Qt::ItemIsEnabled);
         t->setItem(r, c, item);
     };
 
+    /* ── cella link cliccabile (QPalette::Link → segue il tema) ── */
+    auto setLink = [](QTableWidget* t, int r, int c,
+                      const QString& label, const QString& url) {
+        auto* lbl = new QLabel(
+            QString("<a href=\"%1\">%2</a>").arg(url, label));
+        lbl->setOpenExternalLinks(true);
+        lbl->setTextFormat(Qt::RichText);
+        lbl->setAlignment(Qt::AlignCenter);
+        lbl->setContentsMargins(6, 0, 6, 0);
+        t->setCellWidget(r, c, lbl);
+    };
+
+    /* ── adatta altezza alle righe ── */
     auto fitRows = [](QTableWidget* t) {
         t->resizeRowsToContents();
-        int h = t->horizontalHeader()->height() + 4;
+        int h = t->horizontalHeader()->height() + 6;
         for (int i = 0; i < t->rowCount(); ++i) h += t->rowHeight(i);
         t->setFixedHeight(h);
     };
@@ -5534,16 +5546,24 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
         title->setFont(ft);
         title->setAlignment(Qt::AlignCenter);
         lay->addWidget(title);
-
         lay->addSpacing(6);
 
         auto* sub = new QLabel(
-            "Piattaforma AI locale \xe2\x80\x94 multi-agente \xc2\xb7 RAG \xc2\xb7 matematica \xc2\xb7 grafici");
+            "Piattaforma AI locale \xe2\x80\x94 "
+            "multi-agente \xc2\xb7 RAG \xc2\xb7 matematica \xc2\xb7 grafici");
         sub->setAlignment(Qt::AlignCenter);
-        QFont fs = sub->font();
-        fs.setItalic(true);
-        sub->setFont(fs);
+        QFont fs = sub->font(); fs.setItalic(true); sub->setFont(fs);
         lay->addWidget(sub);
+        lay->addSpacing(4);
+
+        /* link al repository Prismalux */
+        auto* repoLbl = new QLabel(
+            "<a href=\"https://github.com/wildlux/Prismalux\">"
+            "github.com/wildlux/Prismalux</a>");
+        repoLbl->setOpenExternalLinks(true);
+        repoLbl->setTextFormat(Qt::RichText);
+        repoLbl->setAlignment(Qt::AlignCenter);
+        lay->addWidget(repoLbl);
     }
 
     makeSep();
@@ -5554,16 +5574,18 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
     lay->addWidget(makeH2("\xf0\x9f\x91\xa4  Autore"));
     lay->addSpacing(8);
     {
-        auto* t = makeTable({"Nome", "Contributo"}, 1);
-        t->setColumnWidth(0, 160);
+        auto* t = makeTable({"Nome", "Contributo", "GitHub"}, 1);
+        t->setColumnWidth(0, 150);
+        t->setColumnWidth(2, 160);
         setCell(t, 0, 0, "Paolo Lo Bello", true);
         setCell(t, 0, 1,
             "Ideazione, progettazione e sviluppo integrale di Prismalux. "
             "GUI C++/Qt6 \xc2\xb7 Pipeline multi-agente \xc2\xb7 Motore Byzantino "
             "\xc2\xb7 RAG locale \xc2\xb7 Simulatore 110 algoritmi \xc2\xb7 Matematica locale "
             "\xc2\xb7 Integrazione MCPs.");
+        setLink(t, 0, 2, "github.com/wildlux", "https://github.com/wildlux");
         t->resizeRowsToContents();
-        t->setFixedHeight(t->horizontalHeader()->height() + t->rowHeight(0) + 4);
+        t->setFixedHeight(t->horizontalHeader()->height() + t->rowHeight(0) + 6);
         lay->addWidget(t);
     }
 
@@ -5575,28 +5597,80 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
     lay->addWidget(makeH2("\xf0\x9f\x93\x9a  Librerie e backend utilizzati"));
     lay->addSpacing(8);
     {
-        struct Row { const char* nome; const char* scopo; const char* lic; };
+        struct Row {
+            const char* nome;
+            const char* scopo;
+            const char* lic;
+            const char* linkLabel;
+            const char* url;
+        };
         static const Row kLibs[] = {
-            { "Qt6",             "Framework GUI cross-platform (Widgets, Network, Svg)",                       "LGPL v3"       },
-            { "Ollama",          "Server locale per inferenza LLM via API REST",                               "MIT"           },
-            { "llama.cpp",       "Inferenza LLM ottimizzata CPU/GPU (GGUF) \xe2\x80\x94 Georgi Gerganov",    "MIT"           },
-            { "Piper TTS",       "Sintesi vocale locale offline ad alta qualit\xc3\xa0",                      "MIT"           },
-            { "Whisper.cpp",     "Trascrizione audio STT locale (Georgi Gerganov)",                            "MIT"           },
-            { "nomic-embed-text","Modello embedding per RAG (ricerca semantica documenti)",                     "Apache 2.0"    },
-            { "OpenBLAS / BLAS", "Algebra lineare ottimizzata per llama.cpp su CPU",                           "BSD 3-Clause"  },
-            { "md4c",            "Parser Markdown C (integrato in Qt6::Gui)",                                  "MIT"           },
-            { "Poppler",         "Estrazione testo da PDF per indicizzazione RAG",                             "GPL v2/LGPL"   },
-            { "OpenCode",        "Agente coding AI con server HTTP+SSE integrato",                             "MIT"           },
-            { "Python 3",        "Esecuzione codice generato dall'AI in sandbox controllata",                  "PSF License"   },
+            { "Qt6",
+              "Framework GUI cross-platform (Widgets, Network, Svg)",
+              "LGPL v3",
+              "github.com/qt/qtbase",
+              "https://github.com/qt/qtbase" },
+            { "Ollama",
+              "Server locale per inferenza LLM via API REST",
+              "MIT",
+              "github.com/ollama/ollama",
+              "https://github.com/ollama/ollama" },
+            { "llama.cpp",
+              "Inferenza LLM ottimizzata CPU/GPU (GGUF) \xe2\x80\x94 Georgi Gerganov",
+              "MIT",
+              "github.com/ggerganov/llama.cpp",
+              "https://github.com/ggerganov/llama.cpp" },
+            { "Piper TTS",
+              "Sintesi vocale locale offline ad alta qualit\xc3\xa0",
+              "MIT",
+              "github.com/rhasspy/piper",
+              "https://github.com/rhasspy/piper" },
+            { "Whisper.cpp",
+              "Trascrizione audio STT locale (Georgi Gerganov)",
+              "MIT",
+              "github.com/ggerganov/whisper.cpp",
+              "https://github.com/ggerganov/whisper.cpp" },
+            { "nomic-embed-text",
+              "Modello embedding per RAG (ricerca semantica documenti)",
+              "Apache 2.0",
+              "github.com/nomic-ai/contrastors",
+              "https://github.com/nomic-ai/contrastors" },
+            { "OpenBLAS",
+              "Algebra lineare ottimizzata per llama.cpp su CPU",
+              "BSD 3-Clause",
+              "github.com/OpenMathLib/OpenBLAS",
+              "https://github.com/OpenMathLib/OpenBLAS" },
+            { "md4c",
+              "Parser Markdown C (integrato in Qt6::Gui)",
+              "MIT",
+              "github.com/mity/md4c",
+              "https://github.com/mity/md4c" },
+            { "Poppler",
+              "Estrazione testo da PDF per indicizzazione RAG",
+              "GPL v2/LGPL",
+              "gitlab.freedesktop.org/poppler",
+              "https://gitlab.freedesktop.org/poppler/poppler" },
+            { "OpenCode",
+              "Agente coding AI con server HTTP+SSE integrato",
+              "MIT",
+              "github.com/sst/opencode",
+              "https://github.com/sst/opencode" },
+            { "Python 3",
+              "Esecuzione codice generato dall'AI in sandbox controllata",
+              "PSF License",
+              "github.com/python/cpython",
+              "https://github.com/python/cpython" },
         };
         const int N = static_cast<int>(sizeof(kLibs) / sizeof(kLibs[0]));
-        auto* t = makeTable({"Progetto", "Scopo", "Licenza"}, N);
-        t->setColumnWidth(0, 150);
-        t->setColumnWidth(1, 420);
+        auto* t = makeTable({"Progetto", "Scopo", "Licenza", "Repository"}, N);
+        t->setColumnWidth(0, 140);
+        t->setColumnWidth(2, 100);
+        t->setColumnWidth(3, 220);
         for (int i = 0; i < N; ++i) {
             setCell(t, i, 0, kLibs[i].nome, true);
             setCell(t, i, 1, kLibs[i].scopo);
             setCell(t, i, 2, kLibs[i].lic);
+            setLink(t, i, 3, kLibs[i].linkLabel, kLibs[i].url);
         }
         fitRows(t);
         lay->addWidget(t);
@@ -5618,34 +5692,53 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
         lay->addWidget(desc);
         lay->addSpacing(8);
 
-        struct MCPRow { const char* nome; const char* scopo; };
+        struct MCPRow {
+            const char* nome;
+            const char* scopo;
+            const char* linkLabel;
+            const char* url;
+        };
         static const MCPRow kMCPs[] = {
             { "\xf0\x9f\x8e\xa8  Blender MCP",
               "Controllo 3D via Python bpy: crea, sposta, ruota e scala oggetti; "
               "gestisce materiali, luci e avvia render direttamente da Prismalux. "
-              "Ideale per generare scene 3D partendo da un'idea testuale." },
+              "Ideale per generare scene 3D partendo da un'idea testuale.",
+              "blender.org",
+              "https://www.blender.org" },
             { "\xf0\x9f\x96\xa5  Office MCP",
               "Automazione LibreOffice Writer, Calc e Impress via UNO, python-docx e openpyxl: "
-              "genera documenti, fogli di calcolo e presentazioni con contenuto prodotto dall'AI." },
+              "genera documenti, fogli di calcolo e presentazioni con contenuto prodotto dall'AI.",
+              "libreoffice.org",
+              "https://www.libreoffice.org" },
             { "\xf0\x9f\x83\x8f  Anki MCP",
               "Generazione automatica di mazzi flashcard Anki a partire da testi, appunti o "
-              "spiegazioni dell'AI. Accelera lo studio e la memorizzazione." },
+              "spiegazioni dell'AI. Accelera lo studio e la memorizzazione.",
+              "github.com/ankitects/anki",
+              "https://github.com/ankitects/anki" },
             { "\xf0\x9f\x96\xa5  KiCAD MCP",
               "Progettazione di circuiti elettronici e PCB assistita dall'AI: "
-              "genera netlist, piazzamenti componenti e script KiCAD da specifiche in linguaggio naturale." },
+              "genera netlist, piazzamenti componenti e script KiCAD da specifiche in linguaggio naturale.",
+              "gitlab.com/kicad/code/kicad",
+              "https://gitlab.com/kicad/code/kicad" },
             { "\xf0\x9f\xa4\x96  TinyMCP",
               "Programmazione di microcontrollori Arduino, ESP32 e STM32: "
-              "l'AI genera, compila e carica il firmware direttamente sulla scheda target." },
+              "l'AI genera, compila e carica il firmware direttamente sulla scheda target.",
+              "arduino.cc",
+              "https://www.arduino.cc" },
             { "\xf0\x9f\x96\xa5  OpenCode MCP",
               "Agente coding AI con server HTTP+SSE integrato (porta 8092): "
-              "sessioni di sviluppo software assistite in streaming, con context del progetto corrente." },
+              "sessioni di sviluppo software assistite in streaming, con context del progetto corrente.",
+              "github.com/sst/opencode",
+              "https://github.com/sst/opencode" },
         };
         const int M = static_cast<int>(sizeof(kMCPs) / sizeof(kMCPs[0]));
-        auto* t = makeTable({"Plugin", "Descrizione e utilizzo"}, M);
-        t->setColumnWidth(0, 170);
+        auto* t = makeTable({"Plugin", "Descrizione e utilizzo", "Progetto principale"}, M);
+        t->setColumnWidth(0, 160);
+        t->setColumnWidth(2, 200);
         for (int i = 0; i < M; ++i) {
             setCell(t, i, 0, kMCPs[i].nome, true);
             setCell(t, i, 1, kMCPs[i].scopo);
+            setLink(t, i, 2, kMCPs[i].linkLabel, kMCPs[i].url);
         }
         fitRows(t);
         lay->addWidget(t);
