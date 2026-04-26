@@ -7,7 +7,7 @@
 [![C++/Qt6](https://img.shields.io/badge/GUI-C%2B%2B%20%2F%20Qt6-green?style=flat-square&logo=qt)](https://www.qt.io/)
 [![Version](https://img.shields.io/badge/versione-2.8-blue?style=flat-square)](CHANGELOG)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-informational?style=flat-square)](https://github.com/wildlux/Prismalux)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20Android%20(WIP)-informational?style=flat-square)](https://github.com/wildlux/Prismalux)
 
 **Piattaforma AI locale. GUI in C++/Qt6.**  <br>
 Multi-agente · anti-allucinazione · RAG in-page · matematica locale · 110 simulazioni algoritmi.  <br>
@@ -163,6 +163,7 @@ ollama pull deepseek-r1:32b     # ~20 GB — ragionamento avanzato
 ```
 Prismalux/
 ├── gui/          ← GUI C++/Qt6 (CMakeLists.txt, pages/, widgets/, themes/, tests/)
+├── ANDROID/      ← [WIP] PrismaluxMobile — client Qt6/Android per Ollama su LAN
 ├── llama.cpp/    ← clone llama.cpp
 ├── models/       ← modelli GGUF
 ├── MCPs/         ← plugin MCP (blender_addon, office_bridge)
@@ -172,6 +173,24 @@ Prismalux/
 ├── hybrid_llm/   ← ricerca BLHM (Bayesian Hybrid LLM Model)
 └── README.md · LICENSE · aggiorna.sh
 ```
+
+---
+
+## Android — PrismaluxMobile *(in sviluppo)*
+
+Client Qt6/C++ per Android. Si connette a Ollama sul PC di casa via WiFi LAN.
+
+| Schermata | Funzione |
+|-----------|----------|
+| 🤖 Chat | Streaming token · RAG keyword locale · history 6 turni |
+| 📷 Camera | Preview live · analisi vision model · OCR → Chat |
+| 🔋 Bluetooth | Scan BLE 8s · badge segnale · copia MAC |
+| ⚙ Impostazioni | Host/porta Ollama · lista modelli · temperatura · RAG |
+
+**Requisiti sviluppo:** Qt6 ≥ 6.5 for Android · NDK r25c+ · SDK API 26-34 · CMake ≥ 3.21  
+**Codice sorgente:** `ANDROID/android_app/` — vedi [`README_ANDROID.md`](ANDROID/android_app/README_ANDROID.md)
+
+> Implementazione completa pianificata quando il desktop sarà 100% stabile.
 
 ---
 

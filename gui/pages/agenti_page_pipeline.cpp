@@ -3,7 +3,6 @@
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
 #include <QElapsedTimer>
-#include <QMessageBox>
 #include <QSettings>
 #include <QTextCursor>
 #include <QRegularExpression>
@@ -39,36 +38,8 @@ void AgentiPage::runPipeline() {
     QString task = _sanitize_prompt(m_input->toPlainText().trimmed());
     if (task.isEmpty()) { m_log->append("\xe2\x9a\xa0  Inserisci un task."); return; }
 
-    /* ── Guardia Intento Grafico (linguaggio naturale, prima della math guard) ──
-       Se il task NON contiene una formula parsabile ma contiene keyword come
-       "grafico", "plotta", ecc., chiedi dove mostrare il risultato PRIMA di
-       avviare gli agenti. Se l'utente sceglie "Sezione Grafico" naviga lì
-       direttamente senza consumare token. */
-    if (_isChartRequest(task) && FormulaParser::tryExtract(task).isEmpty()) {
-        QMessageBox dlg(this);
-        dlg.setWindowTitle("Dove mostrare il grafico?");
-        dlg.setText(
-            "\xf0\x9f\x93\x88  Sembra che tu voglia un grafico.\n\n"
-            "Vuoi che l'AI risponda <b>qui</b> con il grafico incorporato, "
-            "oppure vuoi andare nella sezione <b>Grafico</b> dove puoi "
-            "zoomare, esportare e personalizzarlo?");
-        dlg.setTextFormat(Qt::RichText);
-        dlg.setIcon(QMessageBox::Question);
-        auto* btnQui  = dlg.addButton("  \xf0\x9f\x96\xbc  Risposta qui  ",
-                                      QMessageBox::AcceptRole);
-        auto* btnGraf = dlg.addButton("  \xf0\x9f\x93\x88  Sezione Grafico  ",
-                                      QMessageBox::RejectRole);
-        dlg.setDefaultButton(btnQui);
-        Q_UNUSED(btnGraf)
-        dlg.exec();
-        if (dlg.clickedButton() == btnGraf) {
-            /* Naviga al tab Grafico senza avviare agenti */
-            emit requestShowInGrafico({}, 0.0, 0.0, {});
-            return;
-        }
-        /* Se "Risposta qui": continua normalmente — la pipeline risponde e
-           tryShowChart() intercetterà la formula nella risposta AI. */
-    }
+    /* Grafici AI: pipeline risponde normalmente, tryShowChart() mostra inline.
+       Il pulsante "Apri nel Grafico" nel panel consente di spostare poi. */
 
     {
         QElapsedTimer tmr; tmr.start();

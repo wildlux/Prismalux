@@ -160,7 +160,9 @@ private:
     /* ── TTS — processo tracciato per stop/pausa ── */
     QProcess*    m_ttsProc    = nullptr;  ///< aplay (Linux) o PowerShell (Win)
     QProcess*    m_piperProc  = nullptr;  ///< piper TTS (solo Linux, pipe verso m_ttsProc)
-    QPushButton* m_btnTtsStop = nullptr;
+    QPushButton* m_btnTtsStop  = nullptr;
+    QPushButton* m_btnTtsPause = nullptr;  ///< pausa/riprendi lettura
+    bool         m_ttsPaused   = false;    ///< true = lettura in pausa
 
     /* ── STT — pulsante + processi tracciati ── */
     QPushButton* m_btnVoice   = nullptr;  ///< pulsante Trascrivi voce (testo cambia in-place)
@@ -199,7 +201,12 @@ private:
     QString      m_pageModel;            ///< Modello preferito per questa scheda (privato)
 
     /* ── Pannello grafico (appare quando l'AI restituisce una formula) ── */
-    QWidget*     m_chartPanel = nullptr;
+    QWidget*     m_chartPanel    = nullptr;
+    QPushButton* m_btnChartOpen  = nullptr;  ///< "Apri nel Grafico" nel panel inline
+    QString      m_lastChartExpr;
+    double       m_lastChartXMin = -10.0;
+    double       m_lastChartXMax =  10.0;
+    QVector<QPointF> m_lastChartPts;
 
     /**
      * checkRam() — Controlla la RAM disponibile prima di avviare una pipeline.

@@ -12,8 +12,6 @@
 #include "pages/matematica_page.h"
 #include "pages/app_controller_page.h"
 #include "pages/lavoro_page.h"
-#include "pages/opencode_page.h"
-
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -1507,9 +1505,6 @@ QWidget* MainWindow::buildContent() {
         m_mainTabs->addTab(imparaContainer, "\xf0\x9f\x93\x9a  Impara");                  /* 5 */
     }
 
-    /* ── OpenCode — agente di codice locale ── */
-    m_mainTabs->addTab(new OpenCodePage(this),
-                       "\xf0\x9f\x96\xa5  OpenCode");                                    /* 6 */
 
     /* ── Salva etichette originali e applica modalità da QSettings ── */
     for (int i = 0; i < m_mainTabs->count(); i++)
@@ -1567,6 +1562,31 @@ QWidget* MainWindow::buildContent() {
 
         /* Sincronizza pulsante attivo quando cambia tab */
         connect(m_mainTabs, &QTabWidget::currentChanged, this, [this](int idx){
+            /* Salva lavoro non salvato in Programmazione */
+            static int prevIdx = 0;
+            if (prevIdx != idx) {
+                auto* progPage = qobject_cast<ProgrammazionePage*>(m_mainTabs->widget(prevIdx));
+                if (progPage && progPage->hasUnsavedWork()) {
+                    QMessageBox dlg(this);
+                    dlg.setWindowTitle("\xf0\x9f\x92\xbe  Lavoro non salvato");
+                    dlg.setText("<b>Hai modifiche non salvate nella scheda Programmazione.</b><br>"
+                                "Vuoi salvarle prima di continuare?");
+                    dlg.setIcon(QMessageBox::Question);
+                    auto* btnSave   = dlg.addButton("Salva", QMessageBox::AcceptRole);
+                    dlg.addButton("Continua senza salvare", QMessageBox::DestructiveRole);
+                    dlg.addButton("Torna indietro", QMessageBox::RejectRole);
+                    dlg.setDefaultButton(btnSave);
+                    dlg.exec();
+                    if (dlg.clickedButton() == btnSave) {
+                        progPage->saveCurrentFile();
+                    } else if (dlg.clickedButton() == nullptr ||
+                               dlg.clickedButton()->text().contains("Torna")) {
+                        m_mainTabs->setCurrentIndex(prevIdx);
+                        return;
+                    }
+                }
+                prevIdx = idx;
+            }
             if (idx >= 0 && idx < m_navBtns.size())
                 m_navBtns[idx]->setChecked(true);
         });

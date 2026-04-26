@@ -51,6 +51,9 @@ public:
     static bool isIntentionalError(const QString& errorOut, const QString& source);
     static QVector<double> parseNumbers(const QString& text);
 
+    bool hasUnsavedWork() const;
+    void saveCurrentFile();
+
 private:
     AiClient*       m_ai        = nullptr;
 
@@ -195,6 +198,8 @@ private:
     /* Pannello diff (mostrato dopo ogni correzione AI) */
     QGroupBox*      m_diffGroup = nullptr;
     QTextEdit*      m_diffView  = nullptr;
+
+    QString         m_currentFilePath;    ///< path file aperto (vuoto = non salvato)
 
     /* Stato esecuzione e lint */
     int             m_lastExitCode = 0;

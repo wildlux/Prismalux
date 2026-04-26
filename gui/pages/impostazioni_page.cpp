@@ -5730,6 +5730,30 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
               "sessioni di sviluppo software assistite in streaming, con context del progetto corrente.",
               "github.com/sst/opencode",
               "https://github.com/sst/opencode" },
+            { "\xf0\x9f\x93\xb9  OBS MCP",
+              "Controllo di OBS Studio via MCP: avvia/ferma registrazione e streaming, "
+              "gestisce scene, sorgenti e transizioni direttamente da Prismalux. "
+              "Ideale per automatizzare sessioni di cattura video con comandi AI.",
+              "github.com/royshil/obs-mcp",
+              "https://github.com/royshil/obs-mcp" },
+            { "\xf0\x9f\x92\xac  WhatsApp MCP",
+              "Integrazione WhatsApp: invia e ricevi messaggi, gestisce chat e contatti "
+              "tramite bridge MCP. Permette all'AI di comporre e inviare messaggi WhatsApp "
+              "su autorizzazione esplicita dell'utente.",
+              "github.com/lharries/whatsapp-mcp",
+              "https://github.com/lharries/whatsapp-mcp" },
+            { "\xe2\x9c\x88\xef\xb8\x8f  Telegram MCP",
+              "Bot Telegram controllato via MCP: invia messaggi, gestisce canali e gruppi, "
+              "risponde a comandi. L'AI pu\xc3\xb2 usarlo per notifiche automatiche o "
+              "interazione con utenti Telegram su autorizzazione.",
+              "github.com/chigwell/telegram-mcp",
+              "https://github.com/chigwell/telegram-mcp" },
+            { "\xf0\x9f\x93\x9d  WordPress MCP",
+              "Gestione WordPress via MCP: crea e modifica post, pagine e media; "
+              "aggiorna contenuti del sito web direttamente dall'AI senza aprire il browser. "
+              "Ideale per content creation automatizzata e aggiornamenti rapidi.",
+              "github.com/Automattic/wordpress-mcp",
+              "https://github.com/Automattic/wordpress-mcp" },
         };
         const int M = static_cast<int>(sizeof(kMCPs) / sizeof(kMCPs[0]));
         auto* t = makeTable({"Plugin", "Descrizione e utilizzo", "Progetto principale"}, M);

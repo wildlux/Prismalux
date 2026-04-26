@@ -2674,3 +2674,21 @@ void ProgrammazionePage::lanRefreshInfo()
         ? "<i>\xf0\x9f\x9f\xa1 Nessuna interfaccia IPv4 attiva</i>"
         : parts.join("<br>"));
 }
+
+bool ProgrammazionePage::hasUnsavedWork() const {
+    return m_editor && m_editor->document() && m_editor->document()->isModified();
+}
+
+void ProgrammazionePage::saveCurrentFile() {
+    if (!m_editor) return;
+    const QString path = m_currentFilePath.isEmpty()
+        ? QFileDialog::getSaveFileName(this, "Salva codice",
+              QDir::homePath() + "/codice.py",
+              "Python (*.py);;C++ (*.cpp);;Testo (*.txt);;Tutti (*.*)")
+        : m_currentFilePath;
+    if (path.isEmpty()) return;
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
+    QTextStream(&f) << m_editor->toPlainText();
+    m_editor->document()->setModified(false);
+}

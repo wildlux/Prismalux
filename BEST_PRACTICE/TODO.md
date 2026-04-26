@@ -29,8 +29,8 @@
 | I5 | ✅ | **Modalità calcolo al boot** — applicata prima di hw-detect nel costruttore | `gui/pages/manutenzione_page.cpp:31-48` |
 | I6 | ✅ | **Rimuovi TUI C** — cartella `src/` rimossa | — |
 | I7 | ⬜ | **Build Windows su hardware reale** — `build.bat` mai verificato su una macchina Windows vera; rischio DLL mancanti o percorsi Qt errati | `gui/build.bat` |
-| I8 | ⬜ | **Installer Windows (.exe distribuibile)** — lo ZIP richiede MSYS2+Qt6+CMake; per utenti normali serve un eseguibile precompilato con `windeployqt` e tutte le DLL incluse | `scripts/` · `aggiorna.sh` |
-| I9 | ⬜ | **Export chat** — pulsante "Esporta conversazione" che salva il log in `.md` o `.txt` con timestamp e nome modello | `gui/pages/agenti_page_ui.cpp` |
+| I8 | ✅ | **Installer Windows (.exe distribuibile)** — creato `gui/build_installer_windows.bat`; CMake MinGW + windeployqt6 + ZIP PowerShell | `gui/build_installer_windows.bat` |
+| I9 | ✅ | **Export chat** — pulsante "Esporta conversazione" salva `.pdf`, `.md`, `.html`, `.txt` con timestamp | `gui/pages/agenti_page_ui.cpp` |
 
 ---
 
@@ -62,6 +62,12 @@
 | ✅ C5 — Versione CMake allineata | `CMakeLists.txt` aggiornato a v2.8 |
 | ✅ C6 — README_BUILD.md aggiornato | Percorso `Qt_GUI` → `gui` in tutte le istruzioni |
 | ✅ C3 — Chat persistente | Già implementata: `ChatHistory` + sidebar sessioni; `chatCompleted` → `saveLog` ad ogni pipeline |
+| ✅ I8 — Installer Windows | `gui/build_installer_windows.bat`: CMake MinGW Release + windeployqt6 + ZIP PowerShell (2026-04-26) |
+| ✅ I9 — Export chat PDF/MD/HTML/TXT | `agenti_page_ui.cpp`: filtro PDF aggiunto, QPrinter HighResolution, Qt6::PrintSupport in CMakeLists (2026-04-26) |
+| ✅ 4 nuovi MCP Ringraziamenti | OBS MCP · WhatsApp MCP · Telegram MCP · WordPress MCP aggiunti a `kMCPs[]` in `impostazioni_page.cpp` (2026-04-26) |
+| ✅ OpenCode → sub-tab APP Controller | Rimosso da main tab bar; aggiunto come sub-tab in `app_controller_page.cpp` (2026-04-26) |
+| ✅ TTS Pausa/Riprendi | Bottone pausa con SIGSTOP/SIGCONT (Linux) in `agenti_page_ui.cpp` + reset in `agenti_page_tts.cpp` (2026-04-26) |
+| ✅ Salva lavoro non salvato | Dialog "Vuoi salvare?" al cambio tab Programmazione in `mainwindow.cpp` (2026-04-26) |
 
 ---
 

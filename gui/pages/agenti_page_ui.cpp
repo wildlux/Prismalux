@@ -24,6 +24,9 @@ namespace P = PrismaluxPaths;
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QTextStream>
+#include <QPrinter>
+#include <QPrintDialog>
+#include <QPageSize>
 #include <QImage>
 #include <QBuffer>
 #include <QClipboard>
@@ -42,6 +45,10 @@ namespace P = PrismaluxPaths;
 #include "../widgets/formula_parser.h"
 #include "agents_config_dialog.h"
 #include <QStandardPaths>
+#ifndef Q_OS_WIN
+#  include <csignal>
+#  include <sys/types.h>
+#endif
 
 void AgentiPage::setupUI() {
     auto* lay = new QVBoxLayout(this);
@@ -77,7 +84,40 @@ void AgentiPage::setupUI() {
         QProcess::startDetached("pkill", {"-9", "aplay"});
         QProcess::startDetached("pkill", {"-9", "piper"});
 #endif
+        m_ttsPaused = false;
+        if (m_btnTtsPause) { m_btnTtsPause->setText("\xe2\x8f\xb8  Pausa"); m_btnTtsPause->setVisible(false); }
         m_btnTtsStop->setVisible(false);
+    });
+
+    m_btnTtsPause = new QPushButton("\xe2\x8f\xb8  Pausa", toolbar);
+    m_btnTtsPause->setObjectName("actionBtn");
+    m_btnTtsPause->setToolTip("Metti in pausa / riprendi la lettura vocale");
+    m_btnTtsPause->setVisible(false);
+    toolLay->addWidget(m_btnTtsPause);
+    connect(m_btnTtsPause, &QPushButton::clicked, this, [this]{
+#ifndef Q_OS_WIN
+        const auto sendSig = [](QProcess* p, int sig){
+            if (p && p->state() == QProcess::Running && p->processId() > 0)
+                ::kill(static_cast<pid_t>(p->processId()), sig);
+        };
+        if (!m_ttsPaused) {
+            sendSig(m_ttsProc,   SIGSTOP);
+            sendSig(m_piperProc, SIGSTOP);
+            m_ttsPaused = true;
+            m_btnTtsPause->setText("\xe2\x96\xb6  Riprendi");
+        } else {
+            sendSig(m_ttsProc,   SIGCONT);
+            sendSig(m_piperProc, SIGCONT);
+            m_ttsPaused = false;
+            m_btnTtsPause->setText("\xe2\x8f\xb8  Pausa");
+        }
+#else
+        /* Windows: pausa non supportata, simula stop */
+        if (m_ttsProc)   { m_ttsProc->kill(); m_ttsProc->waitForFinished(300); }
+        if (m_piperProc) { m_piperProc->kill(); m_piperProc->waitForFinished(300); }
+        if (m_btnTtsPause) m_btnTtsPause->setVisible(false);
+        if (m_btnTtsStop)  m_btnTtsStop->setVisible(false);
+#endif
     });
 
     /* ── Esporta conversazione ── */
@@ -92,8 +132,17 @@ void AgentiPage::setupUI() {
         const QString name = QString("prismalux_chat_%1.md").arg(ts);
         const QString path = QFileDialog::getSaveFileName(
             this, "Esporta conversazione", QDir::homePath() + "/" + name,
-            "Markdown (*.md);;HTML (*.html);;Testo (*.txt)");
+            "PDF (*.pdf);;Markdown (*.md);;HTML (*.html);;Testo (*.txt)");
         if (path.isEmpty()) return;
+
+        if (path.endsWith(".pdf", Qt::CaseInsensitive)) {
+            QPrinter printer(QPrinter::HighResolution);
+            printer.setOutputFormat(QPrinter::PdfFormat);
+            printer.setOutputFileName(path);
+            printer.setPageSize(QPageSize::A4);
+            m_log->document()->print(&printer);
+            return;
+        }
 
         QFile f(path);
         if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
@@ -276,6 +325,14 @@ void AgentiPage::setupUI() {
         cpLbl->setObjectName("cardTitle");
         cpLbl->setTextFormat(Qt::RichText);
         cpHL->addWidget(cpLbl, 1);
+        m_btnChartOpen = new QPushButton("\xf0\x9f\x93\x88  Apri nel Grafico", m_chartPanel);
+        m_btnChartOpen->setObjectName("actionBtn");
+        m_btnChartOpen->setToolTip("Apri nella sezione Grafico per zoom, export e personalizzazione");
+        connect(m_btnChartOpen, &QPushButton::clicked, this, [this]{
+            emit requestShowInGrafico(m_lastChartExpr, m_lastChartXMin, m_lastChartXMax, m_lastChartPts);
+        });
+        cpHL->addWidget(m_btnChartOpen);
+
         auto* cpClose = new QPushButton("\xc3\x97", m_chartPanel);
         cpClose->setObjectName("actionBtn");
         cpClose->setFixedSize(22, 22);

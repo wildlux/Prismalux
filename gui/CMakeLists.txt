@@ -8,13 +8,13 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 # ── Qt6 con fallback a Qt5 ────────────────────────────────────────────────
-find_package(Qt6 COMPONENTS Core Widgets Network QUIET)
+find_package(Qt6 COMPONENTS Core Widgets Network PrintSupport QUIET)
 if(Qt6_FOUND)
-    set(QT_LIBS Qt6::Core Qt6::Widgets Qt6::Network)
+    set(QT_LIBS Qt6::Core Qt6::Widgets Qt6::Network Qt6::PrintSupport)
     message(STATUS "Prismalux GUI v${PROJECT_VERSION}: usando Qt6 ${Qt6_VERSION}")
 else()
-    find_package(Qt5 5.15 COMPONENTS Core Widgets Network REQUIRED)
-    set(QT_LIBS Qt5::Core Qt5::Widgets Qt5::Network)
+    find_package(Qt5 5.15 COMPONENTS Core Widgets Network PrintSupport REQUIRED)
+    set(QT_LIBS Qt5::Core Qt5::Widgets Qt5::Network Qt5::PrintSupport)
     message(STATUS "Prismalux GUI v${PROJECT_VERSION}: usando Qt5 ${Qt5_VERSION}")
 endif()
 
@@ -35,7 +35,8 @@ set(CPP_SRCS
     rag_engine.cpp
     pages/agenti_page.cpp
     pages/agenti_page_ui.cpp
-    pages/agenti_page_voice.cpp
+    pages/agenti_page_stt.cpp
+    pages/agenti_page_tts.cpp
     pages/agenti_page_files.cpp
     pages/agenti_page_models.cpp
     pages/agenti_page_math.cpp
@@ -44,6 +45,7 @@ set(CPP_SRCS
     pages/agenti_page_byzantine.cpp
     pages/agenti_page_bubbles.cpp
     pages/agenti_page_exec.cpp
+    pages/agenti_page_format.cpp
     pages/agenti_page_stream.cpp
     pages/agenti_page_consiglio.cpp
     pages/agents_config_dialog.cpp

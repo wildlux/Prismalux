@@ -1,4 +1,5 @@
 #include "app_controller_page.h"
+#include "opencode_page.h"
 #include <QTabWidget>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -185,6 +186,7 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
     m_tabs->addTab(buildAnkiTab(),         "\xf0\x9f\x83\x8f  Anki MCP");
     m_tabs->addTab(buildKiCADTab(),        "\xf0\x9f\x96\xa5  KiCAD MCP");
     m_tabs->addTab(buildTinyMCPTab(),      "\xf0\x9f\xa4\x96  TinyMCP");
+    m_tabs->addTab(new OpenCodePage(m_tabs), "\xf0\x9f\x96\xa5  OpenCode");
 
     lay->addWidget(m_tabs);
 

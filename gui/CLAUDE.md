@@ -1,5 +1,9 @@
 # CLAUDE.md — Prismalux Qt GUI
 
+> **Progetto sibling Android**: `../ANDROID/android_app/` — PrismaluxMobile (Qt6/C++, client Ollama LAN).
+> Struttura analoga a `gui/`: stesso `ai_client`, stesso pattern pagine, RAG semplificato keyword-based.
+> Implementazione completa pianificata dopo stabilità 100% desktop.
+
 ## Build
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
@@ -14,9 +18,8 @@ Header (72px): logo · backend · model · CPU/RAM/GPU · spinner · ⚙️
 [1] 🛠 Strumenti AI              Alt+2  Studio, Scrittura, Ricerca, MCP
 [2] 💻 Programmazione            Alt+3  Editor + sub-tab Agentica
 [3] π  Matematica                Alt+4  Matematica · Grafico
-[4] 🕹 APP Controller            Alt+5  Blender/Office/Anki/KiCAD/TinyMCP
+[4] 🕹 APP Controller            Alt+5  Blender/Office/Anki/KiCAD/TinyMCP/OpenCode
 [5] 📚 Impara                    Alt+6  Impara · Lavoro · Finanza · Sfida
-[6] 🖥 OpenCode                  —      opencode serve HTTP + SSE
 ImpostazioniPage: dialog modale (⚙️ header)
 ```
 
@@ -123,6 +126,8 @@ Budget netto = VRAM_disponibile - 470 MB. Usare Misto se il margine è < 200 MB.
 - qwen3.5 rimosso da `s_knownBroken` (fix 2026-04-24) — nessun workaround necessario
 
 ## OpenCodePage — protocollo
+OpenCode è un **sub-tab di APP Controller** (tab [4]), non un tab principale.
+
 ```
 POST /session                  {title, cwd, model:{providerID,modelID}}
 POST /session/{id}/message     {parts:[{type:"text",text:"..."}], model:{...}}
@@ -130,3 +135,13 @@ GET  /event                    SSE: data:{type,properties}
 POST /session/{id}/abort       {}
 ```
 SSE: `message.updated` (role→m_aiMsgId) · `message.part.updated` (token) · `session.idle` (fine) · `session.error` · `session.updated`
+
+**Convenzioni OpenCodePage:**
+- Porta: usa sempre `P::kOpenCodePort` — mai il valore 8092 hardcoded
+- Errori di rete: retry counter con limite (max 5 tentativi), poi mostra errore e smette
+- QTimer nel distruttore: `m_pollTimer->stop(); delete m_pollTimer;` prima di `stopServer()` — evita callback su oggetto già distrutto
+
+**Miglioramenti pendenti:**
+- Password/auth OpenCode (attualmente connette senza credenziali)
+- Reconnection robusta dopo caduta del server (ora richiede riavvio manuale)
+- Caching lista modelli (ora ri-richiesta a ogni apertura del tab)
