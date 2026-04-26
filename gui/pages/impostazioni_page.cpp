@@ -5456,7 +5456,9 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
 }
 
 /* ══════════════════════════════════════════════════════════════
-   buildRingraziamentiTab — licenza MIT + crediti autore e librerie
+   buildRingraziamentiTab — licenza MIT + crediti autore e librerie.
+   Costruito con widget Qt nativi (nessun colore hardcodato) così
+   eredita automaticamente la palette del tema attivo.
    ══════════════════════════════════════════════════════════════ */
 QWidget* ImpostazioniPage::buildRingraziamentiTab()
 {
@@ -5464,143 +5466,242 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
 
-    auto* browser = new QTextBrowser;
-    browser->setOpenExternalLinks(true);
-    browser->setFrameShape(QFrame::NoFrame);
-    browser->setObjectName("ringraziamentiView");
+    auto* root = new QWidget;
+    auto* lay  = new QVBoxLayout(root);
+    lay->setContentsMargins(36, 28, 36, 36);
+    lay->setSpacing(0);
 
-    browser->setHtml(R"HTML(
-<html><body style="font-family:sans-serif; margin:28px 40px; line-height:1.7;">
+    /* ── helper: separatore orizzontale ── */
+    auto makeSep = [&]() {
+        auto* f = new QFrame;
+        f->setFrameShape(QFrame::HLine);
+        f->setFrameShadow(QFrame::Sunken);
+        lay->addSpacing(14);
+        lay->addWidget(f);
+        lay->addSpacing(14);
+    };
 
-<h1 style="font-size:2em; margin-bottom:2px;">&#127866; Prismalux</h1>
-<p style="color:#888; margin-top:0; font-size:1.05em;">
-  <em>Piattaforma AI locale &mdash; multi-agente, RAG, matematica, grafici.</em>
-</p>
+    /* ── helper: intestazione sezione ── */
+    auto makeH2 = [](const QString& txt) {
+        auto* l = new QLabel(txt);
+        QFont f = l->font();
+        f.setPointSize(f.pointSize() + 3);
+        f.setBold(true);
+        l->setFont(f);
+        return l;
+    };
 
-<hr style="border:1px solid #3a3a4a; margin:18px 0;"/>
+    /* ── helper: tabella (palette del tema, nessun colore fisso) ── */
+    auto makeTable = [](const QStringList& hdrs, int rows) {
+        auto* t = new QTableWidget(rows, hdrs.size());
+        t->setHorizontalHeaderLabels(hdrs);
+        t->verticalHeader()->hide();
+        t->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        t->setSelectionMode(QAbstractItemView::NoSelection);
+        t->setFocusPolicy(Qt::NoFocus);
+        t->setAlternatingRowColors(true);
+        t->setShowGrid(false);
+        t->horizontalHeader()->setStretchLastSection(true);
+        t->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        return t;
+    };
 
-<!-- ── Autore ── -->
-<h2 style="font-size:1.3em; margin-bottom:6px;">&#128100; Autore</h2>
-<table style="border-collapse:collapse; width:100%;">
-  <tr>
-    <td style="padding:6px 14px 6px 0; font-weight:bold; white-space:nowrap;">Paolo Lo Bello</td>
-    <td style="padding:6px 0; color:#aaa;">
-      Ideazione, progettazione e sviluppo integrale di Prismalux.<br/>
-      GUI C++/Qt6 &bull; Pipeline multi-agente &bull; Motore Byzantino &bull; RAG locale
-      &bull; Simulatore 110 algoritmi &bull; Matematica locale &bull; Integrazione MCPs.
-    </td>
-  </tr>
-</table>
+    auto setCell = [](QTableWidget* t, int r, int c,
+                      const QString& txt, bool bold = false) {
+        auto* item = new QTableWidgetItem(txt);
+        if (bold) {
+            QFont f = item->font(); f.setBold(true); item->setFont(f);
+        }
+        item->setFlags(Qt::ItemIsEnabled);
+        t->setItem(r, c, item);
+    };
 
-<hr style="border:1px solid #3a3a4a; margin:18px 0;"/>
+    auto fitRows = [](QTableWidget* t) {
+        t->resizeRowsToContents();
+        int h = t->horizontalHeader()->height() + 4;
+        for (int i = 0; i < t->rowCount(); ++i) h += t->rowHeight(i);
+        t->setFixedHeight(h);
+    };
 
-<!-- ── Librerie e backend ── -->
-<h2 style="font-size:1.3em; margin-bottom:10px;">&#128218; Librerie e backend utilizzati</h2>
-<table style="border-collapse:collapse; width:100%;">
-  <thead>
-    <tr style="background:#1e1e2e;">
-      <th style="padding:8px 14px; text-align:left;">Progetto</th>
-      <th style="padding:8px 14px; text-align:left;">Scopo</th>
-      <th style="padding:8px 14px; text-align:left;">Licenza</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="padding:7px 14px; font-weight:bold;">Qt6</td>
-      <td style="padding:7px 14px;">Framework GUI cross-platform (Widgets, Network, Svg)</td>
-      <td style="padding:7px 14px; color:#aaa;">LGPL v3</td>
-    </tr>
-    <tr style="background:#1a1a2a;">
-      <td style="padding:7px 14px; font-weight:bold;">Ollama</td>
-      <td style="padding:7px 14px;">Server locale per inferenza LLM via API REST</td>
-      <td style="padding:7px 14px; color:#aaa;">MIT</td>
-    </tr>
-    <tr>
-      <td style="padding:7px 14px; font-weight:bold;">llama.cpp</td>
-      <td style="padding:7px 14px;">Inferenza LLM ottimizzata CPU/GPU (GGUF) &mdash; Georgi Gerganov</td>
-      <td style="padding:7px 14px; color:#aaa;">MIT</td>
-    </tr>
-    <tr style="background:#1a1a2a;">
-      <td style="padding:7px 14px; font-weight:bold;">Piper TTS</td>
-      <td style="padding:7px 14px;">Sintesi vocale locale offline ad alta qualit&agrave;</td>
-      <td style="padding:7px 14px; color:#aaa;">MIT</td>
-    </tr>
-    <tr>
-      <td style="padding:7px 14px; font-weight:bold;">Whisper.cpp</td>
-      <td style="padding:7px 14px;">Trascrizione audio STT locale (Georgi Gerganov)</td>
-      <td style="padding:7px 14px; color:#aaa;">MIT</td>
-    </tr>
-    <tr style="background:#1a1a2a;">
-      <td style="padding:7px 14px; font-weight:bold;">nomic-embed-text</td>
-      <td style="padding:7px 14px;">Modello embedding per RAG (ricerca semantica documenti)</td>
-      <td style="padding:7px 14px; color:#aaa;">Apache 2.0</td>
-    </tr>
-    <tr>
-      <td style="padding:7px 14px; font-weight:bold;">OpenBLAS / BLAS</td>
-      <td style="padding:7px 14px;">Algebra lineare ottimizzata per llama.cpp su CPU</td>
-      <td style="padding:7px 14px; color:#aaa;">BSD 3-Clause</td>
-    </tr>
-    <tr style="background:#1a1a2a;">
-      <td style="padding:7px 14px; font-weight:bold;">md4c</td>
-      <td style="padding:7px 14px;">Parser Markdown C (integrato in Qt6::Gui)</td>
-      <td style="padding:7px 14px; color:#aaa;">MIT</td>
-    </tr>
-    <tr>
-      <td style="padding:7px 14px; font-weight:bold;">Poppler</td>
-      <td style="padding:7px 14px;">Estrazione testo da PDF per indicizzazione RAG</td>
-      <td style="padding:7px 14px; color:#aaa;">GPL v2 / LGPL</td>
-    </tr>
-    <tr style="background:#1a1a2a;">
-      <td style="padding:7px 14px; font-weight:bold;">OpenCode</td>
-      <td style="padding:7px 14px;">Agente coding AI con server HTTP+SSE integrato</td>
-      <td style="padding:7px 14px; color:#aaa;">MIT</td>
-    </tr>
-    <tr>
-      <td style="padding:7px 14px; font-weight:bold;">Python 3</td>
-      <td style="padding:7px 14px;">Esecuzione codice generato dall&apos;AI in sandbox controllata</td>
-      <td style="padding:7px 14px; color:#aaa;">PSF License</td>
-    </tr>
-  </tbody>
-</table>
+    /* ════════════════════════════════════════════════════════════
+       Intestazione
+       ════════════════════════════════════════════════════════════ */
+    {
+        auto* title = new QLabel("\xf0\x9f\x8d\xba  Prismalux");
+        QFont ft = title->font();
+        ft.setPointSize(ft.pointSize() + 10);
+        ft.setBold(true);
+        title->setFont(ft);
+        title->setAlignment(Qt::AlignCenter);
+        lay->addWidget(title);
 
-<hr style="border:1px solid #3a3a4a; margin:18px 0;"/>
+        lay->addSpacing(6);
 
-<!-- ── Licenza MIT ── -->
-<h2 style="font-size:1.3em; margin-bottom:10px;">&#128220; Licenza &mdash; MIT License</h2>
-<pre style="background:#111118; border-radius:8px; padding:18px 20px; font-size:0.88em;
-            white-space:pre-wrap; color:#ccc; border:1px solid #2a2a3a; line-height:1.6;">
-MIT License
+        auto* sub = new QLabel(
+            "Piattaforma AI locale \xe2\x80\x94 multi-agente \xc2\xb7 RAG \xc2\xb7 matematica \xc2\xb7 grafici");
+        sub->setAlignment(Qt::AlignCenter);
+        QFont fs = sub->font();
+        fs.setItalic(true);
+        sub->setFont(fs);
+        lay->addWidget(sub);
+    }
 
-Copyright (c) 2024-2026 Paolo Lo Bello
+    makeSep();
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+    /* ════════════════════════════════════════════════════════════
+       Autore
+       ════════════════════════════════════════════════════════════ */
+    lay->addWidget(makeH2("\xf0\x9f\x91\xa4  Autore"));
+    lay->addSpacing(8);
+    {
+        auto* t = makeTable({"Nome", "Contributo"}, 1);
+        t->setColumnWidth(0, 160);
+        setCell(t, 0, 0, "Paolo Lo Bello", true);
+        setCell(t, 0, 1,
+            "Ideazione, progettazione e sviluppo integrale di Prismalux. "
+            "GUI C++/Qt6 \xc2\xb7 Pipeline multi-agente \xc2\xb7 Motore Byzantino "
+            "\xc2\xb7 RAG locale \xc2\xb7 Simulatore 110 algoritmi \xc2\xb7 Matematica locale "
+            "\xc2\xb7 Integrazione MCPs.");
+        t->resizeRowsToContents();
+        t->setFixedHeight(t->horizontalHeader()->height() + t->rowHeight(0) + 4);
+        lay->addWidget(t);
+    }
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+    makeSep();
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-</pre>
+    /* ════════════════════════════════════════════════════════════
+       Librerie e backend
+       ════════════════════════════════════════════════════════════ */
+    lay->addWidget(makeH2("\xf0\x9f\x93\x9a  Librerie e backend utilizzati"));
+    lay->addSpacing(8);
+    {
+        struct Row { const char* nome; const char* scopo; const char* lic; };
+        static const Row kLibs[] = {
+            { "Qt6",             "Framework GUI cross-platform (Widgets, Network, Svg)",                       "LGPL v3"       },
+            { "Ollama",          "Server locale per inferenza LLM via API REST",                               "MIT"           },
+            { "llama.cpp",       "Inferenza LLM ottimizzata CPU/GPU (GGUF) \xe2\x80\x94 Georgi Gerganov",    "MIT"           },
+            { "Piper TTS",       "Sintesi vocale locale offline ad alta qualit\xc3\xa0",                      "MIT"           },
+            { "Whisper.cpp",     "Trascrizione audio STT locale (Georgi Gerganov)",                            "MIT"           },
+            { "nomic-embed-text","Modello embedding per RAG (ricerca semantica documenti)",                     "Apache 2.0"    },
+            { "OpenBLAS / BLAS", "Algebra lineare ottimizzata per llama.cpp su CPU",                           "BSD 3-Clause"  },
+            { "md4c",            "Parser Markdown C (integrato in Qt6::Gui)",                                  "MIT"           },
+            { "Poppler",         "Estrazione testo da PDF per indicizzazione RAG",                             "GPL v2/LGPL"   },
+            { "OpenCode",        "Agente coding AI con server HTTP+SSE integrato",                             "MIT"           },
+            { "Python 3",        "Esecuzione codice generato dall'AI in sandbox controllata",                  "PSF License"   },
+        };
+        const int N = static_cast<int>(sizeof(kLibs) / sizeof(kLibs[0]));
+        auto* t = makeTable({"Progetto", "Scopo", "Licenza"}, N);
+        t->setColumnWidth(0, 150);
+        t->setColumnWidth(1, 420);
+        for (int i = 0; i < N; ++i) {
+            setCell(t, i, 0, kLibs[i].nome, true);
+            setCell(t, i, 1, kLibs[i].scopo);
+            setCell(t, i, 2, kLibs[i].lic);
+        }
+        fitRows(t);
+        lay->addWidget(t);
+    }
 
-<hr style="border:1px solid #3a3a4a; margin:18px 0;"/>
+    makeSep();
 
-<p style="text-align:center; color:#666; font-size:0.92em; margin-top:8px;">
-  &#127866; <em>&ldquo;La birra &egrave; conoscenza divina &mdash; ogni sorso un dato in pi&ugrave;.&rdquo;</em>
-</p>
+    /* ════════════════════════════════════════════════════════════
+       Plugin MCP integrati
+       ════════════════════════════════════════════════════════════ */
+    lay->addWidget(makeH2("\xf0\x9f\x94\x8c  Plugin MCP integrati"));
+    lay->addSpacing(4);
+    {
+        auto* desc = new QLabel(
+            "I plugin MCP (Model Context Protocol) estendono l'AI con accesso diretto "
+            "a strumenti creativi e tecnici, facilitando la creazione di idee e prototipi "
+            "senza uscire dall'applicazione.");
+        desc->setWordWrap(true);
+        lay->addWidget(desc);
+        lay->addSpacing(8);
 
-</body></html>
-)HTML");
+        struct MCPRow { const char* nome; const char* scopo; };
+        static const MCPRow kMCPs[] = {
+            { "\xf0\x9f\x8e\xa8  Blender MCP",
+              "Controllo 3D via Python bpy: crea, sposta, ruota e scala oggetti; "
+              "gestisce materiali, luci e avvia render direttamente da Prismalux. "
+              "Ideale per generare scene 3D partendo da un'idea testuale." },
+            { "\xf0\x9f\x96\xa5  Office MCP",
+              "Automazione LibreOffice Writer, Calc e Impress via UNO, python-docx e openpyxl: "
+              "genera documenti, fogli di calcolo e presentazioni con contenuto prodotto dall'AI." },
+            { "\xf0\x9f\x83\x8f  Anki MCP",
+              "Generazione automatica di mazzi flashcard Anki a partire da testi, appunti o "
+              "spiegazioni dell'AI. Accelera lo studio e la memorizzazione." },
+            { "\xf0\x9f\x96\xa5  KiCAD MCP",
+              "Progettazione di circuiti elettronici e PCB assistita dall'AI: "
+              "genera netlist, piazzamenti componenti e script KiCAD da specifiche in linguaggio naturale." },
+            { "\xf0\x9f\xa4\x96  TinyMCP",
+              "Programmazione di microcontrollori Arduino, ESP32 e STM32: "
+              "l'AI genera, compila e carica il firmware direttamente sulla scheda target." },
+            { "\xf0\x9f\x96\xa5  OpenCode MCP",
+              "Agente coding AI con server HTTP+SSE integrato (porta 8092): "
+              "sessioni di sviluppo software assistite in streaming, con context del progetto corrente." },
+        };
+        const int M = static_cast<int>(sizeof(kMCPs) / sizeof(kMCPs[0]));
+        auto* t = makeTable({"Plugin", "Descrizione e utilizzo"}, M);
+        t->setColumnWidth(0, 170);
+        for (int i = 0; i < M; ++i) {
+            setCell(t, i, 0, kMCPs[i].nome, true);
+            setCell(t, i, 1, kMCPs[i].scopo);
+        }
+        fitRows(t);
+        lay->addWidget(t);
+    }
 
-    scroll->setWidget(browser);
+    makeSep();
+
+    /* ════════════════════════════════════════════════════════════
+       Licenza MIT
+       ════════════════════════════════════════════════════════════ */
+    lay->addWidget(makeH2("\xf0\x9f\x93\x9c  Licenza \xe2\x80\x94 MIT License"));
+    lay->addSpacing(8);
+    {
+        auto* te = new QTextEdit;
+        te->setReadOnly(true);
+        te->setFrameShape(QFrame::StyledPanel);
+        te->setObjectName("licenseBox");
+        QFont mono("Monospace");
+        mono.setStyleHint(QFont::Monospace);
+        mono.setPointSize(mono.pointSize() - 1);
+        te->setFont(mono);
+        te->setFixedHeight(220);
+        te->setPlainText(
+            "MIT License\n\n"
+            "Copyright (c) 2024-2026 Paolo Lo Bello\n\n"
+            "Permission is hereby granted, free of charge, to any person obtaining a copy\n"
+            "of this software and associated documentation files (the \"Software\"), to deal\n"
+            "in the Software without restriction, including without limitation the rights\n"
+            "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n"
+            "copies of the Software, and to permit persons to whom the Software is\n"
+            "furnished to do so, subject to the following conditions:\n\n"
+            "The above copyright notice and this permission notice shall be included in all\n"
+            "copies or substantial portions of the Software.\n\n"
+            "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n"
+            "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n"
+            "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n"
+            "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n"
+            "LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n"
+            "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n"
+            "SOFTWARE.");
+        lay->addWidget(te);
+    }
+
+    makeSep();
+
+    /* ── Motto ── */
+    {
+        auto* motto = new QLabel(
+            "\xf0\x9f\x8d\xba  \xe2\x80\x9cLa birra \xc3\xa8 conoscenza divina "
+            "\xe2\x80\x94 ogni sorso un dato in pi\xc3\xb9.\xe2\x80\x9d");
+        motto->setAlignment(Qt::AlignCenter);
+        QFont fi = motto->font(); fi.setItalic(true); motto->setFont(fi);
+        lay->addWidget(motto);
+    }
+
+    lay->addStretch();
+    scroll->setWidget(root);
     return scroll;
 }
