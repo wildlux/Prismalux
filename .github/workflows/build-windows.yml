@@ -1,0 +1,59 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "gui/**"
+      - ".github/workflows/build-windows.yml"
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt6
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.7.*"
+          host: windows
+          target: desktop
+          arch: win64_msvc2019_64
+          modules: ""
+
+      - name: Configure CMake
+        working-directory: gui
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        working-directory: gui
+        run: cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
+
+      - name: Deploy Qt (windeployqt)
+        shell: cmd
+        working-directory: gui/build/Release
+        run: windeployqt --release --no-translations Prismalux_GUI.exe
+
+      - name: Create installer (CPack/NSIS)
+        working-directory: gui/build
+        run: cpack -C Release -G NSIS
+
+      - name: Upload portable (zip)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Prismalux-Windows-x64-portable
+          path: gui/build/Release/
+          retention-days: 14
+
+      - name: Upload installer (NSIS)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Prismalux-Windows-x64-installer
+          path: gui/build/*.exe
+          retention-days: 14

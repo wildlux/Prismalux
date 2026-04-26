@@ -301,3 +301,52 @@ if(BUILD_TESTS)
     add_test(NAME ThinkingDetect       COMMAND test_thinking_detect)
     message(STATUS "Build test abilitata: test_signal_lifetime, test_rag_engine, test_code_utils, test_random_tool, test_lavoro_page, test_programmazione_page, test_thinking_detect")
 endif()
+
+# ── CPack — Windows installer (NSIS) ─────────────────────────────────────
+# Uso: cmake --build build --config Release && cpack --config build/CPackConfig.cmake
+if(WIN32)
+    install(TARGETS Prismalux_GUI
+        RUNTIME DESTINATION .
+        COMPONENT Runtime
+    )
+    install(DIRECTORY ${CMAKE_BINARY_DIR}/themes/
+        DESTINATION themes
+        COMPONENT Runtime
+    )
+    # Le DLL Qt copiate da windeployqt (POST_BUILD) stanno nella build dir
+    install(DIRECTORY ${CMAKE_BINARY_DIR}/
+        DESTINATION .
+        COMPONENT Runtime
+        FILES_MATCHING PATTERN "*.dll"
+    )
+    install(DIRECTORY ${CMAKE_BINARY_DIR}/platforms/
+        DESTINATION platforms
+        COMPONENT Runtime
+        FILES_MATCHING PATTERN "*.dll"
+    )
+    install(DIRECTORY ${CMAKE_BINARY_DIR}/imageformats/
+        DESTINATION imageformats
+        COMPONENT Runtime
+        FILES_MATCHING PATTERN "*.dll"
+    )
+
+    set(CPACK_PACKAGE_NAME "Prismalux")
+    set(CPACK_PACKAGE_VENDOR "wildlux")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Piattaforma AI locale — multi-agente, RAG, matematica, grafici")
+    set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+    set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+    set(CPACK_PACKAGE_VERSION_PATCH "0")
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY "Prismalux")
+    set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/../LICENSE")
+
+    set(CPACK_GENERATOR "NSIS")
+    set(CPACK_NSIS_DISPLAY_NAME "Prismalux ${PROJECT_VERSION}")
+    set(CPACK_NSIS_PACKAGE_NAME "Prismalux")
+    set(CPACK_NSIS_CREATE_ICONS_EXTRA
+        "CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\Prismalux.lnk' '$INSTDIR\\\\Prismalux_GUI.exe'")
+    set(CPACK_NSIS_DELETE_ICONS_EXTRA
+        "Delete '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\Prismalux.lnk'")
+    set(CPACK_NSIS_MUI_FINISHPAGE_RUN "Prismalux_GUI.exe")
+
+    include(CPack)
+endif()
