@@ -54,15 +54,11 @@ QWidget* GraficoPage::buildLeftPanel() {
     lay->setContentsMargins(10,10,10,10);
     lay->setSpacing(8);
 
-    /* ── Titolo + tab 2D/3D sulla stessa riga ── */
+    /* ── Tab 2D/3D ── */
     auto* titleRow = new QWidget(panel);
     auto* titleLay = new QHBoxLayout(titleRow);
     titleLay->setContentsMargins(0, 0, 0, 0);
-    titleLay->setSpacing(8);
-
-    auto* title = new QLabel("\xf0\x9f\x93\x88  Grafico", titleRow);
-    title->setObjectName("pageTitle");
-    titleLay->addWidget(title, 1);
+    titleLay->setSpacing(0);
 
     m_dimBar = new QTabBar(titleRow);
     m_dimBar->setObjectName("innerTabs");
@@ -70,6 +66,7 @@ QWidget* GraficoPage::buildLeftPanel() {
     m_dimBar->addTab("3D");
     m_dimBar->setCurrentIndex(0);
     titleLay->addWidget(m_dimBar);
+    titleLay->addStretch(1);
 
     lay->addWidget(titleRow);
 

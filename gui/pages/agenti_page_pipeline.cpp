@@ -180,8 +180,7 @@ void AgentiPage::runPipeline() {
     if (!checkRam()) return;
     if (!checkModelSize(m_ai->model())) return;
 
-    m_btnRun->setEnabled(false);
-    m_btnStop->setEnabled(true);
+    _setRunBusy(true);
     m_waitLbl->setVisible(true);
 
     advancePipeline();
@@ -192,10 +191,8 @@ void AgentiPage::advancePipeline() {
         m_currentAgent++;
 
     if (m_currentAgent >= MAX_AGENTS || m_currentAgent >= m_maxShots) {
-        m_log->append("\n\xe2\x9c\x85  Pipeline completata. \xe2\x9c\xa8 Verit\xc3\xa0 rivelata.");
-        emit pipelineStatus(100, "\xe2\x9c\x85  Completata!");
-        m_btnRun->setEnabled(true);
-        m_btnStop->setEnabled(false);
+        emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
+        _setRunBusy(false);
         m_opMode = OpMode::Idle;
         /* Rilevamento formula → mostra grafico se presente */
         if (!m_agentOutputs.isEmpty())
@@ -230,8 +227,15 @@ void AgentiPage::runAgent(int idx) {
     if (roleIdx < 0 || roleIdx >= roleList.size()) roleIdx = 0;
     const auto& role = roleList[roleIdx];
 
-    QString selectedModel = m_cfgDlg->modelCombo(idx)->currentData().toString();
-    if (selectedModel.isEmpty()) selectedModel = m_cfgDlg->modelCombo(idx)->currentText();
+    /* Modalità singola (CHAT RAG, m_maxShots==1): usa sempre il combo LLM principale.
+       In pipeline multi-agente usa il modello assegnato nel dialog Configura Agenti. */
+    QString selectedModel;
+    if (m_maxShots == 1 && m_cmbLLM) {
+        selectedModel = m_cmbLLM->currentText();
+    } else {
+        selectedModel = m_cfgDlg->modelCombo(idx)->currentData().toString();
+        if (selectedModel.isEmpty()) selectedModel = m_cfgDlg->modelCombo(idx)->currentText();
+    }
 
     /* Sicurezza: se il modello è di embedding (non-chat) o non valido,
        ricade sul modello selezionato nel combo LLM principale. */
@@ -261,13 +265,23 @@ void AgentiPage::runAgent(int idx) {
     }
 
     /* Metadati per la bolla finale */
-    m_currentAgentLabel = role.icon + QString("  Agente %1 \xe2\x80\x94 %2").arg(idx + 1).arg(role.name);
+    const bool isSingleChat = (m_maxShots == 1);
+    m_currentAgentLabel = isSingleChat
+        ? "\xf0\x9f\x92\xac  CHAT con RAG"
+        : role.icon + QString("  Agente %1 \xe2\x80\x94 %2").arg(idx + 1).arg(role.name);
     m_currentAgentModel = selectedModel;
     m_currentAgentTime  = ts;
 
     /* Indicatore streaming temporaneo (sarà sostituito dalla bolla su onFinished) */
-    m_log->append(QString("\n%1  [Agente %2 \xe2\x80\x94 %3]  \xf0\x9f\x94\x84 generando...\n")
-                  .arg(role.icon).arg(idx + 1).arg(role.name));
+    if (isSingleChat) {
+        const QString backendTag = (m_ai->backend() == AiClient::Ollama)
+            ? "Ollama" : "llama-server";
+        const QString modelTag   = selectedModel.isEmpty() ? "?" : selectedModel;
+        m_log->append(QString("\n\xf0\x9f\x92\xac  [CHAT con RAG]  \xf0\x9f\xa4\x96 %1 \xc2\xb7 %2  \xf0\x9f\x94\x84 generando...\n")
+                      .arg(backendTag, modelTag));
+    } else
+        m_log->append(QString("\n%1  [Agente %2 \xe2\x80\x94 %3]  \xf0\x9f\x94\x84 generando...\n")
+                      .arg(role.icon).arg(idx + 1).arg(role.name));
     m_agentTextStart = m_log->document()->characterCount() - 1;
 
     QString userPrompt = m_taskOriginal;
@@ -287,6 +301,7 @@ void AgentiPage::runAgent(int idx) {
         userPrompt += QString("Ora esegui il tuo ruolo di %1.").arg(role.name);
     }
 
+    m_agentTimer.restart();
     m_agentOutputs.append("");
     /* Usa chatWithImage per il primo agente se c'è un'immagine allegata */
     if (idx == m_currentAgent && !m_imgBase64.isEmpty()) {

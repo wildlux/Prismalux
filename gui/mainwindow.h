@@ -122,7 +122,8 @@ private:
     QVector<QPushButton*> m_navBtns;            ///< Pulsanti nav per sincronizzare lo stato attivo
     ResourceGauge*  m_gCpu        = nullptr;  ///< Gauge CPU nell'header
     ResourceGauge*  m_gRam        = nullptr;  ///< Gauge RAM nell'header
-    ResourceGauge*  m_gGpu        = nullptr;  ///< Gauge GPU nell'header
+    ResourceGauge*  m_gGpu        = nullptr;  ///< Gauge GPU dedicata nell'header
+    ResourceGauge*  m_gIgpu       = nullptr;  ///< Gauge Intel iGPU (nascosto se assente)
     QLabel*         m_lblBackend  = nullptr;  ///< Testo "🦙 Ollama → 127.0.0.1:11434"
     QLabel*         m_lblModel    = nullptr;  ///< Nome modello AI attivo
     QPushButton*    m_settingsBtn   = nullptr;  ///< Pulsante ⚙️ header (accanto hamburger) → Impostazioni

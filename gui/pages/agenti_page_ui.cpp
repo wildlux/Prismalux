@@ -118,12 +118,14 @@ void AgentiPage::setupUI() {
     toolLay->addWidget(llmLbl);
     toolLay->addWidget(m_cmbLLM);
 
-    /* Quando l'utente sceglie un modello diverso, lo applica subito all'AI client */
+    /* Quando l'utente sceglie un modello diverso, lo applica all'AI client
+       e lo salva come preferenza privata di questa scheda. */
     connect(m_cmbLLM, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int idx){
         if (idx < 0 || !m_cmbLLM) return;
         const QString mdl = m_cmbLLM->currentText();
         if (mdl.isEmpty() || mdl == "(caricamento...)") return;
+        m_pageModel = mdl;   /* preferenza privata — non sovrascritta da modelChanged */
         m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), mdl);
     });
 
@@ -173,25 +175,16 @@ void AgentiPage::setupUI() {
     m_multiAgentBar->setVisible(false);  // default: Mono-Agente
     toolLay->addWidget(m_multiAgentBar);
 
-    /* Pulsante ↩ Torna indietro (sempre visibile in entrambe le modalità) */
-    auto* btnUndo = new QPushButton("\xe2\x86\xa9  Torna indietro", toolbar);
-    btnUndo->setObjectName("actionBtn");
-    btnUndo->setToolTip("Annulla l'ultima eliminazione di un messaggio (Ctrl+Z)");
-    toolLay->addWidget(btnUndo);
-    connect(btnUndo, &QPushButton::clicked, this, [this]{
-        if (m_undoHtmlStack.isEmpty()) {
-            QToolTip::showText(QCursor::pos(),
-                "\xe2\x84\xb9\xef\xb8\x8f  Nessuna operazione da annullare.", nullptr, {}, 2000);
-            return;
-        }
-        m_log->setHtml(m_undoHtmlStack.pop());
-        m_log->moveCursor(QTextCursor::End);
-    });
-
     /* ── Collegamento toggle Mono / Multi-Agente ── */
     connect(m_btnModeToggle, &QPushButton::toggled, this, [this](bool multiOn) {
         m_multiAgentBar->setVisible(multiOn);
-        m_btnRun->setVisible(multiOn);
+        /* In multi-agente forza sempre la modalità Avvia (pipeline completa) */
+        if (multiOn && !m_modePipeline) {
+            m_modePipeline = true;
+            m_btnRun->setText("\xe2\x96\xb6  Avvia");
+            m_btnRun->setToolTip("Avvia la pipeline multi-agente completa\n"
+                                 "Stop da fermo \xe2\x86\x92 torna a Singolo");
+        }
         m_btnModeToggle->setText(multiOn
             ? "\xf0\x9f\x91\xa5  Multi-Agente"
             : "\xf0\x9f\xa4\x96  Mono-Agente");
@@ -279,7 +272,7 @@ void AgentiPage::setupUI() {
             ask.setWindowTitle("\xf0\x9f\x97\x91  Elimina messaggio");
             ask.setText("<b>Eliminare questo messaggio dalla chat?</b>");
             ask.setInformativeText(
-                "L'operazione pu\xc3\xb2 essere annullata con il pulsante \xe2\x86\xa9 nella toolbar.");
+                "Questa operazione \xc3\xa8 irreversibile.");
             QPushButton* btnDel = ask.addButton("Elimina", QMessageBox::DestructiveRole);
             ask.addButton("Annulla", QMessageBox::RejectRole);
             ask.setDefaultButton(btnDel);
@@ -357,6 +350,8 @@ void AgentiPage::setupUI() {
                 m_input->setFocus();
                 m_input->moveCursor(QTextCursor::End);
                 dlg->accept();
+                /* Avvia il pipeline dopo la chiusura del dialog */
+                QTimer::singleShot(0, this, [this]{ m_btnRun->click(); });
             });
             connect(btnUpdate, &QPushButton::clicked, dlg, [=]{
                 /* Rimpiazza il testo della bolla nell'HTML del log */
@@ -437,11 +432,10 @@ void AgentiPage::setupUI() {
     auto* inputGrid = new QGridLayout(inputArea);
     inputGrid->setContentsMargins(0, 0, 0, 0);
     inputGrid->setSpacing(6);
-    inputGrid->setColumnStretch(0, 1);  /* testo si espande */
-    inputGrid->setColumnStretch(1, 0);  /* col 1: Avvia / Stop */
-    inputGrid->setColumnStretch(2, 0);  /* col 2: Singolo / Voce */
-    inputGrid->setColumnStretch(3, 0);  /* col 3: Simboli / Traduci */
-    inputGrid->setColumnStretch(4, 0);  /* col 4: Documento / Immagine */
+    inputGrid->setColumnStretch(0, 1);  /* col 0: testo (si espande) */
+    inputGrid->setColumnStretch(1, 0);  /* col 1: Avvia (r0) · Voce (r1) */
+    inputGrid->setColumnStretch(2, 0);  /* col 2: Simboli (r0) · Traduci (r1) */
+    inputGrid->setColumnStretch(3, 0);  /* col 3: Documenti (r0) · Immagini (r1) */
 
     /* Colonna 0: campo testo (rowspan 2) — QTextEdit per altezza variabile */
     m_input = new QTextEdit(inputArea);
@@ -459,49 +453,38 @@ void AgentiPage::setupUI() {
         btn->setProperty("execText", QString::fromUtf8(text));
     };
 
-    /* Colonna 1 */
-    m_btnRun = new QPushButton("\xe2\x96\xb6  Avvia", inputArea);
+    /* Colonna 1 — pulsante azione unificato (Singolo / Avvia) */
+    m_btnRun = new QPushButton("\xf0\x9f\x92\xac CHAT con RAG", inputArea);  /* default: CHAT con RAG */
     m_btnRun->setObjectName("actionBtn");
-    m_btnRun->setToolTip("Avvia la pipeline multi-agente completa");
-    m_btnRun->setVisible(false);  // nascosto in Mono-Agente (default)
-    tagExec(m_btnRun, "\xe2\x96\xb6", "Avvia");
+    m_btnRun->setToolTip("Risposta immediata con contesto RAG \xe2\x80\x94 1 solo agente (Invio)\n"
+                         "Stop da fermo \xe2\x86\x92 cambia modalit\xc3\xa0 (CHAT con RAG \xe2\x86\x94 Avvia)");
+    tagExec(m_btnRun, "\xf0\x9f\x92\xac", "CHAT con RAG");
 
-    m_btnStop = new QPushButton("\xe2\x8f\xb9 Stop", inputArea);
-    m_btnStop->setObjectName("actionBtn");
-    m_btnStop->setProperty("danger", true);
-    m_btnStop->setEnabled(false);
-    m_btnStop->setToolTip("Interrompi l'elaborazione corrente");
-    tagExec(m_btnStop, "\xe2\x8f\xb9", "Stop");
 
     /* Colonna 2 */
-    auto* btnQuick = new QPushButton("\xe2\x9a\xa1 Singolo", inputArea);
-    btnQuick->setObjectName("actionBtn");
-    btnQuick->setToolTip("Risposta immediata \xe2\x80\x94 1 solo agente (Invio)");
-    tagExec(btnQuick, "\xe2\x9a\xa1", "Singolo");
-
     m_btnVoice = new QPushButton("\xf0\x9f\x8e\xa4 Voce", inputArea);
     m_btnVoice->setObjectName("actionBtn");
     m_btnVoice->setToolTip("Parla — trascrivi la voce nel campo di testo (whisper.cpp)");
     tagExec(m_btnVoice, "\xf0\x9f\x8e\xa4", "Voce");
 
-    /* Colonna 3 */
     auto* btnSymbols = new QPushButton("\xce\xa9  Simboli", inputArea);
     btnSymbols->setObjectName("actionBtn");
     btnSymbols->setToolTip("Inserisci caratteri speciali: matematica, greco, lingue");
 
+    /* Colonna 3 */
     m_btnTranslate = new QPushButton("\xf0\x9f\x8c\x90  Traduci", inputArea);
     m_btnTranslate->setObjectName("actionBtn");
     m_btnTranslate->setToolTip("Traduci il testo selezionando lingue e modello AI");
     tagExec(m_btnTranslate, "\xf0\x9f\x8c\x90", "Traduci");
 
+    /* 2 righe × 3 colonne di pulsanti:
+     *  r0: Avvia    · Simboli  · Documenti
+     *  r1: Voce     · Traduci  · Immagini   */
     inputGrid->addWidget(m_btnRun,       0, 1);
-    inputGrid->addWidget(btnQuick,       0, 2);
-    inputGrid->addWidget(btnSymbols,     0, 3);
-    inputGrid->addWidget(m_btnStop,      1, 1);
-    inputGrid->addWidget(m_btnVoice,     1, 2);
-    inputGrid->addWidget(m_btnTranslate, 1, 3);
+    inputGrid->addWidget(m_btnVoice,     1, 1);
+    inputGrid->addWidget(btnSymbols,     0, 2);
+    inputGrid->addWidget(m_btnTranslate, 1, 2);
 
-    /* Colonna 4: Documento / Immagine (spostati dalla toolbar) */
     m_btnDoc = new QPushButton("\xf0\x9f\x93\x8e  Documenti", inputArea);
     m_btnDoc->setObjectName("actionBtn");
     m_btnDoc->setToolTip("Allega documento (.txt, .md, .csv, .json, .py, .cpp, .h, .pdf...)");
@@ -510,8 +493,8 @@ void AgentiPage::setupUI() {
     m_btnImg->setObjectName("actionBtn");
     m_btnImg->setToolTip("Allega immagine per vision models (.png, .jpg, .jpeg, .gif, .webp)");
     tagExec(m_btnImg, "\xf0\x9f\x96\xbc", "Immagini");
-    inputGrid->addWidget(m_btnDoc, 0, 4);
-    inputGrid->addWidget(m_btnImg, 1, 4);
+    inputGrid->addWidget(m_btnDoc, 0, 3);
+    inputGrid->addWidget(m_btnImg, 1, 3);
 
     lay->addWidget(inputArea);
 
@@ -519,14 +502,14 @@ void AgentiPage::setupUI() {
     {
         auto* hints = new QLabel(
             "\xe2\x8c\xa8  "
-            "<b>Invio</b> = risposta singola rapida"
+            "<b>Invio</b> = modalit\xc3\xa0 corrente"
+            " &nbsp;&nbsp;\xc2\xb7&nbsp;&nbsp; "
+            "<b>Stop da fermo</b> = cambia CHAT con RAG \xe2\x86\x94 Avvia"
             " &nbsp;&nbsp;\xc2\xb7&nbsp;&nbsp; "
             "<b>Shift+Invio</b> = a capo"
             " &nbsp;&nbsp;\xc2\xb7&nbsp;&nbsp; "
             "\xf0\x9f\x93\x88  Grafico cartesiano: es. "
-            "<i>Grafico di sin(x) per x da -3 a 3</i>"
-            " &nbsp;&nbsp;\xc2\xb7&nbsp;&nbsp; "
-            "\xf0\x9f\x96\xb1  Click destro sul grafico per salvare l'immagine",
+            "<i>Grafico di sin(x) per x da -3 a 3</i>",
             this);
         hints->setObjectName("footerHints");
         hints->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
@@ -537,16 +520,21 @@ void AgentiPage::setupUI() {
 
     /* ── Connessioni ── */
 
-    /* Avvio pipeline */
+    /* Pulsante unico: se busy → abort; altrimenti esegue in base a modalità */
     connect(m_btnRun, &QPushButton::clicked, this, [this]{
-        int mode = m_cmbMode->currentIndex();
+        if (m_ai->busy()) { m_ai->abort(); return; }
+        if (!m_modePipeline) {
+            /* Modalità Singolo: forza 1 agente */
+            m_cfgDlg->numAgentsSpinBox()->setValue(1);
+            m_maxShots = 1;
+        }
+        const int mode = m_cmbMode->currentIndex();
         if      (mode == 10) runConsiglioScientifico();
-        else if (mode == 2) runMathTheory();
-        /* Motore Byzantino (mode==1): usa Pipeline semplice — più veloce, stesso
-           risultato pratico. runByzantine() rimane disponibile per usi futuri. */
-        else runPipeline();
+        else if (mode == 2)  runMathTheory();
+        else                 runPipeline();
     });
-    /* Invio = Singolo (risposta rapida 1 agente)  |  Shift+Invio = a capo nel testo */
+
+    /* Invio = modalità corrente  |  Shift+Invio = a capo nel testo */
     {
         struct EnterFilter : public QObject {
             QPushButton* btn;
@@ -564,16 +552,8 @@ void AgentiPage::setupUI() {
                 return false;
             }
         };
-        m_input->installEventFilter(new EnterFilter(btnQuick, m_input));
+        m_input->installEventFilter(new EnterFilter(m_btnRun, m_input));
     }
-    connect(m_btnStop, &QPushButton::clicked, m_ai, &AiClient::abort);
-
-    /* Singolo (1 agente) */
-    connect(btnQuick, &QPushButton::clicked, this, [this]{
-        m_cfgDlg->numAgentsSpinBox()->setValue(1);
-        m_maxShots = 1;
-        m_btnRun->click();
-    });
 
     /* ── Pannello inline caratteri speciali (toggle) ── */
     {
@@ -886,9 +866,8 @@ void AgentiPage::setupUI() {
         m_pendingMode = OpMode::Idle;  /* traduzione pura: nessuna pipeline dopo */
         m_opMode      = OpMode::Translating;
 
-        m_btnRun->setEnabled(false);
+        _setRunBusy(true);
         m_btnTranslate->setEnabled(false);
-        m_btnStop->setEnabled(true);
         m_waitLbl->setVisible(true);
 
         m_ai->chat(sys, prompt);
@@ -1059,8 +1038,7 @@ void AgentiPage::setupUI() {
         m_currentAgent = 0;
         m_agentOutputs.clear();
         m_byzStep      = 0;
-        m_btnRun->setEnabled(true);
-        m_btnStop->setEnabled(false);
+        _setRunBusy(false);
         emit pipelineStatus(0, "\xe2\x9c\x8b  Interrotto");
         for (int i = 0; i < MAX_AGENTS; i++)
             m_cfgDlg->enabledChk(i)->setStyleSheet("");
@@ -1107,5 +1085,20 @@ void AgentiPage::setupUI() {
 
         _sttStartRecording();
     });
+}
+
+void AgentiPage::_setRunBusy(bool busy)
+{
+    if (busy) {
+        m_btnRun->setText("\xe2\x8f\xb9 Stop");
+        m_btnRun->setProperty("danger", true);
+    } else {
+        m_btnRun->setText(m_modePipeline
+            ? "\xe2\x96\xb6  Avvia"
+            : "\xf0\x9f\x92\xac CHAT con RAG");
+        m_btnRun->setProperty("danger", false);
+    }
+    m_btnRun->setEnabled(true);
+    P::repolish(m_btnRun);
 }
 

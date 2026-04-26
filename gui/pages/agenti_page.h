@@ -14,6 +14,7 @@
 #include <QVector>
 #include <QPointF>
 #include <QStack>
+#include <QElapsedTimer>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QJsonDocument>
@@ -78,8 +79,8 @@ private:
     QMap<int,QString> m_bubbleTexts;      ///< testo plain indicizzato per copia/TTS
     int           m_bubbleIdx = 0;        ///< contatore bolle corrente
     QTextEdit*    m_input     = nullptr;
-    QPushButton*  m_btnRun        = nullptr;
-    QPushButton*  m_btnStop       = nullptr;
+    QPushButton*  m_btnRun        = nullptr;  ///< Pulsante unico: run (idle) ↔ stop (busy)
+    bool          m_modePipeline  = false;    ///< false=Singolo (default), true=Avvia pipeline
     QPushButton*  m_btnAuto       = nullptr;   ///< Auto-assegna ruoli
     QPushButton*  m_btnCfg        = nullptr;   ///< Apre dialog config agenti
     QPushButton*  m_btnModeToggle = nullptr;   ///< Toggle Mono-Agente / Multi-Agente
@@ -146,9 +147,10 @@ private:
     int     m_ctrlBlockStart  = 0; ///< posizione per la bolla del controller
 
     /* ── Metadata agente corrente (usati per costruire la bolla) ── */
-    QString m_currentAgentLabel; ///< "🛸 Agente 1 — Ricercatore"
-    QString m_currentAgentModel;
-    QString m_currentAgentTime;
+    QString      m_currentAgentLabel; ///< "🛸 Agente 1 — Ricercatore"
+    QString      m_currentAgentModel;
+    QString      m_currentAgentTime;
+    QElapsedTimer m_agentTimer;       ///< misura il tempo di risposta di ogni agente
 
     /* ── Tool executor + Controller LLM ── */
     QString   m_executorOutput;      ///< stdout/stderr dell'esecutore Python
@@ -193,7 +195,8 @@ private:
                             std::function<void(const QString&)> onText);
 
     /* ── Selettore LLM principale (toolbar) ── */
-    QComboBox*   m_cmbLLM = nullptr;  ///< Selettore LLM singolo nella toolbar
+    QComboBox*   m_cmbLLM    = nullptr;  ///< Selettore LLM singolo nella toolbar
+    QString      m_pageModel;            ///< Modello preferito per questa scheda (privato)
 
     /* ── Pannello grafico (appare quando l'AI restituisce una formula) ── */
     QWidget*     m_chartPanel = nullptr;
@@ -208,6 +211,7 @@ private:
      *  @return true se si può procedere, false se l'utente ha annullato. */
     bool checkModelSize(const QString& model);
 
+    void _setRunBusy(bool busy);
     void setupUI();
     void runPipeline();
     void runByzantine();

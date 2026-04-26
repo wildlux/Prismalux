@@ -1,6 +1,9 @@
 #include "manutenzione_page.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
+#include <QSettings>
+#include <QBrush>
+#include <QColor>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -16,6 +19,9 @@ namespace P = PrismaluxPaths;
 #include <QTextEdit>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QTimer>
+#include <QTextCursor>
+#include <QFrame>
 
 /* ══════════════════════════════════════════════════════════════
    ManutenzioneePage — costruttore minimale.
@@ -24,7 +30,21 @@ namespace P = PrismaluxPaths;
    ══════════════════════════════════════════════════════════════ */
 ManutenzioneePage::ManutenzioneePage(AiClient* ai, HardwareMonitor* hw, QWidget* parent)
     : QWidget(parent), m_ai(ai), m_hw(hw)
-{}
+{
+    /* Applica la modalità calcolo SUBITO via variabile di processo (impostata
+     * in main() prima della creazione di qualsiasi componente).
+     * L'env var PRISMALUX_COMPUTE_MODE è la fonte unica e non soffre di
+     * race condition con hw-detect.
+     *   cpu   → num_gpu=0  (forza RAM)
+     *   gpu   → num_gpu=-2 provvisorio; updateHWLabel() affinerà con i layer reali
+     *   misto → num_gpu=-3 sentinella; updateHWLabel() userà gpuLayersMisto reali */
+    const QByteArray envMode = qgetenv("PRISMALUX_COMPUTE_MODE");
+    if (!envMode.isEmpty() && m_ai) {
+        if      (envMode == "cpu")   m_ai->setNumGpu(0);
+        else if (envMode == "gpu")   m_ai->setNumGpu(-2);   /* provvisorio */
+        else if (envMode == "misto") m_ai->setNumGpu(-3);   /* sentinella misto */
+    }
+}
 
 /* ── Stile condiviso per i QGroupBox ─────────────────────────── */
 static const char* GRP_STYLE =
@@ -54,7 +74,7 @@ QWidget* ManutenzioneePage::buildBackend()
        ══════════════════════════════════════════════════════════ */
     auto* leftGroup = new QGroupBox("\xf0\x9f\x94\x8c  Connessione & Modello", colsRow);
     leftGroup->setObjectName("cardGroup");
-    leftGroup->setFixedWidth(220);
+    leftGroup->setFixedWidth(270);
     auto* leftLay = new QVBoxLayout(leftGroup);
     leftLay->setSpacing(6);
 
@@ -307,7 +327,17 @@ QWidget* ManutenzioneePage::buildBackend()
             m_cmbModel->addItem("(nessun modello \xe2\x80\x94 backend non raggiungibile)");
             return;
         }
-        for (auto& nm : list) m_cmbModel->addItem(nm);
+        for (const auto& nm : list) {
+            m_cmbModel->addItem(nm);
+            if (P::isKnownBrokenModel(nm)) {
+                const int i = m_cmbModel->count() - 1;
+                m_cmbModel->setItemData(i, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
+                m_cmbModel->setItemData(i, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
+                m_cmbModel->setItemData(i,
+                    P::knownBrokenModelTooltip(),
+                    Qt::ToolTipRole);
+            }
+        }
         int idx = m_cmbModel->findText(m_ai->model());
         if (idx >= 0) m_cmbModel->setCurrentIndex(idx);
     });
@@ -331,6 +361,175 @@ QWidget* ManutenzioneePage::buildBackend()
         /* Mostra la sezione llama-server solo quando selezionato */
         grpServ->setVisible(idx == 1);
     });
+
+    /* ══════════════════════════════════════════════════════════
+       Sezione: Aggiornamento Modelli & Info GPU/RAM
+       ══════════════════════════════════════════════════════════ */
+    auto* updGroup = new QGroupBox(
+        "\xf0\x9f\x94\x84  Aggiornamento Modelli & GPU/RAM", page);
+    updGroup->setObjectName("cardGroup");
+    auto* updLay = new QVBoxLayout(updGroup);
+    updLay->setSpacing(6);
+    updLay->setContentsMargins(10, 14, 10, 8);
+
+    /* ── Versione Ollama ── */
+    auto* verRow = new QWidget(updGroup);
+    auto* verLay = new QHBoxLayout(verRow);
+    verLay->setContentsMargins(0, 0, 0, 0);
+    verLay->setSpacing(8);
+    auto* verLbl = new QLabel("\xf0\x9f\x90\xb3  Ollama: <i>verifica in corso...</i>", verRow);
+    verLbl->setObjectName("cardDesc");
+    verLbl->setTextFormat(Qt::RichText);
+    verLay->addWidget(verLbl, 1);
+    auto* verBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica", verRow);
+    verBtn->setObjectName("actionBtn");
+    verBtn->setFixedWidth(90);
+    verLay->addWidget(verBtn);
+    updLay->addWidget(verRow);
+
+    /* ── GPU vs RAM hint ── */
+    m_ramStatusLbl = new QLabel("", updGroup);
+    m_ramStatusLbl->setObjectName("cardDesc");
+    m_ramStatusLbl->setWordWrap(true);
+    m_ramStatusLbl->setTextFormat(Qt::RichText);
+    updLay->addWidget(m_ramStatusLbl);
+
+    /* ── Pulsanti aggiornamento modelli ── */
+    auto* btnRow = new QWidget(updGroup);
+    auto* btnRowL = new QHBoxLayout(btnRow);
+    btnRowL->setContentsMargins(0, 0, 0, 0);
+    btnRowL->setSpacing(8);
+    auto* updAllBtn = new QPushButton(
+        "\xe2\xac\x87  Aggiorna tutti i modelli Ollama", btnRow);
+    updAllBtn->setObjectName("actionBtn");
+    auto* updStatusLbl = new QLabel("", btnRow);
+    updStatusLbl->setObjectName("cardDesc");
+    updStatusLbl->setWordWrap(true);
+    btnRowL->addWidget(updAllBtn);
+    btnRowL->addWidget(updStatusLbl, 1);
+    updLay->addWidget(btnRow);
+
+    /* ── Log aggiornamento (compatto) ── */
+    auto* updLog = new QTextEdit(updGroup);
+    updLog->setReadOnly(true);
+    updLog->setObjectName("chatLog");
+    updLog->setFixedHeight(100);
+    updLog->setPlaceholderText("Premi \"Aggiorna tutti\" per scaricare le ultime versioni dei modelli Ollama.");
+    updLay->addWidget(updLog);
+
+    mainLay->addWidget(updGroup, 0);
+
+    /* ── Lambda: verifica versione Ollama ── */
+    auto checkOllamaVer = [=]() {
+        verLbl->setText("\xf0\x9f\x90\xb3  Ollama: <i>verifica...</i>");
+        auto* proc = new QProcess(page);
+        proc->start("ollama", {"--version"});
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                page, [=](int code, QProcess::ExitStatus){
+            proc->deleteLater();
+            const QString out = QString::fromLocal8Bit(proc->readAllStandardOutput()).trimmed()
+                              + QString::fromLocal8Bit(proc->readAllStandardError()).trimmed();
+            if (code == 0 && !out.isEmpty()) {
+                verLbl->setText(QString("\xf0\x9f\x90\xb3  Ollama: <b>%1</b>")
+                    .arg(out.toHtmlEscaped()));
+                updLog->append(QString("\xf0\x9f\x90\xb3  %1").arg(out));
+            } else {
+                verLbl->setText("\xf0\x9f\x90\xb3  Ollama: <span style='color:#ef4444;'>non trovato</span>");
+            }
+        });
+        connect(proc, &QProcess::errorOccurred, page, [=](QProcess::ProcessError){
+            proc->deleteLater();
+            verLbl->setText("\xf0\x9f\x90\xb3  Ollama: <span style='color:#ef4444;'>non trovato nel PATH</span>");
+        });
+    };
+
+    connect(verBtn, &QPushButton::clicked, page, checkOllamaVer);
+
+    /* ── Lambda: aggiorna tutti i modelli Ollama uno per uno ── */
+    connect(updAllBtn, &QPushButton::clicked, page, [=]() {
+        updAllBtn->setEnabled(false);
+        updLog->clear();
+        updStatusLbl->setText("\xf0\x9f\x94\x84  Recupero lista modelli...");
+
+        /* Step 1: ottieni lista modelli da Ollama */
+        auto* listProc = new QProcess(page);
+        listProc->start("ollama", {"list"});
+        connect(listProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                page, [=](int, QProcess::ExitStatus) {
+            listProc->deleteLater();
+            const QString raw = QString::fromLocal8Bit(listProc->readAllStandardOutput());
+            QStringList models;
+            for (const QString& line : raw.split('\n', Qt::SkipEmptyParts)) {
+                if (line.trimmed().startsWith("NAME", Qt::CaseInsensitive)) continue;
+                const QString name = line.split(QChar(' '), Qt::SkipEmptyParts).value(0).trimmed();
+                if (!name.isEmpty()) models << name;
+            }
+
+            if (models.isEmpty()) {
+                updStatusLbl->setText("\xe2\x9d\x8c  Nessun modello trovato. Ollama in esecuzione?");
+                updAllBtn->setEnabled(true);
+                return;
+            }
+
+            updLog->append(QString("\xf0\x9f\x93\x8b  %1 modelli da aggiornare: %2")
+                .arg(models.size()).arg(models.join(", ")));
+            updStatusLbl->setText(QString("\xf0\x9f\x94\x84  Aggiornamento 1/%1...").arg(models.size()));
+
+            /* Step 2: aggiorna ogni modello in sequenza usando un contatore */
+            auto* idx = new int(0);
+            auto* total = new int(models.size());
+
+            /* Funzione ricorsiva tramite funzione lambda condivisa */
+            struct Updater {
+                static void next(QWidget* parent, QTextEdit* log, QLabel* status,
+                                 QPushButton* btn, QStringList mdls, int* i, int* tot) {
+                    if (*i >= *tot) {
+                        delete i; delete tot;
+                        status->setText(QString("\xe2\x9c\x85  Aggiornamento completato! %1 modelli").arg(*tot));
+                        log->append("\n\xe2\x9c\x85  Tutti i modelli sono aggiornati.");
+                        btn->setEnabled(true);
+                        return;
+                    }
+                    const QString mdl = mdls.at(*i);
+                    status->setText(QString("\xf0\x9f\x94\x84  Aggiornamento %1/%2: %3")
+                        .arg(*i + 1).arg(*tot).arg(mdl));
+                    log->append(QString("\n\xe2\xac\x87  Aggiornamento: <b>%1</b>...").arg(mdl));
+
+                    auto* proc = new QProcess(parent);
+                    proc->setProcessChannelMode(QProcess::MergedChannels);
+                    proc->start("ollama", {"pull", mdl});
+                    QObject::connect(proc, &QProcess::readyRead, parent, [proc, log](){
+                        log->moveCursor(QTextCursor::End);
+                        const QString chunk = QString::fromLocal8Bit(proc->readAll());
+                        /* Mostra solo righe non vuote per non riempire il log */
+                        for (const QString& l : chunk.split('\n', Qt::SkipEmptyParts))
+                            log->insertPlainText("  " + l.trimmed() + "\n");
+                        log->ensureCursorVisible();
+                    });
+                    QObject::connect(proc,
+                        QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                        parent, [proc, log, status, btn, mdls, i, tot, parent](int code, QProcess::ExitStatus){
+                            proc->deleteLater();
+                            if (code == 0)
+                                log->append(QString("  \xe2\x9c\x85  %1 aggiornato.").arg(mdls.at(*i)));
+                            else
+                                log->append(QString("  \xe2\x9a\xa0  %1: errore (code %2)").arg(mdls.at(*i)).arg(code));
+                            ++(*i);
+                            next(parent, log, status, btn, mdls, i, tot);
+                        });
+                }
+            };
+            Updater::next(page, updLog, updStatusLbl, updAllBtn, models, idx, total);
+        });
+        connect(listProc, &QProcess::errorOccurred, page, [=](QProcess::ProcessError){
+            listProc->deleteLater();
+            updStatusLbl->setText("\xe2\x9d\x8c  Ollama non trovato. Verifica il PATH.");
+            updAllBtn->setEnabled(true);
+        });
+    });
+
+    /* Verifica versione Ollama subito all'apertura */
+    QTimer::singleShot(200, page, checkOllamaVer);
 
     return page;
 }
@@ -510,7 +709,107 @@ QWidget* ManutenzioneePage::buildHardware()
     ramLay->addWidget(m_ramLog);
 
     colsLay->addWidget(grpRam, 1);
-    mainLay->addWidget(colsRow, 1);
+    mainLay->addWidget(colsRow);
+
+    /* ══════════════════════════════════════════════════════════════
+       Pannello Modalità Calcolo LLM — full width
+       ══════════════════════════════════════════════════════════════ */
+    auto* computeGroup = new QGroupBox(
+        "\xf0\x9f\x92\xbb  Modalit\xc3\xa0 Calcolo LLM", page);
+    computeGroup->setObjectName("cardGroup");
+    auto* compLay = new QVBoxLayout(computeGroup);
+    compLay->setSpacing(8);
+
+    auto* compDesc = new QLabel(
+        "Scegli dove eseguire il modello. "
+        "Il default viene rilevato automaticamente confrontando RAM e VRAM.", computeGroup);
+    compDesc->setObjectName("cardDesc");
+    compDesc->setWordWrap(true);
+    compLay->addWidget(compDesc);
+
+    auto* btnRow2 = new QWidget(computeGroup);
+    auto* btnL2   = new QHBoxLayout(btnRow2);
+    btnL2->setContentsMargins(0, 0, 0, 0);
+    btnL2->setSpacing(10);
+
+    m_btnGpu    = new QPushButton("\xf0\x9f\x9a\x80  GPU  (VRAM)", computeGroup);
+    m_btnCpu    = new QPushButton("\xf0\x9f\x96\xa5  CPU  (RAM)",  computeGroup);
+    m_btnMisto  = new QPushButton("\xe2\x9a\x96\xef\xb8\x8f  Misto GPU+CPU",  computeGroup);
+    m_btnDoppia = new QPushButton("\xf0\x9f\x94\x97  Doppia GPU", computeGroup);
+    m_btnGpu->setObjectName("actionBtn");
+    m_btnCpu->setObjectName("actionBtn");
+    m_btnMisto->setObjectName("actionBtn");
+    m_btnDoppia->setObjectName("actionBtn");
+    m_btnGpu->setMinimumWidth(140);
+    m_btnCpu->setMinimumWidth(140);
+    m_btnMisto->setMinimumWidth(140);
+    m_btnDoppia->setMinimumWidth(140);
+    m_btnGpu->setToolTip(
+        "Tutti i layer su GPU dedicata (NVIDIA/AMD).\n"
+        "Massima velocit\xc3\xa0 se il modello entra in VRAM.\n"
+        "num_gpu = layer count reale del modello.");
+    m_btnCpu->setToolTip(
+        "Tutti i layer su CPU (RAM di sistema).\n"
+        "Pi\xc3\xb9 lento, nessun consumo di VRAM.\n"
+        "num_gpu = 0.");
+    m_btnMisto->setToolTip(
+        "Riempie la GPU dedicata al massimo della sua VRAM,\n"
+        "i layer rimanenti vanno su CPU/RAM.\n"
+        "num_gpu = min(layer_model, layer_capacity_NVIDIA).");
+    m_btnDoppia->setToolTip(
+        "GPU dedicata (NVIDIA) + Intel iGPU insieme.\n"
+        "Richiede llama-server compilato con CUDA+SYCL.\n"
+        "Con Ollama: usa solo NVIDIA (Intel iGPU ignorata da CUDA).");
+    m_btnDoppia->setEnabled(false);   /* abilitato solo se iGPU Intel rilevata */
+
+    btnL2->addWidget(m_btnGpu);
+    btnL2->addWidget(m_btnCpu);
+    btnL2->addWidget(m_btnMisto);
+    btnL2->addWidget(m_btnDoppia);
+    btnL2->addStretch(1);
+    compLay->addWidget(btnRow2);
+
+    m_computeInfo = new QLabel(
+        "\xe2\x8f\xb3  In attesa rilevamento hardware...", computeGroup);
+    m_computeInfo->setObjectName("cardDesc");
+    m_computeInfo->setWordWrap(true);
+    compLay->addWidget(m_computeInfo);
+
+    /* Riga salva */
+    auto* saveRow  = new QWidget(computeGroup);
+    auto* saveRowL = new QHBoxLayout(saveRow);
+    saveRowL->setContentsMargins(0, 4, 0, 0);
+    saveRowL->setSpacing(10);
+
+    m_btnSaveMode = new QPushButton(
+        "\xf0\x9f\x92\xbe  Salva modalit\xc3\xa0", computeGroup);
+    m_btnSaveMode->setObjectName("actionBtn");
+    m_btnSaveMode->setEnabled(false);
+    m_btnSaveMode->setToolTip(
+        "Applica la modalit\xc3\xa0 selezionata e la salva per i prossimi avvii.");
+    saveRowL->addWidget(m_btnSaveMode);
+    saveRowL->addStretch(1);
+    compLay->addWidget(saveRow);
+
+    mainLay->addWidget(computeGroup);
+    mainLay->addStretch(1);
+
+    /* Connessioni: bottoni → selezione (anteprima); Salva → applica+persiste */
+    connect(m_btnGpu,    &QPushButton::clicked, this, [this]{ selectComputeMode("gpu");    });
+    connect(m_btnCpu,    &QPushButton::clicked, this, [this]{ selectComputeMode("cpu");    });
+    connect(m_btnMisto,  &QPushButton::clicked, this, [this]{ selectComputeMode("misto");  });
+    connect(m_btnDoppia, &QPushButton::clicked, this, [this]{ selectComputeMode("doppia"); });
+    connect(m_btnSaveMode, &QPushButton::clicked, this, [this]{
+        applyComputeMode(m_selectedMode);
+    });
+
+    /* Ri-applica al cambio modello per ricalcolare num_gpu con i layer reali */
+    connect(m_ai, &AiClient::modelChanged, this, [this](const QString&) {
+        QSettings s("Prismalux", "GUI");
+        const QString saved = s.value(P::SK::kComputeMode, "").toString();
+        if (saved == "gpu" || saved == "misto" || saved == "doppia")
+            applyComputeMode(saved);
+    });
 
     /* ── Helper: esegui processo nel log ── */
     auto runCmd = [this](const QString& prog, const QStringList& args,
@@ -660,23 +959,305 @@ void ManutenzioneePage::onHWReady(const HWInfo& hw) {
 
 void ManutenzioneePage::updateHWLabel(const HWInfo& hw) {
     if (!m_hwLabel) return;
+
+    /* ── Reset valori VRAM tracciati ── */
+    m_nvidiaVramMb = 0;
+    m_igpuVramMb   = 0;
+    long cpuRamMb  = 0;
+
+    /* ── Costruisce testo con 3 tipologie distinte ── */
     QString txt;
     for (int i = 0; i < hw.count; i++) {
         const HWDevice& d = hw.dev[i];
-        QString tag;
-        if (i == hw.primary)   tag = "  \xe2\x86\x90 PRIMARIO";
-        if (i == hw.secondary) tag = "  \xe2\x86\x90 secondario";
 
-        if (d.type == DEV_CPU)
-            txt += QString("[CPU]  %1\n       RAM %2 MB  (disponibile %3 MB)%4\n\n")
-                   .arg(d.name).arg(d.mem_mb).arg(d.avail_mb).arg(tag);
-        else
-            txt += QString("[%1]  %2\n       VRAM %3 MB  (usabile %4 MB, layers=%5)%6\n\n")
+        if (d.type == DEV_CPU) {
+            cpuRamMb = d.mem_mb;
+            txt += QString("[CPU]  %1\n"
+                           "       RAM %2 MB  (libera %3 MB)\n\n")
+                   .arg(d.name).arg(d.mem_mb).arg(d.avail_mb);
+
+        } else if (d.type == DEV_INTEL) {
+            m_igpuVramMb = d.mem_mb;   /* apertura GGTT */
+            txt += "[Intel GPU integrato]  " + QString(d.name) + "\n";
+            if (d.mem_mb > 0)
+                txt += QString("       Apertura VRAM %1 MB  "
+                               "(condivisa con RAM — stolen memory dal BIOS)\n\n")
+                       .arg(d.mem_mb);
+            else
+                txt += "       VRAM condivisa con RAM  "
+                       "(dimensione configurable nel BIOS, tipicamente 512 MB-2 GB)\n\n";
+
+        } else {
+            /* GPU dedicata: NVIDIA, AMD, Apple */
+            if (i == hw.secondary) m_nvidiaVramMb = d.avail_mb;
+            const bool isMain = (i == hw.secondary);
+            txt += QString("[%1]  %2%3\n"
+                           "       VRAM %4 MB  (usabile %5 MB,  max layer stimati: %6)\n\n")
                    .arg(hw_dev_type_str(d.type)).arg(d.name)
-                   .arg(d.mem_mb).arg(d.avail_mb).arg(d.n_gpu_layers).arg(tag);
+                   .arg(isMain ? "  \xe2\x86\x90 GPU per inferenza" : "")
+                   .arg(d.mem_mb).arg(d.avail_mb).arg(d.n_gpu_layers);
+        }
     }
+
+    /* Riga riepilogo VRAM combinata (solo se iGPU + GPU dedicata entrambe presenti) */
+    if (m_nvidiaVramMb > 0 && m_igpuVramMb > 0) {
+        const long combined = m_nvidiaVramMb + m_igpuVramMb;
+        txt += QString("── VRAM combinata: %1 MB  (NVIDIA/AMD %2 MB + Intel %3 MB) ──\n"
+                       "   Budget netto (tolti KV-cache ~200 MB + RAG ~270 MB): ~%4 MB\n")
+               .arg(combined).arg(m_nvidiaVramMb).arg(m_igpuVramMb)
+               .arg(qMax(0LL, combined - 470LL));
+    } else if (m_nvidiaVramMb > 0) {
+        txt += QString("── Budget modello (GPU: %1 MB - KV ~200 MB - RAG ~270 MB): ~%2 MB ──\n")
+               .arg(m_nvidiaVramMb)
+               .arg(qMax(0LL, m_nvidiaVramMb - 470LL));
+    }
+
     if (txt.isEmpty()) txt = "Nessun dispositivo rilevato.";
     m_hwLabel->setText(txt.trimmed());
+
+    /* ── Consiglio GPU vs RAM ── */
+    if (m_ramStatusLbl && cpuRamMb > 0) {
+        QString advice;
+        const long combined = m_nvidiaVramMb + m_igpuVramMb;
+        if (m_nvidiaVramMb == 0 && m_igpuVramMb == 0) {
+            advice = "\xf0\x9f\x92\xbb  <b>Solo CPU:</b> nessuna GPU dedicata rilevata. "
+                     "RAM disponibile: %1 MB.";
+            advice = advice.arg(cpuRamMb);
+        } else if (m_nvidiaVramMb > 0 && m_igpuVramMb > 0) {
+            advice = "\xf0\x9f\x94\x97  <b>Doppia GPU:</b> NVIDIA/AMD %1 MB + Intel iGPU %2 MB = "
+                     "<b>%3 MB combinati</b>.<br>"
+                     "Con Ollama usa GPU (NVIDIA) o Misto. "
+                     "Per sfruttare entrambe: <b>Doppia GPU</b> via llama-server CUDA+SYCL.";
+            advice = advice.arg(m_nvidiaVramMb).arg(m_igpuVramMb).arg(combined);
+        } else if (m_nvidiaVramMb >= cpuRamMb) {
+            advice = "\xf0\x9f\x9a\x80  <b>GPU consigliata:</b> VRAM %1 MB \xe2\x89\xa5 RAM %2 MB. "
+                     "Tutti i modelli piccoli/medi entrano in VRAM.";
+            advice = advice.arg(m_nvidiaVramMb).arg(cpuRamMb);
+        } else {
+            advice = "\xe2\x9a\x96\xef\xb8\x8f  VRAM %1 MB &lt; RAM %2 MB. "
+                     "Usa <b>GPU</b> per modelli che entrano in VRAM, "
+                     "<b>Misto</b> per modelli pi\xc3\xb9 grandi.";
+            advice = advice.arg(m_nvidiaVramMb).arg(cpuRamMb);
+        }
+        m_ramStatusLbl->setText(advice);
+    }
+
+    /* ── Auto-detect modalità calcolo ── */
+    if (m_btnGpu) {
+        /* GPU dedicata: mai Intel iGPU da sola per inferenza Ollama */
+        const bool hasDedicated = (hw.secondary >= 0
+                                   && hw.dev[hw.secondary].type != DEV_INTEL);
+        const bool hasIgpu      = (hw.igpu >= 0);
+
+        if (hasDedicated) {
+            m_gpuLayersFull = hw.dev[hw.secondary].n_gpu_layers;
+        } else {
+            m_gpuLayersFull = 0;
+        }
+
+        m_btnGpu->setEnabled(hasDedicated);
+        m_btnMisto->setEnabled(hasDedicated);
+        /* Doppia GPU: attiva solo se iGPU Intel + GPU dedicata entrambe presenti */
+        m_btnDoppia->setEnabled(hasDedicated && hasIgpu);
+
+        QSettings s("Prismalux", "GUI");
+        QString mode = s.value(P::SK::kComputeMode, "").toString();
+        if (mode.isEmpty()) {
+#ifdef Q_OS_WIN
+            mode = "cpu";
+#else
+            mode = hasDedicated ? "gpu" : "cpu";
+#endif
+        }
+        /* Se la modalità salvata era "doppia" ma iGPU non c'è più, degrada a gpu */
+        if (mode == "doppia" && !hasIgpu) mode = "gpu";
+
+        applyComputeMode(mode);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   selectComputeMode — evidenzia la selezione senza salvare
+   Abilita il pulsante "Salva" per la conferma esplicita.
+   ══════════════════════════════════════════════════════════════ */
+void ManutenzioneePage::selectComputeMode(const QString& mode)
+{
+    if (!m_btnGpu) return;
+    m_selectedMode = mode;
+
+    /* Evidenzia bottone selezionato (anteprima) */
+    auto highlight = [](QPushButton* btn, bool active) {
+        if (btn) btn->setStyleSheet(active
+            ? "font-weight:bold; border:2px solid #ffa726;"   /* arancione = non salvato */
+            : "");
+    };
+    highlight(m_btnGpu,    mode == "gpu");
+    highlight(m_btnCpu,    mode == "cpu");
+    highlight(m_btnMisto,  mode == "misto");
+    highlight(m_btnDoppia, mode == "doppia");
+
+    if (m_computeInfo) {
+        QString preview;
+        if (mode == "gpu")
+            preview = "\xf0\x9f\x9f\xa0  <b>GPU selezionata</b> — tutti i layer su NVIDIA/AMD. "
+                      "Premi Salva per applicare.";
+        else if (mode == "cpu")
+            preview = "\xf0\x9f\x9f\xa0  <b>CPU selezionata</b> — tutti i layer su RAM. "
+                      "Premi Salva per applicare.";
+        else if (mode == "misto")
+            preview = "\xf0\x9f\x9f\xa0  <b>Misto selezionato</b> — riempie NVIDIA al massimo, "
+                      "layer in eccesso su CPU/RAM. Premi Salva per applicare.";
+        else if (mode == "doppia") {
+            const long combined = m_nvidiaVramMb + m_igpuVramMb;
+            if (combined > 0)
+                preview = QString("\xf0\x9f\x9f\xa0  <b>Doppia GPU selezionata</b> — "
+                                  "NVIDIA %1 MB + Intel iGPU %2 MB = %3 MB combinati.<br>"
+                                  "Premi Salva per le istruzioni specifiche per il tuo backend.")
+                          .arg(m_nvidiaVramMb).arg(m_igpuVramMb).arg(combined);
+            else
+                preview = "\xf0\x9f\x9f\xa0  <b>Doppia GPU selezionata</b> — "
+                          "Premi Salva per le istruzioni.";
+        }
+        m_computeInfo->setText(preview);
+    }
+
+    if (m_btnSaveMode) m_btnSaveMode->setEnabled(true);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   applyComputeMode — salva su QSettings e applica ad AiClient
+   Chiamato da "Salva modalità" oppure al boot per ripristinare.
+   ATTENZIONE: Ollama NON clipa num_gpu al layer count reale —
+   un valore troppo alto (999) causa "memory layout cannot be allocated".
+   Usare sempre la stima da hw_detect (n_gpu_layers = avail_mb/80).
+   ══════════════════════════════════════════════════════════════ */
+void ManutenzioneePage::applyComputeMode(const QString& mode)
+{
+    if (!m_btnGpu) return;
+    m_selectedMode = mode;
+
+    /* Persiste su QSettings e aggiorna la variabile di processo: fonte unica
+     * per tutti i componenti (incluso AiClient) durante tutta la sessione. */
+    {
+        QSettings s("Prismalux", "GUI");
+        s.setValue(P::SK::kComputeMode, mode);
+    }
+    qputenv("PRISMALUX_COMPUTE_MODE", mode.toUtf8());
+
+    /* Evidenzia bottone salvato (bordo azzurro = salvato) */
+    auto highlight = [](QPushButton* btn, bool active) {
+        if (btn) btn->setStyleSheet(active
+            ? "font-weight:bold; border:2px solid #4fc3f7;"
+            : "");
+    };
+    highlight(m_btnGpu,    mode == "gpu");
+    highlight(m_btnCpu,    mode == "cpu");
+    highlight(m_btnMisto,  mode == "misto");
+    highlight(m_btnDoppia, mode == "doppia");
+    if (m_btnSaveMode) m_btnSaveMode->setEnabled(false);
+
+    if (!m_ai) return;
+
+    if (mode == "gpu") {
+        /* Recupera layer count reale via /api/show — Ollama NON clipa num_gpu,
+         * un valore > layer count reale causa ISE 500. */
+        if (m_computeInfo)
+            m_computeInfo->setText(
+                "\xe2\x8f\xb3  <b>GPU</b>: recupero layer count dal modello...");
+
+        m_ai->fetchModelLayers([this](int layers) {
+            if (!m_ai) return;
+            m_ai->unloadModel();
+            m_ai->setNumGpu(layers > 0 ? layers : -2);
+            if (m_computeInfo)
+                m_computeInfo->setText(layers > 0
+                    ? QString("\xe2\x9c\x85  <b>GPU (NVIDIA/AMD)</b> — tutti i %1 layer su VRAM "
+                              "(num_gpu=%1). Ricaricato alla prossima richiesta.")
+                        .arg(layers)
+                    : "\xe2\x9c\x85  <b>GPU salvata</b> — Ollama auto-rileva (CUDA/ROCm). "
+                      "Ricaricato alla prossima richiesta.");
+        });
+
+    } else if (mode == "cpu") {
+        m_ai->unloadModel();
+        m_ai->setNumGpu(0);
+        if (m_computeInfo)
+            m_computeInfo->setText(
+                "\xe2\x9c\x85  <b>CPU</b> — tutti i layer su RAM (num_gpu=0). "
+                "Ricaricato su CPU alla prossima richiesta.");
+
+    } else if (mode == "misto") {
+        /* Misto ottimizzato: riempie la GPU dedicata al massimo della VRAM disponibile.
+         * num_gpu = min(layer_count_modello, layer_capacity_NVIDIA).
+         * I layer in eccesso vanno su CPU/RAM — nessun errore ISE. */
+        if (m_computeInfo)
+            m_computeInfo->setText(
+                "\xe2\x8f\xb3  <b>Misto</b>: recupero layer count dal modello...");
+
+        m_ai->fetchModelLayers([this](int layers) {
+            if (!m_ai) return;
+            /* Riempie NVIDIA al massimo: min(layer modello, capacit\xc3\xa0 VRAM NVIDIA).
+             * Fallback conservativo se layers=0 (modello non caricato): 8 layer. */
+            const int capacity = (m_gpuLayersFull > 0) ? m_gpuLayersFull : 8;
+            const int gpuLayers = (layers > 0) ? qMin(layers, capacity) : 8;
+            const int total     = (layers > 0) ? layers : 16;
+            m_ai->unloadModel();
+            m_ai->setNumGpu(gpuLayers);
+            if (m_computeInfo) {
+                if (gpuLayers >= total)
+                    m_computeInfo->setText(
+                        QString("\xe2\x9c\x85  <b>Misto</b> — tutti i %1 layer su GPU "
+                                "(il modello entra interamente in VRAM: valuta modalit\xc3\xa0 GPU pura).")
+                        .arg(gpuLayers));
+                else
+                    m_computeInfo->setText(
+                        QString("\xe2\x9c\x85  <b>Misto</b> — %1/%2 layer su GPU (NVIDIA, num_gpu=%1), "
+                                "%3 layer su CPU/RAM. Ricaricato alla prossima richiesta.")
+                        .arg(gpuLayers).arg(total).arg(total - gpuLayers));
+            }
+        });
+
+    } else if (mode == "doppia") {
+        /* Doppia GPU: NVIDIA + Intel iGPU.
+         * Con Ollama: CUDA non vede la Intel iGPU — usiamo GPU mode (NVIDIA) e informiamo.
+         * Con llama-server (CUDA+SYCL): mostriamo il comando --tensor-split ottimale. */
+        m_ai->unloadModel();
+        m_ai->setNumGpu(-2);   /* Ollama auto GPU (NVIDIA via CUDA) */
+
+        if (m_computeInfo) {
+            const bool isOllama = (m_ai->backend() == AiClient::Ollama);
+            const long combined = m_nvidiaVramMb + m_igpuVramMb;
+            const double nvRatio = (combined > 0)
+                ? (double)m_nvidiaVramMb / (double)combined : 0.7;
+            const double igRatio = 1.0 - nvRatio;
+
+            if (isOllama) {
+                m_computeInfo->setText(
+                    QString("\xe2\x9c\x85  <b>Doppia GPU (Ollama)</b> — "
+                            "NVIDIA %1 MB attiva, Intel iGPU ignorata da CUDA.<br>"
+                            "Per sfruttare entrambe passa a <b>llama-server</b> compilato con CUDA+SYCL:<br>"
+                            "<code>llama-server --device CUDA0,SYCL0 "
+                            "--tensor-split %2,%3 -ngl 99 -m modello.gguf</code><br>"
+                            "VRAM combinata: %4 MB  (NVIDIA %1 MB + Intel %5 MB)")
+                    .arg(m_nvidiaVramMb)
+                    .arg(nvRatio, 0, 'f', 2).arg(igRatio, 0, 'f', 2)
+                    .arg(combined).arg(m_igpuVramMb));
+            } else {
+                /* llama-server: mostra comando completo con split ottimale */
+                m_computeInfo->setText(
+                    QString("\xe2\x9c\x85  <b>Doppia GPU (llama-server CUDA+SYCL)</b><br>"
+                            "Avvia llama-server con:<br>"
+                            "<code>llama-server --device CUDA0,SYCL0 "
+                            "--tensor-split %1,%2 -ngl 99 -m modello.gguf</code><br>"
+                            "Rapporto: NVIDIA %3 MB / Intel %4 MB = "
+                            "<b>%5 MB combinati</b><br>"
+                            "Budget netto (KV ~200 MB + RAG ~270 MB): ~%6 MB")
+                    .arg(nvRatio, 0, 'f', 2).arg(igRatio, 0, 'f', 2)
+                    .arg(m_nvidiaVramMb).arg(m_igpuVramMb).arg(combined)
+                    .arg(qMax(0LL, combined - 470LL)));
+            }
+        }
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════

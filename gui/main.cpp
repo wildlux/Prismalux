@@ -1,6 +1,8 @@
 #include <QApplication>
 #include <QDir>
 #include <QFontDatabase>
+#include <QSettings>
+#include <QCoreApplication>
 #include "mainwindow.h"
 
 /* ── Carica tutti i font .ttf/.otf dalla cartella fonts/ accanto all'exe ──
@@ -23,6 +25,18 @@ int main(int argc, char* argv[]) {
 
     /* ── Font professionali dalla cartella fonts/ (facoltativo) ── */
     loadBundledFonts();
+
+    /* ── Variabile di processo: modalità calcolo LLM ──────────────────────
+     * Impostata UNA VOLTA qui, prima che qualsiasi componente venga creato.
+     * Sovrascrive la configurazione falsa causata dalla race condition tra
+     * il costruttore di ManutenzioneePage (senza hw-detect) e updateHWLabel.
+     * Tutti i componenti leggono PRISMALUX_COMPUTE_MODE come fonte unica. */
+    {
+        QSettings s("Prismalux", "GUI");
+        const QString cm = s.value("ai/computeMode", "").toString();
+        if (!cm.isEmpty())
+            qputenv("PRISMALUX_COMPUTE_MODE", cm.toUtf8());
+    }
 
     /* ── Finestra principale (carica il tema saved via ThemeManager) ── */
     MainWindow w;

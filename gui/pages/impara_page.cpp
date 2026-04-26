@@ -24,6 +24,8 @@
 #include <QGuiApplication>
 #include <QClipboard>
 #include <QProcess>
+#include <QBrush>
+#include <QColor>
 
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
@@ -101,11 +103,64 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
 
     /* Quando arrivano i modelli Ollama/llama-server → popola QUESTO combo specifico.
      * Usa bar come context object: se il bar viene distrutto, la connessione si
-     * disconnette automaticamente — evita doppio-popolamento tra le due barre. */
+     * disconnette automaticamente — evita doppio-popolamento tra le due barre.
+     *
+     * IMPORTANTE: salva e ripristina la selezione dell'utente dopo il repopulate.
+     * Senza blockSignals(), il clear() triggera currentIndexChanged con idx=0
+     * sovrascrivendo il modello scelto dall'utente. */
     connect(m_ai, &AiClient::modelsReady, bar, [=](const QStringList& list){
-        if (cmbBackend->currentIndex() < 2) {
-            cmbModel->clear();
-            for (const auto& mdl : list) cmbModel->addItem(mdl, mdl);
+        if (cmbBackend->currentIndex() >= 2) return;
+
+        /* Salva il modello correntemente scelto dall'utente */
+        const QString prev = cmbModel->currentData().toString();
+
+        /* Ripopola senza emettere segnali intermedi */
+        cmbModel->blockSignals(true);
+        cmbModel->clear();
+
+        const qint64 totalRam = P::totalRamBytes();
+        for (const auto& mdl : list) {
+            cmbModel->addItem(mdl, mdl);
+            /* Colora in rosso i modelli che richiedono più RAM del disponibile
+             * (regola Shannon: serve almeno 2× la dimensione del file) */
+            {
+                const int i = cmbModel->count() - 1;
+                if (totalRam > 0) {
+                    const qint64 sz = m_ai->modelSizeBytes(mdl);
+                    if (sz > 0 && sz * 2 > totalRam) {
+                        cmbModel->setItemData(i, QBrush(QColor("#ef4444")), Qt::ForegroundRole);
+                        cmbModel->setItemData(i,
+                            QString("Attenzione: questo modello richiede ~%1 GB di RAM "
+                                    "(regola 2\xc3\x97) ma il sistema ha solo %2 GB totali.")
+                                .arg(sz * 2 / 1e9, 0, 'f', 1)
+                                .arg(totalRam / 1e9, 0, 'f', 1),
+                            Qt::ToolTipRole);
+                    }
+                }
+                if (P::isKnownBrokenModel(mdl)) {
+                    cmbModel->setItemData(i, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
+                    cmbModel->setItemData(i, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
+                    cmbModel->setItemData(i,
+                        P::knownBrokenModelTooltip(),
+                        Qt::ToolTipRole);
+                }
+            }
+        }
+
+        /* Ripristina la selezione precedente (o il primo se non trovata) */
+        int idx = prev.isEmpty() ? 0 : cmbModel->findData(prev);
+        if (idx < 0) idx = 0;
+        cmbModel->setCurrentIndex(idx);
+        cmbModel->blockSignals(false);
+
+        /* Applica all'AiClient solo se il modello è effettivamente cambiato */
+        if (idx < cmbModel->count()) {
+            const QString mdl = cmbModel->currentData().toString();
+            if (!mdl.isEmpty() && mdl != m_ai->model()) {
+                const int bk = cmbBackend->currentIndex();
+                m_ai->setBackend(bk == 0 ? AiClient::Ollama : AiClient::LlamaServer,
+                                 m_ai->host(), m_ai->port(), mdl);
+            }
         }
     });
 
@@ -145,7 +200,7 @@ QWidget* ImparaPage::buildMenu() {
 
     struct Item { QString icon, title, desc; int page; };
     QList<Item> items = {
-        {"🏛️", "Tutor AI — Oracolo",
+        {"🎓", "Tutor AI",
          "Spiegazioni personalizzate su qualsiasi materia. Matematica, informatica, fisica e altro.", 1},
         {"📖", "Materie",
          "Tutor per argomento: Matematica, Fisica, Chimica, Sicurezza Informatica, Informatica, Algoritmi.", 4},
@@ -193,7 +248,7 @@ QWidget* ImparaPage::buildTutor() {
     auto* hdrW = new QWidget(w);
     auto* hdrL = new QHBoxLayout(hdrW); hdrL->setContentsMargins(0,0,0,0);
     auto* back = new QPushButton("← Torna", hdrW); back->setObjectName("actionBtn");
-    auto* lbl  = new QLabel("🏛️  Tutor AI — Oracolo", hdrW); lbl->setObjectName("pageTitle");
+    auto* lbl  = new QLabel("🎓  Tutor AI", hdrW); lbl->setObjectName("pageTitle");
     hdrL->addWidget(back); hdrL->addWidget(lbl, 1);
     lay->addWidget(hdrW);
 
@@ -217,7 +272,7 @@ QWidget* ImparaPage::buildTutor() {
     /* Log */
     m_tutorLog = new QTextEdit(w); m_tutorLog->setObjectName("chatLog");
     m_tutorLog->setReadOnly(true);
-    m_tutorLog->setPlaceholderText("🏛️  Modalità Oracolo attiva.\n\nFai una domanda sulla materia selezionata.");
+    m_tutorLog->setPlaceholderText("🎓  Tutor AI pronto.\n\nFai una domanda sulla materia selezionata.");
     lay->addWidget(m_tutorLog, 1);
 
     /* ── Context menu: copia / leggi ── */
@@ -250,7 +305,7 @@ QWidget* ImparaPage::buildTutor() {
     auto* inRow = new QWidget(w);
     auto* inL   = new QHBoxLayout(inRow); inL->setContentsMargins(0,0,0,0); inL->setSpacing(8);
     auto* inp  = new QLineEdit(inRow); inp->setObjectName("chatInput");
-    inp->setPlaceholderText("Fai una domanda all'Oracolo..."); inp->setFixedHeight(38);
+    inp->setPlaceholderText("Fai una domanda al Tutor AI..."); inp->setFixedHeight(38);
     auto* send = new QPushButton("Chiedi \xe2\x96\xb6", inRow); send->setObjectName("actionBtn");
     send->setToolTip("Invia la domanda al tutor AI (Invio)");
     auto* stop = new QPushButton("\xe2\x8f\xb9", inRow);
@@ -267,9 +322,9 @@ QWidget* ImparaPage::buildTutor() {
     auto sendFn = [=]{
         QString msg = inp->text().trimmed(); if (msg.isEmpty()) return;
         m_tutorLog->append(QString("\n👤  Tu [%1]: %2\n").arg(m_tutorSubj->currentText(), msg));
-        m_tutorLog->append("🤖  Oracolo: ");
+        m_tutorLog->append("🤖  Tutor AI: ");
         inp->clear(); send->setEnabled(false); stop->setEnabled(true); waitLbl->setVisible(true);
-        QString sys = QString("Sei l'Oracolo di Prismalux, un tutor AI esperto in %1. "
+        QString sys = QString("Sei un tutor AI esperto in %1. "
             "Spiega in modo chiaro con esempi pratici. Rispondi SEMPRE e SOLO in italiano.")
             .arg(m_tutorSubj->currentText());
         m_ai->chat(sys, msg);

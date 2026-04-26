@@ -44,6 +44,9 @@ constexpr int kOllamaPort      = 11434;
 /** Porta default llama-server quando avviato dalla GUI */
 constexpr int kLlamaServerPort = 8081;
 
+/** Porta default opencode serve quando avviato dalla GUI */
+constexpr int kOpenCodePort = 8092;
+
 /** Host loopback — unico valore accettato per sicurezza */
 constexpr const char* kLocalHost = "127.0.0.1";
 
@@ -201,6 +204,25 @@ inline QString vramProfilePath()
     return root() + "/vram_profile.json";
 }
 
+/**
+ * openCodeBin() — Path al binario opencode.
+ * Cerca nel PATH di sistema, poi nelle installazioni di default note.
+ */
+inline QString openCodeBin()
+{
+    const QString inPath = QStandardPaths::findExecutable("opencode");
+    if (!inPath.isEmpty()) return inPath;
+    const QString ext = exeExt();
+    const QStringList candidates = {
+        QDir::homePath() + "/.opencode/bin/opencode" + ext,
+        QDir::homePath() + "/.local/bin/opencode"    + ext,
+        "/usr/local/bin/opencode"                    + ext,
+    };
+    for (const QString& b : candidates)
+        if (QFileInfo::exists(b)) return b;
+    return "opencode" + ext;
+}
+
 /* ══════════════════════════════════════════════════════════════
    Utility UI — helper Qt riutilizzabili
    ══════════════════════════════════════════════════════════════ */
@@ -259,6 +281,79 @@ inline QString sanitizeErrorOutput(const QString& raw, int maxLines = 30)
     result << QString("... [%1 righe omesse] ...").arg(skipped);
     result << lines.mid(lines.size() - kTail);
     return result.join('\n');
+}
+
+/**
+ * isKnownBrokenModel(name) — true se il modello richiede una versione minima
+ * di Ollama per funzionare correttamente.
+ *
+ * qwen3.5 (tutte le varianti): causa thinking loop infinito con Ollama < 0.21.1
+ * — message.content resta vuoto perché i token del blocco <think> esauriscono
+ * il budget prima della risposta. Risolto in Ollama 0.21.1.
+ */
+inline bool isKnownBrokenModel(const QString& name)
+{
+    Q_UNUSED(name)
+    return false;   /* bug thinking loop risolto in Ollama 0.21.1 */
+}
+
+/**
+ * knownBrokenModelTooltip() — testo del tooltip per i modelli con requisiti
+ * di versione Ollama. Unico punto di verità: modificare qui per aggiornare
+ * tutti i combo box dell'applicazione.
+ */
+inline QString knownBrokenModelTooltip()
+{
+    return "\xe2\x9a\xa0  Richiede Ollama \xe2\x89\xa5 0.21.1\n"
+           "Versioni precedenti causano thinking loop infinito:\n"
+           "il modello ragiona ma non produce risposta visibile.\n\n"
+           "\xf0\x9f\x94\xa7  Workaround attivo: Prismalux aggiunge think:false\n"
+           "automaticamente per forzare la risposta diretta.\n"
+           "Soluzione definitiva: aggiorna Ollama con 'ollama update'.";
+}
+
+/**
+ * totalRamBytes() — Memoria fisica totale del sistema in byte.
+ *
+ * Usata per verificare se un modello LLM è caricabile senza esaurire la RAM.
+ * Regola euristica (ispirata al teorema di Nyquist-Shannon):
+ *   il modello è caricabile comodamente se modelSizeBytes × 2 ≤ totalRamBytes.
+ * Restituisce 0 se il dato non è determinabile (es. piattaforma non supportata).
+ */
+inline qint64 totalRamBytes()
+{
+#if defined(Q_OS_LINUX)
+    QFile f("/proc/meminfo");
+    if (f.open(QIODevice::ReadOnly)) {
+        while (!f.atEnd()) {
+            const QString line = QString::fromLatin1(f.readLine()).trimmed();
+            if (line.startsWith("MemTotal:")) {
+                /* formato: "MemTotal:    16327788 kB" */
+                const QStringList parts = line.split(QChar(' '), Qt::SkipEmptyParts);
+                if (parts.size() >= 2) return parts.at(1).toLongLong() * 1024LL;
+            }
+        }
+    }
+#endif
+    return 0;   /* non determinabile: nessun avviso */
+}
+
+/**
+ * modelParamsPath() — JSON con override parametri per modello specifico.
+ *
+ * Formato: { "qwen3.5:4b": { "num_predict": 2048, "num_ctx": 4096 }, ... }
+ * Scritto dal Bug Tracker quando l'utente applica un fix suggerito dall'AI.
+ * Letto da AiClient::chat() che applica gli override sulle opzioni Ollama.
+ */
+inline QString modelParamsPath()
+{
+    return QDir::homePath() + "/.prismalux/model_params.json";
+}
+
+/** cronFile() — File JSON dei job pianificati Cron */
+inline QString cronFile()
+{
+    return QDir::homePath() + "/.prismalux/cron_jobs.json";
 }
 
 /**
@@ -452,11 +547,14 @@ constexpr const char* kSttModelPath    = "stt/model_path";
 /* ── AI — modello/backend preferiti dall'utente ──── */
 constexpr const char* kActiveModel     = "ai/activeModel";    ///< ultimo modello selezionato manualmente
 constexpr const char* kActiveBackend   = "ai/activeBackend";  ///< 0=Ollama, 1=LlamaServer, 2=LlamaLocal
+constexpr const char* kActiveHost      = "ai/activeHost";     ///< host AI (default: 127.0.0.1)
+constexpr const char* kActivePort      = "ai/activePort";     ///< porta AI (default: dipende dal backend)
 
 /* ── Varie ───────────────────────────────────────── */
 constexpr const char* kLoopFixWarning  = "loop_fix_warning_shown";
 constexpr const char* kDefaultTheme    = "dark_ocean";   ///< valore default tema
 constexpr const char* kCavemanMode     = "ai/cavemanMode"; ///< modalità risposte dirette (Caveman)
+constexpr const char* kComputeMode    = "ai/computeMode"; ///< "auto"|"gpu"|"cpu"|"misto"
 
 }  // namespace SK
 

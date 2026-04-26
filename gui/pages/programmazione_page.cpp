@@ -25,6 +25,7 @@
 #include <QStandardPaths>
 #include <QTabWidget>
 #include <QTextEdit>
+#include <QSlider>
 #include <QTimer>
 #include <QFileDialog>
 #include <QFile>
@@ -37,6 +38,8 @@
 #include "../widgets/toggle_switch.h"
 
 namespace P = PrismaluxPaths;
+#include <QBrush>
+#include <QColor>
 
 /* ══════════════════════════════════════════════════════════════
    isIntentionalError — rileva errori volutamente creati dall'utente.
@@ -146,17 +149,10 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     m_btnRun->setToolTip("Esegui il codice nell'editor (F5)");
     tagExecP(m_btnRun, "\xe2\x96\xb6", "Esegui");
 
-    m_btnStop = new QPushButton("\xe2\x96\xa0  Stop", toolRow);
-    m_btnStop->setObjectName("actionBtn");
-    m_btnStop->setProperty("danger", "true");
-    m_btnStop->setEnabled(false);
-    tagExecP(m_btnStop, "\xe2\x96\xa0", "Stop");
-
     auto* btnClear = new QPushButton("\xf0\x9f\x97\x91  Pulisci", toolRow);
     btnClear->setObjectName("actionBtn");
 
     toolLay->addWidget(m_btnRun);
-    toolLay->addWidget(m_btnStop);
     toolLay->addWidget(btnClear);
     toolLay->addStretch(1);
 
@@ -227,6 +223,24 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
         }
     });
     toolLay->addWidget(m_toggleAutoFix);
+
+    /* ── Slider iterazioni Loop Fix (1-10, ∞ al massimo) ── */
+    toolLay->addSpacing(6);
+    m_fixSlider = new QSlider(Qt::Horizontal, toolRow);
+    m_fixSlider->setRange(1, 10);
+    m_fixSlider->setValue(m_loopMax);
+    m_fixSlider->setFixedWidth(80);
+    m_fixSlider->setToolTip("Numero massimo di tentativi Loop Fix (10 = illimitati)");
+    m_fixSliderLbl = new QLabel(QString::number(m_loopMax), toolRow);
+    m_fixSliderLbl->setObjectName("cardDesc");
+    m_fixSliderLbl->setFixedWidth(22);
+    m_fixSliderLbl->setAlignment(Qt::AlignCenter);
+    connect(m_fixSlider, &QSlider::valueChanged, this, [this](int v){
+        m_loopMax = v;
+        m_fixSliderLbl->setText(v == 10 ? "\xe2\x88\x9e" : QString::number(v));
+    });
+    toolLay->addWidget(m_fixSlider);
+    toolLay->addWidget(m_fixSliderLbl);
 
     codingLay->addWidget(toolRow);
 
@@ -487,6 +501,13 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
                 if (isEmbedOnly(mdl)) continue;
                 const int pos = m_modelCombo->count();
                 m_modelCombo->addItem(mdl + codingBadge(mdl), mdl);
+                if (P::isKnownBrokenModel(mdl)) {
+                    m_modelCombo->setItemData(pos, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
+                    m_modelCombo->setItemData(pos, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
+                    m_modelCombo->setItemData(pos,
+                        P::knownBrokenModelTooltip(),
+                        Qt::ToolTipRole);
+                }
                 if (mdl == cur) curIdx = pos;
                 const int sc = codingScore(mdl);
                 if (sc > bestScore) { bestScore = sc; bestCoder = pos; }
@@ -693,18 +714,22 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
         }
     });
 
-    /* ── Esegui ── */
-    connect(m_btnRun, &QPushButton::clicked, this, [this]{ runCode(); });
-
-    /* ── Stop ── */
-    connect(m_btnStop, &QPushButton::clicked, this, [this]{
-        if (m_proc) { m_proc->kill(); m_status->setText("\xe2\x9c\x8b  Interrotto."); }
+    /* ── Esegui / Stop (bottone unificato) ── */
+    connect(m_btnRun, &QPushButton::clicked, this, [this]{
+        if (m_proc && m_proc->state() != QProcess::NotRunning) {
+            m_proc->kill();
+            m_status->setText("\xe2\x9c\x8b  Interrotto.");
+            setRunning(false);
+            return;
+        }
         if (m_aiMode && m_ai && m_ai->busy()) {
             m_ai->abort();
             m_aiMode = false;
             m_status->setText("\xe2\x9c\x8b  Risposta AI interrotta.");
+            setRunning(false);
+            return;
         }
-        setRunning(false);
+        runCode();
     });
 
     /* ── Correggi con AI ── */
@@ -938,8 +963,15 @@ void ProgrammazionePage::appendOutput(const QString& text)
    ══════════════════════════════════════════════════════════════ */
 void ProgrammazionePage::setRunning(bool running)
 {
-    m_btnRun->setEnabled(!running);
-    m_btnStop->setEnabled(running);
+    if (running) {
+        m_btnRun->setText("\xe2\x96\xa0  Stop");
+        m_btnRun->setProperty("danger", true);
+    } else {
+        m_btnRun->setText("\xe2\x96\xb6  Esegui");
+        m_btnRun->setProperty("danger", false);
+    }
+    m_btnRun->setEnabled(true);
+    P::repolish(m_btnRun);
     m_lang->setEnabled(!running);
     m_btnFix->setEnabled(!running);
     /* Disabilita "Invia" durante lo streaming per impedire
@@ -1034,19 +1066,19 @@ void ProgrammazionePage::runCode()
                     m_status->setText(
                         "\xf0\x9f\x9b\x91  Errore intenzionale rilevato (SyntaxError custom) "
                         "\xe2\x80\x94 loop terminato. Il codice \xc3\xa8 come vuoi tu.");
-                } else if (m_loopCount >= kLoopMax) {
+                } else if (m_loopCount >= m_loopMax) {
                     m_loopActive = false;
                     m_loopCount  = 0;
                     m_status->setText(
                         QString("\xe2\x9a\xa0  Limite iterazioni raggiunto (%1 tentativi) "
-                                "\xe2\x80\x94 loop terminato.").arg(kLoopMax));
+                                "\xe2\x80\x94 loop terminato.").arg(m_loopMax));
                 } else {
                     m_loopActive = true;
                     m_loopCount++;
                     m_status->setText(
                         QString("\xf0\x9f\x94\x84  Tentativo %1/%2 \xe2\x80\x94 "
                                 "AI sta correggendo...")
-                            .arg(m_loopCount).arg(kLoopMax));
+                            .arg(m_loopCount).arg(m_loopMax));
                     m_btnFix->setText("\xf0\x9f\x94\xa7  Correggi errore");
                     QTimer::singleShot(400, this, [this]{ triggerFix(true); });
                 }
@@ -1269,7 +1301,7 @@ void ProgrammazionePage::_doFix(bool includeError,
                 m_status->setText(
                     QString("\xf0\x9f\x94\x84  Codice corretto \xe2\x80\x94 "
                             "ri-esecuzione [tentativo %1/%2]...")
-                        .arg(m_loopCount).arg(kLoopMax));
+                        .arg(m_loopCount).arg(m_loopMax));
                 QTimer::singleShot(600, this, [this]{ runCode(); });
             } else {
                 m_status->setText("\xe2\x9c\x85  Codice corretto inserito automaticamente nell'editor.");
@@ -1483,6 +1515,14 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
                                      n.contains("rerank") || n.contains("bge-");
                 if (isEmbed) continue;
                 m_agentModel->addItem(mdl, mdl);
+                if (P::isKnownBrokenModel(mdl)) {
+                    const int idx = m_agentModel->count() - 1;
+                    m_agentModel->setItemData(idx, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
+                    m_agentModel->setItemData(idx, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
+                    m_agentModel->setItemData(idx,
+                        P::knownBrokenModelTooltip(),
+                        Qt::ToolTipRole);
+                }
                 if (mdl == cur) foundCur = true;
             }
             if (m_agentModel->count() == 0)
@@ -1879,6 +1919,14 @@ QWidget* ProgrammazionePage::buildReverseEngineering(QWidget* parent)
                     n.contains("rerank") || n.contains("bge-"))
                     continue;
                 m_revModel->addItem(mdl, mdl);
+                if (P::isKnownBrokenModel(mdl)) {
+                    const int idx = m_revModel->count() - 1;
+                    m_revModel->setItemData(idx, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
+                    m_revModel->setItemData(idx, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
+                    m_revModel->setItemData(idx,
+                        P::knownBrokenModelTooltip(),
+                        Qt::ToolTipRole);
+                }
             }
             if (m_revModel->count() == 0)
                 m_revModel->addItem(cur.isEmpty() ? "(nessun modello)" : cur, cur);

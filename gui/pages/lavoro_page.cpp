@@ -1,5 +1,9 @@
 #include "lavoro_page.h"
 #include "lavoro_data.h"
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
+#include <QBrush>
+#include <QColor>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -82,8 +86,17 @@ void LavoroPage::popolaModelli(const QStringList& models) {
     const QString current = m_cmbModello->currentText();
     m_cmbModello->blockSignals(true);
     m_cmbModello->clear();
-    for (const auto& m : models)
+    for (const auto& m : models) {
         m_cmbModello->addItem(m);
+        if (P::isKnownBrokenModel(m)) {
+            const int i = m_cmbModello->count() - 1;
+            m_cmbModello->setItemData(i, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
+            m_cmbModello->setItemData(i, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
+            m_cmbModello->setItemData(i,
+                P::knownBrokenModelTooltip(),
+                Qt::ToolTipRole);
+        }
+    }
     // ripristina selezione precedente se ancora disponibile
     const int idx = m_cmbModello->findText(current);
     m_cmbModello->setCurrentIndex(idx >= 0 ? idx : 0);

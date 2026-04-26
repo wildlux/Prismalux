@@ -12,6 +12,7 @@
 #include "pages/matematica_page.h"
 #include "pages/app_controller_page.h"
 #include "pages/lavoro_page.h"
+#include "pages/opencode_page.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -1472,7 +1473,24 @@ QWidget* MainWindow::buildContent() {
         auto* imparaTabs = new QTabWidget(imparaContainer);
         imparaTabs->setObjectName("imparaSubTabs");
         imparaTabs->setTabPosition(QTabWidget::North);
-        imparaTabs->addTab(new ImparaPage(m_ai, imparaContainer),   "\xf0\x9f\x93\x9a  Impara");
+        /* ── Sub-tab unificato: Impara con AI + Sfida ── */
+        {
+            auto* impSfidaTabs = new QTabWidget(imparaContainer);
+            impSfidaTabs->setObjectName("impSfidaSubTabs");
+            impSfidaTabs->setTabPosition(QTabWidget::North);
+            impSfidaTabs->addTab(new ImparaPage(m_ai, impSfidaTabs), "\xf0\x9f\x8f\x9b  Impara con AI");
+            /* QuizPage usa AiClient SEPARATO: evita cross-talk con AgentiPage */
+            {
+                auto* quizAi = new AiClient(this);
+                quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+                connect(m_ai, &AiClient::modelsReady, quizAi, [this, quizAi](const QStringList&){
+                    quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+                });
+                impSfidaTabs->addTab(new QuizPage(quizAi, impSfidaTabs),
+                                     "\xf0\x9f\x8e\xaf  Sfida te stesso!");
+            }
+            imparaTabs->addTab(impSfidaTabs, "\xf0\x9f\x93\x9a  Impara");
+        }
         /* LavoroPage usa AiClient SEPARATO: evita cross-talk con AgentiPage (Byzantine) */
         {
             auto* lavoroAi = new AiClient(this);
@@ -1484,20 +1502,14 @@ QWidget* MainWindow::buildContent() {
                                "\xf0\x9f\x92\xbc  Cerca Lavoro");
         }
         imparaTabs->addTab(new PraticoPage(m_ai, imparaContainer),  "\xf0\x9f\x92\xb0  Finanza");
-        /* QuizPage usa AiClient SEPARATO: evita cross-talk con AgentiPage */
-        {
-            auto* quizAi = new AiClient(this);
-            quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
-            connect(m_ai, &AiClient::modelsReady, quizAi, [this, quizAi](const QStringList&){
-                quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
-            });
-            imparaTabs->addTab(new QuizPage(quizAi, imparaContainer),
-                               "\xf0\x9f\x8e\xaf  Sfida te stesso!");
-        }
         ilay->addWidget(imparaTabs);
 
         m_mainTabs->addTab(imparaContainer, "\xf0\x9f\x93\x9a  Impara");                  /* 5 */
     }
+
+    /* ── OpenCode — agente di codice locale ── */
+    m_mainTabs->addTab(new OpenCodePage(this),
+                       "\xf0\x9f\x96\xa5  OpenCode");                                    /* 6 */
 
     /* ── Salva etichette originali e applica modalità da QSettings ── */
     for (int i = 0; i < m_mainTabs->count(); i++)
@@ -1790,9 +1802,10 @@ void MainWindow::onHWUpdated(SysSnapshot snap) {
         }
     }
 
-    /* Auto-abort: se RAM >90% usata e AI occupato, interrompe subito.
-     * Evita che il sistema si blocchi completamente durante l'inference. */
-    if (rp > 90.0 && m_ai->busy()) {
+    /* Auto-abort: se RAM >97% usata e AI occupato, interrompe subito.
+     * Evita che il sistema si blocchi completamente durante l'inference.
+     * Soglia 97%: modelli grandi usano ~80-90% RAM normalmente — abort solo in OOM reale. */
+    if (rp > 97.0 && m_ai->busy()) {
         m_ai->abort();
         statusBar()->showMessage(
             "\xe2\x9a\xa0  RAM critica — inference AI interrotta automaticamente per proteggere il sistema.");

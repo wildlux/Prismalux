@@ -49,8 +49,7 @@ void AgentiPage::runByzantine() {
     m_log->append(QString(43, QChar(0x2500)));
     m_log->append("\xf0\x9f\x85\x90  [Agente A \xe2\x80\x94 Originale]\n");
 
-    m_btnRun->setEnabled(false);
-    m_btnStop->setEnabled(true);
+    _setRunBusy(true);
     m_waitLbl->setVisible(true);
 
     m_ai->chat(
@@ -103,8 +102,7 @@ void AgentiPage::runMathTheory() {
     m_log->append(QString(43, QChar(0x2500)));
     m_log->append("\xf0\x9f\x85\xb0  [Agente 1 \xe2\x80\x94 Enunciatore]\n");
 
-    m_btnRun->setEnabled(false);
-    m_btnStop->setEnabled(true);
+    _setRunBusy(true);
     m_waitLbl->setVisible(true);
 
     m_ai->chat(

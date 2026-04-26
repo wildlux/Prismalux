@@ -3,6 +3,8 @@
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
 #include <QComboBox>
+#include <QBrush>
+#include <QColor>
 #include <algorithm>
 #include "agents_config_dialog.h"
 
@@ -43,11 +45,50 @@ void AgentiPage::onModelsReady(const QStringList& list) {
         m_cmbLLM->blockSignals(true);
         const QString prev = m_cmbLLM->currentText();
         m_cmbLLM->clear();
-        for (const QString& m : models)
+
+        const qint64 totalRam = P::totalRamBytes();
+        for (const QString& m : models) {
             m_cmbLLM->addItem(m);
-        /* Ripristina selezione precedente; se non trovata usa il primo */
-        const int idx = m_cmbLLM->findText(prev);
-        m_cmbLLM->setCurrentIndex(idx >= 0 ? idx : 0);
+            {
+                const int i = m_cmbLLM->count() - 1;
+                /* Colora in rosso i modelli troppo grandi per la RAM disponibile
+                 * (regola Shannon: serve almeno 2× la dimensione del file) */
+                if (totalRam > 0) {
+                    const qint64 sz = m_ai->modelSizeBytes(m);
+                    if (sz > 0 && sz * 2 > totalRam) {
+                        m_cmbLLM->setItemData(i, QBrush(QColor("#ef4444")), Qt::ForegroundRole);
+                        m_cmbLLM->setItemData(i,
+                            QString("Attenzione: richiede ~%1 GB di RAM (regola 2\xc3\x97) "
+                                    "— il sistema ha %2 GB totali. "
+                                    "Potrebbe non avviarsi o essere molto lento.")
+                                .arg(sz * 2 / 1e9, 0, 'f', 1)
+                                .arg(totalRam / 1e9, 0, 'f', 1),
+                            Qt::ToolTipRole);
+                    }
+                }
+                /* Colora in arancione i modelli con bug noto (sfondo giallo) */
+                if (P::isKnownBrokenModel(m)) {
+                    m_cmbLLM->setItemData(i, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
+                    m_cmbLLM->setItemData(i, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
+                    m_cmbLLM->setItemData(i,
+                        P::knownBrokenModelTooltip(),
+                        Qt::ToolTipRole);
+                }
+            }
+        }
+
+        /* Ripristina selezione: priorità a m_pageModel (scelta esplicita dell'utente),
+           poi al prev, poi al primo della lista.
+           Se m_pageModel non è nella nuova lista (cambio backend), lo resettiamo
+           in modo che modelChanged possa aggiornare la combo d'ora in poi. */
+        const QString want = !m_pageModel.isEmpty() ? m_pageModel : prev;
+        const int idx = m_cmbLLM->findText(want);
+        if (idx >= 0) {
+            m_cmbLLM->setCurrentIndex(idx);
+        } else {
+            m_cmbLLM->setCurrentIndex(0);
+            m_pageModel.clear();   /* modello preferito non disponibile → reset */
+        }
         m_cmbLLM->blockSignals(false);
     };
 

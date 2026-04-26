@@ -156,6 +156,7 @@ void AiClient::abort() {
     m_localBusy      = false;
     m_accum.clear();
     m_thinkingAccum.clear();
+    m_thinkingKey.clear();
     if (wasActive) emit aborted();
 }
 
@@ -219,14 +220,22 @@ void AiClient::onModelsReply() {
     QStringList   list;
 
     if (m_backend == Ollama) {
-        for (auto v : obj["models"].toArray())
-            list << v.toObject()["name"].toString();
+        m_modelSizes.clear();
+        for (auto v : obj["models"].toArray()) {
+            const QJsonObject o = v.toObject();
+            const QString name = o["name"].toString();
+            list << name;
+            m_modelSizes[name] = o["size"].toVariant().toLongLong();
+        }
     } else {
         for (auto v : obj["data"].toArray())
             list << v.toObject()["id"].toString();
     }
     m_models = list;
-    if (!list.isEmpty() && m_model.isEmpty()) m_model = list.first();
+    if (!list.isEmpty() && m_model.isEmpty()) {
+        m_model = list.first();
+        emit modelChanged(m_model);   /* notifica ManutenzioneePage → ricalcola num_gpu GPU/Misto */
+    }
 
     /* Aggiorna cache solo se il fetch è andato a buon fine (lista non vuota) */
     if (!list.isEmpty()) {
@@ -412,6 +421,7 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
     m_busy_guard     = true;
     m_isGenerateMode = false;   /* /api/chat, non /api/generate */
     m_accum.clear();
+    m_thinkingKey.clear();
 
     QString effectiveSys = systemPrompt;
     if (!dateInject.isEmpty())
@@ -453,22 +463,58 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
            FIX think:false su piccoli modelli: forzare think:false su qwen3/deepseek
            con QuerySimple produce m_accum vuoto (modello 0.8B-1.5B non genera nulla
            senza ragionamento). Per i modelli think-capable usiamo solo il cap num_predict,
-           lasciando che Ollama gestisca il think naturalmente. */
+           lasciando che Ollama gestisca il think naturalmente.
+           FIX WORKAROUND modelli problematici (qwen3.5): questi modelli causano
+           thinking loop infinito su Ollama < 0.21.1. Workaround: think:false forza
+           la risposta diretta senza blocco <think>. Questo è il parametro citato
+           nel bug report online (ollama/ollama#5682). */
         const bool thinkCapable = m_model.startsWith("qwen3")       ||
                                   m_model.startsWith("qwen3.5")     ||
                                   m_model.startsWith("deepseek-r1") ||
                                   m_model.startsWith("qwen2.5");
+        const bool knownBroken  = PrismaluxPaths::isKnownBrokenModel(m_model);
         if (qt == QuerySimple) {
             opts["num_predict"] = 512;
-            if (!thinkCapable) opts["think"] = false;   /* solo modelli non-think */
+            /* QuerySimple (≤30 chars): sempre think:false per tutti i modelli.
+               Domande brevi non richiedono ragionamento; senza questo, i modelli
+               thinking-capable (qwen3, deepseek-r1) consumano l'intero budget di
+               512 token nel blocco <think> senza produrre risposta finale, e il
+               ragionamento interno compare come testo di risposta all'utente. */
+            opts["think"] = false;
         } else if (qt == QueryComplex) {
             /* Se il modello usa il blocco <think>, raddoppia il budget */
             opts["num_predict"] = thinkCapable ? m_params.num_predict * 2
                                                : m_params.num_predict;
-            if (thinkCapable) opts["think"] = true;
+            if (thinkCapable && !knownBroken) opts["think"] = true;
         } else {
             /* QueryAuto: comportamento predefinito, nessun think esplicito */
             opts["num_predict"] = m_params.num_predict;
+        }
+        /* Workaround per modelli con bug thinking loop: forza think:false
+           (sovrascrive la logica sopra — solo Ollama, solo modelli broken) */
+        if (knownBroken) opts["think"] = false;
+        /* Override per-modello dal Bug Tracker (model_params.json) — vince su tutto */
+        {
+            QFile fOvr(PrismaluxPaths::modelParamsPath());
+            if (fOvr.open(QIODevice::ReadOnly)) {
+                const QJsonObject ovr =
+                    QJsonDocument::fromJson(fOvr.readAll()).object()[m_model].toObject();
+                for (auto it = ovr.constBegin(); it != ovr.constEnd(); ++it)
+                    opts[it.key()] = it.value();
+            }
+        }
+        /* Modalità calcolo: -2=auto/gpu-provvisorio, -3=misto-sentinella, 0=CPU, N=layer GPU.
+         * Se m_numGpu è ancora a un valore provvisorio (<0), legge PRISMALUX_COMPUTE_MODE
+         * come override di processo per evitare la falsa configurazione al primo avvio.
+         * "cpu" → num_gpu=0 obbligatorio; "gpu"/"misto" → senza num_gpu (applyComputeMode
+         * aggiorna m_numGpu con i layer reali non appena hw-detect è pronto). */
+        {
+            int effectiveNumGpu = m_numGpu;
+            if (effectiveNumGpu < 0) {
+                const QByteArray envMode = qgetenv("PRISMALUX_COMPUTE_MODE");
+                if (envMode == "cpu") effectiveNumGpu = 0;
+            }
+            if (effectiveNumGpu >= 0) opts["num_gpu"] = effectiveNumGpu;
         }
         body["options"] = opts;
     } else {
@@ -538,6 +584,7 @@ void AiClient::generate(const QString& systemPrompt, const QString& prompt, Quer
     m_busy_guard     = true;
     m_isGenerateMode = true;    /* onReadyRead() leggerà "response" */
     m_accum.clear();
+    m_thinkingKey.clear();
 
     QString effectiveSys = systemPrompt;
     if (m_params.caveman_mode)
@@ -572,6 +619,14 @@ void AiClient::generate(const QString& systemPrompt, const QString& prompt, Quer
         opts["think"]       = true;
     } else {
         opts["num_predict"] = m_params.num_predict;
+    }
+    {
+        int effectiveNumGpu = m_numGpu;
+        if (effectiveNumGpu < 0) {
+            const QByteArray envMode = qgetenv("PRISMALUX_COMPUTE_MODE");
+            if (envMode == "cpu") effectiveNumGpu = 0;
+        }
+        if (effectiveNumGpu >= 0) opts["num_gpu"] = effectiveNumGpu;
     }
     body["options"] = opts;
 
@@ -678,6 +733,24 @@ void AiClient::onLocalFinished(int, QProcess::ExitStatus) {
     emit finished(m_localAccum);
 }
 
+/* ══════════════════════════════════════════════════════════════
+   _extractThinkingToken — rilevamento robusto del campo "thinking" in un
+   oggetto message Ollama, indipendente dal nome esatto del campo.
+
+   Strategia in due fasi:
+   1. Name-based (priorità): scansiona tutti i campi stringa di message
+      escluso "content" e "role"; se il nome contiene una keyword semantica
+      (think / reason / thought / reflect / chain / cot / internal / ponder),
+      restituisce il valore — copre nomi futuri come "think", "reasoning",
+      "chain_of_thought", "reflection", ecc.
+   2. Size-based (fallback): se nessun nome corrisponde, trova il campo
+      stringa più lungo tra quelli rimasti. Se supera kMinThinkingLen chars
+      è quasi certamente un reasoning blob con nome sconosciuto.
+      Sotto soglia → stringa vuota (evita falsi positivi su campi brevi
+      come "id", "model", "status").
+   ══════════════════════════════════════════════════════════════ */
+#include "ai_thinking_detect.h"
+
 void AiClient::onReadyRead() {
     if (!m_reply) return;
     for (auto& raw : m_reply->readAll().split('\n')) {
@@ -725,12 +798,29 @@ void AiClient::onReadyRead() {
         }
         if (!chunk.isEmpty()) { m_accum += chunk; emit token(chunk); }
 
-        /* Fallback per modelli come qwen3.5 che usano message.thinking invece di
-         * includere <think>...</think> in message.content.
-         * Accumuliamo il thinking silenziosamente: se a fine stream m_accum è vuoto,
-         * onFinished() lo wrapperà in <think>...</think> come risposta di fallback. */
+        /* Fallback per modelli che rispondono via un campo separato dal content
+         * (es. message.thinking, message.reasoning, o qualsiasi nome futuro).
+         *
+         * Anti-race: m_thinkingKey viene fissato al PRIMO chunk in cui viene
+         * trovato un campo thinking. Tutti i chunk successivi usano quel nome
+         * direttamente, evitando che la fase size-based identifichi un campo
+         * diverso (es. request_id, metadata) in chunk differenti.
+         *
+         * Flusso per chunk:
+         *   1. m_thinkingKey già noto → leggi solo quel campo (zero ambiguità)
+         *   2. m_thinkingKey vuoto    → scoperta: _extractThinkingToken con
+         *      heuristica nome+dimensione; se trovato, fissa m_thinkingKey
+         * onFinished() avvolgerà in <think>...</think> se m_accum è vuoto. */
         if (chunk.isEmpty() && !m_isGenerateMode && m_backend == Ollama) {
-            const QString thinking = obj["message"].toObject()["thinking"].toString();
+            const QJsonObject msgObj = obj["message"].toObject();
+            QString thinking;
+            if (!m_thinkingKey.isEmpty()) {
+                /* Chiave già stabilita: usa solo quella — nessuna scansione */
+                thinking = msgObj[m_thinkingKey].toString();
+            } else {
+                /* Prima occorrenza: scoperta con euristica, fissa la chiave */
+                thinking = _extractThinkingToken(msgObj, &m_thinkingKey);
+            }
             if (!thinking.isEmpty()) m_thinkingAccum += thinking;
         }
     }
@@ -743,13 +833,16 @@ void AiClient::onFinished() {
     QNetworkReply* r = m_reply;
     m_reply = nullptr;
 
-    /* ── Errore di rete (connessione rifiutata, timeout, ecc.) ── */
+    /* ── Errore di rete (connessione rifiutata, timeout, ecc.) ──
+       NOTA: NON emettere finished() dopo error() — causerebbe il Byzantine loop:
+       onError() imposta m_opMode=Idle, poi onFinished() riceve finished(empty)
+       e (senza la guard Idle) riavvierebbe la pipeline. */
     if (r->error() != QNetworkReply::NoError &&
         r->error() != QNetworkReply::OperationCanceledError) {
+        m_accum.clear(); m_thinkingAccum.clear();
         emit error(r->errorString());
         r->deleteLater();
-        emit finished(m_accum);
-        return;
+        return;   /* ← mai emettere finished() dopo error() */
     }
 
     /* ── HTTP 4xx / 5xx da Ollama / llama-server ─────────────────
@@ -757,6 +850,7 @@ void AiClient::onFinished() {
        Ollama risponde con HTTP 400/422/500 e corpo JSON {"error":"..."}.
        QNetworkReply::error() e' NoError perche' la connessione TCP e'
        avvenuta, ma lo status HTTP indica un fallimento applicativo.
+       NOTA: stesso principio — non emettere finished() dopo error().
        ─────────────────────────────────────────────────────────── */
     const int httpStatus = r->attribute(
         QNetworkRequest::HttpStatusCodeAttribute).toInt();
@@ -774,10 +868,10 @@ void AiClient::onFinished() {
                    "llama3.2-vision \xe2\x80\x94 qwen2-vl:7b \xe2\x80\x94 minicpm-v:8b \xe2\x80\x94 llava:7b\n"
                    "\xe2\x9a\xa0  I modelli DeepSeek (r1, coder, janus) non supportano immagini su Ollama.";
         }
+        m_accum.clear(); m_thinkingAccum.clear();
         emit error(msg);
         r->deleteLater();
-        emit finished(m_accum);
-        return;
+        return;   /* ← mai emettere finished() dopo error() */
     }
 
     m_modelLoaded = true;
@@ -790,16 +884,19 @@ void AiClient::onFinished() {
      * Eccezione: modelli con bug noto (thinking loop infinito, content sempre
      * vuoto anche con num_predict alto) — emettiamo error() con suggerimento. */
     if (m_accum.isEmpty() && !m_thinkingAccum.isEmpty()) {
-        static const QStringList s_knownBroken = { "qwen3.5:0.8b" };
-        if (s_knownBroken.contains(m_model, Qt::CaseInsensitive)) {
+        /* Modelli con bug noto: producono solo thinking (loop) senza risposta finale.
+         * La lista comprende tutti i tag conosciuti — nuovi tag qwen3.5 vanno aggiunti qui.
+         * Invariante: dopo emit error() non si emette mai finished() — evita Byzantine loop. */
+        /* Rilevamento euristico: thinking > 3000 char senza content = probabile loop */
+        const bool likelyLoop = m_thinkingAccum.length() > 3000;
+        if (likelyLoop) {
             m_thinkingAccum.clear();
             emit error(
-                "\xe2\x9a\xa0  " + m_model + " ha un bug noto su Ollama: "
-                "genera solo pensiero interno (thinking loop) senza risposta finale, "
-                "anche con num_predict alto.\n"
-                "\xf0\x9f\x92\xa1  Sostituisci con: llama3.2:3b (~50 tok/s) "
-                "oppure deepseek-r1:1.5b (~41 tok/s).");
-            return;  /* non emettere finished() dopo error() — evita loop Byzantino */
+                "\xe2\x9a\xa0  " + m_model + " ha generato solo pensiero interno "
+                "senza risposta finale (thinking loop).\n"
+                "\xf0\x9f\x92\xa1  Prova ad aumentare num_predict in Impostazioni "
+                "oppure aggiorna Ollama all'ultima versione.");
+            return;
         } else {
             m_accum = "<think>" + m_thinkingAccum + "</think>";
         }
@@ -807,6 +904,40 @@ void AiClient::onFinished() {
     m_thinkingAccum.clear();
 
     emit finished(m_accum);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   fetchModelLayers — recupera il numero di layer del modello da /api/show.
+   Cerca *.block_count in modelinfo (llama.block_count, qwen3.block_count, ecc.).
+   Usa un QNetworkReply separato — non interferisce con la chat in corso.
+   ══════════════════════════════════════════════════════════════ */
+void AiClient::fetchModelLayers(std::function<void(int)> callback) {
+    if (m_backend != Ollama || m_model.isEmpty()) { callback(0); return; }
+
+    QJsonObject body;
+    body["name"] = m_model;
+
+    const QUrl showUrl(QString("http://%1:%2/api/show").arg(m_host).arg(m_port));
+    QNetworkRequest req(showUrl);
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    QNetworkReply* reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+
+    connect(reply, &QNetworkReply::finished, this, [reply, callback] {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) { callback(0); return; }
+
+        const QJsonObject root = QJsonDocument::fromJson(reply->readAll()).object();
+        const QJsonObject info = root["modelinfo"].toObject();
+
+        /* Cerca qualunque chiave che finisce con ".block_count" */
+        for (auto it = info.constBegin(); it != info.constEnd(); ++it) {
+            if (it.key().endsWith(".block_count")) {
+                const int layers = it.value().toInt();
+                if (layers > 0) { callback(layers); return; }
+            }
+        }
+        callback(0);
+    });
 }
 
 /* ══════════════════════════════════════════════════════════════

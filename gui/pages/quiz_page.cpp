@@ -1,4 +1,6 @@
 #include "quiz_page.h"
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -25,7 +27,7 @@
 QWidget* buildGeneraTab(QuizPage* self,
                          QLineEdit*& topicEdit, QSpinBox*& nDomande,
                          QComboBox*& cmbTipo, QComboBox*& cmbDiff,
-                         QPushButton*& btnGenera, QPushButton*& btnStop,
+                         QPushButton*& btnGenera,
                          QPushButton*& btnCopy, QTextEdit*& output)
 {
     auto* w   = new QWidget;
@@ -87,17 +89,11 @@ QWidget* buildGeneraTab(QuizPage* self,
     btnGenera = new QPushButton("\xf0\x9f\x8e\xaf  Genera Quiz", w);
     btnGenera->setObjectName("actionBtn");
 
-    btnStop = new QPushButton("\xe2\x96\xa0  Stop", w);
-    btnStop->setObjectName("actionBtn");
-    btnStop->setProperty("danger", "true");
-    btnStop->setEnabled(false);
-
     btnCopy = new QPushButton("\xf0\x9f\x93\x8b  Copia", w);
     btnCopy->setObjectName("actionBtn");
     btnCopy->setEnabled(false);
 
     btnRow->addWidget(btnGenera);
-    btnRow->addWidget(btnStop);
     btnRow->addStretch(1);
     btnRow->addWidget(btnCopy);
     lay->addLayout(btnRow);
@@ -153,7 +149,7 @@ QuizPage::QuizPage(AiClient* ai, QWidget* parent)
     /* Tab 0 — Genera */
     QWidget* generaTab = buildGeneraTab(this,
         m_topicEdit, m_nDomande, m_cmbTipo, m_cmbDiff,
-        m_btnGenera, m_btnStop, m_btnCopy, m_output);
+        m_btnGenera, m_btnCopy, m_output);
     m_tabs->addTab(generaTab, "\xf0\x9f\x8e\xaf  Genera");
 
     /* Tab 1 — Storico */
@@ -168,8 +164,10 @@ QuizPage::QuizPage(AiClient* ai, QWidget* parent)
     });
 
     /* ── Connessioni pulsanti ── */
-    connect(m_btnGenera, &QPushButton::clicked, this, &QuizPage::startGeneration);
-    connect(m_btnStop,   &QPushButton::clicked, this, &QuizPage::stopGeneration);
+    connect(m_btnGenera, &QPushButton::clicked, this, [this]{
+        if (m_generating) { stopGeneration(); return; }
+        startGeneration();
+    });
 
     connect(m_btnCopy, &QPushButton::clicked, this, [this]{
         QApplication::clipboard()->setText(m_fullText);
@@ -183,7 +181,7 @@ QuizPage::QuizPage(AiClient* ai, QWidget* parent)
 
     /* ── Segnali AI ── */
     connect(m_ai, &AiClient::token, this, [this](const QString& tok){
-        if (!m_btnStop->isEnabled()) return;
+        if (!m_generating) return;
         m_fullText += tok;
         m_output->moveCursor(QTextCursor::End);
         m_output->insertPlainText(tok);
@@ -191,17 +189,15 @@ QuizPage::QuizPage(AiClient* ai, QWidget* parent)
     });
 
     connect(m_ai, &AiClient::finished, this, [this](const QString&){
-        if (!m_btnStop->isEnabled()) return;
-        m_btnGenera->setEnabled(true);
-        m_btnStop->setEnabled(false);
+        if (!m_generating) return;
+        _setGenerateBusy(false);
         m_btnCopy->setEnabled(!m_fullText.isEmpty());
     });
 
     connect(m_ai, &AiClient::error, this, [this](const QString& msg){
-        if (!m_btnStop->isEnabled()) return;
+        if (!m_generating) return;
         m_output->append("\n\xe2\x9d\x8c  Errore: " + msg);
-        m_btnGenera->setEnabled(true);
-        m_btnStop->setEnabled(false);
+        _setGenerateBusy(false);
     });
 }
 
@@ -219,8 +215,7 @@ void QuizPage::startGeneration() {
 
     m_fullText.clear();
     m_output->clear();
-    m_btnGenera->setEnabled(false);
-    m_btnStop->setEnabled(true);
+    _setGenerateBusy(true);
     m_btnCopy->setEnabled(false);
 
     int    n      = m_nDomande->value();
@@ -251,9 +246,22 @@ void QuizPage::startGeneration() {
 
 void QuizPage::stopGeneration() {
     m_ai->abort();
-    m_btnGenera->setEnabled(true);
-    m_btnStop->setEnabled(false);
+    _setGenerateBusy(false);
     m_btnCopy->setEnabled(!m_fullText.isEmpty());
+}
+
+void QuizPage::_setGenerateBusy(bool busy)
+{
+    m_generating = busy;
+    if (busy) {
+        m_btnGenera->setText("\xe2\x8f\xb9  Stop");
+        m_btnGenera->setProperty("danger", true);
+    } else {
+        m_btnGenera->setText("\xf0\x9f\x8e\xaf  Genera Quiz");
+        m_btnGenera->setProperty("danger", false);
+    }
+    m_btnGenera->setEnabled(true);
+    P::repolish(m_btnGenera);
 }
 
 /* ══════════════════════════════════════════════════════════════

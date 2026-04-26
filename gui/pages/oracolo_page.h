@@ -46,6 +46,7 @@ signals:
 private slots:
     void sendMessage();
     void attachImage();
+    void _setSendBusy(bool busy);
 
 private:
 
@@ -73,8 +74,7 @@ private:
 
     /* ── Area input ── */
     QPlainTextEdit* m_input       = nullptr;
-    QPushButton*    m_btnSend     = nullptr;
-    QPushButton*    m_btnStop     = nullptr;
+    QPushButton*    m_btnSend     = nullptr;  ///< bottone unico invia↔stop
     QPushButton*    m_btnNascondi = nullptr;  ///< mostra/nascondi quick bar
     QPushButton*    m_btnSys      = nullptr;  ///< mostra/nascondi system prompt
     QPushButton*    m_btnImg      = nullptr;

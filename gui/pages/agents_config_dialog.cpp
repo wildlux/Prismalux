@@ -1,4 +1,8 @@
 #include "agents_config_dialog.h"
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
+#include <QBrush>
+#include <QColor>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -710,8 +714,17 @@ void AgentsConfigDialog::setModels(const QStringList& models) {
     for (int i = 0; i < MAX_AGENTS; i++) {
         const QString cur = m_modelCombo[i]->currentText();
         m_modelCombo[i]->clear();
-        for (const auto& m : models)
+        for (const auto& m : models) {
             m_modelCombo[i]->addItem(m, m);
+            if (P::isKnownBrokenModel(m)) {
+                const int idx = m_modelCombo[i]->count() - 1;
+                m_modelCombo[i]->setItemData(idx, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
+                m_modelCombo[i]->setItemData(idx, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
+                m_modelCombo[i]->setItemData(idx,
+                    P::knownBrokenModelTooltip(),
+                    Qt::ToolTipRole);
+            }
+        }
         if (m_modelCombo[i]->count() == 0)
             m_modelCombo[i]->addItem("(nessun modello)");
         /* Ripristina selezione precedente se ancora disponibile */

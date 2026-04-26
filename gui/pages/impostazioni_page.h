@@ -9,6 +9,8 @@
 class PersonalizzaPage;
 class ManutenzioneePage;
 class GraficoCanvas;
+class QTableWidget;
+class QListWidget;
 
 /* ══════════════════════════════════════════════════════════════
    ImpostazioniPage — Personalizzazione + Manutenzione
@@ -70,9 +72,17 @@ private:
     /* RAG indexing state (usato da buildRagTab) */
     RagEngine       m_rag;
     QStringList     m_ragQueue;           ///< chunk da indicizzare
+    QStringList     m_ragQueueSource;     ///< nome file sorgente per ogni chunk (parallelo a m_ragQueue)
     int             m_ragQueuePos = 0;    ///< posizione corrente nel queue
     QLabel*         m_ragFeedbackLbl = nullptr;
     bool            m_ragNoSave      = false;  ///< se true, non salva l'indice su disco (M2)
     QPushButton*    m_btnStopIndex   = nullptr; ///< "Ferma indicizzazione" — abilitato durante indexing
     bool            m_indexAborted   = false;   ///< flag settato da "Ferma" per interrompere indexNext
+
+    /* Hardware snapshot — aggiornato da onHWReady() */
+    HWInfo          m_hwInfo         = {};
+    QTableWidget*   m_rankTable      = nullptr;   ///< ptr tabella classifica (per refreshLlmColors)
+    QListWidget*    m_consigliatiList = nullptr;   ///< ptr lista consigliati (per refreshLlmColors)
+
+    void refreshLlmColors();  ///< colora verde/giallo/rosso i modelli in base all'HW rilevato
 };

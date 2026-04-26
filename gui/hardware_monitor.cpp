@@ -74,26 +74,61 @@ static void read_ram(double* used, double* total) {
 }
 #endif
 
-/* ── Lettura VRAM live NVIDIA ────────────────────────────────── */
-static void read_vram_nvidia(int idx, double* used, double* total) {
-    *used=*total=0;
+/* ── Lettura frequenza Intel iGPU da sysfs ───────────────────── */
+/* gt_cur_freq_mhz / gt_max_freq_mhz esistono solo sul driver i915.
+ * Su kernel ≥6 il path è gt/gt0/cur_freq_mhz.
+ * Ritorna true se trovata almeno una coppia di file. */
+#ifndef _WIN32
+static bool read_igpu_freq(double* freq_pct) {
+    *freq_pct = 0.0;
+    char cur_p[256], max_p[256];
+    for (int i = 0; i < 4; i++) {
+        /* Kernel 5.x */
+        snprintf(cur_p, sizeof cur_p, "/sys/class/drm/card%d/gt_cur_freq_mhz", i);
+        snprintf(max_p, sizeof max_p, "/sys/class/drm/card%d/gt_max_freq_mhz", i);
+        FILE* fc = fopen(cur_p, "r");
+        if (!fc) {
+            /* Kernel 6.x */
+            snprintf(cur_p, sizeof cur_p,
+                     "/sys/class/drm/card%d/gt/gt0/cur_freq_mhz", i);
+            snprintf(max_p, sizeof max_p,
+                     "/sys/class/drm/card%d/gt/gt0/rps_max_freq_mhz", i);
+            fc = fopen(cur_p, "r");
+        }
+        if (!fc) continue;
+        unsigned int cur = 0, max = 1;
+        fscanf(fc, "%u", &cur);
+        fclose(fc);
+        FILE* fm = fopen(max_p, "r");
+        if (fm) { fscanf(fm, "%u", &max); fclose(fm); }
+        if (max > 0) *freq_pct = (double)cur / (double)max * 100.0;
+        return true;
+    }
+    return false;
+}
+#endif
+
+/* ── Lettura VRAM + compute utilization NVIDIA ───────────────── */
+static void read_vram_nvidia(int idx, double* used, double* total, double* util_pct) {
+    *used = *total = *util_pct = 0;
     char cmd[256];
 #ifdef _WIN32
-    snprintf(cmd,sizeof cmd,
-        "nvidia-smi --id=%d --query-gpu=memory.used,memory.total"
+    snprintf(cmd, sizeof cmd,
+        "nvidia-smi --id=%d --query-gpu=memory.used,memory.total,utilization.gpu"
         " --format=csv,noheader,nounits 2>nul", idx);
 #else
-    snprintf(cmd,sizeof cmd,
-        "nvidia-smi --id=%d --query-gpu=memory.used,memory.total"
+    snprintf(cmd, sizeof cmd,
+        "nvidia-smi --id=%d --query-gpu=memory.used,memory.total,utilization.gpu"
         " --format=csv,noheader,nounits 2>/dev/null", idx);
 #endif
-    FILE* f = popen(cmd,"r");
-    if(!f) return;
-    long long u=0,t=0;
-    fscanf(f,"%lld, %lld",&u,&t);
+    FILE* f = popen(cmd, "r");
+    if (!f) return;
+    long long u = 0, t = 0, util = 0;
+    fscanf(f, "%lld, %lld, %lld", &u, &t, &util);
     pclose(f);
-    *used  = u/1024.0;
-    *total = t/1024.0;
+    *used     = u    / 1024.0;
+    *total    = t    / 1024.0;
+    *util_pct = (double)util;
 }
 
 /* ── HWDetectThread ──────────────────────────────────────────── */
@@ -146,28 +181,57 @@ void HardwareMonitor::onTimer() {
 SysSnapshot HardwareMonitor::readSnapshot() const {
     SysSnapshot s;
 
-    /* CPU */
     s.cpu_pct = read_cpu_pct();
-
-    /* RAM */
     read_ram(&s.ram_used, &s.ram_total);
 
-    /* GPU (solo se hw_detect ha già girato) */
-    if (m_hwReady) {
-        const HWDevice* pd = &m_hw.dev[m_hw.primary];
-        s.gpu_name = QString::fromLocal8Bit(pd->name);
-        if (pd->type == DEV_NVIDIA) {
-            read_vram_nvidia(pd->gpu_index, &s.vram_used, &s.vram_total);
-            s.gpu_pct  = (s.vram_total > 0)
-                         ? s.vram_used/s.vram_total*100.0 : 0.0;
+    if (!m_hwReady) return s;
+
+    /* CPU name dal device primario */
+    s.cpu_name = QString::fromLocal8Bit(m_hw.dev[m_hw.primary].name);
+
+    /* GPU: usa il device SECONDARIO (la vera GPU, non la CPU).
+     * m_hw.primary = CPU, m_hw.secondary = miglior GPU rilevata.
+     * Bug precedente: leggeva da m_hw.primary → gpu_pct sempre 0. */
+    if (m_hw.secondary >= 0) {
+        const HWDevice& gpu = m_hw.dev[m_hw.secondary];
+        s.gpu_name = QString::fromLocal8Bit(gpu.name);
+
+        if (gpu.type == DEV_NVIDIA) {
+            read_vram_nvidia(gpu.gpu_index,
+                             &s.vram_used, &s.vram_total, &s.gpu_pct);
+            s.vram_pct = (s.vram_total > 0)
+                         ? s.vram_used / s.vram_total * 100.0 : 0.0;
         }
-        /* AMD/Intel: lasciamo gpu_pct=0, mostriamo solo il nome */
+        /* AMD: lettura da sysfs — /sys/class/drm/card[N]/device/mem_info_vram_used */
+        else if (gpu.type == DEV_AMD) {
+            FILE* fu = fopen("/sys/class/drm/card0/device/mem_info_vram_used", "r");
+            FILE* ft = fopen("/sys/class/drm/card0/device/mem_info_vram_total", "r");
+            if (fu && ft) {
+                unsigned long long vu = 0, vt = 0;
+                fscanf(fu, "%llu", &vu);
+                fscanf(ft, "%llu", &vt);
+                s.vram_used  = vu / 1073741824.0;
+                s.vram_total = vt / 1073741824.0;
+                s.vram_pct   = (vt > 0) ? (double)vu / (double)vt * 100.0 : 0.0;
+                s.gpu_pct    = s.vram_pct;   /* proxy: VRAM% come attività */
+            }
+            if (fu) fclose(fu);
+            if (ft) fclose(ft);
+        }
         s.gpu_ready = true;
     }
 
-    /* CPU name */
-    if (m_hwReady)
-        s.cpu_name = QString::fromLocal8Bit(m_hw.dev[0].name);
+#ifndef _WIN32
+    /* Intel iGPU — frequenza come proxy utilizzo */
+    if (m_hw.igpu >= 0) {
+        s.igpu_name = QString::fromLocal8Bit(m_hw.dev[m_hw.igpu].name);
+        double fp = 0.0;
+        if (read_igpu_freq(&fp)) {
+            s.igpu_freq_pct = fp;
+            s.igpu_ready    = true;
+        }
+    }
+#endif
 
     return s;
 }

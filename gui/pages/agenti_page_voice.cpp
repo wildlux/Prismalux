@@ -153,7 +153,6 @@ void AgentiPage::_ttsPlay(const QString& tts)
             this, [this](int, QProcess::ExitStatus){
         if (m_waitLbl)    m_waitLbl->setVisible(false);
         if (m_btnTtsStop) m_btnTtsStop->setVisible(false);
-        /* Cleanup piper (produttore) quando aplay (consumatore) finisce */
         if (m_piperProc)  {
             m_piperProc->terminate();
             m_piperProc->waitForFinished(300);
@@ -161,6 +160,17 @@ void AgentiPage::_ttsPlay(const QString& tts)
             m_piperProc = nullptr;
         }
         if (m_ttsProc)    { m_ttsProc->deleteLater(); m_ttsProc = nullptr; }
+    });
+    /* Fallisce silenziosamente (binario non trovato, permessi, ecc.) */
+    connect(m_ttsProc, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError){
+        if (m_waitLbl)    m_waitLbl->setVisible(false);
+        if (m_btnTtsStop) m_btnTtsStop->setVisible(false);
+        m_log->append(
+            "\xe2\x9a\xa0  <b>TTS non disponibile.</b> "
+            "Installa <code>espeak-ng</code> oppure configura Piper TTS "
+            "nelle Impostazioni per la lettura vocale.");
+        if (m_ttsProc) { m_ttsProc->deleteLater(); m_ttsProc = nullptr; }
     });
 
 #ifdef Q_OS_WIN
@@ -194,7 +204,7 @@ void AgentiPage::_ttsPlay(const QString& tts)
         m_piperProc->setStandardInputFile(TtsSpeak::ttsTempFile());
         m_ttsProc->start(QString("aplay"), {"-r","22050","-f","S16_LE","-t","raw","-q","-"});
         m_piperProc->start(bin, {"--model", onnx, "--output_raw"});
-    } else if (!QProcess::startDetached("espeak-ng",{"-v","it+f3","--punct=none",tts})) {
+    } else if (!QProcess::startDetached("espeak-ng",{"-v","it+f3","--",tts})) {
         /* espeak-ng non trovato: prova spd-say tracciato */
         m_ttsProc->start("spd-say", {"--lang","it","--",tts});
     } else {

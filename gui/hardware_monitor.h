@@ -12,15 +12,21 @@ extern "C" {
    Snapshot risorse aggiornato ogni poll
    ══════════════════════════════════════════════════════════════ */
 struct SysSnapshot {
-    double cpu_pct   = 0.0;
-    double ram_used  = 0.0;   /* GiB */
-    double ram_total = 0.0;   /* GiB */
-    double gpu_pct   = 0.0;   /* % VRAM usata (0 se non leggibile) */
-    double vram_used = 0.0;   /* GiB */
-    double vram_total= 0.0;   /* GiB */
+    double cpu_pct      = 0.0;
+    double ram_used     = 0.0;   /* GiB */
+    double ram_total    = 0.0;   /* GiB */
+    double gpu_pct      = 0.0;   /* % compute utilization GPU (0 se non leggibile) */
+    double vram_used    = 0.0;   /* GiB */
+    double vram_total   = 0.0;   /* GiB */
+    double vram_pct     = 0.0;   /* % VRAM usata */
     QString gpu_name;
     QString cpu_name;
-    bool    gpu_ready = false;
+    bool    gpu_ready   = false;
+
+    /* Intel iGPU integrata (solo se rilevata da hw_detect) */
+    double  igpu_freq_pct = 0.0;  /* frequenza relativa (cur/max) come proxy utilizzo */
+    QString igpu_name;
+    bool    igpu_ready    = false;
 };
 
 /* ══════════════════════════════════════════════════════════════

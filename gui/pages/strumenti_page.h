@@ -32,7 +32,6 @@ private:
     QTextEdit*      m_output    = nullptr;
     QTextEdit*      m_inputArea = nullptr;
     QPushButton*    m_btnRun    = nullptr;
-    QPushButton*    m_btnStop   = nullptr;
     QComboBox*      m_cmbSub    = nullptr;  ///< Combo sotto-azione corrente
     QLabel*         m_waitLbl   = nullptr;
     bool            m_active    = false;
@@ -122,4 +121,5 @@ private slots:
     void onToken(const QString& t);
     void onFinished(const QString& full);
     void onError(const QString& msg);
+    void _setRunBusy(bool busy);
 };

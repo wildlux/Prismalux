@@ -6,6 +6,8 @@
 #include <QStringList>
 #include <QElapsedTimer>
 #include <QJsonArray>
+#include <QMap>
+#include <functional>
 
 /* ══════════════════════════════════════════════════════════════
    AiChatParams — parametri campionamento che riducono le allucinazioni.
@@ -104,6 +106,10 @@ public:
 
     virtual void fetchModels();
 
+    /** Dimensione in byte del modello Ollama (da /api/tags).
+     *  Restituisce 0 per llama-server, llama-local o se non ancora caricato. */
+    qint64 modelSizeBytes(const QString& name) const { return m_modelSizes.value(name, 0); }
+
     /**
      * fetchEmbedding — richiede l'embedding vettoriale di @p text al backend.
      * Supportato: Ollama (/api/embeddings) e llama-server (/v1/embeddings).
@@ -115,6 +121,17 @@ public:
     /** Chiamato da MainWindow::onHWUpdated ogni 2s per aggiornare il dato RAM. */
     void   setRamFreePct(double pct) { m_ramFreePct = pct; }
     double ramFreePct()        const { return m_ramFreePct; }
+
+    /** Modalità calcolo LLM: -2=auto (Ollama decide), 0=CPU pura, N>0=N layer su GPU.
+     *  Impostato da ManutenzioneePage in base a RAM vs VRAM o scelta manuale. */
+    void setNumGpu(int n) { m_numGpu = n; }
+    int  numGpu()   const { return m_numGpu; }
+
+    /** Recupera il numero di layer del modello corrente via POST /api/show.
+     *  Cerca il campo *.block_count in modelinfo (es. llama.block_count, qwen3.block_count).
+     *  Chiama callback(N) con N > 0 se trovato, callback(0) in caso di errore.
+     *  Non bloccante; non emette segnali — usa la callback diretta. */
+    void fetchModelLayers(std::function<void(int)> callback);
 
     /**
      * unloadModel() — Scarica il modello dalla RAM di Ollama inviando
@@ -200,6 +217,9 @@ private:
     /* Percentuale RAM libera (aggiornata da MainWindow ogni 2s) */
     double        m_ramFreePct     = 100.0;
 
+    /* Modalità calcolo: -2=auto, 0=CPU, N=layer GPU */
+    int           m_numGpu         = -2;
+
     /* Parametri campionamento */
     AiChatParams  m_params;
 
@@ -212,6 +232,17 @@ private:
      * Se a fine stream m_accum è vuoto ma questo non lo è, viene wrappato in
      * <think>...</think> e passato a finished() come fallback. */
     QString       m_thinkingAccum;
+
+    /* Nome del campo thinking individuato sul primo chunk di ogni stream.
+     * Fissato al primo rilevamento (name-based o size-based) e riusato per
+     * tutti i chunk successivi, evitando che il size-fallback identifichi un
+     * campo diverso in ogni chunk e accumuli dati eterogenei. Reset a "" in
+     * ogni nuovo chat()/generate(). */
+    QString       m_thinkingKey;
+
+    /* Dimensioni modelli Ollama (byte) da /api/tags — aggiornate da onModelsReply().
+     * Usate per colorare in rosso i modelli troppo grandi per la RAM disponibile. */
+    QMap<QString, qint64> m_modelSizes;
 
     /* Contatore richieste — incrementato a ogni chat() avviata con successo.
      * Usato da currentReqId() per il routing delle risposte nelle pagine. */

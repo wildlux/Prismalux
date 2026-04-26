@@ -195,6 +195,105 @@ static int detect_nvidia(HWDevice* devs, int start_idx, int max_count)
     return found;
 }
 
+/* ── Intel GPU (Linux: lspci + sysfs PCI resource) ───────────── */
+
+/*
+ * Legge la dimensione del BAR più grande dal file resource PCI.
+ * Per le Intel iGPU il BAR 2 è l'apertura GGTT (GPU Virtual Address Space),
+ * tipicamente 256 MB – 4 GB a seconda della configurazione BIOS/kernel.
+ * Non è la VRAM dedicata (stolen memory, 64-512 MB), ma è la finestra
+ * di indirizzamento massima usabile — valore accettabile come stima superiore.
+ */
+static long read_pci_resource_max_mb(const char* pci_slot)
+{
+    char path[256];
+    /* lspci slot format: "00:02.0" → sysfs: "0000:00:02.0" */
+    if (strchr(pci_slot, ':') &&
+        (pci_slot[4] == ':' || strlen(pci_slot) >= 12))
+        snprintf(path, sizeof path,
+                 "/sys/bus/pci/devices/%s/resource", pci_slot);
+    else
+        snprintf(path, sizeof path,
+                 "/sys/bus/pci/devices/0000:%s/resource", pci_slot);
+
+    FILE* f = fopen(path, "r");
+    if (!f) return 0;
+
+    char line[80];
+    long best_mb = 0;
+    while (fgets(line, sizeof line, f)) {
+        unsigned long long s = 0, e = 0, fl = 0;
+        if (sscanf(line, "0x%llx 0x%llx 0x%llx", &s, &e, &fl) == 3
+                && e > s && s > 0) {
+            long mb = (long)((e - s + 1) >> 20);
+            /* Filtro: apertura iGPU tipica 64 MB – 4 GB */
+            if (mb >= 64 && mb <= 4096 && mb > best_mb)
+                best_mb = mb;
+        }
+    }
+    fclose(f);
+    return best_mb;
+}
+
+static int detect_intel_gpu(HWDevice* devs, int start_idx, int max_count)
+{
+#if defined(_WIN32) || defined(__APPLE__)
+    (void)devs; (void)start_idx; (void)max_count;
+    return 0;
+#else
+    if (max_count <= 0 || start_idx >= HW_MAX_DEVICES) return 0;
+
+    /* 1. Presenza: lspci -mm filtra VGA/3D/Display vendor Intel */
+    char lspci_line[256] = {0};
+    run_first_line(
+        "lspci -mm 2>/dev/null"
+        " | grep -iE '(VGA|3D|Display)'"
+        " | grep -i 'Intel' | head -1",
+        lspci_line, sizeof lspci_line);
+    if (!lspci_line[0]) return 0;
+
+    /* 2. Nome: ultimo campo tra virgolette in output -mm:
+     *    "00:02.0 \"VGA...\" \"Intel Corp.\" \"Intel UHD Graphics 620\"" */
+    char nm[HW_NAME_LEN] = "Intel GPU (integrato)";
+    {
+        const char* last_q = strrchr(lspci_line, '"');
+        if (last_q && last_q > lspci_line) {
+            const char* q1 = last_q - 1;
+            while (q1 > lspci_line && *q1 != '"') q1--;
+            if (*q1 == '"') {
+                int len = (int)(last_q - q1 - 1);
+                if (len > 0 && len < HW_NAME_LEN - 1) {
+                    strncpy(nm, q1 + 1, (size_t)len);
+                    nm[len] = '\0';
+                }
+            }
+        }
+    }
+
+    /* 3. Slot PCI: prima colonna dell'output lspci (es. "00:02.0") */
+    char slot[32] = "00:02.0";
+    {
+        const char* p = lspci_line;
+        while (*p == ' ') p++;
+        int n = 0;
+        while (p[n] && p[n] != ' ' && p[n] != '\t' && n < 30) n++;
+        if (n > 0) { strncpy(slot, p, (size_t)n); slot[n] = '\0'; }
+    }
+
+    /* 4. VRAM: legge apertura GGTT dal resource PCI */
+    const long vram_mb = read_pci_resource_max_mb(slot);
+
+    HWDevice* d = &devs[start_idx];
+    strncpy(d->name, nm, HW_NAME_LEN - 1);
+    d->type         = DEV_INTEL;
+    d->gpu_index    = 0;
+    d->mem_mb       = vram_mb;   /* apertura GGTT in MB (0 se non leggibile) */
+    d->avail_mb     = vram_mb;
+    d->n_gpu_layers = 0;         /* iGPU non impiegata da sola per inferenza Ollama */
+    return 1;
+#endif
+}
+
 /* ── AMD (rocm-smi su Linux) ──────────────────────────────────── */
 
 static int detect_amd(HWDevice* devs, int start_idx, int max_count)
@@ -270,25 +369,38 @@ void hw_detect(HWInfo* hw)
 {
     memset(hw, 0, sizeof *hw);
     hw->secondary = -1;
+    hw->igpu      = -1;
 
     /* 0 = CPU */
     detect_cpu(&hw->dev[0]);
     hw->count   = 1;
     hw->primary = 0;
 
-    /* GPU NVIDIA */
+    /* GPU NVIDIA — priorità massima come GPU per inferenza */
     int nvidia = detect_nvidia(hw->dev, hw->count, HW_MAX_DEVICES - hw->count);
     if (nvidia > 0) {
         if (hw->secondary < 0) hw->secondary = hw->count;
         hw->count += nvidia;
     }
 
-    /* GPU AMD (solo se nessuna NVIDIA trovata) */
+    /* GPU AMD — solo se nessuna NVIDIA trovata */
     if (nvidia == 0) {
         int amd = detect_amd(hw->dev, hw->count, HW_MAX_DEVICES - hw->count);
         if (amd > 0) {
             if (hw->secondary < 0) hw->secondary = hw->count;
             hw->count += amd;
+        }
+    }
+
+    /* Intel iGPU — registrata sempre, hw->igpu punta al suo indice.
+     * NON sovrascrive secondary se NVIDIA/AMD già trovata:
+     * la GPU dedicata rimane quella preferita per l'inferenza. */
+    {
+        int intel = detect_intel_gpu(hw->dev, hw->count, HW_MAX_DEVICES - hw->count);
+        if (intel > 0) {
+            hw->igpu = hw->count;
+            if (hw->secondary < 0) hw->secondary = hw->count; /* solo fallback se nessuna dedicata */
+            hw->count += intel;
         }
     }
 

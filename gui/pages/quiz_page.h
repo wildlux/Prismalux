@@ -32,7 +32,6 @@ private:
     QComboBox*   m_cmbTipo     = nullptr;
     QComboBox*   m_cmbDiff     = nullptr;
     QPushButton* m_btnGenera   = nullptr;
-    QPushButton* m_btnStop     = nullptr;
     QPushButton* m_btnCopy     = nullptr;
     QTextEdit*   m_output      = nullptr;
 
@@ -40,4 +39,7 @@ private:
     QWidget*     m_dashContent = nullptr;
 
     QString      m_fullText;               /* testo accumulato per copia */
+    bool         m_generating = false;    ///< guard per segnali token/finished/error
+
+    void _setGenerateBusy(bool busy);
 };

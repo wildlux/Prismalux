@@ -159,12 +159,6 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     m_btnNascondi->setCheckable(true);
     m_btnNascondi->setChecked(true);   /* quick bar visibile di default */
 
-    /* Stop */
-    m_btnStop = new QPushButton(
-        "\xe2\x96\xa0  Stop", inputRow);
-    m_btnStop->setObjectName("actionBtn");
-    m_btnStop->setProperty("danger", true);
-    m_btnStop->setEnabled(false);
 
     /* RAG toggle */
     m_btnRag = new QPushButton("\xf0\x9f\x93\x9a", inputRow);  /* 📚 */
@@ -185,7 +179,6 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     inputLay->addWidget(m_input, 1);
     inputLay->addWidget(m_btnSend);
     inputLay->addWidget(m_btnNascondi);
-    inputLay->addWidget(m_btnStop);
     lay->addWidget(inputRow);
 
     /* Carica indice RAG esistente */
@@ -263,7 +256,7 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
                 connect(btn, &QPushButton::clicked, this, [this] {
                     auto* b = addAIBubble("\xf0\x9f\x93\x96  Aiuto");
                     b->appendToken(
-                        "Ciao! Sono l'Oracolo di Prismalux.\n\n"
+                        "Ciao! Sono l'assistente AI di Prismalux.\n\n"
                         "• Scrivi una domanda e premi Invia (o Enter)\n"
                         "• Shift+Enter = nuova riga\n"
                         "• Le pillole in basso inseriscono prompt predefiniti\n"
@@ -309,11 +302,11 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     /* ══════════════════════════════════════════════════════════
        Connessioni UI
        ══════════════════════════════════════════════════════════ */
-    connect(m_btnSend, &QPushButton::clicked,
-            this, &OracoloPage::sendMessage);
-
-    connect(m_btnStop, &QPushButton::clicked,
-            this, [this] { m_ai->abort(); });
+    /* Bottone unificato: se busy → abort, altrimenti invia */
+    connect(m_btnSend, &QPushButton::clicked, this, [this] {
+        if (m_ai->busy()) { m_ai->abort(); return; }
+        sendMessage();
+    });
 
     connect(m_btnNascondi, &QPushButton::toggled, this, [this](bool checked) {
         m_quickBar->setVisible(checked);
@@ -399,8 +392,7 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
         m_streaming = false;
         if (m_activeBubble) m_activeBubble->finalizeStream();
         m_activeBubble = nullptr;
-        m_btnSend->setEnabled(true);
-        m_btnStop->setEnabled(false);
+        _setSendBusy(false);
         m_waitLbl->setVisible(false);
 
         /* Registra il turno nella storia conversazionale */
@@ -419,8 +411,7 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
             m_activeBubble->finalizeStream();
         }
         m_activeBubble = nullptr;
-        m_btnSend->setEnabled(true);
-        m_btnStop->setEnabled(false);
+        _setSendBusy(false);
         m_waitLbl->setVisible(false);
     });
 
@@ -430,8 +421,7 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
         if (m_activeBubble)
             m_activeBubble->appendToken("\n\n\xe2\x9d\x8c  Errore: " + msg);
         m_activeBubble = nullptr;
-        m_btnSend->setEnabled(true);
-        m_btnStop->setEnabled(false);
+        _setSendBusy(false);
         m_waitLbl->setVisible(false);
     });
 }
@@ -461,8 +451,7 @@ void OracoloPage::sendMessage() {
 
     const QString model = m_ai->model().isEmpty() ? "AI" : m_ai->model();
     m_activeBubble = addAIBubble("\xf0\x9f\xa4\x96  " + model);
-    m_btnSend->setEnabled(false);
-    m_btnStop->setEnabled(true);
+    _setSendBusy(true);
     m_waitLbl->setVisible(true);
 
     /* ── Se RAG attivo e indice non vuoto: prima ottieni embedding query ── */
@@ -797,4 +786,19 @@ void OracoloPage::scrollToBottom() {
         auto* sb = m_scroll->verticalScrollBar();
         if (sb) sb->setValue(sb->maximum());
     });
+}
+
+void OracoloPage::_setSendBusy(bool busy)
+{
+    if (busy) {
+        m_btnSend->setText("\xe2\x8f\xb9 Stop");
+        m_btnSend->setProperty("danger", true);
+        m_btnSend->setProperty("primary", false);
+    } else {
+        m_btnSend->setText("\xe2\x9c\x88  Invia");
+        m_btnSend->setProperty("danger", false);
+        m_btnSend->setProperty("primary", true);
+    }
+    m_btnSend->setEnabled(true);
+    P::repolish(m_btnSend);
 }

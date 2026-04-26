@@ -77,7 +77,7 @@ void AgentiPage::onToken(const QString& t) {
     }
 }
 
-void AgentiPage::onFinished(const QString& /*full*/) {
+void AgentiPage::onFinished(const QString& full) {
     m_waitLbl->setVisible(false);
 
     /* Guard: se siamo in Idle, il segnale finished appartiene a un'altra pagina
@@ -141,9 +141,8 @@ void AgentiPage::onFinished(const QString& /*full*/) {
             if (!m_preTranslateModel.isEmpty() && m_preTranslateModel != m_ai->model())
                 m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_preTranslateModel);
             m_preTranslateModel.clear();
-            m_btnRun->setEnabled(true);
+            _setRunBusy(false);
             if (m_btnTranslate) m_btnTranslate->setEnabled(true);
-            m_btnStop->setEnabled(false);
         }
         return;
     }
@@ -189,6 +188,12 @@ void AgentiPage::onFinished(const QString& /*full*/) {
         QString rawResp;
         if (m_currentAgent > 0 && !m_agentOutputs.isEmpty()) {
             rawResp = m_agentOutputs[m_currentAgent - 1];
+            /* Fallback: modelli thinking-only (qwen3, deepseek-r1) rispondono tramite
+               message.thinking invece di message.content → nessun token emesso →
+               m_agentOutputs resta vuota. AiClient avvolge il thinking in <think>...</think>
+               e lo passa via finished(). Usiamo quel valore se il buffer locale è vuoto. */
+            if (rawResp.isEmpty() && !full.isEmpty())
+                rawResp = m_agentOutputs[m_currentAgent - 1] = full;
             /* Rimuove blocchi <think>...</think> (reasoning models: qwen3, deepseek-r1, qwq...)
                Se dopo lo strip rimane vuoto (modelli piccoli che producono SOLO thinking
                senza risposta finale), si usa il contenuto del <think> come fallback. */
@@ -198,6 +203,12 @@ void AgentiPage::onFinished(const QString& /*full*/) {
                 /* Salva l'originale prima di rimuovere */
                 const QString original = rawResp;
                 rawResp.remove(QRegularExpression("<think>[\\s\\S]*?</think>",
+                    QRegularExpression::CaseInsensitiveOption));
+                rawResp = rawResp.trimmed();
+
+                /* <think> senza </think>: budget ragionamento esaurito a metà.
+                   Tutto ciò che segue un <think> non chiuso è thinking non terminato. */
+                rawResp.remove(QRegularExpression("<think>[\\s\\S]*$",
                     QRegularExpression::CaseInsensitiveOption));
                 rawResp = rawResp.trimmed();
 
@@ -232,6 +243,45 @@ void AgentiPage::onFinished(const QString& /*full*/) {
                     m_agentOutputs[m_currentAgent - 1] = rawResp;
                 }
             }
+            /* Strip ragionamento italiano inline: i modelli spesso iniziano con frasi-spia
+               tipo "L'utente chiede...", "Devo rispondere...", "Sto analizzando..." prima
+               della risposta vera. Rimuove le righe iniziali che corrispondono ai pattern. */
+            {
+                static const QRegularExpression reThinkLine(
+                    QString::fromUtf8(
+                        "^(l['\xE2\x80\x99]utente\\s+(chiede|vuole|ha\\s+chiesto|sta|intende|sembra|desidera|ha\\s+fatto)|"
+                        "devo\\s+rispondere|voglio\\s+rispondere|prima\\s+di\\s+rispondere|"
+                        "sto\\s+(pensando|analizzando|considerando|riflettendo|cercando)|"
+                        "analizziamo|penso\\s+di\\s+dover|capisco\\s+che|vediamo\\s+(cosa|come)|"
+                        "mi\\s+viene\\s+chiesto|ho\\s+capito\\s+che|la\\s+domanda\\s+\\xC3\\xA8)"),
+                    QRegularExpression::CaseInsensitiveOption);
+                QStringList lines = rawResp.split('\n');
+                int firstReal = 0;
+                for (int i = 0; i < lines.size(); i++) {
+                    const QString trimmed = lines[i].trimmed();
+                    if (trimmed.isEmpty() || reThinkLine.match(trimmed).hasMatch())
+                        firstReal = i + 1;
+                    else
+                        break;
+                }
+                if (firstReal > 0 && firstReal < lines.size()) {
+                    const QString stripped = QStringList(lines.mid(firstReal)).join('\n').trimmed();
+                    if (!stripped.isEmpty()) {
+                        rawResp = stripped;
+                        m_agentOutputs[m_currentAgent - 1] = rawResp;
+                    }
+                }
+            }
+
+            /* Aggiunge il tempo di risposta all'header della bolla */
+            {
+                const double elapsedMs = static_cast<double>(m_agentTimer.elapsed());
+                const QString elapsedStr = elapsedMs < 1000.0
+                    ? QString::number(qRound(elapsedMs)) + " ms"
+                    : QString::number(elapsedMs / 1000.0, 'f', 1) + " s";
+                m_currentAgentTime += "  \xc2\xb7\xc2\xb7  " + elapsedStr;
+            }
+
             QString htmlContent = rawResp.isEmpty()
                 ? "<p style='color:#6b7280;font-style:italic;margin:0;'>Nessun output.</p>"
                 : markdownToHtml(rawResp);
@@ -534,8 +584,7 @@ void AgentiPage::onFinished(const QString& /*full*/) {
                 break;
             default:
                 m_log->append("\n\n\xe2\x9c\x85  Esplorazione matematica completata.");
-                m_btnRun->setEnabled(true);
-                m_btnStop->setEnabled(false);
+                _setRunBusy(false);
                 m_opMode = OpMode::Idle;
                 tryShowChart(m_taskOriginal + "\n" + m_byzA + "\n" + m_byzC);
                 emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
@@ -602,8 +651,7 @@ void AgentiPage::onFinished(const QString& /*full*/) {
         default:
             m_log->append("\n\n\xe2\x9c\x85  Verifica Byzantina completata.");
             m_log->append("\xe2\x9c\xa8 Verit\xc3\xa0 rivelata. Bevi la conoscenza.");
-            m_btnRun->setEnabled(true);
-            m_btnStop->setEnabled(false);
+            _setRunBusy(false);
             m_opMode = OpMode::Idle;
             tryShowChart(m_taskOriginal + "\n" + m_byzA + "\n" + m_byzC);
             emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
@@ -681,8 +729,7 @@ void AgentiPage::onError(const QString& msg) {
         m_log->append("\n" + categorized);
     /* Se categorized è vuota (abort silenzioso) non mostriamo nulla */
 
-    m_btnRun->setEnabled(true);
-    m_btnStop->setEnabled(false);
+    _setRunBusy(false);
     m_opMode = OpMode::Idle;
     m_waitLbl->setVisible(false);
 }

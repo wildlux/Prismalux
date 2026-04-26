@@ -17,6 +17,7 @@ class QSplitter;
 class QGroupBox;
 class QTabWidget;
 class QSpinBox;
+class QSlider;
 class QTableWidget;
 
 /* ══════════════════════════════════════════════════════════════
@@ -179,7 +180,6 @@ private:
 
     /* Toolbar buttons */
     QPushButton*    m_btnRun    = nullptr;
-    QPushButton*    m_btnStop   = nullptr;
     QPushButton*    m_btnAi     = nullptr;
     QPushButton*    m_btnFix    = nullptr; ///< "🔧 Correggi con AI" — invia il codice + errore al coder
     QPushButton*    m_btnLint   = nullptr; ///< "🔍 Analizza" — linting statico pre-AI
@@ -188,7 +188,9 @@ private:
     /* Loop Auto-Fix */
     bool m_loopActive = false;
     int  m_loopCount  = 0;
-    static constexpr int kLoopMax = 6;
+    int  m_loopMax    = 6;
+    QSlider* m_fixSlider    = nullptr;
+    QLabel*  m_fixSliderLbl = nullptr;
 
     /* Pannello diff (mostrato dopo ogni correzione AI) */
     QGroupBox*      m_diffGroup = nullptr;

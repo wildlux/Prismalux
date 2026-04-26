@@ -34,7 +34,8 @@ typedef struct {
     HWDevice    dev[HW_MAX_DEVICES];
     int         count;
     int         primary;   /* indice del device CPU */
-    int         secondary; /* indice della miglior GPU (-1 se assente) */
+    int         secondary; /* GPU dedicata preferita per inferenza: NVIDIA > AMD > Intel iGPU */
+    int         igpu;      /* indice Intel iGPU (-1 se assente) */
 } HWInfo;
 
 /* Rileva hardware: chiama popen/wmic — eseguire in un thread separato */

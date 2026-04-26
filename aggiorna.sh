@@ -190,7 +190,7 @@ fi
 #  2. whisper-cli.exe precompilato per Windows (GitHub Releases)
 # ══════════════════════════════════════════════════════════════
 if [ "$DO_WHISPER_WIN" = "1" ]; then
-    step "Scarico whisper-cli.exe precompilato per Windows..."
+    step "Scarico whisper Windows precompilato..."
 
     if ! command -v curl &>/dev/null; then
         echo -e "${Y}⚠  curl non trovato — salto download whisper Windows.${N}"
@@ -201,13 +201,16 @@ if [ "$DO_WHISPER_WIN" = "1" ]; then
 
         echo -e "  ${C}Interrogo GitHub API...${N}"
 
+        # Prende l'URL del release x64: preferisce blas (più veloce su CPU),
+        # poi bin-x64 standard, poi Win32 come ultima risorsa.
         _whisper_fetch_url() {
-            local repo="$1"
-            curl -fsSL "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null \
-                | grep '"browser_download_url"' \
-                | grep -iE 'win(64|dows|dows-x64|dows.*x64|_x64)|x64.*win|x86_64.*win' \
-                | grep -iE '\.zip' \
-                | grep -o 'https://[^"]*' | head -1 || true
+            local assets
+            assets=$(curl -fsSL "https://api.github.com/repos/$1/releases/latest" 2>/dev/null \
+                | grep '"browser_download_url"' | grep -iE '\.zip' | grep -o 'https://[^"]*')
+            # Priorità: blas x64 > bin x64 > Win32
+            echo "$assets" | grep -i 'blas-bin-x64'  | head -1 && return
+            echo "$assets" | grep -i 'bin-x64'        | head -1 && return
+            echo "$assets" | grep -iE 'win32|Win32'   | grep -v blas | head -1 && return
         }
 
         WHISPER_ZIP_URL=$(_whisper_fetch_url "ggml-org/whisper.cpp")
@@ -219,25 +222,27 @@ if [ "$DO_WHISPER_WIN" = "1" ]; then
         else
             echo -e "  Release: ${C}$(basename "$WHISPER_ZIP_URL")${N}"
             TMP_ZIP="$(mktemp /tmp/whisper_win_XXXXXX.zip)"
-            curl -fsSL -o "$TMP_ZIP" "$WHISPER_ZIP_URL" || { rm -f "$TMP_ZIP"; DO_WHISPER_WIN=0; }
+            curl -fsSL --progress-bar -o "$TMP_ZIP" "$WHISPER_ZIP_URL" \
+                || { rm -f "$TMP_ZIP"; DO_WHISPER_WIN=0; }
 
             if [ "$DO_WHISPER_WIN" = "1" ]; then
                 if command -v unzip &>/dev/null; then
-                    FOUND_EXE=$(unzip -l "$TMP_ZIP" 2>/dev/null | grep -o '[^ ]*whisper-cli\.exe' | head -1 || true)
-                    if [ -n "$FOUND_EXE" ]; then
-                        unzip -p "$TMP_ZIP" "$FOUND_EXE" > "$WHISPER_EXE" 2>/dev/null
-                    else
-                        TMP_DIR="$(mktemp -d /tmp/whisper_win_XXXXXX)"
-                        unzip -q "$TMP_ZIP" -d "$TMP_DIR" 2>/dev/null || true
-                        FOUND=$(find "$TMP_DIR" -name "whisper-cli.exe" | head -1)
-                        [ -n "$FOUND" ] && cp "$FOUND" "$WHISPER_EXE"
-                        rm -rf "$TMP_DIR"
-                    fi
+                    # Estrae TUTTO il contenuto (exe + DLL) appiattendo le directory
+                    TMP_DIR="$(mktemp -d /tmp/whisper_win_dir_XXXXXX)"
+                    unzip -q "$TMP_ZIP" -d "$TMP_DIR" 2>/dev/null || true
+                    # Copia tutti i file (exe + dll) nella cartella whisper_win/
+                    find "$TMP_DIR" -maxdepth 3 -type f \( -iname "*.exe" -o -iname "*.dll" \) \
+                        -exec cp {} "$WHISPER_WIN_DIR/" \;
+                    rm -rf "$TMP_DIR"
                 fi
                 rm -f "$TMP_ZIP"
-                [ -f "$WHISPER_EXE" ] && [ -s "$WHISPER_EXE" ] \
-                    && ok "whisper-cli.exe → $WHISPER_EXE  ($(du -sh "$WHISPER_EXE" | cut -f1))" \
-                    || echo -e "${Y}⚠  whisper-cli.exe non trovato nell'archivio.${N}"
+
+                N_FILES=$(ls "$WHISPER_WIN_DIR/" 2>/dev/null | wc -l)
+                if [ -f "$WHISPER_EXE" ] && [ -s "$WHISPER_EXE" ]; then
+                    ok "whisper_win/ → $N_FILES file ($(du -sh "$WHISPER_WIN_DIR" | cut -f1))"
+                else
+                    echo -e "${Y}⚠  whisper-cli.exe non trovato nell'archivio.${N}"
+                fi
             fi
         fi
     fi
@@ -249,8 +254,53 @@ fi
 if [ "$DO_ZIP" = "1" ]; then
     step "Rigenero ZIP Windows..."
     cd "$SCRIPT_DIR"
+
+    # Se whisper_win/ è vuota scarica automaticamente whisper-cli.exe
+    # così il ZIP include il binario Windows (~40 MB) come in passato.
+    WHISPER_EXE="$WHISPER_WIN_DIR/whisper-cli.exe"
+    if [ ! -f "$WHISPER_EXE" ] && command -v curl &>/dev/null; then
+        step "  whisper_win/ vuota — scarico whisper-cli.exe automaticamente..."
+
+        _whisper_fetch_url2() {
+            local assets
+            assets=$(curl -fsSL "https://api.github.com/repos/$1/releases/latest" 2>/dev/null \
+                | grep '"browser_download_url"' | grep -iE '\.zip' | grep -o 'https://[^"]*')
+            echo "$assets" | grep -i 'blas-bin-x64' | head -1 && return
+            echo "$assets" | grep -i 'bin-x64'       | head -1 && return
+            echo "$assets" | grep -iE 'win32|Win32'  | grep -v blas | head -1 && return
+        }
+
+        WHISPER_ZIP_URL=$(_whisper_fetch_url2 "ggml-org/whisper.cpp")
+        [ -z "$WHISPER_ZIP_URL" ] && WHISPER_ZIP_URL=$(_whisper_fetch_url2 "ggerganov/whisper.cpp")
+
+        if [ -n "$WHISPER_ZIP_URL" ]; then
+            echo -e "  Release: ${C}$(basename "$WHISPER_ZIP_URL")${N}"
+            mkdir -p "$WHISPER_WIN_DIR"
+            TMP_ZIP="$(mktemp /tmp/whisper_win_XXXXXX.zip)"
+            if curl -fsSL --progress-bar -o "$TMP_ZIP" "$WHISPER_ZIP_URL" 2>/dev/null; then
+                if command -v unzip &>/dev/null; then
+                    TMP_DIR="$(mktemp -d /tmp/whisper_win_dir2_XXXXXX)"
+                    unzip -q "$TMP_ZIP" -d "$TMP_DIR" 2>/dev/null || true
+                    find "$TMP_DIR" -maxdepth 3 -type f \( -iname "*.exe" -o -iname "*.dll" \) \
+                        -exec cp {} "$WHISPER_WIN_DIR/" \;
+                    rm -rf "$TMP_DIR"
+                fi
+            fi
+            rm -f "$TMP_ZIP"
+            if [ -f "$WHISPER_EXE" ] && [ -s "$WHISPER_EXE" ]; then
+                ok "  whisper_win/ scaricato ($(du -sh "$WHISPER_WIN_DIR" | cut -f1))"
+            else
+                echo -e "${Y}  ⚠  whisper-cli.exe non trovato nel release — ZIP senza whisper.${N}"
+            fi
+        else
+            echo -e "${Y}  ⚠  GitHub API non raggiungibile — ZIP senza whisper.${N}"
+        fi
+    elif [ -f "$WHISPER_EXE" ]; then
+        echo -e "  whisper-cli.exe già presente ($(du -sh "$WHISPER_EXE" | cut -f1))"
+    fi
+
     [ -f "$ZIP_SCRIPT" ] || fail "Script ZIP non trovato: $ZIP_SCRIPT"
-    python3 "$ZIP_SCRIPT" --out "$ZIP_OUT" 2>&1 | grep -E "(Fatto|file|Creazione|errore)" || true
+    python3 "$ZIP_SCRIPT" --out "$ZIP_OUT" 2>&1 | grep -E "(Fatto|file|ZIP|\+|skip|errore)" || true
     [ -f "$ZIP_OUT" ] || fail "ZIP non generato"
     ok "ZIP aggiornato → $ZIP_OUT  ($(du -sh "$ZIP_OUT" | cut -f1))"
 fi

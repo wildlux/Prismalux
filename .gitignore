@@ -126,3 +126,19 @@ desktop.ini
 # ── Dati utente sensibili ─────────────────────────────────────────────────────
 strumento_pratico/cv/*.pdf
 strumento_pratico/cv/*.txt
+
+# ── Qt GUI — directory build ──────────────────────────────────────────────────
+gui/build/
+gui/build_*/
+
+# ── llama.cpp standalone alla root ────────────────────────────────────────────
+/llama.cpp/
+
+# ── Binari whisper Windows (scaricati da aggiorna.sh --whisper) ───────────────
+whisper_win/
+
+# ── Configurazione MCP locale ─────────────────────────────────────────────────
+.mcp.json
+
+# ── Screenshot ────────────────────────────────────────────────────────────────
+Schermata_*.png

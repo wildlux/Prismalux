@@ -25,6 +25,8 @@
 #include <QStandardPaths>
 #include <QKeyEvent>
 #include <QDir>
+#include <QBrush>
+#include <QColor>
 
 namespace P = PrismaluxPaths;
 
@@ -307,6 +309,14 @@ QWidget* ProgrammazionePage::buildGitMcp(QWidget* parent)
                     n.contains("rerank") || n.contains("bge-"))
                     continue;
                 m_gitAiModel->addItem(mdl, mdl);
+                if (P::isKnownBrokenModel(mdl)) {
+                    const int idx = m_gitAiModel->count() - 1;
+                    m_gitAiModel->setItemData(idx, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
+                    m_gitAiModel->setItemData(idx, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
+                    m_gitAiModel->setItemData(idx,
+                        P::knownBrokenModelTooltip(),
+                        Qt::ToolTipRole);
+                }
             }
             if (m_gitAiModel->count() == 0)
                 m_gitAiModel->addItem(cur.isEmpty() ? "(nessun modello)" : cur, cur);

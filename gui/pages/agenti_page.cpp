@@ -69,10 +69,12 @@ AgentiPage::AgentiPage(AiClient* ai, QWidget* parent)
     connect(m_ai, &AiClient::error,       this, &AgentiPage::onError);
     connect(m_ai, &AiClient::modelsReady, this, &AgentiPage::onModelsReady);
 
-    /* Quando il modello cambia da Impostazioni (o da qualsiasi altra pagina),
-       aggiorna il combo locale senza innescare un nuovo setBackend (blockSignals). */
+    /* Quando il modello cambia da Impostazioni (o altra pagina), aggiorna
+       la combo SOLO se l'utente non ha scelto esplicitamente un modello
+       per questa scheda (m_pageModel vuoto = nessuna preferenza privata).
+       blockSignals previene il loop currentIndexChanged → setBackend. */
     connect(m_ai, &AiClient::modelChanged, this, [this](const QString& newModel) {
-        if (!m_cmbLLM) return;
+        if (!m_cmbLLM || !m_pageModel.isEmpty()) return;
         const int idx = m_cmbLLM->findText(newModel);
         if (idx >= 0 && idx != m_cmbLLM->currentIndex()) {
             m_cmbLLM->blockSignals(true);

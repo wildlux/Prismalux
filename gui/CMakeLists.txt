@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(Prismalux_GUI VERSION 2.2 LANGUAGES C CXX)
+project(Prismalux_GUI VERSION 2.8 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -57,6 +57,8 @@ set(CPP_SRCS
     pages/tutor_data.cpp
     pages/personalizza_page.cpp
     pages/manutenzione_page.cpp
+    pages/manutenzione_page_bugs.cpp
+    pages/manutenzione_page_cron.cpp
     pages/impostazioni_page.cpp
     pages/simulatore_page.cpp
     pages/simulatore_algos.cpp
@@ -67,6 +69,7 @@ set(CPP_SRCS
     pages/programmazione_page_git_repl.cpp
     pages/matematica_page.cpp
     pages/app_controller_page.cpp
+    pages/opencode_page.cpp
     monitor_panel.cpp
     # Widget nuovi: ChatBubble, ChartWidget, FormulaParser
     widgets/chat_bubble.cpp
@@ -271,6 +274,22 @@ if(BUILD_TESTS)
         target_link_libraries(test_programmazione_page PRIVATE pthread m)
     endif()
 
+    # ── test_thinking_detect: _extractThinkingToken + classifyQuery + key-lock ──
+    # Dipende solo da ai_client.cpp (per classifyQuery) + ai_thinking_detect.h.
+    # NON include TEST_SHARED_SRCS: ai_client.cpp compila senza tutta la UI.
+    add_executable(test_thinking_detect
+        tests/test_thinking_detect.cpp
+        ai_client.cpp
+    )
+    target_include_directories(test_thinking_detect PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_thinking_detect PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_thinking_detect PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_thinking_detect PRIVATE pthread m)
+    endif()
+
     enable_testing()
     add_test(NAME SignalLifetime        COMMAND test_signal_lifetime)
     add_test(NAME RagEngine            COMMAND test_rag_engine)
@@ -279,5 +298,6 @@ if(BUILD_TESTS)
     add_test(NAME LavoroPage           COMMAND test_lavoro_page)
     add_test(NAME AppController        COMMAND test_app_controller)
     add_test(NAME ProgrammazionePage   COMMAND test_programmazione_page)
-    message(STATUS "Build test abilitata: test_signal_lifetime, test_rag_engine, test_code_utils, test_random_tool, test_lavoro_page, test_programmazione_page")
+    add_test(NAME ThinkingDetect       COMMAND test_thinking_detect)
+    message(STATUS "Build test abilitata: test_signal_lifetime, test_rag_engine, test_code_utils, test_random_tool, test_lavoro_page, test_programmazione_page, test_thinking_detect")
 endif()

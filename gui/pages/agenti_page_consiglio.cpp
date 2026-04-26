@@ -87,8 +87,7 @@ void AgentiPage::runConsiglioScientifico()
     m_log->append(QString(43, QChar(0x2500)));
 
     m_opMode = OpMode::ConsiglioScientifico;
-    m_btnRun->setEnabled(false);
-    m_btnStop->setEnabled(true);
+    _setRunBusy(true);
     m_waitLbl->setText(QString("\xf0\x9f\x94\x84  %1 modelli in elaborazione...").arg(selected.size()));
     m_waitLbl->setVisible(true);
 
@@ -150,8 +149,7 @@ void AgentiPage::runConsiglioScientifico()
 void AgentiPage::aggregaConsiglio()
 {
     m_waitLbl->setVisible(false);
-    m_btnRun->setEnabled(true);
-    m_btnStop->setEnabled(false);
+    _setRunBusy(false);
     m_opMode = OpMode::Idle;
 
     m_log->append("\n" + QString(43, QChar(0x2500)));
@@ -240,8 +238,7 @@ void AgentiPage::aggregaConsiglio()
         }
         m_log->append("\n\xf0\x9f\x8f\x9b  [Sintetizzatore] \xf0\x9f\x94\x84 generando...\n");
         m_agentTextStart = m_log->document()->characterCount() - 1;
-        m_btnRun->setEnabled(false);
-        m_btnStop->setEnabled(true);
+        _setRunBusy(true);
         m_waitLbl->setVisible(true);
         m_ai->chat(_buildSys(m_taskOriginal, QString(sysSintesi).arg(m_peers.size()),
                              m_ai->model(), m_ai->backend()), combined);

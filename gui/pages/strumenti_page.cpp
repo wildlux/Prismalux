@@ -1,4 +1,6 @@
 #include "strumenti_page.h"
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFrame>
@@ -1148,8 +1150,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         }
 
         m_output->clear();
-        m_btnRun->setEnabled(false);
-        m_btnStop->setEnabled(true);
+        _setRunBusy(true);
         m_waitLbl->setText("\xf0\x9f\x94\x84  Analisi disegno in corso...");
         m_waitLbl->setVisible(true);
         m_active = true;
@@ -1161,8 +1162,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
                 m_output->append(
                     "\xe2\x9d\x8c  Impossibile aprire il file immagine.");
                 m_active = false;
-                m_btnRun->setEnabled(true);
-                m_btnStop->setEnabled(false);
+                _setRunBusy(false);
                 m_waitLbl->setVisible(false);
                 return;
             }
@@ -1520,12 +1520,6 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     m_btnRun->setObjectName("actionBtn");
     m_btnRun->setFixedWidth(110);
 
-    m_btnStop = new QPushButton("\xe2\x8f\xb9  Stop", inputRow);
-    m_btnStop->setObjectName("actionBtn");
-    m_btnStop->setProperty("danger", true);
-    m_btnStop->setEnabled(false);
-    m_btnStop->setFixedWidth(110);
-
     m_waitLbl = new QLabel(inputRow);
     m_waitLbl->setStyleSheet(
         "color:#E5C400;font-style:italic;font-size:11px;");
@@ -1533,7 +1527,6 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     m_waitLbl->setWordWrap(true);
 
     btnCol->addWidget(m_btnRun);
-    btnCol->addWidget(m_btnStop);
     btnCol->addWidget(m_waitLbl);
     btnCol->addStretch();
     inputLay->addLayout(btnCol);
@@ -1548,8 +1541,9 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         "\xf0\x9f\x8d\xba  Invocazione riuscita. Gli dei ascoltano.");
     lay->addWidget(m_output, 1);
 
-    /* ── Avvia tool ── */
+    /* ── Avvia / Stop tool (bottone unificato) ── */
     connect(m_btnRun, &QPushButton::clicked, this, [this] {
+        if (m_active) { m_ai->abort(); return; }
         const int navIdx = m_navList->currentRow();
         const int subIdx = m_cmbSub->currentIndex();
         if (navIdx < 0 || subIdx < 0) return;
@@ -1599,16 +1593,13 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         runTool(QString::fromUtf8(sys), userMsg);
     });
 
-    connect(m_btnStop, &QPushButton::clicked, m_ai, &AiClient::abort);
-
     connect(m_ai, &AiClient::token,    this, &StrumentiPage::onToken);
     connect(m_ai, &AiClient::finished, this, &StrumentiPage::onFinished);
     connect(m_ai, &AiClient::error,    this, &StrumentiPage::onError);
     connect(m_ai, &AiClient::aborted,  this, [this] {
         m_active = false;
         m_waitLbl->setVisible(false);
-        m_btnRun->setEnabled(true);
-        m_btnStop->setEnabled(false);
+        _setRunBusy(false);
         m_output->append("\n\xe2\x8f\xb9  Interrotto.");
     });
 }
@@ -1646,11 +1637,10 @@ void StrumentiPage::runTool(const QString& sys, const QString& userMsg) {
     }
 
     m_output->clear();
-    m_btnRun->setEnabled(false);
-    m_btnStop->setEnabled(true);
     m_waitLbl->setText("\xf0\x9f\x94\x84  Elaborazione in corso...");
     m_waitLbl->setVisible(true);
     m_active = true;
+    _setRunBusy(true);
     m_ai->chat(finalSys, userMsg);
 }
 
@@ -1670,8 +1660,7 @@ void StrumentiPage::onFinished(const QString& full) {
     if (!m_active) return;
     m_active = false;
     m_waitLbl->setVisible(false);
-    m_btnRun->setEnabled(true);
-    m_btnStop->setEnabled(false);
+    _setRunBusy(false);
     m_output->append("\n" + QString(40, QChar(0x2500)));
 
     /* ── Blender / Office / FreeCAD: estrai codice Python dal blocco ```...``` ── */
@@ -1724,12 +1713,24 @@ void StrumentiPage::onError(const QString& msg) {
     if (!m_active) return;
     m_active = false;
     m_waitLbl->setVisible(false);
-    m_btnRun->setEnabled(true);
-    m_btnStop->setEnabled(false);
+    _setRunBusy(false);
     m_output->append(
         QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
     m_output->append(
         "\xf0\x9f\x92\xa1  Verifica la connessione al backend AI.");
+}
+
+void StrumentiPage::_setRunBusy(bool busy)
+{
+    if (busy) {
+        m_btnRun->setText("\xe2\x8f\xb9  Stop");
+        m_btnRun->setProperty("danger", true);
+    } else {
+        m_btnRun->setText("\xe2\x96\xb6  Esegui");
+        m_btnRun->setProperty("danger", false);
+    }
+    m_btnRun->setEnabled(true);
+    P::repolish(m_btnRun);
 }
 
 /* Stub richiesti dall'header */

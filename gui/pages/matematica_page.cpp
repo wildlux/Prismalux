@@ -1,6 +1,8 @@
 #include "matematica_page.h"
 #include "../prismalux_paths.h"
 
+#include <QBrush>
+#include <QColor>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QDir>
@@ -232,6 +234,13 @@ QWidget* MatematicaPage::buildSeqTab()
                                 : (sc >= 50) ? "  \xe2\x9c\x94 Buono per Math"
                                 :              "";
             m_modelCombo->addItem(mdl + badge, mdl);
+            if (P::isKnownBrokenModel(mdl)) {
+                m_modelCombo->setItemData(pos, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
+                m_modelCombo->setItemData(pos, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
+                m_modelCombo->setItemData(pos,
+                    P::knownBrokenModelTooltip(),
+                    Qt::ToolTipRole);
+            }
             if (mdl == cur) curIdx = pos;
             if (sc > bestScore) { bestScore = sc; bestMath = pos; }
         }

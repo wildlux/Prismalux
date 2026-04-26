@@ -135,7 +135,7 @@ SubjectTutorWidget::SubjectTutorWidget(AiClient* ai, const QString& subject,
         m_inp->clear();
         m_send->setEnabled(false); m_stop->setEnabled(true);
         m_waitLbl->setVisible(true);
-        QString sys = QString("Sei l'Oracolo di Prismalux, tutor esperto in %1. "
+        QString sys = QString("Sei un tutor AI esperto in %1. "
             "Spiega in modo chiaro con esempi pratici, analogie concrete e passi logici. "
             "Adatta la spiegazione al livello dell'utente (da scolastico ad avanzato). "
             "Rispondi SEMPRE e SOLO in italiano.").arg(m_subject);
@@ -195,7 +195,7 @@ void SubjectTutorWidget::askTopic(const QString& topicName, const QString& topic
     m_waitLbl->setVisible(true);
 
     QString sys = QString(
-        "Sei l'Oracolo di Prismalux, tutor esperto in %1. "
+        "Sei un tutor AI esperto in %1. "
         "Spiega in modo chiaro con esempi pratici e analogie concrete. "
         "Rispondi SEMPRE e SOLO in italiano.").arg(m_subject);
 

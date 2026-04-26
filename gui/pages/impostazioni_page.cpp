@@ -185,6 +185,16 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
         tabs->addTab(scroll, "\xf0\x9f\xa7\xb9  Pulizia");
     }
 
+    /* ────────────────────────────────────────────────────────────
+       Bug Tracker — ricerca + analisi AI bug per modello
+       ──────────────────────────────────────────────────────────── */
+    tabs->addTab(m_manutenzione->buildBugTracker(), "\xf0\x9f\x94\x8d  Bug Tracker");
+
+    /* ────────────────────────────────────────────────────────────
+       Cron — job pianificati AI (giornalieri, a intervallo, ecc.)
+       ──────────────────────────────────────────────────────────── */
+    tabs->addTab(m_manutenzione->buildCronTab(), "\xe2\x8f\xb0  Cron");
+
     lay->addWidget(tabs);
 }
 
@@ -889,19 +899,26 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     useBtn->setToolTip("Imposta il modello selezionato come modello attivo");
     leftLay->insertWidget(3, useBtn);
 
-    /* Lambda: applica il modello selezionato e lo persiste su QSettings */
+    /* Lambda: applica il modello selezionato e lo persiste su QSettings.
+       Usa il backend corrispondente al radio selezionato:
+       Ollama → AiClient::Ollama, llama.cpp → AiClient::LlamaServer */
     auto applySelected = [=]() {
         auto* cur = modelList->currentItem();
         if (!cur) return;
         const QString model = cur->data(Qt::UserRole).toString();
         if (model.isEmpty() || model.startsWith("(")) return;
-        m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), model);
+        const AiClient::Backend bk = btnOllama->isChecked()
+            ? AiClient::Ollama
+            : AiClient::LlamaServer;
+        m_ai->setBackend(bk, m_ai->host(),
+                         bk == AiClient::Ollama ? PrismaluxPaths::kOllamaPort : PrismaluxPaths::kLlamaServerPort,
+                         model);
         /* Salva su QSettings → sopravvive al riavvio */
         QSettings s("Prismalux", "GUI");
         s.setValue(PrismaluxPaths::SK::kActiveModel,   model);
-        s.setValue(PrismaluxPaths::SK::kActiveBackend, static_cast<int>(m_ai->backend()));
+        s.setValue(PrismaluxPaths::SK::kActiveBackend, static_cast<int>(bk));
         activeLbl->setText(QString("\xf0\x9f\x9f\xa2  Modello attivo: <b>%1</b>").arg(model));
-        statusLbl->setText(QString("\xe2\x9c\x85 Attivo: %1").arg(model));
+        statusLbl->setText(QString("\xe2\x9c\x85 Attivo: %1").arg(QFileInfo(model).fileName()));
     };
 
     /* Lambda: carica modelli Ollama tramite AiClient::fetchModels */
@@ -1006,8 +1023,18 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
             m_ai->model().isEmpty() ? "(nessuno)" : m_ai->model()));
     });
 
-    /* Popola Ollama subito all'apertura */
-    QTimer::singleShot(0, page, [=]() { populateOllama(); });
+    /* Popola la lista in base al backend attivo all'apertura */
+    QTimer::singleShot(0, page, [=]() {
+        if (m_ai->backend() == AiClient::LlamaServer || m_ai->backend() == AiClient::LlamaLocal) {
+            btnLlama->blockSignals(true);
+            btnLlama->setChecked(true);
+            btnOllama->setChecked(false);
+            btnLlama->blockSignals(false);
+            populateLlama();
+        } else {
+            populateOllama();
+        }
+    });
 
     return page;
 }
@@ -1619,15 +1646,18 @@ QWidget* ImpostazioniPage::buildRagTab()
         m_indexAborted = false;
 
         /* Raccolta chunk — helper per spezzare testo in chunk da ~400 caratteri */
-        auto addChunks = [this](const QString& content) {
+        auto addChunks = [this](const QString& content, const QString& fileName) {
             for (int i = 0; i < content.size(); i += 400) {
                 QString chunk = content.mid(i, 500).simplified();
-                if (chunk.size() >= 30)
-                    m_ragQueue << chunk;
+                if (chunk.size() >= 30) {
+                    m_ragQueue       << chunk;
+                    m_ragQueueSource << fileName;
+                }
             }
         };
 
         m_ragQueue.clear();
+        m_ragQueueSource.clear();
         m_ragQueuePos = 0;
         m_rag.clear();
 
@@ -1637,9 +1667,10 @@ QWidget* ImpostazioniPage::buildRagTab()
         };
         QDirIterator it(dir, filters, QDir::Files, QDirIterator::Subdirectories);
         while (it.hasNext()) {
-            QFile f(it.next());
+            const QString fp = it.next();
+            QFile f(fp);
             if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) continue;
-            addChunks(QString::fromUtf8(f.readAll()));
+            addChunks(QString::fromUtf8(f.readAll()), QFileInfo(fp).fileName());
         }
 
         /* ── 2. PDF tramite pdftotext (se installato) ── */
@@ -1653,7 +1684,7 @@ QWidget* ImpostazioniPage::buildRagTab()
                 /* pdftotext file.pdf - → testo su stdout, nessuna shell */
                 p.start(pdfToText, {pdfPath, "-"});
                 if (!p.waitForFinished(60000)) continue;  /* timeout 60s per PDF grandi */
-                addChunks(QString::fromUtf8(p.readAllStandardOutput()));
+                addChunks(QString::fromUtf8(p.readAllStandardOutput()), QFileInfo(pdfPath).fileName());
             }
         }
         /* pdftotext non trovato: i PDF vengono saltati silenziosamente.
@@ -1739,10 +1770,13 @@ QWidget* ImpostazioniPage::buildRagTab()
                 return;
             }
 
-            /* Aggiorna progresso */
+            /* Aggiorna progresso con nome file sorgente */
+            const QString srcName = (m_ragQueuePos < m_ragQueueSource.size())
+                ? m_ragQueueSource[m_ragQueuePos] : QString();
             feedbackLbl->setText(
-                QString("\xe2\x8f\xb3  Indicizzazione: %1 / %2 chunk...")
-                    .arg(m_ragQueuePos + 1).arg(m_ragQueue.size()));
+                QString("\xf0\x9f\x93\x84  chunk %1 / %2%3")
+                    .arg(m_ragQueuePos + 1).arg(m_ragQueue.size())
+                    .arg(srcName.isEmpty() ? "..." : " da <b>" + srcName + "</b>"));
             emit indexingProgress(m_ragQueuePos, m_ragQueue.size());
 
             const QString chunk = m_ragQueue[m_ragQueuePos++];
@@ -2718,7 +2752,72 @@ QWidget* ImpostazioniPage::buildTestTab()
 }
 
 void ImpostazioniPage::onHWReady(HWInfo hw) {
+    m_hwInfo = hw;
     if (m_manutenzione) m_manutenzione->onHWReady(hw);
+    refreshLlmColors();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   refreshLlmColors — colora verde/giallo/rosso i modelli LLM
+   in base alla RAM e VRAM rilevate da hw_detect.
+   Verde  = entra in GPU (VRAM sufficiente)
+   Giallo = entra in RAM (CPU mode)
+   Rosso  = non compatibile con la macchina corrente
+   ══════════════════════════════════════════════════════════════ */
+void ImpostazioniPage::refreshLlmColors()
+{
+    if (m_hwInfo.count == 0) return;
+
+    /* VRAM GPU dedicata (non Intel iGPU) */
+    const double nvidiaVramGb =
+        (m_hwInfo.secondary >= 0 &&
+         m_hwInfo.secondary < m_hwInfo.count &&
+         m_hwInfo.dev[m_hwInfo.secondary].type != DEV_INTEL)
+        ? m_hwInfo.dev[m_hwInfo.secondary].avail_mb / 1024.0
+        : 0.0;
+
+    /* RAM totale CPU (margine 15% per OS e overhead) */
+    const double totalRamGb =
+        (m_hwInfo.primary >= 0 && m_hwInfo.primary < m_hwInfo.count)
+        ? m_hwInfo.dev[m_hwInfo.primary].mem_mb / 1024.0 * 0.85
+        : 0.0;
+
+    /* VRAM necessaria ≈ ram_gb / 1.2 (Q4 pesi + KV-cache ~200 MB) */
+    auto colorFor = [&](double ramGb) -> QColor {
+        if (ramGb <= 0.0) return {};
+        if (nvidiaVramGb > 0.0 && ramGb / 1.2 <= nvidiaVramGb)
+            return QColor("#4ade80");   /* verde: entra in GPU */
+        if (totalRamGb > 0.0 && ramGb <= totalRamGb)
+            return QColor("#fbbf24");   /* giallo: entra in RAM */
+        return QColor("#f87171");       /* rosso: non compatibile */
+    };
+
+    /* ── Tabella classifica ── */
+    if (m_rankTable) {
+        for (int row = 0; row < m_rankTable->rowCount(); row++) {
+            auto* ri = m_rankTable->item(row, 0);
+            if (!ri) continue;
+            const double ramGb = ri->data(Qt::UserRole + 1).toDouble();
+            const QColor col   = colorFor(ramGb);
+            if (!col.isValid()) continue;
+            /* Colora rank, nome e colonne RAM/VRAM — lascia score invariato */
+            for (int c : {0, 1, 3, 7}) {
+                auto* it = m_rankTable->item(row, c);
+                if (it) it->setForeground(col);
+            }
+        }
+    }
+
+    /* ── Lista consigliati ── */
+    if (m_consigliatiList) {
+        for (int i = 0; i < m_consigliatiList->count(); i++) {
+            auto* item = m_consigliatiList->item(i);
+            if (!item) continue;
+            const double ramGb = item->data(Qt::UserRole + 2).toDouble();
+            const QColor col   = colorFor(ramGb);
+            if (col.isValid()) item->setForeground(col);
+        }
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -3929,6 +4028,17 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
     auto* modelList = new QListWidget(rightGroup);
     modelList->setObjectName("modelsList");
     modelList->setAlternatingRowColors(true);
+    m_consigliatiList = modelList;
+
+    /* ── Legenda compatibilità hardware ── */
+    auto* legendCons = new QLabel(rightGroup);
+    legendCons->setObjectName("hintLabel");
+    legendCons->setTextFormat(Qt::RichText);
+    legendCons->setText(
+        "<span style='color:#4ade80;'>\xe2\x96\xa0 GPU</span>"
+        "&nbsp;&nbsp;<span style='color:#fbbf24;'>\xe2\x96\xa0 RAM/CPU</span>"
+        "&nbsp;&nbsp;<span style='color:#f87171;'>\xe2\x96\xa0 Non compatibile</span>");
+    rightLay->addWidget(legendCons);
     rightLay->addWidget(modelList, 1);
 
     /* ── Pannello dettaglio (sotto la lista) ── */
@@ -4110,6 +4220,15 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
     /* ════════════════════════════════════════════════════════
        Logica — popola lista in base ai filtri selezionati
        ════════════════════════════════════════════════════════ */
+
+    /* Converte stringa size (es. "~5.2 GB", "~80 MB") in GB float */
+    auto parseSizeGb = [](const char* s) -> double {
+        QString str = QString(s).remove('~').trimmed();
+        if (str.endsWith("MB", Qt::CaseInsensitive))
+            return str.remove("MB", Qt::CaseInsensitive).trimmed().toDouble() / 1024.0;
+        return str.remove("GB", Qt::CaseInsensitive).trimmed().toDouble();
+    };
+
     auto populate = [=]() {
         modelList->clear();
         installBtn->setEnabled(false);
@@ -4136,6 +4255,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
                     .arg(m.category, m.display, m.size));
                 item->setData(Qt::UserRole,     i);
                 item->setData(Qt::UserRole + 1, true);
+                item->setData(Qt::UserRole + 2, parseSizeGb(m.size));
                 modelList->addItem(item);
             }
         } else {
@@ -4150,9 +4270,11 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
                          inst ? "  \xe2\x9c\x94" : ""));
                 item->setData(Qt::UserRole,     i);
                 item->setData(Qt::UserRole + 1, false);
+                item->setData(Qt::UserRole + 2, parseSizeGb(m.size));
                 modelList->addItem(item);
             }
         }
+        refreshLlmColors();
     };
 
     /* Selezione modello → aggiorna pannello dettaglio */
@@ -4417,9 +4539,47 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     ctxSpin->setSingleStep(1024);
     ctxSpin->setValue(cur.num_ctx);
     ctxSpin->setSuffix("  token");
-    ctxSpin->setToolTip("Dimensione della finestra di contesto: quanti token la chat tiene in memoria.\n"
-                        "8192 = ottimo per sessioni lunghe  |  4096 = pi\xc3\xb9 veloce");
+    ctxSpin->setToolTip(
+        "Finestra di contesto: quanti token la chat tiene in memoria.\n"
+        "\n"
+        "Impatto VRAM (KV-cache, stima per modello 4B):\n"
+        "  2048 token  \xe2\x86\x92  ~0.7 GB  \xe2\x86\x92  modello 4B entra quasi tutto in GPU 4 GB\n"
+        "  4096 token  \xe2\x86\x92  ~1.3 GB  \xe2\x86\x92  necessario Misto (GPU+CPU)\n"
+        "  8192 token  \xe2\x86\x92  ~2.7 GB  \xe2\x86\x92  Misto obbligatorio, ~46% su CPU\n"
+        " 16384 token  \xe2\x86\x92  ~5.4 GB  \xe2\x86\x92  quasi tutto su CPU (GPU insufficiente)\n"
+        "\n"
+        "Regola: abbassa il contesto per massimizzare i layer su NVIDIA VRAM.");
     fl->addRow("Finestra contesto:", ctxSpin);
+
+    /* Hint dinamico: stima KV-cache VRAM al cambio del valore */
+    auto* ctxHint = new QLabel("", outer->parentWidget());
+    ctxHint->setObjectName("hintLabel");
+    ctxHint->setWordWrap(true);
+    fl->addRow("", ctxHint);
+
+    auto updateCtxHint = [ctxHint](int ctx) {
+        /* Stima KV-cache: ~0.33 MB/token per modello 4B (GQA 32 layer, fp16) */
+        const double kvGb = ctx * 0.00033;
+        QString level, advice;
+        if (kvGb < 1.0) {
+            level  = "\xe2\x9c\x85";
+            advice = "modello 4B quasi interamente su GPU 4 GB";
+        } else if (kvGb < 2.0) {
+            level  = "\xf0\x9f\x9f\xa1";
+            advice = "Misto GPU+CPU consigliato";
+        } else if (kvGb < 4.0) {
+            level  = "\xf0\x9f\x9f\xa0";
+            advice = "Misto obbligatorio, parte significativa su CPU/RAM";
+        } else {
+            level  = "\xf0\x9f\x94\xb4";
+            advice = "GPU 4 GB insufficiente — quasi tutto su CPU";
+        }
+        ctxHint->setText(QString("%1  KV-cache stimata: ~%2 GB  \xe2\x80\x94  %3")
+                         .arg(level).arg(kvGb, 0, 'f', 1).arg(advice));
+    };
+    updateCtxHint(ctxSpin->value());
+    QObject::connect(ctxSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+                     ctxHint, updateCtxHint);
 
     outer->addLayout(fl);
 
@@ -4473,7 +4633,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     outer->addWidget(cavemanRow);
 
     auto* cavemanDesc = new QLabel(
-        "\xe2\x84\xb9  Elimina frasi come \xe2\x80\x9cCertamente!\xe2\x80\x9d o \xe2\x80\x9cSpero di averti aiutato\xe2\x80\x9d. "
+        "\xe2\x84\xb9  Elimina frasi come \xe2\x80\x9c" "Certamente!\xe2\x80\x9d o \xe2\x80\x9c" "Spero di averti aiutato\xe2\x80\x9d. "
         "Il modello va dritto al contenuto. Utile per pipeline agenti e query rapide "
         "(meno token sprecati = risposte pi\xc3\xb9 veloci).");
     cavemanDesc->setWordWrap(true);
@@ -4624,22 +4784,36 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
     filterLay->addStretch();
     mainLay->addWidget(filterRow);
 
+    /* ── Legenda compatibilità hardware ── */
+    auto* legendLbl = new QLabel(page);
+    legendLbl->setObjectName("hintLabel");
+    legendLbl->setTextFormat(Qt::RichText);
+    legendLbl->setText(
+        "<span style='color:#4ade80;'>\xe2\x96\xa0 GPU</span>"
+        "&nbsp;&nbsp;<span style='color:#fbbf24;'>\xe2\x96\xa0 RAM/CPU</span>"
+        "&nbsp;&nbsp;<span style='color:#f87171;'>\xe2\x96\xa0 Non compatibile</span>"
+        "&nbsp;&nbsp;<span style='color:#64748b;font-size:11px;'>"
+        "\xe2\x80\x94 calcolato sul tuo hardware</span>");
+    mainLay->addWidget(legendLbl);
+
     /* ── Tabella ── */
     auto* table = new QTableWidget(page);
+    m_rankTable = table;
     table->setObjectName("modelsList");
-    table->setColumnCount(8);
+    table->setColumnCount(9);
     table->setHorizontalHeaderLabels({
         "#", "Modello", "Param.", "RAM Q4",
-        "Score", "Velocit\xc3\xa0", "\xe2\x89\xa464GB", "Categoria"
+        "Score", "Velocit\xc3\xa0", "\xe2\x89\xa4" "64GB", "VRAM (GB)", "Categoria"
     });
     table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-    table->horizontalHeader()->setSectionResizeMode(7, QHeaderView::ResizeToContents);
+    table->horizontalHeader()->setSectionResizeMode(8, QHeaderView::ResizeToContents);
     table->setColumnWidth(0, 38);
     table->setColumnWidth(2, 62);
     table->setColumnWidth(3, 72);
     table->setColumnWidth(4, 65);
     table->setColumnWidth(5, 80);
     table->setColumnWidth(6, 55);
+    table->setColumnWidth(7, 72);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table->setAlternatingRowColors(true);
@@ -4781,9 +4955,10 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
         for (int row = 0; row < idxs.size(); row++) {
             const auto& e = RANK[idxs[row]];
 
-            /* Colonna 0: rank */
+            /* Colonna 0: rank — UserRole+1 contiene ram_gb per refreshLlmColors */
             auto* rankItem = new QTableWidgetItem(QString::number(row + 1));
             rankItem->setTextAlignment(Qt::AlignCenter);
+            rankItem->setData(Qt::UserRole + 1, (double)e.ram_gb);
             table->setItem(row, 0, rankItem);
 
             /* Colonna 1: nome modello */
@@ -4834,10 +5009,19 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
             fitItem->setTextAlignment(Qt::AlignCenter);
             table->setItem(row, 6, fitItem);
 
-            /* Colonna 7: categoria */
+            /* Colonna 7: VRAM stimata (GB) — calcolata come ram_gb / 1.2 */
+            const float vramGb = e.ram_gb / 1.2f;
+            const QString vramStr = "~" + QString::number(qRound(vramGb)) + " GB";
+            auto* vramItem = new QTableWidgetItem(vramStr);
+            vramItem->setTextAlignment(Qt::AlignCenter);
+            vramItem->setToolTip("Stima VRAM per inferenza Q4 (ram_gb / 1.2)");
+            table->setItem(row, 7, vramItem);
+
+            /* Colonna 8: categoria */
             auto* catItem = new QTableWidgetItem(QString::fromUtf8(e.category));
-            table->setItem(row, 7, catItem);
+            table->setItem(row, 8, catItem);
         }
+        refreshLlmColors();
     };
     populate();
 
