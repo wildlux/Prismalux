@@ -6,6 +6,7 @@ namespace P = PrismaluxPaths;
 #include <QFile>
 #include <QFileInfo>
 #include <QSettings>
+#include <QWidget>
 
 ThemeManager* ThemeManager::s_instance = nullptr;
 
@@ -54,31 +55,50 @@ void ThemeManager::apply(const QString& id) {
     for (const auto& t : m_themes) {
         if (t.id == id) { resource = t.resource; break; }
     }
-    if (resource.isEmpty()) return;  /* id sconosciuto — ignora */
+    if (resource.isEmpty()) return;
 
-    QFile f(resource);
-    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
+    /* ── CSS cache: legge da disco solo la prima volta ── */
+    if (!m_cssCache.contains(id)) {
+        QFile f(resource);
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
+        QString css = QString::fromUtf8(f.readAll());
 
-    /* Carica le regole base strutturali e le appende DOPO il tema.
-       Ordine deliberato: tema prima → base dopo.
-       - I colori/sfondi vengono dal tema (base non li imposta).
-       - La struttura (width 8px, add-page, sub-page) viene da base
-         e sovrascrive le eventuali impostazioni dimensionali del tema.
-       Questo garantisce scrollbar cliccabile su Windows (add-page/sub-page)
-       e una larghezza minima di 8px indipendente dal tema. */
-    QString themeCss = QString::fromUtf8(f.readAll());
+        /* Appende base.qss (struttura scrollbar, ecc.) */
+        QFile base(QCoreApplication::applicationDirPath() + "/themes/base.qss");
+        if (base.open(QIODevice::ReadOnly | QIODevice::Text))
+            css += "\n" + QString::fromUtf8(base.readAll());
 
-    QString baseCss;
-    QFile baseFile(QCoreApplication::applicationDirPath() + "/themes/base.qss");
-    if (baseFile.open(QIODevice::ReadOnly | QIODevice::Text))
-        baseCss = "\n" + QString::fromUtf8(baseFile.readAll());
+        m_cssCache[id] = css;
+    }
 
-    qApp->setStyleSheet(themeCss + baseCss);
+    const QString& css = m_cssCache.value(id);
+
+    /* ── Applica stylesheet ottimizzato ──────────────────────────
+       setUpdatesEnabled(false) sul top-level sopprime i repaint
+       intermedi durante il traversal del widget tree: Qt calcola
+       tutti gli stili ma accoda i repaint; setUpdatesEnabled(true)
+       li scarica in un unico frame invece di N frame parziali.
+       WaitCursor dà feedback visivo immediato al click. */
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+
+    QWidget* root = nullptr;
+    for (QWidget* w : qApp->topLevelWidgets()) {
+        if (w->isVisible()) { root = w; break; }
+    }
+    if (root) root->setUpdatesEnabled(false);
+
+    qApp->setStyleSheet(css);
+
+    if (root) {
+        root->setUpdatesEnabled(true);
+        root->update();
+    }
+
+    QApplication::restoreOverrideCursor();
+
     m_currentId = id;
-
     QSettings s("Prismalux", "GUI");
     s.setValue(P::SK::kTheme, id);
-
     emit changed(id);
 }
 

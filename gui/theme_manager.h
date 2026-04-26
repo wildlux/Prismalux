@@ -2,6 +2,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QHash>
 
 /* ══════════════════════════════════════════════════════════════
    ThemeManager — singleton per il cambio tema a runtime
@@ -39,6 +40,7 @@ private:
     explicit ThemeManager(QObject* parent = nullptr);
     static ThemeManager* s_instance;
 
-    QList<Theme> m_themes;
-    QString      m_currentId;
+    QList<Theme>         m_themes;
+    QString              m_currentId;
+    QHash<QString,QString> m_cssCache;   ///< id → CSS già letto da disco
 };
