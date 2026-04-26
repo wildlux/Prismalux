@@ -166,6 +166,57 @@ static const char* kOfficeActions[] = {
 };
 
 /* ══════════════════════════════════════════════════════════════
+   System prompts — OBS MCP
+   ══════════════════════════════════════════════════════════════ */
+static const char* kOBSSys[] = {
+    "Sei un esperto di OBS Studio e obs-websocket 5.x. "
+    "Genera SOLO codice Python usando obsws-python: "
+    "`import obsws_python as obs; cl = obs.ReqClient(host='localhost', port=4455)`. "
+    "Controlla streaming/registrazione con StartStream/StopStream/StartRecord/StopRecord. "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    "Sei un esperto di OBS Studio e obs-websocket 5.x. "
+    "Genera SOLO codice Python con obsws-python per cambiare scena. "
+    "Usa: cl.set_current_program_scene(scene_name='NomeScena'). "
+    "Elenca le scene disponibili con cl.get_scene_list() se necessario. "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    "Sei un esperto di OBS Studio e obs-websocket 5.x. "
+    "Genera SOLO codice Python con obsws-python per gestire le sorgenti (source). "
+    "Usa cl.set_scene_item_enabled() per visibilit\xc3\xa0, cl.get_input_list() per elenco. "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    "Sei un esperto di OBS Studio e obs-websocket 5.x. "
+    "Genera SOLO codice Python con obsws-python per il controllo audio e volume. "
+    "Usa cl.set_input_volume(input_name=..., input_volume_mul=0.0..1.0) o input_volume_db. "
+    "Muta/smuta con cl.set_input_mute(). "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    "Sei un esperto di OBS Studio e obs-websocket 5.x. "
+    "Genera SOLO codice Python con obsws-python per scattare uno screenshot o salvare un replay. "
+    "Usa cl.save_source_screenshot() o cl.save_replay_buffer(). "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    "Sei un esperto di OBS Studio e obs-websocket 5.x. "
+    "Genera SOLO codice Python con obsws-python eseguibile come script. "
+    "import obsws_python as obs; cl = obs.ReqClient(host='localhost', port=4455). "
+    "Usa tutta l'API obs-websocket 5.x disponibile. "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    nullptr
+};
+
+static const char* kOBSActions[] = {
+    "\xf0\x9f\x94\xb4  Streaming & Recording",
+    "\xf0\x9f\x8e\xac  Cambia scena",
+    "\xf0\x9f\x96\xa5  Gestisci sorgenti",
+    "\xf0\x9f\x94\x8a  Volume & Audio",
+    "\xf0\x9f\x93\xb8  Screenshot / Replay",
+    "\xf0\x9f\x90\x8d  Script libero",
+    nullptr
+};
+
+/* ══════════════════════════════════════════════════════════════
    Costruttore
    ══════════════════════════════════════════════════════════════ */
 AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
@@ -186,6 +237,7 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
     m_tabs->addTab(buildAnkiTab(),         "\xf0\x9f\x83\x8f  Anki MCP");
     m_tabs->addTab(buildKiCADTab(),        "\xf0\x9f\x96\xa5  KiCAD MCP");
     m_tabs->addTab(buildTinyMCPTab(),      "\xf0\x9f\xa4\x96  TinyMCP");
+    m_tabs->addTab(buildOBSTab(),          "\xf0\x9f\x94\xb4  OBS MCP");
     m_tabs->addTab(new OpenCodePage(m_tabs), "\xf0\x9f\x96\xa5  OpenCode");
 
     lay->addWidget(m_tabs);
@@ -323,6 +375,11 @@ void AppControllerPage::runAi(int tabIdx, const QString& sys, const QString& use
             m_mcuFlashBtn->setEnabled(true);
             m_mcuStatusLbl->setText(
                 "\xf0\x9f\xa4\x96  Codice pronto \xe2\x80\x94 premi Flash MCU");
+        } else if (m_activeTab == 7 && hasBlock && !code.isEmpty()) {
+            m_obsCode = code;
+            m_obsExecBtn->setEnabled(true);
+            m_obsStatusLbl->setText(
+                "\xf0\x9f\x94\xb4  Codice pronto \xe2\x80\x94 premi Esegui in OBS");
         }
     });
 
@@ -1917,6 +1974,226 @@ QWidget* AppControllerPage::buildTinyMCPTab()
 
     /* Rileva porte al costruttore */
     detectSerialPorts();
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Tab OBS MCP
+   ══════════════════════════════════════════════════════════════ */
+QWidget* AppControllerPage::buildOBSTab()
+{
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(8, 8, 8, 8);
+    lay->setSpacing(6);
+
+    /* ── Barra connessione ── */
+    auto* connRow = new QWidget(w);
+    auto* connLay = new QHBoxLayout(connRow);
+    connLay->setContentsMargins(0, 0, 0, 0);
+    connLay->setSpacing(8);
+
+    auto* lbl = new QLabel("OBS WebSocket:", connRow);
+    lbl->setObjectName("hintLabel");
+
+    m_obsHostEdit = new QLineEdit("localhost:4455", connRow);
+    m_obsHostEdit->setFixedWidth(150);
+
+    auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    pingBtn->setObjectName("actionBtn");
+    pingBtn->setFixedWidth(100);
+
+    m_obsStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
+    m_obsStatusLbl->setObjectName("hintLabel");
+
+    m_obsExecBtn = new QPushButton("\xf0\x9f\x94\xb4  Esegui in OBS", connRow);
+    m_obsExecBtn->setObjectName("actionBtn");
+    m_obsExecBtn->setFixedWidth(150);
+    m_obsExecBtn->setEnabled(false);
+
+    auto* obsHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    obsHelpBtn->setObjectName("actionBtn");
+    obsHelpBtn->setFixedWidth(80);
+
+    connLay->addWidget(lbl);
+    connLay->addWidget(m_obsHostEdit);
+    connLay->addWidget(pingBtn);
+    connLay->addWidget(m_obsStatusLbl, 1);
+    connLay->addWidget(m_obsExecBtn);
+    connLay->addWidget(obsHelpBtn);
+    lay->addWidget(connRow);
+
+    /* ── Hint ── */
+    auto* hintLbl = new QLabel(
+        "\xf0\x9f\x94\xb4 <b>OBS MCP:</b> installa "
+        "<a href='https://github.com/royshil/obs-mcp'>obs-mcp</a> "
+        "e abilita OBS WebSocket (Strumenti \xe2\x86\x92 WebSocket Server, porta <b>4455</b>). "
+        "Richiede <code>pip install obsws-python</code>.", w);
+    hintLbl->setObjectName("hintLabel");
+    hintLbl->setOpenExternalLinks(true);
+    hintLbl->setWordWrap(true);
+    lay->addWidget(hintLbl);
+
+    /* ── Azione + Modello ── */
+    auto* toolRow = new QWidget(w);
+    auto* toolLay = new QHBoxLayout(toolRow);
+    toolLay->setContentsMargins(0, 0, 0, 0);
+    toolLay->setSpacing(8);
+
+    m_obsAction = new QComboBox(toolRow);
+    for (int i = 0; kOBSActions[i]; i++)
+        m_obsAction->addItem(QString::fromUtf8(kOBSActions[i]));
+
+    m_obsModel = new QComboBox(toolRow);
+    m_obsModel->setMinimumWidth(180);
+    populateModels(m_obsModel);
+
+    toolLay->addWidget(new QLabel("Azione:", toolRow));
+    toolLay->addWidget(m_obsAction, 1);
+    toolLay->addWidget(new QLabel("Modello AI:", toolRow));
+    toolLay->addWidget(m_obsModel, 1);
+    lay->addWidget(toolRow);
+
+    /* ── Input ── */
+    m_obsInput = new QTextEdit(w);
+    m_obsInput->setPlaceholderText(
+        "Descrivi cosa vuoi fare in OBS...\n"
+        "Es: 'Avvia la registrazione e cambia scena su Gameplay'\n"
+        "Es: 'Silenzia il microfono e abbassa il volume del desktop al 50%'");
+    m_obsInput->setFixedHeight(90);
+    lay->addWidget(m_obsInput);
+
+    /* ── Pulsanti ── */
+    auto* btnRow = new QWidget(w);
+    auto* btnLay = new QHBoxLayout(btnRow);
+    btnLay->setContentsMargins(0, 0, 0, 0);
+    btnLay->setSpacing(8);
+
+    m_obsRunBtn  = new QPushButton("\xf0\x9f\xa4\x96  Genera script", btnRow);
+    m_obsRunBtn->setObjectName("actionBtn");
+    m_obsStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_obsStopBtn->setObjectName("actionBtn");
+    m_obsStopBtn->setProperty("danger", true);
+    m_obsStopBtn->setEnabled(false);
+    btnLay->addWidget(m_obsRunBtn);
+    btnLay->addWidget(m_obsStopBtn);
+    btnLay->addStretch();
+    lay->addWidget(btnRow);
+
+    /* ── Output ── */
+    m_obsOutput = new QTextEdit(w);
+    m_obsOutput->setReadOnly(true);
+    m_obsOutput->setObjectName("outputView");
+    m_obsOutput->setPlaceholderText("Script Python OBS apparir\xc3\xa0 qui...");
+    lay->addWidget(m_obsOutput, 1);
+
+    /* ── Connessioni ── */
+    connect(pingBtn, &QPushButton::clicked, this, [this]() {
+        const QString addr = m_obsHostEdit->text().trimmed();
+        const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
+        const int     port = addr.contains(':') ? addr.section(':', 1).toInt() : 4455;
+        m_obsStatusLbl->setText("\xf0\x9f\x94\x84  Connessione...");
+        auto* sock = new QTcpSocket(this);
+        sock->connectToHost(host, static_cast<quint16>(port));
+        connect(sock, &QTcpSocket::connected, this, [this, sock]() {
+            sock->disconnectFromHost(); sock->deleteLater();
+            m_obsStatusLbl->setText("\xe2\x9c\x85  OBS WebSocket attivo");
+            m_obsExecBtn->setEnabled(!m_obsCode.isEmpty());
+        });
+        connect(sock, &QAbstractSocket::errorOccurred, this,
+                [this, sock](QAbstractSocket::SocketError) {
+            m_obsStatusLbl->setText("\xe2\x9d\x8c  " + sock->errorString());
+            sock->deleteLater();
+        });
+        QTimer::singleShot(3000, sock, [sock, this]() {
+            if (sock->state() != QAbstractSocket::ConnectedState) {
+                m_obsStatusLbl->setText("\xe2\x9d\x8c  Timeout — OBS non raggiungibile");
+                sock->abort(); sock->deleteLater();
+            }
+        });
+    });
+
+    connect(m_obsExecBtn, &QPushButton::clicked, this, [this]() {
+        if (m_obsCode.isEmpty()) return;
+        const QString tmpPath = QDir::tempPath() + "/prismalux_obs_script.py";
+        QFile f(tmpPath);
+        if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) return;
+        f.write(m_obsCode.toUtf8());
+        f.close();
+
+        if (!m_obsExecProc) {
+            m_obsExecProc = new QProcess(this);
+            m_obsExecProc->setProcessChannelMode(QProcess::MergedChannels);
+            connect(m_obsExecProc, &QProcess::readyRead, this, [this]() {
+                m_obsOutput->append(
+                    QString::fromUtf8(m_obsExecProc->readAll()).trimmed());
+            });
+            connect(m_obsExecProc,
+                    QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                    this, [this](int code, QProcess::ExitStatus) {
+                m_obsStatusLbl->setText(code == 0
+                    ? "\xe2\x9c\x85  Script eseguito"
+                    : "\xe2\x9d\x8c  Script terminato con errore");
+                m_obsExecBtn->setEnabled(true);
+            });
+        }
+        m_obsExecBtn->setEnabled(false);
+        m_obsStatusLbl->setText("\xf0\x9f\x94\x84  Esecuzione script...");
+        m_obsExecProc->start("python3", {tmpPath});
+        if (m_obsExecProc->state() == QProcess::NotRunning)
+            m_obsStatusLbl->setText("\xe2\x9d\x8c  python3 non trovato");
+    });
+
+    connect(m_obsRunBtn, &QPushButton::clicked, this, [this]() {
+        const int idx = m_obsAction->currentIndex();
+        if (idx < 0 || !kOBSSys[idx]) return;
+        runAi(7, QString::fromUtf8(kOBSSys[idx]),
+              m_obsInput->toPlainText(),
+              m_obsOutput, m_obsRunBtn, m_obsStopBtn,
+              m_obsModel);
+    });
+
+    connect(m_obsStopBtn, &QPushButton::clicked, this, [this]() {
+        m_ai->abort();
+        m_obsRunBtn->setEnabled(true);
+        m_obsStopBtn->setEnabled(false);
+        m_obsOutput->append("\n\xe2\x8f\xb9  Fermato.");
+    });
+
+    connect(obsHelpBtn, &QPushButton::clicked, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("\xf0\x9f\x94\xb4  Installazione OBS MCP");
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->resize(560, 500);
+        auto* dlay = new QVBoxLayout(dlg);
+        auto* browser = new QTextBrowser(dlg);
+        browser->setOpenExternalLinks(true);
+        browser->setHtml(
+            "<h3>\xf0\x9f\x94\xb4 OBS MCP</h3>"
+            "<h4>1. Installa OBS Studio</h4>"
+            "<p><code>sudo apt install obs-studio</code> oppure "
+            "<a href='https://obsproject.com/'>obsproject.com</a></p>"
+            "<h4>2. Abilita OBS WebSocket</h4>"
+            "<p>OBS \xe2\x86\x92 <b>Strumenti</b> \xe2\x86\x92 <b>WebSocket Server Settings</b> "
+            "\xe2\x86\x92 abilita il server (porta <b>4455</b>). "
+            "Disabilita la password per uso locale o impostala nel codice.</p>"
+            "<h4>3. Installa obsws-python</h4>"
+            "<pre>pip install obsws-python</pre>"
+            "<h4>4. (Opzionale) Installa obs-mcp</h4>"
+            "<p>Il plugin MCP ufficiale: "
+            "<a href='https://github.com/royshil/obs-mcp'>github.com/royshil/obs-mcp</a><br>"
+            "Permette di controllare OBS da client MCP come Claude Desktop.</p>"
+            "<h4>5. Collega</h4>"
+            "<p>Avvia OBS \xe2\x86\x92 clicca <b>\xf0\x9f\x94\x97 Verifica</b> \xe2\x86\x92 "
+            "genera lo script \xe2\x86\x92 <b>\xf0\x9f\x94\xb4 Esegui in OBS</b>.</p>");
+        auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+        btnClose->setObjectName("actionBtn");
+        connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
+        dlay->addWidget(browser);
+        dlay->addWidget(btnClose);
+        dlg->exec();
+    });
 
     return w;
 }

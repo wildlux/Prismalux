@@ -122,6 +122,19 @@ private:
     QString      m_mcuCode;
     QProcess*    m_mcuFlashProc  = nullptr;
 
+    /* ── OBS MCP ── */
+    QLineEdit*   m_obsHostEdit  = nullptr;
+    QLabel*      m_obsStatusLbl = nullptr;
+    QPushButton* m_obsExecBtn   = nullptr;
+    QComboBox*   m_obsAction    = nullptr;
+    QComboBox*   m_obsModel     = nullptr;
+    QTextEdit*   m_obsInput     = nullptr;
+    QTextEdit*   m_obsOutput    = nullptr;
+    QPushButton* m_obsRunBtn    = nullptr;
+    QPushButton* m_obsStopBtn   = nullptr;
+    QString      m_obsCode;
+    QProcess*    m_obsExecProc  = nullptr;
+
     QWidget* buildBlenderTab();
     QWidget* buildFreeCADTab();
     QWidget* buildOfficeTab();
@@ -129,6 +142,7 @@ private:
     QWidget* buildAnkiTab();
     QWidget* buildKiCADTab();
     QWidget* buildTinyMCPTab();
+    QWidget* buildOBSTab();
 
     void execAnkiAction(const QString& action, const QString& payload);
     void execKiCADAction(const QString& code);
