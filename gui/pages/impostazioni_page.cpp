@@ -179,9 +179,15 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
     }
 
     /* ════════════════════════════════════════════════════════════
-       Tab 3: 🎨 Aspetto — tema visivo (standalone, nessun sub-tab)
+       Gruppo 3: 🎨 Visuale
+       Aspetto (temi) · Grafico (aggiunto dinamicamente via setGraficoCanvas)
        ════════════════════════════════════════════════════════════ */
-    tabs->addTab(buildTemaTab(), "\xf0\x9f\x8e\xa8  Aspetto");
+    {
+        m_tabVisuale = _makeInner(this);
+        m_tabVisuale->addTab(buildTemaTab(), "\xf0\x9f\x8e\xa8  Aspetto");
+        // Il sub-tab "Grafico" viene aggiunto dopo dalla chiamata setGraficoCanvas()
+        tabs->addTab(m_tabVisuale, "\xf0\x9f\x8e\xa8  Visuale");
+    }
 
     /* ════════════════════════════════════════════════════════════
        Gruppo 4: 🔧 Sistema
@@ -207,6 +213,11 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
 
         tabs->addTab(t, "\xf0\x9f\x94\xa7  Sistema");
     }
+
+    /* ════════════════════════════════════════════════════════════
+       Tab 5: 📜 Ringraziamenti — licenza MIT + crediti
+       ════════════════════════════════════════════════════════════ */
+    tabs->addTab(buildRingraziamentiTab(), "\xf0\x9f\x93\x9c  Ringraziamenti");
 
     lay->addWidget(tabs);
 }
@@ -805,13 +816,13 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
    ══════════════════════════════════════════════════════════════ */
 void ImpostazioniPage::setGraficoCanvas(GraficoCanvas* canvas)
 {
-    if (!m_tabs || !canvas) return;
+    if (!m_tabVisuale || !canvas) return;
     /* Evita duplicati se chiamato più volte */
-    for (int i = 0; i < m_tabs->count(); i++) {
-        if (m_tabs->tabText(i).contains("Grafico", Qt::CaseInsensitive))
+    for (int i = 0; i < m_tabVisuale->count(); i++) {
+        if (m_tabVisuale->tabText(i).contains("Grafico", Qt::CaseInsensitive))
             return;
     }
-    m_tabs->addTab(buildGraficoTab(canvas), "\xf0\x9f\x93\x88  Grafico");
+    m_tabVisuale->addTab(buildGraficoTab(canvas), "\xf0\x9f\x93\x88  Grafico");
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -5442,4 +5453,154 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
 
     lay->addStretch();
     return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildRingraziamentiTab — licenza MIT + crediti autore e librerie
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildRingraziamentiTab()
+{
+    auto* scroll = new QScrollArea;
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+
+    auto* browser = new QTextBrowser;
+    browser->setOpenExternalLinks(true);
+    browser->setFrameShape(QFrame::NoFrame);
+    browser->setObjectName("ringraziamentiView");
+
+    browser->setHtml(R"HTML(
+<html><body style="font-family:sans-serif; margin:28px 40px; line-height:1.7;">
+
+<h1 style="font-size:2em; margin-bottom:2px;">&#127866; Prismalux</h1>
+<p style="color:#888; margin-top:0; font-size:1.05em;">
+  <em>Piattaforma AI locale &mdash; multi-agente, RAG, matematica, grafici.</em>
+</p>
+
+<hr style="border:1px solid #3a3a4a; margin:18px 0;"/>
+
+<!-- ── Autore ── -->
+<h2 style="font-size:1.3em; margin-bottom:6px;">&#128100; Autore</h2>
+<table style="border-collapse:collapse; width:100%;">
+  <tr>
+    <td style="padding:6px 14px 6px 0; font-weight:bold; white-space:nowrap;">Paolo Lo Bello</td>
+    <td style="padding:6px 0; color:#aaa;">
+      Ideazione, progettazione e sviluppo integrale di Prismalux.<br/>
+      GUI C++/Qt6 &bull; Pipeline multi-agente &bull; Motore Byzantino &bull; RAG locale
+      &bull; Simulatore 110 algoritmi &bull; Matematica locale &bull; Integrazione MCPs.
+    </td>
+  </tr>
+</table>
+
+<hr style="border:1px solid #3a3a4a; margin:18px 0;"/>
+
+<!-- ── Librerie e backend ── -->
+<h2 style="font-size:1.3em; margin-bottom:10px;">&#128218; Librerie e backend utilizzati</h2>
+<table style="border-collapse:collapse; width:100%;">
+  <thead>
+    <tr style="background:#1e1e2e;">
+      <th style="padding:8px 14px; text-align:left;">Progetto</th>
+      <th style="padding:8px 14px; text-align:left;">Scopo</th>
+      <th style="padding:8px 14px; text-align:left;">Licenza</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:7px 14px; font-weight:bold;">Qt6</td>
+      <td style="padding:7px 14px;">Framework GUI cross-platform (Widgets, Network, Svg)</td>
+      <td style="padding:7px 14px; color:#aaa;">LGPL v3</td>
+    </tr>
+    <tr style="background:#1a1a2a;">
+      <td style="padding:7px 14px; font-weight:bold;">Ollama</td>
+      <td style="padding:7px 14px;">Server locale per inferenza LLM via API REST</td>
+      <td style="padding:7px 14px; color:#aaa;">MIT</td>
+    </tr>
+    <tr>
+      <td style="padding:7px 14px; font-weight:bold;">llama.cpp</td>
+      <td style="padding:7px 14px;">Inferenza LLM ottimizzata CPU/GPU (GGUF) &mdash; Georgi Gerganov</td>
+      <td style="padding:7px 14px; color:#aaa;">MIT</td>
+    </tr>
+    <tr style="background:#1a1a2a;">
+      <td style="padding:7px 14px; font-weight:bold;">Piper TTS</td>
+      <td style="padding:7px 14px;">Sintesi vocale locale offline ad alta qualit&agrave;</td>
+      <td style="padding:7px 14px; color:#aaa;">MIT</td>
+    </tr>
+    <tr>
+      <td style="padding:7px 14px; font-weight:bold;">Whisper.cpp</td>
+      <td style="padding:7px 14px;">Trascrizione audio STT locale (Georgi Gerganov)</td>
+      <td style="padding:7px 14px; color:#aaa;">MIT</td>
+    </tr>
+    <tr style="background:#1a1a2a;">
+      <td style="padding:7px 14px; font-weight:bold;">nomic-embed-text</td>
+      <td style="padding:7px 14px;">Modello embedding per RAG (ricerca semantica documenti)</td>
+      <td style="padding:7px 14px; color:#aaa;">Apache 2.0</td>
+    </tr>
+    <tr>
+      <td style="padding:7px 14px; font-weight:bold;">OpenBLAS / BLAS</td>
+      <td style="padding:7px 14px;">Algebra lineare ottimizzata per llama.cpp su CPU</td>
+      <td style="padding:7px 14px; color:#aaa;">BSD 3-Clause</td>
+    </tr>
+    <tr style="background:#1a1a2a;">
+      <td style="padding:7px 14px; font-weight:bold;">md4c</td>
+      <td style="padding:7px 14px;">Parser Markdown C (integrato in Qt6::Gui)</td>
+      <td style="padding:7px 14px; color:#aaa;">MIT</td>
+    </tr>
+    <tr>
+      <td style="padding:7px 14px; font-weight:bold;">Poppler</td>
+      <td style="padding:7px 14px;">Estrazione testo da PDF per indicizzazione RAG</td>
+      <td style="padding:7px 14px; color:#aaa;">GPL v2 / LGPL</td>
+    </tr>
+    <tr style="background:#1a1a2a;">
+      <td style="padding:7px 14px; font-weight:bold;">OpenCode</td>
+      <td style="padding:7px 14px;">Agente coding AI con server HTTP+SSE integrato</td>
+      <td style="padding:7px 14px; color:#aaa;">MIT</td>
+    </tr>
+    <tr>
+      <td style="padding:7px 14px; font-weight:bold;">Python 3</td>
+      <td style="padding:7px 14px;">Esecuzione codice generato dall&apos;AI in sandbox controllata</td>
+      <td style="padding:7px 14px; color:#aaa;">PSF License</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr style="border:1px solid #3a3a4a; margin:18px 0;"/>
+
+<!-- ── Licenza MIT ── -->
+<h2 style="font-size:1.3em; margin-bottom:10px;">&#128220; Licenza &mdash; MIT License</h2>
+<pre style="background:#111118; border-radius:8px; padding:18px 20px; font-size:0.88em;
+            white-space:pre-wrap; color:#ccc; border:1px solid #2a2a3a; line-height:1.6;">
+MIT License
+
+Copyright (c) 2024-2026 Paolo Lo Bello
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+</pre>
+
+<hr style="border:1px solid #3a3a4a; margin:18px 0;"/>
+
+<p style="text-align:center; color:#666; font-size:0.92em; margin-top:8px;">
+  &#127866; <em>&ldquo;La birra &egrave; conoscenza divina &mdash; ogni sorso un dato in pi&ugrave;.&rdquo;</em>
+</p>
+
+</body></html>
+)HTML");
+
+    scroll->setWidget(browser);
+    return scroll;
 }
