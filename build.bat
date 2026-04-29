@@ -2,45 +2,42 @@
 setlocal EnableDelayedExpansion
 
 REM ══════════════════════════════════════════════════════════════
-REM  Prismalux GUI v2.8 — Build script per Windows
-REM  Aggiornato: 2026-04-29
+REM  Prismalux v2.8 — Build script per Windows
+REM  Lancia questo file dalla ROOT del progetto (dove si trova).
 REM
-REM  Strategia di rilevamento Qt (ordine di priorita'):
-REM    1. MSYS2 UCRT64  (C:\msys64\ucrt64)   — consigliato
-REM    2. MSYS2 MINGW64 (C:\msys64\mingw64)
-REM    3. Qt installer ufficiale (C:\Qt\6.x\mingw_64)
-REM    4. Variabile QT_PATH impostata manualmente qui sotto
+REM  Prerequisiti (una tantum, dalla shell "MSYS2 UCRT64"):
+REM    pacman -S --needed mingw-w64-ucrt-x86_64-qt6-base ^
+REM                       mingw-w64-ucrt-x86_64-qt6-tools ^
+REM                       mingw-w64-ucrt-x86_64-cmake ^
+REM                       mingw-w64-ucrt-x86_64-ninja ^
+REM                       mingw-w64-ucrt-x86_64-gcc
 REM
-REM  Installazione rapida MSYS2 (una tantum):
-REM    1. Scarica MSYS2 da https://www.msys2.org/
-REM    2. Apri "MSYS2 UCRT64" dal menu Start e digita:
-REM       pacman -S --needed mingw-w64-ucrt-x86_64-qt6-base ^
-REM                          mingw-w64-ucrt-x86_64-qt6-tools ^
-REM                          mingw-w64-ucrt-x86_64-cmake ^
-REM                          mingw-w64-ucrt-x86_64-ninja ^
-REM                          mingw-w64-ucrt-x86_64-gcc
-REM    3. Lancia questo script (doppio clic o cmd.exe)
+REM  In alternativa: Qt installer ufficiale da https://www.qt.io/download-qt-installer
 REM ══════════════════════════════════════════════════════════════
 
 echo.
 echo +--------------------------------------------------+
-echo ^|   Prismalux GUI v2.8 - Build Windows             ^|
+echo ^|   Prismalux v2.8 - Build Windows                 ^|
 echo +--------------------------------------------------+
 echo.
 
-REM ── Fallback manuale: decommenta e imposta il tuo percorso ─
+REM ── Percorso cartella gui/ ───────────────────────────────────
+set SCRIPT_DIR=%~dp0
+set GUI_DIR=%SCRIPT_DIR%gui
+set BUILD_DIR=%GUI_DIR%\build_win
+
+REM ── Fallback manuale Qt (decommenta se necessario) ───────────
 REM set QT_MANUAL=C:\Qt\6.9.0\mingw_64
 
-set BUILD_DIR=build_win
 set MSYS2_ROOT=C:\msys64
 set QT_PREFIX=
-set CMAKE_BIN=
+set CMAKE_BIN=cmake
 set NINJA_BIN=
 set GEN_FLAG=
 set FOUND_ENV=
 
 REM ────────────────────────────────────────────────────────────
-REM  1) MSYS2 UCRT64
+REM  1) MSYS2 UCRT64  (consigliato)
 REM ────────────────────────────────────────────────────────────
 if exist "%MSYS2_ROOT%\ucrt64\lib\cmake\Qt6\Qt6Config.cmake" (
     set QT_PREFIX=%MSYS2_ROOT%\ucrt64
@@ -65,12 +62,10 @@ if exist "%MSYS2_ROOT%\mingw64\lib\cmake\Qt6\Qt6Config.cmake" (
 
 REM ────────────────────────────────────────────────────────────
 REM  3) Qt installer ufficiale — cerca la versione piu' recente
-REM     in C:\Qt\6.x.y\mingw_64
 REM ────────────────────────────────────────────────────────────
 if exist "C:\Qt" (
     for /f "delims=" %%V in ('dir /b /ad "C:\Qt" 2^>nul ^| findstr /r "^6\." ^| sort /r') do (
         if not defined QT_PREFIX (
-            REM %%V e' il numero di versione (es. 6.9.2)
             for %%S in (mingw_64 msvc2022_64 msvc2019_64) do (
                 if not defined QT_PREFIX (
                     if exist "C:\Qt\%%V\%%S\lib\cmake\Qt6\Qt6Config.cmake" (
@@ -87,7 +82,7 @@ if exist "C:\Qt" (
 )
 
 REM ────────────────────────────────────────────────────────────
-REM  4) Variabile manuale impostata sopra
+REM  4) Percorso manuale
 REM ────────────────────────────────────────────────────────────
 if defined QT_MANUAL (
     if exist "%QT_MANUAL%\lib\cmake\Qt6\Qt6Config.cmake" (
@@ -101,28 +96,31 @@ if defined QT_MANUAL (
 
 echo  [ERRORE] Qt6 non trovato in nessuna posizione standard.
 echo.
-echo  Soluzioni:
-echo    A) Installa MSYS2 da https://www.msys2.org/ e poi da "MSYS2 UCRT64":
-echo       pacman -S --needed mingw-w64-ucrt-x86_64-qt6-base ^
-echo                          mingw-w64-ucrt-x86_64-cmake ^
-echo                          mingw-w64-ucrt-x86_64-ninja ^
-echo                          mingw-w64-ucrt-x86_64-gcc
+echo  Soluzione A) Installa MSYS2 da https://www.msys2.org/
+echo              Poi apri "MSYS2 UCRT64" e digita:
+echo              pacman -S --needed mingw-w64-ucrt-x86_64-qt6-base ^
+echo                                 mingw-w64-ucrt-x86_64-qt6-tools ^
+echo                                 mingw-w64-ucrt-x86_64-cmake ^
+echo                                 mingw-w64-ucrt-x86_64-ninja ^
+echo                                 mingw-w64-ucrt-x86_64-gcc
 echo.
-echo    B) Installa Qt da https://www.qt.io/download-qt-installer
-echo       e decommenta la riga QT_MANUAL in questo script.
+echo  Soluzione B) Installa Qt da https://www.qt.io/download-qt-installer
+echo              e decommenta la riga QT_MANUAL in questo script.
 echo.
 pause
 exit /b 1
 
 :env_found
-echo  [OK] Ambiente trovato : %FOUND_ENV%
-echo  [OK] Qt prefix        : %QT_PREFIX%
+echo  [OK] Ambiente : %FOUND_ENV%
+echo  [OK] Qt       : %QT_PREFIX%
+echo  [OK] Sorgenti : %GUI_DIR%
+echo  [OK] Output   : %BUILD_DIR%
+echo.
 
 REM ── Aggiunge bin al PATH ─────────────────────────────────────
 set PATH=%QT_PREFIX%\bin;%MSYS2_ROOT%\usr\bin;%PATH%
 
-REM ── Verifica cmake ──────────────────────────────────────────
-if not defined CMAKE_BIN set CMAKE_BIN=cmake
+REM ── Verifica cmake ───────────────────────────────────────────
 where cmake >nul 2>&1
 if errorlevel 1 (
     echo  [ERRORE] cmake non trovato nel PATH.
@@ -134,23 +132,17 @@ for /f "tokens=3" %%V in ('cmake --version 2^>^&1 ^| findstr /i "cmake version"'
 )
 
 REM ── Verifica sorgenti ────────────────────────────────────────
-if not exist "CMakeLists.txt" (
-    echo  [ERRORE] CMakeLists.txt non trovato.
-    echo  Esegui questo script dalla cartella Qt_GUI.
-    pause
-    exit /b 1
-)
-if not exist "pages\grafico_page.cpp" (
-    echo  [ERRORE] pages\grafico_page.cpp non trovato.
+if not exist "%GUI_DIR%\CMakeLists.txt" (
+    echo  [ERRORE] %GUI_DIR%\CMakeLists.txt non trovato.
     pause
     exit /b 1
 )
 echo  [OK] Sorgenti verificati.
+echo.
 
 REM ── Configura cmake ──────────────────────────────────────────
-echo.
 echo  Configuro cmake...
-cmake -B %BUILD_DIR% -S . ^
+cmake -B "%BUILD_DIR%" -S "%GUI_DIR%" ^
     %GEN_FLAG% ^
     -DCMAKE_BUILD_TYPE=Release ^
     -DCMAKE_PREFIX_PATH="%QT_PREFIX%"
@@ -165,8 +157,8 @@ if errorlevel 1 (
 
 REM ── Compila ──────────────────────────────────────────────────
 echo.
-echo  Compilazione in corso (puo' richiedere 2-5 minuti)...
-cmake --build %BUILD_DIR% --config Release
+echo  Compilazione in corso (2-5 minuti)...
+cmake --build "%BUILD_DIR%" --config Release
 
 if errorlevel 1 (
     echo.
@@ -175,7 +167,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM ── Deploy DLL Qt ─────────────────────────────────────────────
+REM ── Deploy DLL Qt ────────────────────────────────────────────
 echo.
 echo  Deploy DLL Qt...
 set DEPLOY=%QT_PREFIX%\bin\windeployqt.exe
@@ -185,7 +177,6 @@ if exist "%DEPLOY%" (
     "%DEPLOY%" "%BUILD_DIR%\Prismalux_GUI.exe" >nul 2>&1
     echo  [OK] DLL Qt copiate con windeployqt.
 ) else (
-    REM Copia manuale delle DLL essenziali
     echo  [INFO] windeployqt non trovato - copia manuale DLL essenziali...
     for %%D in (Qt6Core.dll Qt6Gui.dll Qt6Widgets.dll Qt6Network.dll
                 libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll
@@ -196,7 +187,6 @@ if exist "%DEPLOY%" (
             copy /y "%QT_PREFIX%\bin\%%D" "%BUILD_DIR%\" >nul 2>&1
         )
     )
-    REM Plugin piattaforme
     if not exist "%BUILD_DIR%\platforms" mkdir "%BUILD_DIR%\platforms"
     for %%P in (qwindows.dll qminimal.dll) do (
         for %%BASE in (share\qt6\plugins plugins) do (
@@ -205,7 +195,6 @@ if exist "%DEPLOY%" (
             )
         )
     )
-    REM Plugin stili
     if not exist "%BUILD_DIR%\styles" mkdir "%BUILD_DIR%\styles"
     for %%BASE in (share\qt6\plugins plugins) do (
         if exist "%QT_PREFIX%\%%BASE\styles\qwindowsvistastyle.dll" (
@@ -215,16 +204,20 @@ if exist "%DEPLOY%" (
     echo  [OK] DLL essenziali copiate.
 )
 
-REM ── Risultato ─────────────────────────────────────────────────
+REM ── Aggiorna versione in gui/build.bat ───────────────────────
+REM (nessuna azione: gui/build.bat e' mantenuto separatamente)
+
+REM ── Risultato ────────────────────────────────────────────────
 echo.
 echo +--------------------------------------------------+
-echo ^|   Prismalux GUI v2.8 compilata con successo!     ^|
+echo ^|   Prismalux v2.8 compilata con successo!         ^|
 echo +--------------------------------------------------+
 echo.
 echo   Eseguibile : %BUILD_DIR%\Prismalux_GUI.exe
 echo.
-echo   Tip: per aggiornare i modelli Ollama apri Impostazioni
-echo        (engrenaggio) ^> Backend ^> "Aggiorna tutti i modelli Ollama"
+echo   Tip: per aggiornare tutti i modelli Ollama apri
+echo        Prismalux ^> Impostazioni (engrenaggio) ^> Backend
+echo        ^> "Aggiorna tutti i modelli Ollama"
 echo.
 
 pause
