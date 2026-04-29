@@ -6,6 +6,7 @@
 #include <QComboBox>
 #include <QListWidget>
 #include <QLabel>
+#include <QNetworkAccessManager>
 #include "../ai_client.h"
 #include "lavoro_data.h"
 
@@ -29,6 +30,8 @@ private:
     quint64      m_myCoverReqId = 0;    ///< ID chat() cover letter
 
     QLabel*      m_linksLbl      = nullptr;   ///< pannello link per offerta selezionata
+    QLineEdit*   m_urlInput      = nullptr;   ///< URL annuncio esterno
+    QNetworkAccessManager* m_nam = nullptr;
 
     void applicaFiltri();
     void caricaCV(const QString& path);

@@ -25,6 +25,11 @@ namespace P = PrismaluxPaths;
 #include <QFileInfo>
 #include <QUrl>
 #include <QDesktopServices>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QTextDocument>
+#include <QRegularExpression>
 
 /* ══════════════════════════════════════════════════════════════
    caricaCV
@@ -266,6 +271,23 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     filtriL->addWidget(legenda);
     lay->addWidget(filtriRow);
 
+    /* ── Riga analisi URL annuncio esterno ── */
+    auto* urlRow = new QWidget(this);
+    auto* urlL   = new QHBoxLayout(urlRow);
+    urlL->setContentsMargins(0, 2, 0, 2);
+    urlL->setSpacing(8);
+    urlL->addWidget(new QLabel("\xf0\x9f\x94\x97 URL annuncio:", urlRow));
+    m_urlInput = new QLineEdit(urlRow);
+    m_urlInput->setObjectName("chatInput");
+    m_urlInput->setPlaceholderText(
+        "Incolla URL di un annuncio (LinkedIn, Indeed, InfoJobs, portale aziendale...) e premi Analizza");
+    auto* urlBtn = new QPushButton("\xf0\x9f\x94\x8d  Analizza", urlRow);
+    urlBtn->setObjectName("actionBtn");
+    urlBtn->setFixedWidth(100);
+    urlL->addWidget(m_urlInput, 1);
+    urlL->addWidget(urlBtn);
+    lay->addWidget(urlRow);
+
     /* ── Splitter: lista | output AI ── */
     auto* splitter = new QSplitter(Qt::Vertical, this);
 
@@ -456,6 +478,113 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
         "indicale chiaramente. Proponi domande critiche che aiutino a migliorare la candidatura. "
         "Distingui tra punti di forza reali e affermazioni non verificabili. "
         "L'obiettivo e' la verita', non la compiacenza.";
+
+    /* ── Logica URL Analyzer ── */
+    m_nam = new QNetworkAccessManager(this);
+
+    auto analizzaUrl = [=]{
+        const QString url = m_urlInput->text().trimmed();
+        if (url.isEmpty()) {
+            m_lavoroLog->append("\xe2\x9a\xa0  Inserisci prima un URL.");
+            return;
+        }
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            m_lavoroLog->append("\xe2\x9a\xa0  URL non valido: deve iniziare con http:// o https://");
+            return;
+        }
+
+        m_lavoroLog->clear();
+        m_lavoroLog->append(QString(
+            "\xf0\x9f\x94\x97  [ANALISI URL]\n"
+            "\xf0\x9f\x8c\x90  Scarico: %1\n"
+            "\xe2\x8f\xb3  Attendere...\n").arg(url));
+
+        urlBtn->setEnabled(false);
+        send->setEnabled(false);
+        stopBtn->setEnabled(true);
+        waitLbl->setVisible(true);
+
+        QNetworkRequest req{QUrl(url)};
+        req.setHeader(QNetworkRequest::UserAgentHeader,
+                      "Mozilla/5.0 (X11; Linux x86_64) Prismalux/2.8");
+        req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                         QNetworkRequest::NoLessSafeRedirectPolicy);
+        req.setTransferTimeout(15000);
+
+        auto* reply = m_nam->get(req);
+
+        connect(reply, &QNetworkReply::finished, this, [=]{
+            reply->deleteLater();
+            urlBtn->setEnabled(true);
+
+            if (reply->error() != QNetworkReply::NoError) {
+                m_lavoroLog->append(QString(
+                    "\xe2\x9d\x8c  Errore rete: %1").arg(reply->errorString()));
+                send->setEnabled(true); stopBtn->setEnabled(false);
+                waitLbl->setVisible(false);
+                return;
+            }
+
+            /* ── HTML → testo pulito ── */
+            const QByteArray raw = reply->read(512 * 1024);   // max 512 KB
+            QString html = QString::fromUtf8(raw);
+
+            QTextDocument doc;
+            doc.setHtml(html);
+            QString testo = doc.toPlainText()
+                .replace(QRegularExpression("[ \\t]{2,}"), " ")
+                .replace(QRegularExpression("\\n{3,}"), "\n\n")
+                .trimmed();
+
+            if (testo.size() < 80) {
+                m_lavoroLog->append(
+                    "\xe2\x9a\xa0  La pagina non contiene testo leggibile "
+                    "(potrebbe richiedere JavaScript o login).");
+                send->setEnabled(true); stopBtn->setEnabled(false);
+                waitLbl->setVisible(false);
+                return;
+            }
+
+            /* Limita a 3500 caratteri per non sforare il contesto */
+            const int maxLen = 3500;
+            const bool troncato = testo.size() > maxLen;
+            if (troncato) testo = testo.left(maxLen);
+
+            m_lavoroLog->append(QString(
+                "\xe2\x9c\x85  Pagina scaricata — %1 car.%2 \xe2\x86\x92 Analisi AI...\n")
+                .arg(testo.size())
+                .arg(troncato ? " (troncata)" : ""));
+
+            const QString cvInfo  = m_cvText.isEmpty() ? cvFallback.left(2000) : m_cvText.left(2000);
+            const QString modello = m_cmbModello ? m_cmbModello->currentText() : m_ai->model();
+            if (!modello.isEmpty() && !modello.startsWith("\xf0\x9f\x94\x84"))
+                m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), modello);
+
+            const QString sys = QString(
+                "Sei un esperto di carriera e ricerca del lavoro. "
+                "Analizza il seguente annuncio di lavoro e rispondi SEMPRE in italiano.\n\n"
+                "=== PROFILO CANDIDATO ===\n%1\n\n"
+                "=== TESTO ANNUNCIO (da URL) ===\n%2\n\n"
+                "=== STRUTTURA RISPOSTA ===\n"
+                "1. \xf0\x9f\x8f\xa2 RUOLO E AZIENDA: cosa cercano in sintesi (2-3 righe)\n"
+                "2. \xe2\x9c\x85 REQUISITI FONDAMENTALI: lista puntata\n"
+                "3. \xe2\xad\x90 NICE-TO-HAVE: requisiti preferenziali\n"
+                "4. \xf0\x9f\xa4\x96 COMPATIBILIT\xc3\x80 CON IL PROFILO: punti di forza e lacune\n"
+                "5. \xf0\x9f\x8e\xaf RACCOMANDAZIONE: candidarsi s\xc3\xac/no e perch\xc3\xa9\n\n"
+                "Sii diretto e onesto. Max 400 parole.%3"
+            ).arg(cvInfo, testo, socraticoBase);
+
+            m_myReqId = m_ai->chat(sys,
+                "Analizza questo annuncio di lavoro e valuta la compatibilit\xc3\xa0 "
+                "con il mio profilo.");
+        });
+
+        /* Abort rete se l'utente preme Stop */
+        connect(stopBtn, &QPushButton::clicked, reply, [reply]{ reply->abort(); });
+    };
+
+    connect(urlBtn,     &QPushButton::clicked,  this, analizzaUrl);
+    connect(m_urlInput, &QLineEdit::returnPressed, this, analizzaUrl);
 
     connect(m_offerteLista, &QListWidget::currentItemChanged, this,
         [=](QListWidgetItem* cur, QListWidgetItem*){
