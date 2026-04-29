@@ -45,6 +45,7 @@ INCLUDE_ROOT_FILES = [
     "README.md",
     "LICENSE",
     "aggiorna.sh",
+    "build.bat",    # build Windows — doppio clic per compilare
 ]
 
 # ── Pattern da escludere (match su path relativo forward-slash) ─────────────
