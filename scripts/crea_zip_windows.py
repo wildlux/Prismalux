@@ -32,6 +32,7 @@ ROOT = Path(__file__).parent.parent   # Prismalux/
 # ── Cartelle incluse (relative a ROOT, prefisso ZIP identico) ──────────────
 INCLUDE_DIRS = [
     "gui",
+    "COMPILE_WIN",    # setup.bat + build.bat — toolchain portatile Windows
     "ICONA",
     "RAG",
     "MCPs",
@@ -66,6 +67,9 @@ EXCLUDE_PATTERNS = [
     r"\.pyc$",
     r"\.AppImage$",
     r"Prismalux_Windows.*\.zip$",
+    r"[/\\]toolchain[/\\]",    # COMPILE_WIN/toolchain/ — binari scaricati
+    r"[/\\]toolchain$",
+    r"COMPILE_WIN[/\\]build[/\\]",  # output build locale
 ]
 
 _EXCLUDE_RE = [re.compile(p) for p in EXCLUDE_PATTERNS]

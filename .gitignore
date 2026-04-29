@@ -146,3 +146,7 @@ Schermata_*.png
 # ── Artefatti ZIP di distribuzione (troppo grandi per git) ───────────────────
 Prismalux_v*.zip
 ANDROID/*.zip
+
+# ── COMPILE_WIN — toolchain scaricata (troppo grande) e output build ─────────
+COMPILE_WIN/toolchain/
+COMPILE_WIN/build/
