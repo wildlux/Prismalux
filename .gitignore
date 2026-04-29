@@ -142,3 +142,7 @@ whisper_win/
 
 # ── Screenshot ────────────────────────────────────────────────────────────────
 Schermata_*.png
+
+# ── Artefatti ZIP di distribuzione (troppo grandi per git) ───────────────────
+Prismalux_v*.zip
+ANDROID/*.zip

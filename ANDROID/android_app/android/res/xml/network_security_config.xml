@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- network_security_config.xml
+     Permette traffico HTTP in chiaro SOLO verso indirizzi LAN privati.
+     Il traffico verso internet pubblico resta HTTPS obbligatorio. -->
+<network-security-config>
+    <!-- Indirizzi LAN privati — Ollama/Prismalux sul PC di casa -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.0.0</domain>
+        <domain includeSubdomains="false">192.168.1.0</domain>
+        <domain includeSubdomains="false">10.0.0.0</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>  <!-- emulatore Android -->
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

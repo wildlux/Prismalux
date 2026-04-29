@@ -12,7 +12,7 @@ import time
 import numpy as np
 from test_utils import load_params, ask_ollama, bar, PARAMS_FILE
 
-MODEL   = "qwen2.5-coder:7b"
+MODEL   = "mistral:7b-instruct"
 TIMEOUT = 90
 
 SYSTEM = (

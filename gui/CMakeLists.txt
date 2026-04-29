@@ -292,6 +292,41 @@ if(BUILD_TESTS)
         target_link_libraries(test_thinking_detect PRIVATE pthread m)
     endif()
 
+    # ── test_ai_integration: AiClient REALE ↔ Ollama (richiede Ollama attivo) ──
+    # Testa il percorso completo GUI: classifyQuery → AiChatParams → chat() →
+    # JSON → Ollama → streaming → finished(). Nessun mock.
+    # Override modello: PRISMALUX_TEST_MODEL=qwen2.5-coder:7b ./build_tests/test_ai_integration
+    add_executable(test_ai_integration
+        tests/test_ai_integration.cpp
+        ai_client.cpp
+    )
+    target_include_directories(test_ai_integration PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_ai_integration PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_ai_integration PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_ai_integration PRIVATE pthread m)
+    endif()
+
+    # ── test_ai_stress: matrice parametri completa + stress + edge case ──
+    # CAT-F: 24 combinazioni honesty×caveman×QueryType×think-capable (mock)
+    # CAT-G: stress sequenziale — throttle, abort+retry, N=20, payload 12KB, storia 50 turni
+    # CAT-H: edge case — 9 keyword temporali, system vuoto, busy guard, abort idle
+    # CAT-I: qualità reale con Ollama — caveman, honesty, think, num_predict
+    add_executable(test_ai_stress
+        tests/test_ai_stress.cpp
+        ai_client.cpp
+    )
+    target_include_directories(test_ai_stress PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_ai_stress PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_ai_stress PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_ai_stress PRIVATE pthread m)
+    endif()
+
     enable_testing()
     add_test(NAME SignalLifetime        COMMAND test_signal_lifetime)
     add_test(NAME RagEngine            COMMAND test_rag_engine)
@@ -301,7 +336,9 @@ if(BUILD_TESTS)
     add_test(NAME AppController        COMMAND test_app_controller)
     add_test(NAME ProgrammazionePage   COMMAND test_programmazione_page)
     add_test(NAME ThinkingDetect       COMMAND test_thinking_detect)
-    message(STATUS "Build test abilitata: test_signal_lifetime, test_rag_engine, test_code_utils, test_random_tool, test_lavoro_page, test_programmazione_page, test_thinking_detect")
+    add_test(NAME AiIntegration        COMMAND test_ai_integration)
+    add_test(NAME AiStress             COMMAND test_ai_stress)
+    message(STATUS "Build test abilitata: test_signal_lifetime, test_rag_engine, test_code_utils, test_random_tool, test_lavoro_page, test_programmazione_page, test_thinking_detect, test_ai_integration, test_ai_stress")
 endif()
 
 # ── CPack — Windows installer (NSIS) ─────────────────────────────────────

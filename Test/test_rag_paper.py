@@ -22,7 +22,7 @@ from test_utils import ask_ollama, bar
 
 # ── Configurazione ────────────────────────────────────────────────────
 RAG_PDF   = os.path.join(os.path.dirname(__file__), "../RAG/2103.00564v1.pdf")
-MODEL     = "qwen2.5-coder:7b"
+MODEL     = "mistral:7b-instruct"
 PARAMS    = {
     "temperature": 0.1, "top_p": 0.9, "top_k": 20,
     "repeat_penalty": 1.1, "num_predict": 256, "num_ctx": 4096,

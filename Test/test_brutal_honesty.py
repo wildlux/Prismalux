@@ -19,7 +19,7 @@ import time
 from datetime import datetime
 from test_utils import load_params, ask_ollama, bar, PARAMS_FILE
 
-MODEL = "qwen2.5-coder:7b"
+MODEL = "mistral:7b-instruct"
 
 # ── Prefix BH migliorato v2 ────────────────────────────────────
 # Fix Test 04: la v1 diceva "non inventare numeri" il che faceva

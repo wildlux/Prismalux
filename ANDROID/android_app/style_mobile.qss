@@ -1,0 +1,385 @@
+/* ══════════════════════════════════════════════════════════════
+   style_mobile.qss — tema dark per PrismaluxMobile
+   Ottimizzato per touch: aree di tap ≥ 48px, testo leggibile
+   su schermo piccolo, contrasto WCAG AA.
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Variabili di colore (comment tokens per riferimento) ──────
+   bg:       #0f1117   sfondo principale
+   surface:  #1a1d27   card / gruppi
+   border:   #2e3244   bordi sottili
+   accent:   #00c8ff   ciano primario
+   accent2:  #7c5cfc   viola secondario
+   text:     #e8eaf0   testo principale
+   muted:    #8890a8   testo secondario
+   danger:   #ff4f5e   errori
+   success:  #2dce89   successo
+   ──────────────────────────────────────────────────────────── */
+
+/* ── Base ─────────────────────────────────────────────────────── */
+QWidget {
+    background-color: #0f1117;
+    color: #e8eaf0;
+    font-family: "Segoe UI", "Roboto", "Ubuntu", sans-serif;
+    font-size: 15px;
+}
+
+QMainWindow {
+    background-color: #0f1117;
+}
+
+/* ── Bottom bar ───────────────────────────────────────────────── */
+QToolBar#BottomBar {
+    background-color: #1a1d27;
+    border-top: 1px solid #2e3244;
+    spacing: 0px;
+    padding: 0px;
+}
+
+QToolBar#BottomBar QToolButton {
+    background: transparent;
+    color: #8890a8;
+    border: none;
+    min-width: 72px;
+    min-height: 52px;
+    font-size: 11px;
+    padding: 4px 0px;
+}
+
+QToolBar#BottomBar QToolButton:checked {
+    color: #00c8ff;
+    border-top: 2px solid #00c8ff;
+    background-color: rgba(0, 200, 255, 0.07);
+}
+
+QToolBar#BottomBar QToolButton:pressed {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Gruppi impostazioni ──────────────────────────────────────── */
+QGroupBox#SettingsGroup {
+    background-color: #1a1d27;
+    border: 1px solid #2e3244;
+    border-radius: 12px;
+    margin-top: 8px;
+    padding: 12px 10px 10px 10px;
+    font-weight: 600;
+    color: #e8eaf0;
+}
+
+QGroupBox#SettingsGroup::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    top: -8px;
+    background-color: #0f1117;
+    padding: 0 6px;
+    color: #00c8ff;
+    font-size: 14px;
+}
+
+/* ── Input fields ─────────────────────────────────────────────── */
+QLineEdit#SettingsInput,
+QSpinBox#SettingsInput,
+QComboBox#SettingsInput {
+    background-color: #12151f;
+    border: 1px solid #2e3244;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #e8eaf0;
+    min-height: 44px;
+    selection-background-color: #00c8ff;
+    selection-color: #0f1117;
+}
+
+QLineEdit#SettingsInput:focus,
+QSpinBox#SettingsInput:focus,
+QComboBox#SettingsInput:focus {
+    border-color: #00c8ff;
+}
+
+QComboBox#SettingsInput::drop-down {
+    border: none;
+    padding-right: 8px;
+}
+
+QComboBox#SettingsInput QAbstractItemView {
+    background-color: #1a1d27;
+    border: 1px solid #2e3244;
+    selection-background-color: #00c8ff;
+    selection-color: #0f1117;
+}
+
+/* ── Chat input ───────────────────────────────────────────────── */
+QLineEdit#ChatInput {
+    background-color: #1a1d27;
+    border: 1px solid #2e3244;
+    border-radius: 22px;
+    padding: 10px 16px;
+    color: #e8eaf0;
+    min-height: 44px;
+    font-size: 15px;
+}
+
+QLineEdit#ChatInput:focus {
+    border-color: #00c8ff;
+}
+
+/* ── Chat log ─────────────────────────────────────────────────── */
+QTextBrowser#ChatLog {
+    background-color: #12151f;
+    border: 1px solid #2e3244;
+    border-radius: 12px;
+    padding: 12px;
+    color: #e8eaf0;
+    font-size: 15px;
+    line-height: 1.5;
+    selection-background-color: #00c8ff;
+    selection-color: #0f1117;
+}
+
+/* ── Pulsanti primari ─────────────────────────────────────────── */
+QPushButton#PrimaryBtn {
+    background-color: #00c8ff;
+    color: #0f1117;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-weight: 700;
+    font-size: 15px;
+    min-height: 48px;
+}
+
+QPushButton#PrimaryBtn:pressed {
+    background-color: #0099cc;
+}
+
+QPushButton#PrimaryBtn:disabled {
+    background-color: #2e3244;
+    color: #8890a8;
+}
+
+/* ── Pulsanti secondari ───────────────────────────────────────── */
+QPushButton#SecondaryBtn {
+    background-color: transparent;
+    color: #00c8ff;
+    border: 1px solid #00c8ff;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-weight: 600;
+    min-height: 44px;
+}
+
+QPushButton#SecondaryBtn:pressed {
+    background-color: rgba(0, 200, 255, 0.12);
+}
+
+QPushButton#SecondaryBtn:disabled {
+    color: #8890a8;
+    border-color: #2e3244;
+}
+
+/* ── Pulsante Stop ────────────────────────────────────────────── */
+QPushButton#StopBtn {
+    background-color: transparent;
+    color: #ff4f5e;
+    border: 1px solid #ff4f5e;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-weight: 600;
+    min-height: 36px;
+}
+
+QPushButton#StopBtn:disabled {
+    color: #2e3244;
+    border-color: #2e3244;
+}
+
+/* ── Pulsante icona ───────────────────────────────────────────── */
+QPushButton#IconBtn {
+    background: transparent;
+    border: none;
+    color: #8890a8;
+    font-size: 20px;
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 20px;
+}
+
+QPushButton#IconBtn:pressed {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Toggle RAG ───────────────────────────────────────────────── */
+QPushButton#RagToggle {
+    background-color: #12151f;
+    color: #8890a8;
+    border: 1px solid #2e3244;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    min-height: 44px;
+    min-width: 64px;
+}
+
+QPushButton#RagToggle:checked {
+    background-color: rgba(124, 92, 252, 0.18);
+    color: #7c5cfc;
+    border-color: #7c5cfc;
+}
+
+/* ── Send button ──────────────────────────────────────────────── */
+QPushButton#SendBtn {
+    background-color: #00c8ff;
+    color: #0f1117;
+    border: none;
+    border-radius: 22px;
+    font-size: 18px;
+    font-weight: 700;
+    min-height: 44px;
+    min-width: 52px;
+}
+
+QPushButton#SendBtn:pressed  { background-color: #0099cc; }
+QPushButton#SendBtn:disabled { background-color: #2e3244; color: #8890a8; }
+
+/* ── Label modello ────────────────────────────────────────────── */
+QLabel#ModelLabel {
+    color: #00c8ff;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 4px 0;
+}
+
+/* ── Label status ─────────────────────────────────────────────── */
+QLabel#StatusLabel {
+    color: #8890a8;
+    font-size: 13px;
+    padding: 4px;
+}
+
+QLabel#CountLabel {
+    color: #2dce89;
+    font-weight: 700;
+    font-size: 13px;
+}
+
+QLabel#ValueLabel {
+    color: #00c8ff;
+    font-weight: 700;
+    min-width: 36px;
+}
+
+/* ── Lista BLE ────────────────────────────────────────────────── */
+QListWidget#BleList {
+    background-color: #12151f;
+    border: 1px solid #2e3244;
+    border-radius: 12px;
+    padding: 4px;
+    color: #e8eaf0;
+    font-size: 14px;
+}
+
+QListWidget#BleList::item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    min-height: 52px;
+}
+
+QListWidget#BleList::item:selected {
+    background-color: rgba(0, 200, 255, 0.15);
+    color: #e8eaf0;
+}
+
+QListWidget#BleList::item:alternate {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* ── Viewfinder camera ────────────────────────────────────────── */
+QVideoWidget#Viewfinder {
+    background-color: #000000;
+    border-radius: 12px;
+}
+
+/* ── Preview immagine catturata ───────────────────────────────── */
+QLabel#PreviewLabel {
+    background-color: #12151f;
+    border: 1px solid #2e3244;
+    border-radius: 8px;
+}
+
+/* ── Area risultato OCR ───────────────────────────────────────── */
+QScrollArea#ResultScroll {
+    background-color: #12151f;
+    border: 1px solid #2e3244;
+    border-radius: 8px;
+}
+
+QLabel#ResultLabel {
+    background-color: #12151f;
+    color: #e8eaf0;
+    font-size: 13px;
+    padding: 8px;
+}
+
+/* ── Slider temperatura ───────────────────────────────────────── */
+QSlider#TempSlider::groove:horizontal {
+    height: 4px;
+    background-color: #2e3244;
+    border-radius: 2px;
+}
+
+QSlider#TempSlider::handle:horizontal {
+    background-color: #00c8ff;
+    border: 2px solid #0f1117;
+    width: 20px;
+    height: 20px;
+    margin: -8px 0;
+    border-radius: 10px;
+}
+
+QSlider#TempSlider::sub-page:horizontal {
+    background-color: #00c8ff;
+    border-radius: 2px;
+}
+
+/* ── ScrollBar ────────────────────────────────────────────────── */
+QScrollBar:vertical {
+    background: transparent;
+    width: 6px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #2e3244;
+    border-radius: 3px;
+    min-height: 30px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #00c8ff;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical { height: 0; }
+
+/* ── ScrollArea impostazioni ──────────────────────────────────── */
+QScrollArea#SettingsScroll {
+    border: none;
+    background-color: transparent;
+}
+
+QScrollArea#SettingsScroll > QWidget > QWidget {
+    background-color: transparent;
+}
+
+/* ── SpinBox ──────────────────────────────────────────────────── */
+QSpinBox#SettingsInput::up-button,
+QSpinBox#SettingsInput::down-button {
+    background-color: #2e3244;
+    border: none;
+    width: 28px;
+    border-radius: 4px;
+}
+
+QSpinBox#SettingsInput::up-arrow   { image: none; }
+QSpinBox#SettingsInput::down-arrow { image: none; }

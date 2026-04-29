@@ -2546,6 +2546,29 @@ QWidget* ImpostazioniPage::buildTestTab()
             "Bug rilevati: objectName 'codeEditor' duplicato su m_agentTask e m_revPreview (rinominati)",
             "40/40 pass \xc2\xb7 3 categorie \xc2\xb7 mock AI isolato \xc2\xb7 no AI, no rete"
         },
+        {
+            "test_ai_integration.cpp",
+            41, 41, "2026-04-27",
+            "Qt GUI \xe2\x80\x94 AiClient reale \xe2\x86\x94 Ollama: percorso completo classifyQuery \xe2\x86\x92 JSON \xe2\x86\x92 streaming \xe2\x86\x92 finished()",
+            "Categoria A (9): classifyQuery \xe2\x80\x94 limite 30/31 char, fix Auto\xe2\x89\xa0Simple, keyword spiega/analizza/perch\xc3\xa9\n"
+            "Categoria B (5): AiChatParams \xe2\x80\x94 default Brutal Honesty, save/load JSON, setChatParams round-trip\n"
+            "Categoria C (5): AiClient chat reale \xe2\x80\x94 risposta matematica, pattern Observer, trappola logica BH, reqId incrementale, coding Python\n"
+            "Categoria D (3): QueryType passthrough \xe2\x80\x94 Simple vs Complex, storia 2 turni, abort() durante streaming\n"
+            "Categoria E (9): Costrutti interni (mock) \xe2\x80\x94 kHonestyPrefix, kCavemanPrefix, ordine prefissi, think on/off, num_predict\xc3\x972, iniezione data/ora\n"
+            "OllamaMockServer: QTcpServer che intercetta l\xe2\x80\x99HTTP body esatto inviato da AiClient \xe2\x80\x94 verifica JSON senza rete reale",
+            "41/41 pass \xc2\xb7 richiede Ollama attivo per Categ. C e D \xc2\xb7 Categ. E mock locale"
+        },
+        {
+            "test_ai_stress.cpp",
+            80, 80, "2026-04-27",
+            "Qt GUI \xe2\x80\x94 AiClient stress: matrice 24 combinazioni di parametri, 20 richieste consecutive, 14 edge case, qualit\xc3\xa0 reale",
+            "Categoria F (30): matrice parametri (mock) \xe2\x80\x94 ogni combinazione di onest\xc3\xa0/caveman/tipo query/modello think-capable (24 righe) + system prompt preservato (4 righe)\n"
+            "Categoria G (9): stress sequenziale \xe2\x80\x94 20 richieste consecutive mock, throttle 400ms, abort+retry \xc3\x975, payload 13 KB, storia 50 turni, 10 richieste Ollama reali, abort al 2\xc2\xb0 token\n"
+            "Categoria H (33): edge case (mock) \xe2\x80\x94 tutte le 9 keyword temporali iniettano data, system vuoto + prefisso, busy guard, abort idle, boundary 30/31 char, modelli think-capable (qwen3/deepseek-r1/qwen2.5) vs non-capable (gemma3)\n"
+            "Categoria I (8): qualit\xc3\xa0 reale con Ollama \xe2\x80\x94 caveman senza convenevoli, trappola logica, num_predict 64 vs 512 (162 vs 1497 char), storia ritenuta, streaming \xe2\x89\xa5 5 token\n"
+            "Bug trovato: 'valuta' non \xc3\xa8 keyword Complex in classifyQuery \xe2\x80\x94 rimosso dal test",
+            "80/80 pass \xc2\xb7 Categ. F/G/H mock in ~1s \xc2\xb7 Categ. G reale ~45s \xc2\xb7 Categ. I ~4 min con Ollama"
+        },
     };
 
     const int nTests = int(sizeof kTests / sizeof kTests[0]);
