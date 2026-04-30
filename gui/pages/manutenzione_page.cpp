@@ -402,10 +402,14 @@ QWidget* ManutenzioneePage::buildBackend()
     auto* updAllBtn = new QPushButton(
         "\xe2\xac\x87  Aggiorna tutti i modelli Ollama", btnRow);
     updAllBtn->setObjectName("actionBtn");
+    auto* updLlamaBtn = new QPushButton(
+        "\xe2\xac\x87  Aggiorna tutti i modelli llama.cpp", btnRow);
+    updLlamaBtn->setObjectName("actionBtn");
     auto* updStatusLbl = new QLabel("", btnRow);
     updStatusLbl->setObjectName("cardDesc");
     updStatusLbl->setWordWrap(true);
     btnRowL->addWidget(updAllBtn);
+    btnRowL->addWidget(updLlamaBtn);
     btnRowL->addWidget(updStatusLbl, 1);
     updLay->addWidget(btnRow);
 
@@ -525,6 +529,69 @@ QWidget* ManutenzioneePage::buildBackend()
             listProc->deleteLater();
             updStatusLbl->setText("\xe2\x9d\x8c  Ollama non trovato. Verifica il PATH.");
             updAllBtn->setEnabled(true);
+        });
+    });
+
+    /* ── Lambda: aggiorna llama.cpp (git pull) + elenca modelli GGUF ── */
+    connect(updLlamaBtn, &QPushButton::clicked, page, [=]() {
+        updLlamaBtn->setEnabled(false);
+        updLog->clear();
+        updStatusLbl->setText("\xf0\x9f\x94\x84  Scansione modelli GGUF...");
+
+        /* Elenca modelli .gguf trovati */
+        const QStringList ggufFiles = P::scanGgufFiles();
+        updLog->append(QString("\xf0\x9f\x93\x81  Modelli GGUF trovati: %1").arg(ggufFiles.size()));
+        for (const QString& path : ggufFiles) {
+            const QFileInfo fi(path);
+            const double gb = fi.size() / (1024.0 * 1024.0 * 1024.0);
+            updLog->append(QString("  \xf0\x9f\x9f\xa4  %1  (%2 GB)")
+                .arg(fi.fileName()).arg(gb, 0, 'f', 1));
+        }
+        if (ggufFiles.isEmpty())
+            updLog->append("\xe2\x9a\xa0  Nessun file .gguf trovato in models/");
+
+        /* Cerca directory llama.cpp e aggiorna via git pull */
+        QString llamaDir;
+        for (const QString& c : {P::root() + "/llama_cpp_studio/llama.cpp",
+                                  P::root() + "/llama.cpp"}) {
+            if (QDir(c + "/.git").exists()) { llamaDir = c; break; }
+        }
+
+        if (llamaDir.isEmpty()) {
+            updLog->append("\n\xe2\x84\xb9  Repository llama.cpp non trovato — aggiornamento git non disponibile.");
+            updLog->append("   I file .gguf vanno aggiornati manualmente da HuggingFace Hub.");
+            updStatusLbl->setText("\xe2\x9c\x85  Scansione completata.");
+            updLlamaBtn->setEnabled(true);
+            return;
+        }
+
+        updLog->append(QString("\n\xf0\x9f\x94\x84  git pull: %1").arg(llamaDir));
+        updStatusLbl->setText("\xf0\x9f\x94\x84  Aggiornamento llama.cpp...");
+
+        auto* gitProc = new QProcess(page);
+        gitProc->setWorkingDirectory(llamaDir);
+        gitProc->setProcessChannelMode(QProcess::MergedChannels);
+        gitProc->start("git", {"pull", "--ff-only"});
+
+        connect(gitProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                page, [=](int code, QProcess::ExitStatus) {
+            gitProc->deleteLater();
+            QString out = QString::fromLocal8Bit(gitProc->readAll()).trimmed();
+            if (!out.isEmpty())
+                updLog->append("  " + out.replace('\n', "\n  "));
+            updLog->append("\n\xe2\x84\xb9  I file .gguf non hanno aggiornamento automatico.\n"
+                           "   Scarica le versioni aggiornate da HuggingFace Hub.");
+            if (code == 0)
+                updStatusLbl->setText("\xe2\x9c\x85  llama.cpp aggiornato.");
+            else
+                updStatusLbl->setText("\xe2\x9a\xa0  git pull fallito (verifica connessione).");
+            updLlamaBtn->setEnabled(true);
+        });
+        connect(gitProc, &QProcess::errorOccurred, page, [=](QProcess::ProcessError) {
+            gitProc->deleteLater();
+            updLog->append("\xe2\x9d\x8c  git non trovato nel PATH.");
+            updStatusLbl->setText("\xe2\x9a\xa0  git non disponibile.");
+            updLlamaBtn->setEnabled(true);
         });
     });
 

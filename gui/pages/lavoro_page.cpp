@@ -28,11 +28,10 @@ namespace P = PrismaluxPaths;
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
-#include <QTableWidget>
-#include <QTableWidgetItem>
-#include <QHeaderView>
 #include <QTextDocument>
 #include <QRegularExpression>
+#include <QDialog>
+#include <memory>
 
 /* ══════════════════════════════════════════════════════════════
    caricaCV
@@ -121,7 +120,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
 {
     auto* lay = new QVBoxLayout(this);
     lay->setContentsMargins(16, 12, 16, 12);
-    lay->setSpacing(8);
+    lay->setSpacing(4);
 
     /* ── Riga superiore: CV + Modello LLM ── */
     auto* topRow = new QWidget(this);
@@ -173,8 +172,14 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     llmLay->addWidget(fetchBtn);
     llmLay->addWidget(m_modelloLbl);
 
+    auto* toggleBtn = new QPushButton("\xe2\x96\xb2", topRow);
+    toggleBtn->setObjectName("actionBtn");
+    toggleBtn->setFixedSize(22, 22);
+    toggleBtn->setToolTip("Comprimi riga filtri");
+
     topL->addWidget(cvBox, 3);
     topL->addWidget(llmBox, 2);
+    topL->addWidget(toggleBtn);
     lay->addWidget(topRow);
 
     connect(sfogliaBtn, &QPushButton::clicked, this, [this]{
@@ -254,7 +259,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
 
     auto* filtriBtn = new QPushButton("\xf0\x9f\x94\x84", filtriRow);
     filtriBtn->setObjectName("actionBtn");
-    filtriBtn->setFixedWidth(36);
+    filtriBtn->setFixedWidth(28);
     filtriBtn->setToolTip("Aggiorna filtri");
     connect(filtriBtn, &QPushButton::clicked, this, &LavoroPage::applicaFiltri);
     connect(m_filtroTipo,    QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -262,115 +267,33 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     connect(m_filtroLivello, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &LavoroPage::applicaFiltri);
     filtriL->addWidget(filtriBtn);
-    filtriL->addStretch(1);
 
-    auto* legenda = new QLabel(
-        "\xf0\x9f\x9f\xa2" " nessun titolo   "
-        "\xf0\x9f\x9f\xa1" " diploma   "
-        "\xf0\x9f\x9f\xa0" " laurea   "
-        "\xf0\x9f\x94\xb4" " master   "
-        "\xe2\x9c\x89" " email diretta", filtriRow);
-    legenda->setObjectName("pageSubtitle");
-    filtriL->addWidget(legenda);
+    m_analizzaUrlBtn = new QPushButton("\xf0\x9f\x94\x97 Analizza URL", filtriRow);
+    m_analizzaUrlBtn->setObjectName("actionBtn");
+    m_analizzaUrlBtn->setToolTip("Analizza uno o più URL di annunci di lavoro");
+    m_analizzaCvBtn = new QPushButton("\xf0\x9f\xa4\x96 Analizza CV", filtriRow);
+    m_analizzaCvBtn->setObjectName("actionBtn");
+    m_analizzaCvBtn->setToolTip("Chiedi all'AI di analizzare il tuo CV con una domanda predefinita o personalizzata");
+    m_stopAiBtn = new QPushButton("\xe2\x8f\xb9", filtriRow);
+    m_stopAiBtn->setObjectName("actionBtn");
+    m_stopAiBtn->setProperty("danger", true);
+    m_stopAiBtn->setFixedWidth(28);
+    m_stopAiBtn->setEnabled(false);
+    m_stopAiBtn->setToolTip("Interrompi elaborazione AI");
+    filtriL->addWidget(m_analizzaUrlBtn);
+    filtriL->addWidget(m_analizzaCvBtn);
+    filtriL->addWidget(m_stopAiBtn);
+    filtriL->addStretch(1);
     lay->addWidget(filtriRow);
 
-    /* ── Riga analisi URL annuncio esterno ── */
-    auto* urlRow = new QWidget(this);
-    auto* urlL   = new QHBoxLayout(urlRow);
-    urlL->setContentsMargins(0, 2, 0, 2);
-    urlL->setSpacing(8);
-    urlL->addWidget(new QLabel("\xf0\x9f\x94\x97 URL annuncio:", urlRow));
-    m_urlInput = new QLineEdit(urlRow);
-    m_urlInput->setObjectName("chatInput");
-    m_urlInput->setPlaceholderText(
-        "Incolla URL di un annuncio (LinkedIn, Indeed, InfoJobs, portale aziendale...) e premi Analizza");
-    auto* urlBtn = new QPushButton("\xf0\x9f\x94\x8d  Analizza", urlRow);
-    urlBtn->setObjectName("actionBtn");
-    urlBtn->setFixedWidth(100);
-    urlL->addWidget(m_urlInput, 1);
-    urlL->addWidget(urlBtn);
-    lay->addWidget(urlRow);
-
-    /* ── Portali GDO nazionali e siciliani ── */
-    {
-        struct GDOEntry {
-            const char* insegna;
-            const char* sito;
-            const char* urlLavoro;
-            const char* note;  /* nullptr = nessuna */
-        };
-        static const GDOEntry kGDO[] = {
-            /* ── Nazionali ── */
-            { "Coop",          "coop.it",          "https://www.coop.it/lavora-con-noi",                nullptr },
-            { "Lidl",          "lidl.it",           "https://lavoro.lidl.it",                            nullptr },
-            { "Esselunga",     "esselunga.it",      "https://www.esselungajob.it",                       nullptr },
-            { "Carrefour",     "carrefour.it",      "https://www.carrefour.it/lavora-con-noi",           nullptr },
-            { "Penny Market",  "penny.it",          "https://www.penny.it/lavora-con-noi",               nullptr },
-            { "Eurospin",      "eurospin.it",       "https://lavoraconnoi.eurospin.it",                  nullptr },
-            { "MD",            "mdspa.it",          "https://www.mdspa.it/lavora-con-noi",               nullptr },
-            { "Pam Panorama",  "pampanorama.it",    "https://www.pampanorama.it/lavora-con-noi",         nullptr },
-            /* ── Sicilia ── */
-            { "Gruppo Arena",  "gruppoarena.it",    "https://www.gruppoarena.it/lavora-con-noi",         "Dec\xc3\xb2, SuperConveniente" },
-            { "Ergon",         "ergonsrl.it",       "https://www.ergonsrl.it/lavora-con-noi",            "Eurospar, Interspar, Altasfera" },
-            { "CDS",           "cdsspa.it",         "https://www.cdsspa.it/lavora-con-noi",              "Centro Distribuzione Supermercati" },
-        };
-        const int N = static_cast<int>(sizeof(kGDO)/sizeof(kGDO[0]));
-
-        auto* gdoBox  = new QGroupBox(
-            "\xf0\x9f\x9b\x92  Portali GDO \xe2\x80\x94 Supermercati (Lavora con noi)", this);
-        gdoBox->setCheckable(true);
-        gdoBox->setChecked(false);   /* inizialmente chiuso */
-        auto* gdoLay  = new QVBoxLayout(gdoBox);
-        gdoLay->setContentsMargins(4, 4, 4, 4);
-        gdoLay->setSpacing(2);
-
-        auto* gdoTable = new QTableWidget(N, 3, gdoBox);
-        gdoTable->setHorizontalHeaderLabels({"Insegna / Gruppo", "Note", "Portale Lavoro"});
-        gdoTable->verticalHeader()->hide();
-        gdoTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-        gdoTable->setSelectionMode(QAbstractItemView::SingleSelection);
-        gdoTable->setAlternatingRowColors(true);
-        gdoTable->setShowGrid(false);
-        gdoTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-        gdoTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-        gdoTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-        gdoTable->setMaximumHeight(220);
-
-        for (int i = 0; i < N; ++i) {
-            gdoTable->setItem(i, 0, new QTableWidgetItem(kGDO[i].insegna));
-            gdoTable->setItem(i, 1, new QTableWidgetItem(
-                kGDO[i].note ? kGDO[i].note : kGDO[i].sito));
-            auto* lbl = new QLabel(
-                QString("<a href=\"%1\">%1</a>").arg(kGDO[i].urlLavoro));
-            lbl->setOpenExternalLinks(true);
-            lbl->setContentsMargins(4, 0, 4, 0);
-            gdoTable->setCellWidget(i, 2, lbl);
-        }
-        gdoTable->resizeRowsToContents();
-
-        connect(gdoBox, &QGroupBox::toggled, gdoTable, &QWidget::setVisible);
-        gdoTable->setVisible(false);
-        gdoLay->addWidget(gdoTable);
-
-        /* Copia URL in input quando si clicca su una riga */
-        connect(gdoTable, &QTableWidget::cellClicked, this,
-                [this, gdoTable](int row, int col) {
-            auto* lbl = qobject_cast<QLabel*>(gdoTable->cellWidget(row, 2));
-            if (!lbl) return;
-            static QRegularExpression re("href=\"([^\"]+)\"");
-            auto m = re.match(lbl->text());
-            if (!m.hasMatch()) return;
-            const QString url = m.captured(1);
-            if (col == 2) {
-                /* Colonna URL: apri direttamente nel browser */
-                QDesktopServices::openUrl(QUrl(url));
-            }
-            /* Qualunque colonna: copia URL nell'input */
-            if (m_urlInput) m_urlInput->setText(url);
-        });
-
-        lay->addWidget(gdoBox);
-    }
+    connect(toggleBtn, &QPushButton::clicked, this, [=]{
+        const bool nowVisible = !cvBox->isVisible();
+        cvBox->setVisible(nowVisible);
+        llmBox->setVisible(nowVisible);
+        filtriRow->setVisible(nowVisible);
+        toggleBtn->setText(nowVisible ? "\xe2\x96\xb2" : "\xe2\x96\xbc");
+        toggleBtn->setToolTip(nowVisible ? "Comprimi" : "Espandi");
+    });
 
     /* ── Splitter: lista | output AI ── */
     auto* splitter = new QSplitter(Qt::Vertical, this);
@@ -398,10 +321,10 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     auto* azioniL   = new QHBoxLayout(azioniRow);
     azioniL->setContentsMargins(0,4,0,0); azioniL->setSpacing(8);
 
-    auto* genBtn   = new QPushButton("\xf0\x9f\xa4\x96 Genera Lettera con AI", azioniRow);
+    auto* genBtn   = new QPushButton("\xf0\x9f\xa4\x96 Lettera via AI", azioniRow);
     genBtn->setObjectName("actionBtn");
     genBtn->setToolTip("Genera una lettera di candidatura via email per l'offerta selezionata");
-    auto* genCoverBtn = new QPushButton("\xf0\x9f\x93\x84 Genera Cover Letter", azioniRow);
+    auto* genCoverBtn = new QPushButton("\xf0\x9f\x93\x84 Cover letter via AI", azioniRow);
     genCoverBtn->setObjectName("actionBtn");
     genCoverBtn->setToolTip("Genera una cover letter professionale da allegare alla candidatura");
     auto* emailBtn = new QPushButton("\xe2\x9c\x89 Copia Email", azioniRow);
@@ -499,23 +422,6 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     waitLbl->setStyleSheet("color:#E5C400; font-style:italic; padding:2px 0;");
     waitLbl->setVisible(false);
     botLay->addWidget(waitLbl);
-
-    auto* inputRow = new QWidget(botPane);
-    auto* inL      = new QHBoxLayout(inputRow);
-    inL->setContentsMargins(0,0,0,0); inL->setSpacing(8);
-    auto* inp = new QLineEdit(inputRow);
-    inp->setObjectName("chatInput");
-    inp->setPlaceholderText("Follow-up: 'Cosa manca al mio profilo?' — 'Come miglioro la lettera?' — 'Punti deboli della candidatura?'");
-    inp->setFixedHeight(38);
-    auto* send = new QPushButton("Invia \xe2\x96\xb6", inputRow);
-    send->setObjectName("actionBtn");
-    auto* stopBtn = new QPushButton("\xe2\x8f\xb9", inputRow);
-    stopBtn->setObjectName("actionBtn");
-    stopBtn->setProperty("danger", true);
-    stopBtn->setFixedWidth(40);
-    stopBtn->setEnabled(false);
-    inL->addWidget(inp, 1); inL->addWidget(send); inL->addWidget(stopBtn);
-    botLay->addWidget(inputRow);
     splitter->addWidget(botPane);
 
     splitter->setStretchFactor(0, 3);
@@ -560,115 +466,110 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
         "\n\nMETODOLOGIA SOCRATICA: Sii rigorosamente onesto. "
         "Non adulare il candidato. Se il profilo presenta lacune rispetto ai requisiti, "
         "indicale chiaramente. Proponi domande critiche che aiutino a migliorare la candidatura. "
+        "Per ogni domanda critica fornisci anche un breve suggerimento su come rispondere "
+        "o controbattere efficacemente in fase di colloquio (es. 'Risposta consigliata: ...'). "
         "Distingui tra punti di forza reali e affermazioni non verificabili. "
         "L'obiettivo e' la verita', non la compiacenza.";
 
     /* ── Logica URL Analyzer ── */
     m_nam = new QNetworkAccessManager(this);
 
-    auto analizzaUrl = [=]{
-        const QString url = m_urlInput->text().trimmed();
-        if (url.isEmpty()) {
-            m_lavoroLog->append("\xe2\x9a\xa0  Inserisci prima un URL.");
-            return;
-        }
-        if (!url.startsWith("http://") && !url.startsWith("https://")) {
-            m_lavoroLog->append("\xe2\x9a\xa0  URL non valido: deve iniziare con http:// o https://");
-            return;
-        }
+    /* ── Analisi URL (uno o più in parallelo) ── */
+    auto analizzaUrls = [=](const QStringList& urlList) {
+        if (urlList.isEmpty()) return;
+
+        m_analizzaUrlBtn->setEnabled(false);
+        m_analizzaCvBtn->setEnabled(false);
+        m_stopAiBtn->setEnabled(true);
+        waitLbl->setVisible(true);
 
         m_lavoroLog->clear();
         m_lavoroLog->append(QString(
-            "\xf0\x9f\x94\x97  [ANALISI URL]\n"
-            "\xf0\x9f\x8c\x90  Scarico: %1\n"
-            "\xe2\x8f\xb3  Attendere...\n").arg(url));
+            "\xf0\x9f\x94\x97 [ANALISI URL] — %1 link\n").arg(urlList.size()));
 
-        urlBtn->setEnabled(false);
-        send->setEnabled(false);
-        stopBtn->setEnabled(true);
-        waitLbl->setVisible(true);
+        auto pending  = std::make_shared<int>(urlList.size());
+        auto combined = std::make_shared<QString>();
 
-        QNetworkRequest req{QUrl(url)};
-        req.setHeader(QNetworkRequest::UserAgentHeader,
-                      "Mozilla/5.0 (X11; Linux x86_64) Prismalux/2.8");
-        req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                         QNetworkRequest::NoLessSafeRedirectPolicy);
-        req.setTransferTimeout(15000);
-
-        auto* reply = m_nam->get(req);
-
-        connect(reply, &QNetworkReply::finished, this, [=]{
-            reply->deleteLater();
-            urlBtn->setEnabled(true);
-
-            if (reply->error() != QNetworkReply::NoError) {
-                m_lavoroLog->append(QString(
-                    "\xe2\x9d\x8c  Errore rete: %1").arg(reply->errorString()));
-                send->setEnabled(true); stopBtn->setEnabled(false);
-                waitLbl->setVisible(false);
-                return;
+        for (const QString& rawUrl : urlList) {
+            if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
+                m_lavoroLog->append(QString("\xe2\x9a\xa0 URL non valido: %1").arg(rawUrl));
+                if (--(*pending) == 0) {
+                    m_analizzaUrlBtn->setEnabled(true); m_analizzaCvBtn->setEnabled(true);
+                    m_stopAiBtn->setEnabled(false); waitLbl->setVisible(false);
+                }
+                continue;
             }
+            m_lavoroLog->append(QString("\xf0\x9f\x8c\x90 Scarico: %1").arg(rawUrl));
 
-            /* ── HTML → testo pulito ── */
-            const QByteArray raw = reply->read(512 * 1024);   // max 512 KB
-            QString html = QString::fromUtf8(raw);
+            QNetworkRequest req{QUrl(rawUrl)};
+            req.setHeader(QNetworkRequest::UserAgentHeader,
+                          "Mozilla/5.0 (X11; Linux x86_64) Prismalux/2.8");
+            req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                             QNetworkRequest::NoLessSafeRedirectPolicy);
+            req.setTransferTimeout(15000);
+            auto* reply = m_nam->get(req);
 
-            QTextDocument doc;
-            doc.setHtml(html);
-            QString testo = doc.toPlainText()
-                .replace(QRegularExpression("[ \\t]{2,}"), " ")
-                .replace(QRegularExpression("\\n{3,}"), "\n\n")
-                .trimmed();
+            connect(reply, &QNetworkReply::finished, this, [=]{
+                reply->deleteLater();
+                if (reply->error() == QNetworkReply::NoError) {
+                    QString html = QString::fromUtf8(reply->read(512 * 1024));
+                    QTextDocument doc; doc.setHtml(html);
+                    QString testo = doc.toPlainText()
+                        .replace(QRegularExpression("[ \\t]{2,}"), " ")
+                        .replace(QRegularExpression("\\n{3,}"), "\n\n").trimmed();
+                    if (testo.size() > 1800) testo = testo.left(1800);
+                    *combined += QString("\n\n=== %1 ===\n%2").arg(rawUrl, testo);
+                } else {
+                    m_lavoroLog->append(
+                        QString("\xe2\x9d\x8c Errore: %1").arg(reply->errorString()));
+                }
 
-            if (testo.size() < 80) {
-                m_lavoroLog->append(
-                    "\xe2\x9a\xa0  La pagina non contiene testo leggibile "
-                    "(potrebbe richiedere JavaScript o login).");
-                send->setEnabled(true); stopBtn->setEnabled(false);
-                waitLbl->setVisible(false);
-                return;
-            }
+                if (--(*pending) > 0) return;   /* aspetta gli altri reply */
 
-            /* Limita a 3500 caratteri per non sforare il contesto */
-            const int maxLen = 3500;
-            const bool troncato = testo.size() > maxLen;
-            if (troncato) testo = testo.left(maxLen);
+                /* Tutti i download completati — invio all'AI */
+                if (combined->trimmed().isEmpty()) {
+                    m_lavoroLog->append(
+                        "\xe2\x9a\xa0 Nessun contenuto leggibile (potrebbero richiedere JavaScript/login).");
+                    m_analizzaUrlBtn->setEnabled(true); m_analizzaCvBtn->setEnabled(true);
+                    m_stopAiBtn->setEnabled(false); waitLbl->setVisible(false);
+                    return;
+                }
 
-            m_lavoroLog->append(QString(
-                "\xe2\x9c\x85  Pagina scaricata — %1 car.%2 \xe2\x86\x92 Analisi AI...\n")
-                .arg(testo.size())
-                .arg(troncato ? " (troncata)" : ""));
+                m_lavoroLog->append("\xe2\x9c\x85 Download completato \xe2\x86\x92 Analisi AI...\n");
+                const QString cvInfo  = m_cvText.isEmpty() ? cvFallback.left(2000) : m_cvText.left(2000);
+                const QString modello = m_cmbModello ? m_cmbModello->currentText() : m_ai->model();
+                if (!modello.isEmpty() && !modello.startsWith("\xf0\x9f\x94\x84"))
+                    m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), modello);
 
-            const QString cvInfo  = m_cvText.isEmpty() ? cvFallback.left(2000) : m_cvText.left(2000);
-            const QString modello = m_cmbModello ? m_cmbModello->currentText() : m_ai->model();
-            if (!modello.isEmpty() && !modello.startsWith("\xf0\x9f\x94\x84"))
-                m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), modello);
+                const int nUrl = urlList.size();
+                const QString sys = nUrl == 1
+                    ? QString(
+                        "Sei un esperto di carriera. Analizza l'annuncio e rispondi in italiano.\n\n"
+                        "=== PROFILO CANDIDATO ===\n%1\n\n"
+                        "=== TESTO ANNUNCIO (da URL) ===\n%2\n\n"
+                        "1. \xf0\x9f\x8f\xa2 RUOLO E AZIENDA (2-3 righe)\n"
+                        "2. \xe2\x9c\x85 REQUISITI FONDAMENTALI\n"
+                        "3. \xe2\xad\x90 NICE-TO-HAVE\n"
+                        "4. \xf0\x9f\xa4\x96 COMPATIBILIT\xc3\x80 CON IL PROFILO\n"
+                        "5. \xf0\x9f\x8e\xaf RACCOMANDAZIONE s\xc3\xac/no\n\nMax 400 parole.%3")
+                        .arg(cvInfo, *combined, socraticoBase)
+                    : QString(
+                        "Sei un esperto di carriera. Analizza i seguenti annunci in italiano.\n\n"
+                        "=== PROFILO CANDIDATO ===\n%1\n\n"
+                        "=== ANNUNCI ===\n%2\n\n"
+                        "Per ogni annuncio: ruolo/azienda, requisiti chiave, "
+                        "compatibilit\xc3\xa0 col profilo, consiglio s\xc3\xac/no. Max 500 parole.%3")
+                        .arg(cvInfo, *combined, socraticoBase);
 
-            const QString sys = QString(
-                "Sei un esperto di carriera e ricerca del lavoro. "
-                "Analizza il seguente annuncio di lavoro e rispondi SEMPRE in italiano.\n\n"
-                "=== PROFILO CANDIDATO ===\n%1\n\n"
-                "=== TESTO ANNUNCIO (da URL) ===\n%2\n\n"
-                "=== STRUTTURA RISPOSTA ===\n"
-                "1. \xf0\x9f\x8f\xa2 RUOLO E AZIENDA: cosa cercano in sintesi (2-3 righe)\n"
-                "2. \xe2\x9c\x85 REQUISITI FONDAMENTALI: lista puntata\n"
-                "3. \xe2\xad\x90 NICE-TO-HAVE: requisiti preferenziali\n"
-                "4. \xf0\x9f\xa4\x96 COMPATIBILIT\xc3\x80 CON IL PROFILO: punti di forza e lacune\n"
-                "5. \xf0\x9f\x8e\xaf RACCOMANDAZIONE: candidarsi s\xc3\xac/no e perch\xc3\xa9\n\n"
-                "Sii diretto e onesto. Max 400 parole.%3"
-            ).arg(cvInfo, testo, socraticoBase);
+                m_myReqId = m_ai->chat(sys,
+                    nUrl == 1
+                    ? "Analizza questo annuncio e valuta la compatibilit\xc3\xa0 col mio profilo."
+                    : "Analizza questi annunci e valuta quale si adatta meglio al mio profilo.");
+            });
 
-            m_myReqId = m_ai->chat(sys,
-                "Analizza questo annuncio di lavoro e valuta la compatibilit\xc3\xa0 "
-                "con il mio profilo.");
-        });
-
-        /* Abort rete se l'utente preme Stop */
-        connect(stopBtn, &QPushButton::clicked, reply, [reply]{ reply->abort(); });
+            connect(m_stopAiBtn, &QPushButton::clicked, reply, [reply]{ reply->abort(); });
+        }
     };
-
-    connect(urlBtn,     &QPushButton::clicked,  this, analizzaUrl);
-    connect(m_urlInput, &QLineEdit::returnPressed, this, analizzaUrl);
 
     connect(m_offerteLista, &QListWidget::currentItemChanged, this,
         [=](QListWidgetItem* cur, QListWidgetItem*){
@@ -684,15 +585,18 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
             if (!o.email.isEmpty()) emailBtn->setToolTip("\xf0\x9f\x93\x8b Copia: " + o.email);
 
             /* ── Link dinamici ── */
-            const QString az  = QUrl::toPercentEncoding(o.azienda);
-            const QString rl  = QUrl::toPercentEncoding(o.ruolo);
-            const QString sd  = QUrl::toPercentEncoding(o.sede);
+            const QString sd   = QUrl::toPercentEncoding(o.sede);
             const QString azRl = QUrl::toPercentEncoding(o.azienda + " " + o.ruolo + " lavoro");
             const QString azLav = QUrl::toPercentEncoding(o.azienda + " lavora con noi careers");
 
             const QString urlAnnuncio = "https://www.google.com/search?q=" + azRl;
-            const QString urlLavora   = "https://www.google.com/search?q=" + azLav;
             const QString urlMaps     = "https://www.google.com/maps/search/" + sd;
+
+            /* Per offerte GDO il campo requisiti contiene l'URL diretto del portale */
+            const bool hasDirectUrl = o.requisiti.startsWith("http");
+            const QString urlLavora = hasDirectUrl
+                ? o.requisiti
+                : "https://www.google.com/search?q=" + azLav;
 
             m_linksLbl->setText(
                 "\xf0\x9f\x94\x97 <a href='" + urlAnnuncio + "'>Cerca annuncio</a>"
@@ -763,7 +667,8 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
             m_lavoroLog->append(QString("\xe2\x9c\x89  Email destinatario: %1\n").arg(o.email));
         m_lavoroLog->append("\n\xf0\x9f\x93\x9d  Lettera:\n");
 
-        send->setEnabled(false); stopBtn->setEnabled(true); waitLbl->setVisible(true);
+        m_analizzaUrlBtn->setEnabled(false); m_analizzaCvBtn->setEnabled(false);
+        m_stopAiBtn->setEnabled(true); waitLbl->setVisible(true);
         m_myReqId = m_ai->chat(sys, QString("Genera la lettera di candidatura per il ruolo di %1 presso %2.")
                                         .arg(o.ruolo, o.azienda));
     };
@@ -796,7 +701,8 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
             "\xf0\x9f\xa4\x96  Modello: %1\n"
             "\xf0\x9f\x8f\xa2  %2 \xe2\x80\x94 %3\n\n").arg(modello, o.azienda, o.ruolo));
 
-        send->setEnabled(false); stopBtn->setEnabled(true); waitLbl->setVisible(true);
+        m_analizzaUrlBtn->setEnabled(false); m_analizzaCvBtn->setEnabled(false);
+        m_stopAiBtn->setEnabled(true); waitLbl->setVisible(true);
         m_myCoverReqId = m_ai->chat(sysCover,
             QString("Scrivi la cover letter per %1 presso %2.").arg(o.ruolo, o.azienda));
     };
@@ -805,12 +711,10 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     connect(genCoverBtn, &QPushButton::clicked, this, genCover);
     connect(m_offerteLista, &QListWidget::itemDoubleClicked, this, [=](QListWidgetItem*){ genLettera(); });
 
-    auto sendFn = [=]{
-        const QString msg = inp->text().trimmed();
+    auto sendFn = [=](const QString& msg) {
         if (msg.isEmpty()) return;
         const QString cvInfo  = m_cvText.isEmpty() ? cvFallback.left(1500) : m_cvText.left(2000);
         const QString modello = m_cmbModello ? m_cmbModello->currentText() : m_ai->model();
-
         if (!modello.isEmpty() && !modello.startsWith("\xf0\x9f\x94\x84"))
             m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), modello);
 
@@ -820,17 +724,101 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
             "Fornisci consigli concreti e pratici. Rispondi SEMPRE in italiano.%2"
         ).arg(cvInfo, socraticoBase);
 
-        // TAG: identifica la sorgente della richiesta
-        m_lavoroLog->append(QString("\n\xf0\x9f\x92\xbc [CERCA LAVORO \xe2\x86\x92 %1] \xf0\x9f\xa4\x96 %2\n")
-                                .arg(msg.left(40), modello));
+        m_lavoroLog->append(QString("\n\xf0\x9f\xa4\x96 [ANALISI CV \xe2\x86\x92 %1]\n")
+                                .arg(msg.left(50)));
         m_lavoroLog->append("\xf0\x9f\xa4\x96  AI: ");
-        inp->clear();
-        send->setEnabled(false); stopBtn->setEnabled(true); waitLbl->setVisible(true);
+        m_analizzaUrlBtn->setEnabled(false);
+        m_analizzaCvBtn->setEnabled(false);
+        m_stopAiBtn->setEnabled(true);
+        waitLbl->setVisible(true);
         m_myReqId = m_ai->chat(sys, msg);
     };
-    connect(send, &QPushButton::clicked, this, sendFn);
-    connect(inp,  &QLineEdit::returnPressed, this, sendFn);
-    connect(stopBtn, &QPushButton::clicked, m_ai, &AiClient::abort);
+    connect(m_stopAiBtn, &QPushButton::clicked, m_ai, &AiClient::abort);
+
+    /* ── Dialog "Analizza URL" ── */
+    connect(m_analizzaUrlBtn, &QPushButton::clicked, this, [=]{
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Analizza URL annunci");
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->resize(540, 200);
+        auto* dLay = new QVBoxLayout(dlg);
+        dLay->addWidget(new QLabel(
+            "Incolla uno o pi\xc3\xb9 URL di annunci di lavoro (uno per riga):", dlg));
+        auto* urlEdit = new QTextEdit(dlg);
+        urlEdit->setPlaceholderText(
+            "https://www.linkedin.com/jobs/...\n"
+            "https://it.indeed.com/...\n"
+            "https://www.infojobs.it/...");
+        dLay->addWidget(urlEdit, 1);
+        auto* btnRow = new QWidget(dlg);
+        auto* btnL   = new QHBoxLayout(btnRow);
+        btnL->setContentsMargins(0,4,0,0);
+        auto* okBtn  = new QPushButton("Analizza", btnRow);
+        okBtn->setObjectName("actionBtn");
+        auto* noBtn  = new QPushButton("Annulla", btnRow);
+        noBtn->setObjectName("actionBtn");
+        btnL->addStretch(1); btnL->addWidget(okBtn); btnL->addWidget(noBtn);
+        dLay->addWidget(btnRow);
+        connect(noBtn, &QPushButton::clicked, dlg, &QDialog::reject);
+        connect(okBtn, &QPushButton::clicked, dlg, [=]{
+            QStringList urls;
+            for (const QString& line : urlEdit->toPlainText().split('\n', Qt::SkipEmptyParts))
+                if (!line.trimmed().isEmpty()) urls << line.trimmed();
+            if (!urls.isEmpty()) { dlg->accept(); analizzaUrls(urls); }
+        });
+        dlg->exec();
+    });
+
+    /* ── Dialog "Analizza CV" ── */
+    connect(m_analizzaCvBtn, &QPushButton::clicked, this, [=]{
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Analizza CV");
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->resize(530, 330);
+        auto* dLay = new QVBoxLayout(dlg);
+        dLay->addWidget(new QLabel(
+            "Seleziona un'analisi predefinita (doppio clic = avvia subito):", dlg));
+        auto* listW = new QListWidget(dlg);
+        listW->setMaximumHeight(140);
+        const QStringList presets = {
+            "Punti deboli del CV rispetto al mercato del lavoro IT",
+            "Falle che un HR potrebbe notare nella candidatura",
+            "Competenze mancanti pi\xc3\xb9 richieste nel settore IT e Retail",
+            "Suggerimenti per superare il filtro ATS (Applicant Tracking System)",
+            "Valutazione coerenza e credibilit\xc3\xa0 del percorso lavorativo",
+            "Come migliorare il CV per una candidatura GDO / supermercati",
+        };
+        listW->addItems(presets);
+        dLay->addWidget(listW);
+        dLay->addWidget(new QLabel("Oppure scrivi una domanda personalizzata:", dlg));
+        auto* promptEdit = new QLineEdit(dlg);
+        promptEdit->setObjectName("chatInput");
+        promptEdit->setPlaceholderText(
+            "Es: 'Cosa manca per essere assunto come programmatore junior?'");
+        dLay->addWidget(promptEdit);
+        connect(listW, &QListWidget::itemClicked, dlg,
+                [=](QListWidgetItem* item){ promptEdit->setText(item->text()); });
+        auto* btnRow = new QWidget(dlg);
+        auto* btnL   = new QHBoxLayout(btnRow);
+        btnL->setContentsMargins(0,4,0,0);
+        auto* okBtn  = new QPushButton("Analizza", btnRow);
+        okBtn->setObjectName("actionBtn");
+        auto* noBtn  = new QPushButton("Annulla", btnRow);
+        noBtn->setObjectName("actionBtn");
+        btnL->addStretch(1); btnL->addWidget(okBtn); btnL->addWidget(noBtn);
+        dLay->addWidget(btnRow);
+        auto doAnalyze = [=]{
+            const QString msg = promptEdit->text().trimmed();
+            if (!msg.isEmpty()) { dlg->accept(); sendFn(msg); }
+        };
+        connect(noBtn,     &QPushButton::clicked,      dlg, &QDialog::reject);
+        connect(okBtn,     &QPushButton::clicked,      dlg, doAnalyze);
+        connect(promptEdit,&QLineEdit::returnPressed,  dlg, doAnalyze);
+        connect(listW, &QListWidget::itemDoubleClicked, dlg, [=](QListWidgetItem* item){
+            promptEdit->setText(item->text()); dlg->accept(); sendFn(item->text());
+        });
+        dlg->exec();
+    });
 
     /* ── Segnali AI — lettera email (m_myReqId) e cover letter (m_myCoverReqId) ── */
     connect(m_ai, &AiClient::token, this, [this](const QString& t){
@@ -843,16 +831,22 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
             c.insertText(t); m_coverLog->ensureCursorVisible();
         }
     });
-    connect(m_ai, &AiClient::finished, this, [this, send, stopBtn, waitLbl](const QString&){
+    auto aiDone = [this, waitLbl]{
+        m_analizzaUrlBtn->setEnabled(true);
+        m_analizzaCvBtn->setEnabled(true);
+        m_stopAiBtn->setEnabled(false);
+        waitLbl->setVisible(false);
+    };
+    connect(m_ai, &AiClient::finished, this, [this, aiDone](const QString&){
         const quint64 rid = m_ai->currentReqId();
         if (rid == m_myReqId)
             m_lavoroLog->append("\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80");
         else if (rid == m_myCoverReqId)
             m_coverLog->append("\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80");
         else return;
-        send->setEnabled(true); stopBtn->setEnabled(false); waitLbl->setVisible(false);
+        aiDone();
     });
-    connect(m_ai, &AiClient::error, this, [this, send, stopBtn, waitLbl](const QString& err){
+    connect(m_ai, &AiClient::error, this, [this, aiDone](const QString& err){
         const quint64 rid = m_ai->currentReqId();
         if (rid != m_myReqId && rid != m_myCoverReqId) return;
         const QString el = err.toLower();
@@ -860,14 +854,14 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
             QTextEdit* log = (rid == m_myReqId) ? m_lavoroLog : m_coverLog;
             log->append(QString("\n\xe2\x9d\x8c  Errore: %1").arg(err));
         }
-        send->setEnabled(true); stopBtn->setEnabled(false); waitLbl->setVisible(false);
+        aiDone();
     });
-    connect(m_ai, &AiClient::aborted, this, [this, send, stopBtn, waitLbl]{
+    connect(m_ai, &AiClient::aborted, this, [this, aiDone]{
         const quint64 rid = m_ai->currentReqId();
         if (rid != m_myReqId && rid != m_myCoverReqId) return;
         QTextEdit* log = (rid == m_myReqId) ? m_lavoroLog : m_coverLog;
         log->append("\n\xe2\x8f\xb9  Interrotto.\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80");
-        send->setEnabled(true); stopBtn->setEnabled(false); waitLbl->setVisible(false);
+        aiDone();
     });
 
     applicaFiltri();

@@ -121,7 +121,8 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
         const qint64 totalRam = P::totalRamBytes();
         for (const auto& mdl : list) {
             const qint64 sz = m_ai->modelSizeBytes(mdl);
-            const QString icon = (sz == 0)
+            const bool isCloud = (sz == 0) || mdl.endsWith("cloud", Qt::CaseInsensitive);
+            const QString icon = isCloud
                 ? QString::fromUtf8("\xe2\x98\x81\xef\xb8\x8f  ")   /* ☁️  */
                 : QString::fromUtf8("\xf0\x9f\x8c\x8d\xf0\x9f\x93\x8d  ");  /* 🌍📍  */
             cmbModel->addItem(icon + mdl, mdl);

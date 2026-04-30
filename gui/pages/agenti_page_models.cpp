@@ -51,9 +51,10 @@ void AgentiPage::onModelsReady(const QStringList& list) {
 
         const qint64 totalRam = P::totalRamBytes();
         for (const QString& m : models) {
-            /* ☁️ cloud (size=0) — 🌍📍 locale (size>0) */
+            /* ☁️ cloud (size=0 o nome termina con "cloud") — 🌍📍 locale */
             const qint64 sz = m_ai->modelSizeBytes(m);
-            const QString icon = (sz == 0)
+            const bool isCloud = (sz == 0) || m.endsWith("cloud", Qt::CaseInsensitive);
+            const QString icon = isCloud
                 ? QString::fromUtf8("\xe2\x98\x81\xef\xb8\x8f  ")   /* ☁️  */
                 : QString::fromUtf8("\xf0\x9f\x8c\x8d\xf0\x9f\x93\x8d  ");  /* 🌍📍  */
             m_cmbLLM->addItem(icon + m);

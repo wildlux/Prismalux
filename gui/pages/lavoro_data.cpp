@@ -51,6 +51,18 @@ const QList<Offerta>& kOfferte() {
         {"CDS Spa",               "Store Manager",                            "Catania",              "Retail",      "diploma",   "", "Diploma o laurea triennale, 5 anni esperienza GDO"},
         {"Primark",               "Department Manager",                       "Nazionale",            "Retail",      "diploma",   "", "2 anni manager retail/GDO, disponibile trasferimento"},
         {"Primark",               "Team Manager",                             "Nazionale",            "Retail",      "laurea_t",  "", "1 anno manager retail, disponibile trasferimento"},
+        // ── GDO / Supermercati — portali Lavora con noi ──────────────
+        {"Coop",                  "Portale Lavora con noi",                   "Nazionale",            "Retail",      "qualsiasi", "", "https://www.coop.it/lavora-con-noi"},
+        {"Lidl",                  "Portale Lavora con noi",                   "Nazionale",            "Retail",      "qualsiasi", "", "https://lavoro.lidl.it"},
+        {"Esselunga",             "Portale Lavora con noi",                   "Nazionale",            "Retail",      "qualsiasi", "", "https://www.esselungajob.it"},
+        {"Carrefour",             "Portale Lavora con noi",                   "Nazionale",            "Retail",      "qualsiasi", "", "https://www.carrefour.it/lavora-con-noi"},
+        {"Penny Market",          "Portale Lavora con noi",                   "Nazionale",            "Retail",      "qualsiasi", "", "https://www.penny.it/lavora-con-noi"},
+        {"Eurospin",              "Portale Lavora con noi",                   "Nazionale",            "Retail",      "qualsiasi", "", "https://lavoraconnoi.eurospin.it"},
+        {"MD Spa",                "Portale Lavora con noi",                   "Nazionale",            "Retail",      "qualsiasi", "", "https://www.mdspa.it/lavora-con-noi"},
+        {"Pam Panorama",          "Portale Lavora con noi",                   "Nazionale",            "Retail",      "qualsiasi", "", "https://www.pampanorama.it/lavora-con-noi"},
+        {"Gruppo Arena",          "Portale Lavora con noi (Dec\xc3\xb2, SuperConveniente)", "Sicilia", "Retail",      "qualsiasi", "", "https://www.gruppoarena.it/lavora-con-noi"},
+        {"Ergon Spa",             "Portale Lavora con noi (Eurospar, Interspar, Altasfera)", "Sicilia","Retail",      "qualsiasi", "", "https://www.ergonsrl.it/lavora-con-noi"},
+        {"CDS Spa",               "Portale Lavora con noi (Centro Distribuzione Supermercati)", "Sicilia","Retail",   "qualsiasi", "", "https://www.cdsspa.it/lavora-con-noi"},
         // ── Ristorazione ─────────────────────────────────────────────
         {"Chef Express",          "Addetto alla Ristorazione",                "Aeroporto Catania",    "Ristorazione","diploma",   "", "Diploma preferibilmente alberghiero, part time su turni"},
         {"Curtigghiu",            "Barman / Chef / Cuoco / Cameriere",        "Catania area",         "Ristorazione","qualsiasi", "", "Gradita conoscenza inglese"},

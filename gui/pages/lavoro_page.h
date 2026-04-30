@@ -29,9 +29,11 @@ private:
     quint64      m_myReqId      = 0;    ///< ID chat() lettera email
     quint64      m_myCoverReqId = 0;    ///< ID chat() cover letter
 
-    QLabel*      m_linksLbl      = nullptr;   ///< pannello link per offerta selezionata
-    QLineEdit*   m_urlInput      = nullptr;   ///< URL annuncio esterno
-    QNetworkAccessManager* m_nam = nullptr;
+    QLabel*      m_linksLbl       = nullptr;   ///< pannello link per offerta selezionata
+    QPushButton* m_analizzaUrlBtn = nullptr;
+    QPushButton* m_analizzaCvBtn  = nullptr;
+    QPushButton* m_stopAiBtn      = nullptr;
+    QNetworkAccessManager* m_nam  = nullptr;
 
     void applicaFiltri();
     void caricaCV(const QString& path);
