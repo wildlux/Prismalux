@@ -20,12 +20,20 @@ Zero dipendenze cloud · Zero abbonamenti · Tutto locale sul tuo hardware
 
 ## Avvio rapido
 
+**Linux / macOS**
 ```bash
 git clone git@github.com:wildlux/Prismalux.git
 cd Prismalux/gui
 cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
 ./build/Prismalux_GUI
 ```
+
+**Windows** — nessuna installazione manuale richiesta:
+```
+1. Doppio clic su  build.bat           ← compila (una tantum, ~3 min)
+2. Doppio clic su  Avvia_Prismalux.bat ← avvia il programma ogni volta
+```
+`build.bat` rileva automaticamente MSYS2 UCRT64/MINGW64, Qt installer o toolchain portatile.
 
 Prerequisiti: `Qt6`, `cmake`, `gcc/clang`, `Ollama` + almeno un modello.
 
@@ -40,7 +48,7 @@ ollama pull qwen3:8b   # ~5 GB, ottimo italiano + think nativo
 
 **Linux (apt):** `sudo apt install qt6-base-dev cmake build-essential`  
 **Linux (pacman):** `sudo pacman -S qt6-base cmake gcc`  
-**Windows (MSYS2 MINGW64):** `pacman -S --needed mingw-w64-x86_64-qt6-base mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc`
+**Windows:** doppio clic su `build.bat` (rileva automaticamente MSYS2, Qt installer o toolchain portatile)
 
 **Con test:**
 ```bash
@@ -94,6 +102,7 @@ Esecuzione codice Python generato dall'AI richiede dialog di conferma esplicita.
 - Formati: `.txt`, `.md`, `.pdf`, `.cpp`, `.py`, `.h`
 - Pipeline: chunking → embedding (`nomic-embed-text`) → JLT 256-dim → cosine similarity
 - Indicizzazione in background · stop cooperativo · privacy totale (zero cloud)
+- **RAG condiviso tra agenti**: nel dialog ⚙️ Configura Agenti, area "📂 RAG condiviso" in cima — i documenti caricati qui sono visibili a *tutti* gli agenti della pipeline, in aggiunta al RAG specifico per ruolo
 
 ### Motore Matematico Locale
 Parser ricorsivo zero-AI in microsecondi: `sin/cos/tan/asin/acos/atan`, `ln/log/log2/exp`, `sqrt/cbrt`, `gcd/lcm`, `abs/floor/ceil/round`, costanti `pi/e/phi`.  
@@ -162,15 +171,18 @@ ollama pull deepseek-r1:32b     # ~20 GB — ragionamento avanzato
 
 ```
 Prismalux/
-├── gui/          ← GUI C++/Qt6 (CMakeLists.txt, pages/, widgets/, themes/, tests/)
-├── ANDROID/      ← [WIP] PrismaluxMobile — client Qt6/Android per Ollama su LAN
-├── llama.cpp/    ← clone llama.cpp
-├── models/       ← modelli GGUF
-├── MCPs/         ← plugin MCP (blender_addon, office_bridge)
-├── RAG/          ← documenti indicizzabili
-├── Test/         ← test Python (benchmark, RAG, onestà AI, math)
-├── scripts/      ← crea_appimage.sh, crea_zip_windows.py
-├── hybrid_llm/   ← ricerca BLHM (Bayesian Hybrid LLM Model)
+├── gui/                    ← GUI C++/Qt6 (CMakeLists.txt, pages/, widgets/, themes/, tests/)
+├── ANDROID/                ← [WIP] PrismaluxMobile — client Qt6/Android per Ollama su LAN
+├── COMPILE_WIN/            ← Toolchain portatile Windows zero-install (setup.bat)
+├── llama.cpp/              ← clone llama.cpp
+├── models/                 ← modelli GGUF
+├── MCPs/                   ← plugin MCP (blender_addon, office_bridge)
+├── RAG/                    ← documenti indicizzabili
+├── Test/                   ← test Python (benchmark, RAG, onestà AI, math)
+├── scripts/                ← crea_appimage.sh, crea_zip_windows.py
+├── hybrid_llm/             ← ricerca BLHM (Bayesian Hybrid LLM Model)
+├── build.bat               ← Windows: compila il sorgente
+├── Avvia_Prismalux.bat     ← Windows: avvia il programma compilato
 └── README.md · LICENSE · aggiorna.sh
 ```
 
@@ -197,7 +209,13 @@ Client Qt6/C++ per Android. Si connette a Ollama sul PC di casa via WiFi LAN.
 ## Requisiti
 
 **Linux:** `qt6-base-dev cmake build-essential ollama` + opzionale: `piper aplay poppler-utils python3`  
-**Windows:** Ollama + MSYS2 MINGW64 (`mingw-w64-x86_64-qt6-base cmake gcc`) + SAPI (TTS integrato nel sistema)
+**Windows:** Ollama + (`build.bat` rileva automaticamente MSYS2 / Qt installer / toolchain portatile) + SAPI per TTS (integrato in Windows)
+
+| Script Windows | Funzione |
+|----------------|---------|
+| `build.bat` | Compila il sorgente C++ (una tantum o dopo aggiornamenti) |
+| `Avvia_Prismalux.bat` | Avvia il programma già compilato |
+| `COMPILE_WIN\setup.bat` | Scarica toolchain portatile zero-install (~600 MB) |
 
 ---
 

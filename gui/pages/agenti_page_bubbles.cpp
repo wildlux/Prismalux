@@ -70,7 +70,7 @@ QString AgentiPage::buildUserBubble(const QString& text, int bubbleIdx)
 
 QString AgentiPage::buildAgentBubble(const QString& label, const QString& model,
                                      const QString& time,  const QString& htmlContent,
-                                     int bubbleIdx)
+                                     int bubbleIdx, const QString& thinkContent)
 {
     /* Header bolla: "🛸  Agente 1 — Ricercatore  ·  🤖 deepseek-r1:7b  ·  01:55:47" */
     QString esc_model = model;
@@ -132,6 +132,21 @@ QString AgentiPage::buildAgentBubble(const QString& label, const QString& model,
             "</table>";
     }
 
+    /* Toggle reasoning collassabile (solo se il modello ha prodotto <think>…</think>) */
+    QString thinkBar;
+    if (!thinkContent.isEmpty() && bubbleIdx >= 0) {
+        const int words = thinkContent.split(' ', Qt::SkipEmptyParts).size();
+        const QString id = QString::number(bubbleIdx);
+        thinkBar =
+            "<p style='margin:0 0 6px 0;'>"
+              "<a href='think:toggle:" + id + "' "
+                 "style='color:" + QString(c.aHdr) + ";font-size:11px;"
+                 "text-decoration:none;opacity:0.75;'>"
+                "\xe2\x96\xb6\xef\xb8\x8f Ragionamento (" + QString::number(words) + " par.)"
+              "</a>"
+            "</p>";
+    }
+
     const int br = QSettings("Prismalux","GUI").value(P::SK::kBubbleRadius,10).toInt();
     const QString brs = QString::number(br) + "px";
     return
@@ -149,6 +164,7 @@ QString AgentiPage::buildAgentBubble(const QString& label, const QString& model,
               + header +
             "</p>"
             "<hr style='border:none;border-top:1px solid " + c.aHr + ";margin:5px 0 8px 0;'>"
+            + thinkBar
             + htmlContent
             + actionBar +
           "</td>"

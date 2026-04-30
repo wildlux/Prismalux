@@ -573,6 +573,64 @@ void AgentsConfigDialog::setupUI() {
     numLay->addStretch(1);
     lay->addWidget(numRow);
 
+    /* ── Modalità operativa ── */
+    {
+        auto* modeRow = new QWidget(this);
+        auto* modeLay = new QHBoxLayout(modeRow);
+        modeLay->setContentsMargins(0, 0, 0, 0);
+        modeLay->setSpacing(8);
+        auto* modeLbl = new QLabel("\xf0\x9f\x8e\xaf  Modalit\xc3\xa0:", modeRow);
+        modeLbl->setObjectName("cardDesc");
+        m_cmbMode = new QComboBox(modeRow);
+        m_cmbMode->setMinimumWidth(220);
+        m_cmbMode->setToolTip(
+            "Seleziona la modalit\xc3\xa0 di esecuzione del Team MOE AI.\n"
+            "Preset: pre-configura i ruoli degli agenti per la disciplina scelta.");
+        m_cmbMode->addItems({
+            "\xf0\x9f\x94\x81  Pipeline standard",          /* 0 */
+            "\xe2\x9a\x96  Motore Byzantino",               /* 1 */
+            "\xcf\x80  Teoria Matematica",                  /* 2 */
+            "\xf0\x9f\x93\x90  Preset Matematica",          /* 3 */
+            "\xf0\x9f\x92\xbb  Preset Informatica",         /* 4 */
+            "\xf0\x9f\x94\x90  Preset Sicurezza",           /* 5 */
+            "\xe2\x9a\x9b\xef\xb8\x8f  Preset Fisica",     /* 6 */
+            "\xf0\x9f\xa7\xaa  Preset Chimica",             /* 7 */
+            "\xf0\x9f\x8c\x90  Preset Lingue",              /* 8 */
+            "\xf0\x9f\x8c\x8d  Preset Generico",            /* 9 */
+            "\xf0\x9f\x8f\x9b  Consiglio Scientifico",      /* 10 */
+        });
+        modeLay->addWidget(modeLbl);
+        modeLay->addWidget(m_cmbMode);
+        modeLay->addStretch(1);
+        lay->addWidget(modeRow);
+    }
+
+    /* ── RAG condiviso — visibile da tutti gli agenti ── */
+    {
+        auto* sharedRow = new QWidget(this);
+        auto* sharedLay = new QHBoxLayout(sharedRow);
+        sharedLay->setContentsMargins(0, 0, 0, 0);
+        sharedLay->setSpacing(8);
+        auto* sharedLbl = new QLabel("\xf0\x9f\x93\x82  RAG condiviso (tutti gli agenti):", sharedRow);
+        sharedLbl->setObjectName("cardDesc");
+        sharedLbl->setToolTip(
+            "Documenti caricati qui sono visibili a TUTTI gli agenti della pipeline.\n"
+            "Usa il RAG per agente per contesti specifici al singolo ruolo.");
+        m_sharedRag = new RagDropWidget(sharedRow);
+        m_sharedRag->setToolTip(
+            "Trascina file o cartelle per fornire contesto comune a tutti gli agenti.\n"
+            "Clicca per aprire il selettore file. Max 16 KB totali.");
+        m_sharedRag->setMinimumWidth(320);
+        sharedLay->addWidget(sharedLbl);
+        sharedLay->addWidget(m_sharedRag, 1);
+        lay->addWidget(sharedRow);
+
+        auto* sharedDiv = new QFrame(this);
+        sharedDiv->setObjectName("pageDivider");
+        sharedDiv->setFrameShape(QFrame::HLine);
+        lay->addWidget(sharedDiv);
+    }
+
     /* Area scrollabile con griglia agenti */
     auto* scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);

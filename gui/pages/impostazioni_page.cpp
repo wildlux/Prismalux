@@ -50,6 +50,11 @@ namespace P = PrismaluxPaths;  /* alias file-scope per P::SK::kXxx */
 #include <QColorDialog>
 #include <QPainter>
 #include <QPen>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QGuiApplication>
+#include <QClipboard>
 
 /* ══════════════════════════════════════════════════════════════
    ImpostazioniPage — 4 tab raggruppate + Grafico (dinamico).
@@ -215,7 +220,12 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
     }
 
     /* ════════════════════════════════════════════════════════════
-       Tab 5: 📜 Ringraziamenti — licenza MIT + crediti
+       Tab 5: 🔌 MCP — configurazione Model Context Protocol
+       ════════════════════════════════════════════════════════════ */
+    tabs->addTab(buildMcpTab(), "\xf0\x9f\x94\x8c  MCP");
+
+    /* ════════════════════════════════════════════════════════════
+       Tab 6: 📜 Ringraziamenti — licenza MIT + crediti
        ════════════════════════════════════════════════════════════ */
     tabs->addTab(buildRingraziamentiTab(), "\xf0\x9f\x93\x9c  Ringraziamenti");
 
@@ -1090,10 +1100,25 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
           "sudo apt install qt6-base-dev libqt6network6-dev",         false },
         { "Ollama",       "ollama",        "Server LLM locale (NDJSON streaming)",
           "curl -fsSL https://ollama.com/install.sh | sh",            false },
-        { "llama-server", "llama-server",  "Server llama.cpp alternativo a Ollama (SSE)",
-          "./build.sh  nella cartella C_software",                     true  },
-        { "llama-cli",    "llama-cli",     "Chat diretta con modelli GGUF offline",
-          "./build.sh  nella cartella C_software",                     true  },
+        { "llama-server", "llama-server",
+          "Server llama.cpp (OpenAI/SSE) \xe2\x80\x94 "
+          "gi\xc3\xa0 compilato in gui/build/bin/ (Linux) o gui\\build\\bin\\ (Windows). "
+          "Se non trovato: esegui build.sh (Linux) o build.bat (Windows) dalla root.",
+#ifdef Q_OS_WIN
+          "gi\xc3\xa0 compilato: usa build.bat dalla root. Binario in gui\\build\\bin\\llama-server.exe",
+#else
+          "gi\xc3\xa0 compilato: usa build.sh dalla root. Binario in gui/build/bin/llama-server",
+#endif
+          true  },
+        { "llama-cli",    "llama-cli",
+          "Chat diretta con modelli GGUF \xe2\x80\x94 compilato insieme a llama-server "
+          "in gui/build/bin/ (Linux) o gui\\build\\bin\\ (Windows).",
+#ifdef Q_OS_WIN
+          "gi\xc3\xa0 compilato: binario in gui\\build\\bin\\llama-cli.exe (stesso processo di llama-server)",
+#else
+          "gi\xc3\xa0 compilato: binario in gui/build/bin/llama-cli (stesso processo di llama-server)",
+#endif
+          true  },
 
         /* ── Documenti ── */
         { "pdftotext",    "pdftotext",     "Estrae testo da PDF (Strumenti > Documenti)",
@@ -1258,14 +1283,17 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
                     "color:#4ade80;font-size:10px;");   /* verde */
                 continue;
             }
-            QString found = QStandardPaths::findExecutable(ex);
-            if (!found.isEmpty()) {
-                statusDots[i]->setStyleSheet(
-                    "color:#4ade80;font-size:10px;");   /* verde */
-            } else {
-                statusDots[i]->setStyleSheet(
-                    "color:#f87171;font-size:10px;");   /* rosso */
+            /* Per llama-server/llama-cli: cerca anche nel build locale di Prismalux */
+            bool found = !QStandardPaths::findExecutable(ex).isEmpty();
+            if (!found && (ex == "llama-server" || ex == "llama-cli")) {
+                const QString localBin = ex == "llama-server"
+                    ? P::llamaServerBin()
+                    : P::llamaCliBin();
+                found = QFileInfo::exists(localBin);
             }
+            statusDots[i]->setStyleSheet(found
+                ? "color:#4ade80;font-size:10px;"   /* verde */
+                : "color:#f87171;font-size:10px;");  /* rosso */
         }
     });
 
@@ -5569,24 +5597,61 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
         title->setFont(ft);
         title->setAlignment(Qt::AlignCenter);
         lay->addWidget(title);
-        lay->addSpacing(6);
+        lay->addSpacing(4);
 
         auto* sub = new QLabel(
-            "Piattaforma AI locale \xe2\x80\x94 "
-            "multi-agente \xc2\xb7 RAG \xc2\xb7 matematica \xc2\xb7 grafici");
+            "Piattaforma AI locale open-source \xe2\x80\x94 "
+            "multi-agente \xc2\xb7 RAG \xc2\xb7 matematica \xc2\xb7 grafici \xc2\xb7 MCPs\n"
+            "\xe2\x80\x9cCostruito per i mortali che aspirano alla saggezza.\xe2\x80\x9d");
         sub->setAlignment(Qt::AlignCenter);
         QFont fs = sub->font(); fs.setItalic(true); sub->setFont(fs);
         lay->addWidget(sub);
         lay->addSpacing(4);
 
+        auto* versLbl = new QLabel(
+            "<b>v2.8</b>  \xc2\xb7  Qt6/C++  "
+            "\xc2\xb7  Ollama \xc2\xb7  llama.cpp  "
+            "\xc2\xb7  Linux/Windows/macOS");
+        versLbl->setAlignment(Qt::AlignCenter);
+        versLbl->setTextFormat(Qt::RichText);
+        lay->addWidget(versLbl);
+        lay->addSpacing(4);
+
         /* link al repository Prismalux */
         auto* repoLbl = new QLabel(
             "<a href=\"https://github.com/wildlux/Prismalux\">"
-            "github.com/wildlux/Prismalux</a>");
+            "\xf0\x9f\x94\x97  github.com/wildlux/Prismalux</a>");
         repoLbl->setOpenExternalLinks(true);
         repoLbl->setTextFormat(Qt::RichText);
         repoLbl->setAlignment(Qt::AlignCenter);
         lay->addWidget(repoLbl);
+
+        auto* releaseLbl = new QLabel(
+            "<a href=\"https://github.com/wildlux/Prismalux/releases\">"
+            "\xf0\x9f\x93\xa6  Ultime release</a>"
+            " \xc2\xb7 "
+            "<a href=\"https://github.com/wildlux/Prismalux/issues\">"
+            "\xf0\x9f\x90\x9b  Segnala bug</a>"
+            " \xc2\xb7 "
+            "<a href=\"https://github.com/wildlux/Prismalux/wiki\">"
+            "\xf0\x9f\x93\x96  Wiki</a>");
+        releaseLbl->setOpenExternalLinks(true);
+        releaseLbl->setTextFormat(Qt::RichText);
+        releaseLbl->setAlignment(Qt::AlignCenter);
+        lay->addWidget(releaseLbl);
+        lay->addSpacing(4);
+
+        /* badge statistiche */
+        auto* statsLbl = new QLabel(
+            "<span style='color:gray;font-size:11px;'>"
+            "Pipeline 6 agenti  \xc2\xb7  Motore Byzantino  \xc2\xb7  "
+            "110 algoritmi  \xc2\xb7  RAG locale  \xc2\xb7  Matematica offline  \xc2\xb7  "
+            "TTS/STT  \xc2\xb7  Cron scheduler  \xc2\xb7  12 MCP integrati"
+            "</span>");
+        statsLbl->setAlignment(Qt::AlignCenter);
+        statsLbl->setTextFormat(Qt::RichText);
+        statsLbl->setWordWrap(true);
+        lay->addWidget(statsLbl);
     }
 
     makeSep();
@@ -5777,6 +5842,12 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
               "Ideale per content creation automatizzata e aggiornamenti rapidi.",
               "github.com/Automattic/wordpress-mcp",
               "https://github.com/Automattic/wordpress-mcp" },
+            { "\xf0\x9f\x8e\xae  Godot MCP",
+              "Controllo del motore Godot tramite MCP: crea scene, nodi e script GDScript "
+              "direttamente dall'AI. Permette di generare giochi 2D/3D da descrizioni testuali, "
+              "modificare propriet\xc3\xa0 degli oggetti e avviare il gioco in anteprima.",
+              "github.com/Coding-Solo/godot-mcp",
+              "https://github.com/Coding-Solo/godot-mcp" },
         };
         const int M = static_cast<int>(sizeof(kMCPs) / sizeof(kMCPs[0]));
         auto* t = makeTable({"Plugin", "Descrizione e utilizzo", "Progetto principale"}, M);
@@ -5844,4 +5915,434 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
     lay->addStretch();
     scroll->setWidget(root);
     return scroll;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildMcpTab — configurazione Model Context Protocol
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildMcpTab()
+{
+    const QString claudeCfgPath =
+        QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
+        + "/.claude/settings.json";
+
+    /* helpers read/write settings.json */
+    auto readCfg = [claudeCfgPath]() -> QJsonObject {
+        QFile f(claudeCfgPath);
+        if (!f.open(QIODevice::ReadOnly)) return {};
+        return QJsonDocument::fromJson(f.readAll()).object();
+    };
+    auto writeCfg = [claudeCfgPath](const QJsonObject& obj) {
+        QFileInfo fi(claudeCfgPath);
+        QDir().mkpath(fi.absolutePath());
+        QFile f(claudeCfgPath);
+        if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+            f.write(QJsonDocument(obj).toJson());
+    };
+
+    auto* page = new QWidget;
+    auto* vlay = new QVBoxLayout(page);
+    vlay->setContentsMargins(16, 16, 16, 16);
+    vlay->setSpacing(14);
+
+    /* ── 1. MCP configurati in Claude Code ─────────────────────── */
+    {
+        auto* box  = new QGroupBox(
+            "\xf0\x9f\x93\x8b  MCP configurati in Claude Code  (~/.claude/settings.json)");
+        auto* blay = new QVBoxLayout(box);
+
+        auto* table = new QTableWidget(0, 3);
+        table->setHorizontalHeaderLabels({"Nome", "Tipo", "Comando / Args"});
+        table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+        table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+        table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+        table->setSelectionBehavior(QAbstractItemView::SelectRows);
+        table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        table->setAlternatingRowColors(true);
+        table->setMaximumHeight(180);
+
+        auto refreshTable = [table, readCfg]() {
+            table->setRowCount(0);
+            const QJsonObject mcp =
+                readCfg().value("mcpServers").toObject();
+            for (const QString& name : mcp.keys()) {
+                const QJsonObject srv = mcp.value(name).toObject();
+                const int r = table->rowCount();
+                table->insertRow(r);
+                table->setItem(r, 0, new QTableWidgetItem(name));
+                table->setItem(r, 1, new QTableWidgetItem(
+                    srv.value("type").toString("stdio")));
+                QString cmd = srv.value("command").toString();
+                for (const auto& a : srv.value("args").toArray())
+                    cmd += " " + a.toString();
+                table->setItem(r, 2, new QTableWidgetItem(cmd));
+            }
+        };
+        refreshTable();
+
+        auto* btnRow = new QWidget;
+        auto* btnLay = new QHBoxLayout(btnRow);
+        btnLay->setContentsMargins(0, 0, 0, 0);
+
+        auto* btnRimuovi  = new QPushButton("\xe2\x9d\x8c  Rimuovi selezionato");
+        auto* btnApri     = new QPushButton("\xf0\x9f\x93\x82  Apri settings.json");
+        auto* btnRefresh  = new QPushButton("\xf0\x9f\x94\x84  Aggiorna");
+        btnRimuovi->setObjectName("actionBtn");
+        btnApri->setObjectName("actionBtn");
+        btnRefresh->setObjectName("actionBtn");
+        btnLay->addWidget(btnRimuovi);
+        btnLay->addWidget(btnApri);
+        btnLay->addStretch();
+        btnLay->addWidget(btnRefresh);
+
+        connect(btnRefresh, &QPushButton::clicked, page,
+                [refreshTable]{ refreshTable(); });
+        connect(btnApri, &QPushButton::clicked, page, [claudeCfgPath]{
+            QProcess::startDetached("xdg-open", {claudeCfgPath});
+        });
+        connect(btnRimuovi, &QPushButton::clicked, page,
+                [table, readCfg, writeCfg, refreshTable]{
+            const int r = table->currentRow();
+            if (r < 0) return;
+            const QString nome = table->item(r, 0)->text();
+            QJsonObject cfg = readCfg();
+            QJsonObject mcp = cfg.value("mcpServers").toObject();
+            mcp.remove(nome);
+            cfg["mcpServers"] = mcp;
+            writeCfg(cfg);
+            refreshTable();
+        });
+
+        blay->addWidget(table);
+        blay->addWidget(btnRow);
+        vlay->addWidget(box);
+    }
+
+    /* ── 2. MCP Locali Prismalux ────────────────────────────────── */
+    {
+        auto* box  = new QGroupBox(
+            "\xf0\x9f\x8f\xa0  MCP Locali Prismalux  (pronti da usare)");
+        auto* blay = new QVBoxLayout(box);
+
+        struct McpLocal {
+            QString name, desc, scriptRel, cfgType, cfgCmd;
+            QStringList cfgArgs;
+            int port;   /* 0 = stdio puro, >0 = HTTP */
+        };
+        const QString root = P::root();
+        const QList<McpLocal> cards = {
+            { "Blender Bridge",
+              "Controllo Blender tramite HTTP porta 6789. Avvia prima l'addon in Blender.",
+              "MCPs/blender_addon/prismalux_bridge.py",
+              "sse", "python3",
+              { root + "/MCPs/blender_addon/prismalux_bridge.py" },
+              6789 },
+            { "Office Bridge",
+              "Controllo LibreOffice/MS Office via UNO bridge (stdio).",
+              "MCPs/office_bridge/prismalux_office_bridge.py",
+              "stdio", "python3",
+              { root + "/MCPs/office_bridge/prismalux_office_bridge.py" },
+              0 },
+            { "OpenCode MCP",
+              "Bridge Claude Code \xe2\x86\x94 Prismalux stdio JSON-RPC. "
+              "Gi\xc3\xa0 integrato in APP Controller.",
+              "MCPs/opencode_mcp/server.py",
+              "stdio", "python3",
+              { root + "/MCPs/opencode_mcp/server.py" },
+              0 },
+        };
+
+        for (const McpLocal& c : cards) {
+            auto* card = new QFrame;
+            card->setFrameShape(QFrame::StyledPanel);
+            auto* cLay = new QHBoxLayout(card);
+
+            auto* info  = new QVBoxLayout;
+            auto* title = new QLabel("<b>" + c.name + "</b>");
+            auto* desc  = new QLabel(c.desc);
+            desc->setWordWrap(true);
+            desc->setStyleSheet("color: gray; font-size: 11px;");
+            info->addWidget(title);
+            info->addWidget(desc);
+            cLay->addLayout(info, 1);
+
+            auto* btns = new QVBoxLayout;
+            btns->setSpacing(4);
+
+            auto* btnAgg = new QPushButton(
+                "\xe2\x9e\x95  Aggiungi a Claude");
+            btnAgg->setObjectName("actionBtn");
+            btnAgg->setFixedWidth(165);
+            btns->addWidget(btnAgg);
+
+            /* QProcess per MCP HTTP (avviabile da Prismalux) */
+            QProcess* proc = nullptr;
+            if (c.port != 0) {
+                proc = new QProcess(card);
+                auto* btnStart = new QPushButton(
+                    "\xe2\x96\xb6  Avvia server");
+                btnStart->setObjectName("actionBtn");
+                btnStart->setFixedWidth(165);
+                btns->addWidget(btnStart);
+
+                const QString scriptPath = root + "/" + c.scriptRel;
+                connect(btnStart, &QPushButton::clicked, card,
+                        [proc, btnStart, scriptPath]{
+                    if (proc->state() == QProcess::NotRunning) {
+                        proc->start("python3", {scriptPath});
+                        btnStart->setText("\xe2\x96\xa0  Ferma server");
+                    } else {
+                        proc->terminate();
+                        btnStart->setText("\xe2\x96\xb6  Avvia server");
+                    }
+                });
+                connect(proc, &QProcess::stateChanged, card,
+                        [btnStart](QProcess::ProcessState st){
+                    if (st == QProcess::NotRunning)
+                        btnStart->setText("\xe2\x96\xb6  Avvia server");
+                });
+            }
+
+            McpLocal cap = c;
+            connect(btnAgg, &QPushButton::clicked, page,
+                    [cap, readCfg, writeCfg]{
+                QJsonObject cfg = readCfg();
+                QJsonObject mcp = cfg.value("mcpServers").toObject();
+                QJsonObject srv;
+                srv["type"]    = cap.cfgType;
+                srv["command"] = cap.cfgCmd;
+                QJsonArray arr;
+                for (const QString& a : cap.cfgArgs) arr.append(a);
+                srv["args"] = arr;
+                mcp[cap.name] = srv;
+                cfg["mcpServers"] = mcp;
+                writeCfg(cfg);
+            });
+
+            cLay->addLayout(btns);
+            blay->addWidget(card);
+        }
+        vlay->addWidget(box);
+    }
+
+    /* ── 2b. Ollama in locale ──────────────────────────────────── */
+    {
+        auto* box  = new QGroupBox(
+            "\xf0\x9f\xa6\x99  Ollama in locale \xe2\x80\x94 usa i modelli locali in Claude Code");
+        auto* blay = new QVBoxLayout(box);
+
+        auto* desc = new QLabel(
+            "Aggiunge un server MCP che espone i modelli Ollama locali come strumenti "
+            "disponibili in Claude Code. Richiede <code>npm</code> (Node.js).");
+        desc->setWordWrap(true);
+        desc->setTextFormat(Qt::RichText);
+        blay->addWidget(desc);
+
+        auto* cmdLbl = new QLabel(
+            "<b>Comando MCP:</b><br>"
+            "<code>npx -y ollama-mcp-server</code>"
+            "<br><span style='color:gray;font-size:11px;'>"
+            "Host Ollama: http://localhost:11434 (predefinito)</span>");
+        cmdLbl->setTextFormat(Qt::RichText);
+        cmdLbl->setWordWrap(true);
+        blay->addWidget(cmdLbl);
+
+        auto* btnRow = new QWidget;
+        auto* btnL   = new QHBoxLayout(btnRow);
+        btnL->setContentsMargins(0,0,0,0); btnL->setSpacing(8);
+
+        auto* btnAggOllama = new QPushButton("\xe2\x9e\x95  Aggiungi a Claude");
+        btnAggOllama->setObjectName("actionBtn");
+        auto* btnCopia = new QPushButton("\xf0\x9f\x93\x8b  Copia comando");
+        btnCopia->setObjectName("actionBtn");
+        auto* fbkOllama = new QLabel;
+
+        btnL->addWidget(btnAggOllama);
+        btnL->addWidget(btnCopia);
+        btnL->addWidget(fbkOllama, 1);
+        blay->addWidget(btnRow);
+
+        connect(btnAggOllama, &QPushButton::clicked, page,
+                [readCfg, writeCfg, fbkOllama]{
+            QJsonObject cfg = readCfg();
+            QJsonObject mcp = cfg.value("mcpServers").toObject();
+            QJsonObject srv;
+            srv["type"]    = QString("stdio");
+            srv["command"] = QString("npx");
+            QJsonArray args;
+            args.append("-y");
+            args.append("ollama-mcp-server");
+            srv["args"] = args;
+            mcp["ollama-locale"] = srv;
+            cfg["mcpServers"] = mcp;
+            writeCfg(cfg);
+            fbkOllama->setStyleSheet("color: green;");
+            fbkOllama->setText("\xe2\x9c\x85  Aggiunto a settings.json");
+        });
+        connect(btnCopia, &QPushButton::clicked, page, []{
+            QGuiApplication::clipboard()->setText("npx -y ollama-mcp-server");
+        });
+
+        vlay->addWidget(box);
+    }
+
+    /* ── 3. Aggiungi MCP personalizzato ─────────────────────────── */
+    {
+        auto* box  = new QGroupBox(
+            "\xe2\x9e\x95  Aggiungi MCP personalizzato a Claude Code");
+        auto* form = new QFormLayout(box);
+        form->setSpacing(8);
+
+        auto* editNome = new QLineEdit;
+        editNome->setPlaceholderText("es. my-mcp");
+        auto* cmbTipo = new QComboBox;
+        cmbTipo->addItems({"stdio", "sse", "http"});
+        auto* editCmd = new QLineEdit;
+        editCmd->setPlaceholderText("es. python3   oppure   npx");
+        auto* editArgs = new QLineEdit;
+        editArgs->setPlaceholderText(
+            "es. /percorso/server.py   (separati da spazio)");
+        auto* editEnv = new QLineEdit;
+        editEnv->setPlaceholderText(
+            "es. API_KEY=abc TOKEN=xyz   (opzionale)");
+
+        form->addRow("Nome:", editNome);
+        form->addRow("Tipo:", cmbTipo);
+        form->addRow("Comando:", editCmd);
+        form->addRow("Args:", editArgs);
+        form->addRow("Env:", editEnv);
+
+        auto* btnSalva = new QPushButton(
+            "\xf0\x9f\x92\xbe  Salva in settings.json");
+        btnSalva->setObjectName("actionBtn");
+        auto* fbk = new QLabel;
+
+        form->addRow("", btnSalva);
+        form->addRow("", fbk);
+
+        connect(btnSalva, &QPushButton::clicked, page,
+                [editNome, cmbTipo, editCmd, editArgs, editEnv,
+                 fbk, readCfg, writeCfg]{
+            const QString nome = editNome->text().trimmed();
+            const QString cmd  = editCmd->text().trimmed();
+            if (nome.isEmpty() || cmd.isEmpty()) {
+                fbk->setStyleSheet("color: red;");
+                fbk->setText("Nome e Comando sono obbligatori.");
+                return;
+            }
+            QJsonObject cfg = readCfg();
+            QJsonObject mcp = cfg.value("mcpServers").toObject();
+            QJsonObject srv;
+            srv["type"]    = cmbTipo->currentText();
+            srv["command"] = cmd;
+            QJsonArray arr;
+            for (const QString& a :
+                 editArgs->text().split(' ', Qt::SkipEmptyParts))
+                arr.append(a);
+            srv["args"] = arr;
+            QJsonObject env;
+            for (const QString& kv :
+                 editEnv->text().split(' ', Qt::SkipEmptyParts)) {
+                const int idx = kv.indexOf('=');
+                if (idx > 0) env[kv.left(idx)] = kv.mid(idx + 1);
+            }
+            if (!env.isEmpty()) srv["env"] = env;
+            mcp[nome] = srv;
+            cfg["mcpServers"] = mcp;
+            writeCfg(cfg);
+            fbk->setStyleSheet("color: green;");
+            fbk->setText("\xe2\x9c\x85  \"" + nome +
+                "\" aggiunto a settings.json");
+            editNome->clear();
+            editCmd->clear();
+            editArgs->clear();
+            editEnv->clear();
+        });
+
+        vlay->addWidget(box);
+    }
+
+    /* ── 4. MCP Popolari (hub ufficiale) ────────────────────────── */
+    {
+        auto* box  = new QGroupBox(
+            "\xf0\x9f\x8c\x90  MCP Popolari  (copia il comando e installalo nel terminale)");
+        auto* blay = new QVBoxLayout(box);
+
+        auto* intro = new QLabel(
+            "Premi \xf0\x9f\x93\x8b per copiare il comando npx/uvx negli appunti. "
+            "Poi aggiungilo con la sezione \"Aggiungi MCP personalizzato\" sopra.");
+        intro->setWordWrap(true);
+        intro->setStyleSheet("color: gray; font-size: 11px;");
+        blay->addWidget(intro);
+
+        struct PopMcp { QString name, desc, installCmd; };
+        const QList<PopMcp> pop = {
+            { "filesystem",
+              "Accesso al filesystem locale",
+              "npx @modelcontextprotocol/server-filesystem" },
+            { "brave-search",
+              "Ricerca web tramite Brave Search API",
+              "npx @modelcontextprotocol/server-brave-search" },
+            { "github",
+              "GitHub API (repo, PR, issue, code search)",
+              "npx @modelcontextprotocol/server-github" },
+            { "sqlite",
+              "Query e gestione database SQLite",
+              "npx @modelcontextprotocol/server-sqlite" },
+            { "puppeteer",
+              "Browser automation headless (Chromium)",
+              "npx @modelcontextprotocol/server-puppeteer" },
+            { "memory",
+              "Memoria KV persistente per Claude",
+              "npx @modelcontextprotocol/server-memory" },
+            { "fetch",
+              "Fetch URL / HTTP generico da Claude",
+              "npx @modelcontextprotocol/server-fetch" },
+            { "sequential-thinking",
+              "Ragionamento strutturato a step",
+              "npx @modelcontextprotocol/server-sequentialthinking" },
+            { "postgres",
+              "Query PostgreSQL dirette da Claude",
+              "npx @modelcontextprotocol/server-postgres" },
+            { "slack",
+              "Lettura e invio messaggi Slack",
+              "npx @modelcontextprotocol/server-slack" },
+            { "godot-mcp",
+              "Controllo motore Godot: scene, script GDScript, anteprima gioco",
+              "npx -y godot-mcp" },
+            { "ollama-mcp",
+              "Usa modelli Ollama locali come strumenti in Claude Code",
+              "npx -y ollama-mcp-server" },
+        };
+
+        auto* grid = new QGridLayout;
+        grid->setHorizontalSpacing(8);
+        grid->setVerticalSpacing(4);
+        int row = 0;
+        for (const PopMcp& p : pop) {
+            auto* lbl = new QLabel(
+                "<b>" + p.name + "</b>  \xe2\x80\x94  " + p.desc);
+            lbl->setTextFormat(Qt::RichText);
+            auto* btnCopy = new QPushButton("\xf0\x9f\x93\x8b");
+            btnCopy->setToolTip("Copia: " + p.installCmd);
+            btnCopy->setFixedSize(28, 28);
+            PopMcp cap = p;
+            connect(btnCopy, &QPushButton::clicked, page, [cap]{
+                QGuiApplication::clipboard()->setText(cap.installCmd);
+            });
+            grid->addWidget(lbl,     row, 0);
+            grid->addWidget(btnCopy, row, 1);
+            ++row;
+        }
+        blay->addLayout(grid);
+        vlay->addWidget(box);
+    }
+
+    vlay->addStretch();
+
+    auto* sc = new QScrollArea;
+    sc->setWidgetResizable(true);
+    sc->setFrameShape(QFrame::NoFrame);
+    sc->setWidget(page);
+    return sc;
 }

@@ -1,4 +1,5 @@
 #include "strumenti_page.h"
+#include "lavoro_page.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
@@ -28,6 +29,9 @@ namespace P = PrismaluxPaths;
 #include <QCheckBox>
 #include <QRegularExpression>
 #include <QHeaderView>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
 
 /* ══════════════════════════════════════════════════════════════
    Tabella system prompt: [navIdx][subIdx]
@@ -61,6 +65,24 @@ static const char* kSysPrompts[10][10] = {
         "Genera una bibliografia in formato APA sull'argomento con 5-10 fonti plausibili. Rispondi in italiano.",
         "Analizza il problema da almeno 4 prospettive diverse (economica, sociale, tecnica, etica). Rispondi in italiano.",
         "Crea una guida passo-passo dettagliata. Rispondi in italiano.",
+        /* 6 — Verifica brevetto */
+        "Sei un esperto di propriet\xc3\xa0 intellettuale e brevetti. "
+        "Analizza la descrizione tecnica fornita dall'utente e verifica: "
+        "1) Esistono brevetti simili o identici (spiega le classi CPC/IPC pertinenti)? "
+        "2) Il concetto \xc3\xa8 brevettabile? (requisiti: novit\xc3\xa0, attivit\xc3\xa0 inventiva, applicabilit\xc3\xa0 industriale) "
+        "3) Suggerisci dove cercare: USPTO (patents.google.com), EPO Espacenet, UIBM (uibm.gov.it). "
+        "4) Se l'utente incolla il testo di un brevetto: identifica le rivendicazioni principali (claim 1), lo stato, il titolare, la scadenza stimata. "
+        "Rispondi in italiano con struttura chiara.",
+        /* 7 — Verifica paper scientifico */
+        "Sei un esperto di ricerca accademica e metodologia scientifica. "
+        "Analizza il paper o l'abstract fornito dall'utente e verifica: "
+        "1) Metodologia: il disegno sperimentale \xc3\xa8 robusto? Ci sono bias evidenti? "
+        "2) Peer review e impact factor: dove \xc3\xa8 pubblicato? (indica se predatory o affidabile) "
+        "3) Riproducibilit\xc3\xa0: dati e codice sono aperti? "
+        "4) Citazioni chiave: identifica le fonti pi\xc3\xb9 citate nel campo. "
+        "5) Retractions: verifica se il paper \xc3\xa8 stato ritrattato (suggerisci Retraction Watch, PubPeer). "
+        "6) Se l'utente fornisce solo un titolo o un'idea: cerca paper esistenti correlati e valutane la rilevanza. "
+        "Rispondi in italiano con struttura chiara.",
         nullptr, nullptr
     },
     /* 3 — Libri */
@@ -282,6 +304,8 @@ static const char* kSubActions[10][10] = {
       "\xf0\x9f\x93\x9a Genera bibliografia",
       "\xf0\x9f\x94\xad Analisi multi-prospettiva",
       "\xf0\x9f\x9b\xa4 Guida how-to",
+      "\xf0\x9f\x94\x8f Verifica brevetto",
+      "\xf0\x9f\x93\x84 Verifica paper",
       nullptr, nullptr },
     { "\xf0\x9f\x93\x9c Analisi letteraria",
       "\xf0\x9f\x93\x91 Riassunto capitoli",
@@ -370,6 +394,8 @@ static const char* kPlaceholders[10] = {
 StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     : QWidget(parent), m_ai(ai)
 {
+    setAcceptDrops(true);
+
     /* Widget interni nascosti — usati dai slot tramite row/index */
     m_navList = new QListWidget(this);
     m_navList->hide();
@@ -425,7 +451,18 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     lblSel->setText("\xe2\x9c\x85  <b>" + firstAction + "</b>");
     lblSel->setTextFormat(Qt::RichText);
 
+    QPushButton* lavoroBtn = nullptr;
     for (int cat = 0; cat < 6; cat++) {
+        /* Inserisci "Cerca Lavoro" tra Ricerca (2) e Libri (3) */
+        if (cat == 3) {
+            lavoroBtn = new QPushButton(
+                "\xf0\x9f\x92\xbc  Cerca Lavoro", catBar);
+            lavoroBtn->setCheckable(true);
+            lavoroBtn->setObjectName("strCatBtn");
+            lavoroBtn->setToolTip(
+                "Cerca offerte di lavoro, analisi CV e URL annunci");
+            catLay->addWidget(lavoroBtn);
+        }
         /* Tab categoria */
         auto* catBtn = new QPushButton(
             QString::fromUtf8(kCatLabels[cat]), catBar);
@@ -474,9 +511,26 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     }
     catLay->addStretch();
 
+    /* ── Pulsante Cron (non nella catGroup — stile separato) ── */
+    auto* cronBtn = new QPushButton(
+        "\xe2\x8f\xb1  Cron", catBar);  /* ⏱ */
+    cronBtn->setCheckable(true);
+    cronBtn->setObjectName("strCatBtn");
+    cronBtn->setToolTip(
+        "Pianifica comandi periodici con il Cron Scheduler integrato");
+    catLay->addWidget(cronBtn);
+
     /* Cambio categoria */
     connect(catGroup, QOverload<int>::of(&QButtonGroup::idClicked),
-            this, [this, actStack, lblSel](int cat) {
+            this, [this, actStack, lblSel, lavoroBtn, cronBtn](int cat) {
+        if (lavoroBtn) lavoroBtn->setChecked(false);
+        if (m_lavoroPage) m_lavoroPage->setVisible(false);
+        if (cronBtn) cronBtn->setChecked(false);
+        if (m_cronPanel) m_cronPanel->setVisible(false);
+        actStack->setVisible(true);
+        lblSel->setVisible(true);
+        if (m_inputRow) m_inputRow->setVisible(true);
+        m_output->setVisible(true);
         m_currentCat = cat;
         actStack->setCurrentIndex(cat);
         m_navList->setCurrentRow(cat);
@@ -520,6 +574,23 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
                 QString::fromUtf8(kModelHints[cat]));
     });
 
+    /* ── lavoroBtn: mostra pannello Cerca Lavoro al posto dell'area AI ── */
+    if (lavoroBtn) {
+        connect(lavoroBtn, &QPushButton::clicked, this,
+                [this, actStack, lblSel, cronBtn](bool checked) {
+            actStack->setVisible(!checked);
+            lblSel->setVisible(!checked);
+            m_ragRow->setVisible(!checked);
+            m_pdfRow->setVisible(false);
+            m_codeModelRow->setVisible(!checked);
+            if (m_inputRow) m_inputRow->setVisible(!checked);
+            m_output->setVisible(!checked);
+            if (m_lavoroPage) m_lavoroPage->setVisible(checked);
+            if (checked && cronBtn) cronBtn->setChecked(false);
+            if (m_cronPanel) m_cronPanel->setVisible(false);
+        });
+    }
+
     lay->addWidget(catBar);
     lay->addWidget(actStack);
     lay->addWidget(lblSel);
@@ -535,7 +606,8 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         "\xf0\x9f\x93\x9a  RAG documenti", m_ragRow);
     m_ragCheck->setToolTip(
         "Se attivo, i documenti caricati vengono usati come contesto\n"
-        "per ogni richiesta AI in questa sezione.");
+        "per ogni richiesta AI in questa sezione.\n"
+        "Puoi anche trascinare PDF/TXT/MD direttamente sulla finestra.");
     ragLay->addWidget(m_ragCheck);
 
     auto* ragAddBtn = new QPushButton(
@@ -1501,7 +1573,8 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     });
 
     /* ── Input + pulsanti affiancati ── */
-    auto* inputRow = new QWidget(this);
+    m_inputRow = new QWidget(this);
+    auto* inputRow = m_inputRow;
     auto* inputLay = new QHBoxLayout(inputRow);
     inputLay->setContentsMargins(0, 0, 0, 0);
     inputLay->setSpacing(8);
@@ -1540,6 +1613,42 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         "L'output dell'AI appare qui...\n\n"
         "\xf0\x9f\x8d\xba  Invocazione riuscita. Gli dei ascoltano.");
     lay->addWidget(m_output, 1);
+
+    /* ── Pannello Cerca Lavoro (sovrapposto all'area AI, nascosto inizialmente) ── */
+    m_lavoroPage = new LavoroPage(m_ai, this);
+    m_lavoroPage->setVisible(false);
+    lay->addWidget(m_lavoroPage, 1);
+
+    /* ── Pannello Cron inline ── */
+    m_cronPanel = new QWidget(this);
+    {
+        auto* cl = new QVBoxLayout(m_cronPanel);
+        cl->setContentsMargins(16, 16, 16, 16);
+        auto* lbl = new QLabel(
+            "\xe2\x8f\xb1  <b>Cron Scheduler</b> \xe2\x80\x94 "
+            "Pianifica comandi da eseguire periodicamente.<br>"
+            "Il pannello completo \xc3\xa8 disponibile in "
+            "<b>Impostazioni \xe2\x86\x92 Sistema \xe2\x86\x92 Manutenzione \xe2\x86\x92 Cron</b>.");
+        lbl->setTextFormat(Qt::RichText);
+        lbl->setWordWrap(true);
+        lbl->setObjectName("hintLabel");
+        cl->addWidget(lbl);
+        cl->addStretch();
+    }
+    m_cronPanel->setVisible(false);
+    lay->addWidget(m_cronPanel, 1);
+
+    connect(cronBtn, &QPushButton::clicked, this,
+            [this, actStack, lblSel, cronBtn](bool checked) {
+        actStack->setVisible(!checked);
+        lblSel->setVisible(!checked);
+        m_ragRow->setVisible(!checked);
+        m_pdfRow->setVisible(false);
+        if (m_inputRow) m_inputRow->setVisible(!checked);
+        m_output->setVisible(!checked);
+        m_cronPanel->setVisible(checked);
+        if (checked && m_lavoroPage) m_lavoroPage->setVisible(false);
+    });
 
     /* ── Avvia / Stop tool (bottone unificato) ── */
     connect(m_btnRun, &QPushButton::clicked, this, [this] {
@@ -1855,4 +1964,45 @@ QString StrumentiPage::ragBuildContext(const QString& query, int topK) const
             out << m_ragChunks[i];
 
     return out.join("\n\n---\n\n");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Drag & Drop — rilascia PDF/TXT/MD/CSV direttamente sulla pagina
+   per aggiungerli all'indice RAG senza passare dal file dialog.
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::dragEnterEvent(QDragEnterEvent* e)
+{
+    if (!e->mimeData()->hasUrls()) { e->ignore(); return; }
+
+    static const QStringList kExt = { "pdf", "txt", "md", "csv", "rst" };
+    for (const QUrl& u : e->mimeData()->urls()) {
+        if (!u.isLocalFile()) continue;
+        const QString ext = QFileInfo(u.toLocalFile()).suffix().toLower();
+        if (kExt.contains(ext)) { e->acceptProposedAction(); return; }
+    }
+    e->ignore();
+}
+
+void StrumentiPage::dropEvent(QDropEvent* e)
+{
+    if (!e->mimeData()->hasUrls()) { e->ignore(); return; }
+
+    static const QStringList kExt = { "pdf", "txt", "md", "csv", "rst" };
+    bool added = false;
+    for (const QUrl& u : e->mimeData()->urls()) {
+        if (!u.isLocalFile()) continue;
+        const QString path = u.toLocalFile();
+        if (kExt.contains(QFileInfo(path).suffix().toLower())) {
+            ragAddFile(path);
+            added = true;
+        }
+    }
+    if (added) {
+        e->acceptProposedAction();
+        /* Attiva automaticamente il checkbox RAG dopo il drop */
+        if (m_ragCheck && !m_ragCheck->isChecked())
+            m_ragCheck->setChecked(true);
+    } else {
+        e->ignore();
+    }
 }

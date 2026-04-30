@@ -196,7 +196,7 @@ void AgentiPage::setupUI() {
     m_btnModeToggle->setStyleSheet(kStyleMono);
     m_btnModeToggle->setToolTip(
         "Mono-Agente \xe2\x80\x94 risposta diretta dal modello selezionato (default)\n"
-        "Multi-Agente \xe2\x80\x94 abilita pipeline agenti, Motore Byzantino e Consiglio Scientifico");
+        "Team MOE AI \xe2\x80\x94 abilita pipeline agenti, Motore Byzantino e Consiglio Scientifico");
     toolLay->addWidget(m_btnModeToggle);
 
     /* ── Selettore LLM singolo ── */
@@ -217,7 +217,10 @@ void AgentiPage::setupUI() {
     connect(m_cmbLLM, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int idx){
         if (idx < 0 || !m_cmbLLM) return;
-        const QString mdl = m_cmbLLM->currentText();
+        /* Usa UserRole (nome raw senza icona ☁️/🌍📍) se disponibile */
+        const QString mdl = m_cmbLLM->currentData(Qt::UserRole).toString().isEmpty()
+                          ? m_cmbLLM->currentText()
+                          : m_cmbLLM->currentData(Qt::UserRole).toString();
         if (mdl.isEmpty() || mdl == "(caricamento...)") return;
         m_pageModel = mdl;   /* preferenza privata — non sovrascritta da modelChanged */
         m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), mdl);
@@ -236,31 +239,7 @@ void AgentiPage::setupUI() {
     maSep->setStyleSheet("color:#334155;");
     maLay->addWidget(maSep);
 
-    /* Modalità pipeline */
-    auto* modeLbl = new QLabel("Modalit\xc3\xa0:", m_multiAgentBar);
-    modeLbl->setObjectName("cardDesc");
-    m_cmbMode = new QComboBox(m_multiAgentBar);
-    m_cmbMode->addItem("\xf0\x9f\x94\x84  Pipeline Agenti");           // 0
-    m_cmbMode->addItem("\xf0\x9f\x94\xae  Motore Byzantino");          // 1
-    m_cmbMode->addItem("\xf0\x9f\xa7\xae  Matematico Teorico");        // 2
-    m_cmbMode->addItem("\xf0\x9f\x93\x90  Matematica");                // 3
-    m_cmbMode->addItem("\xf0\x9f\x92\xbb  Informatica");               // 4
-    m_cmbMode->addItem("\xf0\x9f\x94\x90  Sicurezza");                 // 5
-    m_cmbMode->addItem("\xe2\x9a\x9b\xef\xb8\x8f  Fisica");            // 6
-    m_cmbMode->addItem("\xf0\x9f\xa7\xaa  Chimica");                   // 7
-    m_cmbMode->addItem("\xf0\x9f\x8c\x90  Lingue & Traduzione");       // 8
-    m_cmbMode->addItem("\xf0\x9f\x8c\x8d  Generico");                  // 9
-    m_cmbMode->addItem("\xf0\x9f\x8f\x9b  Consiglio Scientifico");    // 10
-    maLay->addWidget(modeLbl);
-    maLay->addWidget(m_cmbMode);
-
-    /* Pulsante auto-assegna */
-    m_btnAuto = new QPushButton("\xf0\x9f\xaa\x84 Auto-assegna ruoli", m_multiAgentBar);
-    m_btnAuto->setObjectName("actionBtn");
-    m_btnAuto->setToolTip("Il modello pi\xc3\xb9 grande assegna ruoli e modelli automaticamente");
-    maLay->addWidget(m_btnAuto);
-
-    /* Pulsante config agenti — apre finestra separata */
+    /* Pulsante config agenti — apre finestra separata (contiene Modalità) */
     m_btnCfg = new QPushButton("\xe2\x9a\x99\xef\xb8\x8f  Configura Agenti", m_multiAgentBar);
     m_btnCfg->setObjectName("actionBtn");
     m_btnCfg->setToolTip("Apri la finestra di configurazione agenti\n(ruolo, modello, contesto RAG per ciascuno)");
@@ -280,7 +259,7 @@ void AgentiPage::setupUI() {
                                  "Stop da fermo \xe2\x86\x92 torna a Singolo");
         }
         m_btnModeToggle->setText(multiOn
-            ? "\xf0\x9f\x91\xa5  Multi-Agente"
+            ? "\xf0\x9f\x91\xa5  Team MOE AI"
             : "\xf0\x9f\xa4\x96  Mono-Agente");
         m_btnModeToggle->setStyleSheet(multiOn ? kStyleMulti : kStyleMono);
     });
@@ -396,6 +375,75 @@ void AgentiPage::setupUI() {
             html.remove(re);
             m_log->setHtml(html);
             m_log->moveCursor(QTextCursor::End);
+            return;
+        }
+
+        /* ── Toggle ragionamento <think> collassabile ── */
+        if (s.startsWith("think:toggle:")) {
+            bool ok2 = false;
+            const int N = s.mid(13).toInt(&ok2);
+            if (!ok2 || !m_thinkTexts.contains(N)) return;
+
+            const int scrollPos = m_log->verticalScrollBar()->value();
+            QString html = m_log->toHtml();
+            const QString nStr = QString::number(N);
+
+            if (m_thinkShown.contains(N)) {
+                /* === NASCONDI === */
+                m_thinkShown.remove(N);
+                /* Cambia freccia ▼ → ▶ (🔻 → ▶️) nell'ancora toggle */
+                QRegularExpression reArrowDown(
+                    "(think:toggle:" + nStr + "[^>]*>)\xf0\x9f\x94\xbb",
+                    QRegularExpression::DotMatchesEverythingOption);
+                html.replace(reArrowDown, "\\1\xe2\x96\xb6\xef\xb8\x8f");
+                /* Rimuovi il box think (da think-box:N fino a think-end:N </table>) */
+                QRegularExpression reBox(
+                    "<table[^>]*>(?:(?!</table>)[\\s\\S])*?think-end:" + nStr +
+                    "[\\s\\S]*?</table>",
+                    QRegularExpression::DotMatchesEverythingOption);
+                html.remove(reBox);
+            } else {
+                /* === MOSTRA === */
+                m_thinkShown.insert(N);
+                /* Cambia freccia ▶ → ▼ (▶️ → 🔻) */
+                QRegularExpression reArrowRight(
+                    "(think:toggle:" + nStr + "[^>]*>)\xe2\x96\xb6\xef\xb8\x8f",
+                    QRegularExpression::DotMatchesEverythingOption);
+                html.replace(reArrowRight, "\\1\xf0\x9f\x94\xbb");
+
+                /* Costruisci il box think e inseriscilo dopo </p> del toggle link */
+                const QString rawThink = m_thinkTexts.value(N);
+                QString safeThink = rawThink;
+                safeThink.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+                safeThink.replace("\n","<br>");
+
+                const QString thinkBox =
+                    "<table width='100%' cellpadding='0' cellspacing='0' style='margin:0 0 6px 0;'>"
+                    "<tr><td bgcolor='#1a1a2e' style='"
+                        "border-left:3px solid #4a4a6a;"
+                        "padding:6px 10px;"
+                        "border-radius:0 4px 4px 0;'>"
+                      "<p style='color:#7070a0;font-size:10px;font-weight:bold;margin:0 0 4px 0;'>"
+                        "&#129504; Ragionamento interno"
+                      "</p>"
+                      "<p style='color:#8888aa;font-size:11px;font-style:italic;"
+                                "margin:0;line-height:1.5;'>"
+                        + safeThink +
+                        "<a href='think-end:" + nStr + "'></a>"
+                      "</p>"
+                    "</td></tr></table>";
+
+                /* Punto di inserimento: dopo </p> che contiene il toggle link */
+                int anchorPos = html.indexOf("think:toggle:" + nStr);
+                if (anchorPos >= 0) {
+                    int endP = html.indexOf("</p>", anchorPos);
+                    if (endP >= 0)
+                        html.insert(endP + 4, thinkBox);
+                }
+            }
+
+            m_log->setHtml(html);
+            m_log->verticalScrollBar()->setValue(scrollPos);
             return;
         }
 
@@ -1042,7 +1090,6 @@ void AgentiPage::setupUI() {
     }
 
     /* Auto-assegna */
-    connect(m_btnAuto, &QPushButton::clicked, this, &AgentiPage::autoAssignRoles);
 
     /* Config dialog */
     connect(m_btnCfg, &QPushButton::clicked, this, [this]{

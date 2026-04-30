@@ -63,6 +63,7 @@ private:
     QWidget* buildLlmClassificaTab();  ///< ranking oggettivo open-weight (ArtificialAnalysis + benchmark locali)
     QWidget* buildAiParamsTab();   ///< parametri anti-allucinazione + preferenze modello
     QWidget* buildPuliziaTab();       ///< pulizia file temporanei, build, cache
+    QWidget* buildMcpTab();           ///< configurazione Model Context Protocol
     QWidget* buildRingraziamentiTab(); ///< licenza MIT + crediti autore e librerie
 
     PersonalizzaPage*  m_personalizza  = nullptr;

@@ -123,9 +123,16 @@ set PATH=%QT_PREFIX%\bin;%MSYS2_ROOT%\usr\bin;%PATH%
 
 REM ── Verifica cmake ──────────────────────────────────────────
 if not defined CMAKE_BIN set CMAKE_BIN=cmake
+if exist "!CMAKE_BIN!" (
+    for %%D in ("!CMAKE_BIN!") do set PATH=%%~dpD;!PATH!
+)
 where cmake >nul 2>&1
 if errorlevel 1 (
     echo  [ERRORE] cmake non trovato nel PATH.
+    echo.
+    echo  Se usi MSYS2 installa cmake con:
+    echo    pacman -S --needed mingw-w64-ucrt-x86_64-cmake
+    echo.
     pause
     exit /b 1
 )

@@ -28,6 +28,9 @@ namespace P = PrismaluxPaths;
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QTableWidget>
+#include <QTableWidgetItem>
+#include <QHeaderView>
 #include <QTextDocument>
 #include <QRegularExpression>
 
@@ -287,6 +290,87 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     urlL->addWidget(m_urlInput, 1);
     urlL->addWidget(urlBtn);
     lay->addWidget(urlRow);
+
+    /* ── Portali GDO nazionali e siciliani ── */
+    {
+        struct GDOEntry {
+            const char* insegna;
+            const char* sito;
+            const char* urlLavoro;
+            const char* note;  /* nullptr = nessuna */
+        };
+        static const GDOEntry kGDO[] = {
+            /* ── Nazionali ── */
+            { "Coop",          "coop.it",          "https://www.coop.it/lavora-con-noi",                nullptr },
+            { "Lidl",          "lidl.it",           "https://lavoro.lidl.it",                            nullptr },
+            { "Esselunga",     "esselunga.it",      "https://www.esselungajob.it",                       nullptr },
+            { "Carrefour",     "carrefour.it",      "https://www.carrefour.it/lavora-con-noi",           nullptr },
+            { "Penny Market",  "penny.it",          "https://www.penny.it/lavora-con-noi",               nullptr },
+            { "Eurospin",      "eurospin.it",       "https://lavoraconnoi.eurospin.it",                  nullptr },
+            { "MD",            "mdspa.it",          "https://www.mdspa.it/lavora-con-noi",               nullptr },
+            { "Pam Panorama",  "pampanorama.it",    "https://www.pampanorama.it/lavora-con-noi",         nullptr },
+            /* ── Sicilia ── */
+            { "Gruppo Arena",  "gruppoarena.it",    "https://www.gruppoarena.it/lavora-con-noi",         "Dec\xc3\xb2, SuperConveniente" },
+            { "Ergon",         "ergonsrl.it",       "https://www.ergonsrl.it/lavora-con-noi",            "Eurospar, Interspar, Altasfera" },
+            { "CDS",           "cdsspa.it",         "https://www.cdsspa.it/lavora-con-noi",              "Centro Distribuzione Supermercati" },
+        };
+        const int N = static_cast<int>(sizeof(kGDO)/sizeof(kGDO[0]));
+
+        auto* gdoBox  = new QGroupBox(
+            "\xf0\x9f\x9b\x92  Portali GDO \xe2\x80\x94 Supermercati (Lavora con noi)", this);
+        gdoBox->setCheckable(true);
+        gdoBox->setChecked(false);   /* inizialmente chiuso */
+        auto* gdoLay  = new QVBoxLayout(gdoBox);
+        gdoLay->setContentsMargins(4, 4, 4, 4);
+        gdoLay->setSpacing(2);
+
+        auto* gdoTable = new QTableWidget(N, 3, gdoBox);
+        gdoTable->setHorizontalHeaderLabels({"Insegna / Gruppo", "Note", "Portale Lavoro"});
+        gdoTable->verticalHeader()->hide();
+        gdoTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        gdoTable->setSelectionMode(QAbstractItemView::SingleSelection);
+        gdoTable->setAlternatingRowColors(true);
+        gdoTable->setShowGrid(false);
+        gdoTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+        gdoTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+        gdoTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+        gdoTable->setMaximumHeight(220);
+
+        for (int i = 0; i < N; ++i) {
+            gdoTable->setItem(i, 0, new QTableWidgetItem(kGDO[i].insegna));
+            gdoTable->setItem(i, 1, new QTableWidgetItem(
+                kGDO[i].note ? kGDO[i].note : kGDO[i].sito));
+            auto* lbl = new QLabel(
+                QString("<a href=\"%1\">%1</a>").arg(kGDO[i].urlLavoro));
+            lbl->setOpenExternalLinks(true);
+            lbl->setContentsMargins(4, 0, 4, 0);
+            gdoTable->setCellWidget(i, 2, lbl);
+        }
+        gdoTable->resizeRowsToContents();
+
+        connect(gdoBox, &QGroupBox::toggled, gdoTable, &QWidget::setVisible);
+        gdoTable->setVisible(false);
+        gdoLay->addWidget(gdoTable);
+
+        /* Copia URL in input quando si clicca su una riga */
+        connect(gdoTable, &QTableWidget::cellClicked, this,
+                [this, gdoTable](int row, int col) {
+            auto* lbl = qobject_cast<QLabel*>(gdoTable->cellWidget(row, 2));
+            if (!lbl) return;
+            static QRegularExpression re("href=\"([^\"]+)\"");
+            auto m = re.match(lbl->text());
+            if (!m.hasMatch()) return;
+            const QString url = m.captured(1);
+            if (col == 2) {
+                /* Colonna URL: apri direttamente nel browser */
+                QDesktopServices::openUrl(QUrl(url));
+            }
+            /* Qualunque colonna: copia URL nell'input */
+            if (m_urlInput) m_urlInput->setText(url);
+        });
+
+        lay->addWidget(gdoBox);
+    }
 
     /* ── Splitter: lista | output AI ── */
     auto* splitter = new QSplitter(Qt::Vertical, this);
@@ -612,9 +696,9 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
 
             m_linksLbl->setText(
                 "\xf0\x9f\x94\x97 <a href='" + urlAnnuncio + "'>Cerca annuncio</a>"
-                " &nbsp;|\nbsp; "
+                " &nbsp;|&nbsp;"
                 "\xf0\x9f\x8f\xa2 <a href='" + urlLavora   + "'>Lavora con noi</a>"
-                " &nbsp;|\nbsp; "
+                " &nbsp;|&nbsp;"
                 "\xf0\x9f\x97\xba <a href='" + urlMaps     + "'>" + o.sede + " — Google Maps</a>");
         });
 

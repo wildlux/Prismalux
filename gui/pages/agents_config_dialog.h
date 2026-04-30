@@ -75,6 +75,7 @@ public:
     RagDropWidget* ragWidget(int i)  { return m_ragWidget[i]; }
     QSpinBox*      numAgentsSpinBox()  { return m_spinShots; }
     int            numAgents() const   { return m_spinShots ? m_spinShots->value() : MAX_AGENTS; }
+    QComboBox*     modeCombo()         { return m_cmbMode; }
 
     /** Popola tutte le combo modello con la lista aggiornata dal backend */
     void setModels(const QStringList& models);
@@ -101,12 +102,17 @@ public:
     /** Stato del Controller LLM (spostato dal toolbar all'interno del dialog) */
     bool controllerEnabled() const { return m_controllerChk && m_controllerChk->isChecked(); }
 
+    /** Contesto RAG condiviso da tutti gli agenti */
+    RagDropWidget* sharedRagWidget() { return m_sharedRag; }
+
 private:
     QSpinBox*      m_spinShots              = nullptr;
+    QComboBox*     m_cmbMode               = nullptr;
     QComboBox*     m_roleCombo [MAX_AGENTS] = {};
     QComboBox*     m_modelCombo[MAX_AGENTS] = {};
     QCheckBox*     m_enabledChk[MAX_AGENTS] = {};
     RagDropWidget* m_ragWidget [MAX_AGENTS] = {};
+    RagDropWidget* m_sharedRag              = nullptr;  ///< RAG condiviso da tutti gli agenti
     QCheckBox*     m_controllerChk          = nullptr;  ///< Controller LLM (ex toolbar)
 
     void setupUI();

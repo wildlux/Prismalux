@@ -13,7 +13,11 @@
 #include <QNetworkAccessManager>
 #include <QTableWidget>
 #include <QProcess>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include "../ai_client.h"
+
+class LavoroPage;
 
 /* ══════════════════════════════════════════════════════════════
    StrumentiPage — Assistente AI multi-dominio
@@ -104,6 +108,15 @@ private:
     QString         m_officeCode;              ///< codice office estratto dall'ultima risposta AI
     QString         m_officeBridgeToken;       ///< token Bearer letto da ~/.prismalux_office_token
 
+    /* ── Input row (nascosta quando Cerca Lavoro è attivo) ── */
+    QWidget*        m_inputRow   = nullptr;
+
+    /* ── Cerca Lavoro (mostrato quando lavoroBtn è selezionato) ── */
+    LavoroPage*     m_lavoroPage = nullptr;
+
+    /* ── Cron inline panel ── */
+    QWidget*        m_cronPanel  = nullptr;
+
     /* ── Costruttori sotto-pagine ── */
     QWidget* buildSubPage(const QStringList& actions, const QString& placeholder);
     QWidget* buildStudio();
@@ -116,6 +129,10 @@ private:
     static QString sysPromptForAction(int navIdx, int subIdx);
 
     void runTool(const QString& sysPrompt, const QString& userMsg);
+
+protected:
+    void dragEnterEvent(QDragEnterEvent* e) override;
+    void dropEvent(QDropEvent* e) override;
 
 private slots:
     void onToken(const QString& t);

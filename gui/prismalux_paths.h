@@ -334,6 +334,18 @@ inline qint64 totalRamBytes()
             }
         }
     }
+#elif defined(Q_OS_WIN)
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
+#  include <windows.h>
+    MEMORYSTATUSEX ms;
+    ms.dwLength = sizeof(ms);
+    if (GlobalMemoryStatusEx(&ms))
+        return static_cast<qint64>(ms.ullTotalPhys);
 #endif
     return 0;   /* non determinabile: nessun avviso */
 }

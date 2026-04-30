@@ -70,6 +70,7 @@ set(CPP_SRCS
     pages/programmazione_page.cpp
     pages/programmazione_page_git_repl.cpp
     pages/matematica_page.cpp
+    pages/ricerca_page.cpp
     pages/app_controller_page.cpp
     pages/opencode_page.cpp
     monitor_panel.cpp
@@ -327,6 +328,25 @@ if(BUILD_TESTS)
         target_link_libraries(test_ai_stress PRIVATE pthread m)
     endif()
 
+    # ── test_team_collab: pipeline multi-agente 4 fasi ──────────────────
+    # CAT-J: sanity — nessuna rete, verifica costanti e helpers
+    # CAT-K: pipeline sequenziale Architetto→Sviluppatore→Revisore→Tester
+    # CAT-L: qualità output — class/def/test_ pattern, copertura minima
+    # Modelli: PRISMALUX_TEST_MODEL_REASONING (default: gpt-oss:120b)
+    #          PRISMALUX_TEST_MODEL_CODER     (default: qwen2.5-coder)
+    add_executable(test_team_collab
+        tests/test_team_collab.cpp
+        ai_client.cpp
+    )
+    target_include_directories(test_team_collab PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_team_collab PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_team_collab PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_team_collab PRIVATE pthread m)
+    endif()
+
     enable_testing()
     add_test(NAME SignalLifetime        COMMAND test_signal_lifetime)
     add_test(NAME RagEngine            COMMAND test_rag_engine)
@@ -338,7 +358,9 @@ if(BUILD_TESTS)
     add_test(NAME ThinkingDetect       COMMAND test_thinking_detect)
     add_test(NAME AiIntegration        COMMAND test_ai_integration)
     add_test(NAME AiStress             COMMAND test_ai_stress)
-    message(STATUS "Build test abilitata: test_signal_lifetime, test_rag_engine, test_code_utils, test_random_tool, test_lavoro_page, test_programmazione_page, test_thinking_detect, test_ai_integration, test_ai_stress")
+    add_test(NAME TeamCollab           COMMAND test_team_collab)
+    set_tests_properties(TeamCollab PROPERTIES TIMEOUT 2400)  # 40 min totali
+    message(STATUS "Build test abilitata: test_signal_lifetime, test_rag_engine, test_code_utils, test_random_tool, test_lavoro_page, test_programmazione_page, test_thinking_detect, test_ai_integration, test_ai_stress, test_team_collab")
 endif()
 
 # ── CPack — Windows installer (NSIS) ─────────────────────────────────────

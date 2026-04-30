@@ -202,7 +202,9 @@ void AgentiPage::runAgent(int idx) {
        In pipeline multi-agente usa il modello assegnato nel dialog Configura Agenti. */
     QString selectedModel;
     if (m_maxShots == 1 && m_cmbLLM) {
-        selectedModel = m_cmbLLM->currentText();
+        selectedModel = m_cmbLLM->currentData(Qt::UserRole).toString().isEmpty()
+                      ? m_cmbLLM->currentText()
+                      : m_cmbLLM->currentData(Qt::UserRole).toString();
     } else {
         selectedModel = m_cfgDlg->modelCombo(idx)->currentData().toString();
         if (selectedModel.isEmpty()) selectedModel = m_cfgDlg->modelCombo(idx)->currentText();
@@ -214,7 +216,11 @@ void AgentiPage::runAgent(int idx) {
         || selectedModel == "(nessun modello)"
         || _isEmbeddingModel(selectedModel))
     {
-        const QString fallback = m_cmbLLM ? m_cmbLLM->currentText() : QString();
+        const QString fallback = m_cmbLLM
+            ? (m_cmbLLM->currentData(Qt::UserRole).toString().isEmpty()
+               ? m_cmbLLM->currentText()
+               : m_cmbLLM->currentData(Qt::UserRole).toString())
+            : QString();
         if (!fallback.isEmpty() && !_isEmbeddingModel(fallback))
             selectedModel = fallback;
     }
@@ -255,8 +261,21 @@ void AgentiPage::runAgent(int idx) {
                       .arg(role.icon).arg(idx + 1).arg(role.name));
     m_agentTextStart = m_log->document()->characterCount() - 1;
 
-    QString userPrompt = m_taskOriginal;
+    QString userPrompt;
 
+    /* In modalità pipeline multi-agente, ogni agente vede l'obiettivo comune esplicito */
+    if (!isSingleChat) {
+        userPrompt  = "\xf0\x9f\x8e\xaf OBIETTIVO DEL TEAM: ";
+        userPrompt += m_taskOriginal;
+        userPrompt += "\n\n";
+    } else {
+        userPrompt = m_taskOriginal;
+    }
+
+    /* RAG condiviso: fornito a TUTTI gli agenti prima del contesto specifico */
+    if (m_cfgDlg->sharedRagWidget() && m_cfgDlg->sharedRagWidget()->hasContext())
+        userPrompt += _sanitize_prompt(m_cfgDlg->sharedRagWidget()->ragContext());
+    /* RAG specifico per questo agente */
     if (m_cfgDlg->ragWidget(idx) && m_cfgDlg->ragWidget(idx)->hasContext())
         userPrompt += _sanitize_prompt(m_cfgDlg->ragWidget(idx)->ragContext());
     if (!m_agentOutputs.isEmpty()) {
@@ -265,11 +284,14 @@ void AgentiPage::runAgent(int idx) {
             int prevRole = m_cfgDlg->roleCombo(i)->currentIndex();
             QString prevName = (prevRole >= 0 && prevRole < roleList.size())
                                ? roleList[prevRole].name : "Agente";
-            userPrompt += QString("\n[Agente %1 — %2]:\n%3\n")
+            userPrompt += QString("\n[Agente %1 \xe2\x80\x94 %2]:\n%3\n")
                           .arg(i + 1).arg(prevName).arg(m_agentOutputs[i]);
         }
         userPrompt += "\n" + QString(16, QChar(0x2500)) + "\n";
         userPrompt += QString("Ora esegui il tuo ruolo di %1.").arg(role.name);
+    } else if (!isSingleChat) {
+        /* Primo agente della pipeline: nessun output precedente, esplicita il ruolo */
+        userPrompt += QString("Il tuo ruolo in questo team: %1.").arg(role.name);
     }
 
     m_agentTimer.restart();

@@ -165,7 +165,7 @@ void AgentiPage::downloadWhisperModel()
 
     connect(dlProc,
         QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-        this, [this, dlProc, destFile](int code, QProcess::ExitStatus){
+        this, [this, dlProc, destDir, destFile](int code, QProcess::ExitStatus){
             dlProc->deleteLater();
             m_btnVoice->setEnabled(true);
 
@@ -182,12 +182,27 @@ void AgentiPage::downloadWhisperModel()
                 if (QFileInfo::exists(destFile) &&
                     QFileInfo(destFile).size() < 10'000'000LL)
                     QFile::remove(destFile);
-                m_log->append(
-                    "\xe2\x9d\x8c  Download fallito (controlla la connessione).<br>"
-                    "Puoi scaricarlo manualmente:<br>"
-                    "<code>mkdir -p ~/.prismalux/whisper/models &amp;&amp; "
-                    "wget -O ~/.prismalux/whisper/models/ggml-small.bin "
-                    "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin</code>");
+                {
+                    const QString destDirNative = QDir::toNativeSeparators(destDir);
+#ifdef Q_OS_WIN
+                    m_log->append(
+                        "\xe2\x9d\x8c  Download fallito (controlla la connessione).<br>"
+                        "Puoi scaricarlo manualmente (PowerShell):<br>"
+                        "<code>New-Item -ItemType Directory -Force \""
+                        + destDirNative + "\"; "
+                        "Invoke-WebRequest -Uri "
+                        "'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin' "
+                        "-OutFile '" + QDir::toNativeSeparators(destFile) + "'</code>");
+#else
+                    Q_UNUSED(destDirNative)
+                    m_log->append(
+                        "\xe2\x9d\x8c  Download fallito (controlla la connessione).<br>"
+                        "Puoi scaricarlo manualmente:<br>"
+                        "<code>mkdir -p ~/.prismalux/whisper/models &amp;&amp; "
+                        "wget -O ~/.prismalux/whisper/models/ggml-small.bin "
+                        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin</code>");
+#endif
+                }
             }
         });
 }

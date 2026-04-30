@@ -10,8 +10,8 @@
 /* oracolo_page.h rimosso: OracoloPage sostituita da grafico integrato in AgentiPage */
 #include "pages/programmazione_page.h"
 #include "pages/matematica_page.h"
+#include "pages/ricerca_page.h"
 #include "pages/app_controller_page.h"
-#include "pages/lavoro_page.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -396,21 +396,23 @@ MainWindow::MainWindow(QWidget* parent)
     /* Pagina iniziale */
     navigateTo(0);
 
-    /* Scorciatoie da tastiera: Alt+1…6 = navigazione rapida
-       0=Agenti  1=Strumenti  2=Programmazione
-       3=Matematica(+Grafico sub-tab)  4=APP Controller  5=Impara(+Finanza+Sfida) */
+    /* Scorciatoie da tastiera: Alt+1…7 = navigazione rapida
+       0=Agenti  1=Strumenti  2=Programmazione  3=Matematica
+       4=Ricerca  5=APP Controller  6=Impara */
     auto* sc1 = new QShortcut(QKeySequence("Alt+1"), this);
     auto* sc2 = new QShortcut(QKeySequence("Alt+2"), this);
     auto* sc3 = new QShortcut(QKeySequence("Alt+3"), this);
     auto* sc4 = new QShortcut(QKeySequence("Alt+4"), this);
     auto* sc5 = new QShortcut(QKeySequence("Alt+5"), this);
     auto* sc6 = new QShortcut(QKeySequence("Alt+6"), this);
+    auto* sc7 = new QShortcut(QKeySequence("Alt+7"), this);
     connect(sc1, &QShortcut::activated, this, [this]{ navigateTo(0); }); /* Intelligenza artificiale */
     connect(sc2, &QShortcut::activated, this, [this]{ navigateTo(1); }); /* Strumenti */
     connect(sc3, &QShortcut::activated, this, [this]{ navigateTo(2); }); /* Programmazione */
     connect(sc4, &QShortcut::activated, this, [this]{ navigateTo(3); }); /* Matematica+Grafico */
-    connect(sc5, &QShortcut::activated, this, [this]{ navigateTo(4); }); /* APP Controller */
-    connect(sc6, &QShortcut::activated, this, [this]{ navigateTo(5); }); /* Impara */
+    connect(sc5, &QShortcut::activated, this, [this]{ navigateTo(4); }); /* Ricerca e Sviluppo */
+    connect(sc6, &QShortcut::activated, this, [this]{ navigateTo(5); }); /* APP Controller */
+    connect(sc7, &QShortcut::activated, this, [this]{ navigateTo(6); }); /* Impara */
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1457,11 +1459,15 @@ QWidget* MainWindow::buildContent() {
         m_mainTabs->addTab(mathContainer, "\xcf\x80  Matematica");                        /* 3 */
     }
 
+    /* ── Ricerca e Sviluppo — Paper · Brevetti · Documenti tecnici ── */
+    m_mainTabs->addTab(new RicercaPage(m_ai, this),
+                       "\xf0\x9f\x94\xac  Ricerca");                                      /* 4 */
+
     /* ── APP Controller — joystick MCP bridges ── */
     m_mainTabs->addTab(new AppControllerPage(m_ai, this),
-                       "\xf0\x9f\x95\xb9  APP Controller");                               /* 4 */
+                       "\xf0\x9f\x95\xb9  APP Controller");                               /* 5 */
 
-    /* ── Impara: Finanza + Sfida come sotto-schede ── */
+    /* ── Impara: Finanza · Impara con AI · Sfida (Cerca Lavoro spostata in Strumenti AI) ── */
     {
         auto* imparaContainer = new QWidget(m_mainTabs);
         auto* ilay = new QVBoxLayout(imparaContainer);
@@ -1471,38 +1477,24 @@ QWidget* MainWindow::buildContent() {
         auto* imparaTabs = new QTabWidget(imparaContainer);
         imparaTabs->setObjectName("imparaSubTabs");
         imparaTabs->setTabPosition(QTabWidget::North);
-        /* ── Sub-tab unificato: Impara con AI + Sfida ── */
+
+        imparaTabs->addTab(new PraticoPage(m_ai, imparaContainer), "\xf0\x9f\x92\xb0  Finanza");
+
+        /* Impara con AI e Sfida te stesso — diretti, senza wrapper nidificato */
+        imparaTabs->addTab(new ImparaPage(m_ai, imparaContainer), "\xf0\x9f\x8f\x9b  Impara con AI");
+        /* QuizPage usa AiClient SEPARATO: evita cross-talk con AgentiPage */
         {
-            auto* impSfidaTabs = new QTabWidget(imparaContainer);
-            impSfidaTabs->setObjectName("impSfidaSubTabs");
-            impSfidaTabs->setTabPosition(QTabWidget::North);
-            impSfidaTabs->addTab(new ImparaPage(m_ai, impSfidaTabs), "\xf0\x9f\x8f\x9b  Impara con AI");
-            /* QuizPage usa AiClient SEPARATO: evita cross-talk con AgentiPage */
-            {
-                auto* quizAi = new AiClient(this);
+            auto* quizAi = new AiClient(this);
+            quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+            connect(m_ai, &AiClient::modelsReady, quizAi, [this, quizAi](const QStringList&){
                 quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
-                connect(m_ai, &AiClient::modelsReady, quizAi, [this, quizAi](const QStringList&){
-                    quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
-                });
-                impSfidaTabs->addTab(new QuizPage(quizAi, impSfidaTabs),
-                                     "\xf0\x9f\x8e\xaf  Sfida te stesso!");
-            }
-            imparaTabs->addTab(impSfidaTabs, "\xf0\x9f\x93\x9a  Impara");
-        }
-        /* LavoroPage usa AiClient SEPARATO: evita cross-talk con AgentiPage (Byzantine) */
-        {
-            auto* lavoroAi = new AiClient(this);
-            lavoroAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
-            connect(m_ai, &AiClient::modelsReady, lavoroAi, [this, lavoroAi](const QStringList&){
-                lavoroAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
             });
-            imparaTabs->addTab(new LavoroPage(lavoroAi, imparaContainer),
-                               "\xf0\x9f\x92\xbc  Cerca Lavoro");
+            imparaTabs->addTab(new QuizPage(quizAi, imparaContainer),
+                               "\xf0\x9f\x8e\xaf  Sfida te stesso!");
         }
-        imparaTabs->addTab(new PraticoPage(m_ai, imparaContainer),  "\xf0\x9f\x92\xb0  Finanza");
         ilay->addWidget(imparaTabs);
 
-        m_mainTabs->addTab(imparaContainer, "\xf0\x9f\x93\x9a  Impara");                  /* 5 */
+        m_mainTabs->addTab(imparaContainer, "\xf0\x9f\x93\x9a  Impara");                  /* 6 */
     }
 
 
@@ -1520,7 +1512,7 @@ QWidget* MainWindow::buildContent() {
         auto* btnGroup = new QButtonGroup(m_navMenuBar);
         btnGroup->setExclusive(true);
         for (int i = 0; i < m_mainTabs->count(); i++) {
-            if (i == 5) {           /* separatore prima di "Impara" */
+            if (i == 6) {           /* separatore prima di "Impara" */
                 auto* sep = new QFrame(m_navMenuBar);
                 sep->setFrameShape(QFrame::VLine);
                 sep->setObjectName("navMenuSep");

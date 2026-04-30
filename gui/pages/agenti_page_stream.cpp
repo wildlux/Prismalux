@@ -28,10 +28,6 @@ namespace P = PrismaluxPaths;
    Slot segnali AI
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::onToken(const QString& t) {
-    if (m_opMode == OpMode::AutoAssign) {
-        m_autoBuffer += t;
-        return;
-    }
     if (m_opMode == OpMode::ConsiglioScientifico) {
         /* I peer gestiscono i loro token internamente via lambda — ignora */
         return;
@@ -147,12 +143,6 @@ void AgentiPage::onFinished(const QString& full) {
         return;
     }
 
-    if (m_opMode == OpMode::AutoAssign) {
-        m_opMode = OpMode::Idle;
-        parseAutoAssign(m_autoBuffer);
-        return;
-    }
-
     /* ── Controller LLM completato ── */
     if (m_opMode == OpMode::PipelineControl) {
         m_opMode = OpMode::Pipeline;   /* ripristina prima di advance */
@@ -196,12 +186,18 @@ void AgentiPage::onFinished(const QString& full) {
                 rawResp = m_agentOutputs[m_currentAgent - 1] = full;
             /* Rimuove blocchi <think>...</think> (reasoning models: qwen3, deepseek-r1, qwq...)
                Se dopo lo strip rimane vuoto (modelli piccoli che producono SOLO thinking
-               senza risposta finale), si usa il contenuto del <think> come fallback. */
+               senza risposta finale), si usa il contenuto del <think> come fallback.
+               Il contenuto del <think> viene salvato in m_thinkTexts per il toggle collassabile. */
+            QString extractedThink;  /* contenuto <think> estratto — salvato per la bolla */
             {
                 QRegularExpression reTh("<think>([\\s\\S]*?)</think>",
                                         QRegularExpression::CaseInsensitiveOption);
                 /* Salva l'originale prima di rimuovere */
                 const QString original = rawResp;
+                auto thinkMatch = reTh.match(original);
+                if (thinkMatch.hasMatch())
+                    extractedThink = thinkMatch.captured(1).trimmed();
+
                 rawResp.remove(QRegularExpression("<think>[\\s\\S]*?</think>",
                     QRegularExpression::CaseInsensitiveOption));
                 rawResp = rawResp.trimmed();
@@ -232,6 +228,7 @@ void AgentiPage::onFinished(const QString& full) {
                            agenti un placeholder chiaro invece di contenuto di ragionamento */
                         m_agentOutputs[m_currentAgent - 1] =
                             "[Modello ha prodotto solo ragionamento interno — nessuna risposta finale]";
+                        extractedThink = "";  /* il think diventa la risposta: non serve toggle */
                     } else {
                         /* Nessun tag <think> e risposta vuota — modello non ha risposto */
                         rawResp = "[Nessuna risposta dal modello. "
@@ -291,10 +288,12 @@ void AgentiPage::onFinished(const QString& full) {
             sel.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
             sel.removeSelectedText();
             { int idx = m_bubbleIdx++; m_bubbleTexts[idx] = rawResp;
+              if (!extractedThink.isEmpty()) m_thinkTexts[idx] = extractedThink;
               sel.insertHtml(buildAgentBubble(m_currentAgentLabel,
                                              m_currentAgentModel,
                                              m_currentAgentTime,
-                                             htmlContent, idx)); }
+                                             htmlContent, idx,
+                                             extractedThink)); }
         }
 
         /* ── Tool Executor: estrae ed esegue codice Python, poi avvia il Controller ── */
@@ -717,12 +716,6 @@ static QString _categorizeError(const QString& msg, AiClient::Backend backend) {
 
 void AgentiPage::onError(const QString& msg) {
     m_waitLbl->setVisible(false);
-    if (m_opMode == OpMode::AutoAssign) {
-        m_autoLbl->setText(QString("\xe2\x9d\x8c  Errore auto-assegnazione: %1").arg(msg));
-        m_btnAuto->setEnabled(true);
-        m_opMode = OpMode::Idle;
-        return;
-    }
 
     const QString categorized = _categorizeError(msg, m_ai->backend());
     if (!categorized.isEmpty())

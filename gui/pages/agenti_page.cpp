@@ -57,10 +57,10 @@ namespace P = PrismaluxPaths;
 AgentiPage::AgentiPage(AiClient* ai, QWidget* parent)
     : QWidget(parent), m_ai(ai)
 {
-    m_namAuto = new QNetworkAccessManager(this);
-
     /* Dialog configurazione agenti — non-modal, creato una volta */
     m_cfgDlg = new AgentsConfigDialog(this);
+    /* m_cmbMode vive dentro il dialog Configura Agenti */
+    m_cmbMode = m_cfgDlg->modeCombo();
 
     setupUI();
 
@@ -75,7 +75,8 @@ AgentiPage::AgentiPage(AiClient* ai, QWidget* parent)
        blockSignals previene il loop currentIndexChanged → setBackend. */
     connect(m_ai, &AiClient::modelChanged, this, [this](const QString& newModel) {
         if (!m_cmbLLM || !m_pageModel.isEmpty()) return;
-        const int idx = m_cmbLLM->findText(newModel);
+        int idx = m_cmbLLM->findData(newModel, Qt::UserRole);
+        if (idx < 0) idx = m_cmbLLM->findText(newModel);
         if (idx >= 0 && idx != m_cmbLLM->currentIndex()) {
             m_cmbLLM->blockSignals(true);
             m_cmbLLM->setCurrentIndex(idx);

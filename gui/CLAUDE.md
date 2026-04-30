@@ -15,13 +15,16 @@ Strutturale → `cmake -B build` prima. Solo .cpp/.h → solo `cmake --build bui
 ```
 Header (72px): logo · backend · model · CPU/RAM/GPU · spinner · ⚙️
 [0] 🤖 Intelligenza Artificiale  Alt+1  Pipeline + Byzantino + CHAT RAG
-[1] 🛠 Strumenti AI              Alt+2  Studio, Scrittura, Ricerca, MCP
+[1] 🛠 Strumenti AI              Alt+2  Studio, Scrittura, Ricerca, 💼 Cerca Lavoro, Libri, Produttività, Documenti
 [2] 💻 Programmazione            Alt+3  Editor + sub-tab Agentica
 [3] π  Matematica                Alt+4  Matematica · Grafico
-[4] 🕹 APP Controller            Alt+5  Blender/Office/Anki/KiCAD/TinyMCP/OpenCode
-[5] 📚 Impara                    Alt+6  Impara · Lavoro · Finanza · Sfida
+[4] 🔬 Ricerca                   Alt+5  Paper · Brevetti · Documenti tecnici
+[5] 🕹 APP Controller            Alt+6  Blender/Office/Anki/KiCAD/TinyMCP/OpenCode
+[6] 📚 Impara                    Alt+7  Finanza · Impara con AI · Sfida te stesso
 ImpostazioniPage: dialog modale (⚙️ header)
 ```
+Note: Cerca Lavoro è in Strumenti AI (cat 3, tra Ricerca e Libri) — attivata da lavoroBtn (checkable).
+LavoroPage è istanziata dentro StrumentiPage (m_lavoroPage), NON in mainwindow.cpp.
 
 ## File chiave
 | File | Ruolo |
@@ -124,6 +127,22 @@ Budget netto = VRAM_disponibile - 470 MB. Usare Misto se il margine è < 200 MB.
 - Invio = modalità corrente · Stop da fermo = toggle CHAT↔Avvia
 - `abort()` → `onAborted` rimuove testo da `m_agentBlockStart` a End
 - qwen3.5 rimosso da `s_knownBroken` (fix 2026-04-24) — nessun workaround necessario
+
+## RAG condiviso tra agenti (2026-04-30)
+- `AgentsConfigDialog::m_sharedRag` — `RagDropWidget` singolo sopra la griglia agenti
+- `sharedRagWidget()` — accessor pubblico usato da `AgentiPage::runAgent()`
+- In `runAgent()`: prima inietta `sharedRag->ragContext()`, poi `ragWidget(idx)->ragContext()`
+- Ordine nel prompt: `[RAG condiviso] + [RAG specifico agente] + [output agenti precedenti]`
+- Il RAG condiviso è visibile a tutti gli agenti; il RAG per-agente è specifico al ruolo
+
+## Fix Windows (2026-04-30)
+- `totalRamBytes()` in `prismalux_paths.h`: aggiunto ramo `#elif defined(Q_OS_WIN)` via `GlobalMemoryStatusEx()` — ora i modelli troppo grandi appaiono in rosso nella combo anche su Windows
+- Messaggio fallback download Whisper (`agenti_page_stt.cpp`): su `Q_OS_WIN` mostra comandi PowerShell (`New-Item` + `Invoke-WebRequest`) invece di `mkdir -p` + `wget`
+- `Avvia_Prismalux.bat` creato nella root: cerca l'exe in `COMPILE_WIN\build\` e `gui\build_win\` e lo lancia con working directory corretta
+
+## Launcher Windows
+- `build.bat` (root) → **compila** il sorgente (una tantum o dopo aggiornamenti)
+- `Avvia_Prismalux.bat` (root) → **avvia** il programma già compilato (ogni volta)
 
 ## OpenCodePage — protocollo
 OpenCode è un **sub-tab di APP Controller** (tab [4]), non un tab principale.

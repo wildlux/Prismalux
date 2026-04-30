@@ -6,6 +6,7 @@
 #include <QTextBrowser>
 #include <QTextCursor>
 #include <QMap>
+#include <QSet>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QCheckBox>
@@ -40,7 +41,8 @@ public:
     static QString buildUserBubble(const QString& text, int bubbleIdx = -1);
     static QString buildAgentBubble(const QString& label, const QString& model,
                                     const QString& time,  const QString& htmlContent,
-                                    int bubbleIdx = -1);
+                                    int bubbleIdx = -1,
+                                    const QString& thinkContent = "");
     static QString buildLocalBubble(const QString& result, double ms, int bubbleIdx = -1,
                                     const QString& extraLinks = "");
     static QString markdownToHtml(const QString& md);
@@ -77,11 +79,12 @@ private:
     bool          m_userScrolled       = false;  ///< true se l'utente ha scrollato su durante streaming
     bool          m_suppressScrollSig  = false;  ///< sopprime il segnale valueChanged durante auto-scroll
     QMap<int,QString> m_bubbleTexts;      ///< testo plain indicizzato per copia/TTS
+    QMap<int,QString> m_thinkTexts;       ///< testo reasoning <think>...</think> per bolla
+    QSet<int>         m_thinkShown;       ///< bolle con reasoning visibile
     int           m_bubbleIdx = 0;        ///< contatore bolle corrente
     QTextEdit*    m_input     = nullptr;
     QPushButton*  m_btnRun        = nullptr;  ///< Pulsante unico: run (idle) ↔ stop (busy)
     bool          m_modePipeline  = false;    ///< false=Singolo (default), true=Avvia pipeline
-    QPushButton*  m_btnAuto       = nullptr;   ///< Auto-assegna ruoli
     QPushButton*  m_btnCfg        = nullptr;   ///< Apre dialog config agenti
     QPushButton*  m_btnModeToggle = nullptr;   ///< Toggle Mono-Agente / Multi-Agente
     QWidget*      m_multiAgentBar = nullptr;   ///< Container controlli pipeline (nascosto in Mono)
@@ -94,10 +97,9 @@ private:
     int           m_maxShots  = 6;
     int           m_tokenCount = 0;
 
-    /* ── Modelli disponibili (per autoAssignRoles) ── */
+    /* ── Modelli disponibili (Consiglio Scientifico) ── */
     struct ModelInfo { QString name; qint64 size; };
-    QVector<ModelInfo>     m_modelInfos;
-    QNetworkAccessManager* m_namAuto = nullptr;
+    QVector<ModelInfo> m_modelInfos;
 
     /* ── Stato pipeline sequenziale ── */
     static constexpr int MAX_AGENTS = 6;
@@ -116,11 +118,10 @@ private:
     QString m_translateSrcLang;
     QString m_translateDstLang;
 
-    /* ── Stato auto-assegnazione ── */
-    enum class OpMode { Idle, Pipeline, PipelineControl, Byzantine, AutoAssign, MathTheory, Translating, ConsiglioScientifico };
+    /* ── Stato modalità operative ── */
+    enum class OpMode { Idle, Pipeline, PipelineControl, Byzantine, MathTheory, Translating, ConsiglioScientifico };
     OpMode  m_opMode      = OpMode::Idle;
     OpMode  m_pendingMode = OpMode::Idle;  ///< Modalità da eseguire dopo traduzione
-    QString m_autoBuffer;
     QString m_translateBuf;  ///< Accumulo token traduzione
 
     /* ── Consiglio Scientifico (query parallela multi-modello) ── */
@@ -228,8 +229,6 @@ private:
     static double jaccardSim(const QString& a, const QString& b);
     void runAgent(int idx);
     void advancePipeline();
-    void autoAssignRoles();
-    void parseAutoAssign(const QString& json);
 
     /** Guardia matematica locale — ritorna risultato se gestita, "" altrimenti */
     static QString guardiaMath(const QString& input);
