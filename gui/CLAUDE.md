@@ -117,6 +117,19 @@ if (idx >= 0) combo->setCurrentIndex(idx);
   `deleteChildren()` chiama `delete &inst` su un oggetto stack → heap corruption → ABRT Signal 6.
   Fix applicato 2026-05-06 in `theme_manager.cpp:15`.
 
+- **SIGSEGV shutdown — LanServer::statusChanged** (fix 2026-05-07): destructor chiamava `stop()` che emetteva
+  `statusChanged(false)` → lambda in StrumentiPage accedeva widget già in distruzione.
+  Fix: `blockSignals(true)` prima di `stop()` in `lan_server.cpp:32` — protegge anche `clientConnected/Disconnected`.
+
+- **SIGSEGV STT countdown timer** (fix 2026-05-07): `_sttStartRecording()` creava `tick` QTimer con due lambda
+  che potevano entrambe chiamare `tick->deleteLater()` (il tick lambda senza `stop()` + il 6.5s singleShot).
+  Se l'utente fermava manualmente → `m_sttState != Recording` → tick lambda eliminava `tick` senza `stop()` →
+  il singleShot scattava su pointer già freed → SIGSEGV in `lockThreadPostEventList`.
+  Fix in `agenti_page_stt.cpp`: `QPointer<QTimer> safeTick(tick)` catturata in entrambe le lambda;
+  `safeTick->stop()` aggiunto prima di `deleteLater()`; null-check `if (safeTick)` nel singleShot.
+  Regola: MAI catturare `QTimer*` raw in lambda multiple che possono tutte chiamare `deleteLater()`;
+  usare sempre `QPointer<QTimer>` quando la vita del timer è condivisa tra lambda diverse.
+
 ## AiClient — API
 ```cpp
 m_ai->setBackend(Backend, host, port, model);  // non emette segnali

@@ -3,6 +3,7 @@
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
 #include <QTimer>
+#include <QPointer>
 #include <QFile>
 #include <QFileInfo>
 #include <QDir>
@@ -61,10 +62,14 @@ void AgentiPage::_sttStartRecording()
     /* Countdown nel testo del pulsante */
     auto* tick = new QTimer(this);
     tick->setProperty("secs", 6);
-    connect(tick, &QTimer::timeout, this, [this, tick]{
-        if (m_sttState != SttState::Recording) { tick->deleteLater(); return; }
-        int s = tick->property("secs").toInt() - 1;
-        tick->setProperty("secs", s);
+    QPointer<QTimer> safeTick(tick);   /* cattura sicura: diventa null dopo deleteLater */
+    connect(tick, &QTimer::timeout, this, [this, safeTick]{
+        if (!safeTick) return;
+        if (m_sttState != SttState::Recording) {
+            safeTick->stop(); safeTick->deleteLater(); return;
+        }
+        int s = safeTick->property("secs").toInt() - 1;
+        safeTick->setProperty("secs", s);
         if (s > 0)
             m_btnVoice->setText(
                 QString("\xf0\x9f\x94\xb4 Registrando... %1s (click per fermare)").arg(s));
@@ -72,8 +77,8 @@ void AgentiPage::_sttStartRecording()
     tick->start(1000);
 
     /* Dopo 6.5s ferma la registrazione e avvia la trascrizione */
-    QTimer::singleShot(6500, this, [this, wavPath, tick]{
-        tick->stop(); tick->deleteLater();
+    QTimer::singleShot(6500, this, [this, wavPath, safeTick]{
+        if (safeTick) { safeTick->stop(); safeTick->deleteLater(); }
         if (m_sttState != SttState::Recording) return;  // utente ha fermato prima
         if (m_recProc) { m_recProc->terminate(); m_recProc->waitForFinished(1000);
                          m_recProc->deleteLater(); m_recProc = nullptr; }
