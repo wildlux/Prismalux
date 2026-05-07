@@ -1,4 +1,5 @@
 #include "ricerca_page.h"
+#include "lavoro_page.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
@@ -82,9 +83,10 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     auto* tabs = new QTabWidget(this);
     tabs->setObjectName("settingsInnerTabs");
     tabs->setDocumentMode(true);
-    tabs->addTab(buildPaperTab(),      "\xf0\x9f\x93\x84  Paper Scientifico");
-    tabs->addTab(buildBrevettoTab(),   "\xf0\x9f\x94\x8f  Brevetto");
-    tabs->addTab(buildDocTecnicoTab(), "\xf0\x9f\x93\x8b  Documento Tecnico");
+    tabs->addTab(buildPaperTab(),          "\xf0\x9f\x93\x84  Paper Scientifico");
+    tabs->addTab(buildBrevettoTab(),       "\xf0\x9f\x94\x8f  Brevetto");
+    tabs->addTab(buildDocTecnicoTab(),     "\xf0\x9f\x93\x8b  Documento Tecnico");
+    tabs->addTab(new LavoroPage(m_ai, this), "\xf0\x9f\x92\xbc  Cerca Lavoro");
     vlay->addWidget(tabs, 1);
 
     /* ── connessioni AI (una sola volta per tutta la pagina) ──────── */

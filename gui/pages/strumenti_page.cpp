@@ -1,8 +1,8 @@
 #include "strumenti_page.h"
-#include "lavoro_page.h"
 #include "stable_diffusion_widget.h"
 #include "../prismalux_paths.h"
 #include "../lan_server.h"
+#include <QScrollArea>
 #include <QSpinBox>
 #include <QGroupBox>
 #include <QNetworkInterface>
@@ -460,18 +460,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     lblSel->setText("\xe2\x9c\x85  <b>" + firstAction + "</b>");
     lblSel->setTextFormat(Qt::RichText);
 
-    QPushButton* lavoroBtn = nullptr;
     for (int cat = 0; cat < 6; cat++) {
-        /* Inserisci "Cerca Lavoro" tra Ricerca (2) e Libri (3) */
-        if (cat == 3) {
-            lavoroBtn = new QPushButton(
-                "\xf0\x9f\x92\xbc  Cerca Lavoro", catBar);
-            lavoroBtn->setCheckable(true);
-            lavoroBtn->setObjectName("strCatBtn");
-            lavoroBtn->setToolTip(
-                "Cerca offerte di lavoro, analisi CV e URL annunci");
-            catLay->addWidget(lavoroBtn);
-        }
         /* Tab categoria */
         auto* catBtn = new QPushButton(
             QString::fromUtf8(kCatLabels[cat]), catBar);
@@ -569,9 +558,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
 
     /* Cambio categoria */
     connect(catGroup, QOverload<int>::of(&QButtonGroup::idClicked),
-            this, [this, actStack, lblSel, lavoroBtn, cronBtn, lanAndroidBtn, sdBtn](int cat) {
-        if (lavoroBtn) lavoroBtn->setChecked(false);
-        if (m_lavoroPage) m_lavoroPage->setVisible(false);
+            this, [this, actStack, lblSel, cronBtn, lanAndroidBtn, sdBtn](int cat) {
         if (cronBtn) cronBtn->setChecked(false);
         if (m_cronPanel) m_cronPanel->setVisible(false);
         if (lanAndroidBtn) lanAndroidBtn->setChecked(false);
@@ -629,30 +616,16 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
                 QString::fromUtf8(kModelHints[cat]));
     });
 
-    /* ── lavoroBtn: mostra pannello Cerca Lavoro al posto dell'area AI ── */
-    if (lavoroBtn) {
-        connect(lavoroBtn, &QPushButton::clicked, this,
-                [this, actStack, lblSel, cronBtn, lanAndroidBtn](bool checked) {
-            actStack->setVisible(!checked);
-            lblSel->setVisible(!checked);
-            m_ragRow->setVisible(!checked);
-            m_pdfRow->setVisible(false);
-            m_codeModelRow->setVisible(!checked);
-            if (m_inputRow) m_inputRow->setVisible(!checked);
-            m_output->setVisible(!checked);
-            if (m_lavoroPage) m_lavoroPage->setVisible(checked);
-            if (checked && cronBtn) cronBtn->setChecked(false);
-            if (m_cronPanel) m_cronPanel->setVisible(false);
-            if (checked && lanAndroidBtn) lanAndroidBtn->setChecked(false);
-            if (m_lanPanel) m_lanPanel->setVisible(false);
-            if (checked && m_fileSearchBtn) m_fileSearchBtn->setChecked(false);
-            if (m_fileSearchPanel) m_fileSearchPanel->setVisible(false);
-            if (checked && m_wikiBtn) m_wikiBtn->setChecked(false);
-            if (m_wikiPanel) m_wikiPanel->setVisible(false);
-        });
-    }
+    /* ── catBar in scroll area: tutti i tab sempre leggibili ── */
+    auto* catScroll = new QScrollArea(this);
+    catScroll->setFrameShape(QFrame::NoFrame);
+    catScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    catScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    catScroll->setWidget(catBar);
+    catScroll->setWidgetResizable(false);
+    catScroll->setFixedHeight(36);
 
-    lay->addWidget(catBar);
+    lay->addWidget(catScroll);
     lay->addWidget(actStack);
     lay->addWidget(lblSel);
 
@@ -1677,11 +1650,6 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         "\xf0\x9f\x8d\xba  Invocazione riuscita. Gli dei ascoltano.");
     lay->addWidget(m_output, 1);
 
-    /* ── Pannello Cerca Lavoro (sovrapposto all'area AI, nascosto inizialmente) ── */
-    m_lavoroPage = new LavoroPage(m_ai, this);
-    m_lavoroPage->setVisible(false);
-    lay->addWidget(m_lavoroPage, 1);
-
     /* ── Pannello Cron inline ── */
     m_cronPanel = new QWidget(this);
     {
@@ -1710,7 +1678,6 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         if (m_inputRow) m_inputRow->setVisible(!checked);
         m_output->setVisible(!checked);
         m_cronPanel->setVisible(checked);
-        if (checked && m_lavoroPage) m_lavoroPage->setVisible(false);
         if (checked && lanAndroidBtn) lanAndroidBtn->setChecked(false);
         if (m_lanPanel) m_lanPanel->setVisible(false);
         if (checked && m_fileSearchBtn) m_fileSearchBtn->setChecked(false);
@@ -1951,7 +1918,6 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         if (m_inputRow) m_inputRow->setVisible(!checked);
         m_output->setVisible(!checked);
         m_lanPanel->setVisible(checked);
-        if (checked && m_lavoroPage) m_lavoroPage->setVisible(false);
         if (checked && cronBtn) cronBtn->setChecked(false);
         if (m_cronPanel) m_cronPanel->setVisible(false);
         if (checked && sdBtn) sdBtn->setChecked(false);
@@ -1978,8 +1944,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
             if (m_inputRow) m_inputRow->setVisible(!checked);
             m_output->setVisible(!checked);
             m_sdPanel->setVisible(checked);
-            if (checked && m_lavoroPage) m_lavoroPage->setVisible(false);
-            if (checked && cronBtn) cronBtn->setChecked(false);
+                if (checked && cronBtn) cronBtn->setChecked(false);
             if (m_cronPanel) m_cronPanel->setVisible(false);
             if (checked && lanAndroidBtn) lanAndroidBtn->setChecked(false);
             if (m_lanPanel) m_lanPanel->setVisible(false);
@@ -2005,7 +1970,6 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         if (m_inputRow) m_inputRow->setVisible(!checked);
         m_output->setVisible(!checked);
         m_fileSearchPanel->setVisible(checked);
-        if (checked && m_lavoroPage) m_lavoroPage->setVisible(false);
         if (checked && cronBtn) cronBtn->setChecked(false);
         if (m_cronPanel) m_cronPanel->setVisible(false);
         if (checked && lanAndroidBtn) lanAndroidBtn->setChecked(false);
@@ -2031,7 +1995,6 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         if (m_inputRow) m_inputRow->setVisible(!checked);
         m_output->setVisible(checked);    /* mostra output AI per elaborazione */
         m_wikiPanel->setVisible(checked);
-        if (checked && m_lavoroPage) m_lavoroPage->setVisible(false);
         if (checked && cronBtn) cronBtn->setChecked(false);
         if (m_cronPanel) m_cronPanel->setVisible(false);
         if (checked && lanAndroidBtn) lanAndroidBtn->setChecked(false);

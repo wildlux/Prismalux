@@ -19,7 +19,6 @@
 #include <QDropEvent>
 #include "../ai_client.h"
 
-class LavoroPage;
 class LanServer;
 
 /* ══════════════════════════════════════════════════════════════
@@ -116,9 +115,6 @@ private:
 
     /* ── Input row (nascosta quando Cerca Lavoro è attivo) ── */
     QWidget*        m_inputRow   = nullptr;
-
-    /* ── Cerca Lavoro (mostrato quando lavoroBtn è selezionato) ── */
-    LavoroPage*     m_lavoroPage = nullptr;
 
     /* ── Cron inline panel ── */
     QWidget*        m_cronPanel  = nullptr;
