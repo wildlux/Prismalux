@@ -5,7 +5,7 @@
 ### *"Costruito per i mortali che aspirano alla saggezza."*
 
 [![C++/Qt6](https://img.shields.io/badge/GUI-C%2B%2B%20%2F%20Qt6-green?style=flat-square&logo=qt)](https://www.qt.io/)
-[![Version](https://img.shields.io/badge/versione-2.8-blue?style=flat-square)](CHANGELOG)
+[![Version](https://img.shields.io/badge/versione-2.9-blue?style=flat-square)](CHANGELOG)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20Android%20(WIP)-informational?style=flat-square)](https://github.com/wildlux/Prismalux)
 
@@ -53,18 +53,43 @@ ollama pull qwen3:8b   # ~5 GB, ottimo italiano + think nativo
 **Con test:**
 ```bash
 cmake -B build_tests -DBUILD_TESTS=ON && cmake --build build_tests -j$(nproc)
-# test_signal_lifetime · test_rag_engine · test_code_utils
-# test_lavoro_page · test_app_controller · test_programmazione_page
+# 26 suite disponibili — vedi tabella sotto
+ctest --test-dir build_tests -j4          # esegui tutto
+ctest --test-dir build_tests -R NomeSuite # esegui una suite
 ```
 
 | Suite | Test | Cosa verifica |
 |-------|------|---------------|
 | `test_signal_lifetime` | 36+ | Dangling observer, signal leakage |
 | `test_rag_engine` | 15 | Chunking, embedding, search, round-trip |
+| `test_rag_engine_avanzato` | 35 | Proprietà JLT math, search edge, save/load 1000 chunk, perf |
 | `test_code_utils` | 14+ | Estrazione Python da risposta AI |
+| `test_random_tool` | 12 | `_inject_random`: keyword detection, range, decimali, grafico |
 | `test_lavoro_page` | 37 | Isolamento AiClient, filtri, sincronizzazione modello |
+| `test_lavoro_data` | 32 | kOfferte integrità dataset, offerteFiltrate, tipoIcon/livLabel |
+| `test_tutor_data` | 24 | SubjectData invarianti strutturali, unicità cross-soggetto |
 | `test_app_controller` | 100+ | extractCode, state machine, Anki JSON, KiCAD, MCU |
 | `test_programmazione_page` | 46 | isIntentionalError, parseNumbers, widget+segnali |
+| `test_thinking_detect` | 13 | _extractThinkingToken, classifyQuery, think-capable detect |
+| `test_ai_integration` | 41 | AiClient REALE ↔ Ollama: classifyQuery, AiChatParams, chat¹ |
+| `test_ai_stress` | 80+ | Matrice 24 param, stress 20 req, 14 edge case, qualità reale¹ |
+| `test_team_collab` | 56+ | Pipeline 4 agenti: Architetto→Dev→Revisore→Tester |
+| `test_simulatore_algos` | 54 | BubbleSort/sorting/ricerca/AlgoStep, BigO evalClass |
+| `test_formula_parser` | 34 | eval(), sample(), tryExtract(), intervalli, punti |
+| `test_matematica_page` | 35 | parseSeq, detectPatternLocal, numbersFromText, widget |
+| `test_strumenti_rag` | 21 | ragChunkText, ragExtractText, sysPromptForAction |
+| `test_chat_history` | 30 | CRUD sessioni, saveLog/loadLog, remove, edge case |
+| `test_chat_history_stress` | 18 | Concorrenza 4 thread, durabilità, 200 append |
+| `test_manutenzione_cron` | 23 | cronShouldRun, cronNextRun, detectConfigFmt |
+| `test_theme_manager` | 14 | Singleton ThemeManager, lista temi, apply() |
+| `test_hardware_monitor` | 11 | hw_detect struttura HWInfo, thread polling |
+| `test_knowledge_injection` | 16 | prependKnowledge, cache 30s, toggle QSettings |
+| `test_hw_detect_amd` | 14 | AMD detection via DRM sysfs, fallback VRAM 512 MB |
+| `test_qr_code_widget` | 18 | QR code generazione, rendering Qt, dialog APK |
+
+> ¹ Richiede Ollama attivo + modello installato. Default: variabile d'ambiente
+> `PRISMALUX_TEST_MODEL` (es. `qwen2.5-coder:7b`). Senza modello: 92% suite passa,
+> le suite `AiIntegration` e `AiStress` falliscono per "model not found".
 
 ---
 
@@ -73,13 +98,13 @@ cmake -B build_tests -DBUILD_TESTS=ON && cmake --build build_tests -j$(nproc)
 | # | Tab | Shortcut | Contenuto |
 |---|-----|----------|-----------|
 | 0 | 🤖 Intelligenza Artificiale | Alt+1 | Pipeline 6 agenti · Byzantino · CHAT RAG · TTS/STT |
-| 1 | 🛠 Strumenti AI | Alt+2 | Studio, Scrittura, Ricerca, MCP |
+| 1 | 🛠 Strumenti AI | Alt+2 | Studio · Scrittura · Ricerca · 💼 Cerca Lavoro · Libri · Produttività · Documenti · 📱 LAN Android |
 | 2 | 💻 Programmazione | Alt+3 | Editor + correzione AI + Agentica (pipeline/RAG/refactor/test/debug/byzantino) |
 | 3 | π Matematica | Alt+4 | Sequenze→Formula · espressioni locali · costanti alta precisione · 45+ grafici |
-| 4 | 🕹 APP Controller | Alt+5 | Blender · Office · Anki · KiCAD · TinyMCP (Arduino/ESP32/STM32…) |
-| 5 | 📚 Impara | Alt+6 | Tutor AI · Cerca Lavoro · 730/IVA/Mutuo/PAC/Pensione · Sfida |
-| 6 | 🖥 OpenCode | — | opencode serve HTTP + SSE stream |
-| ⚙️ | Impostazioni | — | Hardware · RAG · Classifica LLM · Voce · Aspetto |
+| 4 | 🔬 Ricerca | Alt+5 | Paper · Brevetti · Documenti tecnici |
+| 5 | 🕹 APP Controller | Alt+6 | Blender · Office · Anki · KiCAD · TinyMCP (Arduino/ESP32/STM32…) · OpenCode |
+| 6 | 📚 Impara | Alt+7 | Finanza · 730/IVA/Mutuo/PAC/Pensione · Impara con AI · Sfida te stesso |
+| ⚙️ | Impostazioni | — | Hardware · AI Locale · RAG · Voce · Aspetto · Ollama LAN |
 
 ---
 
@@ -111,26 +136,80 @@ Precedenza: `()` > `^` > `*/%` > `+-`.
 ### Simulatore Algoritmi — 110 simulazioni, 13 categorie
 Ordinamento (15) · Ricerca (4) · Matematica (10) · Prog.Dinamica (5) · Grafi (7) · Tecniche (3) · Strutture Dati (5) · Stringhe (3) · Greedy (3) · Backtracking (2) · Visualizzazioni (3) · Fisica (1) · Chimica (3).
 
-### Classificatore query + think budget
+### Think Mode + Classificatore query
+Toggle globale in **Impostazioni → AI Locale → Ragionamento AI**: tre bottoni **Off / Auto / On** + slider budget 1-4×.
+
+| Modalità | Comportamento |
+|----------|---------------|
+| **Off** | `think=false` sempre, nessun ragionamento |
+| **Auto** | Il classificatore decide in base alla complessità della query |
+| **On** | `think=true` per i modelli che lo supportano |
+
+Classificatore automatico (modalità Auto):
+
 | Categoria | Criteri | `num_predict` | `think` |
 |-----------|---------|---------------|---------|
 | `Simple` | ≤30 char, no keyword | 512 | false |
-| `Auto` | 30-200 char | default | — |
-| `Complex` | >200 char o keyword complesse | ×2* | true* |
+| `Auto` | 30–200 char | default | — |
+| `Complex` | >200 char o keyword complesse | ×budget* | true* |
 
-\* Solo per modelli think-capable: `qwen3`, `qwen3.5`, `deepseek-r1`, `qwen2.5`.
+\* Solo per modelli think-capable: `qwen3`, `qwen3.5`, `deepseek-r1`, `qwq`, `qwen2.5`.  
+Il budget token (1-4×) è configurabile per gestire il consumo RAM su hardware limitato.
+
+### Icone modelli nelle combo
+Tutte le combo di selezione modello mostrano un'icona di prefisso:
+- ☁️ — modello cloud (size = 0 in Ollama, es. modelli API remoti)
+- 🌍📍 — modello locale (pesa qualcosa, gira sul tuo hardware)
+
+Il nome raw è sempre memorizzato in `Qt::UserRole` — l'icona è solo testo di presentazione.
+
+### LAN Server Android
+Due modalità per collegare PrismaluxMobile (app Android) al PC:
+
+| Modalità | Dove si attiva | Porta | Note |
+|----------|---------------|-------|------|
+| **LAN Server** (proxy Qt) | Strumenti AI → 📱 LAN Android | 11500 (config.) | IP locale, client APK connessi, QR code |
+| **Ollama LAN** (direct) | Impostazioni → Ollama LAN | 11434 | Espone Ollama su `0.0.0.0` con un clic |
+
+Nel pannello **Strumenti AI → 📱 LAN Android** sono presenti due bottoni QR (abilitati con server attivo):
+
+- **📱 QR Scarica APK** — scansiona per scaricare direttamente `PrismaluxMobile.apk`
+- **🌐 QR Pagina Download** — scansiona per aprire la pagina di benvenuto nel browser del telefono, da cui scaricare l'APK con un tap
+
+La pagina HTML è raggiungibile anche digitando `http://192.168.x.x:11500/` nel browser del telefono.
+
+Il contatore **"Client connessi"** conta solo i dispositivi che hanno usato le API Ollama (app installata), non i browser che visitano la pagina di download.
 
 ### Modalità Calcolo LLM
-Tre bottoni in Impostazioni → Hardware:
+Quattro bottoni in **Impostazioni → Hardware**:
 
 | Modalità | `num_gpu` | Comportamento |
 |----------|-----------|---------------|
-| **GPU** | `= N layer` (da `/api/show`) | tutti i layer su VRAM |
+| **GPU** | `= N layer` (da `/api/show`) | tutti i layer su VRAM dedicata |
 | **CPU** | `0` | tutto su RAM, GPU ignorata |
-| **Misto GPU+CPU** | `= N/2 layer` | metà layer su GPU, metà su CPU |
+| **Misto GPU+CPU** | `= min(layers, VRAM capacity)` | riempie la VRAM NVIDIA al massimo, overflow su RAM |
+| **Doppia GPU** | `-2` (auto) | NVIDIA + Intel iGPU via llama-server CUDA+SYCL |
 
+**GPU** e **Misto** sono sempre cliccabili indipendentemente dall'hardware rilevato — se non è presente una GPU dedicata, Ollama gestisce automaticamente il fallback su CPU.  
 La selezione viene salvata su disco e ripristinata all'avvio.  
-**Nota VRAM 4 GB**: un modello da 3–3.5 GB è ai limiti (OS + KV cache aggiungono ~400–600 MB). Usare **Misto** se il modello non entra interamente nella VRAM.
+**Nota VRAM 4 GB**: modello 3–3.5 GB + KV cache + RAG ≈ 3.9 GB. Budget netto = VRAM − 470 MB. Usare **Misto** se il margine è < 200 MB.
+
+### Presets RAM & Contesto lungo
+
+**Impostazioni → AI Locale** include preset a un clic per scenari comuni:
+
+| Preset | num_ctx | num_predict | temp | Note |
+|--------|---------|-------------|------|------|
+| **8 GB RAM** | 4096 | 1024 | 0.05 | Flash Attention ON — massimo su hardware limitato |
+| **📜 Contesto lungo** | 16384 / 8192¹ | default | default | Flash Attention ON + SWA-full — per documenti lunghi |
+
+¹ 16384 se RAM ≥ 16 GB, 8192 se RAM < 16 GB.
+
+**Flag llama-server attivi per impostazione predefinita** (solo backend llama-server):
+- `--swa-full` — disabilita la sliding-window attention per Qwen3/Gemma3/Mistral: evita perdita di contesto oltre la finestra SWA
+- `cache_type_k/v = q8_0` — KV cache quantizzata a 8 bit → −25–35% RAM senza perdita misurabile di qualità
+- `--mlock` — opzionale, toggle "Blocca modello in RAM" in Impostazioni → AI Locale; mantiene il modello in RAM fisica (no swap)
+- `flash_attn` — toggle in Impostazioni → AI Locale; accelera l'attenzione su GPU con supporto CUDA/Metal
 
 ---
 
@@ -172,7 +251,11 @@ ollama pull deepseek-r1:32b     # ~20 GB — ragionamento avanzato
 ```
 Prismalux/
 ├── gui/                    ← GUI C++/Qt6 (CMakeLists.txt, pages/, widgets/, themes/, tests/)
-├── ANDROID/                ← [WIP] PrismaluxMobile — client Qt6/Android per Ollama su LAN
+│   ├── lan_server.h/cpp    ← Server TCP LAN: proxy Ollama + serve APK + pagina HTML benvenuto
+│   ├── pages/strumenti_page.cpp ← Pannello LAN Android: QR APK + QR Pagina + client APK-only
+│   └── pages/manutenzione_page_lan.cpp ← Pannello LAN in Manutenzione (toggle, porta, IP)
+├── ANDROID/                ← PrismaluxMobile — client Qt6/Android per Ollama su LAN
+│   └── PrismaluxMobile.apk ← APK precompilato (servito via LAN Server)
 ├── COMPILE_WIN/            ← Toolchain portatile Windows zero-install (setup.bat)
 ├── llama.cpp/              ← clone llama.cpp
 ├── models/                 ← modelli GGUF

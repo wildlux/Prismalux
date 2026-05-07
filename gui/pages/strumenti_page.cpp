@@ -1,6 +1,11 @@
 #include "strumenti_page.h"
 #include "lavoro_page.h"
 #include "../prismalux_paths.h"
+#include "../lan_server.h"
+#include <QSpinBox>
+#include <QGroupBox>
+#include <QNetworkInterface>
+#include <QHostAddress>
 namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -32,6 +37,9 @@ namespace P = PrismaluxPaths;
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMimeData>
+#include <QApplication>
+#include <QClipboard>
+#include "../widgets/qr_code_widget.h"
 
 /* ══════════════════════════════════════════════════════════════
    Tabella system prompt: [navIdx][subIdx]
@@ -520,13 +528,24 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         "Pianifica comandi periodici con il Cron Scheduler integrato");
     catLay->addWidget(cronBtn);
 
+    /* ── Pulsante LAN Android ── */
+    auto* lanAndroidBtn = new QPushButton(
+        "\xf0\x9f\x93\xb1  LAN Android", catBar);  /* 📱 */
+    lanAndroidBtn->setCheckable(true);
+    lanAndroidBtn->setObjectName("strCatBtn");
+    lanAndroidBtn->setToolTip(
+        "Server LAN per l\xe2\x80\x99" "app PrismaluxMobile Android");
+    catLay->addWidget(lanAndroidBtn);
+
     /* Cambio categoria */
     connect(catGroup, QOverload<int>::of(&QButtonGroup::idClicked),
-            this, [this, actStack, lblSel, lavoroBtn, cronBtn](int cat) {
+            this, [this, actStack, lblSel, lavoroBtn, cronBtn, lanAndroidBtn](int cat) {
         if (lavoroBtn) lavoroBtn->setChecked(false);
         if (m_lavoroPage) m_lavoroPage->setVisible(false);
         if (cronBtn) cronBtn->setChecked(false);
         if (m_cronPanel) m_cronPanel->setVisible(false);
+        if (lanAndroidBtn) lanAndroidBtn->setChecked(false);
+        if (m_lanPanel) m_lanPanel->setVisible(false);
         actStack->setVisible(true);
         lblSel->setVisible(true);
         if (m_inputRow) m_inputRow->setVisible(true);
@@ -577,7 +596,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     /* ── lavoroBtn: mostra pannello Cerca Lavoro al posto dell'area AI ── */
     if (lavoroBtn) {
         connect(lavoroBtn, &QPushButton::clicked, this,
-                [this, actStack, lblSel, cronBtn](bool checked) {
+                [this, actStack, lblSel, cronBtn, lanAndroidBtn](bool checked) {
             actStack->setVisible(!checked);
             lblSel->setVisible(!checked);
             m_ragRow->setVisible(!checked);
@@ -588,6 +607,8 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
             if (m_lavoroPage) m_lavoroPage->setVisible(checked);
             if (checked && cronBtn) cronBtn->setChecked(false);
             if (m_cronPanel) m_cronPanel->setVisible(false);
+            if (checked && lanAndroidBtn) lanAndroidBtn->setChecked(false);
+            if (m_lanPanel) m_lanPanel->setVisible(false);
         });
     }
 
@@ -1243,7 +1264,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
             const QString ext  = QFileInfo(m_sketchFilePath).suffix().toLower();
             const QString mime = (ext == "png")  ? "image/png"  :
                                  (ext == "webp") ? "image/webp" : "image/jpeg";
-            m_ai->chatWithImage(sys, userMsg, raw.toBase64(), mime);
+            m_ai->chatWithImage(P::prependKnowledge(sys), userMsg, raw.toBase64(), mime);
 
         } else if (!m_sketchFilePath.isEmpty() && !m_sketchIsImage) {
             /* PDF: estrai testo con pdftotext */
@@ -1257,11 +1278,11 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
             else
                 userMsg += "\n(Schema PDF allegato ma testo non estraibile — "
                            "usa un modello vision o inserisci le quote manualmente)";
-            m_ai->chat(sys, userMsg);
+            m_ai->chat(P::prependKnowledge(sys), userMsg);
 
         } else {
             /* Solo note/quote testuali */
-            m_ai->chat(sys, userMsg);
+            m_ai->chat(P::prependKnowledge(sys), userMsg);
         }
     });
 
@@ -1545,8 +1566,10 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
             ? m_codeModelCombo->currentData().toString() : m_ai->model();
         m_codeModelCombo->blockSignals(true);
         m_codeModelCombo->clear();
-        for (const QString& m : models)
-            m_codeModelCombo->addItem(m, m);
+        for (const QString& m : models) {
+            const qint64 sz = m_ai->modelSizeBytes(m);
+            m_codeModelCombo->addItem(P::modelIcon(sz, m) + m, m);
+        }
         /* Evidenzia i modelli consigliati per codice */
         /* Evidenzia in verde i modelli particolarmente adatti a qualsiasi categoria */
         static const QStringList kGoodModels = {
@@ -1639,7 +1662,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     lay->addWidget(m_cronPanel, 1);
 
     connect(cronBtn, &QPushButton::clicked, this,
-            [this, actStack, lblSel, cronBtn](bool checked) {
+            [this, actStack, lblSel, lanAndroidBtn](bool checked) {
         actStack->setVisible(!checked);
         lblSel->setVisible(!checked);
         m_ragRow->setVisible(!checked);
@@ -1648,6 +1671,245 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         m_output->setVisible(!checked);
         m_cronPanel->setVisible(checked);
         if (checked && m_lavoroPage) m_lavoroPage->setVisible(false);
+        if (checked && lanAndroidBtn) lanAndroidBtn->setChecked(false);
+        if (m_lanPanel) m_lanPanel->setVisible(false);
+    });
+
+    /* ── Pannello LAN Android ── */
+    m_lanPanel = new QWidget(this);
+    {
+        /* Helper: primo IP LAN preferendo 192.168.x.x su 10.x.x.x */
+        auto localLanIP = []() -> QString {
+            QString fallback10;
+            for (const QNetworkInterface& iface : QNetworkInterface::allInterfaces()) {
+                if (iface.flags().testFlag(QNetworkInterface::IsLoopBack)) continue;
+                if (!iface.flags().testFlag(QNetworkInterface::IsUp))      continue;
+                for (const QNetworkAddressEntry& e : iface.addressEntries()) {
+                    if (e.ip().protocol() != QAbstractSocket::IPv4Protocol) continue;
+                    const QString s = e.ip().toString();
+                    if (s.startsWith("192.168.")) return s;
+                    if ((s.startsWith("10.") || s.startsWith("172.")) && fallback10.isEmpty())
+                        fallback10 = s;
+                }
+            }
+            return fallback10.isEmpty() ? "127.0.0.1" : fallback10;
+        };
+
+        auto* vbox = new QVBoxLayout(m_lanPanel);
+        vbox->setContentsMargins(12, 12, 12, 12);
+        vbox->setSpacing(10);
+
+        auto* titleLbl = new QLabel(
+            "<b>\xf0\x9f\x93\xb1  Server LAN per Android</b>", m_lanPanel);
+        titleLbl->setTextFormat(Qt::RichText);
+        vbox->addWidget(titleLbl);
+
+        auto* group = new QGroupBox(m_lanPanel);
+        group->setObjectName("LanServerGroup");
+        auto* gl = new QVBoxLayout(group);
+        gl->setSpacing(8);
+
+        auto* ctrlRow = new QHBoxLayout;
+        m_lanToggleBtn = new QPushButton(
+            "\xe2\x97\x8b  Server OFF", group);
+        m_lanToggleBtn->setCheckable(true);
+        m_lanToggleBtn->setObjectName("LanToggleBtn");
+
+        m_lanPortSpin = new QSpinBox(group);
+        m_lanPortSpin->setRange(1024, 65535);
+        m_lanPortSpin->setValue(11500);
+        m_lanPortSpin->setPrefix("Porta ");
+        m_lanPortSpin->setObjectName("LanPortSpin");
+
+        ctrlRow->addWidget(m_lanToggleBtn, 1);
+        ctrlRow->addWidget(m_lanPortSpin);
+        gl->addLayout(ctrlRow);
+
+        m_lanStatusLbl = new QLabel("\xe2\x97\x8b  Fermo", group);
+        m_lanStatusLbl->setStyleSheet("color: #9e9e9e;");
+        gl->addWidget(m_lanStatusLbl);
+
+        m_lanClientsLbl = new QLabel("Client connessi: 0", group);
+        gl->addWidget(m_lanClientsLbl);
+
+        const QString ip = localLanIP();
+        auto* ipLbl = new QLabel(
+            QString("IP del PC: <b>%1</b>").arg(ip), group);
+        ipLbl->setTextFormat(Qt::RichText);
+        gl->addWidget(ipLbl);
+
+        auto* noteLbl = new QLabel(
+            "<small>Nell\xe2\x80\x99" "app Android: IP = <b>" + ip + "</b>"
+            ", Porta = <b>11500</b></small>", group);
+        noteLbl->setTextFormat(Qt::RichText);
+        noteLbl->setWordWrap(true);
+        gl->addWidget(noteLbl);
+
+        /* ── Due bottoni QR affiancati ── */
+        auto* qrRow  = new QWidget(group);
+        auto* qrRowL = new QHBoxLayout(qrRow);
+        qrRowL->setContentsMargins(0, 0, 0, 0);
+        qrRowL->setSpacing(8);
+
+        auto* qrApkBtn = new QPushButton(
+            "\xf0\x9f\x93\xb1" "  QR Scarica APK", qrRow);          /* 📱 */
+        qrApkBtn->setObjectName("actionBtn");
+        qrApkBtn->setToolTip("QR code per scaricare direttamente PrismaluxMobile.apk");
+        qrApkBtn->setEnabled(false);
+
+        auto* qrPageBtn = new QPushButton(
+            "\xf0\x9f\x8c\x90" "  QR Pagina Download", qrRow);      /* 🌐 */
+        qrPageBtn->setObjectName("actionBtn");
+        qrPageBtn->setToolTip("QR code per aprire la pagina di download nel browser del telefono");
+        qrPageBtn->setEnabled(false);
+
+        qrRowL->addWidget(qrApkBtn, 1);
+        qrRowL->addWidget(qrPageBtn, 1);
+        gl->addWidget(qrRow);
+
+        vbox->addWidget(group);
+        vbox->addStretch();
+
+        /* ── Helper: apre dialog QR generico ── */
+        auto openQrDialog = [](QPushButton* parent, const QString& url,
+                                const QString& title, const QString& subtitle,
+                                const QString& note) {
+            auto* dlg = new QDialog(parent->window());
+            dlg->setWindowTitle(title);
+            dlg->setAttribute(Qt::WA_DeleteOnClose);
+            auto* vl = new QVBoxLayout(dlg);
+            vl->setSpacing(12);
+            vl->setContentsMargins(20, 20, 20, 20);
+
+            auto* hdr = new QLabel("<b>" + subtitle + "</b>", dlg);
+            hdr->setTextFormat(Qt::RichText);
+            hdr->setAlignment(Qt::AlignCenter);
+            vl->addWidget(hdr);
+
+            auto* qrw = new QrCodeWidget(url, dlg);
+            qrw->setFixedSize(260, 260);
+            vl->addWidget(qrw, 0, Qt::AlignCenter);
+
+            auto* urlLbl = new QLabel(QString("<code>%1</code>").arg(url), dlg);
+            urlLbl->setTextFormat(Qt::RichText);
+            urlLbl->setAlignment(Qt::AlignCenter);
+            urlLbl->setTextInteractionFlags(Qt::TextSelectableByMouse);
+            vl->addWidget(urlLbl);
+
+            auto* copyBtn = new QPushButton("\xf0\x9f\x93\x8b" "  Copia URL", dlg);  /* 📋 */
+            connect(copyBtn, &QPushButton::clicked, dlg, [url, copyBtn]() {
+                QApplication::clipboard()->setText(url);
+                copyBtn->setText("\xe2\x9c\x85" "  Copiato!");  /* ✅ */
+            });
+            vl->addWidget(copyBtn);
+
+            if (!note.isEmpty()) {
+                auto* noteLbl2 = new QLabel("<small><i>" + note + "</i></small>", dlg);
+                noteLbl2->setTextFormat(Qt::RichText);
+                noteLbl2->setAlignment(Qt::AlignCenter);
+                noteLbl2->setWordWrap(true);
+                vl->addWidget(noteLbl2);
+            }
+
+            dlg->resize(320, 460);
+            dlg->exec();
+        };
+
+        /* ── QR 1: download diretto APK ── */
+        connect(qrApkBtn, &QPushButton::clicked, this, [this, qrApkBtn, localLanIP, openQrDialog]() {
+            if (!m_lanServer || !m_lanServer->isRunning()) return;
+            const QString url = QString("http://%1:%2/apk")
+                                    .arg(localLanIP()).arg(m_lanServer->port());
+            openQrDialog(qrApkBtn, url,
+                         "QR — Scarica APK",
+                         "\xf0\x9f\x93\xb1" "  Scansiona per scaricare l'APK",  /* 📱 */
+                         "Il server LAN deve rimanere attivo durante il download.<br>"
+                         "Su Android: consenti installazione da sorgenti sconosciute.");
+        });
+
+        /* ── QR 2: pagina HTML di download ── */
+        connect(qrPageBtn, &QPushButton::clicked, this, [this, qrPageBtn, localLanIP, openQrDialog]() {
+            if (!m_lanServer || !m_lanServer->isRunning()) return;
+            const QString url = QString("http://%1:%2/")
+                                    .arg(localLanIP()).arg(m_lanServer->port());
+            openQrDialog(qrPageBtn, url,
+                         "QR — Pagina Download",
+                         "\xf0\x9f\x8c\x90" "  Scansiona per aprire la pagina di download",  /* 🌐 */
+                         "Si apre nel browser del telefono.<br>"
+                         "Da lì puoi scaricare l'APK con un tap.");
+        });
+
+        /* ── Toggle ON/OFF server + abilita/disabilita entrambi i bottoni QR ── */
+        connect(m_lanToggleBtn, &QPushButton::toggled, this,
+                [this, qrApkBtn, qrPageBtn](bool on) {
+            if (on) {
+                if (!m_lanServer) {
+                    m_lanServer = new LanServer(m_ai, this);
+                    connect(m_lanServer, &LanServer::statusChanged,
+                            this, [this, qrApkBtn, qrPageBtn](bool running) {
+                        qrApkBtn->setEnabled(running);
+                        qrPageBtn->setEnabled(running);
+                        if (running) {
+                            m_lanStatusLbl->setText(
+                                "\xe2\x97\x8f  Attivo su porta " +
+                                QString::number(m_lanServer->port()));
+                            m_lanStatusLbl->setStyleSheet(
+                                "color: #4caf50; font-weight: bold;");
+                        } else {
+                            m_lanStatusLbl->setText("\xe2\x97\x8b  Fermo");
+                            m_lanStatusLbl->setStyleSheet("color: #9e9e9e;");
+                            m_lanClientsLbl->setText("Client connessi: 0");
+                        }
+                    });
+                    connect(m_lanServer, &LanServer::clientConnected,
+                            this, [this](const QString&) {
+                        m_lanClientsLbl->setText(
+                            "Client connessi: " +
+                            QString::number(m_lanServer->clientCount()));
+                    });
+                    connect(m_lanServer, &LanServer::clientDisconnected,
+                            this, [this](const QString&) {
+                        m_lanClientsLbl->setText(
+                            "Client connessi: " +
+                            QString::number(m_lanServer->clientCount()));
+                    });
+                }
+                const quint16 port = static_cast<quint16>(m_lanPortSpin->value());
+                if (m_lanServer->start(port)) {
+                    m_lanToggleBtn->setText("\xe2\x97\x8f  Server ON");
+                    m_lanPortSpin->setEnabled(false);
+                } else {
+                    m_lanToggleBtn->blockSignals(true);
+                    m_lanToggleBtn->setChecked(false);
+                    m_lanToggleBtn->blockSignals(false);
+                    m_lanStatusLbl->setText("\xe2\x9d\x8c  Impossibile aprire la porta");
+                    m_lanStatusLbl->setStyleSheet("color: #f44336;");
+                }
+            } else {
+                if (m_lanServer) m_lanServer->stop();
+                m_lanToggleBtn->setText("\xe2\x97\x8b  Server OFF");
+                m_lanPortSpin->setEnabled(true);
+                qrApkBtn->setEnabled(false);
+                qrPageBtn->setEnabled(false);
+            }
+        });
+    }
+    m_lanPanel->setVisible(false);
+    lay->addWidget(m_lanPanel, 1);
+
+    connect(lanAndroidBtn, &QPushButton::clicked, this,
+            [this, actStack, lblSel, cronBtn](bool checked) {
+        actStack->setVisible(!checked);
+        lblSel->setVisible(!checked);
+        m_ragRow->setVisible(!checked);
+        m_pdfRow->setVisible(false);
+        m_codeModelRow->setVisible(false);
+        if (m_inputRow) m_inputRow->setVisible(!checked);
+        m_output->setVisible(!checked);
+        m_lanPanel->setVisible(checked);
+        if (checked && m_lavoroPage) m_lavoroPage->setVisible(false);
+        if (checked && cronBtn) cronBtn->setChecked(false);
+        if (m_cronPanel) m_cronPanel->setVisible(false);
     });
 
     /* ── Avvia / Stop tool (bottone unificato) ── */
@@ -1750,7 +2012,7 @@ void StrumentiPage::runTool(const QString& sys, const QString& userMsg) {
     m_waitLbl->setVisible(true);
     m_active = true;
     _setRunBusy(true);
-    m_ai->chat(finalSys, userMsg);
+    m_ai->chat(P::prependKnowledge(finalSys), userMsg);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1882,8 +2144,8 @@ QStringList StrumentiPage::ragChunkText(const QString& text,
     int pos = 0;
     while (pos < t.size()) {
         chunks << t.mid(pos, chunkSize);
+        if (pos + chunkSize >= t.size()) break;
         pos += chunkSize - overlap;
-        if (pos >= t.size()) break;
     }
     return chunks;
 }

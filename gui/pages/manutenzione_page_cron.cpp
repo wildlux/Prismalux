@@ -312,7 +312,10 @@ void ManutenzioneePage::cronAddOrEdit(int idx)
     auto* cmbModel = new QComboBox(dlg);
     cmbModel->setEditable(true);
     cmbModel->addItem("(modello corrente)", "");
-    for (const QString& m : m_ai->models()) cmbModel->addItem(m, m);
+    for (const QString& m : m_ai->models()) {
+        const qint64 sz = m_ai->modelSizeBytes(m);
+        cmbModel->addItem(P::modelIcon(sz, m) + m, m);
+    }
     if (!src.model.isEmpty()) {
         const int fi = cmbModel->findData(src.model);
         if (fi >= 0) cmbModel->setCurrentIndex(fi);

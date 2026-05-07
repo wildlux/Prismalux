@@ -1,4 +1,5 @@
 #pragma once
+class LanServer;
 #include <QWidget>
 #include <QLabel>
 #include <QComboBox>
@@ -6,6 +7,7 @@
 #include <QTextBrowser>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QSpinBox>
 #include <QProcess>
 #include <QStringList>
 #include <QJsonObject>
@@ -26,6 +28,7 @@ public:
     QWidget* buildConfigFmt();
     QWidget* buildHardware();
     QWidget* buildBugTracker();
+    QWidget* buildLanServer();
 
 private:
     AiClient*        m_ai;
@@ -109,4 +112,14 @@ private:
     void    cronAddOrEdit(int idx = -1);
     QString cronNextRun(const QString& schedule) const;
     bool    cronShouldRun(const QString& schedule, const QString& lastRun) const;
+
+    /* ── LAN Server per Android ────────────────────────────────────── */
+    LanServer*   m_lanServer    = nullptr;
+    QPushButton* m_lanToggleBtn = nullptr;
+    QLabel*      m_lanStatusLbl = nullptr;
+    QLabel*      m_lanClientsLbl= nullptr;
+    QSpinBox*    m_lanPortSpin  = nullptr;
+
+    friend struct CronAccess;   ///< accesso test suite a cronShouldRun/cronNextRun
+    friend struct ManutAccess;  ///< accesso test suite a detectConfigFmt/convertConfig
 };

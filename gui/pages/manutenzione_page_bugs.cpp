@@ -137,13 +137,17 @@ QWidget* ManutenzioneePage::buildBugTracker()
     /* Popola combo quando arrivano modelli */
     connect(m_ai, &AiClient::modelsReady, this, [this](const QStringList& list){
         if (!m_bugModelCombo) return;
-        const QString cur = m_bugModelCombo->currentText();
+        const QString cur = m_bugModelCombo->currentData(Qt::UserRole).toString().isEmpty()
+                          ? m_bugModelCombo->currentText()
+                          : m_bugModelCombo->currentData(Qt::UserRole).toString();
         m_bugModelCombo->blockSignals(true);
         m_bugModelCombo->clear();
-        for (const auto& m : list)
-            m_bugModelCombo->addItem(m);
-        int idx = m_bugModelCombo->findText(cur);
-        if (idx < 0) idx = m_bugModelCombo->findText(m_ai->model());
+        for (const auto& m : list) {
+            const qint64 sz = m_ai->modelSizeBytes(m);
+            m_bugModelCombo->addItem(P::modelIcon(sz, m) + m, m);
+        }
+        int idx = m_bugModelCombo->findData(cur);
+        if (idx < 0) idx = m_bugModelCombo->findData(m_ai->model());
         if (idx >= 0) m_bugModelCombo->setCurrentIndex(idx);
         m_bugModelCombo->blockSignals(false);
     });
@@ -151,7 +155,9 @@ QWidget* ManutenzioneePage::buildBugTracker()
     connect(btnRefMod, &QPushButton::clicked, m_ai, &AiClient::fetchModels);
 
     connect(m_btnSearchBug, &QPushButton::clicked, this, [this]{
-        const QString model = m_bugModelCombo->currentText().trimmed();
+        const QString model = (m_bugModelCombo->currentData(Qt::UserRole).toString().isEmpty()
+                              ? m_bugModelCombo->currentText()
+                              : m_bugModelCombo->currentData(Qt::UserRole).toString()).trimmed();
         if (model.isEmpty() || model.startsWith("(")) {
             m_bugStatusLbl->setText(
                 "\xe2\x9a\xa0  Seleziona prima un modello valido.");
@@ -165,7 +171,9 @@ QWidget* ManutenzioneePage::buildBugTracker()
     });
 
     connect(btnClearFix, &QPushButton::clicked, this, [this]{
-        const QString model = m_bugModelCombo->currentText().trimmed();
+        const QString model = (m_bugModelCombo->currentData(Qt::UserRole).toString().isEmpty()
+                              ? m_bugModelCombo->currentText()
+                              : m_bugModelCombo->currentData(Qt::UserRole).toString()).trimmed();
         if (model.isEmpty()) return;
         QFile f(P::modelParamsPath());
         if (!f.open(QIODevice::ReadOnly)) {

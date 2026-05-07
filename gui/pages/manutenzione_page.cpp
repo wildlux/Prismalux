@@ -328,7 +328,8 @@ QWidget* ManutenzioneePage::buildBackend()
             return;
         }
         for (const auto& nm : list) {
-            m_cmbModel->addItem(nm);
+            const qint64 sz = m_ai->modelSizeBytes(nm);
+            m_cmbModel->addItem(P::modelIcon(sz, nm) + nm, nm);  /* UserRole = nome raw */
             if (P::isKnownBrokenModel(nm)) {
                 const int i = m_cmbModel->count() - 1;
                 m_cmbModel->setItemData(i, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
@@ -338,12 +339,13 @@ QWidget* ManutenzioneePage::buildBackend()
                     Qt::ToolTipRole);
             }
         }
-        int idx = m_cmbModel->findText(m_ai->model());
+        int idx = m_cmbModel->findData(m_ai->model());
         if (idx >= 0) m_cmbModel->setCurrentIndex(idx);
     });
 
     connect(setModelBtn, &QPushButton::clicked, this, [=]{
-        QString sel = m_cmbModel->currentText();
+        const QString raw = m_cmbModel->currentData(Qt::UserRole).toString();
+        const QString sel = raw.isEmpty() ? m_cmbModel->currentText() : raw;
         if (!sel.isEmpty() && !sel.startsWith("("))
             m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
     });
@@ -1122,8 +1124,9 @@ void ManutenzioneePage::updateHWLabel(const HWInfo& hw) {
             m_gpuLayersFull = 0;
         }
 
-        m_btnGpu->setEnabled(hasDedicated);
-        m_btnMisto->setEnabled(hasDedicated);
+        /* GPU e Misto: sempre cliccabili — se non c'è GPU dedicata Ollama usa CPU */
+        m_btnGpu->setEnabled(true);
+        m_btnMisto->setEnabled(true);
         /* Doppia GPU: attiva solo se iGPU Intel + GPU dedicata entrambe presenti */
         m_btnDoppia->setEnabled(hasDedicated && hasIgpu);
 
