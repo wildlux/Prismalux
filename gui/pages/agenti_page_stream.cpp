@@ -5,6 +5,7 @@ namespace P = PrismaluxPaths;
 #include <QElapsedTimer>
 #include <QTextCursor>
 #include <QSettings>
+#include <QDateTime>
 #include <QMessageBox>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -70,6 +71,10 @@ void AgentiPage::onToken(const QString& t) {
         m_ctrlAccum += t;
     } else if (m_opMode == OpMode::Translating) {
         m_translateBuf += t;
+    } else if (m_opMode == OpMode::KnowledgeExtract) {
+        /* Estrattore silenzioso: accumula senza mostrare nel log */
+        m_knowledgeBuf += t;
+        cursor.deletePreviousChar();
     }
 }
 
@@ -140,6 +145,32 @@ void AgentiPage::onFinished(const QString& full) {
             _setRunBusy(false);
             if (m_btnTranslate) m_btnTranslate->setEnabled(true);
         }
+        return;
+    }
+
+    /* ── Estrattore Knowledge completato (P5) ── */
+    if (m_opMode == OpMode::KnowledgeExtract) {
+        const QString extracted = m_knowledgeBuf.trimmed();
+        m_knowledgeBuf.clear();
+        m_opMode = OpMode::Idle;
+
+        /* Chiama il MCP in background se l'estrattore ha prodotto contenuto utile.
+           "NULLA" è la risposta canonica dell'estrattore per sessioni senza info nuove. */
+        const bool isUseful = !extracted.isEmpty()
+                              && !extracted.trimmed().toUpper().startsWith("NULLA");
+        if (isUseful) {
+            const QString modeLabel = m_modePipeline ? "Pipeline" : "Chat";
+            const QString label = QString("%1: %2 \xe2\x80\x94 %3")
+                .arg(modeLabel,
+                     m_taskOriginal.left(30).simplified(),
+                     QDateTime::currentDateTime().toString("yyyy-MM-dd"));
+            callKnowledgeMcp(extracted, label);
+        }
+
+        /* Chiude la pipeline normalmente */
+        emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
+        _setRunBusy(false);
+        emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
         return;
     }
 

@@ -1,5 +1,6 @@
 #include "agents_config_dialog.h"
 #include "../prismalux_paths.h"
+#include "../ai_client.h"
 namespace P = PrismaluxPaths;
 #include <QBrush>
 #include <QColor>
@@ -19,7 +20,63 @@ namespace P = PrismaluxPaths;
 #include <QFile>
 #include <QMouseEvent>
 #include <QStandardItemModel>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QTimer>
+#include <QUrl>
+#include <QRegularExpression>
 #include <algorithm>
+
+/* ── Stripping HTML → testo plain ───────────────────────────────────── */
+namespace {
+
+QString htmlToPlainText(const QByteArray& html)
+{
+    QString text = QString::fromUtf8(html);
+
+    /* Rimuovi blocchi script/style interi */
+    static const QRegularExpression reScript(
+        "<script[^>]*>[\\s\\S]*?</script>",
+        QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression reStyle(
+        "<style[^>]*>[\\s\\S]*?</style>",
+        QRegularExpression::CaseInsensitiveOption);
+    text.remove(reScript);
+    text.remove(reStyle);
+
+    /* Sostituisci tag di blocco con newline */
+    static const QRegularExpression reBlock(
+        "<(?:br|p|div|h[1-6]|li|tr|th|td|blockquote|pre|hr)(?:[^>]*)>",
+        QRegularExpression::CaseInsensitiveOption);
+    text.replace(reBlock, "\n");
+
+    /* Rimuovi tutti i restanti tag HTML */
+    static const QRegularExpression reTag("<[^>]+>");
+    text.remove(reTag);
+
+    /* Decodifica entità HTML comuni */
+    text.replace("&amp;",  "&");
+    text.replace("&lt;",   "<");
+    text.replace("&gt;",   ">");
+    text.replace("&quot;", "\"");
+    text.replace("&#39;",  "'");
+    text.replace("&nbsp;", " ");
+    text.replace("&mdash;", "\xe2\x80\x94");
+    text.replace("&ndash;", "\xe2\x80\x93");
+
+    /* Comprimi whitespace multipli → singoli; lascia \n */
+    static const QRegularExpression reSpaces("[ \\t]{2,}");
+    text.replace(reSpaces, " ");
+    static const QRegularExpression reNewlines("\\n{3,}");
+    text.replace(reNewlines, "\n\n");
+
+    return text.trimmed();
+}
+
+} // namespace
 
 /* ══════════════════════════════════════════════════════════════
    RagDropWidget — implementazione
@@ -33,7 +90,8 @@ RagDropWidget::RagDropWidget(QWidget* parent) : QFrame(parent) {
     setMaximumHeight(52);
     setCursor(Qt::PointingHandCursor);
     setToolTip("Trascina file o cartelle qui per fornire contesto RAG a questo agente.\n"
-               "Clicca per aprire il selettore file. Max 16 KB totali.");
+               "Clicca per aprire il selettore file. Max 32 KB totali.\n"
+               "Pulsante \xf0\x9f\x8c\x90 per caricare una pagina web.");
 
     auto* lay = new QHBoxLayout(this);
     lay->setContentsMargins(6, 4, 6, 4);
@@ -44,11 +102,29 @@ RagDropWidget::RagDropWidget(QWidget* parent) : QFrame(parent) {
     m_lbl->setWordWrap(false);
     lay->addWidget(m_lbl, 1);
 
+    /* Pulsante URL web */
+    m_urlBtn = new QPushButton("\xf0\x9f\x8c\x90", this);
+    m_urlBtn->setFixedSize(22, 22);
+    m_urlBtn->setToolTip("Carica pagina web nel RAG");
+    m_urlBtn->setCursor(Qt::PointingHandCursor);
+    lay->addWidget(m_urlBtn);
+
     m_clearBtn = new QPushButton("\xc3\x97", this);
     m_clearBtn->setFixedSize(18, 18);
     m_clearBtn->setVisible(false);
-    m_clearBtn->setToolTip("Rimuovi tutti i file RAG");
+    m_clearBtn->setToolTip("Rimuovi tutti i file/URL RAG");
     lay->addWidget(m_clearBtn);
+
+    connect(m_urlBtn, &QPushButton::clicked, this, [this]{
+        bool ok = false;
+        const QString url = QInputDialog::getText(
+            this,
+            "Carica pagina web nel RAG",
+            "Incolla l'URL della pagina da leggere:",
+            QLineEdit::Normal, "https://", &ok);
+        if (ok && !url.trimmed().isEmpty())
+            fetchUrl(url.trimmed());
+    });
 
     connect(m_clearBtn, &QPushButton::clicked, this, [this]{
         m_files.clear();
@@ -127,13 +203,105 @@ void RagDropWidget::addFile(const QString& path) {
     m_files.append({fi.fileName(), content});
 }
 
+/* ── fetchUrl — scarica HTML, lo converte in testo, lo aggiunge ── */
+void RagDropWidget::fetchUrl(const QString& url)
+{
+    if (!m_nam) {
+        m_nam = new QNetworkAccessManager(this);
+    }
+
+    m_pendingFetches++;
+    m_urlBtn->setEnabled(false);
+    m_lbl->setText("\xf0\x9f\x8c\x90 Download in corso...");
+    emit webFetchStarted(url);
+
+    const QUrl qurl(url);
+    QNetworkRequest req(qurl);
+    req.setRawHeader("User-Agent",
+        "Mozilla/5.0 (compatible; Prismalux/1.0; +https://prismalux.app)");
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                     QNetworkRequest::NoLessSafeRedirectPolicy);
+
+    QNetworkReply* reply = m_nam->get(req);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, url]{
+        m_pendingFetches--;
+        m_urlBtn->setEnabled(m_pendingFetches == 0);
+        reply->deleteLater();
+
+        if (reply->error() != QNetworkReply::NoError) {
+            m_lbl->setText(QString("\xe2\x9d\x8c  Errore: %1")
+                           .arg(reply->errorString()));
+            emit webFetchDone(url, false);
+            QTimer::singleShot(3000, this, [this]{ updateLabel(); });
+            return;
+        }
+
+        const QByteArray html = reply->readAll();
+        QString text = htmlToPlainText(html);
+
+        /* Tronca al limite per pagina web */
+        if (text.size() > MAX_PER_WEB)
+            text = text.left(MAX_PER_WEB) + "\n[... troncato]";
+
+        /* Normalizza il nome con l'host + path breve */
+        QUrl qu(url);
+        const QString name = qu.host() + qu.path().left(60);
+
+        addEntry(name, text);
+        emit webFetchDone(url, true);
+    });
+}
+
+void RagDropWidget::addEntry(const QString& name, const QString& content)
+{
+    if (m_totalBytes >= MAX_TOTAL) return;
+    if (content.trimmed().isEmpty()) return;
+
+    /* Evita duplicati per nome */
+    for (const auto& fe : m_files)
+        if (fe.name == name) return;
+
+    QString trimmed = content.trimmed();
+    if (m_totalBytes + trimmed.size() > MAX_TOTAL)
+        trimmed = trimmed.left(MAX_TOTAL - m_totalBytes) + "\n[... troncato]";
+
+    m_totalBytes += trimmed.size();
+    m_files.append({name, trimmed, true});
+    updateLabel();
+}
+
+bool RagDropWidget::hasWebEntries() const
+{
+    for (const auto& fe : m_files)
+        if (fe.isWeb) return true;
+    return false;
+}
+
 void RagDropWidget::updateLabel() {
     bool hasFiles = !m_files.isEmpty();
     m_clearBtn->setVisible(hasFiles);
+    if (m_pendingFetches > 0) {
+        m_lbl->setText("\xf0\x9f\x8c\x90 Download in corso...");
+        return;
+    }
     if (hasFiles) {
+        int webCount  = 0;
+        int fileCount = 0;
+        for (const auto& fe : m_files)
+            fe.isWeb ? ++webCount : ++fileCount;
         double kb = m_totalBytes / 1024.0;
-        m_lbl->setText(QString("\xf0\x9f\x93\x84 %1 file \xe2\x80\xa2 %2 KB")
-                       .arg(m_files.size()).arg(kb, 0, 'f', 1));
+        QString label;
+        if (fileCount > 0 && webCount > 0)
+            label = QString("\xf0\x9f\x93\x84 %1 file  \xf0\x9f\x8c\x90 %2 URL  \xe2\x80\xa2  %3 KB")
+                    .arg(fileCount).arg(webCount).arg(kb, 0, 'f', 1);
+        else if (webCount > 0)
+            label = QString("\xf0\x9f\x8c\x90 %1 URL  \xe2\x80\xa2  %2 KB")
+                    .arg(webCount).arg(kb, 0, 'f', 1);
+        else
+            label = QString("\xf0\x9f\x93\x84 %1 file  \xe2\x80\xa2  %2 KB")
+                    .arg(fileCount).arg(kb, 0, 'f', 1);
+        m_lbl->setText(label);
     } else {
         m_lbl->setText("\xf0\x9f\x93\x8e Trascina file");
     }
@@ -141,12 +309,32 @@ void RagDropWidget::updateLabel() {
 
 QString RagDropWidget::ragContext() const {
     if (m_files.isEmpty()) return {};
+
+    /* Separa file locali e voci web */
+    QVector<const FileEntry*> webEntries, fileEntries;
+    for (const auto& fe : m_files)
+        (fe.isWeb ? webEntries : fileEntries).append(&fe);
+
     QString ctx = "\n\n\xe2\x80\x94\xe2\x80\x94 Contesto RAG (documenti forniti) \xe2\x80\x94\xe2\x80\x94\n";
-    for (const auto& fe : m_files) {
-        ctx += QString("\n[File: %1]\n").arg(fe.name);
-        ctx += fe.content;
+
+    /* File locali */
+    for (const auto* fe : fileEntries) {
+        ctx += QString("\n[File: %1]\n").arg(fe->name);
+        ctx += fe->content;
         ctx += "\n";
     }
+
+    /* Voci web con numerazione per citazioni */
+    if (!webEntries.isEmpty()) {
+        ctx += "\n[Fonti web — cita con [N] quando usi queste informazioni]\n";
+        int n = 1;
+        for (const auto* fe : webEntries) {
+            ctx += QString("\n[%1] %2\n").arg(n++).arg(fe->name);
+            ctx += fe->content;
+            ctx += "\n";
+        }
+    }
+
     ctx += "\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\n";
     return ctx;
 }
@@ -768,12 +956,17 @@ void AgentsConfigDialog::setupUI() {
     lay->addWidget(btnRow);
 }
 
-void AgentsConfigDialog::setModels(const QStringList& models) {
+void AgentsConfigDialog::setModels(const QStringList& models, AiClient* ai) {
     for (int i = 0; i < MAX_AGENTS; i++) {
-        const QString cur = m_modelCombo[i]->currentText();
+        /* Salva il nome raw dal UserRole (non il testo display con icona) */
+        const QString cur = m_modelCombo[i]->currentData().toString().isEmpty()
+                          ? m_modelCombo[i]->currentText()
+                          : m_modelCombo[i]->currentData().toString();
         m_modelCombo[i]->clear();
         for (const auto& m : models) {
-            m_modelCombo[i]->addItem(m, m);
+            const qint64 sz = ai ? ai->modelSizeBytes(m) : 0;
+            const QString display = ai ? (P::modelIcon(sz, m) + m) : m;
+            m_modelCombo[i]->addItem(display, m);  /* UserRole = nome raw */
             if (P::isKnownBrokenModel(m)) {
                 const int idx = m_modelCombo[i]->count() - 1;
                 m_modelCombo[i]->setItemData(idx, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
@@ -785,8 +978,9 @@ void AgentsConfigDialog::setModels(const QStringList& models) {
         }
         if (m_modelCombo[i]->count() == 0)
             m_modelCombo[i]->addItem("(nessun modello)");
-        /* Ripristina selezione precedente se ancora disponibile */
-        int idx = m_modelCombo[i]->findText(cur);
+        /* Ripristina selezione per UserRole (nome raw, indipendente dall'icona) */
+        int idx = m_modelCombo[i]->findData(cur);
+        if (idx < 0) idx = m_modelCombo[i]->findText(cur);
         if (idx >= 0) m_modelCombo[i]->setCurrentIndex(idx);
     }
 }

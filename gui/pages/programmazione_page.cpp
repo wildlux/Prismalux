@@ -1,4 +1,5 @@
 #include "programmazione_page.h"
+#include "code_interpreter_widget.h"
 #include "../prismalux_paths.h"
 
 #include <QVBoxLayout>
@@ -415,6 +416,8 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
         "\xf0\x9f\x94\xa7  Git");
     m_innerTabs->addTab(buildPythonRepl(m_innerTabs),
         "\xf0\x9f\x90\x8d  REPL");
+    m_innerTabs->addTab(new CodeInterpreterWidget(m_ai, m_innerTabs),
+        "\xf0\x9f\xa7\xaa  Interpreter");
     /* ── Rete & Network: un solo tab con sub-tab interni ── */
     {
         auto* reteWrap  = new QWidget(m_innerTabs);
@@ -685,21 +688,21 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
             m_aiOutput->ensureCursorVisible();
         });
         connect(m_ai, &AiClient::finished, m_tokenHolder, [this](const QString&){
-            if (m_tokenHolder) { delete m_tokenHolder; m_tokenHolder = nullptr; }
+            if (m_tokenHolder) { m_tokenHolder->deleteLater(); m_tokenHolder = nullptr; }
             m_aiMode = false;
             setRunning(false);
             m_status->setText("\xe2\x9c\x85  Risposta AI completata.");
             m_btnInsert->setEnabled(!extractCodeBlock().isEmpty());
         });
         connect(m_ai, &AiClient::error, m_tokenHolder, [this](const QString& msg){
-            if (m_tokenHolder) { delete m_tokenHolder; m_tokenHolder = nullptr; }
+            if (m_tokenHolder) { m_tokenHolder->deleteLater(); m_tokenHolder = nullptr; }
             m_aiMode = false;
             setRunning(false);
             m_aiOutput->appendPlainText(QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
             m_status->setText("\xe2\x9d\x8c  Errore AI.");
         });
 
-        m_ai->chat(sys, user);
+        m_ai->chat(P::prependKnowledge(sys), user);
     };
 
     connect(btnSend, &QPushButton::clicked, this, sendToAi);
@@ -1287,7 +1290,7 @@ void ProgrammazionePage::_doFix(bool includeError,
     });
     connect(m_ai, &AiClient::finished, m_tokenHolder,
             [this, originalModel](const QString&){
-        if (m_tokenHolder) { delete m_tokenHolder; m_tokenHolder = nullptr; }
+        if (m_tokenHolder) { m_tokenHolder->deleteLater(); m_tokenHolder = nullptr; }
         m_aiMode = false;
         setRunning(false);
         m_btnFix->setText("\xf0\x9f\x94\xa7  Correggi con AI");
@@ -1325,7 +1328,7 @@ void ProgrammazionePage::_doFix(bool includeError,
             m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), originalModel);
     });
 
-    m_ai->chat(sys, user);
+    m_ai->chat(P::prependKnowledge(sys), user);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1514,7 +1517,8 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
                 const bool isEmbed = n.contains("embed") || n.contains("minilm") ||
                                      n.contains("rerank") || n.contains("bge-");
                 if (isEmbed) continue;
-                m_agentModel->addItem(mdl, mdl);
+                const qint64 sz = m_ai->modelSizeBytes(mdl);
+                m_agentModel->addItem(P::modelIcon(sz, mdl) + mdl, mdl);
                 if (P::isKnownBrokenModel(mdl)) {
                     const int idx = m_agentModel->count() - 1;
                     m_agentModel->setItemData(idx, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
@@ -1527,8 +1531,10 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
             }
             if (m_agentModel->count() == 0)
                 m_agentModel->addItem(cur.isEmpty() ? "(nessun modello)" : cur, cur);
-            else if (foundCur)
-                m_agentModel->setCurrentText(cur);
+            else if (foundCur) {
+                const int idx = m_agentModel->findData(cur);
+                if (idx >= 0) m_agentModel->setCurrentIndex(idx);
+            }
             m_agentModel->setEnabled(true);
         });
         m_ai->fetchModels();
@@ -1707,7 +1713,7 @@ void ProgrammazionePage::runAgente()
         m_agentOutput->ensureCursorVisible();
     });
     connect(m_ai, &AiClient::finished, m_agentTokenHolder, [this](const QString&){
-        if (m_agentTokenHolder) { delete m_agentTokenHolder; m_agentTokenHolder = nullptr; }
+        if (m_agentTokenHolder) { m_agentTokenHolder->deleteLater(); m_agentTokenHolder = nullptr; }
         m_btnAgentRun->setEnabled(true);
         m_btnAgentStop->setEnabled(false);
         /* Abilita "Apri in editor" solo se c'è un blocco codice */
@@ -1715,14 +1721,14 @@ void ProgrammazionePage::runAgente()
         m_btnAgentInsert->setEnabled(text.contains("```"));
     });
     connect(m_ai, &AiClient::error, m_agentTokenHolder, [this](const QString& msg){
-        if (m_agentTokenHolder) { delete m_agentTokenHolder; m_agentTokenHolder = nullptr; }
+        if (m_agentTokenHolder) { m_agentTokenHolder->deleteLater(); m_agentTokenHolder = nullptr; }
         m_btnAgentRun->setEnabled(true);
         m_btnAgentStop->setEnabled(false);
         m_agentOutput->moveCursor(QTextCursor::End);
         m_agentOutput->insertPlainText(QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
     });
 
-    m_ai->chat(sys, user);
+    m_ai->chat(P::prependKnowledge(sys), user);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2170,20 +2176,20 @@ void ProgrammazionePage::runReverseEngineering()
         m_revOutput->ensureCursorVisible();
     });
     connect(m_ai, &AiClient::finished, m_revTokenHolder, [this](const QString&){
-        if (m_revTokenHolder) { delete m_revTokenHolder; m_revTokenHolder = nullptr; }
+        if (m_revTokenHolder) { m_revTokenHolder->deleteLater(); m_revTokenHolder = nullptr; }
         m_btnRevAnalyze->setEnabled(true);
         m_btnRevStop->setEnabled(false);
         m_btnRevInsert->setEnabled(m_revOutput->toPlainText().contains("```"));
     });
     connect(m_ai, &AiClient::error, m_revTokenHolder, [this](const QString& msg){
-        if (m_revTokenHolder) { delete m_revTokenHolder; m_revTokenHolder = nullptr; }
+        if (m_revTokenHolder) { m_revTokenHolder->deleteLater(); m_revTokenHolder = nullptr; }
         m_btnRevAnalyze->setEnabled(true);
         m_btnRevStop->setEnabled(false);
         m_revOutput->moveCursor(QTextCursor::End);
         m_revOutput->insertPlainText(QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
     });
 
-    m_ai->chat(sys, user);
+    m_ai->chat(P::prependKnowledge(sys), user);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2411,17 +2417,17 @@ void ProgrammazionePage::netAiAnalyze()
         m_netAiOutput->ensureCursorVisible();
     });
     connect(m_ai, &AiClient::finished, m_netTokenHolder, [this](const QString&){
-        if (m_netTokenHolder) { delete m_netTokenHolder; m_netTokenHolder = nullptr; }
+        if (m_netTokenHolder) { m_netTokenHolder->deleteLater(); m_netTokenHolder = nullptr; }
         m_btnNetAnalyze->setEnabled(true);
     });
     connect(m_ai, &AiClient::error, m_netTokenHolder, [this](const QString& msg){
-        if (m_netTokenHolder) { delete m_netTokenHolder; m_netTokenHolder = nullptr; }
+        if (m_netTokenHolder) { m_netTokenHolder->deleteLater(); m_netTokenHolder = nullptr; }
         m_btnNetAnalyze->setEnabled(true);
         m_netAiOutput->moveCursor(QTextCursor::End);
         m_netAiOutput->insertPlainText("\n\xe2\x9d\x8c  Errore: " + msg);
     });
 
-    m_ai->chat(sys, user);
+    m_ai->chat(P::prependKnowledge(sys), user);
 }
 
 /* ══════════════════════════════════════════════════════════════

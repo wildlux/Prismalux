@@ -6,6 +6,7 @@ namespace P = PrismaluxPaths;
 #include <QSettings>
 #include <QTextCursor>
 #include <QRegularExpression>
+#include <algorithm>
 #include "../widgets/formula_parser.h"
 #include "../widgets/chart_widget.h"
 #include "agents_config_dialog.h"
@@ -162,13 +163,37 @@ void AgentiPage::advancePipeline() {
         m_currentAgent++;
 
     if (m_currentAgent >= MAX_AGENTS || m_currentAgent >= m_maxShots) {
-        emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
-        _setRunBusy(false);
-        m_opMode = OpMode::Idle;
         /* Rilevamento formula → mostra grafico se presente */
         if (!m_agentOutputs.isEmpty())
             tryShowChart(m_taskOriginal + "\n" + m_agentOutputs.last());
-        /* Salva storico chat */
+
+        /* P5 — Estrattore nascosto: aggiorna user_knowledge.md a fine risposta.
+           - Pipeline multi-agente: si attiva se ≥2 agenti hanno prodotto output.
+           - CHAT RAG singolo: si attiva ogni kChatExtractEvery scambi (default 4). */
+        {
+            QSettings s("Prismalux", "GUI");
+            const bool injectOn = s.value(P::SK::kInjectUserKnowledge, true).toBool();
+            const int  filled   = std::count_if(m_agentOutputs.begin(), m_agentOutputs.end(),
+                [](const QString& o){ return !o.trimmed().isEmpty(); });
+
+            /* Contatore scambi singolo (incrementato prima della verifica soglia) */
+            if (!m_modePipeline && filled == 1)
+                m_singleChatTurns++;
+
+            const bool doPipeline = (filled >= 2);
+            const bool doChat     = (!m_modePipeline && filled == 1
+                                     && m_singleChatTurns >= kChatExtractEvery);
+
+            if (injectOn && (doPipeline || doChat)) {
+                if (doChat) m_singleChatTurns = 0; /* reset dopo ogni estrazione */
+                runKnowledgeExtract();   /* cambia opMode → KnowledgeExtract */
+                return;                  /* onFinished gestirà la chiusura */
+            }
+        }
+
+        emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
+        _setRunBusy(false);
+        m_opMode = OpMode::Idle;
         emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
         return;
     }
@@ -294,14 +319,23 @@ void AgentiPage::runAgent(int idx) {
         userPrompt += QString("Il tuo ruolo in questo team: %1.").arg(role.name);
     }
 
+    /* In pipeline multi-agente arricchisce il system prompt con l'obiettivo del team:
+       ogni agente conosce il task concreto nel suo contesto "permanente" (system). */
+    const QString teamGoalFull  = isSingleChat ? QString()
+        : QString("\n\n\xf0\x9f\x8e\xaf Obiettivo globale del team: ") + m_taskOriginal.left(200);
+    const QString teamGoalSmall = isSingleChat ? QString()
+        : QString(" Task: ") + m_taskOriginal.left(80);
+    const QString sysFull  = role.sysPrompt      + teamGoalFull;
+    const QString sysSmall = role.sysPromptSmall + teamGoalSmall;
+
     m_agentTimer.restart();
     m_agentOutputs.append("");
     /* Usa chatWithImage per il primo agente se c'è un'immagine allegata */
     if (idx == m_currentAgent && !m_imgBase64.isEmpty()) {
-        m_ai->chatWithImage(_buildSys(m_taskOriginal, role.sysPrompt, role.sysPromptSmall, m_ai->model(), m_ai->backend()), userPrompt,
+        m_ai->chatWithImage(_buildSys(m_taskOriginal, sysFull, sysSmall, m_ai->model(), m_ai->backend()), userPrompt,
                             m_imgBase64, m_imgMime);
     } else {
-        m_ai->chat(_buildSys(m_taskOriginal, role.sysPrompt, role.sysPromptSmall, m_ai->model(), m_ai->backend()), userPrompt);
+        m_ai->chat(_buildSys(m_taskOriginal, sysFull, sysSmall, m_ai->model(), m_ai->backend()), userPrompt);
     }
 }
 

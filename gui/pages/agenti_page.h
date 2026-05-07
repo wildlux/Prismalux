@@ -88,7 +88,8 @@ private:
     QPushButton*  m_btnCfg        = nullptr;   ///< Apre dialog config agenti
     QPushButton*  m_btnModeToggle = nullptr;   ///< Toggle Mono-Agente / Multi-Agente
     QWidget*      m_multiAgentBar = nullptr;   ///< Container controlli pipeline (nascosto in Mono)
-    QPushButton*  m_btnTranslate = nullptr;   ///< Apre dialog traduzione
+    QPushButton*  m_btnTranslate   = nullptr;  ///< Apre dialog traduzione
+    QPushButton*  m_btnKnowledge   = nullptr;  ///< Salva risposta in user_knowledge.md (P4)
     QFrame*       m_symbolsPanel = nullptr;   ///< Pannello inline caratteri speciali (toggle)
     QComboBox*    m_cmbMode   = nullptr;
     QCheckBox*    m_chkController = nullptr; ///< Abilita/disabilita il Controller LLM post-agente
@@ -119,10 +120,14 @@ private:
     QString m_translateDstLang;
 
     /* ── Stato modalità operative ── */
-    enum class OpMode { Idle, Pipeline, PipelineControl, Byzantine, MathTheory, Translating, ConsiglioScientifico };
+    enum class OpMode { Idle, Pipeline, PipelineControl, Byzantine, MathTheory, Translating, ConsiglioScientifico, KnowledgeExtract };
     OpMode  m_opMode      = OpMode::Idle;
     OpMode  m_pendingMode = OpMode::Idle;  ///< Modalità da eseguire dopo traduzione
-    QString m_translateBuf;  ///< Accumulo token traduzione
+    QString m_translateBuf;     ///< Accumulo token traduzione
+    QString m_knowledgeBuf;     ///< Accumulo token estrattore (non mostrato nel log)
+    int     m_singleChatTurns = 0; ///< Contatore scambi in modalità singolo agente
+
+    static constexpr int kChatExtractEvery = 4; ///< Ogni N scambi in singolo → estrazione knowledge
 
     /* ── Consiglio Scientifico (query parallela multi-modello) ── */
     struct ConsiglioPeer {
@@ -247,6 +252,18 @@ private:
 
     /** Cerca formule o coppie di punti nel testo e mostra il grafico se trovate */
     void tryShowChart(const QString& text);
+
+    /* ── Knowledge P4/P5 ──────────────────────────────────────────────────── */
+    /** Chiama il MCP knowledge_updater via QProcess (fire-and-forget, 5s timeout).
+     *  summary  — testo con prefissi PREFERENZE:/PROGETTO:/PROCEDURA:/DECISIONE:/CONTESTO:
+     *  label    — etichetta sessione per la sezione "contesto" (opzionale) */
+    void callKnowledgeMcp(const QString& summary, const QString& label = {});
+
+    /** Apre il dialog "Salva in Knowledge" per salvare manualmente la risposta (P4) */
+    void onSaveKnowledge();
+
+    /** Avvia l'agente Estrattore nascosto al termine della pipeline (P5) */
+    void runKnowledgeExtract();
 
 private slots:
     void onToken(const QString& t);

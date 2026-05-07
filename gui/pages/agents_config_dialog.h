@@ -18,6 +18,8 @@
 
 #include <QDialog>
 #include <QFrame>
+class AiClient;
+class QNetworkAccessManager;
 #include <QLabel>
 #include <QPushButton>
 #include <QComboBox>
@@ -26,16 +28,25 @@
 #include <QVector>
 
 /* ══════════════════════════════════════════════════════════════
-   RagDropWidget — area drag-and-drop per contesto RAG
+   RagDropWidget — area drag-and-drop per contesto RAG + URL web
    ══════════════════════════════════════════════════════════════ */
 class RagDropWidget : public QFrame {
     Q_OBJECT
 public:
     explicit RagDropWidget(QWidget* parent = nullptr);
 
-    /** Testo aggregato da tutti i file caricati (max 16 KB totali) */
+    /** Testo aggregato da tutti i file/URL caricati (max 32 KB totali).
+     *  Le voci web includono citazione [N] e istruzione di riferimento. */
     QString ragContext() const;
-    bool    hasContext() const { return !m_files.isEmpty(); }
+    bool    hasContext()    const { return !m_files.isEmpty(); }
+    bool    hasWebEntries() const;
+
+    /** Aggiunge una voce web pre-fetchata (chiamato dal fetcher async). */
+    void addEntry(const QString& name, const QString& content);
+
+signals:
+    void webFetchStarted(const QString& url);
+    void webFetchDone(const QString& url, bool ok);
 
 protected:
     void dragEnterEvent(QDragEnterEvent*) override;
@@ -46,16 +57,21 @@ protected:
 private:
     void addPath(const QString& path);
     void addFile(const QString& path);
+    void fetchUrl(const QString& url);
     void updateLabel();
 
-    struct FileEntry { QString name; QString content; };
-    QVector<FileEntry> m_files;
-    QLabel*      m_lbl      = nullptr;
-    QPushButton* m_clearBtn = nullptr;
-    int          m_totalBytes = 0;
+    struct FileEntry { QString name; QString content; bool isWeb = false; };
+    QVector<FileEntry>    m_files;
+    QLabel*               m_lbl      = nullptr;
+    QPushButton*          m_clearBtn = nullptr;
+    QPushButton*          m_urlBtn   = nullptr;
+    QNetworkAccessManager* m_nam     = nullptr;
+    int                   m_totalBytes  = 0;
+    int                   m_pendingFetches = 0;
 
     static constexpr int MAX_PER_FILE = 4096;
-    static constexpr int MAX_TOTAL    = 16384;
+    static constexpr int MAX_PER_WEB  = 12000;
+    static constexpr int MAX_TOTAL    = 32768;
 };
 
 /* ══════════════════════════════════════════════════════════════
@@ -77,8 +93,9 @@ public:
     int            numAgents() const   { return m_spinShots ? m_spinShots->value() : MAX_AGENTS; }
     QComboBox*     modeCombo()         { return m_cmbMode; }
 
-    /** Popola tutte le combo modello con la lista aggiornata dal backend */
-    void setModels(const QStringList& models);
+    /** Popola tutte le combo modello con la lista aggiornata dal backend.
+     *  Se ai != nullptr aggiunge icona ☁️/🌍📍 in base a modelSizeBytes. */
+    void setModels(const QStringList& models, AiClient* ai = nullptr);
 
     /** Aggiorna visibilità righe agente in base al numero selezionato */
     void updateVisibility(int numAgents);
