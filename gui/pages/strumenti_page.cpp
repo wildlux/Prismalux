@@ -507,7 +507,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         for (int c = 0; c < 3; c++) grid->setColumnStretch(c, 1);
         actStack->addWidget(page);
     }
-    catLay->addStretch();
+    catLay->addSpacing(12);   /* piccola spaziatura visiva tra cat e pannelli speciali */
 
     /* ── Pulsante Cron (non nella catGroup — stile separato) ── */
     auto* cronBtn = new QPushButton(
@@ -623,7 +623,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     catScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     catScroll->setWidget(catBar);
     catScroll->setWidgetResizable(false);
-    catScroll->setFixedHeight(36);
+    catScroll->setFixedHeight(52);  /* 34px bottoni + ~16px scrollbar orizzontale */
 
     lay->addWidget(catScroll);
     lay->addWidget(actStack);
