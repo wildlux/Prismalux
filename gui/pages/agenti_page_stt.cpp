@@ -3,7 +3,6 @@
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
 #include <QTimer>
-#include <QPointer>
 #include <QFile>
 #include <QFileInfo>
 #include <QDir>
@@ -59,46 +58,66 @@ void AgentiPage::_sttStartRecording()
         {"-d", "6", "-r", "16000", "-c", "1", "-f", "S16_LE", "-q", wavPath});
 #endif
 
-    /* Countdown nel testo del pulsante */
-    auto* tick = new QTimer(this);
-    tick->setProperty("secs", 6);
-    QPointer<QTimer> safeTick(tick);   /* cattura sicura: diventa null dopo deleteLater */
-    connect(tick, &QTimer::timeout, this, [this, safeTick]{
-        if (!safeTick) return;
-        if (m_sttState != SttState::Recording) {
-            safeTick->stop(); safeTick->deleteLater(); return;
-        }
-        int s = safeTick->property("secs").toInt() - 1;
-        safeTick->setProperty("secs", s);
-        if (s > 0)
-            m_btnVoice->setText(
-                QString("\xf0\x9f\x94\xb4 Registrando... %1s (click per fermare)").arg(s));
-    });
-    tick->start(1000);
+    /* Countdown nel testo del pulsante — slot esplicito, nessuna lambda con raw pointer */
+    m_sttWavPath = wavPath;
+    m_sttTick = new QTimer(this);
+    m_sttTick->setProperty("secs", 6);
+    connect(m_sttTick, &QTimer::timeout, this, &AgentiPage::onSttTick);
+    m_sttTick->start(1000);
 
     /* Dopo 6.5s ferma la registrazione e avvia la trascrizione */
-    QTimer::singleShot(6500, this, [this, wavPath, safeTick]{
-        if (safeTick) { safeTick->stop(); safeTick->deleteLater(); }
-        if (m_sttState != SttState::Recording) return;  // utente ha fermato prima
-        if (m_recProc) { m_recProc->terminate(); m_recProc->waitForFinished(1000);
-                         m_recProc->deleteLater(); m_recProc = nullptr; }
+    QTimer::singleShot(6500, this, &AgentiPage::onSttTimeout);
+}
 
-        if (!QFileInfo::exists(wavPath)) {
-            m_sttState = SttState::Idle;
-            m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
-            m_btnVoice->setProperty("danger","false");
-            P::repolish(m_btnVoice);
-            m_log->append("\xe2\x9a\xa0  Registrazione fallita (arecord non disponibile?)");
-            return;
-        }
+/* ── slot privato: tick 1s del countdown ───────────────────────────────────── */
+void AgentiPage::onSttTick()
+{
+    if (m_sttState != SttState::Recording) {
+        m_sttTick->stop();
+        m_sttTick->deleteLater();
+        m_sttTick = nullptr;
+        return;
+    }
+    int s = m_sttTick->property("secs").toInt() - 1;
+    m_sttTick->setProperty("secs", s);
+    if (s > 0)
+        m_btnVoice->setText(
+            QString("\xf0\x9f\x94\xb4 Registrando... %1s (click per fermare)").arg(s));
+}
 
-        m_sttState = SttState::Transcribing;
-        m_btnVoice->setText("\xe2\x8c\x9b Trascrivendo...");
+/* ── slot privato: timeout 6.5s — ferma registrazione e avvia trascrizione ─── */
+void AgentiPage::onSttTimeout()
+{
+    /* Ferma il tick countdown se ancora attivo (es. utente non ha fermato prima) */
+    if (m_sttTick) {
+        m_sttTick->stop();
+        m_sttTick->deleteLater();
+        m_sttTick = nullptr;
+    }
+
+    if (m_sttState != SttState::Recording) return;  // utente ha già fermato
+
+    if (m_recProc) { m_recProc->terminate(); m_recProc->waitForFinished(1000);
+                     m_recProc->deleteLater(); m_recProc = nullptr; }
+
+    const QString wavPath = m_sttWavPath;
+
+    if (!QFileInfo::exists(wavPath)) {
+        m_sttState = SttState::Idle;
+        m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
         m_btnVoice->setProperty("danger","false");
         P::repolish(m_btnVoice);
-        m_btnVoice->setEnabled(false);
+        m_log->append("\xe2\x9a\xa0  Registrazione fallita (arecord non disponibile?)");
+        return;
+    }
 
-        m_sttProc = SttWhisper::transcribe(wavPath, "it", this,
+    m_sttState = SttState::Transcribing;
+    m_btnVoice->setText("\xe2\x8c\x9b Trascrivendo...");
+    m_btnVoice->setProperty("danger","false");
+    P::repolish(m_btnVoice);
+    m_btnVoice->setEnabled(false);
+
+    m_sttProc = SttWhisper::transcribe(wavPath, "it", this,
             [this](const QString& text, bool ok) {
                 m_sttState = SttState::Idle;
                 m_sttProc  = nullptr;
@@ -123,7 +142,6 @@ void AgentiPage::_sttStartRecording()
                         QTimer::singleShot(1500, this, [this]{ _sttStartRecording(); });
                 }
             });
-    });
 }
 
 /* ══════════════════════════════════════════════════════════════

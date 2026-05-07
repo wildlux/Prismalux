@@ -207,6 +207,8 @@ private:
     QPushButton* m_btnVoice   = nullptr;  ///< pulsante Trascrivi voce (testo cambia in-place)
     QProcess*    m_recProc    = nullptr;  ///< arecord
     QProcess*    m_sttProc    = nullptr;  ///< whisper-cli
+    QTimer*      m_sttTick    = nullptr;  ///< countdown 1s visibile nel pulsante
+    QString      m_sttWavPath;            ///< path file .wav registrato
     enum class SttState { Idle, Recording, Transcribing, Downloading } m_sttState = SttState::Idle;
 
     /** Scarica ggml-small.bin in ~/.prismalux/whisper/models/ con progress nella chat */
@@ -304,4 +306,6 @@ private slots:
     void onFinished(const QString& full);
     void onError(const QString& msg);
     void onModelsReady(const QStringList& list);
+    void onSttTick();     ///< scatta ogni 1s durante registrazione: aggiorna testo pulsante
+    void onSttTimeout();  ///< scatta a 6.5s: ferma registrazione e avvia trascrizione
 };
