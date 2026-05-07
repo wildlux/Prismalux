@@ -622,8 +622,8 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     catScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     catScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     catScroll->setWidget(catBar);
-    catScroll->setWidgetResizable(false);
-    catScroll->setFixedHeight(52);  /* 34px bottoni + ~16px scrollbar orizzontale */
+    catScroll->setWidgetResizable(true);   /* catBar si allarga fino al bordo: linea continua */
+    catScroll->setFixedHeight(52);         /* 34px bottoni + ~16px scrollbar orizzontale */
 
     lay->addWidget(catScroll);
     lay->addWidget(actStack);
