@@ -816,6 +816,50 @@ static QString _categorizeError(const QString& msg, AiClient::Backend backend) {
                "\xf0\x9f\xa4\x94  Il modello potrebbe essere in caricamento o troppo grande per la RAM disponibile.";
     }
 
+    /* RAM insufficiente — Ollama restituisce 500 con "more system memory" */
+    if (ml.contains("system memory") || ml.contains("more system memory") ||
+        ml.contains("requires more") || ml.contains("not enough memory") ||
+        ml.contains("out of memory") || ml.contains("cannot allocate")) {
+        return
+            "<div style='border:1px solid #f87171;border-radius:6px;"
+            "background:#1e1e2e;padding:8px 12px;margin:4px 0;'>"
+            "<p style='color:#f87171;font-weight:bold;margin:0 0 6px 0;'>"
+            "\xe2\x9d\x8c  RAM insufficiente per questo modello</p>"
+            "<p style='color:#e2e8f0;margin:0 0 8px 0;font-size:11px;'>" +
+            msg +
+            "</p>"
+            "<p style='color:#94a3b8;font-size:11px;margin:0 0 4px 0;'>"
+            "\xf0\x9f\x92\xa1  <b>Ottimizzazioni disponibili:</b></p>"
+            "<table style='font-size:11px;border-spacing:0 4px;'>"
+            "<tr><td style='color:#4ade80;padding-right:8px;'>\xf0\x9f\x9a\x80</td>"
+            "<td><b>Modalit\xc3\xa0 GPU</b> \xe2\x80\x94 usa la VRAM invece della RAM &nbsp;"
+            "<a href='settings:hardware' style='color:#60a5fa;'>"
+            "\xe2\x86\x92 Apri Impostazioni Hardware</a></td></tr>"
+            "<tr><td style='color:#a78bfa;padding-right:8px;'>\xe2\x9a\x96\xef\xb8\x8f</td>"
+            "<td><b>Modalit\xc3\xa0 Misto GPU+CPU</b> \xe2\x80\x94 divide i layer tra VRAM e RAM &nbsp;"
+            "<a href='settings:hardware' style='color:#60a5fa;'>"
+            "\xe2\x86\x92 Apri Impostazioni Hardware</a></td></tr>"
+            "<tr><td style='color:#fbbf24;padding-right:8px;'>\xf0\x9f\x92\xbe</td>"
+            "<td><b>Comprimi RAM con zRAM</b> \xe2\x80\x94 lz4 o zstd (Meta/Facebook) &nbsp;"
+            "<a href='settings:hardware' style='color:#60a5fa;'>"
+            "\xe2\x86\x92 Attiva da Impostazioni Hardware</a></td></tr>"
+            "<tr><td style='color:#94a3b8;padding-right:8px;'>\xf0\x9f\xa4\x96</td>"
+            "<td><b>Usa un modello pi\xc3\xb9 piccolo</b> \xe2\x80\x94 es. "
+            "<code>qwen3:4b</code> (~2.5 GB) o <code>deepseek-r1:1.5b</code> (~1 GB)</td></tr>"
+            "</table></div>";
+    }
+
+    /* Internal Server Error generico: potrebbe essere RAM o altro */
+    if (ml.contains("internal server error") || ml.contains("server error")) {
+        return
+            "<p style='color:#f87171;'>\xe2\x9d\x8c  " + msg + "</p>"
+            "<p style='color:#94a3b8;font-size:11px;'>"
+            "\xf0\x9f\x92\xa1  Se il modello non entra in memoria, prova <b>Modalit\xc3\xa0 GPU</b> o <b>Misto</b> "
+            "oppure attiva la <b>compressione zRAM</b> (lz4/zstd) &nbsp;"
+            "<a href='settings:hardware' style='color:#60a5fa;'>"
+            "\xe2\x86\x92 Impostazioni Hardware</a></p>";
+    }
+
     /* Risposta JSON malformata */
     if (ml.contains("json") || ml.contains("parse") || ml.contains("malform") ||
         ml.contains("invalid content")) {
