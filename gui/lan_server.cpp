@@ -29,6 +29,7 @@ LanServer::LanServer(AiClient* ai, QObject* parent)
 
 LanServer::~LanServer()
 {
+    blockSignals(true);   /* evita statusChanged(false) su widget già in distruzione */
     stop();
 }
 
