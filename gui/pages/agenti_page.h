@@ -53,6 +53,15 @@ public:
     /** Corregge bug tipici nel codice Python generato dall'AI (__name__ guard, ecc.) */
     static QString _sanitizePyCode(const QString& code);
 
+    /* ── Agente Autonomo — pubbliche per testabilità ── */
+    /** System prompt ReAct con lista strumenti e regole di formato */
+    static QString _autoSystemPrompt();
+    /** Genera la card HTML per uno step del ciclo ReAct */
+    static QString buildAutoStepHtml(int step, const QString& thought,
+                                     const QString& action, const QString& obs);
+    /** Cerca il primo oggetto JSON {tool,input} in una risposta dell'AI */
+    static QJsonObject detectFirstToolCall(const QString& text);
+
 signals:
     /** Emesso quando una pipeline/Byzantine/MathTheory completa — per salvare la chat */
     void chatCompleted(const QString& title, const QString& logHtml);
@@ -84,12 +93,11 @@ private:
     int           m_bubbleIdx = 0;        ///< contatore bolle corrente
     QTextEdit*    m_input     = nullptr;
     QPushButton*  m_btnRun        = nullptr;  ///< Pulsante unico: run (idle) ↔ stop (busy)
-    bool          m_modePipeline  = false;    ///< false=Singolo (default), true=Avvia pipeline
-    QPushButton*  m_btnCfg        = nullptr;   ///< Apre dialog config agenti
-    QPushButton*  m_btnModeToggle = nullptr;   ///< Toggle Mono-Agente / Multi-Agente
-    QWidget*      m_multiAgentBar = nullptr;   ///< Container controlli pipeline (nascosto in Mono)
+    bool          m_modePipeline  = false;    ///< false=Chat/Autonomo, true=Pipeline backend
+    QPushButton*  m_btnModeToggle = nullptr;   ///< Toggle Chat / Agente Autonomo
     QPushButton*  m_btnTranslate   = nullptr;  ///< Apre dialog traduzione
     QPushButton*  m_btnKnowledge   = nullptr;  ///< Salva risposta in user_knowledge.md (P4)
+    QWidget*      m_hintWidget     = nullptr;  ///< Footer suggerimenti (nascondibile)
     QFrame*       m_symbolsPanel = nullptr;   ///< Pannello inline caratteri speciali (toggle)
     QComboBox*    m_cmbMode   = nullptr;
     QCheckBox*    m_chkController = nullptr; ///< Abilita/disabilita il Controller LLM post-agente
@@ -120,7 +128,7 @@ private:
     QString m_translateDstLang;
 
     /* ── Stato modalità operative ── */
-    enum class OpMode { Idle, Pipeline, PipelineControl, Byzantine, MathTheory, Translating, ConsiglioScientifico, KnowledgeExtract };
+    enum class OpMode { Idle, Pipeline, PipelineControl, Byzantine, MathTheory, Translating, ConsiglioScientifico, KnowledgeExtract, AutonomousAgent };
     OpMode  m_opMode      = OpMode::Idle;
     OpMode  m_pendingMode = OpMode::Idle;  ///< Modalità da eseguire dopo traduzione
     QString m_translateBuf;     ///< Accumulo token traduzione
@@ -169,6 +177,31 @@ private:
     QPushButton* m_btnTtsStop  = nullptr;
     QPushButton* m_btnTtsPause = nullptr;  ///< pausa/riprendi lettura
     bool         m_ttsPaused   = false;    ///< true = lettura in pausa
+
+    /* ── Conversazione Vocale continua (loop STT → AI → TTS) ── */
+    QPushButton* m_btnVoiceLoop    = nullptr;
+    bool         m_voiceLoopActive = false;
+
+    /* ── Tool Use (attivo automaticamente in modalità Agente Autonomo) ── */
+    bool         m_toolsEnabled    = false;
+    int          m_toolIteration   = 0;   ///< contatore iterazioni per singola risposta
+
+    /** Esegue uno strumento (calc/ricerca/python/leggi_file/lista_file/scrivi_file). Async. */
+    void runToolCall(const QJsonObject& call, std::function<void(QString)> onDone);
+    /** Testo da aggiungere al system prompt quando tool use è attivo */
+    static QString toolSystemSuffix();
+
+    /* ── Agente Autonomo (ReAct: Reasoning + Acting loop) ── */
+    bool         m_autoEnabled    = false;   ///< true = modalità autonoma attiva
+    bool         m_autoMsgShown  = false;   ///< true = banner "attivato" già mostrato
+    QJsonArray   m_autoHistory;              ///< storia multi-turno della sessione ReAct
+    QString      m_autoBuf;                  ///< accumulo token step corrente
+    int          m_autoStep       = 0;       ///< step corrente del ciclo (0 = prima chiamata)
+    int          m_autoMaxSteps   = 8;       ///< limite step prima di terminare forzatamente
+    QString      m_autoLastUserMsg;          ///< task originale dell'utente
+
+    void runAutonomousAgent();               ///< avvia/continua un ciclo ReAct
+    void _autoAdvance(const QString& resp);  ///< processa risposta e avanza al passo successivo
 
     /* ── STT — pulsante + processi tracciati ── */
     QPushButton* m_btnVoice   = nullptr;  ///< pulsante Trascrivi voce (testo cambia in-place)
@@ -258,6 +291,7 @@ private:
      *  summary  — testo con prefissi PREFERENZE:/PROGETTO:/PROCEDURA:/DECISIONE:/CONTESTO:
      *  label    — etichetta sessione per la sezione "contesto" (opzionale) */
     void callKnowledgeMcp(const QString& summary, const QString& label = {});
+    void saveFeedback(int bubbleIdx, int rating);   ///< +1=👍 -1=👎 → ~/.prismalux/feedback.jsonl
 
     /** Apre il dialog "Salva in Knowledge" per salvare manualmente la risposta (P4) */
     void onSaveKnowledge();

@@ -5,12 +5,14 @@
 ### *"Costruito per i mortali che aspirano alla saggezza."*
 
 [![C++/Qt6](https://img.shields.io/badge/GUI-C%2B%2B%20%2F%20Qt6-green?style=flat-square&logo=qt)](https://www.qt.io/)
-[![Version](https://img.shields.io/badge/versione-2.9-blue?style=flat-square)](CHANGELOG)
+[![Version](https://img.shields.io/badge/versione-3.0-blue?style=flat-square)](CHANGELOG)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20Android%20(WIP)-informational?style=flat-square)](https://github.com/wildlux/Prismalux)
 
 **Piattaforma AI locale. GUI in C++/Qt6.**  <br>
-Multi-agente · anti-allucinazione · RAG in-page · matematica locale · 110 simulazioni algoritmi.  <br>
+Multi-agente · Agente Autonomo ReAct · anti-allucinazione · RAG in-page + web · matematica locale · 63 simulazioni algoritmi.  <br>
+Code Interpreter sandbox · Think mode inline · Memoria automatica · Feedback DPO · Wiki AI  <br>
+🎨 Stable Diffusion (AUTOMATIC1111/Forge) · Personalità AI (Jarvis/KITT/Yoda/Snake/Sonic/Mario)  <br>
 MCPs: Blender / Office / Anki / KiCAD / Arduino+ESP32 · Network Analyzer · Disegno→3D  <br>
 Zero dipendenze cloud · Zero abbonamenti · Tutto locale sul tuo hardware
 
@@ -97,9 +99,9 @@ ctest --test-dir build_tests -R NomeSuite # esegui una suite
 
 | # | Tab | Shortcut | Contenuto |
 |---|-----|----------|-----------|
-| 0 | 🤖 Intelligenza Artificiale | Alt+1 | Pipeline 6 agenti · Byzantino · CHAT RAG · TTS/STT |
-| 1 | 🛠 Strumenti AI | Alt+2 | Studio · Scrittura · Ricerca · 💼 Cerca Lavoro · Libri · Produttività · Documenti · 📱 LAN Android |
-| 2 | 💻 Programmazione | Alt+3 | Editor + correzione AI + Agentica (pipeline/RAG/refactor/test/debug/byzantino) |
+| 0 | 🤖 Intelligenza Artificiale | Alt+1 | Pipeline 6 agenti · Byzantino · CHAT RAG · **🤖 Agente Autonomo** · TTS/STT |
+| 1 | 🛠 Strumenti AI | Alt+2 | Studio · Scrittura · Ricerca · 💼 Cerca Lavoro · Libri · Produttività · Documenti · ⏰ Cron · **🗂 File AI** · **📖 Wiki** · **🎨 Stable Diffusion** · 📱 LAN Android |
+| 2 | 💻 Programmazione | Alt+3 | Editor + correzione AI + Agentica + **🧪 Interpreter Python** |
 | 3 | π Matematica | Alt+4 | Sequenze→Formula · espressioni locali · costanti alta precisione · 45+ grafici |
 | 4 | 🔬 Ricerca | Alt+5 | Paper · Brevetti · Documenti tecnici |
 | 5 | 🕹 APP Controller | Alt+6 | Blender · Office · Anki · KiCAD · TinyMCP (Arduino/ESP32/STM32…) · OpenCode |
@@ -133,7 +135,7 @@ Esecuzione codice Python generato dall'AI richiede dialog di conferma esplicita.
 Parser ricorsivo zero-AI in microsecondi: `sin/cos/tan/asin/acos/atan`, `ln/log/log2/exp`, `sqrt/cbrt`, `gcd/lcm`, `abs/floor/ceil/round`, costanti `pi/e/phi`.  
 Precedenza: `()` > `^` > `*/%` > `+-`.
 
-### Simulatore Algoritmi — 110 simulazioni, 13 categorie
+### Simulatore Algoritmi — 63 simulazioni, 13 categorie
 Ordinamento (15) · Ricerca (4) · Matematica (10) · Prog.Dinamica (5) · Grafi (7) · Tecniche (3) · Strutture Dati (5) · Stringhe (3) · Greedy (3) · Backtracking (2) · Visualizzazioni (3) · Fisica (1) · Chimica (3).
 
 ### Think Mode + Classificatore query
@@ -155,6 +157,74 @@ Classificatore automatico (modalità Auto):
 
 \* Solo per modelli think-capable: `qwen3`, `qwen3.5`, `deepseek-r1`, `qwq`, `qwen2.5`.  
 Il budget token (1-4×) è configurabile per gestire il consumo RAM su hardware limitato.
+
+Il ragionamento appare inline nella bolla con toggle collassabile **▶️ Ragionamento (N par.)** → **🔻** per espandere. Funziona con entrambi i formati: campo `thinking` di Ollama e tag `<think>…</think>` di llama.cpp.
+
+### Agente Autonomo (ReAct)
+
+Toggle **🤖 Auto** nella toolbar di Intelligenza Artificiale. L'agente pianifica, usa strumenti e itera autonomamente senza richiedere conferma a ogni passo.
+
+```
+THOUGHT: analisi del problema
+ACTION: strumento(input)
+OBSERVATION: risultato
+… (fino a 8 step)
+FINAL_ANSWER: risposta finale
+```
+
+Strumenti disponibili: `calc` · `ricerca` · `python` · `leggi_file` · `lista_file` · `scrivi_file` (con conferma).
+
+### Code Interpreter Python
+
+Sub-tab **🧪 Interpreter** in Programmazione. Esegue codice Python generato dall'AI in un ambiente isolato.
+
+- **Docker sandbox**: rete disabilitata, 256 MB RAM, nessun accesso al filesystem
+- **Fallback locale**: se Docker non è disponibile, file temporaneo + timeout 30s
+- Output matplotlib mostrato come immagine PNG inline
+- Errore → auto-retry con fix AI (max 3 tentativi)
+
+### RAG con Web Reading
+
+Ogni area RAG ha un pulsante **🌐** per aggiungere contenuto da URL.
+
+- Fetch asincrono con `QNetworkAccessManager`, strip HTML, max 12 KB per pagina
+- Il contesto include `[N] dominio/path` come citazione per ogni fonte web
+- Formati file: `.txt`, `.md`, `.pdf`, `.cpp`, `.py`, `.h` + qualsiasi URL
+
+### Memoria Automatica Cross-Sessione
+
+Ogni 4 scambi in CHAT RAG, un estrattore silenzioso analizza la conversazione e aggiorna automaticamente il profilo utente in `KNOWLEDGE_USER/user_knowledge.md`. Nessuna azione manuale richiesta.
+
+### Personalità AI
+
+In **Impostazioni → AI Locale** è possibile scegliere una personalità che modifica lo stile di risposta del modello per tutte le chat:
+
+| Personalità | Stile |
+|-------------|-------|
+| 🚫 Nessuna | Risposta neutra standard |
+| 🤖 Jarvis (Tony Stark) | Professionale, preciso, ironia britannica, chiama l'utente "signore" |
+| 🚗 KITT (Knight Rider) | Sofisticato, calmo, formale, riferimenti alla guida e sicurezza |
+| 🌿 Yoda (Star Wars) | Sintassi invertita, breve, saggio, sereno |
+| 🎮 Snake (Metal Gear) | Diretto, tattico, cinismo controllato, frasi brevi e incisive |
+| 💨 Sonic | Rapido, energico, spiritoso, leggermente impaziente |
+| 🍄 Super Mario | Entusiasta, positivo, "Wahoo!" e "Mamma mia!", sempre incoraggiante |
+
+Il pulsante vocale si aggiorna dinamicamente: **"🎙 Conversa"** → **"🎙 Conversa con Jarvis"** (o altra personalità selezionata).
+
+### Stable Diffusion — Text-to-Image
+
+Pannello **🎨 Stable Diffusion** in Strumenti AI. Si collega a qualsiasi server locale compatibile con l'API AUTOMATIC1111.
+
+- Compatibile con: AUTOMATIC1111, Forge, SD.Next, Stability Matrix
+- Lista modelli automatica (`GET /sdapi/v1/sd-models`)
+- Generazione con prompt · negative prompt · steps · CFG scale · dimensioni · seed
+- Output immagine inline nel pannello con possibilità di salvataggio
+
+Avvia il server prima di usare il pannello (es. `python webui.py --api --listen`).
+
+### Feedback 👍/👎
+
+Ogni risposta AI ha bottoni 👍/👎 nella barra azioni della bolla. Il feedback viene salvato in `~/.prismalux/feedback.jsonl` (prompt · risposta · modello · rating · timestamp) come base per DPO/fine-tuning futuro.
 
 ### Icone modelli nelle combo
 Tutte le combo di selezione modello mostrano un'icona di prefisso:

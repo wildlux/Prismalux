@@ -274,7 +274,10 @@ QString _buildSys(const QString& task,
         sys += " Nella risposta finale, vai direttamente al punto senza "
                "riformulare il processo di ragionamento.";
 
-    return sys;
+    const QString persona = P::personalityPrompt();
+    if (!persona.isEmpty())
+        sys = persona + "\n\n" + sys;
+    return P::prependKnowledge(sys);
 }
 
 /* ── _buildSys (4 argomenti) — backward compat per prompt senza variante small ── */

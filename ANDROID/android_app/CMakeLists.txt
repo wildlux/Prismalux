@@ -7,24 +7,37 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# ── Qt6 con tutti i moduli necessari ─────────────────────────────────────
+# ── Qt6 — moduli obbligatori ──────────────────────────────────────────────
 find_package(Qt6 REQUIRED COMPONENTS
     Core
+    Gui
     Widgets
     Network
-    Bluetooth
-    Multimedia
-    MultimediaWidgets
 )
 
 set(QT_LIBS
     Qt6::Core
+    Qt6::Gui
     Qt6::Widgets
     Qt6::Network
-    Qt6::Bluetooth
-    Qt6::Multimedia
-    Qt6::MultimediaWidgets
 )
+
+# ── Moduli opzionali ──────────────────────────────────────────────────────
+find_package(Qt6 OPTIONAL_COMPONENTS Bluetooth Multimedia MultimediaWidgets)
+if(Qt6Bluetooth_FOUND)
+    list(APPEND QT_LIBS Qt6::Bluetooth)
+    add_compile_definitions(HAVE_BLE)
+    message(STATUS "  Bluetooth: abilitato")
+else()
+    message(STATUS "  Bluetooth: non disponibile (stub)")
+endif()
+if(Qt6Multimedia_FOUND)
+    list(APPEND QT_LIBS Qt6::Multimedia Qt6::MultimediaWidgets)
+    add_compile_definitions(HAVE_MULTIMEDIA)
+    message(STATUS "  Multimedia: abilitato")
+else()
+    message(STATUS "  Multimedia: non disponibile (stub)")
+endif()
 
 # ── Sorgenti ──────────────────────────────────────────────────────────────
 set(SRCS
@@ -33,10 +46,16 @@ set(SRCS
     ai_client.cpp
     rag_engine_simple.cpp
     pages/chat_page.cpp
-    pages/camera_page.cpp
-    pages/ble_page.cpp
     pages/settings_page.cpp
 )
+
+if(Qt6Multimedia_FOUND)
+    list(APPEND SRCS pages/camera_page.cpp)
+endif()
+
+if(Qt6Bluetooth_FOUND)
+    list(APPEND SRCS pages/ble_page.cpp)
+endif()
 
 # ── Target ────────────────────────────────────────────────────────────────
 qt_add_executable(PrismaluxMobile ${SRCS})
@@ -55,23 +74,34 @@ endif()
 
 # ── Proprietà Android ─────────────────────────────────────────────────────
 if(ANDROID)
-    set_target_properties(PrismaluxMobile PROPERTIES
-        QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_SOURCE_DIR}/android"
-        QT_ANDROID_MIN_SDK_VERSION    26          # Android 8.0 — BLE + Camera2
-        QT_ANDROID_TARGET_SDK_VERSION 34          # Android 14
-        QT_ANDROID_VERSION_CODE       1
-        QT_ANDROID_VERSION_NAME       "1.0"
-    )
-
-    # Permessi dichiarati anche nel manifest; qui come fallback per Qt deploy
-    set_property(TARGET PrismaluxMobile APPEND PROPERTY
-        QT_ANDROID_EXTRA_LIBS
-        # Aggiungere qui eventuali .so di terze parti
-    )
+    # ── OpenSSL per Android (richiesto da QNetworkAccessManager) ──
+    if(NOT ANDROID_OPENSSL_DIR)
+        set(ANDROID_OPENSSL_DIR "$ENV{HOME}/Android/android_openssl-master/ssl_3/${ANDROID_ABI}")
+    endif()
+    if(EXISTS "${ANDROID_OPENSSL_DIR}/libssl_3.so")
+        set_target_properties(PrismaluxMobile PROPERTIES
+            QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_SOURCE_DIR}/android"
+            QT_ANDROID_MIN_SDK_VERSION    26
+            QT_ANDROID_TARGET_SDK_VERSION 34
+            QT_ANDROID_VERSION_CODE       1
+            QT_ANDROID_VERSION_NAME       "1.0"
+            QT_ANDROID_EXTRA_LIBS
+                "${ANDROID_OPENSSL_DIR}/libssl_3.so;${ANDROID_OPENSSL_DIR}/libcrypto_3.so"
+        )
+        message(STATUS "  OpenSSL ARM64: ${ANDROID_OPENSSL_DIR}")
+    else()
+        set_target_properties(PrismaluxMobile PROPERTIES
+            QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_SOURCE_DIR}/android"
+            QT_ANDROID_MIN_SDK_VERSION    26
+            QT_ANDROID_TARGET_SDK_VERSION 34
+            QT_ANDROID_VERSION_CODE       1
+            QT_ANDROID_VERSION_NAME       "1.0"
+        )
+        message(WARNING "  OpenSSL non trovato in ${ANDROID_OPENSSL_DIR} — rete HTTPS non disponibile")
+    endif()
 endif()
 
-# ── Risorsa QSS ───────────────────────────────────────────────────────────
-# Copia lo stylesheet nella build dir per il caricamento runtime
+# ── Risorsa QSS (solo host) ───────────────────────────────────────────────
 if(NOT ANDROID)
     add_custom_command(TARGET PrismaluxMobile POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -81,7 +111,6 @@ if(NOT ANDROID)
     )
 endif()
 
-# Messaggio di riepilogo
 message(STATUS "PrismaluxMobile v${PROJECT_VERSION}")
 message(STATUS "  Android build: ${ANDROID}")
 message(STATUS "  Qt6 Core:      ${Qt6Core_VERSION}")

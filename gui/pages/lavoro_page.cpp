@@ -90,11 +90,15 @@ void LavoroPage::applicaFiltri() {
    ══════════════════════════════════════════════════════════════ */
 void LavoroPage::popolaModelli(const QStringList& models) {
     if (!m_cmbModello) return;
-    const QString current = m_cmbModello->currentText();
+    /* Salva il nome raw dal UserRole per ripristinarlo dopo il repopulate */
+    const QString current = m_cmbModello->currentData(Qt::UserRole).toString().isEmpty()
+                          ? m_cmbModello->currentText()
+                          : m_cmbModello->currentData(Qt::UserRole).toString();
     m_cmbModello->blockSignals(true);
     m_cmbModello->clear();
     for (const auto& m : models) {
-        m_cmbModello->addItem(m);
+        const qint64 sz = m_ai->modelSizeBytes(m);
+        m_cmbModello->addItem(P::modelIcon(sz, m) + m, m);  /* UserRole = nome raw */
         if (P::isKnownBrokenModel(m)) {
             const int i = m_cmbModello->count() - 1;
             m_cmbModello->setItemData(i, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
@@ -104,12 +108,13 @@ void LavoroPage::popolaModelli(const QStringList& models) {
                 Qt::ToolTipRole);
         }
     }
-    // ripristina selezione precedente se ancora disponibile
-    const int idx = m_cmbModello->findText(current);
+    const int idx = m_cmbModello->findData(current, Qt::UserRole);
     m_cmbModello->setCurrentIndex(idx >= 0 ? idx : 0);
     m_cmbModello->blockSignals(false);
-    if (m_modelloLbl)
-        m_modelloLbl->setText("\xf0\x9f\xa4\x96 " + m_cmbModello->currentText());
+    if (m_modelloLbl) {
+        const QString raw = m_cmbModello->currentData(Qt::UserRole).toString();
+        m_modelloLbl->setText("\xf0\x9f\xa4\x96 " + (raw.isEmpty() ? m_cmbModello->currentText() : raw));
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -202,10 +207,12 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     // Connessioni modello
     connect(m_ai, &AiClient::modelsReady, this, &LavoroPage::popolaModelli);
     connect(fetchBtn, &QPushButton::clicked, m_ai, &AiClient::fetchModels);
-    connect(m_cmbModello, &QComboBox::currentTextChanged, this, [this](const QString& m){
-        if (m_modelloLbl) m_modelloLbl->setText("\xf0\x9f\xa4\x96 " + m);
-        if (!m.isEmpty() && !m.startsWith("\xf0\x9f\x94\x84"))
-            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m);
+    connect(m_cmbModello, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int){
+        const QString raw = m_cmbModello->currentData(Qt::UserRole).toString();
+        const QString name = raw.isEmpty() ? m_cmbModello->currentText() : raw;
+        if (m_modelloLbl) m_modelloLbl->setText("\xf0\x9f\xa4\x96 " + name);
+        if (!name.isEmpty() && !name.startsWith("\xf0\x9f\x94\x84"))
+            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), name);
     });
     m_ai->fetchModels();
 
@@ -537,7 +544,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
 
                 m_lavoroLog->append("\xe2\x9c\x85 Download completato \xe2\x86\x92 Analisi AI...\n");
                 const QString cvInfo  = m_cvText.isEmpty() ? cvFallback.left(2000) : m_cvText.left(2000);
-                const QString modello = m_cmbModello ? m_cmbModello->currentText() : m_ai->model();
+                const QString modello = m_cmbModello ? (m_cmbModello->currentData(Qt::UserRole).toString().isEmpty() ? m_cmbModello->currentText() : m_cmbModello->currentData(Qt::UserRole).toString()) : m_ai->model();
                 if (!modello.isEmpty() && !modello.startsWith("\xf0\x9f\x94\x84"))
                     m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), modello);
 
@@ -561,7 +568,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
                         "compatibilit\xc3\xa0 col profilo, consiglio s\xc3\xac/no. Max 500 parole.%3")
                         .arg(cvInfo, *combined, socraticoBase);
 
-                m_myReqId = m_ai->chat(sys,
+                m_myReqId = m_ai->chat(P::prependKnowledge(sys),
                     nUrl == 1
                     ? "Analizza questo annuncio e valuta la compatibilit\xc3\xa0 col mio profilo."
                     : "Analizza questi annunci e valuta quale si adatta meglio al mio profilo.");
@@ -630,7 +637,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
         if (!cur) { m_lavoroLog->append("\xe2\x9a\xa0  Seleziona prima un'offerta."); return; }
         const auto o = cur->data(Qt::UserRole).value<Offerta>();
         const QString cvInfo  = m_cvText.isEmpty() ? cvFallback : m_cvText.left(3500);
-        const QString modello = m_cmbModello ? m_cmbModello->currentText() : m_ai->model();
+        const QString modello = m_cmbModello ? (m_cmbModello->currentData(Qt::UserRole).toString().isEmpty() ? m_cmbModello->currentText() : m_cmbModello->currentData(Qt::UserRole).toString()) : m_ai->model();
 
         // Applica il modello selezionato
         if (!modello.isEmpty() && !modello.startsWith("\xf0\x9f\x94\x84"))
@@ -669,7 +676,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
 
         m_analizzaUrlBtn->setEnabled(false); m_analizzaCvBtn->setEnabled(false);
         m_stopAiBtn->setEnabled(true); waitLbl->setVisible(true);
-        m_myReqId = m_ai->chat(sys, QString("Genera la lettera di candidatura per il ruolo di %1 presso %2.")
+        m_myReqId = m_ai->chat(P::prependKnowledge(sys), QString("Genera la lettera di candidatura per il ruolo di %1 presso %2.")
                                         .arg(o.ruolo, o.azienda));
     };
 
@@ -678,7 +685,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
         if (!cur) { m_coverLog->append("\xe2\x9a\xa0  Seleziona prima un'offerta."); return; }
         const auto o = cur->data(Qt::UserRole).value<Offerta>();
         const QString cvInfo  = m_cvText.isEmpty() ? cvFallback : m_cvText.left(3500);
-        const QString modello = m_cmbModello ? m_cmbModello->currentText() : m_ai->model();
+        const QString modello = m_cmbModello ? (m_cmbModello->currentData(Qt::UserRole).toString().isEmpty() ? m_cmbModello->currentText() : m_cmbModello->currentData(Qt::UserRole).toString()) : m_ai->model();
         if (!modello.isEmpty() && !modello.startsWith("\xf0\x9f\x94\x84"))
             m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), modello);
 
@@ -703,7 +710,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
 
         m_analizzaUrlBtn->setEnabled(false); m_analizzaCvBtn->setEnabled(false);
         m_stopAiBtn->setEnabled(true); waitLbl->setVisible(true);
-        m_myCoverReqId = m_ai->chat(sysCover,
+        m_myCoverReqId = m_ai->chat(P::prependKnowledge(sysCover),
             QString("Scrivi la cover letter per %1 presso %2.").arg(o.ruolo, o.azienda));
     };
 
@@ -714,7 +721,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     auto sendFn = [=](const QString& msg) {
         if (msg.isEmpty()) return;
         const QString cvInfo  = m_cvText.isEmpty() ? cvFallback.left(1500) : m_cvText.left(2000);
-        const QString modello = m_cmbModello ? m_cmbModello->currentText() : m_ai->model();
+        const QString modello = m_cmbModello ? (m_cmbModello->currentData(Qt::UserRole).toString().isEmpty() ? m_cmbModello->currentText() : m_cmbModello->currentData(Qt::UserRole).toString()) : m_ai->model();
         if (!modello.isEmpty() && !modello.startsWith("\xf0\x9f\x94\x84"))
             m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), modello);
 
@@ -731,7 +738,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
         m_analizzaCvBtn->setEnabled(false);
         m_stopAiBtn->setEnabled(true);
         waitLbl->setVisible(true);
-        m_myReqId = m_ai->chat(sys, msg);
+        m_myReqId = m_ai->chat(P::prependKnowledge(sys), msg);
     };
     connect(m_stopAiBtn, &QPushButton::clicked, m_ai, &AiClient::abort);
 

@@ -15,7 +15,24 @@
    ══════════════════════════════════════════════════════════════ */
 #include "agenti_page.h"
 #include "agenti_page_p.h"
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
 #include <QRegularExpression>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QProcess>
+#include <QTimer>
+#include <QTextCursor>
+#include <QFile>
+#include <QDir>
+#include <QFileInfo>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QVBoxLayout>
+#include <QLabel>
+#include <QTextEdit>
+#include <QFont>
 #include <random>
 #include <cmath>
 
@@ -166,4 +183,240 @@ QString _inject_random(const QString& task) {
         .arg(numStr);
 
     return header + task;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Tool Use Nativo — implementazione
+   Integrato nel pipeline esistente via hook in onFinished(Pipeline).
+   ══════════════════════════════════════════════════════════════ */
+
+QString AgentiPage::toolSystemSuffix()
+{
+    return QString::fromLatin1(
+        "\n\n[STRUMENTI DISPONIBILI - usali se necessario]\n"
+        "TOOL_CALL: {\"tool\": \"calc\", \"input\": \"sqrt(144)\"}\n"
+        "TOOL_CALL: {\"tool\": \"ricerca\", \"input\": \"query\"}\n"
+        "TOOL_CALL: {\"tool\": \"python\", \"input\": \"print(2+2)\"}\n"
+        "TOOL_CALL: {\"tool\": \"leggi_file\", \"input\": \"/percorso/file.txt\"}\n"
+        "TOOL_CALL: {\"tool\": \"lista_file\", \"input\": \"/percorso/cartella/\"}\n"
+        "Scrivi UNA riga TOOL_CALL: {...} e attendi TOOL_RESULT. "
+        "Se non ti servono strumenti, rispondi normalmente in italiano.");
+}
+
+QJsonObject AgentiPage::detectFirstToolCall(const QString& text)
+{
+    static const QRegularExpression re(
+        "TOOL_CALL:\\s*(\\{[^\\n\\r]+\\})",
+        QRegularExpression::CaseInsensitiveOption);
+    const auto m = re.match(text);
+    if (!m.hasMatch()) return {};
+    return QJsonDocument::fromJson(m.captured(1).toUtf8()).object();
+}
+
+void AgentiPage::runToolCall(const QJsonObject& call,
+                              std::function<void(QString)> onDone)
+{
+    const QString tool  = call["tool"].toString().toLower().trimmed();
+    const QString input = call["input"].toString().trimmed();
+
+    /* ── Calcolatrice ── */
+    if (tool == "calc" || tool == "calcolatrice" || tool == "math") {
+        const QString safeInput = input.left(500);
+        /* Qt6: QJsonDocument non accetta QJsonValue direttamente — usa QJsonArray come wrapper */
+        QJsonArray _ca; _ca.append(safeInput);
+        const QString _safeJson = QString::fromUtf8(
+            QJsonDocument(_ca).toJson(QJsonDocument::Compact)).mid(1).chopped(1);
+        const QString script =
+            "import math,statistics\n"
+            "try:\n"
+            "    g=dict(vars(math))\n"
+            "    g.update(vars(statistics))\n"
+            "    g['__builtins__']={}\n"
+            "    print(eval(" + _safeJson + ",g,{}))\n"
+            "except Exception as e:\n"
+            "    print('ERRORE:',e)\n";
+        auto* proc = new QProcess(this);
+        proc->setProcessChannelMode(QProcess::MergedChannels);
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [proc, onDone](int, QProcess::ExitStatus) {
+            const QString out = QString::fromUtf8(proc->readAll()).trimmed();
+            proc->deleteLater();
+            onDone(out.isEmpty() ? "nessun risultato" : out);
+        });
+        proc->start(P::findPython(), {"-c", script});
+        QTimer::singleShot(5000, proc, [proc, onDone]{
+            if (proc->state() != QProcess::NotRunning) { proc->kill(); onDone("timeout"); }
+        });
+        return;
+    }
+
+    /* ── Ricerca Web DuckDuckGo Instant Answer ── */
+    if (tool == "ricerca" || tool == "search" || tool == "web") {
+        QJsonArray _ra; _ra.append(input.left(200));
+        const QString _inputJson = QString::fromUtf8(
+            QJsonDocument(_ra).toJson(QJsonDocument::Compact)).mid(1).chopped(1);
+        const QString script =
+            "import urllib.request,urllib.parse,json\n"
+            "q=urllib.parse.quote_plus(" + _inputJson + ")\n"
+            "url=f'https://api.duckduckgo.com/?q={q}&format=json&no_redirect=1&no_html=1'\n"
+            "try:\n"
+            "    req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})\n"
+            "    with urllib.request.urlopen(req,timeout=7) as r: d=json.load(r)\n"
+            "    out=[]\n"
+            "    if d.get('AbstractText'): out.append(d['AbstractText'][:300])\n"
+            "    elif d.get('Answer'): out.append(d['Answer'][:300])\n"
+            "    for t in d.get('RelatedTopics',[])[:3]:\n"
+            "        if isinstance(t,dict) and t.get('Text'): out.append(t['Text'][:150])\n"
+            "    print('\\n'.join(out) if out else 'nessun risultato')\n"
+            "except Exception as e: print('ERRORE:',e)\n";
+        auto* proc = new QProcess(this);
+        proc->setProcessChannelMode(QProcess::MergedChannels);
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [proc, onDone](int, QProcess::ExitStatus) {
+            const QString out = QString::fromUtf8(proc->readAll()).trimmed();
+            proc->deleteLater();
+            onDone(out.isEmpty() ? "nessun risultato" : out.left(500));
+        });
+        proc->start(P::findPython(), {"-c", script});
+        QTimer::singleShot(12000, proc, [proc, onDone]{
+            if (proc->state() != QProcess::NotRunning) { proc->kill(); onDone("timeout ricerca"); }
+        });
+        return;
+    }
+
+    /* ── Python generico — sandboxed via Docker se disponibile ── */
+    if (tool == "python" || tool == "py") {
+        const QString code = input.left(2000);
+        auto* proc = new QProcess(this);
+        proc->setProcessChannelMode(QProcess::MergedChannels);
+
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [proc, onDone](int, QProcess::ExitStatus) {
+            const QString out = QString::fromUtf8(proc->readAll()).trimmed();
+            proc->deleteLater();
+            onDone(out.isEmpty() ? "(nessun output)" : out.left(600));
+        });
+
+        if (P::isSandboxReady()) {
+            const QSettings ss("Prismalux", "GUI");
+            const QString img = ss.value(P::SK::kSandboxImage, "python:3.11-slim").toString();
+            const QString mem = QString::number(ss.value(P::SK::kSandboxMemory, 256).toInt()) + "m";
+            proc->start(P::findDocker(), {
+                "run", "--rm",
+                "--network", "none",
+                "--memory",  mem,
+                "--cpus",    "0.5",
+                "--pids-limit", "64",
+                "-i",
+                img, "python3", "-"
+            });
+            if (proc->waitForStarted(4000)) {
+                proc->write(code.toUtf8());
+                proc->closeWriteChannel();
+            }
+        } else {
+            proc->start(P::findPython(), {"-c", code});
+        }
+
+        QTimer::singleShot(15000, proc, [proc, onDone]{
+            if (proc->state() != QProcess::NotRunning) { proc->kill(); onDone("timeout sandbox"); }
+        });
+        return;
+    }
+
+    /* ── Leggi file ── */
+    if (tool == "leggi_file" || tool == "read_file" || tool == "leggi") {
+        const QString path = input.trimmed();
+        if (path.isEmpty()) { onDone("errore: percorso file non specificato"); return; }
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            onDone(QString("errore: impossibile aprire '%1' — %2").arg(path, f.errorString()));
+            return;
+        }
+        const QString content = QString::fromUtf8(f.readAll()).left(4000);
+        f.close();
+        onDone(content.isEmpty() ? "(file vuoto)" : content);
+        return;
+    }
+
+    /* ── Lista file in cartella ── */
+    if (tool == "lista_file" || tool == "list_files" || tool == "ls" || tool == "lista") {
+        const QString dirPath = input.trimmed();
+        if (dirPath.isEmpty()) { onDone("errore: percorso cartella non specificato"); return; }
+        QDir dir(dirPath);
+        if (!dir.exists()) {
+            onDone(QString("errore: cartella '%1' non trovata").arg(dirPath));
+            return;
+        }
+        const QStringList entries = dir.entryList(QDir::AllEntries | QDir::NoDotAndDotDot,
+                                                   QDir::Name | QDir::DirsFirst);
+        if (entries.isEmpty()) { onDone("(cartella vuota)"); return; }
+        /* Aggiunge '/' ai nomi di directory per distinguerli dai file */
+        QStringList annotated;
+        annotated.reserve(entries.size());
+        for (const QString& e : entries) {
+            const QString full = dirPath + "/" + e;
+            annotated << (QFileInfo(full).isDir() ? e + "/" : e);
+        }
+        onDone(annotated.join("\n").left(2000));
+        return;
+    }
+
+    /* ── Scrivi file (richiede conferma utente) ── */
+    if (tool == "scrivi_file" || tool == "write_file" || tool == "scrivi") {
+        /* Formato input: "percorso|||contenuto" */
+        const int sep = input.indexOf("|||");
+        if (sep < 0) {
+            onDone("errore: formato scrivi_file deve essere \"percorso|||contenuto\"");
+            return;
+        }
+        const QString filePath = input.left(sep).trimmed();
+        const QString fileContent = input.mid(sep + 3);
+        if (filePath.isEmpty()) { onDone("errore: percorso file non specificato"); return; }
+
+        /* Conferma utente: sicurezza — non scriviamo file silenziosamente */
+        {
+            auto* dlg = new QDialog(this);
+            dlg->setWindowTitle("\xf0\x9f\x93\x9d  Scrivi file?");
+            dlg->setMinimumSize(480, 320);
+            auto* lay = new QVBoxLayout(dlg);
+            auto* lbl = new QLabel(
+                QString("L\xe2\x80\x99" "agente autonomo vuole scrivere il file:\n"
+                        "<b>%1</b>\n\nContenuto (%2 caratteri):").arg(
+                    filePath.toHtmlEscaped(),
+                    QString::number(fileContent.size())), dlg);
+            lbl->setTextFormat(Qt::RichText);
+            lbl->setWordWrap(true);
+            lay->addWidget(lbl);
+            auto* preview = new QTextEdit(dlg);
+            preview->setReadOnly(true);
+            preview->setPlainText(fileContent.left(800));
+            preview->setFont(QFont("JetBrains Mono,Consolas,monospace", 9));
+            preview->setStyleSheet("background:#1e1e2e;color:#cdd6f4;"
+                                   "border:1px solid #45475a;padding:4px;");
+            lay->addWidget(preview, 1);
+            auto* btnBox = new QDialogButtonBox(dlg);
+            btnBox->addButton("\xf0\x9f\x93\x9d  Scrivi", QDialogButtonBox::AcceptRole);
+            btnBox->addButton("\xe2\x9c\x96  Annulla", QDialogButtonBox::RejectRole);
+            connect(btnBox, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
+            connect(btnBox, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+            lay->addWidget(btnBox);
+            const bool ok = (dlg->exec() == QDialog::Accepted);
+            dlg->deleteLater();
+            if (!ok) { onDone("scrittura annullata dall\xe2\x80\x99utente"); return; }
+        }
+
+        QFile f(filePath);
+        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+            onDone(QString("errore: impossibile scrivere '%1' — %2").arg(filePath, f.errorString()));
+            return;
+        }
+        f.write(fileContent.toUtf8());
+        f.close();
+        onDone(QString("file '%1' scritto con successo (%2 byte)")
+               .arg(filePath).arg(fileContent.toUtf8().size()));
+        return;
+    }
+
+    onDone(QString("strumento non riconosciuto: %1").arg(tool));
 }

@@ -3,6 +3,7 @@
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
 #include <QElapsedTimer>
+#include <QTimer>
 #include <QSettings>
 #include <QTextCursor>
 #include <QRegularExpression>
@@ -131,10 +132,11 @@ void AgentiPage::runPipeline() {
     if (!m_docContext.isEmpty()) {
         task += "\n\n--- DOCUMENTO ALLEGATO ---\n" + m_docContext.left(8000);
     }
-    m_taskOriginal = _inject_random(_inject_math(task));
+    m_taskOriginal  = _inject_random(_inject_math(task));
     m_agentOutputs.clear();
-    m_currentAgent = 0;
-    m_maxShots     = m_cfgDlg->numAgents();
+    m_currentAgent  = 0;
+    m_maxShots      = m_cfgDlg->numAgents();
+    m_toolIteration = 0;
     m_opMode       = OpMode::Pipeline;
 
     for (int i = 0; i < MAX_AGENTS; i++)
@@ -189,6 +191,16 @@ void AgentiPage::advancePipeline() {
                 runKnowledgeExtract();   /* cambia opMode → KnowledgeExtract */
                 return;                  /* onFinished gestirà la chiusura */
             }
+        }
+
+        /* Conversazione vocale continua: auto-TTS risposta singolo agente */
+        if (m_voiceLoopActive && !m_modePipeline && !m_agentOutputs.isEmpty()) {
+            QString resp = m_agentOutputs.last().trimmed();
+            QStringList words = resp.split(' ', Qt::SkipEmptyParts);
+            if (words.size() > 400) words = words.mid(0, 400);
+            const QString ttsText = words.join(" ");
+            if (!ttsText.isEmpty())
+                QTimer::singleShot(200, this, [this, ttsText]{ _ttsPlay(ttsText); });
         }
 
         emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
@@ -325,8 +337,9 @@ void AgentiPage::runAgent(int idx) {
         : QString("\n\n\xf0\x9f\x8e\xaf Obiettivo globale del team: ") + m_taskOriginal.left(200);
     const QString teamGoalSmall = isSingleChat ? QString()
         : QString(" Task: ") + m_taskOriginal.left(80);
-    const QString sysFull  = role.sysPrompt      + teamGoalFull;
-    const QString sysSmall = role.sysPromptSmall + teamGoalSmall;
+    const QString toolSuffix = (m_toolsEnabled && isSingleChat) ? toolSystemSuffix() : QString();
+    const QString sysFull  = role.sysPrompt      + teamGoalFull  + toolSuffix;
+    const QString sysSmall = role.sysPromptSmall + teamGoalSmall + toolSuffix;
 
     m_agentTimer.restart();
     m_agentOutputs.append("");

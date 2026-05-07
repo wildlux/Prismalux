@@ -101,13 +101,21 @@ void AgentiPage::_sttStartRecording()
                 m_btnVoice->setEnabled(true);
 
                 if (ok && !text.isEmpty()) {
-                    const QString cur = m_input->toPlainText();
-                    m_input->setPlainText(cur.isEmpty() ? text : cur + " " + text);
+                    if (m_voiceLoopActive) {
+                        m_input->setPlainText(text);   /* loop: sostituisce sempre */
+                    } else {
+                        const QString cur = m_input->toPlainText();
+                        m_input->setPlainText(cur.isEmpty() ? text : cur + " " + text);
+                    }
                     m_input->setFocus();
+                    if (m_voiceLoopActive && !m_ai->busy())
+                        QTimer::singleShot(150, this, [this]{ m_btnRun->click(); });
                 } else {
                     m_log->append(
                         "\xe2\x9a\xa0  Trascrizione fallita o audio vuoto.<br>"
                         + QString(text).replace("\n","<br>"));
+                    if (m_voiceLoopActive)
+                        QTimer::singleShot(1500, this, [this]{ _sttStartRecording(); });
                 }
             });
     });

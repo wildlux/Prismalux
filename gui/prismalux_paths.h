@@ -31,6 +31,8 @@
 #include <QStandardPaths>
 #include <QWidget>
 #include <QStyle>
+#include <QDateTime>
+#include <QSettings>
 
 namespace PrismaluxPaths {
 
@@ -313,6 +315,19 @@ inline QString knownBrokenModelTooltip()
 }
 
 /**
+ * modelIcon(sizeBytes, name) — prefisso emoji ☁️/🌍📍 per combo modelli.
+ * cloud : sizeBytes == 0 (Ollama /api/tags) oppure nome termina con "cloud"
+ * locale: sizeBytes  > 0 (file GGUF presente sul disco)
+ */
+inline QString modelIcon(qint64 sizeBytes, const QString& name)
+{
+    const bool isCloud = (sizeBytes == 0) || name.endsWith("cloud", Qt::CaseInsensitive);
+    return isCloud
+        ? QString::fromUtf8("\xe2\x98\x81\xef\xb8\x8f  ")          /* ☁️  */
+        : QString::fromUtf8("\xf0\x9f\x8c\x8d\xf0\x9f\x93\x8d  "); /* 🌍📍  */
+}
+
+/**
  * totalRamBytes() — Memoria fisica totale del sistema in byte.
  *
  * Usata per verificare se un modello LLM è caricabile senza esaurire la RAM.
@@ -366,6 +381,77 @@ inline QString modelParamsPath()
 inline QString cronFile()
 {
     return QDir::homePath() + "/.prismalux/cron_jobs.json";
+}
+
+/** feedbackPath() — JSONL feedback 👍/👎 per risposta (base per DPO futuro). */
+inline QString feedbackPath()
+{
+    return QDir::homePath() + "/.prismalux/feedback.jsonl";
+}
+
+/** userKnowledgePath() — Percorso del file memoria persistente utente. */
+inline QString userKnowledgePath()
+{
+    return root() + "/KNOWLEDGE_USER/user_knowledge.md";
+}
+
+/* Stato cache per readUserKnowledge() — esposto per invalidateKnowledgeCache(). */
+namespace detail {
+inline qint64& knowledgeCacheMs() { static qint64 v = 0;  return v; }
+inline QString& knowledgeCache()  { static QString v;      return v; }
+}
+
+/**
+ * readUserKnowledge() — Legge user_knowledge.md con cache 30s.
+ * La cache evita I/O ripetuto durante lo streaming token.
+ * Restituisce stringa vuota se il file non esiste.
+ */
+inline QString readUserKnowledge()
+{
+    constexpr qint64 kTtlMs = 30'000;
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+
+    if (!detail::knowledgeCache().isNull() &&
+        (now - detail::knowledgeCacheMs()) < kTtlMs)
+        return detail::knowledgeCache();
+
+    const QString path = userKnowledgePath();
+    if (!QFile::exists(path)) {
+        detail::knowledgeCache()   = QString("");
+        detail::knowledgeCacheMs() = now;
+        return detail::knowledgeCache();
+    }
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return {};
+    detail::knowledgeCache()   = QString::fromUtf8(f.readAll());
+    detail::knowledgeCacheMs() = now;
+    return detail::knowledgeCache();
+}
+
+/** invalidateKnowledgeCache() — Forza rilettura del file alla prossima chiamata. */
+inline void invalidateKnowledgeCache()
+{
+    detail::knowledgeCacheMs() = 0;
+    detail::knowledgeCache().clear();
+}
+
+/**
+ * prependKnowledge(systemPrompt) — Prepende user_knowledge.md al system prompt.
+ * Se kInjectUserKnowledge è false o il file è vuoto, restituisce il prompt invariato.
+ */
+inline QString prependKnowledge(const QString& systemPrompt)
+{
+    QSettings s("Prismalux", "GUI");
+    if (!s.value("ai/injectUserKnowledge", true).toBool())
+        return systemPrompt;
+    const QString knowledge = readUserKnowledge();
+    if (knowledge.trimmed().isEmpty())
+        return systemPrompt;
+    return "# Contesto utente (memoria persistente)\n"
+           + knowledge
+           + "\n\n---\n\n"
+           + systemPrompt;
 }
 
 /**
@@ -516,6 +602,62 @@ inline QString findPython()
 #endif
 }
 
+/**
+ * findDocker() — Restituisce il percorso del binario docker, o QString() se assente.
+ *
+ * Tenta: /usr/bin/docker · /usr/local/bin/docker · docker (PATH).
+ * Verifica con "docker info --format '{{.ServerVersion}}'" che il daemon sia
+ * raggiungibile (non solo che il binario esista).
+ * Il risultato è memorizzato staticamente: la prima chiamata è bloccante
+ * (~100–300 ms), le successive sono istantanee.
+ */
+inline QString findDocker()
+{
+    static QString cached;
+    static bool    checked = false;
+    if (checked) return cached;
+    checked = true;
+
+    const QStringList candidates = {
+        "/usr/bin/docker",
+        "/usr/local/bin/docker",
+        "docker",
+    };
+    QString bin;
+    for (const QString& c : candidates) {
+        if (c == "docker") {
+            /* bare name: verifica via PATH */
+            bin = QStandardPaths::findExecutable("docker");
+            if (!bin.isEmpty()) break;
+        } else if (QFile::exists(c)) {
+            bin = c;
+            break;
+        }
+    }
+    if (bin.isEmpty()) return cached; /* docker non installato */
+
+    /* Daemon check: "docker info" restituisce 0 solo se il daemon risponde */
+    QProcess probe;
+    probe.setProcessChannelMode(QProcess::MergedChannels);
+    probe.start(bin, {"info", "--format", "{{.ServerVersion}}"});
+    if (!probe.waitForStarted(1000) || !probe.waitForFinished(3000))
+        return cached; /* daemon non raggiungibile */
+
+    if (probe.exitCode() != 0) return cached;
+
+    cached = bin;
+    return cached;
+}
+
+/**
+ * isSandboxReady() — true se Docker disponibile E sandbox abilitato nelle impostazioni.
+ */
+inline bool isSandboxReady()
+{
+    if (findDocker().isEmpty()) return false;
+    return QSettings("Prismalux", "GUI").value("sandbox/enabled", true).toBool();
+}
+
 /* ══════════════════════════════════════════════════════════════
    SK — Settings Keys (unico punto di verità per le chiavi QSettings)
 
@@ -565,9 +707,42 @@ constexpr const char* kActivePort      = "ai/activePort";     ///< porta AI (def
 /* ── Varie ───────────────────────────────────────── */
 constexpr const char* kLoopFixWarning  = "loop_fix_warning_shown";
 constexpr const char* kDefaultTheme    = "dark_ocean";   ///< valore default tema
-constexpr const char* kCavemanMode     = "ai/cavemanMode"; ///< modalità risposte dirette (Caveman)
-constexpr const char* kComputeMode    = "ai/computeMode"; ///< "auto"|"gpu"|"cpu"|"misto"
+constexpr const char* kCavemanMode          = "ai/cavemanMode";          ///< modalità risposte dirette (Caveman)
+constexpr const char* kComputeMode          = "ai/computeMode";          ///< "auto"|"gpu"|"cpu"|"misto"
+constexpr const char* kInjectUserKnowledge  = "ai/injectUserKnowledge";  ///< inietta user_knowledge.md nel system prompt (default: true)
+constexpr const char* kMlockModel           = "ai/mlockModel";           ///< --mlock llama-server: blocca pagine modello in RAM (default: false)
+constexpr const char* kAiPersonality        = "ai/personality";           ///< personalità AI: "nessuna"|"jarvis"|"kitt"|"yoda"|"snake"|"sonic"|"mario"
+
+/* ── Sandbox Docker ──────────────────────────────── */
+constexpr const char* kSandboxEnabled = "sandbox/enabled";        ///< esegui codice AI in container Docker (default: true se Docker disponibile)
+constexpr const char* kSandboxImage   = "sandbox/image";          ///< immagine Docker da usare (default: "python:3.11-slim")
+constexpr const char* kSandboxMemory  = "sandbox/memoryMb";       ///< limite RAM container MB (default: 256)
 
 }  // namespace SK
+
+/* ── Personalità AI — nome visualizzato e suffisso system prompt ─── */
+inline QString personalityName() {
+    QSettings ss("Prismalux", "GUI");
+    const QString p = ss.value(SK::kAiPersonality, "nessuna").toString();
+    if (p == "jarvis") return "Jarvis";
+    if (p == "kitt")   return "KITT";
+    if (p == "yoda")   return "Yoda";
+    if (p == "snake")  return "Snake";
+    if (p == "sonic")  return "Sonic";
+    if (p == "mario")  return "Mario";
+    return {};
+}
+
+inline QString personalityPrompt() {
+    QSettings ss("Prismalux", "GUI");
+    const QString p = ss.value(SK::kAiPersonality, "nessuna").toString();
+    if (p == "jarvis") return "Rispondi come JARVIS, l'AI di Tony Stark: professionale, preciso, con sottile ironia britannica. Chiama l'utente \"signore\".";
+    if (p == "kitt")   return "Rispondi come KITT, il sistema di bordo di Knight Rider: sofisticato, calmo, formale, con occasionali riferimenti alla guida e alla sicurezza stradale.";
+    if (p == "yoda")   return "Rispondi come Yoda di Star Wars. Sintassi invertita (complemento-soggetto-verbo). Breve, saggio, sereno.";
+    if (p == "snake")  return "Rispondi come Solid Snake di Metal Gear Solid: diretto, tattico, cinismo controllato, frasi brevi e incisive.";
+    if (p == "sonic")  return "Rispondi come Sonic the Hedgehog: rapido, energico, spiritoso, leggermente impaziente con le cose lente.";
+    if (p == "mario")  return "Rispondi come Super Mario: entusiasta, positivo, usa esclamazioni come \"Wahoo!\" e \"Mamma mia!\", sempre incoraggiante.";
+    return {};
+}
 
 } // namespace PrismaluxPaths

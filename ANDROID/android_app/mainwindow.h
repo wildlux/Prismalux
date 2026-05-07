@@ -7,22 +7,24 @@
 class AiClient;
 class RagEngineSimple;
 class ChatPage;
-class CameraPage;
-class BlePage;
 class SettingsPage;
+
+#ifdef HAVE_MULTIMEDIA
+class CameraPage;
+#endif
+#ifdef HAVE_BLE
+class BlePage;
+#endif
 
 /* ══════════════════════════════════════════════════════════════
    MainWindow — finestra principale con bottom navigation bar.
 
    Layout fisso (verticale):
      ┌────────────────────────────────┐
-     │  QStackedWidget (pagine)        │  ← flex, occupa tutto lo spazio
+     │  QStackedWidget (pagine)        │
      ├────────────────────────────────┤
-     │  BottomBar: Chat│Camera│BT│⚙   │  ← 56px fissi
+     │  BottomBar: Chat│Camera│BT│⚙   │
      └────────────────────────────────┘
-
-   Le pagine condividono un'unica istanza di AiClient e RagEngineSimple
-   passate come puntatori nel costruttore di ciascuna pagina.
    ══════════════════════════════════════════════════════════════ */
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -35,19 +37,33 @@ private slots:
 
 private:
     void buildBottomBar();
-    void applyPermissions();   // richiede permessi Android a runtime
+    void applyPermissions();
 
-    QStackedWidget* m_stack       = nullptr;
-    QToolBar*       m_bottomBar   = nullptr;
-    QActionGroup*   m_tabGroup    = nullptr;
+    QStackedWidget* m_stack     = nullptr;
+    QToolBar*       m_bottomBar = nullptr;
+    QActionGroup*   m_tabGroup  = nullptr;
 
-    /* Risorse condivise tra le pagine */
-    AiClient*         m_ai  = nullptr;
-    RagEngineSimple*  m_rag = nullptr;
+    AiClient*        m_ai  = nullptr;
+    RagEngineSimple* m_rag = nullptr;
 
-    /* Pagine */
     ChatPage*     m_chatPage     = nullptr;
-    CameraPage*   m_cameraPage   = nullptr;
-    BlePage*      m_blePage      = nullptr;
     SettingsPage* m_settingsPage = nullptr;
+
+#ifdef HAVE_MULTIMEDIA
+    CameraPage*   m_cameraPage   = nullptr;
+#else
+    QWidget*      m_cameraPage   = nullptr;
+#endif
+
+#ifdef HAVE_BLE
+    BlePage*      m_blePage      = nullptr;
+#else
+    QWidget*      m_blePage      = nullptr;
+#endif
+
+    /* indici degli stack per tab switching */
+    int m_idxChat     = 0;
+    int m_idxCamera   = 1;
+    int m_idxBle      = 2;
+    int m_idxSettings = 3;
 };

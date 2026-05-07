@@ -302,33 +302,100 @@ static int detect_amd(HWDevice* devs, int start_idx, int max_count)
     (void)devs; (void)start_idx; (void)max_count;
     return 0;
 #else
-    /* rocm-smi --showproductname --showmeminfo vram */
     char buf[256] = {0};
+    int use_sysfs = 0;
+
+    /* Metodo 1: rocm-smi (richiede ROCm installato) */
     run_first_line("rocm-smi --showproductname 2>/dev/null | grep 'Card series' | head -1",
                    buf, sizeof buf);
-    if (!buf[0]) return 0;
 
-    char* p = strrchr(buf, ':');
-    const char* nm = p ? p + 2 : buf;
+    /* Metodo 2: DRM sysfs vendor 0x1002 — no ROCm, kernel >= 4.6, più affidabile di lspci */
+    if (!buf[0]) {
+        char dev_path[256] = {0};
+        run_first_line(
+            "for v in /sys/class/drm/card*/device/vendor; do "
+            "  [ \"$(cat \"$v\" 2>/dev/null)\" = '0x1002' ] "
+            "    && echo \"${v%/vendor}\" && break; "
+            "done 2>/dev/null",
+            dev_path, sizeof dev_path);
+        if (dev_path[0]) {
+            /* Nome: product_name oppure lspci come fallback */
+            char nm_cmd[512];
+            snprintf(nm_cmd, sizeof nm_cmd,
+                     "cat '%s/product_name' 2>/dev/null", dev_path);
+            run_first_line(nm_cmd, buf, sizeof buf);
+            if (!buf[0])
+                run_first_line(
+                    "lspci 2>/dev/null | grep -Ei 'VGA|3D|Display'"
+                    " | grep -Ei '\\bAMD\\b|\\bATI\\b|Radeon'"
+                    " | head -1 | sed 's/^.*: //'",
+                    buf, sizeof buf);
+            if (!buf[0]) strncpy(buf, "AMD GPU", sizeof buf - 1);
+            use_sysfs = 1;
+        }
+    }
 
-    if (start_idx >= HW_MAX_DEVICES || start_idx >= start_idx + max_count) return 0;
+    /* Metodo 3: lspci — universale su Linux, non richiede ROCm */
+    if (!buf[0]) {
+        run_first_line(
+            "lspci 2>/dev/null | grep -Ei 'VGA|3D|Display'"
+            " | grep -Ei '\\bAMD\\b|\\bATI\\b|Radeon'"
+            " | head -1 | sed 's/^.*: //'",
+            buf, sizeof buf);
+        if (!buf[0]) return 0;
+        use_sysfs = 1;
+    }
+
+    if (start_idx >= HW_MAX_DEVICES || max_count <= 0) return 0;
     HWDevice* d = &devs[start_idx];
 
-    strncpy(d->name, nm, HW_NAME_LEN - 1);
+    if (use_sysfs) {
+        strncpy(d->name, buf, HW_NAME_LEN - 1);
+    } else {
+        char* p = strrchr(buf, ':');
+        strncpy(d->name, p ? p + 2 : buf, HW_NAME_LEN - 1);
+    }
     trim(d->name);
     d->type      = DEV_AMD;
     d->gpu_index = 0;
 
-    /* VRAM */
-    char vbuf[64] = {0};
-    run_first_line("rocm-smi --showmeminfo vram 2>/dev/null | grep 'Total Memory' | awk '{print $NF}' | head -1",
-                   vbuf, sizeof vbuf);
-    d->mem_mb = atol(vbuf) / (1024*1024);
+    if (use_sysfs) {
+        /* VRAM via sysfs DRM — disponibile senza ROCm su kernel >= 4.6.
+           File: /sys/class/drm/cardN/device/mem_info_vram_total (byte) */
+        char vbuf[64] = {0};
+        run_first_line(
+            "find /sys/class/drm -name mem_info_vram_total 2>/dev/null "
+            "| head -1 | xargs cat 2>/dev/null",
+            vbuf, sizeof vbuf);
+        d->mem_mb = atol(vbuf) / (1024 * 1024);
 
-    char fbuf[64] = {0};
-    run_first_line("rocm-smi --showmeminfo vram 2>/dev/null | grep 'Free Memory' | awk '{print $NF}' | head -1",
-                   fbuf, sizeof fbuf);
-    d->avail_mb = atol(fbuf) / (1024*1024);
+        char ubuf[64] = {0};
+        run_first_line(
+            "find /sys/class/drm -name mem_info_vram_used 2>/dev/null "
+            "| head -1 | xargs cat 2>/dev/null",
+            ubuf, sizeof ubuf);
+        long used_mb = atol(ubuf) / (1024 * 1024);
+        d->avail_mb = (d->mem_mb > used_mb) ? d->mem_mb - used_mb : d->mem_mb;
+    } else {
+        /* VRAM via rocm-smi */
+        char vbuf[64] = {0};
+        run_first_line(
+            "rocm-smi --showmeminfo vram 2>/dev/null "
+            "| grep 'Total Memory' | awk '{print $NF}' | head -1",
+            vbuf, sizeof vbuf);
+        d->mem_mb = atol(vbuf) / (1024 * 1024);
+
+        char fbuf[64] = {0};
+        run_first_line(
+            "rocm-smi --showmeminfo vram 2>/dev/null "
+            "| grep 'Free Memory' | awk '{print $NF}' | head -1",
+            fbuf, sizeof fbuf);
+        d->avail_mb = atol(fbuf) / (1024 * 1024);
+    }
+
+    /* Fallback: se VRAM non leggibile, usa mem_mb o stima minima (512 MB) */
+    if (d->avail_mb <= 0)
+        d->avail_mb = (d->mem_mb > 0) ? d->mem_mb : 512;
     d->n_gpu_layers = estimate_gpu_layers(d->avail_mb);
 
     return 1;

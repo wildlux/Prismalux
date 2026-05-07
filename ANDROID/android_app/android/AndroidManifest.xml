@@ -47,10 +47,7 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-    <!-- API 33+: permesso granulare per documenti -->
-    <uses-permission
-        android:name="android.permission.READ_MEDIA_DOCUMENTS"
-        android:minSdkVersion="33" />
+    <!-- API 33+: accesso file tramite SAF (Storage Access Framework) — nessun permesso extra necessario -->
 
     <!-- ── Vibrazione (feedback tattile) ─────────────────────── -->
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -58,6 +55,8 @@
     <!-- ── Applicazione ──────────────────────────────────────── -->
     <application
         android:label="PrismaluxMobile"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/AppTheme"
         android:hardwareAccelerated="true"
         android:usesCleartextTraffic="true"
@@ -79,7 +78,7 @@
 
             <!-- Metadati Qt richiesti dal binding -->
             <meta-data android:name="android.app.lib_name"        android:value="PrismaluxMobile" />
-            <meta-data android:name="android.app.qt_theme_type"   android:value="4" />
+            <meta-data android:name="android.app.qt_theme_type"   android:value="0" />
         </activity>
     </application>
 </manifest>

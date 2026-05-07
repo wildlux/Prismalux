@@ -118,14 +118,14 @@ private slots:
         emit lavoroAi.modelsReady({"modello-A", "modello-B"});
         QApplication::processEvents();
         QCOMPARE(cmb->count(), 2);
-        QCOMPARE(cmb->itemText(0), QString("modello-A"));
+        QCOMPARE(cmb->itemData(0, Qt::UserRole).toString(), QString("modello-A"));
 
         /* mainAi emette modelsReady con dati diversi — non deve toccare il combo */
         emit mainAi.modelsReady({"SBAGLIATO-X", "SBAGLIATO-Y", "SBAGLIATO-Z"});
         QApplication::processEvents();
 
         QCOMPARE(cmb->count(), 2);  // rimane a 2, non 3
-        QCOMPARE(cmb->itemText(0), QString("modello-A"));  // non "SBAGLIATO-X"
+        QCOMPARE(cmb->itemData(0, Qt::UserRole).toString(), QString("modello-A"));  // non "SBAGLIATO-X"
     }
 };
 
@@ -314,7 +314,7 @@ private slots:
         QApplication::processEvents();
 
         QCOMPARE(cmb->count(), 3);
-        QCOMPARE(cmb->itemText(0), QString("qwen3:30b"));
+        QCOMPARE(cmb->itemData(0, Qt::UserRole).toString(), QString("qwen3:30b"));
     }
 
     /* TC-C2: selezione precedente ripristinata se ancora presente */
@@ -331,13 +331,13 @@ private slots:
         QApplication::processEvents();
 
         cmb->setCurrentIndex(2);  // seleziona "modello-C"
-        QCOMPARE(cmb->currentText(), QString("modello-C"));
+        QCOMPARE(cmb->currentData(Qt::UserRole).toString(), QString("modello-C"));
 
         /* Nuova lista ancora con "modello-C" → deve restare selezionato */
         emit ai.modelsReady({"modello-X", "modello-B", "modello-C"});
         QApplication::processEvents();
 
-        QCOMPARE(cmb->currentText(), QString("modello-C"));
+        QCOMPARE(cmb->currentData(Qt::UserRole).toString(), QString("modello-C"));
     }
 
     /* TC-C3: se selezione precedente non è più disponibile → primo elemento */
@@ -359,7 +359,7 @@ private slots:
         QApplication::processEvents();
 
         QCOMPARE(cmb->currentIndex(), 0);  // cade sul primo
-        QCOMPARE(cmb->currentText(), QString("qwen3:30b"));
+        QCOMPARE(cmb->currentData(Qt::UserRole).toString(), QString("qwen3:30b"));
     }
 
     /* TC-C4: la guard nel lambda del combo NON chiama setBackend con il placeholder.

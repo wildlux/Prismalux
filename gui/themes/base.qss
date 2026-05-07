@@ -33,3 +33,27 @@ QFrame#cardSep { max-height: 1px; border: none; border-top: 1px solid rgba(255,2
 
 /* ── Item lista test — bordo strutturale (colori via setStyleSheet dinamico) ── */
 QFrame#testListItem { border-radius: 6px; padding: 2px; }
+
+/* ── Pulsanti toggle Think Mode (thinkMode Off/Auto/On) ── */
+QPushButton#thinkModeBtn {
+    background-color: transparent;
+    border: 1px solid rgba(128,128,128,0.35);
+    border-radius: 5px;
+    color: rgba(128,128,128,0.85);
+    font-weight: 600; font-size: 12px;
+    padding: 4px 10px; min-width: 38px;
+}
+QPushButton#thinkModeBtn:hover {
+    background-color: rgba(128,128,128,0.12);
+    border-color: rgba(128,128,128,0.6);
+    color: palette(text);
+}
+QPushButton#thinkModeBtn:checked {
+    background-color: #0ea5e9;
+    border-color: #0ea5e9;
+    color: #ffffff;
+}
+QPushButton#thinkModeBtn:disabled {
+    color: rgba(128,128,128,0.25);
+    border-color: rgba(128,128,128,0.12);
+}

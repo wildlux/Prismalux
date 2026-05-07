@@ -6,6 +6,9 @@
 #include <QLabel>
 #include <QScrollBar>
 #include <QKeyEvent>
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QTimer>
 
 /* ══════════════════════════════════════════════════════════════
    Costruttore
@@ -17,14 +20,18 @@ ChatPage::ChatPage(AiClient* ai, RagEngineSimple* rag, QWidget* parent)
 
     /* ── Header ── */
     auto* header = new QHBoxLayout;
-    m_modelLbl = new QLabel(m_ai->model(), this);
-    m_modelLbl->setObjectName("ModelLabel");
+    m_modelCombo = new QComboBox(this);
+    m_modelCombo->setObjectName("ModelCombo");
+    m_modelCombo->setEditable(false);
+    m_modelCombo->addItem(m_ai->model().isEmpty() ? "llama3.2:1b" : m_ai->model());
+    m_modelCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
     m_stopBtn  = new QPushButton("\xe2\x9c\x95  Stop", this);   // ✕
     m_clearBtn = new QPushButton("\xf0\x9f\x97\x91", this);     // 🗑
     m_stopBtn->setEnabled(false);
     m_stopBtn->setObjectName("StopBtn");
     m_clearBtn->setObjectName("IconBtn");
-    header->addWidget(m_modelLbl, 1);
+    header->addWidget(m_modelCombo, 1);
     header->addWidget(m_stopBtn);
     header->addWidget(m_clearBtn);
 
@@ -74,7 +81,41 @@ ChatPage::ChatPage(AiClient* ai, RagEngineSimple* rag, QWidget* parent)
     connect(m_ai, &AiClient::token,    this, &ChatPage::onToken);
     connect(m_ai, &AiClient::finished, this, &ChatPage::onFinished);
     connect(m_ai, &AiClient::error,    this, &ChatPage::onError);
-    connect(m_ai, &AiClient::modelChanged, m_modelLbl, &QLabel::setText);
+
+    /* Aggiorna combo quando il modello cambia dall'esterno (es. Impostazioni) */
+    connect(m_ai, &AiClient::modelChanged, this, [this](const QString& m) {
+        const int idx = m_modelCombo->findText(m);
+        m_modelCombo->blockSignals(true);
+        if (idx >= 0)
+            m_modelCombo->setCurrentIndex(idx);
+        else {
+            m_modelCombo->insertItem(0, m);
+            m_modelCombo->setCurrentIndex(0);
+        }
+        m_modelCombo->blockSignals(false);
+    });
+
+    /* Cambio modello dalla combo → aggiorna AiClient (non durante chat attiva) */
+    connect(m_modelCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int) {
+        if (m_ai->busy()) return;
+        const QString sel = m_modelCombo->currentText();
+        if (!sel.isEmpty() && sel != m_ai->model())
+            m_ai->setServer(m_ai->host(), m_ai->port(), sel);
+    });
+
+    /* Popola la lista modelli all'avvio (asincrono, non blocca la UI) */
+    connect(m_ai, &AiClient::modelsReady, this, [this](const QStringList& models) {
+        if (models.isEmpty()) return;
+        const QString cur = m_ai->model();
+        m_modelCombo->blockSignals(true);
+        m_modelCombo->clear();
+        m_modelCombo->addItems(models);
+        const int idx = m_modelCombo->findText(cur);
+        m_modelCombo->setCurrentIndex(idx >= 0 ? idx : 0);
+        m_modelCombo->blockSignals(false);
+    });
+    QTimer::singleShot(800, this, [this]() { m_ai->fetchModels(); });
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -124,6 +165,9 @@ void ChatPage::onSend()
     /* Spazio per la risposta in streaming */
     appendStreamBlock();
 
+    /* Salva il messaggio per la history (usato in onFinished) */
+    m_lastUserMsg = msg;
+
     /* Avvia la richiesta */
     const QString sys = buildSystemPrompt(msg);
     m_pendingContext.clear();   // consumato
@@ -157,17 +201,15 @@ void ChatPage::onFinished(const QString& full)
     m_sendBtn->setEnabled(true);
 
     /* Salva nella history (sliding window) */
-    if (!full.isEmpty()) {
-        QJsonObject u; u["role"] = "user";
-        u["content"] = m_log->toPlainText().split('\n').filter("Tu:").last()
-                       .mid(3).trimmed();
+    if (!full.isEmpty() && !m_lastUserMsg.isEmpty()) {
+        QJsonObject u; u["role"] = "user";    u["content"] = m_lastUserMsg;
         QJsonObject a; a["role"] = "assistant"; a["content"] = full;
         m_history.append(u);
         m_history.append(a);
-        /* Mantieni solo gli ultimi kMaxHistoryTurns*2 messaggi */
         while (m_history.size() > kMaxHistoryTurns * 2)
             m_history.removeAt(0);
     }
+    m_lastUserMsg.clear();
     m_streamAccum.clear();
     emit queryFinished();
 }
@@ -180,6 +222,7 @@ void ChatPage::onError(const QString& msg)
     m_streaming = false;
     m_stopBtn->setEnabled(false);
     m_sendBtn->setEnabled(true);
+    m_lastUserMsg.clear();
     appendBubble("error",
         "\xe2\x9d\x8c  Errore: " + msg +          // ❌
         "\n\xf0\x9f\x92\xa1  Verifica che Ollama sia attivo su " +  // 💡

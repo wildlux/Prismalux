@@ -56,8 +56,11 @@ extern const AlgoEntry kAlgos[ALGO_COUNT];
 /* ══════════════════════════════════════════════════════════════
    BigOWidget — grafico complessità O-grande pre-calcolato
    ══════════════════════════════════════════════════════════════ */
+struct BigOAccess;  ///< friend usato dalla test suite
+
 class BigOWidget : public QWidget {
     Q_OBJECT
+    friend struct BigOAccess;
 public:
     explicit BigOWidget(QWidget* parent = nullptr);
     void set(BigOClass cls, const char* label, const char* badge);
@@ -111,8 +114,12 @@ private:
 /* ══════════════════════════════════════════════════════════════
    SimulatorePage — pagina principale
    ══════════════════════════════════════════════════════════════ */
+struct SimulatoreAlgosAccess;  ///< friend usato dalla test suite
+
 class SimulatorePage : public QWidget {
     Q_OBJECT
+    friend struct SimulatoreAlgosAccess;
+    friend struct BigOAccess;
 public:
     explicit SimulatorePage(AiClient* ai, QWidget* parent = nullptr);
 

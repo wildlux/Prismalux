@@ -29,6 +29,32 @@ const QList<Offerta>& kOfferte() {
         {"Flazio",                "UX / UI Designer",                         "Catania",              "IT",          "diploma",   "", "Subordinato full time"},
         {"STMicroelectronics",    "Varie posizioni",                          "Catania",              "IT",          "laurea_t",  "", "Profili ingegneria elettronica, informatica e affini"},
         {"G.G.G. Elettromeccan.", "Disegnatore Meccanico CAD",               "Catania",              "IT",          "qualsiasi", "", "CAD Rhinoceros e Pro-e, settore automotive preferibile"},
+        // ── Embedded / Firmware — aziende attive Catania (Maggio 2026) ──
+        {"COL Group",            "Junior Embedded Software Developer",       "Belpasso CT",          "IT",          "qualsiasi", "", "BSP, device driver GPIO/SPI/I2C/UART, U-Boot, kernel Linux, Yocto/Buildroot — <2 anni esperienza"},
+        {"agap2 Italia",         "Embedded Linux Developer",                 "Catania",              "IT",          "qualsiasi", "", "C/C++, Python, Linux embedded, TCP/UDP/HTTP, SQLite3 — indeterminato o P.IVA, formazione continua"},
+        {"Skytechnology SRL",    "Embedded Software Engineer (DevOps)",      "Catania",              "IT",          "diploma",   "", "C++ >=C++11, Linux embedded, CI/CD, automotive, aerospazio, avionica"},
+        {"STAM",                 "AI for Real-Time Embedded Systems",        "Catania (La Spezia)",  "IT",          "laurea_t",  "", "AI/ML su piattaforme embedded real-time, quantizzazione reti neurali, C/C++ — trasferte La Spezia"},
+        {"IMM CNR",              "Ricercatore / Junior Researcher",          "Catania Zona Ind.",    "IT",          "laurea_t",  "", "Microelettronica, sistemi embedded, semiconduttori — sede interna STMicroelectronics"},
+        // ── Embedded / Firmware — aziende da monitorare Catania ──────
+        {"Etnamatica s.r.l.",    "Embedded / Robotica Industriale",          "Catania",              "IT",          "laurea_t",  "", "Robotica di servizio, automazione, sistemi embedded — spin-off DIEEI UniCT"},
+        {"Sielte SPA",           "ICT / IoT / Cybersecurity",                "S. Gregorio Catania",  "IT",          "diploma",   "", "ICT, cybersecurity, IoT, AI — da monitorare per future aperture"},
+        {"iInformatica SRL",     "Embedded Developer / Ricerca",             "Catania",              "IT",          "laurea_t",  "", "Dispositivi embedded, ricerca applicata, oltre 25 brevetti — PMI innovativa"},
+        {"Experis (Manpower)",   "Embedded Linux (clienti terzi)",           "Catania",              "IT",          "diploma",   "", "Consulenza ICT — cercano profili embedded Linux per clienti sul territorio"},
+        // ── Embedded / Firmware / RTOS — ricerche Indeed Catania ─────
+        {"Indeed",               "Embedded Linux Catania",                   "Catania",              "IT",          "laurea_t",  "", "https://it.indeed.com/jobs?q=Embedded+Linux&l=Catania"},
+        {"Indeed",               "Linux kernel Catania",                     "Catania",              "IT",          "laurea_t",  "", "https://it.indeed.com/jobs?q=Linux+kernel&l=Catania"},
+        {"Indeed",               "Device driver Catania",                    "Catania",              "IT",          "laurea_t",  "", "https://it.indeed.com/jobs?q=Device+driver&l=Catania"},
+        {"Indeed",               "BSP (Board Support Package) Catania",      "Catania",              "IT",          "laurea_t",  "", "https://it.indeed.com/jobs?q=BSP+Board+Support+Package&l=Catania"},
+        {"Indeed",               "Yocto Catania",                            "Catania",              "IT",          "laurea_t",  "", "https://it.indeed.com/jobs?q=Yocto&l=Catania"},
+        {"Indeed",               "Firmware Engineer Catania",                "Catania",              "IT",          "laurea_t",  "", "https://it.indeed.com/jobs?q=Firmware&l=Catania"},
+        {"Indeed",               "RTOS (Real-Time OS) Catania",              "Catania",              "IT",          "laurea_t",  "", "https://it.indeed.com/jobs?q=RTOS+Real+Time&l=Catania"},
+        // ── Portali lavoro embedded — link diretti ────────────────────
+        {"LinkedIn",             "Embedded Engineer Catania",                "Catania",              "IT",          "qualsiasi", "", "https://www.linkedin.com/jobs/search/?keywords=Embedded+Engineer&location=Catania%2C+Sicilia%2C+Italia"},
+        {"LinkedIn",             "Linux kernel / Firmware Catania",          "Catania",              "IT",          "qualsiasi", "", "https://www.linkedin.com/jobs/search/?keywords=Linux+kernel+firmware&location=Catania%2C+Sicilia%2C+Italia"},
+        {"Subito.it Lavoro",     "Informatica / IT Catania",                 "Catania",              "IT",          "qualsiasi", "", "https://www.subito.it/offerte-di-lavoro/informatica/catania/"},
+        {"Euspert.com",          "Embedded / IT Sicilia",                    "Sicilia",              "IT",          "qualsiasi", "", "https://www.euspert.com/offerte-lavoro/embedded-sicilia-1.html"},
+        {"Jobeka.it",            "Embedded Catania",                         "Catania",              "IT",          "qualsiasi", "", "https://www.jobeka.it/lavoro/embedded-catania.html"},
+        {"CataniaToday.it",      "Annunci Lavoro IT Catania",                "Catania",              "IT",          "qualsiasi", "", "https://www.cataniatoday.it/tag/lavoro/"},
         // ── Retail / Vendite al dettaglio ────────────────────────────
         {"JD Sports",             "Supervisor (Capo Reparto)",                "Catania",              "Retail",      "diploma",   "", "Esperienza retail strutturato, inglese, pacchetto Office"},
         {"JD Sports",             "Sales Assistant Part Time",                "Catania",              "Retail",      "qualsiasi", "", "Team work, capacit\xc3\xa0 comunicazione"},

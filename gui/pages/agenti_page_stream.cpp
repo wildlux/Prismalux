@@ -75,6 +75,8 @@ void AgentiPage::onToken(const QString& t) {
         /* Estrattore silenzioso: accumula senza mostrare nel log */
         m_knowledgeBuf += t;
         cursor.deletePreviousChar();
+    } else if (m_opMode == OpMode::AutonomousAgent) {
+        m_autoBuf += t;
     }
 }
 
@@ -148,6 +150,13 @@ void AgentiPage::onFinished(const QString& full) {
         return;
     }
 
+    /* ── Agente Autonomo completato: delega a _autoAdvance ── */
+    if (m_opMode == OpMode::AutonomousAgent) {
+        const QString resp = (full.isEmpty() ? m_autoBuf : full).trimmed();
+        _autoAdvance(resp);
+        return;
+    }
+
     /* ── Estrattore Knowledge completato (P5) ── */
     if (m_opMode == OpMode::KnowledgeExtract) {
         const QString extracted = m_knowledgeBuf.trimmed();
@@ -165,6 +174,16 @@ void AgentiPage::onFinished(const QString& full) {
                      m_taskOriginal.left(30).simplified(),
                      QDateTime::currentDateTime().toString("yyyy-MM-dd"));
             callKnowledgeMcp(extracted, label);
+        }
+
+        /* Conversazione vocale continua: auto-TTS risposta (path KnowledgeExtract) */
+        if (m_voiceLoopActive && !m_modePipeline && !m_agentOutputs.isEmpty()) {
+            QString resp = m_agentOutputs.last().trimmed();
+            QStringList words = resp.split(' ', Qt::SkipEmptyParts);
+            if (words.size() > 400) words = words.mid(0, 400);
+            const QString ttsText = words.join(" ");
+            if (!ttsText.isEmpty())
+                QTimer::singleShot(200, this, [this, ttsText]{ _ttsPlay(ttsText); });
         }
 
         /* Chiude la pipeline normalmente */
@@ -301,6 +320,55 @@ void AgentiPage::onFinished(const QString& full) {
                 }
             }
 
+            /* ── Tool Use Nativo: intercetta TOOL_CALL prima di costruire la bolla ── */
+            if (m_toolsEnabled && m_maxShots == 1 && m_toolIteration < 2 && !rawResp.isEmpty()) {
+                const QJsonObject tc = detectFirstToolCall(rawResp);
+                if (!tc.isEmpty()) {
+                    m_toolIteration++;
+                    const int agentIdx = m_currentAgent - 1;
+
+                    /* Rimuove testo grezzo dello streaming */
+                    QTextCursor selTool(m_log->document());
+                    selTool.setPosition(m_agentBlockStart);
+                    selTool.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+                    selTool.removeSelectedText();
+
+                    /* Mostra indicatore compatto "tool in esecuzione" */
+                    const QString tn  = tc["tool"].toString().toHtmlEscaped();
+                    const QString tin = tc["input"].toString().left(120).toHtmlEscaped();
+                    m_log->moveCursor(QTextCursor::End);
+                    m_log->insertHtml(
+                        "<p style='color:#94a3b8;font-size:11px;margin:4px 0;'>"
+                        "\xf0\x9f\x94\xa7&nbsp;<b>Tool:</b>&nbsp;" + tn +
+                        "&nbsp;\xe2\x80\x94&nbsp;<code>" + tin +
+                        "</code>&nbsp;&nbsp;\xe2\x8f\xb3 in esecuzione...</p>");
+
+                    /* Rimuove l'ultima voce di m_agentOutputs: runAgent la re-appenderà */
+                    if (!m_agentOutputs.isEmpty())
+                        m_agentOutputs.removeLast();
+
+                    runToolCall(tc, [this, agentIdx, tc](const QString& result) {
+                        /* Aggiorna il log con il risultato del tool */
+                        m_log->moveCursor(QTextCursor::End);
+                        m_log->insertHtml(
+                            "<p style='color:#86efac;font-size:11px;margin:4px 0;'>"
+                            "\xe2\x9c\x85&nbsp;<b>Risultato:</b>&nbsp;"
+                            + result.left(300).toHtmlEscaped() + "</p>");
+
+                        /* Inietta il risultato nel contesto del task */
+                        m_taskOriginal += QString(
+                            "\n\n[TOOL_RESULT: %1]\n%2\n\n"
+                            "Rispondi ora all'utente in italiano.")
+                            .arg(tc["tool"].toString(), result);
+
+                        /* Re-run dello stesso agente con il contesto arricchito */
+                        m_currentAgent = agentIdx;
+                        runAgent(agentIdx);
+                    });
+                    return;
+                }
+            }
+
             /* Aggiunge il tempo di risposta all'header della bolla */
             {
                 const double elapsedMs = static_cast<double>(m_agentTimer.elapsed());
@@ -330,234 +398,251 @@ void AgentiPage::onFinished(const QString& full) {
         /* ── Tool Executor: estrae ed esegue codice Python, poi avvia il Controller ── */
         QString pyCode = extractPythonCode(rawResp);
         if (!pyCode.isEmpty()) {
-            /* Corregge i bug tipici nei codici generati dall'AI */
             pyCode = _sanitizePyCode(pyCode);
+            const bool useSandbox = P::isSandboxReady();
 
-            /* ── [C1] Dialog conferma esecuzione codice AI ───────────────────────
-               Il codice generato dall'LLM viene MOSTRATO prima dell'esecuzione.
-               L'utente deve cliccare "Esegui" esplicitamente — MAI automatico.
-               Motivazione: un LLM può produrre (per errore o per prompt injection
-               in un documento caricato) codice che cancella file o esfiltra dati. */
+            /* [C1] Dialog conferma — testo e colore variano in base alla sandbox */
             {
                 auto* dlg = new QDialog(this);
-                dlg->setWindowTitle(
-                    "\xe2\x9a\xa0  Esegui codice generato dall\xe2\x80\x99" "AI?");
+                dlg->setWindowTitle(useSandbox
+                    ? "\xf0\x9f\x90\xb3  Esegui codice in sandbox Docker?"
+                    : "\xe2\x9a\xa0  Esegui codice generato dall\xe2\x80\x99" "AI?");
                 dlg->setMinimumSize(660, 460);
                 auto* lay = new QVBoxLayout(dlg);
 
-                auto* warnLbl = new QLabel(
-                    "\xe2\x9a\xa0  Stai per eseguire codice Python generato dall\xe2\x80\x99"
-                    "AI con i tuoi permessi utente.\n"
-                    "Verifica che non faccia operazioni indesiderate prima di procedere.",
+                auto* warnLbl = new QLabel(useSandbox
+                    ? "\xf0\x9f\x90\xb3  Il codice verr\xc3\xa0 eseguito in un container Docker isolato.\n"
+                      "Nessun accesso a file locali, rete disabilitata, max 256\xc2\xa0MB RAM.\n"
+                      "Verifica il codice, poi clicca Esegui."
+                    : "\xe2\x9a\xa0  Stai per eseguire codice Python generato dall\xe2\x80\x99"
+                      "AI con i tuoi permessi utente.\n"
+                      "Verifica che non faccia operazioni indesiderate prima di procedere.",
                     dlg);
                 warnLbl->setWordWrap(true);
-                warnLbl->setStyleSheet(
-                    "color:#facc15;font-weight:bold;padding:6px;"
-                    "background:#292524;border-radius:4px;");
+                warnLbl->setStyleSheet(useSandbox
+                    ? "color:#86efac;font-weight:bold;padding:6px;"
+                      "background:#052e16;border-radius:4px;"
+                    : "color:#facc15;font-weight:bold;padding:6px;"
+                      "background:#292524;border-radius:4px;");
                 lay->addWidget(warnLbl);
 
                 auto* codeView = new QTextEdit(dlg);
                 codeView->setReadOnly(true);
                 codeView->setPlainText(pyCode);
-                codeView->setFont(QFont(
-                    "JetBrains Mono,Fira Code,Consolas,monospace", 10));
-                codeView->setStyleSheet(
-                    "background:#1e1e2e;color:#cdd6f4;"
-                    "border:1px solid #45475a;padding:4px;");
+                codeView->setFont(QFont("JetBrains Mono,Fira Code,Consolas,monospace", 10));
+                codeView->setStyleSheet("background:#1e1e2e;color:#cdd6f4;"
+                                        "border:1px solid #45475a;padding:4px;");
                 lay->addWidget(codeView, 1);
 
                 auto* btnBox = new QDialogButtonBox(dlg);
                 auto* btnRun = btnBox->addButton(
                     "\xe2\x96\xb6  Esegui", QDialogButtonBox::AcceptRole);
-                btnBox->addButton(
-                    "\xe2\x9c\x96  Annulla", QDialogButtonBox::RejectRole);
-                btnRun->setStyleSheet(
-                    "background:#ef4444;color:#fff;"
-                    "font-weight:bold;padding:4px 18px;");
-                connect(btnBox, &QDialogButtonBox::accepted,
-                        dlg, &QDialog::accept);
-                connect(btnBox, &QDialogButtonBox::rejected,
-                        dlg, &QDialog::reject);
+                btnBox->addButton("\xe2\x9c\x96  Annulla", QDialogButtonBox::RejectRole);
+                btnRun->setStyleSheet(useSandbox
+                    ? "background:#16a34a;color:#fff;font-weight:bold;padding:4px 18px;"
+                    : "background:#ef4444;color:#fff;font-weight:bold;padding:4px 18px;");
+                connect(btnBox, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
+                connect(btnBox, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
                 lay->addWidget(btnBox);
 
                 const bool accepted = (dlg->exec() == QDialog::Accepted);
                 dlg->deleteLater();
-                if (!accepted) {
-                    /* Utente ha annullato — salta executor, pipeline avanza */
-                    advancePipeline();
-                    return;
-                }
+                if (!accepted) { advancePipeline(); return; }
             }
-            /* ── fine dialog conferma ─────────────────────────────────────── */
-
-            /* Scrivi il codice in un file temporaneo con nome casuale (anti-TOCTOU).
-               autoRemove=false: il file rimane su disco dopo close()/delete dell'oggetto.
-               Viene rimosso dai QFile::remove(tmpPath) nei lambda finished sottostanti. */
-            QTemporaryFile execTmp(
-                PrismaluxPaths::safeTempPath() + "/prisma_exec_XXXXXX.py");
-            execTmp.setAutoRemove(false);
-            if (!execTmp.open()) { advancePipeline(); return; }
-            execTmp.write(pyCode.toUtf8());
-            execTmp.close();
-            const QString tmpPath = execTmp.fileName();
-            /* execTmp distrutto qui — handle chiuso, file resta su disco */
 
             m_executorOutput.clear();
             if (m_execProc) { m_execProc->kill(); m_execProc->deleteLater(); m_execProc = nullptr; }
             m_execProc = new QProcess(this);
             m_execProc->setProcessChannelMode(QProcess::MergedChannels);
-
-            /* [B1] QSharedPointer evita il memory leak se il processo viene
-               distrutto prima che finished() scatti (es. app chiusa durante
-               esecuzione): il distruttore del shared_ptr libera il timer
-               anche se il lambda non viene mai invocato. */
             auto tmr = QSharedPointer<QElapsedTimer>::create();
             tmr->start();
 
-            connect(m_execProc,
-                    QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                    this, [this, tmpPath, tmr](int exitCode, QProcess::ExitStatus) {
-                const double ms = tmr->elapsed();
-                QString out = QString::fromUtf8(m_execProc->readAll());
-                m_execProc->deleteLater();
-                m_execProc = nullptr;
+            if (useSandbox) {
+                /* ── Sandbox Docker: stdin piping, rete/filesystem isolati ─────── */
+                const QSettings ss("Prismalux", "GUI");
+                const QString img = ss.value(P::SK::kSandboxImage,   "python:3.11-slim").toString();
+                const QString mem = QString::number(
+                    ss.value(P::SK::kSandboxMemory, 256).toInt()) + "m";
 
-                /* ── [C2] Auto-install modulo mancante con conferma utente ──────
-                   Il nome del pacchetto viene dall'output dell'LLM — rischio
-                   typosquatting/supply-chain. L'utente deve autorizzare
-                   esplicitamente ogni `pip install`. Default: No (scelta sicura). */
-                static QRegularExpression reModule(
-                    "ModuleNotFoundError: No module named '([^']+)'");
-                auto mMatch = reModule.match(out);
-                if (exitCode != 0 && mMatch.hasMatch()) {
-                    const QString pkg = mMatch.captured(1).split('.').first();
+                connect(m_execProc,
+                        QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                        this, [this, tmr](int exitCode, QProcess::ExitStatus) {
+                    const double ms = tmr->elapsed();
+                    const QString out = QString::fromUtf8(m_execProc->readAll());
+                    m_execProc->deleteLater();
+                    m_execProc = nullptr;
+                    m_executorOutput = out;
+                    const QString outDisplay = PrismaluxPaths::sanitizeErrorOutput(out);
+                    QTextCursor c(m_log->document());
+                    c.movePosition(QTextCursor::End);
+                    c.insertHtml(buildToolStrip(QString(), outDisplay, exitCode, ms));
+                    if (!m_userScrolled) {
+                        m_suppressScrollSig = true;
+                        m_log->ensureCursorVisible();
+                        m_suppressScrollSig = false;
+                    }
+                    if (m_cfgDlg->controllerEnabled()) runPipelineController();
+                    else advancePipeline();
+                });
 
-                    const int ans = QMessageBox::warning(this,
-                        "\xe2\x9a\xa0  Installa pacchetto Python?",
-                        QString(
-                            "Il codice richiede il pacchetto <b>%1</b> non installato."
-                            "<br><br>"
-                            "\xe2\x9a\xa0  <b>Attenzione</b>: il nome viene da un"
-                            " suggerimento dell\xe2\x80\x99" "AI.<br>"
-                            "Verifica che <code>%1</code> sia il pacchetto corretto"
-                            " su pypi.org prima di procedere.<br><br>"
-                            "Eseguire <code>pip install %1</code>?").arg(pkg),
-                        QMessageBox::Yes | QMessageBox::No,
-                        QMessageBox::No);   /* default No — scelta sicura */
+                connect(m_execProc, &QProcess::errorOccurred,
+                        this, [this](QProcess::ProcessError err){
+                    if (err == QProcess::FailedToStart) {
+                        m_execProc->deleteLater(); m_execProc = nullptr;
+                        advancePipeline();
+                    }
+                });
 
-                    if (ans != QMessageBox::Yes) {
-                        QFile::remove(tmpPath);
+                m_execProc->start(P::findDocker(), {
+                    "run", "--rm", "--network", "none",
+                    "--memory", mem, "--cpus", "0.5",
+                    "--pids-limit", "64", "-i",
+                    img, "python3", "-"
+                });
+                if (m_execProc->waitForStarted(5000)) {
+                    m_execProc->write(pyCode.toUtf8());
+                    m_execProc->closeWriteChannel();
+                }
+                QTimer::singleShot(30000, this, [this]{
+                    if (m_execProc && m_execProc->state() != QProcess::NotRunning) {
+                        m_execProc->kill();
+                        m_executorOutput = "[timeout sandbox 30s]";
+                        if (m_cfgDlg->controllerEnabled()) runPipelineController();
+                        else advancePipeline();
+                    }
+                });
+
+            } else {
+                /* ── Python locale: file temporaneo + pip install retry ─────────
+                   [B1] QSharedPointer evita memory leak se il processo viene
+                   distrutto prima che finished() scatti. */
+                QTemporaryFile execTmp(
+                    PrismaluxPaths::safeTempPath() + "/prisma_exec_XXXXXX.py");
+                execTmp.setAutoRemove(false);
+                if (!execTmp.open()) { advancePipeline(); return; }
+                execTmp.write(pyCode.toUtf8());
+                execTmp.close();
+                const QString tmpPath = execTmp.fileName();
+
+                connect(m_execProc,
+                        QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                        this, [this, tmpPath, tmr](int exitCode, QProcess::ExitStatus) {
+                    const double ms = tmr->elapsed();
+                    QString out = QString::fromUtf8(m_execProc->readAll());
+                    m_execProc->deleteLater();
+                    m_execProc = nullptr;
+
+                    /* [C2] Auto-install modulo mancante con conferma utente */
+                    static QRegularExpression reModule(
+                        "ModuleNotFoundError: No module named '([^']+)'");
+                    auto mMatch = reModule.match(out);
+                    if (exitCode != 0 && mMatch.hasMatch()) {
+                        const QString pkg = mMatch.captured(1).split('.').first();
+                        const int ans = QMessageBox::warning(this,
+                            "\xe2\x9a\xa0  Installa pacchetto Python?",
+                            QString("Il codice richiede il pacchetto <b>%1</b> non installato."
+                                    "<br><br>"
+                                    "\xe2\x9a\xa0  <b>Attenzione</b>: il nome viene da un"
+                                    " suggerimento dell\xe2\x80\x99" "AI.<br>"
+                                    "Verifica che <code>%1</code> sia il pacchetto corretto"
+                                    " su pypi.org prima di procedere.<br><br>"
+                                    "Eseguire <code>pip install %1</code>?").arg(pkg),
+                            QMessageBox::Yes | QMessageBox::No,
+                            QMessageBox::No);
+                        if (ans != QMessageBox::Yes) {
+                            QFile::remove(tmpPath);
+                            QTextCursor logC(m_log->document());
+                            logC.movePosition(QTextCursor::End);
+                            logC.insertHtml(QString(
+                                "<div style='color:#f87171;margin:4px 0'>"
+                                "\xe2\x9d\x8c  Installazione di \xe2\x80\x98%1\xe2\x80\x99"
+                                " annullata.</div>").arg(pkg));
+                            m_executorOutput = out;
+                            if (m_cfgDlg->controllerEnabled()) runPipelineController();
+                            else advancePipeline();
+                            return;
+                        }
                         QTextCursor logC(m_log->document());
                         logC.movePosition(QTextCursor::End);
                         logC.insertHtml(QString(
-                            "<div style='color:#f87171;margin:4px 0'>"
-                            "\xe2\x9d\x8c  Installazione di \xe2\x80\x98%1\xe2\x80\x99"
-                            " annullata dall\xe2\x80\x99utente.</div>").arg(pkg));
-                        m_executorOutput = out;
-                        if (m_cfgDlg->controllerEnabled()) runPipelineController();
-                        else advancePipeline();
+                            "<div style='color:#facc15;font-style:italic;margin:4px 0'>"
+                            "\xf0\x9f\x93\xa6  Installo '%1' via pip...</div>").arg(pkg));
+                        if (!m_userScrolled) m_log->ensureCursorVisible();
+                        auto* pip = new QProcess(this);
+                        pip->setProcessChannelMode(QProcess::MergedChannels);
+                        connect(pip, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                                this, [this, pip, tmpPath, pkg](int rc, QProcess::ExitStatus) {
+                            const QString pipOut = QString::fromUtf8(pip->readAll()).trimmed();
+                            pip->deleteLater();
+                            QTextCursor logC2(m_log->document());
+                            logC2.movePosition(QTextCursor::End);
+                            if (rc == 0) {
+                                logC2.insertHtml(QString(
+                                    "<div style='color:#4ade80;margin:4px 0'>"
+                                    "\xe2\x9c\x85  '%1' installato. Riprovo...</div>").arg(pkg));
+                                if (!m_userScrolled) m_log->ensureCursorVisible();
+                                auto* retry = new QProcess(this);
+                                retry->setProcessChannelMode(QProcess::MergedChannels);
+                                auto t2 = QSharedPointer<QElapsedTimer>::create();
+                                t2->start();
+                                connect(retry, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                                        this, [this, retry, tmpPath, t2](int rc2, QProcess::ExitStatus) {
+                                    const double ms2 = t2->elapsed();
+                                    QString out2 = QString::fromUtf8(retry->readAll());
+                                    retry->deleteLater();
+                                    QFile::remove(tmpPath);
+                                    m_executorOutput = out2;
+                                    QTextCursor c2(m_log->document());
+                                    c2.movePosition(QTextCursor::End);
+                                    c2.insertHtml(buildToolStrip(QString(),
+                                        PrismaluxPaths::sanitizeErrorOutput(out2), rc2, ms2));
+                                    if (!m_userScrolled) m_log->ensureCursorVisible();
+                                    if (m_cfgDlg->controllerEnabled()) runPipelineController();
+                                    else advancePipeline();
+                                });
+                                retry->start(PrismaluxPaths::findPython(), {tmpPath});
+                            } else {
+                                logC2.insertHtml(QString(
+                                    "<div style='color:#f87171;margin:4px 0'>"
+                                    "\xe2\x9d\x8c  pip install '%1' fallito.<br>"
+                                    "<code>pip install %1</code></div>").arg(pkg));
+                                QFile::remove(tmpPath);
+                                m_executorOutput = pipOut;
+                                if (m_cfgDlg->controllerEnabled()) runPipelineController();
+                                else advancePipeline();
+                            }
+                        });
+                        pip->start(PrismaluxPaths::findPython(), {"-m", "pip", "install", pkg,
+                            "--quiet", "--trusted-host", "pypi.org",
+                            "--trusted-host", "files.pythonhosted.org"});
                         return;
                     }
 
-                    QTextCursor logC(m_log->document());
-                    logC.movePosition(QTextCursor::End);
-                    logC.insertHtml(QString(
-                        "<div style='color:#facc15;font-style:italic;margin:4px 0'>"
-                        "\xf0\x9f\x93\xa6  Installo '%1' via pip...</div>").arg(pkg));
-                    if (!m_userScrolled) m_log->ensureCursorVisible();
+                    QFile::remove(tmpPath);
+                    m_executorOutput = out;
+                    const QString outDisplay = PrismaluxPaths::sanitizeErrorOutput(out);
+                    QTextCursor c(m_log->document());
+                    c.movePosition(QTextCursor::End);
+                    c.insertHtml(buildToolStrip(QString(), outDisplay, exitCode, ms));
+                    if (!m_userScrolled) {
+                        m_suppressScrollSig = true;
+                        m_log->ensureCursorVisible();
+                        m_suppressScrollSig = false;
+                    }
+                    if (m_cfgDlg->controllerEnabled()) runPipelineController();
+                    else advancePipeline();
+                });
 
-                    auto* pip = new QProcess(this);
-                    pip->setProcessChannelMode(QProcess::MergedChannels);
-                    connect(pip, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                            this, [this, pip, tmpPath, pkg](int rc, QProcess::ExitStatus) {
-                        const QString pipOut = QString::fromUtf8(pip->readAll()).trimmed();
-                        pip->deleteLater();
+                connect(m_execProc, &QProcess::errorOccurred,
+                        this, [this](QProcess::ProcessError err){
+                    if (err == QProcess::FailedToStart) {
+                        m_execProc->deleteLater(); m_execProc = nullptr;
+                        advancePipeline();
+                    }
+                });
+                m_execProc->start(PrismaluxPaths::findPython(), {tmpPath});
+            }
 
-                        QTextCursor logC2(m_log->document());
-                        logC2.movePosition(QTextCursor::End);
-                        if (rc == 0) {
-                            logC2.insertHtml(QString(
-                                "<div style='color:#4ade80;margin:4px 0'>"
-                                "\xe2\x9c\x85  '%1' installato. Riprovo l\xe2\x80\x99"
-                                "esecuzione...</div>").arg(pkg));
-                            if (!m_userScrolled) m_log->ensureCursorVisible();
-
-                            auto* retry = new QProcess(this);
-                            retry->setProcessChannelMode(QProcess::MergedChannels);
-                            /* [B1] QSharedPointer anche per il timer del retry */
-                            auto t2 = QSharedPointer<QElapsedTimer>::create();
-                            t2->start();
-                            connect(retry, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                                    this, [this, retry, tmpPath, t2](int rc2, QProcess::ExitStatus) {
-                                const double ms2 = t2->elapsed();
-                                QString out2 = QString::fromUtf8(retry->readAll());
-                                retry->deleteLater();
-                                QFile::remove(tmpPath);
-                                m_executorOutput = out2;
-                                QTextCursor c2(m_log->document());
-                                c2.movePosition(QTextCursor::End);
-                                c2.insertHtml(buildToolStrip(QString(),
-                                    PrismaluxPaths::sanitizeErrorOutput(out2), rc2, ms2));
-                                if (!m_userScrolled) m_log->ensureCursorVisible();
-                                if (m_cfgDlg->controllerEnabled())
-                                    runPipelineController();
-                                else
-                                    advancePipeline();
-                            });
-                            retry->start(PrismaluxPaths::findPython(), {tmpPath});
-                        } else {
-                            logC2.insertHtml(QString(
-                                "<div style='color:#f87171;margin:4px 0'>"
-                                "\xe2\x9d\x8c  pip install '%1' fallito. Installa manualmente:<br>"
-                                "<code>pip install %1</code></div>").arg(pkg));
-                            QFile::remove(tmpPath);
-                            m_executorOutput = pipOut;
-                            if (m_cfgDlg->controllerEnabled())
-                                runPipelineController();
-                            else
-                                advancePipeline();
-                        }
-                    });
-                    pip->start(PrismaluxPaths::findPython(), {"-m", "pip", "install", pkg,
-                        "--quiet", "--trusted-host", "pypi.org",
-                        "--trusted-host", "files.pythonhosted.org"});
-                    return;  /* non rimuovere tmpPath: lo usa il retry */
-                }
-                /* ── fine auto-install con conferma ─────────────────────────── */
-
-                QFile::remove(tmpPath);
-                m_executorOutput = out;
-
-                /* Tronca traceback eccessivamente lunghi prima di mostrarli in UI.
-                   L'output completo è in m_executorOutput per il controller LLM. */
-                const QString outDisplay = PrismaluxPaths::sanitizeErrorOutput(out);
-
-                /* Inserisce la tool strip nel log */
-                QTextCursor c(m_log->document());
-                c.movePosition(QTextCursor::End);
-                c.insertHtml(buildToolStrip(QString(), outDisplay, exitCode, ms));
-                if (!m_userScrolled) {
-                    m_suppressScrollSig = true;
-                    m_log->ensureCursorVisible();
-                    m_suppressScrollSig = false;
-                }
-
-                /* Avvia il controller LLM (solo se checkbox abilitato) */
-                if (m_cfgDlg->controllerEnabled())
-                    runPipelineController();
-                else
-                    advancePipeline();
-            });
-
-            connect(m_execProc, &QProcess::errorOccurred,
-                    this, [this, tmr](QProcess::ProcessError err){
-                if (err == QProcess::FailedToStart) {
-                    m_execProc->deleteLater();
-                    m_execProc = nullptr;
-                    advancePipeline();   /* python3 non disponibile: salta executor */
-                }
-            });
-            m_execProc->start(PrismaluxPaths::findPython(), {tmpPath});
         } else {
             /* Nessun codice trovato: avanza direttamente */
             advancePipeline();
@@ -748,10 +833,16 @@ static QString _categorizeError(const QString& msg, AiClient::Backend backend) {
 void AgentiPage::onError(const QString& msg) {
     m_waitLbl->setVisible(false);
 
+    /* Reset stato agente autonomo se era in corso */
+    if (m_opMode == OpMode::AutonomousAgent) {
+        m_autoHistory = QJsonArray();
+        m_autoStep    = 0;
+        m_autoBuf.clear();
+    }
+
     const QString categorized = _categorizeError(msg, m_ai->backend());
     if (!categorized.isEmpty())
         m_log->append("\n" + categorized);
-    /* Se categorized è vuota (abort silenzioso) non mostriamo nulla */
 
     _setRunBusy(false);
     m_opMode = OpMode::Idle;

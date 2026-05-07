@@ -579,7 +579,7 @@ void ProgrammazionePage::gitAiRequest(const QString& request, const QString& con
     });
     connect(m_ai, &AiClient::finished, m_gitTokenHolder,
             [this](const QString& full){
-        if (m_gitTokenHolder) { delete m_gitTokenHolder; m_gitTokenHolder = nullptr; }
+        if (m_gitTokenHolder) { m_gitTokenHolder->deleteLater(); m_gitTokenHolder = nullptr; }
         /* Se la risposta contiene [COMMIT]...[/COMMIT], popola il campo commit msg */
         static const QRegularExpression reCommit(
             R"(\[COMMIT\]([\s\S]*?)\[/COMMIT\])");
@@ -591,7 +591,7 @@ void ProgrammazionePage::gitAiRequest(const QString& request, const QString& con
     });
     connect(m_ai, &AiClient::error, m_gitTokenHolder,
             [this](const QString& msg){
-        if (m_gitTokenHolder) { delete m_gitTokenHolder; m_gitTokenHolder = nullptr; }
+        if (m_gitTokenHolder) { m_gitTokenHolder->deleteLater(); m_gitTokenHolder = nullptr; }
         m_gitAiOutput->moveCursor(QTextCursor::End);
         m_gitAiOutput->insertPlainText(
             QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));

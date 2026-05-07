@@ -16,6 +16,9 @@ namespace P = PrismaluxPaths;
 #include <QPushButton>
 #include <QSettings>
 #include <QDateTime>
+#include <QDir>
+#include <QFile>
+#include <QStandardPaths>
 
 /* ══════════════════════════════════════════════════════════════
    callKnowledgeMcp — chiama auto_extract_and_update via QProcess
@@ -271,3 +274,4 @@ void AgentiPage::runKnowledgeExtract()
 
     m_ai->chat(QString::fromLatin1(kSysExtract), ctx);
 }
+

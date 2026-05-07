@@ -114,6 +114,13 @@ QString AgentiPage::buildAgentBubble(const QString& label, const QString& model,
             "<tr>"
               "<td>" + metaLeft + "</td>"
               "<td align='right' style='white-space:nowrap;'>"
+                /* Feedback 👍/👎 */
+                "<a href='fb:up:" + id + "' style='" + lnk + "' title='Risposta utile'>"
+                  "\xf0\x9f\x91\x8d</a>"
+                " &nbsp; "
+                "<a href='fb:down:" + id + "' style='" + lnk + "' title='Risposta non utile'>"
+                  "\xf0\x9f\x91\x8e</a>"
+                " &nbsp;&nbsp; "
                 "<a href='copy:" + id + ":" + b64 + "' style='" + lnk + "'>"
                   "\xf0\x9f\x97\x82</a>"
                 " &nbsp; "

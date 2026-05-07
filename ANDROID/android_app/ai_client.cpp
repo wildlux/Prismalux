@@ -74,8 +74,7 @@ quint64 AiClient::chat(const QString& sys, const QString& msg,
     body["messages"] = messages;
     body["options"]  = opts;
 
-    const QString url = QString("http://%1:%2/api/chat").arg(m_host).arg(m_port);
-    QNetworkRequest req(QUrl(url));
+    QNetworkRequest req{QUrl{QString("http://%1:%2/api/chat").arg(m_host).arg(m_port)}};
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     m_reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
     connect(m_reply, &QNetworkReply::readyRead, this, &AiClient::onReadyRead);
@@ -108,8 +107,7 @@ quint64 AiClient::generate(const QString& sys, const QString& prompt)
     body["options"] = opts;
     if (!sys.isEmpty()) body["system"] = sys;
 
-    const QString url = QString("http://%1:%2/api/generate").arg(m_host).arg(m_port);
-    QNetworkRequest req(QUrl(url));
+    QNetworkRequest req{QUrl{QString("http://%1:%2/api/generate").arg(m_host).arg(m_port)}};
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     m_reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
     connect(m_reply, &QNetworkReply::readyRead, this, &AiClient::onReadyRead);
@@ -120,8 +118,8 @@ quint64 AiClient::generate(const QString& sys, const QString& prompt)
 /* ── fetchModels ─────────────────────────────────────────────── */
 void AiClient::fetchModels()
 {
-    const QString url = QString("http://%1:%2/api/tags").arg(m_host).arg(m_port);
-    QNetworkReply* r = m_nam->get(QNetworkRequest(QUrl(url)));
+    QNetworkReply* r = m_nam->get(
+        QNetworkRequest{QUrl{QString("http://%1:%2/api/tags").arg(m_host).arg(m_port)}});
     connect(r, &QNetworkReply::finished, this, &AiClient::onModelsReply);
 }
 

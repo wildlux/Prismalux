@@ -272,6 +272,7 @@ MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
     setWindowTitle("🍺 Prismalux v2.1 — Centro di Controllo");
+    setWindowIcon(QIcon(P::root() + "/ICONA/prismalux.png"));
     setMinimumSize(1060, 680);
     resize(1200, 760);
 
@@ -1069,13 +1070,30 @@ void MainWindow::startLlamaServer(const QString& modelPath, int port, bool mathP
         "--port", QString::number(port),
         "--host", "127.0.0.1",
         "--log-disable",
-        "-ngl", QString::number(ngl)
+        "-ngl", QString::number(ngl),
+        /* Flash Attention: riduce RAM/VRAM KV cache ~30-50% senza perdita di qualità.
+           llama-server lo ignora sui modelli non compatibili. */
+        "--flash-attn",
+        /* KV cache quantizzata q8_0: dimezza la RAM usata dalla KV cache
+           rispetto al default f16, con minima perdita di qualità su testi lunghi. */
+        "--cache-type-k", "q8_0",
+        "--cache-type-v", "q8_0",
+        /* SWA full: forza cache a dimensione piena per i layer sliding-window
+           (Qwen3, Gemma3, Mistral). Evita perdita di contesto oltre la finestra SWA.
+           Ignorato dai modelli senza sliding-window attention. */
+        "--swa-full"
     };
     if (mathProfile) {
         args << "--ctx-size" << "8192";
         /* Q4_K_M (~40 GB): carica tutto in RAM — più veloce senza mmap */
         if (isQ4 && ngl == 0) args << "--no-mmap";
         /* Q8_0 (~74 GB): mmap attivo per default (llama.cpp legge dal SSD on-demand) */
+    }
+
+    {
+        QSettings s("Prismalux", "GUI");
+        if (s.value(P::SK::kMlockModel, false).toBool())
+            args << "--mlock";
     }
 
     statusBar()->showMessage(

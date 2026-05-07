@@ -863,11 +863,11 @@ QWidget* ManutenzioneePage::buildHardware()
     mainLay->addWidget(computeGroup);
     mainLay->addStretch(1);
 
-    /* Connessioni: bottoni → selezione (anteprima); Salva → applica+persiste */
-    connect(m_btnGpu,    &QPushButton::clicked, this, [this]{ selectComputeMode("gpu");    });
-    connect(m_btnCpu,    &QPushButton::clicked, this, [this]{ selectComputeMode("cpu");    });
-    connect(m_btnMisto,  &QPushButton::clicked, this, [this]{ selectComputeMode("misto");  });
-    connect(m_btnDoppia, &QPushButton::clicked, this, [this]{ selectComputeMode("doppia"); });
+    /* Bottoni → apply+persist immediato (nessun passaggio "Salva" necessario) */
+    connect(m_btnGpu,    &QPushButton::clicked, this, [this]{ applyComputeMode("gpu");    });
+    connect(m_btnCpu,    &QPushButton::clicked, this, [this]{ applyComputeMode("cpu");    });
+    connect(m_btnMisto,  &QPushButton::clicked, this, [this]{ applyComputeMode("misto");  });
+    connect(m_btnDoppia, &QPushButton::clicked, this, [this]{ applyComputeMode("doppia"); });
     connect(m_btnSaveMode, &QPushButton::clicked, this, [this]{
         applyComputeMode(m_selectedMode);
     });

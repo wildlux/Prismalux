@@ -1,5 +1,7 @@
 #include "app_controller_page.h"
 #include "opencode_page.h"
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
 #include <QTabWidget>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -253,7 +255,10 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
             const QString cur = cb->count() > 0 ? cb->currentData().toString() : QString();
             cb->blockSignals(true);
             cb->clear();
-            for (const auto& m : models) cb->addItem(m, m);
+            for (const auto& m : models) {
+                const qint64 sz = m_ai->modelSizeBytes(m);
+                cb->addItem(P::modelIcon(sz, m) + m, m);
+            }
             int idx = cb->findData(cur.isEmpty() ? m_ai->model() : cur);
             if (idx >= 0) cb->setCurrentIndex(idx);
             cb->blockSignals(false);
@@ -344,7 +349,9 @@ void AppControllerPage::runAi(int tabIdx, const QString& sys, const QString& use
         runBtn->setEnabled(true);
         stopBtn->setEnabled(false);
         output->append("\n" + QString(40, QChar(0x2500)));
-        delete m_tokenHolder;
+        /* deleteLater(): non delete diretto — siamo dentro il callback del context object.
+           delete sincrono modificherebbe la connection list mentre Qt la sta iterando → heap corruption. */
+        m_tokenHolder->deleteLater();
         m_tokenHolder = nullptr;
 
         /* Abilita exec solo se c'era un blocco backtick reale (non testo puro) */
@@ -389,7 +396,7 @@ void AppControllerPage::runAi(int tabIdx, const QString& sys, const QString& use
         runBtn->setEnabled(true);
         stopBtn->setEnabled(false);
         output->append("\n\xe2\x9d\x8c  Errore AI: " + msg);
-        delete m_tokenHolder;
+        m_tokenHolder->deleteLater();
         m_tokenHolder = nullptr;
     });
 

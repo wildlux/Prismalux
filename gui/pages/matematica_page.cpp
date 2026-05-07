@@ -1150,7 +1150,7 @@ QString MatematicaPage::numbersFromText(const QString& raw) const
        Ignora "virgola come separatore migliaia" (es. 1,000,000)
        cercando solo gruppi di 1-3 cifre dopo virgola. */
     static QRegularExpression reNum(
-        R"((?<![,\d])-?\d+(?:[.,]\d+)?(?!\d))");
+        R"((?<!\d)-?\d+(?:[.,]\d+)?(?!\d))");
 
     QStringList found;
     QRegularExpressionMatchIterator it = reNum.globalMatch(raw);

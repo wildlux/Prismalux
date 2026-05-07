@@ -12,7 +12,7 @@ ThemeManager* ThemeManager::s_instance = nullptr;
 
 ThemeManager* ThemeManager::instance() {
     /* Variabile static locale: inizializzazione garantita thread-safe da C++11 */
-    static ThemeManager inst(qApp);
+    static ThemeManager inst(nullptr);
     s_instance = &inst;
     return s_instance;
 }

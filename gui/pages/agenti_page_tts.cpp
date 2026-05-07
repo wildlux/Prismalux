@@ -57,6 +57,9 @@ void AgentiPage::_ttsPlay(const QString& tts)
             m_piperProc = nullptr;
         }
         if (m_ttsProc)    { m_ttsProc->deleteLater(); m_ttsProc = nullptr; }
+        /* Conversazione vocale continua: riprendi registrazione dopo TTS */
+        if (m_voiceLoopActive && m_sttState == SttState::Idle)
+            QTimer::singleShot(600, this, [this]{ _sttStartRecording(); });
     });
     /* Fallisce silenziosamente (binario non trovato, permessi, ecc.) */
     connect(m_ttsProc, &QProcess::errorOccurred,

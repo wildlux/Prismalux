@@ -39,6 +39,9 @@ AiChatParams AiChatParams::load()
     if (obj.contains("num_ctx"))        p.num_ctx        = obj["num_ctx"].toInt(p.num_ctx);
     if (obj.contains("honesty_prefix")) p.honesty_prefix = obj["honesty_prefix"].toBool(p.honesty_prefix);
     if (obj.contains("caveman_mode"))   p.caveman_mode   = obj["caveman_mode"].toBool(p.caveman_mode);
+    if (obj.contains("think_mode"))     p.thinkMode      = obj["think_mode"].toInt(p.thinkMode);
+    if (obj.contains("think_budget"))   p.thinkBudget    = qBound(1, obj["think_budget"].toInt(p.thinkBudget), 4);
+    if (obj.contains("flash_attn"))     p.flash_attn     = obj["flash_attn"].toBool(p.flash_attn);
     return p;
 }
 
@@ -56,6 +59,9 @@ void AiChatParams::save(const AiChatParams& p)
     obj["num_ctx"]        = p.num_ctx;
     obj["honesty_prefix"] = p.honesty_prefix;
     obj["caveman_mode"]   = p.caveman_mode;
+    obj["think_mode"]     = p.thinkMode;
+    obj["think_budget"]   = p.thinkBudget;
+    obj["flash_attn"]     = p.flash_attn;
 
     QFile f(filePath());
     if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
@@ -456,42 +462,57 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
         opts["top_p"]          = m_params.top_p;
         opts["top_k"]          = m_params.top_k;
         opts["repeat_penalty"] = m_params.repeat_penalty;
-        opts["num_ctx"]        = m_params.num_ctx;
 
-        /* FIX think budget: qwen3/deepseek-r1 consumano token nel blocco <think>
-           → raddoppiare num_predict quando think è attivo per non troncare la risposta.
-           FIX think:false su piccoli modelli: forzare think:false su qwen3/deepseek
-           con QuerySimple produce m_accum vuoto (modello 0.8B-1.5B non genera nulla
-           senza ragionamento). Per i modelli think-capable usiamo solo il cap num_predict,
-           lasciando che Ollama gestisca il think naturalmente.
-           FIX WORKAROUND modelli problematici (qwen3.5): questi modelli causano
-           thinking loop infinito su Ollama < 0.21.1. Workaround: think:false forza
-           la risposta diretta senza blocco <think>. Questo è il parametro citato
-           nel bug report online (ollama/ollama#5682). */
+        /* num_ctx: usa il valore configurato, ma se la RAM è bassa (< 10 GB)
+           e l'utente non ha abbassato esplicitamente il contesto, lo limitiamo
+           a 4096 per evitare OOM. Soglia: num_ctx > 4096 E RAM < 10 GB. */
+        {
+            const qint64 ram = PrismaluxPaths::totalRamBytes();
+            const bool lowRam = (ram > 0 && ram < 10LL * 1024 * 1024 * 1024);
+            opts["num_ctx"] = (lowRam && m_params.num_ctx > 4096) ? 4096 : m_params.num_ctx;
+        }
+
+        /* Flash Attention: riduce uso RAM/VRAM KV cache ~30-50%.
+           Ollama lo ignora silenziosamente sui modelli che non lo supportano. */
+        if (m_params.flash_attn)
+            opts["flash_attn"] = true;
+
+        /* ── Think mode + budget ──────────────────────────────────────────
+           thinkMode: 0=auto (classificatore), 1=off (forzato), 2=on (forzato)
+           thinkBudget: moltiplicatore num_predict quando thinking attivo (1–4×)
+           knownBroken: workaround modelli con thinking loop (vince su tutto) */
         const bool thinkCapable = m_model.startsWith("qwen3")       ||
                                   m_model.startsWith("qwen3.5")     ||
                                   m_model.startsWith("deepseek-r1") ||
+                                  m_model.startsWith("qwq")         ||
                                   m_model.startsWith("qwen2.5");
         const bool knownBroken  = PrismaluxPaths::isKnownBrokenModel(m_model);
-        if (qt == QuerySimple) {
+        const bool globalOff    = (m_params.thinkMode == 1);
+        const bool globalOn     = (m_params.thinkMode == 2);
+
+        /* Decide se attivare il thinking:
+           globalOff → mai; globalOn → sì se capable; altrimenti usa classificatore */
+        const bool enableThink = !globalOff && thinkCapable && !knownBroken &&
+                                 (globalOn || qt == QueryComplex);
+
+        /* num_predict: 512 per domande brevi (Auto mode), budget× se thinking, base altrimenti */
+        if (!globalOn && qt == QuerySimple) {
             opts["num_predict"] = 512;
-            /* QuerySimple (≤30 chars): sempre think:false per tutti i modelli.
-               Domande brevi non richiedono ragionamento; senza questo, i modelli
-               thinking-capable (qwen3, deepseek-r1) consumano l'intero budget di
-               512 token nel blocco <think> senza produrre risposta finale, e il
-               ragionamento interno compare come testo di risposta all'utente. */
-            opts["think"] = false;
-        } else if (qt == QueryComplex) {
-            /* Se il modello usa il blocco <think>, raddoppia il budget */
-            opts["num_predict"] = thinkCapable ? m_params.num_predict * 2
-                                               : m_params.num_predict;
-            if (thinkCapable && !knownBroken) opts["think"] = true;
+        } else if (enableThink) {
+            opts["num_predict"] = m_params.num_predict * qMax(1, m_params.thinkBudget);
         } else {
-            /* QueryAuto: comportamento predefinito, nessun think esplicito */
             opts["num_predict"] = m_params.num_predict;
         }
-        /* Workaround per modelli con bug thinking loop: forza think:false
-           (sovrascrive la logica sopra — solo Ollama, solo modelli broken) */
+
+        /* think flag: true se abilitato, false se forzato off o domanda semplice */
+        if (enableThink) {
+            opts["think"] = true;
+        } else if (globalOff || (!globalOn && qt == QuerySimple)) {
+            opts["think"] = false;
+        }
+        /* QueryAuto senza override globale: nessun think esplicito (Ollama decide) */
+
+        /* Workaround modelli broken: forza think:false (sovrascrive tutto) */
         if (knownBroken) opts["think"] = false;
         /* Override per-modello dal Bug Tracker (model_params.json) — vince su tutto */
         {
@@ -604,7 +625,13 @@ void AiClient::generate(const QString& systemPrompt, const QString& prompt, Quer
     opts["top_p"]          = m_params.top_p;
     opts["top_k"]          = m_params.top_k;
     opts["repeat_penalty"] = m_params.repeat_penalty;
-    opts["num_ctx"]        = m_params.num_ctx;
+    {
+        const qint64 ram = PrismaluxPaths::totalRamBytes();
+        const bool lowRam = (ram > 0 && ram < 10LL * 1024 * 1024 * 1024);
+        opts["num_ctx"] = (lowRam && m_params.num_ctx > 4096) ? 4096 : m_params.num_ctx;
+    }
+    if (m_params.flash_attn)
+        opts["flash_attn"] = true;
 
     /* generate() — stessa logica di chat(): think:false solo per modelli non-think-capable */
     const bool thinkCapableGen = m_model.startsWith("qwen3")       ||
@@ -900,6 +927,10 @@ void AiClient::onFinished() {
         } else {
             m_accum = "<think>" + m_thinkingAccum + "</think>";
         }
+    } else if (!m_accum.isEmpty() && !m_thinkingAccum.isEmpty()) {
+        /* thinking + content: prepende <think>...</think> così agenti_page_stream
+         * può estrarlo e mostrare il toggle ▶️ Ragionamento nella bolla. */
+        m_accum = "<think>" + m_thinkingAccum + "</think>" + m_accum;
     }
     m_thinkingAccum.clear();
 

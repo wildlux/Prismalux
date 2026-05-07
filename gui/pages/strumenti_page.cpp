@@ -1,5 +1,6 @@
 #include "strumenti_page.h"
 #include "lavoro_page.h"
+#include "stable_diffusion_widget.h"
 #include "../prismalux_paths.h"
 #include "../lan_server.h"
 #include <QSpinBox>
@@ -537,15 +538,50 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         "Server LAN per l\xe2\x80\x99" "app PrismaluxMobile Android");
     catLay->addWidget(lanAndroidBtn);
 
+    /* ── Pulsante Stable Diffusion ── */
+    auto* sdBtn = new QPushButton(
+        "\xf0\x9f\x8e\xa8  Immagini AI", catBar);
+    sdBtn->setCheckable(true);
+    sdBtn->setObjectName("strCatBtn");
+    sdBtn->setToolTip(
+        "Text-to-Image con Stable Diffusion (AUTOMATIC1111 / Forge)");
+    catLay->addWidget(sdBtn);
+
+    /* ── Pulsante File Search AI ── */
+    m_fileSearchBtn = new QPushButton(
+        "\xf0\x9f\x97\x82  File AI", catBar);   /* 🗂 */
+    m_fileSearchBtn->setCheckable(true);
+    m_fileSearchBtn->setObjectName("strCatBtn");
+    m_fileSearchBtn->setToolTip(
+        "Ricerca file locali con AI: trova documenti rilevanti per parola chiave\n"
+        "e falli analizzare dal modello selezionato");
+    catLay->addWidget(m_fileSearchBtn);
+
+    /* ── Pulsante Wiki ── */
+    m_wikiBtn = new QPushButton(
+        "\xf0\x9f\x93\x96  Wiki", catBar);   /* 📖 */
+    m_wikiBtn->setCheckable(true);
+    m_wikiBtn->setObjectName("strCatBtn");
+    m_wikiBtn->setToolTip(
+        "Wikipedia + AI: cerca un articolo e fallo elaborare dal modello\n"
+        "Lingue: italiano, inglese, francese, tedesco, spagnolo");
+    catLay->addWidget(m_wikiBtn);
+
     /* Cambio categoria */
     connect(catGroup, QOverload<int>::of(&QButtonGroup::idClicked),
-            this, [this, actStack, lblSel, lavoroBtn, cronBtn, lanAndroidBtn](int cat) {
+            this, [this, actStack, lblSel, lavoroBtn, cronBtn, lanAndroidBtn, sdBtn](int cat) {
         if (lavoroBtn) lavoroBtn->setChecked(false);
         if (m_lavoroPage) m_lavoroPage->setVisible(false);
         if (cronBtn) cronBtn->setChecked(false);
         if (m_cronPanel) m_cronPanel->setVisible(false);
         if (lanAndroidBtn) lanAndroidBtn->setChecked(false);
         if (m_lanPanel) m_lanPanel->setVisible(false);
+        if (sdBtn) sdBtn->setChecked(false);
+        if (m_sdPanel) m_sdPanel->setVisible(false);
+        if (m_fileSearchBtn) m_fileSearchBtn->setChecked(false);
+        if (m_fileSearchPanel) m_fileSearchPanel->setVisible(false);
+        if (m_wikiBtn) m_wikiBtn->setChecked(false);
+        if (m_wikiPanel) m_wikiPanel->setVisible(false);
         actStack->setVisible(true);
         lblSel->setVisible(true);
         if (m_inputRow) m_inputRow->setVisible(true);
@@ -609,6 +645,10 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
             if (m_cronPanel) m_cronPanel->setVisible(false);
             if (checked && lanAndroidBtn) lanAndroidBtn->setChecked(false);
             if (m_lanPanel) m_lanPanel->setVisible(false);
+            if (checked && m_fileSearchBtn) m_fileSearchBtn->setChecked(false);
+            if (m_fileSearchPanel) m_fileSearchPanel->setVisible(false);
+            if (checked && m_wikiBtn) m_wikiBtn->setChecked(false);
+            if (m_wikiPanel) m_wikiPanel->setVisible(false);
         });
     }
 
@@ -1673,6 +1713,10 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         if (checked && m_lavoroPage) m_lavoroPage->setVisible(false);
         if (checked && lanAndroidBtn) lanAndroidBtn->setChecked(false);
         if (m_lanPanel) m_lanPanel->setVisible(false);
+        if (checked && m_fileSearchBtn) m_fileSearchBtn->setChecked(false);
+        if (m_fileSearchPanel) m_fileSearchPanel->setVisible(false);
+        if (checked && m_wikiBtn) m_wikiBtn->setChecked(false);
+        if (m_wikiPanel) m_wikiPanel->setVisible(false);
     });
 
     /* ── Pannello LAN Android ── */
@@ -1898,7 +1942,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     lay->addWidget(m_lanPanel, 1);
 
     connect(lanAndroidBtn, &QPushButton::clicked, this,
-            [this, actStack, lblSel, cronBtn](bool checked) {
+            [this, actStack, lblSel, cronBtn, sdBtn](bool checked) {
         actStack->setVisible(!checked);
         lblSel->setVisible(!checked);
         m_ragRow->setVisible(!checked);
@@ -1910,6 +1954,92 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         if (checked && m_lavoroPage) m_lavoroPage->setVisible(false);
         if (checked && cronBtn) cronBtn->setChecked(false);
         if (m_cronPanel) m_cronPanel->setVisible(false);
+        if (checked && sdBtn) sdBtn->setChecked(false);
+        if (m_sdPanel) m_sdPanel->setVisible(false);
+        if (checked && m_fileSearchBtn) m_fileSearchBtn->setChecked(false);
+        if (m_fileSearchPanel) m_fileSearchPanel->setVisible(false);
+        if (checked && m_wikiBtn) m_wikiBtn->setChecked(false);
+        if (m_wikiPanel) m_wikiPanel->setVisible(false);
+    });
+
+    /* ── Stable Diffusion panel ── */
+    {
+        m_sdPanel = new StableDiffusionWidget(this);
+        m_sdPanel->setVisible(false);
+        lay->addWidget(m_sdPanel, 1);
+
+        connect(sdBtn, &QPushButton::clicked, this,
+                [this, actStack, lblSel, cronBtn, lanAndroidBtn](bool checked) {
+            actStack->setVisible(!checked);
+            lblSel->setVisible(!checked);
+            m_ragRow->setVisible(!checked);
+            m_pdfRow->setVisible(false);
+            m_codeModelRow->setVisible(false);
+            if (m_inputRow) m_inputRow->setVisible(!checked);
+            m_output->setVisible(!checked);
+            m_sdPanel->setVisible(checked);
+            if (checked && m_lavoroPage) m_lavoroPage->setVisible(false);
+            if (checked && cronBtn) cronBtn->setChecked(false);
+            if (m_cronPanel) m_cronPanel->setVisible(false);
+            if (checked && lanAndroidBtn) lanAndroidBtn->setChecked(false);
+            if (m_lanPanel) m_lanPanel->setVisible(false);
+            if (checked && m_fileSearchBtn) m_fileSearchBtn->setChecked(false);
+            if (m_fileSearchPanel) m_fileSearchPanel->setVisible(false);
+            if (checked && m_wikiBtn) m_wikiBtn->setChecked(false);
+            if (m_wikiPanel) m_wikiPanel->setVisible(false);
+        });
+    }
+
+    /* ── Pannello Agentic File Search ── */
+    m_fileSearchPanel = buildFileSearchPanel();
+    m_fileSearchPanel->setVisible(false);
+    lay->addWidget(m_fileSearchPanel, 1);
+
+    connect(m_fileSearchBtn, &QPushButton::clicked, this,
+            [this, actStack, lblSel, cronBtn, lanAndroidBtn, sdBtn](bool checked) {
+        actStack->setVisible(!checked);
+        lblSel->setVisible(!checked);
+        m_ragRow->setVisible(!checked);
+        m_pdfRow->setVisible(false);
+        m_codeModelRow->setVisible(false);
+        if (m_inputRow) m_inputRow->setVisible(!checked);
+        m_output->setVisible(!checked);
+        m_fileSearchPanel->setVisible(checked);
+        if (checked && m_lavoroPage) m_lavoroPage->setVisible(false);
+        if (checked && cronBtn) cronBtn->setChecked(false);
+        if (m_cronPanel) m_cronPanel->setVisible(false);
+        if (checked && lanAndroidBtn) lanAndroidBtn->setChecked(false);
+        if (m_lanPanel) m_lanPanel->setVisible(false);
+        if (checked && sdBtn) sdBtn->setChecked(false);
+        if (m_sdPanel) m_sdPanel->setVisible(false);
+        if (checked && m_wikiBtn) m_wikiBtn->setChecked(false);
+        if (m_wikiPanel) m_wikiPanel->setVisible(false);
+    });
+
+    /* ── Pannello LLM Wiki ── */
+    m_wikiPanel = buildWikiPanel();
+    m_wikiPanel->setVisible(false);
+    lay->addWidget(m_wikiPanel, 1);
+
+    connect(m_wikiBtn, &QPushButton::clicked, this,
+            [this, actStack, lblSel, cronBtn, lanAndroidBtn, sdBtn](bool checked) {
+        actStack->setVisible(!checked);
+        lblSel->setVisible(!checked);
+        m_ragRow->setVisible(!checked);
+        m_pdfRow->setVisible(false);
+        m_codeModelRow->setVisible(false);
+        if (m_inputRow) m_inputRow->setVisible(!checked);
+        m_output->setVisible(checked);    /* mostra output AI per elaborazione */
+        m_wikiPanel->setVisible(checked);
+        if (checked && m_lavoroPage) m_lavoroPage->setVisible(false);
+        if (checked && cronBtn) cronBtn->setChecked(false);
+        if (m_cronPanel) m_cronPanel->setVisible(false);
+        if (checked && lanAndroidBtn) lanAndroidBtn->setChecked(false);
+        if (m_lanPanel) m_lanPanel->setVisible(false);
+        if (checked && sdBtn) sdBtn->setChecked(false);
+        if (m_sdPanel) m_sdPanel->setVisible(false);
+        if (checked && m_fileSearchBtn) m_fileSearchBtn->setChecked(false);
+        if (m_fileSearchPanel) m_fileSearchPanel->setVisible(false);
     });
 
     /* ── Avvia / Stop tool (bottone unificato) ── */
@@ -2111,6 +2241,451 @@ QWidget* StrumentiPage::buildScritturaCreativa(){ return nullptr; }
 QWidget* StrumentiPage::buildRicerca()          { return nullptr; }
 QWidget* StrumentiPage::buildLibri()            { return nullptr; }
 QWidget* StrumentiPage::buildProduttivita()     { return nullptr; }
+
+/* ══════════════════════════════════════════════════════════════
+   buildFileSearchPanel — Agentic File Search
+   Ricerca keyword-based nei file locali via Python subprocess,
+   poi passa i risultati al modello AI per analisi.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* StrumentiPage::buildFileSearchPanel()
+{
+    auto* panel = new QWidget(this);
+    auto* lay = new QVBoxLayout(panel);
+    lay->setContentsMargins(0, 6, 0, 6);
+    lay->setSpacing(8);
+
+    /* Titolo */
+    auto* title = new QLabel(
+        "\xf0\x9f\x97\x82  <b>Ricerca File con AI</b>  \xe2\x80\x94  "
+        "cerca file locali per parola chiave e falli analizzare dal modello", panel);
+    title->setTextFormat(Qt::RichText);
+    title->setObjectName("cardDesc");
+    lay->addWidget(title);
+
+    /* Riga cartella */
+    auto* dirRow = new QWidget(panel);
+    auto* dirLay = new QHBoxLayout(dirRow);
+    dirLay->setContentsMargins(0, 0, 0, 0);
+    dirLay->setSpacing(6);
+    auto* dirLbl = new QLabel("\xf0\x9f\x93\x81  Cartella:", dirRow);
+    dirLbl->setObjectName("cardDesc");
+    dirLay->addWidget(dirLbl);
+    m_fileSearchDir = new QLineEdit(dirRow);
+    m_fileSearchDir->setPlaceholderText(
+        QDir::homePath() + "  (lascia vuoto per usare la home)");
+    m_fileSearchDir->setText(QDir::homePath());
+    dirLay->addWidget(m_fileSearchDir, 1);
+    auto* btnBrowse = new QPushButton(
+        "\xf0\x9f\x93\x82  Sfoglia", dirRow);
+    btnBrowse->setObjectName("actionBtn");
+    btnBrowse->setFixedWidth(90);
+    dirLay->addWidget(btnBrowse);
+    lay->addWidget(dirRow);
+
+    /* Riga query + cerca */
+    auto* qRow = new QWidget(panel);
+    auto* qLay = new QHBoxLayout(qRow);
+    qLay->setContentsMargins(0, 0, 0, 0);
+    qLay->setSpacing(6);
+    auto* qLbl = new QLabel("\xf0\x9f\x94\x8d  Cerca:", qRow);
+    qLbl->setObjectName("cardDesc");
+    qLay->addWidget(qLbl);
+    m_fileSearchQuery = new QLineEdit(qRow);
+    m_fileSearchQuery->setPlaceholderText(
+        "cosa stai cercando? (es. \"configurazione database\")");
+    qLay->addWidget(m_fileSearchQuery, 1);
+    auto* btnSearch = new QPushButton(
+        "\xf0\x9f\x94\x8d  Cerca", qRow);
+    btnSearch->setObjectName("actionBtn");
+    btnSearch->setFixedWidth(90);
+    qLay->addWidget(btnSearch);
+    auto* btnAI = new QPushButton(
+        "\xf0\x9f\xa4\x96  Analisi AI", qRow);
+    btnAI->setObjectName("actionBtn");
+    btnAI->setFixedWidth(100);
+    btnAI->setEnabled(false);
+    btnAI->setToolTip("Manda i file trovati al modello AI per analisi");
+    qLay->addWidget(btnAI);
+    lay->addWidget(qRow);
+
+    /* Area risultati */
+    m_fileSearchOut = new QTextBrowser(panel);
+    m_fileSearchOut->setPlaceholderText(
+        "I file trovati appariranno qui...\n\n"
+        "Suggerimento: usa termini precisi (nomi funzioni, variabili, argomenti)");
+    m_fileSearchOut->setOpenLinks(false);
+    m_fileSearchOut->setMinimumHeight(120);
+    m_fileSearchOut->setStyleSheet(
+        "QTextBrowser { background:#0f172a; color:#e2e8f0;"
+        "border:1px solid #334155; border-radius:6px; padding:8px; "
+        "font-family: 'JetBrains Mono','Fira Code',monospace; font-size:12px; }");
+    lay->addWidget(m_fileSearchOut, 1);
+
+    /* ── Connessioni ── */
+    connect(btnBrowse, &QPushButton::clicked, this, [this]() {
+        const QString dir = QFileDialog::getExistingDirectory(
+            this, "Seleziona cartella da ricercare", m_fileSearchDir->text());
+        if (!dir.isEmpty()) m_fileSearchDir->setText(dir);
+    });
+
+    connect(btnSearch, &QPushButton::clicked, this, [this, btnSearch, btnAI]() {
+        const QString query = m_fileSearchQuery->text().trimmed();
+        const QString root  = m_fileSearchDir->text().trimmed();
+        if (query.isEmpty()) return;
+        if (root.isEmpty() || !QDir(root).exists()) {
+            m_fileSearchOut->setPlainText(
+                "\xe2\x9d\x8c  Cartella non valida: " + root);
+            return;
+        }
+
+        btnSearch->setEnabled(false);
+        btnAI->setEnabled(false);
+        m_fileSearchOut->setPlainText(
+            "\xf0\x9f\x94\x8d  Ricerca in corso...");
+
+        if (m_fileSearchProc) {
+            m_fileSearchProc->kill();
+            m_fileSearchProc->deleteLater();
+            m_fileSearchProc = nullptr;
+        }
+
+        /* Script Python: walk ricorsivo, filtra per estensione,
+           calcola score keyword, ritorna JSON top-8 */
+        const QString script = QString::fromUtf8(
+            "import os,sys,json\n"
+            "root=sys.argv[1]; query=sys.argv[2].lower(); kw=query.split()\n"
+            "exts={'.txt','.md','.py','.cpp','.h','.js','.ts','.json','.csv','.rst','.yaml','.toml','.ini','.cfg'}\n"
+            "results=[]\n"
+            "for dp,dirs,files in os.walk(root):\n"
+            "    dirs[:]=[d for d in dirs if not d.startswith('.')]\n"
+            "    for f in files:\n"
+            "        if os.path.splitext(f)[1].lower() not in exts: continue\n"
+            "        path=os.path.join(dp,f)\n"
+            "        try:\n"
+            "            with open(path,'r',errors='replace') as fp: c=fp.read(8000)\n"
+            "            score=sum(1 for k in kw if k in c.lower() or k in f.lower())\n"
+            "            if score>0: results.append({'file':path,'score':score,'snippet':c[:600]})\n"
+            "        except: pass\n"
+            "results.sort(key=lambda x:-x['score'])\n"
+            "print(json.dumps(results[:8]))\n");
+
+        m_fileSearchProc = new QProcess(this);
+        m_fileSearchProc->setProcessChannelMode(QProcess::MergedChannels);
+        connect(m_fileSearchProc,
+                QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, btnSearch, btnAI, query](int exitCode, QProcess::ExitStatus) {
+            const QString raw = QString::fromUtf8(m_fileSearchProc->readAll()).trimmed();
+            m_fileSearchProc->deleteLater();
+            m_fileSearchProc = nullptr;
+            btnSearch->setEnabled(true);
+
+            if (exitCode != 0 || raw.isEmpty()) {
+                m_fileSearchOut->setPlainText(
+                    "\xe2\x9d\x8c  Errore nella ricerca:\n" + raw.left(300));
+                return;
+            }
+
+            const QJsonDocument doc = QJsonDocument::fromJson(raw.toUtf8());
+            if (!doc.isArray() || doc.array().isEmpty()) {
+                m_fileSearchOut->setPlainText(
+                    "\xf0\x9f\x8c\xab  Nessun file trovato per: \"" + query + "\"");
+                return;
+            }
+
+            /* Costruisce HTML risultati */
+            QString html;
+            html += "<p style='color:#94a3b8;font-size:12px;'>"
+                    "\xf0\x9f\x94\x8d  <b>Risultati per:</b> "
+                    + query.toHtmlEscaped() + "</p>";
+
+            m_wikiExtract.clear();  /* riuso m_wikiExtract per contesto AI */
+            QString aiContext = QString("Query: %1\n\nFile rilevanti trovati:\n\n").arg(query);
+
+            int i = 1;
+            for (const QJsonValue& v : doc.array()) {
+                const QJsonObject o = v.toObject();
+                const QString file    = o["file"].toString();
+                const QString snippet = o["snippet"].toString();
+                const int score       = o["score"].toInt();
+
+                html += QString(
+                    "<div style='background:#1e293b;border:1px solid #334155;"
+                    "border-radius:6px;padding:8px;margin:4px 0;'>"
+                    "<p style='color:#60a5fa;font-size:11px;margin:0 0 4px 0;font-weight:bold;'>"
+                    "[%1] %2 &nbsp;<span style='color:#64748b;font-weight:normal;'>"
+                    "(score: %3)</span></p>"
+                    "<pre style='color:#94a3b8;font-size:10px;margin:0;white-space:pre-wrap;'>"
+                    "%4</pre></div>")
+                    .arg(i).arg(file.toHtmlEscaped()).arg(score)
+                    .arg(snippet.left(300).toHtmlEscaped());
+
+                aiContext += QString("[%1] %2\n%3\n\n").arg(i).arg(file).arg(snippet);
+                i++;
+            }
+
+            m_fileSearchOut->setHtml(html);
+            /* Salva contesto per il pulsante AI */
+            m_fileSearchQuery->setProperty("aiContext", aiContext);
+            m_fileSearchQuery->setProperty("aiQuery", query);
+            btnAI->setEnabled(true);
+        });
+        m_fileSearchProc->start(P::findPython(), {"-c", script, root, query});
+        QTimer::singleShot(30000, this, [this, btnSearch]() {
+            if (m_fileSearchProc) {
+                m_fileSearchProc->kill();
+                btnSearch->setEnabled(true);
+                m_fileSearchOut->append(
+                    "\n\xe2\x9a\xa0  Timeout: ricerca interrotta dopo 30s");
+            }
+        });
+    });
+
+    /* Analisi AI dei file trovati */
+    connect(btnAI, &QPushButton::clicked, this, [this]() {
+        const QString ctx   = m_fileSearchQuery->property("aiContext").toString();
+        const QString query = m_fileSearchQuery->property("aiQuery").toString();
+        if (ctx.isEmpty()) return;
+        const QString sys =
+            "Sei un assistente esperto nell'analisi di codice e documenti. "
+            "Hai ricevuto snippet di file locali rilevanti per una query. "
+            "Analizza i file e rispondi in modo preciso e utile. "
+            "Cita i percorsi dei file quando fai riferimento a contenuti specifici. "
+            "Rispondi in italiano.";
+        runTool(P::prependKnowledge(sys),
+                ctx + "\nDomanda: " + query);
+    });
+
+    return panel;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildWikiPanel — Wikipedia + AI
+   Fetches article via Wikipedia REST API, mostra il contenuto
+   e permette di elaborarlo con il modello AI locale.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* StrumentiPage::buildWikiPanel()
+{
+    auto* panel = new QWidget(this);
+    auto* lay = new QVBoxLayout(panel);
+    lay->setContentsMargins(0, 6, 0, 6);
+    lay->setSpacing(8);
+
+    /* Titolo */
+    auto* title = new QLabel(
+        "\xf0\x9f\x93\x96  <b>Wikipedia + AI</b>  \xe2\x80\x94  "
+        "cerca un articolo e fallo elaborare dal modello locale", panel);
+    title->setTextFormat(Qt::RichText);
+    title->setObjectName("cardDesc");
+    lay->addWidget(title);
+
+    /* Riga ricerca */
+    auto* sRow = new QWidget(panel);
+    auto* sLay = new QHBoxLayout(sRow);
+    sLay->setContentsMargins(0, 0, 0, 0);
+    sLay->setSpacing(6);
+
+    m_wikiQuery = new QLineEdit(sRow);
+    m_wikiQuery->setPlaceholderText(
+        "argomento Wikipedia (es. \"Intelligenza artificiale\", \"Alan Turing\")");
+    sLay->addWidget(m_wikiQuery, 1);
+
+    m_wikiLangCombo = new QComboBox(sRow);
+    m_wikiLangCombo->setObjectName("settingsCombo");
+    m_wikiLangCombo->setFixedWidth(65);
+    m_wikiLangCombo->addItem("it", "it");
+    m_wikiLangCombo->addItem("en", "en");
+    m_wikiLangCombo->addItem("fr", "fr");
+    m_wikiLangCombo->addItem("de", "de");
+    m_wikiLangCombo->addItem("es", "es");
+    m_wikiLangCombo->setToolTip("Lingua Wikipedia");
+    sLay->addWidget(m_wikiLangCombo);
+
+    auto* btnFetch = new QPushButton(
+        "\xf0\x9f\x94\x8d  Cerca", sRow);
+    btnFetch->setObjectName("actionBtn");
+    btnFetch->setFixedWidth(80);
+    sLay->addWidget(btnFetch);
+
+    auto* btnElabora = new QPushButton(
+        "\xf0\x9f\xa4\x96  Elabora con AI", sRow);
+    btnElabora->setObjectName("actionBtn");
+    btnElabora->setEnabled(false);
+    btnElabora->setToolTip(
+        "Invia l\xe2\x80\x99" "articolo Wikipedia al modello per analisi, approfondimento o Q&A");
+    sLay->addWidget(btnElabora);
+    lay->addWidget(sRow);
+
+    /* Riga azioni rapide (elaborate prompt preimpostati) */
+    auto* actRow = new QWidget(panel);
+    auto* actLay = new QHBoxLayout(actRow);
+    actLay->setContentsMargins(0, 0, 0, 0);
+    actLay->setSpacing(4);
+
+    struct WikiAction { const char* label; const char* prompt; };
+    static const WikiAction kActions[] = {
+        { "\xf0\x9f\x93\x9d  Riassunto", "Riassumi l\xe2\x80\x99" "articolo in 5 punti chiave. Rispondi in italiano." },
+        { "\xf0\x9f\xa7\xaa  Verifica fatti", "Identifica i fatti principali verificabili nell\xe2\x80\x99" "articolo e indica le fonti da controllare. Rispondi in italiano." },
+        { "\xf0\x9f\x8f\xab  Spiega semplice", "Spiega l\xe2\x80\x99" "argomento come se parlassi a uno studente di liceo. Usa esempi concreti. Rispondi in italiano." },
+        { "\xf0\x9f\x94\x97  Approfondisci", "Suggerisci 5 argomenti correlati da approfondire, con una breve spiegazione per ciascuno. Rispondi in italiano." },
+    };
+    for (const auto& a : kActions) {
+        auto* ab = new QPushButton(QString::fromUtf8(a.label), actRow);
+        ab->setObjectName("strActBtn");
+        ab->setEnabled(false);
+        ab->setProperty("wikiPrompt", QString::fromUtf8(a.prompt));
+        actLay->addWidget(ab);
+        connect(ab, &QPushButton::clicked, this, [this, ab]() {
+            if (m_wikiExtract.isEmpty()) return;
+            const QString prompt = ab->property("wikiPrompt").toString();
+            const QString sys =
+                "Sei un assistente esperto. Usa le informazioni dell\xe2\x80\x99" "articolo Wikipedia "
+                "come contesto. Rispondi in modo preciso e utile. Rispondi in italiano.";
+            runTool(P::prependKnowledge(sys),
+                    "[Articolo Wikipedia]\n" + m_wikiExtract + "\n\n" + prompt);
+        });
+        /* Abilita i pulsanti azione quando l'articolo è caricato —
+           uso setProperty per conoscerli poi, oppure teniamo il pointer */
+        ab->setObjectName("wikiActBtn");  /* per findChildren in onFetch */
+    }
+    actLay->addStretch();
+    lay->addWidget(actRow);
+
+    /* Stato / wait */
+    m_wikiWaitLbl = new QLabel(panel);
+    m_wikiWaitLbl->setObjectName("cardDesc");
+    m_wikiWaitLbl->setVisible(false);
+    lay->addWidget(m_wikiWaitLbl);
+
+    /* Area contenuto Wikipedia */
+    m_wikiContent = new QTextBrowser(panel);
+    m_wikiContent->setPlaceholderText(
+        "Il testo dell\xe2\x80\x99" "articolo Wikipedia appare qui...\n\n"
+        "Suggerimento: usa titoli precisi (es. \"Fisica quantistica\" e non \"fisica\")");
+    m_wikiContent->setOpenLinks(false);
+    m_wikiContent->setMinimumHeight(120);
+    m_wikiContent->setStyleSheet(
+        "QTextBrowser { background:#0f172a; color:#e2e8f0;"
+        "border:1px solid #334155; border-radius:6px; padding:8px; "
+        "font-size:13px; }");
+    lay->addWidget(m_wikiContent, 1);
+
+    /* ── Connessioni ── */
+    /* Enter nel campo query = fetch */
+    connect(m_wikiQuery, &QLineEdit::returnPressed, btnFetch, &QPushButton::click);
+
+    auto* nam = new QNetworkAccessManager(panel);
+
+    auto enableActions = [panel, btnElabora]() {
+        btnElabora->setEnabled(true);
+        const auto btns = panel->findChildren<QPushButton*>("wikiActBtn");
+        for (auto* b : btns) b->setEnabled(true);
+    };
+
+    connect(btnFetch, &QPushButton::clicked, this, [this, nam, enableActions]() {
+        const QString q    = m_wikiQuery->text().trimmed();
+        const QString lang = m_wikiLangCombo->currentData().toString();
+        if (q.isEmpty()) return;
+
+        m_wikiContent->clear();
+        m_wikiExtract.clear();
+        m_wikiWaitLbl->setText(
+            "\xe2\x8f\xb3  Ricerca su Wikipedia (" + lang + ")...");
+        m_wikiWaitLbl->setVisible(true);
+
+        /* Wikipedia REST v1 — summary endpoint */
+        const QString encoded = QUrl::toPercentEncoding(q);
+        const QUrl url(
+            QString("https://%1.wikipedia.org/api/rest_v1/page/summary/%2")
+            .arg(lang, encoded));
+        QNetworkRequest req(url);
+        req.setHeader(QNetworkRequest::UserAgentHeader,
+                      "Prismalux/2.8 (wildlux@gmail.com)");
+        req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                         QNetworkRequest::NoLessSafeRedirectPolicy);
+
+        auto* reply = nam->get(req);
+        connect(reply, &QNetworkReply::finished, this,
+                [this, reply, q, lang, enableActions]() {
+            reply->deleteLater();
+            m_wikiWaitLbl->setVisible(false);
+
+            if (reply->error() != QNetworkReply::NoError) {
+                m_wikiContent->setPlainText(
+                    "\xe2\x9d\x8c  Errore: " + reply->errorString() +
+                    "\n\nSuggerimento: verifica l\xe2\x80\x99" "ortografia del titolo "
+                    "e prova in altra lingua.");
+                return;
+            }
+
+            const QJsonDocument doc =
+                QJsonDocument::fromJson(reply->readAll());
+            const QJsonObject obj = doc.object();
+
+            /* Gestione "disambiguation" e "not found" */
+            const QString type = obj["type"].toString();
+            if (type == "disambiguation") {
+                m_wikiContent->setPlainText(
+                    "\xf0\x9f\x93\x8b  Pagina di disambiguazione per \"" + q + "\".\n\n"
+                    "Prova un titolo pi\xc3\xb9 specifico, ad esempio:\n"
+                    + obj["extract"].toString().left(300));
+                return;
+            }
+            if (type.contains("not_found") || obj["title"].toString().isEmpty()) {
+                m_wikiContent->setPlainText(
+                    "\xf0\x9f\x8c\xab  Articolo \"" + q + "\" non trovato in " + lang +
+                    ".wikipedia.org.\n\n"
+                    "Suggerimento: prova in inglese (en) o verifica il titolo.");
+                return;
+            }
+
+            const QString title   = obj["title"].toString();
+            const QString desc    = obj["description"].toString();
+            const QString extract = obj["extract"].toString();
+
+            /* Salva per uso AI */
+            m_wikiExtract = QString("Titolo: %1\nDescrizione: %2\n\n%3")
+                            .arg(title, desc, extract);
+
+            /* Mostra in m_wikiContent */
+            QString html;
+            html += QString(
+                "<h2 style='color:#60a5fa;margin-bottom:4px;'>%1</h2>"
+                "<p style='color:#94a3b8;font-size:11px;margin:0 0 12px 0;"
+                "font-style:italic;'>%2</p>")
+                .arg(title.toHtmlEscaped(), desc.toHtmlEscaped());
+
+            /* Paragrafi */
+            for (const QString& para : extract.split("\n\n", Qt::SkipEmptyParts)) {
+                html += "<p style='color:#e2e8f0;margin:0 0 8px 0;'>"
+                      + para.toHtmlEscaped() + "</p>";
+            }
+            html += QString(
+                "<p style='color:#64748b;font-size:10px;margin-top:12px;'>"
+                "\xf0\x9f\x8c\x90  Fonte: <a href='https://%1.wikipedia.org/wiki/%2' "
+                "style='color:#3b82f6;'>%1.wikipedia.org/%3</a></p>")
+                .arg(lang,
+                     QUrl::toPercentEncoding(title),
+                     title.toHtmlEscaped());
+
+            m_wikiContent->setHtml(html);
+            enableActions();
+        });
+    });
+
+    connect(btnElabora, &QPushButton::clicked, this, [this]() {
+        if (m_wikiExtract.isEmpty()) return;
+        const QString sys =
+            "Sei un assistente esperto. Usa le informazioni dell\xe2\x80\x99" "articolo Wikipedia "
+            "come contesto. L\xe2\x80\x99" "utente ti pone domande sull\xe2\x80\x99" "argomento. "
+            "Rispondi in modo preciso, critico e utile. Rispondi in italiano.";
+        /* Usa m_output (visibile quando wiki è attivo) tramite runTool */
+        runTool(P::prependKnowledge(sys),
+                "[Articolo Wikipedia]\n" + m_wikiExtract + "\n\n" +
+                (m_fileSearchQuery ? m_fileSearchQuery->text().trimmed() : QString()));
+    });
+
+    return panel;
+}
 QString  StrumentiPage::sysPromptForAction(int, int) { return {}; }
 
 /* ══════════════════════════════════════════════════════════════

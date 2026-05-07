@@ -21,6 +21,7 @@ namespace P = PrismaluxPaths;  /* alias file-scope per P::SK::kXxx */
 #include <QComboBox>
 #include <QSpinBox>
 #include <QDoubleSpinBox>
+#include <QSlider>
 #include <QSettings>
 #include <QDir>
 #include <QDirIterator>
@@ -30,6 +31,8 @@ namespace P = PrismaluxPaths;  /* alias file-scope per P::SK::kXxx */
 #include <QFileDialog>
 #include <QDateTime>
 #include <QStandardPaths>
+#include <QDesktopServices>
+#include <QUrl>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
@@ -138,6 +141,14 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
         }
 
         {
+            auto* sc = new QScrollArea;
+            sc->setWidgetResizable(true);
+            sc->setFrameShape(QFrame::NoFrame);
+            sc->setWidget(buildSandboxTab());
+            t->addTab(sc, "\xf0\x9f\x90\xb3  Sandbox");
+        }
+
+        {
             auto* w = new QWidget;
             auto* l = new QVBoxLayout(w);
             l->setContentsMargins(0, 0, 0, 0);
@@ -215,6 +226,8 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
 
         t->addTab(m_manutenzione->buildCronTab(),
                   "\xe2\x8f\xb0  Cron");
+
+        /* LAN Android spostata in Strumenti AI */
 
         tabs->addTab(t, "\xf0\x9f\x94\xa7  Sistema");
     }
@@ -891,6 +904,27 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
 
     /* llama.cpp Studio rimosso: funzionalità integrate in scheda LLM */
 
+    /* ── Sezione Ollama LAN ── */
+    auto* sepLan = new QFrame(leftGroup);
+    sepLan->setFrameShape(QFrame::HLine);
+    sepLan->setObjectName("sidebarSep");
+    leftLay->addWidget(sepLan);
+
+    auto* lanTitleLbl = new QLabel("\xf0\x9f\x93\xb1  Ollama LAN", leftGroup);
+    lanTitleLbl->setObjectName("cardDesc");
+    leftLay->addWidget(lanTitleLbl);
+
+    auto* lanStatusLbl = new QLabel("\xe2\x9a\xaa Inattivo", leftGroup);
+    lanStatusLbl->setObjectName("hintLabel");
+    lanStatusLbl->setWordWrap(true);
+    leftLay->addWidget(lanStatusLbl);
+
+    auto* lanBtn = new QPushButton("\xf0\x9f\x9f\xa2  Avvia Ollama LAN", leftGroup);
+    lanBtn->setObjectName("actionBtn");
+    lanBtn->setToolTip("Avvia ollama serve con OLLAMA_HOST=0.0.0.0:11434\n"
+                       "cos\xc3\xac il telefono in LAN pu\xc3\xb2 connettersi");
+    leftLay->addWidget(lanBtn);
+
     leftLay->addStretch(1);
     colsLay->addWidget(leftGroup);
 
@@ -913,6 +947,192 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
 
     colsLay->addWidget(rightGroup, 1);
     mainLay->addWidget(colsRow);
+
+    /* ══════════════════════════════════════════════════
+       Sezione Ragionamento AI
+       ══════════════════════════════════════════════════ */
+    {
+        auto* thinkGroup = new QGroupBox(
+            "\xf0\x9f\xa7\xa0  Ragionamento AI (Think Mode)", page);  /* 🧠 */
+        thinkGroup->setObjectName("cardGroup");
+        auto* thinkLay = new QVBoxLayout(thinkGroup);
+        thinkLay->setSpacing(8);
+
+        /* ── Riga superiore: modalità + budget ── */
+        auto* topRow = new QHBoxLayout;
+        topRow->setSpacing(16);
+
+        /* Modalità: Off / Auto / On */
+        auto* modeLbl = new QLabel("Modalit\xc3\xa0:", thinkGroup);
+        modeLbl->setObjectName("cardDesc");
+        topRow->addWidget(modeLbl);
+
+        auto* btnOff  = new QPushButton("Off",  thinkGroup);
+        auto* btnAuto = new QPushButton("Auto", thinkGroup);
+        auto* btnOn   = new QPushButton("On",   thinkGroup);
+        for (auto* b : {btnOff, btnAuto, btnOn}) {
+            b->setCheckable(true);
+            b->setFixedWidth(56);
+            b->setObjectName("thinkModeBtn");
+        }
+        auto* modeGrp = new QButtonGroup(thinkGroup);
+        modeGrp->setExclusive(true);
+        modeGrp->addButton(btnOff,  1);  /* id=1 → thinkMode=1 (off) */
+        modeGrp->addButton(btnAuto, 0);  /* id=0 → thinkMode=0 (auto) */
+        modeGrp->addButton(btnOn,   2);  /* id=2 → thinkMode=2 (on)  */
+        topRow->addWidget(btnOff);
+        topRow->addWidget(btnAuto);
+        topRow->addWidget(btnOn);
+
+        topRow->addSpacing(24);
+
+        /* Budget token (slider 1–4×) */
+        auto* budgetLbl = new QLabel("Budget token:", thinkGroup);
+        budgetLbl->setObjectName("cardDesc");
+        topRow->addWidget(budgetLbl);
+
+        auto* budgetSlider = new QSlider(Qt::Horizontal, thinkGroup);
+        budgetSlider->setRange(1, 4);
+        budgetSlider->setFixedWidth(120);
+        budgetSlider->setTickInterval(1);
+        budgetSlider->setTickPosition(QSlider::TicksBelow);
+        topRow->addWidget(budgetSlider);
+
+        auto* budgetValLbl = new QLabel("2\xc3\x97", thinkGroup);  /* 2× */
+        budgetValLbl->setObjectName("cardDesc");
+        budgetValLbl->setFixedWidth(28);
+        topRow->addWidget(budgetValLbl);
+
+        topRow->addStretch(1);
+        thinkLay->addLayout(topRow);
+
+        /* ── Avviso RAM bassa ── */
+        const qint64 ramTot = P::totalRamBytes();
+        auto* ramWarnLbl = new QLabel(
+            "\xe2\x9a\xa0  Con poca RAM (\xe2\x89\xa4"  /* ≤ */
+            " 12\xc2\xa0GB), il thinking pu\xc3\xb2 raddoppiare i token generati "
+            "\xe2\x80\x94 potrebbe rallentare la risposta.",
+            thinkGroup);
+        ramWarnLbl->setObjectName("hintLabel");
+        ramWarnLbl->setWordWrap(true);
+        ramWarnLbl->setStyleSheet("color: #f59e0b;");
+        ramWarnLbl->setVisible(ramTot > 0 && ramTot < 12LL * 1024 * 1024 * 1024);
+        thinkLay->addWidget(ramWarnLbl);
+
+        /* ── Hint descrittivo ── */
+        auto* hintLbl = new QLabel(
+            "<small>"
+            "<b>Off</b>: nessun ragionamento interno (pi\xc3\xb9 veloce). "  /* più */
+            "<b>Auto</b>: il classificatore decide per ogni domanda (default). "
+            "<b>On</b>: ragionamento sempre attivo sui modelli compatibili "
+            "(qwen3, deepseek-r1, qwq).<br>"
+            "<b>Budget</b>: moltiplicatore dei token di risposta quando il thinking \xc3\xa8 attivo "  /* è */
+            "(1\xc3\x97 = base, 2\xc3\x97 = default, 4\xc3\x97 = risposta molto elaborata)."
+            "</small>",
+            thinkGroup);
+        hintLbl->setObjectName("hintLabel");
+        hintLbl->setWordWrap(true);
+        hintLbl->setTextFormat(Qt::RichText);
+        thinkLay->addWidget(hintLbl);
+
+        mainLay->addWidget(thinkGroup);
+
+        /* ── Logica: ripristina stato dal file ── */
+        const AiChatParams curP = AiChatParams::load();
+        /* Seleziona il pulsante corretto in base a thinkMode */
+        if (auto* btn = modeGrp->button(curP.thinkMode))
+            btn->setChecked(true);
+        else
+            btnAuto->setChecked(true);
+
+        budgetSlider->setValue(qBound(1, curP.thinkBudget, 4));
+        budgetValLbl->setText(QString::number(budgetSlider->value()) + "\xc3\x97");
+
+        /* Il budget è attivo solo quando thinking è abilitato (Auto o On) */
+        const bool budgetActive = (curP.thinkMode != 1);
+        budgetSlider->setEnabled(budgetActive);
+        budgetValLbl->setEnabled(budgetActive);
+
+        /* ── Salva quando cambia la modalità ── */
+        connect(modeGrp, QOverload<int>::of(&QButtonGroup::idClicked),
+                page, [=](int id) {
+            AiChatParams p = AiChatParams::load();
+            p.thinkMode = id;
+            AiChatParams::save(p);
+            m_ai->setChatParams(p);
+            /* Abilita/disabilita budget slider */
+            const bool active = (id != 1);
+            budgetSlider->setEnabled(active);
+            budgetValLbl->setEnabled(active);
+            /* Mostra avviso RAM se modalità On e poca RAM */
+            if (ramTot > 0 && ramTot < 12LL * 1024 * 1024 * 1024)
+                ramWarnLbl->setVisible(id != 1);
+        });
+
+        /* ── Salva quando cambia il budget ── */
+        connect(budgetSlider, &QSlider::valueChanged, page, [=](int v) {
+            budgetValLbl->setText(QString::number(v) + "\xc3\x97");
+            AiChatParams p = AiChatParams::load();
+            p.thinkBudget = v;
+            AiChatParams::save(p);
+            m_ai->setChatParams(p);
+        });
+    }
+
+    /* ══════════════════════════════════════════════════
+       Sezione Memoria persistente (Knowledge)
+       ══════════════════════════════════════════════════ */
+    {
+        auto* knGroup = new QGroupBox(
+            "\xf0\x9f\x93\x96  Memoria persistente (Knowledge)", page);  /* 📖 */
+        knGroup->setObjectName("cardGroup");
+        auto* knLay = new QVBoxLayout(knGroup);
+        knLay->setSpacing(8);
+
+        /* Riga: checkbox + pulsante Apri file */
+        auto* chkRow = new QHBoxLayout;
+        auto* chkKn  = new QCheckBox(
+            "Inietta contesto utente nel prompt", knGroup);
+        chkKn->setObjectName("cardDesc");
+        {
+            QSettings ss("Prismalux", "GUI");
+            chkKn->setChecked(ss.value(P::SK::kInjectUserKnowledge, true).toBool());
+        }
+        chkRow->addWidget(chkKn);
+
+        auto* openFileBtn = new QPushButton("Apri file", knGroup);
+        openFileBtn->setObjectName("actionBtn");
+        openFileBtn->setFixedWidth(90);
+        openFileBtn->setToolTip(P::userKnowledgePath());
+        chkRow->addWidget(openFileBtn);
+        chkRow->addStretch(1);
+        knLay->addLayout(chkRow);
+
+        auto* knHint = new QLabel(
+            "<small>Se attivo, <b>KNOWLEDGE_USER/user_knowledge.md</b> viene preposto al "
+            "system prompt di ogni richiesta AI — fornisce contesto persistente "
+            "su chi sei, preferenze e progetto corrente.</small>",
+            knGroup);
+        knHint->setObjectName("hintLabel");
+        knHint->setWordWrap(true);
+        knHint->setTextFormat(Qt::RichText);
+        knLay->addWidget(knHint);
+
+        mainLay->addWidget(knGroup);
+
+        /* Salva la preferenza e invalida la cache di lettura */
+        connect(chkKn, &QCheckBox::toggled, page, [](bool checked) {
+            QSettings s("Prismalux", "GUI");
+            s.setValue(P::SK::kInjectUserKnowledge, checked);
+            P::invalidateKnowledgeCache();
+        });
+
+        /* Apre user_knowledge.md nel text editor di sistema */
+        connect(openFileBtn, &QPushButton::clicked, page, [] {
+            QDesktopServices::openUrl(
+                QUrl::fromLocalFile(P::userKnowledgePath()));
+        });
+    }
 
     /* ── Dipendenze — occupa tutto lo spazio residuo ── */
     auto* sepBot = new QFrame(page);
@@ -1076,6 +1296,46 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         } else {
             populateOllama();
         }
+    });
+
+    /* ── Logica Ollama LAN ── */
+    auto* ollamaProc = new QProcess(page);
+    ollamaProc->setProcessChannelMode(QProcess::MergedChannels);
+
+    connect(lanBtn, &QPushButton::clicked, page, [=]() {
+        if (ollamaProc->state() != QProcess::NotRunning) {
+            ollamaProc->terminate();
+            return;
+        }
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        env.insert("OLLAMA_HOST", "0.0.0.0:11434");
+        ollamaProc->setProcessEnvironment(env);
+        lanBtn->setEnabled(false);
+        lanStatusLbl->setText("\xe2\x8f\xb3 Avvio in corso...");
+        ollamaProc->start("ollama", {"serve"});
+    });
+
+    connect(ollamaProc, &QProcess::started, page, [=]() {
+        lanBtn->setEnabled(true);
+        lanBtn->setText("\xf0\x9f\x94\xb4  Ferma Ollama LAN");
+        lanStatusLbl->setText("\xe2\x9c\x85 In ascolto su 0.0.0.0:11434");
+    });
+
+    connect(ollamaProc, &QProcess::errorOccurred, page, [=](QProcess::ProcessError err) {
+        lanBtn->setEnabled(true);
+        lanBtn->setText("\xf0\x9f\x9f\xa2  Avvia Ollama LAN");
+        if (err == QProcess::FailedToStart)
+            lanStatusLbl->setText("\xe2\x9d\x8c ollama non trovato nel PATH");
+        else
+            lanStatusLbl->setText("\xe2\x9d\x8c Errore di avvio");
+    });
+
+    connect(ollamaProc,
+            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            page, [=](int, QProcess::ExitStatus) {
+        lanBtn->setEnabled(true);
+        lanBtn->setText("\xf0\x9f\x9f\xa2  Avvia Ollama LAN");
+        lanStatusLbl->setText("\xe2\x9a\xaa Inattivo");
     });
 
     return page;
@@ -3876,6 +4136,9 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
 
     static const OllamaEntry OLLAMA[] = {
         /* ── Generale ── */
+        { "qwen3:4b",            "Qwen3 4B \xe2\x98\x85",        "~2.6 GB", "Generale",     "#0e4d92",
+          "Consigliato per macchine con 8 GB RAM. Ragionamento e italiano eccellenti. "
+          "Thinking attivo: usare con parsimonia su 8 GB (pu\xc3\xb2 raddoppiare i token generati)." },
         { "qwen3:8b",            "Qwen3 8B",           "~5.2 GB", "Generale",     "#0e4d92",
           "Ragionamento avanzato, ottimo italiano, coding e analisi. Consigliato per uso quotidiano." },
         { "llama3.2:3b",         "Llama 3.2 3B",       "~2.0 GB", "Generale",     "#0e4d92",
@@ -4723,6 +4986,155 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     cavemanDesc->setObjectName("hintLabel");
     outer->addWidget(cavemanDesc);
 
+    /* ── Personalità AI ── */
+    auto* sepPersona = new QFrame; sepPersona->setFrameShape(QFrame::HLine);
+    sepPersona->setObjectName("sidebarSep");
+    outer->addWidget(sepPersona);
+
+    auto* personaTitleRow = new QWidget;
+    auto* personaTitleLay = new QHBoxLayout(personaTitleRow);
+    personaTitleLay->setContentsMargins(0, 4, 0, 2);
+    personaTitleLay->setSpacing(8);
+    auto* personaLbl = new QLabel(
+        "\xf0\x9f\x8e\xad  <b>Personalit\xc3\xa0 AI</b> \xe2\x80\x94 stile di risposta del modello");
+    personaLbl->setWordWrap(false);
+    personaTitleLay->addWidget(personaLbl);
+    personaTitleLay->addStretch();
+    outer->addWidget(personaTitleRow);
+
+    struct PersonaDef { const char* key; const char* label; };
+    static const PersonaDef kPersonas[] = {
+        {"nessuna", "\xf0\x9f\x9a\xab  Nessuna"},
+        {"jarvis",  "\xf0\x9f\xa4\x96  Jarvis  (Tony Stark)"},
+        {"kitt",    "\xf0\x9f\x9a\x97  KITT  (Knight Rider)"},
+        {"yoda",    "\xf0\x9f\x8c\xbf  Yoda  (Star Wars)"},
+        {"snake",   "\xf0\x9f\x8e\xae  Snake  (Metal Gear)"},
+        {"sonic",   "\xf0\x9f\x92\xa8  Sonic"},
+        {"mario",   "\xf0\x9f\x8d\x84  Super Mario"},
+    };
+
+    {
+        QSettings ss("Prismalux", "GUI");
+        const QString curPersona = ss.value(P::SK::kAiPersonality, "nessuna").toString();
+
+        /* Prima riga: Nessuna + Jarvis + KITT */
+        auto* row1 = new QWidget; auto* lay1 = new QHBoxLayout(row1);
+        lay1->setContentsMargins(0, 0, 0, 0); lay1->setSpacing(6);
+        /* Seconda riga: Yoda + Snake + Sonic + Mario */
+        auto* row2 = new QWidget; auto* lay2 = new QHBoxLayout(row2);
+        lay2->setContentsMargins(0, 0, 0, 4); lay2->setSpacing(6);
+
+        QButtonGroup* grp = new QButtonGroup(page);
+        int idx = 0;
+        for (const auto& pd : kPersonas) {
+            auto* btn = new QPushButton(pd.label, page);
+            btn->setCheckable(true);
+            btn->setChecked(QString(pd.key) == curPersona);
+            btn->setObjectName("actionBtn");
+            btn->setProperty("persona_key", QString(pd.key));
+            grp->addButton(btn);
+            (idx < 3 ? lay1 : lay2)->addWidget(btn);
+            idx++;
+        }
+        lay1->addStretch(); lay2->addStretch();
+        outer->addWidget(row1);
+        outer->addWidget(row2);
+
+        connect(grp, &QButtonGroup::buttonClicked, page, [grp](QAbstractButton* btn) {
+            const QString key = btn->property("persona_key").toString();
+            QSettings ss("Prismalux", "GUI");
+            ss.setValue(P::SK::kAiPersonality, key);
+        });
+    }
+
+    auto* personaDesc = new QLabel(
+        "\xe2\x84\xb9  La personalit\xc3\xa0 modifica lo stile di risposta del modello e il testo del "
+        "pulsante Conversa. Si applica a tutte le chat.");
+    personaDesc->setWordWrap(true);
+    personaDesc->setObjectName("hintLabel");
+    outer->addWidget(personaDesc);
+
+    /* ── Flash Attention ── */
+    auto* flashRow = new QWidget;
+    auto* flashLay = new QHBoxLayout(flashRow);
+    flashLay->setContentsMargins(0, 4, 0, 4);
+    flashLay->setSpacing(12);
+
+    auto* flashCb = new QCheckBox(
+        "\xe2\x9a\xa1  Flash Attention (riduce RAM/VRAM KV cache ~30-50%)", page);
+    flashCb->setObjectName("cardDesc");
+    flashCb->setChecked(AiChatParams::load().flash_attn);
+    flashLay->addWidget(flashCb);
+    flashLay->addStretch();
+    outer->addWidget(flashRow);
+
+    auto* flashDesc = new QLabel(
+        "\xe2\x84\xb9  Consigliato su macchine con \xe2\x89\xa4 8 GB RAM. "
+        "Riduce la memoria usata dalla KV cache durante la generazione. "
+        "Ollama e llama-server lo ignorano se il modello non lo supporta.");
+    flashDesc->setWordWrap(true);
+    flashDesc->setObjectName("hintLabel");
+    outer->addWidget(flashDesc);
+
+    /* ── mlock: blocca modello in RAM (solo llama-server) ── */
+    auto* mlockRow = new QWidget;
+    auto* mlockLay = new QHBoxLayout(mlockRow);
+    mlockLay->setContentsMargins(0, 4, 0, 0);
+    mlockLay->setSpacing(12);
+
+    auto* mlockCb = new QCheckBox(
+        "\xf0\x9f\x94\x92  Blocca modello in RAM (--mlock, llama-server)", page);  /* 🔒 */
+    mlockCb->setObjectName("cardDesc");
+    {
+        QSettings ss("Prismalux", "GUI");
+        mlockCb->setChecked(ss.value(P::SK::kMlockModel, false).toBool());
+    }
+    mlockLay->addWidget(mlockCb);
+    mlockLay->addStretch();
+    outer->addWidget(mlockRow);
+
+    auto* mlockDesc = new QLabel(
+        "\xe2\x84\xb9  Impedisce all'OS di fare swap delle pagine del modello su disco. "
+        "Riduce i picchi di latenza su sistemi con RAM sufficiente (>= 16 GB). "
+        "Solo llama-server — Ollama lo ignora. Richiede riavvio del server.");
+    mlockDesc->setWordWrap(true);
+    mlockDesc->setObjectName("hintLabel");
+    outer->addWidget(mlockDesc);
+
+    connect(mlockCb, &QCheckBox::toggled, page, [](bool on) {
+        QSettings s("Prismalux", "GUI");
+        s.setValue(P::SK::kMlockModel, on);
+    });
+
+    /* ── Preset "8 GB RAM" ── */
+    auto* presetRow = new QWidget;
+    auto* presetLay = new QHBoxLayout(presetRow);
+    presetLay->setContentsMargins(0, 4, 0, 4);
+    presetLay->setSpacing(8);
+
+    auto* presetLbl = new QLabel("\xf0\x9f\x8e\x9b  Preset:", page);  /* 🎛 */
+    presetLbl->setObjectName("cardDesc");
+    presetLay->addWidget(presetLbl);
+
+    auto* preset8gb = new QPushButton("8 GB RAM", page);
+    preset8gb->setObjectName("actionBtn");
+    preset8gb->setToolTip(
+        "Applica impostazioni ottimali per macchine con 8 GB RAM:\n"
+        "num_ctx=4096  num_predict=1024  temperature=0.05  Flash Attention ON");
+    presetLay->addWidget(preset8gb);
+
+    auto* presetLong = new QPushButton("\xf0\x9f\x93\x9c  Contesto lungo", page);  /* 📜 */
+    presetLong->setObjectName("actionBtn");
+    presetLong->setToolTip(
+        "Aumenta la finestra di contesto per documenti e conversazioni lunghe.\n"
+        "num_ctx=16384  Flash Attention ON\n\n"
+        "Richiede \xe2\x89\xa5 16 GB RAM o VRAM adeguata.\n"
+        "Su Ollama: invia num_ctx=16384 in ogni richiesta.\n"
+        "Su llama-server: riavviare il server dopo aver applicato.");
+    presetLay->addWidget(presetLong);
+    presetLay->addStretch();
+    outer->addWidget(presetRow);
+
     auto* sep1 = new QFrame; sep1->setFrameShape(QFrame::HLine); sep1->setObjectName("sidebarSep");
     outer->addWidget(sep1);
 
@@ -4759,6 +5171,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         p.num_ctx        = ctxSpin->value();
         p.honesty_prefix = honestyCb->isChecked();
         p.caveman_mode   = cavemanToggle->isChecked();
+        p.flash_attn     = flashCb->isChecked();
         AiChatParams::save(p);       /* scrive su disco */
         if (m_ai) m_ai->setChatParams(p);  /* applica subito senza riavviare */
         saveStatus->setText("\xe2\x9c\x85  Salvato in " + AiChatParams::filePath());
@@ -4775,6 +5188,25 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         ctxSpin->setValue(8192);
         honestyCb->setChecked(true);
         cavemanToggle->setChecked(false);
+        flashCb->setChecked(false);
+        saveParams();
+    });
+
+    connect(flashCb, &QCheckBox::toggled, page, saveParams);
+
+    connect(preset8gb, &QPushButton::clicked, page, [=]{
+        ctxSpin->setValue(4096);
+        predSpin->setValue(1024);
+        tempSpin->setValue(0.05);
+        flashCb->setChecked(true);
+        saveParams();
+    });
+
+    connect(presetLong, &QPushButton::clicked, page, [=]{
+        const qint64 ram = PrismaluxPaths::totalRamBytes();
+        const int ctx = (ram > 0 && ram < 16LL * 1024 * 1024 * 1024) ? 8192 : 16384;
+        ctxSpin->setValue(ctx);
+        flashCb->setChecked(true);
         saveParams();
     });
 
@@ -6345,4 +6777,177 @@ QWidget* ImpostazioniPage::buildMcpTab()
     sc->setFrameShape(QFrame::NoFrame);
     sc->setWidget(page);
     return sc;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildSandboxTab — Docker sandbox per esecuzione codice AI
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildSandboxTab()
+{
+    auto* page = new QWidget;
+    auto* lay  = new QVBoxLayout(page);
+    lay->setContentsMargins(16, 16, 16, 12);
+    lay->setSpacing(16);
+
+    /* ── Titolo ── */
+    auto* titleLbl = new QLabel(
+        "\xf0\x9f\x90\xb3  Sandbox Docker \xe2\x80\x94 Esecuzione Codice Isolata", page);
+    titleLbl->setObjectName("sectionTitle");
+    lay->addWidget(titleLbl);
+
+    /* ── Stato Docker ── */
+    auto* statusCard = new QFrame(page);
+    statusCard->setObjectName("cardFrame");
+    auto* statusLay = new QHBoxLayout(statusCard);
+    statusLay->setContentsMargins(12, 10, 12, 10);
+
+    auto* statusIcon = new QLabel(page);
+    auto* statusDesc = new QLabel(page);
+    statusDesc->setObjectName("cardDesc");
+    statusDesc->setWordWrap(true);
+
+    const QString docker = P::findDocker();
+    if (!docker.isEmpty()) {
+        statusIcon->setText("\xf0\x9f\x9f\xa2  Docker disponibile");
+        statusIcon->setStyleSheet("color:#4ade80;font-weight:bold;");
+        statusDesc->setText(
+            QString("Daemon raggiungibile: <code>%1</code><br>"
+                    "Il codice AI verr\xc3\xa0 eseguito in un container effimero "
+                    "(rete disabilitata, nessun volume, max RAM configurabile).")
+            .arg(docker));
+    } else {
+        statusIcon->setText("\xf0\x9f\x94\xb4  Docker non disponibile");
+        statusIcon->setStyleSheet("color:#f87171;font-weight:bold;");
+        statusDesc->setText(
+            "Docker non trovato o il daemon non \xc3\xa8 avviato.<br>"
+            "Il codice sar\xc3\xa0 eseguito con Python locale (permessi utente).<br>"
+            "<b>Per installare Docker:</b> "
+            "<code>sudo apt install docker.io &amp;&amp; sudo systemctl start docker</code>");
+    }
+    statusLay->addWidget(statusIcon);
+    statusLay->addWidget(statusDesc, 1);
+    lay->addWidget(statusCard);
+
+    /* ── Toggle sandbox abilitato ── */
+    {
+        auto* row = new QHBoxLayout;
+        auto* chk = new QCheckBox(
+            "Usa sandbox Docker per il codice generato dall\xe2\x80\x99" "AI", page);
+        chk->setObjectName("settingsCheck");
+        QSettings ss("Prismalux", "GUI");
+        chk->setChecked(ss.value(P::SK::kSandboxEnabled, true).toBool());
+        chk->setEnabled(!docker.isEmpty());
+        chk->setToolTip("Se disabilitato, il codice AI viene eseguito localmente con pip install retry.\n"
+                        "Con sandbox: rete disabilitata, nessun accesso al filesystem host.");
+        connect(chk, &QCheckBox::toggled, page, [](bool on){
+            QSettings("Prismalux","GUI").setValue(P::SK::kSandboxEnabled, on);
+        });
+        row->addWidget(chk);
+        row->addStretch();
+        lay->addLayout(row);
+    }
+
+    /* ── Immagine Docker ── */
+    {
+        auto* grp = new QGroupBox("\xe2\x9a\x99\xef\xb8\x8f  Configurazione container", page);
+        grp->setObjectName("cardGroup");
+        auto* grpLay = new QFormLayout(grp);
+        grpLay->setSpacing(10);
+
+        auto* imgEdit = new QLineEdit(page);
+        imgEdit->setObjectName("settingsEdit");
+        imgEdit->setPlaceholderText("python:3.11-slim");
+        {
+            QSettings ss("Prismalux", "GUI");
+            imgEdit->setText(ss.value(P::SK::kSandboxImage, "python:3.11-slim").toString());
+        }
+        imgEdit->setToolTip(
+            "Immagine Docker da usare.\n"
+            "python:3.11-slim — leggera, include pip.\n"
+            "python:3.12-slim — versione pi\xc3\xb9 recente.\n"
+            "Prima esecuzione: Docker scarica l\xe2\x80\x99immagine automaticamente (~50 MB).");
+        connect(imgEdit, &QLineEdit::editingFinished, imgEdit, [imgEdit]{
+            QSettings("Prismalux","GUI").setValue(P::SK::kSandboxImage,
+                imgEdit->text().trimmed().isEmpty() ? "python:3.11-slim" : imgEdit->text().trimmed());
+        });
+        grpLay->addRow("Immagine:", imgEdit);
+
+        auto* memSpin = new QSpinBox(page);
+        memSpin->setRange(64, 2048);
+        memSpin->setSuffix(" MB");
+        memSpin->setObjectName("settingsSpin");
+        {
+            QSettings ss("Prismalux", "GUI");
+            memSpin->setValue(ss.value(P::SK::kSandboxMemory, 256).toInt());
+        }
+        memSpin->setToolTip("Limite RAM del container Docker.\n"
+                            "256 MB \xc3\xa8 sufficiente per la maggior parte dei task.\n"
+                            "Aumenta a 512+ per elaborazioni numeriche intensive.");
+        connect(memSpin, QOverload<int>::of(&QSpinBox::valueChanged), memSpin, [memSpin](int v){
+            QSettings("Prismalux","GUI").setValue(P::SK::kSandboxMemory, v);
+        });
+        grpLay->addRow("Limite RAM:", memSpin);
+
+        lay->addWidget(grp);
+    }
+
+    /* ── Pull immagine ── */
+    if (!docker.isEmpty()) {
+        auto* pullRow = new QHBoxLayout;
+        auto* pullBtn = new QPushButton(
+            "\xf0\x9f\x93\xa5  Scarica immagine ora (docker pull)", page);
+        pullBtn->setObjectName("actionBtn");
+        pullBtn->setToolTip(
+            "Esegue 'docker pull <immagine>' per scaricare subito l\xe2\x80\x99immagine.\n"
+            "Opzionale: Docker la scarica anche automaticamente alla prima esecuzione.");
+        auto* pullStatus = new QLabel("", page);
+        pullStatus->setObjectName("cardDesc");
+
+        connect(pullBtn, &QPushButton::clicked, page,
+                [pullBtn, pullStatus, imgEdit = static_cast<QLineEdit*>(nullptr)]() mutable {
+            /* Rilega l'immagine dal QSettings (aggiornata da imgEdit) */
+            const QString img = QSettings("Prismalux","GUI")
+                .value(P::SK::kSandboxImage, "python:3.11-slim").toString();
+            pullBtn->setEnabled(false);
+            pullStatus->setText("\xf0\x9f\x94\x84  Pull in corso...");
+            auto* proc = new QProcess(pullBtn->window());
+            proc->setProcessChannelMode(QProcess::MergedChannels);
+            connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                    pullBtn, [proc, pullBtn, pullStatus, img](int rc, QProcess::ExitStatus){
+                const QString out = QString::fromUtf8(proc->readAll()).trimmed();
+                proc->deleteLater();
+                pullBtn->setEnabled(true);
+                if (rc == 0)
+                    pullStatus->setText(
+                        QString("\xe2\x9c\x85  %1 scaricata con successo.").arg(img));
+                else
+                    pullStatus->setText(
+                        QString("\xe2\x9d\x8c  Errore: %1").arg(out.left(120)));
+            });
+            proc->start(P::findDocker(), {"pull", img});
+        });
+
+        pullRow->addWidget(pullBtn);
+        pullRow->addWidget(pullStatus, 1);
+        lay->addLayout(pullRow);
+    }
+
+    /* ── Riepilogo sicurezza ── */
+    {
+        auto* info = new QLabel(page);
+        info->setObjectName("hintLabel");
+        info->setWordWrap(true);
+        info->setText(
+            "\xf0\x9f\x94\x92  <b>Isolamento garantito dal container:</b><br>"
+            "\xe2\x80\xa2 <b>Rete disabilitata</b> — nessuna connessione a internet<br>"
+            "\xe2\x80\xa2 <b>Nessun volume</b> — il codice non pu\xc3\xb2 leggere/scrivere file locali<br>"
+            "\xe2\x80\xa2 <b>Limite processi</b> — max 64 PID (anti fork-bomb)<br>"
+            "\xe2\x80\xa2 <b>Container effimero</b> — distrutto automaticamente al termine (--rm)<br>"
+            "\xe2\x80\xa2 <b>pip install non disponibile</b> con sandbox attivo (rete assente)");
+        info->setTextFormat(Qt::RichText);
+        lay->addWidget(info);
+    }
+
+    lay->addStretch();
+    return page;
 }

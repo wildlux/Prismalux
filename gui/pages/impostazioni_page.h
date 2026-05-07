@@ -58,6 +58,7 @@ private:
     QWidget* buildGraficoTab(GraficoCanvas* canvas);
     QWidget* buildAiLocaleTab();
     QWidget* buildRagTab();
+    QWidget* buildSandboxTab();      ///< Docker sandbox per esecuzione codice AI
     QWidget* buildDipendenzeTab();
     QWidget* buildLlmConsigliatiTab();
     QWidget* buildLlmClassificaTab();  ///< ranking oggettivo open-weight (ArtificialAnalysis + benchmark locali)

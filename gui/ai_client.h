@@ -28,6 +28,9 @@ struct AiChatParams {
     int    num_ctx        = 8192;
     bool   honesty_prefix = true;
     bool   caveman_mode   = false;  ///< risposte dirette, senza convenevoli né riepiloghi
+    int    thinkMode      = 0;  ///< 0=auto (classificatore), 1=off, 2=on
+    int    thinkBudget    = 2;  ///< moltiplicatore num_predict quando thinking attivo (1–4)
+    bool   flash_attn     = false; ///< Flash Attention: riduce RAM/VRAM KV cache ~30-50%
 
     /* ── Unica fonte: ~/.prismalux/ai_params.json ── */
     static QString     filePath();               ///< percorso del file

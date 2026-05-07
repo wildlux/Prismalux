@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QTextStream>
 #include <QStringList>
+#include <QRegularExpression>
 #include <algorithm>
 
 /* ── Stopword italiane e inglesi da ignorare nel matching ──── */

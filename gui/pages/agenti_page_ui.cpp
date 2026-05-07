@@ -121,10 +121,9 @@ void AgentiPage::setupUI() {
     });
 
     /* ── Esporta conversazione ── */
-    auto* btnExport = new QPushButton("\xf0\x9f\x92\xbe", toolbar);
+    auto* btnExport = new QPushButton("\xf0\x9f\x92\xbe  Esporta", toolbar);
     btnExport->setObjectName("actionBtn");
     btnExport->setToolTip("Esporta conversazione (.md / .html / .txt)");
-    btnExport->setFixedWidth(32);
     toolLay->addWidget(btnExport);
     connect(btnExport, &QPushButton::clicked, this, [this](){
         if (!m_log || m_log->toPlainText().trimmed().isEmpty()) return;
@@ -157,7 +156,6 @@ void AgentiPage::setupUI() {
     auto* btnExportPdf = new QPushButton("\xf0\x9f\x93\x84", toolbar);
     btnExportPdf->setObjectName("actionBtn");
     btnExportPdf->setToolTip("Esporta conversazione (.pdf)");
-    btnExportPdf->setFixedWidth(32);
     toolLay->addWidget(btnExportPdf);
     connect(btnExportPdf, &QPushButton::clicked, this, [this](){
         if (!m_log || m_log->toPlainText().trimmed().isEmpty()) return;
@@ -174,29 +172,149 @@ void AgentiPage::setupUI() {
         m_log->document()->print(&printer);
     });
 
+    /* ── Salva in Knowledge (P4) ── */
+    m_btnKnowledge = new QPushButton("\xf0\x9f\x93\x96  Memoria", toolbar);  /* 📖 */
+    m_btnKnowledge->setObjectName("actionBtn");
+    m_btnKnowledge->setToolTip(
+        "Salva risposta in user_knowledge.md\n"
+        "Il testo viene iniettato nel context di ogni sessione AI futura.");
+    toolLay->addWidget(m_btnKnowledge);
+    connect(m_btnKnowledge, &QPushButton::clicked, this, &AgentiPage::onSaveKnowledge);
+
+    /* ── Pulsante mostra/nascondi footer suggerimenti ── */
+    {
+        auto* btnInfo = new QPushButton("\xe2\x84\xb9", toolbar);  /* ℹ */
+        btnInfo->setObjectName("actionBtn");
+        btnInfo->setToolTip("Mostra/nascondi suggerimenti");
+        toolLay->addWidget(btnInfo);
+        connect(btnInfo, &QPushButton::clicked, this, [this]{
+            if (!m_hintWidget) return;
+            const bool now = !m_hintWidget->isVisible();
+            m_hintWidget->setVisible(now);
+            QSettings("Prismalux","GUI").setValue("ui/hintVisible", now);
+        });
+    }
+
     toolLay->addStretch(1);
 
-    /* ══ Toggle Mono-Agente / Multi-Agente ══
-       Default: Mono-Agente (semplice chat LLM, nessuna pipeline).
-       Toggle ON → Multi-Agente: abilita pipeline, Motore Byzantino, configurazione agenti. */
-    static const char* kStyleMono =
+    /* ── Conversazione Vocale continua (loop STT → AI → TTS) ── */
+    {
+        static const char* kVoiceOff =
+            "QPushButton{"
+              "background:#1e2d45;border:2px solid #334155;color:#64748b;"
+              "border-radius:14px;padding:4px 12px;font-weight:bold;font-size:12px;}"
+            "QPushButton:hover{background:#243650;color:#94a3b8;}";
+        static const char* kVoiceOn =
+            "QPushButton{"
+              "background:#7f1d1d20;border:2px solid #ef4444;color:#ef4444;"
+              "border-radius:14px;padding:4px 12px;font-weight:bold;font-size:12px;}"
+            "QPushButton:hover{background:#7f1d1d35;}";
+
+        {
+            const QString pName = P::personalityName();
+            const QString label = pName.isEmpty()
+                ? "\xf0\x9f\x8e\x99  Conversa"
+                : "\xf0\x9f\x8e\x99  Conversa con " + pName;
+            m_btnVoiceLoop = new QPushButton(label, toolbar);
+        }
+        m_btnVoiceLoop->setCheckable(true);
+        m_btnVoiceLoop->setChecked(false);
+        m_btnVoiceLoop->setStyleSheet(kVoiceOff);
+        m_btnVoiceLoop->setToolTip(
+            "Conversazione vocale continua (loop)\n"
+            "Parla \xe2\x80\x94 AI risponde \xe2\x80\x94 ascolta \xe2\x80\x94 riparla\n"
+            "Richiede whisper.cpp + TTS configurati nelle Impostazioni");
+        toolLay->addWidget(m_btnVoiceLoop);
+
+        connect(m_btnVoiceLoop, &QPushButton::toggled,
+                this, [this](bool on) {
+            m_voiceLoopActive = on;
+            m_btnVoiceLoop->setStyleSheet(on ? kVoiceOn : kVoiceOff);
+            if (on) {
+                m_btnVoiceLoop->setText("\xf0\x9f\x94\xb4  In ascolto...");
+            } else {
+                const QString pName = P::personalityName();
+                m_btnVoiceLoop->setText(pName.isEmpty()
+                    ? "\xf0\x9f\x8e\x99  Conversa"
+                    : "\xf0\x9f\x8e\x99  Conversa con " + pName);
+            }
+
+            if (on) {
+                if (SttWhisper::whisperBin().isEmpty()) {
+                    m_log->append(
+                        "<p style='color:#e2e8f0;'>"
+                        "\xe2\x9a\xa0  <b>whisper-cli non trovato.</b> "
+                        "Clicca <a href=\"settings:trascrivi\" style=\"color:#93c5fd;\">"
+                        "Impostazioni \xe2\x86\x92 Trascrivi</a> per installarlo."
+                        "</p>");
+                    m_voiceLoopActive = false;
+                    m_btnVoiceLoop->setChecked(false);
+                    return;
+                }
+                if (SttWhisper::whisperModel().isEmpty()) {
+                    downloadWhisperModel();
+                    m_voiceLoopActive = false;
+                    m_btnVoiceLoop->setChecked(false);
+                    return;
+                }
+                if (m_sttState == SttState::Idle)
+                    _sttStartRecording();
+            } else {
+                /* Ferma TTS se in lettura */
+                if (m_piperProc) {
+                    m_piperProc->kill();
+                    m_piperProc->waitForFinished(300);
+                    m_piperProc->deleteLater();
+                    m_piperProc = nullptr;
+                }
+                if (m_ttsProc) {
+                    m_ttsProc->kill();
+                    m_ttsProc->waitForFinished(300);
+                    if (m_ttsProc) { m_ttsProc->deleteLater(); m_ttsProc = nullptr; }
+                }
+                if (m_btnTtsStop)  m_btnTtsStop->setVisible(false);
+                if (m_btnTtsPause) m_btnTtsPause->setVisible(false);
+                /* Ferma registrazione se attiva */
+                if (m_sttState == SttState::Recording) {
+                    if (m_recProc) {
+                        m_recProc->kill();
+                        m_recProc->waitForFinished(300);
+                        m_recProc->deleteLater();
+                        m_recProc = nullptr;
+                    }
+                    m_sttState = SttState::Idle;
+                    m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
+                    m_btnVoice->setProperty("danger","false");
+                    P::repolish(m_btnVoice);
+                    m_btnVoice->setEnabled(true);
+                }
+            }
+        });
+    }
+
+    /* ══ Toggle Chat / Agente Autonomo ══
+       Un solo click attiva il ciclo ReAct con tutti gli strumenti inclusi.
+       Chat (OFF): risposta diretta dal modello.
+       Agente Autonomo (ON): ReAct loop, tool use automatico, max 8 step. */
+    static const char* kStyleChat =
         "QPushButton{"
           "background:#1e2d45;border:2px solid #334155;color:#64748b;"
           "border-radius:14px;padding:4px 16px;font-weight:bold;font-size:12px;}"
         "QPushButton:hover{background:#243650;color:#94a3b8;}";
-    static const char* kStyleMulti =
+    static const char* kStyleAuto =
         "QPushButton{"
-          "background:#00a37f20;border:2px solid #00a37f;color:#00a37f;"
+          "background:#1e1b4b20;border:2px solid #818cf8;color:#818cf8;"
           "border-radius:14px;padding:4px 16px;font-weight:bold;font-size:12px;}"
-        "QPushButton:hover{background:#00a37f35;}";
+        "QPushButton:hover{background:#1e1b4b35;}";
 
-    m_btnModeToggle = new QPushButton("\xf0\x9f\xa4\x96  Mono-Agente", toolbar);
+    m_btnModeToggle = new QPushButton("\xf0\x9f\x92\xac  Chat", toolbar);
     m_btnModeToggle->setCheckable(true);
     m_btnModeToggle->setChecked(false);
-    m_btnModeToggle->setStyleSheet(kStyleMono);
+    m_btnModeToggle->setStyleSheet(kStyleChat);
     m_btnModeToggle->setToolTip(
-        "Mono-Agente \xe2\x80\x94 risposta diretta dal modello selezionato (default)\n"
-        "Team MOE AI \xe2\x80\x94 abilita pipeline agenti, Motore Byzantino e Consiglio Scientifico");
+        "\xf0\x9f\x92\xac Chat \xe2\x80\x94 risposta diretta dal modello (default)\n"
+        "\xf0\x9f\xa4\x96 Agente Autonomo \xe2\x80\x94 l\xe2\x80\x99" "AI pianifica, usa strumenti e itera\n"
+        "automaticamente (ReAct, max 8 step)");
     toolLay->addWidget(m_btnModeToggle);
 
     /* ── Selettore LLM singolo ── */
@@ -205,63 +323,39 @@ void AgentiPage::setupUI() {
     m_cmbLLM = new QComboBox(toolbar);
     m_cmbLLM->setObjectName("settingsCombo");
     m_cmbLLM->setMinimumWidth(160);
-    m_cmbLLM->setToolTip(
-        "Seleziona il modello AI da usare.\n"
-        "Per assegnare modelli diversi a ogni agente usa \xe2\x9a\x99\xef\xb8\x8f Configura Agenti.");
+    m_cmbLLM->setToolTip("Seleziona il modello AI da usare.");
     m_cmbLLM->addItem("(caricamento...)");
     toolLay->addWidget(llmLbl);
     toolLay->addWidget(m_cmbLLM);
 
-    /* Quando l'utente sceglie un modello diverso, lo applica all'AI client
-       e lo salva come preferenza privata di questa scheda. */
+    /* Quando l'utente sceglie un modello diverso, lo applica all'AI client */
     connect(m_cmbLLM, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int idx){
         if (idx < 0 || !m_cmbLLM) return;
-        /* Usa UserRole (nome raw senza icona ☁️/🌍📍) se disponibile */
         const QString mdl = m_cmbLLM->currentData(Qt::UserRole).toString().isEmpty()
                           ? m_cmbLLM->currentText()
                           : m_cmbLLM->currentData(Qt::UserRole).toString();
         if (mdl.isEmpty() || mdl == "(caricamento...)") return;
-        m_pageModel = mdl;   /* preferenza privata — non sovrascritta da modelChanged */
+        m_pageModel = mdl;
         m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), mdl);
     });
 
-    /* ── Container Multi-Agente (nascosto di default in modalità Mono-Agente) ── */
-    m_multiAgentBar = new QWidget(toolbar);
-    auto* maLay = new QHBoxLayout(m_multiAgentBar);
-    maLay->setContentsMargins(0, 0, 0, 0);
-    maLay->setSpacing(8);
+    /* ── Collegamento toggle Chat / Agente Autonomo ── */
+    connect(m_btnModeToggle, &QPushButton::toggled, this, [this](bool autoOn) {
+        m_autoEnabled   = autoOn;
+        m_toolsEnabled  = autoOn;   /* tool use automatico in modalità Autonomo */
+        m_toolIteration = 0;
+        m_modePipeline  = false;    /* mai pipeline quando si usa il toggle diretto */
 
-    /* Separatore visivo */
-    auto* maSep = new QFrame(m_multiAgentBar);
-    maSep->setFrameShape(QFrame::VLine);
-    maSep->setFrameShadow(QFrame::Sunken);
-    maSep->setStyleSheet("color:#334155;");
-    maLay->addWidget(maSep);
+        m_btnModeToggle->setText(autoOn
+            ? "\xf0\x9f\xa4\x96  Agente Autonomo"
+            : "\xf0\x9f\x92\xac  Chat");
+        m_btnModeToggle->setStyleSheet(autoOn ? kStyleAuto : kStyleChat);
 
-    /* Pulsante config agenti — apre finestra separata (contiene Modalità) */
-    m_btnCfg = new QPushButton("\xe2\x9a\x99\xef\xb8\x8f  Configura Agenti", m_multiAgentBar);
-    m_btnCfg->setObjectName("actionBtn");
-    m_btnCfg->setToolTip("Apri la finestra di configurazione agenti\n(ruolo, modello, contesto RAG per ciascuno)");
-    maLay->addWidget(m_btnCfg);
+        m_btnRun->setText(autoOn
+            ? "\xf0\x9f\xa4\x96  Avvia Agente"
+            : "\xf0\x9f\x92\xac CHAT con RAG");
 
-    m_multiAgentBar->setVisible(false);  // default: Mono-Agente
-    toolLay->addWidget(m_multiAgentBar);
-
-    /* ── Collegamento toggle Mono / Multi-Agente ── */
-    connect(m_btnModeToggle, &QPushButton::toggled, this, [this](bool multiOn) {
-        m_multiAgentBar->setVisible(multiOn);
-        /* In multi-agente forza sempre la modalità Avvia (pipeline completa) */
-        if (multiOn && !m_modePipeline) {
-            m_modePipeline = true;
-            m_btnRun->setText("\xe2\x96\xb6  Avvia");
-            m_btnRun->setToolTip("Avvia la pipeline multi-agente completa\n"
-                                 "Stop da fermo \xe2\x86\x92 torna a Singolo");
-        }
-        m_btnModeToggle->setText(multiOn
-            ? "\xf0\x9f\x91\xa5  Team MOE AI"
-            : "\xf0\x9f\xa4\x96  Mono-Agente");
-        m_btnModeToggle->setStyleSheet(multiOn ? kStyleMulti : kStyleMono);
     });
 
     /* ── Controller LLM spostato dentro "Configura Agenti" (dialog AgentsConfigDialog) ──
@@ -338,7 +432,17 @@ void AgentiPage::setupUI() {
     connect(m_log, &QTextBrowser::anchorClicked,
             this, [this](const QUrl& url){
         const QString s = url.toString();
-        /* formato: "copy:IDX" | "tts:IDX" | "chart:show" | "settings:<tab>" */
+        /* formato: "copy:IDX" | "tts:IDX" | "chart:show" | "settings:<tab>" | "fb:up/down:IDX" */
+        /* ── Feedback 👍/👎 ── */
+        if (s.startsWith("fb:")) {
+            const QStringList parts = s.split(':');
+            if (parts.size() >= 3) {
+                const QString rating = parts[1];   /* "up" o "down" */
+                const int     idx    = parts[2].toInt();
+                saveFeedback(idx, rating == "up" ? 1 : -1);
+            }
+            return;
+        }
         if (s.startsWith("settings:")) {
             emit requestOpenSettings(s.mid(9));
             return;
@@ -648,24 +752,46 @@ void AgentiPage::setupUI() {
 
     lay->addWidget(inputArea);
 
-    /* ── Footer suggerimenti ── */
+    /* ── Footer suggerimenti (2 righe, nascondibile) ── */
     {
-        auto* hints = new QLabel(
-            "\xe2\x8c\xa8  "
-            "<b>Invio</b> = modalit\xc3\xa0 corrente"
-            " &nbsp;&nbsp;\xc2\xb7&nbsp;&nbsp; "
-            "<b>Stop da fermo</b> = cambia CHAT con RAG \xe2\x86\x94 Avvia"
-            " &nbsp;&nbsp;\xc2\xb7&nbsp;&nbsp; "
-            "<b>Shift+Invio</b> = a capo"
-            " &nbsp;&nbsp;\xc2\xb7&nbsp;&nbsp; "
-            "\xf0\x9f\x93\x88  Grafico cartesiano: es. "
-            "<i>Grafico di sin(x) per x da -3 a 3</i>",
-            this);
-        hints->setObjectName("footerHints");
-        hints->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-        hints->setWordWrap(false);
-        hints->setTextFormat(Qt::RichText);
-        lay->addWidget(hints);
+        m_hintWidget = new QWidget(this);
+        auto* hintLay = new QHBoxLayout(m_hintWidget);
+        hintLay->setContentsMargins(6, 2, 6, 2);
+        hintLay->setSpacing(6);
+
+        auto* hintLbl = new QLabel(
+            "\xe2\x8c\xa8  <b>Invio</b> = esegui &nbsp;\xc2\xb7&nbsp; "
+            "<b>Shift+Invio</b> = a capo &nbsp;\xc2\xb7&nbsp; "
+            "<b>Stop da fermo</b> = cambia Chat \xe2\x86\x94 Avvia<br>"
+            "\xf0\x9f\x93\x88  Grafico: es. <i>Grafico di sin(x) per x da -3 a 3</i>",
+            m_hintWidget);
+        hintLbl->setObjectName("footerHints");
+        hintLbl->setWordWrap(false);
+        hintLbl->setTextFormat(Qt::RichText);
+        hintLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        hintLay->addWidget(hintLbl, 1);
+
+        /* Pulsante toggle nasconde/mostra il footer — persiste in QSettings */
+        auto* btnHide = new QPushButton("\xe2\x9c\x95", m_hintWidget);
+        btnHide->setFixedSize(18, 18);
+        btnHide->setObjectName("hintCloseBtn");
+        btnHide->setToolTip("Nascondi suggerimenti");
+        btnHide->setStyleSheet(
+            "QPushButton{background:transparent;border:none;color:#475569;"
+            "font-size:11px;padding:0;}"
+            "QPushButton:hover{color:#94a3b8;}");
+        hintLay->addWidget(btnHide);
+
+        lay->addWidget(m_hintWidget);
+
+        /* Ripristina visibilità da sessione precedente */
+        const bool vis = QSettings("Prismalux","GUI").value("ui/hintVisible", true).toBool();
+        m_hintWidget->setVisible(vis);
+
+        connect(btnHide, &QPushButton::clicked, this, [this]{
+            m_hintWidget->setVisible(false);
+            QSettings("Prismalux","GUI").setValue("ui/hintVisible", false);
+        });
     }
 
     /* ── Connessioni ── */
@@ -673,6 +799,39 @@ void AgentiPage::setupUI() {
     /* Pulsante unico: se busy → abort; altrimenti esegue in base a modalità */
     connect(m_btnRun, &QPushButton::clicked, this, [this]{
         if (m_ai->busy()) { m_ai->abort(); return; }
+
+        /* Agente Autonomo: intercetta prima della pipeline normale */
+        if (m_autoEnabled && !m_modePipeline) {
+            const QString task = m_input->toPlainText().trimmed();
+            if (task.isEmpty()) return;
+            /* Reset stato ciclo ReAct */
+            m_autoHistory    = QJsonArray();
+            m_autoStep       = 0;
+            m_autoBuf.clear();
+            m_autoLastUserMsg = task;
+            m_input->clear();
+            /* Banner info — solo alla prima chat in modalità autonoma */
+            if (!m_autoMsgShown) {
+                m_autoMsgShown = true;
+                m_log->moveCursor(QTextCursor::End);
+                m_log->insertHtml(
+                    "<p style='color:#818cf8;font-size:11px;text-align:center;"
+                    "font-style:italic;margin:2px 0;'>"
+                    "\xf0\x9f\xa4\x96 Agente Autonomo attivato &mdash; "
+                    "l\xe2\x80\x99" "AI pianifica e usa strumenti automaticamente (max 8 step)</p>");
+            }
+            /* Bolla utente */
+            { int idx = m_bubbleIdx++;
+              m_bubbleTexts[idx] = task;
+              m_log->moveCursor(QTextCursor::End);
+              m_log->insertHtml(buildUserBubble(task, idx)); }
+            m_log->append("");
+            emit pipelineStatus(0, "\xf0\x9f\xa4\x96  Agente autonomo in esecuzione...");
+            _setRunBusy(true);
+            runAutonomousAgent();
+            return;
+        }
+
         if (!m_modePipeline) {
             /* Modalità Singolo: forza 1 agente */
             m_cfgDlg->numAgentsSpinBox()->setValue(1);
@@ -1089,14 +1248,7 @@ void AgentiPage::setupUI() {
         m_input->installEventFilter(new DropFilter(this, this));
     }
 
-    /* Auto-assegna */
-
-    /* Config dialog */
-    connect(m_btnCfg, &QPushButton::clicked, this, [this]{
-        m_cfgDlg->show();
-        m_cfgDlg->raise();
-        m_cfgDlg->activateWindow();
-    });
+    /* m_cfgDlg rimane accessibile per la configurazione interna della pipeline */
 
     /* Numero agenti (dal dialog) → aggiorna m_maxShots */
     connect(m_cfgDlg->numAgentsSpinBox(), QOverload<int>::of(&QSpinBox::valueChanged),
@@ -1242,9 +1394,12 @@ void AgentiPage::_setRunBusy(bool busy)
         m_btnRun->setText("\xe2\x8f\xb9 Stop");
         m_btnRun->setProperty("danger", true);
     } else {
-        m_btnRun->setText(m_modePipeline
-            ? "\xe2\x96\xb6  Avvia"
-            : "\xf0\x9f\x92\xac CHAT con RAG");
+        if (m_autoEnabled)
+            m_btnRun->setText("\xf0\x9f\xa4\x96  Avvia Agente");
+        else if (m_modePipeline)
+            m_btnRun->setText("\xe2\x96\xb6  Avvia");
+        else
+            m_btnRun->setText("\xf0\x9f\x92\xac CHAT con RAG");
         m_btnRun->setProperty("danger", false);
     }
     m_btnRun->setEnabled(true);

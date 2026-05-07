@@ -14,9 +14,10 @@ Strutturale → `cmake -B build` prima. Solo .cpp/.h → solo `cmake --build bui
 ## Layout tab (mainwindow.cpp)
 ```
 Header (72px): logo · backend · model · CPU/RAM/GPU · spinner · ⚙️
-[0] 🤖 Intelligenza Artificiale  Alt+1  Pipeline + Byzantino + CHAT RAG
-[1] 🛠 Strumenti AI              Alt+2  Studio, Scrittura, Ricerca, 💼 Cerca Lavoro, Libri, Produttività, Documenti, 📱 LAN Android
-[2] 💻 Programmazione            Alt+3  Editor + sub-tab Agentica
+[0] 🤖 Intelligenza Artificiale  Alt+1  Pipeline + Byzantino + CHAT RAG + Agente Autonomo
+[1] 🛠 Strumenti AI              Alt+2  Studio, Scrittura, Ricerca, 💼 Cerca Lavoro, Libri,
+                                        Produttività, Documenti, ⏰ Cron, 🗂 File AI, 📖 Wiki, 🎨 Stable Diffusion, 📱 LAN Android
+[2] 💻 Programmazione            Alt+3  Editor + sub-tab Agentica + 🧪 Interpreter
 [3] π  Matematica                Alt+4  Matematica · Grafico
 [4] 🔬 Ricerca                   Alt+5  Paper · Brevetti · Documenti tecnici
 [5] 🕹 APP Controller            Alt+6  Blender/Office/Anki/KiCAD/TinyMCP/OpenCode
@@ -27,6 +28,11 @@ Note: Cerca Lavoro è in Strumenti AI (cat 3, tra Ricerca e Libri) — attivata 
 LavoroPage è istanziata dentro StrumentiPage (m_lavoroPage), NON in mainwindow.cpp.
 LAN Android è in Strumenti AI come pannello laterale (m_lanPanel): `LanServer` TCP in `lan_server.h/cpp`.
 ImpostazioniPage → sezione "Ollama LAN": avvia/ferma `ollama serve` con `OLLAMA_HOST=0.0.0.0:11434`.
+Cron è `m_cronPanel` in StrumentiPage (checkable `cronBtn`), non in Manutenzione.
+File AI è `m_fileSearchPanel` in StrumentiPage: Python subprocess walk + score keyword + analisi AI.
+Wiki è `m_wikiPanel` in StrumentiPage: Wikipedia REST API multilingua + 4 azioni AI rapide.
+🎨 Stable Diffusion è `m_sdPanel` (`StableDiffusionWidget`) in StrumentiPage: REST API AUTOMATIC1111/Forge (`/sdapi/v1/txt2img`). Lista modelli automatica, output PNG inline.
+🧪 Interpreter è sub-tab di Programmazione: `code_interpreter_widget.h/cpp` — Python sandbox, matplotlib inline.
 
 ## File chiave
 | File | Ruolo |
@@ -37,9 +43,12 @@ ImpostazioniPage → sezione "Ollama LAN": avvia/ferma `ollama serve` con `OLLAM
 | `rag_engine.h/cpp` | RAG JLT 256-dim — `addChunk()`, `search()`, `save()/load()` |
 | `hardware_monitor.h/cpp` | Thread polling CPU/RAM/GPU ogni 2s |
 | `lan_server.h/cpp` | Server TCP LAN per PrismaluxMobile Android — porta default 11500 |
-| `pages/agenti_page.*` | Pipeline 6 agenti + Byzantino (12 moduli) |
+| `pages/agenti_page.*` | Pipeline 6 agenti + Byzantino + Agente Autonomo (15 moduli) |
+| `pages/agenti_page_auto.cpp` | Agente Autonomo ReAct: THOUGHT→ACTION→OBSERVATION→FINAL_ANSWER |
+| `pages/agenti_page_feedback.cpp` | Feedback 👍/👎 → `~/.prismalux/feedback.jsonl` |
 | `pages/manutenzione_page_lan.cpp` | Pannello LAN (toggle Start/Stop, porta, IP, client connessi) |
 | `pages/opencode_page.*` | OpenCode serve HTTP+SSE — port 8092 |
+| `widgets/code_interpreter_widget.h/cpp` | Python sandbox inline: exec, matplotlib PNG, Docker/locale |
 
 ## Convenzioni critiche
 
@@ -136,6 +145,17 @@ m_ai->unloadModel();           // keep_alive=0 → scarica modello dalla RAM Oll
 3. Se `thinkMode=2` (on) → `think=true` per modelli capable
 4. Se `thinkMode=0` (auto) → classificatore `classifyQuery()`: Simple→think=false, Complex→think=true
 
+**Fix thinking+content (2026-05-07):** quando Ollama restituisce sia `message.thinking` che `message.content`,
+`m_thinkingAccum` contiene il reasoning e `m_accum` contiene il content. Il `finished()` ora emette
+`"<think>" + m_thinkingAccum + "</think>" + m_accum` così `agenti_page_stream.cpp` può estrarlo
+e mostrare il toggle ▶️ Ragionamento nella bolla.
+
+**Toggle inline nella bolla** (`agenti_page_ui.cpp::anchorClicked`):
+- Link `think:toggle:ID` → mostra/nasconde il box ragionamento sotto la bolla
+- ▶️ (arrotolato) ↔ 🔻 (aperto); testo in `m_thinkTexts[idx]`
+- `m_thinkShown (QSet<int>)` tiene traccia delle bolle aperte
+- Il box usa manipolazione HTML diretta su `m_log->setHtml()` (non è possibile modificare solo un nodo)
+
 **Classificatore `AiClient::classifyQuery(text)`**:
 - ≤30 char → `QuerySimple` (think=false, num_predict=512)
 - >200 char o keyword: spiega/calcola/perché/passo passo/dimostra/analizza → `QueryComplex`
@@ -211,6 +231,91 @@ Budget netto = VRAM_disponibile - 470 MB. Usare Misto se il margine è < 200 MB.
 - Invio = modalità corrente · Stop da fermo = toggle CHAT↔Avvia
 - `abort()` → `onAborted` rimuove testo da `m_agentBlockStart` a End
 - qwen3.5 rimosso da `s_knownBroken` (fix 2026-04-24) — nessun workaround necessario
+
+**Banner "Agente Autonomo attivato" (fix 2026-05-07):**
+Il banner viene mostrato nel `m_btnRun::clicked` handler (al PRIMO invio effettivo con `m_autoEnabled=true`),
+NON nel `m_btnModeToggle::toggled` handler. `m_autoMsgShown=true` dopo il primo show — non riappare mai più.
+Ragione: il banner non deve apparire se l'utente clicca il toggle e poi torna indietro senza inviare nulla.
+
+**Pulsante vocale "Conversa" / "Conversa con [Nome]":**
+`m_btnVoiceLoop` mostra "🎙 Conversa" se personalità = "nessuna", altrimenti "🎙 Conversa con [Nome]".
+`P::personalityName()` legge il QSettings `ai/personality` e ritorna il nome visualizzato.
+
+**OpMode enum:**
+```
+Idle | Pipeline | Byzantine | MathTheory | PipelineControl
+Translating | KnowledgeExtract | ConsiglioScientifico | AutonomousAgent
+```
+
+## Agente Autonomo ReAct (agenti_page_auto.cpp)
+
+Toggle "🤖 Auto" nella toolbar (indigo quando attivo); incompatibile con Tools.
+
+**Ciclo:**
+```
+THOUGHT: … → ACTION: tool(input) → [esecuzione async] → OBSERVATION: result
+→ THOUGHT: … → … → FINAL_ANSWER: testo finale
+```
+- Max 8 step (`m_autoMaxSteps`) — step card colorata per ogni iterazione
+- Storia multi-turno in `m_autoHistory (QJsonArray)` — ogni step aggiunge assistant+user
+- Prima chiamata: `m_ai->chat(sys, task)` · successive: `m_ai->chat(sys, lastMsg, history, QueryComplex)`
+- Strumenti disponibili: `calc`, `ricerca`, `python`, `leggi_file`, `lista_file`, `scrivi_file`
+- `scrivi_file` richiede dialog di conferma utente (sicurezza)
+
+**Pattern invio Run:**
+```cpp
+if (m_autoEnabled && !m_modePipeline) {
+    m_autoHistory = QJsonArray(); m_autoStep = 0; m_autoBuf.clear();
+    m_autoLastUserMsg = task;
+    runAutonomousAgent();
+}
+```
+
+## Code Interpreter (code_interpreter_widget.h/cpp)
+
+Sub-tab "🧪 Interpreter" in Programmazione. Esegue Python localmente o in Docker sandbox.
+
+- **Sandbox Docker**: `--network none --memory 256m --pids-limit 64` — nessun accesso a filesystem/rete
+- **Locale**: `QTemporaryFile` + `QProcess`, timeout 30s, kill automatico
+- matplotlib PNG rilevato in stdout → mostrato in QLabel scalato inline
+- Errore → auto-retry con fix AI (max 3 tentativi): invia errore al modello, riceve codice corretto, riprova
+- `PrismaluxPaths::isSandboxReady()` — verifica se Docker è disponibile; mostra avviso diverso a seconda
+
+## Web Reading nel RAG
+
+Pulsante **🌐** in ogni `RagDropWidget` → `QInputDialog` URL → `QNetworkAccessManager` async.
+
+- Strip HTML: rimuove `<script>/<style>`, converte tag blocco in `\n`, decodifica entità
+- Limiti: 12 KB per pagina, 32 KB totale RAG (era 4 KB/16 KB solo file)
+- `ragContext()` include `[N] host/path` come citazione + istruzione all'AI per citare le fonti
+- Disponibile in: `RagDropWidget` (agenti, shared RAG, programmazione_page, strumenti_page)
+
+## Memoria Automatica Cross-Sessione
+
+Estrattore silenzioso a fine chat aggiorna `user_knowledge.md` senza intervento manuale.
+
+- Trigger: ogni 4 scambi in CHAT RAG singola (`m_singleChatTurns >= kChatExtractEvery`)
+- Pipeline: già attiva con ≥2 agenti (invariato)
+- Risposta "NULLA" → skip silenzioso; label distingue "Chat: ..." vs "Pipeline: ..."
+- Implementato in `agenti_page_knowledge.cpp::runKnowledgeExtract()`
+
+## Feedback 👍/👎 (agenti_page_feedback.cpp)
+
+Bottoni `fb:up:ID` / `fb:down:ID` nelle bolle agente → handler in `anchorClicked` → `saveFeedback()`.
+
+```cpp
+// prismalux_paths.h
+P::feedbackPath()   // ~/.prismalux/feedback.jsonl
+```
+
+**Formato JSONL** (una riga per voto):
+```json
+{"timestamp":"2026-05-07T14:23:00","model":"qwen3:8b","prompt":"…","response":"…","rating":1}
+```
+- `rating`: `+1` = 👍 · `-1` = 👎
+- `prompt`: bolla utente precedente (cerca per indice decrescente), fallback `m_taskOriginal`
+- `response`: `m_bubbleTexts[bubbleIdx]`
+- Feedback visivo: riga colorata inline nella chat (verde/rosso)
 
 ## Sistema Memoria Persistente (Knowledge) — 2026-05-06
 

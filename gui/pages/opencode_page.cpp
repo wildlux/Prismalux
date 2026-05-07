@@ -127,8 +127,8 @@ OpenCodePage::~OpenCodePage() {
     stopServer();
     if (m_pollTimer) {
         m_pollTimer->stop();
-        m_pollTimer->deleteLater();
-        m_pollTimer = nullptr;
+        // NON deleteLater(): m_pollTimer ha parent=this → Qt lo elimina via deleteChildren()
+        // deleteLater() in un destructor con parent causa double-free → ABRT (Signal 6)
     }
 }
 

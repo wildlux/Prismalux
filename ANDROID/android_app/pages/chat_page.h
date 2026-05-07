@@ -3,6 +3,8 @@
 #include <QTextBrowser>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QLabel>
+#include <QComboBox>
 #include <QJsonArray>
 
 class AiClient;
@@ -59,11 +61,12 @@ private:
     QPushButton*  m_stopBtn   = nullptr;
     QPushButton*  m_clearBtn  = nullptr;
     QPushButton*  m_ragBtn    = nullptr;  ///< toggle RAG on/off
-    QLabel*       m_modelLbl  = nullptr;
+    QComboBox*    m_modelCombo = nullptr;
 
     QJsonArray    m_history;              ///< turni precedenti per context window
     QString       m_streamAccum;          ///< testo in arrivo durante lo streaming
     QString       m_pendingContext;       ///< testo da Camera da iniettare
+    QString       m_lastUserMsg;          ///< ultimo messaggio inviato (per history)
     bool          m_ragEnabled  = true;
     bool          m_streaming   = false;
 

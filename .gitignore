@@ -150,3 +150,17 @@ ANDROID/*.zip
 # ── COMPILE_WIN — toolchain scaricata (troppo grande) e output build ─────────
 COMPILE_WIN/toolchain/
 COMPILE_WIN/build/
+
+# ── KNOWLEDGE_USER — dati personali, non versionare ─────────────────────────
+KNOWLEDGE_USER/user_knowledge.md
+
+# ── Screenshot e foto inviate/ricevute ───────────────────────────────────────
+SCREENSHOT/
+
+# ── Risultati benchmark / output temporanei ──────────────────────────────────
+gui/risultati*.txt
+
+# ── Android — artefatti build e firma ─────────────────────────────────────────
+ANDROID/android_app/build-android/
+ANDROID/build_apk.sh
+ANDROID/*.idsig

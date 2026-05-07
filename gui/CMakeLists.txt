@@ -50,6 +50,8 @@ set(CPP_SRCS
     pages/agenti_page_stream.cpp
     pages/agenti_page_consiglio.cpp
     pages/agenti_page_knowledge.cpp
+    pages/agenti_page_auto.cpp
+    pages/agenti_page_feedback.cpp
     pages/agents_config_dialog.cpp
     pages/pratico_page.cpp
     pages/lavoro_data.cpp
@@ -74,6 +76,7 @@ set(CPP_SRCS
     pages/programmazione_page.cpp
     pages/programmazione_page_git_repl.cpp
     pages/code_interpreter_widget.cpp
+    pages/stable_diffusion_widget.cpp
     pages/matematica_page.cpp
     pages/ricerca_page.cpp
     pages/app_controller_page.cpp
@@ -692,6 +695,25 @@ if(BUILD_TESTS)
         target_link_libraries(test_agenti_byzantine PRIVATE pthread m)
     endif()
 
+    # ── test_agente_autonomo: ReAct loop, toggle UI, parsing tool call ──
+    add_executable(test_agente_autonomo
+        tests/test_agente_autonomo.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_agente_autonomo PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_agente_autonomo PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_agente_autonomo PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_agente_autonomo PRIVATE pthread m)
+    endif()
+
     add_executable(test_opencode_page
         tests/test_opencode_page.cpp
         tests/mock_ai_client.h
@@ -780,6 +802,7 @@ if(BUILD_TESTS)
     add_test(NAME ManutenzioneeBugs       COMMAND test_manutenzione_bugs)
     add_test(NAME Grafico                 COMMAND test_grafico)
     add_test(NAME AgentiByzantine         COMMAND test_agenti_byzantine)
+    add_test(NAME AgenteAutonomo          COMMAND test_agente_autonomo)
     add_test(NAME OpenCodePage            COMMAND test_opencode_page)
     add_test(NAME ImparaQuiz              COMMAND test_impara_quiz)
     add_test(NAME MonitorPanel            COMMAND test_monitor_panel)

@@ -3,6 +3,7 @@
 #include <QJsonArray>
 #include <QFile>
 #include <QFileInfoList>
+#include <QAtomicInt>
 #include <algorithm>
 
 ChatHistory::ChatHistory()
@@ -36,8 +37,10 @@ QVector<ChatSession> ChatHistory::list() const {
 }
 
 QString ChatHistory::newSession(const QString& firstTask) {
+    static QAtomicInt s_seq(0);
     ChatSession s;
-    s.id        = QString::number(QDateTime::currentMSecsSinceEpoch());
+    s.id = QString::number(QDateTime::currentMSecsSinceEpoch())
+         + "_" + QString::number(s_seq.fetchAndAddRelaxed(1));
     s.title     = firstTask.left(40).trimmed();
     s.createdAt = QDateTime::currentDateTime();
 

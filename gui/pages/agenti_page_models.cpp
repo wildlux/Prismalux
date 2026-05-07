@@ -109,7 +109,7 @@ void AgentiPage::onModelsReady(const QStringList& list) {
         for (const QString& path : P::scanGgufFiles())
             ggufNames << QFileInfo(path).fileName();
         const QStringList effective = ggufNames.isEmpty() ? list_ref : ggufNames;
-        m_cfgDlg->setModels(effective);
+        m_cfgDlg->setModels(effective, m_ai);
         populateLLMCombo(effective);
         /* Aggiorna m_modelInfos per Consiglio Scientifico */
         m_modelInfos.clear();
@@ -134,7 +134,7 @@ void AgentiPage::onModelsReady(const QStringList& list) {
 
     if (m_cmbLLM) m_cmbLLM->setEnabled(true);
 
-    m_cfgDlg->setModels(list_ref);
+    m_cfgDlg->setModels(list_ref, m_ai);
     populateLLMCombo(list_ref);
 
     /* Aggiorna m_modelInfos per Consiglio Scientifico */
