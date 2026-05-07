@@ -110,10 +110,6 @@ private:
     QWidget* buildSidebar();  ///< Colonna sinistra: bottoni di navigazione
     QWidget* buildContent();  ///< Area destra: QStackedWidget con le pagine
 
-    /* ── Navigazione ─────────────────────────────────────────── */
-    /** Attiva la pagina con indice idx (0-2: sidebar, 3: impostazioni). */
-    void setActivePage(int idx);
-
     /* ── Componenti UI ───────────────────────────────────────── */
     QTabWidget*     m_mainTabs       = nullptr;  ///< Tab principale: Agenti | Finanza | Impara
     QStringList     m_tabOrigLabels;            ///< Etichette originali "icona  testo" per applyTabMode()
