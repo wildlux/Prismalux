@@ -423,12 +423,12 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
 
     /* ── Barra categorie: tab orizzontali ── */
     static const char* kCatLabels[] = {
-        "\xf0\x9f\x93\x9a  Studio",
-        "\xe2\x9c\x8d\xef\xb8\x8f  Scrittura",
-        "\xf0\x9f\x94\x8d  Ricerca",
-        "\xf0\x9f\x93\x96  Libri",
-        "\xe2\x9a\xa1  Produttivit\xc3\xa0",
-        "\xf0\x9f\x93\x84  Documenti",
+        "\xf0\x9f\x93\x9a Studio",
+        "\xe2\x9c\x8d\xef\xb8\x8f Scrittura",
+        "\xf0\x9f\x94\x8d Ricerca",
+        "\xf0\x9f\x93\x96 Libri",
+        "\xe2\x9a\xa1 Produttivit\xc3\xa0",
+        "\xf0\x9f\x93\x84 Documenti",
         /* cats 6-9 (Blender, Office, FreeCAD, CloudCompare) spostate in AppControllerPage */
     };
     static const char* kCatTooltips[] = {
@@ -511,7 +511,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
 
     /* ── Pulsante Cron (non nella catGroup — stile separato) ── */
     auto* cronBtn = new QPushButton(
-        "\xe2\x8f\xb1  Cron", catBar);  /* ⏱ */
+        "\xe2\x8f\xb1 Cron", catBar);  /* ⏱ */
     cronBtn->setCheckable(true);
     cronBtn->setObjectName("strCatBtn");
     cronBtn->setToolTip(
@@ -520,7 +520,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
 
     /* ── Pulsante LAN Android ── */
     auto* lanAndroidBtn = new QPushButton(
-        "\xf0\x9f\x93\xb1  LAN Android", catBar);  /* 📱 */
+        "\xf0\x9f\x93\xb1 LAN Android", catBar);  /* 📱 */
     lanAndroidBtn->setCheckable(true);
     lanAndroidBtn->setObjectName("strCatBtn");
     lanAndroidBtn->setToolTip(
@@ -529,7 +529,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
 
     /* ── Pulsante Stable Diffusion ── */
     auto* sdBtn = new QPushButton(
-        "\xf0\x9f\x8e\xa8  Immagini AI", catBar);
+        "\xf0\x9f\x8e\xa8 Genera Immagini", catBar);
     sdBtn->setCheckable(true);
     sdBtn->setObjectName("strCatBtn");
     sdBtn->setToolTip(
@@ -538,7 +538,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
 
     /* ── Pulsante File Search AI ── */
     m_fileSearchBtn = new QPushButton(
-        "\xf0\x9f\x97\x82  File AI", catBar);   /* 🗂 */
+        "\xf0\x9f\x97\x82 File AI", catBar);   /* 🗂 */
     m_fileSearchBtn->setCheckable(true);
     m_fileSearchBtn->setObjectName("strCatBtn");
     m_fileSearchBtn->setToolTip(
@@ -548,7 +548,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
 
     /* ── Pulsante Wiki ── */
     m_wikiBtn = new QPushButton(
-        "\xf0\x9f\x93\x96  Wiki", catBar);   /* 📖 */
+        "\xf0\x9f\x93\x96 Wiki", catBar);   /* 📖 */
     m_wikiBtn->setCheckable(true);
     m_wikiBtn->setObjectName("strCatBtn");
     m_wikiBtn->setToolTip(

@@ -156,8 +156,8 @@ QLabel#hintLabel { color: #fce7f3; opacity: 0.65; background: transparent; font-
 /* ── Strumenti AI — catBtn / actBtn / ragRow (auto-generato dal tema) ── */
 QPushButton#strCatBtn {
     border: none; border-bottom: 2px solid transparent;
-    padding: 7px 18px; background: transparent;
-    color: #f9a8d4; font-size: 13px; font-weight: bold; }
+    padding: 4px 8px; background: transparent;
+    color: #f9a8d4; font-size: 12px; font-weight: bold; }
 QPushButton#strCatBtn:checked {
     border-bottom: 2px solid #ec4899; color: #fce7f3; }
 QPushButton#strCatBtn:hover { color: #fac1e0; }
