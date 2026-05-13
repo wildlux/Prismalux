@@ -420,3 +420,40 @@ void AgentiPage::runToolCall(const QJsonObject& call,
 
     onDone(QString("strumento non riconosciuto: %1").arg(tool));
 }
+
+/* ══════════════════════════════════════════════════════════════
+   onNativeToolCall — handler per Ollama function calling nativo.
+   Adatta il formato Ollama {name, arguments:{...}} al formato
+   runToolCall {tool, input} e riprende la conversazione con replyWithTool().
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::onNativeToolCall(const QString& name, const QJsonObject& args)
+{
+    /* Mostra nel log che un tool è stato richiesto */
+    m_log->append(QString(
+        "\n\xf0\x9f\x94\xa7  <b>Tool:</b> <code>%1</code> "
+        "\xe2\x80\x94 esecuzione in corso...\n").arg(name.toHtmlEscaped()));
+
+    /* Converti args Ollama → formato runToolCall {tool, input} */
+    QJsonObject call;
+    call["tool"] = name;
+
+    /* Estrae il valore del primo argomento come input stringa.
+       Ollama invia args con nomi specifici (expression, query, path, code, ecc.). */
+    QString input;
+    for (auto it = args.constBegin(); it != args.constEnd(); ++it) {
+        const QJsonValue v = it.value();
+        if (v.isString())       { input = v.toString(); break; }
+        if (v.isDouble())       { input = QString::number(v.toDouble()); break; }
+        if (v.isObject())       { input = QJsonDocument(v.toObject()).toJson(QJsonDocument::Compact); break; }
+    }
+    if (input.isEmpty())
+        input = QJsonDocument(args).toJson(QJsonDocument::Compact);
+    call["input"] = input;
+
+    runToolCall(call, [this, name](const QString& result) {
+        m_log->append(QString(
+            "\xe2\x9c\x85  <b>Risultato</b> <code>%1</code>: %2\n")
+            .arg(name.toHtmlEscaped(), result.toHtmlEscaped().left(200)));
+        m_ai->replyWithTool(name, result);
+    });
+}

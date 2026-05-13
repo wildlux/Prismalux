@@ -82,6 +82,7 @@ void AgentiPage::onToken(const QString& t) {
 
 void AgentiPage::onFinished(const QString& full) {
     m_waitLbl->setVisible(false);
+    m_ai->clearActiveTools();   /* tool use nativo: resetta tools dopo ogni risposta */
 
     /* Guard: se siamo in Idle, il segnale finished appartiene a un'altra pagina
        (cross-talk su AiClient condiviso) oppure è il secondo emit dopo un error().

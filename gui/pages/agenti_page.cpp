@@ -64,10 +64,11 @@ AgentiPage::AgentiPage(AiClient* ai, QWidget* parent)
 
     setupUI();
 
-    connect(m_ai, &AiClient::token,       this, &AgentiPage::onToken);
-    connect(m_ai, &AiClient::finished,    this, &AgentiPage::onFinished);
-    connect(m_ai, &AiClient::error,       this, &AgentiPage::onError);
-    connect(m_ai, &AiClient::modelsReady, this, &AgentiPage::onModelsReady);
+    connect(m_ai, &AiClient::token,            this, &AgentiPage::onToken);
+    connect(m_ai, &AiClient::finished,         this, &AgentiPage::onFinished);
+    connect(m_ai, &AiClient::error,            this, &AgentiPage::onError);
+    connect(m_ai, &AiClient::modelsReady,      this, &AgentiPage::onModelsReady);
+    connect(m_ai, &AiClient::toolCallRequired, this, &AgentiPage::onNativeToolCall);
 
     /* Quando il modello cambia da Impostazioni (o altra pagina), aggiorna
        la combo SOLO se l'utente non ha scelto esplicitamente un modello

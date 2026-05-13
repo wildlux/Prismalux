@@ -38,6 +38,9 @@ public:
     /** Salva la voce attiva. */
     static void    savePiperActiveVoice(const QString& name);
 
+    /** Espone ManutenzioneePage per permettere a StrumentiPage di usare buildCronTab(). */
+    ManutenzioneePage* manutenzione() { return m_manutenzione; }
+
 signals:
     /** Emesso quando l'utente cambia la modalità etichette tab (in tempo reale). */
     void tabModeChanged(const QString& mode);

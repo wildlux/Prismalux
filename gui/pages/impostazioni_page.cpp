@@ -148,6 +148,9 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
             t->addTab(sc, "\xf0\x9f\x90\xb3  Sandbox");
         }
 
+        t->addTab(m_personalizza->buildLoraTab(),
+                  "\xf0\x9f\xa7\xa0  Fine-tuning");
+
         {
             auto* w = new QWidget;
             auto* l = new QVBoxLayout(w);
@@ -2906,6 +2909,94 @@ QWidget* ImpostazioniPage::buildTestTab()
     listLay->setSpacing(4);
     listScroll->setWidget(listWidget);
     llay->addWidget(listScroll, 1);
+
+    /* ── Esecuzione test via GUI ── */
+    {
+        auto* sepRun = new QFrame(leftPanel);
+        sepRun->setFrameShape(QFrame::HLine);
+        sepRun->setObjectName("cardSep");
+        llay->addWidget(sepRun);
+
+        auto* runRow = new QWidget(leftPanel);
+        auto* runLay = new QHBoxLayout(runRow);
+        runLay->setContentsMargins(0, 0, 0, 0);
+        runLay->setSpacing(6);
+
+        auto* btnBuild  = new QPushButton(
+            "\xf0\x9f\x94\xa8  Compila", runRow);      /* 🔨 */
+        auto* btnRun    = new QPushButton(
+            "\xe2\x96\xb6  Esegui tutti", runRow);     /* ▶ */
+        auto* btnStop   = new QPushButton(
+            "\xe2\x8f\xb9  Ferma", runRow);            /* ⏹ */
+        btnBuild->setObjectName("actionBtn");
+        btnRun->setObjectName("actionBtn");
+        btnStop->setObjectName("actionBtn");
+        btnStop->setEnabled(false);
+
+        runLay->addWidget(btnBuild);
+        runLay->addWidget(btnRun);
+        runLay->addWidget(btnStop);
+        llay->addWidget(runRow);
+
+        auto* runOut = new QTextEdit(leftPanel);
+        runOut->setReadOnly(true);
+        runOut->setObjectName("outputView");
+        runOut->setFixedHeight(110);
+        runOut->setPlaceholderText("Output test appare qui...");
+        llay->addWidget(runOut);
+
+        /* QProcess vive finché il widget esiste */
+        auto* proc = new QProcess(leftPanel);
+        proc->setProcessChannelMode(QProcess::MergedChannels);
+
+        const QString qtGuiDir = P::root() + "/gui";
+        const QString buildDir = qtGuiDir + "/build_tests";
+
+        connect(proc, &QProcess::readyRead, leftPanel, [proc, runOut](){
+            runOut->append(QString::fromUtf8(proc->readAll()).trimmed());
+        });
+        connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                leftPanel, [btnBuild, btnRun, btnStop, runOut](int code, QProcess::ExitStatus){
+            btnBuild->setEnabled(true);
+            btnRun->setEnabled(true);
+            btnStop->setEnabled(false);
+            runOut->append(code == 0
+                ? "\xe2\x9c\x85  Completato con successo."
+                : "\xe2\x9d\x8c  Terminato con codice " + QString::number(code));
+        });
+
+        connect(btnBuild, &QPushButton::clicked, leftPanel, [proc, buildDir, qtGuiDir,
+                                                              btnBuild, btnRun, btnStop, runOut](){
+            if (proc->state() != QProcess::NotRunning) return;
+            btnBuild->setEnabled(false);
+            btnRun->setEnabled(false);
+            btnStop->setEnabled(true);
+            runOut->clear();
+            runOut->append("\xf0\x9f\x94\xa8  Compilazione build_tests...");
+            proc->start("/bin/bash", {"-c",
+                QString("cmake -B \"%1\" -S \"%2\" -DBUILD_TESTS=ON "
+                        "&& cmake --build \"%1\" -j$(nproc) 2>&1").arg(buildDir, qtGuiDir)});
+        });
+
+        connect(btnRun, &QPushButton::clicked, leftPanel, [proc, buildDir,
+                                                            btnBuild, btnRun, btnStop, runOut](){
+            if (proc->state() != QProcess::NotRunning) return;
+            btnBuild->setEnabled(false);
+            btnRun->setEnabled(false);
+            btnStop->setEnabled(true);
+            runOut->clear();
+            runOut->append("\xf0\x9f\x94\x84  Esecuzione test suite...");
+            proc->start("/bin/bash", {"-c",
+                QString("ctest --test-dir \"%1\" -j4 --output-on-failure 2>&1").arg(buildDir)});
+        });
+
+        connect(btnStop, &QPushButton::clicked, leftPanel, [proc, btnBuild, btnRun, btnStop](){
+            proc->kill();
+            btnBuild->setEnabled(true);
+            btnRun->setEnabled(true);
+            btnStop->setEnabled(false);
+        });
+    }
 
     /* ════════════════════════════════════════════════════════
        PANNELLO DESTRO — dettaglio suite selezionata
@@ -6034,7 +6125,7 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
         auto* sub = new QLabel(
             "Piattaforma AI locale open-source \xe2\x80\x94 "
             "multi-agente \xc2\xb7 RAG \xc2\xb7 matematica \xc2\xb7 grafici \xc2\xb7 MCPs\n"
-            "\xe2\x80\x9cCostruito per i mortali che aspirano alla saggezza.\xe2\x80\x9d");
+            "\xe2\x80\x9c" "Costruito per i mortali che aspirano alla saggezza.\xe2\x80\x9d");
         sub->setAlignment(Qt::AlignCenter);
         QFont fs = sub->font(); fs.setItalic(true); sub->setFont(fs);
         lay->addWidget(sub);
@@ -6262,7 +6353,7 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
               "su autorizzazione esplicita dell'utente.",
               "github.com/lharries/whatsapp-mcp",
               "https://github.com/lharries/whatsapp-mcp" },
-            { "\xe2\x9c\x88\xef\xb8\x8f  Telegram MCP",
+            { "\xf0\x9f\x93\xac  Telegram MCP",
               "Bot Telegram controllato via MCP: invia messaggi, gestisce canali e gruppi, "
               "risponde a comandi. L'AI pu\xc3\xb2 usarlo per notifiche automatiche o "
               "interazione con utenti Telegram su autorizzazione.",
@@ -6280,6 +6371,42 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
               "modificare propriet\xc3\xa0 degli oggetti e avviare il gioco in anteprima.",
               "github.com/Coding-Solo/godot-mcp",
               "https://github.com/Coding-Solo/godot-mcp" },
+            { "\xf0\x9f\x8c\x90  GNS3 MCP",
+              "Simulazione reti via MCP: crea topologie di rete (router, switch, firewall), "
+              "configura dispositivi e avvia simulazioni direttamente dall'AI. "
+              "Ideale per apprendimento di networking e test di architetture.",
+              "github.com/ChistokhinSV/gns3-mcp",
+              "https://github.com/ChistokhinSV/gns3-mcp" },
+            { "\xf0\x9f\x94\xac  Cytoscape MCP",
+              "Analisi e visualizzazione di reti biologiche e sociali via MCP: "
+              "carica grafi, applica layout, calcola statistiche di rete e genera "
+              "visualizzazioni interattive per bioinformatica e analisi dati.",
+              "cytoscape.org",
+              "https://cytoscape.org/" },
+            { "\xf0\x9f\x94\xac  RDKit MCP",
+              "Chemioinformatica via MCP: gestione molecole SMILES, calcolo fingerprint, "
+              "similarit\xc3\xa0 molecolare, predizione propriet\xc3\xa0 chimiche e visualizzazione "
+              "strutture. Ideale per ricerca farmaceutica e chimica computazionale.",
+              "rdkit.org",
+              "https://www.rdkit.org/" },
+            { "\xf0\x9f\xa7\xaa  Avogadro MCP",
+              "Modellazione molecolare 3D via MCP: visualizza e modifica strutture molecolari, "
+              "esegui ottimizzazione geometrica e analisi energetica. "
+              "Supporta formati SDF, PDB, XYZ. Ideale per chimica computazionale.",
+              "avogadro.cc",
+              "https://avogadro.cc/" },
+            { "\xf0\x9f\x8c\xbf  Bioconda MCP",
+              "Bioinformatica via MCP: accesso a migliaia di tool scientifici "
+              "(BLAST, BWA, GATK, Samtools) tramite canale conda specializzato. "
+              "Permette all'AI di orchestrare pipeline genomiche e analisi sequence.",
+              "bioconda.github.io",
+              "https://bioconda.github.io/" },
+            { "\xf0\x9f\x97\xba  Graphviz MCP",
+              "Mappe concettuali e grafi via Graphviz: l'AI genera DOT language, "
+              "Graphviz produce PNG/SVG inline. Utile per diagrammi di architettura, "
+              "grafi di dipendenze, alberi decisionali e mappe concettuali.",
+              "graphviz.org",
+              "https://graphviz.org/" },
         };
         const int M = static_cast<int>(sizeof(kMCPs) / sizeof(kMCPs[0]));
         auto* t = makeTable({"Plugin", "Descrizione e utilizzo", "Progetto principale"}, M);

@@ -681,6 +681,22 @@ QWidget* ManutenzioneePage::buildHardware()
     mainLay->setContentsMargins(16, 14, 16, 14);
     mainLay->setSpacing(12);
 
+#ifndef Q_OS_WIN
+    /* Banner zRAM — mostrato da updateHWLabel() se RAM libera < 20% */
+    m_zramWarnLbl = new QLabel(
+        "\xe2\x9a\xa0  <b>RAM libera bassa (&lt;20%)</b> \xe2\x80\x94 "
+        "attiva zRAM per guadagnare ~30-40% di memoria effettiva:<br>"
+        "<code>sudo systemctl enable --now systemd-zram-setup@zram0</code><br>"
+        "Oppure usa i pulsanti <b>Abilita zRAM</b> qui sotto \xe2\x86\x93", page);
+    m_zramWarnLbl->setTextFormat(Qt::RichText);
+    m_zramWarnLbl->setWordWrap(true);
+    m_zramWarnLbl->setStyleSheet(
+        "background:#6b3a00; color:#ffe0a0; "
+        "border:1px solid #c07800; border-radius:5px; padding:8px;");
+    m_zramWarnLbl->hide();
+    mainLay->addWidget(m_zramWarnLbl);
+#endif
+
     /* ── 2 colonne ── */
     auto* colsRow = new QWidget(page);
     auto* colsLay = new QHBoxLayout(colsRow);
@@ -739,6 +755,28 @@ QWidget* ManutenzioneePage::buildHardware()
     ramDesc->setObjectName("cardDesc");
     ramDesc->setWordWrap(true);
     ramLay->addWidget(ramDesc);
+
+#ifndef Q_OS_WIN
+    /* ── Checkbox auto-avvio zRAM Doppia ── */
+    auto* autoZramRow = new QWidget(rightGroup);
+    auto* autoZramLay = new QHBoxLayout(autoZramRow);
+    autoZramLay->setContentsMargins(0, 0, 0, 0);
+    autoZramLay->setSpacing(8);
+    auto* autoZramCb = new QCheckBox(
+        "\xf0\x9f\x92\xbe\xf0\x9f\x92\xbe  Abilita Doppia zstd automaticamente all'avvio", rightGroup);
+    autoZramCb->setObjectName("cardDesc");
+    {
+        QSettings s("Prismalux", "GUI");
+        autoZramCb->setChecked(s.value(P::SK::kAutoZramDoppia, true).toBool());
+    }
+    autoZramLay->addWidget(autoZramCb);
+    autoZramLay->addStretch();
+    ramLay->addWidget(autoZramRow);
+    connect(autoZramCb, &QCheckBox::toggled, this, [](bool on){
+        QSettings s("Prismalux", "GUI");
+        s.setValue(P::SK::kAutoZramDoppia, on);
+    });
+#endif
 
     auto* btnRow = new QWidget(rightGroup);
     auto* btnL   = new QHBoxLayout(btnRow);
@@ -1016,6 +1054,79 @@ QWidget* ManutenzioneePage::buildHardware()
     });
 #endif
 
+    /* ── NPU (Neural Processing Unit) ── */
+    {
+        auto* npuGroup = new QGroupBox(
+            "\xf0\x9f\xa7\xa0  NPU \xe2\x80\x94 Neural Processing Unit", page);
+        npuGroup->setObjectName("cardGroup");
+        auto* npuLay = new QVBoxLayout(npuGroup);
+
+        auto* npuDesc = new QLabel(
+            "Le NPU accelerano l\xe2\x80\x99"
+            "inferenza AI con consumo energetico ridotto rispetto a GPU/CPU.\n"
+            "Supportate: <b>Intel NPU</b> (Core Ultra) \xe2\x80\x94 "
+            "<b>AMD NPU</b> (Ryzen AI \xe2\x80\x94 beta).", npuGroup);
+        npuDesc->setWordWrap(true);
+        npuDesc->setTextFormat(Qt::RichText);
+        npuDesc->setObjectName("hintLabel");
+        npuLay->addWidget(npuDesc);
+
+        /* Rilevamento automatico */
+        auto* npuStatusLbl = new QLabel("\xe2\x8f\xb3  Rilevamento in corso...", npuGroup);
+        npuStatusLbl->setObjectName("cardDesc");
+        npuStatusLbl->setWordWrap(true);
+        npuLay->addWidget(npuStatusLbl);
+
+        /* Installa Intel NPU */
+        auto* btnIntelNpu = new QPushButton(
+            "\xf0\x9f\x94\xb5  Installa intel-npu-acceleration-library", npuGroup);
+        btnIntelNpu->setObjectName("actionBtn");
+        btnIntelNpu->setToolTip(
+            "pip install intel-npu-acceleration-library\n"
+            "Richiede: Intel Core Ultra (Meteor Lake+) con driver NPU");
+        npuLay->addWidget(btnIntelNpu, 0, Qt::AlignLeft);
+
+        auto* npuHint = new QLabel(
+            "\xe2\x84\xb9  AMD NPU (XDNA): usa <b>https://github.com/amd/iron</b> "
+            "\xe2\x80\x94 attualmente in beta, stabilit\xc3\xa0 non garantita.\n"
+            "Intel NPU: stabile, richiede <code>pip install intel-npu-acceleration-library</code>.",
+            npuGroup);
+        npuHint->setWordWrap(true);
+        npuHint->setTextFormat(Qt::RichText);
+        npuHint->setObjectName("hintLabel");
+        npuLay->addWidget(npuHint);
+
+        mainLay->addWidget(npuGroup);
+
+        /* Rilevamento asincrono */
+        auto detectNpu = [npuStatusLbl]() {
+            QStringList found;
+#ifdef Q_OS_LINUX
+            if (QFile::exists("/dev/accel/accel0"))
+                found << "\xe2\x9c\x85  Intel NPU rilevata (/dev/accel/accel0)";
+            /* Controlla se il modulo XDNA (AMD NPU) è caricato */
+            QFile modules("/proc/modules");
+            if (modules.open(QFile::ReadOnly)) {
+                const QString content = modules.readAll();
+                if (content.contains("amdxdna"))
+                    found << "\xe2\x9c\x85  AMD NPU rilevata (modulo amdxdna)";
+            }
+#endif
+            if (found.isEmpty())
+                npuStatusLbl->setText(
+                    "\xe2\x9d\x8c  Nessuna NPU rilevata (o driver non installato)");
+            else
+                npuStatusLbl->setText(found.join("\n"));
+        };
+        detectNpu();
+
+        connect(btnIntelNpu, &QPushButton::clicked, this, [=]{
+            m_ramLog->append("\xf0\x9f\x94\xb5  Installazione intel-npu-acceleration-library...\n");
+            runCmd("pip", {"install", "intel-npu-acceleration-library"},
+                   "pip install intel-npu-acceleration-library");
+        });
+    }
+
     return page;
 }
 
@@ -1083,6 +1194,19 @@ void ManutenzioneePage::updateHWLabel(const HWInfo& hw) {
 
     if (txt.isEmpty()) txt = "Nessun dispositivo rilevato.";
     m_hwLabel->setText(txt.trimmed());
+
+#ifndef Q_OS_WIN
+    if (m_zramWarnLbl) {
+        bool lowRam = false;
+        for (int i = 0; i < hw.count; i++) {
+            if (hw.dev[i].type == DEV_CPU && hw.dev[i].mem_mb > 0) {
+                lowRam = (hw.dev[i].avail_mb * 100 / hw.dev[i].mem_mb) < 20;
+                break;
+            }
+        }
+        m_zramWarnLbl->setVisible(lowRam);
+    }
+#endif
 
     /* ── Consiglio GPU vs RAM ── */
     if (m_ramStatusLbl && cpuRamMb > 0) {

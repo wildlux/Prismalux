@@ -54,19 +54,49 @@ void AgentiPage::_sttStartRecording()
         return;
     }
 #else
-    m_recProc->start("arecord",
-        {"-d", "6", "-r", "16000", "-c", "1", "-f", "S16_LE", "-q", wavPath});
+    /* Durata registrazione: voice loop usa 12s per dare tempo di parlare;
+       la modalità pulsante singolo usa 6s come prima.
+       Se sox è disponibile, usa VAD silenzio-automatico (nessun countdown). */
+    const bool hasSox  = !QStandardPaths::findExecutable("sox").isEmpty();
+    const int  recSecs = m_voiceLoopActive ? 12 : 6;
+
+    if (hasSox) {
+        /* sox VAD: registra fino a 2s di silenzio, max recSecs*2 secondi.
+           silence 1 0.1 1% = inizia a registrare non appena c'è segnale;
+           1 2.0 1%         = ferma dopo 2s di silenzio sotto l'1% del picco. */
+        m_recProc->start("sox",
+            {"-t", "alsa", "default",
+             "-r", "16000", "-c", "1", "-b", "16",
+             wavPath,
+             "silence", "1", "0.1", "1%",
+                        "1", "2.0", "1%",
+             "trim", "0", QString::number(recSecs * 2)});
+    } else {
+        m_recProc->start("arecord",
+            {"-d", QString::number(recSecs),
+             "-r", "16000", "-c", "1", "-f", "S16_LE", "-q", wavPath});
+    }
 #endif
+
+    /* sox VAD: quando il processo termina da solo (silenzio rilevato),
+       avanza subito alla trascrizione senza aspettare il timeout completo. */
+    connect(m_recProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this](int, QProcess::ExitStatus){
+        if (m_sttState == SttState::Recording)
+            onSttTimeout();
+    });
 
     /* Countdown nel testo del pulsante — slot esplicito, nessuna lambda con raw pointer */
     m_sttWavPath = wavPath;
     m_sttTick = new QTimer(this);
-    m_sttTick->setProperty("secs", 6);
+    m_sttTick->setProperty("secs", recSecs);
     connect(m_sttTick, &QTimer::timeout, this, &AgentiPage::onSttTick);
     m_sttTick->start(1000);
 
-    /* Dopo 6.5s ferma la registrazione e avvia la trascrizione */
-    QTimer::singleShot(6500, this, &AgentiPage::onSttTimeout);
+    /* Timeout: ferma la registrazione e avvia la trascrizione.
+       Con sox VAD il processo termina da solo → onSttTimeout si limita a trasformare
+       il WAV in trascrizione; con arecord aspetta il timeout completo. */
+    QTimer::singleShot((recSecs + 1) * 1000, this, &AgentiPage::onSttTimeout);
 }
 
 /* ── slot privato: tick 1s del countdown ───────────────────────────────────── */
@@ -80,9 +110,12 @@ void AgentiPage::onSttTick()
     }
     int s = m_sttTick->property("secs").toInt() - 1;
     m_sttTick->setProperty("secs", s);
-    if (s > 0)
-        m_btnVoice->setText(
-            QString("\xf0\x9f\x94\xb4 Registrando... %1s (click per fermare)").arg(s));
+    if (s > 0) {
+        const bool hasSox = !QStandardPaths::findExecutable("sox").isEmpty();
+        m_btnVoice->setText(hasSox
+            ? QString("\xf0\x9f\x94\xb4 Registrando... (VAD silenzio) (click per fermare)")
+            : QString("\xf0\x9f\x94\xb4 Registrando... %1s (click per fermare)").arg(s));
+    }
 }
 
 /* ── slot privato: timeout 6.5s — ferma registrazione e avvia trascrizione ─── */
@@ -97,8 +130,14 @@ void AgentiPage::onSttTimeout()
 
     if (m_sttState != SttState::Recording) return;  // utente ha già fermato
 
-    if (m_recProc) { m_recProc->terminate(); m_recProc->waitForFinished(1000);
-                     m_recProc->deleteLater(); m_recProc = nullptr; }
+    if (m_recProc) {
+        /* sox VAD può aver già terminato da solo — terminate() è no-op in quel caso */
+        if (m_recProc->state() != QProcess::NotRunning)
+            m_recProc->terminate();
+        m_recProc->waitForFinished(1000);
+        m_recProc->deleteLater();
+        m_recProc = nullptr;
+    }
 
     const QString wavPath = m_sttWavPath;
 

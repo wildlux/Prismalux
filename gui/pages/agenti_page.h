@@ -306,6 +306,7 @@ private slots:
     void onFinished(const QString& full);
     void onError(const QString& msg);
     void onModelsReady(const QStringList& list);
+    void onNativeToolCall(const QString& name, const QJsonObject& args);
     void onSttTick();     ///< scatta ogni 1s durante registrazione: aggiorna testo pulsante
     void onSttTimeout();  ///< scatta a 6.5s: ferma registrazione e avvia trascrizione
 };

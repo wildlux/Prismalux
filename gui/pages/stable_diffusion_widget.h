@@ -8,31 +8,45 @@ class QDoubleSpinBox;
 class QComboBox;
 class QPushButton;
 class QLabel;
+class QRadioButton;
+class QProcess;
 class QNetworkAccessManager;
 class QScrollArea;
 
 /* ══════════════════════════════════════════════════════════════
-   StableDiffusionWidget — Text-to-Image via REST API locale
+   StableDiffusionWidget — Text-to-Image AI
 
-   Compatibile con:  AUTOMATIC1111, Forge, SD.Next, Stability Matrix
-   Endpoint default: http://localhost:7860
-
-   Flusso:
-   1. "⚡ Controlla" → GET /sdapi/v1/sd-models → lista modelli
-   2. "🎨 Genera"   → POST /sdapi/v1/txt2img   → base64 PNG
-   3. Immagine mostrata inline + salvata in ~/.prismalux/generated/
+   Modalità LOCALE  → Python diffusers (nessun server esterno)
+   Modalità A1111   → AUTOMATIC1111 / Forge / SD.Next REST API
    ══════════════════════════════════════════════════════════════ */
 class StableDiffusionWidget : public QWidget {
     Q_OBJECT
 public:
     explicit StableDiffusionWidget(QWidget* parent = nullptr);
+    ~StableDiffusionWidget() override;
 
 private:
+    /* backend check */
     void checkServer();
-    void generate();
-    void showImage(const QByteArray& pngBase64);
-    void setStatus(const QString& msg, bool ok = true);
+    void checkDiffusers();
+    void checkA1111();
 
+    /* generazione */
+    void generate();
+    void generateLocal();
+    void generateA1111();
+
+    /* helpers */
+    void showImage(const QByteArray& pngData);
+    void setStatus(const QString& msg, bool ok = true);
+    bool isLocalMode() const;
+    void onModeChanged();
+
+    /* parametri */
+    QRadioButton*     m_rbLocal    = nullptr;
+    QRadioButton*     m_rbA1111   = nullptr;
+    QWidget*          m_urlWidget  = nullptr;
+    QLabel*           m_installHint = nullptr;
     QLineEdit*        m_urlEdit    = nullptr;
     QTextEdit*        m_prompt     = nullptr;
     QTextEdit*        m_negPrompt  = nullptr;
@@ -49,8 +63,10 @@ private:
     QScrollArea*      m_imgScroll  = nullptr;
 
     QNetworkAccessManager* m_nam   = nullptr;
+    QProcess*              m_sdProc = nullptr;
     QByteArray             m_lastPng;
+    QString                m_sdScriptPath;
 
 signals:
-    void _imageReady(bool ok);   ///< segnale interno per abilitare pulsanti Salva/Copia
+    void _imageReady(bool ok);
 };

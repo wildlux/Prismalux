@@ -8,7 +8,7 @@
 [![Version](https://img.shields.io/badge/versione-3.0-blue?style=flat-square)](CHANGELOG)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20Android%20(WIP)-informational?style=flat-square)](https://github.com/wildlux/Prismalux)
-[![Tests](https://img.shields.io/badge/Test%20Suite-33%2B%20suite%20%7C%20100%25%20pass-brightgreen?style=flat-square)](#test)
+[![Tests](https://img.shields.io/badge/Test%20Suite-37%20suite%20%7C%2035%2F37%20pass-brightgreen?style=flat-square)](#test)
 
 **Piattaforma AI locale. Potente. Privata. Tua.**
 
@@ -40,6 +40,8 @@
 - 📖 **Wiki AI** — Wikipedia multilingua con analisi istantanea, riassunto, verifica fatti e approfondimento
 - 🛡️ **Code Interpreter Sandbox** — esegui codice Python generato dall'AI in ambiente isolato (Docker / locale)
 - 🗂️ **File AI** — ricerca semantica intelligente tra i tuoi file con analisi automatica del contenuto
+- 🔴 **Pannello errore AI unificato** — ogni tab mostra errori con suggerimenti contestuali, bottone Riprova e accesso diretto alle Impostazioni
+- 🎙️ **Registrazione microfono** — premi "Registra" in Audio AI per trascrivere direttamente la tua voce (via `arecord`)
 - 🔴 **Ollama ottimizzato** — card di errore con suggerimenti GPU/Misto/zRAM quando la RAM non basta
 
 ---
@@ -69,10 +71,11 @@ Connetti Prismalux ai tuoi strumenti preferiti, tutto in locale:
 
 | Categoria | Plugin disponibili |
 |-----------|-------------------|
-| 🎬 Creatività | Blender, KiCAD, Disegno→3D |
+| 🎬 Creatività | Blender, KiCAD, Disegno→3D, OBS Studio |
 | 📊 Produttività | Office Suite, Anki per lo studio |
-| 🔌 Hardware & IoT | Arduino + ESP32, Network Analyzer, STM32 |
-| 🔧 Sviluppo | Code Interpreter Sandbox, OpenCode, Debugger integrato |
+| 🔌 Hardware & IoT | Arduino + ESP32, STM32, GNS3 (simulatore reti) |
+| 🔬 Bioinformatica | Cytoscape (reti biologiche), RDKit (chemioinformatica), Bioconda (NGS pipeline), Avogadro (molecole 3D) |
+| 🔧 Sviluppo | Code Interpreter Sandbox, OpenCode, Debugger integrato, FreeCAD, CloudCompare |
 
 ---
 
@@ -80,14 +83,17 @@ Connetti Prismalux ai tuoi strumenti preferiti, tutto in locale:
 
 | # | Tab | Shortcut | Contenuto |
 |---|-----|----------|-----------|
-| 0 | 🤖 Intelligenza Artificiale | `Alt+1` | Pipeline 6 agenti · Byzantino · CHAT RAG · **🤖 Agente Autonomo** · TTS/STT |
-| 1 | 🛠 Strumenti AI | `Alt+2` | Studio · Scrittura · Ricerca · 💼 Cerca Lavoro · Libri · Cron · **🗂 File AI** · **📖 Wiki** · **🎨 Stable Diffusion** · 📱 LAN Android |
-| 2 | 💻 Programmazione | `Alt+3` | Editor + correzione AI + Agentica + **🧪 Interpreter Python** |
-| 3 | π Matematica | `Alt+4` | Sequenze→Formula · espressioni locali · costanti alta precisione · 45+ grafici |
-| 4 | 🔬 Ricerca | `Alt+5` | Paper · Brevetti · Documenti tecnici |
-| 5 | 🕹 APP Controller | `Alt+6` | Blender · Office · Anki · KiCAD · TinyMCP (Arduino/ESP32/STM32) · OpenCode |
-| 6 | 📚 Impara | `Alt+7` | Finanza · 730/IVA/Mutuo/PAC/Pensione · Impara con AI · Sfida te stesso |
-| ⚙️ | Impostazioni | — | Hardware · AI Locale · Parametri · RAG · Voce · Aspetto · Personalità |
+| 0 | 🤖 Intelligenza Artificiale | `Alt+1` | Pipeline 6 agenti · Byzantino · CHAT RAG · **🤖 Agente Autonomo** · TTS/STT · Think mode |
+| 1 | 🛠 Strumenti AI | `Alt+2` | Studio · Scrittura · Ricerca · 💼 Cerca Lavoro · Libri · Produttività · PDF · ⏰ Cron |
+| 2 | 🎬 Multimedia | — | 🎵 Audio AI + 🎙 Microfono · 🎨 Stable Diffusion · 🗺 Mappe Graphviz |
+| 3 | 📁 File AI | — | 🗂 File AI · 📖 Wiki & Web · 📊 Excel/CSV · 📄 PDF · 📝 Word/Testo |
+| 4 | 💻 Programmazione | `Alt+3` | Editor + correzione AI + Agentica + **🧪 Interpreter Python** |
+| 5 | π Matematica | `Alt+4` | Sequenze→Formula · espressioni locali · costanti alta precisione · 45+ grafici |
+| 6 | 🔬 Ricerca | `Alt+5` | Paper · Brevetti · Doc tecnici · Cerca Lavoro · **Cytoscape · RDKit · Bioconda · Avogadro** |
+| 7 | 🕹 APP Controller | `Alt+6` | Blender · FreeCAD · Office · Anki · KiCAD · TinyMCP (Arduino/ESP32) · OBS · **Godot** · OpenCode |
+| 8 | 🌐 LAN & WAN | — | 📱 LAN Android (server TCP + QR APK) · **🔌 GNS3** · WAN placeholder |
+| 9 | 📚 Impara | `Alt+7` | Finanza · Impara con AI · Sfida te stesso |
+| ⚙️ | Impostazioni | — | Hardware · NPU Intel/AMD · AI Locale · Think mode · Calcolo GPU/Misto · RAG · Temi · Test suite GUI |
 
 ---
 
@@ -156,28 +162,32 @@ ctest --test-dir build_tests -R NomeSuite # esegui una suite specifica
 ```
 
 <details>
-<summary>📋 33+ suite di test disponibili</summary>
+<summary>📋 37 suite di test — 35/37 PASS (run 2026-05-13)</summary>
 
-| Suite | Test | Cosa verifica |
-|-------|------|---------------|
-| `test_signal_lifetime` | 36+ | Dangling observer, signal leakage |
-| `test_rag_engine` | 15 | Chunking, embedding, search, round-trip |
-| `test_rag_engine_avanzato` | 35 | Proprietà JLT math, search edge, save/load 1000 chunk |
-| `test_code_utils` | 14+ | Estrazione Python da risposta AI |
-| `test_app_controller` | 100+ | extractCode, state machine, Anki JSON, KiCAD, MCU |
-| `test_programmazione_page` | 46 | isIntentionalError, parseNumbers, widget+segnali |
-| `test_thinking_detect` | 13 | _extractThinkingToken, classifyQuery, think-capable detect |
-| `test_ai_integration` | 41 | AiClient REALE ↔ Ollama: classifyQuery, AiChatParams, chat¹ |
-| `test_ai_stress` | 80+ | Matrice 24 param, stress 20 req, 14 edge case¹ |
-| `test_simulatore_algos` | 54 | BubbleSort/sorting/ricerca/AlgoStep, BigO evalClass |
-| `test_rag_engine_avanzato` | 35 | Proprietà JLT math, search edge, 1000 chunk |
-| `test_lavoro_data` | 32 | kOfferte integrità dataset, filtri, tipoIcon |
-| `test_hardware_monitor` | 11 | hw_detect struttura HWInfo, thread polling |
-| `test_knowledge_injection` | 16 | prependKnowledge, cache 30s, toggle QSettings |
-| `test_qr_code_widget` | 18 | QR code generazione, rendering Qt, dialog APK |
-| ... e altre 18+ suite | | |
+| Suite | Test | Cosa verifica | Risultato |
+|-------|------|---------------|-----------|
+| `test_signal_lifetime` | 36+ | Dangling observer, signal leakage | ✅ 24.6s |
+| `test_rag_engine` | 15 | Chunking, embedding, search, round-trip | ✅ 1.2s |
+| `test_rag_engine_avanzato` | 35 | Proprietà JLT math, search edge, save/load 1000 chunk | ✅ 4.4s |
+| `test_code_utils` | 14+ | Estrazione Python da risposta AI | ✅ 1.6s |
+| `test_app_controller` | 100+ | extractCode, state machine, Anki JSON, KiCAD, MCU | ✅ 17.0s |
+| `test_programmazione_page` | 46 | isIntentionalError, parseNumbers, widget+segnali | ✅ 2.3s |
+| `test_thinking_detect` | 13 | classifyQuery, think-capable detect | ✅ 0.2s |
+| `test_ai_integration` | 41 | AiClient REALE ↔ Ollama: classifyQuery, AiChatParams, chat¹ | ✅ 81.3s |
+| `test_ai_stress` | 80+ | Matrice 24 param, stress 20 req, 14 edge case¹ | ❌ OOM RAM¹ |
+| `test_simulatore_algos` | 54 | BubbleSort/sorting/ricerca/AlgoStep, BigO evalClass | ⚠️ FLAKY -j4² |
+| `test_lavoro_data` | 32 | kOfferte integrità dataset, filtri, tipoIcon | ✅ 0.04s |
+| `test_hardware_monitor` | 11 | hw_detect struttura HWInfo, thread polling | ✅ 1.8s |
+| `test_knowledge_injection` | 16 | prependKnowledge, cache 30s, toggle QSettings | ✅ 1.7s |
+| `test_qr_code_widget` | 18 | QR code generazione, rendering Qt, dialog APK | ✅ 2.7s |
+| `test_theme_manager` | — | 23 temi, nessun SIGSEGV, ABRT shutdown | ✅ 1.1s |
+| `test_manutenzione_bugs` | — | Fix SIGSEGV LanServer/STT, GPU mode | ✅ 0.6s |
+| `test_agenti_pipeline` | — | Pipeline 6 agenti, routing, abort | ✅ 1.2s |
+| `test_agente_autonomo` | — | ReAct: THOUGHT→ACTION→OBSERVATION | ✅ 10.8s |
+| ... e altre 19 suite | | | tutti ✅ |
 
-> ¹ Richiedono Ollama attivo + modello installato (`PRISMALUX_TEST_MODEL=qwen2.5-coder:7b`). Senza Ollama: **100% delle suite no-network passano**.
+> ¹ Richiedono Ollama attivo + `mistral:7b-instruct`. Senza Ollama: **100% delle suite no-network passano**.
+> ² `SimulatoreAlgos` passa da solo in 2.8s; in run parallela `-j4` può essere killed per contention CPU (non è un bug del codice).
 
 </details>
 

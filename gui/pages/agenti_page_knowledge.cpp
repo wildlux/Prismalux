@@ -29,7 +29,7 @@ void AgentiPage::callKnowledgeMcp(const QString& summary, const QString& label)
     if (summary.trimmed().isEmpty()) return;
 
     const QString serverPy = P::root()
-        + "/KNOWLEDGE_USER/MCP_UPDATE_DATA/server.py";
+        + "/MCPs/knowledge_mcp/server.py";
     if (!QFileInfo::exists(serverPy)) return;
 
     /* JSON-RPC 2.0: tools/call → auto_extract_and_update */
@@ -187,7 +187,7 @@ void AgentiPage::onSaveKnowledge()
 
         /* Chiama update_knowledge con sezione e modalità esplicite */
         const QString serverPy = P::root()
-            + "/KNOWLEDGE_USER/MCP_UPDATE_DATA/server.py";
+            + "/MCPs/knowledge_mcp/server.py";
         if (!QFileInfo::exists(serverPy)) { dlg->accept(); return; }
 
         QJsonObject args;

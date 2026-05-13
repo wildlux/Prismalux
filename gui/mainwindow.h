@@ -153,8 +153,11 @@ private:
     QTimer* m_idleUnloadTimer = nullptr;
 
     /* Impostazioni — finestra separata non-modale (creata lazy) */
-    QDialog*           m_impDlg    = nullptr;
+    QDialog*           m_impDlg      = nullptr;
     class ImpostazioniPage* m_impPage = nullptr;
+
+    /* Strumenti — StrumentiPage riceve il pannello Cron reale via ensureSettingsDialog */
+    class StrumentiPage* m_strumentiPage = nullptr;
 
     /* Canvas del grafico — usato per collegare i controlli in Impostazioni */
     class GraficoCanvas* m_grafCanvas = nullptr;
@@ -195,6 +198,9 @@ private:
      * nella Windows API quando QDialog ha sia Qt::Window che un parent widget.
      */
     void ensureSettingsDialog();
+
+    /** Apre il dialog Impostazioni (invocabile da AiErrorWidget via QMetaObject). */
+    Q_INVOKABLE void openSettingsDialog();
 
     /** Crea il dialog log la prima volta (lazy, non-modale). */
     void ensureLogDialog();

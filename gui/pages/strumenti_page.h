@@ -20,6 +20,7 @@
 #include "../ai_client.h"
 
 class LanServer;
+class ManutenzioneePage;
 
 /* ══════════════════════════════════════════════════════════════
    StrumentiPage — Assistente AI multi-dominio
@@ -30,6 +31,10 @@ class StrumentiPage : public QWidget {
     Q_OBJECT
 public:
     explicit StrumentiPage(AiClient* ai, QWidget* parent = nullptr);
+
+    /** Sostituisce il pannello Cron redirect con il vero buildCronTab().
+     *  Chiamato da MainWindow dopo la creazione di ImpostazioniPage. */
+    void installCronPanel(ManutenzioneePage* man);
 
     /* Funzioni utilitarie usate anche nei test */
     static QString     ragExtractText(const QString& path);
@@ -119,33 +124,9 @@ private:
     /* ── Cron inline panel ── */
     QWidget*        m_cronPanel  = nullptr;
 
-    /* ── Stable Diffusion panel ── */
-    QWidget*        m_sdPanel        = nullptr;
-
-    /* ── LAN Android panel ── */
-    LanServer*      m_lanServer      = nullptr;
-    QWidget*        m_lanPanel       = nullptr;
-    QPushButton*    m_lanToggleBtn   = nullptr;
-    QSpinBox*       m_lanPortSpin    = nullptr;
-    QLabel*         m_lanStatusLbl   = nullptr;
-    QLabel*         m_lanClientsLbl  = nullptr;
-
-    /* ── Agentic File Search ── */
-    QPushButton*  m_fileSearchBtn    = nullptr; ///< catBar button
-    QWidget*      m_fileSearchPanel  = nullptr;
-    QLineEdit*    m_fileSearchDir    = nullptr;
-    QLineEdit*    m_fileSearchQuery  = nullptr;
-    QTextBrowser* m_fileSearchOut    = nullptr;
-    QProcess*     m_fileSearchProc   = nullptr;
-
-    /* ── LLM Wiki (Wikipedia + AI) ── */
-    QPushButton*  m_wikiBtn          = nullptr; ///< catBar button
-    QWidget*      m_wikiPanel        = nullptr;
-    QLineEdit*    m_wikiQuery        = nullptr;
-    QComboBox*    m_wikiLangCombo    = nullptr;
-    QTextBrowser* m_wikiContent      = nullptr; ///< testo Wikipedia grezzo
-    QLabel*       m_wikiWaitLbl      = nullptr;
-    QString       m_wikiExtract;                ///< estratto corrente (iniettato nell'AI)
+    /* ── Stable Diffusion panel (spostato in MultimediaPage) ── */
+    /* ── LAN Android (spostato in LanWanPage) ── */
+    /* ── File Search, Wiki, Graphviz, Audio AI, Dati AI → StrumentiFilePage/MultimediaPage ── */
 
     /* ── Costruttori sotto-pagine ── */
     QWidget* buildSubPage(const QStringList& actions, const QString& placeholder);

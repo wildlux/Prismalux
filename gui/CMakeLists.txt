@@ -62,6 +62,8 @@ set(CPP_SRCS
     pages/materie_page.cpp
     pages/tutor_data.cpp
     pages/personalizza_page.cpp
+    pages/personalizza_page_lora.cpp
+    pages/app_controller_page_science.cpp
     pages/manutenzione_page.cpp
     pages/manutenzione_page_bugs.cpp
     pages/manutenzione_page_cron.cpp
@@ -71,6 +73,9 @@ set(CPP_SRCS
     pages/simulatore_page.cpp
     pages/simulatore_algos.cpp
     pages/strumenti_page.cpp
+    pages/lan_wan_page.cpp
+    pages/multimedia_page.cpp
+    pages/strumenti_file_page.cpp
     pages/grafico_canvas.cpp
     pages/grafico_page.cpp
     pages/programmazione_page.cpp
@@ -96,6 +101,7 @@ set(CPP_SRCS
     widgets/whisper_autosetup.h
     widgets/code_highlighter.h
     widgets/python_exec.h
+    widgets/ai_error_widget.h
 )
 
 add_executable(Prismalux_GUI ${CPP_SRCS} ${C_SRCS})
@@ -810,14 +816,16 @@ if(BUILD_TESTS)
     set_tests_properties(AiStress       PROPERTIES TIMEOUT 1800)  # 30 min — 6 test reali + stress
     set_tests_properties(TeamCollab PROPERTIES TIMEOUT 2400)  # 40 min totali
     set_tests_properties(RagEngineAvanzato  PROPERTIES TIMEOUT 120)
-    set_tests_properties(SimulatoreAlgos    PROPERTIES TIMEOUT 120)
+    set_tests_properties(SimulatoreAlgos    PROPERTIES TIMEOUT 120 RESOURCE_LOCK cpu_heavy)
     set_tests_properties(HardwareMonitor    PROPERTIES TIMEOUT 90)   # initTestCase + 2x thread hw_detect
     set_tests_properties(ChatHistoryStress  PROPERTIES TIMEOUT 60)
     # Serializza i test che usano Ollama reale: con -j4 girano in parallelo e saturano RAM/CPU
     set_tests_properties(AiIntegration AiStress TeamCollab
         PROPERTIES RESOURCE_LOCK ollama)
-    set_tests_properties(LanServer PROPERTIES TIMEOUT 30)
-    set_tests_properties(ImpostazioniPage   PROPERTIES TIMEOUT 30)
+    set_tests_properties(LanServer          PROPERTIES TIMEOUT 30)
+    set_tests_properties(ImpostazioniPage   PROPERTIES TIMEOUT 60)
+    set_tests_properties(SignalLifetime     PROPERTIES TIMEOUT 60 RESOURCE_LOCK cpu_heavy)
+    set_tests_properties(LavoroPage         PROPERTIES TIMEOUT 120 RESOURCE_LOCK cpu_heavy)
     set_tests_properties(ManutenzioneeBugs  PROPERTIES TIMEOUT 30)
     set_tests_properties(Grafico            PROPERTIES TIMEOUT 30)
     set_tests_properties(AgentiByzantine    PROPERTIES TIMEOUT 30)

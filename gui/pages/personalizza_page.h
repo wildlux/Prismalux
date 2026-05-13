@@ -18,6 +18,7 @@ public:
 
     /* Esposte per ImpostazioniPage che le aggiunge come tab dirette */
     QWidget* buildLlamaStudio();
+    QWidget* buildLoraTab();      ///< Fine-tuning LoRA con llama-finetune / unsloth
 
 private:
     /* ── helpers ── */
@@ -38,5 +39,11 @@ private:
     QLineEdit*      m_llamaModelPath = nullptr;
     QLineEdit*      m_llamaPort      = nullptr;
     QProcess*       m_llamaServProc  = nullptr;
+
+    /* ── LoRA Fine-tuning ── */
+    QTextEdit*      m_loraLog       = nullptr;
+    QProcess*       m_loraProc      = nullptr;
+    QPushButton*    m_loraStartBtn  = nullptr;
+    QPushButton*    m_loraStopBtn   = nullptr;
 
 };

@@ -711,6 +711,8 @@ constexpr const char* kCavemanMode          = "ai/cavemanMode";          ///< mo
 constexpr const char* kComputeMode          = "ai/computeMode";          ///< "auto"|"gpu"|"cpu"|"misto"
 constexpr const char* kInjectUserKnowledge  = "ai/injectUserKnowledge";  ///< inietta user_knowledge.md nel system prompt (default: true)
 constexpr const char* kMlockModel           = "ai/mlockModel";           ///< --mlock llama-server: blocca pagine modello in RAM (default: false)
+constexpr const char* kAutoZramDoppia       = "ai/autoZramDoppia";       ///< avvia zRAM Doppia (zstd, 75% RAM) all'avvio — Linux (default: true)
+constexpr const char* kAutoOptApplied       = "ai/autoOptApplied";       ///< preset RAM automatico già applicato al primo avvio (default: false)
 constexpr const char* kAiPersonality        = "ai/personality";           ///< personalità AI: "nessuna"|"jarvis"|"kitt"|"yoda"|"snake"|"sonic"|"mario"
 
 /* ── Sandbox Docker ──────────────────────────────── */

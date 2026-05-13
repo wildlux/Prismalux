@@ -450,10 +450,14 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
     QJsonObject usr; usr["role"] = "user"; usr["content"] = userMsg;
     messages.append(usr);
 
+    m_lastChatMessages = messages;   /* per replyWithTool() */
+
     QJsonObject body;
     body["model"]    = m_model;
     body["stream"]   = true;
     body["messages"] = messages;
+    if (!m_activeTools.isEmpty() && m_backend == Ollama)
+        body["tools"] = m_activeTools;
 
     /* ── Parametri anti-allucinazione + think/num_predict dinamici ── */
     if (m_backend == Ollama) {
@@ -825,6 +829,16 @@ void AiClient::onReadyRead() {
         }
         if (!chunk.isEmpty()) { m_accum += chunk; emit token(chunk); }
 
+        /* ── Rilevamento tool_calls (Ollama function calling) ────────────
+           Quando il modello usa un tool, content è vuoto e tool_calls
+           è valorizzato. done=true chiude lo stream. */
+        if (chunk.isEmpty() && m_backend == Ollama && !m_isGenerateMode) {
+            const QJsonArray tc =
+                obj["message"].toObject()["tool_calls"].toArray();
+            for (const QJsonValue& v : tc)
+                m_pendingToolCalls.append(v);
+        }
+
         /* Fallback per modelli che rispondono via un campo separato dal content
          * (es. message.thinking, message.reasoning, o qualsiasi nome futuro).
          *
@@ -934,7 +948,82 @@ void AiClient::onFinished() {
     }
     m_thinkingAccum.clear();
 
+    /* ── Tool calls (Ollama function calling) ──────────────────────────
+       Se il modello ha richiesto tool, emetti toolCallRequired per ognuno
+       e NON emettere finished() — la conversazione riprende con replyWithTool(). */
+    if (!m_pendingToolCalls.isEmpty()) {
+        const QJsonArray pending = std::move(m_pendingToolCalls);
+        m_pendingToolCalls = QJsonArray();
+        for (const QJsonValue& v : pending) {
+            const QJsonObject fn = v.toObject()["function"].toObject();
+            emit toolCallRequired(fn["name"].toString(),
+                                  fn["arguments"].toObject());
+        }
+        return;
+    }
+
     emit finished(m_accum);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   replyWithTool — continua la conversazione con il risultato di un tool.
+   Costruisce: [messaggi originali] + [assistant con tool_calls] + [tool result]
+   e invia un nuovo /api/chat request — riprende lo streaming normalmente.
+   ══════════════════════════════════════════════════════════════ */
+void AiClient::replyWithTool(const QString& toolName, const QString& result)
+{
+    if (m_lastChatMessages.isEmpty() || m_backend != Ollama) return;
+
+    QJsonArray messages = m_lastChatMessages;
+
+    /* Messaggio assistant (con tool_calls vuoti — il modello li conosce dal contesto) */
+    QJsonObject assistMsg;
+    assistMsg["role"]    = "assistant";
+    assistMsg["content"] = "";
+    messages.append(assistMsg);
+
+    /* Risposta del tool */
+    QJsonObject toolMsg;
+    toolMsg["role"]    = "tool";
+    toolMsg["content"] = result;
+    toolMsg["name"]    = toolName;
+    messages.append(toolMsg);
+
+    m_lastChatMessages = messages;   /* aggiorna per eventuale tool chain */
+
+    /* Nuovo request body (senza tools: il modello deve rispondere normalmente) */
+    QJsonObject body;
+    body["model"]    = m_model;
+    body["stream"]   = true;
+    body["messages"] = messages;
+
+    if (m_backend == Ollama) {
+        QJsonObject opts;
+        opts["temperature"]    = m_params.temperature;
+        opts["top_p"]          = m_params.top_p;
+        opts["top_k"]          = m_params.top_k;
+        opts["repeat_penalty"] = m_params.repeat_penalty;
+        opts["num_ctx"]        = m_params.num_ctx;
+        opts["num_predict"]    = m_params.num_predict;
+        if (m_numGpu >= 0) opts["num_gpu"] = m_numGpu;
+        body["options"] = opts;
+    }
+
+    abort();
+    m_busy_guard     = true;
+    m_isGenerateMode = false;
+    m_accum.clear();
+    m_thinkingAccum.clear();
+    m_thinkingKey.clear();
+    m_pendingToolCalls = QJsonArray();
+
+    const QString url =
+        QString("http://%1:%2/api/chat").arg(m_host).arg(m_port);
+    QNetworkRequest req(url);
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    m_reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(m_reply, &QNetworkReply::readyRead, this, &AiClient::onReadyRead);
+    connect(m_reply, &QNetworkReply::finished,  this, &AiClient::onFinished);
 }
 
 /* ══════════════════════════════════════════════════════════════

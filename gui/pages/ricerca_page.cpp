@@ -25,6 +25,10 @@ namespace P = PrismaluxPaths;
 #include <QPageSize>
 #include <QDesktopServices>
 #include <QUrl>
+#include <QProcess>
+#include <QTimer>
+#include <QTcpSocket>
+#include <QTextCursor>
 
 /* ── helper: barra azioni output (Esporta PDF / Salva .md) ────────── */
 static QWidget* makeOutputBar(QTextEdit* editor, const QString& titolo,
@@ -87,7 +91,33 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     tabs->addTab(buildBrevettoTab(),       "\xf0\x9f\x94\x8f  Brevetto");
     tabs->addTab(buildDocTecnicoTab(),     "\xf0\x9f\x93\x8b  Documento Tecnico");
     tabs->addTab(new LavoroPage(m_ai, this), "\xf0\x9f\x92\xbc  Cerca Lavoro");
+    /* ── Bioinformatica ── */
+    tabs->addTab(buildCytoscapeTab(),      "\xf0\x9f\x94\xac  Cytoscape");
+    tabs->addTab(buildRDKitTab(),          "\xf0\x9f\x94\xac  RDKit");
+    tabs->addTab(buildBiocondaTab(),       "\xf0\x9f\x8c\xbf  Bioconda");
+    tabs->addTab(buildAvogadroTab(),       "\xf0\x9f\xa7\xaa  Avogadro");
     vlay->addWidget(tabs, 1);
+
+    m_sciErrorPanel = new AiErrorWidget(this);
+    vlay->addWidget(m_sciErrorPanel);
+
+    /* Propaga modelli a tutti le combo science */
+    connect(m_ai, &AiClient::modelsReady, this, [this](const QStringList& models){
+        QList<QComboBox*> combos = { m_cytoModel, m_rdkitModel, m_bioModel, m_avoModel };
+        for (auto* cb : combos) {
+            if (!cb) continue;
+            const QString cur = cb->currentData().toString();
+            cb->blockSignals(true);
+            cb->clear();
+            for (const auto& m : models) {
+                const qint64 sz = m_ai->modelSizeBytes(m);
+                cb->addItem(P::modelIcon(sz, m) + m, m);
+            }
+            int idx = cb->findData(cur.isEmpty() ? m_ai->model() : cur);
+            if (idx >= 0) cb->setCurrentIndex(idx);
+            cb->blockSignals(false);
+        }
+    });
 
     /* ── connessioni AI (una sola volta per tutta la pagina) ──────── */
     connect(m_ai, &AiClient::token, this, [this](const QString& t) {
@@ -571,4 +601,799 @@ void RicercaPage::salvaMarkdown(QTextEdit* editor,
         QTextStream s(&f);
         s << testo;
     }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Helper science: popola combo modelli
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::sciPopulateModels(QComboBox* combo)
+{
+    combo->clear();
+    const QString cur = m_ai->model();
+    if (!cur.isEmpty()) combo->addItem(cur, cur);
+    combo->setCurrentIndex(0);
+    m_ai->fetchModels();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Helper science: lancia AI con streaming e gestisce ExecBtn
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::avviaSci(const QString& sys, const QString& userMsg,
+                            QTextEdit* out, QPushButton* runBtn, QPushButton* stopBtn,
+                            QComboBox* modelCombo,
+                            QPushButton* execBtn, QString* codeRef, QLabel* statusLbl)
+{
+    if (m_ai->busy()) {
+        out->append("\xe2\x9a\xa0  AI occupata, attendi o premi Stop.");
+        return;
+    }
+    if (userMsg.trimmed().isEmpty()) {
+        out->append("\xe2\x9a\xa0  Inserisci la richiesta prima di eseguire.");
+        return;
+    }
+
+    if (modelCombo && modelCombo->count() > 0) {
+        const QString sel = modelCombo->currentData().toString();
+        if (!sel.isEmpty() && sel != m_ai->model())
+            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
+    }
+
+    m_sciAiActive = true;
+    runBtn->setEnabled(false);
+    stopBtn->setEnabled(true);
+    out->append(
+        "\n\xf0\x9f\x94\x84  Generazione in corso...\n"
+        + QString(40, QChar(0x2500)));
+
+    delete m_sciTokenHolder;
+    m_sciTokenHolder = new QObject(this);
+
+    connect(m_ai, &AiClient::token, m_sciTokenHolder, [out](const QString& t) {
+        out->moveCursor(QTextCursor::End);
+        out->insertPlainText(t);
+    });
+
+    connect(m_ai, &AiClient::finished, m_sciTokenHolder,
+            [this, out, runBtn, stopBtn, execBtn, codeRef, statusLbl](const QString& full) {
+        m_sciAiActive = false;
+        runBtn->setEnabled(true);
+        stopBtn->setEnabled(false);
+        out->append("\n" + QString(40, QChar(0x2500)));
+        m_sciTokenHolder->deleteLater();
+        m_sciTokenHolder = nullptr;
+
+        if (execBtn && codeRef && full.contains("```")) {
+            /* estrai primo blocco ``` */
+            int start = full.indexOf("```python");
+            if (start == -1) start = full.indexOf("```");
+            if (start != -1) {
+                start = full.indexOf('\n', start) + 1;
+                int end = full.indexOf("```", start);
+                if (end != -1) {
+                    *codeRef = full.mid(start, end - start).trimmed();
+                    if (!codeRef->isEmpty()) {
+                        execBtn->setEnabled(true);
+                        if (statusLbl)
+                            statusLbl->setText("\xe2\x9c\x85  Codice pronto \xe2\x80\x94 premi Esegui");
+                    }
+                }
+            }
+        }
+    });
+
+    connect(m_ai, &AiClient::error, m_sciTokenHolder,
+            [this, out, runBtn, stopBtn, sys, userMsg, modelCombo, execBtn, codeRef, statusLbl]
+            (const QString& msg) {
+        m_sciAiActive = false;
+        runBtn->setEnabled(true);
+        stopBtn->setEnabled(false);
+        m_sciTokenHolder->deleteLater();
+        m_sciTokenHolder = nullptr;
+        m_sciErrorPanel->showError(msg, [this, sys, userMsg, out, runBtn, stopBtn,
+                                         modelCombo, execBtn, codeRef, statusLbl]{
+            avviaSci(sys, userMsg, out, runBtn, stopBtn, modelCombo, execBtn, codeRef, statusLbl);
+        });
+    });
+
+    m_ai->chat(sys, userMsg);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   System prompts — Cytoscape MCP (bioinformatica)
+   ══════════════════════════════════════════════════════════════ */
+namespace {
+static const char* kCytoSysR[] = {
+    "Sei un esperto di Cytoscape e py2cytoscape. "
+    "Genera SOLO codice Python che usa la CyREST API (localhost:1234). "
+    "import requests; BASE='http://localhost:1234/v1'. "
+    "Usa endpoints /networks, /styles, /layouts, /commands. "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```.",
+
+    "Sei un esperto di bioinformatica e Cytoscape. "
+    "Genera SOLO codice Python CyREST per creare un grafo di rete proteica/biologica. "
+    "Includi nodi (proteine/geni) e archi (interazioni). Rispondi SOLO con codice Python tra ``` e ```.",
+
+    "Sei un esperto di analisi reti e Cytoscape. "
+    "Genera SOLO codice Python CyREST per calcolare centralit\xc3\xa0, clustering, componenti connesse. "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```.",
+
+    "Sei un esperto di Cytoscape. "
+    "Genera SOLO codice Python CyREST per applicare un layout (force-directed, hierarchical, ecc.) "
+    "e cambiare lo stile visivo (colori, dimensioni nodi). Rispondi SOLO con codice Python tra ``` e ```.",
+
+    "Sei un esperto di Cytoscape. "
+    "Genera SOLO codice Python CyREST libero. "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```.",
+
+    nullptr
+};
+static const char* kCytoActionsR[] = {
+    "\xf0\x9f\x94\xac  Nuova rete",
+    "\xf0\x9f\xa7\xac  Rete biologica/PPI",
+    "\xf0\x9f\x93\x88  Analisi centralit\xc3\xa0",
+    "\xf0\x9f\x8e\xa8  Layout & stile",
+    "\xf0\x9f\x90\x8d  Script libero",
+    nullptr
+};
+
+static const char* kRDKitSysR[] = {
+    "Sei un esperto di chemioinformatica e RDKit (Python). "
+    "Genera SOLO codice Python che usa rdkit: "
+    "from rdkit import Chem; from rdkit.Chem import AllChem, Descriptors, Draw. "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```.",
+
+    "Sei un esperto di RDKit. "
+    "Genera SOLO codice Python RDKit per analizzare una molecola SMILES: "
+    "peso molecolare, formula, anelli, stereocentri, descrittori chimici. "
+    "Rispondi SOLO con codice Python tra ``` e ```.",
+
+    "Sei un esperto di RDKit e similarit\xc3\xa0 molecolare. "
+    "Genera SOLO codice Python RDKit per calcolare fingerprint Morgan e Tanimoto similarity. "
+    "Rispondi SOLO con codice Python tra ``` e ```.",
+
+    "Sei un esperto di RDKit. "
+    "Genera SOLO codice Python RDKit per ottimizzare la geometria 3D (MMFF94) "
+    "e salvare in SDF. Rispondi SOLO con codice Python tra ``` e ```.",
+
+    "Sei un esperto di RDKit. "
+    "Genera SOLO codice Python RDKit libero. "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```.",
+
+    nullptr
+};
+static const char* kRDKitActionsR[] = {
+    "\xe2\x9a\x97  Analisi molecola",
+    "\xf0\x9f\x94\x8d  Similarit\xc3\xa0 Tanimoto",
+    "\xf0\x9f\x94\xac  Ottimizza geometria 3D",
+    "\xf0\x9f\x90\x8d  Script libero",
+    nullptr
+};
+
+static const char* kBioSysR[] = {
+    "Sei un esperto di bioinformatica e pipeline Bioconda. "
+    "Genera SOLO script Bash o Snakemake eseguibili. "
+    "Usa tool Bioconda: bwa, samtools, gatk, blast, fastqc, trimmomatic, bowtie2. "
+    "Rispondi SOLO con il blocco script tra ``` e ```.",
+
+    "Sei un esperto di analisi genomica. "
+    "Genera SOLO script Bash per una pipeline di allineamento NGS: "
+    "FastQC \xe2\x86\x92 Trimmomatic \xe2\x86\x92 BWA mem \xe2\x86\x92 Samtools sort/index. "
+    "Rispondi SOLO con codice Bash tra ``` e ```.",
+
+    "Sei un esperto di BLAST e banche dati genomiche. "
+    "Genera SOLO script Bash per eseguire BLAST (blastn/blastp) su sequenze FASTA. "
+    "Rispondi SOLO con codice Bash tra ``` e ```.",
+
+    "Sei un esperto di variant calling GATK. "
+    "Genera SOLO script Bash per variant calling: "
+    "HaplotypeCaller \xe2\x86\x92 GenotypeGVCFs \xe2\x86\x92 VQSR/hard filter. "
+    "Rispondi SOLO con codice Bash tra ``` e ```.",
+
+    "Sei un esperto di bioinformatica Python (Biopython). "
+    "Genera SOLO codice Python con Biopython per parsing FASTA/GenBank/PDB. "
+    "Rispondi SOLO con codice Python tra ``` e ```.",
+
+    nullptr
+};
+static const char* kBioActionsR[] = {
+    "\xf0\x9f\x8c\xbf  Pipeline NGS alignment",
+    "\xf0\x9f\x94\xac  BLAST search",
+    "\xf0\x9f\xa7\xac  Variant calling GATK",
+    "\xf0\x9f\x90\x8d  Biopython parsing",
+    "\xf0\x9f\x94\xa7  Script libero",
+    nullptr
+};
+} // namespace
+
+/* ── Helper: esegui script Python/Bash generato dall'AI ── */
+static void runSciScript(const QString& code, bool isBash,
+                         QLabel* statusLbl, QPushButton* execBtn,
+                         QTextEdit* output, QProcess*& procRef, QObject* parent)
+{
+    if (code.isEmpty()) return;
+    const QString suffix  = isBash ? ".sh" : ".py";
+    const QString tmpPath = QDir::tempPath() + "/prismalux_bio_script" + suffix;
+    QFile f(tmpPath);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        statusLbl->setText("\xe2\x9d\x8c  Impossibile creare script temporaneo");
+        return;
+    }
+    f.write(code.toUtf8());
+    f.close();
+
+    if (!procRef) {
+        procRef = new QProcess(parent);
+        procRef->setProcessChannelMode(QProcess::MergedChannels);
+        QObject::connect(procRef, &QProcess::readyRead, parent, [procRef, output](){
+            output->append(QString::fromUtf8(procRef->readAll()).trimmed());
+        });
+        QObject::connect(procRef,
+            QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            parent, [statusLbl, execBtn](int code2, QProcess::ExitStatus){
+            statusLbl->setText(code2 == 0
+                ? "\xe2\x9c\x85  Completato"
+                : "\xe2\x9d\x8c  Terminato con errore");
+            execBtn->setEnabled(true);
+        });
+    }
+    execBtn->setEnabled(false);
+    statusLbl->setText("\xf0\x9f\x94\x84  Esecuzione...");
+    if (isBash)
+        procRef->start("bash", {tmpPath});
+    else
+        procRef->start(P::findPython(), {tmpPath});
+    if (procRef->state() == QProcess::NotRunning)
+        statusLbl->setText("\xe2\x9d\x8c  Interprete non trovato");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildCytoscapeTab — analisi reti biologiche e sociali
+   ══════════════════════════════════════════════════════════════ */
+QWidget* RicercaPage::buildCytoscapeTab()
+{
+    auto* w   = new QWidget(this);
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(8, 8, 8, 8);
+    lay->setSpacing(6);
+
+    auto* descLbl = new QLabel(
+        "\xf0\x9f\x94\xac  <i>Cytoscape \xe2\x80\x94 Piattaforma open-source per la visualizzazione e l\xe2\x80\x99" "analisi "
+        "di reti biologiche e molecolari. Usato in bioinformatica, proteomica e genomica per mappare interazioni proteina-proteina e pathways.</i>", w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    lay->addWidget(descLbl);
+
+    auto* connRow = new QWidget(w);
+    auto* connLay = new QHBoxLayout(connRow);
+    connLay->setContentsMargins(0, 0, 0, 0);
+    connLay->setSpacing(8);
+
+    auto* lbl = new QLabel("CyREST:", connRow);
+    lbl->setObjectName("hintLabel");
+    m_cytoHostEdit = new QLineEdit("localhost:1234", connRow);
+    m_cytoHostEdit->setFixedWidth(150);
+    auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    pingBtn->setObjectName("actionBtn");
+    pingBtn->setFixedWidth(100);
+    m_cytoStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
+    m_cytoStatusLbl->setObjectName("hintLabel");
+    m_cytoExecBtn = new QPushButton("\xf0\x9f\x94\xac  Esegui su Cytoscape", connRow);
+    m_cytoExecBtn->setObjectName("actionBtn");
+    m_cytoExecBtn->setFixedWidth(180);
+    m_cytoExecBtn->setEnabled(false);
+
+    connLay->addWidget(lbl);
+    connLay->addWidget(m_cytoHostEdit);
+    connLay->addWidget(pingBtn);
+    connLay->addWidget(m_cytoStatusLbl, 1);
+    connLay->addWidget(m_cytoExecBtn);
+    lay->addWidget(connRow);
+
+    auto* hintLbl = new QLabel(
+        "\xf0\x9f\x94\xac <b>Cytoscape MCP:</b> analisi reti biologiche e sociali. "
+        "Avvia Cytoscape (abilita CyREST su porta 1234).<br>"
+        "Installa: <code>pip install py2cytoscape requests</code>", w);
+    hintLbl->setObjectName("hintLabel");
+    hintLbl->setWordWrap(true);
+    lay->addWidget(hintLbl);
+
+    auto* toolRow = new QWidget(w);
+    auto* toolLay = new QHBoxLayout(toolRow);
+    toolLay->setContentsMargins(0, 0, 0, 0);
+    toolLay->setSpacing(8);
+    m_cytoAction = new QComboBox(toolRow);
+    for (int i = 0; kCytoActionsR[i]; i++)
+        m_cytoAction->addItem(QString::fromUtf8(kCytoActionsR[i]));
+    m_cytoModel = new QComboBox(toolRow);
+    m_cytoModel->setMinimumWidth(180);
+    sciPopulateModels(m_cytoModel);
+    toolLay->addWidget(new QLabel("Analisi:", toolRow));
+    toolLay->addWidget(m_cytoAction, 1);
+    toolLay->addWidget(new QLabel("Modello:", toolRow));
+    toolLay->addWidget(m_cytoModel, 1);
+    lay->addWidget(toolRow);
+
+    m_cytoInput = new QTextEdit(w);
+    m_cytoInput->setPlaceholderText(
+        "Descrivi la rete da analizzare...\n"
+        "Es: 'Crea un grafo di interazione proteica con 10 proteine e mostra i hub'\n"
+        "Es: 'Analizza la centralit\xc3\xa0 di betweenness nella rete caricata'");
+    m_cytoInput->setFixedHeight(80);
+    lay->addWidget(m_cytoInput);
+
+    auto* btnRow = new QWidget(w);
+    auto* btnLay = new QHBoxLayout(btnRow);
+    btnLay->setContentsMargins(0, 0, 0, 0);
+    m_cytoRunBtn  = new QPushButton("\xf0\x9f\xa4\x96  Genera script Cytoscape", btnRow);
+    m_cytoRunBtn->setObjectName("actionBtn");
+    m_cytoStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_cytoStopBtn->setObjectName("actionBtn");
+    m_cytoStopBtn->setProperty("danger", true);
+    m_cytoStopBtn->setEnabled(false);
+    btnLay->addWidget(m_cytoRunBtn);
+    btnLay->addWidget(m_cytoStopBtn);
+    btnLay->addStretch();
+    lay->addWidget(btnRow);
+
+    m_cytoOutput = new QTextEdit(w);
+    m_cytoOutput->setReadOnly(true);
+    m_cytoOutput->setObjectName("outputView");
+    m_cytoOutput->setPlaceholderText("Script Python CyREST appare qui...");
+    lay->addWidget(m_cytoOutput, 1);
+
+    connect(pingBtn, &QPushButton::clicked, this, [this](){
+        const QString addr = m_cytoHostEdit->text().trimmed();
+        const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
+        const int port = addr.contains(':') ? addr.section(':', 1).toInt() : 1234;
+        m_cytoStatusLbl->setText("\xf0\x9f\x94\x84  Connessione...");
+        auto* sock = new QTcpSocket(this);
+        sock->connectToHost(host, static_cast<quint16>(port));
+        connect(sock, &QTcpSocket::connected, this, [this, sock](){
+            sock->disconnectFromHost(); sock->deleteLater();
+            m_cytoStatusLbl->setText("\xe2\x9c\x85  Server raggiungibile");
+            m_cytoExecBtn->setEnabled(!m_cytoCode.isEmpty());
+        });
+        connect(sock, &QAbstractSocket::errorOccurred, this, [this, sock](QAbstractSocket::SocketError){
+            m_cytoStatusLbl->setText("\xe2\x9d\x8c  " + sock->errorString());
+            sock->deleteLater();
+        });
+        QTimer::singleShot(3000, sock, [sock, this](){
+            if (sock->state() != QAbstractSocket::ConnectedState) {
+                m_cytoStatusLbl->setText("\xe2\x9d\x8c  Timeout");
+                sock->abort(); sock->deleteLater();
+            }
+        });
+    });
+
+    static QProcess* cytoProc = nullptr;
+    connect(m_cytoExecBtn, &QPushButton::clicked, this, [this](){
+        runSciScript(m_cytoCode, false,
+                     m_cytoStatusLbl, m_cytoExecBtn, m_cytoOutput, cytoProc, this);
+    });
+    connect(m_cytoRunBtn, &QPushButton::clicked, this, [this](){
+        const int idx = m_cytoAction->currentIndex();
+        if (idx < 0 || !kCytoSysR[idx]) return;
+        avviaSci(QString::fromUtf8(kCytoSysR[idx]),
+                 m_cytoInput->toPlainText(),
+                 m_cytoOutput, m_cytoRunBtn, m_cytoStopBtn,
+                 m_cytoModel, m_cytoExecBtn, &m_cytoCode, m_cytoStatusLbl);
+    });
+    connect(m_cytoStopBtn, &QPushButton::clicked, this, [this](){
+        m_ai->abort();
+        m_cytoRunBtn->setEnabled(true);
+        m_cytoStopBtn->setEnabled(false);
+    });
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildRDKitTab — chemioinformatica Python
+   ══════════════════════════════════════════════════════════════ */
+QWidget* RicercaPage::buildRDKitTab()
+{
+    auto* w   = new QWidget(this);
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(8, 8, 8, 8);
+    lay->setSpacing(6);
+
+    auto* descLbl = new QLabel(
+        "\xf0\x9f\x94\xac  <i>RDKit \xe2\x80\x94 Libreria open-source di chemioinformatica per la manipolazione, "
+        "analisi e disegno di molecole. Usata in drug discovery, QSAR, fingerprinting molecolare e chimica computazionale.</i>", w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    lay->addWidget(descLbl);
+
+    auto* connRow = new QWidget(w);
+    auto* connLay = new QHBoxLayout(connRow);
+    connLay->setContentsMargins(0, 0, 0, 0);
+    connLay->setSpacing(8);
+    m_rdkitStatusLbl = new QLabel("\xe2\x9a\xaa  RDKit locale", connRow);
+    m_rdkitStatusLbl->setObjectName("hintLabel");
+    auto* checkBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica rdkit", connRow);
+    checkBtn->setObjectName("actionBtn");
+    checkBtn->setFixedWidth(130);
+    m_rdkitExecBtn = new QPushButton("\xf0\x9f\x94\xac  Esegui script RDKit", connRow);
+    m_rdkitExecBtn->setObjectName("actionBtn");
+    m_rdkitExecBtn->setFixedWidth(170);
+    m_rdkitExecBtn->setEnabled(false);
+    connLay->addWidget(m_rdkitStatusLbl, 1);
+    connLay->addWidget(checkBtn);
+    connLay->addWidget(m_rdkitExecBtn);
+    lay->addWidget(connRow);
+
+    auto* hintLbl = new QLabel(
+        "\xf0\x9f\xa7\xaa <b>RDKit MCP:</b> chemioinformatica Python. "
+        "Installa con: <code>pip install rdkit</code> "
+        "o <code>conda install -c conda-forge rdkit</code>", w);
+    hintLbl->setObjectName("hintLabel");
+    hintLbl->setWordWrap(true);
+    lay->addWidget(hintLbl);
+
+    auto* toolRow = new QWidget(w);
+    auto* toolLay = new QHBoxLayout(toolRow);
+    toolLay->setContentsMargins(0, 0, 0, 0);
+    toolLay->setSpacing(8);
+    m_rdkitAction = new QComboBox(toolRow);
+    for (int i = 0; kRDKitActionsR[i]; i++)
+        m_rdkitAction->addItem(QString::fromUtf8(kRDKitActionsR[i]));
+    m_rdkitModel = new QComboBox(toolRow);
+    m_rdkitModel->setMinimumWidth(180);
+    sciPopulateModels(m_rdkitModel);
+    toolLay->addWidget(new QLabel("Analisi:", toolRow));
+    toolLay->addWidget(m_rdkitAction, 1);
+    toolLay->addWidget(new QLabel("Modello:", toolRow));
+    toolLay->addWidget(m_rdkitModel, 1);
+    lay->addWidget(toolRow);
+
+    m_rdkitInput = new QTextEdit(w);
+    m_rdkitInput->setPlaceholderText(
+        "Descrivi la molecola o l'analisi da eseguire...\n"
+        "Es: 'Calcola MW, LogP e HBD/HBA per la caffeina (SMILES: Cn1cnc2c1c(=O)n(c(=O)n2C)C)'\n"
+        "Es: 'Trova la similarit\xc3\xa0 Tanimoto tra aspirina e ibuprofene'");
+    m_rdkitInput->setFixedHeight(80);
+    lay->addWidget(m_rdkitInput);
+
+    auto* btnRow = new QWidget(w);
+    auto* btnLay = new QHBoxLayout(btnRow);
+    btnLay->setContentsMargins(0, 0, 0, 0);
+    m_rdkitRunBtn  = new QPushButton("\xf0\x9f\xa4\x96  Genera script RDKit", btnRow);
+    m_rdkitRunBtn->setObjectName("actionBtn");
+    m_rdkitStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_rdkitStopBtn->setObjectName("actionBtn");
+    m_rdkitStopBtn->setProperty("danger", true);
+    m_rdkitStopBtn->setEnabled(false);
+    btnLay->addWidget(m_rdkitRunBtn);
+    btnLay->addWidget(m_rdkitStopBtn);
+    btnLay->addStretch();
+    lay->addWidget(btnRow);
+
+    m_rdkitOutput = new QTextEdit(w);
+    m_rdkitOutput->setReadOnly(true);
+    m_rdkitOutput->setObjectName("outputView");
+    m_rdkitOutput->setPlaceholderText("Script Python RDKit appare qui...");
+    lay->addWidget(m_rdkitOutput, 1);
+
+    connect(checkBtn, &QPushButton::clicked, this, [this](){
+        auto* proc = new QProcess(this);
+        proc->start(P::findPython(), {"-c", "import rdkit; print('rdkit', rdkit.__version__)"});
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, proc](int code, QProcess::ExitStatus){
+            const QString out = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+            m_rdkitStatusLbl->setText(code == 0
+                ? "\xe2\x9c\x85  " + out
+                : "\xe2\x9d\x8c  rdkit non trovato \xe2\x80\x94 pip install rdkit");
+            proc->deleteLater();
+        });
+    });
+
+    connect(m_rdkitExecBtn, &QPushButton::clicked, this, [this](){
+        runSciScript(m_rdkitCode, false,
+                     m_rdkitStatusLbl, m_rdkitExecBtn, m_rdkitOutput, m_rdkitProc, this);
+    });
+    connect(m_rdkitRunBtn, &QPushButton::clicked, this, [this](){
+        const int idx = m_rdkitAction->currentIndex();
+        if (idx < 0 || !kRDKitSysR[idx]) return;
+        avviaSci(QString::fromUtf8(kRDKitSysR[idx]),
+                 m_rdkitInput->toPlainText(),
+                 m_rdkitOutput, m_rdkitRunBtn, m_rdkitStopBtn,
+                 m_rdkitModel, m_rdkitExecBtn, &m_rdkitCode, m_rdkitStatusLbl);
+    });
+    connect(m_rdkitStopBtn, &QPushButton::clicked, this, [this](){
+        m_ai->abort();
+        m_rdkitRunBtn->setEnabled(true);
+        m_rdkitStopBtn->setEnabled(false);
+    });
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildBiocondaTab — bioinformatica pipeline
+   ══════════════════════════════════════════════════════════════ */
+QWidget* RicercaPage::buildBiocondaTab()
+{
+    auto* w   = new QWidget(this);
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(8, 8, 8, 8);
+    lay->setSpacing(6);
+
+    auto* descLbl = new QLabel(
+        "\xf0\x9f\x8c\xbf  <i>Bioconda \xe2\x80\x94 Repository specializzato di software bioinformatico installabile "
+        "via conda/mamba. Usato per pipeline NGS, analisi genomica, sequenziamento RNA-seq, allineamento e annotazione.</i>", w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    lay->addWidget(descLbl);
+
+    auto* connRow = new QWidget(w);
+    auto* connLay = new QHBoxLayout(connRow);
+    connLay->setContentsMargins(0, 0, 0, 0);
+    connLay->setSpacing(8);
+    m_bioStatusLbl = new QLabel("\xe2\x9a\xaa  Bioconda/conda", connRow);
+    m_bioStatusLbl->setObjectName("hintLabel");
+    auto* checkBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica conda", connRow);
+    checkBtn->setObjectName("actionBtn");
+    checkBtn->setFixedWidth(130);
+    m_bioExecBtn = new QPushButton("\xf0\x9f\x8c\xbf  Esegui pipeline", connRow);
+    m_bioExecBtn->setObjectName("actionBtn");
+    m_bioExecBtn->setFixedWidth(150);
+    m_bioExecBtn->setEnabled(false);
+    connLay->addWidget(m_bioStatusLbl, 1);
+    connLay->addWidget(checkBtn);
+    connLay->addWidget(m_bioExecBtn);
+    lay->addWidget(connRow);
+
+    auto* hintLbl = new QLabel(
+        "\xf0\x9f\x8c\xbf <b>Bioconda MCP:</b> bioinformatica pipeline. "
+        "Richiede conda/mamba + canale Bioconda:<br>"
+        "<code>conda config --add channels bioconda</code> "
+        "<code>conda config --add channels conda-forge</code><br>"
+        "Installa tool: <code>conda install -c bioconda bwa samtools gatk4 blast fastqc</code>", w);
+    hintLbl->setObjectName("hintLabel");
+    hintLbl->setWordWrap(true);
+    lay->addWidget(hintLbl);
+
+    auto* toolRow = new QWidget(w);
+    auto* toolLay = new QHBoxLayout(toolRow);
+    toolLay->setContentsMargins(0, 0, 0, 0);
+    toolLay->setSpacing(8);
+    m_bioAction = new QComboBox(toolRow);
+    for (int i = 0; kBioActionsR[i]; i++)
+        m_bioAction->addItem(QString::fromUtf8(kBioActionsR[i]));
+    m_bioModel = new QComboBox(toolRow);
+    m_bioModel->setMinimumWidth(180);
+    sciPopulateModels(m_bioModel);
+    toolLay->addWidget(new QLabel("Pipeline:", toolRow));
+    toolLay->addWidget(m_bioAction, 1);
+    toolLay->addWidget(new QLabel("Modello:", toolRow));
+    toolLay->addWidget(m_bioModel, 1);
+    lay->addWidget(toolRow);
+
+    m_bioInput = new QTextEdit(w);
+    m_bioInput->setPlaceholderText(
+        "Descrivi la pipeline bioinformatica da creare...\n"
+        "Es: 'Pipeline di allineamento WGS: FASTQ input, output BAM sorted e indexed'\n"
+        "Es: 'Cerca la sequenza ATGGCTAGCTA nel database nr con BLAST, salva risultati XML'");
+    m_bioInput->setFixedHeight(80);
+    lay->addWidget(m_bioInput);
+
+    auto* btnRow = new QWidget(w);
+    auto* btnLay = new QHBoxLayout(btnRow);
+    btnLay->setContentsMargins(0, 0, 0, 0);
+    m_bioRunBtn  = new QPushButton("\xf0\x9f\xa4\x96  Genera pipeline", btnRow);
+    m_bioRunBtn->setObjectName("actionBtn");
+    m_bioStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_bioStopBtn->setObjectName("actionBtn");
+    m_bioStopBtn->setProperty("danger", true);
+    m_bioStopBtn->setEnabled(false);
+    btnLay->addWidget(m_bioRunBtn);
+    btnLay->addWidget(m_bioStopBtn);
+    btnLay->addStretch();
+    lay->addWidget(btnRow);
+
+    m_bioOutput = new QTextEdit(w);
+    m_bioOutput->setReadOnly(true);
+    m_bioOutput->setObjectName("outputView");
+    m_bioOutput->setPlaceholderText("Script Bash/Python bioinformatica appare qui...");
+    lay->addWidget(m_bioOutput, 1);
+
+    connect(checkBtn, &QPushButton::clicked, this, [this](){
+        auto* proc = new QProcess(this);
+        proc->start("conda", {"--version"});
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, proc](int code, QProcess::ExitStatus){
+            const QString out = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+            m_bioStatusLbl->setText(code == 0
+                ? "\xe2\x9c\x85  " + out + " disponibile"
+                : "\xe2\x9d\x8c  conda non trovato \xe2\x80\x94 installa Miniforge");
+            proc->deleteLater();
+        });
+    });
+
+    connect(m_bioExecBtn, &QPushButton::clicked, this, [this](){
+        const bool isBash = m_bioCode.startsWith("#!")
+                         || m_bioCode.contains("#!/bin/bash")
+                         || m_bioCode.contains("bwa ")
+                         || m_bioCode.contains("samtools ")
+                         || m_bioCode.contains("gatk ")
+                         || m_bioCode.contains("blast");
+        runSciScript(m_bioCode, isBash,
+                     m_bioStatusLbl, m_bioExecBtn, m_bioOutput, m_bioProc, this);
+    });
+    connect(m_bioRunBtn, &QPushButton::clicked, this, [this](){
+        const int idx = m_bioAction->currentIndex();
+        if (idx < 0 || !kBioSysR[idx]) return;
+        avviaSci(QString::fromUtf8(kBioSysR[idx]),
+                 m_bioInput->toPlainText(),
+                 m_bioOutput, m_bioRunBtn, m_bioStopBtn,
+                 m_bioModel, m_bioExecBtn, &m_bioCode, m_bioStatusLbl);
+    });
+    connect(m_bioStopBtn, &QPushButton::clicked, this, [this](){
+        m_ai->abort();
+        m_bioRunBtn->setEnabled(true);
+        m_bioStopBtn->setEnabled(false);
+    });
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildAvogadroTab — modellazione molecolare 3D
+   ══════════════════════════════════════════════════════════════ */
+namespace {
+static const char* kAvoSysR[] = {
+    "Sei un esperto di Avogadro2 e chemioinformatica Python. "
+    "Genera SOLO codice Python che usa avogadro (avogadro.core, avogadro.io, avogadro.calc). "
+    "Oppure genera file molecolari (XYZ, SDF, PDB) ben formattati. "
+    "Rispondi SOLO con il blocco codice tra ``` e ```.",
+
+    "Sei un esperto di Avogadro2. "
+    "Genera SOLO codice Python avogadro per caricare una molecola da SMILES o file "
+    "e calcolarne energia con MMFF o UFF. Rispondi SOLO con codice Python tra ``` e ```.",
+
+    "Sei un esperto di Avogadro2. "
+    "Genera SOLO un file XYZ ben formato della molecola descritta, "
+    "con coordinate ottimizzate approssimative. Rispondi SOLO con il blocco XYZ tra ``` e ```.",
+
+    "Sei un esperto di chimica computazionale e Avogadro2. "
+    "Genera SOLO codice Python per ottimizzare la geometria molecolare e salvare in SDF. "
+    "Rispondi SOLO con codice Python tra ``` e ```.",
+
+    "Sei un esperto di Avogadro2. "
+    "Genera SOLO codice Python avogadro libero. "
+    "Rispondi SOLO con il blocco codice tra ``` e ```.",
+
+    nullptr
+};
+static const char* kAvoActionsR[] = {
+    "\xf0\x9f\xa7\xaa  Carica & calcola",
+    "\xf0\x9f\x94\x8b  Energia MMFF/UFF",
+    "\xf0\x9f\x93\x90  Genera file XYZ",
+    "\xf0\x9f\x94\xa7  Ottimizza geometria",
+    "\xf0\x9f\x90\x8d  Script libero",
+    nullptr
+};
+} // namespace
+
+QWidget* RicercaPage::buildAvogadroTab()
+{
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(8, 8, 8, 8);
+    lay->setSpacing(6);
+
+    auto* descLbl = new QLabel(
+        "\xf0\x9f\xa7\xaa  <i>Avogadro \xe2\x80\x94 Editor molecolare 3D open-source per la visualizzazione e "
+        "il calcolo di strutture chimiche. Usato in chimica computazionale, cristallografia, modellazione di farmaci e insegnamento.</i>", w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    lay->addWidget(descLbl);
+
+    auto* connRow = new QWidget(w);
+    auto* connLay = new QHBoxLayout(connRow);
+    connLay->setContentsMargins(0, 0, 0, 0);
+    connLay->setSpacing(8);
+    m_avoStatusLbl = new QLabel("\xe2\x9a\xaa  Avogadro locale", connRow);
+    m_avoStatusLbl->setObjectName("hintLabel");
+    auto* checkBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica avogadro", connRow);
+    checkBtn->setObjectName("actionBtn");
+    checkBtn->setFixedWidth(150);
+    m_avoExecBtn = new QPushButton("\xf0\x9f\xa7\xaa  Esegui script", connRow);
+    m_avoExecBtn->setObjectName("actionBtn");
+    m_avoExecBtn->setFixedWidth(150);
+    m_avoExecBtn->setEnabled(false);
+    connLay->addWidget(m_avoStatusLbl, 1);
+    connLay->addWidget(checkBtn);
+    connLay->addWidget(m_avoExecBtn);
+    lay->addWidget(connRow);
+
+    auto* hintLbl = new QLabel(
+        "\xf0\x9f\xa7\xaa <b>Avogadro MCP:</b> modellazione molecolare 3D Python. "
+        "Installa con: <code>pip install avogadro</code> "
+        "o <code>conda install -c conda-forge avogadro2</code>", w);
+    hintLbl->setObjectName("hintLabel");
+    hintLbl->setWordWrap(true);
+    lay->addWidget(hintLbl);
+
+    auto* toolRow = new QWidget(w);
+    auto* toolLay = new QHBoxLayout(toolRow);
+    toolLay->setContentsMargins(0, 0, 0, 0);
+    toolLay->setSpacing(8);
+    m_avoAction = new QComboBox(toolRow);
+    for (int i = 0; kAvoActionsR[i]; i++)
+        m_avoAction->addItem(QString::fromUtf8(kAvoActionsR[i]));
+    m_avoModel = new QComboBox(toolRow);
+    m_avoModel->setMinimumWidth(180);
+    sciPopulateModels(m_avoModel);
+    toolLay->addWidget(new QLabel("Azione:", toolRow));
+    toolLay->addWidget(m_avoAction, 1);
+    toolLay->addWidget(new QLabel("Modello:", toolRow));
+    toolLay->addWidget(m_avoModel, 1);
+    lay->addWidget(toolRow);
+
+    m_avoInput = new QTextEdit(w);
+    m_avoInput->setPlaceholderText(
+        "Descrivi la molecola da modellare...\n"
+        "Es: 'Genera la struttura 3D ottimizzata dell'acido acetilsalicilico (aspirina)'\n"
+        "Es: 'Carica benzene e calcola l'energia MMFF94'");
+    m_avoInput->setFixedHeight(80);
+    lay->addWidget(m_avoInput);
+
+    auto* btnRow = new QWidget(w);
+    auto* btnLay = new QHBoxLayout(btnRow);
+    btnLay->setContentsMargins(0, 0, 0, 0);
+    m_avoRunBtn  = new QPushButton("\xf0\x9f\xa4\x96  Genera script Avogadro", btnRow);
+    m_avoRunBtn->setObjectName("actionBtn");
+    m_avoStopBtn = new QPushButton("\xe2\x8f\xb9  Stop", btnRow);
+    m_avoStopBtn->setObjectName("actionBtn");
+    m_avoStopBtn->setProperty("danger", true);
+    m_avoStopBtn->setEnabled(false);
+    btnLay->addWidget(m_avoRunBtn);
+    btnLay->addWidget(m_avoStopBtn);
+    btnLay->addStretch();
+    lay->addWidget(btnRow);
+
+    m_avoOutput = new QTextEdit(w);
+    m_avoOutput->setReadOnly(true);
+    m_avoOutput->setObjectName("outputView");
+    m_avoOutput->setPlaceholderText("Script Python Avogadro appare qui...");
+    lay->addWidget(m_avoOutput, 1);
+
+    connect(checkBtn, &QPushButton::clicked, this, [this](){
+        auto* proc = new QProcess(this);
+        proc->start(P::findPython(),
+            {"-c", "import avogadro; print('avogadro OK')"});
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, proc](int code, QProcess::ExitStatus){
+            m_avoStatusLbl->setText(code == 0
+                ? "\xe2\x9c\x85  avogadro disponibile"
+                : "\xe2\x9d\x8c  avogadro non trovato \xe2\x80\x94 pip install avogadro");
+            proc->deleteLater();
+        });
+    });
+
+    connect(m_avoExecBtn, &QPushButton::clicked, this, [this](){
+        runSciScript(m_avoCode, false,
+                     m_avoStatusLbl, m_avoExecBtn, m_avoOutput, m_avoProc, this);
+    });
+
+    connect(m_avoRunBtn, &QPushButton::clicked, this, [this](){
+        const int idx = m_avoAction->currentIndex();
+        if (idx < 0 || !kAvoSysR[idx]) return;
+        avviaSci(QString::fromUtf8(kAvoSysR[idx]),
+                 m_avoInput->toPlainText(),
+                 m_avoOutput, m_avoRunBtn, m_avoStopBtn,
+                 m_avoModel, m_avoExecBtn, &m_avoCode, m_avoStatusLbl);
+    });
+    connect(m_avoStopBtn, &QPushButton::clicked, this, [this](){
+        m_ai->abort();
+        m_avoRunBtn->setEnabled(true);
+        m_avoStopBtn->setEnabled(false);
+    });
+
+    return w;
 }

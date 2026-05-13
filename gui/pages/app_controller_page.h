@@ -1,6 +1,7 @@
 #pragma once
 #include <QWidget>
 #include "../ai_client.h"
+#include "../widgets/ai_error_widget.h"
 
 class QTabWidget;
 class QLineEdit;
@@ -35,11 +36,12 @@ public:
     explicit AppControllerPage(AiClient* ai, QWidget* parent = nullptr);
 
 private:
-    AiClient*   m_ai          = nullptr;
-    QTabWidget* m_tabs        = nullptr;
-    QObject*    m_tokenHolder = nullptr;  ///< one-shot AI stream holder
-    bool        m_aiActive    = false;
-    int         m_activeTab   = -1;       ///< tab che ha lanciato l'AI corrente
+    AiClient*      m_ai           = nullptr;
+    QTabWidget*    m_tabs         = nullptr;
+    QObject*       m_tokenHolder  = nullptr;
+    bool           m_aiActive     = false;
+    int            m_activeTab    = -1;
+    AiErrorWidget* m_aiErrorPanel = nullptr;
 
     /* ── Blender ── */
     QLineEdit*           m_blenderHostEdit  = nullptr;
@@ -49,6 +51,7 @@ private:
     QComboBox*           m_blenderModel     = nullptr;
     QTextEdit*           m_blenderInput     = nullptr;
     QTextEdit*           m_blenderOutput    = nullptr;
+    QTextEdit*           m_blenderCodeEdit  = nullptr;  // editor codice Python diretto
     QPushButton*         m_blenderRunBtn    = nullptr;
     QPushButton*         m_blenderStopBtn   = nullptr;
     QString              m_blenderCode;
@@ -135,6 +138,18 @@ private:
     QString      m_obsCode;
     QProcess*    m_obsExecProc  = nullptr;
 
+    /* ── Godot MCP (index 9) ── */
+    QLabel*      m_godotStatusLbl = nullptr;
+    QPushButton* m_godotExecBtn   = nullptr;
+    QComboBox*   m_godotAction    = nullptr;
+    QComboBox*   m_godotModel     = nullptr;
+    QTextEdit*   m_godotInput     = nullptr;
+    QTextEdit*   m_godotOutput    = nullptr;
+    QPushButton* m_godotRunBtn    = nullptr;
+    QPushButton* m_godotStopBtn   = nullptr;
+    QString      m_godotCode;
+    QProcess*    m_godotExecProc  = nullptr;
+
     QWidget* buildBlenderTab();
     QWidget* buildFreeCADTab();
     QWidget* buildOfficeTab();
@@ -143,7 +158,7 @@ private:
     QWidget* buildKiCADTab();
     QWidget* buildTinyMCPTab();
     QWidget* buildOBSTab();
-
+    QWidget* buildGodotTab();
     void execAnkiAction(const QString& action, const QString& payload);
     void execKiCADAction(const QString& code);
     void detectSerialPorts();

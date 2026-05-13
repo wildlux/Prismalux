@@ -15,6 +15,7 @@ namespace P = PrismaluxPaths;
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QTcpSocket>
+#include <QSharedPointer>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTimer>
@@ -25,44 +26,71 @@ namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
 #include <QTextBrowser>
 #include <QGroupBox>
+#include <QDateTime>
 
 /* ──────────────────────────────────────────────────────────────
    System prompt arrays — identici a kSysPrompts[6..9] di StrumentiPage
    ────────────────────────────────────────────────────────────── */
 static const char* kBlenderSys[] = {
-    "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python puro eseguibile in Blender. "
+    /* 0 — Crea Primitiva */
+    "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python per aggiungere una primitiva 3D. "
+    "REGOLA 1: la prima riga DEVE essere 'import bpy'. "
+    "REGOLA 2: usa SEMPRE bpy.ops.mesh.primitive_*_add() — VIETATO costruire mesh da vertici. "
+    "Primitive: primitive_cube_add, primitive_uv_sphere_add, primitive_cylinder_add, "
+    "primitive_plane_add, primitive_cone_add, primitive_torus_add. "
+    "Parametri tipici: size=2, location=(0,0,0). "
+    "Non aggiungere variabili 'result'. "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    /* 1 — Cambia Materiale */
+    "Sei un esperto di Blender Python API. Genera SOLO codice Python eseguibile in Blender. "
+    "Prima riga OBBLIGATORIA: 'import bpy'. "
     "Crea o modifica un materiale Principled BSDF sull'oggetto attivo (bpy.context.active_object). "
     "Imposta base_color, metallic, roughness secondo la richiesta. "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
-    "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python puro per spostare un oggetto in Blender. "
+    /* 2 — Trasla */
+    "Sei un esperto di Blender Python API. Genera SOLO codice Python eseguibile in Blender. "
+    "Prima riga OBBLIGATORIA: 'import bpy'. "
     "Usa bpy.context.active_object.location = (x, y, z). "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
-    "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python puro per ruotare un oggetto in Blender. "
+    /* 3 — Ruota */
+    "Sei un esperto di Blender Python API. Genera SOLO codice Python eseguibile in Blender. "
+    "Prima riga OBBLIGATORIA: 'import bpy'. "
     "Usa bpy.context.active_object.rotation_euler = (rx, ry, rz) con angoli in radianti. "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
-    "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python puro per scalare un oggetto in Blender. "
+    /* 4 — Scala */
+    "Sei un esperto di Blender Python API. Genera SOLO codice Python eseguibile in Blender. "
+    "Prima riga OBBLIGATORIA: 'import bpy'. "
     "Usa bpy.context.active_object.scale = (sx, sy, sz). "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
-    "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python puro per cambiare la visibilita' di oggetti. "
+    /* 5 — Visibilità */
+    "Sei un esperto di Blender Python API. Genera SOLO codice Python eseguibile in Blender. "
+    "Prima riga OBBLIGATORIA: 'import bpy'. "
     "Usa obj.hide_viewport e obj.hide_render. "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
-    "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python puro per configurare e avviare un render. "
+    /* 6 — Avvia Render */
+    "Sei un esperto di Blender Python API. Genera SOLO codice Python eseguibile in Blender. "
+    "Prima riga OBBLIGATORIA: 'import bpy'. "
     "Usa bpy.context.scene.render per le impostazioni, bpy.ops.render.render(write_still=True) per avviare. "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
-    "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python puro eseguibile in Blender via exec(). "
-    "Il namespace disponibile: bpy, mathutils, Vector, Euler, Matrix. "
+    /* 7 — Script libero */
+    "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python eseguibile in Blender. "
+    "REGOLA 1: la prima riga DEVE essere 'import bpy' (obbligatorio, altrimenti il codice fallisce). "
+    "REGOLA 2: per forme 3D usa bpy.ops.mesh.primitive_*_add() — non costruire mesh da vertici. "
+    "Non aggiungere variabili 'result'. "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
     nullptr
 };
 
 static const char* kBlenderActions[] = {
+    "\xf0\x9f\xa7\x8a Crea Primitiva",
     "\xf0\x9f\x8e\xa8 Cambia Materiale",
     "\xe2\x86\x94 Trasla",
     "\xf0\x9f\x94\x84 Ruota",
@@ -240,15 +268,20 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
     m_tabs->addTab(buildKiCADTab(),        "\xf0\x9f\x96\xa5  KiCAD MCP");
     m_tabs->addTab(buildTinyMCPTab(),      "\xf0\x9f\xa4\x96  TinyMCP");
     m_tabs->addTab(buildOBSTab(),          "\xf0\x9f\x94\xb4  OBS MCP");
+    m_tabs->addTab(buildGodotTab(),          "\xf0\x9f\x8e\xae  Godot");
     m_tabs->addTab(new OpenCodePage(m_tabs), "\xf0\x9f\x96\xa5  OpenCode");
 
     lay->addWidget(m_tabs);
+
+    m_aiErrorPanel = new AiErrorWidget(this);
+    lay->addWidget(m_aiErrorPanel);
 
     /* Propaga modello corrente a tutte le combo */
     connect(m_ai, &AiClient::modelsReady, this, [this](const QStringList& models) {
         QList<QComboBox*> combos = {
             m_blenderModel, m_freecadModel, m_officeModel,
-            m_ankiModel, m_kicadModel, m_mcuModel
+            m_ankiModel, m_kicadModel, m_mcuModel,
+            m_obsModel, m_godotModel
         };
         for (auto* cb : combos) {
             if (!cb) continue;
@@ -344,22 +377,29 @@ void AppControllerPage::runAi(int tabIdx, const QString& sys, const QString& use
     });
 
     connect(m_ai, &AiClient::finished, m_tokenHolder,
-            [this, output, runBtn, stopBtn](const QString& full) {
+            [this, output, runBtn, stopBtn, modelCombo](const QString& full) {
         m_aiActive = false;
         runBtn->setEnabled(true);
         stopBtn->setEnabled(false);
         output->append("\n" + QString(40, QChar(0x2500)));
-        /* deleteLater(): non delete diretto — siamo dentro il callback del context object.
-           delete sincrono modificherebbe la connection list mentre Qt la sta iterando → heap corruption. */
-        m_tokenHolder->deleteLater();
-        m_tokenHolder = nullptr;
+        /* Guard: error() potrebbe aver già svuotato m_tokenHolder prima di finished() */
+        if (m_tokenHolder) {
+            m_tokenHolder->deleteLater();
+            m_tokenHolder = nullptr;
+        }
 
         /* Abilita exec solo se c'era un blocco backtick reale (non testo puro) */
         const bool hasBlock = full.contains("```");
         const QString code = extractCode(full);
         if (m_activeTab == 0 && hasBlock && !code.isEmpty()) {
+            const QString model  = modelCombo ? modelCombo->currentData().toString() : "AI";
+            const QString ts     = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm");
+            /* Commento singola riga con modello e data */
+            const QString header = "# LLM: " + model + "  —  " + ts + "\n";
+            /* Garantisce import bpy: senza di esso exec() di Blender restituisce {} */
+            const QString imports = code.contains("import bpy") ? "" : "import bpy\n";
             m_blenderCode = code;
-            m_blenderExecBtn->setEnabled(true);
+            m_blenderCodeEdit->setPlainText(header + imports + code);
             m_blenderStatusLbl->setText(
                 "\xf0\x9f\x90\x8d  Codice pronto \xe2\x80\x94 premi Esegui in Blender");
         } else if (m_activeTab == 1 && hasBlock && !code.isEmpty()) {
@@ -387,17 +427,39 @@ void AppControllerPage::runAi(int tabIdx, const QString& sys, const QString& use
             m_obsExecBtn->setEnabled(true);
             m_obsStatusLbl->setText(
                 "\xf0\x9f\x94\xb4  Codice pronto \xe2\x80\x94 premi Esegui in OBS");
+        } else if (m_activeTab == 9 && hasBlock && !code.isEmpty()) {
+            m_godotCode = code;
+            m_godotExecBtn->setEnabled(true);
+            m_godotStatusLbl->setText(
+                "\xf0\x9f\x8e\xae  Codice pronto \xe2\x80\x94 premi Esegui in Godot");
         }
     });
 
     connect(m_ai, &AiClient::error, m_tokenHolder,
-            [this, output, runBtn, stopBtn](const QString& msg) {
+            [this, output, runBtn, stopBtn, tabIdx, sys, userMsg, modelCombo](const QString& msg) {
         m_aiActive = false;
         runBtn->setEnabled(true);
         stopBtn->setEnabled(false);
-        output->append("\n\xe2\x9d\x8c  Errore AI: " + msg);
-        m_tokenHolder->deleteLater();
-        m_tokenHolder = nullptr;
+        /* Guard: finished() potrebbe aver già svuotato m_tokenHolder prima di error() */
+        if (m_tokenHolder) {
+            m_tokenHolder->deleteLater();
+            m_tokenHolder = nullptr;
+        }
+        /* "Forbidden" = modello cloud selezionato ma Ollama è locale */
+        if (msg.contains("Forbidden", Qt::CaseInsensitive)) {
+            const QString model = modelCombo ? modelCombo->currentData().toString() : "?";
+            m_aiErrorPanel->showError(
+                "Modello non disponibile localmente: \"" + model + "\"\n"
+                "Seleziona un modello locale (es. deepseek-coder:6.7b, llama3.2:3b) "
+                "dalla combo Modello e riprova.",
+                [this, tabIdx, sys, userMsg, output, runBtn, stopBtn, modelCombo]{
+                    runAi(tabIdx, sys, userMsg, output, runBtn, stopBtn, modelCombo);
+                });
+        } else {
+            m_aiErrorPanel->showError(msg, [this, tabIdx, sys, userMsg, output, runBtn, stopBtn, modelCombo]{
+                runAi(tabIdx, sys, userMsg, output, runBtn, stopBtn, modelCombo);
+            });
+        }
     });
 
     m_ai->chat(sys, userMsg);
@@ -412,6 +474,14 @@ QWidget* AppControllerPage::buildBlenderTab()
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(8, 8, 8, 8);
     lay->setSpacing(6);
+
+    auto* descLbl = new QLabel(
+        "\xf0\x9f\x8e\xa8  <i>Blender \xe2\x80\x94 Software open-source di modellazione 3D, "
+        "animazione, sculpting e rendering. Usato da artisti, designer e sviluppatori di videogiochi.</i>", w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    lay->addWidget(descLbl);
 
     /* ── Barra connessione ── */
     auto* connRow = new QWidget(w);
@@ -469,6 +539,8 @@ QWidget* AppControllerPage::buildBlenderTab()
     m_blenderAction = new QComboBox(toolRow);
     for (int i = 0; kBlenderActions[i]; i++)
         m_blenderAction->addItem(QString::fromUtf8(kBlenderActions[i]));
+    /* Script libero come default: il modello capisce da solo cosa fare */
+    m_blenderAction->setCurrentIndex(m_blenderAction->count() - 1);
 
     m_blenderModel = new QComboBox(toolRow);
     m_blenderModel->setMinimumWidth(180);
@@ -484,7 +556,7 @@ QWidget* AppControllerPage::buildBlenderTab()
     m_blenderInput = new QTextEdit(w);
     m_blenderInput->setPlaceholderText(
         "Descrivi cosa fare in Blender "
-        "(es. 'Cambia il cubo in rosso metallico', 'Sposta il piano a Y=3')...");
+        "(es. 'Crea un cubo', 'Crea una sfera rossa', 'Sposta il piano a Y=3')...");
     m_blenderInput->setMaximumHeight(80);
     m_blenderInput->setMinimumHeight(60);
     lay->addWidget(m_blenderInput);
@@ -505,62 +577,185 @@ QWidget* AppControllerPage::buildBlenderTab()
     btnLay->addStretch();
     lay->addWidget(btnRow);
 
-    /* ── Output ── */
+    /* ── Output AI ── */
     m_blenderOutput = new QTextEdit(w);
     m_blenderOutput->setReadOnly(true);
     m_blenderOutput->setObjectName("outputView");
-    m_blenderOutput->setPlaceholderText("Output AI e Blender apparirà qui...");
-    lay->addWidget(m_blenderOutput, 1);
+    m_blenderOutput->setPlaceholderText("Output AI apparirà qui...");
+    m_blenderOutput->setMaximumHeight(160);
+    lay->addWidget(m_blenderOutput, 0);
+
+    /* ── Editor codice Python (diretto + popolato dall'AI) ── */
+    auto* codeLbl = new QLabel(
+        "\xf0\x9f\x90\x8d  <b>Codice Python da eseguire in Blender</b> "
+        "<span style='color:#888;font-size:11px;'>"
+        "(generato dall'AI o scrivi direttamente)</span>", w);
+    codeLbl->setTextFormat(Qt::RichText);
+    lay->addWidget(codeLbl);
+    m_blenderCodeEdit = new QTextEdit(w);
+    m_blenderCodeEdit->setObjectName("outputView");
+    m_blenderCodeEdit->setPlaceholderText(
+        "# Il codice Python generato dall'AI apparirà qui.\n"
+        "# Puoi anche scrivere direttamente codice bpy:\n"
+        "import bpy\n"
+        "bpy.ops.mesh.primitive_cube_add(size=2, location=(0, 0, 0))");
+    m_blenderCodeEdit->setFont(QFont("Monospace", 10));
+    m_blenderCodeEdit->setMinimumHeight(120);
+    lay->addWidget(m_blenderCodeEdit, 1);
 
     /* ── Connessioni ── */
     m_blenderNam = new QNetworkAccessManager(this);
 
-    connect(pingBtn, &QPushButton::clicked, this, [this]() {
+    /* Abilita/disabilita "Esegui" in base al contenuto dell'editor */
+    connect(m_blenderCodeEdit, &QTextEdit::textChanged, this, [this]() {
+        m_blenderExecBtn->setEnabled(
+            !m_blenderCodeEdit->toPlainText().trimmed().isEmpty());
+    });
+
+    /* ── helper: invia JSON null-terminato al MCP ufficiale Blender (TCP socket) ──
+       buf è QSharedPointer: safe anche se readyRead spara più volte (multi-packet)
+       o se timeout e readyRead coincidono — nessun double-free. ── */
+    auto blenderSendTcp = [this](const QString& host, int port,
+                                 const QByteArray& jsonMsg,
+                                 std::function<void(const QJsonObject&, bool)> cb) {
+        auto* sock = new QTcpSocket(this);
+        auto  buf  = QSharedPointer<QByteArray>::create();
+        /* done: flag one-shot per evitare di chiamare cb due volte */
+        auto done  = QSharedPointer<bool>::create(false);
+        sock->connectToHost(host, static_cast<quint16>(port));
+
+        connect(sock, &QTcpSocket::connected, sock, [sock, jsonMsg]() {
+            sock->write(jsonMsg + '\0');
+            sock->flush();
+        });
+        connect(sock, &QTcpSocket::readyRead, sock, [sock, buf, cb, done]() {
+            if (*done) return;
+            buf->append(sock->readAll());
+            const int nullPos = buf->indexOf('\0');
+            if (nullPos < 0) return;          // risposta parziale — aspetta
+            *done = true;
+            const QByteArray resp = buf->left(nullPos);
+            sock->disconnectFromHost();
+            sock->deleteLater();
+            const QJsonObject obj = QJsonDocument::fromJson(resp).object();
+            cb(obj, obj.contains("result") || obj.value("ok").toBool(true));
+        });
+        connect(sock, &QAbstractSocket::errorOccurred, sock,
+                [sock, cb, done](QAbstractSocket::SocketError) {
+            if (*done) return;
+            *done = true;
+            const QString err = sock->errorString();
+            sock->deleteLater();
+            cb(QJsonObject{{"error", err}}, false);
+        });
+        QTimer::singleShot(8000, sock, [sock, cb, done]() {
+            if (*done) return;
+            *done = true;
+            sock->abort();
+            sock->deleteLater();
+            cb(QJsonObject{{"error", "Timeout (8s)"}}, false);
+        });
+    };
+
+    connect(pingBtn, &QPushButton::clicked, this, [this, blenderSendTcp]() {
         QString addr = m_blenderHostEdit->text().trimmed();
         if (addr.isEmpty()) addr = "localhost:6789";
-        QNetworkRequest req(QUrl("http://" + addr + "/status"));
-        req.setTransferTimeout(3000);
-        auto* reply = m_blenderNam->get(req);
-        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-            reply->deleteLater();
-            if (reply->error() == QNetworkReply::NoError) {
-                QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
+        const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
+        const int     port = addr.contains(':') ? addr.section(':', 1).toInt() : 6789;
+        m_blenderStatusLbl->setText("\xf0\x9f\x94\x84  Connessione...");
+        /* Richiesta status: esegue codice Python minimale che ritorna info Blender */
+        QJsonObject req;
+        req["type"] = "execute";
+        req["code"] = "import bpy; result = {'ok': True, 'blender': bpy.app.version_string, "
+                      "'objects': len(bpy.data.objects)}";
+        req["strict_json"] = true;
+        blenderSendTcp(host, port,
+                       QJsonDocument(req).toJson(QJsonDocument::Compact),
+                       [this](const QJsonObject& res, bool ok) {
+            if (ok) {
+                const QJsonObject r = res.value("result").toObject();
+                const QString ver   = r.value("blender").toString(
+                                          res.value("blender").toString("?"));
+                const int     objs  = r.value("objects").toInt();
                 m_blenderStatusLbl->setText(
-                    "\xe2\x9c\x85  Blender " + obj.value("blender").toString("?") + " connesso");
+                    "\xe2\x9c\x85  Blender " + ver
+                    + "  \xc2\xb7  " + QString::number(objs) + " oggetti");
             } else {
-                m_blenderStatusLbl->setText("\xe2\x9d\x8c  " + reply->errorString());
+                m_blenderStatusLbl->setText(
+                    "\xe2\x9d\x8c  " + res.value("error").toString("non raggiungibile"));
             }
         });
     });
 
-    connect(m_blenderExecBtn, &QPushButton::clicked, this, [this]() {
-        if (m_blenderCode.isEmpty()) return;
+    connect(m_blenderExecBtn, &QPushButton::clicked, this, [this, blenderSendTcp]() {
+        const QString code = m_blenderCodeEdit->toPlainText().trimmed();
+        if (code.isEmpty()) return;
+        m_blenderCode = code;
         QString addr = m_blenderHostEdit->text().trimmed();
         if (addr.isEmpty()) addr = "localhost:6789";
-        QJsonObject payload; payload["code"] = m_blenderCode;
-        QByteArray body = QJsonDocument(payload).toJson(QJsonDocument::Compact);
-        QNetworkRequest req(QUrl("http://" + addr + "/execute"));
-        req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json; charset=utf-8");
-        req.setTransferTimeout(20000);
+        const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
+        const int     port = addr.contains(':') ? addr.section(':', 1).toInt() : 6789;
+
         m_blenderExecBtn->setEnabled(false);
-        m_blenderStatusLbl->setText("\xf0\x9f\x94\x84  Invio a Blender...");
-        auto* reply = m_blenderNam->post(req, body);
-        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-            reply->deleteLater();
-            m_blenderExecBtn->setEnabled(true);
-            QJsonObject res = QJsonDocument::fromJson(reply->readAll()).object();
-            if (reply->error() == QNetworkReply::NoError && res["ok"].toBool()) {
-                m_blenderStatusLbl->setText("\xe2\x9c\x85  Eseguito");
-                m_blenderOutput->append("\n\xe2\x9c\x85  Blender: "
-                    + res["output"].toString("OK"));
-            } else {
-                m_blenderStatusLbl->setText("\xe2\x9d\x8c  Errore");
-                m_blenderOutput->append("\n\xe2\x9d\x8c  Blender errore: "
-                    + (res["error"].toString().isEmpty()
-                       ? reply->errorString() : res["error"].toString()));
+        m_blenderStatusLbl->setText("\xf0\x9f\x94\x84  Verifica connessione...");
+
+        /* Ping automatico prima di eseguire */
+        QJsonObject pingReq;
+        pingReq["type"] = "execute";
+        pingReq["code"] = "import bpy; result = {'ok': True, 'blender': bpy.app.version_string, "
+                          "'objects': len(bpy.data.objects)}";
+        pingReq["strict_json"] = true;
+        blenderSendTcp(host, port,
+                       QJsonDocument(pingReq).toJson(QJsonDocument::Compact),
+                       [this, blenderSendTcp, host, port, code](const QJsonObject& pingRes, bool pingOk) {
+            if (!pingOk) {
+                m_blenderExecBtn->setEnabled(true);
+                m_blenderStatusLbl->setText(
+                    "\xe2\x9d\x8c  Non raggiungibile: " + pingRes.value("error").toString("connessione rifiutata"));
+                m_blenderOutput->append(
+                    "\n\xe2\x9d\x8c  Blender non connesso. Avvia il server MCP in Blender (N \xe2\x86\x92 MCP \xe2\x86\x92 Start).");
+                return;
             }
-        });
-    });
+            /* Ping ok — aggiorna status e invia il codice */
+            const QJsonObject r = pingRes.value("result").toObject();
+            const QString ver   = r.value("blender").toString("?");
+            const int     objs  = r.value("objects").toInt();
+            m_blenderStatusLbl->setText(
+                "\xf0\x9f\x94\x84  Blender " + ver + " \xc2\xb7 " + QString::number(objs)
+                + " oggetti \xe2\x80\x94 Invio codice...");
+
+            QJsonObject req;
+            req["type"]        = "execute";
+            req["code"]        = code;
+            req["strict_json"] = true;
+            blenderSendTcp(host, port,
+                           QJsonDocument(req).toJson(QJsonDocument::Compact),
+                           [this](const QJsonObject& res, bool ok) {
+                m_blenderExecBtn->setEnabled(true);
+                /* risposta raw per debug (raw JSON compatto) */
+                const QString raw = QString::fromUtf8(
+                    QJsonDocument(res).toJson(QJsonDocument::Compact));
+
+                if (ok) {
+                    /* result può essere stringa, oggetto o null */
+                    const QJsonValue rv  = res.value("result");
+                    QString out;
+                    if (rv.isString())      out = rv.toString();
+                    else if (!rv.isNull())  out = QString::fromUtf8(
+                        QJsonDocument(rv.toObject()).toJson(QJsonDocument::Compact));
+                    else                    out = raw;
+
+                    m_blenderStatusLbl->setText("\xe2\x9c\x85  Eseguito in Blender");
+                    m_blenderOutput->append("\n\xe2\x9c\x85  Blender: "
+                        + (out.isEmpty() ? "OK" : out));
+                } else {
+                    m_blenderStatusLbl->setText("\xe2\x9d\x8c  Errore esecuzione");
+                    m_blenderOutput->append("\n\xe2\x9d\x8c  Blender: "
+                        + res.value("error").toString(raw));
+                }
+            });          // fine lambda exec
+        });              // fine lambda ping
+    });                  // fine connect
 
     connect(helpBtn, &QPushButton::clicked, this, [this]() {
         auto* dlg = new QDialog(this);
@@ -571,12 +766,21 @@ QWidget* AppControllerPage::buildBlenderTab()
         auto* browser = new QTextBrowser(dlg);
         browser->setOpenExternalLinks(true);
         browser->setHtml(
-            "<h3>\xf0\x9f\x8e\xa8 Blender MCP</h3>"
-            "<h4>1. Installa Blender</h4>"
-            "<p><code>sudo apt install blender</code> oppure "
-            "<a href='https://www.blender.org/download/'>blender.org</a></p>"
-            "<h4>2. Clona e installa l'addon</h4>"
-            "<pre>git clone https://github.com/ahujasid/blender-mcp</pre>"
+            "<h3>\xf0\x9f\x8e\xa8 Blender MCP (addon ufficiale)</h3>"
+            "<h4>1. Installa Blender 5.1+</h4>"
+            "<p><a href='https://www.blender.org/download/'>blender.org/download</a></p>"
+            "<h4>2. Abilita l'addon MCP</h4>"
+            "<p>Blender \xe2\x86\x92 Edit \xe2\x86\x92 Preferences \xe2\x86\x92 Add-ons \xe2\x86\x92 "
+            "cerca <b>MCP</b> \xe2\x86\x92 abilita \xe2\x86\x92 imposta porta <b>6789</b></p>"
+            "<h4>3. Avvia il server</h4>"
+            "<p>Il server parte automaticamente (Auto Start) oppure clicca "
+            "<b>Start MCP Server</b> nelle preferenze addon.</p>"
+            "<h4>4. Connetti</h4>"
+            "<p>Torna qui \xe2\x86\x92 clicca <b>\xf0\x9f\x94\x97 Verifica</b>.<br>"
+            "Protocollo: TCP socket JSON null-terminated (porta 6789).</p>"
+            "<p><b>Nota llama.cpp</b>: non richiesto per Prismalux. "
+            "L'AI gira via Ollama e genera il codice Python che viene "
+            "eseguito direttamente in Blender via TCP.</p>"
             "<p>Blender \xe2\x86\x92 Edit \xe2\x86\x92 Preferences \xe2\x86\x92 Add-ons \xe2\x86\x92 Install "
             "\xe2\x86\x92 seleziona <code>blender_mcp.py</code></p>"
             "<h4>3. Avvia il server</h4>"
@@ -619,6 +823,14 @@ QWidget* AppControllerPage::buildFreeCADTab()
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(8, 8, 8, 8);
     lay->setSpacing(6);
+
+    auto* descLbl = new QLabel(
+        "\xf0\x9f\x94\xa9  <i>FreeCAD \xe2\x80\x94 Software CAD parametrico open-source per la progettazione "
+        "meccanica e industriale 3D. Supporta modellazione solida, simulazione FEM e architettura BIM.</i>", w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    lay->addWidget(descLbl);
 
     /* ── Barra connessione ── */
     auto* connRow = new QWidget(w);
@@ -842,6 +1054,14 @@ QWidget* AppControllerPage::buildOfficeTab()
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(8, 8, 8, 8);
     lay->setSpacing(6);
+
+    auto* descLbl = new QLabel(
+        "\xf0\x9f\x93\x84  <i>Office Suite \xe2\x80\x94 Suite di produttività per la creazione di documenti di testo, "
+        "fogli di calcolo e presentazioni. Compatibile con LibreOffice e Microsoft Office tramite bridge Python-UNO.</i>", w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    lay->addWidget(descLbl);
 
     /* ── Barra connessione bridge ── */
     auto* connRow = new QWidget(w);
@@ -1108,6 +1328,14 @@ QWidget* AppControllerPage::buildCloudCompareTab()
     lay->setContentsMargins(16, 16, 16, 16);
     lay->setSpacing(12);
 
+    auto* descLbl = new QLabel(
+        "\xf0\x9f\x94\xb5  <i>CloudCompare \xe2\x80\x94 Software open-source per l\xe2\x80\x99" "elaborazione e l\xe2\x80\x99" "analisi "
+        "di nuvole di punti 3D e mesh poligonali. Usato in rilevamento topografico, archeologia e ingegneria civile.</i>", w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    lay->addWidget(descLbl);
+
     auto* group = new QGroupBox(
         "\xf0\x9f\x94\xb5  CloudCompare \xe2\x80\x94 Analisi nuvole di punti", w);
     auto* glay = new QVBoxLayout(group);
@@ -1294,6 +1522,14 @@ QWidget* AppControllerPage::buildAnkiTab()
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(8, 8, 8, 8);
     lay->setSpacing(6);
+
+    auto* descLbl = new QLabel(
+        "\xf0\x9f\x83\x8f  <i>Anki \xe2\x80\x94 Applicazione open-source per la memorizzazione tramite flashcard "
+        "con algoritmo di ripetizione spaziata (SRS). Ideale per lingue, medicina, diritto e materie tecniche.</i>", w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    lay->addWidget(descLbl);
 
     /* ── Barra connessione AnkiConnect ── */
     auto* connRow = new QWidget(w);
@@ -1551,6 +1787,14 @@ QWidget* AppControllerPage::buildKiCADTab()
     lay->setContentsMargins(8, 8, 8, 8);
     lay->setSpacing(6);
 
+    auto* descLbl = new QLabel(
+        "\xf0\x9f\x96\xa5  <i>KiCAD \xe2\x80\x94 Suite EDA (Electronic Design Automation) open-source per la "
+        "progettazione di schemi elettrici e circuiti stampati (PCB). Standard de facto per l\xe2\x80\x99" "hardware open-source.</i>", w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    lay->addWidget(descLbl);
+
     /* ── Barra connessione ── */
     auto* connRow = new QWidget(w);
     auto* connLay = new QHBoxLayout(connRow);
@@ -1777,6 +2021,14 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     lay->setContentsMargins(8, 8, 8, 8);
     lay->setSpacing(6);
 
+    auto* descLbl = new QLabel(
+        "\xf0\x9f\xa4\x96  <i>TinyMCP \xe2\x80\x94 Bridge AI per la programmazione di microcontrollori "
+        "Arduino, ESP32 e STM32. Genera codice C/C++ tramite AI, lo compila e lo flasha direttamente sul dispositivo via porta seriale.</i>", w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    lay->addWidget(descLbl);
+
     /* ── Barra porta seriale ── */
     auto* connRow = new QWidget(w);
     auto* connLay = new QHBoxLayout(connRow);
@@ -1994,6 +2246,14 @@ QWidget* AppControllerPage::buildOBSTab()
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(8, 8, 8, 8);
     lay->setSpacing(6);
+
+    auto* descLbl = new QLabel(
+        "\xf0\x9f\x94\xb4  <i>OBS Studio \xe2\x80\x94 Software open-source per la registrazione video e lo "
+        "streaming live su Twitch, YouTube e altri servizi. Controllabile via WebSocket per automazione di scene, sorgenti e filtri.</i>", w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    lay->addWidget(descLbl);
 
     /* ── Barra connessione ── */
     auto* connRow = new QWidget(w);

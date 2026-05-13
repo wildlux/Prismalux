@@ -30,7 +30,7 @@ struct AiChatParams {
     bool   caveman_mode   = false;  ///< risposte dirette, senza convenevoli né riepiloghi
     int    thinkMode      = 0;  ///< 0=auto (classificatore), 1=off, 2=on
     int    thinkBudget    = 2;  ///< moltiplicatore num_predict quando thinking attivo (1–4)
-    bool   flash_attn     = false; ///< Flash Attention: riduce RAM/VRAM KV cache ~30-50%
+    bool   flash_attn     = true;  ///< Flash Attention: riduce RAM/VRAM KV cache ~30-50% (default ON)
 
     /* ── Unica fonte: ~/.prismalux/ai_params.json ── */
     static QString     filePath();               ///< percorso del file
@@ -145,6 +145,17 @@ public:
      */
     void unloadModel();
 
+    /** Configura i tool da inviare nella prossima chat() (Ollama function calling).
+     *  tools: array JSON nel formato Ollama [{type:"function",function:{name,description,parameters}}].
+     *  Chiamare clearActiveTools() dopo aver gestito la risposta per disabilitare il tool use. */
+    void setActiveTools(const QJsonArray& tools) { m_activeTools = tools; }
+    void clearActiveTools() { m_activeTools = QJsonArray(); }
+
+    /** Continua la conversazione dopo l'esecuzione locale di un tool.
+     *  Invia il risultato del tool al modello e riprende lo streaming.
+     *  Chiama onReadyRead/onFinished come una chat() normale. */
+    void replyWithTool(const QString& toolName, const QString& result);
+
     /**
      * isModelLoaded() — true se Ollama ha ricevuto almeno una risposta di inferenza
      * con questo client e il modello non è stato ancora scaricato.
@@ -172,6 +183,10 @@ signals:
      * @param backend  "Ollama" | "llama-server" | "llama-local"
      */
     void requestStarted(const QString& model, const QString& backend);
+
+    /** Emesso quando il modello richiede l'esecuzione di un tool (Ollama function calling).
+     *  Il chiamante deve eseguire il tool e chiamare replyWithTool() con il risultato. */
+    void toolCallRequired(const QString& name, const QJsonObject& args);
 
 private slots:
     void onReadyRead();
@@ -250,4 +265,15 @@ private:
     /* Contatore richieste — incrementato a ogni chat() avviata con successo.
      * Usato da currentReqId() per il routing delle risposte nelle pagine. */
     quint64       m_reqId = 0;
+
+    /* ── Tool use (Ollama native function calling) ──────────────────────
+     * m_activeTools: array JSON tools[] inviato con la prossima chat().
+     *   Vuoto = nessun tool use (comportamento legacy invariato).
+     * m_pendingToolCalls: tool_calls ricevuti nell'ultima risposta del modello.
+     *   onFinished() emette toolCallRequired per ognuno invece di finished().
+     * m_lastChatMessages: messaggi dell'ultima chat() — usati da replyWithTool()
+     *   per costruire la continuazione con il risultato del tool. */
+    QJsonArray    m_activeTools;
+    QJsonArray    m_pendingToolCalls;
+    QJsonArray    m_lastChatMessages;
 };

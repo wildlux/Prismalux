@@ -8,6 +8,7 @@ class LanServer;
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSpinBox>
+#include <QCheckBox>
 #include <QProcess>
 #include <QStringList>
 #include <QJsonObject>
@@ -37,6 +38,7 @@ private:
     QComboBox*       m_cmbModel;
     QComboBox*       m_cmbBackend;
     QLabel*          m_ramStatusLbl = nullptr;
+    QLabel*          m_zramWarnLbl  = nullptr;
     QTextEdit*       m_ramLog       = nullptr;
     QComboBox*       m_cmbFmt       = nullptr;
     QLabel*          m_fmtStatus    = nullptr;

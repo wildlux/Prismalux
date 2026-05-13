@@ -12,6 +12,9 @@
 #include "pages/matematica_page.h"
 #include "pages/ricerca_page.h"
 #include "pages/app_controller_page.h"
+#include "pages/lan_wan_page.h"
+#include "pages/multimedia_page.h"
+#include "pages/strumenti_file_page.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -317,6 +320,76 @@ MainWindow::MainWindow(QWidget* parent)
     /* Avvia monitoraggio hardware */
     m_hw->start();
 
+    /* ── Auto-ottimizzazioni all'avvio ──────────────────────────────────
+     * 1. Preset RAM (primo avvio): se ai_params.json non esiste, applica
+     *    il preset appropriato in base alla RAM rilevata.
+     * 2. Flash Attention: abilitata di default (già in AiChatParams default).
+     * 3. zRAM Doppia (Linux): avvia se kAutoZramDoppia=true e non attivo. */
+    {
+        /* Preset RAM al primo avvio */
+        if (!QFile::exists(AiChatParams::filePath())) {
+            AiChatParams p = AiChatParams::load();   /* ritorna default con flash_attn=true */
+            const qint64 ramMb = P::totalRamBytes() / (1024LL * 1024LL);
+            if (ramMb > 0 && ramMb < 10000) {
+                /* 8 GB RAM: contesto ridotto + predizione conservativa */
+                p.num_ctx    = 4096;
+                p.num_predict = 1024;
+                p.temperature = 0.05;
+                statusBar()->showMessage(
+                    "\xf0\x9f\x8e\x9b  Preset 8 GB RAM applicato automaticamente.", 5000);
+            } else if (ramMb >= 16000) {
+                /* 16+ GB RAM: contesto lungo */
+                p.num_ctx = 16384;
+                statusBar()->showMessage(
+                    "\xf0\x9f\x8e\x9b  Preset Contesto Lungo applicato automaticamente.", 5000);
+            }
+            AiChatParams::save(p);
+            if (m_ai) m_ai->setChatParams(p);
+        }
+
+#ifndef Q_OS_WIN
+        /* zRAM Doppia (zstd) — avvia 3s dopo l'avvio per non bloccare la UI */
+        QTimer::singleShot(3000, this, [this]{
+            QSettings zs("Prismalux", "GUI");
+            if (!zs.value(P::SK::kAutoZramDoppia, true).toBool()) return;
+            /* Controlla se zRAM è già attivo (lettura sincrona /proc/swaps) */
+            QFile swapsFile("/proc/swaps");
+            if (swapsFile.open(QIODevice::ReadOnly)) {
+                if (swapsFile.readAll().contains("zram")) {
+                    return; /* già attivo — nessuna azione */
+                }
+            }
+            /* Script Doppia zstd — 2 device: zram0=50% RAM (p100) + zram1=25% RAM (p50) */
+            static const QString kZramScript =
+                "echo 1 | tee /proc/sys/vm/compact_memory > /dev/null; "
+                "sleep 1; "
+                "for dev in /dev/zram*; do swapoff \"$dev\" 2>/dev/null; done; "
+                "rmmod zram 2>/dev/null || true; "
+                "sleep 0.3; "
+                "modprobe zram num_devices=2; "
+                "sleep 0.3; "
+                "TOTAL=$(grep MemTotal /proc/meminfo | awk '{print $2}'); "
+                "(echo zstd | tee /sys/block/zram0/comp_algorithm) || "
+                " (echo lzo-rle | tee /sys/block/zram0/comp_algorithm); "
+                "echo $(( TOTAL * 512 )) | tee /sys/block/zram0/disksize; "
+                "mkswap /dev/zram0; swapon -p 100 /dev/zram0; "
+                "(echo zstd | tee /sys/block/zram1/comp_algorithm) || "
+                " (echo lzo-rle | tee /sys/block/zram1/comp_algorithm); "
+                "echo $(( TOTAL * 256 )) | tee /sys/block/zram1/disksize; "
+                "mkswap /dev/zram1; swapon -p 50 /dev/zram1";
+            QProcess::startDetached("pkexec", {"bash", "-c", kZramScript});
+            statusBar()->showMessage(
+                "\xf0\x9f\x92\xbe  zRAM Doppia (zstd, 75% RAM) \xe2\x80\x94 "
+                "richiesta autorizzazione amministratore...", 8000);
+        });
+#endif
+    }
+
+    /* Inizializza ImpostazioniPage subito dopo l'avvio (QTimer delay 0 =
+       prossimo ciclo event loop). Questo installa il pannello Cron reale
+       in "Strumenti" senza aspettare che l'utente apra Impostazioni. */
+    QTimer::singleShot(0, this, [this]{ ensureSettingsDialog(); });
+
     /* Auto-setup whisper.cpp in background (non blocca UI).
        Controlla presenza binario + modello dentro il progetto;
        se mancano avvia: git clone → cmake build → download modello. */
@@ -408,12 +481,12 @@ MainWindow::MainWindow(QWidget* parent)
     auto* sc6 = new QShortcut(QKeySequence("Alt+6"), this);
     auto* sc7 = new QShortcut(QKeySequence("Alt+7"), this);
     connect(sc1, &QShortcut::activated, this, [this]{ navigateTo(0); }); /* Intelligenza artificiale */
-    connect(sc2, &QShortcut::activated, this, [this]{ navigateTo(1); }); /* Strumenti */
-    connect(sc3, &QShortcut::activated, this, [this]{ navigateTo(2); }); /* Programmazione */
-    connect(sc4, &QShortcut::activated, this, [this]{ navigateTo(3); }); /* Matematica+Grafico */
-    connect(sc5, &QShortcut::activated, this, [this]{ navigateTo(4); }); /* Ricerca e Sviluppo */
-    connect(sc6, &QShortcut::activated, this, [this]{ navigateTo(5); }); /* APP Controller */
-    connect(sc7, &QShortcut::activated, this, [this]{ navigateTo(6); }); /* Impara */
+    connect(sc2, &QShortcut::activated, this, [this]{ navigateTo(1); }); /* Strumenti AI */
+    connect(sc3, &QShortcut::activated, this, [this]{ navigateTo(4); }); /* Programmazione */
+    connect(sc4, &QShortcut::activated, this, [this]{ navigateTo(5); }); /* Matematica+Grafico */
+    connect(sc5, &QShortcut::activated, this, [this]{ navigateTo(6); }); /* Ricerca e Sviluppo */
+    connect(sc6, &QShortcut::activated, this, [this]{ navigateTo(7); }); /* APP Controller */
+    connect(sc7, &QShortcut::activated, this, [this]{ navigateTo(9); }); /* Impara */
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1422,10 +1495,10 @@ QWidget* MainWindow::buildContent() {
             this, [this](const QString& formula, double xMin, double xMax,
                          const QVector<QPointF>& points){
         if (!m_grafCanvas) return;
-        /* Naviga al container Matematica (indice 3) e attiva il sub-tab Grafico (indice 1) */
+        /* Naviga al container Matematica (indice 5) e attiva il sub-tab Grafico (indice 1) */
         if (m_mainTabs) {
-            m_mainTabs->setCurrentIndex(3);
-            if (auto* mc = qobject_cast<QWidget*>(m_mainTabs->widget(3)))
+            m_mainTabs->setCurrentIndex(5);
+            if (auto* mc = qobject_cast<QWidget*>(m_mainTabs->widget(5)))
                 if (auto* st = mc->findChild<QTabWidget*>("mathSubTabs"))
                     st->setCurrentIndex(1);
         }
@@ -1436,9 +1509,12 @@ QWidget* MainWindow::buildContent() {
             m_grafCanvas->setScatter(points);
     });
 
-    m_mainTabs->addTab(agentiPage,                      "\xf0\x9f\xa4\x96  Intelligenza artificiale");  /* 0 */
-    m_mainTabs->addTab(new StrumentiPage(m_ai, this),   "\xf0\x9f\x9b\xa0  Strumenti AI");     /* 1 */
-    m_mainTabs->addTab(new ProgrammazionePage(m_ai, this),"\xf0\x9f\x92\xbb  Programmazione");  /* 2 */
+    m_mainTabs->addTab(agentiPage,                           "\xf0\x9f\xa4\x96  Intelligenza artificiale");  /* 0 */
+    m_strumentiPage = new StrumentiPage(m_ai, this);
+    m_mainTabs->addTab(m_strumentiPage,                      "\xf0\x9f\x9b\xa0  Strumenti");        /* 1 */
+    m_mainTabs->addTab(new MultimediaPage(m_ai, this),       "\xf0\x9f\x8e\xac  Multimedia");       /* 2 */
+    m_mainTabs->addTab(new StrumentiFilePage(m_ai, this),    "\xf0\x9f\x93\x81  File AI");          /* 3 */
+    m_mainTabs->addTab(new ProgrammazionePage(m_ai, this),   "\xf0\x9f\x92\xbb  Programmazione");   /* 4 */
 
     /* ── Matematica (container) con sub-tab Matematica + Grafico ── */
     {
@@ -1474,16 +1550,20 @@ QWidget* MainWindow::buildContent() {
         });
 
         mcLay->addWidget(mathSubTabs);
-        m_mainTabs->addTab(mathContainer, "\xcf\x80  Matematica");                        /* 3 */
+        m_mainTabs->addTab(mathContainer, "\xcf\x80  Matematica");                        /* 5 */
     }
 
     /* ── Ricerca e Sviluppo — Paper · Brevetti · Documenti tecnici ── */
     m_mainTabs->addTab(new RicercaPage(m_ai, this),
-                       "\xf0\x9f\x94\xac  Ricerca");                                      /* 4 */
+                       "\xf0\x9f\x94\xac  Ricerca");                                      /* 6 */
 
     /* ── APP Controller — joystick MCP bridges ── */
     m_mainTabs->addTab(new AppControllerPage(m_ai, this),
-                       "\xf0\x9f\x95\xb9  APP Controller");                               /* 5 */
+                       "\xf0\x9f\x95\xb9  APP Controller");                               /* 7 */
+
+    /* ── LAN & WAN — server LAN Android + WAN futuro ── */
+    m_mainTabs->addTab(new LanWanPage(m_ai, this),
+                       "\xf0\x9f\x8c\x90  LAN & WAN");                                   /* 8 */
 
     /* ── Impara: Finanza · Impara con AI · Sfida (Cerca Lavoro spostata in Strumenti AI) ── */
     {
@@ -1512,7 +1592,7 @@ QWidget* MainWindow::buildContent() {
         }
         ilay->addWidget(imparaTabs);
 
-        m_mainTabs->addTab(imparaContainer, "\xf0\x9f\x93\x9a  Impara");                  /* 6 */
+        m_mainTabs->addTab(imparaContainer, "\xf0\x9f\x93\x9a  Impara");                  /* 9 */
     }
 
 
@@ -1525,12 +1605,12 @@ QWidget* MainWindow::buildContent() {
     }
 
     /* ── Costruisci pulsanti barra navigazione ───────────────────
-       Separatore prima di "Impara" (tab 5) → gruppo Lavoro | Impara+Sfida */
+       Separatore prima di "Impara" (tab 9) → gruppo Lavoro | Impara+Sfida */
     {
         auto* btnGroup = new QButtonGroup(m_navMenuBar);
         btnGroup->setExclusive(true);
         for (int i = 0; i < m_mainTabs->count(); i++) {
-            if (i == 6) {           /* separatore prima di "Impara" */
+            if (i == 9) {           /* separatore prima di "Impara" */
                 auto* sep = new QFrame(m_navMenuBar);
                 sep->setFrameShape(QFrame::VLine);
                 sep->setObjectName("navMenuSep");
@@ -1636,6 +1716,9 @@ void MainWindow::ensureSettingsDialog()
     m_impDlg->resize(1050, 680);
     m_impPage = new ImpostazioniPage(m_ai, m_hw, m_impDlg);
     m_impPage->setGraficoCanvas(m_grafCanvas);
+    /* Installa il vero pannello Cron in Strumenti (sostituisce il placeholder) */
+    if (m_strumentiPage)
+        m_strumentiPage->installCronPanel(m_impPage->manutenzione());
     auto* dl = new QVBoxLayout(m_impDlg);
     dl->setContentsMargins(0, 0, 0, 0);
     dl->addWidget(m_impPage);
@@ -1666,6 +1749,17 @@ void MainWindow::ensureSettingsDialog()
             statusBar()->showMessage(
                 QString("\xe2\x9c\x85  RAG completato: %1 chunk indicizzati.").arg(n), 6000);
     });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   openSettingsDialog — apre Impostazioni (invocabile da AiErrorWidget).
+   ══════════════════════════════════════════════════════════════ */
+void MainWindow::openSettingsDialog()
+{
+    ensureSettingsDialog();
+    m_impDlg->show();
+    m_impDlg->raise();
+    m_impDlg->activateWindow();
 }
 
 /* ══════════════════════════════════════════════════════════════

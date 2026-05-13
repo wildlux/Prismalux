@@ -13,6 +13,57 @@ namespace P = PrismaluxPaths;
 #include "agents_config_dialog.h"
 
 /* ══════════════════════════════════════════════════════════════
+   _buildOllamaTools — array tools in formato Ollama function calling.
+   Inviato nella chat() quando m_toolsEnabled + Ollama backend + CHAT single mode.
+   Il modello chiama i tool via message.tool_calls → onNativeToolCall() esegue
+   e chiama replyWithTool() per continuare la conversazione.
+   ══════════════════════════════════════════════════════════════ */
+static QJsonArray _buildOllamaTools()
+{
+    auto mkTool = [](const QString& name, const QString& desc,
+                     const QJsonObject& params) -> QJsonObject {
+        QJsonObject fn;
+        fn["name"]        = name;
+        fn["description"] = desc;
+        fn["parameters"]  = params;
+        QJsonObject t;
+        t["type"]     = "function";
+        t["function"] = fn;
+        return t;
+    };
+
+    auto strParam = [](const QString& desc) -> QJsonObject {
+        QJsonObject p;
+        p["type"]        = "object";
+        QJsonObject props;
+        QJsonObject val; val["type"] = "string"; val["description"] = desc;
+        props["value"] = val;
+        p["properties"] = props;
+        p["required"]   = QJsonArray{QString("value")};
+        return p;
+    };
+
+    return QJsonArray {
+        mkTool("calc",
+               "Calcola un'espressione matematica. "
+               "Supporta: +,-,*,/,**, sqrt, sin, cos, log, ecc.",
+               strParam("Espressione matematica da calcolare")),
+        mkTool("ricerca",
+               "Esegui una ricerca web su DuckDuckGo e ottieni un riassunto.",
+               strParam("Query di ricerca")),
+        mkTool("leggi_file",
+               "Legge il contenuto di un file locale.",
+               strParam("Percorso assoluto del file")),
+        mkTool("lista_file",
+               "Elenca i file in una directory locale.",
+               strParam("Percorso assoluto della cartella")),
+        mkTool("python",
+               "Esegue codice Python in sandbox e ritorna l'output.",
+               strParam("Codice Python da eseguire")),
+    };
+}
+
+/* ══════════════════════════════════════════════════════════════
    _isChartRequest — rileva intento grafico nel linguaggio naturale.
    Controlla parole chiave italiane e inglesi comunemente usate quando
    l'utente vuole un grafico, senza richiedere una formula parsabile.
@@ -343,6 +394,14 @@ void AgentiPage::runAgent(int idx) {
 
     m_agentTimer.restart();
     m_agentOutputs.append("");
+
+    /* Tool use nativo Ollama: attiva solo in CHAT singola con tool abilitati
+       e backend Ollama (llama-server non supporta tool_calls nel formato Ollama). */
+    if (m_toolsEnabled && isSingleChat && m_ai->backend() == AiClient::Ollama)
+        m_ai->setActiveTools(_buildOllamaTools());
+    else
+        m_ai->clearActiveTools();
+
     /* Usa chatWithImage per il primo agente se c'è un'immagine allegata */
     if (idx == m_currentAgent && !m_imgBase64.isEmpty()) {
         m_ai->chatWithImage(_buildSys(m_taskOriginal, sysFull, sysSmall, m_ai->model(), m_ai->backend()), userPrompt,
