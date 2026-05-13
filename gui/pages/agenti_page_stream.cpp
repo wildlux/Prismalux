@@ -235,6 +235,15 @@ void AgentiPage::onFinished(const QString& full) {
                e lo passa via finished(). Usiamo quel valore se il buffer locale è vuoto. */
             if (rawResp.isEmpty() && !full.isEmpty())
                 rawResp = m_agentOutputs[m_currentAgent - 1] = full;
+            /* Fix toggle ▶️: thinking via message.thinking (campo separato da content).
+               AiClient prepone <think>...</think> solo in finished(), non nei token.
+               rawResp (dai token) non ha il think block; full sì.
+               Usiamo full per estrarre il thinking e mostrare il toggle. */
+            else if (!rawResp.isEmpty() && !full.isEmpty()
+                     && full.contains("<think>", Qt::CaseInsensitive)
+                     && !rawResp.contains("<think>", Qt::CaseInsensitive)) {
+                rawResp = m_agentOutputs[m_currentAgent - 1] = full;
+            }
             /* Rimuove blocchi <think>...</think> (reasoning models: qwen3, deepseek-r1, qwq...)
                Se dopo lo strip rimane vuoto (modelli piccoli che producono SOLO thinking
                senza risposta finale), si usa il contenuto del <think> come fallback.

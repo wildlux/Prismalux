@@ -468,12 +468,29 @@ void MultimediaPage::runGraphvizAi()
     connect(m_ai, &AiClient::finished, h, [this, h](const QString& full) {
         h->deleteLater();
         QString dot = full;
+        /* Strip blocco <think>...</think> (qwen3, deepseek-r1) */
+        {
+            static const QRegularExpression reThink(
+                "<think>[\\s\\S]*?</think>",
+                QRegularExpression::CaseInsensitiveOption);
+            dot.remove(reThink);
+            /* Fallback: </think> senza apertura */
+            const int te = dot.indexOf("</think>", 0, Qt::CaseInsensitive);
+            if (te >= 0) dot = dot.mid(te + 8);
+            dot = dot.trimmed();
+        }
+        /* Estrai da code fence markdown se presente */
         int s = dot.indexOf("```dot\n");
         if (s < 0) s = dot.indexOf("```\n");
         if (s >= 0) {
             dot = dot.mid(s).section("```", 1, 1).trimmed();
         }
-        const int gs = dot.indexOf(QRegularExpression("(di)?graph\\s"));
+        /* Cerca l'inizio del blocco DOT: graph/digraph seguito da { (non solo spazio,
+           per evitare match su "graph with nodes..." nel testo di ragionamento) */
+        static const QRegularExpression reDotStart(
+            "(di)?graph\\s*\\{",
+            QRegularExpression::CaseInsensitiveOption);
+        const int gs = dot.indexOf(reDotStart);
         if (gs >= 0) dot = dot.mid(gs);
 
         m_graphvizInput->setPlainText(dot);

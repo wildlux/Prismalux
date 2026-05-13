@@ -205,6 +205,14 @@ void ManutenzioneePage::cronRefreshTable()
     }
 }
 
+/* Rimuove il blocco <think>...</think> e restituisce solo la risposta finale */
+static QString stripThink(const QString& resp)
+{
+    const int end = resp.indexOf("</think>");
+    if (end != -1) return resp.mid(end + 8).trimmed();
+    return resp;
+}
+
 /* ──────────────────────────────────────────────────────────────
    Esegui singolo job
    ────────────────────────────────────────────────────────────── */
@@ -243,15 +251,16 @@ void ManutenzioneePage::cronRunJob(int idx)
         h->deleteLater();
         if (jobModel != prevModel)
             m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), prevModel);
+        const QString clean = stripThink(resp);
         if (idx < m_cronJobs.size()) {
-            m_cronJobs[idx].lastResult = resp.left(500);
+            m_cronJobs[idx].lastResult = clean.left(500);
             cronSaveJobs();
         }
         if (m_cronLog) m_cronLog->append(
             QString("<span style='color:#8c8'>[%1] ✅ <b>%2</b> completato. Risposta: %3</span>")
             .arg(QDateTime::currentDateTime().toString("HH:mm:ss"))
             .arg(jobName.toHtmlEscaped())
-            .arg(resp.left(200).toHtmlEscaped()));
+            .arg(clean.left(200).toHtmlEscaped()));
     });
     connect(m_ai, &AiClient::error, h, [this, h, jobName, prevModel, jobModel](const QString& err){
         h->deleteLater();

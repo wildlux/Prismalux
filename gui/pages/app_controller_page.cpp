@@ -767,26 +767,25 @@ QWidget* AppControllerPage::buildBlenderTab()
         browser->setOpenExternalLinks(true);
         browser->setHtml(
             "<h3>\xf0\x9f\x8e\xa8 Blender MCP (addon ufficiale)</h3>"
+            "<p style='background:#2a3a2a; border-left:4px solid #8c8; padding:8px; border-radius:4px;'>"
+            "\xf0\x9f\x93\xa6 <b>File gi\xc3\xa0 inclusi in Prismalux</b><br>"
+            "Nella cartella <code>MCPs/blender_addon/ADDONS_INSTALLAZIONE/</code> trovi:<br>"
+            "&bull; <code>mcp-1.0.0.zip</code> \xe2\x80\x94 addon MCP ufficiale (installabile direttamente in Blender)<br>"
+            "&bull; <code>blender_mcp_community.py</code> \xe2\x80\x94 versione community alternativa<br>"
+            "&bull; <code>prismalux_bridge.py</code> \xe2\x80\x94 bridge Prismalux per esecuzione diretta</p>"
             "<h4>1. Installa Blender 5.1+</h4>"
             "<p><a href='https://www.blender.org/download/'>blender.org/download</a></p>"
-            "<h4>2. Abilita l'addon MCP</h4>"
-            "<p>Blender \xe2\x86\x92 Edit \xe2\x86\x92 Preferences \xe2\x86\x92 Add-ons \xe2\x86\x92 "
-            "cerca <b>MCP</b> \xe2\x86\x92 abilita \xe2\x86\x92 imposta porta <b>6789</b></p>"
+            "<h4>2. Installa l'addon MCP</h4>"
+            "<p>Blender \xe2\x86\x92 Edit \xe2\x86\x92 Preferences \xe2\x86\x92 Add-ons \xe2\x86\x92 <b>Install</b> "
+            "\xe2\x86\x92 seleziona <code>mcp-1.0.0.zip</code> dalla cartella sopra \xe2\x86\x92 abilita \xe2\x86\x92 imposta porta <b>6789</b></p>"
             "<h4>3. Avvia il server</h4>"
-            "<p>Il server parte automaticamente (Auto Start) oppure clicca "
-            "<b>Start MCP Server</b> nelle preferenze addon.</p>"
+            "<p>Il server parte automaticamente (Auto Start) oppure vai in "
+            "3D Viewport \xe2\x86\x92 N \xe2\x86\x92 tab MCP \xe2\x86\x92 <b>Start MCP Server</b> (porta 6789).</p>"
             "<h4>4. Connetti</h4>"
             "<p>Torna qui \xe2\x86\x92 clicca <b>\xf0\x9f\x94\x97 Verifica</b>.<br>"
             "Protocollo: TCP socket JSON null-terminated (porta 6789).</p>"
-            "<p><b>Nota llama.cpp</b>: non richiesto per Prismalux. "
-            "L'AI gira via Ollama e genera il codice Python che viene "
-            "eseguito direttamente in Blender via TCP.</p>"
-            "<p>Blender \xe2\x86\x92 Edit \xe2\x86\x92 Preferences \xe2\x86\x92 Add-ons \xe2\x86\x92 Install "
-            "\xe2\x86\x92 seleziona <code>blender_mcp.py</code></p>"
-            "<h4>3. Avvia il server</h4>"
-            "<p>3D Viewport \xe2\x86\x92 N \xe2\x86\x92 tab MCP \xe2\x86\x92 <b>Start MCP Server</b> (porta 6789)</p>"
-            "<h4>4. Collega</h4>"
-            "<p>Torna qui \xe2\x86\x92 clicca <b>\xf0\x9f\x94\x97 Verifica</b>.</p>");
+            "<p><i>L'AI gira via Ollama e genera codice Python eseguito direttamente in Blender via TCP. "
+            "llama.cpp non \xc3\xa8 richiesto.</i></p>");
         auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
         btnClose->setObjectName("actionBtn");
         connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);

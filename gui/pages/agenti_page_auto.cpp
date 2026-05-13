@@ -146,6 +146,16 @@ void AgentiPage::_autoAdvance(const QString& resp)
 {
     m_opMode = OpMode::Idle;   /* temporaneamente Idle durante il parsing */
 
+    /* Rimuove il blocco <think>...</think> prima del parsing ReAct.
+       I modelli think-capable (qwen3, deepseek-r1) emettono il reasoning
+       nel tag <think> prima della risposta strutturata THOUGHT/ACTION/FINAL_ANSWER.
+       Lo strip evita che i tag raw appaiano nelle bolle o confondano le regex. */
+    auto stripThinkBlock = [](const QString& s) -> QString {
+        const int end = s.indexOf("</think>");
+        return (end != -1) ? s.mid(end + 8).trimmed() : s;
+    };
+    const QString parsed = stripThinkBlock(resp);
+
     /* ── Estrai THOUGHT, ACTION, FINAL_ANSWER ── */
     static const QRegularExpression reThought(
         "THOUGHT:\\s*(.+?)(?=\\n(?:ACTION|FINAL_ANSWER):|$)",
@@ -157,9 +167,9 @@ void AgentiPage::_autoAdvance(const QString& resp)
         "FINAL_ANSWER:\\s*([\\s\\S]+)$",
         QRegularExpression::CaseInsensitiveOption);
 
-    const auto mThought = reThought.match(resp);
-    const auto mAction  = reAction.match(resp);
-    const auto mFinal   = reFinal.match(resp);
+    const auto mThought = reThought.match(parsed);
+    const auto mAction  = reAction.match(parsed);
+    const auto mFinal   = reFinal.match(parsed);
 
     const QString thought = mThought.hasMatch() ? mThought.captured(1).trimmed() : QString();
     const QString action  = mAction.hasMatch()  ? mAction.captured(1).trimmed()  : QString();
@@ -173,7 +183,7 @@ void AgentiPage::_autoAdvance(const QString& resp)
 
     /* ── FINAL_ANSWER: risposta completa — termina il ciclo ── */
     if (!finalAns.isEmpty() || (!mAction.hasMatch() && !thought.isEmpty())) {
-        const QString answer = finalAns.isEmpty() ? resp.trimmed() : finalAns;
+        const QString answer = finalAns.isEmpty() ? parsed.trimmed() : finalAns;
 
         /* Bolla step finale con il thought (se c'è) e la risposta */
         if (!thought.isEmpty() && finalAns.isEmpty() == false) {
@@ -205,11 +215,11 @@ void AgentiPage::_autoAdvance(const QString& resp)
             /* JSON malformato — tratta come risposta finale */
             sel.insertHtml(buildAutoStepHtml(m_autoStep + 1, thought, action, "[JSON malformato]"));
             { int idx = m_bubbleIdx++;
-              m_bubbleTexts[idx] = resp;
+              m_bubbleTexts[idx] = parsed;
               sel.insertHtml(buildAgentBubble(
                   "\xf0\x9f\xa4\x96  Agente Autonomo",
                   m_ai->model(), QString("Step %1").arg(m_autoStep + 1),
-                  markdownToHtml(resp), idx)); }
+                  markdownToHtml(parsed), idx)); }
             _setRunBusy(false);
             emit chatCompleted(m_autoLastUserMsg.left(40), m_log->toHtml());
             return;
@@ -267,11 +277,11 @@ void AgentiPage::_autoAdvance(const QString& resp)
 
     /* ── Risposta senza tag riconoscibili: tratta come risposta finale ── */
     { int idx = m_bubbleIdx++;
-      m_bubbleTexts[idx] = resp;
+      m_bubbleTexts[idx] = parsed;
       sel.insertHtml(buildAgentBubble(
           "\xf0\x9f\xa4\x96  Agente Autonomo",
           m_ai->model(), QString("Step %1").arg(m_autoStep + 1),
-          markdownToHtml(resp), idx)); }
+          markdownToHtml(parsed), idx)); }
 
     _setRunBusy(false);
     emit chatCompleted(m_autoLastUserMsg.left(40), m_log->toHtml());
