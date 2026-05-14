@@ -277,7 +277,7 @@ MainWindow::MainWindow(QWidget* parent)
     setWindowTitle("🍺 Prismalux v2.1 — Centro di Controllo");
     setWindowIcon(QIcon(P::root() + "/ICONA/prismalux.png"));
     setMinimumSize(1060, 680);
-    resize(1200, 760);
+    resize(1200, 760);   /* dimensioni predefinite — sovrascritta da restoreGeometry() sotto */
 
     /* ── Servizi di background ── */
     m_hw = new HardwareMonitor(this);
@@ -385,10 +385,8 @@ MainWindow::MainWindow(QWidget* parent)
 #endif
     }
 
-    /* Inizializza ImpostazioniPage subito dopo l'avvio (QTimer delay 0 =
-       prossimo ciclo event loop). Questo installa il pannello Cron reale
-       in "Strumenti" senza aspettare che l'utente apra Impostazioni. */
-    QTimer::singleShot(0, this, [this]{ ensureSettingsDialog(); });
+    /* ImpostazioniPage è lazy: creata solo alla prima apertura (⚙️)
+       oppure al primo clic su "Cron" in Strumenti (via cronPanelFirstOpen). */
 
     /* Wizard primo avvio — mostrato una sola volta */
     QSettings ss("Prismalux", "GUI");
@@ -493,6 +491,13 @@ MainWindow::MainWindow(QWidget* parent)
     connect(sc5, &QShortcut::activated, this, [this]{ navigateTo(6); }); /* Ricerca e Sviluppo */
     connect(sc6, &QShortcut::activated, this, [this]{ navigateTo(7); }); /* APP Controller */
     connect(sc7, &QShortcut::activated, this, [this]{ navigateTo(9); }); /* Impara */
+
+    /* ── Ripristina geometry dell'ultima sessione (posizione + dimensioni) ── */
+    QSettings geomSettings("Prismalux", "GUI");
+    const QByteArray geo   = geomSettings.value("mainwindow/geometry").toByteArray();
+    const QByteArray state = geomSettings.value("mainwindow/state").toByteArray();
+    if (!geo.isEmpty())   restoreGeometry(geo);
+    if (!state.isEmpty()) restoreState(state);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1537,6 +1542,11 @@ QWidget* MainWindow::buildContent() {
 
     m_mainTabs->addTab(agentiPage,                           "\xf0\x9f\xa4\x96  Intelligenza artificiale");  /* 0 */
     m_strumentiPage = new StrumentiPage(m_ai, this);
+    /* Cron lazy: installa il pannello solo al primo clic — NON all'avvio */
+    connect(m_strumentiPage, &StrumentiPage::cronPanelFirstOpen, this, [this]{
+        ensureSettingsDialog();
+        m_strumentiPage->installCronPanel(m_impPage->manutenzione());
+    });
     m_mainTabs->addTab(m_strumentiPage,                      "\xf0\x9f\x9b\xa0  Strumenti");        /* 1 */
     m_mainTabs->addTab(new MultimediaPage(m_ai, this),       "\xf0\x9f\x8e\xac  Multimedia");       /* 2 */
     m_mainTabs->addTab(new StrumentiFilePage(m_ai, this),    "\xf0\x9f\x93\x81  File AI");          /* 3 */
@@ -2075,6 +2085,11 @@ void MainWindow::closeEvent(QCloseEvent* ev) {
     QProcess::startDetached("cmd.exe", {"/c",
         "for /f \"skip=1 tokens=1\" %m in ('ollama ps --no-trunc 2^>nul') do ollama stop %m"});
 #endif
+
+    /* Salva geometry e stato finestra per il prossimo avvio */
+    QSettings s("Prismalux", "GUI");
+    s.setValue("mainwindow/geometry", saveGeometry());
+    s.setValue("mainwindow/state",    saveState());
 
     ev->accept();
 }

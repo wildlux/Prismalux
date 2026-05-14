@@ -20,7 +20,7 @@ public:
     int     clientCount() const;
     QStringList connectedIPs() const;
 
-    /** Imposta il token Bearer opzionale. Stringa vuota = nessuna autenticazione. */
+    /** Imposta il token Bearer (generato dalla UI se vuoto). Auth sempre richiesta se non vuoto. */
     void setAccessToken(const QString& token) { m_accessToken = token; }
 
 signals:

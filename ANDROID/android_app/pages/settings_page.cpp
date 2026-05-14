@@ -11,6 +11,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QUrl>
+#include <QTimer>
 #include <QRegularExpression>
 #include <algorithm>
 
@@ -332,8 +333,22 @@ void SettingsPage::onLoadRag()
 
     emit ragIndexChanged(path);
 
+    /* Timeout 10s: se loaded non arriva (file non trovato, errore I/O)
+       il pulsante viene riabilitato per evitare che resti stuck. */
+    auto* watchdog = new QTimer(this);
+    watchdog->setSingleShot(true);
+    watchdog->setInterval(10000);
+    connect(watchdog, &QTimer::timeout, this, [this, watchdog] {
+        watchdog->deleteLater();
+        m_ragLoadBtn->setEnabled(true);
+        m_ragStatus->setText(
+            "\xe2\x9a\xa0  Timeout: nessuna risposta dal caricatore RAG");  // ⚠
+    });
+    watchdog->start();
+
     /* Aggiorna contatore (collegato a RagEngineSimple::loaded) */
-    connect(m_rag, &RagEngineSimple::loaded, this, [this](int n) {
+    connect(m_rag, &RagEngineSimple::loaded, this, [this, watchdog](int n) {
+        if (watchdog) { watchdog->stop(); watchdog->deleteLater(); }
         m_ragLoadBtn->setEnabled(true);
         m_ragStatus->setText(
             n > 0

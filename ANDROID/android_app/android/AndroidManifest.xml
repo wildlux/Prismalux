@@ -78,7 +78,7 @@
 
             <!-- Metadati Qt richiesti dal binding -->
             <meta-data android:name="android.app.lib_name"        android:value="PrismaluxMobile" />
-            <meta-data android:name="android.app.qt_theme_type"   android:value="0" />
+            <meta-data android:name="android.app.qt_theme_type"   android:value="1" />
         </activity>
     </application>
 </manifest>

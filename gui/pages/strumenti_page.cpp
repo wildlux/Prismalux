@@ -1608,7 +1608,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     m_waitLbl = new QLabel(inputRow);
     m_waitLbl->setStyleSheet(
         "color:#E5C400;font-style:italic;font-size:11px;");
-    m_waitLbl->setVisible(false); m_waitBar->setVisible(false);
+    m_waitLbl->setVisible(false);
     m_waitLbl->setWordWrap(true);
 
     m_waitBar = new QProgressBar(inputRow);
@@ -1650,7 +1650,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     lay->addWidget(m_cronPanel, 1);
 
     connect(cronBtn, &QPushButton::clicked, this,
-            [this, actStack, lblSel](bool checked) {
+            [this, actStack, lblSel, catGroup](bool checked) {
         actStack->setVisible(!checked);
         lblSel->setVisible(!checked);
         m_ragRow->setVisible(!checked);
@@ -1658,6 +1658,20 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         if (m_inputRow) m_inputRow->setVisible(!checked);
         m_output->setVisible(!checked);
         m_cronPanel->setVisible(checked);
+        /* Sincronizza il catGroup: quando Cron è attivo nessun bottone categoria
+           deve apparire selezionato, e viceversa. */
+        if (checked) {
+            /* Rimuovi la selezione visuale dall'ultimo cat button attivo */
+            catGroup->setExclusive(false);
+            if (auto* cur = catGroup->checkedButton())
+                cur->setChecked(false);
+            catGroup->setExclusive(true);
+        }
+        /* Prima apertura: chiede a MainWindow di inizializzare il pannello Cron (lazy) */
+        if (checked && !m_cronInstalled) {
+            m_cronInstalled = true;
+            emit cronPanelFirstOpen();
+        }
     });
 
     /* Pannello LAN Android RIMOSSO — spostato in LanWanPage */

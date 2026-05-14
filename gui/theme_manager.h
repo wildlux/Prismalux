@@ -33,6 +33,9 @@ public:
     /* ID tema attivo */
     QString currentId() const { return m_currentId; }
 
+    /* QSS completo del tema attivo (per parsing colori a runtime) */
+    QString currentQss() const { return m_cssCache.value(m_currentId); }
+
 signals:
     void changed(const QString& id);
 

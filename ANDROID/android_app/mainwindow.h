@@ -7,6 +7,10 @@
 class AiClient;
 class RagEngineSimple;
 class ChatPage;
+class StudioPage;
+class LavoroPage;
+class ObsPage;
+class MisurePage;
 class SettingsPage;
 
 #ifdef HAVE_MULTIMEDIA
@@ -23,7 +27,8 @@ class BlePage;
      ┌────────────────────────────────┐
      │  QStackedWidget (pagine)        │
      ├────────────────────────────────┤
-     │  BottomBar: Chat│Camera│BT│⚙   │
+     │  BottomBar: Chat│Lavoro│OBS│    │
+     │             Misure│Camera│BT│⚙  │
      └────────────────────────────────┘
    ══════════════════════════════════════════════════════════════ */
 class MainWindow : public QMainWindow {
@@ -47,6 +52,10 @@ private:
     RagEngineSimple* m_rag = nullptr;
 
     ChatPage*     m_chatPage     = nullptr;
+    StudioPage*   m_studioPage   = nullptr;
+    LavoroPage*   m_lavoroPage   = nullptr;
+    ObsPage*      m_obsPage      = nullptr;
+    MisurePage*   m_misurePage   = nullptr;
     SettingsPage* m_settingsPage = nullptr;
 
 #ifdef HAVE_MULTIMEDIA
@@ -63,7 +72,11 @@ private:
 
     /* indici degli stack per tab switching */
     int m_idxChat     = 0;
-    int m_idxCamera   = 1;
-    int m_idxBle      = 2;
-    int m_idxSettings = 3;
+    int m_idxStudio   = 1;
+    int m_idxLavoro   = 2;
+    int m_idxObs      = 3;
+    int m_idxMisure   = 4;
+    int m_idxCamera   = 5;
+    int m_idxBle      = 6;
+    int m_idxSettings = 7;
 };

@@ -23,7 +23,7 @@ set(QT_LIBS
 )
 
 # ── Moduli opzionali ──────────────────────────────────────────────────────
-find_package(Qt6 OPTIONAL_COMPONENTS Bluetooth Multimedia MultimediaWidgets)
+find_package(Qt6 OPTIONAL_COMPONENTS Bluetooth Multimedia MultimediaWidgets WebSockets)
 if(Qt6Bluetooth_FOUND)
     list(APPEND QT_LIBS Qt6::Bluetooth)
     add_compile_definitions(HAVE_BLE)
@@ -38,6 +38,13 @@ if(Qt6Multimedia_FOUND)
 else()
     message(STATUS "  Multimedia: non disponibile (stub)")
 endif()
+if(Qt6WebSockets_FOUND)
+    list(APPEND QT_LIBS Qt6::WebSockets)
+    add_compile_definitions(HAVE_OBS_WS)
+    message(STATUS "  WebSockets: abilitato (OBS control)")
+else()
+    message(STATUS "  WebSockets: non disponibile (OBS stub)")
+endif()
 
 # ── Sorgenti ──────────────────────────────────────────────────────────────
 set(SRCS
@@ -46,6 +53,10 @@ set(SRCS
     ai_client.cpp
     rag_engine_simple.cpp
     pages/chat_page.cpp
+    pages/studio_page.cpp
+    pages/lavoro_page.cpp
+    pages/obs_page.cpp
+    pages/misure_page.cpp
     pages/settings_page.cpp
 )
 
@@ -101,7 +112,14 @@ if(ANDROID)
     endif()
 endif()
 
-# ── Risorsa QSS (solo host) ───────────────────────────────────────────────
+# ── Risorsa QSS — embeddato nel binario via Qt resource (funziona su Android) ──
+qt_add_resources(PrismaluxMobile "qss_res"
+    PREFIX "/"
+    FILES
+        style_mobile.qss
+)
+
+# Copia anche accanto all'exe per debug desktop (utile per editing live del QSS)
 if(NOT ANDROID)
     add_custom_command(TARGET PrismaluxMobile POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different

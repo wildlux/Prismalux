@@ -438,6 +438,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
             tab);
         guide->setWordWrap(true);
         guide->setTextFormat(Qt::RichText);
+        guide->setAlignment(Qt::AlignTop | Qt::AlignLeft);
         guide->setObjectName("hintLabel");
         auto* sc = new QScrollArea(tab);
         sc->setWidget(guide);

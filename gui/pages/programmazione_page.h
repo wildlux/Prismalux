@@ -102,6 +102,20 @@ private:
     QWidget* buildAgentica(QWidget* parent);
     void     runAgente();
 
+    /* ── Translitter sub-tab ── */
+    QComboBox*      m_trSrcLang        = nullptr;
+    QComboBox*      m_trDstLang        = nullptr;
+    QComboBox*      m_trModel          = nullptr;
+    QPlainTextEdit* m_trInput          = nullptr;
+    QTextEdit*      m_trOutput         = nullptr;
+    QPushButton*    m_btnTrRun         = nullptr;
+    QPushButton*    m_btnTrStop        = nullptr;
+    QPushButton*    m_btnTrInsert      = nullptr;
+    QObject*        m_trTokenHolder    = nullptr;
+
+    QWidget* buildTranslitter(QWidget* parent);
+    void     runTranslitter();
+
     /* ── Reverse Engineering sub-tab ── */
     QLabel*         m_revFilePath       = nullptr;
     QPlainTextEdit* m_revPreview        = nullptr;

@@ -3,7 +3,8 @@ project(Prismalux_GUI VERSION 2.8 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-option(BUILD_TESTS "Compila la suite test_signal_lifetime" OFF)
+option(BUILD_TESTS        "Compila la suite test_signal_lifetime" OFF)
+option(ENABLE_SANITIZERS  "Abilita AddressSanitizer + UBSanitizer (GCC/Clang)" OFF)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
@@ -70,6 +71,12 @@ set(CPP_SRCS
     pages/manutenzione_page_lan.cpp
     lan_server.cpp
     pages/impostazioni_page.cpp
+    pages/impostazioni_page_ai.cpp
+    pages/impostazioni_page_visuale.cpp
+    pages/impostazioni_page_llm.cpp
+    pages/impostazioni_page_voce.cpp
+    pages/impostazioni_page_sistema.cpp
+    pages/impostazioni_page_altro.cpp
     pages/simulatore_page.cpp
     pages/simulatore_algos.cpp
     pages/strumenti_page.cpp
@@ -80,6 +87,7 @@ set(CPP_SRCS
     pages/grafico_page.cpp
     pages/programmazione_page.cpp
     pages/programmazione_page_git_repl.cpp
+    pages/programmazione_page_translitter.cpp
     pages/code_interpreter_widget.cpp
     pages/stable_diffusion_widget.cpp
     pages/matematica_page.cpp
@@ -139,6 +147,17 @@ if(WIN32)
 else()
     target_link_libraries(Prismalux_GUI PRIVATE pthread m)
     target_compile_options(Prismalux_GUI PRIVATE -Wno-overflow)
+endif()
+
+# ── Sanitizers (ASAN + UBSAN): attiva con -DENABLE_SANITIZERS=ON ─────────
+# Uso: cmake -B build_asan -DENABLE_SANITIZERS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
+#       cmake --build build_asan -j$(nproc)
+#       ASAN_OPTIONS=halt_on_error=1 ./build_asan/Prismalux_GUI
+if(ENABLE_SANITIZERS AND NOT MSVC)
+    set(_SAN_FLAGS -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_compile_options(Prismalux_GUI PRIVATE ${_SAN_FLAGS})
+    target_link_options(Prismalux_GUI    PRIVATE ${_SAN_FLAGS})
+    message(STATUS "Prismalux GUI: ASAN+UBSAN abilitati")
 endif()
 
 # Copia la cartella themes/ accanto all'eseguibile dopo ogni build.
@@ -853,7 +872,26 @@ if(BUILD_TESTS)
     set_tests_properties(ImparaQuiz         PROPERTIES TIMEOUT 30)
     set_tests_properties(MonitorPanel       PROPERTIES TIMEOUT 30)
     message(STATUS "Build test abilitata: signal_lifetime, rag_engine, code_utils, random_tool, lavoro_page, app_controller, programmazione_page, thinking_detect, ai_integration, ai_stress, team_collab, lavoro_data, tutor_data, rag_engine_avanzato, chat_history, simulatore_algos, formula_parser, strumenti_rag, theme_manager, hardware_monitor, manutenzione_cron, chat_history_stress, matematica_page, qr_code_widget, hw_detect_amd, knowledge_injection")
+
+    # Applica ASAN+UBSAN anche a tutti i test target quando ENABLE_SANITIZERS=ON
+    if(ENABLE_SANITIZERS AND NOT MSVC)
+        get_property(_all_tests DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY BUILDSYSTEM_TARGETS)
+        foreach(_t IN LISTS _all_tests)
+            if(_t MATCHES "^test_")
+                target_compile_options(${_t} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+                target_link_options   (${_t} PRIVATE -fsanitize=address,undefined)
+            endif()
+        endforeach()
+        message(STATUS "Test: ASAN+UBSAN abilitati su tutti i target test_*")
+    endif()
 endif()
+
+# ── Documentazione ASAN ───────────────────────────────────────────────────
+# Abilitare i sanitizer:
+#   cmake -B build_asan -DENABLE_SANITIZERS=ON -DBUILD_TESTS=ON \
+#         -DCMAKE_BUILD_TYPE=RelWithDebInfo
+#   cmake --build build_asan -j$(nproc)
+#   ASAN_OPTIONS=halt_on_error=1:detect_leaks=1 ctest --test-dir build_asan -j1
 
 # ── CPack — Windows installer (NSIS) ─────────────────────────────────────
 # Uso: cmake --build build --config Release && cpack --config build/CPackConfig.cmake

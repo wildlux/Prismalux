@@ -565,6 +565,10 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
 
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    /* Timeout 5 minuti: previene hang infiniti su modelli lenti o Ollama bloccato.
+       Il valore è alto deliberatamente perché i modelli grandi (33B+) possono
+       impiegare minuti per generare la prima risposta su hardware lento. */
+    req.setTransferTimeout(300'000);
     m_reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
     connect(m_reply, &QNetworkReply::readyRead, this, &AiClient::onReadyRead);
     connect(m_reply, &QNetworkReply::finished,  this, &AiClient::onFinished);
@@ -1094,6 +1098,7 @@ void AiClient::fetchEmbedding(const QString& text) {
     QUrl embedUrl(urlStr);
     QNetworkRequest req(embedUrl);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    req.setTransferTimeout(60'000);   /* 60s: embedding è sempre breve */
     QNetworkReply* reply = m_nam->post(req,
         QJsonDocument(body).toJson(QJsonDocument::Compact));
 

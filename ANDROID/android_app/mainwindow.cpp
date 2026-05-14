@@ -2,6 +2,10 @@
 #include "ai_client.h"
 #include "rag_engine_simple.h"
 #include "pages/chat_page.h"
+#include "pages/studio_page.h"
+#include "pages/lavoro_page.h"
+#include "pages/obs_page.h"
+#include "pages/misure_page.h"
 #include "pages/settings_page.h"
 
 #ifdef HAVE_MULTIMEDIA
@@ -14,6 +18,7 @@
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QToolButton>
+#include <QMenu>
 #include <QSettings>
 #include <QScreen>
 
@@ -59,7 +64,23 @@ MainWindow::MainWindow(QWidget* parent)
 
     /* Chat — sempre disponibile */
     m_chatPage = new ChatPage(m_ai, m_rag, this);
-    m_stack->addWidget(m_chatPage);   // indice 0
+    m_stack->addWidget(m_chatPage);     // indice 0
+
+    /* Studio AI — CCNA, Matematica, Python, ecc. */
+    m_studioPage = new StudioPage(m_ai, this);
+    m_stack->addWidget(m_studioPage);   // indice 1
+
+    /* Lavoro AI */
+    m_lavoroPage = new LavoroPage(m_ai, this);
+    m_stack->addWidget(m_lavoroPage);   // indice 2
+
+    /* OBS Control */
+    m_obsPage = new ObsPage(this);
+    m_stack->addWidget(m_obsPage);      // indice 3
+
+    /* Misure & Fotogrammetria */
+    m_misurePage = new MisurePage(m_ai, this);
+    m_stack->addWidget(m_misurePage);   // indice 4
 
     /* Camera */
 #ifdef HAVE_MULTIMEDIA
@@ -70,7 +91,7 @@ MainWindow::MainWindow(QWidget* parent)
         "Camera non disponibile\nin questa versione.",
         this);
 #endif
-    m_stack->addWidget(m_cameraPage); // indice 1
+    m_stack->addWidget(m_cameraPage);   // indice 5
 
     /* BLE */
 #ifdef HAVE_BLE
@@ -81,11 +102,11 @@ MainWindow::MainWindow(QWidget* parent)
         "Bluetooth non disponibile\nin questa versione.",
         this);
 #endif
-    m_stack->addWidget(m_blePage);    // indice 2
+    m_stack->addWidget(m_blePage);      // indice 6
 
     /* Impostazioni — sempre disponibile */
     m_settingsPage = new SettingsPage(m_ai, m_rag, this);
-    m_stack->addWidget(m_settingsPage); // indice 3
+    m_stack->addWidget(m_settingsPage); // indice 7
 
     auto* central = new QWidget(this);
     auto* vbox    = new QVBoxLayout(central);
@@ -118,7 +139,10 @@ MainWindow::MainWindow(QWidget* parent)
 }
 
 /* ══════════════════════════════════════════════════════════════
-   buildBottomBar
+   buildBottomBar — 5 tab visibili + "⋯" per le funzioni extra.
+   Material Design: max 5 destinazioni nella bottom nav bar.
+   Tab principali: Chat · Studia · Lavoro · Impost. · ⋯ Altro
+   Tab nel menu "Altro": OBS · Misure · Camera · BT
    ══════════════════════════════════════════════════════════════ */
 void MainWindow::buildBottomBar()
 {
@@ -132,15 +156,15 @@ void MainWindow::buildBottomBar()
     m_tabGroup = new QActionGroup(this);
     m_tabGroup->setExclusive(true);
 
+    /* ── Tab principali (sempre visibili) ── */
     struct Tab { const char* icon; const char* label; int idx; };
-    const Tab tabs[] = {
-        { "\xf0\x9f\xa4\x96", "Chat",      m_idxChat     },
-        { "\xf0\x9f\x93\xb7", "Camera",    m_idxCamera   },
-        { "\xf0\x9f\x94\x8b", "Bluetooth", m_idxBle      },
-        { "\xe2\x9a\x99",     "Impost.",   m_idxSettings },
+    const Tab mainTabs[] = {
+        { "\xf0\x9f\xa4\x96", "Chat",    m_idxChat     },
+        { "\xf0\x9f\x93\x9a", "Studia",  m_idxStudio   },
+        { "\xf0\x9f\x92\xbc", "Lavoro",  m_idxLavoro   },
+        { "\xe2\x9a\x99",     "Impost.", m_idxSettings },
     };
-
-    for (const auto& t : tabs) {
+    for (const auto& t : mainTabs) {
         auto* act = new QAction(QString::fromUtf8(t.icon) + "\n" + t.label, this);
         act->setCheckable(true);
         act->setData(t.idx);
@@ -149,8 +173,44 @@ void MainWindow::buildBottomBar()
         if (t.idx == 0) act->setChecked(true);
     }
 
+    /* ── Tab overflow: OBS, Misure, Camera, BT ── */
+    struct OverflowTab { const char* icon; const char* label; int idx; };
+    const OverflowTab overflowTabs[] = {
+        { "\xf0\x9f\x93\xa1", "OBS",    m_idxObs    },
+        { "\xf0\x9f\x93\x90", "Misure", m_idxMisure },
+        { "\xf0\x9f\x93\xb7", "Camera", m_idxCamera },
+        { "\xf0\x9f\x94\x8b", "BT",     m_idxBle    },
+    };
+
+    /* Pulsante "⋯ Altro" — apre un QMenu con i tab secondari */
+    auto* moreAct = new QAction("\xe2\x8b\xaf\nAltro", this);   /* ⋯ */
+    moreAct->setCheckable(true);
+    moreAct->setData(-1);
+    m_tabGroup->addAction(moreAct);
+    m_bottomBar->addAction(moreAct);
+
+    /* Il click su "Altro" mostra il menu sotto il pulsante */
+    auto* moreBtn = qobject_cast<QToolButton*>(
+        m_bottomBar->widgetForAction(moreAct));
+    if (moreBtn) {
+        auto* menu = new QMenu(moreBtn);
+        for (const auto& t : overflowTabs) {
+            auto* a = menu->addAction(
+                QString::fromUtf8(t.icon) + "  " + t.label);
+            a->setData(t.idx);
+        }
+        moreBtn->setMenu(menu);
+        moreBtn->setPopupMode(QToolButton::InstantPopup);
+
+        connect(menu, &QMenu::triggered, this, [this, moreAct](QAction* a) {
+            moreAct->setChecked(true);   /* evidenzia il tab "Altro" */
+            onTabChanged(a->data().toInt());
+        });
+    }
+
     connect(m_tabGroup, &QActionGroup::triggered, this, [this](QAction* a) {
-        onTabChanged(a->data().toInt());
+        if (a->data().toInt() >= 0)      /* -1 = "Altro" — gestito dal menu */
+            onTabChanged(a->data().toInt());
     });
 }
 

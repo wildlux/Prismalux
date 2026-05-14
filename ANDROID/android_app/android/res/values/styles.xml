@@ -1,9 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@android:color/black</item>
-        <item name="android:colorPrimary">#1976D2</item>
-        <item name="android:colorPrimaryDark">#0D47A1</item>
-        <item name="android:colorAccent">#42A5F5</item>
+    <!-- Dark theme: NO "Light" — impedisce a MIUI/Android di applicare
+         il force-dark automatico sui widget Qt già scuri da QSS.
+         forceDarkAllowed=false è il lock definitivo per evitare
+         la doppia inversione dark-on-dark su MIUI 12+. -->
+    <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
+        <!-- Disabilita force-dark di Android/MIUI -->
+        <item name="android:forceDarkAllowed">false</item>
+        <!-- Barre di sistema che corrispondono al QSS (#0f1117 / #1a1d27) -->
+        <item name="android:windowBackground">#0f1117</item>
+        <item name="android:statusBarColor">#1a1d27</item>
+        <item name="android:navigationBarColor">#1a1d27</item>
+        <!-- Icone bianche su barre scure (API 27+, ignorato su 26) -->
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <!-- Colori accent coerenti con il QSS (ciano #00c8ff) -->
+        <item name="android:colorPrimary">#00c8ff</item>
+        <item name="android:colorPrimaryDark">#0099cc</item>
+        <item name="android:colorAccent">#00c8ff</item>
     </style>
 </resources>

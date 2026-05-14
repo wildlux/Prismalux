@@ -1,0 +1,40 @@
+# Prismalux — dipendenze Python
+# Installazione: pip install -r requirements.txt
+# Python >= 3.10 richiesto
+#
+# Suddivisione:
+#   [core]     usato da Test/ e MCPs/ base
+#   [mcp-*]    usato solo da quel MCP specifico
+#   [optional] richiede hardware o setup aggiuntivo
+
+# ── Core (richiesti per Test/ e MCPs base) ──────────────────────
+requests>=2.31.0,<3.0.0        # HTTP client — MCPs GNS3, Cytoscape, test
+numpy>=1.26.0,<3.0.0           # array numerici — Test/test_rag_paper.py
+
+# ── MCP: GNS3 ────────────────────────────────────────────────────
+gns3fy>=0.8.0                  # MCPs/gns3_mcp/server.py
+
+# ── MCP: Graphviz ────────────────────────────────────────────────
+graphviz>=0.20.0               # MCPs/graphviz_mcp/server.py
+
+# ── MCP: RDKit (chemioinformatica) ───────────────────────────────
+# rdkit                        # installare via: conda install -c conda-forge rdkit
+#                              # oppure: pip install rdkit (Python >=3.10, alcune piattaforme)
+
+# ── MCP: Stable Diffusion (optional — richiede GPU o CPU lento) ──
+# diffusers>=0.27.0
+# transformers>=4.40.0
+# accelerate>=0.30.0
+# torch>=2.2.0
+# Pillow>=10.0.0
+# Per installazione GPU NVIDIA (CUDA 12.1):
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+# Poi: pip install diffusers transformers accelerate Pillow
+
+# ── MCP: Blender / FreeCAD / KiCAD / Godot / Anki ───────────────
+# Questi MCPs non hanno dipendenze pip: usano le API native
+# dell'applicazione host (bpy, FreeCAD.app, pcbnew, godot, AnkiConnect)
+
+# ── MCP: Office (LibreOffice UNO bridge) ─────────────────────────
+# python-docx>=1.0.0           # opzionale per Word .docx senza LibreOffice
+# openpyxl>=3.1.0              # opzionale per Excel .xlsx senza LibreOffice

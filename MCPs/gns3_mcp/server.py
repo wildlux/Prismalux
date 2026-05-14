@@ -6,10 +6,11 @@ Prerequisiti: gns3server in esecuzione (`gns3server` o GNS3 desktop aperto).
 """
 import sys, json
 import urllib.request, urllib.error
+from typing import Any
 
 GNS3_BASE = "http://localhost:3080/v2"
 
-def _gns(method, path, data=None):
+def _gns(method: str, path: str, data: Any = None) -> tuple[Any, str | None]:
     url = GNS3_BASE + path
     body = json.dumps(data).encode() if data is not None else None
     req = urllib.request.Request(url, data=body, method=method,
@@ -65,7 +66,7 @@ TOOLS = [
         "properties": {"project_id": {"type": "string"}}}},
 ]
 
-def tool_list_projects(_):
+def tool_list_projects(_: dict) -> str:
     res, err = _gns("GET", "/projects")
     if err: return f"[Errore GNS3] {err}"
     if not res: return "Nessun progetto GNS3."
@@ -74,12 +75,12 @@ def tool_list_projects(_):
         lines.append(f"  [{p['project_id'][:8]}...] {p['name']} — {p.get('status','?')}")
     return "\n".join(lines)
 
-def tool_create_project(args):
+def tool_create_project(args: dict) -> str:
     res, err = _gns("POST", "/projects", {"name": args["name"]})
     if err: return f"[Errore] {err}"
     return f"Progetto '{args['name']}' creato.\n  ID: {res.get('project_id','?')}"
 
-def tool_list_templates(_):
+def tool_list_templates(_: dict) -> str:
     res, err = _gns("GET", "/templates")
     if err: return f"[Errore] {err}"
     if not res: return "Nessun template disponibile."
@@ -88,14 +89,14 @@ def tool_list_templates(_):
         lines.append(f"  [{t['template_id'][:8]}...] {t['name']} ({t.get('template_type','?')})")
     return "\n".join(lines)
 
-def tool_add_node(args):
+def tool_add_node(args: dict) -> str:
     payload = {"name": args["name"], "template_id": args["template_id"],
                "x": args.get("x", 0), "y": args.get("y", 0)}
     res, err = _gns("POST", f"/projects/{args['project_id']}/templates/{args['template_id']}", payload)
     if err: return f"[Errore] {err}"
     return f"Nodo '{args['name']}' aggiunto.\n  ID: {res.get('node_id','?')}"
 
-def tool_add_link(args):
+def tool_add_link(args: dict) -> str:
     payload = {"nodes": [
         {"node_id": args["node1_id"], "port_number": args.get("node1_port", 0), "adapter_number": 0},
         {"node_id": args["node2_id"], "port_number": args.get("node2_port", 0), "adapter_number": 0}
@@ -104,17 +105,17 @@ def tool_add_link(args):
     if err: return f"[Errore] {err}"
     return f"Link creato tra {args['node1_id'][:8]} e {args['node2_id'][:8]}.\n  ID: {res.get('link_id','?')}"
 
-def tool_start_node(args):
+def tool_start_node(args: dict) -> str:
     _, err = _gns("POST", f"/projects/{args['project_id']}/nodes/{args['node_id']}/start")
     if err: return f"[Errore] {err}"
     return f"Nodo {args['node_id'][:8]}... avviato."
 
-def tool_stop_node(args):
+def tool_stop_node(args: dict) -> str:
     _, err = _gns("POST", f"/projects/{args['project_id']}/nodes/{args['node_id']}/stop")
     if err: return f"[Errore] {err}"
     return f"Nodo {args['node_id'][:8]}... fermato."
 
-def tool_list_nodes(args):
+def tool_list_nodes(args: dict) -> str:
     res, err = _gns("GET", f"/projects/{args['project_id']}/nodes")
     if err: return f"[Errore] {err}"
     if not res: return "Nessun nodo nel progetto."
@@ -124,16 +125,18 @@ def tool_list_nodes(args):
         lines.append(f"  {icon} [{n['node_id'][:8]}...] {n['name']} ({n.get('node_type','?')})")
     return "\n".join(lines)
 
-HANDLERS = {"list_projects": tool_list_projects, "create_project": tool_create_project,
-            "list_templates": tool_list_templates, "add_node": tool_add_node,
-            "add_link": tool_add_link, "start_node": tool_start_node,
-            "stop_node": tool_stop_node, "list_nodes": tool_list_nodes}
+HANDLERS: dict[str, Any] = {
+    "list_projects": tool_list_projects, "create_project": tool_create_project,
+    "list_templates": tool_list_templates, "add_node": tool_add_node,
+    "add_link": tool_add_link, "start_node": tool_start_node,
+    "stop_node": tool_stop_node, "list_nodes": tool_list_nodes,
+}
 
-def _send(obj): sys.stdout.write(json.dumps(obj) + "\n"); sys.stdout.flush()
-def _error(rid, c, m): _send({"jsonrpc":"2.0","id":rid,"error":{"code":c,"message":m}})
-def _result(rid, r):   _send({"jsonrpc":"2.0","id":rid,"result":r})
+def _send(obj: Any) -> None: sys.stdout.write(json.dumps(obj) + "\n"); sys.stdout.flush()
+def _error(rid: Any, c: int, m: str) -> None: _send({"jsonrpc":"2.0","id":rid,"error":{"code":c,"message":m}})
+def _result(rid: Any, r: Any) -> None:         _send({"jsonrpc":"2.0","id":rid,"result":r})
 
-def handle(req):
+def handle(req: dict) -> None:
     m, rid, p = req.get("method",""), req.get("id"), req.get("params",{}) or {}
     if m == "initialize":
         _result(rid, {"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"gns3-mcp","version":"1.0.0"}})
@@ -147,7 +150,7 @@ def handle(req):
         _result(rid, {"content":[{"type":"text","text":text}],"isError":text.startswith("[Errore")})
     elif rid is not None: _result(rid, {})
 
-def main():
+def main() -> None:
     for line in sys.stdin:
         line = line.strip()
         if not line: continue

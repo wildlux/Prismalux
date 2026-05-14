@@ -410,6 +410,8 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
         "\xf0\x9f\x92\xbb  Programmazione");
     m_innerTabs->addTab(buildAgentica(m_innerTabs),
         "\xf0\x9f\xa4\x96  Agentica");
+    m_innerTabs->addTab(buildTranslitter(m_innerTabs),
+        "\xf0\x9f\x94\x80  Translitter");
     m_innerTabs->addTab(buildReverseEngineering(m_innerTabs),
         "\xf0\x9f\x94\x8d  Reverse Eng.");
     m_innerTabs->addTab(buildGitMcp(m_innerTabs),
@@ -766,6 +768,7 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     connect(m_ai, &AiClient::modelChanged, this, [this, syncCombo](const QString& newModel) {
         syncCombo(m_modelCombo,  newModel);   /* tab Coding */
         syncCombo(m_agentModel,  newModel);   /* tab Agentica */
+        syncCombo(m_trModel,     newModel);   /* tab Translitter */
         syncCombo(m_revModel,    newModel);   /* tab Reverse Eng. */
         syncCombo(m_gitAiModel,  newModel);   /* tab Git */
     });

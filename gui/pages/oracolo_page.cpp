@@ -21,6 +21,7 @@ namespace P = PrismaluxPaths;
 #include <QGuiApplication>
 #include <QClipboard>
 #include <QScrollArea>
+#include <QPointer>
 #include <QDir>
 #include <QSettings>
 #include <QMessageBox>
@@ -782,8 +783,10 @@ void OracoloPage::onChartRequested(ChatBubble* bubble, const QString& formula) {
    scrollToBottom
    ══════════════════════════════════════════════════════════════ */
 void OracoloPage::scrollToBottom() {
-    QTimer::singleShot(30, m_scroll, [this] {
-        auto* sb = m_scroll->verticalScrollBar();
+    QPointer<QScrollArea> scroll = m_scroll;
+    QTimer::singleShot(30, m_scroll, [scroll] {
+        if (!scroll) return;
+        auto* sb = scroll->verticalScrollBar();
         if (sb) sb->setValue(sb->maximum());
     });
 }

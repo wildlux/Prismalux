@@ -124,7 +124,8 @@ private:
     QWidget*        m_inputRow   = nullptr;
 
     /* ── Cron inline panel ── */
-    QWidget*        m_cronPanel  = nullptr;
+    QWidget*        m_cronPanel      = nullptr;
+    bool            m_cronInstalled  = false;  ///< true dopo il primo clic su Cron
 
     /* ── Stable Diffusion panel (spostato in MultimediaPage) ── */
     /* ── LAN Android (spostato in LanWanPage) ── */
@@ -145,6 +146,11 @@ private:
 protected:
     void dragEnterEvent(QDragEnterEvent* e) override;
     void dropEvent(QDropEvent* e) override;
+
+signals:
+    /** Emesso la prima volta che l'utente clicca "Cron".
+     *  MainWindow lo usa per inizializzare ImpostazioniPage lazy + installare il pannello. */
+    void cronPanelFirstOpen();
 
 private slots:
     void onToken(const QString& t);

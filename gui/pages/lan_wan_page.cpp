@@ -14,6 +14,7 @@
 #include <QDialog>
 #include <QApplication>
 #include <QClipboard>
+#include <QUuid>
 #include <QFrame>
 #include <QLineEdit>
 #include <QTextEdit>
@@ -143,13 +144,26 @@ QWidget* LanWanPage::buildLanAndroidTab()
             "Lascia vuoto per non richiedere autenticazione.");
 
         m_lanTokenEdit = new QLineEdit(tokenRow);
-        m_lanTokenEdit->setPlaceholderText("opzionale — lascia vuoto per accesso libero");
+        m_lanTokenEdit->setPlaceholderText(
+            "Auto-generato all\xe2\x80\x99" "avvio se lasci vuoto");
         m_lanTokenEdit->setEchoMode(QLineEdit::Password);
-        m_lanTokenEdit->setToolTip(tokenLbl->toolTip());
+        m_lanTokenEdit->setToolTip(
+            "Token di accesso Bearer (obbligatorio).\n"
+            "Se lasci vuoto viene generato automaticamente all\xe2\x80\x99" "avvio.\n"
+            "L\xe2\x80\x99" "app Android deve inviare:\n"
+            "  Authorization: Bearer <token>");
 
-        /* Carica da QSettings */
-        m_lanTokenEdit->setText(
-            QSettings("Prismalux","GUI").value(P::SK::kLanToken, "").toString());
+        /* Carica da QSettings; se non esiste ancora, genera subito */
+        {
+            QSettings ss("Prismalux","GUI");
+            QString saved = ss.value(P::SK::kLanToken, "").toString();
+            if (saved.isEmpty()) {
+                saved = QUuid::createUuid().toString(QUuid::WithoutBraces)
+                        .replace("-","").left(32);
+                ss.setValue(P::SK::kLanToken, saved);
+            }
+            m_lanTokenEdit->setText(saved);
+        }
 
         /* Salva a ogni modifica */
         connect(m_lanTokenEdit, &QLineEdit::textChanged, this, [](const QString& t) {
@@ -166,9 +180,32 @@ QWidget* LanWanPage::buildLanAndroidTab()
             m_lanTokenEdit->setEchoMode(show ? QLineEdit::Normal : QLineEdit::Password);
         });
 
+        /* Pulsante rigenera token */
+        auto* regenBtn = new QPushButton("\xf0\x9f\x94\x84", tokenRow);  /* 🔄 */
+        regenBtn->setFixedWidth(32);
+        regenBtn->setFlat(true);
+        regenBtn->setToolTip("Genera nuovo token casuale");
+        connect(regenBtn, &QPushButton::clicked, this, [this] {
+            const QString t = QUuid::createUuid().toString(QUuid::WithoutBraces)
+                              .replace("-","").left(32);
+            m_lanTokenEdit->setText(t);
+            QSettings("Prismalux","GUI").setValue(P::SK::kLanToken, t);
+        });
+
+        /* Pulsante copia token */
+        auto* copyBtn = new QPushButton("\xf0\x9f\x93\x8b", tokenRow);   /* 📋 */
+        copyBtn->setFixedWidth(32);
+        copyBtn->setFlat(true);
+        copyBtn->setToolTip("Copia token negli appunti");
+        connect(copyBtn, &QPushButton::clicked, this, [this] {
+            QGuiApplication::clipboard()->setText(m_lanTokenEdit->text().trimmed());
+        });
+
         tokenLay->addWidget(tokenLbl);
         tokenLay->addWidget(m_lanTokenEdit, 1);
         tokenLay->addWidget(eyeBtn);
+        tokenLay->addWidget(copyBtn);
+        tokenLay->addWidget(regenBtn);
         gl->addWidget(tokenRow);
     }
 
@@ -379,7 +416,17 @@ QWidget* LanWanPage::buildLanAndroidTab()
                 });
             }
             const quint16 port = static_cast<quint16>(m_lanPortSpin->value());
-            m_lanServer->setAccessToken(m_lanTokenEdit->text().trimmed());
+            /* Garantisce token sempre presente: se l'utente l'ha cancellato, rigenera */
+            {
+                QString tok = m_lanTokenEdit->text().trimmed();
+                if (tok.isEmpty()) {
+                    tok = QUuid::createUuid().toString(QUuid::WithoutBraces)
+                          .replace("-","").left(32);
+                    m_lanTokenEdit->setText(tok);
+                    QSettings("Prismalux","GUI").setValue(P::SK::kLanToken, tok);
+                }
+                m_lanServer->setAccessToken(tok);
+            }
             if (m_lanServer->start(port)) {
                 m_lanToggleBtn->setText("\xe2\x97\x8f  Server ON");
                 m_lanPortSpin->setEnabled(false);
