@@ -12,6 +12,7 @@ class QRadioButton;
 class QProcess;
 class QNetworkAccessManager;
 class QScrollArea;
+class QProgressBar;
 
 /* ══════════════════════════════════════════════════════════════
    StableDiffusionWidget — Text-to-Image AI
@@ -60,6 +61,7 @@ private:
     QPushButton*      m_btnSave    = nullptr;
     QLabel*           m_imgLabel   = nullptr;
     QLabel*           m_status     = nullptr;
+    QProgressBar*     m_progress   = nullptr;
     QScrollArea*      m_imgScroll  = nullptr;
 
     QNetworkAccessManager* m_nam   = nullptr;

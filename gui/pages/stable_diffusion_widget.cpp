@@ -30,6 +30,7 @@
 #include <QFileDialog>
 #include <QClipboard>
 #include <QApplication>
+#include <QProgressBar>
 #include <QTimer>
 
 namespace {
@@ -216,6 +217,13 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
 
     mainRow->addWidget(imgGroup, 1);
     lay->addLayout(mainRow, 1);
+
+    m_progress = new QProgressBar(this);
+    m_progress->setRange(0, 0);   /* indeterminato di default */
+    m_progress->setTextVisible(false);
+    m_progress->setMaximumHeight(6);
+    m_progress->hide();
+    lay->addWidget(m_progress);
 
     m_status = new QLabel(
         "\xf0\x9f\x94\x97  Premi 'Controlla' per verificare il backend selezionato.",
@@ -444,12 +452,14 @@ void StableDiffusionWidget::generateLocal()
 
     m_btnGen->setEnabled(false);
     m_btnGen->setText("\xf0\x9f\x94\x84  Generazione locale...");
+    m_progress->setRange(0, 0);
+    m_progress->show();
     setStatus(
         "\xf0\x9f\x92\xbb  Avvio diffusers ("
         + QString::number(m_steps->value()) + " steps, "
         + QString::number(w) + "\xc3\x97" + QString::number(h) + ")...", true);
 
-    /* Leggi status intermedi riga per riga */
+    /* Leggi status intermedi riga per riga — aggiorna progress bar */
     connect(m_sdProc, &QProcess::readyReadStandardOutput,
             this, [this]{
         while (m_sdProc->canReadLine()) {
@@ -459,6 +469,12 @@ void StableDiffusionWidget::generateLocal()
                 QJsonDocument::fromJson(line.toUtf8()).object();
             if (obj.contains("status"))
                 setStatus("\xf0\x9f\x94\x84  " + obj["status"].toString(), true);
+            if (obj.contains("total_steps") && obj["total_steps"].toInt() > 0) {
+                const int total = obj["total_steps"].toInt();
+                const int step  = obj["step"].toInt();
+                m_progress->setRange(0, total);
+                m_progress->setValue(step);
+            }
         }
     });
 
@@ -466,6 +482,7 @@ void StableDiffusionWidget::generateLocal()
             this, [this, outPath](int code, QProcess::ExitStatus){
         m_btnGen->setEnabled(true);
         m_btnGen->setText("\xf0\x9f\x8e\xa8  Genera immagine");
+        m_progress->hide();
         m_sdProc->deleteLater();
         m_sdProc = nullptr;
 

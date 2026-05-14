@@ -90,7 +90,14 @@ def main():
         emit({"ok": False, "error": f"Errore caricamento modello: {e}"})
         sys.exit(1)
 
-    emit({"status": f"Generazione in corso ({args.steps} steps, {args.width}x{args.height})..."})
+    emit({"status": f"Generazione in corso ({args.steps} steps, {args.width}x{args.height})...",
+          "step": 0, "total_steps": args.steps})
+
+    # ── Callback step-by-step ─────────────────────────────────────
+    def step_callback(pipe, step_index, timestep, callback_kwargs):
+        emit({"status": f"Step {step_index + 1}/{args.steps}",
+              "step": step_index + 1, "total_steps": args.steps})
+        return callback_kwargs
 
     # ── Generazione ───────────────────────────────────────────────
     import torch
@@ -107,6 +114,7 @@ def main():
             width=args.width,
             height=args.height,
             generator=generator,
+            callback_on_step_end=step_callback,
         )
         image = result.images[0]
     except Exception as e:
@@ -121,13 +129,12 @@ def main():
 
     if args.out:
         Path(args.out).write_bytes(png_bytes)
-
-    emit({
-        "ok":        True,
-        "image_b64": b64,
-        "device":    device,
-        "size_kb":   len(png_bytes) // 1024,
-    })
+        # Non emettere image_b64 su stdout: il C++ legge il file dal disco
+        # ed evitare il deadlock del pipe (riga base64 > 64 KB buffer Linux)
+        emit({"ok": True, "device": device, "size_kb": len(png_bytes) // 1024})
+    else:
+        emit({"ok": True, "image_b64": b64,
+              "device": device, "size_kb": len(png_bytes) // 1024})
 
 
 if __name__ == "__main__":

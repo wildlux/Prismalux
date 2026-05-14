@@ -360,7 +360,9 @@ void AgentiPage::runAgent(int idx) {
         userPrompt = m_taskOriginal;
     }
 
-    /* RAG condiviso: fornito a TUTTI gli agenti prima del contesto specifico */
+    /* RAG inline (dal tab principale) + RAG condiviso (da AgentsConfigDialog) */
+    if (m_ragInline && m_ragInline->hasContext())
+        userPrompt += _sanitize_prompt(m_ragInline->ragContext());
     if (m_cfgDlg->sharedRagWidget() && m_cfgDlg->sharedRagWidget()->hasContext())
         userPrompt += _sanitize_prompt(m_cfgDlg->sharedRagWidget()->ragContext());
     /* RAG specifico per questo agente */

@@ -21,6 +21,8 @@
 #include <QProcess>
 #include <QTcpSocket>
 #include <QTimer>
+#include <QDesktopServices>
+#include <QUrl>
 #include <QFile>
 #include <QDir>
 #include <QTextCursor>
@@ -144,31 +146,6 @@ QWidget* LanWanPage::buildLanAndroidTab()
     noteLbl->setWordWrap(true);
     gl->addWidget(noteLbl);
 
-    /* ── Due bottoni QR affiancati ── */
-    auto* qrRow  = new QWidget(group);
-    auto* qrRowL = new QHBoxLayout(qrRow);
-    qrRowL->setContentsMargins(0, 0, 0, 0);
-    qrRowL->setSpacing(8);
-
-    auto* qrApkBtn = new QPushButton(
-        "\xf0\x9f\x93\xb1" "  QR Scarica APK", qrRow);          /* 📱 */
-    qrApkBtn->setObjectName("actionBtn");
-    qrApkBtn->setToolTip("QR code per scaricare direttamente PrismaluxMobile.apk");
-    qrApkBtn->setEnabled(false);
-
-    auto* qrPageBtn = new QPushButton(
-        "\xf0\x9f\x8c\x90" "  QR Pagina Download", qrRow);      /* 🌐 */
-    qrPageBtn->setObjectName("actionBtn");
-    qrPageBtn->setToolTip("QR code per aprire la pagina di download nel browser del telefono");
-    qrPageBtn->setEnabled(false);
-
-    qrRowL->addWidget(qrApkBtn, 1);
-    qrRowL->addWidget(qrPageBtn, 1);
-    gl->addWidget(qrRow);
-
-    vbox->addWidget(group);
-    vbox->addStretch();
-
     /* ── Helper: apre dialog QR generico ── */
     auto openQrDialog = [](QPushButton* parent, const QString& url,
                             const QString& title, const QString& subtitle,
@@ -195,10 +172,10 @@ QWidget* LanWanPage::buildLanAndroidTab()
         urlLbl->setTextInteractionFlags(Qt::TextSelectableByMouse);
         vl->addWidget(urlLbl);
 
-        auto* copyBtn = new QPushButton("\xf0\x9f\x93\x8b" "  Copia URL", dlg);  /* 📋 */
+        auto* copyBtn = new QPushButton("\xf0\x9f\x93\x8b" "  Copia URL", dlg);
         connect(copyBtn, &QPushButton::clicked, dlg, [url, copyBtn]() {
             QApplication::clipboard()->setText(url);
-            copyBtn->setText("\xe2\x9c\x85" "  Copiato!");  /* ✅ */
+            copyBtn->setText("\xe2\x9c\x85" "  Copiato!");
         });
         vl->addWidget(copyBtn);
 
@@ -213,6 +190,87 @@ QWidget* LanWanPage::buildLanAndroidTab()
         dlg->resize(320, 460);
         dlg->exec();
     };
+
+    /* ── QR Connetti (sempre visibile) ── */
+    {
+        auto* connectRow  = new QWidget(group);
+        auto* connectLay  = new QHBoxLayout(connectRow);
+        connectLay->setContentsMargins(0, 0, 0, 0);
+        connectLay->setSpacing(8);
+
+        auto* qrConnectBtn = new QPushButton(
+            "\xf0\x9f\x93\xb1" "  QR Connetti", connectRow);   /* 📱 */
+        qrConnectBtn->setObjectName("actionBtn");
+        qrConnectBtn->setToolTip(
+            "Mostra il QR con l\xe2\x80\x99" "indirizzo del server.\n"
+            "Scansiona dall\xe2\x80\x99" "app Android per configurare automaticamente l\xe2\x80\x99" "IP.\n"
+            "Puoi scansionarlo anche prima di avviare il server.");
+
+        auto* qrConnectLbl = new QLabel(
+            QString("<small>%1 : %2</small>")
+                .arg(ip).arg(m_lanPortSpin->value()), connectRow);
+        qrConnectLbl->setObjectName("hintLabel");
+        qrConnectLbl->setTextFormat(Qt::RichText);
+
+        connectLay->addWidget(qrConnectBtn);
+        connectLay->addWidget(qrConnectLbl, 1);
+        gl->addWidget(connectRow);
+
+        connect(qrConnectBtn, &QPushButton::clicked, this,
+                [this, qrConnectBtn, localLanIP, openQrDialog]() {
+            const QString url = QString("http://%1:%2")
+                                    .arg(localLanIP())
+                                    .arg(m_lanPortSpin->value());
+            openQrDialog(qrConnectBtn, url,
+                         "QR \xe2\x80\x94 Connetti Android",
+                         "\xf0\x9f\x93\xb1" "  Scansiona per connettere l\xe2\x80\x99" "app",
+                         "Nell\xe2\x80\x99" "app Android: Impostazioni \xe2\x86\x92 URL server.<br>"
+                         "Poi avvia il server qui con il pulsante Server ON.");
+        });
+
+        /* Aggiorna label porta quando lo spinbox cambia */
+        connect(m_lanPortSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, [qrConnectLbl, ip](int v) {
+            qrConnectLbl->setText(
+                QString("<small>%1 : %2</small>").arg(ip).arg(v));
+        });
+    }
+
+    /* ── Due bottoni QR affiancati (APK e Pagina) ── */
+    auto* qrRow  = new QWidget(group);
+    auto* qrRowL = new QHBoxLayout(qrRow);
+    qrRowL->setContentsMargins(0, 0, 0, 0);
+    qrRowL->setSpacing(8);
+
+    auto* qrApkBtn = new QPushButton(
+        "\xf0\x9f\x93\xa6" "  QR Scarica APK", qrRow);          /* 📦 */
+    qrApkBtn->setObjectName("actionBtn");
+    qrApkBtn->setToolTip("QR code per scaricare direttamente PrismaluxMobile.apk (server ON richiesto)");
+    qrApkBtn->setEnabled(false);
+
+    auto* qrPageBtn = new QPushButton(
+        "\xf0\x9f\x8c\x90" "  QR Pagina Download", qrRow);      /* 🌐 */
+    qrPageBtn->setObjectName("actionBtn");
+    qrPageBtn->setToolTip("QR code per aprire la pagina di download nel browser del telefono (server ON richiesto)");
+    qrPageBtn->setEnabled(false);
+
+    qrRowL->addWidget(qrApkBtn, 1);
+    qrRowL->addWidget(qrPageBtn, 1);
+    gl->addWidget(qrRow);
+
+    /* ── Pulsante Chat Web ── */
+    m_lanWebBtn = new QPushButton(
+        "\xf0\x9f\x8c\x90  Chat Web (altri PC nella LAN)", group);  /* 🌐 */
+    m_lanWebBtn->setObjectName("actionBtn");
+    m_lanWebBtn->setToolTip(
+        "Apre nel browser l\xe2\x80\x99" "interfaccia chat web servita da Prismalux.\n"
+        "Gli altri PC della rete locale possono connettersi all\xe2\x80\x99" "indirizzo mostrato\n"
+        "e chattare con il modello AI senza installare nulla.");
+    m_lanWebBtn->setEnabled(false);
+    gl->addWidget(m_lanWebBtn);
+
+    vbox->addWidget(group);
+    vbox->addStretch();
 
     /* ── QR 1: download diretto APK ── */
     connect(qrApkBtn, &QPushButton::clicked, this, [this, qrApkBtn, localLanIP, openQrDialog]() {
@@ -248,6 +306,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
                         this, [this, qrApkBtn, qrPageBtn](bool running) {
                     qrApkBtn->setEnabled(running);
                     qrPageBtn->setEnabled(running);
+                    m_lanWebBtn->setEnabled(running);
                     if (running) {
                         m_lanStatusLbl->setText(
                             "\xe2\x97\x8f  Attivo su porta " +
@@ -290,7 +349,16 @@ QWidget* LanWanPage::buildLanAndroidTab()
             m_lanPortSpin->setEnabled(true);
             qrApkBtn->setEnabled(false);
             qrPageBtn->setEnabled(false);
+            m_lanWebBtn->setEnabled(false);
         }
+    });
+
+    /* ── Chat Web: apri browser con http://IP:porta/web ── */
+    connect(m_lanWebBtn, &QPushButton::clicked, this, [this, localLanIP]() {
+        if (!m_lanServer || !m_lanServer->isRunning()) return;
+        const QString url = QString("http://%1:%2/web")
+                                .arg(localLanIP()).arg(m_lanServer->port());
+        QDesktopServices::openUrl(QUrl(url));
     });
 
     return tab;
@@ -301,18 +369,27 @@ QWidget* LanWanPage::buildLanAndroidTab()
    ══════════════════════════════════════════════════════════════ */
 namespace {
 static const char* kGNS3Sys[] = {
+    /* CRITICO: ogni nodo DEVE avere compute_id='local' altrimenti la API
+       risponde 400. I nodi built-in (vpcs, ethernet_switch, cloud, nat,
+       ethernet_hub) non richiedono template_id. */
     "Sei un esperto di reti GNS3 e Python. "
     "Genera SOLO codice Python che usa la GNS3 REST API v2 (localhost:3080). "
     "import requests; BASE='http://localhost:3080/v2'. "
-    "Usa GET/POST/DELETE su /projects, /nodes, /links, /compute. "
+    "REGOLA CRITICA: ogni POST /nodes DEVE includere compute_id='local'. "
+    "Esempio nodo: {\"name\":\"SW1\",\"node_type\":\"ethernet_switch\",\"compute_id\":\"local\",\"x\":0,\"y\":0}. "
+    "Esempio VPCS: {\"name\":\"PC1\",\"node_type\":\"vpcs\",\"compute_id\":\"local\",\"x\":-150,\"y\":100}. "
+    "Usa GET/POST/DELETE su /projects, /nodes, /links. "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```.",
 
     "Sei un esperto di GNS3 e routing. "
-    "Genera SOLO codice Python GNS3 REST API per creare una topologia LAN con router e switch. "
+    "Genera SOLO codice Python GNS3 REST API per creare una topologia LAN con switch e PC VPCS. "
+    "REGOLA CRITICA: ogni POST /nodes DEVE avere compute_id='local'. "
+    "Usa node_type='ethernet_switch' per switch e node_type='vpcs' per host. "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```.",
 
     "Sei un esperto di GNS3 e firewall. "
     "Genera SOLO codice Python GNS3 REST API per configurare un firewall (pfSense o Cisco ASA). "
+    "REGOLA CRITICA: ogni POST /nodes DEVE avere compute_id='local'. "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```.",
 
     "Sei un esperto di GNS3. "
@@ -321,6 +398,7 @@ static const char* kGNS3Sys[] = {
 
     "Sei un esperto di GNS3. "
     "Genera SOLO codice Python GNS3 REST API libero. "
+    "REGOLA CRITICA: ogni POST /nodes DEVE avere compute_id='local'. "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```.",
 
     nullptr

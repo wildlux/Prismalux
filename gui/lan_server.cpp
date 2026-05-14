@@ -253,6 +253,8 @@ void LanServer::processSession(Session& s)
     } else if ((s.path == "/" || s.path == "/index" || s.path == "/download")
                && s.method == "GET") {
         handleIndex(s);
+    } else if (s.path == "/web" && s.method == "GET") {
+        handleWebChat(s);
     } else {
         sendJson(s.socket, R"({"status":"ok"})");
     }
@@ -486,6 +488,117 @@ void LanServer::handleKnowledge(Session& s)
     } else {
         sendError(s.socket, 400, "Method not allowed");
     }
+}
+
+/* ── /web — interfaccia chat web per PC nella rete locale ───────────────── */
+void LanServer::handleWebChat(Session& s)
+{
+    const QByteArray model = m_ai->model().isEmpty()
+                             ? QByteArray("ollama")
+                             : m_ai->model().toUtf8();
+
+    /* L'HTML è spezzato in blocchi per evitare problemi con raw-string e char
+       literal nel preprocessore C++ (apici singoli JS, template literal, ecc.) */
+    QByteArray html;
+    html += "<!DOCTYPE html>\n<html lang=\"it\">\n<head>\n"
+            "<meta charset=\"utf-8\">\n"
+            "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n"
+            "<title>Prismalux \xe2\x80\x94 Chat AI</title>\n"
+            "<style>\n"
+            "*{box-sizing:border-box;margin:0;padding:0}\n"
+            "body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;"
+              "background:#0f1117;color:#e0e0f0;height:100vh;"
+              "display:flex;flex-direction:column}\n"
+            "#hdr{background:#1a1d2e;border-bottom:1px solid #2a2d4e;"
+              "padding:10px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}\n"
+            "#hdr h1{font-size:16px;font-weight:700;color:#fff}\n"
+            "#hdr .mdl{font-size:11px;color:#6c63ff;border:1px solid #6c63ff40;"
+              "border-radius:20px;padding:2px 10px}\n"
+            "#log{flex:1;overflow-y:auto;padding:16px;"
+              "display:flex;flex-direction:column;gap:10px}\n"
+            ".msg{max-width:82%;padding:10px 14px;border-radius:14px;"
+              "line-height:1.55;font-size:14px;white-space:pre-wrap}\n"
+            ".user{align-self:flex-end;background:#6c63ff;color:#fff;"
+              "border-bottom-right-radius:4px}\n"
+            ".ai{align-self:flex-start;background:#1e2235;color:#e0e0f0;"
+              "border-bottom-left-radius:4px;border:1px solid #2a2d4e}\n"
+            "#bar{display:flex;gap:8px;padding:12px 16px;background:#1a1d2e;"
+              "border-top:1px solid #2a2d4e;flex-shrink:0}\n"
+            "#sys{flex:0 0 auto;width:200px;background:#0f1117;"
+              "border:1px solid #2a2d4e;border-radius:8px;"
+              "color:#888;padding:6px 10px;font-size:12px}\n"
+            "#txt{flex:1;background:#0f1117;border:1px solid #2a2d4e;"
+              "border-radius:10px;color:#e0e0f0;padding:10px 14px;"
+              "font-size:14px;resize:none;max-height:120px}\n"
+            "#txt:focus,#sys:focus{outline:none;border-color:#6c63ff}\n"
+            "#snd{background:#6c63ff;color:#fff;border:none;border-radius:10px;"
+              "padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer}\n"
+            "#snd:hover{background:#7c74ff}\n"
+            "#snd:disabled{background:#333;color:#666;cursor:default}\n"
+            "</style>\n</head>\n<body>\n"
+            "<div id=\"hdr\"><span style=\"font-size:24px\">&#127866;</span>"
+            "<h1>Prismalux</h1>"
+            "<span class=\"mdl\">" + model + "</span></div>\n"
+            "<div id=\"log\"></div>\n"
+            "<div id=\"bar\">"
+            "<input id=\"sys\" placeholder=\"System prompt (opz.)\">"
+            "<textarea id=\"txt\" rows=\"1\""
+              " placeholder=\"Scrivi un messaggio... (Invio=invia)\"></textarea>"
+            "<button id=\"snd\">Invia</button>"
+            "</div>\n"
+            "<script>\n"
+            "const L=document.getElementById('log'),"
+              "T=document.getElementById('txt'),"
+              "B=document.getElementById('snd'),"
+              "S=document.getElementById('sys'),"
+              "H=[];\n"
+            "function add(r,t){"
+              "const d=document.createElement('div');"
+              "d.className='msg '+r;d.textContent=t;"
+              "L.appendChild(d);L.scrollTop=L.scrollHeight;return d;}\n"
+            "async function go(){\n"
+              "const m=T.value.trim();if(!m)return;\n"
+              "T.value='';T.style.height='';B.disabled=true;\n"
+              "add('user',m);H.push({role:'user',content:m});\n"
+              "const msgs=[];\n"
+              "const sv=S.value.trim();if(sv)msgs.push({role:'system',content:sv});\n"
+              "msgs.push(...H);\n"
+              "const aiD=add('ai','');let full='';\n"
+              "try{\n"
+                "const r=await fetch('/api/chat',{method:'POST',"
+                  "headers:{'Content-Type':'application/json'},"
+                  "body:JSON.stringify({model:'" + model + "',messages:msgs,stream:true})});\n"
+                "const rd=r.body.getReader(),dc=new TextDecoder();\n"
+                "while(true){\n"
+                  "const {done,value}=await rd.read();if(done)break;\n"
+                  "for(const ln of dc.decode(value).split('\\n')){\n"
+                    "if(!ln.trim())continue;\n"
+                    "try{const o=JSON.parse(ln);\n"
+                      "const tk=(o.message&&o.message.content)||o.response||'';\n"
+                      "if(tk){full+=tk;aiD.textContent=full;"
+                        "L.scrollTop=L.scrollHeight;}\n"
+                    "}catch(x){}\n"
+                  "}\n"
+                "}\n"
+              "}catch(e){aiD.textContent='Errore: '+e.message;}\n"
+              "if(full)H.push({role:'assistant',content:full});\n"
+              "B.disabled=false;T.focus();\n"
+            "}\n"
+            "B.addEventListener('click',go);\n"
+            "T.addEventListener('keydown',function(e){\n"
+              "if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();go();}\n"
+              "setTimeout(function(){"
+                "T.style.height='';"
+                "T.style.height=Math.min(T.scrollHeight,120)+'px';},0);\n"
+            "});\n"
+            "T.focus();\n"
+            "</script>\n</body>\n</html>\n";
+
+    QByteArray resp = httpOkHeader("text/html; charset=utf-8");
+    resp += "Content-Length: " + QByteArray::number(html.size()) + "\r\n\r\n";
+    resp += html;
+    s.socket->write(resp);
+    s.socket->flush();
 }
 
 /* ── / — pagina HTML benvenuto + download APK ───────────────────────────── */

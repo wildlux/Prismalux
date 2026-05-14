@@ -55,6 +55,7 @@ private:
     void handleKnowledge(Session& s);
     void handleApk(Session& s);
     void handleIndex(Session& s);
+    void handleWebChat(Session& s);
     void sendJson(QTcpSocket* sock, const QByteArray& json);
     void sendStreamLine(const QByteArray& json);
     void sendError(QTcpSocket* sock, int code, const QString& msg);

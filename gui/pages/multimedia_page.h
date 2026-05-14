@@ -35,4 +35,5 @@ private:
     QWidget* buildSDTab();
     QWidget* buildGraphvizTab();
     void runGraphvizAi();
+    void _renderDotCode(const QString& dot);
 };

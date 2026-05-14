@@ -27,6 +27,7 @@ class ChartWidget;  /* forward declare — chart_widget.h incluso in .cpp */
 
 /* Forward declare — implementazione in agents_config_dialog.h */
 class AgentsConfigDialog;
+class RagDropWidget;
 
 /* ══════════════════════════════════════════════════════════════
    AgentiPage — Pipeline configurabile + Motore Byzantino
@@ -182,9 +183,10 @@ private:
     QPushButton* m_btnVoiceLoop    = nullptr;
     bool         m_voiceLoopActive = false;
 
-    /* ── Tool Use (attivo automaticamente in modalità Agente Autonomo) ── */
+    /* ── Tool Use ── */
     bool         m_toolsEnabled    = false;
-    int          m_toolIteration   = 0;   ///< contatore iterazioni per singola risposta
+    int          m_toolIteration   = 0;
+    QCheckBox*   m_toolChk         = nullptr;  ///< toggle "🔧 Tools" nella toolbar
 
     /** Esegue uno strumento (calc/ricerca/python/leggi_file/lista_file/scrivi_file). Async. */
     void runToolCall(const QJsonObject& call, std::function<void(QString)> onDone);
@@ -226,6 +228,11 @@ private:
     QPushButton* m_btnImg    = nullptr;
     QByteArray   m_imgBase64;  ///< Base64 dell'immagine allegata
     QString      m_imgMime;
+
+    /* ── RAG inline (drag & drop diretto nel tab principale) ── */
+    RagDropWidget* m_ragInline   = nullptr;
+    QWidget*       m_ragPanel    = nullptr;  ///< wrapper collassabile
+    QPushButton*   m_btnRag      = nullptr;  ///< toggle visibilità
 
     /* ── Drag & Drop file su m_input ── */
     /** Dispatcher per file trascinato: PDF, Excel, audio, immagine, testo */

@@ -355,18 +355,14 @@ QWidget* MultimediaPage::buildGraphvizTab()
     bl->setContentsMargins(0, 0, 0, 0);
     bl->setSpacing(8);
 
-    auto* btnAi  = new QPushButton(
-        "\xf0\x9f\xa4\x96  Genera con AI", btnRow);
-    btnAi->setObjectName("actionBtn");
-    btnAi->setToolTip("Chiede al modello di generare il codice DOT e poi lo renderizza");
+    auto* btnGenerate = new QPushButton(
+        "\xf0\x9f\xa4\x96\xf0\x9f\x96\xbc  Genera e renderizza grafico DOT", btnRow);
+    btnGenerate->setObjectName("actionBtn");
+    btnGenerate->setToolTip(
+        "Genera il codice DOT con l\xe2\x80\x99" "AI e lo renderizza.\n"
+        "Se il testo \xc3\xa8 gi\xc3\xa0 codice DOT valido, lo renderizza direttamente.");
 
-    auto* btnDot = new QPushButton(
-        "\xf0\x9f\x96\xbc  Renderizza DOT", btnRow);
-    btnDot->setObjectName("actionBtn");
-    btnDot->setToolTip("Esegue direttamente il testo come DOT language (senza AI)");
-
-    bl->addWidget(btnAi);
-    bl->addWidget(btnDot);
+    bl->addWidget(btnGenerate);
     bl->addStretch(1);
     vl->addWidget(btnRow);
 
@@ -390,63 +386,26 @@ QWidget* MultimediaPage::buildGraphvizTab()
     scroll->setFrameShape(QFrame::NoFrame);
     vl->addWidget(scroll, 1);
 
-    connect(btnAi, &QPushButton::clicked, this, [this]{ runGraphvizAi(); });
-
-    connect(btnDot, &QPushButton::clicked, this, [this]{
-        const QString dot = m_graphvizInput->toPlainText().trimmed();
-        if (dot.isEmpty()) {
-            m_graphvizStatus->setText(
-                "\xe2\x9a\xa0  Inserisci codice DOT nell\xe2\x80\x99" "area testo.");
-            return;
-        }
-        const QString tmpDot = QDir::tempPath() + "/prismalux_graph.dot";
-        m_graphvizTmpPng = QDir::tempPath() + "/prismalux_graph.png";
-        {
-            QFile f(tmpDot);
-            if (f.open(QFile::WriteOnly | QFile::Text))
-                QTextStream(&f) << dot;
-        }
-        m_graphvizStatus->setText("\xe2\x8f\xb3  Rendering con Graphviz...");
-        m_graphvizImg->setText("");
-        auto* proc = new QProcess(this);
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, proc](int code, QProcess::ExitStatus){
-            if (code == 0) {
-                QPixmap px(m_graphvizTmpPng);
-                if (!px.isNull()) {
-                    m_graphvizImg->setPixmap(
-                        px.scaledToWidth(qMin(px.width(), 900),
-                                         Qt::SmoothTransformation));
-                    m_graphvizStatus->setText(
-                        "\xe2\x9c\x85  Grafo generato. "
-                        "Immagine salvata in: " + m_graphvizTmpPng);
-                }
-            } else {
-                const QString err = QString::fromLocal8Bit(proc->readAllStandardError());
-                m_graphvizStatus->setText(
-                    "\xe2\x9d\x8c  Errore Graphviz: " + err.left(200) +
-                    "\n\xe2\x84\xb9  Installa Graphviz: sudo apt install graphviz");
-            }
-            proc->deleteLater();
-        });
-        proc->start("dot", {"-Tpng", tmpDot, "-o", m_graphvizTmpPng});
-        if (!proc->waitForStarted(3000)) {
-            m_graphvizStatus->setText(
-                "\xe2\x9d\x8c  Graphviz non trovato. "
-                "Installa con: <b>sudo apt install graphviz</b>");
-            proc->deleteLater();
-        }
-    });
+    connect(btnGenerate, &QPushButton::clicked, this, [this]{ runGraphvizAi(); });
 
     return panel;
 }
 
 void MultimediaPage::runGraphvizAi()
 {
-    const QString desc = m_graphvizInput->toPlainText().trimmed();
-    if (desc.isEmpty()) {
+    const QString input = m_graphvizInput->toPlainText().trimmed();
+    if (input.isEmpty()) {
         m_graphvizStatus->setText(
             "\xe2\x9a\xa0  Scrivi una descrizione del grafo che vuoi creare.");
+        return;
+    }
+
+    /* Se l'input è già codice DOT valido → renderizza direttamente senza AI */
+    static const QRegularExpression reDotDirect(
+        "^\\s*(di)?graph\\s*\\{",
+        QRegularExpression::CaseInsensitiveOption);
+    if (reDotDirect.match(input).hasMatch()) {
+        _renderDotCode(input);
         return;
     }
 
@@ -457,6 +416,7 @@ void MultimediaPage::runGraphvizAi()
         "Aggiungi etichette chiare e usa rankdir=TB o LR se opportuno. "
         "Il codice deve iniziare con 'digraph' o 'graph' e finire con '}'.";
 
+    const QString desc   = input;
     const QString userMsg =
         "Crea un grafo Graphviz (DOT language) per: " + desc;
 
@@ -494,35 +454,7 @@ void MultimediaPage::runGraphvizAi()
         if (gs >= 0) dot = dot.mid(gs);
 
         m_graphvizInput->setPlainText(dot);
-        const QString tmpDot = QDir::tempPath() + "/prismalux_graph.dot";
-        m_graphvizTmpPng = QDir::tempPath() + "/prismalux_graph.png";
-        { QFile f(tmpDot);
-          if (f.open(QFile::WriteOnly | QFile::Text)) QTextStream(&f) << dot; }
-        m_graphvizStatus->setText("\xe2\x8f\xb3  Rendering con Graphviz...");
-        auto* proc = new QProcess(this);
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, proc](int code, QProcess::ExitStatus){
-            if (code == 0) {
-                QPixmap px(m_graphvizTmpPng);
-                if (!px.isNull()) {
-                    m_graphvizImg->setPixmap(
-                        px.scaledToWidth(qMin(px.width(), 900),
-                                         Qt::SmoothTransformation));
-                    m_graphvizStatus->setText("\xe2\x9c\x85  Grafo generato.");
-                }
-            } else {
-                m_graphvizStatus->setText(
-                    "\xe2\x9d\x8c  Graphviz: " +
-                    QString::fromLocal8Bit(proc->readAllStandardError()).left(200));
-            }
-            proc->deleteLater();
-        });
-        proc->start("dot", {"-Tpng", tmpDot, "-o", m_graphvizTmpPng});
-        if (!proc->waitForStarted(3000)) {
-            m_graphvizStatus->setText(
-                "\xe2\x9d\x8c  Graphviz non trovato. Installa: sudo apt install graphviz");
-            proc->deleteLater();
-        }
+        _renderDotCode(dot);
     });
     connect(m_ai, &AiClient::error, h, [this, h](const QString& msg){
         h->deleteLater();
@@ -531,4 +463,51 @@ void MultimediaPage::runGraphvizAi()
     });
 
     m_ai->chat(sys, userMsg);
+}
+
+void MultimediaPage::_renderDotCode(const QString& dot)
+{
+    const QString tmpDot = QDir::tempPath() + "/prismalux_graph.dot";
+    m_graphvizTmpPng     = QDir::tempPath() + "/prismalux_graph.png";
+    {
+        QFile f(tmpDot);
+        if (f.open(QFile::WriteOnly | QFile::Text))
+            QTextStream(&f) << dot;
+    }
+    m_graphvizStatus->setText("\xe2\x8f\xb3  Rendering con Graphviz...");
+    m_graphvizImg->setText("");
+
+    if (m_graphvizProc && m_graphvizProc->state() != QProcess::NotRunning)
+        m_graphvizProc->kill();
+
+    m_graphvizProc = new QProcess(this);
+    connect(m_graphvizProc,
+            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this](int code, QProcess::ExitStatus) {
+        if (code == 0) {
+            QPixmap px(m_graphvizTmpPng);
+            if (!px.isNull()) {
+                m_graphvizImg->setPixmap(
+                    px.scaledToWidth(qMin(px.width(), 900),
+                                     Qt::SmoothTransformation));
+                m_graphvizStatus->setText(
+                    "\xe2\x9c\x85  Grafo generato. "
+                    "Immagine: " + m_graphvizTmpPng);
+            }
+        } else {
+            const QString err =
+                QString::fromLocal8Bit(m_graphvizProc->readAllStandardError());
+            m_graphvizStatus->setText(
+                "\xe2\x9d\x8c  Errore Graphviz: " + err.left(200) +
+                "\n\xe2\x84\xb9  Installa: sudo apt install graphviz");
+        }
+    });
+    m_graphvizProc->start("dot", {"-Tpng", tmpDot, "-o", m_graphvizTmpPng});
+    if (!m_graphvizProc->waitForStarted(3000)) {
+        m_graphvizStatus->setText(
+            "\xe2\x9d\x8c  Graphviz non trovato. "
+            "Installa con: <b>sudo apt install graphviz</b>");
+        m_graphvizProc->deleteLater();
+        m_graphvizProc = nullptr;
+    }
 }

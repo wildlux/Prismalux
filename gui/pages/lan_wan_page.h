@@ -23,6 +23,7 @@ private:
     QSpinBox*    m_lanPortSpin  = nullptr;
     QLabel*      m_lanStatusLbl = nullptr;
     QLabel*      m_lanClientsLbl= nullptr;
+    QPushButton* m_lanWebBtn    = nullptr;  ///< "🌐 Chat Web" — apre browser
 
     /* ── GNS3 MCP ── */
     QLineEdit*     m_gns3HostEdit    = nullptr;

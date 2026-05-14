@@ -317,6 +317,21 @@ void AgentiPage::setupUI() {
         "automaticamente (ReAct, max 8 step)");
     toolLay->addWidget(m_btnModeToggle);
 
+    /* ── Checkbox Tool use ── */
+    m_toolChk = new QCheckBox("\xf0\x9f\x94\xa7  Tools", toolbar);  /* 🔧 */
+    m_toolChk->setObjectName("toolUseChk");
+    m_toolChk->setToolTip(
+        "Abilita il function calling (Ollama tool use) nella prossima risposta.\n"
+        "Il modello pu\xc3\xb2 chiamare: leggi_file, lista_file, calc, cerca_web, python.\n"
+        "Richiede un modello tool-capable (qwen3, llama3.1, mistral-nemo...).\n"
+        "In modalit\xc3\xa0 Agente Autonomo i tool sono sempre attivi.");
+    toolLay->addWidget(m_toolChk);
+
+    connect(m_toolChk, &QCheckBox::toggled, this, [this](bool on) {
+        if (!m_autoEnabled)           /* In Agente Autonomo, m_toolsEnabled resta true */
+            m_toolsEnabled = on;
+    });
+
     /* ── Selettore LLM singolo ── */
     auto* llmLbl = new QLabel("LLM:", toolbar);
     llmLbl->setObjectName("cardDesc");
@@ -343,9 +358,16 @@ void AgentiPage::setupUI() {
     /* ── Collegamento toggle Chat / Agente Autonomo ── */
     connect(m_btnModeToggle, &QPushButton::toggled, this, [this](bool autoOn) {
         m_autoEnabled   = autoOn;
-        m_toolsEnabled  = autoOn;   /* tool use automatico in modalità Autonomo */
+        m_toolsEnabled  = autoOn || (m_toolChk && m_toolChk->isChecked());
         m_toolIteration = 0;
-        m_modePipeline  = false;    /* mai pipeline quando si usa il toggle diretto */
+        m_modePipeline  = false;
+        /* In modalità Autonomo: tools sempre attivi, checkbox bloccato spuntato */
+        if (m_toolChk) {
+            m_toolChk->blockSignals(true);
+            if (autoOn) m_toolChk->setChecked(true);
+            m_toolChk->setEnabled(!autoOn);
+            m_toolChk->blockSignals(false);
+        }
 
         m_btnModeToggle->setText(autoOn
             ? "\xf0\x9f\xa4\x96  Agente Autonomo"
@@ -751,6 +773,51 @@ void AgentiPage::setupUI() {
     inputGrid->addWidget(m_btnImg, 1, 3);
 
     lay->addWidget(inputArea);
+
+    /* ── RAG inline collapsibile ─────────────────────────────────
+       Un RagDropWidget sempre accessibile nel tab principale.
+       Si apre/chiude col pulsante "📎 RAG" nella barra input.
+       Il suo contesto viene iniettato nella pipeline come RAG condiviso aggiuntivo.
+       ──────────────────────────────────────────────────────────── */
+    {
+        /* Pulsante toggle (aggiunto alla riga 0 col 4 di inputGrid) */
+        m_btnRag = new QPushButton("\xf0\x9f\x93\x8e  RAG", inputArea);
+        m_btnRag->setObjectName("actionBtn");
+        m_btnRag->setCheckable(true);
+        m_btnRag->setToolTip(
+            "Mostra/nascondi la zona RAG.\n"
+            "Trascina file .txt .md .pdf o URL web per aggiungere contesto alla chat.");
+        inputGrid->setColumnStretch(4, 0);
+        inputGrid->addWidget(m_btnRag, 0, 4);
+
+        /* Pannello RAG collapsibile */
+        m_ragPanel = new QWidget(this);
+        auto* ragPanelLay = new QHBoxLayout(m_ragPanel);
+        ragPanelLay->setContentsMargins(0, 4, 0, 0);
+        ragPanelLay->setSpacing(6);
+
+        auto* ragLbl = new QLabel(
+            "\xf0\x9f\x93\x8e  <b>RAG inline</b> \xe2\x80\x94 "
+            "trascina file o inserisci URL per aggiungere contesto alla chat:",
+            m_ragPanel);
+        ragLbl->setObjectName("footerHints");
+        ragLbl->setTextFormat(Qt::RichText);
+        ragPanelLay->addWidget(ragLbl);
+
+        m_ragInline = new RagDropWidget(m_ragPanel);
+        m_ragInline->setMinimumHeight(64);
+        m_ragInline->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        ragPanelLay->addWidget(m_ragInline, 1);
+
+        m_ragPanel->hide();
+        lay->addWidget(m_ragPanel);
+
+        connect(m_btnRag, &QPushButton::toggled, this, [this](bool on){
+            m_ragPanel->setVisible(on);
+            m_btnRag->setText(on ? "\xf0\x9f\x93\x8e  RAG \xe2\x97\xa4"
+                                 : "\xf0\x9f\x93\x8e  RAG");
+        });
+    }
 
     /* ── Footer suggerimenti (2 righe, nascondibile) ── */
     {
