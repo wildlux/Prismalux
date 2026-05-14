@@ -972,14 +972,20 @@ QWidget* RicercaPage::buildCercaLetteraturaTab()
 
         QNetworkRequest req(url);
         req.setRawHeader("User-Agent", "Prismalux/1.0 (Qt6; research)");
+        req.setTransferTimeout(15000);  /* abort dopo 15s */
         auto* reply = m_litNet->get(req);
 
         connect(reply, &QNetworkReply::finished, this, [this, reply, src](){
             reply->deleteLater();
             m_litSearchBtn->setEnabled(true);
             if (reply->error() != QNetworkReply::NoError) {
+                const bool isTimeout =
+                    (reply->error() == QNetworkReply::OperationCanceledError);
                 m_litStatus->setText(
-                    "\xe2\x9d\x8c  Errore rete: " + reply->errorString());
+                    isTimeout
+                    ? "\xe2\x8f\xb1  Timeout (15s) \xe2\x80\x94 premi Cerca per ritentare"
+                    : "\xe2\x9d\x8c  Errore: " + reply->errorString()
+                      + " \xe2\x80\x94 premi Cerca per ritentare");
                 return;
             }
             const QByteArray data = reply->readAll();

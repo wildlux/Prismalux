@@ -629,6 +629,25 @@ if(BUILD_TESTS)
         target_link_libraries(test_lan_server PRIVATE pthread m)
     endif()
 
+    # ── test_onboarding: onboarding wizard QSettings, token LAN, rate limiter ──
+    add_executable(test_onboarding
+        tests/test_onboarding.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_onboarding PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_onboarding PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_onboarding PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_onboarding PRIVATE pthread m)
+    endif()
+
     add_executable(test_impostazioni_page
         tests/test_impostazioni_page.cpp
         tests/mock_ai_client.h
@@ -804,6 +823,7 @@ if(BUILD_TESTS)
     add_test(NAME AgentiPipeline          COMMAND test_agenti_pipeline)
     add_test(NAME AgentsConfigDialog      COMMAND test_agents_config_dialog)
     add_test(NAME LanServer               COMMAND test_lan_server)
+    add_test(NAME Onboarding              COMMAND test_onboarding)
     add_test(NAME ImpostazioniPage        COMMAND test_impostazioni_page)
     add_test(NAME ManutenzioneeBugs       COMMAND test_manutenzione_bugs)
     add_test(NAME Grafico                 COMMAND test_grafico)

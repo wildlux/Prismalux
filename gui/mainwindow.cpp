@@ -1358,6 +1358,13 @@ QWidget* MainWindow::buildSidebar() {
     });
     lay->addWidget(newChatBtn);
 
+    /* ── Ricerca chat history ── */
+    m_chatSearch = new QLineEdit(bar);
+    m_chatSearch->setPlaceholderText("\xf0\x9f\x94\x8d  Cerca chat...");  /* 🔍 */
+    m_chatSearch->setClearButtonEnabled(true);
+    m_chatSearch->setObjectName("chatSearchEdit");
+    lay->addWidget(m_chatSearch);
+
     /* ── Lista chat history ── */
     m_chatList = new QListWidget(bar);
     m_chatList->setObjectName("chatList");
@@ -1365,6 +1372,19 @@ QWidget* MainWindow::buildSidebar() {
     m_chatList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_chatList->setSpacing(2);
     lay->addWidget(m_chatList, 1);   /* stretch=1: occupa lo spazio disponibile */
+
+    /* Filtra la lista in tempo reale */
+    connect(m_chatSearch, &QLineEdit::textChanged, this, [this](const QString& q) {
+        const QString query = q.trimmed().toLower();
+        for (int i = 0; i < m_chatList->count(); ++i) {
+            auto* item = m_chatList->item(i);
+            if (!item) continue;
+            /* Il placeholder empty-state non ha UserRole → sempre visibile */
+            const bool isPlaceholder = item->data(Qt::UserRole).toString().isEmpty();
+            item->setHidden(!isPlaceholder && !query.isEmpty()
+                            && !item->text().toLower().contains(query));
+        }
+    });
 
     connect(m_chatList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item){
         const QString id = item->data(Qt::UserRole).toString();

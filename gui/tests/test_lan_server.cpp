@@ -218,6 +218,65 @@ private slots:
     }
 };
 
+/* ══════════════════════════════════════════════════════════════
+   CAT-G — Token di accesso Bearer
+   ══════════════════════════════════════════════════════════════ */
+class TestAccessToken : public QObject {
+    Q_OBJECT
+private slots:
+
+    /* G-1: setAccessToken("") non crasha e server avvia normalmente */
+    void tokenVuotoNonCrasha() {
+        MockAiClient ai;
+        LanServer srv(&ai);
+        srv.setAccessToken("");
+        QVERIFY(srv.start(0));
+        QVERIFY(srv.isRunning());
+        srv.stop();
+    }
+
+    /* G-2: setAccessToken con valore → non crasha */
+    void tokenImpostatoNonCrasha() {
+        MockAiClient ai;
+        LanServer srv(&ai);
+        srv.setAccessToken("supersecrettoken123");
+        QVERIFY(srv.start(0));
+        QVERIFY(srv.isRunning());
+        srv.stop();
+    }
+
+    /* G-3: token con caratteri speciali (quote, backslash) → non crasha */
+    void tokenCaratteriSpeciali() {
+        MockAiClient ai;
+        LanServer srv(&ai);
+        srv.setAccessToken("token\\'con\\backslash\"quote");
+        QVERIFY(srv.start(0));
+        srv.stop();
+    }
+
+    /* G-4: setAccessToken dopo start → non crasha */
+    void setTokenDopoStart() {
+        MockAiClient ai;
+        LanServer srv(&ai);
+        QVERIFY(srv.start(0));
+        srv.setAccessToken("nuovo-token");
+        QVERIFY(srv.isRunning());
+        srv.setAccessToken("");  /* rimuove autenticazione */
+        QVERIFY(srv.isRunning());
+        srv.stop();
+    }
+
+    /* G-5: token vuoto ripristinato dopo essere stato impostato */
+    void tokenRimosso() {
+        MockAiClient ai;
+        LanServer srv(&ai);
+        srv.setAccessToken("token-da-rimuovere");
+        srv.setAccessToken("");
+        QVERIFY(srv.start(0));
+        srv.stop();
+    }
+};
+
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
@@ -229,6 +288,7 @@ int main(int argc, char* argv[])
         TestStatusChanged t3; status |= QTest::qExec(&t3, argc, argv);
         TestClientCount   t4; status |= QTest::qExec(&t4, argc, argv);
         TestRobustezza    t5; status |= QTest::qExec(&t5, argc, argv);
+        TestAccessToken   t6; status |= QTest::qExec(&t6, argc, argv);
     }
     return status;
 }

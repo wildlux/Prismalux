@@ -623,6 +623,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     auto* ragClearBtn = new QPushButton(
         "\xf0\x9f\x97\x91  Svuota", m_ragRow);
     ragClearBtn->setObjectName("actionBtn");
+    ragClearBtn->setToolTip("Rimuove tutti i documenti dall'indice RAG in-page");
     ragClearBtn->setFixedWidth(80);
     ragLay->addWidget(ragClearBtn);
 
@@ -656,6 +657,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
 
     auto* pdfBtn = new QPushButton("\xf0\x9f\x93\x84  Carica PDF", m_pdfRow);
     pdfBtn->setObjectName("actionBtn");
+    pdfBtn->setToolTip("Seleziona un file PDF da usare come contesto per la generazione AI");
     pdfBtn->setFixedWidth(130);
 
     m_pdfPathLbl = new QLabel("Nessun PDF caricato", m_pdfRow);
@@ -692,6 +694,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
 
     auto* blenderPingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", m_blenderRow);
     blenderPingBtn->setObjectName("actionBtn");
+    blenderPingBtn->setToolTip("Testa la connessione TCP al bridge Blender (porta 9001 default)");
     blenderPingBtn->setFixedWidth(100);
 
     m_blenderStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", m_blenderRow);
@@ -700,6 +703,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     m_blenderExecBtn = new QPushButton(
         "\xe2\x96\xb6  Esegui in Blender", m_blenderRow);
     m_blenderExecBtn->setObjectName("actionBtn");
+    m_blenderExecBtn->setToolTip("Invia il codice Python generato a Blender via bridge MCP");
     m_blenderExecBtn->setFixedWidth(160);
     m_blenderExecBtn->setEnabled(false);
 
@@ -870,6 +874,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     m_officeStartBtn = new QPushButton(
         "\xe2\x96\xb6  Avvia bridge", m_officeRow);
     m_officeStartBtn->setObjectName("actionBtn");
+    m_officeStartBtn->setToolTip("Avvia il bridge Python che si connette a LibreOffice via UNO API");
     m_officeStartBtn->setFixedWidth(120);
 
     m_officeStatusLbl = new QLabel(
@@ -879,6 +884,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     m_officeExecBtn = new QPushButton(
         "\xf0\x9f\x96\xa5  Esegui in Office", m_officeRow);
     m_officeExecBtn->setObjectName("actionBtn");
+    m_officeExecBtn->setToolTip("Invia il codice Python UNO generato a LibreOffice tramite bridge");
     m_officeExecBtn->setFixedWidth(160);
     m_officeExecBtn->setEnabled(false);
 
@@ -987,6 +993,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
 
     auto* freecadPingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", m_freecadRow);
     freecadPingBtn->setObjectName("actionBtn");
+    freecadPingBtn->setToolTip("Testa la connessione TCP al bridge FreeCAD (porta 9876 default)");
     freecadPingBtn->setFixedWidth(100);
 
     m_freecadStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", m_freecadRow);
@@ -995,6 +1002,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     m_freecadExecBtn = new QPushButton(
         "\xf0\x9f\x94\xa9  Esegui in FreeCAD", m_freecadRow);
     m_freecadExecBtn->setObjectName("actionBtn");
+    m_freecadExecBtn->setToolTip("Invia il codice Python FreeCAD generato via bridge MCP");
     m_freecadExecBtn->setFixedWidth(170);
     m_freecadExecBtn->setEnabled(false);
 
@@ -1593,6 +1601,8 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
 
     m_btnRun = new QPushButton("\xe2\x96\xb6  Esegui", inputRow);
     m_btnRun->setObjectName("actionBtn");
+    m_btnRun->setToolTip("Invia la richiesta al modello AI (Invio+Ctrl)");
+    m_btnRun->setAccessibleName("Esegui richiesta AI");
     m_btnRun->setFixedWidth(110);
 
     m_waitLbl = new QLabel(inputRow);

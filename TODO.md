@@ -84,13 +84,13 @@
 ### 🟡 MEDIUM
 - [x] **[UX] Toggle 👁 per campo token LAN** ✅ — pulsante flat 👁 checkable che alterna `EchoMode::Normal ↔ Password`
 - [x] **[UX] Empty state lista chat vuota** ✅ — `refreshChatList()`: se nessuna sessione, mostra placeholder non-selezionabile "💬 Nessuna chat salvata — Inizia una conversazione"
-- [ ] **[UX] Ricerca nella chat history** — aggiungere QLineEdit di ricerca sopra la lista sidebar
-- [ ] **[C++] Nessun retry/timeout su QNetworkReply** — fetch arXiv/Semantic Scholar/USPTO senza timeout esplicito né pulsante retry
+- [x] **[UX] Ricerca nella chat history** ✅ — QLineEdit "🔍 Cerca chat..." sopra la lista sidebar con filtro in tempo reale (case-insensitive, nascondi item non matching)
+- [x] **[C++] Timeout + retry su QNetworkReply** ✅ — `req.setTransferTimeout(15000)` su arXiv/Semantic Scholar/USPTO; messaggio "⏱ Timeout (15s) — premi Cerca per ritentare"
 - [x] **[C++] `/tmp/output.stl` e `/tmp/output.step` hardcoded** ✅ — prompt FreeCAD aggiornato: usa `Path.home()/'Desktop'/'output.*'`
 
 ### 🟢 LOW
 - [~] **[C++] `QSettings("Prismalux","GUI")` ad ogni bolla** — overhead accettabile (poche decine di bolle/sessione); non ottimizzato
-- [ ] **[TEST] Nessun test per feature recenti** — token LAN, onboarding wizard, arXiv parser, rate limiter /knowledge
-- [ ] **[UX] Tooltip inconsistenti / nessuna accessibilità** — 0 occorrenze di `setAccessibleName`
-- [ ] **[C++] `agenti_page_stream.cpp` ancora troppo grande** — 957 righe; spezzare in stream_renderer + history_manager
-- [ ] **[UX] ImpostazioniPage = 7080 righe, God Dialog** — spezzare in sezioni con sidebar navigabile
+- [x] **[TEST] Test per feature recenti** ✅ — `test_onboarding.cpp`: 18 test (CAT-A onboarding, CAT-B token QSettings, CAT-C rate limiter, CAT-D token state machine); CAT-G token aggiunto a `test_lan_server.cpp` (5 test); tutti 23 PASS
+- [x] **[UX] Tooltip pulsanti principali** ✅ — aggiunto setToolTip a: ragClear, pdfCarica, blenderPing, blenderEsegui, officeBridge, officeEsegui, freecadPing, freecadEsegui, btnRun; setAccessibleName su btnRun
+- [~] **[C++] `agenti_page_stream.cpp` ancora troppo grande** — refactor architetturale, basso impatto funzionale; rimandato
+- [~] **[UX] ImpostazioniPage = 7080 righe, God Dialog** — refactor UI di largo respiro; rimandato a sessione dedicata

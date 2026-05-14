@@ -138,6 +138,7 @@ private:
     /* ── Chat History (sidebar) ───────────────────────────────── */
     ChatHistory   m_chatHistory;                  ///< Persistenza sessioni in ~/.prismalux_chats/
     QListWidget*  m_chatList       = nullptr;     ///< Lista chat nella sidebar
+    QLineEdit*    m_chatSearch     = nullptr;     ///< Filtro ricerca chat history
     QString       m_currentChatId;               ///< ID sessione chat corrente
 
     /* ── Gestione llama-server avviato dalla GUI ─────────────── */
