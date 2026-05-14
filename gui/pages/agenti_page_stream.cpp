@@ -80,709 +80,82 @@ void AgentiPage::onToken(const QString& t) {
     }
 }
 
-void AgentiPage::onFinished(const QString& full) {
-    m_waitLbl->setVisible(false);
-    m_ai->clearActiveTools();   /* tool use nativo: resetta tools dopo ogni risposta */
-
-    /* Guard: se siamo in Idle, il segnale finished appartiene a un'altra pagina
-       (cross-talk su AiClient condiviso) oppure è il secondo emit dopo un error().
-       In entrambi i casi NON avanzare il motore Byzantino. */
-    if (m_opMode == OpMode::Idle) return;
-
-    if (m_opMode == OpMode::Translating) {
-        /* Traduzione completata — aggiorna il task e riparte con la modalità originale */
-        QString translated = m_translateBuf.trimmed();
-        if (translated.isEmpty()) translated = m_taskOriginal; /* fallback: testo originale */
-        m_taskOriginal = _inject_math(translated);
-        m_log->append(QString("\n\xf0\x9f\x8c\x90  Traduzione: <i>%1</i>\n").arg(m_taskOriginal));
-        m_log->append(QString(43, QChar(0x2500)));
-        OpMode next = m_pendingMode;
-        m_pendingMode = OpMode::Idle;
-        m_opMode = OpMode::Idle;
-        /* Riavvia la modalità richiesta con il testo tradotto già in m_taskOriginal */
-        if (next == OpMode::Pipeline) {
-            int count = 0;
-            for (int i = 0; i < MAX_AGENTS; i++)
-                if (m_cfgDlg->enabledChk(i)->isChecked()) count++;
-            m_agentOutputs.clear();
-            m_currentAgent = 0;
-            m_maxShots = m_cfgDlg->numAgents();
-            m_opMode   = OpMode::Pipeline;
-            for (int i = 0; i < MAX_AGENTS; i++) m_cfgDlg->enabledChk(i)->setStyleSheet("");
-            emit pipelineStatus(0, "Avvio pipeline...");
-            { int idx = m_bubbleIdx++; m_bubbleTexts[idx] = m_taskOriginal;
-              m_log->moveCursor(QTextCursor::End);
-              m_log->insertHtml(buildUserBubble(m_taskOriginal, idx)); }
-            m_log->append("");
-            m_waitLbl->setVisible(true);
-            advancePipeline();
-        } else if (next == OpMode::Byzantine) {
-            m_byzStep = 0; m_byzA = m_byzC = "";
-            m_opMode = OpMode::Byzantine;
-            m_log->append("\xf0\x9f\x94\xae  Motore Byzantino — verifica a 4 agenti\n");
-            m_log->append("\xf0\x9f\x85\x90  [Agente A — Originale]\n");
-            m_waitLbl->setVisible(true);
-            m_ai->chat(_buildSys(m_taskOriginal, QString(
-                "Sei l'Agente A del Motore Byzantino di Prismalux. "
-                "Fornisci una risposta diretta e ben argomentata. "
-                "Rispondi SEMPRE e SOLO in italiano."),
-                m_ai->model(), m_ai->backend()), m_taskOriginal);
-        } else if (next == OpMode::MathTheory) {
-            m_byzStep = 0; m_byzA = m_byzC = "";
-            m_opMode = OpMode::MathTheory;
-            m_log->append("\xf0\x9f\xa7\xae  Matematico Teorico — esplorazione a 4 agenti\n");
-            m_log->append("\xf0\x9f\x85\xb0  [Agente 1 — Enunciatore]\n");
-            m_waitLbl->setVisible(true);
-            m_ai->chat(_buildSys(m_taskOriginal, QString(
-                "Sei l'Enunciatore matematico. Riformula il problema in forma rigorosa. "
-                "Rispondi SEMPRE e SOLO in italiano."),
-                m_ai->model(), m_ai->backend()), m_taskOriginal);
-        } else {
-            /* next == Idle: traduzione esplicita senza pipeline successiva */
-            QString translated = m_translateBuf.trimmed();
-            m_log->append("\n" + translated);
-            /* Ripristina modello precedente se era stato cambiato */
-            if (!m_preTranslateModel.isEmpty() && m_preTranslateModel != m_ai->model())
-                m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_preTranslateModel);
-            m_preTranslateModel.clear();
-            _setRunBusy(false);
-            if (m_btnTranslate) m_btnTranslate->setEnabled(true);
-        }
-        return;
-    }
-
-    /* ── Agente Autonomo completato: delega a _autoAdvance ── */
-    if (m_opMode == OpMode::AutonomousAgent) {
-        const QString resp = (full.isEmpty() ? m_autoBuf : full).trimmed();
-        _autoAdvance(resp);
-        return;
-    }
-
-    /* ── Estrattore Knowledge completato (P5) ── */
-    if (m_opMode == OpMode::KnowledgeExtract) {
-        const QString extracted = m_knowledgeBuf.trimmed();
-        m_knowledgeBuf.clear();
-        m_opMode = OpMode::Idle;
-
-        /* Chiama il MCP in background se l'estrattore ha prodotto contenuto utile.
-           "NULLA" è la risposta canonica dell'estrattore per sessioni senza info nuove. */
-        const bool isUseful = !extracted.isEmpty()
-                              && !extracted.trimmed().toUpper().startsWith("NULLA");
-        if (isUseful) {
-            const QString modeLabel = m_modePipeline ? "Pipeline" : "Chat";
-            const QString label = QString("%1: %2 \xe2\x80\x94 %3")
-                .arg(modeLabel,
-                     m_taskOriginal.left(30).simplified(),
-                     QDateTime::currentDateTime().toString("yyyy-MM-dd"));
-            callKnowledgeMcp(extracted, label);
-        }
-
-        /* Conversazione vocale continua: auto-TTS risposta (path KnowledgeExtract) */
-        if (m_voiceLoopActive && !m_modePipeline && !m_agentOutputs.isEmpty()) {
-            QString resp = m_agentOutputs.last().trimmed();
-            QStringList words = resp.split(' ', Qt::SkipEmptyParts);
-            if (words.size() > 400) words = words.mid(0, 400);
-            const QString ttsText = words.join(" ");
-            if (!ttsText.isEmpty())
-                QTimer::singleShot(200, this, [this, ttsText]{ _ttsPlay(ttsText); });
-        }
-
-        /* Chiude la pipeline normalmente */
-        emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
-        _setRunBusy(false);
-        emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
-        return;
-    }
-
-    /* ── Controller LLM completato ── */
-    if (m_opMode == OpMode::PipelineControl) {
-        m_opMode = OpMode::Pipeline;   /* ripristina prima di advance */
-
-        /* Sostituisce il testo grezzo del controller con la bolla colorata */
-        QString ctrlHtml = markdownToHtml(m_ctrlAccum.trimmed());
-        QTextCursor selCtrl(m_log->document());
-        selCtrl.setPosition(m_ctrlBlockStart);
-        selCtrl.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
-        selCtrl.removeSelectedText();
-        selCtrl.insertHtml(buildControllerBubble(ctrlHtml));
-
+/* ══════════════════════════════════════════════════════════════
+   _finishedTranslating — traduzione completata, riavvia modalità pending
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::_finishedTranslating(const QString& /*full*/) {
+    QString translated = m_translateBuf.trimmed();
+    if (translated.isEmpty()) translated = m_taskOriginal;
+    m_taskOriginal = _inject_math(translated);
+    m_log->append(QString("\n\xf0\x9f\x8c\x90  Traduzione: <i>%1</i>\n").arg(m_taskOriginal));
+    m_log->append(QString(43, QChar(0x2500)));
+    OpMode next = m_pendingMode;
+    m_pendingMode = OpMode::Idle;
+    m_opMode = OpMode::Idle;
+    if (next == OpMode::Pipeline) {
+        m_agentOutputs.clear();
+        m_currentAgent = 0;
+        m_maxShots = m_cfgDlg->numAgents();
+        m_opMode   = OpMode::Pipeline;
+        for (int i = 0; i < MAX_AGENTS; i++) m_cfgDlg->enabledChk(i)->setStyleSheet("");
+        emit pipelineStatus(0, "Avvio pipeline...");
+        { int idx = m_bubbleIdx++; m_bubbleTexts[idx] = m_taskOriginal;
+          m_log->moveCursor(QTextCursor::End);
+          m_log->insertHtml(buildUserBubble(m_taskOriginal, idx)); }
+        m_log->append("");
+        m_waitLbl->setVisible(true);
         advancePipeline();
-        return;
-    }
-
-    if (m_opMode == OpMode::Pipeline) {
-        if (m_currentAgent < MAX_AGENTS)
-            m_cfgDlg->enabledChk(m_currentAgent)->setStyleSheet(
-                "QCheckBox { color: #4caf50; font-weight: bold; }"
-                "QCheckBox::indicator:checked { background-color: #4caf50; border: 2px solid #388e3c; border-radius: 3px; }");
-
-        m_currentAgent++;
-
-        int total = 0, done = 0;
-        for (int i = 0; i < MAX_AGENTS; i++) if (m_cfgDlg->enabledChk(i)->isChecked()) total++;
-        for (int i = 0; i < m_currentAgent; i++) if (m_cfgDlg->enabledChk(i)->isChecked()) done++;
-        int pct = (total > 0) ? qMin(done * 100 / total, 99) : 0;
-        emit pipelineStatus(pct, QString("\xe2\x9c\x85  Agente %1/%2 completato  (%3%)")
-            .arg(done).arg(qMin(total, m_maxShots)).arg(pct));
-
-        /* Sostituisce l'indicatore streaming + testo grezzo con la bolla AI completa */
-        QString rawResp;
-        if (m_currentAgent > 0 && !m_agentOutputs.isEmpty()) {
-            rawResp = m_agentOutputs[m_currentAgent - 1];
-            /* Fallback: modelli thinking-only (qwen3, deepseek-r1) rispondono tramite
-               message.thinking invece di message.content → nessun token emesso →
-               m_agentOutputs resta vuota. AiClient avvolge il thinking in <think>...</think>
-               e lo passa via finished(). Usiamo quel valore se il buffer locale è vuoto. */
-            if (rawResp.isEmpty() && !full.isEmpty())
-                rawResp = m_agentOutputs[m_currentAgent - 1] = full;
-            /* Fix toggle ▶️: thinking via message.thinking (campo separato da content).
-               AiClient prepone <think>...</think> solo in finished(), non nei token.
-               rawResp (dai token) non ha il think block; full sì.
-               Usiamo full per estrarre il thinking e mostrare il toggle. */
-            else if (!rawResp.isEmpty() && !full.isEmpty()
-                     && full.contains("<think>", Qt::CaseInsensitive)
-                     && !rawResp.contains("<think>", Qt::CaseInsensitive)) {
-                rawResp = m_agentOutputs[m_currentAgent - 1] = full;
-            }
-            /* Rimuove blocchi <think>...</think> (reasoning models: qwen3, deepseek-r1, qwq...)
-               Se dopo lo strip rimane vuoto (modelli piccoli che producono SOLO thinking
-               senza risposta finale), si usa il contenuto del <think> come fallback.
-               Il contenuto del <think> viene salvato in m_thinkTexts per il toggle collassabile. */
-            QString extractedThink;  /* contenuto <think> estratto — salvato per la bolla */
-            {
-                QRegularExpression reTh("<think>([\\s\\S]*?)</think>",
-                                        QRegularExpression::CaseInsensitiveOption);
-                /* Salva l'originale prima di rimuovere */
-                const QString original = rawResp;
-                auto thinkMatch = reTh.match(original);
-                if (thinkMatch.hasMatch())
-                    extractedThink = thinkMatch.captured(1).trimmed();
-
-                rawResp.remove(QRegularExpression("<think>[\\s\\S]*?</think>",
-                    QRegularExpression::CaseInsensitiveOption));
-                rawResp = rawResp.trimmed();
-
-                /* <think> senza </think>: budget ragionamento esaurito a metà.
-                   Tutto ciò che segue un <think> non chiuso è thinking non terminato. */
-                rawResp.remove(QRegularExpression("<think>[\\s\\S]*$",
-                    QRegularExpression::CaseInsensitiveOption));
-                rawResp = rawResp.trimmed();
-
-                /* Fallback: se il modello ha prodotto solo reasoning (o output vuoto),
-                 * mostra il contenuto del <think> se non vuoto.
-                 * Caso comune con modelli 0.8-1.5B: generano <think>...</think>
-                 * ma poi non aggiungono risposta finale. */
-                if (rawResp.isEmpty()) {
-                    auto m = reTh.match(original);
-                    if (m.hasMatch()) {
-                        /* Prova prima il contenuto trimmed, poi raw (per preservare newline) */
-                        const QString thinkTrimmed = m.captured(1).trimmed();
-                        rawResp = thinkTrimmed.isEmpty() ? m.captured(1) : thinkTrimmed;
-                        if (rawResp.isEmpty()) {
-                            /* Modello troppo piccolo: think vuoto + nessuna risposta */
-                            rawResp = "[Il modello non ha prodotto risposta. "
-                                      "Usa un modello più grande (≥3B) o premi "
-                                      "Singolo per domande semplici.]";
-                        }
-                        /* Non aggiornare m_agentOutputs con il think: passiamo ai prossimi
-                           agenti un placeholder chiaro invece di contenuto di ragionamento */
-                        m_agentOutputs[m_currentAgent - 1] =
-                            "[Modello ha prodotto solo ragionamento interno — nessuna risposta finale]";
-                        extractedThink = "";  /* il think diventa la risposta: non serve toggle */
-                    } else {
-                        /* Nessun tag <think> e risposta vuota — modello non ha risposto */
-                        rawResp = "[Nessuna risposta dal modello. "
-                                  "Verifica che Ollama sia avviato e il modello selezionato "
-                                  "sia disponibile.]";
-                        m_agentOutputs[m_currentAgent - 1] = rawResp;
-                    }
-                } else {
-                    m_agentOutputs[m_currentAgent - 1] = rawResp;
-                }
-            }
-            /* Strip ragionamento italiano inline: i modelli spesso iniziano con frasi-spia
-               tipo "L'utente chiede...", "Devo rispondere...", "Sto analizzando..." prima
-               della risposta vera. Rimuove le righe iniziali che corrispondono ai pattern. */
-            {
-                static const QRegularExpression reThinkLine(
-                    QString::fromUtf8(
-                        "^(l['\xE2\x80\x99]utente\\s+(chiede|vuole|ha\\s+chiesto|sta|intende|sembra|desidera|ha\\s+fatto)|"
-                        "devo\\s+rispondere|voglio\\s+rispondere|prima\\s+di\\s+rispondere|"
-                        "sto\\s+(pensando|analizzando|considerando|riflettendo|cercando)|"
-                        "analizziamo|penso\\s+di\\s+dover|capisco\\s+che|vediamo\\s+(cosa|come)|"
-                        "mi\\s+viene\\s+chiesto|ho\\s+capito\\s+che|la\\s+domanda\\s+\\xC3\\xA8)"),
-                    QRegularExpression::CaseInsensitiveOption);
-                QStringList lines = rawResp.split('\n');
-                int firstReal = 0;
-                for (int i = 0; i < lines.size(); i++) {
-                    const QString trimmed = lines[i].trimmed();
-                    if (trimmed.isEmpty() || reThinkLine.match(trimmed).hasMatch())
-                        firstReal = i + 1;
-                    else
-                        break;
-                }
-                if (firstReal > 0 && firstReal < lines.size()) {
-                    const QString stripped = QStringList(lines.mid(firstReal)).join('\n').trimmed();
-                    if (!stripped.isEmpty()) {
-                        rawResp = stripped;
-                        m_agentOutputs[m_currentAgent - 1] = rawResp;
-                    }
-                }
-            }
-
-            /* ── Tool Use Nativo: intercetta TOOL_CALL prima di costruire la bolla ── */
-            if (m_toolsEnabled && m_maxShots == 1 && m_toolIteration < 2 && !rawResp.isEmpty()) {
-                const QJsonObject tc = detectFirstToolCall(rawResp);
-                if (!tc.isEmpty()) {
-                    m_toolIteration++;
-                    const int agentIdx = m_currentAgent - 1;
-
-                    /* Rimuove testo grezzo dello streaming */
-                    QTextCursor selTool(m_log->document());
-                    selTool.setPosition(m_agentBlockStart);
-                    selTool.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
-                    selTool.removeSelectedText();
-
-                    /* Mostra indicatore compatto "tool in esecuzione" */
-                    const QString tn  = tc["tool"].toString().toHtmlEscaped();
-                    const QString tin = tc["input"].toString().left(120).toHtmlEscaped();
-                    m_log->moveCursor(QTextCursor::End);
-                    m_log->insertHtml(
-                        "<p style='color:#94a3b8;font-size:11px;margin:4px 0;'>"
-                        "\xf0\x9f\x94\xa7&nbsp;<b>Tool:</b>&nbsp;" + tn +
-                        "&nbsp;\xe2\x80\x94&nbsp;<code>" + tin +
-                        "</code>&nbsp;&nbsp;\xe2\x8f\xb3 in esecuzione...</p>");
-
-                    /* Rimuove l'ultima voce di m_agentOutputs: runAgent la re-appenderà */
-                    if (!m_agentOutputs.isEmpty())
-                        m_agentOutputs.removeLast();
-
-                    runToolCall(tc, [this, agentIdx, tc](const QString& result) {
-                        /* Aggiorna il log con il risultato del tool */
-                        m_log->moveCursor(QTextCursor::End);
-                        m_log->insertHtml(
-                            "<p style='color:#86efac;font-size:11px;margin:4px 0;'>"
-                            "\xe2\x9c\x85&nbsp;<b>Risultato:</b>&nbsp;"
-                            + result.left(300).toHtmlEscaped() + "</p>");
-
-                        /* Inietta il risultato nel contesto del task */
-                        m_taskOriginal += QString(
-                            "\n\n[TOOL_RESULT: %1]\n%2\n\n"
-                            "Rispondi ora all'utente in italiano.")
-                            .arg(tc["tool"].toString(), result);
-
-                        /* Re-run dello stesso agente con il contesto arricchito */
-                        m_currentAgent = agentIdx;
-                        runAgent(agentIdx);
-                    });
-                    return;
-                }
-            }
-
-            /* Aggiunge il tempo di risposta all'header della bolla */
-            {
-                const double elapsedMs = static_cast<double>(m_agentTimer.elapsed());
-                const QString elapsedStr = elapsedMs < 1000.0
-                    ? QString::number(qRound(elapsedMs)) + " ms"
-                    : QString::number(elapsedMs / 1000.0, 'f', 1) + " s";
-                m_currentAgentTime += "  \xc2\xb7\xc2\xb7  " + elapsedStr;
-            }
-
-            QString htmlContent = rawResp.isEmpty()
-                ? "<p style='color:#6b7280;font-style:italic;margin:0;'>Nessun output.</p>"
-                : markdownToHtml(rawResp);
-
-            QTextCursor sel(m_log->document());
-            sel.setPosition(m_agentBlockStart);
-            sel.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
-            sel.removeSelectedText();
-            { int idx = m_bubbleIdx++; m_bubbleTexts[idx] = rawResp;
-              if (!extractedThink.isEmpty()) m_thinkTexts[idx] = extractedThink;
-              sel.insertHtml(buildAgentBubble(m_currentAgentLabel,
-                                             m_currentAgentModel,
-                                             m_currentAgentTime,
-                                             htmlContent, idx,
-                                             extractedThink)); }
-        }
-
-        /* ── Tool Executor: estrae ed esegue codice Python, poi avvia il Controller ── */
-        QString pyCode = extractPythonCode(rawResp);
-        if (!pyCode.isEmpty()) {
-            pyCode = _sanitizePyCode(pyCode);
-            const bool useSandbox = P::isSandboxReady();
-
-            /* [C1] Dialog conferma — testo e colore variano in base alla sandbox */
-            {
-                auto* dlg = new QDialog(this);
-                dlg->setWindowTitle(useSandbox
-                    ? "\xf0\x9f\x90\xb3  Esegui codice in sandbox Docker?"
-                    : "\xe2\x9a\xa0  Esegui codice generato dall\xe2\x80\x99" "AI?");
-                dlg->setMinimumSize(660, 460);
-                auto* lay = new QVBoxLayout(dlg);
-
-                auto* warnLbl = new QLabel(useSandbox
-                    ? "\xf0\x9f\x90\xb3  Il codice verr\xc3\xa0 eseguito in un container Docker isolato.\n"
-                      "Nessun accesso a file locali, rete disabilitata, max 256\xc2\xa0MB RAM.\n"
-                      "Verifica il codice, poi clicca Esegui."
-                    : "\xe2\x9a\xa0  Stai per eseguire codice Python generato dall\xe2\x80\x99"
-                      "AI con i tuoi permessi utente.\n"
-                      "Verifica che non faccia operazioni indesiderate prima di procedere.",
-                    dlg);
-                warnLbl->setWordWrap(true);
-                warnLbl->setStyleSheet(useSandbox
-                    ? "color:#86efac;font-weight:bold;padding:6px;"
-                      "background:#052e16;border-radius:4px;"
-                    : "color:#facc15;font-weight:bold;padding:6px;"
-                      "background:#292524;border-radius:4px;");
-                lay->addWidget(warnLbl);
-
-                auto* codeView = new QTextEdit(dlg);
-                codeView->setReadOnly(true);
-                codeView->setPlainText(pyCode);
-                codeView->setFont(QFont("JetBrains Mono,Fira Code,Consolas,monospace", 10));
-                codeView->setStyleSheet("background:#1e1e2e;color:#cdd6f4;"
-                                        "border:1px solid #45475a;padding:4px;");
-                lay->addWidget(codeView, 1);
-
-                auto* btnBox = new QDialogButtonBox(dlg);
-                auto* btnRun = btnBox->addButton(
-                    "\xe2\x96\xb6  Esegui", QDialogButtonBox::AcceptRole);
-                btnBox->addButton("\xe2\x9c\x96  Annulla", QDialogButtonBox::RejectRole);
-                btnRun->setStyleSheet(useSandbox
-                    ? "background:#16a34a;color:#fff;font-weight:bold;padding:4px 18px;"
-                    : "background:#ef4444;color:#fff;font-weight:bold;padding:4px 18px;");
-                connect(btnBox, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
-                connect(btnBox, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
-                lay->addWidget(btnBox);
-
-                const bool accepted = (dlg->exec() == QDialog::Accepted);
-                dlg->deleteLater();
-                if (!accepted) { advancePipeline(); return; }
-            }
-
-            m_executorOutput.clear();
-            if (m_execProc) { m_execProc->kill(); m_execProc->deleteLater(); m_execProc = nullptr; }
-            m_execProc = new QProcess(this);
-            m_execProc->setProcessChannelMode(QProcess::MergedChannels);
-            auto tmr = QSharedPointer<QElapsedTimer>::create();
-            tmr->start();
-
-            if (useSandbox) {
-                /* ── Sandbox Docker: stdin piping, rete/filesystem isolati ─────── */
-                const QSettings ss("Prismalux", "GUI");
-                const QString img = ss.value(P::SK::kSandboxImage,   "python:3.11-slim").toString();
-                const QString mem = QString::number(
-                    ss.value(P::SK::kSandboxMemory, 256).toInt()) + "m";
-
-                connect(m_execProc,
-                        QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                        this, [this, tmr](int exitCode, QProcess::ExitStatus) {
-                    const double ms = tmr->elapsed();
-                    const QString out = QString::fromUtf8(m_execProc->readAll());
-                    m_execProc->deleteLater();
-                    m_execProc = nullptr;
-                    m_executorOutput = out;
-                    const QString outDisplay = PrismaluxPaths::sanitizeErrorOutput(out);
-                    QTextCursor c(m_log->document());
-                    c.movePosition(QTextCursor::End);
-                    c.insertHtml(buildToolStrip(QString(), outDisplay, exitCode, ms));
-                    if (!m_userScrolled) {
-                        m_suppressScrollSig = true;
-                        m_log->ensureCursorVisible();
-                        m_suppressScrollSig = false;
-                    }
-                    if (m_cfgDlg->controllerEnabled()) runPipelineController();
-                    else advancePipeline();
-                });
-
-                connect(m_execProc, &QProcess::errorOccurred,
-                        this, [this](QProcess::ProcessError err){
-                    if (err == QProcess::FailedToStart) {
-                        m_execProc->deleteLater(); m_execProc = nullptr;
-                        advancePipeline();
-                    }
-                });
-
-                m_execProc->start(P::findDocker(), {
-                    "run", "--rm", "--network", "none",
-                    "--memory", mem, "--cpus", "0.5",
-                    "--pids-limit", "64", "-i",
-                    img, "python3", "-"
-                });
-                if (m_execProc->waitForStarted(5000)) {
-                    m_execProc->write(pyCode.toUtf8());
-                    m_execProc->closeWriteChannel();
-                }
-                QTimer::singleShot(30000, this, [this]{
-                    if (m_execProc && m_execProc->state() != QProcess::NotRunning) {
-                        m_execProc->kill();
-                        m_executorOutput = "[timeout sandbox 30s]";
-                        if (m_cfgDlg->controllerEnabled()) runPipelineController();
-                        else advancePipeline();
-                    }
-                });
-
-            } else {
-                /* ── Python locale: file temporaneo + pip install retry ─────────
-                   [B1] QSharedPointer evita memory leak se il processo viene
-                   distrutto prima che finished() scatti. */
-                QTemporaryFile execTmp(
-                    PrismaluxPaths::safeTempPath() + "/prisma_exec_XXXXXX.py");
-                execTmp.setAutoRemove(false);
-                if (!execTmp.open()) { advancePipeline(); return; }
-                execTmp.write(pyCode.toUtf8());
-                execTmp.close();
-                const QString tmpPath = execTmp.fileName();
-
-                connect(m_execProc,
-                        QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                        this, [this, tmpPath, tmr](int exitCode, QProcess::ExitStatus) {
-                    const double ms = tmr->elapsed();
-                    QString out = QString::fromUtf8(m_execProc->readAll());
-                    m_execProc->deleteLater();
-                    m_execProc = nullptr;
-
-                    /* [C2] Auto-install modulo mancante con conferma utente */
-                    static QRegularExpression reModule(
-                        "ModuleNotFoundError: No module named '([^']+)'");
-                    auto mMatch = reModule.match(out);
-                    if (exitCode != 0 && mMatch.hasMatch()) {
-                        const QString pkg = mMatch.captured(1).split('.').first();
-                        const int ans = QMessageBox::warning(this,
-                            "\xe2\x9a\xa0  Installa pacchetto Python?",
-                            QString("Il codice richiede il pacchetto <b>%1</b> non installato."
-                                    "<br><br>"
-                                    "\xe2\x9a\xa0  <b>Attenzione</b>: il nome viene da un"
-                                    " suggerimento dell\xe2\x80\x99" "AI.<br>"
-                                    "Verifica che <code>%1</code> sia il pacchetto corretto"
-                                    " su pypi.org prima di procedere.<br><br>"
-                                    "Eseguire <code>pip install %1</code>?").arg(pkg),
-                            QMessageBox::Yes | QMessageBox::No,
-                            QMessageBox::No);
-                        if (ans != QMessageBox::Yes) {
-                            QFile::remove(tmpPath);
-                            QTextCursor logC(m_log->document());
-                            logC.movePosition(QTextCursor::End);
-                            logC.insertHtml(QString(
-                                "<div style='color:#f87171;margin:4px 0'>"
-                                "\xe2\x9d\x8c  Installazione di \xe2\x80\x98%1\xe2\x80\x99"
-                                " annullata.</div>").arg(pkg));
-                            m_executorOutput = out;
-                            if (m_cfgDlg->controllerEnabled()) runPipelineController();
-                            else advancePipeline();
-                            return;
-                        }
-                        QTextCursor logC(m_log->document());
-                        logC.movePosition(QTextCursor::End);
-                        logC.insertHtml(QString(
-                            "<div style='color:#facc15;font-style:italic;margin:4px 0'>"
-                            "\xf0\x9f\x93\xa6  Installo '%1' via pip...</div>").arg(pkg));
-                        if (!m_userScrolled) m_log->ensureCursorVisible();
-                        auto* pip = new QProcess(this);
-                        pip->setProcessChannelMode(QProcess::MergedChannels);
-                        connect(pip, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                                this, [this, pip, tmpPath, pkg](int rc, QProcess::ExitStatus) {
-                            const QString pipOut = QString::fromUtf8(pip->readAll()).trimmed();
-                            pip->deleteLater();
-                            QTextCursor logC2(m_log->document());
-                            logC2.movePosition(QTextCursor::End);
-                            if (rc == 0) {
-                                logC2.insertHtml(QString(
-                                    "<div style='color:#4ade80;margin:4px 0'>"
-                                    "\xe2\x9c\x85  '%1' installato. Riprovo...</div>").arg(pkg));
-                                if (!m_userScrolled) m_log->ensureCursorVisible();
-                                auto* retry = new QProcess(this);
-                                retry->setProcessChannelMode(QProcess::MergedChannels);
-                                auto t2 = QSharedPointer<QElapsedTimer>::create();
-                                t2->start();
-                                connect(retry, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                                        this, [this, retry, tmpPath, t2](int rc2, QProcess::ExitStatus) {
-                                    const double ms2 = t2->elapsed();
-                                    QString out2 = QString::fromUtf8(retry->readAll());
-                                    retry->deleteLater();
-                                    QFile::remove(tmpPath);
-                                    m_executorOutput = out2;
-                                    QTextCursor c2(m_log->document());
-                                    c2.movePosition(QTextCursor::End);
-                                    c2.insertHtml(buildToolStrip(QString(),
-                                        PrismaluxPaths::sanitizeErrorOutput(out2), rc2, ms2));
-                                    if (!m_userScrolled) m_log->ensureCursorVisible();
-                                    if (m_cfgDlg->controllerEnabled()) runPipelineController();
-                                    else advancePipeline();
-                                });
-                                retry->start(PrismaluxPaths::findPython(), {tmpPath});
-                            } else {
-                                logC2.insertHtml(QString(
-                                    "<div style='color:#f87171;margin:4px 0'>"
-                                    "\xe2\x9d\x8c  pip install '%1' fallito.<br>"
-                                    "<code>pip install %1</code></div>").arg(pkg));
-                                QFile::remove(tmpPath);
-                                m_executorOutput = pipOut;
-                                if (m_cfgDlg->controllerEnabled()) runPipelineController();
-                                else advancePipeline();
-                            }
-                        });
-                        pip->start(PrismaluxPaths::findPython(), {"-m", "pip", "install", pkg,
-                            "--quiet", "--trusted-host", "pypi.org",
-                            "--trusted-host", "files.pythonhosted.org"});
-                        return;
-                    }
-
-                    QFile::remove(tmpPath);
-                    m_executorOutput = out;
-                    const QString outDisplay = PrismaluxPaths::sanitizeErrorOutput(out);
-                    QTextCursor c(m_log->document());
-                    c.movePosition(QTextCursor::End);
-                    c.insertHtml(buildToolStrip(QString(), outDisplay, exitCode, ms));
-                    if (!m_userScrolled) {
-                        m_suppressScrollSig = true;
-                        m_log->ensureCursorVisible();
-                        m_suppressScrollSig = false;
-                    }
-                    if (m_cfgDlg->controllerEnabled()) runPipelineController();
-                    else advancePipeline();
-                });
-
-                connect(m_execProc, &QProcess::errorOccurred,
-                        this, [this](QProcess::ProcessError err){
-                    if (err == QProcess::FailedToStart) {
-                        m_execProc->deleteLater(); m_execProc = nullptr;
-                        advancePipeline();
-                    }
-                });
-                m_execProc->start(PrismaluxPaths::findPython(), {tmpPath});
-            }
-
-        } else {
-            /* Nessun codice trovato: avanza direttamente */
-            advancePipeline();
-        }
-        return;
-    }
-
-    /* Matematico Teorico — strip think tags prima di usare l'output come contesto */
-    if (m_opMode == OpMode::MathTheory) {
-        {
-            /* stripThink: rimuove <think>...</think>; se rimane vuoto usa il contenuto think */
-            auto stripThink = [](QString& s) {
-                static const QRegularExpression reCap("<think>([\\s\\S]*?)</think>",
-                    QRegularExpression::CaseInsensitiveOption);
-                static const QRegularExpression reRem("<think>[\\s\\S]*?</think>",
-                    QRegularExpression::CaseInsensitiveOption);
-                const QString orig = s;
-                s.remove(reRem);
-                s = s.trimmed();
-                if (s.isEmpty()) {
-                    auto m = reCap.match(orig);
-                    if (m.hasMatch()) s = m.captured(1).trimmed();
-                }
-            };
-            if (m_byzStep == 0) stripThink(m_byzA);
-            if (m_byzStep == 2) stripThink(m_byzC);
-        }
-        m_byzStep++;
-        static const char* mathLabels[] = {
-            "\xf0\x9f\x94\xad  [Agente 2 \xe2\x80\x94 Esploratore]\n",
-            "\xf0\x9f\x93\x90  [Agente 3 \xe2\x80\x94 Dimostratore]\n",
-            "\xe2\x9c\xa8  [Agente 4 \xe2\x80\x94 Sintetizzatore]\n",
-        };
-        if (m_byzStep <= 3) {
-            m_log->append(QString("\n") + QString(43, QChar(0x2500)));
-            m_log->append(mathLabels[m_byzStep - 1]);
-        }
-        QString ctx;
-        switch (m_byzStep) {
-            case 1:
-                ctx = QString("Problema originale: %1\n\nFormulazione rigorosa:\n%2").arg(m_taskOriginal, m_byzA);
-                m_ai->chat("Sei l'Esploratore matematico. Individua teoremi o metodi applicabili. "
-                           "Sii conciso (max 150 parole). Rispondi SOLO in italiano.", ctx);
-                break;
-            case 2:
-                ctx = QString("Problema: %1\n\nFormulazione rigorosa:\n%2").arg(m_taskOriginal, m_byzA);
-                m_ai->chat("Sei il Dimostratore matematico. Fornisci la soluzione passo per passo. "
-                           "Sii conciso (max 200 parole). Rispondi SOLO in italiano.", ctx);
-                break;
-            case 3:
-                ctx = QString("Problema: %1\n\nSoluzione:\n%2").arg(m_taskOriginal, m_byzC);
-                m_ai->chat("Sei il Sintetizzatore matematico. Riassumi il risultato finale. "
-                           "Sii conciso (max 150 parole). Rispondi SOLO in italiano.", ctx);
-                break;
-            default:
-                m_log->append("\n\n\xe2\x9c\x85  Esplorazione matematica completata.");
-                _setRunBusy(false);
-                m_opMode = OpMode::Idle;
-                tryShowChart(m_taskOriginal + "\n" + m_byzA + "\n" + m_byzC);
-                emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
-                break;
-        }
-        return;
-    }
-
-    /* Byzantino — strip think tags prima di usare l'output come contesto */
-    {
-        auto stripThink = [](QString& s) {
-            static const QRegularExpression reCap("<think>([\\s\\S]*?)</think>",
-                QRegularExpression::CaseInsensitiveOption);
-            static const QRegularExpression reRem("<think>[\\s\\S]*?</think>",
-                QRegularExpression::CaseInsensitiveOption);
-            const QString orig = s;
-            s.remove(reRem);
-            s = s.trimmed();
-            if (s.isEmpty()) {
-                auto m = reCap.match(orig);
-                if (m.hasMatch()) s = m.captured(1).trimmed();
-            }
-        };
-        if (m_byzStep == 0) stripThink(m_byzA);
-        if (m_byzStep == 2) stripThink(m_byzC);
-    }
-    m_byzStep++;
-    static const char* labels[] = {
-        "\xf0\x9f\x85\xb1  [Agente B \xe2\x80\x94 Avvocato del Diavolo]\n",
-        "\xf0\x9f\x85\x92  [Agente C \xe2\x80\x94 Gemello Indipendente]\n",
-        "\xf0\x9f\x85\x93  [Agente D \xe2\x80\x94 Giudice]\n",
-    };
-    if (m_byzStep <= 3) {
-        m_log->append(QString("\n") + QString(43, QChar(0x2500)));
-        m_log->append(labels[m_byzStep - 1]);
-    }
-    QString userMsg;
-    switch (m_byzStep) {
-        case 1:
-            userMsg = QString("Domanda: %1\n\nRisposta A:\n%2").arg(m_taskOriginal, m_byzA);
-            m_ai->chat(_buildSys(m_taskOriginal, QString(
-                       "Sei l'Agente B del Motore Byzantino, l'Avvocato del Diavolo. "
-                       "Cerca ATTIVAMENTE errori e contraddizioni nella risposta A. "
-                       "Rispondi SEMPRE e SOLO in italiano."),
-                       m_ai->model(), m_ai->backend()), userMsg);
-            break;
-        case 2:
-            m_ai->chat(_buildSys(m_taskOriginal, QString(
-                       "Sei l'Agente C del Motore Byzantino, il Gemello Indipendente. "
-                       "Rispondi alla domanda originale da un angolo diverso. "
-                       "Rispondi SEMPRE e SOLO in italiano."),
-                       m_ai->model(), m_ai->backend()), m_taskOriginal);
-            break;
-        case 3:
-            userMsg = QString("Domanda: %1\n\nRisposta A:\n%2\n\nRisposta C:\n%3")
-                      .arg(m_taskOriginal, m_byzA, m_byzC);
-            m_ai->chat(_buildSys(m_taskOriginal, QString(
-                       "Sei l'Agente D del Motore Byzantino, il Giudice. "
-                       "Se A e C concordano e B non trova errori validi: conferma. "
-                       "Altrimenti segnala l'incertezza. Produci il verdetto finale. "
-                       "Rispondi SEMPRE e SOLO in italiano."),
-                       m_ai->model(), m_ai->backend()), userMsg);
-            break;
-        default:
-            m_log->append("\n\n\xe2\x9c\x85  Verifica Byzantina completata.");
-            m_log->append("\xe2\x9c\xa8 Verit\xc3\xa0 rivelata. Bevi la conoscenza.");
-            _setRunBusy(false);
-            m_opMode = OpMode::Idle;
-            tryShowChart(m_taskOriginal + "\n" + m_byzA + "\n" + m_byzC);
-            emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
-            break;
+    } else if (next == OpMode::Byzantine) {
+        m_byzStep = 0; m_byzA = m_byzC = "";
+        m_opMode = OpMode::Byzantine;
+        m_log->append("\xf0\x9f\x94\xae  Motore Byzantino — verifica a 4 agenti\n");
+        m_log->append("\xf0\x9f\x85\x90  [Agente A — Originale]\n");
+        m_waitLbl->setVisible(true);
+        m_ai->chat(_buildSys(m_taskOriginal, QString(
+            "Sei l'Agente A del Motore Byzantino di Prismalux. "
+            "Fornisci una risposta diretta e ben argomentata. "
+            "Rispondi SEMPRE e SOLO in italiano."),
+            m_ai->model(), m_ai->backend()), m_taskOriginal);
+    } else if (next == OpMode::MathTheory) {
+        m_byzStep = 0; m_byzA = m_byzC = "";
+        m_opMode = OpMode::MathTheory;
+        m_log->append("\xf0\x9f\xa7\xae  Matematico Teorico — esplorazione a 4 agenti\n");
+        m_log->append("\xf0\x9f\x85\xb0  [Agente 1 — Enunciatore]\n");
+        m_waitLbl->setVisible(true);
+        m_ai->chat(_buildSys(m_taskOriginal, QString(
+            "Sei l'Enunciatore matematico. Riformula il problema in forma rigorosa. "
+            "Rispondi SEMPRE e SOLO in italiano."),
+            m_ai->model(), m_ai->backend()), m_taskOriginal);
+    } else {
+        /* next == Idle: traduzione esplicita senza pipeline successiva */
+        m_log->append("\n" + m_translateBuf.trimmed());
+        if (!m_preTranslateModel.isEmpty() && m_preTranslateModel != m_ai->model())
+            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_preTranslateModel);
+        m_preTranslateModel.clear();
+        _setRunBusy(false);
+        if (m_btnTranslate) m_btnTranslate->setEnabled(true);
     }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   onFinished — dispatcher: delega a handler per-modalità
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::onFinished(const QString& full) {
+    m_waitLbl->setVisible(false);
+    m_ai->clearActiveTools();
+
+    if (m_opMode == OpMode::Idle) return;
+    if (m_opMode == OpMode::Translating)      { _finishedTranslating(full); return; }
+    if (m_opMode == OpMode::AutonomousAgent)  {
+        _autoAdvance((full.isEmpty() ? m_autoBuf : full).trimmed()); return;
+    }
+    if (m_opMode == OpMode::KnowledgeExtract) { _finishedKnowledgeExtract(); return; }
+    if (m_opMode == OpMode::PipelineControl)  { _finishedPipelineControl(); return; }
+    if (m_opMode == OpMode::Pipeline)         { _finishedPipeline(full); return; }
+    if (m_opMode == OpMode::MathTheory)       { _finishedMathTheory(); return; }
+    _finishedByzantine();
+}
+
 /* ── _categorizeError ─────────────────────────────────────────────────────────
  * Classifica l'errore e restituisce un messaggio localizzato con suggerimento.
  * Categorie (in ordine di priorità):

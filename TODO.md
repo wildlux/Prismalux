@@ -92,5 +92,5 @@
 - [~] **[C++] `QSettings("Prismalux","GUI")` ad ogni bolla** — overhead accettabile (poche decine di bolle/sessione); non ottimizzato
 - [x] **[TEST] Test per feature recenti** ✅ — `test_onboarding.cpp`: 18 test (CAT-A onboarding, CAT-B token QSettings, CAT-C rate limiter, CAT-D token state machine); CAT-G token aggiunto a `test_lan_server.cpp` (5 test); tutti 23 PASS
 - [x] **[UX] Tooltip pulsanti principali** ✅ — aggiunto setToolTip a: ragClear, pdfCarica, blenderPing, blenderEsegui, officeBridge, officeEsegui, freecadPing, freecadEsegui, btnRun; setAccessibleName su btnRun
-- [~] **[C++] `agenti_page_stream.cpp` ancora troppo grande** — refactor architetturale, basso impatto funzionale; rimandato
+- [x] **[C++] `agenti_page_stream.cpp` refactoring** ✅ — 2026-05-14: estratti 6 handler da `onFinished()` nei file dedicati (pipeline/byzantine/knowledge); stream.cpp da 957→330 righe; dispatcher pulito 8 righe
 - [~] **[UX] ImpostazioniPage = 7080 righe, God Dialog** — refactor UI di largo respiro; rimandato a sessione dedicata

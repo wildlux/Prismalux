@@ -308,6 +308,14 @@ private:
     /** Avvia l'agente Estrattore nascosto al termine della pipeline (P5) */
     void runKnowledgeExtract();
 
+    /* ── Handler di completamento per onFinished() — un metodo per modalità ── */
+    void _finishedTranslating(const QString& full);
+    void _finishedKnowledgeExtract();
+    void _finishedPipelineControl();
+    void _finishedPipeline(const QString& full);
+    void _finishedMathTheory();
+    void _finishedByzantine();
+
 private slots:
     void onToken(const QString& t);
     void onFinished(const QString& full);

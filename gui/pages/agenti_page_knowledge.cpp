@@ -275,3 +275,36 @@ void AgentiPage::runKnowledgeExtract()
     m_ai->chat(QString::fromLatin1(kSysExtract), ctx);
 }
 
+/* ══════════════════════════════════════════════════════════════
+   _finishedKnowledgeExtract — risposta estrattore completata
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::_finishedKnowledgeExtract() {
+    const QString extracted = m_knowledgeBuf.trimmed();
+    m_knowledgeBuf.clear();
+    m_opMode = OpMode::Idle;
+
+    const bool isUseful = !extracted.isEmpty()
+                          && !extracted.trimmed().toUpper().startsWith("NULLA");
+    if (isUseful) {
+        const QString modeLabel = m_modePipeline ? "Pipeline" : "Chat";
+        const QString label = QString("%1: %2 \xe2\x80\x94 %3")
+            .arg(modeLabel,
+                 m_taskOriginal.left(30).simplified(),
+                 QDateTime::currentDateTime().toString("yyyy-MM-dd"));
+        callKnowledgeMcp(extracted, label);
+    }
+
+    if (m_voiceLoopActive && !m_modePipeline && !m_agentOutputs.isEmpty()) {
+        QString resp = m_agentOutputs.last().trimmed();
+        QStringList words = resp.split(' ', Qt::SkipEmptyParts);
+        if (words.size() > 400) words = words.mid(0, 400);
+        const QString ttsText = words.join(" ");
+        if (!ttsText.isEmpty())
+            QTimer::singleShot(200, this, [this, ttsText]{ _ttsPlay(ttsText); });
+    }
+
+    emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
+    _setRunBusy(false);
+    emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
+}
+

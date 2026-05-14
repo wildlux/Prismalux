@@ -3,6 +3,7 @@
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
 #include <QElapsedTimer>
+#include <QRegularExpression>
 
 /* ══════════════════════════════════════════════════════════════
    Motore Byzantino
@@ -111,3 +112,133 @@ void AgentiPage::runMathTheory() {
         "Sii conciso (max 150 parole). Rispondi SOLO in italiano.", problem);
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   _finishedMathTheory — step motore Matematico Teorico completato
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::_finishedMathTheory() {
+    {
+        /* stripThink: rimuove <think>...</think>; se rimane vuoto usa il contenuto think */
+        auto stripThink = [](QString& s) {
+            static const QRegularExpression reCap("<think>([\\s\\S]*?)</think>",
+                QRegularExpression::CaseInsensitiveOption);
+            static const QRegularExpression reRem("<think>[\\s\\S]*?</think>",
+                QRegularExpression::CaseInsensitiveOption);
+            const QString orig = s;
+            s.remove(reRem);
+            s = s.trimmed();
+            if (s.isEmpty()) {
+                auto m = reCap.match(orig);
+                if (m.hasMatch()) s = m.captured(1).trimmed();
+            }
+        };
+        if (m_byzStep == 0) stripThink(m_byzA);
+        if (m_byzStep == 2) stripThink(m_byzC);
+    }
+    m_byzStep++;
+    static const char* mathLabels[] = {
+        "\xf0\x9f\x94\xad  [Agente 2 \xe2\x80\x94 Esploratore]\n",
+        "\xf0\x9f\x93\x90  [Agente 3 \xe2\x80\x94 Dimostratore]\n",
+        "\xe2\x9c\xa8  [Agente 4 \xe2\x80\x94 Sintetizzatore]\n",
+    };
+    if (m_byzStep <= 3) {
+        m_log->append(QString("\n") + QString(43, QChar(0x2500)));
+        m_log->append(mathLabels[m_byzStep - 1]);
+    }
+    QString ctx;
+    switch (m_byzStep) {
+        case 1:
+            ctx = QString("Problema originale: %1\n\nFormulazione rigorosa:\n%2").arg(m_taskOriginal, m_byzA);
+            m_ai->chat("Sei l'Esploratore matematico. Individua teoremi o metodi applicabili. "
+                       "Sii conciso (max 150 parole). Rispondi SOLO in italiano.", ctx);
+            break;
+        case 2:
+            ctx = QString("Problema: %1\n\nFormulazione rigorosa:\n%2").arg(m_taskOriginal, m_byzA);
+            m_ai->chat("Sei il Dimostratore matematico. Fornisci la soluzione passo per passo. "
+                       "Sii conciso (max 200 parole). Rispondi SOLO in italiano.", ctx);
+            break;
+        case 3:
+            ctx = QString("Problema: %1\n\nSoluzione:\n%2").arg(m_taskOriginal, m_byzC);
+            m_ai->chat("Sei il Sintetizzatore matematico. Riassumi il risultato finale. "
+                       "Sii conciso (max 150 parole). Rispondi SOLO in italiano.", ctx);
+            break;
+        default:
+            m_log->append("\n\n\xe2\x9c\x85  Esplorazione matematica completata.");
+            _setRunBusy(false);
+            m_opMode = OpMode::Idle;
+            tryShowChart(m_taskOriginal + "\n" + m_byzA + "\n" + m_byzC);
+            emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
+            break;
+    }
+    return;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _finishedByzantine — step Motore Byzantino completato
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::_finishedByzantine() {
+/* Byzantino — strip think tags prima di usare l'output come contesto */
+{
+    auto stripThink = [](QString& s) {
+        static const QRegularExpression reCap("<think>([\\s\\S]*?)</think>",
+            QRegularExpression::CaseInsensitiveOption);
+        static const QRegularExpression reRem("<think>[\\s\\S]*?</think>",
+            QRegularExpression::CaseInsensitiveOption);
+        const QString orig = s;
+        s.remove(reRem);
+        s = s.trimmed();
+        if (s.isEmpty()) {
+            auto m = reCap.match(orig);
+            if (m.hasMatch()) s = m.captured(1).trimmed();
+        }
+    };
+    if (m_byzStep == 0) stripThink(m_byzA);
+    if (m_byzStep == 2) stripThink(m_byzC);
+}
+m_byzStep++;
+static const char* labels[] = {
+    "\xf0\x9f\x85\xb1  [Agente B \xe2\x80\x94 Avvocato del Diavolo]\n",
+    "\xf0\x9f\x85\x92  [Agente C \xe2\x80\x94 Gemello Indipendente]\n",
+    "\xf0\x9f\x85\x93  [Agente D \xe2\x80\x94 Giudice]\n",
+};
+if (m_byzStep <= 3) {
+    m_log->append(QString("\n") + QString(43, QChar(0x2500)));
+    m_log->append(labels[m_byzStep - 1]);
+}
+QString userMsg;
+switch (m_byzStep) {
+    case 1:
+        userMsg = QString("Domanda: %1\n\nRisposta A:\n%2").arg(m_taskOriginal, m_byzA);
+        m_ai->chat(_buildSys(m_taskOriginal, QString(
+                   "Sei l'Agente B del Motore Byzantino, l'Avvocato del Diavolo. "
+                   "Cerca ATTIVAMENTE errori e contraddizioni nella risposta A. "
+                   "Rispondi SEMPRE e SOLO in italiano."),
+                   m_ai->model(), m_ai->backend()), userMsg);
+        break;
+    case 2:
+        m_ai->chat(_buildSys(m_taskOriginal, QString(
+                   "Sei l'Agente C del Motore Byzantino, il Gemello Indipendente. "
+                   "Rispondi alla domanda originale da un angolo diverso. "
+                   "Rispondi SEMPRE e SOLO in italiano."),
+                   m_ai->model(), m_ai->backend()), m_taskOriginal);
+        break;
+    case 3:
+        userMsg = QString("Domanda: %1\n\nRisposta A:\n%2\n\nRisposta C:\n%3")
+                  .arg(m_taskOriginal, m_byzA, m_byzC);
+        m_ai->chat(_buildSys(m_taskOriginal, QString(
+                   "Sei l'Agente D del Motore Byzantino, il Giudice. "
+                   "Se A e C concordano e B non trova errori validi: conferma. "
+                   "Altrimenti segnala l'incertezza. Produci il verdetto finale. "
+                   "Rispondi SEMPRE e SOLO in italiano."),
+                   m_ai->model(), m_ai->backend()), userMsg);
+        break;
+    default:
+        m_log->append("\n\n\xe2\x9c\x85  Verifica Byzantina completata.");
+        m_log->append("\xe2\x9c\xa8 Verit\xc3\xa0 rivelata. Bevi la conoscenza.");
+        _setRunBusy(false);
+        m_opMode = OpMode::Idle;
+        tryShowChart(m_taskOriginal + "\n" + m_byzA + "\n" + m_byzC);
+        emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
+        break;
+}
+}
