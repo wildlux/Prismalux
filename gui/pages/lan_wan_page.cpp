@@ -127,6 +127,41 @@ QWidget* LanWanPage::buildLanAndroidTab()
     ctrlRow->addWidget(m_lanPortSpin);
     gl->addLayout(ctrlRow);
 
+    /* ── Token di accesso (opzionale) ── */
+    {
+        auto* tokenRow = new QWidget(group);
+        auto* tokenLay = new QHBoxLayout(tokenRow);
+        tokenLay->setContentsMargins(0, 0, 0, 0);
+        tokenLay->setSpacing(6);
+
+        auto* tokenLbl = new QLabel(
+            "\xf0\x9f\x94\x91" "  Token:", tokenRow);   /* 🔑 */
+        tokenLbl->setToolTip(
+            "Token di accesso Bearer opzionale.\n"
+            "Se impostato, l\xe2\x80\x99" "app Android e la Chat Web devono inviare\n"
+            "l\xe2\x80\x99" "header: Authorization: Bearer <token>\n"
+            "Lascia vuoto per non richiedere autenticazione.");
+
+        m_lanTokenEdit = new QLineEdit(tokenRow);
+        m_lanTokenEdit->setPlaceholderText("opzionale — lascia vuoto per accesso libero");
+        m_lanTokenEdit->setEchoMode(QLineEdit::Password);
+        m_lanTokenEdit->setToolTip(tokenLbl->toolTip());
+
+        /* Carica da QSettings */
+        QSettings ss;
+        m_lanTokenEdit->setText(ss.value(P::SK::kLanToken, "").toString());
+
+        /* Salva a ogni modifica */
+        connect(m_lanTokenEdit, &QLineEdit::textChanged, this, [](const QString& t) {
+            QSettings s;
+            s.setValue(P::SK::kLanToken, t);
+        });
+
+        tokenLay->addWidget(tokenLbl);
+        tokenLay->addWidget(m_lanTokenEdit, 1);
+        gl->addWidget(tokenRow);
+    }
+
     m_lanStatusLbl = new QLabel("\xe2\x97\x8b  Fermo", group);
     m_lanStatusLbl->setStyleSheet("color: #9e9e9e;");
     gl->addWidget(m_lanStatusLbl);
@@ -334,6 +369,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
                 });
             }
             const quint16 port = static_cast<quint16>(m_lanPortSpin->value());
+            m_lanServer->setAccessToken(m_lanTokenEdit->text().trimmed());
             if (m_lanServer->start(port)) {
                 m_lanToggleBtn->setText("\xe2\x97\x8f  Server ON");
                 m_lanPortSpin->setEnabled(false);

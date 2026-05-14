@@ -723,6 +723,9 @@ constexpr const char* kSandboxEnabled = "sandbox/enabled";        ///< esegui co
 constexpr const char* kSandboxImage   = "sandbox/image";          ///< immagine Docker da usare (default: "python:3.11-slim")
 constexpr const char* kSandboxMemory  = "sandbox/memoryMb";       ///< limite RAM container MB (default: 256)
 
+/* ── LAN Server ──────────────────────────────────── */
+constexpr const char* kLanToken       = "lan/accessToken";         ///< token Bearer opzionale per proteggere le API LAN
+
 }  // namespace SK
 
 /* ── Personalità AI — nome visualizzato e suffisso system prompt ─── */

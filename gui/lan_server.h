@@ -20,6 +20,9 @@ public:
     int     clientCount() const;
     QStringList connectedIPs() const;
 
+    /** Imposta il token Bearer opzionale. Stringa vuota = nessuna autenticazione. */
+    void setAccessToken(const QString& token) { m_accessToken = token; }
+
 signals:
     void statusChanged(bool running);
     void clientConnected(const QString& addr);
@@ -45,6 +48,7 @@ private:
         int         contentLength = 0;
         bool        headersDone   = false;
         QByteArray  body;
+        QString     authHeader;   ///< valore header Authorization (es. "Bearer TOKEN")
         /* true solo se ha chiamato almeno una API Ollama (non /apk né /) */
         bool        isApiClient   = false;
     };
@@ -80,4 +84,7 @@ private:
     /* Rate limiting /knowledge: contatore req per IP (reset ogni minuto) */
     QMap<QString, int> m_knowledgeReqCount;
     QTimer*            m_knowledgeRateTimer = nullptr;
+
+    /* Token di accesso Bearer opzionale (vuoto = nessuna auth richiesta) */
+    QString m_accessToken;
 };

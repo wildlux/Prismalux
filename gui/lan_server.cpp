@@ -180,6 +180,8 @@ void LanServer::onClientReadyRead()
             const QString val = QString::fromLatin1(line.mid(colon + 1)).trimmed();
             if (key == "content-length")
                 s.contentLength = val.toInt();
+            else if (key == "authorization")
+                s.authHeader = val;
         }
         s.headersDone = true;
     }
@@ -239,6 +241,24 @@ void LanServer::processSession(Session& s)
                         s.path == "/api/chat"      ||
                         s.path == "/api/generate"  ||
                         s.path == "/knowledge");
+
+    /* Auth check: se il token è impostato, le route API richiedono Authorization: Bearer TOKEN.
+       Le route pubbliche (/apk, /, /web) non richiedono autenticazione. */
+    if (isApi && !m_accessToken.isEmpty()) {
+        const QString expected = "Bearer " + m_accessToken;
+        if (s.authHeader != expected) {
+            QByteArray resp = "HTTP/1.1 401 Unauthorized\r\n"
+                              "Content-Type: application/json\r\n"
+                              "WWW-Authenticate: Bearer realm=\"Prismalux\"\r\n"
+                              "Connection: close\r\n"
+                              "Content-Length: 26\r\n\r\n"
+                              "{\"error\":\"Unauthorized\"}";
+            s.socket->write(resp);
+            s.socket->flush();
+            s.socket->disconnectFromHost();
+            return;
+        }
+    }
 
     if (isApi && !s.isApiClient) {
         s.isApiClient = true;
@@ -538,6 +558,12 @@ void LanServer::handleWebChat(Session& s)
                              ? QByteArray("ollama")
                              : m_ai->model().toUtf8();
 
+    /* Header Authorization da iniettare nel JS se il token è impostato */
+    const QByteArray authHeadersJs = m_accessToken.isEmpty()
+        ? QByteArray("'Content-Type':'application/json'")
+        : QByteArray("'Content-Type':'application/json','Authorization':'Bearer ") +
+          m_accessToken.toUtf8() + QByteArray("'");
+
     /* L'HTML è spezzato in blocchi per evitare problemi con raw-string e char
        literal nel preprocessore C++ (apici singoli JS, template literal, ecc.) */
     QByteArray html;
@@ -607,7 +633,7 @@ void LanServer::handleWebChat(Session& s)
               "const aiD=add('ai','');let full='';\n"
               "try{\n"
                 "const r=await fetch('/api/chat',{method:'POST',"
-                  "headers:{'Content-Type':'application/json'},"
+                  "headers:{" + authHeadersJs + "},"
                   "body:JSON.stringify({model:'" + model + "',messages:msgs,stream:true})});\n"
                 "const rd=r.body.getReader(),dc=new TextDecoder();\n"
                 "while(true){\n"

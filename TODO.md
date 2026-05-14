@@ -37,7 +37,7 @@
 - [x] **[SEC] Limite max buffer `s.buf`** — cap 4 MB, disconnette client con 400 Bad Request
 
 ### 🟠 HIGH
-- [ ] **[SEC] Token accesso LAN server** — campo password opzionale in LanWanPage (QSettings); header `Authorization: Bearer TOKEN` controllato su ogni route API
+- [x] **[SEC] Token accesso LAN server** ✅ — 2026-05-14: campo 🔑 token (EchoMode=Password) in LanWanPage; salvato in QSettings `lan/accessToken`; header `Authorization: Bearer TOKEN` controllato su `/api/tags`, `/api/chat`, `/api/generate`, `/knowledge`; `/apk`, `/`, `/web` pubblici; Chat Web inietta l'header in JS fetch; 401 Unauthorized se token errato
 - [x] **[SEC] Rate limiting `/knowledge`** — max 32 KB payload + max 10 req/min per IP + JSON null-check
 - [x] **[C++] QPointer guard lambda con timer** — 4 occorrenze fixate: GNS3, FreeCAD (strumenti), FreeCAD+OBS (app_controller), Cytoscape (ricerca)
 - [x] **[UX] Onboarding first-run dialog** — wizard 3 step (backend · modello · tema); attivato a 800ms dal primo avvio; chiave `setup/done` in QSettings

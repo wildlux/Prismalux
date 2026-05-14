@@ -25,6 +25,7 @@ private:
     QLabel*      m_lanStatusLbl = nullptr;
     QLabel*      m_lanClientsLbl= nullptr;
     QPushButton* m_lanWebBtn    = nullptr;  ///< "🌐 Chat Web" — apre browser
+    QLineEdit*   m_lanTokenEdit = nullptr;  ///< token Bearer opzionale
 
     /* ── GNS3 MCP ── */
     QLineEdit*     m_gns3HostEdit    = nullptr;
