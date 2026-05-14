@@ -30,6 +30,10 @@
 ### Generale
 - [x] **Tutti i 10 tab** ✅ — testato 2026-05-14: nessun crash
 
+## Implementati in questa sessione (2026-05-14 II)
+
+- [x] **Cerca Paper/Brevetti** ✅ — Tab "🔍 Cerca Paper/Brevetti" in Ricerca; sorgenti: arXiv (Atom XML), Semantic Scholar (JSON), USPTO (JSON); "Analizza con AI" streaming; nessuna API key richiesta
+
 ## Già testato ✅
 - Blender: "crea un cubo" + "crea una sfera" (2026-05-13)
 - VAD con sox: "Conversa" in Intelligenza Artificiale (2026-05-14)

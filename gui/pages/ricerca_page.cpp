@@ -29,6 +29,13 @@ namespace P = PrismaluxPaths;
 #include <QTimer>
 #include <QTcpSocket>
 #include <QTextCursor>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QRegularExpression>
 
 /* ── helper: barra azioni output (Esporta PDF / Salva .md) ────────── */
 static QWidget* makeOutputBar(QTextEdit* editor, const QString& titolo,
@@ -87,10 +94,11 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     auto* tabs = new QTabWidget(this);
     tabs->setObjectName("settingsInnerTabs");
     tabs->setDocumentMode(true);
-    tabs->addTab(buildPaperTab(),          "\xf0\x9f\x93\x84  Paper Scientifico");
-    tabs->addTab(buildBrevettoTab(),       "\xf0\x9f\x94\x8f  Brevetto");
-    tabs->addTab(buildDocTecnicoTab(),     "\xf0\x9f\x93\x8b  Documento Tecnico");
-    tabs->addTab(new LavoroPage(m_ai, this), "\xf0\x9f\x92\xbc  Cerca Lavoro");
+    tabs->addTab(buildPaperTab(),             "\xf0\x9f\x93\x84  Paper Scientifico");
+    tabs->addTab(buildBrevettoTab(),          "\xf0\x9f\x94\x8f  Brevetto");
+    tabs->addTab(buildDocTecnicoTab(),        "\xf0\x9f\x93\x8b  Documento Tecnico");
+    tabs->addTab(buildCercaLetteraturaTab(), "\xf0\x9f\x94\x8d  Cerca Paper/Brevetti");
+    tabs->addTab(new LavoroPage(m_ai, this),  "\xf0\x9f\x92\xbc  Cerca Lavoro");
     /* ── Bioinformatica ── */
     tabs->addTab(buildCytoscapeTab(),      "\xf0\x9f\x94\xac  Cytoscape");
     tabs->addTab(buildRDKitTab(),          "\xf0\x9f\x94\xac  RDKit");
@@ -844,6 +852,255 @@ static void runSciScript(const QString& code, bool isBash,
         procRef->start(P::findPython(), {tmpPath});
     if (procRef->state() == QProcess::NotRunning)
         statusLbl->setText("\xe2\x9d\x8c  Interprete non trovato");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildCercaLetteraturaTab — ricerca paper/brevetti su database online
+   Sorgenti: arXiv, Semantic Scholar, USPTO
+   ══════════════════════════════════════════════════════════════ */
+QWidget* RicercaPage::buildCercaLetteraturaTab()
+{
+    auto* w   = new QWidget(this);
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(8, 8, 8, 8);
+    lay->setSpacing(6);
+
+    auto* desc = new QLabel(
+        "\xf0\x9f\x94\x8d  <b>Cerca Paper e Brevetti</b> \xe2\x80\x94 "
+        "Ricerca su <b>arXiv</b>, <b>Semantic Scholar</b> e <b>USPTO</b> "
+        "senza account o API key. Poi analizza i risultati con AI.", w);
+    desc->setObjectName("hintLabel");
+    desc->setWordWrap(true);
+    desc->setTextFormat(Qt::RichText);
+    lay->addWidget(desc);
+
+    /* Barra ricerca */
+    auto* row = new QWidget(w);
+    auto* rl  = new QHBoxLayout(row);
+    rl->setContentsMargins(0, 0, 0, 0);
+    rl->setSpacing(6);
+
+    m_litQuery = new QLineEdit(w);
+    m_litQuery->setPlaceholderText(
+        "Es: quantum computing error correction / battery cathode material ...");
+
+    m_litSource = new QComboBox(w);
+    m_litSource->addItem("\xf0\x9f\x93\x84  arXiv",           "arxiv");
+    m_litSource->addItem("\xf0\x9f\x94\xac  Semantic Scholar", "semantic");
+    m_litSource->addItem("\xf0\x9f\x94\x8f  USPTO Brevetti",   "uspto");
+    m_litSource->setFixedWidth(180);
+
+    m_litSearchBtn = new QPushButton("\xf0\x9f\x94\x8d  Cerca", w);
+    m_litSearchBtn->setObjectName("actionBtn");
+    m_litSearchBtn->setFixedWidth(90);
+
+    rl->addWidget(m_litQuery, 1);
+    rl->addWidget(m_litSource);
+    rl->addWidget(m_litSearchBtn);
+    lay->addWidget(row);
+
+    m_litStatus = new QLabel("", w);
+    m_litStatus->setObjectName("hintLabel");
+    lay->addWidget(m_litStatus);
+
+    m_litResults = new QTextEdit(w);
+    m_litResults->setReadOnly(true);
+    m_litResults->setObjectName("outputView");
+    m_litResults->setPlaceholderText("I risultati appariranno qui...");
+    lay->addWidget(m_litResults, 1);
+
+    m_litAiBtn = new QPushButton(
+        "\xf0\x9f\xa4\x96  Analizza con AI", w);
+    m_litAiBtn->setObjectName("actionBtn");
+    m_litAiBtn->setEnabled(false);
+    lay->addWidget(m_litAiBtn);
+
+    m_litNet = new QNetworkAccessManager(this);
+
+    /* ── ricerca ── */
+    connect(m_litSearchBtn, &QPushButton::clicked, this, [this](){
+        const QString q = m_litQuery->text().trimmed();
+        if (q.isEmpty()) {
+            m_litStatus->setText("\xe2\x9a\xa0  Inserisci una query.");
+            return;
+        }
+        m_litResults->clear();
+        m_litAiBtn->setEnabled(false);
+        m_litSearchBtn->setEnabled(false);
+        const QString src = m_litSource->currentData().toString();
+        m_litStatus->setText("\xf0\x9f\x94\x84  Ricerca in corso...");
+
+        QUrl url;
+        if (src == "arxiv") {
+            url = QUrl("https://export.arxiv.org/api/query?search_query=all:"
+                       + QUrl::toPercentEncoding(q) + "&max_results=8&sortBy=relevance");
+        } else if (src == "semantic") {
+            url = QUrl("https://api.semanticscholar.org/graph/v1/paper/search"
+                       "?query=" + QUrl::toPercentEncoding(q) +
+                       "&limit=8&fields=title,authors,year,abstract,externalIds,url");
+        } else { /* uspto */
+            url = QUrl("https://developer.uspto.gov/ibd-api/v1/patent/publications"
+                       "?searchText=" + QUrl::toPercentEncoding(q) +
+                       "&start=0&rows=8&output=application%2Fjson");
+        }
+
+        QNetworkRequest req(url);
+        req.setRawHeader("User-Agent", "Prismalux/1.0 (Qt6; research)");
+        auto* reply = m_litNet->get(req);
+
+        connect(reply, &QNetworkReply::finished, this, [this, reply, src](){
+            reply->deleteLater();
+            m_litSearchBtn->setEnabled(true);
+            if (reply->error() != QNetworkReply::NoError) {
+                m_litStatus->setText(
+                    "\xe2\x9d\x8c  Errore rete: " + reply->errorString());
+                return;
+            }
+            const QByteArray data = reply->readAll();
+            QString out;
+
+            if (src == "arxiv") {
+                /* Parsiamo XML Atom minimale con regex */
+                QString xml = QString::fromUtf8(data);
+                QRegularExpression reEntry(
+                    "<entry>(.*?)</entry>",
+                    QRegularExpression::DotMatchesEverythingOption);
+                QRegularExpression reTag("<(\\w+)[^>]*>(.*?)</\\1>",
+                    QRegularExpression::DotMatchesEverythingOption);
+                auto entries = reEntry.globalMatch(xml);
+                int n = 0;
+                while (entries.hasNext()) {
+                    auto em = entries.next();
+                    QString e = em.captured(1);
+                    auto title   = QRegularExpression("<title>(.*?)</title>",
+                        QRegularExpression::DotMatchesEverythingOption)
+                        .match(e).captured(1).trimmed();
+                    auto summary = QRegularExpression("<summary>(.*?)</summary>",
+                        QRegularExpression::DotMatchesEverythingOption)
+                        .match(e).captured(1).trimmed().left(300);
+                    auto id      = QRegularExpression("<id>(.*?)</id>",
+                        QRegularExpression::DotMatchesEverythingOption)
+                        .match(e).captured(1).trimmed();
+                    if (title.isEmpty()) continue;
+                    out += QString("─── %1. %2\n").arg(++n).arg(title);
+                    out += QString("    %1\n").arg(summary);
+                    out += QString("    \xf0\x9f\x94\x97 %1\n\n").arg(id);
+                }
+                if (out.isEmpty()) out = "Nessun risultato trovato.";
+                m_litStatus->setText(
+                    QString("\xe2\x9c\x85  %1 risultati da arXiv").arg(n));
+
+            } else if (src == "semantic") {
+                QJsonDocument doc = QJsonDocument::fromJson(data);
+                QJsonArray papers = doc.object().value("data").toArray();
+                int n = 0;
+                for (const auto& pv : papers) {
+                    auto p = pv.toObject();
+                    QString title = p.value("title").toString();
+                    int year      = p.value("year").toInt();
+                    QString abstr = p.value("abstract").toString().left(280);
+                    QString url   = p.value("url").toString();
+                    QJsonArray authors = p.value("authors").toArray();
+                    QStringList auList;
+                    for (const auto& a : authors)
+                        auList << a.toObject().value("name").toString();
+                    out += QString("─── %1. %2 (%3)\n")
+                           .arg(++n).arg(title).arg(year);
+                    if (!auList.isEmpty())
+                        out += "    \xf0\x9f\x91\xa4 " + auList.join(", ") + "\n";
+                    if (!abstr.isEmpty())
+                        out += "    " + abstr + "\n";
+                    if (!url.isEmpty())
+                        out += "    \xf0\x9f\x94\x97 " + url + "\n";
+                    out += "\n";
+                }
+                if (out.isEmpty()) out = "Nessun risultato trovato.";
+                m_litStatus->setText(
+                    QString("\xe2\x9c\x85  %1 risultati da Semantic Scholar").arg(n));
+
+            } else { /* uspto */
+                QJsonDocument doc = QJsonDocument::fromJson(data);
+                QJsonArray pubs = doc.object()
+                    .value("results").toObject()
+                    .value("hits").toArray();
+                if (pubs.isEmpty())
+                    pubs = doc.object().value("patents").toArray();
+                int n = 0;
+                for (const auto& pv : pubs) {
+                    auto p = pv.toObject();
+                    QString title = p.value("inventionTitle").toString();
+                    if (title.isEmpty()) title = p.value("patentTitle").toString();
+                    QString appNum = p.value("applicationNumberText").toString();
+                    QString date   = p.value("filingDate").toString();
+                    QString abstr  = p.value("abstractText").toString().left(280);
+                    out += QString("─── %1. %2\n").arg(++n).arg(title);
+                    if (!appNum.isEmpty()) out += "    N\xc2\xb0 " + appNum + "\n";
+                    if (!date.isEmpty())   out += "    \xf0\x9f\x93\x85 " + date + "\n";
+                    if (!abstr.isEmpty())  out += "    " + abstr + "\n";
+                    out += "\n";
+                }
+                if (out.isEmpty()) {
+                    out = "Nessun risultato trovato (USPTO). "
+                          "Prova arXiv o Semantic Scholar.";
+                }
+                m_litStatus->setText(
+                    QString("\xe2\x9c\x85  %1 risultati da USPTO").arg(n));
+            }
+
+            m_litResults->setPlainText(out);
+            m_litAiBtn->setEnabled(!out.isEmpty() &&
+                out != "Nessun risultato trovato.");
+        });
+    });
+
+    /* Enter nella query = cerca */
+    connect(m_litQuery, &QLineEdit::returnPressed,
+            m_litSearchBtn, &QPushButton::click);
+
+    /* ── Analizza con AI ── */
+    connect(m_litAiBtn, &QPushButton::clicked, this, [this](){
+        const QString ctx = m_litResults->toPlainText().trimmed();
+        if (ctx.isEmpty()) return;
+        const QString q   = m_litQuery->text().trimmed();
+        m_litAiBtn->setEnabled(false);
+        m_litStatus->setText("\xf0\x9f\xa4\x96  Analisi AI...");
+        m_litResults->append("\n" + QString(50, QChar(0x2500)) + "\n");
+
+        const QString sys =
+            "Sei un ricercatore scientifico. Analizza i seguenti risultati di ricerca "
+            "e fornisci: 1) i paper/brevetti pi\xc3\xb9 rilevanti, 2) trend emergenti, "
+            "3) gap nella letteratura, 4) suggerimenti per ricerche future. "
+            "Sii conciso e preciso.";
+        const QString msg =
+            "Query: " + q + "\n\nRisultati:\n" + ctx.left(6000);
+
+        delete m_sciTokenHolder;
+        m_sciTokenHolder = new QObject(this);
+        connect(m_ai, &AiClient::token, m_sciTokenHolder,
+                [this](const QString& t){
+            QTextCursor c = m_litResults->textCursor();
+            c.movePosition(QTextCursor::End);
+            m_litResults->setTextCursor(c);
+            m_litResults->insertPlainText(t);
+        });
+        connect(m_ai, &AiClient::finished, m_sciTokenHolder,
+                [this](const QString&){
+            m_litAiBtn->setEnabled(true);
+            m_litStatus->setText("\xe2\x9c\x85  Analisi completata");
+            m_sciTokenHolder->deleteLater();
+            m_sciTokenHolder = nullptr;
+        });
+        connect(m_ai, &AiClient::error, m_sciTokenHolder,
+                [this](const QString& e){
+            m_litAiBtn->setEnabled(true);
+            m_litStatus->setText("\xe2\x9d\x8c  " + e);
+            m_sciTokenHolder->deleteLater();
+            m_sciTokenHolder = nullptr;
+        });
+        m_ai->chat(sys, msg);
+    });
+
+    return w;
 }
 
 /* ══════════════════════════════════════════════════════════════

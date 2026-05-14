@@ -6,6 +6,8 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QProcess>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
 
@@ -82,10 +84,20 @@ private:
     QWidget* buildPaperTab();
     QWidget* buildBrevettoTab();
     QWidget* buildDocTecnicoTab();
+    QWidget* buildCercaLetteraturaTab();
     QWidget* buildCytoscapeTab();
     QWidget* buildRDKitTab();
     QWidget* buildBiocondaTab();
     QWidget* buildAvogadroTab();
+
+    /* ── Cerca Letteratura ── */
+    QLineEdit*            m_litQuery      = nullptr;
+    QComboBox*            m_litSource     = nullptr;
+    QTextEdit*            m_litResults    = nullptr;
+    QPushButton*          m_litSearchBtn  = nullptr;
+    QPushButton*          m_litAiBtn      = nullptr;
+    QLabel*               m_litStatus     = nullptr;
+    QNetworkAccessManager* m_litNet       = nullptr;
 
     void avvia(const QString& sys, const QString& msg,
                QTextEdit* out, QPushButton* btnGen, QPushButton* btnStop);
