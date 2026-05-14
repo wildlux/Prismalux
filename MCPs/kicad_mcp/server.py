@@ -70,12 +70,16 @@ def tool_get_board_info(_):
     return _exec(code)
 
 def tool_add_footprint(args):
+    _lib = args['library']
+    _fp  = args['footprint']
+    _x   = args.get('x', 100)
+    _y   = args.get('y', 100)
     code = (f"import pcbnew\nb = pcbnew.GetBoard()\n"
-            f"fp = pcbnew.FootprintLoad('{args['library']}', '{args['footprint']}')\n"
+            f"fp = pcbnew.FootprintLoad('{_lib}', '{_fp}')\n"
             f"fp.SetReference('{args.get('reference','R1')}')\n"
-            f"fp.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM({args.get('x',100.0)}), pcbnew.FromMM({args.get('y',100.0)})))\n"
+            f"fp.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM({_x}), pcbnew.FromMM({_y})))\n"
             f"b.Add(fp); pcbnew.Refresh()\n"
-            f"print('Footprint aggiunto: {args[\"library\"]}:{args[\"footprint\"]} @ ({args.get(\"x\",100)},{args.get(\"y\",100)}) mm')")
+            f"print('Footprint aggiunto: {_lib}:{_fp} @ ({_x},{_y}) mm')")
     return _exec(code)
 
 def tool_list_components(_):
@@ -86,15 +90,16 @@ def tool_list_components(_):
     return _exec(code)
 
 def tool_export_gerber(args):
+    _outdir = args['output_dir']
     code = (f"import pcbnew\nb = pcbnew.GetBoard()\n"
             f"p = pcbnew.PLOT_CONTROLLER(b)\n"
             f"po = p.GetPlotOptions()\n"
-            f"po.SetOutputDirectory('{args['output_dir']}')\n"
+            f"po.SetOutputDirectory('{_outdir}')\n"
             f"po.SetFormat(pcbnew.PLOT_FORMAT_GERBER)\n"
             f"for layer in [pcbnew.F_Cu, pcbnew.B_Cu, pcbnew.F_SilkS, pcbnew.F_Mask, pcbnew.B_Mask, pcbnew.Edge_Cuts]:\n"
             f"  p.OpenPlotfile('', pcbnew.PLOT_FORMAT_GERBER, '')\n"
             f"  p.SetColorMode(False); p.PlotLayer(); p.ClosePlot()\n"
-            f"print('Gerber esportati in: {args[\"output_dir\"]}')")
+            f"print('Gerber esportati in: {_outdir}')")
     return _exec(code)
 
 def tool_run_drc(_):

@@ -713,10 +713,16 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     /* ── Inserisci codice dall'AI in editor ── */
     connect(m_btnInsert, &QPushButton::clicked, this, [this]{
         const QString code = extractCodeBlock();
-        if (!code.isEmpty()) {
-            m_editor->setPlainText(code);
-            m_status->setText("\xe2\x9c\x85  Codice inserito nell'editor.");
+        if (code.isEmpty()) return;
+        if (!m_editor->toPlainText().trimmed().isEmpty()) {
+            const int ret = QMessageBox::question(this,
+                "Sovrascrivere il codice?",
+                "L'editor contiene codice.\nVuoi sostituirlo con la risposta AI?",
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+            if (ret != QMessageBox::Yes) return;
         }
+        m_editor->setPlainText(code);
+        m_status->setText("\xe2\x9c\x85  Codice inserito nell'editor.");
     });
 
     /* ── Esegui / Stop (bottone unificato) ── */
@@ -1572,6 +1578,13 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
                              ? match.captured(1)
                              : text;
         if (code.trimmed().isEmpty()) return;
+        if (!m_editor->toPlainText().trimmed().isEmpty()) {
+            const int ret = QMessageBox::question(this,
+                "Sovrascrivere il codice?",
+                "L'editor contiene codice.\nVuoi sostituirlo con il codice generato dall'agente?",
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+            if (ret != QMessageBox::Yes) return;
+        }
         m_editor->setPlainText(code.trimmed());
         /* Torna al tab Programmazione (indice 0) */
         if (m_innerTabs) m_innerTabs->setCurrentIndex(0);
@@ -2075,6 +2088,13 @@ QWidget* ProgrammazionePage::buildReverseEngineering(QWidget* parent)
         const auto match = reFence.match(text);
         const QString code = match.hasMatch() ? match.captured(1) : text;
         if (code.trimmed().isEmpty()) return;
+        if (!m_editor->toPlainText().trimmed().isEmpty()) {
+            const int ret = QMessageBox::question(this,
+                "Sovrascrivere il codice?",
+                "L'editor contiene codice.\nVuoi sostituirlo con il sorgente ricostruito?",
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+            if (ret != QMessageBox::Yes) return;
+        }
         m_editor->setPlainText(code.trimmed());
         if (m_innerTabs) m_innerTabs->setCurrentIndex(0);
     });

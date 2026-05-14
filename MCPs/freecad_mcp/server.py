@@ -89,7 +89,8 @@ def tool_create_cylinder(args):
     return _exec(code)
 
 def tool_export_model(args):
-    ext = args["output_path"].split(".")[-1].lower()
+    ext  = args["output_path"].split(".")[-1].lower()
+    _out = args["output_path"]
     fmt_map = {"stl": "Mesh", "step": "Part", "stp": "Part", "obj": "Mesh"}
     code = (f"import FreeCAD, Mesh, Part, ImportGui\n"
             f"doc = FreeCAD.activeDocument()\n"
@@ -98,7 +99,7 @@ def tool_export_model(args):
             f"    objs = [doc.getObject('{args.get('object_name','')}') ] if '{args.get('object_name','')}' else doc.Objects\n"
             f"    objs = [o for o in objs if o]\n"
             f"    Mesh.export(objs, '{args['output_path']}') if '{ext}' in ('stl','obj') else Part.export(objs, '{args['output_path']}')\n"
-            f"    print('Esportato: {args[\"output_path\"]}')")
+            f"    print('Esportato: {_out}')")
     return _exec(code)
 
 def tool_list_objects(_):
@@ -112,15 +113,17 @@ def tool_list_objects(_):
 
 def tool_boolean_operation(args):
     op_map = {"fuse": "Part::Fuse", "cut": "Part::Cut", "common": "Part::Common"}
+    _op    = args['operation']
+    _bname = args.get('name', 'BooleanResult')
     code = (f"import FreeCAD, Part\n"
             f"doc = FreeCAD.activeDocument()\n"
             f"o1 = doc.getObject('{args['obj1']}')\n"
             f"o2 = doc.getObject('{args['obj2']}')\n"
-            f"result = doc.addObject('{op_map[args['operation']]}', '{args.get('name','BooleanResult')}')\n"
+            f"result = doc.addObject('{op_map[_op]}', '{_bname}')\n"
             f"result.Base = o1; result.Tool = o2\n"
             f"o1.Visibility = False; o2.Visibility = False\n"
             f"doc.recompute()\n"
-            f"print('Operazione {args[\"operation\"]} completata: {args.get(\"name\",\"BooleanResult\")}')")
+            f"print('Operazione {_op} completata: {_bname}')")
     return _exec(code)
 
 HANDLERS = {"execute_python": tool_execute_python, "create_box": tool_create_box,

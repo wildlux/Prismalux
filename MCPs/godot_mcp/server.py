@@ -60,12 +60,14 @@ def tool_execute_gdscript(args):
     return res.get("output", res.get("result", "OK"))
 
 def tool_create_node(args):
+    _name  = args['name']
+    _ntype = args['node_type']
     code = (f"var parent = get_node('{args.get('parent','.')}')\n"
-            f"var node = {args['node_type']}.new()\n"
-            f"node.name = '{args['name']}'\n"
+            f"var node = {_ntype}.new()\n"
+            f"node.name = '{_name}'\n"
             f"parent.add_child(node)\n"
             f"node.owner = get_tree().edited_scene_root\n"
-            f"print('Nodo creato: {args[\"name\"]} ({args[\"node_type\"]})')")
+            f"print('Nodo creato: {_name} ({_ntype})')")
     res, err = _gd("/exec", {"code": code})
     if err: return f"[Errore] {err}"
     return res.get("output", f"Nodo '{args['name']}' ({args['node_type']}) aggiunto.")
@@ -80,11 +82,13 @@ def tool_list_nodes(args):
     return res.get("output", "OK")
 
 def tool_set_property(args):
-    val = args["value"]
-    val_str = f'"{val}"' if isinstance(val, str) else str(val)
-    code = (f"var node = get_node('{args['node_path']}')\n"
-            f"node.set('{args['property']}', {val_str})\n"
-            f"print('{args[\"node_path\"]}.{args[\"property\"]} = {val_str}')")
+    val       = args["value"]
+    val_str   = f'"{val}"' if isinstance(val, str) else str(val)
+    _path     = args['node_path']
+    _prop     = args['property']
+    code = (f"var node = get_node('{_path}')\n"
+            f"node.set('{_prop}', {val_str})\n"
+            f"print('{_path}.{_prop} = {val_str}')")
     res, err = _gd("/exec", {"code": code})
     if err: return f"[Errore] {err}"
     return res.get("output", "OK")

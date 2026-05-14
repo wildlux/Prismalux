@@ -9,6 +9,8 @@
 #include <QFile>
 #include <QStandardPaths>
 #include <QSettings>
+#include <QFileInfo>
+#include <QRegularExpression>
 
 /* ══════════════════════════════════════════════════════════════
    AiChatParams — unica fonte ~/.prismalux/ai_params.json
@@ -361,6 +363,18 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
         if (m_llamaBin.isEmpty() || m_localModel.isEmpty()) {
             emit error("Backend locale non configurato. Seleziona un modello .gguf.");
             return m_reqId;
+        }
+        /* Valida il path dell'eseguibile: deve essere un file eseguibile esistente,
+           senza caratteri shell pericolosi (protezione da path injection). */
+        {
+            static const QRegularExpression kDangerousChars(R"([;&|`$<>\\])");
+            const QFileInfo binInfo(m_llamaBin);
+            if (kDangerousChars.match(m_llamaBin).hasMatch()
+                    || !binInfo.exists() || !binInfo.isExecutable()) {
+                emit error(QString("Percorso llama-cli non valido o non eseguibile: %1")
+                           .arg(m_llamaBin));
+                return m_reqId;
+            }
         }
         m_localBusy  = true;
         m_localAccum.clear();

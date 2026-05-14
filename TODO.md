@@ -1,6 +1,6 @@
 # Prismalux — TODO prossima sessione
 
-> Aggiornato: 2026-05-14 | Build: `cd gui && cmake --build build -j$(nproc)`
+> Aggiornato: 2026-05-15 | Build: `cd gui && cmake --build build -j$(nproc)`
 
 ## Test GUI da completare
 
@@ -94,3 +94,44 @@
 - [x] **[UX] Tooltip pulsanti principali** ✅ — aggiunto setToolTip a: ragClear, pdfCarica, blenderPing, blenderEsegui, officeBridge, officeEsegui, freecadPing, freecadEsegui, btnRun; setAccessibleName su btnRun
 - [x] **[C++] `agenti_page_stream.cpp` refactoring** ✅ — 2026-05-14: estratti 6 handler da `onFinished()` nei file dedicati (pipeline/byzantine/knowledge); stream.cpp da 957→330 righe; dispatcher pulito 8 righe
 - [x] **[UX] ImpostazioniPage God Dialog** ✅ — 2026-05-14: divisa in 7 file (861+1972+1900+1010+942+414+387 righe); fix `ThemeVisual` mancante in `_visuale.cpp`; build OK
+
+---
+
+## Audit esperto III — 2026-05-15 (sicurezza + UI + C++ + Python)
+
+### 🔴 IMMEDIATO
+
+- [x] **[Python] MCP SyntaxError — godot_mcp/server.py:68** ✅ — variabili locali `_name`/`_ntype`/`_path`/`_prop` prima delle f-string; rimossi `args[\"...\"]` dentro `{}`
+- [x] **[Python] MCP SyntaxError — freecad_mcp/server.py:101** ✅ — stessa fix: `_out`, `_op`, `_bname`; anche `op_map[_op]` al posto di `op_map[args['operation']]` dentro l'f-string
+- [x] **[Python] MCP SyntaxError — kicad_mcp/server.py:78** ✅ — `_lib`, `_fp`, `_x`, `_y` estratti prima del blocco codice; fix anche in `tool_export_gerber` (`_outdir`)
+- [ ] **[SEC] LAN server HTTP puro — nessun TLS** — chat, token e knowledge viaggiano in chiaro; usare `QSslServer` + certificato self-signed generato automaticamente al primo avvio
+- [x] **[SEC] `/apk` endpoint pubblico senza auth** ✅ — aggiunto `/apk` all'insieme `isApi` in `lan_server.cpp`; ora richiede Bearer token come le API
+
+### 🟠 IMPORTANTE
+
+- [ ] **[SEC] Token Bearer in QSettings plain text** — `lan_wan_page.cpp:158-170` scrive il token in `~/.config/Prismalux/GUI.conf`; usare `QKeychain` o cifratura AES locale
+- [x] **[SEC] `m_llamaBin` non validato prima di `QProcess::start`** ✅ — `ai_client.cpp`: regex `[;&|` + "`" + `$<>\\]` + `QFileInfo::isExecutable()` prima di start; emit error se path invalido
+- [ ] **[SEC] Nessun rate limiting su `/api/chat`** — solo `/knowledge` ha il limiter; un client malevolo può saturare Ollama
+- [ ] **[UX] Nessun undo/redo esplicito nell'editor** — `QPlainTextEdit` ha Ctrl+Z nativo ma nessuna azione custom (inserisci-da-AI, incolla-template) va nello stack; aggiungere `QUndoStack` + shortcut documentati
+- [x] **[UX] Nessuna conferma su azioni distruttive** ✅ — `QMessageBox::question` aggiunto ai 3 pulsanti "Inserisci nell'editor" (AI panel, Agentica, Reverse Eng.) quando l'editor ha già del codice
+- [ ] **[C++] Lambda `[this]` senza `QPointer` su reply async** — `ai_client.cpp` connessioni `[this, reply]` su `QNetworkReply`; se reply distrutto prima della lambda → crash; usare `QPointer<QNetworkReply>`
+- [ ] **[C++] `QTimer::singleShot` con raw `this` in ~8 file** — pattern `[this]{ m_xxx->... }` senza guard; aggiungere `QPointer<>` sulle variabili member catturate
+
+### 🟡 PIANIFICABILE
+
+- [ ] **[SEC] Timing attack token comparison** — `lan_server.cpp` confronta token con `==`; usare confronto constant-time
+- [ ] **[SEC] Nessun log accesso persistente** — impossibile forensics post-incidente; aggiungere append su file `~/.prismalux/access.log` con IP + route + timestamp
+- [ ] **[UX] Accessibilità zero (WCAG)** — 1 sola `setAccessibleName` in tutto il progetto; screen reader inutilizzabile; aggiungere `setAccessibleName`/`setTabOrder` sistematici
+- [ ] **[UX] i18n assente** — 30 `tr()` su ~15.000 righe di UI; tutto hardcoded in italiano; introdurre `tr()` sistematico e `.ts` file per future traduzioni
+- [ ] **[UX] Scrollbar non tematizzate** — ThemeManager applica QSS ma non alle scrollbar → look OS-nativo che rompe coerenza visiva su Windows/KDE
+- [ ] **[UX] Font size hardcoded** — `monoFont.setPointSize(11)` in 5 file; su display 4K risulta minuscolo; usare `QFontDatabase` + DPI scaling
+- [ ] **[C++] `QSettings` aperto ad ogni chiamata** — 12+ istanze `QSettings("Prismalux","GUI")` sparse; creare un singleton `AppConfig` con cache in memoria
+- [ ] **[C++] Aggiungere `clang-tidy` al CMakeLists** — `ENABLE_SANITIZERS` c'è, ma zero analisi statica; aggiungere target `tidy` con `.clang-tidy` committato
+- [ ] **[C++] `Q_DISABLE_COPY` su singleton** — `ThemeManager` e `AiClient` copiabili per errore
+
+### 🟢 TECH DEBT
+
+- [ ] **[UX] Feedback mancante su operazioni lunghe** — fetch modelli, avvio llama-server: l'utente vede blocco senza spinner in `strumenti_page.cpp` e `impara_page.cpp`
+- [ ] **[UX] Drag-and-drop file mancante** — su editor codice e su RAG loader sarebbe naturale; nessun `setAcceptDrops(true)` nei widget chiave
+- [ ] **[Python] requirements.txt senza pin precisi** — `requests>=2.31` invece di `==2.32.3`; build non riproducibile tra 6 mesi
+- [ ] **[Python] MCP non installabili come package** — nessun `pyproject.toml`; dipendono dal CWD; aggiungere `pyproject.toml` minimo a ogni MCP

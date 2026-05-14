@@ -240,10 +240,11 @@ void LanServer::processSession(Session& s)
     const bool isApi = (s.path == "/api/tags"     ||
                         s.path == "/api/chat"      ||
                         s.path == "/api/generate"  ||
-                        s.path == "/knowledge");
+                        s.path == "/knowledge"     ||
+                        s.path == "/apk");
 
-    /* Auth check: se il token è impostato, le route API richiedono Authorization: Bearer TOKEN.
-       Le route pubbliche (/apk, /, /web) non richiedono autenticazione. */
+    /* Auth check: se il token è impostato, le route protette richiedono
+       Authorization: Bearer TOKEN. Solo / e /web rimangono pubblici. */
     if (isApi && !m_accessToken.isEmpty()) {
         const QString expected = "Bearer " + m_accessToken;
         if (s.authHeader != expected) {
