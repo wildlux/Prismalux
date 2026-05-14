@@ -120,6 +120,13 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     tabs->setTabToolTip(8, "Modellazione molecolare 3D");
     vlay->addWidget(tabs, 1);
 
+    m_sciProgress = new QProgressBar(this);
+    m_sciProgress->setRange(0, 0);
+    m_sciProgress->setFixedHeight(4);
+    m_sciProgress->setTextVisible(false);
+    m_sciProgress->setVisible(false);
+    vlay->addWidget(m_sciProgress);
+
     m_sciErrorPanel = new AiErrorWidget(this);
     vlay->addWidget(m_sciErrorPanel);
 
@@ -185,6 +192,7 @@ void RicercaPage::resetButtons()
     if (m_btnStopAttivo) m_btnStopAttivo->setEnabled(false);
     m_btnGenAttivo  = nullptr;
     m_btnStopAttivo = nullptr;
+    if (m_sciProgress) m_sciProgress->setVisible(false);
 }
 
 void RicercaPage::avvia(const QString& sys, const QString& msg,
@@ -202,6 +210,7 @@ void RicercaPage::avvia(const QString& sys, const QString& msg,
     m_btnStopAttivo = btnStop;
     btnGen->setEnabled(false);
     btnStop->setEnabled(true);
+    if (m_sciProgress) m_sciProgress->setVisible(true);
     m_reqId = m_ai->chat(sys, msg);
 }
 
@@ -662,6 +671,7 @@ void RicercaPage::avviaSci(const QString& sys, const QString& userMsg,
 
     m_sciAiActive = true;
     runBtn->setEnabled(false);
+    if (m_sciProgress) m_sciProgress->setVisible(true);
     stopBtn->setEnabled(true);
     out->append(
         "\n\xf0\x9f\x94\x84  Generazione in corso...\n"
@@ -680,6 +690,7 @@ void RicercaPage::avviaSci(const QString& sys, const QString& userMsg,
         m_sciAiActive = false;
         runBtn->setEnabled(true);
         stopBtn->setEnabled(false);
+        if (m_sciProgress) m_sciProgress->setVisible(false);
         out->append("\n" + QString(40, QChar(0x2500)));
         m_sciTokenHolder->deleteLater();
         m_sciTokenHolder = nullptr;
@@ -709,6 +720,7 @@ void RicercaPage::avviaSci(const QString& sys, const QString& userMsg,
         m_sciAiActive = false;
         runBtn->setEnabled(true);
         stopBtn->setEnabled(false);
+        if (m_sciProgress) m_sciProgress->setVisible(false);
         m_sciTokenHolder->deleteLater();
         m_sciTokenHolder = nullptr;
         m_sciErrorPanel->showError(msg, [this, sys, userMsg, out, runBtn, stopBtn,

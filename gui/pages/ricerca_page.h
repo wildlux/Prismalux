@@ -6,6 +6,7 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QProcess>
+#include <QProgressBar>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include "../ai_client.h"
@@ -80,6 +81,7 @@ private:
     QObject*       m_sciTokenHolder  = nullptr;
     bool           m_sciAiActive     = false;
     AiErrorWidget* m_sciErrorPanel   = nullptr;
+    QProgressBar*  m_sciProgress     = nullptr;  ///< progress indeterminata durante AI
 
     QWidget* buildPaperTab();
     QWidget* buildBrevettoTab();

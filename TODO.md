@@ -64,3 +64,33 @@
 
 ## Non testabile (software non installato)
 - Anki, Godot GDScript, Cytoscape, RDKit, Bioconda, Avogadro
+
+---
+
+## Audit esperto II — 2026-05-14 (sicurezza + UI + C++)
+
+### 🔴 CRITICO
+- [x] **[BUG] `buildUserBubble` fa `toLower()` sul messaggio** ✅ — rimosso `text.toLower()`; il messaggio viene inviato all'AI preservando maiuscole/minuscole
+- [x] **[BUG] QSettings inconsistenza `lan_wan_page.cpp`** ✅ — fix: `QSettings ss;` → `QSettings("Prismalux","GUI")` nel save/load token (puntava a GUI.conf sbagliato)
+- [~] **[C++] QEventLoop::exec() in matematica_page** — by design: sostituisce `waitForFinished()` mantenendo eventi Qt attivi (paint/resize); basso rischio re-entrancy per operazioni brevi <20s
+
+### 🟠 HIGH
+- [x] **[SEC] Token LAN quote non sanitizzate nel JS** ✅ — escape `\` e `'` prima di iniettare il token nel literal JS della pagina /web
+- [~] **[SEC] Chat history in chiaro su disco** — noto, bassa priorità per tool locale; non aggiunto in questa sessione
+- [~] **[SEC] Python REPL senza sandbox** — Docker CodeInterpreter è opt-in; REPL base è per design (utente che scrive codice proprio)
+- [~] **[C++] Connessioni permanenti a `m_ai`** — pattern corretto: context=`this` disconnette automaticamente quando il widget è distrutto; non è un bug attivo
+- [x] **[UX] Spinner in Strumenti/Ricerca/AppController** ✅ — aggiunta `QProgressBar` indeterminata 4px sotto l'area output in tutte e 3 le pagine; mostrata/nascosta insieme ai pulsanti run/stop
+
+### 🟡 MEDIUM
+- [x] **[UX] Toggle 👁 per campo token LAN** ✅ — pulsante flat 👁 checkable che alterna `EchoMode::Normal ↔ Password`
+- [x] **[UX] Empty state lista chat vuota** ✅ — `refreshChatList()`: se nessuna sessione, mostra placeholder non-selezionabile "💬 Nessuna chat salvata — Inizia una conversazione"
+- [ ] **[UX] Ricerca nella chat history** — aggiungere QLineEdit di ricerca sopra la lista sidebar
+- [ ] **[C++] Nessun retry/timeout su QNetworkReply** — fetch arXiv/Semantic Scholar/USPTO senza timeout esplicito né pulsante retry
+- [x] **[C++] `/tmp/output.stl` e `/tmp/output.step` hardcoded** ✅ — prompt FreeCAD aggiornato: usa `Path.home()/'Desktop'/'output.*'`
+
+### 🟢 LOW
+- [~] **[C++] `QSettings("Prismalux","GUI")` ad ogni bolla** — overhead accettabile (poche decine di bolle/sessione); non ottimizzato
+- [ ] **[TEST] Nessun test per feature recenti** — token LAN, onboarding wizard, arXiv parser, rate limiter /knowledge
+- [ ] **[UX] Tooltip inconsistenti / nessuna accessibilità** — 0 occorrenze di `setAccessibleName`
+- [ ] **[C++] `agenti_page_stream.cpp` ancora troppo grande** — 957 righe; spezzare in stream_renderer + history_manager
+- [ ] **[UX] ImpostazioniPage = 7080 righe, God Dialog** — spezzare in sezioni con sidebar navigabile

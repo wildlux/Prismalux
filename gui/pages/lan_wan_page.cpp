@@ -148,17 +148,27 @@ QWidget* LanWanPage::buildLanAndroidTab()
         m_lanTokenEdit->setToolTip(tokenLbl->toolTip());
 
         /* Carica da QSettings */
-        QSettings ss;
-        m_lanTokenEdit->setText(ss.value(P::SK::kLanToken, "").toString());
+        m_lanTokenEdit->setText(
+            QSettings("Prismalux","GUI").value(P::SK::kLanToken, "").toString());
 
         /* Salva a ogni modifica */
         connect(m_lanTokenEdit, &QLineEdit::textChanged, this, [](const QString& t) {
-            QSettings s;
-            s.setValue(P::SK::kLanToken, t);
+            QSettings("Prismalux","GUI").setValue(P::SK::kLanToken, t);
+        });
+
+        /* Pulsante mostra/nascondi token */
+        auto* eyeBtn = new QPushButton("\xf0\x9f\x91\x81", tokenRow);   /* 👁 */
+        eyeBtn->setFixedWidth(32);
+        eyeBtn->setCheckable(true);
+        eyeBtn->setToolTip("Mostra/nascondi token");
+        eyeBtn->setFlat(true);
+        connect(eyeBtn, &QPushButton::toggled, this, [this](bool show) {
+            m_lanTokenEdit->setEchoMode(show ? QLineEdit::Normal : QLineEdit::Password);
         });
 
         tokenLay->addWidget(tokenLbl);
         tokenLay->addWidget(m_lanTokenEdit, 1);
+        tokenLay->addWidget(eyeBtn);
         gl->addWidget(tokenRow);
     }
 

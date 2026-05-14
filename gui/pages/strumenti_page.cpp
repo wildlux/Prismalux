@@ -269,8 +269,8 @@ static const char* kSysPrompts[10][10] = {
 
         /* Esporta STL/STEP */
         "Sei un esperto di FreeCAD Python API. Genera SOLO codice Python puro per esportare la geometria. "
-        "Per STL: import Mesh; Mesh.export([obj], '/tmp/output.stl'). "
-        "Per STEP: import Import; Import.export([obj], '/tmp/output.step'). "
+        "Per STL: import Mesh; from pathlib import Path; Mesh.export([obj], str(Path.home()/'Desktop'/'output.stl')). "
+        "Per STEP: import Import; from pathlib import Path; Import.export([obj], str(Path.home()/'Desktop'/'output.step')). "
         "Usa FreeCAD.activeDocument().ActiveObject per l'oggetto attivo. "
         "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
@@ -1223,7 +1223,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         m_output->clear();
         _setRunBusy(true);
         m_waitLbl->setText("\xf0\x9f\x94\x84  Analisi disegno in corso...");
-        m_waitLbl->setVisible(true);
+        m_waitLbl->setVisible(true); m_waitBar->setVisible(true);
         m_active = true;
 
         if (!m_sketchFilePath.isEmpty() && m_sketchIsImage) {
@@ -1234,7 +1234,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
                     "\xe2\x9d\x8c  Impossibile aprire il file immagine.");
                 m_active = false;
                 _setRunBusy(false);
-                m_waitLbl->setVisible(false);
+                m_waitLbl->setVisible(false); m_waitBar->setVisible(false);
                 return;
             }
             const QByteArray raw  = f.readAll();
@@ -1598,11 +1598,18 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     m_waitLbl = new QLabel(inputRow);
     m_waitLbl->setStyleSheet(
         "color:#E5C400;font-style:italic;font-size:11px;");
-    m_waitLbl->setVisible(false);
+    m_waitLbl->setVisible(false); m_waitBar->setVisible(false);
     m_waitLbl->setWordWrap(true);
+
+    m_waitBar = new QProgressBar(inputRow);
+    m_waitBar->setRange(0, 0);  /* indeterminata */
+    m_waitBar->setFixedHeight(4);
+    m_waitBar->setTextVisible(false);
+    m_waitBar->setVisible(false);
 
     btnCol->addWidget(m_btnRun);
     btnCol->addWidget(m_waitLbl);
+    btnCol->addWidget(m_waitBar);
     btnCol->addStretch();
     inputLay->addLayout(btnCol);
     lay->addWidget(inputRow);
@@ -1704,7 +1711,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     connect(m_ai, &AiClient::error,    this, &StrumentiPage::onError);
     connect(m_ai, &AiClient::aborted,  this, [this] {
         m_active = false;
-        m_waitLbl->setVisible(false);
+        m_waitLbl->setVisible(false); m_waitBar->setVisible(false);
         _setRunBusy(false);
         m_output->append("\n\xe2\x8f\xb9  Interrotto.");
     });
@@ -1744,7 +1751,7 @@ void StrumentiPage::runTool(const QString& sys, const QString& userMsg) {
 
     m_output->clear();
     m_waitLbl->setText("\xf0\x9f\x94\x84  Elaborazione in corso...");
-    m_waitLbl->setVisible(true);
+    m_waitLbl->setVisible(true); m_waitBar->setVisible(true);
     m_active = true;
     _setRunBusy(true);
     m_ai->chat(P::prependKnowledge(finalSys), userMsg);
@@ -1755,7 +1762,7 @@ void StrumentiPage::runTool(const QString& sys, const QString& userMsg) {
    ══════════════════════════════════════════════════════════════ */
 void StrumentiPage::onToken(const QString& t) {
     if (!m_active) return;
-    m_waitLbl->setVisible(false);
+    m_waitLbl->setVisible(false); m_waitBar->setVisible(false);
     QTextCursor c(m_output->document());
     c.movePosition(QTextCursor::End);
     c.insertText(t);
@@ -1765,7 +1772,7 @@ void StrumentiPage::onToken(const QString& t) {
 void StrumentiPage::onFinished(const QString& full) {
     if (!m_active) return;
     m_active = false;
-    m_waitLbl->setVisible(false);
+    m_waitLbl->setVisible(false); m_waitBar->setVisible(false);
     _setRunBusy(false);
     m_output->append("\n" + QString(40, QChar(0x2500)));
 
@@ -1818,7 +1825,7 @@ void StrumentiPage::onFinished(const QString& full) {
 void StrumentiPage::onError(const QString& msg) {
     if (!m_active) return;
     m_active = false;
-    m_waitLbl->setVisible(false);
+    m_waitLbl->setVisible(false); m_waitBar->setVisible(false);
     _setRunBusy(false);
     m_output->append(
         QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));

@@ -15,6 +15,7 @@ namespace P = PrismaluxPaths;
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QTcpSocket>
+#include <QProgressBar>
 #include <QPointer>
 #include <QSharedPointer>
 #include <QJsonDocument>
@@ -274,6 +275,13 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
 
     lay->addWidget(m_tabs);
 
+    m_aiProgress = new QProgressBar(this);
+    m_aiProgress->setRange(0, 0);
+    m_aiProgress->setFixedHeight(4);
+    m_aiProgress->setTextVisible(false);
+    m_aiProgress->setVisible(false);
+    lay->addWidget(m_aiProgress);
+
     m_aiErrorPanel = new AiErrorWidget(this);
     lay->addWidget(m_aiErrorPanel);
 
@@ -364,6 +372,7 @@ void AppControllerPage::runAi(int tabIdx, const QString& sys, const QString& use
     m_activeTab = tabIdx;
     runBtn->setEnabled(false);
     stopBtn->setEnabled(true);
+    if (m_aiProgress) m_aiProgress->setVisible(true);
     output->append(
         "\n\xf0\x9f\x94\x84  Generazione in corso...\n"
         + QString(40, QChar(0x2500)));
@@ -382,6 +391,7 @@ void AppControllerPage::runAi(int tabIdx, const QString& sys, const QString& use
         m_aiActive = false;
         runBtn->setEnabled(true);
         stopBtn->setEnabled(false);
+        if (m_aiProgress) m_aiProgress->setVisible(false);
         output->append("\n" + QString(40, QChar(0x2500)));
         /* Guard: error() potrebbe aver già svuotato m_tokenHolder prima di finished() */
         if (m_tokenHolder) {
@@ -441,6 +451,7 @@ void AppControllerPage::runAi(int tabIdx, const QString& sys, const QString& use
         m_aiActive = false;
         runBtn->setEnabled(true);
         stopBtn->setEnabled(false);
+        if (m_aiProgress) m_aiProgress->setVisible(false);
         /* Guard: finished() potrebbe aver già svuotato m_tokenHolder prima di error() */
         if (m_tokenHolder) {
             m_tokenHolder->deleteLater();

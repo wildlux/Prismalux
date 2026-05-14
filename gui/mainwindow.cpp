@@ -2113,6 +2113,17 @@ void MainWindow::refreshChatList() {
         titleCount[base]++;
     }
 
+    if (sessions.isEmpty()) {
+        auto* placeholder = new QListWidgetItem(
+            "\xf0\x9f\x92\xac  Nessuna chat salvata\n"
+            "Inizia una conversazione\nnella pagina AI");  /* 💬 */
+        placeholder->setFlags(Qt::NoItemFlags);  /* non selezionabile */
+        placeholder->setForeground(QColor("#888"));
+        placeholder->setTextAlignment(Qt::AlignCenter);
+        m_chatList->addItem(placeholder);
+        return;
+    }
+
     for (const auto& s : sessions) {
         const QString base = s.title.isEmpty() ? "(senza titolo)" : s.title;
         QString display = base;

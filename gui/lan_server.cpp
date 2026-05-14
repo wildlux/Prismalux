@@ -558,11 +558,16 @@ void LanServer::handleWebChat(Session& s)
                              ? QByteArray("ollama")
                              : m_ai->model().toUtf8();
 
-    /* Header Authorization da iniettare nel JS se il token è impostato */
-    const QByteArray authHeadersJs = m_accessToken.isEmpty()
-        ? QByteArray("'Content-Type':'application/json'")
-        : QByteArray("'Content-Type':'application/json','Authorization':'Bearer ") +
-          m_accessToken.toUtf8() + QByteArray("'");
+    /* Header Authorization da iniettare nel JS.
+       Escapa backslash e apice singolo per non rompere il literal JS. */
+    const QByteArray authHeadersJs = [this]() -> QByteArray {
+        if (m_accessToken.isEmpty())
+            return "'Content-Type':'application/json'";
+        QString safe = m_accessToken;
+        safe.replace("\\", "\\\\").replace("'", "\\'");
+        return QByteArray("'Content-Type':'application/json','Authorization':'Bearer ")
+               + safe.toUtf8() + QByteArray("'");
+    }();
 
     /* L'HTML è spezzato in blocchi per evitare problemi con raw-string e char
        literal nel preprocessore C++ (apici singoli JS, template literal, ecc.) */

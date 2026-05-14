@@ -12,6 +12,7 @@ class QLabel;
 class QProcess;
 class QNetworkAccessManager;
 class QTcpSocket;
+class QProgressBar;
 
 /* ══════════════════════════════════════════════════════════════
    AppControllerPage — MCP bridges per applicazioni esterne
@@ -42,6 +43,7 @@ private:
     bool           m_aiActive     = false;
     int            m_activeTab    = -1;
     AiErrorWidget* m_aiErrorPanel = nullptr;
+    QProgressBar*  m_aiProgress   = nullptr;  ///< progress indeterminata durante AI
 
     /* ── Blender ── */
     QLineEdit*           m_blenderHostEdit  = nullptr;

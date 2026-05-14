@@ -15,6 +15,7 @@
 #include <QTableWidget>
 #include <QProcess>
 #include <QSpinBox>
+#include <QProgressBar>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include "../ai_client.h"
@@ -52,6 +53,7 @@ private:
     QPushButton*    m_btnRun    = nullptr;
     QComboBox*      m_cmbSub    = nullptr;  ///< Combo sotto-azione corrente
     QLabel*         m_waitLbl   = nullptr;
+    QProgressBar*   m_waitBar   = nullptr;  ///< progress indeterminata durante AI
     bool            m_active    = false;
 
     /* ── Documenti PDF (cat = 5) ── */
