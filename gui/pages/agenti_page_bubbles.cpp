@@ -4,6 +4,7 @@
 namespace P = PrismaluxPaths;
 #include <QSettings>
 #include <QTextDocument>
+#include <QDateTime>
 
 /* ══════════════════════════════════════════════════════════════
    buildUserBubble / buildAgentBubble
@@ -59,7 +60,11 @@ QString AgentiPage::buildUserBubble(const QString& text, int bubbleIdx)
           "'>"
             "<p style='color:" + c.uHdr + ";font-size:11px;font-weight:bold;"
                        "margin:0 0 5px 0;'>"
-              "\xf0\x9f\x91\xa4  Tu</p>"
+              "\xf0\x9f\x91\xa4  Tu"
+              "<span style='font-weight:normal;color:" + QString(c.uTxt) +
+                ";opacity:0.55;margin-left:8px;font-size:10px;'>"
+              + QDateTime::currentDateTime().toString("HH:mm") +
+              "</span></p>"
             "<p style='margin:0;line-height:1.6;color:" + c.uTxt + ";'>" + safe + "</p>"
             + actionBar +
           "</td>"

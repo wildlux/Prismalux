@@ -390,6 +390,12 @@ MainWindow::MainWindow(QWidget* parent)
        in "Strumenti" senza aspettare che l'utente apra Impostazioni. */
     QTimer::singleShot(0, this, [this]{ ensureSettingsDialog(); });
 
+    /* Wizard primo avvio — mostrato una sola volta */
+    QSettings ss("Prismalux", "GUI");
+    if (!ss.value(P::SK::kSetupDone, false).toBool()) {
+        QTimer::singleShot(800, this, [this]{ showOnboardingWizard(); });
+    }
+
     /* Auto-setup whisper.cpp in background (non blocca UI).
        Controlla presenza binario + modello dentro il progetto;
        se mancano avvia: git clone → cmake build → download modello. */
@@ -2134,4 +2140,111 @@ void MainWindow::onPipelineStatus(int pct, const QString& text) {
         m_statusProgress->setFormat(text);
         statusBar()->showMessage(text, 8000);
     }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   showOnboardingWizard — dialog di benvenuto al primo avvio.
+   3 step: backend, modello consigliato, tema.
+   ══════════════════════════════════════════════════════════════ */
+void MainWindow::showOnboardingWizard()
+{
+    QSettings ss("Prismalux", "GUI");
+
+    auto* dlg = new QDialog(this);
+    dlg->setWindowTitle("Benvenuto in Prismalux \xf0\x9f\x8d\xba");
+    dlg->setMinimumWidth(480);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+
+    auto* vlay = new QVBoxLayout(dlg);
+    vlay->setSpacing(14);
+
+    /* Logo + titolo */
+    auto* hdrLbl = new QLabel(
+        "<h2 style='margin:0'>\xf0\x9f\x8d\xba  Benvenuto in Prismalux</h2>"
+        "<p style='color:#6c63ff;margin:4px 0 0 0;'>"
+        "Costruito per i mortali che aspirano alla saggezza.</p>", dlg);
+    hdrLbl->setTextFormat(Qt::RichText);
+    vlay->addWidget(hdrLbl);
+
+    auto* sep = new QFrame(dlg);
+    sep->setFrameShape(QFrame::HLine);
+    sep->setFrameShadow(QFrame::Sunken);
+    vlay->addWidget(sep);
+
+    /* Step 1 — backend */
+    auto* backendGrp = new QGroupBox("1. Backend AI", dlg);
+    auto* bLay = new QVBoxLayout(backendGrp);
+    auto* backendCombo = new QComboBox(backendGrp);
+    backendCombo->addItem("\xf0\x9f\xa6\x99  Ollama (consigliato)", 0);
+    backendCombo->addItem("\xf0\x9f\xa6\x99  llama-server (avanzato)", 1);
+    const int savedBe = ss.value(P::SK::kActiveBackend, 0).toInt();
+    backendCombo->setCurrentIndex(savedBe < backendCombo->count() ? savedBe : 0);
+    auto* backendHint = new QLabel(
+        "<small style='color:#888'>Ollama: scarica ed esegui modelli con un click. "
+        "llama-server: maggior controllo su layer GPU.</small>", backendGrp);
+    backendHint->setTextFormat(Qt::RichText);
+    backendHint->setWordWrap(true);
+    bLay->addWidget(backendCombo);
+    bLay->addWidget(backendHint);
+    vlay->addWidget(backendGrp);
+
+    /* Step 2 — modello consigliato */
+    auto* modelGrp = new QGroupBox("2. Modello consigliato", dlg);
+    auto* mLay = new QVBoxLayout(modelGrp);
+    auto* modelCombo = new QComboBox(modelGrp);
+    modelCombo->addItem("qwen3:4b  \xe2\x80\x94  ~2.6 GB  (8 GB RAM, veloce)", "qwen3:4b");
+    modelCombo->addItem("qwen3:8b  \xe2\x80\x94  ~5 GB   (16 GB RAM, bilanciato)", "qwen3:8b");
+    modelCombo->addItem("qwen3:14b \xe2\x80\x94  ~9 GB   (16 GB RAM, qualit\xc3\xa0)", "qwen3:14b");
+    modelCombo->addItem("qwen3:30b \xe2\x80\x94  ~19 GB  (32 GB RAM, ottimo)", "qwen3:30b");
+    modelCombo->addItem("gemma3:4b \xe2\x80\x94  ~3 GB   (8 GB RAM, multimodale)", "gemma3:4b");
+    const QString savedModel = ss.value(P::SK::kActiveModel, "").toString();
+    int modelIdx = savedModel.isEmpty() ? 0 : modelCombo->findData(savedModel);
+    if (modelIdx < 0) modelIdx = 0;
+    modelCombo->setCurrentIndex(modelIdx);
+    auto* modelHint = new QLabel(
+        "<small style='color:#888'>Puoi cambiarlo in qualsiasi momento da "
+        "Impostazioni \xe2\x86\x92 AI Locale \xe2\x86\x92 LLM Consigliati.</small>", modelGrp);
+    modelHint->setTextFormat(Qt::RichText);
+    modelHint->setWordWrap(true);
+    mLay->addWidget(modelCombo);
+    mLay->addWidget(modelHint);
+    vlay->addWidget(modelGrp);
+
+    /* Step 3 — tema */
+    auto* themeGrp = new QGroupBox("3. Tema", dlg);
+    auto* tLay = new QVBoxLayout(themeGrp);
+    auto* themeCombo = new QComboBox(themeGrp);
+    const QStringList themes = {
+        "dark_ocean","dark_cyan","dark_purple","dark_green",
+        "light_blue","light_gray","dracula","monokai","solarized_dark"
+    };
+    for (const auto& t : themes) themeCombo->addItem(t, t);
+    const QString savedTheme = ss.value(P::SK::kTheme, P::SK::kDefaultTheme).toString();
+    int themeIdx = themeCombo->findData(savedTheme);
+    themeCombo->setCurrentIndex(themeIdx >= 0 ? themeIdx : 0);
+    tLay->addWidget(themeCombo);
+    vlay->addWidget(themeGrp);
+
+    /* Bottoni */
+    auto* btnBox = new QDialogButtonBox(QDialogButtonBox::Ok, dlg);
+    btnBox->button(QDialogButtonBox::Ok)->setText(
+        "\xf0\x9f\x8d\xba  Inizia!");
+    vlay->addWidget(btnBox);
+
+    connect(btnBox, &QDialogButtonBox::accepted, dlg, [=](){
+        QSettings s2("Prismalux", "GUI");
+        s2.setValue(P::SK::kActiveBackend, backendCombo->currentData().toInt());
+        s2.setValue(P::SK::kActiveModel,   modelCombo->currentData().toString());
+        const QString theme = themeCombo->currentData().toString();
+        s2.setValue(P::SK::kTheme, theme);
+        s2.setValue(P::SK::kSetupDone, true);
+        /* Applica tema immediatamente */
+        QMetaObject::invokeMethod(this, [this, theme]{
+            if (auto* tm = ThemeManager::instance())
+                tm->apply(theme);
+        }, Qt::QueuedConnection);
+        dlg->accept();
+    });
+
+    dlg->exec();
 }

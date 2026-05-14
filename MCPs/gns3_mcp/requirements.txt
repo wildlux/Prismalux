@@ -1,0 +1,5 @@
+# GNS3 MCP — dipendenze
+# Installazione: pip install -r requirements.txt
+
+requests>=2.31.0
+gns3fy>=0.8.0

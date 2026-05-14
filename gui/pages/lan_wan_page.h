@@ -7,6 +7,7 @@
 #include <QTextEdit>
 #include <QComboBox>
 #include <QProcess>
+#include <QProgressBar>
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
 
@@ -39,6 +40,8 @@ private:
     QObject*       m_gns3TokenHolder = nullptr;
     bool           m_gns3AiActive    = false;
     AiErrorWidget* m_gns3ErrorPanel  = nullptr;
+    QProcess*      m_gns3ExecProc    = nullptr;  ///< processo Python GNS3 in esecuzione
+    QProgressBar*  m_gns3Progress   = nullptr;
 
     QWidget* buildLanAndroidTab();
     QWidget* buildGNS3Tab();

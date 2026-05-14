@@ -26,6 +26,7 @@ namespace P = PrismaluxPaths;
 #include <QUrl>
 #include <QTimer>
 #include <QTcpSocket>
+#include <QPointer>
 #include <QDir>
 #include <QFile>
 #include <QTextStream>
@@ -1284,12 +1285,13 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
             m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + sock->errorString());
             sock->deleteLater();
         });
-        QTimer::singleShot(3000, sock, [sock, this]() {
-            if (sock->state() != QAbstractSocket::ConnectedState) {
+        QPointer<QTcpSocket> sockPtr(sock);
+        QTimer::singleShot(3000, this, [sockPtr, this]() {
+            if (sockPtr && sockPtr->state() != QAbstractSocket::ConnectedState) {
                 m_freecadStatusLbl->setText(
                     "\xe2\x9d\x8c  Timeout \xe2\x80\x94 FreeCAD non risponde");
-                sock->abort();
-                sock->deleteLater();
+                sockPtr->abort();
+                sockPtr->deleteLater();
             }
         });
     });

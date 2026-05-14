@@ -202,6 +202,9 @@ private:
     /** Apre il dialog Impostazioni (invocabile da AiErrorWidget via QMetaObject). */
     Q_INVOKABLE void openSettingsDialog();
 
+    /** Wizard di benvenuto al primo avvio. */
+    void showOnboardingWizard();
+
     /** Crea il dialog log la prima volta (lazy, non-modale). */
     void ensureLogDialog();
 

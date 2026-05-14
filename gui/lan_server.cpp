@@ -4,6 +4,7 @@
 #include <QJsonArray>
 #include <QDateTime>
 #include <QFile>
+#include <QRegularExpression>
 #include <QFileInfo>
 #include <QTextStream>
 #include "prismalux_paths.h"
@@ -145,6 +146,13 @@ void LanServer::onClientReadyRead()
     Session& s = it.value();
 
     s.buf += sock->readAll();
+
+    /* DoS guard: scarta connessioni con richieste abnormi */
+    if (s.buf.size() > 4 * 1024 * 1024) {
+        sendError(sock, 400, "Request too large");
+        sock->disconnectFromHost();
+        return;
+    }
 
     /* Parsing incrementale: prima header, poi body */
     if (!s.headersDone) {
@@ -308,7 +316,11 @@ void LanServer::handleChat(Session& s)
     if (m_ai->busy()) { sendError(s.socket, 503, "AI busy"); return; }
     if (m_streamSock) { sendError(s.socket, 503, "Stream in progress"); return; }
 
-    const QJsonObject req = QJsonDocument::fromJson(s.body).object();
+    const QJsonDocument chatDoc = QJsonDocument::fromJson(s.body);
+    if (chatDoc.isNull() || !chatDoc.isObject()) {
+        sendError(s.socket, 400, "Invalid JSON"); return;
+    }
+    const QJsonObject req = chatDoc.object();
     const QJsonArray  msgs = req["messages"].toArray();
 
     /* Se il client specifica un modello diverso, lo impostiamo prima di chattare */
@@ -368,7 +380,11 @@ void LanServer::handleGenerate(Session& s)
     if (m_ai->busy()) { sendError(s.socket, 503, "AI busy"); return; }
     if (m_streamSock) { sendError(s.socket, 503, "Stream in progress"); return; }
 
-    const QJsonObject req  = QJsonDocument::fromJson(s.body).object();
+    const QJsonDocument genDoc = QJsonDocument::fromJson(s.body);
+    if (genDoc.isNull() || !genDoc.isObject()) {
+        sendError(s.socket, 400, "Invalid JSON"); return;
+    }
+    const QJsonObject req  = genDoc.object();
     const QString model    = req["model"].toString(m_ai->model());
     const QString prompt   = req["prompt"].toString();
     const QString system   = req["system"].toString();
@@ -459,7 +475,32 @@ void LanServer::handleKnowledge(Session& s)
         sendJson(s.socket, QJsonDocument(obj).toJson(QJsonDocument::Compact));
 
     } else if (s.method == "POST") {
-        const QJsonObject req = QJsonDocument::fromJson(s.body).object();
+        /* Rate limiting: max 10 richieste/minuto per IP */
+        if (!m_knowledgeRateTimer) {
+            m_knowledgeRateTimer = new QTimer(this);
+            m_knowledgeRateTimer->setInterval(60 * 1000);
+            connect(m_knowledgeRateTimer, &QTimer::timeout, this,
+                    [this]{ m_knowledgeReqCount.clear(); });
+            m_knowledgeRateTimer->start();
+        }
+        const int reqCount = ++m_knowledgeReqCount[s.addr];
+        if (reqCount > 10) {
+            sendError(s.socket, 429, "Rate limit exceeded");
+            return;
+        }
+
+        /* Cap payload a 32 KB */
+        if (s.body.size() > 32 * 1024) {
+            sendError(s.socket, 413, "Payload too large");
+            return;
+        }
+
+        const QJsonDocument doc = QJsonDocument::fromJson(s.body);
+        if (doc.isNull() || !doc.isObject()) {
+            sendError(s.socket, 400, "Invalid JSON");
+            return;
+        }
+        const QJsonObject req = doc.object();
         const QString text    = req["content"].toString().trimmed();
         const QString mode    = req["mode"].toString("append"); /* "append" | "replace" */
 
@@ -769,7 +810,12 @@ void LanServer::sendStreamLine(const QByteArray& json)
 void LanServer::sendError(QTcpSocket* sock, int code, const QString& msg)
 {
     if (!sock) return;
-    const QByteArray body = ("{\"error\":\"" + msg + "\"}").toUtf8();
+    /* Sanitizza: rimuove caratteri che permetterebbero header injection o
+       JSON injection (backslash, virgolette, CR/LF). */
+    QString safe = msg;
+    safe.remove(QRegularExpression(R"([\r\n"\\])"));
+    safe = safe.left(200);
+    const QByteArray body = ("{\"error\":\"" + safe + "\"}").toUtf8();
     const QString status  = (code == 503) ? "503 Service Unavailable"
                           : (code == 400) ? "400 Bad Request"
                           :                 "500 Internal Server Error";

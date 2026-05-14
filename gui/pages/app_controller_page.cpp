@@ -15,6 +15,7 @@ namespace P = PrismaluxPaths;
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QTcpSocket>
+#include <QPointer>
 #include <QSharedPointer>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -947,10 +948,11 @@ QWidget* AppControllerPage::buildFreeCADTab()
             m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + sock->errorString());
             sock->deleteLater();
         });
-        QTimer::singleShot(3000, sock, [sock, this]() {
-            if (sock->state() != QAbstractSocket::ConnectedState) {
+        QPointer<QTcpSocket> sockPtr(sock);
+        QTimer::singleShot(3000, this, [sockPtr, this]() {
+            if (sockPtr && sockPtr->state() != QAbstractSocket::ConnectedState) {
                 m_freecadStatusLbl->setText("\xe2\x9d\x8c  Timeout");
-                sock->abort(); sock->deleteLater();
+                sockPtr->abort(); sockPtr->deleteLater();
             }
         });
     });
@@ -2372,10 +2374,11 @@ QWidget* AppControllerPage::buildOBSTab()
             m_obsStatusLbl->setText("\xe2\x9d\x8c  " + sock->errorString());
             sock->deleteLater();
         });
-        QTimer::singleShot(3000, sock, [sock, this]() {
-            if (sock->state() != QAbstractSocket::ConnectedState) {
+        QPointer<QTcpSocket> sockPtr2(sock);
+        QTimer::singleShot(3000, this, [sockPtr2, this]() {
+            if (sockPtr2 && sockPtr2->state() != QAbstractSocket::ConnectedState) {
                 m_obsStatusLbl->setText("\xe2\x9d\x8c  Timeout — OBS non raggiungibile");
-                sock->abort(); sock->deleteLater();
+                sockPtr2->abort(); sockPtr2->deleteLater();
             }
         });
     });

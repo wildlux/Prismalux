@@ -30,6 +30,29 @@
 ### Generale
 - [x] **Tutti i 10 tab** ✅ — testato 2026-05-14: nessun crash
 
+## Fix audit sicurezza + qualità ✅ (2026-05-14)
+
+### 🔴 CRITICAL
+- [x] **[SEC] Sanitizza `msg` in `sendError()`** — escape `[\r\n"\\]` con QRegularExpression, troncato a 200 char
+- [x] **[SEC] Limite max buffer `s.buf`** — cap 4 MB, disconnette client con 400 Bad Request
+
+### 🟠 HIGH
+- [ ] **[SEC] Token accesso LAN server** — campo password opzionale in LanWanPage (QSettings); header `Authorization: Bearer TOKEN` controllato su ogni route API
+- [x] **[SEC] Rate limiting `/knowledge`** — max 32 KB payload + max 10 req/min per IP + JSON null-check
+- [x] **[C++] QPointer guard lambda con timer** — 4 occorrenze fixate: GNS3, FreeCAD (strumenti), FreeCAD+OBS (app_controller), Cytoscape (ricerca)
+- [x] **[UX] Onboarding first-run dialog** — wizard 3 step (backend · modello · tema); attivato a 800ms dal primo avvio; chiave `setup/done` in QSettings
+
+### 🟡 MEDIUM
+- [x] **[UX] Raggruppa tab RicercaPage** — tooltip su tutti i 9 tab + ordine riorganizzato (Genera · Cerca · Scienze)
+- [x] **[UX] Spinner GNS3 exec** — progress bar 4px indeterminata, visibile durante esecuzione Python
+- [x] **[C++] JSON null-check** — `fromJson().isNull()` check su handleChat, handleGenerate, handleKnowledge
+- [x] **[C++] Guard processo GNS3** — `m_gns3ExecProc` tracciato; kill+waitForFinished prima di avviare nuovo processo
+
+### 🟢 LOW
+- [x] **[Python] requirements.txt MCPs** — creati per stable_diffusion_local, knowledge_mcp, gns3_mcp
+- [x] **[UX] Timestamp bolle chat** — orario HH:mm accanto a "Tu" in buildUserBubble; bolle AI avevano già il timestamp
+- [x] **[UX] Export chat** — già presente: "💾 Esporta" (.md/.html/.txt) + "📄" (PDF) nella toolbar chat
+
 ## Implementati in questa sessione (2026-05-14 II)
 
 - [x] **Cerca Paper/Brevetti** ✅ — Tab "🔍 Cerca Paper/Brevetti" in Ricerca; sorgenti: arXiv (Atom XML), Semantic Scholar (JSON), USPTO (JSON); "Analizza con AI" streaming; nessuna API key richiesta

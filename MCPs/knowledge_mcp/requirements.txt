@@ -1,0 +1,3 @@
+# Knowledge MCP — dipendenze
+# Solo stdlib Python, nessuna installazione necessaria
+# Compatibile con Python >= 3.10

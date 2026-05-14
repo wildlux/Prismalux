@@ -21,6 +21,7 @@
 #include <QProcess>
 #include <QTcpSocket>
 #include <QTimer>
+#include <QPointer>
 #include <QDesktopServices>
 #include <QUrl>
 #include <QFile>
@@ -605,6 +606,13 @@ QWidget* LanWanPage::buildGNS3Tab()
     btnLay->addStretch();
     lay->addWidget(btnRow);
 
+    m_gns3Progress = new QProgressBar(w);
+    m_gns3Progress->setRange(0, 0);   /* indeterminate */
+    m_gns3Progress->setFixedHeight(4);
+    m_gns3Progress->setTextVisible(false);
+    m_gns3Progress->hide();
+    lay->addWidget(m_gns3Progress);
+
     m_gns3Output = new QTextEdit(w);
     m_gns3Output->setReadOnly(true);
     m_gns3Output->setObjectName("outputView");
@@ -631,10 +639,11 @@ QWidget* LanWanPage::buildGNS3Tab()
             m_gns3StatusLbl->setText("\xe2\x9d\x8c  " + sock->errorString());
             sock->deleteLater();
         });
-        QTimer::singleShot(3000, sock, [sock, this](){
-            if (sock->state() != QAbstractSocket::ConnectedState) {
+        QPointer<QTcpSocket> sockPtr(sock);
+        QTimer::singleShot(3000, this, [sockPtr, this](){
+            if (sockPtr && sockPtr->state() != QAbstractSocket::ConnectedState) {
                 m_gns3StatusLbl->setText("\xe2\x9d\x8c  Timeout");
-                sock->abort(); sock->deleteLater();
+                sockPtr->abort(); sockPtr->deleteLater();
             }
         });
     });
@@ -642,6 +651,11 @@ QWidget* LanWanPage::buildGNS3Tab()
     /* Esegui script generato */
     connect(m_gns3ExecBtn, &QPushButton::clicked, this, [this](){
         if (m_gns3Code.isEmpty()) return;
+        /* Termina processo precedente se ancora attivo */
+        if (m_gns3ExecProc && m_gns3ExecProc->state() != QProcess::NotRunning) {
+            m_gns3ExecProc->kill();
+            m_gns3ExecProc->waitForFinished(500);
+        }
         const QString tmpPath = QDir::tempPath() + "/prismalux_gns3_script.py";
         QFile f(tmpPath);
         if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -650,21 +664,25 @@ QWidget* LanWanPage::buildGNS3Tab()
         }
         f.write(m_gns3Code.toUtf8());
         f.close();
-        auto* proc = new QProcess(this);
+        m_gns3ExecProc = new QProcess(this);
+        auto* proc = m_gns3ExecProc;
         proc->setProcessChannelMode(QProcess::MergedChannels);
         connect(proc, &QProcess::readyRead, this, [proc, this](){
             m_gns3Output->append(QString::fromUtf8(proc->readAll()).trimmed());
         });
         connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                 this, [this, proc](int code2, QProcess::ExitStatus){
+            if (m_gns3Progress) m_gns3Progress->hide();
             m_gns3StatusLbl->setText(code2 == 0
                 ? "\xe2\x9c\x85  Completato"
                 : "\xe2\x9d\x8c  Terminato con errore");
             m_gns3ExecBtn->setEnabled(true);
+            if (m_gns3ExecProc == proc) m_gns3ExecProc = nullptr;
             proc->deleteLater();
         });
         m_gns3ExecBtn->setEnabled(false);
-        m_gns3StatusLbl->setText("\xf0\x9f\x94\x84  Esecuzione...");
+        m_gns3StatusLbl->setText("\xf0\x9f\x94\x84  Esecuzione script Python...");
+        if (m_gns3Progress) m_gns3Progress->show();
         proc->start(P::findPython(), {tmpPath});
     });
 

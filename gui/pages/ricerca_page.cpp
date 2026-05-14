@@ -28,6 +28,7 @@ namespace P = PrismaluxPaths;
 #include <QProcess>
 #include <QTimer>
 #include <QTcpSocket>
+#include <QPointer>
 #include <QTextCursor>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -94,16 +95,29 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     auto* tabs = new QTabWidget(this);
     tabs->setObjectName("settingsInnerTabs");
     tabs->setDocumentMode(true);
-    tabs->addTab(buildPaperTab(),             "\xf0\x9f\x93\x84  Paper Scientifico");
+    /* ── Gruppo 1: Genera ── */
+    tabs->addTab(buildPaperTab(),             "\xf0\x9f\x93\x84  Paper");
     tabs->addTab(buildBrevettoTab(),          "\xf0\x9f\x94\x8f  Brevetto");
-    tabs->addTab(buildDocTecnicoTab(),        "\xf0\x9f\x93\x8b  Documento Tecnico");
-    tabs->addTab(buildCercaLetteraturaTab(), "\xf0\x9f\x94\x8d  Cerca Paper/Brevetti");
+    tabs->addTab(buildDocTecnicoTab(),        "\xf0\x9f\x93\x8b  Doc Tecnico");
+    /* ── Gruppo 2: Cerca ── */
+    tabs->addTab(buildCercaLetteraturaTab(),  "\xf0\x9f\x94\x8d  Cerca Paper/Brevetti");
     tabs->addTab(new LavoroPage(m_ai, this),  "\xf0\x9f\x92\xbc  Cerca Lavoro");
-    /* ── Bioinformatica ── */
-    tabs->addTab(buildCytoscapeTab(),      "\xf0\x9f\x94\xac  Cytoscape");
-    tabs->addTab(buildRDKitTab(),          "\xf0\x9f\x94\xac  RDKit");
-    tabs->addTab(buildBiocondaTab(),       "\xf0\x9f\x8c\xbf  Bioconda");
-    tabs->addTab(buildAvogadroTab(),       "\xf0\x9f\xa7\xaa  Avogadro");
+    /* ── Gruppo 3: Scienze ── */
+    tabs->addTab(buildCytoscapeTab(),         "\xf0\x9f\x94\xac  Cytoscape");
+    tabs->addTab(buildRDKitTab(),             "\xf0\x9f\xa7\xaa  RDKit");
+    tabs->addTab(buildBiocondaTab(),          "\xf0\x9f\x8c\xbf  Bioconda");
+    tabs->addTab(buildAvogadroTab(),          "\xf0\x9f\xa7\xb4  Avogadro");
+
+    /* Tooltip sui tab per scopribilità */
+    tabs->setTabToolTip(0, "Genera paper accademico con AI");
+    tabs->setTabToolTip(1, "Genera documento brevettuale PCT/EPO");
+    tabs->setTabToolTip(2, "Genera specifiche tecniche e manuali");
+    tabs->setTabToolTip(3, "Cerca su arXiv, Semantic Scholar, USPTO");
+    tabs->setTabToolTip(4, "Ricerca offerte di lavoro");
+    tabs->setTabToolTip(5, "Analisi reti biologiche e sociali");
+    tabs->setTabToolTip(6, "Chemioinformatica con RDKit");
+    tabs->setTabToolTip(7, "Pipeline bioinformatica con Bioconda");
+    tabs->setTabToolTip(8, "Modellazione molecolare 3D");
     vlay->addWidget(tabs, 1);
 
     m_sciErrorPanel = new AiErrorWidget(this);
@@ -1215,10 +1229,11 @@ QWidget* RicercaPage::buildCytoscapeTab()
             m_cytoStatusLbl->setText("\xe2\x9d\x8c  " + sock->errorString());
             sock->deleteLater();
         });
-        QTimer::singleShot(3000, sock, [sock, this](){
-            if (sock->state() != QAbstractSocket::ConnectedState) {
+        QPointer<QTcpSocket> sockPtr(sock);
+        QTimer::singleShot(3000, this, [sockPtr, this](){
+            if (sockPtr && sockPtr->state() != QAbstractSocket::ConnectedState) {
                 m_cytoStatusLbl->setText("\xe2\x9d\x8c  Timeout");
-                sock->abort(); sock->deleteLater();
+                sockPtr->abort(); sockPtr->deleteLater();
             }
         });
     });

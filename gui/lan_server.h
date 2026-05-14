@@ -4,6 +4,7 @@
 #include <QTcpSocket>
 #include <QMap>
 #include <QSet>
+#include <QTimer>
 #include "ai_client.h"
 
 class LanServer : public QObject {
@@ -75,4 +76,8 @@ private:
     /* Fetch modelli in corso */
     QTcpSocket*             m_tagsSock  = nullptr;
     QMetaObject::Connection m_modelsConn;
+
+    /* Rate limiting /knowledge: contatore req per IP (reset ogni minuto) */
+    QMap<QString, int> m_knowledgeReqCount;
+    QTimer*            m_knowledgeRateTimer = nullptr;
 };

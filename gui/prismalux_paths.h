@@ -715,6 +715,9 @@ constexpr const char* kAutoZramDoppia       = "ai/autoZramDoppia";       ///< av
 constexpr const char* kAutoOptApplied       = "ai/autoOptApplied";       ///< preset RAM automatico già applicato al primo avvio (default: false)
 constexpr const char* kAiPersonality        = "ai/personality";           ///< personalità AI: "nessuna"|"jarvis"|"kitt"|"yoda"|"snake"|"sonic"|"mario"
 
+/* ── Onboarding ─────────────────────────────────── */
+constexpr const char* kSetupDone      = "setup/done";   ///< wizard primo avvio già mostrato
+
 /* ── Sandbox Docker ──────────────────────────────── */
 constexpr const char* kSandboxEnabled = "sandbox/enabled";        ///< esegui codice AI in container Docker (default: true se Docker disponibile)
 constexpr const char* kSandboxImage   = "sandbox/image";          ///< immagine Docker da usare (default: "python:3.11-slim")
