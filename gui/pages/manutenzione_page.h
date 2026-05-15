@@ -124,4 +124,21 @@ private:
 
     friend struct CronAccess;   ///< accesso test suite a cronShouldRun/cronNextRun
     friend struct ManutAccess;  ///< accesso test suite a detectConfigFmt/convertConfig
+
+    /* ── Bug Tracker AI (connessioni salvate per disconnessione one-shot) ── */
+    QMetaObject::Connection m_bugAiTokenConn;
+    QMetaObject::Connection m_bugAiFinishedConn;
+    QMetaObject::Connection m_bugAiErrorConn;
+
+    QString currentBugModel() const;
+
+private slots:
+    void onBugModelsReady(const QStringList& list);
+    void onSearchBugClicked();
+    void onClearBugFixClicked();
+    void onBugGithubReply();  ///< usa sender() + property("bugRepo")
+    void onBugRedditReply();  ///< usa sender()
+    void onBugAiToken(const QString& tok);
+    void onBugAiFinished(const QString& full);
+    void onBugAiError(const QString& err);
 };

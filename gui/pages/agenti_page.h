@@ -324,4 +324,9 @@ private slots:
     void onNativeToolCall(const QString& name, const QJsonObject& args);
     void onSttTick();     ///< scatta ogni 1s durante registrazione: aggiorna testo pulsante
     void onSttTimeout();  ///< scatta a 6.5s: ferma registrazione e avvia trascrizione
+
+    /* ── TTS ── */
+    void onTtsProcFinished(int code, QProcess::ExitStatus status);
+    void onTtsProcError(QProcess::ProcessError err);
+    void onTtsHideWaitLbl();
 };

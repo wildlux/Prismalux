@@ -135,66 +135,15 @@ QWidget* ManutenzioneePage::buildBugTracker()
     m_namBug = new QNetworkAccessManager(w);
 
     /* Popola combo quando arrivano modelli */
-    connect(m_ai, &AiClient::modelsReady, this, [this](const QStringList& list){
-        if (!m_bugModelCombo) return;
-        const QString cur = m_bugModelCombo->currentData(Qt::UserRole).toString().isEmpty()
-                          ? m_bugModelCombo->currentText()
-                          : m_bugModelCombo->currentData(Qt::UserRole).toString();
-        m_bugModelCombo->blockSignals(true);
-        m_bugModelCombo->clear();
-        for (const auto& m : list) {
-            const qint64 sz = m_ai->modelSizeBytes(m);
-            m_bugModelCombo->addItem(P::modelIcon(sz, m) + m, m);
-        }
-        int idx = m_bugModelCombo->findData(cur);
-        if (idx < 0) idx = m_bugModelCombo->findData(m_ai->model());
-        if (idx >= 0) m_bugModelCombo->setCurrentIndex(idx);
-        m_bugModelCombo->blockSignals(false);
-    });
+    connect(m_ai, &AiClient::modelsReady, this, &ManutenzioneePage::onBugModelsReady);
 
     connect(btnRefMod, &QPushButton::clicked, m_ai, &AiClient::fetchModels);
 
-    connect(m_btnSearchBug, &QPushButton::clicked, this, [this]{
-        const QString model = (m_bugModelCombo->currentData(Qt::UserRole).toString().isEmpty()
-                              ? m_bugModelCombo->currentText()
-                              : m_bugModelCombo->currentData(Qt::UserRole).toString()).trimmed();
-        if (model.isEmpty() || model.startsWith("(")) {
-            m_bugStatusLbl->setText(
-                "\xe2\x9a\xa0  Seleziona prima un modello valido.");
-            return;
-        }
-        searchBugs(model);
-    });
+    connect(m_btnSearchBug, &QPushButton::clicked, this, &ManutenzioneePage::onSearchBugClicked);
 
-    connect(m_btnApplyFix, &QPushButton::clicked, this, [this]{
-        applyBugFix();
-    });
+    connect(m_btnApplyFix, &QPushButton::clicked, this, &ManutenzioneePage::applyBugFix);
 
-    connect(btnClearFix, &QPushButton::clicked, this, [this]{
-        const QString model = (m_bugModelCombo->currentData(Qt::UserRole).toString().isEmpty()
-                              ? m_bugModelCombo->currentText()
-                              : m_bugModelCombo->currentData(Qt::UserRole).toString()).trimmed();
-        if (model.isEmpty()) return;
-        QFile f(P::modelParamsPath());
-        if (!f.open(QIODevice::ReadOnly)) {
-            m_bugStatusLbl->setText(
-                "\xe2\x84\xb9  Nessun fix salvato per questo modello.");
-            return;
-        }
-        QJsonObject all = QJsonDocument::fromJson(f.readAll()).object();
-        f.close();
-        if (!all.contains(model)) {
-            m_bugStatusLbl->setText(
-                QString("\xe2\x84\xb9  Nessun fix salvato per <b>%1</b>.").arg(model));
-            return;
-        }
-        all.remove(model);
-        if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-            f.write(QJsonDocument(all).toJson(QJsonDocument::Indented));
-        m_bugStatusLbl->setText(
-            QString("\xf0\x9f\x97\x91  Fix rimossi per <b>%1</b>.").arg(model));
-        m_btnApplyFix->setEnabled(false);
-    });
+    connect(btnClearFix, &QPushButton::clicked, this, &ManutenzioneePage::onClearBugFixClicked);
 
     return w;
 }
@@ -245,56 +194,8 @@ void ManutenzioneePage::searchBugs(const QString& model)
         req.setRawHeader("Accept", "application/vnd.github+json");
 
         auto* reply = m_namBug->get(req);
-        connect(reply, &QNetworkReply::finished, this, [this, reply, repo]{
-            reply->deleteLater();
-            QTextCursor c(m_bugLog->document());
-            c.movePosition(QTextCursor::End);
-
-            if (reply->error() == QNetworkReply::NoError) {
-                const QJsonArray items =
-                    QJsonDocument::fromJson(reply->readAll())
-                    .object()["items"].toArray();
-
-                c.insertHtml(QString(
-                    "<hr><p><b>\xf0\x9f\x90\x99  GitHub \xe2\x80\x94 %1</b>"
-                    "  <small>(%2 issue)</small></p>")
-                    .arg(repo.toHtmlEscaped()).arg(items.size()));
-
-                const int take = qMin(4, (int)items.size());
-                for (int i = 0; i < take; ++i) {
-                    const QJsonObject iss = items[i].toObject();
-                    const QString title  = iss["title"].toString().toHtmlEscaped();
-                    const QString url    = iss["html_url"].toString();
-                    const QString state  = iss["state"].toString();
-                    const QString body   = iss["body"].toString();
-                    const QString icon   = (state == "open")
-                                          ? "\xf0\x9f\x9f\xa1" : "\xf0\x9f\x9f\xa2";
-                    const QString snip   = body.left(500).replace("\n", " ")
-                                              .replace("\r", "").toHtmlEscaped();
-
-                    c.insertHtml(QString(
-                        "<p>%1  <a href='%2'><b>%3</b></a>"
-                        " <small>[%4]</small><br>"
-                        "<small style='color:#9ca3af;'>%5</small></p>")
-                        .arg(icon).arg(url).arg(title).arg(state).arg(snip));
-
-                    m_bugSnippets << QString("[GitHub %1] %2\n%3")
-                        .arg(repo).arg(iss["title"].toString()).arg(body.left(600));
-                }
-
-                if (take == 0)
-                    c.insertHtml(
-                        "<p><small><i>\xe2\x9c\x85  Nessun issue trovato.</i></small></p>");
-            } else {
-                c.insertHtml(QString(
-                    "<p><small>\xe2\x9d\x8c  GitHub %1: %2</small></p>")
-                    .arg(repo.toHtmlEscaped())
-                    .arg(reply->errorString().toHtmlEscaped()));
-            }
-
-            m_bugSearchPending--;
-            if (m_bugSearchPending == 0) analyzeBugResults();
-        });
+        reply->setProperty("bugRepo", repo);
+        connect(reply, &QNetworkReply::finished, this, &ManutenzioneePage::onBugGithubReply);
     }
 
     /* ── Reddit r/LocalLLaMA ── */
@@ -308,52 +209,7 @@ void ManutenzioneePage::searchBugs(const QString& model)
         req.setHeader(QNetworkRequest::UserAgentHeader,
                       "Mozilla/5.0 Prismalux-BugTracker/1.0");
         auto* reply = m_namBug->get(req);
-        connect(reply, &QNetworkReply::finished, this, [this, reply]{
-            reply->deleteLater();
-            QTextCursor c(m_bugLog->document());
-            c.movePosition(QTextCursor::End);
-
-            if (reply->error() == QNetworkReply::NoError) {
-                const QJsonArray children =
-                    QJsonDocument::fromJson(reply->readAll())
-                    .object()["data"].toObject()["children"].toArray();
-
-                c.insertHtml(QString(
-                    "<hr><p><b>\xf0\x9f\x9f\xa0  Reddit r/LocalLLaMA</b>"
-                    "  <small>(%1 post)</small></p>").arg(children.size()));
-
-                const int take = qMin(4, (int)children.size());
-                for (int i = 0; i < take; ++i) {
-                    const QJsonObject post =
-                        children[i].toObject()["data"].toObject();
-                    const QString title  = post["title"].toString().toHtmlEscaped();
-                    const QString url    = "https://reddit.com"
-                                        + post["permalink"].toString();
-                    const QString selftext = post["selftext"].toString();
-                    const QString snip   = selftext.left(350).replace("\n", " ")
-                                              .replace("\r", "").toHtmlEscaped();
-
-                    c.insertHtml(QString(
-                        "<p>\xf0\x9f\x9f\xa0  <a href='%1'><b>%2</b></a><br>"
-                        "<small style='color:#9ca3af;'>%3</small></p>")
-                        .arg(url).arg(title).arg(snip));
-
-                    m_bugSnippets << QString("[Reddit] %1\n%2")
-                        .arg(post["title"].toString()).arg(selftext.left(500));
-                }
-
-                if (take == 0)
-                    c.insertHtml(
-                        "<p><small><i>\xe2\x9c\x85  Nessun post trovato.</i></small></p>");
-            } else {
-                c.insertHtml(QString(
-                    "<p><small>\xe2\x9d\x8c  Reddit: %1</small></p>")
-                    .arg(reply->errorString().toHtmlEscaped()));
-            }
-
-            m_bugSearchPending--;
-            if (m_bugSearchPending == 0) analyzeBugResults();
-        });
+        connect(reply, &QNetworkReply::finished, this, &ManutenzioneePage::onBugRedditReply);
     }
 }
 
@@ -412,32 +268,12 @@ void ManutenzioneePage::analyzeBugResults()
         .arg(m_bugCurrentModel)
         .arg(m_bugSnippets.join("\n\n---\n\n").left(5000));
 
-    /* Usa il pattern one-shot connHolder per non interferire con altri slot */
-    auto* holder = new QObject(this);
-
-    /* Mostra i token in streaming direttamente nel log */
-    connect(m_ai, &AiClient::token, holder, [this](const QString& tok){
-        QTextCursor c(m_bugLog->document());
-        c.movePosition(QTextCursor::End);
-        c.insertText(tok);
-        m_bugLog->ensureCursorVisible();
-    });
-
-    connect(m_ai, &AiClient::finished, holder, [this, holder](const QString& full){
-        holder->deleteLater();
-        parseBugFix(full);
-        m_btnSearchBug->setEnabled(true);
-    });
-
-    connect(m_ai, &AiClient::error, holder, [this, holder](const QString& err){
-        holder->deleteLater();
-        QTextCursor c(m_bugLog->document());
-        c.movePosition(QTextCursor::End);
-        c.insertHtml(QString(
-            "<p style='color:#ef4444;'>\xe2\x9d\x8c  Errore AI: %1</p>")
-            .arg(err.toHtmlEscaped()));
-        m_btnSearchBug->setEnabled(true);
-    });
+    disconnect(m_bugAiTokenConn);
+    disconnect(m_bugAiFinishedConn);
+    disconnect(m_bugAiErrorConn);
+    m_bugAiTokenConn    = connect(m_ai, &AiClient::token,    this, &ManutenzioneePage::onBugAiToken);
+    m_bugAiFinishedConn = connect(m_ai, &AiClient::finished, this, &ManutenzioneePage::onBugAiFinished);
+    m_bugAiErrorConn    = connect(m_ai, &AiClient::error,    this, &ManutenzioneePage::onBugAiError);
 
     m_ai->chat(sys, prompt);
 }
@@ -546,4 +382,179 @@ void ManutenzioneePage::applyBugFix()
         "<p style='color:#4ade80;'><b>\xe2\x9c\x85  Fix applicati e salvati.</b><br>"
         "<small>File: %1</small></p>")
         .arg(P::modelParamsPath().toHtmlEscaped()));
+}
+
+// ─── Slot Bug Tracker ──────────────────────────────────────────────────────
+
+QString ManutenzioneePage::currentBugModel() const
+{
+    if (!m_bugModelCombo) return {};
+    const QString ud = m_bugModelCombo->currentData(Qt::UserRole).toString();
+    return (ud.isEmpty() ? m_bugModelCombo->currentText() : ud).trimmed();
+}
+
+void ManutenzioneePage::onBugModelsReady(const QStringList& list)
+{
+    if (!m_bugModelCombo) return;
+    const QString cur = currentBugModel();
+    m_bugModelCombo->blockSignals(true);
+    m_bugModelCombo->clear();
+    for (const auto& m : list) {
+        const qint64 sz = m_ai->modelSizeBytes(m);
+        m_bugModelCombo->addItem(P::modelIcon(sz, m) + m, m);
+    }
+    int idx = m_bugModelCombo->findData(cur);
+    if (idx < 0) idx = m_bugModelCombo->findData(m_ai->model());
+    if (idx >= 0) m_bugModelCombo->setCurrentIndex(idx);
+    m_bugModelCombo->blockSignals(false);
+}
+
+void ManutenzioneePage::onSearchBugClicked()
+{
+    const QString model = currentBugModel();
+    if (model.isEmpty() || model.startsWith("(")) {
+        if (m_bugStatusLbl) m_bugStatusLbl->setText("\xe2\x9a\xa0  Seleziona prima un modello valido.");
+        return;
+    }
+    searchBugs(model);
+}
+
+void ManutenzioneePage::onClearBugFixClicked()
+{
+    const QString model = currentBugModel();
+    if (model.isEmpty()) return;
+    QFile f(P::modelParamsPath());
+    if (!f.open(QIODevice::ReadOnly)) {
+        if (m_bugStatusLbl) m_bugStatusLbl->setText("\xe2\x84\xb9  Nessun fix salvato per questo modello.");
+        return;
+    }
+    QJsonObject all = QJsonDocument::fromJson(f.readAll()).object();
+    f.close();
+    if (!all.contains(model)) {
+        if (m_bugStatusLbl) m_bugStatusLbl->setText(
+            QString("\xe2\x84\xb9  Nessun fix salvato per <b>%1</b>.").arg(model));
+        return;
+    }
+    all.remove(model);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        f.write(QJsonDocument(all).toJson(QJsonDocument::Indented));
+    if (m_bugStatusLbl) m_bugStatusLbl->setText(
+        QString("\xf0\x9f\x97\x91  Fix rimossi per <b>%1</b>.").arg(model));
+    if (m_btnApplyFix) m_btnApplyFix->setEnabled(false);
+}
+
+void ManutenzioneePage::onBugGithubReply()
+{
+    auto* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    const QString repo = reply->property("bugRepo").toString();
+    reply->deleteLater();
+    QTextCursor c(m_bugLog->document());
+    c.movePosition(QTextCursor::End);
+
+    if (reply->error() == QNetworkReply::NoError) {
+        const QJsonArray items =
+            QJsonDocument::fromJson(reply->readAll())
+            .object()["items"].toArray();
+
+        c.insertHtml(QString(
+            "<hr><p><b>\xf0\x9f\x90\x99  GitHub \xe2\x80\x94 %1</b>"
+            "  <small>(%2 issue)</small></p>")
+            .arg(repo.toHtmlEscaped()).arg(items.size()));
+
+        const int take = qMin(4, (int)items.size());
+        for (int i = 0; i < take; ++i) {
+            const QJsonObject iss = items[i].toObject();
+            const QString title = iss["title"].toString().toHtmlEscaped();
+            const QString url   = iss["html_url"].toString();
+            const QString state = iss["state"].toString();
+            const QString body  = iss["body"].toString();
+            const QString icon  = (state == "open") ? "\xf0\x9f\x9f\xa1" : "\xf0\x9f\x9f\xa2";
+            const QString snip  = body.left(500).replace("\n", " ").replace("\r", "").toHtmlEscaped();
+            c.insertHtml(QString(
+                "<p>%1  <a href='%2'><b>%3</b></a>"
+                " <small>[%4]</small><br>"
+                "<small style='color:#9ca3af;'>%5</small></p>")
+                .arg(icon).arg(url).arg(title).arg(state).arg(snip));
+            m_bugSnippets << QString("[GitHub %1] %2\n%3")
+                .arg(repo).arg(iss["title"].toString()).arg(body.left(600));
+        }
+        if (take == 0)
+            c.insertHtml("<p><small><i>\xe2\x9c\x85  Nessun issue trovato.</i></small></p>");
+    } else {
+        c.insertHtml(QString("<p><small>\xe2\x9d\x8c  GitHub %1: %2</small></p>")
+            .arg(repo.toHtmlEscaped()).arg(reply->errorString().toHtmlEscaped()));
+    }
+    m_bugSearchPending--;
+    if (m_bugSearchPending == 0) analyzeBugResults();
+}
+
+void ManutenzioneePage::onBugRedditReply()
+{
+    auto* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    reply->deleteLater();
+    QTextCursor c(m_bugLog->document());
+    c.movePosition(QTextCursor::End);
+
+    if (reply->error() == QNetworkReply::NoError) {
+        const QJsonArray children =
+            QJsonDocument::fromJson(reply->readAll())
+            .object()["data"].toObject()["children"].toArray();
+        c.insertHtml(QString(
+            "<hr><p><b>\xf0\x9f\x9f\xa0  Reddit r/LocalLLaMA</b>"
+            "  <small>(%1 post)</small></p>").arg(children.size()));
+        const int take = qMin(4, (int)children.size());
+        for (int i = 0; i < take; ++i) {
+            const QJsonObject post = children[i].toObject()["data"].toObject();
+            const QString title    = post["title"].toString().toHtmlEscaped();
+            const QString url      = "https://reddit.com" + post["permalink"].toString();
+            const QString selftext = post["selftext"].toString();
+            const QString snip     = selftext.left(350).replace("\n", " ").replace("\r", "").toHtmlEscaped();
+            c.insertHtml(QString(
+                "<p>\xf0\x9f\x9f\xa0  <a href='%1'><b>%2</b></a><br>"
+                "<small style='color:#9ca3af;'>%3</small></p>")
+                .arg(url).arg(title).arg(snip));
+            m_bugSnippets << QString("[Reddit] %1\n%2")
+                .arg(post["title"].toString()).arg(selftext.left(500));
+        }
+        if (take == 0)
+            c.insertHtml("<p><small><i>\xe2\x9c\x85  Nessun post trovato.</i></small></p>");
+    } else {
+        c.insertHtml(QString("<p><small>\xe2\x9d\x8c  Reddit: %1</small></p>")
+            .arg(reply->errorString().toHtmlEscaped()));
+    }
+    m_bugSearchPending--;
+    if (m_bugSearchPending == 0) analyzeBugResults();
+}
+
+void ManutenzioneePage::onBugAiToken(const QString& tok)
+{
+    if (!m_bugLog) return;
+    QTextCursor c(m_bugLog->document());
+    c.movePosition(QTextCursor::End);
+    c.insertText(tok);
+    m_bugLog->ensureCursorVisible();
+}
+
+void ManutenzioneePage::onBugAiFinished(const QString& full)
+{
+    disconnect(m_bugAiTokenConn);
+    disconnect(m_bugAiFinishedConn);
+    disconnect(m_bugAiErrorConn);
+    parseBugFix(full);
+    if (m_btnSearchBug) m_btnSearchBug->setEnabled(true);
+}
+
+void ManutenzioneePage::onBugAiError(const QString& err)
+{
+    disconnect(m_bugAiTokenConn);
+    disconnect(m_bugAiFinishedConn);
+    disconnect(m_bugAiErrorConn);
+    if (!m_bugLog) return;
+    QTextCursor c(m_bugLog->document());
+    c.movePosition(QTextCursor::End);
+    c.insertHtml(QString("<p style='color:#ef4444;'>\xe2\x9d\x8c  Errore AI: %1</p>")
+        .arg(err.toHtmlEscaped()));
+    if (m_btnSearchBug) m_btnSearchBug->setEnabled(true);
 }

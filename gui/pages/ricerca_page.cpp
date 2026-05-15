@@ -131,59 +131,13 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     vlay->addWidget(m_sciErrorPanel);
 
     /* Propaga modelli a tutti le combo science */
-    connect(m_ai, &AiClient::modelsReady, this, [this](const QStringList& models){
-        QList<QComboBox*> combos = { m_cytoModel, m_rdkitModel, m_bioModel, m_avoModel };
-        for (auto* cb : combos) {
-            if (!cb) continue;
-            const QString cur = cb->currentData().toString();
-            cb->blockSignals(true);
-            cb->clear();
-            for (const auto& m : models) {
-                const qint64 sz = m_ai->modelSizeBytes(m);
-                cb->addItem(P::modelIcon(sz, m) + m, m);
-            }
-            int idx = cb->findData(cur.isEmpty() ? m_ai->model() : cur);
-            if (idx >= 0) cb->setCurrentIndex(idx);
-            cb->blockSignals(false);
-        }
-    });
+    connect(m_ai, &AiClient::modelsReady, this, &RicercaPage::onSciModelsReady);
 
     /* ── connessioni AI (una sola volta per tutta la pagina) ──────── */
-    connect(m_ai, &AiClient::token, this, [this](const QString& t) {
-        if (m_ai->currentReqId() != m_reqId || !m_outCurrent) return;
-        QTextCursor c(m_outCurrent->document());
-        c.movePosition(QTextCursor::End);
-        c.insertText(t);
-        m_outCurrent->ensureCursorVisible();
-    });
-    connect(m_ai, &AiClient::finished, this, [this](const QString&) {
-        if (m_ai->currentReqId() != m_reqId) return;
-        if (m_outCurrent)
-            m_outCurrent->append(
-                "\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
-                "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
-                "\xe2\x94\x80\xe2\x94\x80");
-        resetButtons();
-    });
-    connect(m_ai, &AiClient::error, this, [this](const QString& err) {
-        if (m_ai->currentReqId() != m_reqId) return;
-        const QString el = err.toLower();
-        if (!el.contains("cancel"))
-            if (m_outCurrent)
-                m_outCurrent->append(
-                    "\n\xe2\x9d\x8c  Errore: " + err);
-        resetButtons();
-    });
-    connect(m_ai, &AiClient::aborted, this, [this] {
-        if (m_ai->currentReqId() != m_reqId) return;
-        if (m_outCurrent)
-            m_outCurrent->append(
-                "\n\xe2\x8f\xb9  Interrotto.\n"
-                "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
-                "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
-                "\xe2\x94\x80\xe2\x94\x80");
-        resetButtons();
-    });
+    connect(m_ai, &AiClient::token,    this, &RicercaPage::onAiToken);
+    connect(m_ai, &AiClient::finished, this, &RicercaPage::onAiFinished);
+    connect(m_ai, &AiClient::error,    this, &RicercaPage::onAiError);
+    connect(m_ai, &AiClient::aborted,  this, &RicercaPage::onAiAborted);
 }
 
 void RicercaPage::resetButtons()
@@ -211,7 +165,7 @@ void RicercaPage::avvia(const QString& sys, const QString& msg,
     btnGen->setEnabled(false);
     btnStop->setEnabled(true);
     if (m_sciProgress) m_sciProgress->setVisible(true);
-    m_reqId = m_ai->chat(sys, msg);
+    m_ai->chat(sys, msg);
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -669,7 +623,7 @@ void RicercaPage::avviaSci(const QString& sys, const QString& userMsg,
             m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
     }
 
-    m_sciAiActive = true;
+
     runBtn->setEnabled(false);
     if (m_sciProgress) m_sciProgress->setVisible(true);
     stopBtn->setEnabled(true);
@@ -687,7 +641,7 @@ void RicercaPage::avviaSci(const QString& sys, const QString& userMsg,
 
     connect(m_ai, &AiClient::finished, m_sciTokenHolder,
             [this, out, runBtn, stopBtn, execBtn, codeRef, statusLbl](const QString& full) {
-        m_sciAiActive = false;
+
         runBtn->setEnabled(true);
         stopBtn->setEnabled(false);
         if (m_sciProgress) m_sciProgress->setVisible(false);
@@ -717,7 +671,7 @@ void RicercaPage::avviaSci(const QString& sys, const QString& userMsg,
     connect(m_ai, &AiClient::error, m_sciTokenHolder,
             [this, out, runBtn, stopBtn, sys, userMsg, modelCombo, execBtn, codeRef, statusLbl]
             (const QString& msg) {
-        m_sciAiActive = false;
+
         runBtn->setEnabled(true);
         stopBtn->setEnabled(false);
         if (m_sciProgress) m_sciProgress->setVisible(false);
@@ -771,11 +725,6 @@ static const char* kCytoActionsR[] = {
 };
 
 static const char* kRDKitSysR[] = {
-    "Sei un esperto di chemioinformatica e RDKit (Python). "
-    "Genera SOLO codice Python che usa rdkit: "
-    "from rdkit import Chem; from rdkit.Chem import AllChem, Descriptors, Draw. "
-    "Rispondi SOLO con il blocco codice Python tra ``` e ```.",
-
     "Sei un esperto di RDKit. "
     "Genera SOLO codice Python RDKit per analizzare una molecola SMILES: "
     "peso molecolare, formula, anelli, stereocentri, descrittori chimici. "
@@ -846,7 +795,7 @@ static void runSciScript(const QString& code, bool isBash,
 {
     if (code.isEmpty()) return;
     const QString suffix  = isBash ? ".sh" : ".py";
-    const QString tmpPath = QDir::tempPath() + "/prismalux_bio_script" + suffix;
+    const QString tmpPath = P::safeTempPath() + "/prismalux_bio_script" + suffix;
     QFile f(tmpPath);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
         statusLbl->setText("\xe2\x9d\x8c  Impossibile creare script temporaneo");
@@ -944,193 +893,14 @@ QWidget* RicercaPage::buildCercaLetteraturaTab()
     m_litNet = new QNetworkAccessManager(this);
 
     /* ── ricerca ── */
-    connect(m_litSearchBtn, &QPushButton::clicked, this, [this](){
-        const QString q = m_litQuery->text().trimmed();
-        if (q.isEmpty()) {
-            m_litStatus->setText("\xe2\x9a\xa0  Inserisci una query.");
-            return;
-        }
-        m_litResults->clear();
-        m_litAiBtn->setEnabled(false);
-        m_litSearchBtn->setEnabled(false);
-        const QString src = m_litSource->currentData().toString();
-        m_litStatus->setText("\xf0\x9f\x94\x84  Ricerca in corso...");
-
-        QUrl url;
-        if (src == "arxiv") {
-            url = QUrl("https://export.arxiv.org/api/query?search_query=all:"
-                       + QUrl::toPercentEncoding(q) + "&max_results=8&sortBy=relevance");
-        } else if (src == "semantic") {
-            url = QUrl("https://api.semanticscholar.org/graph/v1/paper/search"
-                       "?query=" + QUrl::toPercentEncoding(q) +
-                       "&limit=8&fields=title,authors,year,abstract,externalIds,url");
-        } else { /* uspto */
-            url = QUrl("https://developer.uspto.gov/ibd-api/v1/patent/publications"
-                       "?searchText=" + QUrl::toPercentEncoding(q) +
-                       "&start=0&rows=8&output=application%2Fjson");
-        }
-
-        QNetworkRequest req(url);
-        req.setRawHeader("User-Agent", "Prismalux/1.0 (Qt6; research)");
-        req.setTransferTimeout(15000);  /* abort dopo 15s */
-        auto* reply = m_litNet->get(req);
-
-        connect(reply, &QNetworkReply::finished, this, [this, reply, src](){
-            reply->deleteLater();
-            m_litSearchBtn->setEnabled(true);
-            if (reply->error() != QNetworkReply::NoError) {
-                const bool isTimeout =
-                    (reply->error() == QNetworkReply::OperationCanceledError);
-                m_litStatus->setText(
-                    isTimeout
-                    ? "\xe2\x8f\xb1  Timeout (15s) \xe2\x80\x94 premi Cerca per ritentare"
-                    : "\xe2\x9d\x8c  Errore: " + reply->errorString()
-                      + " \xe2\x80\x94 premi Cerca per ritentare");
-                return;
-            }
-            const QByteArray data = reply->readAll();
-            QString out;
-
-            if (src == "arxiv") {
-                /* Parsiamo XML Atom minimale con regex */
-                QString xml = QString::fromUtf8(data);
-                QRegularExpression reEntry(
-                    "<entry>(.*?)</entry>",
-                    QRegularExpression::DotMatchesEverythingOption);
-                QRegularExpression reTag("<(\\w+)[^>]*>(.*?)</\\1>",
-                    QRegularExpression::DotMatchesEverythingOption);
-                auto entries = reEntry.globalMatch(xml);
-                int n = 0;
-                while (entries.hasNext()) {
-                    auto em = entries.next();
-                    QString e = em.captured(1);
-                    auto title   = QRegularExpression("<title>(.*?)</title>",
-                        QRegularExpression::DotMatchesEverythingOption)
-                        .match(e).captured(1).trimmed();
-                    auto summary = QRegularExpression("<summary>(.*?)</summary>",
-                        QRegularExpression::DotMatchesEverythingOption)
-                        .match(e).captured(1).trimmed().left(300);
-                    auto id      = QRegularExpression("<id>(.*?)</id>",
-                        QRegularExpression::DotMatchesEverythingOption)
-                        .match(e).captured(1).trimmed();
-                    if (title.isEmpty()) continue;
-                    out += QString("─── %1. %2\n").arg(++n).arg(title);
-                    out += QString("    %1\n").arg(summary);
-                    out += QString("    \xf0\x9f\x94\x97 %1\n\n").arg(id);
-                }
-                if (out.isEmpty()) out = "Nessun risultato trovato.";
-                m_litStatus->setText(
-                    QString("\xe2\x9c\x85  %1 risultati da arXiv").arg(n));
-
-            } else if (src == "semantic") {
-                QJsonDocument doc = QJsonDocument::fromJson(data);
-                QJsonArray papers = doc.object().value("data").toArray();
-                int n = 0;
-                for (const auto& pv : papers) {
-                    auto p = pv.toObject();
-                    QString title = p.value("title").toString();
-                    int year      = p.value("year").toInt();
-                    QString abstr = p.value("abstract").toString().left(280);
-                    QString url   = p.value("url").toString();
-                    QJsonArray authors = p.value("authors").toArray();
-                    QStringList auList;
-                    for (const auto& a : authors)
-                        auList << a.toObject().value("name").toString();
-                    out += QString("─── %1. %2 (%3)\n")
-                           .arg(++n).arg(title).arg(year);
-                    if (!auList.isEmpty())
-                        out += "    \xf0\x9f\x91\xa4 " + auList.join(", ") + "\n";
-                    if (!abstr.isEmpty())
-                        out += "    " + abstr + "\n";
-                    if (!url.isEmpty())
-                        out += "    \xf0\x9f\x94\x97 " + url + "\n";
-                    out += "\n";
-                }
-                if (out.isEmpty()) out = "Nessun risultato trovato.";
-                m_litStatus->setText(
-                    QString("\xe2\x9c\x85  %1 risultati da Semantic Scholar").arg(n));
-
-            } else { /* uspto */
-                QJsonDocument doc = QJsonDocument::fromJson(data);
-                QJsonArray pubs = doc.object()
-                    .value("results").toObject()
-                    .value("hits").toArray();
-                if (pubs.isEmpty())
-                    pubs = doc.object().value("patents").toArray();
-                int n = 0;
-                for (const auto& pv : pubs) {
-                    auto p = pv.toObject();
-                    QString title = p.value("inventionTitle").toString();
-                    if (title.isEmpty()) title = p.value("patentTitle").toString();
-                    QString appNum = p.value("applicationNumberText").toString();
-                    QString date   = p.value("filingDate").toString();
-                    QString abstr  = p.value("abstractText").toString().left(280);
-                    out += QString("─── %1. %2\n").arg(++n).arg(title);
-                    if (!appNum.isEmpty()) out += "    N\xc2\xb0 " + appNum + "\n";
-                    if (!date.isEmpty())   out += "    \xf0\x9f\x93\x85 " + date + "\n";
-                    if (!abstr.isEmpty())  out += "    " + abstr + "\n";
-                    out += "\n";
-                }
-                if (out.isEmpty()) {
-                    out = "Nessun risultato trovato (USPTO). "
-                          "Prova arXiv o Semantic Scholar.";
-                }
-                m_litStatus->setText(
-                    QString("\xe2\x9c\x85  %1 risultati da USPTO").arg(n));
-            }
-
-            m_litResults->setPlainText(out);
-            m_litAiBtn->setEnabled(!out.isEmpty() &&
-                out != "Nessun risultato trovato.");
-        });
-    });
+    connect(m_litSearchBtn, &QPushButton::clicked, this, &RicercaPage::onLitSearchClicked);
 
     /* Enter nella query = cerca */
     connect(m_litQuery, &QLineEdit::returnPressed,
             m_litSearchBtn, &QPushButton::click);
 
     /* ── Analizza con AI ── */
-    connect(m_litAiBtn, &QPushButton::clicked, this, [this](){
-        const QString ctx = m_litResults->toPlainText().trimmed();
-        if (ctx.isEmpty()) return;
-        const QString q   = m_litQuery->text().trimmed();
-        m_litAiBtn->setEnabled(false);
-        m_litStatus->setText("\xf0\x9f\xa4\x96  Analisi AI...");
-        m_litResults->append("\n" + QString(50, QChar(0x2500)) + "\n");
-
-        const QString sys =
-            "Sei un ricercatore scientifico. Analizza i seguenti risultati di ricerca "
-            "e fornisci: 1) i paper/brevetti pi\xc3\xb9 rilevanti, 2) trend emergenti, "
-            "3) gap nella letteratura, 4) suggerimenti per ricerche future. "
-            "Sii conciso e preciso.";
-        const QString msg =
-            "Query: " + q + "\n\nRisultati:\n" + ctx.left(6000);
-
-        delete m_sciTokenHolder;
-        m_sciTokenHolder = new QObject(this);
-        connect(m_ai, &AiClient::token, m_sciTokenHolder,
-                [this](const QString& t){
-            QTextCursor c = m_litResults->textCursor();
-            c.movePosition(QTextCursor::End);
-            m_litResults->setTextCursor(c);
-            m_litResults->insertPlainText(t);
-        });
-        connect(m_ai, &AiClient::finished, m_sciTokenHolder,
-                [this](const QString&){
-            m_litAiBtn->setEnabled(true);
-            m_litStatus->setText("\xe2\x9c\x85  Analisi completata");
-            m_sciTokenHolder->deleteLater();
-            m_sciTokenHolder = nullptr;
-        });
-        connect(m_ai, &AiClient::error, m_sciTokenHolder,
-                [this](const QString& e){
-            m_litAiBtn->setEnabled(true);
-            m_litStatus->setText("\xe2\x9d\x8c  " + e);
-            m_sciTokenHolder->deleteLater();
-            m_sciTokenHolder = nullptr;
-        });
-        m_ai->chat(sys, msg);
-    });
+    connect(m_litAiBtn, &QPushButton::clicked, this, &RicercaPage::onLitAiClicked);
 
     return w;
 }
@@ -1231,49 +1001,11 @@ QWidget* RicercaPage::buildCytoscapeTab()
     m_cytoOutput->setPlaceholderText("Script Python CyREST appare qui...");
     lay->addWidget(m_cytoOutput, 1);
 
-    connect(pingBtn, &QPushButton::clicked, this, [this](){
-        const QString addr = m_cytoHostEdit->text().trimmed();
-        const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
-        const int port = addr.contains(':') ? addr.section(':', 1).toInt() : 1234;
-        m_cytoStatusLbl->setText("\xf0\x9f\x94\x84  Connessione...");
-        auto* sock = new QTcpSocket(this);
-        sock->connectToHost(host, static_cast<quint16>(port));
-        connect(sock, &QTcpSocket::connected, this, [this, sock](){
-            sock->disconnectFromHost(); sock->deleteLater();
-            m_cytoStatusLbl->setText("\xe2\x9c\x85  Server raggiungibile");
-            m_cytoExecBtn->setEnabled(!m_cytoCode.isEmpty());
-        });
-        connect(sock, &QAbstractSocket::errorOccurred, this, [this, sock](QAbstractSocket::SocketError){
-            m_cytoStatusLbl->setText("\xe2\x9d\x8c  " + sock->errorString());
-            sock->deleteLater();
-        });
-        QPointer<QTcpSocket> sockPtr(sock);
-        QTimer::singleShot(3000, this, [sockPtr, this](){
-            if (sockPtr && sockPtr->state() != QAbstractSocket::ConnectedState) {
-                m_cytoStatusLbl->setText("\xe2\x9d\x8c  Timeout");
-                sockPtr->abort(); sockPtr->deleteLater();
-            }
-        });
-    });
+    connect(pingBtn, &QPushButton::clicked, this, &RicercaPage::onCytoPingClicked);
 
-    static QProcess* cytoProc = nullptr;
-    connect(m_cytoExecBtn, &QPushButton::clicked, this, [this](){
-        runSciScript(m_cytoCode, false,
-                     m_cytoStatusLbl, m_cytoExecBtn, m_cytoOutput, cytoProc, this);
-    });
-    connect(m_cytoRunBtn, &QPushButton::clicked, this, [this](){
-        const int idx = m_cytoAction->currentIndex();
-        if (idx < 0 || !kCytoSysR[idx]) return;
-        avviaSci(QString::fromUtf8(kCytoSysR[idx]),
-                 m_cytoInput->toPlainText(),
-                 m_cytoOutput, m_cytoRunBtn, m_cytoStopBtn,
-                 m_cytoModel, m_cytoExecBtn, &m_cytoCode, m_cytoStatusLbl);
-    });
-    connect(m_cytoStopBtn, &QPushButton::clicked, this, [this](){
-        m_ai->abort();
-        m_cytoRunBtn->setEnabled(true);
-        m_cytoStopBtn->setEnabled(false);
-    });
+    connect(m_cytoExecBtn, &QPushButton::clicked, this, &RicercaPage::onCytoExecClicked);
+    connect(m_cytoRunBtn, &QPushButton::clicked, this, &RicercaPage::onCytoRunClicked);
+    connect(m_cytoStopBtn, &QPushButton::clicked, this, &RicercaPage::onCytoStopClicked);
 
     return w;
 }
@@ -1366,36 +1098,11 @@ QWidget* RicercaPage::buildRDKitTab()
     m_rdkitOutput->setPlaceholderText("Script Python RDKit appare qui...");
     lay->addWidget(m_rdkitOutput, 1);
 
-    connect(checkBtn, &QPushButton::clicked, this, [this](){
-        auto* proc = new QProcess(this);
-        proc->start(P::findPython(), {"-c", "import rdkit; print('rdkit', rdkit.__version__)"});
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, proc](int code, QProcess::ExitStatus){
-            const QString out = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
-            m_rdkitStatusLbl->setText(code == 0
-                ? "\xe2\x9c\x85  " + out
-                : "\xe2\x9d\x8c  rdkit non trovato \xe2\x80\x94 pip install rdkit");
-            proc->deleteLater();
-        });
-    });
+    connect(checkBtn, &QPushButton::clicked, this, &RicercaPage::onRdkitCheckClicked);
 
-    connect(m_rdkitExecBtn, &QPushButton::clicked, this, [this](){
-        runSciScript(m_rdkitCode, false,
-                     m_rdkitStatusLbl, m_rdkitExecBtn, m_rdkitOutput, m_rdkitProc, this);
-    });
-    connect(m_rdkitRunBtn, &QPushButton::clicked, this, [this](){
-        const int idx = m_rdkitAction->currentIndex();
-        if (idx < 0 || !kRDKitSysR[idx]) return;
-        avviaSci(QString::fromUtf8(kRDKitSysR[idx]),
-                 m_rdkitInput->toPlainText(),
-                 m_rdkitOutput, m_rdkitRunBtn, m_rdkitStopBtn,
-                 m_rdkitModel, m_rdkitExecBtn, &m_rdkitCode, m_rdkitStatusLbl);
-    });
-    connect(m_rdkitStopBtn, &QPushButton::clicked, this, [this](){
-        m_ai->abort();
-        m_rdkitRunBtn->setEnabled(true);
-        m_rdkitStopBtn->setEnabled(false);
-    });
+    connect(m_rdkitExecBtn, &QPushButton::clicked, this, &RicercaPage::onRdkitExecClicked);
+    connect(m_rdkitRunBtn, &QPushButton::clicked, this, &RicercaPage::onRdkitRunClicked);
+    connect(m_rdkitStopBtn, &QPushButton::clicked, this, &RicercaPage::onRdkitStopClicked);
 
     return w;
 }
@@ -1490,42 +1197,11 @@ QWidget* RicercaPage::buildBiocondaTab()
     m_bioOutput->setPlaceholderText("Script Bash/Python bioinformatica appare qui...");
     lay->addWidget(m_bioOutput, 1);
 
-    connect(checkBtn, &QPushButton::clicked, this, [this](){
-        auto* proc = new QProcess(this);
-        proc->start("conda", {"--version"});
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, proc](int code, QProcess::ExitStatus){
-            const QString out = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
-            m_bioStatusLbl->setText(code == 0
-                ? "\xe2\x9c\x85  " + out + " disponibile"
-                : "\xe2\x9d\x8c  conda non trovato \xe2\x80\x94 installa Miniforge");
-            proc->deleteLater();
-        });
-    });
+    connect(checkBtn, &QPushButton::clicked, this, &RicercaPage::onBioCheckClicked);
 
-    connect(m_bioExecBtn, &QPushButton::clicked, this, [this](){
-        const bool isBash = m_bioCode.startsWith("#!")
-                         || m_bioCode.contains("#!/bin/bash")
-                         || m_bioCode.contains("bwa ")
-                         || m_bioCode.contains("samtools ")
-                         || m_bioCode.contains("gatk ")
-                         || m_bioCode.contains("blast");
-        runSciScript(m_bioCode, isBash,
-                     m_bioStatusLbl, m_bioExecBtn, m_bioOutput, m_bioProc, this);
-    });
-    connect(m_bioRunBtn, &QPushButton::clicked, this, [this](){
-        const int idx = m_bioAction->currentIndex();
-        if (idx < 0 || !kBioSysR[idx]) return;
-        avviaSci(QString::fromUtf8(kBioSysR[idx]),
-                 m_bioInput->toPlainText(),
-                 m_bioOutput, m_bioRunBtn, m_bioStopBtn,
-                 m_bioModel, m_bioExecBtn, &m_bioCode, m_bioStatusLbl);
-    });
-    connect(m_bioStopBtn, &QPushButton::clicked, this, [this](){
-        m_ai->abort();
-        m_bioRunBtn->setEnabled(true);
-        m_bioStopBtn->setEnabled(false);
-    });
+    connect(m_bioExecBtn, &QPushButton::clicked, this, &RicercaPage::onBioExecClicked);
+    connect(m_bioRunBtn, &QPushButton::clicked, this, &RicercaPage::onBioRunClicked);
+    connect(m_bioStopBtn, &QPushButton::clicked, this, &RicercaPage::onBioStopClicked);
 
     return w;
 }
@@ -1653,37 +1329,467 @@ QWidget* RicercaPage::buildAvogadroTab()
     m_avoOutput->setPlaceholderText("Script Python Avogadro appare qui...");
     lay->addWidget(m_avoOutput, 1);
 
-    connect(checkBtn, &QPushButton::clicked, this, [this](){
-        auto* proc = new QProcess(this);
-        proc->start(P::findPython(),
-            {"-c", "import avogadro; print('avogadro OK')"});
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, proc](int code, QProcess::ExitStatus){
-            m_avoStatusLbl->setText(code == 0
-                ? "\xe2\x9c\x85  avogadro disponibile"
-                : "\xe2\x9d\x8c  avogadro non trovato \xe2\x80\x94 pip install avogadro");
-            proc->deleteLater();
-        });
-    });
+    connect(checkBtn, &QPushButton::clicked, this, &RicercaPage::onAvoCheckClicked);
 
-    connect(m_avoExecBtn, &QPushButton::clicked, this, [this](){
-        runSciScript(m_avoCode, false,
-                     m_avoStatusLbl, m_avoExecBtn, m_avoOutput, m_avoProc, this);
-    });
+    connect(m_avoExecBtn, &QPushButton::clicked, this, &RicercaPage::onAvoExecClicked);
 
-    connect(m_avoRunBtn, &QPushButton::clicked, this, [this](){
-        const int idx = m_avoAction->currentIndex();
-        if (idx < 0 || !kAvoSysR[idx]) return;
-        avviaSci(QString::fromUtf8(kAvoSysR[idx]),
-                 m_avoInput->toPlainText(),
-                 m_avoOutput, m_avoRunBtn, m_avoStopBtn,
-                 m_avoModel, m_avoExecBtn, &m_avoCode, m_avoStatusLbl);
-    });
-    connect(m_avoStopBtn, &QPushButton::clicked, this, [this](){
-        m_ai->abort();
-        m_avoRunBtn->setEnabled(true);
-        m_avoStopBtn->setEnabled(false);
-    });
+    connect(m_avoRunBtn, &QPushButton::clicked, this, &RicercaPage::onAvoRunClicked);
+    connect(m_avoStopBtn, &QPushButton::clicked, this, &RicercaPage::onAvoStopClicked);
 
     return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — AI globali (Paper / Brevetto / DocTecnico via avvia())
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::onSciModelsReady(const QStringList& models)
+{
+    for (auto* combo : {m_cytoModel, m_rdkitModel, m_bioModel, m_avoModel}) {
+        if (!combo) continue;
+        const QString cur = combo->currentData().toString();
+        combo->clear();
+        for (const QString& m : models)
+            combo->addItem(m, m);
+        const int idx = combo->findData(cur);
+        combo->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+}
+
+void RicercaPage::onAiToken(const QString& t)
+{
+    if (!m_outCurrent) return;
+    m_outCurrent->moveCursor(QTextCursor::End);
+    m_outCurrent->insertPlainText(t);
+}
+
+void RicercaPage::onAiFinished(const QString&)
+{
+    if (!m_outCurrent) return;
+    resetButtons();
+}
+
+void RicercaPage::onAiError(const QString& err)
+{
+    if (!m_outCurrent) return;
+    m_outCurrent->append("\n\xe2\x9d\x8c  Errore: " + err);
+    resetButtons();
+}
+
+void RicercaPage::onAiAborted()
+{
+    resetButtons();
+    if (m_litAiTokenConn)    { disconnect(m_litAiTokenConn);    m_litAiTokenConn    = {}; }
+    if (m_litAiFinishedConn) { disconnect(m_litAiFinishedConn); m_litAiFinishedConn = {}; }
+    if (m_litAiErrorConn)    { disconnect(m_litAiErrorConn);    m_litAiErrorConn    = {}; }
+    if (m_litAiBtn) m_litAiBtn->setEnabled(true);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — Cerca Letteratura
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::onLitSearchClicked()
+{
+    const QString q = m_litQuery->text().trimmed();
+    if (q.isEmpty()) {
+        m_litStatus->setText("\xe2\x9a\xa0  Inserisci una query.");
+        return;
+    }
+    m_litResults->clear();
+    m_litAiBtn->setEnabled(false);
+    m_litSearchBtn->setEnabled(false);
+    const QString src = m_litSource->currentData().toString();
+    m_litStatus->setText("\xf0\x9f\x94\x84  Ricerca in corso...");
+
+    QUrl url;
+    if (src == "arxiv") {
+        url = QUrl("https://export.arxiv.org/api/query?search_query=all:"
+                   + QUrl::toPercentEncoding(q) + "&max_results=8&sortBy=relevance");
+    } else if (src == "semantic") {
+        url = QUrl(QString("https://api.semanticscholar.org/graph/v1/paper/search"
+                   "?query=") + QUrl::toPercentEncoding(q) +
+                   "&limit=8&fields=title,authors,year,abstract,externalIds,url");
+    } else {
+        url = QUrl("https://developer.uspto.gov/ibd-api/v1/patent/publications"
+                   "?searchText=" + QUrl::toPercentEncoding(q) +
+                   "&start=0&rows=8&output=application%2Fjson");
+    }
+
+    QNetworkRequest req(url);
+    req.setRawHeader("User-Agent", "Prismalux/1.0 (Qt6; research)");
+    req.setTransferTimeout(15000);
+    auto* reply = m_litNet->get(req);
+    reply->setProperty("litSrc", src);
+    connect(reply, &QNetworkReply::finished, this, &RicercaPage::onLitReplyFinished);
+}
+
+void RicercaPage::onLitReplyFinished()
+{
+    auto* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    reply->deleteLater();
+    m_litSearchBtn->setEnabled(true);
+
+    if (reply->error() != QNetworkReply::NoError) {
+        const bool isTimeout =
+            (reply->error() == QNetworkReply::OperationCanceledError);
+        m_litStatus->setText(
+            isTimeout
+            ? "\xe2\x8f\xb1  Timeout (15s) \xe2\x80\x94 premi Cerca per ritentare"
+            : "\xe2\x9d\x8c  Errore: " + reply->errorString()
+              + " \xe2\x80\x94 premi Cerca per ritentare");
+        return;
+    }
+    const QByteArray data = reply->readAll();
+    const QString src = reply->property("litSrc").toString();
+    QString out;
+
+    if (src == "arxiv") {
+        QString xml = QString::fromUtf8(data);
+        QRegularExpression reEntry("<entry>(.*?)</entry>",
+            QRegularExpression::DotMatchesEverythingOption);
+        auto entries = reEntry.globalMatch(xml);
+        int n = 0;
+        while (entries.hasNext()) {
+            auto em = entries.next();
+            QString e = em.captured(1);
+            auto title   = QRegularExpression("<title>(.*?)</title>",
+                QRegularExpression::DotMatchesEverythingOption)
+                .match(e).captured(1).trimmed();
+            auto summary = QRegularExpression("<summary>(.*?)</summary>",
+                QRegularExpression::DotMatchesEverythingOption)
+                .match(e).captured(1).trimmed().left(300);
+            auto id      = QRegularExpression("<id>(.*?)</id>",
+                QRegularExpression::DotMatchesEverythingOption)
+                .match(e).captured(1).trimmed();
+            if (title.isEmpty()) continue;
+            out += QString("\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80 %1. %2\n").arg(++n).arg(title);
+            out += QString("    %1\n").arg(summary);
+            out += QString("    \xf0\x9f\x94\x97 %1\n\n").arg(id);
+        }
+        if (out.isEmpty()) out = "Nessun risultato trovato.";
+        m_litStatus->setText(QString("\xe2\x9c\x85  %1 risultati da arXiv").arg(n));
+
+    } else if (src == "semantic") {
+        QJsonDocument doc = QJsonDocument::fromJson(data);
+        QJsonArray papers = doc.object().value("data").toArray();
+        int n = 0;
+        for (const auto& pv : papers) {
+            auto p = pv.toObject();
+            QString title = p.value("title").toString();
+            int year      = p.value("year").toInt();
+            QString abstr = p.value("abstract").toString().left(280);
+            QString url   = p.value("url").toString();
+            QJsonArray authors = p.value("authors").toArray();
+            QStringList auList;
+            for (const auto& a : authors)
+                auList << a.toObject().value("name").toString();
+            out += QString("\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80 %1. %2 (%3)\n")
+                   .arg(++n).arg(title).arg(year);
+            if (!auList.isEmpty())
+                out += "    \xf0\x9f\x91\xa4 " + auList.join(", ") + "\n";
+            if (!abstr.isEmpty())
+                out += "    " + abstr + "\n";
+            if (!url.isEmpty())
+                out += "    \xf0\x9f\x94\x97 " + url + "\n";
+            out += "\n";
+        }
+        if (out.isEmpty()) out = "Nessun risultato trovato.";
+        m_litStatus->setText(
+            QString("\xe2\x9c\x85  %1 risultati da Semantic Scholar").arg(n));
+
+    } else {
+        QJsonDocument doc = QJsonDocument::fromJson(data);
+        QJsonArray pubs = doc.object()
+            .value("results").toObject()
+            .value("hits").toArray();
+        if (pubs.isEmpty())
+            pubs = doc.object().value("patents").toArray();
+        int n = 0;
+        for (const auto& pv : pubs) {
+            auto p = pv.toObject();
+            QString title = p.value("inventionTitle").toString();
+            if (title.isEmpty()) title = p.value("patentTitle").toString();
+            QString appNum = p.value("applicationNumberText").toString();
+            QString date   = p.value("filingDate").toString();
+            QString abstr  = p.value("abstractText").toString().left(280);
+            out += QString("\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80 %1. %2\n").arg(++n).arg(title);
+            if (!appNum.isEmpty()) out += "    N\xc2\xb0 " + appNum + "\n";
+            if (!date.isEmpty())   out += "    \xf0\x9f\x93\x85 " + date + "\n";
+            if (!abstr.isEmpty())  out += "    " + abstr + "\n";
+            out += "\n";
+        }
+        if (out.isEmpty()) {
+            out = "Nessun risultato trovato (USPTO). "
+                  "Prova arXiv o Semantic Scholar.";
+        }
+        m_litStatus->setText(
+            QString("\xe2\x9c\x85  %1 risultati da USPTO").arg(n));
+    }
+
+    m_litResults->setPlainText(out);
+    m_litAiBtn->setEnabled(!out.isEmpty() &&
+        out != "Nessun risultato trovato.");
+}
+
+void RicercaPage::onLitAiClicked()
+{
+    const QString ctx = m_litResults->toPlainText().trimmed();
+    if (ctx.isEmpty()) return;
+    const QString q = m_litQuery->text().trimmed();
+    m_litAiBtn->setEnabled(false);
+    m_litStatus->setText("\xf0\x9f\xa4\x96  Analisi AI...");
+    m_litResults->append("\n" + QString(50, QChar(0x2500)) + "\n");
+
+    const QString sys =
+        "Sei un ricercatore scientifico. Analizza i seguenti risultati di ricerca "
+        "e fornisci: 1) i paper/brevetti pi\xc3\xb9 rilevanti, 2) trend emergenti, "
+        "3) gap nella letteratura, 4) suggerimenti per ricerche future. "
+        "Sii conciso e preciso.";
+    const QString msg = "Query: " + q + "\n\nRisultati:\n" + ctx.left(6000);
+
+    if (m_litAiTokenConn)    disconnect(m_litAiTokenConn);
+    if (m_litAiFinishedConn) disconnect(m_litAiFinishedConn);
+    if (m_litAiErrorConn)    disconnect(m_litAiErrorConn);
+
+    m_litAiTokenConn    = connect(m_ai, &AiClient::token,    this, &RicercaPage::onLitAiToken);
+    m_litAiFinishedConn = connect(m_ai, &AiClient::finished, this, &RicercaPage::onLitAiFinished);
+    m_litAiErrorConn    = connect(m_ai, &AiClient::error,    this, &RicercaPage::onLitAiError);
+    m_ai->chat(sys, msg);
+}
+
+void RicercaPage::onLitAiToken(const QString& t)
+{
+    QTextCursor c = m_litResults->textCursor();
+    c.movePosition(QTextCursor::End);
+    m_litResults->setTextCursor(c);
+    m_litResults->insertPlainText(t);
+}
+
+void RicercaPage::onLitAiFinished(const QString&)
+{
+    disconnect(m_litAiTokenConn);    m_litAiTokenConn    = {};
+    disconnect(m_litAiFinishedConn); m_litAiFinishedConn = {};
+    disconnect(m_litAiErrorConn);    m_litAiErrorConn    = {};
+    m_litAiBtn->setEnabled(true);
+    m_litStatus->setText("\xe2\x9c\x85  Analisi completata");
+}
+
+void RicercaPage::onLitAiError(const QString& e)
+{
+    disconnect(m_litAiTokenConn);    m_litAiTokenConn    = {};
+    disconnect(m_litAiFinishedConn); m_litAiFinishedConn = {};
+    disconnect(m_litAiErrorConn);    m_litAiErrorConn    = {};
+    m_litAiBtn->setEnabled(true);
+    m_litStatus->setText("\xe2\x9d\x8c  " + e);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — Cytoscape
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::onCytoPingClicked()
+{
+    const QString addr = m_cytoHostEdit->text().trimmed();
+    const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
+    const int port = addr.contains(':') ? addr.section(':', 1).toInt() : 1234;
+    m_cytoStatusLbl->setText("\xf0\x9f\x94\x84  Connessione...");
+    if (m_cytoSock) { m_cytoSock->abort(); m_cytoSock->deleteLater(); m_cytoSock = nullptr; }
+    m_cytoSock = new QTcpSocket(this);
+    m_cytoSock->connectToHost(host, static_cast<quint16>(port));
+    connect(m_cytoSock, &QTcpSocket::connected,
+            this, &RicercaPage::onCytoSockConnected);
+    connect(m_cytoSock, &QAbstractSocket::errorOccurred,
+            this, &RicercaPage::onCytoSockError);
+    QTimer::singleShot(3000, this, &RicercaPage::onCytoPingTimeout);
+}
+
+void RicercaPage::onCytoSockConnected()
+{
+    auto* sock = qobject_cast<QTcpSocket*>(sender());
+    if (sock) { sock->disconnectFromHost(); sock->deleteLater(); }
+    if (m_cytoSock == sock) m_cytoSock = nullptr;
+    m_cytoStatusLbl->setText("\xe2\x9c\x85  Server raggiungibile");
+    m_cytoExecBtn->setEnabled(!m_cytoCode.isEmpty());
+}
+
+void RicercaPage::onCytoSockError(QAbstractSocket::SocketError)
+{
+    auto* sock = qobject_cast<QTcpSocket*>(sender());
+    const QString errStr = sock ? sock->errorString() : QString();
+    m_cytoStatusLbl->setText("\xe2\x9d\x8c  " + errStr);
+    if (sock) sock->deleteLater();
+    if (m_cytoSock == sock) m_cytoSock = nullptr;
+}
+
+void RicercaPage::onCytoPingTimeout()
+{
+    if (m_cytoSock && m_cytoSock->state() != QAbstractSocket::ConnectedState) {
+        m_cytoStatusLbl->setText("\xe2\x9d\x8c  Timeout");
+        m_cytoSock->abort();
+        m_cytoSock->deleteLater();
+        m_cytoSock = nullptr;
+    }
+}
+
+void RicercaPage::onCytoExecClicked()
+{
+    runSciScript(m_cytoCode, false,
+                 m_cytoStatusLbl, m_cytoExecBtn, m_cytoOutput, m_cytoProc, this);
+}
+
+void RicercaPage::onCytoRunClicked()
+{
+    const int idx = m_cytoAction->currentIndex();
+    if (idx < 0 || !kCytoSysR[idx]) return;
+    avviaSci(QString::fromUtf8(kCytoSysR[idx]),
+             m_cytoInput->toPlainText(),
+             m_cytoOutput, m_cytoRunBtn, m_cytoStopBtn,
+             m_cytoModel, m_cytoExecBtn, &m_cytoCode, m_cytoStatusLbl);
+}
+
+void RicercaPage::onCytoStopClicked()
+{
+    m_ai->abort();
+    m_cytoRunBtn->setEnabled(true);
+    m_cytoStopBtn->setEnabled(false);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — RDKit
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::onRdkitCheckClicked()
+{
+    auto* proc = new QProcess(this);
+    proc->start(P::findPython(), {"-c", "import rdkit; print('rdkit', rdkit.__version__)"});
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &RicercaPage::onRdkitCheckFinished);
+}
+
+void RicercaPage::onRdkitCheckFinished(int code, QProcess::ExitStatus)
+{
+    auto* proc = qobject_cast<QProcess*>(sender());
+    if (!proc) return;
+    const QString out = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+    m_rdkitStatusLbl->setText(code == 0
+        ? "\xe2\x9c\x85  " + out
+        : "\xe2\x9d\x8c  rdkit non trovato \xe2\x80\x94 pip install rdkit");
+    proc->deleteLater();
+}
+
+void RicercaPage::onRdkitExecClicked()
+{
+    runSciScript(m_rdkitCode, false,
+                 m_rdkitStatusLbl, m_rdkitExecBtn, m_rdkitOutput, m_rdkitProc, this);
+}
+
+void RicercaPage::onRdkitRunClicked()
+{
+    const int idx = m_rdkitAction->currentIndex();
+    if (idx < 0 || !kRDKitSysR[idx]) return;
+    avviaSci(QString::fromUtf8(kRDKitSysR[idx]),
+             m_rdkitInput->toPlainText(),
+             m_rdkitOutput, m_rdkitRunBtn, m_rdkitStopBtn,
+             m_rdkitModel, m_rdkitExecBtn, &m_rdkitCode, m_rdkitStatusLbl);
+}
+
+void RicercaPage::onRdkitStopClicked()
+{
+    m_ai->abort();
+    m_rdkitRunBtn->setEnabled(true);
+    m_rdkitStopBtn->setEnabled(false);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — Bioconda
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::onBioCheckClicked()
+{
+    auto* proc = new QProcess(this);
+    proc->start("conda", {"--version"});
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &RicercaPage::onBioCheckFinished);
+}
+
+void RicercaPage::onBioCheckFinished(int code, QProcess::ExitStatus)
+{
+    auto* proc = qobject_cast<QProcess*>(sender());
+    if (!proc) return;
+    const QString out = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+    m_bioStatusLbl->setText(code == 0
+        ? "\xe2\x9c\x85  " + out + " disponibile"
+        : "\xe2\x9d\x8c  conda non trovato \xe2\x80\x94 installa Miniforge");
+    proc->deleteLater();
+}
+
+void RicercaPage::onBioExecClicked()
+{
+    const bool isBash = m_bioCode.startsWith("#!")
+                     || m_bioCode.contains("#!/bin/bash")
+                     || m_bioCode.contains("bwa ")
+                     || m_bioCode.contains("samtools ")
+                     || m_bioCode.contains("gatk ")
+                     || m_bioCode.contains("blast");
+    runSciScript(m_bioCode, isBash,
+                 m_bioStatusLbl, m_bioExecBtn, m_bioOutput, m_bioProc, this);
+}
+
+void RicercaPage::onBioRunClicked()
+{
+    const int idx = m_bioAction->currentIndex();
+    if (idx < 0 || !kBioSysR[idx]) return;
+    avviaSci(QString::fromUtf8(kBioSysR[idx]),
+             m_bioInput->toPlainText(),
+             m_bioOutput, m_bioRunBtn, m_bioStopBtn,
+             m_bioModel, m_bioExecBtn, &m_bioCode, m_bioStatusLbl);
+}
+
+void RicercaPage::onBioStopClicked()
+{
+    m_ai->abort();
+    m_bioRunBtn->setEnabled(true);
+    m_bioStopBtn->setEnabled(false);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — Avogadro
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::onAvoCheckClicked()
+{
+    auto* proc = new QProcess(this);
+    proc->start(P::findPython(),
+        {"-c", "import avogadro; print('avogadro OK')"});
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &RicercaPage::onAvoCheckFinished);
+}
+
+void RicercaPage::onAvoCheckFinished(int code, QProcess::ExitStatus)
+{
+    auto* proc = qobject_cast<QProcess*>(sender());
+    if (!proc) return;
+    m_avoStatusLbl->setText(code == 0
+        ? "\xe2\x9c\x85  avogadro disponibile"
+        : "\xe2\x9d\x8c  avogadro non trovato \xe2\x80\x94 pip install avogadro");
+    proc->deleteLater();
+}
+
+void RicercaPage::onAvoExecClicked()
+{
+    runSciScript(m_avoCode, false,
+                 m_avoStatusLbl, m_avoExecBtn, m_avoOutput, m_avoProc, this);
+}
+
+void RicercaPage::onAvoRunClicked()
+{
+    const int idx = m_avoAction->currentIndex();
+    if (idx < 0 || !kAvoSysR[idx]) return;
+    avviaSci(QString::fromUtf8(kAvoSysR[idx]),
+             m_avoInput->toPlainText(),
+             m_avoOutput, m_avoRunBtn, m_avoStopBtn,
+             m_avoModel, m_avoExecBtn, &m_avoCode, m_avoStatusLbl);
+}
+
+void RicercaPage::onAvoStopClicked()
+{
+    m_ai->abort();
+    m_avoRunBtn->setEnabled(true);
+    m_avoStopBtn->setEnabled(false);
 }

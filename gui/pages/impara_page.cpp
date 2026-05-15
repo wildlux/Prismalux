@@ -26,6 +26,7 @@
 #include <QProcess>
 #include <QBrush>
 #include <QColor>
+#include <QButtonGroup>
 
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
@@ -125,11 +126,7 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
         const qint64 totalRam = P::totalRamBytes();
         for (const auto& mdl : list) {
             const qint64 sz = m_ai->modelSizeBytes(mdl);
-            const bool isCloud = (sz == 0) || mdl.endsWith("cloud", Qt::CaseInsensitive);
-            const QString icon = isCloud
-                ? QString::fromUtf8("\xe2\x98\x81\xef\xb8\x8f  ")   /* ☁️  */
-                : QString::fromUtf8("\xf0\x9f\x8c\x8d\xf0\x9f\x93\x8d  ");  /* 🌍📍  */
-            cmbModel->addItem(icon + mdl, mdl);
+            cmbModel->addItem(P::modelIcon(sz, mdl) + mdl, mdl);
             /* Colora in rosso i modelli che richiedono più RAM del disponibile
              * (regola Shannon: serve almeno 2× la dimensione del file) */
             {
@@ -193,10 +190,7 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
         int bk = cmbBackend->currentIndex();
         if (bk == 2) {
             /* locale */
-            QString bin = P::llamaCliBin();
-            if (!QFileInfo::exists(bin))
-                bin = P::root() + "/C_software/llama.cpp/build/bin/llama-cli";
-            m_ai->setLocalBackend(bin, cmbModel->currentData().toString());
+            m_ai->setLocalBackend(P::llamaCliBin(), cmbModel->currentData().toString());
         } else {
             m_ai->setBackend(bk == 0 ? AiClient::Ollama : AiClient::LlamaServer,
                              m_ai->host(), m_ai->port(),
@@ -299,90 +293,118 @@ QWidget* ImparaPage::buildTutor() {
 
     /* ── Context menu: copia / leggi ── */
     m_tutorLog->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(m_tutorLog, &QTextEdit::customContextMenuRequested, w, [this](const QPoint& pos){
-        const QString sel   = m_tutorLog->textCursor().selectedText();
-        const bool hasSel   = !sel.isEmpty();
-        const QString label = hasSel ? "selezione" : "tutto";
-        QMenu menu(m_tutorLog);
-        QAction* actCopy = menu.addAction("\xf0\x9f\x97\x82  Copia " + label);
-        QAction* actRead = menu.addAction("\xf0\x9f\x8e\x99  Leggi " + label);
-        QAction* chosen  = menu.exec(m_tutorLog->mapToGlobal(pos));
-        const QString txt = hasSel ? sel : m_tutorLog->toPlainText();
-        if (chosen == actCopy) {
-            QGuiApplication::clipboard()->setText(txt);
-        } else if (chosen == actRead) {
-            QStringList words = txt.split(' ', Qt::SkipEmptyParts);
-            if (words.size() > 400) words = words.mid(words.size() - 400);
-            QProcess::startDetached("espeak-ng", {"-v", "it+f3", "--punct=none", words.join(" ")});
-        }
-    });
+    connect(m_tutorLog, &QTextEdit::customContextMenuRequested, this, &ImparaPage::onTutorContextMenu);
 
     /* Input */
-    /* Indicatore elaborazione */
-    auto* waitLbl = new QLabel("\xe2\x8f\xb3  Elaborazione in corso...", w);
-    waitLbl->setStyleSheet("color:#E5C400; font-style:italic; padding:2px 0;");
-    waitLbl->setVisible(false);
-    lay->addWidget(waitLbl);
+    m_tutorWaitLbl = new QLabel("\xe2\x8f\xb3  Elaborazione in corso...", w);
+    m_tutorWaitLbl->setStyleSheet("color:#E5C400; font-style:italic; padding:2px 0;");
+    m_tutorWaitLbl->setVisible(false);
+    lay->addWidget(m_tutorWaitLbl);
 
     auto* inRow = new QWidget(w);
     auto* inL   = new QHBoxLayout(inRow); inL->setContentsMargins(0,0,0,0); inL->setSpacing(8);
-    auto* inp  = new QLineEdit(inRow); inp->setObjectName("chatInput");
-    inp->setPlaceholderText("Fai una domanda al Tutor AI..."); inp->setFixedHeight(38);
-    auto* send = new QPushButton("Chiedi \xe2\x96\xb6", inRow); send->setObjectName("actionBtn");
-    send->setToolTip("Invia la domanda al tutor AI (Invio)");
-    auto* stop = new QPushButton("\xe2\x8f\xb9", inRow);
-    stop->setObjectName("actionBtn"); stop->setProperty("danger", true);
-    stop->setToolTip("Interrompi la risposta AI");
-    stop->setFixedWidth(40); stop->setEnabled(false);
-    inL->addWidget(inp, 1); inL->addWidget(send); inL->addWidget(stop);
+    m_tutorInp  = new QLineEdit(inRow); m_tutorInp->setObjectName("chatInput");
+    m_tutorInp->setPlaceholderText("Fai una domanda al Tutor AI..."); m_tutorInp->setFixedHeight(38);
+    m_tutorSend = new QPushButton("Chiedi \xe2\x96\xb6", inRow); m_tutorSend->setObjectName("actionBtn");
+    m_tutorSend->setToolTip("Invia la domanda al tutor AI (Invio)");
+    m_tutorStop = new QPushButton("\xe2\x8f\xb9", inRow);
+    m_tutorStop->setObjectName("actionBtn"); m_tutorStop->setProperty("danger", true);
+    m_tutorStop->setToolTip("Interrompi la risposta AI");
+    m_tutorStop->setFixedWidth(40); m_tutorStop->setEnabled(false);
+    inL->addWidget(m_tutorInp, 1); inL->addWidget(m_tutorSend); inL->addWidget(m_tutorStop);
     lay->addWidget(inRow);
 
     /* Tab order: back → materia → pulisci → input → chiedi → stop */
     QWidget::setTabOrder(back,        m_tutorSubj);
     QWidget::setTabOrder(m_tutorSubj, clrBtn);
-    QWidget::setTabOrder(clrBtn,      inp);
-    QWidget::setTabOrder(inp,         send);
-    QWidget::setTabOrder(send,        stop);
+    QWidget::setTabOrder(clrBtn,      m_tutorInp);
+    QWidget::setTabOrder(m_tutorInp,  m_tutorSend);
+    QWidget::setTabOrder(m_tutorSend, m_tutorStop);
 
-    connect(back,   &QPushButton::clicked, this, [this]{ m_inner->setCurrentIndex(0); });
-    connect(clrBtn, &QPushButton::clicked, m_tutorLog, &QTextEdit::clear);
-    connect(stop,   &QPushButton::clicked, m_ai,  &AiClient::abort);
-
-    auto sendFn = [=]{
-        QString msg = inp->text().trimmed(); if (msg.isEmpty()) return;
-        m_tutorLog->append(QString("\n👤  Tu [%1]: %2\n").arg(m_tutorSubj->currentText(), msg));
-        m_tutorLog->append("🤖  Tutor AI: ");
-        inp->clear(); send->setEnabled(false); stop->setEnabled(true); waitLbl->setVisible(true);
-        QString sys = QString("Sei un tutor AI esperto in %1. "
-            "Spiega in modo chiaro con esempi pratici. Rispondi SEMPRE e SOLO in italiano.")
-            .arg(m_tutorSubj->currentText());
-        m_ai->chat(sys, msg);
-    };
-
-    connect(send, &QPushButton::clicked, this, sendFn);
-    connect(inp,  &QLineEdit::returnPressed, this, sendFn);
-    connect(m_ai, &AiClient::token,    this, [=](const QString& t){
-        QTextCursor c(m_tutorLog->document()); c.movePosition(QTextCursor::End);
-        c.insertText(t); m_tutorLog->ensureCursorVisible();
-    });
-    connect(m_ai, &AiClient::finished, this, [=](const QString&){
-        m_tutorLog->append("\n──────────");
-        send->setEnabled(true); stop->setEnabled(false); waitLbl->setVisible(false);
-    });
-    connect(m_ai, &AiClient::error, this, [=](const QString& e){
-        m_tutorLog->append(QString("\n\xe2\x9d\x8c %1").arg(e));
-        send->setEnabled(true); stop->setEnabled(false); waitLbl->setVisible(false);
-    });
-    connect(m_ai, &AiClient::aborted, this, [=]{
-        m_tutorLog->append("\n\xe2\x8f\xb9  Interrotto.\n──────────");
-        send->setEnabled(true); stop->setEnabled(false); waitLbl->setVisible(false);
-    });
+    connect(back,        &QPushButton::clicked, this,      &ImparaPage::onBackToMenu);
+    connect(clrBtn,      &QPushButton::clicked, m_tutorLog,&QTextEdit::clear);
+    connect(m_tutorStop, &QPushButton::clicked, m_ai,      &AiClient::abort);
+    connect(m_tutorSend, &QPushButton::clicked, this,      &ImparaPage::onTutorSendClicked);
+    connect(m_tutorInp,  &QLineEdit::returnPressed, this,  &ImparaPage::onTutorSendClicked);
+    connect(m_ai, &AiClient::token,    this, &ImparaPage::onTutorToken);
+    connect(m_ai, &AiClient::finished, this, &ImparaPage::onTutorFinished);
+    connect(m_ai, &AiClient::error,    this, &ImparaPage::onTutorError);
+    connect(m_ai, &AiClient::aborted,  this, &ImparaPage::onTutorAborted);
     return w;
 }
 
 /* ══════════════════════════════════════════════════════════════
    QUIZ — generazione domande MCQ
    ══════════════════════════════════════════════════════════════ */
+/* ── Slot Tutor AI ──────────────────────────────────────────── */
+void ImparaPage::onTutorSendClicked() {
+    if (!m_tutorInp || !m_tutorSend || !m_tutorStop) return;
+    const QString msg = m_tutorInp->text().trimmed();
+    if (msg.isEmpty()) return;
+    m_tutorLog->append(QString("\n\xf0\x9f\x91\xa4  Tu [%1]: %2\n").arg(m_tutorSubj->currentText(), msg));
+    m_tutorLog->append("\xf0\x9f\xa4\x96  Tutor AI: ");
+    m_tutorInp->clear();
+    m_tutorSend->setEnabled(false);
+    m_tutorStop->setEnabled(true);
+    if (m_tutorWaitLbl) m_tutorWaitLbl->setVisible(true);
+    const QString sys = QString("Sei un tutor AI esperto in %1. "
+        "Spiega in modo chiaro con esempi pratici. Rispondi SEMPRE e SOLO in italiano.")
+        .arg(m_tutorSubj->currentText());
+    m_ai->chat(sys, msg);
+}
+
+void ImparaPage::onTutorToken(const QString& t) {
+    if (!m_tutorLog) return;
+    QTextCursor c(m_tutorLog->document());
+    c.movePosition(QTextCursor::End);
+    c.insertText(t);
+    m_tutorLog->ensureCursorVisible();
+}
+
+void ImparaPage::onTutorFinished(const QString&) {
+    if (m_tutorLog)     m_tutorLog->append("\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80");
+    if (m_tutorSend)    m_tutorSend->setEnabled(true);
+    if (m_tutorStop)    m_tutorStop->setEnabled(false);
+    if (m_tutorWaitLbl) m_tutorWaitLbl->setVisible(false);
+}
+
+void ImparaPage::onTutorError(const QString& e) {
+    if (m_tutorLog)     m_tutorLog->append(QString("\n\xe2\x9d\x8c %1").arg(e));
+    if (m_tutorSend)    m_tutorSend->setEnabled(true);
+    if (m_tutorStop)    m_tutorStop->setEnabled(false);
+    if (m_tutorWaitLbl) m_tutorWaitLbl->setVisible(false);
+}
+
+void ImparaPage::onTutorAborted() {
+    if (m_tutorLog)     m_tutorLog->append("\n\xe2\x8f\xb9  Interrotto.\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80");
+    if (m_tutorSend)    m_tutorSend->setEnabled(true);
+    if (m_tutorStop)    m_tutorStop->setEnabled(false);
+    if (m_tutorWaitLbl) m_tutorWaitLbl->setVisible(false);
+}
+
+/* ── Slot Quiz AI ───────────────────────────────────────────── */
+void ImparaPage::onQuizToken(const QString& t) {
+    if (m_quizRaw) m_quizRaw->insertPlainText(t);
+}
+
+void ImparaPage::onQuizFinished(const QString& full) {
+    disconnect(m_quizTokConn);
+    disconnect(m_quizFinConn);
+    disconnect(m_quizErrConn);
+    m_quizBusy = false;
+    parseAndShowQuestion(full.isEmpty() ? m_quizRaw->toPlainText() : full);
+    m_quizGen->setEnabled(false);
+}
+
+void ImparaPage::onQuizError(const QString& e) {
+    disconnect(m_quizTokConn);
+    disconnect(m_quizFinConn);
+    disconnect(m_quizErrConn);
+    m_quizBusy = false;
+    m_quizQuestion->setText(QString("\xe2\x9d\x8c  Errore: %1\n\nRiprova o cambia modello.").arg(e));
+    m_quizGen->setEnabled(true);
+}
+
 QWidget* ImparaPage::buildQuiz() {
     auto* w   = new QWidget;
     auto* lay = new QVBoxLayout(w);
@@ -442,10 +464,12 @@ QWidget* ImparaPage::buildQuiz() {
     m_quizQuestion->setContentsMargins(0, 8, 0, 8);
     lay->addWidget(m_quizQuestion);
 
-    /* Opzioni A-D */
+    /* Opzioni A-D — QButtonGroup porta l'id direttamente a submitAnswer */
     static const QString labels[] = {"A", "B", "C", "D"};
-    auto* optsW = new QWidget(w);
-    auto* optsL = new QGridLayout(optsW); optsL->setSpacing(8);
+    auto* optsW   = new QWidget(w);
+    auto* optsL   = new QGridLayout(optsW); optsL->setSpacing(8);
+    auto* optsGrp = new QButtonGroup(optsW);
+    optsGrp->setExclusive(false);
     for (int i = 0; i < 4; i++) {
         m_quizOpts[i] = new QPushButton(QString("%1)").arg(labels[i]), w);
         m_quizOpts[i]->setObjectName("actionBtn");
@@ -453,9 +477,9 @@ QWidget* ImparaPage::buildQuiz() {
         m_quizOpts[i]->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         m_quizOpts[i]->setStyleSheet("text-align:left; padding: 8px 14px;");
         optsL->addWidget(m_quizOpts[i], i / 2, i % 2);
-        const int idx = i;
-        connect(m_quizOpts[i], &QPushButton::clicked, this, [this, idx]{ submitAnswer(idx); });
+        optsGrp->addButton(m_quizOpts[i], i);
     }
+    connect(optsGrp, &QButtonGroup::idClicked, this, &ImparaPage::submitAnswer);
     lay->addWidget(optsW);
 
     /* Feedback */
@@ -490,7 +514,7 @@ QWidget* ImparaPage::buildQuiz() {
     QWidget::setTabOrder(m_quizOpts[3],  m_quizNext);
 
     /* Connessioni */
-    connect(back, &QPushButton::clicked, this, [this]{ m_inner->setCurrentIndex(0); });
+    connect(back, &QPushButton::clicked, this, &ImparaPage::onBackToMenu);
     connect(m_quizGen,  &QPushButton::clicked, this, &ImparaPage::generateQuestion);
     connect(m_quizNext, &QPushButton::clicked, this, &ImparaPage::nextQuestion);
 
@@ -542,25 +566,12 @@ void ImparaPage::generateQuestion() {
                           "Segui esattamente il formato indicato.")
                   .arg(m_quiz.subject, m_quiz.difficulty);
 
-    /* Accumula risposta nel buffer raw per il parsing finale */
-    static QMetaObject::Connection cTok, cFin, cErr;
-    disconnect(cTok); disconnect(cFin); disconnect(cErr);
-
-    cTok = connect(m_ai, &AiClient::token, this, [=](const QString& t){
-        m_quizRaw->insertPlainText(t);
-    });
-    cFin = connect(m_ai, &AiClient::finished, this, [=](const QString& full){
-        disconnect(cTok); disconnect(cFin); disconnect(cErr);
-        m_quizBusy = false;
-        parseAndShowQuestion(full.isEmpty() ? m_quizRaw->toPlainText() : full);
-        m_quizGen->setEnabled(false); /* non rigenerare durante il quiz */
-    });
-    cErr = connect(m_ai, &AiClient::error, this, [=](const QString& e){
-        disconnect(cTok); disconnect(cFin); disconnect(cErr);
-        m_quizBusy = false;
-        m_quizQuestion->setText(QString("❌  Errore: %1\n\nRiprova o cambia modello.").arg(e));
-        m_quizGen->setEnabled(true);
-    });
+    disconnect(m_quizTokConn);
+    disconnect(m_quizFinConn);
+    disconnect(m_quizErrConn);
+    m_quizTokConn = connect(m_ai, &AiClient::token,    this, &ImparaPage::onQuizToken);
+    m_quizFinConn = connect(m_ai, &AiClient::finished, this, &ImparaPage::onQuizFinished);
+    m_quizErrConn = connect(m_ai, &AiClient::error,    this, &ImparaPage::onQuizError);
 
     m_ai->chat(sys, usr);
 }
@@ -730,7 +741,7 @@ QWidget* ImparaPage::buildDashboard() {
     scroll->setWidget(m_dashContent);
     lay->addWidget(scroll, 1);
 
-    connect(back, &QPushButton::clicked, this, [this]{ m_inner->setCurrentIndex(0); });
+    connect(back, &QPushButton::clicked, this, &ImparaPage::onBackToMenu);
     connect(refr, &QPushButton::clicked, this, &ImparaPage::loadDashboard);
     return w;
 }
@@ -863,8 +874,35 @@ ImparaPage::ImparaPage(AiClient* ai, QWidget* parent)
 
     m_simulatorePage = new SimulatorePage(m_ai, this);
     connect(m_simulatorePage, &SimulatorePage::backRequested,
-            this, [this]{ m_inner->setCurrentIndex(0); });
+            this, &ImparaPage::onBackToMenu);
     m_inner->addWidget(m_simulatorePage);  /* 5 */
 
     lay->addWidget(m_inner);
+}
+
+// ─── Slot ──────────────────────────────────────────────────────────────────
+
+void ImparaPage::onBackToMenu()
+{
+    m_inner->setCurrentIndex(0);
+}
+
+void ImparaPage::onTutorContextMenu(const QPoint& pos)
+{
+    if (!m_tutorLog) return;
+    const QString sel   = m_tutorLog->textCursor().selectedText();
+    const bool hasSel   = !sel.isEmpty();
+    const QString label = hasSel ? "selezione" : "tutto";
+    QMenu menu(m_tutorLog);
+    QAction* actCopy = menu.addAction("\xf0\x9f\x97\x82  Copia " + label);
+    QAction* actRead = menu.addAction("\xf0\x9f\x8e\x99  Leggi " + label);
+    QAction* chosen  = menu.exec(m_tutorLog->mapToGlobal(pos));
+    const QString txt = hasSel ? sel : m_tutorLog->toPlainText();
+    if (chosen == actCopy) {
+        QGuiApplication::clipboard()->setText(txt);
+    } else if (chosen == actRead) {
+        QStringList words = txt.split(' ', Qt::SkipEmptyParts);
+        if (words.size() > 400) words = words.mid(words.size() - 400);
+        QProcess::startDetached("espeak-ng", {"-v", "it+f3", "--punct=none", words.join(" ")});
+    }
 }

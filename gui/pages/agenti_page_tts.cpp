@@ -45,38 +45,10 @@ void AgentiPage::_ttsPlay(const QString& tts)
 
     m_ttsProc = new QProcess(this);
     connect(m_ttsProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this](int, QProcess::ExitStatus){
-        if (m_waitLbl)    m_waitLbl->setVisible(false);
-        if (m_btnTtsStop) m_btnTtsStop->setVisible(false);
-        m_ttsPaused = false;
-        if (m_btnTtsPause) { m_btnTtsPause->setText("\xe2\x8f\xb8  Pausa"); m_btnTtsPause->setVisible(false); }
-        if (m_piperProc)  {
-            m_piperProc->terminate();
-            m_piperProc->waitForFinished(300);
-            m_piperProc->deleteLater();
-            m_piperProc = nullptr;
-        }
-        if (m_ttsProc)    { m_ttsProc->deleteLater(); m_ttsProc = nullptr; }
-        /* Conversazione vocale continua: riprendi registrazione dopo TTS */
-        if (m_voiceLoopActive && m_sttState == SttState::Idle)
-            QTimer::singleShot(600, this, [this]{ _sttStartRecording(); });
-    });
+            this, &AgentiPage::onTtsProcFinished);
     /* Fallisce silenziosamente (binario non trovato, permessi, ecc.) */
     connect(m_ttsProc, &QProcess::errorOccurred,
-            this, [this](QProcess::ProcessError err){
-        if (m_waitLbl)    m_waitLbl->setVisible(false);
-        if (m_btnTtsStop) m_btnTtsStop->setVisible(false);
-        m_ttsPaused = false;
-        if (m_btnTtsPause) { m_btnTtsPause->setText("\xe2\x8f\xb8  Pausa"); m_btnTtsPause->setVisible(false); }
-        const QString errStr = (err == QProcess::FailedToStart)
-            ? "binario non trovato o permessi mancanti"
-            : (err == QProcess::Crashed ? "processo terminato inaspettatamente" : "errore sconosciuto");
-        m_log->append(
-            "\xe2\x9a\xa0  <b>TTS non disponibile</b> (" + errStr + "). "
-            "Installa <code>espeak-ng</code> oppure configura Piper TTS "
-            "nelle Impostazioni per la lettura vocale.");
-        if (m_ttsProc) { m_ttsProc->deleteLater(); m_ttsProc = nullptr; }
-    });
+            this, &AgentiPage::onTtsProcError);
 
 #ifdef Q_OS_WIN
     /* Windows: voci native SAPI via PowerShell.
@@ -114,9 +86,7 @@ void AgentiPage::_ttsPlay(const QString& tts)
         m_ttsProc->start("spd-say", {"--lang","it","--",tts});
     } else {
         /* espeak-ng avviato in detached — nascondi loading dopo 1.5s */
-        QTimer::singleShot(1500, this, [this]{
-            if (m_waitLbl) m_waitLbl->setVisible(false);
-        });
+        QTimer::singleShot(1500, this, &AgentiPage::onTtsHideWaitLbl);
         m_ttsProc->deleteLater(); m_ttsProc = nullptr;
         return;
     }
@@ -126,8 +96,46 @@ void AgentiPage::_ttsPlay(const QString& tts)
     if (m_ttsProc && m_btnTtsPause) { m_ttsPaused = false; m_btnTtsPause->setVisible(true); }
     /* Nasconde "Avvio lettura..." non appena il processo parte */
     if (m_ttsProc) {
-        QTimer::singleShot(400, this, [this]{
-            if (m_waitLbl) m_waitLbl->setVisible(false);
-        });
+        QTimer::singleShot(400, this, &AgentiPage::onTtsHideWaitLbl);
     }
+}
+
+// ─── Slot TTS ──────────────────────────────────────────────────────────────
+
+void AgentiPage::onTtsProcFinished(int, QProcess::ExitStatus)
+{
+    if (m_waitLbl)    m_waitLbl->setVisible(false);
+    if (m_btnTtsStop) m_btnTtsStop->setVisible(false);
+    m_ttsPaused = false;
+    if (m_btnTtsPause) { m_btnTtsPause->setText("\xe2\x8f\xb8  Pausa"); m_btnTtsPause->setVisible(false); }
+    if (m_piperProc) {
+        m_piperProc->terminate();
+        m_piperProc->waitForFinished(300);
+        m_piperProc->deleteLater();
+        m_piperProc = nullptr;
+    }
+    if (m_ttsProc) { m_ttsProc->deleteLater(); m_ttsProc = nullptr; }
+    if (m_voiceLoopActive && m_sttState == SttState::Idle)
+        QTimer::singleShot(600, this, &AgentiPage::_sttStartRecording);
+}
+
+void AgentiPage::onTtsProcError(QProcess::ProcessError err)
+{
+    if (m_waitLbl)    m_waitLbl->setVisible(false);
+    if (m_btnTtsStop) m_btnTtsStop->setVisible(false);
+    m_ttsPaused = false;
+    if (m_btnTtsPause) { m_btnTtsPause->setText("\xe2\x8f\xb8  Pausa"); m_btnTtsPause->setVisible(false); }
+    const QString errStr = (err == QProcess::FailedToStart)
+        ? "binario non trovato o permessi mancanti"
+        : (err == QProcess::Crashed ? "processo terminato inaspettatamente" : "errore sconosciuto");
+    if (m_log) m_log->append(
+        "\xe2\x9a\xa0  <b>TTS non disponibile</b> (" + errStr + "). "
+        "Installa <code>espeak-ng</code> oppure configura Piper TTS "
+        "nelle Impostazioni per la lettura vocale.");
+    if (m_ttsProc) { m_ttsProc->deleteLater(); m_ttsProc = nullptr; }
+}
+
+void AgentiPage::onTtsHideWaitLbl()
+{
+    if (m_waitLbl) m_waitLbl->setVisible(false);
 }

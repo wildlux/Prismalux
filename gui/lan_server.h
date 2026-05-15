@@ -86,6 +86,7 @@ private:
     [[nodiscard]] bool checkChatRateLimit(Session& s); ///< true = limit exceeded (reply already sent)
     void onChatRateTimeout();            ///< reset contatore chat rate ogni 60s
     void onKnowledgeRateTimeout();       ///< reset contatore knowledge rate ogni 60s
+    void onPendingTlsDisconnected();     ///< TLS handshake fallito: decrementa m_pendingTls
 
     QTcpServer*                m_server        = nullptr;
     bool                       m_tlsEnabled    = false;

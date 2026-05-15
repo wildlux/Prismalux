@@ -5,6 +5,7 @@
 #include <QPushButton>
 #include <QComboBox>
 #include <QLabel>
+#include <QLineEdit>
 #include <QProgressBar>
 #include <QJsonArray>
 #include "../ai_client.h"
@@ -56,8 +57,12 @@ private:
     bool            m_quizBusy  = false;  ///< guard: evita richieste sovrapposte
 
     /* ── tutor ── */
-    QTextEdit*   m_tutorLog  = nullptr;
-    QComboBox*   m_tutorSubj = nullptr;
+    QTextEdit*   m_tutorLog     = nullptr;
+    QComboBox*   m_tutorSubj    = nullptr;
+    QLineEdit*   m_tutorInp     = nullptr;
+    QPushButton* m_tutorSend    = nullptr;
+    QPushButton* m_tutorStop    = nullptr;
+    QLabel*      m_tutorWaitLbl = nullptr;
 
     /* ── quiz state ── */
     struct QuizState {
@@ -85,6 +90,11 @@ private:
     QComboBox*   m_quizNum       = nullptr;
     QTextEdit*   m_quizRaw       = nullptr;  /* debug buffer */
 
+    /* ── quiz AI connections (nominali, evita static) ── */
+    QMetaObject::Connection m_quizTokConn;
+    QMetaObject::Connection m_quizFinConn;
+    QMetaObject::Connection m_quizErrConn;
+
     /* ── dashboard widgets ── */
     QWidget*     m_dashContent   = nullptr;
 
@@ -92,4 +102,16 @@ private:
     MateriePage*     m_materiePage     = nullptr;
     /* ── simulatore ── */
     SimulatorePage*  m_simulatorePage  = nullptr;
+
+private slots:
+    void onBackToMenu();
+    void onTutorContextMenu(const QPoint& pos);
+    void onTutorSendClicked();
+    void onTutorToken(const QString& t);
+    void onTutorFinished(const QString& full);
+    void onTutorError(const QString& e);
+    void onTutorAborted();
+    void onQuizToken(const QString& t);
+    void onQuizFinished(const QString& full);
+    void onQuizError(const QString& e);
 };

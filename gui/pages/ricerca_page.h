@@ -9,6 +9,8 @@
 #include <QProgressBar>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QAbstractSocket>
+#include <QTcpSocket>
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
 
@@ -24,7 +26,6 @@ public:
 
 private:
     AiClient*    m_ai;
-    quint64      m_reqId         = 0;
     QTextEdit*   m_outCurrent    = nullptr;
     QPushButton* m_btnGenAttivo  = nullptr;
     QPushButton* m_btnStopAttivo = nullptr;
@@ -40,6 +41,8 @@ private:
     QPushButton* m_cytoRunBtn    = nullptr;
     QPushButton* m_cytoStopBtn   = nullptr;
     QString      m_cytoCode;
+    QProcess*    m_cytoProc      = nullptr;
+    QTcpSocket*  m_cytoSock      = nullptr;
 
     /* ── RDKit MCP ── */
     QLabel*      m_rdkitStatusLbl = nullptr;
@@ -79,9 +82,13 @@ private:
 
     /* ── AI streaming per tab science ── */
     QObject*       m_sciTokenHolder  = nullptr;
-    bool           m_sciAiActive     = false;
     AiErrorWidget* m_sciErrorPanel   = nullptr;
     QProgressBar*  m_sciProgress     = nullptr;  ///< progress indeterminata durante AI
+
+    /* ── Connessioni one-shot LitAI ── */
+    QMetaObject::Connection m_litAiTokenConn;
+    QMetaObject::Connection m_litAiFinishedConn;
+    QMetaObject::Connection m_litAiErrorConn;
 
     QWidget* buildPaperTab();
     QWidget* buildBrevettoTab();
@@ -109,6 +116,47 @@ private:
                   QPushButton* execBtn, QString* codeRef, QLabel* statusLbl);
     void resetButtons();
     void sciPopulateModels(QComboBox* combo);
+
+private slots:
+    /* AI globali */
+    void onSciModelsReady(const QStringList& models);
+    void onAiToken(const QString& t);
+    void onAiFinished(const QString& full);
+    void onAiError(const QString& err);
+    void onAiAborted();
+    /* Cerca Letteratura */
+    void onLitSearchClicked();
+    void onLitReplyFinished();
+    void onLitAiClicked();
+    void onLitAiToken(const QString& t);
+    void onLitAiFinished(const QString& full);
+    void onLitAiError(const QString& e);
+    /* Cytoscape */
+    void onCytoPingClicked();
+    void onCytoPingTimeout();
+    void onCytoSockConnected();
+    void onCytoSockError(QAbstractSocket::SocketError err);
+    void onCytoExecClicked();
+    void onCytoRunClicked();
+    void onCytoStopClicked();
+    /* RDKit */
+    void onRdkitCheckClicked();
+    void onRdkitCheckFinished(int code, QProcess::ExitStatus status);
+    void onRdkitExecClicked();
+    void onRdkitRunClicked();
+    void onRdkitStopClicked();
+    /* Bioconda */
+    void onBioCheckClicked();
+    void onBioCheckFinished(int code, QProcess::ExitStatus status);
+    void onBioExecClicked();
+    void onBioRunClicked();
+    void onBioStopClicked();
+    /* Avogadro */
+    void onAvoCheckClicked();
+    void onAvoCheckFinished(int code, QProcess::ExitStatus status);
+    void onAvoExecClicked();
+    void onAvoRunClicked();
+    void onAvoStopClicked();
 
 public:
     static void esportaPdf(QTextEdit* editor,

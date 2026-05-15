@@ -196,8 +196,12 @@ private slots:
     void onModelsReply();
     void onLocalReadyRead();
     void onLocalFinished(int exitCode, QProcess::ExitStatus);
+    void onFetchLayersFinished();
+    void onEmbeddingFinished();
 
 private:
+    bool isThinkCapable() const;
+
     /* HTTP */
     QNetworkAccessManager* m_nam   = nullptr;
     QNetworkReply*         m_reply = nullptr;
@@ -207,7 +211,6 @@ private:
     QString   m_model;
     QStringList m_models;
     QString   m_accum;
-    bool      m_busy_guard    = false;
     /** true se l'ultima richiesta attiva usa /api/generate invece di /api/chat.
      *  Usato da onReadyRead() per estrarre il campo "response" anziché
      *  "message.content". Azzerato in abort() e onFinished(). */
@@ -278,4 +281,12 @@ private:
     QJsonArray    m_activeTools;
     QJsonArray    m_pendingToolCalls;
     QJsonArray    m_lastChatMessages;
+
+    /* fetchModelLayers — reply e callback salvati per lo slot nominato */
+    QPointer<QNetworkReply>    m_layersReply;
+    std::function<void(int)>   m_layersCallback;
+
+    /* fetchEmbedding — reply salvato per lo slot nominato */
+    QPointer<QNetworkReply>    m_embeddingReply;
+    Backend                    m_embeddingBackend = Ollama;
 };

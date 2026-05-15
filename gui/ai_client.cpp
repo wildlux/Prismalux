@@ -134,10 +134,16 @@ void AiClient::setBackend(Backend b, const QString& host, int port, const QStrin
     if (m_model != model) {
         m_model = model;
         if (!model.isEmpty())
-            emit modelChanged(model);   /* notifica UI (MainWindow label, Impostazioni, ecc.) */
-    } else {
-        m_model = model;
+            emit modelChanged(model);
     }
+}
+
+bool AiClient::isThinkCapable() const {
+    return m_model.startsWith("qwen3")       ||
+           m_model.startsWith("qwen3.5")     ||
+           m_model.startsWith("deepseek-r1") ||
+           m_model.startsWith("qwq")         ||
+           m_model.startsWith("qwen2.5");
 }
 
 void AiClient::setLocalBackend(const QString& llamaBin, const QString& modelPath) {
@@ -160,7 +166,7 @@ void AiClient::abort() {
         r->deleteLater();
     }
     if (m_localProc) { m_localProc->kill(); }
-    m_busy_guard     = false;
+
     m_localBusy      = false;
     m_accum.clear();
     m_thinkingAccum.clear();
@@ -438,7 +444,7 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
 
     /* ── HTTP backends ── */
     abort();
-    m_busy_guard     = true;
+
     m_isGenerateMode = false;   /* /api/chat, non /api/generate */
     m_accum.clear();
     m_thinkingKey.clear();
@@ -499,11 +505,7 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
            thinkMode: 0=auto (classificatore), 1=off (forzato), 2=on (forzato)
            thinkBudget: moltiplicatore num_predict quando thinking attivo (1–4×)
            knownBroken: workaround modelli con thinking loop (vince su tutto) */
-        const bool thinkCapable = m_model.startsWith("qwen3")       ||
-                                  m_model.startsWith("qwen3.5")     ||
-                                  m_model.startsWith("deepseek-r1") ||
-                                  m_model.startsWith("qwq")         ||
-                                  m_model.startsWith("qwen2.5");
+        const bool thinkCapable = isThinkCapable();
         const bool knownBroken  = PrismaluxPaths::isKnownBrokenModel(m_model);
         const bool globalOff    = (m_params.thinkMode == 1);
         const bool globalOn     = (m_params.thinkMode == 2);
@@ -624,7 +626,7 @@ void AiClient::generate(const QString& systemPrompt, const QString& prompt, Quer
     emit requestStarted(m_model, "Ollama");
 
     abort();
-    m_busy_guard     = true;
+
     m_isGenerateMode = true;    /* onReadyRead() leggerà "response" */
     m_accum.clear();
     m_thinkingKey.clear();
@@ -656,13 +658,9 @@ void AiClient::generate(const QString& systemPrompt, const QString& prompt, Quer
         opts["flash_attn"] = true;
 
     /* generate() — stessa logica di chat(): think:false solo per modelli non-think-capable */
-    const bool thinkCapableGen = m_model.startsWith("qwen3")       ||
-                                 m_model.startsWith("qwen3.5")     ||
-                                 m_model.startsWith("deepseek-r1") ||
-                                 m_model.startsWith("qwen2.5");
     if (qt == QuerySimple) {
         opts["num_predict"] = 512;
-        if (!thinkCapableGen) opts["think"] = false;
+        if (!isThinkCapable()) opts["think"] = false;
     } else if (qt == QueryComplex) {
         opts["num_predict"] = m_params.num_predict;
         opts["think"]       = true;
@@ -708,7 +706,6 @@ void AiClient::chatWithImage(const QString& systemPrompt, const QString& userMsg
     static const char* BKNAMES[] = {"Ollama", "llama-server", "llama-local"};
     emit requestStarted(m_model, BKNAMES[m_backend]);
 
-    m_busy_guard = true;
     m_accum.clear();
 
     QJsonObject body;
@@ -886,7 +883,7 @@ void AiClient::onReadyRead() {
 }
 
 void AiClient::onFinished() {
-    m_busy_guard     = false;
+
     m_isGenerateMode = false;
     if (!m_reply) return;
     QNetworkReply* r = m_reply;
@@ -1028,7 +1025,7 @@ void AiClient::replyWithTool(const QString& toolName, const QString& result)
     }
 
     abort();
-    m_busy_guard     = true;
+
     m_isGenerateMode = false;
     m_accum.clear();
     m_thinkingAccum.clear();
@@ -1060,22 +1057,33 @@ void AiClient::fetchModelLayers(std::function<void(int)> callback) {
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     QNetworkReply* reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
 
-    connect(reply, &QNetworkReply::finished, this, [reply, callback] {
-        reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) { callback(0); return; }
+    m_layersReply    = reply;
+    m_layersCallback = std::move(callback);
+    connect(reply, &QNetworkReply::finished, this, &AiClient::onFetchLayersFinished);
+}
 
-        const QJsonObject root = QJsonDocument::fromJson(reply->readAll()).object();
-        const QJsonObject info = root["modelinfo"].toObject();
+void AiClient::onFetchLayersFinished()
+{
+    if (!m_layersReply) { if (m_layersCallback) m_layersCallback(0); return; }
+    auto* reply = m_layersReply.data();
+    m_layersReply = nullptr;
+    reply->deleteLater();
 
-        /* Cerca qualunque chiave che finisce con ".block_count" */
-        for (auto it = info.constBegin(); it != info.constEnd(); ++it) {
-            if (it.key().endsWith(".block_count")) {
-                const int layers = it.value().toInt();
-                if (layers > 0) { callback(layers); return; }
-            }
+    auto cb = std::move(m_layersCallback);
+    m_layersCallback = nullptr;
+    if (!cb) return;
+
+    if (reply->error() != QNetworkReply::NoError) { cb(0); return; }
+
+    const QJsonObject root = QJsonDocument::fromJson(reply->readAll()).object();
+    const QJsonObject info = root["modelinfo"].toObject();
+    for (auto it = info.constBegin(); it != info.constEnd(); ++it) {
+        if (it.key().endsWith(".block_count")) {
+            const int layers = it.value().toInt();
+            if (layers > 0) { cb(layers); return; }
         }
-        callback(0);
-    });
+    }
+    cb(0);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1112,40 +1120,43 @@ void AiClient::fetchEmbedding(const QString& text) {
     QUrl embedUrl(urlStr);
     QNetworkRequest req(embedUrl);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    req.setTransferTimeout(60'000);   /* 60s: embedding è sempre breve */
-    QNetworkReply* reply = m_nam->post(req,
-        QJsonDocument(body).toJson(QJsonDocument::Compact));
+    req.setTransferTimeout(60'000);
+    m_embeddingReply   = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    m_embeddingBackend = m_backend;
+    connect(m_embeddingReply, &QNetworkReply::finished, this, &AiClient::onEmbeddingFinished);
+}
 
-    connect(reply, &QNetworkReply::finished, this,
-            [this, reply = QPointer<QNetworkReply>(reply)] {
-        if (!reply) return;
-        reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
-            emit embeddingError(reply->errorString());
-            return;
-        }
-        const QJsonObject obj =
-            QJsonDocument::fromJson(reply->readAll()).object();
+void AiClient::onEmbeddingFinished()
+{
+    if (!m_embeddingReply) return;
+    auto* reply = m_embeddingReply.data();
+    m_embeddingReply = nullptr;
+    reply->deleteLater();
 
-        /* Estrai il vettore — formato Ollama o OpenAI */
-        QJsonArray arr;
-        if (obj.contains("embedding")) {
-            arr = obj["embedding"].toArray();
-        } else if (obj.contains("data")) {
-            const QJsonArray data = obj["data"].toArray();
-            if (!data.isEmpty())
-                arr = data.first().toObject()["embedding"].toArray();
-        }
+    if (reply->error() != QNetworkReply::NoError) {
+        emit embeddingError(reply->errorString());
+        return;
+    }
+    const QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
 
-        if (arr.isEmpty()) {
-            emit embeddingError("Nessun embedding nella risposta del backend");
-            return;
-        }
+    /* Estrai il vettore — formato Ollama ("embedding") o OpenAI ("data[0].embedding") */
+    QJsonArray arr;
+    if (obj.contains("embedding")) {
+        arr = obj["embedding"].toArray();
+    } else if (obj.contains("data")) {
+        const QJsonArray data = obj["data"].toArray();
+        if (!data.isEmpty())
+            arr = data.first().toObject()["embedding"].toArray();
+    }
 
-        QVector<float> vec;
-        vec.reserve(arr.size());
-        for (const QJsonValue& v : arr)
-            vec.append((float)v.toDouble());
-        emit embeddingReady(vec);
-    });
+    if (arr.isEmpty()) {
+        emit embeddingError("Nessun embedding nella risposta del backend");
+        return;
+    }
+
+    QVector<float> vec;
+    vec.reserve(arr.size());
+    for (const QJsonValue& v : arr)
+        vec.append((float)v.toDouble());
+    emit embeddingReady(vec);
 }

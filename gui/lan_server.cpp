@@ -231,10 +231,7 @@ void LanServer::onNewConnection()
                 connect(sslSock, &QTcpSocket::readyRead,    this, &LanServer::onClientReadyRead);
                 connect(sslSock, &QTcpSocket::disconnected, this, &LanServer::onClientDisconnected);
             });
-            connect(sslSock, &QSslSocket::disconnected, this, [this]() {
-                /* Se disconnesso prima che encrypted() scatti, decrementa il counter */
-                if (m_pendingTls > 0) --m_pendingTls;
-            });
+            connect(sslSock, &QSslSocket::disconnected, this, &LanServer::onPendingTlsDisconnected);
             continue;  /* attende handshake */
         }
 #endif
@@ -254,6 +251,7 @@ void LanServer::onNewConnection()
 
 void LanServer::onChatRateTimeout()      { m_chatRateCount.clear(); }
 void LanServer::onKnowledgeRateTimeout() { m_knowledgeReqCount.clear(); }
+void LanServer::onPendingTlsDisconnected() { if (m_pendingTls > 0) --m_pendingTls; }
 
 bool LanServer::checkChatRateLimit(Session& s)
 {
@@ -524,7 +522,9 @@ void LanServer::handleChat(Session& s)
     m_streamSock = s.socket;
     m_genMode    = false;
 
-    disconnect(m_ai, nullptr, this, nullptr);
+    disconnect(m_ai, &AiClient::token,    this, &LanServer::onAiToken);
+    disconnect(m_ai, &AiClient::finished, this, &LanServer::onAiFinished);
+    disconnect(m_ai, &AiClient::error,    this, &LanServer::onAiError);
     connect(m_ai, &AiClient::token,    this, &LanServer::onAiToken);
     connect(m_ai, &AiClient::finished, this, &LanServer::onAiFinished);
     connect(m_ai, &AiClient::error,    this, &LanServer::onAiError);
@@ -559,7 +559,9 @@ void LanServer::handleGenerate(Session& s)
     m_streamSock = s.socket;
     m_genMode    = true;
 
-    disconnect(m_ai, nullptr, this, nullptr);
+    disconnect(m_ai, &AiClient::token,    this, &LanServer::onAiToken);
+    disconnect(m_ai, &AiClient::finished, this, &LanServer::onAiFinished);
+    disconnect(m_ai, &AiClient::error,    this, &LanServer::onAiError);
     connect(m_ai, &AiClient::token,    this, &LanServer::onAiToken);
     connect(m_ai, &AiClient::finished, this, &LanServer::onAiFinished);
     connect(m_ai, &AiClient::error,    this, &LanServer::onAiError);

@@ -141,11 +141,12 @@ GraficoPage::GraficoPage(AiClient* ai, QWidget* parent) : QWidget(parent), m_ai(
 
     auto* splitter = new QSplitter(Qt::Horizontal, this);
     splitter->setHandleWidth(4);
+
+    m_canvas = new GraficoCanvas(this);   // deve precedere buildLeftPanel (onTypeComboChanged(0))
     splitter->addWidget(buildLeftPanel());
 
-    m_canvas = new GraficoCanvas(this);
     connect(m_canvas, &GraficoCanvas::statusMessage,
-            m_statusLbl, &QLabel::setText);
+            m_statusLbl, &QLabel::setText);  // m_statusLbl creato dentro buildLeftPanel
     splitter->addWidget(m_canvas);
     splitter->setStretchFactor(0, 0);
     splitter->setStretchFactor(1, 1);
