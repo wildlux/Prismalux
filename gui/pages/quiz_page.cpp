@@ -159,46 +159,19 @@ QuizPage::QuizPage(AiClient* ai, QWidget* parent)
     lay->addWidget(m_tabs);
 
     /* Carica storico quando si passa al tab 1 */
-    connect(m_tabs, &QTabWidget::currentChanged, this, [this](int idx){
-        if (idx == 1) loadDashboard();
-    });
+    connect(m_tabs, &QTabWidget::currentChanged, this, &QuizPage::onTabChanged);
 
     /* ── Connessioni pulsanti ── */
-    connect(m_btnGenera, &QPushButton::clicked, this, [this]{
-        if (m_generating) { stopGeneration(); return; }
-        startGeneration();
-    });
-
-    connect(m_btnCopy, &QPushButton::clicked, this, [this]{
-        QApplication::clipboard()->setText(m_fullText);
-        m_btnCopy->setText("\xe2\x9c\x85  Copiato!");
-        QTimer::singleShot(2000, this,
-            [this]{ m_btnCopy->setText("\xf0\x9f\x93\x8b  Copia"); });
-    });
+    connect(m_btnGenera, &QPushButton::clicked, this, &QuizPage::onGeneraClicked);
+    connect(m_btnCopy,   &QPushButton::clicked, this, &QuizPage::onCopyClicked);
 
     connect(m_topicEdit, &QLineEdit::returnPressed,
             this, &QuizPage::startGeneration);
 
     /* ── Segnali AI ── */
-    connect(m_ai, &AiClient::token, this, [this](const QString& tok){
-        if (!m_generating) return;
-        m_fullText += tok;
-        m_output->moveCursor(QTextCursor::End);
-        m_output->insertPlainText(tok);
-        m_output->ensureCursorVisible();
-    });
-
-    connect(m_ai, &AiClient::finished, this, [this](const QString&){
-        if (!m_generating) return;
-        _setGenerateBusy(false);
-        m_btnCopy->setEnabled(!m_fullText.isEmpty());
-    });
-
-    connect(m_ai, &AiClient::error, this, [this](const QString& msg){
-        if (!m_generating) return;
-        m_output->append("\n\xe2\x9d\x8c  Errore: " + msg);
-        _setGenerateBusy(false);
-    });
+    connect(m_ai, &AiClient::token,    this, &QuizPage::onQuizToken);
+    connect(m_ai, &AiClient::finished, this, &QuizPage::onQuizFinished);
+    connect(m_ai, &AiClient::error,    this, &QuizPage::onQuizError);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -248,6 +221,40 @@ void QuizPage::stopGeneration() {
     m_ai->abort();
     _setGenerateBusy(false);
     m_btnCopy->setEnabled(!m_fullText.isEmpty());
+}
+
+// ─── Slot ──────────────────────────────────────────────────────────────────
+
+void QuizPage::onTabChanged(int idx)    { if (idx == 1) loadDashboard(); }
+void QuizPage::onGeneraClicked()        { if (m_generating) stopGeneration(); else startGeneration(); }
+
+void QuizPage::onCopyClicked()
+{
+    QApplication::clipboard()->setText(m_fullText);
+    m_btnCopy->setText("\xe2\x9c\x85  Copiato!");
+    QTimer::singleShot(2000, this, &QuizPage::onCopyRestoreText);
+}
+void QuizPage::onCopyRestoreText()      { m_btnCopy->setText("\xf0\x9f\x93\x8b  Copia"); }
+
+void QuizPage::onQuizToken(const QString& tok)
+{
+    if (!m_generating) return;
+    m_fullText += tok;
+    m_output->moveCursor(QTextCursor::End);
+    m_output->insertPlainText(tok);
+    m_output->ensureCursorVisible();
+}
+void QuizPage::onQuizFinished(const QString&)
+{
+    if (!m_generating) return;
+    _setGenerateBusy(false);
+    m_btnCopy->setEnabled(!m_fullText.isEmpty());
+}
+void QuizPage::onQuizError(const QString& msg)
+{
+    if (!m_generating) return;
+    m_output->append("\n\xe2\x9d\x8c  Errore: " + msg);
+    _setGenerateBusy(false);
 }
 
 void QuizPage::_setGenerateBusy(bool busy)

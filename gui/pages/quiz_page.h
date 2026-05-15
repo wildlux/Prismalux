@@ -42,4 +42,13 @@ private:
     bool         m_generating = false;    ///< guard per segnali token/finished/error
 
     void _setGenerateBusy(bool busy);
+
+private slots:
+    void onTabChanged(int idx);
+    void onGeneraClicked();
+    void onCopyClicked();
+    void onCopyRestoreText();
+    void onQuizToken(const QString& tok);
+    void onQuizFinished(const QString& full);
+    void onQuizError(const QString& msg);
 };

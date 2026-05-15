@@ -386,7 +386,18 @@ private:
     void     plot();
     void     analyzeImage();          ///< Invia immagine a modello vision → riempie formula
     void     populateTypeCombo(int tab); ///< Ripopola il combo con soli tipi 2D (tab=0) o 3D (tab=1)
+    void     populateVisionCombo();   ///< Aggiorna m_visionCombo dai modelli disponibili
 
+private slots:
+    void onGenFormulaClicked();
+    void onSmithFileClicked();
+    void onTypeComboChanged(int idx);
+    void onImgSectionTypeChanged(int idx);
+    void onInstallVisionClicked();
+    void onDimBarChanged(int tab);
+    void onModelsReady(const QStringList& models);
+
+private:
     AiClient*       m_ai         = nullptr;
 
     GraficoCanvas*  m_canvas     = nullptr;
@@ -412,9 +423,11 @@ private:
     QDoubleSpinBox* m_genStep    = nullptr;
 
     /* Sezione immagine → formula (solo tipo Cartesiano) */
-    QWidget*    m_imgSection     = nullptr;
-    QComboBox*  m_visionCombo    = nullptr;
-    QPushButton* m_btnImgFormula = nullptr;
+    QWidget*     m_imgSection       = nullptr;
+    QFrame*      m_imgSep           = nullptr;
+    QComboBox*   m_visionCombo      = nullptr;
+    QPushButton* m_btnImgFormula    = nullptr;
+    QPushButton* m_btnInstallVision = nullptr;
 
     /* Parametri Smith Prime (pannello idx 2) */
     QSpinBox*       m_smithMaxN    = nullptr;

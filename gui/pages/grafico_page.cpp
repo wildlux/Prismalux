@@ -21,6 +21,116 @@
 #include <QMessageBox>
 #include <algorithm>
 
+/* Esempi e hint per tipo grafico — a file scope perché usati da buildLeftPanel()
+   e dallo slot onTypeComboChanged() che non può accedere a static locali di funzione. */
+static const char* kGrafExamples[] = {
+    /* 0 Cartesiano — non usa dataEdit */
+    "",
+    /* 1 Torta — etichetta:valore */
+    "Nord:42\nSud:28\nEst:19\nOvest:11",
+    /* 2 Istogramma — etichetta:valore */
+    "Gen:82\nFeb:67\nMar:91\nApr:78\nMag:95\nGiu:88\nLug:76\nAgo:60\nSet:85\nOtt:93\nNov:71\nDic:55",
+    /* 3 Scatter (x, y [, etichetta]) */
+    "0.0, 0.0, Origine\n1.0, 2.5, A\n2.0, 3.8, B\n3.5, 6.1, C\n4.0, 7.2, D\n5.0, 9.8, E\n6.5, 11.4, F\n7.0, 13.0, G",
+    /* 4 Grafo (nodo-nodo) */
+    "A-B\nA-C\nB-D\nC-D\nD-E\nB-E",
+    /* 5 Scatter 3D (x, y, z [, etichetta]) */
+    "0, 0, 0, O\n1, 0, 0, X\n0, 1, 0, Y\n0, 0, 1, Z\n1, 1, 0, XY\n1, 0, 1, XZ\n0, 1, 1, YZ\n1, 1, 1, XYZ",
+    /* 6 Grafo 3D — tetraedro regolare */
+    "A, 0, 0, 0\nB, 2, 0, 0\nC, 1, 1.73, 0\nD, 1, 0.58, 1.63\nA-B\nA-C\nA-D\nB-C\nB-D\nC-D",
+    /* 7 Smith — non usa dataEdit */  "",
+    /* 8 MathConst — non usa dataEdit */ "",
+    /* 9 Linea multi-serie: x, y1, y2, ... */
+    "# Vendite  Costi\n0, 10, 8\n1, 14, 9\n2, 18, 11\n3, 22, 13\n4, 19, 15\n5, 25, 16",
+    /* 10 Polare — non usa dataEdit */ "",
+    /* 11 Radar */
+    "Velocita:85\nResistenza:72\nAgilita:90\nForza:60\nPrecisione:78",
+    /* 12 Bolle: x, y, raggio [, etichetta] */
+    "1.0, 2.5, 30, Alfa\n2.5, 4.0, 50, Beta\n4.0, 1.5, 20, Gamma\n5.5, 3.8, 70, Delta\n7.0, 2.0, 45, Epsilon",
+    /* 13 Heatmap: righe di valori separati da spazio/virgola */
+    "1 2 3 4 5\n6 7 8 9 10\n11 12 13 14 15\n16 17 18 19 20\n21 22 23 24 25",
+    /* 14 Candlestick: Etichetta, Open, High, Low, Close */
+    "Gen, 100, 115, 98, 112\nFeb, 112, 120, 108, 105\nMar, 105, 125, 102, 118\nApr, 118, 130, 115, 125\nMag, 125, 128, 110, 108",
+    /* 15 Area — stessa struttura di Linea */
+    "# Entrate  Uscite\n0, 12, 8\n1, 16, 10\n2, 22, 12\n3, 28, 14\n4, 25, 18\n5, 32, 20",
+    /* 16 Waterfall */
+    "Inizio:1000\nVendite:+350\nResi:-80\nCosti:-200\nSussidi:+120\nFine:1190",
+    /* 17 Step — stessa struttura di Linea */
+    "# Soglia  Reale\n0, 10, 9\n1, 10, 12\n2, 15, 14\n3, 15, 17\n4, 20, 18\n5, 20, 22"
+};
+
+static const char* kGrafHints[] = {
+    "",
+    "Formato: etichetta:valore  (una voce per riga)\n"
+    "Accetta anche solo numeri (es. 42)",
+    "Formato: etichetta:valore  (una voce per riga)\n"
+    "Accetta anche solo numeri (es. 82)",
+    "Formato: x, y [, Nome]  (una per riga)\n"
+    "  2.5, 3.1, A\n"
+    "  4.0, 7.2, B\n"
+    "  6.5, 11.4\n"
+    "Se il nome manca usa P1, P2, P3...",
+    "Formato: Nodo1-Nodo2  (un arco per riga)\n"
+    "Accetta anche: ->  \xe2\x80\x93  (trattino lungo)",
+    "Formato: x, y, z [, Nome]  (una per riga)\n"
+    "  0, 0, 0, Origine\n"
+    "  1, 0, 0, X\n"
+    "  0, 1, 0, Y\n"
+    "Se il nome manca usa P1, P2, P3...",
+    /* 6 Grafo 3D */
+    "Nodi:   Nome, x, y, z\n"
+    "Archi:  NodoA-NodoB\n"
+    "(nodi e archi nello stesso testo)\n"
+    "Esempio:\n"
+    "  A, 0, 0, 0\n"
+    "  B, 1, 0, 0\n"
+    "  C, 0, 1, 0\n"
+    "  A-B\n"
+    "  A-C\n"
+    "  B-C\n"
+    "# Le righe con # sono ignorate",
+    /* 7 SmithPrime */ "",
+    /* 8 MathConst  */ "",
+    /* 9 Linea multi-serie */
+    "Formato: x, y1, y2, ... (colonne = serie)\n"
+    "Riga #: nomi delle serie (opzionale)\n"
+    "  # SerieA SerieB SerieC\n"
+    "  0, 10, 8, 5\n"
+    "  1, 14, 9, 7",
+    /* 10 Polare — pannello dedicato */ "",
+    /* 11 Radar */
+    "Formato: Categoria:valore (una per riga)\n"
+    "Minimo 3 categorie.\n"
+    "  Velocita:85\n"
+    "  Resistenza:72\n"
+    "  Forza:60",
+    /* 12 Bolle */
+    "Formato: x, y, raggio [, Nome]\n"
+    "  1.0, 2.5, 30, Alfa\n"
+    "  2.5, 4.0, 50, Beta\n"
+    "Il raggio e' in unita' pixel normalizzate.",
+    /* 13 Heatmap */
+    "Formato: valori separati da spazio o virgola,\n"
+    "una riga per ogni riga della matrice.\n"
+    "  1 2 3\n"
+    "  4 5 6\n"
+    "  7 8 9",
+    /* 14 Candlestick */
+    "Formato: Etichetta, Open, High, Low, Close\n"
+    "  Gen, 100, 115, 98, 112\n"
+    "  Feb, 112, 120, 108, 105",
+    /* 15 Area — come Linea */
+    "Formato: x, y1, y2, ... (colonne = serie)\n"
+    "L'area sotto ogni curva viene riempita.",
+    /* 16 Waterfall */
+    "Formato: Etichetta:valore (una per riga)\n"
+    "Usa +/- per indicare variazioni.\n"
+    "L'ultima voce e' il totale cumulato.",
+    /* 17 Step — come Linea */
+    "Formato: x, y1, y2, ... (colonne = serie)\n"
+    "Le linee vengono tracciate a scalini."
+};
+
 /* ══════════════════════════════════════════════════════════════
    GraficoPage — layout
    ══════════════════════════════════════════════════════════════ */
@@ -35,7 +145,7 @@ GraficoPage::GraficoPage(AiClient* ai, QWidget* parent) : QWidget(parent), m_ai(
 
     m_canvas = new GraficoCanvas(this);
     connect(m_canvas, &GraficoCanvas::statusMessage,
-            this, [this](const QString& msg){ m_statusLbl->setText(msg); });
+            m_statusLbl, &QLabel::setText);
     splitter->addWidget(m_canvas);
     splitter->setStretchFactor(0, 0);
     splitter->setStretchFactor(1, 1);
@@ -260,53 +370,7 @@ QWidget* GraficoPage::buildLeftPanel() {
                 "\xe2\x96\xb6  Genera \xe2\x86\x92 inserisce i valori sotto", m_genSection);
             btnGen->setObjectName("actionBtn");
             btnGen->setFixedHeight(26);
-            connect(btnGen, &QPushButton::clicked, this, [this]() {
-                QString expr = m_genExpr->text().trimmed();
-                if (expr.isEmpty()) return;
-                FormulaParser fp(expr);
-                if (!fp.ok()) {
-                    m_statusLbl->setText("\xe2\x9a\xa0  " + fp.err());
-                    return;
-                }
-                double x0   = m_genFrom->value();
-                double x1   = m_genTo->value();
-                double step = m_genStep->value();
-                if (x0 > x1 || step <= 0) {
-                    m_statusLbl->setText("\xe2\x9a\xa0  Range non valido");
-                    return;
-                }
-
-                int type = m_typeCombo->currentData().toInt();
-                QString out;
-                int idx = 0;
-                for (double x = x0; x <= x1 + step * 1e-9; x += step) {
-                    double y = fp.eval(x);
-                    if (!std::isfinite(y)) { ++idx; continue; }
-                    QString sx = QString::number(x,  'g', 8);
-                    QString sy = QString::number(y,  'g', 8);
-                    if (type == 1 || type == 2) {
-                        /* Torta / Istogramma: "etichetta: valore" */
-                        out += QString("x=%1: %2\n").arg(sx, sy);
-                    } else if (type == 3) {
-                        /* Scatter XY: "x, y" */
-                        out += QString("%1, %2\n").arg(sx, sy);
-                    } else if (type == 5) {
-                        /* Scatter 3D: "x, y, 0" — usa x come X, f(x) come Y, 0 come Z */
-                        out += QString("%1, %2, 0\n").arg(sx, sy);
-                    } else {
-                        /* default: "x, y" */
-                        out += QString("%1, %2\n").arg(sx, sy);
-                    }
-                    ++idx;
-                }
-                if (out.isEmpty()) {
-                    m_statusLbl->setText("\xe2\x9a\xa0  Nessun valore finito generato");
-                    return;
-                }
-                m_dataEdit->setPlainText(out.trimmed());
-                m_statusLbl->setText(
-                    QString("\xe2\x9c\x85  %1 valori generati da %2").arg(idx).arg(expr));
-            });
+            connect(btnGen, &QPushButton::clicked, this, &GraficoPage::onGenFormulaClicked);
             gl->addWidget(btnGen);
 
             auto* sepLine = new QFrame(m_genSection);
@@ -409,16 +473,7 @@ QWidget* GraficoPage::buildLeftPanel() {
         m_btnSmithFile->setToolTip(
             "Apri un file di testo con numeri interi >= 2.\n"
             "Formati accettati: uno per riga, separati da spazi o virgole.");
-        connect(m_btnSmithFile, &QPushButton::clicked, this, [this]() {
-            QString path = QFileDialog::getOpenFileName(
-                this, "Carica sequenza", QDir::homePath(),
-                "File testo (*.txt *.csv *.dat);;Tutti i file (*)");
-            if (path.isEmpty()) return;
-            QFile f(path);
-            if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
-            m_smithCustom->setPlainText(
-                QString::fromUtf8(f.readAll()));
-        });
+        connect(m_btnSmithFile, &QPushButton::clicked, this, &GraficoPage::onSmithFileClicked);
         fl->addRow(m_btnSmithFile);
 
         auto* hint = new QLabel(
@@ -541,336 +596,11 @@ QWidget* GraficoPage::buildLeftPanel() {
 
     lay->addWidget(m_paramStack, 1);
 
-    /* Esempi per ogni tipo non-cartesiano */
-    static const char* kExamples[] = {
-        /* 0 Cartesiano — non usa dataEdit */
-        "",
-        /* 1 Torta — etichetta:valore */
-        "Nord:42\nSud:28\nEst:19\nOvest:11",
-        /* 2 Istogramma — etichetta:valore */
-        "Gen:82\nFeb:67\nMar:91\nApr:78\nMag:95\nGiu:88\nLug:76\nAgo:60\nSet:85\nOtt:93\nNov:71\nDic:55",
-        /* 3 Scatter (x, y [, etichetta]) */
-        "0.0, 0.0, Origine\n1.0, 2.5, A\n2.0, 3.8, B\n3.5, 6.1, C\n4.0, 7.2, D\n5.0, 9.8, E\n6.5, 11.4, F\n7.0, 13.0, G",
-        /* 4 Grafo (nodo-nodo) */
-        "A-B\nA-C\nB-D\nC-D\nD-E\nB-E",
-        /* 5 Scatter 3D (x, y, z [, etichetta]) */
-        "0, 0, 0, O\n1, 0, 0, X\n0, 1, 0, Y\n0, 0, 1, Z\n1, 1, 0, XY\n1, 0, 1, XZ\n0, 1, 1, YZ\n1, 1, 1, XYZ",
-        /* 6 Grafo 3D — tetraedro regolare */
-        "A, 0, 0, 0\nB, 2, 0, 0\nC, 1, 1.73, 0\nD, 1, 0.58, 1.63\nA-B\nA-C\nA-D\nB-C\nB-D\nC-D",
-        /* 7 Smith — non usa dataEdit */  "",
-        /* 8 MathConst — non usa dataEdit */ "",
-        /* 9 Linea multi-serie: x, y1, y2, ... */
-        "# Vendite  Costi\n0, 10, 8\n1, 14, 9\n2, 18, 11\n3, 22, 13\n4, 19, 15\n5, 25, 16",
-        /* 10 Polare — non usa dataEdit */ "",
-        /* 11 Radar */
-        "Velocita:85\nResistenza:72\nAgilita:90\nForza:60\nPrecisione:78",
-        /* 12 Bolle: x, y, raggio [, etichetta] */
-        "1.0, 2.5, 30, Alfa\n2.5, 4.0, 50, Beta\n4.0, 1.5, 20, Gamma\n5.5, 3.8, 70, Delta\n7.0, 2.0, 45, Epsilon",
-        /* 13 Heatmap: righe di valori separati da spazio/virgola */
-        "1 2 3 4 5\n6 7 8 9 10\n11 12 13 14 15\n16 17 18 19 20\n21 22 23 24 25",
-        /* 14 Candlestick: Etichetta, Open, High, Low, Close */
-        "Gen, 100, 115, 98, 112\nFeb, 112, 120, 108, 105\nMar, 105, 125, 102, 118\nApr, 118, 130, 115, 125\nMag, 125, 128, 110, 108",
-        /* 15 Area — stessa struttura di Linea */
-        "# Entrate  Uscite\n0, 12, 8\n1, 16, 10\n2, 22, 12\n3, 28, 14\n4, 25, 18\n5, 32, 20",
-        /* 16 Waterfall */
-        "Inizio:1000\nVendite:+350\nResi:-80\nCosti:-200\nSussidi:+120\nFine:1190",
-        /* 17 Step — stessa struttura di Linea */
-        "# Soglia  Reale\n0, 10, 9\n1, 10, 12\n2, 15, 14\n3, 15, 17\n4, 20, 18\n5, 20, 22"
-    };
-
-    static const char* kHints[] = {
-        "",
-        "Formato: etichetta:valore  (una voce per riga)\n"
-        "Accetta anche solo numeri (es. 42)",
-        "Formato: etichetta:valore  (una voce per riga)\n"
-        "Accetta anche solo numeri (es. 82)",
-        "Formato: x, y [, Nome]  (una per riga)\n"
-        "  2.5, 3.1, A\n"
-        "  4.0, 7.2, B\n"
-        "  6.5, 11.4\n"
-        "Se il nome manca usa P1, P2, P3...",
-        "Formato: Nodo1-Nodo2  (un arco per riga)\n"
-        "Accetta anche: ->  \xe2\x80\x93  (trattino lungo)",
-        "Formato: x, y, z [, Nome]  (una per riga)\n"
-        "  0, 0, 0, Origine\n"
-        "  1, 0, 0, X\n"
-        "  0, 1, 0, Y\n"
-        "Se il nome manca usa P1, P2, P3...",
-        /* 6 Grafo 3D */
-        "Nodi:   Nome, x, y, z\n"
-        "Archi:  NodoA-NodoB\n"
-        "(nodi e archi nello stesso testo)\n"
-        "Esempio:\n"
-        "  A, 0, 0, 0\n"
-        "  B, 1, 0, 0\n"
-        "  C, 0, 1, 0\n"
-        "  A-B\n"
-        "  A-C\n"
-        "  B-C\n"
-        "# Le righe con # sono ignorate",
-        /* 7 SmithPrime */ "",
-        /* 8 MathConst  */ "",
-        /* 9 Linea multi-serie */
-        "Formato: x, y1, y2, ... (colonne = serie)\n"
-        "Riga #: nomi delle serie (opzionale)\n"
-        "  # SerieA SerieB SerieC\n"
-        "  0, 10, 8, 5\n"
-        "  1, 14, 9, 7",
-        /* 10 Polare — pannello dedicato */ "",
-        /* 11 Radar */
-        "Formato: Categoria:valore (una per riga)\n"
-        "Minimo 3 categorie.\n"
-        "  Velocita:85\n"
-        "  Resistenza:72\n"
-        "  Forza:60",
-        /* 12 Bolle */
-        "Formato: x, y, raggio [, Nome]\n"
-        "  1.0, 2.5, 30, Alfa\n"
-        "  2.5, 4.0, 50, Beta\n"
-        "Il raggio e' in unita' pixel normalizzate.",
-        /* 13 Heatmap */
-        "Formato: valori separati da spazio o virgola,\n"
-        "una riga per ogni riga della matrice.\n"
-        "  1 2 3\n"
-        "  4 5 6\n"
-        "  7 8 9",
-        /* 14 Candlestick */
-        "Formato: Etichetta, Open, High, Low, Close\n"
-        "  Gen, 100, 115, 98, 112\n"
-        "  Feb, 112, 120, 108, 105",
-        /* 15 Area — come Linea */
-        "Formato: x, y1, y2, ... (colonne = serie)\n"
-        "L'area sotto ogni curva viene riempita.",
-        /* 16 Waterfall */
-        "Formato: Etichetta:valore (una per riga)\n"
-        "Usa +/- per indicare variazioni.\n"
-        "L'ultima voce e' il totale cumulato.",
-        /* 17 Step — come Linea */
-        "Formato: x, y1, y2, ... (colonne = serie)\n"
-        "Le linee vengono tracciate a scalini."
-    };
-
     /* Connetti combo — usa currentData().toInt() per ottenere il tipo reale
        anche dopo il filtraggio 2D/3D (currentIndex() non coincide più con typeId) */
     connect(m_typeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int) {
-        const int idx = m_typeCombo->currentData().toInt();
-        m_canvas->setType(static_cast<GraficoCanvas::ChartType>(idx));
-        if (idx == 0) {
-            m_paramStack->setCurrentIndex(0);
-        } else if (idx == 7) {
-            /* Smith Prime — pannello dedicato, genera subito con i valori correnti */
-            m_paramStack->setCurrentIndex(2);
-            m_canvas->setSmithPrime(
-                m_smithMaxN->value(),
-                m_smithReal->isChecked(),
-                m_smithGauss->isChecked(),
-                m_smithExp->isChecked(),
-                m_smithNorm->value(),
-                m_smithFib->isChecked(),
-                m_smithTri->isChecked(),
-                m_smithSqr->isChecked(),
-                m_smithLabels->isChecked()
-            );
-        } else if (idx == 8) {
-            /* Math Const — π · e · Primi, genera subito */
-            m_paramStack->setCurrentIndex(3);
-            m_canvas->setMathConst(
-                m_mathTerms->value(),
-                m_mathPi    ->isChecked(),
-                m_mathE     ->isChecked(),
-                m_mathPrimes->isChecked()
-            );
-        } else if (idx == 10) {
-            /* Polare — pannello dedicato */
-            m_paramStack->setCurrentIndex(4);
-        } else {
-            /* Tutti gli altri tipi usano il pannello dati generico (idx 1) */
-            m_paramStack->setCurrentIndex(1);
-            /* Carica hint ed esempi per tutti i tipi che usano questo pannello */
-            static const int kMaxHint = 17;
-            if (idx >= 0 && idx <= kMaxHint &&
-                idx != 7 && idx != 8 && idx != 10) {
-                m_dataHint->setText(kHints[idx]);
-                if (!QByteArray(kExamples[idx]).isEmpty())
-                    m_dataEdit->setPlainText(kExamples[idx]);
-            }
-            /* hint per i nuovi tipi 40-44 */
-            static const char* kNewHints[] = {
-                /* 40 Violin */
-                "Formato: NomeSerie: v1 v2 v3 ...\nUna serie per riga.\n"
-                "Esempio:\n  Gruppo A: 12 18 22 25 30 35 40\n  Gruppo B: 8 14 20 28 35 42",
-                /* 41 WordCloud */
-                "Formato: parola:frequenza (una per riga)\n"
-                "Esempio:\n  Python:95\n  C++:80\n  Java:70\n  Rust:60",
-                /* 42 RadialTree */
-                "Formato: padre: figlio1, figlio2\nUguale all'Albero lineare.\n"
-                "Esempio:\n  Root: A, B\n  A: C, D\n  B: E",
-                /* 43 AnimatedLine */
-                "Formato: stessa struttura di Linea multi-serie\n"
-                "x, y1, y2, ... (colonne = serie)\n"
-                "La linea viene disegnata progressivamente.",
-                /* 44 SmallMultiples */
-                "Formato: stessa struttura di Linea multi-serie\n"
-                "x, y1, y2, ... (colonne = serie)\n"
-                "Ogni serie viene mostrata in un pannello separato."
-            };
-            static const char* kNewExamples[] = {
-                /* 40 Violin */
-                "Gruppo A: 12 18 22 25 30 35 40 28 32 26\n"
-                "Gruppo B: 8 14 20 28 35 42 30 24 18 22\n"
-                "Gruppo C: 5 10 15 22 30 38 45 35 28 20",
-                /* 41 WordCloud */
-                "Python:95\nC++:80\nJava:70\nRust:60\nGo:55\n"
-                "JavaScript:50\nTypeScript:45\nSwift:40\nKotlin:35\n"
-                "Ruby:30\nScala:25\nHaskell:20\nElixir:18\nErlang:15",
-                /* 42 RadialTree — stesso esempio di Tree */
-                "Root: A, B, C\nA: D, E\nB: F\nC: G, H\nD: I\nF: J, K",
-                /* 43 AnimatedLine */
-                "# Vendite  Costi  Profitto\n0, 10, 8, 2\n1, 14, 9, 5\n"
-                "2, 18, 11, 7\n3, 22, 13, 9\n4, 19, 15, 4\n5, 25, 16, 9\n"
-                "6, 28, 17, 11\n7, 30, 18, 12",
-                /* 44 SmallMultiples */
-                "# Nord  Sud  Est  Ovest\n"
-                "0, 10, 8, 6, 4\n1, 14, 9, 7, 5\n2, 18, 11, 9, 6\n"
-                "3, 22, 13, 11, 7\n4, 19, 15, 13, 8\n5, 25, 16, 14, 9"
-            };
-            /* ── Esempi e hint per indici 18-39 ── */
-            if (idx >= 18 && idx <= 39) {
-                static const char* kHints2[] = {
-                    /* 18 Column */ "Formato: etichetta:valore  (una voce per riga)",
-                    /* 19 HBar   */ "Formato: etichetta:valore  (una voce per riga)",
-                    /* 20 Grouped*/ "Formato: x, y1, y2, ... (colonne = serie)\nRiga #: nomi serie",
-                    /* 21 Stacked*/ "Formato: x, y1, y2, ... (colonne = serie)\nRiga #: nomi serie",
-                    /* 22 Stk100 */ "Formato: x, y1, y2, ... (colonne = serie)\nRiga #: nomi serie",
-                    /* 23 Funnel */ "Formato: etichetta:valore  (dalla voce pi\xc3\xb9 grande alla pi\xc3\xb9 piccola)",
-                    /* 24 Donut  */ "Formato: etichetta:valore  (una voce per riga)",
-                    /* 25 Treemap*/ "Formato: etichetta:valore  (una voce per riga)",
-                    /* 26 Sunburst*/ "Formato: Categoria/Sottocategoria:valore\n"
-                                    "  Frutta/Mele:40\n  Frutta/Pere:25\n  Verdura/Carote:35",
-                    /* 27 BoxPlot*/ "Formato: etichetta: min, Q1, mediana, Q3, max\n"
-                                    "  Gruppo A: 10, 20, 30, 40, 60",
-                    /* 28 Dot    */ "Formato: etichetta:valore  (una voce per riga)",
-                    /* 29 Density*/ "Valori numerici separati da spazi o virgole\n"
-                                    "(dati grezzi — la curva KDE viene calcolata automaticamente)",
-                    /* 30 AStk   */ "Formato: x, y1, y2, ... (colonne = serie)\nRiga #: nomi serie",
-                    /* 31 OHLC   */ "Formato: Etichetta, Open, High, Low, Close\n"
-                                    "  Gen, 100, 115, 98, 112",
-                    /* 32 Gauge  */ "Riga 1: valore:massimo  (es. 72:100)\nRiga 2: etichetta (opzionale)",
-                    /* 33 Bullet */ "Formato: etichetta: valore, target, minRange, maxRange\n"
-                                    "  Fatturato: 85, 90, 0, 120",
-                    /* 34 Gantt  */ "Formato: task: inizio, fine [, categoria]\n"
-                                    "  Analisi: 0, 2, Fase1\n  Design: 1, 4, Fase1",
-                    /* 35 Pyramid*/ "Formato: x, sinistra, destra  (colonne = due serie)\n"
-                                    "# Maschi  Femmine\n0, 120, 115\n1, 140, 138",
-                    /* 36 Parallel*/ "Formato: riga per entit\xc3\xa0, colonne = assi\n"
-                                     "Riga #: nomi degli assi\n"
-                                     "  # Velocita Forza Resistenza Agilita\n"
-                                     "  85, 70, 60, 90",
-                    /* 37 Sankey */ "Formato: Sorgente \xe2\x86\x92 Destinazione: valore\n"
-                                    "  Energia -> Elettricita: 40\n  Energia -> Calore: 30",
-                    /* 38 Tree   */ "Formato: padre: figlio1, figlio2\n"
-                                    "  Root: A, B\n  A: C, D\n  B: E",
-                    /* 39 Chord  */ "Formato: A \xe2\x86\x92 B: valore\n"
-                                    "  Italia -> Francia: 15\n  Francia -> Germania: 20",
-                };
-                static const char* kExamples2[] = {
-                    /* 18 Column */
-                    "Gen:82\nFeb:67\nMar:91\nApr:78\nMag:95\nGiu:88",
-                    /* 19 HBar */
-                    "Python:85\nC++:72\nRust:68\nGo:61\nJava:55\nSwift:48",
-                    /* 20 Grouped */
-                    "# Nord Sud Est\n0, 42, 28, 19\n1, 55, 33, 22\n2, 48, 30, 25\n3, 60, 38, 28",
-                    /* 21 Stacked */
-                    "# Carbone Petrolio Gas Rinnovabili\n2019, 28, 33, 22, 17\n2020, 25, 30, 23, 22\n2021, 26, 31, 22, 21\n2022, 24, 29, 21, 26",
-                    /* 22 Stacked 100% */
-                    "# Desktop Mobile Tablet\n2020, 55, 35, 10\n2021, 50, 40, 10\n2022, 46, 44, 10\n2023, 43, 47, 10",
-                    /* 23 Funnel */
-                    "Visite:10000\nIscritti:4200\nContatti:1800\nOfferte:750\nClienti:320",
-                    /* 24 Donut */
-                    "Python:38\nJavaScript:26\nTypeScript:14\nJava:11\nC++:7\nAltri:4",
-                    /* 25 Treemap */
-                    "Europa:420\nAsia:580\nAmerica:390\nAfrica:180\nOceania:95",
-                    /* 26 Sunburst */
-                    "Frutta/Mele:40\nFrutta/Pere:25\nFrutta/Arance:20\n"
-                    "Verdura/Carote:35\nVerdura/Spinaci:28\nVerdura/Pomodori:32\n"
-                    "Cereali/Riso:55\nCereali/Frumento:45",
-                    /* 27 BoxPlot */
-                    "Gruppo A: 10, 22, 35, 48, 65\n"
-                    "Gruppo B: 8, 18, 28, 42, 58\n"
-                    "Gruppo C: 15, 28, 40, 55, 72\n"
-                    "Gruppo D: 5, 15, 25, 38, 52",
-                    /* 28 DotPlot */
-                    "Lun:8.2\nMar:7.5\nMer:9.1\nGio:6.8\nVen:8.8\nSab:5.2\nDom:4.5",
-                    /* 29 Density */
-                    "2.1 3.4 2.8 4.1 3.7 2.5 3.9 4.5 3.2 2.7 "
-                    "4.8 3.1 2.9 3.6 4.2 3.8 2.3 3.5 4.0 3.3 "
-                    "2.6 4.4 3.0 2.4 3.8 4.1 2.8 3.7 4.3 3.2",
-                    /* 30 AreaStacked */
-                    "# Vendite Costi Profitto\n0, 120, 80, 40\n1, 145, 90, 55\n"
-                    "2, 160, 95, 65\n3, 175, 100, 75\n4, 155, 105, 50\n5, 190, 110, 80",
-                    /* 31 OHLC */
-                    "Gen, 100, 115, 98, 112\nFeb, 112, 120, 108, 105\n"
-                    "Mar, 105, 125, 102, 118\nApr, 118, 130, 115, 125\n"
-                    "Mag, 125, 128, 110, 108\nGiu, 108, 122, 105, 118",
-                    /* 32 Gauge */
-                    "72:100\nPunteggio qualit\xc3\xa0",
-                    /* 33 Bullet */
-                    "Fatturato: 85, 90, 60, 120\n"
-                    "Profitto: 42, 50, 30, 70\n"
-                    "NPS: 68, 75, 40, 100",
-                    /* 34 Gantt */
-                    "Analisi: 0, 2, Fase 1\n"
-                    "Design: 1, 4, Fase 1\n"
-                    "Sviluppo: 3, 8, Fase 2\n"
-                    "Testing: 7, 10, Fase 2\n"
-                    "Deploy: 9, 11, Fase 3",
-                    /* 35 Pyramid */
-                    "# Maschi Femmine\n0, 850, 820\n1, 920, 900\n"
-                    "2, 980, 960\n3, 870, 850\n4, 720, 710\n5, 540, 560",
-                    /* 36 ParallelCoord */
-                    "# Velocita Forza Resistenza Agilita Precisione\n"
-                    "85, 70, 60, 90, 78\n"
-                    "62, 88, 75, 55, 82\n"
-                    "90, 55, 80, 72, 65\n"
-                    "70, 80, 85, 68, 90",
-                    /* 37 Sankey */
-                    "Carbone -> Elettricita: 40\n"
-                    "Gas -> Elettricita: 25\n"
-                    "Elettricita -> Industria: 35\n"
-                    "Elettricita -> Residenziale: 20\n"
-                    "Gas -> Riscaldamento: 30\n"
-                    "Rinnovabili -> Elettricita: 18",
-                    /* 38 Tree */
-                    "Azienda: HR, Tech, Vendite\n"
-                    "Tech: Backend, Frontend, DevOps\n"
-                    "Backend: API, Database\n"
-                    "Vendite: Italia, Estero",
-                    /* 39 Chord */
-                    "Italia -> Francia: 15\n"
-                    "Italia -> Germania: 22\n"
-                    "Francia -> Germania: 18\n"
-                    "Germania -> Spagna: 12\n"
-                    "Spagna -> Italia: 20\n"
-                    "Francia -> Spagna: 14",
-                };
-                m_dataHint->setText(kHints2[idx - 18]);
-                if (kExamples2[idx - 18][0] != '\0')
-                    m_dataEdit->setPlainText(kExamples2[idx - 18]);
-            }
-
-            if (idx >= 40 && idx <= 44) {
-                m_dataHint->setText(kNewHints[idx - 40]);
-                if (kNewExamples[idx-40][0] != '\0')
-                    m_dataEdit->setPlainText(kNewExamples[idx-40]);
-            }
-            /* Generatore da espressione: nascosto per tipi complessi */
-            const bool hasFormula = (idx != 4 && idx != 6 &&
-                                     idx != 13 && idx != 14 && idx != 16 &&
-                                     idx < 18 && idx < 40);
-            m_genSection->setVisible(hasFormula);
-        }
-    });
+            this, &GraficoPage::onTypeComboChanged);
+    onTypeComboChanged(0); /* trigger iniziale */
 
     /* Pulsanti */
     auto* btnPlot = new QPushButton("\xf0\x9f\x93\x88  Traccia", panel);
@@ -882,14 +612,14 @@ QWidget* GraficoPage::buildLeftPanel() {
     auto* btnReset = new QPushButton("\xf0\x9f\x94\x84  Reset vista", panel);
     btnReset->setObjectName("actionBtn");
     btnReset->setFixedHeight(28);
-    connect(btnReset, &QPushButton::clicked, this, [this]{ m_canvas->resetView(); });
+    connect(btnReset, &QPushButton::clicked, m_canvas, &GraficoCanvas::resetView);
     lay->addWidget(btnReset);
 
     /* ── Sezione immagine → formula (solo Cartesiano) ─────────── */
-    auto* imgSep = new QFrame(panel);
-    imgSep->setFrameShape(QFrame::HLine);
-    imgSep->setObjectName("separator");
-    lay->addWidget(imgSep);
+    m_imgSep = new QFrame(panel);
+    m_imgSep->setFrameShape(QFrame::HLine);
+    m_imgSep->setObjectName("separator");
+    lay->addWidget(m_imgSep);
 
     m_imgSection = new QWidget(panel);
     auto* imgLay = new QVBoxLayout(m_imgSection);
@@ -918,23 +648,22 @@ QWidget* GraficoPage::buildLeftPanel() {
     imgLay->addWidget(m_visionCombo);
 
     /* Pulsante di installazione — visibile SOLO se non ci sono modelli vision */
-    auto* btnInstallVision = new QPushButton(
+    m_btnInstallVision = new QPushButton(
         "\xf0\x9f\x93\xa5  Clicca qui per scaricare e installare un modello vision da internet",
         m_imgSection);
-    btnInstallVision->setObjectName("actionBtn");
-    btnInstallVision->setFixedHeight(36);
-    btnInstallVision->setToolTip(
+    m_btnInstallVision->setObjectName("actionBtn");
+    m_btnInstallVision->setFixedHeight(36);
+    m_btnInstallVision->setToolTip(
         "Apre Impostazioni \xe2\x86\x92 LLM Consigliati \xe2\x86\x92 sezione Vision\n"
         "per scaricare un modello adatto all'analisi di immagini e grafici.\n"
         "Consigliati: llama3.2-vision, qwen2-vl:7b, minicpm-v:8b");
-    btnInstallVision->setStyleSheet(
+    m_btnInstallVision->setStyleSheet(
         "QPushButton { background:#1e3a5f; border:1px dashed #38bdf8;"
         "border-radius:6px; color:#93c5fd; padding:4px 8px; text-align:left; }"
         "QPushButton:hover { background:#1e4a7f; border-color:#60a5fa; }");
-    btnInstallVision->setVisible(false);
-    connect(btnInstallVision, &QPushButton::clicked, this,
-            [this]{ emit requestOpenSettings("LLM"); });
-    imgLay->addWidget(btnInstallVision);
+    m_btnInstallVision->setVisible(false);
+    connect(m_btnInstallVision, &QPushButton::clicked, this, &GraficoPage::onInstallVisionClicked);
+    imgLay->addWidget(m_btnInstallVision);
 
     m_btnImgFormula = new QPushButton(
         "\xf0\x9f\x93\xb7  Analizza immagine", m_imgSection);
@@ -948,52 +677,21 @@ QWidget* GraficoPage::buildLeftPanel() {
 
     /* Popola la combo vision la prima volta che i modelli sono disponibili */
     if (m_ai) {
-        auto populateVision = [this, btnInstallVision]() {
-            const QStringList all = m_ai->models();
-            QStringList vision;
-            for (const QString& m : all) {
-                const QString ml = m.toLower();
-                if (ml.contains("vision") || ml.contains("llava")  ||
-                    ml.contains("minicpm") || ml.contains("moondream") ||
-                    ml.contains("bakllava") || ml.contains("gemma3"))
-                    vision << m;
-            }
-            m_visionCombo->clear();
-            if (vision.isEmpty()) {
-                /* Nessun modello vision: nascondi combo e mostra pulsante installazione */
-                m_visionCombo->setVisible(false);
-                btnInstallVision->setVisible(true);
-                m_btnImgFormula->setEnabled(false);
-            } else {
-                m_visionCombo->setVisible(true);
-                btnInstallVision->setVisible(false);
-                m_visionCombo->addItems(vision);
-                m_btnImgFormula->setEnabled(true);
-            }
-        };
-        /* Popola subito se i modelli ci sono già, oppure alla prima ricezione */
         if (!m_ai->models().isEmpty())
-            populateVision();
-        connect(m_ai, &AiClient::modelsReady, m_imgSection,
-                [populateVision](const QStringList&){ populateVision(); });
+            populateVisionCombo();
+        connect(m_ai, &AiClient::modelsReady, this, &GraficoPage::onModelsReady);
     }
 
-    /* Visibilità: solo quando tipo = Cartesiano */
+    /* Visibilità sezione vision: solo quando tipo = Cartesiano */
     connect(m_typeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            m_imgSection, [imgSep, this](int idx){
-        const bool cart = (idx == 0);   /* sezione vision solo per Cartesiano */
-        imgSep->setVisible(cart);
-        m_imgSection->setVisible(cart);
-    });
+            this, &GraficoPage::onImgSectionTypeChanged);
 
     /* ── Sincronizzazione tab "2D" / "3D" ──
        I tipi 3D sono agli indici 5 (Scatter3D) e 6 (Grafo3D) nel combo.
        - Cliccare "3D" → seleziona Scatter3D nel combo
        - Cliccare "2D" → mostra solo tipi 2D nel combo (ripristina tipo compatibile)
        - Cliccare "3D" → mostra solo tipi 3D nel combo */
-    connect(m_dimBar, &QTabBar::currentChanged, this, [this](int tab){
-        populateTypeCombo(tab);
-    });
+    connect(m_dimBar, &QTabBar::currentChanged, this, &GraficoPage::onDimBarChanged);
 
     m_statusLbl = new QLabel("", panel);
     m_statusLbl->setObjectName("statusLabel");
@@ -2005,4 +1703,316 @@ void GraficoPage::analyzeImage() {
     });
 
     m_ai->chatWithImage(kSys, kUser, b64, mime);
+}
+
+// ─── Slot GraficoPage ──────────────────────────────────────────────────────
+
+void GraficoPage::onGenFormulaClicked()
+{
+    QString expr = m_genExpr->text().trimmed();
+    if (expr.isEmpty()) return;
+    FormulaParser fp(expr);
+    if (!fp.ok()) {
+        m_statusLbl->setText("\xe2\x9a\xa0  " + fp.err());
+        return;
+    }
+    double x0   = m_genFrom->value();
+    double x1   = m_genTo->value();
+    double step = m_genStep->value();
+    if (x0 > x1 || step <= 0) {
+        m_statusLbl->setText("\xe2\x9a\xa0  Range non valido");
+        return;
+    }
+    int type = m_typeCombo->currentData().toInt();
+    QString out;
+    int idx = 0;
+    for (double x = x0; x <= x1 + step * 1e-9; x += step) {
+        double y = fp.eval(x);
+        if (!std::isfinite(y)) { ++idx; continue; }
+        QString sx = QString::number(x, 'g', 8);
+        QString sy = QString::number(y, 'g', 8);
+        if (type == 1 || type == 2) {
+            out += QString("x=%1: %2\n").arg(sx, sy);
+        } else if (type == 3) {
+            out += QString("%1, %2\n").arg(sx, sy);
+        } else if (type == 5) {
+            out += QString("%1, %2, 0\n").arg(sx, sy);
+        } else {
+            out += QString("%1, %2\n").arg(sx, sy);
+        }
+        ++idx;
+    }
+    if (out.isEmpty()) {
+        m_statusLbl->setText("\xe2\x9a\xa0  Nessun valore finito generato");
+        return;
+    }
+    m_dataEdit->setPlainText(out.trimmed());
+    m_statusLbl->setText(
+        QString("\xe2\x9c\x85  %1 valori generati da %2").arg(idx).arg(expr));
+}
+
+void GraficoPage::onSmithFileClicked()
+{
+    QString path = QFileDialog::getOpenFileName(
+        this, "Carica sequenza", QDir::homePath(),
+        "File testo (*.txt *.csv *.dat);;Tutti i file (*)");
+    if (path.isEmpty()) return;
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
+    m_smithCustom->setPlainText(QString::fromUtf8(f.readAll()));
+}
+
+void GraficoPage::onInstallVisionClicked() { emit requestOpenSettings("LLM"); }
+void GraficoPage::onDimBarChanged(int tab) { populateTypeCombo(tab); }
+void GraficoPage::onModelsReady(const QStringList&) { populateVisionCombo(); }
+
+void GraficoPage::populateVisionCombo()
+{
+    const QStringList all = m_ai ? m_ai->models() : QStringList{};
+    QStringList vision;
+    for (const QString& m : all) {
+        const QString ml = m.toLower();
+        if (ml.contains("vision") || ml.contains("llava")  ||
+            ml.contains("minicpm") || ml.contains("moondream") ||
+            ml.contains("bakllava") || ml.contains("gemma3"))
+            vision << m;
+    }
+    m_visionCombo->clear();
+    if (vision.isEmpty()) {
+        m_visionCombo->setVisible(false);
+        if (m_btnInstallVision) m_btnInstallVision->setVisible(true);
+        m_btnImgFormula->setEnabled(false);
+    } else {
+        m_visionCombo->setVisible(true);
+        if (m_btnInstallVision) m_btnInstallVision->setVisible(false);
+        m_visionCombo->addItems(vision);
+        m_btnImgFormula->setEnabled(true);
+    }
+}
+
+void GraficoPage::onImgSectionTypeChanged(int idx)
+{
+    const bool cart = (idx == 0);
+    if (m_imgSep)     m_imgSep->setVisible(cart);
+    if (m_imgSection) m_imgSection->setVisible(cart);
+}
+
+void GraficoPage::onTypeComboChanged(int)
+{
+        const int idx = m_typeCombo->currentData().toInt();
+        m_canvas->setType(static_cast<GraficoCanvas::ChartType>(idx));
+        if (idx == 0) {
+            m_paramStack->setCurrentIndex(0);
+        } else if (idx == 7) {
+            /* Smith Prime — pannello dedicato, genera subito con i valori correnti */
+            m_paramStack->setCurrentIndex(2);
+            m_canvas->setSmithPrime(
+                m_smithMaxN->value(),
+                m_smithReal->isChecked(),
+                m_smithGauss->isChecked(),
+                m_smithExp->isChecked(),
+                m_smithNorm->value(),
+                m_smithFib->isChecked(),
+                m_smithTri->isChecked(),
+                m_smithSqr->isChecked(),
+                m_smithLabels->isChecked()
+            );
+        } else if (idx == 8) {
+            /* Math Const — π · e · Primi, genera subito */
+            m_paramStack->setCurrentIndex(3);
+            m_canvas->setMathConst(
+                m_mathTerms->value(),
+                m_mathPi    ->isChecked(),
+                m_mathE     ->isChecked(),
+                m_mathPrimes->isChecked()
+            );
+        } else if (idx == 10) {
+            /* Polare — pannello dedicato */
+            m_paramStack->setCurrentIndex(4);
+        } else {
+            /* Tutti gli altri tipi usano il pannello dati generico (idx 1) */
+            m_paramStack->setCurrentIndex(1);
+            /* Carica hint ed esempi per tutti i tipi che usano questo pannello */
+            static const int kMaxHint = 17;
+            if (idx >= 0 && idx <= kMaxHint &&
+                idx != 7 && idx != 8 && idx != 10) {
+                m_dataHint->setText(kGrafHints[idx]);
+                if (!QByteArray(kGrafExamples[idx]).isEmpty())
+                    m_dataEdit->setPlainText(kGrafExamples[idx]);
+            }
+            /* hint per i nuovi tipi 40-44 */
+            static const char* kNewHints[] = {
+                /* 40 Violin */
+                "Formato: NomeSerie: v1 v2 v3 ...\nUna serie per riga.\n"
+                "Esempio:\n  Gruppo A: 12 18 22 25 30 35 40\n  Gruppo B: 8 14 20 28 35 42",
+                /* 41 WordCloud */
+                "Formato: parola:frequenza (una per riga)\n"
+                "Esempio:\n  Python:95\n  C++:80\n  Java:70\n  Rust:60",
+                /* 42 RadialTree */
+                "Formato: padre: figlio1, figlio2\nUguale all'Albero lineare.\n"
+                "Esempio:\n  Root: A, B\n  A: C, D\n  B: E",
+                /* 43 AnimatedLine */
+                "Formato: stessa struttura di Linea multi-serie\n"
+                "x, y1, y2, ... (colonne = serie)\n"
+                "La linea viene disegnata progressivamente.",
+                /* 44 SmallMultiples */
+                "Formato: stessa struttura di Linea multi-serie\n"
+                "x, y1, y2, ... (colonne = serie)\n"
+                "Ogni serie viene mostrata in un pannello separato."
+            };
+            static const char* kNewExamples[] = {
+                /* 40 Violin */
+                "Gruppo A: 12 18 22 25 30 35 40 28 32 26\n"
+                "Gruppo B: 8 14 20 28 35 42 30 24 18 22\n"
+                "Gruppo C: 5 10 15 22 30 38 45 35 28 20",
+                /* 41 WordCloud */
+                "Python:95\nC++:80\nJava:70\nRust:60\nGo:55\n"
+                "JavaScript:50\nTypeScript:45\nSwift:40\nKotlin:35\n"
+                "Ruby:30\nScala:25\nHaskell:20\nElixir:18\nErlang:15",
+                /* 42 RadialTree — stesso esempio di Tree */
+                "Root: A, B, C\nA: D, E\nB: F\nC: G, H\nD: I\nF: J, K",
+                /* 43 AnimatedLine */
+                "# Vendite  Costi  Profitto\n0, 10, 8, 2\n1, 14, 9, 5\n"
+                "2, 18, 11, 7\n3, 22, 13, 9\n4, 19, 15, 4\n5, 25, 16, 9\n"
+                "6, 28, 17, 11\n7, 30, 18, 12",
+                /* 44 SmallMultiples */
+                "# Nord  Sud  Est  Ovest\n"
+                "0, 10, 8, 6, 4\n1, 14, 9, 7, 5\n2, 18, 11, 9, 6\n"
+                "3, 22, 13, 11, 7\n4, 19, 15, 13, 8\n5, 25, 16, 14, 9"
+            };
+            /* ── Esempi e hint per indici 18-39 ── */
+            if (idx >= 18 && idx <= 39) {
+                static const char* kHints2[] = {
+                    /* 18 Column */ "Formato: etichetta:valore  (una voce per riga)",
+                    /* 19 HBar   */ "Formato: etichetta:valore  (una voce per riga)",
+                    /* 20 Grouped*/ "Formato: x, y1, y2, ... (colonne = serie)\nRiga #: nomi serie",
+                    /* 21 Stacked*/ "Formato: x, y1, y2, ... (colonne = serie)\nRiga #: nomi serie",
+                    /* 22 Stk100 */ "Formato: x, y1, y2, ... (colonne = serie)\nRiga #: nomi serie",
+                    /* 23 Funnel */ "Formato: etichetta:valore  (dalla voce pi\xc3\xb9 grande alla pi\xc3\xb9 piccola)",
+                    /* 24 Donut  */ "Formato: etichetta:valore  (una voce per riga)",
+                    /* 25 Treemap*/ "Formato: etichetta:valore  (una voce per riga)",
+                    /* 26 Sunburst*/ "Formato: Categoria/Sottocategoria:valore\n"
+                                    "  Frutta/Mele:40\n  Frutta/Pere:25\n  Verdura/Carote:35",
+                    /* 27 BoxPlot*/ "Formato: etichetta: min, Q1, mediana, Q3, max\n"
+                                    "  Gruppo A: 10, 20, 30, 40, 60",
+                    /* 28 Dot    */ "Formato: etichetta:valore  (una voce per riga)",
+                    /* 29 Density*/ "Valori numerici separati da spazi o virgole\n"
+                                    "(dati grezzi — la curva KDE viene calcolata automaticamente)",
+                    /* 30 AStk   */ "Formato: x, y1, y2, ... (colonne = serie)\nRiga #: nomi serie",
+                    /* 31 OHLC   */ "Formato: Etichetta, Open, High, Low, Close\n"
+                                    "  Gen, 100, 115, 98, 112",
+                    /* 32 Gauge  */ "Riga 1: valore:massimo  (es. 72:100)\nRiga 2: etichetta (opzionale)",
+                    /* 33 Bullet */ "Formato: etichetta: valore, target, minRange, maxRange\n"
+                                    "  Fatturato: 85, 90, 0, 120",
+                    /* 34 Gantt  */ "Formato: task: inizio, fine [, categoria]\n"
+                                    "  Analisi: 0, 2, Fase1\n  Design: 1, 4, Fase1",
+                    /* 35 Pyramid*/ "Formato: x, sinistra, destra  (colonne = due serie)\n"
+                                    "# Maschi  Femmine\n0, 120, 115\n1, 140, 138",
+                    /* 36 Parallel*/ "Formato: riga per entit\xc3\xa0, colonne = assi\n"
+                                     "Riga #: nomi degli assi\n"
+                                     "  # Velocita Forza Resistenza Agilita\n"
+                                     "  85, 70, 60, 90",
+                    /* 37 Sankey */ "Formato: Sorgente \xe2\x86\x92 Destinazione: valore\n"
+                                    "  Energia -> Elettricita: 40\n  Energia -> Calore: 30",
+                    /* 38 Tree   */ "Formato: padre: figlio1, figlio2\n"
+                                    "  Root: A, B\n  A: C, D\n  B: E",
+                    /* 39 Chord  */ "Formato: A \xe2\x86\x92 B: valore\n"
+                                    "  Italia -> Francia: 15\n  Francia -> Germania: 20",
+                };
+                static const char* kExamples2[] = {
+                    /* 18 Column */
+                    "Gen:82\nFeb:67\nMar:91\nApr:78\nMag:95\nGiu:88",
+                    /* 19 HBar */
+                    "Python:85\nC++:72\nRust:68\nGo:61\nJava:55\nSwift:48",
+                    /* 20 Grouped */
+                    "# Nord Sud Est\n0, 42, 28, 19\n1, 55, 33, 22\n2, 48, 30, 25\n3, 60, 38, 28",
+                    /* 21 Stacked */
+                    "# Carbone Petrolio Gas Rinnovabili\n2019, 28, 33, 22, 17\n2020, 25, 30, 23, 22\n2021, 26, 31, 22, 21\n2022, 24, 29, 21, 26",
+                    /* 22 Stacked 100% */
+                    "# Desktop Mobile Tablet\n2020, 55, 35, 10\n2021, 50, 40, 10\n2022, 46, 44, 10\n2023, 43, 47, 10",
+                    /* 23 Funnel */
+                    "Visite:10000\nIscritti:4200\nContatti:1800\nOfferte:750\nClienti:320",
+                    /* 24 Donut */
+                    "Python:38\nJavaScript:26\nTypeScript:14\nJava:11\nC++:7\nAltri:4",
+                    /* 25 Treemap */
+                    "Europa:420\nAsia:580\nAmerica:390\nAfrica:180\nOceania:95",
+                    /* 26 Sunburst */
+                    "Frutta/Mele:40\nFrutta/Pere:25\nFrutta/Arance:20\n"
+                    "Verdura/Carote:35\nVerdura/Spinaci:28\nVerdura/Pomodori:32\n"
+                    "Cereali/Riso:55\nCereali/Frumento:45",
+                    /* 27 BoxPlot */
+                    "Gruppo A: 10, 22, 35, 48, 65\n"
+                    "Gruppo B: 8, 18, 28, 42, 58\n"
+                    "Gruppo C: 15, 28, 40, 55, 72\n"
+                    "Gruppo D: 5, 15, 25, 38, 52",
+                    /* 28 DotPlot */
+                    "Lun:8.2\nMar:7.5\nMer:9.1\nGio:6.8\nVen:8.8\nSab:5.2\nDom:4.5",
+                    /* 29 Density */
+                    "2.1 3.4 2.8 4.1 3.7 2.5 3.9 4.5 3.2 2.7 "
+                    "4.8 3.1 2.9 3.6 4.2 3.8 2.3 3.5 4.0 3.3 "
+                    "2.6 4.4 3.0 2.4 3.8 4.1 2.8 3.7 4.3 3.2",
+                    /* 30 AreaStacked */
+                    "# Vendite Costi Profitto\n0, 120, 80, 40\n1, 145, 90, 55\n"
+                    "2, 160, 95, 65\n3, 175, 100, 75\n4, 155, 105, 50\n5, 190, 110, 80",
+                    /* 31 OHLC */
+                    "Gen, 100, 115, 98, 112\nFeb, 112, 120, 108, 105\n"
+                    "Mar, 105, 125, 102, 118\nApr, 118, 130, 115, 125\n"
+                    "Mag, 125, 128, 110, 108\nGiu, 108, 122, 105, 118",
+                    /* 32 Gauge */
+                    "72:100\nPunteggio qualit\xc3\xa0",
+                    /* 33 Bullet */
+                    "Fatturato: 85, 90, 60, 120\n"
+                    "Profitto: 42, 50, 30, 70\n"
+                    "NPS: 68, 75, 40, 100",
+                    /* 34 Gantt */
+                    "Analisi: 0, 2, Fase 1\n"
+                    "Design: 1, 4, Fase 1\n"
+                    "Sviluppo: 3, 8, Fase 2\n"
+                    "Testing: 7, 10, Fase 2\n"
+                    "Deploy: 9, 11, Fase 3",
+                    /* 35 Pyramid */
+                    "# Maschi Femmine\n0, 850, 820\n1, 920, 900\n"
+                    "2, 980, 960\n3, 870, 850\n4, 720, 710\n5, 540, 560",
+                    /* 36 ParallelCoord */
+                    "# Velocita Forza Resistenza Agilita Precisione\n"
+                    "85, 70, 60, 90, 78\n"
+                    "62, 88, 75, 55, 82\n"
+                    "90, 55, 80, 72, 65\n"
+                    "70, 80, 85, 68, 90",
+                    /* 37 Sankey */
+                    "Carbone -> Elettricita: 40\n"
+                    "Gas -> Elettricita: 25\n"
+                    "Elettricita -> Industria: 35\n"
+                    "Elettricita -> Residenziale: 20\n"
+                    "Gas -> Riscaldamento: 30\n"
+                    "Rinnovabili -> Elettricita: 18",
+                    /* 38 Tree */
+                    "Azienda: HR, Tech, Vendite\n"
+                    "Tech: Backend, Frontend, DevOps\n"
+                    "Backend: API, Database\n"
+                    "Vendite: Italia, Estero",
+                    /* 39 Chord */
+                    "Italia -> Francia: 15\n"
+                    "Italia -> Germania: 22\n"
+                    "Francia -> Germania: 18\n"
+                    "Germania -> Spagna: 12\n"
+                    "Spagna -> Italia: 20\n"
+                    "Francia -> Spagna: 14",
+                };
+                m_dataHint->setText(kHints2[idx - 18]);
+                if (kExamples2[idx - 18][0] != '\0')
+                    m_dataEdit->setPlainText(kExamples2[idx - 18]);
+            }
+
+            if (idx >= 40 && idx <= 44) {
+                m_dataHint->setText(kNewHints[idx - 40]);
+                if (kNewExamples[idx-40][0] != '\0')
+                    m_dataEdit->setPlainText(kNewExamples[idx-40]);
+            }
+            /* Generatore da espressione: nascosto per tipi complessi */
+            const bool hasFormula = (idx != 4 && idx != 6 &&
+                                     idx != 13 && idx != 14 && idx != 16 &&
+                                     idx < 18 && idx < 40);
+            m_genSection->setVisible(hasFormula);
+        }
 }

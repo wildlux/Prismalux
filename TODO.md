@@ -40,7 +40,7 @@
 ### Nuovi problemi identificati
 
 #### 🔴 CRITICO
-- [ ] **[C++] 512 lambda connect() — le lambda NON sono state rimosse** — grep reale = **512 occorrenze** (il TODO precedente diceva 462, era stima bassa). La regola "no lambda nei connect()" non è stata applicata. **Ogni lambda che cattura `this` senza passare `this` come 3° argomento è un potenziale use-after-free**. Priorità massima: partire da `mainwindow.cpp` (file più critico, ~45 lambda).
+- [~] **[C++] Lambda connect() — conversione in corso** — partiti da ~512, ora **238 rimanenti** (2026-05-15). Completati: `mainwindow.cpp`, `impara_page.cpp`, `agenti_page_tts.cpp`, `manutenzione_page_bugs.cpp`, `grafico_page.cpp`, `quiz_page.cpp`, `lan_server.cpp`, `ai_client.cpp`. Prossimi: `ricerca_page.cpp` (26), `agenti_page_ui.cpp` (25), `manutenzione_page.cpp` (17).
 - [ ] **[SEC] Supply chain MCP** — `requirements.txt` senza versioni pinned (es. `PySide6>=6.7.0`). Un `pip install --upgrade` silenzioso può portare una dipendenza malevola. Fix: `pip-compile --generate-hashes` → `requirements.lock`.
 
 #### 🟠 IMPORTANTE
