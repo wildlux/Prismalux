@@ -224,6 +224,24 @@ Le PR sono benvenute! Linee guida:
 3. **Testa** con `ctest` e verifica che la build sia pulita
 4. **Apri** una Pull Request con descrizione chiara e screenshot/GIF se applicabile
 
+### Regole Qt specifiche
+
+**Lambda nelle `connect()`** — le lambda sono accettabili solo se il context object (4° argomento) è sempre specificato e tutti i puntatori catturati sono figli di quel context. Logica non banale va in uno slot nominato. `static QMetaObject::Connection` è sempre vietata (condivisa tra istanze → connessioni zombie).
+
+```cpp
+// ✅ ok — context specificato, puntatori con lifetime garantito
+connect(btn, &QPushButton::clicked, this, [this]{ m_stack->setCurrentIndex(1); });
+
+// ❌ no — manca il context object
+connect(reply, &QNetworkReply::finished, [this, reply]{ ... });
+
+// ❌ no — static condivisa tra istanze
+static QMetaObject::Connection c;
+c = connect(m_ai, &AiClient::token, this, [=](auto t){ ... });
+```
+
+Per tutto il resto (path, porte, icone modelli) vedi `gui/CLAUDE.md`.
+
 ---
 
 ## 📦 Struttura

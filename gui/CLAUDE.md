@@ -75,6 +75,29 @@ auto* h = new QObject(this);
 connect(src, &Src::sig, h, [this, h](auto v){ h->deleteLater(); /* logica */ });
 ```
 
+**Lambda nelle `connect()` — regola del progetto:**
+
+Preferire slot nominati. Le lambda sono accettabili **solo** se:
+1. il context object (4° argomento) è sempre specificato, e
+2. tutti i puntatori catturati sono figli del context object (stesso lifetime).
+
+```cpp
+// ✅ sicura — context = this, cattura solo figli di this
+connect(btn, &QPushButton::clicked, this, [this]{ m_stack->setCurrentIndex(1); });
+
+// ✅ sicura — context = bar, cattura widget figli di bar
+connect(m_ai, &AiClient::modelsReady, bar, [bar, cmb](const QStringList& l){ cmb->clear(); ... });
+
+// ❌ vietata — nessun context, use-after-free se il sender sopravvive
+connect(reply, &QNetworkReply::finished, [this, reply]{ ... });
+
+// ❌ vietata — static QMetaObject::Connection: condivisa tra istanze → zombie
+static QMetaObject::Connection c;
+c = connect(m_ai, &AiClient::token, this, [=](auto t){ ... });
+```
+
+Logica non banale (> 2 righe o accesso a più variabili membro) va sempre in uno slot nominato. `static QMetaObject::Connection` è **sempre** vietata.
+
 **ThemeManager:** `static ThemeManager inst(nullptr)` — MAI `inst(qApp)` → ABRT shutdown.
 
 **LanServer shutdown:** `blockSignals(true)` prima di `stop()` — evita SIGSEGV su widget distrutti.
