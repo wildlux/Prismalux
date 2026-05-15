@@ -15,12 +15,12 @@
 #include <QObject>
 #include <QProcess>
 #include <QRegularExpression>
-#include <QSettings>
 #include <QString>
 #include <QStringList>
 #include <QThread>
 #include <functional>
 #include "../prismalux_paths.h"
+#include "../app_config.h"
 
 namespace SttWhisper {
 
@@ -36,7 +36,7 @@ inline QString whisperModelsDir() { return P::whisperModelsDir(); }
 inline QString whisperModel()
 {
     /* 1. Preferenza utente salvata in QSettings */
-    const QString pref = QSettings("Prismalux","GUI").value(P::SK::kSttModelPath).toString();
+    const QString pref = AppConfig::s().value(P::SK::kSttModelPath).toString();
     if (!pref.isEmpty() && QFileInfo::exists(pref)) return pref;
 
     /* 2. Auto-detect nella cartella modelli del progetto
@@ -59,13 +59,13 @@ inline QString whisperModel()
 /* ── Legge il modello preferito da QSettings ── */
 inline QString preferredModel()
 {
-    return QSettings("Prismalux","GUI").value(P::SK::kSttModelPath).toString();
+    return AppConfig::s().value(P::SK::kSttModelPath).toString();
 }
 
 /* ── Salva il modello preferito ── */
 inline void savePreferredModel(const QString& path)
 {
-    QSettings("Prismalux","GUI").setValue(P::SK::kSttModelPath, path);
+    AppConfig::s().setValue(P::SK::kSttModelPath, path);
 }
 
 /* ── true se tutto il necessario è presente ── */

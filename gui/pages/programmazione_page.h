@@ -152,6 +152,7 @@ private:
     /* ── Python REPL sub-tab ── */
     QPlainTextEdit* m_replOutput  = nullptr;
     QLineEdit*      m_replInput   = nullptr;
+    QPushButton*    m_btnSendRepl = nullptr;  ///< "Invia ▶" nel REPL (abilitato solo con proc attivo)
     QProcess*       m_replProc    = nullptr;
     QLabel*         m_replStatus  = nullptr;
     QStringList     m_replHistory;
@@ -234,4 +235,142 @@ private:
                    const QString& lang, const QString& ext);
     void    runLint();                ///< analisi statica con linter del linguaggio corrente
     void    showDiff(const QString& before, const QString& after); ///< diff colorato pre/post fix
+
+    /* ── Slot estratti da lambda — Coding tab (costruttore) ── */
+    void onAutoFixToggled(bool on);
+    void onFixSliderChanged(int v);
+    void onLangChanged(int idx);
+    void onBtnClearClicked();
+    void onBtnAiToggled(bool on);
+    void onBtnCloseAiClicked();
+    void sendToAi();
+    void onBtnInsertClicked();
+    void onBtnRunClicked();
+    void onBtnFixClicked();
+    void onModelChanged(const QString& newModel);
+    void populateAiModels();
+
+    /* Slot per i token/finished/error dell'AI nel pannello Coding */
+    void onAiToken(const QString& tok);
+    void onAiFinished(const QString& full);
+    void onAiError(const QString& msg);
+
+    /* Slot per i token/finished/error dell'AI durante Fix */
+    void onFixToken(const QString& tok);
+    void onFixFinished(const QString& full);
+    void onFixError(const QString& msg);
+
+    /* Stato modello originale salvato prima del fix (per ripristino) */
+    QString m_fixOriginalModel;
+
+    /* Path del file temporaneo in esecuzione (passato al proc finished) */
+    QString m_procFilePath;
+
+    /* ── Slot estratti da lambda — runCode() ── */
+    void onProcReadyRead();
+    void onProcFinished(int code, QProcess::ExitStatus status);
+    void onProcErrorOccurred(QProcess::ProcessError err);
+    void onLoopFixTimer();      ///< QTimer::singleShot → triggerFix(true)
+    void onLoopRunTimer();      ///< QTimer::singleShot → runCode()
+
+    /* ── Slot estratti da lambda — Agentica ── */
+    void populateAgentModels();
+    void onBtnAgentStopClicked();
+    void onBtnClearAgentClicked();
+    void onBtnAgentInsertClicked();
+    void onAgentToken(const QString& tok);
+    void onAgentFinished(const QString& full);
+    void onAgentError(const QString& msg);
+
+    /* ── Slot estratti da lambda — Reverse Engineering ── */
+    void populateRevModels();
+    void onBtnRevLoadClicked();
+    void onBtnRevStopClicked();
+    void onBtnClearRevClicked();
+    void onBtnRevInsertClicked();
+    void onRevToken(const QString& tok);
+    void onRevFinished(const QString& full);
+    void onRevError(const QString& msg);
+
+    /* ── Slot estratti da lambda — Network Analyzer ── */
+    void onBtnNetClearClicked();
+    bool m_netUseTshark = false; ///< impostato in netStart(), usato da onNetReadyRead()
+    void onNetReadyRead();
+    void onNetReadyReadStderr();
+    void onNetFinished(int code, QProcess::ExitStatus status);
+    void onNetStopTimer();       ///< QTimer::singleShot fallback kill in netStop()
+    void onNetAiToken(const QString& tok);
+    void onNetAiFinished(const QString& full);
+    void onNetAiError(const QString& msg);
+
+    /* ── Slot estratti da lambda — Rete LAN ── */
+    void onLanScanArpClicked();
+    void onLanScanNmapClicked();
+    void onLanStopBtnClicked();
+    /* Slot interni usati dai processi LAN (ARP) */
+    void onLanArpError(QProcess::ProcessError err);
+    void onLanArpReadyRead();
+    void onLanArpFinished(int code, QProcess::ExitStatus status);
+    /* Slot interni usati dai processi LAN (nmap) */
+    void onLanNmapError(QProcess::ProcessError err);
+    void onLanNmapReadyRead();
+    void onLanNmapFinished(int code, QProcess::ExitStatus status);
+    void onLanStopTimer();  ///< QTimer::singleShot fallback kill in onLanStopBtnClicked()
+    void lanAddRow(const QString& ip, const QString& mac,
+                   const QString& host, const QString& stato);
+    void lanResetBtns();
+    QString m_lanNmapSubnet; ///< subnet corrente per nmap (usata da onLanNmapFinished)
+
+    /* ── Slot estratti da lambda — Git MCP ── */
+    void populateGitModels();
+    void onBtnGitBrowseClicked();
+    void onBtnGitStopClicked();
+    void onBtnClearGitClicked();
+    void onBtnCloseGitAiClicked();
+    void onBtnGitPullClicked();
+    void onBtnAddCommitClicked();
+    void onBtnPushClicked();
+    void onBtnGitAiClicked();
+    void onBtnGenCommitClicked();
+    /* Azioni rapide git (status/diff/log/branch) */
+    void onBtnGitStatusClicked();
+    void onBtnGitDiffClicked();
+    void onBtnGitDiffStagedClicked();
+    void onBtnGitLogClicked();
+    void onBtnGitBranchClicked();
+    void onGitReadyRead();
+    void onGitFinished(int exitCode, QProcess::ExitStatus status);
+    void onGitErrorOccurred(QProcess::ProcessError err);
+    void onGitAiToken(const QString& tok);
+    void onGitAiFinished(const QString& full);
+    void onGitAiError(const QString& msg);
+
+    /* ── Slot estratti da lambda — REPL ── */
+    void onReplReadyRead();
+    void onReplStarted();
+    void onReplFinished(int code, QProcess::ExitStatus status);
+    void onReplErrorOccurred(QProcess::ProcessError err);
+    void onReplTabChanged(int idx);
+    void onBtnReplRestartClicked();
+    void onBtnReplClearClicked();
+    void onBtnReplImportClicked();
+    void sendReplLine();
+
+    /* ── Slot estratti da lambda — Translitter ── */
+    void onBtnSwapLangsClicked();
+    void onBtnFromEditorClicked();
+    void onBtnTrStopClicked();
+    void onBtnTrInsertClicked();
+    void onTrOutputTextChanged();
+    void onTrModelChanged(const QString& newModel);
+    void populateTrModels();
+    /* btnCopyOut è locale — per il suo slot usiamo un QObject* holder salvato */
+    QPushButton*    m_btnTrCopy     = nullptr; ///< salvato per slot onBtnTrCopyClicked
+    QString         m_trCopyOrigTxt;           ///< testo originale del btn prima del "Copiato!"
+    void onBtnTrCopyClicked();
+    void onTrCopyRestoreText();  ///< QTimer::singleShot → ripristina m_trCopyOrigTxt
+    void onTrModelActivated(int idx);
+    void onTrToken(const QString& tok);
+    void onTrFinished(const QString& full);
+    void onTrError(const QString& msg);
 };

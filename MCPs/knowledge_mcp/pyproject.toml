@@ -1,0 +1,13 @@
+[project]
+name = "knowledge-mcp"
+version = "0.1.0"
+description = "MCP server per gestione knowledge base utente via Prismalux"
+requires-python = ">=3.10"
+dependencies = []
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[tool.setuptools.packages.find]
+where = ["."]

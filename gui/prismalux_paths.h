@@ -389,6 +389,12 @@ inline QString feedbackPath()
     return QDir::homePath() + "/.prismalux/feedback.jsonl";
 }
 
+/** lanTokenPath() — Token Bearer LAN salvato con permessi 0600 (non in QSettings). */
+inline QString lanTokenPath()
+{
+    return QDir::homePath() + "/.prismalux/lan_token.key";
+}
+
 /** userKnowledgePath() — Percorso del file memoria persistente utente. */
 inline QString userKnowledgePath()
 {

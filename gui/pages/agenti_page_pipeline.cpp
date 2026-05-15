@@ -2,9 +2,9 @@
 #include "agenti_page_p.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
+#include "../app_config.h"
 #include <QElapsedTimer>
 #include <QTimer>
-#include <QSettings>
 #include <QTextCursor>
 #include <QRegularExpression>
 #include <QMessageBox>
@@ -144,7 +144,7 @@ void AgentiPage::runPipeline() {
                     /* Bolla chart: solo pulsante "Mostra grafico" senza testo formula */
                     {
                         const auto& _c = bc();
-                        const int br = QSettings("Prismalux","GUI").value(P::SK::kBubbleRadius,10).toInt();
+                        const int br = AppConfig::s().value(P::SK::kBubbleRadius,10).toInt();
                         const QString brs = QString::number(br) + "px";
                         const QString chartHtml =
                             "<p style='margin:6px 0;'></p>"

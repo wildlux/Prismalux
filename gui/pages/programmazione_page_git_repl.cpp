@@ -22,6 +22,7 @@
 #include <QMessageBox>
 #include <QTextCursor>
 #include <QFont>
+#include <QApplication>
 #include <QStandardPaths>
 #include <QKeyEvent>
 #include <QDir>
@@ -80,7 +81,8 @@ QWidget* ProgrammazionePage::buildGitMcp(QWidget* parent)
     QFont monoFont;
     monoFont.setFamily("JetBrains Mono");
     monoFont.setStyleHint(QFont::Monospace);
-    monoFont.setPointSize(10);
+    const int appPt = QApplication::font().pointSize();
+    monoFont.setPointSize(appPt > 0 ? appPt : 10);
 
     auto* w   = new QWidget(parent);
     auto* lay = new QVBoxLayout(w);
@@ -274,171 +276,47 @@ QWidget* ProgrammazionePage::buildGitMcp(QWidget* parent)
 
     /* ══════ Connessioni ══════ */
 
-    connect(btnBrowse, &QPushButton::clicked, this, [this]{
-        const QString d = QFileDialog::getExistingDirectory(
-            this, "Scegli repository git", m_gitRepoPath->text());
-        if (!d.isEmpty()) m_gitRepoPath->setText(d);
-    });
-
-    connect(m_btnGitStop, &QPushButton::clicked, this, [this]{
-        if (m_gitProc && m_gitProc->state() != QProcess::NotRunning)
-            m_gitProc->kill();
-    });
-
-    connect(btnClearGit, &QPushButton::clicked, this, [this]{
-        m_gitOutput->clear();
-    });
-
-    connect(btnCloseGitAi, &QPushButton::clicked, this, [this]{
-        m_gitAiPanel->hide();
-    });
 
     /* Popola modelli AI */
-    auto populateGitModels = [this]() {
-        if (!m_ai) return;
-        m_gitAiModel->setEnabled(false);
-        const QString cur = m_ai->model();
-        auto* holder = new QObject(this);
-        connect(m_ai, &AiClient::modelsReady, holder,
-                [this, holder, cur](const QStringList& list) {
-            holder->deleteLater();
-            m_gitAiModel->clear();
-            for (const QString& mdl : list) {
-                const QString n = mdl.toLower();
-                if (n.contains("embed") || n.contains("minilm") ||
-                    n.contains("rerank") || n.contains("bge-"))
-                    continue;
-                m_gitAiModel->addItem(mdl, mdl);
-                if (P::isKnownBrokenModel(mdl)) {
-                    const int idx = m_gitAiModel->count() - 1;
-                    m_gitAiModel->setItemData(idx, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
-                    m_gitAiModel->setItemData(idx, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
-                    m_gitAiModel->setItemData(idx,
-                        P::knownBrokenModelTooltip(),
-                        Qt::ToolTipRole);
-                }
-            }
-            if (m_gitAiModel->count() == 0)
-                m_gitAiModel->addItem(cur.isEmpty() ? "(nessun modello)" : cur, cur);
-            else {
-                const int idx = m_gitAiModel->findData(cur);
-                if (idx >= 0) m_gitAiModel->setCurrentIndex(idx);
-            }
-            m_gitAiModel->setEnabled(true);
-        });
-        m_ai->fetchModels();
-    };
+    connect(btnRefGit, &QPushButton::clicked,
+            this, &ProgrammazionePage::populateGitModels);
+    QTimer::singleShot(0, this, &ProgrammazionePage::populateGitModels);
 
-    connect(btnRefGit, &QPushButton::clicked, this, populateGitModels);
-    QTimer::singleShot(0, this, [populateGitModels]{ populateGitModels(); });
+    /* Azioni rapide */
+    connect(btnBrowse, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnGitBrowseClicked);
+    connect(m_btnGitStop, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnGitStopClicked);
+    connect(btnClearGit, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnClearGitClicked);
+    connect(btnCloseGitAi, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnCloseGitAiClicked);
 
-    /* Azioni git rapide — lettura, nessuna conferma */
-    connect(btnStatus, &QPushButton::clicked, this,
-            [this]{ gitRun("status"); });
-    connect(btnDiff,   &QPushButton::clicked, this,
-            [this]{ gitRun("diff"); });
-    connect(btnDiffSt, &QPushButton::clicked, this,
-            [this]{ gitRun("diff", {"--staged"}); });
-    connect(btnLog,    &QPushButton::clicked, this,
-            [this]{ gitRun("log", {"--oneline", "-20"}); });
-    connect(btnBranch, &QPushButton::clicked, this,
-            [this]{ gitRun("branch", {"-a"}); });
+    /* Azioni git rapide */
+    connect(btnStatus, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnGitStatusClicked);
+    connect(btnDiff,   &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnGitDiffClicked);
+    connect(btnDiffSt, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnGitDiffStagedClicked);
+    connect(btnLog,    &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnGitLogClicked);
+    connect(btnBranch, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnGitBranchClicked);
 
-    /* Pull — con conferma */
-    connect(btnPull, &QPushButton::clicked, this, [this]{
-        QMessageBox dlg(this);
-        dlg.setWindowTitle("Conferma pull");
-        dlg.setIcon(QMessageBox::Question);
-        dlg.setText("<b>git pull</b><br><br>"
-                    "Scarica e integra i commit dal remote. Procedere?");
-        dlg.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-        dlg.button(QMessageBox::Ok)->setText("Pull");
-        if (dlg.exec() == QMessageBox::Ok) gitRun("pull");
-    });
+    /* Pull, Commit, Push */
+    connect(btnPull, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnGitPullClicked);
+    connect(btnAddCommit, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnAddCommitClicked);
+    connect(btnPush, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnPushClicked);
 
-    /* Add + Commit — con conferma */
-    connect(btnAddCommit, &QPushButton::clicked, this, [this]{
-        const QString msg = m_gitCommitMsg->text().trimmed();
-        if (msg.isEmpty()) {
-            m_gitOutput->appendPlainText(
-                "\xe2\x9d\x8c  Scrivi un messaggio di commit prima di procedere.\n");
-            return;
-        }
-        QMessageBox dlg(this);
-        dlg.setWindowTitle("Conferma add + commit");
-        dlg.setIcon(QMessageBox::Question);
-        dlg.setText(QString(
-            "<b>git add -A</b><br>"
-            "<b>git commit -m \"%1\"</b><br><br>"
-            "Procedere?").arg(msg.toHtmlEscaped()));
-        dlg.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-        dlg.button(QMessageBox::Ok)->setText("Conferma");
-        if (dlg.exec() != QMessageBox::Ok) return;
-
-        /* Catena: add -A → finished → commit -m msg */
-        m_gitPendingCommit = msg;
-        gitRun("add", {"-A"});
-    });
-
-    /* Push — con conferma */
-    connect(btnPush, &QPushButton::clicked, this, [this]{
-        QMessageBox dlg(this);
-        dlg.setWindowTitle("Conferma push");
-        dlg.setIcon(QMessageBox::Warning);
-        dlg.setText("<b>git push</b><br><br>"
-                    "Invier\xc3\xa0 i commit al remote. Procedere?");
-        dlg.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-        dlg.button(QMessageBox::Ok)->setText("Push");
-        if (dlg.exec() == QMessageBox::Ok) gitRun("push");
-    });
-
-    /* Analizza output con AI */
-    connect(btnGitAi, &QPushButton::clicked, this, [this, populateGitModels]{
-        m_gitAiPanel->show();
-        if (m_gitAiModel->count() <= 1) populateGitModels();
-        const QString ctx = m_gitOutput->toPlainText().trimmed();
-        if (ctx.isEmpty()) {
-            m_gitAiOutput->setPlainText(
-                "\xe2\x9d\x8c  Nessun output git. "
-                "Premi Status o Diff prima di analizzare.");
-            return;
-        }
-        gitAiRequest(
-            "Analizza questo output git. Spiega cosa sta succedendo "
-            "e suggerisci le prossime operazioni consigliate.", ctx);
-    });
-
-    /* Genera commit message dall'AI */
-    connect(btnGenCommit, &QPushButton::clicked, this, [this, populateGitModels]{
-        m_gitAiPanel->show();
-        if (m_gitAiModel->count() <= 1) populateGitModels();
-        /* Prima otteniamo il diff staged, poi chiediamo all'AI di generare il msg.
-           Usiamo un processo separato per non intralciare m_gitProc. */
-        if (!m_gitRepoPath) return;
-        const QString repo = m_gitRepoPath->text().trimmed();
-        if (repo.isEmpty()) return;
-
-        auto* tmpProc = new QProcess(this);
-        tmpProc->setProcessChannelMode(QProcess::MergedChannels);
-        tmpProc->setWorkingDirectory(repo);
-
-        connect(tmpProc,
-                QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, tmpProc](int, QProcess::ExitStatus){
-            const QString diff = QString::fromLocal8Bit(tmpProc->readAll()).trimmed();
-            tmpProc->deleteLater();
-
-            const QString ctx = diff.isEmpty()
-                ? "(nessuna modifica staged — usa git add prima)"
-                : diff.left(4000);
-            gitAiRequest(
-                "Scrivi un messaggio di commit convenzionale (Conventional Commits) "
-                "per questo diff. Formato: <type>(<scope>): <descrizione breve>. "
-                "Poi metti il messaggio finale tra [COMMIT] e [/COMMIT].", ctx);
-        });
-        tmpProc->start("git", {"-C", repo, "diff", "--staged"});
-    });
-
+    /* Analisi AI e genera commit */
+    connect(btnGitAi, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnGitAiClicked);
+    connect(btnGenCommit, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnGenCommitClicked);
     return w;
 }
 
@@ -483,53 +361,13 @@ void ProgrammazionePage::gitRun(const QString& subcmd, const QStringList& args)
     m_gitProc->setProcessChannelMode(QProcess::MergedChannels);
     m_gitProc->setWorkingDirectory(repo);
 
-    connect(m_gitProc, &QProcess::readyRead, this, [this]{
-        if (!m_gitProc) return;
-        const QString out = QString::fromLocal8Bit(m_gitProc->readAll());
-        if (m_gitOutput) {
-            m_gitOutput->moveCursor(QTextCursor::End);
-            m_gitOutput->insertPlainText(out);
-            m_gitOutput->ensureCursorVisible();
-        }
-    });
-
+    connect(m_gitProc, &QProcess::readyRead,
+            this, &ProgrammazionePage::onGitReadyRead);
     connect(m_gitProc,
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this](int exitCode, QProcess::ExitStatus status){
-        if (auto* p = qobject_cast<QProcess*>(sender())) p->deleteLater();
-        m_gitProc = nullptr;
-        if (m_gitActRow)  m_gitActRow->setEnabled(true);
-        if (m_btnGitStop) m_btnGitStop->setEnabled(false);
-
-        /* Catena add → commit */
-        if (!m_gitPendingCommit.isEmpty()) {
-            if (exitCode == 0 && status == QProcess::NormalExit) {
-                const QString msg = m_gitPendingCommit;
-                m_gitPendingCommit.clear();
-                gitRun("commit", {"-m", msg});
-            } else {
-                m_gitPendingCommit.clear();
-                if (m_gitOutput)
-                    m_gitOutput->appendPlainText(
-                        "\xe2\x9d\x8c  git add fallito — commit annullato.\n");
-            }
-        }
-    });
-
-    connect(m_gitProc, &QProcess::errorOccurred, this,
-            [this](QProcess::ProcessError err){
-        if (err != QProcess::FailedToStart) return;
-        if (m_gitOutput)
-            m_gitOutput->appendPlainText(
-                "\xe2\x9d\x8c  git non trovato nel PATH. "
-                "Installa git e riprova.\n");
-        if (m_gitActRow)  m_gitActRow->setEnabled(true);
-        if (m_btnGitStop) m_btnGitStop->setEnabled(false);
-        m_gitPendingCommit.clear();
-        if (auto* p = qobject_cast<QProcess*>(sender())) p->deleteLater();
-        m_gitProc = nullptr;
-    });
-
+            this, &ProgrammazionePage::onGitFinished);
+    connect(m_gitProc, &QProcess::errorOccurred,
+            this, &ProgrammazionePage::onGitErrorOccurred);
     m_gitProc->start("git", cmdArgs);
 }
 
@@ -572,30 +410,12 @@ void ProgrammazionePage::gitAiRequest(const QString& request, const QString& con
     if (m_gitTokenHolder) { delete m_gitTokenHolder; m_gitTokenHolder = nullptr; }
     m_gitTokenHolder = new QObject(this);
 
-    connect(m_ai, &AiClient::token, m_gitTokenHolder, [this](const QString& tok){
-        m_gitAiOutput->moveCursor(QTextCursor::End);
-        m_gitAiOutput->insertPlainText(tok);
-        m_gitAiOutput->ensureCursorVisible();
-    });
+    connect(m_ai, &AiClient::token, m_gitTokenHolder,
+            [this](const QString& tok){ onGitAiToken(tok); });
     connect(m_ai, &AiClient::finished, m_gitTokenHolder,
-            [this](const QString& full){
-        if (m_gitTokenHolder) { m_gitTokenHolder->deleteLater(); m_gitTokenHolder = nullptr; }
-        /* Se la risposta contiene [COMMIT]...[/COMMIT], popola il campo commit msg */
-        static const QRegularExpression reCommit(
-            R"(\[COMMIT\]([\s\S]*?)\[/COMMIT\])");
-        const auto m = reCommit.match(full);
-        if (m.hasMatch() && m_gitCommitMsg) {
-            const QString msg = m.captured(1).trimmed();
-            if (!msg.isEmpty()) m_gitCommitMsg->setText(msg);
-        }
-    });
+            [this](const QString& full){ onGitAiFinished(full); });
     connect(m_ai, &AiClient::error, m_gitTokenHolder,
-            [this](const QString& msg){
-        if (m_gitTokenHolder) { m_gitTokenHolder->deleteLater(); m_gitTokenHolder = nullptr; }
-        m_gitAiOutput->moveCursor(QTextCursor::End);
-        m_gitAiOutput->insertPlainText(
-            QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
-    });
+            [this](const QString& msg){ onGitAiError(msg); });
 
     m_ai->chat(sys, user);
 }
@@ -612,7 +432,8 @@ QWidget* ProgrammazionePage::buildPythonRepl(QWidget* parent)
     QFont monoFont;
     monoFont.setFamily("JetBrains Mono");
     monoFont.setStyleHint(QFont::Monospace);
-    monoFont.setPointSize(10);
+    const int appPt = QApplication::font().pointSize();
+    monoFont.setPointSize(appPt > 0 ? appPt : 10);
 
     auto* w   = new QWidget(parent);
     auto* lay = new QVBoxLayout(w);
@@ -699,10 +520,10 @@ QWidget* ProgrammazionePage::buildPythonRepl(QWidget* parent)
     m_replInput->setEnabled(false);
     inputLay->addWidget(m_replInput, 1);
 
-    auto* btnSendRepl = new QPushButton("Invia \xe2\x96\xb6", inputRow);
-    btnSendRepl->setObjectName("actionBtn");
-    btnSendRepl->setEnabled(false);
-    inputLay->addWidget(btnSendRepl);
+    m_btnSendRepl = new QPushButton("Invia ▶", inputRow);
+    m_btnSendRepl->setObjectName("actionBtn");
+    m_btnSendRepl->setEnabled(false);
+    inputLay->addWidget(m_btnSendRepl);
 
     lay->addWidget(inputRow);
 
@@ -712,65 +533,25 @@ QWidget* ProgrammazionePage::buildPythonRepl(QWidget* parent)
 
     /* ══════ Connessioni ══════ */
 
-    connect(btnRestart, &QPushButton::clicked, this, [this]{ replStart(); });
+    connect(btnRestart,  &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnReplRestartClicked);
 
-    connect(btnClearRepl, &QPushButton::clicked, this, [this]{
-        m_replOutput->clear();
-    });
+    connect(btnClearRepl, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnReplClearClicked);
 
     /* Invia riga */
-    auto sendLine = [this, btnSendRepl]{
-        if (!m_replProc || m_replProc->state() != QProcess::Running) return;
-        replSend();
-    };
-    connect(btnSendRepl, &QPushButton::clicked, this, sendLine);
-    connect(m_replInput, &QLineEdit::returnPressed, this, sendLine);
-
-    /* Abilita/disabilita input in base all'avvio */
-    auto setReplInputEnabled = [this, btnSendRepl](bool on){
-        if (m_replInput)  m_replInput->setEnabled(on);
-        if (btnSendRepl)  btnSendRepl->setEnabled(on);
-        if (on && m_replInput) m_replInput->setFocus();
-    };
+    connect(m_btnSendRepl, &QPushButton::clicked,
+            this, &ProgrammazionePage::sendReplLine);
+    connect(m_replInput, &QLineEdit::returnPressed,
+            this, &ProgrammazionePage::sendReplLine);
 
     /* Importa codice dall'editor nel REPL */
-    connect(btnImport, &QPushButton::clicked, this, [this]{
-        if (!m_replProc || m_replProc->state() != QProcess::Running) {
-            m_replOutput->appendPlainText(
-                "\xe2\x9d\x8c  Avvia prima il REPL con \xf0\x9f\x94\x84 Riavvia.\n");
-            return;
-        }
-        const QString code = m_editor->toPlainText().trimmed();
-        if (code.isEmpty()) return;
-
-        /* Scrivi su file temp, poi exec() nel REPL */
-        const QString tmp = QStandardPaths::writableLocation(
-            QStandardPaths::TempLocation) + "/prismalux_repl_import.py";
-        QFile f(tmp);
-        if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) return;
-        f.write(code.toUtf8());
-        f.close();
-
-        m_replOutput->appendPlainText(
-            "\n# === Importa da editor ===\n");
-        /* exec(open(...).read()) è più robusto di exec() su stringa multiline */
-        const QString cmd = QString("exec(open(r'%1').read())\n")
-                            .arg(QDir::toNativeSeparators(tmp).replace('\\', '/'));
-        m_replProc->write(cmd.toUtf8());
-    });
+    connect(btnImport, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnReplImportClicked);
 
     /* Avvia REPL automaticamente quando il tab viene mostrato la prima volta */
-    connect(m_innerTabs, &QTabWidget::currentChanged, this,
-            [this, setReplInputEnabled](int idx){
-        if (m_innerTabs->widget(idx) != m_replOutput->parentWidget()->parentWidget()->parentWidget())
-            return;
-        if (!m_replProc || m_replProc->state() == QProcess::NotRunning)
-            replStart();
-    });
-
-    /* Collega enable/disable input ai segnali di replStart (definiti in replStart()) */
-    /* Il collegamento avviene in replStart() stesso — vedi sotto */
-    Q_UNUSED(setReplInputEnabled);
+    connect(m_innerTabs, &QTabWidget::currentChanged,
+            this, &ProgrammazionePage::onReplTabChanged);
 
     return w;
 }
@@ -801,53 +582,18 @@ void ProgrammazionePage::replStart()
     m_replProc = new QProcess(this);
     m_replProc->setProcessChannelMode(QProcess::MergedChannels);
 
-    connect(m_replProc, &QProcess::readyRead, this, [this]{
-        if (!m_replProc) return;
-        const QString out = QString::fromLocal8Bit(m_replProc->readAll());
-        if (m_replOutput) {
-            m_replOutput->moveCursor(QTextCursor::End);
-            m_replOutput->insertPlainText(out);
-            m_replOutput->ensureCursorVisible();
-        }
-    });
+    connect(m_replProc, &QProcess::readyRead,
+            this, &ProgrammazionePage::onReplReadyRead);
 
-    connect(m_replProc, &QProcess::started, this, [this]{
-        if (m_replStatus)
-            m_replStatus->setText("\xe2\x9c\x85  Sessione attiva");
-        if (m_replInput) {
-            m_replInput->setEnabled(true);
-            m_replInput->setFocus();
-        }
-    });
+    connect(m_replProc, &QProcess::started,
+            this, &ProgrammazionePage::onReplStarted);
 
     connect(m_replProc,
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this](int code, QProcess::ExitStatus){
-        if (m_replStatus)
-            m_replStatus->setText(
-                code == 0 ? "\xe2\xac\x9c  REPL terminato"
-                          : QString("\xe2\x9d\x8c  REPL uscito (code %1)").arg(code));
-        if (m_replInput) m_replInput->setEnabled(false);
-        if (m_replOutput)
-            m_replOutput->appendPlainText(
-                "\n\xe2\x80\x94\xe2\x80\x94  Python REPL terminato  \xe2\x80\x94\xe2\x80\x94\n");
-        if (auto* p = qobject_cast<QProcess*>(sender())) p->deleteLater();
-        m_replProc = nullptr;
-    });
+            this, &ProgrammazionePage::onReplFinished);
 
-    connect(m_replProc, &QProcess::errorOccurred, this,
-            [this](QProcess::ProcessError err){
-        if (err != QProcess::FailedToStart) return;
-        if (m_replStatus)
-            m_replStatus->setText("\xe2\x9d\x8c  python3 non trovato");
-        if (m_replOutput)
-            m_replOutput->appendPlainText(
-                "\xe2\x9d\x8c  python3 non trovato nel PATH. "
-                "Installa Python 3.\n");
-        if (m_replInput) m_replInput->setEnabled(false);
-        if (auto* p = qobject_cast<QProcess*>(sender())) p->deleteLater();
-        m_replProc = nullptr;
-    });
+    connect(m_replProc, &QProcess::errorOccurred,
+            this, &ProgrammazionePage::onReplErrorOccurred);
 
 #ifdef _WIN32
     m_replProc->start("python", {"-u", "-i"});

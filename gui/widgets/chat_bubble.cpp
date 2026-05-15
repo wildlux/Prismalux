@@ -55,7 +55,7 @@ ChatBubble::ChatBubble(Role role, const QString& sender,
     m_text->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
     m_text->document()->setDocumentMargin(2);
     /* Auto-resize in altezza man mano che il contenuto cresce */
-    connect(m_text->document(), &QTextDocument::contentsChanged, m_text, [this] {
+    connect(m_text->document(), &QTextDocument::contentsChanged, this, [this] {
         int h = qMax(22, (int)m_text->document()->size().height() + 6);
         m_text->setFixedHeight(h);
     });

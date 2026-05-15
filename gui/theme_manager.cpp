@@ -63,7 +63,9 @@ void ThemeManager::apply(const QString& id) {
         if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
         QString css = QString::fromUtf8(f.readAll());
 
-        /* Appende base.qss (struttura scrollbar, ecc.) */
+        /* Appende base.qss (struttura scrollbar + fallback handle orizzontale).
+         * Viene DOPO il tema → le regole strutturali (width=8px) vincono sempre.
+         * handle:horizontal usa colore neutro perché nessun tema lo ridefinisce. */
         QFile base(QCoreApplication::applicationDirPath() + "/themes/base.qss");
         if (base.open(QIODevice::ReadOnly | QIODevice::Text))
             css += "\n" + QString::fromUtf8(base.readAll());

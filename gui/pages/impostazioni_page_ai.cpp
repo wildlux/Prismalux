@@ -7,6 +7,7 @@
 #include "../theme_manager.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
+#include "../app_config.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -37,6 +38,7 @@ namespace P = PrismaluxPaths;
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <functional>
+#include <memory>
 #include <QCoreApplication>
 #include <QTimer>
 #include <QRadioButton>
@@ -91,7 +93,9 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
 
     auto* btnOllama = new QRadioButton("\xf0\x9f\x90\xb3  Ollama", leftGroup);
     btnOllama->setChecked(true);
+    btnOllama->setAccessibleName("Backend Ollama");
     auto* btnLlama  = new QRadioButton("\xf0\x9f\xa6\x99  llama.cpp", leftGroup);
+    btnLlama->setAccessibleName("Backend llama.cpp");
 
     leftLay->addWidget(btnOllama);
     leftLay->addWidget(btnLlama);
@@ -108,6 +112,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
 
     auto* refreshBtn = new QPushButton("\xf0\x9f\x94\x84  Aggiorna lista", leftGroup);
     refreshBtn->setObjectName("actionBtn");
+    refreshBtn->setAccessibleName("Aggiorna lista modelli disponibili");
     leftLay->addWidget(refreshBtn);
 
     /* llama.cpp Studio rimosso: funzionalità integrate in scheda LLM */
@@ -303,8 +308,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
             "Inietta contesto utente nel prompt", knGroup);
         chkKn->setObjectName("cardDesc");
         {
-            QSettings ss("Prismalux", "GUI");
-            chkKn->setChecked(ss.value(P::SK::kInjectUserKnowledge, true).toBool());
+            chkKn->setChecked(AppConfig::s().value(P::SK::kInjectUserKnowledge, true).toBool());
         }
         chkRow->addWidget(chkKn);
 
@@ -330,8 +334,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
 
         /* Salva la preferenza e invalida la cache di lettura */
         connect(chkKn, &QCheckBox::toggled, page, [](bool checked) {
-            QSettings s("Prismalux", "GUI");
-            s.setValue(P::SK::kInjectUserKnowledge, checked);
+            AppConfig::s().setValue(P::SK::kInjectUserKnowledge, checked);
             P::invalidateKnowledgeCache();
         });
 
@@ -367,6 +370,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     useBtn->setObjectName("actionBtn");
     useBtn->setEnabled(false);
     useBtn->setToolTip("Imposta il modello selezionato come modello attivo");
+    useBtn->setAccessibleName("Attiva modello selezionato");
     leftLay->insertWidget(3, useBtn);
 
     /* Lambda: applica il modello selezionato e lo persiste su QSettings.
@@ -384,9 +388,9 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
                          bk == AiClient::Ollama ? PrismaluxPaths::kOllamaPort : PrismaluxPaths::kLlamaServerPort,
                          model);
         /* Salva su QSettings → sopravvive al riavvio */
-        QSettings s("Prismalux", "GUI");
-        s.setValue(PrismaluxPaths::SK::kActiveModel,   model);
-        s.setValue(PrismaluxPaths::SK::kActiveBackend, static_cast<int>(bk));
+        auto& cfg = AppConfig::s();
+        cfg.setValue(PrismaluxPaths::SK::kActiveModel,   model);
+        cfg.setValue(PrismaluxPaths::SK::kActiveBackend, static_cast<int>(bk));
         activeLbl->setText(QString("\xf0\x9f\x9f\xa2  Modello attivo: <b>%1</b>").arg(model));
         statusLbl->setText(QString("\xe2\x9c\x85 Attivo: %1").arg(QFileInfo(model).fileName()));
     };
@@ -811,14 +815,12 @@ QWidget* ImpostazioniPage::buildRagTab()
         "~/.prismalux_rag.json. Utile per documenti riservati.\n"
         "L'indice va ricostruito ad ogni avvio dell'applicazione.");
     {
-        QSettings s("Prismalux", "GUI");
-        noSaveChk->setChecked(s.value(P::SK::kRagNoSave, false).toBool());
+        noSaveChk->setChecked(AppConfig::s().value(P::SK::kRagNoSave, false).toBool());
         m_ragNoSave = noSaveChk->isChecked();
     }
     connect(noSaveChk, &QCheckBox::toggled, this, [this](bool on){
         m_ragNoSave = on;
-        QSettings s("Prismalux", "GUI");
-        s.setValue(P::SK::kRagNoSave, on);
+        AppConfig::s().setValue(P::SK::kRagNoSave, on);
     });
     outer->addWidget(noSaveChk);
 
@@ -840,11 +842,11 @@ QWidget* ImpostazioniPage::buildRagTab()
         /* Default: cartella RAG nella root del progetto Prismalux */
         const QString defaultRagDir =
             QDir::cleanPath(P::root() + "/../RAG");
-        QSettings s("Prismalux", "GUI");
-        QString saved = s.value(P::SK::kRagDocsDir, "").toString();
+        auto& cfg = AppConfig::s();
+        QString saved = cfg.value(P::SK::kRagDocsDir, "").toString();
         if (saved.isEmpty()) {
             saved = defaultRagDir;
-            s.setValue(P::SK::kRagDocsDir, saved);
+            cfg.setValue(P::SK::kRagDocsDir, saved);
         }
         dirEdit->setText(saved);
     }
@@ -859,8 +861,7 @@ QWidget* ImpostazioniPage::buildRagTab()
     auto* maxSpin = new QSpinBox;
     maxSpin->setRange(1, 20);
     {
-        QSettings s("Prismalux", "GUI");
-        maxSpin->setValue(s.value(P::SK::kRagMaxResults, 5).toInt());
+        maxSpin->setValue(AppConfig::s().value(P::SK::kRagMaxResults, 5).toInt());
     }
     maxSpin->setSuffix("  risultati");
     fl->addRow("Massimi:", maxSpin);
@@ -878,8 +879,7 @@ QWidget* ImpostazioniPage::buildRagTab()
             "Trasformata di Johnson\xe2\x80\x93Lindenstrauss (JL)", jlFrame);
         jlChk->setObjectName("cardDesc");
         {
-            QSettings s("Prismalux", "GUI");
-            jlChk->setChecked(s.value(P::SK::kRagJlTransform, true).toBool());
+            jlChk->setChecked(AppConfig::s().value(P::SK::kRagJlTransform, true).toBool());
         }
         jlChk->setToolTip(
             "Riduce la dimensionalit\xc3\xa0 dei vettori di embedding mantenendo le distanze.\n"
@@ -896,8 +896,7 @@ QWidget* ImpostazioniPage::buildRagTab()
         jlLay->addWidget(jlHint);
 
         connect(jlChk, &QCheckBox::toggled, jlFrame, [](bool on){
-            QSettings s("Prismalux", "GUI");
-            s.setValue(P::SK::kRagJlTransform, on);
+            AppConfig::s().setValue(P::SK::kRagJlTransform, on);
         });
 
         outer->addWidget(jlFrame);
@@ -916,11 +915,11 @@ QWidget* ImpostazioniPage::buildRagTab()
     /* refreshStatus legge dall'engine in-memory se disponibile (più accurato),
      * altrimenti cade su QSettings (valore salvato dall'ultima sessione). */
     auto refreshStatus = [this, statusLbl]() {
-        QSettings ss("Prismalux", "GUI");
+        auto& cfg = AppConfig::s();
         int cnt = (m_rag.chunkCount() > 0)
                   ? m_rag.chunkCount()
-                  : ss.value(P::SK::kRagDocCount, 0).toInt();
-        const QString lastIdx = ss.value(P::SK::kRagLastIndexed, "Mai").toString();
+                  : cfg.value(P::SK::kRagDocCount, 0).toInt();
+        const QString lastIdx = cfg.value(P::SK::kRagLastIndexed, "Mai").toString();
         if (cnt == 0 && lastIdx != "Mai") {
             /* Timestamp esiste ma count = 0: l'ultima indicizzazione è fallita
              * (tutti gli embedding hanno restituito errore). Mostra avviso. */
@@ -945,15 +944,15 @@ QWidget* ImpostazioniPage::buildRagTab()
      * oppure embeddings parzialmente falliti), carica l'engine da disco e
      * aggiorna QSettings con il conteggio reale. */
     {
-        QSettings ss("Prismalux", "GUI");
-        if (ss.value(P::SK::kRagDocCount, 0).toInt() == 0 &&
+        auto& cfg = AppConfig::s();
+        if (cfg.value(P::SK::kRagDocCount, 0).toInt() == 0 &&
                 m_rag.chunkCount() == 0) {
             const QString ragPath = QDir::homePath() + "/.prismalux_rag.json";
             if (QFileInfo::exists(ragPath)) {
                 m_rag.load(ragPath);
                 const int realN = m_rag.chunkCount();
                 if (realN > 0)
-                    ss.setValue(P::SK::kRagDocCount, realN);
+                    cfg.setValue(P::SK::kRagDocCount, realN);
             }
         }
     }
@@ -981,8 +980,7 @@ QWidget* ImpostazioniPage::buildRagTab()
         embedEdit->setPlaceholderText("nomic-embed-text");
         embedEdit->setFixedHeight(28);
         {
-            QSettings ss("Prismalux", "GUI");
-            const QString saved = ss.value(P::SK::kRagEmbedModel, "").toString();
+            const QString saved = AppConfig::s().value(P::SK::kRagEmbedModel, "").toString();
             embedEdit->setText(saved.isEmpty() ? "nomic-embed-text" : saved);
         }
         embedEdit->setToolTip(
@@ -991,8 +989,7 @@ QWidget* ImpostazioniPage::buildRagTab()
             "Modello consigliato: nomic-embed-text\n"
             "Installa con: ollama pull nomic-embed-text");
         QObject::connect(embedEdit, &QLineEdit::textChanged, embedEdit, [](const QString& v) {
-            QSettings ss("Prismalux", "GUI");
-            ss.setValue(P::SK::kRagEmbedModel, v.trimmed());
+            AppConfig::s().setValue(P::SK::kRagEmbedModel, v.trimmed());
         });
         embedRow->addWidget(embedLbl);
         embedRow->addWidget(embedEdit, 1);
@@ -1043,12 +1040,10 @@ QWidget* ImpostazioniPage::buildRagTab()
         if (!d.isEmpty()) dirEdit->setText(d);
     });
     QObject::connect(dirEdit, &QLineEdit::textChanged, dirEdit, [](const QString& t) {
-        QSettings ss("Prismalux", "GUI");
-        ss.setValue(P::SK::kRagDocsDir, t);
+        AppConfig::s().setValue(P::SK::kRagDocsDir, t);
     });
     QObject::connect(maxSpin, QOverload<int>::of(&QSpinBox::valueChanged), maxSpin, [](int v) {
-        QSettings ss("Prismalux", "GUI");
-        ss.setValue(P::SK::kRagMaxResults, v);
+        AppConfig::s().setValue(P::SK::kRagMaxResults, v);
     });
     /* Label feedback globale (accessibile dai lambda) */
     m_ragFeedbackLbl = feedbackLbl;
@@ -1066,14 +1061,14 @@ QWidget* ImpostazioniPage::buildRagTab()
 
         /* File da scaricare: {url, nome locale} */
         using DlItem = QPair<QString,QString>;
-        auto* items = new QVector<DlItem>{
+        auto items = std::make_shared<QVector<DlItem>>(QVector<DlItem>{
             { "https://www.agenziaentrate.gov.it/portale/documents/20143/9764684/"
               "730_+istruzioni_2026.pdf/2ac8d27a-fa3d-ed9e-ffc1-9bf61457661e",
               "730_istruzioni_2026.pdf" },
             { "https://www.agenziaentrate.gov.it/portale/documents/d/guest/"
               "pf2_2026_istruzioni_bozza-internet",
               "fascicolo2_persone_fisiche_2026.pdf" },
-        };
+        });
 
         downloadBtn->setEnabled(false);
         feedbackLbl->setText(
@@ -1082,18 +1077,17 @@ QWidget* ImpostazioniPage::buildRagTab()
         feedbackLbl->setVisible(true);
 
         auto* nam  = new QNetworkAccessManager(this);
-        auto* idx  = new int(0);
-        auto* errN = new int(0);
+        auto idx   = std::make_shared<int>(0);
+        auto errN  = std::make_shared<int>(0);
 
         /* Catena ricorsiva: un file alla volta */
-        auto* dlNext = new std::function<void()>();
-        *dlNext = [=, this]() {
+        auto dlNext = std::make_shared<std::function<void()>>();
+        *dlNext = [=, this, items, idx, errN, dlNext]() {
             if (*idx >= items->size()) {
                 /* Fine download */
                 if (*errN == 0) {
                     dirEdit->setText(ragDir);
-                    QSettings s("Prismalux", "GUI");
-                    s.setValue(P::SK::kRagDocsDir, ragDir);
+                    AppConfig::s().setValue(P::SK::kRagDocsDir, ragDir);
                     feedbackLbl->setText(
                         "\xe2\x9c\x85  Download completato! "
                         "Cartella: <code>" + ragDir + "</code><br>"
@@ -1104,7 +1098,6 @@ QWidget* ImpostazioniPage::buildRagTab()
                                 "Controlla la connessione e riprova.").arg(*errN));
                 }
                 downloadBtn->setEnabled(true);
-                delete items; delete idx; delete errN; delete dlNext;
                 nam->deleteLater();
                 return;
             }
@@ -1123,7 +1116,7 @@ QWidget* ImpostazioniPage::buildRagTab()
 
             auto* reply = nam->get(req);
             QObject::connect(reply, &QNetworkReply::finished, reply,
-                [=, this]() {
+                [=, this, items, idx, errN, dlNext]() {
                 reply->deleteLater();
                 if (reply->error() == QNetworkReply::NoError) {
                     QFile f(ragDir + "/" + fname);
@@ -1236,8 +1229,8 @@ QWidget* ImpostazioniPage::buildRagTab()
          * un messaggio utile se il modello non supporta /api/embeddings.
          * m_indexAborted: settato da "Ferma indicizzazione" — il ciclo si ferma
          * al prossimo giro (dopo il chunk già in volo). */
-        auto* errCount  = new int(0);
-        auto* indexNext = new std::function<void()>();
+        auto errCount  = std::make_shared<int>(0);
+        auto indexNext = std::make_shared<std::function<void()>>();
         *indexNext = [this, indexNext, errCount, reindexBtn, feedbackLbl, statusLbl,
                       refreshStatus, dir]() {
             /* Controlla stop (abort) O completamento naturale */
@@ -1246,15 +1239,15 @@ QWidget* ImpostazioniPage::buildRagTab()
                 /* Fine indicizzazione (naturale o interrotta) */
                 const QString path = QDir::homePath() + "/.prismalux_rag.json";
                 int n = m_rag.chunkCount();
-                QSettings ss("Prismalux", "GUI");
+                auto& cfg = AppConfig::s();
                 if (n > 0) {
                     /* Salva su QSettings solo se almeno un chunk è stato indicizzato.
                      * Se n==0 (tutti gli embedding falliti), non sovrascrivere il
                      * conteggio e il timestamp dell'ultima indicizzazione riuscita. */
                     if (!m_ragNoSave)
                         m_rag.save(path);
-                    ss.setValue(P::SK::kRagDocCount,    n);
-                    ss.setValue(P::SK::kRagLastIndexed,
+                    cfg.setValue(P::SK::kRagDocCount,    n);
+                    cfg.setValue(P::SK::kRagLastIndexed,
                         QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm"));
                 }
                 refreshStatus();
@@ -1268,7 +1261,7 @@ QWidget* ImpostazioniPage::buildRagTab()
                                 "<b>%1</b> chunk salvati su %2 totali.")
                             .arg(n).arg(m_ragQueue.size()));
                 } else if (n == 0) {
-                    const QString usedModel = ss.value(P::SK::kRagEmbedModel, "").toString();
+                    const QString usedModel = cfg.value(P::SK::kRagEmbedModel, "").toString();
                     feedbackLbl->setText(
                         QString("\xe2\x9d\x8c  <b>Embedding falliti</b> (%1 errori). "
                                 "Il modello <b>%2</b> non supporta <code>/api/embeddings</code>.<br>"
@@ -1293,8 +1286,6 @@ QWidget* ImpostazioniPage::buildRagTab()
                 if (m_btnStopIndex) m_btnStopIndex->setEnabled(false);
                 reindexBtn->setEnabled(true);
                 emit indexingFinished(n, wasAborted);
-                delete errCount;
-                delete indexNext;
                 return;
             }
 
@@ -1313,21 +1304,21 @@ QWidget* ImpostazioniPage::buildRagTab()
              * IMPORTANTE: conn e connErr si referenziano a vicenda per garantire
              * che scattando l'uno l'altro venga disconnesso subito, evitando
              * connessioni stale che si accumulerebbero tra chunk successivi. */
-            auto* conn    = new QMetaObject::Connection;
-            auto* connErr = new QMetaObject::Connection;
+            auto conn    = std::make_shared<QMetaObject::Connection>();
+            auto connErr = std::make_shared<QMetaObject::Connection>();
 
             *conn = connect(m_ai, &AiClient::embeddingReady, this,
                 [this, chunk, indexNext, conn, connErr](const QVector<float>& vec) {
-                    disconnect(*conn);    delete conn;
-                    disconnect(*connErr); delete connErr;
+                    disconnect(*conn);
+                    disconnect(*connErr);
                     m_rag.addChunk(chunk, vec);
                     (*indexNext)();
                 }, Qt::SingleShotConnection);
 
             *connErr = connect(m_ai, &AiClient::embeddingError, this,
                 [this, indexNext, errCount, conn, connErr](const QString&) {
-                    disconnect(*connErr); delete connErr;
-                    disconnect(*conn);    delete conn;
+                    disconnect(*connErr);
+                    disconnect(*conn);
                     ++(*errCount);
                     (*indexNext)();   /* salta chunk con errore */
                 }, Qt::SingleShotConnection);
@@ -1570,8 +1561,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     };
 
     {
-        QSettings ss("Prismalux", "GUI");
-        const QString curPersona = ss.value(P::SK::kAiPersonality, "nessuna").toString();
+        const QString curPersona = AppConfig::s().value(P::SK::kAiPersonality, "nessuna").toString();
 
         /* Prima riga: Nessuna + Jarvis + KITT */
         auto* row1 = new QWidget; auto* lay1 = new QHBoxLayout(row1);
@@ -1598,8 +1588,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
 
         connect(grp, &QButtonGroup::buttonClicked, page, [grp](QAbstractButton* btn) {
             const QString key = btn->property("persona_key").toString();
-            QSettings ss("Prismalux", "GUI");
-            ss.setValue(P::SK::kAiPersonality, key);
+            AppConfig::s().setValue(P::SK::kAiPersonality, key);
         });
     }
 
@@ -1642,8 +1631,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         "\xf0\x9f\x94\x92  Blocca modello in RAM (--mlock, llama-server)", page);  /* 🔒 */
     mlockCb->setObjectName("cardDesc");
     {
-        QSettings ss("Prismalux", "GUI");
-        mlockCb->setChecked(ss.value(P::SK::kMlockModel, false).toBool());
+        mlockCb->setChecked(AppConfig::s().value(P::SK::kMlockModel, false).toBool());
     }
     mlockLay->addWidget(mlockCb);
     mlockLay->addStretch();
@@ -1658,8 +1646,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     outer->addWidget(mlockDesc);
 
     connect(mlockCb, &QCheckBox::toggled, page, [](bool on) {
-        QSettings s("Prismalux", "GUI");
-        s.setValue(P::SK::kMlockModel, on);
+        AppConfig::s().setValue(P::SK::kMlockModel, on);
     });
 
     /* ── Preset "8 GB RAM" ── */
@@ -1847,13 +1834,12 @@ QWidget* ImpostazioniPage::buildSandboxTab()
         auto* chk = new QCheckBox(
             "Usa sandbox Docker per il codice generato dall\xe2\x80\x99" "AI", page);
         chk->setObjectName("settingsCheck");
-        QSettings ss("Prismalux", "GUI");
-        chk->setChecked(ss.value(P::SK::kSandboxEnabled, true).toBool());
+        chk->setChecked(AppConfig::s().value(P::SK::kSandboxEnabled, true).toBool());
         chk->setEnabled(!docker.isEmpty());
         chk->setToolTip("Se disabilitato, il codice AI viene eseguito localmente con pip install retry.\n"
                         "Con sandbox: rete disabilitata, nessun accesso al filesystem host.");
         connect(chk, &QCheckBox::toggled, page, [](bool on){
-            QSettings("Prismalux","GUI").setValue(P::SK::kSandboxEnabled, on);
+            AppConfig::s().setValue(P::SK::kSandboxEnabled, on);
         });
         row->addWidget(chk);
         row->addStretch();
@@ -1871,8 +1857,7 @@ QWidget* ImpostazioniPage::buildSandboxTab()
         imgEdit->setObjectName("settingsEdit");
         imgEdit->setPlaceholderText("python:3.11-slim");
         {
-            QSettings ss("Prismalux", "GUI");
-            imgEdit->setText(ss.value(P::SK::kSandboxImage, "python:3.11-slim").toString());
+            imgEdit->setText(AppConfig::s().value(P::SK::kSandboxImage, "python:3.11-slim").toString());
         }
         imgEdit->setToolTip(
             "Immagine Docker da usare.\n"
@@ -1880,7 +1865,7 @@ QWidget* ImpostazioniPage::buildSandboxTab()
             "python:3.12-slim — versione pi\xc3\xb9 recente.\n"
             "Prima esecuzione: Docker scarica l\xe2\x80\x99immagine automaticamente (~50 MB).");
         connect(imgEdit, &QLineEdit::editingFinished, imgEdit, [imgEdit]{
-            QSettings("Prismalux","GUI").setValue(P::SK::kSandboxImage,
+            AppConfig::s().setValue(P::SK::kSandboxImage,
                 imgEdit->text().trimmed().isEmpty() ? "python:3.11-slim" : imgEdit->text().trimmed());
         });
         grpLay->addRow("Immagine:", imgEdit);
@@ -1890,14 +1875,13 @@ QWidget* ImpostazioniPage::buildSandboxTab()
         memSpin->setSuffix(" MB");
         memSpin->setObjectName("settingsSpin");
         {
-            QSettings ss("Prismalux", "GUI");
-            memSpin->setValue(ss.value(P::SK::kSandboxMemory, 256).toInt());
+            memSpin->setValue(AppConfig::s().value(P::SK::kSandboxMemory, 256).toInt());
         }
         memSpin->setToolTip("Limite RAM del container Docker.\n"
                             "256 MB \xc3\xa8 sufficiente per la maggior parte dei task.\n"
                             "Aumenta a 512+ per elaborazioni numeriche intensive.");
         connect(memSpin, QOverload<int>::of(&QSpinBox::valueChanged), memSpin, [memSpin](int v){
-            QSettings("Prismalux","GUI").setValue(P::SK::kSandboxMemory, v);
+            AppConfig::s().setValue(P::SK::kSandboxMemory, v);
         });
         grpLay->addRow("Limite RAM:", memSpin);
 
@@ -1919,7 +1903,7 @@ QWidget* ImpostazioniPage::buildSandboxTab()
         connect(pullBtn, &QPushButton::clicked, page,
                 [pullBtn, pullStatus, imgEdit = static_cast<QLineEdit*>(nullptr)]() mutable {
             /* Rilega l'immagine dal QSettings (aggiornata da imgEdit) */
-            const QString img = QSettings("Prismalux","GUI")
+            const QString img = AppConfig::s()
                 .value(P::SK::kSandboxImage, "python:3.11-slim").toString();
             pullBtn->setEnabled(false);
             pullStatus->setText("\xf0\x9f\x94\x84  Pull in corso...");

@@ -2,6 +2,7 @@
 #include <QObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QPointer>
 #include <QProcess>
 #include <QStringList>
 #include <QElapsedTimer>
@@ -43,6 +44,7 @@ struct AiChatParams {
    ══════════════════════════════════════════════════════════════ */
 class AiClient : public QObject {
     Q_OBJECT
+    Q_DISABLE_COPY(AiClient)
 public:
     enum Backend { Ollama, LlamaServer, LlamaLocal };
 

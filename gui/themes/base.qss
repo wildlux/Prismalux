@@ -17,6 +17,15 @@ QScrollBar::add-line:horizontal,
 QScrollBar::sub-line:horizontal { width: 0; }
 QScrollBar::add-page:horizontal,
 QScrollBar::sub-page:horizontal { background: transparent; }
+/* handle neutro — applicato dopo ogni tema; i temi non ridefiniscono questo selettore */
+QScrollBar::handle:horizontal {
+    background: rgba(128,128,128,0.35);
+    min-width: 30px;
+    border-radius: 3px;
+}
+QScrollBar::handle:horizontal:hover {
+    background: rgba(128,128,128,0.65);
+}
 
 /* ── ScrollArea trasparente ── */
 QScrollArea { background: transparent; border: none; }

@@ -27,7 +27,7 @@ namespace P = PrismaluxPaths;
 /* ══════════════════════════════════════════════════════════════
    System prompts — Godot MCP
    ══════════════════════════════════════════════════════════════ */
-static const char* kGodotSys[] = {
+const char* kGodotSys[] = {
     "Sei un esperto di Godot 4.x e GDScript. "
     "Genera SOLO codice GDScript (sintassi Godot 4, non 3). "
     "Il codice verra' eseguito via godot-mcp (JSON-RPC su localhost:9080). "
@@ -163,34 +163,13 @@ QWidget* AppControllerPage::buildGodotTab()
     m_godotOutput = out;
     lay->addWidget(m_godotOutput, 1);
 
-    /* Salva script .gd */
-    connect(m_godotExecBtn, &QPushButton::clicked, this, [this](){
-        if (m_godotCode.isEmpty()) return;
-        const QString path = QDir::homePath() + "/ai_generated.gd";
-        QFile f(path);
-        if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            f.write(m_godotCode.toUtf8());
-            m_godotStatusLbl->setText(
-                "\xe2\x9c\x85  Salvato: " + path);
-        } else {
-            m_godotStatusLbl->setText("\xe2\x9d\x8c  Impossibile salvare il file");
-        }
-    });
-
-    connect(m_godotRunBtn, &QPushButton::clicked, this, [this](){
-        const int idx = m_godotAction->currentIndex();
-        if (idx < 0 || !kGodotSys[idx]) return;
-        runAi(9, QString::fromUtf8(kGodotSys[idx]),
-              m_godotInput->toPlainText(),
-              m_godotOutput, m_godotRunBtn, m_godotStopBtn,
-              m_godotModel);
-    });
-    connect(m_godotStopBtn, &QPushButton::clicked, this, [this](){
-        m_ai->abort();
-        m_godotRunBtn->setEnabled(true);
-        m_godotStopBtn->setEnabled(false);
-        m_godotOutput->append("\n\xe2\x8f\xb9  Fermato.");
-    });
+    /* Connessioni */
+    connect(m_godotExecBtn,  &QPushButton::clicked,
+            this, &AppControllerPage::onGodotExecClicked);
+    connect(m_godotRunBtn,   &QPushButton::clicked,
+            this, &AppControllerPage::onGodotRunClicked);
+    connect(m_godotStopBtn,  &QPushButton::clicked,
+            this, &AppControllerPage::onGodotStopClicked);
 
     return w;
 }

@@ -106,7 +106,7 @@ QWidget* ManutenzioneePage::buildLanServer()
     vbox->addStretch();
 
     /* ── Abilita QR btn quando server è attivo ── */
-    connect(m_lanToggleBtn, &QPushButton::toggled, qrBtn, [this, qrBtn, ip](bool on) {
+    connect(m_lanToggleBtn, &QPushButton::toggled, this, [this, qrBtn, ip](bool on) {
         qrBtn->setEnabled(on && m_lanServer && m_lanServer->isRunning());
         (void)ip;
     });

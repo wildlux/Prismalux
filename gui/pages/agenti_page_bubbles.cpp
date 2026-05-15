@@ -2,7 +2,7 @@
 #include "agenti_page_p.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
-#include <QSettings>
+#include "../app_config.h"
 #include <QTextDocument>
 #include <QDateTime>
 
@@ -45,7 +45,7 @@ QString AgentiPage::buildUserBubble(const QString& text, int bubbleIdx)
             "</p>";
     }
 
-    const int br = QSettings("Prismalux","GUI").value(P::SK::kBubbleRadius, 10).toInt();
+    const int br = AppConfig::s().value(P::SK::kBubbleRadius, 10).toInt();
     const QString brs = QString::number(br) + "px";
     return
         "<table width='100%' cellpadding='0' cellspacing='0'>"
@@ -158,7 +158,7 @@ QString AgentiPage::buildAgentBubble(const QString& label, const QString& model,
             "</p>";
     }
 
-    const int br = QSettings("Prismalux","GUI").value(P::SK::kBubbleRadius, 10).toInt();
+    const int br = AppConfig::s().value(P::SK::kBubbleRadius, 10).toInt();
     const QString brs = QString::number(br) + "px";
     return
         "<p style='margin:6px 0;'></p>"
@@ -227,7 +227,7 @@ QString AgentiPage::buildLocalBubble(const QString& result, double ms, int bubbl
             "</p>";
     }
 
-    const int br = QSettings("Prismalux","GUI").value(P::SK::kBubbleRadius, 10).toInt();
+    const int br = AppConfig::s().value(P::SK::kBubbleRadius, 10).toInt();
     const QString brs = QString::number(br) + "px";
     return
         "<p style='margin:6px 0;'></p>"

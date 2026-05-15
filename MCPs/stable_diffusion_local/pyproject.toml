@@ -1,0 +1,19 @@
+[project]
+name = "stable-diffusion-local-mcp"
+version = "0.1.0"
+description = "MCP server per generazione immagini Stable Diffusion locale via Prismalux"
+requires-python = ">=3.10"
+dependencies = [
+    "diffusers>=0.27.0,<1.0",
+    "transformers>=4.40.0,<5.0",
+    "accelerate>=0.30.0,<2.0",
+    "torch>=2.2.0,<3.0",
+    "Pillow>=10.0.0,<13.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[tool.setuptools.packages.find]
+where = ["."]

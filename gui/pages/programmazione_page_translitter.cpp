@@ -57,7 +57,8 @@ QWidget* ProgrammazionePage::buildTranslitter(QWidget* parent)
     QFont monoFont;
     monoFont.setFamily("JetBrains Mono");
     monoFont.setStyleHint(QFont::Monospace);
-    monoFont.setPointSize(11);
+    const int appPt = QApplication::font().pointSize();
+    monoFont.setPointSize(appPt > 0 ? appPt : 11);
 
     auto* w   = new QWidget(parent);
     auto* lay = new QVBoxLayout(w);
@@ -180,12 +181,12 @@ QWidget* ProgrammazionePage::buildTranslitter(QWidget* parent)
         "e lo inserisce nell'editor principale (sostituisce il contenuto attuale)");
     outBtnLay->addWidget(m_btnTrInsert);
 
-    auto* btnCopyOut = new QPushButton("\xf0\x9f\x93\x8b  Copia", outBtnRow);
-    btnCopyOut->setObjectName("actionBtn");
-    btnCopyOut->setEnabled(false);
-    btnCopyOut->setObjectName("btnTrCopy");
-    btnCopyOut->setToolTip("Copia tutto il testo dell'output negli appunti");
-    outBtnLay->addWidget(btnCopyOut);
+    m_btnTrCopy = new QPushButton("📋  Copia", outBtnRow);
+    m_btnTrCopy->setObjectName("actionBtn");
+    m_btnTrCopy->setEnabled(false);
+    m_btnTrCopy->setObjectName("btnTrCopy");
+    m_btnTrCopy->setToolTip("Copia tutto il testo dell'output negli appunti");
+    outBtnLay->addWidget(m_btnTrCopy);
 
     outBtnLay->addStretch(1);
     dstLay->addWidget(outBtnRow);
@@ -201,112 +202,37 @@ QWidget* ProgrammazionePage::buildTranslitter(QWidget* parent)
     lay->addWidget(m_trStatus);
 
     /* ── Popola combo modelli ── */
-    auto populateTrModels = [this]() {
-        if (!m_ai) return;
-        connect(m_ai, &AiClient::modelsReady, m_trModel,
-            [this](const QStringList& models) {
-                const QString cur = m_trModel->currentData().toString();
-                m_trModel->blockSignals(true);
-                m_trModel->clear();
-                for (const QString& m : models)
-                    m_trModel->addItem(P::modelIcon(0, m) + m, m);
-                /* Ripristina selezione precedente */
-                int idx = m_trModel->findData(cur);
-                if (idx < 0) idx = 0;
-                m_trModel->setCurrentIndex(idx);
-                m_trModel->blockSignals(false);
-            }, static_cast<Qt::ConnectionType>(Qt::SingleShotConnection));
-        m_ai->fetchModels();
-    };
-
-    /* Popola al primo focus sul tab — lazy */
-    connect(m_trModel, &QComboBox::activated, this, [this, populateTrModels](int) {
-        if (m_trModel->count() <= 1) populateTrModels();
-    });
+    /* Popola al primo focus sul tab -- lazy */
+    connect(m_trModel, &QComboBox::activated,
+            this, &ProgrammazionePage::onTrModelActivated);
 
     /* ── Connessioni ── */
-    connect(btnSwap, &QPushButton::clicked, this, [this]() {
-        const QString a = m_trSrcLang->currentText();
-        const QString b = m_trDstLang->currentText();
-        m_trSrcLang->setCurrentText(b);
-        m_trDstLang->setCurrentText(a);
-    });
+    /* -- Connessioni -- */
+    connect(btnSwap, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnSwapLangsClicked);
 
-    connect(btnFromEditor, &QPushButton::clicked, this, [this]() {
-        if (m_editor) {
-            const QString code = m_editor->toPlainText();
-            if (!code.trimmed().isEmpty()) {
-                m_trInput->setPlainText(code);
-                /* Aggiorna il combo sorgente in base al linguaggio dell'editor */
-                const QString edLang = m_lang ? m_lang->currentText() : "";
-                if (!edLang.isEmpty() && m_trSrcLang->findText(edLang) >= 0)
-                    m_trSrcLang->setCurrentText(edLang);
-            }
-        }
-    });
+    connect(btnFromEditor, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnFromEditorClicked);
 
-    connect(m_btnTrRun, &QPushButton::clicked, this, [this]() {
-        runTranslitter();
-    });
+    connect(m_btnTrRun, &QPushButton::clicked,
+            this, &ProgrammazionePage::runTranslitter);
 
-    connect(m_btnTrStop, &QPushButton::clicked, this, [this]() {
-        if (m_ai) m_ai->abort();
-        m_btnTrRun->setEnabled(true);
-        m_btnTrStop->setEnabled(false);
-    });
+    connect(m_btnTrStop, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnTrStopClicked);
 
-    connect(m_btnTrInsert, &QPushButton::clicked, this, [this]() {
-        const QString text = m_trOutput->toPlainText();
-        /* Estrai primo blocco ``` ... ``` */
-        static const QRegularExpression reBlock(
-            "```(?:\\w+)?\\n([\\s\\S]*?)```",
-            QRegularExpression::MultilineOption);
-        const auto m = reBlock.match(text);
-        const QString code = m.hasMatch() ? m.captured(1).trimmed() : text.trimmed();
+    connect(m_btnTrInsert, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnTrInsertClicked);
 
-        if (m_editor) {
-            m_editor->setPlainText(code);
-            /* Aggiorna il combo linguaggio dell'editor */
-            const QString dst = m_trDstLang ? m_trDstLang->currentText() : "";
-            if (!dst.isEmpty() && m_lang) {
-                int idx = m_lang->findText(dst);
-                if (idx >= 0) m_lang->setCurrentIndex(idx);
-            }
-        }
-    });
-
-    connect(btnCopyOut, &QPushButton::clicked, this, [this, btnCopyOut]() {
-        QApplication::clipboard()->setText(m_trOutput->toPlainText());
-        const QString orig = btnCopyOut->text();
-        btnCopyOut->setText("\xe2\x9c\x85  Copiato!");
-        QTimer::singleShot(1500, btnCopyOut, [btnCopyOut, orig]() {
-            if (btnCopyOut) btnCopyOut->setText(orig);
-        });
-    });
+    connect(m_btnTrCopy, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnTrCopyClicked);
 
     /* Abilita/disabilita "Copia" in base al contenuto */
-    connect(m_trOutput, &QTextEdit::textChanged, this, [this, btnCopyOut]() {
-        const bool hasContent = !m_trOutput->toPlainText().trimmed().isEmpty();
-        btnCopyOut->setEnabled(hasContent);
-    });
+    connect(m_trOutput, &QTextEdit::textChanged,
+            this, &ProgrammazionePage::onTrOutputTextChanged);
 
     /* Sincronizzazione modello */
-    connect(m_ai, &AiClient::modelChanged, this, [this](const QString& newModel) {
-        if (!m_trModel) return;
-        int idx = m_trModel->findData(newModel);
-        if (idx < 0) idx = m_trModel->findText(newModel, Qt::MatchContains);
-        if (idx >= 0) {
-            m_trModel->blockSignals(true);
-            m_trModel->setCurrentIndex(idx);
-            m_trModel->blockSignals(false);
-        } else {
-            m_trModel->blockSignals(true);
-            m_trModel->setItemText(0, newModel);
-            m_trModel->setItemData(0, newModel);
-            m_trModel->setCurrentIndex(0);
-            m_trModel->blockSignals(false);
-        }
-    });
+    connect(m_ai, &AiClient::modelChanged,
+            this, &ProgrammazionePage::onTrModelChanged);
 
     return w;
 }
@@ -397,28 +323,12 @@ void ProgrammazionePage::runTranslitter()
     if (m_trTokenHolder) { delete m_trTokenHolder; m_trTokenHolder = nullptr; }
     m_trTokenHolder = new QObject(this);
 
-    connect(m_ai, &AiClient::token, m_trTokenHolder, [this](const QString& tok) {
-        m_trOutput->moveCursor(QTextCursor::End);
-        m_trOutput->insertPlainText(tok);
-        m_trOutput->ensureCursorVisible();
-    });
-
-    connect(m_ai, &AiClient::finished, m_trTokenHolder, [this](const QString&) {
-        if (m_trTokenHolder) { m_trTokenHolder->deleteLater(); m_trTokenHolder = nullptr; }
-        m_btnTrRun->setEnabled(true);
-        m_btnTrStop->setEnabled(false);
-        const bool hasBlock = m_trOutput->toPlainText().contains("```");
-        m_btnTrInsert->setEnabled(hasBlock);
-    });
-
-    connect(m_ai, &AiClient::error, m_trTokenHolder, [this](const QString& msg) {
-        if (m_trTokenHolder) { m_trTokenHolder->deleteLater(); m_trTokenHolder = nullptr; }
-        m_btnTrRun->setEnabled(true);
-        m_btnTrStop->setEnabled(false);
-        m_trOutput->moveCursor(QTextCursor::End);
-        m_trOutput->insertPlainText(
-            QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
-    });
+    connect(m_ai, &AiClient::token, m_trTokenHolder,
+            [this](const QString& tok){ onTrToken(tok); });
+    connect(m_ai, &AiClient::finished, m_trTokenHolder,
+            [this](const QString& full){ onTrFinished(full); });
+    connect(m_ai, &AiClient::error, m_trTokenHolder,
+            [this](const QString& msg){ onTrError(msg); });
 
     m_ai->chat(P::prependKnowledge(sys), user);
 }

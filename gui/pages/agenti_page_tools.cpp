@@ -16,6 +16,7 @@
 #include "agenti_page.h"
 #include "agenti_page_p.h"
 #include "../prismalux_paths.h"
+#include "../app_config.h"
 namespace P = PrismaluxPaths;
 #include <QRegularExpression>
 #include <QJsonDocument>
@@ -298,7 +299,7 @@ void AgentiPage::runToolCall(const QJsonObject& call,
         });
 
         if (P::isSandboxReady()) {
-            const QSettings ss("Prismalux", "GUI");
+            auto& ss = AppConfig::s();
             const QString img = ss.value(P::SK::kSandboxImage, "python:3.11-slim").toString();
             const QString mem = QString::number(ss.value(P::SK::kSandboxMemory, 256).toInt()) + "m";
             proc->start(P::findDocker(), {

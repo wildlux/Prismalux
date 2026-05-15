@@ -27,6 +27,8 @@ import json
 import os
 import re
 import fcntl
+import tempfile
+import asyncio
 from pathlib import Path
 from datetime import datetime
 
@@ -82,14 +84,26 @@ def _read_raw() -> str:
 
 
 def _write_raw(content: str):
-    """Scrive il file con lock esclusivo per evitare race condition."""
+    """Scrittura atomica: write su temp file + os.replace() — non lascia file corrotto in caso di crash."""
     _ensure_file()
-    with open(KNOWLEDGE_FILE, "w", encoding="utf-8") as f:
-        try:
-            fcntl.flock(f, fcntl.LOCK_EX)
-            f.write(content)
-        finally:
-            fcntl.flock(f, fcntl.LOCK_UN)
+    dir_path = KNOWLEDGE_FILE.parent
+    tmp_path = None
+    try:
+        fd, tmp_path = tempfile.mkstemp(dir=dir_path, suffix=".tmp")
+        with os.fdopen(fd, "w", encoding="utf-8") as tmp:
+            try:
+                fcntl.flock(tmp, fcntl.LOCK_EX)
+                tmp.write(content)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+            finally:
+                fcntl.flock(tmp, fcntl.LOCK_UN)
+        os.replace(tmp_path, KNOWLEDGE_FILE)   # atomica su stesso filesystem (POSIX)
+        tmp_path = None
+    except Exception:
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
 
 
 def _parse_sections(raw: str) -> dict:
@@ -219,6 +233,30 @@ TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {}
+        }
+    },
+    {
+        "name": "search_knowledge",
+        "description": (
+            "Cerca testo in tutte le sezioni di user_knowledge.md. "
+            "Usa questo tool per trovare rapidamente procedure, decisioni o contesti "
+            "senza leggere l'intero file. "
+            "compact=true → solo conteggio occorrenze per sezione (meno token)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["query"],
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Testo da cercare (case-insensitive)."
+                },
+                "compact": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "true = solo conteggio occorrenze (output ridotto per agenti AI)."
+                }
+            }
         }
     },
     {
@@ -396,11 +434,53 @@ def tool_auto_extract(args: dict) -> str:
     return "Sezioni aggiornate:\n" + "\n".join(updated) + f"\n\nFile: {KNOWLEDGE_FILE}"
 
 
+def tool_search_knowledge(args: dict) -> str:
+    """Cerca testo in tutte le sezioni di user_knowledge.md (full-text, case-insensitive)."""
+    query   = args.get("query", "").strip()
+    compact = args.get("compact", False)
+    if not query:
+        return "[Errore] Il campo 'query' è obbligatorio."
+
+    raw      = _read_raw()
+    sections = _parse_sections(raw)
+    results: list[str] = []
+
+    pattern = re.compile(re.escape(query), re.IGNORECASE)
+
+    for sec in SECTIONS:
+        data = sections.get(sec)
+        if not data:
+            continue
+        _, body = data
+        if body.strip() in ("<!-- vuoto -->", ""):
+            continue
+        matches = list(pattern.finditer(body))
+        if not matches:
+            continue
+        title = SECTION_TITLES[sec]
+        if compact:
+            results.append(f"[{title}] {len(matches)} occorrenza/e")
+        else:
+            results.append(f"\n## {title} ({len(matches)} occorrenza/e)")
+            for m in matches[:5]:
+                start = max(0, m.start() - 60)
+                end   = min(len(body), m.end() + 60)
+                ctx   = body[start:end].replace("\n", " ").strip()
+                results.append(f"  …{ctx}…")
+
+    if not results:
+        return f"Nessun risultato per '{query}' in user_knowledge.md."
+
+    header = f"Ricerca '{query}' in user_knowledge.md:"
+    return header + "\n" + "\n".join(results)
+
+
 TOOL_HANDLERS = {
     "update_knowledge":        tool_update_knowledge,
     "read_knowledge":          tool_read_knowledge,
     "list_sections":           tool_list_sections,
     "auto_extract_and_update": tool_auto_extract,
+    "search_knowledge":        tool_search_knowledge,
 }
 
 
@@ -460,8 +540,48 @@ def handle(request: dict):
         _error(req_id, -32601, f"Metodo '{method}' non trovato.")
 
 
-def main():
-    for raw_line in sys.stdin:
+async def _handle_async(request: dict) -> None:
+    """Esegue handle() con I/O file in asyncio.to_thread per non bloccare l'event loop."""
+    method = request.get("method", "")
+    req_id = request.get("id")
+    params = request.get("params", {}) or {}
+
+    if method in ("initialize", "notifications/initialized", "ping"):
+        handle(request)
+        return
+
+    if method == "tools/list":
+        _result(req_id, {"tools": TOOLS})
+        return
+
+    if method == "tools/call":
+        name      = params.get("name", "")
+        tool_args = params.get("arguments", {}) or {}
+        handler   = TOOL_HANDLERS.get(name)
+        if not handler:
+            _error(req_id, -32601, f"Strumento '{name}' non trovato.")
+            return
+        try:
+            # I/O bloccante (fcntl.flock, file read/write) in thread separato
+            text = await asyncio.to_thread(handler, tool_args)
+        except Exception as e:
+            text = f"[Errore strumento] {e}"
+        _result(req_id, {
+            "content": [{"type": "text", "text": text}],
+            "isError": text.startswith("[Errore")
+        })
+        return
+
+    if req_id is not None:
+        _error(req_id, -32601, f"Metodo '{method}' non trovato.")
+
+
+async def _main_async() -> None:
+    loop = asyncio.get_event_loop()
+    while True:
+        raw_line = await loop.run_in_executor(None, sys.stdin.readline)
+        if not raw_line:
+            break
         raw_line = raw_line.strip()
         if not raw_line:
             continue
@@ -472,11 +592,15 @@ def main():
                    "error": {"code": -32700, "message": f"Parse error: {e}"}})
             continue
         try:
-            handle(request)
+            await _handle_async(request)
         except Exception as e:
             req_id = request.get("id")
             if req_id is not None:
                 _error(req_id, -32603, f"Internal error: {e}")
+
+
+def main():
+    asyncio.run(_main_async())
 
 
 if __name__ == "__main__":

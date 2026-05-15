@@ -1,0 +1,29 @@
+---
+# Prismalux — clang-tidy config per Qt6/C++17
+# Disabilitiamo i check che generano troppo rumore con Qt (moc, Q_OBJECT, lambda).
+Checks: >
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  cppcoreguidelines-avoid-goto,
+  cppcoreguidelines-no-malloc,
+  cppcoreguidelines-slicing,
+  modernize-use-nullptr,
+  modernize-use-override,
+  modernize-loop-convert,
+  modernize-use-emplace,
+  performance-unnecessary-copy-initialization,
+  performance-move-const-arg,
+  readability-redundant-string-init,
+  readability-container-size-empty,
+  readability-use-anyofallof,
+  clang-analyzer-core.*,
+  clang-analyzer-cplusplus.*,
+  -clang-analyzer-cplusplus.NewDeleteLeaks
+
+WarningsAsErrors: ''
+
+HeaderFilterRegex: '^(?!.*(moc_|qrc_)).*\.h$'
+
+CheckOptions:
+  - key:   modernize-use-override.AllowOverrideAndFinal
+    value: 'true'

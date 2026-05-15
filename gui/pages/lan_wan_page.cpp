@@ -1,6 +1,7 @@
 #include "lan_wan_page.h"
 #include "../lan_server.h"
 #include "../prismalux_paths.h"
+#include "../app_config.h"
 #include "../widgets/qr_code_widget.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -30,6 +31,29 @@
 #include <QTextCursor>
 
 namespace P = PrismaluxPaths;
+
+/* ── Token LAN su file dedicato (0600) ───────────────────────────────────── */
+static QString loadLanToken()
+{
+    QFile f(P::lanTokenPath());
+    if (f.open(QIODevice::ReadOnly))
+        return QString::fromUtf8(f.readAll()).trimmed();
+    /* Migrazione da QSettings */
+    const QString old = AppConfig::s().value(P::SK::kLanToken, "").toString();
+    if (!old.isEmpty())
+        AppConfig::s().remove(P::SK::kLanToken);
+    return old;
+}
+
+static void saveLanToken(const QString& token)
+{
+    QDir().mkpath(QDir::homePath() + "/.prismalux");
+    const QString path = P::lanTokenPath();
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
+    f.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+    f.write(token.toUtf8());
+}
 
 LanWanPage::LanWanPage(AiClient* ai, QWidget* parent)
     : QWidget(parent), m_ai(ai)
@@ -153,21 +177,20 @@ QWidget* LanWanPage::buildLanAndroidTab()
             "L\xe2\x80\x99" "app Android deve inviare:\n"
             "  Authorization: Bearer <token>");
 
-        /* Carica da QSettings; se non esiste ancora, genera subito */
+        /* Carica da ~/.prismalux/lan_token.key (0600); genera se non esiste */
         {
-            QSettings ss("Prismalux","GUI");
-            QString saved = ss.value(P::SK::kLanToken, "").toString();
+            QString saved = loadLanToken();
             if (saved.isEmpty()) {
                 saved = QUuid::createUuid().toString(QUuid::WithoutBraces)
                         .replace("-","").left(32);
-                ss.setValue(P::SK::kLanToken, saved);
             }
+            saveLanToken(saved);
             m_lanTokenEdit->setText(saved);
         }
 
         /* Salva a ogni modifica */
         connect(m_lanTokenEdit, &QLineEdit::textChanged, this, [](const QString& t) {
-            QSettings("Prismalux","GUI").setValue(P::SK::kLanToken, t);
+            saveLanToken(t);
         });
 
         /* Pulsante mostra/nascondi token */
@@ -189,7 +212,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
             const QString t = QUuid::createUuid().toString(QUuid::WithoutBraces)
                               .replace("-","").left(32);
             m_lanTokenEdit->setText(t);
-            QSettings("Prismalux","GUI").setValue(P::SK::kLanToken, t);
+            saveLanToken(t);
         });
 
         /* Pulsante copia token */
@@ -228,6 +251,11 @@ QWidget* LanWanPage::buildLanAndroidTab()
     noteLbl->setTextFormat(Qt::RichText);
     noteLbl->setWordWrap(true);
     gl->addWidget(noteLbl);
+
+    /* Ritorna "https" se il server usa TLS, "http" altrimenti. */
+    auto serverScheme = [this]() -> QString {
+        return (m_lanServer && m_lanServer->isTlsEnabled()) ? "https" : "http";
+    };
 
     /* ── Helper: apre dialog QR generico ── */
     auto openQrDialog = [](QPushButton* parent, const QString& url,
@@ -300,8 +328,9 @@ QWidget* LanWanPage::buildLanAndroidTab()
         gl->addWidget(connectRow);
 
         connect(qrConnectBtn, &QPushButton::clicked, this,
-                [this, qrConnectBtn, localLanIP, openQrDialog]() {
-            const QString url = QString("http://%1:%2")
+                [this, qrConnectBtn, localLanIP, openQrDialog, serverScheme]() {
+            const QString url = QString("%1://%2:%3")
+                                    .arg(serverScheme())
                                     .arg(localLanIP())
                                     .arg(m_lanPortSpin->value());
             openQrDialog(qrConnectBtn, url,
@@ -356,10 +385,10 @@ QWidget* LanWanPage::buildLanAndroidTab()
     vbox->addStretch();
 
     /* ── QR 1: download diretto APK ── */
-    connect(qrApkBtn, &QPushButton::clicked, this, [this, qrApkBtn, localLanIP, openQrDialog]() {
+    connect(qrApkBtn, &QPushButton::clicked, this, [this, qrApkBtn, localLanIP, openQrDialog, serverScheme]() {
         if (!m_lanServer || !m_lanServer->isRunning()) return;
-        const QString url = QString("http://%1:%2/apk")
-                                .arg(localLanIP()).arg(m_lanServer->port());
+        const QString url = QString("%1://%2:%3/apk")
+                                .arg(serverScheme()).arg(localLanIP()).arg(m_lanServer->port());
         openQrDialog(qrApkBtn, url,
                      "QR \xe2\x80\x94 Scarica APK",
                      "\xf0\x9f\x93\xb1" "  Scansiona per scaricare l'APK",
@@ -368,10 +397,10 @@ QWidget* LanWanPage::buildLanAndroidTab()
     });
 
     /* ── QR 2: pagina HTML di download ── */
-    connect(qrPageBtn, &QPushButton::clicked, this, [this, qrPageBtn, localLanIP, openQrDialog]() {
+    connect(qrPageBtn, &QPushButton::clicked, this, [this, qrPageBtn, localLanIP, openQrDialog, serverScheme]() {
         if (!m_lanServer || !m_lanServer->isRunning()) return;
-        const QString url = QString("http://%1:%2/")
-                                .arg(localLanIP()).arg(m_lanServer->port());
+        const QString url = QString("%1://%2:%3/")
+                                .arg(serverScheme()).arg(localLanIP()).arg(m_lanServer->port());
         openQrDialog(qrPageBtn, url,
                      "QR \xe2\x80\x94 Pagina Download",
                      "\xf0\x9f\x8c\x90" "  Scansiona per aprire la pagina di download",
@@ -391,8 +420,10 @@ QWidget* LanWanPage::buildLanAndroidTab()
                     qrPageBtn->setEnabled(running);
                     m_lanWebBtn->setEnabled(running);
                     if (running) {
+                        const QString proto = m_lanServer->isTlsEnabled()
+                            ? "\xf0\x9f\x94\x92 HTTPS" : "\xf0\x9f\x94\x93 HTTP";
                         m_lanStatusLbl->setText(
-                            "\xe2\x97\x8f  Attivo su porta " +
+                            "\xe2\x97\x8f  Attivo — " + proto + " — porta " +
                             QString::number(m_lanServer->port()));
                         m_lanStatusLbl->setStyleSheet(
                             "color: #4caf50; font-weight: bold;");
@@ -423,7 +454,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
                     tok = QUuid::createUuid().toString(QUuid::WithoutBraces)
                           .replace("-","").left(32);
                     m_lanTokenEdit->setText(tok);
-                    QSettings("Prismalux","GUI").setValue(P::SK::kLanToken, tok);
+                    saveLanToken(tok);
                 }
                 m_lanServer->setAccessToken(tok);
             }
@@ -447,11 +478,11 @@ QWidget* LanWanPage::buildLanAndroidTab()
         }
     });
 
-    /* ── Chat Web: apri browser con http://IP:porta/web ── */
-    connect(m_lanWebBtn, &QPushButton::clicked, this, [this, localLanIP]() {
+    /* ── Chat Web: apri browser con http(s)://IP:porta/web ── */
+    connect(m_lanWebBtn, &QPushButton::clicked, this, [this, localLanIP, serverScheme]() {
         if (!m_lanServer || !m_lanServer->isRunning()) return;
-        const QString url = QString("http://%1:%2/web")
-                                .arg(localLanIP()).arg(m_lanServer->port());
+        const QString url = QString("%1://%2:%3/web")
+                                .arg(serverScheme()).arg(localLanIP()).arg(m_lanServer->port());
         QDesktopServices::openUrl(QUrl(url));
     });
 

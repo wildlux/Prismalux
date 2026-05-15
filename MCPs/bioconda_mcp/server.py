@@ -4,7 +4,7 @@ Bioconda MCP — Prismalux
 Tool bioinformatici via conda/mamba: BLAST, FastQC, MUSCLE, BWA, STAR, Trimmomatic.
 Prerequisiti: Miniconda + canali bioconda e conda-forge configurati.
 """
-import sys, json, subprocess, shutil, os
+import sys, json, subprocess, shutil, os, shlex
 from pathlib import Path
 
 OUT_DIR = Path.home() / ".prismalux" / "bioconda_output"
@@ -14,8 +14,10 @@ def _conda():
     return shutil.which("mamba") or shutil.which("conda")
 
 def _run(cmd, cwd=None, timeout=300):
+    if isinstance(cmd, str):
+        cmd = shlex.split(cmd)
     try:
-        r = subprocess.run(cmd, shell=isinstance(cmd, str), capture_output=True,
+        r = subprocess.run(cmd, shell=False, capture_output=True,
                            text=True, timeout=timeout, cwd=cwd)
         return r.stdout.strip(), r.stderr.strip(), r.returncode
     except subprocess.TimeoutExpired:

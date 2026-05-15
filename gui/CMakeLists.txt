@@ -30,6 +30,7 @@ set_source_files_properties(${C_SRCS} PROPERTIES LANGUAGE C)
 set(CPP_SRCS
     main.cpp
     mainwindow.cpp
+    mainwindow_slots.cpp
     hardware_monitor.cpp
     ai_client.cpp
     theme_manager.cpp
@@ -88,6 +89,8 @@ set(CPP_SRCS
     pages/programmazione_page.cpp
     pages/programmazione_page_git_repl.cpp
     pages/programmazione_page_translitter.cpp
+    pages/programmazione_page_slots.cpp
+    pages/app_controller_page_slots.cpp
     pages/code_interpreter_widget.cpp
     pages/stable_diffusion_widget.cpp
     pages/matematica_page.cpp
@@ -170,6 +173,20 @@ add_custom_command(TARGET Prismalux_GUI POST_BUILD
 )
 
 message(STATUS "Prismalux GUI: grafico_page include SmithPrime (idx 7) + MathConst-pi-e-Primi (idx 8)")
+
+# ── clang-tidy (analisi statica): attiva con -DENABLE_CLANG_TIDY=ON ──────
+# Richiede: sudo apt install clang-tidy-18
+# Uso: cmake -B build_tidy -DENABLE_CLANG_TIDY=ON && cmake --build build_tidy --target tidy
+option(ENABLE_CLANG_TIDY "Esegui clang-tidy su tutti i sorgenti" OFF)
+if(ENABLE_CLANG_TIDY)
+    find_program(CLANG_TIDY_EXE NAMES clang-tidy-20 clang-tidy-19 clang-tidy-18 clang-tidy-17 clang-tidy)
+    if(CLANG_TIDY_EXE)
+        message(STATUS "Prismalux GUI: clang-tidy trovato: ${CLANG_TIDY_EXE}")
+        set_target_properties(Prismalux_GUI PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_EXE};--config-file=${CMAKE_SOURCE_DIR}/.clang-tidy")
+    else()
+        message(WARNING "ENABLE_CLANG_TIDY=ON ma clang-tidy non trovato. Installa: sudo apt install clang-tidy-18")
+    endif()
+endif()
 
 # ── Test suite: test_signal_lifetime ─────────────────────────────────────
 # Testa 3 categorie di bug invisibili:

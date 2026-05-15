@@ -6,6 +6,7 @@
 #include "grafico_page.h"
 #include "../theme_manager.h"
 #include "../prismalux_paths.h"
+#include "../app_config.h"
 namespace P = PrismaluxPaths;  /* alias file-scope per P::SK::kXxx */
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -150,6 +151,9 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
 
         t->addTab(m_personalizza->buildLoraTab(),
                   "\xf0\x9f\xa7\xa0  Fine-tuning");
+
+        t->addTab(m_personalizza->buildLlamaStudio(),
+                  "\xf0\x9f\xa6\x99  llama.cpp Studio");
 
         {
             auto* w = new QWidget;
@@ -415,45 +419,41 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
     /* ── Preview widget — creato prima di saveStyle per poterlo catturare ── */
     auto* preview = new ChartPreviewWidget(canvas);
 
-    /* ── Helper: salva stile in QSettings + aggiorna preview ── */
+    /* ── Helper: salva stile in AppConfig + aggiorna preview ── */
     auto saveStyle = [canvas, preview]() {
         if (!canvas) return;
         const auto& s = canvas->style();
-        QSettings cfg("Prismalux", "GUI");
-        cfg.beginGroup("ChartStyle");
-        cfg.setValue("bgColor",   s.bgColor.name(QColor::HexArgb));
-        cfg.setValue("axisColor", s.axisColor.name(QColor::HexArgb));
-        cfg.setValue("gridColor", s.gridColor.name(QColor::HexArgb));
-        cfg.setValue("textColor", s.textColor.name(QColor::HexArgb));
-        cfg.setValue("fontFamily",s.fontFamily);
-        cfg.setValue("fontSize",  s.fontSize);
-        cfg.setValue("showGrid",  s.showGrid);
+        auto& cfg = AppConfig::s();
+        cfg.setValue("ChartStyle/bgColor",   s.bgColor.name(QColor::HexArgb));
+        cfg.setValue("ChartStyle/axisColor", s.axisColor.name(QColor::HexArgb));
+        cfg.setValue("ChartStyle/gridColor", s.gridColor.name(QColor::HexArgb));
+        cfg.setValue("ChartStyle/textColor", s.textColor.name(QColor::HexArgb));
+        cfg.setValue("ChartStyle/fontFamily",s.fontFamily);
+        cfg.setValue("ChartStyle/fontSize",  s.fontSize);
+        cfg.setValue("ChartStyle/showGrid",  s.showGrid);
         QStringList pal;
         for (const QColor& c : s.palette) pal << c.name(QColor::HexArgb);
-        cfg.setValue("palette", pal);
-        cfg.endGroup();
+        cfg.setValue("ChartStyle/palette", pal);
         if (preview) preview->refresh();
     };
 
     /* ── Carica stile salvato all'avvio ── */
     if (canvas) {
-        QSettings cfg("Prismalux", "GUI");
-        cfg.beginGroup("ChartStyle");
+        auto& cfg = AppConfig::s();
         GraficoCanvas::ChartStyle s;
         auto loadColor = [&](const char* key, QColor def) {
             QString v = cfg.value(key).toString();
             return v.isEmpty() ? def : QColor(v);
         };
-        s.bgColor    = loadColor("bgColor",   s.bgColor);
-        s.axisColor  = loadColor("axisColor", s.axisColor);
-        s.gridColor  = loadColor("gridColor", s.gridColor);
-        s.textColor  = loadColor("textColor", s.textColor);
-        s.fontFamily = cfg.value("fontFamily", s.fontFamily).toString();
-        s.fontSize   = cfg.value("fontSize",   s.fontSize).toInt();
-        s.showGrid   = cfg.value("showGrid",   s.showGrid).toBool();
-        const QStringList pal = cfg.value("palette").toStringList();
+        s.bgColor    = loadColor("ChartStyle/bgColor",   s.bgColor);
+        s.axisColor  = loadColor("ChartStyle/axisColor", s.axisColor);
+        s.gridColor  = loadColor("ChartStyle/gridColor", s.gridColor);
+        s.textColor  = loadColor("ChartStyle/textColor", s.textColor);
+        s.fontFamily = cfg.value("ChartStyle/fontFamily", s.fontFamily).toString();
+        s.fontSize   = cfg.value("ChartStyle/fontSize",   s.fontSize).toInt();
+        s.showGrid   = cfg.value("ChartStyle/showGrid",   s.showGrid).toBool();
+        const QStringList pal = cfg.value("ChartStyle/palette").toStringList();
         for (const QString& c : pal) s.palette << QColor(c);
-        cfg.endGroup();
         canvas->setStyle(s);
     }
 

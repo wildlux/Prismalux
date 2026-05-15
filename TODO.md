@@ -1,6 +1,107 @@
 # Prismalux — TODO prossima sessione
 
-> Aggiornato: 2026-05-15 | Build: `cd gui && cmake --build build -j$(nproc)`
+> Aggiornato: 2026-05-15 (sessione VI) | Build: `cd gui && cmake --build build -j$(nproc)`
+
+---
+
+## App Mobile — 2026-05-15
+
+### Android
+- [x] **SMARTPHONE** ✅ — `ANDROID/SMARTPHONE/CMakeLists.txt` creato; referenzia `../android_app/` con define `PRISMALUX_FORM_FACTOR_SMARTPHONE`; build: `cmake -B build-smartphone -DCMAKE_TOOLCHAIN_FILE=<Qt>/qt.toolchain.cmake -DANDROID_ABI=arm64-v8a && make apk`
+- [x] **TABLET** ✅ — `ANDROID/TABLET/CMakeLists.txt` + `tablet_nav_rail.cpp/.h` creati; define `PRISMALUX_FORM_FACTOR_TABLET`; `TabletNavRail` = sidebar verticale Material 3 da 80px che sostituisce la bottom bar dello smartphone
+- [ ] **[C++] Adatta `mainwindow.cpp` di android_app ai form factor** — leggere `PRISMALUX_FORM_FACTOR_TABLET` a runtime (`#ifdef`) per scegliere tra `BottomBar` e `TabletNavRail`; layout split-panel (sidebar + stack) per tablet
+
+### iOS (PySide6 — PROTOTIPO DESKTOP)
+- [x] **IPHONE** ✅ — `IOS/IPHONE/app.py` + `main_window.py` + `pages/{chat,studio,settings}_page.py`; finestra 390×844dp; bottom nav bar + chat con bolle; `pip install PySide6 && python app.py`
+- [x] **IPAD** ✅ — `IOS/IPAD/app.py` + `main_window.py`; finestra 820×1180dp; sidebar laterale 220px stile split-view; riusa le pagine iPhone
+- [ ] **[DEPLOY] PySide6 NON supporta iOS nativamente** — opzioni reali per produzione:
+  - **BeeWare** (`briefcase create iOS`) — Python nativo su iPhone/iPad, toolkit Toga
+  - **Kivy + kivy-ios** — `toolchain build python3` → Xcode → App Store
+  - **Qt6 C++ for iOS** — porta `android_app/` a iOS (stesso codice, toolchain Qt Xcode)
+  - **Raccomandato**: portare `android_app/` (Qt6 C++) su iOS; è la strada più veloce dato che la base esiste già
+
+---
+
+## Printing Press concepts — 2026-05-15
+
+### Implementato
+- [x] **gns3_mcp v2** ✅ — SQLite cache (`~/.prismalux/gns3_cache.db`): tabelle projects/templates/nodes/links con FTS5 su nodi; tool `sync` (API→SQLite); `get_topology` compound (progetto+nodi+link in un tool); `search_nodes` FTS5; `compact=true` per output token-efficiente; fallback API live se cache vuota
+- [x] **knowledge_mcp search** ✅ — tool `search_knowledge` (regex full-text, case-insensitive, top 5 estratti con contesto); main loop convertito ad `asyncio`; `asyncio.to_thread()` per `fcntl.flock` I/O bloccante (non blocca più l'event loop)
+- [x] **sd_local cache** ✅ — SQLite `~/.prismalux/sd_models_cache.db`: tabelle models + generations; `_record_model_use()` e `_record_generation()` chiamati dopo ogni run; `--list-models` mostra modelli usati in precedenza con device/usi/data
+
+### Prossimi passi (Printing Press)
+- [ ] **Ollama MCP** — generare un MCP Ollama con SQLite cache lista modelli (sync da `/api/tags`), `get_model_info` compound, search by size/name; sostituisce fetch-on-demand in AiClient
+- [ ] **Install Go + Printing Press** — per generare MCP in Go di qualità superiore: `sudo apt install golang-go && git clone github.com/mvanhorn/cli-printing-press`
+
+---
+
+## Audit esperto V — 2026-05-15 (sicurezza · UI · Python · C++)
+
+### Nuovi problemi identificati
+
+#### 🔴 CRITICO
+- [ ] **[C++] 512 lambda connect() — le lambda NON sono state rimosse** — grep reale = **512 occorrenze** (il TODO precedente diceva 462, era stima bassa). La regola "no lambda nei connect()" non è stata applicata. **Ogni lambda che cattura `this` senza passare `this` come 3° argomento è un potenziale use-after-free**. Priorità massima: partire da `mainwindow.cpp` (file più critico, ~45 lambda).
+- [ ] **[SEC] Supply chain MCP** — `requirements.txt` senza versioni pinned (es. `PySide6>=6.7.0`). Un `pip install --upgrade` silenzioso può portare una dipendenza malevola. Fix: `pip-compile --generate-hashes` → `requirements.lock`.
+
+#### 🟠 IMPORTANTE
+- [ ] **[UI] Nessun feedback visivo su errori di rete** — quando `AiClient` fallisce (timeout, Ollama giù, JSON malformato) l'utente vede il bottone tornare idle senza un messaggio. Il modello corretto: banner rosso contestuale + pulsante "Riprova". File coinvolti: tutti i `*_page.cpp` che chiamano `requestChat()`.
+- [ ] **[UI] DPI/scaling non gestito su Linux Wayland** — alcuni widget usano dimensioni hardcoded in px (es. `setFixedWidth(80)`, `setFixedHeight(52)`) che risultano minuscoli su display HiDPI 2×. Fix: sostituire con `logicalDpiX() / 96.0 * N` o usare `em` via QFontMetrics.
+- [ ] **[C++] `ai_client.cpp:1063` — lambda con `reply` raw nel connect** — `connect(reply, &QNetworkReply::finished, this, [reply, callback] {...})` cattura `reply` senza `QPointer`. Se il `QNetworkAccessManager` distrugge `reply` prima che la lambda venga eseguita → crash. Fix: `QPointer<QNetworkReply> safeReply(reply)` + check `if (!safeReply) return;`.
+- [ ] **[Python] MCP senza `asyncio.timeout()`** — le chiamate HTTP nei MCP non hanno timeout esplicito. Una risposta lenta blocca indefinitamente il thread MCP. Fix: `async with asyncio.timeout(30):` intorno alle chiamate rete.
+
+#### 🟡 PIANIFICABILE
+- [ ] **[SEC] Token LAN in QSettings in chiaro** — il token Bearer è salvato in `~/.config/Prismalux/GUI.conf` in plaintext. Su un sistema multiutente è leggibile. Fix: `QKeychain` (Linux: libsecret, macOS: Keychain, Windows: DPAPI).
+- [ ] **[UI] Dark/Light automatico da OS** — 23 temi ma nessuno segue `QStyleHints::colorScheme()` (Qt 6.5+). Aggiungere un tema "Sistema" che rileva automaticamente dark/light. File: `theme_manager.cpp`.
+- [ ] **[UI] Focus trap nei dialog** — dialog `QDialog` aprono ma il focus non parte dal primo campo interattivo. Aggiungere `firstWidget->setFocus()` in `showEvent()`.
+- [ ] **[C++] `monitor_panel.cpp:68,78` — lambda senza context object** — `connect(clearBtn, &QPushButton::clicked, this, [this]{...})` — qui `this` c'è ma come lambda, non come slot. Convertire a slot nominato `onClearClicked()` per rispettare la regola no-lambda.
+- [ ] **[Python] Logging strutturato MCP** — tutti i MCP usano `print()`. Sostituire con `logging.getLogger(__name__)` + `PRISMALUX_LOG_LEVEL` da env. Essenziale per produzione.
+
+#### 🟢 TECH DEBT
+- [ ] **[Python] asyncio.to_thread per I/O sync in knowledge_mcp** — `_write_raw()` e `_read_raw()` sono sync con `fcntl.flock` bloccante dentro `async def`. Un file lento blocca l'event loop. Fix: `await asyncio.to_thread(_write_raw, content)`.
+- [ ] **[C++] `lan_server.cpp:225,234` — lambda negli ssl connect** — due lambda in `connect(sslSock, &QSslSocket::encrypted, ...)` e `connect(sslSock, &QSslSocket::disconnected, ...)`. Convertire a slot `onEncrypted()` / `onDisconnected()`.
+- [ ] **[Python] Type checking assente** — nessun `mypy` / `pyright` sui file MCP. Aggiungere `pyproject.toml` con `[tool.mypy]` e run in CI.
+
+---
+
+## Audit esperto IV — 2026-05-15 (sicurezza · UI · Python · C++)
+
+### 🔴 CRITICO
+
+- [~] **[SEC] exec() MCP — validazione input** (parziale 2026-05-15 sessione V) — `blender_addon` e `office_bridge` hanno ora `_validate_code()` che blocca `import os/subprocess/ctypes`, `os.system`, `eval(`, `exec(` prima di eseguire. `freecad_mcp`/`kicad_mcp` inviano il codice all'app via HTTP (exec avviene dentro FreeCAD/KiCAD, fuori dal nostro processo). Sandbox subprocess completa rimane aperta per blender_addon e office_bridge.
+- [x] **[SEC] bioconda_mcp — shell injection condizionale** ✅ — 2026-05-15: `_run()` ora usa sempre `shell=False`; se `cmd` è una stringa viene convertita con `shlex.split()`; aggiunto `import shlex`.
+
+### 🟠 IMPORTANTE
+
+- [ ] **[C++] 462 lambda connect() senza contesto esplicito** — grep trova ~462 `connect()` con lambda che catturano `this` senza passare `this` come 3° argomento (context object). Se il sender sopravvive al receiver, la lambda invoca metodi su oggetto già distrutto. Fix per ogni occorrenza: aggiungere `this` come terzo parametro o usare `QPointer<T>` nella capture.
+- [x] **[C++] heap primitives con `delete` manuale in lambda** ✅ — 2026-05-15 sessione V: 3 pattern migrati a `std::shared_ptr` in `impostazioni_page_ai.cpp`: download chain (`idx`,`errN`,`dlNext`), indexing chain (`errCount`,`indexNext`), connection handles (`conn`,`connErr`). Aggiunto `#include <memory>`.
+- [x] **[C++] `delete m_tokenHolder` bypassa Qt parent ownership** ✅ — 2026-05-15 sessione V: `programmazione_page.cpp:946` — `delete m_tokenHolder` → `m_tokenHolder->deleteLater()`. Qt svuota la coda eventi prima di distruggere, evitando double-free su segnali pending.
+- [x] **[C++] QSettings diretti in `impostazioni_page_ai.cpp`** ✅ — 2026-05-15: 24 istanze `QSettings("Prismalux","GUI")` migrate ad `AppConfig::s()`; 28 call-site totali dopo (alcuni blocchi usano `auto& cfg = AppConfig::s()` multi-uso). 0 istanze rimaste.
+- [x] **[UI] Tab order sistematico su pagine chiave** ✅ — 2026-05-15 sessione V: `setTabOrder` aggiunto a `impara_page.cpp` (buildTutor + buildQuiz), `programmazione_page.cpp` (editor→AI→insert chain), `strumenti_page.cpp` (rag→run chain). Scope completo su tutte le ~15k righe rimane aperto.
+- [ ] **[UI] Stati di errore muti** — `fetchModels()`, fetch RAG, pipeline fallita: nessun messaggio contestuale. Il bottone torna allo stato idle senza spiegare l'errore. Fix: pattern `AiErrorWidget::showError(msg, retry)` dove mancante.
+
+### 🟡 PIANIFICABILE
+
+- [x] **[SEC] TLS — conta sessioni solo dopo handshake** ✅ — 2026-05-15 sessione V: `m_pendingTls` counter in `lan_server.h`; `onNewConnection()` incrementa alla connessione TCP e aggiunge a `m_sessions` solo su `QSslSocket::encrypted()`; check DoS usa `m_sessions.size() + m_pendingTls`.
+- [x] **[SEC] HSTS mancante con TLS attivo** ✅ — 2026-05-15: `httpOkHeader()` e `httpStreamHeader()` cambiate da `static` a `const` member function; aggiunto `Strict-Transport-Security: max-age=31536000` condizionato su `m_tlsEnabled`. `[[nodiscard]]` aggiunto alle stesse.
+- [ ] **[Python] Type checking assente** — nessun `mypy` / `pyright` sui file MCP. Aggiungere `pyproject.toml` con `[tool.mypy]` e run in CI.
+- [ ] **[Python] requirements.lock con hash** — `pip-compile --generate-hashes` genera `requirements.lock` auditabile. Senza hash SHA256, `pip install --upgrade` può installare versione compromessa (supply chain).
+- [ ] **[Python] Logging strutturato** — i MCP usano `print()`. Sostituire con `logging.getLogger(__name__)` con livelli configurabili da variabile d'ambiente `PRISMALUX_LOG_LEVEL`.
+- [x] **[C++] `[[nodiscard]]` su funzioni critiche** ✅ — 2026-05-15: `[[nodiscard]]` aggiunto a `timingSafeEqual`, `_ensureCert`, `checkChatRateLimit`, `httpOkHeader`, `httpStreamHeader` in `lan_server.h`.
+- [ ] **[UI] Dark/Light auto da sistema** — 23 temi ma nessuno segue `QStyleHints::colorScheme()` (Qt 6.5+). Aggiungere un tema "Sistema" che applica automaticamente dark/light in base all'OS.
+
+### 🟢 TECH DEBT
+
+- [ ] **[Python] asyncio.to_thread per I/O sync in knowledge_mcp** — `_write_raw()` e `_read_raw()` sono sync con `fcntl.flock` bloccante all'interno di un `async def`. Un file lento blocca l'event loop. Fix: `await asyncio.to_thread(_write_raw, content)`.
+- [x] **[C++] QSettings diretti in `impostazioni_page.cpp`** ✅ — 2026-05-15 sessione V: `saveStyle`/`loadStyle` migrati ad `AppConfig::s()` con chiavi prefissate `"ChartStyle/bgColor"` etc. (il `/` è il separatore di gruppo nativo di QSettings). Aggiunto `#include "../app_config.h"`.
+- [x] **[C++] QSettings diretto in `agenti_page_tools.cpp:301`** ✅ — 2026-05-15: sostituito con `AppConfig::s()`; aggiunto `#include "../app_config.h"`.
+
+---
+
+## Fix 2026-05-15 (sessione IV)
+- [x] **Ringraziamenti aggiornati** ✅ — badge "12 MCP" corretto a "17 MCP" (conteggio reale kMCPs[]); versione v2.8→v2.9; aggiunto link "MIT" alla licenza GitHub accanto a Bug/Wiki/Release
+
+## Fix 2026-05-15 (sessione III)
+- [x] **llama.cpp Studio reintegrato** ✅ — tab "🦙 llama.cpp Studio" rimontato in Impostazioni → AI Locale (dopo Fine-tuning); aggiunta card "Compila/Aggiorna" nel sotto-menu (prima era raggiungibile solo dal banner al primo avvio)
 
 ## Test GUI da completare
 
@@ -104,34 +205,37 @@
 - [x] **[Python] MCP SyntaxError — godot_mcp/server.py:68** ✅ — variabili locali `_name`/`_ntype`/`_path`/`_prop` prima delle f-string; rimossi `args[\"...\"]` dentro `{}`
 - [x] **[Python] MCP SyntaxError — freecad_mcp/server.py:101** ✅ — stessa fix: `_out`, `_op`, `_bname`; anche `op_map[_op]` al posto di `op_map[args['operation']]` dentro l'f-string
 - [x] **[Python] MCP SyntaxError — kicad_mcp/server.py:78** ✅ — `_lib`, `_fp`, `_x`, `_y` estratti prima del blocco codice; fix anche in `tool_export_gerber` (`_outdir`)
-- [ ] **[SEC] LAN server HTTP puro — nessun TLS** — chat, token e knowledge viaggiano in chiaro; usare `QSslServer` + certificato self-signed generato automaticamente al primo avvio
+- [x] **[SEC] LAN server TLS (HTTPS)** ✅ — 2026-05-15: `QSslServer` con cert self-signed generato via `openssl req -x509 -rsa:2048` in `~/.prismalux/`; fallback HTTP se openssl/ssl non disponibile; badge "🔒 HTTPS / 🔓 HTTP" in LanWanPage; URL QR e Chat Web usano `serverScheme()` dinamico; JS usa URL relativi → nessun mixed content
 - [x] **[SEC] `/apk` endpoint pubblico senza auth** ✅ — aggiunto `/apk` all'insieme `isApi` in `lan_server.cpp`; ora richiede Bearer token come le API
 
 ### 🟠 IMPORTANTE
 
-- [ ] **[SEC] Token Bearer in QSettings plain text** — `lan_wan_page.cpp:158-170` scrive il token in `~/.config/Prismalux/GUI.conf`; usare `QKeychain` o cifratura AES locale
+- [x] **[SEC] Token Bearer in QSettings plain text** ✅ — 2026-05-15 sessione III: `loadLanToken()`/`saveLanToken()` in `lan_wan_page.cpp`; file dedicato `~/.prismalux/lan_token.key` con permessi 0600 (`QFileDevice::ReadOwner|WriteOwner`); migrazione automatica da QSettings al primo avvio; `P::lanTokenPath()` aggiunto in `prismalux_paths.h`
+- [x] **[SEC] DoS: nessun limite connessioni simultanee LAN server** ✅ — 2026-05-15 sessione III: `kMaxSessions = 32` in `lan_server.h`; check in `onNewConnection()` → risponde 503 + `deleteLater()` se già 32 sessioni aperte
+- [x] **[SEC] Security headers HTTP assenti** ✅ — 2026-05-15 sessione III: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` aggiunti a `httpOkHeader()` e `httpStreamHeader()`; `nosniff`+`DENY` anche in `sendError()`; aggiunto caso 429 mancante in `sendError()`
 - [x] **[SEC] `m_llamaBin` non validato prima di `QProcess::start`** ✅ — `ai_client.cpp`: regex `[;&|` + "`" + `$<>\\]` + `QFileInfo::isExecutable()` prima di start; emit error se path invalido
-- [ ] **[SEC] Nessun rate limiting su `/api/chat`** — solo `/knowledge` ha il limiter; un client malevolo può saturare Ollama
-- [ ] **[UX] Nessun undo/redo esplicito nell'editor** — `QPlainTextEdit` ha Ctrl+Z nativo ma nessuna azione custom (inserisci-da-AI, incolla-template) va nello stack; aggiungere `QUndoStack` + shortcut documentati
+- [x] **[SEC] Nessun rate limiting su `/api/chat`** ✅ — 2026-05-15: `handleChat()` + `handleGenerate()` hanno ora `m_chatRateCount` (max 30 req/min per IP) con reset ogni 60s; stesso timer condiviso
+- [x] **[UX] Nessun undo/redo esplicito nell'editor** ✅ — 2026-05-15: `setPlainText(code)` → `QTextCursor::select(Document)+insertText(code)` in 3 punti (Inserisci AI, Correggi AI, Agentica); le azioni entrano nello stack undo nativo di QPlainTextEdit; placeholder aggiornato
 - [x] **[UX] Nessuna conferma su azioni distruttive** ✅ — `QMessageBox::question` aggiunto ai 3 pulsanti "Inserisci nell'editor" (AI panel, Agentica, Reverse Eng.) quando l'editor ha già del codice
-- [ ] **[C++] Lambda `[this]` senza `QPointer` su reply async** — `ai_client.cpp` connessioni `[this, reply]` su `QNetworkReply`; se reply distrutto prima della lambda → crash; usare `QPointer<QNetworkReply>`
-- [ ] **[C++] `QTimer::singleShot` con raw `this` in ~8 file** — pattern `[this]{ m_xxx->... }` senza guard; aggiungere `QPointer<>` sulle variabili member catturate
+- [x] **[C++] Lambda `[this]` senza `QPointer` su reply async** ✅ — 2026-05-15: `ai_client.cpp::fetchEmbedding` usa `QPointer<QNetworkReply>` nella lambda; guard `if (!reply) return`
+- [~] **[C++] `QTimer::singleShot` con raw `this` in ~8 file** — tutti gli usi passano `this` come context (secondo param): Qt disconnette automaticamente la lambda alla distruzione → già sicuri
 
 ### 🟡 PIANIFICABILE
 
-- [ ] **[SEC] Timing attack token comparison** — `lan_server.cpp` confronta token con `==`; usare confronto constant-time
-- [ ] **[SEC] Nessun log accesso persistente** — impossibile forensics post-incidente; aggiungere append su file `~/.prismalux/access.log` con IP + route + timestamp
-- [ ] **[UX] Accessibilità zero (WCAG)** — 1 sola `setAccessibleName` in tutto il progetto; screen reader inutilizzabile; aggiungere `setAccessibleName`/`setTabOrder` sistematici
+- [x] **[SEC] Timing attack token comparison** ✅ — 2026-05-15: `LanServer::timingSafeEqual()` (loop XOR constant-time, volatile); sostituisce `!=` nel check Bearer
+- [x] **[SEC] Nessun log accesso persistente** ✅ — 2026-05-15: `LanServer::appendAccessLog()` scrive su `~/.prismalux/access.log` (IP + METHOD + path + timestamp ISO) ad ogni request in `processSession()`
+- [~] **[UX] Accessibilità WCAG** (parziale 2026-05-15 sessione IV) — aggiunti `setAccessibleName`+`setAccessibleDescription` ai widget più critici: campo chat input, Avvia/Ferma, Voce, Documenti, Immagini, Simboli, Traduci, RAG, selettore modello AI, toggle Chat/Autonomo (`agenti_page_ui.cpp`); tab bar principale, pulsanti ⚙️ e 📋 header, backend button (`mainwindow.cpp`); radio Ollama/llama.cpp, pulsanti Aggiorna/Usa modello (`impostazioni_page_ai.cpp`); `setTabOrder` nella griglia input chat. Scope sistematico su tutte le ~15k righe UI rimane aperto.
 - [ ] **[UX] i18n assente** — 30 `tr()` su ~15.000 righe di UI; tutto hardcoded in italiano; introdurre `tr()` sistematico e `.ts` file per future traduzioni
-- [ ] **[UX] Scrollbar non tematizzate** — ThemeManager applica QSS ma non alle scrollbar → look OS-nativo che rompe coerenza visiva su Windows/KDE
-- [ ] **[UX] Font size hardcoded** — `monoFont.setPointSize(11)` in 5 file; su display 4K risulta minuscolo; usare `QFontDatabase` + DPI scaling
-- [ ] **[C++] `QSettings` aperto ad ogni chiamata** — 12+ istanze `QSettings("Prismalux","GUI")` sparse; creare un singleton `AppConfig` con cache in memoria
-- [ ] **[C++] Aggiungere `clang-tidy` al CMakeLists** — `ENABLE_SANITIZERS` c'è, ma zero analisi statica; aggiungere target `tidy` con `.clang-tidy` committato
-- [ ] **[C++] `Q_DISABLE_COPY` su singleton** — `ThemeManager` e `AiClient` copiabili per errore
+- [x] **[UX] Scrollbar non tematizzate** ✅ — 2026-05-15: aggiunto `QScrollBar::handle:horizontal` con colore neutro semi-trasparente in `base.qss`; si applica a tutti i 23 temi (nessuno ridefiniva il selettore orizzontale)
+- [x] **[UX] Font size hardcoded** ✅ — 2026-05-15: `monoFontPt(fallback)` in `programmazione_page.cpp` usa `QApplication::font().pointSize()` come base DPI-aware; stessa logica in `_translitter.cpp` e `_git_repl.cpp`
+- [x] **[C++] `QSettings` singleton AppConfig** ✅ — 2026-05-15: `app_config.h` header-only Meyers singleton; migrati 6 file (agenti_page_bubbles/ui/pipeline, lan_wan_page, impostazioni_page_ai, stt_whisper.h) → 0 istanze `QSettings("Prismalux","GUI")` nel codice
+- [x] **[C++] `clang-tidy` al CMakeLists** ✅ — 2026-05-15: opzione `ENABLE_CLANG_TIDY=ON`, `find_program` auto (clang-tidy-20..17), `CXX_CLANG_TIDY` property; `.clang-tidy` committato (bugprone + modernize + performance + clang-analyzer)
+- [x] **[C++] `Q_DISABLE_COPY` su singleton** ✅ — 2026-05-15: aggiunto `Q_DISABLE_COPY(AiClient)` e `Q_DISABLE_COPY(ThemeManager)` nelle rispettive classi
 
 ### 🟢 TECH DEBT
 
-- [ ] **[UX] Feedback mancante su operazioni lunghe** — fetch modelli, avvio llama-server: l'utente vede blocco senza spinner in `strumenti_page.cpp` e `impara_page.cpp`
-- [ ] **[UX] Drag-and-drop file mancante** — su editor codice e su RAG loader sarebbe naturale; nessun `setAcceptDrops(true)` nei widget chiave
-- [ ] **[Python] requirements.txt senza pin precisi** — `requests>=2.31` invece di `==2.32.3`; build non riproducibile tra 6 mesi
-- [ ] **[Python] MCP non installabili come package** — nessun `pyproject.toml`; dipendono dal CWD; aggiungere `pyproject.toml` minimo a ogni MCP
+- [x] **[UX] Spinner fetch modelli** ✅ — 2026-05-15: `refreshBtn` in `impara_page.cpp` e `codeModelRefresh` in `strumenti_page.cpp` si disabilitano con ⏳ durante `fetchModels()`, ripristinati 🔄 al segnale `modelsReady`
+- [x] **[UX] Drag-and-drop file mancante** ✅ — 2026-05-15: `EditorFileDropFilter` (event filter QObject) installato su `m_editor`; drag di qualsiasi file .txt/.py/.cpp/ecc → contenuto inserito a cursore via `QTextCursor::insertText` (undoable); placeholder aggiornato
+- [x] **[Python] requirements.txt senza pin precisi** ✅ — 2026-05-15: gns3_mcp `requests==2.33.1,gns3fy<1.0`; stable_diffusion `diffusers<1.0, transformers<5.0, Pillow==12.1.1`
+- [x] **[Python] MCP non installabili come package** ✅ — 2026-05-15: aggiunto `pyproject.toml` a gns3_mcp, stable_diffusion_local, knowledge_mcp (setuptools backend, requires-python>=3.10)
+- [x] **[Python] Knowledge MCP scrittura non atomica** ✅ — 2026-05-15 sessione III: `_write_raw()` usa `tempfile.mkstemp` + `os.fsync` + `os.replace()` (rename atomica POSIX); cleanup temp in caso di eccezione; il file non può restare corrotto se il processo crasha a metà scrittura

@@ -7,6 +7,14 @@
 #include <QTimer>
 #include "ai_client.h"
 
+#if QT_CONFIG(ssl)
+#  include <QSslServer>
+#  include <QSslSocket>
+#  include <QSslConfiguration>
+#  include <QSslCertificate>
+#  include <QSslKey>
+#endif
+
 class LanServer : public QObject {
     Q_OBJECT
 public:
@@ -22,6 +30,9 @@ public:
 
     /** Imposta il token Bearer (generato dalla UI se vuoto). Auth sempre richiesta se non vuoto. */
     void setAccessToken(const QString& token) { m_accessToken = token; }
+
+    /** true se il server è in ascolto con TLS (HTTPS). */
+    bool isTlsEnabled() const { return m_tlsEnabled; }
 
 signals:
     void statusChanged(bool running);
@@ -65,10 +76,19 @@ private:
     void sendStreamLine(const QByteArray& json);
     void sendError(QTcpSocket* sock, int code, const QString& msg);
     void closeStreamSession();
-    static QByteArray httpOkHeader(const char* contentType);
-    static QByteArray httpStreamHeader();
+    /** Genera header HTTP 200 con security headers; aggiunge HSTS se TLS attivo. */
+    [[nodiscard]] QByteArray httpOkHeader(const char* contentType) const;
+    [[nodiscard]] QByteArray httpStreamHeader() const;
+    [[nodiscard]] static bool timingSafeEqual(const QString& a, const QString& b);
+    static void appendAccessLog(const QString& addr, const QString& method, const QString& path);
+    /** Genera certificato self-signed in ~/.prismalux/ se non esiste. Ritorna false se openssl non disponibile. */
+    [[nodiscard]] static bool _ensureCert(QString& certPath, QString& keyPath);
+    [[nodiscard]] bool checkChatRateLimit(Session& s); ///< true = limit exceeded (reply already sent)
+    void onChatRateTimeout();            ///< reset contatore chat rate ogni 60s
+    void onKnowledgeRateTimeout();       ///< reset contatore knowledge rate ogni 60s
 
     QTcpServer*                m_server        = nullptr;
+    bool                       m_tlsEnabled    = false;
     AiClient*                  m_ai;
     QMap<QTcpSocket*, Session> m_sessions;
     QSet<QString>              m_appClientIps; /* IP unici che hanno usato le API */
@@ -81,10 +101,17 @@ private:
     QTcpSocket*             m_tagsSock  = nullptr;
     QMetaObject::Connection m_modelsConn;
 
-    /* Rate limiting /knowledge: contatore req per IP (reset ogni minuto) */
+    /* Rate limiting /knowledge: max 10 req/min per IP */
     QMap<QString, int> m_knowledgeReqCount;
     QTimer*            m_knowledgeRateTimer = nullptr;
 
+    /* Rate limiting /api/chat + /api/generate: max 30 req/min per IP */
+    QMap<QString, int> m_chatRateCount;
+    QTimer*            m_chatRateTimer = nullptr;
+
     /* Token di accesso Bearer opzionale (vuoto = nessuna auth richiesta) */
     QString m_accessToken;
+
+    static constexpr int kMaxSessions = 32;  ///< max sessioni TCP simultanee (DoS guard)
+    int                m_pendingTls    = 0;  ///< connessioni TLS in attesa di handshake
 };

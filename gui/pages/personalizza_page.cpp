@@ -129,7 +129,12 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
 
     struct SubItem { QString ico; QString title; QString desc; int pg; };
     QList<SubItem> subs = {
-        {"📂", "Gestisci Modelli .gguf",
+        {binExists ? "\xf0\x9f\x94\x84" : "\xf0\x9f\x94\xa8",
+         binExists ? "Aggiorna llama.cpp" : "Compila llama.cpp",
+         binExists ? "Riesegue git pull e ricompila con gli stessi flag GPU auto-rilevati."
+                   : "Scarica e compila llama.cpp (git clone + cmake). Richiede git, cmake, gcc/g++.",
+         1},
+        {"\xf0\x9f\x93\x82", "Gestisci Modelli .gguf",
          "Elenca, elimina, cerca modelli nella cartella models/.", 2},
         {"\xf0\x9f\x93\xa5", "Scarica Modelli Matematica/Logica",
          "Download guidato di GGUF specializzati in matematica e ragionamento logico da HuggingFace.", 3},

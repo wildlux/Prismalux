@@ -2,6 +2,7 @@
 #include "agenti_page_p.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
+#include "../app_config.h"
 #include <QTime>
 #include <QElapsedTimer>
 #include <QKeyEvent>
@@ -191,7 +192,7 @@ void AgentiPage::setupUI() {
             if (!m_hintWidget) return;
             const bool now = !m_hintWidget->isVisible();
             m_hintWidget->setVisible(now);
-            QSettings("Prismalux","GUI").setValue("ui/hintVisible", now);
+            AppConfig::s().setValue("ui/hintVisible", now);
         });
     }
 
@@ -311,6 +312,7 @@ void AgentiPage::setupUI() {
     m_btnModeToggle->setCheckable(true);
     m_btnModeToggle->setChecked(false);
     m_btnModeToggle->setStyleSheet(kStyleChat);
+    m_btnModeToggle->setAccessibleName("Modalità chat o agente autonomo");
     m_btnModeToggle->setToolTip(
         "\xf0\x9f\x92\xac Chat \xe2\x80\x94 risposta diretta dal modello (default)\n"
         "\xf0\x9f\xa4\x96 Agente Autonomo \xe2\x80\x94 l\xe2\x80\x99" "AI pianifica, usa strumenti e itera\n"
@@ -339,6 +341,7 @@ void AgentiPage::setupUI() {
     m_cmbLLM->setObjectName("settingsCombo");
     m_cmbLLM->setMinimumWidth(160);
     m_cmbLLM->setToolTip("Seleziona il modello AI da usare.");
+    m_cmbLLM->setAccessibleName("Selettore modello AI");
     m_cmbLLM->addItem("(caricamento...)");
     toolLay->addWidget(llmLbl);
     toolLay->addWidget(m_cmbLLM);
@@ -720,6 +723,8 @@ void AgentiPage::setupUI() {
     m_input->setAcceptRichText(false);
     m_input->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_input->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    m_input->setAccessibleName("Campo messaggio chat");
+    m_input->setAccessibleDescription("Scrivi qui il messaggio da inviare all'AI. Premi Ctrl+Invio per inviare.");
     inputGrid->addWidget(m_input, 0, 0, 2, 1);
 
     /* ── helper locale per taggare pulsanti di esecuzione ── */
@@ -734,6 +739,7 @@ void AgentiPage::setupUI() {
     m_btnRun->setObjectName("actionBtn");
     m_btnRun->setToolTip("Risposta immediata con contesto RAG \xe2\x80\x94 1 solo agente (Invio)\n"
                          "Stop da fermo \xe2\x86\x92 cambia modalit\xc3\xa0 (CHAT con RAG \xe2\x86\x94 Avvia)");
+    m_btnRun->setAccessibleName("Avvia o ferma la risposta AI");
     tagExec(m_btnRun, "\xf0\x9f\x92\xac", "CHAT con RAG");
 
 
@@ -741,16 +747,19 @@ void AgentiPage::setupUI() {
     m_btnVoice = new QPushButton("\xf0\x9f\x8e\xa4 Voce", inputArea);
     m_btnVoice->setObjectName("actionBtn");
     m_btnVoice->setToolTip("Parla — trascrivi la voce nel campo di testo (whisper.cpp)");
+    m_btnVoice->setAccessibleName("Trascrivi voce in testo");
     tagExec(m_btnVoice, "\xf0\x9f\x8e\xa4", "Voce");
 
     auto* btnSymbols = new QPushButton("\xce\xa9  Simboli", inputArea);
     btnSymbols->setObjectName("actionBtn");
     btnSymbols->setToolTip("Inserisci caratteri speciali: matematica, greco, lingue");
+    btnSymbols->setAccessibleName("Inserisci simbolo speciale");
 
     /* Colonna 3 */
     m_btnTranslate = new QPushButton("\xf0\x9f\x8c\x90  Traduci", inputArea);
     m_btnTranslate->setObjectName("actionBtn");
     m_btnTranslate->setToolTip("Traduci il testo selezionando lingue e modello AI");
+    m_btnTranslate->setAccessibleName("Traduci testo");
     tagExec(m_btnTranslate, "\xf0\x9f\x8c\x90", "Traduci");
 
     /* 2 righe × 3 colonne di pulsanti:
@@ -764,13 +773,23 @@ void AgentiPage::setupUI() {
     m_btnDoc = new QPushButton("\xf0\x9f\x93\x8e  Documenti", inputArea);
     m_btnDoc->setObjectName("actionBtn");
     m_btnDoc->setToolTip("Allega documento (.txt, .md, .csv, .json, .py, .cpp, .h, .pdf...)");
+    m_btnDoc->setAccessibleName("Allega documento al messaggio");
     tagExec(m_btnDoc, "\xf0\x9f\x93\x8e", "Documenti");
     m_btnImg = new QPushButton("\xf0\x9f\x96\xbc  Immagini", inputArea);
     m_btnImg->setObjectName("actionBtn");
     m_btnImg->setToolTip("Allega immagine per vision models (.png, .jpg, .jpeg, .gif, .webp)");
+    m_btnImg->setAccessibleName("Allega immagine al messaggio");
     tagExec(m_btnImg, "\xf0\x9f\x96\xbc", "Immagini");
     inputGrid->addWidget(m_btnDoc, 0, 3);
     inputGrid->addWidget(m_btnImg, 1, 3);
+
+    /* Tab order: campo testo → Avvia → Voce → Simboli → Traduci → Documenti → Immagini */
+    QWidget::setTabOrder(m_input,        m_btnRun);
+    QWidget::setTabOrder(m_btnRun,       m_btnVoice);
+    QWidget::setTabOrder(m_btnVoice,     btnSymbols);
+    QWidget::setTabOrder(btnSymbols,     m_btnTranslate);
+    QWidget::setTabOrder(m_btnTranslate, m_btnDoc);
+    QWidget::setTabOrder(m_btnDoc,       m_btnImg);
 
     lay->addWidget(inputArea);
 
@@ -852,12 +871,12 @@ void AgentiPage::setupUI() {
         lay->addWidget(m_hintWidget);
 
         /* Ripristina visibilità da sessione precedente */
-        const bool vis = QSettings("Prismalux","GUI").value("ui/hintVisible", true).toBool();
+        const bool vis = AppConfig::s().value("ui/hintVisible", true).toBool();
         m_hintWidget->setVisible(vis);
 
         connect(btnHide, &QPushButton::clicked, this, [this]{
             m_hintWidget->setVisible(false);
-            QSettings("Prismalux","GUI").setValue("ui/hintVisible", false);
+            AppConfig::s().setValue("ui/hintVisible", false);
         });
     }
 

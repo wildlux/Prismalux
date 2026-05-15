@@ -9,6 +9,7 @@
    ══════════════════════════════════════════════════════════════ */
 class ThemeManager : public QObject {
     Q_OBJECT
+    Q_DISABLE_COPY(ThemeManager)
 public:
     struct Theme {
         QString id;          /* chiave interna  */

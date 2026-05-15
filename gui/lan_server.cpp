@@ -3,12 +3,67 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QDateTime>
+#include <QDir>
 #include <QFile>
 #include <QRegularExpression>
 #include <QFileInfo>
 #include <QTextStream>
+#include <QProcess>
 #include "prismalux_paths.h"
 namespace P = PrismaluxPaths;
+
+/* Confronto constant-time — evita timing attack sul token Bearer */
+bool LanServer::timingSafeEqual(const QString& a, const QString& b)
+{
+    if (a.size() != b.size()) return false;
+    volatile int diff = 0;
+    for (int i = 0; i < a.size(); ++i)
+        diff |= (a[i].unicode() ^ b[i].unicode());
+    return diff == 0;
+}
+
+/* Appende una riga al log di accesso ~/.prismalux/access.log */
+void LanServer::appendAccessLog(const QString& addr, const QString& method, const QString& path)
+{
+    const QString logPath = QDir::homePath() + "/.prismalux/access.log";
+    QFile f(logPath);
+    if (!f.open(QIODevice::Append | QIODevice::Text)) return;
+    QTextStream ts(&f);
+    ts << QDateTime::currentDateTime().toString(Qt::ISODate)
+       << " " << addr << " " << method << " " << path << "\n";
+}
+
+/* Genera certificato self-signed in ~/.prismalux/ se non già presente.
+ * Usa `openssl req -x509`; se openssl non è disponibile ritorna false
+ * e il chiamante cade in fallback HTTP. */
+bool LanServer::_ensureCert(QString& certPath, QString& keyPath)
+{
+#if !QT_CONFIG(ssl)
+    return false;
+#else
+    const QString dir = QDir::homePath() + "/.prismalux";
+    QDir().mkpath(dir);
+    certPath = dir + "/server.crt";
+    keyPath  = dir + "/server.key";
+
+    if (QFileInfo::exists(certPath) && QFileInfo::exists(keyPath))
+        return true;
+
+    QProcess proc;
+    proc.start("openssl", {
+        "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+        "-days", "3650",
+        "-keyout", keyPath,
+        "-out",    certPath,
+        "-subj",   "/CN=Prismalux-LAN"
+    });
+    if (!proc.waitForFinished(10000) || proc.exitCode() != 0) {
+        qWarning() << "LanServer: openssl non disponibile — TLS disabilitato";
+        return false;
+    }
+    return QFileInfo::exists(certPath) && QFileInfo::exists(keyPath);
+#endif
+}
 
 /* SO_REUSEADDR per evitare "Address already in use" al riavvio rapido */
 #ifndef Q_OS_WIN
@@ -24,7 +79,29 @@ namespace P = PrismaluxPaths;
 LanServer::LanServer(AiClient* ai, QObject* parent)
     : QObject(parent), m_ai(ai)
 {
-    m_server = new QTcpServer(this);
+#if QT_CONFIG(ssl)
+    if (QSslSocket::supportsSsl()) {
+        QString certPath, keyPath;
+        if (_ensureCert(certPath, keyPath)) {
+            QSslConfiguration cfg = QSslConfiguration::defaultConfiguration();
+            cfg.setLocalCertificate(QSslCertificate::fromPath(certPath).value(0));
+            QFile kf(keyPath);
+            if (kf.open(QIODevice::ReadOnly)) {
+                cfg.setPrivateKey(QSslKey(&kf, QSsl::Rsa));
+                kf.close();
+            }
+            cfg.setPeerVerifyMode(QSslSocket::VerifyNone);
+            auto* sslSrv = new QSslServer(this);
+            sslSrv->setSslConfiguration(cfg);
+            m_server     = sslSrv;
+            m_tlsEnabled = true;
+        }
+    }
+#endif
+    if (!m_server) {
+        m_server = new QTcpServer(this);
+        qWarning() << "LanServer: TLS non disponibile — avvio in HTTP";
+    }
     connect(m_server, &QTcpServer::newConnection, this, &LanServer::onNewConnection);
 }
 
@@ -123,6 +200,45 @@ void LanServer::onNewConnection()
         QTcpSocket* sock = m_server->nextPendingConnection();
         if (!sock) continue;
 
+        /* Conta sia sessioni già stabilite sia connessioni TLS in attesa di handshake.
+         * Senza questo check un attaccante aprirebbe 32 TCP senza completare TLS. */
+        if (static_cast<int>(m_sessions.size()) + m_pendingTls >= kMaxSessions) {
+            sock->write("HTTP/1.1 503 Service Unavailable\r\n"
+                        "Content-Type: application/json\r\n"
+                        "X-Content-Type-Options: nosniff\r\n"
+                        "Content-Length: 21\r\n\r\n"
+                        "{\"error\":\"overload\"}");
+            sock->flush();
+            sock->deleteLater();
+            continue;
+        }
+
+#if QT_CONFIG(ssl)
+        if (auto* sslSock = qobject_cast<QSslSocket*>(sock)) {
+            /* Connessione TLS: conta come "pending" finché l'handshake non completa.
+             * Solo dopo encrypted() il socket entra in m_sessions. */
+            ++m_pendingTls;
+            connect(sslSock, &QSslSocket::sslErrors, sslSock,
+                    [sslSock](const QList<QSslError>& errs){
+                        sslSock->ignoreSslErrors(errs);
+                    });
+            connect(sslSock, &QSslSocket::encrypted, this, [this, sslSock]() {
+                --m_pendingTls;
+                Session s;
+                s.socket = sslSock;
+                s.addr   = sslSock->peerAddress().toString();
+                m_sessions.insert(sslSock, s);
+                connect(sslSock, &QTcpSocket::readyRead,    this, &LanServer::onClientReadyRead);
+                connect(sslSock, &QTcpSocket::disconnected, this, &LanServer::onClientDisconnected);
+            });
+            connect(sslSock, &QSslSocket::disconnected, this, [this]() {
+                /* Se disconnesso prima che encrypted() scatti, decrementa il counter */
+                if (m_pendingTls > 0) --m_pendingTls;
+            });
+            continue;  /* attende handshake */
+        }
+#endif
+        /* TCP plain: entra subito in m_sessions */
         Session s;
         s.socket = sock;
         s.addr   = sock->peerAddress().toString();
@@ -132,6 +248,27 @@ void LanServer::onNewConnection()
         connect(sock, &QTcpSocket::disconnected, this, &LanServer::onClientDisconnected);
         /* clientConnected viene emesso in processSession solo per percorsi API */
     }
+}
+
+/* ── rate limiter condiviso /api/chat + /api/generate ───────────────────── */
+
+void LanServer::onChatRateTimeout()      { m_chatRateCount.clear(); }
+void LanServer::onKnowledgeRateTimeout() { m_knowledgeReqCount.clear(); }
+
+bool LanServer::checkChatRateLimit(Session& s)
+{
+    if (!m_chatRateTimer) {
+        m_chatRateTimer = new QTimer(this);
+        m_chatRateTimer->setInterval(60 * 1000);
+        connect(m_chatRateTimer, &QTimer::timeout,
+                this, &LanServer::onChatRateTimeout);
+        m_chatRateTimer->start();
+    }
+    if (++m_chatRateCount[s.addr] > 30) {
+        sendError(s.socket, 429, "Rate limit exceeded");
+        return true;
+    }
+    return false;
 }
 
 /* ── lettura dati dal client ─────────────────────────────────────────────── */
@@ -235,6 +372,7 @@ void LanServer::onClientDisconnected()
 void LanServer::processSession(Session& s)
 {
     emit requestHandled(s.method, s.path, s.addr);
+    appendAccessLog(s.addr, s.method, s.path);
 
     /* Percorsi API Ollama — contano come "client APK" */
     const bool isApi = (s.path == "/api/tags"     ||
@@ -244,10 +382,11 @@ void LanServer::processSession(Session& s)
                         s.path == "/apk");
 
     /* Auth check: se il token è impostato, le route protette richiedono
-       Authorization: Bearer TOKEN. Solo / e /web rimangono pubblici. */
+       Authorization: Bearer TOKEN. Solo / e /web rimangono pubblici.
+       Confronto constant-time per evitare timing attack. */
     if (isApi && !m_accessToken.isEmpty()) {
         const QString expected = "Bearer " + m_accessToken;
-        if (s.authHeader != expected) {
+        if (!timingSafeEqual(s.authHeader, expected)) {
             QByteArray resp = "HTTP/1.1 401 Unauthorized\r\n"
                               "Content-Type: application/json\r\n"
                               "WWW-Authenticate: Bearer realm=\"Prismalux\"\r\n"
@@ -334,6 +473,8 @@ void LanServer::onAiModelsReady(const QStringList& models)
 
 void LanServer::handleChat(Session& s)
 {
+    if (checkChatRateLimit(s)) return;
+
     if (m_ai->busy()) { sendError(s.socket, 503, "AI busy"); return; }
     if (m_streamSock) { sendError(s.socket, 503, "Stream in progress"); return; }
 
@@ -398,6 +539,8 @@ void LanServer::handleChat(Session& s)
 
 void LanServer::handleGenerate(Session& s)
 {
+    if (checkChatRateLimit(s)) return;
+
     if (m_ai->busy()) { sendError(s.socket, 503, "AI busy"); return; }
     if (m_streamSock) { sendError(s.socket, 503, "Stream in progress"); return; }
 
@@ -500,8 +643,8 @@ void LanServer::handleKnowledge(Session& s)
         if (!m_knowledgeRateTimer) {
             m_knowledgeRateTimer = new QTimer(this);
             m_knowledgeRateTimer->setInterval(60 * 1000);
-            connect(m_knowledgeRateTimer, &QTimer::timeout, this,
-                    [this]{ m_knowledgeReqCount.clear(); });
+            connect(m_knowledgeRateTimer, &QTimer::timeout,
+                    this, &LanServer::onKnowledgeRateTimeout);
             m_knowledgeRateTimer->start();
         }
         const int reqCount = ++m_knowledgeReqCount[s.addr];
@@ -849,10 +992,13 @@ void LanServer::sendError(QTcpSocket* sock, int code, const QString& msg)
     safe = safe.left(200);
     const QByteArray body = ("{\"error\":\"" + safe + "\"}").toUtf8();
     const QString status  = (code == 503) ? "503 Service Unavailable"
+                          : (code == 429) ? "429 Too Many Requests"
                           : (code == 400) ? "400 Bad Request"
                           :                 "500 Internal Server Error";
     QByteArray resp = "HTTP/1.1 " + status.toLatin1() + "\r\n";
     resp += "Content-Type: application/json\r\n";
+    resp += "X-Content-Type-Options: nosniff\r\n";
+    resp += "X-Frame-Options: DENY\r\n";
     resp += "Content-Length: " + QByteArray::number(body.size()) + "\r\n\r\n";
     resp += body;
     sock->write(resp);
@@ -870,22 +1016,32 @@ void LanServer::closeStreamSession()
     m_genMode    = false;
 }
 
-QByteArray LanServer::httpOkHeader(const char* contentType)
+QByteArray LanServer::httpOkHeader(const char* contentType) const
 {
     QByteArray h = "HTTP/1.1 200 OK\r\n";
     h += "Content-Type: ";
     h += contentType;
     h += "\r\nAccess-Control-Allow-Origin: *\r\n";
+    h += "X-Content-Type-Options: nosniff\r\n";
+    h += "X-Frame-Options: DENY\r\n";
+    h += "Referrer-Policy: no-referrer\r\n";
+    if (m_tlsEnabled)
+        h += "Strict-Transport-Security: max-age=31536000\r\n";
     return h;
 }
 
-QByteArray LanServer::httpStreamHeader()
+QByteArray LanServer::httpStreamHeader() const
 {
     /* Nessun Content-Length né Transfer-Encoding chunked:
        il client legge via readyRead fino alla chiusura del socket. */
     QByteArray h = "HTTP/1.1 200 OK\r\n";
     h += "Content-Type: application/x-ndjson\r\n";
     h += "Access-Control-Allow-Origin: *\r\n";
+    h += "X-Content-Type-Options: nosniff\r\n";
+    h += "X-Frame-Options: DENY\r\n";
+    h += "Referrer-Policy: no-referrer\r\n";
+    if (m_tlsEnabled)
+        h += "Strict-Transport-Security: max-age=31536000\r\n";
     h += "X-Accel-Buffering: no\r\n";
     h += "Connection: close\r\n\r\n";
     return h;

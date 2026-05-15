@@ -211,7 +211,7 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
          "<p class=\"sub\">Piattaforma AI locale open-source &mdash; "
          "multi-agente &middot; RAG &middot; matematica &middot; grafici &middot; MCPs<br>"
          "&ldquo;Costruito per i mortali che aspirano alla saggezza.&rdquo;</p>\n"
-         "<p class=\"ver\"><b>v2.8</b> &middot; Qt6/C++ &middot; Ollama &middot; "
+         "<p class=\"ver\"><b>v2.9</b> &middot; Qt6/C++ &middot; Ollama &middot; "
          "llama.cpp &middot; Linux / Windows / macOS</p>\n"
          "<p class=\"lnks\">"
          "<a href=\"https://github.com/wildlux/Prismalux\">&#128279; github.com/wildlux/Prismalux</a>"
@@ -220,10 +220,12 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
          " &nbsp;&middot;&nbsp; "
          "<a href=\"https://github.com/wildlux/Prismalux/issues\">&#128027; Bug</a>"
          " &nbsp;&middot;&nbsp; "
-         "<a href=\"https://github.com/wildlux/Prismalux/wiki\">&#128214; Wiki</a></p>\n"
+         "<a href=\"https://github.com/wildlux/Prismalux/wiki\">&#128214; Wiki</a>"
+         " &nbsp;&middot;&nbsp; "
+         "<a href=\"https://github.com/wildlux/Prismalux/blob/master/LICENSE\">&#128220; MIT</a></p>\n"
          "<p class=\"bdg\">Pipeline 6 agenti &middot; Motore Byzantino &middot; "
          "110 algoritmi &middot; RAG locale &middot; Matematica offline &middot; "
-         "TTS/STT &middot; Cron scheduler &middot; 12 MCP integrati</p>\n"
+         "TTS/STT &middot; Cron scheduler &middot; 17 MCP integrati</p>\n"
          "<hr>\n";
 
     /* autore */

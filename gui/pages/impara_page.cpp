@@ -70,10 +70,14 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
 
         if (idx == 0) {
             /* Ollama */
+            refreshBtn->setEnabled(false);
+            refreshBtn->setText("\xe2\x8f\xb3");
             m_ai->setBackend(AiClient::Ollama, "127.0.0.1", 11434, "");
             m_ai->fetchModels();
         } else if (idx == 1) {
             /* llama-server */
+            refreshBtn->setEnabled(false);
+            refreshBtn->setText("\xe2\x8f\xb3");
             m_ai->setBackend(AiClient::LlamaServer, "127.0.0.1", 8080, "");
             m_ai->fetchModels();
         } else {
@@ -166,6 +170,19 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
                 m_ai->setBackend(bk == 0 ? AiClient::Ollama : AiClient::LlamaServer,
                                  m_ai->host(), m_ai->port(), mdl);
             }
+        }
+
+        /* Ripristina il pulsante refresh ora che i modelli sono arrivati */
+        refreshBtn->setEnabled(true);
+        refreshBtn->setText("\xf0\x9f\x94\x84");
+    });
+    /* Se fetchModels fallisce: ripristina il pulsante e mostra un item di errore */
+    connect(m_ai, &AiClient::error, bar, [=](const QString& msg){
+        if (!refreshBtn->isEnabled()) {          /* solo se è in stato "spinner" */
+            refreshBtn->setEnabled(true);
+            refreshBtn->setText("\xf0\x9f\x94\x84");
+            cmbModel->clear();
+            cmbModel->addItem("\xe2\x9a\xa0  " + msg, "");   /* ⚠ + messaggio */
         }
     });
 
@@ -320,6 +337,13 @@ QWidget* ImparaPage::buildTutor() {
     inL->addWidget(inp, 1); inL->addWidget(send); inL->addWidget(stop);
     lay->addWidget(inRow);
 
+    /* Tab order: back → materia → pulisci → input → chiedi → stop */
+    QWidget::setTabOrder(back,        m_tutorSubj);
+    QWidget::setTabOrder(m_tutorSubj, clrBtn);
+    QWidget::setTabOrder(clrBtn,      inp);
+    QWidget::setTabOrder(inp,         send);
+    QWidget::setTabOrder(send,        stop);
+
     connect(back,   &QPushButton::clicked, this, [this]{ m_inner->setCurrentIndex(0); });
     connect(clrBtn, &QPushButton::clicked, m_tutorLog, &QTextEdit::clear);
     connect(stop,   &QPushButton::clicked, m_ai,  &AiClient::abort);
@@ -452,6 +476,18 @@ QWidget* ImparaPage::buildQuiz() {
     /* Buffer raw AI (debug nascosto) */
     m_quizRaw = new QTextEdit(w);
     m_quizRaw->setVisible(false);
+
+    /* Tab order: back → materia → difficoltà → num domande → inizia →
+       opzione A → B → C → D → prossima */
+    QWidget::setTabOrder(back,           m_quizSubj);
+    QWidget::setTabOrder(m_quizSubj,     m_quizDiff);
+    QWidget::setTabOrder(m_quizDiff,     m_quizNum);
+    QWidget::setTabOrder(m_quizNum,      m_quizGen);
+    QWidget::setTabOrder(m_quizGen,      m_quizOpts[0]);
+    QWidget::setTabOrder(m_quizOpts[0],  m_quizOpts[1]);
+    QWidget::setTabOrder(m_quizOpts[1],  m_quizOpts[2]);
+    QWidget::setTabOrder(m_quizOpts[2],  m_quizOpts[3]);
+    QWidget::setTabOrder(m_quizOpts[3],  m_quizNext);
 
     /* Connessioni */
     connect(back, &QPushButton::clicked, this, [this]{ m_inner->setCurrentIndex(0); });

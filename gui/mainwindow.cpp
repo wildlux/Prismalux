@@ -349,39 +349,7 @@ MainWindow::MainWindow(QWidget* parent)
 
 #ifndef Q_OS_WIN
         /* zRAM Doppia (zstd) — avvia 3s dopo l'avvio per non bloccare la UI */
-        QTimer::singleShot(3000, this, [this]{
-            QSettings zs("Prismalux", "GUI");
-            if (!zs.value(P::SK::kAutoZramDoppia, true).toBool()) return;
-            /* Controlla se zRAM è già attivo (lettura sincrona /proc/swaps) */
-            QFile swapsFile("/proc/swaps");
-            if (swapsFile.open(QIODevice::ReadOnly)) {
-                if (swapsFile.readAll().contains("zram")) {
-                    return; /* già attivo — nessuna azione */
-                }
-            }
-            /* Script Doppia zstd — 2 device: zram0=50% RAM (p100) + zram1=25% RAM (p50) */
-            static const QString kZramScript =
-                "echo 1 | tee /proc/sys/vm/compact_memory > /dev/null; "
-                "sleep 1; "
-                "for dev in /dev/zram*; do swapoff \"$dev\" 2>/dev/null; done; "
-                "rmmod zram 2>/dev/null || true; "
-                "sleep 0.3; "
-                "modprobe zram num_devices=2; "
-                "sleep 0.3; "
-                "TOTAL=$(grep MemTotal /proc/meminfo | awk '{print $2}'); "
-                "(echo zstd | tee /sys/block/zram0/comp_algorithm) || "
-                " (echo lzo-rle | tee /sys/block/zram0/comp_algorithm); "
-                "echo $(( TOTAL * 512 )) | tee /sys/block/zram0/disksize; "
-                "mkswap /dev/zram0; swapon -p 100 /dev/zram0; "
-                "(echo zstd | tee /sys/block/zram1/comp_algorithm) || "
-                " (echo lzo-rle | tee /sys/block/zram1/comp_algorithm); "
-                "echo $(( TOTAL * 256 )) | tee /sys/block/zram1/disksize; "
-                "mkswap /dev/zram1; swapon -p 50 /dev/zram1";
-            QProcess::startDetached("pkexec", {"bash", "-c", kZramScript});
-            statusBar()->showMessage(
-                "\xf0\x9f\x92\xbe  zRAM Doppia (zstd, 75% RAM) \xe2\x80\x94 "
-                "richiesta autorizzazione amministratore...", 8000);
-        });
+        QTimer::singleShot(3000, this, &MainWindow::onZramSetupTimer);
 #endif
     }
 
@@ -391,48 +359,19 @@ MainWindow::MainWindow(QWidget* parent)
     /* Wizard primo avvio — mostrato una sola volta */
     QSettings ss("Prismalux", "GUI");
     if (!ss.value(P::SK::kSetupDone, false).toBool()) {
-        QTimer::singleShot(800, this, [this]{ showOnboardingWizard(); });
+        QTimer::singleShot(800, this, &MainWindow::showOnboardingWizard);
     }
 
     /* Auto-setup whisper.cpp in background (non blocca UI).
        Controlla presenza binario + modello dentro il progetto;
        se mancano avvia: git clone → cmake build → download modello. */
-    QTimer::singleShot(1500, this, [this]{
-        auto* wsp = new WhisperAutoSetup(
-            [this](const QString& msg){ statusBar()->showMessage(msg); }, this);
-        connect(wsp, &WhisperAutoSetup::ready, this, [this]{
-            statusBar()->showMessage(
-                "\xe2\x9c\x85  Riconoscimento vocale pronto.");
-            QTimer::singleShot(4000, this, [this]{
-                statusBar()->showMessage(
-                    "\xf0\x9f\x8d\xba  Invocazione riuscita. Gli dei ascoltano.");
-            });
-        });
-        connect(wsp, &WhisperAutoSetup::failed, this, [this](const QString& err){
-            statusBar()->showMessage("\xe2\x9a\xa0  Whisper setup: " + err);
-        });
-        wsp->run();
-    });
+    QTimer::singleShot(1500, this, &MainWindow::onStartWhisperTimer);
 
     /* Timer auto-scarico modello: ogni 90s, se RAM > 40% e AI non occupato,
      * manda keep_alive=0 a Ollama per liberare RAM automaticamente. */
     m_idleUnloadTimer = new QTimer(this);
     m_idleUnloadTimer->setInterval(90'000);  /* 90 secondi */
-    connect(m_idleUnloadTimer, &QTimer::timeout, this, [this]{
-        if (!m_ai->busy() && m_ai->isModelLoaded() && m_ai->backend() == AiClient::Ollama) {
-            const double freePct = m_ai->ramFreePct();
-            if (freePct < 60.0) {  /* RAM usata > 40% */
-                m_ai->unloadModel();
-                statusBar()->showMessage(
-                    "\xf0\x9f\x97\x91  Auto-scarico: modello rimosso dalla RAM "
-                    "(RAM > 40% — scarico automatico dopo inattivit\xc3\xa0).");
-                QTimer::singleShot(5000, this, [this]{
-                    statusBar()->showMessage(
-                        "\xf0\x9f\x8d\xba  Invocazione riuscita. Gli dei ascoltano.");
-                });
-            }
-        }
-    });
+    connect(m_idleUnloadTimer, &QTimer::timeout, this, &MainWindow::onIdleUnloadTimer);
     m_idleUnloadTimer->start();
 
     /* Imposta backend Ollama di default e carica modelli.
@@ -443,30 +382,10 @@ MainWindow::MainWindow(QWidget* parent)
         m_ai->setBackend(AiClient::Ollama, P::kLocalHost, P::kOllamaPort, savedModel);
     }
     m_ai->fetchModels();
-    connect(m_ai, &AiClient::modelsReady, this, [this](const QStringList& list){
-        if (!list.isEmpty()) {
-            /* Se l'utente aveva salvato un modello preferito e quel modello è nella lista,
-               mantienilo; altrimenti usa il primo disponibile. */
-            const QString current = m_ai->model();
-            const bool preferredAvail = !current.isEmpty() && list.contains(current);
-            const QString model = preferredAvail ? current : list.first();
-            if (!preferredAvail)
-                m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), model);
-            m_lblModel->setText(model);
-            statusBar()->showMessage(
-                QString("\xf0\x9f\x8d\xba  Backend Ollama | Modello: %1 | Modelli disponibili: %2")
-                .arg(model).arg(list.size()));
-        }
-        /* ── Auto VRAM Benchmark al primo avvio ── */
-        maybeAutoVramBench();
-    });
+    connect(m_ai, &AiClient::modelsReady, this, &MainWindow::onInitialModelsReady);
 
     /* Aggiorna la label modello anche quando l'utente lo cambia da Impostazioni */
-    connect(m_ai, &AiClient::modelChanged, this, [this](const QString& model) {
-        m_lblModel->setText(model);
-        statusBar()->showMessage(
-            QString("\xe2\x9c\x85  Modello attivo: %1").arg(model), 3000);
-    });
+    connect(m_ai, &AiClient::modelChanged, this, &MainWindow::onModelChanged);
 
     /* Carica tema salvato */
     ThemeManager::instance()->loadSaved();
@@ -484,13 +403,13 @@ MainWindow::MainWindow(QWidget* parent)
     auto* sc5 = new QShortcut(QKeySequence("Alt+5"), this);
     auto* sc6 = new QShortcut(QKeySequence("Alt+6"), this);
     auto* sc7 = new QShortcut(QKeySequence("Alt+7"), this);
-    connect(sc1, &QShortcut::activated, this, [this]{ navigateTo(0); }); /* Intelligenza artificiale */
-    connect(sc2, &QShortcut::activated, this, [this]{ navigateTo(1); }); /* Strumenti AI */
-    connect(sc3, &QShortcut::activated, this, [this]{ navigateTo(4); }); /* Programmazione */
-    connect(sc4, &QShortcut::activated, this, [this]{ navigateTo(5); }); /* Matematica+Grafico */
-    connect(sc5, &QShortcut::activated, this, [this]{ navigateTo(6); }); /* Ricerca e Sviluppo */
-    connect(sc6, &QShortcut::activated, this, [this]{ navigateTo(7); }); /* APP Controller */
-    connect(sc7, &QShortcut::activated, this, [this]{ navigateTo(9); }); /* Impara */
+    connect(sc1, &QShortcut::activated, this, &MainWindow::onShortcutAlt1); /* Intelligenza artificiale */
+    connect(sc2, &QShortcut::activated, this, &MainWindow::onShortcutAlt2); /* Strumenti AI */
+    connect(sc3, &QShortcut::activated, this, &MainWindow::onShortcutAlt3); /* Programmazione */
+    connect(sc4, &QShortcut::activated, this, &MainWindow::onShortcutAlt4); /* Matematica+Grafico */
+    connect(sc5, &QShortcut::activated, this, &MainWindow::onShortcutAlt5); /* Ricerca e Sviluppo */
+    connect(sc6, &QShortcut::activated, this, &MainWindow::onShortcutAlt6); /* APP Controller */
+    connect(sc7, &QShortcut::activated, this, &MainWindow::onShortcutAlt7); /* Impara */
 
     /* ── Ripristina geometry dell'ultima sessione (posizione + dimensioni) ── */
     QSettings geomSettings("Prismalux", "GUI");
@@ -517,10 +436,7 @@ QWidget* MainWindow::buildHeader() {
     btnHamburger->setObjectName("hamburgerBtn");
     btnHamburger->setFixedSize(36, 36);
     btnHamburger->setToolTip("Mostra / Nascondi la colonna sinistra");
-    connect(btnHamburger, &QPushButton::clicked, this, [this]{
-        if (m_sidebarWidget)
-            m_sidebarWidget->setVisible(!m_sidebarWidget->isVisible());
-    });
+    connect(btnHamburger, &QPushButton::clicked, this, &MainWindow::onHamburgerClicked);
     lay->addWidget(btnHamburger);
 
     /* ── Messaggi (📋) — accanto all'hamburger, con badge non-letti ── */
@@ -532,6 +448,7 @@ QWidget* MainWindow::buildHeader() {
         m_logBtn->setObjectName("hamburgerBtn");
         m_logBtn->setFixedSize(36, 36);
         m_logBtn->setToolTip("Messaggi \xe2\x80\x94 log eventi, errori AI, backend, pipeline");
+        m_logBtn->setAccessibleName("Apri log messaggi");
         m_logBtn->move(0, 0);
 
         m_logBadge = new QLabel("", logWrap);
@@ -543,14 +460,7 @@ QWidget* MainWindow::buildHeader() {
             "font-size:9px; font-weight:bold;");
         m_logBadge->move(28, 0);   /* angolo in alto a destra del pulsante */
 
-        connect(m_logBtn, &QPushButton::clicked, this, [this]{
-            ensureLogDialog();
-            m_logUnread = 0;
-            m_logBadge->setVisible(false);
-            m_logDlg->show();
-            m_logDlg->raise();
-            m_logDlg->activateWindow();
-        });
+        connect(m_logBtn, &QPushButton::clicked, this, &MainWindow::onLogBtnClicked);
         lay->addWidget(logWrap);
     }
 
@@ -559,12 +469,8 @@ QWidget* MainWindow::buildHeader() {
     m_settingsBtn->setObjectName("hamburgerBtn");
     m_settingsBtn->setFixedSize(36, 36);
     m_settingsBtn->setToolTip("Impostazioni \xe2\x80\x94 Backend, Hardware, Monitor AI, llama.cpp");
-    connect(m_settingsBtn, &QPushButton::clicked, this, [this]{
-        ensureSettingsDialog();
-        m_impDlg->show();
-        m_impDlg->raise();
-        m_impDlg->activateWindow();
-    });
+    m_settingsBtn->setAccessibleName("Apri impostazioni");
+    connect(m_settingsBtn, &QPushButton::clicked, this, &MainWindow::openSettingsDialog);
     lay->addWidget(m_settingsBtn);
 
     lay->addSpacing(4);  /* piccolo gap visivo prima del logo */
@@ -604,46 +510,8 @@ QWidget* MainWindow::buildHeader() {
         "2. Libera cache kernel (richiede password admin)");
     btnEmergency->setFixedSize(42, 36);
 
-    connect(btnEmergency, &QPushButton::clicked, this, [this, btnEmergency]{
-        btnEmergency->setEnabled(false);
-        statusBar()->showMessage("🚨  Emergenza RAM — arresto modelli Ollama...");
-
-        /* Passo 1: ferma tutti i modelli Ollama via CLI */
-        auto* stopProc = new QProcess(this);
-        stopProc->start("bash", {"-c",
-            "ollama ps --no-trunc 2>/dev/null | awk 'NR>1{print $1}' | "
-            "xargs -r -I{} ollama stop {}"});
-
-        connect(stopProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, btnEmergency, stopProc](int, QProcess::ExitStatus){
-            stopProc->deleteLater();
-            statusBar()->showMessage("🚨  Modelli fermati — liberazione cache kernel...");
-
-            /* Passo 2: drop_caches con dialogo grafico KDE */
-            auto* cacheProc = new QProcess(this);
-#ifdef Q_OS_WIN
-            cacheProc->start("rundll32.exe", {"advapi32.dll,ProcessIdleTasks"});
-#else
-            cacheProc->start("pkexec",
-                {"sh", "-c", "sync && echo 3 > /proc/sys/vm/drop_caches"});
-#endif
-            connect(cacheProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                    this, [this, btnEmergency, cacheProc](int code, QProcess::ExitStatus){
-                cacheProc->deleteLater();
-                if (code == 0)
-                    statusBar()->showMessage(
-                        "✅  Emergenza RAM completata — modelli fermati + cache liberata.");
-                else
-                    statusBar()->showMessage(
-                        "⚠️  Modelli fermati. Cache non liberata (password annullata o pkexec mancante).");
-                btnEmergency->setEnabled(true);
-                /* Ripristina messaggio normale dopo 6 secondi */
-                QTimer::singleShot(6000, this, [this]{
-                    statusBar()->showMessage("🍺  Invocazione riuscita. Gli dei ascoltano.");
-                });
-            });
-        });
-    });
+    m_emergencyBtn = btnEmergency;
+    connect(btnEmergency, &QPushButton::clicked, this, &MainWindow::onEmergencyRamClicked);
 
     lay->addWidget(btnEmergency);
 
@@ -656,64 +524,19 @@ QWidget* MainWindow::buildHeader() {
         "Utile quando Ollama tiene il modello caricato\n"
         "anche dopo che hai finito di usarlo.\n"
         "Diventa giallo se RAM > 40%, rosso se > 75%.");
-    connect(m_btnUnload, &QPushButton::clicked, this, [this]{
-        m_ai->unloadModel();
-        statusBar()->showMessage(
-            "\xf0\x9f\x97\x91  Richiesta scarico modello inviata a Ollama — "
-            "il modello verr\xc3\xa0 rimosso dalla RAM.");
-        QTimer::singleShot(4000, this, [this]{
-            statusBar()->showMessage("\xf0\x9f\x8d\xba  Invocazione riuscita. Gli dei ascoltano.");
-        });
-    });
+    connect(m_btnUnload, &QPushButton::clicked, this, &MainWindow::onUnloadModelClicked);
     lay->addWidget(m_btnUnload);
 
     /* ── Pulsante toggle backend (sempre visibile) ── */
     m_btnBackend = new QPushButton("\xf0\x9f\xa6\x99  Ollama", hdr);
     m_btnBackend->setObjectName("backendBtn");
     m_btnBackend->setToolTip("Cambia backend AI — un click per passare da Ollama a llama-server e viceversa");
+    m_btnBackend->setAccessibleName("Backend AI attivo");
+    m_btnBackend->setAccessibleDescription("Seleziona il backend: Ollama o llama-server");
     m_btnBackend->setFixedHeight(36);
     m_btnBackend->setMinimumWidth(130);
 
-    connect(m_btnBackend, &QPushButton::clicked, this, [this]{
-        auto* menu = new QMenu(m_btnBackend);
-        menu->setObjectName("backendMenu");
-
-        const bool serverRunning = m_serverProc &&
-                                   m_serverProc->state() != QProcess::NotRunning;
-        const bool isOllama = (m_ai->backend() == AiClient::Ollama);
-
-        /* ── Sezione backend attivo ── */
-        auto* actOllama = menu->addAction("\xf0\x9f\xa6\x99  Ollama  \xe2\x80\x94  localhost:11434");
-        actOllama->setCheckable(true);
-        actOllama->setChecked(isOllama);
-        connect(actOllama, &QAction::triggered, this, [this]{
-            applyBackend(AiClient::Ollama, P::kLocalHost, P::kOllamaPort);
-        });
-
-        menu->addSeparator();
-
-        /* ── Sezione llama-server ── */
-        if (serverRunning) {
-            /* Server in esecuzione */
-            auto* actInfo = menu->addAction(
-                QString("\xf0\x9f\xa6\x99\xe2\x98\x81\xef\xb8\x8f  llama-server :%1  \xe2\x97\x8f in esecuzione")
-                .arg(m_serverPort));
-            actInfo->setEnabled(false); /* solo informativo */
-
-            auto* actStop = menu->addAction(
-                QString("\xf0\x9f\x94\xb4  Ferma server  :%1").arg(m_serverPort));
-            connect(actStop, &QAction::triggered, this, &MainWindow::stopLlamaServer);
-        } else {
-            auto* actLSrv = menu->addAction("\xf0\x9f\xa6\x99\xe2\x98\x81\xef\xb8\x8f  Avvia llama-server...");
-            actLSrv->setCheckable(true);
-            actLSrv->setChecked(!isOllama);
-            connect(actLSrv, &QAction::triggered, this, &MainWindow::showServerDialog);
-        }
-
-        menu->exec(m_btnBackend->mapToGlobal(
-            QPoint(0, m_btnBackend->height())));
-        menu->deleteLater();
-    });
+    connect(m_btnBackend, &QPushButton::clicked, this, &MainWindow::onBackendBtnClicked);
 
     /* m_btnBackend viene aggiunto come corner widget del tab principale in buildContent() */
     m_btnBackend->setParent(this);  /* reparent temporaneo — buildContent lo riposiziona */
@@ -924,24 +747,9 @@ void MainWindow::applyBackend(AiClient::Backend b, const QString& host, int port
         .arg(bkName, host, QString::number(port)));
 
     /* Quando arrivano i modelli, seleziona il primo e aggiorna status (connessione unica) */
-    auto* connHolder = new QObject(this);
-    connect(m_ai, &AiClient::modelsReady, connHolder, [this, bkName, connHolder](const QStringList& list){
-        if (!list.isEmpty()) {
-            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), list.first());
-            m_lblModel->setText(list.first());
-            appendLog(QString("\xe2\x9c\x85 Backend <b>%1</b> pronto — modello: <b>%2</b> (%3 disponibili)")
-                      .arg(bkName, list.first(), QString::number(list.size())));
-            statusBar()->showMessage(
-                QString("✅  %1 | Modello: %2 | %3 disponibili")
-                .arg(bkName, list.first(), QString::number(list.size())));
-        } else {
-            m_lblModel->setText("(server non raggiungibile)");
-            appendLog(QString("\xe2\x9a\xa0\xef\xb8\x8f <b>%1</b> non risponde — nessun modello disponibile").arg(bkName));
-            statusBar()->showMessage(
-                QString("⚠️  %1 non risponde — avvialo prima di usare l'AI").arg(bkName));
-        }
-        connHolder->deleteLater(); /* rimuove la connessione dopo il primo segnale */
-    });
+    m_pendingBkName = bkName;
+    connect(m_ai, &AiClient::modelsReady, this,
+            &MainWindow::onApplyBackendModelsReady, Qt::SingleShotConnection);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1098,16 +906,7 @@ void MainWindow::startLlamaServer(const QString& modelPath, int port, bool mathP
     m_serverProc->setProcessChannelMode(QProcess::MergedChannels);
 
     connect(m_serverProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this](int code, QProcess::ExitStatus) {
-        /* Il testo del pulsante verrà ripristinato da applyBackend(Ollama) sotto */
-        appendLog(QString("\xf0\x9f\x94\xb4 llama-server terminato (code <b>%1</b>) — ripristino Ollama").arg(code));
-        statusBar()->showMessage(
-            QString("\xf0\x9f\x94\xb4  llama-server terminato (code %1). Backend tornato a Ollama.").arg(code));
-        m_serverProc->deleteLater();
-        m_serverProc = nullptr;
-        /* Ripristina Ollama come backend */
-        applyBackend(AiClient::Ollama, P::kLocalHost, P::kOllamaPort);
-    });
+            this, &MainWindow::onServerProcFinished);
 
     /* ── Rilevamento GPU/CPU per n_gpu_layers ─────────────────────────────
      * Logica:
@@ -1194,19 +993,7 @@ void MainWindow::startLlamaServer(const QString& modelPath, int port, bool mathP
      * errorOccurred viene emesso immediatamente se il processo non parte.
      */
     connect(m_serverProc, &QProcess::errorOccurred,
-            this, [this](QProcess::ProcessError err){
-        if (err == QProcess::FailedToStart) {
-            if (m_btnBackend) {
-                m_btnBackend->setText("\xe2\x9d\x8c  Errore avvio");
-                QTimer::singleShot(3000, this, [this]{ refreshBackendBtn(); });
-            }
-            appendLog("\xe2\x9d\x8c <b>llama-server</b>: impossibile avviare — verifica il percorso binario");
-            statusBar()->showMessage(
-                "❌  Impossibile avviare llama-server. Verifica il percorso binario.");
-            m_serverProc->deleteLater();
-            m_serverProc = nullptr;
-        }
-    });
+            this, &MainWindow::onServerProcessError);
 
     appendLog(QString("\xf0\x9f\x9f\xa1 Avvio <b>llama-server</b> su porta %1...").arg(port));
     statusBar()->showMessage(
@@ -1217,74 +1004,15 @@ void MainWindow::startLlamaServer(const QString& modelPath, int port, bool mathP
 
     /*
      * Polling /health ogni 1s, max 180 tentativi (3 minuti).
-     * I modelli grandi (13B+) possono richiedere 60-120s al primo caricamento
-     * (lettura da disco, allocazione RAM/VRAM, mmap). 30s era troppo poco.
-     *
-     * Usiamo un QTimer con un singolo QNetworkAccessManager creato fuori
-     * dal ciclo (non uno nuovo per ogni tick: ogni NAM porta overhead di
-     * thread e pool di connessioni). Il counter è un int membro del QTimer
-     * tramite setProperty per evitare new int() sul heap con delete manuale.
+     * Usa m_healthTimer/m_healthNam/m_healthTicks come membri per evitare lambda.
      */
-    static constexpr int MAX_HEALTH_TICKS = 180;   /* 3 minuti */
-    auto* timer = new QTimer(this);
-    auto* nam   = new QNetworkAccessManager(this); /* un solo NAM per tutti i tick */
-    timer->setProperty("ticks", 0);
-
-    connect(timer, &QTimer::timeout, this, [this, timer, nam, port]{
-        const int ticks = timer->property("ticks").toInt() + 1;
-        timer->setProperty("ticks", ticks);
-
-        /* Aggiorna status bar con conteggio secondi per dare feedback visivo */
-        if (ticks % 5 == 0)   /* ogni 5s per non spammare */
-            statusBar()->showMessage(
-                QString("\xe2\x8f\xb3  Caricamento modello... %1s / %2s (porta %3)")
-                .arg(ticks).arg(MAX_HEALTH_TICKS).arg(port));
-
-        /* Timeout: 3 minuti senza risposta */
-        if (ticks > MAX_HEALTH_TICKS || !m_serverProc) {
-            timer->stop();
-            timer->deleteLater();
-            nam->deleteLater();
-            if (m_btnBackend) {
-                m_btnBackend->setText("\xe2\x9d\x8c  Timeout");
-                QTimer::singleShot(3000, this, [this]{ refreshBackendBtn(); });
-            }
-            if (m_serverProc)
-                statusBar()->showMessage(
-                    QString("\xe2\x9a\xa0\xef\xb8\x8f  llama-server non risponde dopo %1s sulla porta %2 "
-                            "— il modello potrebbe essere troppo grande per la RAM disponibile.")
-                    .arg(MAX_HEALTH_TICKS).arg(port));
-            return;
-        }
-
-        /* GET /health — timeout breve per non sovrapporre i tick */
-        QNetworkRequest req(QUrl(
-            QString("http://%1:%2/health").arg(P::kLocalHost).arg(port)));
-        req.setTransferTimeout(900);
-        auto* reply = nam->get(req);
-
-        connect(reply, &QNetworkReply::finished, this, [this, timer, nam, port, reply]{
-            const bool ok = (reply->error() == QNetworkReply::NoError);
-            reply->deleteLater();
-            if (ok) {
-                /* Server pronto: ferma il polling, aggiorna badge e commuta il backend */
-                timer->stop();
-                timer->deleteLater();
-                nam->deleteLater();
-                /* "✅ Pronto" per 2s poi refreshBackendBtn() aggiorna il testo finale */
-                if (m_btnBackend) {
-                    m_btnBackend->setText("\xe2\x9c\x85  Pronto");
-                    QTimer::singleShot(2000, this, [this]{ refreshBackendBtn(); });
-                }
-                appendLog(QString("\xf0\x9f\xa6\x99 llama-server pronto su porta <b>%1</b>").arg(port));
-                statusBar()->showMessage(
-                    QString("✅  llama-server pronto su porta %1 — backend commutato.").arg(port));
-                applyBackend(AiClient::LlamaServer, P::kLocalHost, port);
-            }
-            /* Se non ok: il timer ritenterà al prossimo tick */
-        });
-    });
-    timer->start(1000);
+    if (m_healthTimer) { m_healthTimer->stop(); m_healthTimer->deleteLater(); m_healthTimer = nullptr; }
+    if (m_healthNam)   { m_healthNam->deleteLater(); m_healthNam = nullptr; }
+    m_healthTicks = 0;
+    m_healthTimer = new QTimer(this);
+    m_healthNam   = new QNetworkAccessManager(this);
+    connect(m_healthTimer, &QTimer::timeout, this, &MainWindow::onHealthTick);
+    m_healthTimer->start(1000);
 }
 
 /* ── Ferma llama-server avviato dalla GUI ── */
@@ -1323,44 +1051,7 @@ QWidget* MainWindow::buildSidebar() {
     newChatBtn->setObjectName("actionBtn");
     newChatBtn->setFixedHeight(30);
     newChatBtn->setToolTip("Inizia una nuova conversazione (reset log)");
-    connect(newChatBtn, &QPushButton::clicked, this, [this]{
-        /* Se il log ha contenuto, chiedi se salvare prima di cancellare */
-        QTextEdit* log = nullptr;
-        if (auto* ap = m_mainTabs ? m_mainTabs->widget(0) : nullptr)
-            log = ap->findChild<QTextEdit*>();
-
-        const bool hasContent = log && !log->toPlainText().trimmed().isEmpty();
-
-        if (hasContent) {
-            QMessageBox dlg(this);
-            dlg.setWindowTitle("\xf0\x9f\x93\xbc  Salva chat");
-            dlg.setText(
-                "<b>\xf0\x9f\x93\xbc  Vuoi salvare questa chat?</b><br><br>"
-                "La conversazione attuale verr\xc3\xa0 persa se non la salvi.");
-            dlg.setIcon(QMessageBox::Question);
-            QPushButton* btnSalva   = dlg.addButton("\xf0\x9f\x93\xbc  Salva", QMessageBox::AcceptRole);
-            QPushButton* btnScarta  = dlg.addButton("Scarta", QMessageBox::DestructiveRole);
-            dlg.addButton("Annulla", QMessageBox::RejectRole);
-            dlg.setDefaultButton(btnSalva);
-            dlg.exec();
-
-            if (dlg.clickedButton() == btnSalva) {
-                /* Salva immediatamente con titolo "(salvato manualmente)" */
-                const QString html = log->toHtml();
-                if (m_currentChatId.isEmpty())
-                    m_currentChatId = m_chatHistory.newSession("(salvato manualmente)");
-                m_chatHistory.saveLog(m_currentChatId, html);
-                refreshChatList();
-            } else if (dlg.clickedButton() != btnScarta) {
-                return; /* Annulla — non fare nulla */
-            }
-        }
-
-        /* Resetta la sessione corrente e pulisce il log */
-        m_currentChatId.clear();
-        if (log) log->clear();
-        navigateTo(0);
-    });
+    connect(newChatBtn, &QPushButton::clicked, this, &MainWindow::onNewChatClicked);
     lay->addWidget(newChatBtn);
 
     /* ── Ricerca chat history ── */
@@ -1379,88 +1070,13 @@ QWidget* MainWindow::buildSidebar() {
     lay->addWidget(m_chatList, 1);   /* stretch=1: occupa lo spazio disponibile */
 
     /* Filtra la lista in tempo reale */
-    connect(m_chatSearch, &QLineEdit::textChanged, this, [this](const QString& q) {
-        const QString query = q.trimmed().toLower();
-        for (int i = 0; i < m_chatList->count(); ++i) {
-            auto* item = m_chatList->item(i);
-            if (!item) continue;
-            /* Il placeholder empty-state non ha UserRole → sempre visibile */
-            const bool isPlaceholder = item->data(Qt::UserRole).toString().isEmpty();
-            item->setHidden(!isPlaceholder && !query.isEmpty()
-                            && !item->text().toLower().contains(query));
-        }
-    });
-
-    connect(m_chatList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item){
-        const QString id = item->data(Qt::UserRole).toString();
-        if (id.isEmpty()) return;
-        const QString rawHtml = m_chatHistory.loadLog(id);
-        if (rawHtml.isEmpty()) return;
-        /* Migra al formato bolla se è una chat storica, poi rimuove il
-         * background-color serializzato da Qt nel <body> così il QSS del
-         * tema attivo viene rispettato. */
-        const QString html = stripBodyBackground(migrateLegacyChat(rawHtml));
-        /* Mostra il log nella pagina Agenti */
-        if (auto* ap = m_mainTabs ? m_mainTabs->widget(0) : nullptr) {
-            if (auto* log = ap->findChild<QTextEdit*>()) {
-                log->setHtml(html);
-                log->moveCursor(QTextCursor::End);
-            }
-        }
-        m_currentChatId = id;
-        navigateTo(0);
-    });
+    connect(m_chatSearch, &QLineEdit::textChanged, this, &MainWindow::onChatSearchChanged);
+    connect(m_chatList, &QListWidget::itemClicked, this, &MainWindow::onChatItemClicked);
 
     /* ── Context menu tasto destro sulle chat ── */
     m_chatList->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_chatList, &QListWidget::customContextMenuRequested,
-            this, [this](const QPoint& pos){
-        auto* item = m_chatList->itemAt(pos);
-        if (!item) return;
-        const QString id    = item->data(Qt::UserRole).toString();
-        const QString title = item->text();
-
-        auto* menu = new QMenu(m_chatList);
-
-        auto* actPdf = menu->addAction("\xf0\x9f\x93\x84  Salva come PDF");
-        connect(actPdf, &QAction::triggered, this, [this, id, title]{
-            const QString html = m_chatHistory.loadLog(id);
-            if (html.isEmpty()) { statusBar()->showMessage("\xe2\x9a\xa0  Chat vuota, nessun PDF."); return; }
-
-            const QString def = QDir::homePath() + "/" + title + ".pdf";
-            const QString path = QFileDialog::getSaveFileName(
-                this, "Salva conversazione come PDF", def, "PDF (*.pdf)");
-            if (path.isEmpty()) return;
-
-            QPdfWriter writer(path);
-            writer.setPageSize(QPageSize(QPageSize::A4));
-            writer.setPageMargins(QMarginsF(15, 15, 15, 15), QPageLayout::Millimeter);
-
-            QTextDocument doc;
-            doc.setDefaultStyleSheet(
-                "body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; color:#111; }"
-                "p    { margin: 4px 0; }");
-            doc.setHtml(html);
-            doc.print(&writer);
-
-            statusBar()->showMessage("\xe2\x9c\x85  PDF salvato: " + path);
-        });
-
-        menu->addSeparator();
-
-        auto* actDel = menu->addAction("\xf0\x9f\x97\x91  Elimina");
-        connect(actDel, &QAction::triggered, this, [this, id, title]{
-            auto btn = QMessageBox::question(this, "Elimina chat",
-                QString("Eliminare la chat \"%1\"?").arg(title),
-                QMessageBox::Yes | QMessageBox::No);
-            if (btn != QMessageBox::Yes) return;
-            m_chatHistory.remove(id);
-            refreshChatList();
-        });
-
-        menu->exec(m_chatList->viewport()->mapToGlobal(pos));
-        menu->deleteLater();
-    });
+            this, &MainWindow::onChatContextMenuRequested);
 
     refreshChatList();
 
@@ -1492,6 +1108,7 @@ QWidget* MainWindow::buildContent() {
     m_mainTabs->setObjectName("mainTabs");
     m_mainTabs->setTabPosition(QTabWidget::North);
     m_mainTabs->setMovable(false);
+    m_mainTabs->setAccessibleName("Sezioni principali di Prismalux");
 
     /* Pulsante Ollama come corner widget sinistro — a sinistra di "Agenti AI".
        Avvolto in un container con margine destro per evitare sovrapposizione coi tab. */
@@ -1514,39 +1131,15 @@ QWidget* MainWindow::buildContent() {
     connect(agentiPage, &AgentiPage::pipelineStatus,
             this,       &MainWindow::onPipelineStatus);
     connect(agentiPage, &AgentiPage::requestOpenSettings,
-            this, [this](const QString& tabName){
-        /* Apre il dialog Impostazioni e naviga al tab richiesto */
-        ensureSettingsDialog();
-        m_impDlg->show();
-        m_impDlg->raise();
-        m_impDlg->activateWindow();
-        if (m_impPage) m_impPage->switchToTab(tabName);
-    });
+            this, &MainWindow::onGraficoRequestSettings);
     connect(agentiPage, &AgentiPage::requestShowInGrafico,
-            this, [this](const QString& formula, double xMin, double xMax,
-                         const QVector<QPointF>& points){
-        if (!m_grafCanvas) return;
-        /* Naviga al container Matematica (indice 5) e attiva il sub-tab Grafico (indice 1) */
-        if (m_mainTabs) {
-            m_mainTabs->setCurrentIndex(5);
-            if (auto* mc = qobject_cast<QWidget*>(m_mainTabs->widget(5)))
-                if (auto* st = mc->findChild<QTabWidget*>("mathSubTabs"))
-                    st->setCurrentIndex(1);
-        }
-        /* Plotta: formula cartesiana oppure scatter di punti */
-        if (!formula.isEmpty())
-            m_grafCanvas->setCartesian(formula, xMin, xMax);
-        else if (!points.isEmpty())
-            m_grafCanvas->setScatter(points);
-    });
+            this, &MainWindow::onRequestShowInGrafico);
 
     m_mainTabs->addTab(agentiPage,                           "\xf0\x9f\xa4\x96  Intelligenza artificiale");  /* 0 */
     m_strumentiPage = new StrumentiPage(m_ai, this);
     /* Cron lazy: installa il pannello solo al primo clic — NON all'avvio */
-    connect(m_strumentiPage, &StrumentiPage::cronPanelFirstOpen, this, [this]{
-        ensureSettingsDialog();
-        m_strumentiPage->installCronPanel(m_impPage->manutenzione());
-    });
+    connect(m_strumentiPage, &StrumentiPage::cronPanelFirstOpen,
+            this, &MainWindow::onCronPanelFirstOpen);
     m_mainTabs->addTab(m_strumentiPage,                      "\xf0\x9f\x9b\xa0  Strumenti");        /* 1 */
     m_mainTabs->addTab(new MultimediaPage(m_ai, this),       "\xf0\x9f\x8e\xac  Multimedia");       /* 2 */
     m_mainTabs->addTab(new StrumentiFilePage(m_ai, this),    "\xf0\x9f\x93\x81  File AI");          /* 3 */
@@ -1558,13 +1151,7 @@ QWidget* MainWindow::buildContent() {
         m_grafCanvas = grafPage->canvas();
         if (m_impPage) m_impPage->setGraficoCanvas(m_grafCanvas);
         connect(grafPage, &GraficoPage::requestOpenSettings,
-                this, [this](const QString& tabName){
-            ensureSettingsDialog();
-            m_impDlg->show();
-            m_impDlg->raise();
-            m_impDlg->activateWindow();
-            if (m_impPage) m_impPage->switchToTab(tabName);
-        });
+                this, &MainWindow::onGraficoRequestSettings);
 
         auto* mathContainer = new QWidget(m_mainTabs);
         auto* mcLay = new QVBoxLayout(mathContainer);
@@ -1580,10 +1167,8 @@ QWidget* MainWindow::buildContent() {
                             "\xf0\x9f\x93\x88  Grafico");
 
         /* Forza repaint del canvas quando il sub-tab Grafico diventa visibile */
-        connect(mathSubTabs, &QTabWidget::currentChanged, this, [this](int idx){
-            if (idx == 1 && m_grafCanvas)
-                m_grafCanvas->repaint();
-        });
+        connect(mathSubTabs, &QTabWidget::currentChanged,
+                this, &MainWindow::onMathSubTabChanged);
 
         mcLay->addWidget(mathSubTabs);
         m_mainTabs->addTab(mathContainer, "\xcf\x80  Matematica");                        /* 5 */
@@ -1618,12 +1203,10 @@ QWidget* MainWindow::buildContent() {
         imparaTabs->addTab(new ImparaPage(m_ai, imparaContainer), "\xf0\x9f\x8f\x9b  Impara con AI");
         /* QuizPage usa AiClient SEPARATO: evita cross-talk con AgentiPage */
         {
-            auto* quizAi = new AiClient(this);
-            quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
-            connect(m_ai, &AiClient::modelsReady, quizAi, [this, quizAi](const QStringList&){
-                quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
-            });
-            imparaTabs->addTab(new QuizPage(quizAi, imparaContainer),
+            m_quizAi = new AiClient(this);
+            m_quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+            connect(m_ai, &AiClient::modelsReady, this, &MainWindow::onQuizAiModelsReady);
+            imparaTabs->addTab(new QuizPage(m_quizAi, imparaContainer),
                                "\xf0\x9f\x8e\xaf  Sfida te stesso!");
         }
         ilay->addWidget(imparaTabs);
@@ -1658,14 +1241,12 @@ QWidget* MainWindow::buildContent() {
             btn->setCheckable(true);
             btn->setChecked(i == 0);
             btn->setFlat(true);
-            const int tabIdx = i;
-            connect(btn, &QPushButton::clicked, this, [this, tabIdx]{
-                m_mainTabs->setCurrentIndex(tabIdx);
-            });
-            btnGroup->addButton(btn);
+            btnGroup->addButton(btn, i);   /* id = indice tab — usato da idClicked */
             m_navBtns << btn;
             nmLay->addWidget(btn);
         }
+        connect(btnGroup, &QButtonGroup::idClicked,
+                m_mainTabs, &QTabWidget::setCurrentIndex);
         nmLay->addStretch();
 
         /* Backend button all'estrema destra della nav bar (in menu mode) */
@@ -1675,47 +1256,18 @@ QWidget* MainWindow::buildContent() {
             backendClone->setFlat(true);
             backendClone->setFixedHeight(30);
             /* Sincronizza testo con il pulsante principale */
-            auto syncText = [this, backendClone]{
-                backendClone->setText(m_btnBackend->text());
-                backendClone->setStyleSheet(m_btnBackend->styleSheet());
-            };
-            connect(m_btnBackend, &QPushButton::clicked, backendClone, syncText);
-            syncText();
+            m_navBackendClone = backendClone;
+            connect(m_btnBackend, &QPushButton::clicked,
+                    this, &MainWindow::onSyncNavBackendClone);
+            onSyncNavBackendClone();
             connect(backendClone, &QPushButton::clicked,
                     m_btnBackend, &QPushButton::click);
             nmLay->addWidget(backendClone);
         }
 
         /* Sincronizza pulsante attivo quando cambia tab */
-        connect(m_mainTabs, &QTabWidget::currentChanged, this, [this](int idx){
-            /* Salva lavoro non salvato in Programmazione */
-            static int prevIdx = 0;
-            if (prevIdx != idx) {
-                auto* progPage = qobject_cast<ProgrammazionePage*>(m_mainTabs->widget(prevIdx));
-                if (progPage && progPage->hasUnsavedWork()) {
-                    QMessageBox dlg(this);
-                    dlg.setWindowTitle("\xf0\x9f\x92\xbe  Lavoro non salvato");
-                    dlg.setText("<b>Hai modifiche non salvate nella scheda Programmazione.</b><br>"
-                                "Vuoi salvarle prima di continuare?");
-                    dlg.setIcon(QMessageBox::Question);
-                    auto* btnSave   = dlg.addButton("Salva", QMessageBox::AcceptRole);
-                    dlg.addButton("Continua senza salvare", QMessageBox::DestructiveRole);
-                    dlg.addButton("Torna indietro", QMessageBox::RejectRole);
-                    dlg.setDefaultButton(btnSave);
-                    dlg.exec();
-                    if (dlg.clickedButton() == btnSave) {
-                        progPage->saveCurrentFile();
-                    } else if (dlg.clickedButton() == nullptr ||
-                               dlg.clickedButton()->text().contains("Torna")) {
-                        m_mainTabs->setCurrentIndex(prevIdx);
-                        return;
-                    }
-                }
-                prevIdx = idx;
-            }
-            if (idx >= 0 && idx < m_navBtns.size())
-                m_navBtns[idx]->setChecked(true);
-        });
+        connect(m_mainTabs, &QTabWidget::currentChanged,
+                this, &MainWindow::onMainTabChanged);
     }
 
     wLay->addWidget(m_navMenuBar);
@@ -1728,8 +1280,10 @@ QWidget* MainWindow::buildContent() {
         /* Differito: i pulsanti di esecuzione vengono creati nelle pagine
            durante addTab(); aspettiamo che il widget tree sia completo */
         const QString execMode = s.value(P::SK::kNavExecBtnMode, "icon_text").toString();
-        if (execMode != "icon_text")
-            QTimer::singleShot(0, this, [this, execMode]{ applyExecBtnMode(execMode); });
+        if (execMode != "icon_text") {
+            m_pendingExecMode = execMode;
+            QTimer::singleShot(0, this, &MainWindow::onApplyExecBtnMode);
+        }
     }
 
     return wrapper;
@@ -1769,22 +1323,9 @@ void MainWindow::ensureSettingsDialog()
 
     /* Feedback indicizzazione RAG nella status bar — visibile anche a dialog chiuso */
     connect(m_impPage, &ImpostazioniPage::indexingProgress,
-            this, [this](int done, int total) {
-        statusBar()->showMessage(
-            QString("\xe2\x8f\xb3  Indicizzazione RAG: %1 / %2 chunk...").arg(done).arg(total));
-    });
+            this, &MainWindow::onIndexingProgress);
     connect(m_impPage, &ImpostazioniPage::indexingFinished,
-            this, [this](int n, bool aborted) {
-        if (aborted)
-            statusBar()->showMessage(
-                QString("\xe2\x8f\xb9  RAG interrotto \xe2\x80\x94 %1 chunk salvati.").arg(n), 6000);
-        else if (n == 0)
-            statusBar()->showMessage(
-                "\xe2\x9d\x8c  RAG: embedding falliti \xe2\x80\x94 installa nomic-embed-text.", 8000);
-        else
-            statusBar()->showMessage(
-                QString("\xe2\x9c\x85  RAG completato: %1 chunk indicizzati.").arg(n), 6000);
-    });
+            this, &MainWindow::onIndexingFinished);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1837,9 +1378,7 @@ void MainWindow::ensureLogDialog()
     auto* clearBtn = new QPushButton("\xf0\x9f\x97\x91  Pulisci log", btnRow);
     clearBtn->setObjectName("actionBtn");
     clearBtn->setFixedHeight(32);
-    connect(clearBtn, &QPushButton::clicked, this, [this]{
-        if (m_logView) m_logView->clear();
-    });
+    connect(clearBtn, &QPushButton::clicked, this, &MainWindow::onClearLogClicked);
 
     auto* closeBtn = new QPushButton("Chiudi", btnRow);
     closeBtn->setObjectName("actionBtn");
@@ -1999,21 +1538,7 @@ void MainWindow::maybeAutoVramBench() {
     proc->setProcessChannelMode(QProcess::MergedChannels);
 
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, proc](int code, QProcess::ExitStatus){
-        proc->deleteLater();
-        if (code == 0 && QFileInfo::exists(P::vramProfilePath()))
-            statusBar()->showMessage(
-                "\xe2\x9c\x85  VRAM benchmark completato \xe2\x80\x94 profilo salvato in vram_profile.json");
-        else
-            statusBar()->showMessage(
-                "\xe2\x9a\xa0  VRAM benchmark fallito (codice " +
-                QString::number(code) + ") \xe2\x80\x94 verrà riprovato al prossimo avvio");
-
-        QTimer::singleShot(6000, this, [this]{
-            statusBar()->showMessage(
-                "\xf0\x9f\x8d\xba  Invocazione riuscita. Gli dei ascoltano.");
-        });
-    });
+            this, &MainWindow::onVramBenchFinished);
 
     proc->start(bench, {});
     if (!proc->waitForStarted(3000)) {
@@ -2131,6 +1656,24 @@ void MainWindow::onChatCompleted(const QString& title, const QString& logHtml) {
 
     appendLog(QString("\xe2\x9c\x85 Pipeline completata: <b>%1</b>")
               .arg(title.isEmpty() ? "(senza titolo)" : title.toHtmlEscaped()));
+}
+
+/* Slot: usa le funzioni statiche stripBodyBackground/migrateLegacyChat definite sopra */
+void MainWindow::onChatItemClicked(QListWidgetItem* item)
+{
+    const QString id = item->data(Qt::UserRole).toString();
+    if (id.isEmpty()) return;
+    const QString rawHtml = m_chatHistory.loadLog(id);
+    if (rawHtml.isEmpty()) return;
+    const QString html = stripBodyBackground(migrateLegacyChat(rawHtml));
+    if (auto* ap = m_mainTabs ? m_mainTabs->widget(0) : nullptr) {
+        if (auto* log = ap->findChild<QTextEdit*>()) {
+            log->setHtml(html);
+            log->moveCursor(QTextCursor::End);
+        }
+    }
+    m_currentChatId = id;
+    navigateTo(0);
 }
 
 void MainWindow::refreshChatList() {
@@ -2277,20 +1820,11 @@ void MainWindow::showOnboardingWizard()
         "\xf0\x9f\x8d\xba  Inizia!");
     vlay->addWidget(btnBox);
 
-    connect(btnBox, &QDialogButtonBox::accepted, dlg, [=](){
-        QSettings s2("Prismalux", "GUI");
-        s2.setValue(P::SK::kActiveBackend, backendCombo->currentData().toInt());
-        s2.setValue(P::SK::kActiveModel,   modelCombo->currentData().toString());
-        const QString theme = themeCombo->currentData().toString();
-        s2.setValue(P::SK::kTheme, theme);
-        s2.setValue(P::SK::kSetupDone, true);
-        /* Applica tema immediatamente */
-        QMetaObject::invokeMethod(this, [this, theme]{
-            if (auto* tm = ThemeManager::instance())
-                tm->apply(theme);
-        }, Qt::QueuedConnection);
-        dlg->accept();
-    });
+    m_onbBackend = backendCombo;
+    m_onbModel   = modelCombo;
+    m_onbTheme   = themeCombo;
+    m_onbDlg     = dlg;
+    connect(btnBox, &QDialogButtonBox::accepted, this, &MainWindow::onOnboardingAccepted);
 
     dlg->exec();
 }

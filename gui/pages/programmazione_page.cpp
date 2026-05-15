@@ -15,6 +15,8 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QFont>
+#include <QFontDatabase>
+#include <QApplication>
 #include <QDateTime>
 #include <QTextCursor>
 #include <QFrame>
@@ -40,6 +42,9 @@
 
 namespace P = PrismaluxPaths;
 #include <QBrush>
+#include <QDropEvent>
+#include <QMimeData>
+#include <QUrl>
 #include <QColor>
 
 /* ══════════════════════════════════════════════════════════════
@@ -90,6 +95,43 @@ bool ProgrammazionePage::isIntentionalError(const QString& errorOut,
     return false;
 }
 
+/* Dimensione font mono DPI-aware: segue il font applicazione (già scalato da Qt/OS).
+   Su 4K con HiDPI abilitato, QApplication::font().pointSize() sarà già più grande. */
+static int monoFontPt(int fallback = 11) {
+    const int appPt = QApplication::font().pointSize();
+    return (appPt > 0) ? appPt : fallback;
+}
+
+/* Event filter: intercetta drop di file sull'editor e ne inserisce il contenuto. */
+class EditorFileDropFilter : public QObject {
+public:
+    using QObject::QObject;
+protected:
+    bool eventFilter(QObject* obj, QEvent* ev) override {
+        if (ev->type() != QEvent::Drop) return false;
+        auto* de = static_cast<QDropEvent*>(ev);
+        if (!de->mimeData()->hasUrls()) return false;
+        auto* editor = qobject_cast<QPlainTextEdit*>(obj);
+        if (!editor) return false;
+
+        QString content;
+        for (const QUrl& url : de->mimeData()->urls()) {
+            if (!url.isLocalFile()) continue;
+            QFile f(url.toLocalFile());
+            if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+                content += QString::fromUtf8(f.readAll());
+        }
+        if (!content.isEmpty()) {
+            QTextCursor cur = editor->textCursor();
+            cur.select(QTextCursor::Document);
+            cur.insertText(content);        /* entra nello stack undo */
+            de->acceptProposedAction();
+            return true;
+        }
+        return false;
+    }
+};
+
 /* ══════════════════════════════════════════════════════════════
    ProgrammazionePage — costruttore
    ══════════════════════════════════════════════════════════════ */
@@ -99,7 +141,7 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     QFont monoFont;
     monoFont.setFamily("JetBrains Mono");
     monoFont.setStyleHint(QFont::Monospace);
-    monoFont.setPointSize(11);
+    monoFont.setPointSize(monoFontPt(11));
 
     auto* mainLay = new QVBoxLayout(this);
     mainLay->setContentsMargins(12, 12, 12, 12);
@@ -183,46 +225,8 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
         "Si ferma se trova un SyntaxError creato deliberatamente (raise SyntaxError).\n"
         "OFF \xe2\x86\x92 esecuzione singola, correzione manuale.");
     /* Toggle: warning one-shot alla prima attivazione, reset loop allo spegnimento */
-    connect(m_toggleAutoFix, &QAbstractButton::toggled, this, [this](bool on){
-        if (!on) {
-            /* Spento: ferma il loop in corso */
-            m_loopActive = false;
-            m_loopCount  = 0;
-            return;
-        }
-
-        /* Attivato: mostra warning una sola volta (salvato in QSettings) */
-        QSettings s("Prismalux", "GUI");
-        if (!s.value(P::SK::kLoopFixWarning, false).toBool()) {
-            QMessageBox dlg(this);
-            dlg.setWindowTitle("Loop Fix — Esecuzione automatica di codice AI");
-            dlg.setIcon(QMessageBox::Warning);
-            dlg.setText(
-                "<b>Loop Fix eseguir\xc3\xa0 automaticamente il codice</b><br>"
-                "generato dall'AI con i tuoi privilegi utente.<br><br>"
-                "Assicurati di usare questa funzione <b>solo con AI di cui ti fidi</b> "
-                "e con codice che non accede a dati sensibili o al filesystem.<br><br>"
-                "Il loop si ferma automaticamente dopo 6 tentativi o se rileva "
-                "un errore intenzionale (SyntaxError custom).");
-            dlg.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-            dlg.button(QMessageBox::Ok)->setText("Ho capito, abilita");
-            dlg.button(QMessageBox::Cancel)->setText("Annulla");
-
-            /* Checkbox "Non mostrare più" */
-            auto* chk = new QCheckBox("Non mostrare più questo avviso", &dlg);
-            dlg.setCheckBox(chk);
-
-            if (dlg.exec() != QMessageBox::Ok) {
-                /* Utente ha annullato: disattiva il toggle senza ri-emettere toggled */
-                m_toggleAutoFix->blockSignals(true);
-                m_toggleAutoFix->setChecked(false);
-                m_toggleAutoFix->blockSignals(false);
-                return;
-            }
-            if (chk->isChecked())
-                s.setValue(P::SK::kLoopFixWarning, true);
-        }
-    });
+    connect(m_toggleAutoFix, &QAbstractButton::toggled,
+            this, &ProgrammazionePage::onAutoFixToggled);
     toolLay->addWidget(m_toggleAutoFix);
 
     /* ── Slider iterazioni Loop Fix (1-10, ∞ al massimo) ── */
@@ -236,10 +240,8 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     m_fixSliderLbl->setObjectName("cardDesc");
     m_fixSliderLbl->setFixedWidth(22);
     m_fixSliderLbl->setAlignment(Qt::AlignCenter);
-    connect(m_fixSlider, &QSlider::valueChanged, this, [this](int v){
-        m_loopMax = v;
-        m_fixSliderLbl->setText(v == 10 ? "\xe2\x88\x9e" : QString::number(v));
-    });
+    connect(m_fixSlider, &QSlider::valueChanged,
+            this, &ProgrammazionePage::onFixSliderChanged);
     toolLay->addWidget(m_fixSlider);
     toolLay->addWidget(m_fixSliderLbl);
 
@@ -260,7 +262,9 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     m_editor->setFont(monoFont);
     m_editor->setTabStopDistance(32);
     m_editor->setLineWrapMode(QPlainTextEdit::NoWrap);
-    m_editor->setPlaceholderText("# Scrivi il codice qui,\n# oppure usa 🤖 Chiedi all'AI per generarlo.");
+    m_editor->setPlaceholderText("# Scrivi il codice qui,\n# oppure usa 🤖 Chiedi all'AI per generarlo.\n# Trascina un file qui per aprirlo.");
+    m_editor->setAcceptDrops(true);
+    m_editor->installEventFilter(new EditorFileDropFilter(m_editor));
     editorLay->addWidget(m_editor);
 
     /* ── Syntax Highlighter — attivato subito sull'editor ── */
@@ -437,347 +441,65 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
             "\xf0\x9f\x8c\x90  Rete & Network");
     }
 
-    /* ══════════════════════════════════════════════════════════
-       Lambda: badge di raccomandazione per coding
-       ══════════════════════════════════════════════════════════ */
-    auto codingBadge = [](const QString& name) -> QString {
-        const QString n = name.toLower();
-        /* Modelli specializzati in coding */
-        if (n.contains("coder") || n.contains("codellama") ||
-                n.contains("starcoder") || n.contains("codegemma"))
-            return "  \xf0\x9f\x92\xbb Ottimizzato Coding";
-        /* Modelli generali ottimi per coding (evita math puri) */
-        if ((n.contains("phi")) ||
-                (n.contains("deepseek") && !n.contains("math")) ||
-                (n.contains("qwen")     && !n.contains("math")))
-            return "  \xe2\x9c\x94 Buono per Coding";
-        return QString();
-    };
+    connect(btnRefreshMod, &QPushButton::clicked,
+            this, &ProgrammazionePage::populateAiModels);
 
-    /* Restituisce true se il modello è solo per embedding (non supporta /api/chat) */
-    auto isEmbedOnly = [](const QString& name) -> bool {
-        const QString n = name.toLower();
-        return n.contains("embed") || n.contains("minilm") ||
-               n.contains("rerank") || n.contains("bge-") ||
-               n.contains("e5-") || n.contains("gte-") ||
-               n.contains("arctic-embed") || n.contains("-embed");
-    };
-
-    /* Score di preferenza per coding: piu' alto = meglio per programmazione */
-    auto codingScore = [](const QString& name) -> int {
-        const QString n = name.toLower();
-        if (n.contains("qwen2.5-coder") || n.contains("qwen2_5-coder")) {
-            if (n.contains("32b")) return 100;
-            if (n.contains("14b")) return 95;
-            if (n.contains("7b"))  return 90;
-            return 85;
-        }
-        if (n.contains("deepseek-coder")) {
-            if (n.contains("v2") || n.contains("33b")) return 88;
-            if (n.contains("7b") || n.contains("6.7b")) return 82;
-            return 78;
-        }
-        if (n.contains("coder") || n.contains("codellama") ||
-            n.contains("starcoder") || n.contains("codegemma")) return 70;
-        if (n.contains("deepseek") && !n.contains("math")) return 40;
-        if (n.contains("qwen")     && !n.contains("math")) return 35;
-        if (n.contains("phi"))                              return 30;
-        return 0;
-    };
-
-    /* Lambda: recupera modelli, popola la combo, auto-seleziona il miglior coder */
-    auto populateAiModels = [this, codingBadge, isEmbedOnly, codingScore]() {
-        if (!m_ai) return;
-        m_modelCombo->setEnabled(false);
-        const QString cur = m_ai->model();
-        auto* holder = new QObject(this);
-        connect(m_ai, &AiClient::modelsReady, holder,
-                [this, holder, codingBadge, isEmbedOnly, codingScore, cur]
-                (const QStringList& list) {
-            holder->deleteLater();
-            m_modelCombo->clear();
-
-            int selIdx    = 0;
-            int curIdx    = -1;
-            int bestCoder = -1;
-            int bestScore = -1;
-
-            for (const QString& mdl : list) {
-                if (isEmbedOnly(mdl)) continue;
-                const int pos = m_modelCombo->count();
-                m_modelCombo->addItem(mdl + codingBadge(mdl), mdl);
-                if (P::isKnownBrokenModel(mdl)) {
-                    m_modelCombo->setItemData(pos, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
-                    m_modelCombo->setItemData(pos, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
-                    m_modelCombo->setItemData(pos,
-                        P::knownBrokenModelTooltip(),
-                        Qt::ToolTipRole);
-                }
-                if (mdl == cur) curIdx = pos;
-                const int sc = codingScore(mdl);
-                if (sc > bestScore) { bestScore = sc; bestCoder = pos; }
-            }
-
-            if (m_modelCombo->count() == 0) {
-                m_modelCombo->addItem(
-                    cur.isEmpty() ? "(nessun modello chat)" : cur, cur);
-            } else {
-                /* Auto-seleziona il miglior coder se il modello corrente non è già
-               un coder SPECIALIZZATO (≥85 = qwen2.5-coder, deepseek-coder).
-               "Buono per Coding" (<85) NON blocca la selezione ottimale. */
-                const bool curIsCoder = (curIdx >= 0 && codingScore(cur) >= 85);
-                if (bestCoder >= 0 && !curIsCoder)
-                    selIdx = bestCoder;
-                else if (curIdx >= 0)
-                    selIdx = curIdx;
-                m_modelCombo->setCurrentIndex(selIdx);
-
-                /* Imposta il modello scelto sul backend */
-                const QString chosen = m_modelCombo->currentData().toString();
-                if (!chosen.isEmpty() && chosen != cur)
-                    m_ai->setBackend(m_ai->backend(), m_ai->host(),
-                                     m_ai->port(), chosen);
-            }
-            m_modelCombo->setEnabled(true);
-        });
-        m_ai->fetchModels();
-    };
-
-    connect(btnRefreshMod, &QPushButton::clicked, this, populateAiModels);
-
-    /* Auto-popola modelli al caricamento della pagina: seleziona "Ottimizzato Coding" subito */
-    QTimer::singleShot(0, this, [populateAiModels]{ populateAiModels(); });
+    /* Auto-popola modelli al caricamento della pagina */
+    QTimer::singleShot(0, this, &ProgrammazionePage::populateAiModels);
 
     /* ══════════════════════════════════════════════════════════
        Connessioni
        ══════════════════════════════════════════════════════════ */
 
-    /* Cambia linguaggio → sostituisce sempre il codice nell'editor con il template */
-    /* Mappa indice combo → CodeHighlighter::Language */
-    static const CodeHighlighter::Language kLangMap[] = {
-        CodeHighlighter::Python,
-        CodeHighlighter::C,
-        CodeHighlighter::Cpp,
-        CodeHighlighter::Bash,
-        CodeHighlighter::JavaScript,
-    };
-
+    /* Cambia linguaggio → sostituisce il codice nell'editor con il template */
     connect(m_lang, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int idx){
-        m_editor->setPlainText(currentTemplate());
-        if (m_highlighter && idx >= 0 && idx < 5)
-            m_highlighter->setLanguage(kLangMap[idx]);
-    });
+            this, &ProgrammazionePage::onLangChanged);
 
     /* Template iniziale */
     m_editor->setPlainText(currentTemplate());
 
     /* Pulisci output */
-    connect(btnClear, &QPushButton::clicked, this, [this]{
-        m_output->clear();
-        m_fullOutput.clear();
-        m_chart->clearAll();
-        m_chartGroup->hide();
-        m_status->setText("Pronto.");
-    });
-
+    connect(btnClear, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnClearClicked);
     /* ── Apri/chiudi pannello AI ── */
-    connect(m_btnAi, &QPushButton::toggled, this, [this, populateAiModels](bool on){
-        m_aiPanel->setVisible(on);
-        if (on) {
-            /* Prima apertura o modello cambiato → aggiorna lista */
-            if (m_modelCombo->count() <= 1)
-                populateAiModels();
-            m_aiInput->setFocus();
-            m_aiInput->selectAll();
-        }
-    });
-    connect(btnCloseAi, &QPushButton::clicked, this, [this]{
-        m_btnAi->setChecked(false);
-    });
+    connect(m_btnAi, &QPushButton::toggled,
+            this, &ProgrammazionePage::onBtnAiToggled);
+    connect(btnCloseAi, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnCloseAiClicked);
 
-    /* ── Invia richiesta all'AI ── */
-    auto sendToAi = [this](){
-        const QString richiesta = m_aiInput->text().trimmed();
-        if (richiesta.isEmpty()) {
-            m_aiOutput->setPlainText("\xe2\x9d\x8c  Scrivi la tua richiesta prima di premere Invia.");
-            return;
-        }
-        if (!m_ai) {
-            m_aiOutput->setPlainText("\xe2\x9d\x8c  AI non disponibile.");
-            return;
-        }
-        if (m_ai->busy()) {
-            m_aiOutput->setPlainText("\xe2\x9a\xa0\xef\xb8\x8f  AI occupata. Attendi o premi Stop.");
-            return;
-        }
+    /* ── Invia richiesta all’AI ── */
+    connect(btnSend,   &QPushButton::clicked,
+            this, &ProgrammazionePage::sendToAi);
+    connect(m_aiInput, &QLineEdit::returnPressed,
+            this, &ProgrammazionePage::sendToAi);
 
-        const QString lang = m_lang->currentText();
-        const QString codiceAttuale = m_editor->toPlainText().trimmed();
-
-        /* System prompt: capisce se l'utente vuole codice nuovo o analisi di codice esistente */
-        QString sys;
-        QString user;
-
-        if (codiceAttuale.isEmpty()) {
-            /* Editor vuoto → generazione codice */
-            sys = QString(
-                "Sei un programmatore esperto. L'utente ti chiede di scrivere codice in %1. "
-                "Scrivi codice completo e funzionante, commentato in italiano. "
-                "Metti il codice in un blocco ```%2 ... ```. "
-                "Spiega brevemente cosa fa il codice dopo il blocco. "
-                "Rispondi SEMPRE in italiano.")
-                .arg(lang, lang.toLower());
-            user = richiesta;
-        } else {
-            /* Editor ha codice → analisi/modifica basata sulla richiesta */
-            sys = QString(
-                "Sei un programmatore esperto. Ti viene mostrato del codice in %1 e una richiesta. "
-                "Rispondi alla richiesta in italiano. "
-                "Se riscrivi o modifichi il codice, usa un blocco ```%2 ... ```. "
-                "Rispondi SEMPRE in italiano.")
-                .arg(lang, lang.toLower());
-            user = QString("Codice attuale:\n```%1\n%2\n```\n\nRichiesta: %3")
-                   .arg(lang.toLower(), codiceAttuale, richiesta);
-        }
-
-        /* Applica il modello scelto dall'utente (se diverso dall'attivo) */
-        if (m_modelCombo) {
-            const QString sel = m_modelCombo->currentData().toString();
-            if (!sel.isEmpty() && sel != m_ai->model())
-                m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
-        }
-
-        /* Guardia: blocca modelli embedding che non supportano /api/chat */
-        {
-            const QString mn = m_ai->model().toLower();
-            const bool isEmbed = mn.contains("embed") || mn.contains("minilm") ||
-                                 mn.contains("rerank") || mn.contains("bge-") ||
-                                 mn.contains("e5-") || mn.contains("gte-") ||
-                                 mn.contains("-embed");
-            if (isEmbed) {
-                m_aiOutput->clear();
-                m_aiOutput->insertPlainText(
-                    QString("\xe2\x9a\xa0\xef\xb8\x8f  \"%1\" \xc3\xa8 un modello di embedding:\n"
-                            "non supporta la chat.\n\n"
-                            "Seleziona un modello diverso dalla combo qui sopra\n"
-                            "(es. qwen2.5-coder, llama3, deepseek-r1...).")
-                    .arg(m_ai->model()));
-                return;
-            }
-        }
-
-        m_aiOutput->clear();
-        /* Intestazione modello */
-        {
-            const QString modelName = m_ai->model().isEmpty() ? "AI" : m_ai->model();
-            m_aiOutput->insertPlainText(
-                QString("\xf0\x9f\xa4\x96  Modello: %1\n%2\n\n")
-                    .arg(modelName, QString(modelName.length() + 12, '-')));
-        }
-        m_aiMode = true;
-        m_btnInsert->setEnabled(false);
-        setRunning(true);
-        m_status->setText("\xf0\x9f\xa4\x96  AI in risposta...");
-
-        /* Resetta il holder precedente prima di crearne uno nuovo —
-           evita doppie connessioni che causano output duplicato. */
-        if (m_tokenHolder) { delete m_tokenHolder; m_tokenHolder = nullptr; }
-        m_tokenHolder = new QObject(this);
-        connect(m_ai, &AiClient::token, m_tokenHolder, [this](const QString& tok){
-            m_aiOutput->moveCursor(QTextCursor::End);
-            m_aiOutput->insertPlainText(tok);
-            m_aiOutput->ensureCursorVisible();
-        });
-        connect(m_ai, &AiClient::finished, m_tokenHolder, [this](const QString&){
-            if (m_tokenHolder) { m_tokenHolder->deleteLater(); m_tokenHolder = nullptr; }
-            m_aiMode = false;
-            setRunning(false);
-            m_status->setText("\xe2\x9c\x85  Risposta AI completata.");
-            m_btnInsert->setEnabled(!extractCodeBlock().isEmpty());
-        });
-        connect(m_ai, &AiClient::error, m_tokenHolder, [this](const QString& msg){
-            if (m_tokenHolder) { m_tokenHolder->deleteLater(); m_tokenHolder = nullptr; }
-            m_aiMode = false;
-            setRunning(false);
-            m_aiOutput->appendPlainText(QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
-            m_status->setText("\xe2\x9d\x8c  Errore AI.");
-        });
-
-        m_ai->chat(P::prependKnowledge(sys), user);
-    };
-
-    connect(btnSend, &QPushButton::clicked, this, sendToAi);
-    connect(m_aiInput, &QLineEdit::returnPressed, this, sendToAi);
-
-    /* ── Inserisci codice dall'AI in editor ── */
-    connect(m_btnInsert, &QPushButton::clicked, this, [this]{
-        const QString code = extractCodeBlock();
-        if (code.isEmpty()) return;
-        if (!m_editor->toPlainText().trimmed().isEmpty()) {
-            const int ret = QMessageBox::question(this,
-                "Sovrascrivere il codice?",
-                "L'editor contiene codice.\nVuoi sostituirlo con la risposta AI?",
-                QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-            if (ret != QMessageBox::Yes) return;
-        }
-        m_editor->setPlainText(code);
-        m_status->setText("\xe2\x9c\x85  Codice inserito nell'editor.");
-    });
+    /* ── Inserisci codice dall’AI in editor ── */
+    connect(m_btnInsert, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnInsertClicked);
 
     /* ── Esegui / Stop (bottone unificato) ── */
-    connect(m_btnRun, &QPushButton::clicked, this, [this]{
-        if (m_proc && m_proc->state() != QProcess::NotRunning) {
-            m_proc->kill();
-            m_status->setText("\xe2\x9c\x8b  Interrotto.");
-            setRunning(false);
-            return;
-        }
-        if (m_aiMode && m_ai && m_ai->busy()) {
-            m_ai->abort();
-            m_aiMode = false;
-            m_status->setText("\xe2\x9c\x8b  Risposta AI interrotta.");
-            setRunning(false);
-            return;
-        }
-        runCode();
-    });
+    connect(m_btnRun, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnRunClicked);
 
     /* ── Correggi con AI ── */
-    connect(m_btnFix, &QPushButton::clicked, this, [this]{
-        const bool hasError = (m_lastExitCode != 0 && !m_lastError.isEmpty());
-        triggerFix(hasError);
-    });
+    connect(m_btnFix, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnFixClicked);
 
-    /* Sincronizza i combo modello (Coding + Agentica) quando il modello cambia
-       da Impostazioni o da qualsiasi altra scheda.
-       Fonte unica: segnale AiClient::modelChanged.
-       Cerca prima per data (nome esatto), poi per testo (contiene). */
-    auto syncCombo = [](QComboBox* combo, const QString& newModel) {
-        if (!combo) return;
-        int idx = combo->findData(newModel);
-        if (idx < 0) idx = combo->findText(newModel, Qt::MatchContains);
-        if (idx >= 0 && idx != combo->currentIndex()) {
-            combo->blockSignals(true);
-            combo->setCurrentIndex(idx);
-            combo->blockSignals(false);
-        } else if (idx < 0) {
-            /* Modello non ancora nella lista: aggiorna la voce iniziale */
-            combo->blockSignals(true);
-            combo->setItemText(0, newModel);
-            combo->setItemData(0, newModel);
-            combo->setCurrentIndex(0);
-            combo->blockSignals(false);
-        }
-    };
+    /* Sincronizza i combo modello quando il modello cambia da Impostazioni */
+    connect(m_ai, &AiClient::modelChanged,
+            this, &ProgrammazionePage::onModelChanged);
 
-    connect(m_ai, &AiClient::modelChanged, this, [this, syncCombo](const QString& newModel) {
-        syncCombo(m_modelCombo,  newModel);   /* tab Coding */
-        syncCombo(m_agentModel,  newModel);   /* tab Agentica */
-        syncCombo(m_trModel,     newModel);   /* tab Translitter */
-        syncCombo(m_revModel,    newModel);   /* tab Reverse Eng. */
-        syncCombo(m_gitAiModel,  newModel);   /* tab Git */
-    });
+    /* Tab order (tab Programmazione): linguaggio → Esegui → Pulisci → Chiedi AI →
+       Correggi → editor → input AI → Invia → Inserisci */
+    QWidget::setTabOrder(m_lang,       m_btnRun);
+    QWidget::setTabOrder(m_btnRun,     btnClear);
+    QWidget::setTabOrder(btnClear,     m_btnAi);
+    QWidget::setTabOrder(m_btnAi,      m_btnFix);
+    QWidget::setTabOrder(m_btnFix,     m_editor);
+    QWidget::setTabOrder(m_editor,     m_modelCombo);
+    QWidget::setTabOrder(m_modelCombo, m_aiInput);
+    QWidget::setTabOrder(m_aiInput,    m_btnSend);
+    QWidget::setTabOrder(m_btnSend,    m_btnInsert);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1013,6 +735,7 @@ void ProgrammazionePage::runCode()
 
     const QString ext      = m_lang->currentData().toString();
     const QString filePath = tempFilePath(ext);
+    m_procFilePath = filePath;
 
     QFile f(filePath);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -1041,85 +764,14 @@ void ProgrammazionePage::runCode()
     m_proc->setProcessChannelMode(QProcess::MergedChannels);
     m_proc->setWorkingDirectory(P::root());
 
-    connect(m_proc, &QProcess::readyRead, this, [this]{
-        const QString out = QString::fromLocal8Bit(m_proc->readAll());
-        m_fullOutput += out;
-        appendOutput(out);
-    });
+    connect(m_proc, &QProcess::readyRead,
+            this, &ProgrammazionePage::onProcReadyRead);
 
     connect(m_proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, filePath](int code, QProcess::ExitStatus){
-        m_lastExitCode = code;
-        if (code == 0) {
-            m_lastError.clear();
-            if (m_loopActive) {
-                m_status->setText(
-                    QString("\xe2\x9c\x85  Risolto in %1 tentativo/i!  \xc2\xb7  %2")
-                        .arg(m_loopCount)
-                        .arg(QDateTime::currentDateTime().toString("HH:mm:ss")));
-                m_loopActive = false;
-                m_loopCount  = 0;
-            } else {
-                m_status->setText(QString("\xe2\x9c\x85  Completato  \xc2\xb7  %1")
-                                  .arg(QDateTime::currentDateTime().toString("HH:mm:ss")));
-            }
-            m_btnFix->setText("\xf0\x9f\x94\xa7  Correggi con AI");
-        } else {
-            const QStringList lines = m_fullOutput.split('\n');
-            int start = qMax(0, lines.size() - 20);
-            m_lastError = lines.mid(start).join('\n').trimmed();
+            this, &ProgrammazionePage::onProcFinished);
 
-            const QString sourceNow = m_editor->toPlainText();
-
-            if (m_toggleAutoFix && m_toggleAutoFix->isChecked()) {
-                if (isIntentionalError(m_lastError, sourceNow)) {
-                    m_loopActive = false;
-                    m_loopCount  = 0;
-                    m_status->setText(
-                        "\xf0\x9f\x9b\x91  Errore intenzionale rilevato (SyntaxError custom) "
-                        "\xe2\x80\x94 loop terminato. Il codice \xc3\xa8 come vuoi tu.");
-                } else if (m_loopCount >= m_loopMax) {
-                    m_loopActive = false;
-                    m_loopCount  = 0;
-                    m_status->setText(
-                        QString("\xe2\x9a\xa0  Limite iterazioni raggiunto (%1 tentativi) "
-                                "\xe2\x80\x94 loop terminato.").arg(m_loopMax));
-                } else {
-                    m_loopActive = true;
-                    m_loopCount++;
-                    m_status->setText(
-                        QString("\xf0\x9f\x94\x84  Tentativo %1/%2 \xe2\x80\x94 "
-                                "AI sta correggendo...")
-                            .arg(m_loopCount).arg(m_loopMax));
-                    m_btnFix->setText("\xf0\x9f\x94\xa7  Correggi errore");
-                    QTimer::singleShot(400, this, [this]{ triggerFix(true); });
-                }
-            } else {
-                m_status->setText(
-                    QString("\xe2\x9d\x8c  Errore (exit %1)  \xc2\xb7  "
-                            "Premi \xf0\x9f\x94\xa7 per correggere con AI").arg(code));
-                m_btnFix->setText("\xf0\x9f\x94\xa7  Correggi errore");
-            }
-        }
-        setRunning(false);
-        m_proc = nullptr;
-        const QString ext2 = m_lang->currentData().toString();
-        if (ext2 != "c" && ext2 != "cpp") QFile::remove(filePath);
-        tryShowChart();
-        if (m_chartGroup)
-            m_chartGroup->setVisible(!m_chart->sizeHint().isEmpty()
-                                     && !parseNumbers(m_fullOutput).isEmpty());
-    });
-
-    connect(m_proc, &QProcess::errorOccurred, this,
-            [this](QProcess::ProcessError err){
-        if (err == QProcess::FailedToStart) {
-            m_status->setText("\xe2\x9d\x8c  Comando non trovato. Installa le dipendenze.");
-            setRunning(false);
-            m_proc = nullptr;
-        }
-    });
-
+    connect(m_proc, &QProcess::errorOccurred,
+            this, &ProgrammazionePage::onProcErrorOccurred);
 #ifdef _WIN32
     m_proc->start("cmd", {"/c", cmd});
 #else
@@ -1219,7 +871,7 @@ void ProgrammazionePage::_doFix(bool includeError,
                                  const QString& ext)
 {
     /* Salva il modello attivo PRIMA di cambiarlo — verrà ripristinato al termine */
-    const QString originalModel = m_ai->model();
+    m_fixOriginalModel = m_ai->model();
 
     /* Applica il modello coder scelto nella combo */
     if (m_modelCombo) {
@@ -1244,8 +896,8 @@ void ProgrammazionePage::_doFix(bool includeError,
                         "(es. qwen2.5-coder, llama3, deepseek-r1...).")
                 .arg(m_ai->model()));
             /* Ripristina il modello originale */
-            if (!originalModel.isEmpty() && originalModel != m_ai->model())
-                m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), originalModel);
+            if (!m_fixOriginalModel.isEmpty() && m_fixOriginalModel != m_ai->model())
+                m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_fixOriginalModel);
             return;
         }
     }
@@ -1290,53 +942,15 @@ void ProgrammazionePage::_doFix(bool includeError,
     m_status->setText(QString("\xf0\x9f\x94\xa7  %1 sta analizzando il codice...")
                       .arg(m_ai->model().isEmpty() ? "AI" : m_ai->model()));
 
-    if (m_tokenHolder) { delete m_tokenHolder; m_tokenHolder = nullptr; }
-    m_tokenHolder = new QObject(this);
-    connect(m_ai, &AiClient::token, m_tokenHolder, [this](const QString& tok){
-        m_aiOutput->moveCursor(QTextCursor::End);
-        m_aiOutput->insertPlainText(tok);
-        m_aiOutput->ensureCursorVisible();
-    });
-    connect(m_ai, &AiClient::finished, m_tokenHolder,
-            [this, originalModel](const QString&){
-        if (m_tokenHolder) { m_tokenHolder->deleteLater(); m_tokenHolder = nullptr; }
-        m_aiMode = false;
-        setRunning(false);
-        m_btnFix->setText("\xf0\x9f\x94\xa7  Correggi con AI");
-        const QString fixed = extractCodeBlock();
-        if (!fixed.isEmpty()) {
-            m_editor->setPlainText(fixed);
-            m_lastExitCode = 0;
-            m_lastError.clear();
-            if (m_loopActive && m_toggleAutoFix && m_toggleAutoFix->isChecked()) {
-                /* Loop attivo: ri-esegui il codice corretto */
-                m_status->setText(
-                    QString("\xf0\x9f\x94\x84  Codice corretto \xe2\x80\x94 "
-                            "ri-esecuzione [tentativo %1/%2]...")
-                        .arg(m_loopCount).arg(m_loopMax));
-                QTimer::singleShot(600, this, [this]{ runCode(); });
-            } else {
-                m_status->setText("\xe2\x9c\x85  Codice corretto inserito automaticamente nell'editor.");
-            }
-        } else {
-            m_loopActive = false;  /* nessun codice estratto — ferma il loop */
-            m_status->setText("\xe2\x9c\x85  Correzione completata (nessun blocco codice estratto).");
-        }
-        m_btnInsert->setEnabled(false);
-        if (!originalModel.isEmpty() && originalModel != m_ai->model())
-            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), originalModel);
-    });
-    connect(m_ai, &AiClient::error, m_tokenHolder,
-            [this, originalModel](const QString& msg){
-        if (m_tokenHolder) { delete m_tokenHolder; m_tokenHolder = nullptr; }
-        m_aiMode = false;
-        setRunning(false);
-        m_aiOutput->appendPlainText(QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
-        m_status->setText("\xe2\x9d\x8c  Errore AI durante la correzione.");
-        if (!originalModel.isEmpty() && originalModel != m_ai->model())
-            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), originalModel);
-    });
 
+    if (m_tokenHolder) { m_tokenHolder->deleteLater(); m_tokenHolder = nullptr; }
+    m_tokenHolder = new QObject(this);
+    connect(m_ai, &AiClient::token, m_tokenHolder,
+            [this](const QString& tok){ onFixToken(tok); });
+    connect(m_ai, &AiClient::finished, m_tokenHolder,
+            [this](const QString& full){ onFixFinished(full); });
+    connect(m_ai, &AiClient::error, m_tokenHolder,
+            [this](const QString& msg){ onFixError(msg); });
     m_ai->chat(P::prependKnowledge(sys), user);
 }
 
@@ -1350,7 +964,7 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
     QFont monoFont;
     monoFont.setFamily("JetBrains Mono");
     monoFont.setStyleHint(QFont::Monospace);
-    monoFont.setPointSize(11);
+    monoFont.setPointSize(monoFontPt(11));
 
     auto* w   = new QWidget(parent);
     auto* lay = new QVBoxLayout(w);
@@ -1511,85 +1125,25 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
        ══════════════════════════════════════════════════════════ */
 
     /* Popola modelli per il tab Agentica */
-    auto populateAgentModels = [this]() {
-        if (!m_ai) return;
-        m_agentModel->setEnabled(false);
-        const QString cur = m_ai->model();
-        auto* holder = new QObject(this);
-        connect(m_ai, &AiClient::modelsReady, holder,
-                [this, holder, cur](const QStringList& list) {
-            holder->deleteLater();
-            m_agentModel->clear();
-            bool foundCur = false;
-            for (const QString& mdl : list) {
-                const QString n = mdl.toLower();
-                const bool isEmbed = n.contains("embed") || n.contains("minilm") ||
-                                     n.contains("rerank") || n.contains("bge-");
-                if (isEmbed) continue;
-                const qint64 sz = m_ai->modelSizeBytes(mdl);
-                m_agentModel->addItem(P::modelIcon(sz, mdl) + mdl, mdl);
-                if (P::isKnownBrokenModel(mdl)) {
-                    const int idx = m_agentModel->count() - 1;
-                    m_agentModel->setItemData(idx, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
-                    m_agentModel->setItemData(idx, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
-                    m_agentModel->setItemData(idx,
-                        P::knownBrokenModelTooltip(),
-                        Qt::ToolTipRole);
-                }
-                if (mdl == cur) foundCur = true;
-            }
-            if (m_agentModel->count() == 0)
-                m_agentModel->addItem(cur.isEmpty() ? "(nessun modello)" : cur, cur);
-            else if (foundCur) {
-                const int idx = m_agentModel->findData(cur);
-                if (idx >= 0) m_agentModel->setCurrentIndex(idx);
-            }
-            m_agentModel->setEnabled(true);
-        });
-        m_ai->fetchModels();
-    };
-
-    connect(btnRefAgent, &QPushButton::clicked, this, populateAgentModels);
-    QTimer::singleShot(0, this, [populateAgentModels]{ populateAgentModels(); });
+    connect(btnRefAgent, &QPushButton::clicked,
+            this, &ProgrammazionePage::populateAgentModels);
+    QTimer::singleShot(0, this, &ProgrammazionePage::populateAgentModels);
 
     /* Genera */
-    connect(m_btnAgentRun, &QPushButton::clicked, this, [this]{ runAgente(); });
+    connect(m_btnAgentRun, &QPushButton::clicked,
+            this, &ProgrammazionePage::runAgente);
 
     /* Stop */
-    connect(m_btnAgentStop, &QPushButton::clicked, this, [this]{
-        if (m_ai && m_ai->busy()) m_ai->abort();
-    });
+    connect(m_btnAgentStop, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnAgentStopClicked);
 
     /* Pulisci */
-    connect(btnClearAgent, &QPushButton::clicked, this, [this]{
-        m_agentOutput->clear();
-        m_btnAgentInsert->setEnabled(false);
-    });
+    connect(btnClearAgent, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnClearAgentClicked);
 
     /* Apri in editor Programmazione */
-    connect(m_btnAgentInsert, &QPushButton::clicked, this, [this]{
-        /* Estrai il primo blocco codice dall'output */
-        const QString text = m_agentOutput->toPlainText();
-        static const QRegularExpression reFence(
-            R"(```[a-zA-Z]*\n([\s\S]*?)```)",
-            QRegularExpression::MultilineOption);
-        const auto match = reFence.match(text);
-        const QString code = match.hasMatch()
-                             ? match.captured(1)
-                             : text;
-        if (code.trimmed().isEmpty()) return;
-        if (!m_editor->toPlainText().trimmed().isEmpty()) {
-            const int ret = QMessageBox::question(this,
-                "Sovrascrivere il codice?",
-                "L'editor contiene codice.\nVuoi sostituirlo con il codice generato dall'agente?",
-                QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-            if (ret != QMessageBox::Yes) return;
-        }
-        m_editor->setPlainText(code.trimmed());
-        /* Torna al tab Programmazione (indice 0) */
-        if (m_innerTabs) m_innerTabs->setCurrentIndex(0);
-    });
-
+    connect(m_btnAgentInsert, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnAgentInsertClicked);
     return w;
 }
 
@@ -1723,27 +1277,12 @@ void ProgrammazionePage::runAgente()
     if (m_agentTokenHolder) { delete m_agentTokenHolder; m_agentTokenHolder = nullptr; }
     m_agentTokenHolder = new QObject(this);
 
-    connect(m_ai, &AiClient::token, m_agentTokenHolder, [this](const QString& tok){
-        m_agentOutput->moveCursor(QTextCursor::End);
-        m_agentOutput->insertPlainText(tok);
-        m_agentOutput->ensureCursorVisible();
-    });
-    connect(m_ai, &AiClient::finished, m_agentTokenHolder, [this](const QString&){
-        if (m_agentTokenHolder) { m_agentTokenHolder->deleteLater(); m_agentTokenHolder = nullptr; }
-        m_btnAgentRun->setEnabled(true);
-        m_btnAgentStop->setEnabled(false);
-        /* Abilita "Apri in editor" solo se c'è un blocco codice */
-        const QString text = m_agentOutput->toPlainText();
-        m_btnAgentInsert->setEnabled(text.contains("```"));
-    });
-    connect(m_ai, &AiClient::error, m_agentTokenHolder, [this](const QString& msg){
-        if (m_agentTokenHolder) { m_agentTokenHolder->deleteLater(); m_agentTokenHolder = nullptr; }
-        m_btnAgentRun->setEnabled(true);
-        m_btnAgentStop->setEnabled(false);
-        m_agentOutput->moveCursor(QTextCursor::End);
-        m_agentOutput->insertPlainText(QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
-    });
-
+    connect(m_ai, &AiClient::token, m_agentTokenHolder,
+            [this](const QString& tok){ onAgentToken(tok); });
+    connect(m_ai, &AiClient::finished, m_agentTokenHolder,
+            [this](const QString& full){ onAgentFinished(full); });
+    connect(m_ai, &AiClient::error, m_agentTokenHolder,
+            [this](const QString& msg){ onAgentError(msg); });
     m_ai->chat(P::prependKnowledge(sys), user);
 }
 
@@ -1759,7 +1298,7 @@ QWidget* ProgrammazionePage::buildReverseEngineering(QWidget* parent)
     QFont monoFont;
     monoFont.setFamily("JetBrains Mono");
     monoFont.setStyleHint(QFont::Monospace);
-    monoFont.setPointSize(10);
+    monoFont.setPointSize(monoFontPt(10));
 
     auto* w   = new QWidget(parent);
     auto* lay = new QVBoxLayout(w);
@@ -1926,179 +1465,29 @@ QWidget* ProgrammazionePage::buildReverseEngineering(QWidget* parent)
        ══════════════════════════════════════════════════════════ */
 
     /* Popola modelli */
-    auto populateRevModels = [this]() {
-        if (!m_ai) return;
-        m_revModel->setEnabled(false);
-        const QString cur = m_ai->model();
-        auto* holder = new QObject(this);
-        connect(m_ai, &AiClient::modelsReady, holder,
-                [this, holder, cur](const QStringList& list) {
-            holder->deleteLater();
-            m_revModel->clear();
-            for (const QString& mdl : list) {
-                const QString n = mdl.toLower();
-                if (n.contains("embed") || n.contains("minilm") ||
-                    n.contains("rerank") || n.contains("bge-"))
-                    continue;
-                m_revModel->addItem(mdl, mdl);
-                if (P::isKnownBrokenModel(mdl)) {
-                    const int idx = m_revModel->count() - 1;
-                    m_revModel->setItemData(idx, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
-                    m_revModel->setItemData(idx, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
-                    m_revModel->setItemData(idx,
-                        P::knownBrokenModelTooltip(),
-                        Qt::ToolTipRole);
-                }
-            }
-            if (m_revModel->count() == 0)
-                m_revModel->addItem(cur.isEmpty() ? "(nessun modello)" : cur, cur);
-            else {
-                const int idx = m_revModel->findData(cur);
-                if (idx >= 0) m_revModel->setCurrentIndex(idx);
-            }
-            m_revModel->setEnabled(true);
-        });
-        m_ai->fetchModels();
-    };
+    connect(btnRefRev, &QPushButton::clicked,
+            this, &ProgrammazionePage::populateRevModels);
+    QTimer::singleShot(0, this, &ProgrammazionePage::populateRevModels);
 
-    connect(btnRefRev, &QPushButton::clicked, this, populateRevModels);
-    QTimer::singleShot(0, this, [populateRevModels]{ populateRevModels(); });
-
-    /* Carica file — legge in binario, genera hex dump + stringhe */
-    connect(btnLoad, &QPushButton::clicked, this, [this]{
-        const QString path = QFileDialog::getOpenFileName(
-            this,
-            "Carica file da analizzare",
-            QDir::homePath(),
-            "Tutti i file (*);;"
-            "Eseguibili (*.exe *.elf *.out *.bin);;"
-            "Bytecode (*.pyc *.class *.wasm);;"
-            "Librerie (*.so *.dll *.a *.lib);;"
-            "Testo / Script (*.py *.js *.sh *.rb *.php *.lua)");
-        if (path.isEmpty()) return;
-
-        QFile f(path);
-        if (!f.open(QIODevice::ReadOnly)) {
-            m_revFilePath->setText("\xe2\x9d\x8c  Impossibile aprire il file.");
-            return;
-        }
-        m_revFileData = f.readAll();
-        f.close();
-
-        const QFileInfo fi(path);
-        const qint64 sz = fi.size();
-        const QString szStr =
-            sz < 1024      ? QString("%1 B").arg(sz)
-          : sz < 1024*1024 ? QString("%1 KB").arg(sz / 1024.0, 0, 'f', 1)
-                           : QString("%1 MB").arg(sz / (1024.0*1024), 0, 'f', 1);
-
-        /* Identifica tipo dal magic number */
-        QString fileType = "Tipo sconosciuto";
-        if (m_revFileData.size() >= 4) {
-            const auto* b = reinterpret_cast<const uchar*>(m_revFileData.constData());
-            if (b[0]==0x7f && b[1]=='E' && b[2]=='L' && b[3]=='F')
-                fileType = "ELF (eseguibile/libreria Linux)";
-            else if (b[0]=='M' && b[1]=='Z')
-                fileType = "PE/MZ (eseguibile Windows)";
-            else if (b[0]==0xCA && b[1]==0xFE && b[2]==0xBA && b[3]==0xBE)
-                fileType = "Java bytecode (.class)";
-            else if (b[0]==0x03 && b[1]==0xF3)
-                fileType = "Python bytecode (.pyc)";
-            else if (b[0]==0x1F && b[1]==0x8B)
-                fileType = "Archivio Gzip";
-            else if (b[0]==0x50 && b[1]==0x4B)
-                fileType = "Archivio ZIP/JAR";
-            else if (m_revFileData.startsWith("#!/"))
-                fileType = "Script (shebang)";
-            else {
-                bool isText = true;
-                for (int i = 0; i < qMin((int)m_revFileData.size(), 256); i++) {
-                    const uchar c = b[i];
-                    if (c < 0x09 || (c > 0x0D && c < 0x20) || c == 0x7F)
-                        { isText = false; break; }
-                }
-                if (isText) fileType = "File di testo / sorgente";
-            }
-        }
-
-        m_revFilePath->setText(
-            QString("\xf0\x9f\x93\x84  %1   \xe2\x80\x94   %2   \xe2\x80\x94   %3")
-            .arg(fi.fileName(), fileType, szStr));
-
-        /* Hex dump prime 128 byte */
-        const int hexBytes = (int)qMin((qint64)128, m_revFileData.size());
-        QString hexDump;
-        for (int i = 0; i < hexBytes; i += 16) {
-            hexDump += QString("%1  ").arg(i, 4, 16, QLatin1Char('0'));
-            const int lineEnd = qMin(i + 16, hexBytes);
-            QString ascii;
-            for (int j = i; j < lineEnd; j++) {
-                const uchar c = (uchar)m_revFileData[j];
-                hexDump += QString("%1 ").arg(c, 2, 16, QLatin1Char('0'));
-                ascii   += (c >= 0x20 && c < 0x7F) ? QChar(c) : QChar('.');
-            }
-            hexDump += QString((16 - (lineEnd - i)) * 3, ' ');
-            hexDump += " |" + ascii + "|\n";
-        }
-
-        /* Estrai stringhe ASCII (min 5 caratteri) */
-        QString strings;
-        int si = 0;
-        const auto* bp = reinterpret_cast<const uchar*>(m_revFileData.constData());
-        while (si < m_revFileData.size()) {
-            int start = si;
-            while (si < m_revFileData.size() &&
-                   bp[si] >= 0x20 && bp[si] < 0x7F) si++;
-            if (si - start >= 5)
-                strings += "  " +
-                    QString::fromLatin1(m_revFileData.mid(start, si - start)) + "\n";
-            si++;
-        }
-        if (strings.isEmpty())
-            strings = "  (nessuna stringa leggibile trovata)\n";
-
-        m_revPreview->setPlainText(
-            "=== HEX DUMP (prime 128 byte) ===\n" + hexDump +
-            "\n=== STRINGHE ESTRATTE ===\n" + strings.left(2000));
-
-        m_btnRevAnalyze->setEnabled(true);
-    });
+    /* Carica file */
+    connect(btnLoad, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnRevLoadClicked);
 
     /* Analizza */
-    connect(m_btnRevAnalyze, &QPushButton::clicked, this,
-            [this]{ runReverseEngineering(); });
+    connect(m_btnRevAnalyze, &QPushButton::clicked,
+            this, &ProgrammazionePage::runReverseEngineering);
 
     /* Stop */
-    connect(m_btnRevStop, &QPushButton::clicked, this, [this]{
-        if (m_ai && m_ai->busy()) m_ai->abort();
-    });
+    connect(m_btnRevStop, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnRevStopClicked);
 
     /* Pulisci */
-    connect(btnClearRev, &QPushButton::clicked, this, [this]{
-        m_revOutput->clear();
-        m_btnRevInsert->setEnabled(false);
-    });
+    connect(btnClearRev, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnClearRevClicked);
 
     /* Apri in editor Programmazione */
-    connect(m_btnRevInsert, &QPushButton::clicked, this, [this]{
-        const QString text = m_revOutput->toPlainText();
-        static const QRegularExpression reFence(
-            R"(```[a-zA-Z]*\n([\s\S]*?)```)",
-            QRegularExpression::MultilineOption);
-        const auto match = reFence.match(text);
-        const QString code = match.hasMatch() ? match.captured(1) : text;
-        if (code.trimmed().isEmpty()) return;
-        if (!m_editor->toPlainText().trimmed().isEmpty()) {
-            const int ret = QMessageBox::question(this,
-                "Sovrascrivere il codice?",
-                "L'editor contiene codice.\nVuoi sostituirlo con il sorgente ricostruito?",
-                QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-            if (ret != QMessageBox::Yes) return;
-        }
-        m_editor->setPlainText(code.trimmed());
-        if (m_innerTabs) m_innerTabs->setCurrentIndex(0);
-    });
-
+    connect(m_btnRevInsert, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnRevInsertClicked);
     return w;
 }
 
@@ -2193,25 +1582,12 @@ void ProgrammazionePage::runReverseEngineering()
     if (m_revTokenHolder) { delete m_revTokenHolder; m_revTokenHolder = nullptr; }
     m_revTokenHolder = new QObject(this);
 
-    connect(m_ai, &AiClient::token, m_revTokenHolder, [this](const QString& tok){
-        m_revOutput->moveCursor(QTextCursor::End);
-        m_revOutput->insertPlainText(tok);
-        m_revOutput->ensureCursorVisible();
-    });
-    connect(m_ai, &AiClient::finished, m_revTokenHolder, [this](const QString&){
-        if (m_revTokenHolder) { m_revTokenHolder->deleteLater(); m_revTokenHolder = nullptr; }
-        m_btnRevAnalyze->setEnabled(true);
-        m_btnRevStop->setEnabled(false);
-        m_btnRevInsert->setEnabled(m_revOutput->toPlainText().contains("```"));
-    });
-    connect(m_ai, &AiClient::error, m_revTokenHolder, [this](const QString& msg){
-        if (m_revTokenHolder) { m_revTokenHolder->deleteLater(); m_revTokenHolder = nullptr; }
-        m_btnRevAnalyze->setEnabled(true);
-        m_btnRevStop->setEnabled(false);
-        m_revOutput->moveCursor(QTextCursor::End);
-        m_revOutput->insertPlainText(QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
-    });
-
+    connect(m_ai, &AiClient::token, m_revTokenHolder,
+            [this](const QString& tok){ onRevToken(tok); });
+    connect(m_ai, &AiClient::finished, m_revTokenHolder,
+            [this](const QString& full){ onRevFinished(full); });
+    connect(m_ai, &AiClient::error, m_revTokenHolder,
+            [this](const QString& msg){ onRevError(msg); });
     m_ai->chat(P::prependKnowledge(sys), user);
 }
 
@@ -2300,11 +1676,8 @@ QWidget* ProgrammazionePage::buildNetworkAnalyzer(QWidget* parent)
 
     connect(m_btnNetStart, &QPushButton::clicked, this, &ProgrammazionePage::netStart);
     connect(m_btnNetStop,  &QPushButton::clicked, this, &ProgrammazionePage::netStop);
-    connect(m_btnNetClear, &QPushButton::clicked, this, [this]{
-        m_netLog->clear();
-        m_netAiOutput->clear();
-        m_btnNetAnalyze->setEnabled(false);
-    });
+    connect(m_btnNetClear, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnNetClearClicked);
     connect(m_btnNetAnalyze, &QPushButton::clicked, this, &ProgrammazionePage::netAiAnalyze);
 
     return w;
@@ -2325,9 +1698,9 @@ void ProgrammazionePage::netStart()
     if (!m_netProc) m_netProc = new QProcess(this);
 
     QStringList args;
-    const bool useTshark = m_netTool.contains("tshark");
+    m_netUseTshark = m_netTool.contains("tshark");
 
-    if (useTshark) {
+    if (m_netUseTshark) {
         args << "-i" << iface
              << "-c" << QString::number(maxPkt)
              << "-T" << "fields"
@@ -2348,42 +1721,13 @@ void ProgrammazionePage::netStart()
             args << filter.split(' ', Qt::SkipEmptyParts);
     }
 
-    connect(m_netProc, &QProcess::readyReadStandardOutput, this, [this, useTshark]{
-        while (m_netProc->canReadLine()) {
-            const QString line = QString::fromLocal8Bit(m_netProc->readLine()).trimmed();
-            if (line.isEmpty()) continue;
-            QString formatted;
-            if (useTshark) {
-                const QStringList parts = line.split('|');
-                if (parts.size() >= 6)
-                    formatted = QString("[%1] %2 -> %3  %4  %5B  %6")
-                        .arg(parts[0].rightJustified(5), parts[1], parts[2],
-                             parts[3], parts[4], parts[5].left(80));
-                else
-                    formatted = line;
-            } else {
-                formatted = line;
-            }
-            m_netLog->appendPlainText(formatted);
-        }
-    });
-    connect(m_netProc, &QProcess::readyReadStandardError, this, [this]{
-        const QString err = QString::fromLocal8Bit(m_netProc->readAllStandardError()).trimmed();
-        if (!err.isEmpty())
-            m_netLog->appendPlainText("\xe2\x9a\xa0  " + err);
-    });
+    connect(m_netProc, &QProcess::readyReadStandardOutput,
+            this, &ProgrammazionePage::onNetReadyRead);
+    connect(m_netProc, &QProcess::readyReadStandardError,
+            this, &ProgrammazionePage::onNetReadyReadStderr);
     connect(m_netProc,
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this](int code, QProcess::ExitStatus){
-        m_btnNetStart->setEnabled(true);
-        m_btnNetStop->setEnabled(false);
-        const bool hasData = m_netLog->document()->blockCount() > 1;
-        m_btnNetAnalyze->setEnabled(hasData);
-        m_netStatus->setText(code == 0
-            ? "\xe2\x9c\x85  Cattura completata."
-            : QString("\xe2\x9a\xa0  Processo terminato (codice %1)").arg(code));
-    });
-
+            this, &ProgrammazionePage::onNetFinished);
     m_netProc->start(m_netTool, args);
     if (!m_netProc->waitForStarted(2000)) {
         m_netStatus->setText(
@@ -2400,10 +1744,7 @@ void ProgrammazionePage::netStop()
 {
     if (!m_netProc) return;
     m_netProc->terminate();
-    QTimer::singleShot(1500, this, [this]{
-        if (m_netProc && m_netProc->state() != QProcess::NotRunning)
-            m_netProc->kill();
-    });
+    QTimer::singleShot(1500, this, &ProgrammazionePage::onNetStopTimer);
 }
 
 void ProgrammazionePage::netAiAnalyze()
@@ -2434,22 +1775,12 @@ void ProgrammazionePage::netAiAnalyze()
     if (m_netTokenHolder) { delete m_netTokenHolder; m_netTokenHolder = nullptr; }
     m_netTokenHolder = new QObject(this);
 
-    connect(m_ai, &AiClient::token, m_netTokenHolder, [this](const QString& tok){
-        m_netAiOutput->moveCursor(QTextCursor::End);
-        m_netAiOutput->insertPlainText(tok);
-        m_netAiOutput->ensureCursorVisible();
-    });
-    connect(m_ai, &AiClient::finished, m_netTokenHolder, [this](const QString&){
-        if (m_netTokenHolder) { m_netTokenHolder->deleteLater(); m_netTokenHolder = nullptr; }
-        m_btnNetAnalyze->setEnabled(true);
-    });
-    connect(m_ai, &AiClient::error, m_netTokenHolder, [this](const QString& msg){
-        if (m_netTokenHolder) { m_netTokenHolder->deleteLater(); m_netTokenHolder = nullptr; }
-        m_btnNetAnalyze->setEnabled(true);
-        m_netAiOutput->moveCursor(QTextCursor::End);
-        m_netAiOutput->insertPlainText("\n\xe2\x9d\x8c  Errore: " + msg);
-    });
-
+    connect(m_ai, &AiClient::token, m_netTokenHolder,
+            [this](const QString& tok){ onNetAiToken(tok); });
+    connect(m_ai, &AiClient::finished, m_netTokenHolder,
+            [this](const QString& full){ onNetAiFinished(full); });
+    connect(m_ai, &AiClient::error, m_netTokenHolder,
+            [this](const QString& msg){ onNetAiError(msg); });
     m_ai->chat(P::prependKnowledge(sys), user);
 }
 
@@ -2518,156 +1849,15 @@ QWidget* ProgrammazionePage::buildReteLan(QWidget* parent)
     lay->addWidget(m_lanTable, 1);
     lay->addWidget(m_lanStatusLbl);
 
-    /* ── Helper: aggiunge riga alla tabella ── */
-    auto addRow = [this](const QString& ip, const QString& mac,
-                         const QString& host, const QString& stato) {
-        const int r = m_lanTable->rowCount();
-        m_lanTable->insertRow(r);
-        m_lanTable->setItem(r, 0, new QTableWidgetItem(ip));
-        m_lanTable->setItem(r, 1, new QTableWidgetItem(mac));
-        m_lanTable->setItem(r, 2, new QTableWidgetItem(host));
-        auto* si = new QTableWidgetItem(stato);
-        if (stato.contains("REACHABLE", Qt::CaseInsensitive) || stato == "Up")
-            si->setForeground(QColor("#00a37f"));
-        else if (stato.contains("STALE", Qt::CaseInsensitive))
-            si->setForeground(QColor("#E5C400"));
-        else if (stato.contains("FAILED", Qt::CaseInsensitive) ||
-                 stato.contains("INCOMPLETE", Qt::CaseInsensitive))
-            si->setForeground(QColor("#ef4444"));
-        m_lanTable->setItem(r, 3, si);
-    };
-
-    auto resetBtns = [this]() {
-        m_lanScanArp->setEnabled(true);
-        m_lanScanNmap->setEnabled(true);
-        m_lanStopBtn->setEnabled(false);
-    };
-
-    /* ── ARP Cache (ip neigh show) ── */
-    connect(m_lanScanArp, &QPushButton::clicked, this, [this, addRow, resetBtns]() {
-        if (m_lanProc && m_lanProc->state() != QProcess::NotRunning) return;
-        m_lanTable->setRowCount(0);
-        m_lanScanArp->setEnabled(false);
-        m_lanScanNmap->setEnabled(false);
-        m_lanStopBtn->setEnabled(true);
-        m_lanStatusLbl->setText("\xf0\x9f\x94\x8d Lettura ARP cache (ip neigh show)...");
-
-        m_lanProc = new QProcess(this);
-        connect(m_lanProc, &QProcess::errorOccurred, this,
-                [this, resetBtns](QProcess::ProcessError err) {
-            if (err != QProcess::FailedToStart) return;
-            m_lanStatusLbl->setText(
-                "\xe2\x9d\x8c 'ip' non trovato — installa iproute2: sudo apt install iproute2");
-            resetBtns();
-            m_lanProc->deleteLater(); m_lanProc = nullptr;
-        });
-        connect(m_lanProc, &QProcess::readyReadStandardOutput, this,
-                [this, addRow]() {
-            const QString out = QString::fromUtf8(m_lanProc->readAllStandardOutput());
-            for (const QString& line : out.split('\n', Qt::SkipEmptyParts)) {
-                QStringList f = line.split(' ', Qt::SkipEmptyParts);
-                if (f.size() < 2) continue;
-                if (f[0].contains(':')) continue;  // salta IPv6
-                QString mac;
-                for (int i = 0; i+1 < f.size(); ++i)
-                    if (f[i] == "lladdr") mac = f[i+1];
-                if (mac.isEmpty()) continue;
-                addRow(f[0], mac, "", f.last());
-            }
-        });
-        connect(m_lanProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, resetBtns]() {
-            resetBtns();
-            m_lanStatusLbl->setText(
-                QString("\xe2\x9c\x85 ARP: %1 host — REACHABLE=attivo, STALE=visto di recente")
-                .arg(m_lanTable->rowCount()));
-            m_lanProc->deleteLater(); m_lanProc = nullptr;
-        });
-        m_lanProc->setProgram("ip");
-        m_lanProc->setArguments({"neigh", "show"});
-        m_lanProc->start();
-    });
-
-    /* ── Scan nmap completo ── */
-    connect(m_lanScanNmap, &QPushButton::clicked, this, [this, addRow, resetBtns]() {
-        if (m_lanProc && m_lanProc->state() != QProcess::NotRunning) return;
-
-        QString subnet;
-        for (const QNetworkInterface& iface : QNetworkInterface::allInterfaces()) {
-            if (iface.flags().testFlag(QNetworkInterface::IsLoopBack)) continue;
-            if (!iface.flags().testFlag(QNetworkInterface::IsUp)) continue;
-            for (const QNetworkAddressEntry& e : iface.addressEntries()) {
-                if (e.ip().protocol() != QAbstractSocket::IPv4Protocol) continue;
-                const quint32 ipRaw  = e.ip().toIPv4Address();
-                const quint32 mskRaw = e.netmask().toIPv4Address();
-                int pfx = 0; quint32 tmp = mskRaw;
-                while (tmp) { pfx += (tmp >> 31) & 1; tmp <<= 1; }
-                subnet = QHostAddress(ipRaw & mskRaw).toString() + "/" + QString::number(pfx);
-                break;
-            }
-            if (!subnet.isEmpty()) break;
-        }
-        if (subnet.isEmpty()) {
-            m_lanStatusLbl->setText("\xe2\x9d\x8c Impossibile rilevare la subnet locale.");
-            return;
-        }
-
-        m_lanTable->setRowCount(0);
-        m_lanBuf.clear();
-        m_lanScanArp->setEnabled(false);
-        m_lanScanNmap->setEnabled(false);
-        m_lanStopBtn->setEnabled(true);
-        m_lanStatusLbl->setText(
-            QString("\xf0\x9f\x8c\x90 Scansione nmap su %1 (1-3 min)...").arg(subnet));
-
-        m_lanProc = new QProcess(this);
-        connect(m_lanProc, &QProcess::errorOccurred, this,
-                [this, resetBtns](QProcess::ProcessError err) {
-            if (err != QProcess::FailedToStart) return;
-            m_lanStatusLbl->setText(
-                "\xe2\x9d\x8c 'nmap' non trovato — installa: sudo apt install nmap");
-            resetBtns();
-            m_lanProc->deleteLater(); m_lanProc = nullptr;
-        });
-        connect(m_lanProc, &QProcess::readyReadStandardOutput, this, [this]() {
-            m_lanBuf += QString::fromUtf8(m_lanProc->readAllStandardOutput());
-        });
-        connect(m_lanProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, addRow, resetBtns, subnet](int code) {
-            static const QRegularExpression reHost(
-                R"(Host:\s+(\S+)\s+\(([^)]*)\)\s+Status:\s+(\S+))");
-            for (const QString& line : m_lanBuf.split('\n', Qt::SkipEmptyParts)) {
-                auto mh = reHost.match(line);
-                if (mh.hasMatch())
-                    addRow(mh.captured(1), "", mh.captured(2), mh.captured(3));
-            }
-            m_lanBuf.clear();
-            resetBtns();
-            if (code != 0 && m_lanTable->rowCount() == 0)
-                m_lanStatusLbl->setText(
-                    "\xe2\x9d\x8c nmap errore — installa: sudo apt install nmap");
-            else
-                m_lanStatusLbl->setText(
-                    QString("\xe2\x9c\x85 nmap su %1: %2 host attivi")
-                    .arg(subnet).arg(m_lanTable->rowCount()));
-            m_lanProc->deleteLater(); m_lanProc = nullptr;
-        });
-        m_lanProc->setProgram("nmap");
-        m_lanProc->setArguments({"-sn", "-oG", "-", subnet});
-        m_lanProc->start();
-    });
-
-    connect(m_lanStopBtn, &QPushButton::clicked, this, [this]() {
-        if (!m_lanProc) return;
-        m_lanProc->terminate();
-        /* fallback kill dopo 1.5s se nmap/ip non risponde a SIGTERM */
-        QTimer::singleShot(1500, this, [this]() {
-            if (m_lanProc && m_lanProc->state() != QProcess::NotRunning)
-                m_lanProc->kill();
-        });
-    });
-    connect(btnRefresh, &QPushButton::clicked, this, [this]() { lanRefreshInfo(); });
-
+    /* Connessioni */
+    connect(m_lanScanArp, &QPushButton::clicked,
+            this, &ProgrammazionePage::onLanScanArpClicked);
+    connect(m_lanScanNmap, &QPushButton::clicked,
+            this, &ProgrammazionePage::onLanScanNmapClicked);
+    connect(m_lanStopBtn, &QPushButton::clicked,
+            this, &ProgrammazionePage::onLanStopBtnClicked);
+    connect(btnRefresh, &QPushButton::clicked,
+            this, &ProgrammazionePage::lanRefreshInfo);
     return w;
 }
 

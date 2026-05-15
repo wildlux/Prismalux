@@ -29,6 +29,24 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 PORT = 6789
 
+# Pattern bloccati prima di exec() — protezione base contro prompt injection
+_CODE_BLOCKLIST = [
+    "import os", "import subprocess", "import shutil", "import socket",
+    "import ctypes", "import pty", "import signal",
+    "__import__", "__builtins__", "__class__.__bases__",
+    "os.system", "os.popen", "os.remove", "os.unlink", "os.rmdir", "os.execv",
+    "subprocess.run", "subprocess.Popen", "subprocess.call",
+    "open(", "eval(", "exec(",
+]
+
+def _validate_code(code: str):
+    """Ritorna stringa d'errore se il codice contiene pattern pericolosi, None altrimenti."""
+    low = code
+    for pat in _CODE_BLOCKLIST:
+        if pat in low:
+            return f"Pattern non consentito: '{pat}'"
+    return None
+
 # Code da eseguire (main thread) / risultati (thread server)
 _cmd_queue    = queue.Queue()
 _result_queue = queue.Queue()
@@ -130,6 +148,10 @@ def _process_queue():
     """
     while not _cmd_queue.empty():
         code = _cmd_queue.get_nowait()
+        val_err = _validate_code(code)
+        if val_err:
+            _result_queue.put({"ok": False, "error": f"Codice rifiutato — {val_err}"})
+            continue
         buf = io.StringIO()
         try:
             old_out   = sys.stdout

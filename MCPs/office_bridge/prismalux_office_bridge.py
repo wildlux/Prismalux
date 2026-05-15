@@ -26,6 +26,23 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 PORT      = 6790
+
+# Pattern bloccati prima di exec() — protezione base contro prompt injection
+_CODE_BLOCKLIST = [
+    "import subprocess", "import shutil", "import socket",
+    "import ctypes", "import pty", "import signal",
+    "__import__", "__builtins__", "__class__.__bases__",
+    "os.system", "os.popen", "os.remove", "os.unlink", "os.rmdir", "os.execv",
+    "subprocess.run", "subprocess.Popen", "subprocess.call",
+    "eval(", "exec(",
+]
+
+def _validate_code(code: str):
+    """Ritorna stringa d'errore se il codice contiene pattern pericolosi, None altrimenti."""
+    for pat in _CODE_BLOCKLIST:
+        if pat in code:
+            return f"Pattern non consentito: '{pat}'"
+    return None
 LO_PORT   = 2002
 LO_ACCEPT = f"socket,host=localhost,port={LO_PORT};urp;StarOffice.ServiceManager"
 LO_URL    = f"uno:{LO_ACCEPT}"
@@ -311,6 +328,11 @@ class _Handler(BaseHTTPRequestHandler):
 
         if not code:
             self._send_json(400, {"ok": False, "error": "campo 'code' vuoto"})
+            return
+
+        val_err = _validate_code(code)
+        if val_err:
+            self._send_json(400, {"ok": False, "error": f"Codice rifiutato — {val_err}"})
             return
 
         buf     = io.StringIO()

@@ -42,6 +42,7 @@
 #include <QProcess>
 #include <QTimer>
 #include <QListWidget>
+#include <QComboBox>
 #include <QDialog>
 #include <QTextEdit>
 #include <QDateTime>
@@ -249,18 +250,115 @@ protected:
     void refreshChatList();
 
 private slots:
-    /** Riceve aggiornamenti periodici CPU/RAM/GPU da HardwareMonitor. */
+    /* ── HW monitor ─────────────────────────────────────────────── */
     void onHWUpdated(SysSnapshot snap);
-
-    /** Riceve le info hardware complete al primo rilevamento (one-shot). */
     void onHWReady(HWInfo hw);
 
-    /** Cambia pagina attiva e aggiorna lo stile dei bottoni sidebar. */
+    /* ── Navigazione ─────────────────────────────────────────────── */
     void navigateTo(int idx);
+    void onShortcutAlt1() { navigateTo(0); }
+    void onShortcutAlt2() { navigateTo(1); }
+    void onShortcutAlt3() { navigateTo(4); }
+    void onShortcutAlt4() { navigateTo(5); }
+    void onShortcutAlt5() { navigateTo(6); }
+    void onShortcutAlt6() { navigateTo(7); }
+    void onShortcutAlt7() { navigateTo(9); }
 
-    /** Ricevuto da AgentiPage quando una pipeline/Byzantine/MathTheory finisce. */
+    /* ── Agenti / Pipeline ──────────────────────────────────────── */
     void onChatCompleted(const QString& title, const QString& logHtml);
-
-    /** Aggiorna la barra progresso pipeline nella status bar. */
     void onPipelineStatus(int pct, const QString& text);
+
+    /* ── Whisper setup ──────────────────────────────────────────── */
+    void onStartWhisperTimer();
+    void onWhisperReady();
+    void onWhisperReadyStatus();
+    void onWhisperFailed(const QString& err);
+
+    /* ── Idle unload timer ───────────────────────────────────────── */
+    void onIdleUnloadTimer();
+
+    /* ── Modelli AI ─────────────────────────────────────────────── */
+    void onInitialModelsReady(const QStringList& list);
+    void onModelChanged(const QString& model);
+    void onApplyBackendModelsReady(const QStringList& list);
+    void onQuizAiModelsReady(const QStringList& list);
+
+    /* ── Header buttons ─────────────────────────────────────────── */
+    void onHamburgerClicked();
+    void onLogBtnClicked();
+    void onUnloadModelClicked();
+    void onBackendBtnClicked();
+    void onOllamaActionTriggered();
+
+    /* ── Emergenza RAM ──────────────────────────────────────────── */
+    void onEmergencyRamClicked();
+    void onEmergencyStopFinished(int code, QProcess::ExitStatus status);
+    void onEmergencyCacheFinished(int code, QProcess::ExitStatus status);
+
+    /* ── llama-server ───────────────────────────────────────────── */
+    void onServerProcFinished(int code, QProcess::ExitStatus status);
+    void onServerProcessError(QProcess::ProcessError err);
+    void onHealthTick();
+    void onHealthReply();
+
+    /* ── Chat sidebar ───────────────────────────────────────────── */
+    void onNewChatClicked();
+    void onChatSearchChanged(const QString& q);
+    void onChatItemClicked(QListWidgetItem* item);
+    void onChatContextMenuRequested(const QPoint& pos);
+    void onChatActionPdf();
+    void onChatActionDelete();
+
+    /* ── Pagine contenuto ───────────────────────────────────────── */
+    void onCronPanelFirstOpen();
+    void onGraficoRequestSettings(const QString& tabName);
+    void onMathSubTabChanged(int idx);
+    void onMainTabChanged(int idx);
+    void onSyncNavBackendClone();
+    void onApplyExecBtnMode();
+
+    /* ── Log dialog ─────────────────────────────────────────────── */
+    void onClearLogClicked();
+
+    /* ── VRAM bench ─────────────────────────────────────────────── */
+    void onVramBenchFinished(int code, QProcess::ExitStatus status);
+
+    /* ── Onboarding wizard ──────────────────────────────────────── */
+    void onOnboardingAccepted();
+    void onApplyPendingTheme();
+
+    /* ── Status bar ─────────────────────────────────────────────── */
+    void onRestoreDefaultStatus();
+
+    /* ── zRAM setup ─────────────────────────────────────────────── */
+    void onZramSetupTimer();
+
+    /* ── Impostazioni RAG progress ──────────────────────────────── */
+    void onIndexingProgress(int done, int total);
+    void onIndexingFinished(int n, bool aborted);
+
+    /* ── Agenti → grafico ───────────────────────────────────────── */
+    void onRequestShowInGrafico(const QString& formula, double xMin, double xMax,
+                                const QVector<QPointF>& points);
+
+private:
+    /* ── Nuovi membri per slot senza lambda ─────────────────────── */
+    QString              m_pendingBkName;       ///< Backend name per onApplyBackendModelsReady
+    QTimer*              m_healthTimer  = nullptr; ///< Timer polling /health llama-server
+    QNetworkAccessManager* m_healthNam  = nullptr; ///< NAM riusato per tutti i tick
+    int                  m_healthTicks  = 0;    ///< Contatore tick polling
+    QString              m_ctxChatId;           ///< ID chat per context menu PDF/delete
+    QString              m_ctxChatTitle;        ///< Titolo chat per context menu
+    QPointer<QPushButton> m_navBackendClone;    ///< Clone backend nella nav bar
+    AiClient*            m_quizAi      = nullptr; ///< AiClient separato per QuizPage
+    QString              m_pendingExecMode;     ///< Modalità pulsanti exec da applicare
+    QString              m_pendingTheme;        ///< Tema da applicare via QueuedConnection
+    QPushButton*         m_emergencyBtn = nullptr; ///< Pulsante emergenza RAM
+    QProcess*            m_emergencyStopProc  = nullptr;
+    QProcess*            m_emergencyCacheProc = nullptr;
+    /* Onboarding wizard — puntatori ai combo per onOnboardingAccepted() */
+    QComboBox* m_onbBackend = nullptr;
+    QComboBox* m_onbModel   = nullptr;
+    QComboBox* m_onbTheme   = nullptr;
+    QDialog*   m_onbDlg     = nullptr;
 };

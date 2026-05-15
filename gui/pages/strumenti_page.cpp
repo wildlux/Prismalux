@@ -1545,10 +1545,14 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     lay->addWidget(m_codeModelRow);
 
     /* Aggiorna lista modelli su richiesta */
-    connect(codeModelRefresh, &QPushButton::clicked, this, [this]() {
+    connect(codeModelRefresh, &QPushButton::clicked, this, [this, codeModelRefresh]() {
+        codeModelRefresh->setEnabled(false);
+        codeModelRefresh->setText("\xe2\x8f\xb3");
         m_ai->fetchModels();
     });
-    connect(m_ai, &AiClient::modelsReady, this, [this](const QStringList& models) {
+    connect(m_ai, &AiClient::modelsReady, this, [this, codeModelRefresh](const QStringList& models) {
+        codeModelRefresh->setEnabled(true);
+        codeModelRefresh->setText("\xf0\x9f\x94\x84");
         const QString current = m_codeModelCombo->count() > 0
             ? m_codeModelCombo->currentData().toString() : m_ai->model();
         m_codeModelCombo->blockSignals(true);
@@ -1580,6 +1584,15 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         if (idx < 0) idx = m_codeModelCombo->findText(current);
         if (idx >= 0) m_codeModelCombo->setCurrentIndex(idx);
         m_codeModelCombo->blockSignals(false);
+    });
+    /* Se fetchModels fallisce: ripristina il pulsante e mostra errore nel combo */
+    connect(m_ai, &AiClient::error, this, [this, codeModelRefresh](const QString& msg){
+        if (!codeModelRefresh->isEnabled()) {   /* solo se è in stato "spinner" */
+            codeModelRefresh->setEnabled(true);
+            codeModelRefresh->setText("\xf0\x9f\x94\x84");
+            if (m_codeModelCombo->count() == 0)
+                m_codeModelCombo->addItem("\xe2\x9a\xa0  " + msg, "");   /* ⚠ + messaggio */
+        }
     });
 
     /* ── Input + pulsanti affiancati ── */
@@ -1739,6 +1752,12 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         _setRunBusy(false);
         m_output->append("\n\xe2\x8f\xb9  Interrotto.");
     });
+
+    /* Tab order: RAG checkbox → aggiungi doc → modello → input → esegui */
+    QWidget::setTabOrder(m_ragCheck,       ragAddBtn);
+    QWidget::setTabOrder(ragAddBtn,        m_codeModelCombo);
+    QWidget::setTabOrder(m_codeModelCombo, m_inputArea);
+    QWidget::setTabOrder(m_inputArea,      m_btnRun);
 }
 
 /* ══════════════════════════════════════════════════════════════

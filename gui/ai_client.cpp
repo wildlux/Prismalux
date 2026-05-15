@@ -1116,7 +1116,9 @@ void AiClient::fetchEmbedding(const QString& text) {
     QNetworkReply* reply = m_nam->post(req,
         QJsonDocument(body).toJson(QJsonDocument::Compact));
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    connect(reply, &QNetworkReply::finished, this,
+            [this, reply = QPointer<QNetworkReply>(reply)] {
+        if (!reply) return;
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
             emit embeddingError(reply->errorString());
