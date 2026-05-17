@@ -260,20 +260,43 @@ static QString _categorizeError(const QString& msg, AiClient::Backend backend) {
 void AgentiPage::onError(const QString& msg) {
     m_waitLbl->setVisible(false);
 
-    /* Reset stato agente autonomo se era in corso */
+    /* KnowledgeExtract è opzionale: il lavoro principale è già concluso.
+       Tratta il fallimento come completamento parziale (senza aggiornare la KB). */
+    if (m_opMode == OpMode::KnowledgeExtract) {
+        m_knowledgeBuf.clear();
+        m_opMode = OpMode::Idle;
+        _setRunBusy(false);
+        emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
+        emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
+        return;
+    }
+
+    /* Reset stato agente autonomo */
     if (m_opMode == OpMode::AutonomousAgent) {
         m_autoHistory = QJsonArray();
         m_autoStep    = 0;
         m_autoBuf.clear();
     }
 
+    /* In pipeline: colora in rosso il checkbox dell'agente che ha fallito */
+    if (m_opMode == OpMode::Pipeline && m_currentAgent < MAX_AGENTS)
+        m_cfgDlg->enabledChk(m_currentAgent)->setStyleSheet(
+            "QCheckBox { color: #ef4444; }"
+            "QCheckBox::indicator:checked { background-color: #ef4444;"
+            " border: 2px solid #b91c1c; border-radius: 3px; }");
+
     const QString categorized = _categorizeError(msg, m_ai->backend());
     if (!categorized.isEmpty())
         m_log->append("\n" + categorized);
 
+    /* Aggiorna la barra di stato: abort silenzioso → nascondi, errore reale → mostra */
+    if (categorized.isEmpty())
+        emit pipelineStatus(-1, "");
+    else
+        emit pipelineStatus(100, "\xe2\x9d\x8c  " + msg.left(60));
+
     _setRunBusy(false);
     m_opMode = OpMode::Idle;
-    m_waitLbl->setVisible(false);
 }
 
 /* ══════════════════════════════════════════════════════════════
