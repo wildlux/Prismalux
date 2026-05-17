@@ -73,6 +73,7 @@ set(CPP_SRCS
     lan_server.cpp
     pages/impostazioni_page.cpp
     pages/impostazioni_page_ai.cpp
+    pages/impostazioni_page_slots.cpp
     pages/impostazioni_page_visuale.cpp
     pages/impostazioni_page_llm.cpp
     pages/impostazioni_page_voce.cpp

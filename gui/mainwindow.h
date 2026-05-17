@@ -333,6 +333,9 @@ private slots:
     /* ── zRAM setup ─────────────────────────────────────────────── */
     void onZramSetupTimer();
 
+    /* ── Math download button (showServerDialog) ─────────────────── */
+    void onMathDlBtnClicked();
+
     /* ── Impostazioni RAG progress ──────────────────────────────── */
     void onIndexingProgress(int done, int total);
     void onIndexingFinished(int n, bool aborted);

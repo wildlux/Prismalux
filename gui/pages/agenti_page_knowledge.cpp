@@ -51,23 +51,26 @@ void AgentiPage::callKnowledgeMcp(const QString& summary, const QString& label)
     const QByteArray payload =
         QJsonDocument(req).toJson(QJsonDocument::Compact) + "\n";
 
+    /* Ferma eventuale processo precedente ancora in esecuzione */
+    if (m_knowledgeProc && m_knowledgeProc->state() != QProcess::NotRunning)
+        m_knowledgeProc->kill();
+
     auto* proc = new QProcess(this);
     proc->setProgram(P::findPython());
     proc->setArguments({ serverPy });
 
-    /* Pulizia automatica alla fine del processo */
+    connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &AgentiPage::onKnowledgeProcFinished);
     connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             proc, &QProcess::deleteLater);
 
-    /* Timeout 5s: se il MCP non risponde, uccidi il processo */
-    auto* watchdog = new QTimer(this);
+    /* Timeout 5s — watchdog figlio di proc: auto-eliminato quando proc termina */
+    auto* watchdog = new QTimer(proc);
     watchdog->setSingleShot(true);
-    connect(watchdog, &QTimer::timeout, proc, [proc, watchdog]{
-        watchdog->deleteLater();
-        if (proc->state() != QProcess::NotRunning) proc->kill();
-    });
-    connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            watchdog, &QTimer::deleteLater);
+    connect(watchdog, &QTimer::timeout, this, &AgentiPage::onKnowledgeWatchdogTimeout);
+
+    m_knowledgeProc    = proc;
+    m_knowledgeWatchdog = watchdog;
 
     proc->start();
     if (proc->waitForStarted(2000)) {
@@ -77,10 +80,21 @@ void AgentiPage::callKnowledgeMcp(const QString& summary, const QString& label)
         /* Invalida la cache di lettura: il file è stato aggiornato */
         P::invalidateKnowledgeCache();
     } else {
-        watchdog->deleteLater();
-        proc->deleteLater();
+        m_knowledgeProc    = nullptr;
+        m_knowledgeWatchdog = nullptr;
+        proc->deleteLater();  /* elimina anche watchdog (suo figlio) */
     }
 }
+
+/* Hints statici riusati da onSaveKnowledge e onKnowledgeSaveDlgSectionChanged */
+static const QHash<QString,QString> kSaveHints = {
+    {"contesto",     "Ultimi eventi rilevanti della sessione (rotazione max 10 voci)."},
+    {"ragionamenti", "Decisioni prese con motivazione breve (rotazione max 15 voci)."},
+    {"progetto",     "Stato, stack e priorità correnti del progetto."},
+    {"procedure",    "Algoritmi o flussi consolidati da ricordare."},
+    {"preferenze",   "Stile di risposta, lingua, cosa evitare."},
+    {"chi_sono",     "Ruolo, background, obiettivi e livello tecnico."},
+};
 
 /* ══════════════════════════════════════════════════════════════
    onSaveKnowledge — P4: dialog "Salva in Knowledge" dalla toolbar
@@ -152,19 +166,10 @@ void AgentiPage::onSaveKnowledge()
     auto* hintLbl = new QLabel(dlg);
     hintLbl->setObjectName("hintLabel");
     hintLbl->setWordWrap(true);
-    static const QHash<QString,QString> kHints = {
-        {"contesto",      "Ultimi eventi rilevanti della sessione (rotazione max 10 voci)."},
-        {"ragionamenti",  "Decisioni prese con motivazione breve (rotazione max 15 voci)."},
-        {"progetto",      "Stato, stack e priorità correnti del progetto."},
-        {"procedure",     "Algoritmi o flussi consolidati da ricordare."},
-        {"preferenze",    "Stile di risposta, lingua, cosa evitare."},
-        {"chi_sono",      "Ruolo, background, obiettivi e livello tecnico."},
-    };
-    auto updateHint = [hintLbl](const QString& sec){
-        hintLbl->setText("<small>" + kHints.value(sec, "") + "</small>");
-    };
-    updateHint(secCmb->currentText());
-    connect(secCmb, &QComboBox::currentTextChanged, dlg, updateHint);
+    m_saveDlgHint = hintLbl;
+    hintLbl->setText("<small>" + kSaveHints.value(secCmb->currentText(), "") + "</small>");
+    connect(secCmb, &QComboBox::currentTextChanged,
+            this, &AgentiPage::onKnowledgeSaveDlgSectionChanged);
     lay->addWidget(hintLbl);
 
     /* Bottoni */
@@ -178,54 +183,20 @@ void AgentiPage::onSaveKnowledge()
     lay->addLayout(btnRow);
 
     connect(btnCancel, &QPushButton::clicked, dlg, &QDialog::reject);
-    connect(btnSave, &QPushButton::clicked, dlg, [=]{
-        const QString text = edit->toPlainText().trimmed();
-        if (text.isEmpty()) { dlg->reject(); return; }
 
-        const QString sec  = secCmb->currentText();
-        const QString mode = modCmb->currentText();
-
-        /* Chiama update_knowledge con sezione e modalità esplicite */
-        const QString serverPy = P::root()
-            + "/MCPs/knowledge_mcp/server.py";
-        if (!QFileInfo::exists(serverPy)) { dlg->accept(); return; }
-
-        QJsonObject args;
-        args["section"] = sec;
-        args["content"] = text;
-        args["mode"]    = mode;
-
-        QJsonObject params;
-        params["name"]      = "update_knowledge";
-        params["arguments"] = args;
-
-        QJsonObject req;
-        req["jsonrpc"] = "2.0";
-        req["id"]      = 1;
-        req["method"]  = "tools/call";
-        req["params"]  = params;
-
-        const QByteArray payload =
-            QJsonDocument(req).toJson(QJsonDocument::Compact) + "\n";
-
-        auto* proc = new QProcess(this);
-        proc->setProgram(P::findPython());
-        proc->setArguments({ serverPy });
-        connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                proc, &QProcess::deleteLater);
-        proc->start();
-        if (proc->waitForStarted(2000)) {
-            proc->write(payload);
-            proc->closeWriteChannel();
-            P::invalidateKnowledgeCache();
-        } else {
-            proc->deleteLater();
-        }
-        dlg->accept();
-    });
+    m_saveDlg     = dlg;
+    m_saveDlgEdit = edit;
+    m_saveDlgSec  = secCmb;
+    m_saveDlgMod  = modCmb;
+    connect(btnSave, &QPushButton::clicked, this, &AgentiPage::onKnowledgeSaveBtnClicked);
 
     dlg->exec();
     dlg->deleteLater();
+    m_saveDlg     = nullptr;
+    m_saveDlgEdit = nullptr;
+    m_saveDlgSec  = nullptr;
+    m_saveDlgMod  = nullptr;
+    m_saveDlgHint = nullptr;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -273,6 +244,72 @@ void AgentiPage::runKnowledgeExtract()
         "Rispondi SOLO con le righe prefissate. Nessun'altra parola. Italiano.";
 
     m_ai->chat(QString::fromLatin1(kSysExtract), ctx);
+}
+
+/* ── slot: watchdog 5s — uccide il processo MCP knowledge se non risponde ──── */
+void AgentiPage::onKnowledgeWatchdogTimeout()
+{
+    if (m_knowledgeProc && m_knowledgeProc->state() != QProcess::NotRunning)
+        m_knowledgeProc->kill();
+}
+
+void AgentiPage::onKnowledgeProcFinished(int, QProcess::ExitStatus)
+{
+    m_knowledgeProc    = nullptr;
+    m_knowledgeWatchdog = nullptr;
+}
+
+void AgentiPage::onKnowledgeSaveDlgSectionChanged(const QString& sec)
+{
+    if (m_saveDlgHint)
+        m_saveDlgHint->setText("<small>" + kSaveHints.value(sec, "") + "</small>");
+}
+
+void AgentiPage::onKnowledgeSaveBtnClicked()
+{
+    if (!m_saveDlg || !m_saveDlgEdit) return;
+
+    const QString text = m_saveDlgEdit->toPlainText().trimmed();
+    if (text.isEmpty()) { m_saveDlg->reject(); return; }
+
+    const QString sec  = m_saveDlgSec  ? m_saveDlgSec->currentText()  : "contesto";
+    const QString mode = m_saveDlgMod  ? m_saveDlgMod->currentText()  : "append";
+
+    const QString serverPy = P::root() + "/MCPs/knowledge_mcp/server.py";
+    if (!QFileInfo::exists(serverPy)) { m_saveDlg->accept(); return; }
+
+    QJsonObject args;
+    args["section"] = sec;
+    args["content"] = text;
+    args["mode"]    = mode;
+
+    QJsonObject params;
+    params["name"]      = "update_knowledge";
+    params["arguments"] = args;
+
+    QJsonObject req;
+    req["jsonrpc"] = "2.0";
+    req["id"]      = 1;
+    req["method"]  = "tools/call";
+    req["params"]  = params;
+
+    const QByteArray payload =
+        QJsonDocument(req).toJson(QJsonDocument::Compact) + "\n";
+
+    auto* proc = new QProcess(this);
+    proc->setProgram(P::findPython());
+    proc->setArguments({ serverPy });
+    connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            proc, &QProcess::deleteLater);
+    proc->start();
+    if (proc->waitForStarted(2000)) {
+        proc->write(payload);
+        proc->closeWriteChannel();
+        P::invalidateKnowledgeCache();
+    } else {
+        proc->deleteLater();
+    }
+    m_saveDlg->accept();
 }
 
 /* ══════════════════════════════════════════════════════════════

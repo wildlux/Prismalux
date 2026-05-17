@@ -55,6 +55,13 @@ private slots:
     void onSessionSelected(QListWidgetItem* item);
     void onCwdBrowse();
     void onPollTick();
+    void onProcErrorOccurred(QProcess::ProcessError err);
+    void onProcFinished(int code, QProcess::ExitStatus status);
+    void onPollReplyFinished();
+    void onCreateSessionReplyFinished();
+    void onSendMessageReplyFinished();
+    void onFetchSessionsReplyFinished();
+    void onFetchModelsReplyFinished();
 
 private:
     /* ── Server lifecycle ─────────────────────────────────── */
@@ -92,6 +99,11 @@ private:
     QNetworkAccessManager* m_nam     = nullptr;
     QNetworkReply*         m_sse     = nullptr;  ///< SSE aperta
     QByteArray             m_sseBuf;             ///< Buffer SSE parziale
+    QNetworkReply*         m_pollReply          = nullptr;
+    QNetworkReply*         m_createSessionReply = nullptr;
+    QNetworkReply*         m_sendMsgReply       = nullptr;
+    QNetworkReply*         m_fetchSessionsReply = nullptr;
+    QNetworkReply*         m_fetchModelsReply   = nullptr;
 
      /* ── Stato sessione ───────────────────────────────────── */
      QString m_sessionId;      ///< ID sessione corrente

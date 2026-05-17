@@ -529,50 +529,25 @@ QWidget* ImpostazioniPage::buildTestTab()
         const QString qtGuiDir = P::root() + "/gui";
         const QString buildDir = qtGuiDir + "/build_tests";
 
-        connect(proc, &QProcess::readyRead, leftPanel, [proc, runOut](){
-            runOut->append(QString::fromUtf8(proc->readAll()).trimmed());
-        });
-        connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                leftPanel, [btnBuild, btnRun, btnStop, runOut](int code, QProcess::ExitStatus){
-            btnBuild->setEnabled(true);
-            btnRun->setEnabled(true);
-            btnStop->setEnabled(false);
-            runOut->append(code == 0
-                ? "\xe2\x9c\x85  Completato con successo."
-                : "\xe2\x9d\x8c  Terminato con codice " + QString::number(code));
-        });
+        /* Salva puntatori come member variables per i slot */
+        m_testProc      = proc;
+        m_testRunOut    = runOut;
+        m_testBtnBuild  = btnBuild;
+        m_testBtnRun    = btnRun;
+        m_testBtnStop   = btnStop;
+        m_testBuildDir  = buildDir;
+        m_testQtGuiDir  = qtGuiDir;
 
-        connect(btnBuild, &QPushButton::clicked, leftPanel, [proc, buildDir, qtGuiDir,
-                                                              btnBuild, btnRun, btnStop, runOut](){
-            if (proc->state() != QProcess::NotRunning) return;
-            btnBuild->setEnabled(false);
-            btnRun->setEnabled(false);
-            btnStop->setEnabled(true);
-            runOut->clear();
-            runOut->append("\xf0\x9f\x94\xa8  Compilazione build_tests...");
-            proc->start("/bin/bash", {"-c",
-                QString("cmake -B \"%1\" -S \"%2\" -DBUILD_TESTS=ON "
-                        "&& cmake --build \"%1\" -j$(nproc) 2>&1").arg(buildDir, qtGuiDir)});
-        });
-
-        connect(btnRun, &QPushButton::clicked, leftPanel, [proc, buildDir,
-                                                            btnBuild, btnRun, btnStop, runOut](){
-            if (proc->state() != QProcess::NotRunning) return;
-            btnBuild->setEnabled(false);
-            btnRun->setEnabled(false);
-            btnStop->setEnabled(true);
-            runOut->clear();
-            runOut->append("\xf0\x9f\x94\x84  Esecuzione test suite...");
-            proc->start("/bin/bash", {"-c",
-                QString("ctest --test-dir \"%1\" -j4 --output-on-failure 2>&1").arg(buildDir)});
-        });
-
-        connect(btnStop, &QPushButton::clicked, leftPanel, [proc, btnBuild, btnRun, btnStop](){
-            proc->kill();
-            btnBuild->setEnabled(true);
-            btnRun->setEnabled(true);
-            btnStop->setEnabled(false);
-        });
+        connect(proc,    &QProcess::readyRead,
+                this,    &ImpostazioniPage::onTestProcReadyRead);
+        connect(proc,    QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this,    &ImpostazioniPage::onTestProcFinished);
+        connect(btnBuild, &QPushButton::clicked,
+                this,     &ImpostazioniPage::onTestBuildClicked);
+        connect(btnRun,   &QPushButton::clicked,
+                this,     &ImpostazioniPage::onTestRunClicked);
+        connect(btnStop,  &QPushButton::clicked,
+                this,     &ImpostazioniPage::onTestStopClicked);
     }
 
     /* ════════════════════════════════════════════════════════

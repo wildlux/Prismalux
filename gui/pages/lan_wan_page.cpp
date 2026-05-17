@@ -55,6 +55,77 @@ static void saveLanToken(const QString& token)
     f.write(token.toUtf8());
 }
 
+/* ── Helpers ── */
+QString LanWanPage::localLanIp() const
+{
+    QString fallback10;
+    for (const QNetworkInterface& iface : QNetworkInterface::allInterfaces()) {
+        if (iface.flags().testFlag(QNetworkInterface::IsLoopBack)) continue;
+        if (!iface.flags().testFlag(QNetworkInterface::IsUp))      continue;
+        for (const QNetworkAddressEntry& e : iface.addressEntries()) {
+            if (e.ip().protocol() != QAbstractSocket::IPv4Protocol) continue;
+            const QString s = e.ip().toString();
+            if (s.startsWith("192.168.")) return s;
+            if ((s.startsWith("10.") || s.startsWith("172.")) && fallback10.isEmpty())
+                fallback10 = s;
+        }
+    }
+    return fallback10.isEmpty() ? "127.0.0.1" : fallback10;
+}
+
+QString LanWanPage::serverScheme() const
+{
+    return (m_lanServer && m_lanServer->isTlsEnabled()) ? "https" : "http";
+}
+
+void LanWanPage::openQrDialog(QPushButton* parent, const QString& url,
+                               const QString& title, const QString& subtitle,
+                               const QString& note)
+{
+    auto* dlg = new QDialog(parent->window());
+    dlg->setWindowTitle(title);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    auto* vl = new QVBoxLayout(dlg);
+    vl->setSpacing(12);
+    vl->setContentsMargins(20, 20, 20, 20);
+
+    auto* hdr = new QLabel("<b>" + subtitle + "</b>", dlg);
+    hdr->setTextFormat(Qt::RichText);
+    hdr->setAlignment(Qt::AlignCenter);
+    vl->addWidget(hdr);
+
+    auto* qrw = new QrCodeWidget(url, dlg);
+    qrw->setFixedSize(260, 260);
+    vl->addWidget(qrw, 0, Qt::AlignCenter);
+
+    auto* urlLbl = new QLabel(QString("<code>%1</code>").arg(url), dlg);
+    urlLbl->setTextFormat(Qt::RichText);
+    urlLbl->setAlignment(Qt::AlignCenter);
+    urlLbl->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    vl->addWidget(urlLbl);
+
+    auto* copyBtn = new QPushButton("\xf0\x9f\x93\x8b" "  Copia URL", dlg);
+    connect(copyBtn, &QPushButton::clicked, dlg, [url, copyBtn]() {
+        QApplication::clipboard()->setText(url);
+        copyBtn->setText("\xe2\x9c\x85" "  Copiato!");
+    });
+    vl->addWidget(copyBtn);
+
+    if (!note.isEmpty()) {
+        auto* noteLbl2 = new QLabel("<small><i>" + note + "</i></small>", dlg);
+        noteLbl2->setTextFormat(Qt::RichText);
+        noteLbl2->setAlignment(Qt::AlignCenter);
+        noteLbl2->setWordWrap(true);
+        vl->addWidget(noteLbl2);
+    }
+
+    dlg->resize(320, 460);
+    dlg->exec();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Constructor
+   ══════════════════════════════════════════════════════════════ */
 LanWanPage::LanWanPage(AiClient* ai, QWidget* parent)
     : QWidget(parent), m_ai(ai)
 {
@@ -66,21 +137,7 @@ LanWanPage::LanWanPage(AiClient* ai, QWidget* parent)
     tabs->addTab(buildLanAndroidTab(), "\xf0\x9f\x93\xb1  LAN Android");  /* 📱 */
     tabs->addTab(buildGNS3Tab(),       "\xf0\x9f\x8c\x90  GNS3 MCP");     /* 🌐 */
 
-    /* Propaga modelli al tab GNS3 */
-    connect(m_ai, &AiClient::modelsReady, this, [this](const QStringList& models){
-        if (!m_gns3Model) return;
-        const QString cur = m_gns3Model->currentData().toString();
-        m_gns3Model->blockSignals(true);
-        m_gns3Model->clear();
-        namespace P = PrismaluxPaths;
-        for (const auto& m : models) {
-            const qint64 sz = m_ai->modelSizeBytes(m);
-            m_gns3Model->addItem(P::modelIcon(sz, m) + m, m);
-        }
-        int idx = m_gns3Model->findData(cur.isEmpty() ? m_ai->model() : cur);
-        if (idx >= 0) m_gns3Model->setCurrentIndex(idx);
-        m_gns3Model->blockSignals(false);
-    });
+    connect(m_ai, &AiClient::modelsReady, this, &LanWanPage::onModelsReady);
 
     /* Tab WAN — placeholder futuro */
     auto* wanTab = new QWidget;
@@ -101,26 +158,184 @@ LanWanPage::LanWanPage(AiClient* ai, QWidget* parent)
     lay->addWidget(tabs);
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Slots — LAN Android tab
+   ══════════════════════════════════════════════════════════════ */
+void LanWanPage::onModelsReady(const QStringList& models)
+{
+    if (!m_gns3Model) return;
+    const QString cur = m_gns3Model->currentData().toString();
+    m_gns3Model->blockSignals(true);
+    m_gns3Model->clear();
+    namespace P = PrismaluxPaths;
+    for (const auto& m : models) {
+        const qint64 sz = m_ai->modelSizeBytes(m);
+        m_gns3Model->addItem(P::modelIcon(sz, m) + m, m);
+    }
+    int idx = m_gns3Model->findData(cur.isEmpty() ? m_ai->model() : cur);
+    if (idx >= 0) m_gns3Model->setCurrentIndex(idx);
+    m_gns3Model->blockSignals(false);
+}
+
+void LanWanPage::onTokenTextChanged(const QString& t)
+{
+    saveLanToken(t);
+}
+
+void LanWanPage::onEyeBtnToggled(bool show)
+{
+    m_lanTokenEdit->setEchoMode(show ? QLineEdit::Normal : QLineEdit::Password);
+}
+
+void LanWanPage::onRegenBtnClicked()
+{
+    const QString t = QUuid::createUuid().toString(QUuid::WithoutBraces)
+                      .replace("-","").left(32);
+    m_lanTokenEdit->setText(t);
+    saveLanToken(t);
+}
+
+void LanWanPage::onCopyTokenBtnClicked()
+{
+    QGuiApplication::clipboard()->setText(m_lanTokenEdit->text().trimmed());
+}
+
+void LanWanPage::onQrConnectBtnClicked()
+{
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    const QString url = QString("%1://%2:%3")
+                            .arg(serverScheme())
+                            .arg(localLanIp())
+                            .arg(m_lanPortSpin->value());
+    openQrDialog(btn, url,
+                 "QR \xe2\x80\x94 Connetti Android",
+                 "\xf0\x9f\x93\xb1" "  Scansiona per connettere l\xe2\x80\x99" "app",
+                 "Nell\xe2\x80\x99" "app Android: Impostazioni \xe2\x86\x92 URL server.<br>"
+                 "Poi avvia il server qui con il pulsante Server ON.");
+}
+
+void LanWanPage::onLanPortChanged(int v)
+{
+    if (m_qrConnectLbl)
+        m_qrConnectLbl->setText(
+            QString("<small>%1 : %2</small>").arg(m_lanConnectIp).arg(v));
+}
+
+void LanWanPage::onQrApkBtnClicked()
+{
+    if (!m_lanServer || !m_lanServer->isRunning()) return;
+    const QString url = QString("%1://%2:%3/apk")
+                            .arg(serverScheme()).arg(localLanIp()).arg(m_lanServer->port());
+    openQrDialog(m_qrApkBtn, url,
+                 "QR \xe2\x80\x94 Scarica APK",
+                 "\xf0\x9f\x93\xb1" "  Scansiona per scaricare l'APK",
+                 "Il server LAN deve rimanere attivo durante il download.<br>"
+                 "Su Android: consenti installazione da sorgenti sconosciute.");
+}
+
+void LanWanPage::onQrPageBtnClicked()
+{
+    if (!m_lanServer || !m_lanServer->isRunning()) return;
+    const QString url = QString("%1://%2:%3/")
+                            .arg(serverScheme()).arg(localLanIp()).arg(m_lanServer->port());
+    openQrDialog(m_qrPageBtn, url,
+                 "QR \xe2\x80\x94 Pagina Download",
+                 "\xf0\x9f\x8c\x90" "  Scansiona per aprire la pagina di download",
+                 "Si apre nel browser del telefono.<br>"
+                 "Da l\xc3\xac puoi scaricare l'APK con un tap.");
+}
+
+void LanWanPage::onLanServerStatusChanged(bool running)
+{
+    m_qrApkBtn->setEnabled(running);
+    m_qrPageBtn->setEnabled(running);
+    m_lanWebBtn->setEnabled(running);
+    if (running) {
+        const QString proto = m_lanServer->isTlsEnabled()
+            ? "\xf0\x9f\x94\x92 HTTPS" : "\xf0\x9f\x94\x93 HTTP";
+        m_lanStatusLbl->setText(
+            "\xe2\x97\x8f  Attivo — " + proto + " — porta " +
+            QString::number(m_lanServer->port()));
+        m_lanStatusLbl->setStyleSheet("color: #4caf50; font-weight: bold;");
+    } else {
+        m_lanStatusLbl->setText("\xe2\x97\x8b  Fermo");
+        m_lanStatusLbl->setStyleSheet("color: #9e9e9e;");
+        m_lanClientsLbl->setText("Client connessi: 0");
+    }
+}
+
+void LanWanPage::onLanClientConnected(const QString&)
+{
+    m_lanClientsLbl->setText(
+        "Client connessi: " + QString::number(m_lanServer->clientCount()));
+}
+
+void LanWanPage::onLanClientDisconnected(const QString&)
+{
+    m_lanClientsLbl->setText(
+        "Client connessi: " + QString::number(m_lanServer->clientCount()));
+}
+
+void LanWanPage::onLanToggleBtnToggled(bool on)
+{
+    if (on) {
+        if (!m_lanServer) {
+            m_lanServer = new LanServer(m_ai, this);
+            connect(m_lanServer, &LanServer::statusChanged,
+                    this, &LanWanPage::onLanServerStatusChanged);
+            connect(m_lanServer, &LanServer::clientConnected,
+                    this, &LanWanPage::onLanClientConnected);
+            connect(m_lanServer, &LanServer::clientDisconnected,
+                    this, &LanWanPage::onLanClientDisconnected);
+        }
+        const quint16 port = static_cast<quint16>(m_lanPortSpin->value());
+        {
+            QString tok = m_lanTokenEdit->text().trimmed();
+            if (tok.isEmpty()) {
+                tok = QUuid::createUuid().toString(QUuid::WithoutBraces)
+                      .replace("-","").left(32);
+                m_lanTokenEdit->setText(tok);
+                saveLanToken(tok);
+            }
+            m_lanServer->setAccessToken(tok);
+        }
+        if (m_lanServer->start(port)) {
+            m_lanToggleBtn->setText("\xe2\x97\x8f  Server ON");
+            m_lanPortSpin->setEnabled(false);
+        } else {
+            m_lanToggleBtn->blockSignals(true);
+            m_lanToggleBtn->setChecked(false);
+            m_lanToggleBtn->blockSignals(false);
+            m_lanStatusLbl->setText("\xe2\x9d\x8c  Impossibile aprire la porta");
+            m_lanStatusLbl->setStyleSheet("color: #f44336;");
+        }
+    } else {
+        if (m_lanServer) m_lanServer->stop();
+        m_lanToggleBtn->setText("\xe2\x97\x8b  Server OFF");
+        m_lanPortSpin->setEnabled(true);
+        m_qrApkBtn->setEnabled(false);
+        m_qrPageBtn->setEnabled(false);
+        m_lanWebBtn->setEnabled(false);
+    }
+}
+
+void LanWanPage::onLanWebBtnClicked()
+{
+    if (!m_lanServer || !m_lanServer->isRunning()) return;
+    const QString url = QString("%1://%2:%3/web")
+                            .arg(serverScheme()).arg(localLanIp()).arg(m_lanServer->port());
+    QDesktopServices::openUrl(QUrl(url));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildLanAndroidTab
+   ══════════════════════════════════════════════════════════════ */
 QWidget* LanWanPage::buildLanAndroidTab()
 {
     auto* tab = new QWidget(this);
 
-    /* Helper: primo IP LAN preferendo 192.168.x.x su 10.x.x.x */
-    auto localLanIP = []() -> QString {
-        QString fallback10;
-        for (const QNetworkInterface& iface : QNetworkInterface::allInterfaces()) {
-            if (iface.flags().testFlag(QNetworkInterface::IsLoopBack)) continue;
-            if (!iface.flags().testFlag(QNetworkInterface::IsUp))      continue;
-            for (const QNetworkAddressEntry& e : iface.addressEntries()) {
-                if (e.ip().protocol() != QAbstractSocket::IPv4Protocol) continue;
-                const QString s = e.ip().toString();
-                if (s.startsWith("192.168.")) return s;
-                if ((s.startsWith("10.") || s.startsWith("172.")) && fallback10.isEmpty())
-                    fallback10 = s;
-            }
-        }
-        return fallback10.isEmpty() ? "127.0.0.1" : fallback10;
-    };
+    m_lanConnectIp = localLanIp();
+    const QString& ip = m_lanConnectIp;
 
     auto* vbox = new QVBoxLayout(tab);
     vbox->setContentsMargins(12, 12, 12, 12);
@@ -188,41 +403,30 @@ QWidget* LanWanPage::buildLanAndroidTab()
             m_lanTokenEdit->setText(saved);
         }
 
-        /* Salva a ogni modifica */
-        connect(m_lanTokenEdit, &QLineEdit::textChanged, this, [](const QString& t) {
-            saveLanToken(t);
-        });
+        connect(m_lanTokenEdit, &QLineEdit::textChanged,
+                this, &LanWanPage::onTokenTextChanged);
 
-        /* Pulsante mostra/nascondi token */
         auto* eyeBtn = new QPushButton("\xf0\x9f\x91\x81", tokenRow);   /* 👁 */
         eyeBtn->setFixedWidth(32);
         eyeBtn->setCheckable(true);
         eyeBtn->setToolTip("Mostra/nascondi token");
         eyeBtn->setFlat(true);
-        connect(eyeBtn, &QPushButton::toggled, this, [this](bool show) {
-            m_lanTokenEdit->setEchoMode(show ? QLineEdit::Normal : QLineEdit::Password);
-        });
+        connect(eyeBtn, &QPushButton::toggled,
+                this, &LanWanPage::onEyeBtnToggled);
 
-        /* Pulsante rigenera token */
         auto* regenBtn = new QPushButton("\xf0\x9f\x94\x84", tokenRow);  /* 🔄 */
         regenBtn->setFixedWidth(32);
         regenBtn->setFlat(true);
         regenBtn->setToolTip("Genera nuovo token casuale");
-        connect(regenBtn, &QPushButton::clicked, this, [this] {
-            const QString t = QUuid::createUuid().toString(QUuid::WithoutBraces)
-                              .replace("-","").left(32);
-            m_lanTokenEdit->setText(t);
-            saveLanToken(t);
-        });
+        connect(regenBtn, &QPushButton::clicked,
+                this, &LanWanPage::onRegenBtnClicked);
 
-        /* Pulsante copia token */
         auto* copyBtn = new QPushButton("\xf0\x9f\x93\x8b", tokenRow);   /* 📋 */
         copyBtn->setFixedWidth(32);
         copyBtn->setFlat(true);
         copyBtn->setToolTip("Copia token negli appunti");
-        connect(copyBtn, &QPushButton::clicked, this, [this] {
-            QGuiApplication::clipboard()->setText(m_lanTokenEdit->text().trimmed());
-        });
+        connect(copyBtn, &QPushButton::clicked,
+                this, &LanWanPage::onCopyTokenBtnClicked);
 
         tokenLay->addWidget(tokenLbl);
         tokenLay->addWidget(m_lanTokenEdit, 1);
@@ -239,7 +443,6 @@ QWidget* LanWanPage::buildLanAndroidTab()
     m_lanClientsLbl = new QLabel("Client connessi: 0", group);
     gl->addWidget(m_lanClientsLbl);
 
-    const QString ip = localLanIP();
     auto* ipLbl = new QLabel(
         QString("IP del PC: <b>%1</b>").arg(ip), group);
     ipLbl->setTextFormat(Qt::RichText);
@@ -251,56 +454,6 @@ QWidget* LanWanPage::buildLanAndroidTab()
     noteLbl->setTextFormat(Qt::RichText);
     noteLbl->setWordWrap(true);
     gl->addWidget(noteLbl);
-
-    /* Ritorna "https" se il server usa TLS, "http" altrimenti. */
-    auto serverScheme = [this]() -> QString {
-        return (m_lanServer && m_lanServer->isTlsEnabled()) ? "https" : "http";
-    };
-
-    /* ── Helper: apre dialog QR generico ── */
-    auto openQrDialog = [](QPushButton* parent, const QString& url,
-                            const QString& title, const QString& subtitle,
-                            const QString& note) {
-        auto* dlg = new QDialog(parent->window());
-        dlg->setWindowTitle(title);
-        dlg->setAttribute(Qt::WA_DeleteOnClose);
-        auto* vl = new QVBoxLayout(dlg);
-        vl->setSpacing(12);
-        vl->setContentsMargins(20, 20, 20, 20);
-
-        auto* hdr = new QLabel("<b>" + subtitle + "</b>", dlg);
-        hdr->setTextFormat(Qt::RichText);
-        hdr->setAlignment(Qt::AlignCenter);
-        vl->addWidget(hdr);
-
-        auto* qrw = new QrCodeWidget(url, dlg);
-        qrw->setFixedSize(260, 260);
-        vl->addWidget(qrw, 0, Qt::AlignCenter);
-
-        auto* urlLbl = new QLabel(QString("<code>%1</code>").arg(url), dlg);
-        urlLbl->setTextFormat(Qt::RichText);
-        urlLbl->setAlignment(Qt::AlignCenter);
-        urlLbl->setTextInteractionFlags(Qt::TextSelectableByMouse);
-        vl->addWidget(urlLbl);
-
-        auto* copyBtn = new QPushButton("\xf0\x9f\x93\x8b" "  Copia URL", dlg);
-        connect(copyBtn, &QPushButton::clicked, dlg, [url, copyBtn]() {
-            QApplication::clipboard()->setText(url);
-            copyBtn->setText("\xe2\x9c\x85" "  Copiato!");
-        });
-        vl->addWidget(copyBtn);
-
-        if (!note.isEmpty()) {
-            auto* noteLbl2 = new QLabel("<small><i>" + note + "</i></small>", dlg);
-            noteLbl2->setTextFormat(Qt::RichText);
-            noteLbl2->setAlignment(Qt::AlignCenter);
-            noteLbl2->setWordWrap(true);
-            vl->addWidget(noteLbl2);
-        }
-
-        dlg->resize(320, 460);
-        dlg->exec();
-    };
 
     /* ── QR Connetti (sempre visibile) ── */
     {
@@ -317,35 +470,21 @@ QWidget* LanWanPage::buildLanAndroidTab()
             "Scansiona dall\xe2\x80\x99" "app Android per configurare automaticamente l\xe2\x80\x99" "IP.\n"
             "Puoi scansionarlo anche prima di avviare il server.");
 
-        auto* qrConnectLbl = new QLabel(
+        m_qrConnectLbl = new QLabel(
             QString("<small>%1 : %2</small>")
                 .arg(ip).arg(m_lanPortSpin->value()), connectRow);
-        qrConnectLbl->setObjectName("hintLabel");
-        qrConnectLbl->setTextFormat(Qt::RichText);
+        m_qrConnectLbl->setObjectName("hintLabel");
+        m_qrConnectLbl->setTextFormat(Qt::RichText);
 
         connectLay->addWidget(qrConnectBtn);
-        connectLay->addWidget(qrConnectLbl, 1);
+        connectLay->addWidget(m_qrConnectLbl, 1);
         gl->addWidget(connectRow);
 
-        connect(qrConnectBtn, &QPushButton::clicked, this,
-                [this, qrConnectBtn, localLanIP, openQrDialog, serverScheme]() {
-            const QString url = QString("%1://%2:%3")
-                                    .arg(serverScheme())
-                                    .arg(localLanIP())
-                                    .arg(m_lanPortSpin->value());
-            openQrDialog(qrConnectBtn, url,
-                         "QR \xe2\x80\x94 Connetti Android",
-                         "\xf0\x9f\x93\xb1" "  Scansiona per connettere l\xe2\x80\x99" "app",
-                         "Nell\xe2\x80\x99" "app Android: Impostazioni \xe2\x86\x92 URL server.<br>"
-                         "Poi avvia il server qui con il pulsante Server ON.");
-        });
+        connect(qrConnectBtn, &QPushButton::clicked,
+                this, &LanWanPage::onQrConnectBtnClicked);
 
-        /* Aggiorna label porta quando lo spinbox cambia */
         connect(m_lanPortSpin, QOverload<int>::of(&QSpinBox::valueChanged),
-                this, [qrConnectLbl, ip](int v) {
-            qrConnectLbl->setText(
-                QString("<small>%1 : %2</small>").arg(ip).arg(v));
-        });
+                this, &LanWanPage::onLanPortChanged);
     }
 
     /* ── Due bottoni QR affiancati (APK e Pagina) ── */
@@ -354,20 +493,20 @@ QWidget* LanWanPage::buildLanAndroidTab()
     qrRowL->setContentsMargins(0, 0, 0, 0);
     qrRowL->setSpacing(8);
 
-    auto* qrApkBtn = new QPushButton(
+    m_qrApkBtn = new QPushButton(
         "\xf0\x9f\x93\xa6" "  QR Scarica APK", qrRow);          /* 📦 */
-    qrApkBtn->setObjectName("actionBtn");
-    qrApkBtn->setToolTip("QR code per scaricare direttamente PrismaluxMobile.apk (server ON richiesto)");
-    qrApkBtn->setEnabled(false);
+    m_qrApkBtn->setObjectName("actionBtn");
+    m_qrApkBtn->setToolTip("QR code per scaricare direttamente PrismaluxMobile.apk (server ON richiesto)");
+    m_qrApkBtn->setEnabled(false);
 
-    auto* qrPageBtn = new QPushButton(
+    m_qrPageBtn = new QPushButton(
         "\xf0\x9f\x8c\x90" "  QR Pagina Download", qrRow);      /* 🌐 */
-    qrPageBtn->setObjectName("actionBtn");
-    qrPageBtn->setToolTip("QR code per aprire la pagina di download nel browser del telefono (server ON richiesto)");
-    qrPageBtn->setEnabled(false);
+    m_qrPageBtn->setObjectName("actionBtn");
+    m_qrPageBtn->setToolTip("QR code per aprire la pagina di download nel browser del telefono (server ON richiesto)");
+    m_qrPageBtn->setEnabled(false);
 
-    qrRowL->addWidget(qrApkBtn, 1);
-    qrRowL->addWidget(qrPageBtn, 1);
+    qrRowL->addWidget(m_qrApkBtn, 1);
+    qrRowL->addWidget(m_qrPageBtn, 1);
     gl->addWidget(qrRow);
 
     /* ── Pulsante Chat Web ── */
@@ -384,107 +523,10 @@ QWidget* LanWanPage::buildLanAndroidTab()
     vbox->addWidget(group);
     vbox->addStretch();
 
-    /* ── QR 1: download diretto APK ── */
-    connect(qrApkBtn, &QPushButton::clicked, this, [this, qrApkBtn, localLanIP, openQrDialog, serverScheme]() {
-        if (!m_lanServer || !m_lanServer->isRunning()) return;
-        const QString url = QString("%1://%2:%3/apk")
-                                .arg(serverScheme()).arg(localLanIP()).arg(m_lanServer->port());
-        openQrDialog(qrApkBtn, url,
-                     "QR \xe2\x80\x94 Scarica APK",
-                     "\xf0\x9f\x93\xb1" "  Scansiona per scaricare l'APK",
-                     "Il server LAN deve rimanere attivo durante il download.<br>"
-                     "Su Android: consenti installazione da sorgenti sconosciute.");
-    });
-
-    /* ── QR 2: pagina HTML di download ── */
-    connect(qrPageBtn, &QPushButton::clicked, this, [this, qrPageBtn, localLanIP, openQrDialog, serverScheme]() {
-        if (!m_lanServer || !m_lanServer->isRunning()) return;
-        const QString url = QString("%1://%2:%3/")
-                                .arg(serverScheme()).arg(localLanIP()).arg(m_lanServer->port());
-        openQrDialog(qrPageBtn, url,
-                     "QR \xe2\x80\x94 Pagina Download",
-                     "\xf0\x9f\x8c\x90" "  Scansiona per aprire la pagina di download",
-                     "Si apre nel browser del telefono.<br>"
-                     "Da l\xc3\xac puoi scaricare l'APK con un tap.");
-    });
-
-    /* ── Toggle ON/OFF server + abilita/disabilita entrambi i bottoni QR ── */
-    connect(m_lanToggleBtn, &QPushButton::toggled, this,
-            [this, qrApkBtn, qrPageBtn](bool on) {
-        if (on) {
-            if (!m_lanServer) {
-                m_lanServer = new LanServer(m_ai, this);
-                connect(m_lanServer, &LanServer::statusChanged,
-                        this, [this, qrApkBtn, qrPageBtn](bool running) {
-                    qrApkBtn->setEnabled(running);
-                    qrPageBtn->setEnabled(running);
-                    m_lanWebBtn->setEnabled(running);
-                    if (running) {
-                        const QString proto = m_lanServer->isTlsEnabled()
-                            ? "\xf0\x9f\x94\x92 HTTPS" : "\xf0\x9f\x94\x93 HTTP";
-                        m_lanStatusLbl->setText(
-                            "\xe2\x97\x8f  Attivo — " + proto + " — porta " +
-                            QString::number(m_lanServer->port()));
-                        m_lanStatusLbl->setStyleSheet(
-                            "color: #4caf50; font-weight: bold;");
-                    } else {
-                        m_lanStatusLbl->setText("\xe2\x97\x8b  Fermo");
-                        m_lanStatusLbl->setStyleSheet("color: #9e9e9e;");
-                        m_lanClientsLbl->setText("Client connessi: 0");
-                    }
-                });
-                connect(m_lanServer, &LanServer::clientConnected,
-                        this, [this](const QString&) {
-                    m_lanClientsLbl->setText(
-                        "Client connessi: " +
-                        QString::number(m_lanServer->clientCount()));
-                });
-                connect(m_lanServer, &LanServer::clientDisconnected,
-                        this, [this](const QString&) {
-                    m_lanClientsLbl->setText(
-                        "Client connessi: " +
-                        QString::number(m_lanServer->clientCount()));
-                });
-            }
-            const quint16 port = static_cast<quint16>(m_lanPortSpin->value());
-            /* Garantisce token sempre presente: se l'utente l'ha cancellato, rigenera */
-            {
-                QString tok = m_lanTokenEdit->text().trimmed();
-                if (tok.isEmpty()) {
-                    tok = QUuid::createUuid().toString(QUuid::WithoutBraces)
-                          .replace("-","").left(32);
-                    m_lanTokenEdit->setText(tok);
-                    saveLanToken(tok);
-                }
-                m_lanServer->setAccessToken(tok);
-            }
-            if (m_lanServer->start(port)) {
-                m_lanToggleBtn->setText("\xe2\x97\x8f  Server ON");
-                m_lanPortSpin->setEnabled(false);
-            } else {
-                m_lanToggleBtn->blockSignals(true);
-                m_lanToggleBtn->setChecked(false);
-                m_lanToggleBtn->blockSignals(false);
-                m_lanStatusLbl->setText("\xe2\x9d\x8c  Impossibile aprire la porta");
-                m_lanStatusLbl->setStyleSheet("color: #f44336;");
-            }
-        } else {
-            if (m_lanServer) m_lanServer->stop();
-            m_lanToggleBtn->setText("\xe2\x97\x8b  Server OFF");
-            m_lanPortSpin->setEnabled(true);
-            qrApkBtn->setEnabled(false);
-            qrPageBtn->setEnabled(false);
-            m_lanWebBtn->setEnabled(false);
-        }
-    });
-
-    /* ── Chat Web: apri browser con http(s)://IP:porta/web ── */
-    connect(m_lanWebBtn, &QPushButton::clicked, this, [this, localLanIP, serverScheme]() {
-        if (!m_lanServer || !m_lanServer->isRunning()) return;
-        const QString url = QString("%1://%2:%3/web")
-                                .arg(serverScheme()).arg(localLanIP()).arg(m_lanServer->port());
-        QDesktopServices::openUrl(QUrl(url));
-    });
+    connect(m_qrApkBtn,  &QPushButton::clicked, this, &LanWanPage::onQrApkBtnClicked);
+    connect(m_qrPageBtn, &QPushButton::clicked, this, &LanWanPage::onQrPageBtnClicked);
+    connect(m_lanToggleBtn, &QPushButton::toggled, this, &LanWanPage::onLanToggleBtnToggled);
+    connect(m_lanWebBtn,    &QPushButton::clicked, this, &LanWanPage::onLanWebBtnClicked);
 
     return tab;
 }
@@ -550,7 +592,6 @@ void LanWanPage::gns3PopulateModels(QComboBox* combo)
 
 void LanWanPage::gns3RunAi(const QString& sys, const QString& userMsg)
 {
-    namespace P = PrismaluxPaths;
     if (m_ai->busy()) {
         m_gns3Output->append("\xe2\x9a\xa0  AI occupata, attendi o premi Stop.");
         return;
@@ -576,68 +617,198 @@ void LanWanPage::gns3RunAi(const QString& sys, const QString& userMsg)
     delete m_gns3TokenHolder;
     m_gns3TokenHolder = new QObject(this);
 
-    connect(m_ai, &AiClient::token, m_gns3TokenHolder,
-            [this](const QString& t) {
-        m_gns3Output->moveCursor(QTextCursor::End);
-        m_gns3Output->insertPlainText(t);
-    });
-
-    connect(m_ai, &AiClient::finished, m_gns3TokenHolder,
-            [this](const QString& full) {
-        m_gns3AiActive = false;
-        m_gns3RunBtn->setEnabled(true);
-        m_gns3StopBtn->setEnabled(false);
-        m_gns3Output->append("\n" + QString(40, QChar(0x2500)));
-        m_gns3TokenHolder->deleteLater();
-        m_gns3TokenHolder = nullptr;
-
-        /* Estrai codice Python */
-        static auto extract = [](const QString& text) -> QString {
-            int start = text.indexOf("```python");
-            if (start != -1) {
-                start = text.indexOf('\n', start) + 1;
-                int end = text.indexOf("```", start);
-                if (end != -1) return text.mid(start, end - start).trimmed();
-            }
-            start = text.indexOf("```");
-            if (start != -1) {
-                start += 3;
-                const int nl = text.indexOf('\n', start);
-                if (nl != -1) {
-                    start = nl + 1;
-                    int end = text.indexOf("```", start);
-                    if (end != -1) return text.mid(start, end - start).trimmed();
-                }
-            }
-            return {};
-        };
-
-        if (full.contains("```")) {
-            const QString code = extract(full);
-            if (!code.isEmpty()) {
-                m_gns3Code = code;
-                m_gns3ExecBtn->setEnabled(true);
-                m_gns3StatusLbl->setText(
-                    "\xf0\x9f\x8c\x90  Codice pronto \xe2\x80\x94 premi Esegui su GNS3");
-            }
-        }
-    });
-
-    connect(m_ai, &AiClient::error, m_gns3TokenHolder,
-            [this, sys, userMsg](const QString& msg) {
-        m_gns3AiActive = false;
-        m_gns3RunBtn->setEnabled(true);
-        m_gns3StopBtn->setEnabled(false);
-        m_gns3TokenHolder->deleteLater();
-        m_gns3TokenHolder = nullptr;
-        m_gns3ErrorPanel->showError(msg, [this, sys, userMsg]{
-            gns3RunAi(sys, userMsg);
-        });
-    });
+    connect(m_ai, &AiClient::token,    this, &LanWanPage::onGns3AiToken);
+    connect(m_ai, &AiClient::finished, this, &LanWanPage::onGns3AiFinished);
+    connect(m_ai, &AiClient::error,    this, &LanWanPage::onGns3AiError);
 
     m_ai->chat(sys, userMsg);
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Slots — GNS3 AI
+   ══════════════════════════════════════════════════════════════ */
+void LanWanPage::onGns3AiToken(const QString& t)
+{
+    m_gns3Output->moveCursor(QTextCursor::End);
+    m_gns3Output->insertPlainText(t);
+}
+
+void LanWanPage::onGns3AiFinished(const QString& full)
+{
+    disconnect(m_ai, &AiClient::token,    this, &LanWanPage::onGns3AiToken);
+    disconnect(m_ai, &AiClient::finished, this, &LanWanPage::onGns3AiFinished);
+    disconnect(m_ai, &AiClient::error,    this, &LanWanPage::onGns3AiError);
+    m_gns3AiActive = false;
+    m_gns3RunBtn->setEnabled(true);
+    m_gns3StopBtn->setEnabled(false);
+    m_gns3Output->append("\n" + QString(40, QChar(0x2500)));
+    delete m_gns3TokenHolder;
+    m_gns3TokenHolder = nullptr;
+
+    static auto extract = [](const QString& text) -> QString {
+        int start = text.indexOf("```python");
+        if (start != -1) {
+            start = text.indexOf('\n', start) + 1;
+            int end = text.indexOf("```", start);
+            if (end != -1) return text.mid(start, end - start).trimmed();
+        }
+        start = text.indexOf("```");
+        if (start != -1) {
+            start += 3;
+            const int nl = text.indexOf('\n', start);
+            if (nl != -1) {
+                start = nl + 1;
+                int end = text.indexOf("```", start);
+                if (end != -1) return text.mid(start, end - start).trimmed();
+            }
+        }
+        return {};
+    };
+
+    if (full.contains("```")) {
+        const QString code = extract(full);
+        if (!code.isEmpty()) {
+            m_gns3Code = code;
+            m_gns3ExecBtn->setEnabled(true);
+            m_gns3StatusLbl->setText(
+                "\xf0\x9f\x8c\x90  Codice pronto \xe2\x80\x94 premi Esegui su GNS3");
+        }
+    }
+}
+
+void LanWanPage::onGns3AiError(const QString& msg)
+{
+    disconnect(m_ai, &AiClient::token,    this, &LanWanPage::onGns3AiToken);
+    disconnect(m_ai, &AiClient::finished, this, &LanWanPage::onGns3AiFinished);
+    disconnect(m_ai, &AiClient::error,    this, &LanWanPage::onGns3AiError);
+
+    const QString sys     = (m_gns3Action && m_gns3Action->currentIndex() >= 0)
+                            ? QString::fromUtf8(kGNS3Sys[m_gns3Action->currentIndex()])
+                            : QString();
+    const QString userMsg = m_gns3Input ? m_gns3Input->toPlainText() : QString();
+
+    m_gns3AiActive = false;
+    m_gns3RunBtn->setEnabled(true);
+    m_gns3StopBtn->setEnabled(false);
+    delete m_gns3TokenHolder;
+    m_gns3TokenHolder = nullptr;
+    m_gns3ErrorPanel->showError(msg, [this, sys, userMsg]{
+        gns3RunAi(sys, userMsg);
+    });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slots — GNS3 ping
+   ══════════════════════════════════════════════════════════════ */
+void LanWanPage::onPingBtnClicked()
+{
+    const QString addr = m_gns3HostEdit->text().trimmed();
+    const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
+    const int port = addr.contains(':') ? addr.section(':', 1).toInt() : 3080;
+    m_gns3StatusLbl->setText("\xf0\x9f\x94\x84  Connessione...");
+    auto* sock = new QTcpSocket(this);
+    sock->setProperty("gns3ping", true);
+    connect(sock, &QTcpSocket::connected,
+            this, &LanWanPage::onGns3SockConnected);
+    connect(sock, &QAbstractSocket::errorOccurred,
+            this, &LanWanPage::onGns3SockError);
+    sock->connectToHost(host, static_cast<quint16>(port));
+    QPointer<QTcpSocket> sockPtr(sock);
+    QTimer::singleShot(3000, this, [this, sockPtr](){
+        if (sockPtr && sockPtr->state() != QAbstractSocket::ConnectedState) {
+            m_gns3StatusLbl->setText("\xe2\x9d\x8c  Timeout");
+            sockPtr->abort(); sockPtr->deleteLater();
+        }
+    });
+}
+
+void LanWanPage::onGns3SockConnected()
+{
+    auto* sock = qobject_cast<QTcpSocket*>(sender());
+    if (sock) { sock->disconnectFromHost(); sock->deleteLater(); }
+    m_gns3StatusLbl->setText("\xe2\x9c\x85  Server raggiungibile");
+    m_gns3ExecBtn->setEnabled(!m_gns3Code.isEmpty());
+}
+
+void LanWanPage::onGns3SockError(QAbstractSocket::SocketError)
+{
+    auto* sock = qobject_cast<QTcpSocket*>(sender());
+    if (!sock) return;
+    m_gns3StatusLbl->setText("\xe2\x9d\x8c  " + sock->errorString());
+    sock->deleteLater();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slots — GNS3 exec process
+   ══════════════════════════════════════════════════════════════ */
+void LanWanPage::onGns3ExecBtnClicked()
+{
+    if (m_gns3Code.isEmpty()) return;
+    if (m_gns3ExecProc && m_gns3ExecProc->state() != QProcess::NotRunning) {
+        m_gns3ExecProc->kill();
+        m_gns3ExecProc->waitForFinished(500);
+    }
+    const QString tmpPath = QDir::tempPath() + "/prismalux_gns3_script.py";
+    QFile f(tmpPath);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        m_gns3StatusLbl->setText("\xe2\x9d\x8c  Impossibile creare script");
+        return;
+    }
+    f.write(m_gns3Code.toUtf8());
+    f.close();
+    m_gns3ExecProc = new QProcess(this);
+    m_gns3ExecProc->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_gns3ExecProc, &QProcess::readyRead,
+            this, &LanWanPage::onGns3ProcReadyRead);
+    connect(m_gns3ExecProc,
+            QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &LanWanPage::onGns3ProcFinished);
+    m_gns3ExecBtn->setEnabled(false);
+    m_gns3StatusLbl->setText("\xf0\x9f\x94\x84  Esecuzione script Python...");
+    if (m_gns3Progress) m_gns3Progress->show();
+    m_gns3ExecProc->start(P::findPython(), {tmpPath});
+}
+
+void LanWanPage::onGns3ProcReadyRead()
+{
+    auto* proc = qobject_cast<QProcess*>(sender());
+    if (proc)
+        m_gns3Output->append(QString::fromUtf8(proc->readAll()).trimmed());
+}
+
+void LanWanPage::onGns3ProcFinished(int code, QProcess::ExitStatus)
+{
+    auto* proc = qobject_cast<QProcess*>(sender());
+    if (m_gns3Progress) m_gns3Progress->hide();
+    m_gns3StatusLbl->setText(code == 0
+        ? "\xe2\x9c\x85  Completato"
+        : "\xe2\x9d\x8c  Terminato con errore");
+    m_gns3ExecBtn->setEnabled(true);
+    if (m_gns3ExecProc == proc) m_gns3ExecProc = nullptr;
+    if (proc) proc->deleteLater();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slots — GNS3 run / stop
+   ══════════════════════════════════════════════════════════════ */
+void LanWanPage::onGns3RunBtnClicked()
+{
+    const int idx = m_gns3Action->currentIndex();
+    if (idx < 0 || !kGNS3Sys[idx]) return;
+    gns3RunAi(QString::fromUtf8(kGNS3Sys[idx]),
+              m_gns3Input->toPlainText());
+}
+
+void LanWanPage::onGns3StopBtnClicked()
+{
+    m_ai->abort();
+    m_gns3RunBtn->setEnabled(true);
+    m_gns3StopBtn->setEnabled(false);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildGNS3Tab
+   ══════════════════════════════════════════════════════════════ */
 QWidget* LanWanPage::buildGNS3Tab()
 {
     namespace P = PrismaluxPaths;
@@ -746,82 +917,10 @@ QWidget* LanWanPage::buildGNS3Tab()
     m_gns3ErrorPanel = new AiErrorWidget(w);
     lay->addWidget(m_gns3ErrorPanel);
 
-    /* Verifica connessione TCP */
-    connect(pingBtn, &QPushButton::clicked, this, [this](){
-        const QString addr = m_gns3HostEdit->text().trimmed();
-        const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
-        const int port = addr.contains(':') ? addr.section(':', 1).toInt() : 3080;
-        m_gns3StatusLbl->setText("\xf0\x9f\x94\x84  Connessione...");
-        auto* sock = new QTcpSocket(this);
-        sock->connectToHost(host, static_cast<quint16>(port));
-        connect(sock, &QTcpSocket::connected, this, [this, sock](){
-            sock->disconnectFromHost(); sock->deleteLater();
-            m_gns3StatusLbl->setText("\xe2\x9c\x85  Server raggiungibile");
-            m_gns3ExecBtn->setEnabled(!m_gns3Code.isEmpty());
-        });
-        connect(sock, &QAbstractSocket::errorOccurred, this, [this, sock](QAbstractSocket::SocketError){
-            m_gns3StatusLbl->setText("\xe2\x9d\x8c  " + sock->errorString());
-            sock->deleteLater();
-        });
-        QPointer<QTcpSocket> sockPtr(sock);
-        QTimer::singleShot(3000, this, [sockPtr, this](){
-            if (sockPtr && sockPtr->state() != QAbstractSocket::ConnectedState) {
-                m_gns3StatusLbl->setText("\xe2\x9d\x8c  Timeout");
-                sockPtr->abort(); sockPtr->deleteLater();
-            }
-        });
-    });
-
-    /* Esegui script generato */
-    connect(m_gns3ExecBtn, &QPushButton::clicked, this, [this](){
-        if (m_gns3Code.isEmpty()) return;
-        /* Termina processo precedente se ancora attivo */
-        if (m_gns3ExecProc && m_gns3ExecProc->state() != QProcess::NotRunning) {
-            m_gns3ExecProc->kill();
-            m_gns3ExecProc->waitForFinished(500);
-        }
-        const QString tmpPath = QDir::tempPath() + "/prismalux_gns3_script.py";
-        QFile f(tmpPath);
-        if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            m_gns3StatusLbl->setText("\xe2\x9d\x8c  Impossibile creare script");
-            return;
-        }
-        f.write(m_gns3Code.toUtf8());
-        f.close();
-        m_gns3ExecProc = new QProcess(this);
-        auto* proc = m_gns3ExecProc;
-        proc->setProcessChannelMode(QProcess::MergedChannels);
-        connect(proc, &QProcess::readyRead, this, [proc, this](){
-            m_gns3Output->append(QString::fromUtf8(proc->readAll()).trimmed());
-        });
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, proc](int code2, QProcess::ExitStatus){
-            if (m_gns3Progress) m_gns3Progress->hide();
-            m_gns3StatusLbl->setText(code2 == 0
-                ? "\xe2\x9c\x85  Completato"
-                : "\xe2\x9d\x8c  Terminato con errore");
-            m_gns3ExecBtn->setEnabled(true);
-            if (m_gns3ExecProc == proc) m_gns3ExecProc = nullptr;
-            proc->deleteLater();
-        });
-        m_gns3ExecBtn->setEnabled(false);
-        m_gns3StatusLbl->setText("\xf0\x9f\x94\x84  Esecuzione script Python...");
-        if (m_gns3Progress) m_gns3Progress->show();
-        proc->start(P::findPython(), {tmpPath});
-    });
-
-    /* Genera script */
-    connect(m_gns3RunBtn, &QPushButton::clicked, this, [this](){
-        const int idx = m_gns3Action->currentIndex();
-        if (idx < 0 || !kGNS3Sys[idx]) return;
-        gns3RunAi(QString::fromUtf8(kGNS3Sys[idx]),
-                  m_gns3Input->toPlainText());
-    });
-    connect(m_gns3StopBtn, &QPushButton::clicked, this, [this](){
-        m_ai->abort();
-        m_gns3RunBtn->setEnabled(true);
-        m_gns3StopBtn->setEnabled(false);
-    });
+    connect(pingBtn,       &QPushButton::clicked, this, &LanWanPage::onPingBtnClicked);
+    connect(m_gns3ExecBtn, &QPushButton::clicked, this, &LanWanPage::onGns3ExecBtnClicked);
+    connect(m_gns3RunBtn,  &QPushButton::clicked, this, &LanWanPage::onGns3RunBtnClicked);
+    connect(m_gns3StopBtn, &QPushButton::clicked, this, &LanWanPage::onGns3StopBtnClicked);
 
     return w;
 }

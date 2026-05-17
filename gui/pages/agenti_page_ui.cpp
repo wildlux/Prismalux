@@ -72,106 +72,28 @@ void AgentiPage::setupUI() {
     m_btnTtsStop->setToolTip("Interrompi la lettura vocale");
     m_btnTtsStop->setVisible(false);
     toolLay->addWidget(m_btnTtsStop);
-    connect(m_btnTtsStop, &QPushButton::clicked, this, [this]{
-        /* Ferma piper prima di aplay (evita dati residui in pipe) */
-        if (m_piperProc) {
-            m_piperProc->kill();
-            m_piperProc->waitForFinished(300);
-            m_piperProc->deleteLater();
-            m_piperProc = nullptr;
-        }
-        if (m_ttsProc) { m_ttsProc->kill(); m_ttsProc->waitForFinished(300); }
-#ifndef Q_OS_WIN
-        QProcess::startDetached("pkill", {"-9", "aplay"});
-        QProcess::startDetached("pkill", {"-9", "piper"});
-#endif
-        m_ttsPaused = false;
-        if (m_btnTtsPause) { m_btnTtsPause->setText("\xe2\x8f\xb8  Pausa"); m_btnTtsPause->setVisible(false); }
-        m_btnTtsStop->setVisible(false);
-    });
+    connect(m_btnTtsStop, &QPushButton::clicked, this, &AgentiPage::onTtsStopClicked);
 
     m_btnTtsPause = new QPushButton("\xe2\x8f\xb8  Pausa", toolbar);
     m_btnTtsPause->setObjectName("actionBtn");
     m_btnTtsPause->setToolTip("Metti in pausa / riprendi la lettura vocale");
     m_btnTtsPause->setVisible(false);
     toolLay->addWidget(m_btnTtsPause);
-    connect(m_btnTtsPause, &QPushButton::clicked, this, [this]{
-#ifndef Q_OS_WIN
-        const auto sendSig = [](QProcess* p, int sig){
-            if (p && p->state() == QProcess::Running && p->processId() > 0)
-                ::kill(static_cast<pid_t>(p->processId()), sig);
-        };
-        if (!m_ttsPaused) {
-            sendSig(m_ttsProc,   SIGSTOP);
-            sendSig(m_piperProc, SIGSTOP);
-            m_ttsPaused = true;
-            m_btnTtsPause->setText("\xe2\x96\xb6  Riprendi");
-        } else {
-            sendSig(m_ttsProc,   SIGCONT);
-            sendSig(m_piperProc, SIGCONT);
-            m_ttsPaused = false;
-            m_btnTtsPause->setText("\xe2\x8f\xb8  Pausa");
-        }
-#else
-        /* Windows: pausa non supportata, simula stop */
-        if (m_ttsProc)   { m_ttsProc->kill(); m_ttsProc->waitForFinished(300); }
-        if (m_piperProc) { m_piperProc->kill(); m_piperProc->waitForFinished(300); }
-        if (m_btnTtsPause) m_btnTtsPause->setVisible(false);
-        if (m_btnTtsStop)  m_btnTtsStop->setVisible(false);
-#endif
-    });
+    connect(m_btnTtsPause, &QPushButton::clicked, this, &AgentiPage::onTtsPauseClicked);
 
     /* ── Esporta conversazione ── */
     auto* btnExport = new QPushButton("\xf0\x9f\x92\xbe  Esporta", toolbar);
     btnExport->setObjectName("actionBtn");
     btnExport->setToolTip("Esporta conversazione (.md / .html / .txt)");
     toolLay->addWidget(btnExport);
-    connect(btnExport, &QPushButton::clicked, this, [this](){
-        if (!m_log || m_log->toPlainText().trimmed().isEmpty()) return;
-        const QString ts   = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
-        const QString name = QString("prismalux_chat_%1.md").arg(ts);
-        const QString path = QFileDialog::getSaveFileName(
-            this, "Esporta conversazione", QDir::homePath() + "/" + name,
-            "Markdown (*.md);;HTML (*.html);;Testo (*.txt)");
-        if (path.isEmpty()) return;
-
-        QFile f(path);
-        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
-        QTextStream out(&f);
-
-        if (path.endsWith(".html", Qt::CaseInsensitive)) {
-            out << m_log->toHtml();
-        } else if (path.endsWith(".txt", Qt::CaseInsensitive)) {
-            out << m_log->toPlainText();
-        } else {
-            QTextDocument doc;
-            doc.setHtml(m_log->toHtml());
-            out << "# Prismalux — Conversazione\n";
-            out << "_Esportata il " << QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm") << "_\n\n";
-            out << "---\n\n";
-            out << doc.toMarkdown();
-        }
-    });
+    connect(btnExport, &QPushButton::clicked, this, &AgentiPage::onBtnExportClicked);
 
     /* ── Esporta come PDF ── */
     auto* btnExportPdf = new QPushButton("\xf0\x9f\x93\x84", toolbar);
     btnExportPdf->setObjectName("actionBtn");
     btnExportPdf->setToolTip("Esporta conversazione (.pdf)");
     toolLay->addWidget(btnExportPdf);
-    connect(btnExportPdf, &QPushButton::clicked, this, [this](){
-        if (!m_log || m_log->toPlainText().trimmed().isEmpty()) return;
-        const QString ts   = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
-        const QString name = QString("prismalux_chat_%1.pdf").arg(ts);
-        const QString path = QFileDialog::getSaveFileName(
-            this, "Esporta come PDF", QDir::homePath() + "/" + name,
-            "PDF (*.pdf)");
-        if (path.isEmpty()) return;
-        QPrinter printer(QPrinter::HighResolution);
-        printer.setOutputFormat(QPrinter::PdfFormat);
-        printer.setOutputFileName(path);
-        printer.setPageSize(QPageSize::A4);
-        m_log->document()->print(&printer);
-    });
+    connect(btnExportPdf, &QPushButton::clicked, this, &AgentiPage::onBtnExportPdfClicked);
 
     /* ── Salva in Knowledge (P4) ── */
     m_btnKnowledge = new QPushButton("\xf0\x9f\x93\x96  Memoria", toolbar);  /* 📖 */
@@ -188,12 +110,7 @@ void AgentiPage::setupUI() {
         btnInfo->setObjectName("actionBtn");
         btnInfo->setToolTip("Mostra/nascondi suggerimenti");
         toolLay->addWidget(btnInfo);
-        connect(btnInfo, &QPushButton::clicked, this, [this]{
-            if (!m_hintWidget) return;
-            const bool now = !m_hintWidget->isVisible();
-            m_hintWidget->setVisible(now);
-            AppConfig::s().setValue("ui/hintVisible", now);
-        });
+        connect(btnInfo, &QPushButton::clicked, this, &AgentiPage::onBtnInfoClicked);
     }
 
     toolLay->addStretch(1);
@@ -228,69 +145,7 @@ void AgentiPage::setupUI() {
         toolLay->addWidget(m_btnVoiceLoop);
 
         connect(m_btnVoiceLoop, &QPushButton::toggled,
-                this, [this](bool on) {
-            m_voiceLoopActive = on;
-            m_btnVoiceLoop->setStyleSheet(on ? kVoiceOn : kVoiceOff);
-            if (on) {
-                m_btnVoiceLoop->setText("\xf0\x9f\x94\xb4  In ascolto...");
-            } else {
-                const QString pName = P::personalityName();
-                m_btnVoiceLoop->setText(pName.isEmpty()
-                    ? "\xf0\x9f\x8e\x99  Conversa"
-                    : "\xf0\x9f\x8e\x99  Conversa con " + pName);
-            }
-
-            if (on) {
-                if (SttWhisper::whisperBin().isEmpty()) {
-                    m_log->append(
-                        "<p style='color:#e2e8f0;'>"
-                        "\xe2\x9a\xa0  <b>whisper-cli non trovato.</b> "
-                        "Clicca <a href=\"settings:trascrivi\" style=\"color:#93c5fd;\">"
-                        "Impostazioni \xe2\x86\x92 Trascrivi</a> per installarlo."
-                        "</p>");
-                    m_voiceLoopActive = false;
-                    m_btnVoiceLoop->setChecked(false);
-                    return;
-                }
-                if (SttWhisper::whisperModel().isEmpty()) {
-                    downloadWhisperModel();
-                    m_voiceLoopActive = false;
-                    m_btnVoiceLoop->setChecked(false);
-                    return;
-                }
-                if (m_sttState == SttState::Idle)
-                    _sttStartRecording();
-            } else {
-                /* Ferma TTS se in lettura */
-                if (m_piperProc) {
-                    m_piperProc->kill();
-                    m_piperProc->waitForFinished(300);
-                    m_piperProc->deleteLater();
-                    m_piperProc = nullptr;
-                }
-                if (m_ttsProc) {
-                    m_ttsProc->kill();
-                    m_ttsProc->waitForFinished(300);
-                    if (m_ttsProc) { m_ttsProc->deleteLater(); m_ttsProc = nullptr; }
-                }
-                if (m_btnTtsStop)  m_btnTtsStop->setVisible(false);
-                if (m_btnTtsPause) m_btnTtsPause->setVisible(false);
-                /* Ferma registrazione se attiva */
-                if (m_sttState == SttState::Recording) {
-                    if (m_recProc) {
-                        m_recProc->kill();
-                        m_recProc->waitForFinished(300);
-                        m_recProc->deleteLater();
-                        m_recProc = nullptr;
-                    }
-                    m_sttState = SttState::Idle;
-                    m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
-                    m_btnVoice->setProperty("danger","false");
-                    P::repolish(m_btnVoice);
-                    m_btnVoice->setEnabled(true);
-                }
-            }
-        });
+                this, &AgentiPage::onVoiceLoopToggled);
     }
 
     /* ══ Toggle Chat / Agente Autonomo ══
@@ -329,10 +184,7 @@ void AgentiPage::setupUI() {
         "In modalit\xc3\xa0 Agente Autonomo i tool sono sempre attivi.");
     toolLay->addWidget(m_toolChk);
 
-    connect(m_toolChk, &QCheckBox::toggled, this, [this](bool on) {
-        if (!m_autoEnabled)           /* In Agente Autonomo, m_toolsEnabled resta true */
-            m_toolsEnabled = on;
-    });
+    connect(m_toolChk, &QCheckBox::toggled, this, &AgentiPage::onToolChkToggled);
 
     /* ── Selettore LLM singolo ── */
     auto* llmLbl = new QLabel("LLM:", toolbar);
@@ -348,40 +200,10 @@ void AgentiPage::setupUI() {
 
     /* Quando l'utente sceglie un modello diverso, lo applica all'AI client */
     connect(m_cmbLLM, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int idx){
-        if (idx < 0 || !m_cmbLLM) return;
-        const QString mdl = m_cmbLLM->currentData(Qt::UserRole).toString().isEmpty()
-                          ? m_cmbLLM->currentText()
-                          : m_cmbLLM->currentData(Qt::UserRole).toString();
-        if (mdl.isEmpty() || mdl == "(caricamento...)") return;
-        m_pageModel = mdl;
-        m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), mdl);
-    });
+            this, &AgentiPage::onCmbLLMIndexChanged);
 
     /* ── Collegamento toggle Chat / Agente Autonomo ── */
-    connect(m_btnModeToggle, &QPushButton::toggled, this, [this](bool autoOn) {
-        m_autoEnabled   = autoOn;
-        m_toolsEnabled  = autoOn || (m_toolChk && m_toolChk->isChecked());
-        m_toolIteration = 0;
-        m_modePipeline  = false;
-        /* In modalità Autonomo: tools sempre attivi, checkbox bloccato spuntato */
-        if (m_toolChk) {
-            m_toolChk->blockSignals(true);
-            if (autoOn) m_toolChk->setChecked(true);
-            m_toolChk->setEnabled(!autoOn);
-            m_toolChk->blockSignals(false);
-        }
-
-        m_btnModeToggle->setText(autoOn
-            ? "\xf0\x9f\xa4\x96  Agente Autonomo"
-            : "\xf0\x9f\x92\xac  Chat");
-        m_btnModeToggle->setStyleSheet(autoOn ? kStyleAuto : kStyleChat);
-
-        m_btnRun->setText(autoOn
-            ? "\xf0\x9f\xa4\x96  Avvia Agente"
-            : "\xf0\x9f\x92\xac CHAT con RAG");
-
-    });
+    connect(m_btnModeToggle, &QPushButton::toggled, this, &AgentiPage::onModeToggleToggled);
 
     /* ── Controller LLM spostato dentro "Configura Agenti" (dialog AgentsConfigDialog) ──
        Accessibile via m_cfgDlg->controllerEnabled() — rimosso dalla toolbar per pulizia. */
@@ -409,10 +231,7 @@ void AgentiPage::setupUI() {
 
     /* ── Smart auto-scroll: l'utente può scorrere su durante lo streaming ── */
     connect(m_log->verticalScrollBar(), &QScrollBar::valueChanged,
-            this, [this](int value) {
-        if (m_suppressScrollSig) return;
-        m_userScrolled = (value < m_log->verticalScrollBar()->maximum());
-    });
+            this, &AgentiPage::onLogScrollValueChanged);
 
     /* ── Pannello grafico: appare automaticamente quando l'AI restituisce una formula ── */
     m_chartPanel = new QFrame(this);
@@ -437,9 +256,7 @@ void AgentiPage::setupUI() {
         m_btnChartOpen = new QPushButton("\xf0\x9f\x93\x88  Apri nel Grafico", m_chartPanel);
         m_btnChartOpen->setObjectName("actionBtn");
         m_btnChartOpen->setToolTip("Apri nella sezione Grafico per zoom, export e personalizzazione");
-        connect(m_btnChartOpen, &QPushButton::clicked, this, [this]{
-            emit requestShowInGrafico(m_lastChartExpr, m_lastChartXMin, m_lastChartXMax, m_lastChartPts);
-        });
+        connect(m_btnChartOpen, &QPushButton::clicked, this, &AgentiPage::onBtnChartOpenClicked);
         cpHL->addWidget(m_btnChartOpen);
 
         auto* cpClose = new QPushButton("\xc3\x97", m_chartPanel);
@@ -455,256 +272,14 @@ void AgentiPage::setupUI() {
 
     /* ── Click su link copia/TTS dentro le bolle HTML ── */
     connect(m_log, &QTextBrowser::anchorClicked,
-            this, [this](const QUrl& url){
-        const QString s = url.toString();
-        /* formato: "copy:IDX" | "tts:IDX" | "chart:show" | "settings:<tab>" | "fb:up/down:IDX" */
-        /* ── Feedback 👍/👎 ── */
-        if (s.startsWith("fb:")) {
-            const QStringList parts = s.split(':');
-            if (parts.size() >= 3) {
-                const QString rating = parts[1];   /* "up" o "down" */
-                const int     idx    = parts[2].toInt();
-                saveFeedback(idx, rating == "up" ? 1 : -1);
-            }
-            return;
-        }
-        if (s.startsWith("settings:")) {
-            emit requestOpenSettings(s.mid(9));
-            return;
-        }
-        if (s == "chart:show") {
-            if (m_chartPanel) m_chartPanel->setVisible(true);
-            return;
-        }
-        /* ── Elimina messaggio con conferma ── */
-        if (s.startsWith("del:")) {
-            QMessageBox ask(this);
-            ask.setWindowTitle("\xf0\x9f\x97\x91  Elimina messaggio");
-            ask.setText("<b>Eliminare questo messaggio dalla chat?</b>");
-            ask.setInformativeText(
-                "Questa operazione \xc3\xa8 irreversibile.");
-            QPushButton* btnDel = ask.addButton("Elimina", QMessageBox::DestructiveRole);
-            ask.addButton("Annulla", QMessageBox::RejectRole);
-            ask.setDefaultButton(btnDel);
-            ask.exec();
-            if (ask.clickedButton() != btnDel) return;
-
-            /* Salva snapshot per undo */
-            m_undoHtmlStack.push(m_log->toHtml());
-
-            /* Rimuovi il blocco della bolla dall'HTML usando il del:ID univoco */
-            const QString c1s = s.mid(4, s.indexOf(':', 4) - 4); /* estrai ID */
-            QString html = m_log->toHtml();
-            /* Cerca e rimuove la <table> che contiene href='del:ID: */
-            QRegularExpression re(
-                "<table[^>]*>(?:(?!</table>).)*?" +
-                QRegularExpression::escape("del:" + c1s + ":") +
-                ".*?</table>(?:\\s*<p[^>]*>\\s*</p>)?",
-                QRegularExpression::DotMatchesEverythingOption);
-            html.remove(re);
-            m_log->setHtml(html);
-            m_log->moveCursor(QTextCursor::End);
-            return;
-        }
-
-        /* ── Toggle ragionamento <think> collassabile ── */
-        if (s.startsWith("think:toggle:")) {
-            bool ok2 = false;
-            const int N = s.mid(13).toInt(&ok2);
-            if (!ok2 || !m_thinkTexts.contains(N)) return;
-
-            const int scrollPos = m_log->verticalScrollBar()->value();
-            QString html = m_log->toHtml();
-            const QString nStr = QString::number(N);
-
-            if (m_thinkShown.contains(N)) {
-                /* === NASCONDI === */
-                m_thinkShown.remove(N);
-                /* Cambia freccia ▼ → ▶ (🔻 → ▶️) nell'ancora toggle */
-                QRegularExpression reArrowDown(
-                    "(think:toggle:" + nStr + "[^>]*>)\xf0\x9f\x94\xbb",
-                    QRegularExpression::DotMatchesEverythingOption);
-                html.replace(reArrowDown, "\\1\xe2\x96\xb6\xef\xb8\x8f");
-                /* Rimuovi il box think (da think-box:N fino a think-end:N </table>) */
-                QRegularExpression reBox(
-                    "<table[^>]*>(?:(?!</table>)[\\s\\S])*?think-end:" + nStr +
-                    "[\\s\\S]*?</table>",
-                    QRegularExpression::DotMatchesEverythingOption);
-                html.remove(reBox);
-            } else {
-                /* === MOSTRA === */
-                m_thinkShown.insert(N);
-                /* Cambia freccia ▶ → ▼ (▶️ → 🔻) */
-                QRegularExpression reArrowRight(
-                    "(think:toggle:" + nStr + "[^>]*>)\xe2\x96\xb6\xef\xb8\x8f",
-                    QRegularExpression::DotMatchesEverythingOption);
-                html.replace(reArrowRight, "\\1\xf0\x9f\x94\xbb");
-
-                /* Costruisci il box think e inseriscilo dopo </p> del toggle link */
-                const QString rawThink = m_thinkTexts.value(N);
-                QString safeThink = rawThink;
-                safeThink.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
-                safeThink.replace("\n","<br>");
-
-                const QString thinkBox =
-                    "<table width='100%' cellpadding='0' cellspacing='0' style='margin:0 0 6px 0;'>"
-                    "<tr><td bgcolor='#1a1a2e' style='"
-                        "border-left:3px solid #4a4a6a;"
-                        "padding:6px 10px;"
-                        "border-radius:0 4px 4px 0;'>"
-                      "<p style='color:#7070a0;font-size:10px;font-weight:bold;margin:0 0 4px 0;'>"
-                        "&#129504; Ragionamento interno"
-                      "</p>"
-                      "<p style='color:#8888aa;font-size:11px;font-style:italic;"
-                                "margin:0;line-height:1.5;'>"
-                        + safeThink +
-                        "<a href='think-end:" + nStr + "'></a>"
-                      "</p>"
-                    "</td></tr></table>";
-
-                /* Punto di inserimento: dopo </p> che contiene il toggle link */
-                int anchorPos = html.indexOf("think:toggle:" + nStr);
-                if (anchorPos >= 0) {
-                    int endP = html.indexOf("</p>", anchorPos);
-                    if (endP >= 0)
-                        html.insert(endP + 4, thinkBox);
-                }
-            }
-
-            m_log->setHtml(html);
-            m_log->verticalScrollBar()->setValue(scrollPos);
-            return;
-        }
-
-        if (!s.startsWith("copy:") && !s.startsWith("tts:") && !s.startsWith("edit:")) return;
-        /* Formato nuovo: "copy:N:BASE64URL" — il testo è embedded nell'href.
-           Formato vecchio: "copy:N"          — fallback su m_bubbleTexts. */
-        const int c1 = s.indexOf(':');              // colon dopo "copy"/"tts"/"edit"
-        const int c2 = s.indexOf(':', c1 + 1);      // secondo colon (nuovo formato), -1 se vecchio
-        bool ok = false;
-        const int idx = s.mid(c1 + 1, c2 < 0 ? -1 : c2 - c1 - 1).toInt(&ok);
-        if (!ok) return;
-        QString text;
-        const QString origB64 = (c2 > 0) ? s.mid(c2 + 1) : QString();
-        if (c2 > 0) {
-            text = QString::fromUtf8(QByteArray::fromBase64(
-                origB64.toLatin1(), QByteArray::Base64UrlEncoding));
-        } else {
-            if (!m_bubbleTexts.contains(idx)) return;
-            text = m_bubbleTexts.value(idx);
-        }
-
-        if (s.startsWith("edit:")) {
-            /* Apre un dialog di modifica: l'utente può editare il testo liberamente
-               e scegliere se rimpiazzare la bolla nel log o inviare come nuovo task */
-            auto* dlg  = new QDialog(this);
-            dlg->setWindowTitle("\xe2\x9c\x8f\xef\xb8\x8f  Modifica testo");
-            dlg->setMinimumSize(520, 360);
-            auto* dlgLay = new QVBoxLayout(dlg);
-            dlgLay->setSpacing(10);
-
-            auto* hint = new QLabel(
-                "<small>\xe2\x84\xb9  Modifica il testo. <b>Invia come task</b> lo carica nel campo "
-                "input pronto per essere rielaborato dall'AI. "
-                "<b>Aggiorna bolla</b> sostituisce il testo nel log.</small>");
-            hint->setWordWrap(true);
-            dlgLay->addWidget(hint);
-
-            auto* editor = new QTextEdit(dlg);
-            editor->setPlainText(text.trimmed());
-            editor->setFocus();
-            dlgLay->addWidget(editor, 1);
-
-            auto* btnBox = new QDialogButtonBox(dlg);
-            auto* btnTask   = btnBox->addButton("Invia come task \xe2\x96\xb6",
-                                                QDialogButtonBox::AcceptRole);
-            auto* btnUpdate = btnBox->addButton("Aggiorna bolla \xf0\x9f\x94\x84",
-                                                QDialogButtonBox::ApplyRole);
-            auto* btnCancel = btnBox->addButton(QDialogButtonBox::Cancel);
-            btnCancel->setText("Annulla");
-            dlgLay->addWidget(btnBox);
-
-            connect(btnTask, &QPushButton::clicked, dlg, [=]{
-                m_input->setPlainText(editor->toPlainText().trimmed());
-                m_input->setFocus();
-                m_input->moveCursor(QTextCursor::End);
-                dlg->accept();
-                /* Avvia il pipeline dopo la chiusura del dialog */
-                QTimer::singleShot(0, this, [this]{ m_btnRun->click(); });
-            });
-            connect(btnUpdate, &QPushButton::clicked, dlg, [=]{
-                /* Rimpiazza il testo della bolla nell'HTML del log */
-                const QString newText = editor->toPlainText().trimmed();
-                if (!newText.isEmpty() && !origB64.isEmpty()) {
-                    /* Salva snapshot undo prima di modificare */
-                    m_undoHtmlStack.push(m_log->toHtml());
-                    /* Sostituisce il base64 originale nell'href con il testo aggiornato */
-                    const QString newB64 = newText.left(4096).toUtf8().toBase64(
-                        QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
-                    QString html = m_log->toHtml();
-                    /* Aggiorna tutti i link della bolla che contengono il b64 originale */
-                    html.replace(origB64, newB64);
-                    m_log->setHtml(html);
-                    m_log->moveCursor(QTextCursor::End);
-                }
-                dlg->accept();
-            });
-            connect(btnBox, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
-
-            dlg->exec();
-            dlg->deleteLater();
-            return;
-        }
-
-        if (s.startsWith("copy:")) {
-            /* Rimuovi tag HTML prima di copiare */
-            QString plain = text;
-            plain.remove(QRegularExpression("<[^>]*>"));
-            plain = plain.trimmed();
-            QGuiApplication::clipboard()->setText(plain.isEmpty() ? text : plain);
-            /* Notifica visiva */
-            QToolTip::showText(QCursor::pos(),
-                "\xe2\x9c\x85  Il testo \xc3\xa8 stato copiato in memoria",
-                nullptr, {}, 2000);
-        } else {
-            /* TTS — rimuovi tag HTML, limita a 400 parole */
-            QString plain = text;
-            plain.remove(QRegularExpression("<[^>]*>"));
-            plain = plain.trimmed();
-            if (plain.isEmpty()) plain = text;
-            QStringList words = plain.split(' ', Qt::SkipEmptyParts);
-            if (words.size() > 400) words = words.mid(words.size() - 400);
-            _ttsPlay(words.join(" "));
-        }
-    });
+            this, &AgentiPage::onLogAnchorClicked);
 
     /* ── Copia / Leggi ora sono dentro ogni bolla — nessuna barra globale ── */
 
     /* Context menu sul log: copia / leggi selezione o tutto */
     m_log->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_log, &QTextEdit::customContextMenuRequested,
-            this, [this](const QPoint& pos){
-        const QString sel  = m_log->textCursor().selectedText();
-        const bool hasSel  = !sel.isEmpty();
-        const QString label = hasSel ? "selezione" : "tutto";
-
-        QMenu menu(m_log);
-        QAction* actCopy = menu.addAction(
-            "\xf0\x9f\x97\x82  Copia " + label);
-        QAction* actRead = menu.addAction(
-            "\xf0\x9f\x8e\x99  Leggi " + label);
-
-        QAction* chosen = menu.exec(m_log->mapToGlobal(pos));
-        const QString txt = hasSel ? sel : m_log->toPlainText();
-
-        if (chosen == actCopy) {
-            QGuiApplication::clipboard()->setText(txt);
-        } else if (chosen == actRead) {
-            QStringList words = txt.split(' ', Qt::SkipEmptyParts);
-            if (words.size() > 400) words = words.mid(words.size() - 400);
-            _ttsPlay(words.join(" "));
-        }
-    });
+            this, &AgentiPage::onLogContextMenuRequested);
 
     /* ── Area input: testo + 3 colonne pulsanti ── */
     auto* inputArea = new QWidget(this);
@@ -831,11 +406,7 @@ void AgentiPage::setupUI() {
         m_ragPanel->hide();
         lay->addWidget(m_ragPanel);
 
-        connect(m_btnRag, &QPushButton::toggled, this, [this](bool on){
-            m_ragPanel->setVisible(on);
-            m_btnRag->setText(on ? "\xf0\x9f\x93\x8e  RAG \xe2\x97\xa4"
-                                 : "\xf0\x9f\x93\x8e  RAG");
-        });
+        connect(m_btnRag, &QPushButton::toggled, this, &AgentiPage::onBtnRagToggled);
     }
 
     /* ── Footer suggerimenti (2 righe, nascondibile) ── */
@@ -874,60 +445,13 @@ void AgentiPage::setupUI() {
         const bool vis = AppConfig::s().value("ui/hintVisible", true).toBool();
         m_hintWidget->setVisible(vis);
 
-        connect(btnHide, &QPushButton::clicked, this, [this]{
-            m_hintWidget->setVisible(false);
-            AppConfig::s().setValue("ui/hintVisible", false);
-        });
+        connect(btnHide, &QPushButton::clicked, this, &AgentiPage::onBtnHintHideClicked);
     }
 
     /* ── Connessioni ── */
 
     /* Pulsante unico: se busy → abort; altrimenti esegue in base a modalità */
-    connect(m_btnRun, &QPushButton::clicked, this, [this]{
-        if (m_ai->busy()) { m_ai->abort(); return; }
-
-        /* Agente Autonomo: intercetta prima della pipeline normale */
-        if (m_autoEnabled && !m_modePipeline) {
-            const QString task = m_input->toPlainText().trimmed();
-            if (task.isEmpty()) return;
-            /* Reset stato ciclo ReAct */
-            m_autoHistory    = QJsonArray();
-            m_autoStep       = 0;
-            m_autoBuf.clear();
-            m_autoLastUserMsg = task;
-            m_input->clear();
-            /* Banner info — solo alla prima chat in modalità autonoma */
-            if (!m_autoMsgShown) {
-                m_autoMsgShown = true;
-                m_log->moveCursor(QTextCursor::End);
-                m_log->insertHtml(
-                    "<p style='color:#818cf8;font-size:11px;text-align:center;"
-                    "font-style:italic;margin:2px 0;'>"
-                    "\xf0\x9f\xa4\x96 Agente Autonomo attivato &mdash; "
-                    "l\xe2\x80\x99" "AI pianifica e usa strumenti automaticamente (max 8 step)</p>");
-            }
-            /* Bolla utente */
-            { int idx = m_bubbleIdx++;
-              m_bubbleTexts[idx] = task;
-              m_log->moveCursor(QTextCursor::End);
-              m_log->insertHtml(buildUserBubble(task, idx)); }
-            m_log->append("");
-            emit pipelineStatus(0, "\xf0\x9f\xa4\x96  Agente autonomo in esecuzione...");
-            _setRunBusy(true);
-            runAutonomousAgent();
-            return;
-        }
-
-        if (!m_modePipeline) {
-            /* Modalità Singolo: forza 1 agente */
-            m_cfgDlg->numAgentsSpinBox()->setValue(1);
-            m_maxShots = 1;
-        }
-        const int mode = m_cmbMode->currentIndex();
-        if      (mode == 10) runConsiglioScientifico();
-        else if (mode == 2)  runMathTheory();
-        else                 runPipeline();
-    });
+    connect(m_btnRun, &QPushButton::clicked, this, &AgentiPage::onBtnRunClicked);
 
     /* Invio = modalità corrente  |  Shift+Invio = a capo nel testo */
     {
@@ -1109,9 +633,8 @@ void AgentiPage::setupUI() {
                 auto* b = new QPushButton(ch, btnArea);
                 b->setObjectName("symbolBtn");
                 b->setFixedSize(fixedW, BTN_H);
-                connect(b, &QPushButton::clicked, this, [this, ch]{
-                    m_input->insertPlainText(ch);
-                });
+                b->setProperty("symbol", ch);
+                connect(b, &QPushButton::clicked, this, &AgentiPage::onSymbolBtnClicked);
                 btnGrid->addWidget(b, bRow, bCol);
                 ++bCol;
             }
@@ -1121,175 +644,27 @@ void AgentiPage::setupUI() {
         }
 
         /* Scroll verticale: max 180px visibili, poi scrollabile */
-        auto* outerScroll = new QScrollArea(this);
-        outerScroll->setWidget(m_symbolsPanel);
-        outerScroll->setWidgetResizable(true);
-        outerScroll->setMaximumHeight(260);
-        outerScroll->setFrameShape(QFrame::NoFrame);
-        outerScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        outerScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-        outerScroll->setVisible(false);
-        lay->addWidget(outerScroll);
+        m_symbolsScrollArea = new QScrollArea(this);
+        m_symbolsScrollArea->setWidget(m_symbolsPanel);
+        m_symbolsScrollArea->setWidgetResizable(true);
+        m_symbolsScrollArea->setMaximumHeight(260);
+        m_symbolsScrollArea->setFrameShape(QFrame::NoFrame);
+        m_symbolsScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_symbolsScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        m_symbolsScrollArea->setVisible(false);
+        lay->addWidget(m_symbolsScrollArea);
 
-        connect(btnSymbols, &QPushButton::clicked, this, [outerScroll]{
-            outerScroll->setVisible(!outerScroll->isVisible());
-        });
+        connect(btnSymbols, &QPushButton::clicked, this, &AgentiPage::onBtnSymbolsClicked);
     }
 
     /* ── Dialog traduzione ── */
-    connect(m_btnTranslate, &QPushButton::clicked, this, [this]{
-        static const QStringList kLangs = {
-            "Auto-rileva",
-            "Italiano", "Inglese", "Francese", "Spagnolo", "Portoghese",
-            "Tedesco", "Olandese", "Svedese", "Norvegese", "Danese",
-            "Russo", "Ucraino", "Polacco", "Ceco", "Slovacco",
-            "Cinese (Mandarino)", "Giapponese", "Coreano",
-            "Arabo", "Persiano (Farsi)", "Turco", "Ebraico",
-            "Hindi", "Bengalese", "Urdu",
-            "Swahili", "Hausa", "Somalo",
-            "Greco", "Rumeno", "Ungherese", "Finlandese",
-            "Catalano", "Galiziano", "Basco",
-            "Indonesiano", "Malese", "Tagalog (Filippino)",
-            "Thai", "Vietnamita"
-        };
-        if (m_ai->busy()) {
-            m_log->append("\xe2\x9a\xa0  Un'altra operazione \xc3\xa8 in corso.");
-            return;
-        }
-        QString inputText = m_input->toPlainText().trimmed();
-        if (inputText.isEmpty()) {
-            m_log->append("\xe2\x9a\xa0  Inserisci il testo da tradurre nel campo input.");
-            return;
-        }
-
-        auto* dlg = new QDialog(this);
-        dlg->setWindowTitle("\xf0\x9f\x8c\x90  Traduci testo");
-        dlg->setFixedWidth(420);
-        auto* dlgLay = new QVBoxLayout(dlg);
-        dlgLay->setSpacing(10);
-
-        /* ── Lingua sorgente ── */
-        auto* srcRow = new QHBoxLayout;
-        srcRow->addWidget(new QLabel("Da:", dlg));
-        auto* cmbSrc = new QComboBox(dlg);
-        cmbSrc->addItems(kLangs);
-        /* Ripristina ultima selezione */
-        int si = cmbSrc->findText(m_translateSrcLang);
-        if (si >= 0) cmbSrc->setCurrentIndex(si);
-        srcRow->addWidget(cmbSrc, 1);
-        dlgLay->addLayout(srcRow);
-
-        /* ── Lingua target ── */
-        auto* dstRow = new QHBoxLayout;
-        dstRow->addWidget(new QLabel("A:", dlg));
-        auto* cmbDst = new QComboBox(dlg);
-        for (const QString& l : kLangs)
-            if (l != "Auto-rileva") cmbDst->addItem(l);
-        cmbDst->setCurrentText(m_translateDstLang.isEmpty() ? "Italiano" : m_translateDstLang);
-        dstRow->addWidget(cmbDst, 1);
-        dlgLay->addLayout(dstRow);
-
-        /* ── Modello ── */
-        auto* mdlRow = new QHBoxLayout;
-        mdlRow->addWidget(new QLabel("Modello:", dlg));
-        auto* cmbMdl = new QComboBox(dlg);
-        for (auto& mi : m_modelInfos) cmbMdl->addItem(mi.name);
-        if (cmbMdl->count() == 0) cmbMdl->addItem(m_ai->model());
-        else {
-            int idx = cmbMdl->findText(m_ai->model());
-            if (idx >= 0) cmbMdl->setCurrentIndex(idx);
-        }
-        mdlRow->addWidget(cmbMdl, 1);
-        dlgLay->addLayout(mdlRow);
-
-        /* ── Testo in anteprima ── */
-        auto* previewLbl = new QLabel(
-            QString("\xf0\x9f\x93\x9d  Testo: <i>%1</i>")
-            .arg(inputText.length() > 80
-                 ? inputText.left(80) + "\xe2\x80\xa6"
-                 : inputText), dlg);
-        previewLbl->setWordWrap(true);
-        previewLbl->setStyleSheet("color:#9ca3af; font-size:11px;");
-        dlgLay->addWidget(previewLbl);
-
-        /* ── Pulsanti ── */
-        auto* bb = new QDialogButtonBox(
-            QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
-        bb->button(QDialogButtonBox::Ok)->setText("\xf0\x9f\x8c\x90  Traduci");
-        dlgLay->addWidget(bb);
-        connect(bb, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
-        connect(bb, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
-
-        if (dlg->exec() != QDialog::Accepted) { dlg->deleteLater(); return; }
-
-        /* ── Avvia traduzione ── */
-        m_translateSrcLang = cmbSrc->currentText();
-        m_translateDstLang = cmbDst->currentText();
-        QString selModel   = cmbMdl->currentText();
-        dlg->deleteLater();
-
-        /* Salva modello corrente e passa al modello di traduzione */
-        m_preTranslateModel = m_ai->model();
-        m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), selModel);
-
-        /* Prompt fedele */
-        QString prompt;
-        if (m_translateSrcLang == "Auto-rileva")
-            prompt = QString("Traducimi il seguente testo nella lingua %1. "
-                             "Mantieni il significato originale nel modo pi\xc3\xb9 fedele possibile. "
-                             "Rispondi SOLO con la traduzione, senza commenti aggiuntivi.\n\n"
-                             "Testo:\n%2").arg(m_translateDstLang).arg(inputText);
-        else
-            prompt = QString("Traducimi il seguente testo da %1 a %2. "
-                             "Mantieni il significato originale nel modo pi\xc3\xb9 fedele possibile. "
-                             "Rispondi SOLO con la traduzione, senza commenti aggiuntivi.\n\n"
-                             "Testo:\n%3")
-                     .arg(m_translateSrcLang).arg(m_translateDstLang).arg(inputText);
-
-        const QString sys =
-            "Sei un traduttore professionale. "
-            "Rispondi SEMPRE e SOLO con la traduzione richiesta, senza spiegazioni.";
-
-        m_log->clear();
-        m_log->append(QString("\xf0\x9f\x8c\x90  Traduzione  <b>%1</b> \xe2\x86\x92 <b>%2</b>"
-                              "  [modello: %3]\n")
-                      .arg(m_translateSrcLang, m_translateDstLang, selModel));
-        m_log->append(QString(43, QChar(0x2500)));
-
-        m_taskOriginal  = inputText;
-        m_translateBuf.clear();
-        m_pendingMode = OpMode::Idle;  /* traduzione pura: nessuna pipeline dopo */
-        m_opMode      = OpMode::Translating;
-
-        _setRunBusy(true);
-        m_btnTranslate->setEnabled(false);
-        m_waitLbl->setVisible(true);
-
-        m_ai->chat(sys, prompt);
-    });
+    connect(m_btnTranslate, &QPushButton::clicked, this, &AgentiPage::onBtnTranslateClicked);
 
     /* ── Lettore Documenti (PDF, Excel, ODS, testo) ── */
-    connect(m_btnDoc, &QPushButton::clicked, this, [this]{
-        static const QString filter =
-            "Tutti i documenti supportati "
-            "(*.txt *.md *.csv *.json *.py *.cpp *.c *.h *.html *.xml *.rst *.log "
-            "*.pdf *.xls *.xlsx *.ods *.ots *.fods);;"
-            "Testo (*.txt *.md *.csv *.json *.py *.cpp *.c *.h *.html *.xml *.rst *.log);;"
-            "PDF (*.pdf);;"
-            "Excel / Foglio di calcolo (*.xls *.xlsx *.ods *.ots *.fods);;"
-            "Tutti (*)";
-        const QString fp = QFileDialog::getOpenFileName(
-            this, "Allega documento", QString(), filter);
-        if (!fp.isEmpty()) loadDroppedFile(fp);
-    });
+    connect(m_btnDoc, &QPushButton::clicked, this, &AgentiPage::onBtnDocClicked);
 
     /* ── Analizzatore Immagini ── */
-    connect(m_btnImg, &QPushButton::clicked, this, [this]{
-        const QString fp = QFileDialog::getOpenFileName(
-            this, "Allega immagine", QString(),
-            "Immagini (*.png *.jpg *.jpeg *.gif *.webp);;Tutti (*)");
-        if (!fp.isEmpty()) loadDroppedFile(fp);
-    });
+    connect(m_btnImg, &QPushButton::clicked, this, &AgentiPage::onBtnImgClicked);
 
     /* ── Drag & Drop file su m_input ─────────────────────────────
        Accetta qualsiasi file trascinato sulla casella di testo.
@@ -1338,140 +713,24 @@ void AgentiPage::setupUI() {
 
     /* Numero agenti (dal dialog) → aggiorna m_maxShots */
     connect(m_cfgDlg->numAgentsSpinBox(), QOverload<int>::of(&QSpinBox::valueChanged),
-            this, [this](int v){ m_maxShots = v; });
+            this, &AgentiPage::onNumAgentsChanged);
 
     /* Preset categoria → applica ruoli nel dialog e mostra suggerimento */
-    static const char* presetLabels[7] = {
-        "\xf0\x9f\x93\x90  Preset Matematica applicato \xe2\x80\x94 puoi modificare i ruoli.",
-        "\xf0\x9f\x92\xbb  Preset Informatica applicato \xe2\x80\x94 puoi modificare i ruoli.",
-        "\xf0\x9f\x94\x90  Preset Sicurezza applicato \xe2\x80\x94 puoi modificare i ruoli.",
-        "\xe2\x9a\x9b\xef\xb8\x8f  Preset Fisica applicato \xe2\x80\x94 puoi modificare i ruoli.",
-        "\xf0\x9f\xa7\xaa  Preset Chimica applicato \xe2\x80\x94 puoi modificare i ruoli.",
-        "\xf0\x9f\x8c\x90  Preset Lingue applicato \xe2\x80\x94 puoi modificare i ruoli.",
-        "\xf0\x9f\x8c\x8d  Preset Generico applicato \xe2\x80\x94 puoi modificare i ruoli.",
-    };
     connect(m_cmbMode, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int idx){
-        if (idx < 3) { m_autoLbl->setVisible(false); return; }
-        m_cfgDlg->applyPreset(idx);
-        static const char* lbls[] = {
-            "\xf0\x9f\x93\x90  Preset Matematica applicato.",
-            "\xf0\x9f\x92\xbb  Preset Informatica applicato.",
-            "\xf0\x9f\x94\x90  Preset Sicurezza applicato.",
-            "\xe2\x9a\x9b\xef\xb8\x8f  Preset Fisica applicato.",
-            "\xf0\x9f\xa7\xaa  Preset Chimica applicato.",
-            "\xf0\x9f\x8c\x90  Preset Lingue applicato.",
-            "\xf0\x9f\x8c\x8d  Preset Generico applicato.",
-        };
-        m_autoLbl->setText(QString::fromUtf8(lbls[idx - 3])
-                           + "  \xe2\x80\x94  Puoi modificarli in \xe2\x9a\x99\xef\xb8\x8f Configura Agenti.");
-        m_autoLbl->setVisible(true);
-    });
+            this, &AgentiPage::onCmbModePresetChanged);
 
     /* Modelli matematici: pre-seleziona reasoning model */
     connect(m_cmbMode, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int idx) {
-        if (idx != 2) return;
-        static const QStringList mathKw  = {"r1","math","reason","think","qwq","deepseek-r"};
-        static const QStringList coderKw = {"coder","code","starcoder","codellama","qwen2.5-coder"};
-        static const QStringList largeKw = {"qwen3","llama3","gemma","mistral","phi"};
-
-        auto bestMatch = [&](int i) -> int {
-            QComboBox* cb = m_cfgDlg->modelCombo(i);
-            for (int p = 0; p < cb->count(); p++) {
-                QString n = cb->itemText(p).toLower();
-                for (auto& kw : mathKw) if (n.contains(kw)) return p;
-            }
-            for (int p = 0; p < cb->count(); p++) {
-                QString n = cb->itemText(p).toLower();
-                for (auto& kw : coderKw) if (n.contains(kw)) return p;
-            }
-            for (int p = 0; p < cb->count(); p++) {
-                QString n = cb->itemText(p).toLower();
-                for (auto& kw : largeKw) if (n.contains(kw)) return p;
-            }
-            return -1;
-        };
-        int assigned = 0;
-        for (int i = 0; i < MAX_AGENTS; i++) {
-            if (!m_cfgDlg->enabledChk(i)->isChecked()) continue;
-            int best = bestMatch(i);
-            if (best >= 0) { m_cfgDlg->modelCombo(i)->setCurrentIndex(best); assigned++; }
-        }
-        m_autoLbl->setText(assigned > 0
-            ? "\xf0\x9f\xa7\xae  Modelli reasoning/coder pre-selezionati per Matematico Teorico."
-            : "\xf0\x9f\x92\xa1  Consigliato: modelli reasoning (deepseek-r1, qwen3, qwq).");
-        m_autoLbl->setVisible(true);
-    });
+            this, &AgentiPage::onCmbModeMathChanged);
 
     /* AI interrotta: reset UI */
-    connect(m_ai, &AiClient::aborted, this, [this]{
-        m_waitLbl->setVisible(false);
-
-        /* Rimuove il contenuto parziale dello streaming (testo grezzo non ancora
-           convertito in bolla) che va da m_agentBlockStart alla fine del documento.
-           Senza questo cleanup, il testo grezzo rimane visibile e la formattazione
-           appare "sballata" quando si torna sulla scheda dopo un cambio tab. */
-        if (m_agentBlockStart > 0) {
-            QTextCursor sel(m_log->document());
-            sel.setPosition(m_agentBlockStart);
-            sel.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
-            if (!sel.selectedText().trimmed().isEmpty())
-                sel.removeSelectedText();
-            m_agentBlockStart = 0;
-        }
-
-        m_opMode       = OpMode::Idle;
-        m_currentAgent = 0;
-        m_agentOutputs.clear();
-        m_byzStep      = 0;
-        _setRunBusy(false);
-        emit pipelineStatus(0, "\xe2\x9c\x8b  Interrotto");
-        for (int i = 0; i < MAX_AGENTS; i++)
-            m_cfgDlg->enabledChk(i)->setStyleSheet("");
-        m_log->moveCursor(QTextCursor::End);
-        m_log->append("\n\xe2\x9c\x8b  Pipeline interrotta.");
-    });
+    connect(m_ai, &AiClient::aborted, this, &AgentiPage::onAiAborted);
 
     /* ── STT Trascrivi Voce — registra + whisper.cpp (zero Python) ──
        Il pulsante funge anche da Stop: clic durante registrazione = cancella.
        Stati: Idle → Recording → Transcribing → Idle
        Se il modello manca viene scaricato automaticamente prima di avviare. ── */
-    connect(m_btnVoice, &QPushButton::clicked, this, [this]{
-        /* ── Stop durante registrazione ── */
-        if (m_sttState == SttState::Recording) {
-            if (m_recProc) { m_recProc->kill(); m_recProc->waitForFinished(300); }
-            m_sttState = SttState::Idle;
-            m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
-            m_btnVoice->setProperty("danger","false");
-            P::repolish(m_btnVoice);
-            m_btnVoice->setEnabled(true);
-            return;
-        }
-        /* ── Ignora clic mentre trascrive o scarica ── */
-        if (m_sttState == SttState::Transcribing ||
-            m_sttState == SttState::Downloading) return;
-
-        /* ── Controlla binario ── */
-        if (SttWhisper::whisperBin().isEmpty()) {
-            m_log->append(
-                "<p style='color:#e2e8f0;'>"
-                "\xe2\x9a\xa0  <b>whisper-cli non trovato.</b> "
-                "<a href=\"settings:trascrivi\" style=\"color:#93c5fd;\">"
-                "Clicca qui</a> per aprire le Impostazioni &rarr; Trascrivi"
-                " e installare il riconoscimento vocale."
-                "</p>");
-            return;
-        }
-
-        /* ── Modello assente: avvia download automatico ── */
-        if (SttWhisper::whisperModel().isEmpty()) {
-            downloadWhisperModel();
-            return;
-        }
-
-        _sttStartRecording();
-    });
+    connect(m_btnVoice, &QPushButton::clicked, this, &AgentiPage::onBtnVoiceClicked);
 }
 
 void AgentiPage::_setRunBusy(bool busy)
@@ -1490,5 +749,842 @@ void AgentiPage::_setRunBusy(bool busy)
     }
     m_btnRun->setEnabled(true);
     P::repolish(m_btnRun);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot nominati — agenti_page_ui.cpp
+   ══════════════════════════════════════════════════════════════ */
+
+void AgentiPage::onTtsStopClicked()
+{
+    /* Ferma piper prima di aplay (evita dati residui in pipe) */
+    if (m_piperProc) {
+        m_piperProc->kill();
+        m_piperProc->waitForFinished(300);
+        m_piperProc->deleteLater();
+        m_piperProc = nullptr;
+    }
+    if (m_ttsProc) { m_ttsProc->kill(); m_ttsProc->waitForFinished(300); }
+#ifndef Q_OS_WIN
+    QProcess::startDetached("pkill", {"-9", "aplay"});
+    QProcess::startDetached("pkill", {"-9", "piper"});
+#endif
+    m_ttsPaused = false;
+    if (m_btnTtsPause) { m_btnTtsPause->setText("\xe2\x8f\xb8  Pausa"); m_btnTtsPause->setVisible(false); }
+    m_btnTtsStop->setVisible(false);
+}
+
+void AgentiPage::onTtsPauseClicked()
+{
+#ifndef Q_OS_WIN
+    auto sendSig = [](QProcess* p, int sig){
+        if (p && p->state() == QProcess::Running && p->processId() > 0)
+            ::kill(static_cast<pid_t>(p->processId()), sig);
+    };
+    if (!m_ttsPaused) {
+        sendSig(m_ttsProc,   SIGSTOP);
+        sendSig(m_piperProc, SIGSTOP);
+        m_ttsPaused = true;
+        m_btnTtsPause->setText("\xe2\x96\xb6  Riprendi");
+    } else {
+        sendSig(m_ttsProc,   SIGCONT);
+        sendSig(m_piperProc, SIGCONT);
+        m_ttsPaused = false;
+        m_btnTtsPause->setText("\xe2\x8f\xb8  Pausa");
+    }
+#else
+    /* Windows: pausa non supportata, simula stop */
+    if (m_ttsProc)   { m_ttsProc->kill(); m_ttsProc->waitForFinished(300); }
+    if (m_piperProc) { m_piperProc->kill(); m_piperProc->waitForFinished(300); }
+    if (m_btnTtsPause) m_btnTtsPause->setVisible(false);
+    if (m_btnTtsStop)  m_btnTtsStop->setVisible(false);
+#endif
+}
+
+void AgentiPage::onBtnExportClicked()
+{
+    if (!m_log || m_log->toPlainText().trimmed().isEmpty()) return;
+    const QString ts   = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+    const QString name = QString("prismalux_chat_%1.md").arg(ts);
+    const QString path = QFileDialog::getSaveFileName(
+        this, "Esporta conversazione", QDir::homePath() + "/" + name,
+        "Markdown (*.md);;HTML (*.html);;Testo (*.txt)");
+    if (path.isEmpty()) return;
+
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
+    QTextStream out(&f);
+
+    if (path.endsWith(".html", Qt::CaseInsensitive)) {
+        out << m_log->toHtml();
+    } else if (path.endsWith(".txt", Qt::CaseInsensitive)) {
+        out << m_log->toPlainText();
+    } else {
+        QTextDocument doc;
+        doc.setHtml(m_log->toHtml());
+        out << "# Prismalux \xe2\x80\x94 Conversazione\n";
+        out << "_Esportata il " << QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm") << "_\n\n";
+        out << "---\n\n";
+        out << doc.toMarkdown();
+    }
+}
+
+void AgentiPage::onBtnExportPdfClicked()
+{
+    if (!m_log || m_log->toPlainText().trimmed().isEmpty()) return;
+    const QString ts   = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+    const QString name = QString("prismalux_chat_%1.pdf").arg(ts);
+    const QString path = QFileDialog::getSaveFileName(
+        this, "Esporta come PDF", QDir::homePath() + "/" + name,
+        "PDF (*.pdf)");
+    if (path.isEmpty()) return;
+    QPrinter printer(QPrinter::HighResolution);
+    printer.setOutputFormat(QPrinter::PdfFormat);
+    printer.setOutputFileName(path);
+    printer.setPageSize(QPageSize::A4);
+    m_log->document()->print(&printer);
+}
+
+void AgentiPage::onBtnInfoClicked()
+{
+    if (!m_hintWidget) return;
+    const bool now = !m_hintWidget->isVisible();
+    m_hintWidget->setVisible(now);
+    AppConfig::s().setValue("ui/hintVisible", now);
+}
+
+void AgentiPage::onVoiceLoopToggled(bool on)
+{
+    static const char* kVoiceOff =
+        "QPushButton{"
+          "background:#1e2d45;border:2px solid #334155;color:#64748b;"
+          "border-radius:14px;padding:4px 12px;font-weight:bold;font-size:12px;}"
+        "QPushButton:hover{background:#243650;color:#94a3b8;}";
+    static const char* kVoiceOn =
+        "QPushButton{"
+          "background:#7f1d1d20;border:2px solid #ef4444;color:#ef4444;"
+          "border-radius:14px;padding:4px 12px;font-weight:bold;font-size:12px;}"
+        "QPushButton:hover{background:#7f1d1d35;}";
+
+    m_voiceLoopActive = on;
+    m_btnVoiceLoop->setStyleSheet(on ? kVoiceOn : kVoiceOff);
+    if (on) {
+        m_btnVoiceLoop->setText("\xf0\x9f\x94\xb4  In ascolto...");
+    } else {
+        const QString pName = P::personalityName();
+        m_btnVoiceLoop->setText(pName.isEmpty()
+            ? "\xf0\x9f\x8e\x99  Conversa"
+            : "\xf0\x9f\x8e\x99  Conversa con " + pName);
+    }
+
+    if (on) {
+        if (SttWhisper::whisperBin().isEmpty()) {
+            m_log->append(
+                "<p style='color:#e2e8f0;'>"
+                "\xe2\x9a\xa0  <b>whisper-cli non trovato.</b> "
+                "Clicca <a href=\"settings:trascrivi\" style=\"color:#93c5fd;\">"
+                "Impostazioni \xe2\x86\x92 Trascrivi</a> per installarlo."
+                "</p>");
+            m_voiceLoopActive = false;
+            m_btnVoiceLoop->setChecked(false);
+            return;
+        }
+        if (SttWhisper::whisperModel().isEmpty()) {
+            downloadWhisperModel();
+            m_voiceLoopActive = false;
+            m_btnVoiceLoop->setChecked(false);
+            return;
+        }
+        if (m_sttState == SttState::Idle)
+            _sttStartRecording();
+    } else {
+        /* Ferma TTS se in lettura */
+        if (m_piperProc) {
+            m_piperProc->kill();
+            m_piperProc->waitForFinished(300);
+            m_piperProc->deleteLater();
+            m_piperProc = nullptr;
+        }
+        if (m_ttsProc) {
+            m_ttsProc->kill();
+            m_ttsProc->waitForFinished(300);
+            if (m_ttsProc) { m_ttsProc->deleteLater(); m_ttsProc = nullptr; }
+        }
+        if (m_btnTtsStop)  m_btnTtsStop->setVisible(false);
+        if (m_btnTtsPause) m_btnTtsPause->setVisible(false);
+        /* Ferma registrazione se attiva */
+        if (m_sttState == SttState::Recording) {
+            if (m_recProc) {
+                m_recProc->kill();
+                m_recProc->waitForFinished(300);
+                m_recProc->deleteLater();
+                m_recProc = nullptr;
+            }
+            m_sttState = SttState::Idle;
+            m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
+            m_btnVoice->setProperty("danger","false");
+            P::repolish(m_btnVoice);
+            m_btnVoice->setEnabled(true);
+        }
+    }
+}
+
+void AgentiPage::onToolChkToggled(bool on)
+{
+    if (!m_autoEnabled)   /* In Agente Autonomo, m_toolsEnabled resta true */
+        m_toolsEnabled = on;
+}
+
+void AgentiPage::onCmbLLMIndexChanged(int idx)
+{
+    if (idx < 0 || !m_cmbLLM) return;
+    const QString mdl = m_cmbLLM->currentData(Qt::UserRole).toString().isEmpty()
+                      ? m_cmbLLM->currentText()
+                      : m_cmbLLM->currentData(Qt::UserRole).toString();
+    if (mdl.isEmpty() || mdl == "(caricamento...)") return;
+    m_pageModel = mdl;
+    m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), mdl);
+}
+
+void AgentiPage::onModeToggleToggled(bool autoOn)
+{
+    static const char* kStyleChat =
+        "QPushButton{"
+          "background:#1e2d45;border:2px solid #334155;color:#64748b;"
+          "border-radius:14px;padding:4px 16px;font-weight:bold;font-size:12px;}"
+        "QPushButton:hover{background:#243650;color:#94a3b8;}";
+    static const char* kStyleAuto =
+        "QPushButton{"
+          "background:#1e1b4b20;border:2px solid #818cf8;color:#818cf8;"
+          "border-radius:14px;padding:4px 16px;font-weight:bold;font-size:12px;}"
+        "QPushButton:hover{background:#1e1b4b35;}";
+
+    m_autoEnabled   = autoOn;
+    m_toolsEnabled  = autoOn || (m_toolChk && m_toolChk->isChecked());
+    m_toolIteration = 0;
+    m_modePipeline  = false;
+    /* In modalità Autonomo: tools sempre attivi, checkbox bloccato spuntato */
+    if (m_toolChk) {
+        m_toolChk->blockSignals(true);
+        if (autoOn) m_toolChk->setChecked(true);
+        m_toolChk->setEnabled(!autoOn);
+        m_toolChk->blockSignals(false);
+    }
+
+    m_btnModeToggle->setText(autoOn
+        ? "\xf0\x9f\xa4\x96  Agente Autonomo"
+        : "\xf0\x9f\x92\xac  Chat");
+    m_btnModeToggle->setStyleSheet(autoOn ? kStyleAuto : kStyleChat);
+
+    m_btnRun->setText(autoOn
+        ? "\xf0\x9f\xa4\x96  Avvia Agente"
+        : "\xf0\x9f\x92\xac CHAT con RAG");
+}
+
+void AgentiPage::onLogScrollValueChanged(int value)
+{
+    if (m_suppressScrollSig) return;
+    m_userScrolled = (value < m_log->verticalScrollBar()->maximum());
+}
+
+void AgentiPage::onBtnChartOpenClicked()
+{
+    emit requestShowInGrafico(m_lastChartExpr, m_lastChartXMin, m_lastChartXMax, m_lastChartPts);
+}
+
+void AgentiPage::onLogAnchorClicked(const QUrl& url)
+{
+    const QString s = url.toString();
+    /* formato: "copy:IDX" | "tts:IDX" | "chart:show" | "settings:<tab>" | "fb:up/down:IDX" */
+    /* ── Feedback \xf0\x9f\x91\x8d/\xf0\x9f\x91\x8e ── */
+    if (s.startsWith("fb:")) {
+        const QStringList parts = s.split(':');
+        if (parts.size() >= 3) {
+            const QString rating = parts[1];   /* "up" o "down" */
+            const int     idx    = parts[2].toInt();
+            saveFeedback(idx, rating == "up" ? 1 : -1);
+        }
+        return;
+    }
+    if (s.startsWith("settings:")) {
+        emit requestOpenSettings(s.mid(9));
+        return;
+    }
+    if (s == "chart:show") {
+        if (m_chartPanel) m_chartPanel->setVisible(true);
+        return;
+    }
+    /* ── Elimina messaggio con conferma ── */
+    if (s.startsWith("del:")) {
+        QMessageBox ask(this);
+        ask.setWindowTitle("\xf0\x9f\x97\x91  Elimina messaggio");
+        ask.setText("<b>Eliminare questo messaggio dalla chat?</b>");
+        ask.setInformativeText(
+            "Questa operazione \xc3\xa8 irreversibile.");
+        QPushButton* btnDel = ask.addButton("Elimina", QMessageBox::DestructiveRole);
+        ask.addButton("Annulla", QMessageBox::RejectRole);
+        ask.setDefaultButton(btnDel);
+        ask.exec();
+        if (ask.clickedButton() != btnDel) return;
+
+        /* Salva snapshot per undo */
+        m_undoHtmlStack.push(m_log->toHtml());
+
+        /* Rimuovi il blocco della bolla dall'HTML usando il del:ID univoco */
+        const QString c1s = s.mid(4, s.indexOf(':', 4) - 4); /* estrai ID */
+        QString html = m_log->toHtml();
+        QRegularExpression re(
+            "<table[^>]*>(?:(?!</table>).)*?" +
+            QRegularExpression::escape("del:" + c1s + ":") +
+            ".*?</table>(?:\\s*<p[^>]*>\\s*</p>)?",
+            QRegularExpression::DotMatchesEverythingOption);
+        html.remove(re);
+        m_log->setHtml(html);
+        m_log->moveCursor(QTextCursor::End);
+        return;
+    }
+
+    /* ── Toggle ragionamento <think> collassabile ── */
+    if (s.startsWith("think:toggle:")) {
+        bool ok2 = false;
+        const int N = s.mid(13).toInt(&ok2);
+        if (!ok2 || !m_thinkTexts.contains(N)) return;
+
+        const int scrollPos = m_log->verticalScrollBar()->value();
+        QString html = m_log->toHtml();
+        const QString nStr = QString::number(N);
+
+        if (m_thinkShown.contains(N)) {
+            /* === NASCONDI === */
+            m_thinkShown.remove(N);
+            QRegularExpression reArrowDown(
+                "(think:toggle:" + nStr + "[^>]*>)\xf0\x9f\x94\xbb",
+                QRegularExpression::DotMatchesEverythingOption);
+            html.replace(reArrowDown, "\\1\xe2\x96\xb6\xef\xb8\x8f");
+            QRegularExpression reBox(
+                "<table[^>]*>(?:(?!</table>)[\\s\\S])*?think-end:" + nStr +
+                "[\\s\\S]*?</table>",
+                QRegularExpression::DotMatchesEverythingOption);
+            html.remove(reBox);
+        } else {
+            /* === MOSTRA === */
+            m_thinkShown.insert(N);
+            QRegularExpression reArrowRight(
+                "(think:toggle:" + nStr + "[^>]*>)\xe2\x96\xb6\xef\xb8\x8f",
+                QRegularExpression::DotMatchesEverythingOption);
+            html.replace(reArrowRight, "\\1\xf0\x9f\x94\xbb");
+
+            const QString rawThink = m_thinkTexts.value(N);
+            QString safeThink = rawThink;
+            safeThink.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+            safeThink.replace("\n","<br>");
+
+            const QString thinkBox =
+                "<table width='100%' cellpadding='0' cellspacing='0' style='margin:0 0 6px 0;'>"
+                "<tr><td bgcolor='#1a1a2e' style='"
+                    "border-left:3px solid #4a4a6a;"
+                    "padding:6px 10px;"
+                    "border-radius:0 4px 4px 0;'>"
+                  "<p style='color:#7070a0;font-size:10px;font-weight:bold;margin:0 0 4px 0;'>"
+                    "&#129504; Ragionamento interno"
+                  "</p>"
+                  "<p style='color:#8888aa;font-size:11px;font-style:italic;"
+                            "margin:0;line-height:1.5;'>"
+                    + safeThink +
+                    "<a href='think-end:" + nStr + "'></a>"
+                  "</p>"
+                "</td></tr></table>";
+
+            int anchorPos = html.indexOf("think:toggle:" + nStr);
+            if (anchorPos >= 0) {
+                int endP = html.indexOf("</p>", anchorPos);
+                if (endP >= 0)
+                    html.insert(endP + 4, thinkBox);
+            }
+        }
+
+        m_log->setHtml(html);
+        m_log->verticalScrollBar()->setValue(scrollPos);
+        return;
+    }
+
+    if (!s.startsWith("copy:") && !s.startsWith("tts:") && !s.startsWith("edit:")) return;
+    /* Formato nuovo: "copy:N:BASE64URL" — il testo è embedded nell'href.
+       Formato vecchio: "copy:N"          — fallback su m_bubbleTexts. */
+    const int c1 = s.indexOf(':');              // colon dopo "copy"/"tts"/"edit"
+    const int c2 = s.indexOf(':', c1 + 1);      // secondo colon (nuovo formato), -1 se vecchio
+    bool ok = false;
+    const int idx = s.mid(c1 + 1, c2 < 0 ? -1 : c2 - c1 - 1).toInt(&ok);
+    if (!ok) return;
+    QString text;
+    const QString origB64 = (c2 > 0) ? s.mid(c2 + 1) : QString();
+    if (c2 > 0) {
+        text = QString::fromUtf8(QByteArray::fromBase64(
+            origB64.toLatin1(), QByteArray::Base64UrlEncoding));
+    } else {
+        if (!m_bubbleTexts.contains(idx)) return;
+        text = m_bubbleTexts.value(idx);
+    }
+
+    if (s.startsWith("edit:")) {
+        /* Apre un dialog di modifica: l'utente può editare il testo liberamente
+           e scegliere se rimpiazzare la bolla nel log o inviare come nuovo task */
+        auto* dlg  = new QDialog(this);
+        dlg->setWindowTitle("\xe2\x9c\x8f\xef\xb8\x8f  Modifica testo");
+        dlg->setMinimumSize(520, 360);
+        auto* dlgLay = new QVBoxLayout(dlg);
+        dlgLay->setSpacing(10);
+
+        auto* hint = new QLabel(
+            "<small>\xe2\x84\xb9  Modifica il testo. <b>Invia come task</b> lo carica nel campo "
+            "input pronto per essere rielaborato dall'AI. "
+            "<b>Aggiorna bolla</b> sostituisce il testo nel log.</small>");
+        hint->setWordWrap(true);
+        dlgLay->addWidget(hint);
+
+        auto* editor = new QTextEdit(dlg);
+        editor->setPlainText(text.trimmed());
+        editor->setFocus();
+        dlgLay->addWidget(editor, 1);
+
+        auto* btnBox = new QDialogButtonBox(dlg);
+        auto* btnTask   = btnBox->addButton("Invia come task \xe2\x96\xb6",
+                                            QDialogButtonBox::AcceptRole);
+        auto* btnUpdate = btnBox->addButton("Aggiorna bolla \xf0\x9f\x94\x84",
+                                            QDialogButtonBox::ApplyRole);
+        auto* btnCancel = btnBox->addButton(QDialogButtonBox::Cancel);
+        btnCancel->setText("Annulla");
+        dlgLay->addWidget(btnBox);
+
+        /* done(1)=task, done(2)=aggiorna bolla, reject=annulla */
+        connect(btnTask,   &QPushButton::clicked, dlg, [dlg]{ dlg->done(1); });
+        connect(btnUpdate, &QPushButton::clicked, dlg, [dlg]{ dlg->done(2); });
+        connect(btnBox,    &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+
+        const int dlgResult = dlg->exec();
+
+        if (dlgResult == 1) {
+            m_input->setPlainText(editor->toPlainText().trimmed());
+            m_input->setFocus();
+            m_input->moveCursor(QTextCursor::End);
+            dlg->deleteLater();
+            /* Avvia il pipeline dopo la chiusura del dialog */
+            QTimer::singleShot(0, this, &AgentiPage::onBtnRunDelayedClick);
+            return;
+        }
+        if (dlgResult == 2) {
+            const QString newText = editor->toPlainText().trimmed();
+            if (!newText.isEmpty() && !origB64.isEmpty()) {
+                m_undoHtmlStack.push(m_log->toHtml());
+                const QString newB64 = newText.left(4096).toUtf8().toBase64(
+                    QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+                QString html = m_log->toHtml();
+                html.replace(origB64, newB64);
+                m_log->setHtml(html);
+                m_log->moveCursor(QTextCursor::End);
+            }
+        }
+        dlg->deleteLater();
+        return;
+    }
+
+    if (s.startsWith("copy:")) {
+        /* Rimuovi tag HTML prima di copiare */
+        QString plain = text;
+        plain.remove(QRegularExpression("<[^>]*>"));
+        plain = plain.trimmed();
+        QGuiApplication::clipboard()->setText(plain.isEmpty() ? text : plain);
+        /* Notifica visiva */
+        QToolTip::showText(QCursor::pos(),
+            "\xe2\x9c\x85  Il testo \xc3\xa8 stato copiato in memoria",
+            nullptr, {}, 2000);
+    } else {
+        /* TTS — rimuovi tag HTML, limita a 400 parole */
+        QString plain = text;
+        plain.remove(QRegularExpression("<[^>]*>"));
+        plain = plain.trimmed();
+        if (plain.isEmpty()) plain = text;
+        QStringList words = plain.split(' ', Qt::SkipEmptyParts);
+        if (words.size() > 400) words = words.mid(words.size() - 400);
+        _ttsPlay(words.join(" "));
+    }
+}
+
+void AgentiPage::onBtnRunDelayedClick()
+{
+    m_btnRun->click();
+}
+
+void AgentiPage::onLogContextMenuRequested(const QPoint& pos)
+{
+    const QString sel  = m_log->textCursor().selectedText();
+    const bool hasSel  = !sel.isEmpty();
+    const QString label = hasSel ? "selezione" : "tutto";
+
+    QMenu menu(m_log);
+    QAction* actCopy = menu.addAction(
+        "\xf0\x9f\x97\x82  Copia " + label);
+    QAction* actRead = menu.addAction(
+        "\xf0\x9f\x8e\x99  Leggi " + label);
+
+    QAction* chosen = menu.exec(m_log->mapToGlobal(pos));
+    const QString txt = hasSel ? sel : m_log->toPlainText();
+
+    if (chosen == actCopy) {
+        QGuiApplication::clipboard()->setText(txt);
+    } else if (chosen == actRead) {
+        QStringList words = txt.split(' ', Qt::SkipEmptyParts);
+        if (words.size() > 400) words = words.mid(words.size() - 400);
+        _ttsPlay(words.join(" "));
+    }
+}
+
+void AgentiPage::onBtnRagToggled(bool on)
+{
+    m_ragPanel->setVisible(on);
+    m_btnRag->setText(on ? "\xf0\x9f\x93\x8e  RAG \xe2\x97\xa4"
+                         : "\xf0\x9f\x93\x8e  RAG");
+}
+
+void AgentiPage::onBtnHintHideClicked()
+{
+    m_hintWidget->setVisible(false);
+    AppConfig::s().setValue("ui/hintVisible", false);
+}
+
+void AgentiPage::onBtnRunClicked()
+{
+    if (m_ai->busy()) { m_ai->abort(); return; }
+
+    /* Agente Autonomo: intercetta prima della pipeline normale */
+    if (m_autoEnabled && !m_modePipeline) {
+        const QString task = m_input->toPlainText().trimmed();
+        if (task.isEmpty()) return;
+        /* Reset stato ciclo ReAct */
+        m_autoHistory    = QJsonArray();
+        m_autoStep       = 0;
+        m_autoBuf.clear();
+        m_autoLastUserMsg = task;
+        m_input->clear();
+        /* Banner info — solo alla prima chat in modalità autonoma */
+        if (!m_autoMsgShown) {
+            m_autoMsgShown = true;
+            m_log->moveCursor(QTextCursor::End);
+            m_log->insertHtml(
+                "<p style='color:#818cf8;font-size:11px;text-align:center;"
+                "font-style:italic;margin:2px 0;'>"
+                "\xf0\x9f\xa4\x96 Agente Autonomo attivato &mdash; "
+                "l\xe2\x80\x99" "AI pianifica e usa strumenti automaticamente (max 8 step)</p>");
+        }
+        /* Bolla utente */
+        { int idx = m_bubbleIdx++;
+          m_bubbleTexts[idx] = task;
+          m_log->moveCursor(QTextCursor::End);
+          m_log->insertHtml(buildUserBubble(task, idx)); }
+        m_log->append("");
+        emit pipelineStatus(0, "\xf0\x9f\xa4\x96  Agente autonomo in esecuzione...");
+        _setRunBusy(true);
+        runAutonomousAgent();
+        return;
+    }
+
+    if (!m_modePipeline) {
+        /* Modalità Singolo: forza 1 agente */
+        m_cfgDlg->numAgentsSpinBox()->setValue(1);
+        m_maxShots = 1;
+    }
+    const int mode = m_cmbMode->currentIndex();
+    if      (mode == 10) runConsiglioScientifico();
+    else if (mode == 2)  runMathTheory();
+    else                 runPipeline();
+}
+
+void AgentiPage::onSymbolBtnClicked()
+{
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn || !m_input) return;
+    m_input->insertPlainText(btn->property("symbol").toString());
+}
+
+void AgentiPage::onBtnSymbolsClicked()
+{
+    if (m_symbolsScrollArea)
+        m_symbolsScrollArea->setVisible(!m_symbolsScrollArea->isVisible());
+}
+
+void AgentiPage::onBtnTranslateClicked()
+{
+    static const QStringList kLangs = {
+        "Auto-rileva",
+        "Italiano", "Inglese", "Francese", "Spagnolo", "Portoghese",
+        "Tedesco", "Olandese", "Svedese", "Norvegese", "Danese",
+        "Russo", "Ucraino", "Polacco", "Ceco", "Slovacco",
+        "Cinese (Mandarino)", "Giapponese", "Coreano",
+        "Arabo", "Persiano (Farsi)", "Turco", "Ebraico",
+        "Hindi", "Bengalese", "Urdu",
+        "Swahili", "Hausa", "Somalo",
+        "Greco", "Rumeno", "Ungherese", "Finlandese",
+        "Catalano", "Galiziano", "Basco",
+        "Indonesiano", "Malese", "Tagalog (Filippino)",
+        "Thai", "Vietnamita"
+    };
+    if (m_ai->busy()) {
+        m_log->append("\xe2\x9a\xa0  Un'altra operazione \xc3\xa8 in corso.");
+        return;
+    }
+    QString inputText = m_input->toPlainText().trimmed();
+    if (inputText.isEmpty()) {
+        m_log->append("\xe2\x9a\xa0  Inserisci il testo da tradurre nel campo input.");
+        return;
+    }
+
+    auto* dlg = new QDialog(this);
+    dlg->setWindowTitle("\xf0\x9f\x8c\x90  Traduci testo");
+    dlg->setFixedWidth(420);
+    auto* dlgLay = new QVBoxLayout(dlg);
+    dlgLay->setSpacing(10);
+
+    /* ── Lingua sorgente ── */
+    auto* srcRow = new QHBoxLayout;
+    srcRow->addWidget(new QLabel("Da:", dlg));
+    auto* cmbSrc = new QComboBox(dlg);
+    cmbSrc->addItems(kLangs);
+    int si = cmbSrc->findText(m_translateSrcLang);
+    if (si >= 0) cmbSrc->setCurrentIndex(si);
+    srcRow->addWidget(cmbSrc, 1);
+    dlgLay->addLayout(srcRow);
+
+    /* ── Lingua target ── */
+    auto* dstRow = new QHBoxLayout;
+    dstRow->addWidget(new QLabel("A:", dlg));
+    auto* cmbDst = new QComboBox(dlg);
+    for (const QString& l : kLangs)
+        if (l != "Auto-rileva") cmbDst->addItem(l);
+    cmbDst->setCurrentText(m_translateDstLang.isEmpty() ? "Italiano" : m_translateDstLang);
+    dstRow->addWidget(cmbDst, 1);
+    dlgLay->addLayout(dstRow);
+
+    /* ── Modello ── */
+    auto* mdlRow = new QHBoxLayout;
+    mdlRow->addWidget(new QLabel("Modello:", dlg));
+    auto* cmbMdl = new QComboBox(dlg);
+    for (auto& mi : m_modelInfos) cmbMdl->addItem(mi.name);
+    if (cmbMdl->count() == 0) cmbMdl->addItem(m_ai->model());
+    else {
+        int idx = cmbMdl->findText(m_ai->model());
+        if (idx >= 0) cmbMdl->setCurrentIndex(idx);
+    }
+    mdlRow->addWidget(cmbMdl, 1);
+    dlgLay->addLayout(mdlRow);
+
+    /* ── Testo in anteprima ── */
+    auto* previewLbl = new QLabel(
+        QString("\xf0\x9f\x93\x9d  Testo: <i>%1</i>")
+        .arg(inputText.length() > 80
+             ? inputText.left(80) + "\xe2\x80\xa6"
+             : inputText), dlg);
+    previewLbl->setWordWrap(true);
+    previewLbl->setStyleSheet("color:#9ca3af; font-size:11px;");
+    dlgLay->addWidget(previewLbl);
+
+    /* ── Pulsanti ── */
+    auto* bb = new QDialogButtonBox(
+        QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
+    bb->button(QDialogButtonBox::Ok)->setText("\xf0\x9f\x8c\x90  Traduci");
+    dlgLay->addWidget(bb);
+    connect(bb, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
+    connect(bb, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+
+    if (dlg->exec() != QDialog::Accepted) { dlg->deleteLater(); return; }
+
+    /* ── Avvia traduzione ── */
+    m_translateSrcLang = cmbSrc->currentText();
+    m_translateDstLang = cmbDst->currentText();
+    QString selModel   = cmbMdl->currentText();
+    dlg->deleteLater();
+
+    /* Salva modello corrente e passa al modello di traduzione */
+    m_preTranslateModel = m_ai->model();
+    m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), selModel);
+
+    /* Prompt fedele */
+    QString prompt;
+    if (m_translateSrcLang == "Auto-rileva")
+        prompt = QString("Traducimi il seguente testo nella lingua %1. "
+                         "Mantieni il significato originale nel modo pi\xc3\xb9 fedele possibile. "
+                         "Rispondi SOLO con la traduzione, senza commenti aggiuntivi.\n\n"
+                         "Testo:\n%2").arg(m_translateDstLang).arg(inputText);
+    else
+        prompt = QString("Traducimi il seguente testo da %1 a %2. "
+                         "Mantieni il significato originale nel modo pi\xc3\xb9 fedele possibile. "
+                         "Rispondi SOLO con la traduzione, senza commenti aggiuntivi.\n\n"
+                         "Testo:\n%3")
+                 .arg(m_translateSrcLang).arg(m_translateDstLang).arg(inputText);
+
+    const QString sys =
+        "Sei un traduttore professionale. "
+        "Rispondi SEMPRE e SOLO con la traduzione richiesta, senza spiegazioni.";
+
+    m_log->clear();
+    m_log->append(QString("\xf0\x9f\x8c\x90  Traduzione  <b>%1</b> \xe2\x86\x92 <b>%2</b>"
+                          "  [modello: %3]\n")
+                  .arg(m_translateSrcLang, m_translateDstLang, selModel));
+    m_log->append(QString(43, QChar(0x2500)));
+
+    m_taskOriginal  = inputText;
+    m_translateBuf.clear();
+    m_pendingMode = OpMode::Idle;  /* traduzione pura: nessuna pipeline dopo */
+    m_opMode      = OpMode::Translating;
+
+    _setRunBusy(true);
+    m_btnTranslate->setEnabled(false);
+    m_waitLbl->setVisible(true);
+
+    m_ai->chat(sys, prompt);
+}
+
+void AgentiPage::onBtnDocClicked()
+{
+    static const QString filter =
+        "Tutti i documenti supportati "
+        "(*.txt *.md *.csv *.json *.py *.cpp *.c *.h *.html *.xml *.rst *.log "
+        "*.pdf *.xls *.xlsx *.ods *.ots *.fods);;"
+        "Testo (*.txt *.md *.csv *.json *.py *.cpp *.c *.h *.html *.xml *.rst *.log);;"
+        "PDF (*.pdf);;"
+        "Excel / Foglio di calcolo (*.xls *.xlsx *.ods *.ots *.fods);;"
+        "Tutti (*)";
+    const QString fp = QFileDialog::getOpenFileName(
+        this, "Allega documento", QString(), filter);
+    if (!fp.isEmpty()) loadDroppedFile(fp);
+}
+
+void AgentiPage::onBtnImgClicked()
+{
+    const QString fp = QFileDialog::getOpenFileName(
+        this, "Allega immagine", QString(),
+        "Immagini (*.png *.jpg *.jpeg *.gif *.webp);;Tutti (*)");
+    if (!fp.isEmpty()) loadDroppedFile(fp);
+}
+
+void AgentiPage::onBtnVoiceClicked()
+{
+    /* ── Stop durante registrazione ── */
+    if (m_sttState == SttState::Recording) {
+        if (m_recProc) { m_recProc->kill(); m_recProc->waitForFinished(300); }
+        m_sttState = SttState::Idle;
+        m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
+        m_btnVoice->setProperty("danger","false");
+        P::repolish(m_btnVoice);
+        m_btnVoice->setEnabled(true);
+        return;
+    }
+    /* ── Ignora clic mentre trascrive o scarica ── */
+    if (m_sttState == SttState::Transcribing ||
+        m_sttState == SttState::Downloading) return;
+
+    /* ── Controlla binario ── */
+    if (SttWhisper::whisperBin().isEmpty()) {
+        m_log->append(
+            "<p style='color:#e2e8f0;'>"
+            "\xe2\x9a\xa0  <b>whisper-cli non trovato.</b> "
+            "<a href=\"settings:trascrivi\" style=\"color:#93c5fd;\">"
+            "Clicca qui</a> per aprire le Impostazioni &rarr; Trascrivi"
+            " e installare il riconoscimento vocale."
+            "</p>");
+        return;
+    }
+
+    /* ── Modello assente: avvia download automatico ── */
+    if (SttWhisper::whisperModel().isEmpty()) {
+        downloadWhisperModel();
+        return;
+    }
+
+    _sttStartRecording();
+}
+
+void AgentiPage::onNumAgentsChanged(int v)
+{
+    m_maxShots = v;
+}
+
+void AgentiPage::onCmbModePresetChanged(int idx)
+{
+    if (idx < 3) { m_autoLbl->setVisible(false); return; }
+    m_cfgDlg->applyPreset(idx);
+    static const char* lbls[] = {
+        "\xf0\x9f\x93\x90  Preset Matematica applicato.",
+        "\xf0\x9f\x92\xbb  Preset Informatica applicato.",
+        "\xf0\x9f\x94\x90  Preset Sicurezza applicato.",
+        "\xe2\x9a\x9b\xef\xb8\x8f  Preset Fisica applicato.",
+        "\xf0\x9f\xa7\xaa  Preset Chimica applicato.",
+        "\xf0\x9f\x8c\x90  Preset Lingue applicato.",
+        "\xf0\x9f\x8c\x8d  Preset Generico applicato.",
+    };
+    m_autoLbl->setText(QString::fromUtf8(lbls[idx - 3])
+                       + "  \xe2\x80\x94  Puoi modificarli in \xe2\x9a\x99\xef\xb8\x8f Configura Agenti.");
+    m_autoLbl->setVisible(true);
+}
+
+void AgentiPage::onCmbModeMathChanged(int idx)
+{
+    if (idx != 2) return;
+    static const QStringList mathKw  = {"r1","math","reason","think","qwq","deepseek-r"};
+    static const QStringList coderKw = {"coder","code","starcoder","codellama","qwen2.5-coder"};
+    static const QStringList largeKw = {"qwen3","llama3","gemma","mistral","phi"};
+
+    auto bestMatch = [&](int i) -> int {
+        QComboBox* cb = m_cfgDlg->modelCombo(i);
+        for (int p = 0; p < cb->count(); p++) {
+            QString n = cb->itemText(p).toLower();
+            for (auto& kw : mathKw) if (n.contains(kw)) return p;
+        }
+        for (int p = 0; p < cb->count(); p++) {
+            QString n = cb->itemText(p).toLower();
+            for (auto& kw : coderKw) if (n.contains(kw)) return p;
+        }
+        for (int p = 0; p < cb->count(); p++) {
+            QString n = cb->itemText(p).toLower();
+            for (auto& kw : largeKw) if (n.contains(kw)) return p;
+        }
+        return -1;
+    };
+    int assigned = 0;
+    for (int i = 0; i < MAX_AGENTS; i++) {
+        if (!m_cfgDlg->enabledChk(i)->isChecked()) continue;
+        int best = bestMatch(i);
+        if (best >= 0) { m_cfgDlg->modelCombo(i)->setCurrentIndex(best); assigned++; }
+    }
+    m_autoLbl->setText(assigned > 0
+        ? "\xf0\x9f\xa7\xae  Modelli reasoning/coder pre-selezionati per Matematico Teorico."
+        : "\xf0\x9f\x92\xa1  Consigliato: modelli reasoning (deepseek-r1, qwen3, qwq).");
+    m_autoLbl->setVisible(true);
+}
+
+void AgentiPage::onAiAborted()
+{
+    m_waitLbl->setVisible(false);
+
+    /* Rimuove il contenuto parziale dello streaming (testo grezzo non ancora
+       convertito in bolla) che va da m_agentBlockStart alla fine del documento. */
+    if (m_agentBlockStart > 0) {
+        QTextCursor sel(m_log->document());
+        sel.setPosition(m_agentBlockStart);
+        sel.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+        if (!sel.selectedText().trimmed().isEmpty())
+            sel.removeSelectedText();
+        m_agentBlockStart = 0;
+    }
+
+    m_opMode       = OpMode::Idle;
+    m_currentAgent = 0;
+    m_agentOutputs.clear();
+    m_byzStep      = 0;
+    _setRunBusy(false);
+    emit pipelineStatus(0, "\xe2\x9c\x8b  Interrotto");
+    for (int i = 0; i < MAX_AGENTS; i++)
+        m_cfgDlg->enabledChk(i)->setStyleSheet("");
+    m_log->moveCursor(QTextCursor::End);
+    m_log->append("\n\xe2\x9c\x8b  Pipeline interrotta.");
 }
 

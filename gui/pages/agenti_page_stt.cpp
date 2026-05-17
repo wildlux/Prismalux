@@ -81,10 +81,7 @@ void AgentiPage::_sttStartRecording()
     /* sox VAD: quando il processo termina da solo (silenzio rilevato),
        avanza subito alla trascrizione senza aspettare il timeout completo. */
     connect(m_recProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this](int, QProcess::ExitStatus){
-        if (m_sttState == SttState::Recording)
-            onSttTimeout();
-    });
+            this, &AgentiPage::onRecProcFinished);
 
     /* Countdown nel testo del pulsante — slot esplicito, nessuna lambda con raw pointer */
     m_sttWavPath = wavPath;
@@ -172,13 +169,13 @@ void AgentiPage::onSttTimeout()
                     }
                     m_input->setFocus();
                     if (m_voiceLoopActive && !m_ai->busy())
-                        QTimer::singleShot(150, this, [this]{ m_btnRun->click(); });
+                        QTimer::singleShot(150, this, &AgentiPage::onSttVoiceLoopAutoSend);
                 } else {
                     m_log->append(
                         "\xe2\x9a\xa0  Trascrizione fallita o audio vuoto.<br>"
                         + QString(text).replace("\n","<br>"));
                     if (m_voiceLoopActive)
-                        QTimer::singleShot(1500, this, [this]{ _sttStartRecording(); });
+                        QTimer::singleShot(1500, this, &AgentiPage::onSttVoiceLoopRetry);
                 }
             });
 }
@@ -188,12 +185,12 @@ void AgentiPage::onSttTimeout()
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::downloadWhisperModel()
 {
-    const QString destDir  = QDir::homePath() + "/.prismalux/whisper/models";
-    const QString destFile = destDir + "/ggml-small.bin";
-    const QString url      =
+    m_whisperDlDestDir  = QDir::homePath() + "/.prismalux/whisper/models";
+    m_whisperDlDestFile = m_whisperDlDestDir + "/ggml-small.bin";
+    const QString url   =
         "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin";
 
-    QDir().mkpath(destDir);
+    QDir().mkpath(m_whisperDlDestDir);
 
     m_sttState = SttState::Downloading;
     m_btnVoice->setEnabled(false);
@@ -201,78 +198,103 @@ void AgentiPage::downloadWhisperModel()
 
     m_log->append(
         "\xf0\x9f\x93\xa5  <b>Download modello whisper (ggml-small, ~141 MB)...</b><br>"
-        "Destinazione: <code>" + destFile + "</code>");
+        "Destinazione: <code>" + m_whisperDlDestFile + "</code>");
 
     /* Usa wget se disponibile, altrimenti curl */
     const bool hasWget = !QStandardPaths::findExecutable("wget").isEmpty();
-    auto* dlProc = new QProcess(this);
-    dlProc->setProcessChannelMode(QProcess::MergedChannels);
+    m_whisperDlProc = new QProcess(this);
+    m_whisperDlProc->setProcessChannelMode(QProcess::MergedChannels);
 
     if (hasWget) {
-        dlProc->start("wget", {
+        m_whisperDlProc->start("wget", {
             "--progress=dot:mega",
-            "-O", destFile,
+            "-O", m_whisperDlDestFile,
             url
         });
     } else {
-        dlProc->start("curl", {
+        m_whisperDlProc->start("curl", {
             "-L", "--progress-bar",
-            "-o", destFile,
+            "-o", m_whisperDlDestFile,
             url
         });
     }
 
-    /* Mostra progresso leggendo stdout/stderr del downloader */
-    connect(dlProc, &QProcess::readyReadStandardOutput, this, [this, dlProc]{
-        const QString chunk = QString::fromLocal8Bit(dlProc->readAllStandardOutput());
-        /* Mostra solo le righe con percentuale o MB per non intasare il log */
-        for (const auto& line : chunk.split('\n')) {
-            const QString t = line.trimmed();
-            if (t.contains('%') || t.contains("MB") || t.contains("KB"))
-                m_log->append("  " + t.toHtmlEscaped());
-        }
-    });
+    connect(m_whisperDlProc, &QProcess::readyReadStandardOutput,
+            this, &AgentiPage::onWhisperDlProcReadyRead);
+    connect(m_whisperDlProc,
+            QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &AgentiPage::onWhisperDlProcFinished);
+}
 
-    connect(dlProc,
-        QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-        this, [this, dlProc, destDir, destFile](int code, QProcess::ExitStatus){
-            dlProc->deleteLater();
-            m_btnVoice->setEnabled(true);
+/* ── slot: progresso download whisper ──────────────────────────────────────── */
+void AgentiPage::onWhisperDlProcReadyRead()
+{
+    if (!m_whisperDlProc) return;
+    const QString chunk = QString::fromLocal8Bit(m_whisperDlProc->readAllStandardOutput());
+    for (const auto& line : chunk.split('\n')) {
+        const QString t = line.trimmed();
+        if (t.contains('%') || t.contains("MB") || t.contains("KB"))
+            m_log->append("  " + t.toHtmlEscaped());
+    }
+}
 
-            if (code == 0 && QFileInfo::exists(destFile) &&
-                QFileInfo(destFile).size() > 10'000'000LL) {
-                m_log->append(
-                    "\xe2\x9c\x85  <b>Modello scaricato.</b> Avvio registrazione...");
-                m_sttState = SttState::Idle;
-                _sttStartRecording();
-            } else {
-                m_sttState = SttState::Idle;
-                m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
-                /* File parziale → rimuovi per non confondere isAvailable() */
-                if (QFileInfo::exists(destFile) &&
-                    QFileInfo(destFile).size() < 10'000'000LL)
-                    QFile::remove(destFile);
-                {
-                    const QString destDirNative = QDir::toNativeSeparators(destDir);
+/* ── slot: fine download whisper ────────────────────────────────────────────── */
+void AgentiPage::onWhisperDlProcFinished(int code, QProcess::ExitStatus)
+{
+    if (m_whisperDlProc) { m_whisperDlProc->deleteLater(); m_whisperDlProc = nullptr; }
+    m_btnVoice->setEnabled(true);
+
+    const QString destFile = m_whisperDlDestFile;
+    const QString destDir  = m_whisperDlDestDir;
+
+    if (code == 0 && QFileInfo::exists(destFile) &&
+        QFileInfo(destFile).size() > 10'000'000LL) {
+        m_log->append("\xe2\x9c\x85  <b>Modello scaricato.</b> Avvio registrazione...");
+        m_sttState = SttState::Idle;
+        _sttStartRecording();
+    } else {
+        m_sttState = SttState::Idle;
+        m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
+        if (QFileInfo::exists(destFile) &&
+            QFileInfo(destFile).size() < 10'000'000LL)
+            QFile::remove(destFile);
+        const QString destDirNative = QDir::toNativeSeparators(destDir);
 #ifdef Q_OS_WIN
-                    m_log->append(
-                        "\xe2\x9d\x8c  Download fallito (controlla la connessione).<br>"
-                        "Puoi scaricarlo manualmente (PowerShell):<br>"
-                        "<code>New-Item -ItemType Directory -Force \""
-                        + destDirNative + "\"; "
-                        "Invoke-WebRequest -Uri "
-                        "'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin' "
-                        "-OutFile '" + QDir::toNativeSeparators(destFile) + "'</code>");
+        m_log->append(
+            "\xe2\x9d\x8c  Download fallito (controlla la connessione).<br>"
+            "Puoi scaricarlo manualmente (PowerShell):<br>"
+            "<code>New-Item -ItemType Directory -Force \""
+            + destDirNative + "\"; "
+            "Invoke-WebRequest -Uri "
+            "'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin' "
+            "-OutFile '" + QDir::toNativeSeparators(destFile) + "'</code>");
 #else
-                    Q_UNUSED(destDirNative)
-                    m_log->append(
-                        "\xe2\x9d\x8c  Download fallito (controlla la connessione).<br>"
-                        "Puoi scaricarlo manualmente:<br>"
-                        "<code>mkdir -p ~/.prismalux/whisper/models &amp;&amp; "
-                        "wget -O ~/.prismalux/whisper/models/ggml-small.bin "
-                        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin</code>");
+        Q_UNUSED(destDirNative)
+        m_log->append(
+            "\xe2\x9d\x8c  Download fallito (controlla la connessione).<br>"
+            "Puoi scaricarlo manualmente:<br>"
+            "<code>mkdir -p ~/.prismalux/whisper/models &amp;&amp; "
+            "wget -O ~/.prismalux/whisper/models/ggml-small.bin "
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin</code>");
 #endif
-                }
-            }
-        });
+    }
+}
+
+/* ── slot: fine processo registrazione (sox VAD terminato prima del timeout) ── */
+void AgentiPage::onRecProcFinished(int, QProcess::ExitStatus)
+{
+    if (m_sttState == SttState::Recording)
+        onSttTimeout();
+}
+
+/* ── slot: riprova ascolto dopo STT fallito (voice loop) ───────────────────── */
+void AgentiPage::onSttVoiceLoopRetry()
+{
+    _sttStartRecording();
+}
+
+/* ── slot: invio automatico dopo STT ok (voice loop) ───────────────────────── */
+void AgentiPage::onSttVoiceLoopAutoSend()
+{
+    m_btnRun->click();
 }

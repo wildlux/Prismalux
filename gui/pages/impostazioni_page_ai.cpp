@@ -267,29 +267,15 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         budgetValLbl->setEnabled(budgetActive);
 
         /* ── Salva quando cambia la modalità ── */
+        m_thinkBudgetSlider = budgetSlider;
+        m_thinkBudgetValLbl = budgetValLbl;
+        m_thinkRamWarnLbl   = ramWarnLbl;
         connect(modeGrp, QOverload<int>::of(&QButtonGroup::idClicked),
-                page, [=](int id) {
-            AiChatParams p = AiChatParams::load();
-            p.thinkMode = id;
-            AiChatParams::save(p);
-            m_ai->setChatParams(p);
-            /* Abilita/disabilita budget slider */
-            const bool active = (id != 1);
-            budgetSlider->setEnabled(active);
-            budgetValLbl->setEnabled(active);
-            /* Mostra avviso RAM se modalità On e poca RAM */
-            if (ramTot > 0 && ramTot < 12LL * 1024 * 1024 * 1024)
-                ramWarnLbl->setVisible(id != 1);
-        });
+                this, &ImpostazioniPage::onThinkModeIdClicked);
 
         /* ── Salva quando cambia il budget ── */
-        connect(budgetSlider, &QSlider::valueChanged, page, [=](int v) {
-            budgetValLbl->setText(QString::number(v) + "\xc3\x97");
-            AiChatParams p = AiChatParams::load();
-            p.thinkBudget = v;
-            AiChatParams::save(p);
-            m_ai->setChatParams(p);
-        });
+        connect(budgetSlider, &QSlider::valueChanged,
+                this, &ImpostazioniPage::onThinkBudgetChanged);
     }
 
     /* ══════════════════════════════════════════════════
@@ -333,16 +319,12 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         mainLay->addWidget(knGroup);
 
         /* Salva la preferenza e invalida la cache di lettura */
-        connect(chkKn, &QCheckBox::toggled, page, [](bool checked) {
-            AppConfig::s().setValue(P::SK::kInjectUserKnowledge, checked);
-            P::invalidateKnowledgeCache();
-        });
+        connect(chkKn, &QCheckBox::toggled,
+                this, &ImpostazioniPage::onKnowledgeInjectToggled);
 
         /* Apre user_knowledge.md nel text editor di sistema */
-        connect(openFileBtn, &QPushButton::clicked, page, [] {
-            QDesktopServices::openUrl(
-                QUrl::fromLocalFile(P::userKnowledgePath()));
-        });
+        connect(openFileBtn, &QPushButton::clicked,
+                this, &ImpostazioniPage::onOpenKnowledgeFileClicked);
     }
 
     /* ── Dipendenze — occupa tutto lo spazio residuo ── */
@@ -373,182 +355,59 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     useBtn->setAccessibleName("Attiva modello selezionato");
     leftLay->insertWidget(3, useBtn);
 
-    /* Lambda: applica il modello selezionato e lo persiste su QSettings.
-       Usa il backend corrispondente al radio selezionato:
-       Ollama → AiClient::Ollama, llama.cpp → AiClient::LlamaServer */
-    auto applySelected = [=]() {
-        auto* cur = modelList->currentItem();
-        if (!cur) return;
-        const QString model = cur->data(Qt::UserRole).toString();
-        if (model.isEmpty() || model.startsWith("(")) return;
-        const AiClient::Backend bk = btnOllama->isChecked()
-            ? AiClient::Ollama
-            : AiClient::LlamaServer;
-        m_ai->setBackend(bk, m_ai->host(),
-                         bk == AiClient::Ollama ? PrismaluxPaths::kOllamaPort : PrismaluxPaths::kLlamaServerPort,
-                         model);
-        /* Salva su QSettings → sopravvive al riavvio */
-        auto& cfg = AppConfig::s();
-        cfg.setValue(PrismaluxPaths::SK::kActiveModel,   model);
-        cfg.setValue(PrismaluxPaths::SK::kActiveBackend, static_cast<int>(bk));
-        activeLbl->setText(QString("\xf0\x9f\x9f\xa2  Modello attivo: <b>%1</b>").arg(model));
-        statusLbl->setText(QString("\xe2\x9c\x85 Attivo: %1").arg(QFileInfo(model).fileName()));
-    };
-
-    /* Lambda: carica modelli Ollama tramite AiClient::fetchModels */
-    auto populateOllama = [=]() {
-        modelList->clear();
-        hintLbl->setText("Caricamento modelli Ollama...");
-        statusLbl->setText("\xe2\x8f\xb3 Ollama...");
-        useBtn->setEnabled(false);
-        auto* holder = new QObject(page);
-        connect(m_ai, &AiClient::modelsReady, holder,
-                [=](const QStringList& list) {
-            holder->deleteLater();
-            modelList->clear();
-            if (list.isEmpty()) {
-                statusLbl->setText("\xe2\x9d\x8c Nessun modello");
-                hintLbl->setText("Ollama non raggiungibile o nessun modello installato.\n"
-                                 "Avvia Ollama e riprova.");
-                auto* ph = new QListWidgetItem("(Ollama non raggiungibile)");
-                modelList->addItem(ph);
-            } else {
-                statusLbl->setText(QString("\xe2\x9c\x85 %1 modelli").arg(list.size()));
-                hintLbl->setText(QString("%1 modelli Ollama. Doppio clic o 'Usa modello' per attivare.")
-                                 .arg(list.size()));
-                for (const QString& m : list) {
-                    auto* item = new QListWidgetItem(m);
-                    item->setData(Qt::UserRole, m);  /* modello = nome Ollama */
-                    /* Evidenzia il modello attivo */
-                    if (m == m_ai->model())
-                        item->setForeground(QColor("#4ade80"));
-                    modelList->addItem(item);
-                }
-            }
-        });
-        m_ai->fetchModels();
-    };
-
-    /* Lambda: scansiona file .gguf dalla cartella models/ */
-    auto populateLlama = [=]() {
-        modelList->clear();
-        useBtn->setEnabled(false);
-        const QStringList files = PrismaluxPaths::scanGgufFiles();
-        if (files.isEmpty()) {
-            statusLbl->setText("0 modelli");
-            hintLbl->setText("Nessun file .gguf trovato.\n"
-                             "Scarica un modello dalla scheda LLM.");
-            auto* ph = new QListWidgetItem("(Nessun modello GGUF nella cartella models/)");
-            modelList->addItem(ph);
-        } else {
-            statusLbl->setText(QString("%1 file GGUF").arg(files.size()));
-            hintLbl->setText(QString("%1 modelli GGUF. Doppio clic o 'Usa modello' per attivare.")
-                             .arg(files.size()));
-            for (const QString& path : files) {
-                QFileInfo fi(path);
-                double mb = fi.size() / 1024.0 / 1024.0;
-                QString szStr = mb >= 1024.0
-                    ? QString("%1 GB").arg(mb / 1024.0, 0, 'f', 1)
-                    : QString("%1 MB").arg(mb, 0, 'f', 0);
-                auto* item = new QListWidgetItem(
-                    QString("%1   \xe2\x80\x94  %2").arg(fi.fileName(), szStr));
-                item->setData(Qt::UserRole, path);  /* UserRole = path completo */
-                if (path == m_ai->model())
-                    item->setForeground(QColor("#4ade80"));
-                modelList->addItem(item);
-            }
-        }
-    };
+    /* Salva i puntatori come member variables per i slot */
+    m_btnOllamaRadio = btnOllama;
+    m_btnLlamaRadio  = btnLlama;
+    m_aiModelList    = modelList;
+    m_aiStatusLbl    = statusLbl;
+    m_aiHintLbl      = hintLbl;
+    m_aiUseBtn       = useBtn;
+    m_aiActiveLbl    = activeLbl;
+    m_lanStatusLbl   = lanStatusLbl;
+    m_lanBtn         = lanBtn;
 
     /* Cambio gestore */
-    connect(btnOllama, &QRadioButton::toggled, page, [=](bool checked) {
-        if (!checked) return;
-        populateOllama();
-    });
-    connect(btnLlama, &QRadioButton::toggled, page, [=](bool checked) {
-        if (!checked) return;
-        populateLlama();
-    });
+    connect(btnOllama, &QRadioButton::toggled,
+            this, &ImpostazioniPage::onOllamaRadioToggled);
+    connect(btnLlama, &QRadioButton::toggled,
+            this, &ImpostazioniPage::onLlamaRadioToggled);
 
     /* Aggiorna lista */
-    connect(refreshBtn, &QPushButton::clicked, page, [=]() {
-        if (btnOllama->isChecked()) populateOllama();
-        else populateLlama();
-    });
+    connect(refreshBtn, &QPushButton::clicked,
+            this, &ImpostazioniPage::onAiLocalRefreshClicked);
 
     /* Abilita "Usa modello" quando si seleziona un item */
-    connect(modelList, &QListWidget::currentItemChanged, page,
-            [=](QListWidgetItem* cur, QListWidgetItem*) {
-        if (!cur) { useBtn->setEnabled(false); return; }
-        const QString m = cur->data(Qt::UserRole).toString();
-        useBtn->setEnabled(!m.isEmpty() && !m.startsWith("("));
-    });
+    connect(modelList, &QListWidget::currentItemChanged,
+            this, &ImpostazioniPage::onAiModelListItemChanged);
 
     /* Doppio clic = attiva subito */
-    connect(modelList, &QListWidget::itemDoubleClicked, page,
-            [=](QListWidgetItem*) { applySelected(); });
+    connect(modelList, &QListWidget::itemDoubleClicked,
+            this, &ImpostazioniPage::onAiModelListDblClicked);
 
     /* Pulsante "Usa modello" */
-    connect(useBtn, &QPushButton::clicked, page, applySelected);
+    connect(useBtn, &QPushButton::clicked,
+            this, &ImpostazioniPage::applySelectedModel);
 
     /* Aggiorna label modello attivo quando cambia dall'esterno */
-    connect(m_ai, &AiClient::modelsReady, page, [=](const QStringList&) {
-        activeLbl->setText(QString("\xf0\x9f\x9f\xa2  Modello attivo: <b>%1</b>").arg(
-            m_ai->model().isEmpty() ? "(nessuno)" : m_ai->model()));
-    });
+    connect(m_ai, &AiClient::modelsReady,
+            this, &ImpostazioniPage::onAiModelsReadyUpdateLabel);
 
     /* Popola la lista in base al backend attivo all'apertura */
-    QTimer::singleShot(0, page, [=]() {
-        if (m_ai->backend() == AiClient::LlamaServer || m_ai->backend() == AiClient::LlamaLocal) {
-            btnLlama->blockSignals(true);
-            btnLlama->setChecked(true);
-            btnOllama->setChecked(false);
-            btnLlama->blockSignals(false);
-            populateLlama();
-        } else {
-            populateOllama();
-        }
-    });
+    QTimer::singleShot(0, this, &ImpostazioniPage::onAiLocalTabInit);
 
     /* ── Logica Ollama LAN ── */
-    auto* ollamaProc = new QProcess(page);
-    ollamaProc->setProcessChannelMode(QProcess::MergedChannels);
+    m_ollamaLanProc = new QProcess(this);
+    m_ollamaLanProc->setProcessChannelMode(QProcess::MergedChannels);
 
-    connect(lanBtn, &QPushButton::clicked, page, [=]() {
-        if (ollamaProc->state() != QProcess::NotRunning) {
-            ollamaProc->terminate();
-            return;
-        }
-        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-        env.insert("OLLAMA_HOST", "0.0.0.0:11434");
-        ollamaProc->setProcessEnvironment(env);
-        lanBtn->setEnabled(false);
-        lanStatusLbl->setText("\xe2\x8f\xb3 Avvio in corso...");
-        ollamaProc->start("ollama", {"serve"});
-    });
-
-    connect(ollamaProc, &QProcess::started, page, [=]() {
-        lanBtn->setEnabled(true);
-        lanBtn->setText("\xf0\x9f\x94\xb4  Ferma Ollama LAN");
-        lanStatusLbl->setText("\xe2\x9c\x85 In ascolto su 0.0.0.0:11434");
-    });
-
-    connect(ollamaProc, &QProcess::errorOccurred, page, [=](QProcess::ProcessError err) {
-        lanBtn->setEnabled(true);
-        lanBtn->setText("\xf0\x9f\x9f\xa2  Avvia Ollama LAN");
-        if (err == QProcess::FailedToStart)
-            lanStatusLbl->setText("\xe2\x9d\x8c ollama non trovato nel PATH");
-        else
-            lanStatusLbl->setText("\xe2\x9d\x8c Errore di avvio");
-    });
-
-    connect(ollamaProc,
+    connect(lanBtn, &QPushButton::clicked,
+            this, &ImpostazioniPage::onOllamaLanBtnClicked);
+    connect(m_ollamaLanProc, &QProcess::started,
+            this, &ImpostazioniPage::onOllamaLanStarted);
+    connect(m_ollamaLanProc, &QProcess::errorOccurred,
+            this, &ImpostazioniPage::onOllamaLanError);
+    connect(m_ollamaLanProc,
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            page, [=](int, QProcess::ExitStatus) {
-        lanBtn->setEnabled(true);
-        lanBtn->setText("\xf0\x9f\x9f\xa2  Avvia Ollama LAN");
-        lanStatusLbl->setText("\xe2\x9a\xaa Inattivo");
-    });
+            this, &ImpostazioniPage::onOllamaLanFinished);
 
     return page;
 }
@@ -818,10 +677,8 @@ QWidget* ImpostazioniPage::buildRagTab()
         noSaveChk->setChecked(AppConfig::s().value(P::SK::kRagNoSave, false).toBool());
         m_ragNoSave = noSaveChk->isChecked();
     }
-    connect(noSaveChk, &QCheckBox::toggled, this, [this](bool on){
-        m_ragNoSave = on;
-        AppConfig::s().setValue(P::SK::kRagNoSave, on);
-    });
+    connect(noSaveChk, &QCheckBox::toggled,
+            this, &ImpostazioniPage::onRagNoSaveToggled);
     outer->addWidget(noSaveChk);
 
     /* ── Form ── */
@@ -835,7 +692,8 @@ QWidget* ImpostazioniPage::buildRagTab()
     auto* dirLay = new QHBoxLayout(dirRow);
     dirLay->setContentsMargins(0, 0, 0, 0);
     dirLay->setSpacing(6);
-    auto* dirEdit = new QLineEdit;
+    m_ragDirEdit = new QLineEdit;
+    auto* dirEdit = m_ragDirEdit;   /* alias locale */
     dirEdit->setObjectName("inputLine");
     dirEdit->setPlaceholderText("/percorso/documenti/");
     {
@@ -895,9 +753,8 @@ QWidget* ImpostazioniPage::buildRagTab()
         jlLay->addWidget(jlChk);
         jlLay->addWidget(jlHint);
 
-        connect(jlChk, &QCheckBox::toggled, jlFrame, [](bool on){
-            AppConfig::s().setValue(P::SK::kRagJlTransform, on);
-        });
+        connect(jlChk, &QCheckBox::toggled,
+                this, &ImpostazioniPage::onRagJlToggled);
 
         outer->addWidget(jlFrame);
     }
@@ -908,36 +765,12 @@ QWidget* ImpostazioniPage::buildRagTab()
     sep->setObjectName("sidebarSep");
     outer->addWidget(sep);
 
-    auto* statusLbl = new QLabel;
-    statusLbl->setObjectName("hintLabel");
-    statusLbl->setWordWrap(true);
-    statusLbl->setTextFormat(Qt::RichText);
-    /* refreshStatus legge dall'engine in-memory se disponibile (più accurato),
-     * altrimenti cade su QSettings (valore salvato dall'ultima sessione). */
-    auto refreshStatus = [this, statusLbl]() {
-        auto& cfg = AppConfig::s();
-        int cnt = (m_rag.chunkCount() > 0)
-                  ? m_rag.chunkCount()
-                  : cfg.value(P::SK::kRagDocCount, 0).toInt();
-        const QString lastIdx = cfg.value(P::SK::kRagLastIndexed, "Mai").toString();
-        if (cnt == 0 && lastIdx != "Mai") {
-            /* Timestamp esiste ma count = 0: l'ultima indicizzazione è fallita
-             * (tutti gli embedding hanno restituito errore). Mostra avviso. */
-            statusLbl->setText(
-                QString("\xe2\x9a\xa0  Documenti indicizzati: <b>0</b>"
-                        "&nbsp;&nbsp;&nbsp;Ultima indicizzazione: <b>%1</b>"
-                        "&nbsp;&nbsp;&mdash;&nbsp;&nbsp;"
-                        "<span style='color:#f87171;'>Embedding falliti &mdash; "
-                        "installa <code>nomic-embed-text</code> e reindicizza.</span>")
-                    .arg(lastIdx));
-        } else {
-            statusLbl->setText(
-                QString("Documenti indicizzati: <b>%1</b>"
-                        "&nbsp;&nbsp;&nbsp;Ultima indicizzazione: <b>%2</b>")
-                    .arg(cnt)
-                    .arg(lastIdx));
-        }
-    };
+    m_ragStatusLbl = new QLabel;
+    m_ragStatusLbl->setObjectName("hintLabel");
+    m_ragStatusLbl->setWordWrap(true);
+    m_ragStatusLbl->setTextFormat(Qt::RichText);
+    auto* statusLbl = m_ragStatusLbl;  /* alias locale per il codice seguente */
+    /* refreshStatus → ora è il metodo membro refreshRagStatus() */
 
     /* Migrazione one-time: se kRagDocCount è 0 ma l'indice su disco esiste
      * (es. indicizzato con versione precedente che non salvava il conteggio,
@@ -956,8 +789,8 @@ QWidget* ImpostazioniPage::buildRagTab()
             }
         }
     }
-    refreshStatus();
-    outer->addWidget(statusLbl);
+    refreshRagStatus();
+    outer->addWidget(m_ragStatusLbl);
 
     /* ── Pulsante: scarica documenti AdE ufficiali ── */
     auto* downloadBtn = new QPushButton(
@@ -988,9 +821,8 @@ QWidget* ImpostazioniPage::buildRagTab()
             "I modelli chat (qwen3, llama, ecc.) NON supportano /api/embeddings.\n"
             "Modello consigliato: nomic-embed-text\n"
             "Installa con: ollama pull nomic-embed-text");
-        QObject::connect(embedEdit, &QLineEdit::textChanged, embedEdit, [](const QString& v) {
-            AppConfig::s().setValue(P::SK::kRagEmbedModel, v.trimmed());
-        });
+        QObject::connect(embedEdit, &QLineEdit::textChanged,
+                         this, &ImpostazioniPage::onRagEmbedModelChanged);
         embedRow->addWidget(embedLbl);
         embedRow->addWidget(embedEdit, 1);
         outer->addLayout(embedRow);
@@ -1010,7 +842,8 @@ QWidget* ImpostazioniPage::buildRagTab()
         "I chunk già completati vengono salvati.");
     btnRow->addWidget(m_btnStopIndex);
 
-    auto* reindexBtn = new QPushButton("\xf0\x9f\x94\x84  Reindicizza ora");
+    m_ragReindexBtn = new QPushButton("\xf0\x9f\x94\x84  Reindicizza ora");
+    auto* reindexBtn = m_ragReindexBtn;  /* alias locale */
     reindexBtn->setObjectName("actionBtn");
     reindexBtn->setFixedHeight(32);
     reindexBtn->setToolTip(
@@ -1034,303 +867,31 @@ QWidget* ImpostazioniPage::buildRagTab()
     outer->addStretch();
 
     /* ── Connessioni ── */
-    QObject::connect(browseBtn, &QPushButton::clicked, dirEdit, [dirEdit]() {
-        QString d = QFileDialog::getExistingDirectory(
-            nullptr, "Cartella documenti RAG", dirEdit->text());
-        if (!d.isEmpty()) dirEdit->setText(d);
-    });
-    QObject::connect(dirEdit, &QLineEdit::textChanged, dirEdit, [](const QString& t) {
-        AppConfig::s().setValue(P::SK::kRagDocsDir, t);
-    });
-    QObject::connect(maxSpin, QOverload<int>::of(&QSpinBox::valueChanged), maxSpin, [](int v) {
-        AppConfig::s().setValue(P::SK::kRagMaxResults, v);
-    });
-    /* Label feedback globale (accessibile dai lambda) */
+    QObject::connect(browseBtn, &QPushButton::clicked,
+                     this, &ImpostazioniPage::onRagBrowseBtnClicked);
+    QObject::connect(dirEdit, &QLineEdit::textChanged,
+                     this, &ImpostazioniPage::onRagDirChanged);
+    QObject::connect(maxSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+                     this, &ImpostazioniPage::onRagMaxResultsChanged);
+    /* Label feedback globale */
     m_ragFeedbackLbl = feedbackLbl;
+    m_ragDownloadBtn = downloadBtn;
 
     /* ── Download documenti AdE consigliati ── */
-    QObject::connect(downloadBtn, &QPushButton::clicked, downloadBtn,
-        [this, dirEdit, feedbackLbl, downloadBtn]() {
-
-        const QString ragDir = QDir::homePath() + "/prismalux_rag_docs";
-        if (!QDir().mkpath(ragDir)) {
-            feedbackLbl->setText("\xe2\x9a\xa0  Impossibile creare la cartella: " + ragDir);
-            feedbackLbl->setVisible(true);
-            return;
-        }
-
-        /* File da scaricare: {url, nome locale} */
-        using DlItem = QPair<QString,QString>;
-        auto items = std::make_shared<QVector<DlItem>>(QVector<DlItem>{
-            { "https://www.agenziaentrate.gov.it/portale/documents/20143/9764684/"
-              "730_+istruzioni_2026.pdf/2ac8d27a-fa3d-ed9e-ffc1-9bf61457661e",
-              "730_istruzioni_2026.pdf" },
-            { "https://www.agenziaentrate.gov.it/portale/documents/d/guest/"
-              "pf2_2026_istruzioni_bozza-internet",
-              "fascicolo2_persone_fisiche_2026.pdf" },
-        });
-
-        downloadBtn->setEnabled(false);
-        feedbackLbl->setText(
-            QString("\xe2\x8f\xb3  Download 1/%1: %2")
-            .arg(items->size()).arg((*items)[0].second));
-        feedbackLbl->setVisible(true);
-
-        auto* nam  = new QNetworkAccessManager(this);
-        auto idx   = std::make_shared<int>(0);
-        auto errN  = std::make_shared<int>(0);
-
-        /* Catena ricorsiva: un file alla volta */
-        auto dlNext = std::make_shared<std::function<void()>>();
-        *dlNext = [=, this, items, idx, errN, dlNext]() {
-            if (*idx >= items->size()) {
-                /* Fine download */
-                if (*errN == 0) {
-                    dirEdit->setText(ragDir);
-                    AppConfig::s().setValue(P::SK::kRagDocsDir, ragDir);
-                    feedbackLbl->setText(
-                        "\xe2\x9c\x85  Download completato! "
-                        "Cartella: <code>" + ragDir + "</code><br>"
-                        "Clicca <b>Reindicizza ora</b> per costruire il RAG.");
-                } else {
-                    feedbackLbl->setText(
-                        QString("\xe2\x9a\xa0  Download completato con %1 errori. "
-                                "Controlla la connessione e riprova.").arg(*errN));
-                }
-                downloadBtn->setEnabled(true);
-                nam->deleteLater();
-                return;
-            }
-
-            const QString url   = (*items)[*idx].first;
-            const QString fname = (*items)[*idx].second;
-            feedbackLbl->setText(
-                QString("\xe2\x8f\xb3  Download %1/%2: %3")
-                .arg(*idx + 1).arg(items->size()).arg(fname));
-
-            QNetworkRequest req{QUrl(url)};
-            req.setHeader(QNetworkRequest::UserAgentHeader,
-                          "Mozilla/5.0 Prismalux/2.2 (Qt)");
-            req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                             QNetworkRequest::NoLessSafeRedirectPolicy);
-
-            auto* reply = nam->get(req);
-            QObject::connect(reply, &QNetworkReply::finished, reply,
-                [=, this, items, idx, errN, dlNext]() {
-                reply->deleteLater();
-                if (reply->error() == QNetworkReply::NoError) {
-                    QFile f(ragDir + "/" + fname);
-                    if (f.open(QIODevice::WriteOnly))
-                        f.write(reply->readAll());
-                    else
-                        ++(*errN);
-                } else {
-                    ++(*errN);
-                    feedbackLbl->setText(
-                        "\xe2\x9a\xa0  Errore: " + reply->errorString()
-                        + " — " + fname);
-                }
-                ++(*idx);
-                (*dlNext)();
-            });
-        };
-
-        (*dlNext)();
-    });
+    QObject::connect(downloadBtn, &QPushButton::clicked,
+                     this, &ImpostazioniPage::onRagDownloadBtnClicked);
 
     /* Pulsante "Ferma indicizzazione" — setta il flag, il prossimo ciclo si ferma */
-    QObject::connect(m_btnStopIndex, &QPushButton::clicked, this, [this, feedbackLbl]() {
-        m_indexAborted = true;
-        m_btnStopIndex->setEnabled(false);
-        if (feedbackLbl) {
-            feedbackLbl->setText("\xe2\x8f\xb3  Interruzione in corso dopo il chunk corrente...");
-            feedbackLbl->setVisible(true);
-        }
-    });
+    QObject::connect(m_btnStopIndex, &QPushButton::clicked,
+                     this, &ImpostazioniPage::onStopIndexClicked);
 
-    QObject::connect(reindexBtn, &QPushButton::clicked, reindexBtn,
-        [this, dirEdit, statusLbl, feedbackLbl, refreshStatus, reindexBtn]() {
-        QString dir = dirEdit->text().trimmed();
-        if (dir.isEmpty() || !QDir(dir).exists()) {
-            feedbackLbl->setText(
-                "\xe2\x9a\xa0  Cartella non valida o inesistente. "
-                "Specifica un percorso esistente.");
-            feedbackLbl->setVisible(true);
-            return;
-        }
-        if (m_ai->backend() == AiClient::LlamaLocal) {
-            feedbackLbl->setText(
-                "\xe2\x9a\xa0  Embedding disponibile solo con Ollama o llama-server.");
-            feedbackLbl->setVisible(true);
-            return;
-        }
-        m_indexAborted = false;
-
-        /* Raccolta chunk — helper per spezzare testo in chunk da ~400 caratteri */
-        auto addChunks = [this](const QString& content, const QString& fileName) {
-            for (int i = 0; i < content.size(); i += 400) {
-                QString chunk = content.mid(i, 500).simplified();
-                if (chunk.size() >= 30) {
-                    m_ragQueue       << chunk;
-                    m_ragQueueSource << fileName;
-                }
-            }
-        };
-
-        m_ragQueue.clear();
-        m_ragQueueSource.clear();
-        m_ragQueuePos = 0;
-        m_rag.clear();
-
-        /* ── 1. File di testo ── */
-        QStringList filters{
-            "*.txt","*.md","*.csv","*.rst","*.py","*.cpp","*.h","*.c"
-        };
-        QDirIterator it(dir, filters, QDir::Files, QDirIterator::Subdirectories);
-        while (it.hasNext()) {
-            const QString fp = it.next();
-            QFile f(fp);
-            if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) continue;
-            addChunks(QString::fromUtf8(f.readAll()), QFileInfo(fp).fileName());
-        }
-
-        /* ── 2. PDF tramite pdftotext (se installato) ── */
-        const QString pdfToText = QStandardPaths::findExecutable("pdftotext");
-        if (!pdfToText.isEmpty()) {
-            QDirIterator pdfIt(dir, QStringList{"*.pdf"}, QDir::Files,
-                               QDirIterator::Subdirectories);
-            while (pdfIt.hasNext()) {
-                const QString pdfPath = pdfIt.next();
-                QProcess p;
-                /* pdftotext file.pdf - → testo su stdout, nessuna shell */
-                p.start(pdfToText, {pdfPath, "-"});
-                if (!p.waitForFinished(60000)) continue;  /* timeout 60s per PDF grandi */
-                addChunks(QString::fromUtf8(p.readAllStandardOutput()), QFileInfo(pdfPath).fileName());
-            }
-        }
-        /* pdftotext non trovato: i PDF vengono saltati silenziosamente.
-           Su Linux: sudo apt install poppler-utils
-           Su Windows: incluso in Poppler for Windows (già elencato in Dipendenze) */
-
-        if (m_ragQueue.isEmpty()) {
-            feedbackLbl->setText("\xf0\x9f\x8c\xab  Nessun contenuto trovato nella cartella.");
-            feedbackLbl->setVisible(true);
-            return;
-        }
-
-        reindexBtn->setEnabled(false);
-        if (m_btnStopIndex) m_btnStopIndex->setEnabled(true);
-        feedbackLbl->setText(QString("\xe2\x8f\xb3  Indicizzazione: 0 / %1 chunk...").arg(m_ragQueue.size()));
-        feedbackLbl->setVisible(true);
-        emit indexingProgress(0, m_ragQueue.size());
-
-        /* Funzione ricorsiva: processa un chunk alla volta tramite embeddingReady.
-         * errCount conta i chunk saltati per errore embedding: serve per mostrare
-         * un messaggio utile se il modello non supporta /api/embeddings.
-         * m_indexAborted: settato da "Ferma indicizzazione" — il ciclo si ferma
-         * al prossimo giro (dopo il chunk già in volo). */
-        auto errCount  = std::make_shared<int>(0);
-        auto indexNext = std::make_shared<std::function<void()>>();
-        *indexNext = [this, indexNext, errCount, reindexBtn, feedbackLbl, statusLbl,
-                      refreshStatus, dir]() {
-            /* Controlla stop (abort) O completamento naturale */
-            const bool done = (m_ragQueuePos >= m_ragQueue.size());
-            if (done || m_indexAborted) {
-                /* Fine indicizzazione (naturale o interrotta) */
-                const QString path = QDir::homePath() + "/.prismalux_rag.json";
-                int n = m_rag.chunkCount();
-                auto& cfg = AppConfig::s();
-                if (n > 0) {
-                    /* Salva su QSettings solo se almeno un chunk è stato indicizzato.
-                     * Se n==0 (tutti gli embedding falliti), non sovrascrivere il
-                     * conteggio e il timestamp dell'ultima indicizzazione riuscita. */
-                    if (!m_ragNoSave)
-                        m_rag.save(path);
-                    cfg.setValue(P::SK::kRagDocCount,    n);
-                    cfg.setValue(P::SK::kRagLastIndexed,
-                        QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm"));
-                }
-                refreshStatus();
-
-                const bool wasAborted = m_indexAborted;
-                m_indexAborted = false;  /* reset flag per la prossima esecuzione */
-
-                if (wasAborted) {
-                    feedbackLbl->setText(
-                        QString("\xe2\x8f\xb9  Indicizzazione interrotta &mdash; "
-                                "<b>%1</b> chunk salvati su %2 totali.")
-                            .arg(n).arg(m_ragQueue.size()));
-                } else if (n == 0) {
-                    const QString usedModel = cfg.value(P::SK::kRagEmbedModel, "").toString();
-                    feedbackLbl->setText(
-                        QString("\xe2\x9d\x8c  <b>Embedding falliti</b> (%1 errori). "
-                                "Il modello <b>%2</b> non supporta <code>/api/embeddings</code>.<br>"
-                                "Installa il modello embedding: "
-                                "<code>ollama pull nomic-embed-text</code><br>"
-                                "Poi verifica il campo <b>Modello embedding</b> qui sopra "
-                                "e ripeti l'indicizzazione.")
-                            .arg(*errCount)
-                            .arg(usedModel.isEmpty() ? "corrente" : usedModel));
-                } else {
-                    feedbackLbl->setText(
-                        QString("\xe2\x9c\x85  Indicizzati <b>%1</b> chunk da <code>%2</code>"
-                                "%3. %4")
-                            .arg(n).arg(dir)
-                            .arg(*errCount > 0
-                                ? QString(" (%1 chunk saltati per errore)").arg(*errCount)
-                                : QString())
-                            .arg(m_ragNoSave
-                                ? "Indice <b>solo in RAM</b> (non salvato su disco)."
-                                : "Indice salvato in <code>~/.prismalux_rag.json</code>."));
-                }
-                if (m_btnStopIndex) m_btnStopIndex->setEnabled(false);
-                reindexBtn->setEnabled(true);
-                emit indexingFinished(n, wasAborted);
-                return;
-            }
-
-            /* Aggiorna progresso con nome file sorgente */
-            const QString srcName = (m_ragQueuePos < m_ragQueueSource.size())
-                ? m_ragQueueSource[m_ragQueuePos] : QString();
-            feedbackLbl->setText(
-                QString("\xf0\x9f\x93\x84  chunk %1 / %2%3")
-                    .arg(m_ragQueuePos + 1).arg(m_ragQueue.size())
-                    .arg(srcName.isEmpty() ? "..." : " da <b>" + srcName + "</b>"));
-            emit indexingProgress(m_ragQueuePos, m_ragQueue.size());
-
-            const QString chunk = m_ragQueue[m_ragQueuePos++];
-
-            /* One-shot connection: embeddingReady → addChunk → next.
-             * IMPORTANTE: conn e connErr si referenziano a vicenda per garantire
-             * che scattando l'uno l'altro venga disconnesso subito, evitando
-             * connessioni stale che si accumulerebbero tra chunk successivi. */
-            auto conn    = std::make_shared<QMetaObject::Connection>();
-            auto connErr = std::make_shared<QMetaObject::Connection>();
-
-            *conn = connect(m_ai, &AiClient::embeddingReady, this,
-                [this, chunk, indexNext, conn, connErr](const QVector<float>& vec) {
-                    disconnect(*conn);
-                    disconnect(*connErr);
-                    m_rag.addChunk(chunk, vec);
-                    (*indexNext)();
-                }, Qt::SingleShotConnection);
-
-            *connErr = connect(m_ai, &AiClient::embeddingError, this,
-                [this, indexNext, errCount, conn, connErr](const QString&) {
-                    disconnect(*connErr);
-                    disconnect(*conn);
-                    ++(*errCount);
-                    (*indexNext)();   /* salta chunk con errore */
-                }, Qt::SingleShotConnection);
-
-            m_ai->fetchEmbedding(chunk);
-        };
-
-        (*indexNext)();
-    });
+    QObject::connect(reindexBtn, &QPushButton::clicked,
+                     this, &ImpostazioniPage::onReindexBtnClicked);
 
     return page;
 }
+
+/* ── buildRagTab end ── */
 
 QWidget* ImpostazioniPage::buildAiParamsTab()
 {
@@ -1586,10 +1147,8 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         outer->addWidget(row1);
         outer->addWidget(row2);
 
-        connect(grp, &QButtonGroup::buttonClicked, page, [grp](QAbstractButton* btn) {
-            const QString key = btn->property("persona_key").toString();
-            AppConfig::s().setValue(P::SK::kAiPersonality, key);
-        });
+        connect(grp, &QButtonGroup::buttonClicked,
+                this, &ImpostazioniPage::onPersonaBtnClicked);
     }
 
     auto* personaDesc = new QLabel(
@@ -1645,9 +1204,8 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     mlockDesc->setObjectName("hintLabel");
     outer->addWidget(mlockDesc);
 
-    connect(mlockCb, &QCheckBox::toggled, page, [](bool on) {
-        AppConfig::s().setValue(P::SK::kMlockModel, on);
-    });
+    connect(mlockCb, &QCheckBox::toggled,
+            this,    &ImpostazioniPage::onMlockToggled);
 
     /* ── Preset "8 GB RAM" ── */
     auto* presetRow = new QWidget;
@@ -1703,72 +1261,35 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     btnLay->addWidget(saveBtn);
     outer->addWidget(btnRow);
 
-    /* ── Lambda salva — scrive in ~/.prismalux/ai_params.json (unica fonte) ── */
-    auto saveParams = [=]{
-        AiChatParams p;
-        p.temperature    = tempSpin->value();
-        p.top_p          = topPSpin->value();
-        p.top_k          = topKSpin->value();
-        p.repeat_penalty = repSpin->value();
-        p.num_predict    = predSpin->value();
-        p.num_ctx        = ctxSpin->value();
-        p.honesty_prefix = honestyCb->isChecked();
-        p.caveman_mode   = cavemanToggle->isChecked();
-        p.flash_attn     = flashCb->isChecked();
-        AiChatParams::save(p);       /* scrive su disco */
-        if (m_ai) m_ai->setChatParams(p);  /* applica subito senza riavviare */
-        saveStatus->setText("\xe2\x9c\x85  Salvato in " + AiChatParams::filePath());
-        QTimer::singleShot(3000, saveStatus, [saveStatus]{ saveStatus->setText(""); });
-    };
+    /* Salva puntatori come member variables per i slot */
+    m_tempSpin     = tempSpin;
+    m_topPSpin     = topPSpin;
+    m_topKSpin     = topKSpin;
+    m_repSpin      = repSpin;
+    m_predSpin     = predSpin;
+    m_ctxSpin      = ctxSpin;
+    m_ctxHint      = ctxHint;
+    m_honestyCb    = honestyCb;
+    m_cavemanToggle = cavemanToggle;
+    m_cavemanBadge = cavemanBadge;
+    m_flashCb      = flashCb;
+    m_saveStatus   = saveStatus;
 
-    connect(saveBtn,  &QPushButton::clicked, page, saveParams);
-    connect(resetBtn, &QPushButton::clicked, page, [=]{
-        tempSpin->setValue(0.05);
-        topPSpin->setValue(0.85);
-        topKSpin->setValue(20);
-        repSpin->setValue(1.20);
-        predSpin->setValue(2048);
-        ctxSpin->setValue(8192);
-        honestyCb->setChecked(true);
-        cavemanToggle->setChecked(false);
-        flashCb->setChecked(false);
-        saveParams();
-    });
+    connect(saveBtn,  &QPushButton::clicked, this, &ImpostazioniPage::onAiParamsSave);
+    connect(resetBtn, &QPushButton::clicked, this, &ImpostazioniPage::onAiParamsReset);
+    connect(flashCb,  &QCheckBox::toggled,   this, &ImpostazioniPage::onAiParamsSave);
+    connect(preset8gb,  &QPushButton::clicked, this, &ImpostazioniPage::onAiPreset8GbClicked);
+    connect(presetLong, &QPushButton::clicked, this, &ImpostazioniPage::onAiPresetLongClicked);
+    connect(cavemanToggle, &QAbstractButton::toggled, this, &ImpostazioniPage::onCavemanToggled);
 
-    connect(flashCb, &QCheckBox::toggled, page, saveParams);
-
-    connect(preset8gb, &QPushButton::clicked, page, [=]{
-        ctxSpin->setValue(4096);
-        predSpin->setValue(1024);
-        tempSpin->setValue(0.05);
-        flashCb->setChecked(true);
-        saveParams();
-    });
-
-    connect(presetLong, &QPushButton::clicked, page, [=]{
-        const qint64 ram = PrismaluxPaths::totalRamBytes();
-        const int ctx = (ram > 0 && ram < 16LL * 1024 * 1024 * 1024) ? 8192 : 16384;
-        ctxSpin->setValue(ctx);
-        flashCb->setChecked(true);
-        saveParams();
-    });
-
-    /* Salva automaticamente quando si cambia qualsiasi valore */
-    connect(tempSpin,  QOverload<double>::of(&QDoubleSpinBox::valueChanged), page, saveParams);
-    connect(topPSpin,  QOverload<double>::of(&QDoubleSpinBox::valueChanged), page, saveParams);
-    connect(topKSpin,  QOverload<int>::of(&QSpinBox::valueChanged),          page, saveParams);
-    connect(repSpin,   QOverload<double>::of(&QDoubleSpinBox::valueChanged), page, saveParams);
-    connect(predSpin,  QOverload<int>::of(&QSpinBox::valueChanged),          page, saveParams);
-    connect(ctxSpin,   QOverload<int>::of(&QSpinBox::valueChanged),          page, saveParams);
-    connect(honestyCb, &QCheckBox::toggled,                                  page, saveParams);
-
-    /* Toggle Caveman: salva + aggiorna badge ON/OFF */
-    connect(cavemanToggle, &QAbstractButton::toggled, page, [=](bool on){
-        cavemanBadge->setText(on ? "  ON " : "  OFF");
-        cavemanBadge->setObjectName(on ? "badgeActive" : "badgeInactive");
-        P::repolish(cavemanBadge);
-        saveParams();
-    });
+    /* Auto-salva su ogni variazione di parametro */
+    connect(tempSpin,  QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &ImpostazioniPage::onAiParamsSave);
+    connect(topPSpin,  QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &ImpostazioniPage::onAiParamsSave);
+    connect(topKSpin,  QOverload<int>::of(&QSpinBox::valueChanged),          this, &ImpostazioniPage::onAiParamsSave);
+    connect(repSpin,   QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &ImpostazioniPage::onAiParamsSave);
+    connect(predSpin,  QOverload<int>::of(&QSpinBox::valueChanged),          this, &ImpostazioniPage::onAiParamsSave);
+    connect(ctxSpin,   QOverload<int>::of(&QSpinBox::valueChanged),          this, &ImpostazioniPage::onAiParamsSave);
+    connect(honestyCb, &QCheckBox::toggled,                                  this, &ImpostazioniPage::onAiParamsSave);
 
     outer->addStretch();
     return page;
@@ -1838,9 +1359,8 @@ QWidget* ImpostazioniPage::buildSandboxTab()
         chk->setEnabled(!docker.isEmpty());
         chk->setToolTip("Se disabilitato, il codice AI viene eseguito localmente con pip install retry.\n"
                         "Con sandbox: rete disabilitata, nessun accesso al filesystem host.");
-        connect(chk, &QCheckBox::toggled, page, [](bool on){
-            AppConfig::s().setValue(P::SK::kSandboxEnabled, on);
-        });
+        connect(chk,  &QCheckBox::toggled,
+                this, &ImpostazioniPage::onSandboxEnabledToggled);
         row->addWidget(chk);
         row->addStretch();
         lay->addLayout(row);
@@ -1864,10 +1384,8 @@ QWidget* ImpostazioniPage::buildSandboxTab()
             "python:3.11-slim — leggera, include pip.\n"
             "python:3.12-slim — versione pi\xc3\xb9 recente.\n"
             "Prima esecuzione: Docker scarica l\xe2\x80\x99immagine automaticamente (~50 MB).");
-        connect(imgEdit, &QLineEdit::editingFinished, imgEdit, [imgEdit]{
-            AppConfig::s().setValue(P::SK::kSandboxImage,
-                imgEdit->text().trimmed().isEmpty() ? "python:3.11-slim" : imgEdit->text().trimmed());
-        });
+        connect(imgEdit, &QLineEdit::editingFinished,
+                this,    &ImpostazioniPage::onSandboxImageEditFinished);
         grpLay->addRow("Immagine:", imgEdit);
 
         auto* memSpin = new QSpinBox(page);
@@ -1880,10 +1398,13 @@ QWidget* ImpostazioniPage::buildSandboxTab()
         memSpin->setToolTip("Limite RAM del container Docker.\n"
                             "256 MB \xc3\xa8 sufficiente per la maggior parte dei task.\n"
                             "Aumenta a 512+ per elaborazioni numeriche intensive.");
-        connect(memSpin, QOverload<int>::of(&QSpinBox::valueChanged), memSpin, [memSpin](int v){
-            AppConfig::s().setValue(P::SK::kSandboxMemory, v);
-        });
+        connect(memSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+                this,    &ImpostazioniPage::onSandboxMemSpinChanged);
         grpLay->addRow("Limite RAM:", memSpin);
+
+        /* Salva puntatori come member variables per i slot */
+        m_sandboxImgEdit  = imgEdit;
+        m_sandboxMemSpin  = memSpin;
 
         lay->addWidget(grp);
     }
@@ -1923,6 +1444,9 @@ QWidget* ImpostazioniPage::buildSandboxTab()
             });
             proc->start(P::findDocker(), {"pull", img});
         });
+
+        m_sandboxPullBtn    = pullBtn;
+        m_sandboxPullStatus = pullStatus;
 
         pullRow->addWidget(pullBtn);
         pullRow->addWidget(pullStatus, 1);

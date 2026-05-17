@@ -158,6 +158,8 @@ private slots:
     void onFinished(const QString& full);
     void onError(const QString& msg);
     void onAborted();
+    void onClearClicked();
+    void onExportClicked();
 
 private:
     /* ── Helpers ── */

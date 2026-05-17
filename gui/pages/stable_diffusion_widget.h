@@ -9,8 +9,9 @@ class QComboBox;
 class QPushButton;
 class QLabel;
 class QRadioButton;
-class QProcess;
+#include <QProcess>
 class QNetworkAccessManager;
+class QNetworkReply;
 class QScrollArea;
 class QProgressBar;
 
@@ -59,15 +60,30 @@ private:
     QPushButton*      m_btnCheck   = nullptr;
     QPushButton*      m_btnGen     = nullptr;
     QPushButton*      m_btnSave    = nullptr;
+    QPushButton*      m_btnCopy    = nullptr;
     QLabel*           m_imgLabel   = nullptr;
     QLabel*           m_status     = nullptr;
     QProgressBar*     m_progress   = nullptr;
     QScrollArea*      m_imgScroll  = nullptr;
 
-    QNetworkAccessManager* m_nam   = nullptr;
-    QProcess*              m_sdProc = nullptr;
+    QNetworkAccessManager* m_nam        = nullptr;
+    QProcess*              m_sdProc     = nullptr;
+    QNetworkReply*         m_checkReply = nullptr;
+    QNetworkReply*         m_genReply   = nullptr;
     QByteArray             m_lastPng;
     QString                m_sdScriptPath;
+    QString                m_pendingOutPath;
+
+private slots:
+    void onBtnSaveClicked();
+    void onBtnCopyClicked();
+    void onCopyFeedbackReset();
+    void onImageReady(bool ok);
+    void onCheckA1111ReplyFinished();
+    void onCheckDiffusersFinished(int code, QProcess::ExitStatus status);
+    void onLocalProcReadyRead();
+    void onLocalProcFinished(int code, QProcess::ExitStatus status);
+    void onA1111ReplyFinished();
 
 signals:
     void _imageReady(bool ok);

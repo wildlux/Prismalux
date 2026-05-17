@@ -286,12 +286,8 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         navGroup->addButton(rb);
         navRowL->addWidget(rb);
 
-        connect(rb, &QRadioButton::toggled, this, [this, nm](bool checked){
-            if (!checked) return;
-            QSettings s("Prismalux", "GUI");
-            s.setValue(P::SK::kNavTabMode, nm.value);
-            emit tabModeChanged(QString::fromLatin1(nm.value));
-        });
+        rb->setProperty("modeValue", QLatin1String(nm.value));
+        connect(rb, &QRadioButton::toggled, this, &ImpostazioniPage::onNavTabModeToggled);
     }
     navRowL->addStretch();
     navLay->addWidget(navRowW);
@@ -340,12 +336,8 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             rb->setChecked(curStyle == ns.value);
             styleGroup->addButton(rb);
             styleRowL->addWidget(rb);
-            connect(rb, &QRadioButton::toggled, this, [this, ns](bool checked){
-                if (!checked) return;
-                QSettings s("Prismalux", "GUI");
-                s.setValue(P::SK::kNavStyle, ns.value);
-                emit navStyleChanged(QString::fromLatin1(ns.value));
-            });
+            rb->setProperty("modeValue", QLatin1String(ns.value));
+            connect(rb, &QRadioButton::toggled, this, &ImpostazioniPage::onNavStyleToggled);
         }
         styleRowL->addStretch();
         sLay->addWidget(styleRow);
@@ -394,12 +386,8 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             rb->setChecked(curExec == em.value);
             execGroup->addButton(rb);
             execRowL->addWidget(rb);
-            connect(rb, &QRadioButton::toggled, this, [this, em](bool checked){
-                if (!checked) return;
-                QSettings s("Prismalux", "GUI");
-                s.setValue(P::SK::kNavExecBtnMode, em.value);
-                emit execBtnModeChanged(QString::fromLatin1(em.value));
-            });
+            rb->setProperty("modeValue", QLatin1String(em.value));
+            connect(rb, &QRadioButton::toggled, this, &ImpostazioniPage::onExecBtnModeToggled);
         }
         execRowL->addStretch();
         eLay->addWidget(execRow);

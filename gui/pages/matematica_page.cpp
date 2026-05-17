@@ -71,15 +71,13 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     btnCopy->setObjectName("actionBtn");
     btnCopy->setFixedHeight(26);
     btnCopy->setToolTip("Copia tutto l'output negli appunti");
-    connect(btnCopy, &QPushButton::clicked, this, [this]{
-        QApplication::clipboard()->setText(m_output->toPlainText());
-    });
+    connect(btnCopy, &QPushButton::clicked, this, &MatematicaPage::onCopyClicked);
     ctrlRow->addWidget(btnCopy);
 
     auto* btnClear = new QPushButton("\xf0\x9f\x97\x91  Cancella", outBox);
     btnClear->setObjectName("actionBtn");
     btnClear->setFixedHeight(26);
-    connect(btnClear, &QPushButton::clicked, this, [this]{ clearOutput(); });
+    connect(btnClear, &QPushButton::clicked, this, &MatematicaPage::onClearOutputClicked);
     ctrlRow->addWidget(btnClear);
 
     auto* btnStop = new QPushButton("\xe2\x96\xa0  Stop", outBox);
@@ -88,7 +86,7 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     btnStop->setProperty("execFull", btnStop->text());
     btnStop->setProperty("execIcon", QString::fromUtf8("\xe2\x96\xa0"));
     btnStop->setProperty("execText", "Stop");
-    connect(btnStop, &QPushButton::clicked, this, [this]{ stopPython(); });
+    connect(btnStop, &QPushButton::clicked, this, &MatematicaPage::onStopClicked);
     ctrlRow->addWidget(btnStop);
 
     outLay->addLayout(ctrlRow);
@@ -114,22 +112,7 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
 
     /* Sincronizza il combo modello quando il modello cambia da Impostazioni o
        da un'altra scheda (m_modelCombo è creato in buildSeqTab, già disponibile). */
-    connect(m_ai, &AiClient::modelChanged, this, [this](const QString& newModel) {
-        if (!m_modelCombo) return;
-        int idx = m_modelCombo->findData(newModel);
-        if (idx < 0) idx = m_modelCombo->findText(newModel, Qt::MatchContains);
-        if (idx >= 0 && idx != m_modelCombo->currentIndex()) {
-            m_modelCombo->blockSignals(true);
-            m_modelCombo->setCurrentIndex(idx);
-            m_modelCombo->blockSignals(false);
-        } else if (idx < 0) {
-            m_modelCombo->blockSignals(true);
-            m_modelCombo->setItemText(0, newModel);
-            m_modelCombo->setItemData(0, newModel);
-            m_modelCombo->setCurrentIndex(0);
-            m_modelCombo->blockSignals(false);
-        }
-    });
+    connect(m_ai, &AiClient::modelChanged, this, &MatematicaPage::onAiModelChanged);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -199,91 +182,10 @@ QWidget* MatematicaPage::buildSeqTab()
     btnRefresh->setToolTip("Aggiorna lista modelli");
     optRow->addWidget(btnRefresh);
 
-    /* Score per modelli matematici: piu' alto = migliore per matematica */
-    auto mathScore = [](const QString& name) -> int {
-        const QString n = name.toLower();
-        if (n.contains("qwen2.5-math") || n.contains("qwen2_5-math")) return 100;
-        if (n.contains("mathstral") || n.contains("math"))             return 90;
-        if (n.contains("deepseek-r1"))  return 85;  /* ragionamento chain-of-thought */
-        if (n.contains("qwq"))          return 80;
-        if (n.contains("phi-4") || n.contains("phi4")) return 75;
-        if (n.contains("deepseek") && !n.contains("coder")) return 60;
-        if (n.contains("qwen")     && !n.contains("coder")) return 50;
-        return 0;
-    };
+    connect(btnRefresh, &QPushButton::clicked, this, &MatematicaPage::onRefreshModelsClicked);
 
-    auto isEmbed = [](const QString& n) -> bool {
-        return n.contains("embed") || n.contains("minilm") ||
-               n.contains("rerank") || n.contains("bge-") ||
-               n.contains("e5-") || n.contains("-embed");
-    };
-
-    /* Helper condiviso: popola m_modelCombo auto-selezionando il miglior modello math */
-    auto fillMathCombo = [this, mathScore, isEmbed](const QStringList& list, const QString& cur) {
-        m_modelCombo->clear();
-        int selIdx    = 0;
-        int curIdx    = -1;
-        int bestMath  = -1;
-        int bestScore = -1;
-        for (const QString& mdl : list) {
-            if (isEmbed(mdl.toLower())) continue;
-            const int pos = m_modelCombo->count();
-            /* Etichetta: aggiunge badge per modelli matematici */
-            const int sc = mathScore(mdl);
-            const QString badge = (sc >= 90) ? "  \xf0\x9f\xa7\xae Ottimizzato Math"
-                                : (sc >= 50) ? "  \xe2\x9c\x94 Buono per Math"
-                                :              "";
-            m_modelCombo->addItem(mdl + badge, mdl);
-            if (P::isKnownBrokenModel(mdl)) {
-                m_modelCombo->setItemData(pos, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
-                m_modelCombo->setItemData(pos, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
-                m_modelCombo->setItemData(pos,
-                    P::knownBrokenModelTooltip(),
-                    Qt::ToolTipRole);
-            }
-            if (mdl == cur) curIdx = pos;
-            if (sc > bestScore) { bestScore = sc; bestMath = pos; }
-        }
-        if (m_modelCombo->count() == 0) {
-            m_modelCombo->addItem(cur.isEmpty() ? "(nessun modello)" : cur, cur);
-            return;
-        }
-        const bool curIsMath = (curIdx >= 0 && mathScore(cur) >= 50);
-        if (bestMath >= 0 && !curIsMath)
-            selIdx = bestMath;
-        else if (curIdx >= 0)
-            selIdx = curIdx;
-        m_modelCombo->setCurrentIndex(selIdx);
-        const QString chosen = m_modelCombo->currentData().toString();
-        if (!chosen.isEmpty() && chosen != cur && m_ai)
-            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), chosen);
-    };
-
-    /* Lambda per popolare la combo (esclude embedding) */
-    auto populateModels = [this, fillMathCombo]() {
-        if (!m_ai) return;
-        const QString cur = m_ai->model();
-        auto* holder = new QObject(this);
-        connect(m_ai, &AiClient::modelsReady, holder,
-                [this, holder, fillMathCombo, cur](const QStringList& list) {
-            holder->deleteLater();
-            fillMathCombo(list, cur);
-        });
-        m_ai->fetchModels();
-    };
-
-    connect(btnRefresh, &QPushButton::clicked, this, populateModels);
-
-    /* Carica subito la lista modelli */
-    if (m_ai) {
-        auto* holder = new QObject(this);
-        connect(m_ai, &AiClient::modelsReady, holder,
-                [this, holder, fillMathCombo](const QStringList& list) {
-            holder->deleteLater();
-            fillMathCombo(list, m_ai ? m_ai->model() : QString());
-        });
-        m_ai->fetchModels();
-    }
+    /* Carica subito la lista modelli (slot differito per evitare fetchModels nel costruttore) */
+    QTimer::singleShot(0, this, &MatematicaPage::onLoadModelsOnce);
 
     lay->addLayout(optRow);
 
@@ -300,77 +202,14 @@ QWidget* MatematicaPage::buildSeqTab()
         "\xf0\x9f\x94\x8d  Rileva pattern (locale, istantaneo)", w);
     btnLocal->setObjectName("actionBtn");
     tagExecM(btnLocal, "\xf0\x9f\x94\x8d", "Rileva pattern");
-    connect(btnLocal, &QPushButton::clicked, this, [this]{
-        QString err;
-        QVector<double> seq = parseSeq(m_seqInput->text(), err);
-        if (!err.isEmpty()) {
-            m_seqResult->setText("\xe2\x9d\x8c  " + err);
-            return;
-        }
-        const QString pat = detectPatternLocal(seq);
-        m_seqResult->setText("\xf0\x9f\x94\x8d  " + pat);
-    });
+    connect(btnLocal, &QPushButton::clicked, this, &MatematicaPage::onLocalPatternClicked);
     btnRow->addWidget(btnLocal);
 
     auto* btnSympy = new QPushButton(
         "\xcf\x83  Interpola con sympy (preciso)", w);
     btnSympy->setObjectName("actionBtn");
     tagExecM(btnSympy, "\xcf\x83", "Interpola");
-    connect(btnSympy, &QPushButton::clicked, this, [this]{
-        QString err;
-        QVector<double> seq = parseSeq(m_seqInput->text(), err);
-        if (!err.isEmpty()) { setStatus("\xe2\x9d\x8c  " + err); return; }
-        if (seq.size() < 2) { setStatus("\xe2\x9d\x8c  Inserisci almeno 2 termini."); return; }
-
-        /* Costruisce una lista Python */
-        QString listStr = "[";
-        for (int i = 0; i < seq.size(); ++i) {
-            double v = seq[i];
-            /* interi esatti? */
-            if (v == std::floor(v) && std::abs(v) < 1e15)
-                listStr += QString::number((long long)v);
-            else
-                listStr += QString::number(v, 'g', 17);
-            if (i < seq.size()-1) listStr += ", ";
-        }
-        listStr += "]";
-
-        const int nxt = m_nextTerms->value();
-        const QString pyCode = QString(
-            "from sympy import symbols, interpolating_poly, factor, simplify, Integer, nsimplify\n"
-            "from sympy import factorint, isprime, fibonacci as fib\n"
-            "import sys\n"
-            "seq = %1\n"
-            "n = symbols('n')\n"
-            "N = len(seq)\n"
-            "print('Sequenza:', seq)\n"
-            "print(f'Termini: {N}')\n"
-            "print()\n"
-            /* Tenta interpolazione polinomiale (indici da 1) */
-            "try:\n"
-            "    pts = list(enumerate(seq, 1))\n"
-            "    poly = interpolating_poly(N, n, pts)\n"
-            "    fpoly = factor(simplify(poly))\n"
-            "    print('Formula polinomiale (interpolazione):')\n"
-            "    print(f'  a(n) = {fpoly}')\n"
-            "    print()\n"
-            "    print('Termini successivi:')\n"
-            "    for i in range(N+1, N+%2+1):\n"
-            "        print(f'  a({i}) = {fpoly.subs(n, i)}')\n"
-            "except Exception as e:\n"
-            "    print(f'Interpolazione fallita: {e}')\n"
-            "print()\n"
-            /* Differenze finite */
-            "diffs = [seq[i+1]-seq[i] for i in range(len(seq)-1)]\n"
-            "diffs2 = [diffs[i+1]-diffs[i] for i in range(len(diffs)-1)] if len(diffs)>1 else []\n"
-            "print(f'Prime differenze:  {diffs}')\n"
-            "if diffs2: print(f'Seconde differenze: {diffs2}')\n"
-        ).arg(listStr).arg(nxt);
-
-        clearOutput();
-        appendOutput("\xcf\x83  Analisi sympy in corso...\n\n");
-        runPython(pyCode);
-    });
+    connect(btnSympy, &QPushButton::clicked, this, &MatematicaPage::onSympyClicked);
     btnRow->addWidget(btnSympy);
 
     auto* btnAI = new QPushButton(
@@ -378,13 +217,7 @@ QWidget* MatematicaPage::buildSeqTab()
     btnAI->setObjectName("actionBtn");
     btnAI->setProperty("highlight", "true");
     tagExecM(btnAI, "\xf0\x9f\xa4\x96", "Analizza AI");
-    connect(btnAI, &QPushButton::clicked, this, [this]{
-        QString err;
-        QVector<double> seq = parseSeq(m_seqInput->text(), err);
-        if (!err.isEmpty()) { setStatus("\xe2\x9d\x8c  " + err); return; }
-        if (seq.size() < 2) { setStatus("\xe2\x9d\x8c  Inserisci almeno 2 termini."); return; }
-        runAiSequence(m_seqInput->text().trimmed(), m_nextTerms->value());
-    });
+    connect(btnAI, &QPushButton::clicked, this, &MatematicaPage::onAnalyzeAiClicked);
     btnRow->addWidget(btnAI);
 
     lay->addLayout(btnRow);
@@ -442,35 +275,12 @@ QWidget* MatematicaPage::buildConstTab()
     btnCalc->setProperty("highlight", "true");
     { auto te=[](QPushButton*b,const char*i,const char*t){b->setProperty("execFull",b->text());b->setProperty("execIcon",QString::fromUtf8(i));b->setProperty("execText",QString::fromUtf8(t));};
       te(btnCalc,"\xcf\x80","Calcola"); }
-    connect(btnCalc, &QPushButton::clicked, this, [this]{ runConstant(); });
+    connect(btnCalc, &QPushButton::clicked, this, &MatematicaPage::onConstantCalcClicked);
     btnRow->addWidget(btnCalc);
 
     auto* btnAll = new QPushButton("Tutte le costanti (100 cifre)", w);
     btnAll->setObjectName("actionBtn");
-    connect(btnAll, &QPushButton::clicked, this, [this]{
-        const QString py = R"(
-from mpmath import mp, pi, e, phi, sqrt, euler, log, catalan
-mp.dps = 110
-consts = [
-    ('\xcf\x80  pi', mp.pi),
-    ('e   numero di Eulero', mp.e),
-    ('\xcf\x86  sezione aurea', mp.phi),
-    ('\xe2\x88\x9a2  radice di 2', mp.sqrt(2)),
-    ('\xe2\x88\x9a3  radice di 3', mp.sqrt(3)),
-    ('\xce\xb3   Eulero-Mascheroni', mp.euler),
-    ('ln2 logaritmo naturale di 2', mp.log(2)),
-    ('C   costante di Catalan', mp.catalan),
-]
-for nome, val in consts:
-    s = mp.nstr(val, 100, strip_zeros=False)
-    print(f'{nome}')
-    print(f'  {s}')
-    print()
-)";
-        clearOutput();
-        appendOutput("\xcf\x80  Calcolo costanti a 100 cifre...\n\n");
-        runPython(py);
-    });
+    connect(btnAll, &QPushButton::clicked, this, &MatematicaPage::onAllConstantsClicked);
     btnRow->addWidget(btnAll);
     lay->addLayout(btnRow);
 
@@ -521,37 +331,13 @@ QWidget* MatematicaPage::buildNthTab()
     lay->addLayout(grid);
 
     /* Descrizione dinamica del tipo selezionato */
-    auto* descLbl = new QLabel("", w);
-    descLbl->setObjectName("statusLabel");
-    descLbl->setWordWrap(true);
+    m_nthDescLbl = new QLabel("", w);
+    m_nthDescLbl->setObjectName("statusLabel");
+    m_nthDescLbl->setWordWrap(true);
 
-    auto updateDesc = [this, descLbl]{
-        const QString k = m_nthType->currentData().toString();
-        if (k == "pi_digit")
-            descLbl->setText("Restituisce la N-esima cifra decimale di \xcf\x80 (dopo il punto). "
-                             "Es. N=1 \xe2\x86\x92 1, N=2 \xe2\x86\x92 4, N=3 \xe2\x86\x92 1...");
-        else if (k == "e_digit")
-            descLbl->setText("N-esima cifra decimale di e. Es. N=1 \xe2\x86\x92 7, N=2 \xe2\x86\x92 1...");
-        else if (k == "prime")
-            descLbl->setText("Il primo con indice N. p(1)=2, p(2)=3, p(3)=5... "
-                             "(sympy per N fino a ~10 000 000)");
-        else if (k == "fib")
-            descLbl->setText("F(1)=1, F(2)=1, F(3)=2, F(4)=3, F(5)=5... "
-                             "Anche per N molto grandi (mpmath).");
-        else if (k == "fact")
-            descLbl->setText("N! — fattoriale. 1!=1, 5!=120, 100!=93326215443944..."
-                             " (precisione arbitraria).");
-        else if (k == "pow2")
-            descLbl->setText("2^N. Anche per N molto grandi (migliaia di cifre).");
-        else if (k == "pi_block")
-            descLbl->setText("Le prime N cifre di \xcf\x80 come blocco continuo "
-                             "(includa la parte intera: 3.14159...).");
-        else if (k == "phi_block")
-            descLbl->setText("Le prime N cifre di \xcf\x86 (sezione aurea).");
-    };
-    connect(m_nthType, &QComboBox::currentIndexChanged, this, updateDesc);
-    updateDesc();
-    lay->addWidget(descLbl);
+    connect(m_nthType, &QComboBox::currentIndexChanged, this, &MatematicaPage::onNthTypeChanged);
+    onNthTypeChanged();
+    lay->addWidget(m_nthDescLbl);
 
     auto* btnRow = new QHBoxLayout;
     auto* btnCalc = new QPushButton("#\xe2\x83\xbf  Calcola", w);
@@ -560,7 +346,7 @@ QWidget* MatematicaPage::buildNthTab()
     btnCalc->setProperty("execFull", btnCalc->text());
     btnCalc->setProperty("execIcon", QString::fromUtf8("#\xe2\x83\xbf"));
     btnCalc->setProperty("execText", "Calcola");
-    connect(btnCalc, &QPushButton::clicked, this, [this]{ runNth(); });
+    connect(btnCalc, &QPushButton::clicked, this, &MatematicaPage::onNthCalcClicked);
     btnRow->addWidget(btnCalc);
     btnRow->addStretch(1);
     lay->addLayout(btnRow);
@@ -621,11 +407,8 @@ QWidget* MatematicaPage::buildExprTab()
         auto* btn = new QPushButton(ex.label, exGroup);
         btn->setObjectName("navBtn");
         btn->setFixedHeight(24);
-        const QString exprStr = ex.expr;
-        connect(btn, &QPushButton::clicked, this, [this, exprStr]{
-            m_exprInput->setText(exprStr);
-            runExpr();
-        });
+        btn->setProperty("mathExpr", QString::fromUtf8(ex.expr));
+        connect(btn, &QPushButton::clicked, this, &MatematicaPage::onExampleClicked);
         exGrid->addWidget(btn, r, c);
         if (++c == 4) { c = 0; ++r; }
     }
@@ -638,7 +421,7 @@ QWidget* MatematicaPage::buildExprTab()
     btnEval->setProperty("execFull", btnEval->text());
     btnEval->setProperty("execIcon", QString::fromUtf8("\xf0\x9f\xa7\xae"));
     btnEval->setProperty("execText", "Calcola");
-    connect(btnEval, &QPushButton::clicked, this, [this]{ runExpr(); });
+    connect(btnEval, &QPushButton::clicked, this, &MatematicaPage::onExprEvalClicked);
     btnRow->addWidget(btnEval);
 
     auto* btnSimplify = new QPushButton("\xe2\x99\xbe  Semplifica (sympy)", w);
@@ -646,29 +429,10 @@ QWidget* MatematicaPage::buildExprTab()
     btnSimplify->setProperty("execFull", btnSimplify->text());
     btnSimplify->setProperty("execIcon", QString::fromUtf8("\xe2\x99\xbe"));
     btnSimplify->setProperty("execText", "Semplifica");
-    connect(btnSimplify, &QPushButton::clicked, this, [this]{
-        const QString expr = m_exprInput->text().trimmed();
-        if (expr.isEmpty()) return;
-        const int prec = m_exprPrec->value();
-        const QString py = QString(
-            "from sympy import *\n"
-            "from mpmath import mp\n"
-            "mp.dps = %1\n"
-            "x = symbols('x')\n"
-            "expr = %2\n"
-            "print('Espressione:  ', expr)\n"
-            "print('Semplificata: ', simplify(expr))\n"
-            "print('Fattorizzata: ', factor(expr))\n"
-            "try:\n"
-            "    print('Valore numerico:', N(expr, %1))\n"
-            "except: pass\n"
-        ).arg(prec).arg(expr);
-        clearOutput();
-        runPython(py);
-    });
+    connect(btnSimplify, &QPushButton::clicked, this, &MatematicaPage::onSimplifyClicked);
     btnRow->addWidget(btnSimplify);
 
-    connect(m_exprInput, &QLineEdit::returnPressed, this, [this]{ runExpr(); });
+    connect(m_exprInput, &QLineEdit::returnPressed, this, &MatematicaPage::onExprReturnPressed);
     lay->addLayout(btnRow);
 
     lay->addStretch(1);
@@ -952,23 +716,15 @@ void MatematicaPage::runAiSequence(const QString& seqStr, int nextN)
 
     setStatus("\xf0\x9f\xa4\x96  AI in analisi...");
 
-    auto* holder = new QObject(this);
-    connect(m_ai, &AiClient::token, holder, [this](const QString& tok){
-        m_output->moveCursor(QTextCursor::End);
-        m_output->insertPlainText(tok);
-        m_output->ensureCursorVisible();
-    });
-    connect(m_ai, &AiClient::finished, holder, [this, holder](const QString&){
-        holder->deleteLater();
-        m_aiRunning = false;
-        setStatus("\xe2\x9c\x85  Analisi AI completata.");
-    });
-    connect(m_ai, &AiClient::error, holder, [this, holder](const QString& msg){
-        holder->deleteLater();
-        m_aiRunning = false;
-        appendOutput("\n\xe2\x9d\x8c  Errore AI: " + msg);
-        setStatus("\xe2\x9d\x8c  Errore AI.");
-    });
+    /* Usa holder come context per limitare la durata delle connessioni one-shot */
+    delete m_aiSeqHolder;
+    m_aiSeqHolder = new QObject(this);
+    connect(m_ai, &AiClient::token,    m_aiSeqHolder,
+            [this](const QString& tok){ onAiSeqToken(tok); });
+    connect(m_ai, &AiClient::finished, m_aiSeqHolder,
+            [this](const QString& full){ onAiSeqFinished(full); });
+    connect(m_ai, &AiClient::error,    m_aiSeqHolder,
+            [this](const QString& msg){ onAiSeqError(msg); });
 
     m_ai->chat(sys.arg(nextN), user);
 }
@@ -984,20 +740,10 @@ void MatematicaPage::runPython(const QString& code)
     m_proc = new QProcess(this);
     m_proc->setProcessChannelMode(QProcess::MergedChannels);
 
-    connect(m_proc, &QProcess::readyReadStandardOutput, this, [this]{
-        const QString txt = QString::fromUtf8(m_proc->readAllStandardOutput());
-        appendOutput(txt);
-    });
+    connect(m_proc, &QProcess::readyReadStandardOutput,
+            this, &MatematicaPage::onProcReadyRead);
     connect(m_proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this](int code, QProcess::ExitStatus){
-        if (code != 0) {
-            setStatus(QString("\xe2\x9d\x8c  Python uscito con codice %1.").arg(code));
-        } else {
-            setStatus("\xe2\x9c\x85  Calcolo completato.");
-        }
-        m_proc->deleteLater();
-        m_proc = nullptr;
-    });
+            this, &MatematicaPage::onProcFinished);
 
     setStatus("\xe2\x8f\xb3  Calcolo in corso...");
     m_proc->start(P::findPython(), QStringList{"-c", code});
@@ -1471,4 +1217,376 @@ void MatematicaPage::clearOutput()
 void MatematicaPage::setStatus(const QString& msg)
 {
     if (m_status) m_status->setText(msg);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — barra output
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onCopyClicked()
+{
+    QApplication::clipboard()->setText(m_output->toPlainText());
+}
+
+void MatematicaPage::onClearOutputClicked()
+{
+    clearOutput();
+}
+
+void MatematicaPage::onStopClicked()
+{
+    stopPython();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — sincronizzazione modello AI
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onAiModelChanged(const QString& newModel)
+{
+    if (!m_modelCombo) return;
+    int idx = m_modelCombo->findData(newModel);
+    if (idx < 0) idx = m_modelCombo->findText(newModel, Qt::MatchContains);
+    if (idx >= 0 && idx != m_modelCombo->currentIndex()) {
+        m_modelCombo->blockSignals(true);
+        m_modelCombo->setCurrentIndex(idx);
+        m_modelCombo->blockSignals(false);
+    } else if (idx < 0) {
+        m_modelCombo->blockSignals(true);
+        m_modelCombo->setItemText(0, newModel);
+        m_modelCombo->setItemData(0, newModel);
+        m_modelCombo->setCurrentIndex(0);
+        m_modelCombo->blockSignals(false);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — combo modelli matematici (helper interni)
+   ══════════════════════════════════════════════════════════════ */
+
+/* Punteggio modelli matematici — piu' alto = migliore per matematica */
+static int mathModelScore(const QString& name)
+{
+    const QString n = name.toLower();
+    if (n.contains("qwen2.5-math") || n.contains("qwen2_5-math")) return 100;
+    if (n.contains("mathstral") || n.contains("math"))             return 90;
+    if (n.contains("deepseek-r1"))  return 85;
+    if (n.contains("qwq"))          return 80;
+    if (n.contains("phi-4") || n.contains("phi4")) return 75;
+    if (n.contains("deepseek") && !n.contains("coder")) return 60;
+    if (n.contains("qwen")     && !n.contains("coder")) return 50;
+    return 0;
+}
+
+static bool isEmbedModel(const QString& n)
+{
+    return n.contains("embed") || n.contains("minilm") ||
+           n.contains("rerank") || n.contains("bge-") ||
+           n.contains("e5-") || n.contains("-embed");
+}
+
+void MatematicaPage::fillMathCombo(const QStringList& list, const QString& cur)
+{
+    if (!m_modelCombo) return;
+    m_modelCombo->clear();
+    int selIdx    = 0;
+    int curIdx    = -1;
+    int bestMath  = -1;
+    int bestScore = -1;
+    for (const QString& mdl : list) {
+        if (isEmbedModel(mdl.toLower())) continue;
+        const int pos = m_modelCombo->count();
+        const int sc  = mathModelScore(mdl);
+        const QString badge = (sc >= 90) ? "  \xf0\x9f\xa7\xae Ottimizzato Math"
+                            : (sc >= 50) ? "  \xe2\x9c\x94 Buono per Math"
+                            :              "";
+        m_modelCombo->addItem(mdl + badge, mdl);
+        if (P::isKnownBrokenModel(mdl)) {
+            m_modelCombo->setItemData(pos, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
+            m_modelCombo->setItemData(pos, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
+            m_modelCombo->setItemData(pos, P::knownBrokenModelTooltip(), Qt::ToolTipRole);
+        }
+        if (mdl == cur) curIdx = pos;
+        if (sc > bestScore) { bestScore = sc; bestMath = pos; }
+    }
+    if (m_modelCombo->count() == 0) {
+        m_modelCombo->addItem(cur.isEmpty() ? "(nessun modello)" : cur, cur);
+        return;
+    }
+    const bool curIsMath = (curIdx >= 0 && mathModelScore(cur) >= 50);
+    if (bestMath >= 0 && !curIsMath) selIdx = bestMath;
+    else if (curIdx >= 0)            selIdx = curIdx;
+    m_modelCombo->setCurrentIndex(selIdx);
+    const QString chosen = m_modelCombo->currentData().toString();
+    if (!chosen.isEmpty() && chosen != cur && m_ai)
+        m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), chosen);
+}
+
+void MatematicaPage::fetchAndFillMathModels()
+{
+    if (!m_ai) return;
+    const QString cur = m_ai->model();
+    auto* holder = new QObject(this);
+    connect(m_ai, &AiClient::modelsReady, holder,
+            [this, holder, cur](const QStringList& list) {
+        holder->deleteLater();
+        fillMathCombo(list, cur);
+    });
+    m_ai->fetchModels();
+}
+
+void MatematicaPage::onRefreshModelsClicked()
+{
+    fetchAndFillMathModels();
+}
+
+void MatematicaPage::onLoadModelsOnce()
+{
+    if (!m_ai) return;
+    const QString cur = m_ai->model();
+    auto* holder = new QObject(this);
+    connect(m_ai, &AiClient::modelsReady, holder,
+            [this, holder](const QStringList& list) {
+        holder->deleteLater();
+        fillMathCombo(list, m_ai ? m_ai->model() : QString());
+    });
+    m_ai->fetchModels();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — tab Sequenza
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onLocalPatternClicked()
+{
+    QString err;
+    QVector<double> seq = parseSeq(m_seqInput->text(), err);
+    if (!err.isEmpty()) {
+        m_seqResult->setText("\xe2\x9d\x8c  " + err);
+        return;
+    }
+    const QString pat = detectPatternLocal(seq);
+    m_seqResult->setText("\xf0\x9f\x94\x8d  " + pat);
+}
+
+void MatematicaPage::onSympyClicked()
+{
+    QString err;
+    QVector<double> seq = parseSeq(m_seqInput->text(), err);
+    if (!err.isEmpty()) { setStatus("\xe2\x9d\x8c  " + err); return; }
+    if (seq.size() < 2) { setStatus("\xe2\x9d\x8c  Inserisci almeno 2 termini."); return; }
+
+    QString listStr = "[";
+    for (int i = 0; i < seq.size(); ++i) {
+        double v = seq[i];
+        if (v == std::floor(v) && std::abs(v) < 1e15)
+            listStr += QString::number((long long)v);
+        else
+            listStr += QString::number(v, 'g', 17);
+        if (i < seq.size()-1) listStr += ", ";
+    }
+    listStr += "]";
+
+    const int nxt = m_nextTerms->value();
+    const QString pyCode = QString(
+        "from sympy import symbols, interpolating_poly, factor, simplify, Integer, nsimplify\n"
+        "from sympy import factorint, isprime, fibonacci as fib\n"
+        "import sys\n"
+        "seq = %1\n"
+        "n = symbols('n')\n"
+        "N = len(seq)\n"
+        "print('Sequenza:', seq)\n"
+        "print(f'Termini: {N}')\n"
+        "print()\n"
+        "try:\n"
+        "    pts = list(enumerate(seq, 1))\n"
+        "    poly = interpolating_poly(N, n, pts)\n"
+        "    fpoly = factor(simplify(poly))\n"
+        "    print('Formula polinomiale (interpolazione):')\n"
+        "    print(f'  a(n) = {fpoly}')\n"
+        "    print()\n"
+        "    print('Termini successivi:')\n"
+        "    for i in range(N+1, N+%2+1):\n"
+        "        print(f'  a({i}) = {fpoly.subs(n, i)}')\n"
+        "except Exception as e:\n"
+        "    print(f'Interpolazione fallita: {e}')\n"
+        "print()\n"
+        "diffs = [seq[i+1]-seq[i] for i in range(len(seq)-1)]\n"
+        "diffs2 = [diffs[i+1]-diffs[i] for i in range(len(diffs)-1)] if len(diffs)>1 else []\n"
+        "print(f'Prime differenze:  {diffs}')\n"
+        "if diffs2: print(f'Seconde differenze: {diffs2}')\n"
+    ).arg(listStr).arg(nxt);
+
+    clearOutput();
+    appendOutput("\xcf\x83  Analisi sympy in corso...\n\n");
+    runPython(pyCode);
+}
+
+void MatematicaPage::onAnalyzeAiClicked()
+{
+    QString err;
+    QVector<double> seq = parseSeq(m_seqInput->text(), err);
+    if (!err.isEmpty()) { setStatus("\xe2\x9d\x8c  " + err); return; }
+    if (seq.size() < 2) { setStatus("\xe2\x9d\x8c  Inserisci almeno 2 termini."); return; }
+    runAiSequence(m_seqInput->text().trimmed(), m_nextTerms->value());
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — tab Costanti
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onConstantCalcClicked()
+{
+    runConstant();
+}
+
+void MatematicaPage::onAllConstantsClicked()
+{
+    const QString py =
+        "from mpmath import mp, pi, e, phi, sqrt, euler, log, catalan\n"
+        "mp.dps = 110\n"
+        "consts = [\n"
+        "    ('\xcf\x80  pi', mp.pi),\n"
+        "    ('e   numero di Eulero', mp.e),\n"
+        "    ('\xcf\x86  sezione aurea', mp.phi),\n"
+        "    ('\xe2\x88\x9a2  radice di 2', mp.sqrt(2)),\n"
+        "    ('\xe2\x88\x9a3  radice di 3', mp.sqrt(3)),\n"
+        "    ('\xce\xb3   Eulero-Mascheroni', mp.euler),\n"
+        "    ('ln2 logaritmo naturale di 2', mp.log(2)),\n"
+        "    ('C   costante di Catalan', mp.catalan),\n"
+        "]\n"
+        "for nome, val in consts:\n"
+        "    s = mp.nstr(val, 100, strip_zeros=False)\n"
+        "    print(f'{nome}')\n"
+        "    print(f'  {s}')\n"
+        "    print()\n";
+    clearOutput();
+    appendOutput("\xcf\x80  Calcolo costanti a 100 cifre...\n\n");
+    runPython(py);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — tab N-esimo
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onNthTypeChanged()
+{
+    if (!m_nthDescLbl || !m_nthType) return;
+    const QString k = m_nthType->currentData().toString();
+    if (k == "pi_digit")
+        m_nthDescLbl->setText("Restituisce la N-esima cifra decimale di \xcf\x80 (dopo il punto). "
+                         "Es. N=1 \xe2\x86\x92 1, N=2 \xe2\x86\x92 4, N=3 \xe2\x86\x92 1...");
+    else if (k == "e_digit")
+        m_nthDescLbl->setText("N-esima cifra decimale di e. Es. N=1 \xe2\x86\x92 7, N=2 \xe2\x86\x92 1...");
+    else if (k == "prime")
+        m_nthDescLbl->setText("Il primo con indice N. p(1)=2, p(2)=3, p(3)=5... "
+                         "(sympy per N fino a ~10 000 000)");
+    else if (k == "fib")
+        m_nthDescLbl->setText("F(1)=1, F(2)=1, F(3)=2, F(4)=3, F(5)=5... "
+                         "Anche per N molto grandi (mpmath).");
+    else if (k == "fact")
+        m_nthDescLbl->setText("N! \xe2\x80\x94 fattoriale. 1!=1, 5!=120, 100!=93326215443944..."
+                         " (precisione arbitraria).");
+    else if (k == "pow2")
+        m_nthDescLbl->setText("2^N. Anche per N molto grandi (migliaia di cifre).");
+    else if (k == "pi_block")
+        m_nthDescLbl->setText("Le prime N cifre di \xcf\x80 come blocco continuo "
+                         "(includa la parte intera: 3.14159...).");
+    else if (k == "phi_block")
+        m_nthDescLbl->setText("Le prime N cifre di \xcf\x86 (sezione aurea).");
+}
+
+void MatematicaPage::onNthCalcClicked()
+{
+    runNth();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — tab Espressione
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onExampleClicked()
+{
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn) return;
+    const QString expr = btn->property("mathExpr").toString();
+    if (expr.isEmpty()) return;
+    m_exprInput->setText(expr);
+    runExpr();
+}
+
+void MatematicaPage::onExprEvalClicked()
+{
+    runExpr();
+}
+
+void MatematicaPage::onSimplifyClicked()
+{
+    const QString expr = m_exprInput->text().trimmed();
+    if (expr.isEmpty()) return;
+    const int prec = m_exprPrec->value();
+    const QString py = QString(
+        "from sympy import *\n"
+        "from mpmath import mp\n"
+        "mp.dps = %1\n"
+        "x = symbols('x')\n"
+        "expr = %2\n"
+        "print('Espressione:  ', expr)\n"
+        "print('Semplificata: ', simplify(expr))\n"
+        "print('Fattorizzata: ', factor(expr))\n"
+        "try:\n"
+        "    print('Valore numerico:', N(expr, %1))\n"
+        "except: pass\n"
+    ).arg(prec).arg(expr);
+    clearOutput();
+    runPython(py);
+}
+
+void MatematicaPage::onExprReturnPressed()
+{
+    runExpr();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — AI sequenza (one-shot holder)
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onAiSeqToken(const QString& tok)
+{
+    m_output->moveCursor(QTextCursor::End);
+    m_output->insertPlainText(tok);
+    m_output->ensureCursorVisible();
+}
+
+void MatematicaPage::onAiSeqFinished(const QString& /*full*/)
+{
+    delete m_aiSeqHolder;
+    m_aiSeqHolder = nullptr;
+    m_aiRunning = false;
+    setStatus("\xe2\x9c\x85  Analisi AI completata.");
+}
+
+void MatematicaPage::onAiSeqError(const QString& msg)
+{
+    delete m_aiSeqHolder;
+    m_aiSeqHolder = nullptr;
+    m_aiRunning = false;
+    appendOutput("\n\xe2\x9d\x8c  Errore AI: " + msg);
+    setStatus("\xe2\x9d\x8c  Errore AI.");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — QProcess Python
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onProcReadyRead()
+{
+    if (!m_proc) return;
+    const QString txt = QString::fromUtf8(m_proc->readAllStandardOutput());
+    appendOutput(txt);
+}
+
+void MatematicaPage::onProcFinished(int code, QProcess::ExitStatus /*status*/)
+{
+    if (code != 0) {
+        setStatus(QString("\xe2\x9d\x8c  Python uscito con codice %1.").arg(code));
+    } else {
+        setStatus("\xe2\x9c\x85  Calcolo completato.");
+    }
+    if (m_proc) {
+        m_proc->deleteLater();
+        m_proc = nullptr;
+    }
 }

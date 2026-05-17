@@ -246,32 +246,15 @@ void ManutenzioneePage::cronRunJob(int idx)
     if (jobModel != prevModel)
         m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), jobModel);
 
-    auto* h = new QObject(this);
-    connect(m_ai, &AiClient::finished, h, [this, h, idx, jobName, prevModel, jobModel](const QString& resp){
-        h->deleteLater();
-        if (jobModel != prevModel)
-            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), prevModel);
-        const QString clean = stripThink(resp);
-        if (idx < m_cronJobs.size()) {
-            m_cronJobs[idx].lastResult = clean.left(500);
-            cronSaveJobs();
-        }
-        if (m_cronLog) m_cronLog->append(
-            QString("<span style='color:#8c8'>[%1] ✅ <b>%2</b> completato. Risposta: %3</span>")
-            .arg(QDateTime::currentDateTime().toString("HH:mm:ss"))
-            .arg(jobName.toHtmlEscaped())
-            .arg(clean.left(200).toHtmlEscaped()));
-    });
-    connect(m_ai, &AiClient::error, h, [this, h, jobName, prevModel, jobModel](const QString& err){
-        h->deleteLater();
-        if (jobModel != prevModel)
-            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), prevModel);
-        if (m_cronLog) m_cronLog->append(
-            QString("<span style='color:#f66'>[%1] ❌ <b>%2</b> errore: %3</span>")
-            .arg(QDateTime::currentDateTime().toString("HH:mm:ss"))
-            .arg(jobName.toHtmlEscaped())
-            .arg(err.toHtmlEscaped()));
-    });
+    m_cronJobIdx   = idx;
+    m_cronJobName  = jobName;
+    m_cronPrevModel = prevModel;
+    m_cronJobModel = jobModel;
+
+    disconnect(m_cronAiFinConn);
+    disconnect(m_cronAiErrConn);
+    m_cronAiFinConn = connect(m_ai, &AiClient::finished, this, &ManutenzioneePage::onCronAiFinished);
+    m_cronAiErrConn = connect(m_ai, &AiClient::error,    this, &ManutenzioneePage::onCronAiError);
 
     m_ai->chat("Sei un assistente Prismalux. Rispondi in modo conciso.", prompt);
 }
@@ -401,35 +384,27 @@ void ManutenzioneePage::cronAddOrEdit(int idx)
     bb->button(QDialogButtonBox::Ok)->setText(isEdit ? "Salva" : "Aggiungi");
     lay->addWidget(bb);
 
-    connect(bb, &QDialogButtonBox::accepted, dlg, [=](){
-        if (edName->text().trimmed().isEmpty() || edPrompt->toPlainText().trimmed().isEmpty()) return;
+    m_cronDlgEdName      = edName;
+    m_cronDlgEdPrompt    = edPrompt;
+    m_cronDlgCmbModel    = cmbModel;
+    m_cronDlgRdDaily     = rdDaily;
+    m_cronDlgRdHourly    = rdHourly;
+    m_cronDlgRdInterval  = rdInterval;
+    m_cronDlgRdOnce      = rdOnce;
+    m_cronDlgTeDaily     = teDaily;
+    m_cronDlgSpHourly    = spHourly;
+    m_cronDlgSpInterval  = spInterval;
+    m_cronDlgDtOnce      = dtOnce;
+    m_cronDlgIsEdit      = isEdit;
+    m_cronDlgIdx         = idx;
+    m_cronDlgSrcId       = src.id;
+    m_cronDlgSrcEnabled  = src.enabled;
+    m_cronDlgSrcLastRun  = src.lastRun;
+    m_cronDlgSrcLastResult = src.lastResult;
+    m_cronDlgPtr         = dlg;
 
-        CronJob j;
-        j.id      = isEdit ? src.id : QUuid::createUuid().toString(QUuid::WithoutBraces);
-        j.name    = edName->text().trimmed();
-        j.prompt  = edPrompt->toPlainText().trimmed();
-        j.model   = cmbModel->currentData().toString();
-        j.enabled = isEdit ? src.enabled : true;
-        j.lastRun = isEdit ? src.lastRun : QString();
-        j.lastResult = isEdit ? src.lastResult : QString();
-
-        if (rdDaily->isChecked())
-            j.schedule = "daily@" + teDaily->time().toString("HH:mm");
-        else if (rdHourly->isChecked())
-            j.schedule = "hourly@" + QString::number(spHourly->value());
-        else if (rdInterval->isChecked())
-            j.schedule = "interval@" + QString::number(spInterval->value());
-        else
-            j.schedule = "once@" + dtOnce->dateTime().toString(Qt::ISODate);
-
-        if (isEdit) m_cronJobs[idx] = j;
-        else        m_cronJobs.append(j);
-
-        cronSaveJobs();
-        cronRefreshTable();
-        dlg->accept();
-    });
-    connect(bb, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+    connect(bb, &QDialogButtonBox::accepted, this, &ManutenzioneePage::onCronDialogAccepted);
+    connect(bb, &QDialogButtonBox::rejected, dlg,  &QDialog::reject);
 
     dlg->exec();
     dlg->deleteLater();
@@ -512,45 +487,19 @@ QWidget* ManutenzioneePage::buildCronTab()
     cronRefreshTable();
 
     /* ── Toggle abilitato dal checkbox ── */
-    connect(m_cronTable, &QTableWidget::itemChanged, this, [this](QTableWidgetItem* item){
-        if (item->column() != CC_En) return;
-        const int row = item->row();
-        if (row < 0 || row >= m_cronJobs.size()) return;
-        m_cronJobs[row].enabled = (item->checkState() == Qt::Checked);
-        cronSaveJobs();
-        if (auto* nxt = m_cronTable->item(row, CC_Next))
-            nxt->setText(m_cronJobs[row].enabled ? cronNextRun(m_cronJobs[row].schedule) : "-");
-    });
+    connect(m_cronTable, &QTableWidget::itemChanged,
+            this, &ManutenzioneePage::onCronTableItemChanged);
 
     /* ── Doppio click = modifica ── */
-    connect(m_cronTable, &QTableWidget::doubleClicked, this, [this](const QModelIndex& idx){
-        cronAddOrEdit(idx.row());
-    });
+    connect(m_cronTable, &QTableWidget::doubleClicked,
+            this, &ManutenzioneePage::onCronTableDoubleClicked);
 
     /* ── Pulsanti toolbar ── */
-    connect(btnAdd,  &QPushButton::clicked, this, [this](){ cronAddOrEdit(-1); });
-    connect(btnEdit, &QPushButton::clicked, this, [this](){
-        const int row = m_cronTable->currentRow();
-        if (row >= 0) cronAddOrEdit(row);
-    });
-    connect(btnDel, &QPushButton::clicked, this, [this](){
-        const int row = m_cronTable->currentRow();
-        if (row < 0 || row >= m_cronJobs.size()) return;
-        m_cronJobs.removeAt(row);
-        cronSaveJobs();
-        cronRefreshTable();
-    });
-    connect(btnRun, &QPushButton::clicked, this, [this](){
-        const int row = m_cronTable->currentRow();
-        if (row >= 0) cronRunJob(row);
-    });
-    connect(m_btnCronPause, &QPushButton::toggled, this, [this](bool on){
-        m_cronPaused = on;
-        m_btnCronPause->setText(on ? "\xe2\x96\xb6  Riprendi tutto" : "\xe2\x8f\xb8  Pausa tutto");
-        if (m_cronLog) m_cronLog->append(
-            on ? "<span style='color:#f0c060'>⏸ Cron in pausa.</span>"
-               : "<span style='color:#8c8'>▶ Cron ripreso.</span>");
-    });
+    connect(btnAdd,        &QPushButton::clicked, this, &ManutenzioneePage::onCronBtnAddClicked);
+    connect(btnEdit,       &QPushButton::clicked, this, &ManutenzioneePage::onCronBtnEditClicked);
+    connect(btnDel,        &QPushButton::clicked, this, &ManutenzioneePage::onCronBtnDelClicked);
+    connect(btnRun,        &QPushButton::clicked, this, &ManutenzioneePage::onCronBtnRunClicked);
+    connect(m_btnCronPause, &QPushButton::toggled, this, &ManutenzioneePage::onCronPauseToggled);
 
     /* ── Timer principale (ogni 60s) ── */
     m_cronTimer = new QTimer(this);
@@ -562,4 +511,132 @@ QWidget* ManutenzioneePage::buildCronTab()
     QTimer::singleShot(3000, this, &ManutenzioneePage::cronTick);
 
     return w;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Slot: cron AI one-shot
+   ────────────────────────────────────────────────────────────── */
+void ManutenzioneePage::onCronAiFinished(const QString& resp)
+{
+    disconnect(m_cronAiFinConn);
+    disconnect(m_cronAiErrConn);
+    if (m_cronJobModel != m_cronPrevModel)
+        m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_cronPrevModel);
+    const QString clean = stripThink(resp);
+    if (m_cronJobIdx >= 0 && m_cronJobIdx < m_cronJobs.size()) {
+        m_cronJobs[m_cronJobIdx].lastResult = clean.left(500);
+        cronSaveJobs();
+    }
+    if (m_cronLog) m_cronLog->append(
+        QString("<span style='color:#8c8'>[%1] \xe2\x9c\x85 <b>%2</b> completato. Risposta: %3</span>")
+        .arg(QDateTime::currentDateTime().toString("HH:mm:ss"))
+        .arg(m_cronJobName.toHtmlEscaped())
+        .arg(clean.left(200).toHtmlEscaped()));
+}
+
+void ManutenzioneePage::onCronAiError(const QString& err)
+{
+    disconnect(m_cronAiFinConn);
+    disconnect(m_cronAiErrConn);
+    if (m_cronJobModel != m_cronPrevModel)
+        m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_cronPrevModel);
+    if (m_cronLog) m_cronLog->append(
+        QString("<span style='color:#f66'>[%1] \xe2\x9d\x8c <b>%2</b> errore: %3</span>")
+        .arg(QDateTime::currentDateTime().toString("HH:mm:ss"))
+        .arg(m_cronJobName.toHtmlEscaped())
+        .arg(err.toHtmlEscaped()));
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Slot: toolbar cron
+   ────────────────────────────────────────────────────────────── */
+void ManutenzioneePage::onCronTableItemChanged(QTableWidgetItem* item)
+{
+    if (item->column() != CC_En) return;
+    const int row = item->row();
+    if (row < 0 || row >= m_cronJobs.size()) return;
+    m_cronJobs[row].enabled = (item->checkState() == Qt::Checked);
+    cronSaveJobs();
+    if (auto* nxt = m_cronTable->item(row, CC_Next))
+        nxt->setText(m_cronJobs[row].enabled ? cronNextRun(m_cronJobs[row].schedule) : "-");
+}
+
+void ManutenzioneePage::onCronTableDoubleClicked(const QModelIndex& idx)
+{
+    cronAddOrEdit(idx.row());
+}
+
+void ManutenzioneePage::onCronBtnAddClicked()
+{
+    cronAddOrEdit(-1);
+}
+
+void ManutenzioneePage::onCronBtnEditClicked()
+{
+    const int row = m_cronTable->currentRow();
+    if (row >= 0) cronAddOrEdit(row);
+}
+
+void ManutenzioneePage::onCronBtnDelClicked()
+{
+    const int row = m_cronTable->currentRow();
+    if (row < 0 || row >= m_cronJobs.size()) return;
+    m_cronJobs.removeAt(row);
+    cronSaveJobs();
+    cronRefreshTable();
+}
+
+void ManutenzioneePage::onCronBtnRunClicked()
+{
+    const int row = m_cronTable->currentRow();
+    if (row >= 0) cronRunJob(row);
+}
+
+void ManutenzioneePage::onCronPauseToggled(bool on)
+{
+    m_cronPaused = on;
+    m_btnCronPause->setText(on ? "\xe2\x96\xb6  Riprendi tutto" : "\xe2\x8f\xb8  Pausa tutto");
+    if (m_cronLog) m_cronLog->append(
+        on ? "<span style='color:#f0c060'>\xe2\x8f\xb8 Cron in pausa.</span>"
+           : "<span style='color:#8c8'>\xe2\x96\xb6 Cron ripreso.</span>");
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Slot: dialog add/edit confermato
+   ────────────────────────────────────────────────────────────── */
+void ManutenzioneePage::onCronDialogAccepted()
+{
+    if (!m_cronDlgEdName || !m_cronDlgEdPrompt) return;
+    if (m_cronDlgEdName->text().trimmed().isEmpty() ||
+        m_cronDlgEdPrompt->toPlainText().trimmed().isEmpty()) return;
+
+    CronJob j;
+    j.id      = m_cronDlgIsEdit ? m_cronDlgSrcId
+                                : QUuid::createUuid().toString(QUuid::WithoutBraces);
+    j.name    = m_cronDlgEdName->text().trimmed();
+    j.prompt  = m_cronDlgEdPrompt->toPlainText().trimmed();
+    j.model   = m_cronDlgCmbModel ? m_cronDlgCmbModel->currentData().toString() : QString();
+    j.enabled    = m_cronDlgIsEdit ? m_cronDlgSrcEnabled   : true;
+    j.lastRun    = m_cronDlgIsEdit ? m_cronDlgSrcLastRun    : QString();
+    j.lastResult = m_cronDlgIsEdit ? m_cronDlgSrcLastResult : QString();
+
+    if (m_cronDlgRdDaily && m_cronDlgRdDaily->isChecked())
+        j.schedule = "daily@" + (m_cronDlgTeDaily ? m_cronDlgTeDaily->time().toString("HH:mm") : "09:00");
+    else if (m_cronDlgRdHourly && m_cronDlgRdHourly->isChecked())
+        j.schedule = "hourly@" + (m_cronDlgSpHourly ? QString::number(m_cronDlgSpHourly->value()) : "0");
+    else if (m_cronDlgRdInterval && m_cronDlgRdInterval->isChecked())
+        j.schedule = "interval@" + (m_cronDlgSpInterval ? QString::number(m_cronDlgSpInterval->value()) : "30");
+    else
+        j.schedule = "once@" + (m_cronDlgDtOnce ? m_cronDlgDtOnce->dateTime().toString(Qt::ISODate)
+                                                  : QDateTime::currentDateTime().toString(Qt::ISODate));
+
+    if (m_cronDlgIsEdit && m_cronDlgIdx >= 0 && m_cronDlgIdx < m_cronJobs.size())
+        m_cronJobs[m_cronDlgIdx] = j;
+    else
+        m_cronJobs.append(j);
+
+    cronSaveJobs();
+    cronRefreshTable();
+
+    if (m_cronDlgPtr) m_cronDlgPtr->accept();
 }

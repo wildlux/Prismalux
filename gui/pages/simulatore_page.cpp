@@ -860,12 +860,12 @@ SimulatorePage::SimulatorePage(AiClient* ai, QWidget* parent)
 
     auto* aiRow = new QWidget(this);
     auto* aiRL  = new QHBoxLayout(aiRow); aiRL->setContentsMargins(0,0,0,0); aiRL->setSpacing(8);
-    auto* aiAskBtn = new QPushButton("\U0001f916  Chiedi all'AI sull'algoritmo", aiRow);
-    aiAskBtn->setObjectName("actionBtn");
+    m_aiAskBtn = new QPushButton("\U0001f916  Chiedi all'AI sull'algoritmo", aiRow);
+    m_aiAskBtn->setObjectName("actionBtn");
     m_aiStopBtn = new QPushButton("\u23f9", aiRow);
     m_aiStopBtn->setObjectName("actionBtn"); m_aiStopBtn->setProperty("danger", true);
     m_aiStopBtn->setFixedWidth(40); m_aiStopBtn->setEnabled(false);
-    aiRL->addWidget(aiAskBtn); aiRL->addWidget(m_aiStopBtn); aiRL->addStretch(1);
+    aiRL->addWidget(m_aiAskBtn); aiRL->addWidget(m_aiStopBtn); aiRL->addStretch(1);
     lay->addWidget(aiRow);
 
     m_aiLog = new QTextEdit(this);
@@ -883,89 +883,151 @@ SimulatorePage::SimulatorePage(AiClient* ai, QWidget* parent)
     m_timer = new QTimer(this);
 
     /* ── Connessioni ── */
-    connect(back,    &QPushButton::clicked, this, &SimulatorePage::backRequested);
-    connect(newBtn,  &QPushButton::clicked, this, [this]{ buildSteps(); });
-    connect(m_algoCmb, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int i){
-        if (i >= 0 && i < m_filteredIdx.size()) m_globalIdx = m_filteredIdx[i];
-        if (!m_filteredIdx.isEmpty()) {
-            m_descLbl->setText(QString::fromUtf8(kAlgos[m_globalIdx].desc));
-            m_bigO->set(kAlgos[m_globalIdx].complexity,
-                        kAlgos[m_globalIdx].bigOLabel,
-                        kAlgos[m_globalIdx].badge);
-        }
-        buildSteps();
-    });
-    connect(m_catCmb, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int catIdx){
-        rebuildAlgoCmb(catIdx);
-        buildSteps();
-    });
-    connect(m_sizeCmb, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this]{ buildSteps(); });
-    connect(m_prevBtn, &QPushButton::clicked, this, [this]{
-        stopAuto(); if (m_curStep > 0) showStep(m_curStep - 1);
-    });
-    connect(m_nextBtn, &QPushButton::clicked, this, [this]{
-        stopAuto(); if (m_curStep < m_steps.size()-1) showStep(m_curStep + 1);
-    });
-    connect(m_autoBtn, &QPushButton::clicked, this, [this]{
-        m_timer->isActive() ? stopAuto() : startAuto();
-    });
-    connect(m_timer, &QTimer::timeout, this, [this]{
-        if (m_curStep < m_steps.size()-1) showStep(m_curStep + 1);
-        else stopAuto();
-    });
-    connect(m_speedSlider, &QSlider::valueChanged, this, [this](int v){
-        if (m_timer->isActive()) m_timer->setInterval(1600 - v);
-    });
-    connect(m_aiStopBtn, &QPushButton::clicked, m_ai, &AiClient::abort);
-
-    connect(aiAskBtn, &QPushButton::clicked, this, [this, aiAskBtn]{
-        disconnect(m_aiCTok); disconnect(m_aiCFin); disconnect(m_aiCErr); disconnect(m_aiCAbo);
-        m_aiLog->setVisible(true);
-        m_aiLog->clear();
-        const QString algo = m_algoCmb->currentText();
-        m_aiLog->append(QString("\U0001f916  %1 — spiegazione AI:\n").arg(algo));
-        aiAskBtn->setEnabled(false); m_aiStopBtn->setEnabled(true);
-        m_aiWaitLbl->setVisible(true);
-
-        const QString sys =
-            "Sei un esperto di algoritmi e strutture dati. Spiega in modo chiaro "
-            "con esempi pratici e casi d'uso reali. Rispondi SEMPRE e SOLO in italiano.";
-        const QString usr = QString(
-            "Spiega %1 in modo approfondito:\n"
-            "1) Idea centrale e intuizione\n"
-            "2) Complessit\xc3\xa0 temporale e spaziale (best/avg/worst)\n"
-            "3) Quando usarlo e quando evitarlo\n"
-            "4) Confronto con gli algoritmi pi\xc3\xb9 simili\n"
-            "5) Un esempio concreto di applicazione reale"
-        ).arg(algo);
-
-        m_aiCTok = connect(m_ai, &AiClient::token, this, [this](const QString& t){
-            m_aiWaitLbl->setVisible(false);   /* nasconde "in elaborazione" al primo token */
-            QTextCursor c(m_aiLog->document()); c.movePosition(QTextCursor::End);
-            c.insertText(t); m_aiLog->ensureCursorVisible();
-        });
-        auto done = [this, aiAskBtn]{
-            disconnect(m_aiCTok); disconnect(m_aiCFin); disconnect(m_aiCErr); disconnect(m_aiCAbo);
-            aiAskBtn->setEnabled(true); m_aiStopBtn->setEnabled(false);
-            m_aiWaitLbl->setVisible(false);
-            m_aiLog->append("\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500");
-        };
-        m_aiCFin = connect(m_ai, &AiClient::finished, this, [done](const QString&){ done(); });
-        m_aiCErr = connect(m_ai, &AiClient::error,    this, [this, done](const QString& e){
-            m_aiLog->append(QString("\n\xe2\x9d\x8c %1").arg(e)); done();
-        });
-        m_aiCAbo = connect(m_ai, &AiClient::aborted,  this, [this, done]{
-            m_aiLog->append("\n\xe2\x8f\xb9 Interrotto."); done();
-        });
-        m_ai->chat(sys, usr);
-    });
+    connect(back,         &QPushButton::clicked,  this, &SimulatorePage::backRequested);
+    connect(newBtn,       &QPushButton::clicked,  this, &SimulatorePage::onNewBtnClicked);
+    connect(m_algoCmb,    QOverload<int>::of(&QComboBox::currentIndexChanged), this, &SimulatorePage::onAlgoCmbChanged);
+    connect(m_catCmb,     QOverload<int>::of(&QComboBox::currentIndexChanged), this, &SimulatorePage::onCatCmbChanged);
+    connect(m_sizeCmb,    QOverload<int>::of(&QComboBox::currentIndexChanged), this, &SimulatorePage::onSizeCmbChanged);
+    connect(m_prevBtn,    &QPushButton::clicked,  this, &SimulatorePage::onPrevBtnClicked);
+    connect(m_nextBtn,    &QPushButton::clicked,  this, &SimulatorePage::onNextBtnClicked);
+    connect(m_autoBtn,    &QPushButton::clicked,  this, &SimulatorePage::onAutoBtnClicked);
+    connect(m_timer,      &QTimer::timeout,       this, &SimulatorePage::onTimerTimeout);
+    connect(m_speedSlider,&QSlider::valueChanged, this, &SimulatorePage::onSpeedSliderChanged);
+    connect(m_aiStopBtn,  &QPushButton::clicked,  m_ai, &AiClient::abort);
+    connect(m_aiAskBtn,   &QPushButton::clicked,  this, &SimulatorePage::onAiAskBtnClicked);
+    connect(m_vis,        &AlgoBarWidget::clicked, this, &SimulatorePage::onVisClicked);
+    connect(m_bigO,       &BigOWidget::clicked,    this, &SimulatorePage::onBigOClicked);
 
     /* Build iniziale */
     rebuildAlgoCmb(0);
     buildSteps();
 
-    /* ── Click su grafico barre o BigO → apre Monitor ── */
-    connect(m_vis,  &AlgoBarWidget::clicked, this, [this]{ emit openMonitorRequested(); });
-    connect(m_bigO, &BigOWidget::clicked,    this, [this]{ emit openMonitorRequested(); });
 }
 
+
+void SimulatorePage::onNewBtnClicked()
+{
+    buildSteps();
+}
+
+void SimulatorePage::onAlgoCmbChanged(int i)
+{
+    if (i >= 0 && i < m_filteredIdx.size()) m_globalIdx = m_filteredIdx[i];
+    if (!m_filteredIdx.isEmpty()) {
+        m_descLbl->setText(QString::fromUtf8(kAlgos[m_globalIdx].desc));
+        m_bigO->set(kAlgos[m_globalIdx].complexity,
+                    kAlgos[m_globalIdx].bigOLabel,
+                    kAlgos[m_globalIdx].badge);
+    }
+    buildSteps();
+}
+
+void SimulatorePage::onCatCmbChanged(int catIdx)
+{
+    rebuildAlgoCmb(catIdx);
+    buildSteps();
+}
+
+void SimulatorePage::onSizeCmbChanged()
+{
+    buildSteps();
+}
+
+void SimulatorePage::onPrevBtnClicked()
+{
+    stopAuto();
+    if (m_curStep > 0) showStep(m_curStep - 1);
+}
+
+void SimulatorePage::onNextBtnClicked()
+{
+    stopAuto();
+    if (m_curStep < m_steps.size() - 1) showStep(m_curStep + 1);
+}
+
+void SimulatorePage::onAutoBtnClicked()
+{
+    m_timer->isActive() ? stopAuto() : startAuto();
+}
+
+void SimulatorePage::onTimerTimeout()
+{
+    if (m_curStep < m_steps.size() - 1) showStep(m_curStep + 1);
+    else stopAuto();
+}
+
+void SimulatorePage::onSpeedSliderChanged(int v)
+{
+    if (m_timer->isActive()) m_timer->setInterval(1600 - v);
+}
+
+void SimulatorePage::onAiAskBtnClicked()
+{
+    disconnect(m_aiCTok); disconnect(m_aiCFin); disconnect(m_aiCErr); disconnect(m_aiCAbo);
+    m_aiLog->setVisible(true);
+    m_aiLog->clear();
+    const QString algo = m_algoCmb->currentText();
+    m_aiLog->append(QString("\U0001f916  %1 \xe2\x80\x94 spiegazione AI:\n").arg(algo));
+    m_aiAskBtn->setEnabled(false); m_aiStopBtn->setEnabled(true);
+    m_aiWaitLbl->setVisible(true);
+
+    const QString sys =
+        "Sei un esperto di algoritmi e strutture dati. Spiega in modo chiaro "
+        "con esempi pratici e casi d'uso reali. Rispondi SEMPRE e SOLO in italiano.";
+    const QString usr = QString(
+        "Spiega %1 in modo approfondito:\n"
+        "1) Idea centrale e intuizione\n"
+        "2) Complessit\xc3\xa0 temporale e spaziale (best/avg/worst)\n"
+        "3) Quando usarlo e quando evitarlo\n"
+        "4) Confronto con gli algoritmi pi\xc3\xb9 simili\n"
+        "5) Un esempio concreto di applicazione reale"
+    ).arg(algo);
+
+    m_aiCTok = connect(m_ai, &AiClient::token,    this, &SimulatorePage::onAiToken);
+    m_aiCFin = connect(m_ai, &AiClient::finished, this, &SimulatorePage::onAiFinished);
+    m_aiCErr = connect(m_ai, &AiClient::error,    this, &SimulatorePage::onAiError);
+    m_aiCAbo = connect(m_ai, &AiClient::aborted,  this, &SimulatorePage::onAiAborted);
+    m_ai->chat(sys, usr);
+}
+
+void SimulatorePage::onAiToken(const QString& t)
+{
+    m_aiWaitLbl->setVisible(false);
+    QTextCursor c(m_aiLog->document()); c.movePosition(QTextCursor::End);
+    c.insertText(t); m_aiLog->ensureCursorVisible();
+}
+
+void SimulatorePage::onAiDone()
+{
+    disconnect(m_aiCTok); disconnect(m_aiCFin); disconnect(m_aiCErr); disconnect(m_aiCAbo);
+    m_aiAskBtn->setEnabled(true); m_aiStopBtn->setEnabled(false);
+    m_aiWaitLbl->setVisible(false);
+    m_aiLog->append("\n──────────");
+}
+
+void SimulatorePage::onAiFinished(const QString&)
+{
+    onAiDone();
+}
+
+void SimulatorePage::onAiError(const QString& e)
+{
+    m_aiLog->append(QString("\n\xe2\x9d\x8c %1").arg(e));
+    onAiDone();
+}
+
+void SimulatorePage::onAiAborted()
+{
+    m_aiLog->append("\n\xe2\x8f\xb9 Interrotto.");
+    onAiDone();
+}
+
+void SimulatorePage::onVisClicked()
+{
+    emit openMonitorRequested();
+}
+
+void SimulatorePage::onBigOClicked()
+{
+    emit openMonitorRequested();
+}

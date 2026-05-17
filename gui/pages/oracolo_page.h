@@ -48,6 +48,38 @@ private slots:
     void attachImage();
     void _setSendBusy(bool busy);
 
+    /* ── Anteprima immagine ── */
+    void onImgPreviewLinkActivated();
+
+    /* ── Quick bar pillole ── */
+    void onMuteToggleClicked();
+    void onTestVoceClicked();
+    void onAiutoClicked();
+    void onPillClicked();          ///< sender()->property("pillPrompt"/"pillLabel")
+
+    /* ── Input row ── */
+    void onSendBtnClicked();
+    void onNascondiToggled(bool checked);
+    void onSysBtnClicked();
+    void onRagToggled(bool on);
+
+    /* ── AiClient — RAG embedding ── */
+    void onEmbeddingReady(const QVector<float>& vec);
+    void onEmbeddingError(const QString& err);
+
+    /* ── AiClient — streaming ── */
+    void onAiToken(const QString& tok);
+    void onAiFinished(const QString& full);
+    void onAiAborted();
+    void onAiError(const QString& msg);
+
+    /* ── Bubble ── */
+    void onBubbleEditRequested(const QString& txt);
+    void onBubbleChartRequested(const QString& formula);
+
+    /* ── Scroll ── */
+    void onScrollToBottomTimer();
+
 private:
 
     /* ── Gestione bubble ── */
@@ -89,6 +121,9 @@ private:
     QByteArray  m_pendingImg;
     QString     m_pendingImgMime;
     QLabel*     m_imgPreview = nullptr;
+
+    /* ── Chart richiesto da bolla AI ── */
+    QPointer<ChatBubble> m_chartBubble;
 
     /* ── RAG ────────────────────────────────────────────────────── */
     RagEngine    m_rag;           ///< indice RAG con JLT

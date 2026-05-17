@@ -160,15 +160,7 @@ void GraficoCanvas::setType(ChartType t) {
         m_animFrame = 0;
         if (!m_animTimer) {
             m_animTimer = new QTimer(this);
-            connect(m_animTimer, &QTimer::timeout, this, [this]{
-                int maxP = 0;
-                for (auto& s : m_lineSeries) maxP = std::max(maxP, (int)s.size());
-                if (maxP > 0) {
-                    ++m_animFrame;
-                    if (m_animFrame >= maxP + 8) m_animFrame = 0;
-                }
-                update();
-            });
+            connect(m_animTimer, &QTimer::timeout, this, &GraficoCanvas::onAnimTimerTick);
         }
         m_animTimer->start(50);
     }
@@ -4165,18 +4157,32 @@ void GraficoCanvas::mouseReleaseEvent(QMouseEvent* e) {
 void GraficoCanvas::contextMenuEvent(QContextMenuEvent* e) {
     auto* menu = new QMenu(this);
     auto* actSave = menu->addAction("\xf0\x9f\x96\xbc  Salva come PNG...");
-    connect(actSave, &QAction::triggered, this, [this]{
-        QString path = QFileDialog::getSaveFileName(
-            this, "Salva grafico", QDir::homePath() + "/grafico.png", "PNG (*.png)");
-        if (path.isEmpty()) return;
-        QPixmap px(size());
-        render(&px);
-        px.save(path);
-        emit statusMessage("\xe2\x9c\x85  PNG salvato: " + path);
-    });
+    connect(actSave, &QAction::triggered, this, &GraficoCanvas::onContextSavePng);
     menu->addSeparator();
     auto* actReset = menu->addAction("\xf0\x9f\x94\x84  Reset vista");
-    connect(actReset, &QAction::triggered, this, [this]{ resetView(); });
+    connect(actReset, &QAction::triggered, this, &GraficoCanvas::resetView);
     menu->exec(e->globalPos());
     menu->deleteLater();
+}
+
+void GraficoCanvas::onAnimTimerTick()
+{
+    int maxP = 0;
+    for (auto& s : m_lineSeries) maxP = std::max(maxP, (int)s.size());
+    if (maxP > 0) {
+        ++m_animFrame;
+        if (m_animFrame >= maxP + 8) m_animFrame = 0;
+    }
+    update();
+}
+
+void GraficoCanvas::onContextSavePng()
+{
+    QString path = QFileDialog::getSaveFileName(
+        this, "Salva grafico", QDir::homePath() + "/grafico.png", "PNG (*.png)");
+    if (path.isEmpty()) return;
+    QPixmap px(size());
+    render(&px);
+    px.save(path);
+    emit statusMessage("\xe2\x9c\x85  PNG salvato: " + path);
 }

@@ -207,12 +207,12 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     m_btnSave = new QPushButton(
         "\xf0\x9f\x92\xbe  Salva PNG", imgGroup);
     m_btnSave->setEnabled(false);
-    auto* btnCopy = new QPushButton(
+    m_btnCopy = new QPushButton(
         "\xf0\x9f\x93\x8b  Copia", imgGroup);
-    btnCopy->setEnabled(false);
+    m_btnCopy->setEnabled(false);
     imgBtnRow->addStretch();
     imgBtnRow->addWidget(m_btnSave);
-    imgBtnRow->addWidget(btnCopy);
+    imgBtnRow->addWidget(m_btnCopy);
     imgLay->addLayout(imgBtnRow);
 
     mainRow->addWidget(imgGroup, 1);
@@ -237,38 +237,10 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     connect(m_btnCheck, &QPushButton::clicked,  this, &StableDiffusionWidget::checkServer);
     connect(m_btnGen,   &QPushButton::clicked,  this, &StableDiffusionWidget::generate);
 
-    connect(m_btnSave, &QPushButton::clicked, this, [this]{
-        if (m_lastPng.isEmpty()) return;
-        const QString dir = QStandardPaths::writableLocation(
-                                QStandardPaths::HomeLocation)
-                            + "/.prismalux/generated";
-        QDir().mkpath(dir);
-        const QString path = dir + "/sd_"
-            + QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss")
-            + ".png";
-        QFile f(path);
-        if (f.open(QIODevice::WriteOnly)) {
-            f.write(m_lastPng);
-            setStatus("\xf0\x9f\x92\xbe  Salvata in: " + path, true);
-        }
-    });
-
-    connect(btnCopy, &QPushButton::clicked, this, [this, btnCopy]{
-        if (m_lastPng.isEmpty()) return;
-        QPixmap px;
-        px.loadFromData(m_lastPng, "PNG");
-        if (!px.isNull())
-            QApplication::clipboard()->setPixmap(px);
-        btnCopy->setText("\xe2\x9c\x85  Copiata!");
-        QTimer::singleShot(2000, btnCopy,
-            [btnCopy]{ btnCopy->setText("\xf0\x9f\x93\x8b  Copia"); });
-    });
-
-    connect(this, &StableDiffusionWidget::_imageReady, this,
-            [this, btnCopy](bool ok){
-        m_btnSave->setEnabled(ok);
-        btnCopy->setEnabled(ok);
-    });
+    connect(m_btnSave, &QPushButton::clicked, this, &StableDiffusionWidget::onBtnSaveClicked);
+    connect(m_btnCopy, &QPushButton::clicked, this, &StableDiffusionWidget::onBtnCopyClicked);
+    connect(this, &StableDiffusionWidget::_imageReady,
+            this, &StableDiffusionWidget::onImageReady);
 }
 
 StableDiffusionWidget::~StableDiffusionWidget()
@@ -328,37 +300,9 @@ void StableDiffusionWidget::checkA1111()
     setStatus("\xf0\x9f\x94\x84  Connessione a " + base + "...", true);
     m_btnCheck->setEnabled(false);
 
-    auto* reply = m_nam->get(QNetworkRequest(QUrl(base + "/sdapi/v1/sd-models")));
-    connect(reply, &QNetworkReply::finished, this, [this, reply, base]{
-        m_btnCheck->setEnabled(true);
-        reply->deleteLater();
-
-        if (reply->error() != QNetworkReply::NoError) {
-            setStatus(
-                "\xe2\x9d\x8c  Server non raggiungibile. "
-                "Avvia con: <code>./webui.sh --api</code>", false);
-            m_btnGen->setEnabled(false);
-            return;
-        }
-
-        const QJsonArray models =
-            QJsonDocument::fromJson(reply->readAll()).array();
-        m_modelCombo->blockSignals(true);
-        m_modelCombo->clear();
-        for (const auto& v : models) {
-            const QString title = v.toObject()["title"].toString();
-            if (!title.isEmpty())
-                m_modelCombo->addItem(title);
-        }
-        if (m_modelCombo->count() == 0)
-            m_modelCombo->addItem("(nessun modello trovato)");
-        m_modelCombo->blockSignals(false);
-
-        m_btnGen->setEnabled(true);
-        setStatus(
-            "\xe2\x9c\x85  Server attivo  \xc2\xb7  "
-            + QString::number(models.size()) + " modelli trovati.", true);
-    });
+    m_checkReply = m_nam->get(QNetworkRequest(QUrl(base + "/sdapi/v1/sd-models")));
+    connect(m_checkReply, &QNetworkReply::finished, this,
+            &StableDiffusionWidget::onCheckA1111ReplyFinished);
 }
 
 void StableDiffusionWidget::checkDiffusers()
@@ -373,23 +317,7 @@ void StableDiffusionWidget::checkDiffusers()
         "print(f'diffusers {diffusers.__version__}, torch {torch.__version__}')"});
 
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, proc](int code, QProcess::ExitStatus){
-        proc->deleteLater();
-        m_btnCheck->setEnabled(true);
-
-        if (code == 0) {
-            const QString info = QString::fromLocal8Bit(
-                proc->readAllStandardOutput()).trimmed();
-            m_installHint->hide();
-            m_btnGen->setEnabled(true);
-            setStatus("\xe2\x9c\x85  Pronto: " + info, true);
-        } else {
-            m_installHint->show();
-            m_btnGen->setEnabled(false);
-            setStatus(
-                "\xe2\x9d\x8c  diffusers non trovato. Vedi suggerimento sopra.", false);
-        }
-    });
+            this, &StableDiffusionWidget::onCheckDiffusersFinished);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -434,6 +362,7 @@ void StableDiffusionWidget::generateLocal()
         + QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss")
         + ".png";
 
+    m_pendingOutPath = outPath;
     m_sdProc = new QProcess(this);
     m_sdProc->setProcessChannelMode(QProcess::MergedChannels);
 
@@ -459,48 +388,10 @@ void StableDiffusionWidget::generateLocal()
         + QString::number(m_steps->value()) + " steps, "
         + QString::number(w) + "\xc3\x97" + QString::number(h) + ")...", true);
 
-    /* Leggi status intermedi riga per riga — aggiorna progress bar */
     connect(m_sdProc, &QProcess::readyReadStandardOutput,
-            this, [this]{
-        while (m_sdProc->canReadLine()) {
-            const QString line = QString::fromLocal8Bit(
-                m_sdProc->readLine()).trimmed();
-            const QJsonObject obj =
-                QJsonDocument::fromJson(line.toUtf8()).object();
-            if (obj.contains("status"))
-                setStatus("\xf0\x9f\x94\x84  " + obj["status"].toString(), true);
-            if (obj.contains("total_steps") && obj["total_steps"].toInt() > 0) {
-                const int total = obj["total_steps"].toInt();
-                const int step  = obj["step"].toInt();
-                m_progress->setRange(0, total);
-                m_progress->setValue(step);
-            }
-        }
-    });
-
+            this, &StableDiffusionWidget::onLocalProcReadyRead);
     connect(m_sdProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, outPath](int code, QProcess::ExitStatus){
-        m_btnGen->setEnabled(true);
-        m_btnGen->setText("\xf0\x9f\x8e\xa8  Genera immagine");
-        m_progress->hide();
-        m_sdProc->deleteLater();
-        m_sdProc = nullptr;
-
-        if (code != 0) {
-            setStatus("\xe2\x9d\x8c  Errore generazione locale.", false);
-            emit _imageReady(false);
-            return;
-        }
-
-        QFile f(outPath);
-        if (!f.open(QIODevice::ReadOnly)) {
-            setStatus("\xe2\x9d\x8c  File immagine non trovato.", false);
-            emit _imageReady(false);
-            return;
-        }
-        const QByteArray png = f.readAll();
-        showImage(png);
-    });
+            this, &StableDiffusionWidget::onLocalProcFinished);
 
     m_sdProc->start("python3", args);
     if (!m_sdProc->waitForStarted(3000)) {
@@ -559,28 +450,9 @@ void StableDiffusionWidget::generateA1111()
     auto* reply = m_nam->post(
         req, QJsonDocument(body).toJson(QJsonDocument::Compact));
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply]{
-        m_btnGen->setEnabled(true);
-        m_btnGen->setText("\xf0\x9f\x8e\xa8  Genera immagine");
-        reply->deleteLater();
-
-        if (reply->error() != QNetworkReply::NoError) {
-            setStatus("\xe2\x9d\x8c  Errore: " + reply->errorString(), false);
-            emit _imageReady(false);
-            return;
-        }
-
-        const QJsonObject resp =
-            QJsonDocument::fromJson(reply->readAll()).object();
-        const QJsonArray images = resp["images"].toArray();
-        if (images.isEmpty()) {
-            setStatus("\xe2\x9d\x8c  Nessuna immagine nella risposta.", false);
-            emit _imageReady(false);
-            return;
-        }
-
-        showImage(QByteArray::fromBase64(images[0].toString().toUtf8()));
-    });
+    m_genReply = reply;
+    connect(reply, &QNetworkReply::finished, this,
+            &StableDiffusionWidget::onA1111ReplyFinished);
 }
 
 /* ── showImage ──────────────────────────────────────────────── */
@@ -611,4 +483,172 @@ void StableDiffusionWidget::setStatus(const QString& msg, bool ok)
     m_status->setStyleSheet(ok
         ? "color:#aaa;font-size:11px;"
         : "color:#ef4444;font-size:11px;");
+}
+
+/* ── Slot nominati ──────────────────────────────────────────── */
+
+void StableDiffusionWidget::onBtnSaveClicked()
+{
+    if (m_lastPng.isEmpty()) return;
+    const QString dir = QStandardPaths::writableLocation(
+                            QStandardPaths::HomeLocation)
+                        + "/.prismalux/generated";
+    QDir().mkpath(dir);
+    const QString path = dir + "/sd_"
+        + QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss")
+        + ".png";
+    QFile f(path);
+    if (f.open(QIODevice::WriteOnly)) {
+        f.write(m_lastPng);
+        setStatus("\xf0\x9f\x92\xbe  Salvata in: " + path, true);
+    }
+}
+
+void StableDiffusionWidget::onBtnCopyClicked()
+{
+    if (m_lastPng.isEmpty()) return;
+    QPixmap px;
+    px.loadFromData(m_lastPng, "PNG");
+    if (!px.isNull())
+        QApplication::clipboard()->setPixmap(px);
+    m_btnCopy->setText("\xe2\x9c\x85  Copiata!");
+    QTimer::singleShot(2000, this, &StableDiffusionWidget::onCopyFeedbackReset);
+}
+
+void StableDiffusionWidget::onCopyFeedbackReset()
+{
+    m_btnCopy->setText("\xf0\x9f\x93\x8b  Copia");
+}
+
+void StableDiffusionWidget::onImageReady(bool ok)
+{
+    m_btnSave->setEnabled(ok);
+    m_btnCopy->setEnabled(ok);
+}
+
+void StableDiffusionWidget::onCheckA1111ReplyFinished()
+{
+    auto* reply = m_checkReply;
+    m_checkReply = nullptr;
+    m_btnCheck->setEnabled(true);
+    if (!reply) return;
+    reply->deleteLater();
+
+    if (reply->error() != QNetworkReply::NoError) {
+        setStatus(
+            "\xe2\x9d\x8c  Server non raggiungibile. "
+            "Avvia con: <code>./webui.sh --api</code>", false);
+        m_btnGen->setEnabled(false);
+        return;
+    }
+
+    const QJsonArray models =
+        QJsonDocument::fromJson(reply->readAll()).array();
+    m_modelCombo->blockSignals(true);
+    m_modelCombo->clear();
+    for (const auto& v : models) {
+        const QString title = v.toObject()["title"].toString();
+        if (!title.isEmpty())
+            m_modelCombo->addItem(title);
+    }
+    if (m_modelCombo->count() == 0)
+        m_modelCombo->addItem("(nessun modello trovato)");
+    m_modelCombo->blockSignals(false);
+
+    m_btnGen->setEnabled(true);
+    setStatus(
+        "\xe2\x9c\x85  Server attivo  \xc2\xb7  "
+        + QString::number(models.size()) + " modelli trovati.", true);
+}
+
+void StableDiffusionWidget::onCheckDiffusersFinished(int code, QProcess::ExitStatus)
+{
+    auto* proc = qobject_cast<QProcess*>(sender());
+    m_btnCheck->setEnabled(true);
+
+    if (code == 0) {
+        const QString info = proc
+            ? QString::fromLocal8Bit(proc->readAllStandardOutput()).trimmed()
+            : QString();
+        m_installHint->hide();
+        m_btnGen->setEnabled(true);
+        setStatus("\xe2\x9c\x85  Pronto: " + info, true);
+    } else {
+        m_installHint->show();
+        m_btnGen->setEnabled(false);
+        setStatus(
+            "\xe2\x9d\x8c  diffusers non trovato. Vedi suggerimento sopra.", false);
+    }
+
+    if (proc) proc->deleteLater();
+}
+
+void StableDiffusionWidget::onLocalProcReadyRead()
+{
+    while (m_sdProc && m_sdProc->canReadLine()) {
+        const QString line = QString::fromLocal8Bit(
+            m_sdProc->readLine()).trimmed();
+        const QJsonObject obj =
+            QJsonDocument::fromJson(line.toUtf8()).object();
+        if (obj.contains("status"))
+            setStatus("\xf0\x9f\x94\x84  " + obj["status"].toString(), true);
+        if (obj.contains("total_steps") && obj["total_steps"].toInt() > 0) {
+            const int total = obj["total_steps"].toInt();
+            const int step  = obj["step"].toInt();
+            m_progress->setRange(0, total);
+            m_progress->setValue(step);
+        }
+    }
+}
+
+void StableDiffusionWidget::onLocalProcFinished(int code, QProcess::ExitStatus)
+{
+    m_btnGen->setEnabled(true);
+    m_btnGen->setText("\xf0\x9f\x8e\xa8  Genera immagine");
+    m_progress->hide();
+    if (m_sdProc) {
+        m_sdProc->deleteLater();
+        m_sdProc = nullptr;
+    }
+
+    if (code != 0) {
+        setStatus("\xe2\x9d\x8c  Errore generazione locale.", false);
+        emit _imageReady(false);
+        return;
+    }
+
+    QFile f(m_pendingOutPath);
+    if (!f.open(QIODevice::ReadOnly)) {
+        setStatus("\xe2\x9d\x8c  File immagine non trovato.", false);
+        emit _imageReady(false);
+        return;
+    }
+    showImage(f.readAll());
+}
+
+void StableDiffusionWidget::onA1111ReplyFinished()
+{
+    auto* reply = m_genReply;
+    m_genReply = nullptr;
+    m_btnGen->setEnabled(true);
+    m_btnGen->setText("\xf0\x9f\x8e\xa8  Genera immagine");
+    if (!reply) return;
+    reply->deleteLater();
+
+    if (reply->error() != QNetworkReply::NoError) {
+        setStatus("\xe2\x9d\x8c  Errore: " + reply->errorString(), false);
+        emit _imageReady(false);
+        return;
+    }
+
+    const QJsonObject resp =
+        QJsonDocument::fromJson(reply->readAll()).object();
+    const QJsonArray images = resp["images"].toArray();
+    if (images.isEmpty()) {
+        setStatus("\xe2\x9d\x8c  Nessuna immagine nella risposta.", false);
+        emit _imageReady(false);
+        return;
+    }
+
+    showImage(QByteArray::fromBase64(images[0].toString().toUtf8()));
 }

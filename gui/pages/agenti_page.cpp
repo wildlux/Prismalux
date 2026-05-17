@@ -74,17 +74,21 @@ AgentiPage::AgentiPage(AiClient* ai, QWidget* parent)
        la combo SOLO se l'utente non ha scelto esplicitamente un modello
        per questa scheda (m_pageModel vuoto = nessuna preferenza privata).
        blockSignals previene il loop currentIndexChanged → setBackend. */
-    connect(m_ai, &AiClient::modelChanged, this, [this](const QString& newModel) {
-        if (!m_cmbLLM || !m_pageModel.isEmpty()) return;
-        int idx = m_cmbLLM->findData(newModel, Qt::UserRole);
-        if (idx < 0) idx = m_cmbLLM->findText(newModel);
-        if (idx >= 0 && idx != m_cmbLLM->currentIndex()) {
-            m_cmbLLM->blockSignals(true);
-            m_cmbLLM->setCurrentIndex(idx);
-            m_cmbLLM->blockSignals(false);
-        }
-    });
+    connect(m_ai, &AiClient::modelChanged, this, &AgentiPage::onAiModelChanged);
 
     m_ai->fetchModels();
+}
+
+/* ── slot: aggiorna combo LLM quando il modello cambia da Impostazioni ──────── */
+void AgentiPage::onAiModelChanged(const QString& newModel)
+{
+    if (!m_cmbLLM || !m_pageModel.isEmpty()) return;
+    int idx = m_cmbLLM->findData(newModel, Qt::UserRole);
+    if (idx < 0) idx = m_cmbLLM->findText(newModel);
+    if (idx >= 0 && idx != m_cmbLLM->currentIndex()) {
+        m_cmbLLM->blockSignals(true);
+        m_cmbLLM->setCurrentIndex(idx);
+        m_cmbLLM->blockSignals(false);
+    }
 }
 

@@ -39,9 +39,8 @@ QTextEdit* PersonalizzaPage::makeLog(const QString& placeholder) {
 
 /* ──────────────────────────────────────────────────────────────
    runProcArgs — avvia QProcess con argv separati (SICURO)
-   Preferire questa versione a runProc() perché non passa la
-   stringa a una shell: nessun rischio di injection su path
-   con caratteri speciali (spazi, virgolette, semicolon).
+   Nota: per helper proc transitori usiamo onHelperProcReadyRead /
+   onHelperProcFinished che recuperano log/btn via property del proc.
    ────────────────────────────────────────────────────────────── */
 void PersonalizzaPage::runProcArgs(QProcess* proc,
                                    const QString& program,
@@ -50,19 +49,14 @@ void PersonalizzaPage::runProcArgs(QProcess* proc,
 {
     log->append(QString("\xe2\x9a\x99\xef\xb8\x8f  %1 %2\n").arg(program, args.join(' ')));
     proc->setProcessChannelMode(QProcess::MergedChannels);
+    /* Salva log e btn come proprietà dinamiche per recuperarle nello slot */
+    proc->setProperty("_log", QVariant::fromValue(static_cast<QObject*>(log)));
+    proc->setProperty("_btn", QVariant::fromValue(static_cast<QObject*>(btn)));
 
-    connect(proc, &QProcess::readyRead, this, [this, proc, log]{
-        log->moveCursor(QTextCursor::End);
-        log->insertPlainText(QString::fromLocal8Bit(proc->readAll()));
-        log->ensureCursorVisible();
-    });
+    connect(proc, &QProcess::readyRead,
+            this, &PersonalizzaPage::onHelperProcReadyRead);
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [log, btn, proc](int code, QProcess::ExitStatus){
-        if (code == 0) log->append("\n\xe2\x9c\x85  Completato con successo.");
-        else           log->append(QString("\n\xe2\x9d\x8c  Uscito con codice %1.").arg(code));
-        if (btn) btn->setEnabled(true);
-        proc->deleteLater();
-    });
+            this, &PersonalizzaPage::onHelperProcFinished);
     proc->start(program, args);
     if (!proc->waitForStarted(4000)) {
         log->append("\xe2\x9d\x8c  Impossibile avviare il processo. Controlla il PATH.");
@@ -74,26 +68,18 @@ void PersonalizzaPage::runProcArgs(QProcess* proc,
 /* ──────────────────────────────────────────────────────────────
    runProc — DEPRECATO: usa sh -c con stringa concatenata.
    Mantenuto per compatibilità ma non usare per nuovi chiamanti.
-   SICUREZZA: i path in cmd devono essere solo interni (non da
-   input utente). Preferire runProcArgs() per tutti i nuovi usi.
    ────────────────────────────────────────────────────────────── */
 void PersonalizzaPage::runProc(QProcess* proc, const QString& cmd,
                                 QTextEdit* log, QPushButton* btn) {
     log->append(QString("\xe2\x9a\x99\xef\xb8\x8f  %1\n").arg(cmd));
     proc->setProcessChannelMode(QProcess::MergedChannels);
+    proc->setProperty("_log", QVariant::fromValue(static_cast<QObject*>(log)));
+    proc->setProperty("_btn", QVariant::fromValue(static_cast<QObject*>(btn)));
 
-    connect(proc, &QProcess::readyRead, this, [this, proc, log]{
-        log->moveCursor(QTextCursor::End);
-        log->insertPlainText(QString::fromLocal8Bit(proc->readAll()));
-        log->ensureCursorVisible();
-    });
+    connect(proc, &QProcess::readyRead,
+            this, &PersonalizzaPage::onHelperProcReadyRead);
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [log, btn, proc](int code, QProcess::ExitStatus){
-        if (code == 0) log->append("\n\xe2\x9c\x85  Completato con successo.");
-        else           log->append(QString("\n\xe2\x9d\x8c  Uscito con codice %1.").arg(code));
-        if (btn) btn->setEnabled(true);
-        proc->deleteLater();
-    });
+            this, &PersonalizzaPage::onHelperProcFinished);
 #ifdef _WIN32
     proc->start("cmd", {"/c", cmd});
 #else
@@ -104,6 +90,33 @@ void PersonalizzaPage::runProc(QProcess* proc, const QString& cmd,
         if (btn) btn->setEnabled(true);
         proc->deleteLater();
     }
+}
+
+/* ── slot helper per proc transitori (runProcArgs/runProc) ── */
+void PersonalizzaPage::onHelperProcReadyRead() {
+    auto* proc = qobject_cast<QProcess*>(sender());
+    if (!proc) return;
+    auto* log = qobject_cast<QTextEdit*>(
+        proc->property("_log").value<QObject*>());
+    if (!log) return;
+    log->moveCursor(QTextCursor::End);
+    log->insertPlainText(QString::fromLocal8Bit(proc->readAll()));
+    log->ensureCursorVisible();
+}
+
+void PersonalizzaPage::onHelperProcFinished(int code, QProcess::ExitStatus) {
+    auto* proc = qobject_cast<QProcess*>(sender());
+    if (!proc) return;
+    auto* log = qobject_cast<QTextEdit*>(
+        proc->property("_log").value<QObject*>());
+    auto* btn = qobject_cast<QPushButton*>(
+        proc->property("_btn").value<QObject*>());
+    if (log) {
+        if (code == 0) log->append("\n\xe2\x9c\x85  Completato con successo.");
+        else           log->append(QString("\n\xe2\x9d\x8c  Uscito con codice %1.").arg(code));
+    }
+    if (btn) btn->setEnabled(true);
+    proc->deleteLater();
 }
 
 
@@ -153,8 +166,8 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
         tl->addWidget(lt); tl->addWidget(ld);
         auto* btn = new QPushButton("Apri →", card);
         btn->setObjectName("actionBtn"); btn->setFixedWidth(90);
-        const int pg = s.pg;
-        connect(btn, &QPushButton::clicked, this, [=]{ m_llamaStack->setCurrentIndex(pg); });
+        btn->setProperty("_targetPage", s.pg);
+        connect(btn, &QPushButton::clicked, this, &PersonalizzaPage::onSubMenuBtnClicked);
         cl->addWidget(ico); cl->addWidget(txt, 1); cl->addWidget(btn);
         subLay->addWidget(card);
     }
@@ -170,7 +183,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     compTopL->setContentsMargins(0,0,0,0); compTopL->setSpacing(10);
     auto* backComp = new QPushButton("← Menu llama", compPg);
     backComp->setObjectName("actionBtn");
-    connect(backComp, &QPushButton::clicked, this, [=]{ m_llamaStack->setCurrentIndex(0); });
+    connect(backComp, &QPushButton::clicked, this, &PersonalizzaPage::onBackCompClicked);
     auto* compTitle = new QLabel(binExists ? "\xf0\x9f\x94\x84  Aggiorna llama.cpp"
                                            : "\xf0\x9f\x94\xa8  Compila llama.cpp", compPg);
     compTitle->setObjectName("cardTitle");
@@ -191,139 +204,8 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     m_llamaLog = makeLog("Output compilazione llama.cpp...\n\nPrerequisiti: git, cmake, gcc/g++");
     compLay->addWidget(m_llamaLog, 1);
 
-    connect(m_llamaCompBtn, &QPushButton::clicked, this, [this]{
-        m_llamaLog->clear();
-        m_llamaCompBtn->setEnabled(false);
-
-        const QString studio   = P::llamaStudioDir();
-        const QString cloneDir = studio + "/llama.cpp";
-        const QString buildDir = cloneDir + "/build";
-
-        /* ── Flag GPU — rilevazione argomenti cmake ── */
-        QStringList gpuArgs = { "-DGGML_NATIVE=ON" };
-#ifdef _WIN32
-        gpuArgs << "-DGGML_CUDA=ON";
-#else
-        if (QFileInfo::exists("/usr/local/cuda/bin/nvcc") ||
-            QFileInfo::exists("/usr/bin/nvcc"))
-            gpuArgs << "-DGGML_CUDA=ON";
-        else if (QFileInfo::exists("/opt/rocm/bin/hipcc"))
-            gpuArgs << "-DGGML_HIP=ON";
-        else if (QFileInfo::exists("/usr/bin/vulkaninfo"))
-            gpuArgs << "-DGGML_VULKAN=ON";
-#endif
-        m_llamaLog->append(QString("\xf0\x9f\x93\xa6  Flag GPU: %1\n")
-                           .arg(gpuArgs.join(" ")));
-
-        /* Numero di job paralleli — senza shell: QThread::idealThreadCount()
-         * è equivalente a nproc ma senza richiedere una shell. */
-        const int jobs = qMax(1, QThread::idealThreadCount());
-
-        /* ── SICUREZZA: 3 QProcess separati con arglist — nessuna shell ───────
-           L'approccio precedente usava `sh -c "cmd && cmd && cmd"` con path
-           costruiti a runtime. Se un path contenesse caratteri speciali (es. ")
-           il comando shell si spezzava, aprendo a injection arbitraria.
-           Ora ogni step è un QProcess::start() con argv esplicito: nessuna
-           interpolazione di shell, nessun carattere di escape da gestire. */
-
-        /* ── Step 1: git clone oppure git pull ── */
-        QStringList gitArgs;
-        if (QDir(cloneDir).exists()) {
-            /* git -C <dir> pull — non richiede cd, non richiede shell */
-            gitArgs = { "-C", cloneDir, "pull" };
-            m_llamaLog->append("\xf0\x9f\x94\x84  git pull...\n");
-        } else {
-            gitArgs = { "clone", "--depth=1",
-                        "https://github.com/ggerganov/llama.cpp",
-                        cloneDir };
-            m_llamaLog->append("\xf0\x9f\x93\xa5  git clone...\n");
-        }
-
-        auto* proc1 = new QProcess(this);
-        proc1->setProcessChannelMode(QProcess::MergedChannels);
-        connect(proc1, &QProcess::readyRead, this, [this, proc1]{
-            m_llamaLog->moveCursor(QTextCursor::End);
-            m_llamaLog->insertPlainText(QString::fromLocal8Bit(proc1->readAll()));
-            m_llamaLog->ensureCursorVisible();
-        });
-        connect(proc1, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, proc1, cloneDir, buildDir, gpuArgs, jobs](int code, QProcess::ExitStatus){
-            proc1->deleteLater();
-            if (code != 0) {
-                m_llamaLog->append(QString("\n\xe2\x9d\x8c  git fallito (code %1).").arg(code));
-                m_llamaCompBtn->setEnabled(true);
-                return;
-            }
-            m_llamaLog->append("\n\xe2\x9c\x85  git OK.\n\xe2\x9a\x99  cmake configure...\n");
-
-            /* ── Step 2: cmake configure ── */
-            QStringList cmakeConfigArgs = {
-                "-B", buildDir,
-                "-S", cloneDir,
-                "-DCMAKE_BUILD_TYPE=Release",
-            };
-            cmakeConfigArgs += gpuArgs;
-
-            auto* proc2 = new QProcess(this);
-            proc2->setProcessChannelMode(QProcess::MergedChannels);
-            connect(proc2, &QProcess::readyRead, this, [this, proc2]{
-                m_llamaLog->moveCursor(QTextCursor::End);
-                m_llamaLog->insertPlainText(QString::fromLocal8Bit(proc2->readAll()));
-                m_llamaLog->ensureCursorVisible();
-            });
-            connect(proc2, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                    this, [this, proc2, buildDir, jobs](int code, QProcess::ExitStatus){
-                proc2->deleteLater();
-                if (code != 0) {
-                    m_llamaLog->append(QString("\n\xe2\x9d\x8c  cmake configure fallito (code %1).").arg(code));
-                    m_llamaCompBtn->setEnabled(true);
-                    return;
-                }
-                m_llamaLog->append(QString("\n\xe2\x9c\x85  cmake OK.\n\xf0\x9f\x94\xa8  cmake build (-j%1)...\n").arg(jobs));
-
-                /* ── Step 3: cmake build ── */
-                auto* proc3 = new QProcess(this);
-                proc3->setProcessChannelMode(QProcess::MergedChannels);
-                connect(proc3, &QProcess::readyRead, this, [this, proc3]{
-                    m_llamaLog->moveCursor(QTextCursor::End);
-                    m_llamaLog->insertPlainText(QString::fromLocal8Bit(proc3->readAll()));
-                    m_llamaLog->ensureCursorVisible();
-                });
-                connect(proc3, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                        this, [this, proc3](int code, QProcess::ExitStatus){
-                    proc3->deleteLater();
-                    if (code == 0)
-                        m_llamaLog->append("\n\xe2\x9c\x85  llama.cpp compilato!\n"
-                                           "  Binari in: llama_cpp_studio/llama.cpp/build/bin/");
-                    else
-                        m_llamaLog->append(QString("\n\xe2\x9d\x8c  Build fallita (code %1).").arg(code));
-                    m_llamaCompBtn->setEnabled(true);
-                });
-                proc3->start("cmake", {
-                    "--build", buildDir,
-                    "--config", "Release",
-                    "-j", QString::number(jobs)
-                });
-                if (!proc3->waitForStarted(5000)) {
-                    m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare cmake build.");
-                    m_llamaCompBtn->setEnabled(true);
-                    proc3->deleteLater();
-                }
-            });
-            proc2->start("cmake", cmakeConfigArgs);
-            if (!proc2->waitForStarted(5000)) {
-                m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare cmake configure.");
-                m_llamaCompBtn->setEnabled(true);
-                proc2->deleteLater();
-            }
-        });
-        proc1->start("git", gitArgs);
-        if (!proc1->waitForStarted(8000)) {
-            m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare git. Verifica che git sia nel PATH.");
-            m_llamaCompBtn->setEnabled(true);
-            proc1->deleteLater();
-        }
-    });
+    connect(m_llamaCompBtn, &QPushButton::clicked,
+            this, &PersonalizzaPage::onLlamaCompBtnClicked);
 
     /* ──── Sub-page 2: Gestisci Modelli ─────────────────────── */
     auto* modPg  = new QWidget;
@@ -336,17 +218,17 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     modTopL->setContentsMargins(0,0,0,0);
     auto* backMod   = new QPushButton("\xe2\x86\x90 Menu llama", modPg);
     backMod->setObjectName("actionBtn");
-    connect(backMod, &QPushButton::clicked, this, [=]{ m_llamaStack->setCurrentIndex(0); });
+    connect(backMod, &QPushButton::clicked, this, &PersonalizzaPage::onBackModClicked);
     auto* modTitle  = new QLabel("\xf0\x9f\x93\x82  Gestione Modelli .gguf", modPg);
     modTitle->setObjectName("cardTitle");
-    auto* modDirLbl = new QLabel("", modPg);
-    modDirLbl->setObjectName("cardDesc");
+    m_modDirLbl = new QLabel("", modPg);
+    m_modDirLbl->setObjectName("cardDesc");
     auto* refreshBtn = new QPushButton("\xf0\x9f\x94\x84", modPg);
     refreshBtn->setObjectName("actionBtn"); refreshBtn->setFixedWidth(32);
     refreshBtn->setToolTip("Aggiorna lista");
     modTopL->addWidget(backMod);
     modTopL->addWidget(modTitle, 1);
-    modTopL->addWidget(modDirLbl);
+    modTopL->addWidget(m_modDirLbl);
     modTopL->addWidget(refreshBtn);
     modLay->addWidget(modTop);
 
@@ -359,12 +241,12 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     auto* scrollArea  = new QScrollArea(listBox);
     scrollArea->setWidgetResizable(true);
     scrollArea->setFrameShape(QFrame::NoFrame);
-    auto* listContainer = new QWidget;
-    auto* listContLay   = new QVBoxLayout(listContainer);
+    m_listContainer = new QWidget;
+    auto* listContLay   = new QVBoxLayout(m_listContainer);
     listContLay->setSpacing(4);
     listContLay->setContentsMargins(0,0,0,0);
     listContLay->addStretch(1);
-    scrollArea->setWidget(listContainer);
+    scrollArea->setWidget(m_listContainer);
     listBoxLay->addWidget(scrollArea);
 
     /* ── Sezione download ── */
@@ -387,19 +269,20 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     auto* modPresetGrid = new QWidget(modDlBox);
     auto* modPresetLay  = new QGridLayout(modPresetGrid);
     modPresetLay->setSpacing(4); modPresetLay->setContentsMargins(0,0,0,0);
-    auto* modDlLog  = makeLog("Output wget appare qui...");
-    auto* modUrlEdit = new QLineEdit(modDlBox);
-    modUrlEdit->setObjectName("chatInput");
-    modUrlEdit->setPlaceholderText("URL HuggingFace .gguf personalizzato...");
-    auto* modDlBtn  = new QPushButton("\xe2\xac\x87  Scarica URL", modDlBox);
-    modDlBtn->setObjectName("actionBtn");
+    m_modDlLog  = makeLog("Output wget appare qui...");
+    m_modUrlEdit = new QLineEdit(modDlBox);
+    m_modUrlEdit->setObjectName("chatInput");
+    m_modUrlEdit->setPlaceholderText("URL HuggingFace .gguf personalizzato...");
+    m_modDlBtn  = new QPushButton("\xe2\xac\x87  Scarica URL", modDlBox);
+    m_modDlBtn->setObjectName("actionBtn");
 
     int modRow = 0, modCol = 0;
     for (const auto& pr : kPresets) {
         auto* btn = new QPushButton(pr.name, modPresetGrid);
         btn->setObjectName("actionBtn");
-        QString purl(pr.url);
-        connect(btn, &QPushButton::clicked, this, [=]{ modUrlEdit->setText(purl); });
+        btn->setProperty("_url", QString(pr.url));
+        connect(btn, &QPushButton::clicked,
+                this, &PersonalizzaPage::onPresetBtnClicked);
         modPresetLay->addWidget(btn, modRow, modCol);
         modCol++; if (modCol >= 2) { modCol = 0; modRow++; }
     }
@@ -408,183 +291,37 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     auto* modUrlRow = new QWidget(modDlBox);
     auto* modUrlLay = new QHBoxLayout(modUrlRow);
     modUrlLay->setContentsMargins(0,0,0,0); modUrlLay->setSpacing(6);
-    modUrlLay->addWidget(modUrlEdit, 1); modUrlLay->addWidget(modDlBtn);
+    modUrlLay->addWidget(m_modUrlEdit, 1); modUrlLay->addWidget(m_modDlBtn);
     modDlLay->addWidget(modUrlRow);
 
     /* ── Barra di avanzamento download ── */
-    auto* dlProgress = new QProgressBar(modDlBox);
-    dlProgress->setRange(0, 100);
-    dlProgress->setValue(0);
-    dlProgress->setVisible(false);
-    dlProgress->setTextVisible(true);
-    dlProgress->setFormat("%p%  (%v MB / %m MB)");
-    dlProgress->setStyleSheet(
+    m_dlProgress = new QProgressBar(modDlBox);
+    m_dlProgress->setRange(0, 100);
+    m_dlProgress->setValue(0);
+    m_dlProgress->setVisible(false);
+    m_dlProgress->setTextVisible(true);
+    m_dlProgress->setFormat("%p%  (%v MB / %m MB)");
+    m_dlProgress->setStyleSheet(
         "QProgressBar{background:#1e293b;border:1px solid #334155;border-radius:4px;height:18px;}"
         "QProgressBar::chunk{background:#0ea5e9;border-radius:3px;}");
-    modDlLay->addWidget(dlProgress);
+    modDlLay->addWidget(m_dlProgress);
 
-    modDlLay->addWidget(modDlLog, 1);
+    modDlLay->addWidget(m_modDlLog, 1);
 
     splitter->addWidget(listBox);
     splitter->addWidget(modDlBox);
     splitter->setSizes({200, 300});
     modLay->addWidget(splitter, 1);
 
-    /* ── Funzione che ricostruisce la lista modelli ── */
-    /* Nota: shared_ptr necessario — [=] non può auto-catturare una std::function
-       mentre viene ancora inizializzata (stack overflow nel copy constructor) */
-    auto refreshHolder = std::make_shared<std::function<void()>>();
-    *refreshHolder = [=]{
-        /* Rimuovi tutti i widget precedenti tranne lo stretch finale */
-        while (listContLay->count() > 1) {
-            auto* item = listContLay->takeAt(0);
-            if (item->widget()) item->widget()->deleteLater();
-            delete item;
-        }
-        QString modelsDir = P::modelsDir();
-        modDirLbl->setText(QString("\xf0\x9f\x93\x81  %1").arg(modelsDir));
-        QDir d(modelsDir);
-        if (!d.exists()) {
-            auto* lbl = new QLabel("\xe2\x9a\xa0  Cartella models/ non trovata.", listContainer);
-            lbl->setObjectName("cardDesc");
-            listContLay->insertWidget(0, lbl);
-            return;
-        }
-        auto files = d.entryInfoList({"*.gguf","*.bin"}, QDir::Files, QDir::Size | QDir::Reversed);
-        if (files.isEmpty()) {
-            auto* lbl = new QLabel("\xf0\x9f\x8c\xab  Nessun modello trovato — scaricane uno dalla sezione sotto.", listContainer);
-            lbl->setObjectName("cardDesc");
-            listContLay->insertWidget(0, lbl);
-            return;
-        }
-        for (int i = 0; i < files.size(); i++) {
-            const auto& f = files[i];
-            double mb = f.size() / (1024.0 * 1024.0);
-            QString sizeStr = mb >= 1024.0
-                ? QString("%1 GB").arg(mb / 1024.0, 0, 'f', 2)
-                : QString("%1 MB").arg(mb, 0, 'f', 0);
+    connect(m_modDlBtn,  &QPushButton::clicked,
+            this, &PersonalizzaPage::onModDlBtnClicked);
+    connect(refreshBtn,  &QPushButton::clicked,
+            this, &PersonalizzaPage::onRefreshBtnClicked);
+    connect(m_llamaStack, &QStackedWidget::currentChanged,
+            this, &PersonalizzaPage::onLlamaStackChanged);
 
-            auto* card  = new QFrame(listContainer);
-            card->setObjectName("actionCard");
-            auto* cl    = new QHBoxLayout(card);
-            cl->setContentsMargins(10, 6, 10, 6); cl->setSpacing(10);
-
-            auto* ico  = new QLabel("\xf0\x9f\xa6\x99", card);
-            auto* name = new QLabel(f.fileName(), card);
-            name->setObjectName("cardTitle");
-            auto* size = new QLabel(sizeStr, card);
-            size->setObjectName("cardDesc"); size->setFixedWidth(72);
-            auto* delBtn = new QPushButton("\xf0\x9f\x97\x91", card);
-            delBtn->setObjectName("actionBtn"); delBtn->setFixedWidth(32);
-            delBtn->setToolTip("Elimina modello");
-            delBtn->setProperty("danger", true);
-            QString filePath = f.absoluteFilePath();
-            connect(delBtn, &QPushButton::clicked, this, [=]{
-                auto ans = QMessageBox::question(this, "Elimina modello",
-                    QString("Eliminare permanentemente:\n%1\n(%2)?").arg(f.fileName()).arg(sizeStr),
-                    QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-                if (ans == QMessageBox::Yes) {
-                    QFile::remove(filePath);
-                    (*refreshHolder)();
-                }
-            });
-
-            cl->addWidget(ico);
-            cl->addWidget(name, 1);
-            cl->addWidget(size);
-            cl->addWidget(delBtn);
-            listContLay->insertWidget(i, card);
-        }
-    };
-
-    /* ── Download da URL con progress bar ── */
-    connect(modDlBtn, &QPushButton::clicked, this, [=]{
-        QString url = modUrlEdit->text().trimmed();
-        if (url.isEmpty()) return;
-        QString fname = QUrl(url).fileName();
-        if (fname.isEmpty()) fname = "modello.gguf";
-        const QString dest = P::modelsDir() + "/" + fname;
-        QDir().mkpath(P::modelsDir());
-        modDlLog->clear();
-        modDlLog->append(QString("\xe2\xac\x87  Scaricando %1\n\xe2\x86\x92  %2\n").arg(fname).arg(dest));
-        modDlBtn->setEnabled(false);
-        dlProgress->setValue(0);
-        dlProgress->setVisible(true);
-
-        auto* proc = new QProcess(this);
-        proc->setProcessChannelMode(QProcess::MergedChannels);
-
-        /* Parser progress: wget emette righe come "  2% [ =>  ]  42,3M  5,12MB/s  eta 1m 23s"
-           curl emette: " 42 19823k   42 8392k    0     0  2583k      0  0:02:07  0:00:03  0:02:04 2587k" */
-        connect(proc, &QProcess::readyRead, this, [proc, modDlLog, dlProgress]{
-            const QString raw = QString::fromUtf8(proc->readAll());
-            /* Cerca percentuale nel formato wget/curl */
-            static const QRegularExpression rePct(R"((\d{1,3})\s*%)");
-            const auto match = rePct.match(raw);
-            if (match.hasMatch()) {
-                const int pct = match.captured(1).toInt();
-                if (pct >= 0 && pct <= 100) dlProgress->setValue(pct);
-            }
-            /* Mostra ultima riga non vuota nel log */
-            const QStringList lines = raw.split('\n', Qt::SkipEmptyParts);
-            if (!lines.isEmpty()) {
-                const QString last = lines.last().trimmed();
-                if (!last.isEmpty()) modDlLog->append(last);
-            }
-        });
-
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [=](int code, QProcess::ExitStatus){
-            proc->deleteLater();
-            modDlBtn->setEnabled(true);
-            if (code == 0) {
-                dlProgress->setValue(100);
-                modDlLog->append("\n\xe2\x9c\x85  Download completato!");
-                (*refreshHolder)();
-            } else {
-                dlProgress->setVisible(false);
-                modDlLog->append("\n\xe2\x9d\x8c  Download fallito o interrotto.");
-            }
-        });
-
-        proc->start("wget", {"-c", "--show-progress", "-O", dest, url});
-        if (!proc->waitForStarted(3000)) {
-            proc->deleteLater();
-            /* Fallback curl */
-            auto* curl = new QProcess(this);
-            curl->setProcessChannelMode(QProcess::MergedChannels);
-            connect(curl, &QProcess::readyRead, this, [curl, modDlLog, dlProgress]{
-                const QString raw = QString::fromUtf8(curl->readAll());
-                static const QRegularExpression rePct(R"(\s(\d{1,3})\s)");
-                const auto match = rePct.match(raw);
-                if (match.hasMatch()) {
-                    const int pct = match.captured(1).toInt();
-                    if (pct >= 0 && pct <= 100) dlProgress->setValue(pct);
-                }
-                const QStringList lines = raw.split('\n', Qt::SkipEmptyParts);
-                if (!lines.isEmpty()) modDlLog->append(lines.last().trimmed());
-            });
-            connect(curl, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                    this, [=](int code, QProcess::ExitStatus){
-                curl->deleteLater();
-                modDlBtn->setEnabled(true);
-                if (code == 0) {
-                    dlProgress->setValue(100);
-                    modDlLog->append("\n\xe2\x9c\x85  Download completato!");
-                    (*refreshHolder)();
-                } else {
-                    dlProgress->setVisible(false);
-                    modDlLog->append("\n\xe2\x9d\x8c  Errore. Installa wget o curl.");
-                }
-            });
-            curl->start("curl", {"-L", "-C", "-", "--progress-bar", "-o", dest, url});
-        }
-    });
-
-    connect(refreshBtn, &QPushButton::clicked, this, [refreshHolder]{ (*refreshHolder)(); });
-    connect(m_llamaStack, &QStackedWidget::currentChanged, this, [=](int idx){
-        if (idx == 3) (*refreshHolder)();
-    });
+    /* Popola la lista la prima volta */
+    refreshModelList();
 
     /* ──── Sub-page 3: Scarica Modelli Matematica/Logica ───────── */
     auto* dlPg  = new QWidget;
@@ -597,7 +334,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     dlTopL->setContentsMargins(0,0,0,0); dlTopL->setSpacing(10);
     auto* backDl = new QPushButton("\xe2\x86\x90 Menu llama", dlPg);
     backDl->setObjectName("actionBtn");
-    connect(backDl, &QPushButton::clicked, this, [=]{ m_llamaStack->setCurrentIndex(0); });
+    connect(backDl, &QPushButton::clicked, this, &PersonalizzaPage::onBackDlClicked);
     auto* dlTitle = new QLabel("\xf0\x9f\x93\xa5  Scarica Modelli Matematica / Logica", dlPg);
     dlTitle->setObjectName("cardTitle");
     dlTopL->addWidget(backDl); dlTopL->addWidget(dlTitle, 1);
@@ -659,7 +396,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     listL->setContentsMargins(0,0,0,4); listL->setSpacing(6);
 
     /* Log download (condiviso tra tutti i pulsanti) */
-    auto* dlLog = makeLog("Log download...");
+    m_mathDlLog = makeLog("Log download...");
 
     for (const auto& mm : mathModels) {
         auto* card = new QFrame(listW);
@@ -676,45 +413,10 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
 
         auto* dlBtn = new QPushButton("\xe2\xac\x87 Scarica", card);
         dlBtn->setObjectName("actionBtn"); dlBtn->setFixedWidth(100);
-
-        const QString url  = mm.url;
-        const QString name = mm.name;
-        connect(dlBtn, &QPushButton::clicked, this, [=]{
-            /* Ricava nome file dall'URL */
-            QString fname = url.section('/', -1);
-            if (fname.isEmpty()) fname = "modello.gguf";
-            QString dest = P::modelsDir() + "/" + fname;
-            dlLog->append(QString("\xf0\x9f\x93\xa5  Scarico: %1\n   \xe2\x86\x92 %2\n").arg(name).arg(dest));
-            dlBtn->setEnabled(false);
-
-            auto* proc = new QProcess(dlPg);
-            proc->setProcessChannelMode(QProcess::MergedChannels);
-            connect(proc, &QProcess::readyRead, dlPg, [=]{
-                dlLog->moveCursor(QTextCursor::End);
-                dlLog->insertPlainText(QString::fromLocal8Bit(proc->readAll()));
-                dlLog->ensureCursorVisible();
-            });
-            connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                    dlPg, [=](int code, QProcess::ExitStatus){
-                if (code == 0)
-                    dlLog->append(QString("\n\xe2\x9c\x85  Download completato: %1").arg(fname));
-                else
-                    dlLog->append(QString("\n\xe2\x9d\x8c  Errore (codice %1). Controlla la connessione.").arg(code));
-                dlBtn->setEnabled(true);
-                proc->deleteLater();
-            });
-#ifdef _WIN32
-            proc->start("cmd", {"/c",
-                QString("curl -L -o \"%1\" \"%2\" --progress-bar").arg(dest).arg(url)});
-#else
-            proc->start("wget", {"-c", "-O", dest, "--show-progress", url});
-#endif
-            if (!proc->waitForStarted(4000)) {
-                dlLog->append("\xe2\x9d\x8c  wget/curl non trovato. Installa wget (Linux) o curl (Windows).");
-                dlBtn->setEnabled(true);
-                proc->deleteLater();
-            }
-        });
+        dlBtn->setProperty("_url",  mm.url);
+        dlBtn->setProperty("_name", mm.name);
+        connect(dlBtn, &QPushButton::clicked,
+                this, &PersonalizzaPage::onMathDlBtnClicked);
 
         cl->addWidget(txtW, 1); cl->addWidget(dlBtn);
         listL->addWidget(card);
@@ -731,56 +433,21 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     auto* urlRow = new QWidget(customCard);
     auto* urlRowL = new QHBoxLayout(urlRow);
     urlRowL->setContentsMargins(0,0,0,0); urlRowL->setSpacing(8);
-    auto* urlEdit = new QLineEdit(customCard);
-    urlEdit->setPlaceholderText("https://huggingface.co/.../resolve/main/modello.gguf");
-    auto* dlCustomBtn = new QPushButton("\xe2\xac\x87 Scarica", customCard);
-    dlCustomBtn->setObjectName("actionBtn"); dlCustomBtn->setFixedWidth(100);
-    urlRowL->addWidget(urlEdit, 1); urlRowL->addWidget(dlCustomBtn);
+    m_dlCustomUrlEdit = new QLineEdit(customCard);
+    m_dlCustomUrlEdit->setPlaceholderText("https://huggingface.co/.../resolve/main/modello.gguf");
+    m_dlCustomBtn = new QPushButton("\xe2\xac\x87 Scarica", customCard);
+    m_dlCustomBtn->setObjectName("actionBtn"); m_dlCustomBtn->setFixedWidth(100);
+    urlRowL->addWidget(m_dlCustomUrlEdit, 1); urlRowL->addWidget(m_dlCustomBtn);
     ccL->addWidget(urlRow);
     listL->addWidget(customCard);
 
-    connect(dlCustomBtn, &QPushButton::clicked, this, [=]{
-        QString url = urlEdit->text().trimmed();
-        if (url.isEmpty()) { dlLog->append("\xe2\x9d\x8c  Inserisci un URL valido."); return; }
-        QString fname = url.section('/', -1);
-        if (fname.isEmpty()) fname = "modello.gguf";
-        QString dest = P::modelsDir() + "/" + fname;
-        dlLog->append(QString("\xf0\x9f\x93\xa5  Scarico URL personalizzato:\n   %1\n   \xe2\x86\x92 %2\n").arg(url).arg(dest));
-        dlCustomBtn->setEnabled(false);
-
-        auto* proc = new QProcess(dlPg);
-        proc->setProcessChannelMode(QProcess::MergedChannels);
-        connect(proc, &QProcess::readyRead, dlPg, [=]{
-            dlLog->moveCursor(QTextCursor::End);
-            dlLog->insertPlainText(QString::fromLocal8Bit(proc->readAll()));
-            dlLog->ensureCursorVisible();
-        });
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                dlPg, [=](int code, QProcess::ExitStatus){
-            if (code == 0)
-                dlLog->append(QString("\n\xe2\x9c\x85  Download completato: %1").arg(fname));
-            else
-                dlLog->append(QString("\n\xe2\x9d\x8c  Errore (codice %1).").arg(code));
-            dlCustomBtn->setEnabled(true);
-            proc->deleteLater();
-        });
-#ifdef _WIN32
-        proc->start("cmd", {"/c",
-            QString("curl -L -o \"%1\" \"%2\" --progress-bar").arg(dest).arg(url)});
-#else
-        proc->start("wget", {"-c", "-O", dest, "--show-progress", url});
-#endif
-        if (!proc->waitForStarted(4000)) {
-            dlLog->append("\xe2\x9d\x8c  wget/curl non trovato.");
-            dlCustomBtn->setEnabled(true);
-            proc->deleteLater();
-        }
-    });
+    connect(m_dlCustomBtn, &QPushButton::clicked,
+            this, &PersonalizzaPage::onDlCustomBtnClicked);
 
     listL->addStretch(1);
     scroll->setWidget(listW);
     dlLay->addWidget(scroll, 1);
-    dlLay->addWidget(dlLog);
+    dlLay->addWidget(m_mathDlLog);
 
     m_llamaStack->addWidget(subMenu);  /* 0 — sotto-menu */
     m_llamaStack->addWidget(compPg);   /* 1 — Compila / Aggiorna */
@@ -794,13 +461,13 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
         if (!alreadyPrompted) {
             cfg.setValue("llamacpp/firstLaunchPrompted", true);
             /* Banner visibile nella sotto-pagina 0 (sotto-menu) */
-            auto* banner = new QFrame(subMenu);
-            banner->setStyleSheet(
+            m_firstLaunchBanner = new QFrame(subMenu);
+            m_firstLaunchBanner->setStyleSheet(
                 "QFrame{background:#1c1a08;border:2px solid #f59e0b;"
                 "border-radius:8px;padding:10px;}");
-            auto* bannerLay = new QHBoxLayout(banner);
+            auto* bannerLay = new QHBoxLayout(m_firstLaunchBanner);
             bannerLay->setSpacing(12);
-            auto* ico = new QLabel("\xf0\x9f\x94\xa8", banner);
+            auto* ico = new QLabel("\xf0\x9f\x94\xa8", m_firstLaunchBanner);
             ico->setStyleSheet("font-size:22px;");
             auto* txt = new QLabel(
                 "<b style='color:#fbbf24;'>Primo avvio: llama.cpp non \xc3\xa8 compilato</b><br>"
@@ -808,25 +475,21 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
                 "Clicca <b>Compila ora</b> per scaricare e compilare llama.cpp automaticamente. "
                 "Richiede: git, cmake, gcc/g++ (Linux) o MSYS2 (Windows). "
                 "Operazione una tantum (~5-15 min)."
-                "</span>", banner);
+                "</span>", m_firstLaunchBanner);
             txt->setWordWrap(true); txt->setTextFormat(Qt::RichText);
-            auto* compNowBtn = new QPushButton("\xf0\x9f\x94\xa8  Compila ora", banner);
+            auto* compNowBtn = new QPushButton("\xf0\x9f\x94\xa8  Compila ora", m_firstLaunchBanner);
             compNowBtn->setObjectName("actionBtn");
             compNowBtn->setStyleSheet(
                 "QPushButton{background:#d97706;color:#fff;border-radius:5px;"
                 "font-weight:bold;padding:5px 12px;}"
                 "QPushButton:hover{background:#b45309;}");
-            connect(compNowBtn, &QPushButton::clicked, this, [=]{
-                banner->setVisible(false);
-                m_llamaStack->setCurrentIndex(1);  /* vai alla pagina Compila */
-                /* Avvia automaticamente la compilazione */
-                if (m_llamaCompBtn) m_llamaCompBtn->click();
-            });
+            connect(compNowBtn, &QPushButton::clicked,
+                    this, &PersonalizzaPage::onCompNowBtnClicked);
             bannerLay->addWidget(ico);
             bannerLay->addWidget(txt, 1);
             bannerLay->addWidget(compNowBtn);
             /* Inserisci il banner in cima al subMenu layout (prima delle card) */
-            qobject_cast<QVBoxLayout*>(subMenu->layout())->insertWidget(0, banner);
+            qobject_cast<QVBoxLayout*>(subMenu->layout())->insertWidget(0, m_firstLaunchBanner);
         }
     }
 
@@ -840,4 +503,508 @@ PersonalizzaPage::PersonalizzaPage(QWidget* parent)
     : QWidget(parent)
 {
     /* I widget vengono costruiti lazy da ImpostazioniPage via build*() */
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — navigazione stack
+   ══════════════════════════════════════════════════════════════ */
+void PersonalizzaPage::onSubMenuBtnClicked() {
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn || !m_llamaStack) return;
+    m_llamaStack->setCurrentIndex(btn->property("_targetPage").toInt());
+}
+
+void PersonalizzaPage::onBackCompClicked() {
+    if (m_llamaStack) m_llamaStack->setCurrentIndex(0);
+}
+
+void PersonalizzaPage::onBackModClicked() {
+    if (m_llamaStack) m_llamaStack->setCurrentIndex(0);
+}
+
+void PersonalizzaPage::onBackDlClicked() {
+    if (m_llamaStack) m_llamaStack->setCurrentIndex(0);
+}
+
+void PersonalizzaPage::onCompNowBtnClicked() {
+    if (m_firstLaunchBanner) m_firstLaunchBanner->setVisible(false);
+    if (m_llamaStack) m_llamaStack->setCurrentIndex(1);
+    if (m_llamaCompBtn) m_llamaCompBtn->click();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — compilazione llama.cpp (avvio)
+   ══════════════════════════════════════════════════════════════ */
+void PersonalizzaPage::onLlamaCompBtnClicked() {
+    if (!m_llamaLog || !m_llamaCompBtn) return;
+    m_llamaLog->clear();
+    m_llamaCompBtn->setEnabled(false);
+
+    const QString studio   = P::llamaStudioDir();
+    m_buildCloneDir = studio + "/llama.cpp";
+    m_buildDir      = m_buildCloneDir + "/build";
+
+    /* ── Flag GPU ── */
+    m_buildGpuArgs = { "-DGGML_NATIVE=ON" };
+#ifdef _WIN32
+    m_buildGpuArgs << "-DGGML_CUDA=ON";
+#else
+    if (QFileInfo::exists("/usr/local/cuda/bin/nvcc") ||
+        QFileInfo::exists("/usr/bin/nvcc"))
+        m_buildGpuArgs << "-DGGML_CUDA=ON";
+    else if (QFileInfo::exists("/opt/rocm/bin/hipcc"))
+        m_buildGpuArgs << "-DGGML_HIP=ON";
+    else if (QFileInfo::exists("/usr/bin/vulkaninfo"))
+        m_buildGpuArgs << "-DGGML_VULKAN=ON";
+#endif
+    m_llamaLog->append(QString("\xf0\x9f\x93\xa6  Flag GPU: %1\n")
+                       .arg(m_buildGpuArgs.join(" ")));
+
+    m_buildJobs = qMax(1, QThread::idealThreadCount());
+
+    /* ── Step 1: git clone oppure git pull ── */
+    QStringList gitArgs;
+    if (QDir(m_buildCloneDir).exists()) {
+        gitArgs = { "-C", m_buildCloneDir, "pull" };
+        m_llamaLog->append("\xf0\x9f\x94\x84  git pull...\n");
+    } else {
+        gitArgs = { "clone", "--depth=1",
+                    "https://github.com/ggerganov/llama.cpp",
+                    m_buildCloneDir };
+        m_llamaLog->append("\xf0\x9f\x93\xa5  git clone...\n");
+    }
+
+    m_proc1 = new QProcess(this);
+    m_proc1->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_proc1, &QProcess::readyRead,
+            this, &PersonalizzaPage::onProc1ReadyRead);
+    connect(m_proc1, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &PersonalizzaPage::onProc1Finished);
+    m_proc1->start("git", gitArgs);
+    if (!m_proc1->waitForStarted(8000)) {
+        m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare git. Verifica che git sia nel PATH.");
+        m_llamaCompBtn->setEnabled(true);
+        m_proc1->deleteLater();
+        m_proc1 = nullptr;
+    }
+}
+
+void PersonalizzaPage::onProc1ReadyRead() {
+    if (!m_proc1 || !m_llamaLog) return;
+    m_llamaLog->moveCursor(QTextCursor::End);
+    m_llamaLog->insertPlainText(QString::fromLocal8Bit(m_proc1->readAll()));
+    m_llamaLog->ensureCursorVisible();
+}
+
+void PersonalizzaPage::onProc1Finished(int code, QProcess::ExitStatus) {
+    if (!m_proc1) return;
+    m_proc1->deleteLater();
+    m_proc1 = nullptr;
+    if (code != 0) {
+        if (m_llamaLog)
+            m_llamaLog->append(QString("\n\xe2\x9d\x8c  git fallito (code %1).").arg(code));
+        if (m_llamaCompBtn) m_llamaCompBtn->setEnabled(true);
+        return;
+    }
+    if (m_llamaLog)
+        m_llamaLog->append("\n\xe2\x9c\x85  git OK.\n\xe2\x9a\x99  cmake configure...\n");
+
+    /* ── Step 2: cmake configure ── */
+    QStringList cmakeConfigArgs = {
+        "-B", m_buildDir,
+        "-S", m_buildCloneDir,
+        "-DCMAKE_BUILD_TYPE=Release",
+    };
+    cmakeConfigArgs += m_buildGpuArgs;
+
+    m_proc2 = new QProcess(this);
+    m_proc2->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_proc2, &QProcess::readyRead,
+            this, &PersonalizzaPage::onProc2ReadyRead);
+    connect(m_proc2, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &PersonalizzaPage::onProc2Finished);
+    m_proc2->start("cmake", cmakeConfigArgs);
+    if (!m_proc2->waitForStarted(5000)) {
+        if (m_llamaLog)
+            m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare cmake configure.");
+        if (m_llamaCompBtn) m_llamaCompBtn->setEnabled(true);
+        m_proc2->deleteLater();
+        m_proc2 = nullptr;
+    }
+}
+
+void PersonalizzaPage::onProc2ReadyRead() {
+    if (!m_proc2 || !m_llamaLog) return;
+    m_llamaLog->moveCursor(QTextCursor::End);
+    m_llamaLog->insertPlainText(QString::fromLocal8Bit(m_proc2->readAll()));
+    m_llamaLog->ensureCursorVisible();
+}
+
+void PersonalizzaPage::onProc2Finished(int code, QProcess::ExitStatus) {
+    if (!m_proc2) return;
+    m_proc2->deleteLater();
+    m_proc2 = nullptr;
+    if (code != 0) {
+        if (m_llamaLog)
+            m_llamaLog->append(QString("\n\xe2\x9d\x8c  cmake configure fallito (code %1).").arg(code));
+        if (m_llamaCompBtn) m_llamaCompBtn->setEnabled(true);
+        return;
+    }
+    if (m_llamaLog)
+        m_llamaLog->append(
+            QString("\n\xe2\x9c\x85  cmake OK.\n\xf0\x9f\x94\xa8  cmake build (-j%1)...\n")
+                .arg(m_buildJobs));
+
+    /* ── Step 3: cmake build ── */
+    m_proc3 = new QProcess(this);
+    m_proc3->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_proc3, &QProcess::readyRead,
+            this, &PersonalizzaPage::onProc3ReadyRead);
+    connect(m_proc3, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &PersonalizzaPage::onProc3Finished);
+    m_proc3->start("cmake", {
+        "--build", m_buildDir,
+        "--config", "Release",
+        "-j", QString::number(m_buildJobs)
+    });
+    if (!m_proc3->waitForStarted(5000)) {
+        if (m_llamaLog)
+            m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare cmake build.");
+        if (m_llamaCompBtn) m_llamaCompBtn->setEnabled(true);
+        m_proc3->deleteLater();
+        m_proc3 = nullptr;
+    }
+}
+
+void PersonalizzaPage::onProc3ReadyRead() {
+    if (!m_proc3 || !m_llamaLog) return;
+    m_llamaLog->moveCursor(QTextCursor::End);
+    m_llamaLog->insertPlainText(QString::fromLocal8Bit(m_proc3->readAll()));
+    m_llamaLog->ensureCursorVisible();
+}
+
+void PersonalizzaPage::onProc3Finished(int code, QProcess::ExitStatus) {
+    if (!m_proc3) return;
+    m_proc3->deleteLater();
+    m_proc3 = nullptr;
+    if (m_llamaLog) {
+        if (code == 0)
+            m_llamaLog->append("\n\xe2\x9c\x85  llama.cpp compilato!\n"
+                               "  Binari in: llama_cpp_studio/llama.cpp/build/bin/");
+        else
+            m_llamaLog->append(QString("\n\xe2\x9d\x8c  Build fallita (code %1).").arg(code));
+    }
+    if (m_llamaCompBtn) m_llamaCompBtn->setEnabled(true);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — gestione modelli
+   ══════════════════════════════════════════════════════════════ */
+void PersonalizzaPage::onPresetBtnClicked() {
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn || !m_modUrlEdit) return;
+    m_modUrlEdit->setText(btn->property("_url").toString());
+}
+
+void PersonalizzaPage::refreshModelList() {
+    if (!m_listContainer) return;
+    auto* listContLay = qobject_cast<QVBoxLayout*>(m_listContainer->layout());
+    if (!listContLay) return;
+
+    /* Rimuovi tutti i widget precedenti tranne lo stretch finale */
+    while (listContLay->count() > 1) {
+        auto* item = listContLay->takeAt(0);
+        if (item->widget()) item->widget()->deleteLater();
+        delete item;
+    }
+    const QString modelsDir = P::modelsDir();
+    if (m_modDirLbl)
+        m_modDirLbl->setText(QString("\xf0\x9f\x93\x81  %1").arg(modelsDir));
+    QDir d(modelsDir);
+    if (!d.exists()) {
+        auto* lbl = new QLabel("\xe2\x9a\xa0  Cartella models/ non trovata.", m_listContainer);
+        lbl->setObjectName("cardDesc");
+        listContLay->insertWidget(0, lbl);
+        return;
+    }
+    auto files = d.entryInfoList({"*.gguf","*.bin"}, QDir::Files, QDir::Size | QDir::Reversed);
+    if (files.isEmpty()) {
+        auto* lbl = new QLabel("\xf0\x9f\x8c\xab  Nessun modello trovato — scaricane uno dalla sezione sotto.", m_listContainer);
+        lbl->setObjectName("cardDesc");
+        listContLay->insertWidget(0, lbl);
+        return;
+    }
+    for (int i = 0; i < files.size(); i++) {
+        const auto& f = files[i];
+        double mb = f.size() / (1024.0 * 1024.0);
+        QString sizeStr = mb >= 1024.0
+            ? QString("%1 GB").arg(mb / 1024.0, 0, 'f', 2)
+            : QString("%1 MB").arg(mb, 0, 'f', 0);
+
+        auto* card  = new QFrame(m_listContainer);
+        card->setObjectName("actionCard");
+        auto* cl    = new QHBoxLayout(card);
+        cl->setContentsMargins(10, 6, 10, 6); cl->setSpacing(10);
+
+        auto* ico  = new QLabel("\xf0\x9f\xa6\x99", card);
+        auto* name = new QLabel(f.fileName(), card);
+        name->setObjectName("cardTitle");
+        auto* size = new QLabel(sizeStr, card);
+        size->setObjectName("cardDesc"); size->setFixedWidth(72);
+        auto* delBtn = new QPushButton("\xf0\x9f\x97\x91", card);
+        delBtn->setObjectName("actionBtn"); delBtn->setFixedWidth(32);
+        delBtn->setToolTip("Elimina modello");
+        delBtn->setProperty("danger", true);
+        delBtn->setProperty("_filePath",  f.absoluteFilePath());
+        delBtn->setProperty("_fileName",  f.fileName());
+        delBtn->setProperty("_sizeStr",   sizeStr);
+        connect(delBtn, &QPushButton::clicked,
+                this, &PersonalizzaPage::onDeleteModelBtnClicked);
+
+        cl->addWidget(ico);
+        cl->addWidget(name, 1);
+        cl->addWidget(size);
+        cl->addWidget(delBtn);
+        listContLay->insertWidget(i, card);
+    }
+}
+
+void PersonalizzaPage::onDeleteModelBtnClicked() {
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn) return;
+    const QString filePath = btn->property("_filePath").toString();
+    const QString fileName = btn->property("_fileName").toString();
+    const QString sizeStr  = btn->property("_sizeStr").toString();
+    auto ans = QMessageBox::question(this, "Elimina modello",
+        QString("Eliminare permanentemente:\n%1\n(%2)?").arg(fileName).arg(sizeStr),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (ans == QMessageBox::Yes) {
+        QFile::remove(filePath);
+        refreshModelList();
+    }
+}
+
+void PersonalizzaPage::onModDlBtnClicked() {
+    if (!m_modUrlEdit || !m_modDlLog || !m_modDlBtn || !m_dlProgress) return;
+    const QString url = m_modUrlEdit->text().trimmed();
+    if (url.isEmpty()) return;
+    QString fname = QUrl(url).fileName();
+    if (fname.isEmpty()) fname = "modello.gguf";
+    const QString dest = P::modelsDir() + "/" + fname;
+    QDir().mkpath(P::modelsDir());
+    m_modDlLog->clear();
+    m_modDlLog->append(QString("\xe2\xac\x87  Scaricando %1\n\xe2\x86\x92  %2\n").arg(fname).arg(dest));
+    m_modDlBtn->setEnabled(false);
+    m_dlProgress->setValue(0);
+    m_dlProgress->setVisible(true);
+
+    m_modDlProc = new QProcess(this);
+    m_modDlProc->setProcessChannelMode(QProcess::MergedChannels);
+    m_modDlProc->setProperty("_dest",  dest);
+    m_modDlProc->setProperty("_fname", fname);
+    m_modDlProc->setProperty("_url",   url);
+
+    connect(m_modDlProc, &QProcess::readyRead,
+            this, &PersonalizzaPage::onModDlProcReadyRead);
+    connect(m_modDlProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &PersonalizzaPage::onModDlProcFinished);
+
+    m_modDlProc->start("wget", {"-c", "--show-progress", "-O", dest, url});
+    if (!m_modDlProc->waitForStarted(3000)) {
+        m_modDlProc->deleteLater();
+        m_modDlProc = nullptr;
+        /* Fallback curl */
+        m_curlProc = new QProcess(this);
+        m_curlProc->setProcessChannelMode(QProcess::MergedChannels);
+        m_curlProc->setProperty("_dest",  dest);
+        m_curlProc->setProperty("_fname", fname);
+        connect(m_curlProc, &QProcess::readyRead,
+                this, &PersonalizzaPage::onCurlReadyRead);
+        connect(m_curlProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, &PersonalizzaPage::onCurlFinished);
+        m_curlProc->start("curl", {"-L", "-C", "-", "--progress-bar", "-o", dest, url});
+    }
+}
+
+void PersonalizzaPage::onModDlProcReadyRead() {
+    auto* proc = qobject_cast<QProcess*>(sender());
+    if (!proc || !m_modDlLog || !m_dlProgress) return;
+    const QString raw = QString::fromUtf8(proc->readAll());
+    static const QRegularExpression rePct(R"((\d{1,3})\s*%)");
+    const auto match = rePct.match(raw);
+    if (match.hasMatch()) {
+        const int pct = match.captured(1).toInt();
+        if (pct >= 0 && pct <= 100) m_dlProgress->setValue(pct);
+    }
+    const QStringList lines = raw.split('\n', Qt::SkipEmptyParts);
+    if (!lines.isEmpty()) {
+        const QString last = lines.last().trimmed();
+        if (!last.isEmpty()) m_modDlLog->append(last);
+    }
+}
+
+void PersonalizzaPage::onModDlProcFinished(int code, QProcess::ExitStatus) {
+    if (!m_modDlProc) return;
+    m_modDlProc->deleteLater();
+    m_modDlProc = nullptr;
+    if (!m_modDlBtn || !m_dlProgress || !m_modDlLog) return;
+    m_modDlBtn->setEnabled(true);
+    if (code == 0) {
+        m_dlProgress->setValue(100);
+        m_modDlLog->append("\n\xe2\x9c\x85  Download completato!");
+        refreshModelList();
+    } else {
+        m_dlProgress->setVisible(false);
+        m_modDlLog->append("\n\xe2\x9d\x8c  Download fallito o interrotto.");
+    }
+}
+
+void PersonalizzaPage::onCurlReadyRead() {
+    auto* proc = qobject_cast<QProcess*>(sender());
+    if (!proc || !m_modDlLog || !m_dlProgress) return;
+    const QString raw = QString::fromUtf8(proc->readAll());
+    static const QRegularExpression rePct(R"(\s(\d{1,3})\s)");
+    const auto match = rePct.match(raw);
+    if (match.hasMatch()) {
+        const int pct = match.captured(1).toInt();
+        if (pct >= 0 && pct <= 100) m_dlProgress->setValue(pct);
+    }
+    const QStringList lines = raw.split('\n', Qt::SkipEmptyParts);
+    if (!lines.isEmpty()) m_modDlLog->append(lines.last().trimmed());
+}
+
+void PersonalizzaPage::onCurlFinished(int code, QProcess::ExitStatus) {
+    if (!m_curlProc) return;
+    m_curlProc->deleteLater();
+    m_curlProc = nullptr;
+    if (!m_modDlBtn || !m_dlProgress || !m_modDlLog) return;
+    m_modDlBtn->setEnabled(true);
+    if (code == 0) {
+        m_dlProgress->setValue(100);
+        m_modDlLog->append("\n\xe2\x9c\x85  Download completato!");
+        refreshModelList();
+    } else {
+        m_dlProgress->setVisible(false);
+        m_modDlLog->append("\n\xe2\x9d\x8c  Errore. Installa wget o curl.");
+    }
+}
+
+void PersonalizzaPage::onRefreshBtnClicked() {
+    refreshModelList();
+}
+
+void PersonalizzaPage::onLlamaStackChanged(int idx) {
+    if (idx == 2) refreshModelList();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — download modelli matematica/logica
+   ══════════════════════════════════════════════════════════════ */
+void PersonalizzaPage::onMathDlBtnClicked() {
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn || !m_mathDlLog) return;
+    const QString url  = btn->property("_url").toString();
+    const QString name = btn->property("_name").toString();
+
+    QString fname = url.section('/', -1);
+    if (fname.isEmpty()) fname = "modello.gguf";
+    QString dest = P::modelsDir() + "/" + fname;
+    m_mathDlLog->append(QString("\xf0\x9f\x93\xa5  Scarico: %1\n   \xe2\x86\x92 %2\n")
+                        .arg(name).arg(dest));
+    btn->setEnabled(false);
+
+    auto* proc = new QProcess(this);
+    proc->setProcessChannelMode(QProcess::MergedChannels);
+    proc->setProperty("_dest",  dest);
+    proc->setProperty("_fname", fname);
+    proc->setProperty("_btn",   QVariant::fromValue(static_cast<QObject*>(btn)));
+    connect(proc, &QProcess::readyRead,
+            this, &PersonalizzaPage::onMathDlProcReadyRead);
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &PersonalizzaPage::onMathDlProcFinished);
+#ifdef _WIN32
+    proc->start("cmd", {"/c",
+        QString("curl -L -o \"%1\" \"%2\" --progress-bar").arg(dest).arg(url)});
+#else
+    proc->start("wget", {"-c", "-O", dest, "--show-progress", url});
+#endif
+    if (!proc->waitForStarted(4000)) {
+        m_mathDlLog->append("\xe2\x9d\x8c  wget/curl non trovato. Installa wget (Linux) o curl (Windows).");
+        btn->setEnabled(true);
+        proc->deleteLater();
+    }
+}
+
+void PersonalizzaPage::onMathDlProcReadyRead() {
+    auto* proc = qobject_cast<QProcess*>(sender());
+    if (!proc || !m_mathDlLog) return;
+    m_mathDlLog->moveCursor(QTextCursor::End);
+    m_mathDlLog->insertPlainText(QString::fromLocal8Bit(proc->readAll()));
+    m_mathDlLog->ensureCursorVisible();
+}
+
+void PersonalizzaPage::onMathDlProcFinished(int code, QProcess::ExitStatus) {
+    auto* proc = qobject_cast<QProcess*>(sender());
+    if (!proc || !m_mathDlLog) return;
+    const QString fname = proc->property("_fname").toString();
+    auto* btn = qobject_cast<QPushButton*>(proc->property("_btn").value<QObject*>());
+    if (code == 0)
+        m_mathDlLog->append(QString("\n\xe2\x9c\x85  Download completato: %1").arg(fname));
+    else
+        m_mathDlLog->append(QString("\n\xe2\x9d\x8c  Errore (codice %1). Controlla la connessione.").arg(code));
+    if (btn) btn->setEnabled(true);
+    proc->deleteLater();
+}
+
+void PersonalizzaPage::onDlCustomBtnClicked() {
+    if (!m_dlCustomUrlEdit || !m_mathDlLog || !m_dlCustomBtn) return;
+    const QString url = m_dlCustomUrlEdit->text().trimmed();
+    if (url.isEmpty()) { m_mathDlLog->append("\xe2\x9d\x8c  Inserisci un URL valido."); return; }
+    QString fname = url.section('/', -1);
+    if (fname.isEmpty()) fname = "modello.gguf";
+    QString dest = P::modelsDir() + "/" + fname;
+    m_mathDlLog->append(QString("\xf0\x9f\x93\xa5  Scarico URL personalizzato:\n   %1\n   \xe2\x86\x92 %2\n")
+                        .arg(url).arg(dest));
+    m_dlCustomBtn->setEnabled(false);
+
+    m_dlCustomProc = new QProcess(this);
+    m_dlCustomProc->setProcessChannelMode(QProcess::MergedChannels);
+    m_dlCustomProc->setProperty("_dest",  dest);
+    m_dlCustomProc->setProperty("_fname", fname);
+    connect(m_dlCustomProc, &QProcess::readyRead,
+            this, &PersonalizzaPage::onDlCustomProcReadyRead);
+    connect(m_dlCustomProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &PersonalizzaPage::onDlCustomProcFinished);
+#ifdef _WIN32
+    m_dlCustomProc->start("cmd", {"/c",
+        QString("curl -L -o \"%1\" \"%2\" --progress-bar").arg(dest).arg(url)});
+#else
+    m_dlCustomProc->start("wget", {"-c", "-O", dest, "--show-progress", url});
+#endif
+    if (!m_dlCustomProc->waitForStarted(4000)) {
+        m_mathDlLog->append("\xe2\x9d\x8c  wget/curl non trovato.");
+        m_dlCustomBtn->setEnabled(true);
+        m_dlCustomProc->deleteLater();
+        m_dlCustomProc = nullptr;
+    }
+}
+
+void PersonalizzaPage::onDlCustomProcReadyRead() {
+    if (!m_dlCustomProc || !m_mathDlLog) return;
+    m_mathDlLog->moveCursor(QTextCursor::End);
+    m_mathDlLog->insertPlainText(QString::fromLocal8Bit(m_dlCustomProc->readAll()));
+    m_mathDlLog->ensureCursorVisible();
+}
+
+void PersonalizzaPage::onDlCustomProcFinished(int code, QProcess::ExitStatus) {
+    if (!m_dlCustomProc || !m_mathDlLog) return;
+    const QString fname = m_dlCustomProc->property("_fname").toString();
+    m_dlCustomProc->deleteLater();
+    m_dlCustomProc = nullptr;
+    if (!m_dlCustomBtn) return;
+    if (code == 0)
+        m_mathDlLog->append(QString("\n\xe2\x9c\x85  Download completato: %1").arg(fname));
+    else
+        m_mathDlLog->append(QString("\n\xe2\x9d\x8c  Errore (codice %1).").arg(code));
+    m_dlCustomBtn->setEnabled(true);
 }

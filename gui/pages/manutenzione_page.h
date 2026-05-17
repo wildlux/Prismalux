@@ -8,6 +8,10 @@ class LanServer;
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSpinBox>
+#include <QRadioButton>
+#include <QTimeEdit>
+#include <QDateTimeEdit>
+#include <QDialog>
 #include <QCheckBox>
 #include <QProcess>
 #include <QStringList>
@@ -15,6 +19,9 @@ class LanServer;
 #include <QNetworkAccessManager>
 #include <QTableWidget>
 #include <QTimer>
+#include <QModelIndex>
+#include <QGroupBox>
+#include <QTableWidgetItem>
 #include "../hardware_monitor.h"
 #include "../ai_client.h"
 
@@ -50,6 +57,27 @@ private:
     QPushButton* m_srvStopBtn   = nullptr;
     QTextEdit*   m_srvLog       = nullptr;
     QProcess*    m_srvProc      = nullptr;
+
+    /* ── Backend connection/model widgets (promossi da locali) ─────── */
+    QLineEdit*   m_hostEdit     = nullptr;
+    QLineEdit*   m_portEdit     = nullptr;
+    QGroupBox*   m_grpServ      = nullptr;
+
+    /* ── Ollama version + update widgets ────────────────────────────── */
+    QLabel*      m_verLbl       = nullptr;
+    QTextEdit*   m_updLog       = nullptr;
+    QLabel*      m_updStatusLbl = nullptr;
+    QPushButton* m_updAllBtn    = nullptr;
+    QPushButton* m_updLlamaBtn  = nullptr;
+
+    /* ── Processi per update/verifica ───────────────────────────────── */
+    QProcess*    m_ollamaVerProc = nullptr;
+    QProcess*    m_listProc      = nullptr;
+    QProcess*    m_gitProc       = nullptr;
+    QProcess*    m_ramCmdProc    = nullptr;
+
+    /* helper per i bottoni RAM/zRAM */
+    void runRamCmd(const QString& prog, const QStringList& args, const QString& label);
 
     /* ── Modalità Calcolo LLM ───────────────────────────────────────── */
     QPushButton* m_btnGpu      = nullptr;
@@ -106,6 +134,34 @@ private:
     QPushButton*    m_btnCronPause  = nullptr;
     bool            m_cronPaused    = false;
 
+    /* Stato corrente del job cron in esecuzione (per slot onCronAi*) */
+    int     m_cronJobIdx    = -1;
+    QString m_cronJobName;
+    QString m_cronPrevModel;
+    QString m_cronJobModel;
+    QMetaObject::Connection m_cronAiFinConn;
+    QMetaObject::Connection m_cronAiErrConn;
+
+    /* ── Cron dialog (widget temporanei del dialogo add/edit) ── */
+    QLineEdit*      m_cronDlgEdName      = nullptr;
+    QTextEdit*      m_cronDlgEdPrompt    = nullptr;
+    QComboBox*      m_cronDlgCmbModel    = nullptr;
+    QRadioButton*   m_cronDlgRdDaily     = nullptr;
+    QRadioButton*   m_cronDlgRdHourly    = nullptr;
+    QRadioButton*   m_cronDlgRdInterval  = nullptr;
+    QRadioButton*   m_cronDlgRdOnce      = nullptr;
+    QTimeEdit*      m_cronDlgTeDaily     = nullptr;
+    QSpinBox*       m_cronDlgSpHourly    = nullptr;
+    QSpinBox*       m_cronDlgSpInterval  = nullptr;
+    QDateTimeEdit*  m_cronDlgDtOnce      = nullptr;
+    bool            m_cronDlgIsEdit      = false;
+    int             m_cronDlgIdx         = -1;
+    QString         m_cronDlgSrcId;
+    bool            m_cronDlgSrcEnabled  = true;
+    QString         m_cronDlgSrcLastRun;
+    QString         m_cronDlgSrcLastResult;
+    QDialog*        m_cronDlgPtr         = nullptr;
+
     void    cronLoadJobs();
     void    cronSaveJobs();
     void    cronTick();
@@ -121,6 +177,9 @@ private:
     QLabel*      m_lanStatusLbl = nullptr;
     QLabel*      m_lanClientsLbl= nullptr;
     QSpinBox*    m_lanPortSpin  = nullptr;
+    QPushButton* m_qrBtn        = nullptr;   ///< promosso da locale buildLanServer()
+    QPushButton* m_copyBtn      = nullptr;   ///< "Copia URL" nel dialog QR
+    QString      m_apkUrl;                   ///< URL APK corrente (per onCopyApkUrlClicked)
 
     friend struct CronAccess;   ///< accesso test suite a cronShouldRun/cronNextRun
     friend struct ManutAccess;  ///< accesso test suite a detectConfigFmt/convertConfig
@@ -133,6 +192,70 @@ private:
     QString currentBugModel() const;
 
 private slots:
+    /* ── Backend / Server ── */
+    void onSrvBrowseClicked();
+    void onSrvStartClicked();
+    void onSrvProcReadyRead();
+    void onSrvProcFinished(int code, QProcess::ExitStatus status);
+    void onSrvProcErrorOccurred(QProcess::ProcessError err);
+    void onSrvStopClicked();
+    void onFmtApplyClicked();
+    void onApplyBtnClicked();
+    void onBackendModelsReady(const QStringList& list);
+    void onBackendModelsFetchError(const QString& msg);
+    void onSetModelBtnClicked();
+    void onBackendCmbChanged(int idx);
+
+    /* ── Verifica / Aggiornamento Ollama & llama.cpp ── */
+    void onVerifyOllamaVersion();
+    void onOllamaVerProcFinished(int code, QProcess::ExitStatus status);
+    void onOllamaVerProcError(QProcess::ProcessError err);
+    void onUpdAllBtnClicked();
+    void onListProcFinished(int code, QProcess::ExitStatus status);
+    void onListProcError(QProcess::ProcessError err);
+    void onUpdLlamaBtnClicked();
+    void onGitProcFinished(int code, QProcess::ExitStatus status);
+    void onGitProcError(QProcess::ProcessError err);
+
+    /* ── Hardware / RAM / zRAM / NPU ── */
+    void onAutoZramCbToggled(bool on);
+    void onBtnGpuClicked();
+    void onBtnCpuClicked();
+    void onBtnMistoClicked();
+    void onBtnDoppiaClicked();
+    void onBtnSaveModeClicked();
+    void onAiModelChangedApplyMode(const QString& model);
+    void onRamCmdReadyRead();
+    void onRamCmdFinished(int code, QProcess::ExitStatus status);
+    void onDetectBtnClicked();
+    void onCompBtnClicked();
+    void onDisableRamBtnClicked();
+    void onSingBtnClicked();
+    void onDoppiaBtnClicked();
+    void onBtnIntelNpuClicked();
+
+    /* ── Cron ── */
+    void onCronTableItemChanged(QTableWidgetItem* item);
+    void onCronTableDoubleClicked(const QModelIndex& idx);
+    void onCronBtnAddClicked();
+    void onCronBtnEditClicked();
+    void onCronBtnDelClicked();
+    void onCronBtnRunClicked();
+    void onCronPauseToggled(bool on);
+    void onCronAiFinished(const QString& resp);
+    void onCronAiError(const QString& err);
+    void onCronDialogAccepted();
+
+    /* ── LAN Server ── */
+    void onLanToggleBtnToggled(bool on);
+    void onLanQrBtnEnableUpdate(bool on);
+    void onLanServerStatusChanged(bool running);
+    void onLanClientConnected(const QString& addr);
+    void onLanClientDisconnected(const QString& addr);
+    void onQrBtnClicked();
+    void onCopyApkUrlClicked();
+
+    /* ── Bug Tracker ── */
     void onBugModelsReady(const QStringList& list);
     void onSearchBugClicked();
     void onClearBugFixClicked();

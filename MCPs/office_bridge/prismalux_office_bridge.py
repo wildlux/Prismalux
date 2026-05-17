@@ -27,21 +27,66 @@ from pathlib import Path
 
 PORT      = 6790
 
-# Pattern bloccati prima di exec() — protezione base contro prompt injection
-_CODE_BLOCKLIST = [
-    "import subprocess", "import shutil", "import socket",
-    "import ctypes", "import pty", "import signal",
-    "__import__", "__builtins__", "__class__.__bases__",
-    "os.system", "os.popen", "os.remove", "os.unlink", "os.rmdir", "os.execv",
-    "subprocess.run", "subprocess.Popen", "subprocess.call",
-    "eval(", "exec(",
-]
+import ast as _ast
+
+_BLOCKED_MODULES = frozenset({
+    "subprocess", "shutil", "socket", "ctypes", "pty", "signal",
+    "importlib", "builtins", "pickle", "marshal", "code", "codeop",
+    "multiprocessing", "concurrent", "selectors", "asyncio",
+})
+
+_BLOCKED_OS_ATTRS = frozenset({
+    "system", "popen", "execv", "execve", "execvp", "execl",
+    "remove", "unlink", "rmdir", "chmod", "chown",
+})
+
+_BLOCKED_SUBPROCESS_ATTRS = frozenset({
+    "Popen", "run", "call", "check_output", "check_call",
+})
+
+_BLOCKED_BUILTINS = frozenset({
+    "exec", "eval", "compile", "__import__", "breakpoint",
+})
+
+
+class _AstValidator(_ast.NodeVisitor):
+    def __init__(self):
+        self.errors: list[str] = []
+
+    def visit_Import(self, node):
+        for alias in node.names:
+            root = alias.name.split(".")[0]
+            if root in _BLOCKED_MODULES:
+                self.errors.append(f"Modulo non consentito: '{alias.name}'")
+        self.generic_visit(node)
+
+    def visit_ImportFrom(self, node):
+        if node.module:
+            root = node.module.split(".")[0]
+            if root in _BLOCKED_MODULES:
+                self.errors.append(f"Modulo non consentito: '{node.module}'")
+        self.generic_visit(node)
+
+    def visit_Call(self, node):
+        if isinstance(node.func, _ast.Name) and node.func.id in _BLOCKED_BUILTINS:
+            self.errors.append(f"Funzione non consentita: '{node.func.id}'")
+        elif isinstance(node.func, _ast.Attribute):
+            attr = node.func.attr
+            if attr in _BLOCKED_OS_ATTRS or attr in _BLOCKED_SUBPROCESS_ATTRS:
+                self.errors.append(f"Metodo non consentito: '.{attr}'")
+        self.generic_visit(node)
+
 
 def _validate_code(code: str):
-    """Ritorna stringa d'errore se il codice contiene pattern pericolosi, None altrimenti."""
-    for pat in _CODE_BLOCKLIST:
-        if pat in code:
-            return f"Pattern non consentito: '{pat}'"
+    """Ritorna stringa d'errore se il codice è pericoloso, None altrimenti."""
+    try:
+        tree = _ast.parse(code, mode="exec")
+    except SyntaxError as e:
+        return f"Errore di sintassi: {e}"
+    v = _AstValidator()
+    v.visit(tree)
+    if v.errors:
+        return "; ".join(v.errors)
     return None
 LO_PORT   = 2002
 LO_ACCEPT = f"socket,host=localhost,port={LO_PORT};urp;StarOffice.ServiceManager"

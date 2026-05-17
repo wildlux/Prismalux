@@ -16,11 +16,15 @@
 #include <QPointF>
 #include <QStack>
 #include <QElapsedTimer>
+#include <QScrollArea>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QProcess>
+#include <QTimer>
+#include <QUrl>
 #include "../ai_client.h"
 
 class ChartWidget;  /* forward declare — chart_widget.h incluso in .cpp */
@@ -172,6 +176,22 @@ private:
     QString   m_ctrlAccum;           ///< accumulo token controller LLM
     QProcess* m_execProc = nullptr;  ///< processo esecutore corrente
 
+    /* ── Knowledge MCP watchdog ── */
+    QProcess* m_knowledgeProc     = nullptr;  ///< processo MCP knowledge_updater corrente
+    QTimer*   m_knowledgeWatchdog = nullptr;  ///< watchdog 5s per il processo MCP
+
+    /* ── Knowledge Save dialog (onSaveKnowledge) ── */
+    QDialog*   m_saveDlg     = nullptr;
+    QTextEdit* m_saveDlgEdit = nullptr;
+    QComboBox* m_saveDlgSec  = nullptr;
+    QComboBox* m_saveDlgMod  = nullptr;
+    QLabel*    m_saveDlgHint = nullptr;
+
+    /* ── Whisper download process ── */
+    QProcess* m_whisperDlProc    = nullptr;  ///< processo wget/curl per download modello whisper
+    QString   m_whisperDlDestDir;            ///< directory di destinazione del download
+    QString   m_whisperDlDestFile;           ///< file di destinazione del download
+
     /* ── TTS — processo tracciato per stop/pausa ── */
     QProcess*    m_ttsProc    = nullptr;  ///< aplay (Linux) o PowerShell (Win)
     QProcess*    m_piperProc  = nullptr;  ///< piper TTS (solo Linux, pipe verso m_ttsProc)
@@ -228,6 +248,9 @@ private:
     QPushButton* m_btnImg    = nullptr;
     QByteArray   m_imgBase64;  ///< Base64 dell'immagine allegata
     QString      m_imgMime;
+
+    /* ── Pannello scroll caratteri speciali ── */
+    QScrollArea*   m_symbolsScrollArea = nullptr;  ///< wrapper scrollabile del pannello simboli
 
     /* ── RAG inline (drag & drop diretto nel tab principale) ── */
     RagDropWidget* m_ragInline   = nullptr;
@@ -329,4 +352,58 @@ private slots:
     void onTtsProcFinished(int code, QProcess::ExitStatus status);
     void onTtsProcError(QProcess::ProcessError err);
     void onTtsHideWaitLbl();
+
+    /* ── UI toolbar / toolbar TTS ── */
+    void onTtsStopClicked();
+    void onTtsPauseClicked();
+    void onBtnExportClicked();
+    void onBtnExportPdfClicked();
+    void onBtnInfoClicked();
+    void onVoiceLoopToggled(bool on);
+    void onToolChkToggled(bool on);
+    void onCmbLLMIndexChanged(int idx);
+    void onModeToggleToggled(bool autoOn);
+
+    /* ── Log / scroll ── */
+    void onLogScrollValueChanged(int value);
+    void onBtnChartOpenClicked();
+    void onLogAnchorClicked(const QUrl& url);
+    void onBtnRunDelayedClick();    ///< QTimer::singleShot(0) → m_btnRun->click()
+    void onLogContextMenuRequested(const QPoint& pos);
+
+    /* ── Input area ── */
+    void onBtnRagToggled(bool on);
+    void onBtnHintHideClicked();
+    void onBtnRunClicked();
+    void onSymbolBtnClicked();      ///< inserisce il simbolo da sender()->property("symbol")
+    void onBtnSymbolsClicked();     ///< mostra/nasconde m_symbolsScrollArea
+    void onBtnTranslateClicked();
+    void onBtnDocClicked();
+    void onBtnImgClicked();
+    void onBtnVoiceClicked();
+
+    /* ── Pipeline / preset ── */
+    void onNumAgentsChanged(int v);
+    void onCmbModePresetChanged(int idx);
+    void onCmbModeMathChanged(int idx);
+    void onAiAborted();
+    void onAiModelChanged(const QString& newModel);
+
+    /* ── STT / download ── */
+    void onRecProcFinished(int exitCode, QProcess::ExitStatus status);
+    void onSttVoiceLoopAutoSend();   ///< singleShot(150) → m_btnRun->click() dopo STT ok
+    void onSttVoiceLoopRetry();      ///< singleShot(1500) → _sttStartRecording() dopo STT fail
+    void onWhisperDlProcReadyRead();
+    void onWhisperDlProcFinished(int code, QProcess::ExitStatus status);
+
+    /* ── Knowledge MCP ── */
+    void onKnowledgeWatchdogTimeout();
+    void onKnowledgeProcFinished(int code, QProcess::ExitStatus status);
+    void onKnowledgeSaveBtnClicked();
+    void onKnowledgeSaveDlgSectionChanged(const QString& sec);
+
+    /* ── Consiglio Scientifico (peer paralleli) ── */
+    void onConsiglioPeerToken(const QString& t);
+    void onConsiglioPeerFinished(const QString& full);
+    void onConsiglioPeerError(const QString& err);
 };

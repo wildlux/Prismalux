@@ -18,6 +18,7 @@ bl_info = {
     "category":    "System",
 }
 
+import ast
 import bpy
 import threading
 import queue
@@ -29,22 +30,61 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 PORT = 6789
 
-# Pattern bloccati prima di exec() — protezione base contro prompt injection
-_CODE_BLOCKLIST = [
-    "import os", "import subprocess", "import shutil", "import socket",
-    "import ctypes", "import pty", "import signal",
-    "__import__", "__builtins__", "__class__.__bases__",
-    "os.system", "os.popen", "os.remove", "os.unlink", "os.rmdir", "os.execv",
-    "subprocess.run", "subprocess.Popen", "subprocess.call",
-    "open(", "eval(", "exec(",
-]
+_BLOCKED_MODULES = frozenset({
+    "os", "subprocess", "shutil", "socket", "ctypes", "pty", "signal",
+    "importlib", "builtins", "pickle", "marshal", "code", "codeop",
+    "multiprocessing", "concurrent", "selectors", "asyncio",
+})
+
+_BLOCKED_BUILTINS = frozenset({
+    "exec", "eval", "compile", "__import__", "open", "breakpoint",
+})
+
+_BLOCKED_ATTRS = frozenset({
+    "system", "popen", "execv", "execve", "execvp", "execl",
+    "Popen", "run", "call", "check_output", "check_call",
+    "remove", "unlink", "rmdir", "rmtree", "chmod", "chown",
+})
+
+
+class _AstValidator(ast.NodeVisitor):
+    """Traversa l'AST e raccoglie violazioni di sicurezza."""
+
+    def __init__(self):
+        self.errors: list[str] = []
+
+    def visit_Import(self, node: ast.Import):
+        for alias in node.names:
+            root = alias.name.split(".")[0]
+            if root in _BLOCKED_MODULES:
+                self.errors.append(f"Modulo non consentito: '{alias.name}'")
+        self.generic_visit(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom):
+        if node.module:
+            root = node.module.split(".")[0]
+            if root in _BLOCKED_MODULES:
+                self.errors.append(f"Modulo non consentito: '{node.module}'")
+        self.generic_visit(node)
+
+    def visit_Call(self, node: ast.Call):
+        if isinstance(node.func, ast.Name) and node.func.id in _BLOCKED_BUILTINS:
+            self.errors.append(f"Funzione non consentita: '{node.func.id}'")
+        elif isinstance(node.func, ast.Attribute) and node.func.attr in _BLOCKED_ATTRS:
+            self.errors.append(f"Metodo non consentito: '.{node.func.attr}'")
+        self.generic_visit(node)
+
 
 def _validate_code(code: str):
-    """Ritorna stringa d'errore se il codice contiene pattern pericolosi, None altrimenti."""
-    low = code
-    for pat in _CODE_BLOCKLIST:
-        if pat in low:
-            return f"Pattern non consentito: '{pat}'"
+    """Ritorna stringa d'errore se il codice è pericoloso, None altrimenti."""
+    try:
+        tree = ast.parse(code, mode="exec")
+    except SyntaxError as e:
+        return f"Errore di sintassi: {e}"
+    v = _AstValidator()
+    v.visit(tree)
+    if v.errors:
+        return "; ".join(v.errors)
     return None
 
 # Code da eseguire (main thread) / risultati (thread server)

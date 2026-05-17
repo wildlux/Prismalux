@@ -111,11 +111,8 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     m_imgPreview->setObjectName("imgPreview");
     m_imgPreview->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     m_imgPreview->setVisible(false);
-    connect(m_imgPreview, &QLabel::linkActivated, this, [this] {
-        m_pendingImg.clear();
-        m_pendingImgMime.clear();
-        m_imgPreview->setVisible(false);
-    });
+    connect(m_imgPreview, &QLabel::linkActivated,
+            this, &OracoloPage::onImgPreviewLinkActivated);
     lay->addWidget(m_imgPreview);
 
     /* ── 5. Input row: [Sys][Img] [textarea] [Invia] [Nascondi] ── */
@@ -239,54 +236,18 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
 
             if (label.contains("Muto")) {
                 m_btnMute = btn;
-                connect(btn, &QPushButton::clicked, this, [this] {
-                    m_muted = !m_muted;
-                    if (m_btnMute)
-                        m_btnMute->setText(m_muted
-                            ? "\xf0\x9f\x94\x87 Attivo"     /* 🔇 Attivo = muto ON */
-                            : "\xf0\x9f\x94\x87 Muto");
-                });
+                connect(btn, &QPushButton::clicked, this, &OracoloPage::onMuteToggleClicked);
             } else if (label.contains("Pulisci")) {
                 connect(btn, &QPushButton::clicked, this, &OracoloPage::clearChat);
             } else if (label.contains("Test Voce")) {
-                connect(btn, &QPushButton::clicked, this, [] {
-                    TtsSpeak::speak(
-                        "Ciao! Il sistema di sintesi vocale funziona correttamente.");
-                });
+                connect(btn, &QPushButton::clicked, this, &OracoloPage::onTestVoceClicked);
             } else if (label.contains("Aiuto")) {
-                connect(btn, &QPushButton::clicked, this, [this] {
-                    auto* b = addAIBubble("\xf0\x9f\x93\x96  Aiuto");
-                    b->appendToken(
-                        "Ciao! Sono l'assistente AI di Prismalux.\n\n"
-                        "• Scrivi una domanda e premi Invia (o Enter)\n"
-                        "• Shift+Enter = nuova riga\n"
-                        "• Le pillole in basso inseriscono prompt predefiniti\n"
-                        "• 📊 Grafico appare se la risposta contiene una formula\n"
-                        "• 📷 Allega un'immagine per i modelli vision\n"
-                        "• ⚙ Imposta un system prompt personalizzato\n"
-                        "• 🔇 Muto disattiva la lettura vocale");
-                    b->finalizeStream();
-                    scrollToBottom();
-                });
+                connect(btn, &QPushButton::clicked, this, &OracoloPage::onAiutoClicked);
             } else {
                 /* Pillola normale: inserisce il prompt nell'input */
-                connect(btn, &QPushButton::clicked, this, [this, prompt, label] {
-                    /* "Sinusoide 3D" → invia direttamente */
-                    if (label.contains("Sinusoide 3D")) {
-                        m_input->setPlainText(prompt);
-                        sendMessage();
-                    } else if (label.contains("Grafici")) {
-                        m_input->setPlainText(prompt);
-                        sendMessage();
-                    } else {
-                        m_input->setPlainText(prompt);
-                        m_input->setFocus();
-                        /* Posiziona cursore alla fine */
-                        QTextCursor cur = m_input->textCursor();
-                        cur.movePosition(QTextCursor::End);
-                        m_input->setTextCursor(cur);
-                    }
-                });
+                btn->setProperty("pillPrompt", prompt);
+                btn->setProperty("pillLabel",  label);
+                connect(btn, &QPushButton::clicked, this, &OracoloPage::onPillClicked);
             }
 
             pillLay->addWidget(btn);
@@ -304,127 +265,34 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
        Connessioni UI
        ══════════════════════════════════════════════════════════ */
     /* Bottone unificato: se busy → abort, altrimenti invia */
-    connect(m_btnSend, &QPushButton::clicked, this, [this] {
-        if (m_ai->busy()) { m_ai->abort(); return; }
-        sendMessage();
-    });
+    connect(m_btnSend, &QPushButton::clicked,
+            this, &OracoloPage::onSendBtnClicked);
 
-    connect(m_btnNascondi, &QPushButton::toggled, this, [this](bool checked) {
-        m_quickBar->setVisible(checked);
-        m_btnNascondi->setText(checked
-            ? "\xf0\x9f\x91\x81  Nascondi"
-            : "\xf0\x9f\x91\x81  Mostra");
-    });
+    connect(m_btnNascondi, &QPushButton::toggled,
+            this, &OracoloPage::onNascondiToggled);
 
-    connect(m_btnSys, &QPushButton::clicked, this, [this] {
-        m_sysEdit->setVisible(!m_sysEdit->isVisible());
-    });
+    connect(m_btnSys, &QPushButton::clicked,
+            this, &OracoloPage::onSysBtnClicked);
 
     connect(m_btnImg, &QPushButton::clicked,
             this, &OracoloPage::attachImage);
 
-    connect(m_btnRag, &QPushButton::toggled, this, [this](bool on) {
-        m_ragEnabled = on;
-        updateRagBtn();
-    });
+    connect(m_btnRag, &QPushButton::toggled,
+            this, &OracoloPage::onRagToggled);
 
     /* RAG: embedding pronto → cerca context → avvia chat/generate */
-    connect(m_ai, &AiClient::embeddingReady, this, [this](const QVector<float>& vec) {
-        if (m_pendingMsg.isEmpty()) return;
-        QString msg = m_pendingMsg;
-        m_pendingMsg.clear();
-        m_lastUserMsg = msg;    /* per addToHistory() nel finished handler */
-
-        /* Ricerca top-k chunk rilevanti */
-        QSettings ss("Prismalux", "GUI");
-        int k = ss.value(P::SK::kRagMaxResults, 5).toInt();
-        const QVector<RagChunk> hits = m_rag.search(vec, k);
-
-        /* Costruisce il contesto da iniettare nel system prompt */
-        QString ctx;
-        if (!hits.isEmpty()) {
-            ctx = "\n\n--- CONTESTO DALLA BASE DI CONOSCENZA ---\n";
-            for (int i = 0; i < hits.size(); ++i)
-                ctx += QString("[%1] %2\n").arg(i + 1).arg(hits[i].text.left(400));
-            ctx += "--- FINE CONTESTO ---\n"
-                   "Usa SOLO le informazioni nel contesto quando rispondi alla domanda.\n";
-        }
-
-        QString sys = m_sysEdit->toPlainText().trimmed();
-        if (sys.isEmpty())
-            sys = "Sei un assistente AI utile e preciso. "
-                  "Rispondi SEMPRE e SOLO in italiano. "
-                  "Quando fornisci formule matematiche usa la notazione y = f(x).";
-        sys += ctx;
-
-        /* Endpoint: /api/generate se non c'è storia, /api/chat se c'è storia */
-        const AiClient::QueryType qt = AiClient::classifyQuery(msg);
-        const bool hasHistory = !m_history.isEmpty() || !m_historySummary.isEmpty();
-
-        if (hasHistory) {
-            /* Storia attiva: usa /api/chat con storia + contesto RAG */
-            m_ai->chat(sys, msg, buildHistoryArray(), qt);
-        } else {
-            /* Query RAG singola: usa /api/generate (più leggero) */
-            m_ai->generate(sys, msg, qt);
-        }
-    });
-
-    connect(m_ai, &AiClient::embeddingError, this, [this](const QString& err) {
-        if (m_pendingMsg.isEmpty()) return;
-        QString msg = m_pendingMsg;
-        m_pendingMsg.clear();
-        /* Fallback: chat senza contesto RAG */
-        startChatWithContext(msg);
-        Q_UNUSED(err);
-    });
+    connect(m_ai, &AiClient::embeddingReady,
+            this, &OracoloPage::onEmbeddingReady);
+    connect(m_ai, &AiClient::embeddingError,
+            this, &OracoloPage::onEmbeddingError);
 
     /* ══════════════════════════════════════════════════════════
        AiClient — segnali streaming
        ══════════════════════════════════════════════════════════ */
-    connect(m_ai, &AiClient::token, this, [this](const QString& tok) {
-        if (!m_streaming || !m_activeBubble) return;
-        m_activeBubble->appendToken(tok);
-        scrollToBottom();
-    });
-
-    connect(m_ai, &AiClient::finished, this, [this](const QString& full) {
-        if (!m_streaming) return;
-        m_streaming = false;
-        if (m_activeBubble) m_activeBubble->finalizeStream();
-        m_activeBubble = nullptr;
-        _setSendBusy(false);
-        m_waitLbl->setVisible(false);
-
-        /* Registra il turno nella storia conversazionale */
-        if (!m_lastUserMsg.isEmpty() && !full.isEmpty())
-            addToHistory(m_lastUserMsg, full);
-        m_lastUserMsg.clear();
-
-        scrollToBottom();
-    });
-
-    connect(m_ai, &AiClient::aborted, this, [this] {
-        if (!m_streaming) return;
-        m_streaming = false;
-        if (m_activeBubble) {
-            m_activeBubble->appendToken("\n\n\xe2\x9b\x94  Interrotto.");
-            m_activeBubble->finalizeStream();
-        }
-        m_activeBubble = nullptr;
-        _setSendBusy(false);
-        m_waitLbl->setVisible(false);
-    });
-
-    connect(m_ai, &AiClient::error, this, [this](const QString& msg) {
-        if (!m_streaming) return;
-        m_streaming = false;
-        if (m_activeBubble)
-            m_activeBubble->appendToken("\n\n\xe2\x9d\x8c  Errore: " + msg);
-        m_activeBubble = nullptr;
-        _setSendBusy(false);
-        m_waitLbl->setVisible(false);
-    });
+    connect(m_ai, &AiClient::token,    this, &OracoloPage::onAiToken);
+    connect(m_ai, &AiClient::finished, this, &OracoloPage::onAiFinished);
+    connect(m_ai, &AiClient::aborted,  this, &OracoloPage::onAiAborted);
+    connect(m_ai, &AiClient::error,    this, &OracoloPage::onAiError);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -636,14 +504,8 @@ void OracoloPage::clearChat() {
    ══════════════════════════════════════════════════════════════ */
 ChatBubble* OracoloPage::addUserBubble(const QString& text) {
     auto* bubble = new ChatBubble(ChatBubble::User, "Tu", text, m_chatContainer);
-    connect(bubble, &ChatBubble::editRequested, this, [this](const QString& txt) {
-        if (m_ai->busy()) return;   /* non modificare mentre l'AI risponde */
-        m_input->setPlainText(txt);
-        m_input->setFocus();
-        QTextCursor cur = m_input->textCursor();
-        cur.movePosition(QTextCursor::End);
-        m_input->setTextCursor(cur);
-    });
+    connect(bubble, &ChatBubble::editRequested,
+            this, &OracoloPage::onBubbleEditRequested);
     m_chatLay->insertWidget(m_chatLay->count() - 1, bubble);
     scrollToBottom();
     return bubble;
@@ -652,9 +514,7 @@ ChatBubble* OracoloPage::addUserBubble(const QString& text) {
 ChatBubble* OracoloPage::addAIBubble(const QString& senderName) {
     auto* bubble = new ChatBubble(ChatBubble::AI, senderName, {}, m_chatContainer);
     connect(bubble, &ChatBubble::chartRequested,
-            this, [this, bubble](const QString& formula) {
-        onChartRequested(bubble, formula);
-    });
+            this, &OracoloPage::onBubbleChartRequested);
     m_chatLay->insertWidget(m_chatLay->count() - 1, bubble);
     scrollToBottom();
     return bubble;
@@ -783,12 +643,7 @@ void OracoloPage::onChartRequested(ChatBubble* bubble, const QString& formula) {
    scrollToBottom
    ══════════════════════════════════════════════════════════════ */
 void OracoloPage::scrollToBottom() {
-    QPointer<QScrollArea> scroll = m_scroll;
-    QTimer::singleShot(30, m_scroll, [scroll] {
-        if (!scroll) return;
-        auto* sb = scroll->verticalScrollBar();
-        if (sb) sb->setValue(sb->maximum());
-    });
+    QTimer::singleShot(30, this, &OracoloPage::onScrollToBottomTimer);
 }
 
 void OracoloPage::_setSendBusy(bool busy)
@@ -804,4 +659,222 @@ void OracoloPage::_setSendBusy(bool busy)
     }
     m_btnSend->setEnabled(true);
     P::repolish(m_btnSend);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — anteprima immagine
+   ══════════════════════════════════════════════════════════════ */
+void OracoloPage::onImgPreviewLinkActivated()
+{
+    m_pendingImg.clear();
+    m_pendingImgMime.clear();
+    m_imgPreview->setVisible(false);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — quick bar pillole
+   ══════════════════════════════════════════════════════════════ */
+void OracoloPage::onMuteToggleClicked()
+{
+    m_muted = !m_muted;
+    if (m_btnMute)
+        m_btnMute->setText(m_muted
+            ? "\xf0\x9f\x94\x87 Attivo"
+            : "\xf0\x9f\x94\x87 Muto");
+}
+
+void OracoloPage::onTestVoceClicked()
+{
+    TtsSpeak::speak("Ciao! Il sistema di sintesi vocale funziona correttamente.");
+}
+
+void OracoloPage::onAiutoClicked()
+{
+    auto* b = addAIBubble("\xf0\x9f\x93\x96  Aiuto");
+    b->appendToken(
+        "Ciao! Sono l'assistente AI di Prismalux.\n\n"
+        "\xe2\x80\xa2 Scrivi una domanda e premi Invia (o Enter)\n"
+        "\xe2\x80\xa2 Shift+Enter = nuova riga\n"
+        "\xe2\x80\xa2 Le pillole in basso inseriscono prompt predefiniti\n"
+        "\xe2\x80\xa2 \xf0\x9f\x93\x8a Grafico appare se la risposta contiene una formula\n"
+        "\xe2\x80\xa2 \xf0\x9f\x93\xb7 Allega un'immagine per i modelli vision\n"
+        "\xe2\x80\xa2 \xe2\x9a\x99 Imposta un system prompt personalizzato\n"
+        "\xe2\x80\xa2 \xf0\x9f\x94\x87 Muto disattiva la lettura vocale");
+    b->finalizeStream();
+    scrollToBottom();
+}
+
+void OracoloPage::onPillClicked()
+{
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn) return;
+    const QString prompt = btn->property("pillPrompt").toString();
+    const QString label  = btn->property("pillLabel").toString();
+    if (label.contains("Sinusoide 3D") || label.contains("Grafici")) {
+        m_input->setPlainText(prompt);
+        sendMessage();
+    } else {
+        m_input->setPlainText(prompt);
+        m_input->setFocus();
+        QTextCursor cur = m_input->textCursor();
+        cur.movePosition(QTextCursor::End);
+        m_input->setTextCursor(cur);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — input row
+   ══════════════════════════════════════════════════════════════ */
+void OracoloPage::onSendBtnClicked()
+{
+    if (m_ai->busy()) { m_ai->abort(); return; }
+    sendMessage();
+}
+
+void OracoloPage::onNascondiToggled(bool checked)
+{
+    m_quickBar->setVisible(checked);
+    m_btnNascondi->setText(checked
+        ? "\xf0\x9f\x91\x81  Nascondi"
+        : "\xf0\x9f\x91\x81  Mostra");
+}
+
+void OracoloPage::onSysBtnClicked()
+{
+    m_sysEdit->setVisible(!m_sysEdit->isVisible());
+}
+
+void OracoloPage::onRagToggled(bool on)
+{
+    m_ragEnabled = on;
+    updateRagBtn();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — AiClient RAG embedding
+   ══════════════════════════════════════════════════════════════ */
+void OracoloPage::onEmbeddingReady(const QVector<float>& vec)
+{
+    if (m_pendingMsg.isEmpty()) return;
+    QString msg = m_pendingMsg;
+    m_pendingMsg.clear();
+    m_lastUserMsg = msg;
+
+    QSettings ss("Prismalux", "GUI");
+    int k = ss.value(P::SK::kRagMaxResults, 5).toInt();
+    const QVector<RagChunk> hits = m_rag.search(vec, k);
+
+    QString ctx;
+    if (!hits.isEmpty()) {
+        ctx = "\n\n--- CONTESTO DALLA BASE DI CONOSCENZA ---\n";
+        for (int i = 0; i < hits.size(); ++i)
+            ctx += QString("[%1] %2\n").arg(i + 1).arg(hits[i].text.left(400));
+        ctx += "--- FINE CONTESTO ---\n"
+               "Usa SOLO le informazioni nel contesto quando rispondi alla domanda.\n";
+    }
+
+    QString sys = m_sysEdit->toPlainText().trimmed();
+    if (sys.isEmpty())
+        sys = "Sei un assistente AI utile e preciso. "
+              "Rispondi SEMPRE e SOLO in italiano. "
+              "Quando fornisci formule matematiche usa la notazione y = f(x).";
+    sys += ctx;
+
+    const AiClient::QueryType qt = AiClient::classifyQuery(msg);
+    const bool hasHistory = !m_history.isEmpty() || !m_historySummary.isEmpty();
+
+    if (hasHistory)
+        m_ai->chat(sys, msg, buildHistoryArray(), qt);
+    else
+        m_ai->generate(sys, msg, qt);
+}
+
+void OracoloPage::onEmbeddingError(const QString& err)
+{
+    if (m_pendingMsg.isEmpty()) return;
+    QString msg = m_pendingMsg;
+    m_pendingMsg.clear();
+    startChatWithContext(msg);
+    Q_UNUSED(err);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — AiClient streaming
+   ══════════════════════════════════════════════════════════════ */
+void OracoloPage::onAiToken(const QString& tok)
+{
+    if (!m_streaming || !m_activeBubble) return;
+    m_activeBubble->appendToken(tok);
+    scrollToBottom();
+}
+
+void OracoloPage::onAiFinished(const QString& full)
+{
+    if (!m_streaming) return;
+    m_streaming = false;
+    if (m_activeBubble) m_activeBubble->finalizeStream();
+    m_activeBubble = nullptr;
+    _setSendBusy(false);
+    m_waitLbl->setVisible(false);
+
+    if (!m_lastUserMsg.isEmpty() && !full.isEmpty())
+        addToHistory(m_lastUserMsg, full);
+    m_lastUserMsg.clear();
+
+    scrollToBottom();
+}
+
+void OracoloPage::onAiAborted()
+{
+    if (!m_streaming) return;
+    m_streaming = false;
+    if (m_activeBubble) {
+        m_activeBubble->appendToken("\n\n\xe2\x9b\x94  Interrotto.");
+        m_activeBubble->finalizeStream();
+    }
+    m_activeBubble = nullptr;
+    _setSendBusy(false);
+    m_waitLbl->setVisible(false);
+}
+
+void OracoloPage::onAiError(const QString& msg)
+{
+    if (!m_streaming) return;
+    m_streaming = false;
+    if (m_activeBubble)
+        m_activeBubble->appendToken("\n\n\xe2\x9d\x8c  Errore: " + msg);
+    m_activeBubble = nullptr;
+    _setSendBusy(false);
+    m_waitLbl->setVisible(false);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — bolle chat
+   ══════════════════════════════════════════════════════════════ */
+void OracoloPage::onBubbleEditRequested(const QString& txt)
+{
+    if (m_ai->busy()) return;
+    m_input->setPlainText(txt);
+    m_input->setFocus();
+    QTextCursor cur = m_input->textCursor();
+    cur.movePosition(QTextCursor::End);
+    m_input->setTextCursor(cur);
+}
+
+void OracoloPage::onBubbleChartRequested(const QString& formula)
+{
+    /* sender() è la bolla che ha emesso il segnale */
+    auto* bubble = qobject_cast<ChatBubble*>(sender());
+    if (!bubble) return;
+    onChartRequested(bubble, formula);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — scroll timer
+   ══════════════════════════════════════════════════════════════ */
+void OracoloPage::onScrollToBottomTimer()
+{
+    if (!m_scroll) return;
+    auto* sb = m_scroll->verticalScrollBar();
+    if (sb) sb->setValue(sb->maximum());
 }

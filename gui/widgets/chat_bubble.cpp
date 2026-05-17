@@ -55,10 +55,7 @@ ChatBubble::ChatBubble(Role role, const QString& sender,
     m_text->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
     m_text->document()->setDocumentMargin(2);
     /* Auto-resize in altezza man mano che il contenuto cresce */
-    connect(m_text->document(), &QTextDocument::contentsChanged, this, [this] {
-        int h = qMax(22, (int)m_text->document()->size().height() + 6);
-        m_text->setFixedHeight(h);
-    });
+    connect(m_text->document(), &QTextDocument::contentsChanged, this, &ChatBubble::onDocContentsChanged);
     vlay->addWidget(m_text);
 
     /* ── Contenitore grafico (nascosto inizialmente) ── */
@@ -123,14 +120,9 @@ ChatBubble::ChatBubble(Role role, const QString& sender,
     /* ── Connessioni ── */
     connect(m_btnCopy,  &QPushButton::clicked, this, &ChatBubble::onCopy);
     connect(m_btnTts,   &QPushButton::clicked, this, &ChatBubble::onTTS);
-    connect(m_btnChart, &QPushButton::clicked, this, [this] {
-        QString f = FormulaParser::tryExtract(m_plain);
-        if (!f.isEmpty()) emit chartRequested(f);
-    });
+    connect(m_btnChart, &QPushButton::clicked, this, &ChatBubble::onChartBtnClicked);
     if (m_btnEdit) {
-        connect(m_btnEdit, &QPushButton::clicked, this, [this] {
-            emit editRequested(m_plain);
-        });
+        connect(m_btnEdit, &QPushButton::clicked, this, &ChatBubble::onEditBtnClicked);
     }
 }
 
@@ -181,9 +173,7 @@ void ChatBubble::onCopy() {
     QGuiApplication::clipboard()->setText(m_plain);
     /* Feedback visivo temporaneo */
     m_btnCopy->setText("\xe2\x9c\x85");
-    QTimer::singleShot(1500, m_btnCopy, [this] {
-        m_btnCopy->setText("\xf0\x9f\x97\x82");
-    });
+    QTimer::singleShot(1500, this, &ChatBubble::onCopyFeedbackReset);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -191,4 +181,22 @@ void ChatBubble::onCopy() {
    ══════════════════════════════════════════════════════════════ */
 void ChatBubble::onTTS() {
     TtsSpeak::speak(m_plain);
+}
+
+void ChatBubble::onDocContentsChanged() {
+    int h = qMax(22, (int)m_text->document()->size().height() + 6);
+    m_text->setFixedHeight(h);
+}
+
+void ChatBubble::onChartBtnClicked() {
+    QString f = FormulaParser::tryExtract(m_plain);
+    if (!f.isEmpty()) emit chartRequested(f);
+}
+
+void ChatBubble::onEditBtnClicked() {
+    emit editRequested(m_plain);
+}
+
+void ChatBubble::onCopyFeedbackReset() {
+    m_btnCopy->setText("\xf0\x9f\x97\x82");
 }

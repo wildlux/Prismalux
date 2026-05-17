@@ -7,7 +7,6 @@
 #include <QLineEdit>
 #include <QSplitter>
 #include <QLabel>
-#include <memory>
 #include "../ai_client.h"
 #include "tutor_data.h"
 
@@ -20,9 +19,18 @@ public:
     SubjectTutorWidget(AiClient* ai, const QString& subject,
                        const SubjectData& data, QWidget* parent = nullptr);
 
+private slots:
+    void onTreeItemDoubleClicked(QTreeWidgetItem* item, int column);
+    void onSendClicked();
+    void onAiToken(const QString& t);
+    void onAiFinished(const QString& result);
+    void onAiError(const QString& err);
+    void onAiAborted();
+
 private:
     AiClient*    m_ai;
     QString      m_subject;
+    bool         m_active = false;  ///< true = questa istanza ha una chiamata AI in corso
     QTreeWidget* m_tree = nullptr;
     QTextEdit*   m_log  = nullptr;
     QLineEdit*   m_inp  = nullptr;

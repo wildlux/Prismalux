@@ -159,23 +159,10 @@ void OpenCodePage::startServer() {
     });
     m_proc->setWorkingDirectory(m_cwdEdit->text().trimmed());
 
-    connect(m_proc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
-        if (err == QProcess::FailedToStart) {
-            m_statusLbl->setText("\xe2\x97\x8f  Errore avvio");
-            m_statusLbl->setStyleSheet("color:#ef4444; font-weight:bold;");
-            appendSystem("<span style='color:#ef4444'>\xe2\x9d\x8c  opencode serve: FailedToStart</span>");
-            m_proc->deleteLater(); m_proc = nullptr;
-        }
-    });
+    connect(m_proc, &QProcess::errorOccurred,
+            this, &OpenCodePage::onProcErrorOccurred);
     connect(m_proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this](int code, QProcess::ExitStatus) {
-        disconnectSseStream();
-        setServerState(false);
-        appendSystem(QString("<span style='color:#f59e0b'>"
-                             "\xe2\x9a\xa0  OpenCode terminato (exit %1)</span>").arg(code));
-        if (m_pollTimer) { m_pollTimer->stop(); }
-        m_proc->deleteLater(); m_proc = nullptr;
-    });
+            this, &OpenCodePage::onProcFinished);
 
     m_proc->start();
     m_statusLbl->setText("\xe2\x97\x90  Avvio in corso...");
@@ -213,34 +200,9 @@ void OpenCodePage::onPollTick() {
          return;
      }
 
-     auto* reply = m_nam->get(QNetworkRequest(QUrl(baseUrl() + "/session/status")));
-     connect(reply, &QNetworkReply::finished, this, [this, reply] {
-         reply->deleteLater();
-         if (reply->error() == QNetworkReply::NoError) {
-             m_pollErrorCount = 0; // Reset error counter on success
-             m_pollTimer->stop();
-             setServerState(true);
-             connectSseStream();
-             fetchModels();
-             fetchSessions();
-             appendSystem("<span style='color:#22c55e'>\xe2\x9c\x85  OpenCode pronto su "
-                          + baseUrl().toHtmlEscaped() + "</span>");
-         } else {
-             // Handle network errors with retry limit
-             m_pollErrorCount++;
-             if (m_pollErrorCount >= 5) { // Max 5 consecutive errors
-                 m_pollTimer->stop();
-                 m_statusLbl->setText("\xe2\x97\x8f  Errore di rete");
-                 m_statusLbl->setStyleSheet("color:#ef4444; font-weight:bold;");
-                 m_startBtn->setEnabled(true);
-                 appendSystem(QString("<span style='color:#ef4444'>\xe2\x9d\x8c  Impossibile connettersi a OpenCode dopo %1 tentativi: %2</span>")
-                              .arg(m_pollErrorCount)
-                              .arg(reply->errorString().toHtmlEscaped()));
-                 return;
-             }
-             /* altrimenti aspetta il prossimo tick */
-         }
-     });
+     m_pollReply = m_nam->get(QNetworkRequest(QUrl(baseUrl() + "/session/status")));
+     connect(m_pollReply, &QNetworkReply::finished,
+             this, &OpenCodePage::onPollReplyFinished);
  }
 
 void OpenCodePage::setServerState(bool running) {
@@ -439,7 +401,6 @@ void OpenCodePage::onSendClicked() {
     const QString modelID    = (slash >= 0) ? modelStr.mid(slash+1) : modelStr;
 
     if (m_sessionId.isEmpty()) {
-        /* Crea nuova sessione e poi invia */
         QJsonObject body;
         body["title"] = text.left(50);
         body["cwd"]   = m_cwdEdit->text().trimmed();
@@ -447,22 +408,9 @@ void OpenCodePage::onSendClicked() {
 
         QNetworkRequest req(QUrl(baseUrl() + "/session"));
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-        auto* reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
-
-         connect(reply, &QNetworkReply::finished, this, [this, reply, text, modelID, providerID] {
-             reply->deleteLater();
-             if (reply->error() != QNetworkReply::NoError) {
-                 appendSystem("<span style='color:#ef4444'>\xe2\x9d\x8c  Errore creazione sessione: "
-                              + reply->errorString().toHtmlEscaped() + "</span>");
-                 m_sendBtn->setEnabled(true); m_abortBtn->setEnabled(false);
-                 m_input->setEnabled(true);
-                 return;
-             }
-             const QJsonObject sess = QJsonDocument::fromJson(reply->readAll()).object();
-             m_sessionId = sess["id"].toString();
-             if (!m_sessionId.isEmpty())
-                 sendMessage(m_sessionId);
-         });
+        m_createSessionReply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+        connect(m_createSessionReply, &QNetworkReply::finished,
+                this, &OpenCodePage::onCreateSessionReplyFinished);
     } else {
         sendMessage(m_sessionId);
     }
@@ -484,16 +432,9 @@ void OpenCodePage::sendMessage(const QString& sessionId) {
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     auto* reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply] {
-        reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
-            appendSystem("<span style='color:#ef4444'>\xe2\x9d\x8c  Errore invio messaggio: "
-                         + reply->errorString().toHtmlEscaped() + "</span>");
-            m_sendBtn->setEnabled(true); m_abortBtn->setEnabled(false);
-            m_input->setEnabled(true);
-        }
-        /* Il completamento arriva via SSE, non qui */
-    });
+    m_sendMsgReply = reply;
+    connect(m_sendMsgReply, &QNetworkReply::finished,
+            this, &OpenCodePage::onSendMessageReplyFinished);
 
     m_input->clear();
 
@@ -524,22 +465,9 @@ void OpenCodePage::abortSession(const QString& sessionId) {
    Sessioni
    ══════════════════════════════════════════════════════════════ */
 void OpenCodePage::fetchSessions() {
-    auto* reply = m_nam->get(QNetworkRequest(QUrl(baseUrl() + "/session")));
-    connect(reply, &QNetworkReply::finished, this, [this, reply] {
-        reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) return;
-
-        const QJsonArray arr = QJsonDocument::fromJson(reply->readAll()).array();
-        m_sessList->clear();
-        for (auto v : arr) {
-            const QJsonObject obj = v.toObject();
-            const QString id    = obj["id"].toString();
-            const QString title = obj["title"].toString();
-            auto* item = new QListWidgetItem(title.isEmpty() ? id.left(16) + "..." : title);
-            item->setData(Qt::UserRole, id);
-            m_sessList->addItem(item);
-        }
-    });
+    m_fetchSessionsReply = m_nam->get(QNetworkRequest(QUrl(baseUrl() + "/session")));
+    connect(m_fetchSessionsReply, &QNetworkReply::finished,
+            this, &OpenCodePage::onFetchSessionsReplyFinished);
 }
 
 void OpenCodePage::onSessionsRefresh() {
@@ -558,36 +486,11 @@ void OpenCodePage::onSessionSelected(QListWidgetItem* item) {
    Modelli — carica da Ollama (GET /api/tags) e formatta "ollama/<name>"
    ══════════════════════════════════════════════════════════════ */
 void OpenCodePage::fetchModels() {
-    /* OpenCode non espone un endpoint JSON per i modelli.
-       Leggiamo direttamente da Ollama e aggiungiamo il prefisso "ollama/". */
     const QString ollamaUrl = QString("http://%1:%2/api/tags")
                               .arg(P::kLocalHost).arg(P::kOllamaPort);
-    auto* reply = m_nam->get(QNetworkRequest(QUrl(ollamaUrl)));
-    connect(reply, &QNetworkReply::finished, this, [this, reply] {
-        reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) return;
-
-        const QJsonArray models =
-            QJsonDocument::fromJson(reply->readAll()).object()["models"].toArray();
-        if (models.isEmpty()) return;
-
-        const QString cur = m_modelCombo->currentText();
-        m_modelCombo->blockSignals(true);
-        m_modelCombo->clear();
-
-        for (auto v : models) {
-            const QString name = v.toObject()["name"].toString();
-            if (!name.isEmpty())
-                m_modelCombo->addItem("ollama/" + name);
-        }
-
-        const int idx = m_modelCombo->findText(cur);
-        if (idx >= 0) m_modelCombo->setCurrentIndex(idx);
-        else if (m_modelCombo->count() > 0 && !cur.isEmpty())
-            m_modelCombo->setCurrentText(cur);
-
-        m_modelCombo->blockSignals(false);
-    });
+    m_fetchModelsReply = m_nam->get(QNetworkRequest(QUrl(ollamaUrl)));
+    connect(m_fetchModelsReply, &QNetworkReply::finished,
+            this, &OpenCodePage::onFetchModelsReplyFinished);
 }
 
 
@@ -629,4 +532,161 @@ void OpenCodePage::onCwdBrowse() {
     const QString dir = QFileDialog::getExistingDirectory(
         this, "Seleziona directory di lavoro", m_cwdEdit->text());
     if (!dir.isEmpty()) m_cwdEdit->setText(dir);
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: QProcess
+   ══════════════════════════════════════════════════════════════ */
+void OpenCodePage::onProcErrorOccurred(QProcess::ProcessError err) {
+    if (err == QProcess::FailedToStart) {
+        m_statusLbl->setText("\xe2\x97\x8f  Errore avvio");
+        m_statusLbl->setStyleSheet("color:#ef4444; font-weight:bold;");
+        appendSystem("<span style='color:#ef4444'>\xe2\x9d\x8c  opencode serve: FailedToStart</span>");
+        m_proc->deleteLater(); m_proc = nullptr;
+    }
+}
+
+void OpenCodePage::onProcFinished(int code, QProcess::ExitStatus) {
+    disconnectSseStream();
+    setServerState(false);
+    appendSystem(QString("<span style='color:#f59e0b'>"
+                         "\xe2\x9a\xa0  OpenCode terminato (exit %1)</span>").arg(code));
+    if (m_pollTimer) { m_pollTimer->stop(); }
+    m_proc->deleteLater(); m_proc = nullptr;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: poll reply (onPollTick)
+   ══════════════════════════════════════════════════════════════ */
+void OpenCodePage::onPollReplyFinished() {
+    if (!m_pollReply) return;
+    const bool ok      = (m_pollReply->error() == QNetworkReply::NoError);
+    const QString errStr = m_pollReply->errorString();
+    m_pollReply->deleteLater();
+    m_pollReply = nullptr;
+
+    if (ok) {
+        m_pollErrorCount = 0;
+        m_pollTimer->stop();
+        setServerState(true);
+        connectSseStream();
+        fetchModels();
+        fetchSessions();
+        appendSystem("<span style='color:#22c55e'>\xe2\x9c\x85  OpenCode pronto su "
+                     + baseUrl().toHtmlEscaped() + "</span>");
+    } else {
+        m_pollErrorCount++;
+        if (m_pollErrorCount >= 5) {
+            m_pollTimer->stop();
+            m_statusLbl->setText("\xe2\x97\x8f  Errore di rete");
+            m_statusLbl->setStyleSheet("color:#ef4444; font-weight:bold;");
+            m_startBtn->setEnabled(true);
+            appendSystem(QString("<span style='color:#ef4444'>\xe2\x9d\x8c  Impossibile connettersi a OpenCode dopo %1 tentativi: %2</span>")
+                         .arg(m_pollErrorCount)
+                         .arg(errStr.toHtmlEscaped()));
+        }
+    }
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: creazione sessione
+   ══════════════════════════════════════════════════════════════ */
+void OpenCodePage::onCreateSessionReplyFinished() {
+    if (!m_createSessionReply) return;
+    const bool ok        = (m_createSessionReply->error() == QNetworkReply::NoError);
+    const QString errStr = m_createSessionReply->errorString();
+    const QByteArray body = ok ? m_createSessionReply->readAll() : QByteArray{};
+    m_createSessionReply->deleteLater();
+    m_createSessionReply = nullptr;
+
+    if (!ok) {
+        appendSystem("<span style='color:#ef4444'>\xe2\x9d\x8c  Errore creazione sessione: "
+                     + errStr.toHtmlEscaped() + "</span>");
+        m_sendBtn->setEnabled(true); m_abortBtn->setEnabled(false);
+        m_input->setEnabled(true);
+        return;
+    }
+    m_sessionId = QJsonDocument::fromJson(body).object()["id"].toString();
+    if (!m_sessionId.isEmpty())
+        sendMessage(m_sessionId);
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: invio messaggio
+   ══════════════════════════════════════════════════════════════ */
+void OpenCodePage::onSendMessageReplyFinished() {
+    if (!m_sendMsgReply) return;
+    const bool ok        = (m_sendMsgReply->error() == QNetworkReply::NoError);
+    const QString errStr = m_sendMsgReply->errorString();
+    m_sendMsgReply->deleteLater();
+    m_sendMsgReply = nullptr;
+
+    if (!ok) {
+        appendSystem("<span style='color:#ef4444'>\xe2\x9d\x8c  Errore invio messaggio: "
+                     + errStr.toHtmlEscaped() + "</span>");
+        m_sendBtn->setEnabled(true); m_abortBtn->setEnabled(false);
+        m_input->setEnabled(true);
+    }
+    /* Il completamento arriva via SSE, non qui */
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: lista sessioni
+   ══════════════════════════════════════════════════════════════ */
+void OpenCodePage::onFetchSessionsReplyFinished() {
+    if (!m_fetchSessionsReply) return;
+    const bool ok          = (m_fetchSessionsReply->error() == QNetworkReply::NoError);
+    const QByteArray data  = ok ? m_fetchSessionsReply->readAll() : QByteArray{};
+    m_fetchSessionsReply->deleteLater();
+    m_fetchSessionsReply = nullptr;
+    if (!ok) return;
+
+    const QJsonArray arr = QJsonDocument::fromJson(data).array();
+    m_sessList->clear();
+    for (auto v : arr) {
+        const QJsonObject obj = v.toObject();
+        const QString id    = obj["id"].toString();
+        const QString title = obj["title"].toString();
+        auto* item = new QListWidgetItem(title.isEmpty() ? id.left(16) + "..." : title);
+        item->setData(Qt::UserRole, id);
+        m_sessList->addItem(item);
+    }
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: lista modelli da Ollama
+   ══════════════════════════════════════════════════════════════ */
+void OpenCodePage::onFetchModelsReplyFinished() {
+    if (!m_fetchModelsReply) return;
+    const bool ok         = (m_fetchModelsReply->error() == QNetworkReply::NoError);
+    const QByteArray data = ok ? m_fetchModelsReply->readAll() : QByteArray{};
+    m_fetchModelsReply->deleteLater();
+    m_fetchModelsReply = nullptr;
+    if (!ok) return;
+
+    const QJsonArray models = QJsonDocument::fromJson(data).object()["models"].toArray();
+    if (models.isEmpty()) return;
+
+    const QString cur = m_modelCombo->currentText();
+    m_modelCombo->blockSignals(true);
+    m_modelCombo->clear();
+
+    for (auto v : models) {
+        const QString name = v.toObject()["name"].toString();
+        if (!name.isEmpty())
+            m_modelCombo->addItem("ollama/" + name);
+    }
+
+    const int idx = m_modelCombo->findText(cur);
+    if (idx >= 0) m_modelCombo->setCurrentIndex(idx);
+    else if (m_modelCombo->count() > 0 && !cur.isEmpty())
+        m_modelCombo->setCurrentText(cur);
+
+    m_modelCombo->blockSignals(false);
 }

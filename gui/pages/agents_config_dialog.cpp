@@ -115,22 +115,8 @@ RagDropWidget::RagDropWidget(QWidget* parent) : QFrame(parent) {
     m_clearBtn->setToolTip("Rimuovi tutti i file/URL RAG");
     lay->addWidget(m_clearBtn);
 
-    connect(m_urlBtn, &QPushButton::clicked, this, [this]{
-        bool ok = false;
-        const QString url = QInputDialog::getText(
-            this,
-            "Carica pagina web nel RAG",
-            "Incolla l'URL della pagina da leggere:",
-            QLineEdit::Normal, "https://", &ok);
-        if (ok && !url.trimmed().isEmpty())
-            fetchUrl(url.trimmed());
-    });
-
-    connect(m_clearBtn, &QPushButton::clicked, this, [this]{
-        m_files.clear();
-        m_totalBytes = 0;
-        updateLabel();
-    });
+    connect(m_urlBtn,   &QPushButton::clicked, this, &RagDropWidget::onUrlBtnClicked);
+    connect(m_clearBtn, &QPushButton::clicked, this, &RagDropWidget::onClearBtnClicked);
 }
 
 void RagDropWidget::dragEnterEvent(QDragEnterEvent* ev) {
@@ -222,35 +208,8 @@ void RagDropWidget::fetchUrl(const QString& url)
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::NoLessSafeRedirectPolicy);
 
-    QNetworkReply* reply = m_nam->get(req);
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply, url]{
-        m_pendingFetches--;
-        m_urlBtn->setEnabled(m_pendingFetches == 0);
-        reply->deleteLater();
-
-        if (reply->error() != QNetworkReply::NoError) {
-            m_lbl->setText(QString("\xe2\x9d\x8c  Errore: %1")
-                           .arg(reply->errorString()));
-            emit webFetchDone(url, false);
-            QTimer::singleShot(3000, this, [this]{ updateLabel(); });
-            return;
-        }
-
-        const QByteArray html = reply->readAll();
-        QString text = htmlToPlainText(html);
-
-        /* Tronca al limite per pagina web */
-        if (text.size() > MAX_PER_WEB)
-            text = text.left(MAX_PER_WEB) + "\n[... troncato]";
-
-        /* Normalizza il nome con l'host + path breve */
-        QUrl qu(url);
-        const QString name = qu.host() + qu.path().left(60);
-
-        addEntry(name, text);
-        emit webFetchDone(url, true);
-    });
+    m_fetchReply = m_nam->get(req);
+    connect(m_fetchReply, &QNetworkReply::finished, this, &RagDropWidget::onFetchUrlReplyFinished);
 }
 
 void RagDropWidget::addEntry(const QString& name, const QString& content)
@@ -912,11 +871,8 @@ void AgentsConfigDialog::setupUI() {
 
         m_ragWidget[i] = new RagDropWidget(cfgWidget);
 
-        connect(m_enabledChk[i], &QCheckBox::toggled, this, [this, i](bool on){
-            m_roleCombo[i]->setEnabled(on);
-            m_modelCombo[i]->setEnabled(on);
-            m_ragWidget[i]->setEnabled(on);
-        });
+        connect(m_enabledChk[i], &QCheckBox::toggled,
+                this, &AgentsConfigDialog::onEnabledChkToggled);
 
         cfgGrid->addWidget(m_enabledChk[i],  i + 1, 0);
         cfgGrid->addWidget(m_roleCombo[i],   i + 1, 1);
@@ -996,6 +952,83 @@ void AgentsConfigDialog::updateVisibility(int numAgents) {
            agenti nascosti = non attivi nella pipeline;
            agenti mostrati = attivi per default. */
         m_enabledChk[i]->setChecked(vis);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RagDropWidget slots (ex lambda)
+   ══════════════════════════════════════════════════════════════ */
+void RagDropWidget::onUrlBtnClicked()
+{
+    bool ok = false;
+    const QString url = QInputDialog::getText(
+        this,
+        "Carica pagina web nel RAG",
+        "Incolla l'URL della pagina da leggere:",
+        QLineEdit::Normal, "https://", &ok);
+    if (ok && !url.trimmed().isEmpty())
+        fetchUrl(url.trimmed());
+}
+
+void RagDropWidget::onClearBtnClicked()
+{
+    m_files.clear();
+    m_totalBytes = 0;
+    updateLabel();
+}
+
+void RagDropWidget::onFetchUrlReplyFinished()
+{
+    auto* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+
+    m_pendingFetches--;
+    m_urlBtn->setEnabled(m_pendingFetches == 0);
+    const QString url = reply->url().toString();
+    reply->deleteLater();
+    if (reply == m_fetchReply) m_fetchReply = nullptr;
+
+    if (reply->error() != QNetworkReply::NoError) {
+        m_lbl->setText(QString("\xe2\x9d\x8c  Errore: %1")
+                       .arg(reply->errorString()));
+        emit webFetchDone(url, false);
+        QTimer::singleShot(3000, this, &RagDropWidget::onLabelRestoreTimer);
+        return;
+    }
+
+    const QByteArray html = reply->readAll();
+    QString text = htmlToPlainText(html);
+
+    if (text.size() > MAX_PER_WEB)
+        text = text.left(MAX_PER_WEB) + "\n[... troncato]";
+
+    QUrl qu(url);
+    const QString name = qu.host() + qu.path().left(60);
+
+    addEntry(name, text);
+    emit webFetchDone(url, true);
+}
+
+void RagDropWidget::onLabelRestoreTimer()
+{
+    updateLabel();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   AgentsConfigDialog slots (ex lambda)
+   ══════════════════════════════════════════════════════════════ */
+void AgentsConfigDialog::onEnabledChkToggled(bool on)
+{
+    /* Trova l'indice del checkbox che ha emesso il segnale */
+    auto* chk = qobject_cast<QCheckBox*>(sender());
+    if (!chk) return;
+    for (int i = 0; i < MAX_AGENTS; i++) {
+        if (m_enabledChk[i] == chk) {
+            m_roleCombo[i]->setEnabled(on);
+            m_modelCombo[i]->setEnabled(on);
+            m_ragWidget[i]->setEnabled(on);
+            return;
+        }
     }
 }
 

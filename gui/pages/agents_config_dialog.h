@@ -20,6 +20,7 @@
 #include <QFrame>
 class AiClient;
 class QNetworkAccessManager;
+class QNetworkReply;
 #include <QLabel>
 #include <QPushButton>
 #include <QComboBox>
@@ -54,6 +55,12 @@ protected:
     void dropEvent(QDropEvent*)           override;
     void mousePressEvent(QMouseEvent*)    override;
 
+private slots:
+    void onUrlBtnClicked();
+    void onClearBtnClicked();
+    void onFetchUrlReplyFinished();
+    void onLabelRestoreTimer();
+
 private:
     void addPath(const QString& path);
     void addFile(const QString& path);
@@ -68,6 +75,7 @@ private:
     QNetworkAccessManager* m_nam     = nullptr;
     int                   m_totalBytes  = 0;
     int                   m_pendingFetches = 0;
+    QNetworkReply*        m_fetchReply  = nullptr;  ///< Reply corrente fetchUrl (slot)
 
     static constexpr int MAX_PER_FILE = 4096;
     static constexpr int MAX_PER_WEB  = 12000;
@@ -133,4 +141,7 @@ private:
     QCheckBox*     m_controllerChk          = nullptr;  ///< Controller LLM (ex toolbar)
 
     void setupUI();
+
+private slots:
+    void onEnabledChkToggled(bool on);
 };

@@ -65,20 +65,12 @@ MonitorPanel::MonitorPanel(AiClient* ai, HardwareMonitor* hw, QWidget* parent)
 
     auto* clearBtn = new QPushButton("\xf0\x9f\x97\x91  Pulisci", topBar);
     clearBtn->setFixedWidth(90);
-    connect(clearBtn, &QPushButton::clicked, this, [this]{
-        m_table->setRowCount(0);
-        m_log->clear();
-        appendLog("--- registro pulito ---");
-        if (m_chart) m_chart->clear();
-    });
+    connect(clearBtn, &QPushButton::clicked, this, &MonitorPanel::onClearClicked);
     topLay->addWidget(clearBtn);
 
     auto* exportBtn = new QPushButton("\xf0\x9f\x93\x8b  Copia log", topBar);
     exportBtn->setFixedWidth(100);
-    connect(exportBtn, &QPushButton::clicked, this, [this]{
-        m_log->selectAll();
-        m_log->copy();
-    });
+    connect(exportBtn, &QPushButton::clicked, this, &MonitorPanel::onExportClicked);
     topLay->addWidget(exportBtn);
 
     mainLay->addWidget(topBar);
@@ -379,4 +371,21 @@ int MonitorPanel::computeScore(qint64 ttftMs, qint64 durMs,
     }
 
     return std::max(0, std::min(100, s));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot UI
+   ══════════════════════════════════════════════════════════════ */
+void MonitorPanel::onClearClicked()
+{
+    m_table->setRowCount(0);
+    m_log->clear();
+    appendLog("--- registro pulito ---");
+    if (m_chart) m_chart->clear();
+}
+
+void MonitorPanel::onExportClicked()
+{
+    m_log->selectAll();
+    m_log->copy();
 }

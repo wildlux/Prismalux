@@ -18,6 +18,8 @@
 #include <QProgressBar>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QPointer>
+#include <QTcpSocket>
 #include "../ai_client.h"
 
 class LanServer;
@@ -127,9 +129,28 @@ private:
     QWidget*        m_cronPanel      = nullptr;
     bool            m_cronInstalled  = false;  ///< true dopo il primo clic su Cron
 
+    /* ── Pulsante aggiorna modelli (tenuto come membro per lo slot) ── */
+    QPushButton*    m_codeModelRefresh = nullptr;
+
+    /* ── Socket temporaneo per ping FreeCAD ── */
+    QPointer<QTcpSocket> m_freecadPingSock;
+
+    /* ── Socket temporaneo per exec FreeCAD ── */
+    QPointer<QTcpSocket> m_freecadExecSock;
+
     /* ── Stable Diffusion panel (spostato in MultimediaPage) ── */
     /* ── LAN Android (spostato in LanWanPage) ── */
     /* ── File Search, Wiki, Graphviz, Audio AI, Dati AI → StrumentiFilePage/MultimediaPage ── */
+
+    /* ── Stato catStack/lblSel/catGroup per slot ── */
+    QStackedWidget* m_actStack  = nullptr;  ///< stack pagine azioni (per cronBtn slot)
+    QLabel*         m_lblSel    = nullptr;  ///< label azione corrente (per cronBtn slot)
+    QButtonGroup*   m_catGroup  = nullptr;  ///< gruppo bottoni categoria (per cronBtn slot)
+    QPushButton*    m_cronBtn   = nullptr;  ///< bottone Cron (per catGroup slot)
+
+    /* ── Helper: legge il token Bearer del bridge ── */
+    void _readOfficeBridgeToken();
+    QString _officeBridgePath() const;
 
     /* ── Costruttori sotto-pagine ── */
     QWidget* buildSubPage(const QStringList& actions, const QString& placeholder);
@@ -157,4 +178,58 @@ private slots:
     void onFinished(const QString& full);
     void onError(const QString& msg);
     void _setRunBusy(bool busy);
+
+    // Azioni bottoni categoria e azione
+    void onActBtnClicked();
+    void onCatGroupIdClicked(int cat);
+    void onCronBtnToggled(bool checked);
+
+    // RAG
+    void onRagAddBtnClicked();
+    void onRagClearBtnClicked();
+
+    // PDF picker
+    void onPdfBtnClicked();
+
+    // Blender
+    void onBlenderHelpBtnClicked();
+    void onBlenderPingBtnClicked();
+    void onBlenderPingReplyFinished();
+    void onBlenderExecBtnClicked();
+    void onBlenderExecReplyFinished();
+
+    // Office
+    void onOfficeHelpBtnClicked();
+    void onOfficeStartBtnClicked();
+    void onOfficeBridgeProcFinished(int exitCode, QProcess::ExitStatus status);
+    void onOfficeBridgeStatusReplyFinished();
+    void onOfficeStatusCheckTimeout();
+    void onOfficeExecBtnClicked();
+    void onOfficeExecReplyFinished();
+
+    // FreeCAD
+    void onFreecadHelpBtnClicked();
+    void onFreecadPingBtnClicked();
+    void onFreecadSockConnected();
+    void onFreecadSockError(QAbstractSocket::SocketError err);
+    void onFreecadPingTimeout();
+    void onFreecadExecBtnClicked();
+    void onFreecadExecSockConnected();
+    void onFreecadExecSockReadyRead();
+    void onFreecadExecSockError(QAbstractSocket::SocketError err);
+
+    // Sketch → 3D
+    void onSketchFileBtnClicked();
+    void onSketchGenBtnClicked();
+
+    // Modello codice
+    void onCodeModelRefreshClicked();
+    void onCodeModelsReady(const QStringList& models);
+    void onCodeModelError(const QString& msg);
+
+    // Run/Stop
+    void onBtnRunClicked();
+
+    // Aborted
+    void onAiAborted();
 };

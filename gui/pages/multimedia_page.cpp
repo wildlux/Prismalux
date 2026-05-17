@@ -163,156 +163,17 @@ QWidget* MultimediaPage::buildAudioTab()
     vbox->addWidget(m_audioErr);
 
     /* ── Logica: carica file ── */
-    connect(fileBtn, &QPushButton::clicked, this, [this]{
-        const QString path = QFileDialog::getOpenFileName(
-            this,
-            "Seleziona file audio",
-            QDir::homePath(),
-            "Audio (*.wav *.mp3 *.m4a *.ogg *.flac *.aac *.opus);;"
-            "Tutti i file (*)");
-        if (path.isEmpty()) return;
-        m_audioFilePath = path;
-        m_audioFileLbl->setText(QFileInfo(path).fileName());
-        m_audioTranscript->clear();
-        m_audioOutput->clear();
-    });
+    connect(fileBtn, &QPushButton::clicked, this, &MultimediaPage::onFileBtnClicked);
 
     /* ── Logica: registra microfono ── */
-    const QString recPath = P::safeTempPath() + "/prismalux_record.wav";
-    connect(m_recBtn, &QPushButton::toggled, this, [this, recPath](bool on){
-        if (on) {
-            m_recBtn->setText("\xe2\x8f\xb9  Ferma registrazione");
-            m_audioFileLbl->setText("\xf0\x9f\x94\xb4  Registrazione in corso...");
-            m_recProc = new QProcess(this);
-            m_recProc->setProcessChannelMode(QProcess::MergedChannels);
-            /* arecord: S16_LE 16kHz mono — formato diretto per whisper */
-            m_recProc->start("arecord",
-                {"-f", "S16_LE", "-r", "16000", "-c", "1", recPath});
-            connect(m_recProc,
-                QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, recPath](int, QProcess::ExitStatus){
-                    m_recProc->deleteLater();
-                    m_recProc = nullptr;
-                });
-        } else {
-            /* ferma arecord (SIGTERM → scrive header WAV corretto) */
-            if (m_recProc && m_recProc->state() != QProcess::NotRunning) {
-                m_recProc->terminate();
-                m_recProc->waitForFinished(2000);
-            }
-            m_recBtn->setText("\xf0\x9f\x8e\x99  Registra");
-            if (QFile::exists(recPath)) {
-                m_audioFilePath = recPath;
-                m_audioFileLbl->setText(
-                    "\xe2\x9c\x85  prismalux_record.wav");
-                m_audioTranscript->clear();
-                m_audioOutput->clear();
-            } else {
-                m_audioFileLbl->setText(
-                    "\xe2\x9d\x8c  Registrazione fallita (arecord non trovato?)");
-            }
-        }
-    });
+    m_recPath = P::safeTempPath() + "/prismalux_record.wav";
+    connect(m_recBtn, &QPushButton::toggled, this, &MultimediaPage::onRecBtnToggled);
 
     /* ── Logica: trascrivi ── */
-    connect(transcribeBtn, &QPushButton::clicked, this, [this]{
-        if (m_audioFilePath.isEmpty()) {
-            m_audioTranscript->setPlainText(
-                "\xe2\x9d\x8c  Carica prima un file audio.");
-            return;
-        }
-        if (!SttWhisper::isAvailable()) {
-            m_audioTranscript->setPlainText(
-                "\xe2\x9a\xa0  whisper-cli o modello non trovati.\n"
-                "Configurali in Impostazioni \xe2\x86\x92 Trascrivi.");
-            return;
-        }
-        m_audioTranscript->setPlainText("\xe2\x8c\x9b  Trascrizione in corso...");
-
-        const QString ext = QFileInfo(m_audioFilePath).suffix().toLower();
-        const bool needConv = (ext != "wav");
-
-        auto doTranscribe = [this](const QString& wav) {
-            m_audioProc = SttWhisper::transcribe(wav, "it", this,
-                [this, wav](const QString& text, bool ok) {
-                    m_audioProc = nullptr;
-                    if (wav.contains("prisma_audio_tmp"))
-                        QFile::remove(wav);
-                    if (ok && !text.trimmed().isEmpty()) {
-                        m_audioTranscript->setPlainText(text.trimmed());
-                    } else {
-                        m_audioTranscript->setPlainText(
-                            "\xe2\x9a\xa0  Trascrizione vuota o fallita.\n"
-                            "Verifica che il file contenga voce udibile.");
-                    }
-                });
-        };
-
-        if (!needConv) {
-            doTranscribe(m_audioFilePath);
-        } else {
-            const QString wavTmp = P::safeTempPath() + "/prisma_audio_tmp.wav";
-            auto* conv = new QProcess(this);
-            conv->start("ffmpeg", {"-y", "-i", m_audioFilePath,
-                "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", wavTmp});
-            connect(conv, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                    this, [this, conv, wavTmp, doTranscribe](int code, QProcess::ExitStatus){
-                conv->deleteLater();
-                if (code == 0) {
-                    doTranscribe(wavTmp);
-                } else {
-                    m_audioTranscript->setPlainText(
-                        "\xe2\x9d\x8c  Conversione fallita.\n"
-                        "Installa ffmpeg: sudo apt install ffmpeg");
-                }
-            });
-        }
-    });
+    connect(transcribeBtn, &QPushButton::clicked, this, &MultimediaPage::onTranscribeBtnClicked);
 
     /* ── Logica: analizza con AI ── */
-    connect(analyzeBtn, &QPushButton::clicked, this, [this]{
-        const QString transcript = m_audioTranscript->toPlainText().trimmed();
-        if (transcript.isEmpty()) {
-            m_audioOutput->setPlainText(
-                "\xe2\x9d\x8c  Trascrivi prima il file audio (o incolla il testo).");
-            return;
-        }
-
-        static const char* kAudioActions[] = {
-            "Riassumi il seguente testo trascritto da audio in modo conciso e chiaro. Rispondi in italiano.",
-            "Estrai i punti chiave principali dal seguente testo trascritto da audio. Elencali numerati. Rispondi in italiano.",
-            "Analizza il tono emotivo e il sentimento del seguente testo trascritto da audio. Rispondi in italiano.",
-            "Traduci il seguente testo in italiano, mantenendo il significato e il registro originale.",
-            "Dai un titolo breve ed efficace al seguente testo trascritto da audio. Proponi 3 alternative. Rispondi in italiano.",
-            "Struttura il seguente testo trascritto da audio in capitoli/sezioni con titoli. Rispondi in italiano.",
-            "Estrai dati, numeri, statistiche e informazioni quantitative dal seguente testo. Elencali in modo strutturato. Rispondi in italiano.",
-            "Trascrivi e formatta il seguente testo in modo pulito, correggendo eventuali errori di trascrizione. Rispondi in italiano.",
-        };
-        const int idx = m_audioActionCombo->currentIndex();
-        const QString sys = P::prependKnowledge(
-            idx >= 0 && idx < 8 ? QString::fromUtf8(kAudioActions[idx])
-                                : "Analizza il testo fornito. Rispondi in italiano.");
-
-        m_audioOutput->clear();
-        m_audioOutput->setPlaceholderText(
-            "\xe2\x8c\x9b  Analisi AI in corso...");
-
-        auto* h = new QObject(this);
-        connect(m_ai, &AiClient::token, h, [this](const QString& t){
-            m_audioOutput->moveCursor(QTextCursor::End);
-            m_audioOutput->insertPlainText(t);
-        });
-        connect(m_ai, &AiClient::finished, h, [this, h](const QString&){
-            h->deleteLater();
-        });
-        connect(m_ai, &AiClient::error, h, [this, h](const QString& msg){
-            h->deleteLater();
-            m_audioErr->showError(msg);
-        });
-
-        m_ai->chat(sys,
-            "Testo trascritto dall'audio:\n\n" + transcript);
-    });
+    connect(analyzeBtn, &QPushButton::clicked, this, &MultimediaPage::onAnalyzeBtnClicked);
 
     return panel;
 }
@@ -386,7 +247,7 @@ QWidget* MultimediaPage::buildGraphvizTab()
     scroll->setFrameShape(QFrame::NoFrame);
     vl->addWidget(scroll, 1);
 
-    connect(btnGenerate, &QPushButton::clicked, this, [this]{ runGraphvizAi(); });
+    connect(btnGenerate, &QPushButton::clicked, this, &MultimediaPage::onGraphvizBtnClicked);
 
     return panel;
 }
@@ -424,45 +285,195 @@ void MultimediaPage::runGraphvizAi()
         "\xf0\x9f\xa4\x96  L\xe2\x80\x99" "AI sta generando il codice DOT...");
     m_graphvizImg->setText("");
 
-    auto* h = new QObject(this);
-    connect(m_ai, &AiClient::finished, h, [this, h](const QString& full) {
-        h->deleteLater();
-        QString dot = full;
-        /* Strip blocco <think>...</think> (qwen3, deepseek-r1) */
-        {
-            static const QRegularExpression reThink(
-                "<think>[\\s\\S]*?</think>",
-                QRegularExpression::CaseInsensitiveOption);
-            dot.remove(reThink);
-            /* Fallback: </think> senza apertura */
-            const int te = dot.indexOf("</think>", 0, Qt::CaseInsensitive);
-            if (te >= 0) dot = dot.mid(te + 8);
-            dot = dot.trimmed();
-        }
-        /* Estrai da code fence markdown se presente */
-        int s = dot.indexOf("```dot\n");
-        if (s < 0) s = dot.indexOf("```\n");
-        if (s >= 0) {
-            dot = dot.mid(s).section("```", 1, 1).trimmed();
-        }
-        /* Cerca l'inizio del blocco DOT: graph/digraph seguito da { (non solo spazio,
-           per evitare match su "graph with nodes..." nel testo di ragionamento) */
-        static const QRegularExpression reDotStart(
-            "(di)?graph\\s*\\{",
-            QRegularExpression::CaseInsensitiveOption);
-        const int gs = dot.indexOf(reDotStart);
-        if (gs >= 0) dot = dot.mid(gs);
-
-        m_graphvizInput->setPlainText(dot);
-        _renderDotCode(dot);
-    });
-    connect(m_ai, &AiClient::error, h, [this, h](const QString& msg){
-        h->deleteLater();
-        m_graphvizStatus->setText("\xe2\x9d\x8c  Errore AI");
-        m_graphvizErr->showError(msg, [this]{ runGraphvizAi(); });
-    });
+    QObject::disconnect(m_graphvizFinishedConn);
+    QObject::disconnect(m_graphvizErrorConn);
+    m_graphvizFinishedConn = connect(m_ai, &AiClient::finished,
+                                     this, &MultimediaPage::onGraphvizAiFinished);
+    m_graphvizErrorConn    = connect(m_ai, &AiClient::error,
+                                     this, &MultimediaPage::onGraphvizAiError);
 
     m_ai->chat(sys, userMsg);
+}
+
+void MultimediaPage::onFileBtnClicked()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this,
+        "Seleziona file audio",
+        QDir::homePath(),
+        "Audio (*.wav *.mp3 *.m4a *.ogg *.flac *.aac *.opus);;"
+        "Tutti i file (*)");
+    if (path.isEmpty()) return;
+    m_audioFilePath = path;
+    m_audioFileLbl->setText(QFileInfo(path).fileName());
+    m_audioTranscript->clear();
+    m_audioOutput->clear();
+}
+
+void MultimediaPage::onRecBtnToggled(bool on)
+{
+    if (on) {
+        m_recBtn->setText("\xe2\x8f\xb9  Ferma registrazione");
+        m_audioFileLbl->setText("\xf0\x9f\x94\xb4  Registrazione in corso...");
+        m_recProc = new QProcess(this);
+        m_recProc->setProcessChannelMode(QProcess::MergedChannels);
+        connect(m_recProc,
+            QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &MultimediaPage::onRecProcFinished);
+        /* arecord: S16_LE 16kHz mono — formato diretto per whisper */
+        m_recProc->start("arecord",
+            {"-f", "S16_LE", "-r", "16000", "-c", "1", m_recPath});
+    } else {
+        /* ferma arecord (SIGTERM → scrive header WAV corretto) */
+        if (m_recProc && m_recProc->state() != QProcess::NotRunning) {
+            m_recProc->terminate();
+            m_recProc->waitForFinished(2000);
+        }
+        m_recBtn->setText("\xf0\x9f\x8e\x99  Registra");
+        if (QFile::exists(m_recPath)) {
+            m_audioFilePath = m_recPath;
+            m_audioFileLbl->setText("\xe2\x9c\x85  prismalux_record.wav");
+            m_audioTranscript->clear();
+            m_audioOutput->clear();
+        } else {
+            m_audioFileLbl->setText(
+                "\xe2\x9d\x8c  Registrazione fallita (arecord non trovato?)");
+        }
+    }
+}
+
+void MultimediaPage::onRecProcFinished(int, QProcess::ExitStatus)
+{
+    if (m_recProc) {
+        m_recProc->deleteLater();
+        m_recProc = nullptr;
+    }
+}
+
+void MultimediaPage::_doTranscribe(const QString& wav)
+{
+    m_audioProc = SttWhisper::transcribe(wav, "it", this,
+        [this, wav](const QString& text, bool ok) {
+            m_audioProc = nullptr;
+            if (wav.contains("prisma_audio_tmp"))
+                QFile::remove(wav);
+            if (ok && !text.trimmed().isEmpty()) {
+                m_audioTranscript->setPlainText(text.trimmed());
+            } else {
+                m_audioTranscript->setPlainText(
+                    "\xe2\x9a\xa0  Trascrizione vuota o fallita.\n"
+                    "Verifica che il file contenga voce udibile.");
+            }
+        });
+}
+
+void MultimediaPage::onTranscribeBtnClicked()
+{
+    if (m_audioFilePath.isEmpty()) {
+        m_audioTranscript->setPlainText(
+            "\xe2\x9d\x8c  Carica prima un file audio.");
+        return;
+    }
+    if (!SttWhisper::isAvailable()) {
+        m_audioTranscript->setPlainText(
+            "\xe2\x9a\xa0  whisper-cli o modello non trovati.\n"
+            "Configurali in Impostazioni \xe2\x86\x92 Trascrivi.");
+        return;
+    }
+    m_audioTranscript->setPlainText("\xe2\x8c\x9b  Trascrizione in corso...");
+
+    const QString ext = QFileInfo(m_audioFilePath).suffix().toLower();
+    if (ext == "wav") {
+        _doTranscribe(m_audioFilePath);
+    } else {
+        m_ffmpegWavTmp = P::safeTempPath() + "/prisma_audio_tmp.wav";
+        m_ffmpegProc   = new QProcess(this);
+        connect(m_ffmpegProc,
+            QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &MultimediaPage::onFfmpegFinished);
+        m_ffmpegProc->start("ffmpeg", {"-y", "-i", m_audioFilePath,
+            "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", m_ffmpegWavTmp});
+    }
+}
+
+void MultimediaPage::onFfmpegFinished(int code, QProcess::ExitStatus)
+{
+    m_ffmpegProc->deleteLater();
+    m_ffmpegProc = nullptr;
+    if (code == 0) {
+        _doTranscribe(m_ffmpegWavTmp);
+    } else {
+        m_audioTranscript->setPlainText(
+            "\xe2\x9d\x8c  Conversione fallita.\n"
+            "Installa ffmpeg: sudo apt install ffmpeg");
+    }
+}
+
+void MultimediaPage::onAnalyzeBtnClicked()
+{
+    const QString transcript = m_audioTranscript->toPlainText().trimmed();
+    if (transcript.isEmpty()) {
+        m_audioOutput->setPlainText(
+            "\xe2\x9d\x8c  Trascrivi prima il file audio (o incolla il testo).");
+        return;
+    }
+
+    static const char* kAudioActions[] = {
+        "Riassumi il seguente testo trascritto da audio in modo conciso e chiaro. Rispondi in italiano.",
+        "Estrai i punti chiave principali dal seguente testo trascritto da audio. Elencali numerati. Rispondi in italiano.",
+        "Analizza il tono emotivo e il sentimento del seguente testo trascritto da audio. Rispondi in italiano.",
+        "Traduci il seguente testo in italiano, mantenendo il significato e il registro originale.",
+        "Dai un titolo breve ed efficace al seguente testo trascritto da audio. Proponi 3 alternative. Rispondi in italiano.",
+        "Struttura il seguente testo trascritto da audio in capitoli/sezioni con titoli. Rispondi in italiano.",
+        "Estrai dati, numeri, statistiche e informazioni quantitative dal seguente testo. Elencali in modo strutturato. Rispondi in italiano.",
+        "Trascrivi e formatta il seguente testo in modo pulito, correggendo eventuali errori di trascrizione. Rispondi in italiano.",
+    };
+    const int idx = m_audioActionCombo->currentIndex();
+    const QString sys = P::prependKnowledge(
+        idx >= 0 && idx < 8 ? QString::fromUtf8(kAudioActions[idx])
+                            : "Analizza il testo fornito. Rispondi in italiano.");
+
+    m_audioOutput->clear();
+    m_audioOutput->setPlaceholderText(
+        "\xe2\x8c\x9b  Analisi AI in corso...");
+
+    QObject::disconnect(m_audioTokenConn);
+    QObject::disconnect(m_audioFinishedConn);
+    QObject::disconnect(m_audioErrorConn);
+    m_audioTokenConn    = connect(m_ai, &AiClient::token,
+                                  this, &MultimediaPage::onAudioToken);
+    m_audioFinishedConn = connect(m_ai, &AiClient::finished,
+                                  this, &MultimediaPage::onAudioAnalyzeFinished);
+    m_audioErrorConn    = connect(m_ai, &AiClient::error,
+                                  this, &MultimediaPage::onAudioAnalyzeError);
+
+    m_ai->chat(sys, "Testo trascritto dall'audio:\n\n" + transcript);
+}
+
+void MultimediaPage::onGraphvizBtnClicked()
+{
+    runGraphvizAi();
+}
+
+void MultimediaPage::onGraphvizProcFinished(int code, QProcess::ExitStatus)
+{
+    if (code == 0) {
+        QPixmap px(m_graphvizTmpPng);
+        if (!px.isNull()) {
+            m_graphvizImg->setPixmap(
+                px.scaledToWidth(qMin(px.width(), 900),
+                                 Qt::SmoothTransformation));
+            m_graphvizStatus->setText(
+                "\xe2\x9c\x85  Grafo generato. "
+                "Immagine: " + m_graphvizTmpPng);
+        }
+    } else {
+        const QString err =
+            QString::fromLocal8Bit(m_graphvizProc->readAllStandardError());
+        m_graphvizStatus->setText(
+            "\xe2\x9d\x8c  Errore Graphviz: " + err.left(200) +
+            "\n\xe2\x84\xb9  Installa: sudo apt install graphviz");
+    }
 }
 
 void MultimediaPage::_renderDotCode(const QString& dot)
@@ -483,25 +494,7 @@ void MultimediaPage::_renderDotCode(const QString& dot)
     m_graphvizProc = new QProcess(this);
     connect(m_graphvizProc,
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this](int code, QProcess::ExitStatus) {
-        if (code == 0) {
-            QPixmap px(m_graphvizTmpPng);
-            if (!px.isNull()) {
-                m_graphvizImg->setPixmap(
-                    px.scaledToWidth(qMin(px.width(), 900),
-                                     Qt::SmoothTransformation));
-                m_graphvizStatus->setText(
-                    "\xe2\x9c\x85  Grafo generato. "
-                    "Immagine: " + m_graphvizTmpPng);
-            }
-        } else {
-            const QString err =
-                QString::fromLocal8Bit(m_graphvizProc->readAllStandardError());
-            m_graphvizStatus->setText(
-                "\xe2\x9d\x8c  Errore Graphviz: " + err.left(200) +
-                "\n\xe2\x84\xb9  Installa: sudo apt install graphviz");
-        }
-    });
+            this, &MultimediaPage::onGraphvizProcFinished);
     m_graphvizProc->start("dot", {"-Tpng", tmpDot, "-o", m_graphvizTmpPng});
     if (!m_graphvizProc->waitForStarted(3000)) {
         m_graphvizStatus->setText(
@@ -510,4 +503,68 @@ void MultimediaPage::_renderDotCode(const QString& dot)
         m_graphvizProc->deleteLater();
         m_graphvizProc = nullptr;
     }
+}
+
+void MultimediaPage::onGraphvizAiFinished(const QString& full)
+{
+    QObject::disconnect(m_graphvizFinishedConn);
+    QObject::disconnect(m_graphvizErrorConn);
+    m_graphvizFinishedConn = {};
+    m_graphvizErrorConn    = {};
+
+    QString dot = full;
+    static const QRegularExpression reThink(
+        "<think>[\\s\\S]*?</think>",
+        QRegularExpression::CaseInsensitiveOption);
+    dot.remove(reThink);
+    const int te = dot.indexOf("</think>", 0, Qt::CaseInsensitive);
+    if (te >= 0) dot = dot.mid(te + 8);
+    dot = dot.trimmed();
+
+    int s = dot.indexOf("```dot\n");
+    if (s < 0) s = dot.indexOf("```\n");
+    if (s >= 0)
+        dot = dot.mid(s).section("```", 1, 1).trimmed();
+
+    static const QRegularExpression reDotStart(
+        "(di)?graph\\s*\\{",
+        QRegularExpression::CaseInsensitiveOption);
+    const int gs = dot.indexOf(reDotStart);
+    if (gs >= 0) dot = dot.mid(gs);
+
+    m_graphvizInput->setPlainText(dot);
+    _renderDotCode(dot);
+}
+
+void MultimediaPage::onGraphvizAiError(const QString& msg)
+{
+    QObject::disconnect(m_graphvizFinishedConn);
+    QObject::disconnect(m_graphvizErrorConn);
+    m_graphvizFinishedConn = {};
+    m_graphvizErrorConn    = {};
+    m_graphvizStatus->setText("\xe2\x9d\x8c  Errore AI");
+    m_graphvizErr->showError(msg, [this]{ runGraphvizAi(); });
+}
+
+void MultimediaPage::onAudioToken(const QString& t)
+{
+    m_audioOutput->moveCursor(QTextCursor::End);
+    m_audioOutput->insertPlainText(t);
+}
+
+void MultimediaPage::onAudioAnalyzeFinished(const QString&)
+{
+    QObject::disconnect(m_audioTokenConn);
+    QObject::disconnect(m_audioFinishedConn);
+    QObject::disconnect(m_audioErrorConn);
+    m_audioTokenConn = m_audioFinishedConn = m_audioErrorConn = {};
+}
+
+void MultimediaPage::onAudioAnalyzeError(const QString& msg)
+{
+    QObject::disconnect(m_audioTokenConn);
+    QObject::disconnect(m_audioFinishedConn);
+    QObject::disconnect(m_audioErrorConn);
+    m_audioTokenConn = m_audioFinishedConn = m_audioErrorConn = {};
+    m_audioErr->showError(msg);
 }

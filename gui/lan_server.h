@@ -87,6 +87,10 @@ private:
     void onChatRateTimeout();            ///< reset contatore chat rate ogni 60s
     void onKnowledgeRateTimeout();       ///< reset contatore knowledge rate ogni 60s
     void onPendingTlsDisconnected();     ///< TLS handshake fallito: decrementa m_pendingTls
+#if QT_CONFIG(ssl)
+    void onSslErrors(const QList<QSslError>& errs);  ///< ignora errori SSL self-signed
+    void onSslEncrypted();               ///< handshake TLS completato: registra sessione
+#endif
 
     QTcpServer*                m_server        = nullptr;
     bool                       m_tlsEnabled    = false;

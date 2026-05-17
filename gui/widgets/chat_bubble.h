@@ -60,10 +60,15 @@ signals:
     /** Utente ha cliccato "Modifica": testo corrente da rimettere nell'input. */
     void editRequested(const QString& text);
 
-private:
+private slots:
     void onCopy();
     void onTTS();
+    void onDocContentsChanged();
+    void onChartBtnClicked();
+    void onEditBtnClicked();
+    void onCopyFeedbackReset();
 
+private:
     Role          m_role;
     QString       m_plain;
     QTextBrowser* m_text          = nullptr;

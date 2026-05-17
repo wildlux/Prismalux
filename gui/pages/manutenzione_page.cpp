@@ -84,17 +84,17 @@ QWidget* ManutenzioneePage::buildBackend()
     m_cmbBackend->addItem(QString("\xf0\x9f\xa6\x99  llama-server  (:%1)").arg(P::kLlamaServerPort));
     leftLay->addWidget(m_cmbBackend);
 
-    auto* hostEdit = new QLineEdit("127.0.0.1", leftGroup);
-    hostEdit->setObjectName("chatInput");
-    hostEdit->setPlaceholderText("Host");
+    m_hostEdit = new QLineEdit("127.0.0.1", leftGroup);
+    m_hostEdit->setObjectName("chatInput");
+    m_hostEdit->setPlaceholderText("Host");
     leftLay->addWidget(new QLabel("Host:", leftGroup));
-    leftLay->addWidget(hostEdit);
+    leftLay->addWidget(m_hostEdit);
 
-    auto* portEdit = new QLineEdit("11434", leftGroup);
-    portEdit->setObjectName("chatInput");
-    portEdit->setPlaceholderText("Porta");
+    m_portEdit = new QLineEdit("11434", leftGroup);
+    m_portEdit->setObjectName("chatInput");
+    m_portEdit->setPlaceholderText("Porta");
     leftLay->addWidget(new QLabel("Porta:", leftGroup));
-    leftLay->addWidget(portEdit);
+    leftLay->addWidget(m_portEdit);
 
     auto* applyBtn = new QPushButton("Applica \xe2\x96\xb6", leftGroup);
     applyBtn->setObjectName("actionBtn");
@@ -178,7 +178,8 @@ QWidget* ManutenzioneePage::buildBackend()
     rightLay->addWidget(srvSep);
 
     /* ── Avvia llama-server (visibile solo con llama-server selezionato) ── */
-    auto* grpServ = new QGroupBox("\xf0\x9f\xa6\x99  llama.cpp \xe2\x80\x94 Avvia llama-server", rightGroup);
+    m_grpServ = new QGroupBox("\xf0\x9f\xa6\x99  llama.cpp \xe2\x80\x94 Avvia llama-server", rightGroup);
+    auto* grpServ = m_grpServ;
     grpServ->setVisible(false);
     grpServ->setStyleSheet(GRP_STYLE);
     auto* srvLay = new QVBoxLayout(grpServ);
@@ -235,134 +236,21 @@ QWidget* ManutenzioneePage::buildBackend()
     mainLay->addWidget(colsRow, 1);
 
     /* ── Connessioni Avvia server ── */
-    connect(srvBrowse, &QPushButton::clicked, this, [this]{
-        QString path = QFileDialog::getOpenFileName(this,
-            "Seleziona modello .gguf",
-            P::modelsDir(),
-            "Modelli GGUF (*.gguf *.bin)");
-        if (!path.isEmpty()) m_srvModelPath->setText(path);
-    });
-
-    connect(m_srvStartBtn, &QPushButton::clicked, this, [this]{
-        if (m_srvModelPath->text().trimmed().isEmpty()) {
-            m_srvLog->append("\xe2\x9d\x8c  Seleziona un file .gguf prima di avviare il server.");
-            return;
-        }
-        m_srvLog->clear();
-        m_srvStartBtn->setEnabled(false);
-        m_srvStopBtn->setEnabled(true);
-
-        QString serverBin = P::llamaServerBin();
-#ifdef _WIN32
-        serverBin += ".exe";
-        serverBin = QDir::toNativeSeparators(serverBin);
-#endif
-        QString cmd = QString("\"%1\" -m \"%2\" --port %3 --host 127.0.0.1 -c 4096")
-                      .arg(serverBin)
-                      .arg(m_srvModelPath->text().trimmed())
-                      .arg(m_srvPort->text().trimmed());
-        m_srvLog->append(QString("\xf0\x9f\x9a\x80  %1\n").arg(cmd));
-
-        if (m_srvProc) { m_srvProc->kill(); m_srvProc->deleteLater(); m_srvProc = nullptr; }
-        m_srvProc = new QProcess(this);
-        m_srvProc->setProcessChannelMode(QProcess::MergedChannels);
-        connect(m_srvProc, &QProcess::readyRead, this, [this]{
-            m_srvLog->moveCursor(QTextCursor::End);
-            m_srvLog->insertPlainText(QString::fromLocal8Bit(m_srvProc->readAll()));
-            m_srvLog->ensureCursorVisible();
-        });
-        connect(m_srvProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this](int code, QProcess::ExitStatus){
-            m_srvLog->append(QString("\n\xf0\x9f\x94\xb4  Server terminato (code %1).").arg(code));
-            m_srvStartBtn->setEnabled(true);
-            m_srvStopBtn->setEnabled(false);
-            m_srvProc = nullptr;
-        });
-#ifdef _WIN32
-        m_srvProc->start("cmd", {"/c", cmd});
-#else
-        m_srvProc->start("sh", {"-c", cmd});
-#endif
-        connect(m_srvProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err){
-            if (err == QProcess::FailedToStart) {
-                m_srvLog->append("\xe2\x9d\x8c  llama-server non trovato. Compilalo nella scheda \xf0\x9f\xa6\x99 llama.cpp.");
-                m_srvStartBtn->setEnabled(true);
-                m_srvStopBtn->setEnabled(false);
-                m_srvProc = nullptr;
-            }
-        });
-    });
-
-    connect(m_srvStopBtn, &QPushButton::clicked, this, [this]{
-        if (m_srvProc) { m_srvProc->terminate(); }
-        m_srvStopBtn->setEnabled(false);
-    });
+    connect(srvBrowse, &QPushButton::clicked, this, &ManutenzioneePage::onSrvBrowseClicked);
+    connect(m_srvStartBtn, &QPushButton::clicked, this, &ManutenzioneePage::onSrvStartClicked);
+    connect(m_srvStopBtn,  &QPushButton::clicked, this, &ManutenzioneePage::onSrvStopClicked);
 
     /* ── Connessioni Config ── */
-    connect(fmtApply, &QPushButton::clicked, this, [this]{
-        QString newFmt = m_cmbFmt->currentData().toString();
-        QString err    = convertConfig(newFmt);
-        if (err.isEmpty())
-            m_fmtStatus->setText(
-                QString("\xe2\x9c\x85  Config salvato in formato %1")
-                .arg(newFmt.toUpper()));
-        else
-            m_fmtStatus->setText(
-                QString("\xe2\x9d\x8c  %1").arg(err));
-    });
+    connect(fmtApply, &QPushButton::clicked, this, &ManutenzioneePage::onFmtApplyClicked);
 
     /* ── Connessioni Backend ── */
-    connect(applyBtn, &QPushButton::clicked, this, [=]{
-        AiClient::Backend bk = (m_cmbBackend->currentIndex() == 0)
-                                ? AiClient::Ollama : AiClient::LlamaServer;
-        m_ai->setBackend(bk, hostEdit->text(), portEdit->text().toInt(), m_ai->model());
-        m_ai->fetchModels();
-    });
-
+    connect(applyBtn,   &QPushButton::clicked, this, &ManutenzioneePage::onApplyBtnClicked);
     connect(refreshBtn, &QPushButton::clicked, m_ai, &AiClient::fetchModels);
-
-    connect(m_ai, &AiClient::modelsReady, this, [=](const QStringList& list){
-        m_cmbModel->clear();
-        if (list.isEmpty()) {
-            m_cmbModel->addItem("(nessun modello \xe2\x80\x94 backend non raggiungibile)");
-            return;
-        }
-        for (const auto& nm : list) {
-            const qint64 sz = m_ai->modelSizeBytes(nm);
-            m_cmbModel->addItem(P::modelIcon(sz, nm) + nm, nm);  /* UserRole = nome raw */
-            if (P::isKnownBrokenModel(nm)) {
-                const int i = m_cmbModel->count() - 1;
-                m_cmbModel->setItemData(i, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
-                m_cmbModel->setItemData(i, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
-                m_cmbModel->setItemData(i,
-                    P::knownBrokenModelTooltip(),
-                    Qt::ToolTipRole);
-            }
-        }
-        int idx = m_cmbModel->findData(m_ai->model());
-        if (idx >= 0) m_cmbModel->setCurrentIndex(idx);
-    });
-
-    connect(setModelBtn, &QPushButton::clicked, this, [=]{
-        const QString raw = m_cmbModel->currentData(Qt::UserRole).toString();
-        const QString sel = raw.isEmpty() ? m_cmbModel->currentText() : raw;
-        if (!sel.isEmpty() && !sel.startsWith("("))
-            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
-    });
-
+    connect(m_ai, &AiClient::modelsReady, this, &ManutenzioneePage::onBackendModelsReady);
+    connect(m_ai, &AiClient::error,       this, &ManutenzioneePage::onBackendModelsFetchError);
+    connect(setModelBtn, &QPushButton::clicked, this, &ManutenzioneePage::onSetModelBtnClicked);
     connect(m_cmbBackend, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [=](int idx){
-        /* Aggiorna porta e applica subito il backend — ricalcola i modelli in automatico */
-        const int port = (idx == 0) ? P::kOllamaPort : P::kLlamaServerPort;
-        portEdit->setText(QString::number(port));
-        AiClient::Backend bk = (idx == 0) ? AiClient::Ollama : AiClient::LlamaServer;
-        m_cmbModel->clear();
-        m_cmbModel->addItem("(\xe2\x8f\xb3  aggiornamento modelli...)");
-        m_ai->setBackend(bk, hostEdit->text(), port, "");
-        m_ai->fetchModels();
-        /* Mostra la sezione llama-server solo quando selezionato */
-        grpServ->setVisible(idx == 1);
-    });
+            this, &ManutenzioneePage::onBackendCmbChanged);
 
     /* ══════════════════════════════════════════════════════════
        Sezione: Aggiornamento Modelli & Info GPU/RAM
@@ -379,10 +267,10 @@ QWidget* ManutenzioneePage::buildBackend()
     auto* verLay = new QHBoxLayout(verRow);
     verLay->setContentsMargins(0, 0, 0, 0);
     verLay->setSpacing(8);
-    auto* verLbl = new QLabel("\xf0\x9f\x90\xb3  Ollama: <i>verifica in corso...</i>", verRow);
-    verLbl->setObjectName("cardDesc");
-    verLbl->setTextFormat(Qt::RichText);
-    verLay->addWidget(verLbl, 1);
+    m_verLbl = new QLabel("\xf0\x9f\x90\xb3  Ollama: <i>verifica in corso...</i>", verRow);
+    m_verLbl->setObjectName("cardDesc");
+    m_verLbl->setTextFormat(Qt::RichText);
+    verLay->addWidget(m_verLbl, 1);
     auto* verBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica", verRow);
     verBtn->setObjectName("actionBtn");
     verBtn->setFixedWidth(90);
@@ -401,204 +289,36 @@ QWidget* ManutenzioneePage::buildBackend()
     auto* btnRowL = new QHBoxLayout(btnRow);
     btnRowL->setContentsMargins(0, 0, 0, 0);
     btnRowL->setSpacing(8);
-    auto* updAllBtn = new QPushButton(
+    m_updAllBtn = new QPushButton(
         "\xe2\xac\x87  Aggiorna tutti i modelli Ollama", btnRow);
-    updAllBtn->setObjectName("actionBtn");
-    auto* updLlamaBtn = new QPushButton(
+    m_updAllBtn->setObjectName("actionBtn");
+    m_updLlamaBtn = new QPushButton(
         "\xe2\xac\x87  Aggiorna tutti i modelli llama.cpp", btnRow);
-    updLlamaBtn->setObjectName("actionBtn");
-    auto* updStatusLbl = new QLabel("", btnRow);
-    updStatusLbl->setObjectName("cardDesc");
-    updStatusLbl->setWordWrap(true);
-    btnRowL->addWidget(updAllBtn);
-    btnRowL->addWidget(updLlamaBtn);
-    btnRowL->addWidget(updStatusLbl, 1);
+    m_updLlamaBtn->setObjectName("actionBtn");
+    m_updStatusLbl = new QLabel("", btnRow);
+    m_updStatusLbl->setObjectName("cardDesc");
+    m_updStatusLbl->setWordWrap(true);
+    btnRowL->addWidget(m_updAllBtn);
+    btnRowL->addWidget(m_updLlamaBtn);
+    btnRowL->addWidget(m_updStatusLbl, 1);
     updLay->addWidget(btnRow);
 
     /* ── Log aggiornamento (compatto) ── */
-    auto* updLog = new QTextEdit(updGroup);
-    updLog->setReadOnly(true);
-    updLog->setObjectName("chatLog");
-    updLog->setFixedHeight(100);
-    updLog->setPlaceholderText("Premi \"Aggiorna tutti\" per scaricare le ultime versioni dei modelli Ollama.");
-    updLay->addWidget(updLog);
+    m_updLog = new QTextEdit(updGroup);
+    m_updLog->setReadOnly(true);
+    m_updLog->setObjectName("chatLog");
+    m_updLog->setFixedHeight(100);
+    m_updLog->setPlaceholderText("Premi \"Aggiorna tutti\" per scaricare le ultime versioni dei modelli Ollama.");
+    updLay->addWidget(m_updLog);
 
     mainLay->addWidget(updGroup, 0);
 
-    /* ── Lambda: verifica versione Ollama ── */
-    auto checkOllamaVer = [=]() {
-        verLbl->setText("\xf0\x9f\x90\xb3  Ollama: <i>verifica...</i>");
-        auto* proc = new QProcess(page);
-        proc->start("ollama", {"--version"});
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                page, [=](int code, QProcess::ExitStatus){
-            proc->deleteLater();
-            const QString out = QString::fromLocal8Bit(proc->readAllStandardOutput()).trimmed()
-                              + QString::fromLocal8Bit(proc->readAllStandardError()).trimmed();
-            if (code == 0 && !out.isEmpty()) {
-                verLbl->setText(QString("\xf0\x9f\x90\xb3  Ollama: <b>%1</b>")
-                    .arg(out.toHtmlEscaped()));
-                updLog->append(QString("\xf0\x9f\x90\xb3  %1").arg(out));
-            } else {
-                verLbl->setText("\xf0\x9f\x90\xb3  Ollama: <span style='color:#ef4444;'>non trovato</span>");
-            }
-        });
-        connect(proc, &QProcess::errorOccurred, page, [=](QProcess::ProcessError){
-            proc->deleteLater();
-            verLbl->setText("\xf0\x9f\x90\xb3  Ollama: <span style='color:#ef4444;'>non trovato nel PATH</span>");
-        });
-    };
-
-    connect(verBtn, &QPushButton::clicked, page, checkOllamaVer);
-
-    /* ── Lambda: aggiorna tutti i modelli Ollama uno per uno ── */
-    connect(updAllBtn, &QPushButton::clicked, page, [=]() {
-        updAllBtn->setEnabled(false);
-        updLog->clear();
-        updStatusLbl->setText("\xf0\x9f\x94\x84  Recupero lista modelli...");
-
-        /* Step 1: ottieni lista modelli da Ollama */
-        auto* listProc = new QProcess(page);
-        listProc->start("ollama", {"list"});
-        connect(listProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                page, [=](int, QProcess::ExitStatus) {
-            listProc->deleteLater();
-            const QString raw = QString::fromLocal8Bit(listProc->readAllStandardOutput());
-            QStringList models;
-            for (const QString& line : raw.split('\n', Qt::SkipEmptyParts)) {
-                if (line.trimmed().startsWith("NAME", Qt::CaseInsensitive)) continue;
-                const QString name = line.split(QChar(' '), Qt::SkipEmptyParts).value(0).trimmed();
-                if (!name.isEmpty()) models << name;
-            }
-
-            if (models.isEmpty()) {
-                updStatusLbl->setText("\xe2\x9d\x8c  Nessun modello trovato. Ollama in esecuzione?");
-                updAllBtn->setEnabled(true);
-                return;
-            }
-
-            updLog->append(QString("\xf0\x9f\x93\x8b  %1 modelli da aggiornare: %2")
-                .arg(models.size()).arg(models.join(", ")));
-            updStatusLbl->setText(QString("\xf0\x9f\x94\x84  Aggiornamento 1/%1...").arg(models.size()));
-
-            /* Step 2: aggiorna ogni modello in sequenza usando un contatore */
-            auto* idx = new int(0);
-            auto* total = new int(models.size());
-
-            /* Funzione ricorsiva tramite funzione lambda condivisa */
-            struct Updater {
-                static void next(QWidget* parent, QTextEdit* log, QLabel* status,
-                                 QPushButton* btn, QStringList mdls, int* i, int* tot) {
-                    if (*i >= *tot) {
-                        delete i; delete tot;
-                        status->setText(QString("\xe2\x9c\x85  Aggiornamento completato! %1 modelli").arg(*tot));
-                        log->append("\n\xe2\x9c\x85  Tutti i modelli sono aggiornati.");
-                        btn->setEnabled(true);
-                        return;
-                    }
-                    const QString mdl = mdls.at(*i);
-                    status->setText(QString("\xf0\x9f\x94\x84  Aggiornamento %1/%2: %3")
-                        .arg(*i + 1).arg(*tot).arg(mdl));
-                    log->append(QString("\n\xe2\xac\x87  Aggiornamento: <b>%1</b>...").arg(mdl));
-
-                    auto* proc = new QProcess(parent);
-                    proc->setProcessChannelMode(QProcess::MergedChannels);
-                    proc->start("ollama", {"pull", mdl});
-                    QObject::connect(proc, &QProcess::readyRead, parent, [proc, log](){
-                        log->moveCursor(QTextCursor::End);
-                        const QString chunk = QString::fromLocal8Bit(proc->readAll());
-                        /* Mostra solo righe non vuote per non riempire il log */
-                        for (const QString& l : chunk.split('\n', Qt::SkipEmptyParts))
-                            log->insertPlainText("  " + l.trimmed() + "\n");
-                        log->ensureCursorVisible();
-                    });
-                    QObject::connect(proc,
-                        QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                        parent, [proc, log, status, btn, mdls, i, tot, parent](int code, QProcess::ExitStatus){
-                            proc->deleteLater();
-                            if (code == 0)
-                                log->append(QString("  \xe2\x9c\x85  %1 aggiornato.").arg(mdls.at(*i)));
-                            else
-                                log->append(QString("  \xe2\x9a\xa0  %1: errore (code %2)").arg(mdls.at(*i)).arg(code));
-                            ++(*i);
-                            next(parent, log, status, btn, mdls, i, tot);
-                        });
-                }
-            };
-            Updater::next(page, updLog, updStatusLbl, updAllBtn, models, idx, total);
-        });
-        connect(listProc, &QProcess::errorOccurred, page, [=](QProcess::ProcessError){
-            listProc->deleteLater();
-            updStatusLbl->setText("\xe2\x9d\x8c  Ollama non trovato. Verifica il PATH.");
-            updAllBtn->setEnabled(true);
-        });
-    });
-
-    /* ── Lambda: aggiorna llama.cpp (git pull) + elenca modelli GGUF ── */
-    connect(updLlamaBtn, &QPushButton::clicked, page, [=]() {
-        updLlamaBtn->setEnabled(false);
-        updLog->clear();
-        updStatusLbl->setText("\xf0\x9f\x94\x84  Scansione modelli GGUF...");
-
-        /* Elenca modelli .gguf trovati */
-        const QStringList ggufFiles = P::scanGgufFiles();
-        updLog->append(QString("\xf0\x9f\x93\x81  Modelli GGUF trovati: %1").arg(ggufFiles.size()));
-        for (const QString& path : ggufFiles) {
-            const QFileInfo fi(path);
-            const double gb = fi.size() / (1024.0 * 1024.0 * 1024.0);
-            updLog->append(QString("  \xf0\x9f\x9f\xa4  %1  (%2 GB)")
-                .arg(fi.fileName()).arg(gb, 0, 'f', 1));
-        }
-        if (ggufFiles.isEmpty())
-            updLog->append("\xe2\x9a\xa0  Nessun file .gguf trovato in models/");
-
-        /* Cerca directory llama.cpp e aggiorna via git pull */
-        QString llamaDir;
-        for (const QString& c : {P::root() + "/llama_cpp_studio/llama.cpp",
-                                  P::root() + "/llama.cpp"}) {
-            if (QDir(c + "/.git").exists()) { llamaDir = c; break; }
-        }
-
-        if (llamaDir.isEmpty()) {
-            updLog->append("\n\xe2\x84\xb9  Repository llama.cpp non trovato — aggiornamento git non disponibile.");
-            updLog->append("   I file .gguf vanno aggiornati manualmente da HuggingFace Hub.");
-            updStatusLbl->setText("\xe2\x9c\x85  Scansione completata.");
-            updLlamaBtn->setEnabled(true);
-            return;
-        }
-
-        updLog->append(QString("\n\xf0\x9f\x94\x84  git pull: %1").arg(llamaDir));
-        updStatusLbl->setText("\xf0\x9f\x94\x84  Aggiornamento llama.cpp...");
-
-        auto* gitProc = new QProcess(page);
-        gitProc->setWorkingDirectory(llamaDir);
-        gitProc->setProcessChannelMode(QProcess::MergedChannels);
-        gitProc->start("git", {"pull", "--ff-only"});
-
-        connect(gitProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                page, [=](int code, QProcess::ExitStatus) {
-            gitProc->deleteLater();
-            QString out = QString::fromLocal8Bit(gitProc->readAll()).trimmed();
-            if (!out.isEmpty())
-                updLog->append("  " + out.replace('\n', "\n  "));
-            updLog->append("\n\xe2\x84\xb9  I file .gguf non hanno aggiornamento automatico.\n"
-                           "   Scarica le versioni aggiornate da HuggingFace Hub.");
-            if (code == 0)
-                updStatusLbl->setText("\xe2\x9c\x85  llama.cpp aggiornato.");
-            else
-                updStatusLbl->setText("\xe2\x9a\xa0  git pull fallito (verifica connessione).");
-            updLlamaBtn->setEnabled(true);
-        });
-        connect(gitProc, &QProcess::errorOccurred, page, [=](QProcess::ProcessError) {
-            gitProc->deleteLater();
-            updLog->append("\xe2\x9d\x8c  git non trovato nel PATH.");
-            updStatusLbl->setText("\xe2\x9a\xa0  git non disponibile.");
-            updLlamaBtn->setEnabled(true);
-        });
-    });
+    connect(verBtn, &QPushButton::clicked, this, &ManutenzioneePage::onVerifyOllamaVersion);
+    connect(m_updAllBtn,   &QPushButton::clicked, this, &ManutenzioneePage::onUpdAllBtnClicked);
+    connect(m_updLlamaBtn, &QPushButton::clicked, this, &ManutenzioneePage::onUpdLlamaBtnClicked);
 
     /* Verifica versione Ollama subito all'apertura */
-    QTimer::singleShot(200, page, checkOllamaVer);
+    QTimer::singleShot(200, this, &ManutenzioneePage::onVerifyOllamaVersion);
 
     return page;
 }
@@ -652,17 +372,7 @@ QWidget* ManutenzioneePage::buildConfigFmt()
     fmtRowL->addWidget(m_fmtStatus, 1);
     fmtLay->addWidget(fmtRow);
 
-    connect(fmtApply, &QPushButton::clicked, this, [this]{
-        QString newFmt = m_cmbFmt->currentData().toString();
-        QString err    = convertConfig(newFmt);
-        if (err.isEmpty())
-            m_fmtStatus->setText(
-                QString("\xe2\x9c\x85  Config salvato in formato %1")
-                .arg(newFmt.toUpper()));
-        else
-            m_fmtStatus->setText(
-                QString("\xe2\x9d\x8c  %1").arg(err));
-    });
+    connect(fmtApply, &QPushButton::clicked, this, &ManutenzioneePage::onFmtApplyClicked);
 
     cfgLay->addWidget(grpFmt);
     cfgLay->addStretch(1);
@@ -772,10 +482,7 @@ QWidget* ManutenzioneePage::buildHardware()
     autoZramLay->addWidget(autoZramCb);
     autoZramLay->addStretch();
     ramLay->addWidget(autoZramRow);
-    connect(autoZramCb, &QCheckBox::toggled, this, [](bool on){
-        QSettings s("Prismalux", "GUI");
-        s.setValue(P::SK::kAutoZramDoppia, on);
-    });
+    connect(autoZramCb, &QCheckBox::toggled, this, &ManutenzioneePage::onAutoZramCbToggled);
 #endif
 
     auto* btnRow = new QWidget(rightGroup);
@@ -902,156 +609,24 @@ QWidget* ManutenzioneePage::buildHardware()
     mainLay->addStretch(1);
 
     /* Bottoni → apply+persist immediato (nessun passaggio "Salva" necessario) */
-    connect(m_btnGpu,    &QPushButton::clicked, this, [this]{ applyComputeMode("gpu");    });
-    connect(m_btnCpu,    &QPushButton::clicked, this, [this]{ applyComputeMode("cpu");    });
-    connect(m_btnMisto,  &QPushButton::clicked, this, [this]{ applyComputeMode("misto");  });
-    connect(m_btnDoppia, &QPushButton::clicked, this, [this]{ applyComputeMode("doppia"); });
-    connect(m_btnSaveMode, &QPushButton::clicked, this, [this]{
-        applyComputeMode(m_selectedMode);
-    });
+    connect(m_btnGpu,    &QPushButton::clicked, this, &ManutenzioneePage::onBtnGpuClicked);
+    connect(m_btnCpu,    &QPushButton::clicked, this, &ManutenzioneePage::onBtnCpuClicked);
+    connect(m_btnMisto,  &QPushButton::clicked, this, &ManutenzioneePage::onBtnMistoClicked);
+    connect(m_btnDoppia, &QPushButton::clicked, this, &ManutenzioneePage::onBtnDoppiaClicked);
+    connect(m_btnSaveMode, &QPushButton::clicked, this, &ManutenzioneePage::onBtnSaveModeClicked);
 
     /* Ri-applica al cambio modello per ricalcolare num_gpu con i layer reali */
-    connect(m_ai, &AiClient::modelChanged, this, [this](const QString&) {
-        QSettings s("Prismalux", "GUI");
-        const QString saved = s.value(P::SK::kComputeMode, "").toString();
-        if (saved == "gpu" || saved == "misto" || saved == "doppia")
-            applyComputeMode(saved);
-    });
-
-    /* ── Helper: esegui processo nel log ── */
-    auto runCmd = [this](const QString& prog, const QStringList& args,
-                         const QString& label) {
-        m_ramLog->append(QString("\xe2\x96\xb6 %1\n").arg(label));
-        auto* proc = new QProcess(this);
-        proc->setProcessChannelMode(QProcess::MergedChannels);
-        connect(proc, &QProcess::readyRead, this, [this, proc]{
-            m_ramLog->moveCursor(QTextCursor::End);
-            m_ramLog->insertPlainText(
-                QString::fromLocal8Bit(proc->readAll()));
-            m_ramLog->ensureCursorVisible();
-        });
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, proc](int code, QProcess::ExitStatus){
-            m_ramLog->append(code == 0 ? "\xe2\x9c\x85 OK\n" :
-                             QString("\xe2\x9d\x8c Codice uscita: %1\n").arg(code));
-            proc->deleteLater();
-        });
-        proc->start(prog, args);
-        if (!proc->waitForStarted(3000)) {
-            m_ramLog->append(
-                QString("\xe2\x9d\x8c  Impossibile avviare: %1\n").arg(prog));
-            proc->deleteLater();
-        }
-    };
+    connect(m_ai, &AiClient::modelChanged, this, &ManutenzioneePage::onAiModelChangedApplyMode);
 
 #ifdef Q_OS_WIN
-    connect(detectBtn, &QPushButton::clicked, this, [=]{
-        m_ramLog->clear();
-        runCmd("powershell",
-            {"-NoProfile", "-Command",
-             "Get-MMAgent | Select-Object MemoryCompression,"
-             "ApplicationLaunchPrefetching,OperationAPI | Format-List"},
-            "Stato Memory Compression (Windows)");
-    });
-    connect(compBtn, &QPushButton::clicked, this, [=]{
-        m_ramLog->clear();
-        runCmd("powershell",
-            {"-NoProfile", "-Command",
-             "Enable-MMAgent -MemoryCompression; "
-             "Write-Host 'Memory Compression attivata.'"},
-            "Attivazione Memory Compression");
-    });
-    connect(disableBtn, &QPushButton::clicked, this, [=]{
-        m_ramLog->clear();
-        runCmd("powershell",
-            {"-NoProfile", "-Command",
-             "Disable-MMAgent -MemoryCompression; "
-             "Write-Host 'Memory Compression disattivata.'"},
-            "Disattivazione Memory Compression");
-    });
+    connect(detectBtn,  &QPushButton::clicked, this, &ManutenzioneePage::onDetectBtnClicked);
+    connect(compBtn,    &QPushButton::clicked, this, &ManutenzioneePage::onCompBtnClicked);
+    connect(disableBtn, &QPushButton::clicked, this, &ManutenzioneePage::onDisableRamBtnClicked);
 #else
-    connect(detectBtn, &QPushButton::clicked, this, [=]{
-        m_ramLog->clear();
-        runCmd("bash", {"-c",
-            "echo '=== Swap attivo ==='; "
-            "cat /proc/swaps; "
-            "echo; echo '=== zRAM dispositivi ==='; "
-            "zramctl 2>/dev/null || ls /sys/block/zram* 2>/dev/null || "
-            "echo 'nessun device zRAM attivo'; "
-            "echo; echo '=== RAM libera ==='; "
-            "grep -E 'MemTotal|MemFree|MemAvailable|SwapTotal|SwapFree'"
-            " /proc/meminfo"},
-            "Rilevamento stato zRAM");
-    });
-
-    static const char* SCRIPT_SINGOLA =
-        "for dev in /dev/zram*; do swapoff \"$dev\" 2>/dev/null; done; "
-        "rmmod zram 2>/dev/null || true; "
-        "modprobe zram num_devices=1; "
-        "sleep 0.3; "
-        "echo lz4 | tee /sys/block/zram0/comp_algorithm; "
-        "BYTES=$(( $(grep MemTotal /proc/meminfo | awk '{print $2}') * 512 )); "
-        "echo $BYTES | tee /sys/block/zram0/disksize; "
-        "mkswap /dev/zram0; "
-        "swapon -p 100 /dev/zram0; "
-        "echo '---'; "
-        "echo 'zRAM singolo attivo (lz4):'; "
-        "zramctl 2>/dev/null || cat /sys/block/zram0/disksize";
-
-    connect(singBtn, &QPushButton::clicked, this, [=]{
-        m_ramLog->clear();
-        m_ramLog->append("\xe2\x9a\xa0  Richiesta autorizzazione amministratore (pkexec)...\n");
-        runCmd("pkexec", {"bash", "-c", SCRIPT_SINGOLA},
-               "Attivazione zRAM singolo (lz4, 50% RAM)");
-    });
-
-    static const char* SCRIPT_DOPPIA =
-        "echo 'Step 1: compattazione memoria fisica...'; "
-        "echo 1 | tee /proc/sys/vm/compact_memory; "
-        "sleep 1; "
-        "for dev in /dev/zram*; do swapoff \"$dev\" 2>/dev/null; done; "
-        "rmmod zram 2>/dev/null || true; "
-        "sleep 0.3; "
-        "modprobe zram num_devices=2; "
-        "sleep 0.3; "
-        "TOTAL=$(grep MemTotal /proc/meminfo | awk '{print $2}'); "
-        "echo 'Step 2: device 0 (zstd, 50% RAM)...'; "
-        "(echo zstd | tee /sys/block/zram0/comp_algorithm) || "
-        " (echo lzo-rle | tee /sys/block/zram0/comp_algorithm); "
-        "echo $(( TOTAL * 512 )) | tee /sys/block/zram0/disksize; "
-        "mkswap /dev/zram0; "
-        "swapon -p 100 /dev/zram0; "
-        "echo 'Step 3: device 1 (zstd, 25% RAM)...'; "
-        "(echo zstd | tee /sys/block/zram1/comp_algorithm) || "
-        " (echo lzo-rle | tee /sys/block/zram1/comp_algorithm); "
-        "echo $(( TOTAL * 256 )) | tee /sys/block/zram1/disksize; "
-        "mkswap /dev/zram1; "
-        "swapon -p 50 /dev/zram1; "
-        "echo '---'; "
-        "echo 'zRAM doppio attivo (zstd):'; "
-        "zramctl 2>/dev/null; "
-        "cat /proc/swaps";
-
-    connect(doppiaBtn, &QPushButton::clicked, this, [=]{
-        m_ramLog->clear();
-        m_ramLog->append("\xe2\x9a\xa0  Richiesta autorizzazione amministratore (pkexec)...\n");
-        runCmd("pkexec", {"bash", "-c", SCRIPT_DOPPIA},
-               "Attivazione zRAM doppio (zstd, 75% RAM \xe2\x80\x94 algoritmo Meta)");
-    });
-
-    static const char* SCRIPT_DISABILITA =
-        "for dev in /dev/zram*; do swapoff \"$dev\" 2>/dev/null && "
-        "echo \"swapoff $dev OK\"; done; "
-        "rmmod zram 2>/dev/null && echo 'modulo zram rimosso' || "
-        "echo 'zram non era caricato'; "
-        "echo; cat /proc/swaps";
-
-    connect(disableBtn, &QPushButton::clicked, this, [=]{
-        m_ramLog->clear();
-        m_ramLog->append("\xe2\x9a\xa0  Richiesta autorizzazione amministratore (pkexec)...\n");
-        runCmd("pkexec", {"bash", "-c", SCRIPT_DISABILITA},
-               "Disattivazione zRAM");
-    });
+    connect(detectBtn,  &QPushButton::clicked, this, &ManutenzioneePage::onDetectBtnClicked);
+    connect(singBtn,    &QPushButton::clicked, this, &ManutenzioneePage::onSingBtnClicked);
+    connect(doppiaBtn,  &QPushButton::clicked, this, &ManutenzioneePage::onDoppiaBtnClicked);
+    connect(disableBtn, &QPushButton::clicked, this, &ManutenzioneePage::onDisableRamBtnClicked);
 #endif
 
     /* ── NPU (Neural Processing Unit) ── */
@@ -1120,11 +695,7 @@ QWidget* ManutenzioneePage::buildHardware()
         };
         detectNpu();
 
-        connect(btnIntelNpu, &QPushButton::clicked, this, [=]{
-            m_ramLog->append("\xf0\x9f\x94\xb5  Installazione intel-npu-acceleration-library...\n");
-            runCmd("pip", {"install", "intel-npu-acceleration-library"},
-                   "pip install intel-npu-acceleration-library");
-        });
+        connect(btnIntelNpu, &QPushButton::clicked, this, &ManutenzioneePage::onBtnIntelNpuClicked);
     }
 
     return page;
@@ -1583,4 +1154,593 @@ QString ManutenzioneePage::convertConfig(const QString& newFmt)
     else if (newFmt == "json" && QFile::exists(pathToon)) QFile::remove(pathToon);
 
     return QString();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — Avvia llama-server
+   ══════════════════════════════════════════════════════════════ */
+void ManutenzioneePage::onSrvBrowseClicked()
+{
+    QString path = QFileDialog::getOpenFileName(this,
+        "Seleziona modello .gguf",
+        P::modelsDir(),
+        "Modelli GGUF (*.gguf *.bin)");
+    if (!path.isEmpty()) m_srvModelPath->setText(path);
+}
+
+void ManutenzioneePage::onSrvStartClicked()
+{
+    if (m_srvModelPath->text().trimmed().isEmpty()) {
+        m_srvLog->append("\xe2\x9d\x8c  Seleziona un file .gguf prima di avviare il server.");
+        return;
+    }
+    m_srvLog->clear();
+    m_srvStartBtn->setEnabled(false);
+    m_srvStopBtn->setEnabled(true);
+
+    QString serverBin = P::llamaServerBin();
+#ifdef _WIN32
+    serverBin += ".exe";
+    serverBin = QDir::toNativeSeparators(serverBin);
+#endif
+    QString cmd = QString("\"%1\" -m \"%2\" --port %3 --host 127.0.0.1 -c 4096")
+                  .arg(serverBin)
+                  .arg(m_srvModelPath->text().trimmed())
+                  .arg(m_srvPort->text().trimmed());
+    m_srvLog->append(QString("\xf0\x9f\x9a\x80  %1\n").arg(cmd));
+
+    if (m_srvProc) { m_srvProc->kill(); m_srvProc->deleteLater(); m_srvProc = nullptr; }
+    m_srvProc = new QProcess(this);
+    m_srvProc->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_srvProc, &QProcess::readyRead,
+            this, &ManutenzioneePage::onSrvProcReadyRead);
+    connect(m_srvProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &ManutenzioneePage::onSrvProcFinished);
+    connect(m_srvProc, &QProcess::errorOccurred,
+            this, &ManutenzioneePage::onSrvProcErrorOccurred);
+#ifdef _WIN32
+    m_srvProc->start("cmd", {"/c", cmd});
+#else
+    m_srvProc->start("sh", {"-c", cmd});
+#endif
+}
+
+void ManutenzioneePage::onSrvProcReadyRead()
+{
+    m_srvLog->moveCursor(QTextCursor::End);
+    m_srvLog->insertPlainText(QString::fromLocal8Bit(m_srvProc->readAll()));
+    m_srvLog->ensureCursorVisible();
+}
+
+void ManutenzioneePage::onSrvProcFinished(int code, QProcess::ExitStatus)
+{
+    m_srvLog->append(QString("\n\xf0\x9f\x94\xb4  Server terminato (code %1).").arg(code));
+    m_srvStartBtn->setEnabled(true);
+    m_srvStopBtn->setEnabled(false);
+    m_srvProc = nullptr;
+}
+
+void ManutenzioneePage::onSrvProcErrorOccurred(QProcess::ProcessError err)
+{
+    if (err == QProcess::FailedToStart) {
+        m_srvLog->append("\xe2\x9d\x8c  llama-server non trovato. Compilalo nella scheda \xf0\x9f\xa6\x99 llama.cpp.");
+        m_srvStartBtn->setEnabled(true);
+        m_srvStopBtn->setEnabled(false);
+        m_srvProc = nullptr;
+    }
+}
+
+void ManutenzioneePage::onSrvStopClicked()
+{
+    if (m_srvProc) { m_srvProc->terminate(); }
+    m_srvStopBtn->setEnabled(false);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — Formato config
+   ══════════════════════════════════════════════════════════════ */
+void ManutenzioneePage::onFmtApplyClicked()
+{
+    QString newFmt = m_cmbFmt->currentData().toString();
+    QString err    = convertConfig(newFmt);
+    if (err.isEmpty())
+        m_fmtStatus->setText(
+            QString("\xe2\x9c\x85  Config salvato in formato %1")
+            .arg(newFmt.toUpper()));
+    else
+        m_fmtStatus->setText(
+            QString("\xe2\x9d\x8c  %1").arg(err));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — Backend / Connessione
+   ══════════════════════════════════════════════════════════════ */
+void ManutenzioneePage::onApplyBtnClicked()
+{
+    AiClient::Backend bk = (m_cmbBackend->currentIndex() == 0)
+                            ? AiClient::Ollama : AiClient::LlamaServer;
+    m_ai->setBackend(bk, m_hostEdit->text(), m_portEdit->text().toInt(), m_ai->model());
+    m_ai->fetchModels();
+}
+
+void ManutenzioneePage::onBackendModelsReady(const QStringList& list)
+{
+    m_cmbModel->clear();
+    if (list.isEmpty()) {
+        m_cmbModel->addItem("(nessun modello \xe2\x80\x94 backend non raggiungibile)");
+        return;
+    }
+    for (const auto& nm : list) {
+        const qint64 sz = m_ai->modelSizeBytes(nm);
+        m_cmbModel->addItem(P::modelIcon(sz, nm) + nm, nm);  /* UserRole = nome raw */
+        if (P::isKnownBrokenModel(nm)) {
+            const int i = m_cmbModel->count() - 1;
+            m_cmbModel->setItemData(i, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
+            m_cmbModel->setItemData(i, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
+            m_cmbModel->setItemData(i,
+                P::knownBrokenModelTooltip(),
+                Qt::ToolTipRole);
+        }
+    }
+    int idx = m_cmbModel->findData(m_ai->model());
+    if (idx >= 0) m_cmbModel->setCurrentIndex(idx);
+}
+
+void ManutenzioneePage::onBackendModelsFetchError(const QString& msg)
+{
+    /* Mostra errore solo se il combo è ancora in stato "aggiornamento..." */
+    if (m_cmbModel->count() == 1 &&
+        m_cmbModel->itemText(0).contains("\xe2\x8f\xb3")) {
+        m_cmbModel->clear();
+        m_cmbModel->addItem("\xe2\x9a\xa0  " + msg, "");
+    }
+}
+
+void ManutenzioneePage::onSetModelBtnClicked()
+{
+    const QString raw = m_cmbModel->currentData(Qt::UserRole).toString();
+    const QString sel = raw.isEmpty() ? m_cmbModel->currentText() : raw;
+    if (!sel.isEmpty() && !sel.startsWith("("))
+        m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
+}
+
+void ManutenzioneePage::onBackendCmbChanged(int idx)
+{
+    /* Aggiorna porta e applica subito il backend — ricalcola i modelli in automatico */
+    const int port = (idx == 0) ? P::kOllamaPort : P::kLlamaServerPort;
+    m_portEdit->setText(QString::number(port));
+    AiClient::Backend bk = (idx == 0) ? AiClient::Ollama : AiClient::LlamaServer;
+    m_cmbModel->clear();
+    m_cmbModel->addItem("(\xe2\x8f\xb3  aggiornamento modelli...)");
+    m_ai->setBackend(bk, m_hostEdit->text(), port, "");
+    m_ai->fetchModels();
+    /* Mostra la sezione llama-server solo quando selezionato */
+    if (m_grpServ) m_grpServ->setVisible(idx == 1);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — Verifica versione Ollama
+   ══════════════════════════════════════════════════════════════ */
+void ManutenzioneePage::onVerifyOllamaVersion()
+{
+    if (m_verLbl) m_verLbl->setText("\xf0\x9f\x90\xb3  Ollama: <i>verifica...</i>");
+    if (m_ollamaVerProc) {
+        m_ollamaVerProc->kill();
+        m_ollamaVerProc->deleteLater();
+        m_ollamaVerProc = nullptr;
+    }
+    m_ollamaVerProc = new QProcess(this);
+    connect(m_ollamaVerProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &ManutenzioneePage::onOllamaVerProcFinished);
+    connect(m_ollamaVerProc, &QProcess::errorOccurred,
+            this, &ManutenzioneePage::onOllamaVerProcError);
+    m_ollamaVerProc->start("ollama", {"--version"});
+}
+
+void ManutenzioneePage::onOllamaVerProcFinished(int code, QProcess::ExitStatus)
+{
+    if (!m_ollamaVerProc) return;
+    const QString out = QString::fromLocal8Bit(m_ollamaVerProc->readAllStandardOutput()).trimmed()
+                      + QString::fromLocal8Bit(m_ollamaVerProc->readAllStandardError()).trimmed();
+    m_ollamaVerProc->deleteLater();
+    m_ollamaVerProc = nullptr;
+
+    if (m_verLbl) {
+        if (code == 0 && !out.isEmpty()) {
+            m_verLbl->setText(QString("\xf0\x9f\x90\xb3  Ollama: <b>%1</b>")
+                .arg(out.toHtmlEscaped()));
+        } else {
+            m_verLbl->setText("\xf0\x9f\x90\xb3  Ollama: <span style='color:#ef4444;'>non trovato</span>");
+        }
+    }
+    if (m_updLog && code == 0 && !out.isEmpty())
+        m_updLog->append(QString("\xf0\x9f\x90\xb3  %1").arg(out));
+}
+
+void ManutenzioneePage::onOllamaVerProcError(QProcess::ProcessError)
+{
+    if (m_ollamaVerProc) {
+        m_ollamaVerProc->deleteLater();
+        m_ollamaVerProc = nullptr;
+    }
+    if (m_verLbl)
+        m_verLbl->setText("\xf0\x9f\x90\xb3  Ollama: <span style='color:#ef4444;'>non trovato nel PATH</span>");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — Aggiorna tutti i modelli Ollama
+   ══════════════════════════════════════════════════════════════ */
+void ManutenzioneePage::onUpdAllBtnClicked()
+{
+    if (m_updAllBtn) m_updAllBtn->setEnabled(false);
+    if (m_updLog) m_updLog->clear();
+    if (m_updStatusLbl) m_updStatusLbl->setText("\xf0\x9f\x94\x84  Recupero lista modelli...");
+
+    if (m_listProc) {
+        m_listProc->kill();
+        m_listProc->deleteLater();
+        m_listProc = nullptr;
+    }
+    m_listProc = new QProcess(this);
+    connect(m_listProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &ManutenzioneePage::onListProcFinished);
+    connect(m_listProc, &QProcess::errorOccurred,
+            this, &ManutenzioneePage::onListProcError);
+    m_listProc->start("ollama", {"list"});
+}
+
+void ManutenzioneePage::onListProcFinished(int, QProcess::ExitStatus)
+{
+    if (!m_listProc) return;
+    const QString raw = QString::fromLocal8Bit(m_listProc->readAllStandardOutput());
+    m_listProc->deleteLater();
+    m_listProc = nullptr;
+
+    QStringList models;
+    for (const QString& line : raw.split('\n', Qt::SkipEmptyParts)) {
+        if (line.trimmed().startsWith("NAME", Qt::CaseInsensitive)) continue;
+        const QString name = line.split(QChar(' '), Qt::SkipEmptyParts).value(0).trimmed();
+        if (!name.isEmpty()) models << name;
+    }
+
+    if (models.isEmpty()) {
+        if (m_updStatusLbl) m_updStatusLbl->setText("\xe2\x9d\x8c  Nessun modello trovato. Ollama in esecuzione?");
+        if (m_updAllBtn) m_updAllBtn->setEnabled(true);
+        return;
+    }
+
+    if (m_updLog)
+        m_updLog->append(QString("\xf0\x9f\x93\x8b  %1 modelli da aggiornare: %2")
+            .arg(models.size()).arg(models.join(", ")));
+    if (m_updStatusLbl)
+        m_updStatusLbl->setText(QString("\xf0\x9f\x94\x84  Aggiornamento 1/%1...").arg(models.size()));
+
+    /* Aggiornamento sequenziale tramite struct ricorsiva */
+    auto* idx   = new int(0);
+    auto* total = new int(models.size());
+
+    struct Updater {
+        static void next(QWidget* parent, QTextEdit* log, QLabel* status,
+                         QPushButton* btn, QStringList mdls, int* i, int* tot) {
+            if (*i >= *tot) {
+                delete i; delete tot;
+                if (status) status->setText(QString("\xe2\x9c\x85  Aggiornamento completato! %1 modelli").arg(*tot));
+                if (log) log->append("\n\xe2\x9c\x85  Tutti i modelli sono aggiornati.");
+                if (btn) btn->setEnabled(true);
+                return;
+            }
+            const QString mdl = mdls.at(*i);
+            if (status) status->setText(QString("\xf0\x9f\x94\x84  Aggiornamento %1/%2: %3")
+                .arg(*i + 1).arg(*tot).arg(mdl));
+            if (log) log->append(QString("\n\xe2\xac\x87  Aggiornamento: <b>%1</b>...").arg(mdl));
+
+            auto* proc = new QProcess(parent);
+            proc->setProcessChannelMode(QProcess::MergedChannels);
+            proc->start("ollama", {"pull", mdl});
+            QObject::connect(proc, &QProcess::readyRead, parent, [proc, log](){
+                if (log) {
+                    log->moveCursor(QTextCursor::End);
+                    const QString chunk = QString::fromLocal8Bit(proc->readAll());
+                    for (const QString& l : chunk.split('\n', Qt::SkipEmptyParts))
+                        log->insertPlainText("  " + l.trimmed() + "\n");
+                    log->ensureCursorVisible();
+                }
+            });
+            QObject::connect(proc,
+                QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                parent, [proc, log, status, btn, mdls, i, tot, parent](int code, QProcess::ExitStatus){
+                    proc->deleteLater();
+                    if (log) {
+                        if (code == 0)
+                            log->append(QString("  \xe2\x9c\x85  %1 aggiornato.").arg(mdls.at(*i)));
+                        else
+                            log->append(QString("  \xe2\x9a\xa0  %1: errore (code %2)").arg(mdls.at(*i)).arg(code));
+                    }
+                    ++(*i);
+                    next(parent, log, status, btn, mdls, i, tot);
+                });
+        }
+    };
+    Updater::next(this, m_updLog, m_updStatusLbl, m_updAllBtn, models, idx, total);
+}
+
+void ManutenzioneePage::onListProcError(QProcess::ProcessError)
+{
+    if (m_listProc) {
+        m_listProc->deleteLater();
+        m_listProc = nullptr;
+    }
+    if (m_updStatusLbl) m_updStatusLbl->setText("\xe2\x9d\x8c  Ollama non trovato. Verifica il PATH.");
+    if (m_updAllBtn) m_updAllBtn->setEnabled(true);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — Aggiorna llama.cpp (git pull) + scansiona GGUF
+   ══════════════════════════════════════════════════════════════ */
+void ManutenzioneePage::onUpdLlamaBtnClicked()
+{
+    if (m_updLlamaBtn) m_updLlamaBtn->setEnabled(false);
+    if (m_updLog) m_updLog->clear();
+    if (m_updStatusLbl) m_updStatusLbl->setText("\xf0\x9f\x94\x84  Scansione modelli GGUF...");
+
+    const QStringList ggufFiles = P::scanGgufFiles();
+    if (m_updLog) {
+        m_updLog->append(QString("\xf0\x9f\x93\x81  Modelli GGUF trovati: %1").arg(ggufFiles.size()));
+        for (const QString& path : ggufFiles) {
+            const QFileInfo fi(path);
+            const double gb = fi.size() / (1024.0 * 1024.0 * 1024.0);
+            m_updLog->append(QString("  \xf0\x9f\x9f\xa4  %1  (%2 GB)")
+                .arg(fi.fileName()).arg(gb, 0, 'f', 1));
+        }
+        if (ggufFiles.isEmpty())
+            m_updLog->append("\xe2\x9a\xa0  Nessun file .gguf trovato in models/");
+    }
+
+    QString llamaDir;
+    for (const QString& c : {P::root() + "/llama_cpp_studio/llama.cpp",
+                              P::root() + "/llama.cpp"}) {
+        if (QDir(c + "/.git").exists()) { llamaDir = c; break; }
+    }
+
+    if (llamaDir.isEmpty()) {
+        if (m_updLog) {
+            m_updLog->append("\n\xe2\x84\xb9  Repository llama.cpp non trovato — aggiornamento git non disponibile.");
+            m_updLog->append("   I file .gguf vanno aggiornati manualmente da HuggingFace Hub.");
+        }
+        if (m_updStatusLbl) m_updStatusLbl->setText("\xe2\x9c\x85  Scansione completata.");
+        if (m_updLlamaBtn) m_updLlamaBtn->setEnabled(true);
+        return;
+    }
+
+    if (m_updLog) m_updLog->append(QString("\n\xf0\x9f\x94\x84  git pull: %1").arg(llamaDir));
+    if (m_updStatusLbl) m_updStatusLbl->setText("\xf0\x9f\x94\x84  Aggiornamento llama.cpp...");
+
+    if (m_gitProc) {
+        m_gitProc->kill();
+        m_gitProc->deleteLater();
+        m_gitProc = nullptr;
+    }
+    m_gitProc = new QProcess(this);
+    m_gitProc->setWorkingDirectory(llamaDir);
+    m_gitProc->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_gitProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &ManutenzioneePage::onGitProcFinished);
+    connect(m_gitProc, &QProcess::errorOccurred,
+            this, &ManutenzioneePage::onGitProcError);
+    m_gitProc->start("git", {"pull", "--ff-only"});
+}
+
+void ManutenzioneePage::onGitProcFinished(int code, QProcess::ExitStatus)
+{
+    if (!m_gitProc) return;
+    const QString out = QString::fromLocal8Bit(m_gitProc->readAll()).trimmed();
+    m_gitProc->deleteLater();
+    m_gitProc = nullptr;
+
+    if (m_updLog) {
+        if (!out.isEmpty())
+            m_updLog->append("  " + QString(out).replace('\n', "\n  "));
+        m_updLog->append("\n\xe2\x84\xb9  I file .gguf non hanno aggiornamento automatico.\n"
+                         "   Scarica le versioni aggiornate da HuggingFace Hub.");
+    }
+    if (m_updStatusLbl) {
+        if (code == 0)
+            m_updStatusLbl->setText("\xe2\x9c\x85  llama.cpp aggiornato.");
+        else
+            m_updStatusLbl->setText("\xe2\x9a\xa0  git pull fallito (verifica connessione).");
+    }
+    if (m_updLlamaBtn) m_updLlamaBtn->setEnabled(true);
+}
+
+void ManutenzioneePage::onGitProcError(QProcess::ProcessError)
+{
+    if (m_gitProc) {
+        m_gitProc->deleteLater();
+        m_gitProc = nullptr;
+    }
+    if (m_updLog) m_updLog->append("\xe2\x9d\x8c  git non trovato nel PATH.");
+    if (m_updStatusLbl) m_updStatusLbl->setText("\xe2\x9a\xa0  git non disponibile.");
+    if (m_updLlamaBtn) m_updLlamaBtn->setEnabled(true);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot — zRAM / RAM (helper + bottoni)
+   ══════════════════════════════════════════════════════════════ */
+void ManutenzioneePage::runRamCmd(const QString& prog, const QStringList& args,
+                                   const QString& label)
+{
+    if (m_ramLog) m_ramLog->append(QString("\xe2\x96\xb6 %1\n").arg(label));
+    if (m_ramCmdProc) {
+        m_ramCmdProc->kill();
+        m_ramCmdProc->deleteLater();
+        m_ramCmdProc = nullptr;
+    }
+    m_ramCmdProc = new QProcess(this);
+    m_ramCmdProc->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_ramCmdProc, &QProcess::readyRead,
+            this, &ManutenzioneePage::onRamCmdReadyRead);
+    connect(m_ramCmdProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &ManutenzioneePage::onRamCmdFinished);
+    m_ramCmdProc->start(prog, args);
+    if (!m_ramCmdProc->waitForStarted(3000)) {
+        if (m_ramLog)
+            m_ramLog->append(QString("\xe2\x9d\x8c  Impossibile avviare: %1\n").arg(prog));
+        m_ramCmdProc->deleteLater();
+        m_ramCmdProc = nullptr;
+    }
+}
+
+void ManutenzioneePage::onRamCmdReadyRead()
+{
+    if (!m_ramCmdProc || !m_ramLog) return;
+    m_ramLog->moveCursor(QTextCursor::End);
+    m_ramLog->insertPlainText(QString::fromLocal8Bit(m_ramCmdProc->readAll()));
+    m_ramLog->ensureCursorVisible();
+}
+
+void ManutenzioneePage::onRamCmdFinished(int code, QProcess::ExitStatus)
+{
+    if (m_ramLog)
+        m_ramLog->append(code == 0 ? "\xe2\x9c\x85 OK\n" :
+                         QString("\xe2\x9d\x8c Codice uscita: %1\n").arg(code));
+    if (m_ramCmdProc) {
+        m_ramCmdProc->deleteLater();
+        m_ramCmdProc = nullptr;
+    }
+}
+
+void ManutenzioneePage::onAutoZramCbToggled(bool on)
+{
+    QSettings s("Prismalux", "GUI");
+    s.setValue(P::SK::kAutoZramDoppia, on);
+}
+
+void ManutenzioneePage::onBtnGpuClicked()    { applyComputeMode("gpu");    }
+void ManutenzioneePage::onBtnCpuClicked()    { applyComputeMode("cpu");    }
+void ManutenzioneePage::onBtnMistoClicked()  { applyComputeMode("misto");  }
+void ManutenzioneePage::onBtnDoppiaClicked() { applyComputeMode("doppia"); }
+void ManutenzioneePage::onBtnSaveModeClicked() { applyComputeMode(m_selectedMode); }
+
+void ManutenzioneePage::onAiModelChangedApplyMode(const QString&)
+{
+    QSettings s("Prismalux", "GUI");
+    const QString saved = s.value(P::SK::kComputeMode, "").toString();
+    if (saved == "gpu" || saved == "misto" || saved == "doppia")
+        applyComputeMode(saved);
+}
+
+void ManutenzioneePage::onDetectBtnClicked()
+{
+    if (m_ramLog) m_ramLog->clear();
+#ifdef Q_OS_WIN
+    runRamCmd("powershell",
+        {"-NoProfile", "-Command",
+         "Get-MMAgent | Select-Object MemoryCompression,"
+         "ApplicationLaunchPrefetching,OperationAPI | Format-List"},
+        "Stato Memory Compression (Windows)");
+#else
+    runRamCmd("bash", {"-c",
+        "echo '=== Swap attivo ==='; "
+        "cat /proc/swaps; "
+        "echo; echo '=== zRAM dispositivi ==='; "
+        "zramctl 2>/dev/null || ls /sys/block/zram* 2>/dev/null || "
+        "echo 'nessun device zRAM attivo'; "
+        "echo; echo '=== RAM libera ==='; "
+        "grep -E 'MemTotal|MemFree|MemAvailable|SwapTotal|SwapFree'"
+        " /proc/meminfo"},
+        "Rilevamento stato zRAM");
+#endif
+}
+
+void ManutenzioneePage::onCompBtnClicked()
+{
+    if (m_ramLog) m_ramLog->clear();
+    runRamCmd("powershell",
+        {"-NoProfile", "-Command",
+         "Enable-MMAgent -MemoryCompression; "
+         "Write-Host 'Memory Compression attivata.'"},
+        "Attivazione Memory Compression");
+}
+
+void ManutenzioneePage::onDisableRamBtnClicked()
+{
+    if (m_ramLog) m_ramLog->clear();
+#ifdef Q_OS_WIN
+    runRamCmd("powershell",
+        {"-NoProfile", "-Command",
+         "Disable-MMAgent -MemoryCompression; "
+         "Write-Host 'Memory Compression disattivata.'"},
+        "Disattivazione Memory Compression");
+#else
+    static const char* SCRIPT_DISABILITA =
+        "for dev in /dev/zram*; do swapoff \"$dev\" 2>/dev/null && "
+        "echo \"swapoff $dev OK\"; done; "
+        "rmmod zram 2>/dev/null && echo 'modulo zram rimosso' || "
+        "echo 'zram non era caricato'; "
+        "echo; cat /proc/swaps";
+    if (m_ramLog) m_ramLog->append("\xe2\x9a\xa0  Richiesta autorizzazione amministratore (pkexec)...\n");
+    runRamCmd("pkexec", {"bash", "-c", SCRIPT_DISABILITA}, "Disattivazione zRAM");
+#endif
+}
+
+void ManutenzioneePage::onSingBtnClicked()
+{
+    static const char* SCRIPT_SINGOLA =
+        "for dev in /dev/zram*; do swapoff \"$dev\" 2>/dev/null; done; "
+        "rmmod zram 2>/dev/null || true; "
+        "modprobe zram num_devices=1; "
+        "sleep 0.3; "
+        "echo lz4 | tee /sys/block/zram0/comp_algorithm; "
+        "BYTES=$(( $(grep MemTotal /proc/meminfo | awk '{print $2}') * 512 )); "
+        "echo $BYTES | tee /sys/block/zram0/disksize; "
+        "mkswap /dev/zram0; "
+        "swapon -p 100 /dev/zram0; "
+        "echo '---'; "
+        "echo 'zRAM singolo attivo (lz4):'; "
+        "zramctl 2>/dev/null || cat /sys/block/zram0/disksize";
+    if (m_ramLog) m_ramLog->clear();
+    if (m_ramLog) m_ramLog->append("\xe2\x9a\xa0  Richiesta autorizzazione amministratore (pkexec)...\n");
+    runRamCmd("pkexec", {"bash", "-c", SCRIPT_SINGOLA},
+               "Attivazione zRAM singolo (lz4, 50% RAM)");
+}
+
+void ManutenzioneePage::onDoppiaBtnClicked()
+{
+    static const char* SCRIPT_DOPPIA =
+        "echo 'Step 1: compattazione memoria fisica...'; "
+        "echo 1 | tee /proc/sys/vm/compact_memory; "
+        "sleep 1; "
+        "for dev in /dev/zram*; do swapoff \"$dev\" 2>/dev/null; done; "
+        "rmmod zram 2>/dev/null || true; "
+        "sleep 0.3; "
+        "modprobe zram num_devices=2; "
+        "sleep 0.3; "
+        "TOTAL=$(grep MemTotal /proc/meminfo | awk '{print $2}'); "
+        "echo 'Step 2: device 0 (zstd, 50% RAM)...'; "
+        "(echo zstd | tee /sys/block/zram0/comp_algorithm) || "
+        " (echo lzo-rle | tee /sys/block/zram0/comp_algorithm); "
+        "echo $(( TOTAL * 512 )) | tee /sys/block/zram0/disksize; "
+        "mkswap /dev/zram0; "
+        "swapon -p 100 /dev/zram0; "
+        "echo 'Step 3: device 1 (zstd, 25% RAM)...'; "
+        "(echo zstd | tee /sys/block/zram1/comp_algorithm) || "
+        " (echo lzo-rle | tee /sys/block/zram1/comp_algorithm); "
+        "echo $(( TOTAL * 256 )) | tee /sys/block/zram1/disksize; "
+        "mkswap /dev/zram1; "
+        "swapon -p 50 /dev/zram1; "
+        "echo '---'; "
+        "echo 'zRAM doppio attivo (zstd):'; "
+        "zramctl 2>/dev/null; "
+        "cat /proc/swaps";
+    if (m_ramLog) m_ramLog->clear();
+    if (m_ramLog) m_ramLog->append("\xe2\x9a\xa0  Richiesta autorizzazione amministratore (pkexec)...\n");
+    runRamCmd("pkexec", {"bash", "-c", SCRIPT_DOPPIA},
+               "Attivazione zRAM doppio (zstd, 75% RAM \xe2\x80\x94 algoritmo Meta)");
+}
+
+void ManutenzioneePage::onBtnIntelNpuClicked()
+{
+    if (m_ramLog) m_ramLog->append("\xf0\x9f\x94\xb5  Installazione intel-npu-acceleration-library...\n");
+    runRamCmd("pip", {"install", "intel-npu-acceleration-library"},
+               "pip install intel-npu-acceleration-library");
 }

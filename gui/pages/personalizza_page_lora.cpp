@@ -96,38 +96,30 @@ QWidget* PersonalizzaPage::buildLoraTab()
         auto* grpModel = new QGroupBox("\xf0\x9f\x93\x81  Modello base (.gguf)", tab);
         grpModel->setObjectName("cardGroup");
         auto* mLay = new QHBoxLayout(grpModel);
-        auto* modelEdit = new QLineEdit(grpModel);
-        modelEdit->setPlaceholderText("Path assoluto al modello GGUF base...");
+        m_loraModelEdit = new QLineEdit(grpModel);
+        m_loraModelEdit->setPlaceholderText("Path assoluto al modello GGUF base...");
         auto* modelBtn  = new QPushButton("\xf0\x9f\x93\x82", grpModel);
         modelBtn->setFixedWidth(32);
         modelBtn->setToolTip("Seleziona file .gguf");
-        mLay->addWidget(modelEdit, 1);
+        mLay->addWidget(m_loraModelEdit, 1);
         mLay->addWidget(modelBtn);
-        connect(modelBtn, &QPushButton::clicked, tab, [modelEdit, tab]{
-            const QString f = QFileDialog::getOpenFileName(
-                tab, "Seleziona modello base", P::root(),
-                "Modelli GGUF (*.gguf)");
-            if (!f.isEmpty()) modelEdit->setText(f);
-        });
+        connect(modelBtn, &QPushButton::clicked,
+                this, &PersonalizzaPage::onModelBtnClicked);
         tLay->addWidget(grpModel);
 
         /* Dataset */
         auto* grpData = new QGroupBox("\xf0\x9f\x93\x8a  Dataset di training (.jsonl)", tab);
         grpData->setObjectName("cardGroup");
         auto* dLay = new QHBoxLayout(grpData);
-        auto* dataEdit = new QLineEdit(grpData);
-        dataEdit->setPlaceholderText("Path al file JSONL (righe: {\"text\": \"...\"})");
+        m_loraDataEdit = new QLineEdit(grpData);
+        m_loraDataEdit->setPlaceholderText("Path al file JSONL (righe: {\"text\": \"...\"})");
         auto* dataBtn  = new QPushButton("\xf0\x9f\x93\x82", grpData);
         dataBtn->setFixedWidth(32);
         dataBtn->setToolTip("Seleziona dataset JSONL");
-        dLay->addWidget(dataEdit, 1);
+        dLay->addWidget(m_loraDataEdit, 1);
         dLay->addWidget(dataBtn);
-        connect(dataBtn, &QPushButton::clicked, tab, [dataEdit, tab]{
-            const QString f = QFileDialog::getOpenFileName(
-                tab, "Seleziona dataset", QDir::homePath(),
-                "Dataset JSONL (*.jsonl *.json);;Tutti i file (*)");
-            if (!f.isEmpty()) dataEdit->setText(f);
-        });
+        connect(dataBtn, &QPushButton::clicked,
+                this, &PersonalizzaPage::onDataBtnClicked);
         tLay->addWidget(grpData);
 
         /* Iperparametri */
@@ -136,37 +128,37 @@ QWidget* PersonalizzaPage::buildLoraTab()
         auto* fLay = new QFormLayout(grpHyper);
         fLay->setLabelAlignment(Qt::AlignRight);
 
-        auto* spinEpochs  = new QSpinBox(grpHyper);
-        spinEpochs->setRange(1, 100); spinEpochs->setValue(3);
-        spinEpochs->setToolTip("Numero di passaggi sull'intero dataset");
-        fLay->addRow("Epoche:", spinEpochs);
+        m_loraSpinEpochs = new QSpinBox(grpHyper);
+        m_loraSpinEpochs->setRange(1, 100); m_loraSpinEpochs->setValue(3);
+        m_loraSpinEpochs->setToolTip("Numero di passaggi sull'intero dataset");
+        fLay->addRow("Epoche:", m_loraSpinEpochs);
 
-        auto* spinR = new QSpinBox(grpHyper);
-        spinR->setRange(1, 256); spinR->setValue(8);
-        spinR->setToolTip("Rango LoRA: valori bassi = meno parametri, addestramento più veloce");
-        fLay->addRow("Rango LoRA (r):", spinR);
+        m_loraSpinR = new QSpinBox(grpHyper);
+        m_loraSpinR->setRange(1, 256); m_loraSpinR->setValue(8);
+        m_loraSpinR->setToolTip("Rango LoRA: valori bassi = meno parametri, addestramento più veloce");
+        fLay->addRow("Rango LoRA (r):", m_loraSpinR);
 
-        auto* spinAlpha = new QSpinBox(grpHyper);
-        spinAlpha->setRange(1, 512); spinAlpha->setValue(32);
-        spinAlpha->setToolTip("Alpha LoRA: scala l'impatto dell'adapter (tipico: 2-4× rank)");
-        fLay->addRow("Alpha LoRA:", spinAlpha);
+        m_loraSpinAlpha = new QSpinBox(grpHyper);
+        m_loraSpinAlpha->setRange(1, 512); m_loraSpinAlpha->setValue(32);
+        m_loraSpinAlpha->setToolTip("Alpha LoRA: scala l'impatto dell'adapter (tipico: 2-4× rank)");
+        fLay->addRow("Alpha LoRA:", m_loraSpinAlpha);
 
-        auto* dspLr = new QDoubleSpinBox(grpHyper);
-        dspLr->setRange(1e-6, 1e-2); dspLr->setValue(1e-4);
-        dspLr->setDecimals(7); dspLr->setSingleStep(1e-5);
-        dspLr->setToolTip("Learning rate (tipico: 1e-4 – 3e-4)");
-        fLay->addRow("Learning rate:", dspLr);
+        m_loraDspLr = new QDoubleSpinBox(grpHyper);
+        m_loraDspLr->setRange(1e-6, 1e-2); m_loraDspLr->setValue(1e-4);
+        m_loraDspLr->setDecimals(7); m_loraDspLr->setSingleStep(1e-5);
+        m_loraDspLr->setToolTip("Learning rate (tipico: 1e-4 – 3e-4)");
+        fLay->addRow("Learning rate:", m_loraDspLr);
 
-        auto* spinBatch = new QSpinBox(grpHyper);
-        spinBatch->setRange(1, 64); spinBatch->setValue(4);
-        spinBatch->setToolTip("Batch size: su CPU limitare a 1-4");
-        fLay->addRow("Batch size:", spinBatch);
+        m_loraSpinBatch = new QSpinBox(grpHyper);
+        m_loraSpinBatch->setRange(1, 64); m_loraSpinBatch->setValue(4);
+        m_loraSpinBatch->setToolTip("Batch size: su CPU limitare a 1-4");
+        fLay->addRow("Batch size:", m_loraSpinBatch);
 
-        auto* spinCtx = new QSpinBox(grpHyper);
-        spinCtx->setRange(128, 32768); spinCtx->setValue(512);
-        spinCtx->setSingleStep(128);
-        spinCtx->setToolTip("Lunghezza contesto per ogni esempio");
-        fLay->addRow("Context size:", spinCtx);
+        m_loraSpinCtx = new QSpinBox(grpHyper);
+        m_loraSpinCtx->setRange(128, 32768); m_loraSpinCtx->setValue(512);
+        m_loraSpinCtx->setSingleStep(128);
+        m_loraSpinCtx->setToolTip("Lunghezza contesto per ogni esempio");
+        fLay->addRow("Context size:", m_loraSpinCtx);
 
         tLay->addWidget(grpHyper);
 
@@ -174,17 +166,14 @@ QWidget* PersonalizzaPage::buildLoraTab()
         auto* grpOut = new QGroupBox("\xf0\x9f\x92\xbe  Cartella output", tab);
         grpOut->setObjectName("cardGroup");
         auto* oLay = new QHBoxLayout(grpOut);
-        auto* outEdit = new QLineEdit(grpOut);
-        outEdit->setText(QDir::homePath() + "/lora_output");
+        m_loraOutEdit = new QLineEdit(grpOut);
+        m_loraOutEdit->setText(QDir::homePath() + "/lora_output");
         auto* outBtn  = new QPushButton("\xf0\x9f\x93\x82", grpOut);
         outBtn->setFixedWidth(32);
-        oLay->addWidget(outEdit, 1);
+        oLay->addWidget(m_loraOutEdit, 1);
         oLay->addWidget(outBtn);
-        connect(outBtn, &QPushButton::clicked, tab, [outEdit, tab]{
-            const QString d = QFileDialog::getExistingDirectory(
-                tab, "Cartella output", QDir::homePath());
-            if (!d.isEmpty()) outEdit->setText(d);
-        });
+        connect(outBtn, &QPushButton::clicked,
+                this, &PersonalizzaPage::onOutBtnClicked);
         tLay->addWidget(grpOut);
 
         /* Pulsanti avvio/stop */
@@ -210,111 +199,10 @@ QWidget* PersonalizzaPage::buildLoraTab()
         m_loraLog->setFixedHeight(180);
         tLay->addWidget(m_loraLog);
 
-        /* ── Avvio fine-tuning ── */
-        connect(m_loraStartBtn, &QPushButton::clicked, this,
-        [this, modelEdit, dataEdit, outEdit,
-         spinEpochs, spinR, spinAlpha, dspLr, spinBatch, spinCtx]
-        {
-            const QString model   = modelEdit->text().trimmed();
-            const QString dataset = dataEdit->text().trimmed();
-            const QString outDir  = outEdit->text().trimmed();
-
-            if (model.isEmpty() || !QFileInfo::exists(model)) {
-                m_loraLog->append("\xe2\x9d\x8c  Seleziona un modello GGUF valido.");
-                return;
-            }
-            if (dataset.isEmpty() || !QFileInfo::exists(dataset)) {
-                m_loraLog->append("\xe2\x9d\x8c  Seleziona un dataset JSONL valido.");
-                return;
-            }
-
-            /* Cerca llama-finetune nel build di llama.cpp */
-            QStringList candidates = {
-                P::root() + "/llama.cpp/build/bin/llama-finetune",
-                P::root() + "/llama.cpp/build/llama-finetune",
-                QStandardPaths::findExecutable("llama-finetune"),
-            };
-            QString ftBin;
-            for (const QString& c : candidates)
-                if (!c.isEmpty() && QFileInfo::exists(c)) { ftBin = c; break; }
-
-            if (ftBin.isEmpty()) {
-                m_loraLog->append(
-                    "\xe2\x9d\x8c  <b>llama-finetune</b> non trovato.<br>"
-                    "Compila llama.cpp con: <code>cmake -B build -DLLAMA_FINETUNE=ON && "
-                    "cmake --build build --target llama-finetune -j$(nproc)</code><br>"
-                    "Oppure usa la tab <b>unsloth</b> per training con GPU.");
-                return;
-            }
-
-            QDir().mkpath(outDir);
-            const QString adapterOut = outDir + "/lora_adapter.bin";
-
-            QStringList args = {
-                "--model-base",    model,
-                "--train-data",    dataset,
-                "--lora-out",      adapterOut,
-                "--ctx",           QString::number(spinCtx->value()),
-                "--epochs",        QString::number(spinEpochs->value()),
-                "--lora-r",        QString::number(spinR->value()),
-                "--lora-alpha",    QString::number(spinAlpha->value()),
-                "--adam-alpha",    QString::number(dspLr->value()),
-                "--batch",         QString::number(spinBatch->value()),
-                "--use-checkpointing",
-            };
-
-            m_loraLog->clear();
-            m_loraLog->append(
-                "\xf0\x9f\x9a\x80  Avvio fine-tuning LoRA...\n"
-                "\xf0\x9f\x93\x81  Modello: " + QFileInfo(model).fileName() + "\n"
-                "\xf0\x9f\x93\x8a  Dataset: " + QFileInfo(dataset).fileName() + "\n"
-                "\xf0\x9f\x92\xbe  Output: " + adapterOut + "\n");
-
-            m_loraProc = new QProcess(this);
-            m_loraProc->setProcessChannelMode(QProcess::MergedChannels);
-            connect(m_loraProc, &QProcess::readyRead, this, [this]{
-                m_loraLog->moveCursor(QTextCursor::End);
-                m_loraLog->insertPlainText(
-                    QString::fromLocal8Bit(m_loraProc->readAll()));
-                m_loraLog->ensureCursorVisible();
-            });
-            connect(m_loraProc,
-                    QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                    this, [this, adapterOut](int code, QProcess::ExitStatus){
-                if (code == 0) {
-                    m_loraLog->append(
-                        "\n\xe2\x9c\x85  Fine-tuning completato!\n"
-                        "\xf0\x9f\x92\xbe  Adapter salvato: " + adapterOut + "\n"
-                        "\xe2\x84\xb9  Per usarlo: llama-cli --model BASE.gguf "
-                        "--lora " + adapterOut);
-                } else {
-                    m_loraLog->append(
-                        "\n\xe2\x9d\x8c  Processo terminato con codice: " +
-                        QString::number(code));
-                }
-                m_loraStartBtn->setEnabled(true);
-                m_loraStopBtn->setEnabled(false);
-                m_loraProc->deleteLater();
-                m_loraProc = nullptr;
-            });
-
-            m_loraProc->start(ftBin, args);
-            if (!m_loraProc->waitForStarted(3000)) {
-                m_loraLog->append("\xe2\x9d\x8c  Impossibile avviare llama-finetune.");
-                m_loraProc->deleteLater();
-                m_loraProc = nullptr;
-                return;
-            }
-            m_loraStartBtn->setEnabled(false);
-            m_loraStopBtn->setEnabled(true);
-        });
-
-        connect(m_loraStopBtn, &QPushButton::clicked, this, [this]{
-            if (m_loraProc) {
-                m_loraProc->terminate();
-                m_loraLog->append("\n\xe2\x9a\xa0  Training interrotto.");
-            }
-        });
+        connect(m_loraStartBtn, &QPushButton::clicked,
+                this, &PersonalizzaPage::onLoraStartBtnClicked);
+        connect(m_loraStopBtn,  &QPushButton::clicked,
+                this, &PersonalizzaPage::onLoraStopBtnClicked);
 
         subTabs->addTab(tab, "\xf0\x9f\xa6\x99  llama-finetune");
     }
@@ -372,32 +260,13 @@ QWidget* PersonalizzaPage::buildLoraTab()
         auto* installBtn = new QPushButton(
             "\xf0\x9f\x93\xa6  pip install unsloth trl datasets transformers", tab);
         installBtn->setObjectName("actionBtn");
-        auto* loraLog2 = makeLog("Log installazione...");
-        loraLog2->setFixedHeight(100);
+        m_loraLog2 = makeLog("Log installazione...");
+        m_loraLog2->setFixedHeight(100);
 
-        connect(installBtn, &QPushButton::clicked, this, [this, loraLog2]{
-            auto* proc = new QProcess(this);
-            proc->setProcessChannelMode(QProcess::MergedChannels);
-            connect(proc, &QProcess::readyRead, this, [proc, loraLog2]{
-                loraLog2->moveCursor(QTextCursor::End);
-                loraLog2->insertPlainText(
-                    QString::fromLocal8Bit(proc->readAll()));
-                loraLog2->ensureCursorVisible();
-            });
-            connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                    this, [proc, loraLog2](int code, QProcess::ExitStatus){
-                loraLog2->append(code == 0 ? "\xe2\x9c\x85 OK" : "\xe2\x9d\x8c Errore");
-                proc->deleteLater();
-            });
-            loraLog2->append("\xf0\x9f\x93\xa6  Installazione in corso...\n");
-            proc->start("pip", {"install", "unsloth", "trl", "datasets", "transformers"});
-            if (!proc->waitForStarted(3000)) {
-                loraLog2->append("\xe2\x9d\x8c  pip non trovato.");
-                proc->deleteLater();
-            }
-        });
+        connect(installBtn, &QPushButton::clicked,
+                this, &PersonalizzaPage::onLoraInstallBtnClicked);
         tLay->addWidget(installBtn, 0, Qt::AlignLeft);
-        tLay->addWidget(loraLog2);
+        tLay->addWidget(m_loraLog2);
 
         subTabs->addTab(tab, "\xf0\x9f\x94\xa5  unsloth");
     }
@@ -455,4 +324,182 @@ QWidget* PersonalizzaPage::buildLoraTab()
     wl->setContentsMargins(0, 0, 0, 0);
     wl->addWidget(outer);
     return wrapper;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — LoRA: selezione file
+   ══════════════════════════════════════════════════════════════ */
+void PersonalizzaPage::onModelBtnClicked() {
+    if (!m_loraModelEdit) return;
+    const QString f = QFileDialog::getOpenFileName(
+        this, "Seleziona modello base", P::root(),
+        "Modelli GGUF (*.gguf)");
+    if (!f.isEmpty()) m_loraModelEdit->setText(f);
+}
+
+void PersonalizzaPage::onDataBtnClicked() {
+    if (!m_loraDataEdit) return;
+    const QString f = QFileDialog::getOpenFileName(
+        this, "Seleziona dataset", QDir::homePath(),
+        "Dataset JSONL (*.jsonl *.json);;Tutti i file (*)");
+    if (!f.isEmpty()) m_loraDataEdit->setText(f);
+}
+
+void PersonalizzaPage::onOutBtnClicked() {
+    if (!m_loraOutEdit) return;
+    const QString d = QFileDialog::getExistingDirectory(
+        this, "Cartella output", QDir::homePath());
+    if (!d.isEmpty()) m_loraOutEdit->setText(d);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — LoRA: avvio / stop fine-tuning
+   ══════════════════════════════════════════════════════════════ */
+void PersonalizzaPage::onLoraStartBtnClicked() {
+    if (!m_loraLog || !m_loraStartBtn || !m_loraStopBtn) return;
+    if (!m_loraModelEdit || !m_loraDataEdit || !m_loraOutEdit) return;
+
+    const QString model   = m_loraModelEdit->text().trimmed();
+    const QString dataset = m_loraDataEdit->text().trimmed();
+    const QString outDir  = m_loraOutEdit->text().trimmed();
+
+    if (model.isEmpty() || !QFileInfo::exists(model)) {
+        m_loraLog->append("\xe2\x9d\x8c  Seleziona un modello GGUF valido.");
+        return;
+    }
+    if (dataset.isEmpty() || !QFileInfo::exists(dataset)) {
+        m_loraLog->append("\xe2\x9d\x8c  Seleziona un dataset JSONL valido.");
+        return;
+    }
+
+    /* Cerca llama-finetune nel build di llama.cpp */
+    QStringList candidates = {
+        P::root() + "/llama.cpp/build/bin/llama-finetune",
+        P::root() + "/llama.cpp/build/llama-finetune",
+        QStandardPaths::findExecutable("llama-finetune"),
+    };
+    QString ftBin;
+    for (const QString& c : candidates)
+        if (!c.isEmpty() && QFileInfo::exists(c)) { ftBin = c; break; }
+
+    if (ftBin.isEmpty()) {
+        m_loraLog->append(
+            "\xe2\x9d\x8c  <b>llama-finetune</b> non trovato.<br>"
+            "Compila llama.cpp con: <code>cmake -B build -DLLAMA_FINETUNE=ON && "
+            "cmake --build build --target llama-finetune -j$(nproc)</code><br>"
+            "Oppure usa la tab <b>unsloth</b> per training con GPU.");
+        return;
+    }
+
+    QDir().mkpath(outDir);
+    const QString adapterOut = outDir + "/lora_adapter.bin";
+
+    QStringList args = {
+        "--model-base",    model,
+        "--train-data",    dataset,
+        "--lora-out",      adapterOut,
+        "--ctx",           QString::number(m_loraSpinCtx->value()),
+        "--epochs",        QString::number(m_loraSpinEpochs->value()),
+        "--lora-r",        QString::number(m_loraSpinR->value()),
+        "--lora-alpha",    QString::number(m_loraSpinAlpha->value()),
+        "--adam-alpha",    QString::number(m_loraDspLr->value()),
+        "--batch",         QString::number(m_loraSpinBatch->value()),
+        "--use-checkpointing",
+    };
+
+    m_loraLog->clear();
+    m_loraLog->append(
+        "\xf0\x9f\x9a\x80  Avvio fine-tuning LoRA...\n"
+        "\xf0\x9f\x93\x81  Modello: " + QFileInfo(model).fileName() + "\n"
+        "\xf0\x9f\x93\x8a  Dataset: " + QFileInfo(dataset).fileName() + "\n"
+        "\xf0\x9f\x92\xbe  Output: " + adapterOut + "\n");
+    /* Salva adapterOut come proprietà per recuperarla nel finished */
+    m_loraProc = new QProcess(this);
+    m_loraProc->setProcessChannelMode(QProcess::MergedChannels);
+    m_loraProc->setProperty("_adapterOut", adapterOut);
+    connect(m_loraProc, &QProcess::readyRead,
+            this, &PersonalizzaPage::onLoraProcReadyRead);
+    connect(m_loraProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &PersonalizzaPage::onLoraProcFinished);
+
+    m_loraProc->start(ftBin, args);
+    if (!m_loraProc->waitForStarted(3000)) {
+        m_loraLog->append("\xe2\x9d\x8c  Impossibile avviare llama-finetune.");
+        m_loraProc->deleteLater();
+        m_loraProc = nullptr;
+        return;
+    }
+    m_loraStartBtn->setEnabled(false);
+    m_loraStopBtn->setEnabled(true);
+}
+
+void PersonalizzaPage::onLoraStopBtnClicked() {
+    if (m_loraProc) {
+        m_loraProc->terminate();
+        if (m_loraLog)
+            m_loraLog->append("\n\xe2\x9a\xa0  Training interrotto.");
+    }
+}
+
+void PersonalizzaPage::onLoraProcReadyRead() {
+    if (!m_loraProc || !m_loraLog) return;
+    m_loraLog->moveCursor(QTextCursor::End);
+    m_loraLog->insertPlainText(QString::fromLocal8Bit(m_loraProc->readAll()));
+    m_loraLog->ensureCursorVisible();
+}
+
+void PersonalizzaPage::onLoraProcFinished(int code, QProcess::ExitStatus) {
+    if (!m_loraProc) return;
+    const QString adapterOut = m_loraProc->property("_adapterOut").toString();
+    m_loraProc->deleteLater();
+    m_loraProc = nullptr;
+    if (m_loraLog) {
+        if (code == 0) {
+            m_loraLog->append(
+                "\n\xe2\x9c\x85  Fine-tuning completato!\n"
+                "\xf0\x9f\x92\xbe  Adapter salvato: " + adapterOut + "\n"
+                "\xe2\x84\xb9  Per usarlo: llama-cli --model BASE.gguf "
+                "--lora " + adapterOut);
+        } else {
+            m_loraLog->append(
+                "\n\xe2\x9d\x8c  Processo terminato con codice: " +
+                QString::number(code));
+        }
+    }
+    if (m_loraStartBtn) m_loraStartBtn->setEnabled(true);
+    if (m_loraStopBtn)  m_loraStopBtn->setEnabled(false);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — unsloth: installa dipendenze
+   ══════════════════════════════════════════════════════════════ */
+void PersonalizzaPage::onLoraInstallBtnClicked() {
+    if (!m_loraLog2) return;
+    m_loraInstallProc = new QProcess(this);
+    m_loraInstallProc->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_loraInstallProc, &QProcess::readyRead,
+            this, &PersonalizzaPage::onLoraInstallReadyRead);
+    connect(m_loraInstallProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &PersonalizzaPage::onLoraInstallFinished);
+    m_loraLog2->append("\xf0\x9f\x93\xa6  Installazione in corso...\n");
+    m_loraInstallProc->start("pip", {"install", "unsloth", "trl", "datasets", "transformers"});
+    if (!m_loraInstallProc->waitForStarted(3000)) {
+        m_loraLog2->append("\xe2\x9d\x8c  pip non trovato.");
+        m_loraInstallProc->deleteLater();
+        m_loraInstallProc = nullptr;
+    }
+}
+
+void PersonalizzaPage::onLoraInstallReadyRead() {
+    if (!m_loraInstallProc || !m_loraLog2) return;
+    m_loraLog2->moveCursor(QTextCursor::End);
+    m_loraLog2->insertPlainText(QString::fromLocal8Bit(m_loraInstallProc->readAll()));
+    m_loraLog2->ensureCursorVisible();
+}
+
+void PersonalizzaPage::onLoraInstallFinished(int code, QProcess::ExitStatus) {
+    if (!m_loraInstallProc || !m_loraLog2) return;
+    m_loraLog2->append(code == 0 ? "\xe2\x9c\x85 OK" : "\xe2\x9d\x8c Errore");
+    m_loraInstallProc->deleteLater();
+    m_loraInstallProc = nullptr;
 }

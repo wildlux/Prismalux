@@ -306,6 +306,12 @@ void ProgrammazionePage::populateAiModels()
             m_modelCombo->setCurrentIndex(idx);
             m_modelCombo->blockSignals(false);
         });
+    connect(m_ai, &AiClient::error, h,
+        [this, h](const QString& msg) {
+            h->deleteLater();
+            if (!m_modelCombo || m_modelCombo->count() > 0) return;
+            m_modelCombo->addItem("\xe2\x9a\xa0  " + msg, "");
+        });
     m_ai->fetchModels();
 }
 
@@ -509,6 +515,12 @@ void ProgrammazionePage::populateAgentModels()
             m_agentModel->setCurrentIndex(idx);
             m_agentModel->blockSignals(false);
         });
+    connect(m_ai, &AiClient::error, h,
+        [this, h](const QString& msg) {
+            h->deleteLater();
+            if (!m_agentModel || m_agentModel->count() > 0) return;
+            m_agentModel->addItem("\xe2\x9a\xa0  " + msg, "");
+        });
     m_ai->fetchModels();
 }
 
@@ -594,6 +606,12 @@ void ProgrammazionePage::populateRevModels()
             if (idx < 0) idx = 0;
             m_revModel->setCurrentIndex(idx);
             m_revModel->blockSignals(false);
+        });
+    connect(m_ai, &AiClient::error, h,
+        [this, h](const QString& msg) {
+            h->deleteLater();
+            if (!m_revModel || m_revModel->count() > 0) return;
+            m_revModel->addItem("\xe2\x9a\xa0  " + msg, "");
         });
     m_ai->fetchModels();
 }
@@ -1063,6 +1081,12 @@ void ProgrammazionePage::populateGitModels()
             if (idx < 0) idx = 0;
             m_gitAiModel->setCurrentIndex(idx);
             m_gitAiModel->blockSignals(false);
+        });
+    connect(m_ai, &AiClient::error, h,
+        [this, h](const QString& msg) {
+            h->deleteLater();
+            if (!m_gitAiModel || m_gitAiModel->count() > 0) return;
+            m_gitAiModel->addItem("\xe2\x9a\xa0  " + msg, "");
         });
     m_ai->fetchModels();
 }

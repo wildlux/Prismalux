@@ -127,6 +127,25 @@ signals:
     void backRequested();
     void openMonitorRequested();
 
+private slots:
+    void onNewBtnClicked();
+    void onAlgoCmbChanged(int i);
+    void onCatCmbChanged(int catIdx);
+    void onSizeCmbChanged();
+    void onPrevBtnClicked();
+    void onNextBtnClicked();
+    void onAutoBtnClicked();
+    void onTimerTimeout();
+    void onSpeedSliderChanged(int v);
+    void onAiAskBtnClicked();
+    void onAiToken(const QString& t);
+    void onAiDone();
+    void onAiFinished(const QString&);
+    void onAiError(const QString& e);
+    void onAiAborted();
+    void onVisClicked();
+    void onBigOClicked();
+
 private:
     void buildSteps();
     void showStep(int idx);
@@ -293,6 +312,7 @@ private:
     QTextEdit*     m_aiLog       = nullptr;
     QLabel*        m_aiWaitLbl   = nullptr;
     QPushButton*   m_aiStopBtn   = nullptr;
+    QPushButton*   m_aiAskBtn    = nullptr;
     QMetaObject::Connection  m_aiCTok, m_aiCFin, m_aiCErr, m_aiCAbo;
 
     QVector<AlgoStep>        m_steps;

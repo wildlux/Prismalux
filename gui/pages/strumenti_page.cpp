@@ -415,6 +415,7 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
 
     /* Widget interni nascosti — usati dai slot tramite row/index */
     m_navList = new QListWidget(this);
+
     m_navList->hide();
     for (int i = 0; i < 6; i++) m_navList->addItem("");
     m_navList->setCurrentRow(0);
@@ -453,16 +454,19 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     catLay->setContentsMargins(0, 0, 0, 0);
     catLay->setSpacing(0);
 
-    auto* catGroup = new QButtonGroup(this);
+    m_catGroup = new QButtonGroup(this);
+    auto* catGroup = m_catGroup;
     catGroup->setExclusive(true);
 
-    /* Stack: una pagina per categoria con i bottoni azione */
-    auto* actStack = new QStackedWidget(this);
+    /* Stack: una pagina per categoria con i bottoni azione — stored as member */
+    m_actStack = new QStackedWidget(this);
+    auto* actStack = m_actStack;
     actStack->setMaximumHeight(180);
 
 
-    /* Label azione corrente */
-    auto* lblSel = new QLabel(this);
+    /* Label azione corrente — stored as member for slots */
+    m_lblSel = new QLabel(this);
+    auto* lblSel = m_lblSel;
     lblSel->setObjectName("cardDesc");
     const QString firstAction = QString::fromUtf8(kSubActions[0][0]);
     lblSel->setText("\xe2\x9c\x85  <b>" + firstAction + "</b>");
@@ -499,87 +503,33 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
             grid->addWidget(abtn, row, col);
             if (++col > 2) { col = 0; row++; }
 
-            connect(abtn, &QPushButton::clicked, this,
-                    [this, cat, act, lblSel]() {
-                m_currentCat = cat;
-                m_navList->setCurrentRow(cat);
-                m_cmbSub->setCurrentIndex(act);
-                m_inputArea->setPlaceholderText(
-                    QString::fromUtf8(kPlaceholders[cat]));
-                lblSel->setText(
-                    "\xe2\x9c\x85  <b>" +
-                    QString::fromUtf8(kSubActions[cat][act]) +
-                    "</b>");
-            });
+            /* Store cat+act in button properties for use in slot */
+            abtn->setProperty("strCat", cat);
+            abtn->setProperty("strAct", act);
+            connect(abtn, &QPushButton::clicked,
+                    this, &StrumentiPage::onActBtnClicked);
         }
         for (int c = 0; c < 3; c++) grid->setColumnStretch(c, 1);
         actStack->addWidget(page);
     }
     catLay->addSpacing(12);   /* piccola spaziatura visiva tra cat e pannelli speciali */
 
-    /* ── Pulsante Cron (non nella catGroup — stile separato) ── */
-    auto* cronBtn = new QPushButton(
+    /* ── Pulsante Cron (non nella catGroup — stile separato) — stored as member ── */
+    m_cronBtn = new QPushButton(
         "\xe2\x8f\xb1 Cron", catBar);  /* ⏱ */
-    cronBtn->setCheckable(true);
-    cronBtn->setObjectName("strCatBtn");
-    cronBtn->setToolTip(
+    m_cronBtn->setCheckable(true);
+    m_cronBtn->setObjectName("strCatBtn");
+    m_cronBtn->setToolTip(
         "Pianifica comandi periodici con il Cron Scheduler integrato");
-    catLay->addWidget(cronBtn);
+    catLay->addWidget(m_cronBtn);
+    auto* cronBtn = m_cronBtn;  /* local alias for clarity below */
 
     /* LAN Android, Stable Diffusion, File AI, Wiki, Mappe, Audio AI, Dati AI
        sono stati spostati in tab dedicati (LanWanPage, MultimediaPage, StrumentiFilePage) */
 
     /* Cambio categoria */
     connect(catGroup, QOverload<int>::of(&QButtonGroup::idClicked),
-            this, [this, actStack, lblSel, cronBtn](int cat) {
-        if (cronBtn) cronBtn->setChecked(false);
-        if (m_cronPanel) m_cronPanel->setVisible(false);
-        actStack->setVisible(true);
-        lblSel->setVisible(true);
-        if (m_inputRow) m_inputRow->setVisible(true);
-        m_output->setVisible(true);
-        m_currentCat = cat;
-        actStack->setCurrentIndex(cat);
-        m_navList->setCurrentRow(cat);
-        m_cmbSub->setCurrentIndex(0);
-        m_inputArea->setPlaceholderText(
-            QString::fromUtf8(kPlaceholders[cat]));
-        lblSel->setText(
-            "\xe2\x9c\x85  <b>" +
-            QString::fromUtf8(kSubActions[cat][0]) +
-            "</b>");
-        m_pdfRow->setVisible(cat == 5);
-        /* cats 6-9 (Blender/Office/FreeCAD/CloudCompare) spostate in AppControllerPage */
-        m_ragRow->setVisible(true);
-        m_codeModelRow->setVisible(false);
-        m_btnRun->setEnabled(true);
-        m_ai->fetchModels();
-
-        /* Aggiorna hint raccomandazioni in base alla categoria */
-        static const char* kModelHints[6] = {
-            /* 0 Studio */
-            "\xe2\x9c\xa8 Consigliati: <b>mistral</b>, <b>llama3</b>, <b>qwen3</b>"
-            " \xe2\x80\x94 buona comprensione e spiegazione",
-            /* 1 Scrittura */
-            "\xe2\x9c\xa8 Consigliati: <b>mistral</b>, <b>llama3</b>, <b>gemma3</b>"
-            " \xe2\x80\x94 creativit\xc3\xa0 e fluidit\xc3\xa0 narrativa",
-            /* 2 Ricerca */
-            "\xe2\x9c\xa8 Consigliati: <b>qwen3:30b</b>, <b>deepseek-r1</b>, <b>llama3</b>"
-            " \xe2\x80\x94 ragionamento avanzato e fact-checking",
-            /* 3 Libri */
-            "\xe2\x9c\xa8 Consigliati: <b>mistral</b>, <b>llama3</b>, <b>qwen3</b>"
-            " \xe2\x80\x94 analisi letteraria e critica",
-            /* 4 Produttivita */
-            "\xe2\x9c\xa8 Consigliati: <b>mistral</b>, <b>qwen3</b>, <b>phi4</b>"
-            " \xe2\x80\x94 risposte strutturate e concise",
-            /* 5 Documenti PDF */
-            "\xe2\x9c\xa8 Consigliati: <b>llama3</b>, <b>qwen3</b>, <b>mistral</b>"
-            " \xe2\x80\x94 estrazione e sintesi testi lunghi",
-        };
-        if (cat >= 0 && cat < 6)
-            m_codeModelInfo->setText(
-                QString::fromUtf8(kModelHints[cat]));
-    });
+            this, &StrumentiPage::onCatGroupIdClicked);
 
     /* ── catBar in scroll area: tutti i tab sempre leggibili ── */
     auto* catScroll = new QScrollArea(this);
@@ -630,24 +580,12 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     lay->addWidget(m_ragRow);
 
     /* Aggiungi documenti al RAG */
-    connect(ragAddBtn, &QPushButton::clicked, this, [this]() {
-        const QStringList paths = QFileDialog::getOpenFileNames(
-            this,
-            "Seleziona documenti per RAG",
-            "",
-            "Documenti (*.pdf *.txt *.md *.csv *.rst);;"
-            "Tutti i file (*)");
-        for (const QString& p : paths)
-            ragAddFile(p);
-    });
+    connect(ragAddBtn,   &QPushButton::clicked,
+            this, &StrumentiPage::onRagAddBtnClicked);
 
     /* Svuota indice RAG */
-    connect(ragClearBtn, &QPushButton::clicked, this, [this]() {
-        m_ragChunks.clear();
-        m_ragFileNames.clear();
-        m_ragCheck->setChecked(false);
-        m_ragInfoLbl->setText("Nessun documento caricato");
-    });
+    connect(ragClearBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onRagClearBtnClicked);
 
     /* ── Riga PDF picker (visibile solo per categoria Documenti) ── */
     m_pdfRow = new QWidget(this);
@@ -669,15 +607,8 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     m_pdfRow->setVisible(false);
     lay->addWidget(m_pdfRow);
 
-    connect(pdfBtn, &QPushButton::clicked, this, [this]() {
-        QString path = QFileDialog::getOpenFileName(
-            this, "Seleziona PDF", "",
-            "PDF (*.pdf);;Tutti i file (*)");
-        if (path.isEmpty()) return;
-        m_pdfPath = path;
-        m_pdfPathLbl->setText(
-            QFileInfo(path).fileName());
-    });
+    connect(pdfBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onPdfBtnClicked);
 
     /* ── Riga Blender Bridge (visibile solo per categoria Blender) ── */
     m_blenderRow = new QWidget(this);
@@ -719,52 +650,8 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     blenderHelpBtn->setFixedWidth(90);
     blenderLay->addWidget(blenderHelpBtn);
 
-    connect(blenderHelpBtn, &QPushButton::clicked, this, [this]() {
-        auto* dlg = new QDialog(this);
-        dlg->setWindowTitle(
-            "\xf0\x9f\x8e\xa8  Installazione Blender MCP");
-        dlg->setAttribute(Qt::WA_DeleteOnClose);
-        dlg->resize(560, 500);
-        auto* dlay = new QVBoxLayout(dlg);
-        auto* browser = new QTextBrowser(dlg);
-        browser->setOpenExternalLinks(true);
-        browser->setHtml(
-            "<h3>\xf0\x9f\x8e\xa8 Installazione Blender MCP</h3>"
-            "<p>Collega Blender a Prismalux/Claude Code per controllarlo via AI (bpy).</p>"
-            "<hr>"
-            "<h4>1. Installa Blender</h4>"
-            "<p>Scarica da <a href='https://www.blender.org/download/'>blender.org/download</a>"
-            " oppure: <code>sudo apt install blender</code></p>"
-            "<h4>2. Scarica l&apos;addon Blender MCP</h4>"
-            "<pre>git clone https://github.com/ahujasid/blender-mcp</pre>"
-            "<h4>3. Installa l&apos;addon in Blender</h4>"
-            "<ol>"
-            "<li>Apri Blender</li>"
-            "<li><b>Edit \xe2\x86\x92 Preferences \xe2\x86\x92 Add-ons \xe2\x86\x92 Install</b></li>"
-            "<li>Seleziona il file <code>blender_mcp.py</code> dalla cartella clonata</li>"
-            "<li>Abilita l&apos;addon <b>\"Blender MCP\"</b> nella lista</li>"
-            "</ol>"
-            "<h4>4. Avvia il server MCP in Blender</h4>"
-            "<ol>"
-            "<li>In 3D Viewport premi <b>N</b> per aprire il pannello laterale</li>"
-            "<li>Seleziona il tab <b>MCP</b></li>"
-            "<li>Clicca <b>Start MCP Server</b> (porta default: <b>6789</b>)</li>"
-            "</ol>"
-            "<h4>5. Collega Prismalux</h4>"
-            "<p>Torna in Prismalux \xe2\x86\x92 <b>Strumenti \xe2\x86\x92 Blender</b>"
-            " \xe2\x86\x92 clicca <b>\xf0\x9f\x94\x97 Verifica</b>.</p>"
-            "<h4>6. (Opzionale) Registra in Claude Code</h4>"
-            "<pre>claude mcp add blender node /percorso/blender-mcp/server.js</pre>"
-            "<hr>"
-            "<p>\xe2\x9c\x85 Una volta connesso, i pulsanti <b>Esegui in Blender</b>"
-            " inviano il codice bpy generato dall&apos;AI direttamente a Blender.</p>");
-        auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
-        btnClose->setObjectName("actionBtn");
-        connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
-        dlay->addWidget(browser);
-        dlay->addWidget(btnClose);
-        dlg->exec();
-    });
+    connect(blenderHelpBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onBlenderHelpBtnClicked);
 
     m_blenderRow->setVisible(false);
     lay->addWidget(m_blenderRow);
@@ -792,75 +679,12 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     m_blenderNam = new QNetworkAccessManager(this);
 
     /* Ping /status → verifica connessione Blender */
-    connect(blenderPingBtn, &QPushButton::clicked, this, [this]() {
-        QString addr = m_blenderHostEdit->text().trimmed();
-        if (addr.isEmpty()) addr = "localhost:6789";
-        QNetworkRequest req(QUrl("http://" + addr + "/status"));
-        req.setTransferTimeout(3000);
-        auto* reply = m_blenderNam->get(req);
-        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-            reply->deleteLater();
-            if (reply->error() == QNetworkReply::NoError) {
-                QJsonObject obj = QJsonDocument::fromJson(
-                    reply->readAll()).object();
-                QString ver = obj.value("blender").toString("?");
-                m_blenderStatusLbl->setText(
-                    "\xe2\x9c\x85  Blender " + ver + " connesso");
-            } else {
-                m_blenderStatusLbl->setText(
-                    "\xe2\x9d\x8c  " + reply->errorString());
-            }
-        });
-    });
+    connect(blenderPingBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onBlenderPingBtnClicked);
 
     /* POST /execute → invia codice bpy a Blender */
-    connect(m_blenderExecBtn, &QPushButton::clicked, this, [this]() {
-        if (m_blenderCode.isEmpty()) return;
-        QString addr = m_blenderHostEdit->text().trimmed();
-        if (addr.isEmpty()) addr = "localhost:6789";
-
-        QJsonObject payload;
-        payload["code"] = m_blenderCode;
-        QByteArray body =
-            QJsonDocument(payload).toJson(QJsonDocument::Compact);
-
-        QNetworkRequest req(QUrl("http://" + addr + "/execute"));
-        req.setHeader(QNetworkRequest::ContentTypeHeader,
-                      "application/json; charset=utf-8");
-        req.setTransferTimeout(20000);
-
-        m_blenderExecBtn->setEnabled(false);
-        m_blenderStatusLbl->setText(
-            "\xf0\x9f\x94\x84  Invio a Blender...");
-
-        auto* reply = m_blenderNam->post(req, body);
-        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-            reply->deleteLater();
-            m_blenderExecBtn->setEnabled(true);
-            if (reply->error() == QNetworkReply::NoError) {
-                QJsonObject res = QJsonDocument::fromJson(
-                    reply->readAll()).object();
-                if (res["ok"].toBool()) {
-                    m_blenderStatusLbl->setText("\xe2\x9c\x85  Eseguito");
-                    QString out = res["output"].toString();
-                    m_output->append(
-                        "\n\xe2\x9c\x85  Blender: " +
-                        (out.isEmpty() ? "OK" : out));
-                } else {
-                    m_blenderStatusLbl->setText("\xe2\x9d\x8c  Errore Blender");
-                    m_output->append(
-                        "\n\xe2\x9d\x8c  Blender errore:\n" +
-                        res["error"].toString());
-                }
-            } else {
-                m_blenderStatusLbl->setText(
-                    "\xe2\x9d\x8c  " + reply->errorString());
-                m_output->append(
-                    "\n\xe2\x9d\x8c  Connessione a Blender fallita: " +
-                    reply->errorString());
-            }
-        });
-    });
+    connect(m_blenderExecBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onBlenderExecBtnClicked);
 
     /* ── Riga Office Bridge (visibile solo per categoria Office) ── */
     m_officeRow = new QWidget(this);
@@ -899,58 +723,8 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     officeHelpBtn->setFixedWidth(90);
     officeLay->addWidget(officeHelpBtn);
 
-    connect(officeHelpBtn, &QPushButton::clicked, this, [this]() {
-        auto* dlg = new QDialog(this);
-        dlg->setWindowTitle(
-            "\xf0\x9f\x96\xa5  Setup Office \xe2\x80\x94 LibreOffice & Microsoft 365");
-        dlg->setAttribute(Qt::WA_DeleteOnClose);
-        dlg->resize(580, 560);
-        auto* dlay = new QVBoxLayout(dlg);
-        auto* browser = new QTextBrowser(dlg);
-        browser->setOpenExternalLinks(true);
-        browser->setHtml(
-            "<h3>\xf0\x9f\x96\xa5 Setup Office: LibreOffice + Microsoft 365</h3>"
-            "<hr>"
-            "<h4>\xf0\x9f\x93\x97 LibreOffice \xe2\x80\x94 bridge integrato in Prismalux</h4>"
-            "<p>Il bridge Python \xc3\xa8 gi\xc3\xa0 incluso. Nessun MCP esterno richiesto.</p>"
-            "<ol>"
-            "<li><b>Installa LibreOffice</b>:<br>"
-            "<a href='https://www.libreoffice.org/download/libreoffice-fresh/'>"
-            "libreoffice.org/download</a><br>"
-            "oppure: <code>sudo apt install libreoffice</code></li>"
-            "<li><b>Installa le dipendenze Python</b>:<br>"
-            "<code>pip install python-docx openpyxl python-pptx</code></li>"
-            "<li>In Prismalux \xe2\x86\x92 <b>Strumenti \xe2\x86\x92 Office</b>"
-            " \xe2\x86\x92 clicca <b>\xe2\x96\xb6 Avvia bridge</b></li>"
-            "<li>Il bridge si connette a LibreOffice via <b>UNO API</b></li>"
-            "<li>Clicca <b>\xf0\x9f\x96\xa5 Esegui in Office</b> dopo aver generato il codice</li>"
-            "</ol>"
-            "<p>\xe2\x9c\x85 Supporta: Writer (.odt/.docx), Calc (.ods/.xlsx), Impress (.odp/.pptx)</p>"
-            "<hr>"
-            "<h4>\xf0\x9f\x93\x98 Microsoft Office 365 \xe2\x80\x94 MCP esterno</h4>"
-            "<p>Per controllare Microsoft 365 (Word, Excel, PowerPoint online) serve un MCP dedicato.</p>"
-            "<ol>"
-            "<li><b>Installa Node.js</b>: <a href='https://nodejs.org/'>nodejs.org</a></li>"
-            "<li><b>Cerca un server MCP Office 365</b> nella lista ufficiale:<br>"
-            "<a href='https://github.com/modelcontextprotocol/servers'>"
-            "github.com/modelcontextprotocol/servers</a></li>"
-            "<li><b>Segui le istruzioni</b> del server scelto per installarlo</li>"
-            "<li><b>Registra in Claude Code</b>:<br>"
-            "<code>claude mcp add office365 node /percorso/al/server/index.js</code></li>"
-            "<li>Richiede un account <b>Microsoft 365</b> attivo e le credenziali OAuth</li>"
-            "</ol>"
-            "<p>\xe2\x9a\xa0 Microsoft Office richiede autenticazione Microsoft 365 &mdash; "
-            "non funziona con versioni desktop standalone senza cloud.</p>"
-            "<hr>"
-            "<p>\xf0\x9f\x92\xa1 <b>Consiglio</b>: per uso locale usa <b>LibreOffice</b> "
-            "(gratuito, bridge immediato). Per collaborazione cloud usa <b>Microsoft 365 MCP</b>.</p>");
-        auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
-        btnClose->setObjectName("actionBtn");
-        connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
-        dlay->addWidget(browser);
-        dlay->addWidget(btnClose);
-        dlg->exec();
-    });
+    connect(officeHelpBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onOfficeHelpBtnClicked);
 
     m_officeRow->setVisible(false);
     lay->addWidget(m_officeRow);
@@ -1018,53 +792,8 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     freecadHelpBtn->setFixedWidth(90);
     freecadLay->addWidget(freecadHelpBtn);
 
-    connect(freecadHelpBtn, &QPushButton::clicked, this, [this]() {
-        auto* dlg = new QDialog(this);
-        dlg->setWindowTitle(
-            "\xf0\x9f\x94\xa9  Installazione FreeCAD MCP");
-        dlg->setAttribute(Qt::WA_DeleteOnClose);
-        dlg->resize(560, 500);
-        auto* dlay = new QVBoxLayout(dlg);
-        auto* browser = new QTextBrowser(dlg);
-        browser->setOpenExternalLinks(true);
-        browser->setHtml(
-            "<h3>\xf0\x9f\x94\xa9 Installazione FreeCAD MCP</h3>"
-            "<p>Collega FreeCAD a Prismalux/Claude Code per modellazione 3D via AI.</p>"
-            "<hr>"
-            "<h4>1. Installa FreeCAD</h4>"
-            "<p>Scarica da <a href='https://www.freecad.org/downloads.php'>freecad.org/downloads</a>"
-            " oppure:<br>"
-            "<code>sudo apt install freecad</code><br>"
-            "Per la versione pi\xc3\xb9 recente usa FlatPak o AppImage dal sito ufficiale.</p>"
-            "<h4>2. Installa il workbench FreeCAD MCP</h4>"
-            "<pre>git clone https://github.com/bonninr/freecad_mcp \\\n"
-            "      ~/.FreeCAD/Mod/freecad_mcp</pre>"
-            "<h4>3. Riavvia FreeCAD</h4>"
-            "<p>FreeCAD carica i workbench da <code>~/.FreeCAD/Mod/</code> all&apos;avvio.</p>"
-            "<h4>4. Seleziona il workbench FreeCAD MCP</h4>"
-            "<ol>"
-            "<li>Dal menu workbench in alto seleziona <b>FreeCAD MCP</b></li>"
-            "<li>Apparir\xc3\xa0 il pannello con il pulsante <b>Start RPC Server</b></li>"
-            "<li>Clicca <b>Start RPC Server</b> (porta default: <b>9876</b>)</li>"
-            "</ol>"
-            "<h4>5. Collega Prismalux</h4>"
-            "<p>Torna in Prismalux \xe2\x86\x92 <b>Strumenti \xe2\x86\x92 FreeCAD</b>"
-            " \xe2\x86\x92 clicca <b>\xf0\x9f\x94\x97 Verifica</b>.</p>"
-            "<h4>6. (Opzionale) Registra in Claude Code</h4>"
-            "<pre>claude mcp add freecad python3 \\\n"
-            "  ~/.FreeCAD/Mod/freecad_mcp/src/freecad_bridge.py</pre>"
-            "<hr>"
-            "<p>\xe2\x9c\x85 Una volta connesso, usa <b>Script libero</b> o le azioni predefinite"
-            " per generare ed eseguire codice Python direttamente in FreeCAD.</p>"
-            "<p>\xf0\x9f\x8f\x97 Usa anche il pannello <b>Disegno \xe2\x86\x92 Modello 3D</b>"
-            " per generare modelli da schizzi o PDF con dimensioni.</p>");
-        auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
-        btnClose->setObjectName("actionBtn");
-        connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
-        dlay->addWidget(browser);
-        dlay->addWidget(btnClose);
-        dlg->exec();
-    });
+    connect(freecadHelpBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onFreecadHelpBtnClicked);
 
     m_freecadRow->setVisible(false);
     lay->addWidget(m_freecadRow);
@@ -1160,346 +889,27 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
 
 
     /* Selezione file disegno / PDF */
-    connect(sketchFileBtn, &QPushButton::clicked, this, [this]() {
-        const QString path = QFileDialog::getOpenFileName(
-            this,
-            "Seleziona disegno o schema",
-            "",
-            "Immagini e PDF (*.png *.jpg *.jpeg *.bmp *.webp *.pdf);;"
-            "Tutti i file (*)");
-        if (path.isEmpty()) return;
-        m_sketchFilePath = path;
-        m_sketchFileLbl->setText(QFileInfo(path).fileName());
-        const QString ext = QFileInfo(path).suffix().toLower();
-        m_sketchIsImage = (ext == "png" || ext == "jpg" || ext == "jpeg"
-                        || ext == "bmp" || ext == "webp");
-    });
+    connect(sketchFileBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onSketchFileBtnClicked);
 
     /* Genera modello 3D dal disegno */
-    connect(m_btnSketchGen, &QPushButton::clicked, this, [this]() {
-        if (m_ai->busy()) {
-            m_output->append("\xe2\x9a\xa0  AI occupata, attendi.");
-            return;
-        }
-
-        const bool isBlender = (m_currentCat == 6);
-        const QString notes  = m_sketchNotes->text().trimmed();
-
-        /* nessun input → avvisa */
-        if (m_sketchFilePath.isEmpty() && notes.isEmpty()) {
-            m_output->append(
-                "\xe2\x9a\xa0  Carica un disegno (immagine o PDF) oppure "
-                "inserisci quote e note del modello.");
-            return;
-        }
-
-        const QString sysBlender =
-            "Sei un esperto di Blender Python API (bpy). "
-            "Analizza il disegno tecnico e genera SOLO codice Python puro "
-            "eseguibile in Blender che ricrea il modello 3D corrispondente. "
-            "Usa bpy.ops, bpy.data e bpy.context. "
-            "Se le dimensioni non sono esplicite, usa proporzioni visive. "
-            "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.";
-
-        const QString sysFreecad =
-            "Sei un esperto di FreeCAD Python API. "
-            "Analizza il disegno tecnico e genera SOLO codice Python puro "
-            "eseguibile in FreeCAD che ricrea il modello 3D corrispondente. "
-            "Usa: import FreeCAD, Part; doc = FreeCAD.newDocument('Sketch3D'); "
-            "aggiungi solidi, applica vincoli e chiama doc.recompute(). "
-            "Se le dimensioni non sono esplicite, usa proporzioni visive. "
-            "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.";
-
-        const QString sys = isBlender ? sysBlender : sysFreecad;
-
-        QString userMsg = notes.isEmpty()
-            ? "Crea il modello 3D corrispondente a questo disegno."
-            : QString("Crea il modello 3D da questo disegno. "
-                      "Quote e note: %1").arg(notes);
-
-        /* Applica modello codice selezionato */
-        if (m_codeModelCombo && m_codeModelCombo->count() > 0) {
-            const QString sel = m_codeModelCombo->currentData().toString();
-            if (!sel.isEmpty() && sel != m_ai->model())
-                m_ai->setBackend(m_ai->backend(), m_ai->host(),
-                                 m_ai->port(), sel);
-            m_codeModelInfo->setText(
-                QString("\xf0\x9f\xa4\x96  Usando: <b>%1</b>").arg(
-                    m_codeModelCombo->currentText()));
-        }
-
-        m_output->clear();
-        _setRunBusy(true);
-        m_waitLbl->setText("\xf0\x9f\x94\x84  Analisi disegno in corso...");
-        m_waitLbl->setVisible(true); m_waitBar->setVisible(true);
-        m_active = true;
-
-        if (!m_sketchFilePath.isEmpty() && m_sketchIsImage) {
-            /* Vision: passa immagine base64 */
-            QFile f(m_sketchFilePath);
-            if (!f.open(QIODevice::ReadOnly)) {
-                m_output->append(
-                    "\xe2\x9d\x8c  Impossibile aprire il file immagine.");
-                m_active = false;
-                _setRunBusy(false);
-                m_waitLbl->setVisible(false); m_waitBar->setVisible(false);
-                return;
-            }
-            const QByteArray raw  = f.readAll();
-            f.close();
-            const QString ext  = QFileInfo(m_sketchFilePath).suffix().toLower();
-            const QString mime = (ext == "png")  ? "image/png"  :
-                                 (ext == "webp") ? "image/webp" : "image/jpeg";
-            m_ai->chatWithImage(P::prependKnowledge(sys), userMsg, raw.toBase64(), mime);
-
-        } else if (!m_sketchFilePath.isEmpty() && !m_sketchIsImage) {
-            /* PDF: estrai testo con pdftotext */
-            QProcess proc;
-            proc.start("pdftotext", {m_sketchFilePath, "-"});
-            proc.waitForFinished(15000);
-            const QString pdfText =
-                QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
-            if (!pdfText.isEmpty())
-                userMsg += "\n\nCONTENUTO SCHEMA PDF:\n" + pdfText.left(3000);
-            else
-                userMsg += "\n(Schema PDF allegato ma testo non estraibile — "
-                           "usa un modello vision o inserisci le quote manualmente)";
-            m_ai->chat(P::prependKnowledge(sys), userMsg);
-
-        } else {
-            /* Solo note/quote testuali */
-            m_ai->chat(P::prependKnowledge(sys), userMsg);
-        }
-    });
-
+    connect(m_btnSketchGen, &QPushButton::clicked,
+            this, &StrumentiPage::onSketchGenBtnClicked);
     /* Ping FreeCAD: tenta connessione TCP su porta 9876 */
-    connect(freecadPingBtn, &QPushButton::clicked, this, [this]() {
-        QString addr = m_freecadHostEdit->text().trimmed();
-        if (addr.isEmpty()) addr = "localhost:9876";
-        const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
-        const int port     = addr.contains(':') ? addr.section(':', 1).toInt() : 9876;
-
-        m_freecadStatusLbl->setText("\xf0\x9f\x94\x84  Connessione...");
-        auto* sock = new QTcpSocket(this);
-        sock->connectToHost(host, static_cast<quint16>(port));
-
-        connect(sock, &QTcpSocket::connected, this, [this, sock]() {
-            sock->disconnectFromHost();
-            sock->deleteLater();
-            m_freecadStatusLbl->setText("\xe2\x9c\x85  FreeCAD connesso");
-        });
-        connect(sock, &QAbstractSocket::errorOccurred, this,
-                [this, sock](QAbstractSocket::SocketError) {
-            m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + sock->errorString());
-            sock->deleteLater();
-        });
-        QPointer<QTcpSocket> sockPtr(sock);
-        QTimer::singleShot(3000, this, [sockPtr, this]() {
-            if (sockPtr && sockPtr->state() != QAbstractSocket::ConnectedState) {
-                m_freecadStatusLbl->setText(
-                    "\xe2\x9d\x8c  Timeout \xe2\x80\x94 FreeCAD non risponde");
-                sockPtr->abort();
-                sockPtr->deleteLater();
-            }
-        });
-    });
+    connect(freecadPingBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onFreecadPingBtnClicked);
 
     /* Esegui script Python in FreeCAD via TCP JSON */
-    connect(m_freecadExecBtn, &QPushButton::clicked, this, [this]() {
-        if (m_freecadCode.isEmpty()) return;
-        QString addr = m_freecadHostEdit->text().trimmed();
-        if (addr.isEmpty()) addr = "localhost:9876";
-        const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
-        const int port     = addr.contains(':') ? addr.section(':', 1).toInt() : 9876;
+    connect(m_freecadExecBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onFreecadExecBtnClicked);
 
-        QJsonObject payload;
-        payload["type"] = "run_script";
-        QJsonObject params;
-        params["script"] = m_freecadCode;
-        payload["params"] = params;
-        const QByteArray body =
-            QJsonDocument(payload).toJson(QJsonDocument::Compact);
-
-        m_freecadExecBtn->setEnabled(false);
-        m_freecadStatusLbl->setText("\xf0\x9f\x94\x84  Invio a FreeCAD...");
-
-        auto* sock = new QTcpSocket(this);
-        sock->connectToHost(host, static_cast<quint16>(port));
-
-        connect(sock, &QTcpSocket::connected, this, [sock, body]() {
-            sock->write(body);
-            sock->flush();
-        });
-        connect(sock, &QTcpSocket::readyRead, this, [this, sock]() {
-            const QByteArray data = sock->readAll();
-            sock->disconnectFromHost();
-            sock->deleteLater();
-            m_freecadExecBtn->setEnabled(true);
-            const QJsonObject res = QJsonDocument::fromJson(data).object();
-            const QString status  = res["status"].toString();
-            if (status == "ok" || status == "success") {
-                m_freecadStatusLbl->setText("\xe2\x9c\x85  Eseguito");
-                const QString out = res["result"].toString();
-                m_output->moveCursor(QTextCursor::End);
-                m_output->append(
-                    "\n\xe2\x9c\x85  FreeCAD: " +
-                    (out.isEmpty() ? "OK" : out));
-            } else {
-                const QString err = res["message"].toString();
-                m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + err);
-                m_output->moveCursor(QTextCursor::End);
-                m_output->append("\n\xe2\x9d\x8c  FreeCAD errore: " + err);
-            }
-        });
-        connect(sock, &QAbstractSocket::errorOccurred, this,
-                [this, sock](QAbstractSocket::SocketError) {
-            m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + sock->errorString());
-            m_freecadExecBtn->setEnabled(true);
-            sock->deleteLater();
-        });
-    });
-
-    /* Legge il token Bearer scritto dal bridge in ~/.prismalux_office_token.
-       Chiamata prima di ogni request — il token cambia ad ogni avvio del bridge. */
-    auto _readToken = [this]() {
-        const QString tokenFile =
-            QDir::homePath() + "/.prismalux_office_token";
-        QFile f(tokenFile);
-        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
-        m_officeBridgeToken = QString::fromUtf8(f.readAll()).trimmed();
-    };
-
-    /* Trova il percorso del bridge relativo all'eseguibile */
-    auto _bridgePath = []() -> QString {
-        QDir d(QCoreApplication::applicationDirPath());
-        for (int i = 0; i < 4; i++) {
-            QString p = d.filePath("MCPs/office_bridge/prismalux_office_bridge.py");
-            if (QFile::exists(p)) return p;
-            d.cdUp();
-        }
-        return {};
-    };
-
-    /* Avvia / ferma bridge Python */
-    connect(m_officeStartBtn, &QPushButton::clicked, this, [this, _bridgePath, _readToken]() {
-        // Se già in esecuzione → ferma
-        if (m_officeBridgeProc &&
-            m_officeBridgeProc->state() == QProcess::Running) {
-            m_officeBridgeProc->terminate();
-            m_officeBridgeProc->waitForFinished(2000);
-            m_officeStartBtn->setText("\xe2\x96\xb6  Avvia bridge");
-            m_officeStatusLbl->setText("\xe2\x9a\xaa  Bridge fermato");
-            return;
-        }
-
-        QString path = _bridgePath();
-        if (path.isEmpty()) {
-            m_officeStatusLbl->setText(
-                "\xe2\x9d\x8c  prismalux_office_bridge.py non trovato");
-            return;
-        }
-
-        if (!m_officeBridgeProc) {
-            m_officeBridgeProc = new QProcess(this);
-            m_officeBridgeProc->setProcessChannelMode(
-                QProcess::MergedChannels);
-            connect(m_officeBridgeProc,
-                    QOverload<int,QProcess::ExitStatus>::of(
-                        &QProcess::finished),
-                    this, [this](int, QProcess::ExitStatus) {
-                m_officeStartBtn->setText("\xe2\x96\xb6  Avvia bridge");
-                m_officeStatusLbl->setText("\xe2\x9a\xaa  Bridge fermato");
-            });
-        }
-
-        m_officeStatusLbl->setText("\xf0\x9f\x94\x84  Avvio bridge...");
-        m_officeBridgeProc->start("python3", {path});
-        if (!m_officeBridgeProc->waitForStarted(3000)) {
-            // fallback a python su Windows
-            m_officeBridgeProc->start("python", {path});
-        }
-        if (m_officeBridgeProc->state() == QProcess::Running) {
-            m_officeStartBtn->setText("\xe2\x8f\xb9  Ferma bridge");
-            // Verifica /status dopo 1 secondo
-            QTimer::singleShot(1200, this, [this, _readToken]() {
-                _readToken();
-                QNetworkRequest req(
-                    QUrl("http://localhost:6790/status"));
-                req.setTransferTimeout(2000);
-                req.setRawHeader("Authorization",
-                    ("Bearer " + m_officeBridgeToken).toUtf8());
-                auto* r = m_officeNam->get(req);
-                connect(r, &QNetworkReply::finished, this, [this, r]() {
-                    r->deleteLater();
-                    if (r->error() == QNetworkReply::NoError) {
-                        QJsonObject obj =
-                            QJsonDocument::fromJson(r->readAll()).object();
-                        QJsonObject libs = obj["libraries"].toObject();
-                        QStringList ok;
-                        for (auto it = libs.begin(); it != libs.end(); ++it)
-                            if (it.value().toBool()) ok << it.key();
-                        m_officeStatusLbl->setText(
-                            "\xe2\x9c\x85  " +
-                            (ok.isEmpty() ? "Bridge pronto (nessuna lib)" :
-                             "Pronto: " + ok.join(", ")));
-                    } else {
-                        m_officeStatusLbl->setText(
-                            "\xe2\x9a\xa0  Bridge avviato (verifica fallita)");
-                    }
-                });
-            });
-        } else {
-            m_officeStatusLbl->setText(
-                "\xe2\x9d\x8c  Errore avvio (python3 non trovato?)");
-        }
-    });
+    /* Avvia / ferma bridge Python Office */
+    connect(m_officeStartBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onOfficeStartBtnClicked);
 
     /* POST /execute → invia codice office al bridge */
-    connect(m_officeExecBtn, &QPushButton::clicked, this, [this, _readToken]() {
-        if (m_officeCode.isEmpty()) return;
-
-        _readToken();  // aggiorna token in caso il bridge sia stato riavviato
-        QJsonObject payload;
-        payload["code"] = m_officeCode;
-        QByteArray body =
-            QJsonDocument(payload).toJson(QJsonDocument::Compact);
-
-        QNetworkRequest req(QUrl("http://localhost:6790/execute"));
-        req.setHeader(QNetworkRequest::ContentTypeHeader,
-                      "application/json; charset=utf-8");
-        req.setRawHeader("Authorization",
-            ("Bearer " + m_officeBridgeToken).toUtf8());
-        req.setTransferTimeout(30000);
-
-        m_officeExecBtn->setEnabled(false);
-        m_officeStatusLbl->setText("\xf0\x9f\x94\x84  Esecuzione...");
-
-        auto* reply = m_officeNam->post(req, body);
-        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-            reply->deleteLater();
-            m_officeExecBtn->setEnabled(true);
-            if (reply->error() == QNetworkReply::NoError) {
-                QJsonObject res =
-                    QJsonDocument::fromJson(reply->readAll()).object();
-                if (res["ok"].toBool()) {
-                    m_officeStatusLbl->setText("\xe2\x9c\x85  Completato");
-                    m_output->append(
-                        "\n\xe2\x9c\x85  Office: " +
-                        res["output"].toString());
-                } else {
-                    m_officeStatusLbl->setText("\xe2\x9d\x8c  Errore");
-                    m_output->append(
-                        "\n\xe2\x9d\x8c  Office errore:\n" +
-                        res["error"].toString());
-                }
-            } else {
-                m_officeStatusLbl->setText(
-                    "\xe2\x9d\x8c  Bridge non raggiungibile");
-                m_output->append(
-                    "\n\xe2\x9d\x8c  Bridge non raggiungibile (avvialo prima).");
-            }
-        });
-    });
+    connect(m_officeExecBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onOfficeExecBtnClicked);
 
     /* ── Riga selezione modello (visibile per tutte le categorie) ── */
     m_codeModelRow = new QWidget(this);
@@ -1524,11 +934,12 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     codeModelLay->addWidget(m_codeModelCombo);
 
     /* Pulsante per aggiornare la lista modelli */
-    auto* codeModelRefresh = new QPushButton(
+    m_codeModelRefresh = new QPushButton(
         "\xf0\x9f\x94\x84", m_codeModelRow);
-    codeModelRefresh->setFixedWidth(32);
-    codeModelRefresh->setToolTip("Aggiorna lista modelli");
-    codeModelLay->addWidget(codeModelRefresh);
+    m_codeModelRefresh->setFixedWidth(32);
+    m_codeModelRefresh->setToolTip("Aggiorna lista modelli");
+    codeModelLay->addWidget(m_codeModelRefresh);
+    auto* codeModelRefresh = m_codeModelRefresh;  /* alias locale per i connect seguenti */
 
     /* Etichetta con raccomandazioni */
     m_codeModelInfo = new QLabel(m_codeModelRow);
@@ -1545,55 +956,12 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     lay->addWidget(m_codeModelRow);
 
     /* Aggiorna lista modelli su richiesta */
-    connect(codeModelRefresh, &QPushButton::clicked, this, [this, codeModelRefresh]() {
-        codeModelRefresh->setEnabled(false);
-        codeModelRefresh->setText("\xe2\x8f\xb3");
-        m_ai->fetchModels();
-    });
-    connect(m_ai, &AiClient::modelsReady, this, [this, codeModelRefresh](const QStringList& models) {
-        codeModelRefresh->setEnabled(true);
-        codeModelRefresh->setText("\xf0\x9f\x94\x84");
-        const QString current = m_codeModelCombo->count() > 0
-            ? m_codeModelCombo->currentData().toString() : m_ai->model();
-        m_codeModelCombo->blockSignals(true);
-        m_codeModelCombo->clear();
-        for (const QString& m : models) {
-            const qint64 sz = m_ai->modelSizeBytes(m);
-            m_codeModelCombo->addItem(P::modelIcon(sz, m) + m, m);
-        }
-        /* Evidenzia i modelli consigliati per codice */
-        /* Evidenzia in verde i modelli particolarmente adatti a qualsiasi categoria */
-        static const QStringList kGoodModels = {
-            "coder", "code", "deepseek", "starcoder", "codellama",
-            "llava", "vision", "phi4",
-            "mistral", "llama3", "qwen3", "qwen2.5", "gemma3",
-            "deepseek-r1", "command-r"
-        };
-        for (int i = 0; i < m_codeModelCombo->count(); ++i) {
-            const QString name = m_codeModelCombo->itemText(i).toLower();
-            for (const QString& kw : kGoodModels) {
-                if (name.contains(kw)) {
-                    m_codeModelCombo->setItemData(
-                        i, QColor("#00a37f"), Qt::ForegroundRole);
-                    break;
-                }
-            }
-        }
-        /* Ripristina selezione precedente */
-        int idx = m_codeModelCombo->findData(current);
-        if (idx < 0) idx = m_codeModelCombo->findText(current);
-        if (idx >= 0) m_codeModelCombo->setCurrentIndex(idx);
-        m_codeModelCombo->blockSignals(false);
-    });
-    /* Se fetchModels fallisce: ripristina il pulsante e mostra errore nel combo */
-    connect(m_ai, &AiClient::error, this, [this, codeModelRefresh](const QString& msg){
-        if (!codeModelRefresh->isEnabled()) {   /* solo se è in stato "spinner" */
-            codeModelRefresh->setEnabled(true);
-            codeModelRefresh->setText("\xf0\x9f\x94\x84");
-            if (m_codeModelCombo->count() == 0)
-                m_codeModelCombo->addItem("\xe2\x9a\xa0  " + msg, "");   /* ⚠ + messaggio */
-        }
-    });
+    connect(codeModelRefresh, &QPushButton::clicked,
+            this,             &StrumentiPage::onCodeModelRefreshClicked);
+    connect(m_ai, &AiClient::modelsReady,
+            this, &StrumentiPage::onCodeModelsReady);
+    connect(m_ai, &AiClient::error,
+            this, &StrumentiPage::onCodeModelError);
 
     /* ── Input + pulsanti affiancati ── */
     m_inputRow = new QWidget(this);
@@ -1692,66 +1060,12 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
        rimossi da qui — ora in tab dedicati (LanWanPage, MultimediaPage, StrumentiFilePage) */
 
     /* ── Avvia / Stop tool (bottone unificato) ── */
-    connect(m_btnRun, &QPushButton::clicked, this, [this] {
-        if (m_active) { m_ai->abort(); return; }
-        const int navIdx = m_navList->currentRow();
-        const int subIdx = m_cmbSub->currentIndex();
-        if (navIdx < 0 || subIdx < 0) return;
-        if (navIdx == 9) {
-            m_output->setPlainText(
-                "\xf0\x9f\x94\xb5 CloudCompare \xe2\x80\x94 funzionalit\xc3\xa0 non ancora disponibile.\n\n"
-                "Il bridge CloudComPy \xc3\xa8 in sviluppo. "
-                "Verr\xc3\xa0 integrato non appena sar\xc3\xa0 disponibile una versione stabile.");
-            return;
-        }
-
-
-        QString userMsg = m_inputArea->toPlainText().trimmed();
-
-        /* Categoria Documenti: estrae testo PDF se caricato */
-        if (navIdx == 5 && !m_pdfPath.isEmpty()) {
-            QProcess proc;
-            proc.start("pdftotext", {m_pdfPath, "-"});
-            if (!proc.waitForFinished(15000)) {
-                m_output->append(
-                    "\xe2\x9a\xa0  pdftotext non risponde. "
-                    "Assicurati che poppler-utils sia installato "
-                    "(sudo apt install poppler-utils).");
-                return;
-            }
-            QString pdfText = QString::fromUtf8(
-                proc.readAllStandardOutput()).trimmed();
-            if (pdfText.isEmpty()) {
-                m_output->append(
-                    "\xe2\x9a\xa0  Impossibile estrarre testo dal PDF. "
-                    "Il file potrebbe essere scansionato (immagine).");
-                return;
-            }
-            /* Antepone il documento come contesto */
-            userMsg = userMsg.isEmpty()
-                ? "DOCUMENTO:\n" + pdfText
-                : "DOCUMENTO:\n" + pdfText + "\n\nRICHIESTA:\n" + userMsg;
-        }
-
-        if (userMsg.isEmpty()) {
-            m_output->append(
-                "\xe2\x9a\xa0  Inserisci del testo oppure carica un PDF.");
-            return;
-        }
-        const char* sys = kSysPrompts[navIdx][subIdx];
-        if (!sys) return;
-        runTool(QString::fromUtf8(sys), userMsg);
-    });
+    connect(m_btnRun, &QPushButton::clicked, this, &StrumentiPage::onBtnRunClicked);
 
     connect(m_ai, &AiClient::token,    this, &StrumentiPage::onToken);
     connect(m_ai, &AiClient::finished, this, &StrumentiPage::onFinished);
     connect(m_ai, &AiClient::error,    this, &StrumentiPage::onError);
-    connect(m_ai, &AiClient::aborted,  this, [this] {
-        m_active = false;
-        m_waitLbl->setVisible(false); m_waitBar->setVisible(false);
-        _setRunBusy(false);
-        m_output->append("\n\xe2\x8f\xb9  Interrotto.");
-    });
+    connect(m_ai, &AiClient::aborted, this, &StrumentiPage::onAiAborted);
 
     /* Tab order: RAG checkbox → aggiungi doc → modello → input → esegui */
     QWidget::setTabOrder(m_ragCheck,       ragAddBtn);
@@ -2083,6 +1397,842 @@ void StrumentiPage::installCronPanel(ManutenzioneePage* man)
     auto* lay = new QVBoxLayout(m_cronPanel);
     lay->setContentsMargins(0, 0, 0, 0);
     lay->addWidget(cronWidget);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Helper privati
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::_readOfficeBridgeToken()
+{
+    const QString tokenFile = QDir::homePath() + "/.prismalux_office_token";
+    QFile f(tokenFile);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
+    m_officeBridgeToken = QString::fromUtf8(f.readAll()).trimmed();
+}
+
+QString StrumentiPage::_officeBridgePath() const
+{
+    QDir d(QCoreApplication::applicationDirPath());
+    for (int i = 0; i < 4; i++) {
+        QString p = d.filePath("MCPs/office_bridge/prismalux_office_bridge.py");
+        if (QFile::exists(p)) return p;
+        d.cdUp();
+    }
+    return {};
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: bottone azione (griglia)
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onActBtnClicked()
+{
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn) return;
+    const int cat = btn->property("strCat").toInt();
+    const int act = btn->property("strAct").toInt();
+    m_currentCat = cat;
+    m_navList->setCurrentRow(cat);
+    m_cmbSub->setCurrentIndex(act);
+    m_inputArea->setPlaceholderText(QString::fromUtf8(kPlaceholders[cat]));
+    if (m_lblSel)
+        m_lblSel->setText(
+            "\xe2\x9c\x85  <b>" +
+            QString::fromUtf8(kSubActions[cat][act]) +
+            "</b>");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: cambio categoria (catGroup)
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onCatGroupIdClicked(int cat)
+{
+    static const char* kModelHints[6] = {
+        "\xe2\x9c\xa8 Consigliati: <b>mistral</b>, <b>llama3</b>, <b>qwen3</b>"
+        " \xe2\x80\x94 buona comprensione e spiegazione",
+        "\xe2\x9c\xa8 Consigliati: <b>mistral</b>, <b>llama3</b>, <b>gemma3</b>"
+        " \xe2\x80\x94 creativit\xc3\xa0 e fluidit\xc3\xa0 narrativa",
+        "\xe2\x9c\xa8 Consigliati: <b>qwen3:30b</b>, <b>deepseek-r1</b>, <b>llama3</b>"
+        " \xe2\x80\x94 ragionamento avanzato e fact-checking",
+        "\xe2\x9c\xa8 Consigliati: <b>mistral</b>, <b>llama3</b>, <b>qwen3</b>"
+        " \xe2\x80\x94 analisi letteraria e critica",
+        "\xe2\x9c\xa8 Consigliati: <b>mistral</b>, <b>qwen3</b>, <b>phi4</b>"
+        " \xe2\x80\x94 risposte strutturate e concise",
+        "\xe2\x9c\xa8 Consigliati: <b>llama3</b>, <b>qwen3</b>, <b>mistral</b>"
+        " \xe2\x80\x94 estrazione e sintesi testi lunghi",
+    };
+
+    if (m_cronBtn) m_cronBtn->setChecked(false);
+    if (m_cronPanel) m_cronPanel->setVisible(false);
+    if (m_actStack) m_actStack->setVisible(true);
+    if (m_lblSel)   m_lblSel->setVisible(true);
+    if (m_inputRow) m_inputRow->setVisible(true);
+    m_output->setVisible(true);
+    m_currentCat = cat;
+    if (m_actStack) m_actStack->setCurrentIndex(cat);
+    m_navList->setCurrentRow(cat);
+    m_cmbSub->setCurrentIndex(0);
+    m_inputArea->setPlaceholderText(QString::fromUtf8(kPlaceholders[cat]));
+    if (m_lblSel)
+        m_lblSel->setText(
+            "\xe2\x9c\x85  <b>" +
+            QString::fromUtf8(kSubActions[cat][0]) +
+            "</b>");
+    m_pdfRow->setVisible(cat == 5);
+    m_ragRow->setVisible(true);
+    m_codeModelRow->setVisible(false);
+    m_btnRun->setEnabled(true);
+    m_ai->fetchModels();
+    if (cat >= 0 && cat < 6)
+        m_codeModelInfo->setText(QString::fromUtf8(kModelHints[cat]));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: RAG aggiungi documenti
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onRagAddBtnClicked()
+{
+    const QStringList paths = QFileDialog::getOpenFileNames(
+        this,
+        "Seleziona documenti per RAG",
+        "",
+        "Documenti (*.pdf *.txt *.md *.csv *.rst);;"
+        "Tutti i file (*)");
+    for (const QString& p : paths)
+        ragAddFile(p);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: RAG svuota indice
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onRagClearBtnClicked()
+{
+    m_ragChunks.clear();
+    m_ragFileNames.clear();
+    m_ragCheck->setChecked(false);
+    m_ragInfoLbl->setText("Nessun documento caricato");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: seleziona PDF
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onPdfBtnClicked()
+{
+    QString path = QFileDialog::getOpenFileName(
+        this, "Seleziona PDF", "",
+        "PDF (*.pdf);;Tutti i file (*)");
+    if (path.isEmpty()) return;
+    m_pdfPath = path;
+    m_pdfPathLbl->setText(QFileInfo(path).fileName());
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: Blender — aiuto installazione
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onBlenderHelpBtnClicked()
+{
+    auto* dlg = new QDialog(this);
+    dlg->setWindowTitle("\xf0\x9f\x8e\xa8  Installazione Blender MCP");
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->resize(560, 500);
+    auto* dlay = new QVBoxLayout(dlg);
+    auto* browser = new QTextBrowser(dlg);
+    browser->setOpenExternalLinks(true);
+    browser->setHtml(
+        "<h3>\xf0\x9f\x8e\xa8 Installazione Blender MCP</h3>"
+        "<p>Collega Blender a Prismalux/Claude Code per controllarlo via AI (bpy).</p>"
+        "<hr>"
+        "<h4>1. Installa Blender</h4>"
+        "<p>Scarica da <a href='https://www.blender.org/download/'>blender.org/download</a>"
+        " oppure: <code>sudo apt install blender</code></p>"
+        "<h4>2. Scarica l&apos;addon Blender MCP</h4>"
+        "<pre>git clone https://github.com/ahujasid/blender-mcp</pre>"
+        "<h4>3. Installa l&apos;addon in Blender</h4>"
+        "<ol>"
+        "<li>Apri Blender</li>"
+        "<li><b>Edit \xe2\x86\x92 Preferences \xe2\x86\x92 Add-ons \xe2\x86\x92 Install</b></li>"
+        "<li>Seleziona il file <code>blender_mcp.py</code> dalla cartella clonata</li>"
+        "<li>Abilita l&apos;addon <b>\"Blender MCP\"</b> nella lista</li>"
+        "</ol>"
+        "<h4>4. Avvia il server MCP in Blender</h4>"
+        "<ol>"
+        "<li>In 3D Viewport premi <b>N</b> per aprire il pannello laterale</li>"
+        "<li>Seleziona il tab <b>MCP</b></li>"
+        "<li>Clicca <b>Start MCP Server</b> (porta default: <b>6789</b>)</li>"
+        "</ol>"
+        "<h4>5. Collega Prismalux</h4>"
+        "<p>Torna in Prismalux \xe2\x86\x92 <b>Strumenti \xe2\x86\x92 Blender</b>"
+        " \xe2\x86\x92 clicca <b>\xf0\x9f\x94\x97 Verifica</b>.</p>"
+        "<h4>6. (Opzionale) Registra in Claude Code</h4>"
+        "<pre>claude mcp add blender node /percorso/blender-mcp/server.js</pre>"
+        "<hr>"
+        "<p>\xe2\x9c\x85 Una volta connesso, i pulsanti <b>Esegui in Blender</b>"
+        " inviano il codice bpy generato dall&apos;AI direttamente a Blender.</p>");
+    auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+    btnClose->setObjectName("actionBtn");
+    connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
+    dlay->addWidget(browser);
+    dlay->addWidget(btnClose);
+    dlg->exec();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: Blender — ping /status
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onBlenderPingBtnClicked()
+{
+    QString addr = m_blenderHostEdit->text().trimmed();
+    if (addr.isEmpty()) addr = "localhost:6789";
+    QNetworkRequest req(QUrl("http://" + addr + "/status"));
+    req.setTransferTimeout(3000);
+    auto* reply = m_blenderNam->get(req);
+    connect(reply, &QNetworkReply::finished,
+            this, &StrumentiPage::onBlenderPingReplyFinished);
+}
+
+void StrumentiPage::onBlenderPingReplyFinished()
+{
+    auto* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    reply->deleteLater();
+    if (reply->error() == QNetworkReply::NoError) {
+        QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
+        QString ver = obj.value("blender").toString("?");
+        m_blenderStatusLbl->setText("\xe2\x9c\x85  Blender " + ver + " connesso");
+    } else {
+        m_blenderStatusLbl->setText("\xe2\x9d\x8c  " + reply->errorString());
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: Blender — POST /execute
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onBlenderExecBtnClicked()
+{
+    if (m_blenderCode.isEmpty()) return;
+    QString addr = m_blenderHostEdit->text().trimmed();
+    if (addr.isEmpty()) addr = "localhost:6789";
+
+    QJsonObject payload;
+    payload["code"] = m_blenderCode;
+    QByteArray body = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+
+    QNetworkRequest req(QUrl("http://" + addr + "/execute"));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json; charset=utf-8");
+    req.setTransferTimeout(20000);
+
+    m_blenderExecBtn->setEnabled(false);
+    m_blenderStatusLbl->setText("\xf0\x9f\x94\x84  Invio a Blender...");
+
+    auto* reply = m_blenderNam->post(req, body);
+    connect(reply, &QNetworkReply::finished,
+            this, &StrumentiPage::onBlenderExecReplyFinished);
+}
+
+void StrumentiPage::onBlenderExecReplyFinished()
+{
+    auto* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    reply->deleteLater();
+    m_blenderExecBtn->setEnabled(true);
+    if (reply->error() == QNetworkReply::NoError) {
+        QJsonObject res = QJsonDocument::fromJson(reply->readAll()).object();
+        if (res["ok"].toBool()) {
+            m_blenderStatusLbl->setText("\xe2\x9c\x85  Eseguito");
+            QString out = res["output"].toString();
+            m_output->append("\n\xe2\x9c\x85  Blender: " + (out.isEmpty() ? "OK" : out));
+        } else {
+            m_blenderStatusLbl->setText("\xe2\x9d\x8c  Errore Blender");
+            m_output->append("\n\xe2\x9d\x8c  Blender errore:\n" + res["error"].toString());
+        }
+    } else {
+        m_blenderStatusLbl->setText("\xe2\x9d\x8c  " + reply->errorString());
+        m_output->append("\n\xe2\x9d\x8c  Connessione a Blender fallita: " + reply->errorString());
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: Office — aiuto installazione
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onOfficeHelpBtnClicked()
+{
+    auto* dlg = new QDialog(this);
+    dlg->setWindowTitle("\xf0\x9f\x96\xa5  Setup Office \xe2\x80\x94 LibreOffice & Microsoft 365");
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->resize(580, 560);
+    auto* dlay = new QVBoxLayout(dlg);
+    auto* browser = new QTextBrowser(dlg);
+    browser->setOpenExternalLinks(true);
+    browser->setHtml(
+        "<h3>\xf0\x9f\x96\xa5 Setup Office: LibreOffice + Microsoft 365</h3>"
+        "<hr>"
+        "<h4>\xf0\x9f\x93\x97 LibreOffice \xe2\x80\x94 bridge integrato in Prismalux</h4>"
+        "<p>Il bridge Python \xc3\xa8 gi\xc3\xa0 incluso. Nessun MCP esterno richiesto.</p>"
+        "<ol>"
+        "<li><b>Installa LibreOffice</b>:<br>"
+        "<a href='https://www.libreoffice.org/download/libreoffice-fresh/'>"
+        "libreoffice.org/download</a><br>"
+        "oppure: <code>sudo apt install libreoffice</code></li>"
+        "<li><b>Installa le dipendenze Python</b>:<br>"
+        "<code>pip install python-docx openpyxl python-pptx</code></li>"
+        "<li>In Prismalux \xe2\x86\x92 <b>Strumenti \xe2\x86\x92 Office</b>"
+        " \xe2\x86\x92 clicca <b>\xe2\x96\xb6 Avvia bridge</b></li>"
+        "<li>Il bridge si connette a LibreOffice via <b>UNO API</b></li>"
+        "<li>Clicca <b>\xf0\x9f\x96\xa5 Esegui in Office</b> dopo aver generato il codice</li>"
+        "</ol>"
+        "<p>\xe2\x9c\x85 Supporta: Writer (.odt/.docx), Calc (.ods/.xlsx), Impress (.odp/.pptx)</p>"
+        "<hr>"
+        "<h4>\xf0\x9f\x93\x98 Microsoft Office 365 \xe2\x80\x94 MCP esterno</h4>"
+        "<p>Per controllare Microsoft 365 (Word, Excel, PowerPoint online) serve un MCP dedicato.</p>"
+        "<ol>"
+        "<li><b>Installa Node.js</b>: <a href='https://nodejs.org/'>nodejs.org</a></li>"
+        "<li><b>Cerca un server MCP Office 365</b> nella lista ufficiale:<br>"
+        "<a href='https://github.com/modelcontextprotocol/servers'>"
+        "github.com/modelcontextprotocol/servers</a></li>"
+        "<li><b>Segui le istruzioni</b> del server scelto per installarlo</li>"
+        "<li><b>Registra in Claude Code</b>:<br>"
+        "<code>claude mcp add office365 node /percorso/al/server/index.js</code></li>"
+        "<li>Richiede un account <b>Microsoft 365</b> attivo e le credenziali OAuth</li>"
+        "</ol>"
+        "<p>\xe2\x9a\xa0 Microsoft Office richiede autenticazione Microsoft 365 &mdash; "
+        "non funziona con versioni desktop standalone senza cloud.</p>"
+        "<hr>"
+        "<p>\xf0\x9f\x92\xa1 <b>Consiglio</b>: per uso locale usa <b>LibreOffice</b> "
+        "(gratuito, bridge immediato). Per collaborazione cloud usa <b>Microsoft 365 MCP</b>.</p>");
+    auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+    btnClose->setObjectName("actionBtn");
+    connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
+    dlay->addWidget(browser);
+    dlay->addWidget(btnClose);
+    dlg->exec();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: Office — avvia/ferma bridge Python
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onOfficeStartBtnClicked()
+{
+    if (m_officeBridgeProc &&
+        m_officeBridgeProc->state() == QProcess::Running) {
+        m_officeBridgeProc->terminate();
+        m_officeBridgeProc->waitForFinished(2000);
+        m_officeStartBtn->setText("\xe2\x96\xb6  Avvia bridge");
+        m_officeStatusLbl->setText("\xe2\x9a\xaa  Bridge fermato");
+        return;
+    }
+
+    QString path = _officeBridgePath();
+    if (path.isEmpty()) {
+        m_officeStatusLbl->setText("\xe2\x9d\x8c  prismalux_office_bridge.py non trovato");
+        return;
+    }
+
+    if (!m_officeBridgeProc) {
+        m_officeBridgeProc = new QProcess(this);
+        m_officeBridgeProc->setProcessChannelMode(QProcess::MergedChannels);
+        connect(m_officeBridgeProc,
+                QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, &StrumentiPage::onOfficeBridgeProcFinished);
+    }
+
+    m_officeStatusLbl->setText("\xf0\x9f\x94\x84  Avvio bridge...");
+    m_officeBridgeProc->start("python3", {path});
+    if (!m_officeBridgeProc->waitForStarted(3000))
+        m_officeBridgeProc->start("python", {path});
+
+    if (m_officeBridgeProc->state() == QProcess::Running) {
+        m_officeStartBtn->setText("\xe2\x8f\xb9  Ferma bridge");
+        QTimer::singleShot(1200, this, &StrumentiPage::onOfficeStatusCheckTimeout);
+    } else {
+        m_officeStatusLbl->setText("\xe2\x9d\x8c  Errore avvio (python3 non trovato?)");
+    }
+}
+
+void StrumentiPage::onOfficeBridgeProcFinished(int, QProcess::ExitStatus)
+{
+    m_officeStartBtn->setText("\xe2\x96\xb6  Avvia bridge");
+    m_officeStatusLbl->setText("\xe2\x9a\xaa  Bridge fermato");
+}
+
+void StrumentiPage::onOfficeStatusCheckTimeout()
+{
+    _readOfficeBridgeToken();
+    QNetworkRequest req(QUrl("http://localhost:6790/status"));
+    req.setTransferTimeout(2000);
+    req.setRawHeader("Authorization", ("Bearer " + m_officeBridgeToken).toUtf8());
+    auto* r = m_officeNam->get(req);
+    connect(r, &QNetworkReply::finished,
+            this, &StrumentiPage::onOfficeBridgeStatusReplyFinished);
+}
+
+void StrumentiPage::onOfficeBridgeStatusReplyFinished()
+{
+    auto* r = qobject_cast<QNetworkReply*>(sender());
+    if (!r) return;
+    r->deleteLater();
+    if (r->error() == QNetworkReply::NoError) {
+        QJsonObject obj = QJsonDocument::fromJson(r->readAll()).object();
+        QJsonObject libs = obj["libraries"].toObject();
+        QStringList ok;
+        for (auto it = libs.begin(); it != libs.end(); ++it)
+            if (it.value().toBool()) ok << it.key();
+        m_officeStatusLbl->setText(
+            "\xe2\x9c\x85  " +
+            (ok.isEmpty() ? "Bridge pronto (nessuna lib)" : "Pronto: " + ok.join(", ")));
+    } else {
+        m_officeStatusLbl->setText("\xe2\x9a\xa0  Bridge avviato (verifica fallita)");
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: Office — POST /execute
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onOfficeExecBtnClicked()
+{
+    if (m_officeCode.isEmpty()) return;
+    _readOfficeBridgeToken();
+
+    QJsonObject payload;
+    payload["code"] = m_officeCode;
+    QByteArray body = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+
+    QNetworkRequest req(QUrl("http://localhost:6790/execute"));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json; charset=utf-8");
+    req.setRawHeader("Authorization", ("Bearer " + m_officeBridgeToken).toUtf8());
+    req.setTransferTimeout(30000);
+
+    m_officeExecBtn->setEnabled(false);
+    m_officeStatusLbl->setText("\xf0\x9f\x94\x84  Esecuzione...");
+
+    auto* reply = m_officeNam->post(req, body);
+    connect(reply, &QNetworkReply::finished,
+            this, &StrumentiPage::onOfficeExecReplyFinished);
+}
+
+void StrumentiPage::onOfficeExecReplyFinished()
+{
+    auto* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    reply->deleteLater();
+    m_officeExecBtn->setEnabled(true);
+    if (reply->error() == QNetworkReply::NoError) {
+        QJsonObject res = QJsonDocument::fromJson(reply->readAll()).object();
+        if (res["ok"].toBool()) {
+            m_officeStatusLbl->setText("\xe2\x9c\x85  Completato");
+            m_output->append("\n\xe2\x9c\x85  Office: " + res["output"].toString());
+        } else {
+            m_officeStatusLbl->setText("\xe2\x9d\x8c  Errore");
+            m_output->append("\n\xe2\x9d\x8c  Office errore:\n" + res["error"].toString());
+        }
+    } else {
+        m_officeStatusLbl->setText("\xe2\x9d\x8c  Bridge non raggiungibile");
+        m_output->append("\n\xe2\x9d\x8c  Bridge non raggiungibile (avvialo prima).");
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: FreeCAD — aiuto installazione
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onFreecadHelpBtnClicked()
+{
+    auto* dlg = new QDialog(this);
+    dlg->setWindowTitle("\xf0\x9f\x94\xa9  Installazione FreeCAD MCP");
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->resize(560, 500);
+    auto* dlay = new QVBoxLayout(dlg);
+    auto* browser = new QTextBrowser(dlg);
+    browser->setOpenExternalLinks(true);
+    browser->setHtml(
+        "<h3>\xf0\x9f\x94\xa9 Installazione FreeCAD MCP</h3>"
+        "<p>Collega FreeCAD a Prismalux/Claude Code per modellazione 3D via AI.</p>"
+        "<hr>"
+        "<h4>1. Installa FreeCAD</h4>"
+        "<p>Scarica da <a href='https://www.freecad.org/downloads.php'>freecad.org/downloads</a>"
+        " oppure:<br>"
+        "<code>sudo apt install freecad</code><br>"
+        "Per la versione pi\xc3\xb9 recente usa FlatPak o AppImage dal sito ufficiale.</p>"
+        "<h4>2. Installa il workbench FreeCAD MCP</h4>"
+        "<pre>git clone https://github.com/bonninr/freecad_mcp \\\n"
+        "      ~/.FreeCAD/Mod/freecad_mcp</pre>"
+        "<h4>3. Riavvia FreeCAD</h4>"
+        "<p>FreeCAD carica i workbench da <code>~/.FreeCAD/Mod/</code> all&apos;avvio.</p>"
+        "<h4>4. Seleziona il workbench FreeCAD MCP</h4>"
+        "<ol>"
+        "<li>Dal menu workbench in alto seleziona <b>FreeCAD MCP</b></li>"
+        "<li>Apparir\xc3\xa0 il pannello con il pulsante <b>Start RPC Server</b></li>"
+        "<li>Clicca <b>Start RPC Server</b> (porta default: <b>9876</b>)</li>"
+        "</ol>"
+        "<h4>5. Collega Prismalux</h4>"
+        "<p>Torna in Prismalux \xe2\x86\x92 <b>Strumenti \xe2\x86\x92 FreeCAD</b>"
+        " \xe2\x86\x92 clicca <b>\xf0\x9f\x94\x97 Verifica</b>.</p>"
+        "<h4>6. (Opzionale) Registra in Claude Code</h4>"
+        "<pre>claude mcp add freecad python3 \\\n"
+        "  ~/.FreeCAD/Mod/freecad_mcp/src/freecad_bridge.py</pre>"
+        "<hr>"
+        "<p>\xe2\x9c\x85 Una volta connesso, usa <b>Script libero</b> o le azioni predefinite"
+        " per generare ed eseguire codice Python direttamente in FreeCAD.</p>"
+        "<p>\xf0\x9f\x8f\x97 Usa anche il pannello <b>Disegno \xe2\x86\x92 Modello 3D</b>"
+        " per generare modelli da schizzi o PDF con dimensioni.</p>");
+    auto* btnClose = new QPushButton("\xe2\x9c\x95  Chiudi", dlg);
+    btnClose->setObjectName("actionBtn");
+    connect(btnClose, &QPushButton::clicked, dlg, &QDialog::accept);
+    dlay->addWidget(browser);
+    dlay->addWidget(btnClose);
+    dlg->exec();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: FreeCAD — ping TCP
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onFreecadPingBtnClicked()
+{
+    QString addr = m_freecadHostEdit->text().trimmed();
+    if (addr.isEmpty()) addr = "localhost:9876";
+    const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
+    const int port     = addr.contains(':') ? addr.section(':', 1).toInt() : 9876;
+
+    m_freecadStatusLbl->setText("\xf0\x9f\x94\x84  Connessione...");
+
+    if (m_freecadPingSock) {
+        m_freecadPingSock->abort();
+        m_freecadPingSock->deleteLater();
+    }
+    m_freecadPingSock = new QTcpSocket(this);
+    connect(m_freecadPingSock.data(), &QTcpSocket::connected,
+            this, &StrumentiPage::onFreecadSockConnected);
+    connect(m_freecadPingSock.data(), &QAbstractSocket::errorOccurred,
+            this, &StrumentiPage::onFreecadSockError);
+    m_freecadPingSock->connectToHost(host, static_cast<quint16>(port));
+    QTimer::singleShot(3000, this, &StrumentiPage::onFreecadPingTimeout);
+}
+
+void StrumentiPage::onFreecadSockConnected()
+{
+    if (m_freecadPingSock) {
+        m_freecadPingSock->disconnectFromHost();
+        m_freecadPingSock->deleteLater();
+    }
+    m_freecadStatusLbl->setText("\xe2\x9c\x85  FreeCAD connesso");
+}
+
+void StrumentiPage::onFreecadSockError(QAbstractSocket::SocketError)
+{
+    if (!m_freecadPingSock) return;
+    m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + m_freecadPingSock->errorString());
+    m_freecadPingSock->deleteLater();
+}
+
+void StrumentiPage::onFreecadPingTimeout()
+{
+    if (m_freecadPingSock &&
+        m_freecadPingSock->state() != QAbstractSocket::ConnectedState) {
+        m_freecadStatusLbl->setText(
+            "\xe2\x9d\x8c  Timeout \xe2\x80\x94 FreeCAD non risponde");
+        m_freecadPingSock->abort();
+        m_freecadPingSock->deleteLater();
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: FreeCAD — esegui script via TCP JSON
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onFreecadExecBtnClicked()
+{
+    if (m_freecadCode.isEmpty()) return;
+    QString addr = m_freecadHostEdit->text().trimmed();
+    if (addr.isEmpty()) addr = "localhost:9876";
+    const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
+    const int port     = addr.contains(':') ? addr.section(':', 1).toInt() : 9876;
+
+    QJsonObject payload;
+    payload["type"] = "run_script";
+    QJsonObject params;
+    params["script"] = m_freecadCode;
+    payload["params"] = params;
+    const QByteArray body = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+
+    m_freecadExecBtn->setEnabled(false);
+    m_freecadStatusLbl->setText("\xf0\x9f\x94\x84  Invio a FreeCAD...");
+
+    if (m_freecadExecSock) {
+        m_freecadExecSock->abort();
+        m_freecadExecSock->deleteLater();
+    }
+    m_freecadExecSock = new QTcpSocket(this);
+    m_freecadExecSock->setProperty("execBody", body);
+    connect(m_freecadExecSock.data(), &QTcpSocket::connected,
+            this, &StrumentiPage::onFreecadExecSockConnected);
+    connect(m_freecadExecSock.data(), &QTcpSocket::readyRead,
+            this, &StrumentiPage::onFreecadExecSockReadyRead);
+    connect(m_freecadExecSock.data(), &QAbstractSocket::errorOccurred,
+            this, &StrumentiPage::onFreecadExecSockError);
+    m_freecadExecSock->connectToHost(host, static_cast<quint16>(port));
+}
+
+void StrumentiPage::onFreecadExecSockConnected()
+{
+    if (!m_freecadExecSock) return;
+    const QByteArray body = m_freecadExecSock->property("execBody").toByteArray();
+    m_freecadExecSock->write(body);
+    m_freecadExecSock->flush();
+}
+
+void StrumentiPage::onFreecadExecSockReadyRead()
+{
+    if (!m_freecadExecSock) return;
+    const QByteArray data = m_freecadExecSock->readAll();
+    m_freecadExecSock->disconnectFromHost();
+    m_freecadExecSock->deleteLater();
+    m_freecadExecBtn->setEnabled(true);
+    const QJsonObject res = QJsonDocument::fromJson(data).object();
+    const QString status  = res["status"].toString();
+    if (status == "ok" || status == "success") {
+        m_freecadStatusLbl->setText("\xe2\x9c\x85  Eseguito");
+        const QString out = res["result"].toString();
+        m_output->moveCursor(QTextCursor::End);
+        m_output->append("\n\xe2\x9c\x85  FreeCAD: " + (out.isEmpty() ? "OK" : out));
+    } else {
+        const QString err = res["message"].toString();
+        m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + err);
+        m_output->moveCursor(QTextCursor::End);
+        m_output->append("\n\xe2\x9d\x8c  FreeCAD errore: " + err);
+    }
+}
+
+void StrumentiPage::onFreecadExecSockError(QAbstractSocket::SocketError)
+{
+    if (!m_freecadExecSock) return;
+    m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + m_freecadExecSock->errorString());
+    m_freecadExecBtn->setEnabled(true);
+    m_freecadExecSock->deleteLater();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: Sketch — seleziona file disegno
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onSketchFileBtnClicked()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this,
+        "Seleziona disegno o schema",
+        "",
+        "Immagini e PDF (*.png *.jpg *.jpeg *.bmp *.webp *.pdf);;"
+        "Tutti i file (*)");
+    if (path.isEmpty()) return;
+    m_sketchFilePath = path;
+    m_sketchFileLbl->setText(QFileInfo(path).fileName());
+    const QString ext = QFileInfo(path).suffix().toLower();
+    m_sketchIsImage = (ext == "png" || ext == "jpg" || ext == "jpeg"
+                    || ext == "bmp" || ext == "webp");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: Sketch — genera modello 3D
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onSketchGenBtnClicked()
+{
+    if (m_ai->busy()) {
+        m_output->append("\xe2\x9a\xa0  AI occupata, attendi.");
+        return;
+    }
+
+    const bool isBlender = (m_currentCat == 6);
+    const QString notes  = m_sketchNotes->text().trimmed();
+
+    if (m_sketchFilePath.isEmpty() && notes.isEmpty()) {
+        m_output->append(
+            "\xe2\x9a\xa0  Carica un disegno (immagine o PDF) oppure "
+            "inserisci quote e note del modello.");
+        return;
+    }
+
+    const QString sysBlender =
+        "Sei un esperto di Blender Python API (bpy). "
+        "Analizza il disegno tecnico e genera SOLO codice Python puro "
+        "eseguibile in Blender che ricrea il modello 3D corrispondente. "
+        "Usa bpy.ops, bpy.data e bpy.context. "
+        "Se le dimensioni non sono esplicite, usa proporzioni visive. "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.";
+
+    const QString sysFreecad =
+        "Sei un esperto di FreeCAD Python API. "
+        "Analizza il disegno tecnico e genera SOLO codice Python puro "
+        "eseguibile in FreeCAD che ricrea il modello 3D corrispondente. "
+        "Usa: import FreeCAD, Part; doc = FreeCAD.newDocument('Sketch3D'); "
+        "aggiungi solidi, applica vincoli e chiama doc.recompute(). "
+        "Se le dimensioni non sono esplicite, usa proporzioni visive. "
+        "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.";
+
+    const QString sys = isBlender ? sysBlender : sysFreecad;
+
+    QString userMsg = notes.isEmpty()
+        ? "Crea il modello 3D corrispondente a questo disegno."
+        : QString("Crea il modello 3D da questo disegno. Quote e note: %1").arg(notes);
+
+    if (m_codeModelCombo && m_codeModelCombo->count() > 0) {
+        const QString sel = m_codeModelCombo->currentData().toString();
+        if (!sel.isEmpty() && sel != m_ai->model())
+            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
+        m_codeModelInfo->setText(
+            QString("\xf0\x9f\xa4\x96  Usando: <b>%1</b>").arg(
+                m_codeModelCombo->currentText()));
+    }
+
+    m_output->clear();
+    _setRunBusy(true);
+    m_waitLbl->setText("\xf0\x9f\x94\x84  Analisi disegno in corso...");
+    m_waitLbl->setVisible(true);
+    m_waitBar->setVisible(true);
+    m_active = true;
+
+    if (!m_sketchFilePath.isEmpty() && m_sketchIsImage) {
+        QFile f(m_sketchFilePath);
+        if (!f.open(QIODevice::ReadOnly)) {
+            m_output->append("\xe2\x9d\x8c  Impossibile aprire il file immagine.");
+            m_active = false;
+            _setRunBusy(false);
+            m_waitLbl->setVisible(false);
+            m_waitBar->setVisible(false);
+            return;
+        }
+        const QByteArray raw = f.readAll();
+        f.close();
+        const QString ext  = QFileInfo(m_sketchFilePath).suffix().toLower();
+        const QString mime = (ext == "png")  ? "image/png"  :
+                             (ext == "webp") ? "image/webp" : "image/jpeg";
+        m_ai->chatWithImage(P::prependKnowledge(sys), userMsg, raw.toBase64(), mime);
+
+    } else if (!m_sketchFilePath.isEmpty() && !m_sketchIsImage) {
+        QProcess proc;
+        proc.start("pdftotext", {m_sketchFilePath, "-"});
+        proc.waitForFinished(15000);
+        const QString pdfText = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
+        if (!pdfText.isEmpty())
+            userMsg += "\n\nCONTENUTO SCHEMA PDF:\n" + pdfText.left(3000);
+        else
+            userMsg += "\n(Schema PDF allegato ma testo non estraibile — "
+                       "usa un modello vision o inserisci le quote manualmente)";
+        m_ai->chat(P::prependKnowledge(sys), userMsg);
+
+    } else {
+        m_ai->chat(P::prependKnowledge(sys), userMsg);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot stub — connessi via lambda nel costruttore; dichiarati
+   nell'header per conformità MOC ma il corpo reale è nella lambda.
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onCronBtnToggled(bool) {}
+
+void StrumentiPage::onCodeModelRefreshClicked()
+{
+    if (!m_codeModelRefresh) return;
+    m_codeModelRefresh->setEnabled(false);
+    m_codeModelRefresh->setText("\xe2\x8f\xb3");
+    m_ai->fetchModels();
+}
+
+void StrumentiPage::onCodeModelsReady(const QStringList& models)
+{
+    if (m_codeModelRefresh) {
+        m_codeModelRefresh->setEnabled(true);
+        m_codeModelRefresh->setText("\xf0\x9f\x94\x84");
+    }
+    if (!m_codeModelCombo) return;
+
+    const QString current = m_codeModelCombo->count() > 0
+        ? m_codeModelCombo->currentData().toString() : m_ai->model();
+    m_codeModelCombo->blockSignals(true);
+    m_codeModelCombo->clear();
+    for (const QString& m : models) {
+        const qint64 sz = m_ai->modelSizeBytes(m);
+        m_codeModelCombo->addItem(P::modelIcon(sz, m) + m, m);
+    }
+    static const QStringList kGoodModels = {
+        "coder", "code", "deepseek", "starcoder", "codellama",
+        "llava", "vision", "phi4",
+        "mistral", "llama3", "qwen3", "qwen2.5", "gemma3",
+        "deepseek-r1", "command-r"
+    };
+    for (int i = 0; i < m_codeModelCombo->count(); ++i) {
+        const QString name = m_codeModelCombo->itemText(i).toLower();
+        for (const QString& kw : kGoodModels) {
+            if (name.contains(kw)) {
+                m_codeModelCombo->setItemData(i, QColor("#00a37f"), Qt::ForegroundRole);
+                break;
+            }
+        }
+    }
+    int idx = m_codeModelCombo->findData(current);
+    if (idx < 0) idx = m_codeModelCombo->findText(current);
+    if (idx >= 0) m_codeModelCombo->setCurrentIndex(idx);
+    m_codeModelCombo->blockSignals(false);
+}
+
+void StrumentiPage::onCodeModelError(const QString& msg)
+{
+    if (!m_codeModelRefresh || m_codeModelRefresh->isEnabled()) return;
+    m_codeModelRefresh->setEnabled(true);
+    m_codeModelRefresh->setText("\xf0\x9f\x94\x84");
+    if (m_codeModelCombo && m_codeModelCombo->count() == 0)
+        m_codeModelCombo->addItem("\xe2\x9a\xa0  " + msg, "");
+}
+
+void StrumentiPage::onBtnRunClicked()
+{
+    if (m_active) { m_ai->abort(); return; }
+    const int navIdx = m_navList->currentRow();
+    const int subIdx = m_cmbSub->currentIndex();
+    if (navIdx < 0 || subIdx < 0) return;
+    if (navIdx == 9) {
+        m_output->setPlainText(
+            "\xf0\x9f\x94\xb5 CloudCompare \xe2\x80\x94 funzionalit\xc3\xa0 non ancora disponibile.\n\n"
+            "Il bridge CloudComPy \xc3\xa8 in sviluppo. "
+            "Verr\xc3\xa0 integrato non appena sar\xc3\xa0 disponibile una versione stabile.");
+        return;
+    }
+
+    QString userMsg = m_inputArea->toPlainText().trimmed();
+
+    if (navIdx == 5 && !m_pdfPath.isEmpty()) {
+        QProcess proc;
+        proc.start("pdftotext", {m_pdfPath, "-"});
+        if (!proc.waitForFinished(15000)) {
+            m_output->append(
+                "\xe2\x9a\xa0  pdftotext non risponde. "
+                "Assicurati che poppler-utils sia installato "
+                "(sudo apt install poppler-utils).");
+            return;
+        }
+        const QString pdfText = QString::fromUtf8(
+            proc.readAllStandardOutput()).trimmed();
+        if (pdfText.isEmpty()) {
+            m_output->append(
+                "\xe2\x9a\xa0  Impossibile estrarre testo dal PDF. "
+                "Il file potrebbe essere scansionato (immagine).");
+            return;
+        }
+        userMsg = userMsg.isEmpty()
+            ? "DOCUMENTO:\n" + pdfText
+            : "DOCUMENTO:\n" + pdfText + "\n\nRICHIESTA:\n" + userMsg;
+    }
+
+    if (userMsg.isEmpty()) {
+        m_output->append("\xe2\x9a\xa0  Inserisci del testo oppure carica un PDF.");
+        return;
+    }
+    const char* sys = kSysPrompts[navIdx][subIdx];
+    if (!sys) return;
+    runTool(QString::fromUtf8(sys), userMsg);
+}
+
+void StrumentiPage::onAiAborted()
+{
+    m_active = false;
+    if (m_waitLbl) m_waitLbl->setVisible(false);
+    if (m_waitBar) m_waitBar->setVisible(false);
+    _setRunBusy(false);
+    if (m_output) m_output->append("\n\xe2\x8f\xb9  Interrotto.");
 }
 
 

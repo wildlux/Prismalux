@@ -690,9 +690,7 @@ void MainWindow::showServerDialog()
         const QString name = cmbModel->currentText().toLower();
         chkMath->setChecked(name.contains("72b") || name.contains("70b") || name.contains("math"));
     });
-    connect(btnMathDl, &QPushButton::clicked, dlg, [dlg]{
-        showMathDownloadDialog(dlg, P::modelsDir());
-    });
+    connect(btnMathDl, &QPushButton::clicked, this, &MainWindow::onMathDlBtnClicked);
 
     {
         const QString name = cmbModel->currentText().toLower();
@@ -1827,4 +1825,15 @@ void MainWindow::showOnboardingWizard()
     connect(btnBox, &QDialogButtonBox::accepted, this, &MainWindow::onOnboardingAccepted);
 
     dlg->exec();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onMathDlBtnClicked — slot del pulsante "Scarica modello matematico"
+   dentro showServerDialog() (ex lambda)
+   ══════════════════════════════════════════════════════════════ */
+void MainWindow::onMathDlBtnClicked()
+{
+    /* Il pulsante è figlio di dlg (il QDialog di showServerDialog) */
+    auto* dlg = qobject_cast<QDialog*>(sender()->parent());
+    showMathDownloadDialog(dlg ? static_cast<QWidget*>(dlg) : this, P::modelsDir());
 }

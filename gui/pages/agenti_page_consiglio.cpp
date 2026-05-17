@@ -116,27 +116,10 @@ void AgentiPage::runConsiglioScientifico()
         m_log->append(QString("\xf0\x9f\xa4\x96  <b>%1</b>  [peso: %2]  \xf0\x9f\x94\x84 generando...")
                       .arg(mi.name).arg(peer.weight, 0, 'f', 1));
 
-        /* Connetti token e finished */
-        connect(peer.client, &AiClient::token, this, [this, peerIdx](const QString& t){
-            if (peerIdx < m_peers.size()) m_peers[peerIdx].accum += t;
-        });
-        connect(peer.client, &AiClient::finished, this, [this, peerIdx](const QString&){
-            if (peerIdx >= m_peers.size()) return;
-            m_peers[peerIdx].done = true;
-            m_peersDone++;
-            m_log->append(QString("\xe2\x9c\x85  <b>%1</b> completato (%2/%3)")
-                          .arg(m_peers[peerIdx].model)
-                          .arg(m_peersDone)
-                          .arg(m_peers.size()));
-            if (m_peersDone >= m_peers.size()) aggregaConsiglio();
-        });
-        connect(peer.client, &AiClient::error, this, [this, peerIdx](const QString& err){
-            if (peerIdx >= m_peers.size()) return;
-            m_peers[peerIdx].done  = true;
-            m_peers[peerIdx].accum = QString("[Errore: %1]").arg(err);
-            m_peersDone++;
-            if (m_peersDone >= m_peers.size()) aggregaConsiglio();
-        });
+        /* Connetti token, finished ed error ai slot nominati */
+        connect(peer.client, &AiClient::token,    this, &AgentiPage::onConsiglioPeerToken);
+        connect(peer.client, &AiClient::finished, this, &AgentiPage::onConsiglioPeerFinished);
+        connect(peer.client, &AiClient::error,    this, &AgentiPage::onConsiglioPeerError);
 
         m_peers.append(peer);
     }
@@ -250,5 +233,50 @@ void AgentiPage::aggregaConsiglio()
     m_peersDone = 0;
 
     emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
+}
+
+/* ── slot: token da un peer del Consiglio Scientifico ───────────────────────── */
+void AgentiPage::onConsiglioPeerToken(const QString& t)
+{
+    auto* client = qobject_cast<AiClient*>(sender());
+    for (int i = 0; i < m_peers.size(); ++i) {
+        if (m_peers[i].client == client) {
+            m_peers[i].accum += t;
+            return;
+        }
+    }
+}
+
+/* ── slot: peer completato ──────────────────────────────────────────────────── */
+void AgentiPage::onConsiglioPeerFinished(const QString&)
+{
+    auto* client = qobject_cast<AiClient*>(sender());
+    for (int i = 0; i < m_peers.size(); ++i) {
+        if (m_peers[i].client == client) {
+            m_peers[i].done = true;
+            m_peersDone++;
+            m_log->append(QString("\xe2\x9c\x85  <b>%1</b> completato (%2/%3)")
+                          .arg(m_peers[i].model)
+                          .arg(m_peersDone)
+                          .arg(m_peers.size()));
+            if (m_peersDone >= m_peers.size()) aggregaConsiglio();
+            return;
+        }
+    }
+}
+
+/* ── slot: errore da un peer del Consiglio Scientifico ─────────────────────── */
+void AgentiPage::onConsiglioPeerError(const QString& err)
+{
+    auto* client = qobject_cast<AiClient*>(sender());
+    for (int i = 0; i < m_peers.size(); ++i) {
+        if (m_peers[i].client == client) {
+            m_peers[i].done  = true;
+            m_peers[i].accum = QString("[Errore: %1]").arg(err);
+            m_peersDone++;
+            if (m_peersDone >= m_peers.size()) aggregaConsiglio();
+            return;
+        }
+    }
 }
 

@@ -364,6 +364,10 @@ private:
     double  m_zoomD;
     QPointF m_panD;
     double  m_rotYD, m_rotXD;
+
+private slots:
+    void onAnimTimerTick();
+    void onContextSavePng();
 };
 
 /* ══════════════════════════════════════════════════════════════

@@ -218,19 +218,8 @@ void LanServer::onNewConnection()
             /* Connessione TLS: conta come "pending" finché l'handshake non completa.
              * Solo dopo encrypted() il socket entra in m_sessions. */
             ++m_pendingTls;
-            connect(sslSock, &QSslSocket::sslErrors, sslSock,
-                    [sslSock](const QList<QSslError>& errs){
-                        sslSock->ignoreSslErrors(errs);
-                    });
-            connect(sslSock, &QSslSocket::encrypted, this, [this, sslSock]() {
-                --m_pendingTls;
-                Session s;
-                s.socket = sslSock;
-                s.addr   = sslSock->peerAddress().toString();
-                m_sessions.insert(sslSock, s);
-                connect(sslSock, &QTcpSocket::readyRead,    this, &LanServer::onClientReadyRead);
-                connect(sslSock, &QTcpSocket::disconnected, this, &LanServer::onClientDisconnected);
-            });
+            connect(sslSock, &QSslSocket::sslErrors, this, &LanServer::onSslErrors);
+            connect(sslSock, &QSslSocket::encrypted, this, &LanServer::onSslEncrypted);
             connect(sslSock, &QSslSocket::disconnected, this, &LanServer::onPendingTlsDisconnected);
             continue;  /* attende handshake */
         }
@@ -252,6 +241,27 @@ void LanServer::onNewConnection()
 void LanServer::onChatRateTimeout()      { m_chatRateCount.clear(); }
 void LanServer::onKnowledgeRateTimeout() { m_knowledgeReqCount.clear(); }
 void LanServer::onPendingTlsDisconnected() { if (m_pendingTls > 0) --m_pendingTls; }
+
+#if QT_CONFIG(ssl)
+void LanServer::onSslErrors(const QList<QSslError>& errs)
+{
+    if (auto* sslSock = qobject_cast<QSslSocket*>(sender()))
+        sslSock->ignoreSslErrors(errs);
+}
+
+void LanServer::onSslEncrypted()
+{
+    auto* sslSock = qobject_cast<QSslSocket*>(sender());
+    if (!sslSock) return;
+    --m_pendingTls;
+    Session s;
+    s.socket = sslSock;
+    s.addr   = sslSock->peerAddress().toString();
+    m_sessions.insert(sslSock, s);
+    connect(sslSock, &QTcpSocket::readyRead,    this, &LanServer::onClientReadyRead);
+    connect(sslSock, &QTcpSocket::disconnected, this, &LanServer::onClientDisconnected);
+}
+#endif
 
 bool LanServer::checkChatRateLimit(Session& s)
 {
