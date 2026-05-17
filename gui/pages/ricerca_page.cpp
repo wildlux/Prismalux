@@ -624,64 +624,29 @@ void RicercaPage::avviaSci(const QString& sys, const QString& userMsg,
     }
 
 
+    m_sciOut        = out;
+    m_sciRunBtn     = runBtn;
+    m_sciStopBtn    = stopBtn;
+    m_sciExecBtn    = execBtn;
+    m_sciCodeRef    = codeRef;
+    m_sciStatusLbl  = statusLbl;
+    m_sciModelCombo = modelCombo;
+    m_sciSys        = sys;
+    m_sciUserMsg    = userMsg;
+
+    QObject::disconnect(m_sciTokenConn);
+    QObject::disconnect(m_sciFinishedConn);
+    QObject::disconnect(m_sciErrorConn);
+    m_sciTokenConn    = connect(m_ai, &AiClient::token,    this, &RicercaPage::onSciToken);
+    m_sciFinishedConn = connect(m_ai, &AiClient::finished, this, &RicercaPage::onSciFinished);
+    m_sciErrorConn    = connect(m_ai, &AiClient::error,    this, &RicercaPage::onSciError);
+
     runBtn->setEnabled(false);
     if (m_sciProgress) m_sciProgress->setVisible(true);
     stopBtn->setEnabled(true);
     out->append(
         "\n\xf0\x9f\x94\x84  Generazione in corso...\n"
         + QString(40, QChar(0x2500)));
-
-    delete m_sciTokenHolder;
-    m_sciTokenHolder = new QObject(this);
-
-    connect(m_ai, &AiClient::token, m_sciTokenHolder, [out](const QString& t) {
-        out->moveCursor(QTextCursor::End);
-        out->insertPlainText(t);
-    });
-
-    connect(m_ai, &AiClient::finished, m_sciTokenHolder,
-            [this, out, runBtn, stopBtn, execBtn, codeRef, statusLbl](const QString& full) {
-
-        runBtn->setEnabled(true);
-        stopBtn->setEnabled(false);
-        if (m_sciProgress) m_sciProgress->setVisible(false);
-        out->append("\n" + QString(40, QChar(0x2500)));
-        m_sciTokenHolder->deleteLater();
-        m_sciTokenHolder = nullptr;
-
-        if (execBtn && codeRef && full.contains("```")) {
-            /* estrai primo blocco ``` */
-            int start = full.indexOf("```python");
-            if (start == -1) start = full.indexOf("```");
-            if (start != -1) {
-                start = full.indexOf('\n', start) + 1;
-                int end = full.indexOf("```", start);
-                if (end != -1) {
-                    *codeRef = full.mid(start, end - start).trimmed();
-                    if (!codeRef->isEmpty()) {
-                        execBtn->setEnabled(true);
-                        if (statusLbl)
-                            statusLbl->setText("\xe2\x9c\x85  Codice pronto \xe2\x80\x94 premi Esegui");
-                    }
-                }
-            }
-        }
-    });
-
-    connect(m_ai, &AiClient::error, m_sciTokenHolder,
-            [this, out, runBtn, stopBtn, sys, userMsg, modelCombo, execBtn, codeRef, statusLbl]
-            (const QString& msg) {
-
-        runBtn->setEnabled(true);
-        stopBtn->setEnabled(false);
-        if (m_sciProgress) m_sciProgress->setVisible(false);
-        m_sciTokenHolder->deleteLater();
-        m_sciTokenHolder = nullptr;
-        m_sciErrorPanel->showError(msg, [this, sys, userMsg, out, runBtn, stopBtn,
-                                         modelCombo, execBtn, codeRef, statusLbl]{
-            avviaSci(sys, userMsg, out, runBtn, stopBtn, modelCombo, execBtn, codeRef, statusLbl);
-        });
-    });
 
     m_ai->chat(sys, userMsg);
 }
@@ -1353,6 +1318,59 @@ void RicercaPage::onSciModelsReady(const QStringList& models)
         const int idx = combo->findData(cur);
         combo->setCurrentIndex(idx >= 0 ? idx : 0);
     }
+}
+
+void RicercaPage::onSciToken(const QString& t)
+{
+    if (!m_sciOut) return;
+    m_sciOut->moveCursor(QTextCursor::End);
+    m_sciOut->insertPlainText(t);
+}
+
+void RicercaPage::onSciFinished(const QString& full)
+{
+    QObject::disconnect(m_sciTokenConn);
+    QObject::disconnect(m_sciFinishedConn);
+    QObject::disconnect(m_sciErrorConn);
+    m_sciTokenConn = m_sciFinishedConn = m_sciErrorConn = {};
+
+    if (m_sciRunBtn)  m_sciRunBtn->setEnabled(true);
+    if (m_sciStopBtn) m_sciStopBtn->setEnabled(false);
+    if (m_sciProgress) m_sciProgress->setVisible(false);
+    if (m_sciOut) m_sciOut->append("\n" + QString(40, QChar(0x2500)));
+
+    if (m_sciExecBtn && m_sciCodeRef && full.contains("```")) {
+        int start = full.indexOf("```python");
+        if (start == -1) start = full.indexOf("```");
+        if (start != -1) {
+            start = full.indexOf('\n', start) + 1;
+            const int end = full.indexOf("```", start);
+            if (end != -1) {
+                *m_sciCodeRef = full.mid(start, end - start).trimmed();
+                if (!m_sciCodeRef->isEmpty()) {
+                    m_sciExecBtn->setEnabled(true);
+                    if (m_sciStatusLbl)
+                        m_sciStatusLbl->setText("\xe2\x9c\x85  Codice pronto \xe2\x80\x94 premi Esegui");
+                }
+            }
+        }
+    }
+}
+
+void RicercaPage::onSciError(const QString& msg)
+{
+    QObject::disconnect(m_sciTokenConn);
+    QObject::disconnect(m_sciFinishedConn);
+    QObject::disconnect(m_sciErrorConn);
+    m_sciTokenConn = m_sciFinishedConn = m_sciErrorConn = {};
+
+    if (m_sciRunBtn)  m_sciRunBtn->setEnabled(true);
+    if (m_sciStopBtn) m_sciStopBtn->setEnabled(false);
+    if (m_sciProgress) m_sciProgress->setVisible(false);
+    m_sciErrorPanel->showError(msg, [this]{
+        avviaSci(m_sciSys, m_sciUserMsg, m_sciOut, m_sciRunBtn, m_sciStopBtn,
+                 m_sciModelCombo, m_sciExecBtn, m_sciCodeRef, m_sciStatusLbl);
+    });
 }
 
 void RicercaPage::onAiToken(const QString& t)

@@ -16,4 +16,8 @@ private:
 
     QWidget* buildMenu();
     QWidget* buildChat(const QString& title, const QString& sysPrompt, const QString& placeholder);
+
+private slots:
+    void onBackToMenu();
+    void onMenuCardClicked();
 };

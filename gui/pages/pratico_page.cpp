@@ -93,7 +93,7 @@ QWidget* PraticoPage::buildChat(const QString& title,
 
     auto active = std::make_shared<bool>(false);
 
-    connect(back, &QPushButton::clicked, this, [this]{ m_inner->setCurrentIndex(0); });
+    connect(back, &QPushButton::clicked, this, &PraticoPage::onBackToMenu);
     connect(stop, &QPushButton::clicked, m_ai, &AiClient::abort);
 
     auto sendFn = [=]{
@@ -107,21 +107,21 @@ QWidget* PraticoPage::buildChat(const QString& title,
         m_ai->chat(sysPrompt, msg);
     };
 
-    connect(send, &QPushButton::clicked, this, sendFn);
-    connect(inp,  &QLineEdit::returnPressed, this, sendFn);
+    connect(send, &QPushButton::clicked, w, sendFn);
+    connect(inp,  &QLineEdit::returnPressed, w, sendFn);
 
-    connect(m_ai, &AiClient::token, this, [=](const QString& t){
+    connect(m_ai, &AiClient::token, w, [=](const QString& t){
         if (!*active) return;
         QTextCursor c(log->document()); c.movePosition(QTextCursor::End);
         c.insertText(t); log->ensureCursorVisible();
     });
-    connect(m_ai, &AiClient::finished, this, [=](const QString&){
+    connect(m_ai, &AiClient::finished, w, [=](const QString&){
         if (!*active) return;
         *active = false;
         log->append("\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80");
         send->setEnabled(true); stop->setEnabled(false); waitLbl->setVisible(false);
     });
-    connect(m_ai, &AiClient::error, this, [=](const QString& err){
+    connect(m_ai, &AiClient::error, w, [=](const QString& err){
         if (!*active) return;
         *active = false;
         const QString el = err.toLower();
@@ -145,7 +145,7 @@ QWidget* PraticoPage::buildChat(const QString& title,
         }
         send->setEnabled(true); stop->setEnabled(false); waitLbl->setVisible(false);
     });
-    connect(m_ai, &AiClient::aborted, this, [=]{
+    connect(m_ai, &AiClient::aborted, w, [=]{
         if (!*active) return;
         *active = false;
         log->append("\n\xe2\x8f\xb9  Interrotto.\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80");
@@ -199,10 +199,10 @@ QWidget* PraticoPage::buildMenu() {
         ld->setWordWrap(true);
         txtL->addWidget(lt); txtL->addWidget(ld);
 
-        int pg = it.page;
         auto* goBtn = new QPushButton("Apri \xe2\x86\x92", card);
         goBtn->setObjectName("actionBtn"); goBtn->setFixedWidth(80);
-        connect(goBtn, &QPushButton::clicked, this, [this, pg]{ m_inner->setCurrentIndex(pg); });
+        goBtn->setProperty("pageIndex", it.page);
+        connect(goBtn, &QPushButton::clicked, this, &PraticoPage::onMenuCardClicked);
 
         cl->addWidget(ico); cl->addWidget(txt, 1); cl->addWidget(goBtn);
         gLay->addWidget(card);
@@ -227,7 +227,7 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
     hdrL->setContentsMargins(0,0,0,0);
     auto* back = new QPushButton("\xe2\x86\x90 Torna", hdrW);
     back->setObjectName("actionBtn");
-    QObject::connect(back, &QPushButton::clicked, hdrW, [inner]{ inner->setCurrentIndex(0); });
+    QObject::connect(back, &QPushButton::clicked, w, [inner]{ inner->setCurrentIndex(0); });
     auto* titleLbl = new QLabel("\xf0\x9f\x92\xb0  Calcolatori Finanziari", hdrW);
     titleLbl->setObjectName("pageTitle");
     hdrL->addWidget(back); hdrL->addWidget(titleLbl, 1);
@@ -408,4 +408,16 @@ PraticoPage::PraticoPage(AiClient* ai, QWidget* parent)
     m_inner->addWidget(buildFinanza(m_inner));
 
     lay->addWidget(m_inner);
+}
+
+void PraticoPage::onBackToMenu()
+{
+    if (m_inner) m_inner->setCurrentIndex(0);
+}
+
+void PraticoPage::onMenuCardClicked()
+{
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn || !m_inner) return;
+    m_inner->setCurrentIndex(btn->property("pageIndex").toInt());
 }

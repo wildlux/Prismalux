@@ -81,9 +81,24 @@ private:
     QProcess*    m_avoProc       = nullptr;
 
     /* ── AI streaming per tab science ── */
-    QObject*       m_sciTokenHolder  = nullptr;
     AiErrorWidget* m_sciErrorPanel   = nullptr;
     QProgressBar*  m_sciProgress     = nullptr;  ///< progress indeterminata durante AI
+
+    /* stato corrente avviaSci — salvati per retry e slot nominati */
+    QTextEdit*   m_sciOut       = nullptr;
+    QPushButton* m_sciRunBtn    = nullptr;
+    QPushButton* m_sciStopBtn   = nullptr;
+    QPushButton* m_sciExecBtn   = nullptr;
+    QString*     m_sciCodeRef   = nullptr;
+    QLabel*      m_sciStatusLbl = nullptr;
+    QComboBox*   m_sciModelCombo = nullptr;
+    QString      m_sciSys;
+    QString      m_sciUserMsg;
+
+    /* ── Connessioni one-shot science AI ── */
+    QMetaObject::Connection m_sciTokenConn;
+    QMetaObject::Connection m_sciFinishedConn;
+    QMetaObject::Connection m_sciErrorConn;
 
     /* ── Connessioni one-shot LitAI ── */
     QMetaObject::Connection m_litAiTokenConn;
@@ -120,6 +135,9 @@ private:
 private slots:
     /* AI globali */
     void onSciModelsReady(const QStringList& models);
+    void onSciToken(const QString& t);
+    void onSciFinished(const QString& full);
+    void onSciError(const QString& msg);
     void onAiToken(const QString& t);
     void onAiFinished(const QString& full);
     void onAiError(const QString& err);

@@ -103,8 +103,8 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
     };
 
     connect(cmbBackend, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [=](int){ refreshModels(); });
-    connect(refreshBtn, &QPushButton::clicked, this, [=]{ refreshModels(); });
+            bar, [=](int){ refreshModels(); });
+    connect(refreshBtn, &QPushButton::clicked, bar, [=]{ refreshModels(); });
 
     /* Quando arrivano i modelli Ollama/llama-server → popola QUESTO combo specifico.
      * Usa bar come context object: se il bar viene distrutto, la connessione si
@@ -185,7 +185,7 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
 
     /* Quando l'utente sceglie un modello → aggiorna m_ai */
     connect(cmbModel, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [=](int i){
+            bar, [=](int i){
         if (i < 0) return;
         int bk = cmbBackend->currentIndex();
         if (bk == 2) {
@@ -240,10 +240,8 @@ QWidget* ImparaPage::buildMenu() {
 
         auto* btn = new QPushButton("Apri →", card); btn->setObjectName("actionBtn"); btn->setFixedWidth(80);
         btn->setToolTip("Apri " + it.title);
-        const int pg = it.page;
-        connect(btn, &QPushButton::clicked, this, [this, pg]{
-            m_inner->setCurrentIndex(pg);
-        });
+        btn->setProperty("pageIndex", it.page);
+        connect(btn, &QPushButton::clicked, this, &ImparaPage::onMenuCardClicked);
         cl->addWidget(ico); cl->addWidget(txt, 1); cl->addWidget(btn);
         lay->addWidget(card);
     }
@@ -905,4 +903,11 @@ void ImparaPage::onTutorContextMenu(const QPoint& pos)
         if (words.size() > 400) words = words.mid(words.size() - 400);
         QProcess::startDetached("espeak-ng", {"-v", "it+f3", "--punct=none", words.join(" ")});
     }
+}
+
+void ImparaPage::onMenuCardClicked()
+{
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn || !m_inner) return;
+    m_inner->setCurrentIndex(btn->property("pageIndex").toInt());
 }

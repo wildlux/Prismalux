@@ -105,6 +105,7 @@ private:
 
 private slots:
     void onBackToMenu();
+    void onMenuCardClicked();
     void onTutorContextMenu(const QPoint& pos);
     void onTutorSendClicked();
     void onTutorToken(const QString& t);
