@@ -8,15 +8,15 @@
 #include <QComboBox>
 #include "../ai_client.h"
 
-/* ══════════════════════════════════════════════════════════════
-   MisurePage — Calcolatrice stanza + AI fotogrammetria.
+/* --------------------------------------------------------------
+   MisurePage -- Calcolatrice stanza + AI fotogrammetria.
 
    Due pannelli:
-   1. Calcolatore manuale: lunghezza × larghezza × altezza →
+   1. Calcolatore manuale: lunghezza ? larghezza ? altezza ?
       area pavimento, pareti, volume, vernice, piastrelle.
    2. AI Analisi: invia testo descrittivo all'AI per stimare
       dimensioni / suggerire materiali / dare consigli.
-   ══════════════════════════════════════════════════════════════ */
+   -------------------------------------------------------------- */
 class MisurePage : public QWidget {
     Q_OBJECT
 public:
@@ -28,6 +28,7 @@ private slots:
     void onToken(const QString& t);
     void onFinished(const QString& f);
     void onError(const QString& e);
+    void onAborted();
 
 private:
     void calcola();

@@ -6,6 +6,115 @@
 #include <QFont>
 #include <QTextCursor>
 #include <QScrollBar>
+#include <QFileDialog>
+#include <QFile>
+#include <QFileInfo>
+#include <QRegularExpression>
+#include <zlib.h>
+
+/* Decomprime un singolo stream FlateDecode (formato zlib). */
+static QByteArray inflatePdfStream(const QByteArray& compressed)
+{
+    QByteArray out(compressed.size() * 6 + 4096, '\0');
+    z_stream zs{};
+    zs.next_in  = reinterpret_cast<Bytef*>(const_cast<char*>(compressed.constData()));
+    zs.avail_in = static_cast<uInt>(compressed.size());
+    if (inflateInit(&zs) != Z_OK) return {};
+    int ret;
+    do {
+        if (static_cast<int>(zs.total_out) >= out.size())
+            out.resize(out.size() * 2);
+        zs.next_out  = reinterpret_cast<Bytef*>(out.data() + zs.total_out);
+        zs.avail_out = static_cast<uInt>(out.size() - zs.total_out);
+        ret = inflate(&zs, Z_SYNC_FLUSH);
+    } while (ret == Z_OK);
+    const uLong total = zs.total_out;
+    inflateEnd(&zs);
+    if (ret != Z_STREAM_END && ret != Z_BUF_ERROR) return {};
+    out.resize(static_cast<int>(total));
+    return out;
+}
+
+/* Estrae testo leggibile da un PDF.
+   Prima prova gli operatori Tj/TJ su byte non compressi;
+   poi decomprime gli stream FlateDecode e li analizza di nuovo. */
+static QString extractPdfText(const QByteArray& raw)
+{
+    static const QRegularExpression reBT(
+        "BT\\b(.*?)ET\\b",
+        QRegularExpression::DotMatchesEverythingOption);
+    static const QRegularExpression reTJarr(
+        R"(\[((?:[^\[\]]*?\([^)]*\)[^\[\]]*?)*)\]\s*TJ)");
+    static const QRegularExpression reStrArr(
+        R"(\(([^)\\]*(?:\\.[^)\\]*)*)\))");
+    static const QRegularExpression reTj(
+        R"(\(([^)\\]*(?:\\.[^)\\]*)*)\)\s*(?:Tj|T['"]))");
+
+    auto extractBTET = [&](const QString& d) -> QString {
+        QString r;
+        auto itBT = reBT.globalMatch(d);
+        while (itBT.hasNext()) {
+            const QString block = itBT.next().captured(1);
+            bool foundArr = false;
+            auto itArr = reTJarr.globalMatch(block);
+            while (itArr.hasNext()) {
+                foundArr = true;
+                auto itS = reStrArr.globalMatch(itArr.next().captured(1));
+                while (itS.hasNext()) r += itS.next().captured(1);
+                r += '\n';
+            }
+            if (!foundArr) {
+                auto itTj = reTj.globalMatch(block);
+                while (itTj.hasNext()) r += itTj.next().captured(1) + '\n';
+            }
+        }
+        return r;
+    };
+
+    // 1. Pass diretto su dati non compressi
+    QString result = extractBTET(QString::fromLatin1(raw.constData(), raw.size()));
+
+    // 2. Cerca e decomprime ogni stream FlateDecode
+    int pos = 0;
+    while (pos < raw.size()) {
+        const int kw = raw.indexOf("stream", pos);
+        if (kw == -1) break;
+        int dataStart = kw + 6;
+        if (dataStart >= raw.size()) break;
+        if (raw[dataStart] == '\r') ++dataStart;
+        if (dataStart >= raw.size() || raw[dataStart] != '\n') {
+            pos = kw + 6;
+            continue;
+        }
+        ++dataStart;
+        const int endKw = raw.indexOf("endstream", dataStart);
+        if (endKw == -1) break;
+        int dataEnd = endKw;
+        while (dataEnd > dataStart &&
+               (raw[dataEnd - 1] == '\n' || raw[dataEnd - 1] == '\r'))
+            --dataEnd;
+        if (dataEnd > dataStart) {
+            const QByteArray dec = inflatePdfStream(
+                raw.mid(dataStart, dataEnd - dataStart));
+            if (!dec.isEmpty())
+                result += extractBTET(
+                    QString::fromLatin1(dec.constData(), dec.size()));
+        }
+        pos = endKw + 9;
+    }
+
+    result.replace(QLatin1String("\\n"), "\n");
+    result.replace(QLatin1String("\\r"), "\n");
+    result.replace(QLatin1String("\\t"), " ");
+    result.replace(QLatin1String("\\("), "(");
+    result.replace(QLatin1String("\\)"), ")");
+    result.replace(QLatin1String("\\\\"), "\\");
+
+    QStringList lines;
+    for (const QString& ln : result.split('\n'))
+        if (!ln.trimmed().isEmpty()) lines << ln.trimmed();
+    return lines.join('\n');
+}
 
 /* ══════════════════════════════════════════════════════════════
    LavoroPage — Assistente AI per il lavoro
@@ -25,8 +134,15 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     title->setAlignment(Qt::AlignCenter);
     vbox->addWidget(title);
 
+    auto* inputRow = new QHBoxLayout;
     auto* inputLbl = new QLabel("CV / offerta / domanda:", this);
-    vbox->addWidget(inputLbl);
+    inputRow->addWidget(inputLbl, 1);
+    m_btnPdf = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x93\x8e Carica PDF"), this);
+    m_btnPdf->setFixedWidth(114);
+    m_btnPdf->setMinimumHeight(36);
+    inputRow->addWidget(m_btnPdf);
+    vbox->addLayout(inputRow);
 
     m_input = new QTextEdit(this);
     m_input->setPlaceholderText(
@@ -66,8 +182,8 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
             QString::fromUtf8(a.icon) + " " + a.label, this);
         btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         btn->setMinimumHeight(44);
-        const QString sys = a.sys;
-        connect(btn, &QPushButton::clicked, this, [this, sys]{ runAction(sys); });
+        btn->setProperty("sysPrompt", QString::fromUtf8(a.sys));
+        connect(btn, &QPushButton::clicked, this, &LavoroPage::onActionBtnClicked);
         grid->addWidget(btn, row, col);
         if (++col == 2) { col = 0; ++row; }
     }
@@ -96,11 +212,12 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_output->setPlaceholderText("La risposta AI apparirà qui...");
     vbox->addWidget(m_output);
 
+    connect(m_btnPdf,  &QPushButton::clicked, this, &LavoroPage::onLoadPdf);
     connect(m_btnStop, &QPushButton::clicked, m_ai, &AiClient::abort);
     connect(m_ai, &AiClient::token,    this, &LavoroPage::onToken);
     connect(m_ai, &AiClient::finished, this, &LavoroPage::onFinished);
     connect(m_ai, &AiClient::error,    this, &LavoroPage::onError);
-    connect(m_ai, &AiClient::aborted,  this, [this]{ onFinished(""); });
+    connect(m_ai, &AiClient::aborted,  this, &LavoroPage::onAborted);
 }
 
 void LavoroPage::runAction(const QString& sys)
@@ -153,4 +270,49 @@ void LavoroPage::onError(const QString& e)
     m_btnStop->setVisible(false);
     m_output->setPlainText(
         QString::fromUtf8("\xe2\x9d\x8c") + " Errore: " + e);
+}
+
+void LavoroPage::onAborted()
+{
+    onFinished("");
+}
+
+void LavoroPage::onActionBtnClicked()
+{
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn) return;
+    runAction(btn->property("sysPrompt").toString());
+}
+
+void LavoroPage::onLoadPdf()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this, "Seleziona PDF", QString(),
+        "PDF (*.pdf);;Tutti i file (*)");
+    if (path.isEmpty()) return;
+
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) {
+        m_output->setPlainText(
+            QString::fromUtf8("\xe2\x9d\x8c")
+            + " Impossibile aprire il file: " + f.errorString());
+        return;
+    }
+    const QByteArray raw = f.readAll();
+    f.close();
+
+    const QString text = extractPdfText(raw);
+    if (text.length() < 40) {
+        m_output->setPlainText(
+            QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f")
+            + " Testo estratto troppo breve. Il PDF è probabilmente compresso o "
+              "basato su immagini scansionate. Copia e incolla il testo manualmente.");
+        return;
+    }
+    m_input->setPlainText(text);
+    m_output->setPlainText(
+        QString::fromUtf8("\xe2\x9c\x85")
+        + " PDF caricato: " + QFileInfo(path).fileName()
+        + " (" + QString::number(text.length()) + " caratteri). "
+          "Premi un'azione per elaborarlo.");
 }

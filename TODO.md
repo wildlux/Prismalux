@@ -1,6 +1,51 @@
 # Prismalux — TODO prossima sessione
 
-> Aggiornato: 2026-05-15 (sessione VI) | Build: `cd gui && cmake --build build -j$(nproc)`
+> Aggiornato: 2026-05-19 (sessione VIII) | Build: `cd gui && cmake --build build -j$(nproc)`
+
+---
+
+## App Mobile — 2026-05-19 (sessione VIII)
+
+### Implementato ✅
+- [x] **[QUIZ] Fullscreen + risposta corretta** ✅ — `studio_page.cpp` riscritto con `QStackedWidget` interno: indice 0=menu, indice 1=quiz a tutto schermo; quando risposta errata mostra la risposta esatta + spiegazione in rosso/verde
+- [x] **[QUIZ] Database CCNA locale** ✅ — `pages/quiz_ccna_db.h/cpp` nuovi: 64 domande hardcoded macro `Q()`, 11 temi OSI/TCP-IP·Switching·Routing·IPv6·Sicurezza·DHCP·Wireless·WAN·IOS·Automazione·QoS; nessuna chiamata AI per CCNA
+- [x] **[CHAT] 3 pulsanti backend** ✅ — ☁️ Cloud (configura host/apikey/model via QInputDialog) | 🌐 Server | 📱 Locale; banner colorato stato backend; backend cloud salva in QSettings `cloud/host|key|model`
+- [x] **[CHAT] TTS — Leggi ad alta voce** ✅ — pulsante 🔊 Leggi sotto il log; usa `QTextToSpeech` (HAVE_TTS) con locale italiano; fallback: copia negli appunti
+- [x] **[BLE] Chat Bluetooth Classic RFCOMM** ✅ — `ble_page.cpp` riscritto: tab Scanner BLE + tab Chat BT Classic (SPP); `QBluetoothServer` lato server; messaggi in plaintext UTF-8 linea per linea; `appendChatMsg()` con timestamp
+- [x] **[Impostazioni] Fix scroll orizzontale indesiderato** ✅ — slot `onResetHScroll()` connesso a `horizontalScrollBar::valueChanged` che forza reset a 0
+- [x] **[Impostazioni] QR Code per collegamento PC→Mobile** ✅ — già presente: desktop `onQrConnectBtnClicked()` mostra QR con `http://IP:PORT/web?token=TOKEN`; mobile `SettingsPage` ha pulsante "📷 Scansiona QR dal PC"
+- [x] **[Impostazioni] Ringraziamenti** ✅ — sezione 🙏 con QGroupBox rich text in `info_page.cpp`
+- [x] **[MCP Add-ons]** ✅ — nuova pagina `McpAddonsPage` (indice 6): 8 MCP predefiniti con toggle on/off; aggiungi MCP custom via QInputDialog; salvataggio in QSettings
+- [x] **[Audio] Pagina Trascrizione Audio** ✅ — `audio_page.h/cpp` nuovi: registrazione con QMediaRecorder (HAVE_MULTIMEDIA), cronometro, analisi AI (3 modi: Whisper server / descrizione testuale / riassumi); "Invia in Chat" via signal `transcriptionReady`
+- [x] **[Hamburger ☰] Fix icona X** ✅ — sostituito immagine con testo U+2630 (font 22pt); chiudi drawer usa ← invece di ✕
+- [x] **[Lambda C++] Fix lavoro_page + misure_page** ✅ — sostituiti `[this]{ onFinished(""); }` con slot `onAborted()`; pulsanti azione lavoro usano `setProperty("sysPrompt")` + `onActionBtnClicked()` invece di lambda cattura
+
+### Mancante / TODO prossima sessione
+
+#### 🔴 NON IMPLEMENTATO (richiederebbe librerie esterne)
+- [ ] **[Misure] AR — Realtà Aumentata** — l'utente chiede di misurare pareti con AR/VR. Qt6 non supporta ARCore nativamente. Opzioni:
+  - **Rapida**: aggiungere widget `QPainter` 2D con piantina stanza interattiva (trascina pareti) + calcolo automatico superfici
+  - **Completa**: integrazione ARCore tramite JNI Android (fuori scope Qt); richiede Plugin Qt 3D + ARCore SDK
+  - **Raccomandata**: implementare prima la versione QPainter 2D; è utile e realizzabile in una sessione
+- [ ] **[Audio] Trascrizione Whisper reale** — attualmente `onTranscribeClicked()` usa AI testuale. Per trascrizione vera serve:
+  - Endpoint `POST /v1/audio/transcriptions` (openai-compatible) in `AiClient`
+  - Upload `multipart/form-data` del file WAV
+  - Campo URL server Whisper in `settings_page.cpp`
+
+#### 🟠 TECH DEBT MOBILE
+- [ ] **[Lambda] settings_page.cpp** — 5 lambda rimaste in `connect()` (righe 411, 475, 520, 633, 642, 659). Convertire a slot nominati come da regola progetto
+- [ ] **[Lambda] camera_page.cpp:89** — 1 lambda in `connect(m_sendBtn, &QPushButton::clicked, this, [this]{...})`. Convertire a slot `onSendBtnClicked()`
+- [ ] **[Audio] Livello microfono reale** — `onRecordTick()` simula il livello con valore pseudo-casuale. Per il livello reale usare `QAudioSource` + callback buffer + RMS calculation
+- [ ] **[Misure] Piantina stanza 2D** — aggiungere un `QWidget` con `paintEvent()` che disegna la planimetria della stanza in base ai valori di `QDoubleSpinBox`; update live al variare delle dimensioni
+
+#### 🟡 MIGLIORAMENTI
+- [ ] **[Quiz] Più domande CCNA** — `quiz_ccna_db.cpp` ha 64 domande; target 200+ per coprire tutti i 60 domini exam 200-301; aggiungere anche CompTIA Network+
+- [ ] **[Quiz] Salva punteggio** — store in QSettings il punteggio cumulativo per tema + data ultimo quiz; mostrare statistiche nella pagina Studio
+- [ ] **[Chat] Cronologia persistente** — attualmente la chat è in memoria solo. Salvare i turni in SQLite locale (già usato dal quiz) per recuperarli tra sessioni
+- [ ] **[BLE] Scoperta peer attiva** — `BlePage` lato chat BT avvia il server ma il client deve connettersi manualmente. Aggiungere scansione dispositivi Bluetooth Classic + UI per scegliere a quale connettersi
+- [ ] **[BLE] Cifratura chat BT** — la chat è in chiaro (volutamente per semplicità). Opzione: AES-256 con pre-shared key scambiata via QR code
+
+---
 
 ---
 

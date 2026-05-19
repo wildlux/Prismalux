@@ -1,4 +1,5 @@
 #include "ai_client.h"
+#include "local_llm_client.h"
 #include <QNetworkRequest>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -9,7 +10,18 @@
 AiClient::AiClient(QObject* parent)
     : QObject(parent)
     , m_nam(new QNetworkAccessManager(this))
-{}
+{
+    /* Ripristina token salvato — così funziona anche senza passare da Settings */
+    QSettings s("Prismalux", "Mobile");
+    m_token = s.value("server/token", "").toString();
+}
+
+/* ── Helper: aggiunge Authorization se c'è un token ── */
+static void addAuthHeader(QNetworkRequest& req, const QString& token)
+{
+    if (!token.isEmpty())
+        req.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
+}
 
 /* ── setServer ───────────────────────────────────────────────── */
 void AiClient::setServer(const QString& host, int port, const QString& model)
@@ -29,6 +41,19 @@ void AiClient::setServer(const QString& host, int port, const QString& model)
     s.setValue("server/model", m_model);
 }
 
+/* ── setLocalLlm — collega LocalLlmClient e ne ritrasmette i segnali ── */
+void AiClient::setLocalLlm(LocalLlmClient* llm)
+{
+    m_localLlm = llm;
+    if (!llm) return;
+    /* Ritrasmette i segnali locali come segnali di AiClient:
+       tutte le pagine (Chat, Studio, Lavoro…) funzionano senza modifiche. */
+    connect(llm, &LocalLlmClient::token,    this, &AiClient::token);
+    connect(llm, &LocalLlmClient::finished, this, &AiClient::finished);
+    connect(llm, &LocalLlmClient::error,    this, &AiClient::error);
+    connect(llm, &LocalLlmClient::aborted,  this, &AiClient::aborted);
+}
+
 /* ── abort ───────────────────────────────────────────────────── */
 void AiClient::abort()
 {
@@ -46,6 +71,15 @@ void AiClient::abort()
 quint64 AiClient::chat(const QString& sys, const QString& msg,
                        const QJsonArray& history)
 {
+    /* Delega al LLM locale se attivato e modello caricato */
+    if (m_localMode && m_localLlm && m_localLlm->isLoaded()) {
+        if (!m_localLlm->busy()) {
+            ++m_reqId;
+            m_localLlm->chat(sys, msg);
+        }
+        return m_reqId;
+    }
+
     if (busy()) return m_reqId;
     if (m_throttle.isValid() && m_throttle.elapsed() < 300) return m_reqId;
     m_throttle.restart();
@@ -73,9 +107,58 @@ quint64 AiClient::chat(const QString& sys, const QString& msg,
     body["stream"]   = true;
     body["messages"] = messages;
     body["options"]  = opts;
+    /* Disabilita think mode per modelli qwen3/deepseek-r1 — evita attese di 10s+ su mobile */
+    body["think"]    = false;
 
     QNetworkRequest req{QUrl{QString("http://%1:%2/api/chat").arg(m_host).arg(m_port)}};
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    addAuthHeader(req, m_token);
+    m_reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(m_reply, &QNetworkReply::readyRead, this, &AiClient::onReadyRead);
+    connect(m_reply, &QNetworkReply::finished,  this, &AiClient::onFinished);
+    return m_reqId;
+}
+
+/* ── chatWithImage ──────────────────────────────────────────────
+   Ollama multimodal: invia l'immagine come base64 nel campo "images"
+   del messaggio utente. Richiede un modello vision (es. llama3.2-vision). */
+quint64 AiClient::chatWithImage(const QString& sys, const QString& msg,
+                                const QByteArray& imgData, const QString& mimeType)
+{
+    Q_UNUSED(mimeType)  // Ollama accetta qualsiasi immagine come base64
+    if (busy()) return m_reqId;
+    if (m_throttle.isValid() && m_throttle.elapsed() < 300) return m_reqId;
+    m_throttle.restart();
+    ++m_reqId;
+
+    m_generateMode = false;
+    m_accum.clear();
+
+    QJsonArray messages;
+    if (!sys.isEmpty()) {
+        QJsonObject s; s["role"] = "system"; s["content"] = sys;
+        messages.append(s);
+    }
+    QJsonObject u;
+    u["role"]    = "user";
+    u["content"] = msg;
+    u["images"]  = QJsonArray{ QString::fromLatin1(imgData.toBase64()) };
+    messages.append(u);
+
+    QJsonObject opts;
+    opts["temperature"] = m_temperature;
+    opts["num_predict"] = m_numPredict;
+    opts["num_ctx"]     = m_numCtx;
+
+    QJsonObject body;
+    body["model"]    = m_model;
+    body["stream"]   = true;
+    body["messages"] = messages;
+    body["options"]  = opts;
+
+    QNetworkRequest req{QUrl{QString("http://%1:%2/api/chat").arg(m_host).arg(m_port)}};
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    addAuthHeader(req, m_token);
     m_reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
     connect(m_reply, &QNetworkReply::readyRead, this, &AiClient::onReadyRead);
     connect(m_reply, &QNetworkReply::finished,  this, &AiClient::onFinished);
@@ -109,6 +192,7 @@ quint64 AiClient::generate(const QString& sys, const QString& prompt)
 
     QNetworkRequest req{QUrl{QString("http://%1:%2/api/generate").arg(m_host).arg(m_port)}};
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    addAuthHeader(req, m_token);
     m_reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
     connect(m_reply, &QNetworkReply::readyRead, this, &AiClient::onReadyRead);
     connect(m_reply, &QNetworkReply::finished,  this, &AiClient::onFinished);
@@ -118,8 +202,9 @@ quint64 AiClient::generate(const QString& sys, const QString& prompt)
 /* ── fetchModels ─────────────────────────────────────────────── */
 void AiClient::fetchModels()
 {
-    QNetworkReply* r = m_nam->get(
-        QNetworkRequest{QUrl{QString("http://%1:%2/api/tags").arg(m_host).arg(m_port)}});
+    QNetworkRequest req{QUrl{QString("http://%1:%2/api/tags").arg(m_host).arg(m_port)}};
+    addAuthHeader(req, m_token);
+    QNetworkReply* r = m_nam->get(req);
     connect(r, &QNetworkReply::finished, this, &AiClient::onModelsReply);
 }
 

@@ -7,10 +7,10 @@
 #include <QComboBox>
 #include "../ai_client.h"
 
-/* ══════════════════════════════════════════════════════════════
-   LavoroPage — Assistente AI per il lavoro.
+/* --------------------------------------------------------------
+   LavoroPage -- Assistente AI per il lavoro.
    Azioni rapide: CV, lettera, colloquio, ricerca offerte, stipendio.
-   ══════════════════════════════════════════════════════════════ */
+   -------------------------------------------------------------- */
 class LavoroPage : public QWidget {
     Q_OBJECT
 public:
@@ -25,10 +25,14 @@ private:
     QProgressBar* m_progress = nullptr;
     QLabel*       m_status   = nullptr;
     QPushButton*  m_btnStop  = nullptr;
+    QPushButton*  m_btnPdf   = nullptr;
     bool          m_busy     = false;
 
 private slots:
     void onToken(const QString& t);
     void onFinished(const QString& f);
     void onError(const QString& e);
+    void onAborted();
+    void onLoadPdf();
+    void onActionBtnClicked();
 };

@@ -5,6 +5,10 @@
 #include <QStringList>
 #include <QRegularExpression>
 #include <algorithm>
+#ifdef HAVE_QT_PDF
+#include <QPdfDocument>
+#include <QPdfSelection>
+#endif
 
 /* ── Stopword italiane e inglesi da ignorare nel matching ──── */
 static const QSet<QString> kStopwords = {
@@ -81,10 +85,13 @@ bool RagEngineSimple::load(const QString& pathOrDir)
     QStringList files;
 
     if (fi.isDir()) {
-        for (const QFileInfo& f : QDir(pathOrDir).entryInfoList({"*.txt","*.md"},
-                                                                  QDir::Files))
+        QStringList filters = {"*.txt", "*.md"};
+#ifdef HAVE_QT_PDF
+        filters << "*.pdf";
+#endif
+        for (const QFileInfo& f : QDir(pathOrDir).entryInfoList(filters, QDir::Files))
             files << f.absoluteFilePath();
-    } else if (fi.isFile()) {
+    } else if (fi.isFile() || pathOrDir.startsWith("content://")) {
         files << pathOrDir;
     } else {
         return false;
@@ -92,6 +99,22 @@ bool RagEngineSimple::load(const QString& pathOrDir)
 
     int prev = m_chunks.size();
     for (const QString& fp : files) {
+        /* ── PDF: estrai testo pagina per pagina ── */
+#ifdef HAVE_QT_PDF
+        if (fp.endsWith(".pdf", Qt::CaseInsensitive)) {
+            QPdfDocument doc(nullptr);
+            doc.load(fp);
+            const int npages = doc.pageCount();
+            if (npages > 0) {
+                QString allText;
+                for (int p = 0; p < npages; ++p)
+                    allText += doc.getAllText(p).text() + "\n";
+                if (!allText.trimmed().isEmpty())
+                    addDocument(QFileInfo(fp).fileName(), allText);
+            }
+            continue;
+        }
+#endif
         QFile f(fp);
         if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) continue;
         QTextStream in(&f);

@@ -3,8 +3,8 @@
 #include <QStringList>
 #include <QVector>
 
-/* ══════════════════════════════════════════════════════════════
-   RagEngineSimple — RAG leggero per mobile senza embedding.
+/* --------------------------------------------------------------
+   RagEngineSimple -- RAG leggero per mobile senza embedding.
 
    Usa TF-IDF keyword scoring invece di vettori embedding:
    - Nessuna dipendenza da Ollama per l'indicizzazione
@@ -18,11 +18,11 @@
    - Ideale per RAG su FAQ, manuali, note personali
 
    Flusso:
-     1. addDocument(titolo, testo)  — divide in chunk e indicizza
-     2. load(path)                  — carica da file .txt o cartella
-     3. search(query, k)            — top-k chunk per score TF-IDF
-     4. searchForPrompt(query, k)   — come search() ma con troncatura 800 char
-   ══════════════════════════════════════════════════════════════ */
+     1. addDocument(titolo, testo)  -- divide in chunk e indicizza
+     2. load(path)                  -- carica da file .txt o cartella
+     3. search(query, k)            -- top-k chunk per score TF-IDF
+     4. searchForPrompt(query, k)   -- come search() ma con troncatura 800 char
+   -------------------------------------------------------------- */
 class RagEngineSimple : public QObject {
     Q_OBJECT
 public:
@@ -35,7 +35,7 @@ public:
 
     explicit RagEngineSimple(QObject* parent = nullptr);
 
-    /* ── Indicizzazione ── */
+    /* -- Indicizzazione -- */
 
     /** Aggiunge un documento: lo divide in chunk sovrapposti e indicizza. */
     void addDocument(const QString& title, const QString& text);
@@ -47,7 +47,7 @@ public:
 
     int chunkCount() const { return m_chunks.size(); }
 
-    /* ── Query ── */
+    /* -- Query -- */
 
     /** Top-k chunk per keyword scoring.
      *  Ritorna i testi grezzi (non troncati). */

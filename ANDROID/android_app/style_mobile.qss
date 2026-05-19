@@ -383,3 +383,99 @@ QSpinBox#SettingsInput::down-button {
 
 QSpinBox#SettingsInput::up-arrow   { image: none; }
 QSpinBox#SettingsInput::down-arrow { image: none; }
+
+/* ── Header bar (hamburger) ───────────────────────────────────── */
+QWidget#HeaderBar {
+    background-color: #1a1d27;
+    border-bottom: 1px solid #2e3244;
+}
+
+QLabel#HeaderTitle {
+    color: #e8eaf6;
+}
+
+QToolButton#HamburgerBtn {
+    background: transparent;
+    border: none;
+    color: #00c8ff;
+    font-size: 22px;
+}
+
+QToolButton#HamburgerBtn:pressed {
+    background-color: rgba(0, 200, 255, 0.1);
+    border-radius: 8px;
+}
+
+/* ── Navigation drawer ────────────────────────────────────────── */
+QWidget#NavDrawer {
+    background-color: #1a1d27;
+    border-right: 1px solid #2e3244;
+}
+
+QPushButton#DrawerNavBtn {
+    background: transparent;
+    color: #c8cde8;
+    border: none;
+    border-radius: 8px;
+    text-align: left;
+    font-size: 15px;
+    padding: 0px 12px;
+    min-height: 52px;
+}
+
+QPushButton#DrawerNavBtn:pressed {
+    background-color: rgba(0, 200, 255, 0.1);
+    color: #00c8ff;
+}
+
+/* ── Backend selector (Server / Locale) ───────────────────────── */
+QPushButton#BackendServerBtn,
+QPushButton#BackendLocalBtn {
+    background-color: #1a1d27;
+    color: #8890a8;
+    border: 1px solid #2e3244;
+    border-radius: 10px;
+    padding: 8px 6px;
+    font-size: 14px;
+    font-weight: 600;
+    min-height: 40px;
+}
+
+QPushButton#BackendServerBtn:checked {
+    background-color: #00c8ff;
+    color: #0f1117;
+    border: 2px solid #00c8ff;
+}
+
+QPushButton#BackendLocalBtn:checked {
+    background-color: #00e676;
+    color: #0f1117;
+    border: 2px solid #00e676;
+}
+
+QPushButton#BackendServerBtn:disabled,
+QPushButton#BackendLocalBtn:disabled {
+    color: #3d4255;
+    border-color: #22253a;
+}
+
+/* ── Banner backend attivo ────────────────────────────────────── */
+QLabel#BackendStatusLbl {
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+}
+
+QLabel#BackendStatusLbl[backend="server"] {
+    background-color: rgba(0, 200, 255, 0.18);
+    color: #00c8ff;
+    border: 1px solid rgba(0, 200, 255, 0.4);
+}
+
+QLabel#BackendStatusLbl[backend="local"] {
+    background-color: rgba(0, 230, 118, 0.18);
+    color: #00e676;
+    border: 1px solid rgba(0, 230, 118, 0.4);
+}

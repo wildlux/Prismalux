@@ -154,7 +154,7 @@ MisurePage::MisurePage(AiClient* ai, QWidget* parent)
     connect(m_ai, &AiClient::token,    this, &MisurePage::onToken);
     connect(m_ai, &AiClient::finished, this, &MisurePage::onFinished);
     connect(m_ai, &AiClient::error,    this, &MisurePage::onError);
-    connect(m_ai, &AiClient::aborted,  this, [this]{ onFinished(""); });
+    connect(m_ai, &AiClient::aborted,  this, &MisurePage::onAborted);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -303,4 +303,9 @@ void MisurePage::onError(const QString& e)
     m_btnStop->setVisible(false);
     m_btnAi->setEnabled(true);
     m_aiOutput->setPlainText(QString::fromUtf8("\xe2\x9d\x8c") + " Errore: " + e);
+}
+
+void MisurePage::onAborted()
+{
+    onFinished("");
 }
