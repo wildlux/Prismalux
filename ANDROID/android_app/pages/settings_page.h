@@ -8,22 +8,12 @@
 #include <QSlider>
 #include <QProgressBar>
 #include <QCheckBox>
+#include <QScrollArea>
 
 class AiClient;
 class RagEngineSimple;
 class LocalLlmClient;
 
-/* --------------------------------------------------------------
-   SettingsPage -- configurazione server Ollama, modello e RAG.
-
-   Sezioni:
-   -------------------------------
-   -  [globe] Server Ollama           -  IP + Porta + Test connessione
-   -  [robot] Modello LLM             -  ComboBox modelli + Aggiorna
-   -  ?? Parametri AI            -  Temperatura + NumPredict
-   -  [book] RAG Documenti           -  Path cartella + Carica
-   -------------------------------
-   -------------------------------------------------------------- */
 class SettingsPage : public QWidget {
     Q_OBJECT
 public:
@@ -32,9 +22,7 @@ public:
                           QWidget* parent = nullptr);
 
 signals:
-    /** Emesso quando host/porta/modello cambiano -- collegato a AiClient::setServer. */
     void serverChanged(const QString& host, int port, const QString& model);
-    /** Emesso quando viene caricato un nuovo indice RAG. */
     void ragIndexChanged(const QString& path);
 
 private slots:
@@ -45,8 +33,6 @@ private slots:
     void onLoadRag();
     void onUpdateWebLink();
     void onQrScanClicked();
-
-    /* LLM Locale */
     void onLocalModeToggled(bool on);
     void onAiLocalModeChanged(bool on);
     void onDlModelSelected(int idx);
@@ -59,23 +45,36 @@ private slots:
     void onLocalThermalResume();
     void onLocalModelLoaded(const QString& path);
     void onLocalLoadError(const QString& msg);
-    void onResetHScroll();
+    void onThemeApply();
+    void onModelComboChanged(int idx);
+    void onTempChanged(int v);
+    void onDlCancelClicked();
+    void onQuickApply1b();
+    void onQuickApply15b();
+    void onModelHelpClicked();
+    void onTestConnectionFinished();
+    void onRagWatchdogTimeout();
+    void onRagLoaded(int n);
+    void onQrUrlFound(const QString& raw);
 
 private:
-    QWidget* buildSection(const QString& title, QWidget* parent);
+    void applyQuickModel(const QString& model);
 
     AiClient*        m_ai;
     RagEngineSimple* m_rag;
     LocalLlmClient*  m_localLlm = nullptr;
 
+    /* Tema */
+    QComboBox*    m_themeCombo       = nullptr;
+
     /* Server */
-    QLineEdit*   m_hostEdit    = nullptr;
-    QSpinBox*    m_portSpin    = nullptr;
-    QLineEdit*   m_tokenEdit   = nullptr;
-    QLabel*      m_webLinkLbl  = nullptr;
-    QPushButton* m_applyBtn    = nullptr;
-    QPushButton* m_testBtn     = nullptr;
-    QLabel*      m_connStatus  = nullptr;
+    QLineEdit*   m_hostEdit      = nullptr;
+    QSpinBox*    m_portSpin      = nullptr;
+    QLineEdit*   m_tokenEdit     = nullptr;
+    QLabel*      m_webLinkLbl    = nullptr;
+    QPushButton* m_applyBtn      = nullptr;
+    QPushButton* m_testBtn       = nullptr;
+    QLabel*      m_connStatus    = nullptr;
 
     /* Modello */
     QComboBox*   m_modelCombo      = nullptr;
@@ -83,7 +82,6 @@ private:
     QLabel*      m_modelStatus     = nullptr;
     QWidget*     m_customModelRow  = nullptr;
     QLineEdit*   m_customModelEdit = nullptr;
-    QPushButton* m_modelHelpBtn    = nullptr;
 
     /* Parametri AI */
     QSlider*     m_tempSlider  = nullptr;
@@ -95,15 +93,22 @@ private:
     QPushButton* m_ragLoadBtn  = nullptr;
     QLabel*      m_ragStatus   = nullptr;
 
-    QScrollArea*  m_scrollArea        = nullptr;
+    QScrollArea* m_scrollArea = nullptr;
+
+    /* Test connessione temporaneo */
+    QNetworkAccessManager* m_testNam   = nullptr;
+    QNetworkReply*         m_testReply = nullptr;
+
+    /* RAG watchdog */
+    QTimer* m_ragWatchdog = nullptr;
 
     /* LLM Locale */
-    QCheckBox*    m_localModeChk     = nullptr;
-    QLabel*       m_localStatusLbl   = nullptr;
-    QComboBox*    m_dlModelCombo     = nullptr;
-    QPushButton*  m_dlModelBtn       = nullptr;
-    QPushButton*  m_dlCancelBtn      = nullptr;
-    QProgressBar* m_dlProgress       = nullptr;
-    QLabel*       m_tempLiveLbl      = nullptr;
-    QLabel*       m_thermalMsgLbl    = nullptr;
+    QCheckBox*    m_localModeChk   = nullptr;
+    QLabel*       m_localStatusLbl = nullptr;
+    QComboBox*    m_dlModelCombo   = nullptr;
+    QPushButton*  m_dlModelBtn     = nullptr;
+    QPushButton*  m_dlCancelBtn    = nullptr;
+    QProgressBar* m_dlProgress     = nullptr;
+    QLabel*       m_tempLiveLbl    = nullptr;
+    QLabel*       m_thermalMsgLbl  = nullptr;
 };

@@ -3,6 +3,31 @@
 #include <QStackedWidget>
 #include <QPushButton>
 #include <QLabel>
+#include <QToolButton>
+#include <QPainter>
+
+/* ── HamburgerButton: disegna 3 linee via QPainter (evita font gap su Android) ── */
+class HamburgerButton : public QToolButton {
+    Q_OBJECT
+public:
+    explicit HamburgerButton(QWidget* parent = nullptr) : QToolButton(parent) {
+        setObjectName("HamburgerBtn");
+        setAutoRaise(true);
+    }
+protected:
+    void paintEvent(QPaintEvent*) override {
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing);
+        const int w = width(), h = height();
+        const int lw = w * 56 / 100;
+        const int lh = 3;
+        const int lx = (w - lw) / 2;
+        QColor c = palette().buttonText().color();
+        p.fillRect(lx,   h/4 - lh/2, lw, lh, c);
+        p.fillRect(lx,   h/2 - lh/2, lw, lh, c);
+        p.fillRect(lx, 3*h/4 - lh/2, lw, lh, c);
+    }
+};
 
 class AiClient;
 class LocalLlmClient;
@@ -51,12 +76,12 @@ private slots:
     void onTabChanged(int index);
     void onToggleDrawer();
     void onDrawerNavClicked();
+    void onQuizFullscreen(bool on);
 
 private:
     void buildHeaderBar();
     void buildDrawer();
     void updateDrawerGeometry();
-    void applyPermissions();
 
     QStackedWidget* m_stack      = nullptr;
     QWidget*        m_headerBar  = nullptr;

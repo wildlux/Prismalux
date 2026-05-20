@@ -64,6 +64,7 @@ void AiClient::abort()
     r->abort();
     r->deleteLater();
     m_accum.clear();
+    m_readBuf.clear();
     emit aborted();
 }
 
@@ -215,9 +216,15 @@ void AiClient::onModelsReply()
     r->deleteLater();
     if (r->error() != QNetworkReply::NoError) { emit modelsReady({}); return; }
     QStringList list;
+    m_modelSizes.clear();
     const QJsonObject obj = QJsonDocument::fromJson(r->readAll()).object();
-    for (auto v : obj["models"].toArray())
-        list << v.toObject()["name"].toString();
+    for (auto v : obj["models"].toArray()) {
+        const QJsonObject mo = v.toObject();
+        const QString name   = mo["name"].toString();
+        const qint64  size   = mo["size"].toVariant().toLongLong();
+        list << name;
+        m_modelSizes[name] = size;
+    }
     emit modelsReady(list);
 }
 
@@ -225,8 +232,12 @@ void AiClient::onModelsReply()
 void AiClient::onReadyRead()
 {
     if (!m_reply) return;
-    for (const QByteArray& raw : m_reply->readAll().split('\n')) {
-        const QByteArray line = raw.trimmed();
+    m_readBuf += m_reply->readAll();
+
+    while (m_readBuf.contains('\n')) {
+        const int nl = m_readBuf.indexOf('\n');
+        const QByteArray line = m_readBuf.left(nl).trimmed();
+        m_readBuf = m_readBuf.mid(nl + 1);
         if (line.isEmpty()) continue;
 
         /* Errore inline Ollama {"error":"..."} */
@@ -262,6 +273,7 @@ void AiClient::onFinished()
         emit error(r->errorString());
 
     r->deleteLater();
+    m_readBuf.clear();
     emit finished(m_accum);
     m_accum.clear();
 }

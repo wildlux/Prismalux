@@ -9,6 +9,7 @@
 #include <QCameraDevice>
 #include <QBuffer>
 #include <QByteArray>
+#include <QGuiApplication>
 
 /* ══════════════════════════════════════════════════════════════
    Costruttore
@@ -68,32 +69,11 @@ CameraPage::CameraPage(AiClient* ai, QWidget* parent)
     vbox->addWidget(scroll);
     vbox->addLayout(btnRow);
 
-    /* ── Camera Qt6 Multimedia ── */
-    const QList<QCameraDevice> cameras = QMediaDevices::videoInputs();
-    if (!cameras.isEmpty()) {
-        m_camera        = new QCamera(cameras.first(), this);
-        m_session       = new QMediaCaptureSession(this);
-        m_imageCapture  = new QImageCapture(this);
-        m_session->setCamera(m_camera);
-        m_session->setVideoOutput(m_viewfinder);
-        m_session->setImageCapture(m_imageCapture);
-    } else {
-        m_statusLbl->setText(
-            "\xe2\x9a\xa0  Nessuna camera disponibile su questo dispositivo.");  // ⚠
-        m_captureBtn->setEnabled(false);
-    }
-
-    /* ── Connessioni ── */
+    /* ── Connessioni pulsanti/AI ── */
     connect(m_captureBtn, &QPushButton::clicked,
             this, &CameraPage::onCapture);
-    connect(m_sendBtn, &QPushButton::clicked, this, [this] {
-        if (!m_extractedText.isEmpty())
-            emit textExtracted(m_extractedText);
-    });
-    if (m_imageCapture) {
-        connect(m_imageCapture, &QImageCapture::imageCaptured,
-                this, &CameraPage::onImageCaptured);
-    }
+    connect(m_sendBtn, &QPushButton::clicked,
+            this, &CameraPage::onSendBtnClicked);
     connect(m_ai, &AiClient::token,    this, &CameraPage::onAiToken);
     connect(m_ai, &AiClient::finished, this, &CameraPage::onAiFinished);
     connect(m_ai, &AiClient::error,    this, &CameraPage::onAiError);
@@ -107,14 +87,59 @@ CameraPage::~CameraPage()
 /* ── startCamera / stopCamera ───────────────────────────────── */
 void CameraPage::startCamera()
 {
-    if (m_camera && !m_camera->isActive())
+    QCameraPermission camPerm;
+    qApp->requestPermission(camPerm, this, &CameraPage::onCameraPermissionResult);
+}
+
+void CameraPage::onCameraPermissionResult(const QPermission& permission)
+{
+    if (permission.status() != Qt::PermissionStatus::Granted) {
+        m_statusLbl->setText(
+            "\xe2\x9a\xa0  Permesso camera negato. Consentilo nelle impostazioni del dispositivo.");
+        m_captureBtn->setEnabled(false);
+        return;
+    }
+
+    /* Init camera (prima volta o dopo una stopCamera completa) */
+    if (!m_camera) {
+        const QList<QCameraDevice> cameras = QMediaDevices::videoInputs();
+        if (cameras.isEmpty()) {
+            m_statusLbl->setText(
+                "\xe2\x9a\xa0  Nessuna camera disponibile su questo dispositivo.");
+            m_captureBtn->setEnabled(false);
+            return;
+        }
+        m_camera       = new QCamera(cameras.first(), this);
+        m_session      = new QMediaCaptureSession(this);
+        m_imageCapture = new QImageCapture(this);
+        m_session->setCamera(m_camera);
+        m_session->setImageCapture(m_imageCapture);
+        connect(m_imageCapture, &QImageCapture::imageCaptured,
+                this, &CameraPage::onImageCaptured);
+    }
+
+    /* Collega il viewfinder sempre prima di start() per garantire che
+       la Surface Android sia pronta (il widget è già visibile qui). */
+    m_session->setVideoOutput(m_viewfinder);
+
+    if (!m_camera->isActive()) {
         m_camera->start();
+        m_statusLbl->setText("Premi Scansiona per acquisire");
+        m_captureBtn->setEnabled(true);
+    }
 }
 
 void CameraPage::stopCamera()
 {
     if (m_camera && m_camera->isActive())
         m_camera->stop();
+}
+
+/* ── onSendBtnClicked ────────────────────────────────────────── */
+void CameraPage::onSendBtnClicked()
+{
+    if (!m_extractedText.isEmpty())
+        emit textExtracted(m_extractedText);
 }
 
 /* ── onCapture ───────────────────────────────────────────────── */
@@ -164,6 +189,7 @@ void CameraPage::onImageCaptured(int /*id*/, const QImage& img)
 /* ── onAiToken ───────────────────────────────────────────────── */
 void CameraPage::onAiToken(const QString& chunk)
 {
+    if (!m_processing) return;  /* ignora token di altre pagine (fan-out AiClient) */
     m_extractedText += chunk;
     m_resultLbl->setText(m_extractedText);
 }
@@ -171,6 +197,7 @@ void CameraPage::onAiToken(const QString& chunk)
 /* ── onAiFinished ────────────────────────────────────────────── */
 void CameraPage::onAiFinished(const QString& /*full*/)
 {
+    if (!m_processing) return;
     m_processing = false;
     m_captureBtn->setEnabled(true);
     m_sendBtn->setEnabled(!m_extractedText.isEmpty());
@@ -183,6 +210,7 @@ void CameraPage::onAiFinished(const QString& /*full*/)
 /* ── onAiError ───────────────────────────────────────────────── */
 void CameraPage::onAiError(const QString& msg)
 {
+    if (!m_processing) return;
     m_processing = false;
     m_captureBtn->setEnabled(true);
     /* Il modello vision potrebbe non essere disponibile */

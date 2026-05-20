@@ -5,6 +5,7 @@
 #include <QStringList>
 #include <QElapsedTimer>
 #include <QJsonArray>
+#include <QMap>
 
 class LocalLlmClient;
 
@@ -62,6 +63,9 @@ public:
     /* -- Lista modelli dal server -- */
     void fetchModels();
 
+    /* -- Dimensioni modelli (0 = cloud, >0 = locale sul server) -- */
+    const QMap<QString, qint64>& modelSizes() const { return m_modelSizes; }
+
     /* -- Modalit? locale (delega a LocalLlmClient) -- */
     void setLocalLlm(LocalLlmClient* llm);
     void setLocalMode(bool on) {
@@ -94,12 +98,13 @@ private:
     LocalLlmClient* m_localLlm  = nullptr;
     bool            m_localMode = false;
 
-    QString m_host        = "192.168.1.165";
-    int     m_port        = 11434;
-    QString m_model       = "llama3.2:3b";
-    QString m_token;
-    QString m_accum;
-    bool    m_generateMode = false;
+    QString    m_host        = "192.168.1.165";
+    int        m_port        = 11434;
+    QString    m_model       = "llama3.2:3b";
+    QString    m_token;
+    QString    m_accum;
+    QByteArray m_readBuf;     /* buffer linee NDJSON parziali tra readyRead */
+    bool       m_generateMode = false;
 
     /* Parametri sampling */
     double  m_temperature = 0.1;
@@ -111,4 +116,7 @@ private:
 
     /* Request ID */
     quint64 m_reqId = 0;
+
+    /* Cache dimensioni modelli (0 = cloud) */
+    QMap<QString, qint64> m_modelSizes;
 };

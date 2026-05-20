@@ -6,6 +6,7 @@
 #include <QProgressBar>
 #include <QComboBox>
 #include <QTimer>
+#include <QPermission>
 #include "../ai_client.h"
 
 #ifdef HAVE_MULTIMEDIA
@@ -30,6 +31,7 @@ public:
 
 private slots:
     void onRecordToggle();
+    void onMicPermissionResult(const QPermission& permission);
     void onTranscribeClicked();
     void onCopyResult();
     void onSendToChat();

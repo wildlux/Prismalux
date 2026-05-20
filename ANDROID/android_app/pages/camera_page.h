@@ -6,11 +6,12 @@
 #include <QMediaCaptureSession>
 #include <QImageCapture>
 #include <QVideoWidget>
+#include <QPermission>
 
 class AiClient;
 
-/* ══════════════════════════════════════════════════════════════
-   CameraPage — scansione documento + invio testo a ChatPage.
+/* --------------------------------------------------------------
+   CameraPage -- scansione documento + invio testo a ChatPage.
 
    Flusso:
      1. Avvia preview camera (startCamera)
@@ -23,7 +24,7 @@ class AiClient;
 
    Se il modello attivo non supporta vision, mostra un avviso
    e permette di digitare manualmente il testo del documento.
-   ══════════════════════════════════════════════════════════════ */
+   -------------------------------------------------------------- */
 class CameraPage : public QWidget {
     Q_OBJECT
 public:
@@ -39,10 +40,12 @@ signals:
 
 private slots:
     void onCapture();
+    void onSendBtnClicked();
     void onImageCaptured(int id, const QImage& img);
     void onAiToken(const QString& chunk);
     void onAiFinished(const QString& full);
     void onAiError(const QString& msg);
+    void onCameraPermissionResult(const QPermission& permission);
 
 private:
     AiClient*              m_ai;

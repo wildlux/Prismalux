@@ -11,6 +11,7 @@
 #include <QJsonArray>
 #include <QListWidgetItem>
 #include <QSettings>
+#include <QTimer>
 
 #ifdef HAVE_OBS_WS
 #include <QWebSocket>
@@ -91,10 +92,13 @@ ObsPage::ObsPage(QWidget* parent)
     vbox->addWidget(m_curSceneLbl);
 
     /* ── Lista scene ── */
-    auto* sceneGroup = new QGroupBox("Scene (doppio tap per attivare)", this);
+    auto* sceneGroup = new QGroupBox(
+        QString::fromUtf8("\xf0\x9f\x8e\xac")
+        + "  Scene (tap per attivare)", this);
     auto* sceneVbox = new QVBoxLayout(sceneGroup);
     m_sceneList = new QListWidget(this);
     m_sceneList->setEnabled(false);
+    m_sceneList->setMinimumHeight(120);
     sceneVbox->addWidget(m_sceneList);
 
     m_btnRefresh = new QPushButton(
@@ -103,6 +107,23 @@ ObsPage::ObsPage(QWidget* parent)
     m_btnRefresh->setMinimumHeight(40);
     sceneVbox->addWidget(m_btnRefresh);
     vbox->addWidget(sceneGroup);
+
+    /* ── Lista microfoni ── */
+    auto* micGroup = new QGroupBox(
+        QString::fromUtf8("\xf0\x9f\x8e\x99")
+        + "  Microfoni (tap per silenziare/attivare)", this);
+    auto* micVbox = new QVBoxLayout(micGroup);
+    m_micList = new QListWidget(this);
+    m_micList->setEnabled(false);
+    m_micList->setMinimumHeight(100);
+    micVbox->addWidget(m_micList);
+
+    m_btnRefreshMic = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x94\x84 Aggiorna microfoni"), this);
+    m_btnRefreshMic->setEnabled(false);
+    m_btnRefreshMic->setMinimumHeight(40);
+    micVbox->addWidget(m_btnRefreshMic);
+    vbox->addWidget(micGroup);
 
     /* ── Controlli rec/stream ── */
     auto* ctrlRow = new QHBoxLayout;
@@ -127,13 +148,16 @@ ObsPage::ObsPage(QWidget* parent)
             this, &ObsPage::onWsError);
 
     /* ── Segnali UI ── */
-    connect(m_btnConnect,  &QPushButton::clicked, this, &ObsPage::onConnectClicked);
-    connect(m_btnDisconn,  &QPushButton::clicked, this, &ObsPage::onDisconnectClicked);
-    connect(m_btnRefresh,  &QPushButton::clicked, this, &ObsPage::onRefreshClicked);
-    connect(m_btnRecord,   &QPushButton::clicked, this, &ObsPage::onRecordClicked);
-    connect(m_btnStream,   &QPushButton::clicked, this, &ObsPage::onStreamClicked);
-    connect(m_sceneList, &QListWidget::itemDoubleClicked,
-            this, &ObsPage::onSceneDoubleClicked);
+    connect(m_btnConnect,    &QPushButton::clicked, this, &ObsPage::onConnectClicked);
+    connect(m_btnDisconn,    &QPushButton::clicked, this, &ObsPage::onDisconnectClicked);
+    connect(m_btnRefresh,    &QPushButton::clicked, this, &ObsPage::onRefreshClicked);
+    connect(m_btnRefreshMic, &QPushButton::clicked, this, &ObsPage::requestInputList);
+    connect(m_btnRecord,     &QPushButton::clicked, this, &ObsPage::onRecordClicked);
+    connect(m_btnStream,     &QPushButton::clicked, this, &ObsPage::onStreamClicked);
+    connect(m_sceneList, &QListWidget::itemClicked,
+            this, &ObsPage::onSceneItemClicked);
+    connect(m_micList, &QListWidget::itemClicked,
+            this, &ObsPage::onMicItemClicked);
 #endif
 }
 
@@ -215,7 +239,7 @@ void ObsPage::onStreamClicked()
 #endif
 }
 
-void ObsPage::onSceneDoubleClicked(QListWidgetItem* item)
+void ObsPage::onSceneItemClicked(QListWidgetItem* item)
 {
 #ifdef HAVE_OBS_WS
     if (!item) return;
@@ -231,6 +255,43 @@ void ObsPage::onSceneDoubleClicked(QListWidgetItem* item)
     req["d"] = d;
     sendJson(req);
     m_curSceneLbl->setText("Scena attiva: " + sceneName);
+#else
+    Q_UNUSED(item)
+#endif
+}
+
+void ObsPage::onMicItemClicked(QListWidgetItem* item)
+{
+#ifdef HAVE_OBS_WS
+    if (!item || !m_connected) return;
+    /* Il testo dell'item ha il formato "🔊 Nome microfono" o "🔇 Nome microfono" */
+    QString text = item->text();
+    const bool wasMuted = text.startsWith(QString::fromUtf8("\xf0\x9f\x94\x87"));
+    /* Estrae il nome rimuovendo l'icona e lo spazio */
+    const QString inputName = text.mid(text.indexOf(' ') + 1);
+
+    const bool newMuted = !wasMuted;
+    m_inputMuted[inputName] = newMuted;
+
+    /* Aggiorna visivamente l'icona subito */
+    item->setText(
+        (newMuted
+            ? QString::fromUtf8("\xf0\x9f\x94\x87")   /* 🔇 */
+            : QString::fromUtf8("\xf0\x9f\x94\x8a"))  /* 🔊 */
+        + " " + inputName);
+
+    /* Invia a OBS */
+    QJsonObject req;
+    req["op"] = 6;
+    QJsonObject d;
+    d["requestType"] = "SetInputMute";
+    d["requestId"]   = QString::number(m_msgId++);
+    QJsonObject rd;
+    rd["inputName"] = inputName;
+    rd["inputMuted"] = newMuted;
+    d["requestData"] = rd;
+    req["d"] = d;
+    sendJson(req);
 #else
     Q_UNUSED(item)
 #endif
@@ -306,6 +367,7 @@ void ObsPage::handleMessage(const QJsonObject& obj)
         /* Identified — connessione riuscita */
         setConnected(true);
         requestSceneList();
+        requestInputList();
         requestStatus();
         return;
     }
@@ -317,6 +379,8 @@ void ObsPage::handleMessage(const QJsonObject& obj)
 
         if (type == "GetSceneList") {
             handleSceneList(data);
+        } else if (type == "GetInputList") {
+            handleInputList(data);
         } else if (type == "GetStreamStatus") {
             m_streaming = data["outputActive"].toBool();
             m_btnStream->setText(
@@ -330,17 +394,10 @@ void ObsPage::handleMessage(const QJsonObject& obj)
                 ? QString::fromUtf8("\xe2\x8f\xb9 Ferma REC")
                 : QString::fromUtf8("\xe2\x8f\xba Avvia REC"));
         } else if (type == "StartRecord" || type == "StopRecord") {
-            m_recording = (type == "StartRecord");
-            m_btnRecord->setText(
-                m_recording
-                ? QString::fromUtf8("\xe2\x8f\xb9 Ferma REC")
-                : QString::fromUtf8("\xe2\x8f\xba Avvia REC"));
+            /* Verifica lo stato reale dopo 300ms invece di aggiornare ottimisticamente */
+            QTimer::singleShot(300, this, &ObsPage::requestStatus);
         } else if (type == "StartStream" || type == "StopStream") {
-            m_streaming = (type == "StartStream");
-            m_btnStream->setText(
-                m_streaming
-                ? QString::fromUtf8("\xf0\x9f\x93\xa1 Ferma STREAM")
-                : QString::fromUtf8("\xf0\x9f\x93\xa1 Avvia STREAM"));
+            QTimer::singleShot(300, this, &ObsPage::requestStatus);
         }
         return;
     }
@@ -404,6 +461,21 @@ void ObsPage::requestSceneList()
 #endif
 }
 
+void ObsPage::requestInputList()
+{
+#ifdef HAVE_OBS_WS
+    if (!m_connected) return;
+    QJsonObject req;
+    req["op"] = 6;
+    QJsonObject d;
+    d["requestType"] = "GetInputList";
+    d["requestId"]   = QString::number(m_msgId++);
+    d["requestData"] = QJsonObject{};
+    req["d"] = d;
+    sendJson(req);
+#endif
+}
+
 void ObsPage::requestStatus()
 {
 #ifdef HAVE_OBS_WS
@@ -441,6 +513,37 @@ void ObsPage::handleSceneList(const QJsonObject& data)
 #endif
 }
 
+void ObsPage::handleInputList(const QJsonObject& data)
+{
+#ifdef HAVE_OBS_WS
+    m_micList->clear();
+    m_inputMuted.clear();
+    const QJsonArray inputs = data["inputs"].toArray();
+    for (const QJsonValue& v : inputs) {
+        const QJsonObject inp   = v.toObject();
+        const QString     name  = inp["inputName"].toString();
+        const QString     kind  = inp["inputKind"].toString();
+        /* Filtra solo sorgenti audio (microfoni, cattura desktop, ecc.) */
+        if (!kind.contains("input") && !kind.contains("audio") &&
+            !kind.contains("alsa")  && !kind.contains("pulse") &&
+            !kind.contains("wasapi")&& !kind.contains("coreaudio") &&
+            !kind.contains("capture"))
+            continue;
+        if (name.isEmpty()) continue;
+        m_inputMuted[name] = false;  /* stato iniziale: non silenziato */
+        auto* item = new QListWidgetItem(
+            QString::fromUtf8("\xf0\x9f\x94\x8a") + " " + name,  /* 🔊 */
+            m_micList);
+        item->setSizeHint(QSize(0, 48));
+    }
+    if (m_micList->count() == 0) {
+        m_micList->addItem("(nessuna sorgente audio trovata)");
+    }
+#else
+    Q_UNUSED(data)
+#endif
+}
+
 void ObsPage::setConnected(bool on)
 {
     m_connected = on;
@@ -450,12 +553,16 @@ void ObsPage::setConnected(bool on)
     m_btnRecord->setEnabled(on);
     m_btnStream->setEnabled(on);
     m_btnRefresh->setEnabled(on);
+    m_btnRefreshMic->setEnabled(on);
     m_sceneList->setEnabled(on);
+    m_micList->setEnabled(on);
     if (on) {
         m_statusLbl->setText(
             QString::fromUtf8("\xf0\x9f\x9f\xa2") + " Connesso a OBS");
     } else {
         m_sceneList->clear();
+        m_micList->clear();
+        m_inputMuted.clear();
         m_curSceneLbl->setText("Scena attiva: —");
         m_recording = false;
         m_streaming = false;

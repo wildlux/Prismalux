@@ -149,6 +149,9 @@ MainWindow::MainWindow(QWidget* parent)
 
     buildDrawer();
 
+    connect(m_studioPage, &StudioPage::quizFullscreen,
+            this, &MainWindow::onQuizFullscreen);
+
     connect(m_settingsPage, &SettingsPage::serverChanged,
             m_ai, qOverload<const QString&, int, const QString&>(&AiClient::setServer));
     connect(m_settingsPage, &SettingsPage::ragIndexChanged,
@@ -163,8 +166,6 @@ MainWindow::MainWindow(QWidget* parent)
 #endif
     connect(m_audioPage, &AudioPage::transcriptionReady,
             m_chatPage,  &ChatPage::prependContext);
-
-    applyPermissions();
 
     if (QGuiApplication::screens().first()->size().width() < 800)
         showMaximized();
@@ -185,16 +186,8 @@ void MainWindow::buildHeaderBar()
     hbox->setContentsMargins(4, 0, 8, 0);
     hbox->setSpacing(4);
 
-    auto* menuBtn = new QToolButton(m_headerBar);
-    menuBtn->setObjectName("HamburgerBtn");
+    auto* menuBtn = new HamburgerButton(m_headerBar);
     menuBtn->setFixedSize(kHeaderHeight, kHeaderHeight);
-    /* ☰ tre linee orizzontali — sempre visibile anche senza risorse immagine */
-    menuBtn->setText(QString::fromUtf8("\xe2\x98\xb0"));   /* ☰ U+2630 */
-    {
-        QFont mf = menuBtn->font();
-        mf.setPointSize(22);
-        menuBtn->setFont(mf);
-    }
     hbox->addWidget(menuBtn);
 
     m_titleLbl = new QLabel("PrismaluxMobile", m_headerBar);
@@ -387,10 +380,11 @@ void MainWindow::onTabChanged(int index)
 }
 
 /* ══════════════════════════════════════════════════════════════
-   applyPermissions
+   onQuizFullscreen — nasconde/mostra l'header bar durante il quiz
+   per dare alla pagina quiz uno spazio a tutto schermo pulito.
    ══════════════════════════════════════════════════════════════ */
-void MainWindow::applyPermissions()
+void MainWindow::onQuizFullscreen(bool on)
 {
-    /* Permessi runtime dichiarati nel AndroidManifest.xml.
-       Camera e BLE sono stub in questa build — aggiungere qui quando abilitati. */
+    if (m_headerBar)
+        m_headerBar->setVisible(!on);
 }

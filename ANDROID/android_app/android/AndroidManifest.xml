@@ -49,6 +49,10 @@
         android:maxSdkVersion="32" />
     <!-- API 33+: accesso file tramite SAF (Storage Access Framework) — nessun permesso extra necessario -->
 
+    <!-- ── Microfono (registrazione audio — AudioPage) ──────── -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
     <!-- ── Vibrazione (feedback tattile) ─────────────────────── -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
@@ -59,6 +63,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/AppTheme"
         android:hardwareAccelerated="true"
+        android:allowBackup="false"
         android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/network_security_config"
         android:requestLegacyExternalStorage="false">
@@ -69,7 +74,9 @@
             android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
             android:launchMode="singleTop"
             android:screenOrientation="portrait"
-            android:exported="true">
+            android:exported="true"
+            android:forceDarkAllowed="false"
+            android:theme="@style/AppTheme">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -78,6 +85,7 @@
 
             <!-- Metadati Qt richiesti dal binding -->
             <meta-data android:name="android.app.lib_name"        android:value="PrismaluxMobile" />
+            <!-- qt_theme_type=1 → Qt usa dark theme per i componenti nativi -->
             <meta-data android:name="android.app.qt_theme_type"   android:value="1" />
         </activity>
     </application>

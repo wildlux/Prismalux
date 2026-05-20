@@ -86,15 +86,8 @@ QrScannerDialog::QrScannerDialog(QWidget* parent)
 #ifdef HAVE_MULTIMEDIA
     /* Richiesta permesso fotocamera a runtime (richiesto da Android 6+) */
     QCameraPermission camPerm;
-    qApp->requestPermission(camPerm, this, [this](const QPermission& p) {
-        if (p.status() == Qt::PermissionStatus::Granted) {
-            startCamera();
-        } else {
-            m_statusLbl->setText(
-                "\xe2\x9d\x8c  Permesso fotocamera negato.\n"
-                "Vai in Impostazioni \xe2\x86\x92 App \xe2\x86\x92 PrismaluxMobile \xe2\x86\x92 Permessi.");
-        }
-    });
+    qApp->requestPermission(camPerm, this,
+                            &QrScannerDialog::onCameraPermissionResult);
 #endif
 }
 
@@ -104,6 +97,18 @@ QrScannerDialog::~QrScannerDialog()
 #ifdef HAVE_MULTIMEDIA
     if (m_camera) m_camera->stop();
 #endif
+}
+
+/* ── onCameraPermissionResult ────────────────────────────────── */
+void QrScannerDialog::onCameraPermissionResult(const QPermission& p)
+{
+    if (p.status() == Qt::PermissionStatus::Granted) {
+        startCamera();
+    } else {
+        m_statusLbl->setText(
+            "\xe2\x9d\x8c  Permesso fotocamera negato.\n"
+            "Vai in Impostazioni \xe2\x86\x92 App \xe2\x86\x92 PrismaluxMobile \xe2\x86\x92 Permessi.");
+    }
 }
 
 /* ── startCamera ─────────────────────────────────────────────── */

@@ -239,7 +239,6 @@ AudioPage::AudioPage(AiClient* ai, QWidget* parent)
 void AudioPage::onRecordToggle()
 {
     if (m_recording) {
-        /* Ferma la registrazione */
         setRecordingState(false);
 #ifdef HAVE_MULTIMEDIA
         m_recorder->stop();
@@ -247,14 +246,26 @@ void AudioPage::onRecordToggle()
         m_recStatus->setText(
             QString::fromUtf8("\xe2\x9c\x85  Registrazione completata — premi Trascrivi"));  /* ✅ */
     } else {
-        /* Avvia la registrazione */
-#ifdef HAVE_MULTIMEDIA
-        m_recorder->record();
-#endif
-        setRecordingState(true);
-        m_recStatus->setText(
-            QString::fromUtf8("\xf0\x9f\x94\xb4  Registrazione in corso..."));  /* 🔴 */
+        /* Richiedi permesso microfono a runtime prima di avviare */
+        QMicrophonePermission micPerm;
+        qApp->requestPermission(micPerm, this, &AudioPage::onMicPermissionResult);
     }
+}
+
+void AudioPage::onMicPermissionResult(const QPermission& permission)
+{
+    if (permission.status() != Qt::PermissionStatus::Granted) {
+        m_recStatus->setText(
+            QString::fromUtf8("\xe2\x9d\x8c  Permesso microfono negato. "
+                              "Abilitalo in Impostazioni \xe2\x86\x92 App \xe2\x86\x92 Permessi."));
+        return;
+    }
+#ifdef HAVE_MULTIMEDIA
+    m_recorder->record();
+#endif
+    setRecordingState(true);
+    m_recStatus->setText(
+        QString::fromUtf8("\xf0\x9f\x94\xb4  Registrazione in corso..."));  /* 🔴 */
 }
 
 void AudioPage::setRecordingState(bool recording)

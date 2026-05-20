@@ -31,6 +31,7 @@ signals:
 private slots:
     void onVideoFrameChanged();
     void onCancelClicked();
+    void onCameraPermissionResult(const QPermission& permission);
 
 private:
 #ifdef HAVE_MULTIMEDIA
