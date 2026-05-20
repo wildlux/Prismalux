@@ -11,6 +11,9 @@
 #include "pages/info_page.h"
 #include "pages/mcpaddons_page.h"
 #include "pages/audio_page.h"
+#include "pages/impara_page.h"
+#include "pages/ricerca_page.h"
+#include "pages/matematica_page.h"
 
 #ifdef HAVE_MULTIMEDIA
 #include "pages/camera_page.h"
@@ -137,6 +140,18 @@ MainWindow::MainWindow(QWidget* parent)
     /* Informazioni — guida e crediti */
     m_infoPage = new InfoPage(this);
     m_stack->addWidget(m_infoPage);     // indice 10
+
+    /* Impara con AI — Tutor + Quiz */
+    m_imparaPage = new ImparaPage(m_ai, this);
+    m_stack->addWidget(m_imparaPage);   // indice 11
+
+    /* Ricerca & Sviluppo — paper, brevetti, doc tecnico */
+    m_ricercaPage = new RicercaPage(m_ai, this);
+    m_stack->addWidget(m_ricercaPage);  // indice 12
+
+    /* Laboratorio Matematico */
+    m_matematicaPage = new MatematicaPage(m_ai, this);
+    m_stack->addWidget(m_matematicaPage); // indice 13
 
     auto* central = new QWidget(this);
     auto* vbox    = new QVBoxLayout(central);
@@ -266,17 +281,21 @@ void MainWindow::buildDrawer()
 
     struct NavItem { const char* icon; const char* label; int idx; };
     const NavItem items[] = {
-        { "\xf0\x9f\xa4\x96",           "Chat",           m_idxChat     },
-        { "\xf0\x9f\x93\x9a",           "Studia",         m_idxStudio   },
-        { "\xf0\x9f\x92\xbc",           "Lavoro",         m_idxLavoro   },
-        { "\xf0\x9f\x93\xa1",           "OBS Control",    m_idxObs      },
-        { "\xf0\x9f\x93\x90",           "Misure",         m_idxMisure   },
-        { "\xf0\x9f\x93\xb7",           "Camera",         m_idxCamera   },
-        { "\xf0\x9f\x94\x8c",           "MCP Add-ons",    m_idxMcp      },
-        { "\xf0\x9f\x94\x8b",           "Bluetooth",      m_idxBle      },
-        { "\xf0\x9f\x8e\x99\xef\xb8\x8f", "Trascrizione Audio", m_idxAudio },
-        { "\xe2\x9a\x99\xef\xb8\x8f",   "Impostazioni",   m_idxSettings },
-        { "\xf0\x9f\x8d\xba",           "Informazioni",   m_idxInfo     },
+        { "\xf0\x9f\xa4\x96",              "Chat",               m_idxChat       },
+        { "\xf0\x9f\x93\x9a",              "Studia",             m_idxStudio     },
+        { "\xf0\x9f\x93\x9a",              "Impara con AI",      m_idxImpara     },
+        { "\xf0\x9f\xa7\xa0",              "Quiz AI",            m_idxImpara     },
+        { "\xcf\x80",                       "Matematica",         m_idxMatematica },
+        { "\xf0\x9f\x94\xac",              "Ricerca & Sviluppo", m_idxRicerca    },
+        { "\xf0\x9f\x92\xbc",              "Lavoro",             m_idxLavoro     },
+        { "\xf0\x9f\x93\xa1",              "OBS Control",        m_idxObs        },
+        { "\xf0\x9f\x93\x90",              "Misure",             m_idxMisure     },
+        { "\xf0\x9f\x93\xb7",              "Camera",             m_idxCamera     },
+        { "\xf0\x9f\x94\x8c",              "MCP Add-ons",        m_idxMcp        },
+        { "\xf0\x9f\x94\x8b",              "Bluetooth",          m_idxBle        },
+        { "\xf0\x9f\x8e\x99\xef\xb8\x8f", "Trascrizione Audio", m_idxAudio      },
+        { "\xe2\x9a\x99\xef\xb8\x8f",      "Impostazioni",       m_idxSettings   },
+        { "\xf0\x9f\x8d\xba",              "Informazioni",       m_idxInfo       },
     };
     for (const auto& item : items) {
         auto* btn = new QPushButton(
@@ -357,10 +376,13 @@ void MainWindow::onTabChanged(int index)
 
     /* Aggiorna il titolo nella header bar */
     static const struct { int idx; const char* name; } kTitles[] = {
-        { 0, "Chat" },     { 1, "Studia" },   { 2, "Lavoro" },
-        { 3, "OBS Control" }, { 4, "Misure" }, { 5, "Camera" },
-        { 6, "MCP Add-ons" }, { 7, "Bluetooth" }, { 8, "Trascrizione Audio" },
-        { 9, "Impostazioni" }, { 10, "Informazioni" },
+        {  0, "Chat"               }, {  1, "Studia"             },
+        {  2, "Lavoro"             }, {  3, "OBS Control"        },
+        {  4, "Misure"             }, {  5, "Camera"             },
+        {  6, "MCP Add-ons"        }, {  7, "Bluetooth"          },
+        {  8, "Trascrizione Audio" }, {  9, "Impostazioni"       },
+        { 10, "Informazioni"       }, { 11, "Impara con AI"      },
+        { 12, "Ricerca & Sviluppo" }, { 13, "Matematica"         },
     };
     if (m_titleLbl) {
         for (const auto& t : kTitles) {

@@ -1,6 +1,7 @@
 #pragma once
 #include <QDialog>
 #include <QString>
+#include <QPermission>
 
 #ifdef HAVE_MULTIMEDIA
 #  include <QCamera>

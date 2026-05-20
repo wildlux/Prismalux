@@ -23,7 +23,7 @@ set(QT_LIBS
 )
 
 # ── Moduli opzionali ──────────────────────────────────────────────────────
-find_package(Qt6 OPTIONAL_COMPONENTS Bluetooth Multimedia MultimediaWidgets WebSockets Pdf TextToSpeech)
+find_package(Qt6 OPTIONAL_COMPONENTS Bluetooth Multimedia MultimediaWidgets WebSockets Pdf TextToSpeech Sql)
 if(Qt6Bluetooth_FOUND)
     list(APPEND QT_LIBS Qt6::Bluetooth)
     add_compile_definitions(HAVE_BLE)
@@ -58,6 +58,13 @@ if(Qt6TextToSpeech_FOUND)
     message(STATUS "  TextToSpeech: abilitato (lettura ad alta voce)")
 else()
     message(STATUS "  TextToSpeech: non disponibile")
+endif()
+if(Qt6Sql_FOUND)
+    list(APPEND QT_LIBS Qt6::Sql)
+    add_compile_definitions(HAVE_SQL)
+    message(STATUS "  Sql/SQLite: abilitato (quiz DB locale)")
+else()
+    message(STATUS "  Sql/SQLite: non disponibile (quiz usa DB in-memory)")
 endif()
 
 # ── llama.cpp — LLM locale (solo Android) ────────────────────────────────────
@@ -143,6 +150,9 @@ set(SRCS
     pages/info_page.cpp
     pages/mcpaddons_page.cpp
     pages/audio_page.cpp
+    pages/impara_page.cpp
+    pages/ricerca_page.cpp
+    pages/matematica_page.cpp
 )
 
 if(Qt6Multimedia_FOUND)
@@ -204,6 +214,14 @@ qt_add_resources(PrismaluxMobile "qss_res"
     FILES
         style_mobile.qss
         images/prismalux_logo.png
+        themes_mobile/dark_cyan.qss
+        themes_mobile/neon.qss
+        themes_mobile/hacker.qss
+        themes_mobile/dark_purple.qss
+        themes_mobile/dark_sunset.qss
+        themes_mobile/dark_ocean.qss
+        themes_mobile/venom_red.qss
+        themes_mobile/dark_amber.qss
 )
 
 # Copia anche accanto all'exe per debug desktop (utile per editing live del QSS)

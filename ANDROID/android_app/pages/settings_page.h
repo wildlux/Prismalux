@@ -1,5 +1,7 @@
 #pragma once
 #include <QWidget>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QComboBox>
