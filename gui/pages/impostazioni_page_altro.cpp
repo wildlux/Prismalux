@@ -343,6 +343,10 @@ QWidget* ImpostazioniPage::buildMcpTab()
     vlay->setContentsMargins(16, 16, 16, 16);
     vlay->setSpacing(14);
 
+    /* ── Layout a 2 colonne ─────────────────────────────────────── */
+    auto* leftL  = new QVBoxLayout;  leftL->setSpacing(14);
+    auto* rightL = new QVBoxLayout;  rightL->setSpacing(14);
+
     /* ── 1. MCP configurati in Claude Code ─────────────────────── */
     {
         auto* box  = new QGroupBox(
@@ -413,7 +417,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
 
         blay->addWidget(table);
         blay->addWidget(btnRow);
-        vlay->addWidget(box);
+        leftL->addWidget(box);
     }
 
     /* ── 2. MCP Locali Prismalux ────────────────────────────────── */
@@ -520,7 +524,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
             cLay->addLayout(btns);
             blay->addWidget(card);
         }
-        vlay->addWidget(box);
+        rightL->addWidget(box);
     }
 
     /* ── 2b. Ollama in locale ──────────────────────────────────── */
@@ -581,7 +585,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
             QGuiApplication::clipboard()->setText("npx -y ollama-mcp-server");
         });
 
-        vlay->addWidget(box);
+        rightL->addWidget(box);
     }
 
     /* ── 3. Aggiungi MCP personalizzato ─────────────────────────── */
@@ -657,7 +661,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
             editEnv->clear();
         });
 
-        vlay->addWidget(box);
+        leftL->addWidget(box);
     }
 
     /* ── 4. MCP Popolari (hub ufficiale) ────────────────────────── */
@@ -733,10 +737,17 @@ QWidget* ImpostazioniPage::buildMcpTab()
             ++row;
         }
         blay->addLayout(grid);
-        vlay->addWidget(box);
+        rightL->addWidget(box);
     }
 
-    vlay->addStretch();
+    /* ── Assembla 2 colonne ──────────────────────────────────────── */
+    leftL->addStretch();
+    rightL->addStretch();
+    auto* colsLay = new QHBoxLayout;
+    colsLay->setSpacing(12);
+    colsLay->addLayout(leftL,  52);
+    colsLay->addLayout(rightL, 48);
+    vlay->addLayout(colsLay);
 
     auto* sc = new QScrollArea;
     sc->setWidgetResizable(true);

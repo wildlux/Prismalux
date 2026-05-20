@@ -75,8 +75,8 @@ MonitorPanel::MonitorPanel(AiClient* ai, HardwareMonitor* hw, QWidget* parent)
 
     mainLay->addWidget(topBar);
 
-    /* ── Splitter verticale: tabella sopra, log sotto ── */
-    auto* splitter = new QSplitter(Qt::Vertical, this);
+    /* ── Splitter orizzontale: tabella sinistra, log destra ── */
+    auto* splitter = new QSplitter(Qt::Horizontal, this);
 
     /* Tabella sessioni */
     m_table = new QTableWidget(0, COL_COUNT, this);
@@ -91,17 +91,16 @@ MonitorPanel::MonitorPanel(AiClient* ai, HardwareMonitor* hw, QWidget* parent)
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_table->setAlternatingRowColors(true);
     m_table->verticalHeader()->setVisible(false);
-    m_table->setMinimumHeight(180);
     splitter->addWidget(m_table);
 
     /* Log live */
     m_log = new QTextEdit(this);
     m_log->setReadOnly(true);
     m_log->setFont(QFont("Monospace", 10));
-    m_log->setMinimumHeight(160);
+    m_log->setMinimumWidth(280);
     splitter->addWidget(m_log);
 
-    splitter->setSizes({280, 240});
+    splitter->setSizes({620, 340});
     mainLay->addWidget(splitter, 1);
 
     /* ── Chart performance storico ── */

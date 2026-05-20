@@ -18,6 +18,7 @@ namespace P = PrismaluxPaths;
 #include <QJsonObject>
 #include <QTextEdit>
 #include <QFileDialog>
+#include <QScrollArea>
 #include <QFileInfo>
 #include <QTimer>
 #include <QTextCursor>
@@ -605,9 +606,6 @@ QWidget* ManutenzioneePage::buildHardware()
     saveRowL->addStretch(1);
     compLay->addWidget(saveRow);
 
-    mainLay->addWidget(computeGroup);
-    mainLay->addStretch(1);
-
     /* Bottoni → apply+persist immediato (nessun passaggio "Salva" necessario) */
     connect(m_btnGpu,    &QPushButton::clicked, this, &ManutenzioneePage::onBtnGpuClicked);
     connect(m_btnCpu,    &QPushButton::clicked, this, &ManutenzioneePage::onBtnCpuClicked);
@@ -629,7 +627,7 @@ QWidget* ManutenzioneePage::buildHardware()
     connect(disableBtn, &QPushButton::clicked, this, &ManutenzioneePage::onDisableRamBtnClicked);
 #endif
 
-    /* ── NPU (Neural Processing Unit) ── */
+    /* ── NPU + Modalità Calcolo LLM — affiancati ── */
     {
         auto* npuGroup = new QGroupBox(
             "\xf0\x9f\xa7\xa0  NPU \xe2\x80\x94 Neural Processing Unit", page);
@@ -646,13 +644,11 @@ QWidget* ManutenzioneePage::buildHardware()
         npuDesc->setObjectName("hintLabel");
         npuLay->addWidget(npuDesc);
 
-        /* Rilevamento automatico */
         auto* npuStatusLbl = new QLabel("\xe2\x8f\xb3  Rilevamento in corso...", npuGroup);
         npuStatusLbl->setObjectName("cardDesc");
         npuStatusLbl->setWordWrap(true);
         npuLay->addWidget(npuStatusLbl);
 
-        /* Installa Intel NPU */
         auto* btnIntelNpu = new QPushButton(
             "\xf0\x9f\x94\xb5  Installa intel-npu-acceleration-library", npuGroup);
         btnIntelNpu->setObjectName("actionBtn");
@@ -670,16 +666,13 @@ QWidget* ManutenzioneePage::buildHardware()
         npuHint->setTextFormat(Qt::RichText);
         npuHint->setObjectName("hintLabel");
         npuLay->addWidget(npuHint);
+        npuLay->addStretch(1);
 
-        mainLay->addWidget(npuGroup);
-
-        /* Rilevamento asincrono */
         auto detectNpu = [npuStatusLbl]() {
             QStringList found;
 #ifdef Q_OS_LINUX
             if (QFile::exists("/dev/accel/accel0"))
                 found << "\xe2\x9c\x85  Intel NPU rilevata (/dev/accel/accel0)";
-            /* Controlla se il modulo XDNA (AMD NPU) è caricato */
             QFile modules("/proc/modules");
             if (modules.open(QFile::ReadOnly)) {
                 const QString content = modules.readAll();
@@ -696,9 +689,23 @@ QWidget* ManutenzioneePage::buildHardware()
         detectNpu();
 
         connect(btnIntelNpu, &QPushButton::clicked, this, &ManutenzioneePage::onBtnIntelNpuClicked);
+
+        /* Affianca Modalità Calcolo (55%) e NPU (45%) */
+        auto* bottomRow = new QHBoxLayout;
+        bottomRow->setSpacing(12);
+        bottomRow->addWidget(computeGroup, 55);
+        bottomRow->addWidget(npuGroup,     45);
+        mainLay->addLayout(bottomRow);
     }
 
-    return page;
+    mainLay->addStretch(1);
+
+    /* Scroll area — evita overflow sotto la barra di sistema */
+    auto* sc = new QScrollArea;
+    sc->setWidgetResizable(true);
+    sc->setFrameShape(QFrame::NoFrame);
+    sc->setWidget(page);
+    return sc;
 }
 
 /* ══════════════════════════════════════════════════════════════

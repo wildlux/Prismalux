@@ -92,8 +92,19 @@ QWidget* PersonalizzaPage::buildLoraTab()
         info->setObjectName("hintLabel");
         tLay->addWidget(info);
 
-        /* Modello base */
-        auto* grpModel = new QGroupBox("\xf0\x9f\x93\x81  Modello base (.gguf)", tab);
+        /* ── Layout a 2 colonne: sinistra=input/parametri, destra=output+log ── */
+        auto* colsW = new QWidget(tab);
+        auto* cLay  = new QHBoxLayout(colsW);
+        cLay->setContentsMargins(0, 0, 0, 0);
+        cLay->setSpacing(10);
+
+        auto* leftCol  = new QVBoxLayout;
+        auto* rightCol = new QVBoxLayout;
+        leftCol->setSpacing(10);
+        rightCol->setSpacing(10);
+
+        /* Colonna sinistra: Modello base */
+        auto* grpModel = new QGroupBox("\xf0\x9f\x93\x81  Modello base (.gguf)", colsW);
         grpModel->setObjectName("cardGroup");
         auto* mLay = new QHBoxLayout(grpModel);
         m_loraModelEdit = new QLineEdit(grpModel);
@@ -105,10 +116,10 @@ QWidget* PersonalizzaPage::buildLoraTab()
         mLay->addWidget(modelBtn);
         connect(modelBtn, &QPushButton::clicked,
                 this, &PersonalizzaPage::onModelBtnClicked);
-        tLay->addWidget(grpModel);
+        leftCol->addWidget(grpModel);
 
-        /* Dataset */
-        auto* grpData = new QGroupBox("\xf0\x9f\x93\x8a  Dataset di training (.jsonl)", tab);
+        /* Colonna sinistra: Dataset */
+        auto* grpData = new QGroupBox("\xf0\x9f\x93\x8a  Dataset di training (.jsonl)", colsW);
         grpData->setObjectName("cardGroup");
         auto* dLay = new QHBoxLayout(grpData);
         m_loraDataEdit = new QLineEdit(grpData);
@@ -120,50 +131,60 @@ QWidget* PersonalizzaPage::buildLoraTab()
         dLay->addWidget(dataBtn);
         connect(dataBtn, &QPushButton::clicked,
                 this, &PersonalizzaPage::onDataBtnClicked);
-        tLay->addWidget(grpData);
+        leftCol->addWidget(grpData);
 
-        /* Iperparametri */
-        auto* grpHyper = new QGroupBox("\xe2\x9a\x99\xef\xb8\x8f  Iperparametri LoRA", tab);
+        /* Colonna sinistra: Iperparametri (griglia 2×3) */
+        auto* grpHyper = new QGroupBox("\xe2\x9a\x99\xef\xb8\x8f  Iperparametri LoRA", colsW);
         grpHyper->setObjectName("cardGroup");
-        auto* fLay = new QFormLayout(grpHyper);
-        fLay->setLabelAlignment(Qt::AlignRight);
+        auto* hGrid = new QGridLayout(grpHyper);
+        hGrid->setHorizontalSpacing(16);
+        hGrid->setVerticalSpacing(6);
 
         m_loraSpinEpochs = new QSpinBox(grpHyper);
         m_loraSpinEpochs->setRange(1, 100); m_loraSpinEpochs->setValue(3);
         m_loraSpinEpochs->setToolTip("Numero di passaggi sull'intero dataset");
-        fLay->addRow("Epoche:", m_loraSpinEpochs);
+        hGrid->addWidget(new QLabel("Epoche:"),        0, 0, Qt::AlignRight);
+        hGrid->addWidget(m_loraSpinEpochs,             0, 1);
 
         m_loraSpinR = new QSpinBox(grpHyper);
         m_loraSpinR->setRange(1, 256); m_loraSpinR->setValue(8);
-        m_loraSpinR->setToolTip("Rango LoRA: valori bassi = meno parametri, addestramento più veloce");
-        fLay->addRow("Rango LoRA (r):", m_loraSpinR);
+        m_loraSpinR->setToolTip("Rango LoRA: valori bassi = meno parametri");
+        hGrid->addWidget(new QLabel("Rango LoRA (r):"), 0, 2, Qt::AlignRight);
+        hGrid->addWidget(m_loraSpinR,                   0, 3);
 
         m_loraSpinAlpha = new QSpinBox(grpHyper);
         m_loraSpinAlpha->setRange(1, 512); m_loraSpinAlpha->setValue(32);
         m_loraSpinAlpha->setToolTip("Alpha LoRA: scala l'impatto dell'adapter (tipico: 2-4× rank)");
-        fLay->addRow("Alpha LoRA:", m_loraSpinAlpha);
+        hGrid->addWidget(new QLabel("Alpha LoRA:"),    1, 0, Qt::AlignRight);
+        hGrid->addWidget(m_loraSpinAlpha,              1, 1);
 
         m_loraDspLr = new QDoubleSpinBox(grpHyper);
         m_loraDspLr->setRange(1e-6, 1e-2); m_loraDspLr->setValue(1e-4);
         m_loraDspLr->setDecimals(7); m_loraDspLr->setSingleStep(1e-5);
         m_loraDspLr->setToolTip("Learning rate (tipico: 1e-4 – 3e-4)");
-        fLay->addRow("Learning rate:", m_loraDspLr);
+        hGrid->addWidget(new QLabel("Learning rate:"), 1, 2, Qt::AlignRight);
+        hGrid->addWidget(m_loraDspLr,                  1, 3);
 
         m_loraSpinBatch = new QSpinBox(grpHyper);
         m_loraSpinBatch->setRange(1, 64); m_loraSpinBatch->setValue(4);
         m_loraSpinBatch->setToolTip("Batch size: su CPU limitare a 1-4");
-        fLay->addRow("Batch size:", m_loraSpinBatch);
+        hGrid->addWidget(new QLabel("Batch size:"),    2, 0, Qt::AlignRight);
+        hGrid->addWidget(m_loraSpinBatch,              2, 1);
 
         m_loraSpinCtx = new QSpinBox(grpHyper);
         m_loraSpinCtx->setRange(128, 32768); m_loraSpinCtx->setValue(512);
         m_loraSpinCtx->setSingleStep(128);
         m_loraSpinCtx->setToolTip("Lunghezza contesto per ogni esempio");
-        fLay->addRow("Context size:", m_loraSpinCtx);
+        hGrid->addWidget(new QLabel("Context size:"),  2, 2, Qt::AlignRight);
+        hGrid->addWidget(m_loraSpinCtx,                2, 3);
 
-        tLay->addWidget(grpHyper);
+        hGrid->setColumnStretch(1, 1);
+        hGrid->setColumnStretch(3, 1);
+        leftCol->addWidget(grpHyper);
+        leftCol->addStretch();
 
-        /* Output */
-        auto* grpOut = new QGroupBox("\xf0\x9f\x92\xbe  Cartella output", tab);
+        /* Colonna destra: Output */
+        auto* grpOut = new QGroupBox("\xf0\x9f\x92\xbe  Cartella output", colsW);
         grpOut->setObjectName("cardGroup");
         auto* oLay = new QHBoxLayout(grpOut);
         m_loraOutEdit = new QLineEdit(grpOut);
@@ -174,10 +195,10 @@ QWidget* PersonalizzaPage::buildLoraTab()
         oLay->addWidget(outBtn);
         connect(outBtn, &QPushButton::clicked,
                 this, &PersonalizzaPage::onOutBtnClicked);
-        tLay->addWidget(grpOut);
+        rightCol->addWidget(grpOut);
 
-        /* Pulsanti avvio/stop */
-        auto* btnRow = new QWidget(tab);
+        /* Colonna destra: Pulsanti avvio/stop */
+        auto* btnRow = new QWidget(colsW);
         auto* bLay   = new QHBoxLayout(btnRow);
         bLay->setContentsMargins(0, 0, 0, 0);
         m_loraStartBtn = new QPushButton(
@@ -190,14 +211,18 @@ QWidget* PersonalizzaPage::buildLoraTab()
         bLay->addWidget(m_loraStartBtn);
         bLay->addWidget(m_loraStopBtn);
         bLay->addStretch(1);
-        tLay->addWidget(btnRow);
+        rightCol->addWidget(btnRow);
 
-        /* Log live */
+        /* Colonna destra: Log live (si espande) */
         m_loraLog = makeLog(
             "\xf0\x9f\xa7\xa0  Il log del training apparir\xc3\xa0 qui...\n"
             "Ogni riga mostra la loss scendere man mano che il modello impara.");
-        m_loraLog->setFixedHeight(180);
-        tLay->addWidget(m_loraLog);
+        m_loraLog->setMinimumHeight(160);
+        rightCol->addWidget(m_loraLog, 1);
+
+        cLay->addLayout(leftCol, 48);
+        cLay->addLayout(rightCol, 52);
+        tLay->addWidget(colsW, 1);
 
         connect(m_loraStartBtn, &QPushButton::clicked,
                 this, &PersonalizzaPage::onLoraStartBtnClicked);
