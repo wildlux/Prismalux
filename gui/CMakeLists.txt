@@ -96,6 +96,7 @@ set(CPP_SRCS
     pages/stable_diffusion_widget.cpp
     pages/matematica_page.cpp
     pages/ricerca_page.cpp
+    pages/rab0l_canvas.cpp
     pages/app_controller_page.cpp
     pages/opencode_page.cpp
     monitor_panel.cpp

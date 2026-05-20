@@ -5,18 +5,41 @@
          forceDarkAllowed=false è il lock definitivo per evitare
          la doppia inversione dark-on-dark su MIUI 12+. -->
     <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
-        <!-- Disabilita force-dark di Android/MIUI -->
+
+        <!-- ── Lock anti-force-dark (MIUI 12+ / Android 10+) ── -->
         <item name="android:forceDarkAllowed">false</item>
-        <!-- Barre di sistema che corrispondono al QSS (#0f1117 / #1a1d27) -->
+
+        <!-- ── Sfondo finestra: stesso del QSS base (#0f1117).
+             Evita il flash "bianco" prima che Qt carichi il suo QSS. ── -->
         <item name="android:windowBackground">#0f1117</item>
+        <!-- colorBackground: copre i View che non usano windowBackground -->
+        <item name="android:colorBackground">#0f1117</item>
+
+        <!-- ── Barre di sistema ── -->
         <item name="android:statusBarColor">#1a1d27</item>
         <item name="android:navigationBarColor">#1a1d27</item>
         <!-- Icone bianche su barre scure (API 27+, ignorato su 26) -->
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
-        <!-- Colori accent coerenti con il QSS (ciano #00c8ff) -->
+
+        <!-- ── Colori testo: evita che Android inietti testo nero su sfondo scuro ── -->
+        <item name="android:textColor">#e8eaf0</item>
+        <item name="android:textColorPrimary">#e8eaf0</item>
+        <item name="android:textColorSecondary">#8890a8</item>
+        <item name="android:textColorHint">#8890a8</item>
+
+        <!-- ── Accent / primary ── -->
         <item name="android:colorPrimary">#00c8ff</item>
         <item name="android:colorPrimaryDark">#0099cc</item>
         <item name="android:colorAccent">#00c8ff</item>
+
+        <!-- ── Elimina overlay e title bar residui che causano flash ── -->
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+
+        <!-- ── Transizione: nessuna animazione di apertura finestra
+             (evita il flash light→dark durante avvio) ── -->
+        <item name="android:windowAnimationStyle">@null</item>
+
     </style>
 </resources>

@@ -7,12 +7,14 @@
 #include <QLabel>
 #include <QProcess>
 #include <QProgressBar>
+#include <QTableWidget>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QAbstractSocket>
 #include <QTcpSocket>
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
+#include "rab0l_canvas.h"
 
 /* ══════════════════════════════════════════════════════════════
    RicercaPage — "Ricerca e Sviluppo"
@@ -113,6 +115,26 @@ private:
     QWidget* buildRDKitTab();
     QWidget* buildBiocondaTab();
     QWidget* buildAvogadroTab();
+    QWidget* buildRab0lTab();
+    QWidget* buildBlhmTab();
+
+    /* ── RAB₀-L ── */
+    Rab0lCanvas* m_rab0lCanvas  = nullptr;
+    QLineEdit*   m_rab0lSeq1    = nullptr;
+    QLineEdit*   m_rab0lSeq2    = nullptr;
+    QLabel*      m_rab0lSimLbl  = nullptr;
+
+    /* ── BLHM ── */
+    QTableWidget* m_blhmTable   = nullptr;
+    QLineEdit*    m_blhmQuery   = nullptr;
+    QTextEdit*    m_blhmOutput  = nullptr;
+
+    /* ── BLHM Note & DNA ── */
+    QTextEdit*    m_blhmNoteEdit   = nullptr;
+    Rab0lCanvas*  m_blhmDnaCanvas  = nullptr;
+    QLineEdit*    m_blhmDnaSeq1    = nullptr;
+    QLineEdit*    m_blhmDnaSeq2    = nullptr;
+    QLabel*       m_blhmDnaSimLbl  = nullptr;
 
     /* ── Cerca Letteratura ── */
     QLineEdit*            m_litQuery      = nullptr;
@@ -175,6 +197,13 @@ private slots:
     void onAvoExecClicked();
     void onAvoRunClicked();
     void onAvoStopClicked();
+    /* RAB₀-L */
+    void onRab0lAnalyzeClicked();
+    /* BLHM */
+    void onBlhmComputeClicked();
+    void onBlhmNoteLoad();
+    void onBlhmNoteSave();
+    void onBlhmDnaAnalyzeClicked();
 
 public:
     static void esportaPdf(QTextEdit* editor,

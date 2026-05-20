@@ -731,6 +731,8 @@ constexpr const char* kSandboxMemory  = "sandbox/memoryMb";       ///< limite RA
 
 /* ── LAN Server ──────────────────────────────────── */
 constexpr const char* kLanToken       = "lan/accessToken";         ///< token Bearer opzionale per proteggere le API LAN
+constexpr const char* kLanAutoStart   = "lan/autoStart";           ///< true = server si avvia automaticamente all'apertura dell'app
+constexpr const char* kLanPort        = "lan/port";                ///< porta TCP (default 11500)
 
 }  // namespace SK
 

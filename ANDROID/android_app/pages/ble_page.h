@@ -41,6 +41,8 @@ private slots:
     void onSocketReadyRead();
     void onSocketDisconnected();
     void onSocketError(QBluetoothSocket::SocketError error);
+    void onClientConnected();
+    void onClientConnectError(QBluetoothSocket::SocketError error);
 
     /* Navigazione */
     void onShowScan();
@@ -51,6 +53,7 @@ private:
     void    addOrUpdateDevice(const QBluetoothDeviceInfo& info);
     void    appendChatMsg(const QString& sender, const QString& text);
     void    startServer();
+    void    connectToDevice(const QString& address, const QString& name);
 
     /* Stack 0 = scanner, 1 = chat */
     QStackedWidget* m_stack      = nullptr;

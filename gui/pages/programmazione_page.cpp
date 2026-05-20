@@ -1,6 +1,7 @@
 #include "programmazione_page.h"
 #include "code_interpreter_widget.h"
 #include "../prismalux_paths.h"
+#include "../ai_utils.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -135,6 +136,14 @@ protected:
 /* ══════════════════════════════════════════════════════════════
    ProgrammazionePage — costruttore
    ══════════════════════════════════════════════════════════════ */
+ProgrammazionePage::~ProgrammazionePage()
+{
+    if (m_replProc) {
+        m_replProc->disconnect();
+        m_replProc->kill();
+    }
+}
+
 ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     : QWidget(parent), m_ai(ai)
 {
@@ -1610,16 +1619,33 @@ QWidget* ProgrammazionePage::buildNetworkAnalyzer(QWidget* parent)
     m_netIface->setMinimumWidth(110);
     for (const QNetworkInterface& iface : QNetworkInterface::allInterfaces()) {
         if (iface.flags().testFlag(QNetworkInterface::IsLoopBack)) continue;
-        m_netIface->addItem(iface.name());
+        const QString n = iface.name();
+        m_netIface->addItem(AiUtils::ifaceEmoji(n) + n, n);
     }
-    if (m_netIface->count() == 0) m_netIface->addItem("any");
+    if (m_netIface->count() == 0) m_netIface->addItem("\xf0\x9f\x8c\x90  any", "any");
     toolRow->addWidget(m_netIface);
 
-    toolRow->addWidget(new QLabel("Filtro:", w));
-    m_netFilter = new QLineEdit(w);
-    m_netFilter->setPlaceholderText("es. tcp port 80  o  icmp");
-    m_netFilter->setMinimumWidth(140);
-    toolRow->addWidget(m_netFilter, 1);
+    toolRow->addWidget(new QLabel("Protocollo:", w));
+    m_netProto = new QComboBox(w);
+    m_netProto->addItem("Tutti",  QString(""));
+    m_netProto->addItem("TCP",    QString("tcp"));
+    m_netProto->addItem("UDP",    QString("udp"));
+    m_netProto->addItem("ICMP",   QString("icmp"));
+    m_netProto->addItem("ARP",    QString("arp"));
+    m_netProto->addItem("DNS",    QString("udp port 53"));
+    m_netProto->addItem("HTTP",   QString("tcp port 80"));
+    m_netProto->addItem("HTTPS",  QString("tcp port 443"));
+    m_netProto->setMinimumWidth(90);
+    toolRow->addWidget(m_netProto);
+
+    toolRow->addWidget(new QLabel("Porta:", w));
+    m_netPort = new QSpinBox(w);
+    m_netPort->setRange(0, 65535);
+    m_netPort->setValue(0);
+    m_netPort->setSpecialValueText("Tutte");
+    m_netPort->setFixedWidth(80);
+    m_netPort->setToolTip("0 = tutte le porte");
+    toolRow->addWidget(m_netPort);
 
     toolRow->addWidget(new QLabel("Max:", w));
     m_netMaxPkts = new QSpinBox(w);
@@ -1628,16 +1654,22 @@ QWidget* ProgrammazionePage::buildNetworkAnalyzer(QWidget* parent)
     m_netMaxPkts->setFixedWidth(70);
     toolRow->addWidget(m_netMaxPkts);
 
-    m_btnNetStart   = new QPushButton("\xe2\x96\xb6  Start",     w);
-    m_btnNetStop    = new QPushButton("\xe2\x96\xa0  Stop",      w);
-    m_btnNetClear   = new QPushButton("\xf0\x9f\x97\x91  Clear", w);
-    m_btnNetAnalyze = new QPushButton("\xf0\x9f\xa4\x96  Analisi AI", w);
+    m_btnNetStart    = new QPushButton("\xe2\x96\xb6  Start",        w);
+    m_btnNetStop     = new QPushButton("\xe2\x96\xa0  Stop",         w);
+    m_btnNetClear    = new QPushButton("\xf0\x9f\x97\x91  Clear",    w);
+    m_btnNetAnalyze  = new QPushButton("\xf0\x9f\xa4\x96  Analisi AI", w);
+    m_btnNetFixPerms = new QPushButton("\xf0\x9f\x94\x91  Fix permessi", w);
     m_btnNetStop->setEnabled(false);
     m_btnNetAnalyze->setEnabled(false);
+    m_btnNetFixPerms->setToolTip(
+        "Applica CAP_NET_RAW al tool di cattura (richiede password amministratore).\n"
+        "In alternativa: sudo setcap cap_net_raw+eip " + m_netTool);
+    m_btnNetFixPerms->setVisible(!QStandardPaths::findExecutable("pkexec").isEmpty());
     toolRow->addWidget(m_btnNetStart);
     toolRow->addWidget(m_btnNetStop);
     toolRow->addWidget(m_btnNetClear);
     toolRow->addWidget(m_btnNetAnalyze);
+    toolRow->addWidget(m_btnNetFixPerms);
     lay->addLayout(toolRow);
 
     m_netStatus = new QLabel(w);
@@ -1674,11 +1706,11 @@ QWidget* ProgrammazionePage::buildNetworkAnalyzer(QWidget* parent)
         m_netStatus->setText(QString("\xe2\x9c\x85  Tool rilevato: %1").arg(m_netTool));
     }
 
-    connect(m_btnNetStart, &QPushButton::clicked, this, &ProgrammazionePage::netStart);
-    connect(m_btnNetStop,  &QPushButton::clicked, this, &ProgrammazionePage::netStop);
-    connect(m_btnNetClear, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnNetClearClicked);
-    connect(m_btnNetAnalyze, &QPushButton::clicked, this, &ProgrammazionePage::netAiAnalyze);
+    connect(m_btnNetStart,    &QPushButton::clicked, this, &ProgrammazionePage::netStart);
+    connect(m_btnNetStop,     &QPushButton::clicked, this, &ProgrammazionePage::netStop);
+    connect(m_btnNetClear,    &QPushButton::clicked, this, &ProgrammazionePage::onBtnNetClearClicked);
+    connect(m_btnNetAnalyze,  &QPushButton::clicked, this, &ProgrammazionePage::netAiAnalyze);
+    connect(m_btnNetFixPerms, &QPushButton::clicked, this, &ProgrammazionePage::netFixPermissions);
 
     return w;
 }
@@ -1687,9 +1719,19 @@ void ProgrammazionePage::netStart()
 {
     if (m_netProc && m_netProc->state() != QProcess::NotRunning) return;
 
-    const QString iface  = m_netIface->currentText();
-    const QString filter = m_netFilter->text().trimmed();
+    const QString iface  = m_netIface->currentData().toString();
     const int     maxPkt = m_netMaxPkts->value();
+
+    /* Costruisce il filtro BPF dai campi strutturati */
+    QString filter = m_netProto->currentData().toString(); // es. "tcp", "udp port 53", ""
+    const int port = m_netPort->value();
+    if (port > 0) {
+        /* Se il filtro contiene già "port" (DNS/HTTP/HTTPS), ignora il campo porta */
+        if (!filter.contains("port")) {
+            const QString proto = filter.isEmpty() ? "" : filter + " ";
+            filter = proto + "port " + QString::number(port);
+        }
+    }
 
     m_netLog->clear();
     m_netAiOutput->clear();
@@ -1736,8 +1778,10 @@ void ProgrammazionePage::netStart()
     }
     m_btnNetStart->setEnabled(false);
     m_btnNetStop->setEnabled(true);
+    const QString filterDesc = filter.isEmpty() ? "tutto il traffico" : filter;
     m_netStatus->setText(
-        QString("\xf0\x9f\x94\xb4  Cattura in corso su %1...").arg(iface));
+        QString("\xf0\x9f\x94\xb4  Cattura su <b>%1</b> — filtro: <code>%2</code>")
+        .arg(iface, filterDesc));
 }
 
 void ProgrammazionePage::netStop()
@@ -1844,10 +1888,10 @@ QWidget* ProgrammazionePage::buildReteLan(QWidget* parent)
     m_lanStatusLbl->setText(
         "\xf0\x9f\x94\x8c Premi un pulsante per scansionare la rete locale.");
 
-    lay->addWidget(m_lanInfoLbl);
     lay->addWidget(btnRow);
     lay->addWidget(m_lanTable, 1);
     lay->addWidget(m_lanStatusLbl);
+    lay->addWidget(m_lanInfoLbl);
 
     /* Connessioni */
     connect(m_lanScanArp, &QPushButton::clicked,
@@ -1864,34 +1908,86 @@ QWidget* ProgrammazionePage::buildReteLan(QWidget* parent)
 void ProgrammazionePage::lanRefreshInfo()
 {
     if (!m_lanInfoLbl) return;
-    QStringList parts;
+
+    auto isPhysical = [](const QString& n) {
+        return n.startsWith("en") || n.startsWith("eth") ||
+               n.startsWith("wl") || n.startsWith("em") || n.startsWith("ib");
+    };
+
+    struct IfRow { QString icon, name, ip, pfx, net, mac; bool physical; };
+    QList<IfRow> rows;
+
     for (const QNetworkInterface& iface : QNetworkInterface::allInterfaces()) {
         if (iface.flags().testFlag(QNetworkInterface::IsLoopBack)) continue;
         if (!iface.flags().testFlag(QNetworkInterface::IsUp)) continue;
-        const QString hw = iface.hardwareAddress();
+        const QString hw = iface.hardwareAddress().toUpper();
         for (const QNetworkAddressEntry& e : iface.addressEntries()) {
             if (e.ip().protocol() != QAbstractSocket::IPv4Protocol) continue;
             const quint32 ipRaw  = e.ip().toIPv4Address();
             const quint32 mskRaw = e.netmask().toIPv4Address();
             int pfx = 0; quint32 tmp = mskRaw;
             while (tmp) { pfx += (tmp >> 31) & 1; tmp <<= 1; }
-            const quint32 netRaw = ipRaw & mskRaw;
-            const quint32 bcRaw  = netRaw | ~mskRaw;
-            const quint32 hostCnt = (pfx < 32) ? ((1u << (32 - pfx)) - 2) : 1u;
-            parts << QString(
-                "<b>\xf0\x9f\x94\x8c %1</b>: <b>%2/%3</b>"
-                " &nbsp;|\xc2\xa0 Rete: <code>%4</code>"
-                " &nbsp;|\xc2\xa0 Broadcast: <code>%5</code>"
-                " &nbsp;|\xc2\xa0 Host disponibili: <b>%6</b>"
-                " &nbsp;|\xc2\xa0 MAC: <code>%7</code>")
-                .arg(iface.name(), e.ip().toString(), QString::number(pfx),
-                     QHostAddress(netRaw).toString(), QHostAddress(bcRaw).toString(),
-                     QString::number(hostCnt), hw.isEmpty() ? "N/D" : hw);
+            const bool phys = isPhysical(iface.name());
+            const QString icon = iface.name().startsWith("wl")
+                ? "\xf0\x9f\x93\xa1"   /* 📡 */
+                : phys
+                    ? "\xf0\x9f\x94\x8c"   /* 🔌 */
+                    : "\xf0\x9f\x94\xa7";  /* 🔧 */
+            rows.append({ icon, iface.name(), e.ip().toString(),
+                          QString::number(pfx),
+                          QHostAddress(ipRaw & mskRaw).toString(),
+                          hw.isEmpty() ? "N/D" : hw, phys });
         }
     }
-    m_lanInfoLbl->setText(parts.isEmpty()
-        ? "<i>\xf0\x9f\x9f\xa1 Nessuna interfaccia IPv4 attiva</i>"
-        : parts.join("<br>"));
+
+    if (rows.isEmpty()) {
+        m_lanInfoLbl->setText("<i>\xf0\x9f\x9f\xa1 Nessuna interfaccia IPv4 attiva</i>");
+        return;
+    }
+
+    /* Fisiche prima, poi virtuali */
+    std::stable_partition(rows.begin(), rows.end(), [](const IfRow& r){ return r.physical; });
+
+    QString html =
+        "<table cellspacing='0' cellpadding='3' style='border-collapse:collapse'>"
+        "<tr>"
+        "<td style='color:#888;padding-right:16px'><small><b>Interfaccia</b></small></td>"
+        "<td style='color:#888;padding-right:16px'><small><b>Indirizzo IP</b></small></td>"
+        "<td style='color:#888;padding-right:16px'><small><b>Rete</b></small></td>"
+        "<td style='color:#888'><small><b>MAC Address</b></small></td>"
+        "</tr>";
+
+    bool virtSepAdded = false;
+    for (const IfRow& r : rows) {
+        if (!r.physical && !virtSepAdded) {
+            /* separatore prima delle virtuali */
+            html += "<tr><td colspan='4' style='padding-top:4px;padding-bottom:2px'>"
+                    "<small><span style='color:#555'>"
+                    "\xe2\x94\x80\xe2\x94\x80"
+                    " Virtuali / Bridge "
+                    "\xe2\x94\x80\xe2\x94\x80"
+                    "</span></small></td></tr>";
+            virtSepAdded = true;
+        }
+        const QString style = r.physical
+            ? "padding-right:16px"
+            : "padding-right:16px;color:#777";
+        const QString nameCell = r.physical
+            ? QString("<b>%1 %2</b>").arg(r.icon, r.name)
+            : QString("<small>%1 %2</small>").arg(r.icon, r.name);
+        const QString dataStyle = r.physical ? "" : "color:#777";
+        html += QString(
+            "<tr>"
+            "<td style='%1'>%2</td>"
+            "<td style='%1'><small><code style='%3'>%4/%5</code></small></td>"
+            "<td style='%1'><small><code style='%3'>%6</code></small></td>"
+            "<td><small><code style='%3'>%7</code></small></td>"
+            "</tr>")
+            .arg(style, nameCell, dataStyle,
+                 r.ip, r.pfx, r.net, r.mac);
+    }
+    html += "</table>";
+    m_lanInfoLbl->setText(html);
 }
 
 bool ProgrammazionePage::hasUnsavedWork() const {

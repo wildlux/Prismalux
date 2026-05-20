@@ -79,29 +79,10 @@ bool LanServer::_ensureCert(QString& certPath, QString& keyPath)
 LanServer::LanServer(AiClient* ai, QObject* parent)
     : QObject(parent), m_ai(ai)
 {
-#if QT_CONFIG(ssl)
-    if (QSslSocket::supportsSsl()) {
-        QString certPath, keyPath;
-        if (_ensureCert(certPath, keyPath)) {
-            QSslConfiguration cfg = QSslConfiguration::defaultConfiguration();
-            cfg.setLocalCertificate(QSslCertificate::fromPath(certPath).value(0));
-            QFile kf(keyPath);
-            if (kf.open(QIODevice::ReadOnly)) {
-                cfg.setPrivateKey(QSslKey(&kf, QSsl::Rsa));
-                kf.close();
-            }
-            cfg.setPeerVerifyMode(QSslSocket::VerifyNone);
-            auto* sslSrv = new QSslServer(this);
-            sslSrv->setSslConfiguration(cfg);
-            m_server     = sslSrv;
-            m_tlsEnabled = true;
-        }
-    }
-#endif
-    if (!m_server) {
-        m_server = new QTcpServer(this);
-        qWarning() << "LanServer: TLS non disponibile — avvio in HTTP";
-    }
+    /* HTTP semplice sulla LAN: il TLS auto-firmato causava handshake lenti,
+     * avvisi "sito non sicuro" nel browser e problemi con i QR code.
+     * La sicurezza è garantita dal Bearer token. */
+    m_server = new QTcpServer(this);
     connect(m_server, &QTcpServer::newConnection, this, &LanServer::onNewConnection);
 }
 
@@ -200,9 +181,7 @@ void LanServer::onNewConnection()
         QTcpSocket* sock = m_server->nextPendingConnection();
         if (!sock) continue;
 
-        /* Conta sia sessioni già stabilite sia connessioni TLS in attesa di handshake.
-         * Senza questo check un attaccante aprirebbe 32 TCP senza completare TLS. */
-        if (static_cast<int>(m_sessions.size()) + m_pendingTls >= kMaxSessions) {
+        if (static_cast<int>(m_sessions.size()) >= kMaxSessions) {
             sock->write("HTTP/1.1 503 Service Unavailable\r\n"
                         "Content-Type: application/json\r\n"
                         "X-Content-Type-Options: nosniff\r\n"
@@ -213,18 +192,7 @@ void LanServer::onNewConnection()
             continue;
         }
 
-#if QT_CONFIG(ssl)
-        if (auto* sslSock = qobject_cast<QSslSocket*>(sock)) {
-            /* Connessione TLS: conta come "pending" finché l'handshake non completa.
-             * Solo dopo encrypted() il socket entra in m_sessions. */
-            ++m_pendingTls;
-            connect(sslSock, &QSslSocket::sslErrors, this, &LanServer::onSslErrors);
-            connect(sslSock, &QSslSocket::encrypted, this, &LanServer::onSslEncrypted);
-            connect(sslSock, &QSslSocket::disconnected, this, &LanServer::onPendingTlsDisconnected);
-            continue;  /* attende handshake */
-        }
-#endif
-        /* TCP plain: entra subito in m_sessions */
+        /* Entra subito in m_sessions */
         Session s;
         s.socket = sock;
         s.addr   = sock->peerAddress().toString();
@@ -240,28 +208,6 @@ void LanServer::onNewConnection()
 
 void LanServer::onChatRateTimeout()      { m_chatRateCount.clear(); }
 void LanServer::onKnowledgeRateTimeout() { m_knowledgeReqCount.clear(); }
-void LanServer::onPendingTlsDisconnected() { if (m_pendingTls > 0) --m_pendingTls; }
-
-#if QT_CONFIG(ssl)
-void LanServer::onSslErrors(const QList<QSslError>& errs)
-{
-    if (auto* sslSock = qobject_cast<QSslSocket*>(sender()))
-        sslSock->ignoreSslErrors(errs);
-}
-
-void LanServer::onSslEncrypted()
-{
-    auto* sslSock = qobject_cast<QSslSocket*>(sender());
-    if (!sslSock) return;
-    --m_pendingTls;
-    Session s;
-    s.socket = sslSock;
-    s.addr   = sslSock->peerAddress().toString();
-    m_sessions.insert(sslSock, s);
-    connect(sslSock, &QTcpSocket::readyRead,    this, &LanServer::onClientReadyRead);
-    connect(sslSock, &QTcpSocket::disconnected, this, &LanServer::onClientDisconnected);
-}
-#endif
 
 bool LanServer::checkChatRateLimit(Session& s)
 {
@@ -315,6 +261,24 @@ void LanServer::onClientReadyRead()
         if (reqLine.size() < 2) { sendError(sock, 400, "Bad Request"); return; }
         s.method = QString::fromLatin1(reqLine[0]).toUpper();
         s.path   = QString::fromLatin1(reqLine[1]);
+
+        /* Separa il query string dal path e usa ?token= come auth fallback.
+         * Priorità: header Authorization (già parsato) > query ?token=.
+         * Utile per aprire /web con link diretto da browser o condivisione URL. */
+        const int qmark = s.path.indexOf('?');
+        if (qmark >= 0) {
+            const QString qs = s.path.mid(qmark + 1);
+            s.path = s.path.left(qmark);
+            /* Cerca token=XXX nella query string */
+            for (const QStringView part : QStringView(qs).split('&')) {
+                if (part.startsWith(u"token=")) {
+                    const QString raw = part.mid(6).toString();
+                    /* URL-decode minimale: solo %XX sequenze basilari */
+                    s.authHeaderFallback = QUrl::fromPercentEncoding(raw.toLatin1());
+                    break;
+                }
+            }
+        }
 
         /* Headers */
         for (int i = 1; i < lines.size(); ++i) {
@@ -387,14 +351,21 @@ void LanServer::processSession(Session& s)
                         s.path == "/api/chat"      ||
                         s.path == "/api/generate"  ||
                         s.path == "/knowledge"     ||
-                        s.path == "/apk");
+                        s.path == "/apk"           ||
+                        s.path == "/api/launch"    ||
+                        s.path == "/api/sysinfo"   ||
+                        s.path == "/api/mcp");
 
     /* Auth check: se il token è impostato, le route protette richiedono
-       Authorization: Bearer TOKEN. Solo / e /web rimangono pubblici.
+       Authorization: Bearer TOKEN, oppure ?token=TOKEN nella URL (fallback).
        Confronto constant-time per evitare timing attack. */
     if (isApi && !m_accessToken.isEmpty()) {
         const QString expected = "Bearer " + m_accessToken;
-        if (!timingSafeEqual(s.authHeader, expected)) {
+        /* Usa l'header se presente, altrimenti il token dalla query string */
+        const QString effective = s.authHeader.isEmpty()
+            ? "Bearer " + s.authHeaderFallback
+            : s.authHeader;
+        if (!timingSafeEqual(effective, expected)) {
             QByteArray resp = "HTTP/1.1 401 Unauthorized\r\n"
                               "Content-Type: application/json\r\n"
                               "WWW-Authenticate: Bearer realm=\"Prismalux\"\r\n"
@@ -431,6 +402,133 @@ void LanServer::processSession(Session& s)
         handleIndex(s);
     } else if (s.path == "/web" && s.method == "GET") {
         handleWebChat(s);
+    } else if (s.path == "/api/launch" && s.method == "POST") {
+        const QJsonObject body = QJsonDocument::fromJson(s.body).object();
+        const QString app = body["app"].toString().toLower().trimmed();
+        static const QMap<QString, QString> kAppMap = {
+            {"blender",      "blender"},
+            {"freecad",      "freecad"},
+            {"libreoffice",  "libreoffice"},
+            {"cloudcompare", "cloudcompare"},
+            {"anki",         "anki"},
+            {"kicad",        "kicad"},
+            {"obs",          "obs"},
+            {"opencode",     "opencode"},
+            {"godot",        "godot4"},
+            {"tinymcp",      "tinymcp"},
+            {"vscode",       "code"},
+            {"gimp",         "gimp"},
+            {"inkscape",     "inkscape"},
+            {"vlc",          "vlc"},
+            {"firefox",      "firefox"},
+            {"chromium",     "chromium"},
+            {"nautilus",     "nautilus"},
+            {"thunar",       "thunar"},
+            {"konsole",      "konsole"},
+            {"xterm",        "xterm"},
+        };
+        if (!kAppMap.contains(app)) {
+            sendError(s.socket, 400, "App non trovata");
+        } else {
+            const bool ok = QProcess::startDetached(kAppMap[app], {});
+            sendJson(s.socket, ok
+                ? R"({"status":"launched"})"
+                : R"({"status":"error","msg":"eseguibile non trovato"})");
+        }
+    } else if (s.path == "/api/sysinfo" && s.method == "GET") {
+        int ncpu = 1;
+        {
+            QFile f("/proc/cpuinfo");
+            if (f.open(QIODevice::ReadOnly)) {
+                while (!f.atEnd())
+                    if (QString::fromLatin1(f.readLine()).startsWith("processor")) ncpu++;
+                f.close();
+            }
+        }
+        double load1 = 0.0;
+        {
+            QFile f("/proc/loadavg");
+            if (f.open(QIODevice::ReadOnly)) {
+                load1 = QString::fromLatin1(f.readLine()).split(' ').value(0).toDouble();
+                f.close();
+            }
+        }
+        const int cpuPct = qMin(100, int(load1 * 100.0 / ncpu));
+        qint64 ramTotal = 0, ramFree = 0, ramBuf = 0, ramCached = 0;
+        {
+            QFile f("/proc/meminfo");
+            if (f.open(QIODevice::ReadOnly)) {
+                while (!f.atEnd()) {
+                    const QString ln = QString::fromLatin1(f.readLine()).trimmed();
+                    const auto p = ln.split(QRegularExpression("\\s+"));
+                    if      (ln.startsWith("MemTotal:"))                           ramTotal  = p.value(1).toLongLong();
+                    else if (ln.startsWith("MemFree:"))                            ramFree   = p.value(1).toLongLong();
+                    else if (ln.startsWith("Buffers:"))                            ramBuf    = p.value(1).toLongLong();
+                    else if (ln.startsWith("Cached:") && !ln.startsWith("SwapCached:")) ramCached = p.value(1).toLongLong();
+                }
+                f.close();
+            }
+        }
+        const qint64 ramUsed = ramTotal - ramFree - ramBuf - ramCached;
+        const int ramPct = ramTotal > 0 ? int(ramUsed * 100 / ramTotal) : 0;
+        QString uptime = "--";
+        {
+            QFile f("/proc/uptime");
+            if (f.open(QIODevice::ReadOnly)) {
+                const double secs = QString::fromLatin1(f.readLine()).split(' ').value(0).toDouble();
+                uptime = QString("%1h %2m").arg(int(secs / 3600)).arg(int(secs / 60) % 60, 2, 10, QChar('0'));
+                f.close();
+            }
+        }
+        QString hostname = "unknown";
+        {
+            QFile f("/proc/sys/kernel/hostname");
+            if (f.open(QIODevice::ReadOnly)) { hostname = QString::fromLatin1(f.readLine()).trimmed(); f.close(); }
+        }
+        QJsonObject sj;
+        sj["cpu_pct"]      = cpuPct;
+        sj["ram_used_gb"]  = QString::number(ramUsed  / (1024.0 * 1024.0), 'f', 1);
+        sj["ram_total_gb"] = QString::number(ramTotal / (1024.0 * 1024.0), 'f', 1);
+        sj["ram_pct"]      = ramPct;
+        sj["uptime"]       = uptime;
+        sj["hostname"]     = hostname;
+        sendJson(s.socket, QJsonDocument(sj).toJson(QJsonDocument::Compact));
+    } else if (s.path == "/api/mcp" && s.method == "POST") {
+        const QJsonObject wrapper = QJsonDocument::fromJson(s.body).object();
+        const int       port    = wrapper["port"].toInt(8765);
+        const QString   host    = wrapper["host"].toString("127.0.0.1");
+        const QJsonObject mcpReq = wrapper["request"].toObject();
+        const QByteArray mcpBody = QJsonDocument(mcpReq).toJson(QJsonDocument::Compact);
+
+        QTcpSocket mcp;
+        mcp.connectToHost(host, static_cast<quint16>(port));
+        if (!mcp.waitForConnected(3000)) {
+            sendJson(s.socket, R"({"error":"MCP non raggiungibile","code":-1})");
+            return;
+        }
+        const QByteArray httpReq = QByteArray("POST / HTTP/1.1\r\n")
+            + "Host: " + host.toLatin1() + ":" + QByteArray::number(port) + "\r\n"
+            + "Content-Type: application/json\r\n"
+            + "Content-Length: " + QByteArray::number(mcpBody.size()) + "\r\n"
+            + "Connection: close\r\n\r\n"
+            + mcpBody;
+        mcp.write(httpReq);
+        mcp.flush();
+
+        QByteArray response;
+        while (mcp.state() == QAbstractSocket::ConnectedState
+               || mcp.waitForReadyRead(5000)) {
+            const QByteArray chunk = mcp.readAll();
+            if (chunk.isEmpty() && mcp.state() != QAbstractSocket::ConnectedState) break;
+            response += chunk;
+        }
+        response += mcp.readAll();
+
+        const int sep = response.indexOf("\r\n\r\n");
+        const QByteArray mcpResp = sep >= 0 ? response.mid(sep + 4) : response;
+        sendJson(s.socket, mcpResp.isEmpty()
+            ? QByteArray(R"({"error":"Nessuna risposta dal server MCP"})")
+            : mcpResp);
     } else {
         sendJson(s.socket, R"({"status":"ok"})");
     }
@@ -714,8 +812,6 @@ void LanServer::handleWebChat(Session& s)
                              ? QByteArray("ollama")
                              : m_ai->model().toUtf8();
 
-    /* Header Authorization da iniettare nel JS.
-       Escapa backslash e apice singolo per non rompere il literal JS. */
     const QByteArray authHeadersJs = [this]() -> QByteArray {
         if (m_accessToken.isEmpty())
             return "'Content-Type':'application/json'";
@@ -725,77 +821,559 @@ void LanServer::handleWebChat(Session& s)
                + safe.toUtf8() + QByteArray("'");
     }();
 
-    /* L'HTML è spezzato in blocchi per evitare problemi con raw-string e char
-       literal nel preprocessore C++ (apici singoli JS, template literal, ecc.) */
     QByteArray html;
     html += "<!DOCTYPE html>\n<html lang=\"it\">\n<head>\n"
             "<meta charset=\"utf-8\">\n"
             "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n"
             "<title>Prismalux \xe2\x80\x94 Chat AI</title>\n"
             "<style>\n"
+            ":root{--bg:#0f1117;--hdr:#1a1d2e;--brd:#2a2d4e;"
+              "--acc:#6c63ff;--usr:#6c63ff;--aim:#1e2235;"
+              "--txt:#e0e0f0;--dim:#888;--inp:#0f1117}\n"
             "*{box-sizing:border-box;margin:0;padding:0}\n"
             "body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;"
-              "background:#0f1117;color:#e0e0f0;height:100vh;"
-              "display:flex;flex-direction:column}\n"
-            "#hdr{background:#1a1d2e;border-bottom:1px solid #2a2d4e;"
-              "padding:10px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}\n"
-            "#hdr h1{font-size:16px;font-weight:700;color:#fff}\n"
-            "#hdr .mdl{font-size:11px;color:#6c63ff;border:1px solid #6c63ff40;"
-              "border-radius:20px;padding:2px 10px}\n"
+              "background:var(--bg);color:var(--txt);height:100vh;height:100dvh;"
+              "display:flex;flex-direction:column;overflow:hidden}\n"
+            /* ── Overlay + Drawer ── */
+            "#ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10}\n"
+            "#ov.open{display:block}\n"
+            "#drw{position:fixed;top:0;left:0;bottom:0;width:280px;max-width:85vw;"
+              "background:var(--hdr);border-right:1px solid var(--brd);"
+              "z-index:11;display:flex;flex-direction:column;"
+              "transform:translateX(-100%);transition:transform .25s ease;overflow-y:auto}\n"
+            "#drw.open{transform:translateX(0)}\n"
+            "#drw-hdr{display:flex;align-items:center;justify-content:space-between;"
+              "padding:14px 16px;border-bottom:1px solid var(--brd);flex-shrink:0}\n"
+            "#drw-hdr h2{font-size:15px;font-weight:700;color:var(--txt)}\n"
+            "#cls{background:transparent;border:none;color:var(--dim);"
+              "font-size:18px;cursor:pointer;padding:2px 8px;border-radius:4px}\n"
+            "#cls:hover{background:rgba(255,255,255,.1);color:var(--txt)}\n"
+            ".dsec{padding:14px 16px;border-bottom:1px solid var(--brd)}\n"
+            ".dsec h3{font-size:11px;color:var(--dim);text-transform:uppercase;"
+              "letter-spacing:.8px;margin-bottom:10px}\n"
+            "#mdl-sel{width:100%;background:var(--inp);border:1px solid var(--brd);"
+              "color:var(--txt);border-radius:8px;padding:8px 10px;font-size:14px}\n"
+            "#mdl-sel:focus{outline:none;border-color:var(--acc)}\n"
+            ".pbtn{display:flex;align-items:center;gap:8px;width:100%;"
+              "padding:9px 12px;margin-bottom:4px;background:transparent;"
+              "border:1px solid transparent;border-radius:8px;"
+              "color:var(--txt);font-size:14px;cursor:pointer;text-align:left}\n"
+            ".pbtn:hover{background:rgba(255,255,255,.07)}\n"
+            ".pbtn.on{background:rgba(128,128,200,.2);border-color:var(--acc);"
+              "color:var(--acc);font-weight:600}\n"
+            ".tbtn{display:flex;align-items:center;gap:8px;width:100%;"
+              "padding:9px 12px;margin-bottom:4px;background:transparent;"
+              "border:1px solid transparent;border-radius:8px;"
+              "color:var(--txt);font-size:14px;cursor:pointer;text-align:left}\n"
+            ".tbtn:hover{background:rgba(255,255,255,.07)}\n"
+            ".tbtn.on{background:rgba(80,200,120,.15);border-color:#50c878;"
+              "color:#50c878;font-weight:600}\n"
+            "#mic-btn{background:transparent;border:1px solid var(--brd);"
+              "color:var(--dim);border-radius:8px;padding:8px 10px;"
+              "font-size:16px;cursor:pointer;flex-shrink:0;line-height:1}\n"
+            "#mic-btn:hover{background:rgba(255,255,255,.07);color:var(--txt)}\n"
+            "#mic-btn.on{color:#ff4444;background:rgba(255,68,68,.12);"
+              "border-color:#ff4444}\n"
+            /* ── Header ── */
+            "#ham{background:transparent;border:none;color:var(--txt);"
+              "font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;flex-shrink:0}\n"
+            "#ham:hover{background:rgba(255,255,255,.1)}\n"
+            "#hdr{background:var(--hdr);border-bottom:1px solid var(--brd);"
+              "padding:10px 16px;display:flex;align-items:center;gap:8px;flex-shrink:0}\n"
+            "#hdr h1{font-size:16px;font-weight:700;color:var(--txt);flex-shrink:0}\n"
+            ".mdl{font-size:11px;color:var(--acc);border:1px solid var(--brd);"
+              "border-radius:20px;padding:2px 10px;flex-shrink:1;"
+              "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px}\n"
+            /* ── #tsel ora nel drawer, stile uguale a #mdl-sel ── */
+            "#tsel{width:100%;background:var(--inp);border:1px solid var(--brd);"
+              "color:var(--txt);border-radius:8px;padding:8px 10px;font-size:14px}\n"
+            "#tsel:focus{outline:none;border-color:var(--acc)}\n"
             "#log{flex:1;overflow-y:auto;padding:16px;"
               "display:flex;flex-direction:column;gap:10px}\n"
             ".msg{max-width:82%;padding:10px 14px;border-radius:14px;"
               "line-height:1.55;font-size:14px;white-space:pre-wrap}\n"
-            ".user{align-self:flex-end;background:#6c63ff;color:#fff;"
+            ".user{align-self:flex-end;background:var(--usr);color:#fff;"
               "border-bottom-right-radius:4px}\n"
-            ".ai{align-self:flex-start;background:#1e2235;color:#e0e0f0;"
-              "border-bottom-left-radius:4px;border:1px solid #2a2d4e}\n"
-            "#bar{display:flex;gap:8px;padding:12px 16px;background:#1a1d2e;"
-              "border-top:1px solid #2a2d4e;flex-shrink:0}\n"
-            "#sys{flex:0 0 auto;width:200px;background:#0f1117;"
-              "border:1px solid #2a2d4e;border-radius:8px;"
-              "color:#888;padding:6px 10px;font-size:12px}\n"
-            "#txt{flex:1;background:#0f1117;border:1px solid #2a2d4e;"
-              "border-radius:10px;color:#e0e0f0;padding:10px 14px;"
-              "font-size:14px;resize:none;max-height:120px}\n"
-            "#txt:focus,#sys:focus{outline:none;border-color:#6c63ff}\n"
-            "#snd{background:#6c63ff;color:#fff;border:none;border-radius:10px;"
-              "padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer}\n"
-            "#snd:hover{background:#7c74ff}\n"
+            ".ai{align-self:flex-start;background:var(--aim);color:var(--txt);"
+              "border-bottom-left-radius:4px;border:1px solid var(--brd)}\n"
+            "#bar{display:flex;gap:8px;padding:10px 16px;background:var(--hdr);"
+              "border-top:1px solid var(--brd);flex-shrink:0;align-items:flex-end}\n"
+            "#bar-mid{flex:1;display:flex;flex-direction:column;gap:4px}\n"
+            "#att-tag{display:none;align-items:center;gap:6px;"
+              "background:rgba(255,255,255,.08);border-radius:6px;padding:4px 8px}\n"
+            "#att-name{flex:1;overflow:hidden;text-overflow:ellipsis;"
+              "white-space:nowrap;font-size:12px;color:var(--dim)}\n"
+            "#att-clr{background:transparent;border:none;color:var(--dim);"
+              "cursor:pointer;padding:0 4px;font-size:14px;flex-shrink:0;line-height:1}\n"
+            "#att-btn{background:transparent;border:1px solid var(--brd);"
+              "color:var(--dim);border-radius:8px;padding:8px 10px;"
+              "font-size:16px;cursor:pointer;flex-shrink:0;line-height:1}\n"
+            "#att-btn:hover{background:rgba(255,255,255,.07);color:var(--txt)}\n"
+            "#txt{width:100%;background:var(--inp);border:1px solid var(--brd);"
+              "border-radius:10px;color:var(--txt);padding:10px 14px;"
+              "font-size:14px;resize:none;max-height:200px}\n"
+            "#txt:focus{outline:none;border-color:var(--acc)}\n"
+            "#snd{background:var(--acc);color:#fff;border:none;border-radius:10px;"
+              "padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0}\n"
+            "#snd:hover{filter:brightness(1.1)}\n"
             "#snd:disabled{background:#333;color:#666;cursor:default}\n"
+            "#bar-right{display:flex;flex-direction:column;align-items:stretch;gap:4px;flex-shrink:0}\n"
+            "#bar-tools{display:flex;gap:4px;justify-content:flex-end}\n"
+            ".ai-actions{display:flex;align-items:center;gap:2px;padding:2px 4px;"
+              "max-width:82%;align-self:flex-start}\n"
+            ".aact{background:transparent;border:none;color:var(--dim);"
+              "border-radius:6px;padding:5px 7px;font-size:15px;cursor:pointer;line-height:1}\n"
+            ".aact:hover{background:rgba(255,255,255,.08);color:var(--txt)}\n"
+            ".aact.liked{color:#4caf50}\n"
+            ".aact.disliked{color:#f44336}\n"
+            ".aact-wrap{position:relative}\n"
+            ".aact-menu{display:none;position:absolute;bottom:calc(100% + 4px);left:0;"
+              "background:var(--hdr);border:1px solid var(--brd);border-radius:10px;"
+              "box-shadow:0 4px 20px rgba(0,0,0,.4);padding:4px;z-index:200;min-width:190px}\n"
+            ".aact-menu.open{display:block}\n"
+            ".amnu-item{display:flex;align-items:center;gap:8px;width:100%;"
+              "padding:9px 12px;background:transparent;border:none;color:var(--txt);"
+              "font-size:14px;cursor:pointer;border-radius:7px;text-align:left;white-space:nowrap}\n"
+            ".amnu-item:hover{background:rgba(255,255,255,.07)}\n"
+            ".ai-details{font-size:11px;color:var(--dim);padding:2px 14px;"
+              "align-self:flex-start;max-width:82%}\n"
+            "#tabbar{display:flex;background:var(--hdr);border-bottom:1px solid var(--brd);"
+              "flex-shrink:0}\n"
+            ".tab{flex:1;padding:10px 4px;background:transparent;border:none;"
+              "border-bottom:2px solid transparent;color:var(--dim);font-size:13px;cursor:pointer}\n"
+            ".tab.on{color:var(--acc);border-bottom-color:var(--acc);font-weight:600}\n"
+            "#tab-chat{flex:1;display:flex;flex-direction:column;overflow:hidden}\n"
+            "#tab-apps,#tab-sys{flex:1;overflow-y:auto;padding:16px;"
+              "display:none;box-sizing:border-box}\n"
+            ".sec-hd{font-size:11px;color:var(--dim);text-transform:uppercase;"
+              "letter-spacing:.8px;margin:14px 0 8px;padding-bottom:5px;"
+              "border-bottom:1px solid var(--brd)}\n"
+            ".app-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));"
+              "gap:10px;margin-bottom:4px}\n"
+            ".app-btn{display:flex;flex-direction:column;align-items:center;gap:4px;"
+              "padding:12px 6px;background:var(--aim);border:1px solid var(--brd);"
+              "border-radius:12px;color:var(--txt);font-size:11px;cursor:pointer;"
+              "text-align:center;line-height:1.3;width:100%}\n"
+            ".app-btn:hover{border-color:var(--acc);background:rgba(128,128,255,.08)}\n"
+            ".app-btn>span:first-child{font-size:24px}\n"
+            ".app-st{font-size:10px;min-height:13px;border-radius:8px;"
+              "padding:1px 5px;display:block;font-weight:600}\n"
+            ".app-ok{background:rgba(80,200,120,.2);color:#50c878}\n"
+            ".app-err{background:rgba(255,80,80,.2);color:#ff5050}\n"
+            ".stat-card{background:var(--aim);border:1px solid var(--brd);border-radius:12px;"
+              "padding:14px 16px;margin-bottom:10px}\n"
+            ".stat-lbl{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px}\n"
+            ".stat-val{font-size:24px;font-weight:700;color:var(--txt);margin:4px 0}\n"
+            ".stat-bar{height:5px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}\n"
+            ".stat-fill{height:100%;background:var(--acc);border-radius:3px;transition:width .5s ease}\n"
+            "#mcp-panel{margin-top:8px}\n"
+            "#mcp-top{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}\n"
+            "#mcp-preset{flex:1;background:var(--inp);border:1px solid var(--brd);"
+              "color:var(--txt);border-radius:8px;padding:8px 10px;font-size:13px}\n"
+            "#mcp-port{width:90px;background:var(--inp);border:1px solid var(--brd);"
+              "color:var(--txt);border-radius:8px;padding:8px 10px;font-size:13px;display:none}\n"
+            "#mcp-conn{background:var(--acc);color:#fff;border:none;border-radius:8px;"
+              "padding:8px 14px;font-size:13px;cursor:pointer;flex-shrink:0}\n"
+            "#mcp-tools{margin-top:4px}\n"
+            "#mcp-tool-sel{width:100%;background:var(--inp);border:1px solid var(--brd);"
+              "color:var(--txt);border-radius:8px;padding:8px 10px;font-size:13px;"
+              "margin-bottom:8px;box-sizing:border-box}\n"
+            ".mcp-desc{font-size:12px;color:var(--dim);margin-bottom:8px;min-height:14px}\n"
+            "#mcp-params{width:100%;background:var(--inp);border:1px solid var(--brd);"
+              "color:var(--txt);border-radius:8px;padding:8px 10px;font-size:12px;"
+              "font-family:monospace;resize:vertical;box-sizing:border-box;margin-bottom:8px}\n"
+            "#mcp-run{width:100%;background:var(--acc);color:#fff;border:none;"
+              "border-radius:8px;padding:10px;font-size:14px;cursor:pointer;margin-bottom:8px}\n"
+            "#mcp-result{background:var(--aim);border:1px solid var(--brd);border-radius:8px;"
+              "padding:10px;font-size:12px;font-family:monospace;white-space:pre-wrap;"
+              "word-break:break-all;max-height:220px;overflow-y:auto;display:none}\n"
             "</style>\n</head>\n<body>\n"
-            "<div id=\"hdr\"><span style=\"font-size:24px\">&#127866;</span>"
-            "<h1>Prismalux</h1>"
-            "<span class=\"mdl\">" + model + "</span></div>\n"
-            "<div id=\"log\"></div>\n"
-            "<div id=\"bar\">"
-            "<input id=\"sys\" placeholder=\"System prompt (opz.)\">"
-            "<textarea id=\"txt\" rows=\"1\""
-              " placeholder=\"Scrivi un messaggio... (Invio=invia)\"></textarea>"
-            "<button id=\"snd\">Invia</button>"
+            "<div id=\"ov\"></div>\n"
+            "<div id=\"drw\">"
+              "<div id=\"drw-hdr\">"
+                "<h2>&#9776; Menu</h2>"
+                "<button id=\"cls\">&#10005;</button>"
+              "</div>"
+              "<div class=\"dsec\">"
+                "<h3>Modello</h3>"
+                "<select id=\"mdl-sel\"><option>Caricamento...</option></select>"
+              "</div>"
+              "<div class=\"dsec\">"
+                "<h3>Personalit&#224;</h3>"
+                "<button class=\"pbtn\" data-p=\"nessuna\" data-sys=\"\">"
+                  "&#x1F6AB; Nessuna</button>"
+                "<button class=\"pbtn\" data-p=\"jarvis\""
+                  " data-sys=\"Rispondi come JARVIS, l'AI di Tony Stark: professionale,"
+                  " preciso, con sottile ironia britannica. Chiama l'utente 'signore'.\">"
+                  "&#x1F916; Jarvis</button>"
+                "<button class=\"pbtn\" data-p=\"kitt\""
+                  " data-sys=\"Rispondi come KITT, il sistema di bordo di Knight Rider:"
+                  " sofisticato, calmo, formale, con occasionali riferimenti alla guida"
+                  " e alla sicurezza stradale.\">"
+                  "&#x1F697; KITT</button>"
+                "<button class=\"pbtn\" data-p=\"yoda\""
+                  " data-sys=\"Rispondi come Yoda di Star Wars. Sintassi invertita"
+                  " (complemento-soggetto-verbo). Breve, saggio, sereno.\">"
+                  "&#x1F33F; Yoda</button>"
+                "<button class=\"pbtn\" data-p=\"snake\""
+                  " data-sys=\"Rispondi come Solid Snake di Metal Gear Solid: diretto,"
+                  " tattico, cinismo controllato, frasi brevi e incisive.\">"
+                  "&#x1F3AE; Snake</button>"
+                "<button class=\"pbtn\" data-p=\"sonic\""
+                  " data-sys=\"Rispondi come Sonic the Hedgehog: rapido, energico,"
+                  " spiritoso, leggermente impaziente con le cose lente.\">"
+                  "&#x1F4A8; Sonic</button>"
+                "<button class=\"pbtn\" data-p=\"mario\""
+                  " data-sys=\"Rispondi come Super Mario: entusiasta, positivo, usa"
+                  " esclamazioni come 'Wahoo!' e 'Mamma mia!', sempre incoraggiante.\">"
+                  "&#x1F344; Mario</button>"
+              "</div>"
+              "<div class=\"dsec\">"
+                "<h3>Strumenti</h3>"
+                "<button class=\"tbtn\" data-t=\"nessuno\" data-sys=\"\">"
+                  "&#x1F4AC; Nessuno</button>"
+                "<button class=\"tbtn\" data-t=\"scrittura\""
+                  " data-sys=\"Sei un esperto di scrittura e comunicazione. Aiuta l'utente"
+                  " a scrivere testi chiari, coinvolgenti e grammaticalmente corretti."
+                  " Proponi miglioramenti stilistici quando utile.\">"
+                  "&#x270D; Scrittura</button>"
+                "<button class=\"tbtn\" data-t=\"programmazione\""
+                  " data-sys=\"Sei un esperto programmatore. Fornisci codice corretto,"
+                  " sicuro e idiomatico. Spiega le scelte tecniche, segnala bug e"
+                  " vulnerabilit&#224;, suggerisci refactoring quando opportuno.\">"
+                  "&#x1F4BB; Programmazione</button>"
+                "<button class=\"tbtn\" data-t=\"matematica\""
+                  " data-sys=\"Sei un esperto di matematica e statistica. Risolvi problemi"
+                  " passo per passo, mostra i calcoli intermedi e spiega i concetti"
+                  " in modo rigoroso ma accessibile.\">"
+                  "&#x03C0; Matematica</button>"
+                "<button class=\"tbtn\" data-t=\"ricerca\""
+                  " data-sys=\"Sei un assistente di ricerca accademica. Analizza fonti,"
+                  " individua metodologie, sintetizza concetti complessi e aiuta a"
+                  " strutturare argomenti in modo rigoroso e citabile.\">"
+                  "&#x1F52C; Ricerca</button>"
+                "<button class=\"tbtn\" data-t=\"impara\""
+                  " data-sys=\"Sei un tutor paziente e motivante. Adatta il livello di"
+                  " spiegazione all'utente, usa esempi concreti, poni domande di verifica"
+                  " e incoraggia la curiosit&#224; intellettuale.\">"
+                  "&#x1F4DA; Impara</button>"
+                "<button class=\"tbtn\" data-t=\"lavoro\""
+                  " data-sys=\"Sei un career coach esperto. Aiuta con CV, lettere di"
+                  " presentazione, preparazione colloqui, analisi offerte di lavoro"
+                  " e strategie di ricerca dell'impiego.\">"
+                  "&#x1F4BC; Cerca Lavoro</button>"
+              "</div>"
+              "<div class=\"dsec\">"
+                "<h3>Tema</h3>"
+                "<select id=\"tsel\">"
+                  "<option value=\"dark\">&#x1F311; Dark</option>"
+                  "<option value=\"light\">&#9728; Chiaro</option>"
+                  "<option value=\"dracula\">&#x1F9DB; Dracula</option>"
+                  "<option value=\"nord\">&#10052; Nord</option>"
+                  "<option value=\"solarized\">&#x1F30A; Solarized</option>"
+                "</select>"
+              "</div>"
+            "</div>\n"
+            "<div id=\"hdr\">"
+              "<button id=\"ham\">&#9776;</button>"
+              "<span style=\"font-size:22px\">&#127866;</span>"
+              "<h1>Prismalux</h1>"
+              "<span id=\"mdlBadge\" class=\"mdl\">" + model + "</span>"
+            "</div>\n"
+            "<div id=\"tabbar\">"
+              "<button class=\"tab on\" data-tab=\"chat\">&#x1F4AC; Chat</button>"
+              "<button class=\"tab\" data-tab=\"apps\">&#x1F680; App</button>"
+              "<button class=\"tab\" data-tab=\"sys\">&#x1F4CA; Sistema</button>"
+            "</div>\n"
+            "<div id=\"tab-chat\">"
+              "<div id=\"log\"></div>"
+              "<div id=\"bar\">"
+                "<input type=\"file\" id=\"att-in\" style=\"display:none\">"
+                "<div id=\"bar-mid\">"
+                  "<div id=\"att-tag\">"
+                    "<span id=\"att-name\"></span>"
+                    "<button id=\"att-clr\">&#10005;</button>"
+                  "</div>"
+                  "<textarea id=\"txt\" rows=\"3\""
+                    " placeholder=\"Scrivi un messaggio...\"></textarea>"
+                "</div>"
+                "<div id=\"bar-right\">"
+                  "<div id=\"bar-tools\">"
+                    "<button id=\"att-btn\">&#x1F4CE;</button>"
+                    "<button id=\"mic-btn\">&#x1F3A4;</button>"
+                  "</div>"
+                  "<button id=\"snd\">Invia</button>"
+                "</div>"
+              "</div>"
+            "</div>\n"
+            "<div id=\"tab-apps\">"
+              "<div class=\"sec-hd\">&#x1F579; App Controller</div>"
+              "<div class=\"app-grid\">"
+                "<button class=\"app-btn\" data-cmd=\"blender\"><span>&#x1F3A8;</span><span>Blender</span><span class=\"app-st\"></span></button>"
+                "<button class=\"app-btn\" data-cmd=\"freecad\"><span>&#x2699;&#xFE0F;</span><span>FreeCAD</span><span class=\"app-st\"></span></button>"
+                "<button class=\"app-btn\" data-cmd=\"libreoffice\"><span>&#x1F4C4;</span><span>LibreOffice</span><span class=\"app-st\"></span></button>"
+                "<button class=\"app-btn\" data-cmd=\"cloudcompare\"><span>&#x2601;&#xFE0F;</span><span>CloudCmp</span><span class=\"app-st\"></span></button>"
+                "<button class=\"app-btn\" data-cmd=\"anki\"><span>&#x1F0CF;</span><span>Anki</span><span class=\"app-st\"></span></button>"
+                "<button class=\"app-btn\" data-cmd=\"kicad\"><span>&#x1F50C;</span><span>KiCAD</span><span class=\"app-st\"></span></button>"
+                "<button class=\"app-btn\" data-cmd=\"obs\"><span>&#x1F3AC;</span><span>OBS</span><span class=\"app-st\"></span></button>"
+                "<button class=\"app-btn\" data-cmd=\"opencode\"><span>&#x1F916;</span><span>OpenCode</span><span class=\"app-st\"></span></button>"
+                "<button class=\"app-btn\" data-cmd=\"godot\"><span>&#x1F3AE;</span><span>Godot</span><span class=\"app-st\"></span></button>"
+                "<button class=\"app-btn\" data-cmd=\"tinymcp\"><span>&#x1F9E9;</span><span>TinyMCP</span><span class=\"app-st\"></span></button>"
+              "</div>"
+              "<div class=\"sec-hd\">&#x1F58C;&#xFE0F; Grafica &amp; Media</div>"
+              "<div class=\"app-grid\">"
+                "<button class=\"app-btn\" data-cmd=\"gimp\"><span>&#x1F5BC;&#xFE0F;</span><span>GIMP</span><span class=\"app-st\"></span></button>"
+                "<button class=\"app-btn\" data-cmd=\"inkscape\"><span>&#x270F;&#xFE0F;</span><span>Inkscape</span><span class=\"app-st\"></span></button>"
+                "<button class=\"app-btn\" data-cmd=\"vlc\"><span>&#x1F3B5;</span><span>VLC</span><span class=\"app-st\"></span></button>"
+                "<button class=\"app-btn\" data-cmd=\"vscode\"><span>&#x1F4BB;</span><span>VS Code</span><span class=\"app-st\"></span></button>"
+              "</div>"
+              "<div class=\"sec-hd\">&#x1F5A5;&#xFE0F; Sistema</div>"
+              "<div class=\"app-grid\">"
+                "<button class=\"app-btn\" data-cmd=\"firefox\"><span>&#x1F98A;</span><span>Firefox</span><span class=\"app-st\"></span></button>"
+                "<button class=\"app-btn\" data-cmd=\"chromium\"><span>&#x1F310;</span><span>Chromium</span><span class=\"app-st\"></span></button>"
+                "<button class=\"app-btn\" data-cmd=\"nautilus\"><span>&#x1F4C1;</span><span>File</span><span class=\"app-st\"></span></button>"
+                "<button class=\"app-btn\" data-cmd=\"konsole\"><span>&#x1F5A5;&#xFE0F;</span><span>Terminale</span><span class=\"app-st\"></span></button>"
+              "</div>"
+              "<div class=\"sec-hd\">&#x1F50C; MCP &#x2014; Controllo Diretto</div>"
+              "<div id=\"mcp-panel\">"
+                "<div id=\"mcp-top\">"
+                  "<select id=\"mcp-preset\">"
+                    "<option value=\"8765\">&#x1F3A8; Blender (8765)</option>"
+                    "<option value=\"8766\">&#x2699;&#xFE0F; FreeCAD (8766)</option>"
+                    "<option value=\"8765\">&#x1F50C; KiCAD (8765)</option>"
+                    "<option value=\"9001\">&#x1F3AE; Godot (9001)</option>"
+                    "<option value=\"8765\">&#x1F916; OpenCode (8765)</option>"
+                    "<option value=\"custom\">&#x270F;&#xFE0F; Personalizzato...</option>"
+                  "</select>"
+                  "<input type=\"number\" id=\"mcp-port\" placeholder=\"Porta\" min=\"1\" max=\"65535\">"
+                  "<button id=\"mcp-conn\">&#x1F517; Connetti</button>"
+                "</div>"
+                "<div id=\"mcp-tools\" style=\"display:none\">"
+                  "<select id=\"mcp-tool-sel\"><option value=\"\">-- seleziona strumento --</option></select>"
+                  "<div class=\"mcp-desc\" id=\"mcp-desc\"></div>"
+                  "<textarea id=\"mcp-params\" rows=\"3\" placeholder=\"{}\"></textarea>"
+                  "<button id=\"mcp-run\">&#x25B6; Esegui</button>"
+                  "<div id=\"mcp-result\"></div>"
+                "</div>"
+              "</div>"
+            "</div>\n"
+            "<div id=\"tab-sys\">"
+              "<div class=\"stat-card\">"
+                "<div class=\"stat-lbl\">CPU (carico)</div>"
+                "<div class=\"stat-val\" id=\"s-cpu\">--%</div>"
+                "<div class=\"stat-bar\"><div class=\"stat-fill\" id=\"s-cpu-b\" style=\"width:0\"></div></div>"
+              "</div>"
+              "<div class=\"stat-card\">"
+                "<div class=\"stat-lbl\">RAM</div>"
+                "<div class=\"stat-val\" id=\"s-ram\">-- / -- GB</div>"
+                "<div class=\"stat-bar\"><div class=\"stat-fill\" id=\"s-ram-b\" style=\"width:0\"></div></div>"
+              "</div>"
+              "<div class=\"stat-card\">"
+                "<div class=\"stat-lbl\">Uptime</div>"
+                "<div class=\"stat-val\" id=\"s-up\" style=\"font-size:20px\">--</div>"
+              "</div>"
+              "<div class=\"stat-card\">"
+                "<div class=\"stat-lbl\">Host</div>"
+                "<div class=\"stat-val\" id=\"s-host\" style=\"font-size:18px\">--</div>"
+              "</div>"
+              "<p style=\"text-align:center;color:var(--dim);font-size:11px;margin-top:8px\">"
+                "Aggiornamento ogni 3s</p>"
             "</div>\n"
             "<script>\n"
+            "const THEMES={"
+              "dark:{bg:'#0f1117',hdr:'#1a1d2e',brd:'#2a2d4e',acc:'#6c63ff',"
+                "usr:'#6c63ff',aim:'#1e2235',txt:'#e0e0f0',dim:'#888',inp:'#0f1117'},"
+              "light:{bg:'#f0f2f5',hdr:'#ffffff',brd:'#dde1ec',acc:'#6c63ff',"
+                "usr:'#6c63ff',aim:'#ffffff',txt:'#1a1a2e',dim:'#666',inp:'#f0f2f5'},"
+              "dracula:{bg:'#282a36',hdr:'#21222c',brd:'#44475a',acc:'#bd93f9',"
+                "usr:'#ff79c6',aim:'#383a59',txt:'#f8f8f2',dim:'#6272a4',inp:'#282a36'},"
+              "nord:{bg:'#2e3440',hdr:'#3b4252',brd:'#434c5e',acc:'#88c0d0',"
+                "usr:'#5e81ac',aim:'#3b4252',txt:'#eceff4',dim:'#8fbcbb',inp:'#2e3440'},"
+              "solarized:{bg:'#002b36',hdr:'#073642',brd:'#586e75',acc:'#2aa198',"
+                "usr:'#268bd2',aim:'#073642',txt:'#93a1a1',dim:'#657b83',inp:'#002b36'}"
+            "};\n"
+            "function applyTheme(n){"
+              "const t=THEMES[n]||THEMES.dark,r=document.documentElement.style;"
+              "r.setProperty('--bg',t.bg);r.setProperty('--hdr',t.hdr);"
+              "r.setProperty('--brd',t.brd);r.setProperty('--acc',t.acc);"
+              "r.setProperty('--usr',t.usr);r.setProperty('--aim',t.aim);"
+              "r.setProperty('--txt',t.txt);r.setProperty('--dim',t.dim);"
+              "r.setProperty('--inp',t.inp);localStorage.setItem('plx-theme',n);}\n"
+            "const tSaved=localStorage.getItem('plx-theme')||'dark';"
+            "applyTheme(tSaved);"
+            "document.getElementById('tsel').value=tSaved;\n"
+            "document.getElementById('tsel').addEventListener('change',"
+              "function(){applyTheme(this.value);});\n"
+            "const DRW=document.getElementById('drw'),OV=document.getElementById('ov');\n"
+            "function openDrw(){DRW.classList.add('open');OV.classList.add('open');}\n"
+            "function closeDrw(){DRW.classList.remove('open');OV.classList.remove('open');}\n"
+            "document.getElementById('ham').addEventListener('click',openDrw);\n"
+            "document.getElementById('cls').addEventListener('click',closeDrw);\n"
+            "OV.addEventListener('click',closeDrw);\n"
+            "let sysPers='';\n"
+            "function applyPersona(key){"
+              "sysPers='';"
+              "document.querySelectorAll('.pbtn').forEach(function(b){"
+                "if(b.dataset.p===key){b.classList.add('on');sysPers=b.dataset.sys||'';}"
+                "else b.classList.remove('on');});"
+              "localStorage.setItem('plx-persona',key);}\n"
+            "document.querySelectorAll('.pbtn').forEach(function(b){"
+              "b.addEventListener('click',function(){"
+                "applyPersona(this.dataset.p);closeDrw();});});\n"
+            "applyPersona(localStorage.getItem('plx-persona')||'nessuna');\n"
+            "let sysTool='';\n"
+            "function applyTool(key){"
+              "sysTool='';"
+              "document.querySelectorAll('.tbtn').forEach(function(b){"
+                "if(b.dataset.t===key){b.classList.add('on');sysTool=b.dataset.sys||'';}"
+                "else b.classList.remove('on');});"
+              "localStorage.setItem('plx-tool',key);}\n"
+            "document.querySelectorAll('.tbtn').forEach(function(b){"
+              "b.addEventListener('click',function(){applyTool(this.dataset.t);closeDrw();});});\n"
+            "applyTool(localStorage.getItem('plx-tool')||'nessuno');\n"
+            "let recog=null,isListening=false,baseText='';\n"
+            "const micBtn=document.getElementById('mic-btn');\n"
+            "const SR=window.SpeechRecognition||window.webkitSpeechRecognition;\n"
+            "if(SR){"
+              "recog=new SR();recog.lang='it-IT';"
+              "recog.continuous=false;recog.interimResults=true;\n"
+              "function resetMic(){"
+                "isListening=false;"
+                "micBtn.classList.remove('on');"
+                "micBtn.textContent='\xf0\x9f\x8e\xa4';}\n"
+              "recog.onresult=function(e){"
+                "let t=baseText;"
+                "for(let i=e.resultIndex;i<e.results.length;i++)"
+                  "t+=e.results[i][0].transcript;"
+                "T.value=t;"
+                "T.style.height='';T.style.height=Math.min(T.scrollHeight,200)+'px';};\n"
+              "recog.onend=function(){baseText=T.value;resetMic();};\n"
+              "recog.onerror=function(){resetMic();};\n"
+              "micBtn.addEventListener('click',function(){"
+                "if(isListening){recog.abort();resetMic();}"
+                "else{"
+                  "baseText=T.value;"
+                  "try{recog.start();}catch(e){return;}"
+                  "isListening=true;"
+                  "micBtn.classList.add('on');"
+                  "micBtn.textContent='\xe2\x8f\xb9';}});"
+            "}else{micBtn.style.display='none';}\n"
+            "let curModel='" + model + "';\n"
+            "const MSEL=document.getElementById('mdl-sel'),"
+              "BADGE=document.getElementById('mdlBadge');\n"
+            "async function fetchModels(){try{"
+              "const r=await fetch('/api/tags',{headers:{" + authHeadersJs + "}});"
+              "const j=await r.json(),models=j.models||[];"
+              "if(!models.length)return;"
+              "MSEL.innerHTML='';"
+              "models.forEach(function(m){const o=document.createElement('option');"
+              "o.value=m.name;o.textContent=m.name;MSEL.appendChild(o);});"
+              "const sv=localStorage.getItem('plx-model');"
+              "MSEL.value=(sv&&[...MSEL.options].some(function(o){return o.value===sv;}))"
+                "?sv:curModel;"
+              "curModel=MSEL.value;BADGE.textContent=curModel;"
+            "}catch(e){}}\n"
+            "MSEL.addEventListener('change',function(){"
+              "curModel=this.value;BADGE.textContent=curModel;"
+              "localStorage.setItem('plx-model',curModel);});\n"
+            "fetchModels();\n"
+            /* ── Allegati ── */
+            "let attFile=null;\n"
+            "const ATB=document.getElementById('att-btn'),"
+              "AIN=document.getElementById('att-in'),"
+              "ATAG=document.getElementById('att-tag'),"
+              "ANME=document.getElementById('att-name');\n"
+            "ATB.addEventListener('click',function(){AIN.click();});\n"
+            "AIN.addEventListener('change',function(){"
+              "if(this.files[0]){"
+                "attFile=this.files[0];"
+                "ANME.textContent='\xf0\x9f\x93\x8e ' + attFile.name;"
+                "ATAG.style.display='flex';}});\n"
+            "document.getElementById('att-clr').addEventListener('click',function(){"
+              "attFile=null;AIN.value='';ATAG.style.display='none';});\n"
+            "function readTxt(f){return new Promise(function(res){"
+              "const r=new FileReader();"
+              "r.onload=function(e){res(e.target.result);};"
+              "r.onerror=function(){res('');};"
+              "r.readAsText(f);});}\n"
+            /* ── Chat ── */
             "const L=document.getElementById('log'),"
               "T=document.getElementById('txt'),"
               "B=document.getElementById('snd'),"
-              "S=document.getElementById('sys'),"
               "H=[];\n"
-            "function add(r,t){"
-              "const d=document.createElement('div');"
+            "function add(r,t){const d=document.createElement('div');"
               "d.className='msg '+r;d.textContent=t;"
               "L.appendChild(d);L.scrollTop=L.scrollHeight;return d;}\n"
-            "async function go(){\n"
-              "const m=T.value.trim();if(!m)return;\n"
-              "T.value='';T.style.height='';B.disabled=true;\n"
-              "add('user',m);H.push({role:'user',content:m});\n"
+            "function addActions(aiD,txt){"
+              "const w=document.createElement('div');w.className='ai-actions';\n"
+              "function mk(lbl,ttl){const b=document.createElement('button');"
+                "b.className='aact';b.title=ttl;b.innerHTML=lbl;return b;}\n"
+              "const lk=mk('&#x1F44D;','Utile'),dk=mk('&#x1F44E;','Non utile');\n"
+              "lk.addEventListener('click',function(){"
+                "lk.classList.toggle('liked');dk.classList.remove('disliked');});\n"
+              "dk.addEventListener('click',function(){"
+                "dk.classList.toggle('disliked');lk.classList.remove('liked');});\n"
+              "const rg=mk('&#x1F504;','Rigenera');\n"
+              "rg.addEventListener('click',function(){"
+                "w.remove();aiD.remove();"
+                "if(H.length&&H[H.length-1].role==='assistant')H.pop();"
+                "B.disabled=true;streamResponse();});\n"
+              "const cp=mk('&#x1F4CB;','Copia');\n"
+              "cp.addEventListener('click',function(){"
+                "navigator.clipboard.writeText(txt).then(function(){"
+                  "cp.innerHTML='&#x2713;';"
+                  "setTimeout(function(){cp.innerHTML='&#x1F4CB;';},1500);});});\n"
+              "const mw=document.createElement('div');mw.className='aact-wrap';\n"
+              "const mb=mk('&bull;&bull;&bull;','Altro');\n"
+              "const mn=document.createElement('div');mn.className='aact-menu';\n"
+              "const ti=document.createElement('button');"
+                "ti.className='amnu-item';ti.innerHTML='&#x1F50A; Ascolta';"
+                "let spk=false;\n"
+              "ti.addEventListener('click',function(){"
+                "if(spk){speechSynthesis.cancel();spk=false;"
+                  "ti.innerHTML='&#x1F50A; Ascolta';}"
+                "else{const u=new SpeechSynthesisUtterance(txt);u.lang='it-IT';"
+                  "u.onend=function(){spk=false;ti.innerHTML='&#x1F50A; Ascolta';};"
+                  "speechSynthesis.speak(u);spk=true;ti.innerHTML='&#x23F9; Stop';}"
+                "mn.classList.remove('open');});\n"
+              "const ei=document.createElement('button');"
+                "ei.className='amnu-item';ei.innerHTML='&#x1F4C4; Esporta';\n"
+              "ei.addEventListener('click',function(){"
+                "const bl=new Blob([txt],{type:'text/plain'}),"
+                  "a=document.createElement('a');"
+                "a.href=URL.createObjectURL(bl);a.download='risposta.txt';a.click();"
+                "URL.revokeObjectURL(a.href);mn.classList.remove('open');});\n"
+              "const di=document.createElement('button');"
+                "di.className='amnu-item';di.innerHTML='&#x1F4CA; Dettagli risposta';\n"
+              "di.addEventListener('click',function(){"
+                "const wds=txt.trim().split(/\\s+/).length,"
+                  "tkn=Math.round(txt.length/4);"
+                "const inf=document.createElement('div');inf.className='ai-details';"
+                "inf.textContent='Modello: '+curModel+' \\u2022 ~'+tkn"
+                  "+' token \\u2022 '+wds+' parole';"
+                "w.after(inf);setTimeout(function(){inf.remove();},5000);"
+                "mn.classList.remove('open');});\n"
+              "mn.appendChild(ti);mn.appendChild(ei);mn.appendChild(di);\n"
+              "mb.addEventListener('click',function(e){"
+                "e.stopPropagation();mn.classList.toggle('open');});\n"
+              "document.addEventListener('click',function(){mn.classList.remove('open');});\n"
+              "mw.appendChild(mb);mw.appendChild(mn);\n"
+              "w.appendChild(lk);w.appendChild(dk);w.appendChild(rg);"
+                "w.appendChild(cp);w.appendChild(mw);\n"
+              "L.appendChild(w);L.scrollTop=L.scrollHeight;}\n"
+            "async function streamResponse(){\n"
               "const msgs=[];\n"
-              "const sv=S.value.trim();if(sv)msgs.push({role:'system',content:sv});\n"
+              "const sp=[sysTool,sysPers].filter(Boolean).join('\\n');\n"
+              "if(sp)msgs.push({role:'system',content:sp});\n"
               "msgs.push(...H);\n"
-              "const aiD=add('ai','');let full='';\n"
+              "const aiD=add('ai','...');let full='';\n"
+              "const dF=['...','..','.']; let dI=0;\n"
+              "const dT=setInterval(function(){"
+                "if(!full){aiD.textContent=dF[dI%3];dI++;}},400);\n"
               "try{\n"
                 "const r=await fetch('/api/chat',{method:'POST',"
                   "headers:{" + authHeadersJs + "},"
-                  "body:JSON.stringify({model:'" + model + "',messages:msgs,stream:true})});\n"
+                  "body:JSON.stringify({model:curModel,messages:msgs,stream:true})});\n"
                 "const rd=r.body.getReader(),dc=new TextDecoder();\n"
                 "while(true){\n"
                   "const {done,value}=await rd.read();if(done)break;\n"
@@ -803,22 +1381,172 @@ void LanServer::handleWebChat(Session& s)
                     "if(!ln.trim())continue;\n"
                     "try{const o=JSON.parse(ln);\n"
                       "const tk=(o.message&&o.message.content)||o.response||'';\n"
-                      "if(tk){full+=tk;aiD.textContent=full;"
+                      "if(tk){if(!full)clearInterval(dT);"
+                        "full+=tk;aiD.textContent=full;"
                         "L.scrollTop=L.scrollHeight;}\n"
                     "}catch(x){}\n"
                   "}\n"
                 "}\n"
-              "}catch(e){aiD.textContent='Errore: '+e.message;}\n"
-              "if(full)H.push({role:'assistant',content:full});\n"
+              "}catch(e){"
+                "clearInterval(dT);"
+                "if(!full)aiD.textContent='Errore: '+e.message;"
+              "}\n"
+              "clearInterval(dT);\n"
+              "if(full){H.push({role:'assistant',content:full});addActions(aiD,full);}\n"
               "B.disabled=false;T.focus();\n"
+            "}\n"
+            "async function go(){\n"
+              "const m=T.value.trim();"
+              "if(!m&&!attFile)return;\n"
+              "T.value='';T.style.height='';B.disabled=true;\n"
+              "let sendTxt=m,dispTxt=m;\n"
+              "if(attFile){\n"
+                "dispTxt=(m?m+'\\n':'')+'\xf0\x9f\x93\x8e '+attFile.name;\n"
+                "const ext=attFile.name.split('.').pop().toLowerCase();\n"
+                "const txts=['txt','md','py','js','ts','cpp','c','h',"
+                  "'java','json','xml','csv','log','html','css'];\n"
+                "if(attFile.type.startsWith('text/')||txts.indexOf(ext)>=0){\n"
+                  "const fc=await readTxt(attFile);\n"
+                  "sendTxt=(m?m+'\\n\\n':'')+'['+attFile.name+']:\\n'+fc;\n"
+                "}else{\n"
+                  "sendTxt=(m?m+' ':'')+'[Allegato: '+attFile.name+']';\n"
+                "}\n"
+                "attFile=null;AIN.value='';ATAG.style.display='none';\n"
+              "}\n"
+              "add('user',dispTxt);H.push({role:'user',content:sendTxt});\n"
+              "await streamResponse();\n"
             "}\n"
             "B.addEventListener('click',go);\n"
             "T.addEventListener('keydown',function(e){\n"
               "if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();go();}\n"
               "setTimeout(function(){"
                 "T.style.height='';"
-                "T.style.height=Math.min(T.scrollHeight,120)+'px';},0);\n"
+                "T.style.height=Math.min(T.scrollHeight,200)+'px';},0);\n"
             "});\n"
+            /* ── MCP panel ── */
+            "let mcpTools=[];\n"
+            "const MPRE=document.getElementById('mcp-preset'),"
+              "MPRT=document.getElementById('mcp-port'),"
+              "MCON=document.getElementById('mcp-conn'),"
+              "MTLS=document.getElementById('mcp-tools'),"
+              "MSEL=document.getElementById('mcp-tool-sel'),"
+              "MDSC=document.getElementById('mcp-desc'),"
+              "MPAR=document.getElementById('mcp-params'),"
+              "MRUN=document.getElementById('mcp-run'),"
+              "MRES=document.getElementById('mcp-result');\n"
+            "MPRE.addEventListener('change',function(){"
+              "MPRT.style.display=this.value==='custom'?'block':'none';});\n"
+            "function getMcpPort(){"
+              "return MPRE.value==='custom'?parseInt(MPRT.value)||8765:parseInt(MPRE.value);}\n"
+            "MCON.addEventListener('click',async function(){"
+              "MCON.textContent='&#x23F3;...';MTLS.style.display='none';MRES.style.display='none';\n"
+              "try{"
+                "const r=await fetch('/api/mcp',{method:'POST',"
+                  "headers:{'Content-Type':'application/json'," + authHeadersJs + "},"
+                  "body:JSON.stringify({port:getMcpPort(),"
+                    "request:{jsonrpc:'2.0',id:1,method:'tools/list',params:{}}})});\n"
+                "const j=await r.json();\n"
+                "if(j.error)throw new Error(j.error);\n"
+                "const tls=(j.result&&j.result.tools)||j.tools||[];\n"
+                "if(!tls.length)throw new Error('Nessuno strumento trovato');\n"
+                "mcpTools=tls;\n"
+                "MSEL.innerHTML='<option value=\"\">-- seleziona strumento --</option>';\n"
+                "tls.forEach(function(t,i){"
+                  "const o=document.createElement('option');"
+                  "o.value=i;o.textContent=t.name;MSEL.appendChild(o);});\n"
+                "MTLS.style.display='block';\n"
+                "MCON.innerHTML='&#x2713; '+tls.length+' strumenti';\n"
+              "}catch(e){"
+                "MCON.textContent='&#x2717; '+e.message;"
+                "setTimeout(function(){MCON.innerHTML='&#x1F517; Connetti';},3000);}});\n"
+            "MSEL.addEventListener('change',function(){"
+              "const idx=parseInt(this.value);"
+              "if(isNaN(idx)||idx<0){MDSC.textContent='';MPAR.value='';return;}\n"
+              "const tool=mcpTools[idx];"
+              "MDSC.textContent=tool.description||'';\n"
+              "const schema=tool.inputSchema||tool.input_schema||{};"
+              "const props=schema.properties||{};"
+              "if(Object.keys(props).length){"
+                "const tmpl={};"
+                "Object.keys(props).forEach(function(k){"
+                  "const p=props[k];"
+                  "tmpl[k]=p['default']!==undefined?p['default']:"
+                    "(p.type==='string'?'':p.type==='number'||p.type==='integer'?0:null);});"
+                "MPAR.value=JSON.stringify(tmpl,null,2);"
+              "}else{MPAR.value='{}';}\n"
+            "});\n"
+            "MRUN.addEventListener('click',async function(){"
+              "const idx=parseInt(MSEL.value);"
+              "if(isNaN(idx)||idx<0)return;\n"
+              "const tool=mcpTools[idx];\n"
+              "let args={};\n"
+              "try{args=JSON.parse(MPAR.value||'{}');}"
+              "catch(e){MRES.textContent='JSON non valido: '+e.message;"
+                "MRES.style.display='block';return;}\n"
+              "MRES.textContent='Esecuzione...';MRES.style.display='block';\n"
+              "try{"
+                "const r=await fetch('/api/mcp',{method:'POST',"
+                  "headers:{'Content-Type':'application/json'," + authHeadersJs + "},"
+                  "body:JSON.stringify({port:getMcpPort(),"
+                    "request:{jsonrpc:'2.0',id:2,method:'tools/call',"
+                      "params:{name:tool.name,arguments:args}}})});\n"
+                "const j=await r.json();\n"
+                "if(j.error){MRES.textContent='Errore MCP: '+JSON.stringify(j.error);return;}\n"
+                "const content=(j.result&&j.result.content)||[];\n"
+                "if(content.length){"
+                  "MRES.textContent=content.map(function(c){return c.text||JSON.stringify(c);}).join('\\n');"
+                "}else{"
+                  "MRES.textContent=JSON.stringify(j.result||j,null,2);}"
+              "}catch(e){MRES.textContent='Errore: '+e.message;}});\n"
+            /* ── Tab switching ── */
+            "const TABS=document.querySelectorAll('.tab'),"
+              "TC=document.getElementById('tab-chat'),"
+              "TA=document.getElementById('tab-apps'),"
+              "TS=document.getElementById('tab-sys');\n"
+            "let sysItv=null;\n"
+            "function switchTab(n){"
+              "TABS.forEach(function(t){t.classList.toggle('on',t.dataset.tab===n);});"
+              "TC.style.display=n==='chat'?'flex':'none';"
+              "TA.style.display=n==='apps'?'block':'none';"
+              "TS.style.display=n==='sys'?'block':'none';"
+              "if(n==='sys'){"
+                "fetchSys();"
+                "if(!sysItv)sysItv=setInterval(fetchSys,3000);"
+              "}else{if(sysItv){clearInterval(sysItv);sysItv=null;}}}\n"
+            "TABS.forEach(function(t){"
+              "t.addEventListener('click',function(){switchTab(this.dataset.tab);});});\n"
+            /* ── App launcher ── */
+            "document.querySelectorAll('.app-btn').forEach(function(btn){"
+              "btn.addEventListener('click',async function(){"
+                "const cmd=this.dataset.cmd;"
+                "const st=this.querySelector('.app-st');"
+                "if(st){st.textContent='...';st.className='app-st';}\n"
+                "try{"
+                  "const r=await fetch('/api/launch',{method:'POST',"
+                    "headers:{'Content-Type':'application/json'," + authHeadersJs + "},"
+                    "body:JSON.stringify({app:cmd})});\n"
+                  "const j=await r.json();"
+                  "if(st){"
+                    "st.textContent=j.status==='launched'?'&#x2713; OK':'&#x2717; Errore';"
+                    "st.className='app-st '+(j.status==='launched'?'app-ok':'app-err');"
+                    "setTimeout(function(){st.textContent='';st.className='app-st';},3000);}"
+                "}catch(e){"
+                  "if(st){st.textContent='&#x2717;';st.className='app-st app-err';"
+                    "setTimeout(function(){st.textContent='';st.className='app-st';},3000);}}"
+              "});});\n"
+            /* ── Sysinfo ── */
+            "async function fetchSys(){\n"
+              "try{"
+                "const r=await fetch('/api/sysinfo',{headers:{" + authHeadersJs + "}});\n"
+                "const j=await r.json();\n"
+                "document.getElementById('s-cpu').textContent=j.cpu_pct+'%';\n"
+                "document.getElementById('s-cpu-b').style.width=j.cpu_pct+'%';\n"
+                "document.getElementById('s-ram').textContent="
+                  "j.ram_used_gb+' / '+j.ram_total_gb+' GB';\n"
+                "document.getElementById('s-ram-b').style.width=j.ram_pct+'%';\n"
+                "document.getElementById('s-up').textContent=j.uptime;\n"
+                "document.getElementById('s-host').textContent=j.hostname;\n"
+              "}catch(e){}}\n"
             "T.focus();\n"
             "</script>\n</body>\n</html>\n";
 
@@ -1037,8 +1765,6 @@ QByteArray LanServer::httpOkHeader(const char* contentType) const
     h += "X-Content-Type-Options: nosniff\r\n";
     h += "X-Frame-Options: DENY\r\n";
     h += "Referrer-Policy: no-referrer\r\n";
-    if (m_tlsEnabled)
-        h += "Strict-Transport-Security: max-age=31536000\r\n";
     return h;
 }
 
@@ -1052,8 +1778,6 @@ QByteArray LanServer::httpStreamHeader() const
     h += "X-Content-Type-Options: nosniff\r\n";
     h += "X-Frame-Options: DENY\r\n";
     h += "Referrer-Policy: no-referrer\r\n";
-    if (m_tlsEnabled)
-        h += "Strict-Transport-Security: max-age=31536000\r\n";
     h += "X-Accel-Buffering: no\r\n";
     h += "Connection: close\r\n\r\n";
     return h;

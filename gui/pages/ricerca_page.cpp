@@ -37,6 +37,9 @@ namespace P = PrismaluxPaths;
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QRegularExpression>
+#include <QTableWidget>
+#include <QTableWidgetItem>
+#include <QHeaderView>
 
 /* ── helper: barra azioni output (Esporta PDF / Salva .md) ────────── */
 static QWidget* makeOutputBar(QTextEdit* editor, const QString& titolo,
@@ -107,6 +110,11 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     tabs->addTab(buildRDKitTab(),             "\xf0\x9f\xa7\xaa  RDKit");
     tabs->addTab(buildBiocondaTab(),          "\xf0\x9f\x8c\xbf  Bioconda");
     tabs->addTab(buildAvogadroTab(),          "\xf0\x9f\xa7\xb4  Avogadro");
+    /* ── Gruppo 4: R&D originale ── */
+    tabs->addTab(buildRab0lTab(),
+                 "\xf0\x9f\xa7\xac  RAB\xe2\x82\x80-L");
+    tabs->addTab(buildBlhmTab(),
+                 "\xf0\x9f\xa7\xa0  BLHM");
 
     /* Tooltip sui tab per scopribilità */
     tabs->setTabToolTip(0, "Genera paper accademico con AI");
@@ -118,6 +126,10 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     tabs->setTabToolTip(6, "Chemioinformatica con RDKit");
     tabs->setTabToolTip(7, "Pipeline bioinformatica con Bioconda");
     tabs->setTabToolTip(8, "Modellazione molecolare 3D");
+    tabs->setTabToolTip(9,
+        "RAB\xe2\x82\x80-L: rappresentazione DNA su spirale logaritmica base-80 (wildlux, 2025)");
+    tabs->setTabToolTip(10,
+        "BLHM: calcolatore R_merged per architettura Brain-Loop-Human-MultiContext (wildlux, 2026)");
     vlay->addWidget(tabs, 1);
 
     m_sciProgress = new QProgressBar(this);
@@ -1810,4 +1822,483 @@ void RicercaPage::onAvoStopClicked()
     m_ai->abort();
     m_avoRunBtn->setEnabled(true);
     m_avoStopBtn->setEnabled(false);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   RAB₀-L — Radial Algebraic Base-80 Logarithmic
+   Spirale logaritmica per analisi sequenze DNA (wildlux, 2025)
+   ══════════════════════════════════════════════════════════════════════ */
+QWidget* RicercaPage::buildRab0lTab()
+{
+    auto* w    = new QWidget;
+    auto* vlay = new QVBoxLayout(w);
+    vlay->setContentsMargins(10, 8, 10, 8);
+    vlay->setSpacing(6);
+
+    /* ── barra input ── */
+    auto* bar  = new QWidget;
+    auto* hlay = new QHBoxLayout(bar);
+    hlay->setContentsMargins(0, 0, 0, 0);
+    hlay->setSpacing(8);
+
+    m_rab0lSeq1 = new QLineEdit;
+    m_rab0lSeq1->setPlaceholderText("Sequenza 1  (es. ATCGATCGGCTA)");
+    m_rab0lSeq2 = new QLineEdit;
+    m_rab0lSeq2->setPlaceholderText("Sequenza 2  (opzionale — calcola SIM)");
+
+    auto* btnAn = new QPushButton("\xe2\x96\xb6  Analizza");
+    btnAn->setObjectName("primaryBtn");
+    auto* btnCl = new QPushButton("\xf0\x9f\x97\x91");
+    btnCl->setToolTip("Pulisci");
+    btnCl->setFixedWidth(32);
+
+    m_rab0lSimLbl = new QLabel;
+    m_rab0lSimLbl->setTextFormat(Qt::RichText);
+
+    hlay->addWidget(new QLabel("Seq 1:"));
+    hlay->addWidget(m_rab0lSeq1, 3);
+    hlay->addWidget(new QLabel("Seq 2:"));
+    hlay->addWidget(m_rab0lSeq2, 3);
+    hlay->addWidget(btnAn);
+    hlay->addWidget(btnCl);
+    hlay->addWidget(m_rab0lSimLbl, 2);
+
+    m_rab0lCanvas = new Rab0lCanvas(w);
+
+    vlay->addWidget(bar);
+    vlay->addWidget(m_rab0lCanvas, 1);
+
+    connect(btnAn, &QPushButton::clicked, this, &RicercaPage::onRab0lAnalyzeClicked);
+    connect(m_rab0lSeq1, &QLineEdit::returnPressed, this, &RicercaPage::onRab0lAnalyzeClicked);
+    connect(btnCl, &QPushButton::clicked, this, [this] {
+        m_rab0lSeq1->clear();
+        m_rab0lSeq2->clear();
+        m_rab0lSimLbl->clear();
+        m_rab0lCanvas->clearAll();
+    });
+
+    return w;
+}
+
+void RicercaPage::onRab0lAnalyzeClicked()
+{
+    static const QRegularExpression kNonDna("[^ATCGatcg]");
+
+    QString s1 = m_rab0lSeq1->text().trimmed().toUpper();
+    QString s2 = m_rab0lSeq2->text().trimmed().toUpper();
+    s1.remove(kNonDna);
+    s2.remove(kNonDna);
+
+    if (s1.isEmpty()) return;
+
+    if (s2.isEmpty()) {
+        m_rab0lCanvas->setSeq1Only(s1);
+        m_rab0lSimLbl->setText(
+            QString("<b>N=%1</b>  <span style='color:gray'>"
+                    "inserisci Seq 2 per confronto SIM</span>").arg(s1.size()));
+    } else {
+        m_rab0lCanvas->setSequences(s1, s2);
+        const auto& r = m_rab0lCanvas->result();
+        QString col = (r.sim >= 0.8) ? "#4CAF50"
+                    : (r.sim >= 0.4) ? "#FFC107" : "#F44336";
+        m_rab0lSimLbl->setText(
+            QString("<b>SIM = <span style='color:%1'>%2</span></b>"
+                    "  |  N=%3  |  SNP=%4")
+            .arg(col)
+            .arg(r.sim, 0, 'f', 3)
+            .arg(r.len)
+            .arg(r.snp));
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   BLHM — Brain-Loop-Human-MultiContext
+   Tab interni: Calcolatore · Note · DNA (wildlux, 2026)
+   ══════════════════════════════════════════════════════════════════════ */
+QWidget* RicercaPage::buildBlhmTab()
+{
+    auto* w    = new QWidget;
+    auto* vlay = new QVBoxLayout(w);
+    vlay->setContentsMargins(10, 8, 10, 8);
+    vlay->setSpacing(6);
+
+    auto* hdr = new QLabel(
+        "  \xf0\x9f\xa7\xa0  <b>BLHM \xe2\x80\x94 Brain-Loop-Human-MultiContext</b>"
+        "  <span style='color:gray;font-size:11px;'>"
+        "R\xe2\x82\x98 = 0.50\xc2\xb7R\xe2\x82\x99 + 0.35\xc2\xb7R\xe2\x82\x97"
+        " + 0.15\xc2\xb7R\xe2\x82\x9a"
+        "  \xe2\x80\x94  match(w,q) = prefisso_comune / max(|w|,|q|)"
+        "</span>");
+    hdr->setTextFormat(Qt::RichText);
+    hdr->setObjectName("pageHeader");
+    hdr->setFixedHeight(36);
+    vlay->addWidget(hdr);
+
+    auto* inner = new QTabWidget(w);
+    inner->setDocumentMode(true);
+
+    /* ══════════════ TAB 1: CALCOLATORE ══════════════ */
+    {
+        auto* calcW   = new QWidget;
+        auto* calcLay = new QVBoxLayout(calcW);
+        calcLay->setContentsMargins(0, 4, 0, 0);
+        calcLay->setSpacing(6);
+
+        auto* split = new QSplitter(Qt::Horizontal, calcW);
+
+        /* ── SINISTRA: tabella pesi ibridi ── */
+        auto* leftW   = new QWidget;
+        auto* leftLay = new QVBoxLayout(leftW);
+        leftLay->setContentsMargins(0, 0, 4, 0);
+
+        auto* lblPesi = new QLabel(
+            "Pesi ibridi  <span style='color:gray;font-size:11px;'>"
+            "(doppio click per modificare)</span>");
+        lblPesi->setTextFormat(Qt::RichText);
+
+        m_blhmTable = new QTableWidget(0, 4, leftW);
+        m_blhmTable->setHorizontalHeaderLabels(
+            {"Percorso ontologico", "factory_w", "link_w", "user_w"});
+        m_blhmTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+        m_blhmTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
+        m_blhmTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Fixed);
+        m_blhmTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Fixed);
+        m_blhmTable->setColumnWidth(1, 80);
+        m_blhmTable->setColumnWidth(2, 80);
+        m_blhmTable->setColumnWidth(3, 80);
+        m_blhmTable->setAlternatingRowColors(true);
+        m_blhmTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+        m_blhmTable->setMinimumWidth(340);
+
+        struct BW { const char* path; double fw, lw, uw; };
+        static const BW kDef[] = {
+            {"Bio",               0.900, 0.462, 0.0},
+            {"Bio,Ani",           0.700, 0.631, 0.0},
+            {"Bio,Ani,Mam",       0.600, 0.710, 0.0},
+            {"Bio,Ani,Mam,Cane",  1.000, 1.000, 0.0},
+            {"Bio,Ani,Mam,Cane",  0.999, 0.999, 0.0},
+            {"Bio,Ani,Mam,Gatto", 0.700, 0.704, 0.0},
+            {"Bio,Ani,Mam,Lupo",  0.700, 0.784, 0.0},
+        };
+        m_blhmTable->setRowCount(int(std::size(kDef)));
+        for (int r = 0; r < int(std::size(kDef)); ++r) {
+            m_blhmTable->setItem(r, 0, new QTableWidgetItem(kDef[r].path));
+            m_blhmTable->setItem(r, 1, new QTableWidgetItem(
+                QString::number(kDef[r].fw, 'f', 3)));
+            m_blhmTable->setItem(r, 2, new QTableWidgetItem(
+                QString::number(kDef[r].lw, 'f', 3)));
+            m_blhmTable->setItem(r, 3, new QTableWidgetItem(
+                QString::number(kDef[r].uw, 'f', 3)));
+        }
+
+        auto* btnAdd = new QPushButton("+ Aggiungi peso");
+        btnAdd->setObjectName("actionBtn");
+        auto* btnDel = new QPushButton("\xf0\x9f\x97\x91  Rimuovi riga");
+        btnDel->setObjectName("actionBtn");
+        auto* rowBar = new QWidget;
+        auto* rowLay = new QHBoxLayout(rowBar);
+        rowLay->setContentsMargins(0, 0, 0, 0);
+        rowLay->addWidget(btnAdd);
+        rowLay->addWidget(btnDel);
+        rowLay->addStretch();
+
+        leftLay->addWidget(lblPesi);
+        leftLay->addWidget(m_blhmTable, 1);
+        leftLay->addWidget(rowBar);
+
+        /* ── DESTRA: query + output ── */
+        auto* rightW   = new QWidget;
+        auto* rightLay = new QVBoxLayout(rightW);
+        rightLay->setContentsMargins(4, 0, 0, 0);
+
+        auto* qBar  = new QWidget;
+        auto* qHlay = new QHBoxLayout(qBar);
+        qHlay->setContentsMargins(0, 0, 0, 0);
+        qHlay->setSpacing(6);
+
+        m_blhmQuery = new QLineEdit;
+        m_blhmQuery->setPlaceholderText("Query path  es. Bio,Ani,Mam,Cane");
+        m_blhmQuery->setText("Bio,Ani,Mam,Cane");
+
+        auto* btnCalc = new QPushButton("\xf0\x9f\xa7\xae  Calcola R");
+        btnCalc->setObjectName("primaryBtn");
+
+        qHlay->addWidget(new QLabel("Query:"));
+        qHlay->addWidget(m_blhmQuery, 1);
+        qHlay->addWidget(btnCalc);
+
+        m_blhmOutput = new QTextEdit;
+        m_blhmOutput->setReadOnly(true);
+        QFont mono("monospace");
+        mono.setStyleHint(QFont::Monospace);
+        mono.setPointSize(9);
+        m_blhmOutput->setFont(mono);
+
+        rightLay->addWidget(qBar);
+        rightLay->addWidget(m_blhmOutput, 1);
+
+        split->addWidget(leftW);
+        split->addWidget(rightW);
+        split->setStretchFactor(0, 2);
+        split->setStretchFactor(1, 3);
+
+        calcLay->addWidget(split, 1);
+
+        connect(btnCalc, &QPushButton::clicked,       this, &RicercaPage::onBlhmComputeClicked);
+        connect(m_blhmQuery, &QLineEdit::returnPressed, this, &RicercaPage::onBlhmComputeClicked);
+        connect(btnAdd, &QPushButton::clicked, this, [this] {
+            int r = m_blhmTable->rowCount();
+            m_blhmTable->setRowCount(r + 1);
+            m_blhmTable->setItem(r, 0, new QTableWidgetItem("Bio"));
+            m_blhmTable->setItem(r, 1, new QTableWidgetItem("0.500"));
+            m_blhmTable->setItem(r, 2, new QTableWidgetItem("0.500"));
+            m_blhmTable->setItem(r, 3, new QTableWidgetItem("0.000"));
+            m_blhmTable->scrollToBottom();
+            m_blhmTable->editItem(m_blhmTable->item(r, 0));
+        });
+        connect(btnDel, &QPushButton::clicked, this, [this] {
+            if (m_blhmTable->selectedItems().isEmpty()) return;
+            m_blhmTable->removeRow(m_blhmTable->currentRow());
+        });
+
+        inner->addTab(calcW, "\xf0\x9f\xa7\xae  Calcolatore");
+    }
+
+    /* ══════════════ TAB 2: NOTE ══════════════ */
+    {
+        auto* noteW   = new QWidget;
+        auto* noteLay = new QVBoxLayout(noteW);
+        noteLay->setContentsMargins(0, 4, 0, 0);
+        noteLay->setSpacing(6);
+
+        auto* bar  = new QWidget;
+        auto* blay = new QHBoxLayout(bar);
+        blay->setContentsMargins(0, 0, 0, 0);
+        blay->setSpacing(6);
+
+        auto* lbl = new QLabel(
+            "<b>\xf0\x9f\x93\x9d  Appunti BLHM / RAB\xe2\x82\x80-L</b>"
+            "  <span style='color:gray;font-size:11px;'>"
+            "salvato in RAG/BLHM_note.md</span>");
+        lbl->setTextFormat(Qt::RichText);
+
+        auto* btnLoad = new QPushButton("\xf0\x9f\x93\x82  Carica");
+        btnLoad->setObjectName("actionBtn");
+        auto* btnSave = new QPushButton("\xf0\x9f\x92\xbe  Salva");
+        btnSave->setObjectName("primaryBtn");
+        auto* btnClr  = new QPushButton("\xf0\x9f\x97\x91");
+        btnClr->setFixedWidth(32);
+        btnClr->setToolTip("Svuota");
+
+        blay->addWidget(lbl);
+        blay->addStretch();
+        blay->addWidget(btnLoad);
+        blay->addWidget(btnSave);
+        blay->addWidget(btnClr);
+
+        m_blhmNoteEdit = new QTextEdit;
+        m_blhmNoteEdit->setPlaceholderText(
+            "Prendi appunti sui documenti BLHM e RAB\xe2\x82\x80-L...\n"
+            "Puoi usare **grassetto**, # titoli, - elenchi (Markdown).\n\n"
+            "I file PDF di riferimento sono in RAG/:\n"
+            "  \xe2\x80\xa2 BLHM_arXiv_Paper.pdf\n"
+            "  \xe2\x80\xa2 BLHM_Documento_Tecnico.pdf\n"
+            "  \xe2\x80\xa2 RAB80L_Report.pdf");
+        QFont noteFont;
+        noteFont.setPointSize(10);
+        m_blhmNoteEdit->setFont(noteFont);
+
+        /* auto-carica note esistenti */
+        {
+            QFile f(P::root() + "/RAG/BLHM_note.md");
+            if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+                m_blhmNoteEdit->setPlainText(QTextStream(&f).readAll());
+        }
+
+        noteLay->addWidget(bar);
+        noteLay->addWidget(m_blhmNoteEdit, 1);
+
+        connect(btnSave, &QPushButton::clicked, this, &RicercaPage::onBlhmNoteSave);
+        connect(btnLoad, &QPushButton::clicked, this, &RicercaPage::onBlhmNoteLoad);
+        connect(btnClr,  &QPushButton::clicked, this, [this] { m_blhmNoteEdit->clear(); });
+
+        inner->addTab(noteW, "\xf0\x9f\x93\x9d  Note");
+    }
+
+    /* ══════════════ TAB 3: DNA VIEWER ══════════════ */
+    {
+        auto* dnaW   = new QWidget;
+        auto* dnaLay = new QVBoxLayout(dnaW);
+        dnaLay->setContentsMargins(0, 4, 0, 0);
+        dnaLay->setSpacing(6);
+
+        auto* bar  = new QWidget;
+        auto* hlay = new QHBoxLayout(bar);
+        hlay->setContentsMargins(0, 0, 0, 0);
+        hlay->setSpacing(6);
+
+        m_blhmDnaSeq1 = new QLineEdit;
+        m_blhmDnaSeq1->setPlaceholderText("Sequenza DNA 1  (A/T/C/G)");
+
+        m_blhmDnaSeq2 = new QLineEdit;
+        m_blhmDnaSeq2->setPlaceholderText("Sequenza DNA 2  (opzionale, per confronto SIM)");
+
+        auto* btnAn = new QPushButton("\xf0\x9f\xa7\xac  Analizza");
+        btnAn->setObjectName("primaryBtn");
+        auto* btnCl = new QPushButton("\xf0\x9f\x97\x91");
+        btnCl->setToolTip("Pulisci");
+        btnCl->setFixedWidth(32);
+
+        m_blhmDnaSimLbl = new QLabel;
+        m_blhmDnaSimLbl->setTextFormat(Qt::RichText);
+
+        hlay->addWidget(new QLabel("Seq 1:"));
+        hlay->addWidget(m_blhmDnaSeq1, 3);
+        hlay->addWidget(new QLabel("Seq 2:"));
+        hlay->addWidget(m_blhmDnaSeq2, 3);
+        hlay->addWidget(btnAn);
+        hlay->addWidget(btnCl);
+        hlay->addWidget(m_blhmDnaSimLbl, 2);
+
+        m_blhmDnaCanvas = new Rab0lCanvas(dnaW);
+
+        dnaLay->addWidget(bar);
+        dnaLay->addWidget(m_blhmDnaCanvas, 1);
+
+        connect(btnAn, &QPushButton::clicked, this, &RicercaPage::onBlhmDnaAnalyzeClicked);
+        connect(m_blhmDnaSeq1, &QLineEdit::returnPressed, this, &RicercaPage::onBlhmDnaAnalyzeClicked);
+        connect(btnCl, &QPushButton::clicked, this, [this] {
+            m_blhmDnaSeq1->clear();
+            m_blhmDnaSeq2->clear();
+            m_blhmDnaSimLbl->clear();
+            m_blhmDnaCanvas->clearAll();
+        });
+
+        inner->addTab(dnaW, "\xf0\x9f\xa7\xac  DNA");
+    }
+
+    vlay->addWidget(inner, 1);
+    return w;
+}
+
+void RicercaPage::onBlhmComputeClicked()
+{
+    /* parse query path */
+    QStringList qPath;
+    for (const auto& p : m_blhmQuery->text().split(','))
+        if (!p.trimmed().isEmpty()) qPath << p.trimmed();
+    if (qPath.isEmpty()) return;
+
+    double rFactory = 0.0, rLink = 0.0, rUser = 0.0;
+    QString out;
+    out += QString("Query: [%1]\n\n").arg(qPath.join(", "));
+    out += QString("%-32s  match   fw\xc2\xb7m    lw\xc2\xb7m\xc2\xb2   uw\n")
+               .arg("Percorso");
+    out += QString(65, '-') + "\n";
+
+    const int rows = m_blhmTable->rowCount();
+    for (int r = 0; r < rows; ++r) {
+        auto* pathItem = m_blhmTable->item(r, 0);
+        auto* fwItem   = m_blhmTable->item(r, 1);
+        auto* lwItem   = m_blhmTable->item(r, 2);
+        auto* uwItem   = m_blhmTable->item(r, 3);
+        if (!pathItem) continue;
+
+        QStringList wPath;
+        for (const auto& p : pathItem->text().split(','))
+            if (!p.trimmed().isEmpty()) wPath << p.trimmed();
+
+        /* match = livelli_in_comune_dall_alto / max(|w|,|q|) */
+        int common = 0;
+        int minLen = qMin(wPath.size(), qPath.size());
+        for (int i = 0; i < minLen; ++i) {
+            if (wPath[i] == qPath[i]) ++common;
+            else break;
+        }
+        int    denom = qMax(wPath.size(), qPath.size());
+        double match = (denom > 0) ? double(common) / denom : 0.0;
+
+        double fw = fwItem ? fwItem->text().toDouble() : 0.0;
+        double lw = lwItem ? lwItem->text().toDouble() : 0.0;
+        double uw = uwItem ? uwItem->text().toDouble() : 0.0;
+
+        rFactory += fw * match;
+        rLink    += lw * match * match;
+        rUser    += uw;
+
+        QString pathStr = QString("[%1]").arg(pathItem->text())
+                              .leftJustified(32, ' ');
+        out += QString("%1  %2   %3   %4   %5\n")
+            .arg(pathStr)
+            .arg(match,         5, 'f', 3)
+            .arg(fw * match,    6, 'f', 3)
+            .arg(lw*match*match,6, 'f', 3)
+            .arg(uw,            6, 'f', 3);
+    }
+
+    double rMerged = 0.50*rFactory + 0.35*rLink + 0.15*rUser;
+
+    out += "\n" + QString(65, '=') + "\n";
+    out += QString("R_factory  = %1\n").arg(rFactory, 0, 'f', 3);
+    out += QString("R_link     = %1\n").arg(rLink,    0, 'f', 3);
+    out += QString("R_user     = %1\n").arg(rUser,    0, 'f', 3);
+    out += QString(65, '-') + "\n";
+    out += QString("R_merged   = 0.50 \xc3\x97 %1 + 0.35 \xc3\x97 %2 + 0.15 \xc3\x97 %3\n")
+               .arg(rFactory, 0, 'f', 3)
+               .arg(rLink,    0, 'f', 3)
+               .arg(rUser,    0, 'f', 3);
+    out += QString("           = %1 + %2 + %3\n")
+               .arg(0.50*rFactory, 0, 'f', 3)
+               .arg(0.35*rLink,    0, 'f', 3)
+               .arg(0.15*rUser,    0, 'f', 3);
+    out += QString("           = %1\n").arg(rMerged, 0, 'f', 3);
+
+    m_blhmOutput->setPlainText(out);
+}
+
+void RicercaPage::onBlhmNoteSave()
+{
+    const QString path = P::root() + "/RAG/BLHM_note.md";
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) return;
+    QTextStream(&f) << m_blhmNoteEdit->toPlainText();
+}
+
+void RicercaPage::onBlhmNoteLoad()
+{
+    const QString path = P::root() + "/RAG/BLHM_note.md";
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
+    m_blhmNoteEdit->setPlainText(QTextStream(&f).readAll());
+}
+
+void RicercaPage::onBlhmDnaAnalyzeClicked()
+{
+    static const QRegularExpression kNonDna("[^ATCGatcg]");
+
+    QString s1 = m_blhmDnaSeq1->text().trimmed().toUpper();
+    QString s2 = m_blhmDnaSeq2->text().trimmed().toUpper();
+    s1.remove(kNonDna);
+    s2.remove(kNonDna);
+
+    if (s1.isEmpty()) return;
+
+    if (s2.isEmpty()) {
+        m_blhmDnaCanvas->setSeq1Only(s1);
+        m_blhmDnaSimLbl->setText(
+            QString("<b>N=%1</b>  <span style='color:gray'>"
+                    "inserisci Seq 2 per confronto SIM</span>").arg(s1.size()));
+    } else {
+        m_blhmDnaCanvas->setSequences(s1, s2);
+        const auto& r = m_blhmDnaCanvas->result();
+        QString col = (r.sim >= 0.8) ? "#4CAF50"
+                    : (r.sim >= 0.4) ? "#FFC107" : "#F44336";
+        m_blhmDnaSimLbl->setText(
+            QString("<b>SIM = <span style='color:%1'>%2</span></b>"
+                    "  |  N=%3  |  SNP=%4")
+            .arg(col)
+            .arg(r.sim, 0, 'f', 3)
+            .arg(r.len)
+            .arg(r.snp));
+    }
 }

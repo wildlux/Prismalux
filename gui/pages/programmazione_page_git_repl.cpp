@@ -336,6 +336,20 @@ void ProgrammazionePage::gitRun(const QString& subcmd, const QStringList& args)
                 "\xe2\x9d\x8c  Imposta il percorso del repository.\n");
         return;
     }
+    if (!QDir(repo).exists()) {
+        if (m_gitOutput)
+            m_gitOutput->appendPlainText(
+                QString("\xe2\x9d\x8c  Cartella non trovata: %1\n").arg(repo));
+        return;
+    }
+    if (!QDir(repo + "/.git").exists() && !QFile::exists(repo + "/.git")) {
+        if (m_gitOutput)
+            m_gitOutput->appendPlainText(
+                QString("\xe2\x9d\x8c  \"%1\" non \xc3\xa8 un repository git.\n"
+                        "      Seleziona la cartella radice del progetto (quella che contiene .git).\n")
+                .arg(repo));
+        return;
+    }
 
     /* Abbandona processo precedente */
     if (m_gitProc && m_gitProc->state() != QProcess::NotRunning) {

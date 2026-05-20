@@ -518,7 +518,7 @@ QWidget* ImpostazioniPage::buildTestTab()
         auto* runOut = new QTextEdit(leftPanel);
         runOut->setReadOnly(true);
         runOut->setObjectName("outputView");
-        runOut->setFixedHeight(110);
+        runOut->setMinimumHeight(80);
         runOut->setPlaceholderText("Output test appare qui...");
         llay->addWidget(runOut);
 

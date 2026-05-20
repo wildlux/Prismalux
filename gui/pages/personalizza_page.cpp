@@ -809,7 +809,7 @@ void PersonalizzaPage::onModDlBtnClicked() {
     connect(m_modDlProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PersonalizzaPage::onModDlProcFinished);
 
-    m_modDlProc->start("wget", {"-c", "--show-progress", "-O", dest, url});
+    m_modDlProc->start("wget", {"-c", "--progress=dot:mega", "-O", dest, url});
     if (!m_modDlProc->waitForStarted(3000)) {
         m_modDlProc->deleteLater();
         m_modDlProc = nullptr;
@@ -845,6 +845,7 @@ void PersonalizzaPage::onModDlProcReadyRead() {
 
 void PersonalizzaPage::onModDlProcFinished(int code, QProcess::ExitStatus) {
     if (!m_modDlProc) return;
+    const QString remaining = QString::fromUtf8(m_modDlProc->readAll()).trimmed();
     m_modDlProc->deleteLater();
     m_modDlProc = nullptr;
     if (!m_modDlBtn || !m_dlProgress || !m_modDlLog) return;
@@ -855,7 +856,10 @@ void PersonalizzaPage::onModDlProcFinished(int code, QProcess::ExitStatus) {
         refreshModelList();
     } else {
         m_dlProgress->setVisible(false);
-        m_modDlLog->append("\n\xe2\x9d\x8c  Download fallito o interrotto.");
+        if (!remaining.isEmpty())
+            m_modDlLog->append(remaining);
+        m_modDlLog->append(QString("\n\xe2\x9d\x8c  Download fallito (codice %1).\n"
+            "Verifica URL (deve essere /resolve/main/file.gguf) e connessione.").arg(code));
     }
 }
 
@@ -875,6 +879,7 @@ void PersonalizzaPage::onCurlReadyRead() {
 
 void PersonalizzaPage::onCurlFinished(int code, QProcess::ExitStatus) {
     if (!m_curlProc) return;
+    const QString remaining = QString::fromUtf8(m_curlProc->readAll()).trimmed();
     m_curlProc->deleteLater();
     m_curlProc = nullptr;
     if (!m_modDlBtn || !m_dlProgress || !m_modDlLog) return;
@@ -885,7 +890,9 @@ void PersonalizzaPage::onCurlFinished(int code, QProcess::ExitStatus) {
         refreshModelList();
     } else {
         m_dlProgress->setVisible(false);
-        m_modDlLog->append("\n\xe2\x9d\x8c  Errore. Installa wget o curl.");
+        if (!remaining.isEmpty())
+            m_modDlLog->append(remaining);
+        m_modDlLog->append(QString("\n\xe2\x9d\x8c  Errore curl (codice %1). Installa wget o curl.").arg(code));
     }
 }
 

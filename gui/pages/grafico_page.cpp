@@ -8,6 +8,7 @@
 #include "widgets/formula_parser.h"
 #include "ai_client.h"
 
+#include <QScrollArea>
 #include <QSplitter>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -156,10 +157,20 @@ GraficoPage::GraficoPage(AiClient* ai, QWidget* parent) : QWidget(parent), m_ai(
 
 /* ── Pannello parametri sinistro ─────────────────────────────── */
 QWidget* GraficoPage::buildLeftPanel() {
-    auto* panel = new QWidget(this);
+    auto* outer = new QWidget(this);
+    outer->setMinimumWidth(220);
+    outer->setMaximumWidth(310);
+    auto* outerLay = new QVBoxLayout(outer);
+    outerLay->setContentsMargins(0, 0, 0, 0);
+
+    auto* sc = new QScrollArea(outer);
+    sc->setWidgetResizable(true);
+    sc->setFrameShape(QFrame::NoFrame);
+    sc->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    outerLay->addWidget(sc);
+
+    auto* panel = new QWidget(sc);
     panel->setObjectName("leftPanel");
-    panel->setMinimumWidth(220);
-    panel->setMaximumWidth(310);
 
     auto* lay = new QVBoxLayout(panel);
     lay->setContentsMargins(10,10,10,10);
@@ -700,7 +711,8 @@ QWidget* GraficoPage::buildLeftPanel() {
     m_statusLbl->setFont(QFont("Inter,Ubuntu,sans-serif", 8));
     lay->addWidget(m_statusLbl);
 
-    return panel;
+    sc->setWidget(panel);
+    return outer;
 }
 
 /* ── populateTypeCombo ───────────────────────────────────────── */

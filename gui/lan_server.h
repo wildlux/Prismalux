@@ -7,13 +7,6 @@
 #include <QTimer>
 #include "ai_client.h"
 
-#if QT_CONFIG(ssl)
-#  include <QSslServer>
-#  include <QSslSocket>
-#  include <QSslConfiguration>
-#  include <QSslCertificate>
-#  include <QSslKey>
-#endif
 
 class LanServer : public QObject {
     Q_OBJECT
@@ -31,8 +24,8 @@ public:
     /** Imposta il token Bearer (generato dalla UI se vuoto). Auth sempre richiesta se non vuoto. */
     void setAccessToken(const QString& token) { m_accessToken = token; }
 
-    /** true se il server è in ascolto con TLS (HTTPS). */
-    bool isTlsEnabled() const { return m_tlsEnabled; }
+    /** Sempre false: il server usa HTTP semplice con Bearer token. */
+    bool isTlsEnabled() const { return false; }
 
 signals:
     void statusChanged(bool running);
@@ -59,7 +52,8 @@ private:
         int         contentLength = 0;
         bool        headersDone   = false;
         QByteArray  body;
-        QString     authHeader;   ///< valore header Authorization (es. "Bearer TOKEN")
+        QString     authHeader;         ///< valore header Authorization (es. "Bearer TOKEN")
+        QString     authHeaderFallback; ///< token estratto da ?token= URL query (fallback)
         /* true solo se ha chiamato almeno una API Ollama (non /apk né /) */
         bool        isApiClient   = false;
     };
@@ -76,7 +70,6 @@ private:
     void sendStreamLine(const QByteArray& json);
     void sendError(QTcpSocket* sock, int code, const QString& msg);
     void closeStreamSession();
-    /** Genera header HTTP 200 con security headers; aggiunge HSTS se TLS attivo. */
     [[nodiscard]] QByteArray httpOkHeader(const char* contentType) const;
     [[nodiscard]] QByteArray httpStreamHeader() const;
     [[nodiscard]] static bool timingSafeEqual(const QString& a, const QString& b);
@@ -84,16 +77,10 @@ private:
     /** Genera certificato self-signed in ~/.prismalux/ se non esiste. Ritorna false se openssl non disponibile. */
     [[nodiscard]] static bool _ensureCert(QString& certPath, QString& keyPath);
     [[nodiscard]] bool checkChatRateLimit(Session& s); ///< true = limit exceeded (reply already sent)
-    void onChatRateTimeout();            ///< reset contatore chat rate ogni 60s
-    void onKnowledgeRateTimeout();       ///< reset contatore knowledge rate ogni 60s
-    void onPendingTlsDisconnected();     ///< TLS handshake fallito: decrementa m_pendingTls
-#if QT_CONFIG(ssl)
-    void onSslErrors(const QList<QSslError>& errs);  ///< ignora errori SSL self-signed
-    void onSslEncrypted();               ///< handshake TLS completato: registra sessione
-#endif
+    void onChatRateTimeout();      ///< reset contatore chat rate ogni 60s
+    void onKnowledgeRateTimeout(); ///< reset contatore knowledge rate ogni 60s
 
-    QTcpServer*                m_server        = nullptr;
-    bool                       m_tlsEnabled    = false;
+    QTcpServer*                m_server = nullptr;
     AiClient*                  m_ai;
     QMap<QTcpSocket*, Session> m_sessions;
     QSet<QString>              m_appClientIps; /* IP unici che hanno usato le API */
@@ -118,5 +105,4 @@ private:
     QString m_accessToken;
 
     static constexpr int kMaxSessions = 32;  ///< max sessioni TCP simultanee (DoS guard)
-    int                m_pendingTls    = 0;  ///< connessioni TLS in attesa di handshake
 };

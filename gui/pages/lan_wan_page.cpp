@@ -124,6 +124,14 @@ void LanWanPage::openQrDialog(QPushButton* parent, const QString& url,
 }
 
 /* ══════════════════════════════════════════════════════════════
+   Destructor — reset auto-start so server doesn't restart next launch
+   ══════════════════════════════════════════════════════════════ */
+LanWanPage::~LanWanPage()
+{
+    AppConfig::s().setValue(P::SK::kLanAutoStart, false);
+}
+
+/* ══════════════════════════════════════════════════════════════
    Constructor
    ══════════════════════════════════════════════════════════════ */
 LanWanPage::LanWanPage(AiClient* ai, QWidget* parent)
@@ -156,6 +164,17 @@ LanWanPage::LanWanPage(AiClient* ai, QWidget* parent)
     tabs->addTab(wanTab, "\xf0\x9f\x8c\x90  WAN");
 
     lay->addWidget(tabs);
+
+    /* Ripristina porta salvata e, se era attivo, avvia automaticamente */
+    const int savedPort = AppConfig::s().value(P::SK::kLanPort, 11500).toInt();
+    if (m_lanPortSpin) m_lanPortSpin->setValue(savedPort);
+
+    if (AppConfig::s().value(P::SK::kLanAutoStart, false).toBool()) {
+        QTimer::singleShot(0, this, [this]() {
+            if (m_lanToggleBtn && !m_lanToggleBtn->isChecked())
+                m_lanToggleBtn->setChecked(true);
+        });
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -203,15 +222,29 @@ void LanWanPage::onCopyTokenBtnClicked()
 void LanWanPage::onQrConnectBtnClicked()
 {
     auto* btn = qobject_cast<QPushButton*>(sender());
-    const QString url = QString("%1://%2:%3")
-                            .arg(serverScheme())
-                            .arg(localLanIp())
-                            .arg(m_lanPortSpin->value());
+    const QString ip    = localLanIp();
+    const int     port  = m_lanPortSpin->value();
+    const QString token = m_lanTokenEdit ? m_lanTokenEdit->text().trimmed() : QString();
+
+    /* URL formato http://IP:PORT/web?token=TOKEN
+       - È un link reale: si apre nel browser del telefono con la web chat già autenticata
+       - L'app Android lo scansiona e compila IP, porta e token automaticamente */
+    QString url = QString("http://%1:%2/web").arg(ip).arg(port);
+    if (!token.isEmpty()) {
+        const QString enc = QString::fromLatin1(QUrl::toPercentEncoding(token));
+        url += "?token=" + enc;
+    }
+
+    const QString note = token.isEmpty()
+        ? "\xf0\x9f\x93\xb1" "  Impostazioni \xe2\x86\x92 \xf0\x9f\x93\xb7 Scansiona QR<br>"  /* 📱 📷 */
+          "<small>Nessun token — aggiungi un token per la sicurezza</small>"
+        : "\xf0\x9f\x93\xb1" "  Impostazioni \xe2\x86\x92 \xf0\x9f\x93\xb7 Scansiona QR<br>"
+          "<small>IP + porta + token sono gi\xc3\xa0 inclusi nel QR</small>";
+
     openQrDialog(btn, url,
-                 "QR \xe2\x80\x94 Connetti Android",
-                 "\xf0\x9f\x93\xb1" "  Scansiona per connettere l\xe2\x80\x99" "app",
-                 "Nell\xe2\x80\x99" "app Android: Impostazioni \xe2\x86\x92 URL server.<br>"
-                 "Poi avvia il server qui con il pulsante Server ON.");
+                 "QR \xe2\x80\x94 Connetti Prismalux Mobile",
+                 "\xf0\x9f\x94\x91" "  Scansiona nell\xe2\x80\x99" "app per configurare tutto in un tap",
+                 note);
 }
 
 void LanWanPage::onLanPortChanged(int v)
@@ -219,6 +252,19 @@ void LanWanPage::onLanPortChanged(int v)
     if (m_qrConnectLbl)
         m_qrConnectLbl->setText(
             QString("<small>%1 : %2</small>").arg(m_lanConnectIp).arg(v));
+    onUpdateQrInline();
+}
+
+void LanWanPage::onUpdateQrInline()
+{
+    if (!m_qrInlineWidget) return;
+    const QString ip    = localLanIp();
+    const int     port  = m_lanPortSpin ? m_lanPortSpin->value() : 11500;
+    const QString token = m_lanTokenEdit ? m_lanTokenEdit->text().trimmed() : QString();
+    QString url = QString("http://%1:%2/web").arg(ip).arg(port);
+    if (!token.isEmpty())
+        url += "?token=" + QString::fromLatin1(QUrl::toPercentEncoding(token));
+    m_qrInlineWidget->setText(url);
 }
 
 void LanWanPage::onQrApkBtnClicked()
@@ -302,12 +348,15 @@ void LanWanPage::onLanToggleBtnToggled(bool on)
         if (m_lanServer->start(port)) {
             m_lanToggleBtn->setText("\xe2\x97\x8f  Server ON");
             m_lanPortSpin->setEnabled(false);
+            AppConfig::s().setValue(P::SK::kLanAutoStart, true);
+            AppConfig::s().setValue(P::SK::kLanPort, (int)port);
         } else {
             m_lanToggleBtn->blockSignals(true);
             m_lanToggleBtn->setChecked(false);
             m_lanToggleBtn->blockSignals(false);
             m_lanStatusLbl->setText("\xe2\x9d\x8c  Impossibile aprire la porta");
             m_lanStatusLbl->setStyleSheet("color: #f44336;");
+            AppConfig::s().setValue(P::SK::kLanAutoStart, false);
         }
     } else {
         if (m_lanServer) m_lanServer->stop();
@@ -316,6 +365,7 @@ void LanWanPage::onLanToggleBtnToggled(bool on)
         m_qrApkBtn->setEnabled(false);
         m_qrPageBtn->setEnabled(false);
         m_lanWebBtn->setEnabled(false);
+        AppConfig::s().setValue(P::SK::kLanAutoStart, false);
     }
 }
 
@@ -485,6 +535,42 @@ QWidget* LanWanPage::buildLanAndroidTab()
 
         connect(m_lanPortSpin, QOverload<int>::of(&QSpinBox::valueChanged),
                 this, &LanWanPage::onLanPortChanged);
+    }
+
+    /* ── QR inline sempre visibile — si aggiorna con IP+porta+token ── */
+    {
+        auto* qrBox  = new QWidget(group);
+        auto* qrBoxL = new QHBoxLayout(qrBox);
+        qrBoxL->setContentsMargins(0, 4, 0, 4);
+        qrBoxL->setSpacing(12);
+
+        m_qrInlineWidget = new QrCodeWidget(QString(), group);
+        m_qrInlineWidget->setFixedSize(140, 140);
+        m_qrInlineWidget->setToolTip(
+            "QR di connessione rapida — scansiona con l\xe2\x80\x99" "app Android.\n"
+            "Si aggiorna automaticamente quando cambi IP, porta o token.");
+
+        auto* qrInfoLbl = new QLabel(group);
+        qrInfoLbl->setTextFormat(Qt::RichText);
+        qrInfoLbl->setWordWrap(true);
+        qrInfoLbl->setText(
+            "<b>\xf0\x9f\x93\xb1  Connetti l\xe2\x80\x99" "app Android</b><br>"  /* 📱 */
+            "<small>1. Avvia PrismaluxMobile sul telefono<br>"
+            "2. Apri <b>Impostazioni</b> \xe2\x86\x92 "
+            "<b>\xf0\x9f\x93\xb7 Scansiona QR dal PC</b><br>"     /* 📷 */
+            "3. Punta la fotocamera su questo QR<br>"
+            "IP + Porta + Token vengono configurati in automatico.</small>");
+
+        qrBoxL->addWidget(m_qrInlineWidget);
+        qrBoxL->addWidget(qrInfoLbl, 1);
+        gl->addWidget(qrBox);
+
+        /* Aggiorna il QR ad ogni modifica di IP, porta o token */
+        connect(m_lanTokenEdit, &QLineEdit::textChanged,
+                this, &LanWanPage::onUpdateQrInline);
+        connect(m_lanPortSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, &LanWanPage::onUpdateQrInline);
+        onUpdateQrInline();   /* prima visualizzazione */
     }
 
     /* ── Due bottoni QR affiancati (APK e Pagina) ── */

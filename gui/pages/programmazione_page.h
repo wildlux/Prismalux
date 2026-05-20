@@ -47,6 +47,7 @@ class ProgrammazionePage : public QWidget {
     Q_OBJECT
 public:
     explicit ProgrammazionePage(AiClient* ai, QWidget* parent = nullptr);
+    ~ProgrammazionePage() override;
 
     static bool isIntentionalError(const QString& errorOut, const QString& source);
     static QVector<double> parseNumbers(const QString& text);
@@ -164,7 +165,8 @@ private:
 
     /* ── Network Analyzer sub-tab (tshark/tcpdump) ── */
     QComboBox*      m_netIface       = nullptr;   ///< interfaccia di cattura
-    QLineEdit*      m_netFilter      = nullptr;   ///< filtro BPF / display filter
+    QComboBox*      m_netProto       = nullptr;   ///< protocollo: any/tcp/udp/icmp/arp/dns/http/https
+    QSpinBox*       m_netPort        = nullptr;   ///< porta (0 = qualsiasi)
     QSpinBox*       m_netMaxPkts     = nullptr;   ///< numero max pacchetti
     QPlainTextEdit* m_netLog         = nullptr;   ///< log pacchetti live
     QLabel*         m_netStatus      = nullptr;
@@ -172,6 +174,7 @@ private:
     QPushButton*    m_btnNetStop     = nullptr;
     QPushButton*    m_btnNetAnalyze  = nullptr;   ///< AI analizza il traffico catturato
     QPushButton*    m_btnNetClear    = nullptr;
+    QPushButton*    m_btnNetFixPerms = nullptr;   ///< applica cap_net_raw via pkexec
     QProcess*       m_netProc        = nullptr;
     QObject*        m_netTokenHolder = nullptr;
     QTextEdit*      m_netAiOutput    = nullptr;
@@ -181,6 +184,7 @@ private:
     void     netStart();
     void     netStop();
     void     netAiAnalyze();
+    void     netFixPermissions();
 
     /* ── Rete LAN Scanner sub-tab ── */
     QLabel*         m_lanInfoLbl    = nullptr;  ///< info interfacce locali
@@ -319,6 +323,7 @@ private:
     void lanAddRow(const QString& ip, const QString& mac,
                    const QString& host, const QString& stato);
     void lanResetBtns();
+    void enrichMacFromNeigh(); ///< arricchisce MAC mancanti dalla ARP cache del kernel (ip neigh show)
     QString m_lanNmapSubnet; ///< subnet corrente per nmap (usata da onLanNmapFinished)
 
     /* ── Slot estratti da lambda — Git MCP ── */

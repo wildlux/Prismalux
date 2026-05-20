@@ -1,12 +1,16 @@
 #pragma once
 #include <QWidget>
-#include <QTextBrowser>
+#include <QFrame>
+#include <QScrollArea>
+#include <QVBoxLayout>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QLabel>
 #include <QDialog>
 #include <QListWidget>
 #include <QJsonArray>
+#include <QMap>
+#include <QButtonGroup>
 
 #ifdef HAVE_TTS
 #include <QTextToSpeech>
@@ -16,7 +20,35 @@ class AiClient;
 class RagEngineSimple;
 
 /* --------------------------------------------------------------
-   ModelPickerDialog -- selettore modello LLM a tutto schermo.
+   ChatBubbleWidget — singola bolla chat.
+   Le bolle AI mostrano azioni inline (📋 copia, 🔊 leggi) dopo
+   la risposta completa, stile Gemini/Claude/Qwen.
+   -------------------------------------------------------------- */
+class ChatBubbleWidget : public QFrame {
+    Q_OBJECT
+public:
+    explicit ChatBubbleWidget(const QString& role,
+                               const QString& text,
+                               QWidget* parent = nullptr);
+    void appendText(const QString& chunk);
+    void showActions();
+    QString fullText() const { return m_fullText; }
+signals:
+    void copyClicked(const QString& text);
+    void speakClicked(const QString& text);
+private slots:
+    void onCopyClicked();
+    void onSpeakClicked();
+    void onCopyRestored();
+private:
+    QLabel*      m_textLbl  = nullptr;
+    QPushButton* m_copyBtn  = nullptr;
+    QPushButton* m_speakBtn = nullptr;
+    QString      m_fullText;
+};
+
+/* --------------------------------------------------------------
+   ModelPickerDialog — selettore modello LLM a tutto schermo.
    -------------------------------------------------------------- */
 class ModelPickerDialog : public QDialog {
     Q_OBJECT
@@ -24,6 +56,7 @@ public:
     explicit ModelPickerDialog(const QStringList& models,
                                 const QString& current,
                                 const QString& serverEmoji,
+                                const QMap<QString, qint64>& sizes,
                                 QWidget* parent = nullptr);
     QString selectedModel() const { return m_selected; }
 signals:
@@ -36,17 +69,21 @@ private:
 };
 
 /* --------------------------------------------------------------
-   ChatPage -- schermata principale chat con streaming LLM + RAG.
+   ChatPage — schermata principale chat con streaming LLM + RAG.
 
    Layout:
      ----------------------------------
-     - [modello]        [? Stop] [?] -  ? header
+     - [modello]        [✕ Stop] [🗑] -  ← header
+     ----------------------------------
+     - [☁️ Cloud] [🌐 Server] [📱 Locale] -
+     ----------------------------------
+     - [banner backend attivo]         -
      ----------------------------------
      -                                -
-     -   QTextBrowser (log chat)      -  ? flex
+     -   QScrollArea con bolle chat   -  ← flex
      -                                -
      ----------------------------------
-     - [RAG] [Invia]  QLineEdit       -  ? input
+     - [RAG] [QLineEdit]    [➤ Invia] -  ← input
      ----------------------------------
    -------------------------------------------------------------- */
 class ChatPage : public QWidget {
@@ -55,9 +92,7 @@ public:
     explicit ChatPage(AiClient* ai, RagEngineSimple* rag, QWidget* parent = nullptr);
 
 public slots:
-    /** Prepende testo di contesto al prossimo invio (da CameraPage). */
     void prependContext(const QString& text);
-    /** Segnala che l'indice RAG ? stato ricaricato. */
     void onRagReloaded();
 
 signals:
@@ -71,20 +106,20 @@ private slots:
     void onError(const QString& msg);
     void onStop();
     void onClear();
-    void onCopyLast();
     void onModelBtnClicked();
     void onModelPicked(const QString& model);
     void onExternalModelChanged(const QString& model);
     void onModelsReady(const QStringList& models);
-    void onRagToggled(bool on);
+    void onAttachClicked();
     void fetchModels();
     void onBackendServer();
     void onBackendLocal();
     void onLocalModelLoaded(const QString& path);
     void onAiLocalModeChanged(bool on);
-    void onCopyBtnRestore();
-    void onSpeakLast();
+    void onBubbleCopyClicked(const QString& text);
+    void onBubbleSpeakClicked(const QString& text);
     void onCloudModeClicked();
+    void scrollToBottom();
 
 private:
     void appendBubble(const QString& role, const QString& text);
@@ -96,32 +131,34 @@ private:
     AiClient*        m_ai;
     RagEngineSimple* m_rag;
 
-    QTextBrowser* m_log       = nullptr;
-    QLineEdit*    m_input     = nullptr;
-    QPushButton*  m_sendBtn   = nullptr;
-    QPushButton*  m_stopBtn   = nullptr;
-    QPushButton*  m_clearBtn  = nullptr;
-    QPushButton*  m_copyBtn   = nullptr;
-    QPushButton*  m_ragBtn    = nullptr;
-    QString       m_lastAssistantMsg;  ///< ultima risposta AI completa (per copia)
-    QPushButton*  m_modelBtn         = nullptr;
-    QPushButton*  m_cloudBtn         = nullptr;  ///< ☁️ API cloud esterna
-    QPushButton*  m_serverBtn        = nullptr;
-    QPushButton*  m_localBtn         = nullptr;
-    QLabel*       m_backendStatusLbl = nullptr;  ///< banner colorato backend attivo
-    QStringList   m_modelList;             ///< modelli disponibili dal server
+    QScrollArea*      m_scrollArea    = nullptr;
+    QWidget*          m_chatContainer = nullptr;
+    QVBoxLayout*      m_chatLayout    = nullptr;
+    ChatBubbleWidget* m_streamBubble  = nullptr;
+
+    QLineEdit*   m_input     = nullptr;
+    QPushButton* m_sendBtn   = nullptr;
+    QPushButton* m_stopBtn   = nullptr;
+    QPushButton* m_clearBtn  = nullptr;
+    QPushButton* m_ragBtn    = nullptr;
+    QPushButton* m_modelBtn  = nullptr;
+    QPushButton*  m_cloudBtn        = nullptr;
+    QPushButton*  m_serverBtn       = nullptr;
+    QPushButton*  m_localBtn        = nullptr;
+    QButtonGroup* m_backendGroup    = nullptr;
+    QLabel*       m_backendStatusLbl = nullptr;
+    QStringList  m_modelList;
 
 #ifdef HAVE_TTS
-    QTextToSpeech* m_tts    = nullptr;
+    QTextToSpeech* m_tts = nullptr;
 #endif
-    QPushButton*   m_speakBtn = nullptr;
 
-    QJsonArray    m_history;              ///< turni precedenti per context window
-    QString       m_streamAccum;          ///< testo in arrivo durante lo streaming
-    QString       m_pendingContext;       ///< testo da Camera da iniettare
-    QString       m_lastUserMsg;          ///< ultimo messaggio inviato (per history)
-    bool          m_ragEnabled  = true;
-    bool          m_streaming   = false;
+    QJsonArray  m_history;
+    QString     m_pendingContext;
+    QString     m_lastUserMsg;
+    bool        m_streaming  = false;
+    QStringList m_attachedContents;   ///< contenuto file allegati (max 5)
+    QStringList m_attachedNames;      ///< nomi file per UI
 
-    static constexpr int kMaxHistoryTurns = 6;  ///< turni mantenuti in memoria
+    static constexpr int kMaxHistoryTurns = 6;
 };

@@ -7,8 +7,24 @@
 #include <QComboBox>
 #include <QProgressBar>
 #include <QStackedWidget>
+#include <QDialog>
+#include <QListWidget>
+#include <QVBoxLayout>
 #include "../ai_client.h"
 #include "quiz_ccna_db.h"
+
+/* Dialog a tutto schermo per scegliere la materia (touch-friendly) */
+class MateriaPickerDialog : public QDialog {
+    Q_OBJECT
+public:
+    explicit MateriaPickerDialog(int currentIdx, QWidget* parent = nullptr);
+signals:
+    void materiaPicked(int idx);
+private slots:
+    void onItemClicked(QListWidgetItem* item);
+private:
+    QListWidget* m_list = nullptr;
+};
 
 /* --------------------------------------------------------------
    StudioPage -- Assistente studio AI per CCNA e tutte le materie.
@@ -21,6 +37,9 @@ class StudioPage : public QWidget {
     Q_OBJECT
 public:
     explicit StudioPage(AiClient* ai, QWidget* parent = nullptr);
+
+signals:
+    void quizFullscreen(bool on);
 
 private slots:
     void onMateriaChanged(int idx);
@@ -39,6 +58,8 @@ private slots:
     void onQuizBtn2();
     void onQuizBtn3();
     void onAborted();
+    void onMateriaBtnClicked();
+    void onMateriaPickerResult(int idx);
 
 private:
     void runStudy(int modeIdx);
@@ -55,7 +76,8 @@ private:
     QStackedWidget* m_innerStack    = nullptr;
 
     /* ── Pagina 0: menu ── */
-    QComboBox*    m_matCombo     = nullptr;
+    QPushButton*  m_matBtn       = nullptr;  ///< bottone touch → apre MateriaPickerDialog
+    QComboBox*    m_matCombo     = nullptr;  ///< nascosto, usato solo per la logica interna
     QLineEdit*    m_materiaEdit  = nullptr;
     QLineEdit*    m_argoEdit     = nullptr;
     QComboBox*    m_temaCombo    = nullptr;  ///< temi CCNA (solo CCNA)

@@ -11,6 +11,7 @@
 #include <QAbstractSocket>
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
+#include "../widgets/qr_code_widget.h"
 
 class LanServer;
 
@@ -18,6 +19,7 @@ class LanWanPage : public QWidget {
     Q_OBJECT
 public:
     explicit LanWanPage(AiClient* ai, QWidget* parent = nullptr);
+    ~LanWanPage() override;
 private:
     AiClient*    m_ai           = nullptr;
     LanServer*   m_lanServer    = nullptr;
@@ -27,10 +29,11 @@ private:
     QLabel*      m_lanClientsLbl= nullptr;
     QPushButton* m_lanWebBtn    = nullptr;
     QLineEdit*   m_lanTokenEdit = nullptr;
-    QPushButton* m_qrApkBtn     = nullptr;
-    QPushButton* m_qrPageBtn    = nullptr;
-    QLabel*      m_qrConnectLbl = nullptr;
-    QString      m_lanConnectIp;
+    QPushButton*  m_qrApkBtn      = nullptr;
+    QPushButton*  m_qrPageBtn     = nullptr;
+    QLabel*       m_qrConnectLbl  = nullptr;
+    QrCodeWidget* m_qrInlineWidget = nullptr;  ///< QR inline — si aggiorna con IP+token
+    QString       m_lanConnectIp;
 
     /* ── GNS3 MCP ── */
     QLineEdit*     m_gns3HostEdit    = nullptr;
@@ -68,6 +71,7 @@ private slots:
     void onCopyTokenBtnClicked();
     void onQrConnectBtnClicked();
     void onLanPortChanged(int v);
+    void onUpdateQrInline();
     void onQrApkBtnClicked();
     void onQrPageBtnClicked();
     void onLanToggleBtnToggled(bool on);

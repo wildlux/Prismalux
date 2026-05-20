@@ -226,7 +226,7 @@ QWidget* ManutenzioneePage::buildBackend()
     m_srvLog = new QTextEdit(grpServ);
     m_srvLog->setReadOnly(true);
     m_srvLog->setObjectName("chatLog");
-    m_srvLog->setFixedHeight(90);
+    m_srvLog->setMinimumHeight(80);
     m_srvLog->setPlaceholderText("Log llama-server...");
     srvLay->addWidget(m_srvLog);
 
@@ -308,7 +308,7 @@ QWidget* ManutenzioneePage::buildBackend()
     m_updLog = new QTextEdit(updGroup);
     m_updLog->setReadOnly(true);
     m_updLog->setObjectName("chatLog");
-    m_updLog->setFixedHeight(100);
+    m_updLog->setMinimumHeight(80);
     m_updLog->setPlaceholderText("Premi \"Aggiorna tutti\" per scaricare le ultime versioni dei modelli Ollama.");
     updLay->addWidget(m_updLog);
 

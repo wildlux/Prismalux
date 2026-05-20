@@ -6,6 +6,7 @@
 #include <QMessageBox>
 #include <QBluetoothLocalDevice>
 #include <QBluetoothUuid>
+#include <QBluetoothAddress>
 #include <QDateTime>
 #include <QFont>
 
@@ -249,20 +250,87 @@ void BlePage::onScanError(QBluetoothDeviceDiscoveryAgent::Error)
     m_scanBtn->setEnabled(true);
 }
 
-/* ── onDeviceTapped — mostra dettagli e copia MAC ───────────── */
+/* ── onDeviceTapped — mostra dettagli e offre connessione client ─ */
 void BlePage::onDeviceTapped(QListWidgetItem* item)
 {
     if (!item) return;
     const QString mac  = item->data(Qt::UserRole).toString();
     const QString name = item->data(Qt::UserRole + 1).toString();
-    QGuiApplication::clipboard()->setText(mac);
 
-    QMessageBox::information(this, "Dispositivo BLE",
-        QString("Nome: %1\nMAC: %2\n\n"
-                "(Indirizzo copiato negli appunti)\n\n"
-                "Vai in Chat BT e premi Ascolta/Connetti\n"
-                "per aprire una sessione di chat Bluetooth Classic.")
-        .arg(name, mac));
+    const int choice = QMessageBox::question(this,
+        "Dispositivo: " + name,
+        QString("Indirizzo: %1\n\nVuoi connetterti a questo dispositivo\nper la chat Bluetooth?").arg(mac),
+        "Connetti", "Solo copia MAC", "Annulla", 0, 2);
+
+    if (choice == 0) {
+        QGuiApplication::clipboard()->setText(mac);
+        connectToDevice(mac, name);
+    } else if (choice == 1) {
+        QGuiApplication::clipboard()->setText(mac);
+        m_chatStatus->setText(
+            QString::fromUtf8("\xf0\x9f\x93\x8b")  /* 📋 */
+            + " MAC copiato: " + mac);
+    }
+}
+
+/* ── connectToDevice — connessione client RFCOMM/SPP ────────── */
+void BlePage::connectToDevice(const QString& address, const QString& name)
+{
+    if (m_socket && m_socket->state() == QBluetoothSocket::ConnectedState) {
+        m_socket->disconnectFromService();
+        if (m_socket) { m_socket->deleteLater(); m_socket = nullptr; }
+    }
+
+    m_socket = new QBluetoothSocket(QBluetoothServiceInfo::RfcommProtocol, this);
+    connect(m_socket, &QBluetoothSocket::connected,
+            this, &BlePage::onClientConnected);
+    connect(m_socket, &QBluetoothSocket::readyRead,
+            this, &BlePage::onSocketReadyRead);
+    connect(m_socket, &QBluetoothSocket::disconnected,
+            this, &BlePage::onSocketDisconnected);
+    connect(m_socket,
+            QOverload<QBluetoothSocket::SocketError>::of(&QBluetoothSocket::errorOccurred),
+            this, &BlePage::onClientConnectError);
+
+    m_isServer = false;
+    m_chatStatus->setText(
+        QString::fromUtf8("\xe2\x8f\xb3")   /* ⏳ */
+        + " Connessione a " + name + " in corso...");
+    m_chatSend->setEnabled(false);
+
+    /* Connessione RFCOMM alla porta SPP standard (canale 1) */
+    m_socket->connectToService(
+        QBluetoothAddress(address),
+        QBluetoothUuid(kChatUuid));
+
+    m_stack->setCurrentIndex(1);   /* passa alla tab chat */
+    appendChatMsg("Sistema",
+        QString::fromUtf8("\xe2\x8f\xb3") + " Connessione a " + name + "...");
+}
+
+void BlePage::onClientConnected()
+{
+    const QString peer = m_socket ? m_socket->peerName() : "Remoto";
+    m_chatStatus->setText(
+        QString::fromUtf8("\xf0\x9f\x9f\xa2")   /* 🟢 */
+        + " Connesso a: " + peer);
+    m_chatSend->setEnabled(true);
+    m_chatConn->setText(QString::fromUtf8("\xe2\x9d\x8c") + " Disconnetti");
+    appendChatMsg("Sistema",
+        QString::fromUtf8("\xf0\x9f\x9f\xa2") + " Connesso a " + peer + ".");
+}
+
+void BlePage::onClientConnectError(QBluetoothSocket::SocketError)
+{
+    const QString err = m_socket ? m_socket->errorString() : "errore socket";
+    m_chatStatus->setText(
+        QString::fromUtf8("\xe2\x9d\x8c")   /* ❌ */
+        + " Connessione fallita: " + err);
+    m_chatSend->setEnabled(false);
+    m_chatConn->setText(QString::fromUtf8("\xf0\x9f\x93\xb6") + " Ascolta");
+    appendChatMsg("Sistema",
+        QString::fromUtf8("\xe2\x9d\x8c") + " Errore: " + err);
+    if (m_socket) { m_socket->deleteLater(); m_socket = nullptr; }
 }
 
 /* ══════════════════════════════════════════════════════════════

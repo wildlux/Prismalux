@@ -19,6 +19,7 @@
    ====================================================================== */
 #include "programmazione_page.h"
 #include "../prismalux_paths.h"
+#include "../ai_utils.h"
 
 #include <QApplication>
 #include <QClipboard>
@@ -290,29 +291,7 @@ void ProgrammazionePage::onModelChanged(const QString& newModel)
 
 void ProgrammazionePage::populateAiModels()
 {
-    if (!m_ai) return;
-    auto* h = new QObject(this);
-    connect(m_ai, &AiClient::modelsReady, h,
-        [this, h](const QStringList& models) {
-            h->deleteLater();
-            if (!m_modelCombo) return;
-            const QString cur = m_modelCombo->currentData().toString();
-            m_modelCombo->blockSignals(true);
-            m_modelCombo->clear();
-            for (const QString& m : models)
-                m_modelCombo->addItem(P::modelIcon(0, m) + m, m);
-            int idx = m_modelCombo->findData(cur);
-            if (idx < 0) idx = 0;
-            m_modelCombo->setCurrentIndex(idx);
-            m_modelCombo->blockSignals(false);
-        });
-    connect(m_ai, &AiClient::error, h,
-        [this, h](const QString& msg) {
-            h->deleteLater();
-            if (!m_modelCombo || m_modelCombo->count() > 0) return;
-            m_modelCombo->addItem("\xe2\x9a\xa0  " + msg, "");
-        });
-    m_ai->fetchModels();
+    if (m_ai && m_modelCombo) AiUtils::populateModelCombo(m_ai, m_modelCombo, this);
 }
 
 /* ======================================================================
@@ -499,29 +478,7 @@ void ProgrammazionePage::onFixError(const QString& msg)
 
 void ProgrammazionePage::populateAgentModels()
 {
-    if (!m_ai || !m_agentModel) return;
-    auto* h = new QObject(this);
-    connect(m_ai, &AiClient::modelsReady, h,
-        [this, h](const QStringList& models) {
-            h->deleteLater();
-            if (!m_agentModel) return;
-            const QString cur = m_agentModel->currentData().toString();
-            m_agentModel->blockSignals(true);
-            m_agentModel->clear();
-            for (const QString& m : models)
-                m_agentModel->addItem(P::modelIcon(0, m) + m, m);
-            int idx = m_agentModel->findData(cur);
-            if (idx < 0) idx = 0;
-            m_agentModel->setCurrentIndex(idx);
-            m_agentModel->blockSignals(false);
-        });
-    connect(m_ai, &AiClient::error, h,
-        [this, h](const QString& msg) {
-            h->deleteLater();
-            if (!m_agentModel || m_agentModel->count() > 0) return;
-            m_agentModel->addItem("\xe2\x9a\xa0  " + msg, "");
-        });
-    m_ai->fetchModels();
+    if (m_ai && m_agentModel) AiUtils::populateModelCombo(m_ai, m_agentModel, this);
 }
 
 void ProgrammazionePage::onBtnAgentStopClicked()
@@ -591,29 +548,7 @@ void ProgrammazionePage::onAgentError(const QString& msg)
 
 void ProgrammazionePage::populateRevModels()
 {
-    if (!m_ai || !m_revModel) return;
-    auto* h = new QObject(this);
-    connect(m_ai, &AiClient::modelsReady, h,
-        [this, h](const QStringList& models) {
-            h->deleteLater();
-            if (!m_revModel) return;
-            const QString cur = m_revModel->currentData().toString();
-            m_revModel->blockSignals(true);
-            m_revModel->clear();
-            for (const QString& m : models)
-                m_revModel->addItem(P::modelIcon(0, m) + m, m);
-            int idx = m_revModel->findData(cur);
-            if (idx < 0) idx = 0;
-            m_revModel->setCurrentIndex(idx);
-            m_revModel->blockSignals(false);
-        });
-    connect(m_ai, &AiClient::error, h,
-        [this, h](const QString& msg) {
-            h->deleteLater();
-            if (!m_revModel || m_revModel->count() > 0) return;
-            m_revModel->addItem("\xe2\x9a\xa0  " + msg, "");
-        });
-    m_ai->fetchModels();
+    if (m_ai && m_revModel) AiUtils::populateModelCombo(m_ai, m_revModel, this);
 }
 
 void ProgrammazionePage::onBtnRevLoadClicked()
@@ -771,15 +706,61 @@ void ProgrammazionePage::onNetReadyRead()
 void ProgrammazionePage::onNetReadyReadStderr()
 {
     if (!m_netProc) return;
-    const QString err = QString::fromLocal8Bit(
-        m_netProc->readAllStandardError());
-    /* Filtra output verboso di tshark (inizializzazione interfaccia) */
-    if (m_netLog && !err.contains("Capturing on") && !err.isEmpty()) {
+    const QString err = QString::fromLocal8Bit(m_netProc->readAllStandardError());
+    if (err.isEmpty()) return;
+
+    /* Permesso negato — CAP_NET_RAW mancante */
+    const bool permErr = err.contains("permission", Qt::CaseInsensitive)
+                      || err.contains("CAP_NET_RAW", Qt::CaseInsensitive)
+                      || err.contains("packet socket", Qt::CaseInsensitive);
+    if (permErr) {
+        m_netProc->kill();
+        if (m_btnNetStart)   m_btnNetStart->setEnabled(true);
+        if (m_btnNetStop)    m_btnNetStop->setEnabled(false);
+        const QString fix = QString("sudo setcap cap_net_raw+eip %1").arg(m_netTool);
+        if (m_netStatus)
+            m_netStatus->setText(
+                "\xf0\x9f\x94\x91  Permessi insufficienti. "
+                "Clicca \xe2\x80\x9c" "Fix permessi\xe2\x80\x9d"
+                " oppure esegui nel terminale: <code>" + fix + "</code>");
+        return;
+    }
+
+    /* Filtra messaggi informativi di tshark (interfaccia pronta) */
+    if (err.contains("Capturing on", Qt::CaseInsensitive)) return;
+
+    if (m_netLog) {
         m_netLog->moveCursor(QTextCursor::End);
-        m_netLog->insertPlainText(
-            QString("[stderr] %1").arg(err));
+        m_netLog->insertPlainText(QString("[stderr] %1").arg(err));
         m_netLog->ensureCursorVisible();
     }
+}
+
+void ProgrammazionePage::netFixPermissions()
+{
+    if (m_netTool.isEmpty()) return;
+    const QString pkexec = QStandardPaths::findExecutable("pkexec");
+    if (pkexec.isEmpty()) {
+        if (m_netStatus)
+            m_netStatus->setText(
+                "\xe2\x9d\x8c  pkexec non trovato. Esegui manualmente: "
+                "sudo setcap cap_net_raw+eip " + m_netTool);
+        return;
+    }
+    if (m_netStatus)
+        m_netStatus->setText("\xe2\x8f\xb3  Richiesta permessi in corso...");
+    auto* proc = new QProcess(this);
+    /* context=this, proc è figlio di this → cattura sicura */
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc](int code, QProcess::ExitStatus) {
+                proc->deleteLater();
+                if (m_netStatus)
+                    m_netStatus->setText(code == 0
+                        ? "\xe2\x9c\x85  Permessi applicati. Premi Start per avviare la cattura."
+                        : "\xe2\x9d\x8c  Operazione annullata o fallita (code " +
+                          QString::number(code) + ").");
+            });
+    proc->start(pkexec, {"setcap", "cap_net_raw+eip", m_netTool});
 }
 
 void ProgrammazionePage::onNetFinished(int code, QProcess::ExitStatus /*status*/)
@@ -876,7 +857,8 @@ void ProgrammazionePage::onLanScanArpClicked()
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &ProgrammazionePage::onLanArpFinished);
 
-    m_lanProc->start("arp", {"-n"});
+    /* Usa `ip neigh show` — non richiede root né net-tools, legge la cache ARP del kernel */
+    m_lanProc->start("ip", {"neigh", "show"});
 }
 
 void ProgrammazionePage::onLanScanNmapClicked()
@@ -954,8 +936,8 @@ void ProgrammazionePage::onLanArpError(QProcess::ProcessError err)
     Q_UNUSED(err)
     if (m_lanStatusLbl)
         m_lanStatusLbl->setText(
-            "\xe2\x9d\x8c  Impossibile eseguire 'arp'. "
-            "Potrebbe essere necessario installare net-tools.");
+            "\xe2\x9d\x8c  Impossibile eseguire 'ip neigh show'. "
+            "Installa iproute2: sudo apt install iproute2");
     lanResetBtns();
     if (auto* p = qobject_cast<QProcess*>(sender())) { p->deleteLater(); m_lanProc = nullptr; }
 }
@@ -968,24 +950,24 @@ void ProgrammazionePage::onLanArpReadyRead()
 
 void ProgrammazionePage::onLanArpFinished(int /*code*/, QProcess::ExitStatus /*status*/)
 {
-    /* Parsing output di `arp -n`:
-       Address          HWtype  HWaddress           Flags Mask            Iface
-       192.168.1.1      ether   aa:bb:cc:dd:ee:ff   C                     eth0 */
+    /* Parsing output `ip neigh show`:
+       10.42.0.132 dev eno1 lladdr 34:15:9e:3b:f0:5c REACHABLE
+       Ignora le righe FAILED (nessun lladdr). */
     const QStringList lines = m_lanBuf.split('\n', Qt::SkipEmptyParts);
     int count = 0;
-    static const QRegularExpression reArp(
-        R"(^(\d+\.\d+\.\d+\.\d+)\s+\w+\s+([\da-fA-F:]{17})\s+\w+\s+\S*\s+(\S+))");
+    static const QRegularExpression reNeigh(
+        R"((\d+\.\d+\.\d+\.\d+)\s+\S+\s+(\S+)\s+lladdr\s+([\da-fA-F:]{17}))");
     for (const QString& line : lines) {
-        const auto m = reArp.match(line.trimmed());
+        const auto m = reNeigh.match(line.trimmed());
         if (!m.hasMatch()) continue;
-        lanAddRow(m.captured(1), m.captured(2), m.captured(3), "online");
+        lanAddRow(m.captured(1), m.captured(3).toUpper(), m.captured(2), "cached");
         ++count;
     }
     if (m_lanStatusLbl)
         m_lanStatusLbl->setText(
             count == 0
-            ? "\xf0\x9f\x9f\xa1  ARP cache vuota (nessun host raggiunto di recente)."
-            : QString("\xe2\x9c\x85  %1 host trovati nella ARP cache.").arg(count));
+            ? "\xf0\x9f\x9f\xa1  Cache ARP vuota (nessun host raggiunto di recente)."
+            : QString("\xe2\x9c\x85  %1 host trovati nella cache ARP.").arg(count));
     lanResetBtns();
     if (auto* p = qobject_cast<QProcess*>(sender())) { p->deleteLater(); m_lanProc = nullptr; }
 }
@@ -1015,36 +997,49 @@ void ProgrammazionePage::onLanNmapReadyRead()
 
 void ProgrammazionePage::onLanNmapFinished(int /*code*/, QProcess::ExitStatus /*status*/)
 {
-    /* Parsing output nmap -sn:
-       Nmap scan report for 192.168.1.1 (hostname.local)
-       Host is up (0.0040s latency).
-       MAC Address: AA:BB:CC:DD:EE:FF (Vendor)
-    */
+    /* Parsing output nmap -sn — ordine reale delle righe per host:
+         Nmap scan report for [hostname (]ip[)]
+         Host is up (latency).
+         MAC Address: AA:BB:CC:DD:EE:FF (Vendor)   ← solo con root
+       Bufferizziamo ip/host/mac per ogni host e le emettiamo al blocco successivo
+       (o alla fine), così il MAC viene letto prima di chiamare lanAddRow. */
     const QStringList lines = m_lanBuf.split('\n', Qt::SkipEmptyParts);
     int count = 0;
     QString ip, host, mac;
+    bool hostUp = false;
+
+    static const QRegularExpression reIP(R"((\d+\.\d+\.\d+\.\d+))");
+    static const QRegularExpression reHost(R"(^([^\s(]+))");
+    static const QRegularExpression reMac(R"(MAC Address:\s+([\da-fA-F:]{17}))");
+
+    auto flushHost = [&]() {
+        if (ip.isEmpty() || !hostUp) return;
+        lanAddRow(ip, mac, host, "online");
+        ++count;
+    };
+
     for (const QString& line : lines) {
         const QString l = line.trimmed();
         if (l.startsWith("Nmap scan report for ")) {
-            ip.clear(); host.clear(); mac.clear();
+            flushHost();
+            ip.clear(); host.clear(); mac.clear(); hostUp = false;
             const QString rest = l.mid(21);
-            /* Cerca IP tra parentesi: "hostname (ip)" oppure solo "ip" */
-            static const QRegularExpression reIP(R"((\d+\.\d+\.\d+\.\d+))");
             const auto m1 = reIP.match(rest);
             if (m1.hasMatch()) ip = m1.captured(1);
-            static const QRegularExpression reHost(R"(^([^\s(]+))");
             const auto m2 = reHost.match(rest);
             if (m2.hasMatch() && m2.captured(1) != ip) host = m2.captured(1);
         } else if (l.startsWith("MAC Address:")) {
-            static const QRegularExpression reMac(
-                R"(MAC Address:\s+([\da-fA-F:]{17}))");
             const auto mm = reMac.match(l);
             if (mm.hasMatch()) mac = mm.captured(1);
-        } else if (l.startsWith("Host is up") && !ip.isEmpty()) {
-            lanAddRow(ip, mac, host, "online");
-            ++count;
+        } else if (l.startsWith("Host is up")) {
+            hostUp = true;
         }
     }
+    flushHost(); // ultimo host del buffer
+
+    /* Senza root nmap non legge i MAC — arricchisce dalla cache ARP del kernel */
+    enrichMacFromNeigh();
+
     if (m_lanStatusLbl)
         m_lanStatusLbl->setText(
             count == 0
@@ -1052,6 +1047,48 @@ void ProgrammazionePage::onLanNmapFinished(int /*code*/, QProcess::ExitStatus /*
             : QString("\xe2\x9c\x85  %1 host online trovati con nmap.").arg(count));
     lanResetBtns();
     if (auto* p = qobject_cast<QProcess*>(sender())) { p->deleteLater(); m_lanProc = nullptr; }
+}
+
+void ProgrammazionePage::enrichMacFromNeigh()
+{
+    if (!m_lanTable || m_lanTable->rowCount() == 0) return;
+
+    QMap<QString, QString> cache;
+
+    /* 1. Cache ARP del kernel — host remoti già raggiunti */
+    QProcess proc;
+    proc.start("ip", {"neigh", "show"});
+    if (proc.waitForFinished(2000)) {
+        const QString out = QString::fromLocal8Bit(proc.readAllStandardOutput());
+        static const QRegularExpression reNeigh(
+            R"((\d+\.\d+\.\d+\.\d+)\s+\S+\s+\S+\s+lladdr\s+([\da-fA-F:]{17}))");
+        QRegularExpressionMatchIterator it = reNeigh.globalMatch(out);
+        while (it.hasNext()) {
+            const auto m = it.next();
+            cache[m.captured(1)] = m.captured(2).toUpper();
+        }
+    }
+
+    /* 2. IP locali del PC — non compaiono in ip neigh (non ci si fa ARP con se stessi).
+          Costruiamo una mappa ip→MAC dalle interfacce di sistema. */
+    for (const QNetworkInterface& iface : QNetworkInterface::allInterfaces()) {
+        const QString hw = iface.hardwareAddress().toUpper();
+        if (hw.isEmpty()) continue;
+        for (const QNetworkAddressEntry& e : iface.addressEntries()) {
+            if (e.ip().protocol() != QAbstractSocket::IPv4Protocol) continue;
+            cache[e.ip().toString()] = hw;
+        }
+    }
+
+    for (int r = 0; r < m_lanTable->rowCount(); ++r) {
+        auto* macItem = m_lanTable->item(r, 1);
+        if (!macItem || !macItem->text().isEmpty()) continue;
+        auto* ipItem = m_lanTable->item(r, 0);
+        if (!ipItem) continue;
+        const QString mac = cache.value(ipItem->text());
+        if (!mac.isEmpty())
+            macItem->setText(mac);
+    }
 }
 
 void ProgrammazionePage::onLanStopTimer()
@@ -1066,29 +1103,7 @@ void ProgrammazionePage::onLanStopTimer()
 
 void ProgrammazionePage::populateGitModels()
 {
-    if (!m_ai || !m_gitAiModel) return;
-    auto* h = new QObject(this);
-    connect(m_ai, &AiClient::modelsReady, h,
-        [this, h](const QStringList& models) {
-            h->deleteLater();
-            if (!m_gitAiModel) return;
-            const QString cur = m_gitAiModel->currentData().toString();
-            m_gitAiModel->blockSignals(true);
-            m_gitAiModel->clear();
-            for (const QString& m : models)
-                m_gitAiModel->addItem(P::modelIcon(0, m) + m, m);
-            int idx = m_gitAiModel->findData(cur);
-            if (idx < 0) idx = 0;
-            m_gitAiModel->setCurrentIndex(idx);
-            m_gitAiModel->blockSignals(false);
-        });
-    connect(m_ai, &AiClient::error, h,
-        [this, h](const QString& msg) {
-            h->deleteLater();
-            if (!m_gitAiModel || m_gitAiModel->count() > 0) return;
-            m_gitAiModel->addItem("\xe2\x9a\xa0  " + msg, "");
-        });
-    m_ai->fetchModels();
+    if (m_ai && m_gitAiModel) AiUtils::populateModelCombo(m_ai, m_gitAiModel, this);
 }
 
 void ProgrammazionePage::onBtnGitBrowseClicked()
@@ -1183,7 +1198,7 @@ void ProgrammazionePage::onBtnGenCommitClicked()
 
 void ProgrammazionePage::onBtnGitStatusClicked()     { gitRun("status"); }
 void ProgrammazionePage::onBtnGitDiffClicked()       { gitRun("diff"); }
-void ProgrammazionePage::onBtnGitDiffStagedClicked() { gitRun("diff", {"--staged"}); }
+void ProgrammazionePage::onBtnGitDiffStagedClicked() { gitRun("diff", {"--cached"}); }
 void ProgrammazionePage::onBtnGitLogClicked()        { gitRun("log", {"--oneline", "-20"}); }
 void ProgrammazionePage::onBtnGitBranchClicked()     { gitRun("branch", {"-a"}); }
 
@@ -1462,21 +1477,9 @@ void ProgrammazionePage::onTrModelChanged(const QString& newModel)
 
 void ProgrammazionePage::populateTrModels()
 {
-    if (!m_ai || !m_trModel) return;
-    connect(m_ai, &AiClient::modelsReady, m_trModel,
-        [this](const QStringList& models) {
-            const QString cur = m_trModel->currentData().toString();
-            m_trModel->blockSignals(true);
-            m_trModel->clear();
-            for (const QString& m : models)
-                m_trModel->addItem(P::modelIcon(0, m) + m, m);
-            int idx = m_trModel->findData(cur);
-            if (idx < 0) idx = 0;
-            m_trModel->setCurrentIndex(idx);
-            m_trModel->blockSignals(false);
-        }, static_cast<Qt::ConnectionType>(Qt::SingleShotConnection));
-    m_ai->fetchModels();
+    if (m_ai && m_trModel) AiUtils::populateModelCombo(m_ai, m_trModel, this);
 }
+
 
 void ProgrammazionePage::onBtnTrCopyClicked()
 {

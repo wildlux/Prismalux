@@ -8,6 +8,7 @@
    ══════════════════════════════════════════════════════════════ */
 #include "programmazione_page.h"
 #include "../prismalux_paths.h"
+#include "../ai_utils.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -201,10 +202,8 @@ QWidget* ProgrammazionePage::buildTranslitter(QWidget* parent)
     m_trStatus->setObjectName("statusLabel");
     lay->addWidget(m_trStatus);
 
-    /* ── Popola combo modelli ── */
-    /* Popola al primo focus sul tab -- lazy */
-    connect(m_trModel, &QComboBox::activated,
-            this, &ProgrammazionePage::onTrModelActivated);
+    /* ── Popola combo modelli (one-shot) ── */
+    QTimer::singleShot(0, this, &ProgrammazionePage::populateTrModels);
 
     /* ── Connessioni ── */
     /* -- Connessioni -- */

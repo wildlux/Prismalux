@@ -12,10 +12,13 @@
 #include <QJsonObject>
 #include <QRegularExpression>
 #include <QFrame>
+#include <QPushButton>
 
 /* ══════════════════════════════════════════════════════════════
    Materie disponibili
    ══════════════════════════════════════════════════════════════ */
+/* Forward declaration: kMaterie è definita dopo, ma ne abbiamo bisogno
+   nel dialog — usiamo un array statico richiamato dal dialog via indice. */
 struct Materia {
     const char* label;
     const char* context;
@@ -130,6 +133,65 @@ static const char* kModeInstructions[] = {
 };
 
 /* ══════════════════════════════════════════════════════════════
+   MateriaPickerDialog — implementazione
+   ══════════════════════════════════════════════════════════════ */
+MateriaPickerDialog::MateriaPickerDialog(int currentIdx, QWidget* parent)
+    : QDialog(parent, Qt::Dialog)
+{
+    setWindowTitle("Seleziona materia");
+    showMaximized();
+
+    auto* vbox = new QVBoxLayout(this);
+    vbox->setContentsMargins(16, 16, 16, 16);
+    vbox->setSpacing(12);
+
+    auto* lbl = new QLabel(
+        QString::fromUtf8("\xf0\x9f\x93\x9a") + "  Scegli la materia", this);
+    lbl->setAlignment(Qt::AlignCenter);
+    {
+        QFont f = lbl->font();
+        f.setPointSize(13);
+        f.setBold(true);
+        lbl->setFont(f);
+    }
+    vbox->addWidget(lbl);
+
+    m_list = new QListWidget(this);
+    m_list->setObjectName("ModelList");
+    for (int i = 0; i < kNMaterie; ++i) {
+        auto* item = new QListWidgetItem(
+            QString::fromUtf8(kMaterie[i].label), m_list);
+        item->setData(Qt::UserRole, i);
+        item->setSizeHint(QSize(0, 58));
+        if (i == currentIdx) {
+            QFont f = item->font();
+            f.setBold(true);
+            item->setFont(f);
+        }
+    }
+    vbox->addWidget(m_list, 1);
+
+    auto* btnCancel = new QPushButton(
+        QString::fromUtf8("\xe2\x9c\x96  Annulla"), this);
+    btnCancel->setObjectName("SecondaryBtn");
+    btnCancel->setMinimumHeight(48);
+    vbox->addWidget(btnCancel);
+
+    connect(m_list,    &QListWidget::itemClicked,
+            this,      &MateriaPickerDialog::onItemClicked);
+    connect(btnCancel, &QPushButton::clicked,
+            this,      &QDialog::reject);
+}
+
+void MateriaPickerDialog::onItemClicked(QListWidgetItem* item)
+{
+    if (!item) return;
+    const int idx = item->data(Qt::UserRole).toInt();
+    emit materiaPicked(idx);
+    accept();
+}
+
+/* ══════════════════════════════════════════════════════════════
    Helper — costruisce pulsante modalità uniforme
    ══════════════════════════════════════════════════════════════ */
 static QPushButton* makeModeBtn(const char* icon, const char* label, QWidget* parent)
@@ -180,10 +242,20 @@ StudioPage::StudioPage(AiClient* ai, QWidget* parent)
     auto* matVbox  = new QVBoxLayout(matGroup);
     matVbox->setSpacing(6);
 
+    /* QComboBox nascosto — usato solo per la logica (currentIndex) */
     m_matCombo = new QComboBox(inner);
+    m_matCombo->setVisible(false);
     for (int i = 0; i < kNMaterie; ++i)
         m_matCombo->addItem(QString::fromUtf8(kMaterie[i].label));
-    matVbox->addWidget(m_matCombo);
+
+    /* Bottone touch che apre il picker a tutto schermo */
+    m_matBtn = new QPushButton(
+        QString::fromUtf8(kMaterie[0].label)
+        + QString::fromUtf8("  \xe2\x96\xbe"), inner);  /* ▾ */
+    m_matBtn->setObjectName("SecondaryBtn");
+    m_matBtn->setMinimumHeight(48);
+    m_matBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    matVbox->addWidget(m_matBtn);
 
     m_materiaEdit = new QLineEdit(inner);
     m_materiaEdit->setPlaceholderText("Scrivi la materia o il corso...");
@@ -276,7 +348,7 @@ StudioPage::StudioPage(AiClient* ai, QWidget* parent)
     m_output->setMinimumHeight(160);
     vbox->addWidget(m_output);
 
-    /* Pulsante continua (non Quiz) */
+    /* Pulsante continua (non Quiz) — visibile solo dopo la prima generazione */
     m_btnReveal = new QPushButton(inner);
     m_btnReveal->setVisible(false);
 
@@ -284,6 +356,7 @@ StudioPage::StudioPage(AiClient* ai, QWidget* parent)
         QString::fromUtf8("\xf0\x9f\x94\x84 Prossima / Continua"), inner);
     m_btnNext->setMinimumHeight(44);
     m_btnNext->setEnabled(false);
+    m_btnNext->setVisible(false);
     vbox->addWidget(m_btnNext);
 
     vbox->addStretch();
@@ -372,6 +445,8 @@ StudioPage::StudioPage(AiClient* ai, QWidget* parent)
     m_innerStack->addWidget(m_quizPage);   /* indice 1 */
 
     /* ── Connessioni ── */
+    connect(m_matBtn,   &QPushButton::clicked,
+            this,       &StudioPage::onMateriaBtnClicked);
     connect(m_matCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &StudioPage::onMateriaChanged);
     connect(m_temaCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -472,6 +547,7 @@ void StudioPage::onNextClicked()
 void StudioPage::onQuizBack()
 {
     m_innerStack->setCurrentIndex(0);
+    emit quizFullscreen(false);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -504,8 +580,9 @@ void StudioPage::showQuizFullscreen(const QuizQuestion& q)
     m_quizFbLbl->setVisible(false);
     m_quizNextBtn->setEnabled(false);
 
-    /* Vai alla pagina quiz */
+    /* Vai alla pagina quiz — nasconde header bar del MainWindow */
     m_innerStack->setCurrentIndex(1);
+    emit quizFullscreen(true);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -619,7 +696,9 @@ void StudioPage::onFinished(const QString&)
         populateQuiz(raw);
     } else {
         m_btnReveal->setVisible(false);
-        m_btnNext->setEnabled(m_lastMode >= 0 && m_lastMode != 4 && m_lastMode != 5);
+        const bool canNext = (m_lastMode >= 0 && m_lastMode != 4 && m_lastMode != 5);
+        m_btnNext->setVisible(canNext);
+        m_btnNext->setEnabled(canNext);
     }
 }
 
@@ -737,15 +816,39 @@ void StudioPage::onQuizAnswerClicked(int idx)
     if (correct) {
         fb = QString::fromUtf8("\xe2\x9c\x85  Corretta!\n\n");  /* ✅ */
     } else {
-        fb = QString::fromUtf8("\xe2\x9d\x8c  Sbagliata \xe2\x80\x94 ")  /* ❌ */
-           + QString("La risposta corretta è: <b>%1)</b>\n\n").arg(kLet[m_quizCorrect]);
+        /* Estrai il testo della risposta corretta (formato "A)  testo") */
+        const QString correctFull = m_quizBtns[m_quizCorrect]->text();
+        const QString correctText = correctFull.length() > 4
+            ? correctFull.mid(4) : correctFull;
+        fb = QString::fromUtf8("\xe2\x9d\x8c  Sbagliata!\n\n")  /* ❌ */
+           + QString::fromUtf8("\xe2\x9c\x85  Risposta corretta: ")
+           + QString("%1)  %2\n\n").arg(kLet[m_quizCorrect]).arg(correctText);
     }
     if (!m_quizSpiega.isEmpty()) {
-        fb += QString::fromUtf8("\xf0\x9f\x93\x96  ")  /* 📖 */
+        fb += QString::fromUtf8("\xf0\x9f\x93\x96  Spiegazione:\n")  /* 📖 */
            + m_quizSpiega;
     }
-    m_quizFbLbl->setTextFormat(Qt::RichText);
+    m_quizFbLbl->setTextFormat(Qt::PlainText);
     m_quizFbLbl->setText(fb);
     m_quizFbLbl->setVisible(true);
     m_quizNextBtn->setEnabled(true);
+}
+
+/* ── onMateriaBtnClicked — apre il picker a tutto schermo ────── */
+void StudioPage::onMateriaBtnClicked()
+{
+    auto* dlg = new MateriaPickerDialog(m_matCombo->currentIndex(), this);
+    connect(dlg, &MateriaPickerDialog::materiaPicked,
+            this, &StudioPage::onMateriaPickerResult);
+    dlg->exec();
+    dlg->deleteLater();
+}
+
+/* ── onMateriaPickerResult — aggiorna selezione ─────────────── */
+void StudioPage::onMateriaPickerResult(int idx)
+{
+    m_matCombo->setCurrentIndex(idx);   /* aggiorna logica + triggera onMateriaChanged */
+    m_matBtn->setText(
+        QString::fromUtf8(kMaterie[idx].label)
+        + QString::fromUtf8("  \xe2\x96\xbe"));  /* ▾ */
 }
