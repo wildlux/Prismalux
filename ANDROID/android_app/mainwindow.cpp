@@ -283,10 +283,9 @@ void MainWindow::buildDrawer()
     const NavItem items[] = {
         { "\xf0\x9f\xa4\x96",              "Chat",               m_idxChat       },
         { "\xf0\x9f\x93\x9a",              "Studia",             m_idxStudio     },
-        { "\xf0\x9f\x93\x9a",              "Impara con AI",      m_idxImpara     },
-        { "\xf0\x9f\xa7\xa0",              "Quiz AI",            m_idxImpara     },
+        { "\xf0\x9f\xa7\xa0",              "Impara con AI",      m_idxImpara     },
         { "\xcf\x80",                       "Matematica",         m_idxMatematica },
-        { "\xf0\x9f\x94\xac",              "Ricerca & Sviluppo", m_idxRicerca    },
+        { "\xf0\x9f\x94\xac",              "Ricerca e Sviluppo", m_idxRicerca    },
         { "\xf0\x9f\x92\xbc",              "Lavoro",             m_idxLavoro     },
         { "\xf0\x9f\x93\xa1",              "OBS Control",        m_idxObs        },
         { "\xf0\x9f\x93\x90",              "Misure",             m_idxMisure     },
@@ -382,7 +381,7 @@ void MainWindow::onTabChanged(int index)
         {  6, "MCP Add-ons"        }, {  7, "Bluetooth"          },
         {  8, "Trascrizione Audio" }, {  9, "Impostazioni"       },
         { 10, "Informazioni"       }, { 11, "Impara con AI"      },
-        { 12, "Ricerca & Sviluppo" }, { 13, "Matematica"         },
+        { 12, "Ricerca e Sviluppo" }, { 13, "Matematica"         },
     };
     if (m_titleLbl) {
         for (const auto& t : kTitles) {
