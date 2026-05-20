@@ -1,0 +1,693 @@
+[17/05/26 12:49] Paolo: $ git log --oneline -20
+
+fatal: non è un repository Git (né lo è alcun genitore fino al punto di mount /)
+Mi fermo al limite del filesystem (l'opzione GIT_DISCOVERY_ACROSS_FILESYSTEM non è impostata).
+
+
+❌  Exit code: 128
+
+
+$ git branch -a
+
+fatal: non è un repository Git (né lo è alcun genitore fino al punto di mount /)
+Mi fermo al limite del filesystem (l'opzione GIT_DISCOVERY_ACROSS_FILESYSTEM non è impostata).
+
+
+❌  Exit code: 128
+
+
+$ git diff --staged
+
+error: opzione sconosciuta `staged'
+uso: git diff --no-index [<options>] <path> <path> [<pathspec>...]
+
+Opzioni formato output diff
+    -p, --patch           genera patch
+    -s, --no-patch        non visualizzare l'output del diff
+    -u                    genera patch
+    -U, --unified[=<n>]   genera diff con <n> righe di contesto
+    -W, --[no-]function-context
+                          genera diff con <n> righe di contesto
+    --raw                 genera il diff in formato grezzo
+    --patch-with-raw      sinonimo di '-p --raw'
+    --patch-with-stat     sinonimo di '-p --stat'
+    --numstat             --stat leggibile da una macchina
+    --shortstat           emetti in output solo l'ultima riga di --stat
+    -X, --dirstat[=<param1>,<param2>...]
+                          emetti in output la distribuzione del numero di modifiche relativo a ogni sottodirectory
+    --cumulative          sinonimo di --dirstat=cumulative
+    --dirstat-by-file[=<param1>,<param2>...]
+                          synonym for --dirstat=files,<param1>,<param2>...
+    --check               avvisa se le modifiche introducono marcatori conflitto o errori spazi bianchi
+    --summary             riassunto conciso (ad es. elementi creati, ridenominati e modifiche modi)
+    --name-only           visualizza solo i nomi dei file modificati
+    --name-status         visualizza solo i nomi e lo stato dei file modificati
+    --stat[=<ampiezza>[,<ampiezza nome>[,<numero>]]]
+                          genera diffstat
+    --stat-width <ampiezza>
+                          genera il diffstat con un'ampiezza specificata
+    --stat-name-width <ampiezza>
+                          genera il diffstat con un'ampiezza nomi specificata
+    --stat-graph-width <ampiezza>
+                          genera il diffstat con un'ampiezza grafo specificata
+    --stat-count <numero> genera il diffstat con righe limitate
+    --[no-]compact-summary
+                          genera riassunto conciso nel diffstat
+    --binary              stampa in output un diff binario che può essere applicato
+    --[no-]full-index     visualizza i nomi oggetto pre e post immagine nelle righe "indice"
+    --[no-]color[=<quando>]
+                          visualizza diff colorato
+    --ws-error-highlight <tipo>
+                          evidenzia gli errori di spazi bianchi nelle righe 'contesto', 'vecchie' o 'nuove' nel diff
+    -z                    non rimuovere i nomi percorso e usare caratteri NUL come terminatori campo in --raw o --numstat
+    --[no-]abbrev[=<n>]   usa <n> cifre per mostrare i nomi oggetto
+    --src-prefix <prefisso>
+                          visualizza il prefisso sorgente specificato invece di "a/"
+    --dst-prefix <prefisso>
+                          visualizza il prefisso destinazione specificato invece di "b/"
+    --line-prefix <prefisso>
+                          anteponi un prefisso aggiuntivo ad ogni riga dell'output
+    --no-prefix           non visualizzare alcun prefisso sorgente o destinazione
+    --default-prefix      use default prefixes a/ and b/
+    --inter-hunk-context <n>
+                          visualizza il contesto tra gli hunk del diff fino al numero di righe specificato
+    --output-indicator-new <carattere>
+                          specifica il carattere che indica una nuova riga al posto di '+'
+    --output-indicator-old <carattere>
+                          specifica il carattere che indica una vecchia riga al posto di '-'
+    --output-indicator-context <carattere>
+                          specifica il carattere che indica un contesto al posto di ' '
+[17/05/26 12:49] Paolo: Opzioni rinominazione diff
+    -B, --break-rewrites[=<n>[/<m>]]
+                          spezza modifiche di riscrittura completa in coppie eliminazione/creazione
+    -M, --find-renames[=<n>]
+                          rileva le ridenominazioni
+    -D, --irreversible-delete
+                          ometti la preimmagine per le eliminazioni
+    -C, --find-copies[=<n>]
+                          rileva le copie
+    --[no-]find-copies-harder
+                          usa file non modificati come sorgente per trovare copie
+    --no-renames          disabilita rilevamento ridenominazione
+    --[no-]rename-empty   usa blob vuoti come sorgente ridenominazione
+    --[no-]follow         continua a elencare la cronologia di un file al di là delle ridenominazioni
+    -l <n>                impedisci il rilevamento ridenominazione/copia se il numero delle destinazioni ridenominazione/copia eccede il limite specificato
+
+Opzioni algoritmo diff
+    --minimal             produci il diff più piccolo possibile
+    -w, --ignore-all-space
+                          ignora gli spazi bianchi durante il confronto delle righe
+    -b, --ignore-space-change
+                          ignora le modifiche al numero degli spazi bianchi
+    --ignore-space-at-eol ignora modifiche agli spazi bianchi a fine riga
+    --ignore-cr-at-eol    ignora carattere ritorno a capo a fine riga
+    --ignore-blank-lines  ignora modifiche che riguardano solo righe vuote
+    -I, --[no-]ignore-matching-lines <espressione regolare>
+                          ignora le modifiche le cui righe corrispondono a <regex>
+    --[no-]indent-heuristic
+                          euristica per spostare i limiti degli hunk nel diff per una lettura agevole
+    --patience            genera il diff usando l'algoritmo "patience diff"
+    --histogram           genera il diff usando l'algoritmo "histogram diff"
+    --diff-algorithm <algoritmo>
+                          seleziona un algoritmo diff
+    --anchored <testo>    genera il diff usando l'algoritmo "anchored diff"
+    --word-diff[=<modalità>]
+                          visualizza il diff parola per parola usando <modalità> per delimitare le parole modificate
+    --word-diff-regex <espressione regolare>
+                          usa <espressione regolare> per decidere cosa costituisce una parola
+    --color-words[=<espressione regolare>]
+                          equivalente di --word-diff=color --word-diff-regex=<espressione regolare>
+    --[no-]color-moved[=<modalità>]
+                          le righe di codice spostate sono colorate in modo diverso
+    --[no-]color-moved-ws <modalità>
+                          modo in cui sono ignorati gli spazi bianchi in --color-moved
+[17/05/26 12:49] Paolo: Altre opzioni diff
+    --[no-]relative[=<prefisso>]
+                          se eseguito da una sottodirectory, escludi le modifiche esterne ad essa e visualizza i percorsi relativi
+    -a, --[no-]text       tratta tutti i file come se fossero di testo
+    -R                    scambia i due input, genera un diff al contrario
+    --[no-]exit-code      esci con codice 1 se ci sono differenze, con 0 altrimenti
+    --[no-]quiet          disabilita l'intero output del programma
+    --[no-]ext-diff       consenti l'esecuzione di un helper diff esterno
+    --[no-]textconv       esegui filtri di conversione in testo esterni quando si confrontano file binari
+    --ignore-submodules[=<quando>]
+                          ignora le modifiche ai sottomoduli durante la generazione del diff
+    --submodule[=<formato>]
+                          specifica come verranno visualizzate le differenze nei sottomoduli
+    --ita-invisible-in-index
+                          nascondi le voci 'git add -N' nell'indice
+    --ita-visible-in-index
+                          tratta le voci 'git add -N' come reali nell'indice
+    -S <stringa>          cerca differenze che modificano il numero di occorrenze della stringa specificata
+    -G <espressione regolare>
+                          cerca differenze che modificano il numero di occorrenze dell'espressione regolare specificata
+    --pickaxe-all         visualizza tutte le modifiche nel changeset con -S o -G
+    --pickaxe-regex       tratta la <stringa> nell'opzione -S come un'espressione regolare POSIX estesa
+    -O <file>             controlla l'ordine con cui i file appariranno nell'output
+    --rotate-to <path>    mostra prima la modifica nel percorso specificato
+    --skip-to <path>      salta l'output nel percorso specificato
+    --find-object <ID oggetto>
+                          cerca differenze che modificano il numero di occorrenze dell'oggetto specificato
+    --diff-filter [(A|C|D|M|R|T|U|X|B)...[*]]
+                          seleziona file in base al tipo diff
+    --max-depth <depth>   maximum tree depth to recurse
+    --output <file>       l'output in un file specifico
+
+
+
+❌  Exit code: 129
+
+
+$ git diff
+
+warning: Non è un repository Git. Usa --no-index per confrontare due percorsi al di fuori di un albero di lavoro
+uso: git diff --no-index [<options>] <path> <path> [<pathspec>...]
+[17/05/26 12:49] Paolo: Opzioni formato output diff
+    -p, --patch           genera patch
+    -s, --no-patch        non visualizzare l'output del diff
+    -u                    genera patch
+    -U, --unified[=<n>]   genera diff con <n> righe di contesto
+    -W, --[no-]function-context
+                          genera diff con <n> righe di contesto
+    --raw                 genera il diff in formato grezzo
+    --patch-with-raw      sinonimo di '-p --raw'
+    --patch-with-stat     sinonimo di '-p --stat'
+    --numstat             --stat leggibile da una macchina
+    --shortstat           emetti in output solo l'ultima riga di --stat
+    -X, --dirstat[=<param1>,<param2>...]
+                          emetti in output la distribuzione del numero di modifiche relativo a ogni sottodirectory
+    --cumulative          sinonimo di --dirstat=cumulative
+    --dirstat-by-file[=<param1>,<param2>...]
+                          synonym for --dirstat=files,<param1>,<param2>...
+    --check               avvisa se le modifiche introducono marcatori conflitto o errori spazi bianchi
+    --summary             riassunto conciso (ad es. elementi creati, ridenominati e modifiche modi)
+    --name-only           visualizza solo i nomi dei file modificati
+    --name-status         visualizza solo i nomi e lo stato dei file modificati
+    --stat[=<ampiezza>[,<ampiezza nome>[,<numero>]]]
+                          genera diffstat
+    --stat-width <ampiezza>
+                          genera il diffstat con un'ampiezza specificata
+    --stat-name-width <ampiezza>
+                          genera il diffstat con un'ampiezza nomi specificata
+    --stat-graph-width <ampiezza>
+                          genera il diffstat con un'ampiezza grafo specificata
+    --stat-count <numero> genera il diffstat con righe limitate
+    --[no-]compact-summary
+                          genera riassunto conciso nel diffstat
+    --binary              stampa in output un diff binario che può essere applicato
+    --[no-]full-index     visualizza i nomi oggetto pre e post immagine nelle righe "indice"
+    --[no-]color[=<quando>]
+                          visualizza diff colorato
+    --ws-error-highlight <tipo>
+                          evidenzia gli errori di spazi bianchi nelle righe 'contesto', 'vecchie' o 'nuove' nel diff
+    -z                    non rimuovere i nomi percorso e usare caratteri NUL come terminatori campo in --raw o --numstat
+    --[no-]abbrev[=<n>]   usa <n> cifre per mostrare i nomi oggetto
+    --src-prefix <prefisso>
+                          visualizza il prefisso sorgente specificato invece di "a/"
+    --dst-prefix <prefisso>
+                          visualizza il prefisso destinazione specificato invece di "b/"
+    --line-prefix <prefisso>
+                          anteponi un prefisso aggiuntivo ad ogni riga dell'output
+    --no-prefix           non visualizzare alcun prefisso sorgente o destinazione
+    --default-prefix      use default prefixes a/ and b/
+    --inter-hunk-context <n>
+                          visualizza il contesto tra gli hunk del diff fino al numero di righe specificato
+    --output-indicator-new <carattere>
+                          specifica il carattere che indica una nuova riga al posto di '+'
+    --output-indicator-old <carattere>
+                          specifica il carattere che indica una vecchia riga al posto di '-'
+    --output-indicator-context <carattere>
+                          specifica il carattere che indica un contesto al posto di ' '
+[17/05/26 12:49] Paolo: Opzioni rinominazione diff
+    -B, --break-rewrites[=<n>[/<m>]]
+                          spezza modifiche di riscrittura completa in coppie eliminazione/creazione
+    -M, --find-renames[=<n>]
+                          rileva le ridenominazioni
+    -D, --irreversible-delete
+                          ometti la preimmagine per le eliminazioni
+    -C, --find-copies[=<n>]
+                          rileva le copie
+    --[no-]find-copies-harder
+                          usa file non modificati come sorgente per trovare copie
+    --no-renames          disabilita rilevamento ridenominazione
+    --[no-]rename-empty   usa blob vuoti come sorgente ridenominazione
+    --[no-]follow         continua a elencare la cronologia di un file al di là delle ridenominazioni
+    -l <n>                impedisci il rilevamento ridenominazione/copia se il numero delle destinazioni ridenominazione/copia eccede il limite specificato
+
+Opzioni algoritmo diff
+    --minimal             produci il diff più piccolo possibile
+    -w, --ignore-all-space
+                          ignora gli spazi bianchi durante il confronto delle righe
+    -b, --ignore-space-change
+                          ignora le modifiche al numero degli spazi bianchi
+    --ignore-space-at-eol ignora modifiche agli spazi bianchi a fine riga
+    --ignore-cr-at-eol    ignora carattere ritorno a capo a fine riga
+    --ignore-blank-lines  ignora modifiche che riguardano solo righe vuote
+    -I, --[no-]ignore-matching-lines <espressione regolare>
+                          ignora le modifiche le cui righe corrispondono a <regex>
+    --[no-]indent-heuristic
+                          euristica per spostare i limiti degli hunk nel diff per una lettura agevole
+    --patience            genera il diff usando l'algoritmo "patience diff"
+    --histogram           genera il diff usando l'algoritmo "histogram diff"
+    --diff-algorithm <algoritmo>
+                          seleziona un algoritmo diff
+    --anchored <testo>    genera il diff usando l'algoritmo "anchored diff"
+    --word-diff[=<modalità>]
+                          visualizza il diff parola per parola usando <modalità> per delimitare le parole modificate
+    --word-diff-regex <espressione regolare>
+                          usa <espressione regolare> per decidere cosa costituisce una parola
+    --color-words[=<espressione regolare>]
+                          equivalente di --word-diff=color --word-diff-regex=<espressione regolare>
+    --[no-]color-moved[=<modalità>]
+                          le righe di codice spostate sono colorate in modo diverso
+    --[no-]color-moved-ws <modalità>
+                          modo in cui sono ignorati gli spazi bianchi in --color-moved
+[17/05/26 12:49] Paolo: Altre opzioni diff
+    --[no-]relative[=<prefisso>]
+                          se eseguito da una sottodirectory, escludi le modifiche esterne ad essa e visualizza i percorsi relativi
+    -a, --[no-]text       tratta tutti i file come se fossero di testo
+    -R                    scambia i due input, genera un diff al contrario
+    --[no-]exit-code      esci con codice 1 se ci sono differenze, con 0 altrimenti
+    --[no-]quiet          disabilita l'intero output del programma
+    --[no-]ext-diff       consenti l'esecuzione di un helper diff esterno
+    --[no-]textconv       esegui filtri di conversione in testo esterni quando si confrontano file binari
+    --ignore-submodules[=<quando>]
+                          ignora le modifiche ai sottomoduli durante la generazione del diff
+    --submodule[=<formato>]
+                          specifica come verranno visualizzate le differenze nei sottomoduli
+    --ita-invisible-in-index
+                          nascondi le voci 'git add -N' nell'indice
+    --ita-visible-in-index
+                          tratta le voci 'git add -N' come reali nell'indice
+    -S <stringa>          cerca differenze che modificano il numero di occorrenze della stringa specificata
+    -G <espressione regolare>
+                          cerca differenze che modificano il numero di occorrenze dell'espressione regolare specificata
+    --pickaxe-all         visualizza tutte le modifiche nel changeset con -S o -G
+    --pickaxe-regex       tratta la <stringa> nell'opzione -S come un'espressione regolare POSIX estesa
+    -O <file>             controlla l'ordine con cui i file appariranno nell'output
+    --rotate-to <path>    mostra prima la modifica nel percorso specificato
+    --skip-to <path>      salta l'output nel percorso specificato
+    --find-object <ID oggetto>
+                          cerca differenze che modificano il numero di occorrenze dell'oggetto specificato
+    --diff-filter [(A|C|D|M|R|T|U|X|B)...[*]]
+                          seleziona file in base al tipo diff
+    --max-depth <depth>   maximum tree depth to recurse
+    --output <file>       l'output in un file specifico
+
+
+
+❌  Exit code: 129
+
+
+$ git status
+
+fatal: non è un repository Git (né lo è alcun genitore fino al punto di mount /)
+Mi fermo al limite del filesystem (l'opzione GIT_DISCOVERY_ACROSS_FILESYSTEM non è impostata).
+
+
+❌  Exit code: 128
+[17/05/26 12:52] Paolo: PID: 21875 (Prismalux_GUI)
+           UID: 1000 (wildlux)
+           GID: 1000 (wildlux)
+        Signal: 11 (SEGV)
+     Timestamp: Sun 2026-05-17 12:51:48 CEST (6s ago)
+  Command Line: /home/wildlux/Desktop/Prismalux/gui/build/Prismalux_GUI
+    Executable: /home/wildlux/Desktop/Prismalux/gui/build/Prismalux_GUI
+ Control Group: /user.slice/user-1000.slice/user@1000.service/app.slice/app-Prismalux@41af75fe77494cd3bbdc90360fa4d332.service
+          Unit: user@1000.service
+     User Unit: app-Prismalux@41af75fe77494cd3bbdc90360fa4d332.service
+         Slice: user-1000.slice
+     Owner UID: 1000 (wildlux)
+       Boot ID: ae47f9f51037489bbcd51f372095b835
+    Machine ID: 3e3739799eb2421ab71c045ac166c85a
+      Hostname: wildlux-hp15cb0xx
+       Storage: /var/lib/systemd/coredump/core.Prismalux_GUI.1000.ae47f9f51037489bbcd51f372095b835.21875.1779015108000000.zst (present)
+  Size on Disk: 14.5M
+       Message: Process 21875 (Prismalux_GUI) of user 1000 dumped core.
+
+                Module linux-vdso.so.1 from deb linux-7.0.0-15.15.amd64
+                Module kio_file.so from deb kf6-kio-6.24.0-0ubuntu1.amd64
+                Module libQt6Svg.so.6 from deb qt6-svg-6.10.2-2.amd64
+                Module libqsvg.so from deb qt6-svg-6.10.2-2.amd64
+                Module KF6WindowSystemKWaylandPlugin.so from deb kf6-kwindowsystem-6.24.0-0ubuntu1.amd64
+                Module libKF6Style.so.6 from deb kf6-frameworkintegration-6.24.0-0ubuntu1.amd64
+                Module libKirigamiPlatform.so.6 from deb kf6-kirigami-6.24.0-0ubuntu1.amd64
+                Module breeze6.so from deb breeze-4:6.6.4-0ubuntu1.amd64
+                Module libmd.so.0 from deb libmd-1.1.0-2build4.amd64
+                Module libbsd.so.0 from deb libbsd-0.12.2-2build2.amd64
+                Module libtinfo.so.6 from deb ncurses-6.6+20251231-1.amd64
+                Module libpciaccess.so.0 from deb libpciaccess-0.18.1-1ubuntu4.amd64
+                Module libxml2.so.16 from deb libxml2-2.15.2+dfsg-0.1.amd64
+                Module libedit.so.2 from deb libedit-3.1-20251016-1.amd64
+                Module libdrm_intel.so.1 from deb libdrm-2.4.131-1.amd64
+                Module libdrm_amdgpu.so.1 from deb libdrm-2.4.131-1.amd64
+                Module libelf.so.1 from deb elfutils-0.194-4.amd64
+                Module libxshmfence.so.1 from deb libxshmfence-1.3.3-1build1.amd64
+                Module libxcb-sync.so.1 from deb libxcb-1.17.0-2ubuntu1.amd64
+                Module libsensors.so.5 from deb lm-sensors-1:3.6.2-2build1.amd64
+                Module libLLVM.so.21.1 from deb llvm-toolchain-21-1:21.1.8-6ubuntu1.amd64
+                Module libxcb-shm.so.0 from deb libxcb-1.17.0-2ubuntu1.amd64
+                Module libxcb-xfixes.so.0 from deb libxcb-1.17.0-2ubuntu1.amd64
+                Module libxcb-randr.so.0 from deb libxcb-1.17.0-2ubuntu1.amd64
+                Module libgallium-26.0.3-1ubuntu1.so from deb mesa-26.0.3-1ubuntu1.amd64
+                Module libEGL_mesa.so.0 from deb mesa-26.0.3-1ubuntu1.amd64
+                Module libX11-xcb.so.1 from deb libx11-2:1.8.13-1.amd64
+                Module libxcb-present.so.0 from deb libxcb-1.17.0-2ubuntu1.amd64
+                Module libxcb-dri3.so.0 from deb libxcb-1.17.0-2ubuntu1.amd64
+                Module libgbm.so.1 from deb mesa-26.0.3-1ubuntu1.amd64
+                Module libdrm.so.2 from deb libdrm-2.4.131-1.amd64
+                Module libwayland-server.so.0 from deb wayland-1.24.0-2.amd64
+                Module libnvidia-egl-wayland.so.1 from deb egl-wayland-1:1.1.21-1.amd64
+                Module libwayland-egl.so.1 from deb wayland-1.24.0-2.amd64
+                Module libqt-plugin-wayland-egl.so from deb qt6-base-6.10.2+dfsg-7.amd64
+                Module libogg.so.0 from deb libogg-1.3.6-2.amd64
+                Module libvorbis.so.0 from deb libvorbis-1.3.7-3build2.amd64
+                Module libltdl.so.7 from deb libtool-2.5.4-9.amd64
+                Module libtdb.so.1 from deb samba-2:4.23.6+dfsg-1ubuntu2.amd64
+[17/05/26 12:52] Paolo: Module libvorbisfile.so.3 from deb libvorbis-1.3.7-3build2.amd64
+                Module libimobiledevice-glue-1.0.so.0 from deb libimobiledevice-glue-1.3.2-2build1.amd64
+                Module libusbmuxd-2.0.so.7 from deb libusbmuxd-2.1.1-1.amd64
+                Module liblzma.so.5 from deb xz-utils-5.8.3-1.amd64
+                Module libcanberra.so.0 from deb libcanberra-0.30-18ubuntu3.amd64
+                Module libQt6QmlWorkerScript.so.6 from deb qt6-declarative-6.10.2+dfsg-3.amd64
+                Module libplist-2.0.so.4 from deb libplist-2.7.0+git20250820-1build1.amd64
+                Module libimobiledevice-1.0.so.6 from deb libimobiledevice-1.4.0-1build1.amd64
+                Module libKF6BreezeIcons.so.6 from deb kf6-breeze-icons-6.24.0-0ubuntu1.amd64
+                Module libKF6Archive.so.6 from deb kf6-karchive-6.24.0-0ubuntu1.amd64
+                Module libudev.so.1 from deb systemd-259.5-0ubuntu3.amd64
+                Module libKF6Codecs.so.6 from deb kf6-kcodecs-6.24.0-0ubuntu1.amd64
+                Module libKF6Notifications.so.6 from deb kf6-knotifications-6.24.0-0ubuntu1.amd64
+                Module libKF6Crash.so.6 from deb kf6-kcrash-6.24.0-0ubuntu1.amd64
+                Module libQt6OpenGL.so.6 from deb qt6-base-6.10.2+dfsg-7.amd64
+                Module libQt6QmlModels.so.6 from deb qt6-declarative-6.10.2+dfsg-3.amd64
+                Module libQt6QmlMeta.so.6 from deb qt6-declarative-6.10.2+dfsg-3.amd64
+                Module libXrender.so.1 from deb libxrender-1:0.9.12-1build1.amd64
+                Module libxcb-keysyms.so.1 from deb xcb-util-keysyms-0.4.1-1build1.amd64
+                Module libXfixes.so.3 from deb libxfixes-1:6.0.0-2build2.amd64
+                Module libxcb-res.so.0 from deb libxcb-1.17.0-2ubuntu1.amd64
+                Module libKF6ConfigWidgets.so.6 from deb kf6-kconfigwidgets-6.24.0-0ubuntu1.amd64
+                Module libKF6GlobalAccel.so.6 from deb kf6-kglobalaccel-6.24.0-0ubuntu1.amd64
+                Module libQt6Xml.so.6 from deb qt6-base-6.10.2+dfsg-7.amd64
+                Module libKF6Bookmarks.so.6 from deb kf6-kbookmarks-6.24.0-0ubuntu1.amd64
+                Module libKF6Solid.so.6 from deb kf6-solid-6.24.0-0ubuntu1.amd64
+                Module libKF6BookmarksWidgets.so.6 from deb kf6-kbookmarks-6.24.0-0ubuntu1.amd64
+                Module libKF6IconWidgets.so.6 from deb kf6-kiconthemes-6.24.0-0ubuntu2.amd64
+                Module libKF6ItemViews.so.6 from deb kf6-kitemviews-6.24.0-0ubuntu1.amd64
+                Module libQt6Qml.so.6 from deb qt6-declarative-6.10.2+dfsg-3.amd64
+                Module libQt6QuickTemplates2.so.6 from deb qt6-declarative-6.10.2+dfsg-3.amd64
+                Module libKF6WidgetsAddons.so.6 from deb kf6-kwidgetsaddons-6.24.0-0ubuntu1.amd64
+                Module libKF6I18n.so.6 from deb kf6-ki18n-6.24.0-0ubuntu1.amd64
+                Module libKF6GuiAddons.so.6 from deb kf6-kguiaddons-6.24.0-0ubuntu1.amd64
+                Module libKF6ConfigCore.so.6 from deb kf6-kconfig-6.24.0-0ubuntu1.amd64
+                Module libKF6ConfigGui.so.6 from deb kf6-kconfig-6.24.0-0ubuntu1.amd64
+                Module libKF6ColorScheme.so.6 from deb kf6-kcolorscheme-6.24.0-0ubuntu1.amd64
+                Module libKF6IconThemes.so.6 from deb kf6-kiconthemes-6.24.0-0ubuntu2.amd64
+                Module libKF6CoreAddons.so.6 from deb kf6-kcoreaddons-6.24.0-0ubuntu1.amd64
+                Module libKF6Completion.so.6 from deb kf6-kcompletion-6.24.0-0ubuntu1.amd64
+                Module libKF6Service.so.6 from deb kf6-kservice-6.24.0-0ubuntu1.amd64
+                Module libKF6JobWidgets.so.6 from deb kf6-kjobwidgets-6.24.0-0ubuntu1.amd64
+                Module libKF6KIOCore.so.6 from deb kf6-kio-6.24.0-0ubuntu1.amd64
+                Module libQt6Quick.so.6 from deb qt6-declarative-6.10.2+dfsg-3.amd64
+                Module libXcursor.so.1 from deb libxcursor-1:1.2.3-1build1.amd64
+                Module libKF6WindowSystem.so.6 from deb kf6-kwindowsystem-6.24.0-0ubuntu1.amd64
+                Module libKF6XmlGui.so.6 from deb kf6-kxmlgui-6.24.0-0ubuntu1.amd64
+[17/05/26 12:52] Paolo: Module libKF6StatusNotifierItem.so.6 from deb kf6-kstatusnotifieritem-6.24.0-0ubuntu1.amd64
+                Module libKF6KIOGui.so.6 from deb kf6-kio-6.24.0-0ubuntu1.amd64
+                Module libKF6KIOWidgets.so.6 from deb kf6-kio-6.24.0-0ubuntu1.amd64
+                Module libKF6KIOFileWidgets.so.6 from deb kf6-kio-6.24.0-0ubuntu1.amd64
+                Module libQt6QuickControls2.so.6 from deb qt6-declarative-6.10.2+dfsg-3.amd64
+                Module KDEPlasmaPlatformTheme6.so from deb plasma-integration-6.6.4-0ubuntu1.amd64
+                Module libxdg-shell.so from deb qt6-base-6.10.2+dfsg-7.amd64
+                Module libwayland-cursor.so.0 from deb wayland-1.24.0-2.amd64
+                Module libwayland-client.so.0 from deb wayland-1.24.0-2.amd64
+                Module libQt6WaylandClient.so.6 from deb qt6-base-6.10.2+dfsg-7.amd64
+                Module libqwayland.so from deb qt6-base-6.10.2+dfsg-7.amd64
+                Module libblkid.so.1 from deb util-linux-2.41.3-3ubuntu2.amd64
+                Module libtasn1.so.6 from deb libtasn1-6-4.21.0-2.amd64
+                Module libp11-kit.so.0 from deb p11-kit-0.26.2-2.amd64
+                Module libcrypto.so.3 from deb openssl-3.5.5-1ubuntu3.amd64
+                Module libssl.so.3 from deb openssl-3.5.5-1ubuntu3.amd64
+                Module libsasl2.so.2 from deb cyrus-sasl2-2.1.28+dfsg1-9ubuntu3.amd64
+                Module libgmp.so.10 from deb gmp-2:6.3.0+dfsg-5ubuntu2.amd64
+                Module libhogweed.so.6 from deb nettle-3.10.2-1.amd64
+                Module libunistring.so.5 from deb libunistring-1.3-2build1.amd64
+                Module libselinux.so.1 from deb libselinux-3.9-4build1.amd64
+                Module libmount.so.1 from deb util-linux-2.41.3-3ubuntu2.amd64
+                Module libgmodule-2.0.so.0 from deb glib2.0-2.88.0-1.amd64
+                Module libgnutls.so.30 from deb gnutls28-3.8.12-2ubuntu1.amd64
+                Module libnettle.so.8 from deb nettle-3.10.2-1.amd64
+                Module libpsl.so.5 from deb libpsl-0.21.2-1.1build2.amd64
+                Module libssh2.so.1 from deb libssh2-1.11.1-1build2.amd64
+                Module liblber.so.2 from deb openldap-2.6.10+dfsg-1ubuntu5.amd64
+                Module libldap.so.2 from deb openldap-2.6.10+dfsg-1ubuntu5.amd64
+                Module librtmp.so.1 from deb rtmpdump-2.4+20151223.gitfa8646d.1-3.amd64
+                Module libidn2.so.0 from deb libidn2-2.3.8-4build1.amd64
+                Module libnghttp2.so.14 from deb nghttp2-1.68.0-2ubuntu0.1.amd64
+                Module libsystemd.so.0 from deb systemd-259.5-0ubuntu3.amd64
+                Module libXdmcp.so.6 from deb libxdmcp-1:1.1.5-2.amd64
+                Module libXau.so.6 from deb libxau-1:1.0.11-1build2.amd64
+                Module libffi.so.8 from deb libffi-3.5.2-4.amd64
+                Module libgio-2.0.so.0 from deb glib2.0-2.88.0-1.amd64
+                Module libcurl-gnutls.so.4 from deb curl-8.18.0-1ubuntu2.1.amd64
+                Module libkeyutils.so.1 from deb keyutils-1.6.3-6ubuntu3.amd64
+                Module libgomp.so.1 from deb gcc-16-16-20260322-1ubuntu1.amd64
+                Module libicudata.so.78 from deb icu-78.2-2ubuntu1.amd64
+                Module libbz2.so.1.0 from deb bzip2-1.0.8-6build2.amd64
+                Module libgraphite2.so.3 from deb graphite2-1.3.14-11ubuntu1.amd64
+                Module libdbus-1.so.3 from deb dbus-1.16.2-2ubuntu4.amd64
+                Module libpcre2-8.so.0 from deb pcre2-10.46-1build1.amd64
+                Module libatomic.so.1 from deb gcc-16-16-20260322-1ubuntu1.amd64
+                Module libxcb.so.1 from deb libxcb-1.17.0-2ubuntu1.amd64
+                Module libexpat.so.1 from deb expat-2.7.4-1.amd64
+                Module libGLdispatch.so.0 from deb libglvnd-1.7.0-3.amd64
+                Module libgobject-2.0.so.0 from deb glib2.0-2.88.0-1.amd64
+                Module libpxbackend-1.0.so from deb libproxy-0.5.12-1.amd64
+                Module libbrotlicommon.so.1 from deb brotli-1.2.0-3build1.amd64
+[17/05/26 12:52] Paolo: Module libkrb5support.so.0 from deb krb5-1.22.1-2ubuntu4.amd64
+                Module libcom_err.so.2 from deb e2fsprogs-1.47.2-3ubuntu4.amd64
+                Module libk5crypto.so.3 from deb krb5-1.22.1-2ubuntu4.amd64
+                Module libkrb5.so.3 from deb krb5-1.22.1-2ubuntu4.amd64
+                Module libpcre2-16.so.0 from deb pcre2-10.46-1build1.amd64
+                Module libb2.so.1 from deb libb2-0.98.1-1.1build2.amd64
+                Module libdouble-conversion.so.3 from deb double-conversion-3.4.0-1.amd64
+                Module libicuuc.so.78 from deb icu-78.2-2ubuntu1.amd64
+                Module libicui18n.so.78 from deb icu-78.2-2ubuntu1.amd64
+                Module libfreetype.so.6 from deb freetype-2.14.2+dfsg-1.amd64
+                Module libmd4c.so.0 from deb md4c-0.5.2-2build1.amd64
+                Module libharfbuzz.so.0 from deb harfbuzz-12.3.2-2.amd64
+                Module libpng16.so.16 from deb libpng1.6-1.6.57-1.amd64
+                Module libOpenGL.so.0 from deb libglvnd-1.7.0-3.amd64
+                Module libGLX.so.0 from deb libglvnd-1.7.0-3.amd64
+                Module libxkbcommon.so.0 from deb libxkbcommon-1.13.1-1.amd64
+                Module libQt6DBus.so.6 from deb qt6-base-6.10.2+dfsg-7.amd64
+                Module libglib-2.0.so.0 from deb glib2.0-2.88.0-1.amd64
+                Module libX11.so.6 from deb libx11-2:1.8.13-1.amd64
+                Module libfontconfig.so.1 from deb fontconfig-2.17.1-3ubuntu1.amd64
+                Module libEGL.so.1 from deb libglvnd-1.7.0-3.amd64
+                Module libproxy.so.1 from deb libproxy-0.5.12-1.amd64
+                Module libz.so.1 from deb zlib-1:1.3.dfsg+really1.3.1-1ubuntu3.amd64
+                Module libzstd.so.1 from deb libzstd-1.5.7+dfsg-3.amd64
+                Module libbrotlidec.so.1 from deb brotli-1.2.0-3build1.amd64
+                Module libgssapi_krb5.so.2 from deb krb5-1.22.1-2ubuntu4.amd64
+                Module libgcc_s.so.1 from deb gcc-16-16-20260322-1ubuntu1.amd64
+                Module libstdc++.so.6 from deb gcc-16-16-20260322-1ubuntu1.amd64
+                Module libQt6Core.so.6 from deb qt6-base-6.10.2+dfsg-7.amd64
+                Module libQt6Gui.so.6 from deb qt6-base-6.10.2+dfsg-7.amd64
+                Module libQt6Widgets.so.6 from deb qt6-base-6.10.2+dfsg-7.amd64
+                Module libQt6PrintSupport.so.6 from deb qt6-base-6.10.2+dfsg-7.amd64
+                Module libQt6Network.so.6 from deb qt6-base-6.10.2+dfsg-7.amd64
+                Stack trace of thread 21875:
+                #0  0x0000791c91b552bc _ZN5QIconD1Ev (libQt6Gui.so.6 + 0x1552bc)
+                #1  0x0000791c9273f373 n/a (libQt6Widgets.so.6 + 0x33f373)
+                #2  0x0000791c92744520 _ZN6QLabel7setTextERK7QString (libQt6Widgets.so.6 + 0x344520)
+                #3  0x0000557c2afc7db2 _ZN18ProgrammazionePage14onReplFinishedEiN8QProcess10ExitStatusE (/home/wildlux/Desktop/Prismalux/gui/build/Prismalux_GUI + 0x3d0db2)
+                #4  0x0000791c915ea525 n/a (libQt6Core.so.6 + 0x1ea525)
+                #5  0x0000791c91770934 _ZN8QProcess8finishedEiNS_10ExitStatusE (libQt6Core.so.6 + 0x370934)
+                #6  0x0000791c91775dd3 _ZN8QProcess15waitForFinishedEi (libQt6Core.so.6 + 0x375dd3)
+                #7  0x0000791c914f3c21 n/a (libQt6Core.so.6 + 0xf3c21)
+                #8  0x0000791c91775ed5 _ZN8QProcessD0Ev (libQt6Core.so.6 + 0x375ed5)
+                #9  0x0000791c915d9cec _ZN14QObjectPrivate14deleteChildrenEv (libQt6Core.so.6 + 0x1d9cec)
+                #10 0x0000791c925e2978 _ZN7QWidgetD1Ev (libQt6Widgets.so.6 + 0x1e2978)
+                #11 0x0000557c2ace5260 _ZN18ProgrammazionePageD0Ev (/home/wildlux/Desktop/Prismalux/gui/build/Prismalux_GUI + 0xee260)
+                #12 0x0000791c915d9cec _ZN14QObjectPrivate14deleteChildrenEv (libQt6Core.so.6 + 0x1d9cec)
+                #13 0x0000791c925e2978 _ZN7QWidgetD1Ev (libQt6Widgets.so.6 + 0x1e2978)
+                #14 0x0000791c927d55a5 _ZN14QStackedWidgetD0Ev (libQt6Widgets.so.6 + 0x3d55a5)
+[17/05/26 12:52] Paolo: #15 0x0000791c915d9cec _ZN14QObjectPrivate14deleteChildrenEv (libQt6Core.so.6 + 0x1d9cec)
+                #16 0x0000791c925e2978 _ZN7QWidgetD1Ev (libQt6Widgets.so.6 + 0x1e2978)
+                #17 0x0000791c92802985 _ZN10QTabWidgetD0Ev (libQt6Widgets.so.6 + 0x402985)
+                #18 0x0000791c915d9cec _ZN14QObjectPrivate14deleteChildrenEv (libQt6Core.so.6 + 0x1d9cec)
+                #19 0x0000791c925e2978 _ZN7QWidgetD1Ev (libQt6Widgets.so.6 + 0x1e2978)
+                #20 0x0000791c925e29c5 _ZN7QWidgetD0Ev (libQt6Widgets.so.6 + 0x1e29c5)
+                #21 0x0000791c915d9cec _ZN14QObjectPrivate14deleteChildrenEv (libQt6Core.so.6 + 0x1d9cec)
+                #22 0x0000791c925e2978 _ZN7QWidgetD1Ev (libQt6Widgets.so.6 + 0x1e2978)
+                #23 0x0000791c925e29c5 _ZN7QWidgetD0Ev (libQt6Widgets.so.6 + 0x1e29c5)
+                #24 0x0000791c915d9cec _ZN14QObjectPrivate14deleteChildrenEv (libQt6Core.so.6 + 0x1d9cec)
+                #25 0x0000791c925e2978 _ZN7QWidgetD1Ev (libQt6Widgets.so.6 + 0x1e2978)
+                #26 0x0000791c925e29c5 _ZN7QWidgetD0Ev (libQt6Widgets.so.6 + 0x1e29c5)
+                #27 0x0000791c915d9cec _ZN14QObjectPrivate14deleteChildrenEv (libQt6Core.so.6 + 0x1d9cec)
+                #28 0x0000791c925e2978 _ZN7QWidgetD1Ev (libQt6Widgets.so.6 + 0x1e2978)
+                #29 0x0000557c2acd1c2a main (/home/wildlux/Desktop/Prismalux/gui/build/Prismalux_GUI + 0xdac2a)
+                #30 0x0000791c90c2a601 __libc_start_call_main (libc.so.6 + 0x2a601)
+                #31 0x0000791c90c2a718 __libc_start_main_impl (libc.so.6 + 0x2a718)
+                #32 0x0000557c2acd2415 _start (/home/wildlux/Desktop/Prismalux/gui/build/Prismalux_GUI + 0xdb415)
+
+                Stack trace of thread 21876:
+                #0  0x0000791c90cacae2 __syscall_cancel_arch (libc.so.6 + 0xacae2)
+                #1  0x0000791c90ca067c __internal_syscall_cancel (libc.so.6 + 0xa067c)
+                #2  0x0000791c90d28376 __GI_ppoll (libc.so.6 + 0x128376)
+                #3  0x0000791c90b0a2f1 n/a (libglib-2.0.so.0 + 0x622f1)
+                #4  0x0000791c90b0a3c3 g_main_context_iteration (libglib-2.0.so.0 + 0x623c3)
+                #5  0x0000791c9180513d _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x40513d)
+                #6  0x0000791c91598f5b _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x198f5b)
+                #7  0x0000791c91682aae _ZN7QThread4execEv (libQt6Core.so.6 + 0x282aae)
+                #8  0x0000791c90a2104d n/a (libQt6DBus.so.6 + 0x4004d)
+                #9  0x0000791c917185a6 n/a (libQt6Core.so.6 + 0x3185a6)
+                #10 0x0000791c90ca40da start_thread (libc.so.6 + 0xa40da)
+                #11 0x0000791c90d377ac __clone3 (libc.so.6 + 0x1377ac)
+
+                Stack trace of thread 21878:
+                #0  0x0000791c90cacae2 __syscall_cancel_arch (libc.so.6 + 0xacae2)
+                #1  0x0000791c90ca067c __internal_syscall_cancel (libc.so.6 + 0xa067c)
+                #2  0x0000791c90d27e4e __GI___poll (libc.so.6 + 0x127e4e)
+                #3  0x0000791c8c165b4a n/a (libQt6WaylandClient.so.6 + 0x89b4a)
+                #4  0x0000791c917185a6 n/a (libQt6Core.so.6 + 0x3185a6)
+                #5  0x0000791c90ca40da start_thread (libc.so.6 + 0xa40da)
+                #6  0x0000791c90d377ac __clone3 (libc.so.6 + 0x1377ac)
+
+                Stack trace of thread 21880:
+                #0  0x0000791c90cacae2 __syscall_cancel_arch (libc.so.6 + 0xacae2)
+                #1  0x0000791c90ca05ec __internal_syscall_cancel (libc.so.6 + 0xa05ec)
+                #2  0x0000791c90ca09c7 __futex_abstimed_wait_common64 (libc.so.6 + 0xa09c7)
+                #3  0x0000791c90ca33a7 __pthread_cond_wait_common (libc.so.6 + 0xa33a7)
+                #4  0x0000791c7989dedd n/a (libgallium-26.0.3-1ubuntu1.so + 0x69dedd)
+                #5  0x0000791c798538dc n/a (libgallium-26.0.3-1ubuntu1.so + 0x6538dc)
+                #6  0x0000791c7989de1c n/a (libgallium-26.0.3-1ubuntu1.so + 0x69de1c)
+[17/05/26 12:52] Paolo: #7  0x0000791c90ca40da start_thread (libc.so.6 + 0xa40da)
+                #8  0x0000791c90d377ac __clone3 (libc.so.6 + 0x1377ac)
+
+                Stack trace of thread 21879:
+                #0  0x0000791c90cacae2 __syscall_cancel_arch (libc.so.6 + 0xacae2)
+                #1  0x0000791c90ca05ec __internal_syscall_cancel (libc.so.6 + 0xa05ec)
+                #2  0x0000791c90ca09c7 __futex_abstimed_wait_common64 (libc.so.6 + 0xa09c7)
+                #3  0x0000791c90ca33a7 __pthread_cond_wait_common (libc.so.6 + 0xa33a7)
+                #4  0x0000791c7989dedd n/a (libgallium-26.0.3-1ubuntu1.so + 0x69dedd)
+                #5  0x0000791c798538dc n/a (libgallium-26.0.3-1ubuntu1.so + 0x6538dc)
+                #6  0x0000791c7989de1c n/a (libgallium-26.0.3-1ubuntu1.so + 0x69de1c)
+                #7  0x0000791c90ca40da start_thread (libc.so.6 + 0xa40da)
+                #8  0x0000791c90d377ac __clone3 (libc.so.6 + 0x1377ac)
+
+                Stack trace of thread 24165:
+                #0  0x0000791c90cacae2 __syscall_cancel_arch (libc.so.6 + 0xacae2)
+                #1  0x0000791c90ca05ec __internal_syscall_cancel (libc.so.6 + 0xa05ec)
+                #2  0x0000791c90ca09c7 __futex_abstimed_wait_common64 (libc.so.6 + 0xa09c7)
+                #3  0x0000791c90ca3662 __pthread_cond_wait_common (libc.so.6 + 0xa3662)
+                #4  0x0000791c91712533 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x312533)
+                #5  0x0000791c9167ffae n/a (libQt6Core.so.6 + 0x27ffae)
+                #6  0x0000791c917185a6 n/a (libQt6Core.so.6 + 0x3185a6)
+                #7  0x0000791c90ca40da start_thread (libc.so.6 + 0xa40da)
+                #8  0x0000791c90d377ac __clone3 (libc.so.6 + 0x1377ac)
+
+                Stack trace of thread 23539:
+                #0  0x0000791c90cacae2 __syscall_cancel_arch (libc.so.6 + 0xacae2)
+                #1  0x0000791c90ca067c __internal_syscall_cancel (libc.so.6 + 0xa067c)
+                #2  0x0000791c90d28376 __GI_ppoll (libc.so.6 + 0x128376)
+                #3  0x0000791c9170b231 _Z12qt_safe_pollP6pollfdm14QDeadlineTimer (libQt6Core.so.6 + 0x30b231)
+                #4  0x0000791c92da2032 n/a (libQt6Network.so.6 + 0x14f032)
+                #5  0x0000791c92d2b030 n/a (libQt6Network.so.6 + 0xd8030)
+                #6  0x0000791c92d216ac _ZN15QAbstractSocket16waitForReadyReadEi (libQt6Network.so.6 + 0xce6ac)
+                #7  0x0000791c8aace1ca n/a (libKF6KIOCore.so.6 + 0x521ca)
+                #8  0x0000791c8ab142eb n/a (libKF6KIOCore.so.6 + 0x982eb)
+                #9  0x0000791c8aba55ba n/a (libKF6KIOCore.so.6 + 0x1295ba)
+                #10 0x0000791c917185a6 n/a (libQt6Core.so.6 + 0x3185a6)
+                #11 0x0000791c90ca40da start_thread (libc.so.6 + 0xa40da)
+                #12 0x0000791c90d377ac __clone3 (libc.so.6 + 0x1377ac)
+
+                Stack trace of thread 23540:
+                #0  0x0000791c90cacae2 __syscall_cancel_arch (libc.so.6 + 0xacae2)
+                #1  0x0000791c90ca067c __internal_syscall_cancel (libc.so.6 + 0xa067c)
+                #2  0x0000791c90d28376 __GI_ppoll (libc.so.6 + 0x128376)
+                #3  0x0000791c9170b231 _Z12qt_safe_pollP6pollfdm14QDeadlineTimer (libQt6Core.so.6 + 0x30b231)
+                #4  0x0000791c92da2032 n/a (libQt6Network.so.6 + 0x14f032)
+                #5  0x0000791c92d2b030 n/a (libQt6Network.so.6 + 0xd8030)
+                #6  0x0000791c92d216ac _ZN15QAbstractSocket16waitForReadyReadEi (libQt6Network.so.6 + 0xce6ac)
+                #7  0x0000791c8aace1ca n/a (libKF6KIOCore.so.6 + 0x521ca)
+                #8  0x0000791c8ab142eb n/a (libKF6KIOCore.so.6 + 0x982eb)
+                #9  0x0000791c8aba55ba n/a (libKF6KIOCore.so.6 + 0x1295ba)
+                #10 0x0000791c917185a6 n/a (libQt6Core.so.6 + 0x3185a6)
+                #11 0x0000791c90ca40da start_thread (libc.so.6 + 0xa40da)
+                #12 0x0000791c90d377ac __clone3 (libc.so.6 + 0x1377ac)
+
+                Stack trace of thread 21877:
+[17/05/26 12:52] Paolo: #0  0x0000791c90cacae2 __syscall_cancel_arch (libc.so.6 + 0xacae2)
+                #1  0x0000791c90ca05ec __internal_syscall_cancel (libc.so.6 + 0xa05ec)
+                #2  0x0000791c90ca09c7 __futex_abstimed_wait_common64 (libc.so.6 + 0xa09c7)
+                #3  0x0000791c90ca33a7 __pthread_cond_wait_common (libc.so.6 + 0xa33a7)
+                #4  0x0000791c917125c4 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x3125c4)
+                #5  0x0000791c8c165ae0 n/a (libQt6WaylandClient.so.6 + 0x89ae0)
+                #6  0x0000791c917185a6 n/a (libQt6Core.so.6 + 0x3185a6)
+                #7  0x0000791c90ca40da start_thread (libc.so.6 + 0xa40da)
+                #8  0x0000791c90d377ac __clone3 (libc.so.6 + 0x1377ac)
+
+                Stack trace of thread 24163:
+                #0  0x0000791c90cacae2 __syscall_cancel_arch (libc.so.6 + 0xacae2)
+                #1  0x0000791c90ca05ec __internal_syscall_cancel (libc.so.6 + 0xa05ec)
+                #2  0x0000791c90ca09c7 __futex_abstimed_wait_common64 (libc.so.6 + 0xa09c7)
+                #3  0x0000791c90ca3662 __pthread_cond_wait_common (libc.so.6 + 0xa3662)
+                #4  0x0000791c91712533 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x312533)
+                #5  0x0000791c9167ffae n/a (libQt6Core.so.6 + 0x27ffae)
+                #6  0x0000791c917185a6 n/a (libQt6Core.so.6 + 0x3185a6)
+                #7  0x0000791c90ca40da start_thread (libc.so.6 + 0xa40da)
+                #8  0x0000791c90d377ac __clone3 (libc.so.6 + 0x1377ac)
+
+                Stack trace of thread 23534:
+                #0  0x0000791c90cacae2 __syscall_cancel_arch (libc.so.6 + 0xacae2)
+                #1  0x0000791c90ca067c __internal_syscall_cancel (libc.so.6 + 0xa067c)
+                #2  0x0000791c90d28376 __GI_ppoll (libc.so.6 + 0x128376)
+                #3  0x0000791c9170b231 _Z12qt_safe_pollP6pollfdm14QDeadlineTimer (libQt6Core.so.6 + 0x30b231)
+                #4  0x0000791c92da2032 n/a (libQt6Network.so.6 + 0x14f032)
+                #5  0x0000791c92d2b030 n/a (libQt6Network.so.6 + 0xd8030)
+                #6  0x0000791c92d216ac _ZN15QAbstractSocket16waitForReadyReadEi (libQt6Network.so.6 + 0xce6ac)
+                #7  0x0000791c8aace1ca n/a (libKF6KIOCore.so.6 + 0x521ca)
+                #8  0x0000791c8ab142eb n/a (libKF6KIOCore.so.6 + 0x982eb)
+                #9  0x0000791c8aba55ba n/a (libKF6KIOCore.so.6 + 0x1295ba)
+                #10 0x0000791c917185a6 n/a (libQt6Core.so.6 + 0x3185a6)
+                #11 0x0000791c90ca40da start_thread (libc.so.6 + 0xa40da)
+                #12 0x0000791c90d377ac __clone3 (libc.so.6 + 0x1377ac)
+
+                Stack trace of thread 23535:
+                #0  0x0000791c90cacae2 __syscall_cancel_arch (libc.so.6 + 0xacae2)
+                #1  0x0000791c90ca067c __internal_syscall_cancel (libc.so.6 + 0xa067c)
+                #2  0x0000791c90d28376 __GI_ppoll (libc.so.6 + 0x128376)
+                #3  0x0000791c9170b231 _Z12qt_safe_pollP6pollfdm14QDeadlineTimer (libQt6Core.so.6 + 0x30b231)
+                #4  0x0000791c92da2032 n/a (libQt6Network.so.6 + 0x14f032)
+                #5  0x0000791c92d2b030 n/a (libQt6Network.so.6 + 0xd8030)
+                #6  0x0000791c92d216ac _ZN15QAbstractSocket16waitForReadyReadEi (libQt6Network.so.6 + 0xce6ac)
+                #7  0x0000791c8aace1ca n/a (libKF6KIOCore.so.6 + 0x521ca)
+                #8  0x0000791c8ab142eb n/a (libKF6KIOCore.so.6 + 0x982eb)
+                #9  0x0000791c8aba55ba n/a (libKF6KIOCore.so.6 + 0x1295ba)
+                #10 0x0000791c917185a6 n/a (libQt6Core.so.6 + 0x3185a6)
+                #11 0x0000791c90ca40da start_thread (libc.so.6 + 0xa40da)
+                #12 0x0000791c90d377ac __clone3 (libc.so.6 + 0x1377ac)
+
+                Stack trace of thread 24166:
+                #0  0x0000791c90cacae2 __syscall_cancel_arch (libc.so.6 + 0xacae2)
+                #1  0x0000791c90ca05ec __internal_syscall_cancel (libc.so.6 + 0xa05ec)
+[17/05/26 12:52] Paolo: #2  0x0000791c90ca09c7 __futex_abstimed_wait_common64 (libc.so.6 + 0xa09c7)
+                #3  0x0000791c90ca3662 __pthread_cond_wait_common (libc.so.6 + 0xa3662)
+                #4  0x0000791c91712533 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x312533)
+                #5  0x0000791c9167ffae n/a (libQt6Core.so.6 + 0x27ffae)
+                #6  0x0000791c917185a6 n/a (libQt6Core.so.6 + 0x3185a6)
+                #7  0x0000791c90ca40da start_thread (libc.so.6 + 0xa40da)
+                #8  0x0000791c90d377ac __clone3 (libc.so.6 + 0x1377ac)
+
+                Stack trace of thread 24164:
+                #0  0x0000791c90cacae2 __syscall_cancel_arch (libc.so.6 + 0xacae2)
+                #1  0x0000791c90ca05ec __internal_syscall_cancel (libc.so.6 + 0xa05ec)
+                #2  0x0000791c90ca09c7 __futex_abstimed_wait_common64 (libc.so.6 + 0xa09c7)
+                #3  0x0000791c90ca3662 __pthread_cond_wait_common (libc.so.6 + 0xa3662)
+                #4  0x0000791c91712533 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x312533)
+                #5  0x0000791c9167ffae n/a (libQt6Core.so.6 + 0x27ffae)
+                #6  0x0000791c917185a6 n/a (libQt6Core.so.6 + 0x3185a6)
+                #7  0x0000791c90ca40da start_thread (libc.so.6 + 0xa40da)
+                #8  0x0000791c90d377ac __clone3 (libc.so.6 + 0x1377ac)
+                ELF object binary architecture: AMD x86-64

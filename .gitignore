@@ -162,5 +162,6 @@ gui/risultati*.txt
 
 # ── Android — artefatti build e firma ─────────────────────────────────────────
 ANDROID/android_app/build-android/
+ANDROID/android_app/build-host/
 ANDROID/build_apk.sh
 ANDROID/*.idsig
