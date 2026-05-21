@@ -5,10 +5,15 @@ REM ═════════════════════════�
 REM  aggiorna.bat — Aggiorna Prismalux su Windows
 REM  Lancia questo file dalla ROOT del progetto (doppio clic).
 REM
-REM  Strategia:
-REM    1. Se MSYS2 UCRT64 / MINGW64 trovato → bash aggiorna.sh
-REM    2. Se Git Bash trovato              → bash aggiorna.sh
-REM    3. Altrimenti: build nativa (build.bat) + ZIP (Python)
+REM  Rilevamento bash (ordine di priorità):
+REM    1. MSYS2 UCRT64    (C:\msys64\ucrt64)   — migliore per Qt
+REM    2. MSYS2 MINGW64   (C:\msys64\mingw64)
+REM    3. MSYS2 usr/bin   (C:\msys64\usr\bin)
+REM    4. Git Bash        (C:\Program Files\Git)
+REM    5. Cygwin 64-bit   (C:\cygwin64)
+REM    6. Cygwin 32-bit   (C:\cygwin)
+REM    7. Cygwin registro (percorso personalizzato)
+REM    8. Fallback nativo (build.bat + ZIP Python)
 REM
 REM  Opzioni (passate a aggiorna.sh se in bash, altrimenti ignorate):
 REM    --gui          Solo GUI
@@ -20,6 +25,7 @@ REM ═════════════════════════�
 
 set SCRIPT_DIR=%~dp0
 set ARGS=%*
+set BASH_TYPE=MSYS2
 
 echo.
 echo +--------------------------------------------------+
@@ -31,21 +37,24 @@ REM ── 1) MSYS2 UCRT64 ─────────────────�
 set MSYS2_ROOT=C:\msys64
 if exist "%MSYS2_ROOT%\ucrt64\bin\bash.exe" (
     set BASH=%MSYS2_ROOT%\ucrt64\bin\bash.exe
-    set MSYS2_ENV=MSYS2_UCRT64
+    set BASH_LABEL=MSYS2_UCRT64
+    set BASH_TYPE=MSYS2
     goto :bash_found
 )
 
 REM ── 2) MSYS2 MINGW64 ────────────────────────────────────────
 if exist "%MSYS2_ROOT%\mingw64\bin\bash.exe" (
     set BASH=%MSYS2_ROOT%\mingw64\bin\bash.exe
-    set MSYS2_ENV=MSYS2_MINGW64
+    set BASH_LABEL=MSYS2_MINGW64
+    set BASH_TYPE=MSYS2
     goto :bash_found
 )
 
-REM ── 3) MSYS2 usr/bin/bash (fallback) ────────────────────────
+REM ── 3) MSYS2 usr/bin/bash ───────────────────────────────────
 if exist "%MSYS2_ROOT%\usr\bin\bash.exe" (
     set BASH=%MSYS2_ROOT%\usr\bin\bash.exe
-    set MSYS2_ENV=MSYS2_USR
+    set BASH_LABEL=MSYS2_USR
+    set BASH_TYPE=MSYS2
     goto :bash_found
 )
 
@@ -57,36 +66,80 @@ for %%G in (
 ) do (
     if exist %%G (
         set BASH=%%~G
-        set MSYS2_ENV=GitBash
+        set BASH_LABEL=Git Bash
+        set BASH_TYPE=MSYS2
         goto :bash_found
     )
 )
 
-REM ── 5) Nessun bash — build nativa ───────────────────────────
-echo  [INFO] bash non trovato (MSYS2 / Git Bash).
+REM ── 5) Cygwin 64-bit (percorso standard) ────────────────────
+if exist "C:\cygwin64\bin\bash.exe" (
+    set BASH=C:\cygwin64\bin\bash.exe
+    set BASH_LABEL=Cygwin64
+    set BASH_TYPE=CYGWIN
+    goto :bash_found
+)
+
+REM ── 6) Cygwin 32-bit (percorso standard) ────────────────────
+if exist "C:\cygwin\bin\bash.exe" (
+    set BASH=C:\cygwin\bin\bash.exe
+    set BASH_LABEL=Cygwin32
+    set BASH_TYPE=CYGWIN
+    goto :bash_found
+)
+
+REM ── 7) Cygwin in percorso personalizzato (registro) ─────────
+for /f "tokens=2*" %%K in (
+    'reg query "HKLM\SOFTWARE\Cygwin\setup" /v rootdir 2^>nul'
+) do (
+    if exist "%%L\bin\bash.exe" (
+        set BASH=%%L\bin\bash.exe
+        set BASH_LABEL=Cygwin (registro)
+        set BASH_TYPE=CYGWIN
+        goto :bash_found
+    )
+)
+for /f "tokens=2*" %%K in (
+    'reg query "HKCU\SOFTWARE\Cygwin\setup" /v rootdir 2^>nul'
+) do (
+    if exist "%%L\bin\bash.exe" (
+        set BASH=%%L\bin\bash.exe
+        set BASH_LABEL=Cygwin (registro utente)
+        set BASH_TYPE=CYGWIN
+        goto :bash_found
+    )
+)
+
+REM ── 8) Nessun bash — build nativa ───────────────────────────
+echo  [INFO] bash non trovato (MSYS2 / Git Bash / Cygwin).
 echo  Eseguo build nativa: build.bat + ZIP Python.
 echo.
 goto :native_build
 
 :bash_found
-echo  [OK] bash trovato : %BASH% (%MSYS2_ENV%)
+echo  [OK] bash trovato : !BASH! (!BASH_LABEL!)
 echo.
 
-REM Converti il path Windows in path Unix per bash
-REM  C:\Users\... → /c/Users/...
+REM ── Converti path Windows → Unix ────────────────────────────
+REM  MSYS2 / Git Bash : C:\path → /c/path
+REM  Cygwin           : C:\path → /cygdrive/c/path
 set SCRIPT_UNIX=%SCRIPT_DIR%
 set SCRIPT_UNIX=!SCRIPT_UNIX:\=/!
-REM Rimuovi i due punti dopo la lettera di unità  (C:/ → /c/)
 set _DRIVE=!SCRIPT_UNIX:~0,1!
 set _REST=!SCRIPT_UNIX:~2!
-set SCRIPT_UNIX=/!_DRIVE!!_REST!
-REM Rimuovi eventuale slash finale doppio
+if "!BASH_TYPE!"=="CYGWIN" (
+    set SCRIPT_UNIX=/cygdrive/!_DRIVE!!_REST!
+) else (
+    set SCRIPT_UNIX=/!_DRIVE!!_REST!
+)
+REM Rimuovi eventuale slash finale
 if "!SCRIPT_UNIX:~-1!" == "/" set SCRIPT_UNIX=!SCRIPT_UNIX:~0,-1!
 
-echo  [INFO] Path Unix: !SCRIPT_UNIX!
+echo  [INFO] Path Unix  : !SCRIPT_UNIX!
+echo  [INFO] Tipo shell : !BASH_TYPE!
 echo.
 
-"%BASH%" --login -c "cd '!SCRIPT_UNIX!' && bash aggiorna.sh %ARGS%"
+"!BASH!" --login -c "cd '!SCRIPT_UNIX!' && bash aggiorna.sh %ARGS%"
 if errorlevel 1 (
     echo.
     echo  [ERRORE] aggiorna.sh ha restituito un errore.
