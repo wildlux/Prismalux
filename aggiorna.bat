@@ -212,6 +212,90 @@ if "!DO_ZIP!"=="1" (
     )
 )
 
+REM ══════════════════════════════════════════════════════════════
+REM  Promemoria aggiornamento Cygwin (ogni 30 giorni, facoltativo)
+REM ══════════════════════════════════════════════════════════════
+set CYG_SETUP=%SCRIPT_DIR%COMPILE_WIN\setup-x86_64.exe
+set CYG_STAMP=%SCRIPT_DIR%COMPILE_WIN\.cygwin_last_update
+
+if not exist "!CYG_SETUP!" goto :done
+
+REM Leggi data ultimo aggiornamento (formato YYYYMMDD)
+set LAST_UPD=0
+if exist "!CYG_STAMP!" (
+    set /p LAST_UPD=<"!CYG_STAMP!"
+)
+
+REM Data odierna come YYYYMMDD
+for /f "tokens=1-3 delims=/-. " %%A in ('date /t') do (
+    REM date /t → gg/mm/aaaa o varianti locali; usiamo wmic per sicurezza
+)
+for /f %%D in ('wmic os get LocalDateTime /value 2^>nul ^| findstr "LocalDateTime"') do (
+    set _DT=%%D
+    set _DT=!_DT:LocalDateTime=!
+    set _DT=!_DT:~4!
+    set TODAY=!_DT:~0,8!
+)
+if not defined TODAY set TODAY=99999999
+
+REM Calcola giorni trascorsi (approssimazione: confronto numerico YYYYMMDD)
+set DAYS_OLD=0
+if "!LAST_UPD!" NEQ "0" (
+    REM Differenza approssimata: se TODAY > LAST_UPD+30 (come stringa YYYYMMDD)
+    set /a _Y1=!LAST_UPD:~0,4!
+    set /a _M1=!LAST_UPD:~4,2!
+    set /a _D1=!LAST_UPD:~6,2!
+    set /a _Y2=!TODAY:~0,4!
+    set /a _M2=!TODAY:~4,2!
+    set /a _D2=!TODAY:~6,2!
+    set /a DAYS_OLD=(!_Y2!-!_Y1!)*365 + (!_M2!-!_M1!)*30 + (!_D2!-!_D1!)
+)
+
+REM Proponi aggiornamento se mai fatto o passati ≥30 giorni
+if "!LAST_UPD!"=="0" (
+    set ASK_CYG=1
+) else if !DAYS_OLD! GEQ 30 (
+    set ASK_CYG=1
+) else (
+    set ASK_CYG=0
+)
+
+if "!ASK_CYG!"=="1" (
+    echo.
+    echo +--------------------------------------------------+
+    if "!LAST_UPD!"=="0" (
+        echo ^|   Cygwin: primo avvio — aggiornamento consigliato ^|
+    ) else (
+        echo ^|   Cygwin: ultimo aggiornamento !DAYS_OLD! giorni fa     ^|
+    )
+    echo +--------------------------------------------------+
+    echo.
+    echo   Vuoi aggiornare Cygwin ora? (facoltativo)
+    echo   [S] Si, apri il setup   [N] No, salta   [M] Non chiedere per 90 giorni
+    echo.
+    set /p CYG_CHOICE="  Scelta [S/N/M]: "
+    if /i "!CYG_CHOICE!"=="S" (
+        echo.
+        echo  Avvio Cygwin setup...
+        start "" "!CYG_SETUP!"
+        echo !TODAY!>"!CYG_STAMP!"
+    ) else if /i "!CYG_CHOICE!"=="M" (
+        REM Aggiunge 90 giorni: sposta LAST_UPD in avanti manualmente
+        set /a _MX=!TODAY:~4,2!+3
+        if !_MX! GTR 12 (
+            set /a _MX-=12
+            set /a _YX=!TODAY:~0,4!+1
+        ) else (
+            set _YX=!TODAY:~0,4!
+        )
+        if !_MX! LSS 10 set _MX=0!_MX!
+        echo !_YX!!_MX!!TODAY:~6,2!>"!CYG_STAMP!"
+        echo  [OK] Promemoria posticipato di 90 giorni.
+    ) else (
+        echo  [OK] Aggiornamento saltato.
+    )
+)
+
 :done
 echo.
 echo +--------------------------------------------------+

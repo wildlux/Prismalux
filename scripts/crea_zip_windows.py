@@ -60,7 +60,7 @@ SOURCE_ROOT_FILES = [
     "Avvia_Prismalux.bat",
 ]
 SOURCE_EXCLUDE = [
-    r"[/\\]build[/\\]",         # build/
+    r"[/\\]build[/\\]",         # qualsiasi build/
     r"[/\\]build$",
     r"[/\\]build_",             # build_asan/, build_debug/, build_tests/, build_win/ …
     r"[/\\]\.git[/\\]",
@@ -76,9 +76,10 @@ SOURCE_EXCLUDE = [
     r"\.xcf$",                  # Gimp sorgenti — non utili in distribuzione
     r"Prismalux_v.*\.zip$",
     r"Prismalux_Windows.*\.zip$",
-    r"[/\\]toolchain[/\\]",
+    r"[/\\]toolchain[/\\]",     # toolchain portatile scaricata da setup.bat
     r"[/\\]toolchain$",
-    r"COMPILE_WIN[/\\]build",
+    r"COMPILE_WIN[/\\]build[/\\]",   # COMPILE_WIN/build/ (output compilazione)
+    r"COMPILE_WIN[/\\]build$",       # — ma NON build.bat!
 ]
 
 # File singoli oltre questa soglia vengono saltati (RAG PDF enormi, ecc.)
