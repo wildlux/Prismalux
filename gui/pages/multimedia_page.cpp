@@ -34,9 +34,10 @@ MultimediaPage::MultimediaPage(AiClient* ai, QWidget* parent)
     lay->setSpacing(0);
 
     auto* tabs = new QTabWidget(this);
-    tabs->addTab(buildAudioTab(),    "\xf0\x9f\x8e\xb5  Audio AI");        /* 🎵 */
-    tabs->addTab(buildSDTab(),       "\xf0\x9f\x8e\xa8  Genera Immagini"); /* 🎨 */
-    tabs->addTab(buildGraphvizTab(), "\xf0\x9f\x97\xba  Mappe");            /* 🗺 */
+    tabs->addTab(buildAudioTab(),           "\xf0\x9f\x8e\xb5  Audio AI");        /* 🎵 */
+    tabs->addTab(buildSDTab(),             "\xf0\x9f\x8e\xa8  Genera Immagini"); /* 🎨 */
+    tabs->addTab(buildGraphvizTab(),       "\xf0\x9f\x97\xba  Mappe");            /* 🗺 */
+    tabs->addTab(buildSintetizzatoreTab(), "\xf0\x9f\x94\x8a  Sintetizzatore");   /* 🔊 */
 
     lay->addWidget(tabs);
 }
@@ -44,6 +45,11 @@ MultimediaPage::MultimediaPage(AiClient* ai, QWidget* parent)
 QWidget* MultimediaPage::buildSDTab()
 {
     return new StableDiffusionWidget(this);
+}
+
+QWidget* MultimediaPage::buildSintetizzatoreTab()
+{
+    return new SintetizzatoreWidget(this);
 }
 
 QWidget* MultimediaPage::buildAudioTab()

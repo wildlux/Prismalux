@@ -7,6 +7,7 @@
 #include <QProcess>
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
+#include "sintetizzatore_widget.h"
 
 class MultimediaPage : public QWidget {
     Q_OBJECT
@@ -56,6 +57,7 @@ private:
     QWidget* buildAudioTab();
     QWidget* buildSDTab();
     QWidget* buildGraphvizTab();
+    QWidget* buildSintetizzatoreTab();
     void runGraphvizAi();
     void _renderDotCode(const QString& dot);
     void _doTranscribe(const QString& wav);

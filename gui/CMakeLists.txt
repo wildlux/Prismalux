@@ -94,6 +94,7 @@ set(CPP_SRCS
     pages/app_controller_page_slots.cpp
     pages/code_interpreter_widget.cpp
     pages/stable_diffusion_widget.cpp
+    pages/sintetizzatore_widget.cpp
     pages/matematica_page.cpp
     pages/ricerca_page.cpp
     pages/rab0l_canvas.cpp
