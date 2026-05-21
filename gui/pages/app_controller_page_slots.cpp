@@ -503,7 +503,7 @@ void AppControllerPage::onOfficeStartClicked()
                 this, &AppControllerPage::onOfficeBridgeFinished);
     }
     m_officeStatusLbl->setText("\xf0\x9f\x94\x84  Avvio bridge...");
-    m_officeBridgeProc->start("python3", {path});
+    m_officeBridgeProc->start(P::findPython(), {path});
     if (m_officeBridgeProc->state() == QProcess::Running) {
         m_officeStartBtn->setText("\xe2\x8f\xb9  Ferma bridge");
         QTimer::singleShot(1200, this, &AppControllerPage::onOfficeStatusReply);
@@ -1033,9 +1033,9 @@ void AppControllerPage::onObsExecClicked()
     }
     m_obsExecBtn->setEnabled(false);
     m_obsStatusLbl->setText("\xf0\x9f\x94\x84  Esecuzione script...");
-    m_obsExecProc->start("python3", {tmpPath});
+    m_obsExecProc->start(P::findPython(), {tmpPath});
     if (m_obsExecProc->state() == QProcess::NotRunning)
-        m_obsStatusLbl->setText("\xe2\x9d\x8c  python3 non trovato");
+        m_obsStatusLbl->setText("\xe2\x9d\x8c  Python non trovato");
 }
 
 void AppControllerPage::onObsProcReadyRead()

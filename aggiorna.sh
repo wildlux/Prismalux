@@ -384,7 +384,7 @@ if [ "$DO_ZIP" = "1" ]; then
 
         [ -f "$ZIP_SCRIPT" ] || fail "Script ZIP non trovato: $ZIP_SCRIPT"
         "$_PYTHON" "$ZIP_SCRIPT" --out "$ZIP_OUT" \
-            2>&1 | grep -E "(Fatto|file|ZIP|\+|skip|errore)" || true
+            2>&1 | grep -E "(SORGENTI|BINARIO|Fatto|file|\+|skip|errore|warn)" || true
         [ -f "$ZIP_OUT" ] || fail "ZIP non generato"
         ok "ZIP aggiornato → $ZIP_OUT  ($(du -sh "$ZIP_OUT" | cut -f1))"
     fi

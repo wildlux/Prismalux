@@ -798,10 +798,12 @@ static void runSciScript(const QString& code, bool isBash,
     }
     execBtn->setEnabled(false);
     statusLbl->setText("\xf0\x9f\x94\x84  Esecuzione...");
-    if (isBash)
-        procRef->start("bash", {tmpPath});
-    else
+    if (isBash) {
+        const QString bash = QStandardPaths::findExecutable("bash");
+        procRef->start(bash.isEmpty() ? "bash" : bash, {tmpPath});
+    } else {
         procRef->start(P::findPython(), {tmpPath});
+    }
     if (procRef->state() == QProcess::NotRunning)
         statusLbl->setText("\xe2\x9d\x8c  Interprete non trovato");
 }

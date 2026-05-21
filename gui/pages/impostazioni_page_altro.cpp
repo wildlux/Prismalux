@@ -491,7 +491,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
                 connect(btnStart, &QPushButton::clicked, card,
                         [proc, btnStart, scriptPath]{
                     if (proc->state() == QProcess::NotRunning) {
-                        proc->start("python3", {scriptPath});
+                        proc->start(P::findPython(), {scriptPath});
                         btnStart->setText("\xe2\x96\xa0  Ferma server");
                     } else {
                         proc->terminate();

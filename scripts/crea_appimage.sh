@@ -300,7 +300,7 @@ chmod +x "${APPDIR}/AppRun"
 # ── 12. Genera AppImage ───────────────────────────────────────
 info "Genero AppImage con appimagetool..."
 rm -f "$OUTPUT"
-ARCH=x86_64 "$APPIMAGETOOL" \
+ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$APPIMAGETOOL" \
   --no-appstream \
   "$APPDIR" \
   "$OUTPUT" 2>&1

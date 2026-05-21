@@ -312,7 +312,7 @@ void StableDiffusionWidget::checkDiffusers()
     setStatus("\xf0\x9f\x94\x84  Verifica diffusers...", true);
 
     auto* proc = new QProcess(this);
-    proc->start("python3", {"-c",
+    proc->start(PrismaluxPaths::findPython(), {"-c",
         "import diffusers, torch, transformers; "
         "print(f'diffusers {diffusers.__version__}, torch {torch.__version__}')"});
 
@@ -393,9 +393,9 @@ void StableDiffusionWidget::generateLocal()
     connect(m_sdProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &StableDiffusionWidget::onLocalProcFinished);
 
-    m_sdProc->start("python3", args);
+    m_sdProc->start(PrismaluxPaths::findPython(), args);
     if (!m_sdProc->waitForStarted(3000)) {
-        setStatus("\xe2\x9d\x8c  python3 non trovato nel PATH.", false);
+        setStatus("\xe2\x9d\x8c  Python non trovato nel PATH.", false);
         m_sdProc->deleteLater();
         m_sdProc = nullptr;
         m_btnGen->setEnabled(true);
