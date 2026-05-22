@@ -219,10 +219,16 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM ── Calcola job paralleli: core totali - 1 (minimo 1) ───────
+set /a COMPILE_JOBS=%NUMBER_OF_PROCESSORS%-1
+if !COMPILE_JOBS! LSS 1 set COMPILE_JOBS=1
+echo  [INFO] Core disponibili : %NUMBER_OF_PROCESSORS%
+echo  [INFO] Job paralleli    : !COMPILE_JOBS! (core-1 per sistema reattivo)
+
 REM ── Compila ──────────────────────────────────────────────────
 echo.
-echo  Compilazione in corso (2-5 minuti)...
-cmake --build "%BUILD_DIR%" --config Release
+echo  Compilazione in corso (con !COMPILE_JOBS! core — ~2-3 minuti)...
+cmake --build "%BUILD_DIR%" --config Release -j !COMPILE_JOBS!
 
 if errorlevel 1 (
     echo.
@@ -276,9 +282,11 @@ echo +--------------------------------------------------+
 echo.
 echo   Eseguibile : %BUILD_DIR%\Prismalux_GUI.exe
 echo.
-echo   Tip: per aggiornare i modelli Ollama apri
-echo        Impostazioni (engrenaggio) ^> Backend
-echo        ^> "Aggiorna tutti i modelli Ollama"
+echo   Novita' v2.8:
+echo     - Scarica nuovo modello Ollama  (Manutenzione ^> Aggiornamento)
+echo     - Verifica integrita' GGUF SHA-256             (Manutenzione)
+echo     - Backup automatico KNOWLEDGE_USER/ ogni 24h   (Manutenzione)
+echo     - Code Interpreter sandbox Docker              (Programmazione)
 echo.
 pause
 endlocal

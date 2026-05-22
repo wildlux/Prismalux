@@ -51,12 +51,14 @@ WHISPER_WIN_DIR="$SCRIPT_DIR/whisper_win"
 if [ "$IS_WIN" = "1" ]; then
     QT_BUILD="$QT_GUI/build_win"
     EXE_EXT=".exe"
-    NPROC="${NUMBER_OF_PROCESSORS:-4}"
+    _RAW_NPROC="${NUMBER_OF_PROCESSORS:-2}"
 else
     QT_BUILD="$QT_GUI/build"
     EXE_EXT=""
-    NPROC="$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)"
+    _RAW_NPROC="$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 2)"
 fi
+# Core - 1 per mantenere il sistema reattivo durante la build (minimo 1)
+NPROC=$(( _RAW_NPROC > 1 ? _RAW_NPROC - 1 : 1 ))
 GUI_BIN="$QT_BUILD/Prismalux_GUI${EXE_EXT}"
 
 # ── Rilevamento Qt6 su Windows (MSYS2) ─────────────────────────
@@ -163,6 +165,8 @@ fi
 step() { echo -e "\n${C}▶ $*${N}"; }
 ok()   { echo -e "${G}✅ $*${N}"; }
 fail() { echo -e "${R}❌ $*${N}"; exit 1; }
+
+echo -e "  ${C}Core disponibili: ${_RAW_NPROC}  →  job paralleli: ${NPROC} (${_RAW_NPROC}-1)${N}"
 
 T_START=$(date +%s)
 
