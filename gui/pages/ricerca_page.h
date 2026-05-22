@@ -16,6 +16,7 @@
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
 #include "../widgets/natal_chart_widget.h"
+#include "../widgets/astro_calc.h"
 #include "../widgets/world_map_widget.h"
 #include "rab0l_canvas.h"
 class QDateEdit;
@@ -144,12 +145,10 @@ private:
     QPushButton*        m_astraleRunBtn    = nullptr;
     QPushButton*        m_karmicaBtn       = nullptr;
     QTextEdit*          m_karmicaOutput    = nullptr;
+    AstroCalc::Result   m_astroResult;
     QMetaObject::Connection m_astraleTokenConn;
     QMetaObject::Connection m_astraleFinishedConn;
     QMetaObject::Connection m_astraleErrorConn;
-    QMetaObject::Connection m_karmicaTokenConn;
-    QMetaObject::Connection m_karmicaFinishedConn;
-    QMetaObject::Connection m_karmicaErrorConn;
 
     /* ── Analisi Fenomeni ── */
     QButtonGroup*   m_analisiCatGroup    = nullptr;
@@ -264,10 +263,6 @@ private slots:
     void onAstraleFinished(const QString& full);
     void onAstraleError(const QString& msg);
     void onKarmicaRunClicked();
-    void onKarmicaStopClicked();
-    void onKarmicaToken(const QString& t);
-    void onKarmicaFinished(const QString& full);
-    void onKarmicaError(const QString& msg);
 
 public:
     static void esportaPdf(QTextEdit* editor,

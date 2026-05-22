@@ -21,6 +21,8 @@
 #include <QButtonGroup>
 #include <QTextBrowser>
 #include <QDateTimeEdit>
+#include <QPixmap>
+#include <QBuffer>
 /* ═══════════════════════════════════════════════════════════════════
    buildAstraleTab — ⭐ Carta Astrale / Tema Natale
    Inserisci dati di nascita e ottieni una lettura astrologica con AI.
@@ -399,13 +401,9 @@ QWidget* RicercaPage::buildAstraleTab()
             onAstraleRunClicked();
     });
 
-    /* pulsante toggle: 🔮 Ruota Karmica → ■ Stop → 🔮 Ruota Karmica */
-    connect(m_karmicaBtn, &QPushButton::clicked, this, [this] {
-        if (m_karmicaBtn->property("running").toBool())
-            onKarmicaStopClicked();
-        else
-            onKarmicaRunClicked();
-    });
+    /* 🔮 Compila Ruota Karmica — calcolo + disegno, nessuna AI */
+    connect(m_karmicaBtn, &QPushButton::clicked,
+            this, &RicercaPage::onKarmicaRunClicked);
 
     return page;
 }
@@ -461,18 +459,18 @@ void RicercaPage::onAstraleRunClicked()
         lonD = lon.toDouble();
     }
 
-    AstroCalc::Result astroRes = AstroCalc::compute(
-        dateVal.year(), dateVal.month(), dateVal.day(),
-        ora.hour(), ora.minute(),
-        latD, lonD);
-
-    if (astroRes.ok && m_natalChart) {
-        m_natalChart->setData(astroRes.planets, astroRes.ascLon,
-                              astroRes.mcLon, astroRes.cusps);
+    /* Usa m_astroResult se già compilata, altrimenti ricalcola */
+    if (!m_astroResult.ok) {
+        m_astroResult = AstroCalc::compute(
+            dateVal.year(), dateVal.month(), dateVal.day(),
+            ora.hour(), ora.minute(), latD, lonD);
+        if (m_astroResult.ok && m_natalChart)
+            m_natalChart->setData(m_astroResult.planets, m_astroResult.ascLon,
+                                  m_astroResult.mcLon, m_astroResult.cusps);
     }
+    const AstroCalc::Result& astroRes = m_astroResult;
 
     /* ── Costruisci posizioni pianeti per il prompt AI ────────── */
-    QString planetiStr;
     static const char* kSignNames[] = {
         "Ariete","Toro","Gemelli","Cancro","Leone","Vergine",
         "Bilancia","Scorpione","Sagittario","Capricorno","Acquario","Pesci"
@@ -480,42 +478,80 @@ void RicercaPage::onAstraleRunClicked()
     auto lonToSign = [&](double l) -> QString {
         int sign = static_cast<int>(l / 30.0) % 12;
         double deg = std::fmod(l, 30.0);
-        return QString("%1° %2").arg(static_cast<int>(deg)).arg(kSignNames[sign]);
+        return QString("%1\xc2\xb0 %2").arg(static_cast<int>(deg)).arg(kSignNames[sign]);
     };
 
+    QString planetiStr;
     if (astroRes.ok) {
-        for (auto& pl : astroRes.planets) {
+        for (const auto& pl : astroRes.planets)
             planetiStr += "- " + pl.name + ": " + lonToSign(pl.lon)
-                        + " (" + QString::number(pl.lon, 'f', 1) + "°)\n";
-        }
+                        + " (" + QString::number(pl.lon, 'f', 2) + "\xc2\xb0)\n";
         planetiStr += "- ASCENDENTE: " + lonToSign(astroRes.ascLon)
-                    + " (" + QString::number(astroRes.ascLon, 'f', 1) + "°)\n";
+                    + " (" + QString::number(astroRes.ascLon, 'f', 2) + "\xc2\xb0)\n";
         planetiStr += "- MC: " + lonToSign(astroRes.mcLon)
-                    + " (" + QString::number(astroRes.mcLon, 'f', 1) + "°)\n";
+                    + " (" + QString::number(astroRes.mcLon, 'f', 2) + "\xc2\xb0)\n";
+    }
+
+    /* ── Case astrologiche (Placidus cusps) ──────────────────── */
+    QString caseStr;
+    if (astroRes.ok) {
+        for (int ci = 0; ci < 12; ++ci)
+            caseStr += QString("- Casa %1: %2\n").arg(ci + 1).arg(lonToSign(astroRes.cusps[ci]));
+    }
+
+    /* ── Aspetti planetari calcolati ─────────────────────────── */
+    struct Aspect { const char* sym; int deg; int orb; };
+    static const Aspect kAspects[] = {
+        {"\xe2\x98\x8c", 0,   8},  /* ☌ congiunzione */
+        {"\xe2\xac\x9c", 60,  6},  /* ⬜ sestile */
+        {"\xe2\x96\xa1", 90,  8},  /* □  quadratura */
+        {"\xe2\x96\xb3", 120, 8},  /* △  trigono */
+        {"\xe2\x98\x8d", 180, 8},  /* ☍  opposizione */
+    };
+    QString aspettiStr;
+    if (astroRes.ok && astroRes.planets.size() > 1) {
+        for (int i = 0; i < astroRes.planets.size(); ++i) {
+            for (int j = i + 1; j < astroRes.planets.size(); ++j) {
+                double diff = std::abs(astroRes.planets[i].lon - astroRes.planets[j].lon);
+                if (diff > 180.0) diff = 360.0 - diff;
+                for (const auto& asp : kAspects) {
+                    if (std::abs(diff - asp.deg) <= asp.orb) {
+                        aspettiStr += QString("- %1 %2 %3 %4 (orb %5\xc2\xb0)\n")
+                            .arg(QString::fromUtf8(asp.sym))
+                            .arg(astroRes.planets[i].name)
+                            .arg(QString::fromUtf8(asp.sym))
+                            .arg(astroRes.planets[j].name)
+                            .arg(diff - asp.deg, 0, 'f', 1);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     static const QString kSys =
         "Sei un astrologo esperto con conoscenza approfondita di astrologia occidentale. "
-        "Il tema natale \xc3\xa8 gi\xc3\xa0 stato calcolato astronomicamente con precisione "
-        "(algoritmi Meeus + JPL). Le posizioni planetarie fornite dall\xe2\x80\x99" "utente "
-        "sono VALORI REALI — non devi ricalcolarli.\n\n"
-        "Il tuo compito \xc3\xa8 interpretare astrologicamente questo tema natale.\n\n"
+        "Il tema natale \xc3\xa8 stato calcolato astronomicamente con precisione "
+        "(algoritmi Meeus + JPL). Tutti i valori forniti sono REALI — non devi ricalcolarli.\n\n"
+        "Se \xc3\xa8 allegata un\xe2\x80\x99" "immagine della ruota astrale, usala per "
+        "confermare visivamente le posizioni e gli aspetti planetari descritti nel testo.\n\n"
         "Struttura la risposta con queste sezioni:\n"
         "## \xe2\x98\x80 Segno Solare\n"
         "## \xf0\x9f\x8c\x99 Segno Lunare\n"
         "## \xe2\xac\x86 Ascendente\n"
         "## \xf0\x9f\xaa\x90 Pianeti principali\n"
         "## \xf0\x9f\x8f\xa0 Case astrologiche principali\n"
+        "## \xf0\x9f\x94\x97 Aspetti dominanti\n"
         "## \xe2\x9c\xa8 Sintesi e consigli\n\n"
         "### COSA_FARE\n"
-        "- [5-7 consigli personalizzati basati su questo tema natale specifico]\n"
+        "- [5-7 consigli personalizzati]\n"
         "### FINE_COSA_FARE\n\n"
         "### COSA_EVITARE\n"
-        "- [5-7 avvertimenti personalizzati basati su questo tema natale specifico]\n"
+        "- [5-7 avvertimenti personalizzati]\n"
         "### FINE_COSA_EVITARE\n\n";
 
-    const QString data    = dateVal.toString("dd/MM/yyyy");
-    const QString oraStr  = QString("%1:%2")
+    const QString data   = dateVal.toString("dd/MM/yyyy");
+    const QString oraStr = QString("%1:%2")
         .arg(ora.hour(),   2, 10, QChar('0'))
         .arg(ora.minute(), 2, 10, QChar('0'));
     const QString desc = m_astraleDesc->toPlainText().trimmed();
@@ -525,10 +561,14 @@ void RicercaPage::onAstraleRunClicked()
         "**Ora di nascita:** " + oraStr + "\n"
         "**Luogo di nascita:** " + luogo + coordHint + "\n"
         "**Sesso:** " + sesso + "\n\n"
-        "**Posizioni planetarie (calcolate astronomicamente):**\n"
-        + (planetiStr.isEmpty() ? "(coordinate non disponibili)\n" : planetiStr) + "\n"
-        + (desc.isEmpty() ? "" : "**Domanda/focus:** " + desc + "\n\n")
-        + depthInstr + "\n\nInterpreta questo tema natale.";
+        "**Posizioni planetarie:**\n"
+        + (planetiStr.isEmpty() ? "(coordinate non disponibili)\n" : planetiStr)
+        + "\n**Case astrologiche (Placidus):**\n"
+        + (caseStr.isEmpty() ? "(non disponibili)\n" : caseStr)
+        + "\n**Aspetti planetari calcolati:**\n"
+        + (aspettiStr.isEmpty() ? "(nessuno calcolato)\n" : aspettiStr)
+        + (desc.isEmpty() ? "" : "\n**Domanda/focus:** " + desc + "\n")
+        + "\n" + depthInstr + "\n\nInterpreta questo tema natale.";
 
     /* Selezione modello */
     if (m_astraleModel && m_astraleModel->count() > 0) {
@@ -557,6 +597,18 @@ void RicercaPage::onAstraleRunClicked()
         "\xe2\xad\x90  Lettura astrale in corso...\n"
         + QString(50, QChar(0x2500)));
 
+    /* Renderizza la ruota come PNG e iniettala nel prompt (se disponibile) */
+    if (m_natalChart && m_natalChart->isVisible()) {
+        QPixmap pix = m_natalChart->grab();
+        if (!pix.isNull()) {
+            QByteArray imgBytes;
+            QBuffer buf(&imgBytes);
+            buf.open(QIODevice::WriteOnly);
+            pix.save(&buf, "PNG");
+            m_ai->chatWithImage(kSys, userMsg, imgBytes.toBase64(), "image/png");
+            return;
+        }
+    }
     m_ai->chat(kSys, userMsg);
 }
 
@@ -641,58 +693,45 @@ void RicercaPage::onAstraleError(const QString& msg)
 }
 
 /* ─────────────────────────────────────────────────────────────────
-   SLOT Ruota Karmica
+   SLOT Ruota Karmica — calcola e disegna la ruota, nessuna AI.
+   I dati vengono salvati in m_astroResult e poi iniettati da
+   onAstraleRunClicked() insieme all'immagine PNG del grafico.
    ───────────────────────────────────────────────────────────────── */
 void RicercaPage::onKarmicaRunClicked()
 {
+    const QString lat = m_astraleCustomLat ? m_astraleCustomLat->text().trimmed() : QString();
+    const QString lon = m_astraleCustomLon ? m_astraleCustomLon->text().trimmed() : QString();
     const QString citta = m_astraleCustomCitta ? m_astraleCustomCitta->text().trimmed() : QString();
-    const QString lat   = m_astraleCustomLat   ? m_astraleCustomLat->text().trimmed()   : QString();
-    const QString lon   = m_astraleCustomLon   ? m_astraleCustomLon->text().trimmed()   : QString();
-    if (citta.isEmpty() && lat.isEmpty()) {
-        m_karmicaOutput->setPlainText(
-            "\xe2\x9a\xa0  Clicca sulla mappa oppure inserisci le coordinate "
-            "per selezionare il luogo di nascita.");
-        return;
-    }
-    if (m_ai->busy()) {
-        m_karmicaOutput->append("\xe2\x9a\xa0  AI occupata. Attendi o premi Stop.");
-        return;
-    }
 
-    QString luogo = citta.isEmpty()
-        ? QString("Lat %1, Lon %2").arg(lat, lon)
-        : citta;
-    QString coordHint;
-    if (!lat.isEmpty() && !lon.isEmpty())
-        coordHint = QString("\n**Coordinate:** Lat %1 / Lon %2").arg(lat, lon);
+    if (citta.isEmpty() && lat.isEmpty()) {
+        if (m_karmicaOutput)
+            m_karmicaOutput->setPlainText(
+                "\xe2\x9a\xa0  Inserisci il luogo di nascita (mappa o coordinate) prima di compilare.");
+        return;
+    }
 
     const QDate dateVal = m_astraleNascita->date();
     const QTime ora     = m_astraleOra->time();
+    double latD = lat.isEmpty() ? 41.9 : lat.toDouble();
+    double lonD = lon.isEmpty() ? 12.5 : lon.toDouble();
 
-    double latD = 41.9, lonD = 12.5;
-    if (!lat.isEmpty() && !lon.isEmpty()) {
-        latD = lat.toDouble();
-        lonD = lon.toDouble();
-    }
-
-    /* Calcola posizioni astronomiche */
-    AstroCalc::Result astroRes = AstroCalc::compute(
+    /* Calcola e salva in m_astroResult */
+    m_astroResult = AstroCalc::compute(
         dateVal.year(), dateVal.month(), dateVal.day(),
         ora.hour(), ora.minute(), latD, lonD);
 
-    /* Aggiorna la ruota grafica (stessa del tab Leggi gli Astri) */
-    if (astroRes.ok && m_natalChart) {
-        m_natalChart->setData(astroRes.planets, astroRes.ascLon,
-                              astroRes.mcLon, astroRes.cusps);
+    if (!m_astroResult.ok) {
+        if (m_karmicaOutput)
+            m_karmicaOutput->setPlainText("\xe2\x9a\xa0  Calcolo astronomico fallito. Verifica le coordinate.");
+        return;
     }
 
-    /* Sesso */
-    QString sesso = "Non specificato";
-    if (auto* btn = m_astraleSessoGrp->checkedButton())
-        sesso = btn->property("sessoId").toString();
+    /* Aggiorna la ruota grafica */
+    if (m_natalChart)
+        m_natalChart->setData(m_astroResult.planets, m_astroResult.ascLon,
+                              m_astroResult.mcLon, m_astroResult.cusps);
 
-    /* Posizioni pianeti per il prompt */
-    QString planetiStr;
+    /* Mostra il foglio tecnico nel tab Ruota Karmica */
     static const char* kSignNames[] = {
         "Ariete","Toro","Gemelli","Cancro","Leone","Vergine",
         "Bilancia","Scorpione","Sagittario","Capricorno","Acquario","Pesci"
@@ -703,129 +742,65 @@ void RicercaPage::onKarmicaRunClicked()
         return QString("%1\xc2\xb0 %2").arg(static_cast<int>(deg)).arg(kSignNames[sign]);
     };
 
-    QString nodoNord, nodoSud;
-    if (astroRes.ok) {
-        for (auto& pl : astroRes.planets) {
-            planetiStr += "- " + pl.name + ": " + lonToSign(pl.lon)
-                        + " (" + QString::number(pl.lon, 'f', 1) + "\xc2\xb0)\n";
-            if (pl.name == "Nodo Nord" || pl.name == "NodoN" || pl.name.contains("Nodo"))
-                nodoNord = lonToSign(pl.lon);
-        }
-        if (!nodoNord.isEmpty()) {
-            double sudLon = std::fmod(astroRes.planets[0].lon + 180.0, 360.0);
-            for (auto& pl : astroRes.planets)
-                if (pl.name.contains("Nodo")) { sudLon = std::fmod(pl.lon + 180.0, 360.0); break; }
-            nodoSud = lonToSign(sudLon);
-        }
-        planetiStr += "- ASCENDENTE: " + lonToSign(astroRes.ascLon) + "\n";
-        planetiStr += "- MC: " + lonToSign(astroRes.mcLon) + "\n";
-    }
-
-    static const QString kSysKarmica =
-        "Sei un astrologo specializzato in astrologia karmica ed evolutiva. "
-        "Il tema natale \xc3\xa8 stato calcolato astronomicamente con precisione. "
-        "Le posizioni planetarie fornite sono VALORI REALI — non devi ricalcolarli.\n\n"
-        "Il tuo compito \xc3\xa8 compilare la **Ruota Karmica** di questa persona, "
-        "analizzando il karma astrologico, la missione di vita e le lezioni dell\xe2\x80\x99" "anima.\n\n"
-        "Struttura la risposta con queste sezioni:\n"
-        "## \xf0\x9f\x8c\x95 Nodo Nord — Missione di Vita\n"
-        "Dove l\xe2\x80\x99" "anima \xc3\xa8 diretta in questa incarnazione. Qualit\xc3\xa0 da sviluppare.\n\n"
-        "## \xf0\x9f\x8c\x91 Nodo Sud — Karma Passato\n"
-        "Abilit\xc3\xa0 e schemi portati da vite precedenti. Comfort zone da superare.\n\n"
-        "## \xf0\x9f\x94\xae Saturno — Il Grande Maestro\n"
-        "Lezioni karmiche di Saturno: disciplina, limiti, responsabilit\xc3\xa0.\n\n"
-        "## \xf0\x9f\x92\xab Chirone — La Ferita Sacra\n"
-        "La ferita karmica che una volta guarita diventa il tuo pi\xc3\xb9 grande dono.\n\n"
-        "## \xf0\x9f\x8c\x80 Plutone — La Trasformazione\n"
-        "Area di morte e rinascita karmica, potere e rigenerazione.\n\n"
-        "## \xe2\x9a\xa1 Aspetti Karmici Principali\n"
-        "Aspetti forti (congiunzioni, quadrature, opposizioni) tra pianeti karmici.\n\n"
-        "## \xf0\x9f\x8e\xaf Sintesi — La Tua Missione Karmica\n"
-        "Un paragrafo conclusivo che unisce tutti gli elementi in un quadro coerente "
-        "della missione dell\xe2\x80\x99" "anima in questa vita.\n\n"
-        "## \xf0\x9f\x94\x91 Domande da Portare in Meditazione\n"
-        "5 domande specifiche basate su questo tema natale per la crescita spirituale.\n\n";
-
-    const QString data   = dateVal.toString("dd/MM/yyyy");
-    const QString oraStr = QString("%1:%2")
+    QString report;
+    report += "\xf0\x9f\x94\xae  RUOTA KARMICA — Foglio Tecnico\n";
+    report += QString(50, QChar(0x2500)) + "\n";
+    report += QString("Data: %1  Ora: %2:%3  Luogo: %4\n\n")
+        .arg(dateVal.toString("dd/MM/yyyy"))
         .arg(ora.hour(),   2, 10, QChar('0'))
-        .arg(ora.minute(), 2, 10, QChar('0'));
-    const QString desc = m_astraleDesc->toPlainText().trimmed();
+        .arg(ora.minute(), 2, 10, QChar('0'))
+        .arg(citta.isEmpty() ? QString("Lat %1 / Lon %2").arg(latD).arg(lonD) : citta);
 
-    const QString userMsg =
-        "**Data di nascita:** " + data + "\n"
-        "**Ora di nascita:** " + oraStr + "\n"
-        "**Luogo di nascita:** " + luogo + coordHint + "\n"
-        "**Sesso:** " + sesso + "\n\n"
-        "**Posizioni planetarie (calcolate astronomicamente):**\n"
-        + (planetiStr.isEmpty() ? "(coordinate non disponibili)\n" : planetiStr) + "\n"
-        + (desc.isEmpty() ? "" : "**Domanda karmica / focus:** " + desc + "\n\n")
-        + "Compila la Ruota Karmica di questa persona.";
+    report += "\xf0\x9f\x93\x8d Posizioni Planetarie\n";
+    for (const auto& pl : m_astroResult.planets)
+        report += QString("  %-14 %2  (%3\xc2\xb0)\n")
+            .arg(pl.name + ":")
+            .arg(lonToSign(pl.lon))
+            .arg(pl.lon, 0, 'f', 2);
+    report += QString("  %-14 %2  (%3\xc2\xb0)\n")
+        .arg("Ascendente:").arg(lonToSign(m_astroResult.ascLon))
+        .arg(m_astroResult.ascLon, 0, 'f', 2);
+    report += QString("  %-14 %2  (%3\xc2\xb0)\n\n")
+        .arg("MC:").arg(lonToSign(m_astroResult.mcLon))
+        .arg(m_astroResult.mcLon, 0, 'f', 2);
 
-    /* Seleziona modello */
-    if (m_astraleModel && m_astraleModel->count() > 0) {
-        const QString sel = m_astraleModel->currentData().toString();
-        if (!sel.isEmpty() && sel != m_ai->model())
-            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
+    report += "\xf0\x9f\x8f\xa0 Case Astrologiche (Placidus)\n";
+    for (int ci = 0; ci < 12; ++ci)
+        report += QString("  Casa %1: %2\n").arg(ci + 1).arg(lonToSign(m_astroResult.cusps[ci]));
+
+    report += "\n\xf0\x9f\x94\x97 Aspetti Planetari\n";
+    struct Aspect { const char* name; int deg; int orb; };
+    static const Aspect kAsp[] = {
+        {"Congiunzione", 0, 8}, {"Sestile", 60, 6},
+        {"Quadratura", 90, 8}, {"Trigono", 120, 8}, {"Opposizione", 180, 8}
+    };
+    bool anyAsp = false;
+    const auto& pls = m_astroResult.planets;
+    for (int i = 0; i < pls.size(); ++i) {
+        for (int j = i + 1; j < pls.size(); ++j) {
+            double diff = std::abs(pls[i].lon - pls[j].lon);
+            if (diff > 180.0) diff = 360.0 - diff;
+            for (const auto& a : kAsp) {
+                if (std::abs(diff - a.deg) <= a.orb) {
+                    report += QString("  %1 \xe2\x80\x94 %2 / %3  (orb %4\xc2\xb0)\n")
+                        .arg(a.name).arg(pls[i].name).arg(pls[j].name)
+                        .arg(diff - a.deg, 0, 'f', 1);
+                    anyAsp = true;
+                    break;
+                }
+            }
+        }
     }
+    if (!anyAsp) report += "  (nessun aspetto rilevante)\n";
 
-    QObject::disconnect(m_karmicaTokenConn);
-    QObject::disconnect(m_karmicaFinishedConn);
-    QObject::disconnect(m_karmicaErrorConn);
-    m_karmicaTokenConn    = connect(m_ai, &AiClient::token,
-                                    this, &RicercaPage::onKarmicaToken);
-    m_karmicaFinishedConn = connect(m_ai, &AiClient::finished,
-                                    this, &RicercaPage::onKarmicaFinished);
-    m_karmicaErrorConn    = connect(m_ai, &AiClient::error,
-                                    this, &RicercaPage::onKarmicaError);
+    report += "\n" + QString(50, QChar(0x2500)) + "\n";
+    report += "\xe2\x9c\x85  Ruota compilata. Ora premi \xe2\xad\x90 Leggi gli Astri per l\xe2\x80\x99" "interpretazione AI\n";
+    report += "    con la ruota e tutti questi dati iniettati nel prompt.";
 
-    m_karmicaBtn->setText("\xe2\x96\xa0  Stop");
-    m_karmicaBtn->setProperty("running", true);
-    if (m_sciProgress) m_sciProgress->setVisible(true);
-
-    m_karmicaOutput->clear();
-    m_karmicaOutput->append(
-        "\xf0\x9f\x94\xae  Compilazione Ruota Karmica in corso...\n"
-        + QString(50, QChar(0x2500)));
-
-    m_ai->chat(kSysKarmica, userMsg);
-}
-
-void RicercaPage::onKarmicaStopClicked()
-{
-    m_ai->abort();
-}
-
-void RicercaPage::onKarmicaToken(const QString& t)
-{
-    m_karmicaOutput->moveCursor(QTextCursor::End);
-    m_karmicaOutput->insertPlainText(t);
-}
-
-void RicercaPage::onKarmicaFinished(const QString& /*full*/)
-{
-    QObject::disconnect(m_karmicaTokenConn);
-    QObject::disconnect(m_karmicaFinishedConn);
-    QObject::disconnect(m_karmicaErrorConn);
-    m_karmicaTokenConn = m_karmicaFinishedConn = m_karmicaErrorConn = {};
-
-    m_karmicaBtn->setText("\xf0\x9f\x94\xae  Ruota Karmica");
-    m_karmicaBtn->setProperty("running", false);
-    if (m_sciProgress) m_sciProgress->setVisible(false);
-    m_karmicaOutput->append("\n" + QString(50, QChar(0x2500)));
-}
-
-void RicercaPage::onKarmicaError(const QString& msg)
-{
-    QObject::disconnect(m_karmicaTokenConn);
-    QObject::disconnect(m_karmicaFinishedConn);
-    QObject::disconnect(m_karmicaErrorConn);
-    m_karmicaTokenConn = m_karmicaFinishedConn = m_karmicaErrorConn = {};
-
-    m_karmicaBtn->setText("\xf0\x9f\x94\xae  Ruota Karmica");
-    m_karmicaBtn->setProperty("running", false);
-    if (m_sciProgress) m_sciProgress->setVisible(false);
-    m_sciErrorPanel->showError(msg, [this]{ onKarmicaRunClicked(); });
+    if (m_karmicaOutput) {
+        m_karmicaOutput->clear();
+        m_karmicaOutput->setPlainText(report);
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
