@@ -158,8 +158,8 @@ GraficoPage::GraficoPage(AiClient* ai, QWidget* parent) : QWidget(parent), m_ai(
 /* ── Pannello parametri sinistro ─────────────────────────────── */
 QWidget* GraficoPage::buildLeftPanel() {
     auto* outer = new QWidget(this);
-    outer->setMinimumWidth(220);
-    outer->setMaximumWidth(310);
+    outer->setMinimumWidth(240);
+    outer->setMaximumWidth(400);
     auto* outerLay = new QVBoxLayout(outer);
     outerLay->setContentsMargins(0, 0, 0, 0);
 

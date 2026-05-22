@@ -159,10 +159,20 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     rightLay->addWidget(modelList, 1);
 
     colsLay->addWidget(rightGroup, 1);
+
+    /* ── Colonna destra extra: Think Mode + Knowledge ── */
+    auto* rcW = new QWidget(colsRow);
+    auto* rcL = new QVBoxLayout(rcW);
+    rcL->setContentsMargins(0, 0, 0, 0);
+    rcL->setSpacing(10);
+    rcW->setMinimumWidth(280);
+    rcW->setMaximumWidth(360);
+    colsLay->addWidget(rcW);
+
     mainLay->addWidget(colsRow);
 
     /* ══════════════════════════════════════════════════
-       Sezione Ragionamento AI
+       Sezione Ragionamento AI  (colonna destra)
        ══════════════════════════════════════════════════ */
     {
         auto* thinkGroup = new QGroupBox(
@@ -248,7 +258,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         hintLbl->setTextFormat(Qt::RichText);
         thinkLay->addWidget(hintLbl);
 
-        mainLay->addWidget(thinkGroup);
+        rcL->addWidget(thinkGroup);
 
         /* ── Logica: ripristina stato dal file ── */
         const AiChatParams curP = AiChatParams::load();
@@ -316,7 +326,8 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         knHint->setTextFormat(Qt::RichText);
         knLay->addWidget(knHint);
 
-        mainLay->addWidget(knGroup);
+        rcL->addWidget(knGroup);
+        rcL->addStretch();
 
         /* Salva la preferenza e invalida la cache di lettura */
         connect(chkKn, &QCheckBox::toggled,

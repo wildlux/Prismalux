@@ -118,4 +118,7 @@ private:
     QLineEdit*    m_calcAnnuo     = nullptr;
     QLineEdit*    m_calcOrario    = nullptr;
     QLabel*       m_calcNettoLbl  = nullptr;
+    QLabel*       m_mercatoLbl    = nullptr;
+
+    void precompilaStipendioDaOfferta(const Offerta& o);
 };

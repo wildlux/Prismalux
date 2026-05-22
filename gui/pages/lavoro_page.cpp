@@ -470,6 +470,13 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     calcGrid->addRow("Lordo annuo (\xe2\x82\xac):", m_calcAnnuo);
     calcGrid->addRow("Tariffa oraria (\xe2\x82\xac/h):", m_calcOrario);
     calcGrid->addRow("Netto stimato:", m_calcNettoLbl);
+
+    m_mercatoLbl = new QLabel("", calcBox);
+    m_mercatoLbl->setObjectName("hintLabel");
+    m_mercatoLbl->setWordWrap(true);
+    m_mercatoLbl->setTextFormat(Qt::RichText);
+    calcGrid->addRow(m_mercatoLbl);   /* full-width hint: annuncio vs. mercato */
+
     trackerLay->addWidget(calcBox);
 
     topSplitter->addWidget(trackerPane);
@@ -811,7 +818,9 @@ void LavoroPage::onOfferteItemChanged(QListWidgetItem* cur, QListWidgetItem*) {
         " &nbsp;|&nbsp;"
         "\xf0\x9f\x8f\xa2 <a href='" + urlLavora   + "'>Lavora con noi</a>"
         " &nbsp;|&nbsp;"
-        "\xf0\x9f\x97\xba <a href='" + urlMaps     + "'>" + o.sede + " — Google Maps</a>");
+        "\xf0\x9f\x97\xba <a href='" + urlMaps     + "'>" + o.sede + " \xe2\x80\x94 Google Maps</a>");
+
+    precompilaStipendioDaOfferta(o);
 }
 
 void LavoroPage::onEmailBtnClicked() {
@@ -1282,4 +1291,97 @@ void LavoroPage::onAiAborted() {
     QTextEdit* log = (rid == m_myReqId) ? m_lavoroLog : m_coverLog;
     if (log) log->append("\n\xe2\x8f\xb9  Interrotto.\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80");
     aiDone();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HELPER — Precompila calcolatore con stipendio offerta + mercato
+   ══════════════════════════════════════════════════════════════ */
+void LavoroPage::precompilaStipendioDaOfferta(const Offerta& o) {
+    if (!m_calcMensile || !m_calcAnnuo || !m_calcOrario || !m_mercatoLbl) return;
+
+    /* Stipendio tipico italiano per settore + livello (lordo annuo, fonte ISTAT/Unioncamere) */
+    struct R { int minA; int maxA; };
+    const auto mkt = [&]() -> R {
+        const QString& t = o.tipo; const QString& l = o.livello;
+        if (t == "IT") {
+            if (l == "laurea_t") return {28000, 50000};
+            if (l == "diploma")  return {22000, 38000};
+            return {16000, 26000};
+        }
+        if (t == "Retail")      return l == "diploma" ? R{16000, 22000} : R{13000, 18000};
+        if (t == "GDO")         return {13000, 19000};
+        if (t == "Ristorazione") return l == "diploma" ? R{15000, 22000} : R{12000, 17000};
+        if (t == "Logistica")   return l == "diploma" ? R{17000, 25000} : R{14000, 21000};
+        if (t == "Tecnico")     return l == "laurea_t" ? R{22000, 35000} : R{16000, 26000};
+        if (t == "Commerciale") return l == "diploma"  ? R{18000, 30000} : R{14000, 22000};
+        if (t == "Admin")       return {15000, 22000};
+        if (t == "Finanza")     return l == "laurea_t" ? R{24000, 42000} : R{18000, 28000};
+        if (t == "Edilizia")    return {16000, 24000};
+        if (t == "Turismo")     return {13000, 19000};
+        return {14000, 22000};
+    }();
+
+    /* Prova a estrarre stipendio dall'annuncio (es. "€1.500/mese" o "18.000 euro/anno") */
+    static const QRegularExpression rxEuro(
+        R"((?:€|euro|eur)\s*([\d\.]+(?:[,\.]\d{1,2})?)\s*(?:/\s*(?:mese|anno|giorno|ora|h))?|)"
+        R"(([\d\.]+(?:[,\.]\d{1,2})?)\s*(?:€|euro|eur)\s*(?:/\s*(?:mese|anno|giorno|ora|h))?)",
+        QRegularExpression::CaseInsensitiveOption);
+    double offertaAnnuo = 0.0;
+    const auto m = rxEuro.match(o.requisiti);
+    if (m.hasMatch()) {
+        QString ns = m.captured(1).isEmpty() ? m.captured(2) : m.captured(1);
+        /* Normalizza formato italiano: 1.500,00 → 1500.00 */
+        if (ns.contains(','))
+            ns.remove('.').replace(',', '.');
+        else
+            ns.remove('.');
+        const double val = ns.toDouble();
+        if (val > 0) {
+            /* Euristica: < 5000 → mensile, 5000-200000 → annuo */
+            offertaAnnuo = (val < 5000) ? val * 12.0 : val;
+        }
+    }
+
+    /* Pre-compila il calcolatore con il valore noto o il minimo di mercato */
+    const double annuo = offertaAnnuo > 0 ? offertaAnnuo : (double)mkt.minA;
+    if (annuo > 0 && !m_calcBusy) {
+        m_calcBusy = true;
+        const double mensile  = annuo / 12.0;
+        const double ore      = m_calcOre->text().replace(',', '.').toDouble();
+        const double oreAnno  = (ore > 0 ? ore : 40.0) * 52.0;
+        const double orario   = annuo / oreAnno;
+        m_calcAnnuo->setText(QString::number(annuo,   'f', 0));
+        m_calcMensile->setText(QString::number(mensile, 'f', 2));
+        m_calcOrario->setText(QString::number(orario,  'f', 2));
+        if (m_calcNettoLbl) {
+            const double netto = mensile * 0.72;
+            m_calcNettoLbl->setText(
+                QString("\xe2\x89\x88 <b>%1 \xe2\x82\xac/mese</b>"
+                        "  <span style='color:gray;font-size:10px;'>stima -28%% IRPEF</span>")
+                .arg(netto, 0, 'f', 2));
+        }
+        m_calcBusy = false;
+    }
+
+    /* Etichetta informativa: offerta vs. mercato tipico */
+    const QString offertaStr = offertaAnnuo > 0
+        ? QString("\xe2\x82\xac%1/anno").arg((int)offertaAnnuo)   /* €X/anno */
+        : "non indicato";
+    const QString livLabel = o.livello == "laurea_t" ? "Laurea"
+                           : o.livello == "diploma"  ? "Diploma"
+                           :                          "Qualsiasi titolo";
+    m_mercatoLbl->setText(
+        QString("<small>"
+                "\xf0\x9f\x93\xa2 <b>Annuncio:</b> %1"
+                " &nbsp;\xe2\x80\xa2&nbsp; "
+                "\xf0\x9f\x8f\x9b <b>Mercato %2 (%3):</b>"
+                " \xe2\x82\xac%4k\xe2\x80\x93%5k/anno"
+                " (\xe2\x89\x88\xe2\x82\xac%6/mese)"
+                "</small>")
+        .arg(offertaStr)          /* %1 */
+        .arg(o.tipo)              /* %2 */
+        .arg(livLabel)            /* %3 */
+        .arg(mkt.minA / 1000)    /* %4 */
+        .arg(mkt.maxA / 1000)    /* %5 */
+        .arg(mkt.minA / 12));    /* %6 */
 }
