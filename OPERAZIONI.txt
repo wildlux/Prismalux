@@ -21,19 +21,29 @@ RAG & MEMORIA
 
 AI & MODELLI
 [x] Pipeline → ConfiguraAgenti — AgentsConfigDialog: Salva/Carica preset JSON in KNOWLEDGE_USER/agent_presets/
-[ ] Code interpreter sandbox — verifica Docker, fallback subprocess isolato
+[x] Code interpreter sandbox — Docker run --rm -i -m256m --cpus 0.5 --network none python:3.11-slim
+    Indicatore sandbox in UI (verde/arancio). Fallback PythonExec se Docker assente.
 [x] NPU Intel/AMD — pannello già presente in manutenzione_page (buildNpuGroup) — verificato
 [x] Icone ☁️/🌍 modelli — fix AiUtils::populateModelCombo (passava sempre 0), aggiunta in matematica_page
+[x] Scarica nuovo modello Ollama — campo nome + "⬇ Scarica" con progress stream in buildUpdateGroup()
+[x] Verifica integrità GGUF — SHA-256 via sha256sum, firma salvata in KNOWLEDGE_USER/model_hashes.json
+    Prima run: registra firme. Run successive: confronta e segnala differenze.
 
 UI / UX
 [x] Dark/Light auto da sistema — QStyleHints::colorScheme in theme_manager.cpp + checkbox Impostazioni
 [x] Font DPI adattivo — scaling font-size:Npx in CSS via regex in ThemeManager::apply() (dpi>108)
-[ ] WCAG accessibilità sistematica — setAccessibleName/Description nelle pagine mancanti
-[ ] i18n tr() sistematico — wrappare stringhe UI in tr()
+[x] WCAG accessibilità — setAccessibleName/Description su lavoro_page, manutenzione_page,
+    agenti_page (già presenti), impostazioni_page_ai (già presenti), strumenti_page (già presenti)
+[~] i18n tr() sistematico — wrappare stringhe UI in tr() [bassa priorità, non blocca produzione]
+
+DATI & PERSISTENZA
+[x] Backup automatico KNOWLEDGE_USER/ — QTimer 24h in ManutenzioneePage::installKnowledgeBackupTimer()
+    Copia in KNOWLEDGE_USER/.backup/YYYY-MM-DD_HHmmss/, mantiene ultimi 7 backup.
+    Pulsante "💾 Backup conoscenza ora" per backup manuale. Log in m_updLog.
 
 QUALITÀ CODICE
-[ ] Type checking Python — mypy/pyright su Python_Software/
-[ ] requirements.lock SHA256 — pip-compile → requirements.lock
+[~] Type checking Python — mypy/pyright su Python_Software/ [bassa priorità]
+[~] requirements.lock SHA256 — pip-compile → requirements.lock [bassa priorità]
 
 ────────────────────────────────────────────────
 WEB (lan_server.cpp — HTML/JS embedded)
@@ -56,16 +66,30 @@ MOBILE Android (ANDROID/android_app/)
 [x] Misure 2D piantina — PiantinaWidget QPainter, slider zoom, export PNG, lista stanze + elimina
 [x] BLE peer discovery — pagina 3 BLE: cerca BT Classic, QListWidget, connect RFCOMM client + chat
 [x] Quiz statistiche — tracking per tema in QSettings, dialog tabella con % colorata
-[ ] Notifiche push Android — QtAndroid::notification (richiede Java glue) [!]
+[!] Notifiche push Android — QtAndroid::notification (richiede Java glue) [skip]
 [x] Sync desktop↔mobile — /api/sync GET+POST in lan_server.cpp; pulsante in settings_page Android
+
+────────────────────────────────────────────────
+PRODUZIONE OFFLINE — CHECKLIST FINALE
+────────────────────────────────────────────────
+
+[x] AI 100% locale — Ollama + llama.cpp, zero chiamate cloud durante l'uso
+[x] RAG locale — JLT 256-dim, tutto su disco
+[x] Memoria persistente — KNOWLEDGE_USER/ JSON, nessuna dipendenza cloud
+[x] Backup automatico — KNOWLEDGE_USER/.backup/ ogni 24h, ultimi 7
+[x] Verifica integrità GGUF — SHA-256 con firma persistente in model_hashes.json
+[x] Scarica modelli — "⬇ Scarica" con nome libero + ollama pull stream
+[x] LAN Android — APK + server 11500, offline post-installazione
+[x] Docker sandbox — code interpreter isolato (fallback locale se Docker assente)
+[ ] Aggiornamento app offline — AppImage autosuficiente (richiede CI/CD) [bassa priorità]
 
 ────────────────────────────────────────────────
 TRASVERSALE
 ────────────────────────────────────────────────
 
-[x] Push su GitHub — eseguito in questa sessione
-[x] Test automatici gap — test_sintetizzatore.cpp (19/19 PASS): Tono, OscoCanvas, SintetizzatoreWidget
-[ ] iOS — richiede Swift/Flutter, troppo complesso per ora [!]
+[x] Push su GitHub — eseguito in sessione 2026-05-22
+[x] Test automatici — test_sintetizzatore.cpp (19/19 PASS): Tono, OscoCanvas, SintetizzatoreWidget
+[!] iOS — richiede Swift/Flutter, troppo complesso per ora [skip]
 
 ────────────────────────────────────────────────
 NOTA IMPLEMENTAZIONE

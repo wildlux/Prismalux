@@ -15,6 +15,7 @@ class LanServer;
 #include <QCheckBox>
 #include <QProcess>
 #include <QStringList>
+#include <QMap>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QTableWidget>
@@ -202,6 +203,32 @@ private:
     QString cronNextRun(const QString& schedule) const;
     bool    cronShouldRun(const QString& schedule, const QString& lastRun) const;
 
+    /* ── Scarica nuovo modello Ollama ─────────────────────────────── */
+    QLineEdit*   m_downloadModelEdit = nullptr;
+    QPushButton* m_btnDownloadModel  = nullptr;
+    QLabel*      m_downloadStatusLbl = nullptr;
+    QProcess*    m_downloadProc      = nullptr;
+
+    /* ── Verifica integrità GGUF ──────────────────────────────────── */
+    QPushButton* m_btnVerifyGguf    = nullptr;
+    QLabel*      m_ggufStatusLbl    = nullptr;
+    QProcess*    m_sha256Proc       = nullptr;
+    QStringList  m_ggufToVerify;
+    int          m_ggufVerifyIdx    = 0;
+    QMap<QString,QString> m_ggufHashes;
+    QString      m_sha256Accum;
+
+    void ggufVerifyNext();
+    void loadGgufHashes();
+    void saveGgufHashes();
+
+    /* ── Backup automatico KNOWLEDGE_USER/ ────────────────────────── */
+    QTimer*      m_backupTimer      = nullptr;
+    QLabel*      m_backupStatusLbl  = nullptr;
+
+    void installKnowledgeBackupTimer();
+    void performKnowledgeBackup();
+
     /* ── LAN Server per Android ────────────────────────────────────── */
     LanServer*   m_lanServer    = nullptr;
     QPushButton* m_lanToggleBtn = nullptr;
@@ -249,6 +276,19 @@ private slots:
     void onUpdLlamaBtnClicked();
     void onGitProcFinished(int code, QProcess::ExitStatus status);
     void onGitProcError(QProcess::ProcessError err);
+
+    /* ── Scarica nuovo modello ── */
+    void onDownloadModelClicked();
+    void onDownloadProcReadyRead();
+    void onDownloadProcFinished(int code, QProcess::ExitStatus status);
+
+    /* ── Verifica integrità GGUF ── */
+    void onVerifyGgufClicked();
+    void onSha256ProcReadyRead();
+    void onSha256ProcFinished(int code, QProcess::ExitStatus status);
+
+    /* ── Backup Knowledge ── */
+    void onManualBackupClicked();
 
     /* ── Hardware / RAM / zRAM / NPU ── */
     void onAutoZramCbToggled(bool on);

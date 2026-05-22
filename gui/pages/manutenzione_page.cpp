@@ -16,6 +16,9 @@ namespace P = PrismaluxPaths;
 #include <QTextStream>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
+#include <QCryptographicHash>
+#include <QDateTime>
 #include <QTextEdit>
 #include <QFileDialog>
 #include <QScrollArea>
@@ -46,6 +49,9 @@ ManutenzioneePage::ManutenzioneePage(AiClient* ai, HardwareMonitor* hw, QWidget*
         else if (envMode == "gpu")   m_ai->setNumGpu(-2);   /* provvisorio */
         else if (envMode == "misto") m_ai->setNumGpu(-3);   /* sentinella misto */
     }
+
+    installKnowledgeBackupTimer();
+    loadGgufHashes();
 }
 
 /* ── Stile condiviso per i QGroupBox ─────────────────────────── */
@@ -102,22 +108,26 @@ QGroupBox* ManutenzioneePage::buildConnectionModelGroup(QWidget* parent)
     m_cmbBackend = new QComboBox(grp);
     m_cmbBackend->addItem(QString("\xf0\x9f\x90\xb3  Ollama  (:%1)").arg(P::kOllamaPort));
     m_cmbBackend->addItem(QString("\xf0\x9f\xa6\x99  llama-server  (:%1)").arg(P::kLlamaServerPort));
+    m_cmbBackend->setAccessibleName("Selettore backend AI");
     lay->addWidget(m_cmbBackend);
 
     m_hostEdit = new QLineEdit("127.0.0.1", grp);
     m_hostEdit->setObjectName("chatInput");
     m_hostEdit->setPlaceholderText("Host");
+    m_hostEdit->setAccessibleName("Indirizzo host del backend AI");
     lay->addWidget(new QLabel("Host:", grp));
     lay->addWidget(m_hostEdit);
 
     m_portEdit = new QLineEdit("11434", grp);
     m_portEdit->setObjectName("chatInput");
     m_portEdit->setPlaceholderText("Porta");
+    m_portEdit->setAccessibleName("Porta del backend AI");
     lay->addWidget(new QLabel("Porta:", grp));
     lay->addWidget(m_portEdit);
 
     auto* applyBtn = new QPushButton("Applica \xe2\x96\xb6", grp);
     applyBtn->setObjectName("actionBtn");
+    applyBtn->setAccessibleName("Applica configurazione backend");
     lay->addWidget(applyBtn);
 
     auto* sep = new QFrame(grp);
@@ -128,6 +138,7 @@ QGroupBox* ManutenzioneePage::buildConnectionModelGroup(QWidget* parent)
     lay->addWidget(new QLabel("Modello:", grp));
     m_cmbModel = new QComboBox(grp);
     m_cmbModel->addItem("(nessun modello \xe2\x80\x94 backend non raggiungibile)");
+    m_cmbModel->setAccessibleName("Lista modelli AI disponibili");
     lay->addWidget(m_cmbModel);
 
     lay->addWidget(buildModelButtonRow(grp));
@@ -154,8 +165,10 @@ QWidget* ManutenzioneePage::buildModelButtonRow(QGroupBox* parent)
     refreshBtn->setObjectName("actionBtn");
     refreshBtn->setFixedWidth(36);
     refreshBtn->setToolTip("Aggiorna lista modelli");
+    refreshBtn->setAccessibleName("Aggiorna lista modelli AI");
     auto* setModelBtn = new QPushButton("\xe2\x9c\x93  Usa questo", parent);
     setModelBtn->setObjectName("actionBtn");
+    setModelBtn->setAccessibleName("Attiva il modello selezionato");
     lay->addWidget(refreshBtn);
     lay->addWidget(setModelBtn, 1);
 
@@ -353,9 +366,69 @@ QGroupBox* ManutenzioneePage::buildUpdateGroup(QWidget* parent)
         "Premi \"Aggiorna tutti\" per scaricare le ultime versioni dei modelli Ollama.");
     lay->addWidget(m_updLog);
 
-    connect(verBtn,       &QPushButton::clicked, this, &ManutenzioneePage::onVerifyOllamaVersion);
-    connect(m_updAllBtn,  &QPushButton::clicked, this, &ManutenzioneePage::onUpdAllBtnClicked);
-    connect(m_updLlamaBtn,&QPushButton::clicked, this, &ManutenzioneePage::onUpdLlamaBtnClicked);
+    /* ── Scarica nuovo modello ── */
+    auto* sep1 = new QFrame(grp); sep1->setFrameShape(QFrame::HLine);
+    sep1->setObjectName("sidebarSep"); lay->addWidget(sep1);
+
+    auto* dlRow  = new QWidget(grp);
+    auto* dlRowL = new QHBoxLayout(dlRow);
+    dlRowL->setContentsMargins(0,0,0,0); dlRowL->setSpacing(8);
+    dlRowL->addWidget(new QLabel("\xe2\xac\x87  Scarica nuovo modello Ollama:", dlRow));
+    m_downloadModelEdit = new QLineEdit(dlRow);
+    m_downloadModelEdit->setPlaceholderText("es. llama3.2:3b  \xe2\x80\xa2  qwen2.5-coder:7b");
+    m_downloadModelEdit->setAccessibleName("Nome modello Ollama da scaricare");
+    m_btnDownloadModel = new QPushButton("\xe2\xac\x87  Scarica", dlRow);
+    m_btnDownloadModel->setObjectName("actionBtn");
+    m_btnDownloadModel->setAccessibleName("Avvia download modello Ollama");
+    m_downloadStatusLbl = new QLabel("", dlRow);
+    m_downloadStatusLbl->setObjectName("cardDesc");
+    dlRowL->addWidget(m_downloadModelEdit, 1);
+    dlRowL->addWidget(m_btnDownloadModel);
+    dlRowL->addWidget(m_downloadStatusLbl, 1);
+    lay->addWidget(dlRow);
+
+    /* ── Verifica integrità GGUF ── */
+    auto* sep2 = new QFrame(grp); sep2->setFrameShape(QFrame::HLine);
+    sep2->setObjectName("sidebarSep"); lay->addWidget(sep2);
+
+    auto* ggufRow  = new QWidget(grp);
+    auto* ggufRowL = new QHBoxLayout(ggufRow);
+    ggufRowL->setContentsMargins(0,0,0,0); ggufRowL->setSpacing(8);
+    m_btnVerifyGguf = new QPushButton(
+        "\xf0\x9f\x94\x92  Verifica integrit\xc3\xa0 GGUF", ggufRow);
+    m_btnVerifyGguf->setObjectName("actionBtn");
+    m_btnVerifyGguf->setToolTip("Calcola SHA-256 dei file .gguf in models/ e confronta con le firme salvate");
+    m_btnVerifyGguf->setAccessibleName("Verifica integrità file modelli GGUF tramite SHA-256");
+    m_ggufStatusLbl = new QLabel("", ggufRow);
+    m_ggufStatusLbl->setObjectName("cardDesc");
+    m_ggufStatusLbl->setWordWrap(true);
+    ggufRowL->addWidget(m_btnVerifyGguf);
+    ggufRowL->addWidget(m_ggufStatusLbl, 1);
+    lay->addWidget(ggufRow);
+
+    /* ── Backup automatico KNOWLEDGE_USER/ ── */
+    auto* sep3 = new QFrame(grp); sep3->setFrameShape(QFrame::HLine);
+    sep3->setObjectName("sidebarSep"); lay->addWidget(sep3);
+
+    auto* bkRow  = new QWidget(grp);
+    auto* bkRowL = new QHBoxLayout(bkRow);
+    bkRowL->setContentsMargins(0,0,0,0); bkRowL->setSpacing(8);
+    auto* bkBtn = new QPushButton(
+        "\xf0\x9f\x92\xbe  Backup conoscenza ora", bkRow);
+    bkBtn->setObjectName("actionBtn");
+    bkBtn->setAccessibleName("Esegui backup manuale della cartella KNOWLEDGE_USER");
+    m_backupStatusLbl = new QLabel("Backup automatico ogni 24h.", bkRow);
+    m_backupStatusLbl->setObjectName("cardDesc");
+    bkRowL->addWidget(bkBtn);
+    bkRowL->addWidget(m_backupStatusLbl, 1);
+    lay->addWidget(bkRow);
+
+    connect(verBtn,           &QPushButton::clicked, this, &ManutenzioneePage::onVerifyOllamaVersion);
+    connect(m_updAllBtn,      &QPushButton::clicked, this, &ManutenzioneePage::onUpdAllBtnClicked);
+    connect(m_updLlamaBtn,    &QPushButton::clicked, this, &ManutenzioneePage::onUpdLlamaBtnClicked);
+    connect(m_btnDownloadModel,&QPushButton::clicked, this, &ManutenzioneePage::onDownloadModelClicked);
+    connect(m_btnVerifyGguf,  &QPushButton::clicked, this, &ManutenzioneePage::onVerifyGgufClicked);
+    connect(bkBtn,            &QPushButton::clicked, this, &ManutenzioneePage::onManualBackupClicked);
 
     return grp;
 }
@@ -1818,4 +1891,254 @@ void ManutenzioneePage::onBtnIntelNpuClicked()
     if (m_ramLog) m_ramLog->append("\xf0\x9f\x94\xb5  Installazione intel-npu-acceleration-library...\n");
     runRamCmd("pip", {"install", "intel-npu-acceleration-library"},
                "pip install intel-npu-acceleration-library");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SCARICA NUOVO MODELLO OLLAMA
+   ══════════════════════════════════════════════════════════════ */
+void ManutenzioneePage::onDownloadModelClicked()
+{
+    if (!m_downloadModelEdit) return;
+    const QString model = m_downloadModelEdit->text().trimmed();
+    if (model.isEmpty()) {
+        if (m_downloadStatusLbl) m_downloadStatusLbl->setText(
+            "\xe2\x9d\x8c  Inserisci il nome del modello.");
+        return;
+    }
+    if (m_downloadProc && m_downloadProc->state() != QProcess::NotRunning) {
+        m_downloadProc->kill();
+        return;
+    }
+
+    if (m_updLog) {
+        m_updLog->append(QString("\n\xe2\xac\x87  Download: <b>%1</b>...")
+                         .arg(model.toHtmlEscaped()));
+    }
+    if (m_downloadStatusLbl) m_downloadStatusLbl->setText("\xe2\x8f\xb3  Download...");
+    if (m_btnDownloadModel)  m_btnDownloadModel->setText("\xe2\x8f\xb9  Annulla");
+
+    if (m_downloadProc) { m_downloadProc->deleteLater(); m_downloadProc = nullptr; }
+    m_downloadProc = new QProcess(this);
+    m_downloadProc->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_downloadProc, &QProcess::readyRead,
+            this, &ManutenzioneePage::onDownloadProcReadyRead);
+    connect(m_downloadProc,
+            QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &ManutenzioneePage::onDownloadProcFinished);
+    m_downloadProc->start("ollama", {"pull", model});
+}
+
+void ManutenzioneePage::onDownloadProcReadyRead()
+{
+    if (!m_downloadProc || !m_updLog) return;
+    const QString out = QString::fromLocal8Bit(m_downloadProc->readAll());
+    m_updLog->moveCursor(QTextCursor::End);
+    m_updLog->insertPlainText(out);
+    m_updLog->moveCursor(QTextCursor::End);
+}
+
+void ManutenzioneePage::onDownloadProcFinished(int code, QProcess::ExitStatus)
+{
+    if (m_btnDownloadModel) m_btnDownloadModel->setText("\xe2\xac\x87  Scarica");
+    if (code == 0) {
+        if (m_downloadStatusLbl) m_downloadStatusLbl->setText(
+            "\xe2\x9c\x85  Download completato.");
+        if (m_updLog) m_updLog->append(
+            "\xe2\x9c\x85  <b>Modello scaricato con successo.</b>\n");
+    } else {
+        if (m_downloadStatusLbl) m_downloadStatusLbl->setText(
+            "\xe2\x9d\x8c  Download fallito.");
+        if (m_updLog) m_updLog->append(
+            "\xe2\x9d\x8c  Download terminato con errore.\n");
+    }
+    if (m_downloadProc) { m_downloadProc->deleteLater(); m_downloadProc = nullptr; }
+    if (m_ai) m_ai->fetchModels();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   VERIFICA INTEGRITÀ GGUF (SHA-256)
+   ══════════════════════════════════════════════════════════════ */
+static QString ggufHashesPath()
+{
+    namespace P = PrismaluxPaths;
+    const QString dir = P::root() + "/KNOWLEDGE_USER";
+    QDir().mkpath(dir);
+    return dir + "/model_hashes.json";
+}
+
+void ManutenzioneePage::loadGgufHashes()
+{
+    m_ggufHashes.clear();
+    QFile f(ggufHashesPath());
+    if (!f.open(QIODevice::ReadOnly)) return;
+    const QJsonObject obj = QJsonDocument::fromJson(f.readAll()).object();
+    for (auto it = obj.begin(); it != obj.end(); ++it)
+        m_ggufHashes.insert(it.key(), it.value().toString());
+}
+
+void ManutenzioneePage::saveGgufHashes()
+{
+    QJsonObject obj;
+    for (auto it = m_ggufHashes.cbegin(); it != m_ggufHashes.cend(); ++it)
+        obj.insert(it.key(), it.value());
+    QFile f(ggufHashesPath());
+    if (!f.open(QIODevice::WriteOnly)) return;
+    f.write(QJsonDocument(obj).toJson());
+}
+
+void ManutenzioneePage::onVerifyGgufClicked()
+{
+    namespace P = PrismaluxPaths;
+    if (m_sha256Proc && m_sha256Proc->state() != QProcess::NotRunning) return;
+
+    const QString modelsDir = P::root() + "/models";
+    QDir d(modelsDir);
+    const QStringList ggufFiles = d.entryList({"*.gguf"}, QDir::Files);
+
+    if (ggufFiles.isEmpty()) {
+        if (m_ggufStatusLbl) m_ggufStatusLbl->setText(
+            "\xe2\x84\xb9  Nessun file .gguf trovato in models/");
+        return;
+    }
+
+    m_ggufToVerify.clear();
+    for (const QString& fn : ggufFiles)
+        m_ggufToVerify.append(modelsDir + "/" + fn);
+
+    m_ggufVerifyIdx = 0;
+    m_sha256Accum.clear();
+
+    if (m_updLog) m_updLog->append(
+        QString("\n\xf0\x9f\x94\x92  Verifica integrit\xc3\xa0 %1 file GGUF...\n")
+        .arg(ggufFiles.size()));
+    if (m_ggufStatusLbl) m_ggufStatusLbl->setText(
+        "\xe2\x8f\xb3  Verifica in corso...");
+    if (m_btnVerifyGguf) m_btnVerifyGguf->setEnabled(false);
+
+    ggufVerifyNext();
+}
+
+void ManutenzioneePage::ggufVerifyNext()
+{
+    if (m_ggufVerifyIdx >= m_ggufToVerify.size()) {
+        /* Tutti verificati */
+        saveGgufHashes();
+        if (m_ggufStatusLbl) m_ggufStatusLbl->setText(
+            "\xe2\x9c\x85  Verifica completata. Firme salvate.");
+        if (m_btnVerifyGguf) m_btnVerifyGguf->setEnabled(true);
+        return;
+    }
+
+    const QString path = m_ggufToVerify.at(m_ggufVerifyIdx);
+    m_sha256Accum.clear();
+
+    if (m_sha256Proc) { m_sha256Proc->deleteLater(); m_sha256Proc = nullptr; }
+    m_sha256Proc = new QProcess(this);
+    m_sha256Proc->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_sha256Proc, &QProcess::readyRead,
+            this, &ManutenzioneePage::onSha256ProcReadyRead);
+    connect(m_sha256Proc,
+            QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &ManutenzioneePage::onSha256ProcFinished);
+    m_sha256Proc->start("sha256sum", {path});
+}
+
+void ManutenzioneePage::onSha256ProcReadyRead()
+{
+    if (m_sha256Proc)
+        m_sha256Accum += QString::fromLocal8Bit(m_sha256Proc->readAll());
+}
+
+void ManutenzioneePage::onSha256ProcFinished(int code, QProcess::ExitStatus)
+{
+    if (m_sha256Proc) { m_sha256Proc->deleteLater(); m_sha256Proc = nullptr; }
+
+    const QString path = m_ggufToVerify.value(m_ggufVerifyIdx);
+    const QString filename = QFileInfo(path).fileName();
+
+    if (code == 0) {
+        const QString computed = m_sha256Accum.section(' ', 0, 0).trimmed();
+        const QString stored   = m_ggufHashes.value(filename);
+
+        QString line;
+        if (stored.isEmpty()) {
+            /* Prima verifica: salva la firma */
+            m_ggufHashes.insert(filename, computed);
+            line = QString("\xf0\x9f\x94\x92  %1 \xe2\x80\x94 firma registrata").arg(filename);
+        } else if (stored == computed) {
+            line = QString("\xe2\x9c\x85  %1 \xe2\x80\x94 OK").arg(filename);
+        } else {
+            line = QString("\xe2\x9d\x8c  %1 \xe2\x80\x94 <b>FIRMA NON CORRISPONDENTE</b> "
+                           "(file corrotto o sostituito!)").arg(filename);
+            m_ggufHashes.insert(filename, computed);   /* aggiorna con nuovo hash */
+        }
+        if (m_updLog) {
+            m_updLog->moveCursor(QTextCursor::End);
+            m_updLog->append(line);
+        }
+    } else {
+        if (m_updLog) m_updLog->append(
+            QString("\xe2\x9d\x8c  Errore sha256sum su %1").arg(filename));
+    }
+
+    ++m_ggufVerifyIdx;
+    ggufVerifyNext();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BACKUP AUTOMATICO KNOWLEDGE_USER/
+   ══════════════════════════════════════════════════════════════ */
+void ManutenzioneePage::installKnowledgeBackupTimer()
+{
+    m_backupTimer = new QTimer(this);
+    m_backupTimer->setInterval(24 * 60 * 60 * 1000);   /* 24 ore */
+    m_backupTimer->setSingleShot(false);
+    connect(m_backupTimer, &QTimer::timeout,
+            this, &ManutenzioneePage::onManualBackupClicked);
+    m_backupTimer->start();
+}
+
+void ManutenzioneePage::onManualBackupClicked()
+{
+    performKnowledgeBackup();
+}
+
+void ManutenzioneePage::performKnowledgeBackup()
+{
+    namespace P = PrismaluxPaths;
+    const QString srcDir  = P::root() + "/KNOWLEDGE_USER";
+    const QString dateTag = QDateTime::currentDateTime().toString("yyyy-MM-dd_HHmmss");
+    const QString dstDir  = srcDir + "/.backup/" + dateTag;
+
+    if (!QDir().mkpath(dstDir)) {
+        if (m_backupStatusLbl) m_backupStatusLbl->setText(
+            "\xe2\x9d\x8c  Impossibile creare la cartella di backup.");
+        return;
+    }
+
+    /* Copia ricorsiva dei file in KNOWLEDGE_USER/ (un livello) */
+    QDir src(srcDir);
+    int copied = 0;
+    for (const QString& fn : src.entryList(QDir::Files)) {
+        QFile::copy(src.absoluteFilePath(fn), dstDir + "/" + fn);
+        ++copied;
+    }
+
+    /* Mantieni solo gli ultimi 7 backup */
+    QDir backupRoot(srcDir + "/.backup");
+    QStringList entries = backupRoot.entryList(QDir::Dirs | QDir::NoDotAndDotDot,
+                                               QDir::Name);
+    while (entries.size() > 7) {
+        const QString oldest = entries.takeFirst();
+        QDir old(backupRoot.absoluteFilePath(oldest));
+        for (const QString& f : old.entryList(QDir::Files))
+            QFile::remove(old.absoluteFilePath(f));
+        backupRoot.rmdir(oldest);
+    }
+
+    const QString msg = QString("\xf0\x9f\x92\xbe  Backup %1: %2 file  \xe2\x80\x94  %3")
+        .arg(dateTag).arg(copied)
+        .arg(QDateTime::currentDateTime().toString("HH:mm:ss"));
+    if (m_backupStatusLbl) m_backupStatusLbl->setText(msg);
+    if (m_updLog)          m_updLog->append(msg);
 }

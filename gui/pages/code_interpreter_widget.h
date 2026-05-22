@@ -11,6 +11,7 @@ class QTimer;
 class QSplitter;
 class QGroupBox;
 class QComboBox;
+class QProcess;
 
 /* ══════════════════════════════════════════════════════════════
    CodeInterpreterWidget — Code Interpreter sandboxato
@@ -32,6 +33,7 @@ public:
 private:
     void runGenerate();
     void executeStep(const QString& code, int attempt);
+    void executeStepDocker(const QString& code, int attempt);
     void requestFix(const QString& code, const QString& errSnippet, int attempt);
     void connectAI(std::function<void(const QString&)> onDone);
     void showImage(const QString& path);
@@ -44,6 +46,7 @@ private:
 
     AiClient*       m_ai           = nullptr;
     QObject*        m_tokenHolder  = nullptr;
+    QProcess*       m_dockerProc   = nullptr;
 
     QComboBox*      m_modelCombo   = nullptr;
     QTextEdit*      m_input        = nullptr;
@@ -51,6 +54,7 @@ private:
     QTextEdit*      m_output       = nullptr;
     QLabel*         m_imageLabel   = nullptr;
     QLabel*         m_status       = nullptr;
+    QLabel*         m_sandboxLabel = nullptr;
     QPushButton*    m_btnRun       = nullptr;
     QPushButton*    m_btnStop      = nullptr;
     QPushButton*    m_btnClear     = nullptr;

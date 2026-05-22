@@ -195,10 +195,13 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_cvPath = new QLineEdit(m_cvBox);
     m_cvPath->setPlaceholderText("Percorso file PDF...");
     m_cvPath->setReadOnly(true);
+    m_cvPath->setAccessibleName("Percorso curriculum vitae");
+    m_cvPath->setAccessibleDescription("Campo sola lettura con il percorso del file PDF del curriculum");
 
     auto* sfogliaBtn = new QPushButton("\xf0\x9f\x93\x82 Sfoglia...", m_cvBox);
     sfogliaBtn->setObjectName("actionBtn");
     sfogliaBtn->setFixedWidth(90);
+    sfogliaBtn->setAccessibleName("Sfoglia file curriculum");
 
     m_cvStatus = new QLabel("Nessun CV caricato", m_cvBox);
     m_cvStatus->setObjectName("pageSubtitle");
@@ -216,6 +219,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_cmbModello->setObjectName("cmbModello");
     m_cmbModello->setMinimumWidth(180);
     m_cmbModello->addItem("\xf0\x9f\x94\x84 Caricamento modelli...");
+    m_cmbModello->setAccessibleName("Selettore modello AI per analisi lavoro");
 
     {
         const QString cur = m_ai->model();
@@ -267,6 +271,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     filtriL->addWidget(new QLabel("\xf0\x9f\x94\x8d Tipo:", m_filtriRow));
     m_filtroTipo = new QComboBox(m_filtriRow);
     m_filtroTipo->setObjectName("filtroTipo");
+    m_filtroTipo->setAccessibleName("Filtro tipo di lavoro");
     m_filtroTipo->setFixedWidth(185);
 
     const struct { const char* label; const char* data; } tipi[] = {
@@ -294,6 +299,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_filtroLivello = new QComboBox(m_filtriRow);
     m_filtroLivello->setObjectName("filtroLivello");
     m_filtroLivello->setFixedWidth(210);
+    m_filtroLivello->setAccessibleName("Filtro livello di istruzione richiesto");
 
     const struct { const char* label; const char* data; } livelli[] = {
         {"Tutti i livelli",                      "tutti"},
@@ -321,15 +327,18 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_analizzaUrlBtn = new QPushButton("\xf0\x9f\x94\x97 Analizza URL", m_filtriRow);
     m_analizzaUrlBtn->setObjectName("actionBtn");
     m_analizzaUrlBtn->setToolTip("Analizza uno o più URL di annunci di lavoro");
+    m_analizzaUrlBtn->setAccessibleName("Analizza annuncio di lavoro tramite URL");
     m_analizzaCvBtn = new QPushButton("\xf0\x9f\xa4\x96 Analizza CV", m_filtriRow);
     m_analizzaCvBtn->setObjectName("actionBtn");
     m_analizzaCvBtn->setToolTip("Chiedi all'AI di analizzare il tuo CV con una domanda predefinita o personalizzata");
+    m_analizzaCvBtn->setAccessibleName("Analizza curriculum vitae con AI");
     m_stopAiBtn = new QPushButton("\xe2\x8f\xb9", m_filtriRow);
     m_stopAiBtn->setObjectName("actionBtn");
     m_stopAiBtn->setProperty("danger", true);
     m_stopAiBtn->setFixedWidth(28);
     m_stopAiBtn->setEnabled(false);
     m_stopAiBtn->setToolTip("Interrompi elaborazione AI");
+    m_stopAiBtn->setAccessibleName("Interrompi elaborazione AI");
     filtriL->addWidget(m_analizzaUrlBtn);
     filtriL->addWidget(m_analizzaCvBtn);
     filtriL->addWidget(m_stopAiBtn);
@@ -409,8 +418,10 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     trkTitleLbl->setTextFormat(Qt::RichText);
     m_trackerAddBtn = new QPushButton("\xe2\x9e\x95 Aggiungi", trkHdrRow);
     m_trackerAddBtn->setObjectName("actionBtn");
+    m_trackerAddBtn->setAccessibleName("Aggiungi candidatura al tracker");
     m_trackerDelBtn = new QPushButton("\xf0\x9f\x97\x91 Rimuovi", trkHdrRow);
     m_trackerDelBtn->setObjectName("actionBtn");
+    m_trackerDelBtn->setAccessibleName("Rimuovi candidatura selezionata dal tracker");
     trkHdrL->addWidget(trkTitleLbl, 1);
     trkHdrL->addWidget(m_trackerAddBtn);
     trkHdrL->addWidget(m_trackerDelBtn);
@@ -442,6 +453,10 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_calcMensile = new QLineEdit(calcBox);
     m_calcAnnuo   = new QLineEdit(calcBox);
     m_calcOrario  = new QLineEdit(calcBox);
+    m_calcOre->setAccessibleName("Ore di lavoro settimanali");
+    m_calcMensile->setAccessibleName("Stipendio lordo mensile in euro");
+    m_calcAnnuo->setAccessibleName("Stipendio lordo annuo in euro");
+    m_calcOrario->setAccessibleName("Paga oraria in euro");
     m_calcNettoLbl = new QLabel("\xe2\x80\x94", calcBox);
     m_calcNettoLbl->setTextFormat(Qt::RichText);
 
