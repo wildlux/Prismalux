@@ -53,6 +53,7 @@ namespace P = PrismaluxPaths;
 #include <QColorDialog>
 #include <QPainter>
 #include <QPen>
+#include <QFont>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -542,6 +543,7 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
         hdrLay->addWidget(makeHdr("Nome", 160));
         hdrLay->addWidget(makeHdr("Descrizione"), 1);
         hdrLay->addWidget(makeHdr("Installazione", 260));
+        hdrLay->addWidget(makeHdr("", 90));   /* colonna pulsante Installa */
         listLayout->addWidget(hdr);
     }
 
@@ -552,8 +554,9 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
     listLayout->addWidget(sepTop);
 
     /* Raccoglie i puntatori ai label di stato per aggiornarli */
-    QVector<QLabel*>  statusDots;
-    QVector<QString>  execs;
+    QVector<QLabel*>      statusDots;
+    QVector<QString>      execs;
+    QVector<QPushButton*> installBtns;
 
     const int nDeps = static_cast<int>(sizeof(kDeps) / sizeof(kDeps[0]));
     for (int i = 0; i < nDeps; ++i) {
@@ -592,14 +595,131 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
         installLbl->setFixedWidth(260);
         installLbl->setWordWrap(true);
 
+        /* Pulsante Installa — visibile solo dopo verifica se rosso */
+        auto* installBtn = new QPushButton(
+            "\xf0\x9f\x92\xbe  " "Installa", row);
+        installBtn->setFixedWidth(90);
+        installBtn->setToolTip(QString::fromUtf8(d.install));
+        installBtn->setObjectName("actionBtn");
+        installBtn->setVisible(false);
+
+        /* Nasconde il bottone per dipendenze senza exec (Qt / sistema) */
+        if (QByteArray(d.exec).isEmpty())
+            installBtn->setVisible(false);   /* rimarrà nascosto sempre */
+
         rowLay->addWidget(dot);
         rowLay->addWidget(nameLbl);
         rowLay->addWidget(descLbl, 1);
         rowLay->addWidget(installLbl);
+        rowLay->addWidget(installBtn);
 
         listLayout->addWidget(row);
         statusDots.append(dot);
         execs.append(QString::fromUtf8(d.exec));
+        installBtns.append(installBtn);
+
+        /* ── Comando di installazione per il dialog ── */
+        QString installCmd = QString::fromUtf8(d.install);
+        QString depName    = QString::fromUtf8(d.name);
+
+        /* Casi speciali */
+        if (QByteArray(d.exec) == "llama-cli") {
+            installCmd = "cmake --build gui/build -j$(nproc)";
+        } else if (QByteArray(d.exec) == "piper") {
+            installCmd = "# Vedi https://github.com/rhasspy/piper per il binario";
+        }
+
+        /* Connessione click bottone Installa */
+        QObject::connect(installBtn, &QPushButton::clicked,
+                         installBtn, [installBtn, depName, installCmd]() {
+            auto* dlg = new QDialog(installBtn->window());
+            dlg->setWindowTitle(
+                QString("Installa %1").arg(depName));
+            dlg->setAttribute(Qt::WA_DeleteOnClose);
+            dlg->setMinimumWidth(480);
+
+            auto* dlgLayout = new QVBoxLayout(dlg);
+            dlgLayout->setSpacing(10);
+            dlgLayout->setContentsMargins(16, 16, 16, 12);
+
+            /* Descrizione */
+            auto* cmdLbl = new QLabel(
+                QString("<b>Comando di installazione per <i>%1</i>:</b>")
+                    .arg(depName));
+            cmdLbl->setTextFormat(Qt::RichText);
+            dlgLayout->addWidget(cmdLbl);
+
+            /* Campo read-only con il comando */
+            auto* cmdEdit = new QLineEdit(installCmd, dlg);
+            cmdEdit->setReadOnly(true);
+            cmdEdit->setFont(QFont("monospace"));
+            cmdEdit->setCursorPosition(0);
+            dlgLayout->addWidget(cmdEdit);
+
+            /* Riga pulsanti azione */
+            auto* btnRow    = new QWidget(dlg);
+            auto* btnRowLay = new QHBoxLayout(btnRow);
+            btnRowLay->setContentsMargins(0, 0, 0, 0);
+            btnRowLay->setSpacing(8);
+
+            auto* copyBtn     = new QPushButton(
+                "\xf0\x9f\x93\x8b " "Copia", dlg);
+            auto* terminalBtn = new QPushButton(
+                "\xf0\x9f\x96\xa5 " "Apri terminale", dlg);
+            auto* closeBtn    = new QPushButton("Chiudi", dlg);
+
+            copyBtn->setObjectName("actionBtn");
+            terminalBtn->setObjectName("actionBtn");
+
+            btnRowLay->addWidget(copyBtn);
+            btnRowLay->addWidget(terminalBtn);
+            btnRowLay->addStretch();
+            btnRowLay->addWidget(closeBtn);
+            dlgLayout->addWidget(btnRow);
+
+            /* Copia negli appunti */
+            QObject::connect(copyBtn, &QPushButton::clicked,
+                             copyBtn, [installCmd, copyBtn]() {
+                QGuiApplication::clipboard()->setText(installCmd);
+                copyBtn->setText("\xe2\x9c\x85 " "Copiato!");
+                QTimer::singleShot(1500, copyBtn, [copyBtn]() {
+                    copyBtn->setText("\xf0\x9f\x93\x8b " "Copia");
+                });
+            });
+
+            /* Apri terminale con il comando */
+            QObject::connect(terminalBtn, &QPushButton::clicked,
+                             terminalBtn, [installCmd]() {
+                /* Salta i comandi-commento (es. piper) */
+                if (installCmd.startsWith("#"))
+                    return;
+                /* Sostituisce le virgolette doppie con singole per sicurezza nella shell */
+                QString safeCmd = QString(installCmd).replace('"', '\'');
+                const QStringList terminals = {
+                    "x-terminal-emulator",
+                    "xterm",
+                    "konsole",
+                    "gnome-terminal"
+                };
+                for (const QString& term : terminals) {
+                    if (!QStandardPaths::findExecutable(term).isEmpty()) {
+                        QProcess::startDetached(
+                            term,
+                            QStringList() << "-e"
+                                << ("bash -c \""
+                                    + safeCmd
+                                    + " ; exec bash\""));
+                        return;
+                    }
+                }
+            });
+
+            /* Chiudi */
+            QObject::connect(closeBtn, &QPushButton::clicked,
+                             dlg, &QDialog::accept);
+
+            dlg->exec();
+        });
     }
     listLayout->addStretch();
     scroll->setWidget(container);
@@ -616,13 +736,14 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
 
     /* ── Connessione verifica ── */
     QObject::connect(verifyBtn, &QPushButton::clicked, verifyBtn,
-        [statusDots, execs]() {
+        [statusDots, execs, installBtns]() {
         for (int i = 0; i < statusDots.size(); ++i) {
             const QString& ex = execs[i];
             if (ex.isEmpty()) {
                 /* Qt / sistema — sempre disponibile */
                 statusDots[i]->setStyleSheet(
                     "color:#4ade80;font-size:10px;");   /* verde */
+                installBtns[i]->setVisible(false);
                 continue;
             }
             /* Per llama-server/llama-cli: cerca anche nel build locale di Prismalux */
@@ -636,6 +757,8 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
             statusDots[i]->setStyleSheet(found
                 ? "color:#4ade80;font-size:10px;"   /* verde */
                 : "color:#f87171;font-size:10px;");  /* rosso */
+            /* Mostra il bottone Installa solo se la dipendenza non è trovata */
+            installBtns[i]->setVisible(!found);
         }
     });
 

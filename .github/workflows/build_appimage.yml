@@ -1,0 +1,283 @@
+name: Build AppImage
+
+on:
+  push:
+    branches: [master]
+    tags:
+      - "v*"
+    paths:
+      - "gui/**"
+      - "ICONA/**"
+      - ".github/workflows/build_appimage.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt6 dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            qt6-base-dev \
+            qt6-base-private-dev \
+            libqt6network6-dev \
+            cmake \
+            ninja-build \
+            libgl1-mesa-dev \
+            libgles2-mesa-dev \
+            libfuse2 \
+            patchelf \
+            libxcb-cursor0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-xinerama0 \
+            libxcb-xkb1 \
+            libxkbcommon-x11-0
+
+      - name: Configure CMake
+        run: cmake -B gui/build -S gui -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build gui/build -j$(nproc)
+
+      - name: Read version from CMakeLists.txt
+        id: version
+        run: |
+          VERSION=$(grep -m1 'project(Prismalux_GUI VERSION' gui/CMakeLists.txt \
+                    | grep -oE '[0-9]+\.[0-9]+' | head -1)
+          VERSION="${VERSION:-$(date +%Y%m%d)}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare AppDir structure
+        run: |
+          ROOT="$(pwd)"
+          BUILD_DIR="${ROOT}/gui/build"
+          APPDIR="${ROOT}/AppDir"
+          QT_LIBS_DIR="/usr/lib/x86_64-linux-gnu"
+          QT_PLUGINS_DIR="${QT_LIBS_DIR}/qt6/plugins"
+
+          # Crea struttura AppDir
+          mkdir -p "${APPDIR}/usr/bin"
+          mkdir -p "${APPDIR}/usr/lib"
+          mkdir -p "${APPDIR}/usr/plugins/platforms"
+          mkdir -p "${APPDIR}/usr/plugins/xcbglintegrations"
+          mkdir -p "${APPDIR}/usr/plugins/imageformats"
+          mkdir -p "${APPDIR}/usr/plugins/iconengines"
+          mkdir -p "${APPDIR}/usr/plugins/platformthemes"
+          mkdir -p "${APPDIR}/usr/plugins/styles"
+          mkdir -p "${APPDIR}/usr/plugins/tls"
+          mkdir -p "${APPDIR}/usr/share/icons/hicolor/256x256/apps"
+
+          # Copia eseguibile
+          cp "${BUILD_DIR}/Prismalux_GUI" "${APPDIR}/usr/bin/Prismalux_GUI"
+          chmod +x "${APPDIR}/usr/bin/Prismalux_GUI"
+
+          # Copia temi QSS (applicationDirPath()/themes/ a runtime)
+          if [ -d "${BUILD_DIR}/themes" ]; then
+            cp -r "${BUILD_DIR}/themes" "${APPDIR}/usr/bin/themes"
+          fi
+
+          # Funzione copia libreria con dedup
+          _copy_lib() {
+            local lib="$1"
+            local dest="${APPDIR}/usr/lib"
+            [ -f "$lib" ] || return 0
+            local bn
+            bn="$(basename "$lib")"
+            [ -f "${dest}/${bn}" ] && return 0
+            cp "$lib" "${dest}/"
+            if [ -L "$lib" ]; then
+              local real
+              real="$(readlink -f "$lib")"
+              [ -f "${dest}/$(basename "$real")" ] || cp "$real" "${dest}/" 2>/dev/null || true
+            fi
+          }
+
+          # Dipendenze del binario (escluse librerie di sistema base)
+          while IFS= read -r line; do
+            lib_path=$(echo "$line" | awk '{print $3}')
+            [ -f "$lib_path" ] || continue
+            case "$(basename "$lib_path")" in
+              libc.so*|libpthread.so*|libdl.so*|librt.so*|libm.so*|\
+              libgcc_s.so*|ld-linux*.so*|libGL.so*|libEGL.so*|\
+              libdrm.so*|libGLX.so*|libOpenGL.so*|libGLdispatch.so*)
+                continue ;;
+            esac
+            _copy_lib "$lib_path"
+          done < <(ldd "${APPDIR}/usr/bin/Prismalux_GUI" 2>/dev/null)
+
+          # Librerie Qt6 aggiuntive usate dai plugin
+          QT6_NEEDED=(
+            libQt6Widgets libQt6Network libQt6Gui libQt6Core libQt6DBus
+            libQt6OpenGL libQt6OpenGLWidgets libQt6PrintSupport
+            libQt6Svg libQt6Xml libQt6Concurrent
+            libicui18n libicuuc libicudata
+            libstdc++ libdouble-conversion libpcre2-16 libzstd
+            libharfbuzz libfreetype libfontconfig libpng16
+            libxkbcommon libxkbcommon-x11 libxcb libxcb-util
+            libxcb-cursor libxcb-icccm4 libxcb-image libxcb-keysyms1
+            libxcb-randr libxcb-render libxcb-render-util libxcb-shape
+            libxcb-shm libxcb-sync libxcb-xfixes libxcb-xinerama
+            libxcb-xkb libX11 libX11-xcb libXext libmd4c libb2
+          )
+          for lib_name in "${QT6_NEEDED[@]}"; do
+            lib_path=$(find "${QT_LIBS_DIR}" -maxdepth 1 -name "${lib_name}.so*" 2>/dev/null | head -1)
+            [ -n "$lib_path" ] && _copy_lib "$lib_path" || true
+          done
+
+          # Plugin Qt — copia con le loro dipendenze
+          _copy_plugin() {
+            local src="$1"
+            local dest_subdir="$2"
+            [ -f "$src" ] || return 0
+            cp "$src" "${APPDIR}/usr/plugins/${dest_subdir}/"
+            while IFS= read -r line; do
+              local lp
+              lp=$(echo "$line" | awk '{print $3}')
+              [ -f "$lp" ] || continue
+              case "$(basename "$lp")" in
+                libc.so*|libpthread.so*|libm.so*|libdl.so*|librt.so*|libgcc_s.so*|ld-linux*.so*) continue ;;
+              esac
+              _copy_lib "$lp"
+            done < <(ldd "$src" 2>/dev/null)
+          }
+
+          # Platform plugins
+          for f in "${QT_PLUGINS_DIR}/platforms/libqxcb.so" \
+                    "${QT_PLUGINS_DIR}/platforms/libqminimal.so" \
+                    "${QT_PLUGINS_DIR}/platforms/libqoffscreen.so"; do
+            _copy_plugin "$f" "platforms"
+          done
+
+          # XCB GL integrations
+          for f in "${QT_PLUGINS_DIR}/xcbglintegrations"/*.so; do
+            [ -f "$f" ] && _copy_plugin "$f" "xcbglintegrations" || true
+          done
+
+          # Image formats
+          for f in "${QT_PLUGINS_DIR}/imageformats"/libq{gif,jpeg,png,svg,ico,webp}.so; do
+            _copy_plugin "$f" "imageformats" 2>/dev/null || true
+          done
+
+          # Icon engines
+          for f in "${QT_PLUGINS_DIR}/iconengines"/*.so; do
+            [ -f "$f" ] && _copy_plugin "$f" "iconengines" || true
+          done
+
+          # Platform themes
+          for f in "${QT_PLUGINS_DIR}/platformthemes"/*.so; do
+            [ -f "$f" ] && _copy_plugin "$f" "platformthemes" || true
+          done
+
+          # Styles
+          for f in "${QT_PLUGINS_DIR}/styles"/*.so; do
+            [ -f "$f" ] && _copy_plugin "$f" "styles" || true
+          done
+
+          # TLS (networking HTTPS)
+          for f in "${QT_PLUGINS_DIR}/tls"/*.so; do
+            [ -f "$f" ] && _copy_plugin "$f" "tls" || true
+          done
+
+          # qt.conf — percorsi plugin relativi
+          cat > "${APPDIR}/usr/bin/qt.conf" <<'QTCONF'
+          [Paths]
+          Prefix = ..
+          Plugins = plugins
+          Libraries = lib
+          QTCONF
+
+          # Icona
+          ICON_SRC="${ROOT}/ICONA/prismalux.png"
+          if [ -f "$ICON_SRC" ]; then
+            cp "$ICON_SRC" "${APPDIR}/prismalux.png"
+            cp "$ICON_SRC" "${APPDIR}/usr/share/icons/hicolor/256x256/apps/prismalux.png"
+          fi
+          ln -sf "usr/share/icons/hicolor/256x256/apps/prismalux.png" \
+                 "${APPDIR}/.DirIcon" 2>/dev/null || true
+
+          # .desktop file
+          cat > "${APPDIR}/prismalux.desktop" <<'DESK'
+          [Desktop Entry]
+          Version=1.0
+          Type=Application
+          Name=Prismalux
+          GenericName=AI Platform
+          Comment=Pipeline Agenti - Tutor AI - Matematica - Grafici
+          Exec=Prismalux_GUI
+          Icon=prismalux
+          Terminal=false
+          Categories=Education;Science;Utility;
+          Keywords=AI;agenti;matematica;tutor;ollama;
+          StartupNotify=true
+          StartupWMClass=Prismalux_GUI
+          DESK
+
+          # AppRun
+          cat > "${APPDIR}/AppRun" <<'APPRUN'
+          #!/usr/bin/env bash
+          HERE="$(dirname "$(readlink -f "$0")")"
+          export LD_LIBRARY_PATH="${HERE}/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export QT_PLUGIN_PATH="${HERE}/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
+          if [ -z "${WAYLAND_DISPLAY}" ] && [ -z "${QT_QPA_PLATFORM}" ]; then
+            export QT_QPA_PLATFORM=xcb
+          fi
+          export FONTCONFIG_PATH="/etc/fonts"
+          export QT_AUTO_SCREEN_SCALE_FACTOR=1
+          exec "${HERE}/usr/bin/Prismalux_GUI" "$@"
+          APPRUN
+          chmod +x "${APPDIR}/AppRun"
+
+          echo "AppDir preparata."
+
+      - name: Download appimagetool
+        run: |
+          curl -fsSL -o /tmp/appimagetool \
+            "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x /tmp/appimagetool
+
+      - name: Create AppImage
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 /tmp/appimagetool \
+            --no-appstream \
+            AppDir \
+            "Prismalux-x86_64.AppImage" 2>&1
+          echo "AppImage creata: $(ls -lh Prismalux-x86_64.AppImage | awk '{print $5}')"
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Prismalux-Linux-x86_64-AppImage
+          path: Prismalux-x86_64.AppImage
+          retention-days: 7
+
+      # ── Crea release su GitHub solo per tag v* ─────────────────────────
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Prismalux-x86_64.AppImage
+          generate_release_notes: true
+          name: "Prismalux ${{ github.ref_name }}"
+          body: |
+            ## Prismalux ${{ github.ref_name }} — AppImage Linux
+
+            AppImage autosufficiente per Linux x86_64. Include Qt6, tutti i plugin e i temi QSS.
+
+            ### Installazione
+            ```bash
+            chmod +x Prismalux-x86_64.AppImage
+            ./Prismalux-x86_64.AppImage
+            ```
+
+            Requisiti: Ollama in esecuzione su `localhost:11434`.

@@ -183,6 +183,16 @@ add_custom_command(TARGET Prismalux_GUI POST_BUILD
 
 message(STATUS "Prismalux GUI: grafico_page include SmithPrime (idx 7) + MathConst-pi-e-Primi (idx 8)")
 
+# ── i18n — QTranslator ───────────────────────────────────────────────────────
+find_package(Qt6 COMPONENTS LinguistTools QUIET)
+if(Qt6LinguistTools_FOUND)
+    qt6_add_translation(QM_FILES
+        i18n/prismalux_it.ts
+        i18n/prismalux_en.ts
+    )
+    target_sources(Prismalux_GUI PRIVATE ${QM_FILES})
+endif()
+
 # ── clang-tidy (analisi statica): attiva con -DENABLE_CLANG_TIDY=ON ──────
 # Richiede: sudo apt install clang-tidy-18
 # Uso: cmake -B build_tidy -DENABLE_CLANG_TIDY=ON && cmake --build build_tidy --target tidy

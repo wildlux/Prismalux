@@ -1,5 +1,5 @@
 ═══════════════════════════════════════════════════════════════
-  PRISMALUX — OPERAZIONI DA COMPLETARE  (aggiornato 2026-05-22)
+  PRISMALUX — OPERAZIONI DA COMPLETARE  (aggiornato 2026-05-23)
 ═══════════════════════════════════════════════════════════════
 Legenda: [ ] da fare · [x] fatto · [~] parziale · [!] skip/troppo complesso
 
@@ -42,8 +42,8 @@ DATI & PERSISTENZA
     Pulsante "💾 Backup conoscenza ora" per backup manuale. Log in m_updLog.
 
 QUALITÀ CODICE
-[~] Type checking Python — mypy/pyright su Python_Software/ [bassa priorità]
-[~] requirements.lock SHA256 — pip-compile → requirements.lock [bassa priorità]
+[x] Type checking Python — pyproject.toml con [tool.mypy] creato nella root (strict=false, ignore_missing_imports=true)
+[x] requirements.lock SHA256 — requirements.lock creato con hash SHA256 da PyPI JSON API (requests, numpy, gns3fy, graphviz)
 
 ────────────────────────────────────────────────
 WEB (lan_server.cpp — HTML/JS embedded)
@@ -81,7 +81,7 @@ PRODUZIONE OFFLINE — CHECKLIST FINALE
 [x] Scarica modelli — "⬇ Scarica" con nome libero + ollama pull stream
 [x] LAN Android — APK + server 11500, offline post-installazione
 [x] Docker sandbox — code interpreter isolato (fallback locale se Docker assente)
-[ ] Aggiornamento app offline — AppImage autosuficiente (richiede CI/CD) [bassa priorità]
+[x] Aggiornamento app offline — GitHub Actions build_appimage.yml: artifact 7gg su push/master, release su tag v*
 
 ────────────────────────────────────────────────
 TRASVERSALE
@@ -97,3 +97,27 @@ NOTA IMPLEMENTAZIONE
 - Build sempre da: cd gui && cmake --build build -j$(nproc)
 - Nuovo file cpp → aggiungere in gui/CMakeLists.txt (CPP_SRCS)
 - Nuovo file mobile → aggiungere in ANDROID/android_app/CMakeLists.txt
+
+────────────────────────────────────────────────
+SESSIONE 2026-05-23 — Operazioni bassa priorità
+────────────────────────────────────────────────
+[x] GitHub Actions AppImage — .github/workflows/build_appimage.yml
+    Trigger: push/master + tag v* + workflow_dispatch
+    Runner: ubuntu-22.04 — Qt6 apt, cmake, appimagetool
+    Artifact: Prismalux-Linux-x86_64-AppImage (7 giorni)
+    Release: solo su tag v* via softprops/action-gh-release@v2
+    Struttura AppDir ispirata a scripts/crea_appimage.sh (stesso layout, plugin, AppRun)
+
+[x] i18n QTranslator — gui/i18n/prismalux_it.ts + prismalux_en.ts (file TS Qt Linguist vuoti)
+    gui/CMakeLists.txt: aggiunto blocco find_package(Qt6 LinguistTools QUIET) + qt6_add_translation()
+    dopo la riga message(STATUS "...SmithPrime...") — non tocca sorgenti esistenti
+
+[x] mypy type checking — pyproject.toml nella root con [tool.mypy]
+    python_version=3.10, strict=false, ignore_missing_imports=true
+    Esclude: llama.cpp/, .venv/, build*/, AppDir/
+    Scope: MCPs/ Test/ scripts/ llama_cpp_studio/ IOS/
+
+[x] requirements.lock SHA256 — requirements.lock nella root
+    Hash SHA256 da PyPI JSON API per: requests==2.34.2, numpy==2.4.6, gns3fy==0.8.0, graphviz==0.21
+    Include dipendenze dirette di requests (charset-normalizer, idna, urllib3, certifi)
+    Formato: pip --require-hashes compatibile

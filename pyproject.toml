@@ -1,0 +1,27 @@
+[tool.mypy]
+# Prismalux — configurazione mypy (type checking Python)
+# Esecuzione: mypy MCPs/ Test/ scripts/ llama_cpp_studio/
+# Installazione: pip install mypy
+
+python_version = "3.10"
+strict = false
+ignore_missing_imports = true
+warn_unused_ignores = false
+warn_return_any = false
+disallow_untyped_defs = false
+
+# Esclude cartelle di terze parti e build
+exclude = [
+    "llama\\.cpp/",
+    "llama_cpp_studio/llama\\.cpp/",
+    "\\.venv/",
+    "build.*/",
+    "AppDir/",
+]
+
+# Percorsi monitorati (eseguire: mypy --config-file pyproject.toml MCPs/ Test/ scripts/)
+# MCPs/ — server MCP JSON-RPC 2.0 stdio
+# Test/  — test di integrazione Ollama
+# scripts/ — crea_zip_windows.py
+# llama_cpp_studio/ — studio llama.cpp
+# IOS/ — prototipo PySide6 iOS (non deploy reale)
