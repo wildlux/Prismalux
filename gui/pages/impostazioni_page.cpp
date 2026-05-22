@@ -531,7 +531,85 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
                          canvas, [canvas](int idx){ canvas->setAxes3dPos(idx + 1); });
     axForm->addRow("Assi 3D:", cmb3d);
     axLay->addLayout(axForm);
-    outer->addWidget(axCard);
+    axLay->addStretch();
+
+    /* ── Sezione 3: Palette serie (affiancata ad Assi) ────────── */
+    auto* palCard = new QFrame(inner);
+    palCard->setObjectName("cardFrame");
+    auto* palLay  = new QVBoxLayout(palCard);
+    palLay->setContentsMargins(14,12,14,12);
+    palLay->setSpacing(10);
+
+    auto* palTitle = new QLabel("\xf0\x9f\x8e\xb2  Colori serie (palette)", palCard);  /* 🎲 */
+    palTitle->setObjectName("cardTitle");
+    palLay->addWidget(palTitle);
+
+    auto* palDesc = new QLabel("8 colori ciclici per le linee/barre. Svuota per usare la palette interna.", palCard);
+    palDesc->setObjectName("cardDesc");
+    palDesc->setWordWrap(true);
+    palLay->addWidget(palDesc);
+
+    /* 8 default palette interna */
+    static const QColor kDefaultPal[] = {
+        {0x00,0xbf,0xd8}, {0xff,0x79,0x5a}, {0x73,0xe2,0x73},
+        {0xff,0xd7,0x6e}, {0xb0,0x90,0xff}, {0xff,0x82,0xc2},
+        {0x5a,0xd7,0xff}, {0xff,0xa0,0x50}
+    };
+
+    auto* palBtnRow = new QWidget(palCard);
+    auto* palBtnLay = new QHBoxLayout(palBtnRow);
+    palBtnLay->setContentsMargins(0,0,0,0);
+    palBtnLay->setSpacing(6);
+
+    QVector<QPushButton*> palBtns;
+    for (int pi = 0; pi < 8; pi++) {
+        QColor init = (canvas && canvas->style().palette.size() > pi)
+                       ? canvas->style().palette[pi]
+                       : kDefaultPal[pi];
+        auto* pb = makeColorBtn(palBtnRow, init, [canvas, pi, saveStyle, &palBtns](QColor c){
+            if (!canvas) return;
+            auto& pal = canvas->style().palette;
+            if (pal.size() < 8) {
+                pal.clear();
+                for (const QColor& dc : kDefaultPal) pal << dc;
+            }
+            if (pi < pal.size()) pal[pi] = c;
+            canvas->update();
+            saveStyle();
+        });
+        palBtns.append(pb);
+        palBtnLay->addWidget(pb);
+    }
+    palBtnLay->addStretch();
+    palLay->addWidget(palBtnRow);
+
+    auto* btnResetPal = new QPushButton(
+        "\xe2\x86\xaa  Ripristina palette default", palCard);  /* ↪ */
+    btnResetPal->setObjectName("actionBtn");
+    QObject::connect(btnResetPal, &QPushButton::clicked, palCard,
+        [canvas, saveStyle, palBtns]() mutable {
+            if (!canvas) return;
+            canvas->style().palette.clear();
+            canvas->update();
+            saveStyle();
+            for (int pi = 0; pi < palBtns.size(); pi++) {
+                palBtns[pi]->setStyleSheet(
+                    QString("QPushButton { background:%1; border:1px solid rgba(255,255,255,0.25);"
+                            " border-radius:4px; }").arg(kDefaultPal[pi].name()));
+                palBtns[pi]->setProperty("currentColor", kDefaultPal[pi].name());
+            }
+        });
+    palLay->addWidget(btnResetPal);
+    palLay->addStretch();
+
+    /* ── Riga 1: Posizione Assi + Palette ─────────────────────── */
+    auto* row1 = new QWidget(inner);
+    auto* row1Lay = new QHBoxLayout(row1);
+    row1Lay->setContentsMargins(0,0,0,0);
+    row1Lay->setSpacing(12);
+    row1Lay->addWidget(axCard, 1);
+    row1Lay->addWidget(palCard, 1);
+    outer->addWidget(row1);
 
     /* ── Sezione 2: Colori ─────────────────────────────────────── */
     auto* colCard = new QFrame(inner);
@@ -585,81 +663,9 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
     colForm->addRow("Testo assi:", btnText);
 
     colLay->addLayout(colForm);
-    outer->addWidget(colCard);
+    colLay->addStretch();
 
-    /* ── Sezione 3: Palette serie ──────────────────────────────── */
-    auto* palCard = new QFrame(inner);
-    palCard->setObjectName("cardFrame");
-    auto* palLay  = new QVBoxLayout(palCard);
-    palLay->setContentsMargins(14,12,14,12);
-    palLay->setSpacing(10);
-
-    auto* palTitle = new QLabel("\xf0\x9f\x8e\xb2  Colori serie (palette)", palCard);  /* 🎲 */
-    palTitle->setObjectName("cardTitle");
-    palLay->addWidget(palTitle);
-
-    auto* palDesc = new QLabel("8 colori ciclici per le linee/barre. Svuota per usare la palette interna.", palCard);
-    palDesc->setObjectName("cardDesc");
-    palDesc->setWordWrap(true);
-    palLay->addWidget(palDesc);
-
-    /* 8 default palette interna */
-    static const QColor kDefaultPal[] = {
-        {0x00,0xbf,0xd8}, {0xff,0x79,0x5a}, {0x73,0xe2,0x73},
-        {0xff,0xd7,0x6e}, {0xb0,0x90,0xff}, {0xff,0x82,0xc2},
-        {0x5a,0xd7,0xff}, {0xff,0xa0,0x50}
-    };
-
-    auto* palBtnRow = new QWidget(palCard);
-    auto* palBtnLay = new QHBoxLayout(palBtnRow);
-    palBtnLay->setContentsMargins(0,0,0,0);
-    palBtnLay->setSpacing(6);
-
-    /* Raccoglie i bottoni per poter aggiornare la palette completa */
-    QVector<QPushButton*> palBtns;
-    for (int pi = 0; pi < 8; pi++) {
-        QColor init = (canvas && canvas->style().palette.size() > pi)
-                       ? canvas->style().palette[pi]
-                       : kDefaultPal[pi];
-        auto* pb = makeColorBtn(palBtnRow, init, [canvas, pi, saveStyle, &palBtns](QColor c){
-            if (!canvas) return;
-            auto& pal = canvas->style().palette;
-            if (pal.size() < 8) {
-                /* inizializza con i default */
-                pal.clear();
-                for (const QColor& dc : kDefaultPal) pal << dc;
-            }
-            if (pi < pal.size()) pal[pi] = c;
-            canvas->update();
-            saveStyle();
-        });
-        palBtns.append(pb);
-        palBtnLay->addWidget(pb);
-    }
-    palBtnLay->addStretch();
-    palLay->addWidget(palBtnRow);
-
-    auto* btnResetPal = new QPushButton(
-        "\xe2\x86\xaa  Ripristina palette default", palCard);  /* ↪ */
-    btnResetPal->setObjectName("actionBtn");
-    QObject::connect(btnResetPal, &QPushButton::clicked, palCard,
-        [canvas, saveStyle, palBtns]() mutable {
-            if (!canvas) return;
-            canvas->style().palette.clear();
-            canvas->update();
-            saveStyle();
-            /* aggiorna aspetto bottoni */
-            for (int pi = 0; pi < palBtns.size(); pi++) {
-                palBtns[pi]->setStyleSheet(
-                    QString("QPushButton { background:%1; border:1px solid rgba(255,255,255,0.25);"
-                            " border-radius:4px; }").arg(kDefaultPal[pi].name()));
-                palBtns[pi]->setProperty("currentColor", kDefaultPal[pi].name());
-            }
-        });
-    palLay->addWidget(btnResetPal);
-    outer->addWidget(palCard);
-
-    /* ── Sezione 4: Font ───────────────────────────────────────── */
+    /* ── Sezione 4: Font (affiancata a Colori grafico) ─────────── */
     auto* fntCard = new QFrame(inner);
     fntCard->setObjectName("cardFrame");
     auto* fntLay  = new QVBoxLayout(fntCard);
@@ -702,7 +708,16 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
     fntForm->addRow("Dimensione:", spnSize);
 
     fntLay->addLayout(fntForm);
-    outer->addWidget(fntCard);
+    fntLay->addStretch();
+
+    /* ── Riga 2: Colori grafico + Carattere etichette ─────────── */
+    auto* row2 = new QWidget(inner);
+    auto* row2Lay = new QHBoxLayout(row2);
+    row2Lay->setContentsMargins(0,0,0,0);
+    row2Lay->setSpacing(12);
+    row2Lay->addWidget(colCard, 1);
+    row2Lay->addWidget(fntCard, 1);
+    outer->addWidget(row2);
 
     /* ── Sezione 5: Preset temi ────────────────────────────────── */
     auto* preCard = new QFrame(inner);

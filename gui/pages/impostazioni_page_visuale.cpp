@@ -375,9 +375,10 @@ QWidget* ImpostazioniPage::buildTemaTab() {
     auto* scroll = new QScrollArea(rightColW);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     auto* grid_w = new QWidget(scroll);
     auto* grid   = new QGridLayout(grid_w);
-    grid->setSpacing(14);
+    grid->setSpacing(6);
     grid->setContentsMargins(0, 8, 0, 8);
     scroll->setWidget(grid_w);
     rightCol->addWidget(scroll, 1);
