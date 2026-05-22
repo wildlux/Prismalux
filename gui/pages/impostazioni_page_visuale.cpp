@@ -83,30 +83,30 @@ QWidget* ImpostazioniPage::buildTemaTab() {
     auto* outer = new QWidget(this);
     auto* vlay  = new QVBoxLayout(outer);
     vlay->setContentsMargins(20, 20, 20, 20);
-    vlay->setSpacing(16);
+    vlay->setSpacing(0);
 
-    /* ── Titolo (full width) ── */
-    auto* title = new QLabel("\xf0\x9f\x8e\xa8  Aspetto e Tema", outer);
-    title->setStyleSheet("font-size:16px; font-weight:700; color:#e5e7eb;");
-    vlay->addWidget(title);
-
-    auto* hint = new QLabel(
-        "Copia file <b>.qss</b> nella cartella <code>themes/</code> accanto "
-        "all'eseguibile per aggiungere temi personalizzati.", outer);
-    hint->setWordWrap(true);
-    hint->setStyleSheet("color:#9ca3af; font-size:12px;");
-    vlay->addWidget(hint);
-
-    /* ── Riga principale a 2 colonne ── */
-    auto* mainRow    = new QHBoxLayout;
+    /* ── Riga principale a 2 colonne — parte subito dopo i margini ── */
+    auto* mainRow = new QHBoxLayout;
     mainRow->setSpacing(20);
     mainRow->setContentsMargins(0, 0, 0, 0);
 
     /* ═══════════════ COLONNA SINISTRA ═══════════════ */
-    auto* leftColW  = new QWidget(outer);
-    auto* leftCol   = new QVBoxLayout(leftColW);
+    auto* leftColW = new QWidget(outer);
+    auto* leftCol  = new QVBoxLayout(leftColW);
     leftCol->setContentsMargins(0, 0, 0, 0);
     leftCol->setSpacing(16);
+
+    /* Titolo + hint in cima alla colonna sinistra (allineati con "Tema corrente") */
+    auto* title = new QLabel("\xf0\x9f\x8e\xa8  Aspetto e Tema", leftColW);
+    title->setStyleSheet("font-size:16px; font-weight:700; color:#e5e7eb;");
+    leftCol->addWidget(title);
+
+    auto* hint = new QLabel(
+        "Copia file <b>.qss</b> nella cartella <code>themes/</code> accanto "
+        "all'eseguibile per aggiungere temi personalizzati.", leftColW);
+    hint->setWordWrap(true);
+    hint->setStyleSheet("color:#9ca3af; font-size:12px;");
+    leftCol->addWidget(hint);
 
     /* ── Sezione: Segui tema di sistema ── */
     {
@@ -359,19 +359,19 @@ QWidget* ImpostazioniPage::buildTemaTab() {
 
     /* ═══════════════ COLONNA DESTRA ═══════════════ */
     auto* rightColW = new QWidget(outer);
-    rightColW->setMinimumWidth(320);
-    rightColW->setMaximumWidth(400);
+    rightColW->setMinimumWidth(400);
+    rightColW->setMaximumWidth(520);
     auto* rightCol  = new QVBoxLayout(rightColW);
     rightCol->setContentsMargins(0, 0, 0, 0);
-    rightCol->setSpacing(10);
+    rightCol->setSpacing(8);
 
     auto* themeHeader = new QLabel(
         "\xf0\x9f\x8e\xa8  Tema corrente", rightColW);
     themeHeader->setObjectName("pageSubtitle");
-    themeHeader->setStyleSheet("font-size:14px; font-weight:700; color:#e5e7eb;");
+    themeHeader->setStyleSheet("font-size:16px; font-weight:700; color:#e5e7eb;");
     rightCol->addWidget(themeHeader);
 
-    /* ── Griglia card (2 per riga, card 160×120) ── */
+    /* ── Griglia card (3 per riga, card 130×100) ── */
     auto* scroll = new QScrollArea(rightColW);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
@@ -390,7 +390,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
     auto* group = new QButtonGroup(outer);
     group->setExclusive(true);
 
-    const int COLS = 2;
+    const int COLS = 3;
     for (int i = 0; i < themes.size(); ++i) {
         const auto& t = themes[i];
         ThemeVisual v = visualFor(t.id);
@@ -399,7 +399,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         auto* card = new QPushButton(grid_w);
         card->setCheckable(true);
         card->setChecked(t.id == current);
-        card->setFixedSize(160, 120);
+        card->setFixedSize(130, 100);
         card->setObjectName("themeCard");
         card->setProperty("themeId", t.id);
 
@@ -411,7 +411,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             "    stop:0 %1, stop:0.65 %2, stop:0.66 %3, stop:1 %3);"
             "  border: 2px solid %4; border-radius: 10px;"
             "  color: %5; font-weight: 600; font-size: 11px;"
-            "  padding-top: 68px;"
+            "  padding-top: 54px;"
             "  text-align: center;"
             "}"
             "QPushButton#themeCard:checked {"
@@ -433,7 +433,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             "color: %1; font-size: 16px; font-weight: 700; "
             "background: transparent; padding: 4px 6px 0 0;")
             .arg(v.accent));
-        check->setFixedSize(160, 36);
+        check->setFixedSize(130, 30);
         check->setVisible(t.id == current);
 
         /* Connessione: cambia tema al click */
