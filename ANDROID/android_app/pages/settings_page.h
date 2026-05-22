@@ -58,6 +58,8 @@ private slots:
     void onRagWatchdogTimeout();
     void onRagLoaded(int n);
     void onQrUrlFound(const QString& raw);
+    void onSyncClicked();
+    void onSyncFinished();
 
 private:
     void applyQuickModel(const QString& model);
@@ -100,6 +102,11 @@ private:
     /* Test connessione temporaneo */
     QNetworkAccessManager* m_testNam   = nullptr;
     QNetworkReply*         m_testReply = nullptr;
+
+    /* Sync desktop↔mobile */
+    QNetworkAccessManager* m_syncNam       = nullptr;
+    QNetworkReply*         m_syncReply     = nullptr;
+    QLabel*                m_syncStatusLbl = nullptr;
 
     /* RAG watchdog */
     QTimer* m_ragWatchdog = nullptr;

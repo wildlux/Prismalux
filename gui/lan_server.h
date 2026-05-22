@@ -75,6 +75,7 @@ private:
     void handleRag(Session& s);
     void handleGraphviz(const Session& s);
     void handleWhisper(const Session& s);
+    void handleSync(const Session& s);
     void handleMath(QTcpSocket* sock, const Session& s);
     [[nodiscard]] static QString buildMathPythonCode(const QString& action, const QJsonObject& req);
     void handleApk(Session& s);

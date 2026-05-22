@@ -624,6 +624,8 @@ void LanServer::processSession(Session& s)
         handleGraphviz(s);
     } else if (s.path == "/api/whisper" && s.method == "POST") {
         handleWhisper(s);
+    } else if (s.path == "/api/sync") {
+        handleSync(s);
     } else if (s.path == "/api/math" && s.method == "POST") {
         handleMath(s.socket, s);
     } else {
@@ -3864,4 +3866,106 @@ QByteArray LanServer::httpStreamHeader() const
     h += "X-Accel-Buffering: no\r\n";
     h += "Connection: close\r\n\r\n";
     return h;
+}
+
+/* ── /api/sync ────────────────────────────────────────────────────────────────
+   GET  → esporta knowledge + lista ultime sessioni chat (JSON)
+   POST → riceve dati mobile (quiz stats, note) e li salva in mobile_sync.json
+   ─────────────────────────────────────────────────────────────────────────── */
+void LanServer::handleSync(const Session& s)
+{
+    if (s.method == "GET") {
+        /* Leggi knowledge utente */
+        QString knowledge;
+        {
+            QFile f(P::userKnowledgePath());
+            if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+                knowledge = QString::fromUtf8(f.readAll());
+        }
+
+        /* Lista ultime 5 sessioni chat (files in ~/.prismalux_chats/) */
+        QJsonArray sessions;
+        const QString chatsDir = QDir::homePath() + "/.prismalux_chats";
+        QDir dir(chatsDir);
+        if (dir.exists()) {
+            QFileInfoList files = dir.entryInfoList(
+                QStringList() << "*.json",
+                QDir::Files, QDir::Time);
+            int count = 0;
+            for (const QFileInfo& fi : std::as_const(files)) {
+                if (count++ >= 5) break;
+                QFile f(fi.absoluteFilePath());
+                if (!f.open(QIODevice::ReadOnly)) continue;
+                const QJsonObject sess =
+                    QJsonDocument::fromJson(f.readAll()).object();
+                QJsonObject item;
+                item["id"]    = sess.value("id").toString();
+                item["title"] = sess.value("title").toString();
+                item["date"]  = fi.lastModified().toString(Qt::ISODate);
+                sessions.append(item);
+            }
+        }
+
+        QJsonObject resp;
+        resp["version"]     = "2.x";
+        resp["knowledge"]   = knowledge;
+        resp["sessions"]    = sessions;
+        resp["synced_at"]   = QDateTime::currentDateTime().toString(Qt::ISODate);
+        sendJson(s.socket, QJsonDocument(resp).toJson(QJsonDocument::Compact));
+
+    } else if (s.method == "POST") {
+        /* Ricevi dati mobile e salva in mobile_sync.json */
+        const QJsonObject body = QJsonDocument::fromJson(s.body).object();
+        if (body.isEmpty()) {
+            sendError(s.socket, 400, "body JSON vuoto");
+            return;
+        }
+
+        const QString syncPath = P::root() + "/KNOWLEDGE_USER/mobile_sync.json";
+        QDir().mkpath(QFileInfo(syncPath).absolutePath());
+
+        /* Leggi sync esistente e mergia */
+        QJsonObject existing;
+        {
+            QFile f(syncPath);
+            if (f.open(QIODevice::ReadOnly))
+                existing = QJsonDocument::fromJson(f.readAll()).object();
+        }
+
+        /* Mergia quiz_stats: somma correct/total per materia */
+        if (body.contains("quiz_stats")) {
+            QJsonObject inStats = body["quiz_stats"].toObject();
+            QJsonObject curStats = existing["quiz_stats"].toObject();
+            for (const QString& key : inStats.keys()) {
+                QJsonObject cur = curStats[key].toObject();
+                QJsonObject inc = inStats[key].toObject();
+                cur["total"]   = cur["total"].toInt() + inc["total"].toInt();
+                cur["correct"] = cur["correct"].toInt() + inc["correct"].toInt();
+                curStats[key]  = cur;
+            }
+            existing["quiz_stats"] = curStats;
+        }
+
+        /* Salva note e altri campi opzionali */
+        if (body.contains("notes"))
+            existing["notes"] = body["notes"];
+
+        existing["last_sync"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+        existing["device"]    = body.value("device").toString("mobile");
+
+        QFile out(syncPath);
+        if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            sendError(s.socket, 500, "impossibile scrivere mobile_sync.json");
+            return;
+        }
+        out.write(QJsonDocument(existing).toJson());
+
+        QJsonObject resp;
+        resp["status"]    = "ok";
+        resp["synced_at"] = existing["last_sync"].toString();
+        sendJson(s.socket, QJsonDocument(resp).toJson(QJsonDocument::Compact));
+
+    } else {
+        sendError(s.socket, 405, "Method Not Allowed");
+    }
 }

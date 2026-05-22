@@ -18,6 +18,9 @@
 #include <QMessageBox>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QUrl>
 #include <QUrlQuery>
 #include <QTimer>
@@ -202,6 +205,38 @@ SettingsPage::SettingsPage(AiClient* ai, RagEngineSimple* rag,
                 this, &SettingsPage::onUpdateWebLink);
         connect(m_tokenEdit, &QLineEdit::textChanged,
                 this, &SettingsPage::onUpdateWebLink);
+    }
+
+    /* ══════════════════════════════════
+       2b — Sync Desktop ↔ Mobile
+       ══════════════════════════════════ */
+    {
+        auto* g  = new QGroupBox(
+            QString::fromUtf8("\xf0\x9f\x94\x84") + "  Sync Desktop \xe2\x86\x94 Mobile", inner);
+        g->setObjectName("SettingsGroup");
+        auto* gl = new QVBoxLayout(g);
+        gl->setSpacing(8);
+        gl->setContentsMargins(12, 16, 12, 12);
+
+        auto* info = new QLabel(
+            QString::fromUtf8(
+                "Invia statistiche quiz al desktop e scarica la knowledge base. "
+                "Il server deve essere attivo e raggiungibile."), g);
+        info->setWordWrap(true);
+        info->setObjectName("HintLabel");
+        gl->addWidget(info);
+
+        m_syncStatusLbl = new QLabel("", g);
+        m_syncStatusLbl->setWordWrap(true);
+        gl->addWidget(m_syncStatusLbl);
+
+        auto* syncBtn = new QPushButton(
+            QString::fromUtf8("\xf0\x9f\x94\x84  Sincronizza ora"), g);
+        syncBtn->setObjectName("PrimaryBtn");
+        gl->addWidget(syncBtn);
+
+        vbox->addWidget(g);
+        connect(syncBtn, &QPushButton::clicked, this, &SettingsPage::onSyncClicked);
     }
 
     /* ══════════════════════════════════
@@ -930,5 +965,73 @@ void SettingsPage::onUpdateWebLink()
     m_webLinkLbl->setText(
         QString("<a href=\"%1\" style=\"color:#6c63ff;word-break:break-all\">%2</a>")
         .arg(realUrl.toHtmlEscaped(), dispUrl.toHtmlEscaped()));
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Sync Desktop ↔ Mobile
+   ─────────────────────────────────────────────────────────────────
+   POST /api/sync con quiz_stats da QSettings.
+   Se risposta ok, fa GET /api/sync per scaricare knowledge desktop.
+   ───────────────────────────────────────────────────────────────── */
+void SettingsPage::onSyncClicked()
+{
+    QSettings s("Prismalux", "Mobile");
+    const QString host  = s.value("server/host",  "192.168.1.1").toString();
+    const int     port  = s.value("server/port",  11500).toInt();
+    const QString token = s.value("server/token", "").toString();
+
+    if (!m_syncNam) m_syncNam = new QNetworkAccessManager(this);
+    if (m_syncReply) { m_syncReply->abort(); m_syncReply->deleteLater(); m_syncReply = nullptr; }
+
+    /* Raccogli quiz_stats da QSettings */
+    QJsonObject stats;
+    const QStringList materie = s.value("quiz/materie").toStringList();
+    for (const QString& m : materie) {
+        QJsonObject ms;
+        ms["total"]   = s.value("quiz/" + m + "/total",   0).toInt();
+        ms["correct"] = s.value("quiz/" + m + "/correct", 0).toInt();
+        stats[m] = ms;
+    }
+
+    QJsonObject body;
+    body["quiz_stats"] = stats;
+    body["device"]     = "Prismalux Mobile";
+
+    const QByteArray payload = QJsonDocument(body).toJson(QJsonDocument::Compact);
+
+    const QString url = QString("http://%1:%2/api/sync").arg(host).arg(port);
+    QNetworkRequest req;
+    req.setUrl(QUrl(url));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    if (!token.isEmpty())
+        req.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
+
+    m_syncReply = m_syncNam->post(req, payload);
+    connect(m_syncReply, &QNetworkReply::finished, this, &SettingsPage::onSyncFinished);
+
+    if (m_syncStatusLbl)
+        m_syncStatusLbl->setText(QString::fromUtf8("\xf0\x9f\x94\x84  Sincronizzazione in corso\xe2\x80\xa6"));
+}
+
+void SettingsPage::onSyncFinished()
+{
+    if (!m_syncReply) return;
+    const auto err  = m_syncReply->error();
+    const QByteArray data = m_syncReply->readAll();
+    m_syncReply->deleteLater();
+    m_syncReply = nullptr;
+
+    if (err != QNetworkReply::NoError) {
+        if (m_syncStatusLbl)
+            m_syncStatusLbl->setText(
+                QString::fromUtf8("\xe2\x9d\x8c  Errore rete: ") + QString::number(static_cast<int>(err)));
+        return;
+    }
+
+    const QJsonObject resp = QJsonDocument::fromJson(data).object();
+    const QString at = resp.value("synced_at").toString();
+    if (m_syncStatusLbl)
+        m_syncStatusLbl->setText(
+            QString::fromUtf8("\xe2\x9c\x85  Sincronizzato: ") + at);
 }
 

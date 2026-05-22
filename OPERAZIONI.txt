@@ -17,7 +17,7 @@ LAMBDA / SICUREZZA
 RAG & MEMORIA
 [x] RAG drag & drop — zona drop in agenti_page_ui.cpp: accetta PDF/txt/md, ingestion + status label
 [x] Memoria automatica cross-sessione — indicatore visivo "🧠 Memoria aggiornata" aggiunto, wire già c'era
-[ ] Web reading via RAG — campo URL → fetch → chunk → embedding in rag_engine.cpp
+[x] Web reading via RAG — campo URL → fetch → chunk → addEntry in m_ragInline (agenti_page_ui.cpp)
 
 AI & MODELLI
 [ ] Pipeline → ConfiguraAgenti — AgentsConfigDialog con preset JSON ruoli personalizzati
@@ -27,7 +27,7 @@ AI & MODELLI
 
 UI / UX
 [x] Dark/Light auto da sistema — QStyleHints::colorScheme in theme_manager.cpp + checkbox Impostazioni
-[ ] Font DPI adattivo — scaling QFont in style.qss da logicalDotsPerInch()
+[x] Font DPI adattivo — scaling font-size:Npx in CSS via regex in ThemeManager::apply() (dpi>108)
 [ ] WCAG accessibilità sistematica — setAccessibleName/Description nelle pagine mancanti
 [ ] i18n tr() sistematico — wrappare stringhe UI in tr()
 
@@ -57,7 +57,7 @@ MOBILE Android (ANDROID/android_app/)
 [x] BLE peer discovery — pagina 3 BLE: cerca BT Classic, QListWidget, connect RFCOMM client + chat
 [x] Quiz statistiche — tracking per tema in QSettings, dialog tabella con % colorata
 [ ] Notifiche push Android — QtAndroid::notification (richiede Java glue) [!]
-[ ] Sync desktop↔mobile — endpoint /api/sync (conversazioni/quiz/knowledge)
+[x] Sync desktop↔mobile — /api/sync GET+POST in lan_server.cpp; pulsante in settings_page Android
 
 ────────────────────────────────────────────────
 TRASVERSALE

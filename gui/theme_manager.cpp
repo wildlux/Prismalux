@@ -1,6 +1,8 @@
 #include "theme_manager.h"
 #include "prismalux_paths.h"
 #include <QApplication>
+#include <QRegularExpression>
+#include <QScreen>
 namespace P = PrismaluxPaths;
 #include <QDir>
 #include <QFile>
@@ -77,6 +79,29 @@ void ThemeManager::apply(const QString& id) {
         QFile base(QCoreApplication::applicationDirPath() + "/themes/base.qss");
         if (base.open(QIODevice::ReadOnly | QIODevice::Text))
             css += "\n" + QString::fromUtf8(base.readAll());
+
+        /* ── Font DPI adattivo: scala tutti i font-size:Npx in proporzione a DPI ── */
+        const qreal dpi = QGuiApplication::primaryScreen()
+                          ? QGuiApplication::primaryScreen()->logicalDotsPerInch()
+                          : 96.0;
+        if (dpi > 108.0) {   /* sopra ~112% del DPI standard */
+            const qreal scale = dpi / 96.0;
+            static const QRegularExpression reFontPx(
+                R"(font-size\s*:\s*(\d+)\s*px)", QRegularExpression::CaseInsensitiveOption);
+            QString patched;
+            patched.reserve(css.size());
+            int lastEnd = 0;
+            auto it = reFontPx.globalMatch(css);
+            while (it.hasNext()) {
+                const auto m = it.next();
+                patched += css.mid(lastEnd, m.capturedStart() - lastEnd);
+                patched += QString("font-size:%1px")
+                               .arg(qRound(m.captured(1).toInt() * scale));
+                lastEnd = m.capturedEnd();
+            }
+            patched += css.mid(lastEnd);
+            css = std::move(patched);
+        }
 
         m_cssCache[id] = css;
     }

@@ -274,6 +274,11 @@ private:
     bool           m_ragIngesting = false;    ///< true durante indicizzazione
     QLabel*        m_ragStatusLbl = nullptr;  ///< stato indicizzazione
 
+    /* ── Web reading via RAG — campo URL ── */
+    QLineEdit*              m_ragUrlLine  = nullptr;
+    QNetworkAccessManager*  m_ragUrlNam   = nullptr;
+    QNetworkReply*          m_ragUrlReply = nullptr;
+
     /* ── Drag & Drop file su m_input ── */
     /** Dispatcher per file trascinato: PDF, Excel, audio, immagine, testo */
     void loadDroppedFile(const QString& filePath);
@@ -427,6 +432,8 @@ private slots:
     void onRagDropZoneEnter();
     void onRagDropZoneLeave();
     void onRagIngestionDone();
+    void onRagUrlAddClicked();
+    void onRagUrlFetched();
 
     /** Indica ai file URL droppati nella zona RAG specializzata (PDF/txt/md) */
     void _ingestRagFiles(const QList<QUrl>& urls);

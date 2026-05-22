@@ -599,6 +599,30 @@ void AgentiPage::buildRagPanel(QVBoxLayout* lay)
     };
     m_ragDropZone->installEventFilter(new RagZoneFilter(this, m_ragDropZone));
 
+    /* ── Riga 3: Web reading — URL → fetch → chunk → RAG inline ── */
+    auto* row3 = new QWidget(m_ragPanel);
+    auto* row3Lay = new QHBoxLayout(row3);
+    row3Lay->setContentsMargins(0, 0, 0, 0);
+    row3Lay->setSpacing(6);
+
+    auto* urlIco = new QLabel("\xf0\x9f\x8c\x90", row3);  /* 🌐 */
+    urlIco->setObjectName("footerHints");
+    row3Lay->addWidget(urlIco);
+
+    m_ragUrlLine = new QLineEdit(row3);
+    m_ragUrlLine->setPlaceholderText("https://... — Aggiungi pagina web al RAG");
+    m_ragUrlLine->setClearButtonEnabled(true);
+    row3Lay->addWidget(m_ragUrlLine, 1);
+
+    auto* btnAddUrl = new QPushButton("\xe2\x9e\x95  Aggiungi URL", row3);  /* ➕ */
+    btnAddUrl->setObjectName("footerHints");
+    row3Lay->addWidget(btnAddUrl);
+
+    ragPanelLay->addWidget(row3);
+
+    connect(btnAddUrl, &QPushButton::clicked, this, &AgentiPage::onRagUrlAddClicked);
+    connect(m_ragUrlLine, &QLineEdit::returnPressed, this, &AgentiPage::onRagUrlAddClicked);
+
     m_ragPanel->hide();
     lay->addWidget(m_ragPanel);
 }
@@ -1851,6 +1875,86 @@ void AgentiPage::_ingestRagFiles(const QList<QUrl>& urls)
                tramite il log; qui resettiamo solo il feedback visivo della zona drop. */
             QTimer::singleShot(2500, this, &AgentiPage::onRagIngestionDone);
         }
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Web reading via RAG — onRagUrlAddClicked / onRagUrlFetched
+   ───────────────────────────────────────────────────────────────── */
+void AgentiPage::onRagUrlAddClicked()
+{
+    if (!m_ragUrlLine) return;
+    const QString urlStr = m_ragUrlLine->text().trimmed();
+    if (!urlStr.startsWith("http://") && !urlStr.startsWith("https://")) {
+        if (m_ragStatusLbl) m_ragStatusLbl->setText("\xe2\x9a\xa0\xef\xb8\x8f  URL non valido");
+        return;
+    }
+
+    if (!m_ragUrlNam)
+        m_ragUrlNam = new QNetworkAccessManager(this);
+
+    if (m_ragUrlReply) {
+        m_ragUrlReply->abort();
+        m_ragUrlReply->deleteLater();
+        m_ragUrlReply = nullptr;
+    }
+
+    if (m_ragStatusLbl) m_ragStatusLbl->setText("\xf0\x9f\x8c\x90  Recupero pagina...");
+
+    QNetworkRequest req;
+    req.setUrl(QUrl(urlStr));
+    req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/1.0 (RAG web reader)");
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                     QNetworkRequest::NoLessSafeRedirectPolicy);
+    m_ragUrlReply = m_ragUrlNam->get(req);
+    connect(m_ragUrlReply, &QNetworkReply::finished, this, &AgentiPage::onRagUrlFetched);
+}
+
+void AgentiPage::onRagUrlFetched()
+{
+    if (!m_ragUrlReply) return;
+    const QUrl  finalUrl = m_ragUrlReply->url();
+    const auto  err      = m_ragUrlReply->error();
+    const QByteArray raw = m_ragUrlReply->readAll();
+    m_ragUrlReply->deleteLater();
+    m_ragUrlReply = nullptr;
+
+    if (err != QNetworkReply::NoError) {
+        if (m_ragStatusLbl) m_ragStatusLbl->setText("\xe2\x9d\x8c  Errore rete: " +
+            QString::number(static_cast<int>(err)));
+        return;
+    }
+
+    QString text = QString::fromUtf8(raw);
+
+    /* Rimuovi tag HTML e decodifica entità comuni */
+    static const QRegularExpression reTag("<[^>]+>");
+    static const QRegularExpression reWs("\\s{3,}");
+    text.replace(reTag, " ");
+    text.replace("&amp;",  "&");
+    text.replace("&lt;",   "<");
+    text.replace("&gt;",   ">");
+    text.replace("&nbsp;", " ");
+    text.replace("&quot;", "\"");
+    text.replace("&#39;",  "'");
+    text = text.replace(reWs, "\n\n").trimmed();
+
+    /* Tronca a ~8000 caratteri per non saturare il contesto */
+    if (text.size() > 8000)
+        text = text.left(8000) + "\n\n[...]";
+
+    if (text.isEmpty()) {
+        if (m_ragStatusLbl) m_ragStatusLbl->setText("\xe2\x9a\xa0\xef\xb8\x8f  Nessun testo trovato");
+        return;
+    }
+
+    const QString title = finalUrl.host() + finalUrl.path();
+    if (m_ragInline) m_ragInline->addEntry(title, text);
+    if (m_ragUrlLine) m_ragUrlLine->clear();
+    if (m_ragStatusLbl) {
+        m_ragStatusLbl->setText(
+            QString("\xe2\x9c\x85  Pagina aggiunta (%1 car.)").arg(text.size()));
+        QTimer::singleShot(3000, m_ragStatusLbl, &QLabel::clear);
     }
 }
 
