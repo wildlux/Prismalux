@@ -29,10 +29,18 @@ private:
     QLabel*      m_lanStatusLbl = nullptr;
     QPushButton* m_lanWebBtn    = nullptr;
     QLineEdit*   m_lanTokenEdit = nullptr;
-    QPushButton* m_qrApkBtn      = nullptr;
-    QPushButton* m_qrPageBtn     = nullptr;
+    QPushButton* m_qrApkBtn        = nullptr;
+    QPushButton* m_qrPageBtn       = nullptr;
     QrCodeWidget* m_qrInlineWidget = nullptr;
     QString       m_lanConnectIp;
+
+    /* ── Installazione ADB via USB ── */
+    QPushButton* m_adbInstallBtn  = nullptr;
+    QLabel*      m_adbStatusLbl   = nullptr;
+    QTextEdit*   m_adbLog         = nullptr;
+    QProcess*    m_adbProc        = nullptr;
+
+    static QString findAdb();
 
     /* ── Tabella client connessi ── */
     QTableWidget* m_clientTable  = nullptr;
@@ -88,6 +96,9 @@ private slots:
     void onKickBtnClicked();
     void onKickAllBtnClicked();
     void onLanWebBtnClicked();
+    void onAdbInstallBtnClicked();
+    void onAdbProcReadyRead();
+    void onAdbProcFinished(int code, QProcess::ExitStatus status);
     void onGns3AiToken(const QString& t);
     void onGns3AiFinished(const QString& full);
     void onGns3AiError(const QString& msg);

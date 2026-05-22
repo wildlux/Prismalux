@@ -32,6 +32,7 @@
 #include <QHeaderView>
 #include <QDateTime>
 #include <QRegularExpression>
+#include <QStandardPaths>
 
 namespace P = PrismaluxPaths;
 
@@ -656,14 +657,50 @@ QWidget* LanWanPage::buildLanAndroidTab()
     m_lanWebBtn->setEnabled(false);
     rightLay->addWidget(m_lanWebBtn);
 
+    /* ── Installazione APK via USB (adb) ── */
+    auto* adbSep = new QFrame(rightW);
+    adbSep->setFrameShape(QFrame::HLine);
+    adbSep->setFrameShadow(QFrame::Sunken);
+    rightLay->addWidget(adbSep);
+
+    const QString adbPath = findAdb();
+    m_adbInstallBtn = new QPushButton(
+        "\xf0\x9f\x94\x8c  Installa APK via USB  (adb)", rightW);
+    m_adbInstallBtn->setObjectName("primaryBtn");
+    m_adbInstallBtn->setToolTip(
+        adbPath.isEmpty()
+            ? "adb non trovato — installa Android Platform Tools"
+            : QString("adb: %1").arg(adbPath));
+    m_adbInstallBtn->setEnabled(!adbPath.isEmpty());
+    m_adbInstallBtn->setAccessibleName("Installa APK PrismaluxMobile sul telefono Android via USB");
+    rightLay->addWidget(m_adbInstallBtn);
+
+    m_adbStatusLbl = new QLabel(
+        adbPath.isEmpty()
+            ? "\xe2\x9a\xa0\xef\xb8\x8f  adb non trovato. Installa: sudo apt install adb"
+            : "\xe2\x84\xb9  Collega il telefono via USB con debug USB attivo, poi premi il pulsante.",
+        rightW);
+    m_adbStatusLbl->setWordWrap(true);
+    m_adbStatusLbl->setStyleSheet("color:#aaa;font-size:11px;");
+    rightLay->addWidget(m_adbStatusLbl);
+
+    m_adbLog = new QTextEdit(rightW);
+    m_adbLog->setReadOnly(true);
+    m_adbLog->setObjectName("chatLog");
+    m_adbLog->setMaximumHeight(110);
+    m_adbLog->setPlaceholderText("Output adb...");
+    m_adbLog->hide();
+    rightLay->addWidget(m_adbLog);
+
     rightLay->addStretch();
     splitLay->addWidget(rightW, 1);
     rootLay->addWidget(split, 1);
 
-    connect(m_qrApkBtn,     &QPushButton::clicked, this, &LanWanPage::onQrApkBtnClicked);
-    connect(m_qrPageBtn,    &QPushButton::clicked, this, &LanWanPage::onQrPageBtnClicked);
-    connect(m_lanToggleBtn, &QPushButton::toggled, this, &LanWanPage::onLanToggleBtnToggled);
-    connect(m_lanWebBtn,    &QPushButton::clicked, this, &LanWanPage::onLanWebBtnClicked);
+    connect(m_qrApkBtn,      &QPushButton::clicked, this, &LanWanPage::onQrApkBtnClicked);
+    connect(m_qrPageBtn,     &QPushButton::clicked, this, &LanWanPage::onQrPageBtnClicked);
+    connect(m_lanToggleBtn,  &QPushButton::toggled, this, &LanWanPage::onLanToggleBtnToggled);
+    connect(m_lanWebBtn,     &QPushButton::clicked, this, &LanWanPage::onLanWebBtnClicked);
+    connect(m_adbInstallBtn, &QPushButton::clicked, this, &LanWanPage::onAdbInstallBtnClicked);
 
     return tab;
 }
@@ -1060,4 +1097,131 @@ QWidget* LanWanPage::buildGNS3Tab()
     connect(m_gns3StopBtn, &QPushButton::clicked, this, &LanWanPage::onGns3StopBtnClicked);
 
     return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ADB — Installazione APK via USB
+   ══════════════════════════════════════════════════════════════ */
+
+/* Cerca adb: SDK Android, PATH di sistema, percorsi comuni */
+QString LanWanPage::findAdb()
+{
+    /* 1. SDK Android nella home utente */
+    const QString sdk = QDir::homePath() + "/Android/Sdk/platform-tools/adb";
+    if (QFile::exists(sdk)) return sdk;
+
+    /* 2. PATH di sistema via QStandardPaths */
+    const QString inPath = QStandardPaths::findExecutable("adb");
+    if (!inPath.isEmpty()) return inPath;
+
+    /* 3. Percorsi comuni Linux/macOS */
+    for (const QString& p : {
+            QString("/usr/bin/adb"),
+            QString("/usr/local/bin/adb"),
+            QString("/opt/android-sdk/platform-tools/adb") })
+        if (QFile::exists(p)) return p;
+
+    return {};
+}
+
+void LanWanPage::onAdbInstallBtnClicked()
+{
+    if (m_adbProc && m_adbProc->state() != QProcess::NotRunning) {
+        /* Secondo clic mentre è in corso → annulla */
+        m_adbProc->kill();
+        return;
+    }
+
+    const QString adb = findAdb();
+    if (adb.isEmpty()) {
+        m_adbStatusLbl->setText(
+            "\xe2\x9d\x8c  adb non trovato. Installa: sudo apt install adb");
+        return;
+    }
+
+    namespace P = PrismaluxPaths;
+    const QString apk = P::root() + "/ANDROID/PrismaluxMobile.apk";
+    if (!QFile::exists(apk)) {
+        m_adbStatusLbl->setText(
+            "\xe2\x9d\x8c  APK non trovato: " + apk);
+        return;
+    }
+
+    m_adbLog->clear();
+    m_adbLog->show();
+    m_adbInstallBtn->setText("\xe2\x8f\xb9  Annulla");
+    m_adbStatusLbl->setText(
+        "\xe2\x8f\xb3  Installazione in corso... (attendi il telefono)");
+
+    if (m_adbProc) { m_adbProc->deleteLater(); m_adbProc = nullptr; }
+    m_adbProc = new QProcess(this);
+    m_adbProc->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_adbProc, &QProcess::readyRead,
+            this, &LanWanPage::onAdbProcReadyRead);
+    connect(m_adbProc,
+            QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &LanWanPage::onAdbProcFinished);
+
+    /* adb install -r <apk>
+       -r = reinstalla se già presente (non cancella i dati) */
+    m_adbProc->start(adb, {"install", "-r", apk});
+
+    if (!m_adbProc->waitForStarted(3000)) {
+        m_adbStatusLbl->setText(
+            "\xe2\x9d\x8c  Impossibile avviare adb. Controlla la connessione USB.");
+        m_adbLog->append("Errore: adb non si avvia.");
+        m_adbInstallBtn->setText(
+            "\xf0\x9f\x94\x8c  Installa APK via USB  (adb)");
+        m_adbProc->deleteLater(); m_adbProc = nullptr;
+    }
+}
+
+void LanWanPage::onAdbProcReadyRead()
+{
+    if (!m_adbProc || !m_adbLog) return;
+    const QString out = QString::fromLocal8Bit(m_adbProc->readAll()).trimmed();
+    if (out.isEmpty()) return;
+    m_adbLog->moveCursor(QTextCursor::End);
+    m_adbLog->append(out);
+    m_adbLog->moveCursor(QTextCursor::End);
+}
+
+void LanWanPage::onAdbProcFinished(int code, QProcess::ExitStatus)
+{
+    /* Leggi eventuale output residuo */
+    if (m_adbProc) {
+        const QString tail = QString::fromLocal8Bit(m_adbProc->readAll()).trimmed();
+        if (!tail.isEmpty() && m_adbLog) m_adbLog->append(tail);
+        m_adbProc->deleteLater(); m_adbProc = nullptr;
+    }
+
+    if (m_adbInstallBtn)
+        m_adbInstallBtn->setText(
+            "\xf0\x9f\x94\x8c  Installa APK via USB  (adb)");
+
+    if (!m_adbStatusLbl) return;
+
+    /* adb exit 0 + "Success" nel log → installazione riuscita */
+    const QString log = m_adbLog ? m_adbLog->toPlainText() : QString();
+    const bool success = (code == 0) || log.contains("Success", Qt::CaseInsensitive);
+
+    if (success) {
+        m_adbStatusLbl->setText(
+            "\xe2\x9c\x85  APK installato con successo! "
+            "Cerca \"Prismalux\" nel cassetto app.");
+        m_adbStatusLbl->setStyleSheet("color:#4caf50;font-size:11px;");
+    } else if (log.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE")) {
+        m_adbStatusLbl->setText(
+            "\xe2\x9a\xa0\xef\xb8\x8f  Versione incompatibile. "
+            "Disinstalla la precedente: adb uninstall com.prismalux.mobile");
+        m_adbStatusLbl->setStyleSheet("color:#ff9800;font-size:11px;");
+    } else if (log.contains("no devices") || log.contains("unauthorized")) {
+        m_adbStatusLbl->setText(
+            "\xe2\x9d\x8c  Nessun dispositivo. Abilita USB Debugging e accetta il popup sul telefono.");
+        m_adbStatusLbl->setStyleSheet("color:#f44336;font-size:11px;");
+    } else {
+        m_adbStatusLbl->setText(
+            QString("\xe2\x9d\x8c  Installazione fallita (exit %1). Vedi log.").arg(code));
+        m_adbStatusLbl->setStyleSheet("color:#f44336;font-size:11px;");
+    }
 }
