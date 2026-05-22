@@ -53,7 +53,8 @@ if [ "$IS_WIN" = "1" ]; then
     EXE_EXT=".exe"
     _RAW_NPROC="${NUMBER_OF_PROCESSORS:-2}"
 else
-    QT_BUILD="$QT_GUI/build"
+    # Usa build_gui nella root del progetto (directory di build standard)
+    QT_BUILD="$SCRIPT_DIR/build_gui"
     EXE_EXT=""
     _RAW_NPROC="$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 2)"
 fi

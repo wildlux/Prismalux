@@ -36,7 +36,7 @@ APPIMAGETOOL="${HOME}/.local/bin/appimagetool"
 [[ -x "$APPIMAGETOOL" ]] || APPIMAGETOOL="$(which appimagetool 2>/dev/null)" \
   || die "appimagetool non trovato. Scaricalo da https://github.com/AppImage/AppImageKit/releases"
 
-GUI_BIN="${ROOT}/gui/build/Prismalux_GUI"
+GUI_BIN="${ROOT}/build_gui/Prismalux_GUI"
 ICON_SRC="${ROOT}/ICONA/prismalux.png"
 APPDIR="${ROOT}/AppDir"
 VERSION=$(grep -m1 'project(Prismalux_GUI VERSION' "${ROOT}/gui/CMakeLists.txt" \
