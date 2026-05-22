@@ -267,6 +267,8 @@ void LanWanPage::onUpdateQrInline()
     if (!token.isEmpty())
         url += "?token=" + QString::fromLatin1(QUrl::toPercentEncoding(token));
     m_qrInlineWidget->setText(url);
+    if (m_urlDisplayLbl)
+        m_urlDisplayLbl->setText(QString("%1 : %2").arg(ip).arg(port));
 }
 
 void LanWanPage::onQrApkBtnClicked()
@@ -608,13 +610,43 @@ QWidget* LanWanPage::buildLanAndroidTab()
         "per pre-configurare l\xe2\x80\x99" "app.</span></span>");
     rightLay->addWidget(qrInfoLbl);
 
-    /* URL corrente */
-    auto* urlLbl = new QLabel(rightW);
-    urlLbl->setObjectName("hintLabel");
-    urlLbl->setTextFormat(Qt::RichText);
-    urlLbl->setText(QString("<small><b>%1</b> : %2</small>")
-                        .arg(ip).arg(m_lanPortSpin->value()));
-    rightLay->addWidget(urlLbl);
+    /* ── Riga URL stilata: 🌐 IP:porta  [📋 Copia] ── */
+    auto* urlRow  = new QWidget(rightW);
+    auto* urlRowL = new QHBoxLayout(urlRow);
+    urlRowL->setContentsMargins(0, 2, 0, 2);
+    urlRowL->setSpacing(6);
+
+    auto* urlIcon = new QLabel("\xf0\x9f\x8c\x90", urlRow);   /* 🌐 */
+    urlIcon->setStyleSheet("font-size:14px;");
+
+    m_urlDisplayLbl = new QLabel(urlRow);
+    m_urlDisplayLbl->setTextFormat(Qt::RichText);
+    m_urlDisplayLbl->setStyleSheet(
+        "font-size:13px; font-weight:600; color:#90caf9;");
+    m_urlDisplayLbl->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    m_urlDisplayLbl->setText(
+        QString("%1 : %2").arg(ip).arg(m_lanPortSpin->value()));
+
+    auto* urlCopyBtn = new QPushButton("\xf0\x9f\x93\x8b", urlRow);  /* 📋 */
+    urlCopyBtn->setFixedSize(28, 24);
+    urlCopyBtn->setToolTip("Copia URL negli appunti");
+    urlCopyBtn->setObjectName("actionBtn");
+    urlCopyBtn->setAccessibleName("Copia URL server LAN negli appunti");
+
+    urlRowL->addWidget(urlIcon);
+    urlRowL->addWidget(m_urlDisplayLbl, 1);
+    urlRowL->addWidget(urlCopyBtn);
+    rightLay->addWidget(urlRow);
+
+    connect(urlCopyBtn, &QPushButton::clicked, urlCopyBtn, [this, urlCopyBtn]{
+        const QString url = QString("%1://%2")
+            .arg(serverScheme()).arg(m_urlDisplayLbl->text().trimmed());
+        QGuiApplication::clipboard()->setText(url);
+        urlCopyBtn->setText("\xe2\x9c\x85");                  /* ✅ feedback */
+        QTimer::singleShot(1500, urlCopyBtn, [urlCopyBtn]{
+            urlCopyBtn->setText("\xf0\x9f\x93\x8b");
+        });
+    });
 
     /* Aggiorna QR a ogni modifica */
     connect(m_lanTokenEdit, &QLineEdit::textChanged,

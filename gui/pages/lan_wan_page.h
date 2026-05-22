@@ -32,6 +32,7 @@ private:
     QPushButton* m_qrApkBtn        = nullptr;
     QPushButton* m_qrPageBtn       = nullptr;
     QrCodeWidget* m_qrInlineWidget = nullptr;
+    QLabel*       m_urlDisplayLbl  = nullptr;
     QString       m_lanConnectIp;
 
     /* ── Installazione ADB via USB ── */
