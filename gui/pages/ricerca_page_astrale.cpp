@@ -159,7 +159,7 @@ QWidget* RicercaPage::buildAstraleTab()
     m_astraleDepth->setCurrentIndex(1);
     formLay->addRow("Livello lettura:", m_astraleDepth);
 
-    /* Modello AI + pulsante toggle Start/Stop nella stessa riga */
+    /* Modello AI — riga 1: combo + ⭐ Leggi gli Astri */
     auto* modelRow = new QWidget(formGroup);
     auto* modelLay = new QHBoxLayout(modelRow);
     modelLay->setContentsMargins(0, 0, 0, 0); modelLay->setSpacing(6);
@@ -167,16 +167,18 @@ QWidget* RicercaPage::buildAstraleTab()
     sciPopulateModels(m_astraleModel);
     m_astraleRunBtn = new QPushButton("\xe2\xad\x90  Leggi gli Astri", modelRow);
     m_astraleRunBtn->setObjectName("actionBtn");
-    m_karmicaBtn = new QPushButton("\xf0\x9f\x94\xae  Ruota Karmica", modelRow);  /* 🔮 */
+    modelLay->addWidget(m_astraleModel, 1);
+    modelLay->addWidget(m_astraleRunBtn);
+    formLay->addRow("Modello AI:", modelRow);
+
+    /* Riga 2: 🔮 Ruota Karmica (larghezza piena) */
+    m_karmicaBtn = new QPushButton("\xf0\x9f\x94\xae  Compila Ruota Karmica", formGroup);
     m_karmicaBtn->setObjectName("actionBtn");
     m_karmicaBtn->setStyleSheet(
         "QPushButton#actionBtn { background:#4a235a; color:#e8d5f0; border:1px solid #7b3fa0; }"
         "QPushButton#actionBtn:hover { background:#5c2d72; }"
         "QPushButton#actionBtn:pressed { background:#3a1a47; }");
-    modelLay->addWidget(m_astraleModel, 1);
-    modelLay->addWidget(m_astraleRunBtn);
-    modelLay->addWidget(m_karmicaBtn);
-    formLay->addRow("Modello AI:", modelRow);
+    formLay->addRow(m_karmicaBtn);
 
     /* Domanda facoltativa — toggle collassa/espande su clic barra */
     auto* focusToggle = new QPushButton(
