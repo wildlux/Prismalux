@@ -6,6 +6,7 @@
 #include <QComboBox>
 #include <QListWidget>
 #include <QLabel>
+#include <QTableWidget>
 #include <QNetworkAccessManager>
 #include "../ai_client.h"
 #include "lavoro_data.h"
@@ -47,6 +48,12 @@ private slots:
     /* ── Context menu log ── */
     void onLavoroLogContextMenu(const QPoint& pos);
     void onCoverLogContextMenu(const QPoint& pos);
+    /* ── Tracker candidature ── */
+    void onTrackerAddRow();
+    void onTrackerRemoveRow();
+    void onTrackerSave();
+    /* ── Calcolatore euro/ore ── */
+    void onCalcChanged();
 
 private:
     /* ── Helper interni (non slot, non lambda) ── */
@@ -58,6 +65,9 @@ private:
     void sendFn(const QString& msg);
     void analizzaUrls(const QStringList& urlList);
     void aiDone();
+    void loadTracker();
+    QString trackerPath() const;
+    QComboBox* makeStatoCombo(QWidget* parent);
 
     /* ── Costanti di testo ── */
     static const QString& cvFallback();
@@ -68,6 +78,7 @@ private:
     QString      m_cvText;
     quint64      m_myReqId      = 0;
     quint64      m_myCoverReqId = 0;
+    bool         m_calcBusy     = false;
 
     /* ── Widget ── */
     QTextEdit*   m_lavoroLog     = nullptr;
@@ -95,4 +106,16 @@ private:
     QPushButton* m_copiaCoverBtn = nullptr;
     QLabel*      m_waitLbl       = nullptr;
     QLabel*      m_selLbl        = nullptr;
+
+    /* ── Tracker candidature ── */
+    QTableWidget* m_trackerTable  = nullptr;
+    QPushButton*  m_trackerAddBtn = nullptr;
+    QPushButton*  m_trackerDelBtn = nullptr;
+
+    /* ── Calcolatore euro/ore ── */
+    QLineEdit*    m_calcOre       = nullptr;
+    QLineEdit*    m_calcMensile   = nullptr;
+    QLineEdit*    m_calcAnnuo     = nullptr;
+    QLineEdit*    m_calcOrario    = nullptr;
+    QLabel*       m_calcNettoLbl  = nullptr;
 };

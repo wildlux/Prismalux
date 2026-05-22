@@ -12,9 +12,15 @@
 #include <QNetworkReply>
 #include <QAbstractSocket>
 #include <QTcpSocket>
+#include <QButtonGroup>
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
+#include "../widgets/natal_chart_widget.h"
+#include "../widgets/world_map_widget.h"
 #include "rab0l_canvas.h"
+class QDateEdit;
+class QTimeEdit;
+class QTextBrowser;
 
 /* ══════════════════════════════════════════════════════════════
    RicercaPage — "Ricerca e Sviluppo"
@@ -117,6 +123,42 @@ private:
     QWidget* buildAvogadroTab();
     QWidget* buildRab0lTab();
     QWidget* buildBlhmTab();
+    QWidget* buildAnalisiPage();
+    QWidget* buildAstraleTab();
+
+    /* ── Carta Astrale ── */
+    QDateEdit*      m_astraleNascita    = nullptr;
+    QTimeEdit*      m_astraleOra        = nullptr;
+    WorldMapWidget* m_worldMap          = nullptr;
+    QLineEdit*      m_astraleCustomCitta = nullptr;
+    QLineEdit*      m_astraleCustomLat   = nullptr;
+    QLineEdit*      m_astraleCustomLon   = nullptr;
+    QButtonGroup*   m_astraleSessoGrp  = nullptr;
+    QComboBox*      m_astraleDepth     = nullptr;
+    QComboBox*      m_astraleModel     = nullptr;
+    QTextEdit*      m_astraleDesc      = nullptr;
+    QTextEdit*          m_astraleOutput    = nullptr;
+    NatalChartWidget*   m_natalChart       = nullptr;
+    QTextBrowser*       m_astraleDoBox     = nullptr;
+    QTextBrowser*       m_astraleDontBox   = nullptr;
+    QPushButton*        m_astraleRunBtn    = nullptr;
+    QMetaObject::Connection m_astraleTokenConn;
+    QMetaObject::Connection m_astraleFinishedConn;
+    QMetaObject::Connection m_astraleErrorConn;
+
+    /* ── Analisi Fenomeni ── */
+    QButtonGroup*   m_analisiCatGroup    = nullptr;
+    QTextEdit*      m_analisiEventEdit   = nullptr;
+    QTextEdit*      m_analisiSrcEdit     = nullptr;
+    QComboBox*      m_analisiModelCombo  = nullptr;
+    QTextEdit*      m_analisiOutput      = nullptr;
+    QPushButton*    m_analisiRunBtn      = nullptr;
+    QPushButton*    m_analisiStopBtn     = nullptr;
+    QProgressBar*   m_analisiProbBar     = nullptr;
+    QLabel*         m_analisiProbLbl     = nullptr;
+    QMetaObject::Connection m_analisiTokenConn;
+    QMetaObject::Connection m_analisiFinishedConn;
+    QMetaObject::Connection m_analisiErrorConn;
 
     /* ── RAB₀-L ── */
     Rab0lCanvas* m_rab0lCanvas  = nullptr;
@@ -204,6 +246,18 @@ private slots:
     void onBlhmNoteLoad();
     void onBlhmNoteSave();
     void onBlhmDnaAnalyzeClicked();
+    /* Analisi Fenomeni */
+    void onAnalisiRunClicked();
+    void onAnalisiStopClicked();
+    void onAnalisiToken(const QString& t);
+    void onAnalisiFinished(const QString& full);
+    void onAnalisiError(const QString& msg);
+    /* Carta Astrale */
+    void onAstraleRunClicked();
+    void onAstraleStopClicked();
+    void onAstraleToken(const QString& t);
+    void onAstraleFinished(const QString& full);
+    void onAstraleError(const QString& msg);
 
 public:
     static void esportaPdf(QTextEdit* editor,

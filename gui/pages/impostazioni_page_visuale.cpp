@@ -97,6 +97,42 @@ QWidget* ImpostazioniPage::buildTemaTab() {
     hint->setStyleSheet("color:#9ca3af; font-size:12px;");
     vlay->addWidget(hint);
 
+    /* ── Sezione: Segui tema di sistema ── */
+    {
+        auto* secSystem = new QFrame(outer);
+        secSystem->setObjectName("cardFrame");
+        auto* sysLay = new QHBoxLayout(secSystem);
+        sysLay->setContentsMargins(16, 10, 16, 10);
+        sysLay->setSpacing(12);
+
+        auto* sysCb = new QCheckBox(
+            "\xf0\x9f\x8c\x99  Segui tema di sistema (Dark/Light automatico)", secSystem);
+        sysCb->setObjectName("cardDesc");
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+        sysCb->setEnabled(true);
+        {
+            QSettings ss("Prismalux", "GUI");
+            sysCb->setChecked(ss.value(P::SK::kFollowSystem, false).toBool());
+        }
+        connect(sysCb, &QCheckBox::toggled, sysCb, [](bool on) {
+            ThemeManager::instance()->setFollowSystem(on);
+        });
+#else
+        sysCb->setEnabled(false);
+        sysCb->setToolTip("Richiede Qt 6.5 o superiore.");
+#endif
+
+        auto* sysHint = new QLabel(
+            "Quando attivo, Prismalux segue automaticamente il tema chiaro/scuro "
+            "impostato nel sistema operativo. Disattiva per scegliere manualmente.", secSystem);
+        sysHint->setObjectName("hintLabel");
+        sysHint->setWordWrap(true);
+
+        sysLay->addWidget(sysCb);
+        sysLay->addWidget(sysHint, 1);
+        vlay->addWidget(secSystem);
+    }
+
     /* ── Griglia card (4 per riga) ── */
     auto* scroll = new QScrollArea(outer);
     scroll->setWidgetResizable(true);

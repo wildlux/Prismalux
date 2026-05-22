@@ -252,6 +252,15 @@ class BlenderMCPServer:
             }
             handlers.update(hunyuan_handlers)
 
+        # Prismalux generative tools — always available, no external API needed
+        generative_handlers = {
+            "create_from_prompt": self.create_from_prompt,
+            "create_from_data": self.create_from_data,
+            "create_from_pdf": self.create_from_pdf,
+            "create_building": self.create_building_from_specs,
+        }
+        handlers.update(generative_handlers)
+
         handler = handlers.get(cmd_type)
         if handler:
             try:
@@ -436,6 +445,624 @@ class BlenderMCPServer:
             raise Exception(f"Code execution error: {str(e)}")
 
 
+
+    # ------------------------------------------------------------------ #
+    #  PRISMALUX GENERATIVE TOOLS                                          #
+    # ------------------------------------------------------------------ #
+
+    # --- helpers -------------------------------------------------------- #
+
+    @staticmethod
+    def _make_material(name, base_color, alpha=1.0):
+        """Create or reuse a simple Principled BSDF material by name."""
+        mat = bpy.data.materials.get(name)
+        if mat is None:
+            mat = bpy.data.materials.new(name)
+        mat.use_nodes = True
+        bsdf = mat.node_tree.nodes.get("Principled BSDF")
+        if bsdf is None:
+            bsdf = mat.node_tree.nodes.new("ShaderNodeBsdfPrincipled")
+        r, g, b = base_color
+        bsdf.inputs["Base Color"].default_value = (r, g, b, 1.0)
+        if alpha < 1.0:
+            mat.blend_method = "BLEND"
+            bsdf.inputs["Alpha"].default_value = alpha
+        return mat
+
+    @staticmethod
+    def _assign_material(obj, mat):
+        if obj.data.materials:
+            obj.data.materials[0] = mat
+        else:
+            obj.data.materials.append(mat)
+
+    @staticmethod
+    def _deselect_all():
+        bpy.ops.object.select_all(action="DESELECT")
+
+    # Colour table used by material keyword matching
+    _MATERIAL_COLORS = {
+        "legno":    ((0.55, 0.27, 0.07), 1.0),
+        "pietra":   ((0.55, 0.55, 0.55), 1.0),
+        "vetro":    ((0.6,  0.8,  1.0),  0.3),
+        "metallo":  ((0.75, 0.75, 0.80), 1.0),
+        "mattone":  ((0.72, 0.25, 0.05), 1.0),
+        "cemento":  ((0.65, 0.65, 0.65), 1.0),
+        "legno":    ((0.55, 0.27, 0.07), 1.0),
+    }
+
+    def _parse_prompt(self, prompt):
+        """
+        Extract structured parameters from a free-text Italian/English prompt.
+        Returns a dict with keys: tipo, width, depth, height, floors, material_key.
+        No ML — pure regex/keyword scan.
+        """
+        p = prompt.lower()
+
+        # --- object type ---
+        tipo = "cubo"  # default
+        type_map = {
+            "torre":       "torre",
+            "tower":       "torre",
+            "grattacielo": "grattacielo",
+            "skyscraper":  "grattacielo",
+            "casa":        "casa",
+            "house":       "casa",
+            "ponte":       "ponte",
+            "bridge":      "ponte",
+            "capannone":   "capannone",
+            "warehouse":   "capannone",
+            "cilindro":    "cilindro",
+            "cylinder":    "cilindro",
+            "sfera":       "sfera",
+            "sphere":      "sfera",
+            "cubo":        "cubo",
+            "cube":        "cubo",
+        }
+        for kw, val in type_map.items():
+            if kw in p:
+                tipo = val
+                break
+
+        # --- dimensions (e.g. "10m", "largo 5m", "wide 8") ---
+        def _dim(pattern, text, default):
+            m = re.search(pattern, text)
+            return float(m.group(1)) if m else default
+
+        height = _dim(r"alto[a-z\s]*?(\d+(?:\.\d+)?)\s*m?", p, None) or \
+                 _dim(r"(\d+(?:\.\d+)?)\s*m\s*(?:di\s*)?alt", p, None) or \
+                 _dim(r"height\s*[:\s]*(\d+(?:\.\d+)?)", p, None)
+        width  = _dim(r"largo[a-z\s]*?(\d+(?:\.\d+)?)\s*m?", p, None) or \
+                 _dim(r"wide?\s*[:\s]*(\d+(?:\.\d+)?)", p, None)
+        depth  = _dim(r"profondo[a-z\s]*?(\d+(?:\.\d+)?)\s*m?", p, None) or \
+                 _dim(r"deep?\s*[:\s]*(\d+(?:\.\d+)?)", p, None)
+
+        # --- floors ---
+        floors = None
+        m = re.search(r"(\d+)\s*(?:piani|livelli|floors?|stories?)", p)
+        if m:
+            floors = int(m.group(1))
+
+        # --- material ---
+        material_key = None
+        for kw in self._MATERIAL_COLORS:
+            if kw in p:
+                material_key = kw
+                break
+
+        return {
+            "tipo": tipo,
+            "width":  width,
+            "depth":  depth,
+            "height": height,
+            "floors": floors,
+            "material_key": material_key,
+        }
+
+    # ------------------------------------------------------------------ #
+    #  Tool 1 — create_from_prompt                                         #
+    # ------------------------------------------------------------------ #
+
+    def create_from_prompt(self, prompt):
+        """
+        Build a 3D structure in Blender from a free-text description.
+        Supports: torre, casa, grattacielo, ponte, capannone, sfera, cilindro, cubo.
+        """
+        spec = self._parse_prompt(prompt)
+        tipo = spec["tipo"]
+        mat_key = spec["material_key"]
+
+        created = []
+
+        # Resolve material (if any was requested)
+        mat = None
+        if mat_key and mat_key in self._MATERIAL_COLORS:
+            color, alpha = self._MATERIAL_COLORS[mat_key]
+            mat = self._make_material(f"PL_{mat_key}", color, alpha)
+
+        def _add_mat(obj):
+            if mat:
+                self._assign_material(obj, mat)
+
+        if tipo == "torre":
+            floors  = spec["floors"] or 3
+            width   = spec["width"]  or 4.0
+            depth   = spec["depth"]  or 4.0
+            h_floor = (spec["height"] / floors) if spec["height"] else 3.0
+            objs = []
+            for i in range(floors):
+                self._deselect_all()
+                bpy.ops.mesh.primitive_cube_add(
+                    size=1,
+                    location=(0, 0, i * h_floor + h_floor / 2)
+                )
+                o = bpy.context.active_object
+                o.scale = (width / 2, depth / 2, h_floor / 2)
+                o.name = f"Torre_Piano_{i+1}"
+                bpy.ops.object.transform_apply(scale=True)
+                _add_mat(o)
+                objs.append(o.name)
+            # Tetto conico
+            self._deselect_all()
+            bpy.ops.mesh.primitive_cone_add(
+                vertices=8,
+                radius1=max(width, depth) / 2 + 0.2,
+                radius2=0.1,
+                depth=h_floor * 0.8,
+                location=(0, 0, floors * h_floor + h_floor * 0.4)
+            )
+            o = bpy.context.active_object
+            o.name = "Torre_Tetto"
+            _add_mat(o)
+            objs.append(o.name)
+            created = objs
+
+        elif tipo == "casa":
+            w = spec["width"] or 8.0
+            d = spec["depth"] or 6.0
+            h = spec["height"] or 3.0
+            # Corpo
+            self._deselect_all()
+            bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, h / 2))
+            body = bpy.context.active_object
+            body.scale = (w / 2, d / 2, h / 2)
+            body.name = "Casa_Corpo"
+            bpy.ops.object.transform_apply(scale=True)
+            _add_mat(body)
+            # Tetto a prisma: ruotato cubo appiattito
+            self._deselect_all()
+            bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, h + 0.75))
+            roof = bpy.context.active_object
+            roof.scale = (w / 2 + 0.3, d / 2 + 0.3, 0.75)
+            roof.name = "Casa_Tetto"
+            bpy.ops.object.transform_apply(scale=True)
+            roof_mat = self._make_material("PL_tetto", (0.6, 0.15, 0.05))
+            self._assign_material(roof, roof_mat)
+            created = [body.name, roof.name]
+
+        elif tipo == "grattacielo":
+            floors  = spec["floors"] or 20
+            w       = spec["width"]  or 20.0
+            d       = spec["depth"]  or 20.0
+            h_floor = (spec["height"] / floors) if spec["height"] else 3.5
+            total_h = floors * h_floor
+            self._deselect_all()
+            bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, total_h / 2))
+            body = bpy.context.active_object
+            body.scale = (w / 2, d / 2, total_h / 2)
+            body.name = "Grattacielo_Corpo"
+            bpy.ops.object.transform_apply(scale=True)
+            # Vetro di default per grattacielo
+            if mat is None:
+                mat = self._make_material("PL_vetro_grattacielo", (0.6, 0.8, 1.0), 0.4)
+            self._assign_material(body, mat)
+            # Array modifier per finestre — aggiunto come nota nel nome
+            body.name = f"Grattacielo_{floors}piani"
+            created = [body.name]
+
+        elif tipo == "ponte":
+            length = spec["width"] or spec["height"] or 30.0
+            w      = spec["depth"] or 6.0
+            h      = 1.0
+            self._deselect_all()
+            bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0))
+            deck = bpy.context.active_object
+            deck.scale = (length / 2, w / 2, h / 2)
+            deck.name = "Ponte_Impalcato"
+            bpy.ops.object.transform_apply(scale=True)
+            _add_mat(deck)
+            # Piloni
+            n_piloni = max(2, int(length / 8))
+            spacing  = length / (n_piloni - 1) if n_piloni > 1 else length
+            piloni = []
+            for i in range(n_piloni):
+                self._deselect_all()
+                bpy.ops.mesh.primitive_cylinder_add(
+                    radius=0.5,
+                    depth=5.0,
+                    location=(- length / 2 + i * spacing, 0, -2.5)
+                )
+                o = bpy.context.active_object
+                o.name = f"Ponte_Pilone_{i+1}"
+                _add_mat(o)
+                piloni.append(o.name)
+            created = [deck.name] + piloni
+
+        elif tipo == "capannone":
+            w = spec["width"]  or 20.0
+            d = spec["depth"]  or 12.0
+            h = spec["height"] or 6.0
+            self._deselect_all()
+            bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, h / 2))
+            body = bpy.context.active_object
+            body.scale = (w / 2, d / 2, h / 2)
+            body.name = "Capannone_Corpo"
+            bpy.ops.object.transform_apply(scale=True)
+            _add_mat(body)
+            # Tetto a doppia falda (cubo molto schiacciato + inclinato)
+            self._deselect_all()
+            bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, h + 1.0))
+            roof = bpy.context.active_object
+            roof.scale = (w / 2 + 0.3, d / 2 + 0.3, 1.0)
+            roof.name = "Capannone_Tetto"
+            bpy.ops.object.transform_apply(scale=True)
+            roof_mat = self._make_material("PL_capannone_tetto", (0.5, 0.5, 0.55))
+            self._assign_material(roof, roof_mat)
+            created = [body.name, roof.name]
+
+        elif tipo == "cilindro":
+            r = (spec["width"] or 2.0) / 2
+            h = spec["height"] or 4.0
+            self._deselect_all()
+            bpy.ops.mesh.primitive_cylinder_add(radius=r, depth=h, location=(0, 0, h / 2))
+            o = bpy.context.active_object
+            o.name = "Cilindro_PL"
+            _add_mat(o)
+            created = [o.name]
+
+        elif tipo == "sfera":
+            r = (spec["width"] or spec["height"] or 2.0) / 2
+            self._deselect_all()
+            bpy.ops.mesh.primitive_uv_sphere_add(radius=r, location=(0, 0, r))
+            o = bpy.context.active_object
+            o.name = "Sfera_PL"
+            _add_mat(o)
+            created = [o.name]
+
+        else:  # cubo / fallback
+            s = spec["width"] or spec["height"] or 2.0
+            self._deselect_all()
+            bpy.ops.mesh.primitive_cube_add(size=s, location=(0, 0, s / 2))
+            o = bpy.context.active_object
+            o.name = "Cubo_PL"
+            _add_mat(o)
+            created = [o.name]
+
+        return {
+            "created_objects": created,
+            "parsed_spec": spec,
+            "prompt": prompt,
+        }
+
+    # ------------------------------------------------------------------ #
+    #  Tool 2 — create_from_data                                           #
+    # ------------------------------------------------------------------ #
+
+    def create_from_data(self, data, viz_type="bar"):
+        """
+        Generate a 3D visualisation from a list of {x, y, z} dicts.
+        viz_type: "bar" → columns, "scatter" → spheres, "surface" → mesh.
+        """
+        if not data:
+            return {"error": "Empty data list"}
+
+        # Normalise: accept both dicts and [x,y,z] lists
+        points = []
+        for item in data:
+            if isinstance(item, dict):
+                points.append((
+                    float(item.get("x", 0)),
+                    float(item.get("y", 0)),
+                    float(item.get("z", 0)),
+                ))
+            elif isinstance(item, (list, tuple)) and len(item) >= 3:
+                points.append((float(item[0]), float(item[1]), float(item[2])))
+
+        if not points:
+            return {"error": "No valid points found in data"}
+
+        created = []
+
+        if viz_type == "bar":
+            bar_mat = self._make_material("PL_bar", (0.2, 0.6, 1.0))
+            for i, (x, y, z) in enumerate(points):
+                h = abs(z) if z != 0 else 0.01
+                self._deselect_all()
+                bpy.ops.mesh.primitive_cube_add(size=1, location=(x, y, h / 2))
+                o = bpy.context.active_object
+                o.scale = (0.4, 0.4, h / 2)
+                o.name = f"Bar_{i}"
+                bpy.ops.object.transform_apply(scale=True)
+                self._assign_material(o, bar_mat)
+                created.append(o.name)
+
+        elif viz_type == "scatter":
+            scatter_mat = self._make_material("PL_scatter", (1.0, 0.4, 0.1))
+            for i, (x, y, z) in enumerate(points):
+                self._deselect_all()
+                bpy.ops.mesh.primitive_uv_sphere_add(
+                    radius=0.15, segments=8, ring_count=6,
+                    location=(x, y, z)
+                )
+                o = bpy.context.active_object
+                o.name = f"Scatter_{i}"
+                self._assign_material(o, scatter_mat)
+                created.append(o.name)
+
+        elif viz_type == "surface":
+            # Build a mesh from the point cloud directly
+            mesh = bpy.data.meshes.new("PL_Surface_Mesh")
+            verts = [(x, y, z) for x, y, z in points]
+            # Simple triangulation: connect consecutive triples when possible
+            faces = []
+            n = len(verts)
+            if n >= 3:
+                # Fan triangulation from centroid — works for convex clouds
+                cx = sum(v[0] for v in verts) / n
+                cy = sum(v[1] for v in verts) / n
+                cz = sum(v[2] for v in verts) / n
+                verts.append((cx, cy, cz))  # centroid as last vertex
+                center_idx = len(verts) - 1
+                for j in range(n):
+                    faces.append((j, (j + 1) % n, center_idx))
+            mesh.from_pydata(verts, [], faces)
+            mesh.update()
+            obj = bpy.data.objects.new("PL_Surface", mesh)
+            bpy.context.collection.objects.link(obj)
+            surf_mat = self._make_material("PL_surface", (0.1, 0.8, 0.4), 0.7)
+            self._assign_material(obj, surf_mat)
+            created.append(obj.name)
+
+        else:
+            return {"error": f"Unknown viz_type: {viz_type}. Use bar, scatter, or surface."}
+
+        return {"created_objects": created, "point_count": len(points), "viz_type": viz_type}
+
+    # ------------------------------------------------------------------ #
+    #  Tool 3 — create_from_pdf                                            #
+    # ------------------------------------------------------------------ #
+
+    def create_from_pdf(self, pdf_path):
+        """
+        Extract text from a PDF (or plain text file), then either parse
+        numeric data into a bar chart or forward textual description to
+        create_from_prompt.
+        Falls back gracefully if no PDF library is available.
+        """
+        if not os.path.exists(pdf_path):
+            return {"error": f"File not found: {pdf_path}"}
+
+        # --- text extraction ------------------------------------------ #
+        text = ""
+        ext = os.path.splitext(pdf_path)[1].lower()
+
+        if ext in (".txt", ".md", ".csv"):
+            with open(pdf_path, "r", errors="replace") as fh:
+                text = fh.read()
+        else:
+            # Try pdfminer first, then PyPDF2, then raw bytes fallback
+            try:
+                from pdfminer.high_level import extract_text as _pdfminer_extract
+                text = _pdfminer_extract(pdf_path)
+            except ImportError:
+                try:
+                    import PyPDF2
+                    with open(pdf_path, "rb") as fh:
+                        reader = PyPDF2.PdfReader(fh)
+                        text = "\n".join(
+                            page.extract_text() or "" for page in reader.pages
+                        )
+                except ImportError:
+                    return {
+                        "error": (
+                            "No PDF library available. "
+                            "Install pdfminer.six or PyPDF2 inside Blender's Python: "
+                            "import subprocess, sys; "
+                            "subprocess.run([sys.executable, '-m', 'pip', 'install', 'pdfminer.six'])"
+                        )
+                    }
+            except Exception as e:
+                return {"error": f"PDF extraction failed: {str(e)}"}
+
+        if not text.strip():
+            return {"error": "No text extracted from file"}
+
+        # --- check for numeric table data ------------------------------ #
+        # Pattern: rows of numbers separated by whitespace/comma/tab
+        # e.g.  "0 0 5.2\n1 0 3.1\n..." or CSV "0,0,5.2"
+        rows = []
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            tokens = re.split(r"[\s,;|]+", line)
+            nums = []
+            for tok in tokens:
+                try:
+                    nums.append(float(tok))
+                except ValueError:
+                    pass
+            if len(nums) >= 3:
+                rows.append({"x": nums[0], "y": nums[1], "z": nums[2]})
+
+        if len(rows) >= 2:
+            result = self.create_from_data(rows, viz_type="bar")
+            result["source"] = "numeric_table"
+            result["rows_found"] = len(rows)
+            return result
+
+        # --- check for dimension patterns ------------------------------ #
+        # e.g. "10 x 5 x 3 m" or "larghezza: 8, altezza: 4"
+        dim_match = re.search(
+            r"(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)",
+            text
+        )
+        if dim_match:
+            w, d, h = (float(dim_match.group(i)) for i in range(1, 4))
+            synth_prompt = f"capannone largo {w}m profondo {d}m alto {h}m"
+            result = self.create_from_prompt(synth_prompt)
+            result["source"] = "dimension_pattern"
+            result["extracted_dims"] = {"width": w, "depth": d, "height": h}
+            return result
+
+        # --- fallback: forward first meaningful sentence --------------- #
+        sentences = [s.strip() for s in re.split(r"[.!?\n]", text) if len(s.strip()) > 15]
+        prompt_text = sentences[0] if sentences else text[:200]
+        result = self.create_from_prompt(prompt_text)
+        result["source"] = "text_description"
+        result["extracted_text"] = prompt_text
+        return result
+
+    # ------------------------------------------------------------------ #
+    #  Tool 4 — create_building_from_specs                                 #
+    # ------------------------------------------------------------------ #
+
+    def create_building_from_specs(self, floors=3, width=10.0, depth=8.0,
+                                   height_per_floor=3.0, style="modern"):
+        """
+        Parametric building generator.
+        style: "modern" (glass+columns), "medieval" (thick walls+towers),
+               "industrial" (corrugated roof+rect windows).
+        """
+        style = style.lower()
+        created = []
+        total_h = floors * height_per_floor
+
+        # --- main body ------------------------------------------------- #
+        self._deselect_all()
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, total_h / 2))
+        body = bpy.context.active_object
+        body.scale = (width / 2, depth / 2, total_h / 2)
+        body.name = f"Building_{style}_corpo"
+        bpy.ops.object.transform_apply(scale=True)
+
+        if style == "modern":
+            glass_mat = self._make_material("PL_vetro_moderno", (0.6, 0.8, 1.0), 0.35)
+            self._assign_material(body, glass_mat)
+            # 4 corner columns
+            col_mat = self._make_material("PL_metallo", (0.75, 0.75, 0.8))
+            col_r   = 0.4
+            offsets = [
+                ( width / 2 - col_r,  depth / 2 - col_r),
+                (-width / 2 + col_r,  depth / 2 - col_r),
+                ( width / 2 - col_r, -depth / 2 + col_r),
+                (-width / 2 + col_r, -depth / 2 + col_r),
+            ]
+            for j, (ox, oy) in enumerate(offsets):
+                self._deselect_all()
+                bpy.ops.mesh.primitive_cylinder_add(
+                    radius=col_r, depth=total_h,
+                    location=(ox, oy, total_h / 2)
+                )
+                col = bpy.context.active_object
+                col.name = f"Building_{style}_colonna_{j}"
+                self._assign_material(col, col_mat)
+                created.append(col.name)
+
+        elif style == "medieval":
+            wall_mat = self._make_material("PL_pietra_medievale", (0.5, 0.45, 0.4))
+            self._assign_material(body, wall_mat)
+            body.scale   # already applied above
+            # Thicken appearance with inner void — just add merlature (battlements)
+            merlon_h = 0.6
+            merlon_w = 0.8
+            merlon_mat = self._make_material("PL_pietra_merlo", (0.45, 0.40, 0.35))
+            for side, (lx, ly, rot_z) in enumerate([
+                (0,          depth / 2 + 0.1,  0),
+                (0,         -depth / 2 - 0.1,  0),
+                (width / 2 + 0.1,  0,          1.5708),
+                (-width / 2 - 0.1, 0,          1.5708),
+            ]):
+                side_len = width if rot_z == 0 else depth
+                n_merli  = max(2, int(side_len / (merlon_w * 2)))
+                for k in range(n_merli):
+                    offset = -side_len / 2 + (k + 0.5) * (side_len / n_merli)
+                    if rot_z == 0:
+                        mx, my = offset, ly
+                    else:
+                        mx, my = lx, offset
+                    self._deselect_all()
+                    bpy.ops.mesh.primitive_cube_add(
+                        size=1,
+                        location=(mx, my, total_h + merlon_h / 2)
+                    )
+                    m = bpy.context.active_object
+                    m.scale = (merlon_w / 2, 0.3, merlon_h / 2)
+                    m.name  = f"Building_merlo_{side}_{k}"
+                    bpy.ops.object.transform_apply(scale=True)
+                    self._assign_material(m, merlon_mat)
+                    created.append(m.name)
+            # Corner towers
+            tower_r = min(width, depth) * 0.12
+            tower_h = total_h + 2.0
+            tower_mat = self._make_material("PL_torre_medievale", (0.48, 0.43, 0.38))
+            for j, (tx, ty) in enumerate([
+                ( width / 2,  depth / 2),
+                (-width / 2,  depth / 2),
+                ( width / 2, -depth / 2),
+                (-width / 2, -depth / 2),
+            ]):
+                self._deselect_all()
+                bpy.ops.mesh.primitive_cylinder_add(
+                    vertices=8, radius=tower_r, depth=tower_h,
+                    location=(tx, ty, tower_h / 2)
+                )
+                t = bpy.context.active_object
+                t.name = f"Building_torretta_{j}"
+                self._assign_material(t, tower_mat)
+                created.append(t.name)
+
+        elif style == "industrial":
+            ind_mat = self._make_material("PL_ind_muro", (0.55, 0.52, 0.50))
+            self._assign_material(body, ind_mat)
+            # Pitched roof (two sloped panels)
+            roof_mat = self._make_material("PL_ind_tetto", (0.4, 0.4, 0.42))
+            for side, angle, ox in [
+                ("sx",  0.5,  width * 0.15),
+                ("dx", -0.5, -width * 0.15),
+            ]:
+                self._deselect_all()
+                bpy.ops.mesh.primitive_cube_add(size=1, location=(ox, 0, total_h + 0.8))
+                panel = bpy.context.active_object
+                panel.scale = (width / 4, depth / 2 + 0.2, 0.15)
+                panel.rotation_euler.y = angle
+                panel.name = f"Building_ind_tetto_{side}"
+                bpy.ops.object.transform_apply(scale=True, rotation=True)
+                self._assign_material(panel, roof_mat)
+                created.append(panel.name)
+
+        else:
+            # Unknown style — still return the body with a neutral material
+            neutral = self._make_material("PL_neutro", (0.7, 0.7, 0.7))
+            self._assign_material(body, neutral)
+
+        created.insert(0, body.name)
+
+        return {
+            "created_objects": created,
+            "specs": {
+                "floors": floors,
+                "width": width,
+                "depth": depth,
+                "height_per_floor": height_per_floor,
+                "total_height": total_h,
+                "style": style,
+            }
+        }
+
+    # ------------------------------------------------------------------ #
+    #  END PRISMALUX GENERATIVE TOOLS                                      #
+    # ------------------------------------------------------------------ #
 
     def get_polyhaven_categories(self, asset_type):
         """Get categories for a specific asset type from Polyhaven"""

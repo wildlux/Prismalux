@@ -3,6 +3,8 @@
 #include <QString>
 #include <QStringList>
 #include <QHash>
+#include <QGuiApplication>
+#include <QStyleHints>
 
 /* ══════════════════════════════════════════════════════════════
    ThemeManager — singleton per il cambio tema a runtime
@@ -37,8 +39,19 @@ public:
     /* QSS completo del tema attivo (per parsing colori a runtime) */
     QString currentQss() const { return m_cssCache.value(m_currentId); }
 
+    /* Applica il tema chiaro/scuro in base al tema di sistema corrente */
+    void applySystemTheme();
+
+    /* Attiva/disattiva il follow del tema di sistema */
+    void setFollowSystem(bool follow);
+
+    bool followSystem() const { return m_followSystem; }
+
 signals:
     void changed(const QString& id);
+
+public slots:
+    void onColorSchemeChanged();
 
 private:
     explicit ThemeManager(QObject* parent = nullptr);
@@ -47,4 +60,5 @@ private:
     QList<Theme>         m_themes;
     QString              m_currentId;
     QHash<QString,QString> m_cssCache;   ///< id → CSS già letto da disco
+    bool                 m_followSystem = false;
 };

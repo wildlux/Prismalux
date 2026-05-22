@@ -12,6 +12,9 @@
 #include <QUrl>
 #include <QTextCursor>
 #include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QSettings>
 
 #ifdef HAVE_MULTIMEDIA
 #include <QMediaFormat>
@@ -322,9 +325,6 @@ void AudioPage::onTranscribeClicked()
     const QString mode = m_modeCombo->currentData().toString();
 
     if (mode == "whisper") {
-        /* Invia il file audio al server Whisper via AiClient (multipart/form-data).
-           La funzione è disponibile se AiClient ha il metodo transcribeAudio().
-           In assenza, cade nel ramo testuale. */
         const QString path = savedAudioPath();
         QFile f(path);
         if (!f.exists()) {
@@ -333,8 +333,7 @@ void AudioPage::onTranscribeClicked()
                 + "  Nessuna registrazione trovata. Registra prima un audio.");
             return;
         }
-        /* Usa l'AI per descrivere il file — placeholder per integrazione Whisper reale */
-        onAnalyzeText();
+        uploadWhisper(path);
         return;
     }
     onAnalyzeText();
@@ -466,4 +465,109 @@ void AudioPage::onChatBtnRestore()
 {
     if (m_chatBtn)
         m_chatBtn->setText(QString::fromUtf8("\xf0\x9f\x92\xac  Invia in Chat"));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Whisper upload — POST multipart/form-data a /api/whisper
+   ══════════════════════════════════════════════════════════════ */
+void AudioPage::uploadWhisper(const QString& filePath)
+{
+    if (m_whisperReply) {
+        /* upload già in corso */
+        m_resultEdit->setPlainText(
+            QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f")
+            + "  Upload già in corso. Attendi.");
+        return;
+    }
+
+    QFile* file = new QFile(filePath, this);
+    if (!file->open(QIODevice::ReadOnly)) {
+        m_resultEdit->setPlainText(
+            QString::fromUtf8("\xe2\x9d\x8c")
+            + "  Impossibile aprire il file audio: " + filePath);
+        file->deleteLater();
+        return;
+    }
+
+    /* Leggi URL e token dalle impostazioni */
+    QSettings s("Prismalux", "Mobile");
+    const QString host  = s.value("server/host", "192.168.1.165").toString();
+    const int     port  = s.value("server/port",  11500).toInt();
+    const QString token = s.value("server/token", "").toString();
+    const QString url   = QString("http://%1:%2/api/whisper").arg(host).arg(port);
+
+    /* Prepara multipart */
+    auto* multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType, this);
+
+    QHttpPart audioPart;
+    audioPart.setHeader(QNetworkRequest::ContentTypeHeader,
+                        QVariant("audio/wav"));
+    audioPart.setHeader(QNetworkRequest::ContentDispositionHeader,
+                        QVariant("form-data; name=\"audio\"; filename=\"registrazione.wav\""));
+    audioPart.setBodyDevice(file);
+    file->setParent(multiPart);   /* multiPart si occupa della delete */
+    multiPart->append(audioPart);
+
+    QNetworkRequest req{QUrl{url}};
+    if (!token.isEmpty())
+        req.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
+
+    if (!m_whisperNam)
+        m_whisperNam = new QNetworkAccessManager(this);
+
+    m_whisperReply = m_whisperNam->post(req, multiPart);
+    multiPart->setParent(m_whisperReply);   /* reply si occupa della delete */
+
+    connect(m_whisperReply, &QNetworkReply::finished,
+            this, &AudioPage::onWhisperReply);
+
+    /* Aggiorna UI */
+    m_resultEdit->clear();
+    m_aiStatus->setText(
+        QString::fromUtf8("\xf0\x9f\x94\x84")  /* 🔄 */
+        + "  Invio audio al server Whisper...");
+    m_aiStatus->setVisible(true);
+    m_aiProgress->setVisible(true);
+    m_transcribeBtn->setEnabled(false);
+}
+
+void AudioPage::onWhisperReply()
+{
+    m_aiProgress->setVisible(false);
+    m_transcribeBtn->setEnabled(true);
+
+    if (!m_whisperReply) return;
+
+    if (m_whisperReply->error() != QNetworkReply::NoError) {
+        const QString errMsg = m_whisperReply->errorString();
+        m_aiStatus->setText(
+            QString::fromUtf8("\xe2\x9d\x8c")  /* ❌ */
+            + "  Errore server: " + errMsg.left(120));
+        m_resultEdit->setPlainText(
+            QString::fromUtf8("\xe2\x9d\x8c  Whisper non raggiungibile.\n\n")
+            + "Verifica:\n"
+            "1. L'IP e la porta nelle Impostazioni (usa 11500 per LAN Prismalux)\n"
+            "2. Il server Prismalux Desktop sia avviato\n"
+            "3. Il token sia corretto");
+    } else {
+        const QByteArray body = m_whisperReply->readAll();
+        const QJsonDocument doc = QJsonDocument::fromJson(body);
+        const QString text = doc.object().value("text").toString().trimmed();
+
+        if (text.isEmpty()) {
+            m_aiStatus->setText(
+                QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f")  /* ⚠️ */
+                + "  Risposta Whisper vuota o formato non riconosciuto.");
+            m_resultEdit->setPlainText(
+                QString::fromUtf8("Risposta grezza del server:\n") + body.left(400));
+        } else {
+            m_aiStatus->setText(
+                QString::fromUtf8("\xe2\x9c\x85")  /* ✅ */
+                + "  Trascrizione completata.");
+            m_resultEdit->setPlainText(text);
+        }
+    }
+
+    m_whisperReply->deleteLater();
+    m_whisperReply = nullptr;
 }

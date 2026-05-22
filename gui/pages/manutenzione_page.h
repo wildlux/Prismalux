@@ -21,6 +21,7 @@ class LanServer;
 #include <QTimer>
 #include <QModelIndex>
 #include <QGroupBox>
+#include <QVBoxLayout>
 #include <QTableWidgetItem>
 #include "../hardware_monitor.h"
 #include "../ai_client.h"
@@ -76,6 +77,14 @@ private:
     QProcess*    m_gitProc       = nullptr;
     QProcess*    m_ramCmdProc    = nullptr;
 
+    /* ── Stato aggiornamento sequenziale modelli Ollama ─────────────── */
+    QProcess*    m_updPullProc   = nullptr;  ///< processo ollama pull corrente
+    QStringList  m_updModels;                ///< coda modelli da aggiornare
+    int          m_updIdx        = 0;        ///< indice modello corrente
+    int          m_updTotal      = 0;        ///< totale modelli da aggiornare
+
+    void updNextModel();  ///< avvia ollama pull per m_updModels[m_updIdx]
+
     /* helper per i bottoni RAM/zRAM */
     void runRamCmd(const QString& prog, const QStringList& args, const QString& label);
 
@@ -93,6 +102,27 @@ private:
 
     void selectComputeMode(const QString& mode);  ///< evidenzia + anteprima, non salva
     void applyComputeMode(const QString& mode);   ///< salva + applica ad AiClient
+
+    /* ── buildBackend helpers ───────────────────────────────────────── */
+    QWidget* buildBackendPage();
+    QGroupBox* buildConnectionModelGroup(QWidget* parent);
+    QWidget*   buildModelButtonRow(QGroupBox* parent);
+    QGroupBox* buildAdvancedConfigGroup(QWidget* parent);
+    void       buildConfigFmtSection(QGroupBox* grp, QVBoxLayout* lay);
+    void       buildLlamaServerSection(QGroupBox* grp, QVBoxLayout* lay);
+    QGroupBox* buildUpdateGroup(QWidget* parent);
+    void       connectBackendSignals(QPushButton* applyBtn, QPushButton* refreshBtn,
+                                     QPushButton* setModelBtn,
+                                     QPushButton* fmtApply, QPushButton* verBtn);
+
+    /* ── buildHardware helpers ──────────────────────────────────────── */
+    QWidget*   buildHardwarePage();
+    QLabel*    buildZramWarningBanner(QWidget* parent);
+    QGroupBox* buildInfoHardwareGroup(QWidget* parent);
+    QGroupBox* buildRamOptGroup(QWidget* parent);
+    QWidget*   buildRamButtonRow(QGroupBox* grp);
+    QGroupBox* buildComputeModeGroup(QWidget* parent);
+    QGroupBox* buildNpuGroup(QWidget* parent);
 
     /* ── Bug Tracker ────────────────────────────────────────────────── */
     QComboBox*             m_bugModelCombo    = nullptr;
@@ -128,6 +158,7 @@ private:
     };
 
     QList<CronJob>  m_cronJobs;
+    QWidget*        m_cronWidget    = nullptr;  ///< widget singleton — buildCronTab idempotente
     QTimer*         m_cronTimer     = nullptr;
     QTableWidget*   m_cronTable     = nullptr;
     QTextBrowser*   m_cronLog       = nullptr;
@@ -213,6 +244,8 @@ private slots:
     void onUpdAllBtnClicked();
     void onListProcFinished(int code, QProcess::ExitStatus status);
     void onListProcError(QProcess::ProcessError err);
+    void onUpdPullReadyRead();
+    void onUpdPullFinished(int code, QProcess::ExitStatus status);
     void onUpdLlamaBtnClicked();
     void onGitProcFinished(int code, QProcess::ExitStatus status);
     void onGitProcError(QProcess::ProcessError err);

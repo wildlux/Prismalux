@@ -44,6 +44,7 @@ class AudioPage;
 class ImparaPage;
 class RicercaPage;
 class MatematicaPage;
+class SintetizzatorePage;
 
 #ifdef HAVE_MULTIMEDIA
 class CameraPage;
@@ -106,9 +107,10 @@ private:
     SettingsPage*  m_settingsPage = nullptr;
     InfoPage*      m_infoPage     = nullptr;
     AudioPage*      m_audioPage      = nullptr;
-    ImparaPage*     m_imparaPage     = nullptr;
-    RicercaPage*    m_ricercaPage    = nullptr;
-    MatematicaPage* m_matematicaPage = nullptr;
+    ImparaPage*          m_imparaPage          = nullptr;
+    RicercaPage*         m_ricercaPage         = nullptr;
+    MatematicaPage*      m_matematicaPage      = nullptr;
+    SintetizzatorePage*  m_sintetizzatorePage  = nullptr;
 
 #ifdef HAVE_MULTIMEDIA
     CameraPage*   m_cameraPage   = nullptr;
@@ -122,18 +124,19 @@ private:
     QWidget*      m_blePage      = nullptr;
 #endif
 
-    int m_idxChat       =  0;
-    int m_idxStudio     =  1;
-    int m_idxLavoro     =  2;
-    int m_idxObs        =  3;
-    int m_idxMisure     =  4;
-    int m_idxCamera     =  5;
-    int m_idxMcp        =  6;
-    int m_idxBle        =  7;
-    int m_idxAudio      =  8;
-    int m_idxSettings   =  9;
-    int m_idxInfo       = 10;
-    int m_idxImpara     = 11;
-    int m_idxRicerca    = 12;
-    int m_idxMatematica = 13;
+    int m_idxChat            =  0;
+    int m_idxStudio          =  1;
+    int m_idxLavoro          =  2;
+    int m_idxObs             =  3;
+    int m_idxMisure          =  4;
+    int m_idxCamera          =  5;
+    int m_idxMcp             =  6;
+    int m_idxBle             =  7;
+    int m_idxAudio           =  8;
+    int m_idxSettings        =  9;
+    int m_idxInfo            = 10;
+    int m_idxImpara          = 11;
+    int m_idxRicerca         = 12;
+    int m_idxMatematica      = 13;
+    int m_idxSintetizzatore  = 14;
 };

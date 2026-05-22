@@ -47,6 +47,9 @@
 #include <QTextEdit>
 #include <QDateTime>
 
+class QVBoxLayout;
+class QHBoxLayout;
+
 #include "hardware_monitor.h"
 #include "ai_client.h"
 #include "theme_manager.h"
@@ -106,10 +109,51 @@ public:
     void appendLog(const QString& msg);
 
 private:
-    /* ── Costruzione layout ──────────────────────────────────── */
+    /* ── Costruzione layout — livello 0 (costruttore) ───────── */
+    void setupServices();       ///< Crea HardwareMonitor e AiClient, collega hw signals
+    void setupLayout();         ///< Root widget, header, sidebar, content
+    void setupStatusBar();      ///< Barra progresso pipeline nella status bar
+    void setupAutoOptimizations(); ///< Preset RAM primo avvio + zRAM
+    void setupTimers();         ///< Timer idle-unload e wizard primo avvio
+    void setupBackend();        ///< Imposta backend Ollama e carica modelli iniziali
+    void setupShortcuts();      ///< Alt+1…7 navigazione rapida
+    void restoreWindowState();  ///< Ripristina geometry/state da QSettings
+
+    /* ── Costruzione layout — livello 1 ─────────────────────── */
     QWidget* buildHeader();   ///< Barra superiore: logo, gauges, pulsanti
     QWidget* buildSidebar();  ///< Colonna sinistra: bottoni di navigazione
     QWidget* buildContent();  ///< Area destra: QStackedWidget con le pagine
+
+    /* ── buildHeader — livello 2 ─────────────────────────────── */
+    void buildHamburgerSection(QHBoxLayout* lay); ///< ☰ + 📋 + ⚙️
+    void buildLogoSection(QHBoxLayout* lay);       ///< 🍺 + titolo PRISMALUX
+    void buildGaugesSection(QHBoxLayout* lay);     ///< CPU · RAM · GPU gauges
+    void buildActionButtons(QHBoxLayout* lay);     ///< 🚨 + Scarica LLM + backend toggle
+
+    /* ── buildContent — livello 2 ───────────────────────────── */
+    void buildAiTab();         ///< [0] 🤖 Intelligenza artificiale
+    void buildStrumentiTab();  ///< [1] 🛠 Strumenti
+    void buildMultimediaTab(); ///< [2] 🎬 Multimedia
+    void buildFileAiTab();     ///< [3] 📁 File AI
+    void buildProgrammazioneTab(); ///< [4] 💻 Programmazione
+    void buildMatematicaTab(); ///< [5] π Matematica + Grafico
+    void buildRicercaTab();    ///< [6] 🔬 Ricerca
+    void buildAppControllerTab(); ///< [7] 🕹 APP Controller
+    void buildLanWanTab();     ///< [8] 🌐 LAN & WAN
+    void buildImparaTab();     ///< [9] 📚 Impara
+
+    void buildNavMenuBar(QWidget* wrapper, QVBoxLayout* wLay); ///< Barra menu alternativa + sincronizzazione
+    void applyContentSettings();  ///< Applica nav style e exec btn mode da QSettings
+
+    /* ── showServerDialog — livello 2 ───────────────────────── */
+    QWidget* buildServerHwBanner(QWidget* parent); ///< Banner GPU/CPU rilevato
+    QWidget* buildServerModelSection(QWidget* parent,
+                                     QComboBox** outCombo,
+                                     const QStringList& mathPaths,
+                                     const QStringList& otherPaths); ///< Combo modello + porta
+    QWidget* buildServerMathSection(QWidget* parent,
+                                    QComboBox* cmbModel,
+                                    const QStringList& mathPaths); ///< Checkbox math + status + download
 
     /* ── Componenti UI ───────────────────────────────────────── */
     QTabWidget*     m_mainTabs       = nullptr;  ///< Tab principale: Agenti | Finanza | Impara

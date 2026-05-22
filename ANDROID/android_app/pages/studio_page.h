@@ -10,6 +10,8 @@
 #include <QDialog>
 #include <QListWidget>
 #include <QVBoxLayout>
+#include <QMap>
+#include <QSettings>
 #include "../ai_client.h"
 #include "quiz_ccna_db.h"
 
@@ -60,6 +62,7 @@ private slots:
     void onAborted();
     void onMateriaBtnClicked();
     void onMateriaPickerResult(int idx);
+    void onStatsClicked();
 
 private:
     void runStudy(int modeIdx);
@@ -68,6 +71,17 @@ private:
     QString materiaName() const;
     void populateQuiz(const QString& raw);
     bool isCcnaSelected() const;
+
+    /* ── Statistiche quiz ── */
+    void loadStats();
+    void saveStats();
+    void showStats();
+
+    struct QuizStat {
+        int total   = 0;
+        int correct = 0;
+    };
+    QMap<QString, QuizStat> m_stats;   ///< tema/materia → stat
 
     AiClient*     m_ai    = nullptr;
     QuizCcnaDb    m_ccnaDb;

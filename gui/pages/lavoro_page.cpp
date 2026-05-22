@@ -31,6 +31,14 @@ namespace P = PrismaluxPaths;
 #include <QTextDocument>
 #include <QRegularExpression>
 #include <QDialog>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QFormLayout>
+#include <QDate>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QPointer>
 #include <memory>
 
 /* ══════════════════════════════════════════════════════════════
@@ -331,29 +339,33 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     connect(m_toggleBtn, &QPushButton::clicked,
             this, &LavoroPage::onToggleBtnClicked);
 
-    /* ── Splitter: lista | output AI ── */
+    /* ── Splitter: (lista+tracker) | output AI ── */
     auto* splitter = new QSplitter(Qt::Vertical, this);
 
-    auto* topPane = new QWidget(splitter);
-    auto* topLay  = new QVBoxLayout(topPane);
-    topLay->setContentsMargins(0,0,0,0); topLay->setSpacing(4);
+    /* ── Riquadro superiore: lista offerte (sx) + tracker (dx) ── */
+    auto* topSplitter = new QSplitter(Qt::Horizontal, splitter);
 
-    m_offerteLista = new QListWidget(topPane);
+    /* ──── SINISTRA: lista offerte ──── */
+    auto* listaPane = new QWidget(topSplitter);
+    auto* listaPaneLay = new QVBoxLayout(listaPane);
+    listaPaneLay->setContentsMargins(0,0,0,0); listaPaneLay->setSpacing(4);
+
+    m_offerteLista = new QListWidget(listaPane);
     m_offerteLista->setObjectName("offerteList");
     m_offerteLista->setWordWrap(true);
     m_offerteLista->setAlternatingRowColors(true);
-    topLay->addWidget(m_offerteLista, 1);
+    listaPaneLay->addWidget(m_offerteLista, 1);
 
     /* ── Pannello link dinamici (offerta selezionata) ── */
-    m_linksLbl = new QLabel(topPane);
+    m_linksLbl = new QLabel(listaPane);
     m_linksLbl->setObjectName("hintLabel");
     m_linksLbl->setOpenExternalLinks(true);
     m_linksLbl->setTextFormat(Qt::RichText);
     m_linksLbl->setWordWrap(true);
     m_linksLbl->setText("<i>Seleziona un'offerta per vedere i link</i>");
-    topLay->addWidget(m_linksLbl);
+    listaPaneLay->addWidget(m_linksLbl);
 
-    auto* azioniRow = new QWidget(topPane);
+    auto* azioniRow = new QWidget(listaPane);
     auto* azioniL   = new QHBoxLayout(azioniRow);
     azioniL->setContentsMargins(0,4,0,0); azioniL->setSpacing(8);
 
@@ -380,8 +392,75 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     azioniL->addWidget(genBtn); azioniL->addWidget(genCoverBtn);
     azioniL->addWidget(m_emailBtn); azioniL->addWidget(m_copiaBtn); azioniL->addWidget(m_copiaCoverBtn);
     azioniL->addWidget(m_selLbl, 1);
-    topLay->addWidget(azioniRow);
-    splitter->addWidget(topPane);
+    listaPaneLay->addWidget(azioniRow);
+    topSplitter->addWidget(listaPane);
+
+    /* ──── DESTRA: tracker candidature + calcolatore ──── */
+    auto* trackerPane = new QWidget(topSplitter);
+    auto* trackerLay  = new QVBoxLayout(trackerPane);
+    trackerLay->setContentsMargins(4,0,0,0); trackerLay->setSpacing(6);
+
+    /* Intestazione tracker */
+    auto* trkHdrRow = new QWidget(trackerPane);
+    auto* trkHdrL   = new QHBoxLayout(trkHdrRow);
+    trkHdrL->setContentsMargins(0,0,0,0); trkHdrL->setSpacing(6);
+    auto* trkTitleLbl = new QLabel(
+        "\xf0\x9f\x93\x8b  <b>Tracker Candidature</b>", trkHdrRow);
+    trkTitleLbl->setTextFormat(Qt::RichText);
+    m_trackerAddBtn = new QPushButton("\xe2\x9e\x95 Aggiungi", trkHdrRow);
+    m_trackerAddBtn->setObjectName("actionBtn");
+    m_trackerDelBtn = new QPushButton("\xf0\x9f\x97\x91 Rimuovi", trkHdrRow);
+    m_trackerDelBtn->setObjectName("actionBtn");
+    trkHdrL->addWidget(trkTitleLbl, 1);
+    trkHdrL->addWidget(m_trackerAddBtn);
+    trkHdrL->addWidget(m_trackerDelBtn);
+    trackerLay->addWidget(trkHdrRow);
+
+    /* Tabella candidature */
+    m_trackerTable = new QTableWidget(0, 5, trackerPane);
+    m_trackerTable->setHorizontalHeaderLabels({
+        "Azienda", "Ruolo", "Data invio", "Stato", "Note"
+    });
+    m_trackerTable->horizontalHeader()->setStretchLastSection(true);
+    m_trackerTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Interactive);
+    m_trackerTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Interactive);
+    m_trackerTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    m_trackerTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+    m_trackerTable->verticalHeader()->setDefaultSectionSize(28);
+    m_trackerTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_trackerTable->setEditTriggers(
+        QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
+    m_trackerTable->setAlternatingRowColors(true);
+    trackerLay->addWidget(m_trackerTable, 1);
+
+    /* Calcolatore euro/ore */
+    auto* calcBox  = new QGroupBox("\xf0\x9f\x92\xb6  Calcolatore Euro / Ore", trackerPane);
+    auto* calcGrid = new QFormLayout(calcBox);
+    calcGrid->setSpacing(4);
+
+    m_calcOre     = new QLineEdit("40", calcBox);
+    m_calcMensile = new QLineEdit(calcBox);
+    m_calcAnnuo   = new QLineEdit(calcBox);
+    m_calcOrario  = new QLineEdit(calcBox);
+    m_calcNettoLbl = new QLabel("\xe2\x80\x94", calcBox);
+    m_calcNettoLbl->setTextFormat(Qt::RichText);
+
+    m_calcOre->setPlaceholderText("es. 40");
+    m_calcMensile->setPlaceholderText("es. 1500.00");
+    m_calcAnnuo->setPlaceholderText("es. 18000.00");
+    m_calcOrario->setPlaceholderText("es. 10.50");
+
+    calcGrid->addRow("Ore/settimana:", m_calcOre);
+    calcGrid->addRow("Lordo mensile (\xe2\x82\xac):", m_calcMensile);
+    calcGrid->addRow("Lordo annuo (\xe2\x82\xac):", m_calcAnnuo);
+    calcGrid->addRow("Tariffa oraria (\xe2\x82\xac/h):", m_calcOrario);
+    calcGrid->addRow("Netto stimato:", m_calcNettoLbl);
+    trackerLay->addWidget(calcBox);
+
+    topSplitter->addWidget(trackerPane);
+    topSplitter->setStretchFactor(0, 1);
+    topSplitter->setStretchFactor(1, 1);
+    splitter->addWidget(topSplitter);
 
     auto* botPane = new QWidget(splitter);
     auto* botLay  = new QVBoxLayout(botPane);
@@ -468,7 +547,180 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     connect(m_ai, &AiClient::error,    this, &LavoroPage::onAiError);
     connect(m_ai, &AiClient::aborted,  this, &LavoroPage::onAiAborted);
 
+    /* ── Tracker candidature ── */
+    connect(m_trackerAddBtn, &QPushButton::clicked,
+            this, &LavoroPage::onTrackerAddRow);
+    connect(m_trackerDelBtn, &QPushButton::clicked,
+            this, &LavoroPage::onTrackerRemoveRow);
+    connect(m_trackerTable, &QTableWidget::itemChanged,
+            this, &LavoroPage::onTrackerSave);
+
+    /* ── Calcolatore euro/ore ── */
+    connect(m_calcOre,     &QLineEdit::textEdited, this, &LavoroPage::onCalcChanged);
+    connect(m_calcMensile, &QLineEdit::textEdited, this, &LavoroPage::onCalcChanged);
+    connect(m_calcAnnuo,   &QLineEdit::textEdited, this, &LavoroPage::onCalcChanged);
+    connect(m_calcOrario,  &QLineEdit::textEdited, this, &LavoroPage::onCalcChanged);
+
     applicaFiltri();
+    loadTracker();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HELPER — Tracker: percorso file JSON
+   ══════════════════════════════════════════════════════════════ */
+QString LavoroPage::trackerPath() const {
+    return P::root() + "/candidature.json";
+}
+
+QComboBox* LavoroPage::makeStatoCombo(QWidget* parent) {
+    auto* c = new QComboBox(parent);
+    c->addItems({
+        "\xe2\x8f\xb3 In attesa",
+        "\xf0\x9f\x93\xa9 Risposto",
+        "\xf0\x9f\x93\x85 Colloquio",
+        "\xe2\x9d\x8c Rifiutato",
+        "\xe2\x9c\x85 Assunto"
+    });
+    connect(c, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &LavoroPage::onTrackerSave);
+    return c;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — Tracker candidature: Aggiungi riga
+   ══════════════════════════════════════════════════════════════ */
+void LavoroPage::onTrackerAddRow() {
+    if (!m_trackerTable) return;
+    const int row = m_trackerTable->rowCount();
+    m_trackerTable->blockSignals(true);
+    m_trackerTable->insertRow(row);
+    m_trackerTable->setItem(row, 0, new QTableWidgetItem(""));
+    m_trackerTable->setItem(row, 1, new QTableWidgetItem(""));
+    m_trackerTable->setItem(row, 2, new QTableWidgetItem(
+        QDate::currentDate().toString("yyyy-MM-dd")));
+    m_trackerTable->setCellWidget(row, 3, makeStatoCombo(m_trackerTable));
+    m_trackerTable->setItem(row, 4, new QTableWidgetItem(""));
+    m_trackerTable->blockSignals(false);
+    m_trackerTable->scrollToBottom();
+    m_trackerTable->editItem(m_trackerTable->item(row, 0));
+    onTrackerSave();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — Tracker candidature: Rimuovi riga selezionata
+   ══════════════════════════════════════════════════════════════ */
+void LavoroPage::onTrackerRemoveRow() {
+    if (!m_trackerTable) return;
+    const int row = m_trackerTable->currentRow();
+    if (row < 0) return;
+    m_trackerTable->removeRow(row);
+    onTrackerSave();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — Tracker candidature: salva su JSON
+   ══════════════════════════════════════════════════════════════ */
+void LavoroPage::onTrackerSave() {
+    if (!m_trackerTable) return;
+    QJsonArray arr;
+    for (int r = 0; r < m_trackerTable->rowCount(); ++r) {
+        auto cell = [&](int c) -> QString {
+            auto* it = m_trackerTable->item(r, c);
+            return it ? it->text() : QString();
+        };
+        auto* statoW = qobject_cast<QComboBox*>(m_trackerTable->cellWidget(r, 3));
+        QJsonObject obj;
+        obj["azienda"] = cell(0);
+        obj["ruolo"]   = cell(1);
+        obj["data"]    = cell(2);
+        obj["stato"]   = statoW ? statoW->currentText() : cell(3);
+        obj["note"]    = cell(4);
+        arr.append(obj);
+    }
+    QFile f(trackerPath());
+    if (f.open(QIODevice::WriteOnly))
+        f.write(QJsonDocument(arr).toJson());
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HELPER — carica tracker dal JSON all'avvio
+   ══════════════════════════════════════════════════════════════ */
+void LavoroPage::loadTracker() {
+    if (!m_trackerTable) return;
+    QFile f(trackerPath());
+    if (!f.open(QIODevice::ReadOnly)) return;
+    const QJsonArray arr = QJsonDocument::fromJson(f.readAll()).array();
+    m_trackerTable->blockSignals(true);
+    m_trackerTable->setRowCount(0);
+    for (const auto& v : arr) {
+        const QJsonObject obj = v.toObject();
+        const int row = m_trackerTable->rowCount();
+        m_trackerTable->insertRow(row);
+        m_trackerTable->setItem(row, 0, new QTableWidgetItem(obj["azienda"].toString()));
+        m_trackerTable->setItem(row, 1, new QTableWidgetItem(obj["ruolo"].toString()));
+        m_trackerTable->setItem(row, 2, new QTableWidgetItem(obj["data"].toString()));
+        auto* combo = makeStatoCombo(m_trackerTable);
+        const int idx = combo->findText(obj["stato"].toString());
+        if (idx >= 0) combo->setCurrentIndex(idx);
+        m_trackerTable->setCellWidget(row, 3, combo);
+        m_trackerTable->setItem(row, 4, new QTableWidgetItem(obj["note"].toString()));
+    }
+    m_trackerTable->blockSignals(false);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — Calcolatore Euro / Ore
+   ══════════════════════════════════════════════════════════════ */
+void LavoroPage::onCalcChanged() {
+    if (m_calcBusy) return;
+    if (!m_calcMensile || !m_calcAnnuo || !m_calcOrario || !m_calcOre) return;
+    m_calcBusy = true;
+
+    const double ore     = m_calcOre->text().replace(',', '.').toDouble();
+    const double oreAnno = ore > 0 ? ore * 52.0 : 2080.0;
+
+    auto* src = qobject_cast<QLineEdit*>(sender());
+    double mensile = 0.0, annuo = 0.0, orario = 0.0;
+
+    if (src == m_calcMensile) {
+        mensile = m_calcMensile->text().replace(',', '.').toDouble();
+        annuo   = mensile * 12.0;
+        orario  = oreAnno > 0 ? annuo / oreAnno : 0.0;
+    } else if (src == m_calcAnnuo) {
+        annuo   = m_calcAnnuo->text().replace(',', '.').toDouble();
+        mensile = annuo / 12.0;
+        orario  = oreAnno > 0 ? annuo / oreAnno : 0.0;
+    } else if (src == m_calcOrario) {
+        orario  = m_calcOrario->text().replace(',', '.').toDouble();
+        annuo   = orario * oreAnno;
+        mensile = annuo / 12.0;
+    } else {
+        /* Ore cambiate: ricalcola da mensile se disponibile */
+        mensile = m_calcMensile->text().replace(',', '.').toDouble();
+        if (mensile <= 0)
+            mensile = m_calcAnnuo->text().replace(',', '.').toDouble() / 12.0;
+        annuo  = mensile * 12.0;
+        orario = oreAnno > 0 ? annuo / oreAnno : 0.0;
+    }
+
+    if (src != m_calcMensile && mensile > 0)
+        m_calcMensile->setText(QString::number(mensile, 'f', 2));
+    if (src != m_calcAnnuo && annuo > 0)
+        m_calcAnnuo->setText(QString::number(annuo, 'f', 2));
+    if (src != m_calcOrario && orario > 0)
+        m_calcOrario->setText(QString::number(orario, 'f', 2));
+
+    /* Netto stimato ≈ lordo × 0.72 (IRPEF media dipendente Italia) */
+    if (mensile > 0 && m_calcNettoLbl) {
+        const double netto = mensile * 0.72;
+        m_calcNettoLbl->setText(
+            QString("\xe2\x89\x88 <b>%1 \xe2\x82\xac/mese</b>"
+                    "  <span style='color:gray;font-size:10px;'>"
+                    "stima -28%% IRPEF</span>")
+            .arg(netto, 0, 'f', 2));
+    }
+
+    m_calcBusy = false;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -801,7 +1053,8 @@ void LavoroPage::analizzaUrls(const QStringList& urlList) {
         /* one-shot: context object = reply → distrutto insieme al reply */
         auto* ctx = new QObject(this);
         connect(reply, &QNetworkReply::finished, ctx,
-                [this, ctx, reply, rawUrl, pending, combined, urlList]{
+                [guard=QPointer<LavoroPage>(this), ctx, reply, rawUrl, pending, combined, urlList]{
+            if (!guard) return;
             ctx->deleteLater();
             reply->deleteLater();
             if (reply->error() == QNetworkReply::NoError) {
@@ -813,8 +1066,8 @@ void LavoroPage::analizzaUrls(const QStringList& urlList) {
                 if (testo.size() > 1800) testo = testo.left(1800);
                 *combined += QString("\n\n=== %1 ===\n%2").arg(rawUrl, testo);
             } else {
-                if (m_lavoroLog)
-                    m_lavoroLog->append(
+                if (guard->m_lavoroLog)
+                    guard->m_lavoroLog->append(
                         QString("\xe2\x9d\x8c Errore: %1").arg(reply->errorString()));
             }
 
@@ -822,23 +1075,23 @@ void LavoroPage::analizzaUrls(const QStringList& urlList) {
 
             /* Tutti i download completati */
             if (combined->trimmed().isEmpty()) {
-                if (m_lavoroLog)
-                    m_lavoroLog->append(
+                if (guard->m_lavoroLog)
+                    guard->m_lavoroLog->append(
                         "\xe2\x9a\xa0 Nessun contenuto leggibile (potrebbero richiedere JavaScript/login).");
-                aiDone();
+                guard->aiDone();
                 return;
             }
 
-            if (m_lavoroLog)
-                m_lavoroLog->append("\xe2\x9c\x85 Download completato \xe2\x86\x92 Analisi AI...\n");
-            const QString cvInfo  = m_cvText.isEmpty() ? cvFallback().left(2000) : m_cvText.left(2000);
-            const QString modello = m_cmbModello
-                ? (m_cmbModello->currentData(Qt::UserRole).toString().isEmpty()
-                    ? m_cmbModello->currentText()
-                    : m_cmbModello->currentData(Qt::UserRole).toString())
-                : m_ai->model();
+            if (guard->m_lavoroLog)
+                guard->m_lavoroLog->append("\xe2\x9c\x85 Download completato \xe2\x86\x92 Analisi AI...\n");
+            const QString cvInfo  = guard->m_cvText.isEmpty() ? guard->cvFallback().left(2000) : guard->m_cvText.left(2000);
+            const QString modello = guard->m_cmbModello
+                ? (guard->m_cmbModello->currentData(Qt::UserRole).toString().isEmpty()
+                    ? guard->m_cmbModello->currentText()
+                    : guard->m_cmbModello->currentData(Qt::UserRole).toString())
+                : guard->m_ai->model();
             if (!modello.isEmpty() && !modello.startsWith("\xf0\x9f\x94\x84"))
-                m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), modello);
+                guard->m_ai->setBackend(guard->m_ai->backend(), guard->m_ai->host(), guard->m_ai->port(), modello);
 
             const int nUrl = urlList.size();
             const QString sys = nUrl == 1
@@ -851,16 +1104,16 @@ void LavoroPage::analizzaUrls(const QStringList& urlList) {
                     "3. \xe2\xad\x90 NICE-TO-HAVE\n"
                     "4. \xf0\x9f\xa4\x96 COMPATIBILIT\xc3\x80 CON IL PROFILO\n"
                     "5. \xf0\x9f\x8e\xaf RACCOMANDAZIONE s\xc3\xac/no\n\nMax 400 parole.%3")
-                    .arg(cvInfo, *combined, socraticoBase())
+                    .arg(cvInfo, *combined, guard->socraticoBase())
                 : QString(
                     "Sei un esperto di carriera. Analizza i seguenti annunci in italiano.\n\n"
                     "=== PROFILO CANDIDATO ===\n%1\n\n"
                     "=== ANNUNCI ===\n%2\n\n"
                     "Per ogni annuncio: ruolo/azienda, requisiti chiave, "
                     "compatibilit\xc3\xa0 col profilo, consiglio s\xc3\xac/no. Max 500 parole.%3")
-                    .arg(cvInfo, *combined, socraticoBase());
+                    .arg(cvInfo, *combined, guard->socraticoBase());
 
-            m_myReqId = m_ai->chat(P::prependKnowledge(sys),
+            guard->m_myReqId = guard->m_ai->chat(P::prependKnowledge(sys),
                 nUrl == 1
                 ? "Analizza questo annuncio e valuta la compatibilit\xc3\xa0 col mio profilo."
                 : "Analizza questi annunci e valuta quale si adatta meglio al mio profilo.");

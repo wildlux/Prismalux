@@ -97,20 +97,26 @@ set(CPP_SRCS
     pages/sintetizzatore_widget.cpp
     pages/matematica_page.cpp
     pages/ricerca_page.cpp
+    pages/ricerca_page_astrale.cpp
     pages/rab0l_canvas.cpp
     pages/app_controller_page.cpp
     pages/opencode_page.cpp
     monitor_panel.cpp
-    # Widget nuovi: ChatBubble, ChartWidget, FormulaParser, QrCodeWidget
+    # Widget nuovi: ChatBubble, ChartWidget, FormulaParser, QrCodeWidget, NatalChartWidget
     widgets/chat_bubble.cpp
     widgets/chart_widget.cpp
     widgets/formula_parser.cpp
     widgets/qr_code_widget.cpp
+    widgets/natal_chart_widget.cpp
+    widgets/world_map_widget.cpp
+    widgets/astro_calc.cpp
     # Widget header-only con Q_OBJECT: vanno elencati per AUTOMOC
     widgets/spinner_widget.h
     widgets/status_badge.h
     widgets/chat_bubble.h
     widgets/chart_widget.h
+    widgets/natal_chart_widget.h
+    widgets/world_map_widget.h
     widgets/toggle_switch.h
     widgets/whisper_autosetup.h
     widgets/code_highlighter.h

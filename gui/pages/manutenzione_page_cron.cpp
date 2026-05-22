@@ -415,6 +415,8 @@ void ManutenzioneePage::cronAddOrEdit(int idx)
    ────────────────────────────────────────────────────────────── */
 QWidget* ManutenzioneePage::buildCronTab()
 {
+    if (m_cronWidget) return m_cronWidget;
+
     cronLoadJobs();
 
     auto* w   = new QWidget;
@@ -510,6 +512,7 @@ QWidget* ManutenzioneePage::buildCronTab()
     /* Tick immediato al primo avvio (controlla job scaduti) */
     QTimer::singleShot(3000, this, &ManutenzioneePage::cronTick);
 
+    m_cronWidget = w;
     return w;
 }
 

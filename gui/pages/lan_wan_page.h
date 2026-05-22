@@ -9,6 +9,7 @@
 #include <QProcess>
 #include <QProgressBar>
 #include <QAbstractSocket>
+#include <QTableWidget>
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
 #include "../widgets/qr_code_widget.h"
@@ -26,14 +27,17 @@ private:
     QPushButton* m_lanToggleBtn = nullptr;
     QSpinBox*    m_lanPortSpin  = nullptr;
     QLabel*      m_lanStatusLbl = nullptr;
-    QLabel*      m_lanClientsLbl= nullptr;
     QPushButton* m_lanWebBtn    = nullptr;
     QLineEdit*   m_lanTokenEdit = nullptr;
-    QPushButton*  m_qrApkBtn      = nullptr;
-    QPushButton*  m_qrPageBtn     = nullptr;
-    QLabel*       m_qrConnectLbl  = nullptr;
-    QrCodeWidget* m_qrInlineWidget = nullptr;  ///< QR inline — si aggiorna con IP+token
+    QPushButton* m_qrApkBtn      = nullptr;
+    QPushButton* m_qrPageBtn     = nullptr;
+    QrCodeWidget* m_qrInlineWidget = nullptr;
     QString       m_lanConnectIp;
+
+    /* ── Tabella client connessi ── */
+    QTableWidget* m_clientTable  = nullptr;
+    QPushButton*  m_kickBtn      = nullptr;
+    QPushButton*  m_kickAllBtn   = nullptr;
 
     /* ── GNS3 MCP ── */
     QLineEdit*     m_gns3HostEdit    = nullptr;
@@ -57,6 +61,9 @@ private:
     void     openQrDialog(QPushButton* parent, const QString& url,
                           const QString& title, const QString& subtitle,
                           const QString& note);
+    void     clientTableAddRow(const QString& ip);
+    void     clientTableRemoveRow(const QString& ip);
+    static QString readMacForIp(const QString& ip);
 
     QWidget* buildLanAndroidTab();
     QWidget* buildGNS3Tab();
@@ -78,6 +85,8 @@ private slots:
     void onLanServerStatusChanged(bool running);
     void onLanClientConnected(const QString& addr);
     void onLanClientDisconnected(const QString& addr);
+    void onKickBtnClicked();
+    void onKickAllBtnClicked();
     void onLanWebBtnClicked();
     void onGns3AiToken(const QString& t);
     void onGns3AiFinished(const QString& full);

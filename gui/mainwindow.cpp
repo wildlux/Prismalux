@@ -269,7 +269,7 @@ void ResourceGauge::setLevel(double pct) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   MainWindow — costruttore
+   MainWindow — costruttore (stepdown: ogni chiamata è un livello)
    ══════════════════════════════════════════════════════════════ */
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -277,34 +277,53 @@ MainWindow::MainWindow(QWidget* parent)
     setWindowTitle("🍺 Prismalux v2.1 — Centro di Controllo");
     setWindowIcon(QIcon(P::root() + "/ICONA/prismalux.png"));
     setMinimumSize(1060, 680);
-    resize(1200, 760);   /* dimensioni predefinite — sovrascritta da restoreGeometry() sotto */
+    resize(1200, 760);
 
-    /* ── Servizi di background ── */
+    setupServices();
+    setupLayout();
+    setupStatusBar();
+    setupAutoOptimizations();
+    setupTimers();
+    setupBackend();
+    setupShortcuts();
+    restoreWindowState();
+    m_hw->start();   /* avvia dopo che tutti i widget gauge sono creati */
+}
+
+/* ── Livello 1: servizi di background ──────────────────────────── */
+void MainWindow::setupServices()
+{
     m_hw = new HardwareMonitor(this);
     m_ai = new AiClient(this);
-
     connect(m_hw, &HardwareMonitor::updated,     this, &MainWindow::onHWUpdated);
     connect(m_hw, &HardwareMonitor::hwInfoReady, this, &MainWindow::onHWReady);
+    /* m_hw->start() è chiamato alla fine del costruttore, dopo che tutti
+     * i widget (m_gCpu, m_gRam, m_gGpu) sono stati creati da setupLayout(). */
+}
 
-    /* ── Layout principale: Header + [Sidebar | Content] ── */
-    auto* root   = new QWidget(this);
+/* ── Livello 1: layout principale Header + [Sidebar | Content] ─── */
+void MainWindow::setupLayout()
+{
+    auto* root    = new QWidget(this);
     auto* rootLay = new QVBoxLayout(root);
-    rootLay->setContentsMargins(0,0,0,0);
+    rootLay->setContentsMargins(0, 0, 0, 0);
     rootLay->setSpacing(0);
-
     rootLay->addWidget(buildHeader());
 
     auto* body    = new QWidget(root);
     auto* bodyLay = new QHBoxLayout(body);
-    bodyLay->setContentsMargins(0,0,0,0);
+    bodyLay->setContentsMargins(0, 0, 0, 0);
     bodyLay->setSpacing(0);
     bodyLay->addWidget(buildSidebar());
     bodyLay->addWidget(buildContent(), 1);
     rootLay->addWidget(body, 1);
 
     setCentralWidget(root);
+}
 
-    /* Status bar — barra progresso pipeline (permanente a destra) */
+/* ── Livello 1: status bar con barra progresso pipeline ─────────── */
+void MainWindow::setupStatusBar()
+{
     m_statusProgress = new QProgressBar(this);
     m_statusProgress->setRange(0, 100);
     m_statusProgress->setValue(0);
@@ -313,89 +332,74 @@ MainWindow::MainWindow(QWidget* parent)
     m_statusProgress->setTextVisible(true);
     m_statusProgress->setFormat("");
     m_statusProgress->setObjectName("statusProgress");
-    m_statusProgress->setVisible(false);   /* nascosta finché non parte una pipeline */
+    m_statusProgress->setVisible(false);
     statusBar()->addPermanentWidget(m_statusProgress);
     statusBar()->showMessage("\xf0\x9f\x8d\xba  Invocazione riuscita. Gli dei ascoltano.");
+}
 
-    /* Avvia monitoraggio hardware */
-    m_hw->start();
-
-    /* ── Auto-ottimizzazioni all'avvio ──────────────────────────────────
-     * 1. Preset RAM (primo avvio): se ai_params.json non esiste, applica
-     *    il preset appropriato in base alla RAM rilevata.
-     * 2. Flash Attention: abilitata di default (già in AiChatParams default).
-     * 3. zRAM Doppia (Linux): avvia se kAutoZramDoppia=true e non attivo. */
-    {
-        /* Preset RAM al primo avvio */
-        if (!QFile::exists(AiChatParams::filePath())) {
-            AiChatParams p = AiChatParams::load();   /* ritorna default con flash_attn=true */
-            const qint64 ramMb = P::totalRamBytes() / (1024LL * 1024LL);
-            if (ramMb > 0 && ramMb < 10000) {
-                /* 8 GB RAM: contesto ridotto + predizione conservativa */
-                p.num_ctx    = 4096;
-                p.num_predict = 1024;
-                p.temperature = 0.05;
-                statusBar()->showMessage(
-                    "\xf0\x9f\x8e\x9b  Preset 8 GB RAM applicato automaticamente.", 5000);
-            } else if (ramMb >= 16000) {
-                /* 16+ GB RAM: contesto lungo */
-                p.num_ctx = 16384;
-                statusBar()->showMessage(
-                    "\xf0\x9f\x8e\x9b  Preset Contesto Lungo applicato automaticamente.", 5000);
-            }
-            AiChatParams::save(p);
-            if (m_ai) m_ai->setChatParams(p);
+/* ── Livello 1: preset RAM primo avvio + zRAM ────────────────────── */
+void MainWindow::setupAutoOptimizations()
+{
+    if (!QFile::exists(AiChatParams::filePath())) {
+        AiChatParams p = AiChatParams::load();
+        const qint64 ramMb = P::totalRamBytes() / (1024LL * 1024LL);
+        if (ramMb > 0 && ramMb < 10000) {
+            p.num_ctx     = 4096;
+            p.num_predict = 1024;
+            p.temperature = 0.05;
+            statusBar()->showMessage(
+                "\xf0\x9f\x8e\x9b  Preset 8 GB RAM applicato automaticamente.", 5000);
+        } else if (ramMb >= 16000) {
+            p.num_ctx = 16384;
+            statusBar()->showMessage(
+                "\xf0\x9f\x8e\x9b  Preset Contesto Lungo applicato automaticamente.", 5000);
         }
+        AiChatParams::save(p);
+        if (m_ai) m_ai->setChatParams(p);
+    }
 
 #ifndef Q_OS_WIN
-        /* zRAM Doppia (zstd) — avvia 3s dopo l'avvio per non bloccare la UI */
-        QTimer::singleShot(3000, this, &MainWindow::onZramSetupTimer);
+    QTimer::singleShot(3000, this, &MainWindow::onZramSetupTimer);
 #endif
-    }
+}
 
-    /* ImpostazioniPage è lazy: creata solo alla prima apertura (⚙️)
-       oppure al primo clic su "Cron" in Strumenti (via cronPanelFirstOpen). */
-
-    /* Wizard primo avvio — mostrato una sola volta */
-    QSettings ss("Prismalux", "GUI");
-    if (!ss.value(P::SK::kSetupDone, false).toBool()) {
-        QTimer::singleShot(800, this, &MainWindow::showOnboardingWizard);
-    }
-
-    /* Auto-setup whisper.cpp in background (non blocca UI).
-       Controlla presenza binario + modello dentro il progetto;
-       se mancano avvia: git clone → cmake build → download modello. */
-    QTimer::singleShot(1500, this, &MainWindow::onStartWhisperTimer);
-
-    /* Timer auto-scarico modello: ogni 90s, se RAM > 40% e AI non occupato,
-     * manda keep_alive=0 a Ollama per liberare RAM automaticamente. */
+/* ── Livello 1: timer idle-unload, wizard primo avvio, whisper ───── */
+void MainWindow::setupTimers()
+{
+    /* Timer auto-scarico modello ogni 90s */
     m_idleUnloadTimer = new QTimer(this);
-    m_idleUnloadTimer->setInterval(90'000);  /* 90 secondi */
+    m_idleUnloadTimer->setInterval(90'000);
     connect(m_idleUnloadTimer, &QTimer::timeout, this, &MainWindow::onIdleUnloadTimer);
     m_idleUnloadTimer->start();
 
-    /* Imposta backend Ollama di default e carica modelli.
-       Ripristina il modello preferito dall'utente (salvato da Impostazioni > AI Locale). */
+    /* Wizard primo avvio — mostrato una sola volta */
+    QSettings ss("Prismalux", "GUI");
+    if (!ss.value(P::SK::kSetupDone, false).toBool())
+        QTimer::singleShot(800, this, &MainWindow::showOnboardingWizard);
+
+    /* Auto-setup whisper.cpp in background */
+    QTimer::singleShot(1500, this, &MainWindow::onStartWhisperTimer);
+}
+
+/* ── Livello 1: backend Ollama, modelli iniziali, tema ───────────── */
+void MainWindow::setupBackend()
+{
     {
         QSettings s("Prismalux", "GUI");
         const QString savedModel = s.value(P::SK::kActiveModel, "").toString();
         m_ai->setBackend(AiClient::Ollama, P::kLocalHost, P::kOllamaPort, savedModel);
     }
     m_ai->fetchModels();
-    connect(m_ai, &AiClient::modelsReady, this, &MainWindow::onInitialModelsReady);
+    connect(m_ai, &AiClient::modelsReady,   this, &MainWindow::onInitialModelsReady);
+    connect(m_ai, &AiClient::modelChanged,  this, &MainWindow::onModelChanged);
 
-    /* Aggiorna la label modello anche quando l'utente lo cambia da Impostazioni */
-    connect(m_ai, &AiClient::modelChanged, this, &MainWindow::onModelChanged);
-
-    /* Carica tema salvato */
     ThemeManager::instance()->loadSaved();
-
-    /* Pagina iniziale */
     navigateTo(0);
+}
 
-    /* Scorciatoie da tastiera: Alt+1…7 = navigazione rapida
-       0=Agenti  1=Strumenti  2=Programmazione  3=Matematica
-       4=Ricerca  5=APP Controller  6=Impara */
+/* ── Livello 1: scorciatoie da tastiera Alt+1…7 ──────────────────── */
+void MainWindow::setupShortcuts()
+{
     auto* sc1 = new QShortcut(QKeySequence("Alt+1"), this);
     auto* sc2 = new QShortcut(QKeySequence("Alt+2"), this);
     auto* sc3 = new QShortcut(QKeySequence("Alt+3"), this);
@@ -403,18 +407,21 @@ MainWindow::MainWindow(QWidget* parent)
     auto* sc5 = new QShortcut(QKeySequence("Alt+5"), this);
     auto* sc6 = new QShortcut(QKeySequence("Alt+6"), this);
     auto* sc7 = new QShortcut(QKeySequence("Alt+7"), this);
-    connect(sc1, &QShortcut::activated, this, &MainWindow::onShortcutAlt1); /* Intelligenza artificiale */
-    connect(sc2, &QShortcut::activated, this, &MainWindow::onShortcutAlt2); /* Strumenti AI */
-    connect(sc3, &QShortcut::activated, this, &MainWindow::onShortcutAlt3); /* Programmazione */
-    connect(sc4, &QShortcut::activated, this, &MainWindow::onShortcutAlt4); /* Matematica+Grafico */
-    connect(sc5, &QShortcut::activated, this, &MainWindow::onShortcutAlt5); /* Ricerca e Sviluppo */
-    connect(sc6, &QShortcut::activated, this, &MainWindow::onShortcutAlt6); /* APP Controller */
-    connect(sc7, &QShortcut::activated, this, &MainWindow::onShortcutAlt7); /* Impara */
+    connect(sc1, &QShortcut::activated, this, &MainWindow::onShortcutAlt1);
+    connect(sc2, &QShortcut::activated, this, &MainWindow::onShortcutAlt2);
+    connect(sc3, &QShortcut::activated, this, &MainWindow::onShortcutAlt3);
+    connect(sc4, &QShortcut::activated, this, &MainWindow::onShortcutAlt4);
+    connect(sc5, &QShortcut::activated, this, &MainWindow::onShortcutAlt5);
+    connect(sc6, &QShortcut::activated, this, &MainWindow::onShortcutAlt6);
+    connect(sc7, &QShortcut::activated, this, &MainWindow::onShortcutAlt7);
+}
 
-    /* ── Ripristina geometry dell'ultima sessione (posizione + dimensioni) ── */
-    QSettings geomSettings("Prismalux", "GUI");
-    const QByteArray geo   = geomSettings.value("mainwindow/geometry").toByteArray();
-    const QByteArray state = geomSettings.value("mainwindow/state").toByteArray();
+/* ── Livello 1: ripristina geometry e state dell'ultima sessione ──── */
+void MainWindow::restoreWindowState()
+{
+    QSettings s("Prismalux", "GUI");
+    const QByteArray geo   = s.value("mainwindow/geometry").toByteArray();
+    const QByteArray state = s.value("mainwindow/state").toByteArray();
     if (!geo.isEmpty())   restoreGeometry(geo);
     if (!state.isEmpty()) restoreState(state);
 }
@@ -422,7 +429,8 @@ MainWindow::MainWindow(QWidget* parent)
 /* ══════════════════════════════════════════════════════════════
    buildHeader — barra superiore con logo + gauges hardware
    ══════════════════════════════════════════════════════════════ */
-QWidget* MainWindow::buildHeader() {
+QWidget* MainWindow::buildHeader()
+{
     auto* hdr = new QWidget(this);
     hdr->setObjectName("header");
     hdr->setFixedHeight(52);
@@ -431,41 +439,54 @@ QWidget* MainWindow::buildHeader() {
     lay->setContentsMargins(16, 8, 16, 8);
     lay->setSpacing(12);
 
-    /* ── Hamburger: mostra/nascondi sidebar ── */
-    auto* btnHamburger = new QPushButton("\xe2\x98\xb0", hdr);  /* ☰ */
+    buildHamburgerSection(lay);
+    buildLogoSection(lay);
+    lay->addStretch(1);
+    buildGaugesSection(lay);
+    buildActionButtons(lay);
+
+    /* Badge e spinner mantenuti come nullptr — lo stato è nel testo di m_btnBackend */
+    m_badgeServer = nullptr;
+    m_spinServer  = nullptr;
+
+    return hdr;
+}
+
+/* ── Livello 2: hamburger ☰ + messaggi 📋 + impostazioni ⚙️ ──────── */
+void MainWindow::buildHamburgerSection(QHBoxLayout* lay)
+{
+    auto* hdr = qobject_cast<QWidget*>(lay->parent());
+
+    /* ☰ Mostra/Nascondi sidebar */
+    auto* btnHamburger = new QPushButton("\xe2\x98\xb0", hdr);
     btnHamburger->setObjectName("hamburgerBtn");
     btnHamburger->setFixedSize(36, 36);
     btnHamburger->setToolTip("Mostra / Nascondi la colonna sinistra");
     connect(btnHamburger, &QPushButton::clicked, this, &MainWindow::onHamburgerClicked);
     lay->addWidget(btnHamburger);
 
-    /* ── Messaggi (📋) — accanto all'hamburger, con badge non-letti ── */
-    {
-        /* Container [pulsante + badge] in riga orizzontale */
-        auto* logWrap = new QWidget(hdr);
-        logWrap->setFixedSize(46, 36);
-        m_logBtn = new QPushButton("\xf0\x9f\x93\x8b", logWrap);  /* 📋 */
-        m_logBtn->setObjectName("hamburgerBtn");
-        m_logBtn->setFixedSize(36, 36);
-        m_logBtn->setToolTip("Messaggi \xe2\x80\x94 log eventi, errori AI, backend, pipeline");
-        m_logBtn->setAccessibleName("Apri log messaggi");
-        m_logBtn->move(0, 0);
+    /* 📋 Messaggi — pulsante + badge non-letti sovrapposto */
+    auto* logWrap = new QWidget(hdr);
+    logWrap->setFixedSize(46, 36);
+    m_logBtn = new QPushButton("\xf0\x9f\x93\x8b", logWrap);
+    m_logBtn->setObjectName("hamburgerBtn");
+    m_logBtn->setFixedSize(36, 36);
+    m_logBtn->setToolTip("Messaggi \xe2\x80\x94 log eventi, errori AI, backend, pipeline");
+    m_logBtn->setAccessibleName("Apri log messaggi");
+    m_logBtn->move(0, 0);
+    m_logBadge = new QLabel("", logWrap);
+    m_logBadge->setAlignment(Qt::AlignCenter);
+    m_logBadge->setFixedSize(16, 16);
+    m_logBadge->setVisible(false);
+    m_logBadge->setStyleSheet(
+        "background:#e03030; color:#fff; border-radius:8px;"
+        "font-size:9px; font-weight:bold;");
+    m_logBadge->move(28, 0);
+    connect(m_logBtn, &QPushButton::clicked, this, &MainWindow::onLogBtnClicked);
+    lay->addWidget(logWrap);
 
-        m_logBadge = new QLabel("", logWrap);
-        m_logBadge->setAlignment(Qt::AlignCenter);
-        m_logBadge->setFixedSize(16, 16);
-        m_logBadge->setVisible(false);
-        m_logBadge->setStyleSheet(
-            "background:#e03030; color:#fff; border-radius:8px;"
-            "font-size:9px; font-weight:bold;");
-        m_logBadge->move(28, 0);   /* angolo in alto a destra del pulsante */
-
-        connect(m_logBtn, &QPushButton::clicked, this, &MainWindow::onLogBtnClicked);
-        lay->addWidget(logWrap);
-    }
-
-    /* ── Impostazioni (⚙️) — accanto a Messaggi ── */
-    m_settingsBtn = new QPushButton("\xe2\x9a\x99\xef\xb8\x8f", hdr);  /* ⚙️ */
+    /* ⚙️ Impostazioni */
+    m_settingsBtn = new QPushButton("\xe2\x9a\x99\xef\xb8\x8f", hdr);
     m_settingsBtn->setObjectName("hamburgerBtn");
     m_settingsBtn->setFixedSize(36, 36);
     m_settingsBtn->setToolTip("Impostazioni \xe2\x80\x94 Backend, Hardware, Monitor AI, llama.cpp");
@@ -473,49 +494,58 @@ QWidget* MainWindow::buildHeader() {
     connect(m_settingsBtn, &QPushButton::clicked, this, &MainWindow::openSettingsDialog);
     lay->addWidget(m_settingsBtn);
 
-    lay->addSpacing(4);  /* piccolo gap visivo prima del logo */
+    lay->addSpacing(4);
+}
 
-    /* Logo */
+/* ── Livello 2: 🍺 logo + titolo PRISMALUX ───────────────────────── */
+void MainWindow::buildLogoSection(QHBoxLayout* lay)
+{
+    auto* hdr = qobject_cast<QWidget*>(lay->parent());
+
     auto* beer = new QLabel("🍺", hdr);
     beer->setObjectName("headerBeer");
     lay->addWidget(beer);
 
-    /* Titolo */
     auto* title = new QLabel("PRISMALUX", hdr);
     title->setObjectName("headerTitle");
-    /* m_lblBackend tenuto per aggiornamenti interni (applyBackend) ma non mostrato */
-    m_lblBackend = new QLabel("", hdr);
-    m_lblBackend->hide();
-    /* m_lblModel tenuto per i setText interni, non mostrato nell'header */
-    m_lblModel = new QLabel(this);
-    m_lblModel->hide();
     lay->addWidget(title);
 
-    lay->addStretch(1);
+    /* Tenuti come membri per aggiornamenti interni (applyBackend, onModelChanged) */
+    m_lblBackend = new QLabel("", hdr);
+    m_lblBackend->hide();
+    m_lblModel = new QLabel(this);
+    m_lblModel->hide();
+}
 
-    /* Gauges hardware — una sola riga: CPU · RAM · GPU */
+/* ── Livello 2: CPU · RAM · GPU gauges ───────────────────────────── */
+void MainWindow::buildGaugesSection(QHBoxLayout* lay)
+{
+    auto* hdr = qobject_cast<QWidget*>(lay->parent());
     m_gCpu = new ResourceGauge("CPU ", hdr);
     m_gRam = new ResourceGauge("RAM ", hdr);
     m_gGpu = new ResourceGauge("GPU ", hdr);
     lay->addWidget(m_gCpu);
     lay->addWidget(m_gRam);
     lay->addWidget(m_gGpu);
+}
 
-    /* ── Pulsante emergenza RAM 🚨 ── */
-    auto* btnEmergency = new QPushButton("🚨", hdr);
-    btnEmergency->setObjectName("emergencyBtn");
-    btnEmergency->setToolTip(
+/* ── Livello 2: 🚨 emergenza RAM + Scarica LLM + backend toggle ───── */
+void MainWindow::buildActionButtons(QHBoxLayout* lay)
+{
+    auto* hdr = qobject_cast<QWidget*>(lay->parent());
+
+    /* 🚨 Emergenza RAM */
+    m_emergencyBtn = new QPushButton("🚨", hdr);
+    m_emergencyBtn->setObjectName("emergencyBtn");
+    m_emergencyBtn->setToolTip(
         "EMERGENZA RAM\n"
         "1. Ferma tutti i modelli Ollama\n"
         "2. Libera cache kernel (richiede password admin)");
-    btnEmergency->setFixedSize(42, 36);
+    m_emergencyBtn->setFixedSize(42, 36);
+    connect(m_emergencyBtn, &QPushButton::clicked, this, &MainWindow::onEmergencyRamClicked);
+    lay->addWidget(m_emergencyBtn);
 
-    m_emergencyBtn = btnEmergency;
-    connect(btnEmergency, &QPushButton::clicked, this, &MainWindow::onEmergencyRamClicked);
-
-    lay->addWidget(btnEmergency);
-
-    /* ── Pulsante "Scarica LLM" — scarica il modello dalla RAM via API Ollama ── */
+    /* 🗑 Scarica LLM */
     m_btnUnload = new QPushButton("\xf0\x9f\x97\x91  Scarica LLM", hdr);
     m_btnUnload->setObjectName("unloadBtn");
     m_btnUnload->setFixedHeight(36);
@@ -527,7 +557,7 @@ QWidget* MainWindow::buildHeader() {
     connect(m_btnUnload, &QPushButton::clicked, this, &MainWindow::onUnloadModelClicked);
     lay->addWidget(m_btnUnload);
 
-    /* ── Pulsante toggle backend (sempre visibile) ── */
+    /* 🦙 Backend toggle — reparentato in buildContent come corner widget */
     m_btnBackend = new QPushButton("\xf0\x9f\xa6\x99  Ollama", hdr);
     m_btnBackend->setObjectName("backendBtn");
     m_btnBackend->setToolTip("Cambia backend AI — un click per passare da Ollama a llama-server e viceversa");
@@ -535,25 +565,8 @@ QWidget* MainWindow::buildHeader() {
     m_btnBackend->setAccessibleDescription("Seleziona il backend: Ollama o llama-server");
     m_btnBackend->setFixedHeight(36);
     m_btnBackend->setMinimumWidth(130);
-
     connect(m_btnBackend, &QPushButton::clicked, this, &MainWindow::onBackendBtnClicked);
-
-    /* m_btnBackend viene aggiunto come corner widget del tab principale in buildContent() */
     m_btnBackend->setParent(this);  /* reparent temporaneo — buildContent lo riposiziona */
-
-    /*
-     * StatusBadge — dot colorato per stato llama-server:
-     *   ● grigio   Offline  → server non avviato
-     *   ● giallo   Starting → avvio in corso (polling /health)
-     *   ● verde    Online   → server pronto e backend commutato
-     * Aggiornato da startLlamaServer(), stopLlamaServer(), polling timer.
-     */
-    /* Badge e spinner mantenuti come puntatori null — lo stato viene mostrato
-     * direttamente nel testo di m_btnBackend per tenere l'header pulito. */
-    m_badgeServer = nullptr;
-    m_spinServer  = nullptr;
-
-    return hdr;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -575,129 +588,22 @@ void MainWindow::showServerDialog()
         "<b>Seleziona modello</b> \xe2\x80\x94 il server parte in background,<br>"
         "il backend viene commutato automaticamente.", dlg));
 
-    /* ── Banner hardware: mostra il device più veloce selezionato automaticamente ── */
-    {
-        QString hwLine;
-        if (m_hw && m_hw->hwReady()) {
-            const HWInfo& hw = m_hw->hwInfo();
-            /* Cerca la GPU con più VRAM disponibile — sempre preferita sulla CPU */
-            int bestGpu = -1;
-            for (int i = 0; i < hw.count; i++) {
-                if (hw.dev[i].type != DEV_CPU) {
-                    if (bestGpu < 0 || hw.dev[i].avail_mb > hw.dev[bestGpu].avail_mb)
-                        bestGpu = i;
-                }
-            }
-            if (bestGpu >= 0) {
-                const HWDevice& g = hw.dev[bestGpu];
-                int ngl = (g.n_gpu_layers > 0) ? g.n_gpu_layers : 99;
-                hwLine = QString(
-                    "<span style='color:#16a34a;'>"
-                    "\xf0\x9f\x8e\xae  <b>GPU rilevata:</b> %1 &mdash; %2 MB VRAM liberi "
-                    "&rarr; <b>-ngl %3</b> (accelerazione GPU attiva)</span>")
-                    .arg(QString::fromUtf8(g.name)).arg(g.avail_mb).arg(ngl);
-            } else {
-                const HWDevice& c = hw.dev[hw.primary];
-                hwLine = QString(
-                    "<span style='color:#b45309;'>"
-                    "\xf0\x9f\x96\xa5  <b>CPU:</b> %1 &mdash; nessuna GPU rilevata "
-                    "&rarr; <b>-ngl 0</b> (inferenza RAM)</span>")
-                    .arg(QString::fromUtf8(c.name));
-            }
-        } else {
-            hwLine = "<span style='color:#6b7280;'>\xe2\x8f\xb3  Rilevamento hardware in corso...</span>";
-        }
-        auto* hwLbl = new QLabel(hwLine, dlg);
-        hwLbl->setWordWrap(true);
-        lay->addWidget(hwLbl);
-    }
+    lay->addWidget(buildServerHwBanner(dlg));
 
+    /* Categorizza i modelli in matematici e generici */
     QStringList mathPaths, otherPaths;
     for (const QString& p : modelPaths) {
         if (isMathModel(QFileInfo(p).fileName())) mathPaths << p;
         else                                        otherPaths << p;
     }
 
-    auto* cmbModel = new QComboBox(dlg);
+    QComboBox* cmbModel = nullptr;
+    QSpinBox*  spPort   = nullptr;
+    lay->addWidget(buildServerModelSection(dlg, &cmbModel, mathPaths, otherPaths));
+    /* Recupera spPort dal widget costruito sopra */
+    spPort = dlg->findChild<QSpinBox*>();
 
-    auto populateCombo = [&](bool mathOnly) {
-        cmbModel->clear();
-        if (mathPaths.isEmpty() && otherPaths.isEmpty()) {
-            cmbModel->addItem("(nessun .gguf trovato in models/)");
-            cmbModel->setEnabled(false);
-            return;
-        }
-        cmbModel->setEnabled(true);
-        for (const QString& p : mathPaths)
-            cmbModel->addItem("\xf0\x9f\x93\x90 " + QFileInfo(p).fileName(), p);
-        if (!mathOnly)
-            for (const QString& p : otherPaths)
-                cmbModel->addItem(QFileInfo(p).fileName(), p);
-    };
-    populateCombo(false);
-    lay->addWidget(cmbModel);
-
-    auto* rowPort = new QHBoxLayout;
-    rowPort->addWidget(new QLabel("Porta:", dlg));
-    auto* spPort = new QSpinBox(dlg);
-    spPort->setRange(1024, 65535);
-    spPort->setValue(P::kLlamaServerPort);
-    spPort->setFixedWidth(90);
-    rowPort->addWidget(spPort);
-    rowPort->addStretch();
-    lay->addLayout(rowPort);
-
-    auto* chkMath = new QCheckBox("\xf0\x9f\x93\x90  Profilo matematico (Xeon 64 GB)", dlg);
-    chkMath->setToolTip(
-        "Abilita flag ottimali per calcolo scientifico:\n"
-        "  --ctx-size 8192  (dimostrazioni lunghe)\n"
-        "  --no-mmap        (Q4_K_M: carica tutto in RAM, pi\xc3\xb9 veloce)\n"
-        "  mmap attivo      (Q8_0: legge dal SSD on-demand, auto)");
-    lay->addWidget(chkMath);
-
-    auto* lblMathStatus = new QLabel(dlg);
-    lblMathStatus->setWordWrap(true);
-    lay->addWidget(lblMathStatus);
-
-    auto* btnMathDl = new QPushButton(
-        "\xe2\xac\x87  Scarica modello matematico da Hugging Face", dlg);
-    btnMathDl->setObjectName("actionBtn");
-    btnMathDl->setVisible(false);
-    lay->addWidget(btnMathDl);
-
-    auto updateMathUI = [&](bool mathOn) {
-        if (!mathOn) { populateCombo(false); lblMathStatus->hide(); btnMathDl->hide(); return; }
-        populateCombo(false);
-        if (mathPaths.isEmpty()) {
-            lblMathStatus->setText(
-                "<span style='color:#ff5252;'>"
-                "\xe2\x9a\xa0  Nessun modello matematico trovato in models/.<br>"
-                "Scarica Qwen2.5-Math-72B (Q4_K_M ~40 GB) o Qwen2.5-Math-7B (Q4_K_M ~4.7 GB).</span>");
-            lblMathStatus->show(); btnMathDl->show();
-        } else {
-            lblMathStatus->setText(
-                QString("<span style='color:#69f0ae;'>"
-                        "\xe2\x9c\x85  %1 modello/i matematico/i trovato/i (in cima con \xf0\x9f\x93\x90)."
-                        "</span>").arg(mathPaths.size()));
-            lblMathStatus->show(); btnMathDl->hide();
-            cmbModel->setCurrentIndex(0);
-        }
-    };
-
-    connect(chkMath, &QCheckBox::toggled, dlg, updateMathUI);
-    connect(cmbModel, QOverload<int>::of(&QComboBox::currentIndexChanged), dlg,
-            [chkMath, cmbModel](int){
-        const QString name = cmbModel->currentText().toLower();
-        chkMath->setChecked(name.contains("72b") || name.contains("70b") || name.contains("math"));
-    });
-    connect(btnMathDl, &QPushButton::clicked, this, &MainWindow::onMathDlBtnClicked);
-
-    {
-        const QString name = cmbModel->currentText().toLower();
-        bool initMath = !mathPaths.isEmpty() || name.contains("math") || name.contains("72b");
-        chkMath->setChecked(initMath);
-        updateMathUI(initMath);
-    }
+    lay->addWidget(buildServerMathSection(dlg, cmbModel, mathPaths));
 
     lay->addWidget(new QLabel(
         "<span style='color:#5a5f80;font-size:11px;'>"
@@ -714,10 +620,153 @@ void MainWindow::showServerDialog()
     connect(bb, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
 
     if (dlg->exec() == QDialog::Accepted && !modelPaths.isEmpty()) {
-        QString modelPath = cmbModel->currentData().toString();
-        startLlamaServer(modelPath, spPort->value(), chkMath->isChecked());
+        auto* chk = dlg->findChild<QCheckBox*>();
+        const QString modelPath = cmbModel ? cmbModel->currentData().toString() : QString();
+        startLlamaServer(modelPath,
+                         spPort ? spPort->value() : P::kLlamaServerPort,
+                         chk    ? chk->isChecked() : false);
     }
     dlg->deleteLater();
+}
+
+/* ── Livello 2: banner GPU/CPU rilevato ──────────────────────────── */
+QWidget* MainWindow::buildServerHwBanner(QWidget* parent)
+{
+    QString hwLine;
+    if (m_hw && m_hw->hwReady()) {
+        const HWInfo& hw = m_hw->hwInfo();
+        int bestGpu = -1;
+        for (int i = 0; i < hw.count; i++) {
+            if (hw.dev[i].type != DEV_CPU) {
+                if (bestGpu < 0 || hw.dev[i].avail_mb > hw.dev[bestGpu].avail_mb)
+                    bestGpu = i;
+            }
+        }
+        if (bestGpu >= 0) {
+            const HWDevice& g = hw.dev[bestGpu];
+            int ngl = (g.n_gpu_layers > 0) ? g.n_gpu_layers : 99;
+            hwLine = QString(
+                "<span style='color:#16a34a;'>"
+                "\xf0\x9f\x8e\xae  <b>GPU rilevata:</b> %1 &mdash; %2 MB VRAM liberi "
+                "&rarr; <b>-ngl %3</b> (accelerazione GPU attiva)</span>")
+                .arg(QString::fromUtf8(g.name)).arg(g.avail_mb).arg(ngl);
+        } else {
+            const HWDevice& c = hw.dev[hw.primary];
+            hwLine = QString(
+                "<span style='color:#b45309;'>"
+                "\xf0\x9f\x96\xa5  <b>CPU:</b> %1 &mdash; nessuna GPU rilevata "
+                "&rarr; <b>-ngl 0</b> (inferenza RAM)</span>")
+                .arg(QString::fromUtf8(c.name));
+        }
+    } else {
+        hwLine = "<span style='color:#6b7280;'>\xe2\x8f\xb3  Rilevamento hardware in corso...</span>";
+    }
+    auto* lbl = new QLabel(hwLine, parent);
+    lbl->setWordWrap(true);
+    return lbl;
+}
+
+/* ── Livello 2: combo modello + porta ────────────────────────────── */
+QWidget* MainWindow::buildServerModelSection(QWidget* parent,
+                                              QComboBox** outCombo,
+                                              const QStringList& mathPaths,
+                                              const QStringList& otherPaths)
+{
+    auto* container = new QWidget(parent);
+    auto* vlay = new QVBoxLayout(container);
+    vlay->setContentsMargins(0, 0, 0, 0);
+    vlay->setSpacing(6);
+
+    auto* cmbModel = new QComboBox(container);
+    if (mathPaths.isEmpty() && otherPaths.isEmpty()) {
+        cmbModel->addItem("(nessun .gguf trovato in models/)");
+        cmbModel->setEnabled(false);
+    } else {
+        for (const QString& p : mathPaths)
+            cmbModel->addItem("\xf0\x9f\x93\x90 " + QFileInfo(p).fileName(), p);
+        for (const QString& p : otherPaths)
+            cmbModel->addItem(QFileInfo(p).fileName(), p);
+    }
+    vlay->addWidget(cmbModel);
+
+    auto* rowPort = new QHBoxLayout;
+    rowPort->addWidget(new QLabel("Porta:", container));
+    auto* spPort = new QSpinBox(container);
+    spPort->setRange(1024, 65535);
+    spPort->setValue(P::kLlamaServerPort);
+    spPort->setFixedWidth(90);
+    rowPort->addWidget(spPort);
+    rowPort->addStretch();
+    vlay->addLayout(rowPort);
+
+    if (outCombo) *outCombo = cmbModel;
+    return container;
+}
+
+/* ── Livello 2: checkbox profilo math + status + download ────────── */
+QWidget* MainWindow::buildServerMathSection(QWidget* parent,
+                                             QComboBox* cmbModel,
+                                             const QStringList& mathPaths)
+{
+    auto* container = new QWidget(parent);
+    auto* vlay = new QVBoxLayout(container);
+    vlay->setContentsMargins(0, 0, 0, 0);
+    vlay->setSpacing(4);
+
+    auto* chkMath = new QCheckBox("\xf0\x9f\x93\x90  Profilo matematico (Xeon 64 GB)", container);
+    chkMath->setToolTip(
+        "Abilita flag ottimali per calcolo scientifico:\n"
+        "  --ctx-size 8192  (dimostrazioni lunghe)\n"
+        "  --no-mmap        (Q4_K_M: carica tutto in RAM, pi\xc3\xb9 veloce)\n"
+        "  mmap attivo      (Q8_0: legge dal SSD on-demand, auto)");
+    vlay->addWidget(chkMath);
+
+    auto* lblMathStatus = new QLabel(container);
+    lblMathStatus->setWordWrap(true);
+    vlay->addWidget(lblMathStatus);
+
+    auto* btnMathDl = new QPushButton(
+        "\xe2\xac\x87  Scarica modello matematico da Hugging Face", container);
+    btnMathDl->setObjectName("actionBtn");
+    btnMathDl->setVisible(false);
+    vlay->addWidget(btnMathDl);
+
+    /* updateMathUI — aggiorna status e visibilità del download button */
+    auto updateMathUI = [=](bool mathOn) {
+        if (!mathOn) { lblMathStatus->hide(); btnMathDl->hide(); return; }
+        if (mathPaths.isEmpty()) {
+            lblMathStatus->setText(
+                "<span style='color:#ff5252;'>"
+                "\xe2\x9a\xa0  Nessun modello matematico trovato in models/.<br>"
+                "Scarica Qwen2.5-Math-72B (Q4_K_M ~40 GB) o Qwen2.5-Math-7B (Q4_K_M ~4.7 GB).</span>");
+            lblMathStatus->show(); btnMathDl->show();
+        } else {
+            lblMathStatus->setText(
+                QString("<span style='color:#69f0ae;'>"
+                        "\xe2\x9c\x85  %1 modello/i matematico/i trovato/i (in cima con \xf0\x9f\x93\x90)."
+                        "</span>").arg(mathPaths.size()));
+            lblMathStatus->show(); btnMathDl->hide();
+            if (cmbModel) cmbModel->setCurrentIndex(0);
+        }
+    };
+
+    connect(chkMath, &QCheckBox::toggled, container, updateMathUI);
+    if (cmbModel) {
+        connect(cmbModel, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                chkMath, [chkMath, cmbModel](int) {
+            const QString name = cmbModel->currentText().toLower();
+            chkMath->setChecked(name.contains("72b") || name.contains("70b") || name.contains("math"));
+        });
+    }
+    connect(btnMathDl, &QPushButton::clicked, this, &MainWindow::onMathDlBtnClicked);
+
+    /* Stato iniziale */
+    const QString initName = cmbModel ? cmbModel->currentText().toLower() : QString();
+    const bool initMath = !mathPaths.isEmpty() || initName.contains("math") || initName.contains("72b");
+    chkMath->setChecked(initMath);
+    updateMathUI(initMath);
+
+    return container;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1084,45 +1133,66 @@ QWidget* MainWindow::buildSidebar() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   buildContent — QStackedWidget con le 5 pagine
+   buildContent — wrapper con navMenuBar + QTabWidget con tutti i tab
    ══════════════════════════════════════════════════════════════ */
-QWidget* MainWindow::buildContent() {
-    /* ── Container wrapper: navMenuBar (nascosta) + m_mainTabs ── */
+QWidget* MainWindow::buildContent()
+{
     auto* wrapper = new QWidget(this);
     auto* wLay    = new QVBoxLayout(wrapper);
     wLay->setContentsMargins(0, 0, 0, 0);
     wLay->setSpacing(0);
 
-    /* ── Barra navigazione alternativa (modalità "Menù principale") ── */
-    m_navMenuBar = new QFrame(wrapper);
-    m_navMenuBar->setObjectName("navMenuBar");
-    m_navMenuBar->setFixedHeight(40);
-    m_navMenuBar->hide();
-    auto* nmLay = new QHBoxLayout(m_navMenuBar);
-    nmLay->setContentsMargins(8, 2, 8, 2);
-    nmLay->setSpacing(2);
-
+    /* QTabWidget principale */
     m_mainTabs = new QTabWidget(wrapper);
     m_mainTabs->setObjectName("mainTabs");
     m_mainTabs->setTabPosition(QTabWidget::North);
     m_mainTabs->setMovable(false);
     m_mainTabs->setAccessibleName("Sezioni principali di Prismalux");
 
-    /* Pulsante Ollama come corner widget sinistro — a sinistra di "Agenti AI".
-       Avvolto in un container con margine destro per evitare sovrapposizione coi tab. */
+    /* Backend button come corner widget sinistro */
     if (m_btnBackend) {
         m_btnBackend->setFixedHeight(28);
         m_btnBackend->setMinimumWidth(110);
-
         m_cornerContainer = new QWidget(m_mainTabs);
         auto* cornerLay = new QHBoxLayout(m_cornerContainer);
         cornerLay->setContentsMargins(4, 0, 8, 0);
         cornerLay->setSpacing(0);
         cornerLay->addWidget(m_btnBackend);
-
         m_mainTabs->setCornerWidget(m_cornerContainer, Qt::TopLeftCorner);
     }
 
+    buildAiTab();
+    buildStrumentiTab();
+    buildMultimediaTab();
+    buildFileAiTab();
+    buildProgrammazioneTab();
+    buildMatematicaTab();
+    buildRicercaTab();
+    buildAppControllerTab();
+    buildLanWanTab();
+    buildImparaTab();
+
+    /* Salva etichette originali e applica modalità da QSettings */
+    for (int i = 0; i < m_mainTabs->count(); i++)
+        m_tabOrigLabels << m_mainTabs->tabText(i);
+    {
+        QSettings s("Prismalux", "GUI");
+        applyTabMode(s.value(P::SK::kNavTabMode, "icons_text").toString());
+    }
+
+    buildNavMenuBar(wrapper, wLay);
+
+    wLay->addWidget(m_navMenuBar);
+    wLay->addWidget(m_mainTabs, 1);
+
+    applyContentSettings();
+
+    return wrapper;
+}
+
+/* ── Livello 2: tab [0] Intelligenza Artificiale ─────────────────── */
+void MainWindow::buildAiTab()
+{
     auto* agentiPage = new AgentiPage(m_ai, this);
     connect(agentiPage, &AgentiPage::chatCompleted,
             this,       &MainWindow::onChatCompleted);
@@ -1132,159 +1202,171 @@ QWidget* MainWindow::buildContent() {
             this, &MainWindow::onGraficoRequestSettings);
     connect(agentiPage, &AgentiPage::requestShowInGrafico,
             this, &MainWindow::onRequestShowInGrafico);
+    m_mainTabs->addTab(agentiPage, "\xf0\x9f\xa4\x96  Intelligenza artificiale");  /* 0 */
+}
 
-    m_mainTabs->addTab(agentiPage,                           "\xf0\x9f\xa4\x96  Intelligenza artificiale");  /* 0 */
+/* ── Livello 2: tab [1] Strumenti ────────────────────────────────── */
+void MainWindow::buildStrumentiTab()
+{
     m_strumentiPage = new StrumentiPage(m_ai, this);
-    /* Cron lazy: installa il pannello solo al primo clic — NON all'avvio */
     connect(m_strumentiPage, &StrumentiPage::cronPanelFirstOpen,
             this, &MainWindow::onCronPanelFirstOpen);
-    m_mainTabs->addTab(m_strumentiPage,                      "\xf0\x9f\x9b\xa0  Strumenti");        /* 1 */
-    m_mainTabs->addTab(new MultimediaPage(m_ai, this),       "\xf0\x9f\x8e\xac  Multimedia");       /* 2 */
-    m_mainTabs->addTab(new StrumentiFilePage(m_ai, this),    "\xf0\x9f\x93\x81  File AI");          /* 3 */
-    m_mainTabs->addTab(new ProgrammazionePage(m_ai, this),   "\xf0\x9f\x92\xbb  Programmazione");   /* 4 */
+    m_mainTabs->addTab(m_strumentiPage, "\xf0\x9f\x9b\xa0  Strumenti");  /* 1 */
+}
 
-    /* ── Matematica (container) con sub-tab Matematica + Grafico ── */
-    {
-        auto* grafPage = new GraficoPage(m_ai, this);
-        m_grafCanvas = grafPage->canvas();
-        if (m_impPage) m_impPage->setGraficoCanvas(m_grafCanvas);
-        connect(grafPage, &GraficoPage::requestOpenSettings,
-                this, &MainWindow::onGraficoRequestSettings);
+/* ── Livello 2: tab [2] Multimedia ───────────────────────────────── */
+void MainWindow::buildMultimediaTab()
+{
+    m_mainTabs->addTab(new MultimediaPage(m_ai, this),
+                       "\xf0\x9f\x8e\xac  Multimedia");  /* 2 */
+}
 
-        auto* mathContainer = new QWidget(m_mainTabs);
-        auto* mcLay = new QVBoxLayout(mathContainer);
-        mcLay->setContentsMargins(0, 0, 0, 0);
-        mcLay->setSpacing(0);
+/* ── Livello 2: tab [3] File AI ──────────────────────────────────── */
+void MainWindow::buildFileAiTab()
+{
+    m_mainTabs->addTab(new StrumentiFilePage(m_ai, this),
+                       "\xf0\x9f\x93\x81  File AI");  /* 3 */
+}
 
-        auto* mathSubTabs = new QTabWidget(mathContainer);
-        mathSubTabs->setObjectName("mathSubTabs");
-        mathSubTabs->setTabPosition(QTabWidget::North);
-        mathSubTabs->addTab(new MatematicaPage(m_ai, mathContainer),
-                            "\xcf\x80  Matematica");
-        mathSubTabs->addTab(grafPage,
-                            "\xf0\x9f\x93\x88  Grafico");
+/* ── Livello 2: tab [4] Programmazione ───────────────────────────── */
+void MainWindow::buildProgrammazioneTab()
+{
+    m_mainTabs->addTab(new ProgrammazionePage(m_ai, this),
+                       "\xf0\x9f\x92\xbb  Programmazione");  /* 4 */
+}
 
-        /* Forza repaint del canvas quando il sub-tab Grafico diventa visibile */
-        connect(mathSubTabs, &QTabWidget::currentChanged,
-                this, &MainWindow::onMathSubTabChanged);
+/* ── Livello 2: tab [5] Matematica + Grafico ─────────────────────── */
+void MainWindow::buildMatematicaTab()
+{
+    auto* grafPage = new GraficoPage(m_ai, this);
+    m_grafCanvas = grafPage->canvas();
+    if (m_impPage) m_impPage->setGraficoCanvas(m_grafCanvas);
+    connect(grafPage, &GraficoPage::requestOpenSettings,
+            this, &MainWindow::onGraficoRequestSettings);
 
-        mcLay->addWidget(mathSubTabs);
-        m_mainTabs->addTab(mathContainer, "\xcf\x80  Matematica");                        /* 5 */
-    }
+    auto* mathContainer = new QWidget(m_mainTabs);
+    auto* mcLay = new QVBoxLayout(mathContainer);
+    mcLay->setContentsMargins(0, 0, 0, 0);
+    mcLay->setSpacing(0);
 
-    /* ── Ricerca e Sviluppo — Paper · Brevetti · Documenti tecnici ── */
+    auto* mathSubTabs = new QTabWidget(mathContainer);
+    mathSubTabs->setObjectName("mathSubTabs");
+    mathSubTabs->setTabPosition(QTabWidget::North);
+    mathSubTabs->addTab(new MatematicaPage(m_ai, mathContainer), "\xcf\x80  Matematica");
+    mathSubTabs->addTab(grafPage, "\xf0\x9f\x93\x88  Grafico");
+    connect(mathSubTabs, &QTabWidget::currentChanged,
+            this, &MainWindow::onMathSubTabChanged);
+
+    mcLay->addWidget(mathSubTabs);
+    m_mainTabs->addTab(mathContainer, "\xcf\x80  Matematica");  /* 5 */
+}
+
+/* ── Livello 2: tab [6] Ricerca ──────────────────────────────────── */
+void MainWindow::buildRicercaTab()
+{
     m_mainTabs->addTab(new RicercaPage(m_ai, this),
-                       "\xf0\x9f\x94\xac  Ricerca");                                      /* 6 */
+                       "\xf0\x9f\x94\xac  Ricerca");  /* 6 */
+}
 
-    /* ── APP Controller — joystick MCP bridges ── */
+/* ── Livello 2: tab [7] APP Controller ───────────────────────────── */
+void MainWindow::buildAppControllerTab()
+{
     m_mainTabs->addTab(new AppControllerPage(m_ai, this),
-                       "\xf0\x9f\x95\xb9  APP Controller");                               /* 7 */
+                       "\xf0\x9f\x95\xb9  APP Controller");  /* 7 */
+}
 
-    /* ── LAN & WAN — server LAN Android + WAN futuro ── */
+/* ── Livello 2: tab [8] LAN & WAN ────────────────────────────────── */
+void MainWindow::buildLanWanTab()
+{
     m_mainTabs->addTab(new LanWanPage(m_ai, this),
-                       "\xf0\x9f\x8c\x90  LAN & WAN");                                   /* 8 */
+                       "\xf0\x9f\x8c\x90  LAN & WAN");  /* 8 */
+}
 
-    /* ── Impara: Finanza · Impara con AI · Sfida (Cerca Lavoro spostata in Strumenti AI) ── */
-    {
-        auto* imparaContainer = new QWidget(m_mainTabs);
-        auto* ilay = new QVBoxLayout(imparaContainer);
-        ilay->setContentsMargins(0, 0, 0, 0);
-        ilay->setSpacing(0);
+/* ── Livello 2: tab [9] Impara (Finanza + Impara + Sfida) ────────── */
+void MainWindow::buildImparaTab()
+{
+    auto* imparaContainer = new QWidget(m_mainTabs);
+    auto* ilay = new QVBoxLayout(imparaContainer);
+    ilay->setContentsMargins(0, 0, 0, 0);
+    ilay->setSpacing(0);
 
-        auto* imparaTabs = new QTabWidget(imparaContainer);
-        imparaTabs->setObjectName("imparaSubTabs");
-        imparaTabs->setTabPosition(QTabWidget::North);
+    auto* imparaTabs = new QTabWidget(imparaContainer);
+    imparaTabs->setObjectName("imparaSubTabs");
+    imparaTabs->setTabPosition(QTabWidget::North);
+    imparaTabs->addTab(new PraticoPage(m_ai, imparaContainer), "\xf0\x9f\x92\xb0  Finanza");
+    imparaTabs->addTab(new ImparaPage(m_ai, imparaContainer),  "\xf0\x9f\x8f\x9b  Impara con AI");
 
-        imparaTabs->addTab(new PraticoPage(m_ai, imparaContainer), "\xf0\x9f\x92\xb0  Finanza");
+    /* QuizPage usa AiClient separato: evita cross-talk con AgentiPage */
+    m_quizAi = new AiClient(this);
+    m_quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+    connect(m_ai, &AiClient::modelsReady, this, &MainWindow::onQuizAiModelsReady);
+    imparaTabs->addTab(new QuizPage(m_quizAi, imparaContainer),
+                       "\xf0\x9f\x8e\xaf  Sfida te stesso!");
 
-        /* Impara con AI e Sfida te stesso — diretti, senza wrapper nidificato */
-        imparaTabs->addTab(new ImparaPage(m_ai, imparaContainer), "\xf0\x9f\x8f\x9b  Impara con AI");
-        /* QuizPage usa AiClient SEPARATO: evita cross-talk con AgentiPage */
-        {
-            m_quizAi = new AiClient(this);
-            m_quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
-            connect(m_ai, &AiClient::modelsReady, this, &MainWindow::onQuizAiModelsReady);
-            imparaTabs->addTab(new QuizPage(m_quizAi, imparaContainer),
-                               "\xf0\x9f\x8e\xaf  Sfida te stesso!");
+    ilay->addWidget(imparaTabs);
+    m_mainTabs->addTab(imparaContainer, "\xf0\x9f\x93\x9a  Impara");  /* 9 */
+}
+
+/* ── Livello 2: barra navigazione menu + sincronizzazione tab ────── */
+void MainWindow::buildNavMenuBar(QWidget* wrapper, QVBoxLayout* /*wLay*/)
+{
+    m_navMenuBar = new QFrame(wrapper);
+    m_navMenuBar->setObjectName("navMenuBar");
+    m_navMenuBar->setFixedHeight(40);
+    m_navMenuBar->hide();
+    auto* nmLay = new QHBoxLayout(m_navMenuBar);
+    nmLay->setContentsMargins(8, 2, 8, 2);
+    nmLay->setSpacing(2);
+
+    auto* btnGroup = new QButtonGroup(m_navMenuBar);
+    btnGroup->setExclusive(true);
+    for (int i = 0; i < m_mainTabs->count(); i++) {
+        if (i == 9) {  /* separatore prima di "Impara" */
+            auto* sep = new QFrame(m_navMenuBar);
+            sep->setFrameShape(QFrame::VLine);
+            sep->setObjectName("navMenuSep");
+            sep->setFixedWidth(1);
+            nmLay->addWidget(sep);
         }
-        ilay->addWidget(imparaTabs);
+        auto* btn = new QPushButton(m_tabOrigLabels.at(i), m_navMenuBar);
+        btn->setObjectName("navMenuBtn");
+        btn->setCheckable(true);
+        btn->setChecked(i == 0);
+        btn->setFlat(true);
+        btnGroup->addButton(btn, i);
+        m_navBtns << btn;
+        nmLay->addWidget(btn);
+    }
+    connect(btnGroup, &QButtonGroup::idClicked,
+            m_mainTabs, &QTabWidget::setCurrentIndex);
+    nmLay->addStretch();
 
-        m_mainTabs->addTab(imparaContainer, "\xf0\x9f\x93\x9a  Impara");                  /* 9 */
+    /* Clone del backend button all'estrema destra della nav bar */
+    if (m_btnBackend) {
+        auto* backendClone = new QPushButton(m_navMenuBar);
+        backendClone->setObjectName("navMenuBackend");
+        backendClone->setFlat(true);
+        backendClone->setFixedHeight(30);
+        m_navBackendClone = backendClone;
+        connect(m_btnBackend,  &QPushButton::clicked, this, &MainWindow::onSyncNavBackendClone);
+        onSyncNavBackendClone();
+        connect(backendClone, &QPushButton::clicked, m_btnBackend, &QPushButton::click);
+        nmLay->addWidget(backendClone);
     }
 
+    connect(m_mainTabs, &QTabWidget::currentChanged, this, &MainWindow::onMainTabChanged);
+}
 
-    /* ── Salva etichette originali e applica modalità da QSettings ── */
-    for (int i = 0; i < m_mainTabs->count(); i++)
-        m_tabOrigLabels << m_mainTabs->tabText(i);
-    {
-        QSettings s("Prismalux", "GUI");
-        applyTabMode(s.value(P::SK::kNavTabMode, "icons_text").toString());
+/* ── Livello 2: applica stile nav e modalità exec btn da QSettings ── */
+void MainWindow::applyContentSettings()
+{
+    QSettings s("Prismalux", "GUI");
+    applyNavStyle(s.value(P::SK::kNavStyle, "tabs_top").toString());
+    const QString execMode = s.value(P::SK::kNavExecBtnMode, "icon_text").toString();
+    if (execMode != "icon_text") {
+        m_pendingExecMode = execMode;
+        QTimer::singleShot(0, this, &MainWindow::onApplyExecBtnMode);
     }
-
-    /* ── Costruisci pulsanti barra navigazione ───────────────────
-       Separatore prima di "Impara" (tab 9) → gruppo Lavoro | Impara+Sfida */
-    {
-        auto* btnGroup = new QButtonGroup(m_navMenuBar);
-        btnGroup->setExclusive(true);
-        for (int i = 0; i < m_mainTabs->count(); i++) {
-            if (i == 9) {           /* separatore prima di "Impara" */
-                auto* sep = new QFrame(m_navMenuBar);
-                sep->setFrameShape(QFrame::VLine);
-                sep->setObjectName("navMenuSep");
-                sep->setFixedWidth(1);
-                nmLay->addWidget(sep);
-            }
-            auto* btn = new QPushButton(m_tabOrigLabels.at(i), m_navMenuBar);
-            btn->setObjectName("navMenuBtn");
-            btn->setCheckable(true);
-            btn->setChecked(i == 0);
-            btn->setFlat(true);
-            btnGroup->addButton(btn, i);   /* id = indice tab — usato da idClicked */
-            m_navBtns << btn;
-            nmLay->addWidget(btn);
-        }
-        connect(btnGroup, &QButtonGroup::idClicked,
-                m_mainTabs, &QTabWidget::setCurrentIndex);
-        nmLay->addStretch();
-
-        /* Backend button all'estrema destra della nav bar (in menu mode) */
-        if (m_btnBackend) {
-            auto* backendClone = new QPushButton(m_navMenuBar);
-            backendClone->setObjectName("navMenuBackend");
-            backendClone->setFlat(true);
-            backendClone->setFixedHeight(30);
-            /* Sincronizza testo con il pulsante principale */
-            m_navBackendClone = backendClone;
-            connect(m_btnBackend, &QPushButton::clicked,
-                    this, &MainWindow::onSyncNavBackendClone);
-            onSyncNavBackendClone();
-            connect(backendClone, &QPushButton::clicked,
-                    m_btnBackend, &QPushButton::click);
-            nmLay->addWidget(backendClone);
-        }
-
-        /* Sincronizza pulsante attivo quando cambia tab */
-        connect(m_mainTabs, &QTabWidget::currentChanged,
-                this, &MainWindow::onMainTabChanged);
-    }
-
-    wLay->addWidget(m_navMenuBar);
-    wLay->addWidget(m_mainTabs, 1);
-
-    /* Applica stile navigazione e modalità pulsanti da QSettings */
-    {
-        QSettings s("Prismalux", "GUI");
-        applyNavStyle(s.value(P::SK::kNavStyle, "tabs_top").toString());
-        /* Differito: i pulsanti di esecuzione vengono creati nelle pagine
-           durante addTab(); aspettiamo che il widget tree sia completo */
-        const QString execMode = s.value(P::SK::kNavExecBtnMode, "icon_text").toString();
-        if (execMode != "icon_text") {
-            m_pendingExecMode = execMode;
-            QTimer::singleShot(0, this, &MainWindow::onApplyExecBtnMode);
-        }
-    }
-
-    return wrapper;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1304,9 +1386,7 @@ void MainWindow::ensureSettingsDialog()
     m_impDlg->resize(1050, 680);
     m_impPage = new ImpostazioniPage(m_ai, m_hw, m_impDlg);
     m_impPage->setGraficoCanvas(m_grafCanvas);
-    /* Installa il vero pannello Cron in Strumenti (sostituisce il placeholder) */
-    if (m_strumentiPage)
-        m_strumentiPage->installCronPanel(m_impPage->manutenzione());
+    /* installCronPanel è chiamata solo da onCronPanelFirstOpen (primo clic su Cron) */
     auto* dl = new QVBoxLayout(m_impDlg);
     dl->setContentsMargins(0, 0, 0, 0);
     dl->addWidget(m_impPage);
@@ -1480,6 +1560,7 @@ void MainWindow::navigateTo(int idx) {
    Slot hardware
    ══════════════════════════════════════════════════════════════ */
 void MainWindow::onHWUpdated(SysSnapshot snap) {
+    if (!m_gCpu || !m_gRam || !m_gGpu) return;
     m_gCpu->update(snap.cpu_pct);
     double rp = snap.ram_total > 0 ? snap.ram_used/snap.ram_total*100.0 : 0;
     m_gRam->update(rp, QString("%1/%2 GB")

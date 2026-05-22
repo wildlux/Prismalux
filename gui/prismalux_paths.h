@@ -692,6 +692,9 @@ constexpr const char* kNavStyle        = "nav/navStyle";
 constexpr const char* kNavTabMode      = "nav/tabMode";
 constexpr const char* kNavExecBtnMode  = "nav/execBtnMode";
 
+/* ── Tema di sistema ─────────────────────────────── */
+constexpr const char* kFollowSystem    = "theme/followSystem";
+
 /* ── RAG ─────────────────────────────────────────── */
 constexpr const char* kRagMaxResults   = "rag/maxResults";
 constexpr const char* kRagNoSave       = "rag/noSave";

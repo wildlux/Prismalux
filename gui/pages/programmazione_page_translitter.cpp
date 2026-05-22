@@ -51,23 +51,39 @@ static QString langFence(const QString& lang)
 }
 
 /* ══════════════════════════════════════════════════════════════
-   buildTranslitter — costruisce il sub-tab UI
+   buildTranslitter — sub-tab "🔀 Translitter"
    ══════════════════════════════════════════════════════════════ */
 QWidget* ProgrammazionePage::buildTranslitter(QWidget* parent)
 {
-    QFont monoFont;
-    monoFont.setFamily("JetBrains Mono");
-    monoFont.setStyleHint(QFont::Monospace);
-    const int appPt = QApplication::font().pointSize();
-    monoFont.setPointSize(appPt > 0 ? appPt : 11);
-
     auto* w   = new QWidget(parent);
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(8, 8, 8, 8);
     lay->setSpacing(8);
 
-    /* ── Riga controlli: src lang ↔ dst lang + modello ── */
-    auto* ctrlRow = new QWidget(w);
+    QPushButton* btnSwap       = nullptr;
+    QPushButton* btnFromEditor = nullptr;
+
+    lay->addWidget(buildTrControlRow(w, btnSwap, btnFromEditor));
+    lay->addWidget(buildTrSplitter(w), 1);
+
+    /* Riga stato */
+    auto* statusLbl = new QLabel(
+        "\xf0\x9f\x94\x80  Inserisci il codice e premi "
+        "\xe2\x80\x9c" "Traduci" "\xe2\x80\x9d.", w);
+    statusLbl->setObjectName("statusLabel");
+    lay->addWidget(statusLbl);
+
+    QTimer::singleShot(0, this, &ProgrammazionePage::populateTrModels);
+    setupTrConnections(btnSwap, btnFromEditor);
+    return w;
+}
+
+/* ── Riga controlli: lingue + modello + pulsanti ── */
+QWidget* ProgrammazionePage::buildTrControlRow(QWidget* parent,
+                                                QPushButton*& outBtnSwap,
+                                                QPushButton*& outBtnFromEditor)
+{
+    auto* ctrlRow = new QWidget(parent);
     auto* ctrlLay = new QHBoxLayout(ctrlRow);
     ctrlLay->setContentsMargins(0, 0, 0, 0);
     ctrlLay->setSpacing(8);
@@ -80,12 +96,11 @@ QWidget* ProgrammazionePage::buildTranslitter(QWidget* parent)
     m_trSrcLang->setToolTip("Linguaggio sorgente del codice da tradurre");
     ctrlLay->addWidget(m_trSrcLang);
 
-    /* Pulsante scambia lingue */
-    auto* btnSwap = new QPushButton("\xe2\x87\x84", ctrlRow);   /* ⇄ */
-    btnSwap->setObjectName("actionBtn");
-    btnSwap->setFixedWidth(36);
-    btnSwap->setToolTip("Scambia linguaggio sorgente e destinazione");
-    ctrlLay->addWidget(btnSwap);
+    outBtnSwap = new QPushButton("\xe2\x87\x84", ctrlRow);
+    outBtnSwap->setObjectName("actionBtn");
+    outBtnSwap->setFixedWidth(36);
+    outBtnSwap->setToolTip("Scambia linguaggio sorgente e destinazione");
+    ctrlLay->addWidget(outBtnSwap);
 
     ctrlLay->addWidget(new QLabel("A:", ctrlRow));
     m_trDstLang = new QComboBox(ctrlRow);
@@ -100,20 +115,19 @@ QWidget* ProgrammazionePage::buildTranslitter(QWidget* parent)
     m_trModel = new QComboBox(ctrlRow);
     m_trModel->setObjectName("settingCombo");
     m_trModel->setMinimumWidth(170);
-    m_trModel->setToolTip("Modello AI da usare per la traduzione\n(lascia vuoto per usare quello attivo)");
-    /* Voce iniziale = modello attivo corrente */
+    m_trModel->setToolTip(
+        "Modello AI da usare per la traduzione\n"
+        "(lascia vuoto per usare quello attivo)");
     if (m_ai) {
         const QString cur = m_ai->model();
-        m_trModel->addItem(cur.isEmpty() ? "(modello attivo)" : cur,
-                           cur);
+        m_trModel->addItem(cur.isEmpty() ? "(modello attivo)" : cur, cur);
     } else {
         m_trModel->addItem("(modello attivo)", QString());
     }
     ctrlLay->addWidget(m_trModel);
-
     ctrlLay->addStretch(1);
 
-    m_btnTrRun = new QPushButton("\xf0\x9f\x94\x80  Traduci", ctrlRow);   /* 🔀 */
+    m_btnTrRun = new QPushButton("\xf0\x9f\x94\x80  Traduci", ctrlRow);
     m_btnTrRun->setObjectName("actionBtn");
     m_btnTrRun->setProperty("highlight", "true");
     m_btnTrRun->setToolTip("Avvia la traduzione del codice sorgente nel linguaggio scelto");
@@ -124,10 +138,24 @@ QWidget* ProgrammazionePage::buildTranslitter(QWidget* parent)
     m_btnTrStop->setEnabled(false);
     ctrlLay->addWidget(m_btnTrStop);
 
-    lay->addWidget(ctrlRow);
+    /* btnFromEditor è nel pannello sorgente (buildTrSplitter), ma per
+       semplicità lo creiamo qui e lo passiamo allo splitter tramite closure.
+       Soluzione: deleghiamo la connessione a setupTrConnections. */
+    outBtnFromEditor = nullptr;  /* sarà impostato da buildTrSplitter */
 
-    /* ── Splitter orizzontale: input | output ── */
-    auto* splitter = new QSplitter(Qt::Horizontal, w);
+    return ctrlRow;
+}
+
+/* ── Splitter sorgente | output ── */
+QWidget* ProgrammazionePage::buildTrSplitter(QWidget* parent)
+{
+    QFont monoFont;
+    monoFont.setFamily("JetBrains Mono");
+    monoFont.setStyleHint(QFont::Monospace);
+    const int appPt = QApplication::font().pointSize();
+    monoFont.setPointSize(appPt > 0 ? appPt : 11);
+
+    auto* splitter = new QSplitter(Qt::Horizontal, parent);
     splitter->setHandleWidth(6);
 
     /* Pannello sorgente */
@@ -146,11 +174,14 @@ QWidget* ProgrammazionePage::buildTranslitter(QWidget* parent)
         "  }");
     srcLay->addWidget(m_trInput, 1);
 
-    /* Bottone copia dal main editor */
-    auto* btnFromEditor = new QPushButton("\xe2\xac\x86  Importa dall'editor", srcGroup);
+    auto* btnFromEditor = new QPushButton(
+        "\xe2\xac\x86  Importa dall'editor", srcGroup);
     btnFromEditor->setObjectName("actionBtn");
-    btnFromEditor->setToolTip("Copia il codice dall'editor principale in questo pannello");
+    btnFromEditor->setToolTip(
+        "Copia il codice dall'editor principale in questo pannello");
     srcLay->addWidget(btnFromEditor);
+    connect(btnFromEditor, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnFromEditorClicked);
 
     splitter->addWidget(srcGroup);
 
@@ -167,7 +198,6 @@ QWidget* ProgrammazionePage::buildTranslitter(QWidget* parent)
         "Il codice tradotto apparir\xc3\xa0 qui durante lo streaming...");
     dstLay->addWidget(m_trOutput, 1);
 
-    /* Bottoni azione output */
     auto* outBtnRow = new QWidget(dstGroup);
     auto* outBtnLay = new QHBoxLayout(outBtnRow);
     outBtnLay->setContentsMargins(0, 0, 0, 0);
@@ -182,58 +212,33 @@ QWidget* ProgrammazionePage::buildTranslitter(QWidget* parent)
         "e lo inserisce nell'editor principale (sostituisce il contenuto attuale)");
     outBtnLay->addWidget(m_btnTrInsert);
 
-    m_btnTrCopy = new QPushButton("📋  Copia", outBtnRow);
-    m_btnTrCopy->setObjectName("actionBtn");
-    m_btnTrCopy->setEnabled(false);
+    m_btnTrCopy = new QPushButton("\xf0\x9f\x93\x8b  Copia", outBtnRow);
     m_btnTrCopy->setObjectName("btnTrCopy");
+    m_btnTrCopy->setEnabled(false);
     m_btnTrCopy->setToolTip("Copia tutto il testo dell'output negli appunti");
     outBtnLay->addWidget(m_btnTrCopy);
-
     outBtnLay->addStretch(1);
+
     dstLay->addWidget(outBtnRow);
-
     splitter->addWidget(dstGroup);
-    splitter->setSizes({ 1, 1 });
-    lay->addWidget(splitter, 1);
+    splitter->setSizes({1, 1});
+    return splitter;
+}
 
-    /* ── Riga stato ── */
-    auto* m_trStatus = new QLabel(
-        "\xf0\x9f\x94\x80  Inserisci il codice e premi \xe2\x80\x9cTraduci\xe2\x80\x9d.", w);
-    m_trStatus->setObjectName("statusLabel");
-    lay->addWidget(m_trStatus);
+/* ── Connessioni Translitter ── */
+void ProgrammazionePage::setupTrConnections(QPushButton* btnSwap,
+                                              QPushButton* /*btnFromEditor*/)
+{
+    /* btnFromEditor already wired inside buildTrSplitter */
+    if (btnSwap) connect(btnSwap, &QPushButton::clicked,
+                         this, &ProgrammazionePage::onBtnSwapLangsClicked);
 
-    /* ── Popola combo modelli (one-shot) ── */
-    QTimer::singleShot(0, this, &ProgrammazionePage::populateTrModels);
-
-    /* ── Connessioni ── */
-    /* -- Connessioni -- */
-    connect(btnSwap, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnSwapLangsClicked);
-
-    connect(btnFromEditor, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnFromEditorClicked);
-
-    connect(m_btnTrRun, &QPushButton::clicked,
-            this, &ProgrammazionePage::runTranslitter);
-
-    connect(m_btnTrStop, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnTrStopClicked);
-
-    connect(m_btnTrInsert, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnTrInsertClicked);
-
-    connect(m_btnTrCopy, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnTrCopyClicked);
-
-    /* Abilita/disabilita "Copia" in base al contenuto */
-    connect(m_trOutput, &QTextEdit::textChanged,
-            this, &ProgrammazionePage::onTrOutputTextChanged);
-
-    /* Sincronizzazione modello */
-    connect(m_ai, &AiClient::modelChanged,
-            this, &ProgrammazionePage::onTrModelChanged);
-
-    return w;
+    connect(m_btnTrRun,    &QPushButton::clicked, this, &ProgrammazionePage::runTranslitter);
+    connect(m_btnTrStop,   &QPushButton::clicked, this, &ProgrammazionePage::onBtnTrStopClicked);
+    connect(m_btnTrInsert, &QPushButton::clicked, this, &ProgrammazionePage::onBtnTrInsertClicked);
+    connect(m_btnTrCopy,   &QPushButton::clicked, this, &ProgrammazionePage::onBtnTrCopyClicked);
+    connect(m_trOutput,    &QTextEdit::textChanged, this, &ProgrammazionePage::onTrOutputTextChanged);
+    connect(m_ai,          &AiClient::modelChanged, this, &ProgrammazionePage::onTrModelChanged);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -319,15 +324,12 @@ void ProgrammazionePage::runTranslitter()
     m_btnTrStop->setEnabled(true);
     m_btnTrInsert->setEnabled(false);
 
-    if (m_trTokenHolder) { delete m_trTokenHolder; m_trTokenHolder = nullptr; }
-    m_trTokenHolder = new QObject(this);
-
-    connect(m_ai, &AiClient::token, m_trTokenHolder,
-            [this](const QString& tok){ onTrToken(tok); });
-    connect(m_ai, &AiClient::finished, m_trTokenHolder,
-            [this](const QString& full){ onTrFinished(full); });
-    connect(m_ai, &AiClient::error, m_trTokenHolder,
-            [this](const QString& msg){ onTrError(msg); });
+    disconnect(m_trTokenConn);
+    disconnect(m_trFinishedConn);
+    disconnect(m_trErrorConn);
+    m_trTokenConn    = connect(m_ai, &AiClient::token,    this, &ProgrammazionePage::onTrToken);
+    m_trFinishedConn = connect(m_ai, &AiClient::finished, this, &ProgrammazionePage::onTrFinished);
+    m_trErrorConn    = connect(m_ai, &AiClient::error,    this, &ProgrammazionePage::onTrError);
 
     m_ai->chat(P::prependKnowledge(sys), user);
 }

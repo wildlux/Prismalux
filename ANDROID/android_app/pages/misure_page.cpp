@@ -14,7 +14,183 @@
 #include <QPolygonF>
 #include <QScroller>
 #include <QScrollerProperties>
+#include <QMessageBox>
 #include <cmath>
+
+/* ══════════════════════════════════════════════════════════════
+   PiantinaWidget — canvas 2D drag-to-draw stanze
+   ══════════════════════════════════════════════════════════════ */
+PiantinaWidget::PiantinaWidget(QWidget* parent)
+    : QWidget(parent)
+{
+    setObjectName("PiantinaWidget");
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    setAttribute(Qt::WA_AcceptTouchEvents);
+    setMouseTracking(true);
+    setMinimumHeight(280);
+}
+
+void PiantinaWidget::setPixelsPerMeter(int ppm)
+{
+    m_ppm = qMax(10, ppm);
+    update();
+}
+
+void PiantinaWidget::clearAll()
+{
+    m_rooms.clear();
+    m_dragging = false;
+    update();
+    emit roomsChanged();
+}
+
+void PiantinaWidget::removeRoom(int idx)
+{
+    if (idx < 0 || idx >= m_rooms.size()) return;
+    m_rooms.removeAt(idx);
+    update();
+    emit roomsChanged();
+}
+
+bool PiantinaWidget::exportPng(const QString& path)
+{
+    QPixmap pix(size());
+    pix.fill(Qt::transparent);
+    render(&pix);
+    return pix.save(path);
+}
+
+QString PiantinaWidget::roomInfo(int idx) const
+{
+    if (idx < 0 || idx >= m_rooms.size()) return QString();
+    return mLabel(m_rooms[idx]);
+}
+
+QRectF PiantinaWidget::normalizedRect(QPointF a, QPointF b) const
+{
+    return QRectF(
+        QPointF(qMin(a.x(), b.x()), qMin(a.y(), b.y())),
+        QPointF(qMax(a.x(), b.x()), qMax(a.y(), b.y())));
+}
+
+QString PiantinaWidget::mLabel(const QRectF& r) const
+{
+    const double wm = r.width()  / m_ppm;
+    const double hm = r.height() / m_ppm;
+    const double am = wm * hm;
+    return QString("%1m \xc3\x97 %2m = %3 m\xc2\xb2")
+        .arg(wm, 0, 'f', 2)
+        .arg(hm, 0, 'f', 2)
+        .arg(am, 0, 'f', 2);
+}
+
+void PiantinaWidget::mousePressEvent(QMouseEvent* e)
+{
+    m_dragStart   = e->pos();
+    m_dragCurrent = e->pos();
+    m_dragging    = true;
+    update();
+}
+
+void PiantinaWidget::mouseMoveEvent(QMouseEvent* e)
+{
+    if (!m_dragging) return;
+    m_dragCurrent = e->pos();
+    update();
+}
+
+void PiantinaWidget::mouseReleaseEvent(QMouseEvent* e)
+{
+    if (!m_dragging) return;
+    m_dragging = false;
+    m_dragCurrent = e->pos();
+
+    QRectF r = normalizedRect(m_dragStart, m_dragCurrent);
+    /* Ignora rettangoli troppo piccoli (< 5px) */
+    if (r.width() >= 5 && r.height() >= 5) {
+        m_rooms.append(r);
+        emit roomsChanged();
+    }
+    update();
+}
+
+void PiantinaWidget::paintEvent(QPaintEvent*)
+{
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing);
+
+    /* Sfondo */
+    p.fillRect(rect(), QColor(22, 30, 50));
+
+    const int w = width(), h = height();
+
+    /* Griglia */
+    QPen gridPen(QColor(50, 70, 110, 130), 1, Qt::DotLine);
+    p.setPen(gridPen);
+    for (int x = 0; x < w; x += m_ppm)
+        p.drawLine(x, 0, x, h);
+    for (int y = 0; y < h; y += m_ppm)
+        p.drawLine(0, y, w, y);
+
+    /* Etichette scala: ogni metro */
+    QFont sf; sf.setPointSize(7);
+    p.setFont(sf);
+    p.setPen(QColor(80, 110, 180, 180));
+    for (int x = 0; x < w; x += m_ppm) {
+        const int mVal = x / m_ppm;
+        if (mVal > 0)
+            p.drawText(QRect(x + 2, h - 14, m_ppm - 4, 12),
+                       Qt::AlignLeft | Qt::AlignVCenter,
+                       QString("%1m").arg(mVal));
+    }
+
+    if (m_rooms.isEmpty() && !m_dragging) {
+        p.setPen(QColor(150, 180, 255, 160));
+        QFont hf; hf.setPointSize(10);
+        p.setFont(hf);
+        p.drawText(rect(), Qt::AlignCenter,
+            QString::fromUtf8(
+                "\xf0\x9f\x96\x8a Clicca e trascina\nper disegnare una stanza"));
+        return;
+    }
+
+    /* Stanze già disegnate */
+    QFont lf; lf.setPointSize(8); lf.setBold(true);
+    for (int i = 0; i < m_rooms.size(); ++i) {
+        const QRectF& r = m_rooms[i];
+        p.setBrush(QColor(60, 120, 200, 90));
+        p.setPen(QPen(QColor(100, 180, 255), 2.0));
+        p.drawRect(r);
+
+        /* Etichetta misure */
+        const QString lbl = QString("Stanza %1\n%2").arg(i + 1).arg(mLabel(r));
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor(20, 40, 80, 180));
+        QRectF lblR(r.center().x() - 56, r.center().y() - 18, 112, 36);
+        if (r.width() > 60 && r.height() > 40) {
+            p.drawRoundedRect(lblR, 4, 4);
+            p.setPen(Qt::white);
+            p.setFont(lf);
+            p.drawText(lblR, Qt::AlignCenter, lbl);
+        }
+    }
+
+    /* Rettangolo in corso di disegno */
+    if (m_dragging) {
+        QRectF draft = normalizedRect(m_dragStart, m_dragCurrent);
+        p.setBrush(QColor(255, 200, 80, 60));
+        p.setPen(QPen(QColor(255, 220, 80), 2.0, Qt::DashLine));
+        p.drawRect(draft);
+
+        if (draft.width() >= 5 && draft.height() >= 5) {
+            p.setPen(QColor(255, 220, 80));
+            QFont df; df.setPointSize(8);
+            p.setFont(df);
+            p.drawText(draft.adjusted(4, 4, -4, -4),
+                       Qt::AlignCenter, mLabel(draft));
+        }
+    }
+}
 
 /* ══════════════════════════════════════════════════════════════
    RoomPlanWidget — planimetria 2D touch-interattiva
@@ -579,6 +755,68 @@ MisurePage::MisurePage(AiClient* ai, QWidget* parent)
     planVbox->addWidget(planResetBtn);
 
     vbox->addWidget(planGroup);
+
+    /* ─────────────────────────────────────────────────────
+       Sezione 5 — Piantina drag-to-draw
+       ───────────────────────────────────────────────────── */
+    auto* piantinaGroup = new QGroupBox(
+        QString::fromUtf8("\xf0\x9f\x8f\x97 Piantina (disegna stanze)"), inner);
+    auto* piantinaVbox = new QVBoxLayout(piantinaGroup);
+    piantinaVbox->setSpacing(6);
+
+    /* Barra zoom + azioni */
+    auto* piantinaTopRow = new QHBoxLayout;
+
+    auto* zoomLbl = new QLabel(
+        QString::fromUtf8("\xf0\x9f\x94\x8d Zoom:"), piantinaGroup);
+    m_zoomLabel = new QLabel("50 px/m", piantinaGroup);
+    m_zoomLabel->setMinimumWidth(60);
+
+    m_zoomSlider = new QSlider(Qt::Horizontal, piantinaGroup);
+    m_zoomSlider->setRange(15, 150);
+    m_zoomSlider->setValue(50);
+    m_zoomSlider->setTickPosition(QSlider::TicksBelow);
+    m_zoomSlider->setTickInterval(25);
+
+    auto* piantinaClrBtn = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x97\x91 Pulisci"), piantinaGroup);
+    piantinaClrBtn->setObjectName("SecondaryBtn");
+    piantinaClrBtn->setMinimumHeight(40);
+
+    m_piantinaExport = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x96\xbc Esporta PNG"), piantinaGroup);
+    m_piantinaExport->setObjectName("SecondaryBtn");
+    m_piantinaExport->setMinimumHeight(40);
+
+    piantinaTopRow->addWidget(zoomLbl);
+    piantinaTopRow->addWidget(m_zoomSlider, 1);
+    piantinaTopRow->addWidget(m_zoomLabel);
+    piantinaTopRow->addWidget(piantinaClrBtn);
+    piantinaTopRow->addWidget(m_piantinaExport);
+    piantinaVbox->addLayout(piantinaTopRow);
+
+    /* Canvas */
+    m_piantinaWidget = new PiantinaWidget(piantinaGroup);
+    piantinaVbox->addWidget(m_piantinaWidget, 1);
+
+    /* Lista stanze con pulsante elimina */
+    auto* roomListRow = new QHBoxLayout;
+    m_roomList = new QListWidget(piantinaGroup);
+    m_roomList->setObjectName("BleList");
+    m_roomList->setMaximumHeight(110);
+    m_roomList->setAlternatingRowColors(true);
+
+    auto* delRoomBtn = new QPushButton(
+        QString::fromUtf8("\xe2\x9c\x96 Elimina"), piantinaGroup);
+    delRoomBtn->setObjectName("SecondaryBtn");
+    delRoomBtn->setMinimumHeight(40);
+    delRoomBtn->setFixedWidth(90);
+
+    roomListRow->addWidget(m_roomList, 1);
+    roomListRow->addWidget(delRoomBtn);
+    piantinaVbox->addLayout(roomListRow);
+
+    vbox->addWidget(piantinaGroup);
     vbox->addStretch();
 
     scroll->setWidget(inner);
@@ -603,6 +841,18 @@ MisurePage::MisurePage(AiClient* ai, QWidget* parent)
     connect(m_planScaleSpin,
             QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &MisurePage::onPlanScaleChanged);
+
+    /* Piantina drag-to-draw */
+    connect(piantinaClrBtn,   &QPushButton::clicked,
+            this, &MisurePage::onPiantinaClear);
+    connect(m_piantinaExport, &QPushButton::clicked,
+            this, &MisurePage::onPiantinaExport);
+    connect(m_zoomSlider, &QSlider::valueChanged,
+            this, &MisurePage::onPiantinaZoomChanged);
+    connect(m_piantinaWidget, &PiantinaWidget::roomsChanged,
+            this, &MisurePage::onPiantinaRoomsChanged);
+    connect(delRoomBtn, &QPushButton::clicked,
+            this, &MisurePage::onPiantinaDeleteRoom);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -786,4 +1036,65 @@ void MisurePage::onPlanResetClicked()
 void MisurePage::onPlanScaleChanged(double v)
 {
     if (m_planWidget) m_planWidget->setScaleMetersPerCell(v);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Piantina drag-to-draw
+   ══════════════════════════════════════════════════════════════ */
+
+void MisurePage::onPiantinaClear()
+{
+    if (!m_piantinaWidget) return;
+    m_piantinaWidget->clearAll();
+    if (m_roomList) m_roomList->clear();
+}
+
+void MisurePage::onPiantinaExport()
+{
+    if (!m_piantinaWidget) return;
+    const QString path =
+        QStandardPaths::writableLocation(QStandardPaths::PicturesLocation)
+        + "/piantina.png";
+    if (m_piantinaWidget->exportPng(path)) {
+        QMessageBox::information(this,
+            QString::fromUtf8("\xf0\x9f\x96\xbc PNG salvato"),
+            "Piantina esportata in:\n" + path);
+    } else {
+        QMessageBox::warning(this,
+            QString::fromUtf8("\xe2\x9d\x8c Errore"),
+            "Impossibile salvare l'immagine.\nPercorso: " + path);
+    }
+}
+
+void MisurePage::onPiantinaZoomChanged(int value)
+{
+    if (!m_piantinaWidget) return;
+    m_piantinaWidget->setPixelsPerMeter(value);
+    if (m_zoomLabel) m_zoomLabel->setText(QString("%1 px/m").arg(value));
+}
+
+void MisurePage::onPiantinaRoomsChanged()
+{
+    refreshRoomList();
+}
+
+void MisurePage::onPiantinaDeleteRoom()
+{
+    if (!m_roomList || !m_piantinaWidget) return;
+    const int row = m_roomList->currentRow();
+    if (row < 0 || row >= m_piantinaWidget->roomCount()) return;
+    m_piantinaWidget->removeRoom(row);
+    /* refreshRoomList() viene chiamato automaticamente via roomsChanged */
+}
+
+void MisurePage::refreshRoomList()
+{
+    if (!m_roomList || !m_piantinaWidget) return;
+    m_roomList->clear();
+    const int n = m_piantinaWidget->roomCount();
+    for (int i = 0; i < n; ++i) {
+        new QListWidgetItem(
+            QString("Stanza %1: %2").arg(i + 1).arg(m_piantinaWidget->roomInfo(i)),
+            m_roomList);
+    }
 }

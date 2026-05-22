@@ -24,6 +24,7 @@
 
 class LanServer;
 class ManutenzioneePage;
+class QVBoxLayout;
 
 /* ══════════════════════════════════════════════════════════════
    StrumentiPage — Assistente AI multi-dominio
@@ -161,6 +162,33 @@ private:
     QWidget* buildProduttivita();
     QWidget* buildFileSearchPanel();
     QWidget* buildWikiPanel();
+
+    /* ── Livello 1: fasi del costruttore ── */
+    void initHiddenWidgets();   ///< crea m_navList e m_cmbSub nascosti
+    void buildLayout();         ///< QVBoxLayout principale + chiama livello 2
+    void setupConnections();    ///< tutti i connect() sui membri principali
+    void setupTabOrder();       ///< setTabOrder sui 4 widget chiave
+
+    /* ── Livello 2: sezioni del layout ── */
+    QWidget*        buildCatScrollArea();    ///< tab categorie + cronBtn in QScrollArea
+    QStackedWidget* buildActionStack();      ///< stack pagine azioni per categoria
+    void            buildSpecialRows(QVBoxLayout* lay); ///< righe condizionali
+    QWidget*        buildCodeModelRow();     ///< riga selezione modello LLM
+    QWidget*        buildInputRow();         ///< inputArea + btnRun + waitLbl + waitBar
+    QWidget*        buildOutputArea();       ///< QTextEdit output AI
+    QWidget*        buildCronPanel();        ///< pannello placeholder Cron
+
+    /* ── Livello 3: righe speciali singole ── */
+    QWidget* buildRagRow();           ///< riga RAG in-page
+    QWidget* buildPdfRow();           ///< riga PDF picker
+    QWidget* buildBlenderRow();       ///< riga Blender bridge + NAM
+    QWidget* buildBlenderHintRow();   ///< avviso installazione Blender MCP
+    QWidget* buildOfficeRow();        ///< riga Office bridge + NAM
+    QWidget* buildOfficeHintRow();    ///< avviso installazione MCP Office
+    QWidget* buildFreecadRow();       ///< riga FreeCAD bridge
+    QWidget* buildFreecadHintRow();   ///< avviso installazione FreeCAD MCP
+    QWidget* buildSketchRow();        ///< riga Sketch → 3D Model
+    QWidget* buildCloudCompareRow();  ///< pannello CloudCompare (prossimamente)
 
     void runTool(const QString& sysPrompt, const QString& userMsg);
 

@@ -6,6 +6,11 @@
 #include <QSplitter>
 #include <QFile>
 #include <QDir>
+#include <QFileInfo>
+#include <QFileDialog>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QPainter>
 #include <QPolygonF>
 #include <cmath>
@@ -157,143 +162,195 @@ QByteArray SintetizzatoreWidget::makeWav(const QVector<Tono>& toni) const
     return wav;
 }
 
-/* ── SintetizzatoreWidget ─────────────────────────────────── */
+/* ── SintetizzatoreWidget — livello 0: entry point ───────────── */
 SintetizzatoreWidget::SintetizzatoreWidget(QWidget* parent) : QWidget(parent)
 {
-    auto* mainLay = new QVBoxLayout(this);
-    mainLay->setContentsMargins(12, 12, 12, 12);
-    mainLay->setSpacing(10);
+    m_tmpWav = QDir::tempPath() + "/prismalux_sint.wav";
+    buildLayout();
+    setupConnections();
+    m_canvas->setTono(440.0, "sine", 0.7);
+}
 
-    auto* title = new QLabel(
+/* ── Livello 1: struttura principale ─────────────────────────── */
+void SintetizzatoreWidget::buildLayout()
+{
+    auto* lay = new QVBoxLayout(this);
+    lay->setContentsMargins(12, 12, 12, 12);
+    lay->setSpacing(10);
+    lay->addWidget(buildTitle());
+    lay->addWidget(buildSplitter(), 1);
+}
+
+QLabel* SintetizzatoreWidget::buildTitle()
+{
+    auto* lbl = new QLabel(
         "\xf0\x9f\x8e\xb5  <b>Sintetizzatore Toni Puri</b>", this);
-    title->setTextFormat(Qt::RichText);
-    title->setObjectName("sectionTitle");
-    mainLay->addWidget(title);
+    lbl->setTextFormat(Qt::RichText);
+    lbl->setObjectName("sectionTitle");
+    return lbl;
+}
 
-    auto* splitter = new QSplitter(Qt::Vertical, this);
+QWidget* SintetizzatoreWidget::buildSplitter()
+{
+    auto* sp = new QSplitter(Qt::Vertical, this);
+    sp->addWidget(buildProgrammatoreCard(sp));
+    sp->addWidget(buildAssemblatoreCard(sp));
+    sp->setSizes({260, 260});
+    return sp;
+}
 
-    /* ── Card 1: Programmatore ── */
-    auto* prog = new QGroupBox(
-        "\xf0\x9f\x8e\xb9  Programmatore Toni", splitter);
-    auto* pLay = new QVBoxLayout(prog);
-    pLay->setSpacing(8);
+/* ── Livello 2: card principali ──────────────────────────────── */
+QWidget* SintetizzatoreWidget::buildProgrammatoreCard(QWidget* parent)
+{
+    auto* box = new QGroupBox(
+        "\xf0\x9f\x8e\xb9  Programmatore Toni", parent);
+    auto* lay = new QVBoxLayout(box);
+    lay->setSpacing(8);
+    lay->addLayout(buildParametriGrid(box));
+    lay->addLayout(buildAzioniRow(box));
+    lay->addLayout(buildSalvaRow(box));
+    m_seqList = new QListWidget(box);
+    m_seqList->setObjectName("chatLog");
+    m_seqList->setMinimumHeight(90);
+    lay->addWidget(m_seqList, 1);
+    return box;
+}
 
+QWidget* SintetizzatoreWidget::buildAssemblatoreCard(QWidget* parent)
+{
+    auto* box = new QGroupBox(
+        "\xf0\x9f\x93\x8a  Assemblatore Visuale \xe2\x80\x94 Oscilloscopio", parent);
+    auto* lay = new QVBoxLayout(box);
+    lay->setSpacing(8);
+    m_canvas = new OscoCanvas(box);
+    lay->addWidget(m_canvas, 1);
+    lay->addLayout(buildControlRow(box));
+    return box;
+}
+
+/* ── Livello 3: componenti interni ───────────────────────────── */
+QGridLayout* SintetizzatoreWidget::buildParametriGrid(QWidget* parent)
+{
     auto* grid = new QGridLayout();
     grid->setSpacing(8);
     grid->setColumnStretch(1, 1);
     grid->setColumnStretch(3, 1);
 
-    grid->addWidget(new QLabel("Frequenza (Hz):"), 0, 0);
-    m_freqSpin = new QSpinBox(prog);
+    m_freqSpin = new QSpinBox(parent);
     m_freqSpin->setRange(20, 20000);
     m_freqSpin->setValue(440);
     m_freqSpin->setSingleStep(10);
     m_freqSpin->setObjectName("spinBox");
-    grid->addWidget(m_freqSpin, 0, 1);
 
-    grid->addWidget(new QLabel("Durata (ms):"), 0, 2);
-    m_durSpin = new QSpinBox(prog);
+    m_durSpin = new QSpinBox(parent);
     m_durSpin->setRange(50, 10000);
     m_durSpin->setValue(500);
     m_durSpin->setSingleStep(50);
     m_durSpin->setObjectName("spinBox");
-    grid->addWidget(m_durSpin, 0, 3);
 
-    grid->addWidget(new QLabel("Forma d\xe2\x80\x99onda:"), 1, 0);
-    m_ondaCombo = new QComboBox(prog);
+    m_ondaCombo = new QComboBox(parent);
     m_ondaCombo->addItem("Sinusoidale",   "sine");
     m_ondaCombo->addItem("Quadra",        "square");
     m_ondaCombo->addItem("Triangolare",   "triangle");
     m_ondaCombo->addItem("Dente di sega", "sawtooth");
-    grid->addWidget(m_ondaCombo, 1, 1);
 
-    m_volLbl = new QLabel("Volume: 70%", prog);
-    grid->addWidget(m_volLbl, 1, 2);
-    m_volSlider = new QSlider(Qt::Horizontal, prog);
+    m_volLbl    = new QLabel("Volume: 70%", parent);
+    m_volSlider = new QSlider(Qt::Horizontal, parent);
     m_volSlider->setRange(0, 100);
     m_volSlider->setValue(70);
-    grid->addWidget(m_volSlider, 1, 3);
 
-    pLay->addLayout(grid);
+    grid->addWidget(new QLabel("Frequenza (Hz):"),           0, 0);
+    grid->addWidget(m_freqSpin,                              0, 1);
+    grid->addWidget(new QLabel("Durata (ms):"),              0, 2);
+    grid->addWidget(m_durSpin,                               0, 3);
+    grid->addWidget(new QLabel("Forma d\xe2\x80\x99" "onda:"), 1, 0);
+    grid->addWidget(m_ondaCombo,                             1, 1);
+    grid->addWidget(m_volLbl,                                1, 2);
+    grid->addWidget(m_volSlider,                             1, 3);
+    return grid;
+}
 
-    auto* btnRow = new QHBoxLayout();
-    auto* addBtn  = new QPushButton("+ Aggiungi", prog);
+QHBoxLayout* SintetizzatoreWidget::buildAzioniRow(QWidget* parent)
+{
+    auto* row     = new QHBoxLayout();
+    auto* addBtn  = new QPushButton("+ Aggiungi", parent);
     addBtn->setObjectName("actionBtn");
     auto* prevBtn = new QPushButton(
-        "\xf0\x9f\x94\x8a  Ascolta", prog);
+        "\xf0\x9f\x94\x8a  Ascolta", parent);
     prevBtn->setObjectName("actionBtn");
     auto* remBtn  = new QPushButton(
-        "\xf0\x9f\x97\x91  Rimuovi", prog);
-    btnRow->addWidget(addBtn);
-    btnRow->addWidget(prevBtn);
-    btnRow->addWidget(remBtn);
-    btnRow->addStretch();
-    pLay->addLayout(btnRow);
+        "\xf0\x9f\x97\x91  Rimuovi", parent);
+    row->addWidget(addBtn);
+    row->addWidget(prevBtn);
+    row->addWidget(remBtn);
+    row->addStretch();
+    connect(addBtn,  &QPushButton::clicked, this, &SintetizzatoreWidget::onAggiungi);
+    connect(prevBtn, &QPushButton::clicked, this, &SintetizzatoreWidget::onPreview);
+    connect(remBtn,  &QPushButton::clicked, this, &SintetizzatoreWidget::onRimuovi);
+    return row;
+}
 
-    m_seqList = new QListWidget(prog);
-    m_seqList->setObjectName("chatLog");
-    m_seqList->setMinimumHeight(90);
-    pLay->addWidget(m_seqList, 1);
+QHBoxLayout* SintetizzatoreWidget::buildSalvaRow(QWidget* parent)
+{
+    auto* row        = new QHBoxLayout();
+    auto* saveSeqBtn = new QPushButton(
+        "\xf0\x9f\x92\xbe  Salva sequenza", parent);
+    saveSeqBtn->setObjectName("actionBtn");
+    auto* loadSeqBtn = new QPushButton(
+        "\xf0\x9f\x93\x82  Carica sequenza", parent);
+    loadSeqBtn->setObjectName("actionBtn");
+    row->addWidget(saveSeqBtn);
+    row->addWidget(loadSeqBtn);
+    row->addStretch();
+    connect(saveSeqBtn, &QPushButton::clicked, this, &SintetizzatoreWidget::onSalvaSeq);
+    connect(loadSeqBtn, &QPushButton::clicked, this, &SintetizzatoreWidget::onCaricaSeq);
+    return row;
+}
 
-    splitter->addWidget(prog);
-
-    /* ── Card 2: Assemblatore Visuale ── */
-    auto* asmW = new QGroupBox(
-        "\xf0\x9f\x93\x8a  Assemblatore Visuale \xe2\x80\x94 Oscilloscopio", splitter);
-    auto* aLay = new QVBoxLayout(asmW);
-    aLay->setSpacing(8);
-
-    m_canvas = new OscoCanvas(asmW);
-    aLay->addWidget(m_canvas, 1);
-
-    auto* ctrlRow = new QHBoxLayout();
+QHBoxLayout* SintetizzatoreWidget::buildControlRow(QWidget* parent)
+{
+    auto* row    = new QHBoxLayout();
     m_playBtn = new QPushButton(
-        "\xe2\x96\xb6  Riproduci sequenza", asmW);
+        "\xe2\x96\xb6  Riproduci sequenza", parent);
     m_playBtn->setObjectName("actionBtn");
-    m_stopBtn = new QPushButton("\xe2\x8f\xb9  Stop", asmW);
+    m_stopBtn = new QPushButton("\xe2\x8f\xb9  Stop", parent);
     m_stopBtn->setEnabled(false);
-    m_statusLbl = new QLabel(
-        "Aggiungi toni e premi Riproduci", asmW);
+    auto* saveWavBtn = new QPushButton(
+        "\xf0\x9f\x92\xbe  Salva WAV", parent);
+    saveWavBtn->setObjectName("actionBtn");
+    m_statusLbl = new QLabel("Aggiungi toni e premi Riproduci", parent);
     m_statusLbl->setObjectName("hintLabel");
-    ctrlRow->addWidget(m_playBtn);
-    ctrlRow->addWidget(m_stopBtn);
-    ctrlRow->addWidget(m_statusLbl, 1);
-    aLay->addLayout(ctrlRow);
+    row->addWidget(m_playBtn);
+    row->addWidget(m_stopBtn);
+    row->addWidget(saveWavBtn);
+    row->addWidget(m_statusLbl, 1);
+    connect(m_playBtn,  &QPushButton::clicked, this, &SintetizzatoreWidget::onPlaySequenza);
+    connect(m_stopBtn,  &QPushButton::clicked, this, &SintetizzatoreWidget::onStop);
+    connect(saveWavBtn, &QPushButton::clicked, this, &SintetizzatoreWidget::onSalvaWav);
+    return row;
+}
 
-    splitter->addWidget(asmW);
-    splitter->setSizes({260, 260});
-
-    mainLay->addWidget(splitter, 1);
-
-    m_tmpWav = QDir::tempPath() + "/prismalux_sint.wav";
-
-    /* ── Connessioni ── */
-    connect(m_volSlider, &QSlider::valueChanged, this, [this](int v){
+/* ── Connessioni trasversali (controllo → oscilloscopio) ─────── */
+void SintetizzatoreWidget::setupConnections()
+{
+    connect(m_volSlider, &QSlider::valueChanged, this, [this](int v) {
         m_volLbl->setText(QString("Volume: %1%").arg(v));
         m_canvas->setTono(m_freqSpin->value(),
                           m_ondaCombo->currentData().toString(), v / 100.0);
     });
     connect(m_freqSpin,
-        QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v){
+        QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {
         m_canvas->setTono(v, m_ondaCombo->currentData().toString(),
                           m_volSlider->value() / 100.0);
     });
     connect(m_ondaCombo,
-        QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this]{
+        QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this] {
         m_canvas->setTono(m_freqSpin->value(),
                           m_ondaCombo->currentData().toString(),
                           m_volSlider->value() / 100.0);
     });
-
-    connect(addBtn,    &QPushButton::clicked, this, &SintetizzatoreWidget::onAggiungi);
-    connect(prevBtn,   &QPushButton::clicked, this, &SintetizzatoreWidget::onPreview);
-    connect(remBtn,    &QPushButton::clicked, this, &SintetizzatoreWidget::onRimuovi);
-    connect(m_playBtn, &QPushButton::clicked, this, &SintetizzatoreWidget::onPlaySequenza);
-    connect(m_stopBtn, &QPushButton::clicked, this, &SintetizzatoreWidget::onStop);
     connect(m_seqList, &QListWidget::currentRowChanged,
             this, &SintetizzatoreWidget::onSeqSel);
-
-    m_canvas->setTono(440.0, "sine", 0.7);
 }
 
 void SintetizzatoreWidget::onAggiungi()
@@ -411,4 +468,90 @@ void SintetizzatoreWidget::onPlayFinished(int, QProcess::ExitStatus)
     m_playBtn->setEnabled(true);
     m_stopBtn->setEnabled(false);
     m_statusLbl->setText("\xe2\x9c\x85  Riproduzione completata");
+}
+
+void SintetizzatoreWidget::onSalvaSeq()
+{
+    if (m_seq.isEmpty()) {
+        m_statusLbl->setText("\xe2\x9a\xa0  Nessun tono da salvare");
+        return;
+    }
+    QString path = QFileDialog::getSaveFileName(
+        this, "Salva sequenza toni", QDir::homePath(),
+        "Sequenza Prismalux (*.json)");
+    if (path.isEmpty()) return;
+    if (!path.endsWith(".json")) path += ".json";
+
+    QJsonArray arr;
+    for (const Tono& t : m_seq) {
+        QJsonObject obj;
+        obj["freq"] = t.freq;
+        obj["dur"]  = t.dur;
+        obj["onda"] = t.onda;
+        obj["vol"]  = t.vol;
+        arr.append(obj);
+    }
+    QFile f(path);
+    if (!f.open(QFile::WriteOnly)) {
+        m_statusLbl->setText("\xe2\x9d\x8c  Impossibile scrivere il file");
+        return;
+    }
+    f.write(QJsonDocument(arr).toJson());
+    m_statusLbl->setText("\xe2\x9c\x85  Sequenza salvata: "
+                         + QFileInfo(path).fileName());
+}
+
+void SintetizzatoreWidget::onCaricaSeq()
+{
+    QString path = QFileDialog::getOpenFileName(
+        this, "Carica sequenza toni", QDir::homePath(),
+        "Sequenza Prismalux (*.json)");
+    if (path.isEmpty()) return;
+
+    QFile f(path);
+    if (!f.open(QFile::ReadOnly)) {
+        m_statusLbl->setText("\xe2\x9d\x8c  File non leggibile");
+        return;
+    }
+    QJsonParseError err;
+    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &err);
+    if (err.error != QJsonParseError::NoError || !doc.isArray()) {
+        m_statusLbl->setText("\xe2\x9d\x8c  File JSON non valido");
+        return;
+    }
+    m_seq.clear();
+    for (const QJsonValue& v : doc.array()) {
+        const QJsonObject obj = v.toObject();
+        Tono t;
+        t.freq = obj["freq"].toDouble(440.0);
+        t.dur  = obj["dur"].toInt(500);
+        t.onda = obj["onda"].toString("sine");
+        t.vol  = obj["vol"].toDouble(0.7);
+        m_seq.append(t);
+    }
+    refreshList();
+    m_statusLbl->setText(
+        QString("\xe2\x9c\x85  Caricati %1 toni").arg(m_seq.size()));
+}
+
+void SintetizzatoreWidget::onSalvaWav()
+{
+    if (m_seq.isEmpty()) {
+        m_statusLbl->setText("\xe2\x9a\xa0  Nessun tono da esportare");
+        return;
+    }
+    QString path = QFileDialog::getSaveFileName(
+        this, "Esporta audio WAV", QDir::homePath(),
+        "Audio WAV (*.wav)");
+    if (path.isEmpty()) return;
+    if (!path.endsWith(".wav")) path += ".wav";
+
+    QFile f(path);
+    if (!f.open(QFile::WriteOnly)) {
+        m_statusLbl->setText("\xe2\x9d\x8c  Impossibile scrivere il file WAV");
+        return;
+    }
+    f.write(makeWav(m_seq));
+    m_statusLbl->setText("\xe2\x9c\x85  WAV salvato: "
+                         + QFileInfo(path).fileName());
 }

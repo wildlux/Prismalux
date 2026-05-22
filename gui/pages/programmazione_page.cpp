@@ -147,33 +147,91 @@ ProgrammazionePage::~ProgrammazionePage()
 ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     : QWidget(parent), m_ai(ai)
 {
-    QFont monoFont;
-    monoFont.setFamily("JetBrains Mono");
-    monoFont.setStyleHint(QFont::Monospace);
-    monoFont.setPointSize(monoFontPt(11));
-
     auto* mainLay = new QVBoxLayout(this);
     mainLay->setContentsMargins(12, 12, 12, 12);
     mainLay->setSpacing(8);
 
-    /* ── Inner tab widget — il titolo è un corner widget sulla stessa riga dei tab ── */
     m_innerTabs = new QTabWidget(this);
     m_innerTabs->setObjectName("innerTabs");
     mainLay->addWidget(m_innerTabs, 1);
 
-    /* Titolo "💻 Programmazione" nella tab bar, a sinistra dei tab */
-    auto* titleCorner = new QLabel("\xf0\x9f\x92\xbb  Programmazione", m_innerTabs);
+    buildInnerTabs();
+    m_editor->setPlainText(currentTemplate());
+}
+
+/* ── Livello 1: crea tutti i tab interni ── */
+void ProgrammazionePage::buildInnerTabs()
+{
+    /* Titolo nella tab bar */
+    auto* titleCorner = new QLabel(
+        "\xf0\x9f\x92\xbb  Programmazione", m_innerTabs);
     titleCorner->setObjectName("pageTitle");
     titleCorner->setContentsMargins(4, 0, 16, 0);
     m_innerTabs->setCornerWidget(titleCorner, Qt::TopLeftCorner);
 
-    auto* codingTab = new QWidget(m_innerTabs);
+    m_innerTabs->addTab(buildCodingTab(m_innerTabs),
+        "\xf0\x9f\x92\xbb  Programmazione");
+    m_innerTabs->addTab(buildAgentica(m_innerTabs),
+        "\xf0\x9f\xa4\x96  Agentica");
+    m_innerTabs->addTab(buildTranslitter(m_innerTabs),
+        "\xf0\x9f\x94\x80  Translitter");
+    m_innerTabs->addTab(buildReverseEngineering(m_innerTabs),
+        "\xf0\x9f\x94\x8d  Reverse Eng.");
+    m_innerTabs->addTab(buildGitMcp(m_innerTabs),
+        "\xf0\x9f\x94\xa7  Git");
+    m_innerTabs->addTab(buildPythonRepl(m_innerTabs),
+        "\xf0\x9f\x90\x8d  REPL");
+    m_innerTabs->addTab(new CodeInterpreterWidget(m_ai, m_innerTabs),
+        "\xf0\x9f\xa7\xaa  Interpreter");
+
+    /* Rete & Network: sub-tab interni */
+    auto* reteWrap = new QWidget(m_innerTabs);
+    auto* reteLay  = new QVBoxLayout(reteWrap);
+    reteLay->setContentsMargins(0, 0, 0, 0);
+    reteLay->setSpacing(0);
+    auto* reteTabs = new QTabWidget(reteWrap);
+    reteTabs->setObjectName("innerTabs");
+    reteTabs->addTab(buildNetworkAnalyzer(reteTabs),
+        "\xf0\x9f\x94\xa1  Cattura pacchetti");
+    reteTabs->addTab(buildReteLan(reteTabs),
+        "\xf0\x9f\x8c\x90  Scan LAN");
+    reteLay->addWidget(reteTabs);
+    m_innerTabs->addTab(reteWrap,
+        "\xf0\x9f\x8c\x90  Rete & Network");
+}
+
+/* ── Livello 1: tab Coding completo ── */
+QWidget* ProgrammazionePage::buildCodingTab(QWidget* parent)
+{
+    auto* codingTab = new QWidget(parent);
     auto* codingLay = new QVBoxLayout(codingTab);
     codingLay->setContentsMargins(0, 8, 0, 0);
     codingLay->setSpacing(8);
 
-    /* ── Toolbar ── */
-    auto* toolRow = new QWidget(this);
+    QPushButton* btnClear      = nullptr;
+    QPushButton* btnRefreshMod = nullptr;
+    QPushButton* btnCloseAi    = nullptr;
+
+    codingLay->addWidget(buildCodingToolbar(codingTab, btnClear));
+
+    auto* mainSplit = new QSplitter(Qt::Horizontal, codingTab);
+    mainSplit->setChildrenCollapsible(false);
+    mainSplit->addWidget(buildEditorColumn(mainSplit));
+    mainSplit->addWidget(buildOutputColumn(mainSplit));
+    mainSplit->setSizes({500, 450});
+    codingLay->addWidget(mainSplit, 1);
+
+    codingLay->addWidget(buildAiPanel(codingTab, btnRefreshMod, btnCloseAi));
+
+    setupCodingConnections(btnClear, btnRefreshMod, btnCloseAi);
+    return codingTab;
+}
+
+/* ── Livello 2: toolbar del tab Coding ── */
+QWidget* ProgrammazionePage::buildCodingToolbar(QWidget* parent,
+                                                 QPushButton*& outBtnClear)
+{
+    auto* toolRow = new QWidget(parent);
     auto* toolLay = new QHBoxLayout(toolRow);
     toolLay->setContentsMargins(0, 0, 0, 0);
     toolLay->setSpacing(8);
@@ -198,7 +256,7 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
 
     m_btnRun = new QPushButton("\xe2\x96\xb6  Esegui", toolRow);
     m_btnRun->setObjectName("actionBtn");
-    m_btnRun->setToolTip("Esegui il codice nell'editor (F5)");
+    m_btnRun->setToolTip("Esegui il codice nell’editor (F5)");
     tagExecP(m_btnRun, "\xe2\x96\xb6", "Esegui");
 
     auto* btnClear = new QPushButton("\xf0\x9f\x97\x91  Pulisci", toolRow);
@@ -208,11 +266,11 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     toolLay->addWidget(btnClear);
     toolLay->addStretch(1);
 
-    m_btnAi = new QPushButton("\xf0\x9f\xa4\x96  Chiedi all'AI", toolRow);
+    m_btnAi = new QPushButton("\xf0\x9f\xa4\x96  Chiedi all’AI", toolRow);
     m_btnAi->setObjectName("actionBtn");
     m_btnAi->setCheckable(true);
     m_btnAi->setToolTip("Apri il pannello AI per scrivere una richiesta");
-    tagExecP(m_btnAi, "\xf0\x9f\xa4\x96", "Chiedi all'AI");
+    tagExecP(m_btnAi, "\xf0\x9f\xa4\x96", "Chiedi all’AI");
     toolLay->addWidget(m_btnAi);
 
     m_btnFix = new QPushButton("\xf0\x9f\x94\xa7  Correggi con AI", toolRow);
@@ -222,10 +280,10 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     m_btnFix->setToolTip(
         "Invia il codice a qwen2.5-coder (o il miglior modello coder disponibile)\n"
         "e chiedi di trovare e correggere tutti i bug.\n"
-        "Se c'era un errore di esecuzione, viene incluso nel contesto.");
+        "Se c’era un errore di esecuzione, viene incluso nel contesto.");
     toolLay->addWidget(m_btnFix);
 
-    /* ── Toggle "Loop Fix" ── */
+    /* Toggle "Loop Fix" */
     toolLay->addSpacing(10);
     m_toggleAutoFix = new ToggleSwitch("Loop Fix", toolRow);
     m_toggleAutoFix->setToolTip(
@@ -233,12 +291,11 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
         "fino a successo (max 6 tentativi).\n"
         "Si ferma se trova un SyntaxError creato deliberatamente (raise SyntaxError).\n"
         "OFF \xe2\x86\x92 esecuzione singola, correzione manuale.");
-    /* Toggle: warning one-shot alla prima attivazione, reset loop allo spegnimento */
     connect(m_toggleAutoFix, &QAbstractButton::toggled,
             this, &ProgrammazionePage::onAutoFixToggled);
     toolLay->addWidget(m_toggleAutoFix);
 
-    /* ── Slider iterazioni Loop Fix (1-10, ∞ al massimo) ── */
+    /* Slider iterazioni Loop Fix */
     toolLay->addSpacing(6);
     m_fixSlider = new QSlider(Qt::Horizontal, toolRow);
     m_fixSlider->setRange(1, 10);
@@ -254,14 +311,19 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     toolLay->addWidget(m_fixSlider);
     toolLay->addWidget(m_fixSliderLbl);
 
-    codingLay->addWidget(toolRow);
+    outBtnClear = btnClear;
+    return toolRow;
+}
 
-    /* ── Splitter principale (editor | output+grafico) ── */
-    auto* mainSplit = new QSplitter(Qt::Horizontal, this);
-    mainSplit->setChildrenCollapsible(false);
+/* ── Livello 2: colonna sinistra con editor ── */
+QWidget* ProgrammazionePage::buildEditorColumn(QWidget* parent)
+{
+    QFont monoFont;
+    monoFont.setFamily("JetBrains Mono");
+    monoFont.setStyleHint(QFont::Monospace);
+    monoFont.setPointSize(monoFontPt(11));
 
-    /* Colonna sinistra: editor */
-    auto* editorGroup = new QGroupBox("\xf0\x9f\x96\x8a  Codice", mainSplit);
+    auto* editorGroup = new QGroupBox("\xf0\x9f\x96\x8a  Codice", parent);
     editorGroup->setObjectName("cardGroup");
     auto* editorLay = new QVBoxLayout(editorGroup);
     editorLay->setContentsMargins(4, 8, 4, 4);
@@ -271,18 +333,29 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     m_editor->setFont(monoFont);
     m_editor->setTabStopDistance(32);
     m_editor->setLineWrapMode(QPlainTextEdit::NoWrap);
-    m_editor->setPlaceholderText("# Scrivi il codice qui,\n# oppure usa 🤖 Chiedi all'AI per generarlo.\n# Trascina un file qui per aprirlo.");
+    m_editor->setPlaceholderText(
+        "# Scrivi il codice qui,\n"
+        "# oppure usa \xf0\x9f\xa4\x96 Chiedi all’AI per generarlo.\n"
+        "# Trascina un file qui per aprirlo.");
     m_editor->setAcceptDrops(true);
     m_editor->installEventFilter(new EditorFileDropFilter(m_editor));
     editorLay->addWidget(m_editor);
 
-    /* ── Syntax Highlighter — attivato subito sull'editor ── */
     m_highlighter = new CodeHighlighter(m_editor->document());
-    m_highlighter->setLanguage(CodeHighlighter::Python);  /* default */
-    mainSplit->addWidget(editorGroup);
+    m_highlighter->setLanguage(CodeHighlighter::Python);
 
-    /* Colonna destra: output + grafico */
-    auto* rightCol = new QWidget(mainSplit);
+    return editorGroup;
+}
+
+/* ── Livello 2: colonna destra con output + grafico ── */
+QWidget* ProgrammazionePage::buildOutputColumn(QWidget* parent)
+{
+    QFont monoFont;
+    monoFont.setFamily("JetBrains Mono");
+    monoFont.setStyleHint(QFont::Monospace);
+    monoFont.setPointSize(monoFontPt(11));
+
+    auto* rightCol = new QWidget(parent);
     auto* rightLay = new QVBoxLayout(rightCol);
     rightLay->setContentsMargins(0, 0, 0, 0);
     rightLay->setSpacing(6);
@@ -306,8 +379,8 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     outputLay->addWidget(m_output, 1);
     rightLay->addWidget(outputGroup, 1);
 
-    /* Grafico (nascosto finché l'output non contiene numeri) */
-    auto* chartGroup = new QGroupBox("\xf0\x9f\x93\x88  Grafico — output numerico", rightCol);
+    auto* chartGroup = new QGroupBox(
+        "\xf0\x9f\x93\x88  Grafico \xe2\x80\x94 output numerico", rightCol);
     chartGroup->setObjectName("cardGroup");
     auto* chartLay = new QVBoxLayout(chartGroup);
     chartLay->setContentsMargins(4, 8, 4, 4);
@@ -315,28 +388,35 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     m_chart = new ChartWidget(chartGroup);
     m_chart->setMinimumHeight(180);
     chartLay->addWidget(m_chart);
-    chartGroup->hide(); /* nascosto di default */
+    chartGroup->hide();
     rightLay->addWidget(chartGroup);
     m_chartGroup = chartGroup;
 
-    mainSplit->addWidget(rightCol);
-    mainSplit->setSizes({500, 450});
-    codingLay->addWidget(mainSplit, 1);
+    return rightCol;
+}
 
-    /* ── Pannello AI (nascosto di default) ── */
-    m_aiPanel = new QWidget(this);
+/* ── Livello 2: pannello AI (nascosto di default) ── */
+QWidget* ProgrammazionePage::buildAiPanel(QWidget* parent,
+                                           QPushButton*& outBtnRefreshMod,
+                                           QPushButton*& outBtnCloseAi)
+{
+    QFont monoFont;
+    monoFont.setFamily("JetBrains Mono");
+    monoFont.setStyleHint(QFont::Monospace);
+    monoFont.setPointSize(monoFontPt(11));
+
+    m_aiPanel = new QWidget(parent);
     m_aiPanel->setObjectName("aiPanel");
     auto* aiLay = new QVBoxLayout(m_aiPanel);
     aiLay->setContentsMargins(8, 8, 8, 8);
     aiLay->setSpacing(6);
 
-    /* Separatore visivo */
     auto* aiSep = new QFrame(m_aiPanel);
     aiSep->setFrameShape(QFrame::HLine);
     aiSep->setObjectName("sidebarSep");
     aiLay->addWidget(aiSep);
 
-    /* ── Riga selezione modello ── */
+    /* Riga selezione modello */
     auto* modelRow = new QWidget(m_aiPanel);
     auto* modelLay = new QHBoxLayout(modelRow);
     modelLay->setContentsMargins(0, 0, 0, 0);
@@ -348,7 +428,6 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
 
     m_modelCombo = new QComboBox(modelRow);
     m_modelCombo->setObjectName("settingCombo");
-    /* Voce iniziale: mostra il modello attivo al momento (verrà aggiornata) */
     m_modelCombo->addItem(
         m_ai ? (m_ai->model().isEmpty()
                     ? "(nessun modello)"
@@ -357,12 +436,11 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
         m_ai ? m_ai->model() : QString());
     modelLay->addWidget(m_modelCombo, 1);
 
-    auto* btnRefreshMod = new QPushButton("\xf0\x9f\x94\x84", modelRow);
-    btnRefreshMod->setObjectName("actionBtn");
-    btnRefreshMod->setFixedWidth(32);
-    btnRefreshMod->setToolTip("Aggiorna lista modelli disponibili");
-    modelLay->addWidget(btnRefreshMod);
-
+    outBtnRefreshMod = new QPushButton("\xf0\x9f\x94\x84", modelRow);
+    outBtnRefreshMod->setObjectName("actionBtn");
+    outBtnRefreshMod->setFixedWidth(32);
+    outBtnRefreshMod->setToolTip("Aggiorna lista modelli disponibili");
+    modelLay->addWidget(outBtnRefreshMod);
     aiLay->addWidget(modelRow);
 
     /* Riga input */
@@ -384,25 +462,24 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
 
     m_btnSend = new QPushButton("Invia \xe2\x96\xb6", aiInputRow);
     m_btnSend->setObjectName("m_btnSend");
-    tagExecP(m_btnSend, "\xe2\x96\xb6", "Invia");
-    auto* btnSend = m_btnSend;  /* alias locale per il codice sottostante */
 
-    m_btnInsert = new QPushButton("\xe2\x86\x91  Inserisci in editor", aiInputRow);
+    m_btnInsert = new QPushButton(
+        "\xe2\x86\x91  Inserisci in editor", aiInputRow);
     m_btnInsert->setObjectName("actionBtn");
-    m_btnInsert->setToolTip("Estrae il primo blocco di codice dalla risposta AI e lo inserisce nell'editor");
+    m_btnInsert->setToolTip(
+        "Estrae il primo blocco di codice dalla risposta AI e lo inserisce nell’editor");
     m_btnInsert->setEnabled(false);
 
-    auto* btnCloseAi = new QPushButton("\xe2\x9c\x95", aiInputRow);
-    btnCloseAi->setObjectName("actionBtn");
-    btnCloseAi->setFixedWidth(32);
-    btnCloseAi->setToolTip("Chiudi pannello AI");
+    outBtnCloseAi = new QPushButton("\xe2\x9c\x95", aiInputRow);
+    outBtnCloseAi->setObjectName("actionBtn");
+    outBtnCloseAi->setFixedWidth(32);
+    outBtnCloseAi->setToolTip("Chiudi pannello AI");
 
-    aiInputLay->addWidget(btnSend);
+    aiInputLay->addWidget(m_btnSend);
     aiInputLay->addWidget(m_btnInsert);
-    aiInputLay->addWidget(btnCloseAi);
+    aiInputLay->addWidget(outBtnCloseAi);
     aiLay->addWidget(aiInputRow);
 
-    /* Output AI (streaming) */
     m_aiOutput = new QPlainTextEdit(m_aiPanel);
     m_aiOutput->setObjectName("chatLog");
     m_aiOutput->setReadOnly(true);
@@ -411,98 +488,55 @@ ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     m_aiOutput->setMinimumHeight(100);
     m_aiOutput->setMaximumHeight(220);
     m_aiOutput->setPlaceholderText(
-        "Qui apparir\xc3\xa0 la risposta dell'AI.\n\n"
+        "Qui apparir\xc3\xa0 la risposta dell’AI.\n\n"
         "Scrivi la tua richiesta sopra e premi Invia.");
     aiLay->addWidget(m_aiOutput);
 
     m_aiPanel->hide();
-    codingLay->addWidget(m_aiPanel);
+    return m_aiPanel;
+}
 
-    /* ── Registra il tab Coding e aggiungi il tab Agentica ── */
-    m_innerTabs->addTab(codingTab,
-        "\xf0\x9f\x92\xbb  Programmazione");
-    m_innerTabs->addTab(buildAgentica(m_innerTabs),
-        "\xf0\x9f\xa4\x96  Agentica");
-    m_innerTabs->addTab(buildTranslitter(m_innerTabs),
-        "\xf0\x9f\x94\x80  Translitter");
-    m_innerTabs->addTab(buildReverseEngineering(m_innerTabs),
-        "\xf0\x9f\x94\x8d  Reverse Eng.");
-    m_innerTabs->addTab(buildGitMcp(m_innerTabs),
-        "\xf0\x9f\x94\xa7  Git");
-    m_innerTabs->addTab(buildPythonRepl(m_innerTabs),
-        "\xf0\x9f\x90\x8d  REPL");
-    m_innerTabs->addTab(new CodeInterpreterWidget(m_ai, m_innerTabs),
-        "\xf0\x9f\xa7\xaa  Interpreter");
-    /* ── Rete & Network: un solo tab con sub-tab interni ── */
-    {
-        auto* reteWrap  = new QWidget(m_innerTabs);
-        auto* reteLay   = new QVBoxLayout(reteWrap);
-        reteLay->setContentsMargins(0, 0, 0, 0);
-        reteLay->setSpacing(0);
-        auto* reteTabs  = new QTabWidget(reteWrap);
-        reteTabs->setObjectName("innerTabs");
-        reteTabs->addTab(buildNetworkAnalyzer(reteTabs),
-            "\xf0\x9f\x94\xa1  Cattura pacchetti");
-        reteTabs->addTab(buildReteLan(reteTabs),
-            "\xf0\x9f\x8c\x90  Scan LAN");
-        reteLay->addWidget(reteTabs);
-        m_innerTabs->addTab(reteWrap,
-            "\xf0\x9f\x8c\x90  Rete & Network");
-    }
-
-    connect(btnRefreshMod, &QPushButton::clicked,
-            this, &ProgrammazionePage::populateAiModels);
-
-    /* Auto-popola modelli al caricamento della pagina */
-    QTimer::singleShot(0, this, &ProgrammazionePage::populateAiModels);
-
-    /* ══════════════════════════════════════════════════════════
-       Connessioni
-       ══════════════════════════════════════════════════════════ */
-
-    /* Cambia linguaggio → sostituisce il codice nell'editor con il template */
+/* ── Livello 2: connessioni del tab Coding ── */
+void ProgrammazionePage::setupCodingConnections(QPushButton* btnClear,
+                                                 QPushButton* btnRefreshMod,
+                                                 QPushButton* btnCloseAi)
+{
     connect(m_lang, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &ProgrammazionePage::onLangChanged);
 
-    /* Template iniziale */
-    m_editor->setPlainText(currentTemplate());
+    if (btnClear)
+        connect(btnClear, &QPushButton::clicked,
+                this, &ProgrammazionePage::onBtnClearClicked);
 
-    /* Pulisci output */
-    connect(btnClear, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnClearClicked);
-    /* ── Apri/chiudi pannello AI ── */
     connect(m_btnAi, &QPushButton::toggled,
             this, &ProgrammazionePage::onBtnAiToggled);
-    connect(btnCloseAi, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnCloseAiClicked);
 
-    /* ── Invia richiesta all’AI ── */
-    connect(btnSend,   &QPushButton::clicked,
-            this, &ProgrammazionePage::sendToAi);
-    connect(m_aiInput, &QLineEdit::returnPressed,
-            this, &ProgrammazionePage::sendToAi);
+    if (btnCloseAi)
+        connect(btnCloseAi, &QPushButton::clicked,
+                this, &ProgrammazionePage::onBtnCloseAiClicked);
 
-    /* ── Inserisci codice dall’AI in editor ── */
+    connect(m_btnSend,  &QPushButton::clicked,
+            this, &ProgrammazionePage::sendToAi);
+    connect(m_aiInput,  &QLineEdit::returnPressed,
+            this, &ProgrammazionePage::sendToAi);
     connect(m_btnInsert, &QPushButton::clicked,
             this, &ProgrammazionePage::onBtnInsertClicked);
-
-    /* ── Esegui / Stop (bottone unificato) ── */
-    connect(m_btnRun, &QPushButton::clicked,
+    connect(m_btnRun,  &QPushButton::clicked,
             this, &ProgrammazionePage::onBtnRunClicked);
-
-    /* ── Correggi con AI ── */
-    connect(m_btnFix, &QPushButton::clicked,
+    connect(m_btnFix,  &QPushButton::clicked,
             this, &ProgrammazionePage::onBtnFixClicked);
-
-    /* Sincronizza i combo modello quando il modello cambia da Impostazioni */
     connect(m_ai, &AiClient::modelChanged,
             this, &ProgrammazionePage::onModelChanged);
 
-    /* Tab order (tab Programmazione): linguaggio → Esegui → Pulisci → Chiedi AI →
-       Correggi → editor → input AI → Invia → Inserisci */
+    if (btnRefreshMod)
+        connect(btnRefreshMod, &QPushButton::clicked,
+                this, &ProgrammazionePage::populateAiModels);
+
+    QTimer::singleShot(0, this, &ProgrammazionePage::populateAiModels);
+
+    /* Tab order */
     QWidget::setTabOrder(m_lang,       m_btnRun);
-    QWidget::setTabOrder(m_btnRun,     btnClear);
-    QWidget::setTabOrder(btnClear,     m_btnAi);
+    QWidget::setTabOrder(m_btnRun,     m_btnAi);
     QWidget::setTabOrder(m_btnAi,      m_btnFix);
     QWidget::setTabOrder(m_btnFix,     m_editor);
     QWidget::setTabOrder(m_editor,     m_modelCombo);
@@ -855,17 +889,17 @@ void ProgrammazionePage::triggerFix(bool includeError)
     if (!m_btnAi->isChecked()) {
         m_btnAi->setChecked(true);
         /* Se i modelli non sono ancora caricati aspettiamo che siano pronti
-           prima di selezionare il coder — usiamo un one-shot su modelsReady */
+           prima di selezionare il coder — one-shot via slot nominato. */
         if (m_modelCombo->count() <= 1) {
-            auto* holder = new QObject(this);
-            connect(m_ai, &AiClient::modelsReady, holder,
-                    [this, holder, includeError, codice, lang, ext]
-                    (const QStringList&){
-                holder->deleteLater();
-                selectCoderModel();
-                _doFix(includeError, codice, lang, ext);
-            });
-            return; /* il lambda riprende dopo fetch */
+            m_pendingFixIncludeError = includeError;
+            m_pendingFixCodice = codice;
+            m_pendingFixLang   = lang;
+            m_pendingFixExt    = ext;
+            disconnect(m_modelsReadyForFixConn);
+            m_modelsReadyForFixConn = connect(
+                m_ai, &AiClient::modelsReady,
+                this, &ProgrammazionePage::onModelsReadyForFix);
+            return;
         }
     }
 
@@ -952,35 +986,37 @@ void ProgrammazionePage::_doFix(bool includeError,
                       .arg(m_ai->model().isEmpty() ? "AI" : m_ai->model()));
 
 
-    if (m_tokenHolder) { m_tokenHolder->deleteLater(); m_tokenHolder = nullptr; }
-    m_tokenHolder = new QObject(this);
-    connect(m_ai, &AiClient::token, m_tokenHolder,
-            [this](const QString& tok){ onFixToken(tok); });
-    connect(m_ai, &AiClient::finished, m_tokenHolder,
-            [this](const QString& full){ onFixFinished(full); });
-    connect(m_ai, &AiClient::error, m_tokenHolder,
-            [this](const QString& msg){ onFixError(msg); });
+    disconnect(m_aiTokenConn);
+    disconnect(m_aiFinishedConn);
+    disconnect(m_aiErrorConn);
+    m_aiTokenConn    = connect(m_ai, &AiClient::token,    this, &ProgrammazionePage::onFixToken);
+    m_aiFinishedConn = connect(m_ai, &AiClient::finished, this, &ProgrammazionePage::onFixFinished);
+    m_aiErrorConn    = connect(m_ai, &AiClient::error,    this, &ProgrammazionePage::onFixError);
     m_ai->chat(P::prependKnowledge(sys), user);
 }
 
 /* ══════════════════════════════════════════════════════════════
    buildAgentica — sub-tab "🤖 Agentica"
-   Genera template di codice per sistemi agentici: pipeline,
-   RAG, refactoring AI, test generation, debugging multi-step.
    ══════════════════════════════════════════════════════════════ */
 QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
 {
-    QFont monoFont;
-    monoFont.setFamily("JetBrains Mono");
-    monoFont.setStyleHint(QFont::Monospace);
-    monoFont.setPointSize(monoFontPt(11));
-
     auto* w   = new QWidget(parent);
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(12, 12, 12, 12);
     lay->setSpacing(10);
 
-    /* ── Descrizione ── */
+    buildAgenticaHeader(lay, w);
+    lay->addWidget(buildAgenticaToolbar(w));
+    lay->addWidget(buildAgenticaTaskGroup(w));
+    lay->addWidget(buildAgenticaModelRow(w));
+    lay->addWidget(buildAgenticaOutputGroup(w), 1);
+    setupAgenticaConnections(nullptr, nullptr);
+    return w;
+}
+
+/* ── Header: descrizione + separatore ── */
+void ProgrammazionePage::buildAgenticaHeader(QVBoxLayout* lay, QWidget* w)
+{
     auto* desc = new QLabel(
         "\xf0\x9f\xa4\x96  <b>Programmazione Agentica</b> \xe2\x80\x94 "
         "Genera sistemi AI multi-step: pipeline, RAG, tool-use e agenti autonomi.", w);
@@ -992,9 +1028,12 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
     sep->setFrameShape(QFrame::HLine);
     sep->setObjectName("sidebarSep");
     lay->addWidget(sep);
+}
 
-    /* ── Riga toolbar: Tipo agente + Linguaggio ── */
-    auto* toolRow = new QWidget(w);
+/* ── Toolbar: tipo agente + linguaggio + pulsanti ── */
+QWidget* ProgrammazionePage::buildAgenticaToolbar(QWidget* parent)
+{
+    auto* toolRow = new QWidget(parent);
     auto* toolLay = new QHBoxLayout(toolRow);
     toolLay->setContentsMargins(0, 0, 0, 0);
     toolLay->setSpacing(8);
@@ -1002,8 +1041,9 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
     toolLay->addWidget(new QLabel("Tipo agente:", toolRow));
     m_agentType = new QComboBox(toolRow);
     m_agentType->setObjectName("settingCombo");
-    m_agentType->addItem("Pipeline codice (3 agenti: Analisi \xe2\x86\x92 Impl \xe2\x86\x92 Test)",
-                         QString("pipeline"));
+    m_agentType->addItem(
+        "Pipeline codice (3 agenti: Analisi \xe2\x86\x92 Impl \xe2\x86\x92 Test)",
+        QString("pipeline"));
     m_agentType->addItem("RAG + Codice (ricerca documenti + generazione)",
                          QString("rag"));
     m_agentType->addItem("Refactoring AI (pattern + pulizia)",
@@ -1026,7 +1066,6 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
     m_agentLang->addItems({"Python", "C", "C++", "JavaScript", "Bash"});
     m_agentLang->setFixedWidth(110);
     toolLay->addWidget(m_agentLang);
-
     toolLay->addStretch(1);
 
     m_btnAgentRun = new QPushButton("\xe2\x96\xb6  Genera", toolRow);
@@ -1042,11 +1081,19 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
     m_btnAgentStop->setToolTip("Interrompi la generazione");
     toolLay->addWidget(m_btnAgentStop);
 
-    lay->addWidget(toolRow);
+    return toolRow;
+}
 
-    /* ── Task description ── */
+/* ── Task group: campo testo descrizione ── */
+QWidget* ProgrammazionePage::buildAgenticaTaskGroup(QWidget* parent)
+{
+    QFont monoFont;
+    monoFont.setFamily("JetBrains Mono");
+    monoFont.setStyleHint(QFont::Monospace);
+    monoFont.setPointSize(monoFontPt(11));
+
     auto* taskGroup = new QGroupBox(
-        "\xf0\x9f\x93\x9d  Descrizione del task (cosa vuoi costruire?)", w);
+        "\xf0\x9f\x93\x9d  Descrizione del task (cosa vuoi costruire?)", parent);
     taskGroup->setObjectName("cardGroup");
     auto* taskLay = new QVBoxLayout(taskGroup);
     taskLay->setContentsMargins(4, 8, 4, 4);
@@ -1063,10 +1110,13 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
         "  \xe2\x80\xa2 \"Refactoring con pattern Strategy di questo codice C++\"\n"
         "  \xe2\x80\xa2 \"Test unitari completi (pytest) per una classe BankAccount\"");
     taskLay->addWidget(m_agentTask);
-    lay->addWidget(taskGroup);
+    return taskGroup;
+}
 
-    /* ── Selezione modello ── */
-    auto* modelRow = new QWidget(w);
+/* ── Riga selezione modello ── */
+QWidget* ProgrammazionePage::buildAgenticaModelRow(QWidget* parent)
+{
+    auto* modelRow = new QWidget(parent);
     auto* modelLay = new QHBoxLayout(modelRow);
     modelLay->setContentsMargins(0, 0, 0, 0);
     modelLay->setSpacing(8);
@@ -1088,12 +1138,26 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
     btnRefAgent->setFixedWidth(32);
     btnRefAgent->setToolTip("Aggiorna lista modelli disponibili");
     modelLay->addWidget(btnRefAgent);
-    lay->addWidget(modelRow);
 
-    /* ── Output agente ── */
-    auto* outGroup = new QGroupBox("\xf0\x9f\xa4\x96  Output agente (streaming)", w);
+    connect(btnRefAgent, &QPushButton::clicked,
+            this, &ProgrammazionePage::populateAgentModels);
+    QTimer::singleShot(0, this, &ProgrammazionePage::populateAgentModels);
+
+    return modelRow;
+}
+
+/* ── Output group: streaming + pulsanti ── */
+QWidget* ProgrammazionePage::buildAgenticaOutputGroup(QWidget* parent)
+{
+    QFont monoFont;
+    monoFont.setFamily("JetBrains Mono");
+    monoFont.setStyleHint(QFont::Monospace);
+    monoFont.setPointSize(monoFontPt(11));
+
+    auto* outGroup = new QGroupBox(
+        "\xf0\x9f\xa4\x96  Output agente (streaming)", parent);
     outGroup->setObjectName("cardGroup");
-    auto* outLay  = new QVBoxLayout(outGroup);
+    auto* outLay = new QVBoxLayout(outGroup);
     outLay->setContentsMargins(4, 8, 4, 4);
     outLay->setSpacing(6);
 
@@ -1106,7 +1170,6 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
         "Scrivi il task sopra e premi \xe2\x96\xb6 Genera.");
     outLay->addWidget(m_agentOutput, 1);
 
-    /* Pulsanti sotto l'output */
     auto* outBtnRow = new QWidget(outGroup);
     auto* outBtnLay = new QHBoxLayout(outBtnRow);
     outBtnLay->setContentsMargins(0, 2, 0, 0);
@@ -1127,33 +1190,25 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
     outBtnLay->addStretch(1);
 
     outLay->addWidget(outBtnRow);
-    lay->addWidget(outGroup, 1);
 
-    /* ══════════════════════════════════════════════════════════
-       Connessioni — Agentica
-       ══════════════════════════════════════════════════════════ */
-
-    /* Popola modelli per il tab Agentica */
-    connect(btnRefAgent, &QPushButton::clicked,
-            this, &ProgrammazionePage::populateAgentModels);
-    QTimer::singleShot(0, this, &ProgrammazionePage::populateAgentModels);
-
-    /* Genera */
-    connect(m_btnAgentRun, &QPushButton::clicked,
-            this, &ProgrammazionePage::runAgente);
-
-    /* Stop */
-    connect(m_btnAgentStop, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnAgentStopClicked);
-
-    /* Pulisci */
     connect(btnClearAgent, &QPushButton::clicked,
             this, &ProgrammazionePage::onBtnClearAgentClicked);
-
-    /* Apri in editor Programmazione */
     connect(m_btnAgentInsert, &QPushButton::clicked,
             this, &ProgrammazionePage::onBtnAgentInsertClicked);
-    return w;
+
+    return outGroup;
+}
+
+/* ── Connessioni Agentica ── */
+void ProgrammazionePage::setupAgenticaConnections(QPushButton* /*btnRefAgent*/,
+                                                   QPushButton* /*btnClearAgent*/)
+{
+    /* Model refresh and model population already wired in buildAgenticaModelRow. */
+    /* Output button connections already wired in buildAgenticaOutputGroup. */
+    connect(m_btnAgentRun,  &QPushButton::clicked,
+            this, &ProgrammazionePage::runAgente);
+    connect(m_btnAgentStop, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnAgentStopClicked);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1283,38 +1338,41 @@ void ProgrammazionePage::runAgente()
     m_btnAgentStop->setEnabled(true);
     m_btnAgentInsert->setEnabled(false);
 
-    if (m_agentTokenHolder) { delete m_agentTokenHolder; m_agentTokenHolder = nullptr; }
-    m_agentTokenHolder = new QObject(this);
-
-    connect(m_ai, &AiClient::token, m_agentTokenHolder,
-            [this](const QString& tok){ onAgentToken(tok); });
-    connect(m_ai, &AiClient::finished, m_agentTokenHolder,
-            [this](const QString& full){ onAgentFinished(full); });
-    connect(m_ai, &AiClient::error, m_agentTokenHolder,
-            [this](const QString& msg){ onAgentError(msg); });
+    disconnect(m_agentTokenConn);
+    disconnect(m_agentFinishedConn);
+    disconnect(m_agentErrorConn);
+    m_agentTokenConn    = connect(m_ai, &AiClient::token,    this, &ProgrammazionePage::onAgentToken);
+    m_agentFinishedConn = connect(m_ai, &AiClient::finished, this, &ProgrammazionePage::onAgentFinished);
+    m_agentErrorConn    = connect(m_ai, &AiClient::error,    this, &ProgrammazionePage::onAgentError);
     m_ai->chat(P::prependKnowledge(sys), user);
 }
 
 /* ══════════════════════════════════════════════════════════════
    buildReverseEngineering — sub-tab "🔍 Reverse Eng."
-
-   Carica un file generico (binario, bytecode, offuscato, testo),
-   ne estrae hex dump + stringhe leggibili, e chiede all'LLM di
-   ricostruire il codice sorgente originale approssimativo.
    ══════════════════════════════════════════════════════════════ */
 QWidget* ProgrammazionePage::buildReverseEngineering(QWidget* parent)
 {
-    QFont monoFont;
-    monoFont.setFamily("JetBrains Mono");
-    monoFont.setStyleHint(QFont::Monospace);
-    monoFont.setPointSize(monoFontPt(10));
-
     auto* w   = new QWidget(parent);
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(12, 12, 12, 12);
     lay->setSpacing(8);
 
-    /* ── Descrizione ── */
+    buildRevHeader(lay, w);
+    lay->addWidget(buildRevFileRow(w));  /* btnLoad wired inside */
+
+    QPushButton* btnRefRev   = nullptr;
+    QPushButton* btnClearRev = nullptr;
+
+    lay->addWidget(buildRevOptionsRow(w, btnRefRev));
+    lay->addWidget(buildRevPreviewGroup(w));
+    lay->addWidget(buildRevOutputGroup(w, btnClearRev), 1);
+    setupRevConnections(nullptr, btnRefRev, btnClearRev);
+    return w;
+}
+
+/* ── Header: descrizione + separatore ── */
+void ProgrammazionePage::buildRevHeader(QVBoxLayout* lay, QWidget* w)
+{
     auto* desc = new QLabel(
         "\xf0\x9f\x94\x8d  <b>Reverse Engineering</b> \xe2\x80\x94 "
         "Carica un file compilato o offuscato: l'AI analizza i byte, "
@@ -1327,9 +1385,12 @@ QWidget* ProgrammazionePage::buildReverseEngineering(QWidget* parent)
     sep->setFrameShape(QFrame::HLine);
     sep->setObjectName("sidebarSep");
     lay->addWidget(sep);
+}
 
-    /* ── Riga caricamento file ── */
-    auto* fileRow = new QWidget(w);
+/* ── Riga caricamento file ── */
+QWidget* ProgrammazionePage::buildRevFileRow(QWidget* parent)
+{
+    auto* fileRow = new QWidget(parent);
     auto* fileLay = new QHBoxLayout(fileRow);
     fileLay->setContentsMargins(0, 0, 0, 0);
     fileLay->setSpacing(8);
@@ -1342,10 +1403,18 @@ QWidget* ProgrammazionePage::buildReverseEngineering(QWidget* parent)
     m_revFilePath->setObjectName("hintLabel");
     fileLay->addWidget(m_revFilePath, 1);
 
-    lay->addWidget(fileRow);
+    connect(btnLoad, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnRevLoadClicked);
 
-    /* ── Riga opzioni ── */
-    auto* optRow = new QWidget(w);
+    return fileRow;
+}
+
+/* ── Riga opzioni + modello AI ── */
+QWidget* ProgrammazionePage::buildRevOptionsRow(QWidget* parent,
+                                                  QPushButton*& outBtnRefRev)
+{
+    /* Opzioni superiori */
+    auto* optRow = new QWidget(parent);
     auto* optLay = new QHBoxLayout(optRow);
     optLay->setContentsMargins(0, 0, 0, 0);
     optLay->setSpacing(8);
@@ -1384,10 +1453,15 @@ QWidget* ProgrammazionePage::buildReverseEngineering(QWidget* parent)
     m_btnRevStop->setEnabled(false);
     optLay->addWidget(m_btnRevStop);
 
-    lay->addWidget(optRow);
+    /* Selezione modello — costruita nello stesso widget composito */
+    /* Wrap both rows in a container */
+    auto* container = new QWidget(parent);
+    auto* contLay   = new QVBoxLayout(container);
+    contLay->setContentsMargins(0, 0, 0, 0);
+    contLay->setSpacing(4);
+    contLay->addWidget(optRow);
 
-    /* ── Selezione modello ── */
-    auto* modelRow = new QWidget(w);
+    auto* modelRow = new QWidget(container);
     auto* modelLay = new QHBoxLayout(modelRow);
     modelLay->setContentsMargins(0, 0, 0, 0);
     modelLay->setSpacing(8);
@@ -1404,17 +1478,27 @@ QWidget* ProgrammazionePage::buildReverseEngineering(QWidget* parent)
         m_ai ? m_ai->model() : QString());
     modelLay->addWidget(m_revModel, 1);
 
-    auto* btnRefRev = new QPushButton("\xf0\x9f\x94\x84", modelRow);
-    btnRefRev->setObjectName("actionBtn");
-    btnRefRev->setFixedWidth(32);
-    btnRefRev->setToolTip("Aggiorna lista modelli disponibili");
-    modelLay->addWidget(btnRefRev);
+    outBtnRefRev = new QPushButton("\xf0\x9f\x94\x84", modelRow);
+    outBtnRefRev->setObjectName("actionBtn");
+    outBtnRefRev->setFixedWidth(32);
+    outBtnRefRev->setToolTip("Aggiorna lista modelli disponibili");
+    modelLay->addWidget(outBtnRefRev);
 
-    lay->addWidget(modelRow);
+    contLay->addWidget(modelRow);
 
-    /* ── Preview hex + stringhe ── */
+    return container;
+}
+
+/* ── Preview hex dump ── */
+QWidget* ProgrammazionePage::buildRevPreviewGroup(QWidget* parent)
+{
+    QFont monoFont;
+    monoFont.setFamily("JetBrains Mono");
+    monoFont.setStyleHint(QFont::Monospace);
+    monoFont.setPointSize(monoFontPt(10));
+
     auto* prevGroup = new QGroupBox(
-        "\xf0\x9f\x93\x8b  Anteprima file (hex dump + stringhe estratte)", w);
+        "\xf0\x9f\x93\x8b  Anteprima file (hex dump + stringhe estratte)", parent);
     prevGroup->setObjectName("cardGroup");
     auto* prevLay = new QVBoxLayout(prevGroup);
     prevLay->setContentsMargins(4, 8, 4, 4);
@@ -1428,11 +1512,20 @@ QWidget* ProgrammazionePage::buildReverseEngineering(QWidget* parent)
         "Carica un file per vedere il hex dump e le stringhe ASCII estratte...");
     prevLay->addWidget(m_revPreview);
 
-    lay->addWidget(prevGroup);
+    return prevGroup;
+}
 
-    /* ── Output AI ── */
+/* ── Output AI + pulsanti ── */
+QWidget* ProgrammazionePage::buildRevOutputGroup(QWidget* parent,
+                                                   QPushButton*& outBtnClearRev)
+{
+    QFont monoFont;
+    monoFont.setFamily("JetBrains Mono");
+    monoFont.setStyleHint(QFont::Monospace);
+    monoFont.setPointSize(monoFontPt(10));
+
     auto* outGroup = new QGroupBox(
-        "\xf0\x9f\xa4\x96  Codice sorgente ricostruito (streaming AI)", w);
+        "\xf0\x9f\xa4\x96  Codice sorgente ricostruito (streaming AI)", parent);
     outGroup->setObjectName("cardGroup");
     auto* outLay = new QVBoxLayout(outGroup);
     outLay->setContentsMargins(4, 8, 4, 4);
@@ -1460,44 +1553,39 @@ QWidget* ProgrammazionePage::buildReverseEngineering(QWidget* parent)
         "Estrae il primo blocco codice e lo apre nel tab \xf0\x9f\x92\xbb Programmazione");
     revBtnLay->addWidget(m_btnRevInsert);
 
-    auto* btnClearRev = new QPushButton(
+    outBtnClearRev = new QPushButton(
         "\xf0\x9f\x97\x91  Pulisci output", revBtnRow);
-    btnClearRev->setObjectName("actionBtn");
-    revBtnLay->addWidget(btnClearRev);
+    outBtnClearRev->setObjectName("actionBtn");
+    revBtnLay->addWidget(outBtnClearRev);
     revBtnLay->addStretch(1);
 
     outLay->addWidget(revBtnRow);
-    lay->addWidget(outGroup, 1);
+    return outGroup;
+}
 
-    /* ══════════════════════════════════════════════════════════
-       Connessioni
-       ══════════════════════════════════════════════════════════ */
+/* ── Connessioni Reverse Engineering ── */
+void ProgrammazionePage::setupRevConnections(QPushButton* /*btnLoad*/,
+                                              QPushButton* btnRefRev,
+                                              QPushButton* btnClearRev)
+{
+    /* btnLoad already wired inside buildRevFileRow */
+    if (btnRefRev) {
+        connect(btnRefRev, &QPushButton::clicked,
+                this, &ProgrammazionePage::populateRevModels);
+        QTimer::singleShot(0, this, &ProgrammazionePage::populateRevModels);
+    }
 
-    /* Popola modelli */
-    connect(btnRefRev, &QPushButton::clicked,
-            this, &ProgrammazionePage::populateRevModels);
-    QTimer::singleShot(0, this, &ProgrammazionePage::populateRevModels);
-
-    /* Carica file */
-    connect(btnLoad, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnRevLoadClicked);
-
-    /* Analizza */
     connect(m_btnRevAnalyze, &QPushButton::clicked,
             this, &ProgrammazionePage::runReverseEngineering);
-
-    /* Stop */
-    connect(m_btnRevStop, &QPushButton::clicked,
+    connect(m_btnRevStop,    &QPushButton::clicked,
             this, &ProgrammazionePage::onBtnRevStopClicked);
 
-    /* Pulisci */
-    connect(btnClearRev, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnClearRevClicked);
+    if (btnClearRev)
+        connect(btnClearRev, &QPushButton::clicked,
+                this, &ProgrammazionePage::onBtnClearRevClicked);
 
-    /* Apri in editor Programmazione */
     connect(m_btnRevInsert, &QPushButton::clicked,
             this, &ProgrammazionePage::onBtnRevInsertClicked);
-    return w;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1588,15 +1676,12 @@ void ProgrammazionePage::runReverseEngineering()
     m_btnRevStop->setEnabled(true);
     m_btnRevInsert->setEnabled(false);
 
-    if (m_revTokenHolder) { delete m_revTokenHolder; m_revTokenHolder = nullptr; }
-    m_revTokenHolder = new QObject(this);
-
-    connect(m_ai, &AiClient::token, m_revTokenHolder,
-            [this](const QString& tok){ onRevToken(tok); });
-    connect(m_ai, &AiClient::finished, m_revTokenHolder,
-            [this](const QString& full){ onRevFinished(full); });
-    connect(m_ai, &AiClient::error, m_revTokenHolder,
-            [this](const QString& msg){ onRevError(msg); });
+    disconnect(m_revTokenConn);
+    disconnect(m_revFinishedConn);
+    disconnect(m_revErrorConn);
+    m_revTokenConn    = connect(m_ai, &AiClient::token,    this, &ProgrammazionePage::onRevToken);
+    m_revFinishedConn = connect(m_ai, &AiClient::finished, this, &ProgrammazionePage::onRevFinished);
+    m_revErrorConn    = connect(m_ai, &AiClient::error,    this, &ProgrammazionePage::onRevError);
     m_ai->chat(P::prependKnowledge(sys), user);
 }
 
@@ -1605,12 +1690,35 @@ void ProgrammazionePage::runReverseEngineering()
    ══════════════════════════════════════════════════════════════ */
 QWidget* ProgrammazionePage::buildNetworkAnalyzer(QWidget* parent)
 {
+    /* Rileva tool prima di buildNetToolbar (serve per il tooltip Fix permessi) */
+    m_netTool = QStandardPaths::findExecutable("tshark");
+    if (m_netTool.isEmpty()) m_netTool = QStandardPaths::findExecutable("tcpdump");
+
     auto* w   = new QWidget(parent);
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(8, 8, 8, 8);
     lay->setSpacing(6);
 
-    /* ── toolbar ── */
+    buildNetToolbar(lay, w);
+    lay->addWidget(buildNetLogSplitter(w), 1);
+
+    /* Stato tool */
+    if (m_netTool.isEmpty()) {
+        m_netStatus->setText(
+            "\xe2\x9d\x8c  Nessun tool trovato. Installa tshark: sudo apt install tshark");
+        m_btnNetStart->setEnabled(false);
+    } else {
+        m_netStatus->setText(
+            QString("\xe2\x9c\x85  Tool rilevato: %1").arg(m_netTool));
+    }
+
+    setupNetConnections();
+    return w;
+}
+
+/* ── Toolbar: interfacce, protocollo, porta, max, pulsanti, status ── */
+void ProgrammazionePage::buildNetToolbar(QVBoxLayout* lay, QWidget* w)
+{
     auto* toolRow = new QHBoxLayout;
     toolRow->setSpacing(6);
 
@@ -1654,9 +1762,9 @@ QWidget* ProgrammazionePage::buildNetworkAnalyzer(QWidget* parent)
     m_netMaxPkts->setFixedWidth(70);
     toolRow->addWidget(m_netMaxPkts);
 
-    m_btnNetStart    = new QPushButton("\xe2\x96\xb6  Start",        w);
-    m_btnNetStop     = new QPushButton("\xe2\x96\xa0  Stop",         w);
-    m_btnNetClear    = new QPushButton("\xf0\x9f\x97\x91  Clear",    w);
+    m_btnNetStart    = new QPushButton("\xe2\x96\xb6  Start",          w);
+    m_btnNetStop     = new QPushButton("\xe2\x96\xa0  Stop",           w);
+    m_btnNetClear    = new QPushButton("\xf0\x9f\x97\x91  Clear",      w);
     m_btnNetAnalyze  = new QPushButton("\xf0\x9f\xa4\x96  Analisi AI", w);
     m_btnNetFixPerms = new QPushButton("\xf0\x9f\x94\x91  Fix permessi", w);
     m_btnNetStop->setEnabled(false);
@@ -1664,7 +1772,8 @@ QWidget* ProgrammazionePage::buildNetworkAnalyzer(QWidget* parent)
     m_btnNetFixPerms->setToolTip(
         "Applica CAP_NET_RAW al tool di cattura (richiede password amministratore).\n"
         "In alternativa: sudo setcap cap_net_raw+eip " + m_netTool);
-    m_btnNetFixPerms->setVisible(!QStandardPaths::findExecutable("pkexec").isEmpty());
+    m_btnNetFixPerms->setVisible(
+        !QStandardPaths::findExecutable("pkexec").isEmpty());
     toolRow->addWidget(m_btnNetStart);
     toolRow->addWidget(m_btnNetStop);
     toolRow->addWidget(m_btnNetClear);
@@ -1675,8 +1784,12 @@ QWidget* ProgrammazionePage::buildNetworkAnalyzer(QWidget* parent)
     m_netStatus = new QLabel(w);
     m_netStatus->setObjectName("statusLabel");
     lay->addWidget(m_netStatus);
+}
 
-    auto* splitter = new QSplitter(Qt::Vertical, w);
+/* ── Splitter log pacchetti + output AI ── */
+QWidget* ProgrammazionePage::buildNetLogSplitter(QWidget* parent)
+{
+    auto* splitter = new QSplitter(Qt::Vertical, parent);
 
     m_netLog = new QPlainTextEdit(splitter);
     m_netLog->setReadOnly(true);
@@ -1693,26 +1806,17 @@ QWidget* ProgrammazionePage::buildNetworkAnalyzer(QWidget* parent)
         "\xf0\x9f\xa4\x96  L'analisi AI apparira' qui dopo aver cliccato 'Analisi AI'...");
     splitter->addWidget(m_netAiOutput);
     splitter->setSizes({300, 150});
-    lay->addWidget(splitter, 1);
+    return splitter;
+}
 
-    /* ── rileva tool disponibile ── */
-    m_netTool = QStandardPaths::findExecutable("tshark");
-    if (m_netTool.isEmpty()) m_netTool = QStandardPaths::findExecutable("tcpdump");
-    if (m_netTool.isEmpty()) {
-        m_netStatus->setText(
-            "\xe2\x9d\x8c  Nessun tool trovato. Installa tshark: sudo apt install tshark");
-        m_btnNetStart->setEnabled(false);
-    } else {
-        m_netStatus->setText(QString("\xe2\x9c\x85  Tool rilevato: %1").arg(m_netTool));
-    }
-
+/* ── Connessioni Network Analyzer ── */
+void ProgrammazionePage::setupNetConnections()
+{
     connect(m_btnNetStart,    &QPushButton::clicked, this, &ProgrammazionePage::netStart);
     connect(m_btnNetStop,     &QPushButton::clicked, this, &ProgrammazionePage::netStop);
     connect(m_btnNetClear,    &QPushButton::clicked, this, &ProgrammazionePage::onBtnNetClearClicked);
     connect(m_btnNetAnalyze,  &QPushButton::clicked, this, &ProgrammazionePage::netAiAnalyze);
     connect(m_btnNetFixPerms, &QPushButton::clicked, this, &ProgrammazionePage::netFixPermissions);
-
-    return w;
 }
 
 void ProgrammazionePage::netStart()
@@ -1816,15 +1920,12 @@ void ProgrammazionePage::netAiAnalyze()
     m_netAiOutput->setPlainText("\xf0\x9f\xa4\x96  Analisi in corso...\n\n");
     m_btnNetAnalyze->setEnabled(false);
 
-    if (m_netTokenHolder) { delete m_netTokenHolder; m_netTokenHolder = nullptr; }
-    m_netTokenHolder = new QObject(this);
-
-    connect(m_ai, &AiClient::token, m_netTokenHolder,
-            [this](const QString& tok){ onNetAiToken(tok); });
-    connect(m_ai, &AiClient::finished, m_netTokenHolder,
-            [this](const QString& full){ onNetAiFinished(full); });
-    connect(m_ai, &AiClient::error, m_netTokenHolder,
-            [this](const QString& msg){ onNetAiError(msg); });
+    disconnect(m_netAiTokenConn);
+    disconnect(m_netAiFinishedConn);
+    disconnect(m_netAiErrorConn);
+    m_netAiTokenConn    = connect(m_ai, &AiClient::token,    this, &ProgrammazionePage::onNetAiToken);
+    m_netAiFinishedConn = connect(m_ai, &AiClient::finished, this, &ProgrammazionePage::onNetAiFinished);
+    m_netAiErrorConn    = connect(m_ai, &AiClient::error,    this, &ProgrammazionePage::onNetAiError);
     m_ai->chat(P::prependKnowledge(sys), user);
 }
 

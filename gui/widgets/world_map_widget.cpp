@@ -1,0 +1,514 @@
+#include "world_map_widget.h"
+#include <QPainter>
+#include <QMouseEvent>
+#include <QWheelEvent>
+#include <QResizeEvent>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QUrl>
+#include <QFont>
+#include <QFontMetrics>
+#include <QLineEdit>
+#include <QToolButton>
+#include <QLabel>
+#include <QListWidget>
+#include <QHBoxLayout>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QUrlQuery>
+#include <cmath>
+
+/* ── Coordinate math (Web Mercator / EPSG:3857) ─────────────────
+   World pixel space: 256*2^z × 256*2^z, origin = NW corner      */
+
+QPointF WorldMapWidget::latLonToWorld(double lat, double lon) const
+{
+    const double scale = kTileSize * (double)(1 << m_zoom);
+    const double x = (lon + 180.0) / 360.0 * scale;
+    const double lr = qBound(-85.05, lat, 85.05) * M_PI / 180.0;
+    const double y = (1.0 - std::log(std::tan(lr) + 1.0 / std::cos(lr)) / M_PI) / 2.0 * scale;
+    return QPointF(x, y);
+}
+
+void WorldMapWidget::worldToLatLon(double wx, double wy, double& lat, double& lon) const
+{
+    const double scale = kTileSize * (double)(1 << m_zoom);
+    lon = wx / scale * 360.0 - 180.0;
+    const double n = M_PI * (1.0 - 2.0 * wy / scale);
+    lat = std::atan(std::sinh(n)) * 180.0 / M_PI;
+}
+
+QPointF WorldMapWidget::worldToScreen(double wx, double wy) const
+{
+    return QPointF(wx - m_centerX + width()  / 2.0,
+                   wy - m_centerY + height() / 2.0);
+}
+
+QPointF WorldMapWidget::screenToWorld(double sx, double sy) const
+{
+    return QPointF(sx - width()  / 2.0 + m_centerX,
+                   sy - height() / 2.0 + m_centerY);
+}
+
+/* ── Tile helpers ───────────────────────────────────────────────── */
+
+QString WorldMapWidget::tileKey(int z, int x, int y) const
+{
+    return QString("%1/%2/%3").arg(z).arg(x).arg(y);
+}
+
+void WorldMapWidget::requestTile(int z, int x, int y)
+{
+    const int tilesN = 1 << z;
+    x = ((x % tilesN) + tilesN) % tilesN;
+    if (y < 0 || y >= tilesN) return;
+
+    const QString key = tileKey(z, x, y);
+    if (m_cache.contains(key) || m_pending.contains(key)) return;
+
+    if (m_cache.size() >= kMaxCache)
+        m_cache.remove(m_cache.firstKey());
+
+    m_pending.insert(key);
+    const QUrl url(QString("https://tile.openstreetmap.org/%1/%2/%3.png").arg(z).arg(x).arg(y));
+    QNetworkRequest req(url);
+    req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/2.8 (educational desktop app)");
+    req.setAttribute(QNetworkRequest::CacheLoadControlAttribute,
+                     QNetworkRequest::PreferCache);
+    m_net->get(req);
+}
+
+void WorldMapWidget::onTileReady(QNetworkReply* reply)
+{
+    reply->deleteLater();
+
+    if (reply->url().host() == "nominatim.openstreetmap.org") {
+        handleNominatimReply(reply);
+        return;
+    }
+
+    const QStringList parts = reply->url().path().split('/');
+    if (parts.size() < 4) return;
+
+    const int z = parts[1].toInt();
+    const int x = parts[2].toInt();
+    const int y = parts[3].left(parts[3].lastIndexOf('.')).toInt();
+    const QString key = tileKey(z, x, y);
+    m_pending.remove(key);
+
+    if (reply->error() != QNetworkReply::NoError) return;
+
+    QPixmap pix;
+    if (pix.loadFromData(reply->readAll())) {
+        m_cache.insert(key, pix);
+        update();
+    }
+}
+
+/* ── Constructor ────────────────────────────────────────────────── */
+
+WorldMapWidget::WorldMapWidget(QWidget* parent) : QWidget(parent)
+{
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    setCursor(Qt::CrossCursor);
+    setToolTip(
+        "Clicca: seleziona luogo  |  "
+        "Rotella: zoom  |  "
+        "Trascina: pan  |  "
+        "Doppio clic: reset");
+
+    m_net = new QNetworkAccessManager(this);
+    m_net->setAutoDeleteReplies(true);
+    connect(m_net, &QNetworkAccessManager::finished,
+            this,  &WorldMapWidget::onTileReady);
+
+    /* centra su Roma */
+    const QPointF wp = latLonToWorld(41.9, 12.5);
+    m_centerX = wp.x();
+    m_centerY = wp.y();
+
+    /* ── Search overlay ── */
+    m_searchBar = new QWidget(this);
+    m_searchBar->setStyleSheet(
+        "background:rgba(255,255,255,210);"
+        "border-radius:4px;"
+        "border:1px solid rgba(0,0,0,40);");
+
+    auto* searchLay = new QHBoxLayout(m_searchBar);
+    searchLay->setContentsMargins(4, 2, 4, 2);
+    searchLay->setSpacing(3);
+
+    m_searchEdit = new QLineEdit(m_searchBar);
+    m_searchEdit->setPlaceholderText("Cerca citt\xc3\xa0...");
+    m_searchEdit->setFrame(false);
+    m_searchEdit->setStyleSheet("background:transparent; font-size:11px;");
+
+    m_searchBtn = new QToolButton(m_searchBar);
+    m_searchBtn->setText("\xf0\x9f\x94\x8d");
+    m_searchBtn->setStyleSheet("border:none; background:transparent; font-size:13px;");
+    m_searchBtn->setCursor(Qt::ArrowCursor);
+
+    searchLay->addWidget(m_searchEdit);
+    searchLay->addWidget(m_searchBtn);
+
+    m_resultList = new QListWidget(this);
+    m_resultList->setMaximumHeight(140);
+    m_resultList->setStyleSheet(
+        "background:white;"
+        "border:1px solid #aaa;"
+        "border-top:none;"
+        "font-size:11px;");
+    m_resultList->setCursor(Qt::ArrowCursor);
+    m_resultList->hide();
+
+    connect(m_searchBtn,  &QToolButton::clicked,
+            this,         &WorldMapWidget::onSearchClicked);
+    connect(m_searchEdit, &QLineEdit::returnPressed,
+            this,         &WorldMapWidget::onSearchClicked);
+    connect(m_resultList, &QListWidget::itemActivated,
+            this,         &WorldMapWidget::onResultActivated);
+
+    /* ── Zoom controls (top-right) ── */
+    const QString btnStyle =
+        "QToolButton { border:none; background:transparent; font-size:14px; font-weight:bold; }"
+        "QToolButton:hover { background:rgba(0,0,0,30); border-radius:3px; }";
+
+    m_zoomBar = new QWidget(this);
+    m_zoomBar->setStyleSheet(
+        "background:rgba(255,255,255,210);"
+        "border-radius:4px;"
+        "border:1px solid rgba(0,0,0,40);");
+
+    auto* zoomLay = new QHBoxLayout(m_zoomBar);
+    zoomLay->setContentsMargins(4, 2, 4, 2);
+    zoomLay->setSpacing(2);
+
+    m_btnZoomOut = new QToolButton(m_zoomBar);
+    m_btnZoomOut->setText("\xe2\x88\x92");   /* − */
+    m_btnZoomOut->setStyleSheet(btnStyle);
+    m_btnZoomOut->setCursor(Qt::ArrowCursor);
+    m_btnZoomOut->setToolTip("Zoom out");
+
+    m_zoomLbl = new QLabel("z3", m_zoomBar);
+    m_zoomLbl->setStyleSheet("font-size:11px; color:#333; min-width:24px; text-align:center;");
+    m_zoomLbl->setAlignment(Qt::AlignCenter);
+
+    m_btnZoomIn = new QToolButton(m_zoomBar);
+    m_btnZoomIn->setText("+");
+    m_btnZoomIn->setStyleSheet(btnStyle);
+    m_btnZoomIn->setCursor(Qt::ArrowCursor);
+    m_btnZoomIn->setToolTip("Zoom in");
+
+    m_btnReset = new QToolButton(m_zoomBar);
+    m_btnReset->setText("\xe2\x8c\x82");   /* ⌂ */
+    m_btnReset->setStyleSheet(btnStyle);
+    m_btnReset->setCursor(Qt::ArrowCursor);
+    m_btnReset->setToolTip("Reimposta vista");
+
+    zoomLay->addWidget(m_btnZoomOut);
+    zoomLay->addWidget(m_zoomLbl);
+    zoomLay->addWidget(m_btnZoomIn);
+    zoomLay->addWidget(m_btnReset);
+
+    connect(m_btnZoomOut, &QToolButton::clicked, this, &WorldMapWidget::onZoomOutClicked);
+    connect(m_btnZoomIn,  &QToolButton::clicked, this, &WorldMapWidget::onZoomInClicked);
+    connect(m_btnReset,   &QToolButton::clicked, this, &WorldMapWidget::onResetViewClicked);
+
+    positionOverlay();
+    updateZoomLabel();
+}
+
+void WorldMapWidget::setCoords(double lat, double lon)
+{
+    m_markerLat = qBound(-85.05, lat, 85.05);
+    m_markerLon = qBound(-180.0, lon, 180.0);
+    m_hasMarker = true;
+    const QPointF wp = latLonToWorld(m_markerLat, m_markerLon);
+    m_centerX = wp.x();
+    m_centerY = wp.y();
+    update();
+}
+
+/* ── Overlay: posiziona barra ricerca, lista risultati e zoom bar ── */
+
+void WorldMapWidget::updateZoomLabel()
+{
+    m_zoomLbl->setText(QString("z%1").arg(m_zoom));
+    m_btnZoomOut->setEnabled(m_zoom > kMinZoom);
+    m_btnZoomIn ->setEnabled(m_zoom < kMaxZoom);
+}
+
+void WorldMapWidget::positionOverlay()
+{
+    const int margin  = 6;
+    const int barH    = 28;
+    /* search bar: larghezza max 220px per non sovrapporsi allo zoom bar */
+    const int searchW = qMin(width() - 2 * margin, 220);
+    m_searchBar->setGeometry(margin, margin, searchW, barH);
+    m_resultList->setGeometry(margin, margin + barH,
+                               searchW, m_resultList->maximumHeight());
+
+    /* zoom bar: in alto a destra, larghezza fissa */
+    const int zbW = 110;   /* larghezza fissa: − | z3 | + | ⌂ */
+    const int zbH = barH;
+    if (width() >= zbW + margin * 2)
+        m_zoomBar->setGeometry(width() - zbW - margin, margin, zbW, zbH);
+    m_zoomBar->raise();
+}
+
+/* ── Pulsanti zoom ──────────────────────────────────────────────── */
+
+void WorldMapWidget::onZoomInClicked()
+{
+    const int newZ = qBound(kMinZoom, m_zoom + 1, kMaxZoom);
+    if (newZ == m_zoom) return;
+    const double factor = std::pow(2.0, newZ - m_zoom);
+    m_centerX *= factor;
+    m_centerY *= factor;
+    m_zoom = newZ;
+    updateZoomLabel();
+    update();
+}
+
+void WorldMapWidget::onZoomOutClicked()
+{
+    const int newZ = qBound(kMinZoom, m_zoom - 1, kMaxZoom);
+    if (newZ == m_zoom) return;
+    const double factor = std::pow(2.0, newZ - m_zoom);
+    m_centerX *= factor;
+    m_centerY *= factor;
+    m_zoom = newZ;
+    updateZoomLabel();
+    update();
+}
+
+void WorldMapWidget::onResetViewClicked()
+{
+    m_zoom = 3;
+    const double lat = m_hasMarker ? m_markerLat : 41.9;
+    const double lon = m_hasMarker ? m_markerLon : 12.5;
+    const QPointF wp = latLonToWorld(lat, lon);
+    m_centerX = wp.x();
+    m_centerY = wp.y();
+    updateZoomLabel();
+    update();
+}
+
+void WorldMapWidget::resizeEvent(QResizeEvent* e)
+{
+    QWidget::resizeEvent(e);
+    positionOverlay();
+}
+
+/* ── Ricerca città (Nominatim) ──────────────────────────────────── */
+
+void WorldMapWidget::onSearchClicked()
+{
+    const QString q = m_searchEdit->text().trimmed();
+    if (q.isEmpty()) return;
+    m_resultList->clear();
+    m_resultList->hide();
+
+    QUrl url("https://nominatim.openstreetmap.org/search");
+    QUrlQuery params;
+    params.addQueryItem("q",      q);
+    params.addQueryItem("format", "json");
+    params.addQueryItem("limit",  "6");
+    url.setQuery(params);
+
+    QNetworkRequest req(url);
+    req.setHeader(QNetworkRequest::UserAgentHeader,
+                  "Prismalux/2.8 (educational desktop app)");
+    m_net->get(req);
+}
+
+void WorldMapWidget::handleNominatimReply(QNetworkReply* reply)
+{
+    if (reply->error() != QNetworkReply::NoError) return;
+    const QJsonArray arr = QJsonDocument::fromJson(reply->readAll()).array();
+    if (arr.isEmpty()) {
+        m_resultList->addItem("Nessun risultato");
+        m_resultList->setEnabled(false);
+    } else {
+        m_resultList->setEnabled(true);
+        for (const QJsonValue& v : arr) {
+            const QJsonObject o    = v.toObject();
+            const double      lat  = o["lat"].toString().toDouble();
+            const double      lon  = o["lon"].toString().toDouble();
+            const QString     name = o["display_name"].toString();
+            const QString     shortName = name.section(',', 0, 1).trimmed();
+            auto* item = new QListWidgetItem(shortName, m_resultList);
+            item->setData(Qt::UserRole,     lat);
+            item->setData(Qt::UserRole + 1, lon);
+            item->setData(Qt::UserRole + 2, shortName);
+            item->setToolTip(name);
+        }
+    }
+    m_resultList->show();
+    m_resultList->raise();
+}
+
+void WorldMapWidget::onResultActivated(QListWidgetItem* item)
+{
+    if (!item || !(item->flags() & Qt::ItemIsEnabled)) return;
+    const double lat  = item->data(Qt::UserRole).toDouble();
+    const double lon  = item->data(Qt::UserRole + 1).toDouble();
+    const QString nm  = item->data(Qt::UserRole + 2).toString();
+    m_zoom = 11;
+    setCoords(lat, lon);
+    emit coordsChanged(m_markerLat, m_markerLon);
+    emit cityNameChanged(nm);
+    m_resultList->hide();
+    m_searchEdit->clear();
+}
+
+/* ── paintEvent ─────────────────────────────────────────────────── */
+
+void WorldMapWidget::paintEvent(QPaintEvent*)
+{
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing);
+
+    /* sfondo oceano (visibile prima che arrivino i tile) */
+    p.fillRect(rect(), QColor(170, 210, 240));
+
+    drawTiles(p);
+    if (m_hasMarker) drawMarker(p);
+    drawAttrib(p);
+}
+
+void WorldMapWidget::drawTiles(QPainter& p)
+{
+    const int tilesN = 1 << m_zoom;
+    const double tlX = m_centerX - width()  / 2.0;
+    const double tlY = m_centerY - height() / 2.0;
+
+    const int tx0 = qMax(0, (int)std::floor(tlX / kTileSize));
+    const int tx1 = qMin(tilesN - 1, (int)std::floor((tlX + width())  / kTileSize));
+    const int ty0 = qMax(0, (int)std::floor(tlY / kTileSize));
+    const int ty1 = qMin(tilesN - 1, (int)std::floor((tlY + height()) / kTileSize));
+
+    for (int tx = tx0; tx <= tx1; ++tx) {
+        for (int ty = ty0; ty <= ty1; ++ty) {
+            const QString key = tileKey(m_zoom, tx, ty);
+            const QPointF sp = worldToScreen(tx * kTileSize, ty * kTileSize);
+            const QRect tileRect(sp.toPoint(), QSize(kTileSize + 1, kTileSize + 1));
+
+            if (m_cache.contains(key)) {
+                p.drawPixmap(tileRect, m_cache[key]);
+            } else {
+                p.fillRect(tileRect, QColor(200, 205, 215));
+                p.setPen(QColor(150, 155, 165));
+                QFont f = font(); f.setPixelSize(11); p.setFont(f);
+                p.drawText(tileRect, Qt::AlignCenter, "\xf0\x9f\x97\xba");
+                requestTile(m_zoom, tx, ty);
+            }
+        }
+    }
+}
+
+void WorldMapWidget::drawMarker(QPainter& p)
+{
+    const QPointF wp = latLonToWorld(m_markerLat, m_markerLon);
+    const QPointF sp = worldToScreen(wp.x(), wp.y());
+
+    /* ombra */
+    p.setPen(Qt::NoPen);
+    p.setBrush(QColor(0, 0, 0, 60));
+    p.drawEllipse(sp + QPointF(1, 1), 6, 6);
+
+    /* cerchio rosso */
+    p.setPen(QPen(Qt::white, 1.5));
+    p.setBrush(QColor(220, 40, 40));
+    p.drawEllipse(sp, 6, 6);
+
+    /* croce */
+    p.setPen(QPen(QColor(220, 40, 40, 180), 1.0));
+    p.drawLine(sp + QPointF(-12, 0), sp + QPointF(-7, 0));
+    p.drawLine(sp + QPointF(  7, 0), sp + QPointF(12, 0));
+    p.drawLine(sp + QPointF(0, -12), sp + QPointF(0, -7));
+    p.drawLine(sp + QPointF(0,   7), sp + QPointF(0, 12));
+}
+
+void WorldMapWidget::drawAttrib(QPainter& p)
+{
+    const QString txt = "\xa9 OpenStreetMap contributors";
+    QFont f = font(); f.setPixelSize(9); p.setFont(f);
+    const QFontMetrics fm(f);
+    const int tw = fm.horizontalAdvance(txt);
+    const QRectF bg(width() - tw - 8, height() - 14, tw + 6, 12);
+    p.fillRect(bg, QColor(255, 255, 255, 190));
+    p.setPen(QColor(30, 30, 30));
+    p.drawText(bg, Qt::AlignCenter, txt);
+}
+
+/* ── Zoom ───────────────────────────────────────────────────────── */
+
+void WorldMapWidget::wheelEvent(QWheelEvent* e)
+{
+    const int delta  = e->angleDelta().y() > 0 ? 1 : -1;
+    const int newZ   = qBound(kMinZoom, m_zoom + delta, kMaxZoom);
+    if (newZ == m_zoom) { e->accept(); return; }
+
+    /* zoom verso il cursore */
+    const double sx = e->position().x();
+    const double sy = e->position().y();
+    const double factor = std::pow(2.0, newZ - m_zoom);
+
+    m_centerX = m_centerX * factor + (sx - width()  / 2.0) * (factor - 1.0);
+    m_centerY = m_centerY * factor + (sy - height() / 2.0) * (factor - 1.0);
+    m_zoom = newZ;
+
+    updateZoomLabel();
+    update();
+    e->accept();
+}
+
+/* ── Pan + click ────────────────────────────────────────────────── */
+
+void WorldMapWidget::mousePressEvent(QMouseEvent* e)
+{
+    if (e->button() == Qt::LeftButton) {
+        m_dragging      = true;
+        m_dragStartScreen = e->pos();
+        m_dragStartCX   = m_centerX;
+        m_dragStartCY   = m_centerY;
+        m_pressPos      = e->pos();
+        setCursor(Qt::ClosedHandCursor);
+    }
+}
+
+void WorldMapWidget::mouseMoveEvent(QMouseEvent* e)
+{
+    if (m_dragging) {
+        const QPointF d = e->pos() - m_dragStartScreen;
+        m_centerX = m_dragStartCX - d.x();
+        m_centerY = m_dragStartCY - d.y();
+        update();
+    }
+}
+
+void WorldMapWidget::mouseReleaseEvent(QMouseEvent* e)
+{
+    if (e->button() != Qt::LeftButton) return;
+    setCursor(Qt::CrossCursor);
+    m_dragging = false;
+
+    if ((QPointF(e->pos()) - m_pressPos).manhattanLength() <= 4) {
+        /* click: imposta marcatore */
+        const QPointF w = screenToWorld(e->pos().x(), e->pos().y());
+        worldToLatLon(w.x(), w.y(), m_markerLat, m_markerLon);
+        m_markerLat = qBound(-85.05, m_markerLat, 85.05);
+        m_markerLon = qBound(-180.0, m_markerLon, 180.0);
+        m_hasMarker = true;
+        update();
+        emit coordsChanged(m_markerLat, m_markerLon);
+    }
+}
+
+void WorldMapWidget::mouseDoubleClickEvent(QMouseEvent*)
+{
+    onResetViewClicked();
+}

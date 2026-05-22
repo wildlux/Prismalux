@@ -153,6 +153,7 @@ set(SRCS
     pages/impara_page.cpp
     pages/ricerca_page.cpp
     pages/matematica_page.cpp
+    pages/sintetizzatore_page.cpp
 )
 
 if(Qt6Multimedia_FOUND)

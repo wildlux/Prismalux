@@ -231,10 +231,7 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
         t->addTab(m_manutenzione->buildBugTracker(),
                   "\xf0\x9f\x94\x8d  Bug Tracker");
 
-        t->addTab(m_manutenzione->buildCronTab(),
-                  "\xe2\x8f\xb0  Cron");
-
-        /* LAN Android spostata in Strumenti AI */
+        /* Cron spostato in Strumenti → pulsante ⏱ Cron */
 
         tabs->addTab(t, "\xf0\x9f\x94\xa7  Sistema");
     }

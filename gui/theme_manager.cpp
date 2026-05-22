@@ -22,6 +22,14 @@ ThemeManager::ThemeManager(QObject* parent) : QObject(parent) {
      * i file .qss vengono letti direttamente da disco a runtime.
      * Vantaggio: modificabili senza ricompilare; binario più leggero. */
     const QString d = QCoreApplication::applicationDirPath() + "/themes/";
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    /* Collega il segnale colorSchemeChanged di QStyleHints allo slot.
+     * QGuiApplication::styleHints() è disponibile da Qt 5.5, ma
+     * colorSchemeChanged è aggiunto in Qt 6.5. */
+    connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged,
+            this, &ThemeManager::onColorSchemeChanged);
+#endif
     m_themes = {
         { "dark_cyan",     "Dark Cyan (default)",               d + "dark_cyan.qss"     },
         { "dark_amber",    "Dark Amber",                        d + "dark_amber.qss"    },
@@ -107,8 +115,13 @@ void ThemeManager::apply(const QString& id) {
 void ThemeManager::loadSaved() {
     scanExternalThemes();   /* carica prima i temi custom dalla cartella */
     QSettings s("Prismalux", "GUI");
-    const QString saved = s.value(P::SK::kTheme, P::SK::kDefaultTheme).toString();
-    apply(saved);
+    m_followSystem = s.value(P::SK::kFollowSystem, false).toBool();
+    if (m_followSystem) {
+        applySystemTheme();
+    } else {
+        const QString saved = s.value(P::SK::kTheme, P::SK::kDefaultTheme).toString();
+        apply(saved);
+    }
 }
 
 void ThemeManager::scanExternalThemes() {
@@ -126,4 +139,44 @@ void ThemeManager::scanExternalThemes() {
         if (!label.isEmpty()) label[0] = label[0].toUpper();
         m_themes.append({ id, label + " (custom)", fi.absoluteFilePath() });
     }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   applySystemTheme — rileva dark/light dal sistema operativo e
+   applica il tema corrispondente.
+   Usa "dark_cyan" per dark e "light" per light (fallback).
+   Guard Qt 6.5 per colorScheme API.
+   ══════════════════════════════════════════════════════════════ */
+void ThemeManager::applySystemTheme() {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    const Qt::ColorScheme scheme = QGuiApplication::styleHints()->colorScheme();
+    if (scheme == Qt::ColorScheme::Dark)
+        apply("dark_cyan");
+    else
+        apply("light");
+#endif
+    /* Qt < 6.5: no-op — colorScheme non disponibile */
+}
+
+/* ══════════════════════════════════════════════════════════════
+   setFollowSystem — attiva/disattiva il follow del tema di
+   sistema. Salva la preferenza in QSettings e applica subito
+   il tema di sistema se follow=true.
+   ══════════════════════════════════════════════════════════════ */
+void ThemeManager::setFollowSystem(bool follow) {
+    m_followSystem = follow;
+    QSettings s("Prismalux", "GUI");
+    s.setValue(P::SK::kFollowSystem, follow);
+    if (follow)
+        applySystemTheme();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onColorSchemeChanged — slot collegato a
+   QStyleHints::colorSchemeChanged (Qt >= 6.5).
+   Aggiorna il tema solo se m_followSystem è attivo.
+   ══════════════════════════════════════════════════════════════ */
+void ThemeManager::onColorSchemeChanged() {
+    if (m_followSystem)
+        applySystemTheme();
 }

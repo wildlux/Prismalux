@@ -76,6 +76,9 @@ AgentiPage::AgentiPage(AiClient* ai, QWidget* parent)
        blockSignals previene il loop currentIndexChanged → setBackend. */
     connect(m_ai, &AiClient::modelChanged, this, &AgentiPage::onAiModelChanged);
 
+    /* Salva automaticamente ogni chat completata nello storico persistente */
+    connect(this, &AgentiPage::chatCompleted, this, &AgentiPage::onChatCompletedSave);
+
     m_ai->fetchModels();
 }
 

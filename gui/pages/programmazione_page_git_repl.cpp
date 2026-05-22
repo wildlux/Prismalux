@@ -69,27 +69,15 @@ private:
 
 /* ══════════════════════════════════════════════════════════════
    buildGitMcp — sub-tab "🔧 Git"
-
-   Operazioni git con assistenza AI:
-   - Status / Diff / Log / Branch — lettura sicura, nessuna conferma
-   - Add + Commit — richiede messaggio e conferma dialogo
-   - Pull / Push — richiede conferma dialogo
-   - AI panel: analizza output / genera commit message automaticamente
    ══════════════════════════════════════════════════════════════ */
 QWidget* ProgrammazionePage::buildGitMcp(QWidget* parent)
 {
-    QFont monoFont;
-    monoFont.setFamily("JetBrains Mono");
-    monoFont.setStyleHint(QFont::Monospace);
-    const int appPt = QApplication::font().pointSize();
-    monoFont.setPointSize(appPt > 0 ? appPt : 10);
-
     auto* w   = new QWidget(parent);
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(12, 12, 12, 12);
     lay->setSpacing(8);
 
-    /* Descrizione */
+    /* Descrizione + separatore */
     auto* desc = new QLabel(
         "\xf0\x9f\x94\xa7  <b>Git MCP</b> \xe2\x80\x94 "
         "Operazioni git con assistenza AI: analisi diff, "
@@ -103,8 +91,34 @@ QWidget* ProgrammazionePage::buildGitMcp(QWidget* parent)
     sep1->setObjectName("sidebarSep");
     lay->addWidget(sep1);
 
-    /* ── Repo path ── */
-    auto* repoRow = new QWidget(w);
+    QPushButton* btnBrowse     = nullptr;  /* wired inside buildGitRepoRow */
+    QPushButton* btnAddCommit  = nullptr;
+    QPushButton* btnPull       = nullptr;  /* unused: wired inside buildGitActionsRow */
+    QPushButton* btnPush       = nullptr;
+    QPushButton* btnClearGit   = nullptr;
+    QPushButton* btnGitAi      = nullptr;
+    QPushButton* btnGenCommit  = nullptr;
+    QPushButton* btnRefGit     = nullptr;
+    QPushButton* btnCloseGitAi = nullptr;
+
+    lay->addWidget(buildGitRepoRow(w, btnBrowse));      /* browse wired inside */
+    lay->addWidget(buildGitActionsRow(w));               /* all action btns wired inside */
+    lay->addWidget(buildGitCommitRow(w, btnAddCommit, btnPull, btnPush));
+    lay->addWidget(buildGitOutputGroup(w, btnClearGit, btnGitAi, btnGenCommit), 1);
+    lay->addWidget(buildGitAiPanel(w, btnRefGit, btnCloseGitAi));
+
+    setupGitConnections(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+                        nullptr, btnAddCommit, btnPush,
+                        btnClearGit, btnGitAi, btnGenCommit,
+                        btnRefGit, btnCloseGitAi);
+    return w;
+}
+
+/* ── Riga percorso repository ── */
+QWidget* ProgrammazionePage::buildGitRepoRow(QWidget* parent,
+                                               QPushButton*& outBtnBrowse)
+{
+    auto* repoRow = new QWidget(parent);
     auto* repoLay = new QHBoxLayout(repoRow);
     repoLay->setContentsMargins(0, 0, 0, 0);
     repoLay->setSpacing(8);
@@ -116,16 +130,21 @@ QWidget* ProgrammazionePage::buildGitMcp(QWidget* parent)
     m_gitRepoPath->setPlaceholderText("/percorso/repository");
     repoLay->addWidget(m_gitRepoPath, 1);
 
-    auto* btnBrowse = new QPushButton("\xf0\x9f\x93\x82", repoRow);
-    btnBrowse->setObjectName("actionBtn");
-    btnBrowse->setFixedWidth(34);
-    btnBrowse->setToolTip("Scegli cartella repository");
-    repoLay->addWidget(btnBrowse);
+    outBtnBrowse = new QPushButton("\xf0\x9f\x93\x82", repoRow);
+    outBtnBrowse->setObjectName("actionBtn");
+    outBtnBrowse->setFixedWidth(34);
+    outBtnBrowse->setToolTip("Scegli cartella repository");
+    repoLay->addWidget(outBtnBrowse);
 
-    lay->addWidget(repoRow);
+    connect(outBtnBrowse, &QPushButton::clicked,
+            this, &ProgrammazionePage::onBtnGitBrowseClicked);
+    return repoRow;
+}
 
-    /* ── Pulsanti azioni rapide ── */
-    m_gitActRow = new QWidget(w);
+/* ── Pulsanti azioni rapide (connessioni cablate internamente) ── */
+QWidget* ProgrammazionePage::buildGitActionsRow(QWidget* parent)
+{
+    m_gitActRow = new QWidget(parent);
     auto* actLay = new QHBoxLayout(m_gitActRow);
     actLay->setContentsMargins(0, 0, 0, 0);
     actLay->setSpacing(6);
@@ -138,12 +157,12 @@ QWidget* ProgrammazionePage::buildGitMcp(QWidget* parent)
         return b;
     };
 
-    auto* btnStatus = mkBtn("\xf0\x9f\x93\x8b  Status", "git status");
-    auto* btnDiff   = mkBtn("\xf0\x9f\x94\x8d  Diff",   "git diff (modifiche non staged)");
+    auto* btnStatus = mkBtn("\xf0\x9f\x93\x8b  Status",     "git status");
+    auto* btnDiff   = mkBtn("\xf0\x9f\x94\x8d  Diff",        "git diff (modifiche non staged)");
     auto* btnDiffSt = mkBtn("\xf0\x9f\x94\x8d  Diff staged", "git diff --staged");
-    auto* btnLog    = mkBtn("\xf0\x9f\x93\x9c  Log",    "git log --oneline -20");
-    auto* btnBranch = mkBtn("\xf0\x9f\x8c\xbf  Branch", "git branch -a");
-    auto* btnPull   = mkBtn("\xe2\xac\x87  Pull",       "git pull (richiede conferma)");
+    auto* btnLog    = mkBtn("\xf0\x9f\x93\x9c  Log",         "git log --oneline -20");
+    auto* btnBranch = mkBtn("\xf0\x9f\x8c\xbf  Branch",      "git branch -a");
+    auto* btnPull   = mkBtn("\xe2\xac\x87  Pull",            "git pull (richiede conferma)");
     actLay->addStretch(1);
 
     m_btnGitStop = new QPushButton("\xe2\x96\xa0  Stop", m_gitActRow);
@@ -152,10 +171,24 @@ QWidget* ProgrammazionePage::buildGitMcp(QWidget* parent)
     m_btnGitStop->setEnabled(false);
     actLay->addWidget(m_btnGitStop);
 
-    lay->addWidget(m_gitActRow);
+    connect(btnStatus, &QPushButton::clicked, this, &ProgrammazionePage::onBtnGitStatusClicked);
+    connect(btnDiff,   &QPushButton::clicked, this, &ProgrammazionePage::onBtnGitDiffClicked);
+    connect(btnDiffSt, &QPushButton::clicked, this, &ProgrammazionePage::onBtnGitDiffStagedClicked);
+    connect(btnLog,    &QPushButton::clicked, this, &ProgrammazionePage::onBtnGitLogClicked);
+    connect(btnBranch, &QPushButton::clicked, this, &ProgrammazionePage::onBtnGitBranchClicked);
+    connect(btnPull,   &QPushButton::clicked, this, &ProgrammazionePage::onBtnGitPullClicked);
+    connect(m_btnGitStop, &QPushButton::clicked, this, &ProgrammazionePage::onBtnGitStopClicked);
 
-    /* ── Commit row ── */
-    auto* commitRow = new QWidget(w);
+    return m_gitActRow;
+}
+
+/* ── Riga commit ── */
+QWidget* ProgrammazionePage::buildGitCommitRow(QWidget* parent,
+                                                QPushButton*& outBtnAddCommit,
+                                                QPushButton*& /*outBtnPull*/,
+                                                QPushButton*& outBtnPush)
+{
+    auto* commitRow = new QWidget(parent);
     auto* commitLay = new QHBoxLayout(commitRow);
     commitLay->setContentsMargins(0, 0, 0, 0);
     commitLay->setSpacing(6);
@@ -165,23 +198,33 @@ QWidget* ProgrammazionePage::buildGitMcp(QWidget* parent)
     m_gitCommitMsg->setPlaceholderText("Messaggio di commit...");
     commitLay->addWidget(m_gitCommitMsg, 1);
 
-    auto* btnAddCommit = new QPushButton(
-        "\xe2\x9c\x85  Add + Commit", commitRow);
-    btnAddCommit->setObjectName("actionBtn");
-    btnAddCommit->setProperty("highlight", "true");
-    btnAddCommit->setToolTip("git add -A  →  git commit -m \"...\"");
-    commitLay->addWidget(btnAddCommit);
+    outBtnAddCommit = new QPushButton("\xe2\x9c\x85  Add + Commit", commitRow);
+    outBtnAddCommit->setObjectName("actionBtn");
+    outBtnAddCommit->setProperty("highlight", "true");
+    outBtnAddCommit->setToolTip("git add -A  \xe2\x86\x92  git commit -m \"...\"");
+    commitLay->addWidget(outBtnAddCommit);
 
-    auto* btnPush = new QPushButton("\xe2\xac\x86  Push", commitRow);
-    btnPush->setObjectName("actionBtn");
-    btnPush->setToolTip("git push (richiede conferma)");
-    commitLay->addWidget(btnPush);
+    outBtnPush = new QPushButton("\xe2\xac\x86  Push", commitRow);
+    outBtnPush->setObjectName("actionBtn");
+    outBtnPush->setToolTip("git push (richiede conferma)");
+    commitLay->addWidget(outBtnPush);
 
-    lay->addWidget(commitRow);
+    return commitRow;
+}
 
-    /* ── Output git ── */
-    auto* outGroup = new QGroupBox(
-        "\xf0\x9f\x96\xa5  Output git", w);
+/* ── Gruppo output git + sub-toolbar ── */
+QWidget* ProgrammazionePage::buildGitOutputGroup(QWidget* parent,
+                                                   QPushButton*& outBtnClearGit,
+                                                   QPushButton*& outBtnGitAi,
+                                                   QPushButton*& outBtnGenCommit)
+{
+    QFont monoFont;
+    monoFont.setFamily("JetBrains Mono");
+    monoFont.setStyleHint(QFont::Monospace);
+    const int appPt = QApplication::font().pointSize();
+    monoFont.setPointSize(appPt > 0 ? appPt : 10);
+
+    auto* outGroup = new QGroupBox("\xf0\x9f\x96\xa5  Output git", parent);
     outGroup->setObjectName("cardGroup");
     auto* outLay = new QVBoxLayout(outGroup);
     outLay->setContentsMargins(4, 8, 4, 4);
@@ -193,42 +236,49 @@ QWidget* ProgrammazionePage::buildGitMcp(QWidget* parent)
     m_gitOutput->setReadOnly(true);
     m_gitOutput->setMaximumBlockCount(3000);
     m_gitOutput->setPlaceholderText(
-        "L'output dei comandi git appari\xc3\xa0 qui.\n\n"
-        "Premi Status per iniziare.");
+        "L'output dei comandi git appari\xc3\xa0 qui.\n\nPremi Status per iniziare.");
     outLay->addWidget(m_gitOutput, 1);
 
-    /* Sub-toolbar output */
     auto* outActRow = new QWidget(outGroup);
     auto* outActLay = new QHBoxLayout(outActRow);
     outActLay->setContentsMargins(0, 2, 0, 0);
     outActLay->setSpacing(8);
 
-    auto* btnClearGit = new QPushButton(
-        "\xf0\x9f\x97\x91  Pulisci", outActRow);
-    btnClearGit->setObjectName("actionBtn");
-    outActLay->addWidget(btnClearGit);
+    outBtnClearGit = new QPushButton("\xf0\x9f\x97\x91  Pulisci", outActRow);
+    outBtnClearGit->setObjectName("actionBtn");
+    outActLay->addWidget(outBtnClearGit);
 
-    auto* btnGitAi = new QPushButton(
-        "\xf0\x9f\xa4\x96  Analizza con AI", outActRow);
-    btnGitAi->setObjectName("actionBtn");
-    btnGitAi->setToolTip("L'AI spiega l'output e suggerisce le prossime operazioni");
-    outActLay->addWidget(btnGitAi);
+    outBtnGitAi = new QPushButton("\xf0\x9f\xa4\x96  Analizza con AI", outActRow);
+    outBtnGitAi->setObjectName("actionBtn");
+    outBtnGitAi->setToolTip(
+        "L'AI spiega l'output e suggerisce le prossime operazioni");
+    outActLay->addWidget(outBtnGitAi);
 
-    auto* btnGenCommit = new QPushButton(
-        "\xe2\x9c\x8f  Genera commit msg", outActRow);
-    btnGenCommit->setObjectName("actionBtn");
-    btnGenCommit->setProperty("highlight", "true");
-    btnGenCommit->setToolTip(
+    outBtnGenCommit = new QPushButton("\xe2\x9c\x8f  Genera commit msg", outActRow);
+    outBtnGenCommit->setObjectName("actionBtn");
+    outBtnGenCommit->setProperty("highlight", "true");
+    outBtnGenCommit->setToolTip(
         "Esegue git diff --staged, poi chiede all'AI di scrivere "
         "un messaggio di commit convenzionale");
-    outActLay->addWidget(btnGenCommit);
-
+    outActLay->addWidget(outBtnGenCommit);
     outActLay->addStretch(1);
-    outLay->addWidget(outActRow);
-    lay->addWidget(outGroup, 1);
 
-    /* ── AI panel (nascosto di default) ── */
-    m_gitAiPanel = new QWidget(w);
+    outLay->addWidget(outActRow);
+    return outGroup;
+}
+
+/* ── Pannello AI git (nascosto di default) ── */
+QWidget* ProgrammazionePage::buildGitAiPanel(QWidget* parent,
+                                               QPushButton*& outBtnRefGit,
+                                               QPushButton*& outBtnCloseGitAi)
+{
+    QFont monoFont;
+    monoFont.setFamily("JetBrains Mono");
+    monoFont.setStyleHint(QFont::Monospace);
+    const int appPt = QApplication::font().pointSize();
+    monoFont.setPointSize(appPt > 0 ? appPt : 10);
+
+    m_gitAiPanel = new QWidget(parent);
     m_gitAiPanel->setObjectName("aiPanel");
     auto* aiLay = new QVBoxLayout(m_gitAiPanel);
     aiLay->setContentsMargins(0, 4, 0, 0);
@@ -244,6 +294,7 @@ QWidget* ProgrammazionePage::buildGitMcp(QWidget* parent)
     aiModLay->setContentsMargins(0, 0, 0, 0);
     aiModLay->setSpacing(8);
     aiModLay->addWidget(new QLabel("\xf0\x9f\xa4\x96  Modello:", aiModRow));
+
     m_gitAiModel = new QComboBox(aiModRow);
     m_gitAiModel->setObjectName("settingCombo");
     m_gitAiModel->addItem(
@@ -251,14 +302,16 @@ QWidget* ProgrammazionePage::buildGitMcp(QWidget* parent)
              : "(AI non disponibile)",
         m_ai ? m_ai->model() : QString());
     aiModLay->addWidget(m_gitAiModel, 1);
-    auto* btnRefGit = new QPushButton("\xf0\x9f\x94\x84", aiModRow);
-    btnRefGit->setObjectName("actionBtn");
-    btnRefGit->setFixedWidth(32);
-    aiModLay->addWidget(btnRefGit);
-    auto* btnCloseGitAi = new QPushButton("\xe2\x9c\x95", aiModRow);
-    btnCloseGitAi->setObjectName("actionBtn");
-    btnCloseGitAi->setFixedWidth(32);
-    aiModLay->addWidget(btnCloseGitAi);
+
+    outBtnRefGit = new QPushButton("\xf0\x9f\x94\x84", aiModRow);
+    outBtnRefGit->setObjectName("actionBtn");
+    outBtnRefGit->setFixedWidth(32);
+    aiModLay->addWidget(outBtnRefGit);
+
+    outBtnCloseGitAi = new QPushButton("\xe2\x9c\x95", aiModRow);
+    outBtnCloseGitAi->setObjectName("actionBtn");
+    outBtnCloseGitAi->setFixedWidth(32);
+    aiModLay->addWidget(outBtnCloseGitAi);
     aiLay->addWidget(aiModRow);
 
     m_gitAiOutput = new QPlainTextEdit(m_gitAiPanel);
@@ -267,57 +320,41 @@ QWidget* ProgrammazionePage::buildGitMcp(QWidget* parent)
     m_gitAiOutput->setReadOnly(true);
     m_gitAiOutput->setMaximumBlockCount(2000);
     m_gitAiOutput->setMaximumHeight(200);
-    m_gitAiOutput->setPlaceholderText(
-        "L'analisi AI appari\xc3\xa0 qui...");
+    m_gitAiOutput->setPlaceholderText("L'analisi AI appari\xc3\xa0 qui...");
     aiLay->addWidget(m_gitAiOutput);
 
     m_gitAiPanel->hide();
-    lay->addWidget(m_gitAiPanel);
+    return m_gitAiPanel;
+}
 
-    /* ══════ Connessioni ══════ */
+/* ── Connessioni Git (browse+actions wired in their build helpers) ── */
+void ProgrammazionePage::setupGitConnections(QPushButton* /*btnBrowse*/,
+                                               QPushButton* /*btnStatus*/,
+                                               QPushButton* /*btnDiff*/,
+                                               QPushButton* /*btnDiffSt*/,
+                                               QPushButton* /*btnLog*/,
+                                               QPushButton* /*btnBranch*/,
+                                               QPushButton* /*btnPull*/,
+                                               QPushButton* btnAddCommit,
+                                               QPushButton* btnPush,
+                                               QPushButton* btnClearGit,
+                                               QPushButton* btnGitAi,
+                                               QPushButton* btnGenCommit,
+                                               QPushButton* btnRefGit,
+                                               QPushButton* btnCloseGitAi)
+{
+    if (btnRefGit) {
+        connect(btnRefGit, &QPushButton::clicked,
+                this, &ProgrammazionePage::populateGitModels);
+        QTimer::singleShot(0, this, &ProgrammazionePage::populateGitModels);
+    }
 
-
-    /* Popola modelli AI */
-    connect(btnRefGit, &QPushButton::clicked,
-            this, &ProgrammazionePage::populateGitModels);
-    QTimer::singleShot(0, this, &ProgrammazionePage::populateGitModels);
-
-    /* Azioni rapide */
-    connect(btnBrowse, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnGitBrowseClicked);
-    connect(m_btnGitStop, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnGitStopClicked);
-    connect(btnClearGit, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnClearGitClicked);
-    connect(btnCloseGitAi, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnCloseGitAiClicked);
-
-    /* Azioni git rapide */
-    connect(btnStatus, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnGitStatusClicked);
-    connect(btnDiff,   &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnGitDiffClicked);
-    connect(btnDiffSt, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnGitDiffStagedClicked);
-    connect(btnLog,    &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnGitLogClicked);
-    connect(btnBranch, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnGitBranchClicked);
-
-    /* Pull, Commit, Push */
-    connect(btnPull, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnGitPullClicked);
-    connect(btnAddCommit, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnAddCommitClicked);
-    connect(btnPush, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnPushClicked);
-
-    /* Analisi AI e genera commit */
-    connect(btnGitAi, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnGitAiClicked);
-    connect(btnGenCommit, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnGenCommitClicked);
-    return w;
+    if (btnAddCommit)  connect(btnAddCommit,  &QPushButton::clicked, this, &ProgrammazionePage::onBtnAddCommitClicked);
+    if (btnPush)       connect(btnPush,       &QPushButton::clicked, this, &ProgrammazionePage::onBtnPushClicked);
+    if (btnClearGit)   connect(btnClearGit,   &QPushButton::clicked, this, &ProgrammazionePage::onBtnClearGitClicked);
+    if (btnGitAi)      connect(btnGitAi,      &QPushButton::clicked, this, &ProgrammazionePage::onBtnGitAiClicked);
+    if (btnGenCommit)  connect(btnGenCommit,  &QPushButton::clicked, this, &ProgrammazionePage::onBtnGenCommitClicked);
+    if (btnCloseGitAi) connect(btnCloseGitAi, &QPushButton::clicked, this, &ProgrammazionePage::onBtnCloseGitAiClicked);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -421,48 +458,61 @@ void ProgrammazionePage::gitAiRequest(const QString& request, const QString& con
             .arg(mn, QString(qMax(mn.length(), 20), '-')));
     }
 
-    if (m_gitTokenHolder) { delete m_gitTokenHolder; m_gitTokenHolder = nullptr; }
-    m_gitTokenHolder = new QObject(this);
-
-    connect(m_ai, &AiClient::token, m_gitTokenHolder,
-            [this](const QString& tok){ onGitAiToken(tok); });
-    connect(m_ai, &AiClient::finished, m_gitTokenHolder,
-            [this](const QString& full){ onGitAiFinished(full); });
-    connect(m_ai, &AiClient::error, m_gitTokenHolder,
-            [this](const QString& msg){ onGitAiError(msg); });
+    disconnect(m_gitAiTokenConn);
+    disconnect(m_gitAiFinishedConn);
+    disconnect(m_gitAiErrorConn);
+    m_gitAiTokenConn    = connect(m_ai, &AiClient::token,    this, &ProgrammazionePage::onGitAiToken);
+    m_gitAiFinishedConn = connect(m_ai, &AiClient::finished, this, &ProgrammazionePage::onGitAiFinished);
+    m_gitAiErrorConn    = connect(m_ai, &AiClient::error,    this, &ProgrammazionePage::onGitAiError);
 
     m_ai->chat(sys, user);
 }
 
 /* ══════════════════════════════════════════════════════════════
    buildPythonRepl — sub-tab "🐍 REPL"
-
-   Sessione Python persistente tramite QProcess: le variabili
-   definite in un'esecuzione rimangono disponibili nelle successive.
-   Supporta frecce su/giù per la cronologia dei comandi.
    ══════════════════════════════════════════════════════════════ */
 QWidget* ProgrammazionePage::buildPythonRepl(QWidget* parent)
 {
-    QFont monoFont;
-    monoFont.setFamily("JetBrains Mono");
-    monoFont.setStyleHint(QFont::Monospace);
-    const int appPt = QApplication::font().pointSize();
-    monoFont.setPointSize(appPt > 0 ? appPt : 10);
-
     auto* w   = new QWidget(parent);
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(12, 12, 12, 12);
     lay->setSpacing(8);
 
-    /* ── Header ── */
-    auto* hdr = new QWidget(w);
+    QPushButton* btnRestart   = nullptr;
+    QPushButton* btnImport    = nullptr;
+    QPushButton* btnClearRepl = nullptr;
+
+    lay->addWidget(buildReplHeader(w, btnRestart, btnImport));
+
+    auto* sep = new QFrame(w);
+    sep->setFrameShape(QFrame::HLine);
+    sep->setObjectName("sidebarSep");
+    lay->addWidget(sep);
+
+    lay->addWidget(buildReplOutputGroup(w, btnClearRepl), 1);
+    lay->addWidget(buildReplInputRow(w));
+
+    m_replInput->installEventFilter(
+        new ReplHistFilter(m_replInput, m_replHistory, m_replHistIdx, this));
+
+    setupReplConnections(btnRestart, btnImport, btnClearRepl);
+    return w;
+}
+
+/* ── Header: descrizione + status + pulsanti ── */
+QWidget* ProgrammazionePage::buildReplHeader(QWidget* parent,
+                                               QPushButton*& outBtnRestart,
+                                               QPushButton*& outBtnImport)
+{
+    auto* hdr    = new QWidget(parent);
     auto* hdrLay = new QHBoxLayout(hdr);
     hdrLay->setContentsMargins(0, 0, 0, 0);
     hdrLay->setSpacing(10);
 
     auto* desc = new QLabel(
         "\xf0\x9f\x90\x8d  <b>Python REPL</b> \xe2\x80\x94 "
-        "Sessione interattiva persistente. Le variabili rimangono tra un'esecuzione e l'altra.", w);
+        "Sessione interattiva persistente. "
+        "Le variabili rimangono tra un'esecuzione e l'altra.", parent);
     desc->setObjectName("hintLabel");
     desc->setWordWrap(true);
     hdrLay->addWidget(desc, 1);
@@ -471,28 +521,32 @@ QWidget* ProgrammazionePage::buildPythonRepl(QWidget* parent)
     m_replStatus->setObjectName("hintLabel");
     hdrLay->addWidget(m_replStatus);
 
-    auto* btnRestart = new QPushButton("\xf0\x9f\x94\x84  Riavvia REPL", hdr);
-    btnRestart->setObjectName("actionBtn");
-    btnRestart->setToolTip("Riavvia il processo Python (resetta tutte le variabili)");
-    hdrLay->addWidget(btnRestart);
+    outBtnRestart = new QPushButton("\xf0\x9f\x94\x84  Riavvia REPL", hdr);
+    outBtnRestart->setObjectName("actionBtn");
+    outBtnRestart->setToolTip("Riavvia il processo Python (resetta tutte le variabili)");
+    hdrLay->addWidget(outBtnRestart);
 
-    auto* btnImport = new QPushButton(
-        "\xe2\x86\x90  Importa dall'editor", hdr);
-    btnImport->setObjectName("actionBtn");
-    btnImport->setToolTip(
+    outBtnImport = new QPushButton("\xe2\x86\x90  Importa dall'editor", hdr);
+    outBtnImport->setObjectName("actionBtn");
+    outBtnImport->setToolTip(
         "Esegue nel REPL il codice presente nel tab \xf0\x9f\x92\xbb Programmazione");
-    hdrLay->addWidget(btnImport);
+    hdrLay->addWidget(outBtnImport);
 
-    lay->addWidget(hdr);
+    return hdr;
+}
 
-    auto* sep = new QFrame(w);
-    sep->setFrameShape(QFrame::HLine);
-    sep->setObjectName("sidebarSep");
-    lay->addWidget(sep);
+/* ── Gruppo output REPL ── */
+QWidget* ProgrammazionePage::buildReplOutputGroup(QWidget* parent,
+                                                    QPushButton*& outBtnClear)
+{
+    QFont monoFont;
+    monoFont.setFamily("JetBrains Mono");
+    monoFont.setStyleHint(QFont::Monospace);
+    const int appPt = QApplication::font().pointSize();
+    monoFont.setPointSize(appPt > 0 ? appPt : 10);
 
-    /* ── Output REPL ── */
     auto* outGroup = new QGroupBox(
-        "\xf0\x9f\x96\xa5  Output sessione Python", w);
+        "\xf0\x9f\x96\xa5  Output sessione Python", parent);
     outGroup->setObjectName("cardGroup");
     auto* outLay = new QVBoxLayout(outGroup);
     outLay->setContentsMargins(4, 8, 4, 4);
@@ -507,15 +561,23 @@ QWidget* ProgrammazionePage::buildPythonRepl(QWidget* parent)
         "Premi \xf0\x9f\x94\x84 Riavvia REPL per avviare una sessione Python...");
     outLay->addWidget(m_replOutput, 1);
 
-    auto* btnClearRepl = new QPushButton(
-        "\xf0\x9f\x97\x91  Pulisci output", outGroup);
-    btnClearRepl->setObjectName("actionBtn");
-    outLay->addWidget(btnClearRepl, 0, Qt::AlignLeft);
+    outBtnClear = new QPushButton("\xf0\x9f\x97\x91  Pulisci output", outGroup);
+    outBtnClear->setObjectName("actionBtn");
+    outLay->addWidget(outBtnClear, 0, Qt::AlignLeft);
 
-    lay->addWidget(outGroup, 1);
+    return outGroup;
+}
 
-    /* ── Input line ── */
-    auto* inputRow = new QWidget(w);
+/* ── Riga input con prompt e cronologia ── */
+QWidget* ProgrammazionePage::buildReplInputRow(QWidget* parent)
+{
+    QFont monoFont;
+    monoFont.setFamily("JetBrains Mono");
+    monoFont.setStyleHint(QFont::Monospace);
+    const int appPt = QApplication::font().pointSize();
+    monoFont.setPointSize(appPt > 0 ? appPt : 10);
+
+    auto* inputRow = new QWidget(parent);
     auto* inputLay = new QHBoxLayout(inputRow);
     inputLay->setContentsMargins(0, 0, 0, 0);
     inputLay->setSpacing(6);
@@ -534,40 +596,29 @@ QWidget* ProgrammazionePage::buildPythonRepl(QWidget* parent)
     m_replInput->setEnabled(false);
     inputLay->addWidget(m_replInput, 1);
 
-    m_btnSendRepl = new QPushButton("Invia ▶", inputRow);
+    m_btnSendRepl = new QPushButton("Invia \xe2\x96\xb6", inputRow);
     m_btnSendRepl->setObjectName("actionBtn");
     m_btnSendRepl->setEnabled(false);
     inputLay->addWidget(m_btnSendRepl);
 
-    lay->addWidget(inputRow);
+    return inputRow;
+}
 
-    /* Cronologia con frecce su/giù */
-    m_replInput->installEventFilter(
-        new ReplHistFilter(m_replInput, m_replHistory, m_replHistIdx, this));
+/* ── Connessioni REPL ── */
+void ProgrammazionePage::setupReplConnections(QPushButton* btnRestart,
+                                               QPushButton* btnImport,
+                                               QPushButton* btnClearRepl)
+{
+    if (btnRestart)   connect(btnRestart,   &QPushButton::clicked, this, &ProgrammazionePage::onBtnReplRestartClicked);
+    if (btnImport)    connect(btnImport,    &QPushButton::clicked, this, &ProgrammazionePage::onBtnReplImportClicked);
+    if (btnClearRepl) connect(btnClearRepl, &QPushButton::clicked, this, &ProgrammazionePage::onBtnReplClearClicked);
 
-    /* ══════ Connessioni ══════ */
-
-    connect(btnRestart,  &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnReplRestartClicked);
-
-    connect(btnClearRepl, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnReplClearClicked);
-
-    /* Invia riga */
     connect(m_btnSendRepl, &QPushButton::clicked,
             this, &ProgrammazionePage::sendReplLine);
     connect(m_replInput, &QLineEdit::returnPressed,
             this, &ProgrammazionePage::sendReplLine);
-
-    /* Importa codice dall'editor nel REPL */
-    connect(btnImport, &QPushButton::clicked,
-            this, &ProgrammazionePage::onBtnReplImportClicked);
-
-    /* Avvia REPL automaticamente quando il tab viene mostrato la prima volta */
     connect(m_innerTabs, &QTabWidget::currentChanged,
             this, &ProgrammazionePage::onReplTabChanged);
-
-    return w;
 }
 
 /* ══════════════════════════════════════════════════════════════

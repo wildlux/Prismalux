@@ -23,6 +23,7 @@ namespace P = PrismaluxPaths;
 #include <QTimer>
 #include <QTextCursor>
 #include <QFrame>
+#include <QPointer>
 
 /* ══════════════════════════════════════════════════════════════
    ManutenzioneePage — costruttore minimale.
@@ -54,113 +55,166 @@ static const char* GRP_STYLE =
     "QGroupBox::title { subcontrol-origin:margin; left:10px; padding:0 4px; }";
 
 /* ══════════════════════════════════════════════════════════════
-   buildBackend() — Backend AI + selezione modello
-   Layout a 2 colonne: sinistra = connessione/modello, destra = config/server
+   buildBackend() — entry point: assembla le sezioni in una pagina.
    ══════════════════════════════════════════════════════════════ */
 QWidget* ManutenzioneePage::buildBackend()
+{
+    return buildBackendPage();
+}
+
+/* ── Livello 1: struttura pagina backend ─────────────────────── */
+QWidget* ManutenzioneePage::buildBackendPage()
 {
     auto* page    = new QWidget;
     auto* mainLay = new QVBoxLayout(page);
     mainLay->setContentsMargins(16, 14, 16, 14);
     mainLay->setSpacing(12);
 
-    /* ── 2 colonne ── */
     auto* colsRow = new QWidget(page);
     auto* colsLay = new QHBoxLayout(colsRow);
     colsLay->setContentsMargins(0, 0, 0, 0);
     colsLay->setSpacing(16);
 
-    /* ══════════════════════════════════════════════════════════
-       Colonna sinistra — Connessione & Modello
-       ══════════════════════════════════════════════════════════ */
-    auto* leftGroup = new QGroupBox("\xf0\x9f\x94\x8c  Connessione & Modello", colsRow);
-    leftGroup->setObjectName("cardGroup");
-    leftGroup->setFixedWidth(270);
-    auto* leftLay = new QVBoxLayout(leftGroup);
-    leftLay->setSpacing(6);
+    auto* leftGroup  = buildConnectionModelGroup(colsRow);
+    auto* rightGroup = buildAdvancedConfigGroup(colsRow);
+    colsLay->addWidget(leftGroup);
+    colsLay->addWidget(rightGroup, 1);
+    mainLay->addWidget(colsRow, 1);
 
-    leftLay->addWidget(new QLabel("Backend:", leftGroup));
-    m_cmbBackend = new QComboBox(leftGroup);
+    auto* updGroup = buildUpdateGroup(page);
+    mainLay->addWidget(updGroup, 0);
+
+    QTimer::singleShot(200, this, &ManutenzioneePage::onVerifyOllamaVersion);
+
+    return page;
+}
+
+/* ── Livello 2a: colonna sinistra — Connessione & Modello ─────── */
+QGroupBox* ManutenzioneePage::buildConnectionModelGroup(QWidget* parent)
+{
+    auto* grp = new QGroupBox("\xf0\x9f\x94\x8c  Connessione & Modello", parent);
+    grp->setObjectName("cardGroup");
+    grp->setFixedWidth(270);
+    auto* lay = new QVBoxLayout(grp);
+    lay->setSpacing(6);
+
+    lay->addWidget(new QLabel("Backend:", grp));
+    m_cmbBackend = new QComboBox(grp);
     m_cmbBackend->addItem(QString("\xf0\x9f\x90\xb3  Ollama  (:%1)").arg(P::kOllamaPort));
     m_cmbBackend->addItem(QString("\xf0\x9f\xa6\x99  llama-server  (:%1)").arg(P::kLlamaServerPort));
-    leftLay->addWidget(m_cmbBackend);
+    lay->addWidget(m_cmbBackend);
 
-    m_hostEdit = new QLineEdit("127.0.0.1", leftGroup);
+    m_hostEdit = new QLineEdit("127.0.0.1", grp);
     m_hostEdit->setObjectName("chatInput");
     m_hostEdit->setPlaceholderText("Host");
-    leftLay->addWidget(new QLabel("Host:", leftGroup));
-    leftLay->addWidget(m_hostEdit);
+    lay->addWidget(new QLabel("Host:", grp));
+    lay->addWidget(m_hostEdit);
 
-    m_portEdit = new QLineEdit("11434", leftGroup);
+    m_portEdit = new QLineEdit("11434", grp);
     m_portEdit->setObjectName("chatInput");
     m_portEdit->setPlaceholderText("Porta");
-    leftLay->addWidget(new QLabel("Porta:", leftGroup));
-    leftLay->addWidget(m_portEdit);
+    lay->addWidget(new QLabel("Porta:", grp));
+    lay->addWidget(m_portEdit);
 
-    auto* applyBtn = new QPushButton("Applica \xe2\x96\xb6", leftGroup);
+    auto* applyBtn = new QPushButton("Applica \xe2\x96\xb6", grp);
     applyBtn->setObjectName("actionBtn");
-    leftLay->addWidget(applyBtn);
+    lay->addWidget(applyBtn);
 
-    auto* sepL = new QFrame(leftGroup);
-    sepL->setFrameShape(QFrame::HLine);
-    sepL->setObjectName("sidebarSep");
-    leftLay->addWidget(sepL);
+    auto* sep = new QFrame(grp);
+    sep->setFrameShape(QFrame::HLine);
+    sep->setObjectName("sidebarSep");
+    lay->addWidget(sep);
 
-    leftLay->addWidget(new QLabel("Modello:", leftGroup));
-    m_cmbModel = new QComboBox(leftGroup);
+    lay->addWidget(new QLabel("Modello:", grp));
+    m_cmbModel = new QComboBox(grp);
     m_cmbModel->addItem("(nessun modello \xe2\x80\x94 backend non raggiungibile)");
-    leftLay->addWidget(m_cmbModel);
+    lay->addWidget(m_cmbModel);
 
-    auto* mdBtnRow = new QWidget(leftGroup);
-    auto* mdBtnL   = new QHBoxLayout(mdBtnRow);
-    mdBtnL->setContentsMargins(0, 0, 0, 0);
-    mdBtnL->setSpacing(6);
-    auto* refreshBtn  = new QPushButton("\xf0\x9f\x94\x84", leftGroup);
+    lay->addWidget(buildModelButtonRow(grp));
+    lay->addStretch(1);
+
+    connect(applyBtn, &QPushButton::clicked, this, &ManutenzioneePage::onApplyBtnClicked);
+    connect(m_cmbBackend, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &ManutenzioneePage::onBackendCmbChanged);
+    connect(m_ai, &AiClient::modelsReady, this, &ManutenzioneePage::onBackendModelsReady);
+    connect(m_ai, &AiClient::error,       this, &ManutenzioneePage::onBackendModelsFetchError);
+
+    return grp;
+}
+
+/* ── Livello 3: riga pulsanti modello (refresh + usa questo) ──── */
+QWidget* ManutenzioneePage::buildModelButtonRow(QGroupBox* parent)
+{
+    auto* row  = new QWidget(parent);
+    auto* lay  = new QHBoxLayout(row);
+    lay->setContentsMargins(0, 0, 0, 0);
+    lay->setSpacing(6);
+
+    auto* refreshBtn = new QPushButton("\xf0\x9f\x94\x84", parent);
     refreshBtn->setObjectName("actionBtn");
     refreshBtn->setFixedWidth(36);
     refreshBtn->setToolTip("Aggiorna lista modelli");
-    auto* setModelBtn = new QPushButton("\xe2\x9c\x93  Usa questo", leftGroup);
+    auto* setModelBtn = new QPushButton("\xe2\x9c\x93  Usa questo", parent);
     setModelBtn->setObjectName("actionBtn");
-    mdBtnL->addWidget(refreshBtn);
-    mdBtnL->addWidget(setModelBtn, 1);
-    leftLay->addWidget(mdBtnRow);
+    lay->addWidget(refreshBtn);
+    lay->addWidget(setModelBtn, 1);
 
-    leftLay->addStretch(1);
-    colsLay->addWidget(leftGroup);
+    connect(refreshBtn,   &QPushButton::clicked, m_ai, &AiClient::fetchModels);
+    connect(setModelBtn,  &QPushButton::clicked, this, &ManutenzioneePage::onSetModelBtnClicked);
 
-    /* ══════════════════════════════════════════════════════════
-       Colonna destra — Config formato + avvia llama-server
-       ══════════════════════════════════════════════════════════ */
-    auto* rightGroup = new QGroupBox("\xe2\x9a\x99\xef\xb8\x8f  Configurazione Avanzata", colsRow);
-    rightGroup->setObjectName("cardGroup");
-    auto* rightLay = new QVBoxLayout(rightGroup);
-    rightLay->setSpacing(8);
+    return row;
+}
 
-    /* ── Formato Config ── */
-    auto* fmtTitle = new QLabel("\xf0\x9f\x93\x84  <b>Formato Config</b>  (~/.prismalux_config)", rightGroup);
+/* ── Livello 2b: colonna destra — Configurazione Avanzata ─────── */
+QGroupBox* ManutenzioneePage::buildAdvancedConfigGroup(QWidget* parent)
+{
+    auto* grp = new QGroupBox("\xe2\x9a\x99\xef\xb8\x8f  Configurazione Avanzata", parent);
+    grp->setObjectName("cardGroup");
+    auto* lay = new QVBoxLayout(grp);
+    lay->setSpacing(8);
+
+    buildConfigFmtSection(grp, lay);
+
+    auto* srvSep = new QFrame(grp);
+    srvSep->setFrameShape(QFrame::HLine);
+    srvSep->setObjectName("sidebarSep");
+    lay->addWidget(srvSep);
+
+    buildLlamaServerSection(grp, lay);
+    lay->addStretch(1);
+
+    return grp;
+}
+
+/* ── Livello 3a: sezione Formato Config ──────────────────────── */
+void ManutenzioneePage::buildConfigFmtSection(QGroupBox* grp, QVBoxLayout* lay)
+{
+    auto* fmtTitle = new QLabel(
+        "\xf0\x9f\x93\x84  <b>Formato Config</b>  (~/.prismalux_config)", grp);
     fmtTitle->setObjectName("cardTitle");
     fmtTitle->setTextFormat(Qt::RichText);
-    rightLay->addWidget(fmtTitle);
+    lay->addWidget(fmtTitle);
 
     auto* fmtDesc = new QLabel(
         "<b>JSON</b>: standard, leggibile dai tool esterni.&nbsp;"
         "<b>TOON</b>: flat <code>chiave: valore</code>, -12% dimensione.",
-        rightGroup);
+        grp);
     fmtDesc->setObjectName("cardDesc");
     fmtDesc->setWordWrap(true);
-    rightLay->addWidget(fmtDesc);
+    lay->addWidget(fmtDesc);
 
-    auto* fmtRow  = new QWidget(rightGroup);
+    auto* fmtRow  = new QWidget(grp);
     auto* fmtRowL = new QHBoxLayout(fmtRow);
     fmtRowL->setContentsMargins(0, 0, 0, 0);
     fmtRowL->setSpacing(8);
     fmtRowL->addWidget(new QLabel("Formato:", fmtRow));
+
     m_cmbFmt = new QComboBox(fmtRow);
     m_cmbFmt->addItem("JSON  (.prismalux_config.json)", QString("json"));
     m_cmbFmt->addItem("TOON  (.prismalux_config.toon)", QString("toon"));
     {
-        QString cur = detectConfigFmt();
-        int idx = m_cmbFmt->findData(cur);
+        const QString cur = detectConfigFmt();
+        const int idx = m_cmbFmt->findData(cur);
         if (idx >= 0) m_cmbFmt->setCurrentIndex(idx);
     }
     auto* fmtApply = new QPushButton("Converti \xe2\x96\xb6", fmtRow);
@@ -170,30 +224,30 @@ QWidget* ManutenzioneePage::buildBackend()
     fmtRowL->addWidget(m_cmbFmt, 1);
     fmtRowL->addWidget(fmtApply);
     fmtRowL->addWidget(m_fmtStatus, 1);
-    rightLay->addWidget(fmtRow);
+    lay->addWidget(fmtRow);
 
-    /* ── separatore ── */
-    auto* srvSep = new QFrame(rightGroup);
-    srvSep->setFrameShape(QFrame::HLine);
-    srvSep->setObjectName("sidebarSep");
-    rightLay->addWidget(srvSep);
+    connect(fmtApply, &QPushButton::clicked, this, &ManutenzioneePage::onFmtApplyClicked);
+}
 
-    /* ── Avvia llama-server (visibile solo con llama-server selezionato) ── */
-    m_grpServ = new QGroupBox("\xf0\x9f\xa6\x99  llama.cpp \xe2\x80\x94 Avvia llama-server", rightGroup);
-    auto* grpServ = m_grpServ;
-    grpServ->setVisible(false);
-    grpServ->setStyleSheet(GRP_STYLE);
-    auto* srvLay = new QVBoxLayout(grpServ);
+/* ── Livello 3b: sezione llama-server ────────────────────────── */
+void ManutenzioneePage::buildLlamaServerSection(QGroupBox* grp, QVBoxLayout* lay)
+{
+    m_grpServ = new QGroupBox(
+        "\xf0\x9f\xa6\x99  llama.cpp \xe2\x80\x94 Avvia llama-server", grp);
+    m_grpServ->setVisible(false);
+    m_grpServ->setStyleSheet(GRP_STYLE);
+    auto* srvLay = new QVBoxLayout(m_grpServ);
     srvLay->setSpacing(8);
 
     /* Riga modello */
-    auto* srvModelRow = new QWidget(grpServ);
+    auto* srvModelRow = new QWidget(m_grpServ);
     auto* srvModelL   = new QHBoxLayout(srvModelRow);
-    srvModelL->setContentsMargins(0,0,0,0); srvModelL->setSpacing(8);
-    m_srvModelPath = new QLineEdit(grpServ);
+    srvModelL->setContentsMargins(0, 0, 0, 0);
+    srvModelL->setSpacing(8);
+    m_srvModelPath = new QLineEdit(m_grpServ);
     m_srvModelPath->setObjectName("chatInput");
     m_srvModelPath->setPlaceholderText("percorso/al/modello.gguf");
-    auto* srvBrowse = new QPushButton("\xe2\x80\xa6", grpServ);
+    auto* srvBrowse = new QPushButton("\xe2\x80\xa6", m_grpServ);
     srvBrowse->setObjectName("actionBtn");
     srvBrowse->setFixedWidth(32);
     srvModelL->addWidget(new QLabel("Modello:", srvModelRow));
@@ -201,18 +255,19 @@ QWidget* ManutenzioneePage::buildBackend()
     srvModelL->addWidget(srvBrowse);
     srvLay->addWidget(srvModelRow);
 
-    /* Riga porta + pulsanti */
-    auto* srvCtrlRow = new QWidget(grpServ);
+    /* Riga porta + pulsanti avvio/stop */
+    auto* srvCtrlRow = new QWidget(m_grpServ);
     auto* srvCtrlL   = new QHBoxLayout(srvCtrlRow);
-    srvCtrlL->setContentsMargins(0,0,0,0); srvCtrlL->setSpacing(8);
-    m_srvPort = new QLineEdit(QString::number(P::kLlamaServerPort), grpServ);
+    srvCtrlL->setContentsMargins(0, 0, 0, 0);
+    srvCtrlL->setSpacing(8);
+    m_srvPort = new QLineEdit(QString::number(P::kLlamaServerPort), m_grpServ);
     m_srvPort->setObjectName("chatInput");
     m_srvPort->setFixedWidth(70);
-    m_srvStartBtn = new QPushButton("\xe2\x96\xb6  Avvia", grpServ);
+    m_srvStartBtn = new QPushButton("\xe2\x96\xb6  Avvia", m_grpServ);
     m_srvStartBtn->setObjectName("actionBtn");
-    m_srvStopBtn = new QPushButton("\xe2\x96\xa0  Stop", grpServ);
+    m_srvStopBtn = new QPushButton("\xe2\x96\xa0  Stop", m_grpServ);
     m_srvStopBtn->setObjectName("actionBtn");
-    m_srvStopBtn->setProperty("danger","true");
+    m_srvStopBtn->setProperty("danger", "true");
     m_srvStopBtn->setEnabled(false);
     srvCtrlL->addWidget(new QLabel("Porta:", srvCtrlRow));
     srvCtrlL->addWidget(m_srvPort);
@@ -222,53 +277,38 @@ QWidget* ManutenzioneePage::buildBackend()
     srvCtrlL->addStretch(1);
     srvLay->addWidget(srvCtrlRow);
 
-    /* Log output server */
-    m_srvLog = new QTextEdit(grpServ);
+    /* Log output */
+    m_srvLog = new QTextEdit(m_grpServ);
     m_srvLog->setReadOnly(true);
     m_srvLog->setObjectName("chatLog");
     m_srvLog->setMinimumHeight(80);
     m_srvLog->setPlaceholderText("Log llama-server...");
     srvLay->addWidget(m_srvLog);
 
-    rightLay->addWidget(grpServ);
-    rightLay->addStretch(1);
+    lay->addWidget(m_grpServ);
 
-    colsLay->addWidget(rightGroup, 1);
-    mainLay->addWidget(colsRow, 1);
-
-    /* ── Connessioni Avvia server ── */
-    connect(srvBrowse, &QPushButton::clicked, this, &ManutenzioneePage::onSrvBrowseClicked);
+    connect(srvBrowse,    &QPushButton::clicked, this, &ManutenzioneePage::onSrvBrowseClicked);
     connect(m_srvStartBtn, &QPushButton::clicked, this, &ManutenzioneePage::onSrvStartClicked);
     connect(m_srvStopBtn,  &QPushButton::clicked, this, &ManutenzioneePage::onSrvStopClicked);
+}
 
-    /* ── Connessioni Config ── */
-    connect(fmtApply, &QPushButton::clicked, this, &ManutenzioneePage::onFmtApplyClicked);
+/* ── Livello 2c: gruppo Aggiornamento Modelli & GPU/RAM ──────── */
+QGroupBox* ManutenzioneePage::buildUpdateGroup(QWidget* parent)
+{
+    auto* grp = new QGroupBox(
+        "\xf0\x9f\x94\x84  Aggiornamento Modelli & GPU/RAM", parent);
+    grp->setObjectName("cardGroup");
+    auto* lay = new QVBoxLayout(grp);
+    lay->setSpacing(6);
+    lay->setContentsMargins(10, 14, 10, 8);
 
-    /* ── Connessioni Backend ── */
-    connect(applyBtn,   &QPushButton::clicked, this, &ManutenzioneePage::onApplyBtnClicked);
-    connect(refreshBtn, &QPushButton::clicked, m_ai, &AiClient::fetchModels);
-    connect(m_ai, &AiClient::modelsReady, this, &ManutenzioneePage::onBackendModelsReady);
-    connect(m_ai, &AiClient::error,       this, &ManutenzioneePage::onBackendModelsFetchError);
-    connect(setModelBtn, &QPushButton::clicked, this, &ManutenzioneePage::onSetModelBtnClicked);
-    connect(m_cmbBackend, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &ManutenzioneePage::onBackendCmbChanged);
-
-    /* ══════════════════════════════════════════════════════════
-       Sezione: Aggiornamento Modelli & Info GPU/RAM
-       ══════════════════════════════════════════════════════════ */
-    auto* updGroup = new QGroupBox(
-        "\xf0\x9f\x94\x84  Aggiornamento Modelli & GPU/RAM", page);
-    updGroup->setObjectName("cardGroup");
-    auto* updLay = new QVBoxLayout(updGroup);
-    updLay->setSpacing(6);
-    updLay->setContentsMargins(10, 14, 10, 8);
-
-    /* ── Versione Ollama ── */
-    auto* verRow = new QWidget(updGroup);
+    /* Versione Ollama */
+    auto* verRow = new QWidget(grp);
     auto* verLay = new QHBoxLayout(verRow);
     verLay->setContentsMargins(0, 0, 0, 0);
     verLay->setSpacing(8);
-    m_verLbl = new QLabel("\xf0\x9f\x90\xb3  Ollama: <i>verifica in corso...</i>", verRow);
+    m_verLbl = new QLabel(
+        "\xf0\x9f\x90\xb3  Ollama: <i>verifica in corso...</i>", verRow);
     m_verLbl->setObjectName("cardDesc");
     m_verLbl->setTextFormat(Qt::RichText);
     verLay->addWidget(m_verLbl, 1);
@@ -276,17 +316,17 @@ QWidget* ManutenzioneePage::buildBackend()
     verBtn->setObjectName("actionBtn");
     verBtn->setFixedWidth(90);
     verLay->addWidget(verBtn);
-    updLay->addWidget(verRow);
+    lay->addWidget(verRow);
 
-    /* ── GPU vs RAM hint ── */
-    m_ramStatusLbl = new QLabel("", updGroup);
+    /* GPU vs RAM hint */
+    m_ramStatusLbl = new QLabel("", grp);
     m_ramStatusLbl->setObjectName("cardDesc");
     m_ramStatusLbl->setWordWrap(true);
     m_ramStatusLbl->setTextFormat(Qt::RichText);
-    updLay->addWidget(m_ramStatusLbl);
+    lay->addWidget(m_ramStatusLbl);
 
-    /* ── Pulsanti aggiornamento modelli ── */
-    auto* btnRow = new QWidget(updGroup);
+    /* Pulsanti aggiornamento modelli */
+    auto* btnRow  = new QWidget(grp);
     auto* btnRowL = new QHBoxLayout(btnRow);
     btnRowL->setContentsMargins(0, 0, 0, 0);
     btnRowL->setSpacing(8);
@@ -302,26 +342,22 @@ QWidget* ManutenzioneePage::buildBackend()
     btnRowL->addWidget(m_updAllBtn);
     btnRowL->addWidget(m_updLlamaBtn);
     btnRowL->addWidget(m_updStatusLbl, 1);
-    updLay->addWidget(btnRow);
+    lay->addWidget(btnRow);
 
-    /* ── Log aggiornamento (compatto) ── */
-    m_updLog = new QTextEdit(updGroup);
+    /* Log aggiornamento */
+    m_updLog = new QTextEdit(grp);
     m_updLog->setReadOnly(true);
     m_updLog->setObjectName("chatLog");
     m_updLog->setMinimumHeight(80);
-    m_updLog->setPlaceholderText("Premi \"Aggiorna tutti\" per scaricare le ultime versioni dei modelli Ollama.");
-    updLay->addWidget(m_updLog);
+    m_updLog->setPlaceholderText(
+        "Premi \"Aggiorna tutti\" per scaricare le ultime versioni dei modelli Ollama.");
+    lay->addWidget(m_updLog);
 
-    mainLay->addWidget(updGroup, 0);
+    connect(verBtn,       &QPushButton::clicked, this, &ManutenzioneePage::onVerifyOllamaVersion);
+    connect(m_updAllBtn,  &QPushButton::clicked, this, &ManutenzioneePage::onUpdAllBtnClicked);
+    connect(m_updLlamaBtn,&QPushButton::clicked, this, &ManutenzioneePage::onUpdLlamaBtnClicked);
 
-    connect(verBtn, &QPushButton::clicked, this, &ManutenzioneePage::onVerifyOllamaVersion);
-    connect(m_updAllBtn,   &QPushButton::clicked, this, &ManutenzioneePage::onUpdAllBtnClicked);
-    connect(m_updLlamaBtn, &QPushButton::clicked, this, &ManutenzioneePage::onUpdLlamaBtnClicked);
-
-    /* Verifica versione Ollama subito all'apertura */
-    QTimer::singleShot(200, this, &ManutenzioneePage::onVerifyOllamaVersion);
-
-    return page;
+    return grp;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -382,74 +418,102 @@ QWidget* ManutenzioneePage::buildConfigFmt()
 }
 
 /* ══════════════════════════════════════════════════════════════
-   buildHardware() — Info Hardware + Ottimizzazione RAM
-   Layout a 2 colonne: sinistra = info hw, destra = ottimizzazione RAM
+   buildHardware() — entry point: assembla le sezioni in una pagina.
    ══════════════════════════════════════════════════════════════ */
 QWidget* ManutenzioneePage::buildHardware()
 {
-    auto* page     = new QWidget;
-    auto* mainLay  = new QVBoxLayout(page);
+    return buildHardwarePage();
+}
+
+/* ── Livello 1: struttura pagina hardware ────────────────────── */
+QWidget* ManutenzioneePage::buildHardwarePage()
+{
+    auto* page    = new QWidget;
+    auto* mainLay = new QVBoxLayout(page);
     mainLay->setContentsMargins(16, 14, 16, 14);
     mainLay->setSpacing(12);
 
 #ifndef Q_OS_WIN
-    /* Banner zRAM — mostrato da updateHWLabel() se RAM libera < 20% */
+    mainLay->addWidget(buildZramWarningBanner(page));
+#endif
+
+    auto* colsRow = new QWidget(page);
+    auto* colsLay = new QHBoxLayout(colsRow);
+    colsLay->setContentsMargins(0, 0, 0, 0);
+    colsLay->setSpacing(16);
+    colsLay->addWidget(buildInfoHardwareGroup(colsRow));
+    colsLay->addWidget(buildRamOptGroup(colsRow), 1);
+    mainLay->addWidget(colsRow);
+
+    auto* computeGroup = buildComputeModeGroup(page);
+    auto* npuGroup     = buildNpuGroup(page);
+
+    auto* bottomRow = new QHBoxLayout;
+    bottomRow->setSpacing(12);
+    bottomRow->addWidget(computeGroup, 55);
+    bottomRow->addWidget(npuGroup,     45);
+    mainLay->addLayout(bottomRow);
+
+    mainLay->addStretch(1);
+
+    auto* sc = new QScrollArea;
+    sc->setWidgetResizable(true);
+    sc->setFrameShape(QFrame::NoFrame);
+    sc->setWidget(page);
+    return sc;
+}
+
+/* ── Livello 2a: banner avviso RAM bassa (Linux only) ─────────── */
+QLabel* ManutenzioneePage::buildZramWarningBanner(QWidget* parent)
+{
     m_zramWarnLbl = new QLabel(
         "\xe2\x9a\xa0  <b>RAM libera bassa (&lt;20%)</b> \xe2\x80\x94 "
         "attiva zRAM per guadagnare ~30-40% di memoria effettiva:<br>"
         "<code>sudo systemctl enable --now systemd-zram-setup@zram0</code><br>"
-        "Oppure usa i pulsanti <b>Abilita zRAM</b> qui sotto \xe2\x86\x93", page);
+        "Oppure usa i pulsanti <b>Abilita zRAM</b> qui sotto \xe2\x86\x93", parent);
     m_zramWarnLbl->setTextFormat(Qt::RichText);
     m_zramWarnLbl->setWordWrap(true);
     m_zramWarnLbl->setStyleSheet(
         "background:#6b3a00; color:#ffe0a0; "
         "border:1px solid #c07800; border-radius:5px; padding:8px;");
     m_zramWarnLbl->hide();
-    mainLay->addWidget(m_zramWarnLbl);
-#endif
+    return m_zramWarnLbl;
+}
 
-    /* ── 2 colonne ── */
-    auto* colsRow = new QWidget(page);
-    auto* colsLay = new QHBoxLayout(colsRow);
-    colsLay->setContentsMargins(0, 0, 0, 0);
-    colsLay->setSpacing(16);
+/* ── Livello 2b: colonna sinistra — Info Hardware ─────────────── */
+QGroupBox* ManutenzioneePage::buildInfoHardwareGroup(QWidget* parent)
+{
+    auto* grp = new QGroupBox("\xf0\x9f\x96\xa5  Info Hardware", parent);
+    grp->setObjectName("cardGroup");
+    grp->setFixedWidth(220);
+    auto* lay = new QVBoxLayout(grp);
 
-    /* ══════════════════════════════════════════════════════════
-       Colonna sinistra — Info Hardware
-       ══════════════════════════════════════════════════════════ */
-    auto* leftGroup = new QGroupBox("\xf0\x9f\x96\xa5  Info Hardware", colsRow);
-    leftGroup->setObjectName("cardGroup");
-    leftGroup->setFixedWidth(220);
-    auto* leftLay = new QVBoxLayout(leftGroup);
-
-    m_hwLabel = new QLabel("\xe2\x8f\xb3  Rilevamento hardware in corso...", leftGroup);
+    m_hwLabel = new QLabel("\xe2\x8f\xb3  Rilevamento hardware in corso...", grp);
     m_hwLabel->setObjectName("cardDesc");
     m_hwLabel->setWordWrap(true);
-    m_hwLabel->setStyleSheet("font-family:'Consolas','Courier New',monospace; "
-                              "color:#a0a4c0; padding:4px;");
-    leftLay->addWidget(m_hwLabel);
-    leftLay->addStretch(1);
-    colsLay->addWidget(leftGroup);
+    m_hwLabel->setStyleSheet(
+        "font-family:'Consolas','Courier New',monospace; "
+        "color:#a0a4c0; padding:4px;");
+    lay->addWidget(m_hwLabel);
+    lay->addStretch(1);
 
-    /* ══════════════════════════════════════════════════════════
-       Colonna destra — Ottimizzazione RAM
-       Linux  : zRAM con algoritmo zstd (Meta/Facebook).
-       Windows: Memory Compression integrata (Enable-MMAgent).
-       ══════════════════════════════════════════════════════════ */
-    auto* rightGroup = new QGroupBox("\xf0\x9f\x92\xbe  Ottimizzazione RAM", colsRow);
-    rightGroup->setObjectName("cardGroup");
-    auto* ramLay = new QVBoxLayout(rightGroup);
-    ramLay->setSpacing(8);
+    return grp;
+}
 
-    /* Alias per retrocompatibilità con i lambda e connessioni sotto */
-    auto* grpRam = rightGroup;
+/* ── Livello 2c: colonna destra — Ottimizzazione RAM ──────────── */
+QGroupBox* ManutenzioneePage::buildRamOptGroup(QWidget* parent)
+{
+    auto* grp = new QGroupBox("\xf0\x9f\x92\xbe  Ottimizzazione RAM", parent);
+    grp->setObjectName("cardGroup");
+    auto* lay = new QVBoxLayout(grp);
+    lay->setSpacing(8);
 
     m_ramStatusLbl = new QLabel(
         "Premi \"\xf0\x9f\x94\x8d Rileva\" per controllare lo stato della compressione RAM.",
-        rightGroup);
+        grp);
     m_ramStatusLbl->setObjectName("cardDesc");
     m_ramStatusLbl->setWordWrap(true);
-    ramLay->addWidget(m_ramStatusLbl);
+    lay->addWidget(m_ramStatusLbl);
 
     auto* ramDesc = new QLabel(
 #ifdef Q_OS_WIN
@@ -462,19 +526,18 @@ QWidget* ManutenzioneePage::buildHardware()
         "<i>Singola</i>: 1 device, 50% RAM, lz4. "
         "<i>Doppia</i>: compatta + 2 device zstd (75% RAM).",
 #endif
-        rightGroup);
+        grp);
     ramDesc->setObjectName("cardDesc");
     ramDesc->setWordWrap(true);
-    ramLay->addWidget(ramDesc);
+    lay->addWidget(ramDesc);
 
 #ifndef Q_OS_WIN
-    /* ── Checkbox auto-avvio zRAM Doppia ── */
-    auto* autoZramRow = new QWidget(rightGroup);
+    auto* autoZramRow = new QWidget(grp);
     auto* autoZramLay = new QHBoxLayout(autoZramRow);
     autoZramLay->setContentsMargins(0, 0, 0, 0);
     autoZramLay->setSpacing(8);
     auto* autoZramCb = new QCheckBox(
-        "\xf0\x9f\x92\xbe\xf0\x9f\x92\xbe  Abilita Doppia zstd automaticamente all'avvio", rightGroup);
+        "\xf0\x9f\x92\xbe\xf0\x9f\x92\xbe  Abilita Doppia zstd automaticamente all'avvio", grp);
     autoZramCb->setObjectName("cardDesc");
     {
         QSettings s("Prismalux", "GUI");
@@ -482,83 +545,95 @@ QWidget* ManutenzioneePage::buildHardware()
     }
     autoZramLay->addWidget(autoZramCb);
     autoZramLay->addStretch();
-    ramLay->addWidget(autoZramRow);
+    lay->addWidget(autoZramRow);
     connect(autoZramCb, &QCheckBox::toggled, this, &ManutenzioneePage::onAutoZramCbToggled);
 #endif
 
-    auto* btnRow = new QWidget(rightGroup);
-    auto* btnL   = new QHBoxLayout(btnRow);
-    btnL->setContentsMargins(0,0,0,0); btnL->setSpacing(8);
+    lay->addWidget(buildRamButtonRow(grp));
 
-    auto* detectBtn = new QPushButton("\xf0\x9f\x94\x8d  Rileva stato", grpRam);
-    detectBtn->setObjectName("actionBtn");
-    btnL->addWidget(detectBtn);
-
-#ifdef Q_OS_WIN
-    auto* compBtn    = new QPushButton("\xf0\x9f\x92\xbe  Attiva compressione", grpRam);
-    compBtn->setObjectName("actionBtn");
-    auto* disableBtn = new QPushButton("\xe2\x8f\xb9  Disattiva", grpRam);
-    disableBtn->setObjectName("actionBtn");
-    btnL->addWidget(compBtn);
-    btnL->addWidget(disableBtn);
-#else
-    auto* singBtn    = new QPushButton("\xf0\x9f\x92\xbe  Singola (lz4)", grpRam);
-    singBtn->setObjectName("actionBtn");
-    auto* doppiaBtn  = new QPushButton("\xf0\x9f\x92\xbe\xf0\x9f\x92\xbe  Doppia (zstd)", grpRam);
-    doppiaBtn->setObjectName("actionBtn");
-    auto* disableBtn = new QPushButton("\xe2\x8f\xb9  Disattiva zRAM", grpRam);
-    disableBtn->setObjectName("actionBtn");
-    btnL->addWidget(singBtn);
-    btnL->addWidget(doppiaBtn);
-    btnL->addWidget(disableBtn);
-#endif
-    btnL->addStretch(1);
-    ramLay->addWidget(btnRow);
-
-    m_ramLog = new QTextEdit(grpRam);
+    m_ramLog = new QTextEdit(grp);
     m_ramLog->setReadOnly(true);
     m_ramLog->setMaximumHeight(110);
     m_ramLog->setStyleSheet(
         "font-family:'Consolas','Courier New',monospace; font-size:10px;");
     m_ramLog->setPlaceholderText("Output comandi...");
-    ramLay->addWidget(m_ramLog);
+    lay->addWidget(m_ramLog);
 
-    colsLay->addWidget(grpRam, 1);
-    mainLay->addWidget(colsRow);
+    return grp;
+}
 
-    /* ══════════════════════════════════════════════════════════════
-       Pannello Modalità Calcolo LLM — full width
-       ══════════════════════════════════════════════════════════════ */
-    auto* computeGroup = new QGroupBox(
-        "\xf0\x9f\x92\xbb  Modalit\xc3\xa0 Calcolo LLM", page);
-    computeGroup->setObjectName("cardGroup");
-    auto* compLay = new QVBoxLayout(computeGroup);
-    compLay->setSpacing(8);
+/* ── Livello 3: riga pulsanti RAM/zRAM ────────────────────────── */
+QWidget* ManutenzioneePage::buildRamButtonRow(QGroupBox* grp)
+{
+    auto* row = new QWidget(grp);
+    auto* lay = new QHBoxLayout(row);
+    lay->setContentsMargins(0, 0, 0, 0);
+    lay->setSpacing(8);
+
+    auto* detectBtn = new QPushButton("\xf0\x9f\x94\x8d  Rileva stato", grp);
+    detectBtn->setObjectName("actionBtn");
+    lay->addWidget(detectBtn);
+
+#ifdef Q_OS_WIN
+    auto* compBtn    = new QPushButton("\xf0\x9f\x92\xbe  Attiva compressione", grp);
+    compBtn->setObjectName("actionBtn");
+    auto* disableBtn = new QPushButton("\xe2\x8f\xb9  Disattiva", grp);
+    disableBtn->setObjectName("actionBtn");
+    lay->addWidget(compBtn);
+    lay->addWidget(disableBtn);
+    connect(compBtn,    &QPushButton::clicked, this, &ManutenzioneePage::onCompBtnClicked);
+    connect(disableBtn, &QPushButton::clicked, this, &ManutenzioneePage::onDisableRamBtnClicked);
+#else
+    auto* singBtn   = new QPushButton("\xf0\x9f\x92\xbe  Singola (lz4)", grp);
+    singBtn->setObjectName("actionBtn");
+    auto* doppiaBtn = new QPushButton("\xf0\x9f\x92\xbe\xf0\x9f\x92\xbe  Doppia (zstd)", grp);
+    doppiaBtn->setObjectName("actionBtn");
+    auto* disableBtn = new QPushButton("\xe2\x8f\xb9  Disattiva zRAM", grp);
+    disableBtn->setObjectName("actionBtn");
+    lay->addWidget(singBtn);
+    lay->addWidget(doppiaBtn);
+    lay->addWidget(disableBtn);
+    connect(singBtn,    &QPushButton::clicked, this, &ManutenzioneePage::onSingBtnClicked);
+    connect(doppiaBtn,  &QPushButton::clicked, this, &ManutenzioneePage::onDoppiaBtnClicked);
+    connect(disableBtn, &QPushButton::clicked, this, &ManutenzioneePage::onDisableRamBtnClicked);
+#endif
+    lay->addStretch(1);
+
+    connect(detectBtn, &QPushButton::clicked, this, &ManutenzioneePage::onDetectBtnClicked);
+
+    return row;
+}
+
+/* ── Livello 2d: pannello Modalità Calcolo LLM ────────────────── */
+QGroupBox* ManutenzioneePage::buildComputeModeGroup(QWidget* parent)
+{
+    auto* grp = new QGroupBox(
+        "\xf0\x9f\x92\xbb  Modalit\xc3\xa0 Calcolo LLM", parent);
+    grp->setObjectName("cardGroup");
+    auto* lay = new QVBoxLayout(grp);
+    lay->setSpacing(8);
 
     auto* compDesc = new QLabel(
         "Scegli dove eseguire il modello. "
-        "Il default viene rilevato automaticamente confrontando RAM e VRAM.", computeGroup);
+        "Il default viene rilevato automaticamente confrontando RAM e VRAM.", grp);
     compDesc->setObjectName("cardDesc");
     compDesc->setWordWrap(true);
-    compLay->addWidget(compDesc);
+    lay->addWidget(compDesc);
 
-    auto* btnRow2 = new QWidget(computeGroup);
-    auto* btnL2   = new QHBoxLayout(btnRow2);
-    btnL2->setContentsMargins(0, 0, 0, 0);
-    btnL2->setSpacing(10);
+    /* Riga pulsanti modalità */
+    auto* btnRow = new QWidget(grp);
+    auto* btnLay = new QHBoxLayout(btnRow);
+    btnLay->setContentsMargins(0, 0, 0, 0);
+    btnLay->setSpacing(10);
 
-    m_btnGpu    = new QPushButton("\xf0\x9f\x9a\x80  GPU  (VRAM)", computeGroup);
-    m_btnCpu    = new QPushButton("\xf0\x9f\x96\xa5  CPU  (RAM)",  computeGroup);
-    m_btnMisto  = new QPushButton("\xe2\x9a\x96\xef\xb8\x8f  Misto GPU+CPU",  computeGroup);
-    m_btnDoppia = new QPushButton("\xf0\x9f\x94\x97  Doppia GPU", computeGroup);
-    m_btnGpu->setObjectName("actionBtn");
-    m_btnCpu->setObjectName("actionBtn");
-    m_btnMisto->setObjectName("actionBtn");
-    m_btnDoppia->setObjectName("actionBtn");
-    m_btnGpu->setMinimumWidth(140);
-    m_btnCpu->setMinimumWidth(140);
-    m_btnMisto->setMinimumWidth(140);
-    m_btnDoppia->setMinimumWidth(140);
+    m_btnGpu    = new QPushButton("\xf0\x9f\x9a\x80  GPU  (VRAM)", grp);
+    m_btnCpu    = new QPushButton("\xf0\x9f\x96\xa5  CPU  (RAM)",  grp);
+    m_btnMisto  = new QPushButton("\xe2\x9a\x96\xef\xb8\x8f  Misto GPU+CPU", grp);
+    m_btnDoppia = new QPushButton("\xf0\x9f\x94\x97  Doppia GPU", grp);
+    for (auto* b : {m_btnGpu, m_btnCpu, m_btnMisto, m_btnDoppia}) {
+        b->setObjectName("actionBtn");
+        b->setMinimumWidth(140);
+    }
     m_btnGpu->setToolTip(
         "Tutti i layer su GPU dedicata (NVIDIA/AMD).\n"
         "Massima velocit\xc3\xa0 se il modello entra in VRAM.\n"
@@ -575,137 +650,108 @@ QWidget* ManutenzioneePage::buildHardware()
         "GPU dedicata (NVIDIA) + Intel iGPU insieme.\n"
         "Richiede llama-server compilato con CUDA+SYCL.\n"
         "Con Ollama: usa solo NVIDIA (Intel iGPU ignorata da CUDA).");
-    m_btnDoppia->setEnabled(false);   /* abilitato solo se iGPU Intel rilevata */
+    m_btnDoppia->setEnabled(false);
 
-    btnL2->addWidget(m_btnGpu);
-    btnL2->addWidget(m_btnCpu);
-    btnL2->addWidget(m_btnMisto);
-    btnL2->addWidget(m_btnDoppia);
-    btnL2->addStretch(1);
-    compLay->addWidget(btnRow2);
+    btnLay->addWidget(m_btnGpu);
+    btnLay->addWidget(m_btnCpu);
+    btnLay->addWidget(m_btnMisto);
+    btnLay->addWidget(m_btnDoppia);
+    btnLay->addStretch(1);
+    lay->addWidget(btnRow);
 
     m_computeInfo = new QLabel(
-        "\xe2\x8f\xb3  In attesa rilevamento hardware...", computeGroup);
+        "\xe2\x8f\xb3  In attesa rilevamento hardware...", grp);
     m_computeInfo->setObjectName("cardDesc");
     m_computeInfo->setWordWrap(true);
-    compLay->addWidget(m_computeInfo);
+    lay->addWidget(m_computeInfo);
 
     /* Riga salva */
-    auto* saveRow  = new QWidget(computeGroup);
-    auto* saveRowL = new QHBoxLayout(saveRow);
-    saveRowL->setContentsMargins(0, 4, 0, 0);
-    saveRowL->setSpacing(10);
-
+    auto* saveRow = new QWidget(grp);
+    auto* saveLay = new QHBoxLayout(saveRow);
+    saveLay->setContentsMargins(0, 4, 0, 0);
+    saveLay->setSpacing(10);
     m_btnSaveMode = new QPushButton(
-        "\xf0\x9f\x92\xbe  Salva modalit\xc3\xa0", computeGroup);
+        "\xf0\x9f\x92\xbe  Salva modalit\xc3\xa0", grp);
     m_btnSaveMode->setObjectName("actionBtn");
     m_btnSaveMode->setEnabled(false);
     m_btnSaveMode->setToolTip(
         "Applica la modalit\xc3\xa0 selezionata e la salva per i prossimi avvii.");
-    saveRowL->addWidget(m_btnSaveMode);
-    saveRowL->addStretch(1);
-    compLay->addWidget(saveRow);
+    saveLay->addWidget(m_btnSaveMode);
+    saveLay->addStretch(1);
+    lay->addWidget(saveRow);
 
-    /* Bottoni → apply+persist immediato (nessun passaggio "Salva" necessario) */
-    connect(m_btnGpu,    &QPushButton::clicked, this, &ManutenzioneePage::onBtnGpuClicked);
-    connect(m_btnCpu,    &QPushButton::clicked, this, &ManutenzioneePage::onBtnCpuClicked);
-    connect(m_btnMisto,  &QPushButton::clicked, this, &ManutenzioneePage::onBtnMistoClicked);
-    connect(m_btnDoppia, &QPushButton::clicked, this, &ManutenzioneePage::onBtnDoppiaClicked);
-    connect(m_btnSaveMode, &QPushButton::clicked, this, &ManutenzioneePage::onBtnSaveModeClicked);
-
-    /* Ri-applica al cambio modello per ricalcolare num_gpu con i layer reali */
+    connect(m_btnGpu,     &QPushButton::clicked, this, &ManutenzioneePage::onBtnGpuClicked);
+    connect(m_btnCpu,     &QPushButton::clicked, this, &ManutenzioneePage::onBtnCpuClicked);
+    connect(m_btnMisto,   &QPushButton::clicked, this, &ManutenzioneePage::onBtnMistoClicked);
+    connect(m_btnDoppia,  &QPushButton::clicked, this, &ManutenzioneePage::onBtnDoppiaClicked);
+    connect(m_btnSaveMode,&QPushButton::clicked, this, &ManutenzioneePage::onBtnSaveModeClicked);
     connect(m_ai, &AiClient::modelChanged, this, &ManutenzioneePage::onAiModelChangedApplyMode);
 
-#ifdef Q_OS_WIN
-    connect(detectBtn,  &QPushButton::clicked, this, &ManutenzioneePage::onDetectBtnClicked);
-    connect(compBtn,    &QPushButton::clicked, this, &ManutenzioneePage::onCompBtnClicked);
-    connect(disableBtn, &QPushButton::clicked, this, &ManutenzioneePage::onDisableRamBtnClicked);
-#else
-    connect(detectBtn,  &QPushButton::clicked, this, &ManutenzioneePage::onDetectBtnClicked);
-    connect(singBtn,    &QPushButton::clicked, this, &ManutenzioneePage::onSingBtnClicked);
-    connect(doppiaBtn,  &QPushButton::clicked, this, &ManutenzioneePage::onDoppiaBtnClicked);
-    connect(disableBtn, &QPushButton::clicked, this, &ManutenzioneePage::onDisableRamBtnClicked);
-#endif
+    return grp;
+}
 
-    /* ── NPU + Modalità Calcolo LLM — affiancati ── */
-    {
-        auto* npuGroup = new QGroupBox(
-            "\xf0\x9f\xa7\xa0  NPU \xe2\x80\x94 Neural Processing Unit", page);
-        npuGroup->setObjectName("cardGroup");
-        auto* npuLay = new QVBoxLayout(npuGroup);
+/* ── Livello 2e: pannello NPU ─────────────────────────────────── */
+QGroupBox* ManutenzioneePage::buildNpuGroup(QWidget* parent)
+{
+    auto* grp = new QGroupBox(
+        "\xf0\x9f\xa7\xa0  NPU \xe2\x80\x94 Neural Processing Unit", parent);
+    grp->setObjectName("cardGroup");
+    auto* lay = new QVBoxLayout(grp);
 
-        auto* npuDesc = new QLabel(
-            "Le NPU accelerano l\xe2\x80\x99"
-            "inferenza AI con consumo energetico ridotto rispetto a GPU/CPU.\n"
-            "Supportate: <b>Intel NPU</b> (Core Ultra) \xe2\x80\x94 "
-            "<b>AMD NPU</b> (Ryzen AI \xe2\x80\x94 beta).", npuGroup);
-        npuDesc->setWordWrap(true);
-        npuDesc->setTextFormat(Qt::RichText);
-        npuDesc->setObjectName("hintLabel");
-        npuLay->addWidget(npuDesc);
+    auto* npuDesc = new QLabel(
+        "Le NPU accelerano l\xe2\x80\x99"
+        "inferenza AI con consumo energetico ridotto rispetto a GPU/CPU.\n"
+        "Supportate: <b>Intel NPU</b> (Core Ultra) \xe2\x80\x94 "
+        "<b>AMD NPU</b> (Ryzen AI \xe2\x80\x94 beta).", grp);
+    npuDesc->setWordWrap(true);
+    npuDesc->setTextFormat(Qt::RichText);
+    npuDesc->setObjectName("hintLabel");
+    lay->addWidget(npuDesc);
 
-        auto* npuStatusLbl = new QLabel("\xe2\x8f\xb3  Rilevamento in corso...", npuGroup);
-        npuStatusLbl->setObjectName("cardDesc");
-        npuStatusLbl->setWordWrap(true);
-        npuLay->addWidget(npuStatusLbl);
+    auto* npuStatusLbl = new QLabel("\xe2\x8f\xb3  Rilevamento in corso...", grp);
+    npuStatusLbl->setObjectName("cardDesc");
+    npuStatusLbl->setWordWrap(true);
+    lay->addWidget(npuStatusLbl);
 
-        auto* btnIntelNpu = new QPushButton(
-            "\xf0\x9f\x94\xb5  Installa intel-npu-acceleration-library", npuGroup);
-        btnIntelNpu->setObjectName("actionBtn");
-        btnIntelNpu->setToolTip(
-            "pip install intel-npu-acceleration-library\n"
-            "Richiede: Intel Core Ultra (Meteor Lake+) con driver NPU");
-        npuLay->addWidget(btnIntelNpu, 0, Qt::AlignLeft);
-
-        auto* npuHint = new QLabel(
-            "\xe2\x84\xb9  AMD NPU (XDNA): usa <b>https://github.com/amd/iron</b> "
-            "\xe2\x80\x94 attualmente in beta, stabilit\xc3\xa0 non garantita.\n"
-            "Intel NPU: stabile, richiede <code>pip install intel-npu-acceleration-library</code>.",
-            npuGroup);
-        npuHint->setWordWrap(true);
-        npuHint->setTextFormat(Qt::RichText);
-        npuHint->setObjectName("hintLabel");
-        npuLay->addWidget(npuHint);
-        npuLay->addStretch(1);
-
-        auto detectNpu = [npuStatusLbl]() {
-            QStringList found;
+    /* Rileva NPU al momento della costruzione */
+    QStringList found;
 #ifdef Q_OS_LINUX
-            if (QFile::exists("/dev/accel/accel0"))
-                found << "\xe2\x9c\x85  Intel NPU rilevata (/dev/accel/accel0)";
-            QFile modules("/proc/modules");
-            if (modules.open(QFile::ReadOnly)) {
-                const QString content = modules.readAll();
-                if (content.contains("amdxdna"))
-                    found << "\xe2\x9c\x85  AMD NPU rilevata (modulo amdxdna)";
-            }
-#endif
-            if (found.isEmpty())
-                npuStatusLbl->setText(
-                    "\xe2\x9d\x8c  Nessuna NPU rilevata (o driver non installato)");
-            else
-                npuStatusLbl->setText(found.join("\n"));
-        };
-        detectNpu();
-
-        connect(btnIntelNpu, &QPushButton::clicked, this, &ManutenzioneePage::onBtnIntelNpuClicked);
-
-        /* Affianca Modalità Calcolo (55%) e NPU (45%) */
-        auto* bottomRow = new QHBoxLayout;
-        bottomRow->setSpacing(12);
-        bottomRow->addWidget(computeGroup, 55);
-        bottomRow->addWidget(npuGroup,     45);
-        mainLay->addLayout(bottomRow);
+    if (QFile::exists("/dev/accel/accel0"))
+        found << "\xe2\x9c\x85  Intel NPU rilevata (/dev/accel/accel0)";
+    QFile modules("/proc/modules");
+    if (modules.open(QFile::ReadOnly)) {
+        const QString content = modules.readAll();
+        if (content.contains("amdxdna"))
+            found << "\xe2\x9c\x85  AMD NPU rilevata (modulo amdxdna)";
     }
+#endif
+    npuStatusLbl->setText(found.isEmpty()
+        ? "\xe2\x9d\x8c  Nessuna NPU rilevata (o driver non installato)"
+        : found.join("\n"));
 
-    mainLay->addStretch(1);
+    auto* btnIntelNpu = new QPushButton(
+        "\xf0\x9f\x94\xb5  Installa intel-npu-acceleration-library", grp);
+    btnIntelNpu->setObjectName("actionBtn");
+    btnIntelNpu->setToolTip(
+        "pip install intel-npu-acceleration-library\n"
+        "Richiede: Intel Core Ultra (Meteor Lake+) con driver NPU");
+    lay->addWidget(btnIntelNpu, 0, Qt::AlignLeft);
 
-    /* Scroll area — evita overflow sotto la barra di sistema */
-    auto* sc = new QScrollArea;
-    sc->setWidgetResizable(true);
-    sc->setFrameShape(QFrame::NoFrame);
-    sc->setWidget(page);
-    return sc;
+    auto* npuHint = new QLabel(
+        "\xe2\x84\xb9  AMD NPU (XDNA): usa <b>https://github.com/amd/iron</b> "
+        "\xe2\x80\x94 attualmente in beta, stabilit\xc3\xa0 non garantita.\n"
+        "Intel NPU: stabile, richiede <code>pip install intel-npu-acceleration-library</code>.",
+        grp);
+    npuHint->setWordWrap(true);
+    npuHint->setTextFormat(Qt::RichText);
+    npuHint->setObjectName("hintLabel");
+    lay->addWidget(npuHint);
+    lay->addStretch(1);
+
+    connect(btnIntelNpu, &QPushButton::clicked,
+            this, &ManutenzioneePage::onBtnIntelNpuClicked);
+
+    return grp;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -937,12 +983,12 @@ void ManutenzioneePage::applyComputeMode(const QString& mode)
             m_computeInfo->setText(
                 "\xe2\x8f\xb3  <b>GPU</b>: recupero layer count dal modello...");
 
-        m_ai->fetchModelLayers([this](int layers) {
-            if (!m_ai) return;
-            m_ai->unloadModel();
-            m_ai->setNumGpu(layers > 0 ? layers : -2);
-            if (m_computeInfo)
-                m_computeInfo->setText(layers > 0
+        m_ai->fetchModelLayers([guard=QPointer<ManutenzioneePage>(this)](int layers) {
+            if (!guard || !guard->m_ai) return;
+            guard->m_ai->unloadModel();
+            guard->m_ai->setNumGpu(layers > 0 ? layers : -2);
+            if (guard->m_computeInfo)
+                guard->m_computeInfo->setText(layers > 0
                     ? QString("\xe2\x9c\x85  <b>GPU (NVIDIA/AMD)</b> — tutti i %1 layer su VRAM "
                               "(num_gpu=%1). Ricaricato alla prossima richiesta.")
                         .arg(layers)
@@ -966,23 +1012,23 @@ void ManutenzioneePage::applyComputeMode(const QString& mode)
             m_computeInfo->setText(
                 "\xe2\x8f\xb3  <b>Misto</b>: recupero layer count dal modello...");
 
-        m_ai->fetchModelLayers([this](int layers) {
-            if (!m_ai) return;
+        m_ai->fetchModelLayers([guard=QPointer<ManutenzioneePage>(this)](int layers) {
+            if (!guard || !guard->m_ai) return;
             /* Riempie NVIDIA al massimo: min(layer modello, capacit\xc3\xa0 VRAM NVIDIA).
              * Fallback conservativo se layers=0 (modello non caricato): 8 layer. */
-            const int capacity = (m_gpuLayersFull > 0) ? m_gpuLayersFull : 8;
+            const int capacity = (guard->m_gpuLayersFull > 0) ? guard->m_gpuLayersFull : 8;
             const int gpuLayers = (layers > 0) ? qMin(layers, capacity) : 8;
             const int total     = (layers > 0) ? layers : 16;
-            m_ai->unloadModel();
-            m_ai->setNumGpu(gpuLayers);
-            if (m_computeInfo) {
+            guard->m_ai->unloadModel();
+            guard->m_ai->setNumGpu(gpuLayers);
+            if (guard->m_computeInfo) {
                 if (gpuLayers >= total)
-                    m_computeInfo->setText(
+                    guard->m_computeInfo->setText(
                         QString("\xe2\x9c\x85  <b>Misto</b> — tutti i %1 layer su GPU "
                                 "(il modello entra interamente in VRAM: valuta modalit\xc3\xa0 GPU pura).")
                         .arg(gpuLayers));
                 else
-                    m_computeInfo->setText(
+                    guard->m_computeInfo->setText(
                         QString("\xe2\x9c\x85  <b>Misto</b> — %1/%2 layer su GPU (NVIDIA, num_gpu=%1), "
                                 "%3 layer su CPU/RAM. Ricaricato alla prossima richiesta.")
                         .arg(gpuLayers).arg(total).arg(total - gpuLayers));
@@ -1422,53 +1468,11 @@ void ManutenzioneePage::onListProcFinished(int, QProcess::ExitStatus)
     if (m_updStatusLbl)
         m_updStatusLbl->setText(QString("\xf0\x9f\x94\x84  Aggiornamento 1/%1...").arg(models.size()));
 
-    /* Aggiornamento sequenziale tramite struct ricorsiva */
-    auto* idx   = new int(0);
-    auto* total = new int(models.size());
-
-    struct Updater {
-        static void next(QWidget* parent, QTextEdit* log, QLabel* status,
-                         QPushButton* btn, QStringList mdls, int* i, int* tot) {
-            if (*i >= *tot) {
-                delete i; delete tot;
-                if (status) status->setText(QString("\xe2\x9c\x85  Aggiornamento completato! %1 modelli").arg(*tot));
-                if (log) log->append("\n\xe2\x9c\x85  Tutti i modelli sono aggiornati.");
-                if (btn) btn->setEnabled(true);
-                return;
-            }
-            const QString mdl = mdls.at(*i);
-            if (status) status->setText(QString("\xf0\x9f\x94\x84  Aggiornamento %1/%2: %3")
-                .arg(*i + 1).arg(*tot).arg(mdl));
-            if (log) log->append(QString("\n\xe2\xac\x87  Aggiornamento: <b>%1</b>...").arg(mdl));
-
-            auto* proc = new QProcess(parent);
-            proc->setProcessChannelMode(QProcess::MergedChannels);
-            proc->start("ollama", {"pull", mdl});
-            QObject::connect(proc, &QProcess::readyRead, parent, [proc, log](){
-                if (log) {
-                    log->moveCursor(QTextCursor::End);
-                    const QString chunk = QString::fromLocal8Bit(proc->readAll());
-                    for (const QString& l : chunk.split('\n', Qt::SkipEmptyParts))
-                        log->insertPlainText("  " + l.trimmed() + "\n");
-                    log->ensureCursorVisible();
-                }
-            });
-            QObject::connect(proc,
-                QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                parent, [proc, log, status, btn, mdls, i, tot, parent](int code, QProcess::ExitStatus){
-                    proc->deleteLater();
-                    if (log) {
-                        if (code == 0)
-                            log->append(QString("  \xe2\x9c\x85  %1 aggiornato.").arg(mdls.at(*i)));
-                        else
-                            log->append(QString("  \xe2\x9a\xa0  %1: errore (code %2)").arg(mdls.at(*i)).arg(code));
-                    }
-                    ++(*i);
-                    next(parent, log, status, btn, mdls, i, tot);
-                });
-        }
-    };
-    Updater::next(this, m_updLog, m_updStatusLbl, m_updAllBtn, models, idx, total);
+    /* Aggiornamento sequenziale: stato salvato in membri, avanzamento via slot nominati */
+    m_updModels = models;
+    m_updIdx    = 0;
+    m_updTotal  = models.size();
+    updNextModel();
 }
 
 void ManutenzioneePage::onListProcError(QProcess::ProcessError)
@@ -1479,6 +1483,70 @@ void ManutenzioneePage::onListProcError(QProcess::ProcessError)
     }
     if (m_updStatusLbl) m_updStatusLbl->setText("\xe2\x9d\x8c  Ollama non trovato. Verifica il PATH.");
     if (m_updAllBtn) m_updAllBtn->setEnabled(true);
+}
+
+/* ── Livello 3: avvia ollama pull per il modello corrente ────── */
+void ManutenzioneePage::updNextModel()
+{
+    if (m_updIdx >= m_updTotal) {
+        if (m_updStatusLbl)
+            m_updStatusLbl->setText(
+                QString("\xe2\x9c\x85  Aggiornamento completato! %1 modelli").arg(m_updTotal));
+        if (m_updLog)
+            m_updLog->append("\n\xe2\x9c\x85  Tutti i modelli sono aggiornati.");
+        if (m_updAllBtn) m_updAllBtn->setEnabled(true);
+        return;
+    }
+
+    const QString mdl = m_updModels.at(m_updIdx);
+    if (m_updStatusLbl)
+        m_updStatusLbl->setText(
+            QString("\xf0\x9f\x94\x84  Aggiornamento %1/%2: %3")
+            .arg(m_updIdx + 1).arg(m_updTotal).arg(mdl));
+    if (m_updLog)
+        m_updLog->append(
+            QString("\n\xe2\xac\x87  Aggiornamento: <b>%1</b>...").arg(mdl));
+
+    if (m_updPullProc) {
+        m_updPullProc->kill();
+        m_updPullProc->deleteLater();
+        m_updPullProc = nullptr;
+    }
+    m_updPullProc = new QProcess(this);
+    m_updPullProc->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_updPullProc, &QProcess::readyRead,
+            this, &ManutenzioneePage::onUpdPullReadyRead);
+    connect(m_updPullProc,
+            QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &ManutenzioneePage::onUpdPullFinished);
+    m_updPullProc->start("ollama", {"pull", mdl});
+}
+
+void ManutenzioneePage::onUpdPullReadyRead()
+{
+    if (!m_updPullProc || !m_updLog) return;
+    const QString out = QString::fromLocal8Bit(m_updPullProc->readAll());
+    if (!out.trimmed().isEmpty())
+        m_updLog->append(out.trimmed());
+}
+
+void ManutenzioneePage::onUpdPullFinished(int code, QProcess::ExitStatus)
+{
+    const QString mdl = (m_updIdx < m_updModels.size()) ? m_updModels.at(m_updIdx) : "?";
+    if (m_updLog) {
+        if (code == 0)
+            m_updLog->append(
+                QString("\xe2\x9c\x85  <b>%1</b> aggiornato.").arg(mdl));
+        else
+            m_updLog->append(
+                QString("\xe2\x9a\xa0  <b>%1</b> — errore (codice %2).").arg(mdl).arg(code));
+    }
+    if (m_updPullProc) {
+        m_updPullProc->deleteLater();
+        m_updPullProc = nullptr;
+    }
+    ++m_updIdx;
+    updNextModel();
 }
 
 /* ══════════════════════════════════════════════════════════════

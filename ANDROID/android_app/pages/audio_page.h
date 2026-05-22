@@ -7,6 +7,10 @@
 #include <QComboBox>
 #include <QTimer>
 #include <QPermission>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QHttpMultiPart>
 #include "../ai_client.h"
 
 #ifdef HAVE_MULTIMEDIA
@@ -43,6 +47,7 @@ private slots:
     void onAnalyzeText();
     void onCopyBtnRestore();
     void onChatBtnRestore();
+    void onWhisperReply();
 
 signals:
     void transcriptionReady(const QString& text);
@@ -50,6 +55,7 @@ signals:
 private:
     void setRecordingState(bool recording);
     QString savedAudioPath() const;
+    void uploadWhisper(const QString& filePath);
 
     AiClient* m_ai = nullptr;
 
@@ -69,6 +75,10 @@ private:
     int     m_recSecs    = 0;
     bool    m_recording  = false;
     bool    m_busy       = false;
+
+    /* Whisper upload */
+    QNetworkAccessManager* m_whisperNam   = nullptr;
+    QNetworkReply*         m_whisperReply = nullptr;
 
 #ifdef HAVE_MULTIMEDIA
     QMediaCaptureSession* m_captureSession = nullptr;

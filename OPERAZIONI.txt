@@ -1,0 +1,75 @@
+═══════════════════════════════════════════════════════════════
+  PRISMALUX — OPERAZIONI DA COMPLETARE  (aggiornato 2026-05-22)
+═══════════════════════════════════════════════════════════════
+Legenda: [ ] da fare · [x] fatto · [~] parziale · [!] skip/troppo complesso
+
+────────────────────────────────────────────────
+DESKTOP Qt6
+────────────────────────────────────────────────
+
+LAMBDA / SICUREZZA
+[x] lavoro_page.cpp:1054  — QPointer guard su async fetch reply (this dangling)
+[x] lavoro_page.cpp:1158  — ctx/dlg one-shot: conforme (modal exec), nessuna modifica
+[x] lavoro_page.cpp:1213  — doAnalyze: conforme (modal exec), nessuna modifica
+[x] manutenzione_page.cpp:985  — fetchModelLayers GPU callback → QPointer guard
+[x] manutenzione_page.cpp:1014 — fetchModelLayers Misto callback → QPointer guard
+
+RAG & MEMORIA
+[x] RAG drag & drop — zona drop in agenti_page_ui.cpp: accetta PDF/txt/md, ingestion + status label
+[x] Memoria automatica cross-sessione — indicatore visivo "🧠 Memoria aggiornata" aggiunto, wire già c'era
+[ ] Web reading via RAG — campo URL → fetch → chunk → embedding in rag_engine.cpp
+
+AI & MODELLI
+[ ] Pipeline → ConfiguraAgenti — AgentsConfigDialog con preset JSON ruoli personalizzati
+[ ] Code interpreter sandbox — verifica Docker, fallback subprocess isolato
+[ ] NPU Intel/AMD — già in manutenzione_page buildHardware (2026-05-13) — verifica funziona
+[ ] Icone ☁️/🌍 modelli — verificare che P::modelIcon() appaia in tutte le combo
+
+UI / UX
+[x] Dark/Light auto da sistema — QStyleHints::colorScheme in theme_manager.cpp + checkbox Impostazioni
+[ ] Font DPI adattivo — scaling QFont in style.qss da logicalDotsPerInch()
+[ ] WCAG accessibilità sistematica — setAccessibleName/Description nelle pagine mancanti
+[ ] i18n tr() sistematico — wrappare stringhe UI in tr()
+
+QUALITÀ CODICE
+[ ] Type checking Python — mypy/pyright su Python_Software/
+[ ] requirements.lock SHA256 — pip-compile → requirements.lock
+
+────────────────────────────────────────────────
+WEB (lan_server.cpp — HTML/JS embedded)
+────────────────────────────────────────────────
+
+[x] Tab Coding — editor textarea + "Analizza con AI" → /api/chat
+[x] Tab Graphviz — textarea DOT + "Renderizza" → /api/graphviz → img base64
+[x] Tab Whisper — <input audio/*> → /api/whisper → testo trascritto
+[x] Endpoint /api/graphviz — lancia `dot -Tpng` → ritorna PNG base64
+[x] Endpoint /api/whisper — lancia processo whisper → ritorna testo
+[x] Chat persistence — già implementata (localStorage plx-sess-*) con sidebar sessioni
+
+────────────────────────────────────────────────
+MOBILE Android (ANDROID/android_app/)
+────────────────────────────────────────────────
+
+[x] settings_page.cpp — già conforme (nessuna lambda in connect())
+[x] camera_page.cpp:89 — già conforme (onSendBtnClicked già slot nominato)
+[x] AudioPage Whisper reale — POST audio WAV a /api/whisper sul LAN server (uploadWhisper)
+[x] Misure 2D piantina — PiantinaWidget QPainter, slider zoom, export PNG, lista stanze + elimina
+[x] BLE peer discovery — pagina 3 BLE: cerca BT Classic, QListWidget, connect RFCOMM client + chat
+[x] Quiz statistiche — tracking per tema in QSettings, dialog tabella con % colorata
+[ ] Notifiche push Android — QtAndroid::notification (richiede Java glue) [!]
+[ ] Sync desktop↔mobile — endpoint /api/sync (conversazioni/quiz/knowledge)
+
+────────────────────────────────────────────────
+TRASVERSALE
+────────────────────────────────────────────────
+
+[ ] Push su GitHub — git push origin master (da fare manualmente)
+[ ] Test automatici gap — ChatHistory save/load, LanServer /api/rag, SintetizzatorePage
+[ ] iOS — richiede Swift/Flutter, troppo complesso per ora [!]
+
+────────────────────────────────────────────────
+NOTA IMPLEMENTAZIONE
+────────────────────────────────────────────────
+- Build sempre da: cd gui && cmake --build build -j$(nproc)
+- Nuovo file cpp → aggiungere in gui/CMakeLists.txt (CPP_SRCS)
+- Nuovo file mobile → aggiungere in ANDROID/android_app/CMakeLists.txt

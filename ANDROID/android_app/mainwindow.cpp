@@ -14,6 +14,7 @@
 #include "pages/impara_page.h"
 #include "pages/ricerca_page.h"
 #include "pages/matematica_page.h"
+#include "pages/sintetizzatore_page.h"
 
 #ifdef HAVE_MULTIMEDIA
 #include "pages/camera_page.h"
@@ -152,6 +153,10 @@ MainWindow::MainWindow(QWidget* parent)
     /* Laboratorio Matematico */
     m_matematicaPage = new MatematicaPage(m_ai, this);
     m_stack->addWidget(m_matematicaPage); // indice 13
+
+    /* Sintetizzatore Toni */
+    m_sintetizzatorePage = new SintetizzatorePage(this);
+    m_stack->addWidget(m_sintetizzatorePage); // indice 14
 
     auto* central = new QWidget(this);
     auto* vbox    = new QVBoxLayout(central);
@@ -292,9 +297,10 @@ void MainWindow::buildDrawer()
         { "\xf0\x9f\x93\xb7",              "Camera",             m_idxCamera     },
         { "\xf0\x9f\x94\x8c",              "MCP Add-ons",        m_idxMcp        },
         { "\xf0\x9f\x94\x8b",              "Bluetooth",          m_idxBle        },
-        { "\xf0\x9f\x8e\x99\xef\xb8\x8f", "Trascrizione Audio", m_idxAudio      },
-        { "\xe2\x9a\x99\xef\xb8\x8f",      "Impostazioni",       m_idxSettings   },
-        { "\xf0\x9f\x8d\xba",              "Informazioni",       m_idxInfo       },
+        { "\xf0\x9f\x8e\x99\xef\xb8\x8f", "Trascrizione Audio",  m_idxAudio          },
+        { "\xf0\x9f\x94\x8a",             "Sintetizzatore",      m_idxSintetizzatore },
+        { "\xe2\x9a\x99\xef\xb8\x8f",     "Impostazioni",        m_idxSettings       },
+        { "\xf0\x9f\x8d\xba",             "Informazioni",        m_idxInfo           },
     };
     for (const auto& item : items) {
         auto* btn = new QPushButton(
@@ -382,6 +388,7 @@ void MainWindow::onTabChanged(int index)
         {  8, "Trascrizione Audio" }, {  9, "Impostazioni"       },
         { 10, "Informazioni"       }, { 11, "Impara con AI"      },
         { 12, "Ricerca e Sviluppo" }, { 13, "Matematica"         },
+        { 14, "Sintetizzatore"     },
     };
     if (m_titleLbl) {
         for (const auto& t : kTitles) {

@@ -1,6 +1,7 @@
 #include "agenti_page.h"
 #include "agenti_page_p.h"
 #include "../prismalux_paths.h"
+#include <QListWidget>
 namespace P = PrismaluxPaths;
 #include <QElapsedTimer>
 #include <QTextCursor>
@@ -349,5 +350,78 @@ void AgentiPage::tryShowChart(const QString& text) {
         m_chartPanel->layout()->addWidget(chart);
         m_chartPanel->setVisible(true);
     }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Storia Chat — salvataggio + navigazione
+   ══════════════════════════════════════════════════════════════ */
+
+void AgentiPage::onChatCompletedSave(const QString& title, const QString& logHtml)
+{
+    /* Crea sessione se non esiste ancora */
+    if (m_sessionId.isEmpty())
+        m_sessionId = m_chatHistory.newSession(title);
+
+    /* Aggiorna il log HTML su disco */
+    m_chatHistory.saveLog(m_sessionId, logHtml);
+
+    /* Aggiorna il pannello storico */
+    refreshHistoryList();
+}
+
+void AgentiPage::refreshHistoryList()
+{
+    if (!m_historyList) return;
+
+    m_historyList->blockSignals(true);
+    m_historyList->clear();
+    m_historyIds.clear();
+
+    const QVector<ChatSession> sessions = m_chatHistory.list();
+    for (const ChatSession& s : sessions) {
+        m_historyList->addItem(s.title.isEmpty() ? s.id : s.title);
+        m_historyIds.append(s.id);
+    }
+
+    m_historyList->blockSignals(false);
+}
+
+void AgentiPage::onHistoryItemClicked(int row)
+{
+    if (row < 0 || row >= m_historyIds.size()) return;
+    const QString id = m_historyIds.at(row);
+    const QString html = m_chatHistory.loadLog(id);
+    if (html.isEmpty()) return;
+
+    /* Carica la sessione selezionata nel log */
+    m_log->setHtml(html);
+    m_log->moveCursor(QTextCursor::End);
+
+    /* Marca la sessione corrente così i prossimi salvataggi aggiornano quella esistente */
+    m_sessionId = id;
+}
+
+void AgentiPage::onHistoryNewChatClicked()
+{
+    m_sessionId.clear();
+    m_log->clear();
+    m_userScrolled = false;
+}
+
+void AgentiPage::onHistoryDeleteClicked()
+{
+    if (!m_historyList) return;
+    const int row = m_historyList->currentRow();
+    if (row < 0 || row >= m_historyIds.size()) return;
+
+    const QString id = m_historyIds.at(row);
+    m_chatHistory.remove(id);
+
+    /* Se era la sessione corrente, resetta */
+    if (id == m_sessionId) {
+        m_sessionId.clear();
+        m_log->clear();
+    }
+    refreshHistoryList();
 }
 

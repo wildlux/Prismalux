@@ -1,6 +1,7 @@
 #include "ricerca_page.h"
 #include "lavoro_page.h"
 #include "../prismalux_paths.h"
+#include "../widgets/astro_calc.h"
 namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -40,6 +41,13 @@ namespace P = PrismaluxPaths;
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QHeaderView>
+#include <QRadioButton>
+#include <QButtonGroup>
+#include <QGroupBox>
+#include <QDateTimeEdit>
+#include <QFormLayout>
+#include <QTextBrowser>
+#include <cmath>
 
 /* ── helper: barra azioni output (Esporta PDF / Salva .md) ────────── */
 static QWidget* makeOutputBar(QTextEdit* editor, const QString& titolo,
@@ -104,7 +112,7 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     tabs->addTab(buildDocTecnicoTab(),        "\xf0\x9f\x93\x8b  Doc Tecnico");
     /* ── Gruppo 2: Cerca ── */
     tabs->addTab(buildCercaLetteraturaTab(),  "\xf0\x9f\x94\x8d  Cerca Paper/Brevetti");
-    tabs->addTab(new LavoroPage(m_ai, this),  "\xf0\x9f\x92\xbc  Cerca Lavoro");
+    tabs->addTab(new LavoroPage(m_ai, this),  "\xf0\x9f\x92\xbc  Lavoro");
     /* ── Gruppo 3: Scienze ── */
     tabs->addTab(buildCytoscapeTab(),         "\xf0\x9f\x94\xac  Cytoscape");
     tabs->addTab(buildRDKitTab(),             "\xf0\x9f\xa7\xaa  RDKit");
@@ -115,13 +123,19 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
                  "\xf0\x9f\xa7\xac  RAB\xe2\x82\x80-L");
     tabs->addTab(buildBlhmTab(),
                  "\xf0\x9f\xa7\xa0  BLHM");
+    /* ── Gruppo 5: Analisi eventi ── */
+    tabs->addTab(buildAnalisiPage(),
+                 "\xf0\x9f\x8c\x8c  Analisi Fenomeni");
+    /* ── Gruppo 6: Astrologia ── */
+    tabs->addTab(buildAstraleTab(),
+                 "\xe2\xad\x90  Carta Astrale");
 
     /* Tooltip sui tab per scopribilità */
     tabs->setTabToolTip(0, "Genera paper accademico con AI");
     tabs->setTabToolTip(1, "Genera documento brevettuale PCT/EPO");
     tabs->setTabToolTip(2, "Genera specifiche tecniche e manuali");
     tabs->setTabToolTip(3, "Cerca su arXiv, Semantic Scholar, USPTO");
-    tabs->setTabToolTip(4, "Ricerca offerte di lavoro");
+    tabs->setTabToolTip(4, "Offerte di lavoro, tracker candidature e calcolatore euro/ore");
     tabs->setTabToolTip(5, "Analisi reti biologiche e sociali");
     tabs->setTabToolTip(6, "Chemioinformatica con RDKit");
     tabs->setTabToolTip(7, "Pipeline bioinformatica con Bioconda");
@@ -130,6 +144,12 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
         "RAB\xe2\x82\x80-L: rappresentazione DNA su spirale logaritmica base-80 (wildlux, 2025)");
     tabs->setTabToolTip(10,
         "BLHM: calcolatore R_merged per architettura Brain-Loop-Human-MultiContext (wildlux, 2026)");
+    tabs->setTabToolTip(11,
+        "Analisi Fenomeni: valuta la probabilit\xc3\xa0 che un evento fisico/chimico/alieno/paranormale"
+        " sia realmente accaduto, sulla base delle fonti fornite");
+    tabs->setTabToolTip(12,
+        "Carta Astrale / Tema Natale: inserisci data, ora e luogo di nascita"
+        " per una lettura astrologica con AI");
     vlay->addWidget(tabs, 1);
 
     m_sciProgress = new QProgressBar(this);
@@ -1323,7 +1343,8 @@ QWidget* RicercaPage::buildAvogadroTab()
    ══════════════════════════════════════════════════════════════ */
 void RicercaPage::onSciModelsReady(const QStringList& models)
 {
-    for (auto* combo : {m_cytoModel, m_rdkitModel, m_bioModel, m_avoModel}) {
+    for (auto* combo : {m_cytoModel, m_rdkitModel, m_bioModel, m_avoModel,
+                        m_analisiModelCombo, m_astraleModel}) {
         if (!combo) continue;
         const QString cur = combo->currentData().toString();
         combo->clear();
@@ -1414,6 +1435,18 @@ void RicercaPage::onAiAborted()
     if (m_litAiFinishedConn) { disconnect(m_litAiFinishedConn); m_litAiFinishedConn = {}; }
     if (m_litAiErrorConn)    { disconnect(m_litAiErrorConn);    m_litAiErrorConn    = {}; }
     if (m_litAiBtn) m_litAiBtn->setEnabled(true);
+    if (m_analisiTokenConn)    { disconnect(m_analisiTokenConn);    m_analisiTokenConn    = {}; }
+    if (m_analisiFinishedConn) { disconnect(m_analisiFinishedConn); m_analisiFinishedConn = {}; }
+    if (m_analisiErrorConn)    { disconnect(m_analisiErrorConn);    m_analisiErrorConn    = {}; }
+    if (m_analisiRunBtn)  m_analisiRunBtn->setEnabled(true);
+    if (m_analisiStopBtn) m_analisiStopBtn->setEnabled(false);
+    if (m_astraleTokenConn)    { disconnect(m_astraleTokenConn);    m_astraleTokenConn    = {}; }
+    if (m_astraleFinishedConn) { disconnect(m_astraleFinishedConn); m_astraleFinishedConn = {}; }
+    if (m_astraleErrorConn)    { disconnect(m_astraleErrorConn);    m_astraleErrorConn    = {}; }
+    if (m_astraleRunBtn) {
+        m_astraleRunBtn->setText("\xe2\xad\x90  Leggi gli Astri");
+        m_astraleRunBtn->setProperty("running", false);
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2274,6 +2307,291 @@ void RicercaPage::onBlhmNoteLoad()
     m_blhmNoteEdit->setPlainText(QTextStream(&f).readAll());
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   buildAnalisiPage — 🌌 Analisi Fenomeni
+   Valuta la probabilità che un evento fisico/chimico/alieno/paranormale
+   sia realmente accaduto, sulla base delle fonti fornite dall'utente.
+   ═══════════════════════════════════════════════════════════════════ */
+QWidget* RicercaPage::buildAnalisiPage()
+{
+    auto* page = new QWidget;
+    auto* root = new QVBoxLayout(page);
+    root->setContentsMargins(12, 10, 12, 10);
+    root->setSpacing(10);
+
+    /* ── Descrizione ── */
+    auto* introLbl = new QLabel(
+        "<b>\xf0\x9f\x8c\x8c  Analisi Fenomeni</b>"
+        "  <span style='color:gray;font-size:11px;'>"
+        "L'AI valuta se un evento \xc3\xa8 realmente accaduto sulla base delle fonti."
+        "</span>");
+    introLbl->setTextFormat(Qt::RichText);
+    root->addWidget(introLbl);
+
+    /* ── Categoria ── */
+    auto* catBox  = new QGroupBox("Categoria evento");
+    auto* catLay  = new QHBoxLayout(catBox);
+    catLay->setSpacing(16);
+
+    m_analisiCatGroup = new QButtonGroup(page);
+    const struct { const char* label; const char* id; } kCats[] = {
+        { "\xe2\x9a\x9b  Fisico",        "Fisico"        },
+        { "\xf0\x9f\xa7\xaa  Chimico",   "Chimico"       },
+        { "\xf0\x9f\x9b\xb8  Alieno-UAP","Alieno-UAP"    },
+        { "\xf0\x9f\x91\xbb  Paranormale","Paranormale"  },
+        { "\xe2\x9d\x93  Altro",          "Altro"        },
+    };
+    for (int i = 0; i < 5; ++i) {
+        auto* rb = new QRadioButton(QString::fromUtf8(kCats[i].label));
+        rb->setProperty("catId", QString::fromUtf8(kCats[i].id));
+        m_analisiCatGroup->addButton(rb, i);
+        catLay->addWidget(rb);
+        if (i == 0) rb->setChecked(true);
+    }
+    catLay->addStretch();
+    root->addWidget(catBox);
+
+    /* ── Descrizione evento + Fonti affiancate ── */
+    auto* midSplit = new QSplitter(Qt::Horizontal);
+    midSplit->setHandleWidth(6);
+
+    auto* evtGroup = new QGroupBox("Descrizione dell\xe2\x80\x99" "evento");
+    auto* evtLay   = new QVBoxLayout(evtGroup);
+    m_analisiEventEdit = new QTextEdit;
+    m_analisiEventEdit->setPlaceholderText(
+        "Descrivi l\xe2\x80\x99" "evento nel dettaglio:\n"
+        "- cosa \xc3\xa8 stato osservato / riportato\n"
+        "- quando, dove, da chi\n"
+        "- eventuali effetti fisici o testimonianze");
+    m_analisiEventEdit->setMinimumHeight(120);
+    evtLay->addWidget(m_analisiEventEdit);
+
+    auto* srcGroup = new QGroupBox("Fonti (URL, citazioni, testo grezzo)");
+    auto* srcLay   = new QVBoxLayout(srcGroup);
+    m_analisiSrcEdit = new QTextEdit;
+    m_analisiSrcEdit->setPlaceholderText(
+        "Incolla qui le tue fonti:\n"
+        "- link ad articoli scientifici o giornali\n"
+        "- estratti di testo, PDF, rapporti ufficiali\n"
+        "- citazioni di testimoni o esperti\n"
+        "(se non hai fonti, scrivi: nessuna fonte disponibile)");
+    m_analisiSrcEdit->setMinimumHeight(120);
+    srcLay->addWidget(m_analisiSrcEdit);
+
+    midSplit->addWidget(evtGroup);
+    midSplit->addWidget(srcGroup);
+    midSplit->setStretchFactor(0, 1);
+    midSplit->setStretchFactor(1, 1);
+    root->addWidget(midSplit);
+
+    /* ── Riga modello + bottoni ── */
+    auto* ctrlRow = new QWidget;
+    auto* ctrlLay = new QHBoxLayout(ctrlRow);
+    ctrlLay->setContentsMargins(0, 0, 0, 0);
+    ctrlLay->setSpacing(8);
+
+    auto* modelLbl = new QLabel("Modello:");
+    m_analisiModelCombo = new QComboBox;
+    m_analisiModelCombo->setMinimumWidth(220);
+    sciPopulateModels(m_analisiModelCombo);
+
+    m_analisiRunBtn  = new QPushButton("\xf0\x9f\x94\x8d  Analizza AI");
+    m_analisiStopBtn = new QPushButton("\xe2\x96\xa0  Stop");
+    m_analisiRunBtn->setObjectName("actionBtn");
+    m_analisiStopBtn->setObjectName("actionBtn");
+    m_analisiStopBtn->setEnabled(false);
+
+    ctrlLay->addWidget(modelLbl);
+    ctrlLay->addWidget(m_analisiModelCombo, 1);
+    ctrlLay->addStretch();
+    ctrlLay->addWidget(m_analisiRunBtn);
+    ctrlLay->addWidget(m_analisiStopBtn);
+    root->addWidget(ctrlRow);
+
+    /* ── Barra probabilità (nascosta finché non arriva il risultato) ── */
+    auto* probRow = new QWidget;
+    auto* probLay = new QHBoxLayout(probRow);
+    probLay->setContentsMargins(0, 0, 0, 0);
+    probLay->setSpacing(8);
+    m_analisiProbLbl = new QLabel("\xf0\x9f\x93\x8a  Probabilit\xc3\xa0:");
+    m_analisiProbBar = new QProgressBar;
+    m_analisiProbBar->setRange(0, 100);
+    m_analisiProbBar->setValue(0);
+    m_analisiProbBar->setTextVisible(true);
+    m_analisiProbBar->setFormat("%p%");
+    m_analisiProbBar->setFixedHeight(22);
+    probLay->addWidget(m_analisiProbLbl);
+    probLay->addWidget(m_analisiProbBar, 1);
+    probRow->setVisible(false);
+    root->addWidget(probRow);
+
+    /* ── Output ── */
+    m_analisiOutput = new QTextEdit;
+    m_analisiOutput->setReadOnly(false);
+    m_analisiOutput->setFont(QFont("Monospace", 10));
+    m_analisiOutput->setPlaceholderText(
+        "Il risultato dell\xe2\x80\x99" "analisi AI apparir\xc3\xa0 qui.\n\n"
+        "La risposta include:\n"
+        "  \xf0\x9f\x93\x8a  Probabilit\xc3\xa0 (0-100%)\n"
+        "  \xe2\x9c\x85  Evidenze a supporto\n"
+        "  \xe2\x9d\x8c  Elementi contraddittori\n"
+        "  \xf0\x9f\x94\xac  Spiegazione scientifica pi\xc3\xb9 probabile\n"
+        "  \xf0\x9f\x94\x80  Ipotesi alternativa\n"
+        "  \xe2\x9a\x96  Verdetto motivato");
+    root->addWidget(makeOutputBar(m_analisiOutput, "Analisi Fenomeni", page));
+    root->addWidget(m_analisiOutput, 1);
+
+    /* ── Connessioni bottoni ── */
+    connect(m_analisiRunBtn,  &QPushButton::clicked, this, &RicercaPage::onAnalisiRunClicked);
+    connect(m_analisiStopBtn, &QPushButton::clicked, this, &RicercaPage::onAnalisiStopClicked);
+
+    /* Rende accessibile probRow dai slot tramite setProperty */
+    m_analisiOutput->setProperty("probRow", QVariant::fromValue<QWidget*>(probRow));
+
+    return page;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   SLOT Analisi Fenomeni
+   ───────────────────────────────────────────────────────────────── */
+void RicercaPage::onAnalisiRunClicked()
+{
+    const QString evento = m_analisiEventEdit->toPlainText().trimmed();
+    if (evento.isEmpty()) {
+        m_analisiOutput->setPlainText(
+            "\xe2\x9a\xa0  Inserisci la descrizione dell\xe2\x80\x99" "evento prima di procedere.");
+        return;
+    }
+    if (m_ai->busy()) {
+        m_analisiOutput->append("\xe2\x9a\xa0  AI occupata. Attendi o premi Stop.");
+        return;
+    }
+
+    /* Categoria selezionata */
+    QString categoria = "Generico";
+    if (auto* btn = m_analisiCatGroup->checkedButton())
+        categoria = btn->property("catId").toString();
+
+    /* Nasconde la barra probabilità in attesa del nuovo risultato */
+    if (auto* pr = m_analisiOutput->property("probRow").value<QWidget*>())
+        pr->setVisible(false);
+
+    /* Selezione modello */
+    if (m_analisiModelCombo && m_analisiModelCombo->count() > 0) {
+        const QString sel = m_analisiModelCombo->currentData().toString();
+        if (!sel.isEmpty() && sel != m_ai->model())
+            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
+    }
+
+    /* System prompt strutturato */
+    static const QString kSys =
+        "Sei un analista scientifico e critico. Ricevi la descrizione di un evento "
+        "e le fonti fornite dall\xe2\x80\x99" "utente.\n"
+        "Il tuo compito \xc3\xa8 valutare in modo rigoroso, obiettivo e imparziale "
+        "se l\xe2\x80\x99" "evento potrebbe essere realmente accaduto.\n"
+        "Usa il pensiero critico e la metodologia scientifica. "
+        "Non essere n\xc3\xa9 troppo scettico n\xc3\xa9 troppo credulone.\n"
+        "Analizza le fonti con attenzione critica.\n\n"
+        "Rispondi SEMPRE con questa struttura esatta:\n\n"
+        "## PROBABILIT\xc3\x80: [numero intero da 0 a 100]%\n"
+        "(stima obiettiva e motivata basata sulle evidenze)\n\n"
+        "## Evidenze a supporto\n"
+        "(lista puntata dei fatti/dati che supportano la veridicità dell\xe2\x80\x99" "evento)\n\n"
+        "## Elementi contraddittori\n"
+        "(fatti, leggi fisiche, incongruenze che contraddicono l\xe2\x80\x99" "evento)\n\n"
+        "## Spiegazione scientifica pi\xc3\xb9 probabile\n"
+        "(la spiegazione pi\xc3\xb9 razionale e parsimoniosa alla luce della scienza attuale)\n\n"
+        "## Ipotesi alternativa\n"
+        "(un\xe2\x80\x99" "altra spiegazione plausibile, anche non mainstream, coerente con le evidenze)\n\n"
+        "## Verdetto motivato\n"
+        "(conclusione finale con ragionamento integrato su tutte le evidenze)";
+
+    const QString userMsg =
+        "**Categoria evento:** " + categoria + "\n\n"
+        "**Descrizione dell\xe2\x80\x99" "evento:**\n" + evento + "\n\n"
+        "**Fonti disponibili:**\n" + m_analisiSrcEdit->toPlainText().trimmed();
+
+    /* Connessioni one-shot */
+    QObject::disconnect(m_analisiTokenConn);
+    QObject::disconnect(m_analisiFinishedConn);
+    QObject::disconnect(m_analisiErrorConn);
+    m_analisiTokenConn    = connect(m_ai, &AiClient::token,
+                                    this, &RicercaPage::onAnalisiToken);
+    m_analisiFinishedConn = connect(m_ai, &AiClient::finished,
+                                    this, &RicercaPage::onAnalisiFinished);
+    m_analisiErrorConn    = connect(m_ai, &AiClient::error,
+                                    this, &RicercaPage::onAnalisiError);
+
+    m_analisiRunBtn->setEnabled(false);
+    m_analisiStopBtn->setEnabled(true);
+    if (m_sciProgress) m_sciProgress->setVisible(true);
+
+    m_analisiOutput->clear();
+    m_analisiOutput->append(
+        "\xf0\x9f\x94\x84  Analisi in corso...\n"
+        + QString(50, QChar(0x2500)));
+
+    m_ai->chat(kSys, userMsg);
+}
+
+void RicercaPage::onAnalisiStopClicked()
+{
+    m_ai->abort();
+}
+
+void RicercaPage::onAnalisiToken(const QString& t)
+{
+    m_analisiOutput->moveCursor(QTextCursor::End);
+    m_analisiOutput->insertPlainText(t);
+}
+
+void RicercaPage::onAnalisiFinished(const QString& full)
+{
+    QObject::disconnect(m_analisiTokenConn);
+    QObject::disconnect(m_analisiFinishedConn);
+    QObject::disconnect(m_analisiErrorConn);
+    m_analisiTokenConn = m_analisiFinishedConn = m_analisiErrorConn = {};
+
+    m_analisiRunBtn->setEnabled(true);
+    m_analisiStopBtn->setEnabled(false);
+    if (m_sciProgress) m_sciProgress->setVisible(false);
+    m_analisiOutput->append("\n" + QString(50, QChar(0x2500)));
+
+    /* Estrae la percentuale dalla riga "## PROBABILITÀ: XX%" */
+    static const QRegularExpression kProbRx(
+        "PROBABILIT[AÀ][^:]*:\\s*(\\d+)\\s*%",
+        QRegularExpression::CaseInsensitiveOption);
+    const auto match = kProbRx.match(full);
+    if (match.hasMatch()) {
+        const int pct = qBound(0, match.captured(1).toInt(), 100);
+        m_analisiProbBar->setValue(pct);
+
+        /* Colore barra: verde >60%, giallo 30-60%, rosso <30% */
+        const QString color = pct >= 60 ? "#4CAF50"
+                            : pct >= 30 ? "#FFC107" : "#F44336";
+        m_analisiProbBar->setStyleSheet(
+            QString("QProgressBar::chunk { background: %1; border-radius:2px; }").arg(color));
+
+        if (auto* pr = m_analisiOutput->property("probRow").value<QWidget*>())
+            pr->setVisible(true);
+    }
+}
+
+void RicercaPage::onAnalisiError(const QString& msg)
+{
+    QObject::disconnect(m_analisiTokenConn);
+    QObject::disconnect(m_analisiFinishedConn);
+    QObject::disconnect(m_analisiErrorConn);
+    m_analisiTokenConn = m_analisiFinishedConn = m_analisiErrorConn = {};
+
+    m_analisiRunBtn->setEnabled(true);
+    m_analisiStopBtn->setEnabled(false);
+    if (m_sciProgress) m_sciProgress->setVisible(false);
+    m_sciErrorPanel->showError(msg, [this]{ onAnalisiRunClicked(); });
+}
+/* ─────────────────────────────────────────────────────────────────
+   onBlhmDnaAnalyzeClicked (originale invariato dopo questo punto)
+   ───────────────────────────────────────────────────────────────── */
 void RicercaPage::onBlhmDnaAnalyzeClicked()
 {
     static const QRegularExpression kNonDna("[^ATCGatcg]");

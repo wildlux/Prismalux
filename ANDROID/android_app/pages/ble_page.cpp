@@ -9,6 +9,7 @@
 #include <QBluetoothAddress>
 #include <QDateTime>
 #include <QFont>
+#include <QScrollBar>
 
 /* UUID custom per il servizio chat Prismalux */
 static const QBluetoothUuid kChatUuid(
@@ -44,8 +45,12 @@ BlePage::BlePage(QWidget* parent)
     m_chatTabBtn = new QPushButton(
         QString::fromUtf8("\xf0\x9f\x92\xac") + " Chat BT", scanPage);  /* 💬 */
     m_chatTabBtn->setObjectName("SecondaryBtn");
+    m_peerTabBtnFromScan = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x94\x97") + " Connetti", scanPage);  /* 🔗 */
+    m_peerTabBtnFromScan->setObjectName("SecondaryBtn");
     tabRow->addWidget(scanTabBtn, 1);
     tabRow->addWidget(m_chatTabBtn, 1);
+    tabRow->addWidget(m_peerTabBtnFromScan, 1);
     scanVbox->addLayout(tabRow);
 
     /* Header */
@@ -88,8 +93,12 @@ BlePage::BlePage(QWidget* parent)
         QString::fromUtf8("\xf0\x9f\x92\xac") + " Chat BT", chatPage);
     chatTabBtn2->setObjectName("PrimaryBtn");
     chatTabBtn2->setEnabled(false);
+    m_peerTabBtnFromChat = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x94\x97") + " Connetti", chatPage);  /* 🔗 */
+    m_peerTabBtnFromChat->setObjectName("SecondaryBtn");
     tabRow2->addWidget(m_scanTabBtn, 1);
     tabRow2->addWidget(chatTabBtn2, 1);
+    tabRow2->addWidget(m_peerTabBtnFromChat, 1);
     chatVbox->addLayout(tabRow2);
 
     /* Status connessione */
@@ -141,9 +150,90 @@ BlePage::BlePage(QWidget* parent)
 
     m_stack->addWidget(chatPage);   /* indice 1 */
 
+    /* ═══════════════════════════════════
+       PAGINA 2 — Peer BT Classic (client)
+       ═══════════════════════════════════ */
+    auto* peerPage = new QWidget;
+    auto* peerVbox = new QVBoxLayout(peerPage);
+    peerVbox->setContentsMargins(8, 8, 8, 8);
+    peerVbox->setSpacing(8);
+
+    /* Tab bar */
+    auto* tabRow3 = new QHBoxLayout;
+    m_scanTabBtnFromPeer = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x94\x8d") + " Scanner", peerPage);
+    m_scanTabBtnFromPeer->setObjectName("SecondaryBtn");
+    m_chatTabBtnFromPeer = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x92\xac") + " Chat BT", peerPage);
+    m_chatTabBtnFromPeer->setObjectName("SecondaryBtn");
+    auto* peerTabBtn3 = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x94\x97") + " Connetti", peerPage);
+    peerTabBtn3->setObjectName("PrimaryBtn");
+    peerTabBtn3->setEnabled(false);
+    tabRow3->addWidget(m_scanTabBtnFromPeer, 1);
+    tabRow3->addWidget(m_chatTabBtnFromPeer, 1);
+    tabRow3->addWidget(peerTabBtn3, 1);
+    peerVbox->addLayout(tabRow3);
+
+    /* Status */
+    m_peerStatus = new QLabel(
+        QString::fromUtf8("\xf0\x9f\x94\x8c")  /* 🔌 */
+        + " Cerca dispositivi o seleziona un accoppiato",
+        peerPage);
+    m_peerStatus->setWordWrap(true);
+    peerVbox->addWidget(m_peerStatus);
+
+    /* Pulsante scopri */
+    m_discoverBtn = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x94\x8d") + " Cerca dispositivi BT Classic", peerPage);
+    m_discoverBtn->setObjectName("PrimaryBtn");
+    m_discoverBtn->setMinimumHeight(44);
+    peerVbox->addWidget(m_discoverBtn);
+
+    /* Lista peer */
+    m_peerList = new QListWidget(peerPage);
+    m_peerList->setObjectName("BleList");
+    m_peerList->setAlternatingRowColors(true);
+    auto* peerListHint = new QLabel(
+        QString::fromUtf8("<small style='color:#8890a8'>"
+        "\xf0\x9f\x91\x86 Doppio tap su un dispositivo per connettersi</small>"),
+        peerPage);
+    peerListHint->setTextFormat(Qt::RichText);
+    peerVbox->addWidget(m_peerList, 1);
+    peerVbox->addWidget(peerListHint);
+
+    /* Chat con il peer connesso */
+    m_peerChatLog = new QTextEdit(peerPage);
+    m_peerChatLog->setReadOnly(true);
+    m_peerChatLog->setPlaceholderText("La chat con il dispositivo connesso apparirà qui.");
+    m_peerChatLog->setMinimumHeight(120);
+    m_peerChatLog->setVisible(false);
+    peerVbox->addWidget(m_peerChatLog);
+
+    auto* peerInputRow = new QHBoxLayout;
+    m_peerChatInput = new QLineEdit(peerPage);
+    m_peerChatInput->setPlaceholderText("Scrivi un messaggio...");
+    m_peerChatInput->setObjectName("ChatInput");
+    m_peerChatInput->setVisible(false);
+    m_peerChatSend = new QPushButton(
+        QString::fromUtf8("\xe2\x9e\xa4"), peerPage);  /* ➤ */
+    m_peerChatSend->setObjectName("SendBtn");
+    m_peerChatSend->setFixedWidth(52);
+    m_peerChatSend->setEnabled(false);
+    m_peerChatSend->setVisible(false);
+    peerInputRow->addWidget(m_peerChatInput, 1);
+    peerInputRow->addWidget(m_peerChatSend);
+    peerVbox->addLayout(peerInputRow);
+
+    m_stack->addWidget(peerPage);   /* indice 2 */
+
     /* ── BLE Discovery Agent ── */
     m_agent = new QBluetoothDeviceDiscoveryAgent(this);
     m_agent->setLowEnergyDiscoveryTimeout(8000);
+
+    /* ── Classic Discovery Agent (per peer BT) ── */
+    m_discoveryAgent = new QBluetoothDeviceDiscoveryAgent(this);
+    m_discoveryAgent->setLowEnergyDiscoveryTimeout(0);  /* solo Classic */
 
     /* ── Connessioni ── */
     connect(m_scanBtn,    &QPushButton::clicked, this, &BlePage::onStartScan);
@@ -154,6 +244,23 @@ BlePage::BlePage(QWidget* parent)
     connect(m_chatInput,  &QLineEdit::returnPressed, this, &BlePage::onChatSend);
     connect(m_list,       &QListWidget::itemClicked, this, &BlePage::onDeviceTapped);
 
+    /* Navigazione verso pagina Peer */
+    connect(m_peerTabBtnFromScan, &QPushButton::clicked, this, &BlePage::onShowPeer);
+    connect(m_peerTabBtnFromChat, &QPushButton::clicked, this, &BlePage::onShowPeer);
+    connect(m_scanTabBtnFromPeer, &QPushButton::clicked, this, &BlePage::onShowScan);
+    connect(m_chatTabBtnFromPeer, &QPushButton::clicked, this, &BlePage::onShowChat);
+
+    /* Peer discovery e chat */
+    connect(m_discoverBtn,    &QPushButton::clicked,           this, &BlePage::onDiscoverClicked);
+    connect(m_peerList,       &QListWidget::itemDoubleClicked, this, &BlePage::onPeerDoubleClicked);
+    connect(m_peerChatSend,   &QPushButton::clicked,           this, &BlePage::onBtClientSend);
+    connect(m_peerChatInput,  &QLineEdit::returnPressed,       this, &BlePage::onBtClientSend);
+
+    connect(m_discoveryAgent, &QBluetoothDeviceDiscoveryAgent::deviceDiscovered,
+            this, &BlePage::onClassicDeviceDiscovered);
+    connect(m_discoveryAgent, &QBluetoothDeviceDiscoveryAgent::finished,
+            this, &BlePage::onDiscoveryFinished);
+
     connect(m_agent, &QBluetoothDeviceDiscoveryAgent::deviceDiscovered,
             this, &BlePage::onDeviceDiscovered);
     connect(m_agent, &QBluetoothDeviceDiscoveryAgent::finished,
@@ -162,18 +269,24 @@ BlePage::BlePage(QWidget* parent)
             QOverload<QBluetoothDeviceDiscoveryAgent::Error>::of(
                 &QBluetoothDeviceDiscoveryAgent::errorOccurred),
             this, &BlePage::onScanError);
+
+    /* Popola subito con i dispositivi già accoppiati */
+    populatePairedDevices();
 }
 
 BlePage::~BlePage()
 {
     stopScan();
-    if (m_socket) { m_socket->disconnectFromService(); }
+    if (m_discoveryAgent && m_discoveryAgent->isActive()) m_discoveryAgent->stop();
+    if (m_socket)   { m_socket->disconnectFromService(); }
+    if (m_btClient) { m_btClient->disconnectFromService(); }
     if (m_btServer) { m_btServer->close(); }
 }
 
 /* ── Navigazione tab ─────────────────────────────────────────── */
 void BlePage::onShowScan() { m_stack->setCurrentIndex(0); }
 void BlePage::onShowChat() { m_stack->setCurrentIndex(1); }
+void BlePage::onShowPeer() { m_stack->setCurrentIndex(2); }
 
 /* ── stopScan ────────────────────────────────────────────────── */
 void BlePage::stopScan()
@@ -454,4 +567,195 @@ void BlePage::onChatSend()
     m_socket->write((msg + "\n").toUtf8());
     appendChatMsg("Tu", msg);
     m_chatInput->clear();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Peer BT Classic — scopri e connetti dispositivi (client)
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── populatePairedDevices — carica dispositivi già accoppiati ── */
+void BlePage::populatePairedDevices()
+{
+    QBluetoothLocalDevice localDev;
+    if (!localDev.isValid()) return;
+
+    const QList<QBluetoothAddress> paired =
+        localDev.connectedDevices();   /* dispositivi accoppiati/connessi */
+
+    for (const QBluetoothAddress& addr : paired) {
+        const QString mac  = addr.toString();
+        if (m_peerIndex.contains(mac)) continue;
+
+        const QString name = localDev.pairingStatus(addr) ==
+                             QBluetoothLocalDevice::Paired
+                             ? mac : mac;   /* il nome arriva solo con discovery */
+
+        auto* item = new QListWidgetItem(
+            QString::fromUtf8("\xf0\x9f\x94\x97") + "  " + mac + "\n    (accoppiato)",
+            m_peerList);
+        item->setData(Qt::UserRole,     mac);
+        item->setData(Qt::UserRole + 1, mac);
+        m_peerIndex[mac] = m_peerList->count() - 1;
+    }
+}
+
+/* ── onDiscoverClicked ────────────────────────────────────────── */
+void BlePage::onDiscoverClicked()
+{
+    if (!m_discoveryAgent) return;
+
+    if (m_discoveryAgent->isActive()) {
+        m_discoveryAgent->stop();
+        m_discoverBtn->setText(
+            QString::fromUtf8("\xf0\x9f\x94\x8d") + " Cerca dispositivi BT Classic");
+        m_peerStatus->setText(
+            QString::fromUtf8("\xe2\x9c\x95") + " Ricerca fermata.");
+        return;
+    }
+
+    m_peerList->clear();
+    m_peerIndex.clear();
+    populatePairedDevices();   /* ripopola accoppiati */
+
+    m_peerStatus->setText(
+        QString::fromUtf8("\xf0\x9f\x94\x8d") + " Ricerca BT Classic in corso\xe2\x80\xa6");
+    m_discoverBtn->setText(
+        QString::fromUtf8("\xe2\x9c\x95") + " Ferma ricerca");
+
+    m_discoveryAgent->start(QBluetoothDeviceDiscoveryAgent::ClassicMethod);
+}
+
+/* ── onClassicDeviceDiscovered ────────────────────────────────── */
+void BlePage::onClassicDeviceDiscovered(const QBluetoothDeviceInfo& device)
+{
+    if (!(device.coreConfigurations() &
+          QBluetoothDeviceInfo::BaseRateCoreConfiguration)) return;  /* solo Classic */
+
+    const QString mac  = device.address().toString();
+    const QString name = device.name().isEmpty() ? "(senza nome)" : device.name();
+    const QString text = QString::fromUtf8("\xf0\x9f\x93\xb1") +
+                         "  " + name + "\n    " + mac;
+
+    if (m_peerIndex.contains(mac)) {
+        if (auto* item = m_peerList->item(m_peerIndex[mac]))
+            item->setText(text);
+    } else {
+        auto* item = new QListWidgetItem(text, m_peerList);
+        item->setData(Qt::UserRole,     mac);
+        item->setData(Qt::UserRole + 1, name);
+        m_peerIndex[mac] = m_peerList->count() - 1;
+    }
+}
+
+/* ── onDiscoveryFinished ─────────────────────────────────────── */
+void BlePage::onDiscoveryFinished()
+{
+    m_peerStatus->setText(
+        m_peerList->count() == 0
+            ? QString::fromUtf8("\xe2\x9a\xa0") + "  Nessun dispositivo trovato"
+            : QString::fromUtf8("\xe2\x9c\x85") +
+              QString("  %1 dispositivi trovati. Doppio tap per connetterti.")
+                  .arg(m_peerList->count()));
+    m_discoverBtn->setText(
+        QString::fromUtf8("\xf0\x9f\x94\x8d") + " Cerca dispositivi BT Classic");
+}
+
+/* ── onPeerDoubleClicked — avvia connessione RFCOMM client ───── */
+void BlePage::onPeerDoubleClicked(QListWidgetItem* item)
+{
+    if (!item) return;
+    const QString mac  = item->data(Qt::UserRole).toString();
+    const QString name = item->data(Qt::UserRole + 1).toString();
+
+    if (mac.isEmpty()) return;
+
+    /* Chiudi connessione precedente se esiste */
+    if (m_btClient) {
+        if (m_btClient->state() == QBluetoothSocket::ConnectedState)
+            m_btClient->disconnectFromService();
+        m_btClient->deleteLater();
+        m_btClient = nullptr;
+    }
+
+    m_btClient = new QBluetoothSocket(QBluetoothServiceInfo::RfcommProtocol, this);
+
+    connect(m_btClient, &QBluetoothSocket::connected,
+            this, &BlePage::onBtClientConnected);
+    connect(m_btClient, &QBluetoothSocket::readyRead,
+            this, &BlePage::onBtClientReadyRead);
+    connect(m_btClient,
+            QOverload<QBluetoothSocket::SocketError>::of(
+                &QBluetoothSocket::errorOccurred),
+            this, &BlePage::onBtClientError);
+
+    m_peerStatus->setText(
+        QString::fromUtf8("\xe2\x8f\xb3") + " Connessione a " + name + " in corso...");
+    m_peerChatSend->setEnabled(false);
+
+    m_btClient->connectToService(
+        QBluetoothAddress(mac),
+        QBluetoothUuid(kChatUuid));
+}
+
+/* ── onBtClientConnected ─────────────────────────────────────── */
+void BlePage::onBtClientConnected()
+{
+    const QString peer = m_btClient ? m_btClient->peerName() : "Remoto";
+    m_peerStatus->setText(
+        QString::fromUtf8("\xf0\x9f\x9f\xa2") + " Connesso a: " + peer);
+    m_peerChatLog->setVisible(true);
+    m_peerChatInput->setVisible(true);
+    m_peerChatSend->setVisible(true);
+    m_peerChatSend->setEnabled(true);
+    appendPeerMsg("Sistema",
+        QString::fromUtf8("\xf0\x9f\x9f\xa2") + " Connesso a " + peer + ".");
+}
+
+/* ── onBtClientReadyRead ─────────────────────────────────────── */
+void BlePage::onBtClientReadyRead()
+{
+    if (!m_btClient) return;
+    while (m_btClient->canReadLine()) {
+        const QString line = QString::fromUtf8(m_btClient->readLine()).trimmed();
+        if (!line.isEmpty()) {
+            const QString peer = m_btClient->isValid()
+                ? m_btClient->peerName()
+                : "Remoto";
+            appendPeerMsg(peer, line);
+        }
+    }
+}
+
+/* ── onBtClientError ─────────────────────────────────────────── */
+void BlePage::onBtClientError(QBluetoothSocket::SocketError)
+{
+    const QString err = m_btClient ? m_btClient->errorString() : "errore socket";
+    m_peerStatus->setText(
+        QString::fromUtf8("\xe2\x9d\x8c") + " Connessione fallita: " + err);
+    m_peerChatSend->setEnabled(false);
+    appendPeerMsg("Sistema",
+        QString::fromUtf8("\xe2\x9d\x8c") + " Errore: " + err);
+    if (m_btClient) { m_btClient->deleteLater(); m_btClient = nullptr; }
+}
+
+/* ── onBtClientSend — invia messaggio tramite client ─────────── */
+void BlePage::onBtClientSend()
+{
+    const QString msg = m_peerChatInput->text().trimmed();
+    if (msg.isEmpty() || !m_btClient
+        || m_btClient->state() != QBluetoothSocket::ConnectedState) return;
+
+    m_btClient->write((msg + "\n").toUtf8());
+    appendPeerMsg("Tu", msg);
+    m_peerChatInput->clear();
+}
+
+/* ── appendPeerMsg — aggiunge messaggio al log peer ─────────── */
+void BlePage::appendPeerMsg(const QString& sender, const QString& text)
+{
+    const QString ts = QDateTime::currentDateTime().toString("HH:mm");
+    m_peerChatLog->append(
+        QString("<b>[%1] %2:</b> %3").arg(ts, sender, text.toHtmlEscaped()));
+    m_peerChatLog->verticalScrollBar()->setValue(
+        m_peerChatLog->verticalScrollBar()->maximum());
 }

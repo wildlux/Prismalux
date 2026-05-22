@@ -329,6 +329,19 @@ void AgentiPage::_finishedKnowledgeExtract() {
                  m_taskOriginal.left(30).simplified(),
                  QDateTime::currentDateTime().toString("yyyy-MM-dd"));
         callKnowledgeMcp(extracted, label);
+
+        /* Indicatore visivo: "\xf0\x9f\xa7\xa0 Memoria aggiornata" per 3 secondi
+           nel waitLabel della toolbar (stile coerente con TTS hide). */
+        if (m_waitLbl) {
+            m_waitLbl->setText("\xf0\x9f\xa7\xa0  Memoria aggiornata");
+            m_waitLbl->setVisible(true);
+            QTimer::singleShot(3000, this, &AgentiPage::onTtsHideWaitLbl);
+        }
+        /* Status bar: mostra "Memoria aggiornata" come messaggio di completamento */
+        emit pipelineStatus(100,
+            "\xf0\x9f\xa7\xa0  Memoria aggiornata \xe2\x80\x94 " + label);
+    } else {
+        emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
     }
 
     if (m_voiceLoopActive && !m_modePipeline && !m_agentOutputs.isEmpty()) {
@@ -340,7 +353,6 @@ void AgentiPage::_finishedKnowledgeExtract() {
             QTimer::singleShot(200, this, [this, ttsText]{ _ttsPlay(ttsText); });
     }
 
-    emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
     _setRunBusy(false);
     emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
 }

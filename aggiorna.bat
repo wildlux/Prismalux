@@ -15,9 +15,18 @@ REM    6. Cygwin 32-bit   (C:\cygwin)
 REM    7. Cygwin registro (percorso personalizzato)
 REM    8. Fallback nativo (build.bat + ZIP Python)
 REM
-REM  Opzioni (passate a aggiorna.sh se in bash, altrimenti ignorate):
-REM    --gui          Solo GUI
-REM    --zip          Solo ZIP
+REM  Sezioni disponibili (passate a aggiorna.sh se bash trovato):
+REM    --gui          Solo GUI Qt6
+REM    --web          GUI Qt6 + aggiorna interfaccia web embedded (LAN server)
+REM    --bat          Solo ZIP Windows con .bat launcher  [DEFAULT su Windows]
+REM    --zip          Alias per --bat
+REM    --appimage     AppImage Linux — NON DISPONIBILE su Windows
+REM
+REM  Combinazioni comuni:
+REM    (nessun arg)   GUI + ZIP .bat    (default Windows)
+REM    --gui --web    GUI + web preview
+REM    --bat          Solo ZIP, salta compilazione
+REM    --no-zip       GUI senza ZIP
 REM    --no-zip       Salta ZIP
 REM    --build-whisper  Compila whisper.cpp
 REM    --llama-studio   Compila llama-server
@@ -31,6 +40,19 @@ echo.
 echo +--------------------------------------------------+
 echo ^|   Prismalux — Aggiorna (Windows)                 ^|
 echo +--------------------------------------------------+
+echo.
+
+REM ── Avviso: --appimage non disponibile su Windows ───────────
+set _HAS_APPIMAGE=0
+for %%A in (%ARGS%) do (
+    if /i "%%A"=="--appimage" set _HAS_APPIMAGE=1
+)
+if "!_HAS_APPIMAGE!"=="1" (
+    echo  [WARN] --appimage non e' disponibile su Windows.
+    echo         AppImage e' solo per Linux. Opzione ignorata.
+    echo.
+    set ARGS=!ARGS:--appimage=!
+)
 echo.
 
 REM ── 1) MSYS2 UCRT64 ─────────────────────────────────────────
@@ -151,17 +173,24 @@ goto :done
 :native_build
 REM ──────────────────────────────────────────────────────────────
 REM  Build nativa: chiama build.bat poi crea ZIP con Python
+REM  Sezioni supportate: --gui, --web, --bat/--zip, --no-zip/--no-bat
+REM  Nota: --appimage non disponibile su Windows (ignorato sopra)
 REM ──────────────────────────────────────────────────────────────
 set DO_ZIP=1
+set DO_WEB=0
 for %%A in (%ARGS%) do (
     if "%%A"=="--zip"    set "DO_ZIP=1" & goto :skip_gui
+    if "%%A"=="--bat"    set "DO_ZIP=1" & goto :skip_gui
     if "%%A"=="--gui"    set "DO_ZIP=0"
+    if "%%A"=="--web"    set "DO_WEB=1"
     if "%%A"=="--no-zip" set "DO_ZIP=0"
+    if "%%A"=="--no-bat" set "DO_ZIP=0"
 )
 
-REM Compila GUI (a meno che --zip sia l'unico argomento)
+REM Compila GUI se non si sta facendo solo --zip/--bat
 set ONLY_ZIP=0
 if "%ARGS%"=="--zip" set ONLY_ZIP=1
+if "%ARGS%"=="--bat" set ONLY_ZIP=1
 if "!ONLY_ZIP!"=="0" (
     echo  [PASSO 1/2] Compilazione GUI...
     call "%SCRIPT_DIR%build.bat"
@@ -171,13 +200,19 @@ if "!ONLY_ZIP!"=="0" (
         pause
         exit /b 1
     )
+    if "!DO_WEB!"=="1" (
+        echo.
+        echo  [WEB] Interfaccia web embedded in gui/lan_server.cpp
+        echo        Avvia Prismalux e apri: http://localhost:11500/web
+        echo.
+    )
 )
 
 :skip_gui
-REM Crea ZIP Windows (richiede Python)
+REM Crea ZIP Windows con launcher .bat (richiede Python)
 if "!DO_ZIP!"=="1" (
     echo.
-    echo  [PASSO 2/2] Creo ZIP Windows...
+    echo  [PASSO 2/2] Creo ZIP Windows con launcher .bat...
     set ZIP_SCRIPT=%SCRIPT_DIR%scripts\crea_zip_windows.py
 
     REM Versione da CMakeLists.txt
@@ -302,6 +337,15 @@ echo +--------------------------------------------------+
 echo ^|   Aggiornamento completato.                      ^|
 echo +--------------------------------------------------+
 echo.
+echo   Sezioni eseguite su questa piattaforma (Windows):
+echo     GUI Qt6  : si (build.bat)
+echo     ZIP .bat : si (crea_zip_windows.py)
+echo     AppImage : N/A — solo Linux
+echo.
+if "!DO_WEB!"=="1" (
+    echo   Web app   : http://localhost:11500/web  [avvia Prismalux prima]
+    echo.
+)
 echo   Per avviare Prismalux: doppio clic su Avvia_Prismalux.bat
 echo.
 pause

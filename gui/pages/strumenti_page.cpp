@@ -401,21 +401,25 @@ static const char* kPlaceholders[10] = {
 };
 
 /* ══════════════════════════════════════════════════════════════
-   Costruttore — layout immediato:
-   [tab categorie]
-   [griglia bottoni azione — visibili tutti, cliccabili direttamente]
-   [✅ Azione selezionata]
-   [area input]  [▶ Esegui / ⏹ Stop]
-   [output AI]
+   Costruttore — stepdown: ogni metodo fa UNA cosa a UN livello.
    ══════════════════════════════════════════════════════════════ */
 StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     : QWidget(parent), m_ai(ai)
 {
     setAcceptDrops(true);
+    initHiddenWidgets();
+    buildLayout();
+    setupConnections();
+    setupTabOrder();
+}
 
-    /* Widget interni nascosti — usati dai slot tramite row/index */
+/* ──────────────────────────────────────────────────────────────
+   Livello 1 — initHiddenWidgets
+   Crea m_navList e m_cmbSub nascosti (usati dai slot via row/index).
+   ────────────────────────────────────────────────────────────── */
+void StrumentiPage::initHiddenWidgets()
+{
     m_navList = new QListWidget(this);
-
     m_navList->hide();
     for (int i = 0; i < 6; i++) m_navList->addItem("");
     m_navList->setCurrentRow(0);
@@ -424,66 +428,98 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
     m_cmbSub->hide();
     for (int i = 0; i < 6; i++) m_cmbSub->addItem("");
     m_cmbSub->setCurrentIndex(0);
+}
 
-    /* Layout principale */
+/* ──────────────────────────────────────────────────────────────
+   Livello 1 — buildLayout
+   Crea il QVBoxLayout principale e assembla tutte le sezioni.
+   ────────────────────────────────────────────────────────────── */
+void StrumentiPage::buildLayout()
+{
     auto* lay = new QVBoxLayout(this);
     lay->setContentsMargins(16, 10, 16, 10);
     lay->setSpacing(8);
 
-    /* ── Barra categorie: tab orizzontali ── */
-    static const char* kCatLabels[] = {
-        "\xf0\x9f\x93\x9a Studio",
-        "\xe2\x9c\x8d\xef\xb8\x8f Scrittura",
-        "\xf0\x9f\x94\x8d Ricerca",
-        "\xf0\x9f\x93\x96 Libri",
-        "\xe2\x9a\xa1 Produttivit\xc3\xa0",
-        "\xf0\x9f\x93\x84 Documenti",
-        /* cats 6-9 (Blender, Office, FreeCAD, CloudCompare) spostate in AppControllerPage */
-    };
-    static const char* kCatTooltips[] = {
-        "Studio — spiega concetti, riassumi argomenti, analizza testi",
-        "Scrittura — crea email, articoli, storie e testi creativi",
-        "Ricerca — cerca info, verifica fatti, analisi critiche",
-        "Libri — riassunti, analisi romanzi, guide alla lettura",
-        "Produttiv\xc3\xa0 — organizza task, crea liste, gestisci il tempo",
-        "Documenti — analizza PDF/TXT, estrai dati, riassunti",
-    };
+    m_actStack = buildActionStack();
 
-    auto* catBar = new QWidget(this);
-    auto* catLay = new QHBoxLayout(catBar);
-    catLay->setContentsMargins(0, 0, 0, 0);
-    catLay->setSpacing(0);
-
-    m_catGroup = new QButtonGroup(this);
-    auto* catGroup = m_catGroup;
-    catGroup->setExclusive(true);
-
-    /* Stack: una pagina per categoria con i bottoni azione — stored as member */
-    m_actStack = new QStackedWidget(this);
-    auto* actStack = m_actStack;
-    actStack->setMaximumHeight(180);
-
-
-    /* Label azione corrente — stored as member for slots */
     m_lblSel = new QLabel(this);
-    auto* lblSel = m_lblSel;
-    lblSel->setObjectName("cardDesc");
+    m_lblSel->setObjectName("cardDesc");
     const QString firstAction = QString::fromUtf8(kSubActions[0][0]);
-    lblSel->setText("\xe2\x9c\x85  <b>" + firstAction + "</b>");
-    lblSel->setTextFormat(Qt::RichText);
+    m_lblSel->setText("\xe2\x9c\x85  <b>" + firstAction + "</b>");
+    m_lblSel->setTextFormat(Qt::RichText);
+
+    lay->addWidget(buildCatScrollArea());
+    lay->addWidget(m_actStack);
+    lay->addWidget(m_lblSel);
+
+    buildSpecialRows(lay);
+
+    lay->addWidget(buildCodeModelRow());
+    lay->addWidget(buildInputRow());
+    lay->addWidget(buildOutputArea(), 1);
+    lay->addWidget(buildCronPanel(), 1);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Livello 1 — setupConnections
+   Tutti i connect() sui membri principali (AI, bottoni d'azione).
+   ────────────────────────────────────────────────────────────── */
+void StrumentiPage::setupConnections()
+{
+    /* Bottone Cron */
+    connect(m_cronBtn, &QPushButton::toggled,
+            this, &StrumentiPage::onCronBtnToggled);
+
+    /* Avvia / Stop tool (bottone unificato) */
+    connect(m_btnRun, &QPushButton::clicked,
+            this, &StrumentiPage::onBtnRunClicked);
+
+    /* Bottoni office/blender/freecad exec (membri) */
+    connect(m_officeStartBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onOfficeStartBtnClicked);
+    connect(m_officeExecBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onOfficeExecBtnClicked);
+    connect(m_blenderExecBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onBlenderExecBtnClicked);
+    connect(m_freecadExecBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onFreecadExecBtnClicked);
+    connect(m_btnSketchGen, &QPushButton::clicked,
+            this, &StrumentiPage::onSketchGenBtnClicked);
+
+    /* Modello codice — aggiorna lista */
+    connect(m_codeModelRefresh, &QPushButton::clicked,
+            this, &StrumentiPage::onCodeModelRefreshClicked);
+
+    /* Segnali AiClient */
+    connect(m_ai, &AiClient::token,      this, &StrumentiPage::onToken);
+    connect(m_ai, &AiClient::finished,   this, &StrumentiPage::onFinished);
+    connect(m_ai, &AiClient::error,      this, &StrumentiPage::onError);
+    connect(m_ai, &AiClient::aborted,    this, &StrumentiPage::onAiAborted);
+    connect(m_ai, &AiClient::modelsReady, this, &StrumentiPage::onCodeModelsReady);
+    connect(m_ai, &AiClient::error,      this, &StrumentiPage::onCodeModelError);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Livello 1 — setupTabOrder
+   Definisce l'ordine di navigazione via Tab tra i widget chiave.
+   ────────────────────────────────────────────────────────────── */
+void StrumentiPage::setupTabOrder()
+{
+    QWidget::setTabOrder(m_ragCheck,       m_codeModelCombo);
+    QWidget::setTabOrder(m_codeModelCombo, m_inputArea);
+    QWidget::setTabOrder(m_inputArea,      m_btnRun);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Livello 2 — buildActionStack
+   Crea lo QStackedWidget con una pagina di bottoni per categoria.
+   ────────────────────────────────────────────────────────────── */
+QStackedWidget* StrumentiPage::buildActionStack()
+{
+    auto* stack = new QStackedWidget(this);
+    stack->setMaximumHeight(180);
 
     for (int cat = 0; cat < 6; cat++) {
-        /* Tab categoria */
-        auto* catBtn = new QPushButton(
-            QString::fromUtf8(kCatLabels[cat]), catBar);
-        catBtn->setCheckable(true);
-        catBtn->setChecked(cat == 0);
-        catBtn->setObjectName("strCatBtn");
-        catBtn->setToolTip(QString::fromUtf8(kCatTooltips[cat]));
-        catGroup->addButton(catBtn, cat);
-        catLay->addWidget(catBtn);
-
-        /* Pagina azioni per questa categoria */
         auto* page = new QWidget;
         auto* grid = new QGridLayout(page);
         grid->setContentsMargins(0, 6, 0, 2);
@@ -503,242 +539,469 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
             grid->addWidget(abtn, row, col);
             if (++col > 2) { col = 0; row++; }
 
-            /* Store cat+act in button properties for use in slot */
             abtn->setProperty("strCat", cat);
             abtn->setProperty("strAct", act);
             connect(abtn, &QPushButton::clicked,
                     this, &StrumentiPage::onActBtnClicked);
         }
         for (int c = 0; c < 3; c++) grid->setColumnStretch(c, 1);
-        actStack->addWidget(page);
+        stack->addWidget(page);
     }
-    catLay->addSpacing(12);   /* piccola spaziatura visiva tra cat e pannelli speciali */
+    return stack;
+}
 
-    /* ── Pulsante Cron (non nella catGroup — stile separato) — stored as member ── */
-    m_cronBtn = new QPushButton(
-        "\xe2\x8f\xb1 Cron", catBar);  /* ⏱ */
+/* ──────────────────────────────────────────────────────────────
+   Livello 2 — buildCatScrollArea
+   Crea la barra tab-categoria + pulsante Cron, avvolta in QScrollArea.
+   ────────────────────────────────────────────────────────────── */
+QWidget* StrumentiPage::buildCatScrollArea()
+{
+    static const char* kCatLabels[] = {
+        "\xf0\x9f\x93\x9a Studio",
+        "\xe2\x9c\x8d\xef\xb8\x8f Scrittura",
+        "\xf0\x9f\x94\x8d Ricerca",
+        "\xf0\x9f\x93\x96 Libri",
+        "\xe2\x9a\xa1 Produttivit\xc3\xa0",
+        "\xf0\x9f\x93\x84 Documenti",
+    };
+    static const char* kCatTooltips[] = {
+        "Studio \xe2\x80\x94 spiega concetti, riassumi argomenti, analizza testi",
+        "Scrittura \xe2\x80\x94 crea email, articoli, storie e testi creativi",
+        "Ricerca \xe2\x80\x94 cerca info, verifica fatti, analisi critiche",
+        "Libri \xe2\x80\x94 riassunti, analisi romanzi, guide alla lettura",
+        "Produttivit\xc3\xa0 \xe2\x80\x94 organizza task, crea liste, gestisci il tempo",
+        "Documenti \xe2\x80\x94 analizza PDF/TXT, estrai dati, riassunti",
+    };
+
+    auto* catBar = new QWidget(this);
+    auto* catLay = new QHBoxLayout(catBar);
+    catLay->setContentsMargins(0, 0, 0, 0);
+    catLay->setSpacing(0);
+
+    m_catGroup = new QButtonGroup(this);
+    m_catGroup->setExclusive(true);
+
+    for (int cat = 0; cat < 6; cat++) {
+        auto* catBtn = new QPushButton(
+            QString::fromUtf8(kCatLabels[cat]), catBar);
+        catBtn->setCheckable(true);
+        catBtn->setChecked(cat == 0);
+        catBtn->setObjectName("strCatBtn");
+        catBtn->setToolTip(QString::fromUtf8(kCatTooltips[cat]));
+        m_catGroup->addButton(catBtn, cat);
+        catLay->addWidget(catBtn);
+    }
+    catLay->addSpacing(12);
+
+    /* Pulsante Cron — stored as member */
+    m_cronBtn = new QPushButton("\xe2\x8f\xb1 Cron", catBar);
     m_cronBtn->setCheckable(true);
     m_cronBtn->setObjectName("strCatBtn");
     m_cronBtn->setToolTip(
         "Pianifica comandi periodici con il Cron Scheduler integrato");
     catLay->addWidget(m_cronBtn);
-    auto* cronBtn = m_cronBtn;  /* local alias for clarity below */
-
-    /* LAN Android, Stable Diffusion, File AI, Wiki, Mappe, Audio AI, Dati AI
-       sono stati spostati in tab dedicati (LanWanPage, MultimediaPage, StrumentiFilePage) */
 
     /* Cambio categoria */
-    connect(catGroup, QOverload<int>::of(&QButtonGroup::idClicked),
+    connect(m_catGroup, QOverload<int>::of(&QButtonGroup::idClicked),
             this, &StrumentiPage::onCatGroupIdClicked);
 
-    /* ── catBar in scroll area: tutti i tab sempre leggibili ── */
     auto* catScroll = new QScrollArea(this);
     catScroll->setFrameShape(QFrame::NoFrame);
     catScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     catScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     catScroll->setWidget(catBar);
-    catScroll->setWidgetResizable(true);   /* catBar si allarga fino al bordo: linea continua */
-    catScroll->setFixedHeight(52);         /* 34px bottoni + ~16px scrollbar orizzontale */
+    catScroll->setWidgetResizable(true);
+    catScroll->setFixedHeight(52);
+    return catScroll;
+}
 
-    lay->addWidget(catScroll);
-    lay->addWidget(actStack);
-    lay->addWidget(lblSel);
+/* ──────────────────────────────────────────────────────────────
+   Livello 2 — buildSpecialRows
+   Aggiunge al layout principale tutte le righe condizionali.
+   ────────────────────────────────────────────────────────────── */
+void StrumentiPage::buildSpecialRows(QVBoxLayout* lay)
+{
+    m_ragRow = buildRagRow();
+    lay->addWidget(m_ragRow);
 
-    /* ── Riga RAG in-page (visibile per tutte le categorie attive) ── */
-    m_ragRow = new QWidget(this);
-    m_ragRow->setObjectName("ragRow");
-    auto* ragLay = new QHBoxLayout(m_ragRow);
-    ragLay->setContentsMargins(8, 4, 8, 4);
-    ragLay->setSpacing(8);
+    m_pdfRow = buildPdfRow();
+    lay->addWidget(m_pdfRow);
 
-    m_ragCheck = new QCheckBox(
-        "\xf0\x9f\x93\x9a  RAG documenti", m_ragRow);
+    m_blenderRow = buildBlenderRow();
+    lay->addWidget(m_blenderRow);
+
+    m_blenderHintRow = buildBlenderHintRow();
+    lay->addWidget(m_blenderHintRow);
+
+    m_officeRow = buildOfficeRow();
+    lay->addWidget(m_officeRow);
+
+    m_officeHintRow = buildOfficeHintRow();
+    lay->addWidget(m_officeHintRow);
+
+    m_freecadRow = buildFreecadRow();
+    lay->addWidget(m_freecadRow);
+
+    m_freecadHintRow = buildFreecadHintRow();
+    lay->addWidget(m_freecadHintRow);
+
+    m_sketchRow = buildSketchRow();
+    lay->addWidget(m_sketchRow);
+
+    m_cloudCompareRow = buildCloudCompareRow();
+    lay->addWidget(m_cloudCompareRow);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Livello 2 — buildCodeModelRow
+   Riga selezione modello LLM per tutte le categorie.
+   ────────────────────────────────────────────────────────────── */
+QWidget* StrumentiPage::buildCodeModelRow()
+{
+    m_codeModelRow = new QWidget(this);
+    auto* lay = new QHBoxLayout(m_codeModelRow);
+    lay->setContentsMargins(0, 2, 0, 2);
+    lay->setSpacing(8);
+
+    auto* lbl = new QLabel("\xf0\x9f\xa4\x96  Modello:", m_codeModelRow);
+    lbl->setObjectName("hintLabel");
+    lay->addWidget(lbl);
+
+    m_codeModelCombo = new QComboBox(m_codeModelRow);
+    m_codeModelCombo->setMinimumWidth(200);
+    m_codeModelCombo->setToolTip(
+        "Modello LLM usato per questa sezione.\n"
+        "Indipendente dal modello globale.\n"
+        "I modelli evidenziati in verde sono consigliati per la categoria attiva.");
+    m_codeModelCombo->addItem(m_ai->model().isEmpty()
+        ? "(modello globale)" : m_ai->model(), m_ai->model());
+    lay->addWidget(m_codeModelCombo);
+
+    m_codeModelRefresh = new QPushButton("\xf0\x9f\x94\x84", m_codeModelRow);
+    m_codeModelRefresh->setFixedWidth(32);
+    m_codeModelRefresh->setToolTip("Aggiorna lista modelli");
+    lay->addWidget(m_codeModelRefresh);
+
+    m_codeModelInfo = new QLabel(m_codeModelRow);
+    m_codeModelInfo->setObjectName("hintLabel");
+    m_codeModelInfo->setWordWrap(false);
+    m_codeModelInfo->setText(
+        "\xe2\x9c\xa8 Consigliati: <b>mistral</b>, <b>llama3</b>, <b>qwen3</b>"
+        " \xe2\x80\x94 buona comprensione e spiegazione");
+    m_codeModelInfo->setTextFormat(Qt::RichText);
+    lay->addWidget(m_codeModelInfo, 1);
+
+    m_codeModelRow->setVisible(true);
+    return m_codeModelRow;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Livello 2 — buildInputRow
+   Riga inputArea + btnRun + indicatori di attesa.
+   ────────────────────────────────────────────────────────────── */
+QWidget* StrumentiPage::buildInputRow()
+{
+    m_inputRow = new QWidget(this);
+    auto* lay = new QHBoxLayout(m_inputRow);
+    lay->setContentsMargins(0, 0, 0, 0);
+    lay->setSpacing(8);
+
+    m_inputArea = new QTextEdit(m_inputRow);
+    m_inputArea->setObjectName("chatInput");
+    m_inputArea->setPlaceholderText(QString::fromUtf8(kPlaceholders[0]));
+    m_inputArea->setMaximumHeight(90);
+    m_inputArea->setMinimumHeight(60);
+    lay->addWidget(m_inputArea, 1);
+
+    auto* btnCol = new QVBoxLayout;
+    btnCol->setSpacing(6);
+
+    m_btnRun = new QPushButton("\xe2\x96\xb6  Esegui", m_inputRow);
+    m_btnRun->setObjectName("actionBtn");
+    m_btnRun->setToolTip("Invia la richiesta al modello AI (Invio+Ctrl)");
+    m_btnRun->setAccessibleName("Esegui richiesta AI");
+    m_btnRun->setFixedWidth(110);
+
+    m_waitLbl = new QLabel(m_inputRow);
+    m_waitLbl->setStyleSheet(
+        "color:#E5C400;font-style:italic;font-size:11px;");
+    m_waitLbl->setVisible(false);
+    m_waitLbl->setWordWrap(true);
+
+    m_waitBar = new QProgressBar(m_inputRow);
+    m_waitBar->setRange(0, 0);
+    m_waitBar->setFixedHeight(4);
+    m_waitBar->setTextVisible(false);
+    m_waitBar->setVisible(false);
+
+    btnCol->addWidget(m_btnRun);
+    btnCol->addWidget(m_waitLbl);
+    btnCol->addWidget(m_waitBar);
+    btnCol->addStretch();
+    lay->addLayout(btnCol);
+    return m_inputRow;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Livello 2 — buildOutputArea
+   QTextEdit di output AI in modalità sola lettura.
+   ────────────────────────────────────────────────────────────── */
+QWidget* StrumentiPage::buildOutputArea()
+{
+    m_output = new QTextEdit(this);
+    m_output->setObjectName("chatLog");
+    m_output->setReadOnly(true);
+    m_output->setPlaceholderText(
+        "L'output dell'AI appare qui...\n\n"
+        "\xf0\x9f\x8d\xba  Invocazione riuscita. Gli dei ascoltano.");
+    return m_output;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Livello 2 — buildCronPanel
+   Pannello placeholder per il Cron Scheduler (lazy-init).
+   ────────────────────────────────────────────────────────────── */
+QWidget* StrumentiPage::buildCronPanel()
+{
+    m_cronPanel = new QWidget(this);
+    auto* cl = new QVBoxLayout(m_cronPanel);
+    cl->setContentsMargins(16, 16, 16, 16);
+    auto* lbl = new QLabel(
+        "\xe2\x8f\xb3  Caricamento Cron Scheduler in corso...");
+    lbl->setTextFormat(Qt::RichText);
+    lbl->setWordWrap(true);
+    lbl->setObjectName("hintLabel");
+    cl->addWidget(lbl);
+    cl->addStretch();
+    m_cronPanel->setVisible(false);
+    return m_cronPanel;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Livello 3 — buildRagRow
+   Riga RAG in-page: checkbox, aggiungi, info, svuota.
+   Connette ragAddBtn e ragClearBtn internamente.
+   ────────────────────────────────────────────────────────────── */
+QWidget* StrumentiPage::buildRagRow()
+{
+    auto* row = new QWidget(this);
+    row->setObjectName("ragRow");
+    auto* lay = new QHBoxLayout(row);
+    lay->setContentsMargins(8, 4, 8, 4);
+    lay->setSpacing(8);
+
+    m_ragCheck = new QCheckBox("\xf0\x9f\x93\x9a  RAG documenti", row);
     m_ragCheck->setToolTip(
         "Se attivo, i documenti caricati vengono usati come contesto\n"
         "per ogni richiesta AI in questa sezione.\n"
         "Puoi anche trascinare PDF/TXT/MD direttamente sulla finestra.");
-    ragLay->addWidget(m_ragCheck);
+    lay->addWidget(m_ragCheck);
 
-    auto* ragAddBtn = new QPushButton(
-        "\xf0\x9f\x93\x82  Aggiungi", m_ragRow);
+    auto* ragAddBtn = new QPushButton("\xf0\x9f\x93\x82  Aggiungi", row);
     ragAddBtn->setObjectName("actionBtn");
     ragAddBtn->setFixedWidth(100);
     ragAddBtn->setToolTip("Aggiungi PDF, TXT o Markdown all'indice RAG");
-    ragLay->addWidget(ragAddBtn);
+    lay->addWidget(ragAddBtn);
 
-    m_ragInfoLbl = new QLabel("Nessun documento caricato", m_ragRow);
+    m_ragInfoLbl = new QLabel("Nessun documento caricato", row);
     m_ragInfoLbl->setObjectName("hintLabel");
-    ragLay->addWidget(m_ragInfoLbl, 1);
+    lay->addWidget(m_ragInfoLbl, 1);
 
-    auto* ragClearBtn = new QPushButton(
-        "\xf0\x9f\x97\x91  Svuota", m_ragRow);
+    auto* ragClearBtn = new QPushButton("\xf0\x9f\x97\x91  Svuota", row);
     ragClearBtn->setObjectName("actionBtn");
     ragClearBtn->setToolTip("Rimuove tutti i documenti dall'indice RAG in-page");
     ragClearBtn->setFixedWidth(80);
-    ragLay->addWidget(ragClearBtn);
+    lay->addWidget(ragClearBtn);
 
-    lay->addWidget(m_ragRow);
-
-    /* Aggiungi documenti al RAG */
     connect(ragAddBtn,   &QPushButton::clicked,
             this, &StrumentiPage::onRagAddBtnClicked);
-
-    /* Svuota indice RAG */
     connect(ragClearBtn, &QPushButton::clicked,
             this, &StrumentiPage::onRagClearBtnClicked);
+    return row;
+}
 
-    /* ── Riga PDF picker (visibile solo per categoria Documenti) ── */
-    m_pdfRow = new QWidget(this);
-    auto* pdfLay = new QHBoxLayout(m_pdfRow);
-    pdfLay->setContentsMargins(0, 4, 0, 0);
-    pdfLay->setSpacing(8);
+/* ──────────────────────────────────────────────────────────────
+   Livello 3 — buildPdfRow
+   Riga PDF picker (visibile solo per categoria Documenti).
+   Connette pdfBtn internamente.
+   ────────────────────────────────────────────────────────────── */
+QWidget* StrumentiPage::buildPdfRow()
+{
+    auto* row = new QWidget(this);
+    auto* lay = new QHBoxLayout(row);
+    lay->setContentsMargins(0, 4, 0, 0);
+    lay->setSpacing(8);
 
-    auto* pdfBtn = new QPushButton("\xf0\x9f\x93\x84  Carica PDF", m_pdfRow);
+    auto* pdfBtn = new QPushButton("\xf0\x9f\x93\x84  Carica PDF", row);
     pdfBtn->setObjectName("actionBtn");
-    pdfBtn->setToolTip("Seleziona un file PDF da usare come contesto per la generazione AI");
+    pdfBtn->setToolTip(
+        "Seleziona un file PDF da usare come contesto per la generazione AI");
     pdfBtn->setFixedWidth(130);
 
-    m_pdfPathLbl = new QLabel("Nessun PDF caricato", m_pdfRow);
+    m_pdfPathLbl = new QLabel("Nessun PDF caricato", row);
     m_pdfPathLbl->setObjectName("hintLabel");
     m_pdfPathLbl->setWordWrap(false);
 
-    pdfLay->addWidget(pdfBtn);
-    pdfLay->addWidget(m_pdfPathLbl, 1);
-    m_pdfRow->setVisible(false);
-    lay->addWidget(m_pdfRow);
+    lay->addWidget(pdfBtn);
+    lay->addWidget(m_pdfPathLbl, 1);
+    row->setVisible(false);
 
     connect(pdfBtn, &QPushButton::clicked,
             this, &StrumentiPage::onPdfBtnClicked);
+    return row;
+}
 
-    /* ── Riga Blender Bridge (visibile solo per categoria Blender) ── */
-    m_blenderRow = new QWidget(this);
-    auto* blenderLay = new QHBoxLayout(m_blenderRow);
-    blenderLay->setContentsMargins(0, 4, 0, 0);
-    blenderLay->setSpacing(8);
+/* ──────────────────────────────────────────────────────────────
+   Livello 3 — buildBlenderRow
+   Riga connessione Blender bridge + NAM.
+   Connette blenderPingBtn e blenderHelpBtn internamente.
+   ────────────────────────────────────────────────────────────── */
+QWidget* StrumentiPage::buildBlenderRow()
+{
+    auto* row = new QWidget(this);
+    auto* lay = new QHBoxLayout(row);
+    lay->setContentsMargins(0, 4, 0, 0);
+    lay->setSpacing(8);
 
-    auto* blenderLbl = new QLabel("Blender:", m_blenderRow);
-    blenderLbl->setObjectName("hintLabel");
+    auto* lbl = new QLabel("Blender:", row);
+    lbl->setObjectName("hintLabel");
 
-    m_blenderHostEdit = new QLineEdit("localhost:6789", m_blenderRow);
+    m_blenderHostEdit = new QLineEdit("localhost:6789", row);
     m_blenderHostEdit->setFixedWidth(160);
     m_blenderHostEdit->setPlaceholderText("localhost:6789");
 
-    auto* blenderPingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", m_blenderRow);
+    auto* blenderPingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", row);
     blenderPingBtn->setObjectName("actionBtn");
-    blenderPingBtn->setToolTip("Testa la connessione TCP al bridge Blender (porta 9001 default)");
+    blenderPingBtn->setToolTip(
+        "Testa la connessione TCP al bridge Blender (porta 9001 default)");
     blenderPingBtn->setFixedWidth(100);
 
-    m_blenderStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", m_blenderRow);
+    m_blenderStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", row);
     m_blenderStatusLbl->setObjectName("hintLabel");
 
     m_blenderExecBtn = new QPushButton(
-        "\xe2\x96\xb6  Esegui in Blender", m_blenderRow);
+        "\xe2\x96\xb6  Esegui in Blender", row);
     m_blenderExecBtn->setObjectName("actionBtn");
-    m_blenderExecBtn->setToolTip("Invia il codice Python generato a Blender via bridge MCP");
+    m_blenderExecBtn->setToolTip(
+        "Invia il codice Python generato a Blender via bridge MCP");
     m_blenderExecBtn->setFixedWidth(160);
     m_blenderExecBtn->setEnabled(false);
 
-    blenderLay->addWidget(blenderLbl);
-    blenderLay->addWidget(m_blenderHostEdit);
-    blenderLay->addWidget(blenderPingBtn);
-    blenderLay->addWidget(m_blenderStatusLbl, 1);
-    blenderLay->addWidget(m_blenderExecBtn);
-
     auto* blenderHelpBtn = new QPushButton(
-        "\xf0\x9f\x9b\x9f \xf0\x9f\x94\xa7  Aiuto", m_blenderRow);
+        "\xf0\x9f\x9b\x9f \xf0\x9f\x94\xa7  Aiuto", row);
     blenderHelpBtn->setObjectName("actionBtn");
     blenderHelpBtn->setFixedWidth(90);
-    blenderLay->addWidget(blenderHelpBtn);
 
-    connect(blenderHelpBtn, &QPushButton::clicked,
+    lay->addWidget(lbl);
+    lay->addWidget(m_blenderHostEdit);
+    lay->addWidget(blenderPingBtn);
+    lay->addWidget(m_blenderStatusLbl, 1);
+    lay->addWidget(m_blenderExecBtn);
+    lay->addWidget(blenderHelpBtn);
+
+    row->setVisible(false);
+
+    m_blenderNam = new QNetworkAccessManager(this);
+
+    connect(blenderPingBtn,  &QPushButton::clicked,
+            this, &StrumentiPage::onBlenderPingBtnClicked);
+    connect(blenderHelpBtn,  &QPushButton::clicked,
             this, &StrumentiPage::onBlenderHelpBtnClicked);
+    return row;
+}
 
-    m_blenderRow->setVisible(false);
-    lay->addWidget(m_blenderRow);
-
-    /* ── Avviso installazione Blender MCP ── */
-    m_blenderHintRow = new QWidget(this);
-    auto* blenderHintLay = new QHBoxLayout(m_blenderHintRow);
-    blenderHintLay->setContentsMargins(0, 0, 0, 4);
-    blenderHintLay->setSpacing(0);
-    auto* blenderHintLbl = new QLabel(m_blenderHintRow);
-    blenderHintLbl->setObjectName("hintLabel");
-    blenderHintLbl->setOpenExternalLinks(true);
-    blenderHintLbl->setWordWrap(true);
-    blenderHintLbl->setText(
+/* ──────────────────────────────────────────────────────────────
+   Livello 3 — buildBlenderHintRow
+   Avviso installazione addon Blender MCP.
+   ────────────────────────────────────────────────────────────── */
+QWidget* StrumentiPage::buildBlenderHintRow()
+{
+    auto* row = new QWidget(this);
+    auto* lay = new QHBoxLayout(row);
+    lay->setContentsMargins(0, 0, 0, 4);
+    lay->setSpacing(0);
+    auto* lbl = new QLabel(row);
+    lbl->setObjectName("hintLabel");
+    lbl->setOpenExternalLinks(true);
+    lbl->setWordWrap(true);
+    lbl->setText(
         "\xf0\x9f\x93\xa6 <b>MCP non connesso?</b> "
         "Installa il server Blender MCP: "
         "<a href='https://github.com/ahujasid/blender-mcp'>"
         "github.com/ahujasid/blender-mcp</a> "
         "\xe2\x86\x92 Blender \xc2\xbb Preferences \xc2\xbb Add-ons \xc2\xbb Install "
         "\xe2\x86\x92 avvia il server dal pannello N.");
-    blenderHintLay->addWidget(blenderHintLbl);
-    m_blenderHintRow->setVisible(false);
-    lay->addWidget(m_blenderHintRow);
+    lay->addWidget(lbl);
+    row->setVisible(false);
+    return row;
+}
 
-    m_blenderNam = new QNetworkAccessManager(this);
+/* ──────────────────────────────────────────────────────────────
+   Livello 3 — buildOfficeRow
+   Riga connessione Office bridge + NAM.
+   Connette officeHelpBtn internamente.
+   ────────────────────────────────────────────────────────────── */
+QWidget* StrumentiPage::buildOfficeRow()
+{
+    auto* row = new QWidget(this);
+    auto* lay = new QHBoxLayout(row);
+    lay->setContentsMargins(0, 4, 0, 0);
+    lay->setSpacing(8);
 
-    /* Ping /status → verifica connessione Blender */
-    connect(blenderPingBtn, &QPushButton::clicked,
-            this, &StrumentiPage::onBlenderPingBtnClicked);
+    auto* lbl = new QLabel("Office:", row);
+    lbl->setObjectName("hintLabel");
 
-    /* POST /execute → invia codice bpy a Blender */
-    connect(m_blenderExecBtn, &QPushButton::clicked,
-            this, &StrumentiPage::onBlenderExecBtnClicked);
-
-    /* ── Riga Office Bridge (visibile solo per categoria Office) ── */
-    m_officeRow = new QWidget(this);
-    auto* officeLay = new QHBoxLayout(m_officeRow);
-    officeLay->setContentsMargins(0, 4, 0, 0);
-    officeLay->setSpacing(8);
-
-    auto* officeLbl = new QLabel("Office:", m_officeRow);
-    officeLbl->setObjectName("hintLabel");
-
-    m_officeStartBtn = new QPushButton(
-        "\xe2\x96\xb6  Avvia bridge", m_officeRow);
+    m_officeStartBtn = new QPushButton("\xe2\x96\xb6  Avvia bridge", row);
     m_officeStartBtn->setObjectName("actionBtn");
-    m_officeStartBtn->setToolTip("Avvia il bridge Python che si connette a LibreOffice via UNO API");
+    m_officeStartBtn->setToolTip(
+        "Avvia il bridge Python che si connette a LibreOffice via UNO API");
     m_officeStartBtn->setFixedWidth(120);
 
-    m_officeStatusLbl = new QLabel(
-        "\xe2\x9a\xaa  Bridge non avviato", m_officeRow);
+    m_officeStatusLbl = new QLabel("\xe2\x9a\xaa  Bridge non avviato", row);
     m_officeStatusLbl->setObjectName("hintLabel");
 
-    m_officeExecBtn = new QPushButton(
-        "\xf0\x9f\x96\xa5  Esegui in Office", m_officeRow);
+    m_officeExecBtn = new QPushButton("\xf0\x9f\x96\xa5  Esegui in Office", row);
     m_officeExecBtn->setObjectName("actionBtn");
-    m_officeExecBtn->setToolTip("Invia il codice Python UNO generato a LibreOffice tramite bridge");
+    m_officeExecBtn->setToolTip(
+        "Invia il codice Python UNO generato a LibreOffice tramite bridge");
     m_officeExecBtn->setFixedWidth(160);
     m_officeExecBtn->setEnabled(false);
 
-    officeLay->addWidget(officeLbl);
-    officeLay->addWidget(m_officeStartBtn);
-    officeLay->addWidget(m_officeStatusLbl, 1);
-    officeLay->addWidget(m_officeExecBtn);
-
     auto* officeHelpBtn = new QPushButton(
-        "\xf0\x9f\x9b\x9f \xf0\x9f\x94\xa7  Aiuto", m_officeRow);
+        "\xf0\x9f\x9b\x9f \xf0\x9f\x94\xa7  Aiuto", row);
     officeHelpBtn->setObjectName("actionBtn");
     officeHelpBtn->setFixedWidth(90);
-    officeLay->addWidget(officeHelpBtn);
+
+    lay->addWidget(lbl);
+    lay->addWidget(m_officeStartBtn);
+    lay->addWidget(m_officeStatusLbl, 1);
+    lay->addWidget(m_officeExecBtn);
+    lay->addWidget(officeHelpBtn);
+
+    row->setVisible(false);
+
+    m_officeNam = new QNetworkAccessManager(this);
 
     connect(officeHelpBtn, &QPushButton::clicked,
             this, &StrumentiPage::onOfficeHelpBtnClicked);
+    return row;
+}
 
-    m_officeRow->setVisible(false);
-    lay->addWidget(m_officeRow);
-
-    /* ── Avviso installazione MCP per Microsoft Office ── */
-    m_officeHintRow = new QWidget(this);
-    auto* officeHintLay = new QHBoxLayout(m_officeHintRow);
-    officeHintLay->setContentsMargins(0, 0, 0, 4);
-    officeHintLay->setSpacing(0);
-    auto* officeHintLbl = new QLabel(m_officeHintRow);
-    officeHintLbl->setObjectName("hintLabel");
-    officeHintLbl->setOpenExternalLinks(true);
-    officeHintLbl->setWordWrap(true);
-    officeHintLbl->setText(
+/* ──────────────────────────────────────────────────────────────
+   Livello 3 — buildOfficeHintRow
+   Avviso installazione MCP per Microsoft Office.
+   ────────────────────────────────────────────────────────────── */
+QWidget* StrumentiPage::buildOfficeHintRow()
+{
+    auto* row = new QWidget(this);
+    auto* lay = new QHBoxLayout(row);
+    lay->setContentsMargins(0, 0, 0, 4);
+    lay->setSpacing(0);
+    auto* lbl = new QLabel(row);
+    lbl->setObjectName("hintLabel");
+    lbl->setOpenExternalLinks(true);
+    lbl->setWordWrap(true);
+    lbl->setText(
         "\xf0\x9f\x93\xa6 <b>Vuoi controllare Microsoft Office/365 via MCP?</b> "
         "Installa un server MCP dedicato: cerca <b>office365 MCP</b> su "
         "<a href='https://github.com/modelcontextprotocol/servers'>"
@@ -746,68 +1009,83 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         "oppure su npm (<code>npm install -g mcp-server-office365</code>), "
         "poi registralo con: <code>claude mcp add office365 node /path/to/server.js</code>. "
         "\xe2\x86\x92 Il bridge Python qui sopra funziona gi\xc3\xa0 con LibreOffice senza MCP.");
-    officeHintLay->addWidget(officeHintLbl);
-    m_officeHintRow->setVisible(false);
-    lay->addWidget(m_officeHintRow);
+    lay->addWidget(lbl);
+    row->setVisible(false);
+    return row;
+}
 
-    m_officeNam = new QNetworkAccessManager(this);
+/* ──────────────────────────────────────────────────────────────
+   Livello 3 — buildFreecadRow
+   Riga connessione FreeCAD bridge (cat=8).
+   Connette freecadPingBtn e freecadHelpBtn internamente.
+   ────────────────────────────────────────────────────────────── */
+QWidget* StrumentiPage::buildFreecadRow()
+{
+    auto* row = new QWidget(this);
+    auto* lay = new QHBoxLayout(row);
+    lay->setContentsMargins(0, 4, 0, 0);
+    lay->setSpacing(8);
 
-    /* ── Riga FreeCAD MCP (visibile solo per categoria FreeCAD, cat=8) ── */
-    m_freecadRow = new QWidget(this);
-    auto* freecadLay = new QHBoxLayout(m_freecadRow);
-    freecadLay->setContentsMargins(0, 4, 0, 0);
-    freecadLay->setSpacing(8);
+    auto* lbl = new QLabel("FreeCAD:", row);
+    lbl->setObjectName("hintLabel");
 
-    auto* freecadLbl = new QLabel("FreeCAD:", m_freecadRow);
-    freecadLbl->setObjectName("hintLabel");
-
-    m_freecadHostEdit = new QLineEdit("localhost:9876", m_freecadRow);
+    m_freecadHostEdit = new QLineEdit("localhost:9876", row);
     m_freecadHostEdit->setFixedWidth(160);
     m_freecadHostEdit->setPlaceholderText("localhost:9876");
 
-    auto* freecadPingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", m_freecadRow);
+    auto* freecadPingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", row);
     freecadPingBtn->setObjectName("actionBtn");
-    freecadPingBtn->setToolTip("Testa la connessione TCP al bridge FreeCAD (porta 9876 default)");
+    freecadPingBtn->setToolTip(
+        "Testa la connessione TCP al bridge FreeCAD (porta 9876 default)");
     freecadPingBtn->setFixedWidth(100);
 
-    m_freecadStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", m_freecadRow);
+    m_freecadStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", row);
     m_freecadStatusLbl->setObjectName("hintLabel");
 
     m_freecadExecBtn = new QPushButton(
-        "\xf0\x9f\x94\xa9  Esegui in FreeCAD", m_freecadRow);
+        "\xf0\x9f\x94\xa9  Esegui in FreeCAD", row);
     m_freecadExecBtn->setObjectName("actionBtn");
-    m_freecadExecBtn->setToolTip("Invia il codice Python FreeCAD generato via bridge MCP");
+    m_freecadExecBtn->setToolTip(
+        "Invia il codice Python FreeCAD generato via bridge MCP");
     m_freecadExecBtn->setFixedWidth(170);
     m_freecadExecBtn->setEnabled(false);
 
-    freecadLay->addWidget(freecadLbl);
-    freecadLay->addWidget(m_freecadHostEdit);
-    freecadLay->addWidget(freecadPingBtn);
-    freecadLay->addWidget(m_freecadStatusLbl, 1);
-    freecadLay->addWidget(m_freecadExecBtn);
-
     auto* freecadHelpBtn = new QPushButton(
-        "\xf0\x9f\x9b\x9f \xf0\x9f\x94\xa7  Aiuto", m_freecadRow);
+        "\xf0\x9f\x9b\x9f \xf0\x9f\x94\xa7  Aiuto", row);
     freecadHelpBtn->setObjectName("actionBtn");
     freecadHelpBtn->setFixedWidth(90);
-    freecadLay->addWidget(freecadHelpBtn);
 
-    connect(freecadHelpBtn, &QPushButton::clicked,
+    lay->addWidget(lbl);
+    lay->addWidget(m_freecadHostEdit);
+    lay->addWidget(freecadPingBtn);
+    lay->addWidget(m_freecadStatusLbl, 1);
+    lay->addWidget(m_freecadExecBtn);
+    lay->addWidget(freecadHelpBtn);
+
+    row->setVisible(false);
+
+    connect(freecadPingBtn,  &QPushButton::clicked,
+            this, &StrumentiPage::onFreecadPingBtnClicked);
+    connect(freecadHelpBtn,  &QPushButton::clicked,
             this, &StrumentiPage::onFreecadHelpBtnClicked);
+    return row;
+}
 
-    m_freecadRow->setVisible(false);
-    lay->addWidget(m_freecadRow);
-
-    /* ── Avviso installazione FreeCAD MCP ── */
-    m_freecadHintRow = new QWidget(this);
-    auto* freecadHintLay = new QHBoxLayout(m_freecadHintRow);
-    freecadHintLay->setContentsMargins(0, 0, 0, 4);
-    freecadHintLay->setSpacing(0);
-    auto* freecadHintLbl = new QLabel(m_freecadHintRow);
-    freecadHintLbl->setObjectName("hintLabel");
-    freecadHintLbl->setOpenExternalLinks(true);
-    freecadHintLbl->setWordWrap(true);
-    freecadHintLbl->setText(
+/* ──────────────────────────────────────────────────────────────
+   Livello 3 — buildFreecadHintRow
+   Avviso installazione workbench FreeCAD MCP.
+   ────────────────────────────────────────────────────────────── */
+QWidget* StrumentiPage::buildFreecadHintRow()
+{
+    auto* row = new QWidget(this);
+    auto* lay = new QHBoxLayout(row);
+    lay->setContentsMargins(0, 0, 0, 4);
+    lay->setSpacing(0);
+    auto* lbl = new QLabel(row);
+    lbl->setObjectName("hintLabel");
+    lbl->setOpenExternalLinks(true);
+    lbl->setWordWrap(true);
+    lbl->setText(
         "\xf0\x9f\x93\xa6 <b>MCP non connesso?</b> "
         "Installa il workbench FreeCAD MCP: "
         "<a href='https://github.com/bonninr/freecad_mcp'>"
@@ -815,56 +1093,72 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         "\xe2\x86\x92 copia in ~/.FreeCAD/Mod/freecad_mcp "
         "\xe2\x86\x92 apri FreeCAD \xc2\xbb seleziona workbench <b>FreeCAD MCP</b> "
         "\xe2\x86\x92 clicca <b>Start RPC Server</b> (porta 9876).");
-    freecadHintLay->addWidget(freecadHintLbl);
-    m_freecadHintRow->setVisible(false);
-    lay->addWidget(m_freecadHintRow);
+    lay->addWidget(lbl);
+    row->setVisible(false);
+    return row;
+}
 
-    /* ── Riga Sketch → 3D Model (Blender cat=6 + FreeCAD cat=8) ── */
-    m_sketchRow = new QWidget(this);
-    auto* sketchLay = new QHBoxLayout(m_sketchRow);
-    sketchLay->setContentsMargins(0, 4, 0, 4);
-    sketchLay->setSpacing(8);
+/* ──────────────────────────────────────────────────────────────
+   Livello 3 — buildSketchRow
+   Riga Sketch → 3D Model (Blender cat=6 + FreeCAD cat=8).
+   Connette sketchFileBtn internamente.
+   ────────────────────────────────────────────────────────────── */
+QWidget* StrumentiPage::buildSketchRow()
+{
+    auto* row = new QWidget(this);
+    auto* lay = new QHBoxLayout(row);
+    lay->setContentsMargins(0, 4, 0, 4);
+    lay->setSpacing(8);
 
-    auto* sketchIconLbl = new QLabel("\xf0\x9f\x8f\x97  Disegno:", m_sketchRow);
-    sketchIconLbl->setObjectName("hintLabel");
-    sketchLay->addWidget(sketchIconLbl);
+    auto* iconLbl = new QLabel("\xf0\x9f\x8f\x97  Disegno:", row);
+    iconLbl->setObjectName("hintLabel");
+    lay->addWidget(iconLbl);
 
     auto* sketchFileBtn = new QPushButton(
-        "\xf0\x9f\x93\x82  Carica disegno / PDF", m_sketchRow);
+        "\xf0\x9f\x93\x82  Carica disegno / PDF", row);
     sketchFileBtn->setObjectName("actionBtn");
     sketchFileBtn->setFixedWidth(190);
-    sketchLay->addWidget(sketchFileBtn);
+    lay->addWidget(sketchFileBtn);
 
-    m_sketchFileLbl = new QLabel("Nessun file", m_sketchRow);
+    m_sketchFileLbl = new QLabel("Nessun file", row);
     m_sketchFileLbl->setObjectName("hintLabel");
-    sketchLay->addWidget(m_sketchFileLbl);
+    lay->addWidget(m_sketchFileLbl);
 
-    m_sketchNotes = new QLineEdit(m_sketchRow);
+    m_sketchNotes = new QLineEdit(row);
     m_sketchNotes->setPlaceholderText(
         "Quote / note  es: 50x30x10mm, acciaio, foro \xc3\x98 8...");
-    sketchLay->addWidget(m_sketchNotes, 1);
+    lay->addWidget(m_sketchNotes, 1);
 
     m_btnSketchGen = new QPushButton(
-        "\xf0\x9f\x8f\x97  Genera modello 3D", m_sketchRow);
+        "\xf0\x9f\x8f\x97  Genera modello 3D", row);
     m_btnSketchGen->setObjectName("actionBtn");
     m_btnSketchGen->setFixedWidth(170);
-    sketchLay->addWidget(m_btnSketchGen);
+    lay->addWidget(m_btnSketchGen);
 
-    m_sketchRow->setVisible(false);
-    lay->addWidget(m_sketchRow);
+    row->setVisible(false);
 
-    /* ── CloudCompare — pannello "prossimamente" (cat = 9) ── */
-    m_cloudCompareRow = new QWidget(this);
-    auto* ccLay = new QVBoxLayout(m_cloudCompareRow);
-    ccLay->setContentsMargins(8, 8, 8, 8);
-    ccLay->setSpacing(6);
+    connect(sketchFileBtn, &QPushButton::clicked,
+            this, &StrumentiPage::onSketchFileBtnClicked);
+    return row;
+}
 
-    auto* ccBanner = new QLabel(m_cloudCompareRow);
-    ccBanner->setObjectName("hintLabel");
-    ccBanner->setOpenExternalLinks(true);
-    ccBanner->setWordWrap(true);
-    ccBanner->setAlignment(Qt::AlignCenter);
-    ccBanner->setText(
+/* ──────────────────────────────────────────────────────────────
+   Livello 3 — buildCloudCompareRow
+   Pannello "prossimamente" per CloudCompare (cat = 9).
+   ────────────────────────────────────────────────────────────── */
+QWidget* StrumentiPage::buildCloudCompareRow()
+{
+    auto* row = new QWidget(this);
+    auto* lay = new QVBoxLayout(row);
+    lay->setContentsMargins(8, 8, 8, 8);
+    lay->setSpacing(6);
+
+    auto* banner = new QLabel(row);
+    banner->setObjectName("hintLabel");
+    banner->setOpenExternalLinks(true);
+    banner->setWordWrap(true);
+    banner->setAlignment(Qt::AlignCenter);
+    banner->setText(
         "<b>\xf0\x9f\x94\xb5 CloudCompare \xe2\x80\x94 in arrivo</b><br><br>"
         "\xf0\x9f\x95\x90 Questa sezione \xc3\xa8 <b>riservata a sviluppi futuri</b>. "
         "Non esiste ancora un bridge stabile per controllare CloudCompare via AI.<br><br>"
@@ -881,197 +1175,9 @@ StrumentiPage::StrumentiPage(AiClient* ai, QWidget* parent)
         "carica nuvola punti \xe2\x80\xa2 calcola normali \xe2\x80\xa2 "
         "registrazione ICP \xe2\x80\xa2 distanze \xe2\x80\xa2 filtro/segmentazione \xe2\x80\xa2 "
         "esporta PLY/LAS \xe2\x80\xa2 script libero CloudComPy");
-    ccLay->addWidget(ccBanner);
-
-    m_cloudCompareRow->setVisible(false);
-    lay->addWidget(m_cloudCompareRow);
-
-
-
-    /* Selezione file disegno / PDF */
-    connect(sketchFileBtn, &QPushButton::clicked,
-            this, &StrumentiPage::onSketchFileBtnClicked);
-
-    /* Genera modello 3D dal disegno */
-    connect(m_btnSketchGen, &QPushButton::clicked,
-            this, &StrumentiPage::onSketchGenBtnClicked);
-    /* Ping FreeCAD: tenta connessione TCP su porta 9876 */
-    connect(freecadPingBtn, &QPushButton::clicked,
-            this, &StrumentiPage::onFreecadPingBtnClicked);
-
-    /* Esegui script Python in FreeCAD via TCP JSON */
-    connect(m_freecadExecBtn, &QPushButton::clicked,
-            this, &StrumentiPage::onFreecadExecBtnClicked);
-
-    /* Avvia / ferma bridge Python Office */
-    connect(m_officeStartBtn, &QPushButton::clicked,
-            this, &StrumentiPage::onOfficeStartBtnClicked);
-
-    /* POST /execute → invia codice office al bridge */
-    connect(m_officeExecBtn, &QPushButton::clicked,
-            this, &StrumentiPage::onOfficeExecBtnClicked);
-
-    /* ── Riga selezione modello (visibile per tutte le categorie) ── */
-    m_codeModelRow = new QWidget(this);
-    auto* codeModelLay = new QHBoxLayout(m_codeModelRow);
-    codeModelLay->setContentsMargins(0, 2, 0, 2);
-    codeModelLay->setSpacing(8);
-
-    auto* codeModelLbl = new QLabel(
-        "\xf0\x9f\xa4\x96  Modello:", m_codeModelRow);
-    codeModelLbl->setObjectName("hintLabel");
-    codeModelLay->addWidget(codeModelLbl);
-
-    m_codeModelCombo = new QComboBox(m_codeModelRow);
-    m_codeModelCombo->setMinimumWidth(200);
-    m_codeModelCombo->setToolTip(
-        "Modello LLM usato per questa sezione.\n"
-        "Indipendente dal modello globale.\n"
-        "I modelli evidenziati in verde sono consigliati per la categoria attiva.");
-    /* Popola subito con il modello corrente come fallback */
-    m_codeModelCombo->addItem(m_ai->model().isEmpty()
-        ? "(modello globale)" : m_ai->model(), m_ai->model());
-    codeModelLay->addWidget(m_codeModelCombo);
-
-    /* Pulsante per aggiornare la lista modelli */
-    m_codeModelRefresh = new QPushButton(
-        "\xf0\x9f\x94\x84", m_codeModelRow);
-    m_codeModelRefresh->setFixedWidth(32);
-    m_codeModelRefresh->setToolTip("Aggiorna lista modelli");
-    codeModelLay->addWidget(m_codeModelRefresh);
-    auto* codeModelRefresh = m_codeModelRefresh;  /* alias locale per i connect seguenti */
-
-    /* Etichetta con raccomandazioni */
-    m_codeModelInfo = new QLabel(m_codeModelRow);
-    m_codeModelInfo->setObjectName("hintLabel");
-    m_codeModelInfo->setWordWrap(false);
-    /* Hint iniziale per cat 0 — Studio */
-    m_codeModelInfo->setText(
-        "\xe2\x9c\xa8 Consigliati: <b>mistral</b>, <b>llama3</b>, <b>qwen3</b>"
-        " \xe2\x80\x94 buona comprensione e spiegazione");
-    m_codeModelInfo->setTextFormat(Qt::RichText);
-    codeModelLay->addWidget(m_codeModelInfo, 1);
-
-    m_codeModelRow->setVisible(true);
-    lay->addWidget(m_codeModelRow);
-
-    /* Aggiorna lista modelli su richiesta */
-    connect(codeModelRefresh, &QPushButton::clicked,
-            this,             &StrumentiPage::onCodeModelRefreshClicked);
-    connect(m_ai, &AiClient::modelsReady,
-            this, &StrumentiPage::onCodeModelsReady);
-    connect(m_ai, &AiClient::error,
-            this, &StrumentiPage::onCodeModelError);
-
-    /* ── Input + pulsanti affiancati ── */
-    m_inputRow = new QWidget(this);
-    auto* inputRow = m_inputRow;
-    auto* inputLay = new QHBoxLayout(inputRow);
-    inputLay->setContentsMargins(0, 0, 0, 0);
-    inputLay->setSpacing(8);
-
-    m_inputArea = new QTextEdit(inputRow);
-    m_inputArea->setObjectName("chatInput");
-    m_inputArea->setPlaceholderText(QString::fromUtf8(kPlaceholders[0]));
-    m_inputArea->setMaximumHeight(90);
-    m_inputArea->setMinimumHeight(60);
-    inputLay->addWidget(m_inputArea, 1);
-
-    auto* btnCol = new QVBoxLayout;
-    btnCol->setSpacing(6);
-
-    m_btnRun = new QPushButton("\xe2\x96\xb6  Esegui", inputRow);
-    m_btnRun->setObjectName("actionBtn");
-    m_btnRun->setToolTip("Invia la richiesta al modello AI (Invio+Ctrl)");
-    m_btnRun->setAccessibleName("Esegui richiesta AI");
-    m_btnRun->setFixedWidth(110);
-
-    m_waitLbl = new QLabel(inputRow);
-    m_waitLbl->setStyleSheet(
-        "color:#E5C400;font-style:italic;font-size:11px;");
-    m_waitLbl->setVisible(false);
-    m_waitLbl->setWordWrap(true);
-
-    m_waitBar = new QProgressBar(inputRow);
-    m_waitBar->setRange(0, 0);  /* indeterminata */
-    m_waitBar->setFixedHeight(4);
-    m_waitBar->setTextVisible(false);
-    m_waitBar->setVisible(false);
-
-    btnCol->addWidget(m_btnRun);
-    btnCol->addWidget(m_waitLbl);
-    btnCol->addWidget(m_waitBar);
-    btnCol->addStretch();
-    inputLay->addLayout(btnCol);
-    lay->addWidget(inputRow);
-
-    /* ── Output AI ── */
-    m_output = new QTextEdit(this);
-    m_output->setObjectName("chatLog");
-    m_output->setReadOnly(true);
-    m_output->setPlaceholderText(
-        "L'output dell'AI appare qui...\n\n"
-        "\xf0\x9f\x8d\xba  Invocazione riuscita. Gli dei ascoltano.");
-    lay->addWidget(m_output, 1);
-
-    /* ── Pannello Cron inline ── */
-    m_cronPanel = new QWidget(this);
-    {
-        auto* cl = new QVBoxLayout(m_cronPanel);
-        cl->setContentsMargins(16, 16, 16, 16);
-        auto* lbl = new QLabel(
-            "\xe2\x8f\xb3  Caricamento Cron Scheduler in corso...");
-        lbl->setTextFormat(Qt::RichText);
-        lbl->setWordWrap(true);
-        lbl->setObjectName("hintLabel");
-        cl->addWidget(lbl);
-        cl->addStretch();
-    }
-    m_cronPanel->setVisible(false);
-    lay->addWidget(m_cronPanel, 1);
-
-    connect(cronBtn, &QPushButton::clicked, this,
-            [this, actStack, lblSel, catGroup](bool checked) {
-        actStack->setVisible(!checked);
-        lblSel->setVisible(!checked);
-        m_ragRow->setVisible(!checked);
-        m_pdfRow->setVisible(false);
-        if (m_inputRow) m_inputRow->setVisible(!checked);
-        m_output->setVisible(!checked);
-        m_cronPanel->setVisible(checked);
-        /* Sincronizza il catGroup: quando Cron è attivo nessun bottone categoria
-           deve apparire selezionato, e viceversa. */
-        if (checked) {
-            /* Rimuovi la selezione visuale dall'ultimo cat button attivo */
-            catGroup->setExclusive(false);
-            if (auto* cur = catGroup->checkedButton())
-                cur->setChecked(false);
-            catGroup->setExclusive(true);
-        }
-        /* Prima apertura: chiede a MainWindow di inizializzare il pannello Cron (lazy) */
-        if (checked && !m_cronInstalled) {
-            m_cronInstalled = true;
-            emit cronPanelFirstOpen();
-        }
-    });
-
-    /* Pannello LAN Android RIMOSSO — spostato in LanWanPage */
-    /* Pannelli LAN, SD, FileSearch, Wiki, Graphviz, Audio, Dati
-       rimossi da qui — ora in tab dedicati (LanWanPage, MultimediaPage, StrumentiFilePage) */
-
-    /* ── Avvia / Stop tool (bottone unificato) ── */
-    connect(m_btnRun, &QPushButton::clicked, this, &StrumentiPage::onBtnRunClicked);
-
-    connect(m_ai, &AiClient::token,    this, &StrumentiPage::onToken);
-    connect(m_ai, &AiClient::finished, this, &StrumentiPage::onFinished);
-    connect(m_ai, &AiClient::error,    this, &StrumentiPage::onError);
-    connect(m_ai, &AiClient::aborted, this, &StrumentiPage::onAiAborted);
-
-    /* Tab order: RAG checkbox → aggiungi doc → modello → input → esegui */
-    QWidget::setTabOrder(m_ragCheck,       ragAddBtn);
-    QWidget::setTabOrder(ragAddBtn,        m_codeModelCombo);
-    QWidget::setTabOrder(m_codeModelCombo, m_inputArea);
-    QWidget::setTabOrder(m_inputArea,      m_btnRun);
+    lay->addWidget(banner);
+    row->setVisible(false);
+    return row;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1380,6 +1486,11 @@ void StrumentiPage::dropEvent(QDropEvent* e)
 void StrumentiPage::installCronPanel(ManutenzioneePage* man)
 {
     if (!man || !m_cronPanel) return;
+    if (m_cronPanel->layout() && m_cronPanel->layout()->count() > 0
+        && m_cronPanel->layout()->itemAt(0)
+        && m_cronPanel->layout()->itemAt(0)->widget() != nullptr
+        && qobject_cast<QLabel*>(m_cronPanel->layout()->itemAt(0)->widget()) == nullptr)
+        return; /* già installato con widget reale — non reinstallare */
 
     /* Rimuovi il contenuto redirect (label + stretch) */
     QLayout* old = m_cronPanel->layout();
@@ -2119,10 +2230,35 @@ void StrumentiPage::onSketchGenBtnClicked()
 }
 
 /* ══════════════════════════════════════════════════════════════
-   Slot stub — connessi via lambda nel costruttore; dichiarati
-   nell'header per conformità MOC ma il corpo reale è nella lambda.
+   onCronBtnToggled
+   Mostra/nasconde il pannello Cron; sincronizza catGroup e
+   gestisce la lazy-init al primo clic.
    ══════════════════════════════════════════════════════════════ */
-void StrumentiPage::onCronBtnToggled(bool) {}
+void StrumentiPage::onCronBtnToggled(bool checked)
+{
+    m_actStack->setVisible(!checked);
+    m_lblSel->setVisible(!checked);
+    m_ragRow->setVisible(!checked);
+    m_pdfRow->setVisible(false);
+    if (m_inputRow) m_inputRow->setVisible(!checked);
+    m_output->setVisible(!checked);
+    m_cronPanel->setVisible(checked);
+
+    /* Sincronizza il catGroup: quando Cron è attivo nessun bottone categoria
+       deve apparire selezionato, e viceversa. */
+    if (checked) {
+        m_catGroup->setExclusive(false);
+        if (auto* cur = m_catGroup->checkedButton())
+            cur->setChecked(false);
+        m_catGroup->setExclusive(true);
+    }
+
+    /* Prima apertura: chiede a MainWindow di inizializzare il pannello Cron (lazy) */
+    if (checked && !m_cronInstalled) {
+        m_cronInstalled = true;
+        emit cronPanelFirstOpen();
+    }
+}
 
 void StrumentiPage::onCodeModelRefreshClicked()
 {

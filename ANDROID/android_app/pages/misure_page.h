@@ -9,6 +9,13 @@
 #include <QMouseEvent>
 #include <QVector>
 #include <QPointF>
+#include <QRectF>
+#include <QListWidget>
+#include <QListWidgetItem>
+#include <QSlider>
+#include <QStackedWidget>
+#include <QStandardPaths>
+#include <QPixmap>
 #include "../ai_client.h"
 
 /* --------------------------------------------------------------
@@ -71,13 +78,55 @@ private:
 };
 
 /* --------------------------------------------------------------
-   MisurePage -- Calcolatrice stanza + vista 3D + AI.
+   PiantinaWidget -- canvas 2D drag-to-draw stanze.
 
-   Tre sezioni:
+   L'utente clicca e trascina per disegnare stanze come rettangoli.
+   Ogni rettangolo viene etichettato con le misure in metri.
+   Scala configurabile tramite slider (pixel per metro).
+   -------------------------------------------------------------- */
+class PiantinaWidget : public QWidget {
+    Q_OBJECT
+public:
+    explicit PiantinaWidget(QWidget* parent = nullptr);
+
+    void   setPixelsPerMeter(int ppm);
+    void   clearAll();
+    void   removeRoom(int idx);
+    bool   exportPng(const QString& path);
+    int    roomCount() const { return m_rooms.size(); }
+    QString roomInfo(int idx) const;
+    QSize  sizeHint()        const override { return QSize(400, 350); }
+    QSize  minimumSizeHint() const override { return QSize(280, 250); }
+
+signals:
+    void roomsChanged();
+
+protected:
+    void paintEvent(QPaintEvent* e) override;
+    void mousePressEvent(QMouseEvent* e) override;
+    void mouseMoveEvent(QMouseEvent* e) override;
+    void mouseReleaseEvent(QMouseEvent* e) override;
+
+private:
+    QRectF  normalizedRect(QPointF a, QPointF b) const;
+    QString mLabel(const QRectF& r) const;
+
+    QVector<QRectF> m_rooms;          /* coordinate in pixel */
+    QPointF         m_dragStart;
+    QPointF         m_dragCurrent;
+    bool            m_dragging = false;
+    int             m_ppm      = 50;  /* pixel per metro, default 50px = 1m */
+};
+
+/* --------------------------------------------------------------
+   MisurePage -- Calcolatrice stanza + vista 3D + AI + piantina.
+
+   Quattro sezioni:
    1. Calcolatore manuale: lunghezza × larghezza × altezza
       → area pavimento, pareti, volume, vernice, piastrelle.
    2. Vista 3D isometrica: aggiornata automaticamente al calcolo.
    3. AI Analisi: invio testo descrittivo all'AI per stime.
+   4. Piantina: drag-to-draw rettangoli con misure e export PNG.
    -------------------------------------------------------------- */
 class MisurePage : public QWidget {
     Q_OBJECT
@@ -95,8 +144,16 @@ private slots:
     void onPlanResetClicked();
     void onPlanScaleChanged(double v);
 
+    /* Piantina drag-to-draw */
+    void onPiantinaClear();
+    void onPiantinaExport();
+    void onPiantinaZoomChanged(int value);
+    void onPiantinaRoomsChanged();
+    void onPiantinaDeleteRoom();
+
 private:
     void calcola();
+    void refreshRoomList();
 
     AiClient* m_ai = nullptr;
 
@@ -110,7 +167,7 @@ private:
     /* Vista 3D */
     RoomVisualWidget* m_roomView = nullptr;
 
-    /* Planimetria interattiva */
+    /* Planimetria interattiva (punti) */
     RoomPlanWidget* m_planWidget   = nullptr;
     QLabel*         m_planResults  = nullptr;
     QDoubleSpinBox* m_planScaleSpin = nullptr;
@@ -124,4 +181,11 @@ private:
     QProgressBar* m_progress  = nullptr;
     QTextEdit*    m_aiOutput  = nullptr;
     bool          m_busy      = false;
+
+    /* Piantina drag-to-draw */
+    PiantinaWidget* m_piantinaWidget  = nullptr;
+    QListWidget*    m_roomList        = nullptr;
+    QSlider*        m_zoomSlider      = nullptr;
+    QLabel*         m_zoomLabel       = nullptr;
+    QPushButton*    m_piantinaExport  = nullptr;
 };

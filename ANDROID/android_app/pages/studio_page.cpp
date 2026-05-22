@@ -13,6 +13,11 @@
 #include <QRegularExpression>
 #include <QFrame>
 #include <QPushButton>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QSettings>
 
 /* ══════════════════════════════════════════════════════════════
    Materie disponibili
@@ -307,6 +312,15 @@ StudioPage::StudioPage(AiClient* ai, QWidget* parent)
     }
     vbox->addWidget(modeGroup);
 
+    /* Pulsante statistiche quiz */
+    auto* btnStats = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x93\x8a Statistiche Quiz"), inner);
+    btnStats->setObjectName("SecondaryBtn");
+    btnStats->setMinimumHeight(44);
+    btnStats->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    connect(btnStats, &QPushButton::clicked, this, &StudioPage::onStatsClicked);
+    vbox->addWidget(btnStats);
+
     /* Area testo per "Riassumi" */
     m_inputLbl = new QLabel(
         QString::fromUtf8("\xf0\x9f\x93\x84")
@@ -460,6 +474,8 @@ StudioPage::StudioPage(AiClient* ai, QWidget* parent)
     connect(m_ai, &AiClient::finished, this, &StudioPage::onFinished);
     connect(m_ai, &AiClient::error,    this, &StudioPage::onError);
     connect(m_ai, &AiClient::aborted,  this, &StudioPage::onAborted);
+
+    loadStats();
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -803,6 +819,24 @@ void StudioPage::onQuizAnswerClicked(int idx)
 
     const bool correct = (idx == m_quizCorrect);
 
+    /* ── Aggiorna statistiche ── */
+    {
+        /* Chiave = tema CCNA se selezionato, altrimenti nome materia */
+        QString statKey;
+        if (isCcnaSelected()) {
+            const int temaIdx = m_temaCombo->currentIndex();
+            statKey = (temaIdx == 0)
+                ? QString::fromUtf8("CCNA \xe2\x80\x94 Tutti i temi")
+                : QString("CCNA \xe2\x80\x94 ") + m_temaCombo->itemText(temaIdx);
+        } else {
+            statKey = materiaName();
+        }
+        m_stats[statKey].total++;
+        if (correct)
+            m_stats[statKey].correct++;
+        saveStats();
+    }
+
     m_quizBtns[m_quizCorrect]->setStyleSheet(
         "background-color:#4CAF50;color:#ffffff;border:none;"
         "border-radius:10px;padding:10px;font-weight:700;");
@@ -851,4 +885,151 @@ void StudioPage::onMateriaPickerResult(int idx)
     m_matBtn->setText(
         QString::fromUtf8(kMaterie[idx].label)
         + QString::fromUtf8("  \xe2\x96\xbe"));  /* ▾ */
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Statistiche Quiz
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── loadStats — legge le statistiche da QSettings ────────── */
+void StudioPage::loadStats()
+{
+    m_stats.clear();
+    QSettings s("Prismalux", "Mobile");
+    const int n = s.beginReadArray("quiz_stats");
+    for (int i = 0; i < n; ++i) {
+        s.setArrayIndex(i);
+        const QString key = s.value("tema").toString();
+        if (key.isEmpty()) continue;
+        QuizStat st;
+        st.total   = s.value("total",   0).toInt();
+        st.correct = s.value("correct", 0).toInt();
+        m_stats[key] = st;
+    }
+    s.endArray();
+}
+
+/* ── saveStats — scrive le statistiche su QSettings ────────── */
+void StudioPage::saveStats()
+{
+    QSettings s("Prismalux", "Mobile");
+    s.beginWriteArray("quiz_stats", m_stats.size());
+    int i = 0;
+    for (auto it = m_stats.cbegin(); it != m_stats.cend(); ++it, ++i) {
+        s.setArrayIndex(i);
+        s.setValue("tema",    it.key());
+        s.setValue("total",   it.value().total);
+        s.setValue("correct", it.value().correct);
+    }
+    s.endArray();
+}
+
+/* ── showStats — dialog con tabella statistiche ─────────────── */
+void StudioPage::showStats()
+{
+    auto* dlg = new QDialog(this, Qt::Dialog);
+    dlg->setWindowTitle(QString::fromUtf8("\xf0\x9f\x93\x8a Statistiche Quiz"));
+    dlg->showMaximized();
+
+    auto* vbox = new QVBoxLayout(dlg);
+    vbox->setContentsMargins(16, 16, 16, 16);
+    vbox->setSpacing(12);
+
+    auto* titleLbl = new QLabel(
+        QString::fromUtf8("\xf0\x9f\x93\x8a  <b>Statistiche Quiz</b>"), dlg);
+    titleLbl->setTextFormat(Qt::RichText);
+    titleLbl->setAlignment(Qt::AlignCenter);
+    {
+        QFont f = titleLbl->font();
+        f.setPointSize(13);
+        titleLbl->setFont(f);
+    }
+    vbox->addWidget(titleLbl);
+
+    if (m_stats.isEmpty()) {
+        auto* emptyLbl = new QLabel(
+            QString::fromUtf8(
+                "\xf0\x9f\x93\x8b Nessuna statistica ancora.\n\n"
+                "Rispondi ad alcune domande quiz per vedere i tuoi progressi!"),
+            dlg);
+        emptyLbl->setAlignment(Qt::AlignCenter);
+        emptyLbl->setWordWrap(true);
+        vbox->addWidget(emptyLbl, 1);
+    } else {
+        auto* table = new QTableWidget(m_stats.size(), 4, dlg);
+        table->setHorizontalHeaderLabels({
+            "Materia / Tema",
+            "Corrette",
+            "Totale",
+            "Percentuale"
+        });
+        table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+        table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+        table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+        table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+        table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        table->setSelectionBehavior(QAbstractItemView::SelectRows);
+        table->verticalHeader()->setVisible(false);
+
+        /* Calcola totale globale */
+        int grandTotal = 0, grandCorrect = 0;
+        int row = 0;
+        for (auto it = m_stats.cbegin(); it != m_stats.cend(); ++it, ++row) {
+            const QuizStat& st = it.value();
+            const double pct = (st.total > 0)
+                ? (100.0 * st.correct / st.total)
+                : 0.0;
+
+            table->setItem(row, 0, new QTableWidgetItem(it.key()));
+            table->setItem(row, 1, new QTableWidgetItem(QString::number(st.correct)));
+            table->setItem(row, 2, new QTableWidgetItem(QString::number(st.total)));
+            table->setItem(row, 3, new QTableWidgetItem(
+                QString("%1%").arg(pct, 0, 'f', 1)));
+
+            /* Colora la percentuale: rosso < 50%, giallo 50-74%, verde >= 75% */
+            auto* pctItem = table->item(row, 3);
+            if (pct >= 75.0)
+                pctItem->setForeground(QColor("#4CAF50"));
+            else if (pct >= 50.0)
+                pctItem->setForeground(QColor("#FFC107"));
+            else
+                pctItem->setForeground(QColor("#f44336"));
+
+            grandTotal   += st.total;
+            grandCorrect += st.correct;
+        }
+        vbox->addWidget(table, 1);
+
+        /* Riepilogo globale */
+        const double globalPct = (grandTotal > 0)
+            ? (100.0 * grandCorrect / grandTotal)
+            : 0.0;
+        auto* summaryLbl = new QLabel(
+            QString::fromUtf8("\xf0\x9f\x8f\x86  Totale: ")
+            + QString("%1 / %2 corrette (%3%)")
+                .arg(grandCorrect)
+                .arg(grandTotal)
+                .arg(globalPct, 0, 'f', 1),
+            dlg);
+        summaryLbl->setAlignment(Qt::AlignCenter);
+        {
+            QFont f = summaryLbl->font();
+            f.setBold(true);
+            summaryLbl->setFont(f);
+        }
+        vbox->addWidget(summaryLbl);
+    }
+
+    auto* btnBox = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
+    connect(btnBox, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+    vbox->addWidget(btnBox);
+
+    dlg->exec();
+    dlg->deleteLater();
+}
+
+/* ── onStatsClicked — apre il dialog statistiche ───────────── */
+void StudioPage::onStatsClicked()
+{
+    showStats();
 }

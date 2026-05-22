@@ -218,15 +218,12 @@ void ProgrammazionePage::sendToAi()
     m_btnInsert->setEnabled(false);
     setRunning(true);
 
-    if (m_tokenHolder) { delete m_tokenHolder; m_tokenHolder = nullptr; }
-    m_tokenHolder = new QObject(this);
-
-    connect(m_ai, &AiClient::token, m_tokenHolder,
-            [this](const QString& tok){ onAiToken(tok); });
-    connect(m_ai, &AiClient::finished, m_tokenHolder,
-            [this](const QString& full){ onAiFinished(full); });
-    connect(m_ai, &AiClient::error, m_tokenHolder,
-            [this](const QString& msg){ onAiError(msg); });
+    disconnect(m_aiTokenConn);
+    disconnect(m_aiFinishedConn);
+    disconnect(m_aiErrorConn);
+    m_aiTokenConn    = connect(m_ai, &AiClient::token,    this, &ProgrammazionePage::onAiToken);
+    m_aiFinishedConn = connect(m_ai, &AiClient::finished, this, &ProgrammazionePage::onAiFinished);
+    m_aiErrorConn    = connect(m_ai, &AiClient::error,    this, &ProgrammazionePage::onAiError);
 
     m_ai->chat(P::prependKnowledge(sys), user);
 }
@@ -374,6 +371,14 @@ void ProgrammazionePage::onLoopRunTimer()
     runCode();
 }
 
+void ProgrammazionePage::onModelsReadyForFix(const QStringList&)
+{
+    disconnect(m_modelsReadyForFixConn);
+    selectCoderModel();
+    _doFix(m_pendingFixIncludeError, m_pendingFixCodice,
+           m_pendingFixLang, m_pendingFixExt);
+}
+
 /* ======================================================================
    Sezione 3 — AI panel slots (Coding)
    ====================================================================== */
@@ -388,7 +393,9 @@ void ProgrammazionePage::onAiToken(const QString& tok)
 
 void ProgrammazionePage::onAiFinished(const QString& /*full*/)
 {
-    if (m_tokenHolder) { m_tokenHolder->deleteLater(); m_tokenHolder = nullptr; }
+    disconnect(m_aiTokenConn);
+    disconnect(m_aiFinishedConn);
+    disconnect(m_aiErrorConn);
     m_aiMode = false;
     setRunning(false);
     if (m_btnInsert) m_btnInsert->setEnabled(!extractCodeBlock().isEmpty());
@@ -396,7 +403,9 @@ void ProgrammazionePage::onAiFinished(const QString& /*full*/)
 
 void ProgrammazionePage::onAiError(const QString& msg)
 {
-    if (m_tokenHolder) { m_tokenHolder->deleteLater(); m_tokenHolder = nullptr; }
+    disconnect(m_aiTokenConn);
+    disconnect(m_aiFinishedConn);
+    disconnect(m_aiErrorConn);
     m_aiMode = false;
     setRunning(false);
     if (m_aiOutput) {
@@ -420,7 +429,9 @@ void ProgrammazionePage::onFixToken(const QString& tok)
 
 void ProgrammazionePage::onFixFinished(const QString& full)
 {
-    if (m_tokenHolder) { m_tokenHolder->deleteLater(); m_tokenHolder = nullptr; }
+    disconnect(m_aiTokenConn);
+    disconnect(m_aiFinishedConn);
+    disconnect(m_aiErrorConn);
 
     /* Ripristina il modello originale */
     if (!m_fixOriginalModel.isEmpty() && m_fixOriginalModel != m_ai->model())
@@ -456,7 +467,9 @@ void ProgrammazionePage::onFixFinished(const QString& full)
 
 void ProgrammazionePage::onFixError(const QString& msg)
 {
-    if (m_tokenHolder) { m_tokenHolder->deleteLater(); m_tokenHolder = nullptr; }
+    disconnect(m_aiTokenConn);
+    disconnect(m_aiFinishedConn);
+    disconnect(m_aiErrorConn);
 
     /* Ripristina il modello originale */
     if (m_ai && !m_fixOriginalModel.isEmpty() && m_fixOriginalModel != m_ai->model())
@@ -523,7 +536,9 @@ void ProgrammazionePage::onAgentToken(const QString& tok)
 
 void ProgrammazionePage::onAgentFinished(const QString& full)
 {
-    if (m_agentTokenHolder) { m_agentTokenHolder->deleteLater(); m_agentTokenHolder = nullptr; }
+    disconnect(m_agentTokenConn);
+    disconnect(m_agentFinishedConn);
+    disconnect(m_agentErrorConn);
     if (m_btnAgentRun)    m_btnAgentRun->setEnabled(true);
     if (m_btnAgentStop)   m_btnAgentStop->setEnabled(false);
     const bool hasCode = full.contains("```");
@@ -532,7 +547,9 @@ void ProgrammazionePage::onAgentFinished(const QString& full)
 
 void ProgrammazionePage::onAgentError(const QString& msg)
 {
-    if (m_agentTokenHolder) { m_agentTokenHolder->deleteLater(); m_agentTokenHolder = nullptr; }
+    disconnect(m_agentTokenConn);
+    disconnect(m_agentFinishedConn);
+    disconnect(m_agentErrorConn);
     if (m_btnAgentRun)  m_btnAgentRun->setEnabled(true);
     if (m_btnAgentStop) m_btnAgentStop->setEnabled(false);
     if (m_agentOutput) {
@@ -660,7 +677,9 @@ void ProgrammazionePage::onRevToken(const QString& tok)
 
 void ProgrammazionePage::onRevFinished(const QString& full)
 {
-    if (m_revTokenHolder) { m_revTokenHolder->deleteLater(); m_revTokenHolder = nullptr; }
+    disconnect(m_revTokenConn);
+    disconnect(m_revFinishedConn);
+    disconnect(m_revErrorConn);
     if (m_btnRevAnalyze) m_btnRevAnalyze->setEnabled(true);
     if (m_btnRevStop)    m_btnRevStop->setEnabled(false);
     const bool hasCode = full.contains("```");
@@ -669,7 +688,9 @@ void ProgrammazionePage::onRevFinished(const QString& full)
 
 void ProgrammazionePage::onRevError(const QString& msg)
 {
-    if (m_revTokenHolder) { m_revTokenHolder->deleteLater(); m_revTokenHolder = nullptr; }
+    disconnect(m_revTokenConn);
+    disconnect(m_revFinishedConn);
+    disconnect(m_revErrorConn);
     if (m_btnRevAnalyze) m_btnRevAnalyze->setEnabled(true);
     if (m_btnRevStop)    m_btnRevStop->setEnabled(false);
     if (m_revOutput) {
@@ -793,13 +814,17 @@ void ProgrammazionePage::onNetAiToken(const QString& tok)
 
 void ProgrammazionePage::onNetAiFinished(const QString& /*full*/)
 {
-    if (m_netTokenHolder) { m_netTokenHolder->deleteLater(); m_netTokenHolder = nullptr; }
+    disconnect(m_netAiTokenConn);
+    disconnect(m_netAiFinishedConn);
+    disconnect(m_netAiErrorConn);
     if (m_btnNetAnalyze) m_btnNetAnalyze->setEnabled(true);
 }
 
 void ProgrammazionePage::onNetAiError(const QString& msg)
 {
-    if (m_netTokenHolder) { m_netTokenHolder->deleteLater(); m_netTokenHolder = nullptr; }
+    disconnect(m_netAiTokenConn);
+    disconnect(m_netAiFinishedConn);
+    disconnect(m_netAiErrorConn);
     if (m_btnNetAnalyze) m_btnNetAnalyze->setEnabled(true);
     if (m_netAiOutput) {
         m_netAiOutput->moveCursor(QTextCursor::End);
@@ -1249,7 +1274,9 @@ void ProgrammazionePage::onGitAiToken(const QString& tok)
 
 void ProgrammazionePage::onGitAiFinished(const QString& full)
 {
-    if (m_gitTokenHolder) { m_gitTokenHolder->deleteLater(); m_gitTokenHolder = nullptr; }
+    disconnect(m_gitAiTokenConn);
+    disconnect(m_gitAiFinishedConn);
+    disconnect(m_gitAiErrorConn);
     /* Se la risposta contiene [COMMIT]...[/COMMIT], popola il campo commit msg */
     static const QRegularExpression reCommit(
         R"(\[COMMIT\]([\s\S]*?)\[/COMMIT\])");
@@ -1262,7 +1289,9 @@ void ProgrammazionePage::onGitAiFinished(const QString& full)
 
 void ProgrammazionePage::onGitAiError(const QString& msg)
 {
-    if (m_gitTokenHolder) { m_gitTokenHolder->deleteLater(); m_gitTokenHolder = nullptr; }
+    disconnect(m_gitAiTokenConn);
+    disconnect(m_gitAiFinishedConn);
+    disconnect(m_gitAiErrorConn);
     if (m_gitAiOutput) {
         m_gitAiOutput->moveCursor(QTextCursor::End);
         m_gitAiOutput->insertPlainText(
@@ -1511,7 +1540,9 @@ void ProgrammazionePage::onTrToken(const QString& tok)
 
 void ProgrammazionePage::onTrFinished(const QString& /*full*/)
 {
-    if (m_trTokenHolder) { m_trTokenHolder->deleteLater(); m_trTokenHolder = nullptr; }
+    disconnect(m_trTokenConn);
+    disconnect(m_trFinishedConn);
+    disconnect(m_trErrorConn);
     if (m_btnTrRun)  m_btnTrRun->setEnabled(true);
     if (m_btnTrStop) m_btnTrStop->setEnabled(false);
     const bool hasBlock = m_trOutput && m_trOutput->toPlainText().contains("```");
@@ -1520,7 +1551,9 @@ void ProgrammazionePage::onTrFinished(const QString& /*full*/)
 
 void ProgrammazionePage::onTrError(const QString& msg)
 {
-    if (m_trTokenHolder) { m_trTokenHolder->deleteLater(); m_trTokenHolder = nullptr; }
+    disconnect(m_trTokenConn);
+    disconnect(m_trFinishedConn);
+    disconnect(m_trErrorConn);
     if (m_btnTrRun)  m_btnTrRun->setEnabled(true);
     if (m_btnTrStop) m_btnTrStop->setEnabled(false);
     if (m_trOutput) {

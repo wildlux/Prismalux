@@ -19,6 +19,7 @@ class QTabWidget;
 class QSpinBox;
 class QSlider;
 class QTableWidget;
+class QVBoxLayout;
 
 /* ══════════════════════════════════════════════════════════════
    ProgrammazionePage — Editor codice + esecuzione + grafico + AI
@@ -84,10 +85,11 @@ private:
     QProcess*       m_proc      = nullptr;
     bool            m_aiMode    = false;
 
-    /* Token connection holder — singolo, sostituisce il pattern holder locale.
-       Garantisce che ci sia sempre al massimo UNA connessione a m_ai->token.
-       Viene resettato esplicitamente prima di creare una nuova connessione. */
-    QObject*        m_tokenHolder = nullptr;
+    /* Connessioni AI per il pannello Coding/Fix — disconnesse esplicitamente prima
+       di ogni nuova chat per garantire al massimo UNA connessione attiva. */
+    QMetaObject::Connection m_aiTokenConn;
+    QMetaObject::Connection m_aiFinishedConn;
+    QMetaObject::Connection m_aiErrorConn;
 
     /* ── Agentica sub-tab ── */
     QComboBox*      m_agentType         = nullptr;
@@ -98,9 +100,19 @@ private:
     QPushButton*    m_btnAgentRun       = nullptr;
     QPushButton*    m_btnAgentStop      = nullptr;
     QPushButton*    m_btnAgentInsert    = nullptr;
-    QObject*        m_agentTokenHolder  = nullptr;
+    QMetaObject::Connection m_agentTokenConn;
+    QMetaObject::Connection m_agentFinishedConn;
+    QMetaObject::Connection m_agentErrorConn;
 
     QWidget* buildAgentica(QWidget* parent);
+    /* buildAgentica helpers */
+    void     buildAgenticaHeader(QVBoxLayout* lay, QWidget* w);
+    QWidget* buildAgenticaToolbar(QWidget* parent);
+    QWidget* buildAgenticaTaskGroup(QWidget* parent);
+    QWidget* buildAgenticaModelRow(QWidget* parent);
+    QWidget* buildAgenticaOutputGroup(QWidget* parent);
+    void     setupAgenticaConnections(QPushButton* btnRefAgent,
+                                      QPushButton* btnClearAgent);
     void     runAgente();
 
     /* ── Translitter sub-tab ── */
@@ -112,9 +124,18 @@ private:
     QPushButton*    m_btnTrRun         = nullptr;
     QPushButton*    m_btnTrStop        = nullptr;
     QPushButton*    m_btnTrInsert      = nullptr;
-    QObject*        m_trTokenHolder    = nullptr;
+    QMetaObject::Connection m_trTokenConn;
+    QMetaObject::Connection m_trFinishedConn;
+    QMetaObject::Connection m_trErrorConn;
 
     QWidget* buildTranslitter(QWidget* parent);
+    /* buildTranslitter helpers */
+    QWidget* buildTrControlRow(QWidget* parent,
+                               QPushButton*& outBtnSwap,
+                               QPushButton*& outBtnFromEditor);
+    QWidget* buildTrSplitter(QWidget* parent);
+    void     setupTrConnections(QPushButton* btnSwap,
+                                QPushButton* btnFromEditor);
     void     runTranslitter();
 
     /* ── Reverse Engineering sub-tab ── */
@@ -127,10 +148,23 @@ private:
     QPushButton*    m_btnRevAnalyze     = nullptr;
     QPushButton*    m_btnRevStop        = nullptr;
     QPushButton*    m_btnRevInsert      = nullptr;
-    QObject*        m_revTokenHolder    = nullptr;
+    QMetaObject::Connection m_revTokenConn;
+    QMetaObject::Connection m_revFinishedConn;
+    QMetaObject::Connection m_revErrorConn;
     QByteArray      m_revFileData;
 
     QWidget* buildReverseEngineering(QWidget* parent);
+    /* buildReverseEngineering helpers */
+    void     buildRevHeader(QVBoxLayout* lay, QWidget* w);
+    QWidget* buildRevFileRow(QWidget* parent);
+    QWidget* buildRevOptionsRow(QWidget* parent,
+                                QPushButton*& outBtnRefRev);
+    QWidget* buildRevPreviewGroup(QWidget* parent);
+    QWidget* buildRevOutputGroup(QWidget* parent,
+                                 QPushButton*& outBtnClearRev);
+    void     setupRevConnections(QPushButton* btnLoad,
+                                 QPushButton* btnRefRev,
+                                 QPushButton* btnClearRev);
     void     runReverseEngineering();
 
     /* ── Git MCP sub-tab ── */
@@ -140,13 +174,43 @@ private:
     QLineEdit*      m_gitCommitMsg   = nullptr;
     QComboBox*      m_gitAiModel     = nullptr;
     QPlainTextEdit* m_gitAiOutput    = nullptr;
-    QObject*        m_gitTokenHolder = nullptr;
+    QMetaObject::Connection m_gitAiTokenConn;
+    QMetaObject::Connection m_gitAiFinishedConn;
+    QMetaObject::Connection m_gitAiErrorConn;
     QWidget*        m_gitAiPanel     = nullptr;
     QProcess*       m_gitProc        = nullptr;
     QPushButton*    m_btnGitStop     = nullptr;
     QString         m_gitPendingCommit;
 
     QWidget* buildGitMcp(QWidget* parent);
+    /* buildGitMcp helpers */
+    QWidget* buildGitRepoRow(QWidget* parent, QPushButton*& outBtnBrowse);
+    QWidget* buildGitActionsRow(QWidget* parent);
+    QWidget* buildGitCommitRow(QWidget* parent,
+                               QPushButton*& outBtnAddCommit,
+                               QPushButton*& outBtnPull,
+                               QPushButton*& outBtnPush);
+    QWidget* buildGitOutputGroup(QWidget* parent,
+                                 QPushButton*& outBtnClearGit,
+                                 QPushButton*& outBtnGitAi,
+                                 QPushButton*& outBtnGenCommit);
+    QWidget* buildGitAiPanel(QWidget* parent,
+                             QPushButton*& outBtnRefGit,
+                             QPushButton*& outBtnCloseGitAi);
+    void     setupGitConnections(QPushButton* btnBrowse,
+                                 QPushButton* btnStatus,
+                                 QPushButton* btnDiff,
+                                 QPushButton* btnDiffSt,
+                                 QPushButton* btnLog,
+                                 QPushButton* btnBranch,
+                                 QPushButton* btnPull,
+                                 QPushButton* btnAddCommit,
+                                 QPushButton* btnPush,
+                                 QPushButton* btnClearGit,
+                                 QPushButton* btnGitAi,
+                                 QPushButton* btnGenCommit,
+                                 QPushButton* btnRefGit,
+                                 QPushButton* btnCloseGitAi);
     void     gitRun(const QString& subcmd, const QStringList& args = {});
     void     gitAiRequest(const QString& request, const QString& context);
 
@@ -160,6 +224,16 @@ private:
     int             m_replHistIdx = -1;
 
     QWidget* buildPythonRepl(QWidget* parent);
+    /* buildPythonRepl helpers */
+    QWidget* buildReplHeader(QWidget* parent,
+                             QPushButton*& outBtnRestart,
+                             QPushButton*& outBtnImport);
+    QWidget* buildReplOutputGroup(QWidget* parent,
+                                  QPushButton*& outBtnClearRepl);
+    QWidget* buildReplInputRow(QWidget* parent);
+    void     setupReplConnections(QPushButton* btnRestart,
+                                  QPushButton* btnImport,
+                                  QPushButton* btnClearRepl);
     void     replStart();
     void     replSend();
 
@@ -176,11 +250,17 @@ private:
     QPushButton*    m_btnNetClear    = nullptr;
     QPushButton*    m_btnNetFixPerms = nullptr;   ///< applica cap_net_raw via pkexec
     QProcess*       m_netProc        = nullptr;
-    QObject*        m_netTokenHolder = nullptr;
+    QMetaObject::Connection m_netAiTokenConn;
+    QMetaObject::Connection m_netAiFinishedConn;
+    QMetaObject::Connection m_netAiErrorConn;
     QTextEdit*      m_netAiOutput    = nullptr;
     QString         m_netTool;                    ///< "tshark" o "tcpdump"
 
     QWidget* buildNetworkAnalyzer(QWidget* parent);
+    /* buildNetworkAnalyzer helpers */
+    void     buildNetToolbar(QVBoxLayout* lay, QWidget* w);
+    QWidget* buildNetLogSplitter(QWidget* parent);
+    void     setupNetConnections();
     void     netStart();
     void     netStop();
     void     netAiAnalyze();
@@ -224,6 +304,19 @@ private:
     int             m_lastExitCode = 0;
     QString         m_lastError;           ///< errore esecuzione o output lint (passato al fix)
     QString         m_originalCode;        ///< codice salvato prima del fix AI (per il diff)
+
+    /* Constructor helpers — coding tab */
+    QWidget* buildCodingTab(QWidget* parent);
+    QWidget* buildCodingToolbar(QWidget* parent, QPushButton*& outBtnClear);
+    QWidget* buildEditorColumn(QWidget* parent);
+    QWidget* buildOutputColumn(QWidget* parent);
+    QWidget* buildAiPanel(QWidget* parent,
+                          QPushButton*& outBtnRefreshMod,
+                          QPushButton*& outBtnCloseAi);
+    void     setupCodingConnections(QPushButton* btnClear,
+                                    QPushButton* btnRefreshMod,
+                                    QPushButton* btnCloseAi);
+    void     buildInnerTabs();
 
     QString tempFilePath(const QString& ext) const;
     QString buildRunCommand(const QString& filePath) const;
@@ -270,12 +363,20 @@ private:
     /* Path del file temporaneo in esecuzione (passato al proc finished) */
     QString m_procFilePath;
 
+    /* Parametri pending per triggerFix one-shot (usati da onModelsReadyForFix) */
+    bool    m_pendingFixIncludeError = false;
+    QString m_pendingFixCodice;
+    QString m_pendingFixLang;
+    QString m_pendingFixExt;
+    QMetaObject::Connection m_modelsReadyForFixConn;
+
     /* ── Slot estratti da lambda — runCode() ── */
     void onProcReadyRead();
     void onProcFinished(int code, QProcess::ExitStatus status);
     void onProcErrorOccurred(QProcess::ProcessError err);
-    void onLoopFixTimer();      ///< QTimer::singleShot → triggerFix(true)
-    void onLoopRunTimer();      ///< QTimer::singleShot → runCode()
+    void onLoopFixTimer();           ///< QTimer::singleShot → triggerFix(true)
+    void onLoopRunTimer();           ///< QTimer::singleShot → runCode()
+    void onModelsReadyForFix(const QStringList&); ///< one-shot: modelli pronti → lancia fix
 
     /* ── Slot estratti da lambda — Agentica ── */
     void populateAgentModels();

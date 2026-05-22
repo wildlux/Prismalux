@@ -9,6 +9,7 @@
 #include <QFileInfo>
 #include <QTextStream>
 #include <QProcess>
+#include <cmath>
 #include "prismalux_paths.h"
 #include "pages/lavoro_data.h"
 namespace P = PrismaluxPaths;
@@ -144,11 +145,19 @@ void LanServer::stop()
     for (auto& s : m_sessions)
         if (s.socket) socks << s.socket;
 
-    /* Svuota lo stato prima di chiudere i socket */
+    /* Svuota lo stato prima di chiudere i socket.
+     * m_streamSock va a nullptr prima di abort() così i segnali LLM
+     * in volo (onAiToken/onAiFinished/onAiError) trovano già guard==nullptr. */
     m_sessions.clear();
     m_appClientIps.clear();
     m_streamSock = nullptr;
     m_tagsSock   = nullptr;
+    m_ragSock    = nullptr;
+
+    /* Annulla l'eventuale richiesta LLM in corso dopo aver azzerato i socket:
+     * evita che Ollama continui a rispondere su socket già chiusi. */
+    if (m_ai && m_ai->busy())
+        m_ai->abort();
 
     m_server->close();
     emit statusChanged(false);
@@ -172,6 +181,25 @@ QStringList LanServer::connectedIPs() const
     for (auto it = m_sessions.cbegin(); it != m_sessions.cend(); ++it)
         list << it->addr;
     return list;
+}
+
+void LanServer::kickClient(const QString& addr)
+{
+    QTcpSocket* target = nullptr;
+    for (auto it = m_sessions.cbegin(); it != m_sessions.cend(); ++it) {
+        if (it->addr == addr) { target = it.key(); break; }
+    }
+    if (!target) return;
+
+    const bool wasApi = m_sessions.value(target).isApiClient;
+    m_sessions.remove(target);
+    if (wasApi) m_appClientIps.remove(addr);
+
+    target->disconnect(this);
+    target->abort();
+    target->deleteLater();
+
+    emit clientDisconnected(addr);
 }
 
 /* ── nuova connessione ───────────────────────────────────────────────────── */
@@ -201,7 +229,7 @@ void LanServer::onNewConnection()
 
         connect(sock, &QTcpSocket::readyRead,    this, &LanServer::onClientReadyRead);
         connect(sock, &QTcpSocket::disconnected, this, &LanServer::onClientDisconnected);
-        /* clientConnected viene emesso in processSession solo per percorsi API */
+        emit clientConnected(s.addr);
     }
 }
 
@@ -329,15 +357,19 @@ void LanServer::onClientDisconnected()
         m_tagsSock = nullptr;
         disconnect(m_modelsConn);
     }
+    if (sock == m_ragSock) {
+        m_ragSock = nullptr;
+        disconnect(m_ai, &AiClient::embeddingReady, this, &LanServer::onRagEmbeddingReady);
+        disconnect(m_ai, &AiClient::embeddingError, this, &LanServer::onRagEmbeddingError);
+    }
 
-    const bool wasApi = (it != m_sessions.end()) && it->isApiClient;
     if (it != m_sessions.end()) {
-        if (wasApi) m_appClientIps.remove(addr);
+        if (it->isApiClient) m_appClientIps.remove(addr);
         m_sessions.erase(it);
     }
     sock->deleteLater();
 
-    if (wasApi && !addr.isEmpty()) emit clientDisconnected(addr);
+    if (!addr.isEmpty()) emit clientDisconnected(addr);
 }
 
 /* ── dispatch richiesta ──────────────────────────────────────────────────── */
@@ -357,7 +389,10 @@ void LanServer::processSession(Session& s)
                         s.path == "/api/sysinfo"   ||
                         s.path == "/api/mcp"       ||
                         s.path == "/api/lavoro"    ||
-                        s.path == "/api/cv");
+                        s.path == "/api/cv"        ||
+                        s.path == "/api/rag"       ||
+                        s.path == "/api/graphviz"  ||
+                        s.path == "/api/whisper");
 
     /* Auth check: se il token è impostato, le route protette richiedono
        Authorization: Bearer TOKEN, oppure ?token=TOKEN nella URL (fallback).
@@ -583,6 +618,14 @@ void LanServer::processSession(Session& s)
         QJsonObject cvj;
         cvj["cv"] = cvTxt;
         sendJson(s.socket, QJsonDocument(cvj).toJson(QJsonDocument::Compact));
+    } else if (s.path == "/api/rag" && s.method == "POST") {
+        handleRag(s);
+    } else if (s.path == "/api/graphviz" && s.method == "POST") {
+        handleGraphviz(s);
+    } else if (s.path == "/api/whisper" && s.method == "POST") {
+        handleWhisper(s);
+    } else if (s.path == "/api/math" && s.method == "POST") {
+        handleMath(s.socket, s);
     } else {
         sendJson(s.socket, R"({"status":"ok"})");
     }
@@ -859,6 +902,101 @@ void LanServer::handleKnowledge(Session& s)
     }
 }
 
+/* ── /api/rag — ricerca semantica nel RagEngine condiviso ───────────────── */
+
+void LanServer::handleRag(Session& s)
+{
+    if (!m_rag) {
+        sendError(s.socket, 503, "RAG non disponibile");
+        return;
+    }
+    if (m_rag->chunkCount() == 0) {
+        sendJson(s.socket, R"({"results":[],"info":"Indice RAG vuoto"})");
+        return;
+    }
+    if (m_ragSock) {
+        sendError(s.socket, 503, "RAG query in progress");
+        return;
+    }
+
+    const QJsonDocument doc = QJsonDocument::fromJson(s.body);
+    if (doc.isNull() || !doc.isObject()) {
+        sendError(s.socket, 400, "Invalid JSON");
+        return;
+    }
+    const QJsonObject req = doc.object();
+    const QString query   = req["query"].toString().trimmed();
+    if (query.isEmpty()) {
+        sendError(s.socket, 400, "query field required");
+        return;
+    }
+
+    m_ragSock = s.socket;
+
+    /* Salva k per lo slot (letto prima che il socket venga consumato) */
+    m_ragK = qBound(1, req["k"].toInt(5), 20);
+
+    disconnect(m_ai, &AiClient::embeddingReady, this, &LanServer::onRagEmbeddingReady);
+    disconnect(m_ai, &AiClient::embeddingError, this, &LanServer::onRagEmbeddingError);
+    connect(m_ai, &AiClient::embeddingReady, this, &LanServer::onRagEmbeddingReady,
+            Qt::SingleShotConnection);
+    connect(m_ai, &AiClient::embeddingError, this, &LanServer::onRagEmbeddingError,
+            Qt::SingleShotConnection);
+
+    m_ai->fetchEmbedding(query);
+}
+
+void LanServer::onRagEmbeddingReady(const QVector<float>& vec)
+{
+    QTcpSocket* sock = m_ragSock;
+    m_ragSock = nullptr;
+    if (!sock || !m_sessions.contains(sock)) return;
+
+    const QVector<RagChunk> results = m_rag->search(vec, m_ragK);
+
+    /* Proietta il vettore query nello spazio JLT (256-dim) per calcolare i coseni */
+    const QVector<float> qProj = m_rag->project(vec);
+
+    QJsonArray arr;
+    for (const RagChunk& c : results) {
+        QJsonObject obj;
+        obj["text"] = c.text;
+        /* Calcola coseno tra qProj e c.vec (entrambi 256-dim) */
+        float dot = 0.0f, na = 0.0f, nb = 0.0f;
+        const int dim = qMin(qProj.size(), c.vec.size());
+        for (int i = 0; i < dim; ++i) {
+            dot += qProj[i] * c.vec[i];
+            na  += qProj[i] * qProj[i];
+            nb  += c.vec[i] * c.vec[i];
+        }
+        const float score = (na > 0.0f && nb > 0.0f)
+                            ? dot / (std::sqrt(na) * std::sqrt(nb))
+                            : 0.0f;
+        obj["score"] = static_cast<double>(score);
+        arr.append(obj);
+    }
+    QJsonObject root;
+    root["results"] = arr;
+    sendJson(sock, QJsonDocument(root).toJson(QJsonDocument::Compact));
+}
+
+void LanServer::onRagEmbeddingError(const QString& msg)
+{
+    QTcpSocket* sock = m_ragSock;
+    m_ragSock = nullptr;
+    if (!sock || !m_sessions.contains(sock)) return;
+
+    QString safe = msg;
+    safe.remove(QRegularExpression(R"([\r\n"\\])"));
+    safe = safe.left(200);
+    const QByteArray body = ("{\"error\":\"" + safe + "\"}").toUtf8();
+    QByteArray resp = httpOkHeader("application/json");
+    resp += "Content-Length: " + QByteArray::number(body.size()) + "\r\n\r\n";
+    resp += body;
+    sock->write(resp);
+    sock->flush();
+}
+
 /* ── /web — interfaccia chat web per PC nella rete locale ───────────────── */
 void LanServer::handleWebChat(Session& s)
 {
@@ -1080,6 +1218,52 @@ void LanServer::handleWebChat(Session& s)
             "#mcp-result{background:var(--aim);border:1px solid var(--brd);border-radius:8px;"
               "padding:10px;font-size:12px;font-family:monospace;white-space:pre-wrap;"
               "word-break:break-all;max-height:220px;overflow-y:auto;display:none}\n"
+            "#tab-rag{flex:1;min-height:0;overflow-y:auto;padding:16px;"
+              "display:none;box-sizing:border-box}\n"
+            ".rag-card{background:var(--aim);border:1px solid var(--brd);border-radius:10px;"
+              "padding:12px 14px;margin-bottom:10px}\n"
+            ".rag-card p{font-size:14px;line-height:1.55;white-space:pre-wrap;color:var(--txt);"
+              "margin-bottom:6px}\n"
+            ".rag-card small{font-size:11px;color:var(--dim)}\n"
+            "#rag-query{width:100%;background:var(--inp);border:1px solid var(--brd);"
+              "color:var(--txt);border-radius:8px;padding:10px;font-size:14px;"
+              "resize:vertical;box-sizing:border-box;margin-bottom:10px}\n"
+            "#rag-query:focus{outline:none;border-color:var(--acc)}\n"
+            "#rag-srch{background:var(--acc);color:#fff;border:none;border-radius:8px;"
+              "padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;width:100%;"
+              "margin-bottom:12px}\n"
+            "#rag-srch:hover{filter:brightness(1.1)}\n"
+            /* ── Sessioni sidebar CSS ── */
+            "#ses-list{display:flex;flex-direction:column;gap:4px;max-height:220px;"
+              "overflow-y:auto;margin-bottom:8px}\n"
+            ".ses-item{display:flex;align-items:center;gap:6px;padding:7px 10px;"
+              "background:var(--aim);border:1px solid var(--brd);border-radius:8px;"
+              "cursor:pointer;transition:background .15s}\n"
+            ".ses-item:hover{background:rgba(255,255,255,.07)}\n"
+            ".ses-item.active{border-color:var(--acc);background:rgba(108,99,255,.12)}\n"
+            ".ses-name{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;"
+              "white-space:nowrap;color:var(--txt)}\n"
+            ".ses-del{background:transparent;border:none;color:var(--dim);"
+              "cursor:pointer;padding:2px 5px;font-size:13px;border-radius:4px;flex-shrink:0}\n"
+            ".ses-del:hover{background:rgba(255,80,80,.15);color:#ff5555}\n"
+            "#ses-act{display:flex;gap:6px;flex-wrap:wrap}\n"
+            ".ses-btn{flex:1;padding:7px 8px;background:var(--aim);"
+              "border:1px solid var(--brd);color:var(--txt);border-radius:8px;"
+              "font-size:12px;cursor:pointer;text-align:center;white-space:nowrap}\n"
+            ".ses-btn:hover{background:rgba(255,255,255,.07);border-color:var(--acc)}\n"
+            "#ses-empty{font-size:12px;color:var(--dim);padding:8px 0;text-align:center}\n"
+            /* ── Matematica sub-tab CSS ── */
+            ".mat-tab{background:none;border:none;padding:8px 14px;font-size:13px;"
+              "color:var(--dim);cursor:pointer;border-bottom:2px solid transparent}\n"
+            ".mat-tab.on{color:var(--acc);border-bottom-color:var(--acc);font-weight:600}\n"
+            ".mtp{display:flex}\n"
+            ".mat-run{background:var(--aim);border:1px solid var(--brd);color:var(--txt);"
+              "border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer}\n"
+            ".mat-run:hover{background:var(--brd)}\n"
+            "#tab-cod{flex:1;min-height:0;overflow-y:auto;padding:16px;display:none}\n"
+            "#tab-gvz{flex:1;min-height:0;overflow-y:auto;padding:16px;display:none}\n"
+            "#tab-wsp{flex:1;min-height:0;overflow-y:auto;padding:16px;display:none}\n"
+            ".tab-hd{font-size:18px;font-weight:700;margin-bottom:12px;color:var(--acc)}\n"
             "</style>\n"
             "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css\">\n"
             "<script defer src=\"https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js\"></script>\n"
@@ -1198,6 +1382,15 @@ void LanServer::handleWebChat(Session& s)
                   "</optgroup>"
                 "</select>"
               "</div>"
+              "<div class=\"dsec\">"
+                "<h3>&#128190; Sessioni Chat</h3>"
+                "<div id=\"ses-list\"></div>"
+                "<div id=\"ses-act\">"
+                  "<button class=\"ses-btn\" id=\"ses-new\">&#x1F5D1; Nuova chat</button>"
+                  "<button class=\"ses-btn\" id=\"ses-save\">" "\xe2\x9c\x8f" " Salva</button>"
+                  "<button class=\"ses-btn\" id=\"ses-exp\">" "\xe2\xac\x87" " Esporta</button>"
+                "</div>"
+              "</div>"
             "</div>\n"
             "<div id=\"hdr\">"
               "<button id=\"ham\">&#9776;</button>"
@@ -1213,6 +1406,10 @@ void LanServer::handleWebChat(Session& s)
               "<button class=\"tab\" data-tab=\"age\">\xf0\x9f\xa4\x96 Agenti</button>"
               "<button class=\"tab\" data-tab=\"imp\">\xf0\x9f\x93\x9a Impara</button>"
               "<button class=\"tab\" data-tab=\"mul\">\xf0\x9f\x8e\xac Multimedia</button>"
+              "<button class=\"tab\" data-tab=\"rag\">\xf0\x9f\x93\x9a RAG</button>"
+              "<button class=\"tab\" data-tab=\"cod\">\xf0\x9f\x92\xbb Coding</button>"
+              "<button class=\"tab\" data-tab=\"gvz\">\xf0\x9f\x97\xba Graphviz</button>"
+              "<button class=\"tab\" data-tab=\"wsp\">\xf0\x9f\x8e\x99 Whisper</button>"
             "</div>\n"
             "<div id=\"tab-chat\">"
               "<div id=\"tool-ind\"></div>"
@@ -1342,31 +1539,141 @@ void LanServer::handleWebChat(Session& s)
             "</div>\n"
             /* ── Tab Matematica ── */
             "<div id=\"tab-mat\">"
-              "<div class=\"sec-hd\">\xcf\x80 Matematica &amp; Grafico</div>"
-              "<div style=\"padding:12px;display:flex;flex-direction:column;gap:10px\">"
-                "<label style=\"font-size:13px;color:var(--dim)\">Formula LaTeX (es. x^2+\\\\sin(x))</label>"
-                "<textarea id=\"mat-in\" rows=\"3\" style=\"background:var(--inp);border:1px solid var(--brd);"
-                  "color:var(--txt);border-radius:8px;padding:8px;font-family:monospace;font-size:14px;"
-                  "resize:vertical;box-sizing:border-box\""
-                  " placeholder=\"x^2 + \\\\frac{1}{x}\"></textarea>"
+              "<div class=\"sec-hd\">\xcf\x80 Matematica</div>"
+              /* Sub-tab bar */
+              "<div id=\"mat-tabs\" style=\"display:flex;gap:0;border-bottom:1px solid var(--brd);padding:0 12px\">"
+                "<button class=\"mat-tab on\" data-mt=\"seq\">\xf0\x9f\x94\xa2 Sequenza</button>"
+                "<button class=\"mat-tab\" data-mt=\"const\">\xcf\x80 Costanti</button>"
+                "<button class=\"mat-tab\" data-mt=\"nth\">#\xe2\x82\x99 N-esimo</button>"
+                "<button class=\"mat-tab\" data-mt=\"expr\">\xf0\x9f\xa7\xae Espressione</button>"
+              "</div>"
+              /* Sub-tab: Sequenza */
+              "<div id=\"mtp-seq\" class=\"mtp\" style=\"padding:12px;flex-direction:column;gap:10px\">"
+                "<label style=\"font-size:13px;color:var(--dim)\">Sequenza (es. 1, 4, 9, 16, 25)</label>"
+                "<input id=\"mat-seq\" type=\"text\""
+                  " style=\"background:var(--inp);border:1px solid var(--brd);color:var(--txt);"
+                  "border-radius:8px;padding:8px;font-size:13px\""
+                  " placeholder=\"es. 1, 1, 2, 3, 5, 8, 13\">"
+                "<div style=\"display:flex;gap:8px;align-items:center\">"
+                  "<span style=\"font-size:13px;color:var(--dim)\">Prossimi</span>"
+                  "<input id=\"mat-nxt\" type=\"number\" value=\"5\" min=\"1\" max=\"20\""
+                    " style=\"width:60px;background:var(--inp);border:1px solid var(--brd);"
+                    "color:var(--txt);border-radius:8px;padding:6px;font-size:13px\">"
+                  "<span style=\"font-size:13px;color:var(--dim)\">termini</span>"
+                "</div>"
+                "<div id=\"mat-seq-res\" style=\"font-size:13px;color:var(--acc);min-height:20px\"></div>"
+                "<div style=\"display:flex;gap:8px;flex-wrap:wrap\">"
+                  "<button id=\"mat-local\" class=\"mat-run\">\xf0\x9f\x94\x8d Rileva (locale)</button>"
+                  "<button id=\"mat-sympy\" class=\"mat-run\">\xcf\x83 Interpola sympy</button>"
+                  "<button id=\"mat-ai\" class=\"mat-run\" style=\"background:var(--acc);color:#fff\">"
+                    "\xf0\x9f\xa4\x96 Analizza AI</button>"
+                "</div>"
+              "</div>"
+              /* Sub-tab: Costanti */
+              "<div id=\"mtp-const\" class=\"mtp\" style=\"padding:12px;display:none;flex-direction:column;gap:10px\">"
+                "<label style=\"font-size:13px;color:var(--dim)\">Costante</label>"
+                "<select id=\"mat-const\""
+                  " style=\"background:var(--inp);border:1px solid var(--brd);color:var(--txt);"
+                  "border-radius:8px;padding:8px;font-size:13px\">"
+                  "<option value=\"pi\">\xcf\x80  pi greco</option>"
+                  "<option value=\"e\">e  numero di Eulero</option>"
+                  "<option value=\"phi\">\xcf\x86  sezione aurea</option>"
+                  "<option value=\"sqrt2\">\xe2\x88\x9a" "2  radice di 2</option>"
+                  "<option value=\"sqrt3\">\xe2\x88\x9a" "3  radice di 3</option>"
+                  "<option value=\"sqrt5\">\xe2\x88\x9a" "5  radice di 5</option>"
+                  "<option value=\"euler_gamma\">\xce\xb3  Eulero-Mascheroni</option>"
+                  "<option value=\"ln2\">ln(2)  logaritmo naturale di 2</option>"
+                  "<option value=\"catalan\">C  costante di Catalan</option>"
+                "</select>"
+                "<div style=\"display:flex;gap:8px;align-items:center\">"
+                  "<label style=\"font-size:13px;color:var(--dim)\">Cifre decimali:</label>"
+                  "<input id=\"mat-prec\" type=\"number\" value=\"100\" min=\"10\" max=\"100000\""
+                    " style=\"width:100px;background:var(--inp);border:1px solid var(--brd);"
+                    "color:var(--txt);border-radius:8px;padding:6px;font-size:13px\">"
+                "</div>"
                 "<div style=\"display:flex;gap:8px\">"
-                  "<button id=\"mat-render\" style=\"flex:1;background:var(--acc);color:#fff;border:none;"
-                    "border-radius:8px;padding:10px;font-size:14px;cursor:pointer\">Visualizza</button>"
-                  "<button id=\"mat-ask\" style=\"flex:1;background:var(--aim);border:1px solid var(--brd);"
-                    "color:var(--txt);border-radius:8px;padding:10px;font-size:14px;cursor:pointer\">"
-                    "\xf0\x9f\xa4\x96 Chiedi all'AI</button>"
+                  "<button id=\"mat-calc-const\" class=\"mat-run\""
+                    " style=\"flex:1;background:var(--acc);color:#fff\">\xcf\x80 Calcola</button>"
+                  "<button id=\"mat-all-const\" class=\"mat-run\" style=\"flex:1\">Tutte (100 cifre)</button>"
+                "</div>"
+              "</div>"
+              /* Sub-tab: N-esimo */
+              "<div id=\"mtp-nth\" class=\"mtp\" style=\"padding:12px;display:none;flex-direction:column;gap:10px\">"
+                "<label style=\"font-size:13px;color:var(--dim)\">Tipo</label>"
+                "<select id=\"mat-ntype\""
+                  " style=\"background:var(--inp);border:1px solid var(--brd);color:var(--txt);"
+                  "border-radius:8px;padding:8px;font-size:13px\">"
+                  "<option value=\"pi_digit\">\xcf\x80  N-esima cifra di \xcf\x80</option>"
+                  "<option value=\"e_digit\">e  N-esima cifra di e</option>"
+                  "<option value=\"prime\">p  N-esimo numero primo</option>"
+                  "<option value=\"fib\">F  N-esimo Fibonacci</option>"
+                  "<option value=\"fact\">n!  N-esimo fattoriale</option>"
+                  "<option value=\"pow2\">2\xe1\xb5\x8f  N-esima potenza di 2</option>"
+                  "<option value=\"pi_block\">\xcf\x80\xe1\xb5\x8f  Prime N cifre di \xcf\x80</option>"
+                  "<option value=\"phi_block\">\xcf\x86\xe1\xb5\x8f  Prime N cifre di \xcf\x86</option>"
+                "</select>"
+                "<div id=\"mat-nth-desc\" style=\"font-size:12px;color:var(--dim);min-height:16px\"></div>"
+                "<div style=\"display:flex;gap:8px;align-items:center\">"
+                  "<label style=\"font-size:13px;color:var(--dim)\">N =</label>"
+                  "<input id=\"mat-n\" type=\"text\" value=\"100\" placeholder=\"es. 1000000\""
+                    " style=\"flex:1;background:var(--inp);border:1px solid var(--brd);"
+                    "color:var(--txt);border-radius:8px;padding:8px;font-size:13px\">"
+                "</div>"
+                "<button id=\"mat-calc-nth\" class=\"mat-run\""
+                  " style=\"background:var(--acc);color:#fff\">#\xe2\x82\x99 Calcola</button>"
+              "</div>"
+              /* Sub-tab: Espressione */
+              "<div id=\"mtp-expr\" class=\"mtp\" style=\"padding:12px;display:none;flex-direction:column;gap:10px\">"
+                "<label style=\"font-size:13px;color:var(--dim)\">Espressione (sympy + mpmath)</label>"
+                "<input id=\"mat-expr\" type=\"text\""
+                  " style=\"background:var(--inp);border:1px solid var(--brd);color:var(--txt);"
+                  "border-radius:8px;padding:8px;font-size:13px\""
+                  " placeholder=\"es. sqrt(2)+sin(pi/4) o integrate(x**2,(x,0,1))\">"
+                "<div style=\"display:flex;gap:8px;align-items:center\">"
+                  "<label style=\"font-size:13px;color:var(--dim)\">Precisione:</label>"
+                  "<input id=\"mat-eprec\" type=\"number\" value=\"50\" min=\"10\" max=\"10000\""
+                    " style=\"width:80px;background:var(--inp);border:1px solid var(--brd);"
+                    "color:var(--txt);border-radius:8px;padding:6px;font-size:13px\">"
+                  "<span style=\"font-size:12px;color:var(--dim)\">cifre</span>"
+                "</div>"
+                "<div style=\"display:flex;flex-wrap:wrap;gap:4px\">"
+                  "<button class=\"mat-ex mat-run\" data-e=\"pi**2/6\">\xcf\x80\xc2\xb2/6</button>"
+                  "<button class=\"mat-ex mat-run\" data-e=\"exp(pi)-pi**exp(1)\">e\xcf\x80\xe2\x88\x92\xcf\x80e</button>"
+                  "<button class=\"mat-ex mat-run\" data-e=\"integrate(x**2,(x,0,1))\">\xe2\x88\xabx\xc2\xb2dx</button>"
+                  "<button class=\"mat-ex mat-run\" data-e=\"sqrt(2+sqrt(3))\">\xe2\x88\x9a(2+\xe2\x88\x9a" "3)</button>"
+                  "<button class=\"mat-ex mat-run\" data-e=\"factorial(1000)\">1000!</button>"
+                  "<button class=\"mat-ex mat-run\" data-e=\"gcd(144,180)\">mcd(144,180)</button>"
+                  "<button class=\"mat-ex mat-run\" data-e=\"log(factorial(100)).evalf()\">Stirling 100</button>"
+                  "<button class=\"mat-ex mat-run\" data-e=\"phi**20\">\xcf\x86\xc2\xb2\xc2\xb0</button>"
+                "</div>"
+                "<div style=\"display:flex;gap:8px\">"
+                  "<button id=\"mat-eval\" class=\"mat-run\""
+                    " style=\"flex:1;background:var(--acc);color:#fff\">\xf0\x9f\xa7\xae Calcola</button>"
+                  "<button id=\"mat-simp\" class=\"mat-run\" style=\"flex:1\">\xe2\x99\xbe Semplifica</button>"
+                "</div>"
+              "</div>"
+              /* Output comune + stato */
+              "<div style=\"padding:0 12px 12px\">"
+                "<div style=\"display:flex;gap:8px;align-items:center;margin-bottom:4px\">"
+                  "<span id=\"mat-status\" style=\"flex:1;font-size:12px;color:var(--dim)\">Pronto.</span>"
+                  "<button id=\"mat-copy\" class=\"mat-run\" style=\"padding:4px 10px;font-size:12px\">"
+                    "\xf0\x9f\x93\x8b Copia</button>"
+                  "<button id=\"mat-clr\" class=\"mat-run\" style=\"padding:4px 10px;font-size:12px\">"
+                    "\xf0\x9f\x97\x91 Cancella</button>"
                 "</div>"
                 "<div id=\"mat-out\" style=\"background:var(--aim);border:1px solid var(--brd);"
-                  "border-radius:8px;padding:12px;min-height:40px;font-size:18px;text-align:center;"
-                  "overflow-x:auto\"></div>"
-                "<hr style=\"border-color:var(--brd);margin:4px 0\">"
-                "<label style=\"font-size:13px;color:var(--dim)\">Grafico: f(x) (es. Math.sin(x))</label>"
+                  "border-radius:8px;padding:12px;min-height:80px;max-height:300px;overflow-y:auto;"
+                  "font-family:monospace;font-size:13px;white-space:pre-wrap;line-height:1.5\"></div>"
+              "</div>"
+              /* Grafico */
+              "<hr style=\"border-color:var(--brd);margin:0 12px\">"
+              "<div style=\"padding:12px;display:flex;flex-direction:column;gap:8px\">"
+                "<label style=\"font-size:13px;color:var(--dim)\">Grafico f(x) (JS Math)</label>"
                 "<div style=\"display:flex;gap:8px\">"
                   "<input id=\"plot-fn\" type=\"text\" value=\"Math.sin(x)\" style=\"flex:1;"
                     "background:var(--inp);border:1px solid var(--brd);color:var(--txt);"
                     "border-radius:8px;padding:8px;font-size:13px\">"
-                  "<button id=\"plot-btn\" style=\"background:var(--acc);color:#fff;border:none;"
-                    "border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer\">Traccia</button>"
+                  "<button id=\"plot-btn\" class=\"mat-run\">Traccia</button>"
                 "</div>"
                 "<canvas id=\"plot-cv\" height=\"200\" style=\"width:100%;background:var(--aim);"
                   "border:1px solid var(--brd);border-radius:8px;display:none\"></canvas>"
@@ -1542,6 +1849,59 @@ void LanServer::handleWebChat(Session& s)
                 "</div>"
               "</div>"
             "</div>\n"
+            /* ── Tab RAG ── */
+            "<div id=\"tab-rag\">"
+              "<div class=\"tab-hd\">\xf0\x9f\x93\x9a RAG \xe2\x80\x94 Ricerca Semantica</div>"
+              "<div style=\"padding:12px;display:flex;flex-direction:column;gap:0\">"
+                "<label style=\"font-size:13px;color:var(--dim);margin-bottom:6px;display:block\">"
+                  "Fai una domanda — l'AI cerca i chunk pi\xc3\xb9 rilevanti nel tuo indice RAG</label>"
+                "<textarea id=\"rag-query\" rows=\"3\""
+                  " placeholder=\"Es: Come funziona il protocollo TCP?\"></textarea>"
+                "<button id=\"rag-srch\">\xf0\x9f\x94\x8d Cerca nel RAG</button>"
+                "<div id=\"rag-results\"></div>"
+              "</div>"
+            "</div>\n"
+            /* ── Tab Coding ── */
+            "<div id=\"tab-cod\">"
+              "<div class=\"tab-hd\">\xf0\x9f\x92\xbb Coding \xe2\x80\x94 Editor + AI</div>"
+              "<div style=\"display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap\">"
+                "<select id=\"cod-lang\" style=\"background:var(--inp);color:var(--txt);border:1px solid var(--brd);border-radius:6px;padding:4px 8px;font-size:13px\">"
+                  "<option value=\"python\">Python</option>"
+                  "<option value=\"javascript\">JavaScript</option>"
+                  "<option value=\"cpp\">C++</option>"
+                  "<option value=\"bash\">Bash</option>"
+                  "<option value=\"sql\">SQL</option>"
+                "</select>"
+                "<button id=\"cod-run\" style=\"background:var(--acc);color:#fff;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px\">\xf0\x9f\xa4\x96 Analizza con AI</button>"
+                "<button id=\"cod-clr\" style=\"background:var(--aim);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px\">\xf0\x9f\x97\x91 Pulisci</button>"
+              "</div>"
+              "<textarea id=\"cod-editor\" spellcheck=\"false\" style=\"width:100%;height:220px;background:var(--inp);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px;font-family:monospace;font-size:13px;resize:vertical;box-sizing:border-box\" placeholder=\"Incolla qui il tuo codice...\"></textarea>"
+              "<div id=\"cod-out\" style=\"margin-top:10px;background:var(--aim);border:1px solid var(--brd);border-radius:8px;padding:10px;min-height:60px;font-family:monospace;font-size:13px;white-space:pre-wrap;color:var(--txt)\"></div>"
+            "</div>\n"
+            /* ── Tab Graphviz ── */
+            "<div id=\"tab-gvz\">"
+              "<div class=\"tab-hd\">\xf0\x9f\x97\xba Graphviz \xe2\x80\x94 Mappe Concettuali</div>"
+              "<div style=\"display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap\">"
+                "<button id=\"gvz-ai\" style=\"background:var(--acc);color:#fff;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px\">\xf0\x9f\xa4\x96 Genera DOT con AI</button>"
+                "<button id=\"gvz-run\" style=\"background:#059669;color:#fff;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px\">\xf0\x9f\x96\xbc Renderizza</button>"
+                "<button id=\"gvz-clr\" style=\"background:var(--aim);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px\">\xf0\x9f\x97\x91 Pulisci</button>"
+              "</div>"
+              "<textarea id=\"gvz-desc\" style=\"width:100%;height:60px;background:var(--inp);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:8px;font-size:13px;resize:vertical;box-sizing:border-box;margin-bottom:6px\" placeholder=\"Descrivi il grafo in linguaggio naturale (per AI)...\"></textarea>"
+              "<textarea id=\"gvz-dot\" spellcheck=\"false\" style=\"width:100%;height:160px;background:var(--inp);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px;font-family:monospace;font-size:13px;resize:vertical;box-sizing:border-box\" placeholder=\"digraph G {\\n  A -&gt; B -&gt; C\\n}\"></textarea>"
+              "<div id=\"gvz-img\" style=\"margin-top:10px;text-align:center;min-height:60px\"></div>"
+              "<div id=\"gvz-err\" style=\"color:#f87171;font-size:13px;margin-top:6px\"></div>"
+            "</div>\n"
+            /* ── Tab Whisper ── */
+            "<div id=\"tab-wsp\">"
+              "<div class=\"tab-hd\">\xf0\x9f\x8e\x99 Whisper \xe2\x80\x94 Trascrizione Audio</div>"
+              "<p style=\"font-size:13px;color:var(--dim);margin-bottom:10px\">Carica un file audio (WAV/MP3/OGG) per trascriverlo tramite il server Prismalux desktop.</p>"
+              "<input type=\"file\" id=\"wsp-file\" accept=\".wav,.mp3,.ogg,.m4a,.flac\" style=\"display:none\">"
+              "<button id=\"wsp-pick\" style=\"background:var(--acc);color:#fff;border:none;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:13px;margin-bottom:10px\">\xf0\x9f\x93\x82 Scegli file audio</button>"
+              "<div id=\"wsp-name\" style=\"font-size:12px;color:var(--dim);margin-bottom:8px\"></div>"
+              "<button id=\"wsp-run\" style=\"background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:13px;display:none\">\xf0\x9f\x8e\x99 Trascrivi</button>"
+              "<div id=\"wsp-status\" style=\"font-size:13px;color:var(--acc);margin-top:8px\"></div>"
+              "<textarea id=\"wsp-out\" readonly style=\"width:100%;height:180px;background:var(--inp);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px;font-size:13px;resize:vertical;box-sizing:border-box;margin-top:10px;display:none\" placeholder=\"Testo trascritto...\"></textarea>"
+            "</div>\n"
             "<script>\n"
             "const THEMES={"
               /* ── Dark ── */
@@ -1619,8 +1979,14 @@ void LanServer::handleWebChat(Session& s)
               "matematica:{color:'#60a5fa',icon:'π',name:'Matematica',"
                 "ph:'Inserisci il problema matematico...',"
                 "extra:{type:'symbols',"
-                  "syms:['π','√','²','³','Σ','∫',"
-                    "'±','≤','≥','≠','≈','→','∞','∀','∃']}},"
+                  "syms:['π','√','²','³','⁴','⁵','⁶','⁷','⁸','⁹','⁰',"
+                    "'Σ','∫','∮','∂','∇','∞','→','⇒','⇔','↔',"
+                    "'±','×','÷','≤','≥','≠','≈','≡','∝',"
+                    "'α','β','γ','δ','ε','θ','λ','μ','ξ','ρ','σ','τ','φ','ψ','ω',"
+                    "'Α','Β','Γ','Δ','Ε','Θ','Λ','Π','Σ','Φ','Ψ','Ω',"
+                    "'∀','∃','∈','∉','⊂','⊃','∪','∩','∅',"
+                    "'½','⅓','¼','¾','∛','∜',"
+                    "'ℝ','ℤ','ℕ','ℚ','ℂ','ℵ']}},"
               "ricerca:{color:'#22d3ee',icon:'🔬',name:'Ricerca',"
                 "ph:'Cosa vuoi ricercare o analizzare?',"
                 "extra:{type:'select',lbl:'Formato',"
@@ -1915,7 +2281,20 @@ void LanServer::handleWebChat(Session& s)
                 "}\n"
               "}catch(e){"
                 "clearInterval(dT);"
-                "if(!full)aiD.textContent='Errore: '+e.message;"
+                "var isDisconn=(e instanceof TypeError&&"
+                  "(e.message.indexOf('fetch')>=0||e.message.indexOf('network')>=0"
+                  "||e.message.indexOf('Failed')>=0||e.message.indexOf('NetworkError')>=0"
+                  "||e.message.indexOf('aborted')>=0));"
+                "if(!full){"
+                  "aiD.style.color='#ff9944';"
+                  "aiD.textContent=isDisconn?"
+                    "'\xe2\x9a\xa0\xef\xb8\x8f Server disconnesso \xe2\x80\x94 il server Prismalux potrebbe essere stato fermato.':"
+                    "'Errore: '+e.message;}"
+                "else{"
+                  "var warnD=document.createElement('div');"
+                  "warnD.style.cssText='color:#ff9944;font-size:12px;padding:4px 0';"
+                  "warnD.textContent='\xe2\x9a\xa0\xef\xb8\x8f Risposta interrotta (server disconnesso)';"
+                  "L.appendChild(warnD);L.scrollTop=L.scrollHeight;}"
               "}\n"
               "clearInterval(dT);\n"
               "if(full){H.push({role:'assistant',content:full});addActions(aiD,full);}\n"
@@ -1942,9 +2321,10 @@ void LanServer::handleWebChat(Session& s)
               "add('user',dispTxt);H.push({role:'user',content:sendTxt});\n"
               "await streamResponse();\n"
             "}\n"
-            "B.addEventListener('click',go);\n"
+            "async function doGo(){await go();sesSaveCurrent();}\n"
+            "B.addEventListener('click',doGo);\n"
             "T.addEventListener('keydown',function(e){\n"
-              "if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();go();}\n"
+              "if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();doGo();}\n"
               "setTimeout(function(){"
                 "T.style.height='';"
                 "T.style.height=Math.min(T.scrollHeight,200)+'px';},0);\n"
@@ -2032,7 +2412,11 @@ void LanServer::handleWebChat(Session& s)
               "TM=document.getElementById('tab-mat'),"
               "TG=document.getElementById('tab-age'),"
               "TI=document.getElementById('tab-imp'),"
-              "TU=document.getElementById('tab-mul');\n"
+              "TU=document.getElementById('tab-mul'),"
+              "TR=document.getElementById('tab-rag'),"
+              "TCOD=document.getElementById('tab-cod'),"
+              "TGVZ=document.getElementById('tab-gvz'),"
+              "TWSP=document.getElementById('tab-wsp');\n"
             "let sysItv=null;\n"
             "function switchTab(n){"
               "TABS.forEach(function(t){t.classList.toggle('on',t.dataset.tab===n);});"
@@ -2043,6 +2427,10 @@ void LanServer::handleWebChat(Session& s)
               "TG.className=n==='age'?'tab-on-block':'tab-off';"
               "TI.className=n==='imp'?'tab-on-block':'tab-off';"
               "TU.className=n==='mul'?'tab-on-block':'tab-off';"
+              "TR.className=n==='rag'?'tab-on-block':'tab-off';"
+              "TCOD.className=n==='cod'?'tab-on-block':'tab-off';"
+              "TGVZ.className=n==='gvz'?'tab-on-block':'tab-off';"
+              "TWSP.className=n==='wsp'?'tab-on-block':'tab-off';"
               "if(n==='sys'){"
                 "fetchSys();"
                 "if(!sysItv)sysItv=setInterval(fetchSys,3000);"
@@ -2083,32 +2471,227 @@ void LanServer::handleWebChat(Session& s)
                 "document.getElementById('s-host').textContent=j.hostname;\n"
               "}catch(e){}}\n"
             /* ── Matematica tab JS ── */
-            "document.getElementById('mat-render').addEventListener('click',function(){"
-              "const v=document.getElementById('mat-in').value.trim();"
-              "const o=document.getElementById('mat-out');"
-              "if(!v){o.textContent='Inserisci una formula';return;}"
-              "if(window.katex){"
-                "try{katex.render(v,o,{throwOnError:false,displayMode:true});}"
-                "catch(e){o.textContent='Formula non valida: '+e.message;}"
-              "}else{"
-                "o.textContent='KaTeX non disponibile (connessione internet richiesta)';"
-              "}"
+            /* Sub-tab switching */
+            "(function(){"
+              "var tabs=document.querySelectorAll('.mat-tab');"
+              "tabs.forEach(function(btn){"
+                "btn.addEventListener('click',function(){"
+                  "tabs.forEach(function(b){b.classList.remove('on');});"
+                  "this.classList.add('on');"
+                  "var mt=this.dataset.mt;"
+                  "document.querySelectorAll('.mtp').forEach(function(p){p.style.display='none';});"
+                  "var pnl=document.getElementById('mtp-'+mt);"
+                  "if(pnl){pnl.style.display='flex';}"
+                "});"
+              "});"
+            "})();\n"
+            /* mathCall helper */
+            "async function mathCall(params){\n"
+              "const resp=await fetch('/api/math',{method:'POST',"
+                "headers:{'Content-Type':'application/json'," + authHeadersJs + "},"
+                "body:JSON.stringify(params)});\n"
+              "const data=await resp.json();\n"
+              "if(data.error)throw new Error(data.error);\n"
+              "return data.result;\n"
+            "}\n"
+            /* mat-out helpers */
+            "function matSetOut(txt){document.getElementById('mat-out').textContent=txt;}\n"
+            "function matSetStatus(txt){document.getElementById('mat-status').textContent=txt;}\n"
+            /* detectPatternLocal — rileva pattern in JS */
+            "function detectPatternLocal(seq){\n"
+              "var n=seq.length;\n"
+              "if(n<2)return 'Troppo corta per rilevare un pattern.';\n"
+              "var eps=1e-9;\n"
+              "function eq(a,b){return Math.abs(a-b)<eps;}\n"
+              /* Aritmetica */
+              "var d=seq[1]-seq[0],arith=true;\n"
+              "for(var i=2;i<n;i++){if(!eq(seq[i]-seq[i-1],d)){arith=false;break;}}\n"
+              "if(arith){"
+                "if(eq(d,0))return 'Sequenza costante: a(n) = '+seq[0];\n"
+                "return 'Aritmetica: a(n) = '+seq[0]+' + (n-1)·'+d+'   [d = '+d+']';}\n"
+              /* Geometrica */
+              "if(!eq(seq[0],0)){"
+                "var r=seq[1]/seq[0],geom=true;\n"
+                "for(var i=2;i<n;i++){if(!eq(seq[i]/seq[i-1],r)){geom=false;break;}}\n"
+                "if(geom)return 'Geometrica: a(n) = '+seq[0]+' · '+r+'^(n-1)   [r = '+r+']';}\n"
+              /* Quadratica */
+              "if(n>=3){"
+                "var d1=[],d2=[];\n"
+                "for(var i=0;i<n-1;i++)d1.push(seq[i+1]-seq[i]);\n"
+                "for(var i=0;i<n-2;i++)d2.push(d1[i+1]-d1[i]);\n"
+                "var quad=true;\n"
+                "for(var i=1;i<d2.length;i++){if(!eq(d2[i],d2[0])){quad=false;break;}}\n"
+                "if(quad&&!eq(d2[0],0)){"
+                  "var a=d2[0]/2,b=d1[0]-a,c=seq[0]-a-b;\n"
+                  "return 'Quadratica: a(n) = '+a+'·n² + '+(b-2*a)+'·n + '+(c+a-b+a);}}\n"
+              /* Fibonacci-like */
+              "if(n>=3){"
+                "var fib=true;\n"
+                "for(var i=2;i<n;i++){if(!eq(seq[i],seq[i-1]+seq[i-2])){fib=false;break;}}\n"
+                "if(fib)return 'Fibonacci-like: a(n)=a(n-1)+a(n-2), a(1)='+seq[0]+', a(2)='+seq[1];}\n"
+              /* Quadrati */
+              "{var sq=true;for(var i=0;i<n;i++){if(!eq(seq[i],(i+1)*(i+1))){sq=false;break;}}if(sq)return 'Quadrati perfetti: a(n) = n²';}\n"
+              /* Cubi */
+              "{var cu=true;for(var i=0;i<n;i++){if(!eq(seq[i],(i+1)*(i+1)*(i+1))){cu=false;break;}}if(cu)return 'Cubi: a(n) = n³';}\n"
+              /* Triangolari */
+              "{var tri=true;for(var i=0;i<n;i++){if(!eq(seq[i],(i+1)*(i+2)/2)){tri=false;break;}}if(tri)return 'Numeri triangolari: a(n) = n·(n+1)/2';}\n"
+              /* Fattoriali */
+              "{var fact=true,f=1;for(var i=0;i<n;i++){f*=(i+1);if(!eq(seq[i],f)){fact=false;break;}}if(fact)return 'Fattoriali: a(n) = n!';}\n"
+              /* Potenze di 2 */
+              "{var p2=true;for(var i=0;i<n;i++){if(!eq(seq[i],Math.pow(2,i+1))){p2=false;break;}}if(p2)return 'Potenze di 2: a(n) = 2^n';}\n"
+              /* Numeri primi */
+              "{var prs=[2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71];"
+                "var pr=true;for(var i=0;i<n&&i<20;i++){if(!eq(seq[i],prs[i])){pr=false;break;}}"
+                "if(pr)return 'Numeri primi: p(1)=2, p(2)=3, p(3)=5, ...';}\n"
+              "return 'Pattern non riconosciuto localmente — prova Interpola sympy o Analizza AI.';\n"
+            "}\n"
+            /* parseSeq: estrae numeri da stringa */
+            "function parseSeq(s){\n"
+              "var parts=s.split(/[,\\s]+/).filter(Boolean);\n"
+              "var nums=parts.map(function(p){return parseFloat(p.replace(',','.'));});\n"
+              "return nums.filter(function(v){return !isNaN(v);});\n"
+            "}\n"
+            /* Bottone: Rileva (locale) */
+            "document.getElementById('mat-local').addEventListener('click',function(){"
+              "var seq=parseSeq(document.getElementById('mat-seq').value);"
+              "if(seq.length<2){matSetOut('Inserisci almeno 2 termini.');return;}"
+              "var res=detectPatternLocal(seq);"
+              "document.getElementById('mat-seq-res').textContent=res;"
+              "matSetOut('Sequenza: '+seq.join(', ')+'\\n\\n'+res);"
+              "matSetStatus('Pattern rilevato localmente.');"
             "});\n"
-            "document.getElementById('mat-ask').addEventListener('click',async function(){"
-              "const v=document.getElementById('mat-in').value.trim();"
-              "if(!v)return;"
-              "const o=document.getElementById('mat-out');"
-              "o.textContent='...';"
+            /* Bottone: Interpola sympy */
+            "document.getElementById('mat-sympy').addEventListener('click',async function(){"
+              "var seq=parseSeq(document.getElementById('mat-seq').value);"
+              "if(seq.length<2){matSetOut('Inserisci almeno 2 termini.');return;}"
+              "var nxt=parseInt(document.getElementById('mat-nxt').value)||5;"
+              "matSetStatus('\xcf\x83 Interpolazione sympy in corso...');"
+              "matSetOut('\xcf\x83 Analisi sympy in corso...');"
               "try{"
-                "const r=await fetch('/api/chat',{method:'POST',"
-                  "headers:{'Content-Type':'application/json'," + authHeadersJs + "},"
-                  "body:JSON.stringify({model:curModel,"
-                    "messages:[{role:'user',content:'Spiega e risolvi: '+v}],"
-                    "stream:false})});"
-                "const j=await r.json();"
-                "o.textContent=(j.message&&j.message.content)||j.response||'Nessuna risposta';"
-              "}catch(e){o.textContent='Errore: '+e.message;}"
+                "var res=await mathCall({action:'sequence_sympy',seq:seq,next:nxt});"
+                "matSetOut(res);"
+                "matSetStatus('Interpolazione completata.');"
+              "}catch(e){matSetOut('Errore: '+e.message);matSetStatus('Errore.');}"
             "});\n"
+            /* Bottone: Analizza AI */
+            "document.getElementById('mat-ai').addEventListener('click',async function(){"
+              "var seq=parseSeq(document.getElementById('mat-seq').value);"
+              "if(seq.length<2){matSetOut('Inserisci almeno 2 termini.');return;}"
+              "var nxt=parseInt(document.getElementById('mat-nxt').value)||5;"
+              "var prompt='Analizza questa sequenza numerica e trova la formula o pattern: '+"
+                "seq.join(', ')+'. Poi fornisci i '+nxt+' termini successivi con spiegazione.';"
+              "T.value=prompt;await go();"
+            "});\n"
+            /* Bottone: Calcola costante */
+            "document.getElementById('mat-calc-const').addEventListener('click',async function(){"
+              "var key=document.getElementById('mat-const').value;"
+              "var digits=parseInt(document.getElementById('mat-prec').value)||100;"
+              "matSetStatus('\xcf\x80 Calcolo in corso...');"
+              "matSetOut('\xcf\x80 Calcolo '+key+' a '+digits+' cifre...');"
+              "try{"
+                "var res=await mathCall({action:'constant',key:key,digits:digits});"
+                "matSetOut(res);"
+                "matSetStatus('\xe2\x9c\x85 Fatto.');"
+              "}catch(e){matSetOut('Errore: '+e.message);matSetStatus('Errore.');}"
+            "});\n"
+            /* Bottone: Tutte le costanti */
+            "document.getElementById('mat-all-const').addEventListener('click',async function(){"
+              "matSetStatus('\xcf\x80 Calcolo tutte le costanti...');"
+              "matSetOut('\xcf\x80 Calcolo costanti a 100 cifre...');"
+              "try{"
+                "var res=await mathCall({action:'all_constants',digits:100});"
+                "matSetOut(res);"
+                "matSetStatus('\xe2\x9c\x85 Fatto.');"
+              "}catch(e){matSetOut('Errore: '+e.message);matSetStatus('Errore.');}"
+            "});\n"
+            /* Select N-esimo: aggiorna descrizione */
+            "(function(){"
+              "var descMap={"
+                "pi_digit:'N-esima cifra decimale di π (dopo il punto). Es. N=1 → 1, N=2 → 4, N=3 → 1...',"
+                "e_digit:'N-esima cifra decimale di e. Es. N=1 → 7, N=2 → 1...',"
+                "prime:'Il primo con indice N. p(1)=2, p(2)=3, p(3)=5... (sympy per N fino a ~10 000 000)',"
+                "fib:'F(1)=1, F(2)=1, F(3)=2, F(4)=3, F(5)=5... Anche per N molto grandi (mpmath).',"
+                "fact:'N! — fattoriale. 1!=1, 5!=120, 100!=93326... (precisione arbitraria).',"
+                "pow2:'2^N. Anche per N molto grandi (migliaia di cifre).',"
+                "pi_block:'Le prime N cifre di π come blocco continuo (3.14159...).',"
+                "phi_block:'Le prime N cifre di φ (sezione aurea).'"
+              "};\n"
+              "var ntype=document.getElementById('mat-ntype');"
+              "var ndesc=document.getElementById('mat-nth-desc');"
+              "function updateDesc(){ndesc.textContent=descMap[ntype.value]||'';}\n"
+              "ntype.addEventListener('change',updateDesc);\n"
+              "updateDesc();"
+            "})();\n"
+            /* Bottone: Calcola N-esimo */
+            "document.getElementById('mat-calc-nth').addEventListener('click',async function(){"
+              "var type=document.getElementById('mat-ntype').value;"
+              "var nval=document.getElementById('mat-n').value.trim();"
+              "if(!nval){matSetOut('Inserisci N.');return;}"
+              "matSetStatus('#\xe2\x82\x99 Calcolo in corso (N='+nval+')...');"
+              "matSetOut('#\xe2\x82\x99 Calcolo in corso (N='+nval+')...');"
+              "try{"
+                "var res=await mathCall({action:'nth',type:type,n:parseInt(nval)||0});"
+                "matSetOut(res);"
+                "matSetStatus('\xe2\x9c\x85 Fatto.');"
+              "}catch(e){matSetOut('Errore: '+e.message);matSetStatus('Errore.');}"
+            "});\n"
+            /* Bottoni esempi rapidi espressione */
+            "document.querySelectorAll('.mat-ex').forEach(function(btn){"
+              "btn.addEventListener('click',async function(){"
+                "var expr=this.dataset.e;"
+                "document.getElementById('mat-expr').value=expr;"
+                "var prec=parseInt(document.getElementById('mat-eprec').value)||50;"
+                "matSetStatus('\xf0\x9f\xa7\xae Calcolo...');"
+                "matSetOut('\xf0\x9f\xa7\xae Calcolo: '+expr+'...');"
+                "try{"
+                  "var res=await mathCall({action:'expr',expr:expr,prec:prec});"
+                  "matSetOut(res);"
+                  "matSetStatus('\xe2\x9c\x85 Fatto.');"
+                "}catch(e){matSetOut('Errore: '+e.message);matSetStatus('Errore.');}"
+              "});"
+            "});\n"
+            /* Bottone: Calcola espressione */
+            "document.getElementById('mat-eval').addEventListener('click',async function(){"
+              "var expr=document.getElementById('mat-expr').value.trim();"
+              "if(!expr){matSetOut('Inserisci un\\'espressione.');return;}"
+              "var prec=parseInt(document.getElementById('mat-eprec').value)||50;"
+              "matSetStatus('\xf0\x9f\xa7\xae Calcolo...');"
+              "matSetOut('\xf0\x9f\xa7\xae Calcolo: '+expr+'...');"
+              "try{"
+                "var res=await mathCall({action:'expr',expr:expr,prec:prec});"
+                "matSetOut(res);"
+                "matSetStatus('\xe2\x9c\x85 Fatto.');"
+              "}catch(e){matSetOut('Errore: '+e.message);matSetStatus('Errore.');}"
+            "});\n"
+            /* Bottone: Semplifica */
+            "document.getElementById('mat-simp').addEventListener('click',async function(){"
+              "var expr=document.getElementById('mat-expr').value.trim();"
+              "if(!expr){matSetOut('Inserisci un\\'espressione.');return;}"
+              "var prec=parseInt(document.getElementById('mat-eprec').value)||50;"
+              "matSetStatus('\xe2\x99\xbe Semplificazione...');"
+              "matSetOut('\xe2\x99\xbe Semplificazione: '+expr+'...');"
+              "try{"
+                "var res=await mathCall({action:'simplify',expr:expr,prec:prec});"
+                "matSetOut(res);"
+                "matSetStatus('\xe2\x9c\x85 Fatto.');"
+              "}catch(e){matSetOut('Errore: '+e.message);matSetStatus('Errore.');}"
+            "});\n"
+            /* mat-copy */
+            "document.getElementById('mat-copy').addEventListener('click',function(){"
+              "var txt=document.getElementById('mat-out').textContent;"
+              "if(!txt)return;"
+              "navigator.clipboard.writeText(txt).then(function(){"
+                "matSetStatus('\xf0\x9f\x93\x8b Copiato!');"
+                "setTimeout(function(){matSetStatus('Pronto.');},2000);"
+              "}).catch(function(){matSetStatus('Errore copia.');});"
+            "});\n"
+            /* mat-clr */
+            "document.getElementById('mat-clr').addEventListener('click',function(){"
+              "matSetOut('');"
+              "document.getElementById('mat-seq-res').textContent='';"
+              "matSetStatus('Pronto.');"
+            "});\n"
+            /* plot-btn (grafico JS — identico a prima) */
             "document.getElementById('plot-btn').addEventListener('click',function(){"
               "const fn=document.getElementById('plot-fn').value.trim();"
               "const cv=document.getElementById('plot-cv');"
@@ -2203,6 +2786,125 @@ void LanServer::handleWebChat(Session& s)
               "impChat('Crea 3 domande quiz con risposta corretta su');});\n"
             "document.getElementById('imp-esem').addEventListener('click',function(){"
               "impChat('Dai 3 esempi pratici e concreti di');});\n"
+            /* ── RAG tab JS ── */
+            "async function ragSearch(){"
+              "const q=document.getElementById('rag-query').value.trim();"
+              "if(!q)return;"
+              "const res=document.getElementById('rag-results');"
+              "res.innerHTML='<p style=\"color:var(--dim)\">Ricerca in corso...</p>';\n"
+              "try{"
+                "const r=await fetch('/api/rag',{method:'POST',"
+                  "headers:{'Content-Type':'application/json'," + authHeadersJs + "},"
+                  "body:JSON.stringify({query:q,k:5})});\n"
+                "const d=await r.json();\n"
+                "if(d.error){res.innerHTML='<p style=\"color:#f44\">Errore: '+d.error+'</p>';return;}\n"
+                "if(d.info){res.innerHTML='<p style=\"color:var(--dim)\">'+d.info+'</p>';return;}\n"
+                "const items=d.results||[];\n"
+                "if(!items.length){res.innerHTML='<p style=\"color:var(--dim)\">Nessun risultato trovato.</p>';return;}\n"
+                "let html='';\n"
+                "items.forEach(function(x,i){"
+                  "const score=typeof x.score==='number'?x.score.toFixed(3):'?';\n"
+                  "const txt=(x.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\n"
+                  "html+='<div class=\"rag-card\">'+"
+                    "'<p>'+txt+'</p>'+"
+                    "'<small>\xf0\x9f\x93\x8a Score: '+score+' \xe2\x80\x94 Risultato '+(i+1)+'</small>'+"
+                    "'</div>';});\n"
+                "res.innerHTML=html;"
+              "}catch(e){"
+                "res.innerHTML='<p style=\"color:#f44\">Errore di rete: '+e.message+'</p>';}}\n"
+            "document.getElementById('rag-srch').addEventListener('click',ragSearch);\n"
+            "document.getElementById('rag-query').addEventListener('keydown',function(e){"
+              "if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ragSearch();}});\n"
+            /* ── Coding tab JS ── */
+            "document.getElementById('cod-run').addEventListener('click',function(){"
+              "var code=document.getElementById('cod-editor').value.trim();"
+              "var lang=document.getElementById('cod-lang').value;"
+              "if(!code){return;}"
+              "var out=document.getElementById('cod-out');"
+              "out.textContent='\xe2\x8f\xb3 Analisi AI in corso...';"
+              "var sys='Sei un esperto di '+lang+'. Analizza il seguente codice, spiega cosa fa, segnala bug e suggerisci miglioramenti in italiano.';"
+              "var body=JSON.stringify({model:curModel,messages:[{role:'system',content:sys},{role:'user',content:'```'+lang+'\\n'+code+'\\n```'}],stream:false});"
+              "fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:body})"
+                ".then(function(r){return r.json();})"
+                ".then(function(d){out.textContent=d.message&&d.message.content?d.message.content:JSON.stringify(d);})"
+                ".catch(function(e){out.textContent='Errore: '+e;});"
+            "});\n"
+            "document.getElementById('cod-clr').addEventListener('click',function(){"
+              "document.getElementById('cod-editor').value='';"
+              "document.getElementById('cod-out').textContent='';"
+            "});\n"
+            /* ── Graphviz tab JS ── */
+            "document.getElementById('gvz-ai').addEventListener('click',function(){"
+              "var desc=document.getElementById('gvz-desc').value.trim();"
+              "if(!desc)return;"
+              "document.getElementById('gvz-err').textContent='\xe2\x8f\xb3 Generazione DOT...';"
+              "var sys='Genera codice DOT Graphviz per il seguente grafo. Rispondi SOLO con il codice DOT tra ``` e ```, nient\\'altro.';"
+              "var body=JSON.stringify({model:curModel,messages:[{role:'system',content:sys},{role:'user',content:desc}],stream:false});"
+              "fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:body})"
+                ".then(function(r){return r.json();})"
+                ".then(function(d){"
+                  "var txt=d.message&&d.message.content?d.message.content:'';"
+                  "var m=txt.match(/```[^\\n]*\\n([\\s\\S]*?)```/);"
+                  "if(m){document.getElementById('gvz-dot').value=m[1].trim();}"
+                  "else{document.getElementById('gvz-dot').value=txt.trim();}"
+                  "document.getElementById('gvz-err').textContent='';"
+                "})"
+                ".catch(function(e){document.getElementById('gvz-err').textContent='Errore AI: '+e;});"
+            "});\n"
+            "document.getElementById('gvz-run').addEventListener('click',function(){"
+              "var dot=document.getElementById('gvz-dot').value.trim();"
+              "if(!dot)return;"
+              "document.getElementById('gvz-err').textContent='\xe2\x8f\xb3 Rendering...';"
+              "fetch('/api/graphviz',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:JSON.stringify({dot:dot})})"
+                ".then(function(r){return r.json();})"
+                ".then(function(d){"
+                  "if(d.png){"
+                    "document.getElementById('gvz-img').innerHTML='<img src=\"data:image/png;base64,'+d.png+'\" style=\"max-width:100%;border-radius:8px\">';"
+                    "document.getElementById('gvz-err').textContent='';"
+                  "}else{"
+                    "document.getElementById('gvz-err').textContent=d.error||'Errore rendering';"
+                  "}"
+                "})"
+                ".catch(function(e){document.getElementById('gvz-err').textContent='Errore: '+e;});"
+            "});\n"
+            "document.getElementById('gvz-clr').addEventListener('click',function(){"
+              "document.getElementById('gvz-dot').value='';"
+              "document.getElementById('gvz-desc').value='';"
+              "document.getElementById('gvz-img').innerHTML='';"
+              "document.getElementById('gvz-err').textContent='';"
+            "});\n"
+            /* ── Whisper tab JS ── */
+            "var wspFile=null;\n"
+            "document.getElementById('wsp-pick').addEventListener('click',function(){"
+              "document.getElementById('wsp-file').click();"
+            "});\n"
+            "document.getElementById('wsp-file').addEventListener('change',function(e){"
+              "wspFile=e.target.files[0];"
+              "if(wspFile){"
+                "document.getElementById('wsp-name').textContent='\xf0\x9f\x93\x84 '+wspFile.name+' ('+Math.round(wspFile.size/1024)+' KB)';"
+                "document.getElementById('wsp-run').style.display='inline-block';"
+              "}"
+            "});\n"
+            "document.getElementById('wsp-run').addEventListener('click',function(){"
+              "if(!wspFile)return;"
+              "var status=document.getElementById('wsp-status');"
+              "status.textContent='\xe2\x8f\xb3 Caricamento e trascrizione in corso...';"
+              "var fd=new FormData();"
+              "fd.append('audio',wspFile,wspFile.name);"
+              "fetch('/api/whisper',{method:'POST',headers:{'Authorization':'Bearer '+TOKEN},body:fd})"
+                ".then(function(r){return r.json();})"
+                ".then(function(d){"
+                  "if(d.text){"
+                    "var out=document.getElementById('wsp-out');"
+                    "out.style.display='block';"
+                    "out.value=d.text;"
+                    "status.textContent='\xe2\x9c\x85 Trascrizione completata';"
+                  "}else{"
+                    "status.textContent='Errore: '+(d.error||'risposta non valida');"
+                  "}"
+                "})"
+                ".catch(function(e){status.textContent='Errore: '+e;});"
+            "});\n"
             /* ── Multimedia: Sintetizzatore + Visualizzatore ── */
             "let mulCtx=null,mulAnalyser=null,mulAnimId=null,mulPlaying=false;\n"
             "let mulSeq=[];\n"
@@ -2341,6 +3043,125 @@ void LanServer::handleWebChat(Session& s)
                 ".getPropertyValue('--inp').trim()||'#0f1117';"
               "ctxO.fillStyle=bg;ctxO.fillRect(0,0,cvO.width,cvO.height);"
               "ctxF.fillStyle=bg;ctxF.fillRect(0,0,cvF.width,cvF.height);}\n"
+            /* ── Sessioni Chat: auto-restore + storico permanente ── */
+            "var SES_SESS_KEY='plx-sess-current';"
+            "var SES_TTL=600000;\n"  /* 10 minuti in ms */
+            /* raccoglie le bolle UI visibili */
+            "function sesCollectUI(){"
+              "var msgs=L.querySelectorAll('.msg');"
+              "var ui=[];"
+              "msgs.forEach(function(d){"
+                "ui.push({role:d.classList.contains('user')?'user':'ai',"
+                  "content:d.textContent});});"
+              "return ui;}\n"
+            /* Salva la sessione corrente in sessionStorage con timestamp */
+            "function sesSaveCurrent(){"
+              "if(!H.length)return;"
+              "sessionStorage.setItem(SES_SESS_KEY,"
+                "JSON.stringify({ts:Date.now(),messages:sesCollectUI(),history:H}));}\n"
+            /* Ripristina la sessione dal sessionStorage se entro TTL */
+            "function sesRestoreCurrent(){"
+              "var raw=sessionStorage.getItem(SES_SESS_KEY);"
+              "if(!raw)return;"
+              "try{"
+                "var obj=JSON.parse(raw);"
+                "if(!obj||!obj.ts||!obj.messages)return;"
+                "if(Date.now()-obj.ts>SES_TTL){"
+                  "sessionStorage.removeItem(SES_SESS_KEY);return;}"
+                "L.innerHTML='';"
+                "obj.messages.forEach(function(m){"
+                  "var d=document.createElement('div');"
+                  "d.className='msg '+(m.role==='user'?'user':'ai');"
+                  "d.textContent=m.content;"
+                  "L.appendChild(d);});"
+                "L.scrollTop=L.scrollHeight;"
+                "if(Array.isArray(obj.history)){"
+                  "H.length=0;"
+                  "obj.history.forEach(function(x){H.push(x);});}"
+              "}catch(e){}}\n"
+            /* Rende la lista sessioni nel drawer */
+            "function sesRenderList(){"
+              "var list=document.getElementById('ses-list');"
+              "list.innerHTML='';"
+              "var keys=[];"
+              "for(var i=0;i<localStorage.length;i++){"
+                "var k=localStorage.key(i);"
+                "if(k&&k.indexOf('plx-session-')===0)keys.push(k);}"
+              "keys.sort().reverse();"
+              "if(!keys.length){"
+                "list.innerHTML='<div id=\"ses-empty\">Nessuna sessione salvata</div>';"
+                "return;}"
+              "keys.forEach(function(k){"
+                "var raw2=localStorage.getItem(k);"
+                "if(!raw2)return;"
+                "try{"
+                  "var obj=JSON.parse(raw2);"
+                  "var item=document.createElement('div');item.className='ses-item';"
+                  "var nameSpan=document.createElement('span');nameSpan.className='ses-name';"
+                  "nameSpan.textContent=obj.name||k;nameSpan.title=obj.name||k;"
+                  "var capturedK=k;"
+                  "var delBtn=document.createElement('button');delBtn.className='ses-del';"
+                  "delBtn.textContent='\xf0\x9f\x97\x91';delBtn.title='Elimina';"
+                  "delBtn.addEventListener('click',function(e){"
+                    "e.stopPropagation();localStorage.removeItem(capturedK);sesRenderList();});"
+                  "item.appendChild(nameSpan);item.appendChild(delBtn);"
+                  "item.addEventListener('click',function(){"
+                    "sesLoadSession(capturedK);closeDrw();});"
+                  "list.appendChild(item);"
+                "}catch(e){}});}\n"
+            /* Carica una sessione dal localStorage */
+            "function sesLoadSession(k){"
+              "var raw3=localStorage.getItem(k);"
+              "if(!raw3)return;"
+              "try{"
+                "var obj=JSON.parse(raw3);"
+                "if(!obj||!obj.messages)return;"
+                "L.innerHTML='';"
+                "obj.messages.forEach(function(m){"
+                  "var d=document.createElement('div');"
+                  "d.className='msg '+(m.role==='user'?'user':'ai');"
+                  "d.textContent=m.content;"
+                  "L.appendChild(d);});"
+                "L.scrollTop=L.scrollHeight;"
+                "H.length=0;"
+                "if(Array.isArray(obj.history)){"
+                  "obj.history.forEach(function(x){H.push(x);});}"
+                "sesSaveCurrent();"
+              "}catch(e){}}\n"
+            /* Bottone Salva: chiede nome, salva in localStorage */
+            "document.getElementById('ses-save').addEventListener('click',function(){"
+              "if(!H.length){alert('Nessun messaggio da salvare.');return;}"
+              "var nome=prompt('Nome sessione:','Chat '+new Date().toLocaleString('it-IT'));"
+              "if(!nome||!nome.trim())return;"
+              "nome=nome.trim();"
+              "var key='plx-session-'+Date.now();"
+              "localStorage.setItem(key,JSON.stringify({name:nome,messages:sesCollectUI(),history:H}));"
+              "sesRenderList();"
+              "closeDrw();});\n"
+            /* Bottone Nuova chat */
+            "document.getElementById('ses-new').addEventListener('click',function(){"
+              "if(H.length&&!confirm('Iniziare una nuova chat? I messaggi non salvati andranno persi.'))return;"
+              "L.innerHTML='';"
+              "H.length=0;"
+              "sessionStorage.removeItem(SES_SESS_KEY);"
+              "closeDrw();});\n"
+            /* Bottone Esporta JSON */
+            "document.getElementById('ses-exp').addEventListener('click',function(){"
+              "if(!H.length){alert('Nessun messaggio da esportare.');return;}"
+              "var data={exported:new Date().toISOString(),model:curModel,"
+                "messages:sesCollectUI(),history:H};"
+              "var bl=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});"
+              "var a=document.createElement('a');"
+              "a.href=URL.createObjectURL(bl);"
+              "a.download='prismalux-chat-'+Date.now()+'.json';"
+              "a.click();URL.revokeObjectURL(a.href);"
+              "closeDrw();});\n"
+            /* Ripristina all'avvio (entro 10 min) */
+            "sesRestoreCurrent();\n"
+            /* Aggiorna la lista ogni volta che si apre il drawer */
+            "document.getElementById('ham').removeEventListener('click',openDrw);\n"
+            "document.getElementById('ham').addEventListener('click',function(){"
+              "sesRenderList();openDrw();});\n"
             "T.focus();\n"
             "</script>\n</body>\n</html>\n";
 
@@ -2495,6 +3316,474 @@ void LanServer::handleApk(Session& s)
     resp += data;
     s.socket->write(resp);
     s.socket->flush();
+}
+
+/* ── /api/math — calcoli matematici con Python/sympy/mpmath ─────────────── */
+
+QString LanServer::buildMathPythonCode(const QString& action, const QJsonObject& req)
+{
+    if (action == "constant") {
+        const QString key    = req["key"].toString();
+        const int     digits = qBound(10, req["digits"].toInt(100), 100000);
+
+        struct Map { const char* k; const char* expr; const char* label; };
+        static const Map table[] = {
+            { "pi",          "mp.pi",       "pi greco" },
+            { "e",           "mp.e",        "e (numero di Eulero)" },
+            { "phi",         "mp.phi",      "phi (sezione aurea)" },
+            { "sqrt2",       "mp.sqrt(2)",  "sqrt(2)" },
+            { "sqrt3",       "mp.sqrt(3)",  "sqrt(3)" },
+            { "sqrt5",       "mp.sqrt(5)",  "sqrt(5)" },
+            { "euler_gamma", "mp.euler",    "gamma (Eulero-Mascheroni)" },
+            { "ln2",         "mp.log(2)",   "ln(2)" },
+            { "catalan",     "mp.catalan",  "C (costante di Catalan)" },
+        };
+        QString mpExpr, label;
+        for (const auto& m : table) {
+            if (key == m.k) { mpExpr = m.expr; label = m.label; break; }
+        }
+        if (mpExpr.isEmpty()) return {};
+
+        return QString(
+            "from mpmath import mp\n"
+            "mp.dps = %1 + 10\n"
+            "val = %2\n"
+            "s = mp.nstr(val, %1, strip_zeros=False)\n"
+            "print('%3')\n"
+            "print(s)\n"
+            "print()\n"
+            "print('Cifre richieste: %1')\n"
+        ).arg(digits).arg(mpExpr).arg(label);
+    }
+
+    if (action == "all_constants") {
+        const int digits = qBound(10, req["digits"].toInt(100), 1000);
+        return QString(
+            "from mpmath import mp\n"
+            "mp.dps = %1 + 10\n"
+            "consts = [\n"
+            "    ('pi greco', mp.pi),\n"
+            "    ('e (numero di Eulero)', mp.e),\n"
+            "    ('phi (sezione aurea)', mp.phi),\n"
+            "    ('sqrt(2)', mp.sqrt(2)),\n"
+            "    ('sqrt(3)', mp.sqrt(3)),\n"
+            "    ('gamma (Eulero-Mascheroni)', mp.euler),\n"
+            "    ('ln(2)', mp.log(2)),\n"
+            "    ('C (costante di Catalan)', mp.catalan),\n"
+            "]\n"
+            "for nome, val in consts:\n"
+            "    s = mp.nstr(val, %1, strip_zeros=False)\n"
+            "    print(f'{nome}')\n"
+            "    print(f'  {s}')\n"
+            "    print()\n"
+        ).arg(digits);
+    }
+
+    if (action == "nth") {
+        const QString type = req["type"].toString();
+        bool ok = false;
+        const long long N  = req["n"].toVariant().toLongLong(&ok);
+        if (!ok || N < 1) return {};
+
+        if (type == "pi_digit") {
+            return QString(
+                "from mpmath import mp\n"
+                "mp.dps = %1 + 20\n"
+                "s = mp.nstr(mp.pi, %1 + 10)\n"
+                "digits = s.replace('3.', '').replace('.', '')\n"
+                "if %1 <= len(digits):\n"
+                "    d = digits[%1 - 1]\n"
+                "    print(f'La {%1}-esima cifra decimale di \\u03c0 \\xe8: {d}')\n"
+                "    ctx = digits[max(0,%1-6):%1+5]\n"
+                "    pos_in_ctx = min(%1-1, 5)\n"
+                "    print(f'Contesto: ...{ctx[:pos_in_ctx]}[{d}]{ctx[pos_in_ctx+1:]}...')\n"
+                "else:\n"
+                "    print('N troppo grande.')\n"
+            ).arg(N);
+        }
+        if (type == "e_digit") {
+            return QString(
+                "from mpmath import mp\n"
+                "mp.dps = %1 + 20\n"
+                "s = mp.nstr(mp.e, %1 + 10)\n"
+                "digits = s.replace('2.', '').replace('.', '')\n"
+                "if %1 <= len(digits):\n"
+                "    d = digits[%1 - 1]\n"
+                "    print(f'La {%1}-esima cifra decimale di e \\xe8: {d}')\n"
+                "    ctx = digits[max(0,%1-6):%1+5]\n"
+                "    pos_in_ctx = min(%1-1, 5)\n"
+                "    print(f'Contesto: ...{ctx[:pos_in_ctx]}[{d}]{ctx[pos_in_ctx+1:]}...')\n"
+                "else:\n"
+                "    print('N troppo grande.')\n"
+            ).arg(N);
+        }
+        if (type == "prime") {
+            return QString(
+                "from sympy import prime\n"
+                "import time\n"
+                "t = time.time()\n"
+                "p = prime(%1)\n"
+                "elapsed = time.time() - t\n"
+                "print(f'Il {%1}-esimo numero primo \\xe8:')\n"
+                "print(f'  p({%1}) = {p}')\n"
+                "print(f'  ({len(str(p))} cifre, calcolato in {elapsed:.3f}s)')\n"
+            ).arg(N);
+        }
+        if (type == "fib") {
+            return QString(
+                "from mpmath import mp, fib\n"
+                "mp.dps = 50\n"
+                "import time\n"
+                "t = time.time()\n"
+                "f = int(fib(%1))\n"
+                "elapsed = time.time() - t\n"
+                "s = str(f)\n"
+                "print(f'Il {%1}-esimo numero di Fibonacci:')\n"
+                "if len(s) <= 200:\n"
+                "    print(f'  F({%1}) = {s}')\n"
+                "else:\n"
+                "    print(f'  F({%1}) = {s[:80]}...')\n"
+                "    print(f'  ...{s[-20:]}')\n"
+                "print(f'  ({len(s)} cifre, calcolato in {elapsed:.3f}s)')\n"
+            ).arg(N);
+        }
+        if (type == "fact") {
+            return QString(
+                "from sympy import factorial\n"
+                "import time\n"
+                "t = time.time()\n"
+                "f = factorial(%1)\n"
+                "elapsed = time.time() - t\n"
+                "s = str(f)\n"
+                "print(f'{%1}! =')\n"
+                "if len(s) <= 300:\n"
+                "    print(f'  {s}')\n"
+                "else:\n"
+                "    print(f'  {s[:100]}...')\n"
+                "    print(f'  ...{s[-30:]}')\n"
+                "print(f'  ({len(s)} cifre, calcolato in {elapsed:.3f}s)')\n"
+            ).arg(N);
+        }
+        if (type == "pow2") {
+            return QString(
+                "import time\n"
+                "t = time.time()\n"
+                "v = 2 ** %1\n"
+                "elapsed = time.time() - t\n"
+                "s = str(v)\n"
+                "print(f'2^{%1} =')\n"
+                "if len(s) <= 300:\n"
+                "    print(f'  {s}')\n"
+                "else:\n"
+                "    print(f'  {s[:100]}...')\n"
+                "    print(f'  ...{s[-30:]}')\n"
+                "print(f'  ({len(s)} cifre, calcolato in {elapsed:.3f}s)')\n"
+            ).arg(N);
+        }
+        if (type == "pi_block") {
+            return QString(
+                "from mpmath import mp\n"
+                "mp.dps = %1 + 10\n"
+                "s = mp.nstr(mp.pi, %1 + 5)\n"
+                "print(f'Le prime {%1} cifre di \\u03c0:')\n"
+                "print(s[:%1+2])\n"
+            ).arg(N);
+        }
+        if (type == "phi_block") {
+            return QString(
+                "from mpmath import mp\n"
+                "mp.dps = %1 + 10\n"
+                "s = mp.nstr(mp.phi, %1 + 5)\n"
+                "print(f'Le prime {%1} cifre di \\u03c6 (sezione aurea):')\n"
+                "print(s[:%1+2])\n"
+            ).arg(N);
+        }
+        return {};
+    }
+
+    if (action == "expr") {
+        const QString expr = req["expr"].toString().trimmed();
+        if (expr.isEmpty()) return {};
+        const int prec = qBound(10, req["prec"].toInt(50), 10000);
+        /* Sanitizza: rimuovi newline dall'espressione per non spezzare il codice Python */
+        QString safeExpr = expr;
+        safeExpr.remove('\n').remove('\r');
+        return QString(
+            "from sympy import *\n"
+            "from sympy import N as Neval\n"
+            "from mpmath import mp\n"
+            "mp.dps = %1\n"
+            "x, y, z, t = symbols('x y z t')\n"
+            "n = symbols('n', positive=True, integer=True)\n"
+            "result = %2\n"
+            "print('Espressione:   ', result)\n"
+            "try:\n"
+            "    simp = simplify(result)\n"
+            "    if simp != result: print('Semplificata:  ', simp)\n"
+            "except: pass\n"
+            "try:\n"
+            "    num = Neval(result, %1)\n"
+            "    print(f'Valore numerico ({%1} cifre):')\n"
+            "    print(f'  {num}')\n"
+            "except Exception as ex:\n"
+            "    print(f'  (valore numerico non disponibile: {ex})')\n"
+        ).arg(prec).arg(safeExpr);
+    }
+
+    if (action == "simplify") {
+        const QString expr = req["expr"].toString().trimmed();
+        if (expr.isEmpty()) return {};
+        const int prec = qBound(10, req["prec"].toInt(50), 10000);
+        QString safeExpr = expr;
+        safeExpr.remove('\n').remove('\r');
+        return QString(
+            "from sympy import *\n"
+            "from mpmath import mp\n"
+            "mp.dps = %1\n"
+            "x = symbols('x')\n"
+            "expr = %2\n"
+            "print('Espressione:  ', expr)\n"
+            "print('Semplificata: ', simplify(expr))\n"
+            "print('Fattorizzata: ', factor(expr))\n"
+            "try:\n"
+            "    print('Valore numerico:', N(expr, %1))\n"
+            "except: pass\n"
+        ).arg(prec).arg(safeExpr);
+    }
+
+    if (action == "sequence_sympy") {
+        const QJsonArray seqArr = req["seq"].toArray();
+        if (seqArr.isEmpty()) return {};
+        const int nxt = qBound(1, req["next"].toInt(5), 50);
+
+        QString listStr = "[";
+        for (int i = 0; i < seqArr.size(); ++i) {
+            const double v = seqArr[i].toDouble();
+            const long long iv = static_cast<long long>(v);
+            if (static_cast<double>(iv) == v)
+                listStr += QString::number(iv);
+            else
+                listStr += QString::number(v, 'g', 17);
+            if (i < seqArr.size() - 1) listStr += ", ";
+        }
+        listStr += "]";
+
+        return QString(
+            "from sympy import symbols, interpolating_poly, factor, simplify, Integer, nsimplify\n"
+            "from sympy import factorint, isprime, fibonacci as fib\n"
+            "import sys\n"
+            "seq = %1\n"
+            "n = symbols('n')\n"
+            "N = len(seq)\n"
+            "print('Sequenza:', seq)\n"
+            "print(f'Termini: {N}')\n"
+            "print()\n"
+            "try:\n"
+            "    pts = list(enumerate(seq, 1))\n"
+            "    poly = interpolating_poly(N, n, pts)\n"
+            "    fpoly = factor(simplify(poly))\n"
+            "    print('Formula polinomiale (interpolazione):')\n"
+            "    print(f'  a(n) = {fpoly}')\n"
+            "    print()\n"
+            "    print('Termini successivi:')\n"
+            "    for i in range(N+1, N+%2+1):\n"
+            "        print(f'  a({i}) = {fpoly.subs(n, i)}')\n"
+            "except Exception as e:\n"
+            "    print(f'Interpolazione fallita: {e}')\n"
+            "print()\n"
+            "diffs = [seq[i+1]-seq[i] for i in range(len(seq)-1)]\n"
+            "diffs2 = [diffs[i+1]-diffs[i] for i in range(len(diffs)-1)] if len(diffs)>1 else []\n"
+            "print(f'Prime differenze:  {diffs}')\n"
+            "if diffs2: print(f'Seconde differenze: {diffs2}')\n"
+        ).arg(listStr).arg(nxt);
+    }
+
+    return {};
+}
+
+void LanServer::handleMath(QTcpSocket* sock, const Session& s)
+{
+    const QJsonObject req    = QJsonDocument::fromJson(s.body).object();
+    const QString     action = req["action"].toString();
+
+    const QString pyCode = buildMathPythonCode(action, req);
+    if (pyCode.isEmpty()) {
+        const QByteArray err = R"({"error":"action non riconosciuta o parametri mancanti"})";
+        sendJson(sock, err);
+        return;
+    }
+
+    QProcess proc;
+    proc.setProcessChannelMode(QProcess::MergedChannels);
+    proc.start("python3", QStringList{"-c", pyCode});
+    if (!proc.waitForStarted(3000)) {
+        sendJson(sock, R"({"error":"python3 non trovato o non avviato"})");
+        return;
+    }
+    proc.waitForFinished(30000);
+    const QString out  = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
+    const int     code = proc.exitCode();
+
+    QJsonObject resp;
+    if (code != 0)
+        resp["error"] = out.isEmpty() ? "Errore Python (exit code non zero)" : out;
+    else
+        resp["result"] = out;
+    sendJson(sock, QJsonDocument(resp).toJson(QJsonDocument::Compact));
+}
+
+/* ── /api/graphviz — renderizza DOT con graphviz dot -Tpng ──────────────── */
+
+void LanServer::handleGraphviz(const Session& s)
+{
+    const QJsonObject req = QJsonDocument::fromJson(s.body).object();
+    const QString dot = req["dot"].toString().trimmed();
+    if (dot.isEmpty()) {
+        sendError(s.socket, 400, "dot field required");
+        return;
+    }
+
+    QProcess proc;
+    proc.setProcessChannelMode(QProcess::SeparateChannels);
+    proc.start("dot", QStringList{"-Tpng"});
+    if (!proc.waitForStarted(3000)) {
+        QJsonObject err;
+        err["error"] = "graphviz (dot) non trovato. Installa graphviz sul server desktop.";
+        sendJson(s.socket, QJsonDocument(err).toJson(QJsonDocument::Compact));
+        return;
+    }
+    proc.write(dot.toUtf8());
+    proc.closeWriteChannel();
+    proc.waitForFinished(15000);
+
+    if (proc.exitCode() != 0) {
+        const QString errMsg = QString::fromUtf8(proc.readAllStandardError()).trimmed();
+        QJsonObject err;
+        err["error"] = errMsg.isEmpty() ? "Errore rendering Graphviz" : errMsg;
+        sendJson(s.socket, QJsonDocument(err).toJson(QJsonDocument::Compact));
+        return;
+    }
+
+    const QByteArray png = proc.readAllStandardOutput();
+    QJsonObject resp;
+    resp["png"] = QString::fromLatin1(png.toBase64());
+    sendJson(s.socket, QJsonDocument(resp).toJson(QJsonDocument::Compact));
+}
+
+/* ── /api/whisper — trascrizione audio via whisper.cpp o whisper CLI ────── */
+
+void LanServer::handleWhisper(const Session& s)
+{
+    /* Cerca il file audio nel multipart body.
+       Per semplicità: il client invia multipart/form-data con campo "audio".
+       Estraiamo i byte grezzi dal body cercando la sequenza dopo il doppio CRLF
+       dell'header part e prima del boundary finale. */
+    const QByteArray ct = [&]() -> QByteArray {
+        /* cerca Content-Type nella sessione */
+        const int cti = s.buf.indexOf("Content-Type:");
+        if (cti < 0) return {};
+        const int lf = s.buf.indexOf('\n', cti);
+        return s.buf.mid(cti + 13, lf - cti - 13).trimmed();
+    }();
+
+    /* Estrai boundary */
+    const int bi = ct.indexOf("boundary=");
+    if (bi < 0) {
+        sendError(s.socket, 400, "multipart boundary non trovato");
+        return;
+    }
+    const QByteArray boundary = "--" + ct.mid(bi + 9).trimmed();
+
+    /* Trova inizio dati audio (dopo doppio CRLF dell'header part) */
+    const int partStart = s.body.indexOf(boundary);
+    if (partStart < 0) {
+        sendError(s.socket, 400, "multipart body non valido");
+        return;
+    }
+    const int hdrEnd = s.body.indexOf("\r\n\r\n", partStart);
+    if (hdrEnd < 0) {
+        sendError(s.socket, 400, "header part non trovato");
+        return;
+    }
+    const int dataStart = hdrEnd + 4;
+    const QByteArray endBoundary = "\r\n" + boundary + "--";
+    int dataEnd = s.body.indexOf(endBoundary, dataStart);
+    if (dataEnd < 0) dataEnd = s.body.size();
+    const QByteArray audioData = s.body.mid(dataStart, dataEnd - dataStart);
+
+    if (audioData.isEmpty()) {
+        sendError(s.socket, 400, "file audio vuoto");
+        return;
+    }
+
+    /* Salva in file temporaneo */
+    const QString tmpPath = QDir::tempPath() + "/prismalux_wsp_" +
+                            QString::number(QDateTime::currentMSecsSinceEpoch()) + ".wav";
+    QFile tmpFile(tmpPath);
+    if (!tmpFile.open(QIODevice::WriteOnly)) {
+        sendError(s.socket, 500, "impossibile scrivere file temporaneo");
+        return;
+    }
+    tmpFile.write(audioData);
+    tmpFile.close();
+
+    /* Prova prima whisper-cpp (whisper), poi whisper CLI Python */
+    QStringList candidates = {"whisper-cpp", "whisper"};
+    QString whisperBin;
+    for (const QString& c : candidates) {
+        QProcess test;
+        test.start(c, {"--help"});
+        if (test.waitForStarted(1000)) { whisperBin = c; test.kill(); break; }
+    }
+
+    if (whisperBin.isEmpty()) {
+        QFile::remove(tmpPath);
+        QJsonObject err;
+        err["error"] = "whisper non trovato. Installa whisper.cpp o openai-whisper sul server desktop.";
+        sendJson(s.socket, QJsonDocument(err).toJson(QJsonDocument::Compact));
+        return;
+    }
+
+    QProcess proc;
+    proc.setProcessChannelMode(QProcess::MergedChannels);
+    if (whisperBin == "whisper") {
+        /* openai-whisper: whisper file.wav --model tiny --output_format txt --output_dir /tmp */
+        proc.start(whisperBin, QStringList{tmpPath, "--model", "tiny",
+                                           "--output_format", "txt",
+                                           "--output_dir", QDir::tempPath()});
+    } else {
+        /* whisper.cpp: whisper-cpp -m model.bin -f file.wav */
+        proc.start(whisperBin, QStringList{"-f", tmpPath});
+    }
+
+    if (!proc.waitForStarted(5000)) {
+        QFile::remove(tmpPath);
+        sendError(s.socket, 500, "impossibile avviare whisper");
+        return;
+    }
+    proc.waitForFinished(120000); /* max 2 minuti */
+    QFile::remove(tmpPath);
+
+    QString text = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
+
+    /* Se openai-whisper ha scritto un file .txt separato, leggiamolo */
+    if (text.isEmpty() || whisperBin == "whisper") {
+        const QString txtPath = QDir::tempPath() + "/" +
+            QFileInfo(tmpPath).completeBaseName() + ".txt";
+        QFile txtFile(txtPath);
+        if (txtFile.open(QIODevice::ReadOnly)) {
+            text = QString::fromUtf8(txtFile.readAll()).trimmed();
+            txtFile.close();
+            QFile::remove(txtPath);
+        }
+    }
+
+    QJsonObject resp;
+    if (text.isEmpty())
+        resp["error"] = "Trascrizione vuota o fallita";
+    else
+        resp["text"] = text;
+    sendJson(s.socket, QJsonDocument(resp).toJson(QJsonDocument::Compact));
 }
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */

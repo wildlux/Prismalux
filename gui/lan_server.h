@@ -6,6 +6,7 @@
 #include <QSet>
 #include <QTimer>
 #include "ai_client.h"
+#include "rag_engine.h"
 
 
 class LanServer : public QObject {
@@ -21,11 +22,17 @@ public:
     int     clientCount() const;
     QStringList connectedIPs() const;
 
+    /** Chiude forzatamente il socket del client con quell'indirizzo IP. */
+    void kickClient(const QString& addr);
+
     /** Imposta il token Bearer (generato dalla UI se vuoto). Auth sempre richiesta se non vuoto. */
     void setAccessToken(const QString& token) { m_accessToken = token; }
 
     /** Sempre false: il server usa HTTP semplice con Bearer token. */
     bool isTlsEnabled() const { return false; }
+
+    /** Imposta il RagEngine condiviso (opzionale — se nullptr /api/rag ritorna 503). */
+    void setRag(RagEngine* rag) { m_rag = rag; }
 
 signals:
     void statusChanged(bool running);
@@ -41,6 +48,8 @@ private slots:
     void onAiFinished(const QString& full);
     void onAiError(const QString& msg);
     void onAiModelsReady(const QStringList& models);
+    void onRagEmbeddingReady(const QVector<float>& vec);
+    void onRagEmbeddingError(const QString& msg);
 
 private:
     struct Session {
@@ -63,6 +72,11 @@ private:
     void handleChat(Session& s);
     void handleGenerate(Session& s);
     void handleKnowledge(Session& s);
+    void handleRag(Session& s);
+    void handleGraphviz(const Session& s);
+    void handleWhisper(const Session& s);
+    void handleMath(QTcpSocket* sock, const Session& s);
+    [[nodiscard]] static QString buildMathPythonCode(const QString& action, const QJsonObject& req);
     void handleApk(Session& s);
     void handleIndex(Session& s);
     void handleWebChat(Session& s);
@@ -92,6 +106,11 @@ private:
     /* Fetch modelli in corso */
     QTcpSocket*             m_tagsSock  = nullptr;
     QMetaObject::Connection m_modelsConn;
+
+    /* RAG: query in corso */
+    RagEngine*              m_rag     = nullptr;
+    QTcpSocket*             m_ragSock = nullptr;
+    int                     m_ragK    = 5;
 
     /* Rate limiting /knowledge: max 10 req/min per IP */
     QMap<QString, int> m_knowledgeReqCount;

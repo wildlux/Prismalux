@@ -12,6 +12,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
+#include <QListWidget>
 #include <QVector>
 #include <QPointF>
 #include <QStack>
@@ -26,12 +27,18 @@
 #include <QTimer>
 #include <QUrl>
 #include "../ai_client.h"
+#include "../chat_history.h"
 
 class ChartWidget;  /* forward declare — chart_widget.h incluso in .cpp */
 
 /* Forward declare — implementazione in agents_config_dialog.h */
 class AgentsConfigDialog;
 class RagDropWidget;
+
+/* Forward declare layout classes — usati solo nelle firme dei build* privati */
+class QVBoxLayout;
+class QHBoxLayout;
+class QGridLayout;
 
 /* ══════════════════════════════════════════════════════════════
    AgentiPage — Pipeline configurabile + Motore Byzantino
@@ -157,6 +164,11 @@ private:
     /* ── ID sessione corrente (per ChatHistory) ── */
     QString m_sessionId;
 
+    /* ── Storico chat persistente ── */
+    ChatHistory       m_chatHistory;
+    QListWidget*      m_historyList = nullptr;  ///< pannello storia chat
+    QVector<QString>  m_historyIds;             ///< mappa indice → session id
+
     /* ── Stack undo per eliminazione bolle (del:) ── */
     QStack<QString> m_undoHtmlStack;
 
@@ -257,6 +269,11 @@ private:
     QWidget*       m_ragPanel    = nullptr;  ///< wrapper collassabile
     QPushButton*   m_btnRag      = nullptr;  ///< toggle visibilità
 
+    /* ── Zona drop RAG per PDF / .txt / .md (indicizzazione nel RagEngine) ── */
+    QLabel*        m_ragDropZone  = nullptr;  ///< drop target PDF/txt/md
+    bool           m_ragIngesting = false;    ///< true durante indicizzazione
+    QLabel*        m_ragStatusLbl = nullptr;  ///< stato indicizzazione
+
     /* ── Drag & Drop file su m_input ── */
     /** Dispatcher per file trascinato: PDF, Excel, audio, immagine, testo */
     void loadDroppedFile(const QString& filePath);
@@ -291,6 +308,40 @@ private:
 
     void _setRunBusy(bool busy);
     void setupUI();
+
+    /* ── setupUI stepdown: livello 1 ── */
+    void buildToolbar(QVBoxLayout* lay);
+    void buildChatLog(QVBoxLayout* lay);
+    void buildChartPanel(QVBoxLayout* lay);
+    void buildHistoryPanel(QVBoxLayout* lay);
+    QPushButton* buildInputArea(QVBoxLayout* lay);
+    void buildRagPanel(QVBoxLayout* lay);
+    void buildHintFooter(QVBoxLayout* lay);
+    void buildInputConnections(QPushButton* btnSymbols);
+    void buildSymbolsPanel(QVBoxLayout* lay, QPushButton* btnSymbols);
+    void buildExtraConnections();
+
+    /* ── setupUI stepdown: livello 2 ── */
+    void buildToolbarTtsSection(QHBoxLayout* toolLay, QWidget* toolbar);
+    void buildToolbarExportSection(QHBoxLayout* toolLay, QWidget* toolbar);
+    void buildToolbarVoiceLoop(QHBoxLayout* toolLay, QWidget* toolbar);
+    void buildToolbarModeToggle(QHBoxLayout* toolLay, QWidget* toolbar);
+    void buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar);
+    QWidget* buildHistoryButtonRow(QWidget* parent);
+    void buildInputTextField(QGridLayout* inputGrid, QWidget* inputArea);
+    QPushButton* buildInputActionButtons(QGridLayout* inputGrid, QWidget* inputArea);
+    void buildInputRagToggle(QGridLayout* inputGrid, QWidget* inputArea);
+    void buildInputTabOrder(QPushButton* btnSymbols);
+    void buildSymbolCategoryRow(QGridLayout* panGrid, int gridRow,
+                                const char* cat, const char* chars,
+                                int btnW, int btnH, int viewportW);
+
+    /* ── onBtnTranslateClicked stepdown ── */
+    bool _buildTranslateDialog(const QString& inputText,
+                               QString* outSrc, QString* outDst, QString* outModel);
+    void _startTranslation(const QString& src, const QString& dst,
+                           const QString& model, const QString& inputText);
+
     void runPipeline();
     void runByzantine();
     void runMathTheory();
@@ -373,6 +424,12 @@ private slots:
 
     /* ── Input area ── */
     void onBtnRagToggled(bool on);
+    void onRagDropZoneEnter();
+    void onRagDropZoneLeave();
+    void onRagIngestionDone();
+
+    /** Indica ai file URL droppati nella zona RAG specializzata (PDF/txt/md) */
+    void _ingestRagFiles(const QList<QUrl>& urls);
     void onBtnHintHideClicked();
     void onBtnRunClicked();
     void onSymbolBtnClicked();      ///< inserisce il simbolo da sender()->property("symbol")
@@ -406,4 +463,16 @@ private slots:
     void onConsiglioPeerToken(const QString& t);
     void onConsiglioPeerFinished(const QString& full);
     void onConsiglioPeerError(const QString& err);
+
+    /* ── Storia Chat ── */
+    /** Salva la sessione corrente e aggiorna la lista storico */
+    void onChatCompletedSave(const QString& title, const QString& logHtml);
+    /** Click su voce della lista → carica HTML nel log */
+    void onHistoryItemClicked(int row);
+    /** Ricostruisce m_historyList e m_historyIds dalla ChatHistory */
+    void refreshHistoryList();
+    /** Bottone Nuova Chat: azzera log e session id */
+    void onHistoryNewChatClicked();
+    /** Bottone Cancella: rimuove voce selezionata dalla storia */
+    void onHistoryDeleteClicked();
 };

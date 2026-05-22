@@ -10,6 +10,10 @@
 #include <QTimer>
 #include <QVector>
 
+class QGroupBox;
+class QGridLayout;
+class QHBoxLayout;
+
 struct Tono {
     double  freq;
     int     dur;
@@ -40,6 +44,7 @@ class SintetizzatoreWidget : public QWidget {
     Q_OBJECT
 public:
     explicit SintetizzatoreWidget(QWidget* parent = nullptr);
+
 private slots:
     void onAggiungi();
     void onRimuovi();
@@ -48,7 +53,12 @@ private slots:
     void onStop();
     void onPlayFinished(int code, QProcess::ExitStatus status);
     void onSeqSel();
+    void onSalvaSeq();
+    void onCaricaSeq();
+    void onSalvaWav();
+
 private:
+    /* — UI — */
     QSpinBox*     m_freqSpin  = nullptr;
     QSpinBox*     m_durSpin   = nullptr;
     QComboBox*    m_ondaCombo = nullptr;
@@ -63,6 +73,19 @@ private:
     QVector<Tono> m_seq;
     QString       m_tmpWav;
 
+    /* — Costruzione UI (stepdown) — */
+    void         buildLayout();
+    QLabel*      buildTitle();
+    QWidget*     buildSplitter();
+    QWidget*     buildProgrammatoreCard(QWidget* parent);
+    QWidget*     buildAssemblatoreCard(QWidget* parent);
+    QGridLayout* buildParametriGrid(QWidget* parent);
+    QHBoxLayout* buildAzioniRow(QWidget* parent);
+    QHBoxLayout* buildSalvaRow(QWidget* parent);
+    QHBoxLayout* buildControlRow(QWidget* parent);
+    void         setupConnections();
+
+    /* — Audio — */
     QByteArray makeWav(const QVector<Tono>& toni) const;
     void       playWav(const QVector<Tono>& toni, const QString& label);
     void       refreshList();

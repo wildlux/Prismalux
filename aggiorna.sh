@@ -91,39 +91,73 @@ ZIP_OUT="$SCRIPT_DIR/Prismalux_v${PRISMA_VERSION}_Windows.zip"
 
 # ── Flags ──────────────────────────────────────────────────────
 DO_GUI=1
-DO_ZIP=1
-DO_APPIMAGE=1
+DO_WEB=0          # ricompila GUI + mostra URL web app
+DO_ZIP=0          # default OFF — Windows lo attiva automaticamente
+DO_APPIMAGE=1     # default ON  — Windows/macOS lo disattivano
 DO_WHISPER_WIN=0
 DO_BUILD_WHISPER=0
 DO_LLAMA_STUDIO=0
 
-# AppImage non supportata su Windows e macOS
-[ "$IS_WIN" = "1" ] && DO_APPIMAGE=0
-[ "$IS_MAC" = "1" ] && DO_APPIMAGE=0
+# ── Default per piattaforma ─────────────────────────────────────
+#   Linux  → AppImage ON,  ZIP OFF  (non ha senso creare .bat su Linux)
+#   Windows→ ZIP ON,       AppImage OFF
+#   macOS  → né ZIP né AppImage di default
+if [ "$IS_WIN" = "1" ]; then
+    DO_ZIP=1
+    DO_APPIMAGE=0
+elif [ "$IS_MAC" = "1" ]; then
+    DO_APPIMAGE=0
+fi
 
 for arg in "$@"; do
     case "$arg" in
-        --gui)           DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=0 ;;
-        --zip)           DO_GUI=0; DO_ZIP=1; DO_APPIMAGE=0 ;;
-        --appimage)      DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=1 ;;
-        --whisper)       DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=0; DO_WHISPER_WIN=1 ;;
+        --gui)           DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_WEB=0; DO_WHISPER_WIN=0 ;;
+        --web)           DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_WEB=1; DO_WHISPER_WIN=0 ;;
+        --bat|--zip)     DO_GUI=0; DO_ZIP=1; DO_APPIMAGE=0; DO_WEB=0 ;;
+        --appimage)      DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=1; DO_WEB=0 ;;
+        --whisper)       DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=0; DO_WEB=0; DO_WHISPER_WIN=1 ;;
         --build-whisper) DO_BUILD_WHISPER=1 ;;
         --llama-studio)  DO_LLAMA_STUDIO=1 ;;
         --no-zip)        DO_ZIP=0 ;;
+        --no-bat)        DO_ZIP=0 ;;
         --no-appimage)   DO_APPIMAGE=0 ;;
+        --no-web)        DO_WEB=0 ;;
         --no-whisper)    DO_WHISPER_WIN=0 ;;
         -h|--help)
-            echo "Uso: $0 [--gui|--zip|--appimage|--no-zip|--no-appimage"
-            echo "         --whisper|--build-whisper|--llama-studio|--no-whisper]"
+            echo "Uso: $0 [opzioni]"
             echo ""
+            echo "  Sezioni (seleziona una o più):"
+            echo "  --gui        Solo GUI Qt6 (binario desktop)"
+            echo "  --web        GUI Qt6 + aggiorna interfaccia web embedded (LAN server)"
+            echo "  --bat        Solo ZIP Windows (.bat + binari) — usabile da Linux/Windows"
+            echo "  --zip        Alias per --bat"
+            echo "  --appimage   Solo AppImage Linux — solo su Linux"
+            echo ""
+            echo "  Default per piattaforma (senza argomenti):"
+            if [ "$IS_WIN" = "1" ]; then
+            echo "    Windows → GUI + ZIP (.bat)                [AppImage: N/A]"
+            elif [ "$IS_MAC" = "1" ]; then
+            echo "    macOS   → GUI                             [ZIP/AppImage: usa --bat/--appimage]"
+            else
+            echo "    Linux   → GUI + AppImage                  [ZIP: usa --bat se vuoi .bat Windows]"
+            fi
+            echo ""
+            echo "  Extra:"
             echo "  --build-whisper  Compila whisper.cpp da sorgente"
             echo "  --llama-studio   Compila llama-server + llama-cli"
+            echo "  --whisper        Scarica whisper-cli.exe precompilato (solo Windows ZIP)"
             echo ""
             echo "  Su Windows (MSYS2/Git Bash): bash aggiorna.sh [opzioni]"
             exit 0 ;;
         *) echo -e "${R}Opzione sconosciuta: $arg${N}"; exit 1 ;;
     esac
 done
+
+# AppImage richiede Linux — blocca esecuzione se richiesta su altra piattaforma
+if [ "$DO_APPIMAGE" = "1" ] && { [ "$IS_WIN" = "1" ] || [ "$IS_MAC" = "1" ]; }; then
+    echo -e "${Y}⚠  --appimage disponibile solo su Linux — saltato.${N}"
+    DO_APPIMAGE=0
+fi
 
 # ── Helper ─────────────────────────────────────────────────────
 step() { echo -e "\n${C}▶ $*${N}"; }
@@ -156,6 +190,8 @@ if [ "$DO_GUI" = "1" ]; then
     # Desktop entry solo su Linux
     if [ "$IS_WIN" = "0" ] && [ "$IS_MAC" = "0" ]; then
         DESKTOP_OUT="$SCRIPT_DIR/Prismalux.desktop"
+        _ICON_PATH="$SCRIPT_DIR/ICONA/prismalux.png"
+        [ -f "$_ICON_PATH" ] || _ICON_PATH="prismalux"   # fallback a nome simbolico
         cat > "$DESKTOP_OUT" <<DESKTOP_EOF
 [Desktop Entry]
 Version=1.0
@@ -164,7 +200,7 @@ Name=Prismalux
 GenericName=Centro di Controllo AI
 Comment=Pipeline Agenti, Tutor AI, Strumenti Pratici
 Exec=$GUI_BIN
-Icon=prismalux
+Icon=$_ICON_PATH
 Terminal=false
 Categories=Education;Science;Utility;
 Keywords=AI;agenti;matematica;tutor;ollama;
@@ -173,11 +209,79 @@ StartupWMClass=Prismalux_GUI
 DESKTOP_EOF
         chmod +x "$DESKTOP_OUT"
         ok "Prismalux.desktop aggiornato → $DESKTOP_OUT"
+
+        # Installa nel menu di sistema utente
+        _APPS_DIR="$HOME/.local/share/applications"
+        mkdir -p "$_APPS_DIR"
+        cp "$DESKTOP_OUT" "$_APPS_DIR/Prismalux.desktop"
+        chmod +x "$_APPS_DIR/Prismalux.desktop"
+        # Aggiorna il database del menu (ignora se il tool non c'è)
+        command -v update-desktop-database &>/dev/null \
+            && update-desktop-database "$_APPS_DIR" 2>/dev/null || true
+        # Su GNOME: marca il file come "trusted" per evitare il blocco "avvio non sicuro"
+        command -v gio &>/dev/null \
+            && gio set "$_APPS_DIR/Prismalux.desktop" metadata::trusted true 2>/dev/null || true
+        ok "Installato nel menu → $_APPS_DIR/Prismalux.desktop"
     fi
 fi
 
 # ══════════════════════════════════════════════════════════════
-#  1b. whisper.cpp — compilazione da sorgente
+#  1b. Web — interfaccia web embedded (lan_server)
+# ══════════════════════════════════════════════════════════════
+if [ "$DO_WEB" = "1" ]; then
+    step "Web app (aggiornamento interfaccia LAN server)..."
+
+    # La web app è embedded in gui/lan_server.cpp — ricompilare la GUI è sufficiente.
+    # Genera anche un index.html standalone in web_preview/ per test/debug.
+    WEB_PREVIEW_DIR="$SCRIPT_DIR/web_preview"
+    WEB_PREVIEW_HTML="$WEB_PREVIEW_DIR/index.html"
+    mkdir -p "$WEB_PREVIEW_DIR"
+
+    # Estrai HTML embedded da lan_server.cpp con Python
+    python3 - "$SCRIPT_DIR/gui/lan_server.cpp" "$WEB_PREVIEW_HTML" <<'PYEOF' 2>/dev/null
+import sys, re
+
+src_path, out_path = sys.argv[1], sys.argv[2]
+with open(src_path, encoding='utf-8', errors='replace') as f:
+    src = f.read()
+
+# Trova il blocco che costruisce la risposta HTTP /web
+# Le stringhe C++ sono concatenate con `sendChunk(sock,` oppure `resp +=`
+chunks = []
+# Pattern: cattura ogni stringa C++ letterale (gestisce escape)
+for m in re.finditer(r'"((?:[^"\\]|\\(?:n|t|r|\\|"|x[0-9a-fA-F]{1,2}|[0-9]{1,3}))*)"', src):
+    s = m.group(1)
+    # Decodifica sequenze di escape comuni
+    s = s.replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
+    s = s.replace('\\"', '"').replace('\\\\', '\\')
+    # Filtra: deve sembrare HTML/CSS/JS (contenere tag o rule CSS o JS)
+    if any(k in s for k in ('<html', '<head', '<body', '<div', '<style', '<script',
+                             'font-family', 'background', 'function ', 'const ', 'var ',
+                             'fetch(', 'getElementById', 'innerHTML')):
+        chunks.append(s)
+
+html = ''.join(chunks)
+if len(html) < 500:
+    print("Estratto insufficiente, uso fallback", file=sys.stderr)
+    sys.exit(1)
+
+with open(out_path, 'w', encoding='utf-8') as f:
+    f.write(html)
+print(f"Estratti {len(html)} caratteri → {out_path}")
+PYEOF
+
+    if [ -f "$WEB_PREVIEW_HTML" ] && [ -s "$WEB_PREVIEW_HTML" ]; then
+        _WEB_SIZE=$(du -sh "$WEB_PREVIEW_HTML" | cut -f1)
+        ok "Web preview → $WEB_PREVIEW_HTML  (${_WEB_SIZE})"
+    else
+        echo -e "${Y}  ⚠  Estrazione HTML non completata — apri comunque http://localhost:11500/web${N}"
+    fi
+
+    ok "Web app aggiornata — avvia Prismalux e accedi a http://localhost:11500/web"
+fi
+
+# ══════════════════════════════════════════════════════════════
+#  1c. whisper.cpp — compilazione da sorgente
 # ══════════════════════════════════════════════════════════════
 if [ "$DO_BUILD_WHISPER" = "1" ]; then
     WHISPER_SRC="$SCRIPT_DIR/whisper.cpp"
@@ -416,15 +520,25 @@ echo ""
 echo -e "${B}════════════════════════════════════════${N}"
 echo -e "${B}  Prismalux v${PRISMA_VERSION} — aggiornamento completato  ${N}"
 echo -e "${B}════════════════════════════════════════${N}"
-[ "$DO_GUI"           = "1" ] && [ -f "$GUI_BIN" ] && \
-    echo -e "  ${G}GUI${N}           $GUI_BIN"
+if [ "$DO_GUI" = "1" ] || [ "$DO_WEB" = "1" ]; then
+    [ -f "$GUI_BIN" ] && echo -e "  ${G}GUI${N}           $GUI_BIN"
+fi
+if [ "$DO_WEB" = "1" ]; then
+    _WEB_PREVIEW="$SCRIPT_DIR/web_preview/index.html"
+    [ -f "$_WEB_PREVIEW" ] \
+        && echo -e "  ${G}Web preview${N}  $_WEB_PREVIEW" \
+        || true
+    echo -e "  ${G}Web URL${N}      http://localhost:11500/web  (avvia Prismalux prima)"
+fi
 [ "$DO_BUILD_WHISPER" = "1" ] && [ -f "$SCRIPT_DIR/whisper.cpp/build/bin/whisper-cli${EXE_EXT}" ] && \
-    echo -e "  ${G}whisper-cli${N}   $SCRIPT_DIR/whisper.cpp/build/bin/whisper-cli${EXE_EXT}"
+    echo -e "  ${G}whisper-cli${N}  $SCRIPT_DIR/whisper.cpp/build/bin/whisper-cli${EXE_EXT}"
 [ "$DO_LLAMA_STUDIO"  = "1" ] && [ -f "$SCRIPT_DIR/llama_cpp_studio/llama.cpp/build/bin/llama-server${EXE_EXT}" ] && \
-    echo -e "  ${G}llama-studio${N}  $SCRIPT_DIR/llama_cpp_studio/llama.cpp/build/bin/"
-[ "$DO_ZIP"           = "1" ] && [ -f "$ZIP_OUT" ]      && echo -e "  ${G}ZIP${N}           $ZIP_OUT"
-[ "$DO_APPIMAGE"      = "1" ] && [ -f "$APPIMAGE_OUT" ] && echo -e "  ${G}AppImage${N}      $APPIMAGE_OUT"
+    echo -e "  ${G}llama-studio${N} $SCRIPT_DIR/llama_cpp_studio/llama.cpp/build/bin/"
+[ "$DO_ZIP" = "1" ] && [ -f "$ZIP_OUT" ] && \
+    echo -e "  ${G}ZIP / .bat${N}   $ZIP_OUT  ($(du -sh "$ZIP_OUT" | cut -f1))"
+[ "$DO_APPIMAGE" = "1" ] && [ -f "$APPIMAGE_OUT" ] && \
+    echo -e "  ${G}AppImage${N}     $APPIMAGE_OUT  ($(du -sh "$APPIMAGE_OUT" | cut -f1))"
 [ "$DO_WHISPER_WIN"   = "1" ] && [ -f "$WHISPER_WIN_DIR/whisper-cli.exe" ] && \
-    echo -e "  ${G}Whisper WIN${N}   $WHISPER_WIN_DIR/whisper-cli.exe"
+    echo -e "  ${G}Whisper WIN${N}  $WHISPER_WIN_DIR/whisper-cli.exe"
 echo -e "  ${Y}Tempo: $(( T_END - T_START ))s${N}"
 echo ""

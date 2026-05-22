@@ -29,6 +29,9 @@
 #include <QFile>
 #include <QDir>
 #include <QTextCursor>
+#include <QHeaderView>
+#include <QDateTime>
+#include <QRegularExpression>
 
 namespace P = PrismaluxPaths;
 
@@ -249,9 +252,7 @@ void LanWanPage::onQrConnectBtnClicked()
 
 void LanWanPage::onLanPortChanged(int v)
 {
-    if (m_qrConnectLbl)
-        m_qrConnectLbl->setText(
-            QString("<small>%1 : %2</small>").arg(m_lanConnectIp).arg(v));
+    Q_UNUSED(v)
     onUpdateQrInline();
 }
 
@@ -306,20 +307,76 @@ void LanWanPage::onLanServerStatusChanged(bool running)
     } else {
         m_lanStatusLbl->setText("\xe2\x97\x8b  Fermo");
         m_lanStatusLbl->setStyleSheet("color: #9e9e9e;");
-        m_lanClientsLbl->setText("Client connessi: 0");
     }
 }
 
-void LanWanPage::onLanClientConnected(const QString&)
+/* ── Helper: legge MAC da /proc/net/arp dato un IP ── */
+QString LanWanPage::readMacForIp(const QString& ip)
 {
-    m_lanClientsLbl->setText(
-        "Client connessi: " + QString::number(m_lanServer->clientCount()));
+    QFile f("/proc/net/arp");
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return "\xe2\x80\x94";
+    QTextStream ts(&f);
+    ts.readLine(); // salta intestazione
+    while (!ts.atEnd()) {
+        const QString line = ts.readLine();
+        const QStringList parts = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+        if (parts.size() >= 4 && parts[0] == ip)
+            return parts[3].toUpper();
+    }
+    return "\xe2\x80\x94";
 }
 
-void LanWanPage::onLanClientDisconnected(const QString&)
+/* ── Helper: aggiunge una riga alla tabella client ── */
+void LanWanPage::clientTableAddRow(const QString& ip)
 {
-    m_lanClientsLbl->setText(
-        "Client connessi: " + QString::number(m_lanServer->clientCount()));
+    if (!m_clientTable) return;
+    const int row = m_clientTable->rowCount();
+    m_clientTable->insertRow(row);
+    m_clientTable->setItem(row, 0, new QTableWidgetItem(ip));
+    m_clientTable->setItem(row, 1, new QTableWidgetItem(readMacForIp(ip)));
+    m_clientTable->setItem(row, 2, new QTableWidgetItem(
+        QDateTime::currentDateTime().toString("HH:mm:ss")));
+}
+
+/* ── Helper: rimuove la riga con quell'IP dalla tabella ── */
+void LanWanPage::clientTableRemoveRow(const QString& ip)
+{
+    if (!m_clientTable) return;
+    for (int r = m_clientTable->rowCount() - 1; r >= 0; --r) {
+        auto* it = m_clientTable->item(r, 0);
+        if (it && it->text() == ip) { m_clientTable->removeRow(r); break; }
+    }
+}
+
+void LanWanPage::onLanClientConnected(const QString& addr)
+{
+    clientTableAddRow(addr);
+}
+
+void LanWanPage::onLanClientDisconnected(const QString& addr)
+{
+    clientTableRemoveRow(addr);
+}
+
+void LanWanPage::onKickBtnClicked()
+{
+    if (!m_lanServer || !m_clientTable) return;
+    const int row = m_clientTable->currentRow();
+    if (row < 0) return;
+    auto* it = m_clientTable->item(row, 0);
+    if (it) m_lanServer->kickClient(it->text());
+}
+
+void LanWanPage::onKickAllBtnClicked()
+{
+    if (!m_lanServer || !m_clientTable) return;
+    QStringList ips;
+    for (int r = 0; r < m_clientTable->rowCount(); ++r) {
+        auto* it = m_clientTable->item(r, 0);
+        if (it) ips << it->text();
+    }
+    for (const QString& ip : ips)
+        m_lanServer->kickClient(ip);
 }
 
 void LanWanPage::onLanToggleBtnToggled(bool on)
@@ -383,234 +440,228 @@ void LanWanPage::onLanWebBtnClicked()
 QWidget* LanWanPage::buildLanAndroidTab()
 {
     auto* tab = new QWidget(this);
-
     m_lanConnectIp = localLanIp();
     const QString& ip = m_lanConnectIp;
 
-    auto* vbox = new QVBoxLayout(tab);
-    vbox->setContentsMargins(12, 12, 12, 12);
-    vbox->setSpacing(10);
+    auto* rootLay = new QVBoxLayout(tab);
+    rootLay->setContentsMargins(12, 10, 12, 10);
+    rootLay->setSpacing(8);
 
     auto* titleLbl = new QLabel(
         "<b>\xf0\x9f\x93\xb1  Server LAN per Android</b>", tab);
     titleLbl->setTextFormat(Qt::RichText);
-    vbox->addWidget(titleLbl);
+    rootLay->addWidget(titleLbl);
 
-    auto* group = new QGroupBox(tab);
-    group->setObjectName("LanServerGroup");
-    auto* gl = new QVBoxLayout(group);
-    gl->setSpacing(8);
+    /* ── Layout orizzontale fisso 50/50: SINISTRA = controllo + client  DESTRA = QR ── */
+    auto* split    = new QWidget(tab);
+    auto* splitLay = new QHBoxLayout(split);
+    splitLay->setContentsMargins(0, 0, 0, 0);
+    splitLay->setSpacing(0);
+
+    /* ══════════════════════════════════════════════════════════
+       SINISTRA: controllo server + tabella client connessi
+       ══════════════════════════════════════════════════════════ */
+    auto* leftW   = new QWidget(split);
+    auto* leftLay = new QVBoxLayout(leftW);
+    leftLay->setContentsMargins(0, 0, 4, 0);
+    leftLay->setSpacing(8);
+
+    /* Controllo server */
+    auto* srvGroup = new QGroupBox("\xf0\x9f\x94\xa7  Controllo server", leftW);
+    auto* srvLay   = new QVBoxLayout(srvGroup);
+    srvLay->setSpacing(6);
 
     auto* ctrlRow = new QHBoxLayout;
-    m_lanToggleBtn = new QPushButton(
-        "\xe2\x97\x8b  Server OFF", group);
+    m_lanToggleBtn = new QPushButton("\xe2\x97\x8b  Server OFF", srvGroup);
     m_lanToggleBtn->setCheckable(true);
     m_lanToggleBtn->setObjectName("LanToggleBtn");
-
-    m_lanPortSpin = new QSpinBox(group);
+    m_lanPortSpin = new QSpinBox(srvGroup);
     m_lanPortSpin->setRange(1024, 65535);
     m_lanPortSpin->setValue(11500);
     m_lanPortSpin->setPrefix("Porta ");
     m_lanPortSpin->setObjectName("LanPortSpin");
-
     ctrlRow->addWidget(m_lanToggleBtn, 1);
     ctrlRow->addWidget(m_lanPortSpin);
-    gl->addLayout(ctrlRow);
+    srvLay->addLayout(ctrlRow);
 
-    /* ── Token di accesso (opzionale) ── */
+    /* Token */
     {
-        auto* tokenRow = new QWidget(group);
+        auto* tokenRow = new QWidget(srvGroup);
         auto* tokenLay = new QHBoxLayout(tokenRow);
-        tokenLay->setContentsMargins(0, 0, 0, 0);
-        tokenLay->setSpacing(6);
-
-        auto* tokenLbl = new QLabel(
-            "\xf0\x9f\x94\x91" "  Token:", tokenRow);   /* 🔑 */
-        tokenLbl->setToolTip(
-            "Token di accesso Bearer opzionale.\n"
-            "Se impostato, l\xe2\x80\x99" "app Android e la Chat Web devono inviare\n"
-            "l\xe2\x80\x99" "header: Authorization: Bearer <token>\n"
-            "Lascia vuoto per non richiedere autenticazione.");
-
+        tokenLay->setContentsMargins(0, 0, 0, 0); tokenLay->setSpacing(4);
+        auto* tokenLbl = new QLabel("\xf0\x9f\x94\x91  Token:", tokenRow);
         m_lanTokenEdit = new QLineEdit(tokenRow);
-        m_lanTokenEdit->setPlaceholderText(
-            "Auto-generato all\xe2\x80\x99" "avvio se lasci vuoto");
+        m_lanTokenEdit->setPlaceholderText("Auto-generato all\xe2\x80\x99" "avvio");
         m_lanTokenEdit->setEchoMode(QLineEdit::Password);
-        m_lanTokenEdit->setToolTip(
-            "Token di accesso Bearer (obbligatorio).\n"
-            "Se lasci vuoto viene generato automaticamente all\xe2\x80\x99" "avvio.\n"
-            "L\xe2\x80\x99" "app Android deve inviare:\n"
-            "  Authorization: Bearer <token>");
-
-        /* Carica da ~/.prismalux/lan_token.key (0600); genera se non esiste */
-        {
-            QString saved = loadLanToken();
-            if (saved.isEmpty()) {
-                saved = QUuid::createUuid().toString(QUuid::WithoutBraces)
-                        .replace("-","").left(32);
-            }
-            saveLanToken(saved);
-            m_lanTokenEdit->setText(saved);
+        QString saved = loadLanToken();
+        if (saved.isEmpty()) {
+            saved = QUuid::createUuid().toString(QUuid::WithoutBraces).replace("-","").left(32);
         }
-
+        saveLanToken(saved);
+        m_lanTokenEdit->setText(saved);
         connect(m_lanTokenEdit, &QLineEdit::textChanged,
                 this, &LanWanPage::onTokenTextChanged);
-
-        auto* eyeBtn = new QPushButton("\xf0\x9f\x91\x81", tokenRow);   /* 👁 */
-        eyeBtn->setFixedWidth(32);
-        eyeBtn->setCheckable(true);
-        eyeBtn->setToolTip("Mostra/nascondi token");
-        eyeBtn->setFlat(true);
-        connect(eyeBtn, &QPushButton::toggled,
-                this, &LanWanPage::onEyeBtnToggled);
-
-        auto* regenBtn = new QPushButton("\xf0\x9f\x94\x84", tokenRow);  /* 🔄 */
-        regenBtn->setFixedWidth(32);
-        regenBtn->setFlat(true);
-        regenBtn->setToolTip("Genera nuovo token casuale");
-        connect(regenBtn, &QPushButton::clicked,
-                this, &LanWanPage::onRegenBtnClicked);
-
-        auto* copyBtn = new QPushButton("\xf0\x9f\x93\x8b", tokenRow);   /* 📋 */
-        copyBtn->setFixedWidth(32);
-        copyBtn->setFlat(true);
-        copyBtn->setToolTip("Copia token negli appunti");
-        connect(copyBtn, &QPushButton::clicked,
-                this, &LanWanPage::onCopyTokenBtnClicked);
-
+        auto* eyeBtn = new QPushButton("\xf0\x9f\x91\x81", tokenRow);
+        eyeBtn->setFixedWidth(28); eyeBtn->setCheckable(true); eyeBtn->setFlat(true);
+        connect(eyeBtn, &QPushButton::toggled, this, &LanWanPage::onEyeBtnToggled);
+        auto* copyBtn = new QPushButton("\xf0\x9f\x93\x8b", tokenRow);
+        copyBtn->setFixedWidth(28); copyBtn->setFlat(true);
+        connect(copyBtn, &QPushButton::clicked, this, &LanWanPage::onCopyTokenBtnClicked);
+        auto* regenBtn = new QPushButton("\xf0\x9f\x94\x84", tokenRow);
+        regenBtn->setFixedWidth(28); regenBtn->setFlat(true);
+        connect(regenBtn, &QPushButton::clicked, this, &LanWanPage::onRegenBtnClicked);
         tokenLay->addWidget(tokenLbl);
         tokenLay->addWidget(m_lanTokenEdit, 1);
         tokenLay->addWidget(eyeBtn);
         tokenLay->addWidget(copyBtn);
         tokenLay->addWidget(regenBtn);
-        gl->addWidget(tokenRow);
+        srvLay->addWidget(tokenRow);
     }
 
-    m_lanStatusLbl = new QLabel("\xe2\x97\x8b  Fermo", group);
+    m_lanStatusLbl = new QLabel("\xe2\x97\x8b  Fermo", srvGroup);
     m_lanStatusLbl->setStyleSheet("color: #9e9e9e;");
-    gl->addWidget(m_lanStatusLbl);
+    srvLay->addWidget(m_lanStatusLbl);
 
-    m_lanClientsLbl = new QLabel("Client connessi: 0", group);
-    gl->addWidget(m_lanClientsLbl);
+    srvLay->addWidget(new QLabel(
+        QString("IP del PC: <b>%1</b>").arg(ip), srvGroup));
 
-    auto* ipLbl = new QLabel(
-        QString("IP del PC: <b>%1</b>").arg(ip), group);
-    ipLbl->setTextFormat(Qt::RichText);
-    gl->addWidget(ipLbl);
+    connect(m_lanPortSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &LanWanPage::onLanPortChanged);
 
-    auto* noteLbl = new QLabel(
-        "<small>Nell\xe2\x80\x99" "app Android: IP = <b>" + ip + "</b>"
-        ", Porta = <b>11500</b></small>", group);
-    noteLbl->setTextFormat(Qt::RichText);
-    noteLbl->setWordWrap(true);
-    gl->addWidget(noteLbl);
+    leftLay->addWidget(srvGroup);
 
-    /* ── QR Connetti (sempre visibile) ── */
-    {
-        auto* connectRow  = new QWidget(group);
-        auto* connectLay  = new QHBoxLayout(connectRow);
-        connectLay->setContentsMargins(0, 0, 0, 0);
-        connectLay->setSpacing(8);
+    /* Tabella client connessi */
+    auto* clientGroup = new QGroupBox(
+        "\xf0\x9f\x94\x92  Controllo accessi al Server Locale", leftW);
+    auto* clientLay   = new QVBoxLayout(clientGroup);
+    clientLay->setSpacing(4);
 
-        auto* qrConnectBtn = new QPushButton(
-            "\xf0\x9f\x93\xb1" "  QR Connetti", connectRow);   /* 📱 */
-        qrConnectBtn->setObjectName("actionBtn");
-        qrConnectBtn->setToolTip(
-            "Mostra il QR con l\xe2\x80\x99" "indirizzo del server.\n"
-            "Scansiona dall\xe2\x80\x99" "app Android per configurare automaticamente l\xe2\x80\x99" "IP.\n"
-            "Puoi scansionarlo anche prima di avviare il server.");
+    m_clientTable = new QTableWidget(0, 3, clientGroup);
+    m_clientTable->setHorizontalHeaderLabels({"Indirizzo IP", "MAC Address", "Connesso alle"});
+    m_clientTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+    m_clientTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    m_clientTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    m_clientTable->verticalHeader()->setVisible(false);
+    m_clientTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_clientTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_clientTable->setAlternatingRowColors(true);
+    clientLay->addWidget(m_clientTable, 1);
 
-        m_qrConnectLbl = new QLabel(
-            QString("<small>%1 : %2</small>")
-                .arg(ip).arg(m_lanPortSpin->value()), connectRow);
-        m_qrConnectLbl->setObjectName("hintLabel");
-        m_qrConnectLbl->setTextFormat(Qt::RichText);
+    auto* kickRow = new QWidget(clientGroup);
+    auto* kickLay = new QHBoxLayout(kickRow);
+    kickLay->setContentsMargins(0, 0, 0, 0); kickLay->setSpacing(6);
+    m_kickBtn = new QPushButton("\xf0\x9f\x9a\xab  Disconnetti selezionato", kickRow);
+    m_kickBtn->setObjectName("actionBtn");
+    m_kickBtn->setProperty("danger", true);
+    m_kickBtn->setToolTip("Chiude la connessione del client selezionato");
+    m_kickAllBtn = new QPushButton("\xf0\x9f\x9a\xab  Disconnetti tutti", kickRow);
+    m_kickAllBtn->setObjectName("actionBtn");
+    m_kickAllBtn->setProperty("danger", true);
+    m_kickAllBtn->setToolTip("Chiude tutte le connessioni client attive");
+    kickLay->addWidget(m_kickBtn, 1);
+    kickLay->addWidget(m_kickAllBtn, 1);
+    clientLay->addWidget(kickRow);
 
-        connectLay->addWidget(qrConnectBtn);
-        connectLay->addWidget(m_qrConnectLbl, 1);
-        gl->addWidget(connectRow);
+    connect(m_kickBtn,    &QPushButton::clicked, this, &LanWanPage::onKickBtnClicked);
+    connect(m_kickAllBtn, &QPushButton::clicked, this, &LanWanPage::onKickAllBtnClicked);
 
-        connect(qrConnectBtn, &QPushButton::clicked,
-                this, &LanWanPage::onQrConnectBtnClicked);
+    leftLay->addWidget(clientGroup, 1);
 
-        connect(m_lanPortSpin, QOverload<int>::of(&QSpinBox::valueChanged),
-                this, &LanWanPage::onLanPortChanged);
-    }
+    /* divisore verticale visibile */
+    auto* divider = new QFrame(split);
+    divider->setFrameShape(QFrame::VLine);
+    divider->setFrameShadow(QFrame::Sunken);
 
-    /* ── QR inline sempre visibile — si aggiorna con IP+porta+token ── */
-    {
-        auto* qrBox  = new QWidget(group);
-        auto* qrBoxL = new QHBoxLayout(qrBox);
-        qrBoxL->setContentsMargins(0, 4, 0, 4);
-        qrBoxL->setSpacing(12);
+    splitLay->addWidget(leftW, 1);
+    splitLay->addWidget(divider);
 
-        m_qrInlineWidget = new QrCodeWidget(QString(), group);
-        m_qrInlineWidget->setFixedSize(140, 140);
-        m_qrInlineWidget->setToolTip(
-            "QR di connessione rapida — scansiona con l\xe2\x80\x99" "app Android.\n"
-            "Si aggiorna automaticamente quando cambi IP, porta o token.");
+    /* ══════════════════════════════════════════════════════════
+       DESTRA: QR + istruzioni + pulsanti
+       ══════════════════════════════════════════════════════════ */
+    auto* rightW   = new QWidget(split);
+    auto* rightLay = new QVBoxLayout(rightW);
+    rightLay->setContentsMargins(4, 0, 0, 0);
+    rightLay->setSpacing(8);
 
-        auto* qrInfoLbl = new QLabel(group);
-        qrInfoLbl->setTextFormat(Qt::RichText);
-        qrInfoLbl->setWordWrap(true);
-        qrInfoLbl->setText(
-            "<b>\xf0\x9f\x93\xb1  Connetti l\xe2\x80\x99" "app Android</b><br>"  /* 📱 */
-            "<small>1. Avvia PrismaluxMobile sul telefono<br>"
-            "2. Apri <b>Impostazioni</b> \xe2\x86\x92 "
-            "<b>\xf0\x9f\x93\xb7 Scansiona QR dal PC</b><br>"     /* 📷 */
-            "3. Punta la fotocamera su questo QR<br>"
-            "IP + Porta + Token vengono configurati in automatico.</small>");
+    /* QR inline — verticale: QR sopra, testo sotto */
+    m_qrInlineWidget = new QrCodeWidget(QString(), rightW);
+    m_qrInlineWidget->setFixedSize(290, 290);
+    m_qrInlineWidget->setToolTip(
+        "QR di connessione rapida. Si aggiorna con IP, porta e token.");
+    rightLay->addWidget(m_qrInlineWidget, 0, Qt::AlignHCenter);
 
-        qrBoxL->addWidget(m_qrInlineWidget);
-        qrBoxL->addWidget(qrInfoLbl, 1);
-        gl->addWidget(qrBox);
+    auto* qrInfoLbl = new QLabel(rightW);
+    qrInfoLbl->setTextFormat(Qt::RichText);
+    qrInfoLbl->setWordWrap(true);
+    qrInfoLbl->setAlignment(Qt::AlignCenter);
+    qrInfoLbl->setText(
+        "<span style='font-size:14px;'>"
+        "<b>\xf0\x9f\x93\xb1  Connetti l\xe2\x80\x99" "app Android</b></span><br>"
+        "<span style='font-size:13px;'>"
+        "1. Avvia <b>PrismaluxMobile</b> sul telefono<br>"
+        "2. Apri <b>Impostazioni</b> \xe2\x86\x92 "
+        "<b>\xf0\x9f\x93\xb7 Scansiona QR dal PC</b><br>"
+        "3. Punta la fotocamera su questo QR<br><br>"
+        "<i>IP + Porta + Token vengono configurati in automatico.</i><br>"
+        "<span style='color:#9e9e9e;'>Puoi scansionare anche con il server fermo "
+        "per pre-configurare l\xe2\x80\x99" "app.</span></span>");
+    rightLay->addWidget(qrInfoLbl);
 
-        /* Aggiorna il QR ad ogni modifica di IP, porta o token */
-        connect(m_lanTokenEdit, &QLineEdit::textChanged,
-                this, &LanWanPage::onUpdateQrInline);
-        connect(m_lanPortSpin, QOverload<int>::of(&QSpinBox::valueChanged),
-                this, &LanWanPage::onUpdateQrInline);
-        onUpdateQrInline();   /* prima visualizzazione */
-    }
+    /* URL corrente */
+    auto* urlLbl = new QLabel(rightW);
+    urlLbl->setObjectName("hintLabel");
+    urlLbl->setTextFormat(Qt::RichText);
+    urlLbl->setText(QString("<small><b>%1</b> : %2</small>")
+                        .arg(ip).arg(m_lanPortSpin->value()));
+    rightLay->addWidget(urlLbl);
 
-    /* ── Due bottoni QR affiancati (APK e Pagina) ── */
-    auto* qrRow  = new QWidget(group);
+    /* Aggiorna QR a ogni modifica */
+    connect(m_lanTokenEdit, &QLineEdit::textChanged,
+            this, &LanWanPage::onUpdateQrInline);
+    connect(m_lanPortSpin,  QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &LanWanPage::onUpdateQrInline);
+    onUpdateQrInline();
+
+    auto* sep = new QFrame(rightW);
+    sep->setFrameShape(QFrame::HLine);
+    sep->setFrameShadow(QFrame::Sunken);
+    rightLay->addWidget(sep);
+
+    /* Pulsante QR Connetti (apre dialog QR più grande) */
+    auto* qrConnectBtn = new QPushButton(
+        "\xf0\x9f\x93\xb1  QR Connetti (schermo intero)", rightW);
+    qrConnectBtn->setObjectName("actionBtn");
+    qrConnectBtn->setToolTip("Mostra il QR in un dialogo grande");
+    connect(qrConnectBtn, &QPushButton::clicked,
+            this, &LanWanPage::onQrConnectBtnClicked);
+    rightLay->addWidget(qrConnectBtn);
+
+    /* QR APK + Pagina */
+    auto* qrRow  = new QWidget(rightW);
     auto* qrRowL = new QHBoxLayout(qrRow);
-    qrRowL->setContentsMargins(0, 0, 0, 0);
-    qrRowL->setSpacing(8);
-
-    m_qrApkBtn = new QPushButton(
-        "\xf0\x9f\x93\xa6" "  QR Scarica APK", qrRow);          /* 📦 */
+    qrRowL->setContentsMargins(0, 0, 0, 0); qrRowL->setSpacing(6);
+    m_qrApkBtn  = new QPushButton("\xf0\x9f\x93\xa6  QR APK",  qrRow);
     m_qrApkBtn->setObjectName("actionBtn");
-    m_qrApkBtn->setToolTip("QR code per scaricare direttamente PrismaluxMobile.apk (server ON richiesto)");
     m_qrApkBtn->setEnabled(false);
-
-    m_qrPageBtn = new QPushButton(
-        "\xf0\x9f\x8c\x90" "  QR Pagina Download", qrRow);      /* 🌐 */
+    m_qrPageBtn = new QPushButton("\xf0\x9f\x8c\x90  QR Pagina", qrRow);
     m_qrPageBtn->setObjectName("actionBtn");
-    m_qrPageBtn->setToolTip("QR code per aprire la pagina di download nel browser del telefono (server ON richiesto)");
     m_qrPageBtn->setEnabled(false);
-
     qrRowL->addWidget(m_qrApkBtn, 1);
     qrRowL->addWidget(m_qrPageBtn, 1);
-    gl->addWidget(qrRow);
+    rightLay->addWidget(qrRow);
 
-    /* ── Pulsante Chat Web ── */
     m_lanWebBtn = new QPushButton(
-        "\xf0\x9f\x8c\x90  Chat Web (altri PC nella LAN)", group);  /* 🌐 */
+        "\xf0\x9f\x8c\x90  Apri Chat Web nel browser", rightW);
     m_lanWebBtn->setObjectName("actionBtn");
-    m_lanWebBtn->setToolTip(
-        "Apre nel browser l\xe2\x80\x99" "interfaccia chat web servita da Prismalux.\n"
-        "Gli altri PC della rete locale possono connettersi all\xe2\x80\x99" "indirizzo mostrato\n"
-        "e chattare con il modello AI senza installare nulla.");
     m_lanWebBtn->setEnabled(false);
-    gl->addWidget(m_lanWebBtn);
+    rightLay->addWidget(m_lanWebBtn);
 
-    vbox->addWidget(group);
-    vbox->addStretch();
+    rightLay->addStretch();
+    splitLay->addWidget(rightW, 1);
+    rootLay->addWidget(split, 1);
 
-    connect(m_qrApkBtn,  &QPushButton::clicked, this, &LanWanPage::onQrApkBtnClicked);
-    connect(m_qrPageBtn, &QPushButton::clicked, this, &LanWanPage::onQrPageBtnClicked);
+    connect(m_qrApkBtn,     &QPushButton::clicked, this, &LanWanPage::onQrApkBtnClicked);
+    connect(m_qrPageBtn,    &QPushButton::clicked, this, &LanWanPage::onQrPageBtnClicked);
     connect(m_lanToggleBtn, &QPushButton::toggled, this, &LanWanPage::onLanToggleBtnToggled);
     connect(m_lanWebBtn,    &QPushButton::clicked, this, &LanWanPage::onLanWebBtnClicked);
 
