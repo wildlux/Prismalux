@@ -27,6 +27,7 @@ class QNetworkReply;
 #include <QCheckBox>
 #include <QSpinBox>
 #include <QVector>
+#include <QLineEdit>
 
 /* ══════════════════════════════════════════════════════════════
    RagDropWidget — area drag-and-drop per contesto RAG + URL web
@@ -140,8 +141,16 @@ private:
     RagDropWidget* m_sharedRag              = nullptr;  ///< RAG condiviso da tutti gli agenti
     QCheckBox*     m_controllerChk          = nullptr;  ///< Controller LLM (ex toolbar)
 
+    /* ── Preset personalizzati JSON ── */
+    QLineEdit*  m_presetNameEdit  = nullptr;  ///< nome del preset da salvare
+    QComboBox*  m_presetLoadCombo = nullptr;  ///< lista preset salvati
+
     void setupUI();
+    void refreshPresetList();
+    QString presetDir() const;
 
 private slots:
     void onEnabledChkToggled(bool on);
+    void onSavePresetClicked();
+    void onLoadPresetClicked();
 };

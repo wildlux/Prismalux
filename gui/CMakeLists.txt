@@ -674,6 +674,20 @@ if(BUILD_TESTS)
         target_link_libraries(test_lan_server PRIVATE pthread m)
     endif()
 
+    # ── test_sintetizzatore: Tono struct, OscoCanvas, SintetizzatoreWidget ──
+    add_executable(test_sintetizzatore
+        tests/test_sintetizzatore.cpp
+        ${TEST_SHARED_SRCS}
+    )
+    target_include_directories(test_sintetizzatore PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_sintetizzatore PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_sintetizzatore PRIVATE pthread m)
+    endif()
+
     # ── test_onboarding: onboarding wizard QSettings, token LAN, rate limiter ──
     add_executable(test_onboarding
         tests/test_onboarding.cpp
@@ -868,6 +882,7 @@ if(BUILD_TESTS)
     add_test(NAME AgentiPipeline          COMMAND test_agenti_pipeline)
     add_test(NAME AgentsConfigDialog      COMMAND test_agents_config_dialog)
     add_test(NAME LanServer               COMMAND test_lan_server)
+    add_test(NAME Sintetizzatore          COMMAND test_sintetizzatore)
     add_test(NAME Onboarding              COMMAND test_onboarding)
     add_test(NAME ImpostazioniPage        COMMAND test_impostazioni_page)
     add_test(NAME ManutenzioneeBugs       COMMAND test_manutenzione_bugs)
@@ -888,6 +903,7 @@ if(BUILD_TESTS)
     set_tests_properties(AiIntegration AiStress TeamCollab
         PROPERTIES RESOURCE_LOCK ollama)
     set_tests_properties(LanServer          PROPERTIES TIMEOUT 30)
+    set_tests_properties(Sintetizzatore     PROPERTIES TIMEOUT 30)
     set_tests_properties(ImpostazioniPage   PROPERTIES TIMEOUT 60)
     set_tests_properties(SignalLifetime     PROPERTIES TIMEOUT 60 RESOURCE_LOCK cpu_heavy)
     set_tests_properties(LavoroPage         PROPERTIES TIMEOUT 120 RESOURCE_LOCK cpu_heavy)

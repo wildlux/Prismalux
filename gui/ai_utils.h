@@ -29,13 +29,13 @@ inline void populateModelCombo(AiClient* ai, QComboBox* combo, QObject* context)
     auto* h = new QObject(context);
 
     QObject::connect(ai, &AiClient::modelsReady, h,
-        [combo, h](const QStringList& models) {
+        [combo, ai, h](const QStringList& models) {
             h->deleteLater();
             const QString cur = combo->currentData().toString();
             combo->blockSignals(true);
             combo->clear();
             for (const QString& m : models)
-                combo->addItem(P::modelIcon(0, m) + m, m);
+                combo->addItem(P::modelIcon(ai->modelSizeBytes(m), m) + m, m);
             int idx = combo->findData(cur);
             if (idx < 0) idx = 0;
             combo->setCurrentIndex(idx);

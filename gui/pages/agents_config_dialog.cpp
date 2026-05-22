@@ -1,6 +1,11 @@
 #include "agents_config_dialog.h"
 #include "../prismalux_paths.h"
 #include "../ai_client.h"
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QInputDialog>
+#include <QMessageBox>
 namespace P = PrismaluxPaths;
 #include <QBrush>
 #include <QColor>
@@ -8,6 +13,7 @@ namespace P = PrismaluxPaths;
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QScrollArea>
+#include <QGroupBox>
 #include <QLabel>
 #include <QFrame>
 #include <QPushButton>
@@ -899,6 +905,42 @@ void AgentsConfigDialog::setupUI() {
         "e si passa al prossimo agente senza verifica aggiuntiva.");
     lay->addWidget(m_controllerChk);
 
+    /* ── Preset personalizzati JSON ── */
+    {
+        auto* presetBox = new QGroupBox(
+            QString::fromUtf8("\xf0\x9f\x92\xbe  Preset Personalizzati"), this);
+        presetBox->setObjectName("agentCard");
+        auto* pLay = new QHBoxLayout(presetBox);
+        pLay->setSpacing(8);
+
+        m_presetNameEdit = new QLineEdit(presetBox);
+        m_presetNameEdit->setPlaceholderText("Nome preset...");
+        m_presetNameEdit->setObjectName("chatInput");
+        pLay->addWidget(m_presetNameEdit, 2);
+
+        auto* saveBtn = new QPushButton(
+            QString::fromUtf8("\xf0\x9f\x92\xbe  Salva"), presetBox);
+        saveBtn->setObjectName("SecondaryBtn");
+        pLay->addWidget(saveBtn);
+
+        pLay->addSpacing(16);
+
+        m_presetLoadCombo = new QComboBox(presetBox);
+        m_presetLoadCombo->setObjectName("settingsCombo");
+        m_presetLoadCombo->setMinimumWidth(160);
+        refreshPresetList();
+        pLay->addWidget(m_presetLoadCombo, 3);
+
+        auto* loadBtn = new QPushButton(
+            QString::fromUtf8("\xf0\x9f\x93\x82  Carica"), presetBox);
+        loadBtn->setObjectName("SecondaryBtn");
+        pLay->addWidget(loadBtn);
+
+        lay->addWidget(presetBox);
+        connect(saveBtn, &QPushButton::clicked, this, &AgentsConfigDialog::onSavePresetClicked);
+        connect(loadBtn, &QPushButton::clicked, this, &AgentsConfigDialog::onLoadPresetClicked);
+    }
+
     /* Pulsante chiudi */
     auto* closeBtn = new QPushButton("\xe2\x9c\x93  Applica e Chiudi", this);
     closeBtn->setObjectName("actionBtn");
@@ -1048,5 +1090,124 @@ void AgentsConfigDialog::applyPreset(int modeIdx) {
     for (int i = 0; i < MAX_AGENTS; i++) {
         if (preset[i] >= 0 && preset[i] < m_roleCombo[i]->count())
             m_roleCombo[i]->setCurrentIndex(preset[i]);
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Preset personalizzati JSON — save/load/refresh
+   ───────────────────────────────────────────────────────────────── */
+QString AgentsConfigDialog::presetDir() const
+{
+    const QString d = P::root() + "/KNOWLEDGE_USER/agent_presets";
+    QDir().mkpath(d);
+    return d;
+}
+
+void AgentsConfigDialog::refreshPresetList()
+{
+    if (!m_presetLoadCombo) return;
+    m_presetLoadCombo->clear();
+    m_presetLoadCombo->addItem("— Scegli preset —", QString());
+    const QFileInfoList files =
+        QDir(presetDir()).entryInfoList(QStringList() << "*.json", QDir::Files, QDir::Name);
+    for (const QFileInfo& fi : files)
+        m_presetLoadCombo->addItem(fi.baseName(), fi.absoluteFilePath());
+}
+
+void AgentsConfigDialog::onSavePresetClicked()
+{
+    QString name = m_presetNameEdit ? m_presetNameEdit->text().trimmed() : QString();
+    if (name.isEmpty()) {
+        name = QInputDialog::getText(this, "Salva Preset",
+                                     "Nome del preset:", QLineEdit::Normal, "Mio Preset");
+        if (name.isEmpty()) return;
+    }
+
+    /* Costruisci JSON */
+    QJsonObject root;
+    root["name"] = name;
+    root["num_agents"] = numAgents();
+    root["controller"] = controllerEnabled();
+
+    QJsonArray agents;
+    for (int i = 0; i < MAX_AGENTS; i++) {
+        QJsonObject a;
+        a["role"]    = m_roleCombo[i]  ? m_roleCombo[i]->currentText()          : QString();
+        a["model"]   = m_modelCombo[i] ? m_modelCombo[i]->currentData().toString() : QString();
+        a["enabled"] = m_enabledChk[i] ? m_enabledChk[i]->isChecked()           : (i < numAgents());
+        agents.append(a);
+    }
+    root["agents"] = agents;
+
+    /* Filename: slug del nome */
+    QString slug = name.toLower();
+    static const QRegularExpression reSlug("[^a-z0-9]+");
+    slug.replace(reSlug, "_").replace(QRegularExpression("_+"), "_");
+    if (slug.isEmpty()) slug = "preset";
+
+    const QString path = presetDir() + "/" + slug + ".json";
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        QMessageBox::warning(this, "Errore", "Impossibile salvare: " + path);
+        return;
+    }
+    f.write(QJsonDocument(root).toJson());
+
+    if (m_presetNameEdit) m_presetNameEdit->clear();
+    refreshPresetList();
+
+    /* Seleziona il preset appena salvato */
+    const int idx = m_presetLoadCombo ? m_presetLoadCombo->findData(path) : -1;
+    if (idx >= 0 && m_presetLoadCombo) m_presetLoadCombo->setCurrentIndex(idx);
+}
+
+void AgentsConfigDialog::onLoadPresetClicked()
+{
+    if (!m_presetLoadCombo) return;
+    const QString path = m_presetLoadCombo->currentData().toString();
+    if (path.isEmpty()) return;
+
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, "Errore", "File non trovato: " + path);
+        return;
+    }
+    const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
+    if (root.isEmpty()) {
+        QMessageBox::warning(this, "Errore", "Preset non valido.");
+        return;
+    }
+
+    /* Numero agenti */
+    if (m_spinShots && root.contains("num_agents"))
+        m_spinShots->setValue(root["num_agents"].toInt(m_spinShots->value()));
+
+    /* Controller */
+    if (m_controllerChk && root.contains("controller"))
+        m_controllerChk->setChecked(root["controller"].toBool());
+
+    /* Agenti */
+    const QJsonArray agents = root["agents"].toArray();
+    for (int i = 0; i < qMin(MAX_AGENTS, agents.size()); i++) {
+        const QJsonObject a = agents[i].toObject();
+
+        /* Ruolo: cerca per testo */
+        if (m_roleCombo[i] && a.contains("role")) {
+            const int ri = m_roleCombo[i]->findText(
+                a["role"].toString(), Qt::MatchContains);
+            if (ri >= 0) m_roleCombo[i]->setCurrentIndex(ri);
+        }
+
+        /* Modello: cerca per UserRole (nome raw) o testo */
+        if (m_modelCombo[i] && a.contains("model")) {
+            const QString mdl = a["model"].toString();
+            int mi = m_modelCombo[i]->findData(mdl);
+            if (mi < 0) mi = m_modelCombo[i]->findText(mdl, Qt::MatchContains);
+            if (mi >= 0) m_modelCombo[i]->setCurrentIndex(mi);
+        }
+
+        /* Abilitato */
+        if (m_enabledChk[i] && a.contains("enabled"))
+            m_enabledChk[i]->setChecked(a["enabled"].toBool());
     }
 }

@@ -1298,7 +1298,8 @@ void MatematicaPage::fillMathCombo(const QStringList& list, const QString& cur)
         const QString badge = (sc >= 90) ? "  \xf0\x9f\xa7\xae Ottimizzato Math"
                             : (sc >= 50) ? "  \xe2\x9c\x94 Buono per Math"
                             :              "";
-        m_modelCombo->addItem(mdl + badge, mdl);
+        const qint64 sz = m_ai ? m_ai->modelSizeBytes(mdl) : 0;
+        m_modelCombo->addItem(P::modelIcon(sz, mdl) + mdl + badge, mdl);
         if (P::isKnownBrokenModel(mdl)) {
             m_modelCombo->setItemData(pos, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
             m_modelCombo->setItemData(pos, QBrush(QColor("#fef08a")), Qt::BackgroundRole);

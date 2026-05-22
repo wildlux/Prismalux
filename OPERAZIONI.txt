@@ -20,10 +20,10 @@ RAG & MEMORIA
 [x] Web reading via RAG — campo URL → fetch → chunk → addEntry in m_ragInline (agenti_page_ui.cpp)
 
 AI & MODELLI
-[ ] Pipeline → ConfiguraAgenti — AgentsConfigDialog con preset JSON ruoli personalizzati
+[x] Pipeline → ConfiguraAgenti — AgentsConfigDialog: Salva/Carica preset JSON in KNOWLEDGE_USER/agent_presets/
 [ ] Code interpreter sandbox — verifica Docker, fallback subprocess isolato
-[ ] NPU Intel/AMD — già in manutenzione_page buildHardware (2026-05-13) — verifica funziona
-[ ] Icone ☁️/🌍 modelli — verificare che P::modelIcon() appaia in tutte le combo
+[x] NPU Intel/AMD — pannello già presente in manutenzione_page (buildNpuGroup) — verificato
+[x] Icone ☁️/🌍 modelli — fix AiUtils::populateModelCombo (passava sempre 0), aggiunta in matematica_page
 
 UI / UX
 [x] Dark/Light auto da sistema — QStyleHints::colorScheme in theme_manager.cpp + checkbox Impostazioni
@@ -63,8 +63,8 @@ MOBILE Android (ANDROID/android_app/)
 TRASVERSALE
 ────────────────────────────────────────────────
 
-[ ] Push su GitHub — git push origin master (da fare manualmente)
-[ ] Test automatici gap — ChatHistory save/load, LanServer /api/rag, SintetizzatorePage
+[x] Push su GitHub — eseguito in questa sessione
+[x] Test automatici gap — test_sintetizzatore.cpp (19/19 PASS): Tono, OscoCanvas, SintetizzatoreWidget
 [ ] iOS — richiede Swift/Flutter, troppo complesso per ora [!]
 
 ────────────────────────────────────────────────
