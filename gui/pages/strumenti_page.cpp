@@ -1,8 +1,12 @@
 #include "strumenti_page.h"
+#include "impara_page.h"
+#include "pratico_page.h"
+#include "quiz_page.h"
 #include "stable_diffusion_widget.h"
 #include "manutenzione_page.h"
 #include "../prismalux_paths.h"
 #include "../lan_server.h"
+#include "../widgets/ai_error_widget.h"
 #include <QScrollArea>
 #include <QSpinBox>
 #include <QGroupBox>
@@ -433,31 +437,106 @@ void StrumentiPage::initHiddenWidgets()
 /* ──────────────────────────────────────────────────────────────
    Livello 1 — buildLayout
    Crea il QVBoxLayout principale e assembla tutte le sezioni.
+   Tab 0-5: una per categoria (griglia azioni); Tab 6: Cron;
+   Tab 7-9: Finanza / Impara / Sfida.
+   L'area I/O (lblSel + righe speciali + input + output) è un
+   widget condiviso sotto i tab, visibile solo per i tab 0-5.
    ────────────────────────────────────────────────────────────── */
 void StrumentiPage::buildLayout()
 {
-    auto* lay = new QVBoxLayout(this);
-    lay->setContentsMargins(16, 10, 16, 10);
-    lay->setSpacing(8);
+    auto* rootLay = new QVBoxLayout(this);
+    rootLay->setContentsMargins(0, 0, 0, 0);
+    rootLay->setSpacing(0);
 
-    m_actStack = buildActionStack();
+    m_tabs = new QTabWidget(this);
 
-    m_lblSel = new QLabel(this);
+    /* ── Tab 0-5: una griglia azioni per ogni categoria ── */
+    static const char* kCatTabLabels[] = {
+        "\xf0\x9f\x93\x9a Studio",
+        "\xe2\x9c\x8d\xef\xb8\x8f Scrittura",
+        "\xf0\x9f\x94\x8d Ricerca",
+        "\xf0\x9f\x93\x96 Libri",
+        "\xe2\x9a\xa1 Produttivit\xc3\xa0",
+        "\xf0\x9f\x93\x84 Documenti",
+    };
+
+    for (int cat = 0; cat < 6; cat++) {
+        auto* page = new QWidget(m_tabs);
+        auto* grid = new QGridLayout(page);
+        grid->setContentsMargins(8, 8, 8, 8);
+        grid->setSpacing(8);
+
+        auto* actGroup = new QButtonGroup(page);
+        actGroup->setExclusive(true);
+
+        int col = 0, row = 0;
+        for (int act = 0; kSubActions[cat][act] != nullptr; act++) {
+            auto* abtn = new QPushButton(
+                QString::fromUtf8(kSubActions[cat][act]), page);
+            abtn->setCheckable(true);
+            abtn->setChecked(act == 0);
+            abtn->setObjectName("strActBtn");
+            actGroup->addButton(abtn, act);
+            grid->addWidget(abtn, row, col);
+            if (++col > 2) { col = 0; row++; }
+            abtn->setProperty("strCat", cat);
+            abtn->setProperty("strAct", act);
+            connect(abtn, &QPushButton::clicked,
+                    this, &StrumentiPage::onActBtnClicked);
+        }
+        for (int c = 0; c < 3; c++) grid->setColumnStretch(c, 1);
+        m_tabs->addTab(page, QString::fromUtf8(kCatTabLabels[cat]));
+    }
+
+    /* ── Tab 6: Cron (lazy-init via cronPanelFirstOpen) ── */
+    buildCronPanel();
+    m_tabs->addTab(m_cronPanel, "\xe2\x8f\xb1 Cron");
+
+    /* ── Tab 7: Finanza ── */
+    m_tabs->addTab(new PraticoPage(m_ai, m_tabs),
+                   "\xf0\x9f\x92\xb0  Finanza");
+
+    /* ── Tab 8: Impara con AI ── */
+    m_tabs->addTab(new ImparaPage(m_ai, m_tabs),
+                   "\xf0\x9f\x8f\x9b  Impara con AI");
+
+    /* ── Tab 9: Sfida — AiClient separato per evitare cross-talk ── */
+    m_quizAi = new AiClient(this);
+    m_quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+    connect(m_ai, &AiClient::modelsReady,
+            this, &StrumentiPage::onQuizAiModelsReady);
+    m_tabs->addTab(new QuizPage(m_quizAi, m_tabs),
+                   "\xf0\x9f\x8e\xaf  Sfida!");
+
+    /* rootLay[0] = m_tabs (stretch 0 per tab categoria, 1 per le altre) */
+    rootLay->addWidget(m_tabs, 0);
+
+    /* ── Area I/O condivisa (sotto i tab, visibile solo per tab 0-5) ── */
+    m_sharedIoArea = new QWidget(this);
+    auto* ioLay = new QVBoxLayout(m_sharedIoArea);
+    ioLay->setContentsMargins(16, 8, 16, 8);
+    ioLay->setSpacing(8);
+
+    m_lblSel = new QLabel(m_sharedIoArea);
     m_lblSel->setObjectName("cardDesc");
-    const QString firstAction = QString::fromUtf8(kSubActions[0][0]);
-    m_lblSel->setText("\xe2\x9c\x85  <b>" + firstAction + "</b>");
+    m_lblSel->setText("\xe2\x9c\x85  <b>" +
+        QString::fromUtf8(kSubActions[0][0]) + "</b>");
     m_lblSel->setTextFormat(Qt::RichText);
+    ioLay->addWidget(m_lblSel);
 
-    lay->addWidget(buildCatScrollArea());
-    lay->addWidget(m_actStack);
-    lay->addWidget(m_lblSel);
+    buildSpecialRows(ioLay);
+    ioLay->addWidget(buildCodeModelRow());
+    ioLay->addWidget(buildInputRow());
+    m_errPanel = new AiErrorWidget(m_sharedIoArea);
+    ioLay->addWidget(m_errPanel);
+    ioLay->addWidget(buildOutputArea(), 1);
 
-    buildSpecialRows(lay);
+    /* rootLay[1] = m_sharedIoArea (stretch 1 per tab categoria, 0 per le altre) */
+    rootLay->addWidget(m_sharedIoArea, 1);
 
-    lay->addWidget(buildCodeModelRow());
-    lay->addWidget(buildInputRow());
-    lay->addWidget(buildOutputArea(), 1);
-    lay->addWidget(buildCronPanel(), 1);
+    connect(m_tabs, &QTabWidget::currentChanged,
+            this, &StrumentiPage::onCatTabChanged);
+    onCatTabChanged(0);
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -466,9 +545,10 @@ void StrumentiPage::buildLayout()
    ────────────────────────────────────────────────────────────── */
 void StrumentiPage::setupConnections()
 {
-    /* Bottone Cron */
-    connect(m_cronBtn, &QPushButton::toggled,
-            this, &StrumentiPage::onCronBtnToggled);
+    /* Bottone Cron (null nel layout a tab — Cron è il tab 6) */
+    if (m_cronBtn)
+        connect(m_cronBtn, &QPushButton::toggled,
+                this, &StrumentiPage::onCronBtnToggled);
 
     /* Avvia / Stop tool (bottone unificato) */
     connect(m_btnRun, &QPushButton::clicked,
@@ -1189,6 +1269,7 @@ void StrumentiPage::runTool(const QString& sys, const QString& userMsg) {
             "\xe2\x9a\xa0  Un'altra operazione e' in corso. Attendi.");
         return;
     }
+    m_errPanel->hide();
     /* Applica il modello scelto nella riga modello (per tutte le categorie) */
     if (m_codeModelCombo && m_codeModelCombo->count() > 0) {
         const QString sel = m_codeModelCombo->currentData().toString();
@@ -1236,6 +1317,7 @@ void StrumentiPage::onFinished(const QString& full) {
     if (!m_active) return;
     m_active = false;
     m_waitLbl->setVisible(false); m_waitBar->setVisible(false);
+    m_errPanel->hide();
     _setRunBusy(false);
     m_output->append("\n" + QString(40, QChar(0x2500)));
 
@@ -1290,10 +1372,9 @@ void StrumentiPage::onError(const QString& msg) {
     m_active = false;
     m_waitLbl->setVisible(false); m_waitBar->setVisible(false);
     _setRunBusy(false);
+    m_errPanel->showError(msg, [this]{ onBtnRunClicked(); });
     m_output->append(
         QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
-    m_output->append(
-        "\xf0\x9f\x92\xa1  Verifica la connessione al backend AI.");
 }
 
 void StrumentiPage::_setRunBusy(bool busy)
@@ -1572,14 +1653,13 @@ void StrumentiPage::onCatGroupIdClicked(int cat)
         " \xe2\x80\x94 estrazione e sintesi testi lunghi",
     };
 
-    if (m_cronBtn) m_cronBtn->setChecked(false);
+    if (m_cronBtn)  m_cronBtn->setChecked(false);
     if (m_cronPanel) m_cronPanel->setVisible(false);
-    if (m_actStack) m_actStack->setVisible(true);
+    if (m_actStack) { m_actStack->setVisible(true); m_actStack->setCurrentIndex(cat); }
     if (m_lblSel)   m_lblSel->setVisible(true);
     if (m_inputRow) m_inputRow->setVisible(true);
     m_output->setVisible(true);
     m_currentCat = cat;
-    if (m_actStack) m_actStack->setCurrentIndex(cat);
     m_navList->setCurrentRow(cat);
     m_cmbSub->setCurrentIndex(0);
     m_inputArea->setPlaceholderText(QString::fromUtf8(kPlaceholders[cat]));
@@ -2236,7 +2316,7 @@ void StrumentiPage::onSketchGenBtnClicked()
    ══════════════════════════════════════════════════════════════ */
 void StrumentiPage::onCronBtnToggled(bool checked)
 {
-    m_actStack->setVisible(!checked);
+    if (m_actStack) m_actStack->setVisible(!checked);
     m_lblSel->setVisible(!checked);
     m_ragRow->setVisible(!checked);
     m_pdfRow->setVisible(false);
@@ -2246,7 +2326,7 @@ void StrumentiPage::onCronBtnToggled(bool checked)
 
     /* Sincronizza il catGroup: quando Cron è attivo nessun bottone categoria
        deve apparire selezionato, e viceversa. */
-    if (checked) {
+    if (checked && m_catGroup) {
         m_catGroup->setExclusive(false);
         if (auto* cur = m_catGroup->checkedButton())
             cur->setChecked(false);
@@ -2258,6 +2338,78 @@ void StrumentiPage::onCronBtnToggled(bool checked)
         m_cronInstalled = true;
         emit cronPanelFirstOpen();
     }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onCatTabChanged — cambio tab nel QTabWidget principale
+   Tab 0-5: mostra area I/O condivisa, aggiorna stato categoria.
+   Tab 6  : nasconde area I/O, lazy-init pannello Cron.
+   Tab 7-9: nasconde area I/O, il tab è autosufficiente.
+   ══════════════════════════════════════════════════════════════ */
+void StrumentiPage::onCatTabChanged(int idx)
+{
+    const bool isCategory = (idx >= 0 && idx < 6);
+
+    m_sharedIoArea->setVisible(isCategory);
+
+    /* Ridistribuisci spazio: per tab non-categoria, m_tabs si espande. */
+    auto* rootLay = qobject_cast<QVBoxLayout*>(layout());
+    if (rootLay) {
+        rootLay->setStretch(0, isCategory ? 0 : 1);
+        rootLay->setStretch(1, isCategory ? 1 : 0);
+    }
+
+    /* Lazy-init Cron alla prima selezione del tab */
+    if (idx == 6 && !m_cronInstalled) {
+        m_cronInstalled = true;
+        emit cronPanelFirstOpen();
+    }
+
+    if (!isCategory) return;
+
+    static const char* kModelHints[6] = {
+        "\xe2\x9c\xa8 Consigliati: <b>mistral</b>, <b>llama3</b>, <b>qwen3</b>"
+        " \xe2\x80\x94 buona comprensione e spiegazione",
+        "\xe2\x9c\xa8 Consigliati: <b>mistral</b>, <b>llama3</b>, <b>gemma3</b>"
+        " \xe2\x80\x94 creativit\xc3\xa0 e fluidit\xc3\xa0 narrativa",
+        "\xe2\x9c\xa8 Consigliati: <b>qwen3:30b</b>, <b>deepseek-r1</b>, <b>llama3</b>"
+        " \xe2\x80\x94 ragionamento avanzato e fact-checking",
+        "\xe2\x9c\xa8 Consigliati: <b>mistral</b>, <b>llama3</b>, <b>qwen3</b>"
+        " \xe2\x80\x94 analisi letteraria e critica",
+        "\xe2\x9c\xa8 Consigliati: <b>mistral</b>, <b>qwen3</b>, <b>phi4</b>"
+        " \xe2\x80\x94 risposte strutturate e concise",
+        "\xe2\x9c\xa8 Consigliati: <b>llama3</b>, <b>qwen3</b>, <b>mistral</b>"
+        " \xe2\x80\x94 estrazione e sintesi testi lunghi",
+    };
+
+    m_currentCat = idx;
+    m_navList->setCurrentRow(idx);
+    m_cmbSub->setCurrentIndex(0);
+    if (m_inputArea)
+        m_inputArea->setPlaceholderText(QString::fromUtf8(kPlaceholders[idx]));
+    if (m_lblSel)
+        m_lblSel->setText(
+            "\xe2\x9c\x85  <b>" +
+            QString::fromUtf8(kSubActions[idx][0]) +
+            "</b>");
+
+    /* Righe speciali: nascondi tutte, poi riabilita in base alla categoria */
+    if (m_pdfRow)         m_pdfRow->setVisible(idx == 5);
+    if (m_ragRow)         m_ragRow->setVisible(true);
+    if (m_codeModelRow)   m_codeModelRow->setVisible(false);
+    if (m_blenderRow)     m_blenderRow->setVisible(false);
+    if (m_blenderHintRow) m_blenderHintRow->setVisible(false);
+    if (m_officeRow)      m_officeRow->setVisible(false);
+    if (m_officeHintRow)  m_officeHintRow->setVisible(false);
+    if (m_freecadRow)     m_freecadRow->setVisible(false);
+    if (m_freecadHintRow) m_freecadHintRow->setVisible(false);
+    if (m_sketchRow)      m_sketchRow->setVisible(false);
+    if (m_cloudCompareRow) m_cloudCompareRow->setVisible(false);
+
+    if (m_btnRun) m_btnRun->setEnabled(true);
+    m_ai->fetchModels();
+    if (m_codeModelInfo)
+        m_codeModelInfo->setText(QString::fromUtf8(kModelHints[idx]));
 }
 
 void StrumentiPage::onCodeModelRefreshClicked()
@@ -2372,3 +2524,9 @@ void StrumentiPage::onAiAborted()
 }
 
 
+
+void StrumentiPage::onQuizAiModelsReady(const QStringList&)
+{
+    if (m_quizAi)
+        m_quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+}

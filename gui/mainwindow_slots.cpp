@@ -14,6 +14,7 @@
 #include "pages/grafico_page.h"
 #include "pages/programmazione_page.h"
 
+#include <QApplication>
 #include <QSettings>
 #include <QFile>
 #include <QProcess>
@@ -165,12 +166,6 @@ void MainWindow::onApplyBackendModelsReady(const QStringList& list)
             QString("\xe2\x9a\xa0\xef\xb8\x8f  %1 non risponde \xe2\x80\x94 avvialo prima di usare l'AI")
             .arg(m_pendingBkName));
     }
-}
-
-void MainWindow::onQuizAiModelsReady(const QStringList&)
-{
-    if (m_quizAi)
-        m_quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
 }
 
 // ─── Header buttons ───────────────────────────────────────────────────────
@@ -660,4 +655,52 @@ void MainWindow::onRestoreDefaultStatus()
 {
     statusBar()->showMessage(
         "\xf0\x9f\x8d\xba  Invocazione riuscita. Gli dei ascoltano.");
+}
+
+void MainWindow::onZoomMinusBtnClicked()
+{
+    onZoomPercentChanged(m_zoomPct - 10);
+}
+
+void MainWindow::onZoomPlusBtnClicked()
+{
+    onZoomPercentChanged(m_zoomPct + 10);
+}
+
+void MainWindow::onZoomResetBtnClicked()
+{
+    onZoomPercentChanged(100);
+}
+
+void MainWindow::onZoomPercentChanged(int pct)
+{
+    m_zoomPct = qBound(50, pct, 200);
+
+    /* Aggiorna label e zoom scale immediatamente — nessun ritardo visivo */
+    if (m_zoomPctLbl)
+        m_zoomPctLbl->setText(QString::number(m_zoomPct) + "%");
+    ThemeManager::instance()->setZoomScale(m_zoomPct / 100.0);
+
+    /* Persisti subito così il valore sopravvive anche a crash */
+    QSettings s("Prismalux", "GUI");
+    s.setValue("ui/zoomPct", m_zoomPct);
+
+    /* Debounce: riapplica il tema 200ms dopo l'ultimo click.
+     * Click ravvicinati azzerano il timer → una sola passata di setStyleSheet. */
+    if (m_zoomDebounce)
+        m_zoomDebounce->start();
+}
+
+void MainWindow::onZoomApplyDebounced()
+{
+    /* Riapplica il QSS con il fattore zoom corrente.
+     * Grazie alla cache per-zoom, zoom già usati in precedenza sono istantanei. */
+    ThemeManager::instance()->reapply();
+
+    /* Aggiorna anche il font app per widget non stilizzati via QSS */
+    static constexpr int kBasePt = 10;
+    const int pt = qMax(5, qRound(kBasePt * m_zoomPct / 100.0));
+    QFont f = QApplication::font();
+    f.setPointSize(pt);
+    QApplication::setFont(f);
 }

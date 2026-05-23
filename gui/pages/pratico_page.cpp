@@ -13,6 +13,9 @@
 #include <QGuiApplication>
 #include <QClipboard>
 #include <QProcess>
+#include <QPainter>
+#include <QPainterPath>
+#include <QDate>
 #include <memory>
 #include <cmath>
 
@@ -214,9 +217,164 @@ QWidget* PraticoPage::buildMenu() {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   FinChart — grafico cartesiano QPainter (X = Anno Solare, Y = €)
+   ══════════════════════════════════════════════════════════════ */
+class FinChart : public QWidget {
+public:
+    explicit FinChart(QWidget* parent = nullptr) : QWidget(parent) {
+        setMinimumHeight(240);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    }
+
+    void setData(const QString& label, const QVector<QPointF>& pts, const QColor& col) {
+        m_label = label;
+        m_pts   = pts;
+        m_color = col;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override {
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing);
+
+        const QRect  r    = rect();
+        const bool   dark = palette().color(QPalette::Window).lightness() < 128;
+        const QColor bg        = dark ? QColor(28, 31, 40)   : QColor(248, 249, 252);
+        const QColor gridCol   = dark ? QColor(55, 62, 80)   : QColor(200, 208, 220);
+        const QColor axisCol   = dark ? QColor(160, 170, 195): QColor(60, 75, 100);
+        const QColor textCol   = axisCol;
+
+        p.fillRect(r, bg);
+
+        if (m_pts.isEmpty()) {
+            p.setPen(textCol);
+            QFont f = p.font(); f.setPointSizeF(9); p.setFont(f);
+            p.drawText(r, Qt::AlignCenter,
+                       "Clicca \xe2\x80\x9c" "Calcola\xe2\x80\x9d per visualizzare il grafico");
+            return;
+        }
+
+        // margins: sinistra per etichette Y, basso per etichette X
+        const int ML = 72, MB = 44, MT = 30, MR = 18;
+        const QRect plot(ML, MT, r.width() - ML - MR, r.height() - MT - MB);
+
+        // range X
+        const double xMin = m_pts.first().x();
+        const double xMax = m_pts.last().x();
+
+        // range Y — ceil a potenza di 10 "bella"
+        double yMax = 0.0;
+        for (const QPointF& pt : m_pts) yMax = qMax(yMax, pt.y());
+        if (yMax <= 0.0) yMax = 1.0;
+        const double mag = std::pow(10.0, std::floor(std::log10(yMax)));
+        yMax = std::ceil(yMax / mag) * mag;
+
+        auto toPixel = [&](double x, double y) -> QPointF {
+            const double px = plot.left()   + (x - xMin) / (xMax - xMin) * plot.width();
+            const double py = plot.bottom() - y / yMax * plot.height();
+            return { px, py };
+        };
+
+        // griglia orizzontale
+        const int NY = 5;
+        p.setPen(QPen(gridCol, 1, Qt::DotLine));
+        for (int i = 0; i <= NY; ++i) {
+            const double y  = yMax * i / NY;
+            const QPointF l = toPixel(xMin, y);
+            const QPointF rp = toPixel(xMax, y);
+            p.drawLine(l, rp);
+        }
+
+        // assi
+        p.setPen(QPen(axisCol, 1.5));
+        p.drawLine(plot.bottomLeft(), plot.bottomRight());
+        p.drawLine(plot.bottomLeft(), plot.topLeft());
+
+        QFont fntSm = p.font(); fntSm.setPointSizeF(7.5); p.setFont(fntSm);
+        p.setPen(textCol);
+
+        // etichette Y
+        for (int i = 0; i <= NY; ++i) {
+            const double  y  = yMax * i / NY;
+            const QPointF pt = toPixel(xMin, y);
+            QString lbl;
+            if      (y >= 1e6) lbl = QString::number(y / 1e6, 'f', 1) + "M";
+            else if (y >= 1e3) lbl = QString::number(y / 1e3, 'f', 0) + "k";
+            else               lbl = QString::number(y, 'f', 0);
+            p.drawText(QRectF(0, pt.y() - 10, ML - 6, 20),
+                       Qt::AlignRight | Qt::AlignVCenter, lbl);
+        }
+
+        // etichette X (anni solari)
+        const int totalYears = qMax(1, (int)(xMax - xMin));
+        const int step = qMax(1, totalYears / 8);
+        for (int yr = (int)xMin; yr <= (int)xMax; yr += step) {
+            const QPointF pt = toPixel((double)yr, 0.0);
+            p.drawText(QRectF(pt.x() - 22, plot.bottom() + 4, 44, 18),
+                       Qt::AlignCenter, QString::number(yr));
+        }
+
+        // titolo asse Y (ruotato)
+        p.save();
+        p.translate(10, plot.top() + plot.height() / 2);
+        p.rotate(-90);
+        QFont fntAx = fntSm; fntAx.setBold(true); p.setFont(fntAx);
+        p.drawText(QRectF(-40, -10, 80, 20), Qt::AlignCenter,
+                   "Euro \xe2\x82\xac");
+        p.restore();
+
+        // titolo asse X
+        p.setFont(fntAx);
+        p.drawText(QRectF(ML, r.height() - MB + 22, plot.width(), 18),
+                   Qt::AlignCenter, "Anno Solare");
+
+        // etichetta serie (in alto)
+        QFont fntTitle = fntSm; fntTitle.setPointSizeF(8.5); fntTitle.setBold(true);
+        p.setFont(fntTitle);
+        p.setPen(m_color);
+        p.drawText(QRectF(ML, 4, plot.width(), MT - 6), Qt::AlignCenter, m_label);
+
+        if (m_pts.size() < 2) return;
+
+        // area riempita
+        QPainterPath area;
+        area.moveTo(toPixel(m_pts.first().x(), 0.0));
+        for (const QPointF& pt : m_pts) area.lineTo(toPixel(pt.x(), pt.y()));
+        area.lineTo(toPixel(m_pts.last().x(), 0.0));
+        area.closeSubpath();
+        QColor fill = m_color; fill.setAlpha(45);
+        p.fillPath(area, fill);
+
+        // linea serie
+        QPainterPath line;
+        line.moveTo(toPixel(m_pts.first().x(), m_pts.first().y()));
+        for (int i = 1; i < m_pts.size(); ++i)
+            line.lineTo(toPixel(m_pts[i].x(), m_pts[i].y()));
+        p.setPen(QPen(m_color, 2.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        p.drawPath(line);
+
+        // punti
+        p.setBrush(m_color);
+        p.setPen(Qt::NoPen);
+        const int dotR = 3;
+        for (const QPointF& pt : m_pts) {
+            const QPointF px = toPixel(pt.x(), pt.y());
+            p.drawEllipse(px, dotR, dotR);
+        }
+    }
+
+private:
+    QString          m_label;
+    QVector<QPointF> m_pts;
+    QColor           m_color { "#4c9be8" };
+};
+
+/* ══════════════════════════════════════════════════════════════
    buildFinanza — Calcolatori finanziari locali (0 token AI)
    ══════════════════════════════════════════════════════════════ */
 static QWidget* buildFinanza(QStackedWidget* inner) {
+    const int baseYear = QDate::currentDate().year();
     auto* w   = new QWidget;
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(20, 16, 20, 16);
@@ -239,7 +397,9 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
     auto* outLbl = new QTextBrowser(w);
     outLbl->setObjectName("chatLog");
     outLbl->setPlaceholderText("I risultati dei calcoli appariranno qui...");
-    outLbl->setMinimumHeight(140);
+    outLbl->setMinimumHeight(110);
+
+    auto* chart = new FinChart(w);
 
     /* ══ Mutuo ══ */
     auto* mutGroup = new QGroupBox("\xf0\x9f\x8f\xa0  Calcolatore Mutuo", w);
@@ -272,7 +432,7 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
         double rata;
         if (tasso == 0) rata = C / n;
         else            rata = C * (tasso * std::pow(1+tasso, n)) / (std::pow(1+tasso, n) - 1);
-        double totPagato   = rata * n;
+        double totPagato    = rata * n;
         double totInteressi = totPagato - C;
         QString txt = QString(
             "<b>\xf0\x9f\x8f\xa0 Mutuo: %1 \xe2\x82\xac \xe2\x80\x94 %2% \xe2\x80\x94 %3 anni</b><br>"
@@ -291,6 +451,19 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
                    .arg(i).arg(rata,0,'f',2).arg(quota,0,'f',2)
                    .arg(interesse,0,'f',2).arg(qMax(0.0,debRes),0,'f',2);
         }
+        // grafico: debito residuo a fine di ogni anno
+        QVector<QPointF> pts;
+        pts.append({ double(baseYear), C });
+        double debChart = C;
+        for (int yr = 1; yr <= anniSpin->value(); ++yr) {
+            for (int m = 0; m < 12; ++m) {
+                if ((yr - 1) * 12 + m >= n) break;
+                double interesse = debChart * tasso;
+                debChart        -= (rata - interesse);
+            }
+            pts.append({ double(baseYear + yr), qMax(0.0, debChart) });
+        }
+        chart->setData("\xf0\x9f\x8f\xa0 Debito residuo mutuo", pts, QColor("#e07040"));
         outLbl->setHtml(txt);
     });
 
@@ -320,6 +493,15 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
         else        FV = rata * (std::pow(1+r, n) - 1) / r;
         double versato    = rata * n;
         double rendimento = FV - versato;
+        // grafico: capitale accumulato a fine di ogni anno
+        QVector<QPointF> pts;
+        pts.append({ double(baseYear), 0.0 });
+        for (int yr = 1; yr <= anniPac->value(); ++yr) {
+            const int m  = yr * 12;
+            const double fv = (r == 0) ? rata * m : rata * (std::pow(1+r, m) - 1) / r;
+            pts.append({ double(baseYear + yr), fv });
+        }
+        chart->setData("\xf0\x9f\x93\x88 Capitale accumulato (PAC)", pts, QColor("#40b870"));
         outLbl->setHtml(QString(
             "<b>\xf0\x9f\x93\x88 PAC: %1 \xe2\x82\xac/mese \xe2\x80\x94 %2% \xe2\x80\x94 %3 anni</b><br>"
             "Capitale accumulato: <b>%4 \xe2\x82\xac</b><br>"
@@ -351,9 +533,15 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
         double stip   = stipSpin->value();
         int    anni   = anniLav->value();
         double aliq   = aliqSpin->value() / 100.0;
-        double contrib   = stip * aliq * anni;
+        double contrib    = stip * aliq * anni;
         double pensAnnua  = contrib * 0.05723;
         double pensMensile = pensAnnua / 13.0;
+        // grafico: contributi accumulati anno per anno
+        QVector<QPointF> pts;
+        pts.append({ double(baseYear), 0.0 });
+        for (int yr = 1; yr <= anni; ++yr)
+            pts.append({ double(baseYear + yr), stip * aliq * yr });
+        chart->setData("\xf0\x9f\x91\xb4 Contributi accumulati (INPS)", pts, QColor("#5090e0"));
         outLbl->setHtml(QString(
             "<b>\xf0\x9f\x91\xb4 Stima Pensione INPS (metodologia contributiva semplificata)</b><br>"
             "Stipendio lordo annuo: %1 \xe2\x82\xac \xe2\x80\x94 Anni: %2 \xe2\x80\x94 Aliquota: %3%<br>"
@@ -369,6 +557,7 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
     lay->addWidget(pacGroup);
     lay->addWidget(penGroup);
     lay->addWidget(outLbl, 1);
+    lay->addWidget(chart);
     return w;
 }
 

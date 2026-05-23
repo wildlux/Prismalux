@@ -45,6 +45,13 @@ public:
     /* Attiva/disattiva il follow del tema di sistema */
     void setFollowSystem(bool follow);
 
+    /* Imposta il fattore zoom UI (0.5=50%, 2.0=200%) — non riapplica subito. */
+    void setZoomScale(double scale);
+    double zoomScale() const { return m_zoomScale; }
+
+    /* Riapplica il tema corrente con il zoom attuale (da chiamare dopo setZoomScale). */
+    void reapply();
+
     bool followSystem() const { return m_followSystem; }
 
 signals:
@@ -59,6 +66,8 @@ private:
 
     QList<Theme>         m_themes;
     QString              m_currentId;
-    QHash<QString,QString> m_cssCache;   ///< id → CSS già letto da disco
+    QHash<QString,QString> m_rawCache;   ///< id → CSS grezzo (senza scaling)
+    QHash<QString,QString> m_cssCache;   ///< "id@zoomPct" → CSS scalato (DPI × zoom)
+    double               m_zoomScale    = 1.0;
     bool                 m_followSystem = false;
 };

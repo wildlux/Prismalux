@@ -67,27 +67,37 @@ void ThemeManager::apply(const QString& id) {
     }
     if (resource.isEmpty()) return;
 
-    /* ── CSS cache: legge da disco solo la prima volta ── */
-    if (!m_cssCache.contains(id)) {
+    /* ── Cache grezzo: legge da disco una sola volta, senza scaling ── */
+    if (!m_rawCache.contains(id)) {
         QFile f(resource);
         if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
-        QString css = QString::fromUtf8(f.readAll());
+        QString raw = QString::fromUtf8(f.readAll());
 
-        /* Appende base.qss (struttura scrollbar + fallback handle orizzontale).
-         * Viene DOPO il tema → le regole strutturali (width=8px) vincono sempre.
-         * handle:horizontal usa colore neutro perché nessun tema lo ridefinisce. */
+        /* Appende base.qss dopo il tema (regole strutturali vincono) */
         QFile base(QCoreApplication::applicationDirPath() + "/themes/base.qss");
         if (base.open(QIODevice::ReadOnly | QIODevice::Text))
-            css += "\n" + QString::fromUtf8(base.readAll());
+            raw += "\n" + QString::fromUtf8(base.readAll());
 
-        /* ── Font DPI adattivo: scala tutti i font-size:Npx in proporzione a DPI ── */
+        m_rawCache[id] = raw;
+    }
+
+    /* ── Cache scalata: chiave "id@zoomPct" → ricalcolata solo se nuovo livello ── */
+    const int zoomInt = qRound(m_zoomScale * 100);
+    const QString cacheKey = id + "@" + QString::number(zoomInt);
+    if (!m_cssCache.contains(cacheKey)) {
+        QString css = m_rawCache[id];
+
+        /* Fattore combinato: DPI adattivo × zoom utente */
         const qreal dpi = QGuiApplication::primaryScreen()
                           ? QGuiApplication::primaryScreen()->logicalDotsPerInch()
                           : 96.0;
-        if (dpi > 108.0) {   /* sopra ~112% del DPI standard */
-            const qreal scale = dpi / 96.0;
+        const qreal dpiScale  = (dpi > 108.0) ? (dpi / 96.0) : 1.0;
+        const qreal totalScale = dpiScale * m_zoomScale;
+
+        if (qAbs(totalScale - 1.0) > 0.005) {
             static const QRegularExpression reFontPx(
-                R"(font-size\s*:\s*(\d+)\s*px)", QRegularExpression::CaseInsensitiveOption);
+                R"(font-size\s*:\s*(\d+)\s*px)",
+                QRegularExpression::CaseInsensitiveOption);
             QString patched;
             patched.reserve(css.size());
             int lastEnd = 0;
@@ -96,24 +106,17 @@ void ThemeManager::apply(const QString& id) {
                 const auto m = it.next();
                 patched += css.mid(lastEnd, m.capturedStart() - lastEnd);
                 patched += QString("font-size:%1px")
-                               .arg(qRound(m.captured(1).toInt() * scale));
+                               .arg(qMax(1, qRound(m.captured(1).toInt() * totalScale)));
                 lastEnd = m.capturedEnd();
             }
             patched += css.mid(lastEnd);
             css = std::move(patched);
         }
 
-        m_cssCache[id] = css;
+        m_cssCache[cacheKey] = css;
     }
 
-    const QString& css = m_cssCache.value(id);
-
-    /* ── Applica stylesheet ottimizzato ──────────────────────────
-       setUpdatesEnabled(false) sul top-level sopprime i repaint
-       intermedi durante il traversal del widget tree: Qt calcola
-       tutti gli stili ma accoda i repaint; setUpdatesEnabled(true)
-       li scarica in un unico frame invece di N frame parziali.
-       WaitCursor dà feedback visivo immediato al click. */
+    /* ── Applica stylesheet ottimizzato ── */
     QApplication::setOverrideCursor(Qt::WaitCursor);
 
     QWidget* root = nullptr;
@@ -122,7 +125,7 @@ void ThemeManager::apply(const QString& id) {
     }
     if (root) root->setUpdatesEnabled(false);
 
-    qApp->setStyleSheet(css);
+    qApp->setStyleSheet(m_cssCache.value(cacheKey));
 
     if (root) {
         root->setUpdatesEnabled(true);
@@ -135,6 +138,21 @@ void ThemeManager::apply(const QString& id) {
     QSettings s("Prismalux", "GUI");
     s.setValue(P::SK::kTheme, id);
     emit changed(id);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   setZoomScale — imposta il fattore zoom UI (0.5=50%, 2.0=200%).
+   Invalida la cache scalata e riapplica il tema corrente.
+   ══════════════════════════════════════════════════════════════ */
+void ThemeManager::setZoomScale(double scale) {
+    m_zoomScale = qBound(0.5, scale, 2.0);
+    /* Non riapplica subito: la cache per-zoom gestisce la freschezza.
+     * Chiama reapply() (o apply()) per rendere effettivo il cambio. */
+}
+
+void ThemeManager::reapply() {
+    if (!m_currentId.isEmpty())
+        apply(m_currentId);
 }
 
 void ThemeManager::loadSaved() {

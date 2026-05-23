@@ -11,7 +11,7 @@ Strutturale (nuovo file/CMakeLists) → rifare `cmake -B build`. Solo .cpp/.h �
 ```
 Header (72px): logo · backend · model · CPU/RAM/GPU · spinner · ⚙️
 [0] 🤖 Intelligenza Artificiale  Alt+1  Pipeline + Byzantino + CHAT RAG + Agente Autonomo
-[1] 🛠 Strumenti                  Alt+2  Studio, Scrittura, Ricerca, Cerca Lavoro, Libri, PDF, Cron
+[1] 🛠 Strumenti                  Alt+2  sub-tab: Assistente AI · 💰 Finanza · 🏛 Impara con AI · 🎯 Sfida!
 [2] 🎬 Multimedia                        Audio AI · Genera Immagini (SD) · Mappe (Graphviz)
 [3] 📁 File AI                           File AI · Wiki & Web · Excel/CSV · PDF · Word/Testo
 [4] 💻 Programmazione            Alt+3  Editor + Agentica + Interpreter Python
@@ -19,7 +19,6 @@ Header (72px): logo · backend · model · CPU/RAM/GPU · spinner · ⚙️
 [6] 🔬 Ricerca                   Alt+5  Paper · Brevetti · Cytoscape · RDKit · Bioconda · Avogadro
 [7] 🕹 APP Controller            Alt+6  Blender/FreeCAD/Office/CloudCompare/Anki/KiCAD/TinyMCP/OBS/OpenCode/Godot
 [8] 🌐 LAN & WAN                         LAN Android + GNS3 · WAN placeholder
-[9] 📚 Impara                    Alt+7  Finanza · Impara con AI · Sfida
 ImpostazioniPage: dialog modale (⚙️ header)
 ```
 Note:

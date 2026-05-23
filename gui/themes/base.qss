@@ -66,3 +66,49 @@ QPushButton#thinkModeBtn:disabled {
     color: rgba(128,128,128,0.25);
     border-color: rgba(128,128,128,0.12);
 }
+
+/* ── Barra Ingrandimento (status bar basso destra) ── */
+QWidget#zoomBar {
+    background: transparent;
+}
+QLabel#zoomBarLabel {
+    font-size: 11px;
+    color: palette(mid);
+    min-width: 38px;
+}
+QPushButton#zoomBtn {
+    background: transparent;
+    border: 1px solid palette(mid);
+    border-radius: 3px;
+    color: palette(buttontext);
+    font-size: 15px;
+    font-weight: bold;
+    padding: 0;
+}
+QPushButton#zoomBtn:hover {
+    border-color: #4c9be8;
+    color: #4c9be8;
+    background: rgba(76,155,232,0.10);
+}
+QPushButton#zoomBtn:pressed {
+    background: rgba(76,155,232,0.22);
+}
+QPushButton#zoomBtn:disabled {
+    border-color: rgba(128,128,128,0.30);
+    color: rgba(128,128,128,0.40);
+}
+QPushButton#zoomResetBtn {
+    background: transparent;
+    border: none;
+    color: palette(mid);
+    font-size: 9px;
+    padding: 0;
+    border-radius: 9px;
+}
+QPushButton#zoomResetBtn:hover {
+    color: #4c9be8;
+    background: rgba(76,155,232,0.12);
+}
+QPushButton#zoomResetBtn:pressed {
+    background: rgba(76,155,232,0.25);
+}

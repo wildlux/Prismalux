@@ -1,10 +1,7 @@
 #include "mainwindow.h"
 #include "widgets/whisper_autosetup.h"
 #include "pages/agenti_page.h"
-#include "pages/pratico_page.h"
-#include "pages/impara_page.h"
 #include "pages/impostazioni_page.h"
-#include "pages/quiz_page.h"
 #include "pages/strumenti_page.h"
 #include "pages/grafico_page.h"
 /* oracolo_page.h rimosso: OracoloPage sostituita da grafico integrato in AgentiPage */
@@ -321,7 +318,7 @@ void MainWindow::setupLayout()
     setCentralWidget(root);
 }
 
-/* ── Livello 1: status bar con barra progresso pipeline ─────────── */
+/* ── Livello 1: status bar con barra progresso pipeline + zoom ───── */
 void MainWindow::setupStatusBar()
 {
     m_statusProgress = new QProgressBar(this);
@@ -334,6 +331,65 @@ void MainWindow::setupStatusBar()
     m_statusProgress->setObjectName("statusProgress");
     m_statusProgress->setVisible(false);
     statusBar()->addPermanentWidget(m_statusProgress);
+
+    /* ── Pulsanti Zoom +/- (basso destra) ── */
+    auto* zoomBar = new QWidget(this);
+    zoomBar->setObjectName("zoomBar");
+    auto* zoomLay = new QHBoxLayout(zoomBar);
+    zoomLay->setContentsMargins(4, 0, 4, 0);
+    zoomLay->setSpacing(4);
+
+    auto* zoomMinusBtn = new QPushButton("\xe2\x88\x92", zoomBar);  /* − */
+    zoomMinusBtn->setObjectName("zoomBtn");
+    zoomMinusBtn->setFixedSize(26, 22);
+    zoomMinusBtn->setToolTip("Riduci testo (minimo 50%)");
+
+    m_zoomPctLbl = new QLabel("100%", zoomBar);
+    m_zoomPctLbl->setObjectName("zoomBarLabel");
+    m_zoomPctLbl->setFixedWidth(44);
+    m_zoomPctLbl->setAlignment(Qt::AlignCenter);
+
+    auto* zoomPlusBtn = new QPushButton("+", zoomBar);
+    zoomPlusBtn->setObjectName("zoomBtn");
+    zoomPlusBtn->setFixedSize(26, 22);
+    zoomPlusBtn->setToolTip("Aumenta testo (massimo 200%)");
+
+    auto* zoomResetBtn = new QPushButton("\xe2\x97\x8f", zoomBar);  /* ● */
+    zoomResetBtn->setObjectName("zoomResetBtn");
+    zoomResetBtn->setFixedSize(18, 18);
+    zoomResetBtn->setToolTip("Reimposta zoom a 100%");
+
+    zoomLay->addWidget(zoomMinusBtn);
+    zoomLay->addWidget(m_zoomPctLbl);
+    zoomLay->addWidget(zoomPlusBtn);
+    zoomLay->addWidget(zoomResetBtn);
+
+    /* Carica valore salvato (default 100%) e aggiorna label */
+    {
+        QSettings s("Prismalux", "GUI");
+        m_zoomPct = qBound(50, s.value("ui/zoomPct", 100).toInt(), 200);
+    }
+    m_zoomPctLbl->setText(QString::number(m_zoomPct) + "%");
+
+    /* Imposta subito lo zoom nel ThemeManager: loadSaved() lo userà */
+    ThemeManager::instance()->setZoomScale(m_zoomPct / 100.0);
+
+    /* Timer debounce: riapplica il tema 200ms dopo l'ultimo click +/- */
+    m_zoomDebounce = new QTimer(this);
+    m_zoomDebounce->setSingleShot(true);
+    m_zoomDebounce->setInterval(200);
+
+    statusBar()->addPermanentWidget(zoomBar);
+
+    connect(zoomMinusBtn, &QPushButton::clicked,
+            this, &MainWindow::onZoomMinusBtnClicked);
+    connect(zoomPlusBtn, &QPushButton::clicked,
+            this, &MainWindow::onZoomPlusBtnClicked);
+    connect(zoomResetBtn, &QPushButton::clicked,
+            this, &MainWindow::onZoomResetBtnClicked);
+    connect(m_zoomDebounce, &QTimer::timeout,
+            this, &MainWindow::onZoomApplyDebounced);
+
     statusBar()->showMessage("\xf0\x9f\x8d\xba  Invocazione riuscita. Gli dei ascoltano.");
 }
 
@@ -1170,7 +1226,6 @@ QWidget* MainWindow::buildContent()
     buildRicercaTab();
     buildAppControllerTab();
     buildLanWanTab();
-    buildImparaTab();
 
     /* Salva etichette originali e applica modalità da QSettings */
     for (int i = 0; i < m_mainTabs->count(); i++)
@@ -1282,31 +1337,6 @@ void MainWindow::buildLanWanTab()
                        "\xf0\x9f\x8c\x90  LAN & WAN");  /* 8 */
 }
 
-/* ── Livello 2: tab [9] Impara (Finanza + Impara + Sfida) ────────── */
-void MainWindow::buildImparaTab()
-{
-    auto* imparaContainer = new QWidget(m_mainTabs);
-    auto* ilay = new QVBoxLayout(imparaContainer);
-    ilay->setContentsMargins(0, 0, 0, 0);
-    ilay->setSpacing(0);
-
-    auto* imparaTabs = new QTabWidget(imparaContainer);
-    imparaTabs->setObjectName("imparaSubTabs");
-    imparaTabs->setTabPosition(QTabWidget::North);
-    imparaTabs->addTab(new PraticoPage(m_ai, imparaContainer), "\xf0\x9f\x92\xb0  Finanza");
-    imparaTabs->addTab(new ImparaPage(m_ai, imparaContainer),  "\xf0\x9f\x8f\x9b  Impara con AI");
-
-    /* QuizPage usa AiClient separato: evita cross-talk con AgentiPage */
-    m_quizAi = new AiClient(this);
-    m_quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
-    connect(m_ai, &AiClient::modelsReady, this, &MainWindow::onQuizAiModelsReady);
-    imparaTabs->addTab(new QuizPage(m_quizAi, imparaContainer),
-                       "\xf0\x9f\x8e\xaf  Sfida te stesso!");
-
-    ilay->addWidget(imparaTabs);
-    m_mainTabs->addTab(imparaContainer, "\xf0\x9f\x93\x9a  Impara");  /* 9 */
-}
-
 /* ── Livello 2: barra navigazione menu + sincronizzazione tab ────── */
 void MainWindow::buildNavMenuBar(QWidget* wrapper, QVBoxLayout* /*wLay*/)
 {
@@ -1321,13 +1351,6 @@ void MainWindow::buildNavMenuBar(QWidget* wrapper, QVBoxLayout* /*wLay*/)
     auto* btnGroup = new QButtonGroup(m_navMenuBar);
     btnGroup->setExclusive(true);
     for (int i = 0; i < m_mainTabs->count(); i++) {
-        if (i == 9) {  /* separatore prima di "Impara" */
-            auto* sep = new QFrame(m_navMenuBar);
-            sep->setFrameShape(QFrame::VLine);
-            sep->setObjectName("navMenuSep");
-            sep->setFixedWidth(1);
-            nmLay->addWidget(sep);
-        }
         auto* btn = new QPushButton(m_tabOrigLabels.at(i), m_navMenuBar);
         btn->setObjectName("navMenuBtn");
         btn->setCheckable(true);

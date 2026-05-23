@@ -7,6 +7,7 @@
 #include <QComboBox>
 #include <QListWidget>
 #include <QStackedWidget>
+#include <QTabWidget>
 #include <QLabel>
 #include <QString>
 #include <QCheckBox>
@@ -22,14 +23,18 @@
 #include <QTcpSocket>
 #include "../ai_client.h"
 
+class AiErrorWidget;
 class LanServer;
 class ManutenzioneePage;
 class QVBoxLayout;
 
 /* ══════════════════════════════════════════════════════════════
-   StrumentiPage — Assistente AI multi-dominio
-   Layout a due colonne: nav sinistra (200px) + stack destra.
-   Categorie: Studio, Scrittura Creativa, Ricerca, Libri, Produttività
+   StrumentiPage — Assistente AI multi-dominio + Apprendimento
+   Tab 0-5: Studio · Scrittura · Ricerca · Libri · Produttività · Documenti
+   Tab 6:   ⏱ Cron
+   Tab 7:   💰 Finanza       (PraticoPage)
+   Tab 8:   🏛  Impara con AI (ImparaPage)
+   Tab 9:   🎯 Sfida!        (QuizPage)
    ══════════════════════════════════════════════════════════════ */
 class StrumentiPage : public QWidget {
     Q_OBJECT
@@ -49,6 +54,8 @@ public:
 
 private:
     AiClient*       m_ai        = nullptr;
+    AiClient*       m_quizAi    = nullptr;  ///< AiClient dedicato per QuizPage (evita cross-talk)
+    QTabWidget*     m_tabs      = nullptr;  ///< tab container interno
     QListWidget*    m_navList   = nullptr;
     QStackedWidget* m_stack     = nullptr;
     QTextEdit*      m_output    = nullptr;
@@ -57,6 +64,7 @@ private:
     QComboBox*      m_cmbSub    = nullptr;  ///< Combo sotto-azione corrente
     QLabel*         m_waitLbl   = nullptr;
     QProgressBar*   m_waitBar   = nullptr;  ///< progress indeterminata durante AI
+    AiErrorWidget*  m_errPanel  = nullptr;  ///< banner errore AI con pulsante Riprova
     bool            m_active    = false;
 
     /* ── Documenti PDF (cat = 5) ── */
@@ -143,11 +151,14 @@ private:
     /* ── LAN Android (spostato in LanWanPage) ── */
     /* ── File Search, Wiki, Graphviz, Audio AI, Dati AI → StrumentiFilePage/MultimediaPage ── */
 
+    /* ── Area I/O condivisa (sotto i tab categoria 0-5) ── */
+    QWidget*        m_sharedIoArea = nullptr;
+
     /* ── Stato catStack/lblSel/catGroup per slot ── */
-    QStackedWidget* m_actStack  = nullptr;  ///< stack pagine azioni (per cronBtn slot)
-    QLabel*         m_lblSel    = nullptr;  ///< label azione corrente (per cronBtn slot)
-    QButtonGroup*   m_catGroup  = nullptr;  ///< gruppo bottoni categoria (per cronBtn slot)
-    QPushButton*    m_cronBtn   = nullptr;  ///< bottone Cron (per catGroup slot)
+    QStackedWidget* m_actStack  = nullptr;  ///< non usato nel layout a tab (null)
+    QLabel*         m_lblSel    = nullptr;  ///< label azione corrente
+    QButtonGroup*   m_catGroup  = nullptr;  ///< null nel layout a tab
+    QPushButton*    m_cronBtn   = nullptr;  ///< null nel layout a tab (Cron = tab 6)
 
     /* ── Helper: legge il token Bearer del bridge ── */
     void _readOfficeBridgeToken();
@@ -211,6 +222,7 @@ private slots:
     void onActBtnClicked();
     void onCatGroupIdClicked(int cat);
     void onCronBtnToggled(bool checked);
+    void onCatTabChanged(int idx);
 
     // RAG
     void onRagAddBtnClicked();
@@ -260,4 +272,7 @@ private slots:
 
     // Aborted
     void onAiAborted();
+
+    // Quiz AiClient sync
+    void onQuizAiModelsReady(const QStringList& list);
 };

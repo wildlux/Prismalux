@@ -140,8 +140,6 @@ private:
     void buildRicercaTab();    ///< [6] 🔬 Ricerca
     void buildAppControllerTab(); ///< [7] 🕹 APP Controller
     void buildLanWanTab();     ///< [8] 🌐 LAN & WAN
-    void buildImparaTab();     ///< [9] 📚 Impara
-
     void buildNavMenuBar(QWidget* wrapper, QVBoxLayout* wLay); ///< Barra menu alternativa + sincronizzazione
     void applyContentSettings();  ///< Applica nav style e exec btn mode da QSettings
 
@@ -156,7 +154,7 @@ private:
                                     const QStringList& mathPaths); ///< Checkbox math + status + download
 
     /* ── Componenti UI ───────────────────────────────────────── */
-    QTabWidget*     m_mainTabs       = nullptr;  ///< Tab principale: Agenti | Finanza | Impara
+    QTabWidget*     m_mainTabs       = nullptr;  ///< Tab principale (9 tab: 0-8)
     QStringList     m_tabOrigLabels;            ///< Etichette originali "icona  testo" per applyTabMode()
     QWidget*        m_navMenuBar     = nullptr;  ///< Barra pulsanti alternativa (menù principale)
     QWidget*        m_cornerContainer = nullptr; ///< Container del pulsante backend (corner widget)
@@ -179,6 +177,9 @@ private:
     SpinnerWidget*  m_spinServer  = nullptr;  ///< Spinner animato durante polling /health
     StatusBadge*    m_badgeServer = nullptr;  ///< Dot colorato stato server (Offline/Starting/Online)
     QProgressBar*   m_statusProgress = nullptr;  ///< Barra progresso pipeline nella status bar
+    QLabel*         m_zoomPctLbl     = nullptr;  ///< Label percentuale zoom (status bar)
+    QTimer*         m_zoomDebounce   = nullptr;  ///< Debounce 200ms per riapplicare il tema
+    int             m_zoomPct        = 100;       ///< Zoom corrente 50-200%
 
     /* ── Chat History (sidebar) ───────────────────────────────── */
     ChatHistory   m_chatHistory;                  ///< Persistenza sessioni in ~/.prismalux_chats/
@@ -325,8 +326,11 @@ private slots:
     void onInitialModelsReady(const QStringList& list);
     void onModelChanged(const QString& model);
     void onApplyBackendModelsReady(const QStringList& list);
-    void onQuizAiModelsReady(const QStringList& list);
-
+    void onZoomMinusBtnClicked();
+    void onZoomPlusBtnClicked();
+    void onZoomResetBtnClicked();
+    void onZoomPercentChanged(int pct);
+    void onZoomApplyDebounced();
     /* ── Header buttons ─────────────────────────────────────────── */
     void onHamburgerClicked();
     void onLogBtnClicked();
@@ -397,7 +401,6 @@ private:
     QString              m_ctxChatId;           ///< ID chat per context menu PDF/delete
     QString              m_ctxChatTitle;        ///< Titolo chat per context menu
     QPointer<QPushButton> m_navBackendClone;    ///< Clone backend nella nav bar
-    AiClient*            m_quizAi      = nullptr; ///< AiClient separato per QuizPage
     QString              m_pendingExecMode;     ///< Modalità pulsanti exec da applicare
     QString              m_pendingTheme;        ///< Tema da applicare via QueuedConnection
     QPushButton*         m_emergencyBtn = nullptr; ///< Pulsante emergenza RAM
