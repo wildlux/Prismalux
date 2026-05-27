@@ -23,6 +23,10 @@
 #include <QDateTimeEdit>
 #include <QPixmap>
 #include <QBuffer>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QDir>
+#include <QDateTime>
 /* ═══════════════════════════════════════════════════════════════════
    buildAstraleTab — ⭐ Carta Astrale / Tema Natale
    Inserisci dati di nascita e ottieni una lettura astrologica con AI.
@@ -243,11 +247,31 @@ QWidget* RicercaPage::buildAstraleTab()
     leftScroll->setWidget(leftW);
     mainSplit->addWidget(leftScroll);
 
-    /* ──── DESTRA: SOLO ruota astrale (più grande) ──── */
+    /* ──── DESTRA: ruota astrale + barra salva ──── */
+    auto* chartContainer = new QWidget;
+    auto* chartContLay   = new QVBoxLayout(chartContainer);
+    chartContLay->setContentsMargins(0, 0, 0, 0);
+    chartContLay->setSpacing(4);
+
     m_natalChart = new NatalChartWidget;
     m_natalChart->setMinimumHeight(300);
     m_natalChart->setMinimumWidth(260);
-    mainSplit->addWidget(m_natalChart);
+    chartContLay->addWidget(m_natalChart, 1);
+
+    auto* chartBtnRow = new QHBoxLayout;
+    chartBtnRow->setContentsMargins(4, 0, 4, 4);
+    chartBtnRow->setSpacing(6);
+    auto* btnSavePng = new QPushButton(
+        "\xf0\x9f\x96\xbc  Salva immagine .png", chartContainer);  /* 🖼 */
+    btnSavePng->setObjectName("actionBtn");
+    btnSavePng->setToolTip("Salva la ruota astrale come file PNG ad alta risoluzione");
+    chartBtnRow->addWidget(btnSavePng);
+    chartBtnRow->addStretch(1);
+    connect(btnSavePng, &QPushButton::clicked,
+            this, &RicercaPage::onSalvaChartPng);
+    chartContLay->addLayout(chartBtnRow);
+
+    mainSplit->addWidget(chartContainer);
 
     mainSplit->setStretchFactor(0, 1);
     mainSplit->setStretchFactor(1, 1);
@@ -285,12 +309,9 @@ QWidget* RicercaPage::buildAstraleTab()
         aLay->addWidget(btnPdf2);
         aLay->addWidget(btnClr2);
         aLay->addStretch();
-        connect(btnPdf2, &QPushButton::clicked, this,
-                [this]{ RicercaPage::esportaPdf(m_astraleOutput, "Carta Astrale", this); });
-        connect(btnMd2,  &QPushButton::clicked, this,
-                [this]{ RicercaPage::salvaMarkdown(m_astraleOutput, "Carta Astrale", this); });
-        connect(btnClr2, &QPushButton::clicked, this,
-                [this]{ m_astraleOutput->clear(); });
+        connect(btnPdf2, &QPushButton::clicked, this, &RicercaPage::onAstraleSavePdf);
+        connect(btnMd2,  &QPushButton::clicked, this, &RicercaPage::onAstraleSaveMd);
+        connect(btnClr2, &QPushButton::clicked, this, &RicercaPage::onAstraleClear);
         interpLay->addWidget(aBar);
     }
     interpLay->addWidget(m_astraleOutput, 1);
@@ -375,12 +396,9 @@ QWidget* RicercaPage::buildAstraleTab()
         kBarLay->addWidget(btnPdfK);
         kBarLay->addWidget(btnClrK);
         kBarLay->addStretch();
-        connect(btnPdfK, &QPushButton::clicked, this,
-                [this]{ RicercaPage::esportaPdf(m_karmicaOutput, "Ruota Karmica", this); });
-        connect(btnMdK,  &QPushButton::clicked, this,
-                [this]{ RicercaPage::salvaMarkdown(m_karmicaOutput, "Ruota Karmica", this); });
-        connect(btnClrK, &QPushButton::clicked, this,
-                [this]{ m_karmicaOutput->clear(); });
+        connect(btnPdfK, &QPushButton::clicked, this, &RicercaPage::onKarmicaSavePdf);
+        connect(btnMdK,  &QPushButton::clicked, this, &RicercaPage::onKarmicaSaveMd);
+        connect(btnClrK, &QPushButton::clicked, this, &RicercaPage::onKarmicaClear);
         karmLay->addWidget(kBar);
     }
     karmLay->addWidget(m_karmicaOutput, 1);
@@ -394,12 +412,7 @@ QWidget* RicercaPage::buildAstraleTab()
     root->addWidget(vSplit, 1);
 
     /* pulsante toggle: ⭐ Leggi → ■ Stop → ⭐ Leggi */
-    connect(m_astraleRunBtn, &QPushButton::clicked, this, [this] {
-        if (m_astraleRunBtn->property("running").toBool())
-            onAstraleStopClicked();
-        else
-            onAstraleRunClicked();
-    });
+    connect(m_astraleRunBtn, &QPushButton::clicked, this, &RicercaPage::onAstraleRunToggled);
 
     /* 🔮 Compila Ruota Karmica — calcolo + disegno, nessuna AI */
     connect(m_karmicaBtn, &QPushButton::clicked,
@@ -593,6 +606,9 @@ void RicercaPage::onAstraleRunClicked()
     if (m_sciProgress) m_sciProgress->setVisible(true);
 
     m_astraleOutput->clear();
+    m_astraleOutput->append(
+        "\xf0\x9f\xa4\x96 Sta rispondendo LLM: " + m_ai->model()
+        + " \xe2\x80\x94 generazione in corso...");
     m_astraleOutput->append(
         "\xe2\xad\x90  Lettura astrale in corso...\n"
         + QString(50, QChar(0x2500)));
@@ -998,4 +1014,90 @@ static const char* const* findCitta(const QString& cont, const QString& paese) {
 }
 
 } // namespace
+
+/* ─────────────────────────────────────────────────────────────────
+   Slot nominati — Carta Astrale (barra azioni)
+   ───────────────────────────────────────────────────────────────── */
+void RicercaPage::onAstraleRunToggled()
+{
+    if (m_astraleRunBtn->property("running").toBool())
+        onAstraleStopClicked();
+    else
+        onAstraleRunClicked();
+}
+
+void RicercaPage::onAstraleSavePdf()
+{
+    RicercaPage::esportaPdf(m_astraleOutput, "Carta Astrale", this);
+}
+
+void RicercaPage::onAstraleSaveMd()
+{
+    RicercaPage::salvaMarkdown(m_astraleOutput, "Carta Astrale", this);
+}
+
+void RicercaPage::onAstraleClear()
+{
+    m_astraleOutput->clear();
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Slot nominati — Ruota Karmica (barra azioni)
+   ───────────────────────────────────────────────────────────────── */
+void RicercaPage::onKarmicaSavePdf()
+{
+    RicercaPage::esportaPdf(m_karmicaOutput, "Ruota Karmica", this);
+}
+
+void RicercaPage::onKarmicaSaveMd()
+{
+    RicercaPage::salvaMarkdown(m_karmicaOutput, "Ruota Karmica", this);
+}
+
+void RicercaPage::onKarmicaClear()
+{
+    m_karmicaOutput->clear();
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Slot — Salva la ruota astrale grafica come PNG
+   ───────────────────────────────────────────────────────────────── */
+void RicercaPage::onSalvaChartPng()
+{
+    if (!m_natalChart) return;
+
+    const QString defaultName =
+        QString("ruota_astrale_%1.png")
+            .arg(QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss"));
+
+    const QString path = QFileDialog::getSaveFileName(
+        this,
+        "\xf0\x9f\x96\xbc  Salva ruota astrale come PNG",   /* 🖼 */
+        QDir::homePath() + "/" + defaultName,
+        "Immagine PNG (*.png);;Tutti i file (*)");
+
+    if (path.isEmpty()) return;
+
+    /* grab() cattura il widget al suo size corrente; scala a 2× per qualità */
+    const QPixmap pix = m_natalChart->grab();
+    if (pix.isNull()) {
+        QMessageBox::warning(this, "Errore",
+            "\xe2\x9a\xa0  La ruota non contiene dati.\n"
+            "Compila prima i dati natali e clicca \xf0\x9f\x94\xae Compila Ruota Karmica.");
+        return;
+    }
+
+    const QPixmap hires = pix.scaled(
+        pix.size() * 2,
+        Qt::KeepAspectRatio,
+        Qt::SmoothTransformation);
+
+    if (hires.save(path, "PNG")) {
+        QMessageBox::information(this, "Salvato",
+            "\xe2\x9c\x85  Ruota astrale salvata:\n" + path);
+    } else {
+        QMessageBox::warning(this, "Errore",
+            "\xe2\x9d\x8c  Impossibile salvare il file:\n" + path);
+    }
+}
 

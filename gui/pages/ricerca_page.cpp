@@ -72,13 +72,17 @@ static QWidget* makeOutputBar(QTextEdit* editor, const QString& titolo,
     blay->addWidget(btnPdf);
     blay->addWidget(btnClr);
 
-    QObject::connect(btnPdf, &QPushButton::clicked, parent, [editor, titolo, parent]{
-        RicercaPage::esportaPdf(editor, titolo, parent);
-    });
-    QObject::connect(btnMd, &QPushButton::clicked, parent, [editor, titolo, parent]{
-        RicercaPage::salvaMarkdown(editor, titolo, parent);
-    });
-    QObject::connect(btnClr, &QPushButton::clicked, parent, [editor]{ editor->clear(); });
+    /* Store editor and titolo as button properties so named slots can retrieve them */
+    btnPdf->setProperty("outputEditor", QVariant::fromValue<QObject*>(editor));
+    btnPdf->setProperty("outputTitolo", titolo);
+    btnMd->setProperty("outputEditor",  QVariant::fromValue<QObject*>(editor));
+    btnMd->setProperty("outputTitolo",  titolo);
+    btnClr->setProperty("outputEditor", QVariant::fromValue<QObject*>(editor));
+
+    auto* rp = qobject_cast<RicercaPage*>(parent);
+    QObject::connect(btnPdf, &QPushButton::clicked, rp, &RicercaPage::onOutputBarPdfClicked);
+    QObject::connect(btnMd,  &QPushButton::clicked, rp, &RicercaPage::onOutputBarMdClicked);
+    QObject::connect(btnClr, &QPushButton::clicked, rp, &RicercaPage::onOutputBarClrClicked);
     return bar;
 }
 
@@ -1019,6 +1023,28 @@ QWidget* RicercaPage::buildRDKitTab()
     lay->setContentsMargins(8, 8, 8, 8);
     lay->setSpacing(6);
 
+    /* ── Banner MedGemma ── */
+    auto* medgemmaFrame = new QFrame(w);
+    medgemmaFrame->setFrameShape(QFrame::StyledPanel);
+    medgemmaFrame->setStyleSheet(
+        "QFrame { background:#0d2a1a; border:2px solid #2e7d52;"
+        " border-radius:6px; padding:2px; }");
+    auto* medgemmaLay = new QHBoxLayout(medgemmaFrame);
+    medgemmaLay->setContentsMargins(10, 8, 10, 8);
+    auto* medgemmaLbl = new QLabel(
+        "\xf0\x9f\xa7\xac <b>Per analisi bioinformatiche usa modelli specializzati:</b> "
+        "<code>ollama run medgemma</code> | "
+        "<code>ollama run medgemma1.5</code> | "
+        "<code>ollama run functiongemma</code> "
+        "<span style='color:#7dcf9a;'>"
+        "(modelli Google specializzati in medicina e biologia)</span>",
+        medgemmaFrame);
+    medgemmaLbl->setTextFormat(Qt::RichText);
+    medgemmaLbl->setWordWrap(true);
+    medgemmaLbl->setStyleSheet("color:#c8f0d8; background:transparent; border:none;");
+    medgemmaLay->addWidget(medgemmaLbl);
+    lay->addWidget(medgemmaFrame);
+
     auto* descLbl = new QLabel(
         "\xf0\x9f\x94\xac  <i>RDKit \xe2\x80\x94 Libreria open-source di chemioinformatica per la manipolazione, "
         "analisi e disegno di molecole. Usata in drug discovery, QSAR, fingerprinting molecolare e chimica computazionale.</i>", w);
@@ -1115,6 +1141,28 @@ QWidget* RicercaPage::buildBiocondaTab()
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(8, 8, 8, 8);
     lay->setSpacing(6);
+
+    /* ── Banner MedGemma ── */
+    auto* medgemmaFrame = new QFrame(w);
+    medgemmaFrame->setFrameShape(QFrame::StyledPanel);
+    medgemmaFrame->setStyleSheet(
+        "QFrame { background:#0d2a1a; border:2px solid #2e7d52;"
+        " border-radius:6px; padding:2px; }");
+    auto* medgemmaLay = new QHBoxLayout(medgemmaFrame);
+    medgemmaLay->setContentsMargins(10, 8, 10, 8);
+    auto* medgemmaLbl = new QLabel(
+        "\xf0\x9f\xa7\xac <b>Per analisi bioinformatiche usa modelli specializzati:</b> "
+        "<code>ollama run medgemma</code> | "
+        "<code>ollama run medgemma1.5</code> | "
+        "<code>ollama run functiongemma</code> "
+        "<span style='color:#7dcf9a;'>"
+        "(modelli Google specializzati in medicina e biologia)</span>",
+        medgemmaFrame);
+    medgemmaLbl->setTextFormat(Qt::RichText);
+    medgemmaLbl->setWordWrap(true);
+    medgemmaLbl->setStyleSheet("color:#c8f0d8; background:transparent; border:none;");
+    medgemmaLay->addWidget(medgemmaLbl);
+    lay->addWidget(medgemmaFrame);
 
     auto* descLbl = new QLabel(
         "\xf0\x9f\x8c\xbf  <i>Bioconda \xe2\x80\x94 Repository specializzato di software bioinformatico installabile "
@@ -1905,12 +1953,7 @@ QWidget* RicercaPage::buildRab0lTab()
 
     connect(btnAn, &QPushButton::clicked, this, &RicercaPage::onRab0lAnalyzeClicked);
     connect(m_rab0lSeq1, &QLineEdit::returnPressed, this, &RicercaPage::onRab0lAnalyzeClicked);
-    connect(btnCl, &QPushButton::clicked, this, [this] {
-        m_rab0lSeq1->clear();
-        m_rab0lSeq2->clear();
-        m_rab0lSimLbl->clear();
-        m_rab0lCanvas->clearAll();
-    });
+    connect(btnCl, &QPushButton::clicked, this, &RicercaPage::onRab0lClearClicked);
 
     return w;
 }
@@ -2081,20 +2124,8 @@ QWidget* RicercaPage::buildBlhmTab()
 
         connect(btnCalc, &QPushButton::clicked,       this, &RicercaPage::onBlhmComputeClicked);
         connect(m_blhmQuery, &QLineEdit::returnPressed, this, &RicercaPage::onBlhmComputeClicked);
-        connect(btnAdd, &QPushButton::clicked, this, [this] {
-            int r = m_blhmTable->rowCount();
-            m_blhmTable->setRowCount(r + 1);
-            m_blhmTable->setItem(r, 0, new QTableWidgetItem("Bio"));
-            m_blhmTable->setItem(r, 1, new QTableWidgetItem("0.500"));
-            m_blhmTable->setItem(r, 2, new QTableWidgetItem("0.500"));
-            m_blhmTable->setItem(r, 3, new QTableWidgetItem("0.000"));
-            m_blhmTable->scrollToBottom();
-            m_blhmTable->editItem(m_blhmTable->item(r, 0));
-        });
-        connect(btnDel, &QPushButton::clicked, this, [this] {
-            if (m_blhmTable->selectedItems().isEmpty()) return;
-            m_blhmTable->removeRow(m_blhmTable->currentRow());
-        });
+        connect(btnAdd, &QPushButton::clicked, this, &RicercaPage::onBlhmAddRowClicked);
+        connect(btnDel, &QPushButton::clicked, this, &RicercaPage::onBlhmDeleteRowClicked);
 
         inner->addTab(calcW, "\xf0\x9f\xa7\xae  Calcolatore");
     }
@@ -2155,7 +2186,7 @@ QWidget* RicercaPage::buildBlhmTab()
 
         connect(btnSave, &QPushButton::clicked, this, &RicercaPage::onBlhmNoteSave);
         connect(btnLoad, &QPushButton::clicked, this, &RicercaPage::onBlhmNoteLoad);
-        connect(btnClr,  &QPushButton::clicked, this, [this] { m_blhmNoteEdit->clear(); });
+        connect(btnClr,  &QPushButton::clicked, this, &RicercaPage::onBlhmNotesClearClicked);
 
         inner->addTab(noteW, "\xf0\x9f\x93\x9d  Note");
     }
@@ -2202,12 +2233,7 @@ QWidget* RicercaPage::buildBlhmTab()
 
         connect(btnAn, &QPushButton::clicked, this, &RicercaPage::onBlhmDnaAnalyzeClicked);
         connect(m_blhmDnaSeq1, &QLineEdit::returnPressed, this, &RicercaPage::onBlhmDnaAnalyzeClicked);
-        connect(btnCl, &QPushButton::clicked, this, [this] {
-            m_blhmDnaSeq1->clear();
-            m_blhmDnaSeq2->clear();
-            m_blhmDnaSimLbl->clear();
-            m_blhmDnaCanvas->clearAll();
-        });
+        connect(btnCl, &QPushButton::clicked, this, &RicercaPage::onBlhmDnaClearClicked);
 
         inner->addTab(dnaW, "\xf0\x9f\xa7\xac  DNA");
     }
@@ -2589,6 +2615,91 @@ void RicercaPage::onAnalisiError(const QString& msg)
     if (m_sciProgress) m_sciProgress->setVisible(false);
     m_sciErrorPanel->showError(msg, [this]{ onAnalisiRunClicked(); });
 }
+/* ─────────────────────────────────────────────────────────────────
+   Slot — Output bar (PDF / Markdown / Svuota)
+   Ogni pulsante porta editor e titolo come QObject* property.
+   ───────────────────────────────────────────────────────────────── */
+void RicercaPage::onOutputBarPdfClicked()
+{
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn) return;
+    auto* editor = qobject_cast<QTextEdit*>(
+        btn->property("outputEditor").value<QObject*>());
+    const QString titolo = btn->property("outputTitolo").toString();
+    if (editor)
+        RicercaPage::esportaPdf(editor, titolo, this);
+}
+
+void RicercaPage::onOutputBarMdClicked()
+{
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn) return;
+    auto* editor = qobject_cast<QTextEdit*>(
+        btn->property("outputEditor").value<QObject*>());
+    const QString titolo = btn->property("outputTitolo").toString();
+    if (editor)
+        RicercaPage::salvaMarkdown(editor, titolo, this);
+}
+
+void RicercaPage::onOutputBarClrClicked()
+{
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn) return;
+    auto* editor = qobject_cast<QTextEdit*>(
+        btn->property("outputEditor").value<QObject*>());
+    if (editor)
+        editor->clear();
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Slot — RAB₀-L clear
+   ───────────────────────────────────────────────────────────────── */
+void RicercaPage::onRab0lClearClicked()
+{
+    if (m_rab0lSeq1)   m_rab0lSeq1->clear();
+    if (m_rab0lSeq2)   m_rab0lSeq2->clear();
+    if (m_rab0lSimLbl) m_rab0lSimLbl->clear();
+    if (m_rab0lCanvas) m_rab0lCanvas->clearAll();
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Slot — BLHM tabella pesi
+   ───────────────────────────────────────────────────────────────── */
+void RicercaPage::onBlhmAddRowClicked()
+{
+    if (!m_blhmTable) return;
+    const int r = m_blhmTable->rowCount();
+    m_blhmTable->setRowCount(r + 1);
+    m_blhmTable->setItem(r, 0, new QTableWidgetItem("Bio"));
+    m_blhmTable->setItem(r, 1, new QTableWidgetItem("0.500"));
+    m_blhmTable->setItem(r, 2, new QTableWidgetItem("0.500"));
+    m_blhmTable->setItem(r, 3, new QTableWidgetItem("0.000"));
+    m_blhmTable->scrollToBottom();
+    m_blhmTable->editItem(m_blhmTable->item(r, 0));
+}
+
+void RicercaPage::onBlhmDeleteRowClicked()
+{
+    if (!m_blhmTable || m_blhmTable->selectedItems().isEmpty()) return;
+    m_blhmTable->removeRow(m_blhmTable->currentRow());
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Slot — BLHM note / DNA clear
+   ───────────────────────────────────────────────────────────────── */
+void RicercaPage::onBlhmNotesClearClicked()
+{
+    if (m_blhmNoteEdit) m_blhmNoteEdit->clear();
+}
+
+void RicercaPage::onBlhmDnaClearClicked()
+{
+    if (m_blhmDnaSeq1)   m_blhmDnaSeq1->clear();
+    if (m_blhmDnaSeq2)   m_blhmDnaSeq2->clear();
+    if (m_blhmDnaSimLbl) m_blhmDnaSimLbl->clear();
+    if (m_blhmDnaCanvas) m_blhmDnaCanvas->clearAll();
+}
+
 /* ─────────────────────────────────────────────────────────────────
    onBlhmDnaAnalyzeClicked (originale invariato dopo questo punto)
    ───────────────────────────────────────────────────────────────── */

@@ -522,6 +522,17 @@ QWidget* AppControllerPage::buildBlenderTab()
     hintLbl->setWordWrap(true);
     lay->addWidget(hintLbl);
 
+    /* ── Avviso modello troppo piccolo per Blender (nascosto di default) ── */
+    m_blenderWarnLbl = new QLabel(w);
+    m_blenderWarnLbl->setObjectName("hintLabel");
+    m_blenderWarnLbl->setWordWrap(true);
+    m_blenderWarnLbl->setTextFormat(Qt::RichText);
+    m_blenderWarnLbl->setStyleSheet(
+        "background:#3a3000; border:1px solid #a08000;"
+        " border-radius:4px; padding:6px; color:#f0d060;");
+    m_blenderWarnLbl->setVisible(false);
+    lay->addWidget(m_blenderWarnLbl);
+
     /* ── Azione + Modello ── */
     auto* toolRow = new QWidget(w);
     auto* toolLay = new QHBoxLayout(toolRow);

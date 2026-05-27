@@ -4,6 +4,7 @@
 
 class QTabWidget;
 class QPlainTextEdit;
+class QTextEdit;
 class QLineEdit;
 class QSpinBox;
 class QComboBox;
@@ -18,10 +19,12 @@ class QFileInfo;
 
    Layout:
    ┌────────────────────────────────────────────────────────────┐
-   │  QTabWidget  (4 schede)                                    │
-   │  ┌──────────┬───────────────┬──────────┬──────────────┐   │
-   │  │🔢Sequenza│ π φ e √ const │ N-esimo  │ 🧮 Espressione│  │
-   │  └──────────┴───────────────┴──────────┴──────────────┘   │
+   │  🤖 Modello AI: [combo condivisa] [🔄]                     │
+   ├────────────────────────────────────────────────────────────┤
+   │  QTabWidget  (5 schede)                                    │
+   │  ┌──────────┬───────────────┬──────────┬──────┬─────────┐  │
+   │  │🔢Sequenza│ π φ e √ const │ N-esimo  │ 🧮   │📐 Risolvi│ │
+   │  └──────────┴───────────────┴──────────┴──────┴─────────┘  │
    ├────────────────────────────────────────────────────────────┤
    │  Output (QPlainTextEdit monosp. scrollabile)               │
    │  [📋 Copia]  [🗑 Cancella]                                 │
@@ -43,11 +46,13 @@ private:
     QProcess*       m_proc     = nullptr;
     bool            m_aiRunning = false;
 
+    /* ── barra modello condivisa (sopra tutte le tab) ── */
+    QComboBox*  m_modelCombo = nullptr;   ///< selezione modello AI — condivisa tra tutte le schede
+
     /* ── tab Sequenza ── */
     QLineEdit*  m_seqInput   = nullptr;   ///< "1, 4, 9, 16, 25"
     QSpinBox*   m_nextTerms  = nullptr;   ///< quanti termini successivi suggerire
     QLabel*     m_seqResult  = nullptr;   ///< formula rilevata localmente
-    QComboBox*  m_modelCombo = nullptr;   ///< selezione modello AI per Analizza con AI
 
     /* ── tab Costanti ── */
     QComboBox*  m_constCombo = nullptr;   ///< π  e  φ  √2  √3  √5
@@ -64,11 +69,24 @@ private:
     QLineEdit*  m_exprInput  = nullptr;   ///< "sqrt(2) + sin(pi/4)"
     QSpinBox*   m_exprPrec   = nullptr;   ///< cifre di precisione (default 50)
 
+    /* ── tab Risolvi Passi ── */
+    QLineEdit*   m_solveInput   = nullptr;
+    QComboBox*   m_solveCmb     = nullptr;
+    QPushButton* m_btnSolve     = nullptr;
+    QPushButton* m_btnSolveCopy = nullptr;
+    QPushButton* m_btnSolveAi   = nullptr;  ///< "Spiega con AI" (appare dopo SymPy)
+    QTextEdit*   m_solveOutput  = nullptr;
+    bool         m_solveBusy    = false;
+    bool         m_solvePyMode  = false;    ///< true quando proc SymPy è in esecuzione
+    QTextEdit*   m_pyOutTarget  = nullptr;  ///< output proc → questo widget
+    QString      m_solveFullText;
+
     /* builder schede */
     QWidget* buildSeqTab();
     QWidget* buildConstTab();
     QWidget* buildNthTab();
     QWidget* buildExprTab();
+    QWidget* buildSolveTab();
 
     /* azioni */
     void runSequence();
@@ -133,11 +151,23 @@ private slots:
     void onAiSeqFinished(const QString& full);
     void onAiSeqError(const QString& msg);
 
+    /* tab Risolvi Passi */
+    void onSolveClicked();
+    void onSolveStopClicked();
+    void onSolveCopyClicked();
+    void onSolveRestoreCopyBtn();
+    void onSolveAiClicked();
+    void onSolveToken(const QString& t);
+    void onSolveFinished(const QString& full);
+    void onSolveError(const QString& msg);
+
     /* QProcess Python */
     void onProcReadyRead();
     void onProcFinished(int code, QProcess::ExitStatus status);
 
 private:
     /* holder one-shot per i segnali AI durante runAiSequence */
-    QObject* m_aiSeqHolder = nullptr;
+    QObject* m_aiSeqHolder  = nullptr;
+    /* holder one-shot per i segnali AI durante Risolvi Passi */
+    QObject* m_aiSolveHolder = nullptr;
 };

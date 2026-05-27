@@ -4,7 +4,6 @@ namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
-#include <QLabel>
 #include <QFrame>
 #include <QScrollArea>
 #include <QGroupBox>
@@ -20,6 +19,9 @@ namespace P = PrismaluxPaths;
 #include <QJsonArray>
 #include <QDateTime>
 #include <QMap>
+#include <QRegularExpression>
+#include <QStackedWidget>
+#include <QTextEdit>
 
 /* ══════════════════════════════════════════════════════════════
    buildGeneraTab — UI generazione quiz
@@ -28,7 +30,9 @@ QWidget* buildGeneraTab(QuizPage* self,
                          QLineEdit*& topicEdit, QSpinBox*& nDomande,
                          QComboBox*& cmbTipo, QComboBox*& cmbDiff,
                          QPushButton*& btnGenera,
-                         QPushButton*& btnCopy, QTextEdit*& output)
+                         QPushButton*& btnCopy,
+                         QPushButton*& btnGioca,
+                         QTextEdit*& output)
 {
     auto* w   = new QWidget;
     auto* lay = new QVBoxLayout(w);
@@ -93,8 +97,14 @@ QWidget* buildGeneraTab(QuizPage* self,
     btnCopy->setObjectName("actionBtn");
     btnCopy->setEnabled(false);
 
+    btnGioca = new QPushButton("\xf0\x9f\x8e\xae  Gioca!", w);
+    btnGioca->setObjectName("actionBtn");
+    btnGioca->setEnabled(false);
+    btnGioca->setVisible(false);
+
     btnRow->addWidget(btnGenera);
     btnRow->addStretch(1);
+    btnRow->addWidget(btnGioca);
     btnRow->addWidget(btnCopy);
     lay->addLayout(btnRow);
 
@@ -107,6 +117,125 @@ QWidget* buildGeneraTab(QuizPage* self,
         "Suggerimento: puoi usare l\xe2\x80\x99" "argomento in italiano o in inglese.");
     lay->addWidget(output, 1);
 
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildGiocaTab — quiz interattivo
+   ══════════════════════════════════════════════════════════════ */
+QWidget* buildGiocaTab(QuizPage* self,
+                        QWidget*& giocaPanel,
+                        QStackedWidget*& giocaStack,
+                        QLabel*& progressLbl,
+                        QLabel*& questionLbl,
+                        QWidget*& optWidget,
+                        QList<QPushButton*>& optBtns,
+                        QLabel*& feedbackLbl,
+                        QPushButton*& btnNext,
+                        QWidget*& openWidget,
+                        QTextEdit*& openAnswer,
+                        QLabel*& riepilogoLbl)
+{
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(20, 16, 20, 16);
+    lay->setSpacing(12);
+
+    /* stack: 0=quiz in corso, 1=riepilogo */
+    giocaStack = new QStackedWidget(w);
+
+    /* ─── Pagina quiz (index 0) ─── */
+    giocaPanel = new QWidget;
+    auto* qLay = new QVBoxLayout(giocaPanel);
+    qLay->setContentsMargins(0, 0, 0, 0);
+    qLay->setSpacing(14);
+
+    progressLbl = new QLabel("Domanda 1 / ?", giocaPanel);
+    progressLbl->setObjectName("cardDesc");
+    progressLbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    qLay->addWidget(progressLbl);
+
+    /* testo domanda */
+    auto* qCard = new QFrame(giocaPanel);
+    qCard->setObjectName("actionCard");
+    auto* qCardLay = new QVBoxLayout(qCard);
+    qCardLay->setContentsMargins(16, 14, 16, 14);
+    questionLbl = new QLabel("", qCard);
+    questionLbl->setObjectName("cardTitle");
+    questionLbl->setWordWrap(true);
+    questionLbl->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    qCardLay->addWidget(questionLbl);
+    qLay->addWidget(qCard);
+
+    /* pulsanti opzioni A/B/C/D */
+    optWidget = new QWidget(giocaPanel);
+    auto* optLay = new QVBoxLayout(optWidget);
+    optLay->setContentsMargins(0, 0, 0, 0);
+    optLay->setSpacing(8);
+    const char* labels[] = {"A", "B", "C", "D"};
+    for (int i = 0; i < 4; ++i) {
+        auto* btn = new QPushButton(QString(labels[i]) + ") ...", optWidget);
+        btn->setObjectName("actionBtn");
+        btn->setMinimumHeight(40);
+        btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        optLay->addWidget(btn);
+        optBtns.append(btn);
+        QObject::connect(btn, &QPushButton::clicked, self, &QuizPage::onOptionSelected);
+    }
+    qLay->addWidget(optWidget);
+
+    /* campo risposta aperta */
+    openWidget = new QWidget(giocaPanel);
+    auto* openLay = new QVBoxLayout(openWidget);
+    openLay->setContentsMargins(0, 0, 0, 0);
+    openLay->setSpacing(6);
+    auto* openHint = new QLabel("\xf0\x9f\x93\x9d  Domanda aperta \xe2\x80\x94 scrivi la tua risposta:", openWidget);
+    openHint->setObjectName("cardDesc");
+    openAnswer = new QTextEdit(openWidget);
+    openAnswer->setObjectName("chatInput");
+    openAnswer->setFixedHeight(80);
+    openAnswer->setPlaceholderText("Scrivi qui la tua risposta...");
+    openLay->addWidget(openHint);
+    openLay->addWidget(openAnswer);
+    qLay->addWidget(openWidget);
+    openWidget->setVisible(false);
+
+    /* feedback */
+    feedbackLbl = new QLabel("", giocaPanel);
+    feedbackLbl->setObjectName("cardDesc");
+    feedbackLbl->setWordWrap(true);
+    feedbackLbl->setAlignment(Qt::AlignCenter);
+    feedbackLbl->setVisible(false);
+    qLay->addWidget(feedbackLbl);
+
+    /* pulsante avanti */
+    auto* nextRow = new QHBoxLayout;
+    btnNext = new QPushButton("Avanti \xe2\x86\x92", giocaPanel);
+    btnNext->setObjectName("actionBtn");
+    btnNext->setVisible(false);
+    QObject::connect(btnNext, &QPushButton::clicked, self, &QuizPage::onNextQuestion);
+    nextRow->addStretch(1);
+    nextRow->addWidget(btnNext);
+    qLay->addLayout(nextRow);
+    qLay->addStretch(1);
+
+    giocaStack->addWidget(giocaPanel); // index 0
+
+    /* ─── Pagina riepilogo (index 1) ─── */
+    auto* riepilogoPage = new QWidget;
+    auto* rLay = new QVBoxLayout(riepilogoPage);
+    rLay->setContentsMargins(0, 0, 0, 0);
+    rLay->setSpacing(16);
+    rLay->addStretch(1);
+    riepilogoLbl = new QLabel("", riepilogoPage);
+    riepilogoLbl->setObjectName("pageTitle");
+    riepilogoLbl->setWordWrap(true);
+    riepilogoLbl->setAlignment(Qt::AlignCenter);
+    rLay->addWidget(riepilogoLbl);
+    rLay->addStretch(1);
+    giocaStack->addWidget(riepilogoPage); // index 1
+
+    lay->addWidget(giocaStack, 1);
     return w;
 }
 
@@ -149,21 +278,32 @@ QuizPage::QuizPage(AiClient* ai, QWidget* parent)
     /* Tab 0 — Genera */
     QWidget* generaTab = buildGeneraTab(this,
         m_topicEdit, m_nDomande, m_cmbTipo, m_cmbDiff,
-        m_btnGenera, m_btnCopy, m_output);
+        m_btnGenera, m_btnCopy, m_btnGioca, m_output);
     m_tabs->addTab(generaTab, "\xf0\x9f\x8e\xaf  Genera");
 
-    /* Tab 1 — Storico */
+    /* Tab 1 — Gioca */
+    QWidget* giocaTab = buildGiocaTab(this,
+        m_giocaPanel, m_giocaStack,
+        m_progressLbl, m_questionLbl,
+        m_optWidget, m_optBtns,
+        m_feedbackLbl, m_btnNext,
+        m_openWidget, m_openAnswer,
+        m_riepilogoLbl);
+    m_giocaTabIdx = m_tabs->addTab(giocaTab, "\xf0\x9f\x8e\xae  Gioca");
+
+    /* Tab 2 — Storico */
     QWidget* storicoTab = buildStoricoTab(m_dashContent);
     m_tabs->addTab(storicoTab, "\xf0\x9f\x93\x8a  Storico");
 
     lay->addWidget(m_tabs);
 
-    /* Carica storico quando si passa al tab 1 */
+    /* Carica storico quando si passa al tab Storico */
     connect(m_tabs, &QTabWidget::currentChanged, this, &QuizPage::onTabChanged);
 
     /* ── Connessioni pulsanti ── */
     connect(m_btnGenera, &QPushButton::clicked, this, &QuizPage::onGeneraClicked);
     connect(m_btnCopy,   &QPushButton::clicked, this, &QuizPage::onCopyClicked);
+    connect(m_btnGioca,  &QPushButton::clicked, this, &QuizPage::onGiocaClicked);
 
     connect(m_topicEdit, &QLineEdit::returnPressed,
             this, &QuizPage::startGeneration);
@@ -190,6 +330,8 @@ void QuizPage::startGeneration() {
     m_output->clear();
     _setGenerateBusy(true);
     m_btnCopy->setEnabled(false);
+    m_btnGioca->setEnabled(false);
+    m_btnGioca->setVisible(false);
 
     int    n      = m_nDomande->value();
     QString tipo  = m_cmbTipo->currentIndex() == 0 ? "risposta aperta"
@@ -223,10 +365,11 @@ void QuizPage::stopGeneration() {
     m_btnCopy->setEnabled(!m_fullText.isEmpty());
 }
 
-// ─── Slot ──────────────────────────────────────────────────────────────────
+// ─── Slot generazione ──────────────────────────────────────────────────────
 
-void QuizPage::onTabChanged(int idx)    { if (idx == 1) loadDashboard(); }
-void QuizPage::onGeneraClicked()        { if (m_generating) stopGeneration(); else startGeneration(); }
+void QuizPage::onGeneraClicked() {
+    if (m_generating) stopGeneration(); else startGeneration();
+}
 
 void QuizPage::onCopyClicked()
 {
@@ -234,7 +377,7 @@ void QuizPage::onCopyClicked()
     m_btnCopy->setText("\xe2\x9c\x85  Copiato!");
     QTimer::singleShot(2000, this, &QuizPage::onCopyRestoreText);
 }
-void QuizPage::onCopyRestoreText()      { m_btnCopy->setText("\xf0\x9f\x93\x8b  Copia"); }
+void QuizPage::onCopyRestoreText() { m_btnCopy->setText("\xf0\x9f\x93\x8b  Copia"); }
 
 void QuizPage::onQuizToken(const QString& tok)
 {
@@ -249,6 +392,19 @@ void QuizPage::onQuizFinished(const QString&)
     if (!m_generating) return;
     _setGenerateBusy(false);
     m_btnCopy->setEnabled(!m_fullText.isEmpty());
+
+    /* Abilita "Gioca!" solo se ci sono domande a scelta multipla */
+    if (!m_fullText.isEmpty()) {
+        QList<QuizQuestion> preview = parseQuiz(m_fullText);
+        bool hasMulti = false;
+        for (const auto& q : preview) {
+            if (!q.options.isEmpty()) { hasMulti = true; break; }
+        }
+        if (hasMulti || !preview.isEmpty()) {
+            m_btnGioca->setVisible(true);
+            m_btnGioca->setEnabled(true);
+        }
+    }
 }
 void QuizPage::onQuizError(const QString& msg)
 {
@@ -269,6 +425,320 @@ void QuizPage::_setGenerateBusy(bool busy)
     }
     m_btnGenera->setEnabled(true);
     P::repolish(m_btnGenera);
+}
+
+// ─── Tab changed ───────────────────────────────────────────────────────────
+
+void QuizPage::onTabChanged(int idx)
+{
+    /* Storico = ultimo tab (index 2 con gioca, 1 senza) */
+    if (idx == m_tabs->count() - 1) loadDashboard();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   parseQuiz — parser testo LLM → lista QuizQuestion
+   ══════════════════════════════════════════════════════════════ */
+QList<QuizQuestion> QuizPage::parseQuiz(const QString& text)
+{
+    QList<QuizQuestion> result;
+    QStringList lines = text.split('\n');
+
+    // Regex
+    static const QRegularExpression reQuestion(R"(^\s*\d+\.\s+(.+))");
+    static const QRegularExpression reOption(
+        R"(^\s*([A-Da-d])[\.:\)]\s*(.+))");
+    static const QRegularExpression reAnswer(
+        R"(^\s*[\(\[]?\s*[Rr]isposta\s*(?:[Cc]orretta\s*)?:?\s*\]?\)?\s*([A-Da-d])\b)");
+
+    QuizQuestion current;
+    bool inQuestion = false;
+
+    auto flushCurrent = [&]() {
+        if (inQuestion && !current.text.isEmpty()) {
+            result.append(current);
+        }
+        current = QuizQuestion{};
+        inQuestion = false;
+    };
+
+    for (const QString& rawLine : lines) {
+        QString line = rawLine.trimmed();
+        if (line.isEmpty()) continue;
+
+        QRegularExpressionMatch mQ = reQuestion.match(line);
+        if (mQ.hasMatch()) {
+            flushCurrent();
+            current.text = mQ.captured(1).trimmed();
+            inQuestion = true;
+            continue;
+        }
+
+        if (inQuestion) {
+            QRegularExpressionMatch mO = reOption.match(line);
+            if (mO.hasMatch()) {
+                current.options.append(mO.captured(2).trimmed());
+                continue;
+            }
+
+            QRegularExpressionMatch mA = reAnswer.match(line);
+            if (mA.hasMatch()) {
+                QString letter = mA.captured(1).toUpper();
+                current.correctIdx = letter.at(0).unicode() - 'A';
+                continue;
+            }
+
+            /* riga di testo aggiuntiva alla domanda (multi-riga) */
+            if (current.options.isEmpty()) {
+                current.text += " " + line;
+            }
+        }
+    }
+    flushCurrent();
+
+    /* Sanity: se correctIdx non trovato ma ci sono opzioni, lascia -1
+       (verrà trattato come "open" in fase di feedback) */
+    return result;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onGiocaClicked — avvia la sessione interattiva
+   ══════════════════════════════════════════════════════════════ */
+void QuizPage::onGiocaClicked()
+{
+    m_parsedQuestions = parseQuiz(m_fullText);
+    if (m_parsedQuestions.isEmpty()) {
+        m_output->append("\n\xe2\x9a\xa0  Nessuna domanda riconosciuta nel testo.");
+        return;
+    }
+
+    m_currentQ = 0;
+    m_score    = 0;
+    m_answered = false;
+
+    /* Passa al tab Gioca */
+    m_tabs->setCurrentIndex(m_giocaTabIdx);
+
+    m_giocaStack->setCurrentIndex(0);
+    showQuestion(0);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   resetGiocaUI — ripristina lo stato della UI per una nuova domanda
+   ══════════════════════════════════════════════════════════════ */
+void QuizPage::resetGiocaUI()
+{
+    m_feedbackLbl->setVisible(false);
+    m_feedbackLbl->setText("");
+    m_feedbackLbl->setStyleSheet("");
+    m_btnNext->setVisible(false);
+    m_answered = false;
+
+    for (auto* btn : m_optBtns) {
+        btn->setEnabled(true);
+        btn->setStyleSheet("");
+    }
+    if (m_openAnswer) m_openAnswer->clear();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   showQuestion — mostra la domanda idx
+   ══════════════════════════════════════════════════════════════ */
+void QuizPage::showQuestion(int idx)
+{
+    resetGiocaUI();
+
+    const int total = m_parsedQuestions.size();
+    m_progressLbl->setText(
+        QString("Domanda %1 / %2   \xf0\x9f\x8f\x86 Punteggio: %3")
+            .arg(idx + 1).arg(total).arg(m_score));
+
+    const QuizQuestion& q = m_parsedQuestions[idx];
+    m_questionLbl->setText(
+        QString("<b>%1.</b> %2").arg(idx + 1).arg(q.text.toHtmlEscaped()));
+
+    bool isMulti = (!q.options.isEmpty() && q.options.size() >= 2);
+
+    if (isMulti) {
+        /* mostra i pulsanti opzione */
+        m_optWidget->setVisible(true);
+        m_openWidget->setVisible(false);
+
+        const char* labels[] = {"A", "B", "C", "D"};
+        for (int i = 0; i < 4; ++i) {
+            if (i < q.options.size()) {
+                m_optBtns[i]->setText(
+                    QString("%1) %2").arg(labels[i]).arg(q.options[i]));
+                m_optBtns[i]->setVisible(true);
+                m_optBtns[i]->setEnabled(true);
+                m_optBtns[i]->setStyleSheet("");
+                /* Salva l'indice nell'oggetto pulsante */
+                m_optBtns[i]->setProperty("optIdx", i);
+            } else {
+                m_optBtns[i]->setVisible(false);
+            }
+        }
+    } else {
+        /* domanda aperta */
+        m_optWidget->setVisible(false);
+        m_openWidget->setVisible(true);
+        /* Per aperta: pulsante "Avanti" con slot diverso */
+        disconnect(m_btnNext, &QPushButton::clicked, this, &QuizPage::onNextQuestion);
+        disconnect(m_btnNext, &QPushButton::clicked, this, &QuizPage::onOpenNext);
+        connect(m_btnNext, &QPushButton::clicked, this, &QuizPage::onOpenNext);
+        m_btnNext->setText("Avanti \xe2\x86\x92");
+        m_btnNext->setVisible(true);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onOptionSelected — slot comune per tutti e 4 i pulsanti A/B/C/D
+   ══════════════════════════════════════════════════════════════ */
+void QuizPage::onOptionSelected()
+{
+    if (m_answered) return;
+    m_answered = true;
+
+    QPushButton* clicked = qobject_cast<QPushButton*>(sender());
+    if (!clicked) return;
+
+    int chosen = clicked->property("optIdx").toInt();
+    const QuizQuestion& q = m_parsedQuestions[m_currentQ];
+
+    /* Disabilita tutti i pulsanti */
+    for (auto* btn : m_optBtns) btn->setEnabled(false);
+
+    bool correct = (q.correctIdx >= 0 && chosen == q.correctIdx);
+
+    if (correct) {
+        ++m_score;
+        clicked->setStyleSheet(
+            "QPushButton { background:#1a7a1a; color:#ffffff; border:2px solid #22aa22; }");
+        m_feedbackLbl->setText("\xe2\x9c\x85  Corretto!");
+        m_feedbackLbl->setStyleSheet("color:#22cc22; font-weight:bold; font-size:15px;");
+    } else {
+        clicked->setStyleSheet(
+            "QPushButton { background:#7a1a1a; color:#ffffff; border:2px solid #cc2222; }");
+
+        /* Evidenzia risposta corretta se nota */
+        if (q.correctIdx >= 0 && q.correctIdx < m_optBtns.size()) {
+            m_optBtns[q.correctIdx]->setStyleSheet(
+                "QPushButton { background:#1a5a1a; color:#ffffff; border:2px solid #22aa22; }");
+            const char* labels[] = {"A", "B", "C", "D"};
+            m_feedbackLbl->setText(
+                QString("\xe2\x9d\x8c  Sbagliato! La risposta corretta era: <b>%1</b>")
+                    .arg(labels[q.correctIdx]));
+        } else {
+            m_feedbackLbl->setText("\xe2\x9d\x8c  Sbagliato!");
+        }
+        m_feedbackLbl->setStyleSheet("color:#cc2222; font-weight:bold; font-size:15px;");
+    }
+    m_feedbackLbl->setVisible(true);
+
+    /* Ricollega btnNext al normale avanzamento */
+    disconnect(m_btnNext, &QPushButton::clicked, this, &QuizPage::onNextQuestion);
+    disconnect(m_btnNext, &QPushButton::clicked, this, &QuizPage::onOpenNext);
+    connect(m_btnNext, &QPushButton::clicked, this, &QuizPage::onNextQuestion);
+
+    bool isLast = (m_currentQ == m_parsedQuestions.size() - 1);
+    m_btnNext->setText(isLast ? "\xf0\x9f\x8f\x86  Risultati" : "Avanti \xe2\x86\x92");
+    m_btnNext->setVisible(true);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onOpenNext — avanza senza punteggio (domanda aperta)
+   ══════════════════════════════════════════════════════════════ */
+void QuizPage::onOpenNext()
+{
+    m_answered = true;
+    bool isLast = (m_currentQ == m_parsedQuestions.size() - 1);
+    if (isLast) {
+        showRiepilogo();
+    } else {
+        ++m_currentQ;
+        /* Ricollega btnNext a onNextQuestion per la prossima domanda */
+        disconnect(m_btnNext, &QPushButton::clicked, this, &QuizPage::onOpenNext);
+        disconnect(m_btnNext, &QPushButton::clicked, this, &QuizPage::onNextQuestion);
+        connect(m_btnNext, &QPushButton::clicked, this, &QuizPage::onNextQuestion);
+        showQuestion(m_currentQ);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onNextQuestion — avanza alla domanda successiva
+   ══════════════════════════════════════════════════════════════ */
+void QuizPage::onNextQuestion()
+{
+    bool isLast = (m_currentQ == m_parsedQuestions.size() - 1);
+    if (isLast) {
+        showRiepilogo();
+    } else {
+        ++m_currentQ;
+        showQuestion(m_currentQ);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   showRiepilogo — schermata finale con punteggio
+   ══════════════════════════════════════════════════════════════ */
+void QuizPage::showRiepilogo()
+{
+    int total = m_parsedQuestions.size();
+    /* Conta solo le domande a scelta multipla (quelle con correctIdx noto) */
+    int countMulti = 0;
+    for (const auto& q : m_parsedQuestions) {
+        if (!q.options.isEmpty() && q.correctIdx >= 0) ++countMulti;
+    }
+
+    double pct = countMulti > 0 ? m_score * 100.0 / countMulti : 0.0;
+
+    QString emoji;
+    if (pct >= 80)       emoji = "\xf0\x9f\x8f\x86";
+    else if (pct >= 50)  emoji = "\xf0\x9f\x91\x8d";
+    else                 emoji = "\xf0\x9f\x92\xaa";
+
+    QString msg = QString(
+        "%1  Quiz completato!\n\n"
+        "Punteggio: <b>%2 / %3</b> risposte corrette\n"
+        "(%4%)\n\n"
+        "Domande totali: %5  |  A scelta multipla: %6")
+        .arg(emoji)
+        .arg(m_score).arg(countMulti)
+        .arg(pct, 0, 'f', 1)
+        .arg(total).arg(countMulti);
+
+    m_riepilogoLbl->setText(msg);
+    m_giocaStack->setCurrentIndex(1);
+
+    /* Salva sessione nel JSON storico */
+    QString topic = m_topicEdit->text().trimmed();
+    QString diff;
+    switch (m_cmbDiff->currentIndex()) {
+        case 0: diff = "facile"; break;
+        case 2: diff = "difficile"; break;
+        default: diff = "medio"; break;
+    }
+
+    const QString path = QDir::homePath() + "/.prismalux_quiz.json";
+    QFile f(path);
+    QJsonObject root;
+    if (f.exists() && f.open(QIODevice::ReadOnly)) {
+        root = QJsonDocument::fromJson(f.readAll()).object();
+        f.close();
+    }
+    QJsonArray sessions = root["sessions"].toArray();
+    QJsonObject sess;
+    sess["date"]      = QDateTime::currentDateTime().toString(Qt::ISODate);
+    sess["subject"]   = topic.isEmpty() ? "Quiz" : topic;
+    sess["difficulty"]= diff;
+    sess["total"]     = countMulti;
+    sess["correct"]   = m_score;
+    sess["wrong"]     = countMulti - m_score;
+    sessions.prepend(sess);
+    root["sessions"]  = sessions;
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        f.write(QJsonDocument(root).toJson());
+        f.close();
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -324,7 +794,12 @@ void QuizPage::loadDashboard() {
 
     auto* globBox = new QGroupBox("\xf0\x9f\x93\x88  Statistiche globali", m_dashContent);
     auto* globL   = new QHBoxLayout(globBox);
-    auto addStat = [&](const QString& lbl, const QString& val){
+
+    /* statistica inline con widget locali */
+    struct StatCol {
+        QWidget* col; QVBoxLayout* cl; QLabel* lv; QLabel* ll;
+    };
+    auto addStat = [&](const QString& lbl, const QString& val) {
         auto* col = new QWidget(globBox);
         auto* cl  = new QVBoxLayout(col); cl->setSpacing(2); cl->setContentsMargins(12,4,12,4);
         auto* lv  = new QLabel(val, col); lv->setObjectName("pageTitle"); lv->setAlignment(Qt::AlignCenter);

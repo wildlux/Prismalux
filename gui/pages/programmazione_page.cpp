@@ -2,6 +2,7 @@
 #include "code_interpreter_widget.h"
 #include "../prismalux_paths.h"
 #include "../ai_utils.h"
+#include "../widgets/ai_error_widget.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -47,6 +48,7 @@ namespace P = PrismaluxPaths;
 #include <QMimeData>
 #include <QUrl>
 #include <QColor>
+#include <QDesktopServices>
 
 /* ══════════════════════════════════════════════════════════════
    isIntentionalError — rileva errori volutamente creati dall'utente.
@@ -198,6 +200,9 @@ void ProgrammazionePage::buildInnerTabs()
     reteLay->addWidget(reteTabs);
     m_innerTabs->addTab(reteWrap,
         "\xf0\x9f\x8c\x90  Rete & Network");
+
+    m_innerTabs->addTab(buildDriverKernelTab(m_innerTabs),
+        "\xf0\x9f\x94\xa7  Driver & Kernel");
 }
 
 /* ── Livello 1: tab Coding completo ── */
@@ -222,6 +227,9 @@ QWidget* ProgrammazionePage::buildCodingTab(QWidget* parent)
     codingLay->addWidget(mainSplit, 1);
 
     codingLay->addWidget(buildAiPanel(codingTab, btnRefreshMod, btnCloseAi));
+
+    m_fixErrPanel = new AiErrorWidget(codingTab);
+    codingLay->addWidget(m_fixErrPanel);
 
     setupCodingConnections(btnClear, btnRefreshMod, btnCloseAi);
     return codingTab;
@@ -913,6 +921,8 @@ void ProgrammazionePage::_doFix(bool includeError,
                                  const QString& lang,
                                  const QString& ext)
 {
+    if (m_fixErrPanel) m_fixErrPanel->hide();
+
     /* Salva il modello attivo PRIMA di cambiarlo — verrà ripristinato al termine */
     m_fixOriginalModel = m_ai->model();
 
@@ -2004,6 +2014,213 @@ QWidget* ProgrammazionePage::buildReteLan(QWidget* parent)
     connect(btnRefresh, &QPushButton::clicked,
             this, &ProgrammazionePage::lanRefreshInfo);
     return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildDriverKernelTab — sub-tab "🔧 Driver & Kernel"
+   Sub-tab NVIDIA / AMD / Kernel con guida AI e comandi read-only.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ProgrammazionePage::buildDriverKernelTab(QWidget* parent)
+{
+    auto* wrap = new QWidget(parent);
+    auto* lay  = new QVBoxLayout(wrap);
+    lay->setContentsMargins(0, 0, 0, 0);
+    lay->setSpacing(0);
+
+    auto* tabs = new QTabWidget(wrap);
+    tabs->setObjectName("innerTabs");
+
+    /* ════════════════════════════════
+       Sub-tab 1: NVIDIA
+       ════════════════════════════════ */
+    {
+        auto* w   = new QWidget(tabs);
+        auto* vl  = new QVBoxLayout(w);
+        vl->setContentsMargins(12, 12, 12, 12);
+        vl->setSpacing(8);
+
+        auto* info = new QLabel(w);
+        info->setWordWrap(true);
+        info->setTextFormat(Qt::RichText);
+        info->setObjectName("hintLabel");
+        info->setText(
+            "<b>\xf0\x9f\x9f\xa2 Driver NVIDIA</b><br>"
+            "Gestisci i driver proprietari NVIDIA per Linux. "
+            "<code>nvidia-smi</code> mostra lo stato della GPU, i processi attivi "
+            "e la versione del driver installato. "
+            "DKMS garantisce che il modulo kernel venga ricompilato automaticamente "
+            "dopo ogni aggiornamento del kernel."
+        );
+        vl->addWidget(info);
+
+        /* Area output condivisa — puntata da m_driverOutput */
+        m_driverOutput = new QTextEdit(w);
+        m_driverOutput->setReadOnly(true);
+        m_driverOutput->setObjectName("codeOutput");
+        m_driverOutput->setPlaceholderText(
+            "L'output dei comandi apparir\xc3\xa0 qui...");
+        vl->addWidget(m_driverOutput, 1);
+
+        auto* btnRow = new QWidget(w);
+        auto* bl     = new QHBoxLayout(btnRow);
+        bl->setContentsMargins(0, 0, 0, 0);
+        bl->setSpacing(8);
+
+        auto* btnDetect   = new QPushButton(
+            "\xf0\x9f\x94\x8d  Rilevamento GPU", btnRow);
+        auto* btnDownload = new QPushButton(
+            "\xf0\x9f\x93\xa6  Scarica Driver", btnRow);
+        auto* btnGuide    = new QPushButton(
+            "\xf0\x9f\x92\xa1  Guida AI", btnRow);
+        auto* btnDkms     = new QPushButton(
+            "\xf0\x9f\x94\x84  Reinstalla DKMS", btnRow);
+
+        bl->addWidget(btnDetect);
+        bl->addWidget(btnDownload);
+        bl->addWidget(btnGuide);
+        bl->addWidget(btnDkms);
+        bl->addStretch();
+        vl->addWidget(btnRow);
+
+        connect(btnDetect,   &QPushButton::clicked,
+                this, &ProgrammazionePage::onNvidiaDetectClicked);
+        connect(btnGuide,    &QPushButton::clicked,
+                this, &ProgrammazionePage::onNvidiaGuideClicked);
+        connect(btnDownload, &QPushButton::clicked,
+                this, &ProgrammazionePage::onNvidiaDownloadClicked);
+        connect(btnDkms,     &QPushButton::clicked,
+                this, &ProgrammazionePage::onNvidiaDkmsClicked);
+
+        tabs->addTab(w, "\xf0\x9f\x9f\xa2  Driver NVIDIA");
+    }
+
+    /* ════════════════════════════════
+       Sub-tab 2: AMD
+       ════════════════════════════════ */
+    {
+        auto* w   = new QWidget(tabs);
+        auto* vl  = new QVBoxLayout(w);
+        vl->setContentsMargins(12, 12, 12, 12);
+        vl->setSpacing(8);
+
+        auto* info = new QLabel(w);
+        info->setWordWrap(true);
+        info->setTextFormat(Qt::RichText);
+        info->setObjectName("hintLabel");
+        info->setText(
+            "<b>\xf0\x9f\x94\xb4 Driver AMD</b><br>"
+            "Il driver <code>amdgpu</code> \xc3\xa8 gi\xc3\xa0 incluso nel kernel Linux "
+            "e viene caricato automaticamente per le GPU AMD/Radeon. "
+            "<b>ROCm</b> \xc3\xa8 il framework AMD per compute GPU (ML/AI) "
+            "e va installato separatamente. "
+            "<code>lspci | grep VGA</code> mostra la GPU rilevata dal sistema."
+        );
+        vl->addWidget(info);
+
+        auto* outAmd = new QTextEdit(w);
+        outAmd->setReadOnly(true);
+        outAmd->setObjectName("codeOutput");
+        outAmd->setPlaceholderText(
+            "L'output dei comandi apparir\xc3\xa0 qui...");
+        vl->addWidget(outAmd, 1);
+
+        auto* btnRow = new QWidget(w);
+        auto* bl     = new QHBoxLayout(btnRow);
+        bl->setContentsMargins(0, 0, 0, 0);
+        bl->setSpacing(8);
+
+        auto* btnDetect   = new QPushButton(
+            "\xf0\x9f\x94\x8d  Rilevamento GPU", btnRow);
+        auto* btnDownload = new QPushButton(
+            "\xf0\x9f\x93\xa6  Scarica ROCm", btnRow);
+        auto* btnGuide    = new QPushButton(
+            "\xf0\x9f\x92\xa1  Guida AI", btnRow);
+
+        bl->addWidget(btnDetect);
+        bl->addWidget(btnDownload);
+        bl->addWidget(btnGuide);
+        bl->addStretch();
+        vl->addWidget(btnRow);
+
+        m_driverAmdOutput = outAmd;
+
+        connect(btnDetect,   &QPushButton::clicked,
+                this, &ProgrammazionePage::onAmdDetectClicked);
+        connect(btnGuide,    &QPushButton::clicked,
+                this, &ProgrammazionePage::onAmdGuideClicked);
+        connect(btnDownload, &QPushButton::clicked,
+                this, &ProgrammazionePage::onAmdDownloadClicked);
+
+        tabs->addTab(w, "\xf0\x9f\x94\xb4  Driver AMD");
+    }
+
+    /* ════════════════════════════════
+       Sub-tab 3: Kernel Linux
+       ════════════════════════════════ */
+    {
+        auto* w   = new QWidget(tabs);
+        auto* vl  = new QVBoxLayout(w);
+        vl->setContentsMargins(12, 12, 12, 12);
+        vl->setSpacing(8);
+
+        auto* info = new QLabel(w);
+        info->setWordWrap(true);
+        info->setTextFormat(Qt::RichText);
+        info->setObjectName("hintLabel");
+        info->setText(
+            "<b>\xf0\x9f\x90\xa7 Kernel Linux</b><br>"
+            "Visualizza la versione kernel attiva con <code>uname -r</code>. "
+            "Su sistemi Debian/Ubuntu puoi elencare i kernel installati con "
+            "<code>dpkg --list | grep linux-image</code>. "
+            "<b>Attenzione:</b> compilare un kernel personalizzato \xc3\xa8 un'operazione "
+            "avanzata riservata a utenti esperti."
+        );
+        vl->addWidget(info);
+
+        auto* outKernel = new QTextEdit(w);
+        outKernel->setReadOnly(true);
+        outKernel->setObjectName("codeOutput");
+        outKernel->setPlaceholderText(
+            "L'output dei comandi apparir\xc3\xa0 qui...");
+        vl->addWidget(outKernel, 1);
+
+        auto* btnRow = new QWidget(w);
+        auto* bl     = new QHBoxLayout(btnRow);
+        bl->setContentsMargins(0, 0, 0, 0);
+        bl->setSpacing(8);
+
+        auto* btnVer    = new QPushButton(
+            "\xf0\x9f\x94\x8d  Versione attuale", btnRow);
+        auto* btnList   = new QPushButton(
+            "\xf0\x9f\x93\x8b  Lista kernel", btnRow);
+        auto* btnGuide  = new QPushButton(
+            "\xf0\x9f\x92\xa1  Compila Kernel (AI)", btnRow);
+        auto* btnSafety = new QPushButton(
+            "\xe2\x9a\xa0  Nota sicurezza", btnRow);
+
+        bl->addWidget(btnVer);
+        bl->addWidget(btnList);
+        bl->addWidget(btnGuide);
+        bl->addWidget(btnSafety);
+        bl->addStretch();
+        vl->addWidget(btnRow);
+
+        m_driverKernelOutput = outKernel;
+
+        connect(btnVer,    &QPushButton::clicked,
+                this, &ProgrammazionePage::onKernelVersionClicked);
+        connect(btnList,   &QPushButton::clicked,
+                this, &ProgrammazionePage::onKernelListClicked);
+        connect(btnGuide,  &QPushButton::clicked,
+                this, &ProgrammazionePage::onKernelGuideClicked);
+        connect(btnSafety, &QPushButton::clicked,
+                this, &ProgrammazionePage::onKernelSafetyClicked);
+
+        tabs->addTab(w, "\xf0\x9f\x90\xa7  Kernel Linux");
+    }
+
+    lay->addWidget(tabs);
+    return wrap;
 }
 
 void ProgrammazionePage::lanRefreshInfo()

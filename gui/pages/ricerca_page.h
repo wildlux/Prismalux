@@ -200,6 +200,12 @@ private:
     void resetButtons();
     void sciPopulateModels(QComboBox* combo);
 
+public slots:
+    /* Output bar (PDF / Markdown / Svuota) — accessibili da makeOutputBar() */
+    void onOutputBarPdfClicked();
+    void onOutputBarMdClicked();
+    void onOutputBarClrClicked();
+
 private slots:
     /* AI globali */
     void onSciModelsReady(const QStringList& models);
@@ -259,10 +265,25 @@ private slots:
     /* Carta Astrale */
     void onAstraleRunClicked();
     void onAstraleStopClicked();
+    void onAstraleRunToggled();
+    void onAstraleSavePdf();
+    void onAstraleSaveMd();
+    void onAstraleClear();
     void onAstraleToken(const QString& t);
     void onAstraleFinished(const QString& full);
     void onAstraleError(const QString& msg);
     void onKarmicaRunClicked();
+    void onKarmicaSavePdf();
+    void onKarmicaSaveMd();
+    void onKarmicaClear();
+    void onSalvaChartPng();
+    /* RAB₀-L */
+    void onRab0lClearClicked();
+    /* BLHM */
+    void onBlhmAddRowClicked();
+    void onBlhmDeleteRowClicked();
+    void onBlhmNotesClearClicked();
+    void onBlhmDnaClearClicked();
 
 public:
     static void esportaPdf(QTextEdit* editor,

@@ -17,6 +17,10 @@
 #include <QMediaRecorder>
 #include <QMediaCaptureSession>
 #include <QAudioInput>
+#include <QAudioSource>
+#include <QAudioDevice>
+#include <QMediaDevices>
+#include <QIODevice>
 #endif
 
 /* --------------------------------------------------------------
@@ -45,9 +49,12 @@ private slots:
     void onAborted();
     void onRecordTick();
     void onAnalyzeText();
+    void onAudioLevelData();
     void onCopyBtnRestore();
     void onChatBtnRestore();
     void onWhisperReply();
+    void onAiTranscriptionReady(const QString& text);
+    void onAiTranscriptionError(const QString& msg);
 
 signals:
     void transcriptionReady(const QString& text);
@@ -81,8 +88,10 @@ private:
     QNetworkReply*         m_whisperReply = nullptr;
 
 #ifdef HAVE_MULTIMEDIA
-    QMediaCaptureSession* m_captureSession = nullptr;
-    QAudioInput*          m_audioInput     = nullptr;
-    QMediaRecorder*       m_recorder       = nullptr;
+    QMediaCaptureSession* m_captureSession    = nullptr;
+    QAudioInput*          m_audioInput        = nullptr;
+    QMediaRecorder*       m_recorder          = nullptr;
+    QAudioSource*         m_audioLevelSource  = nullptr;
+    QIODevice*            m_audioLevelIO      = nullptr;
 #endif
 };

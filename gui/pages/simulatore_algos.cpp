@@ -3555,6 +3555,18 @@ QVector<AlgoStep> SimulatorePage::genSierpinskiRow(int n) {
     return st;
 }
 
+static const char* algoSpeedEmoji(const char* badge) {
+    if (!badge) return "";
+    if (strcmp(badge, "OTTIMO")   == 0) return "\xe2\x9a\xa1 ";
+    if (strcmp(badge, "VELOCE")   == 0) return "\xe2\x9a\xa1 ";
+    if (strcmp(badge, "LINEARE")  == 0) return "\xf0\x9f\x90\x87 ";
+    if (strcmp(badge, "BUONO")    == 0) return "\xf0\x9f\x90\x87 ";
+    if (strcmp(badge, "MEDIO")    == 0) return "\xf0\x9f\x90\x95 ";
+    if (strcmp(badge, "LENTO")    == 0) return "\xf0\x9f\x90\x8c ";
+    if (strcmp(badge, "???")      == 0) return "\xf0\x9f\xa4\x94 ";
+    return "";
+}
+
 /* ══════════════════════════════════════════════════════════════
    rebuildAlgoCmb — ricostruisce m_algoCmb per la categoria scelta
    catIdx: 0 = Tutti, 1..CAT_COUNT = categoria specifica
@@ -3568,7 +3580,9 @@ void SimulatorePage::rebuildAlgoCmb(int catIdx) {
     m_algoCmb->blockSignals(true);
     m_algoCmb->clear();
     for (int fi = 0; fi < m_filteredIdx.size(); fi++)
-        m_algoCmb->addItem(QString::fromUtf8(kAlgos[m_filteredIdx[fi]].name));
+        m_algoCmb->addItem(
+            QString::fromUtf8(algoSpeedEmoji(kAlgos[m_filteredIdx[fi]].badge))
+            + QString::fromUtf8(kAlgos[m_filteredIdx[fi]].name));
     /* tenta di conservare l'algoritmo corrente */
     int restore = 0;
     for (int fi = 0; fi < m_filteredIdx.size(); fi++) {

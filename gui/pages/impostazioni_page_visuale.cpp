@@ -1,4 +1,5 @@
 #include "impostazioni_page.h"
+#include "../dpi_utils.h"
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
 #include "personalizza_page.h"
@@ -109,6 +110,8 @@ QWidget* ImpostazioniPage::buildTemaTab() {
     leftCol->addWidget(hint);
 
     /* ── Sezione: Segui tema di sistema ── */
+    /* sysCb dichiarato a scope funzione: deve essere accessibile più avanti per il wiring con grid_w */
+    QCheckBox* sysCb = nullptr;
     {
         auto* secSystem = new QFrame(leftColW);
         secSystem->setObjectName("cardFrame");
@@ -116,18 +119,13 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         sysLay->setContentsMargins(16, 10, 16, 10);
         sysLay->setSpacing(12);
 
-        auto* sysCb = new QCheckBox(
+        sysCb = new QCheckBox(
             "\xf0\x9f\x8c\x99  Segui tema di sistema (Dark/Light automatico)", secSystem);
         sysCb->setObjectName("cardDesc");
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
         sysCb->setEnabled(true);
-        {
-            QSettings ss("Prismalux", "GUI");
-            sysCb->setChecked(ss.value(P::SK::kFollowSystem, false).toBool());
-        }
-        connect(sysCb, &QCheckBox::toggled, sysCb, [](bool on) {
-            ThemeManager::instance()->setFollowSystem(on);
-        });
+        sysCb->setChecked(ThemeManager::instance()->followSystem());
+        /* La connessione viene completata dopo la creazione di grid_w (vedi sotto) */
 #else
         sysCb->setEnabled(false);
         sysCb->setToolTip("Richiede Qt 6.5 o superiore.");
@@ -169,7 +167,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         auto* radiusSpin = new QSpinBox(secBolle);
         radiusSpin->setRange(0, 24);
         radiusSpin->setSuffix(" px");
-        radiusSpin->setFixedWidth(80);
+        radiusSpin->setFixedWidth(dpiScale(80));
         {
             QSettings s("Prismalux", "GUI");
             radiusSpin->setValue(s.value(P::SK::kBubbleRadius, 10).toInt());
@@ -359,17 +357,11 @@ QWidget* ImpostazioniPage::buildTemaTab() {
 
     /* ═══════════════ COLONNA DESTRA ═══════════════ */
     auto* rightColW = new QWidget(outer);
-    rightColW->setMinimumWidth(400);
-    rightColW->setMaximumWidth(520);
+    rightColW->setMinimumWidth(dpiScale(400));
+    rightColW->setMaximumWidth(dpiScale(520));
     auto* rightCol  = new QVBoxLayout(rightColW);
     rightCol->setContentsMargins(0, 0, 0, 0);
     rightCol->setSpacing(8);
-
-    auto* themeHeader = new QLabel(
-        "\xf0\x9f\x8e\xa8  Tema corrente", rightColW);
-    themeHeader->setObjectName("pageSubtitle");
-    themeHeader->setStyleSheet("font-size:16px; font-weight:700; color:#e5e7eb;");
-    rightCol->addWidget(themeHeader);
 
     /* ── Griglia card (3 per riga, card 130×100) ── */
     auto* scroll = new QScrollArea(rightColW);
@@ -382,6 +374,9 @@ QWidget* ImpostazioniPage::buildTemaTab() {
     grid->setContentsMargins(0, 8, 0, 8);
     scroll->setWidget(grid_w);
     rightCol->addWidget(scroll, 1);
+
+    /* ── Disabilita la griglia temi se "segui sistema" è già attivo ── */
+    grid_w->setEnabled(!ThemeManager::instance()->followSystem());
 
     ThemeManager* tm      = ThemeManager::instance();
     const auto&   themes  = tm->themes();
@@ -400,7 +395,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         auto* card = new QPushButton(grid_w);
         card->setCheckable(true);
         card->setChecked(t.id == current);
-        card->setFixedSize(130, 100);
+        card->setFixedSize(dpiSize(130, 100));
         card->setObjectName("themeCard");
         card->setProperty("themeId", t.id);
 
@@ -434,7 +429,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             "color: %1; font-size: 16px; font-weight: 700; "
             "background: transparent; padding: 4px 6px 0 0;")
             .arg(v.accent));
-        check->setFixedSize(130, 30);
+        check->setFixedSize(dpiSize(130, 30));
         check->setVisible(t.id == current);
 
         /* Connessione: cambia tema al click */
@@ -462,6 +457,14 @@ QWidget* ImpostazioniPage::buildTemaTab() {
 
     /* Riga espandibile in fondo alla griglia */
     grid->setRowStretch(themes.size() / COLS + 1, 1);
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    /* ── Wiring checkbox → ThemeManager + abilita/disabilita griglia ── */
+    connect(sysCb, &QCheckBox::toggled, outer, [sysCb, grid_w](bool on) {
+        ThemeManager::instance()->setFollowSystem(on);
+        grid_w->setEnabled(!on);
+    });
+#endif
 
     /* ── Assembla le colonne nella riga principale ── */
     mainRow->addWidget(leftColW, 1);

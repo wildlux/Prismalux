@@ -6,6 +6,7 @@
 #include "../widgets/code_highlighter.h"
 #include "../widgets/toggle_switch.h"
 
+class AiErrorWidget;
 class QComboBox;
 class QPlainTextEdit;
 class QTextEdit;
@@ -84,6 +85,8 @@ private:
     /* Process */
     QProcess*       m_proc      = nullptr;
     bool            m_aiMode    = false;
+
+    AiErrorWidget*  m_fixErrPanel = nullptr;  ///< banner errore per il fix AI
 
     /* Connessioni AI per il pannello Coding/Fix — disconnesse esplicitamente prima
        di ogni nuova chat per garantire al massimo UNA connessione attiva. */
@@ -479,4 +482,35 @@ private:
     void onTrToken(const QString& tok);
     void onTrFinished(const QString& full);
     void onTrError(const QString& msg);
+
+    /* ── Driver & Kernel sub-tab ── */
+    QTextEdit*   m_driverOutput       = nullptr;  ///< output NVIDIA
+    QTextEdit*   m_driverAmdOutput    = nullptr;  ///< output AMD
+    QTextEdit*   m_driverKernelOutput = nullptr;  ///< output Kernel
+    QProcess*    m_driverProcess      = nullptr;
+    bool         m_driverAiBusy       = false;
+    QTextEdit*   m_driverAiActive     = nullptr;  ///< punta all'output corrente per lo streaming AI
+    QMetaObject::Connection m_driverAiTokenConn;
+    QMetaObject::Connection m_driverAiFinishedConn;
+    QMetaObject::Connection m_driverAiErrorConn;
+
+    QWidget* buildDriverKernelTab(QWidget* parent);
+    void     onDriverRunCmd(const QString& cmd);
+    void     onDriverCmdFinished(int exitCode, QProcess::ExitStatus status);
+    void     onDriverCmdOutput();
+    void     onDriverAiGuide(const QString& topic);
+    void     onDriverAiToken(const QString& t);
+    void     onDriverAiFinished(const QString& full);
+    void     onDriverAiError(const QString& msg);
+    void     onNvidiaDetectClicked();
+    void     onNvidiaDownloadClicked();
+    void     onNvidiaDkmsClicked();
+    void     onNvidiaGuideClicked();
+    void     onAmdDetectClicked();
+    void     onAmdDownloadClicked();
+    void     onAmdGuideClicked();
+    void     onKernelVersionClicked();
+    void     onKernelListClicked();
+    void     onKernelGuideClicked();
+    void     onKernelSafetyClicked();
 };

@@ -1,4 +1,5 @@
 #include "monitor_panel.h"
+#include "dpi_utils.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -7,6 +8,7 @@
 #include <QDateTime>
 #include <QSplitter>
 #include <QFont>
+#include <QShowEvent>
 #include <algorithm>
 
 /* ── Colonne tabella ── */
@@ -64,12 +66,12 @@ MonitorPanel::MonitorPanel(AiClient* ai, HardwareMonitor* hw, QWidget* parent)
     topLay->addWidget(m_liveInfo);
 
     auto* clearBtn = new QPushButton("\xf0\x9f\x97\x91  Pulisci", topBar);
-    clearBtn->setFixedWidth(90);
+    clearBtn->setFixedWidth(dpiScale(90));
     connect(clearBtn, &QPushButton::clicked, this, &MonitorPanel::onClearClicked);
     topLay->addWidget(clearBtn);
 
     auto* exportBtn = new QPushButton("\xf0\x9f\x93\x8b  Copia log", topBar);
-    exportBtn->setFixedWidth(100);
+    exportBtn->setFixedWidth(dpiScale(100));
     connect(exportBtn, &QPushButton::clicked, this, &MonitorPanel::onExportClicked);
     topLay->addWidget(exportBtn);
 
@@ -97,7 +99,7 @@ MonitorPanel::MonitorPanel(AiClient* ai, HardwareMonitor* hw, QWidget* parent)
     m_log = new QTextEdit(this);
     m_log->setReadOnly(true);
     m_log->setFont(QFont("Monospace", 10));
-    m_log->setMinimumWidth(280);
+    m_log->setMinimumWidth(dpiScale(280));
     splitter->addWidget(m_log);
 
     splitter->setSizes({620, 340});
@@ -140,6 +142,14 @@ MonitorPanel::MonitorPanel(AiClient* ai, HardwareMonitor* hw, QWidget* parent)
             this, &MonitorPanel::onHWUpdated);
 
     appendLog("Monitor avviato. In attesa di richieste AI...");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Focus automatico alla prima apertura
+   ══════════════════════════════════════════════════════════════ */
+void MonitorPanel::showEvent(QShowEvent* e) {
+    QDialog::showEvent(e);
+    if (m_log) m_log->setFocus();
 }
 
 /* ══════════════════════════════════════════════════════════════

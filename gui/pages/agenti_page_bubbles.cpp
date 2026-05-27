@@ -29,19 +29,26 @@ QString AgentiPage::buildUserBubble(const QString& text, int bubbleIdx)
         const QString lnk = QString("color:%1;font-size:12px;text-decoration:none;"
             "border:1px solid %2;padding:2px 10px;background:%3;")
             .arg(c.uHdr, c.uBtnB, c.uBtn);
+        /* Nota: emoji fuori BMP (>U+FFFF) si usano come HTML entity decimale per
+           garantire il rendering corretto in QTextBrowser su tutte le piattaforme.
+           &#128196; = 📄 copia  &#9998;  = ✎ modifica  &#128264; = 🔈 TTS
+           &#128465; = 🗑 cestino  &#8629; = ↩ rifai */
         actionBar =
             "<p align='right' style='margin:6px 0 0 0;'>"
-              "<a href='copy:" + id + ":" + b64 + "' style='" + lnk + "'>"
-                "\xf0\x9f\x97\x82</a>"
+              "<a href='retry:" + id + ":" + b64 + "' style='" + lnk + "' "
+                 "title='Rifai con il modello corrente'>&#8629; Rifai</a>"
               " &nbsp; "
-              "<a href='edit:" + id + ":" + b64 + "' style='" + lnk + "'>"
-                "\xe2\x9c\x8f\xef\xb8\x8f</a>"
+              "<a href='copy:" + id + ":" + b64 + "' style='" + lnk + "' "
+                 "title='Copia testo'>[Copia]</a>"
               " &nbsp; "
-              "<a href='tts:" + id + ":" + b64 + "' style='" + lnk + "'>"
-                "\xf0\x9f\x8e\x99</a>"
+              "<a href='edit:" + id + ":" + b64 + "' style='" + lnk + "' "
+                 "title='Modifica e reinvia'>&#9998; Modifica</a>"
               " &nbsp; "
-              "<a href='del:" + id + ":" + b64 + "' style='" + lnk + "'>"
-                "\xf0\x9f\x97\x91</a>"
+              "<a href='tts:" + id + ":" + b64 + "' style='" + lnk + "' "
+                 "title='Leggi ad alta voce'>[TTS]</a>"
+              " &nbsp; "
+              "<a href='del:" + id + ":" + b64 + "' style='" + lnk + "' "
+                 "title='Elimina questo messaggio'>[Elimina]</a>"
             "</p>";
     }
 
@@ -59,7 +66,7 @@ QString AgentiPage::buildUserBubble(const QString& text, int bubbleIdx)
           "'>"
             "<p style='color:" + c.uHdr + ";font-size:11px;font-weight:bold;"
                        "margin:0 0 5px 0;'>"
-              "\xf0\x9f\x91\xa4  Tu"
+              "&#128100;  Tu"
               "<span style='font-weight:normal;color:" + QString(c.uTxt) +
                 ";opacity:0.55;margin-left:8px;font-size:10px;'>"
               + QDateTime::currentDateTime().toString("HH:mm") +
@@ -82,6 +89,9 @@ QString AgentiPage::buildAgentBubble(const QString& label, const QString& model,
     QString esc_label = label;
     esc_label.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
 
+    /* 🤖 = U+1F916 → UTF-8 \xf0\x9f\xa4\x96  🕐 = U+1F550 → UTF-8 \xf0\x9f\x95\x90
+       Usare bytes UTF-8 diretti invece di entity decimali > U+FFFF:
+       QTextBrowser non supporta affidabilmente &#NNN; per code point fuori dal BMP. */
     QString header = esc_label
         + " &nbsp;\xc2\xb7\xc2\xb7&nbsp; "
         "\xf0\x9f\xa4\x96 " + esc_model
@@ -103,6 +113,8 @@ QString AgentiPage::buildAgentBubble(const QString& label, const QString& model,
             QString esc_m = model;
             esc_t.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
             esc_m.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+            /* 🕐 = U+1F550 → \xf0\x9f\x95\x90   🤖 = U+1F916 → \xf0\x9f\xa4\x96
+               UTF-8 diretti: QTextBrowser non supporta entity decimali > U+FFFF */
             metaLeft =
                 "<span style='color:#6b7280;font-size:11px;'>"
                 + (time.isEmpty()  ? QString() : "\xf0\x9f\x95\x90 " + esc_t)
@@ -113,31 +125,30 @@ QString AgentiPage::buildAgentBubble(const QString& label, const QString& model,
         const QString lnk = QString("color:%1;font-size:12px;text-decoration:none;"
             "border:1px solid %2;padding:2px 10px;background:%3;")
             .arg(c.aBtnC, c.aBtnB, c.aBtn);
+        /* 👍 = U+1F44D → UTF-8 \xf0\x9f\x91\x8d   👎 = U+1F44E → UTF-8 \xf0\x9f\x91\x8e
+           UTF-8 diretti invece di entity decimali > U+FFFF: QTextBrowser non le supporta. */
         actionBar =
             "<table width='100%' cellpadding='0' cellspacing='0' style='margin:6px 0 0 0;'>"
             "<tr>"
               "<td>" + metaLeft + "</td>"
               "<td align='right' style='white-space:nowrap;'>"
-                /* Feedback 👍/👎 */
                 "<a href='fb:up:" + id + "' style='" + lnk + "' title='Risposta utile'>"
-                  "\xf0\x9f\x91\x8d</a>"
+                  "\xf0\x9f\x91\x8d" "</a>"
                 " &nbsp; "
                 "<a href='fb:down:" + id + "' style='" + lnk + "' title='Risposta non utile'>"
-                  "\xf0\x9f\x91\x8e</a>"
+                  "\xf0\x9f\x91\x8e" "</a>"
                 " &nbsp;&nbsp; "
-                "<a href='copy:" + id + ":" + b64 + "' style='" + lnk + "'>"
-                  "\xf0\x9f\x97\x82</a>"
+                "<a href='copy:" + id + ":" + b64 + "' style='" + lnk + "' "
+                   "title='Copia testo'>[Copia]</a>"
                 " &nbsp; "
                 "<a href='edit:" + id + ":" + b64 + "' style='" + lnk + "' "
-                   "title='Modifica e reinvia'>"
-                  "\xe2\x9c\x8f\xef\xb8\x8f</a>"
+                   "title='Modifica e reinvia'>&#9998; Modifica</a>"
                 " &nbsp; "
-                "<a href='tts:" + id + ":" + b64 + "' style='" + lnk + "'>"
-                  "\xf0\x9f\x8e\x99</a>"
+                "<a href='tts:" + id + ":" + b64 + "' style='" + lnk + "' "
+                   "title='Leggi ad alta voce'>[TTS]</a>"
                 " &nbsp; "
                 "<a href='del:" + id + ":" + b64 + "' style='" + lnk + "' "
-                   "title='Elimina questo messaggio'>"
-                  "\xf0\x9f\x97\x91</a>"
+                   "title='Elimina questo messaggio'>[Elimina]</a>"
               "</td>"
             "</tr>"
             "</table>";
@@ -148,12 +159,13 @@ QString AgentiPage::buildAgentBubble(const QString& label, const QString& model,
     if (!thinkContent.isEmpty() && bubbleIdx >= 0) {
         const int words = thinkContent.split(' ', Qt::SkipEmptyParts).size();
         const QString id = QString::number(bubbleIdx);
+        /* &#9654; = ▶ (U+25BA, nel BMP — rendering sicuro in QTextBrowser) */
         thinkBar =
             "<p style='margin:0 0 6px 0;'>"
               "<a href='think:toggle:" + id + "' "
                  "style='color:" + QString(c.aHdr) + ";font-size:11px;"
                  "text-decoration:none;opacity:0.75;'>"
-                "\xe2\x96\xb6\xef\xb8\x8f Ragionamento (" + QString::number(words) + " par.)"
+                "&#9654; Ragionamento (" + QString::number(words) + " par.)"
               "</a>"
             "</p>";
     }
@@ -215,15 +227,14 @@ QString AgentiPage::buildLocalBubble(const QString& result, double ms, int bubbl
         if (!extraLinks.isEmpty())
             actionBar += extraLinks + " &nbsp; ";
         actionBar +=
-              "<a href='copy:" + id + ":" + b64 + "' style='" + linkStyle + "'>"
-                "\xf0\x9f\x97\x82</a>"
+              "<a href='copy:" + id + ":" + b64 + "' style='" + linkStyle + "' "
+                 "title='Copia testo'>[Copia]</a>"
               " &nbsp; "
               "<a href='edit:" + id + ":" + b64 + "' style='" + linkStyle + "' "
-                 "title='Modifica e reinvia'>"
-                "\xe2\x9c\x8f\xef\xb8\x8f</a>"
+                 "title='Modifica e reinvia'>&#9998; Modifica</a>"
               " &nbsp; "
-              "<a href='tts:" + id + ":" + b64 + "' style='" + linkStyle + "'>"
-                "\xf0\x9f\x8e\x99</a>"
+              "<a href='tts:" + id + ":" + b64 + "' style='" + linkStyle + "' "
+                 "title='Leggi ad alta voce'>[TTS]</a>"
             "</p>";
     }
 
@@ -240,7 +251,7 @@ QString AgentiPage::buildLocalBubble(const QString& result, double ms, int bubbl
               "color:" + c.lTxt + ";"
           "'>"
             "<p style='color:" + c.lHdr + ";font-size:11px;font-weight:bold;margin:0 0 5px 0;'>"
-              "\xe2\x9a\xa1  Risposta locale  \xc2\xb7\xc2\xb7  0 token  \xc2\xb7\xc2\xb7  "
+              "&#9889;  Risposta locale  \xc2\xb7\xc2\xb7  0 token  \xc2\xb7\xc2\xb7  "
               + timing +
             "</p>"
             "<hr style='border:none;border-top:1px solid " + c.lHr + ";margin:5px 0 8px 0;'>"
@@ -273,7 +284,8 @@ QString AgentiPage::buildToolStrip(const QString& code, const QString& output,
     esc_code.replace("\n","<br>");
 
     const auto& c = bc();
-    const QString statusIcon  = (exitCode == 0) ? "\xe2\x9c\x85" : "\xe2\x9d\x8c";
+    /* &#9989; = ✅  &#10060; = ❌ (entity decimale, evita varianti VS-16 problematiche) */
+    const QString statusIcon  = (exitCode == 0) ? "&#9989;" : "&#10060;";
     const QString statusColor = (exitCode == 0) ? c.tStOk : c.tStEr;
     const QString borderColor = (exitCode == 0) ? c.tBdOk : c.tBdEr;
     const QString bgColor     = (exitCode == 0) ? c.tBgOk : c.tBgEr;
@@ -290,7 +302,7 @@ QString AgentiPage::buildToolStrip(const QString& code, const QString& output,
               "color:" + QString(c.tTxt) + ";"
           "'>"
             "<p style='font-size:11px;font-weight:bold;margin:0 0 4px 0;color:" + statusColor + ";'>"
-              "\xe2\x9a\x99\xef\xb8\x8f  Esecutore Python  \xc2\xb7\xc2\xb7  "
+              "&#9881;  Esecutore Python  \xc2\xb7\xc2\xb7  "
               + statusIcon + " exit " + QString::number(exitCode) +
               "  \xc2\xb7\xc2\xb7  " + QString::number(ms, 'f', 0) + " ms"
             "</p>"
@@ -333,8 +345,9 @@ QString AgentiPage::buildControllerBubble(const QString& htmlContent)
               "padding:10px 14px;"
               "color:#e2e8f0;"
           "'>"
+            /* &#128737; = 🛡 (U+1F6E1, fuori BMP → entity decimale) */
             "<p style='color:" + hdrColor + ";font-size:11px;font-weight:bold;margin:0 0 5px 0;'>"
-              "\xf0\x9f\x9b\xa1\xef\xb8\x8f  Controller AI  \xc2\xb7\xc2\xb7  Validatore pipeline"
+              "&#128737;  Controller AI  \xc2\xb7\xc2\xb7  Validatore pipeline"
             "</p>"
             "<hr style='border:none;border-top:1px solid " + border + ";margin:5px 0 8px 0;'>"
             + htmlContent +

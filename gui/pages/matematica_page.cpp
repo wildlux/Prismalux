@@ -15,6 +15,7 @@
 #include <QSplitter>
 #include <QTabWidget>
 #include <QPlainTextEdit>
+#include <QTextEdit>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QComboBox>
@@ -43,6 +44,39 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
 
+    /* ─── Barra modello LLM (condivisa tra tutte le tab) ─── */
+    auto* modelBar = new QWidget(this);
+    modelBar->setObjectName("modelBarMath");
+    auto* modelBarLay = new QHBoxLayout(modelBar);
+    modelBarLay->setContentsMargins(12, 6, 12, 6);
+    modelBarLay->setSpacing(8);
+
+    auto* modelLbl = new QLabel("\xf0\x9f\xa4\x96  Modello AI:", modelBar);  /* 🤖 */
+    modelLbl->setObjectName("cardDesc");
+    modelBarLay->addWidget(modelLbl);
+
+    m_modelCombo = new QComboBox(modelBar);
+    m_modelCombo->setObjectName("settingCombo");
+    m_modelCombo->setMinimumWidth(200);
+    m_modelCombo->setToolTip("Modello LLM usato da tutte le schede Matematica");
+    const QString curModel = m_ai ? m_ai->model() : QString();
+    m_modelCombo->addItem(curModel.isEmpty() ? "(caricamento...)" : curModel, curModel);
+    modelBarLay->addWidget(m_modelCombo, 1);
+
+    auto* btnRefreshBar = new QPushButton("\xf0\x9f\x94\x84", modelBar);  /* 🔄 */
+    btnRefreshBar->setObjectName("navBtn");
+    btnRefreshBar->setFixedSize(26, 26);
+    btnRefreshBar->setToolTip("Aggiorna lista modelli");
+    connect(btnRefreshBar, &QPushButton::clicked, this, &MatematicaPage::onRefreshModelsClicked);
+    modelBarLay->addWidget(btnRefreshBar);
+
+    auto* sep = new QFrame(this);
+    sep->setFrameShape(QFrame::HLine);
+    sep->setFrameShadow(QFrame::Sunken);
+
+    root->addWidget(modelBar);
+    root->addWidget(sep);
+
     /* ── Splitter verticale: strumenti sopra, output sotto ── */
     auto* splitter = new QSplitter(Qt::Vertical, this);
     splitter->setHandleWidth(4);
@@ -54,6 +88,7 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     m_tabs->addTab(buildConstTab(), "\xcf\x80  Costanti di precisione");
     m_tabs->addTab(buildNthTab(),   "#\xe2\x83\xbf  N-esimo");
     m_tabs->addTab(buildExprTab(),  "\xf0\x9f\xa7\xae  Espressione");                    /* 🧮 */
+    m_tabs->addTab(buildSolveTab(), "\xf0\x9f\x93\x90  Risolvi Passi");                 /* 📐 */
 
     /* ─── PARTE INFERIORE: output + controlli ─── */
     auto* outBox = new QWidget(splitter);
@@ -110,8 +145,11 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
 
     root->addWidget(splitter, 1);
 
+    /* Carica la lista modelli al primo avvio (differito per evitare fetchModels nel costruttore) */
+    QTimer::singleShot(0, this, &MatematicaPage::onLoadModelsOnce);
+
     /* Sincronizza il combo modello quando il modello cambia da Impostazioni o
-       da un'altra scheda (m_modelCombo è creato in buildSeqTab, già disponibile). */
+       da un'altra scheda. */
     connect(m_ai, &AiClient::modelChanged, this, &MatematicaPage::onAiModelChanged);
 }
 
@@ -154,7 +192,7 @@ QWidget* MatematicaPage::buildSeqTab()
     m_seqResult->setWordWrap(true);
     lay->addWidget(m_seqResult);
 
-    /* Opzioni: termini + selezione modello AI */
+    /* Opzioni: termini successivi da suggerire */
     auto* optRow = new QHBoxLayout;
     optRow->addWidget(new QLabel("Suggerisci i prossimi", w));
     m_nextTerms = new QSpinBox(w);
@@ -162,30 +200,7 @@ QWidget* MatematicaPage::buildSeqTab()
     m_nextTerms->setValue(5);
     optRow->addWidget(m_nextTerms);
     optRow->addWidget(new QLabel("termini", w));
-
-    optRow->addSpacing(16);
-
-    optRow->addWidget(new QLabel("con:", w));
-    m_modelCombo = new QComboBox(w);
-    m_modelCombo->setObjectName("settingCombo");
-    m_modelCombo->setMinimumWidth(180);
-    m_modelCombo->setToolTip("Modello usato da \"Analizza con AI\"");
-    /* Voce iniziale — verrà sostituita quando arrivano i modelli */
-    const QString curModel = m_ai ? m_ai->model() : QString();
-    m_modelCombo->addItem(curModel.isEmpty() ? "(caricamento...)" : curModel, curModel);
-    optRow->addWidget(m_modelCombo, 1);
-
-    /* Pulsante refresh modelli */
-    auto* btnRefresh = new QPushButton("\xf0\x9f\x94\x84", w);   /* 🔄 */
-    btnRefresh->setObjectName("navBtn");
-    btnRefresh->setFixedSize(26, 26);
-    btnRefresh->setToolTip("Aggiorna lista modelli");
-    optRow->addWidget(btnRefresh);
-
-    connect(btnRefresh, &QPushButton::clicked, this, &MatematicaPage::onRefreshModelsClicked);
-
-    /* Carica subito la lista modelli (slot differito per evitare fetchModels nel costruttore) */
-    QTimer::singleShot(0, this, &MatematicaPage::onLoadModelsOnce);
+    optRow->addStretch(1);
 
     lay->addLayout(optRow);
 
@@ -756,6 +771,12 @@ void MatematicaPage::runPython(const QString& code)
 
 void MatematicaPage::stopPython()
 {
+    m_pyOutTarget = nullptr;
+    if (m_solvePyMode) {
+        m_solvePyMode = false;
+        m_solveBusy   = false;
+        if (m_btnSolve) m_btnSolve->setEnabled(true);
+    }
     if (m_proc) {
         m_proc->kill();
         m_proc->waitForFinished(1000);
@@ -763,6 +784,289 @@ void MatematicaPage::stopPython()
         m_proc = nullptr;
         setStatus("\xe2\x96\xa0  Calcolo interrotto.");
     }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildSympyScript — genera lo script Python/SymPy per ogni tipo
+   ══════════════════════════════════════════════════════════════ */
+static QString buildSympyScript(const QString& tipo, const QString& expr)
+{
+    /* Escape dell'espressione utente per inniezione sicura nel Python */
+    QString safe = expr;
+    safe.replace("\\", "\\\\").replace("'", "\\'").replace("\n", " ").replace("\r", "");
+
+    /* Preambolo comune */
+    QString py = QString(R"SCRIPT(
+import sys, re, platform
+import sympy as _sympy_mod
+from sympy import *
+from sympy.parsing.sympy_parser import (
+    parse_expr, standard_transformations,
+    implicit_multiplication_application, convert_xor)
+x,y,z,n,t,a,b,c,k = symbols('x y z n t a b c k')
+TR = standard_transformations + (implicit_multiplication_application, convert_xor)
+LD = {'x':x,'y':y,'z':z,'n':n,'t':t,'a':a,'b':b,'c':c,'k':k,
+      'pi':pi,'e':E,'I':I,'oo':oo,'inf':oo,
+      'sqrt':sqrt,'sin':sin,'cos':cos,'tan':tan,
+      'asin':asin,'acos':acos,'atan':atan,
+      'log':log,'ln':log,'exp':exp,'abs':Abs}
+LINE = '═'*54
+def parse(s):
+    return parse_expr(s.strip(), transformations=TR, local_dict=LD)
+def fmt(v):
+    try:
+        ev = complex(v.evalf(8))
+        if abs(ev.imag) < 1e-7:
+            f = ev.real
+            return f'{v}' if abs(f - round(f)) < 1e-9 else f'{v}  ≈  {f:.6g}'
+        else:
+            return f'{v}  ≈  {ev.real:.5g} {ev.imag:+.5g}i'
+    except:
+        return str(v)
+print(LINE)
+print('  Risolvi Passi — SymPy Engine')
+print(f'  Python {platform.python_version()}  |  SymPy {_sympy_mod.__version__}')
+print('  Motore: calcolo simbolico esatto (nessun LLM)')
+print(LINE)
+print()
+)SCRIPT");
+
+    py += QString("expr_str = '%1'\n").arg(safe);
+    py += "print(f'Problema: {expr_str}')\nprint()\n";
+    py += "try:\n";
+
+    if (tipo == "Equazione") {
+        py += R"SCRIPT(
+    if '=' in expr_str:
+        parts = expr_str.split('=', 1)
+        lhs = parse(parts[0]); rhs = parse(parts[1])
+    else:
+        lhs = parse(expr_str); rhs = S.Zero
+    residual = lhs - rhs
+    free = residual.free_symbols
+    var = x if x in free else (next(iter(free)) if free else x)
+
+    print(f'PASSO 1 — Riscrittura in f({var})=0')
+    print(f'  {lhs} = {rhs}  →  {residual} = 0')
+    print(f'  Variabile: {var}\n')
+
+    exp2 = expand(residual)
+    if str(exp2) != str(residual):
+        print(f'PASSO 2 — Espansione\n  {exp2} = 0\n')
+
+    fac = factor(residual)
+    if str(fac) not in (str(residual), str(exp2)):
+        print(f'PASSO 3 — Fattorizzazione\n  {fac} = 0\n')
+
+    if residual.is_polynomial(var):
+        p = Poly(residual, var)
+        deg = p.degree()
+        print(f'PASSO 4 — Analisi polinomiale')
+        print(f'  Grado: {deg}   Coefficienti [a_n…a_0]: {p.all_coeffs()}')
+        if deg == 2:
+            cf = p.all_coeffs()
+            a2 = Rational(cf[0]); b2 = Rational(cf[1]); c2 = Rational(cf[2])
+            disc = b2**2 - 4*a2*c2
+            print(f'  Discriminante Δ = ({b2})² - 4·({a2})·({c2}) = {disc}')
+        print()
+
+    print('PASSO 5 — Calcolo soluzioni')
+    sols = solve(Eq(lhs, rhs), var) or solve(residual, var)
+    if sols:
+        print(f'  Soluzioni trovate: {len(sols)}')
+        for i,s in enumerate(sols,1):
+            print(f'    {var}_{i} = {fmt(s)}')
+    else:
+        print('  Nessuna soluzione simbolica. Ricerca numerica:')
+        found = set()
+        for x0 in [0,1,-1,2,-2,5,-5,10,-10,0.5,-0.5]:
+            try:
+                s = nsolve(residual, var, x0, tol=1e-8, verify=False)
+                sv = round(float(s), 6)
+                if all(abs(sv-f) > 1e-4 for f in found):
+                    found.add(sv); print(f'    Radice ≈ {sv}  (vicino a {x0})')
+            except: pass
+        if not found: print('    Nessuna radice reale trovata.')
+    print()
+    print(LINE); print('SOLUZIONE FINALE:')
+    for i,s in enumerate(sols or [],1): print(f'  {var}_{i} = {s}')
+    if not sols: print('  (vedi ricerca numerica sopra)')
+    print(LINE)
+)SCRIPT";
+
+    } else if (tipo == "Disequazione") {
+        py += R"SCRIPT(
+    op_m = re.search(r'(<=|>=|<|>)', expr_str)
+    if not op_m:
+        print('Errore: inserisci un operatore < > <= >=', file=sys.stderr); sys.exit(1)
+    op = op_m.group(1)
+    parts = re.split(r'<=|>=|<|>', expr_str, 1)
+    lhs = parse(parts[0]); rhs = parse(parts[1])
+    residual = lhs - rhs
+    free = residual.free_symbols
+    var = x if x in free else (next(iter(free)) if free else x)
+
+    print(f'PASSO 1 — Riscrittura\n  {lhs} {op} {rhs}  →  {residual} {op} 0\n')
+
+    fac = factor(residual)
+    if str(fac) != str(residual):
+        print(f'PASSO 2 — Fattorizzazione\n  {fac} {op} 0\n')
+
+    print('PASSO 3 — Studio del segno')
+    zeros = solve(residual, var)
+    if zeros:
+        print(f'  Zeri: {zeros}')
+    from sympy.solvers.inequalities import solve_univariate_inequality
+    op_map = {'<': lhs < rhs, '>': lhs > rhs, '<=': lhs <= rhs, '>=': lhs >= rhs}
+    result = solve_univariate_inequality(op_map[op], var, relational=False)
+    print(f'  Insieme soluzione: {result}\n')
+    print(LINE); print(f'SOLUZIONE FINALE:\n  {var} ∈ {result}'); print(LINE)
+)SCRIPT";
+
+    } else if (tipo == "Derivata") {
+        py += R"SCRIPT(
+    parts = [p.strip() for p in expr_str.split(',')]
+    f_str = parts[0]
+    var_str = parts[1].strip() if len(parts) > 1 else 'x'
+    order = int(parts[2].strip()) if len(parts) > 2 else 1
+    f = parse(f_str)
+    var = parse(var_str)
+
+    print(f'PASSO 1 — Espressione\n  f({var}) = {f}\n')
+
+    fs = simplify(f)
+    if str(fs) != str(f):
+        print(f'PASSO 2 — Forma semplificata\n  f({var}) = {fs}\n')
+
+    df = diff(f, var, order)
+    label = f"{''.join([\"'\"]*order)}"
+    print(f'PASSO 3 — Derivata {"prima" if order==1 else str(order)+"ª"}\n  f{label}({var}) = {df}\n')
+
+    dfs = simplify(df)
+    if str(dfs) != str(df):
+        print(f'PASSO 4 — Derivata semplificata\n  f{label}({var}) = {dfs}\n')
+        df = dfs
+
+    if order == 1:
+        cps = solve(df, var)
+        if cps:
+            print(f'PASSO 5 — Punti critici f\'=0:')
+            for i,cp in enumerate(cps,1):
+                try: yv = f.subs(var,cp)
+                except: yv = '?'
+                print(f'  {var}_{i} = {fmt(cp)},  f = {yv}')
+            print()
+
+    print(LINE); print(f'SOLUZIONE FINALE:\n  f{label}({var}) = {df}'); print(LINE)
+)SCRIPT";
+
+    } else if (tipo == "Integrale") {
+        py += R"SCRIPT(
+    parts = [p.strip() for p in expr_str.split(',')]
+    f = parse(parts[0])
+    free = f.free_symbols
+    if len(parts) == 1:
+        var = x if x in free else (next(iter(free)) if free else x)
+        a_val = b_val = None
+    elif len(parts) == 2:
+        var = parse(parts[1]); a_val = b_val = None
+    else:
+        var = x if x in free else (next(iter(free)) if free else x)
+        a_val = parse(parts[1]); b_val = parse(parts[2])
+
+    if a_val is None:
+        print(f'PASSO 1 — Integrale indefinito\n  ∫ {f} d{var}\n')
+        result = integrate(f, var)
+        rs = simplify(result)
+        print(f'PASSO 2 — Primitiva\n  F({var}) = {rs}\n')
+        print(LINE); print(f'SOLUZIONE FINALE:\n  ∫ {f} d{var} = {rs} + C'); print(LINE)
+    else:
+        print(f'PASSO 1 — Integrale definito\n  ∫[{a_val}…{b_val}] {f} d{var}\n')
+        indef = integrate(f, var)
+        rs = simplify(indef)
+        print(f'PASSO 2 — Primitiva\n  F({var}) = {rs}\n')
+        fa = rs.subs(var, b_val); fb = rs.subs(var, a_val)
+        result = simplify(fa - fb)
+        print(f'PASSO 3 — Teorema fondamentale\n  F({b_val}) - F({a_val}) = {fa} - ({fb})\n  = {result}\n')
+        print(LINE); print(f'SOLUZIONE FINALE:\n  ∫ = {result}  ({fmt(result)})'); print(LINE)
+)SCRIPT";
+
+    } else if (tipo == "Limite") {
+        py += R"SCRIPT(
+    # formati: "f, var, val[, dir]" oppure "f as var->val" oppure "f per var->val"
+    m = re.match(r'(.+?)\s+(?:as|per|when)\s+(\w+)\s*->\s*(.+)', expr_str)
+    if m:
+        f_str, var_str, val_str, dir_str = m.group(1), m.group(2), m.group(3), '+-'
+    else:
+        parts = [p.strip() for p in expr_str.split(',')]
+        f_str = parts[0]
+        free = parse(f_str).free_symbols
+        var_str = parts[1] if len(parts)>1 else (str(x) if x in free else (str(next(iter(free))) if free else 'x'))
+        val_str = parts[2] if len(parts)>2 else '0'
+        dir_str = parts[3] if len(parts)>3 else '+-'
+
+    f = parse(f_str); var = parse(var_str); val = parse(val_str)
+    dir_str = dir_str.strip()
+
+    print(f'PASSO 1 — Espressione\n  lim[{var}→{val}] {f}\n')
+
+    try:
+        direct = f.subs(var, val)
+        if direct not in (zoo, nan) and not direct.has(zoo, nan):
+            print(f'PASSO 2 — Sostituzione diretta\n  f({val}) = {direct}  (determinato)\n')
+    except: pass
+
+    print('PASSO 3 — Calcolo limite')
+    if dir_str in ('+', '-'):
+        result = limit(f, var, val, dir_str)
+    else:
+        result = limit(f, var, val)
+    print(f'  lim = {result}')
+    if result not in (oo, -oo, zoo, nan):
+        print(f'  valore numerico: {fmt(result)}')
+    print()
+    print(LINE); print(f'SOLUZIONE FINALE:\n  lim[{var}→{val}] {f} = {result}'); print(LINE)
+)SCRIPT";
+
+    } else { /* Semplificazione */
+        py += R"SCRIPT(
+    f = parse(expr_str)
+    print(f'PASSO 1 — Forma originale\n  {f}\n')
+    results = []
+
+    exp2 = expand(f)
+    if str(exp2) != str(f):
+        print(f'PASSO 2 — Espansione\n  {exp2}\n'); results.append(exp2)
+
+    fac = factor(f)
+    if str(fac) not in (str(f), str(exp2)):
+        print(f'PASSO 3 — Fattorizzazione\n  {fac}\n'); results.append(fac)
+
+    simp = simplify(f)
+    if str(simp) not in [str(r) for r in [f,exp2,fac]]:
+        print(f'PASSO 4 — Simplify\n  {simp}\n'); results.append(simp)
+
+    ts = trigsimp(f)
+    if str(ts) not in [str(r) for r in [f,exp2,fac,simp]]:
+        print(f'PASSO 5 — Trig-simplify\n  {ts}\n'); results.append(ts)
+
+    ps = powsimp(f, deep=True)
+    if str(ps) not in [str(r) for r in [f,exp2,fac,simp,ts]]:
+        print(f'PASSO 6 — Pow-simplify\n  {ps}\n'); results.append(ps)
+
+    # best = shortest repr
+    best = min([f]+results, key=lambda v: len(str(v)))
+    print(LINE); print(f'SOLUZIONE FINALE (forma più compatta):\n  {best}'); print(LINE)
+)SCRIPT";
+    }
+
+    py += R"SCRIPT(
+except Exception as e:
+    print(f'Errore SymPy: {e}', file=sys.stderr)
+    sys.exit(1)
+)SCRIPT";
+
+    return py;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1446,8 +1750,8 @@ void MatematicaPage::onAllConstantsClicked()
         "    ('\xcf\x80  pi', mp.pi),\n"
         "    ('e   numero di Eulero', mp.e),\n"
         "    ('\xcf\x86  sezione aurea', mp.phi),\n"
-        "    ('\xe2\x88\x9a2  radice di 2', mp.sqrt(2)),\n"
-        "    ('\xe2\x88\x9a3  radice di 3', mp.sqrt(3)),\n"
+        "    ('\xe2\x88\x9a" "2  radice di 2', mp.sqrt(2)),\n"
+        "    ('\xe2\x88\x9a" "3  radice di 3', mp.sqrt(3)),\n"
         "    ('\xce\xb3   Eulero-Mascheroni', mp.euler),\n"
         "    ('ln2 logaritmo naturale di 2', mp.log(2)),\n"
         "    ('C   costante di Catalan', mp.catalan),\n"
@@ -1576,18 +1880,281 @@ void MatematicaPage::onProcReadyRead()
 {
     if (!m_proc) return;
     const QString txt = QString::fromUtf8(m_proc->readAllStandardOutput());
-    appendOutput(txt);
+    if (m_pyOutTarget) {
+        m_pyOutTarget->moveCursor(QTextCursor::End);
+        m_pyOutTarget->insertPlainText(txt);
+        m_pyOutTarget->ensureCursorVisible();
+    } else {
+        appendOutput(txt);
+    }
 }
 
 void MatematicaPage::onProcFinished(int code, QProcess::ExitStatus /*status*/)
 {
-    if (code != 0) {
-        setStatus(QString("\xe2\x9d\x8c  Python uscito con codice %1.").arg(code));
+    if (m_solvePyMode) {
+        m_solvePyMode = false;
+        m_pyOutTarget = nullptr;
+        m_solveBusy   = false;
+        if (m_btnSolve)   m_btnSolve->setEnabled(true);
+        if (m_btnSolveAi) m_btnSolveAi->setVisible(true);
+        setStatus(code == 0 ? "\xe2\x9c\x85  SymPy completato." : "\xe2\x9d\x8c  Errore nel calcolo SymPy.");
     } else {
-        setStatus("\xe2\x9c\x85  Calcolo completato.");
+        setStatus(code != 0 ? QString("\xe2\x9d\x8c  Python uscito con codice %1.").arg(code)
+                            : "\xe2\x9c\x85  Calcolo completato.");
     }
     if (m_proc) {
         m_proc->deleteLater();
         m_proc = nullptr;
     }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildSolveTab — risoluzione passo per passo via LLM (stile Derive)
+   ══════════════════════════════════════════════════════════════ */
+QWidget* MatematicaPage::buildSolveTab()
+{
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(12, 10, 12, 10);
+    lay->setSpacing(8);
+
+    lay->addWidget(new QLabel(
+        "<b>Risolvi un'equazione, disequazione o espressione PASSO PER PASSO (stile Derive):</b>", w));
+
+    /* Riga input + tipo */
+    auto* inputRow = new QHBoxLayout;
+    m_solveInput = new QLineEdit(w);
+    m_solveInput->setPlaceholderText(
+        "Inserisci equazione o espressione: es. x\xc2\xb2 + 5x + 6 = 0,  2x > 4,  sin(x)/x");
+    m_solveInput->setMinimumWidth(320);
+    inputRow->addWidget(m_solveInput, 1);
+
+    m_solveCmb = new QComboBox(w);
+    m_solveCmb->setObjectName("settingCombo");
+    m_solveCmb->addItem("Equazione",       "equazione");
+    m_solveCmb->addItem("Disequazione",    "disequazione");
+    m_solveCmb->addItem("Derivata",        "derivata");
+    m_solveCmb->addItem("Integrale",       "integrale");
+    m_solveCmb->addItem("Limite",          "limite");
+    m_solveCmb->addItem("Semplificazione", "semplificazione");
+    inputRow->addWidget(m_solveCmb);
+    lay->addLayout(inputRow);
+
+    /* Barra pulsanti */
+    auto* btnRow = new QHBoxLayout;
+
+    m_btnSolve = new QPushButton(
+        "\xf0\x9f\x94\xa2  Risolvi passo per passo", w);   /* 🔢 */
+    m_btnSolve->setObjectName("actionBtn");
+    m_btnSolve->setProperty("highlight", "true");
+    connect(m_btnSolve, &QPushButton::clicked, this, &MatematicaPage::onSolveClicked);
+    btnRow->addWidget(m_btnSolve);
+
+    auto* btnStop = new QPushButton("\xe2\x96\xa0  Stop", w);  /* ■ */
+    btnStop->setObjectName("stopBtn");
+    connect(btnStop, &QPushButton::clicked, this, &MatematicaPage::onSolveStopClicked);
+    btnRow->addWidget(btnStop);
+
+    m_btnSolveAi = new QPushButton("\xf0\x9f\xa4\x96  Spiega con AI", w);  /* 🤖 */
+    m_btnSolveAi->setObjectName("actionBtn");
+    m_btnSolveAi->setToolTip("Usa l'LLM selezionato per spiegare i passi SymPy in italiano");
+    m_btnSolveAi->setVisible(false);
+    connect(m_btnSolveAi, &QPushButton::clicked, this, &MatematicaPage::onSolveAiClicked);
+    btnRow->addWidget(m_btnSolveAi);
+
+    m_btnSolveCopy = new QPushButton("\xf0\x9f\x93\x8b  Copia", w);  /* 📋 */
+    m_btnSolveCopy->setObjectName("actionBtn");
+    connect(m_btnSolveCopy, &QPushButton::clicked, this, &MatematicaPage::onSolveCopyClicked);
+    btnRow->addWidget(m_btnSolveCopy);
+
+    btnRow->addStretch(1);
+    lay->addLayout(btnRow);
+
+    /* Area output streaming */
+    m_solveOutput = new QTextEdit(w);
+    m_solveOutput->setObjectName("chatLog");
+    m_solveOutput->setReadOnly(true);
+    m_solveOutput->setAcceptRichText(false);
+    m_solveOutput->setPlaceholderText(
+        "La soluzione passo per passo apparir\xc3\xa0 qui.\n\n"
+        "Esempio output:\n"
+        "PASSO 1 \xe2\x80\x94 Raccoglimento / Prodotto notevole\n"
+        "  x\xc2\xb2 + 5x + 6 = (x + 2)(x + 3)\n"
+        "---\n"
+        "SOLUZIONE: x = \xe2\x88\x92" "2  oppure  x = \xe2\x88\x92" "3");
+    lay->addWidget(m_solveOutput, 1);
+
+    /* Nota informativa */
+    auto* note = new QLabel(
+        "<small><b>Suggerimento:</b> usa la notazione ASCII standard: "
+        "x^2 per x\xc2\xb2, sqrt(x) per \xe2\x88\x9ax, "
+        "sin/cos/tan, log, exp. "
+        "Puoi anche scrivere x\xc2\xb2 direttamente.</small>", w);
+    note->setWordWrap(true);
+    lay->addWidget(note);
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onSolveClicked — avvia la risoluzione passo per passo
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onSolveClicked()
+{
+    if (m_solveBusy) return;
+
+    const QString expr = m_solveInput->text().trimmed();
+    if (expr.isEmpty()) {
+        m_solveOutput->setPlainText(
+            "\xe2\x9d\x8c  Inserisci un'equazione o espressione prima di procedere.");
+        return;
+    }
+
+    m_solveBusy = true;
+    m_solveOutput->clear();
+    m_solveFullText.clear();
+    m_btnSolve->setEnabled(false);
+    if (m_btnSolveAi) m_btnSolveAi->setVisible(false);
+    setStatus("\xf0\x9f\x93\x90  SymPy in calcolo...");
+
+    const QString tipo = m_solveCmb->currentText();
+    m_pyOutTarget = m_solveOutput;
+    m_solvePyMode = true;
+
+    runPython(buildSympyScript(tipo, expr));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onSolveStopClicked — interrompe il calcolo (SymPy o AI)
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onSolveStopClicked()
+{
+    if (!m_solveBusy) return;
+    if (m_solvePyMode) {
+        stopPython();   /* resetta m_solvePyMode, m_solveBusy, m_pyOutTarget */
+    } else {
+        if (m_ai) m_ai->abort();
+        delete m_aiSolveHolder;
+        m_aiSolveHolder = nullptr;
+        m_solveBusy = false;
+        if (m_btnSolve)   m_btnSolve->setEnabled(true);
+        if (m_btnSolveAi) m_btnSolveAi->setVisible(true);
+    }
+    setStatus("\xe2\x96\xa0  Risoluzione interrotta.");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onSolveAiClicked — spiega il risultato SymPy con l'LLM selezionato
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onSolveAiClicked()
+{
+    if (m_solveBusy || !m_ai) return;
+    const QString sympyOut = m_solveOutput->toPlainText().trimmed();
+    if (sympyOut.isEmpty()) return;
+
+    /* Applica il modello scelto nella combo condivisa */
+    if (m_modelCombo) {
+        const QString sel = m_modelCombo->currentData().toString();
+        if (!sel.isEmpty() && sel != m_ai->model())
+            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
+    }
+
+    m_solveBusy = true;
+    m_btnSolve->setEnabled(false);
+    if (m_btnSolveAi) m_btnSolveAi->setEnabled(false);
+    setStatus("\xf0\x9f\xa4\x96  AI sta spiegando...");
+
+    m_solveOutput->moveCursor(QTextCursor::End);
+    m_solveOutput->insertPlainText("\n\n\xe2\x94\x80\xe2\x94\x80 \xf0\x9f\xa4\x96 Spiegazione AI "
+                                   "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\n");
+
+    const QString sys =
+        "Sei un professore di matematica. Ricevi l'output esatto di SymPy "
+        "(un CAS simbolico) e devi spiegarlo in italiano in modo didattico.\n"
+        "1. Spiega ogni passo in prosa semplice.\n"
+        "2. Nomina la tecnica matematica usata.\n"
+        "3. NON ripetere i calcoli — commentali soltanto.\n"
+        "4. Aggiungi osservazioni utili (es. casi particolari, verifica).\n"
+        "Rispondi SOLO in italiano.";
+
+    const QString user = QString(
+        "Problema originale: %1\n\n"
+        "Output SymPy:\n%2\n\n"
+        "Spiega questo risultato in modo didattico.")
+        .arg(m_solveInput->text(), sympyOut);
+
+    delete m_aiSolveHolder;
+    m_aiSolveHolder = new QObject(this);
+    connect(m_ai, &AiClient::token,    m_aiSolveHolder,
+            [this](const QString& t){ onSolveToken(t); });
+    connect(m_ai, &AiClient::finished, m_aiSolveHolder,
+            [this](const QString& f){ onSolveFinished(f); });
+    connect(m_ai, &AiClient::error,    m_aiSolveHolder,
+            [this](const QString& e){ onSolveError(e); });
+
+    m_ai->chat(sys, user);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onSolveCopyClicked — copia il testo dell'output negli appunti
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onSolveCopyClicked()
+{
+    if (!m_solveOutput) return;
+    const QString txt = m_solveOutput->toPlainText();
+    if (txt.isEmpty()) return;
+    QApplication::clipboard()->setText(txt);
+    m_btnSolveCopy->setText("\xe2\x9c\x85  Copiato!");
+    QTimer::singleShot(1500, this, &MatematicaPage::onSolveRestoreCopyBtn);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onSolveRestoreCopyBtn — ripristina il testo del pulsante Copia
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onSolveRestoreCopyBtn()
+{
+    if (m_btnSolveCopy)
+        m_btnSolveCopy->setText("\xf0\x9f\x93\x8b  Copia");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot AI — streaming token
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onSolveToken(const QString& t)
+{
+    m_solveFullText += t;
+    /* Aggiorna in streaming: sposta il cursore alla fine e inserisce */
+    QTextCursor cur = m_solveOutput->textCursor();
+    cur.movePosition(QTextCursor::End);
+    cur.insertText(t);
+    m_solveOutput->setTextCursor(cur);
+    m_solveOutput->ensureCursorVisible();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot AI — risposta completa
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onSolveFinished(const QString& full)
+{
+    Q_UNUSED(full)
+    delete m_aiSolveHolder;
+    m_aiSolveHolder = nullptr;
+    m_solveBusy = false;
+    if (m_btnSolve)   m_btnSolve->setEnabled(true);
+    if (m_btnSolveAi) { m_btnSolveAi->setEnabled(true); m_btnSolveAi->setVisible(true); }
+    setStatus("\xe2\x9c\x85  Spiegazione AI completata.");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot AI — errore
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onSolveError(const QString& msg)
+{
+    delete m_aiSolveHolder;
+    m_aiSolveHolder = nullptr;
+    m_solveBusy = false;
+    if (m_btnSolve)   m_btnSolve->setEnabled(true);
+    if (m_btnSolveAi) { m_btnSolveAi->setEnabled(true); m_btnSolveAi->setVisible(true); }
+    m_solveOutput->append("\n\xe2\x9d\x8c  Errore AI: " + msg);
+    setStatus("\xe2\x9d\x8c  Errore AI.");
 }

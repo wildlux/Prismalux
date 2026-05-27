@@ -152,6 +152,9 @@ public slots:
     /** Riceve aggiornamenti periodici RAM da HardwareMonitor. */
     void onHWUpdated(SysSnapshot snap);
 
+protected:
+    void showEvent(QShowEvent* e) override;
+
 private slots:
     void onRequestStarted(const QString& model, const QString& backend);
     void onFirstToken(const QString& chunk);

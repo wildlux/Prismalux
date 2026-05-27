@@ -15,6 +15,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSettings>
+#include <cmath>
 
 #ifdef HAVE_MULTIMEDIA
 #include <QMediaFormat>
@@ -245,6 +246,14 @@ void AudioPage::onRecordToggle()
         setRecordingState(false);
 #ifdef HAVE_MULTIMEDIA
         m_recorder->stop();
+
+        if (m_audioLevelSource) {
+            m_audioLevelSource->stop();
+            m_audioLevelSource->deleteLater();
+            m_audioLevelSource = nullptr;
+            m_audioLevelIO = nullptr;
+        }
+        m_levelBar->setValue(0);
 #endif
         m_recStatus->setText(
             QString::fromUtf8("\xe2\x9c\x85  Registrazione completata — premi Trascrivi"));  /* ✅ */
@@ -265,6 +274,23 @@ void AudioPage::onMicPermissionResult(const QPermission& permission)
     }
 #ifdef HAVE_MULTIMEDIA
     m_recorder->record();
+
+    /* Avvia un secondo QAudioSource leggero solo per il level meter */
+    QAudioFormat levelFmt;
+    levelFmt.setSampleRate(16000);
+    levelFmt.setChannelCount(1);
+    levelFmt.setSampleFormat(QAudioFormat::Int16);
+
+    const QAudioDevice inputDevice = QMediaDevices::defaultAudioInput();
+    if (!inputDevice.isNull()) {
+        m_audioLevelSource = new QAudioSource(inputDevice, levelFmt, this);
+        m_audioLevelSource->setBufferSize(512);
+        m_audioLevelIO = m_audioLevelSource->start();
+        if (m_audioLevelIO) {
+            connect(m_audioLevelIO, &QIODevice::readyRead,
+                    this, &AudioPage::onAudioLevelData);
+        }
+    }
 #endif
     setRecordingState(true);
     m_recStatus->setText(
@@ -301,12 +327,30 @@ void AudioPage::onRecordTick()
         QString("%1:%2")
         .arg(mins, 2, 10, QLatin1Char('0'))
         .arg(secs, 2, 10, QLatin1Char('0')));
+    /* Il livello audio è aggiornato in real-time da onAudioLevelData() */
+}
 
-    /* Simulazione livello audio (visivo) — livello reale richiederebbe QAudioSource */
-    static int fake = 0;
-    fake = (fake + 37) % 100;
-    const int level = 20 + (fake % 60);
+void AudioPage::onAudioLevelData()
+{
+#ifdef HAVE_MULTIMEDIA
+    if (!m_audioLevelIO) return;
+    const QByteArray data = m_audioLevelIO->readAll();
+    if (data.isEmpty()) return;
+
+    /* Calcolo RMS su campioni Int16 */
+    const qint16* samples = reinterpret_cast<const qint16*>(data.constData());
+    const int count = data.size() / static_cast<int>(sizeof(qint16));
+    if (count == 0) return;
+
+    double sum = 0.0;
+    for (int i = 0; i < count; ++i)
+        sum += static_cast<double>(samples[i]) * static_cast<double>(samples[i]);
+    const double rms = std::sqrt(sum / count);
+
+    /* Normalizza: Int16 max = 32767, mappiamo su 0-100 con un po' di gain */
+    const int level = qBound(0, static_cast<int>(rms / 327.67 * 1.5), 100);
     m_levelBar->setValue(level);
+#endif
 }
 
 QString AudioPage::savedAudioPath() const
@@ -333,7 +377,30 @@ void AudioPage::onTranscribeClicked()
                 + "  Nessuna registrazione trovata. Registra prima un audio.");
             return;
         }
-        uploadWhisper(path);
+
+        if (m_busy) {
+            m_resultEdit->setPlainText(
+                QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f")
+                + "  Elaborazione in corso. Attendi.");
+            return;
+        }
+
+        /* ── Usa AiClient::transcribeAudio() — HTTP Whisper compatibile OpenAI ── */
+        m_busy = true;
+        m_resultEdit->clear();
+        m_aiStatus->setText(
+            QString::fromUtf8("\xf0\x9f\x94\x84")  /* 🔄 */
+            + "  Invio al server Whisper...");
+        m_aiStatus->setVisible(true);
+        m_aiProgress->setVisible(true);
+        m_transcribeBtn->setEnabled(false);
+
+        connect(m_ai, &AiClient::transcriptionReady,
+                this, &AudioPage::onAiTranscriptionReady);
+        connect(m_ai, &AiClient::transcriptionError,
+                this, &AudioPage::onAiTranscriptionError);
+
+        m_ai->transcribeAudio(path);
         return;
     }
     onAnalyzeText();
@@ -468,7 +535,58 @@ void AudioPage::onChatBtnRestore()
 }
 
 /* ══════════════════════════════════════════════════════════════
+   Slot AiClient::transcriptionReady / transcriptionError
+   Chiamati da AiClient::onTranscriptionFinished() quando
+   onTranscribeClicked() usa m_ai->transcribeAudio().
+   ══════════════════════════════════════════════════════════════ */
+void AudioPage::onAiTranscriptionReady(const QString& text)
+{
+    disconnect(m_ai, &AiClient::transcriptionReady,
+               this, &AudioPage::onAiTranscriptionReady);
+    disconnect(m_ai, &AiClient::transcriptionError,
+               this, &AudioPage::onAiTranscriptionError);
+
+    m_busy = false;
+    m_aiProgress->setVisible(false);
+    m_transcribeBtn->setEnabled(true);
+
+    if (text.isEmpty()) {
+        m_aiStatus->setText(
+            QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f")  /* ⚠️ */
+            + "  Trascrizione vuota.");
+    } else {
+        m_aiStatus->setText(
+            QString::fromUtf8("\xe2\x9c\x85")  /* ✅ */
+            + "  Trascrizione completata.");
+        m_resultEdit->setPlainText(text);
+    }
+}
+
+void AudioPage::onAiTranscriptionError(const QString& msg)
+{
+    disconnect(m_ai, &AiClient::transcriptionReady,
+               this, &AudioPage::onAiTranscriptionReady);
+    disconnect(m_ai, &AiClient::transcriptionError,
+               this, &AudioPage::onAiTranscriptionError);
+
+    m_busy = false;
+    m_aiProgress->setVisible(false);
+    m_transcribeBtn->setEnabled(true);
+    m_aiStatus->setText(
+        QString::fromUtf8("\xe2\x9d\x8c")  /* ❌ */
+        + "  Errore: " + msg.left(120));
+    m_resultEdit->setPlainText(
+        QString::fromUtf8("\xe2\x9d\x8c  Whisper non raggiungibile.\n\n")
+        + "Verifica:\n"
+        "1. L'URL del server Whisper nelle Impostazioni del desktop\n"
+        "   (campo «URL server Whisper HTTP»)\n"
+        "2. Il server sia avviato (es. faster-whisper-server sulla porta 9000)\n\n"
+        "Errore: " + msg);
+}
+
+/* ══════════════════════════════════════════════════════════════
    Whisper upload — POST multipart/form-data a /api/whisper
+   (path LAN legacy: tieni per retrocompatibilità)
    ══════════════════════════════════════════════════════════════ */
 void AudioPage::uploadWhisper(const QString& filePath)
 {

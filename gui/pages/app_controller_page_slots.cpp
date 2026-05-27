@@ -44,6 +44,7 @@
 #include <QTextEdit>
 #include <QTimer>
 #include <QProgressBar>
+#include <QRegularExpression>
 #include <QVBoxLayout>
 
 namespace P = PrismaluxPaths;
@@ -282,6 +283,32 @@ void AppControllerPage::onBlenderRunClicked()
 {
     const int idx = m_blenderAction->currentIndex();
     if (idx < 0 || !kBlenderSys[idx]) return;
+
+    /* ── Controllo modello troppo piccolo per Blender ── */
+    if (m_blenderWarnLbl) {
+        const QString modelName = m_blenderModel
+            ? m_blenderModel->currentData().toString()
+            : m_ai->model();
+        QRegularExpression reBillion(R"((\d+(\.\d+)?)\s*[bB])");
+        QRegularExpressionMatch m = reBillion.match(modelName);
+        if (m.hasMatch()) {
+            const double billions = m.captured(1).toDouble();
+            if (billions < 7.0) {
+                m_blenderWarnLbl->setText(
+                    "\xe2\x9a\xa0\xef\xb8\x8f <b>Il modello <i>"
+                    + modelName
+                    + "</i> potrebbe essere troppo piccolo per Blender.</b> "
+                    "Raccomandato: modello \xe2\x89\xa5 7B "
+                    "(es. llama3.1:8b, qwen2.5-coder:7b).");
+                m_blenderWarnLbl->setVisible(true);
+            } else {
+                m_blenderWarnLbl->setVisible(false);
+            }
+        } else {
+            m_blenderWarnLbl->setVisible(false);
+        }
+    }
+
     runAi(0, QString::fromUtf8(kBlenderSys[idx]),
           m_blenderInput->toPlainText(),
           m_blenderOutput, m_blenderRunBtn, m_blenderStopBtn,

@@ -1,4 +1,5 @@
 #include "lan_wan_page.h"
+#include "../dpi_utils.h"
 #include "../lan_server.h"
 #include "../prismalux_paths.h"
 #include "../app_config.h"
@@ -17,6 +18,7 @@
 #include <QClipboard>
 #include <QUuid>
 #include <QFrame>
+#include <QScrollArea>
 #include <QLineEdit>
 #include <QTextEdit>
 #include <QComboBox>
@@ -36,27 +38,25 @@
 
 namespace P = PrismaluxPaths;
 
-/* ── Token LAN su file dedicato (0600) ───────────────────────────────────── */
+/* ── Token LAN — delega a LanServer::saveLanToken/loadLanToken ──────────────
+   Con HAVE_QKEYCHAIN usa il keyring di sistema; senza: file 0600.
+   Queste funzioni locali fanno solo la migrazione da QSettings e poi
+   delegano alla versione centralizzata in LanServer.               */
 static QString loadLanToken()
 {
-    QFile f(P::lanTokenPath());
-    if (f.open(QIODevice::ReadOnly))
-        return QString::fromUtf8(f.readAll()).trimmed();
-    /* Migrazione da QSettings */
+    /* Migrazione da QSettings (versioni precedenti) */
     const QString old = AppConfig::s().value(P::SK::kLanToken, "").toString();
-    if (!old.isEmpty())
+    if (!old.isEmpty()) {
         AppConfig::s().remove(P::SK::kLanToken);
-    return old;
+        LanServer::saveLanToken(old);   /* salva nel keyring / file 0600 */
+        return old;
+    }
+    return LanServer::loadLanToken();
 }
 
 static void saveLanToken(const QString& token)
 {
-    QDir().mkpath(QDir::homePath() + "/.prismalux");
-    const QString path = P::lanTokenPath();
-    QFile f(path);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
-    f.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
-    f.write(token.toUtf8());
+    LanServer::saveLanToken(token);
 }
 
 /* ── Helpers ── */
@@ -99,7 +99,7 @@ void LanWanPage::openQrDialog(QPushButton* parent, const QString& url,
     vl->addWidget(hdr);
 
     auto* qrw = new QrCodeWidget(url, dlg);
-    qrw->setFixedSize(260, 260);
+    qrw->setFixedSize(dpiSize(260, 260));
     vl->addWidget(qrw, 0, Qt::AlignCenter);
 
     auto* urlLbl = new QLabel(QString("<code>%1</code>").arg(url), dlg);
@@ -505,13 +505,13 @@ QWidget* LanWanPage::buildLanAndroidTab()
         connect(m_lanTokenEdit, &QLineEdit::textChanged,
                 this, &LanWanPage::onTokenTextChanged);
         auto* eyeBtn = new QPushButton("\xf0\x9f\x91\x81", tokenRow);
-        eyeBtn->setFixedWidth(28); eyeBtn->setCheckable(true); eyeBtn->setFlat(true);
+        eyeBtn->setFixedWidth(dpiScale(28)); eyeBtn->setCheckable(true); eyeBtn->setFlat(true);
         connect(eyeBtn, &QPushButton::toggled, this, &LanWanPage::onEyeBtnToggled);
         auto* copyBtn = new QPushButton("\xf0\x9f\x93\x8b", tokenRow);
-        copyBtn->setFixedWidth(28); copyBtn->setFlat(true);
+        copyBtn->setFixedWidth(dpiScale(28)); copyBtn->setFlat(true);
         connect(copyBtn, &QPushButton::clicked, this, &LanWanPage::onCopyTokenBtnClicked);
         auto* regenBtn = new QPushButton("\xf0\x9f\x94\x84", tokenRow);
-        regenBtn->setFixedWidth(28); regenBtn->setFlat(true);
+        regenBtn->setFixedWidth(dpiScale(28)); regenBtn->setFlat(true);
         connect(regenBtn, &QPushButton::clicked, this, &LanWanPage::onRegenBtnClicked);
         tokenLay->addWidget(tokenLbl);
         tokenLay->addWidget(m_lanTokenEdit, 1);
@@ -586,14 +586,20 @@ QWidget* LanWanPage::buildLanAndroidTab()
     rightLay->setContentsMargins(4, 0, 0, 0);
     rightLay->setSpacing(8);
 
-    /* QR inline — verticale: QR sopra, testo sotto */
+    /* QR inline — fisso in cima, NON scrollabile */
     m_qrInlineWidget = new QrCodeWidget(QString(), rightW);
-    m_qrInlineWidget->setFixedSize(290, 290);
+    m_qrInlineWidget->setFixedSize(dpiSize(290, 290));
     m_qrInlineWidget->setToolTip(
         "QR di connessione rapida. Si aggiorna con IP, porta e token.");
     rightLay->addWidget(m_qrInlineWidget, 0, Qt::AlignHCenter);
 
-    auto* qrInfoLbl = new QLabel(rightW);
+    /* ── Scroll area: tutto il resto (sotto il QR) scorre con lo zoom ── */
+    auto* scrollW   = new QWidget;
+    auto* scrollLay = new QVBoxLayout(scrollW);
+    scrollLay->setContentsMargins(0, 0, 0, 0);
+    scrollLay->setSpacing(8);
+
+    auto* qrInfoLbl = new QLabel(scrollW);
     qrInfoLbl->setTextFormat(Qt::RichText);
     qrInfoLbl->setWordWrap(true);
     qrInfoLbl->setAlignment(Qt::AlignCenter);
@@ -608,10 +614,10 @@ QWidget* LanWanPage::buildLanAndroidTab()
         "<i>IP + Porta + Token vengono configurati in automatico.</i><br>"
         "<span style='color:#9e9e9e;'>Puoi scansionare anche con il server fermo "
         "per pre-configurare l\xe2\x80\x99" "app.</span></span>");
-    rightLay->addWidget(qrInfoLbl);
+    scrollLay->addWidget(qrInfoLbl);
 
     /* ── Riga URL stilata: 🌐 IP:porta  [📋 Copia] ── */
-    auto* urlRow  = new QWidget(rightW);
+    auto* urlRow  = new QWidget(scrollW);
     auto* urlRowL = new QHBoxLayout(urlRow);
     urlRowL->setContentsMargins(0, 2, 0, 2);
     urlRowL->setSpacing(6);
@@ -628,7 +634,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
         QString("%1 : %2").arg(ip).arg(m_lanPortSpin->value()));
 
     auto* urlCopyBtn = new QPushButton("\xf0\x9f\x93\x8b", urlRow);  /* 📋 */
-    urlCopyBtn->setFixedSize(28, 24);
+    urlCopyBtn->setFixedSize(dpiSize(28, 24));
     urlCopyBtn->setToolTip("Copia URL negli appunti");
     urlCopyBtn->setObjectName("actionBtn");
     urlCopyBtn->setAccessibleName("Copia URL server LAN negli appunti");
@@ -636,7 +642,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
     urlRowL->addWidget(urlIcon);
     urlRowL->addWidget(m_urlDisplayLbl, 1);
     urlRowL->addWidget(urlCopyBtn);
-    rightLay->addWidget(urlRow);
+    scrollLay->addWidget(urlRow);
 
     connect(urlCopyBtn, &QPushButton::clicked, urlCopyBtn, [this, urlCopyBtn]{
         const QString url = QString("%1://%2")
@@ -655,22 +661,22 @@ QWidget* LanWanPage::buildLanAndroidTab()
             this, &LanWanPage::onUpdateQrInline);
     onUpdateQrInline();
 
-    auto* sep = new QFrame(rightW);
+    auto* sep = new QFrame(scrollW);
     sep->setFrameShape(QFrame::HLine);
     sep->setFrameShadow(QFrame::Sunken);
-    rightLay->addWidget(sep);
+    scrollLay->addWidget(sep);
 
     /* Pulsante QR Connetti (apre dialog QR più grande) */
     auto* qrConnectBtn = new QPushButton(
-        "\xf0\x9f\x93\xb1  QR Connetti (schermo intero)", rightW);
+        "\xf0\x9f\x93\xb1  QR Connetti (schermo intero)", scrollW);
     qrConnectBtn->setObjectName("actionBtn");
     qrConnectBtn->setToolTip("Mostra il QR in un dialogo grande");
     connect(qrConnectBtn, &QPushButton::clicked,
             this, &LanWanPage::onQrConnectBtnClicked);
-    rightLay->addWidget(qrConnectBtn);
+    scrollLay->addWidget(qrConnectBtn);
 
     /* QR APK + Pagina */
-    auto* qrRow  = new QWidget(rightW);
+    auto* qrRow  = new QWidget(scrollW);
     auto* qrRowL = new QHBoxLayout(qrRow);
     qrRowL->setContentsMargins(0, 0, 0, 0); qrRowL->setSpacing(6);
     m_qrApkBtn  = new QPushButton("\xf0\x9f\x93\xa6  QR APK",  qrRow);
@@ -681,23 +687,23 @@ QWidget* LanWanPage::buildLanAndroidTab()
     m_qrPageBtn->setEnabled(false);
     qrRowL->addWidget(m_qrApkBtn, 1);
     qrRowL->addWidget(m_qrPageBtn, 1);
-    rightLay->addWidget(qrRow);
+    scrollLay->addWidget(qrRow);
 
     m_lanWebBtn = new QPushButton(
-        "\xf0\x9f\x8c\x90  Apri Chat Web nel browser", rightW);
+        "\xf0\x9f\x8c\x90  Apri Chat Web nel browser", scrollW);
     m_lanWebBtn->setObjectName("actionBtn");
     m_lanWebBtn->setEnabled(false);
-    rightLay->addWidget(m_lanWebBtn);
+    scrollLay->addWidget(m_lanWebBtn);
 
     /* ── Installazione APK via USB (adb) ── */
-    auto* adbSep = new QFrame(rightW);
+    auto* adbSep = new QFrame(scrollW);
     adbSep->setFrameShape(QFrame::HLine);
     adbSep->setFrameShadow(QFrame::Sunken);
-    rightLay->addWidget(adbSep);
+    scrollLay->addWidget(adbSep);
 
     const QString adbPath = findAdb();
     m_adbInstallBtn = new QPushButton(
-        "\xf0\x9f\x94\x8c  Installa APK via USB  (adb)", rightW);
+        "\xf0\x9f\x94\x8c  Installa APK via USB  (adb)", scrollW);
     m_adbInstallBtn->setObjectName("primaryBtn");
     m_adbInstallBtn->setToolTip(
         adbPath.isEmpty()
@@ -705,26 +711,32 @@ QWidget* LanWanPage::buildLanAndroidTab()
             : QString("adb: %1").arg(adbPath));
     m_adbInstallBtn->setEnabled(!adbPath.isEmpty());
     m_adbInstallBtn->setAccessibleName("Installa APK PrismaluxMobile sul telefono Android via USB");
-    rightLay->addWidget(m_adbInstallBtn);
+    scrollLay->addWidget(m_adbInstallBtn);
 
     m_adbStatusLbl = new QLabel(
         adbPath.isEmpty()
             ? "\xe2\x9a\xa0\xef\xb8\x8f  adb non trovato. Installa: sudo apt install adb"
             : "\xe2\x84\xb9  Collega il telefono via USB con debug USB attivo, poi premi il pulsante.",
-        rightW);
+        scrollW);
     m_adbStatusLbl->setWordWrap(true);
     m_adbStatusLbl->setStyleSheet("color:#aaa;font-size:11px;");
-    rightLay->addWidget(m_adbStatusLbl);
+    scrollLay->addWidget(m_adbStatusLbl);
 
-    m_adbLog = new QTextEdit(rightW);
+    m_adbLog = new QTextEdit(scrollW);
     m_adbLog->setReadOnly(true);
     m_adbLog->setObjectName("chatLog");
-    m_adbLog->setMaximumHeight(110);
+    m_adbLog->setMaximumHeight(dpiScale(110));
     m_adbLog->setPlaceholderText("Output adb...");
     m_adbLog->hide();
-    rightLay->addWidget(m_adbLog);
+    scrollLay->addWidget(m_adbLog);
 
-    rightLay->addStretch();
+    scrollLay->addStretch();
+
+    auto* scrollArea = new QScrollArea(rightW);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setWidget(scrollW);
+    rightLay->addWidget(scrollArea, 1);
     splitLay->addWidget(rightW, 1);
     rootLay->addWidget(split, 1);
 
@@ -1040,15 +1052,15 @@ QWidget* LanWanPage::buildGNS3Tab()
     auto* lbl = new QLabel("GNS3 REST API:", connRow);
     lbl->setObjectName("hintLabel");
     m_gns3HostEdit = new QLineEdit("localhost:3080", connRow);
-    m_gns3HostEdit->setFixedWidth(150);
+    m_gns3HostEdit->setFixedWidth(dpiScale(150));
     auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
     pingBtn->setObjectName("actionBtn");
-    pingBtn->setFixedWidth(100);
+    pingBtn->setFixedWidth(dpiScale(100));
     m_gns3StatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
     m_gns3StatusLbl->setObjectName("hintLabel");
     m_gns3ExecBtn = new QPushButton("\xf0\x9f\x8c\x90  Esegui su GNS3", connRow);
     m_gns3ExecBtn->setObjectName("actionBtn");
-    m_gns3ExecBtn->setFixedWidth(160);
+    m_gns3ExecBtn->setFixedWidth(dpiScale(160));
     m_gns3ExecBtn->setEnabled(false);
 
     connLay->addWidget(lbl);
@@ -1077,7 +1089,7 @@ QWidget* LanWanPage::buildGNS3Tab()
     for (int i = 0; kGNS3Actions[i]; i++)
         m_gns3Action->addItem(QString::fromUtf8(kGNS3Actions[i]));
     m_gns3Model = new QComboBox(toolRow);
-    m_gns3Model->setMinimumWidth(180);
+    m_gns3Model->setMinimumWidth(dpiScale(180));
     gns3PopulateModels(m_gns3Model);
     toolLay->addWidget(new QLabel("Azione:", toolRow));
     toolLay->addWidget(m_gns3Action, 1);
@@ -1090,7 +1102,7 @@ QWidget* LanWanPage::buildGNS3Tab()
         "Descrivi la rete da simulare...\n"
         "Es: 'Crea una topologia con 2 router Cisco e 3 PC in una LAN'\n"
         "Es: 'Configura OSPF tra R1 e R2 con redistribuzione statica'");
-    m_gns3Input->setFixedHeight(80);
+    m_gns3Input->setFixedHeight(dpiScale(80));
     lay->addWidget(m_gns3Input);
 
     auto* btnRow = new QWidget(w);
@@ -1109,7 +1121,7 @@ QWidget* LanWanPage::buildGNS3Tab()
 
     m_gns3Progress = new QProgressBar(w);
     m_gns3Progress->setRange(0, 0);   /* indeterminate */
-    m_gns3Progress->setFixedHeight(4);
+    m_gns3Progress->setFixedHeight(dpiScale(4));
     m_gns3Progress->setTextVisible(false);
     m_gns3Progress->hide();
     lay->addWidget(m_gns3Progress);

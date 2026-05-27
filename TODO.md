@@ -1,6 +1,16 @@
 # Prismalux — TODO prossima sessione
 
-> Aggiornato: 2026-05-19 (sessione VIII) | Build: `cd gui && cmake --build build -j$(nproc)`
+> Aggiornato: 2026-05-23 (sessione zoom + tab reorder) | Build: `cd gui && cmake --build build -j$(nproc)`
+
+---
+
+## Sessione 2026-05-23 — Completato ✅
+
+- [x] **[UI] StrumentiPage: tab individuali per categoria** ✅ — Studio/Scrittura/Ricerca/Libri/Produttività/Documenti diventano tab top-level PRIMA di Finanza/Impara/Sfida; `m_sharedIoArea` condivisa sotto i tab (input+output); `onCatTabChanged()` gestisce visibilità + stretch layout; `m_actStack`/`m_catGroup`/`m_cronBtn` rimossi con guard su slot esistenti
+- [x] **[UI] Zoom +/− nella status bar** ✅ — rimosso QSlider; aggiunti pulsante `−` + label percentuale + pulsante `+` + pulsante `●` (reset 100%); range 50%–200%, step 10%; salvataggio in QSettings `ui/zoomPct`; debounce 200ms per evitare `setStyleSheet()` ad ogni click
+- [x] **[UI] Zoom font scaling reale** ✅ — `ThemeManager::apply()` usa regex su `font-size:Npx` con fattore combinato `dpiScale × m_zoomScale`; cache duale `m_rawCache` (CSS grezzo) + `m_cssCache` (CSS scalato per chiave `"id@zoomPct"`); `setZoomScale()` NON ri-applica subito (ordine startup garantito); `reapply()` per aggiornamento esplicito
+
+---
 
 ---
 
@@ -23,24 +33,18 @@
 ### Mancante / TODO prossima sessione
 
 #### 🔴 NON IMPLEMENTATO (richiederebbe librerie esterne)
-- [ ] **[Misure] AR — Realtà Aumentata** — l'utente chiede di misurare pareti con AR/VR. Qt6 non supporta ARCore nativamente. Opzioni:
-  - **Rapida**: aggiungere widget `QPainter` 2D con piantina stanza interattiva (trascina pareti) + calcolo automatico superfici
-  - **Completa**: integrazione ARCore tramite JNI Android (fuori scope Qt); richiede Plugin Qt 3D + ARCore SDK
-  - **Raccomandata**: implementare prima la versione QPainter 2D; è utile e realizzabile in una sessione
-- [ ] **[Audio] Trascrizione Whisper reale** — attualmente `onTranscribeClicked()` usa AI testuale. Per trascrizione vera serve:
-  - Endpoint `POST /v1/audio/transcriptions` (openai-compatible) in `AiClient`
-  - Upload `multipart/form-data` del file WAV
-  - Campo URL server Whisper in `settings_page.cpp`
+- [~] **[Misure] AR — Realtà Aumentata** — ARCore fuori scope Qt. Versione QPainter 2D implementata (vedi sotto ✅)
+- [x] **[Audio] Trascrizione Whisper reale** ✅ — 2026-05-24: `AiClient::transcribeAudio()` multipart/form-data POST `/v1/audio/transcriptions`; segnali `transcriptionReady`/`transcriptionError`; wiring in `multimedia_page` e `audio_page` mobile; campo URL server in Impostazioni → Voce → Trascrivi
 
 #### 🟠 TECH DEBT MOBILE
-- [ ] **[Lambda] settings_page.cpp** — 5 lambda rimaste in `connect()` (righe 411, 475, 520, 633, 642, 659). Convertire a slot nominati come da regola progetto
-- [ ] **[Lambda] camera_page.cpp:89** — 1 lambda in `connect(m_sendBtn, &QPushButton::clicked, this, [this]{...})`. Convertire a slot `onSendBtnClicked()`
+- [x] **[Lambda] settings_page.cpp** ✅ — verificato 2026-05-24: già compliant, 0 lambda in connect()
+- [x] **[Lambda] camera_page.cpp:89** ✅ — verificato 2026-05-24: già compliant, slot `onSendBtnClicked()` già presente
 - [ ] **[Audio] Livello microfono reale** — `onRecordTick()` simula il livello con valore pseudo-casuale. Per il livello reale usare `QAudioSource` + callback buffer + RMS calculation
-- [ ] **[Misure] Piantina stanza 2D** — aggiungere un `QWidget` con `paintEvent()` che disegna la planimetria della stanza in base ai valori di `QDoubleSpinBox`; update live al variare delle dimensioni
+- [x] **[Misure] Piantina stanza 2D** ✅ — 2026-05-24: `PiantinaCanvas` (QWidget) con `paintEvent()` blueprint scuro, griglia a punti, frecce quota proporzionali, label centrale m²+perimetro; slot `onDimensioniChanged(double)` nominato; update live da spin box
 
 #### 🟡 MIGLIORAMENTI
 - [ ] **[Quiz] Più domande CCNA** — `quiz_ccna_db.cpp` ha 64 domande; target 200+ per coprire tutti i 60 domini exam 200-301; aggiungere anche CompTIA Network+
-- [ ] **[Quiz] Salva punteggio** — store in QSettings il punteggio cumulativo per tema + data ultimo quiz; mostrare statistiche nella pagina Studio
+- [x] **[Quiz] Salva punteggio** ✅ — 2026-05-24: QSettings per tema (correct/total/lastDate), `refreshStatLabels()` HTML colorato verde≥75%/giallo≥50%/rosso<50%, slot `onResetStatsClicked()` con conferma
 - [ ] **[Chat] Cronologia persistente** — attualmente la chat è in memoria solo. Salvare i turni in SQLite locale (già usato dal quiz) per recuperarli tra sessioni
 - [ ] **[BLE] Scoperta peer attiva** — `BlePage` lato chat BT avvia il server ma il client deve connettersi manualmente. Aggiungere scansione dispositivi Bluetooth Classic + UI per scegliere a quale connettersi
 - [ ] **[BLE] Cifratura chat BT** — la chat è in chiaro (volutamente per semplicità). Opzione: AES-256 con pre-shared key scambiata via QR code
@@ -85,21 +89,21 @@
 ### Nuovi problemi identificati
 
 #### 🔴 CRITICO
-- [~] **[C++] Lambda connect() — conversione in corso** — partiti da ~512, ora **238 rimanenti** (2026-05-15). Completati: `mainwindow.cpp`, `impara_page.cpp`, `agenti_page_tts.cpp`, `manutenzione_page_bugs.cpp`, `grafico_page.cpp`, `quiz_page.cpp`, `lan_server.cpp`, `ai_client.cpp`. Prossimi: `ricerca_page.cpp` (26), `agenti_page_ui.cpp` (25), `manutenzione_page.cpp` (17).
+- [x] **[C++] Lambda connect() — conversione completata** ✅ — 2026-05-24: verificato 0 lambda senza context in gui/pages/; ricerca_page/agenti_page_ui/manutenzione_page/monitor_panel già convertiti; mobile settings_page+camera_page già conformi.
 - [ ] **[SEC] Supply chain MCP** — `requirements.txt` senza versioni pinned (es. `PySide6>=6.7.0`). Un `pip install --upgrade` silenzioso può portare una dipendenza malevola. Fix: `pip-compile --generate-hashes` → `requirements.lock`.
 
 #### 🟠 IMPORTANTE
-- [ ] **[UI] Nessun feedback visivo su errori di rete** — quando `AiClient` fallisce (timeout, Ollama giù, JSON malformato) l'utente vede il bottone tornare idle senza un messaggio. Il modello corretto: banner rosso contestuale + pulsante "Riprova". File coinvolti: tutti i `*_page.cpp` che chiamano `requestChat()`.
+- [x] **[UI] Nessun feedback visivo su errori di rete** ✅ — 2026-05-24: `AiErrorWidget` aggiunto a `StrumentiPage` (m_errPanel, retry onBtnRunClicked) e `ProgrammazionePage` (m_fixErrPanel, retry onBtnFixClicked). Altre pagine già gestite con output widget visibili o m_sciErrorPanel.
 - [ ] **[UI] DPI/scaling non gestito su Linux Wayland** — alcuni widget usano dimensioni hardcoded in px (es. `setFixedWidth(80)`, `setFixedHeight(52)`) che risultano minuscoli su display HiDPI 2×. Fix: sostituire con `logicalDpiX() / 96.0 * N` o usare `em` via QFontMetrics.
-- [ ] **[C++] `ai_client.cpp:1063` — lambda con `reply` raw nel connect** — `connect(reply, &QNetworkReply::finished, this, [reply, callback] {...})` cattura `reply` senza `QPointer`. Se il `QNetworkAccessManager` distrugge `reply` prima che la lambda venga eseguita → crash. Fix: `QPointer<QNetworkReply> safeReply(reply)` + check `if (!safeReply) return;`.
-- [ ] **[Python] MCP senza `asyncio.timeout()`** — le chiamate HTTP nei MCP non hanno timeout esplicito. Una risposta lenta blocca indefinitamente il thread MCP. Fix: `async with asyncio.timeout(30):` intorno alle chiamate rete.
+- [x] **[C++] `ai_client.cpp:1063` — già safe** ✅ — `m_layersReply` è `QPointer<QNetworkReply>` (ai_client.h:286), connect usa named slot.
+- [x] **[Python] MCP timeout** ✅ — 2026-05-24: verificato, tutti i MCP avevano già timeout espliciti (gns3/cytoscape:10s, obs:5s, tinymcp/opencode:120s).
 
 #### 🟡 PIANIFICABILE
 - [ ] **[SEC] Token LAN in QSettings in chiaro** — il token Bearer è salvato in `~/.config/Prismalux/GUI.conf` in plaintext. Su un sistema multiutente è leggibile. Fix: `QKeychain` (Linux: libsecret, macOS: Keychain, Windows: DPAPI).
 - [ ] **[UI] Dark/Light automatico da OS** — 23 temi ma nessuno segue `QStyleHints::colorScheme()` (Qt 6.5+). Aggiungere un tema "Sistema" che rileva automaticamente dark/light. File: `theme_manager.cpp`.
 - [ ] **[UI] Focus trap nei dialog** — dialog `QDialog` aprono ma il focus non parte dal primo campo interattivo. Aggiungere `firstWidget->setFocus()` in `showEvent()`.
-- [ ] **[C++] `monitor_panel.cpp:68,78` — lambda senza context object** — `connect(clearBtn, &QPushButton::clicked, this, [this]{...})` — qui `this` c'è ma come lambda, non come slot. Convertire a slot nominato `onClearClicked()` per rispettare la regola no-lambda.
-- [ ] **[Python] Logging strutturato MCP** — tutti i MCP usano `print()`. Sostituire con `logging.getLogger(__name__)` + `PRISMALUX_LOG_LEVEL` da env. Essenziale per produzione.
+- [x] **[C++] `monitor_panel.cpp:68,78`** ✅ — 2026-05-24: verificato, già usa slot nominati `onClearClicked`, `onExportClicked`.
+- [x] **[Python] Logging strutturato MCP** ✅ — 2026-05-24: `logging.getLogger(__name__)` + `basicConfig(PRISMALUX_LOG_LEVEL)` + 35 `logger.error()` aggiunti in tutti e 8 i server.py.
 
 #### 🟢 TECH DEBT
 - [ ] **[Python] asyncio.to_thread per I/O sync in knowledge_mcp** — `_write_raw()` e `_read_raw()` sono sync con `fcntl.flock` bloccante dentro `async def`. Un file lento blocca l'event loop. Fix: `await asyncio.to_thread(_write_raw, content)`.

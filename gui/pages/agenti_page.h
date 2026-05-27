@@ -26,6 +26,7 @@
 #include <QProcess>
 #include <QTimer>
 #include <QUrl>
+#include <QGroupBox>
 #include "../ai_client.h"
 #include "../chat_history.h"
 
@@ -269,6 +270,9 @@ private:
     QWidget*       m_ragPanel    = nullptr;  ///< wrapper collassabile
     QPushButton*   m_btnRag      = nullptr;  ///< toggle visibilità
 
+    /* ── Storia Chat pannello collassabile ── */
+    QGroupBox*     m_histGroup    = nullptr;  ///< QGroupBox collassabile storia chat
+
     /* ── Zona drop RAG per PDF / .txt / .md (indicizzazione nel RagEngine) ── */
     QLabel*        m_ragDropZone  = nullptr;  ///< drop target PDF/txt/md
     bool           m_ragIngesting = false;    ///< true durante indicizzazione
@@ -292,6 +296,7 @@ private:
     /* ── Selettore LLM principale (toolbar) ── */
     QComboBox*   m_cmbLLM    = nullptr;  ///< Selettore LLM singolo nella toolbar
     QString      m_pageModel;            ///< Modello preferito per questa scheda (privato)
+    QPushButton* m_btnRegen  = nullptr;  ///< "Rigenera con [modello]" — visibile dopo cambio LLM
 
     /* ── Pannello grafico (appare quando l'AI restituisce una formula) ── */
     QWidget*     m_chartPanel    = nullptr;
@@ -419,6 +424,7 @@ private slots:
     void onToolChkToggled(bool on);
     void onCmbLLMIndexChanged(int idx);
     void onModeToggleToggled(bool autoOn);
+    void onBtnRegenClicked();  ///< Rigenera ultima risposta con il modello corrente
 
     /* ── Log / scroll ── */
     void onLogScrollValueChanged(int value);
@@ -472,6 +478,8 @@ private slots:
     void onConsiglioPeerError(const QString& err);
 
     /* ── Storia Chat ── */
+    /** Espande/comprime il pannello storia chat */
+    void onHistGroupToggled(bool on);
     /** Salva la sessione corrente e aggiorna la lista storico */
     void onChatCompletedSave(const QString& title, const QString& logHtml);
     /** Click su voce della lista → carica HTML nel log */

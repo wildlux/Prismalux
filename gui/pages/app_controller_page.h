@@ -62,6 +62,7 @@ private:
     QPushButton*         m_blenderStopBtn   = nullptr;
     QString              m_blenderCode;
     QNetworkAccessManager* m_blenderNam     = nullptr;
+    QLabel*              m_blenderWarnLbl   = nullptr;  ///< avviso modello < 7B
 
     /* ── FreeCAD ── */
     QLineEdit*  m_freecadHostEdit  = nullptr;

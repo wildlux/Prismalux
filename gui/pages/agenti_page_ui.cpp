@@ -1,5 +1,6 @@
 #include "agenti_page.h"
 #include "agenti_page_p.h"
+#include "../dpi_utils.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
 #include "../app_config.h"
@@ -219,7 +220,7 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
     llmLbl->setObjectName("cardDesc");
     m_cmbLLM = new QComboBox(toolbar);
     m_cmbLLM->setObjectName("settingsCombo");
-    m_cmbLLM->setMinimumWidth(160);
+    m_cmbLLM->setMinimumWidth(dpiScale(160));
     m_cmbLLM->setToolTip("Seleziona il modello AI da usare.");
     m_cmbLLM->setAccessibleName("Selettore modello AI");
     m_cmbLLM->addItem("(caricamento...)");
@@ -227,6 +228,16 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
     toolLay->addWidget(m_cmbLLM);
     connect(m_cmbLLM, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &AgentiPage::onCmbLLMIndexChanged);
+
+    /* Pulsante "🔄 Rigenera con [modello]" — appare quando il modello cambia
+       con la chat non vuota, per permettere di rilanciare l'ultimo task col nuovo LLM. */
+    m_btnRegen = new QPushButton("\xf0\x9f\x94\x84 Rigenera", toolbar);
+    m_btnRegen->setObjectName("actionBtn");
+    m_btnRegen->setToolTip(
+        "Reinvia l'ultimo messaggio utente con il modello appena selezionato");
+    m_btnRegen->setVisible(false);
+    toolLay->addWidget(m_btnRegen);
+    connect(m_btnRegen, &QPushButton::clicked, this, &AgentiPage::onBtnRegenClicked);
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -263,7 +274,7 @@ void AgentiPage::buildChartPanel(QVBoxLayout* lay)
     m_chartPanel = new QFrame(this);
     m_chartPanel->setObjectName("cardFrame");
     m_chartPanel->setVisible(false);
-    m_chartPanel->setFixedHeight(260);
+    m_chartPanel->setFixedHeight(dpiScale(260));
 
     auto* cpLay = new QVBoxLayout(m_chartPanel);
     cpLay->setContentsMargins(8, 6, 8, 6);
@@ -290,7 +301,7 @@ void AgentiPage::buildChartPanel(QVBoxLayout* lay)
 
     auto* cpClose = new QPushButton("\xc3\x97", m_chartPanel);
     cpClose->setObjectName("actionBtn");
-    cpClose->setFixedSize(22, 22);
+    cpClose->setFixedSize(dpiSize(22, 22));
     cpClose->setToolTip("Chiudi grafico");
     connect(cpClose, &QPushButton::clicked, m_chartPanel, &QWidget::hide);
     cpHL->addWidget(cpClose);
@@ -306,11 +317,12 @@ void AgentiPage::buildChartPanel(QVBoxLayout* lay)
    ────────────────────────────────────────────────────────────── */
 void AgentiPage::buildHistoryPanel(QVBoxLayout* lay)
 {
-    auto* histGroup = new QGroupBox("\xf0\x9f\x93\x9c  Storia Chat", this);  /* 📜 */
+    m_histGroup = new QGroupBox("\xf0\x9f\x93\x9c  Storia Chat", this);  /* 📜 */
+    auto* histGroup = m_histGroup;
     histGroup->setObjectName("cardFrame");
     histGroup->setCheckable(true);
     histGroup->setChecked(false);
-    histGroup->setMaximumHeight(20);
+    histGroup->setMaximumHeight(dpiScale(20));
 
     auto* histLay = new QVBoxLayout(histGroup);
     histLay->setContentsMargins(6, 4, 6, 4);
@@ -319,14 +331,12 @@ void AgentiPage::buildHistoryPanel(QVBoxLayout* lay)
     m_historyList = new QListWidget(histGroup);
     m_historyList->setObjectName("chatLog");
     m_historyList->setToolTip("Clicca su una voce per riaprire la conversazione");
-    m_historyList->setMaximumHeight(160);
+    m_historyList->setMaximumHeight(dpiScale(160));
     histLay->addWidget(m_historyList);
 
     histLay->addWidget(buildHistoryButtonRow(histGroup));
 
-    connect(histGroup, &QGroupBox::toggled, histGroup, [histGroup](bool on){
-        histGroup->setMaximumHeight(on ? 220 : 20);
-    });
+    connect(histGroup, &QGroupBox::toggled, this, &AgentiPage::onHistGroupToggled);
     connect(m_historyList, &QListWidget::currentRowChanged,
             this, &AgentiPage::onHistoryItemClicked);
 
@@ -506,7 +516,7 @@ void AgentiPage::buildRagPanel(QVBoxLayout* lay)
     row1Lay->addWidget(ragLbl);
 
     m_ragInline = new RagDropWidget(row1);
-    m_ragInline->setMinimumHeight(64);
+    m_ragInline->setMinimumHeight(dpiScale(64));
     m_ragInline->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     row1Lay->addWidget(m_ragInline, 1);
     ragPanelLay->addWidget(row1);
@@ -524,7 +534,7 @@ void AgentiPage::buildRagPanel(QVBoxLayout* lay)
     m_ragDropZone->setObjectName("ragDropZone");
     m_ragDropZone->setAlignment(Qt::AlignCenter);
     m_ragDropZone->setAcceptDrops(true);
-    m_ragDropZone->setMinimumHeight(56);
+    m_ragDropZone->setMinimumHeight(dpiScale(56));
     m_ragDropZone->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_ragDropZone->setStyleSheet(
         "QLabel#ragDropZone{"
@@ -544,7 +554,7 @@ void AgentiPage::buildRagPanel(QVBoxLayout* lay)
 
     m_ragStatusLbl = new QLabel("", row2);
     m_ragStatusLbl->setObjectName("footerHints");
-    m_ragStatusLbl->setMinimumWidth(180);
+    m_ragStatusLbl->setMinimumWidth(dpiScale(180));
     m_ragStatusLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     row2Lay->addWidget(m_ragStatusLbl);
 
@@ -680,7 +690,7 @@ void AgentiPage::buildHintFooter(QVBoxLayout* lay)
     hintLay->addWidget(hintLbl, 1);
 
     auto* btnHide = new QPushButton("\xe2\x9c\x95", m_hintWidget);
-    btnHide->setFixedSize(18, 18);
+    btnHide->setFixedSize(dpiSize(18, 18));
     btnHide->setObjectName("hintCloseBtn");
     btnHide->setToolTip("Nascondi suggerimenti");
     btnHide->setStyleSheet(
@@ -868,10 +878,10 @@ void AgentiPage::buildSymbolsPanel(QVBoxLayout* lay, QPushButton* /*btnSymbols*/
     panGrid->setContentsMargins(6, 4, 6, 4);
     panGrid->setHorizontalSpacing(8);
     panGrid->setVerticalSpacing(3);
-    panGrid->setColumnMinimumWidth(0, 118);
+    panGrid->setColumnMinimumWidth(0, dpiScale(118));
     panGrid->setColumnStretch(1, 1);
 
-    constexpr int BTN_H    = 22;
+    const int BTN_H    = dpiScale(22);
     constexpr int kViewportW = 760;
 
     int gridRow = 0;
@@ -883,7 +893,7 @@ void AgentiPage::buildSymbolsPanel(QVBoxLayout* lay, QPushButton* /*btnSymbols*/
     m_symbolsScrollArea = new QScrollArea(this);
     m_symbolsScrollArea->setWidget(m_symbolsPanel);
     m_symbolsScrollArea->setWidgetResizable(true);
-    m_symbolsScrollArea->setMaximumHeight(260);
+    m_symbolsScrollArea->setMaximumHeight(dpiScale(260));
     m_symbolsScrollArea->setFrameShape(QFrame::NoFrame);
     m_symbolsScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_symbolsScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
@@ -902,7 +912,7 @@ void AgentiPage::buildSymbolCategoryRow(QGridLayout* panGrid, int gridRow,
         "background:#1e1e2a; border-radius:3px; border:1px solid #2a2a44;");
     catLbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     catLbl->setWordWrap(true);
-    catLbl->setFixedWidth(118);
+    catLbl->setFixedWidth(dpiScale(118));
     panGrid->addWidget(catLbl, gridRow, 0, Qt::AlignTop | Qt::AlignRight);
 
     auto* btnArea = new QWidget(m_symbolsPanel);
@@ -1164,6 +1174,50 @@ void AgentiPage::onCmbLLMIndexChanged(int idx)
     if (mdl.isEmpty() || mdl == "(caricamento...)") return;
     m_pageModel = mdl;
     m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), mdl);
+
+    /* Mostra il pulsante "Rigenera" solo se la chat ha già contenuto */
+    if (m_btnRegen && m_log && !m_log->toPlainText().trimmed().isEmpty()) {
+        /* Aggiorna etichetta col nome del modello corrente (troncato a 18 char) */
+        QString shortMdl = mdl;
+        if (shortMdl.length() > 18)
+            shortMdl = shortMdl.left(16) + "\xe2\x80\xa6";  /* … */
+        m_btnRegen->setText("\xf0\x9f\x94\x84 " + shortMdl);
+        m_btnRegen->setVisible(true);
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   onBtnRegenClicked — reinvia l'ultimo testo utente con il modello
+   corrente appena selezionato nel combo.
+   Strategia: cerca nell'HTML del log l'ultimo href "retry:N:BASE64URL"
+   (inserito da buildUserBubble) e decodifica il testo originale.
+   Se non trova il link fallback: non fa nulla (chat vuota o bolle senza idx).
+   ───────────────────────────────────────────────────────────────── */
+void AgentiPage::onBtnRegenClicked()
+{
+    if (!m_btnRegen || !m_log) return;
+    m_btnRegen->setVisible(false);
+
+    /* Cerca l'ultimo "retry:N:BASE64URL" nell'HTML corrente */
+    const QString html = m_log->toHtml();
+    static const QRegularExpression reRetry(
+        "retry:\\d+:([A-Za-z0-9_-]+)",
+        QRegularExpression::CaseInsensitiveOption);
+    QRegularExpressionMatchIterator it = reRetry.globalMatch(html);
+    QString lastB64;
+    while (it.hasNext())
+        lastB64 = it.next().captured(1);   /* prende l'ultimo match */
+
+    if (lastB64.isEmpty()) return;
+
+    const QString origText = QString::fromUtf8(
+        QByteArray::fromBase64(lastB64.toLatin1(), QByteArray::Base64UrlEncoding));
+    if (origText.trimmed().isEmpty()) return;
+
+    m_input->setPlainText(origText.trimmed());
+    m_input->setFocus();
+    m_input->moveCursor(QTextCursor::End);
+    QTimer::singleShot(0, this, &AgentiPage::onBtnRunDelayedClick);
 }
 
 void AgentiPage::onModeToggleToggled(bool autoOn)
@@ -1226,6 +1280,24 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         }
         return;
     }
+    /* ── Rifai domanda con il modello corrente ── */
+    if (s.startsWith("retry:")) {
+        /* formato: "retry:IDX:BASE64URL" */
+        const int c1r = s.indexOf(':');
+        const int c2r = s.indexOf(':', c1r + 1);
+        if (c2r > 0) {
+            const QString b64r = s.mid(c2r + 1);
+            const QString origText = QString::fromUtf8(
+                QByteArray::fromBase64(b64r.toLatin1(), QByteArray::Base64UrlEncoding));
+            if (!origText.isEmpty()) {
+                m_input->setPlainText(origText.trimmed());
+                m_input->setFocus();
+                m_input->moveCursor(QTextCursor::End);
+                QTimer::singleShot(0, this, &AgentiPage::onBtnRunDelayedClick);
+            }
+        }
+        return;
+    }
     if (s.startsWith("settings:")) {
         emit requestOpenSettings(s.mid(9));
         return;
@@ -1274,13 +1346,16 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         QString html = m_log->toHtml();
         const QString nStr = QString::number(N);
 
+        /* Nota: Qt serializza toHtml() sostituendo entity con caratteri Unicode.
+           &#9654; (▶ U+25B6) diventa \xe2\x96\xb6 senza VS-16.
+           &#9660; (▼ U+25BC) diventa \xe2\x96\xbc — usiamo ▼ per "aperto" e ▶ per "chiuso". */
         if (m_thinkShown.contains(N)) {
             /* === NASCONDI === */
             m_thinkShown.remove(N);
             QRegularExpression reArrowDown(
-                "(think:toggle:" + nStr + "[^>]*>)\xf0\x9f\x94\xbb",
+                "(think:toggle:" + nStr + "[^>]*>)\xe2\x96\xbc",
                 QRegularExpression::DotMatchesEverythingOption);
-            html.replace(reArrowDown, "\\1\xe2\x96\xb6\xef\xb8\x8f");
+            html.replace(reArrowDown, "\\1\xe2\x96\xb6");
             QRegularExpression reBox(
                 "<table[^>]*>(?:(?!</table>)[\\s\\S])*?think-end:" + nStr +
                 "[\\s\\S]*?</table>",
@@ -1290,9 +1365,10 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
             /* === MOSTRA === */
             m_thinkShown.insert(N);
             QRegularExpression reArrowRight(
-                "(think:toggle:" + nStr + "[^>]*>)\xe2\x96\xb6\xef\xb8\x8f",
+                /* Cerca sia ▶ (senza VS-16) che ▶️ (con VS-16) per compatibilità */
+                "(think:toggle:" + nStr + "[^>]*>)\xe2\x96\xb6(?:\xef\xb8\x8f)?",
                 QRegularExpression::DotMatchesEverythingOption);
-            html.replace(reArrowRight, "\\1\xf0\x9f\x94\xbb");
+            html.replace(reArrowRight, "\\1\xe2\x96\xbc");
 
             const QString rawThink = m_thinkTexts.value(N);
             QString safeThink = rawThink;
@@ -1351,7 +1427,7 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
            e scegliere se rimpiazzare la bolla nel log o inviare come nuovo task */
         auto* dlg  = new QDialog(this);
         dlg->setWindowTitle("\xe2\x9c\x8f\xef\xb8\x8f  Modifica testo");
-        dlg->setMinimumSize(520, 360);
+        dlg->setMinimumSize(dpiSize(520, 360));
         auto* dlgLay = new QVBoxLayout(dlg);
         dlgLay->setSpacing(10);
 
@@ -1575,7 +1651,7 @@ bool AgentiPage::_buildTranslateDialog(const QString& inputText,
 
     auto* dlg = new QDialog(this);
     dlg->setWindowTitle("\xf0\x9f\x8c\x90  Traduci testo");
-    dlg->setFixedWidth(420);
+    dlg->setFixedWidth(dpiScale(420));
     auto* dlgLay = new QVBoxLayout(dlg);
     dlgLay->setSpacing(10);
 
@@ -1908,6 +1984,15 @@ void AgentiPage::onRagUrlAddClicked()
                      QNetworkRequest::NoLessSafeRedirectPolicy);
     m_ragUrlReply = m_ragUrlNam->get(req);
     connect(m_ragUrlReply, &QNetworkReply::finished, this, &AgentiPage::onRagUrlFetched);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   onHistGroupToggled — espande/comprime il pannello storia chat
+   ────────────────────────────────────────────────────────────── */
+void AgentiPage::onHistGroupToggled(bool on)
+{
+    if (m_histGroup)
+        m_histGroup->setMaximumHeight(on ? dpiScale(220) : dpiScale(20));
 }
 
 void AgentiPage::onRagUrlFetched()

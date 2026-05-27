@@ -16,10 +16,12 @@
      9. Git MCP slots
     10. Python REPL slots
     11. Translitter slots
+    12. Driver & Kernel slots
    ====================================================================== */
 #include "programmazione_page.h"
 #include "../prismalux_paths.h"
 #include "../ai_utils.h"
+#include "../widgets/ai_error_widget.h"
 
 #include <QApplication>
 #include <QClipboard>
@@ -49,6 +51,8 @@
 #include <QSettings>
 #include <QTextEdit>
 #include <QTimer>
+#include <QDesktopServices>
+#include <QUrl>
 
 namespace P = PrismaluxPaths;
 
@@ -439,6 +443,7 @@ void ProgrammazionePage::onFixFinished(const QString& full)
 
     m_aiMode = false;
     setRunning(false);
+    if (m_fixErrPanel) m_fixErrPanel->hide();
 
     /* Estrai il codice e sostituisci l'editor */
     static const QRegularExpression re(
@@ -478,6 +483,8 @@ void ProgrammazionePage::onFixError(const QString& msg)
     m_aiMode = false;
     m_loopActive = false;
     setRunning(false);
+    if (m_fixErrPanel)
+        m_fixErrPanel->showError(msg, [this]{ onBtnFixClicked(); });
     if (m_aiOutput) {
         m_aiOutput->moveCursor(QTextCursor::End);
         m_aiOutput->insertPlainText(
@@ -1603,4 +1610,241 @@ void ProgrammazionePage::runLint()
         m_status->setText(
             "\xf0\x9f\x94\x8d  Analisi statica non ancora implementata "
             "per questo linguaggio.");
+}
+
+/* ======================================================================
+   Sezione 12 — Driver & Kernel slots
+   ====================================================================== */
+
+/* ── helper: esegue un comando read-only e mostra l'output in out ── */
+void ProgrammazionePage::onDriverRunCmd(const QString& cmd)
+{
+    /* Determina quale QTextEdit usare in base al sender (non usato direttamente):
+       gli slot chiamanti impostano m_driverAiActive prima di chiamare questa fn. */
+    QTextEdit* out = m_driverAiActive ? m_driverAiActive : m_driverOutput;
+    if (!out) return;
+
+    if (m_driverProcess) {
+        m_driverProcess->kill();
+        m_driverProcess->waitForFinished(500);
+        m_driverProcess->deleteLater();
+        m_driverProcess = nullptr;
+    }
+
+    out->clear();
+    out->append(QString("<span style='color:#aaa'>$ %1</span>").arg(cmd.toHtmlEscaped()));
+
+    m_driverProcess = new QProcess(this);
+    m_driverProcess->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_driverProcess, &QProcess::readyReadStandardOutput,
+            this, &ProgrammazionePage::onDriverCmdOutput);
+    connect(m_driverProcess,
+            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &ProgrammazionePage::onDriverCmdFinished);
+
+    m_driverProcess->start("bash", QStringList() << "-c" << cmd);
+}
+
+void ProgrammazionePage::onDriverCmdOutput()
+{
+    if (!m_driverProcess) return;
+    QTextEdit* out = m_driverAiActive ? m_driverAiActive : m_driverOutput;
+    if (!out) return;
+    /* MergedChannels: tutto su stdout */
+    const QString txt = QString::fromUtf8(m_driverProcess->readAllStandardOutput());
+    if (!txt.isEmpty()) {
+        out->moveCursor(QTextCursor::End);
+        out->insertPlainText(txt);
+        out->ensureCursorVisible();
+    }
+}
+
+void ProgrammazionePage::onDriverCmdFinished(int exitCode,
+                                              QProcess::ExitStatus /*status*/)
+{
+    QTextEdit* out = m_driverAiActive ? m_driverAiActive : m_driverOutput;
+    if (out) {
+        const QString msg = exitCode == 0
+            ? "\n\xe2\x9c\x85  Completato."
+            : QString("\n\xe2\x9d\x8c  Exit code: %1").arg(exitCode);
+        out->moveCursor(QTextCursor::End);
+        out->insertPlainText(msg);
+        out->ensureCursorVisible();
+    }
+    if (m_driverProcess) {
+        m_driverProcess->deleteLater();
+        m_driverProcess = nullptr;
+    }
+}
+
+/* ── helper: invia richiesta guida AI e aggiorna l'output corretto ── */
+void ProgrammazionePage::onDriverAiGuide(const QString& topic)
+{
+    if (m_driverAiBusy) return;
+
+    QTextEdit* out = m_driverAiActive;
+    if (!out) return;
+
+    const QString sys =
+        "Sei un esperto di sistemi Linux. Rispondi in italiano con comandi "
+        "esatti, passo per passo, pronti per essere copiati nel terminale. "
+        "Usa blocchi di codice markdown per i comandi.";
+
+    out->clear();
+    out->append(
+        QString("<span style='color:#aaa'>\xf0\x9f\xa4\x96  %1...</span>")
+        .arg("Guida AI in corso"));
+
+    m_driverAiBusy = true;
+    disconnect(m_driverAiTokenConn);
+    disconnect(m_driverAiFinishedConn);
+    disconnect(m_driverAiErrorConn);
+    m_driverAiTokenConn    = connect(m_ai, &AiClient::token,
+                                     this, &ProgrammazionePage::onDriverAiToken);
+    m_driverAiFinishedConn = connect(m_ai, &AiClient::finished,
+                                     this, &ProgrammazionePage::onDriverAiFinished);
+    m_driverAiErrorConn    = connect(m_ai, &AiClient::error,
+                                     this, &ProgrammazionePage::onDriverAiError);
+
+    /* Primo clear per lo streaming pulito */
+    out->clear();
+    m_ai->chat(P::prependKnowledge(sys), topic);
+}
+
+void ProgrammazionePage::onDriverAiToken(const QString& t)
+{
+    QTextEdit* out = m_driverAiActive;
+    if (!out) return;
+    out->moveCursor(QTextCursor::End);
+    out->insertPlainText(t);
+    out->ensureCursorVisible();
+}
+
+void ProgrammazionePage::onDriverAiFinished(const QString& /*full*/)
+{
+    m_driverAiBusy = false;
+    disconnect(m_driverAiTokenConn);
+    disconnect(m_driverAiFinishedConn);
+    disconnect(m_driverAiErrorConn);
+}
+
+void ProgrammazionePage::onDriverAiError(const QString& msg)
+{
+    m_driverAiBusy = false;
+    disconnect(m_driverAiTokenConn);
+    disconnect(m_driverAiFinishedConn);
+    disconnect(m_driverAiErrorConn);
+    QTextEdit* out = m_driverAiActive;
+    if (out) {
+        out->moveCursor(QTextCursor::End);
+        out->insertPlainText(
+            QString("\n\xe2\x9d\x8c  Errore AI: %1").arg(msg));
+    }
+}
+
+/* ── NVIDIA slots ── */
+
+void ProgrammazionePage::onNvidiaDetectClicked()
+{
+    m_driverAiActive = m_driverOutput;
+    onDriverRunCmd("nvidia-smi");
+}
+
+void ProgrammazionePage::onNvidiaDownloadClicked()
+{
+    QDesktopServices::openUrl(QUrl("https://www.nvidia.com/drivers"));
+}
+
+void ProgrammazionePage::onNvidiaDkmsClicked()
+{
+    if (!m_driverOutput) return;
+    m_driverAiActive = m_driverOutput;
+    m_driverOutput->clear();
+    m_driverOutput->append(
+        "<b>Comando da eseguire nel terminale (richiede sudo):</b>\n");
+    m_driverOutput->append(
+        "<code>sudo apt install --reinstall nvidia-dkms-$(nvidia-smi "
+        "--query-gpu=driver_version --format=csv,noheader | cut -d. -f1)</code>\n");
+    m_driverOutput->append(
+        "\n<span style='color:#aaa'>"
+        "\xe2\x84\xb9  Il comando non viene eseguito automaticamente "
+        "perch\xc3\xa9 richiede privilegi amministrativi. "
+        "Copialo e incollalo nel terminale.</span>");
+}
+
+void ProgrammazionePage::onNvidiaGuideClicked()
+{
+    m_driverAiActive = m_driverOutput;
+    onDriverAiGuide(
+        "Come installare o aggiornare i driver NVIDIA su Ubuntu/Debian/Arch Linux. "
+        "Dammi i comandi esatti passo per passo, inclusi: "
+        "rilevamento GPU, aggiunta repository, installazione driver, "
+        "configurazione DKMS e verifica finale con nvidia-smi.");
+}
+
+/* ── AMD slots ── */
+
+void ProgrammazionePage::onAmdDetectClicked()
+{
+    m_driverAiActive = m_driverAmdOutput;
+    onDriverRunCmd("lspci | grep -i vga ; glxinfo 2>/dev/null | grep -i renderer");
+}
+
+void ProgrammazionePage::onAmdDownloadClicked()
+{
+    QDesktopServices::openUrl(QUrl("https://www.amd.com/support"));
+}
+
+void ProgrammazionePage::onAmdGuideClicked()
+{
+    m_driverAiActive = m_driverAmdOutput;
+    onDriverAiGuide(
+        "Come configurare i driver AMD/amdgpu su Linux. "
+        "Spiega la differenza tra il driver amdgpu incluso nel kernel e ROCm. "
+        "Fornisci i comandi per: verificare il driver attivo, installare Mesa, "
+        "installare ROCm per ML/AI su GPU AMD, e risolvere problemi comuni.");
+}
+
+/* ── Kernel Linux slots ── */
+
+void ProgrammazionePage::onKernelVersionClicked()
+{
+    m_driverAiActive = m_driverKernelOutput;
+    onDriverRunCmd("uname -r");
+}
+
+void ProgrammazionePage::onKernelListClicked()
+{
+    m_driverAiActive = m_driverKernelOutput;
+    onDriverRunCmd("dpkg --list 2>/dev/null | grep linux-image || "
+                   "rpm -qa 2>/dev/null | grep kernel || "
+                   "ls /boot/vmlinuz* 2>/dev/null");
+}
+
+void ProgrammazionePage::onKernelGuideClicked()
+{
+    m_driverAiActive = m_driverKernelOutput;
+    onDriverAiGuide(
+        "Guida completa alla compilazione di un kernel Linux personalizzato. "
+        "Spiega passo per passo: download dei sorgenti dal kernel.org, "
+        "copia della configurazione attuale (cp /boot/config-$(uname -r) .config), "
+        "make menuconfig, compilazione con make -j$(nproc), "
+        "installazione moduli con make modules_install, "
+        "installazione kernel con make install, "
+        "aggiornamento bootloader con update-grub. "
+        "Includi prerequisiti e avvertenze di sicurezza.");
+}
+
+void ProgrammazionePage::onKernelSafetyClicked()
+{
+    QMessageBox::warning(
+        this,
+        "\xe2\x9a\xa0  Nota sicurezza — Compilazione Kernel",
+        "Compilare il kernel \xc3\xa8 un'operazione avanzata che comporta rischi:\n\n"
+        "\xe2\x80\xa2 Fare sempre un backup completo del sistema prima di procedere.\n"
+        "\xe2\x80\xa2 Su sistemi di produzione usare kernel precompilati e testati.\n"
+        "\xe2\x80\xa2 Un kernel mal configurato pu\xc3\xb2 rendere il sistema non avviabile.\n"
+        "\xe2\x80\xa2 Mantenere almeno un kernel funzionante nel bootloader.\n"
+        "\xe2\x80\xa2 Testare prima in una macchina virtuale o ambiente di staging.\n\n"
+        "Procedere solo se si ha esperienza con la gestione del sistema Linux.");
 }
