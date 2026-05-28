@@ -31,6 +31,11 @@
 #include <QApplication>
 #include <QTimer>
 #include <QEventLoop>
+#include <QToolButton>
+#include <QScrollArea>
+#include <QStackedWidget>
+#include <QApplication>
+#include "../dpi_utils.h"
 #include <cmath>
 #include <limits>
 
@@ -131,6 +136,9 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
 
     outLay->addLayout(ctrlRow);
 
+    /* ── Barra simboli LaTeX ── */
+    outLay->addWidget(buildSymbolBar());
+
     m_output = new QPlainTextEdit(outBox);
     m_output->setObjectName("chatLog");
     m_output->setReadOnly(true);
@@ -156,6 +164,195 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     /* Sincronizza il combo modello quando il modello cambia da Impostazioni o
        da un'altra scheda. */
     connect(m_ai, &AiClient::modelChanged, this, &MatematicaPage::onAiModelChanged);
+
+    /* Traccia quale QLineEdit ha il focus per l'inserimento dei simboli */
+    connect(qApp, &QApplication::focusChanged, this,
+            [this](QWidget*, QWidget* now) {
+                if (auto* le = qobject_cast<QLineEdit*>(now))
+                    if (isAncestorOf(le))
+                        m_symTarget = le;
+            });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildSymbolBar — palette simboli LaTeX cliccabili
+   Inserisce il testo corrispondente nel QLineEdit attivo.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* MatematicaPage::buildSymbolBar()
+{
+    struct Sym { const char* show; const char* ins; const char* tip; };
+    struct Cat { const char* label; QList<Sym> syms; };
+
+    const QList<Cat> cats = {
+      { "α Greci", {
+        {"\xce\xb1","alpha","α — alpha"},   {"\xce\xb2","beta","β — beta"},
+        {"\xce\xb3","gamma","γ — gamma"},   {"\xce\xb4","delta","δ — delta"},
+        {"\xce\xb5","epsilon","ε — epsilon"},{"\xce\xb6","zeta","ζ — zeta"},
+        {"\xce\xb7","eta","η — eta"},         {"\xce\xb8","theta","θ — theta"},
+        {"\xce\xb9","iota","ι — iota"},       {"\xce\xba","kappa","κ — kappa"},
+        {"\xce\xbb","lambda","λ — lambda"},   {"\xce\xbc","mu","μ — mu"},
+        {"\xce\xbd","nu","ν — nu"},           {"\xce\xbe","xi","ξ — xi"},
+        {"\xcf\x80","pi","π → pi"},           {"\xcf\x81","rho","ρ — rho"},
+        {"\xcf\x83","sigma","σ — sigma"},     {"\xcf\x84","tau","τ — tau"},
+        {"\xcf\x86","phi","φ — phi"},         {"\xcf\x87","chi","χ — chi"},
+        {"\xcf\x88","psi","ψ — psi"},         {"\xcf\x89","omega","ω — omega"},
+        {"\xce\x93","Gamma","Γ — Gamma"},     {"\xce\x94","Delta","Δ — Delta"},
+        {"\xce\x98","Theta","Θ — Theta"},     {"\xce\x9b","Lambda","Λ — Lambda"},
+        {"\xce\xa0","Pi","Π — Pi"},           {"\xce\xa3","Sigma","Σ — Sigma"},
+        {"\xce\xa6","Phi","Φ — Phi"},         {"\xce\xa8","Psi","Ψ — Psi"},
+        {"\xce\xa9","Omega","Ω — Omega"},
+      }},
+      { "\xe2\x88\x91 Operatori", {
+        {"\xe2\x88\x9e","oo","∞ → oo (infinito)"},
+        {"\xcf\x80","pi","π → pi"},
+        {"\xe2\x88\x82","diff(","d → diff(f,x)"},
+        {"\xe2\x88\x87","∇","nabla"},
+        {"\xe2\x88\x9a","sqrt(","√ → sqrt("},
+        {"\xe2\x88\xab","integrate(","∫ → integrate(f,x)"},
+        {"\xe2\x88\xae","integrate(","∮ → integrate(f,x)"},
+        {"\xe2\x88\x91","Sum(","∑ → Sum(f,(x,0,n))"},
+        {"\xe2\x88\x8f","Product(","∏ → Product(f,(x,0,n))"},
+        {"\xc2\xb1","\xc2\xb1","±"},
+        {"\xc3\x97","*","× → *"},
+        {"\xc3\xb7","/","÷ → /"},
+        {"\xc2\xb7","*","· → *"},
+        {"\xc2\xb0","\xc2\xb0","° (gradi)"},
+        {"\xe2\x80\x98","'","' (primo/derivata)"},
+        {"\xe2\x80\x99","''","'' (secondo)"},
+        {"\xe2\x84\x8f","hbar","ℏ — costante di Planck ridotta"},
+        {"e","E","e → E (Eulero)"},
+        {"i","I","i → I (unità immaginaria)"},
+      }},
+      { "\xe2\x89\xa4 Relazioni", {
+        {"\xe2\x89\xa4","<=","≤ → <="},
+        {"\xe2\x89\xa5",">=","≥ → >="},
+        {"\xe2\x89\xa0","!=","≠ → !="},
+        {"\xe2\x89\x88","≈","≈ (circa)"},
+        {"\xe2\x89\xa1","Eq(","≡ → Eq("},
+        {"\xe2\x89\x85","≅","≅ (congruente)"},
+        {"\xe2\x88\x9d","∝","∝ (proporzionale)"},
+        {"\xe2\x88\xbc","∼","∼ (simile)"},
+        {"\xe2\x88\x88","∈","∈ (appartiene a)"},
+        {"\xe2\x88\x89","∉","∉ (non appartiene)"},
+        {"\xe2\x8a\x82","⊂","⊂ (sottoinsieme stretto)"},
+        {"\xe2\x8a\x83","⊃","⊃ (sovrainsieme stretto)"},
+        {"\xe2\x8a\x86","⊆","⊆ (sottoinsieme)"},
+        {"\xe2\x8a\x87","⊇","⊇ (sovrainsieme)"},
+        {"\xe2\x88\xa9","∩","∩ (intersezione)"},
+        {"\xe2\x88\xaa","∪","∪ (unione)"},
+        {"\xe2\x88\xa7","And(","∧ → And("},
+        {"\xe2\x88\xa8","Or(","∨ → Or("},
+        {"\xc2\xac","Not(","¬ → Not("},
+        {"\xe2\x8a\x95","⊕","⊕ (or esclusivo)"},
+        {"\xe2\x8a\x97","⊗","⊗ (prodotto tensoriale)"},
+        {"\xe2\x8a\xa5","Perpendicular","⊥ (perpendicolare)"},
+        {"\xe2\x88\xa5","Parallel","∥ (parallelo)"},
+      }},
+      { "\xe2\x84\x9d Insiemi", {
+        {"\xe2\x84\x95","ℕ","N — naturali"},
+        {"\xe2\x84\xa4","ℤ","Z — interi"},
+        {"\xe2\x84\x9a","ℚ","Q — razionali"},
+        {"\xe2\x84\x9d","ℝ","R — reali"},
+        {"\xe2\x84\x82","ℂ","C — complessi"},
+        {"\xe2\x84\x99","ℙ","P — primi"},
+        {"\xe2\x84\x8d","ℍ","H — quaternioni"},
+        {"\xe2\x88\x85","EmptySet","∅ → EmptySet"},
+        {"\xe2\x88\x80","\\forall","∀ (per ogni)"},
+        {"\xe2\x88\x83","\\exists","∃ (esiste)"},
+        {"\xe2\x88\x84","\\nexists","∄ (non esiste)"},
+        {"\xe2\x84\xb5","ℵ","ℵ (aleph)"},
+      }},
+      { "\xe2\x86\x92 Frecce", {
+        {"\xe2\x86\x92","→","→"},   {"\xe2\x86\x90","←","←"},
+        {"\xe2\x86\x91","↑","↑"},   {"\xe2\x86\x93","↓","↓"},
+        {"\xe2\x86\x94","↔","↔"},   {"\xe2\x86\xa6","↦","x ↦ f(x)"},
+        {"\xe2\x87\x92","⇒","⇒"},   {"\xe2\x87\x90","⇐","⇐"},
+        {"\xe2\x87\x94","⇔","⇔"},   {"\xe2\x9f\xb9","⟹","⟹ (implica)"},
+        {"\xe2\x9f\xba","⟺","⟺ (se e solo se)"},
+        {"\xe2\x86\x97","↗","↗"},   {"\xe2\x86\x98","↘","↘"},
+        {"\xe2\x86\x99","↙","↙"},   {"\xe2\x86\x96","↖","↖"},
+      }},
+    };
+
+    auto* bar    = new QWidget(this);
+    auto* barLay = new QVBoxLayout(bar);
+    barLay->setContentsMargins(2, 2, 2, 0);
+    barLay->setSpacing(2);
+
+    /* Riga superiore: label + combo categoria */
+    auto* topRow = new QHBoxLayout;
+    topRow->setSpacing(6);
+    auto* symLbl = new QLabel(
+        "\xcf\x83  <b>Simboli LaTeX:</b>", bar);     /* σ Simboli LaTeX: */
+    symLbl->setTextFormat(Qt::RichText);
+    symLbl->setObjectName("cardDesc");
+    topRow->addWidget(symLbl);
+
+    auto* catCmb = new QComboBox(bar);
+    catCmb->setFixedWidth(dpiScale(130));
+    for (const auto& c : cats)
+        catCmb->addItem(QString::fromUtf8(c.label));
+    topRow->addWidget(catCmb);
+
+    auto* hintSym = new QLabel(
+        "<small style='color:#64748b'>"
+        "Clicca un simbolo per inserirlo nel campo attivo</small>", bar);
+    hintSym->setTextFormat(Qt::RichText);
+    topRow->addWidget(hintSym);
+    topRow->addStretch(1);
+    barLay->addLayout(topRow);
+
+    /* Stack: una pagina per categoria, ciascuna con una riga scrollabile di bottoni */
+    m_symStack = new QStackedWidget(bar);
+
+    for (const auto& cat : cats) {
+        auto* scroll = new QScrollArea;
+        scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        scroll->setFixedHeight(dpiScale(34));
+
+        auto* row = new QWidget;
+        auto* rowLay = new QHBoxLayout(row);
+        rowLay->setContentsMargins(2, 1, 2, 1);
+        rowLay->setSpacing(2);
+
+        for (const auto& s : cat.syms) {
+            auto* btn = new QToolButton(row);
+            btn->setText(QString::fromUtf8(s.show));
+            btn->setFixedSize(dpiScale(28), dpiScale(28));
+            btn->setProperty("sym", QString::fromUtf8(s.ins));
+            btn->setToolTip(QString::fromUtf8(s.tip));
+            btn->setObjectName("navBtn");
+            connect(btn, &QToolButton::clicked, this, &MatematicaPage::onSymBtnClicked);
+            rowLay->addWidget(btn);
+        }
+        rowLay->addStretch(1);
+        row->adjustSize();
+        scroll->setWidget(row);
+        m_symStack->addWidget(scroll);
+    }
+
+    barLay->addWidget(m_symStack);
+
+    connect(catCmb, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MatematicaPage::onSymCatChanged);
+
+    return bar;
+}
+
+void MatematicaPage::onSymCatChanged(int idx)
+{
+    if (m_symStack) m_symStack->setCurrentIndex(idx);
+}
+
+void MatematicaPage::onSymBtnClicked()
+{
+    const QString sym = sender()->property("sym").toString();
+    if (m_symTarget && m_symTarget->isVisible()) {
+        m_symTarget->insert(sym);
+        m_symTarget->setFocus();
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════

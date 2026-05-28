@@ -13,6 +13,9 @@ class QLabel;
 class QProcess;
 class QSplitter;
 class QFileInfo;
+class QToolButton;
+class QScrollArea;
+class QStackedWidget;
 
 /* ══════════════════════════════════════════════════════════════
    MatematicaPage — Laboratorio matematico
@@ -110,6 +113,7 @@ private:
     QWidget* buildSolveTab();
     QWidget* buildAnalisi1Tab();
     QWidget* buildAnalisi2Tab();
+    QWidget* buildSymbolBar();
 
     /* grafici — usa GraficoCanvas nativo */
     static QString sympyToCanvas(const QString& expr);
@@ -143,7 +147,14 @@ private:
     void        fillMathCombo(const QStringList& list, const QString& cur);
     void        fetchAndFillMathModels();  ///< fetchModels() + fillMathCombo via one-shot holder
 
+    /* barra simboli LaTeX */
+    QLineEdit*      m_symTarget  = nullptr;  ///< input attivo per inserimento simbolo
+    QStackedWidget* m_symStack   = nullptr;
+
 private slots:
+    void onSymBtnClicked();
+    void onSymCatChanged(int idx);
+
     /* output bar */
     void onCopyClicked();
     void onClearOutputClicked();
