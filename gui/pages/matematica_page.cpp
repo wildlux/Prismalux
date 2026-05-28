@@ -804,6 +804,7 @@ static QString buildSympyScript(const QString& tipo, const QString& expr)
 import sys, re, platform
 import sympy as _sympy_mod
 from sympy import *
+import re  # ripristina: from sympy import * sovrascrive re con sympy.re()
 from sympy.parsing.sympy_parser import (
     parse_expr, standard_transformations,
     implicit_multiplication_application, convert_xor)

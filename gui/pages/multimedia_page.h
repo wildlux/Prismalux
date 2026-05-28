@@ -5,6 +5,10 @@
 #include <QComboBox>
 #include <QPushButton>
 #include <QProcess>
+#include <QSpinBox>
+#include <QCheckBox>
+#include <QSet>
+#include <QTimer>
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
 #include "sintetizzatore_widget.h"
@@ -29,6 +33,16 @@ private slots:
     void onAudioToken(const QString& t);
     void onAudioAnalyzeFinished(const QString& full);
     void onAudioAnalyzeError(const QString& msg);
+    // OCR
+    void onOcrStartStopClicked(bool on);
+    void onOcrTimerTick();
+    void onOcrDaemonReadyRead();
+    void onOcrDaemonFinished(int code, QProcess::ExitStatus status);
+    void onOcrLoadVideoClicked();
+    void onOcrAnalyzeClicked();
+    void onOcrAiToken(const QString& t);
+    void onOcrAiFinished(const QString& full);
+    void onOcrAiError(const QString& msg);
 private:
     AiClient* m_ai = nullptr;
     // Audio AI
@@ -58,11 +72,38 @@ private:
     QMetaObject::Connection m_audioErrorConn;
     QMetaObject::Connection m_transcriptionReadyConn;
     QMetaObject::Connection m_transcriptionErrorConn;
+    // OCR continua
+    QLabel*      m_ocrPreview    = nullptr;
+    QTextEdit*   m_ocrText       = nullptr;
+    QLabel*      m_ocrStatus     = nullptr;
+    QTextEdit*   m_ocrAiOut      = nullptr;
+    QPushButton* m_ocrStartBtn   = nullptr;
+    QProcess*    m_ocrDaemon     = nullptr;   ///< processo Python persistente (no respawn)
+    QByteArray   m_ocrLineBuf;               ///< buffer linea parziale dal daemon
+    QTimer*      m_ocrTimer      = nullptr;
+    QSpinBox*    m_ocrInterval   = nullptr;
+    bool         m_ocrPending    = false;     ///< evita richieste sovrapposte
+    // filtri testo OCR
+    QCheckBox*   m_ocrChkDedup   = nullptr;
+    QCheckBox*   m_ocrChkAlpha   = nullptr;
+    QCheckBox*   m_ocrChkMinLen  = nullptr;
+    QSet<QString> m_ocrSeenLines;
+    // video OCR
+    QString      m_ocrVideoPath;             ///< path video caricato (vuoto = webcam)
+    QLabel*      m_ocrVideoLbl   = nullptr;  ///< nome file video corrente
+    QSpinBox*    m_ocrVideoStep  = nullptr;  ///< estrai 1 frame ogni N secondi di video
+    QMetaObject::Connection m_ocrAiTokenConn;
+    QMetaObject::Connection m_ocrAiFinishedConn;
+    QMetaObject::Connection m_ocrAiErrorConn;
     QWidget* buildAudioTab();
     QWidget* buildSDTab();
     QWidget* buildGraphvizTab();
     QWidget* buildSintetizzatoreTab();
+    QWidget* buildOcrTab();
     void runGraphvizAi();
     void _renderDotCode(const QString& dot);
     void _doTranscribe(const QString& wav);
+    void startOcrDaemon();
+    void stopOcrDaemon();
+    void requestOcrCapture();
 };

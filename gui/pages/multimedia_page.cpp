@@ -24,6 +24,11 @@
 #include <QPixmap>
 #include <QRegularExpression>
 #include <QTextCursor>
+#include <QSpinBox>
+#include <QApplication>
+#include <QClipboard>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 namespace P = PrismaluxPaths;
 
@@ -35,10 +40,11 @@ MultimediaPage::MultimediaPage(AiClient* ai, QWidget* parent)
     lay->setSpacing(0);
 
     auto* tabs = new QTabWidget(this);
-    tabs->addTab(buildAudioTab(),           "\xf0\x9f\x8e\xb5  Audio AI");        /* 🎵 */
-    tabs->addTab(buildSDTab(),             "\xf0\x9f\x8e\xa8  Genera Immagini"); /* 🎨 */
-    tabs->addTab(buildGraphvizTab(),       "\xf0\x9f\x97\xba  Mappe");            /* 🗺 */
-    tabs->addTab(buildSintetizzatoreTab(), "\xf0\x9f\x94\x8a  Sintetizzatore");   /* 🔊 */
+    tabs->addTab(buildAudioTab(),           "\xf0\x9f\x8e\xb5  Audio AI");         /* 🎵 */
+    tabs->addTab(buildSDTab(),             "\xf0\x9f\x8e\xa8  Genera Immagini");  /* 🎨 */
+    tabs->addTab(buildGraphvizTab(),       "\xf0\x9f\x97\xba  Mappe");             /* 🗺 */
+    tabs->addTab(buildSintetizzatoreTab(), "\xf0\x9f\x94\x8a  Sintetizzatore");    /* 🔊 */
+    tabs->addTab(buildOcrTab(),            "\xf0\x9f\x94\x8d  Scansione OCR");     /* 🔍 */
 
     lay->addWidget(tabs);
 }
@@ -612,4 +618,627 @@ void MultimediaPage::onAudioAnalyzeError(const QString& msg)
     QObject::disconnect(m_audioErrorConn);
     m_audioTokenConn = m_audioFinishedConn = m_audioErrorConn = {};
     m_audioErr->showError(msg);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildOcrTab — Scansione OCR continua da webcam
+   ══════════════════════════════════════════════════════════════ */
+QWidget* MultimediaPage::buildOcrTab()
+{
+    auto* panel = new QWidget(this);
+    auto* vbox  = new QVBoxLayout(panel);
+    vbox->setContentsMargins(12, 12, 12, 12);
+    vbox->setSpacing(8);
+
+    auto* title = new QLabel(
+        "<b>\xf0\x9f\x94\x8d  Scansione OCR continua</b>"
+        " \xe2\x80\x94 Legge testo da webcam in tempo reale", panel);
+    title->setTextFormat(Qt::RichText);
+    vbox->addWidget(title);
+
+    auto* hintRow = new QHBoxLayout;
+    hintRow->setSpacing(8);
+
+    auto* hint = new QLabel(
+        "\xe2\x84\xb9  Richiede: "
+        "<code>sudo apt install python3-opencv python3-pandas tesseract-ocr tesseract-ocr-ita</code>"
+        " + <code>python3 -m pip install pytesseract --break-system-packages</code>", panel);
+    hint->setTextFormat(Qt::RichText);
+    hint->setObjectName("hintLabel");
+    hint->setWordWrap(true);
+    hintRow->addWidget(hint, 1);
+
+    auto* btnCopyCmd = new QPushButton(
+        "\xf0\x9f\x93\x8b  Copia comandi", panel);  /* 📋 */
+    btnCopyCmd->setObjectName("navBtn");
+    btnCopyCmd->setFixedHeight(28);
+    btnCopyCmd->setToolTip(
+        "Copia i comandi di installazione negli appunti:\n"
+        "sudo apt install python3-opencv python3-pandas tesseract-ocr tesseract-ocr-ita -y\n"
+        "python3 -m pip install pytesseract --break-system-packages");
+    connect(btnCopyCmd, &QPushButton::clicked, panel, [btnCopyCmd]{
+        QApplication::clipboard()->setText(
+            "sudo apt install python3-opencv python3-pandas tesseract-ocr tesseract-ocr-ita -y\n"
+            "python3 -m pip install pytesseract --break-system-packages");
+        const QString orig = btnCopyCmd->text();
+        btnCopyCmd->setText("\xe2\x9c\x85  Copiato!");
+        QTimer::singleShot(2000, btnCopyCmd, [btnCopyCmd, orig]{
+            btnCopyCmd->setText(orig);
+        });
+    });
+    hintRow->addWidget(btnCopyCmd);
+
+    vbox->addLayout(hintRow);
+
+    /* ── Riga controlli ── */
+    auto* ctrlRow = new QWidget(panel);
+    auto* cl = new QHBoxLayout(ctrlRow);
+    cl->setContentsMargins(0, 0, 0, 0);
+    cl->setSpacing(8);
+
+    m_ocrStartBtn = new QPushButton(
+        "\xe2\x96\xb6  Avvia webcam", ctrlRow);  /* ▶ */
+    m_ocrStartBtn->setObjectName("actionBtn");
+    m_ocrStartBtn->setCheckable(true);
+    cl->addWidget(m_ocrStartBtn);
+
+    cl->addWidget(new QLabel("Intervallo:", ctrlRow));
+    m_ocrInterval = new QSpinBox(ctrlRow);
+    m_ocrInterval->setRange(1, 60);
+    m_ocrInterval->setValue(3);
+    m_ocrInterval->setSuffix(" s");
+    m_ocrInterval->setToolTip("Secondi tra una scansione webcam e l'altra");
+    cl->addWidget(m_ocrInterval);
+
+    /* Separatore visivo */
+    auto* sep = new QFrame(ctrlRow);
+    sep->setFrameShape(QFrame::VLine);
+    sep->setFrameShadow(QFrame::Sunken);
+    cl->addWidget(sep);
+
+    /* Carica video */
+    auto* btnVideo = new QPushButton(
+        "\xf0\x9f\x93\xb9  Carica video", ctrlRow);  /* 📹 */
+    btnVideo->setObjectName("actionBtn");
+    btnVideo->setToolTip(
+        "Carica un video registrato (MP4, AVI, MOV, MKV)\n"
+        "Estrae automaticamente un frame ogni N secondi");
+    connect(btnVideo, &QPushButton::clicked,
+            this, &MultimediaPage::onOcrLoadVideoClicked);
+    cl->addWidget(btnVideo);
+
+    cl->addWidget(new QLabel("1 frame ogni:", ctrlRow));
+    m_ocrVideoStep = new QSpinBox(ctrlRow);
+    m_ocrVideoStep->setRange(1, 30);
+    m_ocrVideoStep->setValue(2);
+    m_ocrVideoStep->setSuffix(" s");
+    m_ocrVideoStep->setToolTip("Estrai 1 frame ogni N secondi di video");
+    cl->addWidget(m_ocrVideoStep);
+
+    m_ocrVideoLbl = new QLabel("Nessun video", ctrlRow);
+    m_ocrVideoLbl->setObjectName("hintLabel");
+    m_ocrVideoLbl->setMaximumWidth(160);
+    cl->addWidget(m_ocrVideoLbl);
+
+    auto* btnClear = new QPushButton(
+        "\xf0\x9f\x97\x91  Cancella", ctrlRow);  /* 🗑 */
+    btnClear->setObjectName("actionBtn");
+    connect(btnClear, &QPushButton::clicked, panel, [this]{
+        m_ocrText->clear();
+        m_ocrSeenLines.clear();
+    });
+    cl->addWidget(btnClear);
+
+    cl->addStretch(1);
+
+    m_ocrStatus = new QLabel("Pronto.", panel);
+    m_ocrStatus->setObjectName("statusLabel");
+    cl->addWidget(m_ocrStatus);
+
+    vbox->addWidget(ctrlRow);
+
+    /* ── Riga filtri ── */
+    auto* filterRow = new QWidget(panel);
+    auto* fl = new QHBoxLayout(filterRow);
+    fl->setContentsMargins(0, 2, 0, 2);
+    fl->setSpacing(16);
+
+    fl->addWidget(new QLabel("\xf0\x9f\xaa\x9b  Filtri:", panel));  /* 🪛 */
+
+    m_ocrChkDedup = new QCheckBox("Deduplicazione (righe gi\xc3\xa0 viste)", panel);
+    m_ocrChkDedup->setChecked(true);
+    m_ocrChkDedup->setToolTip("Scarta le righe identiche gi\xc3\xa0 presenti nell'area testo");
+    fl->addWidget(m_ocrChkDedup);
+
+    m_ocrChkAlpha = new QCheckBox("Solo testo (>50% lettere)", panel);
+    m_ocrChkAlpha->setChecked(true);
+    m_ocrChkAlpha->setToolTip("Scarta righe composte principalmente da numeri o simboli");
+    fl->addWidget(m_ocrChkAlpha);
+
+    m_ocrChkMinLen = new QCheckBox("Lunghezza \xe2\x89\xa5 4 caratteri", panel);  /* ≥ */
+    m_ocrChkMinLen->setChecked(true);
+    m_ocrChkMinLen->setToolTip("Scarta parole/frammenti troppo corti");
+    fl->addWidget(m_ocrChkMinLen);
+
+    fl->addStretch(1);
+    vbox->addWidget(filterRow);
+
+    /* ── Splitter: anteprima | testo OCR ── */
+    auto* splitter = new QSplitter(Qt::Horizontal, panel);
+
+    auto* previewBox = new QGroupBox(
+        "\xf0\x9f\x93\xb7  Anteprima webcam", splitter);  /* 📷 */
+    auto* pbLay = new QVBoxLayout(previewBox);
+    pbLay->setContentsMargins(4, 4, 4, 4);
+    m_ocrPreview = new QLabel(previewBox);
+    m_ocrPreview->setAlignment(Qt::AlignCenter);
+    m_ocrPreview->setMinimumSize(280, 200);
+    m_ocrPreview->setText("\xf0\x9f\x93\xb7  In attesa...");
+    m_ocrPreview->setObjectName("hintLabel");
+    pbLay->addWidget(m_ocrPreview, 1);
+    splitter->addWidget(previewBox);
+
+    auto* textBox = new QGroupBox(
+        "\xf0\x9f\x93\x84  Testo OCR rilevato", splitter);  /* 📄 */
+    auto* tbLay = new QVBoxLayout(textBox);
+    tbLay->setContentsMargins(4, 4, 4, 4);
+    m_ocrText = new QTextEdit(textBox);
+    m_ocrText->setObjectName("chatLog");
+    m_ocrText->setPlaceholderText(
+        "Il testo rilevato dalla webcam apparir\xc3\xa0 qui...\n\n"
+        "Punta la camera su un manuale o documento stampato.");
+    tbLay->addWidget(m_ocrText);
+    splitter->addWidget(textBox);
+
+    splitter->setSizes({300, 500});
+    vbox->addWidget(splitter, 2);
+
+    /* ── Analisi AI ── */
+    auto* aiRow = new QHBoxLayout;
+    auto* btnAnalyze = new QPushButton(
+        "\xf0\x9f\xa4\x96  Analizza testo con AI", panel);  /* 🤖 */
+    btnAnalyze->setObjectName("actionBtn");
+    connect(btnAnalyze, &QPushButton::clicked,
+            this, &MultimediaPage::onOcrAnalyzeClicked);
+    aiRow->addWidget(btnAnalyze);
+    aiRow->addStretch(1);
+    vbox->addLayout(aiRow);
+
+    auto* aiOutBox = new QGroupBox(
+        "\xf0\x9f\xa4\x96  Analisi AI del manuale", panel);
+    auto* aoLay = new QVBoxLayout(aiOutBox);
+    aoLay->setContentsMargins(4, 4, 4, 4);
+    m_ocrAiOut = new QTextEdit(aiOutBox);
+    m_ocrAiOut->setObjectName("chatLog");
+    m_ocrAiOut->setReadOnly(true);
+    m_ocrAiOut->setMaximumHeight(160);
+    m_ocrAiOut->setPlaceholderText(
+        "Riassunto, punti chiave o analisi del testo scansionato...");
+    aoLay->addWidget(m_ocrAiOut);
+    vbox->addWidget(aiOutBox);
+
+    /* ── Timer per scansione periodica ── */
+    m_ocrTimer = new QTimer(panel);
+    m_ocrTimer->setSingleShot(false);
+    connect(m_ocrTimer, &QTimer::timeout,
+            this, &MultimediaPage::onOcrTimerTick);
+
+    connect(m_ocrStartBtn, &QPushButton::toggled,
+            this, &MultimediaPage::onOcrStartStopClicked);
+
+    return panel;
+}
+
+/* Script Python del daemon OCR — rimane in ascolto su stdin,
+   importa le librerie UNA SOLA VOLTA all'avvio, poi risponde a comandi stdin.
+   Comandi:
+     SCAN              → cattura un frame dalla webcam
+     VIDEO:path:step   → estrae frame dal video ogni `step` secondi */
+static QString ocrDaemonScript(const QString& previewPath)
+{
+    return QString(R"PY(
+import sys, json, re as _re
+sys.stdout.reconfigure(line_buffering=True)
+try:
+    import cv2
+    import pytesseract
+except ImportError as e:
+    print(json.dumps({'error': f'Dipendenza mancante: {e}\n\nInstalla con:\n  sudo apt install python3-opencv python3-pandas tesseract-ocr tesseract-ocr-ita -y\n  python3 -m pip install pytesseract --break-system-packages'}), flush=True)
+    sys.exit(0)
+
+PREVIEW = '%1'
+
+def ocr_frame(frame):
+    """Elabora un frame e restituisce le righe di testo filtrate."""
+    cv2.imwrite(PREVIEW, cv2.resize(frame, (320, 240)))
+    h, w = frame.shape[:2]
+    if w > 1000:
+        frame = cv2.resize(frame, (1000, int(h * 1000 / w)))
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (3, 3), 0)
+    _, gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    data = pytesseract.image_to_data(gray, lang='ita+eng',
+        config='--psm 6 --oem 3', output_type=pytesseract.Output.DICT)
+    MIN_CONF = 55
+    seen_key = None
+    line_buf = []
+    lines = []
+    n = len(data['text'])
+    for i in range(n):
+        conf = int(data['conf'][i])
+        word = data['text'][i].strip()
+        if conf < MIN_CONF or len(word) < 2:
+            continue
+        if _re.fullmatch(r'[\W_]+', word):
+            continue
+        key = (data['block_num'][i], data['par_num'][i], data['line_num'][i])
+        if key != seen_key:
+            if line_buf:
+                j = ' '.join(line_buf)
+                if len(j) >= 3: lines.append(j)
+            line_buf = []
+            seen_key = key
+        line_buf.append(word)
+    if line_buf:
+        j = ' '.join(line_buf)
+        if len(j) >= 3: lines.append(j)
+    return lines
+
+# Apri webcam e fai warmup
+cap = cv2.VideoCapture(0)
+if not cap.isOpened():
+    print(json.dumps({'error': 'Webcam non disponibile — controlla /dev/video0'}), flush=True)
+    sys.exit(0)
+for _ in range(3):
+    cap.read()
+print(json.dumps({'ready': True}), flush=True)
+
+# Loop comandi
+for raw_line in sys.stdin:
+    cmd = raw_line.strip()
+    if not cmd:
+        continue
+
+    # ── SCAN: singolo frame dalla webcam ──
+    if cmd == 'SCAN':
+        ret, frame = cap.read()
+        if not ret:
+            print(json.dumps({'error': 'Frame non catturato'}), flush=True)
+            continue
+        lines = ocr_frame(frame)
+        print(json.dumps({'text': '\n'.join(lines), 'preview': PREVIEW}), flush=True)
+
+    # ── VIDEO:path:step — estrae frame ogni step secondi ──
+    elif cmd.startswith('VIDEO:'):
+        parts = cmd.split(':', 2)
+        vid_path = parts[1]
+        step_sec = float(parts[2]) if len(parts) > 2 else 2.0
+        vcap = cv2.VideoCapture(vid_path)
+        if not vcap.isOpened():
+            print(json.dumps({'error': f'Impossibile aprire il video: {vid_path}'}), flush=True)
+            continue
+        fps = vcap.get(cv2.CAP_PROP_FPS) or 25
+        total_frames = int(vcap.get(cv2.CAP_PROP_FRAME_COUNT))
+        step_frames = max(1, int(fps * step_sec))
+        processed = 0
+        frame_idx = 0
+        while True:
+            vcap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+            ret, frame = vcap.read()
+            if not ret:
+                break
+            lines = ocr_frame(frame)
+            elapsed = frame_idx / fps
+            print(json.dumps({
+                'text': '\n'.join(lines),
+                'preview': PREVIEW,
+                'video_progress': frame_idx,
+                'video_total': total_frames,
+                'video_time': round(elapsed, 1)
+            }), flush=True)
+            processed += 1
+            frame_idx += step_frames
+        vcap.release()
+        print(json.dumps({'video_done': True, 'frames': processed}), flush=True)
+
+cap.release()
+)PY").arg(previewPath);
+}
+
+/* ── startOcrDaemon — avvia il processo Python persistente ── */
+void MultimediaPage::startOcrDaemon()
+{
+    if (m_ocrDaemon && m_ocrDaemon->state() != QProcess::NotRunning)
+        return;
+
+    const QString previewPath = QDir::tempPath() + "/prismalux_ocr_preview.jpg";
+    m_ocrLineBuf.clear();
+    m_ocrPending = false;
+
+    m_ocrDaemon = new QProcess(this);
+    m_ocrDaemon->setProcessChannelMode(QProcess::SeparateChannels);
+    connect(m_ocrDaemon, &QProcess::readyReadStandardOutput,
+            this, &MultimediaPage::onOcrDaemonReadyRead);
+    connect(m_ocrDaemon,
+            QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &MultimediaPage::onOcrDaemonFinished);
+
+    m_ocrStatus->setText("\xe2\x8f\xb3  Avvio daemon OCR (import librerie)...");
+    m_ocrDaemon->start(P::findPython(),
+                       QStringList{"-c", ocrDaemonScript(previewPath)});
+    if (!m_ocrDaemon->waitForStarted(3000)) {
+        m_ocrStatus->setText("\xe2\x9d\x8c  Python non trovato nel PATH.");
+        m_ocrDaemon->deleteLater();
+        m_ocrDaemon = nullptr;
+    }
+}
+
+/* ── stopOcrDaemon — chiude il processo Python persistente ── */
+void MultimediaPage::stopOcrDaemon()
+{
+    if (!m_ocrDaemon) return;
+    m_ocrDaemon->closeWriteChannel();
+    m_ocrDaemon->kill();
+    m_ocrDaemon->deleteLater();
+    m_ocrDaemon = nullptr;
+    m_ocrPending = false;
+}
+
+/* ── requestOcrCapture — invia "SCAN\n" al daemon già avviato ── */
+void MultimediaPage::requestOcrCapture()
+{
+    if (!m_ocrDaemon || m_ocrDaemon->state() != QProcess::Running)
+        return;
+    if (m_ocrPending)
+        return;  /* scansione precedente ancora in corso */
+    m_ocrPending = true;
+    m_ocrDaemon->write("SCAN\n");
+}
+
+void MultimediaPage::onOcrStartStopClicked(bool on)
+{
+    if (on) {
+        m_ocrStartBtn->setText("\xe2\x8f\xb9  Ferma");  /* ⏹ */
+        startOcrDaemon();
+        m_ocrTimer->start(m_ocrInterval->value() * 1000);
+    } else {
+        m_ocrTimer->stop();
+        stopOcrDaemon();
+        m_ocrStartBtn->setText("\xe2\x96\xb6  Avvia webcam");
+        m_ocrStatus->setText("Scansione fermata.");
+    }
+}
+
+void MultimediaPage::onOcrTimerTick()
+{
+    requestOcrCapture();
+}
+
+void MultimediaPage::onOcrLoadVideoClicked()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this, "Seleziona video",
+        QDir::homePath(),
+        "Video (*.mp4 *.avi *.mov *.mkv *.webm *.ts *.m4v);;"
+        "Tutti i file (*)");
+    if (path.isEmpty()) return;
+
+    m_ocrVideoPath = path;
+    m_ocrVideoLbl->setText(QFileInfo(path).fileName());
+
+    /* Avvia daemon se non è già in esecuzione, poi invia VIDEO */
+    auto sendVideoCmd = [this]{
+        const QString cmd = QString("VIDEO:%1:%2\n")
+            .arg(m_ocrVideoPath)
+            .arg(m_ocrVideoStep->value());
+        m_ocrDaemon->write(cmd.toUtf8());
+        m_ocrStatus->setText(
+            "\xf0\x9f\x93\xb9  Analisi video in corso...");
+    };
+
+    if (!m_ocrDaemon || m_ocrDaemon->state() != QProcess::Running) {
+        startOcrDaemon();
+        /* aspetta il messaggio {"ready":true} — lo slot onOcrDaemonReadyRead
+           rileverà video_path non vuoto e invierà il comando */
+    } else {
+        sendVideoCmd();
+    }
+    m_ocrPending = true;   /* blocca SCAN webcam durante analisi video */
+}
+
+/* ── onOcrDaemonReadyRead — legge le righe JSON emesse dal daemon ── */
+void MultimediaPage::onOcrDaemonReadyRead()
+{
+    m_ocrLineBuf += m_ocrDaemon->readAllStandardOutput();
+    while (true) {
+        const int nl = m_ocrLineBuf.indexOf('\n');
+        if (nl < 0) break;
+        const QByteArray line = m_ocrLineBuf.left(nl).trimmed();
+        m_ocrLineBuf = m_ocrLineBuf.mid(nl + 1);
+        if (line.isEmpty()) continue;
+
+        const QJsonObject obj = QJsonDocument::fromJson(line).object();
+
+        if (obj.contains("ready")) {
+            if (!m_ocrVideoPath.isEmpty()) {
+                /* daemon pronto con video in coda — invia VIDEO */
+                const QString cmd = QString("VIDEO:%1:%2\n")
+                    .arg(m_ocrVideoPath)
+                    .arg(m_ocrVideoStep->value());
+                m_ocrDaemon->write(cmd.toUtf8());
+                m_ocrStatus->setText(
+                    "\xf0\x9f\x93\xb9  Analisi video in corso...");
+            } else {
+                m_ocrStatus->setText(
+                    "\xf0\x9f\x94\x8d  Daemon pronto. Prima scansione...");
+                requestOcrCapture();
+            }
+            continue;
+        }
+
+        if (obj.contains("video_done")) {
+            const int frames = obj["video_done"].toInt();
+            m_ocrStatus->setText(
+                "\xe2\x9c\x85  Video completato — " +
+                QString::number(obj["frames"].toInt()) + " frame elaborati.");
+            m_ocrPending = false;
+            m_ocrVideoPath.clear();
+            m_ocrVideoLbl->setText("Nessun video");
+            continue;
+        }
+
+        if (obj.contains("video_progress")) {
+            const int cur   = obj["video_progress"].toInt();
+            const int tot   = obj["video_total"].toInt();
+            const double t  = obj["video_time"].toDouble();
+            const int pct   = tot > 0 ? cur * 100 / tot : 0;
+            m_ocrStatus->setText(
+                QString("\xf0\x9f\x93\xb9  Video %1% — %2s")
+                .arg(pct).arg(t, 0, 'f', 1));
+            /* la logica testo viene gestita sotto con "text" */
+        }
+
+        m_ocrPending = false;
+
+        if (obj.contains("error")) {
+            m_ocrStatus->setText("\xe2\x9d\x8c  " + obj["error"].toString());
+            continue;
+        }
+
+        /* Aggiorna anteprima webcam */
+        const QString previewPath = obj["preview"].toString();
+        if (!previewPath.isEmpty()) {
+            QPixmap px(previewPath);
+            if (!px.isNull())
+                m_ocrPreview->setPixmap(
+                    px.scaled(m_ocrPreview->size(),
+                               Qt::KeepAspectRatio,
+                               Qt::SmoothTransformation));
+        }
+
+        /* Applica filtri sulle righe */
+        const QString rawText = obj["text"].toString().trimmed();
+        QStringList inLines  = rawText.split('\n', Qt::SkipEmptyParts);
+        QStringList outLines;
+
+        const bool doDedup   = m_ocrChkDedup  && m_ocrChkDedup->isChecked();
+        const bool doAlpha   = m_ocrChkAlpha  && m_ocrChkAlpha->isChecked();
+        const bool doMinLen  = m_ocrChkMinLen && m_ocrChkMinLen->isChecked();
+
+        for (const QString& raw : inLines) {
+            const QString line = raw.trimmed();
+            if (line.isEmpty()) continue;
+
+            /* Filtro lunghezza minima */
+            if (doMinLen && line.length() < 4) continue;
+
+            /* Filtro alpha: almeno 50% dei caratteri deve essere lettera */
+            if (doAlpha) {
+                int letters = 0;
+                for (const QChar& c : line)
+                    if (c.isLetter()) ++letters;
+                if (line.length() > 0 &&
+                    letters * 100 / line.length() < 50) continue;
+            }
+
+            /* Filtro deduplicazione */
+            if (doDedup) {
+                const QString key = line.toLower().simplified();
+                if (m_ocrSeenLines.contains(key)) continue;
+                m_ocrSeenLines.insert(key);
+            }
+
+            outLines << line;
+        }
+
+        const QString text = outLines.join('\n');
+        const int nChars = text.length();
+        if (nChars >= 4) {
+            if (!m_ocrText->toPlainText().isEmpty())
+                m_ocrText->append(
+                    "\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
+                    "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
+                    "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
+                    "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
+                    "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\n");
+            m_ocrText->append(text);
+            m_ocrStatus->setText(
+                "\xe2\x9c\x85  " + QString::number(outLines.size()) +
+                " righe (" + QString::number(nChars) + " car.)");
+        } else if (rawText.length() > 0) {
+            m_ocrStatus->setText(
+                "\xe2\x9a\xa0  Testo filtrato — avvicina il foglio.");
+        } else {
+            m_ocrStatus->setText(
+                "\xf0\x9f\x94\x8d  Nessun testo — punta la webcam sul bugiardino.");
+        }
+    }
+}
+
+void MultimediaPage::onOcrDaemonFinished(int, QProcess::ExitStatus)
+{
+    if (m_ocrDaemon) {
+        m_ocrDaemon->deleteLater();
+        m_ocrDaemon = nullptr;
+    }
+    m_ocrPending = false;
+    if (m_ocrStartBtn && m_ocrStartBtn->isChecked()) {
+        m_ocrStartBtn->setChecked(false);
+        m_ocrStatus->setText("\xe2\x9a\xa0  Daemon OCR terminato inaspettatamente.");
+    }
+}
+
+void MultimediaPage::onOcrAnalyzeClicked()
+{
+    const QString testo = m_ocrText->toPlainText().trimmed();
+    if (testo.isEmpty()) {
+        m_ocrAiOut->setPlainText(
+            "\xe2\x9d\x8c  Avvia prima la scansione per raccogliere del testo.");
+        return;
+    }
+
+    const QString sys =
+        "Sei un assistente esperto nell'analisi di testi tecnici e manuali. "
+        "Analizza il testo OCR fornito (potrebbe contenere errori di scansione). "
+        "Fornisci: 1) Riassunto conciso, 2) Punti chiave, 3) Eventuali dati numerici "
+        "o istruzioni importanti. Rispondi in italiano.";
+
+    m_ocrAiOut->clear();
+    m_ocrAiOut->setPlaceholderText("\xe2\x8c\x9b  Analisi AI in corso...");
+
+    QObject::disconnect(m_ocrAiTokenConn);
+    QObject::disconnect(m_ocrAiFinishedConn);
+    QObject::disconnect(m_ocrAiErrorConn);
+    m_ocrAiTokenConn    = connect(m_ai, &AiClient::token,
+                                  this, &MultimediaPage::onOcrAiToken);
+    m_ocrAiFinishedConn = connect(m_ai, &AiClient::finished,
+                                  this, &MultimediaPage::onOcrAiFinished);
+    m_ocrAiErrorConn    = connect(m_ai, &AiClient::error,
+                                  this, &MultimediaPage::onOcrAiError);
+
+    m_ai->chat(P::prependKnowledge(sys),
+               "Testo OCR scansionato:\n\n" + testo);
+}
+
+void MultimediaPage::onOcrAiToken(const QString& t)
+{
+    m_ocrAiOut->moveCursor(QTextCursor::End);
+    m_ocrAiOut->insertPlainText(t);
+}
+
+void MultimediaPage::onOcrAiFinished(const QString&)
+{
+    QObject::disconnect(m_ocrAiTokenConn);
+    QObject::disconnect(m_ocrAiFinishedConn);
+    QObject::disconnect(m_ocrAiErrorConn);
+    m_ocrAiTokenConn = m_ocrAiFinishedConn = m_ocrAiErrorConn = {};
+}
+
+void MultimediaPage::onOcrAiError(const QString& msg)
+{
+    QObject::disconnect(m_ocrAiTokenConn);
+    QObject::disconnect(m_ocrAiFinishedConn);
+    QObject::disconnect(m_ocrAiErrorConn);
+    m_ocrAiTokenConn = m_ocrAiFinishedConn = m_ocrAiErrorConn = {};
+    m_ocrAiOut->setPlainText("\xe2\x9d\x8c  Errore AI: " + msg);
 }
