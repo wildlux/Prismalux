@@ -192,6 +192,50 @@ AudioPage::AudioPage(AiClient* ai, QWidget* parent)
     guideVbox->addWidget(guideLbl);
     vbox->addWidget(guideGroup);
 
+    /* ── Sezione TTS — Sintesi Vocale ── */
+    auto* ttsGroup = new QGroupBox(
+        QString::fromUtf8("\xf0\x9f\x94\x8a  Sintesi Vocale (TTS)"), inner);  /* 🔊 */
+    ttsGroup->setObjectName("SettingsGroup");
+    auto* ttsLay = new QVBoxLayout(ttsGroup);
+    ttsLay->setSpacing(8);
+
+    auto* ttsLbl = new QLabel(
+        "Digita il testo e premi <b>Parla</b> per ascoltarlo in italiano.", ttsGroup);
+    ttsLbl->setTextFormat(Qt::RichText);
+    ttsLbl->setWordWrap(true);
+    ttsLay->addWidget(ttsLbl);
+
+    m_ttsInput = new QTextEdit(ttsGroup);
+    m_ttsInput->setPlaceholderText("Scrivi qui il testo da leggere ad alta voce...");
+    m_ttsInput->setFixedHeight(90);
+    m_ttsInput->setObjectName("SettingsGroup");
+    ttsLay->addWidget(m_ttsInput);
+
+    m_speakBtn = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x94\x8a  Parla"), ttsGroup);  /* 🔊 */
+    m_speakBtn->setObjectName("ChatSendBtn");
+    m_speakBtn->setMinimumHeight(44);
+
+#ifdef HAVE_TTS
+    m_tts = new QTextToSpeech(this);
+    m_tts->setLocale(QLocale(QLocale::Italian, QLocale::Italy));
+
+    connect(m_speakBtn, &QPushButton::clicked, this, &AudioPage::onSpeakToggle);
+    connect(m_tts, &QTextToSpeech::stateChanged, ttsGroup,
+            [this](QTextToSpeech::State state) {
+                if (state == QTextToSpeech::Ready || state == QTextToSpeech::Error) {
+                    if (m_speakBtn)
+                        m_speakBtn->setText(QString::fromUtf8(
+                            "\xf0\x9f\x94\x8a  Parla"));  /* 🔊 */
+                }
+            });
+#else
+    m_speakBtn->setEnabled(false);
+    m_speakBtn->setToolTip("QTextToSpeech non disponibile in questa build");
+#endif
+    ttsLay->addWidget(m_speakBtn);
+    vbox->addWidget(ttsGroup);
+
     vbox->addStretch();
 
     /* ── Timer per il cronometro di registrazione ── */
@@ -385,7 +429,7 @@ void AudioPage::onTranscribeClicked()
             return;
         }
 
-        /* ── Usa AiClient::transcribeAudio() — HTTP Whisper compatibile OpenAI ── */
+        /* ── Invia l'audio al server Whisper via HTTP multipart ── */
         m_busy = true;
         m_resultEdit->clear();
         m_aiStatus->setText(
@@ -395,12 +439,7 @@ void AudioPage::onTranscribeClicked()
         m_aiProgress->setVisible(true);
         m_transcribeBtn->setEnabled(false);
 
-        connect(m_ai, &AiClient::transcriptionReady,
-                this, &AudioPage::onAiTranscriptionReady);
-        connect(m_ai, &AiClient::transcriptionError,
-                this, &AudioPage::onAiTranscriptionError);
-
-        m_ai->transcribeAudio(path);
+        uploadWhisper(path);
         return;
     }
     onAnalyzeText();
@@ -539,49 +578,55 @@ void AudioPage::onChatBtnRestore()
    Chiamati da AiClient::onTranscriptionFinished() quando
    onTranscribeClicked() usa m_ai->transcribeAudio().
    ══════════════════════════════════════════════════════════════ */
+/* onAiTranscriptionReady / onAiTranscriptionError: legacy, non più usati.
+   La trascrizione ora avviene via uploadWhisper() / onWhisperReply(). */
 void AudioPage::onAiTranscriptionReady(const QString& text)
 {
-    disconnect(m_ai, &AiClient::transcriptionReady,
-               this, &AudioPage::onAiTranscriptionReady);
-    disconnect(m_ai, &AiClient::transcriptionError,
-               this, &AudioPage::onAiTranscriptionError);
-
     m_busy = false;
     m_aiProgress->setVisible(false);
     m_transcribeBtn->setEnabled(true);
-
-    if (text.isEmpty()) {
+    if (!text.isEmpty()) {
         m_aiStatus->setText(
-            QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f")  /* ⚠️ */
-            + "  Trascrizione vuota.");
-    } else {
-        m_aiStatus->setText(
-            QString::fromUtf8("\xe2\x9c\x85")  /* ✅ */
-            + "  Trascrizione completata.");
+            QString::fromUtf8("\xe2\x9c\x85  Trascrizione completata."));
         m_resultEdit->setPlainText(text);
     }
 }
 
 void AudioPage::onAiTranscriptionError(const QString& msg)
 {
-    disconnect(m_ai, &AiClient::transcriptionReady,
-               this, &AudioPage::onAiTranscriptionReady);
-    disconnect(m_ai, &AiClient::transcriptionError,
-               this, &AudioPage::onAiTranscriptionError);
-
     m_busy = false;
     m_aiProgress->setVisible(false);
     m_transcribeBtn->setEnabled(true);
     m_aiStatus->setText(
-        QString::fromUtf8("\xe2\x9d\x8c")  /* ❌ */
-        + "  Errore: " + msg.left(120));
-    m_resultEdit->setPlainText(
-        QString::fromUtf8("\xe2\x9d\x8c  Whisper non raggiungibile.\n\n")
-        + "Verifica:\n"
-        "1. L'URL del server Whisper nelle Impostazioni del desktop\n"
-        "   (campo «URL server Whisper HTTP»)\n"
-        "2. Il server sia avviato (es. faster-whisper-server sulla porta 9000)\n\n"
-        "Errore: " + msg);
+        QString::fromUtf8("\xe2\x9d\x8c  Errore: ") + msg.left(120));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onSpeakToggle — avvia o ferma la sintesi vocale TTS
+   ══════════════════════════════════════════════════════════════ */
+void AudioPage::onSpeakToggle()
+{
+#ifdef HAVE_TTS
+    if (!m_tts) return;
+
+    if (m_tts->state() == QTextToSpeech::Speaking) {
+        m_tts->stop();
+        if (m_speakBtn)
+            m_speakBtn->setText(QString::fromUtf8("\xf0\x9f\x94\x8a  Parla"));
+        return;
+    }
+
+    const QString txt = m_ttsInput ? m_ttsInput->toPlainText().trimmed() : QString();
+    if (txt.isEmpty()) {
+        if (m_ttsInput) m_ttsInput->setPlaceholderText(
+            QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f  Scrivi prima il testo..."));
+        return;
+    }
+
+    m_tts->say(txt);
+    if (m_speakBtn)
+        m_speakBtn->setText(QString::fromUtf8("\xe2\x8f\xb9  Stop"));  /* ⏹ */
+#endif
 }
 
 /* ══════════════════════════════════════════════════════════════

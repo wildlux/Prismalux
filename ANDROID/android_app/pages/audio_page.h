@@ -13,6 +13,10 @@
 #include <QHttpMultiPart>
 #include "../ai_client.h"
 
+#ifdef HAVE_TTS
+#include <QTextToSpeech>
+#endif
+
 #ifdef HAVE_MULTIMEDIA
 #include <QMediaRecorder>
 #include <QMediaCaptureSession>
@@ -55,6 +59,7 @@ private slots:
     void onWhisperReply();
     void onAiTranscriptionReady(const QString& text);
     void onAiTranscriptionError(const QString& msg);
+    void onSpeakToggle();           ///< TTS: legge/ferma il testo nel campo TTS
 
 signals:
     void transcriptionReady(const QString& text);
@@ -86,6 +91,13 @@ private:
     /* Whisper upload */
     QNetworkAccessManager* m_whisperNam   = nullptr;
     QNetworkReply*         m_whisperReply = nullptr;
+
+    /* TTS — sintesi vocale (QTextToSpeech) */
+    QTextEdit*   m_ttsInput  = nullptr;   ///< testo da leggere
+    QPushButton* m_speakBtn  = nullptr;   ///< Parla / Stop
+#ifdef HAVE_TTS
+    QTextToSpeech* m_tts     = nullptr;
+#endif
 
 #ifdef HAVE_MULTIMEDIA
     QMediaCaptureSession* m_captureSession    = nullptr;
