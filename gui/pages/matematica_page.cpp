@@ -2629,12 +2629,17 @@ struct AnalisiTopic { const char* name; const char* html; const char* ex; const 
 /* ── Macro frazioni inline (Qt QTextEdit: le tabelle sono sempre block-level) ──
    Usa sup + Unicode FRACTION SLASH U+2044 (⁄) + sub: rende la frazione
    in una sola riga leggibile, es.  sin(x)⁄x   f'⁄g'   x^(n+1)⁄(n+1)+C */
-/* Usa Unicode FRACTION SLASH ⁄ (U+2044) tra sup e sub:
-   sin(x)⁄x  —  standard tipografico HTML per frazioni inline */
+/* Frazioni con linea orizzontale centrata.
+   Qt 6 supporta display:inline-block → outer span inline nel testo,
+   inner span display:block → impila numeratore/denominatore verticalmente
+   centrati; border-bottom del primo span = linea di frazione. */
 #define FR(n,d) \
-  "<span style='white-space:nowrap'>" \
-  "<sup style='font-size:88%;text-decoration:underline'>" n "</sup>" \
-  "<sub style='font-size:88%'>" d "</sub>" \
+  "<span style='display:inline-block;vertical-align:middle;" \
+  "text-align:center;margin:0 2px;line-height:1.3'>" \
+  "<span style='display:block;border-bottom:1px solid #94a3b8;" \
+  "text-align:center;font-size:86%;padding:0 4px'>" n "</span>" \
+  "<span style='display:block;text-align:center;" \
+  "font-size:86%;padding:0 4px'>" d "</span>" \
   "</span>"
 
 /* Tipo stringa deve corrispondere al testo di m_solveCmb */
