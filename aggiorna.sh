@@ -1,9 +1,17 @@
 #!/bin/bash
 # ══════════════════════════════════════════════════════════════
 #  aggiorna.sh — Ricompila Prismalux GUI Qt6 — Linux, macOS, Windows (MSYS2/Git Bash)
+#  Versione: si legge da gui/CMakeLists.txt (attualmente v2.9)
+#
+#  Novità v2.9:
+#    - Scheda TFR dedicata (Finanza) con RAG auto-fill
+#    - WAN Calcolo Distribuito: server/client TCP, 28 tipi task,
+#      cron scheduler, dispatcher universale (AI/shell/Python/Git/Graphviz…)
+#    - Analisi Fenomeni: allegati PDF/TXT/MD/CSV con pdftotext
+#    - Cytoscape rinominato "Cytoscape — Bioinformatica"
 #
 #  Uso:
-#    ./aggiorna.sh              # GUI + ZIP Windows + AppImage (Linux only)
+#    ./aggiorna.sh              # GUI + AppImage (Linux) / GUI + ZIP (Windows)
 #    ./aggiorna.sh --gui        # solo GUI Qt6
 #    ./aggiorna.sh --zip        # solo ZIP Windows (richiede Python3)
 #    ./aggiorna.sh --appimage   # solo AppImage Linux (Linux only)

@@ -2,8 +2,16 @@
 setlocal EnableDelayedExpansion
 
 REM ══════════════════════════════════════════════════════════════
-REM  aggiorna.bat — Aggiorna Prismalux su Windows
+REM  aggiorna.bat — Aggiorna Prismalux su Windows  (v2.9)
 REM  Lancia questo file dalla ROOT del progetto (doppio clic).
+REM
+REM  Novità v2.9:
+REM    - Scheda TFR dedicata (Finanza) con RAG auto-fill
+REM    - WAN Calcolo Distribuito: server/client TCP porta 11600,
+REM      28 tipi task (AI/shell/Python/Git/Graphviz/sistema...)
+REM      con cron scheduler e dispatcher universale
+REM    - Analisi Fenomeni: allegati PDF/TXT/MD/CSV
+REM    - Cytoscape rinominato "Cytoscape — Bioinformatica"
 REM
 REM  Rilevamento bash (ordine di priorità):
 REM    1. MSYS2 UCRT64    (C:\msys64\ucrt64)   — migliore per Qt
