@@ -157,6 +157,7 @@ set(CPP_SRCS
     pages/matematica_page.cpp
     pages/agenti_multi_page.cpp
     graph_memory.cpp
+    rag_graph.cpp
     pages/ricerca_page.cpp
     pages/ricerca_page_astrale.cpp
     pages/rab0l_canvas.cpp

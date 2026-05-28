@@ -21,6 +21,8 @@
 #include "../widgets/astro_calc.h"
 #include "../widgets/world_map_widget.h"
 #include "../blhm_engine.h"
+#include "../graph_memory.h"
+#include "../rag_graph.h"
 #include "rab0l_canvas.h"
 class QDateEdit;
 class QTimeEdit;
@@ -130,6 +132,25 @@ private:
     QWidget* buildBlhmTab();
     QWidget* buildAnalisiPage();
     QWidget* buildAstraleTab();
+    QWidget* buildRagGrafoTab();   ///< 🕸️ Grafo Conoscenza RAG
+
+    /* ── Grafo RAG ── */
+    GraphMemory*    m_ragGm          = nullptr;   ///< GraphMemory dedicata al RAG
+    RagGraph*       m_ragGraph       = nullptr;   ///< estrattore entità
+    QListWidget*    m_ragNodeList    = nullptr;   ///< lista nodi
+    QTextEdit*      m_ragNodeDetail  = nullptr;   ///< dettaglio nodo selezionato
+    QLabel*         m_ragImgLbl      = nullptr;   ///< immagine Graphviz
+    QTextEdit*      m_ragDotView     = nullptr;   ///< DOT sorgente
+    QLabel*         m_ragStatus      = nullptr;
+    QProgressBar*   m_ragProgress    = nullptr;
+    QPushButton*    m_ragRunBtn      = nullptr;
+    QPushButton*    m_ragStopBtn     = nullptr;
+    QPushButton*    m_ragClearBtn    = nullptr;
+    QComboBox*      m_ragModelCombo  = nullptr;
+    QLineEdit*      m_ragSearchEdit  = nullptr;
+    QProcess*       m_ragDotProc     = nullptr;
+    QString         m_ragTmpPng;
+    QString         m_ragTmpDot;
 
     /* ── Carta Astrale ── */
     QDateEdit*      m_astraleNascita    = nullptr;
@@ -308,6 +329,18 @@ private slots:
     void onBlhmEngineAutoftClicked();
     void onBlhmEngineSaveClicked();
     void onBlhmEngineLoadClicked();
+
+    /* Grafo RAG */
+    void onRagRunClicked();
+    void onRagStopClicked();
+    void onRagClearClicked();
+    void onRagSearchChanged(const QString& q);
+    void onRagNodeClicked(QListWidgetItem* item);
+    void onRagGraphProgress(int cur, int tot, const QString& file);
+    void onRagGraphFinished(const RagGraphStats& stats);
+    void onRagGraphMemChanged();
+    void onRagDotProcFinished(int code, QProcess::ExitStatus status);
+    void onRagRefreshDot();
 
 public:
     static void esportaPdf(QTextEdit* editor,

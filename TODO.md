@@ -107,7 +107,7 @@ Documento RAG (PDF/TXT/MD)
 
 #### File da creare/modificare
 
-- [ ] **`gui/rag_graph.h/cpp`** — `RagGraph`:
+- [x] **`gui/rag_graph.h/cpp`** — `RagGraph`:
   - Usa `GraphMemory` internamente
   - `extractAndIndex(text, sourceFile)` → prompt LLM per entità+relazioni
   - `buildGraph()` → aggiorna GraphMemory con nodi/archi estratti
@@ -128,7 +128,7 @@ Documento RAG (PDF/TXT/MD)
   }
   ```
 
-- [ ] **`gui/pages/ricerca_page.cpp`** — aggiungi sub-tab "🕸️ Grafo RAG":
+- [x] **`gui/pages/ricerca_page.cpp`** — aggiungi sub-tab "🕸️ Grafo RAG":
   - QWebEngineView con D3.js / oppure usa Graphviz esistente
   - Lista nodi con filtro per tipo/importanza
   - Click su nodo → mostra i chunk RAG sorgente

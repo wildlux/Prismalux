@@ -50,6 +50,8 @@ namespace P = PrismaluxPaths;
 #include <QTextBrowser>
 #include <QDoubleSpinBox>
 #include <QMessageBox>
+#include <QPlainTextEdit>
+#include <QStandardPaths>
 #include <cmath>
 
 /* ── helper: barra azioni output (Esporta PDF / Salva .md) ────────── */
@@ -134,6 +136,8 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     tabs->addTab(buildAnalisiPage(),
                  "\xf0\x9f\x8c\x8c  Analisi Fenomeni");
     /* ── Gruppo 6: Astrologia ── */
+    tabs->addTab(buildRagGrafoTab(),
+                 "\xf0\x9f\x95\xb8  Grafo RAG");   /* 🕸️ */
     tabs->addTab(buildAstraleTab(),
                  "\xe2\xad\x90  Carta Astrale");
 
@@ -3219,4 +3223,421 @@ void RicercaPage::onAnalisiRemoveFileClicked()
     if (!m_analisiFileList) return;
     const auto items = m_analisiFileList->selectedItems();
     for (auto* it : items) delete it;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildRagGrafoTab — 🕸️ Grafo della Conoscenza RAG
+   ══════════════════════════════════════════════════════════════ */
+QWidget* RicercaPage::buildRagGrafoTab()
+{
+    /* Inizializza GraphMemory e RagGraph */
+    const QString gmPath = QStandardPaths::writableLocation(
+                               QStandardPaths::HomeLocation)
+                           + "/.prismalux/rag_graph.db";
+    m_ragGm    = new GraphMemory(gmPath, this);
+    m_ragGm->open();
+    m_ragGraph = new RagGraph(m_ai, m_ragGm, this);
+
+    connect(m_ragGraph, &RagGraph::progressUpdated,
+            this, &RicercaPage::onRagGraphProgress);
+    connect(m_ragGraph, &RagGraph::finished,
+            this, &RicercaPage::onRagGraphFinished);
+    connect(m_ragGraph, &RagGraph::fileError,
+            this, [this](const QString& f, const QString& e) {
+                if (m_ragStatus)
+                    m_ragStatus->setText(QString("\xe2\x9a\xa0\xef\xb8\x8f  %1: %2").arg(f, e.left(60)));
+            });
+    connect(m_ragGm, &GraphMemory::changed, this, &RicercaPage::onRagGraphMemChanged);
+
+    auto* w = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(0, 0, 0, 0);
+    lay->setSpacing(0);
+
+    /* ── Barra superiore ── */
+    auto* topBar = new QWidget(w);
+    topBar->setObjectName("modelBarMath");
+    auto* topLay = new QHBoxLayout(topBar);
+    topLay->setContentsMargins(12, 8, 12, 8);
+    topLay->setSpacing(8);
+
+    auto* titleLbl = new QLabel(
+        "\xf0\x9f\x95\xb8  <b>Grafo della Conoscenza RAG</b>"
+        " — entit\xc3\xa0 e relazioni estratte dai tuoi documenti",  /* entità */
+        topBar);
+    titleLbl->setTextFormat(Qt::RichText);
+    titleLbl->setObjectName("cardDesc");
+    topLay->addWidget(titleLbl, 1);
+
+    m_ragModelCombo = new QComboBox(topBar);
+    m_ragModelCombo->setObjectName("settingCombo");
+    m_ragModelCombo->setMinimumWidth(160);
+    m_ragModelCombo->setToolTip("Modello LLM per estrazione entit\xc3\xa0");
+    if (m_ai) {
+        const QString cur = m_ai->model();
+        m_ragModelCombo->addItem(cur.isEmpty() ? "(caricamento...)" : cur, cur);
+    }
+    topLay->addWidget(m_ragModelCombo);
+
+    lay->addWidget(topBar);
+
+    auto* sep1 = new QFrame(w);
+    sep1->setFrameShape(QFrame::HLine); sep1->setFrameShadow(QFrame::Sunken);
+    lay->addWidget(sep1);
+
+    /* ── Barra controlli ── */
+    auto* ctrlBar = new QWidget(w);
+    ctrlBar->setObjectName("modelBarMath");
+    auto* ctrlLay = new QHBoxLayout(ctrlBar);
+    ctrlLay->setContentsMargins(12, 6, 12, 6);
+    ctrlLay->setSpacing(8);
+
+    m_ragRunBtn = new QPushButton(
+        "\xf0\x9f\x94\x84  Analizza RAG", w);  /* 🔄 */
+    m_ragRunBtn->setObjectName("actionBtn");
+    m_ragRunBtn->setProperty("highlight", "true");
+    m_ragRunBtn->setToolTip(
+        "Scansiona ~/prismalux_rag_docs/ e Prismalux/RAG/,"
+        " estrae entit\xc3\xa0 e relazioni con LLM");
+    connect(m_ragRunBtn, &QPushButton::clicked, this, &RicercaPage::onRagRunClicked);
+    ctrlLay->addWidget(m_ragRunBtn);
+
+    m_ragStopBtn = new QPushButton("\xe2\x96\xa0  Stop", w);  /* ■ */
+    m_ragStopBtn->setObjectName("stopBtn");
+    m_ragStopBtn->setEnabled(false);
+    connect(m_ragStopBtn, &QPushButton::clicked, this, &RicercaPage::onRagStopClicked);
+    ctrlLay->addWidget(m_ragStopBtn);
+
+    m_ragClearBtn = new QPushButton("\xf0\x9f\x97\x91  Svuota", w);  /* 🗑 */
+    m_ragClearBtn->setObjectName("navBtn");
+    connect(m_ragClearBtn, &QPushButton::clicked, this, &RicercaPage::onRagClearClicked);
+    ctrlLay->addWidget(m_ragClearBtn);
+
+    auto* btnRefreshDot = new QPushButton("\xf0\x9f\x8c\xbf  Rigenera Grafo", w);
+    btnRefreshDot->setObjectName("navBtn");
+    btnRefreshDot->setToolTip("Rigenera la visualizzazione Graphviz dal grafo corrente");
+    connect(btnRefreshDot, &QPushButton::clicked, this, &RicercaPage::onRagRefreshDot);
+    ctrlLay->addWidget(btnRefreshDot);
+
+    ctrlLay->addStretch(1);
+
+    m_ragStatus = new QLabel("\xf0\x9f\x95\xb8  Pronto.", ctrlBar);
+    m_ragStatus->setObjectName("statusLabel");
+    ctrlLay->addWidget(m_ragStatus, 2);
+
+    m_ragProgress = new QProgressBar(ctrlBar);
+    m_ragProgress->setRange(0, 0);
+    m_ragProgress->setVisible(false);
+    m_ragProgress->setFixedHeight(8);
+    m_ragProgress->setFixedWidth(120);
+    ctrlLay->addWidget(m_ragProgress);
+
+    lay->addWidget(ctrlBar);
+
+    auto* sep2 = new QFrame(w);
+    sep2->setFrameShape(QFrame::HLine); sep2->setFrameShadow(QFrame::Sunken);
+    lay->addWidget(sep2);
+
+    /* ── Splitter principale: lista nodi | visualizzazione ── */
+    auto* splitter = new QSplitter(Qt::Horizontal, w);
+    splitter->setHandleWidth(4);
+
+    /* ── Pannello sx: ricerca + lista nodi ── */
+    auto* leftPanel = new QWidget(splitter);
+    auto* leftLay   = new QVBoxLayout(leftPanel);
+    leftLay->setContentsMargins(8, 6, 4, 6);
+    leftLay->setSpacing(4);
+
+    auto* searchRow = new QHBoxLayout;
+    auto* searchLbl = new QLabel("\xf0\x9f\x94\x8d", leftPanel);
+    searchRow->addWidget(searchLbl);
+    m_ragSearchEdit = new QLineEdit(leftPanel);
+    m_ragSearchEdit->setPlaceholderText("Cerca nodo...");
+    m_ragSearchEdit->setObjectName("settingCombo");
+    connect(m_ragSearchEdit, &QLineEdit::textChanged,
+            this, &RicercaPage::onRagSearchChanged);
+    searchRow->addWidget(m_ragSearchEdit, 1);
+    leftLay->addLayout(searchRow);
+
+    auto* nodeLbl = new QLabel("<b>Nodi del grafo</b>", leftPanel);
+    nodeLbl->setTextFormat(Qt::RichText);
+    nodeLbl->setObjectName("cardDesc");
+    leftLay->addWidget(nodeLbl);
+
+    m_ragNodeList = new QListWidget(leftPanel);
+    m_ragNodeList->setObjectName("chatLog");
+    m_ragNodeList->setAlternatingRowColors(true);
+    connect(m_ragNodeList, &QListWidget::itemClicked,
+            this, &RicercaPage::onRagNodeClicked);
+    leftLay->addWidget(m_ragNodeList, 1);
+
+    m_ragNodeDetail = new QTextEdit(leftPanel);
+    m_ragNodeDetail->setObjectName("chatLog");
+    m_ragNodeDetail->setReadOnly(true);
+    m_ragNodeDetail->setMaximumHeight(120);
+    m_ragNodeDetail->setPlaceholderText("Clicca un nodo per i dettagli...");
+    leftLay->addWidget(m_ragNodeDetail);
+
+    splitter->addWidget(leftPanel);
+
+    /* ── Pannello dx: Graphviz + DOT ── */
+    auto* rightPanel = new QWidget(splitter);
+    auto* rightLay   = new QVBoxLayout(rightPanel);
+    rightLay->setContentsMargins(4, 6, 8, 6);
+    rightLay->setSpacing(4);
+
+    auto* vizTabs = new QTabWidget(rightPanel);
+    vizTabs->setObjectName("settingsInnerTabs");
+    vizTabs->setDocumentMode(true);
+
+    /* Tab 1: Immagine Graphviz */
+    auto* imgScroll = new QScrollArea(vizTabs);
+    imgScroll->setWidgetResizable(true);
+    imgScroll->setFrameShape(QFrame::NoFrame);
+    m_ragImgLbl = new QLabel(imgScroll);
+    m_ragImgLbl->setAlignment(Qt::AlignCenter);
+    m_ragImgLbl->setText(
+        "<p style='color:#64748b'>Il grafo apparir\xc3\xa0 qui dopo l'analisi.<br>"
+        "Richiede <b>graphviz</b> installato: <code>sudo apt install graphviz</code></p>");
+    m_ragImgLbl->setTextFormat(Qt::RichText);
+    imgScroll->setWidget(m_ragImgLbl);
+    vizTabs->addTab(imgScroll, "\xf0\x9f\x96\xbc  Grafo");  /* 🖼 */
+
+    /* Tab 2: DOT sorgente */
+    m_ragDotView = new QTextEdit(vizTabs);
+    m_ragDotView->setObjectName("chatLog");
+    m_ragDotView->setReadOnly(true);
+    m_ragDotView->setLineWrapMode(QTextEdit::NoWrap);
+    m_ragDotView->setPlaceholderText("Graphviz DOT del grafo...");
+    vizTabs->addTab(m_ragDotView, "\xf0\x9f\x93\x9d  DOT");  /* 📝 */
+
+    rightLay->addWidget(vizTabs, 1);
+    splitter->addWidget(rightPanel);
+
+    splitter->setStretchFactor(0, 1);
+    splitter->setStretchFactor(1, 2);
+    lay->addWidget(splitter, 1);
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: onRagRunClicked
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::onRagRunClicked()
+{
+    if (!m_ragGraph || m_ragGraph->isRunning()) return;
+    if (!m_ai) return;
+
+    /* Seleziona modello */
+    const QString sel = m_ragModelCombo ? m_ragModelCombo->currentData().toString() : QString();
+    if (!sel.isEmpty() && sel != m_ai->model())
+        m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
+
+    /* Aggiungi directory RAG */
+    const QString ragDocs = QDir::homePath() + "/prismalux_rag_docs";
+    const QString ragLocal = P::root() + "/RAG";
+
+    if (!QDir(ragDocs).exists() && !QDir(ragLocal).exists()) {
+        if (m_ragStatus)
+            m_ragStatus->setText("\xe2\x9a\xa0\xef\xb8\x8f  Nessuna cartella RAG trovata. "
+                                 "Aggiungi documenti in ~/prismalux_rag_docs/");
+        return;
+    }
+
+    /* Reset RagGraph (ricrea per pulire la coda) */
+    delete m_ragGraph;
+    m_ragGraph = new RagGraph(m_ai, m_ragGm, this);
+    connect(m_ragGraph, &RagGraph::progressUpdated,
+            this, &RicercaPage::onRagGraphProgress);
+    connect(m_ragGraph, &RagGraph::finished,
+            this, &RicercaPage::onRagGraphFinished);
+    connect(m_ragGraph, &RagGraph::fileError,
+            this, [this](const QString& f, const QString& e) {
+                if (m_ragStatus)
+                    m_ragStatus->setText("\xe2\x9a\xa0\xef\xb8\x8f  " + f + ": " + e.left(60));
+            });
+
+    if (QDir(ragDocs).exists()) m_ragGraph->addDirectory(ragDocs);
+    if (QDir(ragLocal).exists()) m_ragGraph->addDirectory(ragLocal);
+
+    if (m_ragGraph->stats().totalFiles == 0) {
+        m_ragStatus->setText("\xe2\x9a\xa0\xef\xb8\x8f  Nessun file trovato nelle cartelle RAG.");
+        return;
+    }
+
+    m_ragRunBtn->setEnabled(false);
+    m_ragStopBtn->setEnabled(true);
+    if (m_ragProgress) m_ragProgress->setVisible(true);
+    m_ragStatus->setText(QString("\xf0\x9f\x94\x84  Analisi in corso (%1 file)...")
+                         .arg(m_ragGraph->stats().totalFiles));
+
+    m_ragGraph->startIngest();
+}
+
+void RicercaPage::onRagStopClicked()
+{
+    if (m_ragGraph) m_ragGraph->stopIngest();
+    if (m_ragRunBtn)   m_ragRunBtn->setEnabled(true);
+    if (m_ragStopBtn)  m_ragStopBtn->setEnabled(false);
+    if (m_ragProgress) m_ragProgress->setVisible(false);
+    if (m_ragStatus)   m_ragStatus->setText("\xe2\x96\xa0  Analisi interrotta.");
+}
+
+void RicercaPage::onRagClearClicked()
+{
+    onRagStopClicked();
+    if (m_ragGm) m_ragGm->clearAll();
+    if (m_ragNodeList) m_ragNodeList->clear();
+    if (m_ragNodeDetail) m_ragNodeDetail->clear();
+    if (m_ragImgLbl) m_ragImgLbl->clear();
+    if (m_ragDotView) m_ragDotView->clear();
+    if (m_ragStatus) m_ragStatus->setText("\xf0\x9f\x97\x91  Grafo svuotato.");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: progress e finish da RagGraph
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::onRagGraphProgress(int cur, int tot, const QString& file)
+{
+    if (m_ragStatus)
+        m_ragStatus->setText(QString("\xf0\x9f\x94\x84  %1/%2: %3")
+                             .arg(cur).arg(tot).arg(file.left(40)));
+}
+
+void RicercaPage::onRagGraphFinished(const RagGraphStats& stats)
+{
+    if (m_ragRunBtn)   m_ragRunBtn->setEnabled(true);
+    if (m_ragStopBtn)  m_ragStopBtn->setEnabled(false);
+    if (m_ragProgress) m_ragProgress->setVisible(false);
+
+    if (m_ragStatus)
+        m_ragStatus->setText(
+            QString("\xe2\x9c\x85  Completato: %1 file, %2 entit\xc3\xa0, %3 relazioni.")
+            .arg(stats.processedFiles)
+            .arg(stats.totalEntities)
+            .arg(stats.totalRelations));
+
+    onRagRefreshDot();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: aggiornamento lista nodi su changed()
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::onRagGraphMemChanged()
+{
+    if (!m_ragGm || !m_ragNodeList) return;
+    const QString filter = m_ragSearchEdit ? m_ragSearchEdit->text() : QString();
+    const auto nodes = filter.isEmpty()
+        ? m_ragGm->allNodes()
+        : m_ragGm->searchNodes(filter, 100);
+
+    m_ragNodeList->clear();
+    for (const auto& n : nodes) {
+        auto* item = new QListWidgetItem(m_ragNodeList);
+        /* Icona per tipo */
+        QString icon;
+        const QString t = n.type;
+        if (t == "framework" || t == "libreria" || t == "tecnologia")
+            icon = "\xf0\x9f\x94\xa7 ";   /* 🔧 */
+        else if (t == "formula" || t == "algoritmo" || t == "concetto")
+            icon = "\xcf\x80 ";            /* π */
+        else if (t == "persona")
+            icon = "\xf0\x9f\x91\xa4 ";   /* 👤 */
+        else if (t == "documento")
+            icon = "\xf0\x9f\x93\x84 ";   /* 📄 */
+        else
+            icon = "\xf0\x9f\x94\xb5 ";   /* 🔵 */
+
+        item->setText(icon + n.label + " [" + t + "]");
+        item->setData(Qt::UserRole, n.id);
+        item->setToolTip(n.content.left(120));
+    }
+}
+
+void RicercaPage::onRagSearchChanged(const QString& /*q*/)
+{
+    onRagGraphMemChanged();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: click nodo → dettaglio + vicini
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::onRagNodeClicked(QListWidgetItem* item)
+{
+    if (!item || !m_ragGm || !m_ragNodeDetail) return;
+    const QString nodeId = item->data(Qt::UserRole).toString();
+    const auto node = m_ragGm->nodeById(nodeId);
+    if (!node.has_value()) return;
+
+    QString detail;
+    detail += "<b>" + node->label.toHtmlEscaped() + "</b>";
+    detail += " <span style='color:#64748b'>[" + node->type + "]</span>";
+    detail += "<br>Importanza: " + QString::number(node->importance, 'f', 2);
+    if (!node->content.isEmpty())
+        detail += "<br><br>" + node->content.left(300).toHtmlEscaped();
+
+    /* Vicini */
+    const auto nbrs = m_ragGm->neighbours(nodeId, 1);
+    if (!nbrs.isEmpty()) {
+        detail += "<br><br><b>Connesso a:</b> ";
+        QStringList nbrLabels;
+        for (const auto& nb : nbrs)
+            nbrLabels << nb.label.toHtmlEscaped();
+        detail += nbrLabels.join(", ");
+    }
+
+    m_ragNodeDetail->setHtml(detail);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: rigenera DOT e immagine Graphviz
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::onRagRefreshDot()
+{
+    if (!m_ragGm) return;
+
+    const QString dot = m_ragGm->toDot("Grafo RAG Prismalux", 80);
+    if (m_ragDotView) m_ragDotView->setPlainText(dot);
+
+    /* Genera PNG con Graphviz */
+    m_ragTmpDot = QDir::tempPath() + "/prismalux_rag_graph.dot";
+    m_ragTmpPng = QDir::tempPath() + "/prismalux_rag_graph.png";
+
+    QFile df(m_ragTmpDot);
+    if (df.open(QFile::WriteOnly | QFile::Text))
+        QTextStream(&df) << dot;
+
+    if (m_ragDotProc && m_ragDotProc->state() != QProcess::NotRunning)
+        m_ragDotProc->kill();
+
+    m_ragDotProc = new QProcess(this);
+    connect(m_ragDotProc,
+            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &RicercaPage::onRagDotProcFinished);
+
+    m_ragDotProc->start("dot", {"-Tpng", m_ragTmpDot, "-o", m_ragTmpPng});
+    if (!m_ragDotProc->waitForStarted(2000)) {
+        if (m_ragImgLbl)
+            m_ragImgLbl->setText(
+                "<p style='color:#f87171'>\xe2\x9d\x8c  Graphviz non trovato.<br>"
+                "Installa con: <code>sudo apt install graphviz</code></p>");
+        m_ragDotProc->deleteLater();
+        m_ragDotProc = nullptr;
+    }
+}
+
+void RicercaPage::onRagDotProcFinished(int code, QProcess::ExitStatus /*status*/)
+{
+    if (m_ragDotProc) { m_ragDotProc->deleteLater(); m_ragDotProc = nullptr; }
+    if (code != 0 || !m_ragImgLbl) return;
+
+    QPixmap px(m_ragTmpPng);
+    if (!px.isNull()) {
+        const int maxW = m_ragImgLbl->parentWidget()
+                         ? m_ragImgLbl->parentWidget()->width() - 20 : 800;
+        if (px.width() > maxW)
+            px = px.scaledToWidth(maxW, Qt::SmoothTransformation);
+        m_ragImgLbl->setPixmap(px);
+    }
 }
