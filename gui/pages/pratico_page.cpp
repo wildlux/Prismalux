@@ -572,6 +572,181 @@ static QWidget* buildFinanza(QStackedWidget* inner, AiClient* ai) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   Codice Fiscale — helper functions
+   Algoritmo ufficiale Agenzia delle Entrate (D.M. 23/12/1976)
+   ══════════════════════════════════════════════════════════════ */
+
+/** Normalizza il nome comune: minuscolo, rimuove accenti, trim. */
+static QString normalizzaComune(const QString& s)
+{
+    static const QHash<QChar,QChar> kAcc = {
+        {u'\xe0','a'},{u'\xe1','a'},{u'\xe2','a'},
+        {u'\xe8','e'},{u'\xe9','e'},{u'\xea','e'},
+        {u'\xec','i'},{u'\xed','i'},{u'\xee','i'},
+        {u'\xf2','o'},{u'\xf3','o'},{u'\xf4','o'},
+        {u'\xf9','u'},{u'\xfa','u'},{u'\xfb','u'},
+        {u'\xfc','u'}
+    };
+    QString r;
+    for (QChar c : s.toLower().trimmed())
+        r += kAcc.value(c, c);
+    return r;
+}
+
+/** Restituisce il codice Belfiore (4 char) per il comune italiano,
+ *  oppure stringa vuota se non trovato. */
+static QString cercaBelfiore(const QString& comune)
+{
+    static const QHash<QString,QString> kBelfiore = {
+        /* ── Capoluoghi di regione ──────────────────────── */
+        {"torino","L219"},     {"milano","F205"},     {"venezia","L736"},
+        {"genova","D969"},     {"bologna","A944"},     {"firenze","D612"},
+        {"ancona","A271"},     {"roma","H501"},        {"napoli","F839"},
+        {"bari","A662"},       {"potenza","G942"},     {"catanzaro","C374"},
+        {"palermo","G273"},    {"cagliari","B354"},    {"trento","L378"},
+        {"trieste","L424"},    {"perugia","G478"},     {"campobasso","B519"},
+        {"aosta","A326"},      {"l'aquila","A345"},    {"aquila","A345"},
+        /* ── Capoluoghi di provincia ─────────────────────── */
+        {"alessandria","A182"},{"asti","A479"},        {"avellino","A509"},
+        {"belluno","A757"},    {"benevento","A783"},   {"bergamo","A794"},
+        {"biella","A859"},     {"bolzano","A952"},     {"bozen","A952"},
+        {"brescia","B157"},    {"brindisi","B180"},    {"cagliari","B354"},
+        {"caltanissetta","B429"},{"campobasso","B519"},{"caserta","B963"},
+        {"catania","C351"},    {"chieti","C632"},      {"como","C933"},
+        {"cosenza","D086"},    {"cremona","D150"},     {"crotone","D122"},
+        {"cuneo","D205"},      {"enna","C342"},        {"fermo","D542"},
+        {"ferrara","D548"},    {"foggia","D643"},      {"forli","D704"},
+        {"frosinone","D810"},  {"genova","D969"},      {"gorizia","E098"},
+        {"grosseto","E202"},   {"imperia","E290"},     {"isernia","E335"},
+        {"la spezia","E463"},  {"laspezia","E463"},    {"latina","E472"},
+        {"lecce","E794"},      {"lecco","E507"},       {"livorno","E625"},
+        {"lodi","E648"},       {"lucca","E715"},       {"macerata","E783"},
+        {"mantova","E897"},    {"massa","F023"},       {"matera","F052"},
+        {"messina","F158"},    {"modena","F257"},      {"monza","F704"},
+        {"napoli","F839"},     {"novara","F952"},      {"nuoro","F979"},
+        {"oristano","G113"},   {"padova","G224"},      {"palermo","G273"},
+        {"parma","G337"},      {"pavia","G388"},       {"perugia","G478"},
+        {"pesaro","G453"},     {"pescara","G482"},     {"piacenza","G535"},
+        {"pisa","G702"},       {"pistoia","G713"},     {"pordenone","G888"},
+        {"potenza","G942"},    {"prato","G999"},       {"ragusa","H163"},
+        {"ravenna","H199"},    {"reggio calabria","H224"},
+        {"reggio emilia","H223"},{"regio emilia","H223"},
+        {"rieti","H282"},      {"rimini","H294"},      {"roma","H501"},
+        {"rovigo","H620"},     {"salerno","H703"},     {"sassari","I452"},
+        {"savona","I480"},     {"siena","I726"},       {"siracusa","I754"},
+        {"sondrio","I829"},    {"taranto","L049"},     {"teramo","L103"},
+        {"terni","L117"},      {"torino","L219"},      {"trapani","L331"},
+        {"trento","L378"},     {"treviso","L407"},     {"trieste","L424"},
+        {"udine","L483"},      {"varese","L682"},      {"venezia","L736"},
+        {"verbania","L746"},   {"vercelli","L750"},    {"verona","L781"},
+        {"vibo valentia","F1104"},                     {"vicenza","L840"},
+        {"viterbo","M082"},
+        /* ── Grandi comuni extra ─────────────────────────── */
+        {"giugliano in campania","E054"},
+        {"catanzaro marina","C374"},
+        {"andria","A285"},     {"barletta","A669"},    {"reggio","H224"},
+        /* ── Paesi esteri (codici Z) ─────────────────────── */
+        {"albania","Z100"},    {"algeria","Z301"},     {"argentina","Z600"},
+        {"australia","Z700"},  {"austria","Z102"},     {"belgio","Z103"},
+        {"brasile","Z602"},    {"canada","Z401"},      {"cina","Z210"},
+        {"croazia","Z118"},    {"danimarca","Z104"},   {"egitto","Z336"},
+        {"etiopia","Z315"},    {"filippine","Z216"},   {"finlandia","Z105"},
+        {"francia","Z110"},    {"germania","Z112"},    {"giappone","Z219"},
+        {"grecia","Z115"},     {"india","Z222"},       {"iran","Z224"},
+        {"irlanda","Z116"},    {"israele","Z225"},     {"marocco","Z330"},
+        {"messico","Z605"},    {"nigeria","Z325"},     {"norvegia","Z120"},
+        {"paesi bassi","Z121"},{"olanda","Z121"},      {"pakistan","Z236"},
+        {"polonia","Z127"},    {"portogallo","Z128"},  {"romania","Z129"},
+        {"russia","Z130"},     {"senegal","Z343"},     {"somalia","Z342"},
+        {"spagna","Z131"},     {"stati uniti","Z404"},{"usa","Z404"},
+        {"america","Z404"},    {"svezia","Z132"},      {"svizzera","Z133"},
+        {"tunisia","Z352"},    {"turchia","Z243"},     {"ucraina","Z138"},
+        {"regno unito","Z114"},{"inghilterra","Z114"},{"gran bretagna","Z114"},
+    };
+    return kBelfiore.value(normalizzaComune(comune), "");
+}
+
+/** Calcola il Codice Fiscale italiano.
+ *  Restituisce stringa vuota se i dati non sono validi. */
+static QString calcolaCodiceFiscale(
+    const QString& cognome, const QString& nome,
+    const QDate& nascita, bool maschio, const QString& belfiore)
+{
+    if (cognome.trimmed().isEmpty() || nome.trimmed().isEmpty()
+        || !nascita.isValid() || belfiore.length() != 4)
+        return {};
+
+    /* Estrai consonanti e vocali dal testo (solo lettere A-Z) */
+    auto lettera = [](QChar c) -> bool { return c.isLetter(); };
+    auto isVoc   = [](QChar c) -> bool {
+        return QString("AEIOU").contains(c);
+    };
+    auto cons = [&](const QString& s) {
+        QString r;
+        for (QChar c : s.toUpper())
+            if (lettera(c) && !isVoc(c)) r += c;
+        return r;
+    };
+    auto voc = [&](const QString& s) {
+        QString r;
+        for (QChar c : s.toUpper())
+            if (lettera(c) && isVoc(c)) r += c;
+        return r;
+    };
+
+    /* Cognome: prime 3 tra consonanti + vocali + X */
+    QString cog = cons(cognome) + voc(cognome);
+    while (cog.length() < 3) cog += 'X';
+    cog = cog.left(3);
+
+    /* Nome: se >= 4 consonanti prendi 1a, 3a, 4a; altrimenti consonanti + vocali + X */
+    const QString nc = cons(nome);
+    const QString nv = voc(nome);
+    QString nom;
+    if (nc.length() >= 4)
+        nom = QString(nc[0]) + nc[2] + nc[3];
+    else {
+        nom = nc + nv;
+        while (nom.length() < 3) nom += 'X';
+        nom = nom.left(3);
+    }
+
+    /* Anno (2 cifre), mese (lettera), giorno + sesso */
+    const QString anno  = nascita.toString("yy");
+    const char kMesi[]  = "ABCDEHLMPRST";
+    const QChar  mese   = kMesi[nascita.month() - 1];
+    const int    giorno = nascita.day() + (maschio ? 0 : 40);
+    const QString gg    = QString("%1").arg(giorno, 2, 10, QChar('0'));
+
+    /* Stringa 15 caratteri */
+    const QString cf15 = cog + nom + anno + mese + gg + belfiore.toUpper();
+    if (cf15.length() != 15) return {};
+
+    /* Tabella dispari (posizioni 1,3,5,…) — indice = posizione in 0-35 */
+    static const int kDisp[36] = {
+         1, 0, 5, 7, 9,13,15,17,19,21,   /* 0-9   */
+         1, 0, 5, 7, 9,13,15,17,19,21,   /* A-J   */
+         2, 4,18,20,11, 3, 6, 8,12,14,   /* K-T   */
+        16,10,22,25,24,23                /* U-Z   */
+    };
+
+    int somma = 0;
+    for (int i = 0; i < 15; ++i) {
+        const QChar c = cf15[i];
+        int idx;
+        if (c.isDigit()) idx = c.digitValue();
+        else             idx = 10 + (c.unicode() - 'A');
+
+        if (i % 2 == 0)   /* posizione dispari (1-indexed) */
+            somma += kDisp[idx];
+        else               /* posizione pari */
+            somma += idx;
+    }
+
+    return cf15 + QChar('A' + (somma % 26));
+}
+
+/* ══════════════════════════════════════════════════════════════
    buildSchedaTFR — pagina dedicata TFR (index 4)
    ══════════════════════════════════════════════════════════════ */
 static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
@@ -603,16 +778,112 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
         return s;
     };
 
-    /* ── Dati anagrafici ── */
+    /* ── Dati anagrafici + C.F. calcolato ── */
     auto* anagrGroup = new QGroupBox("\xf0\x9f\x91\xa4  Dati personali");
-    auto* anagrLay = new QHBoxLayout(anagrGroup);
-    anagrLay->setSpacing(8);
-    auto* nomeEdit  = new QLineEdit; nomeEdit->setPlaceholderText("Nome");
-    auto* cognEdit  = new QLineEdit; cognEdit->setPlaceholderText("Cognome");
-    auto* cfEdit    = new QLineEdit; cfEdit->setPlaceholderText("Codice Fiscale"); cfEdit->setMaximumWidth(160);
-    anagrLay->addWidget(new QLabel("Nome:")); anagrLay->addWidget(nomeEdit, 2);
-    anagrLay->addWidget(new QLabel("Cognome:")); anagrLay->addWidget(cognEdit, 2);
-    anagrLay->addWidget(new QLabel("C.F.:")); anagrLay->addWidget(cfEdit, 1);
+    auto* anagrVLay  = new QVBoxLayout(anagrGroup);
+    anagrVLay->setSpacing(6);
+
+    /* Riga 1: Nome | Cognome */
+    auto* ar1 = new QWidget; auto* arl1 = new QHBoxLayout(ar1);
+    arl1->setContentsMargins(0,0,0,0); arl1->setSpacing(8);
+    auto* nomeEdit = new QLineEdit; nomeEdit->setPlaceholderText("Nome");
+    auto* cognEdit = new QLineEdit; cognEdit->setPlaceholderText("Cognome");
+    arl1->addWidget(new QLabel("Nome:"));    arl1->addWidget(nomeEdit, 2);
+    arl1->addWidget(new QLabel("Cognome:")); arl1->addWidget(cognEdit, 2);
+    anagrVLay->addWidget(ar1);
+
+    /* Riga 2: Data nascita | Sesso | Comune | Belfiore */
+    auto* ar2 = new QWidget; auto* arl2 = new QHBoxLayout(ar2);
+    arl2->setContentsMargins(0,0,0,0); arl2->setSpacing(8);
+    auto* dataNascitaEdit = new QDateEdit(QDate(1980, 1, 1));
+    dataNascitaEdit->setDisplayFormat("dd/MM/yyyy");
+    dataNascitaEdit->setCalendarPopup(true);
+    dataNascitaEdit->setMaximumWidth(130);
+    auto* sessoCombo = new QComboBox;
+    sessoCombo->addItem("M \xe2\x80\x94 Maschio", false);
+    sessoCombo->addItem("F \xe2\x80\x94 Femmina", true);
+    sessoCombo->setFixedWidth(130);
+    auto* comuneEdit  = new QLineEdit; comuneEdit->setPlaceholderText("Comune di nascita");
+    auto* belfioreEdit = new QLineEdit; belfioreEdit->setPlaceholderText("Belfiore");
+    belfioreEdit->setMaximumWidth(70);
+    belfioreEdit->setToolTip("Codice Belfiore (4 char) — compilato automaticamente dal comune");
+    arl2->addWidget(new QLabel("Nascita:")); arl2->addWidget(dataNascitaEdit);
+    arl2->addWidget(sessoCombo);
+    arl2->addWidget(new QLabel("Comune:")); arl2->addWidget(comuneEdit, 2);
+    arl2->addWidget(belfioreEdit);
+    anagrVLay->addWidget(ar2);
+
+    /* Riga 3: C.F. calcolato (read-only) */
+    auto* ar3 = new QWidget; auto* arl3 = new QHBoxLayout(ar3);
+    arl3->setContentsMargins(0,0,0,0); arl3->setSpacing(8);
+    auto* cfEdit = new QLineEdit;
+    cfEdit->setPlaceholderText("Codice Fiscale calcolato automaticamente");
+    cfEdit->setReadOnly(true);
+    cfEdit->setStyleSheet("QLineEdit { font-family: monospace; letter-spacing: 1px; }");
+    cfEdit->setMaximumWidth(200);
+    auto* cfEditBtn = new QPushButton("\xf0\x9f\x94\x93");  /* 🔓 */
+    cfEditBtn->setToolTip("Sblocca per modifica manuale");
+    cfEditBtn->setCheckable(true);
+    cfEditBtn->setFixedWidth(32);
+    auto* cfStatusLbl = new QLabel;
+    cfStatusLbl->setStyleSheet("font-size:11px;");
+    arl3->addWidget(new QLabel("C.F.:"));
+    arl3->addWidget(cfEdit, 1);
+    arl3->addWidget(cfEditBtn);
+    arl3->addWidget(cfStatusLbl, 1);
+    anagrVLay->addWidget(ar3);
+
+    /* Aggiornamento automatico C.F. */
+    auto aggiornaCF = [=]{
+        if (cfEditBtn->isChecked()) return;   /* modalità override manuale */
+        const QString belf = belfioreEdit->text().trimmed().toUpper();
+        const bool    masc = !sessoCombo->currentData().toBool();
+        const QString cf   = calcolaCodiceFiscale(
+            cognEdit->text(), nomeEdit->text(),
+            dataNascitaEdit->date(), masc, belf);
+        if (cf.isEmpty()) {
+            cfEdit->clear();
+            cfStatusLbl->setText(
+                belf.length() == 4
+                ? "<span style='color:#E5C400;'>\xe2\x9a\xa0 Dati incompleti</span>"
+                : "<span style='color:gray;'>inserisci comune o codice Belfiore</span>");
+        } else {
+            cfEdit->setText(cf);
+            cfStatusLbl->setText("<span style='color:#4caf50;'>\xe2\x9c\x94 calcolato</span>");
+        }
+    };
+
+    /* Auto-lookup Belfiore quando il comune cambia */
+    QObject::connect(comuneEdit, &QLineEdit::textEdited, anagrGroup, [=](const QString& txt){
+        const QString belf = cercaBelfiore(txt);
+        if (!belf.isEmpty()) {
+            belfioreEdit->setText(belf);
+        } else if (txt.trimmed().length() >= 3) {
+            belfioreEdit->clear();
+        }
+        aggiornaCF();
+    });
+
+    /* Ricalcola CF al cambio degli altri campi */
+    QObject::connect(nomeEdit,        &QLineEdit::textEdited,  anagrGroup, [=]{ aggiornaCF(); });
+    QObject::connect(cognEdit,        &QLineEdit::textEdited,  anagrGroup, [=]{ aggiornaCF(); });
+    QObject::connect(belfioreEdit,    &QLineEdit::textEdited,  anagrGroup, [=]{
+        belfioreEdit->setText(belfioreEdit->text().toUpper().left(4));
+        aggiornaCF();
+    });
+    QObject::connect(dataNascitaEdit, &QDateEdit::dateChanged, anagrGroup, [=]{ aggiornaCF(); });
+    QObject::connect(sessoCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                     anagrGroup, [=]{ aggiornaCF(); });
+
+    /* Sblocco manuale */
+    QObject::connect(cfEditBtn, &QPushButton::toggled, anagrGroup, [=](bool locked){
+        cfEdit->setReadOnly(!locked);
+        cfEditBtn->setToolTip(locked
+            ? "Ripristina calcolo automatico"
+            : "Sblocca per modifica manuale");
+        if (!locked) aggiornaCF();
+    });
+
     lay->addWidget(anagrGroup);
 
     /* ── Dati lavorativi ── */
@@ -765,11 +1036,14 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
     QObject::connect(ragBtn, &QPushButton::clicked, w, [=]{
         const QString knowledge = P::readUserKnowledge();
         const QString sys =
-            "Sei un assistente che estrae dati lavorativi per il TFR. "
-            "Analizza il testo e restituisci SOLO JSON con chiavi: "
-            "nome, cognome, cf, datore, ccnl, data_inizio (YYYY-MM-DD), "
-            "data_fine (YYYY-MM-DD o in_corso), stipendio_lordo_annuo (intero). "
-            "Valori mancanti: stringa vuota o 0. Solo JSON, nient'altro.";
+            "Sei un assistente che estrae dati anagrafici e lavorativi per il calcolo del TFR. "
+            "Analizza il testo e restituisci SOLO un oggetto JSON con queste chiavi esatte: "
+            "nome, cognome, data_nascita (YYYY-MM-DD), sesso (M o F), "
+            "comune_nascita (nome del comune italiano o stato estero), "
+            "codice_belfiore (4 char, es. H501 per Roma — solo se presente esplicitamente nel testo), "
+            "datore, ccnl, data_inizio (YYYY-MM-DD), "
+            "data_fine (YYYY-MM-DD o in_corso), stipendio_lordo_annuo (intero in euro). "
+            "Valori mancanti: stringa vuota o 0. Solo JSON valido, nient'altro.";
         ragBtn->setEnabled(false); stopRagBtn->setEnabled(true); waitLbl->setVisible(true);
         *tfrActive = true; tfrBuf->clear();
         ai->chat(sys, knowledge.isEmpty() ? "Nessun documento in Knowledge Base." : knowledge);
@@ -799,9 +1073,23 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
             return;
         }
         const QJsonObject obj = doc.object();
+        /* Dati anagrafici */
         if (!obj["nome"].toString().isEmpty())     nomeEdit->setText(obj["nome"].toString());
         if (!obj["cognome"].toString().isEmpty())   cognEdit->setText(obj["cognome"].toString());
-        if (!obj["cf"].toString().isEmpty())        cfEdit->setText(obj["cf"].toString());
+        const QDate dn = QDate::fromString(obj["data_nascita"].toString(), "yyyy-MM-dd");
+        if (dn.isValid()) dataNascitaEdit->setDate(dn);
+        const QString sesso = obj["sesso"].toString().toUpper();
+        if (sesso == "F") sessoCombo->setCurrentIndex(1);
+        else if (sesso == "M") sessoCombo->setCurrentIndex(0);
+        if (!obj["comune_nascita"].toString().isEmpty()) {
+            comuneEdit->setText(obj["comune_nascita"].toString());
+            /* auto-lookup Belfiore dal comune */
+            const QString belf = cercaBelfiore(obj["comune_nascita"].toString());
+            if (!belf.isEmpty()) belfioreEdit->setText(belf);
+        }
+        if (!obj["codice_belfiore"].toString().isEmpty())
+            belfioreEdit->setText(obj["codice_belfiore"].toString().toUpper().left(4));
+        /* Dati lavorativi */
         if (!obj["datore"].toString().isEmpty())    datoreEdit->setText(obj["datore"].toString());
         if (!obj["ccnl"].toString().isEmpty())      ccnlEdit->setText(obj["ccnl"].toString());
         const QDate di = QDate::fromString(obj["data_inizio"].toString(), "yyyy-MM-dd");
@@ -815,6 +1103,8 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
         }
         const int stip = obj["stipendio_lordo_annuo"].toInt();
         if (stip > 0) tfrStipSpin->setValue(stip);
+        /* Ricalcola C.F. con i nuovi dati */
+        aggiornaCF();
         tfrOut->setHtml("\xe2\x9c\x85 Dati compilati da RAG. Verifica e premi <b>Calcola TFR</b>.");
     });
 
