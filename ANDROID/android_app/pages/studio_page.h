@@ -63,6 +63,7 @@ private slots:
     void onMateriaBtnClicked();
     void onMateriaPickerResult(int idx);
     void onStatsClicked();
+    void onResetStatsClicked();
 
 private:
     void runStudy(int modeIdx);
@@ -76,15 +77,20 @@ private:
     void loadStats();
     void saveStats();
     void showStats();
+    void refreshStatLabels();
 
     struct QuizStat {
-        int total   = 0;
-        int correct = 0;
+        int     total    = 0;
+        int     correct  = 0;
+        QString lastDate;  ///< data ISO ultima sessione (YYYY-MM-DD)
     };
     QMap<QString, QuizStat> m_stats;   ///< tema/materia → stat
 
     AiClient*     m_ai    = nullptr;
     QuizCcnaDb    m_ccnaDb;
+
+    /* Etichetta punteggio visibile sotto i pulsanti modalità */
+    QLabel*       m_scoreSummaryLbl = nullptr;
 
     /* ── Stack principale ── */
     QStackedWidget* m_innerStack    = nullptr;

@@ -63,6 +63,13 @@ namespace P = PrismaluxPaths;
 #include <QDialogButtonBox>
 #include <QDialog>
 #include <QRegularExpression>
+#ifdef HAVE_QT_MULTIMEDIA
+#  include <QAudioSource>
+#  include <QAudioFormat>
+#  include <QAudioDevice>
+#  include <QMediaDevices>
+#  include <cmath>
+#endif
 
 static QString s_piperDir() {
     return QCoreApplication::applicationDirPath() + "/piper";
@@ -505,7 +512,6 @@ QWidget* ImpostazioniPage::buildVoceTab()
     });
 
     ilay->addWidget(secTest);
-    ilay->addStretch();
     return inner;
 }
 
@@ -968,6 +974,87 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     ilay->addWidget(secModels);
 
     /* ══════════════════════════════════════════
+       Sezione 4b: server Whisper HTTP (opzionale)
+       Consente di usare faster-whisper-server o
+       qualsiasi server compatibile OpenAI invece
+       del binario whisper-cli locale.
+       ══════════════════════════════════════════ */
+    auto* secHttp = new QFrame(inner);
+    secHttp->setObjectName("actionCard");
+    auto* secHttpLay = new QVBoxLayout(secHttp);
+    secHttpLay->setContentsMargins(14, 10, 14, 10);
+    secHttpLay->setSpacing(6);
+
+    auto* httpTitle = new QLabel(
+        "\xf0\x9f\x8c\x90  <b>Server Whisper HTTP</b> "
+        "<small style='color:#94a3b8;'>(opzionale)</small>",
+        secHttp);
+    httpTitle->setObjectName("cardTitle");
+    httpTitle->setTextFormat(Qt::RichText);
+    secHttpLay->addWidget(httpTitle);
+
+    auto* httpDesc = new QLabel(
+        "Se configurato, la trascrizione usa questo server invece di whisper-cli locale.<br>"
+        "Compatibile con <code>faster-whisper-server</code>, <code>openai-whisper-server</code> "
+        "e qualsiasi endpoint <code>POST /v1/audio/transcriptions</code>.<br>"
+        "<span style='color:#94a3b8;'>Esempio: "
+        "<code>http://localhost:9000/v1/audio/transcriptions</code></span>",
+        secHttp);
+    httpDesc->setObjectName("cardDesc");
+    httpDesc->setTextFormat(Qt::RichText);
+    httpDesc->setWordWrap(true);
+    secHttpLay->addWidget(httpDesc);
+
+    auto* httpRow = new QHBoxLayout;
+    auto* httpEdit = new QLineEdit(secHttp);
+    httpEdit->setObjectName("settingsInput");
+    httpEdit->setPlaceholderText(
+        "http://localhost:9000/v1/audio/transcriptions");
+    {
+        QSettings hs("Prismalux", "GUI");
+        httpEdit->setText(
+            hs.value(P::SK::kSttHttpUrl, "").toString());
+    }
+    auto* httpSaveBtn = new QPushButton(
+        "\xf0\x9f\x92\xbe  Salva URL", secHttp);
+    httpSaveBtn->setObjectName("actionBtn");
+    httpSaveBtn->setFixedWidth(110);
+    auto* httpClearBtn = new QPushButton(
+        "\xf0\x9f\x97\x91  Cancella", secHttp);
+    httpClearBtn->setObjectName("secondaryBtn");
+    httpClearBtn->setFixedWidth(90);
+    httpRow->addWidget(httpEdit, 1);
+    httpRow->addWidget(httpSaveBtn);
+    httpRow->addWidget(httpClearBtn);
+    secHttpLay->addLayout(httpRow);
+
+    auto* httpStatus = new QLabel("", secHttp);
+    httpStatus->setObjectName("cardDesc");
+    secHttpLay->addWidget(httpStatus);
+
+    connect(httpSaveBtn, &QPushButton::clicked, inner,
+            [httpEdit, httpStatus]() {
+                const QString url = httpEdit->text().trimmed();
+                QSettings hs("Prismalux", "GUI");
+                hs.setValue(P::SK::kSttHttpUrl, url);
+                httpStatus->setText(
+                    url.isEmpty()
+                    ? "\xe2\x9a\xa0  URL rimosso. Si user\xc3\xa0 whisper-cli locale."
+                    : "\xe2\x9c\x85  URL salvato. Le trascrizioni useranno il server HTTP.");
+            });
+
+    connect(httpClearBtn, &QPushButton::clicked, inner,
+            [httpEdit, httpStatus]() {
+                httpEdit->clear();
+                QSettings hs("Prismalux", "GUI");
+                hs.remove(P::SK::kSttHttpUrl);
+                httpStatus->setText(
+                    "\xe2\x9a\xa0  URL rimosso. Si user\xc3\xa0 whisper-cli locale.");
+            });
+
+    ilay->addWidget(secHttp);
+
+    /* ══════════════════════════════════════════
        Sezione 4: nota lingua + test rapido
        ══════════════════════════════════════════ */
     auto* secNote = new QFrame(inner);
@@ -998,13 +1085,167 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     secNoteLay->addWidget(noteText);
 
     ilay->addWidget(secNote);
-    ilay->addStretch();
+
+    /* ══════════════════════════════════════════
+       Sezione 5: livello microfono reale
+       Richiede Qt6::Multimedia (QAudioSource).
+       Se il modulo non è compilato, mostra solo
+       un avviso "non disponibile".
+       ══════════════════════════════════════════ */
+    auto* secMic = new QFrame(inner);
+    secMic->setObjectName("actionCard");
+    auto* secMicLay = new QVBoxLayout(secMic);
+    secMicLay->setContentsMargins(14, 10, 14, 10);
+    secMicLay->setSpacing(6);
+
+    auto* micTitle = new QLabel(
+        "\xf0\x9f\x8e\x99  <b>Livello microfono</b>", secMic);   /* 🎙 */
+    micTitle->setObjectName("cardTitle");
+    micTitle->setTextFormat(Qt::RichText);
+    secMicLay->addWidget(micTitle);
+
+#ifdef HAVE_QT_MULTIMEDIA
+    /* Descrizione */
+    auto* micDesc = new QLabel(
+        "Monitora il livello RMS del microfono in tempo reale.<br>"
+        "<small style='color:#888;'>Campionamento: 16 kHz, mono, Int16.</small>",
+        secMic);
+    micDesc->setObjectName("cardDesc");
+    micDesc->setTextFormat(Qt::RichText);
+    micDesc->setWordWrap(true);
+    secMicLay->addWidget(micDesc);
+
+    /* Barra livello */
+    m_micLevelBar = new QProgressBar(secMic);
+    m_micLevelBar->setRange(0, 100);
+    m_micLevelBar->setValue(0);
+    m_micLevelBar->setTextVisible(true);
+    m_micLevelBar->setFormat("%v dB (RMS)");
+    m_micLevelBar->setFixedHeight(20);
+    m_micLevelBar->setObjectName("micLevelBar");
+    secMicLay->addWidget(m_micLevelBar);
+
+    /* Pulsante Start/Stop */
+    m_micToggleBtn = new QPushButton(
+        "\xf0\x9f\x94\xb4  Avvia monitoraggio", secMic);   /* 🔴 */
+    m_micToggleBtn->setObjectName("actionBtn");
+    m_micToggleBtn->setCheckable(true);
+    m_micToggleBtn->setToolTip(
+        "Avvia o ferma la lettura del microfono predefinito di sistema.");
+    connect(m_micToggleBtn, &QPushButton::clicked,
+            this, &ImpostazioniPage::onMicToggleBtnClicked);
+    secMicLay->addWidget(m_micToggleBtn);
+#else
+    auto* micUnavail = new QLabel(
+        "\xe2\x9a\xa0  Qt6::Multimedia non disponibile in questa build.<br>"
+        "Ricompila con <code>Qt6::Multimedia</code> per abilitare "
+        "il monitoraggio del microfono.",
+        secMic);
+    micUnavail->setObjectName("cardDesc");
+    micUnavail->setTextFormat(Qt::RichText);
+    micUnavail->setWordWrap(true);
+    secMicLay->addWidget(micUnavail);
+#endif
+
+    ilay->addWidget(secMic);
     return inner;
 }
 
 /* ══════════════════════════════════════════════════════════════
-   buildLlmConsigliatiTab — catalogo LLM diviso in due sezioni:
-   1) Ollama  — installa con "ollama pull"
-   2) llama.cpp — scarica .gguf da HuggingFace
+   Slot microfono — monitoraggio livello reale (QAudioSource)
    ══════════════════════════════════════════════════════════════ */
+
+void ImpostazioniPage::onMicToggleBtnClicked()
+{
+#ifdef HAVE_QT_MULTIMEDIA
+    if (!m_micToggleBtn) return;
+
+    if (m_micToggleBtn->isChecked()) {
+        /* ── Avvia monitoraggio ── */
+        QAudioFormat fmt;
+        fmt.setSampleRate(16000);
+        fmt.setChannelCount(1);
+        fmt.setSampleFormat(QAudioFormat::Int16);
+
+        const QAudioDevice defDevice = QMediaDevices::defaultAudioInput();
+        if (defDevice.isNull()) {
+            m_micToggleBtn->setChecked(false);
+            m_micToggleBtn->setText("\xe2\x9a\xa0  Microfono non trovato");
+            return;
+        }
+
+        /* Verifica che il formato sia supportato dal dispositivo */
+        if (!defDevice.isFormatSupported(fmt)) {
+            /* Prova senza specificare il formato esplicito */
+            fmt = defDevice.preferredFormat();
+        }
+
+        m_micSource = new QAudioSource(defDevice, fmt, this);
+        m_micDevice = m_micSource->start();
+
+        if (!m_micDevice) {
+            /* start() fallita — libera e aggiorna UI */
+            delete m_micSource;
+            m_micSource = nullptr;
+            m_micToggleBtn->setChecked(false);
+            m_micToggleBtn->setText("\xe2\x9d\x8c  Impossibile aprire il microfono");
+            return;
+        }
+
+        connect(m_micDevice, &QIODevice::readyRead,
+                this, &ImpostazioniPage::onMicAudioData);
+
+        m_micToggleBtn->setText("\xe2\x8f\xb9  Ferma monitoraggio");   /* ⏹ */
+        if (m_micLevelBar) {
+            m_micLevelBar->setValue(0);
+            m_micLevelBar->setEnabled(true);
+        }
+    } else {
+        /* ── Ferma monitoraggio ── */
+        if (m_micSource) {
+            m_micSource->stop();
+            delete m_micSource;
+            m_micSource = nullptr;
+            m_micDevice = nullptr;   /* deleteLater gestito da QAudioSource */
+        }
+        m_micToggleBtn->setText("\xf0\x9f\x94\xb4  Avvia monitoraggio");   /* 🔴 */
+        if (m_micLevelBar) {
+            m_micLevelBar->setValue(0);
+            m_micLevelBar->setEnabled(false);
+        }
+    }
+#else
+    Q_UNUSED(this)
+#endif
+}
+
+void ImpostazioniPage::onMicAudioData()
+{
+#ifdef HAVE_QT_MULTIMEDIA
+    if (!m_micDevice || !m_micLevelBar) return;
+
+    const QByteArray data = m_micDevice->readAll();
+    if (data.isEmpty()) return;
+
+    /* Campioni Int16 — calcola RMS */
+    const int16_t* samples  = reinterpret_cast<const int16_t*>(data.constData());
+    const int      nSamples = data.size() / int(sizeof(int16_t));
+    if (nSamples == 0) return;
+
+    double sumSq = 0.0;
+    for (int i = 0; i < nSamples; ++i) {
+        const double s = samples[i] / 32768.0;  /* normalizza in [-1, 1] */
+        sumSq += s * s;
+    }
+    const double rms = std::sqrt(sumSq / nSamples);
+
+    /* Converte in 0-100 con scala logaritmica (-60 dB → 0 dB = 0 → 100) */
+    constexpr double kFloorDb = -60.0;
+    const double db = (rms > 1e-9) ? 20.0 * std::log10(rms) : kFloorDb;
+    const int level = qBound(0, int((db - kFloorDb) / (-kFloorDb) * 100.0), 100);
+
+    m_micLevelBar->setValue(level);
+    m_micLevelBar->setFormat(QString("%1 dB (RMS)").arg(int(db)));
+#endif
+}
 

@@ -19,6 +19,8 @@ private slots:
     void onRecProcFinished(int code, QProcess::ExitStatus status);
     void onTranscribeBtnClicked();
     void onFfmpegFinished(int code, QProcess::ExitStatus status);
+    void onHttpTranscriptionReady(const QString& text);
+    void onHttpTranscriptionError(const QString& msg);
     void onAnalyzeBtnClicked();
     void onGraphvizBtnClicked();
     void onGraphvizProcFinished(int code, QProcess::ExitStatus status);
@@ -54,6 +56,8 @@ private:
     QMetaObject::Connection m_audioTokenConn;
     QMetaObject::Connection m_audioFinishedConn;
     QMetaObject::Connection m_audioErrorConn;
+    QMetaObject::Connection m_transcriptionReadyConn;
+    QMetaObject::Connection m_transcriptionErrorConn;
     QWidget* buildAudioTab();
     QWidget* buildSDTab();
     QWidget* buildGraphvizTab();

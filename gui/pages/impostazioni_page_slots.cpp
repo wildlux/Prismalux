@@ -34,6 +34,9 @@ namespace P = PrismaluxPaths;
 #include <QNetworkReply>
 #include <QStandardPaths>
 #include <QVector>
+#include <QTemporaryDir>
+#include <QtConcurrent/QtConcurrent>
+#include <QFutureWatcher>
 #include <QTextEdit>
 #include <QDoubleSpinBox>
 #include <QAbstractButton>
@@ -467,6 +470,101 @@ void ImpostazioniPage::onStopIndexClicked()
     }
 }
 
+/* ── Helper statico eseguito in background thread ────────────────────────
+   Estrae testo da file di testo + PDF (pdftotext + OCR tesseract fallback).
+   Salva automaticamente la conoscenza matematica in KNOWLEDGE_USER/ se trova
+   Matematica.pdf con contenuto OCR.
+   Restituisce {queue di chunk, sorgenti parallele}. */
+static ImpostazioniPage::RagExtractResult extractRagContent(const QString& dir,
+                                                            const QString& mathKnPath)
+{
+    QStringList queue, sources;
+
+    auto addChunks = [&](const QString& content, const QString& fileName) {
+        for (int i = 0; i < content.size(); i += 400) {
+            QString chunk = content.mid(i, 500).simplified();
+            if (chunk.size() >= 30) {
+                queue   << chunk;
+                sources << fileName;
+            }
+        }
+    };
+
+    /* ── File di testo ── */
+    QStringList filters{"*.txt","*.md","*.csv","*.rst","*.py","*.cpp","*.h","*.c"};
+    QDirIterator it(dir, filters, QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QString fp = it.next();
+        QFile f(fp);
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) continue;
+        addChunks(QString::fromUtf8(f.readAll()), QFileInfo(fp).fileName());
+    }
+
+    /* ── PDF: pdftotext + fallback OCR tesseract per PDF scansionati ── */
+    const QString pdfToText = QStandardPaths::findExecutable("pdftotext");
+    const QString tesseract = QStandardPaths::findExecutable("tesseract");
+    const QString pdftoppm  = QStandardPaths::findExecutable("pdftoppm");
+
+    QDirIterator pdfIt(dir, QStringList{"*.pdf"}, QDir::Files,
+                       QDirIterator::Subdirectories);
+    while (pdfIt.hasNext()) {
+        const QString pdfPath = pdfIt.next();
+        const QString pdfName = QFileInfo(pdfPath).fileName();
+
+        /* 1) Prova pdftotext */
+        QString pdfText;
+        if (!pdfToText.isEmpty()) {
+            QProcess p;
+            p.start(pdfToText, {pdfPath, "-"});
+            if (p.waitForFinished(60000))
+                pdfText = QString::fromUtf8(p.readAllStandardOutput());
+        }
+
+        /* 2) OCR fallback se il PDF è scansionato (solo form-feed / spazi) */
+        const bool needsOcr = pdfText.simplified().isEmpty();
+        if (needsOcr && !tesseract.isEmpty() && !pdftoppm.isEmpty()) {
+            /* max 50 pagine per non bloccare troppo */
+            const QString tmpPrefix = QDir::tempPath() + "/prismalux_ocr_"
+                + QString::number(QDateTime::currentMSecsSinceEpoch());
+            QProcess conv;
+            conv.start(pdftoppm, {"-r", "150", "-l", "50", "-jpeg", pdfPath, tmpPrefix});
+            if (conv.waitForFinished(180000)) {   /* 3 min per la conversione */
+                QDirIterator imgIt(QDir::tempPath(),
+                                   {QFileInfo(tmpPrefix).fileName() + "*.jpg",
+                                    QFileInfo(tmpPrefix).fileName() + "*.jpeg"},
+                                   QDir::Files);
+                QStringList imgs;
+                while (imgIt.hasNext()) imgs << imgIt.next();
+                imgs.sort();
+
+                for (const QString& img : std::as_const(imgs)) {
+                    QProcess ocr;
+                    ocr.start(tesseract, {img, "stdout", "-l", "ita+eng"});
+                    if (ocr.waitForFinished(30000))
+                        pdfText += QString::fromUtf8(ocr.readAllStandardOutput()) + "\n";
+                    QFile::remove(img);
+                }
+            }
+        }
+
+        if (pdfText.trimmed().isEmpty()) continue;
+
+        const QString label = pdfName + (needsOcr ? " [OCR]" : "");
+        addChunks(pdfText, label);
+
+        /* Salva conoscenza matematica se è Matematica.pdf */
+        if (needsOcr && pdfName.contains("Matematica", Qt::CaseInsensitive)
+                && !mathKnPath.isEmpty() && !QFile::exists(mathKnPath)) {
+            QDir().mkpath(QFileInfo(mathKnPath).absolutePath());
+            QFile kf(mathKnPath);
+            if (kf.open(QIODevice::WriteOnly | QIODevice::Text))
+                kf.write(pdfText.left(15000).toUtf8());
+        }
+    }
+
+    return {queue, sources};
+}
+
 void ImpostazioniPage::onReindexBtnClicked()
 {
     if (!m_ragDirEdit || !m_ai) return;
@@ -489,52 +587,55 @@ void ImpostazioniPage::onReindexBtnClicked()
         }
         return;
     }
+
+    /* Annulla estrazione precedente se ancora in corso */
+    if (m_extractWatcher && m_extractWatcher->isRunning())
+        m_extractWatcher->cancel();
+    delete m_extractWatcher;
+    m_extractWatcher = nullptr;
+
     m_indexAborted = false;
-
-    auto addChunks = [this](const QString& content, const QString& fileName) {
-        for (int i = 0; i < content.size(); i += 400) {
-            QString chunk = content.mid(i, 500).simplified();
-            if (chunk.size() >= 30) {
-                m_ragQueue       << chunk;
-                m_ragQueueSource << fileName;
-            }
-        }
-    };
-
     m_ragQueue.clear();
     m_ragQueueSource.clear();
     m_ragQueuePos = 0;
     m_rag.clear();
 
-    QStringList filters{"*.txt","*.md","*.csv","*.rst","*.py","*.cpp","*.h","*.c"};
-    QDirIterator it(dir, filters, QDir::Files, QDirIterator::Subdirectories);
-    while (it.hasNext()) {
-        const QString fp = it.next();
-        QFile f(fp);
-        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) continue;
-        addChunks(QString::fromUtf8(f.readAll()), QFileInfo(fp).fileName());
+    if (m_ragReindexBtn) m_ragReindexBtn->setEnabled(false);
+    if (m_btnStopIndex)  m_btnStopIndex->setEnabled(false);
+    if (m_ragFeedbackLbl) {
+        m_ragFeedbackLbl->setText(
+            "\xe2\x8f\xb3  Estrazione testo (OCR se necessario)... potrebbe richiedere alcuni minuti.");
+        m_ragFeedbackLbl->setVisible(true);
     }
 
-    const QString pdfToText = QStandardPaths::findExecutable("pdftotext");
-    if (!pdfToText.isEmpty()) {
-        QDirIterator pdfIt(dir, QStringList{"*.pdf"}, QDir::Files,
-                           QDirIterator::Subdirectories);
-        while (pdfIt.hasNext()) {
-            const QString pdfPath = pdfIt.next();
-            QProcess p;
-            p.start(pdfToText, {pdfPath, "-"});
-            if (!p.waitForFinished(60000)) continue;
-            addChunks(QString::fromUtf8(p.readAllStandardOutput()),
-                      QFileInfo(pdfPath).fileName());
-        }
-    }
+    /* Fase 1: estrazione testo in background thread (evita freeze UI) */
+    const QString mathKnPath = P::mathKnowledgePath();
+    m_extractWatcher = new QFutureWatcher<RagExtractResult>(this);
+    connect(m_extractWatcher, &QFutureWatcher<RagExtractResult>::finished,
+            this, [this, dir]() {
+                if (!m_extractWatcher) return;
+                auto result = m_extractWatcher->result();
+                m_ragQueue       = result.first;
+                m_ragQueueSource = result.second;
+                m_extractWatcher->deleteLater();
+                m_extractWatcher = nullptr;
+                startEmbeddingPhase(dir);
+            });
 
+    m_extractWatcher->setFuture(
+        QtConcurrent::run(extractRagContent, dir, mathKnPath));
+}
+
+/* ── Fase 2: avvia il loop di embedding (chiamato dopo l'estrazione testo) ── */
+void ImpostazioniPage::startEmbeddingPhase(const QString& dir)
+{
     if (m_ragQueue.isEmpty()) {
         if (m_ragFeedbackLbl) {
             m_ragFeedbackLbl->setText(
                 "\xf0\x9f\x8c\xab  Nessun contenuto trovato nella cartella.");
             m_ragFeedbackLbl->setVisible(true);
         }
+        if (m_ragReindexBtn) m_ragReindexBtn->setEnabled(true);
         return;
     }
 
@@ -640,6 +741,39 @@ void ImpostazioniPage::onReindexBtnClicked()
     };
 
     (*indexNext)();
+}
+
+/* ── Auto-indicizzazione all'avvio se RAG vuoto ──────────────────────────── */
+void ImpostazioniPage::autoIndexIfEmpty()
+{
+    /* Carica indice da disco se non ancora in memoria */
+    if (m_rag.chunkCount() == 0) {
+        const QString ragPath = QDir::homePath() + "/.prismalux_rag.json";
+        if (QFileInfo::exists(ragPath))
+            m_rag.load(ragPath);
+    }
+    /* Se già indicizzato, nulla da fare */
+    if (m_rag.chunkCount() > 0) return;
+
+    /* Embedding richiede Ollama o llama-server */
+    if (!m_ai || m_ai->backend() == AiClient::LlamaLocal) return;
+
+    /* Controlla che la cartella default contenga file indicizzabili */
+    const QString defaultDir = m_ragDirEdit
+        ? m_ragDirEdit->text().trimmed()
+        : QDir::cleanPath(P::root() + "/../RAG");
+    if (defaultDir.isEmpty() || !QDir(defaultDir).exists()) return;
+
+    QStringList indexable{"*.txt","*.md","*.pdf","*.cpp","*.h","*.py","*.c","*.rst"};
+    QDirIterator chk(defaultDir, indexable, QDir::Files, QDirIterator::Subdirectories);
+    if (!chk.hasNext()) return;
+
+    /* Aggiorna la dir nell'UI se vuota */
+    if (m_ragDirEdit && m_ragDirEdit->text().trimmed().isEmpty())
+        m_ragDirEdit->setText(defaultDir);
+
+    /* Avvia indicizzazione (fase estrazione → embedding) */
+    onReindexBtnClicked();
 }
 
 /* ══════════════════════════════════════════════════════════════

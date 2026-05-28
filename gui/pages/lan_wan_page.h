@@ -10,6 +10,13 @@
 #include <QProgressBar>
 #include <QAbstractSocket>
 #include <QTableWidget>
+#include <QTcpServer>
+#include <QTcpSocket>
+#include <QPointer>
+#include <QTimer>
+#include <QStackedWidget>
+#include <QDateTime>
+#include <QRadioButton>
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
 #include "../widgets/qr_code_widget.h"
@@ -65,6 +72,75 @@ private:
     QProcess*      m_gns3ExecProc    = nullptr;
     QProgressBar*  m_gns3Progress    = nullptr;
 
+    /* ══════════════════════════════════════════════════════════════
+       WAN — Calcolo Distribuito (BOINC-like)
+       ══════════════════════════════════════════════════════════════ */
+
+    /* --- Strutture dati --- */
+    struct WanNode {
+        QString              id;
+        QString              name;
+        QString              ip;
+        QString              status;   ///< "idle" | "working"
+        QStringList          caps;
+        QPointer<QTcpSocket> sock;
+    };
+    struct WanTask {
+        QString   id;
+        QString   kind;      ///< "ai_query" | "shell_cmd" | "eval_script"
+        QString   payload;
+        QString   status;    ///< "pending" | "running" | "done" | "error"
+        QString   node;
+        QString   result;
+        QDateTime created;
+    };
+
+    /* --- Server --- */
+    QTcpServer*   m_wanServer       = nullptr;
+    QSpinBox*     m_wanPortSpin     = nullptr;
+    QPushButton*  m_wanStartBtn     = nullptr;
+    QLabel*       m_wanSrvStatusLbl = nullptr;
+    QTableWidget* m_wanNodeTable    = nullptr;
+    QTableWidget* m_wanTaskTable    = nullptr;
+    QComboBox*    m_wanTaskKind     = nullptr;
+    QTextEdit*    m_wanTaskPayload  = nullptr;
+    QPushButton*  m_wanAddTaskBtn   = nullptr;
+    QVector<WanNode> m_wanNodes;
+    QVector<WanTask> m_wanTasks;
+
+    /* --- Cron --- */
+    QSpinBox*    m_wanCronInterval  = nullptr;
+    QComboBox*   m_wanCronKind      = nullptr;
+    QTextEdit*   m_wanCronPayload   = nullptr;
+    QPushButton* m_wanCronStartBtn  = nullptr;
+    QPushButton* m_wanCronStopBtn   = nullptr;
+    QTextEdit*   m_wanCronLog       = nullptr;
+    QTimer*      m_wanCronTimer     = nullptr;
+
+    /* --- Client --- */
+    QLineEdit*    m_wanCliHost         = nullptr;
+    QSpinBox*     m_wanCliPort         = nullptr;
+    QLineEdit*    m_wanCliName         = nullptr;
+    QPushButton*  m_wanCliConBtn       = nullptr;
+    QPushButton*  m_wanCliDisconBtn    = nullptr;
+    QLabel*       m_wanCliStatusLbl    = nullptr;
+    QTextEdit*    m_wanCliLog          = nullptr;
+    QTcpSocket*   m_wanCliSock         = nullptr;
+    QTimer*       m_wanCliPollTimer    = nullptr;
+    QString       m_wanCliNodeId;
+    QString       m_wanCliCurrentTask;  ///< id del task in esecuzione
+
+    /* --- AI lato client --- */
+    bool          m_wanCliAiActive  = false;
+    QString       m_wanCliAiBuf;
+    QMetaObject::Connection m_wanCliTokenConn;
+    QMetaObject::Connection m_wanCliFinishedConn;
+    QMetaObject::Connection m_wanCliErrorConn;
+
+    /* --- Mode stack --- */
+    QStackedWidget* m_wanModeStack  = nullptr;
+
+    /* --- Helpers --- */
     QString  localLanIp() const;
     QString  serverScheme() const;
     void     openQrDialog(QPushButton* parent, const QString& url,
@@ -74,8 +150,20 @@ private:
     void     clientTableRemoveRow(const QString& ip);
     static QString readMacForIp(const QString& ip);
 
+    QString  wanNextId() const;
+    void     wanDispatch();
+    void     wanRefreshTables();
+    void     wanSendJson(QTcpSocket* sock, const QJsonObject& obj);
+    void     wanLogCron(const QString& msg);
+    void     wanCliAppendLog(const QString& msg);
+    void     wanCliSendJson(const QJsonObject& obj);
+    void     wanPopulateKindCombo(QComboBox* combo);
+    QString  wanKindTemplate(const QString& kind) const;
+    void     wanCliHandleTask(const QString& id, const QString& kind, const QString& payload);
+
     QWidget* buildLanAndroidTab();
     QWidget* buildGNS3Tab();
+    QWidget* buildWanComputeTab();
     void     gns3RunAi(const QString& sys, const QString& userMsg);
     void     gns3PopulateModels(QComboBox* combo);
 
@@ -111,4 +199,26 @@ private slots:
     void onGns3ProcFinished(int code, QProcess::ExitStatus status);
     void onGns3RunBtnClicked();
     void onGns3StopBtnClicked();
+
+    /* WAN Compute — server */
+    void onWanStartBtnClicked();
+    void onWanNewConnection();
+    void onWanNodeReadyRead();
+    void onWanNodeDisconnected();
+    void onWanAddTaskBtnClicked();
+    /* WAN Compute — cron */
+    void onWanCronStartBtnClicked();
+    void onWanCronStopBtnClicked();
+    void onWanCronFired();
+    /* WAN Compute — client */
+    void onWanCliConBtnClicked();
+    void onWanCliDisconBtnClicked();
+    void onWanCliPoll();
+    void onWanCliSockReadyRead();
+    void onWanCliSockDisconnected();
+    void onWanCliSockError(QAbstractSocket::SocketError err);
+    /* WAN Compute — AI execution lato client */
+    void onWanCliAiToken(const QString& t);
+    void onWanCliAiFinished(const QString& full);
+    void onWanCliAiError(const QString& msg);
 };

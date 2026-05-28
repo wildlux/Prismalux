@@ -9,6 +9,7 @@
 #include <QLabel>
 #include <QStackedWidget>
 #include "ai_client.h"
+#include "quiz_ccna_db.h"
 
 /* ══════════════════════════════════════════════════════════════
    QuizPage — "Sfida te stesso!"
@@ -54,7 +55,7 @@ private:
 
     /* ── Tab Gioca ── */
     QWidget*        m_giocaPanel   = nullptr;
-    QStackedWidget* m_giocaStack   = nullptr; // 0=quiz, 1=riepilogo
+    QStackedWidget* m_giocaStack   = nullptr; // 0=quiz, 1=riepilogo, 2=avviso
     QLabel*         m_progressLbl  = nullptr;
     QLabel*         m_questionLbl  = nullptr;
     QWidget*        m_optWidget    = nullptr; // contenitore pulsanti opzioni
@@ -71,6 +72,13 @@ private:
 
     /* ── Tab Storico ── */
     QWidget*     m_dashContent = nullptr;
+
+    /* ── Tab CCNA ── */
+    QuizCcnaDb*  m_ccnaDb         = nullptr;
+    QComboBox*   m_ccnaTemaCombo  = nullptr;
+    QSpinBox*    m_ccnaNSpin      = nullptr;
+    QPushButton* m_ccnaStartBtn   = nullptr;
+    QLabel*      m_ccnaStatusLbl  = nullptr;
 
     /* ── Stato gioco ── */
     QList<QuizQuestion> m_parsedQuestions;
@@ -91,6 +99,7 @@ public slots:
 
 private slots:
     void onTabChanged(int idx);
+    void onCcnaStartClicked();
     void onGeneraClicked();
     void onCopyClicked();
     void onCopyRestoreText();

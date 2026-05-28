@@ -9,9 +9,9 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 # ── Qt6 con fallback a Qt5 ────────────────────────────────────────────────
-find_package(Qt6 COMPONENTS Core Widgets Network PrintSupport QUIET)
+find_package(Qt6 COMPONENTS Core Widgets Network PrintSupport Concurrent QUIET)
 if(Qt6_FOUND)
-    set(QT_LIBS Qt6::Core Qt6::Widgets Qt6::Network Qt6::PrintSupport)
+    set(QT_LIBS Qt6::Core Qt6::Widgets Qt6::Network Qt6::PrintSupport Qt6::Concurrent)
     message(STATUS "Prismalux GUI v${PROJECT_VERSION}: usando Qt6 ${Qt6_VERSION}")
 else()
     find_package(Qt5 5.15 COMPONENTS Core Widgets Network PrintSupport REQUIRED)
@@ -19,10 +19,56 @@ else()
     message(STATUS "Prismalux GUI v${PROJECT_VERSION}: usando Qt5 ${Qt5_VERSION}")
 endif()
 
-# ── Backend C: solo hw_detect (rilevamento GPU cross-platform) ───────────
+# ── Qt6::Sql — database SQLite (quiz CCNA) ───────────────────────────────
+if(Qt6_FOUND)
+    find_package(Qt6 COMPONENTS Sql QUIET)
+    if(Qt6Sql_FOUND)
+        list(APPEND QT_LIBS Qt6::Sql)
+        add_compile_definitions(HAVE_QT_SQL)
+        message(STATUS "Prismalux GUI: Qt6::Sql trovato — quiz CCNA SQLite abilitato")
+    else()
+        message(STATUS "Prismalux GUI: Qt6::Sql non trovato — quiz CCNA disabilitato")
+    endif()
+endif()
+
+# ── Qt6Multimedia — rilevamento microfono reale (QAudioSource) ────────────
+if(Qt6_FOUND)
+    find_package(Qt6 COMPONENTS Multimedia QUIET)
+    if(Qt6Multimedia_FOUND)
+        list(APPEND QT_LIBS Qt6::Multimedia)
+        add_compile_definitions(HAVE_QT_MULTIMEDIA)
+        message(STATUS "Prismalux GUI: Qt6::Multimedia trovato — livello microfono reale abilitato")
+    else()
+        message(STATUS "Prismalux GUI: Qt6::Multimedia non trovato — livello microfono disabilitato")
+    endif()
+endif()
+
+# ── QKeychain — salvataggio sicuro token LAN (opzionale) ─────────────────
+# Ricerca cmake config (richiede libqt6keychain-dev su Debian/Ubuntu).
+# Se non trovato, si usa il fallback file-based (0600) già presente.
+find_package(Qt6Keychain QUIET
+    NAMES Qt6Keychain qt6keychain qtkeychain
+    HINTS /usr/lib/cmake /usr/share/cmake /usr/local/lib/cmake
+)
+if(Qt6Keychain_FOUND OR Qt6keychain_FOUND OR qtkeychain_FOUND)
+    if(TARGET Qt6::Keychain)
+        list(APPEND QT_LIBS Qt6::Keychain)
+        add_compile_definitions(HAVE_QKEYCHAIN)
+        message(STATUS "Prismalux GUI: QKeychain trovato — token LAN salvato nel keyring di sistema")
+    elseif(TARGET qt6keychain)
+        list(APPEND QT_LIBS qt6keychain)
+        add_compile_definitions(HAVE_QKEYCHAIN)
+        message(STATUS "Prismalux GUI: Qt6Keychain trovato — token LAN salvato nel keyring di sistema")
+    endif()
+else()
+    message(STATUS "Prismalux GUI: QKeychain non trovato — token LAN usa fallback file 0600 (~/.prismalux/lan_token.key)")
+endif()
+
+# ── Backend C: hw_detect (GPU cross-platform) + blhm_engine (POSIX thread pool) ──
 set(C_SRCS
     hw_detect.c
     qrcodegen.c
+    blhm_engine.c
 )
 set_source_files_properties(${C_SRCS} PROPERTIES LANGUAGE C)
 
@@ -60,6 +106,7 @@ set(CPP_SRCS
     pages/lavoro_page.cpp
     pages/impara_page.cpp
     pages/quiz_page.cpp
+    pages/quiz_ccna_db.cpp
     pages/oracolo_page.cpp
     pages/materie_page.cpp
     pages/tutor_data.cpp
@@ -698,6 +745,20 @@ if(BUILD_TESTS)
         target_link_libraries(test_sintetizzatore PRIVATE pthread m)
     endif()
 
+    # ── test_stt_whisper: SttWhisper paths, availability, transcribe() ──
+    add_executable(test_stt_whisper
+        tests/test_stt_whisper.cpp
+        ${TEST_SHARED_SRCS}
+    )
+    target_include_directories(test_stt_whisper PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_stt_whisper PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_stt_whisper PRIVATE pthread m)
+    endif()
+
     # ── test_onboarding: onboarding wizard QSettings, token LAN, rate limiter ──
     add_executable(test_onboarding
         tests/test_onboarding.cpp
@@ -902,6 +963,7 @@ if(BUILD_TESTS)
     add_test(NAME OpenCodePage            COMMAND test_opencode_page)
     add_test(NAME ImparaQuiz              COMMAND test_impara_quiz)
     add_test(NAME MonitorPanel            COMMAND test_monitor_panel)
+    add_test(NAME SttWhisper              COMMAND test_stt_whisper)
     set_tests_properties(AiIntegration  PROPERTIES TIMEOUT 900)   # 15 min — CPU-only mistral lento
     set_tests_properties(AiStress       PROPERTIES TIMEOUT 1800)  # 30 min — 6 test reali + stress
     set_tests_properties(TeamCollab PROPERTIES TIMEOUT 2400)  # 40 min totali

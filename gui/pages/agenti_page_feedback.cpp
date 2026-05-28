@@ -52,7 +52,8 @@ void AgentiPage::saveFeedback(int bubbleIdx, int rating)
     }
 
     /* Feedback visivo: riga colorata in fondo alla chat */
-    const QString icon  = (rating > 0) ? "\xf0\x9f\x91\x8d" : "\xf0\x9f\x91\x8e";
+    /* &#128077; = 👍  &#128078; = 👎 */
+    const QString icon  = (rating > 0) ? "&#128077;" : "&#128078;";
     const QString color = (rating > 0) ? "#22c55e" : "#ef4444";
     m_log->moveCursor(QTextCursor::End);
     m_log->insertHtml(

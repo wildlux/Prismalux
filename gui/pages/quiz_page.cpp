@@ -235,6 +235,24 @@ QWidget* buildGiocaTab(QuizPage* self,
     rLay->addStretch(1);
     giocaStack->addWidget(riepilogoPage); // index 1
 
+    /* ─── Pagina avviso (index 2) — mostrata quando non ci sono domande ─── */
+    auto* avvisoPage = new QWidget;
+    auto* aLay = new QVBoxLayout(avvisoPage);
+    aLay->setContentsMargins(24, 24, 24, 24);
+    aLay->addStretch(1);
+    auto* avvisoLbl = new QLabel(
+        "\xe2\x9a\xa0\xef\xb8\x8f  Per usare questa scheda,\n"
+        "prima genera un quiz dalla scheda \"\xf0\x9f\x8e\xaf Genera\".",
+        avvisoPage);
+    avvisoLbl->setObjectName("cardDesc");
+    avvisoLbl->setAlignment(Qt::AlignCenter);
+    avvisoLbl->setWordWrap(true);
+    aLay->addWidget(avvisoLbl);
+    aLay->addStretch(1);
+    giocaStack->addWidget(avvisoPage); // index 2
+
+    giocaStack->setCurrentIndex(2); // mostra avviso di default
+
     lay->addWidget(giocaStack, 1);
     return w;
 }
@@ -260,6 +278,84 @@ QWidget* buildStoricoTab(QWidget*& dashContent)
     scroll->setWidget(dashContent);
     lay->addWidget(scroll, 1);
 
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildCcnaTab — UI sessione quiz CCNA da SQLite
+   ══════════════════════════════════════════════════════════════ */
+static QWidget* buildCcnaTab(QuizPage* /*self*/,
+                              QuizCcnaDb* db,
+                              QComboBox*& temaCombo,
+                              QSpinBox*&  nSpin,
+                              QPushButton*& startBtn,
+                              QLabel*& statusLbl)
+{
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(20, 16, 20, 16);
+    lay->setSpacing(14);
+
+    /* ── Intestazione ── */
+    auto* titleLbl = new QLabel(
+        "\xf0\x9f\x8e\x93  Quiz CCNA 200-301  \xe2\x80\x94  Banca dati 500 domande", w);
+    titleLbl->setObjectName("pageTitle");
+    lay->addWidget(titleLbl);
+
+    bool avail = db && db->isAvailable();
+    int  total = avail ? db->totalQuestions() : 0;
+
+    statusLbl = new QLabel(
+        avail
+          ? QString("\xe2\x9c\x85  Database caricato: <b>%1</b> domande in %2 temi.")
+              .arg(total).arg(avail ? db->temi().size() : 0)
+          : "\xe2\x9d\x8c  Database non trovato. Esegui prima:\n"
+            "  python3 scripts/genera_quiz_ccna.py",
+        w);
+    statusLbl->setObjectName("cardDesc");
+    statusLbl->setWordWrap(true);
+    lay->addWidget(statusLbl);
+
+    if (!avail) {
+        lay->addStretch(1);
+        startBtn = nullptr; temaCombo = nullptr; nSpin = nullptr;
+        return w;
+    }
+
+    /* ── Opzioni ── */
+    auto* card = new QFrame(w);
+    card->setObjectName("actionCard");
+    auto* cLay = new QGridLayout(card);
+    cLay->setContentsMargins(16, 12, 16, 12);
+    cLay->setSpacing(10);
+
+    cLay->addWidget(new QLabel("Tema:", card), 0, 0);
+    temaCombo = new QComboBox(card);
+    temaCombo->addItem("Tutti i temi", QVariant(QString()));
+    for (const QString& t : db->temi())
+        temaCombo->addItem(t, t);
+    cLay->addWidget(temaCombo, 0, 1);
+
+    cLay->addWidget(new QLabel("Domande:", card), 1, 0);
+    nSpin = new QSpinBox(card);
+    nSpin->setRange(5, 50);
+    nSpin->setValue(10);
+    nSpin->setSuffix("  domande");
+    cLay->addWidget(nSpin, 1, 1);
+
+    cLay->setColumnStretch(1, 1);
+    lay->addWidget(card);
+
+    /* ── Pulsante ── */
+    auto* row = new QHBoxLayout;
+    startBtn = new QPushButton("\xf0\x9f\x9a\x80  Inizia Quiz CCNA", w);
+    startBtn->setObjectName("actionBtn");
+    row->addStretch(1);
+    row->addWidget(startBtn);
+    row->addStretch(1);
+    lay->addLayout(row);
+
+    lay->addStretch(1);
     return w;
 }
 
@@ -291,7 +387,14 @@ QuizPage::QuizPage(AiClient* ai, QWidget* parent)
         m_riepilogoLbl);
     m_giocaTabIdx = m_tabs->addTab(giocaTab, "\xf0\x9f\x8e\xae  Gioca");
 
-    /* Tab 2 — Storico */
+    /* Tab 2 — CCNA */
+    m_ccnaDb = new QuizCcnaDb(this);
+    QWidget* ccnaTab = buildCcnaTab(this, m_ccnaDb,
+                                    m_ccnaTemaCombo, m_ccnaNSpin,
+                                    m_ccnaStartBtn, m_ccnaStatusLbl);
+    m_tabs->addTab(ccnaTab, "\xf0\x9f\x8e\x93  CCNA");
+
+    /* Tab 3 — Storico */
     QWidget* storicoTab = buildStoricoTab(m_dashContent);
     m_tabs->addTab(storicoTab, "\xf0\x9f\x93\x8a  Storico");
 
@@ -304,6 +407,8 @@ QuizPage::QuizPage(AiClient* ai, QWidget* parent)
     connect(m_btnGenera, &QPushButton::clicked, this, &QuizPage::onGeneraClicked);
     connect(m_btnCopy,   &QPushButton::clicked, this, &QuizPage::onCopyClicked);
     connect(m_btnGioca,  &QPushButton::clicked, this, &QuizPage::onGiocaClicked);
+    if (m_ccnaStartBtn)
+        connect(m_ccnaStartBtn, &QPushButton::clicked, this, &QuizPage::onCcnaStartClicked);
 
     connect(m_topicEdit, &QLineEdit::returnPressed,
             this, &QuizPage::startGeneration);
@@ -859,4 +964,37 @@ void QuizPage::loadDashboard() {
     }
     vlay->addWidget(recBox);
     vlay->addStretch(1);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onCcnaStartClicked — carica domande dal DB e avvia Gioca
+   ══════════════════════════════════════════════════════════════ */
+void QuizPage::onCcnaStartClicked()
+{
+    if (!m_ccnaDb || !m_ccnaDb->isAvailable()) return;
+
+    int     n    = m_ccnaNSpin ? m_ccnaNSpin->value() : 10;
+    QString tema = m_ccnaTemaCombo
+                 ? m_ccnaTemaCombo->currentData().toString()
+                 : QString();
+
+    QList<CcnaQuestion> batch = m_ccnaDb->randomBatch(n, tema);
+    if (batch.isEmpty()) return;
+
+    m_parsedQuestions.clear();
+    for (const CcnaQuestion& cq : batch) {
+        QuizQuestion q;
+        q.text       = cq.domanda;
+        q.options    = cq.risposte;
+        q.correctIdx = cq.corretta;
+        m_parsedQuestions.append(q);
+    }
+
+    m_currentQ = 0;
+    m_score    = 0;
+    m_answered = false;
+
+    m_tabs->setCurrentIndex(m_giocaTabIdx);
+    m_giocaStack->setCurrentIndex(0);
+    showQuestion(0);
 }

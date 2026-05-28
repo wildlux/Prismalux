@@ -18,6 +18,8 @@
 #include <QTableWidget>
 #include <QHeaderView>
 #include <QSettings>
+#include <QDate>
+#include <QMessageBox>
 
 /* ══════════════════════════════════════════════════════════════
    Materie disponibili
@@ -321,6 +323,23 @@ StudioPage::StudioPage(AiClient* ai, QWidget* parent)
     connect(btnStats, &QPushButton::clicked, this, &StudioPage::onStatsClicked);
     vbox->addWidget(btnStats);
 
+    /* Pulsante reset statistiche */
+    auto* btnResetStats = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x97\x91 Reset statistiche"), inner);
+    btnResetStats->setObjectName("SecondaryBtn");
+    btnResetStats->setMinimumHeight(44);
+    btnResetStats->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    connect(btnResetStats, &QPushButton::clicked, this, &StudioPage::onResetStatsClicked);
+    vbox->addWidget(btnResetStats);
+
+    /* Etichetta punteggio cumulativo (tema/materia corrente) */
+    m_scoreSummaryLbl = new QLabel("", inner);
+    m_scoreSummaryLbl->setTextFormat(Qt::RichText);
+    m_scoreSummaryLbl->setWordWrap(true);
+    m_scoreSummaryLbl->setAlignment(Qt::AlignCenter);
+    m_scoreSummaryLbl->setVisible(false);
+    vbox->addWidget(m_scoreSummaryLbl);
+
     /* Area testo per "Riassumi" */
     m_inputLbl = new QLabel(
         QString::fromUtf8("\xf0\x9f\x93\x84")
@@ -476,6 +495,7 @@ StudioPage::StudioPage(AiClient* ai, QWidget* parent)
     connect(m_ai, &AiClient::aborted,  this, &StudioPage::onAborted);
 
     loadStats();
+    refreshStatLabels();
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -834,7 +854,9 @@ void StudioPage::onQuizAnswerClicked(int idx)
         m_stats[statKey].total++;
         if (correct)
             m_stats[statKey].correct++;
+        m_stats[statKey].lastDate = QDate::currentDate().toString(Qt::ISODate);
         saveStats();
+        refreshStatLabels();
     }
 
     m_quizBtns[m_quizCorrect]->setStyleSheet(
@@ -902,8 +924,9 @@ void StudioPage::loadStats()
         const QString key = s.value("tema").toString();
         if (key.isEmpty()) continue;
         QuizStat st;
-        st.total   = s.value("total",   0).toInt();
-        st.correct = s.value("correct", 0).toInt();
+        st.total    = s.value("total",    0).toInt();
+        st.correct  = s.value("correct",  0).toInt();
+        st.lastDate = s.value("lastDate", QString()).toString();
         m_stats[key] = st;
     }
     s.endArray();
@@ -917,9 +940,10 @@ void StudioPage::saveStats()
     int i = 0;
     for (auto it = m_stats.cbegin(); it != m_stats.cend(); ++it, ++i) {
         s.setArrayIndex(i);
-        s.setValue("tema",    it.key());
-        s.setValue("total",   it.value().total);
-        s.setValue("correct", it.value().correct);
+        s.setValue("tema",     it.key());
+        s.setValue("total",    it.value().total);
+        s.setValue("correct",  it.value().correct);
+        s.setValue("lastDate", it.value().lastDate);
     }
     s.endArray();
 }
@@ -1032,4 +1056,72 @@ void StudioPage::showStats()
 void StudioPage::onStatsClicked()
 {
     showStats();
+}
+
+/* ── onResetStatsClicked — azzera tutte le statistiche quiz ── */
+void StudioPage::onResetStatsClicked()
+{
+    const auto btn = QMessageBox::question(
+        this,
+        QString::fromUtf8("\xf0\x9f\x97\x91 Reset statistiche"),
+        QString::fromUtf8(
+            "Sei sicuro di voler azzerare tutte le statistiche quiz?\n"
+            "L'operazione non \xc3\xa8 reversibile."),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No);
+
+    if (btn != QMessageBox::Yes) return;
+
+    m_stats.clear();
+
+    QSettings s("Prismalux", "Mobile");
+    s.remove("quiz_stats");
+    s.sync();
+
+    refreshStatLabels();
+}
+
+/* ── refreshStatLabels — aggiorna l'etichetta punteggio nel menu ── */
+void StudioPage::refreshStatLabels()
+{
+    if (!m_scoreSummaryLbl) return;
+
+    if (m_stats.isEmpty()) {
+        m_scoreSummaryLbl->setVisible(false);
+        return;
+    }
+
+    /* Costruisce una riga per ogni tema/materia con punteggio */
+    QString html = QString::fromUtf8(
+        "<small style='color:#8890a8'>"
+        "<b>\xf0\x9f\x93\x8a Punteggi salvati:</b><br>");
+
+    for (auto it = m_stats.cbegin(); it != m_stats.cend(); ++it) {
+        const QuizStat& st = it.value();
+        const int pct = (st.total > 0)
+            ? static_cast<int>(100.0 * st.correct / st.total + 0.5)
+            : 0;
+
+        /* Colore in base alla percentuale */
+        const char* color = (pct >= 75) ? "#4CAF50"
+                          : (pct >= 50) ? "#FFC107"
+                                        : "#f44336";
+
+        html += QString::fromUtf8("\xe2\x9c\x85 ")  /* ✅ */
+             + it.key()
+             + QString(" &nbsp; <b style='color:%1'>%2/%3 (%4%)</b>")
+                   .arg(color)
+                   .arg(st.correct)
+                   .arg(st.total)
+                   .arg(pct);
+
+        if (!st.lastDate.isEmpty())
+            html += QString(" <i style='color:#666'>(%1)</i>").arg(st.lastDate);
+
+        html += "<br>";
+    }
+    html += "</small>";
+
+    m_scoreSummaryLbl->setText(html);
+    m_scoreSummaryLbl->setVisible(true);
 }

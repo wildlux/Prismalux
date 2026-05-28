@@ -5,7 +5,15 @@ Compila e carica sketch Arduino/ESP32/Pico, serial monitor via arduino-cli e pys
 Prerequisiti: sudo apt install arduino-cli  |  pip install pyserial
 """
 import sys, json, subprocess, shutil, threading, time
+import logging
+import os
 from pathlib import Path
+
+logging.basicConfig(
+    level=getattr(logging, os.environ.get("PRISMALUX_LOG_LEVEL", "WARNING")),
+    format="%(asctime)s [%(name)s] %(levelname)s %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 SKETCH_DIR = Path.home() / ".prismalux" / "arduino_sketches"
 SKETCH_DIR.mkdir(parents=True, exist_ok=True)
@@ -15,8 +23,10 @@ def _run(cmd, timeout=60, cwd=None):
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=str(cwd) if cwd else None)
         return r.stdout.strip(), r.stderr.strip(), r.returncode
     except subprocess.TimeoutExpired:
+        logger.error("Subprocess timeout dopo %ss: %s", timeout, cmd)
         return "", f"Timeout ({timeout}s)", 1
     except Exception as e:
+        logger.error("Subprocess error: %s", e)
         return "", str(e), 1
 
 TOOLS = [
@@ -162,7 +172,9 @@ def handle(req):
         h = HANDLERS.get(name)
         if not h: _error(rid, -32601, f"Strumento '{name}' non trovato."); return
         try: text = h(args)
-        except Exception as e: text = f"[Errore] {e}"
+        except Exception as e:
+            logger.error("Errore tool '%s': %s", name, e)
+            text = f"[Errore] {e}"
         _result(rid, {"content":[{"type":"text","text":text}],"isError":text.startswith("[Errore")})
     elif rid is not None: _result(rid, {})
 
@@ -172,10 +184,12 @@ def main():
         if not line: continue
         try: req = json.loads(line)
         except json.JSONDecodeError as e:
+            logger.error("JSON parse error: %s", e)
             _send({"jsonrpc":"2.0","id":None,"error":{"code":-32700,"message":str(e)}})
             continue
         try: handle(req)
         except Exception as e:
+            logger.error("Errore gestione richiesta: %s", e)
             if req.get("id"): _error(req["id"], -32603, str(e))
 
 if __name__ == "__main__": main()

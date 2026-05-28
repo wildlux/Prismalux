@@ -1,7 +1,7 @@
 #pragma once
 #include <QWidget>
 #include "../ai_client.h"
-
+#include "grafico_page.h"
 class QTabWidget;
 class QPlainTextEdit;
 class QTextEdit;
@@ -75,11 +75,32 @@ private:
     QPushButton* m_btnSolve     = nullptr;
     QPushButton* m_btnSolveCopy = nullptr;
     QPushButton* m_btnSolveAi   = nullptr;  ///< "Spiega con AI" (appare dopo SymPy)
-    QTextEdit*   m_solveOutput  = nullptr;
     bool         m_solveBusy    = false;
     bool         m_solvePyMode  = false;    ///< true quando proc SymPy è in esecuzione
-    QTextEdit*   m_pyOutTarget  = nullptr;  ///< output proc → questo widget
-    QString      m_solveFullText;
+    QString      m_solveFullText;           ///< cattura output SymPy (letto da onSolveAiClicked)
+    int          m_solveTabIdx  = -1;
+
+    /* ── tab Analisi 1 ── */
+    QComboBox*     m_a1TopicCmb  = nullptr;
+    QTextEdit*     m_a1Theory    = nullptr;
+    QLineEdit*     m_a1Input     = nullptr;
+    QComboBox*     m_a1TypeCmb   = nullptr;
+    QLineEdit*     m_a1PlotInput = nullptr;  ///< espressione per il grafico
+    GraficoCanvas* m_a1Canvas    = nullptr;  ///< canvas interattivo (zoom/pan)
+    QPushButton*   m_btnA1Expand = nullptr;  ///< apri in finestra separata
+
+    /* ── highlight zona limite attiva ── */
+    GraficoCanvas* m_limitCanvas = nullptr;  ///< canvas su cui è attivo il highlight limite
+
+    /* ── tab Analisi 2 ── */
+    QComboBox*     m_a2TopicCmb  = nullptr;
+    QTextEdit*     m_a2Theory    = nullptr;
+    QLineEdit*     m_a2Input     = nullptr;
+    QComboBox*     m_a2TypeCmb   = nullptr;
+    QLineEdit*     m_a2PlotInput = nullptr;
+    GraficoCanvas* m_a2Canvas    = nullptr;
+    QComboBox*     m_a2RenderCmb = nullptr;  ///< Punti / Wireframe / Superficie
+    QPushButton*   m_btnA2Expand = nullptr;  ///< apri in finestra separata
 
     /* builder schede */
     QWidget* buildSeqTab();
@@ -87,6 +108,12 @@ private:
     QWidget* buildNthTab();
     QWidget* buildExprTab();
     QWidget* buildSolveTab();
+    QWidget* buildAnalisi1Tab();
+    QWidget* buildAnalisi2Tab();
+
+    /* grafici — usa GraficoCanvas nativo */
+    static QString sympyToCanvas(const QString& expr);
+    static QVector<GraficoCanvas::Pt3D> buildSurface3D(const QString& exprSym);
 
     /* azioni */
     void runSequence();
@@ -161,13 +188,36 @@ private slots:
     void onSolveFinished(const QString& full);
     void onSolveError(const QString& msg);
 
+    /* tab Analisi 1 */
+    void onA1TopicChanged();
+    void onA1TryClicked();
+    void onA1AiClicked();
+    void onA1PlotClicked();
+    void onA1ExpandClicked();
+
+    /* tab Analisi 2 */
+    void onA2TopicChanged();
+    void onA2TryClicked();
+    void onA2AiClicked();
+    void onA2PlotClicked();
+    void onA2RenderChanged(int idx);
+    void onA2ExpandClicked();
+
+
+    /* AI Analisi (one-shot shared) */
+    void onAnalisiAiToken(const QString& tok);
+    void onAnalisiAiFinished(const QString& full);
+    void onAnalisiAiError(const QString& msg);
+
     /* QProcess Python */
     void onProcReadyRead();
     void onProcFinished(int code, QProcess::ExitStatus status);
 
 private:
     /* holder one-shot per i segnali AI durante runAiSequence */
-    QObject* m_aiSeqHolder  = nullptr;
+    QObject* m_aiSeqHolder    = nullptr;
     /* holder one-shot per i segnali AI durante Risolvi Passi */
-    QObject* m_aiSolveHolder = nullptr;
+    QObject* m_aiSolveHolder  = nullptr;
+    /* holder one-shot per i segnali AI durante Analisi 1/2 */
+    QObject* m_aiAnalisiHolder = nullptr;
 };

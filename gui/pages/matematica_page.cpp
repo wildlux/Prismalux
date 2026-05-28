@@ -1,6 +1,8 @@
 #include "matematica_page.h"
 #include "../prismalux_paths.h"
 
+#include "grafico_page.h"
+#include "../widgets/formula_parser.h"
 #include <QBrush>
 #include <QColor>
 #include <QFileDialog>
@@ -89,6 +91,9 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     m_tabs->addTab(buildNthTab(),   "#\xe2\x83\xbf  N-esimo");
     m_tabs->addTab(buildExprTab(),  "\xf0\x9f\xa7\xae  Espressione");                    /* 🧮 */
     m_tabs->addTab(buildSolveTab(), "\xf0\x9f\x93\x90  Risolvi Passi");                 /* 📐 */
+    m_solveTabIdx = m_tabs->count() - 1;
+    m_tabs->addTab(buildAnalisi1Tab(), "\xf0\x9f\x93\x98  Analisi 1");                  /* 📘 */
+    m_tabs->addTab(buildAnalisi2Tab(), "\xf0\x9f\x93\x99  Analisi 2");                  /* 📙 */
 
     /* ─── PARTE INFERIORE: output + controlli ─── */
     auto* outBox = new QWidget(splitter);
@@ -741,7 +746,7 @@ void MatematicaPage::runAiSequence(const QString& seqStr, int nextN)
     connect(m_ai, &AiClient::error,    m_aiSeqHolder,
             [this](const QString& msg){ onAiSeqError(msg); });
 
-    m_ai->chat(sys.arg(nextN), user);
+    m_ai->chat(P::prependMathKnowledge(sys.arg(nextN)), user);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -771,7 +776,6 @@ void MatematicaPage::runPython(const QString& code)
 
 void MatematicaPage::stopPython()
 {
-    m_pyOutTarget = nullptr;
     if (m_solvePyMode) {
         m_solvePyMode = false;
         m_solveBusy   = false;
@@ -810,19 +814,31 @@ LD = {'x':x,'y':y,'z':z,'n':n,'t':t,'a':a,'b':b,'c':c,'k':k,
       'sqrt':sqrt,'sin':sin,'cos':cos,'tan':tan,
       'asin':asin,'acos':acos,'atan':atan,
       'log':log,'ln':log,'exp':exp,'abs':Abs}
-LINE = '═'*54
+LINE = '─'*56
 def parse(s):
     return parse_expr(s.strip(), transformations=TR, local_dict=LD)
+def pprint_inline(expr):
+    """Restituisce una stringa 'da foglio': usa pretty() su una riga se possibile."""
+    try:
+        p = str(pretty(expr, use_unicode=True))
+        # se pretty è multiriga prende solo la prima riga di una repr compatta
+        lines = [l for l in p.splitlines() if l.strip()]
+        if len(lines) == 1:
+            return lines[0].strip()
+    except:
+        pass
+    return str(expr)
 def fmt(v):
     try:
         ev = complex(v.evalf(8))
         if abs(ev.imag) < 1e-7:
             f = ev.real
-            return f'{v}' if abs(f - round(f)) < 1e-9 else f'{v}  ≈  {f:.6g}'
+            base = pprint_inline(v)
+            return base if abs(f - round(f)) < 1e-9 else f'{base}  ≈  {f:.6g}'
         else:
-            return f'{v}  ≈  {ev.real:.5g} {ev.imag:+.5g}i'
+            return f'{pprint_inline(v)}  ≈  {ev.real:.5g} {ev.imag:+.5g}i'
     except:
-        return str(v)
+        return pprint_inline(v)
 print(LINE)
 print('  Risolvi Passi — SymPy Engine')
 print(f'  Python {platform.python_version()}  |  SymPy {_sympy_mod.__version__}')
@@ -848,29 +864,48 @@ print()
 
     print(f'PASSO 1 — Riscrittura in f({var})=0')
     print(f'  {lhs} = {rhs}  →  {residual} = 0')
-    print(f'  Variabile: {var}\n')
+    print(f'  Variabile: {var}')
+    print(f'  ↳ Perché: portare tutto a sinistra crea la forma canonica f({var})=0,')
+    print(f'    necessaria per applicare i teoremi di esistenza delle radici e gli')
+    print(f'    algoritmi di risoluzione simbolica.\n')
 
     exp2 = expand(residual)
     if str(exp2) != str(residual):
-        print(f'PASSO 2 — Espansione\n  {exp2} = 0\n')
+        print(f'PASSO 2 — Espansione')
+        print(f'  {exp2} = 0')
+        print(f'  ↳ Perché: distribuire prodotti e potenze rivela i termini simili,')
+        print(f'    rende visibile il grado e prepara alla fattorizzazione.\n')
 
     fac = factor(residual)
     if str(fac) not in (str(residual), str(exp2)):
-        print(f'PASSO 3 — Fattorizzazione\n  {fac} = 0\n')
+        print(f'PASSO 3 — Fattorizzazione')
+        print(f'  {fac} = 0')
+        print(f'  ↳ Perché: scrivere f come prodotto di fattori lineari/irriducibili')
+        print(f'    permette di leggere le radici direttamente (ogni fattore = 0).\n')
 
     if residual.is_polynomial(var):
         p = Poly(residual, var)
         deg = p.degree()
         print(f'PASSO 4 — Analisi polinomiale')
         print(f'  Grado: {deg}   Coefficienti [a_n…a_0]: {p.all_coeffs()}')
+        print(f'  ↳ Perché: il grado stabilisce il numero massimo di soluzioni')
+        print(f'    (Teorema Fondamentale dell\'Algebra: n radici contando molteplicità).')
         if deg == 2:
             cf = p.all_coeffs()
             a2 = Rational(cf[0]); b2 = Rational(cf[1]); c2 = Rational(cf[2])
             disc = b2**2 - 4*a2*c2
             print(f'  Discriminante Δ = ({b2})² - 4·({a2})·({c2}) = {disc}')
+            if disc > 0:
+                print(f'  ↳ Δ>0: due radici reali distinte (formula quadratica).')
+            elif disc == 0:
+                print(f'  ↳ Δ=0: radice doppia (tangente all\'asse x).')
+            else:
+                print(f'  ↳ Δ<0: nessuna radice reale (le soluzioni sono complesse coniugate).')
         print()
 
     print('PASSO 5 — Calcolo soluzioni')
+    print('  ↳ Perché: SymPy applica formule chiuse (quadratica, cubica, quartica)')
+    print('    se esistono; altrimenti usa algoritmi numerici (Newton-Raphson).')
     sols = solve(Eq(lhs, rhs), var) or solve(residual, var)
     if sols:
         print(f'  Soluzioni trovate: {len(sols)}')
@@ -906,20 +941,31 @@ print()
     free = residual.free_symbols
     var = x if x in free else (next(iter(free)) if free else x)
 
-    print(f'PASSO 1 — Riscrittura\n  {lhs} {op} {rhs}  →  {residual} {op} 0\n')
+    print(f'PASSO 1 — Riscrittura in forma standard')
+    print(f'  {lhs} {op} {rhs}  →  {residual} {op} 0')
+    print(f'  ↳ Perché: portare tutto a sinistra riduce il problema allo studio')
+    print(f'    del segno di una sola espressione, tecnica fondamentale per')
+    print(f'    le disequazioni algebriche e trascendenti.\n')
 
     fac = factor(residual)
     if str(fac) != str(residual):
-        print(f'PASSO 2 — Fattorizzazione\n  {fac} {op} 0\n')
+        print(f'PASSO 2 — Fattorizzazione')
+        print(f'  {fac} {op} 0')
+        print(f'  ↳ Perché: un prodotto di fattori cambia segno solo negli zeri di')
+        print(f'    ciascun fattore; la tabella dei segni si costruisce fattore per')
+        print(f'    fattore (metodo degli intervalli).\n')
 
-    print('PASSO 3 — Studio del segno')
+    print('PASSO 3 — Studio del segno e insieme soluzione')
     zeros = solve(residual, var)
     if zeros:
-        print(f'  Zeri: {zeros}')
+        print(f'  Zeri di f({var}): {zeros}')
+        print(f'  ↳ Gli zeri sono i punti di confine degli intervalli di soluzione.')
     from sympy.solvers.inequalities import solve_univariate_inequality
     op_map = {'<': lhs < rhs, '>': lhs > rhs, '<=': lhs <= rhs, '>=': lhs >= rhs}
     result = solve_univariate_inequality(op_map[op], var, relational=False)
-    print(f'  Insieme soluzione: {result}\n')
+    print(f'  Insieme soluzione: {result}')
+    print(f'  ↳ SymPy unisce gli intervalli dove f({var}) ha il segno richiesto')
+    print(f'    (positivo per ">", negativo per "<", incluso gli zeri per "≥","≤").\n')
     print(LINE); print(f'SOLUZIONE FINALE:\n  {var} ∈ {result}'); print(LINE)
 )SCRIPT";
 
@@ -932,29 +978,59 @@ print()
     f = parse(f_str)
     var = parse(var_str)
 
-    print(f'PASSO 1 — Espressione\n  f({var}) = {f}\n')
+    print(f'PASSO 1 — Riconoscimento della struttura')
+    print(f'  f({var}) = {f}')
+    print(f'  ↳ Perché: identificare se la funzione è una somma, prodotto,')
+    print(f'    quoziente o composizione determina quale regola di derivazione')
+    print(f'    applicare (linearità, Leibniz, regola della catena).\n')
 
     fs = simplify(f)
     if str(fs) != str(f):
-        print(f'PASSO 2 — Forma semplificata\n  f({var}) = {fs}\n')
+        print(f'PASSO 2 — Pre-semplificazione')
+        print(f'  f({var}) = {fs}')
+        print(f'  ↳ Perché: una forma più semplice riduce il numero di termini')
+        print(f'    su cui applicare le regole e limita gli errori algebrici.\n')
 
     df = diff(f, var, order)
     label = f"{''.join([\"'\"]*order)}"
-    print(f'PASSO 3 — Derivata {"prima" if order==1 else str(order)+"ª"}\n  f{label}({var}) = {df}\n')
+    ord_name = 'prima' if order==1 else (str(order)+'ª')
+    print(f'PASSO 3 — Derivata {ord_name} rispetto a {var}')
+    print(f'  f{label}({var}) = {df}')
+    rules = []
+    if f.is_Add: rules.append('regola della somma (linearità)')
+    if f.is_Mul: rules.append('regola del prodotto (Leibniz)')
+    if f.is_Pow: rules.append('regola della potenza')
+    if f.has(sin,cos,tan,exp,log): rules.append('derivata di funzioni elementari')
+    rule_str = ', '.join(rules) if rules else 'regole standard di derivazione'
+    print(f'  ↳ Applica: {rule_str}.')
+    print(f'    La derivata misura il tasso di variazione istantaneo di f in {var}.\n')
 
     dfs = simplify(df)
     if str(dfs) != str(df):
-        print(f'PASSO 4 — Derivata semplificata\n  f{label}({var}) = {dfs}\n')
+        print(f'PASSO 4 — Semplificazione della derivata')
+        print(f'  f{label}({var}) = {dfs}')
+        print(f'  ↳ Perché: la forma semplificata è più leggibile e più utile')
+        print(f'    per trovare zeri, segno e comportamento asintotico.\n')
         df = dfs
 
     if order == 1:
         cps = solve(df, var)
         if cps:
-            print(f'PASSO 5 — Punti critici f\'=0:')
+            print(f'PASSO 5 — Punti critici (f\'({var})=0)')
+            print(f'  ↳ Perché: dove la derivata si annulla la funzione ha')
+            print(f'    tangente orizzontale → candidati a massimo, minimo o flesso.')
             for i,cp in enumerate(cps,1):
                 try: yv = f.subs(var,cp)
                 except: yv = '?'
-                print(f'  {var}_{i} = {fmt(cp)},  f = {yv}')
+                d2 = diff(f, var, 2).subs(var, cp) if cps else None
+                nature = ''
+                try:
+                    if d2 is not None:
+                        if d2 > 0: nature = ' → minimo locale (f\'\'> 0)'
+                        elif d2 < 0: nature = ' → massimo locale (f\'\'< 0)'
+                        else: nature = ' → analisi ordine superiore necessaria'
+                except: pass
+                print(f'  {var}_{i} = {fmt(cp)},  f = {yv}{nature}')
             print()
 
     print(LINE); print(f'SOLUZIONE FINALE:\n  f{label}({var}) = {df}'); print(LINE)
@@ -975,19 +1051,44 @@ print()
         a_val = parse(parts[1]); b_val = parse(parts[2])
 
     if a_val is None:
-        print(f'PASSO 1 — Integrale indefinito\n  ∫ {f} d{var}\n')
+        print(f'PASSO 1 — Identificazione: integrale indefinito')
+        print(f'  ∫ {f} d{var}')
+        print(f'  ↳ Perché: cerchiamo una funzione F tale che F\'({var})=f({var}).')
+        print(f'    La costante +C riflette il fatto che infinite primitive differiscono')
+        print(f'    per una costante additiva (famiglie di curve parallele).\n')
         result = integrate(f, var)
         rs = simplify(result)
-        print(f'PASSO 2 — Primitiva\n  F({var}) = {rs}\n')
+        # Identifica la tecnica usata
+        tech = 'integrazione diretta (tabelle standard)'
+        if f.has(exp): tech = 'integrale di funzione esponenziale'
+        elif f.has(log): tech = 'integrazione per parti (possibile)'
+        elif f.is_polynomial(var): tech = 'regola della potenza ∫xⁿdx = xⁿ⁺¹/(n+1)'
+        elif f.has(sin) or f.has(cos): tech = 'integrale di funzione trigonometrica'
+        print(f'PASSO 2 — Calcolo della primitiva')
+        print(f'  F({var}) = {rs}')
+        print(f'  ↳ Tecnica: {tech}.')
+        print(f'    SymPy usa heuristic integration, Risch algorithm o integrazione')
+        print(f'    per parti/sostituzione a seconda della struttura dell\'integrando.\n')
         print(LINE); print(f'SOLUZIONE FINALE:\n  ∫ {f} d{var} = {rs} + C'); print(LINE)
     else:
-        print(f'PASSO 1 — Integrale definito\n  ∫[{a_val}…{b_val}] {f} d{var}\n')
+        print(f'PASSO 1 — Identificazione: integrale definito')
+        print(f'  ∫[{a_val}…{b_val}] {f} d{var}')
+        print(f'  ↳ Perché: l\'integrale definito misura l\'area algebrica (con segno)')
+        print(f'    sotto la curva f({var}) tra {a_val} e {b_val}.\n')
         indef = integrate(f, var)
         rs = simplify(indef)
-        print(f'PASSO 2 — Primitiva\n  F({var}) = {rs}\n')
+        print(f'PASSO 2 — Primitiva F({var})')
+        print(f'  F({var}) = {rs}')
+        print(f'  ↳ Perché: trovare la primitiva è il passo obbligatorio prima di')
+        print(f'    applicare il Teorema Fondamentale del Calcolo Integrale.\n')
         fa = rs.subs(var, b_val); fb = rs.subs(var, a_val)
         result = simplify(fa - fb)
-        print(f'PASSO 3 — Teorema fondamentale\n  F({b_val}) - F({a_val}) = {fa} - ({fb})\n  = {result}\n')
+        print(f'PASSO 3 — Teorema Fondamentale del Calcolo (Newton-Leibniz)')
+        print(f'  F({b_val}) − F({a_val}) = ({fa}) − ({fb})')
+        print(f'  = {result}')
+        print(f'  ↳ Perché: il Teorema Fondamentale afferma ∫[a,b]f = F(b)−F(a),')
+        print(f'    collegando integrazione e derivazione (operazioni inverse).')
+        print(f'    Questo evita di calcolare la somma di Riemann con infiniti rettangoli.\n')
         print(LINE); print(f'SOLUZIONE FINALE:\n  ∫ = {result}  ({fmt(result)})'); print(LINE)
 )SCRIPT";
 
@@ -1007,54 +1108,116 @@ print()
 
     f = parse(f_str); var = parse(var_str); val = parse(val_str)
     dir_str = dir_str.strip()
+    dir_label = '' if dir_str == '+-' else f' ({dir_str})'
 
-    print(f'PASSO 1 — Espressione\n  lim[{var}→{val}] {f}\n')
+    print(f'PASSO 1 — Analisi del problema')
+    print(f'  lim[{var}→{val}{dir_label}]  {f}')
+    print(f'  ↳ Perché: il limite descrive il comportamento di f({var}) quando {var} si')
+    print(f'    avvicina a {val}, anche se f non è definita o continua in quel punto.')
+    if dir_str in ('+','-'):
+        side = 'destra' if dir_str=='+' else 'sinistra'
+        print(f'    Il limite laterale ({side}) si usa quando la funzione ha un')
+        print(f'    comportamento diverso a seconda da che lato si approccia {val}.')
+    print()
 
+    determined = False
     try:
         direct = f.subs(var, val)
-        if direct not in (zoo, nan) and not direct.has(zoo, nan):
-            print(f'PASSO 2 — Sostituzione diretta\n  f({val}) = {direct}  (determinato)\n')
+        # Solo confronti 'is' — .has() e 'not in (...)' innescano
+        # il bug SymPy 1.14 / Python 3.14: 'tuple has no attribute matches'
+        _bad = (direct is zoo or direct is nan or
+                direct is oo  or direct is -oo)
+        if not _bad:
+            # verifica ulteriore: deve essere un valore finito valutabile
+            try:
+                ev = float(direct.evalf(6))
+                if -1e15 < ev < 1e15:
+                    print(f'PASSO 2 — Sostituzione diretta (continuità)')
+                    print(f'  f({val}) = {fmt(direct)}')
+                    print(f'  ↳ Perché: se f è continua in {val}, il limite coincide con il valore')
+                    print(f'    della funzione. La sostituzione diretta è il metodo più rapido.')
+                    print(f'    Se avesse dato 0/0, ∞/∞ ecc. sarebbe stata necessaria l\'analisi')
+                    print(f'    delle forme indeterminate (L\'Hôpital, sviluppi di Taylor).\n')
+                    determined = True
+            except: pass
     except: pass
 
-    print('PASSO 3 — Calcolo limite')
+    print(f'PASSO 3 — Calcolo limite simbolico')
+    if not determined:
+        print(f'  ↳ Perché: la sostituzione diretta ha generato una forma indeterminata.')
+        print(f'    SymPy usa algebricamente: semplificazione razionale, sviluppi')
+        print(f'    di Taylor/McLaurin, regola di L\'Hôpital o sostituzione trigonometrica.')
     if dir_str in ('+', '-'):
         result = limit(f, var, val, dir_str)
     else:
         result = limit(f, var, val)
-    print(f'  lim = {result}')
-    if result not in (oo, -oo, zoo, nan):
-        print(f'  valore numerico: {fmt(result)}')
+    print(f'  lim[{var}→{val}{dir_label}] {f} = {result}')
+    try:
+        _inf = result is oo or result is -oo or result is zoo or result is nan
+        if not _inf:
+            print(f'  Valore numerico: {fmt(result)}')
+        elif result is oo:
+            print(f'  ↳ Il limite è +∞: la funzione diverge (cresce senza limite).')
+        elif result is -oo:
+            print(f'  ↳ Il limite è -∞: la funzione diverge negativamente.')
+        elif result is zoo:
+            print(f'  ↳ Il limite è ∞ complesso: la funzione oscilla o diverge.')
+        elif result is nan:
+            print(f'  ↳ Forma indeterminata irrisolvibile simbolicamente.')
+    except: pass
     print()
-    print(LINE); print(f'SOLUZIONE FINALE:\n  lim[{var}→{val}] {f} = {result}'); print(LINE)
+    print(LINE); print(f'SOLUZIONE FINALE:\n  lim[{var}→{val}{dir_label}] {f} = {result}'); print(LINE)
 )SCRIPT";
 
     } else { /* Semplificazione */
         py += R"SCRIPT(
     f = parse(expr_str)
-    print(f'PASSO 1 — Forma originale\n  {f}\n')
+    print(f'PASSO 1 — Forma originale di partenza')
+    print(f'  {f}')
+    print(f'  ↳ Perché: registrare la forma iniziale permette di confrontare')
+    print(f'    le trasformazioni successive e verificare l\'equivalenza algebrica.\n')
     results = []
 
     exp2 = expand(f)
     if str(exp2) != str(f):
-        print(f'PASSO 2 — Espansione\n  {exp2}\n'); results.append(exp2)
+        print(f'PASSO 2 — Espansione')
+        print(f'  {exp2}')
+        print(f'  ↳ Perché: distribuire prodotti e binomi rivela i termini simili,')
+        print(f'    utile per semplificare frazioni algebriche e trovare i coefficienti.\n')
+        results.append(exp2)
 
     fac = factor(f)
     if str(fac) not in (str(f), str(exp2)):
-        print(f'PASSO 3 — Fattorizzazione\n  {fac}\n'); results.append(fac)
+        print(f'PASSO 3 — Fattorizzazione')
+        print(f'  {fac}')
+        print(f'  ↳ Perché: la forma fattorizzata evidenzia le radici e semplifica')
+        print(f'    frazioni (cancellando fattori comuni al numeratore/denominatore).\n')
+        results.append(fac)
 
     simp = simplify(f)
     if str(simp) not in [str(r) for r in [f,exp2,fac]]:
-        print(f'PASSO 4 — Simplify\n  {simp}\n'); results.append(simp)
+        print(f'PASSO 4 — Simplificazione generale (simplify)')
+        print(f'  {simp}')
+        print(f'  ↳ Perché: simplify() prova internamente expand, factor, trigsimp,')
+        print(f'    radsimp e altre strategie, scegliendo la forma con meno operazioni.\n')
+        results.append(simp)
 
     ts = trigsimp(f)
     if str(ts) not in [str(r) for r in [f,exp2,fac,simp]]:
-        print(f'PASSO 5 — Trig-simplify\n  {ts}\n'); results.append(ts)
+        print(f'PASSO 5 — Semplificazione trigonometrica (trigsimp)')
+        print(f'  {ts}')
+        print(f'  ↳ Perché: usa identità fondamentali (sin²+cos²=1, formule di')
+        print(f'    addizione, ecc.) per ridurre espressioni trigonometriche.\n')
+        results.append(ts)
 
     ps = powsimp(f, deep=True)
     if str(ps) not in [str(r) for r in [f,exp2,fac,simp,ts]]:
-        print(f'PASSO 6 — Pow-simplify\n  {ps}\n'); results.append(ps)
+        print(f'PASSO 6 — Semplificazione di potenze (powsimp)')
+        print(f'  {ps}')
+        print(f'  ↳ Perché: raccoglie xᵃ·xᵇ = xᵃ⁺ᵇ e (xᵃ)ᵇ = xᵃᵇ, riducendo')
+        print(f'    il numero di operazioni aritmetiche nella forma finale.\n')
+        results.append(ps)
 
-    # best = shortest repr
     best = min([f]+results, key=lambda v: len(str(v)))
     print(LINE); print(f'SOLUZIONE FINALE (forma più compatta):\n  {best}'); print(LINE)
 )SCRIPT";
@@ -1874,30 +2037,127 @@ void MatematicaPage::onAiSeqError(const QString& msg)
 }
 
 /* ══════════════════════════════════════════════════════════════
+   formatMathOutput — converte notazione SymPy ASCII in Unicode
+   "da foglio di carta": x**2→x², * →·, sqrt(→√(, oo→∞ …
+   ══════════════════════════════════════════════════════════════ */
+static QString toSuperscript(const QString& digits)
+{
+    static const char* const sup[10] = {
+        "\xe2\x81\xb0",  /* ⁰ */
+        "\xc2\xb9",      /* ¹ */
+        "\xc2\xb2",      /* ² */
+        "\xc2\xb3",      /* ³ */
+        "\xe2\x81\xb4",  /* ⁴ */
+        "\xe2\x81\xb5",  /* ⁵ */
+        "\xe2\x81\xb6",  /* ⁶ */
+        "\xe2\x81\xb7",  /* ⁷ */
+        "\xe2\x81\xb8",  /* ⁸ */
+        "\xe2\x81\xb9",  /* ⁹ */
+    };
+    QString r;
+    r.reserve(digits.size() * 3);
+    for (const QChar c : digits) {
+        const int d = c.digitValue();
+        r += (d >= 0 && d <= 9) ? QString::fromUtf8(sup[d]) : QString(c);
+    }
+    return r;
+}
+
+static QString formatMathOutput(const QString& raw)
+{
+    /* 1 — **N  →  esponente Unicode  (x**2 → x², x**10 → x¹⁰) */
+    static const QRegularExpression rePow(R"(\*\*(-?\d+))");
+    QString s;
+    s.reserve(raw.size());
+    int pos = 0;
+    QRegularExpressionMatchIterator it = rePow.globalMatch(raw);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch m = it.next();
+        s += raw.mid(pos, m.capturedStart() - pos);
+        const QString exp = m.captured(1);
+        if (exp.startsWith('-'))
+            s += "\xe2\x81\xbb" + toSuperscript(exp.mid(1));  /* ⁻ + cifre */
+        else
+            s += toSuperscript(exp);
+        pos = m.capturedEnd();
+    }
+    s += raw.mid(pos);
+
+    /* 2 — * rimasto  →  · (punto di mezzo, notazione europea) */
+    s.replace(QLatin1Char('*'), "\xc2\xb7");
+
+    /* 3 — oo isolato  →  ∞ */
+    s.replace(QRegularExpression(R"(\boo\b)"), "\xe2\x88\x9e");
+
+    /* 4 — sqrt(  →  √( */
+    s.replace("sqrt(", "\xe2\x88\x9a(");
+
+    /* 5 — ->  →  → */
+    s.replace("->", "\xe2\x86\x92");
+
+    /* 6 — <= ≤  e  >= ≥ */
+    s.replace(">=", "\xe2\x89\xa5");
+    s.replace("<=", "\xe2\x89\xa4");
+
+    /* 7 — pi isolato  →  π */
+    s.replace(QRegularExpression(R"(\bpi\b)"), "\xcf\x80");
+
+    /* 8 — ^N (notazione utente) → esponente Unicode */
+    static const QRegularExpression reCaret(R"(\^(-?\d+))");
+    QString s2;
+    s2.reserve(s.size());
+    int pos2 = 0;
+    QRegularExpressionMatchIterator it2 = reCaret.globalMatch(s);
+    while (it2.hasNext()) {
+        const QRegularExpressionMatch m2 = it2.next();
+        s2 += s.mid(pos2, m2.capturedStart() - pos2);
+        const QString exp2 = m2.captured(1);
+        if (exp2.startsWith('-'))
+            s2 += "\xe2\x81\xbb" + toSuperscript(exp2.mid(1));
+        else
+            s2 += toSuperscript(exp2);
+        pos2 = m2.capturedEnd();
+    }
+    s2 += s.mid(pos2);
+
+    return s2;
+}
+
+/* ══════════════════════════════════════════════════════════════
    Slot — QProcess Python
    ══════════════════════════════════════════════════════════════ */
 void MatematicaPage::onProcReadyRead()
 {
     if (!m_proc) return;
-    const QString txt = QString::fromUtf8(m_proc->readAllStandardOutput());
-    if (m_pyOutTarget) {
-        m_pyOutTarget->moveCursor(QTextCursor::End);
-        m_pyOutTarget->insertPlainText(txt);
-        m_pyOutTarget->ensureCursorVisible();
-    } else {
-        appendOutput(txt);
-    }
+    const QString raw = QString::fromUtf8(m_proc->readAllStandardOutput());
+    const QString txt = formatMathOutput(raw);
+    appendOutput(txt);
+    if (m_solvePyMode)
+        m_solveFullText += txt;   /* cattura per "Spiega con AI" */
 }
 
 void MatematicaPage::onProcFinished(int code, QProcess::ExitStatus /*status*/)
 {
     if (m_solvePyMode) {
         m_solvePyMode = false;
-        m_pyOutTarget = nullptr;
         m_solveBusy   = false;
         if (m_btnSolve)   m_btnSolve->setEnabled(true);
         if (m_btnSolveAi) m_btnSolveAi->setVisible(true);
         setStatus(code == 0 ? "\xe2\x9c\x85  SymPy completato." : "\xe2\x9d\x8c  Errore nel calcolo SymPy.");
+
+        /* ── Aggiorna il marcatore L sul canvas del limite ─────────────── */
+        if (m_limitCanvas && code == 0) {
+            /* Pattern: "lim[var→val] f = RISULTATO" nell'ultima riga SOLUZIONE FINALE */
+            static const QRegularExpression reLim(
+                R"(lim\[.+?\]\s+.+?=\s*(.+)$)",
+                QRegularExpression::MultilineOption);
+            const auto match = reLim.match(m_solveFullText);
+            if (match.hasMatch()) {
+                bool ok = false;
+                const double L = match.captured(1).trimmed().toDouble(&ok);
+                if (ok) m_limitCanvas->updateLimitValue(L);
+            }
+        }
     } else {
         setStatus(code != 0 ? QString("\xe2\x9d\x8c  Python uscito con codice %1.").arg(code)
                             : "\xe2\x9c\x85  Calcolo completato.");
@@ -1970,28 +2230,17 @@ QWidget* MatematicaPage::buildSolveTab()
     btnRow->addStretch(1);
     lay->addLayout(btnRow);
 
-    /* Area output streaming */
-    m_solveOutput = new QTextEdit(w);
-    m_solveOutput->setObjectName("chatLog");
-    m_solveOutput->setReadOnly(true);
-    m_solveOutput->setAcceptRichText(false);
-    m_solveOutput->setPlaceholderText(
-        "La soluzione passo per passo apparir\xc3\xa0 qui.\n\n"
-        "Esempio output:\n"
-        "PASSO 1 \xe2\x80\x94 Raccoglimento / Prodotto notevole\n"
-        "  x\xc2\xb2 + 5x + 6 = (x + 2)(x + 3)\n"
-        "---\n"
-        "SOLUZIONE: x = \xe2\x88\x92" "2  oppure  x = \xe2\x88\x92" "3");
-    lay->addWidget(m_solveOutput, 1);
-
     /* Nota informativa */
     auto* note = new QLabel(
-        "<small><b>Suggerimento:</b> usa la notazione ASCII standard: "
-        "x^2 per x\xc2\xb2, sqrt(x) per \xe2\x88\x9ax, "
-        "sin/cos/tan, log, exp. "
-        "Puoi anche scrivere x\xc2\xb2 direttamente.</small>", w);
+        "<small><b>Notazione:</b> x^2 per x\xc2\xb2, sqrt(x) per \xe2\x88\x9ax, "
+        "sin/cos/tan/log/exp. "
+        "Derivata: <i>f(x), var[, ordine]</i> \xe2\x80\x94 "
+        "Integrale: <i>f(x)[, a, b]</i> \xe2\x80\x94 "
+        "Limite: <i>f(x), var, val</i>. "
+        "Il risultato appare nel pannello in basso.</small>", w);
     note->setWordWrap(true);
     lay->addWidget(note);
+    lay->addStretch(1);
 
     return w;
 }
@@ -2005,23 +2254,23 @@ void MatematicaPage::onSolveClicked()
 
     const QString expr = m_solveInput->text().trimmed();
     if (expr.isEmpty()) {
-        m_solveOutput->setPlainText(
-            "\xe2\x9d\x8c  Inserisci un'equazione o espressione prima di procedere.");
+        appendOutput("\xe2\x9d\x8c  Inserisci un'equazione o espressione prima di procedere.\n");
         return;
     }
 
-    m_solveBusy = true;
-    m_solveOutput->clear();
+    clearOutput();
     m_solveFullText.clear();
-    m_btnSolve->setEnabled(false);
     if (m_btnSolveAi) m_btnSolveAi->setVisible(false);
     setStatus("\xf0\x9f\x93\x90  SymPy in calcolo...");
 
     const QString tipo = m_solveCmb->currentText();
-    m_pyOutTarget = m_solveOutput;
-    m_solvePyMode = true;
 
+    /* runPython chiama stopPython() internamente che azzera m_solvePyMode/m_solveBusy;
+       le reimpostiamo DOPO la chiamata (il processo gira in modo asincrono). */
     runPython(buildSympyScript(tipo, expr));
+    m_solvePyMode = true;
+    m_solveBusy   = true;
+    m_btnSolve->setEnabled(false);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2031,7 +2280,7 @@ void MatematicaPage::onSolveStopClicked()
 {
     if (!m_solveBusy) return;
     if (m_solvePyMode) {
-        stopPython();   /* resetta m_solvePyMode, m_solveBusy, m_pyOutTarget */
+        stopPython();   /* resetta m_solvePyMode e m_solveBusy */
     } else {
         if (m_ai) m_ai->abort();
         delete m_aiSolveHolder;
@@ -2049,7 +2298,7 @@ void MatematicaPage::onSolveStopClicked()
 void MatematicaPage::onSolveAiClicked()
 {
     if (m_solveBusy || !m_ai) return;
-    const QString sympyOut = m_solveOutput->toPlainText().trimmed();
+    const QString sympyOut = m_solveFullText.trimmed();
     if (sympyOut.isEmpty()) return;
 
     /* Applica il modello scelto nella combo condivisa */
@@ -2064,23 +2313,30 @@ void MatematicaPage::onSolveAiClicked()
     if (m_btnSolveAi) m_btnSolveAi->setEnabled(false);
     setStatus("\xf0\x9f\xa4\x96  AI sta spiegando...");
 
-    m_solveOutput->moveCursor(QTextCursor::End);
-    m_solveOutput->insertPlainText("\n\n\xe2\x94\x80\xe2\x94\x80 \xf0\x9f\xa4\x96 Spiegazione AI "
-                                   "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\n");
+    appendOutput("\n\n\xe2\x94\x80\xe2\x94\x80 \xf0\x9f\xa4\x96 Spiegazione AI "
+                 "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\n");
 
     const QString sys =
-        "Sei un professore di matematica. Ricevi l'output esatto di SymPy "
-        "(un CAS simbolico) e devi spiegarlo in italiano in modo didattico.\n"
-        "1. Spiega ogni passo in prosa semplice.\n"
-        "2. Nomina la tecnica matematica usata.\n"
-        "3. NON ripetere i calcoli — commentali soltanto.\n"
-        "4. Aggiungi osservazioni utili (es. casi particolari, verifica).\n"
-        "Rispondi SOLO in italiano.";
+        "Sei un professore di matematica universitaria. Ricevi l'output di SymPy "
+        "(calcolo simbolico esatto) e devi commentarlo in italiano con rigore didattico.\n\n"
+        "PER OGNI PASSO dell'output devi rispondere a TRE domande:\n"
+        "  1. COSA è stato fatto (brevemente — lo studente lo vede già).\n"
+        "  2. PERCHÉ questo passo è necessario in questo momento — "
+        "qual è la motivazione matematica, il teorema o il principio che lo giustifica.\n"
+        "  3. COSA sarebbe successo se non lo avessimo fatto, o quale alternativa "
+        "esisteva e perché non è stata scelta.\n\n"
+        "Regole di stile:\n"
+        "- Scrivi in prosa fluente, non in elenchi puntati.\n"
+        "- Cita i teoremi per nome quando rilevante "
+        "(es. 'Teorema Fondamentale del Calcolo', 'Regola di L\\'Hôpital').\n"
+        "- NON ripetere i calcoli simbolici — commentali concettualmente.\n"
+        "- Chiudi con una verifica o un'osservazione pratica utile allo studente.\n"
+        "Rispondi ESCLUSIVAMENTE in italiano.";
 
     const QString user = QString(
-        "Problema originale: %1\n\n"
-        "Output SymPy:\n%2\n\n"
-        "Spiega questo risultato in modo didattico.")
+        "Problema: %1\n\n"
+        "Output SymPy (passi già eseguiti con motivazioni brevi):\n%2\n\n"
+        "Approfondisci le motivazioni di ogni passo come descritto nel tuo ruolo.")
         .arg(m_solveInput->text(), sympyOut);
 
     delete m_aiSolveHolder;
@@ -2092,7 +2348,7 @@ void MatematicaPage::onSolveAiClicked()
     connect(m_ai, &AiClient::error,    m_aiSolveHolder,
             [this](const QString& e){ onSolveError(e); });
 
-    m_ai->chat(sys, user);
+    m_ai->chat(P::prependMathKnowledge(sys), user);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2100,11 +2356,10 @@ void MatematicaPage::onSolveAiClicked()
    ══════════════════════════════════════════════════════════════ */
 void MatematicaPage::onSolveCopyClicked()
 {
-    if (!m_solveOutput) return;
-    const QString txt = m_solveOutput->toPlainText();
+    const QString txt = m_output->toPlainText();
     if (txt.isEmpty()) return;
     QApplication::clipboard()->setText(txt);
-    m_btnSolveCopy->setText("\xe2\x9c\x85  Copiato!");
+    if (m_btnSolveCopy) m_btnSolveCopy->setText("\xe2\x9c\x85  Copiato!");
     QTimer::singleShot(1500, this, &MatematicaPage::onSolveRestoreCopyBtn);
 }
 
@@ -2122,13 +2377,7 @@ void MatematicaPage::onSolveRestoreCopyBtn()
    ══════════════════════════════════════════════════════════════ */
 void MatematicaPage::onSolveToken(const QString& t)
 {
-    m_solveFullText += t;
-    /* Aggiorna in streaming: sposta il cursore alla fine e inserisce */
-    QTextCursor cur = m_solveOutput->textCursor();
-    cur.movePosition(QTextCursor::End);
-    cur.insertText(t);
-    m_solveOutput->setTextCursor(cur);
-    m_solveOutput->ensureCursorVisible();
+    appendOutput(t);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2155,6 +2404,795 @@ void MatematicaPage::onSolveError(const QString& msg)
     m_solveBusy = false;
     if (m_btnSolve)   m_btnSolve->setEnabled(true);
     if (m_btnSolveAi) { m_btnSolveAi->setEnabled(true); m_btnSolveAi->setVisible(true); }
-    m_solveOutput->append("\n\xe2\x9d\x8c  Errore AI: " + msg);
+    appendOutput("\n\xe2\x9d\x8c  Errore AI: " + msg + "\n");
     setStatus("\xe2\x9d\x8c  Errore AI.");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Dati statici argomenti Analisi 1 e 2
+   ══════════════════════════════════════════════════════════════ */
+namespace {
+
+struct AnalisiTopic { const char* name; const char* html; const char* ex; const char* type; const char* plotEx; };
+
+/* Tipo stringa deve corrispondere al testo di m_solveCmb */
+static const AnalisiTopic kA1[] = {
+  { "Limiti",
+    "<h3 style='color:#60a5fa'>Limiti di funzione</h3>"
+    "<p><b>Definizione &epsilon;-&delta;:</b><br>"
+    "lim<sub>x&rarr;c</sub> f(x) = L &hArr; &forall;&epsilon;&gt;0 &exist;&delta;&gt;0 :"
+    " 0&lt;|x&minus;c|&lt;&delta; &rArr; |f(x)&minus;L|&lt;&epsilon;</p><hr>"
+    "<p><b>Limiti notevoli (x&rarr;0):</b><br>"
+    "&bull; sin(x)/x &rarr; 1 &nbsp;&bull; (1&minus;cosx)/x&sup2; &rarr; &frac12;<br>"
+    "&bull; ln(1+x)/x &rarr; 1 &nbsp;&bull; (e<sup>x</sup>&minus;1)/x &rarr; 1<br>"
+    "&bull; arctan(x)/x &rarr; 1 &nbsp;&bull; (a<sup>x</sup>&minus;1)/x &rarr; ln&thinsp;a<br>"
+    "<b>x&rarr;&infin;:</b> &nbsp;(1+1/x)<sup>x</sup> &rarr; e</p><hr>"
+    "<p><b>L'H&ocirc;pital</b> (0/0 o &infin;/&infin;): lim f/g = lim f&prime;/g&prime;</p>"
+    "<p><b>Gerarchia infiniti:</b> log x &lt; x<sup>&alpha;</sup> &lt; e<sup>x</sup> per x&rarr;+&infin;</p>"
+    "<p style='background:#1e293b;border-left:3px solid #3b82f6;padding:6px;"
+    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Limite):</b><br>"
+    "sin(x)/x, x, 0 &nbsp;&bull; (exp(x)-1)/x, x, 0<br>"
+    "x*log(x), x, 0 &nbsp;&bull; (1+1/x)**x, x, oo</p>",
+    "sin(x)/x, x, 0", "Limite", "sin(x)/x" },
+
+  { "Derivate",
+    "<h3 style='color:#60a5fa'>Derivate</h3>"
+    "<p><b>Definizione:</b> f&prime;(x) = lim<sub>h&rarr;0</sub>"
+    " [f(x+h)&minus;f(x)]/h</p><hr>"
+    "<p><b>Tavola derivate fondamentali:</b><br>"
+    "D[x<sup>n</sup>] = nx<sup>n&minus;1</sup> &bull; D[e<sup>x</sup>] = e<sup>x</sup>"
+    " &bull; D[ln x] = 1/x<br>"
+    "D[sin x] = cos x &bull; D[cos x] = &minus;sin x<br>"
+    "D[tan x] = 1/cos&sup2;x &bull; D[arcsin x] = 1/&radic;(1&minus;x&sup2;)</p><hr>"
+    "<p><b>Regole:</b><br>"
+    "(fg)&prime; = f&prime;g+fg&prime; &nbsp;&bull;&nbsp; (f/g)&prime; = (f&prime;g&minus;fg&prime;)/g&sup2;<br>"
+    "(f&compfn;g)&prime; = (f&prime;&compfn;g)&middot;g&prime; &nbsp;(regola della catena)</p><hr>"
+    "<p><b>Teoremi:</b> <b>Rolle:</b> f(a)=f(b) &rArr; &exist;c: f&prime;(c)=0<br>"
+    "<b>Lagrange:</b> &exist;c&isin;(a,b): f&prime;(c)=[f(b)&minus;f(a)]/(b&minus;a)</p>"
+    "<p style='background:#1e293b;border-left:3px solid #3b82f6;padding:6px;"
+    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Derivata):</b><br>"
+    "x**3 - 2*x + 1, x &nbsp;&bull; sin(x)*exp(x), x<br>"
+    "log(x**2+1), x &nbsp;&bull; x**2*cos(x), x, 2 (2&ordf; deriv.)</p>",
+    "x**3 - 2*x + 1, x", "Derivata", "x**3 - 2*x + 1" },
+
+  { "Integrali indefiniti",
+    "<h3 style='color:#60a5fa'>Integrali indefiniti</h3>"
+    "<p><b>Definizione:</b> F&prime;(x) = f(x) &rArr; &int;f(x)dx = F(x)+C</p><hr>"
+    "<p><b>Integrali immediati:</b><br>"
+    "&int;x<sup>n</sup>dx = x<sup>n+1</sup>/(n+1)+C &nbsp;(n&ne;&minus;1)<br>"
+    "&int;e<sup>x</sup>dx = e<sup>x</sup>+C &nbsp;&bull;&nbsp; "
+    "&int;sin x dx = &minus;cos x+C<br>"
+    "&int;1/x dx = ln|x|+C &nbsp;&bull;&nbsp; "
+    "&int;1/(1+x&sup2;) dx = arctan x+C</p><hr>"
+    "<p><b>Tecniche:</b><br>"
+    "<b>Sostituzione:</b> &int;f(g(x))g&prime;(x)dx &rarr; t=g(x)<br>"
+    "<b>Per parti:</b> &int;u dv = uv &minus; &int;v du<br>"
+    "<b>Frazioni parziali:</b> p(x)/q(x) con q fattorizzabile</p>"
+    "<p style='background:#1e293b;border-left:3px solid #3b82f6;padding:6px;"
+    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Integrale):</b><br>"
+    "x**2*exp(x), x &nbsp;&bull; sin(x)**2, x<br>"
+    "1/(x**2-1), x &nbsp;&bull; log(x), x</p>",
+    "x**2*exp(x), x", "Integrale", "x**2*exp(x)" },
+
+  { "Integrali definiti",
+    "<h3 style='color:#60a5fa'>Integrali definiti</h3>"
+    "<p><b>Def. (somme di Riemann):</b><br>"
+    "&int;<sub>a</sub><sup>b</sup> f(x)dx = lim<sub>n&rarr;&infin;</sub>"
+    " &sum;<sub>k</sub> f(x<sub>k</sub>)&Delta;x</p><hr>"
+    "<p><b>Teorema fondamentale del calcolo:</b><br>"
+    "&int;<sub>a</sub><sup>b</sup> f(x)dx = F(b) &minus; F(a) &nbsp;dove F&prime;=f</p><hr>"
+    "<p><b>Propriet&agrave;:</b><br>"
+    "Linearit&agrave;, additivit&agrave; sugli intervalli, monotonia<br>"
+    "Teorema della media: &exist;c&isin;(a,b): &int;<sub>a</sub><sup>b</sup>f dx = f(c)(b&minus;a)</p>"
+    "<p><b>Applicazioni:</b> area, lunghezza arco, volume solidi di rotazione</p>"
+    "<p style='background:#1e293b;border-left:3px solid #3b82f6;padding:6px;"
+    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Integrale):</b><br>"
+    "sin(x), x, 0, pi &nbsp;&bull; x**2, x, 0, 1<br>"
+    "exp(-x**2), x, 0, 1 &nbsp;&bull; 1/x, x, 1, exp(1)</p>",
+    "sin(x), x, 0, pi", "Integrale", "sin(x)" },
+
+  { "Studio di funzione",
+    "<h3 style='color:#60a5fa'>Studio di funzione</h3>"
+    "<p><b>Schema completo:</b></p>"
+    "<ol style='margin:4px 0 4px 16px;padding:0'>"
+    "<li><b>Dominio</b> &mdash; dove f(x) &egrave; definita</li>"
+    "<li><b>Simmetrie</b> &mdash; pari (f(&minus;x)=f(x)), dispari</li>"
+    "<li><b>Limiti agli estremi</b> &mdash; asintoti orizzontali/verticali</li>"
+    "<li><b>Segno</b> &mdash; f(x)&gt;0, f(x)=0</li>"
+    "<li><b>Monotonia</b> &mdash; f&prime;(x)&gt;0 crescente, &lt;0 decrescente</li>"
+    "<li><b>Estremi relativi</b> &mdash; f&prime;(x<sub>0</sub>)=0 &rarr; f&prime;&prime; decide</li>"
+    "<li><b>Convessit&agrave;</b> &mdash; f&prime;&prime;&gt;0 conv. &uarr;, f&prime;&prime;&lt;0 conv. &darr;</li>"
+    "<li><b>Asintoto obliquo:</b> y=mx+q, m=lim f(x)/x, q=lim[f(x)&minus;mx]</li>"
+    "</ol>"
+    "<p style='background:#1e293b;border-left:3px solid #3b82f6;padding:6px;"
+    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Derivata):</b><br>"
+    "(x**2-1)/(x**2+1), x &nbsp;&bull; x*exp(-x), x<br>"
+    "x**3-3*x, x &nbsp;&bull; log(x)/x, x</p>",
+    "(x**2-1)/(x**2+1), x", "Derivata", "(x**2-1)/(x**2+1)" },
+
+  { "Serie di Taylor",
+    "<h3 style='color:#60a5fa'>Serie di Taylor &amp; Maclaurin</h3>"
+    "<p><b>Formula di Taylor in x<sub>0</sub>:</b><br>"
+    "f(x) = &sum;<sub>k=0</sub><sup>n</sup> f<sup>(k)</sup>(x<sub>0</sub>)/k! "
+    "&middot; (x&minus;x<sub>0</sub>)<sup>k</sup> + R<sub>n</sub>(x)</p><hr>"
+    "<p><b>Sviluppi di Maclaurin fondamentali (in 0):</b><br>"
+    "e<sup>x</sup> = 1 + x + x&sup2;/2! + x&sup3;/3! + &hellip;<br>"
+    "sin x = x &minus; x&sup3;/3! + x&sup5;/5! &minus; &hellip;<br>"
+    "cos x = 1 &minus; x&sup2;/2! + x<sup>4</sup>/4! &minus; &hellip;<br>"
+    "ln(1+x) = x &minus; x&sup2;/2 + x&sup3;/3 &minus; &hellip; &nbsp;(|x|&lt;1)<br>"
+    "(1+x)<sup>&alpha;</sup> = 1 + &alpha;x + &alpha;(&alpha;&minus;1)x&sup2;/2! + &hellip;</p>"
+    "<p style='background:#1e293b;border-left:3px solid #3b82f6;padding:6px;"
+    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Semplificazione):</b><br>"
+    "series(exp(x), x, 0, 6) &rarr; usa il campo Espressione<br>"
+    "series(sin(x), x, 0, 8)<br>"
+    "series(log(1+x), x, 0, 5)</p>",
+    "series(exp(x), x, 0, 6)", "Semplificazione", "exp(x)" },
+
+  { "Successioni e serie numeriche",
+    "<h3 style='color:#60a5fa'>Successioni e serie</h3>"
+    "<p><b>Successione</b> {a<sub>n</sub>}: converge a L se |a<sub>n</sub>&minus;L|&rarr;0</p>"
+    "<p><b>Serie</b> &sum;a<sub>n</sub>: S<sub>n</sub>=a<sub>1</sub>+&hellip;+a<sub>n</sub>,"
+    " converge se S<sub>n</sub> ha limite finito</p><hr>"
+    "<p><b>Criteri di convergenza:</b><br>"
+    "<b>Confronto:</b> 0&le;a<sub>n</sub>&le;b<sub>n</sub>; b<sub>n</sub> conv. &rArr; a<sub>n</sub> conv.<br>"
+    "<b>Rapporto (D'Alembert):</b> &rho;=lim|a<sub>n+1</sub>/a<sub>n</sub>|; &rho;&lt;1 conv.<br>"
+    "<b>Radice (Cauchy):</b> &rho;=lim&radic;(|a<sub>n</sub>|); &rho;&lt;1 conv.<br>"
+    "<b>Leibniz:</b> &sum;(&minus;1)<sup>n</sup>a<sub>n</sub> conv. se a<sub>n</sub>&darr;0</p>"
+    "<p><b>Serie geometrica:</b> &sum;q<sup>n</sup> = 1/(1&minus;q) per |q|&lt;1</p>"
+    "<p style='background:#1e293b;border-left:3px solid #3b82f6;padding:6px;"
+    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Semplificazione):</b><br>"
+    "Sum(1/n**2, (n,1,oo)) &rarr; usa Espressione<br>"
+    "Sum((-1)**n/factorial(n), (n,0,oo))</p>",
+    "Sum(1/n**2, (n,1,oo))", "Semplificazione", "1/x**2" },
+};
+
+static const AnalisiTopic kA2[] = {
+  { "Derivate parziali",
+    "<h3 style='color:#fb923c'>Derivate parziali</h3>"
+    "<p><b>Definizione:</b><br>"
+    "&part;f/&part;x(x<sub>0</sub>,y<sub>0</sub>) = lim<sub>h&rarr;0</sub>"
+    " [f(x<sub>0</sub>+h,y<sub>0</sub>)&minus;f(x<sub>0</sub>,y<sub>0</sub>)]/h</p><hr>"
+    "<p><b>Differenziale totale:</b><br>"
+    "df = (&part;f/&part;x)dx + (&part;f/&part;y)dy</p>"
+    "<p>f differenziabile in (x<sub>0</sub>,y<sub>0</sub>) &rArr; "
+    "derivate parziali continue in quel punto</p><hr>"
+    "<p><b>Regola della catena:</b> se z=f(x(t),y(t))<br>"
+    "dz/dt = (&part;f/&part;x)(dx/dt) + (&part;f/&part;y)(dy/dt)</p>"
+    "<p style='background:#1e293b;border-left:3px solid #f97316;padding:6px;"
+    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Derivata):</b><br>"
+    "x**2*y + sin(x*y), x &rarr; deriv. parziale in x<br>"
+    "exp(x**2+y**2), y &nbsp;&bull; x**3*y**2, x, 2</p>",
+    "x**2*y + sin(x*y), x", "Derivata", "x**2*y + sin(x*y)" },
+
+  { "Gradiente e piano tangente",
+    "<h3 style='color:#fb923c'>Gradiente e piano tangente</h3>"
+    "<p><b>Gradiente</b> di f(x,y):<br>"
+    "&nabla;f = (&part;f/&part;x, &part;f/&part;y)</p>"
+    "<p><b>Derivata direzionale:</b> D<sub>u</sub>f = &nabla;f &middot; u&circ;<br>"
+    "Massima direzione di crescita = direzione di &nabla;f</p><hr>"
+    "<p><b>Piano tangente</b> al grafico z=f(x,y) in (x<sub>0</sub>,y<sub>0</sub>):<br>"
+    "z = f(x<sub>0</sub>,y<sub>0</sub>) + f<sub>x</sub>(x<sub>0</sub>,y<sub>0</sub>)(x&minus;x<sub>0</sub>)"
+    " + f<sub>y</sub>(x<sub>0</sub>,y<sub>0</sub>)(y&minus;y<sub>0</sub>)</p>"
+    "<p style='background:#1e293b;border-left:3px solid #f97316;padding:6px;"
+    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Derivata):</b><br>"
+    "x**2 + y**2, x &nbsp;&bull; x*y*exp(x+y), y<br>"
+    "sin(x)*cos(y), x</p>",
+    "x**2 + y**2, x", "Derivata", "x**2 + y**2" },
+
+  { "Hessiana ed estremi liberi",
+    "<h3 style='color:#fb923c'>Matrice Hessiana ed estremi</h3>"
+    "<p><b>Matrice Hessiana</b> H<sub>f</sub> in (x<sub>0</sub>,y<sub>0</sub>):<br>"
+    "H = [[f<sub>xx</sub> f<sub>xy</sub>], [f<sub>yx</sub> f<sub>yy</sub>]]</p><hr>"
+    "<p><b>Punti critici:</b> &nabla;f = 0 (f<sub>x</sub>=0, f<sub>y</sub>=0)</p>"
+    "<p><b>Criterio dell'Hessiana</b> in un punto critico P<sub>0</sub>:<br>"
+    "&bull; det(H)&gt;0 e f<sub>xx</sub>&gt;0 &rArr; <b>minimo</b><br>"
+    "&bull; det(H)&gt;0 e f<sub>xx</sub>&lt;0 &rArr; <b>massimo</b><br>"
+    "&bull; det(H)&lt;0 &rArr; <b>punto di sella</b><br>"
+    "&bull; det(H)=0 &rArr; indecidibile (analisi superiore)</p>"
+    "<p style='background:#1e293b;border-left:3px solid #f97316;padding:6px;"
+    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Semplificazione):</b><br>"
+    "usa il campo Espressione: hessian(x**4+y**4-4*x*y, [x,y])<br>"
+    "oppure: solve([diff(x**3+y**3-3*x*y,x), diff(x**3+y**3-3*x*y,y)])</p>",
+    "x**4 + y**4 - 4*x*y", "Semplificazione", "x**4 + y**4 - 4*x*y" },
+
+  { "Moltiplicatori di Lagrange",
+    "<h3 style='color:#fb923c'>Moltiplicatori di Lagrange</h3>"
+    "<p><b>Problema:</b> max/min f(x,y) soggetto a g(x,y)=0</p>"
+    "<p><b>Condizione necessaria</b> in un punto estremo P<sub>0</sub>:<br>"
+    "&nabla;f(P<sub>0</sub>) = &lambda;&nabla;g(P<sub>0</sub>)</p>"
+    "<p><b>Sistema da risolvere:</b><br>"
+    "f<sub>x</sub> = &lambda;g<sub>x</sub><br>"
+    "f<sub>y</sub> = &lambda;g<sub>y</sub><br>"
+    "g(x,y) = 0</p><hr>"
+    "<p>Estensione a pi&ugrave; variabili e pi&ugrave; vincoli:<br>"
+    "&nabla;f = &lambda;<sub>1</sub>&nabla;g<sub>1</sub> + &lambda;<sub>2</sub>&nabla;g<sub>2</sub> + &hellip;</p>"
+    "<p style='background:#1e293b;border-left:3px solid #f97316;padding:6px;"
+    "font-family:monospace;font-size:11px'><b>SymPy:</b><br>"
+    "Tab Espressione &rarr;<br>"
+    "solve([diff(x**2+y**2,x)-lam*diff(x+y-1,x),<br>"
+    " diff(x**2+y**2,y)-lam*diff(x+y-1,y), x+y-1], [x,y,lam])</p>",
+    "x**2 + y**2", "Semplificazione", "x**2 + y**2" },
+
+  { "Integrali doppi",
+    "<h3 style='color:#fb923c'>Integrali doppi</h3>"
+    "<p><b>Teorema di Fubini</b> su rettangolo [a,b]&times;[c,d]:<br>"
+    "&#8748;<sub>D</sub> f dA = &int;<sub>a</sub><sup>b</sup>"
+    "[&int;<sub>c</sub><sup>d</sup> f(x,y)dy]dx</p><hr>"
+    "<p><b>Dominio normale rispetto a x</b> (a&le;x&le;b, &phi;<sub>1</sub>&le;y&le;&phi;<sub>2</sub>):<br>"
+    "&#8748; f dA = &int;<sub>a</sub><sup>b</sup>&int;<sub>&phi;<sub>1</sub></sub>"
+    "<sup>&phi;<sub>2</sub></sup> f(x,y) dy dx</p><hr>"
+    "<p><b>Coordinate polari:</b> x=r cos&theta;, y=r sin&theta;<br>"
+    "&#8748; f dA = &#8748; f(r cos&theta;, r sin&theta;) &middot; r dr d&theta;</p>"
+    "<p style='background:#1e293b;border-left:3px solid #f97316;padding:6px;"
+    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Integrale):</b><br>"
+    "x*y, x, 0, 1 (semplice) &rarr; poi wrap con integrate<br>"
+    "Tab Espressione: integrate(integrate(x*y,(y,0,x)),(x,0,1))</p>",
+    "integrate(x*y, (y, 0, x))", "Semplificazione", "x*y" },
+
+  { "Equazioni differenziali",
+    "<h3 style='color:#fb923c'>Equazioni differenziali ordinarie</h3>"
+    "<p><b>EDO I ordine separabile:</b> y&prime; = f(x)g(y)<br>"
+    "&int; dy/g(y) = &int; f(x)dx</p>"
+    "<p><b>EDO I ordine lineare:</b> y&prime; + p(x)y = q(x)<br>"
+    "Fattore integrante: &mu;(x) = e<sup>&int;p dx</sup><br>"
+    "Soluzione: y = [&int;&mu;(x)q(x)dx + C] / &mu;(x)</p><hr>"
+    "<p><b>EDO II ordine lineare a coeff. costanti:</b> ay&prime;&prime;+by&prime;+cy=0<br>"
+    "Eq. caratteristica: a&lambda;&sup2;+b&lambda;+c=0<br>"
+    "&Delta;&gt;0: y=C<sub>1</sub>e<sup>&lambda;<sub>1</sub>x</sup>+C<sub>2</sub>e<sup>&lambda;<sub>2</sub>x</sup><br>"
+    "&Delta;=0: y=(C<sub>1</sub>+C<sub>2</sub>x)e<sup>&lambda;x</sup><br>"
+    "&Delta;&lt;0: y=e<sup>&alpha;x</sup>(C<sub>1</sub>cos&beta;x+C<sub>2</sub>sin&beta;x)</p>"
+    "<p style='background:#1e293b;border-left:3px solid #f97316;padding:6px;"
+    "font-family:monospace;font-size:11px'><b>SymPy (tab Espressione):</b><br>"
+    "dsolve(f(x).diff(x) + f(x) - exp(x), f(x))<br>"
+    "dsolve(f(x).diff(x,2)+f(x), f(x))</p>",
+    "dsolve(f(x).diff(x) + f(x) - exp(x), f(x))", "Semplificazione", "exp(-x) + exp(x)/2" },
+
+  { "Calcolo vettoriale",
+    "<h3 style='color:#fb923c'>Calcolo vettoriale</h3>"
+    "<p><b>Divergenza</b> di F=(P,Q,R):<br>"
+    "div F = &part;P/&part;x + &part;Q/&part;y + &part;R/&part;z</p>"
+    "<p><b>Rotore (curl):</b><br>"
+    "rot F = (&part;R/&part;y&minus;&part;Q/&part;z, &part;P/&part;z&minus;&part;R/&part;x,"
+    " &part;Q/&part;x&minus;&part;P/&part;y)</p><hr>"
+    "<p><b>Teorema di Gauss (divergenza):</b><br>"
+    "&#8751;<sub>&part;V</sub> F&middot;n dS = &#8749;<sub>V</sub> div F dV</p>"
+    "<p><b>Teorema di Stokes:</b><br>"
+    "&#8750;<sub>&part;&Sigma;</sub> F&middot;dr = &#8748;<sub>&Sigma;</sub> rot F &middot; n dS</p>"
+    "<p><b>Potenziale:</b> rot F=0 &hArr; F=&nabla;&phi; (campo conservativo)</p>"
+    "<p style='background:#1e293b;border-left:3px solid #f97316;padding:6px;"
+    "font-family:monospace;font-size:11px'><b>SymPy (tab Espressione):</b><br>"
+    "from sympy.vector import CoordSys3D; N=CoordSys3D('N')<br>"
+    "F = N.x**2*N.i + N.y**2*N.j; divergence(F)</p>",
+    "x**2 + y**2 + z**2", "Semplificazione", "x**2 + y**2" },
+};
+
+} // namespace
+
+/* ══════════════════════════════════════════════════════════════
+   Helper — crea combo tipo identica a m_solveCmb (sottoinsieme)
+   ══════════════════════════════════════════════════════════════ */
+static QComboBox* makeAnalisiTypeCmb(QWidget* parent)
+{
+    auto* c = new QComboBox(parent);
+    c->setObjectName("settingCombo");
+    c->addItem("Derivata",        "Derivata");
+    c->addItem("Integrale",       "Integrale");
+    c->addItem("Limite",          "Limite");
+    c->addItem("Semplificazione", "Semplificazione");
+    c->addItem("Equazione",       "Equazione");
+    return c;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildAnalisi1Tab — studio funzioni Analisi 1
+   ══════════════════════════════════════════════════════════════ */
+QWidget* MatematicaPage::buildAnalisi1Tab()
+{
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(10, 8, 10, 8);
+    lay->setSpacing(8);
+
+    /* ─── Riga selettore argomento ─── */
+    auto* topRow = new QHBoxLayout;
+    auto* topLbl = new QLabel("<b>\xf0\x9f\x93\x98  Argomento:</b>", w);
+    topRow->addWidget(topLbl);
+
+    m_a1TopicCmb = new QComboBox(w);
+    m_a1TopicCmb->setObjectName("settingCombo");
+    const int nA1 = static_cast<int>(sizeof(kA1)/sizeof(kA1[0]));
+    for (int i = 0; i < nA1; ++i)
+        m_a1TopicCmb->addItem(QString::fromUtf8(kA1[i].name), i);
+    topRow->addWidget(m_a1TopicCmb, 1);
+
+    auto* btnAiExplain = new QPushButton(
+        "\xf0\x9f\xa4\x96  Spiega con AI", w);
+    btnAiExplain->setObjectName("actionBtn");
+    btnAiExplain->setProperty("analisiLevel", 1);
+    connect(btnAiExplain, &QPushButton::clicked, this, &MatematicaPage::onA1AiClicked);
+    topRow->addWidget(btnAiExplain);
+    lay->addLayout(topRow);
+
+    /* ─── Splitter orizzontale: Teoria (sx) | Canvas interattivo (dx) ─── */
+    auto* hSplit = new QSplitter(Qt::Horizontal, w);
+    hSplit->setHandleWidth(5);
+
+    m_a1Theory = new QTextEdit(hSplit);
+    m_a1Theory->setObjectName("chatLog");
+    m_a1Theory->setReadOnly(true);
+    m_a1Theory->setMinimumWidth(180);
+    hSplit->addWidget(m_a1Theory);
+
+    m_a1Canvas = new GraficoCanvas(hSplit);
+    m_a1Canvas->setMinimumWidth(180);
+    hSplit->addWidget(m_a1Canvas);
+
+    hSplit->setStretchFactor(0, 3);  /* teoria */
+    hSplit->setStretchFactor(1, 4);  /* canvas */
+    lay->addWidget(hSplit, 1);
+
+    /* ─── Riga Risolvi ─── */
+    auto* tryRow = new QHBoxLayout;
+    tryRow->addWidget(new QLabel("\xf0\x9f\x93\x90  Risolvi:", w));
+    m_a1Input = new QLineEdit(w);
+    m_a1Input->setPlaceholderText("Espressione SymPy (pre-compilata dall'argomento)");
+    tryRow->addWidget(m_a1Input, 1);
+    m_a1TypeCmb = makeAnalisiTypeCmb(w);
+    tryRow->addWidget(m_a1TypeCmb);
+    auto* btnTry = new QPushButton("\xf0\x9f\x93\x90  Risolvi", w);
+    btnTry->setObjectName("actionBtn");
+    btnTry->setProperty("highlight", "true");
+    connect(btnTry, &QPushButton::clicked, this, &MatematicaPage::onA1TryClicked);
+    tryRow->addWidget(btnTry);
+    lay->addLayout(tryRow);
+
+    /* ─── Riga Grafico ─── */
+    auto* plotRow = new QHBoxLayout;
+    plotRow->addWidget(new QLabel("\xf0\x9f\x93\x88  Grafico:", w));
+    m_a1PlotInput = new QLineEdit(w);
+    m_a1PlotInput->setPlaceholderText("f(x) da disegnare");
+    plotRow->addWidget(m_a1PlotInput, 1);
+    auto* btnPlot1 = new QPushButton("\xf0\x9f\x93\x88  Disegna", w);
+    btnPlot1->setObjectName("actionBtn");
+    connect(btnPlot1, &QPushButton::clicked, this, &MatematicaPage::onA1PlotClicked);
+    plotRow->addWidget(btnPlot1);
+    m_btnA1Expand = new QPushButton("\xe2\x86\x97", w);   /* ↗ */
+    m_btnA1Expand->setToolTip("Apri grafico in finestra separata");
+    m_btnA1Expand->setFixedWidth(32);
+    connect(m_btnA1Expand, &QPushButton::clicked, this, &MatematicaPage::onA1ExpandClicked);
+    plotRow->addWidget(m_btnA1Expand);
+    lay->addLayout(plotRow);
+
+    connect(m_a1TopicCmb, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MatematicaPage::onA1TopicChanged);
+    onA1TopicChanged();   /* carica il primo argomento */
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildAnalisi2Tab — studio funzioni Analisi 2
+   ══════════════════════════════════════════════════════════════ */
+QWidget* MatematicaPage::buildAnalisi2Tab()
+{
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(10, 8, 10, 8);
+    lay->setSpacing(8);
+
+    auto* topRow = new QHBoxLayout;
+    auto* topLbl = new QLabel("<b>\xf0\x9f\x93\x99  Argomento:</b>", w);
+    topRow->addWidget(topLbl);
+
+    m_a2TopicCmb = new QComboBox(w);
+    m_a2TopicCmb->setObjectName("settingCombo");
+    const int nA2 = static_cast<int>(sizeof(kA2)/sizeof(kA2[0]));
+    for (int i = 0; i < nA2; ++i)
+        m_a2TopicCmb->addItem(QString::fromUtf8(kA2[i].name), i);
+    topRow->addWidget(m_a2TopicCmb, 1);
+
+    auto* btnAiExplain = new QPushButton(
+        "\xf0\x9f\xa4\x96  Spiega con AI", w);
+    btnAiExplain->setObjectName("actionBtn");
+    connect(btnAiExplain, &QPushButton::clicked, this, &MatematicaPage::onA2AiClicked);
+    topRow->addWidget(btnAiExplain);
+    lay->addLayout(topRow);
+
+    /* ─── Splitter orizzontale: Teoria (sx) | Canvas interattivo (dx) ─── */
+    auto* hSplit2 = new QSplitter(Qt::Horizontal, w);
+    hSplit2->setHandleWidth(5);
+
+    m_a2Theory = new QTextEdit(hSplit2);
+    m_a2Theory->setObjectName("chatLog");
+    m_a2Theory->setReadOnly(true);
+    m_a2Theory->setMinimumWidth(180);
+    hSplit2->addWidget(m_a2Theory);
+
+    m_a2Canvas = new GraficoCanvas(hSplit2);
+    m_a2Canvas->setMinimumWidth(180);
+    hSplit2->addWidget(m_a2Canvas);
+
+    hSplit2->setStretchFactor(0, 3);
+    hSplit2->setStretchFactor(1, 4);
+    lay->addWidget(hSplit2, 1);
+
+    /* ─── Riga Risolvi ─── */
+    auto* tryRow = new QHBoxLayout;
+    tryRow->addWidget(new QLabel("\xf0\x9f\x93\x90  Risolvi:", w));
+    m_a2Input = new QLineEdit(w);
+    m_a2Input->setPlaceholderText("Espressione SymPy (pre-compilata dall'argomento)");
+    tryRow->addWidget(m_a2Input, 1);
+    m_a2TypeCmb = makeAnalisiTypeCmb(w);
+    tryRow->addWidget(m_a2TypeCmb);
+    auto* btnTry = new QPushButton("\xf0\x9f\x93\x90  Risolvi", w);
+    btnTry->setObjectName("actionBtn");
+    btnTry->setProperty("highlight", "true");
+    connect(btnTry, &QPushButton::clicked, this, &MatematicaPage::onA2TryClicked);
+    tryRow->addWidget(btnTry);
+    lay->addLayout(tryRow);
+
+    /* ─── Riga Grafico ─── */
+    auto* plotRow = new QHBoxLayout;
+    plotRow->addWidget(new QLabel("\xf0\x9f\x93\x88  Grafico:", w));
+    m_a2PlotInput = new QLineEdit(w);
+    m_a2PlotInput->setPlaceholderText("f(x,y) — con 'y' \xe2\x86\x92 3D");
+    plotRow->addWidget(m_a2PlotInput, 1);
+    auto* btnPlot2 = new QPushButton("\xf0\x9f\x93\x88  Disegna", w);
+    btnPlot2->setObjectName("actionBtn");
+    connect(btnPlot2, &QPushButton::clicked, this, &MatematicaPage::onA2PlotClicked);
+    plotRow->addWidget(btnPlot2);
+    m_a2RenderCmb = new QComboBox(w);
+    m_a2RenderCmb->addItem("\xf0\x9f\x94\xb5  Punti",       GraficoCanvas::Points3D);
+    m_a2RenderCmb->addItem("\xf0\x9f\x95\xb8  Wireframe",   GraficoCanvas::Wireframe3D);
+    m_a2RenderCmb->addItem("\xe2\x96\xa0  Superficie",      GraficoCanvas::Surface3D);
+    m_a2RenderCmb->setToolTip("Stile rendering 3D");
+    m_a2RenderCmb->setMaximumWidth(130);
+    connect(m_a2RenderCmb, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MatematicaPage::onA2RenderChanged);
+    plotRow->addWidget(m_a2RenderCmb);
+    m_btnA2Expand = new QPushButton("\xe2\x86\x97", w);   /* ↗ */
+    m_btnA2Expand->setToolTip("Apri grafico in finestra separata");
+    m_btnA2Expand->setFixedWidth(32);
+    connect(m_btnA2Expand, &QPushButton::clicked, this, &MatematicaPage::onA2ExpandClicked);
+    plotRow->addWidget(m_btnA2Expand);
+    lay->addLayout(plotRow);
+
+    connect(m_a2TopicCmb, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MatematicaPage::onA2TopicChanged);
+    onA2TopicChanged();
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot Analisi 1
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onA1TopicChanged()
+{
+    if (!m_a1TopicCmb || !m_a1Theory) return;
+    const int idx = m_a1TopicCmb->currentIndex();
+    const int nA1 = static_cast<int>(sizeof(kA1)/sizeof(kA1[0]));
+    if (idx < 0 || idx >= nA1) return;
+    m_a1Theory->setHtml(QString::fromUtf8(kA1[idx].html));
+    if (m_a1Input)     m_a1Input->setText(QString::fromUtf8(kA1[idx].ex));
+    if (m_a1PlotInput) m_a1PlotInput->setText(QString::fromUtf8(kA1[idx].plotEx));
+    if (m_a1TypeCmb) {
+        const QString t = QString::fromUtf8(kA1[idx].type);
+        const int ti = m_a1TypeCmb->findData(t);
+        if (ti >= 0) m_a1TypeCmb->setCurrentIndex(ti);
+    }
+}
+
+void MatematicaPage::onA1TryClicked()
+{
+    if (!m_a1Input || !m_a1TypeCmb || !m_solveInput || !m_solveCmb) return;
+    const QString expr = m_a1Input->text().trimmed();
+    if (expr.isEmpty()) return;
+    m_solveInput->setText(expr);
+    const QString tipo = m_a1TypeCmb->currentData().toString();
+    for (int i = 0; i < m_solveCmb->count(); ++i) {
+        if (m_solveCmb->itemText(i) == tipo) {
+            m_solveCmb->setCurrentIndex(i); break;
+        }
+    }
+
+    /* ── Evidenzia zona limite nel canvas Analisi 1 ──────────────────── */
+    if (tipo == "Limite" && m_a1Canvas) {
+        /* Estrae il punto x→a dall'espressione: formati supportati:
+           "f, var, val[, dir]"  oppure  "f as/per var->val" */
+        QString xStr;
+        static const QRegularExpression reArrow(
+            R"((.+?)\s+(?:as|per)\s+\w+\s*->\s*(.+))");
+        auto m = reArrow.match(expr);
+        if (m.hasMatch()) {
+            xStr = m.captured(2).trimmed();
+        } else {
+            const QStringList parts = expr.split(',');
+            if (parts.size() >= 3) xStr = parts[2].trimmed();
+        }
+
+        if (!xStr.isEmpty()) {
+            bool ok = false;
+            const double xVal = xStr.toDouble(&ok);
+            if (ok) {
+                /* Auto-plot la funzione centrata intorno a x=a */
+                const QStringList parts = expr.split(',');
+                const QString func = parts.isEmpty() ? QString() : parts[0].trimmed();
+                if (!func.isEmpty()) {
+                    const double halfW = 6.0;
+                    m_a1Canvas->setCartesian(sympyToCanvas(func),
+                                             xVal - halfW, xVal + halfW);
+                    m_a1Canvas->setType(GraficoCanvas::Cartesian);
+                    if (m_a1PlotInput) m_a1PlotInput->setText(func);
+                }
+                m_a1Canvas->setLimitHighlight(xVal);
+                m_limitCanvas = m_a1Canvas;
+            }
+        }
+    } else if (m_limitCanvas) {
+        /* Se cambiamo tipo, rimuoviamo il highlight precedente */
+        m_limitCanvas->clearLimitHighlight();
+        m_limitCanvas = nullptr;
+    }
+
+    if (m_solveTabIdx >= 0) m_tabs->setCurrentIndex(m_solveTabIdx);
+    onSolveClicked();
+}
+
+void MatematicaPage::onA1AiClicked()
+{
+    if (!m_ai || m_aiRunning) return;
+    const int idx = m_a1TopicCmb ? m_a1TopicCmb->currentIndex() : 0;
+    const int nA1 = static_cast<int>(sizeof(kA1)/sizeof(kA1[0]));
+    if (idx < 0 || idx >= nA1) return;
+    const QString topicName = QString::fromUtf8(kA1[idx].name);
+
+    if (m_modelCombo) {
+        const QString sel = m_modelCombo->currentData().toString();
+        if (!sel.isEmpty() && sel != m_ai->model())
+            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
+    }
+    m_aiRunning = true;
+    clearOutput();
+    appendOutput(QString("\xf0\x9f\x93\x98  Spiegazione AI: %1\n%2\n\n")
+                 .arg(topicName, QString(topicName.length()+20, '-')));
+    setStatus("\xf0\x9f\xa4\x96  AI in elaborazione...");
+
+    const QString sys =
+        "Sei un professore universitario di Analisi Matematica 1. "
+        "Spiega in italiano il seguente argomento in modo chiaro e didattico: "
+        "1) definizione formale con la notazione corretta; "
+        "2) teoremi e propriet\xc3\xa0 fondamentali; "
+        "3) due esempi svolti passo per passo; "
+        "4) un esercizio proposto con soluzione. "
+        "Usa la notazione italiana standard. Rispondi SOLO in italiano.";
+    const QString user = QString("Argomento: %1").arg(topicName);
+
+    delete m_aiAnalisiHolder;
+    m_aiAnalisiHolder = new QObject(this);
+    connect(m_ai, &AiClient::token,    m_aiAnalisiHolder,
+            [this](const QString& t){ onAnalisiAiToken(t); });
+    connect(m_ai, &AiClient::finished, m_aiAnalisiHolder,
+            [this](const QString& f){ onAnalisiAiFinished(f); });
+    connect(m_ai, &AiClient::error,    m_aiAnalisiHolder,
+            [this](const QString& e){ onAnalisiAiError(e); });
+    m_ai->chat(P::prependMathKnowledge(sys), user);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot Analisi 2
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onA2TopicChanged()
+{
+    if (!m_a2TopicCmb || !m_a2Theory) return;
+    const int idx = m_a2TopicCmb->currentIndex();
+    const int nA2 = static_cast<int>(sizeof(kA2)/sizeof(kA2[0]));
+    if (idx < 0 || idx >= nA2) return;
+    m_a2Theory->setHtml(QString::fromUtf8(kA2[idx].html));
+    if (m_a2Input)     m_a2Input->setText(QString::fromUtf8(kA2[idx].ex));
+    if (m_a2PlotInput) m_a2PlotInput->setText(QString::fromUtf8(kA2[idx].plotEx));
+    if (m_a2TypeCmb) {
+        const QString t = QString::fromUtf8(kA2[idx].type);
+        const int ti = m_a2TypeCmb->findData(t);
+        if (ti >= 0) m_a2TypeCmb->setCurrentIndex(ti);
+    }
+}
+
+void MatematicaPage::onA2TryClicked()
+{
+    if (!m_a2Input || !m_a2TypeCmb || !m_solveInput || !m_solveCmb) return;
+    const QString expr = m_a2Input->text().trimmed();
+    if (expr.isEmpty()) return;
+    m_solveInput->setText(expr);
+    const QString tipo = m_a2TypeCmb->currentData().toString();
+    for (int i = 0; i < m_solveCmb->count(); ++i) {
+        if (m_solveCmb->itemText(i) == tipo) {
+            m_solveCmb->setCurrentIndex(i); break;
+        }
+    }
+    if (m_solveTabIdx >= 0) m_tabs->setCurrentIndex(m_solveTabIdx);
+    onSolveClicked();
+}
+
+void MatematicaPage::onA2AiClicked()
+{
+    if (!m_ai || m_aiRunning) return;
+    const int idx = m_a2TopicCmb ? m_a2TopicCmb->currentIndex() : 0;
+    const int nA2 = static_cast<int>(sizeof(kA2)/sizeof(kA2[0]));
+    if (idx < 0 || idx >= nA2) return;
+    const QString topicName = QString::fromUtf8(kA2[idx].name);
+
+    if (m_modelCombo) {
+        const QString sel = m_modelCombo->currentData().toString();
+        if (!sel.isEmpty() && sel != m_ai->model())
+            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
+    }
+    m_aiRunning = true;
+    clearOutput();
+    appendOutput(QString("\xf0\x9f\x93\x99  Spiegazione AI: %1\n%2\n\n")
+                 .arg(topicName, QString(topicName.length()+20, '-')));
+    setStatus("\xf0\x9f\xa4\x96  AI in elaborazione...");
+
+    const QString sys =
+        "Sei un professore universitario di Analisi Matematica 2. "
+        "Spiega in italiano il seguente argomento in modo chiaro e didattico: "
+        "1) definizione formale; 2) teoremi chiave; "
+        "3) due esempi svolti passo per passo; "
+        "4) un esercizio proposto con soluzione. "
+        "Usa notazione vettoriale e italiana standard. Rispondi SOLO in italiano.";
+    const QString user = QString("Argomento: %1").arg(topicName);
+
+    delete m_aiAnalisiHolder;
+    m_aiAnalisiHolder = new QObject(this);
+    connect(m_ai, &AiClient::token,    m_aiAnalisiHolder,
+            [this](const QString& t){ onAnalisiAiToken(t); });
+    connect(m_ai, &AiClient::finished, m_aiAnalisiHolder,
+            [this](const QString& f){ onAnalisiAiFinished(f); });
+    connect(m_ai, &AiClient::error,    m_aiAnalisiHolder,
+            [this](const QString& e){ onAnalisiAiError(e); });
+    m_ai->chat(P::prependMathKnowledge(sys), user);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot AI Analisi (one-shot shared)
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onAnalisiAiToken(const QString& tok)
+{
+    appendOutput(tok);
+}
+
+void MatematicaPage::onAnalisiAiFinished(const QString& /*full*/)
+{
+    delete m_aiAnalisiHolder;
+    m_aiAnalisiHolder = nullptr;
+    m_aiRunning = false;
+    setStatus("\xe2\x9c\x85  Spiegazione AI completata.");
+}
+
+void MatematicaPage::onAnalisiAiError(const QString& msg)
+{
+    delete m_aiAnalisiHolder;
+    m_aiAnalisiHolder = nullptr;
+    m_aiRunning = false;
+    appendOutput("\n\xe2\x9d\x8c  Errore AI: " + msg + "\n");
+    setStatus("\xe2\x9d\x8c  Errore AI.");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Grafici Analisi — GraficoCanvas nativo (zero subprocess)
+   ══════════════════════════════════════════════════════════════ */
+
+/* Converte notazione SymPy → FormulaParser:
+   **  → ^
+   log → ln  (SymPy usa log per log naturale; il parser usa ln)
+   Exp → exp (case insensitive non necessario, SymPy emette minuscolo) */
+QString MatematicaPage::sympyToCanvas(const QString& expr)
+{
+    QString r = expr;
+    r.replace("**", "^");
+    /* log(x) SymPy = logaritmo naturale → ln(x) per il parser */
+    static const QRegularExpression reLog(R"(\blog\s*\()");
+    r.replace(reLog, "ln(");
+    return r;
+}
+
+/* Genera una griglia 3D da f(x,y): rimpiazza \by\b con il valore numerico
+   e usa FormulaParser (già in uso nel canvas) per valutare f_y(x). */
+QVector<GraficoCanvas::Pt3D> MatematicaPage::buildSurface3D(const QString& exprSym)
+{
+    const QString expr = sympyToCanvas(exprSym);
+    constexpr int N = 40;
+    constexpr double R = 4.0;
+    constexpr double step = 2.0 * R / (N - 1);
+    static const QRegularExpression reY(R"(\by\b)");
+
+    /* Griglia sempre completa N×N — punti invalidi ricevono z=NaN.
+       Questo preserva la topologia richiesta per Wireframe e Surface. */
+    const double kNaN = std::numeric_limits<double>::quiet_NaN();
+    QVector<GraficoCanvas::Pt3D> pts(N * N);
+    for (int iy = 0; iy < N; ++iy) {
+        const double yVal = -R + iy * step;
+        QString formulaY = expr;
+        formulaY.replace(reY, QString::number(yVal, 'g', 8));
+        FormulaParser fp(formulaY);
+        for (int ix = 0; ix < N; ++ix) {
+            const double xVal = -R + ix * step;
+            double z = kNaN;
+            if (fp.ok()) {
+                const double v = fp.eval(xVal);
+                if (std::isfinite(v) && std::abs(v) < 1e5)
+                    z = v;
+            }
+            pts[iy * N + ix] = {xVal, yVal, z, {}};
+        }
+    }
+    return pts;
+}
+
+void MatematicaPage::onA1PlotClicked()
+{
+    if (!m_a1Canvas || !m_a1PlotInput) return;
+    const QString expr = m_a1PlotInput->text().trimmed();
+    if (expr.isEmpty()) return;
+    m_a1Canvas->setCartesian(sympyToCanvas(expr), -8.0, 8.0);
+    m_a1Canvas->setType(GraficoCanvas::Cartesian);
+}
+
+void MatematicaPage::onA2PlotClicked()
+{
+    if (!m_a2Canvas || !m_a2PlotInput) return;
+    const QString expr = m_a2PlotInput->text().trimmed();
+    if (expr.isEmpty()) return;
+    static const QRegularExpression reY(R"(\by\b)");
+    if (expr.contains(reY)) {
+        constexpr int kGridN = 40;
+        const auto pts = buildSurface3D(expr);
+        m_a2Canvas->setScatter3D(pts, kGridN);   /* passa topologia griglia */
+        m_a2Canvas->setType(GraficoCanvas::Scatter3D);
+    } else {
+        m_a2Canvas->setCartesian(sympyToCanvas(expr), -8.0, 8.0);
+        m_a2Canvas->setType(GraficoCanvas::Cartesian);
+    }
+}
+
+void MatematicaPage::onA2RenderChanged(int idx)
+{
+    if (!m_a2Canvas || !m_a2RenderCmb) return;
+    const int mode = m_a2RenderCmb->itemData(idx).toInt();
+    m_a2Canvas->setRenderMode3D(static_cast<GraficoCanvas::RenderMode3D>(mode));
+}
+
+/* helper — apre il canvas sorgente in un QDialog non-modale */
+static void openCanvasInWindow(GraficoCanvas* src, const QString& title, QWidget* parent)
+{
+    if (!src) return;
+    auto* dlg = new QDialog(parent, Qt::Window);
+    dlg->setWindowTitle(title);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->resize(800, 600);
+    auto* lay = new QVBoxLayout(dlg);
+    lay->setContentsMargins(4, 4, 4, 4);
+    auto* canvas = new GraficoCanvas(dlg);
+
+    /* copia stato */
+    if (src->currentType() == GraficoCanvas::Scatter3D) {
+        canvas->setScatter3D(src->pts3d(), src->grid3dCols());
+        canvas->setType(GraficoCanvas::Scatter3D);
+        canvas->setRenderMode3D(src->renderMode3D());
+    } else {
+        canvas->setCartesian(src->cartFormula(), src->cartXMin(), src->cartXMax());
+        canvas->setType(GraficoCanvas::Cartesian);
+    }
+    lay->addWidget(canvas);
+    dlg->show();
+}
+
+void MatematicaPage::onA1ExpandClicked()
+{
+    openCanvasInWindow(m_a1Canvas, "Analisi 1 — Grafico", this);
+}
+
+void MatematicaPage::onA2ExpandClicked()
+{
+    openCanvasInWindow(m_a2Canvas, "Analisi 2 — Grafico 3D", this);
 }

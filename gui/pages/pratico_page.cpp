@@ -16,8 +16,15 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QDate>
+#include <QDateEdit>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <memory>
 #include <cmath>
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
 
 /* ══════════════════════════════════════════════════════════════
    Chat panel riutilizzabile (730, P.IVA)
@@ -178,6 +185,9 @@ QWidget* PraticoPage::buildMenu() {
          "Regime forfettario, calcolo imposte, obblighi contributivi.", 2},
         {"\xf0\x9f\x92\xb0", "Calcolatore Finanza",
          "Mutuo, PAC, stima pensione INPS \xe2\x80\x94 calcoli locali istantanei.", 3},
+        {"\xf0\x9f\x92\xbc", "Scheda TFR",
+         "Trattamento di Fine Rapporto: inserisci i tuoi dati o compilali da RAG. "
+         "Calcola il montante rivalutato e la fiscalit\xc3\xa0 (azienda / fondo pensione).", 4},
     };
 
     auto* grid = new QWidget(w);
@@ -373,7 +383,7 @@ private:
 /* ══════════════════════════════════════════════════════════════
    buildFinanza — Calcolatori finanziari locali (0 token AI)
    ══════════════════════════════════════════════════════════════ */
-static QWidget* buildFinanza(QStackedWidget* inner) {
+static QWidget* buildFinanza(QStackedWidget* inner, AiClient* ai) {
     const int baseYear = QDate::currentDate().year();
     auto* w   = new QWidget;
     auto* lay = new QVBoxLayout(w);
@@ -562,6 +572,270 @@ static QWidget* buildFinanza(QStackedWidget* inner) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   buildSchedaTFR — pagina dedicata TFR (index 4)
+   ══════════════════════════════════════════════════════════════ */
+static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
+{
+    const int baseYear = QDate::currentDate().year();
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(20, 16, 20, 16);
+    lay->setSpacing(10);
+
+    /* ── Header con back button ── */
+    auto* hdrW = new QWidget(w);
+    auto* hdrL = new QHBoxLayout(hdrW);
+    hdrL->setContentsMargins(0,0,0,0);
+    auto* back = new QPushButton("\xe2\x86\x90 Torna", hdrW);
+    back->setObjectName("actionBtn");
+    QObject::connect(back, &QPushButton::clicked, w, [inner]{ inner->setCurrentIndex(0); });
+    auto* titleLbl = new QLabel("\xf0\x9f\x92\xbc  Scheda TFR \xe2\x80\x94 Trattamento di Fine Rapporto", hdrW);
+    titleLbl->setObjectName("pageTitle");
+    hdrL->addWidget(back); hdrL->addWidget(titleLbl, 1);
+    lay->addWidget(hdrW);
+    auto* divLine = new QFrame(w); divLine->setObjectName("pageDivider");
+    divLine->setFrameShape(QFrame::HLine); lay->addWidget(divLine);
+
+    auto mkSpin = [](double min, double max, double val, int dec, const QString& suffix) -> QDoubleSpinBox* {
+        auto* s = new QDoubleSpinBox;
+        s->setRange(min, max); s->setValue(val); s->setDecimals(dec);
+        s->setSuffix(suffix); s->setFixedWidth(140);
+        return s;
+    };
+
+    /* ── Dati anagrafici ── */
+    auto* anagrGroup = new QGroupBox("\xf0\x9f\x91\xa4  Dati personali");
+    auto* anagrLay = new QHBoxLayout(anagrGroup);
+    anagrLay->setSpacing(8);
+    auto* nomeEdit  = new QLineEdit; nomeEdit->setPlaceholderText("Nome");
+    auto* cognEdit  = new QLineEdit; cognEdit->setPlaceholderText("Cognome");
+    auto* cfEdit    = new QLineEdit; cfEdit->setPlaceholderText("Codice Fiscale"); cfEdit->setMaximumWidth(160);
+    anagrLay->addWidget(new QLabel("Nome:")); anagrLay->addWidget(nomeEdit, 2);
+    anagrLay->addWidget(new QLabel("Cognome:")); anagrLay->addWidget(cognEdit, 2);
+    anagrLay->addWidget(new QLabel("C.F.:")); anagrLay->addWidget(cfEdit, 1);
+    lay->addWidget(anagrGroup);
+
+    /* ── Dati lavorativi ── */
+    auto* lavGroup = new QGroupBox("\xf0\x9f\x8f\xa2  Rapporto di lavoro");
+    auto* lavLay = new QVBoxLayout(lavGroup);
+    lavLay->setSpacing(6);
+    auto* lavRow1 = new QWidget; auto* lavLay1 = new QHBoxLayout(lavRow1);
+    lavLay1->setContentsMargins(0,0,0,0); lavLay1->setSpacing(8);
+    auto* datoreEdit = new QLineEdit; datoreEdit->setPlaceholderText("Datore di lavoro / Azienda");
+    auto* ccnlEdit   = new QLineEdit; ccnlEdit->setPlaceholderText("CCNL / Tipo contratto");
+    lavLay1->addWidget(new QLabel("Datore:")); lavLay1->addWidget(datoreEdit, 2);
+    lavLay1->addWidget(new QLabel("CCNL:")); lavLay1->addWidget(ccnlEdit, 2);
+    auto* lavRow2 = new QWidget; auto* lavLay2 = new QHBoxLayout(lavRow2);
+    lavLay2->setContentsMargins(0,0,0,0); lavLay2->setSpacing(8);
+    auto* dataIniEdit  = new QDateEdit(QDate::currentDate().addYears(-10));
+    dataIniEdit->setDisplayFormat("dd/MM/yyyy"); dataIniEdit->setCalendarPopup(true);
+    auto* dataFineEdit = new QDateEdit(QDate::currentDate());
+    dataFineEdit->setDisplayFormat("dd/MM/yyyy"); dataFineEdit->setCalendarPopup(true);
+    auto* inCorsoChk = new QCheckBox("Ancora in corso");
+    lavLay2->addWidget(new QLabel("Data assunzione:")); lavLay2->addWidget(dataIniEdit);
+    lavLay2->addWidget(new QLabel("Data cessazione:")); lavLay2->addWidget(dataFineEdit);
+    lavLay2->addWidget(inCorsoChk); lavLay2->addStretch(1);
+    lavLay->addWidget(lavRow1);
+    lavLay->addWidget(lavRow2);
+    lay->addWidget(lavGroup);
+
+    /* ── Parametri calcolo ── */
+    auto* paramGroup = new QGroupBox("\xe2\x9a\x99  Parametri calcolo");
+    auto* paramLay = new QHBoxLayout(paramGroup);
+    paramLay->setSpacing(8);
+    auto* tfrStipSpin = mkSpin(5000, 500000, 30000, 0, " \xe2\x82\xac/anno");
+    auto* tfrInflSpin = mkSpin(0, 15, 2.0, 1, " %/anno");
+    auto* destCombo   = new QComboBox;
+    destCombo->addItem("In azienda (art. 2120 c.c.)");
+    destCombo->addItem("Fondo pensione complementare");
+    paramLay->addWidget(new QLabel("Stipendio lordo:")); paramLay->addWidget(tfrStipSpin);
+    paramLay->addWidget(new QLabel("Inflazione ISTAT:")); paramLay->addWidget(tfrInflSpin);
+    paramLay->addWidget(new QLabel("Destinazione:")); paramLay->addWidget(destCombo, 1);
+    lay->addWidget(paramGroup);
+
+    /* ── Bottoni ── */
+    auto* btnRow = new QWidget;
+    auto* btnLay = new QHBoxLayout(btnRow);
+    btnLay->setContentsMargins(0,0,0,0); btnLay->setSpacing(8);
+    auto* calcBtn    = new QPushButton("\xf0\x9f\x94\xa2  Calcola TFR"); calcBtn->setObjectName("actionBtn");
+    auto* ragBtn     = new QPushButton("\xe2\x9a\xa1  Compila da RAG"); ragBtn->setObjectName("actionBtn");
+    auto* stopRagBtn = new QPushButton("\xe2\x8f\xb9"); stopRagBtn->setObjectName("actionBtn");
+    stopRagBtn->setProperty("danger", true); stopRagBtn->setFixedWidth(40); stopRagBtn->setEnabled(false);
+    auto* copyBtn    = new QPushButton("\xf0\x9f\x93\x8b  Copia");
+    auto* waitLbl    = new QLabel("\xe2\x8f\xb3  Lettura RAG...");
+    waitLbl->setStyleSheet("color:#E5C400;font-style:italic;"); waitLbl->setVisible(false);
+    btnLay->addWidget(calcBtn); btnLay->addWidget(ragBtn);
+    btnLay->addWidget(stopRagBtn); btnLay->addWidget(waitLbl);
+    btnLay->addStretch(1); btnLay->addWidget(copyBtn);
+    lay->addWidget(btnRow);
+
+    /* ── Output ── */
+    auto* tfrOut = new QTextBrowser(w);
+    tfrOut->setObjectName("chatLog");
+    tfrOut->setPlaceholderText(
+        "Compila i campi sopra e premi \xe2\x80\x9c" "Calcola TFR\xe2\x80\x9d.\n\n"
+        "Oppure premi \xe2\x80\x9c" "Compila da RAG\xe2\x80\x9d per estrarre automaticamente i dati "
+        "dalla tua Knowledge Base (Impostazioni \xe2\x86\x92 Memoria).");
+    lay->addWidget(tfrOut, 1);
+
+    /* ── Grafico ── */
+    auto* tfrChart = new FinChart(w);
+    lay->addWidget(tfrChart);
+
+    /* — inCorsoChk — */
+    QObject::connect(inCorsoChk, &QCheckBox::toggled, w, [=](bool on){
+        dataFineEdit->setEnabled(!on);
+    });
+
+    /* — Calcola TFR — */
+    QObject::connect(calcBtn, &QPushButton::clicked, w, [=]{
+        const QDate ini  = dataIniEdit->date();
+        const QDate fine = inCorsoChk->isChecked() ? QDate::currentDate() : dataFineEdit->date();
+        const int anni   = qMax(1, static_cast<int>(ini.daysTo(fine) / 365.25));
+
+        const double stip       = tfrStipSpin->value();
+        const double infl       = tfrInflSpin->value() / 100.0;
+        const double quotaAnnua = stip / 13.5;
+        const double tassoRival = 0.015 + 0.75 * infl;
+        double fondo = 0.0;
+        QVector<QPointF> pts;
+        pts.append({ double(baseYear), 0.0 });
+        for (int yr = 1; yr <= anni; ++yr) {
+            fondo += quotaAnnua;
+            fondo *= (1.0 + tassoRival);
+            pts.append({ double(baseYear + yr), fondo });
+        }
+        const double tfrSemplice = quotaAnnua * anni;
+        tfrChart->setData("\xf0\x9f\x92\xbc TFR rivalutato", pts, QColor("#c060e0"));
+
+        const QString nome = (nomeEdit->text() + " " + cognEdit->text()).trimmed();
+        const bool fondoPensione = (destCombo->currentIndex() == 1);
+
+        QString hdrHtml;
+        if (!nome.isEmpty())
+            hdrHtml += "<b>Beneficiario:</b> " + nome.toHtmlEscaped() +
+                       (cfEdit->text().isEmpty() ? "" : " &mdash; C.F.: " + cfEdit->text().toHtmlEscaped()) + "<br>";
+        if (!datoreEdit->text().isEmpty())
+            hdrHtml += "<b>Datore:</b> " + datoreEdit->text().toHtmlEscaped() +
+                       (ccnlEdit->text().isEmpty() ? "" : " &mdash; CCNL: " + ccnlEdit->text().toHtmlEscaped()) + "<br>";
+        hdrHtml += QString("<b>Periodo:</b> %1 &rarr; %2 (%3 anni)")
+                   .arg(ini.toString("dd/MM/yyyy"))
+                   .arg(inCorsoChk->isChecked() ? QString("in corso") : fine.toString("dd/MM/yyyy"))
+                   .arg(anni);
+
+        const QString fiscHtml = fondoPensione
+            ? QString("Destinazione: <b>Fondo Pensione</b> &mdash; imposta sostitutiva 15%"
+                      " (riduzione 0,3%/anno oltre il 15&deg;, min 9%).<br>"
+                      "TFR netto stimato: <b>%1 \xe2\x82\xac</b>").arg(fondo * 0.88, 0,'f',2)
+            : QString("Destinazione: <b>In azienda</b> &mdash; tassazione separata art. 17 TUIR.<br>"
+                      "Aliquota stimata 23% &mdash; TFR netto indicativo: <b>%1 \xe2\x82\xac</b>").arg(fondo * 0.77, 0,'f',2);
+
+        tfrOut->setHtml(QString(
+            "<b>\xf0\x9f\x92\xbc SCHEDA TFR &mdash; Trattamento di Fine Rapporto</b><br><br>"
+            "%1<br><br>"
+            "<b>Parametri:</b><br>"
+            "Stipendio lordo annuo: %2 \xe2\x82\xac &mdash; Inflazione: %3%<br>"
+            "Quota annua (stip &divide; 13,5): <b>%4 \xe2\x82\xac</b><br>"
+            "Tasso rivalutazione (1,5% + 75%&times;inf.): <b>%5%</b><br><br>"
+            "<b>Risultato:</b><br>"
+            "TFR senza rivalutazione: %6 \xe2\x82\xac<br>"
+            "TFR rivalutato stimato: <b>%7 \xe2\x82\xac</b><br>"
+            "Plusvalenza: %8 \xe2\x82\xac<br><br>"
+            "<b>Fiscalit\xc3\xa0:</b><br>%9<br><br>"
+            "<i>Calcolo indicativo (art. 2120 c.c.).</i>")
+            .arg(hdrHtml)
+            .arg(stip,0,'f',0).arg(tfrInflSpin->value(),0,'f',1)
+            .arg(quotaAnnua,0,'f',2)
+            .arg(tassoRival*100,0,'f',2)
+            .arg(tfrSemplice,0,'f',2)
+            .arg(fondo,0,'f',2)
+            .arg(fondo - tfrSemplice,0,'f',2)
+            .arg(fiscHtml));
+    });
+
+    /* — Copia — */
+    QObject::connect(copyBtn, &QPushButton::clicked, w, [=]{
+        QGuiApplication::clipboard()->setText(tfrOut->toPlainText());
+    });
+
+    /* — Compila da RAG — */
+    auto tfrActive = std::make_shared<bool>(false);
+    auto tfrBuf    = std::make_shared<QString>();
+
+    QObject::connect(ragBtn, &QPushButton::clicked, w, [=]{
+        const QString knowledge = P::readUserKnowledge();
+        const QString sys =
+            "Sei un assistente che estrae dati lavorativi per il TFR. "
+            "Analizza il testo e restituisci SOLO JSON con chiavi: "
+            "nome, cognome, cf, datore, ccnl, data_inizio (YYYY-MM-DD), "
+            "data_fine (YYYY-MM-DD o in_corso), stipendio_lordo_annuo (intero). "
+            "Valori mancanti: stringa vuota o 0. Solo JSON, nient'altro.";
+        ragBtn->setEnabled(false); stopRagBtn->setEnabled(true); waitLbl->setVisible(true);
+        *tfrActive = true; tfrBuf->clear();
+        ai->chat(sys, knowledge.isEmpty() ? "Nessun documento in Knowledge Base." : knowledge);
+    });
+
+    QObject::connect(stopRagBtn, &QPushButton::clicked, ai, &AiClient::abort);
+
+    QObject::connect(ai, &AiClient::token, w, [=](const QString& t){
+        if (!*tfrActive) return;
+        tfrBuf->append(t);
+    });
+
+    QObject::connect(ai, &AiClient::finished, w, [=](const QString&){
+        if (!*tfrActive) return;
+        *tfrActive = false;
+        ragBtn->setEnabled(true); stopRagBtn->setEnabled(false); waitLbl->setVisible(false);
+
+        QString raw = *tfrBuf;
+        const int js = raw.indexOf('{'), je = raw.lastIndexOf('}');
+        if (js >= 0 && je > js) raw = raw.mid(js, je - js + 1);
+        QJsonParseError jerr;
+        const QJsonDocument doc = QJsonDocument::fromJson(raw.toUtf8(), &jerr);
+        if (!doc.isObject()) {
+            tfrOut->setHtml(
+                "\xe2\x9a\xa0 JSON non ricevuto. Aggiungi dati lavorativi in Impostazioni &rarr; Memoria e riprova.<br>"
+                "<small><i>" + tfrBuf->left(300).toHtmlEscaped() + "</i></small>");
+            return;
+        }
+        const QJsonObject obj = doc.object();
+        if (!obj["nome"].toString().isEmpty())     nomeEdit->setText(obj["nome"].toString());
+        if (!obj["cognome"].toString().isEmpty())   cognEdit->setText(obj["cognome"].toString());
+        if (!obj["cf"].toString().isEmpty())        cfEdit->setText(obj["cf"].toString());
+        if (!obj["datore"].toString().isEmpty())    datoreEdit->setText(obj["datore"].toString());
+        if (!obj["ccnl"].toString().isEmpty())      ccnlEdit->setText(obj["ccnl"].toString());
+        const QDate di = QDate::fromString(obj["data_inizio"].toString(), "yyyy-MM-dd");
+        if (di.isValid()) dataIniEdit->setDate(di);
+        const QString df = obj["data_fine"].toString();
+        if (df == "in_corso" || df.isEmpty()) {
+            inCorsoChk->setChecked(true);
+        } else {
+            const QDate d = QDate::fromString(df, "yyyy-MM-dd");
+            if (d.isValid()) { inCorsoChk->setChecked(false); dataFineEdit->setDate(d); }
+        }
+        const int stip = obj["stipendio_lordo_annuo"].toInt();
+        if (stip > 0) tfrStipSpin->setValue(stip);
+        tfrOut->setHtml("\xe2\x9c\x85 Dati compilati da RAG. Verifica e premi <b>Calcola TFR</b>.");
+    });
+
+    QObject::connect(ai, &AiClient::error, w, [=](const QString& err){
+        if (!*tfrActive) return;
+        *tfrActive = false;
+        ragBtn->setEnabled(true); stopRagBtn->setEnabled(false); waitLbl->setVisible(false);
+        tfrOut->setHtml("\xe2\x9d\x8c Errore: " + err.toHtmlEscaped());
+    });
+
+    QObject::connect(ai, &AiClient::aborted, w, [=]{
+        if (!*tfrActive) return;
+        *tfrActive = false;
+        ragBtn->setEnabled(true); stopRagBtn->setEnabled(false); waitLbl->setVisible(false);
+        tfrOut->setHtml("\xe2\x8f\xb9 Interrotto.");
+    });
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
    Costruttore PraticoPage
    ══════════════════════════════════════════════════════════════ */
 PraticoPage::PraticoPage(AiClient* ai, QWidget* parent)
@@ -594,7 +868,10 @@ PraticoPage::PraticoPage(AiClient* ai, QWidget* parent)
         "Es: Quali sono i limiti di fatturato per restare nel forfettario?"));
 
     /* 3 = Finanza */
-    m_inner->addWidget(buildFinanza(m_inner));
+    m_inner->addWidget(buildFinanza(m_inner, m_ai));
+
+    /* 4 = Scheda TFR */
+    m_inner->addWidget(buildSchedaTFR(m_inner, m_ai));
 
     lay->addWidget(m_inner);
 }

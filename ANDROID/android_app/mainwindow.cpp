@@ -159,6 +159,18 @@ MainWindow::MainWindow(QWidget* parent)
     m_stack->addWidget(m_sintetizzatorePage); // indice 14
 
     auto* central = new QWidget(this);
+
+#ifdef PRISMALUX_FORM_FACTOR_TABLET
+    /* ── Layout TABLET: NavRail fisso a sinistra + stack a destra ── */
+    auto* hbox = new QHBoxLayout(central);
+    hbox->setContentsMargins(0, 0, 0, 0);
+    hbox->setSpacing(0);
+    buildNavRail();
+    hbox->addWidget(m_navRail);
+    hbox->addWidget(m_stack, 1);
+    setCentralWidget(central);
+#else
+    /* ── Layout SMARTPHONE: header bar in alto + stack sotto ── */
     auto* vbox    = new QVBoxLayout(central);
     vbox->setContentsMargins(0, 0, 0, 0);
     vbox->setSpacing(0);
@@ -168,6 +180,7 @@ MainWindow::MainWindow(QWidget* parent)
     setCentralWidget(central);
 
     buildDrawer();
+#endif
 
     connect(m_studioPage, &StudioPage::quizFullscreen,
             this, &MainWindow::onQuizFullscreen);
@@ -319,11 +332,130 @@ void MainWindow::buildDrawer()
 }
 
 /* ══════════════════════════════════════════════════════════════
+   buildNavRail — [TABLET] barra laterale fissa 240 px con pulsanti
+   per ogni pagina (icona + testo), connessi con slot nominati.
+   ══════════════════════════════════════════════════════════════ */
+#ifdef PRISMALUX_FORM_FACTOR_TABLET
+void MainWindow::buildNavRail()
+{
+    m_navRail = new QWidget(this);
+    m_navRail->setObjectName("NavRail");
+    m_navRail->setFixedWidth(240);
+
+    m_navLayout = new QVBoxLayout(m_navRail);
+    m_navLayout->setContentsMargins(4, 12, 4, 12);
+    m_navLayout->setSpacing(2);
+
+    /* Logo + titolo in cima al rail */
+    auto* logoRow   = new QWidget(m_navRail);
+    auto* logoHBox  = new QHBoxLayout(logoRow);
+    logoHBox->setContentsMargins(8, 0, 8, 0);
+    logoHBox->setSpacing(8);
+    auto* logoLbl = new QLabel(logoRow);
+    {
+        QPixmap pm(":/images/prismalux_logo.png");
+        logoLbl->setPixmap(pm.scaled(32, 32,
+            Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        logoLbl->setFixedSize(32, 32);
+    }
+    logoHBox->addWidget(logoLbl);
+    auto* appLbl = new QLabel("Prismalux", logoRow);
+    {
+        QFont f = appLbl->font();
+        f.setPointSize(14); f.setBold(true);
+        appLbl->setFont(f);
+    }
+    logoHBox->addWidget(appLbl, 1);
+    logoRow->setFixedHeight(48);
+    m_navLayout->addWidget(logoRow);
+
+    /* Separatore */
+    auto* sep = new QFrame(m_navRail);
+    sep->setFrameShape(QFrame::HLine);
+    sep->setFrameShadow(QFrame::Sunken);
+    m_navLayout->addWidget(sep);
+    m_navLayout->addSpacing(4);
+
+    struct NavRailItem { const char* icon; const char* label; };
+    /* Ordine deve corrispondere agli indici m_idx* */
+    static const NavRailItem kItems[15] = {
+        { "\xf0\x9f\xa4\x96",              "Chat"               }, /*  0 */
+        { "\xf0\x9f\x93\x9a",              "Studia"             }, /*  1 */
+        { "\xf0\x9f\x92\xbc",              "Lavoro"             }, /*  2 */
+        { "\xf0\x9f\x93\xa1",              "OBS Control"        }, /*  3 */
+        { "\xf0\x9f\x93\x90",              "Misure"             }, /*  4 */
+        { "\xf0\x9f\x93\xb7",              "Camera"             }, /*  5 */
+        { "\xf0\x9f\x94\x8c",              "MCP Add-ons"        }, /*  6 */
+        { "\xf0\x9f\x94\x8b",              "Bluetooth"          }, /*  7 */
+        { "\xf0\x9f\x8e\x99\xef\xb8\x8f", "Trascrizione Audio" }, /*  8 */
+        { "\xe2\x9a\x99\xef\xb8\x8f",     "Impostazioni"       }, /*  9 */
+        { "\xf0\x9f\x8d\xba",             "Informazioni"        }, /* 10 */
+        { "\xf0\x9f\xa7\xa0",              "Impara con AI"      }, /* 11 */
+        { "\xf0\x9f\x94\xac",              "Ricerca e Sviluppo" }, /* 12 */
+        { "\xcf\x80",                       "Matematica"         }, /* 13 */
+        { "\xf0\x9f\x94\x8a",             "Sintetizzatore"     }, /* 14 */
+    };
+
+    /* Array di puntatori ai slot — stessa posizione dell'indice pagina */
+    using SlotPtr = void (MainWindow::*)();
+    static const SlotPtr kSlots[15] = {
+        &MainWindow::onNavTablet_0,
+        &MainWindow::onNavTablet_1,
+        &MainWindow::onNavTablet_2,
+        &MainWindow::onNavTablet_3,
+        &MainWindow::onNavTablet_4,
+        &MainWindow::onNavTablet_5,
+        &MainWindow::onNavTablet_6,
+        &MainWindow::onNavTablet_7,
+        &MainWindow::onNavTablet_8,
+        &MainWindow::onNavTablet_9,
+        &MainWindow::onNavTablet_10,
+        &MainWindow::onNavTablet_11,
+        &MainWindow::onNavTablet_12,
+        &MainWindow::onNavTablet_13,
+        &MainWindow::onNavTablet_14,
+    };
+
+    for (int i = 0; i < 15; ++i) {
+        auto* btn = new QPushButton(m_navRail);
+        btn->setObjectName("NavRailBtn");
+        btn->setText("  " + QString::fromUtf8(kItems[i].icon)
+                     + "  " + kItems[i].label);
+        btn->setMinimumHeight(48);
+        btn->setFlat(true);
+        btn->setCheckable(true);
+        connect(btn, &QPushButton::clicked, this, kSlots[i]);
+        m_navLayout->addWidget(btn);
+    }
+    m_navLayout->addStretch();
+}
+
+/* ── Slot tablet: uno per pagina (regola no-lambda) ── */
+void MainWindow::onNavTablet_0()  { onTabChanged(m_idxChat);           }
+void MainWindow::onNavTablet_1()  { onTabChanged(m_idxStudio);         }
+void MainWindow::onNavTablet_2()  { onTabChanged(m_idxLavoro);         }
+void MainWindow::onNavTablet_3()  { onTabChanged(m_idxObs);            }
+void MainWindow::onNavTablet_4()  { onTabChanged(m_idxMisure);         }
+void MainWindow::onNavTablet_5()  { onTabChanged(m_idxCamera);         }
+void MainWindow::onNavTablet_6()  { onTabChanged(m_idxMcp);            }
+void MainWindow::onNavTablet_7()  { onTabChanged(m_idxBle);            }
+void MainWindow::onNavTablet_8()  { onTabChanged(m_idxAudio);          }
+void MainWindow::onNavTablet_9()  { onTabChanged(m_idxSettings);       }
+void MainWindow::onNavTablet_10() { onTabChanged(m_idxInfo);           }
+void MainWindow::onNavTablet_11() { onTabChanged(m_idxImpara);         }
+void MainWindow::onNavTablet_12() { onTabChanged(m_idxRicerca);        }
+void MainWindow::onNavTablet_13() { onTabChanged(m_idxMatematica);     }
+void MainWindow::onNavTablet_14() { onTabChanged(m_idxSintetizzatore); }
+#endif /* PRISMALUX_FORM_FACTOR_TABLET */
+
+/* ══════════════════════════════════════════════════════════════
    updateDrawerGeometry — posiziona cassetto e overlay
    rispetto all'area sotto la header bar.
+   Solo per SMARTPHONE: il tablet non ha drawer.
    ══════════════════════════════════════════════════════════════ */
 void MainWindow::updateDrawerGeometry()
 {
+#ifndef PRISMALUX_FORM_FACTOR_TABLET
     if (!m_drawer || !centralWidget()) return;
     const QRect cr = centralWidget()->rect();
     /* top = 0: il drawer copre tutto dall'alto (Material Design drawer).
@@ -334,25 +466,34 @@ void MainWindow::updateDrawerGeometry()
     m_drawer->setGeometry(0, 0, dw, h);
     if (m_overlay)
         m_overlay->setGeometry(dw, 0, cr.width() - dw, h);
+#endif
 }
 
 void MainWindow::resizeEvent(QResizeEvent* e)
 {
     QMainWindow::resizeEvent(e);
+#ifndef PRISMALUX_FORM_FACTOR_TABLET
     updateDrawerGeometry();
+#endif
 }
 
 bool MainWindow::eventFilter(QObject* obj, QEvent* ev)
 {
+#ifndef PRISMALUX_FORM_FACTOR_TABLET
     if (obj == m_overlay && ev->type() == QEvent::MouseButtonPress) {
         if (m_drawerOpen) onToggleDrawer();
         return true;
     }
+#else
+    Q_UNUSED(obj);
+    Q_UNUSED(ev);
+#endif
     return QMainWindow::eventFilter(obj, ev);
 }
 
 void MainWindow::onToggleDrawer()
 {
+#ifndef PRISMALUX_FORM_FACTOR_TABLET
     m_drawerOpen = !m_drawerOpen;
     if (m_drawerOpen) {
         updateDrawerGeometry();
@@ -361,15 +502,18 @@ void MainWindow::onToggleDrawer()
     }
     m_drawer->setVisible(m_drawerOpen);
     if (m_overlay) m_overlay->setVisible(m_drawerOpen);
+#endif
 }
 
 void MainWindow::onDrawerNavClicked()
 {
+#ifndef PRISMALUX_FORM_FACTOR_TABLET
     auto* btn = qobject_cast<QPushButton*>(sender());
     if (!btn) return;
     const int idx = btn->property("pageIndex").toInt();
     if (m_drawerOpen) onToggleDrawer();
     onTabChanged(idx);
+#endif
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -410,9 +554,15 @@ void MainWindow::onTabChanged(int index)
 /* ══════════════════════════════════════════════════════════════
    onQuizFullscreen — nasconde/mostra l'header bar durante il quiz
    per dare alla pagina quiz uno spazio a tutto schermo pulito.
+   Sul tablet nasconde il NavRail; sullo smartphone nasconde la header bar.
    ══════════════════════════════════════════════════════════════ */
 void MainWindow::onQuizFullscreen(bool on)
 {
+#ifdef PRISMALUX_FORM_FACTOR_TABLET
+    if (m_navRail)
+        m_navRail->setVisible(!on);
+#else
     if (m_headerBar)
         m_headerBar->setVisible(!on);
+#endif
 }

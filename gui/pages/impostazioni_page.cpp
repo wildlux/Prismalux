@@ -132,12 +132,27 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
         }
 
         {
+            /* Sinistra (Piper TTS) — larghezza fissa 40%, scrollabile.
+               Destra (Whisper STT) — larghezza fissa 60%, scrollabile verticalmente.
+               Divisione non ridimensionabile dall'utente. */
+            auto* leftScroll = new QScrollArea;
+            leftScroll->setWidgetResizable(true);
+            leftScroll->setFrameShape(QFrame::NoFrame);
+            leftScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+            leftScroll->setWidget(buildVoceTab());
+
+            auto* rightScroll = new QScrollArea;
+            rightScroll->setWidgetResizable(true);
+            rightScroll->setFrameShape(QFrame::NoFrame);
+            rightScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+            rightScroll->setWidget(buildTrascriviTab());
+
             auto* w = new QWidget;
             auto* l = new QHBoxLayout(w);
-            l->setContentsMargins(14, 12, 14, 12);
-            l->setSpacing(14);
-            l->addWidget(buildVoceTab());
-            l->addWidget(buildTrascriviTab());
+            l->setContentsMargins(8, 8, 8, 8);
+            l->setSpacing(10);
+            l->addWidget(leftScroll,  2);   /* 40% */
+            l->addWidget(rightScroll, 3);   /* 60% */
             t->addTab(w, "\xf0\x9f\x8e\xa4  Voce & Audio");
         }
 

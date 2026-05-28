@@ -17,6 +17,7 @@ namespace P = PrismaluxPaths;
 #include <QTextEdit>
 #include <QComboBox>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFile>
 #include <QTextStream>
 #include <QDir>
@@ -47,6 +48,8 @@ namespace P = PrismaluxPaths;
 #include <QDateTimeEdit>
 #include <QFormLayout>
 #include <QTextBrowser>
+#include <QDoubleSpinBox>
+#include <QMessageBox>
 #include <cmath>
 
 /* ── helper: barra azioni output (Esporta PDF / Salva .md) ────────── */
@@ -118,7 +121,7 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     tabs->addTab(buildCercaLetteraturaTab(),  "\xf0\x9f\x94\x8d  Cerca Paper/Brevetti");
     tabs->addTab(new LavoroPage(m_ai, this),  "\xf0\x9f\x92\xbc  Lavoro");
     /* ── Gruppo 3: Scienze ── */
-    tabs->addTab(buildCytoscapeTab(),         "\xf0\x9f\x94\xac  Cytoscape");
+    tabs->addTab(buildCytoscapeTab(),         "\xf0\x9f\x94\xac  Cytoscape \xe2\x80\x94 Bioinformatica");
     tabs->addTab(buildRDKitTab(),             "\xf0\x9f\xa7\xaa  RDKit");
     tabs->addTab(buildBiocondaTab(),          "\xf0\x9f\x8c\xbf  Bioconda");
     tabs->addTab(buildAvogadroTab(),          "\xf0\x9f\xa7\xb4  Avogadro");
@@ -140,7 +143,7 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     tabs->setTabToolTip(2, "Genera specifiche tecniche e manuali");
     tabs->setTabToolTip(3, "Cerca su arXiv, Semantic Scholar, USPTO");
     tabs->setTabToolTip(4, "Offerte di lavoro, tracker candidature e calcolatore euro/ore");
-    tabs->setTabToolTip(5, "Analisi reti biologiche e sociali");
+    tabs->setTabToolTip(5, "Cytoscape — Bioinformatica: analisi reti biologiche (proteomica, genomica, pathways)");
     tabs->setTabToolTip(6, "Chemioinformatica con RDKit");
     tabs->setTabToolTip(7, "Pipeline bioinformatica con Bioconda");
     tabs->setTabToolTip(8, "Modellazione molecolare 3D");
@@ -2238,6 +2241,175 @@ QWidget* RicercaPage::buildBlhmTab()
         inner->addTab(dnaW, "\xf0\x9f\xa7\xac  DNA");
     }
 
+    /* ══════════════ TAB 4: ENGINE C ══════════════ */
+    {
+        auto* engW   = new QWidget;
+        auto* engLay = new QVBoxLayout(engW);
+        engLay->setContentsMargins(0, 6, 0, 4);
+        engLay->setSpacing(8);
+
+        auto* descLbl = new QLabel(
+            "<b>\xe2\x9a\x99  Engine C</b>  "
+            "<span style='color:gray;font-size:11px;'>"
+            "Thread pool POSIX (pattern ds4) \xc2\xb7 3 cicli paralleli: "
+            "Factory \xc2\xb7 Link \xc2\xb7 User"
+            "</span>");
+        descLbl->setTextFormat(Qt::RichText);
+        engLay->addWidget(descLbl);
+
+        /* ── barra superiore: sync + run + latenza ── */
+        auto* topBar  = new QWidget;
+        auto* topHLay = new QHBoxLayout(topBar);
+        topHLay->setContentsMargins(0, 0, 0, 0);
+        topHLay->setSpacing(8);
+
+        auto* btnSync = new QPushButton(
+            "\xe2\x86\x93  Importa dal Calcolatore");
+        btnSync->setObjectName("actionBtn");
+        auto* btnRun = new QPushButton(
+            "\xe2\x96\xb6  Esegui Inferenza (3 thread)");
+        btnRun->setObjectName("primaryBtn");
+
+        m_blhmEngineLatencyLbl = new QLabel("\xe2\x80\x94");
+        topHLay->addWidget(btnSync);
+        topHLay->addWidget(btnRun);
+        topHLay->addStretch();
+        topHLay->addWidget(new QLabel("Latenza:"));
+        topHLay->addWidget(m_blhmEngineLatencyLbl);
+        engLay->addWidget(topBar);
+
+        m_blhmEngineStatusLbl = new QLabel(
+            "Grafo non inizializzato. Premi \"Importa dal Calcolatore\".");
+        m_blhmEngineStatusLbl->setStyleSheet("color:#888;font-size:11px;");
+        engLay->addWidget(m_blhmEngineStatusLbl);
+
+        /* ── 3 pannelli colorati: Factory / Link / User ── */
+        auto* panelsW    = new QWidget;
+        auto* panelsHLay = new QHBoxLayout(panelsW);
+        panelsHLay->setContentsMargins(0, 0, 0, 0);
+        panelsHLay->setSpacing(8);
+
+        QFont mono("monospace");
+        mono.setStyleHint(QFont::Monospace);
+        mono.setPointSize(9);
+
+        struct PanelSpec { const char* title; const char* color; QLabel** lbl; };
+        PanelSpec panels[] = {
+            { "Factory  R\xe2\x82\x99", "#4a9eff", &m_blhmEngineFactoryLbl },
+            { "Link  R\xe2\x82\x97",    "#4ec94e", &m_blhmEngineLinkLbl    },
+            { "User  R\xe2\x82\x9a",    "#ff9944", &m_blhmEngineUserLbl    },
+        };
+        for (auto& ps : panels) {
+            auto* frame = new QFrame;
+            frame->setFrameShape(QFrame::StyledPanel);
+            frame->setStyleSheet(
+                QString("QFrame{border:2px solid %1;border-radius:6px;padding:4px;}").arg(ps.color));
+            auto* flay = new QVBoxLayout(frame);
+            flay->setContentsMargins(6, 4, 6, 4);
+            flay->setSpacing(3);
+            auto* titleL = new QLabel(
+                QString("<b style='color:%1;'>%2</b>").arg(ps.color, ps.title));
+            titleL->setTextFormat(Qt::RichText);
+            *ps.lbl = new QLabel("score: \xe2\x80\x94\nn_active: \xe2\x80\x94\ntop: \xe2\x80\x94");
+            (*ps.lbl)->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+            (*ps.lbl)->setTextInteractionFlags(Qt::TextSelectableByMouse);
+            (*ps.lbl)->setFont(mono);
+            flay->addWidget(titleL);
+            flay->addWidget(*ps.lbl);
+            panelsHLay->addWidget(frame);
+        }
+        engLay->addWidget(panelsW);
+
+        /* ── R_merged combinato ── */
+        auto* combBar  = new QWidget;
+        auto* combHLay = new QHBoxLayout(combBar);
+        combHLay->setContentsMargins(0, 0, 0, 0);
+        combHLay->setSpacing(8);
+        combHLay->addWidget(new QLabel("<b>R_merged:</b>"));
+        m_blhmEngineCombinedLbl = new QLabel("\xe2\x80\x94");
+        m_blhmEngineCombinedLbl->setStyleSheet(
+            "font-size:20px;font-weight:bold;");
+        combHLay->addWidget(m_blhmEngineCombinedLbl);
+        combHLay->addStretch();
+        engLay->addWidget(combBar);
+
+        auto* sep1 = new QFrame;
+        sep1->setFrameShape(QFrame::HLine);
+        sep1->setFrameShadow(QFrame::Sunken);
+        engLay->addWidget(sep1);
+
+        /* ── Auto-finetuning Hebbiano ── */
+        auto* autoftHdr = new QLabel(
+            "<b>Auto-finetuning Hebbiano</b>  "
+            "<span style='color:gray;font-size:11px;'>"
+            "link_w += lr \xc2\xb7 match  (factory_w mai modificato)"
+            "</span>");
+        autoftHdr->setTextFormat(Qt::RichText);
+        engLay->addWidget(autoftHdr);
+
+        auto* autoftBar  = new QWidget;
+        auto* autoftHLay = new QHBoxLayout(autoftBar);
+        autoftHLay->setContentsMargins(0, 0, 0, 0);
+        autoftHLay->setSpacing(8);
+
+        autoftHLay->addWidget(new QLabel("LR:"));
+        m_blhmEngineLrSpin = new QDoubleSpinBox;
+        m_blhmEngineLrSpin->setRange(0.001, 1.0);
+        m_blhmEngineLrSpin->setSingleStep(0.01);
+        m_blhmEngineLrSpin->setValue(0.05);
+        m_blhmEngineLrSpin->setDecimals(3);
+        m_blhmEngineLrSpin->setFixedWidth(80);
+        auto* btnAutoft = new QPushButton("Applica Autoft");
+        btnAutoft->setObjectName("actionBtn");
+        autoftHLay->addWidget(m_blhmEngineLrSpin);
+        autoftHLay->addWidget(btnAutoft);
+        autoftHLay->addStretch();
+        engLay->addWidget(autoftBar);
+
+        m_blhmEngineAutoftOut = new QTextEdit;
+        m_blhmEngineAutoftOut->setReadOnly(true);
+        m_blhmEngineAutoftOut->setMaximumHeight(100);
+        m_blhmEngineAutoftOut->setFont(mono);
+        m_blhmEngineAutoftOut->setPlaceholderText(
+            "Delta link_w dopo auto-finetuning (before \xe2\x86\x92 after)...");
+        engLay->addWidget(m_blhmEngineAutoftOut);
+
+        auto* sep2 = new QFrame;
+        sep2->setFrameShape(QFrame::HLine);
+        sep2->setFrameShadow(QFrame::Sunken);
+        engLay->addWidget(sep2);
+
+        /* ── Salva / Carica .blhm ── */
+        auto* ioBar  = new QWidget;
+        auto* ioHLay = new QHBoxLayout(ioBar);
+        ioHLay->setContentsMargins(0, 0, 0, 0);
+        ioHLay->setSpacing(8);
+        auto* btnSaveBlhm = new QPushButton(
+            "\xf0\x9f\x92\xbe  Salva .blhm");
+        btnSaveBlhm->setObjectName("actionBtn");
+        auto* btnLoadBlhm = new QPushButton(
+            "\xf0\x9f\x93\x82  Carica .blhm");
+        btnLoadBlhm->setObjectName("actionBtn");
+        ioHLay->addWidget(btnSaveBlhm);
+        ioHLay->addWidget(btnLoadBlhm);
+        ioHLay->addStretch();
+        engLay->addWidget(ioBar);
+        engLay->addStretch();
+
+        connect(btnSync,      &QPushButton::clicked, this,
+                &RicercaPage::onBlhmEngineSyncFromCalcClicked);
+        connect(btnRun,       &QPushButton::clicked, this,
+                &RicercaPage::onBlhmEngineRunClicked);
+        connect(btnAutoft,    &QPushButton::clicked, this,
+                &RicercaPage::onBlhmEngineAutoftClicked);
+        connect(btnSaveBlhm,  &QPushButton::clicked, this,
+                &RicercaPage::onBlhmEngineSaveClicked);
+        connect(btnLoadBlhm,  &QPushButton::clicked, this,
+                &RicercaPage::onBlhmEngineLoadClicked);
+
+        inner->addTab(engW, "\xe2\x9a\x99  Engine C");
+    }
+
     vlay->addWidget(inner, 1);
     return w;
 }
@@ -2410,6 +2582,35 @@ QWidget* RicercaPage::buildAnalisiPage()
     midSplit->setStretchFactor(1, 1);
     root->addWidget(midSplit);
 
+    /* ── Allegati (file) ── */
+    auto* fileBox = new QGroupBox("\xf0\x9f\x93\x82  File allegati (PDF, TXT, MD, CSV, JSON)");
+    auto* fileLay = new QVBoxLayout(fileBox);
+    auto* fileBtnRow = new QWidget;
+    auto* fileBtnLay = new QHBoxLayout(fileBtnRow);
+    fileBtnLay->setContentsMargins(0,0,0,0); fileBtnLay->setSpacing(8);
+    auto* addFileBtn  = new QPushButton("\xe2\x9e\x95  Aggiungi file\xe2\x80\xa6");
+    addFileBtn->setObjectName("actionBtn");
+    auto* remFileBtn  = new QPushButton("\xe2\x9c\x96  Rimuovi selezionato");
+    auto* fileHintLbl = new QLabel(
+        "<span style='color:gray;font-size:11px;'>"
+        "I file vengono letti e inclusi nel prompt AI. "
+        "PDF: estratto via pdftotext; testo grezzo per gli altri formati."
+        "</span>");
+    fileHintLbl->setTextFormat(Qt::RichText);
+    fileBtnLay->addWidget(addFileBtn);
+    fileBtnLay->addWidget(remFileBtn);
+    fileBtnLay->addWidget(fileHintLbl, 1);
+    m_analisiFileList = new QListWidget;
+    m_analisiFileList->setFixedHeight(72);
+    m_analisiFileList->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_analisiFileList->setAlternatingRowColors(true);
+    fileLay->addWidget(fileBtnRow);
+    fileLay->addWidget(m_analisiFileList);
+    root->addWidget(fileBox);
+
+    connect(addFileBtn, &QPushButton::clicked, this, &RicercaPage::onAnalisiAddFilesClicked);
+    connect(remFileBtn, &QPushButton::clicked, this, &RicercaPage::onAnalisiRemoveFileClicked);
+
     /* ── Riga modello + bottoni ── */
     auto* ctrlRow = new QWidget;
     auto* ctrlLay = new QHBoxLayout(ctrlRow);
@@ -2532,10 +2733,35 @@ void RicercaPage::onAnalisiRunClicked()
         "## Verdetto motivato\n"
         "(conclusione finale con ragionamento integrato su tutte le evidenze)";
 
+    /* Legge il contenuto dei file allegati */
+    QString fileContent;
+    if (m_analisiFileList) {
+        for (int fi = 0; fi < m_analisiFileList->count(); ++fi) {
+            const QString path = m_analisiFileList->item(fi)->data(Qt::UserRole).toString();
+            const QFileInfo fi2(path);
+            QString content;
+            if (fi2.suffix().toLower() == "pdf") {
+                QProcess pdfProc;
+                pdfProc.start("pdftotext", {path, "-"});
+                pdfProc.waitForFinished(10000);
+                content = pdfProc.readAllStandardOutput();
+                if (content.trimmed().isEmpty())
+                    content = "[PDF " + fi2.fileName() + ": impossibile estrarre testo — installa poppler-utils]";
+            } else {
+                QFile f(path);
+                if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+                    content = QTextStream(&f).readAll();
+            }
+            if (!content.trimmed().isEmpty())
+                fileContent += "\n---\nFile: " + fi2.fileName() + "\n" + content.trimmed() + "\n";
+        }
+    }
+
     const QString userMsg =
         "**Categoria evento:** " + categoria + "\n\n"
         "**Descrizione dell\xe2\x80\x99" "evento:**\n" + evento + "\n\n"
-        "**Fonti disponibili:**\n" + m_analisiSrcEdit->toPlainText().trimmed();
+        "**Fonti disponibili:**\n" + m_analisiSrcEdit->toPlainText().trimmed() +
+        (fileContent.isEmpty() ? "" : "\n\n**Documenti allegati:**\n" + fileContent);
 
     /* Connessioni one-shot */
     QObject::disconnect(m_analisiTokenConn);
@@ -2701,6 +2927,231 @@ void RicercaPage::onBlhmDnaClearClicked()
 }
 
 /* ─────────────────────────────────────────────────────────────────
+   RicercaPage destructor — libera il grafo C e spegne il thread pool
+   ───────────────────────────────────────────────────────────────── */
+RicercaPage::~RicercaPage()
+{
+    if (m_blhmGraph) {
+        blhm_graph_free(m_blhmGraph);
+        m_blhmGraph = nullptr;
+    }
+    blhm_pool_shutdown();
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   BLHM Engine C — sincronizza la tabella Qt nel grafo C
+   ───────────────────────────────────────────────────────────────── */
+void RicercaPage::onBlhmEngineSyncFromCalcClicked()
+{
+    if (!m_blhmGraph)
+        m_blhmGraph = blhm_graph_create(256);
+    blhm_graph_clear(m_blhmGraph);
+
+    const int rows = m_blhmTable ? m_blhmTable->rowCount() : 0;
+    for (int r = 0; r < rows; ++r) {
+        auto* pathItem = m_blhmTable->item(r, 0);
+        auto* fwItem   = m_blhmTable->item(r, 1);
+        auto* lwItem   = m_blhmTable->item(r, 2);
+        auto* uwItem   = m_blhmTable->item(r, 3);
+        if (!pathItem) continue;
+
+        BLHMWeight w = {};
+        w.factory_w = fwItem ? float(fwItem->text().toDouble()) : 0.0f;
+        w.link_w    = lwItem ? float(lwItem->text().toDouble()) : 0.0f;
+        w.user_w    = uwItem ? float(uwItem->text().toDouble()) : 0.0f;
+
+        QStringList parts;
+        for (const auto& p : pathItem->text().split(','))
+            if (!p.trimmed().isEmpty()) parts << p.trimmed();
+
+        w.path_len = qMin(int(parts.size()), BLHM_MAX_DEPTH);
+        for (int i = 0; i < w.path_len; ++i) {
+            QByteArray ba = parts[i].toUtf8();
+            w.path[i] = blhm_label_register(m_blhmGraph, ba.constData());
+        }
+
+        blhm_graph_add(m_blhmGraph, &w);
+    }
+
+    if (m_blhmEngineStatusLbl)
+        m_blhmEngineStatusLbl->setText(
+            QString("Grafo inizializzato: %1 pesi importati dal Calcolatore.")
+                .arg(blhm_graph_count(m_blhmGraph)));
+}
+
+/* ── Esegui inferenza (3 thread POSIX in parallelo) ── */
+void RicercaPage::onBlhmEngineRunClicked()
+{
+    if (!m_blhmGraph || blhm_graph_count(m_blhmGraph) == 0) {
+        if (m_blhmEngineStatusLbl)
+            m_blhmEngineStatusLbl->setText(
+                "Grafo vuoto \xe2\x80\x94 premi prima \"\xe2\x86\x93 Importa dal Calcolatore\".");
+        return;
+    }
+
+    /* legge la query dal tab Calcolatore */
+    QStringList qParts;
+    if (m_blhmQuery) {
+        for (const auto& p : m_blhmQuery->text().split(','))
+            if (!p.trimmed().isEmpty()) qParts << p.trimmed();
+    }
+    if (qParts.isEmpty()) {
+        if (m_blhmEngineStatusLbl)
+            m_blhmEngineStatusLbl->setText(
+                "Query vuota. Imposta un percorso nel tab Calcolatore.");
+        return;
+    }
+
+    QVector<int32_t> qPath;
+    qPath.reserve(qParts.size());
+    for (const auto& part : qParts) {
+        QByteArray ba = part.toUtf8();
+        int id = blhm_label_find(m_blhmGraph, ba.constData());
+        if (id < 0)
+            id = blhm_label_register(m_blhmGraph, ba.constData());
+        qPath.append(int32_t(id));
+    }
+
+    BLHMResult res = blhm_infer(m_blhmGraph,
+                                qPath.data(), qPath.size(),
+                                nullptr, 0);
+
+    auto fmtCycle = [](const BLHMCycleResult& c) -> QString {
+        QString s = QString("score: %1\nn_active: %2")
+                        .arg(double(c.score), 0, 'f', 4)
+                        .arg(c.n_active);
+        if (c.n_top > 0) {
+            s += "\ntop:";
+            for (int i = 0; i < c.n_top; ++i)
+                s += QString(" #%1(%2)").arg(c.top_idx[i])
+                         .arg(double(c.top_score[i]), 0, 'f', 3);
+        }
+        return s;
+    };
+
+    if (m_blhmEngineFactoryLbl)  m_blhmEngineFactoryLbl->setText(fmtCycle(res.factory));
+    if (m_blhmEngineLinkLbl)     m_blhmEngineLinkLbl->setText(fmtCycle(res.link));
+    if (m_blhmEngineUserLbl)     m_blhmEngineUserLbl->setText(fmtCycle(res.user));
+    if (m_blhmEngineCombinedLbl) m_blhmEngineCombinedLbl->setText(
+        QString::number(double(res.combined), 'f', 4));
+    if (m_blhmEngineLatencyLbl)  m_blhmEngineLatencyLbl->setText(
+        QString("%1 ms").arg(res.latency_ms, 0, 'f', 2));
+    if (m_blhmEngineStatusLbl)   m_blhmEngineStatusLbl->setText(
+        QString("Inferenza completata. Attivi factory/link/user: %1/%2/%3")
+            .arg(res.factory.n_active)
+            .arg(res.link.n_active)
+            .arg(res.user.n_active));
+}
+
+/* ── Auto-finetuning Hebbiano: link_w += lr · match ── */
+void RicercaPage::onBlhmEngineAutoftClicked()
+{
+    if (!m_blhmGraph || blhm_graph_count(m_blhmGraph) == 0) {
+        if (m_blhmEngineAutoftOut)
+            m_blhmEngineAutoftOut->setPlainText("Grafo vuoto.");
+        return;
+    }
+
+    const int n = blhm_graph_count(m_blhmGraph);
+    QVector<float> before(n);
+    for (int i = 0; i < n; ++i)
+        before[i] = blhm_graph_get(m_blhmGraph, i)->link_w;
+
+    QStringList qParts;
+    if (m_blhmQuery) {
+        for (const auto& p : m_blhmQuery->text().split(','))
+            if (!p.trimmed().isEmpty()) qParts << p.trimmed();
+    }
+    QVector<int32_t> qPath;
+    for (const auto& part : qParts) {
+        QByteArray ba = part.toUtf8();
+        int id = blhm_label_find(m_blhmGraph, ba.constData());
+        if (id < 0) id = blhm_label_register(m_blhmGraph, ba.constData());
+        qPath.append(int32_t(id));
+    }
+
+    float lr = m_blhmEngineLrSpin ? float(m_blhmEngineLrSpin->value()) : 0.05f;
+    blhm_autoft(m_blhmGraph, qPath.data(), qPath.size(), lr);
+
+    QString out = QString("Autoft  LR=%1  query=[%2]\n\n")
+                      .arg(double(lr), 0, 'f', 3)
+                      .arg(m_blhmQuery ? m_blhmQuery->text() : QString());
+    out += QString("%-32s  before      after       delta\n").arg("Peso");
+    out += QString(66, '-') + "\n";
+
+    for (int i = 0; i < n; ++i) {
+        const BLHMWeight* w = blhm_graph_get(m_blhmGraph, i);
+        float after = w->link_w;
+        float delta = after - before[i];
+
+        QStringList parts;
+        for (int j = 0; j < w->path_len; ++j) {
+            const char* nm = blhm_label_name(m_blhmGraph, w->path[j]);
+            parts << QString(nm ? nm : "?");
+        }
+        QString pathStr = QString("[%1]").arg(parts.join(",")).leftJustified(32, ' ');
+
+        out += QString("%1  %2   %3   %4\n")
+                   .arg(pathStr)
+                   .arg(double(before[i]), 9, 'f', 4)
+                   .arg(double(after),     9, 'f', 4)
+                   .arg(double(delta),     9, 'f', 4);
+    }
+
+    if (m_blhmEngineAutoftOut)
+        m_blhmEngineAutoftOut->setPlainText(out);
+}
+
+/* ── Salva grafo in file .blhm ── */
+void RicercaPage::onBlhmEngineSaveClicked()
+{
+    if (!m_blhmGraph || blhm_graph_count(m_blhmGraph) == 0) {
+        QMessageBox::warning(this, "BLHM Engine",
+            "Grafo vuoto \xe2\x80\x94 importa prima i pesi dal Calcolatore.");
+        return;
+    }
+    QString path = QFileDialog::getSaveFileName(
+        this, "Salva grafo BLHM",
+        P::root() + "/KNOWLEDGE_USER/blhm_graph.blhm",
+        "BLHM Graph (*.blhm);;Tutti i file (*)");
+    if (path.isEmpty()) return;
+
+    if (!blhm_save(m_blhmGraph, path.toUtf8().constData())) {
+        QMessageBox::critical(this, "BLHM Engine",
+            "Errore durante il salvataggio del file .blhm.");
+    } else {
+        if (m_blhmEngineStatusLbl)
+            m_blhmEngineStatusLbl->setText(
+                QString("Grafo salvato \xe2\x86\x92 %1").arg(path));
+    }
+}
+
+/* ── Carica grafo da file .blhm ── */
+void RicercaPage::onBlhmEngineLoadClicked()
+{
+    QString path = QFileDialog::getOpenFileName(
+        this, "Carica grafo BLHM",
+        P::root() + "/KNOWLEDGE_USER",
+        "BLHM Graph (*.blhm);;Tutti i file (*)");
+    if (path.isEmpty()) return;
+
+    BLHMGraph* g = blhm_load(path.toUtf8().constData());
+    if (!g) {
+        QMessageBox::critical(this, "BLHM Engine",
+            "Impossibile leggere il file .blhm (formato non valido o corrotto).");
+        return;
+    }
+    if (m_blhmGraph) blhm_graph_free(m_blhmGraph);
+    m_blhmGraph = g;
+
+    if (m_blhmEngineStatusLbl)
+        m_blhmEngineStatusLbl->setText(
+            QString("Grafo caricato: %1 pesi da \"%2\".")
+                .arg(blhm_graph_count(m_blhmGraph))
+                .arg(QFileInfo(path).fileName()));
+}
+
+/* ─────────────────────────────────────────────────────────────────
    onBlhmDnaAnalyzeClicked (originale invariato dopo questo punto)
    ───────────────────────────────────────────────────────────────── */
 void RicercaPage::onBlhmDnaAnalyzeClicked()
@@ -2732,4 +3183,40 @@ void RicercaPage::onBlhmDnaAnalyzeClicked()
             .arg(r.len)
             .arg(r.snp));
     }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Slot Analisi Fenomeni — gestione file allegati
+   ───────────────────────────────────────────────────────────────── */
+void RicercaPage::onAnalisiAddFilesClicked()
+{
+    const QStringList paths = QFileDialog::getOpenFileNames(
+        this,
+        "Aggiungi file all'analisi",
+        QDir::homePath(),
+        "Documenti (*.pdf *.txt *.md *.csv *.json *.log *.rst *.tex)");
+    if (!m_analisiFileList) return;
+    for (const QString& p : paths) {
+        const QFileInfo fi(p);
+        /* Evita duplicati */
+        bool found = false;
+        for (int i = 0; i < m_analisiFileList->count(); ++i)
+            if (m_analisiFileList->item(i)->data(Qt::UserRole).toString() == p)
+                { found = true; break; }
+        if (found) continue;
+        auto* item = new QListWidgetItem(
+            fi.suffix().toUpper() == "PDF" ? "\xf0\x9f\x93\x84  " : "\xf0\x9f\x93\x9d  " +
+            fi.fileName() + "  (" +
+            QString::number(qRound(fi.size() / 1024.0)) + " KB)");
+        item->setData(Qt::UserRole, p);
+        item->setToolTip(p);
+        m_analisiFileList->addItem(item);
+    }
+}
+
+void RicercaPage::onAnalisiRemoveFileClicked()
+{
+    if (!m_analisiFileList) return;
+    const auto items = m_analisiFileList->selectedItems();
+    for (auto* it : items) delete it;
 }

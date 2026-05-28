@@ -11,6 +11,9 @@
 #include <QJsonArray>
 #include <QMap>
 #include <QButtonGroup>
+// TODO: aggiungere Qt::Sql a CMakeLists.txt (target_link_libraries ... Qt6::Sql)
+#include <QtSql/QSqlDatabase>
+#include <QtSql/QSqlQuery>
 
 #ifdef HAVE_TTS
 #include <QTextToSpeech>
@@ -120,10 +123,14 @@ private slots:
     void onBubbleSpeakClicked(const QString& text);
     void onCloudModeClicked();
     void scrollToBottom();
+    void onClearHistory();
 
 private:
     void appendBubble(const QString& role, const QString& text);
     void appendStreamBlock();
+    void initDb();
+    void saveMessageToDb(const QString& role, const QString& content);
+    void loadHistoryFromDb();
     QString buildSystemPrompt(const QString& userMsg) const;
     static bool isLanHost(const QString& host, int port);
     static QString serverEmoji(const QString& host, int port);
@@ -137,11 +144,12 @@ private:
     ChatBubbleWidget* m_streamBubble  = nullptr;
 
     QLineEdit*   m_input     = nullptr;
-    QPushButton* m_sendBtn   = nullptr;
-    QPushButton* m_stopBtn   = nullptr;
-    QPushButton* m_clearBtn  = nullptr;
-    QPushButton* m_ragBtn    = nullptr;
-    QPushButton* m_modelBtn  = nullptr;
+    QPushButton* m_sendBtn        = nullptr;
+    QPushButton* m_stopBtn        = nullptr;
+    QPushButton* m_clearBtn       = nullptr;
+    QPushButton* m_clearHistoryBtn = nullptr;
+    QPushButton* m_ragBtn         = nullptr;
+    QPushButton* m_modelBtn       = nullptr;
     QPushButton*  m_cloudBtn        = nullptr;
     QPushButton*  m_serverBtn       = nullptr;
     QPushButton*  m_localBtn        = nullptr;

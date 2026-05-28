@@ -25,7 +25,14 @@ import os
 import subprocess
 import threading
 import time
+import logging
 from pathlib import Path
+
+logging.basicConfig(
+    level=getattr(logging, os.environ.get("PRISMALUX_LOG_LEVEL", "WARNING")),
+    format="%(asctime)s [%(name)s] %(levelname)s %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 # ─── Configurazione ───────────────────────────────────────────────────────────
 DEFAULT_MODEL = os.environ.get("OPENCODE_DEFAULT_MODEL", "ollama/qwen3.5:4b")
@@ -134,14 +141,17 @@ def _run_opencode(message: str, working_dir: str, model: str, continue_session: 
         return output or f"[OpenCode completato senza output visibile] (exit {result.returncode})"
 
     except subprocess.TimeoutExpired:
+        logger.error("OpenCode timeout dopo %ss per cmd: %s", RUN_TIMEOUT, cmd)
         return f"[Timeout] OpenCode non ha risposto entro {RUN_TIMEOUT}s. Prova un modello più veloce o riduci il task."
     except FileNotFoundError:
+        logger.error("OpenCode binario non trovato: %s", OPENCODE_BIN)
         return (
             f"[Errore] OpenCode non trovato ({OPENCODE_BIN}). "
             "Installalo con: curl -fsSL https://opencode.ai/install | bash\n"
             "Poi configura la variabile OPENCODE_BIN nel MCP."
         )
     except Exception as e:
+        logger.error("Errore interno opencode: %s", e)
         return f"[Errore interno] {e}"
 
 
@@ -254,6 +264,7 @@ def handle(request: dict):
         try:
             text = handler(tool_args)
         except Exception as e:
+            logger.error("Errore tool '%s': %s", name, e)
             text = f"[Errore strumento] {e}"
         _result(req_id, {
             "content": [{"type": "text", "text": text}],
@@ -278,6 +289,7 @@ def main():
         try:
             request = json.loads(raw_line)
         except json.JSONDecodeError as e:
+            logger.error("JSON parse error: %s", e)
             _send({
                 "jsonrpc": "2.0",
                 "id": None,
@@ -287,6 +299,7 @@ def main():
         try:
             handle(request)
         except Exception as e:
+            logger.error("Errore gestione richiesta: %s", e)
             req_id = request.get("id")
             if req_id is not None:
                 _error(req_id, -32603, f"Internal error: {e}")

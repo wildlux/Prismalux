@@ -82,6 +82,9 @@ public:
     /** Posizione del gizmo assi (2D e 3D). */
     enum AxisPos { AtData = 0, BottomLeft, BottomRight, TopLeft, TopRight };
 
+    /** Stile rendering per superfici 3D (richiede grid topology da setScatter3D). */
+    enum RenderMode3D { Points3D = 0, Wireframe3D, Surface3D };
+
     /** Stile visivo del canvas — colori, font, palette serie. */
     struct ChartStyle {
         QColor  bgColor    = QColor(0x18,0x18,0x18);   ///< sfondo
@@ -125,7 +128,17 @@ public:
     void setData(const QVector<double>& values, const QStringList& labels);
     void setScatter(const QVector<QPointF>& pts);
     void setEdges(const QVector<QPair<QString,QString>>& edges);
-    void setScatter3D(const QVector<Pt3D>& pts);
+    void setScatter3D(const QVector<Pt3D>& pts, int gridCols = 0);
+    void setRenderMode3D(RenderMode3D m) { m_renderMode3D = m; update(); }
+
+    /* accessor per duplicare il canvas in un dialog separato */
+    ChartType            currentType()   const { return m_type; }
+    const QString&       cartFormula()   const { return m_formula; }
+    double               cartXMin()      const { return m_xVMin; }
+    double               cartXMax()      const { return m_xVMax; }
+    const QVector<Pt3D>& pts3d()         const { return m_pts3d; }
+    int                  grid3dCols()    const { return m_grid3dCols; }
+    RenderMode3D         renderMode3D()  const { return m_renderMode3D; }
     void setGraph3D(const QVector<Node3D>& nodes, const QVector<QPair<QString,QString>>& edges);
 
     /**
@@ -175,6 +188,12 @@ public:
 
     void setType(ChartType t);
     void resetView();
+
+    /* Evidenzia la zona di esclusione del dominio per i limiti.
+       xPoint = punto in cui x→a; chiamare clearLimitHighlight() per nascondere. */
+    void setLimitHighlight(double xPoint);
+    void updateLimitValue(double limitVal);   /* aggiorna il valore L dopo il calcolo */
+    void clearLimitHighlight() { m_limitActive = false; update(); }
 
     /* setter per i nuovi tipi di dato */
     void setBoxData    (const QVector<BoxData>&   d) { m_boxData     = d; }
@@ -273,7 +292,9 @@ private:
     ChartStyle m_style;
 
     /* ── tipo corrente ── */
-    ChartType m_type = Cartesian;
+    ChartType    m_type          = Cartesian;
+    RenderMode3D m_renderMode3D  = Points3D;
+    int          m_grid3dCols    = 0;         ///< >0 → i pts3d sono una griglia cols×rows
 
     /* ── cartesiano ── */
     QString          m_formula;
@@ -344,6 +365,12 @@ private:
     /* ── Animazione ── */
     QTimer* m_animTimer = nullptr;
     int     m_animFrame = 0;
+
+    /* ── Evidenziazione zona limite (dominio escluso) ── */
+    bool   m_limitActive  = false;
+    double m_limitX       = 0.0;   /* punto x→a */
+    double m_limitVal     = 0.0;   /* valore L = lim f(x) */
+    bool   m_limitHasVal  = false; /* true dopo updateLimitValue() */
 
     double m_rotY = 0.65;   /* yaw   (radianti) — condiviso da Scatter3D e Graph3D */
     double m_rotX = 0.35;   /* pitch (radianti) */

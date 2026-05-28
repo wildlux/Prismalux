@@ -579,6 +579,13 @@ void MainWindow::onRequestShowInGrafico(const QString& formula, double xMin, dou
 
 // ─── Impostazioni RAG progress ────────────────────────────────────────────
 
+void MainWindow::onAutoRagIndex()
+{
+    ensureSettingsDialog();
+    if (m_impPage)
+        m_impPage->autoIndexIfEmpty();
+}
+
 void MainWindow::onIndexingProgress(int done, int total)
 {
     statusBar()->showMessage(

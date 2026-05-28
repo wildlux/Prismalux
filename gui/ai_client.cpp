@@ -1,6 +1,7 @@
 #include "ai_client.h"
 #include "prismalux_paths.h"
 #include <QNetworkRequest>
+#include <QHttpMultiPart>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -1159,4 +1160,128 @@ void AiClient::onEmbeddingFinished()
     for (const QJsonValue& v : arr)
         vec.append((float)v.toDouble());
     emit embeddingReady(vec);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   transcribeAudio — invia un file audio a un server Whisper HTTP
+   compatibile OpenAI: POST multipart/form-data a
+   /v1/audio/transcriptions (es. faster-whisper-server).
+   Risposta attesa: { "text": "..." }
+   Non interferisce con la chat in corso: usa m_transcriptionReply
+   separato e usa slot nominato onTranscriptionFinished().
+   ══════════════════════════════════════════════════════════════ */
+void AiClient::transcribeAudio(const QString& filePath, const QString& whisperUrl)
+{
+    if (m_transcriptionReply) {
+        emit transcriptionError(
+            "Trascrizione gi\xc3\xa0 in corso. Attendi il completamento.");
+        return;
+    }
+
+    /* ── Apri il file ── */
+    auto* file = new QFile(filePath, this);
+    if (!file->open(QIODevice::ReadOnly)) {
+        file->deleteLater();
+        emit transcriptionError(
+            "Impossibile aprire il file audio: " + filePath);
+        return;
+    }
+
+    /* ── Determina URL: parametro > QSettings > default ── */
+    QString url = whisperUrl.trimmed();
+    if (url.isEmpty()) {
+        QSettings s("Prismalux", "GUI");
+        url = s.value(PrismaluxPaths::SK::kSttHttpUrl, "").toString().trimmed();
+    }
+    if (url.isEmpty())
+        url = QStringLiteral("http://localhost:9000/v1/audio/transcriptions");
+
+    /* ── Determina MIME type dal suffisso ── */
+    const QString ext = QFileInfo(filePath).suffix().toLower();
+    QString mime = "audio/wav";
+    if      (ext == "mp3")  mime = "audio/mpeg";
+    else if (ext == "ogg")  mime = "audio/ogg";
+    else if (ext == "m4a")  mime = "audio/mp4";
+    else if (ext == "flac") mime = "audio/flac";
+    else if (ext == "opus") mime = "audio/ogg";
+
+    /* ── Costruisci multipart/form-data ── */
+    auto* multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType, this);
+
+    /* campo "file" */
+    QHttpPart audioPart;
+    audioPart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant(mime));
+    audioPart.setHeader(
+        QNetworkRequest::ContentDispositionHeader,
+        QVariant(QString("form-data; name=\"file\"; filename=\"%1\"")
+                 .arg(QFileInfo(filePath).fileName())));
+    audioPart.setBodyDevice(file);
+    file->setParent(multiPart);   /* multiPart si occupa della delete */
+    multiPart->append(audioPart);
+
+    /* campo "model" */
+    QHttpPart modelPart;
+    modelPart.setHeader(
+        QNetworkRequest::ContentDispositionHeader,
+        QVariant("form-data; name=\"model\""));
+    modelPart.setBody("whisper-1");
+    multiPart->append(modelPart);
+
+    /* ── Richiesta HTTP ── */
+    QNetworkRequest req{QUrl{url}};
+    req.setTransferTimeout(120'000);   /* 2 minuti — file audio possono essere grandi */
+
+    m_transcriptionReply = m_nam->post(req, multiPart);
+    multiPart->setParent(m_transcriptionReply.data());  /* reply gestisce la delete */
+
+    connect(m_transcriptionReply, &QNetworkReply::finished,
+            this, &AiClient::onTranscriptionFinished);
+}
+
+void AiClient::onTranscriptionFinished()
+{
+    if (!m_transcriptionReply) return;
+    auto* reply = m_transcriptionReply.data();
+    m_transcriptionReply = nullptr;
+    reply->deleteLater();
+
+    if (reply->error() != QNetworkReply::NoError) {
+        emit transcriptionError(
+            "Errore server Whisper: " + reply->errorString());
+        return;
+    }
+
+    const QByteArray body = reply->readAll();
+    const QJsonObject obj = QJsonDocument::fromJson(body).object();
+
+    /* Formato OpenAI-compatible: { "text": "..." } */
+    if (obj.contains("text")) {
+        const QString text = obj["text"].toString().trimmed();
+        if (text.isEmpty()) {
+            emit transcriptionError(
+                "Il server Whisper ha restituito un testo vuoto.\n"
+                "Verifica che il file audio contenga voce udibile.");
+        } else {
+            emit transcriptionReady(text);
+        }
+        return;
+    }
+
+    /* Formato errore: { "error": { "message": "..." } } o { "detail": "..." } */
+    if (obj.contains("error")) {
+        const QJsonValue ev = obj["error"];
+        const QString msg = ev.isObject()
+            ? ev.toObject()["message"].toString()
+            : ev.toString();
+        emit transcriptionError("Errore Whisper: " + msg);
+        return;
+    }
+    if (obj.contains("detail")) {
+        emit transcriptionError("Errore Whisper: " + obj["detail"].toString());
+        return;
+    }
+
+    /* Risposta sconosciuta — mostra raw */
+    emit transcriptionError(
+        "Risposta Whisper non riconosciuta:\n" + body.left(400));
 }

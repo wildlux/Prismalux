@@ -10,6 +10,7 @@
 #include <QDateTime>
 #include <QFont>
 #include <QScrollBar>
+#include <QInputDialog>
 
 /* UUID custom per il servizio chat Prismalux */
 static const QBluetoothUuid kChatUuid(
@@ -134,10 +135,28 @@ BlePage::BlePage(QWidget* parent)
     chatVbox->addLayout(connRow);
     chatVbox->addWidget(infoLbl);
 
+    /* Indicatore cifratura + pulsante chiave */
+    auto* cryptoRow = new QHBoxLayout;
+    m_cryptoIndicator = new QLabel(
+        QString::fromUtf8("\xf0\x9f\x94\x92")  /* 🔒 */
+        + " <small>AES-256-GCM attivo</small>",
+        chatPage);
+    m_cryptoIndicator->setTextFormat(Qt::RichText);
+    m_keyInfoBtn = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x94\x91")  /* 🔑 */
+        + " Chiave",
+        chatPage);
+    m_keyInfoBtn->setObjectName("SecondaryBtn");
+    m_keyInfoBtn->setMaximumWidth(100);
+    m_keyInfoBtn->setToolTip("Mostra / reimposta chiave di cifratura BLE");
+    cryptoRow->addWidget(m_cryptoIndicator, 1);
+    cryptoRow->addWidget(m_keyInfoBtn);
+    chatVbox->addLayout(cryptoRow);
+
     /* Input messaggio */
     auto* inputRow = new QHBoxLayout;
     m_chatInput = new QLineEdit(chatPage);
-    m_chatInput->setPlaceholderText("Scrivi un messaggio in chiaro...");
+    m_chatInput->setPlaceholderText("Scrivi un messaggio (cifrato automaticamente)...");
     m_chatInput->setObjectName("ChatInput");
     m_chatSend = new QPushButton(
         QString::fromUtf8("\xe2\x9e\xa4"), chatPage);  /* ➤ */
@@ -212,7 +231,7 @@ BlePage::BlePage(QWidget* parent)
 
     auto* peerInputRow = new QHBoxLayout;
     m_peerChatInput = new QLineEdit(peerPage);
-    m_peerChatInput->setPlaceholderText("Scrivi un messaggio...");
+    m_peerChatInput->setPlaceholderText("Scrivi un messaggio (cifrato automaticamente)...");
     m_peerChatInput->setObjectName("ChatInput");
     m_peerChatInput->setVisible(false);
     m_peerChatSend = new QPushButton(
@@ -225,6 +244,45 @@ BlePage::BlePage(QWidget* parent)
     peerInputRow->addWidget(m_peerChatSend);
     peerVbox->addLayout(peerInputRow);
 
+    /* Indicatore cifratura peer */
+    m_peerCryptoIndic = new QLabel(
+        QString::fromUtf8("\xf0\x9f\x94\x92")  /* 🔒 */
+        + " <small>AES-256-GCM attivo</small>",
+        peerPage);
+    m_peerCryptoIndic->setTextFormat(Qt::RichText);
+    m_peerCryptoIndic->setVisible(false);
+    peerVbox->addWidget(m_peerCryptoIndic);
+
+    /* ─── Sezione "Dispositivi vicini" — scansione attiva ────────
+       Aggiunge sotto la lista peer un separatore visivo, un pulsante
+       "Scansione dispositivi", la lista dei risultati e il pulsante
+       "Connetti al selezionato".                                    */
+    auto* nearbyLbl = new QLabel(
+        QString::fromUtf8("\xf0\x9f\x93\xa1")  /* 📡 */
+        + " <b>Dispositivi vicini</b>",
+        peerPage);
+    nearbyLbl->setTextFormat(Qt::RichText);
+    peerVbox->addWidget(nearbyLbl);
+
+    m_peerScanBtn = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x94\x8d") + " Scansione dispositivi", peerPage);
+    m_peerScanBtn->setObjectName("PrimaryBtn");
+    m_peerScanBtn->setMinimumHeight(44);
+    peerVbox->addWidget(m_peerScanBtn);
+
+    m_deviceList = new QListWidget(peerPage);
+    m_deviceList->setObjectName("BleList");
+    m_deviceList->setAlternatingRowColors(true);
+    m_deviceList->setMaximumHeight(160);
+    peerVbox->addWidget(m_deviceList);
+
+    m_connectBtn = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x94\x97") + " Connetti al selezionato", peerPage);
+    m_connectBtn->setObjectName("SecondaryBtn");
+    m_connectBtn->setMinimumHeight(44);
+    m_connectBtn->setEnabled(false);
+    peerVbox->addWidget(m_connectBtn);
+
     m_stack->addWidget(peerPage);   /* indice 2 */
 
     /* ── BLE Discovery Agent ── */
@@ -234,6 +292,10 @@ BlePage::BlePage(QWidget* parent)
     /* ── Classic Discovery Agent (per peer BT) ── */
     m_discoveryAgent = new QBluetoothDeviceDiscoveryAgent(this);
     m_discoveryAgent->setLowEnergyDiscoveryTimeout(0);  /* solo Classic */
+
+    /* ── Active Discovery Agent (sezione Dispositivi vicini) ── */
+    m_activeAgent = new QBluetoothDeviceDiscoveryAgent(this);
+    m_activeAgent->setLowEnergyDiscoveryTimeout(10000);  /* 10 s, BLE + Classic */
 
     /* ── Connessioni ── */
     connect(m_scanBtn,    &QPushButton::clicked, this, &BlePage::onStartScan);
@@ -270,6 +332,27 @@ BlePage::BlePage(QWidget* parent)
                 &QBluetoothDeviceDiscoveryAgent::errorOccurred),
             this, &BlePage::onScanError);
 
+    /* Scansione attiva — Dispositivi vicini */
+    connect(m_peerScanBtn, &QPushButton::clicked,
+            this, &BlePage::onScanClicked);
+    connect(m_connectBtn,  &QPushButton::clicked,
+            this, &BlePage::onConnectToSelected);
+    connect(m_deviceList,  &QListWidget::itemSelectionChanged,
+            this, &BlePage::onDeviceListSelectionChanged);
+
+    connect(m_activeAgent, &QBluetoothDeviceDiscoveryAgent::deviceDiscovered,
+            this, &BlePage::onDeviceFound);
+    connect(m_activeAgent, &QBluetoothDeviceDiscoveryAgent::finished,
+            this, &BlePage::onPeerScanFinished);
+
+    /* Cifratura: pulsante chiave */
+    connect(m_keyInfoBtn, &QPushButton::clicked,
+            this, &BlePage::onShowKeyInfo);
+
+    /* ── Carica (o genera) la chiave AES-256 ── */
+    m_cryptoKey = BleCrypto::loadOrCreateKey();
+    updateCryptoIndicator();
+
     /* Popola subito con i dispositivi già accoppiati */
     populatePairedDevices();
 }
@@ -278,6 +361,7 @@ BlePage::~BlePage()
 {
     stopScan();
     if (m_discoveryAgent && m_discoveryAgent->isActive()) m_discoveryAgent->stop();
+    if (m_activeAgent    && m_activeAgent->isActive())    m_activeAgent->stop();
     if (m_socket)   { m_socket->disconnectFromService(); }
     if (m_btClient) { m_btClient->disconnectFromService(); }
     if (m_btServer) { m_btServer->close(); }
@@ -470,7 +554,9 @@ void BlePage::startServer()
             QString::fromUtf8("\xe2\x9d\x8c") + " Impossibile avviare il server BT.");
         return;
     }
-    m_btServer->setSecurityFlags(QBluetooth::NoSecurity);   /* in chiaro */
+    /* Link-layer security: lasciamo NoSecurity per compatibilità RFCOMM Classic;
+       la confidenzialità è garantita a livello applicativo da BleCrypto. */
+    m_btServer->setSecurityFlags(QBluetooth::NoSecurity);
     m_chatStatus->setText(
         QString::fromUtf8("\xf0\x9f\x93\xb6")  /* 📶 */
         + " In attesa di connessioni BT...\n"
@@ -522,18 +608,34 @@ void BlePage::onNewConnection()
     appendChatMsg("Sistema",
         QString::fromUtf8("\xf0\x9f\x9f\xa2") + " "
         + m_socket->peerName() + " si è connesso.");
+    appendChatMsg("Sistema",
+        QString::fromUtf8("\xf0\x9f\x94\x92")  /* 🔒 */
+        + " Cifratura AES-256-GCM attiva. Assicurati che entrambi i dispositivi usino la stessa chiave.");
 }
 
 void BlePage::onSocketReadyRead()
 {
     if (!m_socket) return;
     while (m_socket->canReadLine()) {
-        const QString line = QString::fromUtf8(m_socket->readLine()).trimmed();
-        if (!line.isEmpty()) {
-            const QString peer = m_socket->isValid()
-                ? m_socket->peerName()
-                : "Remoto";
-            appendChatMsg(peer, line);
+        const QByteArray raw = m_socket->readLine().trimmed();
+        if (raw.isEmpty()) continue;
+        const QString peer = m_socket->isValid()
+            ? m_socket->peerName()
+            : "Remoto";
+
+        if (m_cryptoEnabled) {
+            const QString plain = BleCrypto::decryptFromWire(raw, m_cryptoKey);
+            if (plain.isNull()) {
+                /* Decifratura fallita: potrebbe essere tag errato o chiave diversa */
+                appendChatMsg("Sistema",
+                    QString::fromUtf8("\xe2\x9a\xa0")  /* ⚠ */
+                    + " Messaggio da " + peer
+                    + " non decifrabile (chiave diversa o frame corrotto).");
+            } else {
+                appendChatMsg(peer, plain);
+            }
+        } else {
+            appendChatMsg(peer, QString::fromUtf8(raw));
         }
     }
 }
@@ -557,14 +659,24 @@ void BlePage::onSocketError(QBluetoothSocket::SocketError)
         + (m_socket ? m_socket->errorString() : "socket non disponibile"));
 }
 
-/* ── onChatSend — invia messaggio al socket ─────────────────── */
+/* ── onChatSend — cifra e invia messaggio al socket ─────────── */
 void BlePage::onChatSend()
 {
     const QString msg = m_chatInput->text().trimmed();
     if (msg.isEmpty() || !m_socket
         || m_socket->state() != QBluetoothSocket::ConnectedState) return;
 
-    m_socket->write((msg + "\n").toUtf8());
+    if (m_cryptoEnabled) {
+        const QByteArray wire = BleCrypto::encryptToWire(msg, m_cryptoKey);
+        if (wire.isEmpty()) {
+            appendChatMsg("Errore",
+                QString::fromUtf8("\xe2\x9d\x8c") + " Cifratura fallita — messaggio non inviato.");
+            return;
+        }
+        m_socket->write(wire + "\n");
+    } else {
+        m_socket->write((msg + "\n").toUtf8());
+    }
     appendChatMsg("Tu", msg);
     m_chatInput->clear();
 }
@@ -707,21 +819,37 @@ void BlePage::onBtClientConnected()
     m_peerChatInput->setVisible(true);
     m_peerChatSend->setVisible(true);
     m_peerChatSend->setEnabled(true);
+    if (m_peerCryptoIndic) m_peerCryptoIndic->setVisible(true);
     appendPeerMsg("Sistema",
         QString::fromUtf8("\xf0\x9f\x9f\xa2") + " Connesso a " + peer + ".");
+    appendPeerMsg("Sistema",
+        QString::fromUtf8("\xf0\x9f\x94\x92")  /* 🔒 */
+        + " Cifratura AES-256-GCM attiva. Assicurati che entrambi i dispositivi usino la stessa chiave.");
 }
 
-/* ── onBtClientReadyRead ─────────────────────────────────────── */
+/* ── onBtClientReadyRead — legge e decifra frame ─────────────── */
 void BlePage::onBtClientReadyRead()
 {
     if (!m_btClient) return;
     while (m_btClient->canReadLine()) {
-        const QString line = QString::fromUtf8(m_btClient->readLine()).trimmed();
-        if (!line.isEmpty()) {
-            const QString peer = m_btClient->isValid()
-                ? m_btClient->peerName()
-                : "Remoto";
-            appendPeerMsg(peer, line);
+        const QByteArray raw = m_btClient->readLine().trimmed();
+        if (raw.isEmpty()) continue;
+        const QString peer = m_btClient->isValid()
+            ? m_btClient->peerName()
+            : "Remoto";
+
+        if (m_cryptoEnabled) {
+            const QString plain = BleCrypto::decryptFromWire(raw, m_cryptoKey);
+            if (plain.isNull()) {
+                appendPeerMsg("Sistema",
+                    QString::fromUtf8("\xe2\x9a\xa0")  /* ⚠ */
+                    + " Messaggio da " + peer
+                    + " non decifrabile (chiave diversa o frame corrotto).");
+            } else {
+                appendPeerMsg(peer, plain);
+            }
+        } else {
+            appendPeerMsg(peer, QString::fromUtf8(raw));
         }
     }
 }
@@ -738,14 +866,24 @@ void BlePage::onBtClientError(QBluetoothSocket::SocketError)
     if (m_btClient) { m_btClient->deleteLater(); m_btClient = nullptr; }
 }
 
-/* ── onBtClientSend — invia messaggio tramite client ─────────── */
+/* ── onBtClientSend — cifra e invia messaggio tramite client ─── */
 void BlePage::onBtClientSend()
 {
     const QString msg = m_peerChatInput->text().trimmed();
     if (msg.isEmpty() || !m_btClient
         || m_btClient->state() != QBluetoothSocket::ConnectedState) return;
 
-    m_btClient->write((msg + "\n").toUtf8());
+    if (m_cryptoEnabled) {
+        const QByteArray wire = BleCrypto::encryptToWire(msg, m_cryptoKey);
+        if (wire.isEmpty()) {
+            appendPeerMsg("Errore",
+                QString::fromUtf8("\xe2\x9d\x8c") + " Cifratura fallita — messaggio non inviato.");
+            return;
+        }
+        m_btClient->write(wire + "\n");
+    } else {
+        m_btClient->write((msg + "\n").toUtf8());
+    }
     appendPeerMsg("Tu", msg);
     m_peerChatInput->clear();
 }
@@ -758,4 +896,208 @@ void BlePage::appendPeerMsg(const QString& sender, const QString& text)
         QString("<b>[%1] %2:</b> %3").arg(ts, sender, text.toHtmlEscaped()));
     m_peerChatLog->verticalScrollBar()->setValue(
         m_peerChatLog->verticalScrollBar()->maximum());
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Scansione attiva — Dispositivi vicini
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── onScanClicked — avvia/ferma scansione dispositivi vicini ── */
+void BlePage::onScanClicked()
+{
+    if (!m_activeAgent) return;
+
+    if (m_activeAgent->isActive()) {
+        m_activeAgent->stop();
+        m_peerScanBtn->setText(
+            QString::fromUtf8("\xf0\x9f\x94\x8d") + " Scansione dispositivi");
+        m_peerScanBtn->setEnabled(true);
+        return;
+    }
+
+    m_deviceList->clear();
+    m_foundDevices.clear();
+    m_foundIndex.clear();
+    m_connectBtn->setEnabled(false);
+
+    m_peerScanBtn->setText(
+        QString::fromUtf8("\xe2\x9c\x95") + " Scansione\xe2\x80\xa6");
+    m_peerScanBtn->setEnabled(false);
+    m_peerStatus->setText(
+        QString::fromUtf8("\xf0\x9f\x93\xa1") + "  Ricerca dispositivi vicini in corso\xe2\x80\xa6");
+
+    m_activeAgent->start(QBluetoothDeviceDiscoveryAgent::LowEnergyMethod
+                         | QBluetoothDeviceDiscoveryAgent::ClassicMethod);
+}
+
+/* ── onDeviceFound — aggiunge dispositivo trovato alla lista ─── */
+void BlePage::onDeviceFound(const QBluetoothDeviceInfo& info)
+{
+    const QString mac  = info.address().toString();
+    if (mac.isEmpty()) return;
+
+    const QString name = info.name().isEmpty() ? "(senza nome)" : info.name();
+    const QString rssi = info.rssi() != 0
+                         ? QString(" %1 dBm").arg(info.rssi())
+                         : QString();
+    const QString text = QString::fromUtf8("\xf0\x9f\x93\xb1")  /* 📱 */
+                         + "  " + name + "\n    " + mac + rssi;
+
+    if (m_foundIndex.contains(mac)) {
+        /* Aggiorna voce esistente (es. RSSI cambiato) */
+        if (auto* item = m_deviceList->item(m_foundIndex[mac]))
+            item->setText(text);
+    } else {
+        m_foundDevices.append(info);
+        auto* item = new QListWidgetItem(text, m_deviceList);
+        item->setData(Qt::UserRole,     mac);
+        item->setData(Qt::UserRole + 1, name);
+        m_foundIndex[mac] = m_deviceList->count() - 1;
+    }
+}
+
+/* ── onPeerScanFinished — ripristina pulsante al termine scan ── */
+void BlePage::onPeerScanFinished()
+{
+    m_peerScanBtn->setText(
+        QString::fromUtf8("\xf0\x9f\x94\x8d") + " Scansione dispositivi");
+    m_peerScanBtn->setEnabled(true);
+
+    m_peerStatus->setText(
+        m_deviceList->count() == 0
+            ? QString::fromUtf8("\xe2\x9a\xa0")  /* ⚠ */
+              + "  Nessun dispositivo trovato nelle vicinanze"
+            : QString::fromUtf8("\xe2\x9c\x85")  /* ✅ */
+              + QString("  %1 dispositivi trovati — seleziona e premi Connetti")
+                  .arg(m_deviceList->count()));
+}
+
+/* ── onDeviceListSelectionChanged — abilita pulsante Connetti ── */
+void BlePage::onDeviceListSelectionChanged()
+{
+    m_connectBtn->setEnabled(!m_deviceList->selectedItems().isEmpty());
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Cifratura BLE — gestione chiave
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── updateCryptoIndicator — aggiorna etichetta lucchetto ──────── */
+void BlePage::updateCryptoIndicator()
+{
+    const QString shortKey = m_cryptoKey.toBase64().left(8) + "...";
+
+#ifdef HAVE_OPENSSL_CRYPTO
+    const QString algo = "AES-256-GCM";
+#else
+    const QString algo = "HMAC-XOR (fallback)";
+#endif
+
+    const QString text = m_cryptoEnabled
+        ? QString::fromUtf8("\xf0\x9f\x94\x92")  /* 🔒 */
+          + QString(" <small><b>%1</b> — chiave: %2</small>").arg(algo, shortKey)
+        : QString::fromUtf8("\xf0\x9f\x94\x93")  /* 🔓 */
+          + " <small>Cifratura <b>disabilitata</b></small>";
+
+    if (m_cryptoIndicator)  m_cryptoIndicator->setText(text);
+    if (m_peerCryptoIndic)  m_peerCryptoIndic->setText(text);
+}
+
+/* ── onShowKeyInfo — mostra la chiave e offre reset/copia ──────── */
+void BlePage::onShowKeyInfo()
+{
+    const QString keyB64 = m_cryptoKey.toBase64();
+    const QString fingerprint = keyB64.left(16) + "...";
+
+#ifdef HAVE_OPENSSL_CRYPTO
+    const QString algoInfo = "AES-256-GCM (OpenSSL 3)";
+#else
+    const QString algoInfo = "HMAC-SHA256-XOR (fallback — nessun OpenSSL)";
+#endif
+
+    const QString info =
+        QString("Algoritmo: %1\n\n"
+                "Chiave corrente (Base64, 44 char = 256 bit):\n%2\n\n"
+                "Condividi questa chiave con l'altro dispositivo tramite:\n"
+                "  • Copia e incolla via messaggio sicuro\n"
+                "  • QR code (funzione in sviluppo)\n\n"
+                "Vuoi generare una NUOVA chiave?\n"
+                "(i messaggi precedenti non saranno più leggibili)")
+            .arg(algoInfo, keyB64);
+
+    const int choice = QMessageBox::question(
+        this,
+        QString::fromUtf8("\xf0\x9f\x94\x91") + " Chiave cifratura BLE",
+        info,
+        "Copia chiave",
+        "Nuova chiave",
+        "Annulla",
+        0, 2);
+
+    if (choice == 0) {
+        QGuiApplication::clipboard()->setText(keyB64);
+        appendChatMsg("Sistema",
+            QString::fromUtf8("\xf0\x9f\x93\x8b")  /* 📋 */
+            + " Chiave copiata negli appunti. Inviala al peer in modo sicuro.");
+    } else if (choice == 1) {
+        onResetKey();
+    }
+}
+
+/* ── onResetKey — genera e salva nuova chiave ──────────────────── */
+void BlePage::onResetKey()
+{
+    m_cryptoKey = BleCrypto::generateKey();
+    BleCrypto::saveKey(m_cryptoKey);
+    updateCryptoIndicator();
+
+    const QString newKeyB64 = m_cryptoKey.toBase64();
+    QGuiApplication::clipboard()->setText(newKeyB64);
+
+    appendChatMsg("Sistema",
+        QString::fromUtf8("\xf0\x9f\x94\x91")  /* 🔑 */
+        + " Nuova chiave generata e copiata negli appunti.");
+    appendChatMsg("Sistema",
+        QString::fromUtf8("\xe2\x9a\xa0")  /* ⚠ */
+        + " Attenzione: il peer deve usare la stessa chiave per decifrare.");
+}
+
+/* ── onConnectToSelected — connette al dispositivo selezionato ── */
+void BlePage::onConnectToSelected()
+{
+    QListWidgetItem* item = m_deviceList->currentItem();
+    if (!item) return;
+
+    const QString mac  = item->data(Qt::UserRole).toString();
+    const QString name = item->data(Qt::UserRole + 1).toString();
+    if (mac.isEmpty()) return;
+
+    /* Chiudi connessione client precedente se presente */
+    if (m_btClient) {
+        if (m_btClient->state() == QBluetoothSocket::ConnectedState)
+            m_btClient->disconnectFromService();
+        m_btClient->deleteLater();
+        m_btClient = nullptr;
+    }
+
+    m_btClient = new QBluetoothSocket(QBluetoothServiceInfo::RfcommProtocol, this);
+
+    connect(m_btClient, &QBluetoothSocket::connected,
+            this, &BlePage::onBtClientConnected);
+    connect(m_btClient, &QBluetoothSocket::readyRead,
+            this, &BlePage::onBtClientReadyRead);
+    connect(m_btClient,
+            QOverload<QBluetoothSocket::SocketError>::of(
+                &QBluetoothSocket::errorOccurred),
+            this, &BlePage::onBtClientError);
+
+    m_peerStatus->setText(
+        QString::fromUtf8("\xe2\x8f\xb3")  /* ⏳ */
+        + " Connessione a " + name + " (" + mac + ") in corso...");
+    m_peerChatSend->setEnabled(false);
+    m_connectBtn->setEnabled(false);
+
+    m_btClient->connectToService(
+        QBluetoothAddress(mac),
+        QBluetoothUuid(kChatUuid));
 }

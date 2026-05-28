@@ -18,6 +18,7 @@ namespace P = PrismaluxPaths;
 #include <QPushButton>
 #include <QProcess>
 #include <QTemporaryFile>
+#include <QRegularExpression>
 #include <QFile>
 #include <QFileInfo>
 #include <QTimer>
@@ -386,6 +387,40 @@ void AgentiPage::refreshHistoryList()
     m_historyList->blockSignals(false);
 }
 
+/* Inietta il link "↩ Rifai" nelle bolle utente che ne sono prive.
+   Le chat salvate prima dell'introduzione del retry button non lo contengono.
+   Opera sull'HTML Qt: cerca href="copy:N:B64" e inserisce href="retry:N:B64" prima,
+   ma solo per gli indici N dove retry non è già presente. */
+static QString injectMissingRetryLinks(const QString& html)
+{
+    static const QRegularExpression reCopy(
+        R"((<a\s[^>]*href=\")copy:(\d+):([^\"]+)(\"[^>]*>))");
+
+    QString result = html;
+    QRegularExpressionMatchIterator it = reCopy.globalMatch(html);
+
+    QVector<QRegularExpressionMatch> matches;
+    while (it.hasNext()) matches.append(it.next());
+
+    /* Processa al contrario per non invalidare le posizioni successive */
+    for (int i = matches.size() - 1; i >= 0; --i) {
+        const auto& m = matches.at(i);
+        const QString idx = m.captured(2);
+        const QString b64 = m.captured(3);
+        if (html.contains(QString("retry:%1:").arg(idx)))
+            continue;
+        const QString retryLink =
+            QString("<a href=\"retry:%1:%2\" "
+                    "style=\"color:#1d4ed8;font-size:12px;"
+                    "text-decoration:none;border:1px solid #93c5fd;"
+                    "padding:2px 10px;background:#dbeafe;\">"
+                    "&#8629; Rifai</a> &nbsp; ")
+            .arg(idx, b64);
+        result.insert(m.capturedStart(), retryLink);
+    }
+    return result;
+}
+
 void AgentiPage::onHistoryItemClicked(int row)
 {
     if (row < 0 || row >= m_historyIds.size()) return;
@@ -393,8 +428,9 @@ void AgentiPage::onHistoryItemClicked(int row)
     const QString html = m_chatHistory.loadLog(id);
     if (html.isEmpty()) return;
 
-    /* Carica la sessione selezionata nel log */
-    m_log->setHtml(html);
+    /* Carica la sessione selezionata nel log, iniettando il retry link
+       nelle bolle utente che non lo avevano (chat salvate in precedenza) */
+    m_log->setHtml(injectMissingRetryLinks(html));
     m_log->moveCursor(QTextCursor::End);
 
     /* Marca la sessione corrente così i prossimi salvataggi aggiornano quella esistente */

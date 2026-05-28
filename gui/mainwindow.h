@@ -387,6 +387,7 @@ private slots:
     /* ── Impostazioni RAG progress ──────────────────────────────── */
     void onIndexingProgress(int done, int total);
     void onIndexingFinished(int n, bool aborted);
+    void onAutoRagIndex();    ///< Auto-indicizza RAG all'avvio se vuoto
 
     /* ── Agenti → grafico ───────────────────────────────────────── */
     void onRequestShowInGrafico(const QString& formula, double xMin, double xMax,

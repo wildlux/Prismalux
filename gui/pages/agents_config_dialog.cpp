@@ -681,6 +681,11 @@ AgentsConfigDialog::AgentsConfigDialog(QWidget* parent)
     setupUI();
 }
 
+void AgentsConfigDialog::showEvent(QShowEvent* e) {
+    QDialog::showEvent(e);
+    if (m_roleCombo[0]) m_roleCombo[0]->setFocus();
+}
+
 void AgentsConfigDialog::setupUI() {
     setWindowTitle("\xe2\x9a\x99\xef\xb8\x8f  Configurazione Agenti — Prismalux");
     setMinimumSize(920, 480);

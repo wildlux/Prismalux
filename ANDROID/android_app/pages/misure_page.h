@@ -119,14 +119,38 @@ private:
 };
 
 /* --------------------------------------------------------------
+   PiantinaCanvas — anteprima 2D proporzionale della stanza.
+
+   Disegna un rettangolo proporzionale a larghezza × lunghezza,
+   con frecce di quota sulle pareti e riepilogo m²/m in cima.
+   Si aggiorna via setDimensions() a ogni cambio degli spin box.
+   -------------------------------------------------------------- */
+class PiantinaCanvas : public QWidget {
+    Q_OBJECT
+public:
+    explicit PiantinaCanvas(QWidget* parent = nullptr);
+    void setDimensions(double larg, double lung);
+    QSize sizeHint()        const override { return QSize(320, 240); }
+    QSize minimumSizeHint() const override { return QSize(200, 160); }
+
+protected:
+    void paintEvent(QPaintEvent* e) override;
+
+private:
+    double m_larg = 4.0;   ///< larghezza (asse X)
+    double m_lung = 5.0;   ///< lunghezza / profondità (asse Y)
+};
+
+/* --------------------------------------------------------------
    MisurePage -- Calcolatrice stanza + vista 3D + AI + piantina.
 
-   Quattro sezioni:
+   Cinque sezioni:
    1. Calcolatore manuale: lunghezza × larghezza × altezza
       → area pavimento, pareti, volume, vernice, piastrelle.
-   2. Vista 3D isometrica: aggiornata automaticamente al calcolo.
-   3. AI Analisi: invio testo descrittivo all'AI per stime.
-   4. Piantina: drag-to-draw rettangoli con misure e export PNG.
+   2. Anteprima 2D: PiantinaCanvas aggiornata in tempo reale.
+   3. Vista 3D isometrica: aggiornata automaticamente al calcolo.
+   4. AI Analisi: invio testo descrittivo all'AI per stime.
+   5. Piantina: drag-to-draw rettangoli con misure e export PNG.
    -------------------------------------------------------------- */
 class MisurePage : public QWidget {
     Q_OBJECT
@@ -135,6 +159,7 @@ public:
 
 private slots:
     void onCalcolaClicked();
+    void onDimensioniChanged(double v);
     void onAiClicked();
     void onToken(const QString& t);
     void onFinished(const QString& f);
@@ -163,6 +188,9 @@ private:
     QDoubleSpinBox* m_altSpin    = nullptr;
     QDoubleSpinBox* m_sovrasSpin = nullptr;
     QLabel*         m_resultLbl  = nullptr;
+
+    /* Anteprima 2D live */
+    PiantinaCanvas* m_canvas2d   = nullptr;
 
     /* Vista 3D */
     RoomVisualWidget* m_roomView = nullptr;

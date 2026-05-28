@@ -23,8 +23,12 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFile>
+#include <QDir>
 #include <QStandardPaths>
 #include <QGroupBox>
+#include <QDateTime>
+#include <QtSql/QSqlDatabase>
+#include <QtSql/QSqlQuery>
 
 /* ══════════════════════════════════════════════════════════════
    ChatBubbleWidget — bolla singola messaggio
@@ -251,14 +255,19 @@ ChatPage::ChatPage(AiClient* ai, RagEngineSimple* rag, QWidget* parent)
     m_modelBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_modelBtn->setMinimumHeight(40);
 
-    m_stopBtn  = new QPushButton("\xe2\x9c\x95  Stop", this);   // ✕
-    m_clearBtn = new QPushButton("\xf0\x9f\x97\x91", this);     // 🗑
+    m_stopBtn         = new QPushButton("\xe2\x9c\x95  Stop", this);   // ✕
+    m_clearBtn        = new QPushButton("\xf0\x9f\x97\x91", this);     // 🗑
+    m_clearHistoryBtn = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x97\x83"), this);                  // 🗃 Cancella cronologia DB
     m_stopBtn->setEnabled(false);
     m_stopBtn->setObjectName("StopBtn");
     m_clearBtn->setObjectName("IconBtn");
+    m_clearHistoryBtn->setObjectName("IconBtn");
+    m_clearHistoryBtn->setToolTip("Cancella cronologia chat dal database");
     header->addWidget(m_modelBtn, 1);
     header->addWidget(m_stopBtn);
     header->addWidget(m_clearBtn);
+    header->addWidget(m_clearHistoryBtn);
 
     /* ── Selettore backend: Cloud ☁️ | Server 🌐 | Locale 📱 ── */
     m_cloudBtn  = new QPushButton(
@@ -388,9 +397,10 @@ ChatPage::ChatPage(AiClient* ai, RagEngineSimple* rag, QWidget* parent)
     vbox->addLayout(inputRow);
 
     /* ── Connessioni ── */
-    connect(m_sendBtn,  &QPushButton::clicked,  this, &ChatPage::onSend);
-    connect(m_stopBtn,  &QPushButton::clicked,  this, &ChatPage::onStop);
-    connect(m_clearBtn, &QPushButton::clicked,  this, &ChatPage::onClear);
+    connect(m_sendBtn,         &QPushButton::clicked,  this, &ChatPage::onSend);
+    connect(m_stopBtn,         &QPushButton::clicked,  this, &ChatPage::onStop);
+    connect(m_clearBtn,        &QPushButton::clicked,  this, &ChatPage::onClear);
+    connect(m_clearHistoryBtn, &QPushButton::clicked,  this, &ChatPage::onClearHistory);
     connect(m_modelBtn, &QPushButton::clicked,  this, &ChatPage::onModelBtnClicked);
     connect(m_ragBtn,   &QPushButton::clicked,  this, &ChatPage::onAttachClicked);
     connect(m_input,    &QLineEdit::returnPressed, this, &ChatPage::onSend);
@@ -413,6 +423,10 @@ ChatPage::ChatPage(AiClient* ai, RagEngineSimple* rag, QWidget* parent)
 
     /* Popola la lista modelli all'avvio (asincrono, non blocca la UI) */
     QTimer::singleShot(800, this, &ChatPage::fetchModels);
+
+    /* Inizializza SQLite e carica la cronologia persistente */
+    initDb();
+    loadHistoryFromDb();
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -512,6 +526,9 @@ void ChatPage::onFinished(const QString& full)
         m_history.append(a);
         while (m_history.size() > kMaxHistoryTurns * 2)
             m_history.removeAt(0);
+        /* Persiste entrambi i messaggi su SQLite */
+        saveMessageToDb("user",      m_lastUserMsg);
+        saveMessageToDb("assistant", full);
         /* Mostra azioni inline nella bolla corrente */
         if (m_streamBubble) m_streamBubble->showActions();
     }
@@ -884,6 +901,93 @@ void ChatPage::scrollToBottom()
 {
     QScrollBar* sb = m_scrollArea->verticalScrollBar();
     sb->setValue(sb->maximum());
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SQLite — cronologia persistente
+   ══════════════════════════════════════════════════════════════ */
+
+/* initDb — crea/apre il database e la tabella messages */
+void ChatPage::initDb()
+{
+    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", "chat_db");
+    const QString dir = QStandardPaths::writableLocation(
+                            QStandardPaths::AppDataLocation);
+    QDir().mkpath(dir);   // crea la cartella se non esiste
+    db.setDatabaseName(dir + "/chat_history.db");
+    if (!db.open()) return;
+    QSqlQuery q(db);
+    q.exec("CREATE TABLE IF NOT EXISTS messages ("
+           "id        INTEGER PRIMARY KEY AUTOINCREMENT,"
+           "role      TEXT    NOT NULL,"
+           "content   TEXT    NOT NULL,"
+           "timestamp INTEGER NOT NULL)");
+}
+
+/* saveMessageToDb — inserisce un singolo messaggio */
+void ChatPage::saveMessageToDb(const QString& role, const QString& content)
+{
+    QSqlDatabase db = QSqlDatabase::database("chat_db");
+    if (!db.isOpen()) return;
+    QSqlQuery q(db);
+    q.prepare("INSERT INTO messages (role, content, timestamp) VALUES (?, ?, ?)");
+    q.addBindValue(role);
+    q.addBindValue(content);
+    q.addBindValue(QDateTime::currentSecsSinceEpoch());
+    q.exec();
+}
+
+/* loadHistoryFromDb — carica gli ultimi 50 messaggi e li mostra come bolle */
+void ChatPage::loadHistoryFromDb()
+{
+    QSqlDatabase db = QSqlDatabase::database("chat_db");
+    if (!db.isOpen()) return;
+    QSqlQuery q(db);
+    /* Recupera gli ultimi 50 messaggi in ordine cronologico */
+    q.exec("SELECT role, content FROM ("
+           "  SELECT role, content, timestamp FROM messages"
+           "  ORDER BY id DESC LIMIT 50"
+           ") ORDER BY timestamp ASC");
+    while (q.next()) {
+        const QString role    = q.value(0).toString();
+        const QString content = q.value(1).toString();
+        /* Mostra come bolle nella UI */
+        if (role == "user" || role == "assistant") {
+            const QString uiRole = (role == "assistant") ? "ai" : "user";
+            appendBubble(uiRole, content);
+        }
+        /* Ricostruisce anche m_history in-memory (finestra scorrevole) */
+        if (role == "user" || role == "assistant") {
+            QJsonObject obj;
+            obj["role"]    = role;
+            obj["content"] = content;
+            m_history.append(obj);
+        }
+    }
+    /* Tronca m_history alla finestra massima */
+    while (m_history.size() > kMaxHistoryTurns * 2)
+        m_history.removeAt(0);
+    /* Nota informativa se c'era cronologia */
+    if (m_history.size() > 0)
+        appendBubble("system",
+            QString::fromUtf8("\xf0\x9f\x97\x83")  /* 🗃 */
+            + "  Cronologia ripristinata dal database.");
+}
+
+/* onClearHistory — cancella la cronologia dal DB e dalla UI */
+void ChatPage::onClearHistory()
+{
+    /* Svuota la tabella SQLite */
+    QSqlDatabase db = QSqlDatabase::database("chat_db");
+    if (db.isOpen()) {
+        QSqlQuery q(db);
+        q.exec("DELETE FROM messages");
+    }
+    /* Svuota anche la UI e la history in-memory (riusa onClear) */
+    onClear();
+    appendBubble("system",
+        QString::fromUtf8("\xf0\x9f\x97\x83")  /* 🗃 */
+        + "  Cronologia cancellata dal database.");
 }
 
 /* ── onCloudModeClicked — attiva Cloud con le impostazioni salvate ── */

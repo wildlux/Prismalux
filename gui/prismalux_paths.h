@@ -49,6 +49,9 @@ constexpr int kLlamaServerPort = 8081;
 /** Porta default opencode serve quando avviato dalla GUI */
 constexpr int kOpenCodePort = 8092;
 
+/** Porta default WAN Calcolo Distribuito (server compute node) */
+constexpr int kWanComputePort = 11600;
+
 /** Host loopback — unico valore accettato per sicurezza */
 constexpr const char* kLocalHost = "127.0.0.1";
 
@@ -460,6 +463,57 @@ inline QString prependKnowledge(const QString& systemPrompt)
            + systemPrompt;
 }
 
+/** mathKnowledgePath() — Percorso cache conoscenza matematica (estratta da RAG/Matematica.pdf). */
+inline QString mathKnowledgePath()
+{
+    return root() + "/KNOWLEDGE_USER/math_knowledge.md";
+}
+
+/* Stato cache per readMathKnowledge() */
+namespace detail {
+inline qint64& mathKnCacheMs() { static qint64 v = 0; return v; }
+inline QString& mathKnCache()  { static QString v;    return v; }
+}
+
+/**
+ * readMathKnowledge() — Legge la conoscenza matematica locale con cache 60s.
+ * Restituisce stringa vuota se il file non esiste (estrazione OCR non ancora completata).
+ */
+inline QString readMathKnowledge()
+{
+    constexpr qint64 kTtlMs = 60'000;
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (!detail::mathKnCache().isNull() &&
+        (now - detail::mathKnCacheMs()) < kTtlMs)
+        return detail::mathKnCache();
+    const QString path = mathKnowledgePath();
+    if (!QFile::exists(path)) {
+        detail::mathKnCache()   = QString("");
+        detail::mathKnCacheMs() = now;
+        return detail::mathKnCache();
+    }
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return {};
+    detail::mathKnCache()   = QString::fromUtf8(f.readAll());
+    detail::mathKnCacheMs() = now;
+    return detail::mathKnCache();
+}
+
+/**
+ * prependMathKnowledge(systemPrompt) — Prepende la conoscenza matematica locale al prompt.
+ * Se math_knowledge.md è vuoto (OCR non ancora completato), restituisce il prompt invariato.
+ * Limita a 12000 caratteri (~3000 token) per non saturare il contesto.
+ */
+inline QString prependMathKnowledge(const QString& systemPrompt)
+{
+    const QString know = readMathKnowledge();
+    if (know.trimmed().isEmpty()) return systemPrompt;
+    return "# Manuale di Matematica (riferimento locale — estratto da PDF)\n"
+           + know.left(12000)
+           + "\n\n---\n\n"
+           + systemPrompt;
+}
+
 /**
  * repolish(widget) — Forza il ricalcolo dello stile Qt su un widget.
  *
@@ -706,6 +760,7 @@ constexpr const char* kRagEmbedModel   = "rag/embedModel";   ///< modello Ollama
 
 /* ── STT / TTS ───────────────────────────────────── */
 constexpr const char* kSttModelPath    = "stt/model_path";
+constexpr const char* kSttHttpUrl      = "stt/http_url";   ///< URL server Whisper HTTP (es. http://localhost:9000/v1/audio/transcriptions)
 
 /* ── AI — modello/backend preferiti dall'utente ──── */
 constexpr const char* kActiveModel     = "ai/activeModel";    ///< ultimo modello selezionato manualmente

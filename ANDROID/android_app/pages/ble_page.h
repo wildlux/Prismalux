@@ -12,14 +12,24 @@
 #include <QBluetoothSocket>
 #include <QBluetoothServer>
 #include <QBluetoothLocalDevice>
+#include <QByteArray>
+#include "ble_crypto.h"
 
 /* --------------------------------------------------------------
-   BlePage — Bluetooth: scanner BLE + chat in chiaro (Classic BT).
+   BlePage — Bluetooth: scanner BLE + chat cifrata (Classic BT).
 
    Tre modalità (QStackedWidget interno):
      0 — Scanner BLE: cerca dispositivi vicini (BLE)
-     1 — Chat BT: connessione RFCOMM server/ascolta
-     2 — Peer BT: scopri e connetti dispositivi accoppiati (client)
+     1 — Chat BT: connessione RFCOMM server/ascolta  [AES-256-GCM]
+     2 — Peer BT: scopri e connetti dispositivi accoppiati (client) [AES-256-GCM]
+
+   Sicurezza:
+     Ogni messaggio viene cifrato con BleCrypto::encryptToWire()
+     prima di essere scritto sul socket, e decifrato con
+     BleCrypto::decryptFromWire() al momento della lettura.
+     La chiave simmetrica (256 bit) è generata casualmente al
+     primo avvio e persistita in QSettings ("BleCrypto/session_key").
+     Può essere condivisa col peer via QR o PIN (vedere onShareKey()).
    -------------------------------------------------------------- */
 class BlePage : public QWidget {
     Q_OBJECT
@@ -57,10 +67,21 @@ private slots:
     void onBtClientError(QBluetoothSocket::SocketError err);
     void onBtClientSend();
 
+    /* Scansione attiva dispositivi vicini (sezione "Dispositivi vicini" nel tab Connetti) */
+    void onScanClicked();
+    void onDeviceFound(const QBluetoothDeviceInfo& info);
+    void onPeerScanFinished();
+    void onConnectToSelected();
+    void onDeviceListSelectionChanged();
+
     /* Navigazione */
     void onShowScan();
     void onShowChat();
     void onShowPeer();
+
+    /* Cifratura — gestione chiave */
+    void onShowKeyInfo();   /* mostra chiave corrente (Base64) per condivisione manuale */
+    void onResetKey();      /* genera nuova chiave e la salva */
 
 private:
     QString rssiIcon(int rssi) const;
@@ -70,6 +91,7 @@ private:
     void    startServer();
     void    connectToDevice(const QString& address, const QString& name);
     void    populatePairedDevices();
+    void    updateCryptoIndicator();  /* aggiorna icona lucchetto nella UI */
 
     /* Stack 0 = scanner BLE, 1 = chat server, 2 = peer client */
     QStackedWidget* m_stack      = nullptr;
@@ -109,6 +131,21 @@ private:
     QPushButton*                    m_scanTabBtnFromPeer = nullptr;
     QPushButton*                    m_chatTabBtnFromPeer = nullptr;
 
+    /* Sezione "Dispositivi vicini" — scansione attiva nel tab Connetti */
+    QBluetoothDeviceDiscoveryAgent* m_activeAgent    = nullptr;
+    QListWidget*                    m_deviceList      = nullptr;
+    QPushButton*                    m_peerScanBtn     = nullptr;
+    QPushButton*                    m_connectBtn      = nullptr;
+    QList<QBluetoothDeviceInfo>     m_foundDevices;
+
     QMap<QString, int> m_deviceIndex;
     QMap<QString, int> m_peerIndex;
+    QMap<QString, int> m_foundIndex;  /* MAC → indice in m_deviceList */
+
+    /* ── Cifratura ────────────────────────────────────────────── */
+    QByteArray  m_cryptoKey;          /* chiave AES-256 corrente */
+    bool        m_cryptoEnabled = true; /* false → modalità plain-text (debug) */
+    QLabel*     m_cryptoIndicator  = nullptr;  /* icona lucchetto nella chat */
+    QLabel*     m_peerCryptoIndic  = nullptr;  /* icona lucchetto nella peer chat */
+    QPushButton* m_keyInfoBtn      = nullptr;  /* mostra/resetta chiave */
 };

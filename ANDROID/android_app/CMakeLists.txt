@@ -165,6 +165,19 @@ if(Qt6Bluetooth_FOUND)
     list(APPEND SRCS pages/ble_page.cpp)
 endif()
 
+# ── Form factor ───────────────────────────────────────────────────────────
+# Imposta PRISMALUX_FORM_FACTOR_TABLET=ON nella riga cmake per build tablet:
+#   cmake .. -DPRISMALUX_FORM_FACTOR_TABLET=ON
+# Default: smartphone.
+option(PRISMALUX_FORM_FACTOR_TABLET "Build per tablet (NavRail + split-panel)" OFF)
+if(PRISMALUX_FORM_FACTOR_TABLET)
+    add_compile_definitions(PRISMALUX_FORM_FACTOR_TABLET)
+    message(STATUS "  Form factor: TABLET (NavRail + split-panel)")
+else()
+    add_compile_definitions(PRISMALUX_FORM_FACTOR_SMARTPHONE)
+    message(STATUS "  Form factor: SMARTPHONE (hamburger drawer)")
+endif()
+
 # ── Target ────────────────────────────────────────────────────────────────
 qt_add_executable(PrismaluxMobile ${SRCS})
 
@@ -182,11 +195,30 @@ endif()
 
 # ── Proprietà Android ─────────────────────────────────────────────────────
 if(ANDROID)
-    # ── OpenSSL per Android (richiesto da QNetworkAccessManager) ──
+    # ── OpenSSL per Android (rete HTTPS + cifratura BLE AES-256-GCM) ──
     if(NOT ANDROID_OPENSSL_DIR)
         set(ANDROID_OPENSSL_DIR "$ENV{HOME}/Android/android_openssl-master/ssl_3/${ANDROID_ABI}")
     endif()
+
+    set(_OPENSSL_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/../../../Android/android_openssl-master/ssl_3/include")
+    if(NOT EXISTS "${_OPENSSL_INCLUDE}/openssl/evp.h")
+        # tenta percorso assoluto derivato da ANDROID_OPENSSL_DIR
+        get_filename_component(_OPENSSL_INCLUDE "${ANDROID_OPENSSL_DIR}/../include" ABSOLUTE)
+    endif()
+
     if(EXISTS "${ANDROID_OPENSSL_DIR}/libssl_3.so")
+        # Link statico libcrypto per cifratura AES-256-GCM nei payload BLE
+        set(_OPENSSL_CRYPTO_STATIC "${ANDROID_OPENSSL_DIR}/libcrypto.a")
+        if(NOT EXISTS "${_OPENSSL_CRYPTO_STATIC}")
+            set(_OPENSSL_CRYPTO_STATIC "${ANDROID_OPENSSL_DIR}/libcrypto_3.so")
+        endif()
+        target_link_libraries(PrismaluxMobile PRIVATE "${_OPENSSL_CRYPTO_STATIC}")
+        if(EXISTS "${_OPENSSL_INCLUDE}/openssl/evp.h")
+            target_include_directories(PrismaluxMobile PRIVATE "${_OPENSSL_INCLUDE}")
+        endif()
+        target_compile_definitions(PrismaluxMobile PRIVATE HAVE_OPENSSL_CRYPTO)
+        message(STATUS "  OpenSSL ARM64: ${ANDROID_OPENSSL_DIR} (BLE crypto: AES-256-GCM)")
+
         set_target_properties(PrismaluxMobile PROPERTIES
             QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_SOURCE_DIR}/android"
             QT_ANDROID_MIN_SDK_VERSION    26
@@ -196,8 +228,8 @@ if(ANDROID)
             QT_ANDROID_EXTRA_LIBS
                 "${ANDROID_OPENSSL_DIR}/libssl_3.so;${ANDROID_OPENSSL_DIR}/libcrypto_3.so"
         )
-        message(STATUS "  OpenSSL ARM64: ${ANDROID_OPENSSL_DIR}")
     else()
+        message(WARNING "  OpenSSL non trovato in ${ANDROID_OPENSSL_DIR} — BLE usa fallback HMAC-XOR")
         set_target_properties(PrismaluxMobile PROPERTIES
             QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_SOURCE_DIR}/android"
             QT_ANDROID_MIN_SDK_VERSION    26
@@ -205,7 +237,18 @@ if(ANDROID)
             QT_ANDROID_VERSION_CODE       1
             QT_ANDROID_VERSION_NAME       "1.0"
         )
-        message(WARNING "  OpenSSL non trovato in ${ANDROID_OPENSSL_DIR} — rete HTTPS non disponibile")
+    endif()
+endif()
+
+# ── OpenSSL desktop (facoltativo: cifratura BLE anche in debug desktop) ──
+if(NOT ANDROID)
+    find_package(OpenSSL QUIET)
+    if(OpenSSL_FOUND)
+        target_link_libraries(PrismaluxMobile PRIVATE OpenSSL::Crypto)
+        target_compile_definitions(PrismaluxMobile PRIVATE HAVE_OPENSSL_CRYPTO)
+        message(STATUS "  OpenSSL desktop: trovato (BLE crypto: AES-256-GCM)")
+    else()
+        message(STATUS "  OpenSSL desktop: non trovato (BLE usa fallback HMAC-XOR)")
     endif()
 endif()
 

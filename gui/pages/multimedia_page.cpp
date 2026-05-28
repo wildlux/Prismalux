@@ -2,6 +2,7 @@
 #include "stable_diffusion_widget.h"
 #include "../prismalux_paths.h"
 #include "../widgets/stt_whisper.h"
+#include <QSettings>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QTabWidget>
@@ -380,10 +381,30 @@ void MultimediaPage::onTranscribeBtnClicked()
             "\xe2\x9d\x8c  Carica prima un file audio.");
         return;
     }
+
+    /* ── Preferenza: server Whisper HTTP configurato ── */
+    QSettings s("Prismalux", "GUI");
+    const QString httpUrl = s.value(P::SK::kSttHttpUrl, "").toString().trimmed();
+    if (!httpUrl.isEmpty()) {
+        m_audioTranscript->setPlainText("\xe2\x8c\x9b  Invio al server Whisper HTTP...");
+        QObject::disconnect(m_transcriptionReadyConn);
+        QObject::disconnect(m_transcriptionErrorConn);
+        m_transcriptionReadyConn = connect(
+            m_ai, &AiClient::transcriptionReady,
+            this, &MultimediaPage::onHttpTranscriptionReady);
+        m_transcriptionErrorConn = connect(
+            m_ai, &AiClient::transcriptionError,
+            this, &MultimediaPage::onHttpTranscriptionError);
+        m_ai->transcribeAudio(m_audioFilePath, httpUrl);
+        return;
+    }
+
+    /* ── Fallback: whisper-cli locale ── */
     if (!SttWhisper::isAvailable()) {
         m_audioTranscript->setPlainText(
             "\xe2\x9a\xa0  whisper-cli o modello non trovati.\n"
-            "Configurali in Impostazioni \xe2\x86\x92 Trascrivi.");
+            "Configurali in Impostazioni \xe2\x86\x92 Trascrivi.\n"
+            "Oppure imposta un server Whisper HTTP in Impostazioni \xe2\x86\x92 Trascrivi.");
         return;
     }
     m_audioTranscript->setPlainText("\xe2\x8c\x9b  Trascrizione in corso...");
@@ -400,6 +421,24 @@ void MultimediaPage::onTranscribeBtnClicked()
         m_ffmpegProc->start("ffmpeg", {"-y", "-i", m_audioFilePath,
             "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", m_ffmpegWavTmp});
     }
+}
+
+void MultimediaPage::onHttpTranscriptionReady(const QString& text)
+{
+    QObject::disconnect(m_transcriptionReadyConn);
+    QObject::disconnect(m_transcriptionErrorConn);
+    m_transcriptionReadyConn = m_transcriptionErrorConn = {};
+    m_audioTranscript->setPlainText(text);
+}
+
+void MultimediaPage::onHttpTranscriptionError(const QString& msg)
+{
+    QObject::disconnect(m_transcriptionReadyConn);
+    QObject::disconnect(m_transcriptionErrorConn);
+    m_transcriptionReadyConn = m_transcriptionErrorConn = {};
+    m_audioTranscript->setPlainText(
+        "\xe2\x9d\x8c  Errore trascrizione HTTP:\n" + msg);
+    m_audioErr->showError(msg);
 }
 
 void MultimediaPage::onFfmpegFinished(int code, QProcess::ExitStatus)

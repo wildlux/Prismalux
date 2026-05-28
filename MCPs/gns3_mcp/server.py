@@ -18,8 +18,16 @@ import sqlite3
 import time
 import urllib.request
 import urllib.error
+import logging
+import os
 from pathlib import Path
 from typing import Any
+
+logging.basicConfig(
+    level=getattr(logging, os.environ.get("PRISMALUX_LOG_LEVEL", "WARNING")),
+    format="%(asctime)s [%(name)s] %(levelname)s %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 GNS3_BASE  = "http://localhost:3080/v2"
 _CACHE_DIR = Path.home() / ".prismalux"
@@ -100,8 +108,10 @@ def _gns(method: str, path: str, data: Any = None) -> tuple[Any, str | None]:
         with urllib.request.urlopen(req, timeout=10) as r:
             return json.loads(r.read() or b"{}"), None
     except urllib.error.HTTPError as e:
+        logger.error("GNS3 HTTP error %s %s: %s", method, path, e.code)
         return None, f"HTTP {e.code}: {e.read().decode()[:300]}"
     except Exception as e:
+        logger.error("GNS3 request error %s %s: %s", method, path, e)
         return None, f"{e}\nAssicurati che GNS3 server sia in esecuzione (porta 3080)."
 
 
@@ -546,6 +556,7 @@ def handle(req: dict) -> None:
         try:
             text = h(args)
         except Exception as e:
+            logger.error("Errore tool '%s': %s", name, e)
             text = f"[Errore] {e}"
         _result(rid, {
             "content": [{"type": "text", "text": text}],
@@ -563,12 +574,14 @@ def main() -> None:
         try:
             req = json.loads(line)
         except json.JSONDecodeError as e:
+            logger.error("JSON parse error: %s", e)
             _send({"jsonrpc": "2.0", "id": None,
                    "error": {"code": -32700, "message": str(e)}})
             continue
         try:
             handle(req)
         except Exception as e:
+            logger.error("Errore gestione richiesta: %s", e)
             if req.get("id"):
                 _error(req["id"], -32603, str(e))
 

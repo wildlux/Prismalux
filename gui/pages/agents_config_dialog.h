@@ -18,6 +18,7 @@
 
 #include <QDialog>
 #include <QFrame>
+#include <QShowEvent>
 class AiClient;
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -130,6 +131,9 @@ public:
 
     /** Contesto RAG condiviso da tutti gli agenti */
     RagDropWidget* sharedRagWidget() { return m_sharedRag; }
+
+protected:
+    void showEvent(QShowEvent* e) override;
 
 private:
     QSpinBox*      m_spinShots              = nullptr;

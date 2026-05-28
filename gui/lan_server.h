@@ -28,6 +28,19 @@ public:
     /** Imposta il token Bearer (generato dalla UI se vuoto). Auth sempre richiesta se non vuoto. */
     void setAccessToken(const QString& token) { m_accessToken = token; }
 
+    /**
+     * saveLanToken() / loadLanToken() — persistenza sicura del token LAN.
+     *
+     * Con HAVE_QKEYCHAIN: usa il keyring di sistema (Secret Service / macOS Keychain /
+     * Windows Credential Manager) tramite QKeychain::WritePasswordJob / ReadPasswordJob.
+     * Senza HAVE_QKEYCHAIN: fallback a ~/.prismalux/lan_token.key con permessi 0600.
+     *
+     * Chiamate da LanWanPage (e dall'onboarding) per centralizzare la logica di
+     * persistenza senza duplicare la logica keychain in più file.
+     */
+    static void    saveLanToken(const QString& token);
+    static QString loadLanToken();
+
     /** Sempre false: il server usa HTTP semplice con Bearer token. */
     bool isTlsEnabled() const { return false; }
 

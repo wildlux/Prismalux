@@ -1,6 +1,8 @@
 #pragma once
 #include <QWidget>
 #include <QDialog>
+#include <QFutureWatcher>
+#include <QPair>
 #include <QAbstractButton>
 #include <QListWidgetItem>
 #include <QProcess>
@@ -8,6 +10,12 @@
 #include "../hardware_monitor.h"
 #include "../monitor_panel.h"
 #include "../rag_engine.h"
+#ifdef HAVE_QT_MULTIMEDIA
+#  include <QAudioSource>
+#  include <QAudioFormat>
+#  include <QAudioDevice>
+#  include <QMediaDevices>
+#endif
 
 class PersonalizzaPage;
 class ManutenzioneePage;
@@ -22,6 +30,7 @@ class QCheckBox;
 class QLineEdit;
 class QSpinBox;
 class QDoubleSpinBox;
+class QProgressBar;
 class QComboBox;
 class QButtonGroup;
 class QTextEdit;
@@ -55,6 +64,13 @@ public:
 
     /** Espone ManutenzioneePage per permettere a StrumentiPage di usare buildCronTab(). */
     ManutenzioneePage* manutenzione() { return m_manutenzione; }
+
+    /** Tipo risultato estrazione testo (chunk, sorgenti) — pubblico per il thread worker. */
+    using RagExtractResult = QPair<QStringList, QStringList>;
+
+    /** Avvia l'indicizzazione RAG se l'indice è vuoto e la cartella default ha file.
+     *  Pensato per essere chiamato una volta all'avvio (es. via QTimer::singleShot). */
+    void autoIndexIfEmpty();
 
 signals:
     /** Emesso quando l'utente cambia la modalità etichette tab (in tempo reale). */
@@ -162,6 +178,8 @@ private:
     void applySelectedModel();
     /* helper RAG: aggiorna label stato */
     void refreshRagStatus();
+    /* helper RAG: avvia la fase di embedding (chiamata dopo l'estrazione testo) */
+    void startEmbeddingPhase(const QString& dir);
 
     PersonalizzaPage*  m_personalizza  = nullptr;
     ManutenzioneePage* m_manutenzione  = nullptr;
@@ -173,6 +191,7 @@ private:
     AiClient*          m_ai            = nullptr;
 
     /* RAG indexing state (usato da buildRagTab) */
+    QFutureWatcher<RagExtractResult>* m_extractWatcher = nullptr;
     RagEngine       m_rag;
     QStringList     m_ragQueue;           ///< chunk da indicizzare
     QStringList     m_ragQueueSource;     ///< nome file sorgente per ogni chunk (parallelo a m_ragQueue)
@@ -265,4 +284,18 @@ private:
     QString         m_pendingNavTabMode;
     QString         m_pendingNavStyle;
     QString         m_pendingExecBtnMode;
+
+    /* ── Livello microfono reale (buildTrascriviTab) ── */
+#ifdef HAVE_QT_MULTIMEDIA
+    QAudioSource*   m_micSource  = nullptr;   ///< sorgente audio QAudioSource
+    QIODevice*      m_micDevice  = nullptr;   ///< device I/O aperto da m_micSource->start()
+#endif
+    QProgressBar*   m_micLevelBar = nullptr;  ///< barra livello 0–100
+    QPushButton*    m_micToggleBtn = nullptr; ///< Start/Stop monitoraggio
+
+private slots:
+    /** Legge i campioni audio e aggiorna m_micLevelBar con il valore RMS 0-100. */
+    void onMicAudioData();
+    /** Avvia o ferma il monitoraggio livello microfono. */
+    void onMicToggleBtnClicked();
 };

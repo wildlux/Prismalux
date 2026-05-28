@@ -123,6 +123,18 @@ public:
      */
     void fetchEmbedding(const QString& text);
 
+    /**
+     * transcribeAudio — invia un file audio a un server Whisper compatibile OpenAI
+     * via POST multipart/form-data a /v1/audio/transcriptions.
+     * @param filePath   Percorso locale del file audio (WAV/MP3/OGG/M4A/FLAC)
+     * @param whisperUrl URL completo del server (es. "http://localhost:9000/v1/audio/transcriptions").
+     *                   Se vuoto, legge stt/http_url da QSettings;
+     *                   se ancora vuoto usa http://localhost:9000/v1/audio/transcriptions.
+     * Non bloccante: emette transcriptionReady(text) o transcriptionError(msg) al termine.
+     * Usa un QNetworkReply separato: non interferisce con la chat in corso.
+     */
+    void transcribeAudio(const QString& filePath, const QString& whisperUrl = QString());
+
     /** Chiamato da MainWindow::onHWUpdated ogni 2s per aggiornare il dato RAM. */
     void   setRamFreePct(double pct) { m_ramFreePct = pct; }
     double ramFreePct()        const { return m_ramFreePct; }
@@ -178,6 +190,11 @@ signals:
     /** Emesso in caso di errore durante fetchEmbedding(). */
     void embeddingError(const QString& msg);
 
+    /** Emesso quando transcribeAudio() ha ottenuto il testo trascritto dal server Whisper. */
+    void transcriptionReady(const QString& text);
+    /** Emesso in caso di errore durante transcribeAudio(). */
+    void transcriptionError(const QString& msg);
+
     /**
      * requestStarted — emesso all'inizio di chat(), prima che parta la richiesta.
      * Usato dal MonitorPanel per misurare TTFT e durata totale.
@@ -198,6 +215,7 @@ private slots:
     void onLocalFinished(int exitCode, QProcess::ExitStatus);
     void onFetchLayersFinished();
     void onEmbeddingFinished();
+    void onTranscriptionFinished();
 
 private:
     bool isThinkCapable() const;
@@ -289,4 +307,7 @@ private:
     /* fetchEmbedding — reply salvato per lo slot nominato */
     QPointer<QNetworkReply>    m_embeddingReply;
     Backend                    m_embeddingBackend = Ollama;
+
+    /* transcribeAudio — reply e multipart salvati per lo slot nominato */
+    QPointer<QNetworkReply>    m_transcriptionReply;
 };

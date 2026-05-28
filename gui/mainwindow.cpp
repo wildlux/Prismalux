@@ -35,6 +35,7 @@
 #include <QButtonGroup>
 #include <QCheckBox>
 #include "prismalux_paths.h"
+#include "dpi_utils.h"
 #include "chat_history.h"
 #include "widgets/spinner_widget.h"
 #include <QShortcut>
@@ -234,18 +235,18 @@ ResourceGauge::ResourceGauge(const QString& label, QWidget* parent)
 
     m_lbl = new QLabel(label, this);
     m_lbl->setObjectName("gaugeLabel");
-    m_lbl->setFixedWidth(34);
+    m_lbl->setFixedWidth(dpiScale(34));
 
     m_bar = new QProgressBar(this);
     m_bar->setObjectName("resBar");
     m_bar->setRange(0,100);
     m_bar->setValue(0);
     m_bar->setTextVisible(false);
-    m_bar->setFixedSize(70, 8);
+    m_bar->setFixedSize(dpiScale(70), dpiScale(8));
 
     m_pct = new QLabel("  0.0%", this);
     m_pct->setObjectName("gaugePct");
-    m_pct->setFixedWidth(42);
+    m_pct->setFixedWidth(dpiScale(42));
 
     lay->addWidget(m_lbl);
     lay->addWidget(m_bar);
@@ -273,8 +274,8 @@ MainWindow::MainWindow(QWidget* parent)
 {
     setWindowTitle("🍺 Prismalux v2.1 — Centro di Controllo");
     setWindowIcon(QIcon(P::root() + "/ICONA/prismalux.png"));
-    setMinimumSize(1060, 680);
-    resize(1200, 760);
+    setMinimumSize(dpiScale(1060), dpiScale(680));
+    resize(dpiScale(1200), dpiScale(760));
 
     setupServices();
     setupLayout();
@@ -324,8 +325,8 @@ void MainWindow::setupStatusBar()
     m_statusProgress = new QProgressBar(this);
     m_statusProgress->setRange(0, 100);
     m_statusProgress->setValue(0);
-    m_statusProgress->setFixedWidth(220);
-    m_statusProgress->setFixedHeight(14);
+    m_statusProgress->setFixedWidth(dpiScale(220));
+    m_statusProgress->setFixedHeight(dpiScale(14));
     m_statusProgress->setTextVisible(true);
     m_statusProgress->setFormat("");
     m_statusProgress->setObjectName("statusProgress");
@@ -341,22 +342,22 @@ void MainWindow::setupStatusBar()
 
     auto* zoomMinusBtn = new QPushButton("\xe2\x88\x92", zoomBar);  /* − */
     zoomMinusBtn->setObjectName("zoomBtn");
-    zoomMinusBtn->setFixedSize(26, 22);
+    zoomMinusBtn->setFixedSize(dpiSize(26, 22));
     zoomMinusBtn->setToolTip("Riduci testo (minimo 50%)");
 
     m_zoomPctLbl = new QLabel("100%", zoomBar);
     m_zoomPctLbl->setObjectName("zoomBarLabel");
-    m_zoomPctLbl->setFixedWidth(44);
+    m_zoomPctLbl->setFixedWidth(dpiScale(44));
     m_zoomPctLbl->setAlignment(Qt::AlignCenter);
 
     auto* zoomPlusBtn = new QPushButton("+", zoomBar);
     zoomPlusBtn->setObjectName("zoomBtn");
-    zoomPlusBtn->setFixedSize(26, 22);
+    zoomPlusBtn->setFixedSize(dpiSize(26, 22));
     zoomPlusBtn->setToolTip("Aumenta testo (massimo 200%)");
 
     auto* zoomResetBtn = new QPushButton("\xe2\x97\x8f", zoomBar);  /* ● */
     zoomResetBtn->setObjectName("zoomResetBtn");
-    zoomResetBtn->setFixedSize(18, 18);
+    zoomResetBtn->setFixedSize(dpiSize(18, 18));
     zoomResetBtn->setToolTip("Reimposta zoom a 100%");
 
     zoomLay->addWidget(zoomMinusBtn);
@@ -435,6 +436,9 @@ void MainWindow::setupTimers()
 
     /* Auto-setup whisper.cpp in background */
     QTimer::singleShot(1500, this, &MainWindow::onStartWhisperTimer);
+
+    /* Auto-indicizza RAG (incluso Matematica.pdf via OCR) se l'indice è vuoto */
+    QTimer::singleShot(6000, this, &MainWindow::onAutoRagIndex);
 }
 
 /* ── Livello 1: backend Ollama, modelli iniziali, tema ───────────── */
@@ -489,10 +493,10 @@ QWidget* MainWindow::buildHeader()
 {
     auto* hdr = new QWidget(this);
     hdr->setObjectName("header");
-    hdr->setFixedHeight(52);
+    hdr->setFixedHeight(dpiScale(52));
 
     auto* lay = new QHBoxLayout(hdr);
-    lay->setContentsMargins(16, 8, 16, 8);
+    lay->setContentsMargins(dpiScale(16), dpiScale(8), dpiScale(16), dpiScale(8));
     lay->setSpacing(12);
 
     buildHamburgerSection(lay);
@@ -516,35 +520,35 @@ void MainWindow::buildHamburgerSection(QHBoxLayout* lay)
     /* ☰ Mostra/Nascondi sidebar */
     auto* btnHamburger = new QPushButton("\xe2\x98\xb0", hdr);
     btnHamburger->setObjectName("hamburgerBtn");
-    btnHamburger->setFixedSize(36, 36);
+    btnHamburger->setFixedSize(dpiSize(36, 36));
     btnHamburger->setToolTip("Mostra / Nascondi la colonna sinistra");
     connect(btnHamburger, &QPushButton::clicked, this, &MainWindow::onHamburgerClicked);
     lay->addWidget(btnHamburger);
 
     /* 📋 Messaggi — pulsante + badge non-letti sovrapposto */
     auto* logWrap = new QWidget(hdr);
-    logWrap->setFixedSize(46, 36);
+    logWrap->setFixedSize(dpiSize(46, 36));
     m_logBtn = new QPushButton("\xf0\x9f\x93\x8b", logWrap);
     m_logBtn->setObjectName("hamburgerBtn");
-    m_logBtn->setFixedSize(36, 36);
+    m_logBtn->setFixedSize(dpiSize(36, 36));
     m_logBtn->setToolTip("Messaggi \xe2\x80\x94 log eventi, errori AI, backend, pipeline");
     m_logBtn->setAccessibleName("Apri log messaggi");
     m_logBtn->move(0, 0);
     m_logBadge = new QLabel("", logWrap);
     m_logBadge->setAlignment(Qt::AlignCenter);
-    m_logBadge->setFixedSize(16, 16);
+    m_logBadge->setFixedSize(dpiSize(16, 16));
     m_logBadge->setVisible(false);
     m_logBadge->setStyleSheet(
         "background:#e03030; color:#fff; border-radius:8px;"
         "font-size:9px; font-weight:bold;");
-    m_logBadge->move(28, 0);
+    m_logBadge->move(dpiScale(28), 0);
     connect(m_logBtn, &QPushButton::clicked, this, &MainWindow::onLogBtnClicked);
     lay->addWidget(logWrap);
 
     /* ⚙️ Impostazioni */
     m_settingsBtn = new QPushButton("\xe2\x9a\x99\xef\xb8\x8f", hdr);
     m_settingsBtn->setObjectName("hamburgerBtn");
-    m_settingsBtn->setFixedSize(36, 36);
+    m_settingsBtn->setFixedSize(dpiSize(36, 36));
     m_settingsBtn->setToolTip("Impostazioni \xe2\x80\x94 Backend, Hardware, Monitor AI, llama.cpp");
     m_settingsBtn->setAccessibleName("Apri impostazioni");
     connect(m_settingsBtn, &QPushButton::clicked, this, &MainWindow::openSettingsDialog);
@@ -597,14 +601,14 @@ void MainWindow::buildActionButtons(QHBoxLayout* lay)
         "EMERGENZA RAM\n"
         "1. Ferma tutti i modelli Ollama\n"
         "2. Libera cache kernel (richiede password admin)");
-    m_emergencyBtn->setFixedSize(42, 36);
+    m_emergencyBtn->setFixedSize(dpiSize(42, 36));
     connect(m_emergencyBtn, &QPushButton::clicked, this, &MainWindow::onEmergencyRamClicked);
     lay->addWidget(m_emergencyBtn);
 
     /* 🗑 Scarica LLM */
     m_btnUnload = new QPushButton("\xf0\x9f\x97\x91  Scarica LLM", hdr);
     m_btnUnload->setObjectName("unloadBtn");
-    m_btnUnload->setFixedHeight(36);
+    m_btnUnload->setFixedHeight(dpiScale(36));
     m_btnUnload->setToolTip(
         "Scarica il modello dalla RAM (keep_alive=0)\n"
         "Utile quando Ollama tiene il modello caricato\n"
@@ -619,8 +623,8 @@ void MainWindow::buildActionButtons(QHBoxLayout* lay)
     m_btnBackend->setToolTip("Cambia backend AI — un click per passare da Ollama a llama-server e viceversa");
     m_btnBackend->setAccessibleName("Backend AI attivo");
     m_btnBackend->setAccessibleDescription("Seleziona il backend: Ollama o llama-server");
-    m_btnBackend->setFixedHeight(36);
-    m_btnBackend->setMinimumWidth(130);
+    m_btnBackend->setFixedHeight(dpiScale(36));
+    m_btnBackend->setMinimumWidth(dpiScale(130));
     connect(m_btnBackend, &QPushButton::clicked, this, &MainWindow::onBackendBtnClicked);
     m_btnBackend->setParent(this);  /* reparent temporaneo — buildContent lo riposiziona */
 }
@@ -636,7 +640,7 @@ void MainWindow::showServerDialog()
 
     auto* dlg = new QDialog(this);
     dlg->setWindowTitle("\xf0\x9f\xa6\x99\xe2\x98\x81\xef\xb8\x8f  Avvia llama-server");
-    dlg->setFixedWidth(460);
+    dlg->setFixedWidth(dpiScale(460));
     auto* lay = new QVBoxLayout(dlg);
     lay->setSpacing(10);
 
@@ -750,7 +754,7 @@ QWidget* MainWindow::buildServerModelSection(QWidget* parent,
     auto* spPort = new QSpinBox(container);
     spPort->setRange(1024, 65535);
     spPort->setValue(P::kLlamaServerPort);
-    spPort->setFixedWidth(90);
+    spPort->setFixedWidth(dpiScale(90));
     rowPort->addWidget(spPort);
     rowPort->addStretch();
     vlay->addLayout(rowPort);
@@ -904,7 +908,7 @@ static void showMathDownloadDialog(QWidget* parent, const QString& modelsDir) {
 
     auto* dlg = new QDialog(parent);
     dlg->setWindowTitle("📐  Scarica modello matematico da Hugging Face");
-    dlg->setMinimumWidth(620);
+    dlg->setMinimumWidth(dpiScale(620));
     auto* lay = new QVBoxLayout(dlg);
     lay->setSpacing(12);
 
@@ -1152,7 +1156,7 @@ QWidget* MainWindow::buildSidebar() {
     /* ── Pulsante Nuova chat ── */
     auto* newChatBtn = new QPushButton("\xe2\x9c\x8f\xef\xb8\x8f  Nuova chat", bar);
     newChatBtn->setObjectName("actionBtn");
-    newChatBtn->setFixedHeight(30);
+    newChatBtn->setFixedHeight(dpiScale(30));
     newChatBtn->setToolTip("Inizia una nuova conversazione (reset log)");
     connect(newChatBtn, &QPushButton::clicked, this, &MainWindow::onNewChatClicked);
     lay->addWidget(newChatBtn);
@@ -1207,8 +1211,8 @@ QWidget* MainWindow::buildContent()
 
     /* Backend button come corner widget sinistro */
     if (m_btnBackend) {
-        m_btnBackend->setFixedHeight(28);
-        m_btnBackend->setMinimumWidth(110);
+        m_btnBackend->setFixedHeight(dpiScale(28));
+        m_btnBackend->setMinimumWidth(dpiScale(110));
         m_cornerContainer = new QWidget(m_mainTabs);
         auto* cornerLay = new QHBoxLayout(m_cornerContainer);
         cornerLay->setContentsMargins(4, 0, 8, 0);
@@ -1342,7 +1346,7 @@ void MainWindow::buildNavMenuBar(QWidget* wrapper, QVBoxLayout* /*wLay*/)
 {
     m_navMenuBar = new QFrame(wrapper);
     m_navMenuBar->setObjectName("navMenuBar");
-    m_navMenuBar->setFixedHeight(40);
+    m_navMenuBar->setFixedHeight(dpiScale(40));
     m_navMenuBar->hide();
     auto* nmLay = new QHBoxLayout(m_navMenuBar);
     nmLay->setContentsMargins(8, 2, 8, 2);
@@ -1369,7 +1373,7 @@ void MainWindow::buildNavMenuBar(QWidget* wrapper, QVBoxLayout* /*wLay*/)
         auto* backendClone = new QPushButton(m_navMenuBar);
         backendClone->setObjectName("navMenuBackend");
         backendClone->setFlat(true);
-        backendClone->setFixedHeight(30);
+        backendClone->setFixedHeight(dpiScale(30));
         m_navBackendClone = backendClone;
         connect(m_btnBackend,  &QPushButton::clicked, this, &MainWindow::onSyncNavBackendClone);
         onSyncNavBackendClone();
@@ -1406,7 +1410,7 @@ void MainWindow::ensureSettingsDialog()
     /* NO Qt::Window flag — QDialog default flags funzionano correttamente
        su tutte le piattaforme senza scatenare bug Windows API parent-child */
     m_impDlg->setAttribute(Qt::WA_DeleteOnClose, false);
-    m_impDlg->resize(1050, 680);
+    m_impDlg->resize(dpiScale(1050), dpiScale(680));
     m_impPage = new ImpostazioniPage(m_ai, m_hw, m_impDlg);
     m_impPage->setGraficoCanvas(m_grafCanvas);
     /* installCronPanel è chiamata solo da onCronPanelFirstOpen (primo clic su Cron) */
@@ -1450,7 +1454,7 @@ void MainWindow::ensureLogDialog()
     m_logDlg = new QDialog(this);
     m_logDlg->setWindowTitle("\xf0\x9f\x93\x8b  Messaggi \xe2\x80\x94 Prismalux");
     m_logDlg->setAttribute(Qt::WA_DeleteOnClose, false);
-    m_logDlg->resize(700, 460);
+    m_logDlg->resize(dpiScale(700), dpiScale(460));
 
     auto* lay = new QVBoxLayout(m_logDlg);
     lay->setContentsMargins(12, 12, 12, 12);
@@ -1478,12 +1482,12 @@ void MainWindow::ensureLogDialog()
 
     auto* clearBtn = new QPushButton("\xf0\x9f\x97\x91  Pulisci log", btnRow);
     clearBtn->setObjectName("actionBtn");
-    clearBtn->setFixedHeight(32);
+    clearBtn->setFixedHeight(dpiScale(32));
     connect(clearBtn, &QPushButton::clicked, this, &MainWindow::onClearLogClicked);
 
     auto* closeBtn = new QPushButton("Chiudi", btnRow);
     closeBtn->setObjectName("actionBtn");
-    closeBtn->setFixedHeight(32);
+    closeBtn->setFixedHeight(dpiScale(32));
     connect(closeBtn, &QPushButton::clicked, m_logDlg, &QDialog::hide);
 
     btnLay->addStretch();
@@ -1843,7 +1847,7 @@ void MainWindow::showOnboardingWizard()
 
     auto* dlg = new QDialog(this);
     dlg->setWindowTitle("Benvenuto in Prismalux \xf0\x9f\x8d\xba");
-    dlg->setMinimumWidth(480);
+    dlg->setMinimumWidth(dpiScale(480));
     dlg->setAttribute(Qt::WA_DeleteOnClose);
 
     auto* vlay = new QVBoxLayout(dlg);

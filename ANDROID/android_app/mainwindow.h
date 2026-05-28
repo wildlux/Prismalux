@@ -5,6 +5,9 @@
 #include <QLabel>
 #include <QToolButton>
 #include <QPainter>
+#ifdef PRISMALUX_FORM_FACTOR_TABLET
+#include <QVBoxLayout>
+#endif
 
 /* ── HamburgerButton: disegna 3 linee via QPainter (evita font gap su Android) ── */
 class HamburgerButton : public QToolButton {
@@ -81,11 +84,31 @@ private slots:
     void onToggleDrawer();
     void onDrawerNavClicked();
     void onQuizFullscreen(bool on);
+#ifdef PRISMALUX_FORM_FACTOR_TABLET
+    void onNavTablet_0();
+    void onNavTablet_1();
+    void onNavTablet_2();
+    void onNavTablet_3();
+    void onNavTablet_4();
+    void onNavTablet_5();
+    void onNavTablet_6();
+    void onNavTablet_7();
+    void onNavTablet_8();
+    void onNavTablet_9();
+    void onNavTablet_10();
+    void onNavTablet_11();
+    void onNavTablet_12();
+    void onNavTablet_13();
+    void onNavTablet_14();
+#endif
 
 private:
     void buildHeaderBar();
     void buildDrawer();
     void updateDrawerGeometry();
+#ifdef PRISMALUX_FORM_FACTOR_TABLET
+    void buildNavRail();
+#endif
 
     QStackedWidget* m_stack      = nullptr;
     QWidget*        m_headerBar  = nullptr;
@@ -139,4 +162,9 @@ private:
     int m_idxRicerca         = 12;
     int m_idxMatematica      = 13;
     int m_idxSintetizzatore  = 14;
+
+#ifdef PRISMALUX_FORM_FACTOR_TABLET
+    QWidget*     m_navRail    = nullptr;
+    QVBoxLayout* m_navLayout  = nullptr;
+#endif
 };

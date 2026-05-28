@@ -8,16 +8,19 @@
 #include <QProcess>
 #include <QProgressBar>
 #include <QTableWidget>
+#include <QDoubleSpinBox>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QAbstractSocket>
 #include <QTcpSocket>
 #include <QButtonGroup>
+#include <QListWidget>
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
 #include "../widgets/natal_chart_widget.h"
 #include "../widgets/astro_calc.h"
 #include "../widgets/world_map_widget.h"
+#include "../blhm_engine.h"
 #include "rab0l_canvas.h"
 class QDateEdit;
 class QTimeEdit;
@@ -32,6 +35,7 @@ class RicercaPage : public QWidget {
     Q_OBJECT
 public:
     explicit RicercaPage(AiClient* ai, QWidget* parent = nullptr);
+    ~RicercaPage();
 
 private:
     AiClient*    m_ai;
@@ -154,6 +158,7 @@ private:
     QButtonGroup*   m_analisiCatGroup    = nullptr;
     QTextEdit*      m_analisiEventEdit   = nullptr;
     QTextEdit*      m_analisiSrcEdit     = nullptr;
+    QListWidget*    m_analisiFileList    = nullptr;  ///< file allegati
     QComboBox*      m_analisiModelCombo  = nullptr;
     QTextEdit*      m_analisiOutput      = nullptr;
     QPushButton*    m_analisiRunBtn      = nullptr;
@@ -181,6 +186,17 @@ private:
     QLineEdit*    m_blhmDnaSeq1    = nullptr;
     QLineEdit*    m_blhmDnaSeq2    = nullptr;
     QLabel*       m_blhmDnaSimLbl  = nullptr;
+
+    /* ── BLHM Engine C (thread pool POSIX, ds4 pattern) ── */
+    BLHMGraph*      m_blhmGraph             = nullptr;
+    QLabel*         m_blhmEngineStatusLbl   = nullptr;
+    QLabel*         m_blhmEngineLatencyLbl  = nullptr;
+    QLabel*         m_blhmEngineFactoryLbl  = nullptr;
+    QLabel*         m_blhmEngineLinkLbl     = nullptr;
+    QLabel*         m_blhmEngineUserLbl     = nullptr;
+    QLabel*         m_blhmEngineCombinedLbl = nullptr;
+    QDoubleSpinBox* m_blhmEngineLrSpin      = nullptr;
+    QTextEdit*      m_blhmEngineAutoftOut   = nullptr;
 
     /* ── Cerca Letteratura ── */
     QLineEdit*            m_litQuery      = nullptr;
@@ -262,6 +278,8 @@ private slots:
     void onAnalisiToken(const QString& t);
     void onAnalisiFinished(const QString& full);
     void onAnalisiError(const QString& msg);
+    void onAnalisiAddFilesClicked();
+    void onAnalisiRemoveFileClicked();
     /* Carta Astrale */
     void onAstraleRunClicked();
     void onAstraleStopClicked();
@@ -284,6 +302,12 @@ private slots:
     void onBlhmDeleteRowClicked();
     void onBlhmNotesClearClicked();
     void onBlhmDnaClearClicked();
+    /* BLHM Engine C */
+    void onBlhmEngineSyncFromCalcClicked();
+    void onBlhmEngineRunClicked();
+    void onBlhmEngineAutoftClicked();
+    void onBlhmEngineSaveClicked();
+    void onBlhmEngineLoadClicked();
 
 public:
     static void esportaPdf(QTextEdit* editor,

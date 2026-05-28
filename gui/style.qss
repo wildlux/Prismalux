@@ -1020,3 +1020,51 @@ QLabel#badgeInactive {
     font-weight: bold;
     padding: 1px 4px;
 }
+
+/* ── Barra Ingrandimento (status bar basso destra) ── */
+QWidget#zoomBar {
+    background: transparent;
+}
+QLabel#zoomBarLabel {
+    font-size: 11px;
+    color: #a0a8b8;
+    padding-right: 2px;
+}
+QSlider#zoomSlider {
+    height: 18px;
+}
+QSlider#zoomSlider::groove:horizontal {
+    height: 4px;
+    background: #3a4050;
+    border-radius: 2px;
+}
+QSlider#zoomSlider::sub-page:horizontal {
+    background: #4c9be8;
+    border-radius: 2px;
+}
+QSlider#zoomSlider::add-page:horizontal {
+    background: #3a4050;
+    border-radius: 2px;
+}
+QSlider#zoomSlider::handle:horizontal {
+    width: 14px;
+    height: 14px;
+    margin: -5px 0;
+    background: #e8f0fc;
+    border-radius: 7px;
+    border: 1px solid #4c9be8;
+}
+QSlider#zoomSlider::handle:horizontal:hover {
+    background: #ffffff;
+    border-color: #74b3ff;
+}
+QPushButton#zoomResetBtn {
+    background: transparent;
+    border: none;
+    color: #7888a0;
+    font-size: 14px;
+    padding: 0;
+}
+QPushButton#zoomResetBtn:hover {
+    color: #4c9be8;
+}

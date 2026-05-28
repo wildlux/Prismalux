@@ -29,8 +29,15 @@ import re
 import fcntl
 import tempfile
 import asyncio
+import logging
 from pathlib import Path
 from datetime import datetime
+
+logging.basicConfig(
+    level=getattr(logging, os.environ.get("PRISMALUX_LOG_LEVEL", "WARNING")),
+    format="%(asctime)s [%(name)s] %(levelname)s %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 # ─── Configurazione ───────────────────────────────────────────────────────────
 
@@ -100,7 +107,8 @@ def _write_raw(content: str):
                 fcntl.flock(tmp, fcntl.LOCK_UN)
         os.replace(tmp_path, KNOWLEDGE_FILE)   # atomica su stesso filesystem (POSIX)
         tmp_path = None
-    except Exception:
+    except Exception as e:
+        logger.error("Errore scrittura atomica knowledge file: %s", e)
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
         raise
@@ -527,6 +535,7 @@ def handle(request: dict):
         try:
             text = handler(tool_args)
         except Exception as e:
+            logger.error("Errore tool '%s': %s", name, e)
             text = f"[Errore strumento] {e}"
         _result(req_id, {
             "content": [{"type": "text", "text": text}],
@@ -565,6 +574,7 @@ async def _handle_async(request: dict) -> None:
             # I/O bloccante (fcntl.flock, file read/write) in thread separato
             text = await asyncio.to_thread(handler, tool_args)
         except Exception as e:
+            logger.error("Errore async tool '%s': %s", name, e)
             text = f"[Errore strumento] {e}"
         _result(req_id, {
             "content": [{"type": "text", "text": text}],
@@ -588,12 +598,14 @@ async def _main_async() -> None:
         try:
             request = json.loads(raw_line)
         except json.JSONDecodeError as e:
+            logger.error("JSON parse error: %s", e)
             _send({"jsonrpc": "2.0", "id": None,
                    "error": {"code": -32700, "message": f"Parse error: {e}"}})
             continue
         try:
             await _handle_async(request)
         except Exception as e:
+            logger.error("Errore gestione richiesta: %s", e)
             req_id = request.get("id")
             if req_id is not None:
                 _error(req_id, -32603, f"Internal error: {e}")

@@ -18,6 +18,139 @@
 #include <cmath>
 
 /* ══════════════════════════════════════════════════════════════
+   PiantinaCanvas — anteprima 2D proporzionale della stanza
+   ══════════════════════════════════════════════════════════════ */
+PiantinaCanvas::PiantinaCanvas(QWidget* parent)
+    : QWidget(parent)
+{
+    setObjectName("PiantinaCanvas");
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    setFixedHeight(220);
+}
+
+void PiantinaCanvas::setDimensions(double larg, double lung)
+{
+    m_larg = qMax(0.1, larg);
+    m_lung = qMax(0.1, lung);
+    update();
+}
+
+void PiantinaCanvas::paintEvent(QPaintEvent*)
+{
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing);
+
+    const int W = width();
+    const int H = height();
+
+    /* Sfondo stile blueprint */
+    p.fillRect(rect(), QColor(18, 26, 44));
+
+    /* Griglia di riferimento leggera */
+    QPen gridPen(QColor(40, 60, 100, 100), 1, Qt::DotLine);
+    p.setPen(gridPen);
+    const int step = 30;
+    for (int x = 0; x < W; x += step) p.drawLine(x, 0, x, H);
+    for (int y = 0; y < H; y += step) p.drawLine(0, y, W, y);
+
+    /* Margini per frecce/etichette */
+    const int mx = 52;  /* margine orizz. (per quota larghezza) */
+    const int my = 44;  /* margine vert.  (per quota lunghezza) */
+
+    const double availW = W - mx * 2.0;
+    const double availH = H - my * 2.0;
+
+    /* Calcola scala per mantenere le proporzioni */
+    const double scaleX = availW / m_larg;
+    const double scaleY = availH / m_lung;
+    const double scale  = qMin(scaleX, scaleY);
+
+    const double rW = m_larg * scale;
+    const double rH = m_lung * scale;
+
+    /* Centra il rettangolo nell'area disponibile */
+    const double rx = (W - rW) / 2.0;
+    const double ry = (H - rH) / 2.0;
+
+    const QRectF roomRect(rx, ry, rW, rH);
+
+    /* Riempimento stanza */
+    p.setBrush(QColor(50, 100, 180, 80));
+    p.setPen(QPen(QColor(100, 180, 255), 2.5));
+    p.drawRect(roomRect);
+
+    /* ── Freccia quota larghezza (sopra il rettangolo) ── */
+    const double arrY  = ry - 22.0;
+    const double arrX1 = rx;
+    const double arrX2 = rx + rW;
+
+    QPen arrowPen(QColor(255, 220, 80), 1.5);
+    p.setPen(arrowPen);
+    /* linea orizzontale */
+    p.drawLine(QPointF(arrX1, arrY), QPointF(arrX2, arrY));
+    /* tacche verticali agli estremi */
+    p.drawLine(QPointF(arrX1, arrY - 5), QPointF(arrX1, arrY + 5));
+    p.drawLine(QPointF(arrX2, arrY - 5), QPointF(arrX2, arrY + 5));
+    /* punte freccia */
+    p.drawLine(QPointF(arrX1,     arrY), QPointF(arrX1 + 8, arrY - 4));
+    p.drawLine(QPointF(arrX1,     arrY), QPointF(arrX1 + 8, arrY + 4));
+    p.drawLine(QPointF(arrX2,     arrY), QPointF(arrX2 - 8, arrY - 4));
+    p.drawLine(QPointF(arrX2,     arrY), QPointF(arrX2 - 8, arrY + 4));
+
+    QFont dimF; dimF.setPointSize(9); dimF.setBold(true);
+    p.setFont(dimF);
+    p.setPen(QColor(255, 220, 80));
+    const QString lblLarg = QString("%1 m").arg(m_larg, 0, 'f', 2);
+    p.drawText(QRectF(arrX1, arrY - 18, rW, 16), Qt::AlignCenter, lblLarg);
+
+    /* ── Freccia quota lunghezza (a destra del rettangolo) ── */
+    const double arrX  = rx + rW + 22.0;
+    const double arrY1 = ry;
+    const double arrY2 = ry + rH;
+
+    p.setPen(arrowPen);
+    p.drawLine(QPointF(arrX, arrY1), QPointF(arrX, arrY2));
+    p.drawLine(QPointF(arrX - 5, arrY1), QPointF(arrX + 5, arrY1));
+    p.drawLine(QPointF(arrX - 5, arrY2), QPointF(arrX + 5, arrY2));
+    p.drawLine(QPointF(arrX, arrY1),     QPointF(arrX - 4, arrY1 + 8));
+    p.drawLine(QPointF(arrX, arrY1),     QPointF(arrX + 4, arrY1 + 8));
+    p.drawLine(QPointF(arrX, arrY2),     QPointF(arrX - 4, arrY2 - 8));
+    p.drawLine(QPointF(arrX, arrY2),     QPointF(arrX + 4, arrY2 - 8));
+
+    /* Etichetta lunghezza (ruotata via trasformazione) */
+    p.setPen(QColor(255, 220, 80));
+    const QString lblLung = QString("%1 m").arg(m_lung, 0, 'f', 2);
+    p.save();
+    p.translate(arrX + 16, (arrY1 + arrY2) / 2.0);
+    p.rotate(90.0);
+    p.drawText(QRectF(-rH / 2.0, -16, rH, 16), Qt::AlignCenter, lblLung);
+    p.restore();
+
+    /* ── Etichetta centrale: m² e perimetro ── */
+    const double area  = m_larg * m_lung;
+    const double perim = 2.0 * (m_larg + m_lung);
+    const QString infoText =
+        QString::fromUtf8("%1 m\xc2\xb2")
+            .arg(area, 0, 'f', 2)
+        + QString::fromUtf8("  \xe2\x80\x94  P: %1 m")
+            .arg(perim, 0, 'f', 2);
+
+    /* Sfondo pillola per leggibilità */
+    QFont infoF; infoF.setPointSize(10); infoF.setBold(true);
+    p.setFont(infoF);
+    const QFontMetrics fm(infoF);
+    const int tw = fm.horizontalAdvance(infoText) + 16;
+    const QRectF pillR(roomRect.center().x() - tw / 2.0,
+                       roomRect.center().y() - 14.0,
+                       tw, 26.0);
+    p.setBrush(QColor(15, 30, 70, 200));
+    p.setPen(Qt::NoPen);
+    p.drawRoundedRect(pillR, 8, 8);
+    p.setPen(Qt::white);
+    p.drawText(pillR, Qt::AlignCenter, infoText);
+}
+
+/* ══════════════════════════════════════════════════════════════
    PiantinaWidget — canvas 2D drag-to-draw stanze
    ══════════════════════════════════════════════════════════════ */
 PiantinaWidget::PiantinaWidget(QWidget* parent)
@@ -623,7 +756,30 @@ MisurePage::MisurePage(AiClient* ai, QWidget* parent)
     vbox->addWidget(calcGroup);
 
     /* ─────────────────────────────────────────────────────
-       Sezione 2 — Vista 3D isometrica della stanza
+       Sezione 2 — Anteprima 2D (si aggiorna in tempo reale)
+       ───────────────────────────────────────────────────── */
+    auto* canvas2dGroup = new QGroupBox(
+        QString::fromUtf8("\xf0\x9f\x96\xbc Piantina 2D (anteprima live)"), inner);
+    auto* canvas2dLay = new QVBoxLayout(canvas2dGroup);
+    canvas2dLay->setContentsMargins(4, 4, 4, 4);
+
+    m_canvas2d = new PiantinaCanvas(canvas2dGroup);
+    canvas2dLay->addWidget(m_canvas2d);
+
+    auto* canvas2dHint = new QLabel(
+        QString::fromUtf8(
+            "<small style='color:#8890a8'>"
+            "\xf0\x9f\x94\x84 Si aggiorna automaticamente modificando Larghezza e Lunghezza."
+            "</small>"),
+        canvas2dGroup);
+    canvas2dHint->setTextFormat(Qt::RichText);
+    canvas2dHint->setWordWrap(true);
+    canvas2dLay->addWidget(canvas2dHint);
+
+    vbox->addWidget(canvas2dGroup);
+
+    /* ─────────────────────────────────────────────────────
+       Sezione 3 — Vista 3D isometrica della stanza
        ───────────────────────────────────────────────────── */
     auto* view3dGroup = new QGroupBox(
         QString::fromUtf8("\xf0\x9f\x8f\xa0 Vista 3D (proiezione isometrica)"), inner);
@@ -646,7 +802,7 @@ MisurePage::MisurePage(AiClient* ai, QWidget* parent)
     vbox->addWidget(view3dGroup);
 
     /* ─────────────────────────────────────────────────────
-       Sezione 3 — Analisi AI
+       Sezione 4 — Analisi AI
        ───────────────────────────────────────────────────── */
     auto* aiGroup = new QGroupBox(
         QString::fromUtf8("\xf0\x9f\xa4\x96 Analisi AI"), inner);
@@ -703,7 +859,7 @@ MisurePage::MisurePage(AiClient* ai, QWidget* parent)
     vbox->addWidget(aiGroup);
 
     /* ─────────────────────────────────────────────────────
-       Sezione 4 — Planimetria touch-interattiva
+       Sezione 5 — Planimetria touch-interattiva
        ───────────────────────────────────────────────────── */
     auto* planGroup = new QGroupBox(
         QString::fromUtf8("\xf0\x9f\x96\x8a\xef\xb8\x8f Planimetria Interattiva"), inner);
@@ -757,7 +913,7 @@ MisurePage::MisurePage(AiClient* ai, QWidget* parent)
     vbox->addWidget(planGroup);
 
     /* ─────────────────────────────────────────────────────
-       Sezione 5 — Piantina drag-to-draw
+       Sezione 6 — Piantina drag-to-draw
        ───────────────────────────────────────────────────── */
     auto* piantinaGroup = new QGroupBox(
         QString::fromUtf8("\xf0\x9f\x8f\x97 Piantina (disegna stanze)"), inner);
@@ -827,6 +983,11 @@ MisurePage::MisurePage(AiClient* ai, QWidget* parent)
 
     /* ── Connessioni ── */
     connect(btnCalc,   &QPushButton::clicked, this, &MisurePage::onCalcolaClicked);
+    /* Anteprima 2D live — si aggiorna a ogni modifica di larghezza o lunghezza */
+    connect(m_largSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &MisurePage::onDimensioniChanged);
+    connect(m_lungSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &MisurePage::onDimensioniChanged);
     connect(m_btnAi,   &QPushButton::clicked, this, &MisurePage::onAiClicked);
     connect(m_btnStop, &QPushButton::clicked, m_ai, &AiClient::abort);
     connect(m_ai, &AiClient::token,    this, &MisurePage::onToken);
@@ -853,6 +1014,10 @@ MisurePage::MisurePage(AiClient* ai, QWidget* parent)
             this, &MisurePage::onPiantinaRoomsChanged);
     connect(delRoomBtn, &QPushButton::clicked,
             this, &MisurePage::onPiantinaDeleteRoom);
+
+    /* Inizializza l'anteprima 2D con i valori di default degli spin box */
+    if (m_canvas2d)
+        m_canvas2d->setDimensions(m_largSpin->value(), m_lungSpin->value());
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -861,6 +1026,13 @@ MisurePage::MisurePage(AiClient* ai, QWidget* parent)
 void MisurePage::onCalcolaClicked()
 {
     calcola();
+}
+
+/* ── onDimensioniChanged — aggiorna PiantinaCanvas in tempo reale ── */
+void MisurePage::onDimensioniChanged(double /*v*/)
+{
+    if (!m_canvas2d) return;
+    m_canvas2d->setDimensions(m_largSpin->value(), m_lungSpin->value());
 }
 
 void MisurePage::calcola()

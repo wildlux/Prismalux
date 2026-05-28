@@ -136,8 +136,9 @@ void GraficoCanvas::setEdges(const QVector<QPair<QString,QString>>& e) {
     m_type = Graph; update();
 }
 
-void GraficoCanvas::setScatter3D(const QVector<Pt3D>& pts) {
+void GraficoCanvas::setScatter3D(const QVector<Pt3D>& pts, int gridCols) {
     m_pts3d = pts;
+    m_grid3dCols = gridCols;
     m_rotY = 0.65; m_rotX = 0.35;
     m_zoomNC = 1.0; m_panNC = {};
     m_type = Scatter3D; update();
@@ -272,6 +273,53 @@ void GraficoCanvas::drawCartesian(QPainter& p, const QRectF& a) {
                                        : "Formula non valida o nessun punto");
         return;
     }
+
+    /* ── LAYER 0: banda di esclusione dominio (zona limite) ─────────── */
+    if (m_limitActive) {
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setClipRect(a);
+
+        const double sx = dataToScreen(m_limitX, 0.0, a).x();
+        const double pxPerUnit = (m_xVMax > m_xVMin)
+            ? a.width() / (m_xVMax - m_xVMin) : 1.0;
+        const double bHalf = qMax(8.0, pxPerUnit * 0.4); /* larghezza banda ≈ 0.4 unità */
+
+        /* Gradiente arancio (sinistra, x < a) */
+        QLinearGradient lgL(sx - bHalf, 0, sx, 0);
+        lgL.setColorAt(0.0, QColor(0xff, 0x99, 0x00,  0));
+        lgL.setColorAt(1.0, QColor(0xff, 0x99, 0x00, 60));
+        p.setBrush(lgL); p.setPen(Qt::NoPen);
+        p.drawRect(QRectF(sx - bHalf, a.top(), bHalf, a.height()));
+
+        /* Gradiente azzurro (destra, x > a) */
+        QLinearGradient lgR(sx, 0, sx + bHalf, 0);
+        lgR.setColorAt(0.0, QColor(0x00, 0xaa, 0xff, 60));
+        lgR.setColorAt(1.0, QColor(0x00, 0xaa, 0xff,  0));
+        p.setBrush(lgR); p.setPen(Qt::NoPen);
+        p.drawRect(QRectF(sx, a.top(), bHalf, a.height()));
+
+        /* Linea verticale tratteggiata a x = a */
+        p.setPen(QPen(QColor(0xff, 0xcc, 0x00, 200), 1.5, Qt::DashLine));
+        p.drawLine(QPointF(sx, a.top()), QPointF(sx, a.bottom()));
+
+        /* Etichetta "x → a" sopra la banda */
+        QFont lf("Inter,Ubuntu,sans-serif", 8); lf.setBold(true);
+        p.setFont(lf);
+        p.setPen(QColor(0xff, 0xcc, 0x44, 230));
+        QString xLbl = QString("x \xe2\x86\x92 %1").arg(m_limitX, 0, 'g', 5);
+        p.drawText(QRectF(sx - 46, a.top() + 5, 92, 16), Qt::AlignCenter, xLbl);
+
+        /* Riga orizzontale tratteggiata a y = L (se il valore è disponibile) */
+        if (m_limitHasVal) {
+            const double sy = dataToScreen(0.0, m_limitVal, a).y();
+            p.setPen(QPen(QColor(0x00, 0xdd, 0x88, 160), 1.0, Qt::DotLine));
+            p.drawLine(QPointF(a.left(), sy), QPointF(a.right(), sy));
+        }
+
+        p.setClipping(false);
+    }
+
+    /* ── LAYER 1: curva ──────────────────────────────────────────────── */
     p.setRenderHint(QPainter::Antialiasing);
     p.setClipRect(a);
     p.setPen(QPen(kPal[0], 2));
@@ -285,11 +333,68 @@ void GraficoCanvas::drawCartesian(QPainter& p, const QRectF& a) {
     }
     p.drawPath(path);
     p.setClipping(false);
+
+    /* ── LAYER 2: marcatori del limite (sopra la curva) ─────────────── */
+    if (m_limitActive) {
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setClipRect(a);
+        const double sx = dataToScreen(m_limitX, 0.0, a).x();
+
+        /* Trova il valore della funzione in x=a (cerchio aperto = "buco") */
+        FormulaParser fp(m_formula);
+        if (fp.ok()) {
+            const double ya = fp.eval(m_limitX);
+            if (std::isfinite(ya)) {
+                QPointF holeSc = dataToScreen(m_limitX, ya, a);
+                if (a.contains(holeSc)) {
+                    /* cerchio aperto rosso: punto escluso dal dominio */
+                    p.setPen(QPen(QColor(0xff, 0x55, 0x55, 230), 2));
+                    p.setBrush(m_style.bgColor);
+                    p.drawEllipse(holeSc, 5.0, 5.0);
+                }
+            }
+        }
+
+        /* Marcatore valore limite L (cerchio verde pieno) */
+        if (m_limitHasVal) {
+            QPointF limSc = dataToScreen(m_limitX, m_limitVal, a);
+            if (a.contains(limSc)) {
+                p.setPen(Qt::NoPen);
+                p.setBrush(QColor(0x00, 0xdd, 0x88, 230));
+                p.drawEllipse(limSc, 5.5, 5.5);
+
+                QFont lf("Inter,Ubuntu,sans-serif", 8); lf.setBold(true);
+                p.setFont(lf);
+                p.setPen(QColor(0x00, 0xee, 0x99));
+                const QString lLbl = QString("L = %1").arg(m_limitVal, 0, 'g', 5);
+                p.drawText(QRectF(limSc.x() + 9, limSc.y() - 9, 80, 16),
+                           Qt::AlignLeft | Qt::AlignVCenter, lLbl);
+            }
+        }
+        (void)sx;
+        p.setClipping(false);
+    }
+
     /* etichetta formula */
     p.setPen(QColor(0x00,0xbf,0xd8,170));
     p.setFont(QFont("JetBrains Mono,Fira Code,Consolas,monospace", 10));
     p.drawText(QRectF(a.left()+6, a.top()+4, a.width()-8, 18),
                Qt::AlignLeft, "y = " + m_formula);
+}
+
+void GraficoCanvas::setLimitHighlight(double xPoint)
+{
+    m_limitActive = true;
+    m_limitX      = xPoint;
+    m_limitHasVal = false;
+    update();
+}
+
+void GraficoCanvas::updateLimitValue(double limitVal)
+{
+    m_limitVal    = limitVal;
+    m_limitHasVal = true;
+    update();
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -538,36 +643,127 @@ void GraficoCanvas::drawScatter3D(QPainter& p, const QRectF& a) {
             p.drawText(QPointF(ex + 3, ey + 3), axG[ai].l);
         }
     }
-    /* punti ordinati per profondità (painter's algorithm) */
-    struct PP { double sx, sy, depth; int idx; };
-    QVector<PP> proj;
-    proj.reserve(m_pts3d.size());
+    /* ─── colore basato su z (heatmap: blu→ciano→verde→giallo→rosso) ─── */
+    /* calcola range z valido (esclude NaN) */
+    double zMnC = std::numeric_limits<double>::max();
+    double zMxC = std::numeric_limits<double>::lowest();
+    for (const auto& pt : m_pts3d) {
+        if (!std::isnan(pt.z)) { zMnC = std::min(zMnC, pt.z); zMxC = std::max(zMxC, pt.z); }
+    }
+    if (zMxC <= zMnC) { zMnC = zMn; zMxC = zMx; }
+
+    auto heatColor = [&](double z) -> QColor {
+        double t = (zMxC > zMnC) ? (z - zMnC) / (zMxC - zMnC) : 0.5;
+        t = std::max(0.0, std::min(1.0, t));
+        static const int rs[] = {  0,  0,  0,200,200};
+        static const int gs[] = {  0,200,200,200,  0};
+        static const int bs[] = {200,200,  0,  0,  0};
+        const double s = t * 4.0;
+        const int i = std::min(3, (int)s);
+        const double f = s - i;
+        return QColor(int(rs[i] + f*(rs[i+1]-rs[i])),
+                      int(gs[i] + f*(gs[i+1]-gs[i])),
+                      int(bs[i] + f*(bs[i+1]-bs[i])));
+    };
+
+    /* ─── proietta tutti i punti (inclusi NaN — per topologia griglia) ─── */
+    struct PP { double sx, sy, depth; int idx; bool valid; };
+    QVector<PP> proj(m_pts3d.size());
     for (int i = 0; i < m_pts3d.size(); i++) {
-        double nx = (m_pts3d[i].x - xMn) * sX - 0.5;
-        double ny = (m_pts3d[i].y - yMn) * sY - 0.5;
-        double nz = (m_pts3d[i].z - zMn) * sZ - 0.5;
-        double sx, sy, dz;
-        project(nx, ny, nz, sx, sy, dz);
-        proj.append({sx, sy, dz, i});
+        const bool valid = !std::isnan(m_pts3d[i].z);
+        double sx = 0, sy = 0, dz = 0;
+        if (valid) {
+            double nx = (m_pts3d[i].x - xMn) * sX - 0.5;
+            double ny = (m_pts3d[i].y - yMn) * sY - 0.5;
+            double nz = (m_pts3d[i].z - zMn) * sZ - 0.5;
+            project(nx, ny, nz, sx, sy, dz);
+        }
+        proj[i] = {sx, sy, dz, i, valid};
     }
-    std::sort(proj.begin(), proj.end(), [](const PP& a, const PP& b){ return a.depth > b.depth; });
-    /* pass 1: disegna sfere */
-    for (auto& pp : proj) {
-        QColor c = paletteColor(pp.idx);
-        p.setBrush(c);
-        p.setPen(QPen(c.darker(150), 1));
-        p.drawEllipse(QPointF(pp.sx, pp.sy), 5, 5);
+
+    const bool hasGrid = (m_grid3dCols > 1 &&
+                          m_pts3d.size() >= m_grid3dCols * 2);
+    const int cols = hasGrid ? m_grid3dCols : 0;
+    const int rows = hasGrid ? (m_pts3d.size() / cols) : 0;
+
+    if (hasGrid && m_renderMode3D == Surface3D) {
+        /* ── Superficie riempita — painter's algorithm su quad ── */
+        struct Quad { int r, c; double avgDepth; };
+        QVector<Quad> quads;
+        quads.reserve((rows-1)*(cols-1));
+        for (int r = 0; r < rows-1; r++) {
+            for (int c = 0; c < cols-1; c++) {
+                const int i00=r*cols+c, i10=r*cols+c+1;
+                const int i01=(r+1)*cols+c, i11=(r+1)*cols+c+1;
+                if (!proj[i00].valid||!proj[i10].valid||
+                    !proj[i01].valid||!proj[i11].valid) continue;
+                quads.append({r, c,
+                    (proj[i00].depth+proj[i10].depth+
+                     proj[i01].depth+proj[i11].depth)*0.25});
+            }
+        }
+        std::sort(quads.begin(), quads.end(),
+                  [](const Quad& a, const Quad& b){ return a.avgDepth > b.avgDepth; });
+        p.setRenderHint(QPainter::Antialiasing, false);
+        for (const auto& q : quads) {
+            const int i00=q.r*cols+q.c, i10=q.r*cols+q.c+1;
+            const int i01=(q.r+1)*cols+q.c, i11=(q.r+1)*cols+q.c+1;
+            const double zAvg = (m_pts3d[i00].z+m_pts3d[i10].z+
+                                 m_pts3d[i01].z+m_pts3d[i11].z)*0.25;
+            const QColor col = heatColor(zAvg);
+            QPolygonF poly;
+            poly << QPointF(proj[i00].sx,proj[i00].sy)
+                 << QPointF(proj[i10].sx,proj[i10].sy)
+                 << QPointF(proj[i11].sx,proj[i11].sy)
+                 << QPointF(proj[i01].sx,proj[i01].sy);
+            p.setBrush(col);
+            p.setPen(QPen(col.darker(115), 0.4));
+            p.drawPolygon(poly);
+        }
+        p.setRenderHint(QPainter::Antialiasing, true);
+
+    } else if (hasGrid && m_renderMode3D == Wireframe3D) {
+        /* ── Wireframe — linee colorate per z ── */
+        p.setRenderHint(QPainter::Antialiasing, true);
+        auto drawSeg = [&](int i0, int i1) {
+            if (!proj[i0].valid || !proj[i1].valid) return;
+            const double zAvg = (m_pts3d[i0].z + m_pts3d[i1].z) * 0.5;
+            p.setPen(QPen(heatColor(zAvg), 0.9));
+            p.drawLine(QPointF(proj[i0].sx,proj[i0].sy),
+                       QPointF(proj[i1].sx,proj[i1].sy));
+        };
+        for (int r = 0; r < rows; r++)
+            for (int c = 0; c < cols-1; c++)
+                drawSeg(r*cols+c, r*cols+c+1);
+        for (int c = 0; c < cols; c++)
+            for (int r = 0; r < rows-1; r++)
+                drawSeg(r*cols+c, (r+1)*cols+c);
+
+    } else {
+        /* ── Punti (modalità default) ── */
+        /* ordina per profondità (painter's algorithm) */
+        QVector<const PP*> sortedPts;
+        sortedPts.reserve(proj.size());
+        for (const auto& pp : proj) if (pp.valid) sortedPts.append(&pp);
+        std::sort(sortedPts.begin(), sortedPts.end(),
+                  [](const PP* a, const PP* b){ return a->depth > b->depth; });
+        for (const auto* pp : sortedPts) {
+            const QColor c = paletteColor(pp->idx);
+            p.setBrush(c);
+            p.setPen(QPen(c.darker(150), 1));
+            p.drawEllipse(QPointF(pp->sx, pp->sy), 5, 5);
+        }
+        p.setFont(QFont("Inter,Ubuntu,sans-serif", 8));
+        for (const auto* pp : sortedPts) {
+            const QColor  c   = paletteColor(pp->idx);
+            const QString lbl = (!m_pts3d[pp->idx].label.isEmpty())
+                                ? m_pts3d[pp->idx].label
+                                : QString("P%1").arg(pp->idx + 1);
+            p.setPen(c.lighter(140));
+            p.drawText(QPointF(pp->sx + 8, pp->sy - 3), lbl);
+        }
     }
-    /* pass 2: etichette (sopra le sfere, ordine identico) */
-    p.setFont(QFont("Inter,Ubuntu,sans-serif", 8));
-    for (auto& pp : proj) {
-        QColor  c   = paletteColor(pp.idx);
-        QString lbl = (!m_pts3d[pp.idx].label.isEmpty())
-                      ? m_pts3d[pp.idx].label
-                      : QString("P%1").arg(pp.idx + 1);
-        p.setPen(c.lighter(140));
-        p.drawText(QPointF(pp.sx + 8, pp.sy - 3), lbl);
-    }
+
     /* suggerimento rotazione */
     p.setPen(QColor(0x55,0x55,0x55));
     p.setFont(QFont("Inter,Ubuntu,sans-serif", 8));

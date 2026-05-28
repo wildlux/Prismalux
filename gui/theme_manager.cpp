@@ -95,18 +95,41 @@ void ThemeManager::apply(const QString& id) {
         const qreal totalScale = dpiScale * m_zoomScale;
 
         if (qAbs(totalScale - 1.0) > 0.005) {
-            static const QRegularExpression reFontPx(
-                R"(font-size\s*:\s*(\d+)\s*px)",
+            /*
+             * Scala tutte le proprietà CSS che usano valori in px.
+             *
+             * Proprietà coperte:
+             *   font-size, padding (4 varianti), margin (4 varianti),
+             *   min-height, max-height, min-width, max-width,
+             *   border-radius, height, width, spacing, letter-spacing
+             *
+             * ESCLUSO: border-width (1px rimane 1px per nitidezza),
+             *          valori 0px (zero rimane zero), valori negativi.
+             *
+             * Strategia: regex unica che cattura "proprietà: N px" e
+             * rimpiazza N con N*totalScale; il resto del CSS è copiato
+             * verbatim.  Costruita una sola volta (static).
+             */
+            static const QRegularExpression rePxProp(
+                R"(((?:font-size|padding(?:-top|-bottom|-left|-right)?|margin(?:-top|-bottom|-left|-right)?|min-height|max-height|min-width|max-width|border-radius|border-top-left-radius|border-top-right-radius|border-bottom-left-radius|border-bottom-right-radius|height|width|spacing|letter-spacing)\s*:\s*)(\d+)(px))",
                 QRegularExpression::CaseInsensitiveOption);
+
             QString patched;
-            patched.reserve(css.size());
+            patched.reserve(css.size() + css.size() / 8);
             int lastEnd = 0;
-            auto it = reFontPx.globalMatch(css);
+            auto it = rePxProp.globalMatch(css);
             while (it.hasNext()) {
                 const auto m = it.next();
                 patched += css.mid(lastEnd, m.capturedStart() - lastEnd);
-                patched += QString("font-size:%1px")
-                               .arg(qMax(1, qRound(m.captured(1).toInt() * totalScale)));
+                const int origPx = m.captured(2).toInt();
+                /* 0px rimane 0 — non scalare bordi nulli o padding zero */
+                if (origPx == 0) {
+                    patched += m.captured(0);
+                } else {
+                    patched += m.captured(1);   /* "font-size: " */
+                    patched += QString::number(qMax(1, qRound(origPx * totalScale)));
+                    patched += m.captured(3);   /* "px" */
+                }
                 lastEnd = m.capturedEnd();
             }
             patched += css.mid(lastEnd);

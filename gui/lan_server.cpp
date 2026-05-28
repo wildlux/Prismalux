@@ -14,6 +14,70 @@
 #include "pages/lavoro_data.h"
 namespace P = PrismaluxPaths;
 
+#ifdef HAVE_QKEYCHAIN
+#  include <qt6keychain/keychain.h>
+#  include <QEventLoop>
+#endif
+
+/* ══════════════════════════════════════════════════════════════
+   saveLanToken / loadLanToken — helpers statici pubblici
+   ──────────────────────────────────────────────────────────────
+   Se QKeychain è disponibile usa il keyring di sistema
+   (Secret Service su Linux, Keychain su macOS, Credential Manager
+   su Windows). Fallback: file ~/.prismalux/lan_token.key (0600).
+   ══════════════════════════════════════════════════════════════ */
+
+void LanServer::saveLanToken(const QString& token)
+{
+#ifdef HAVE_QKEYCHAIN
+    QKeychain::WritePasswordJob job(QStringLiteral("Prismalux"));
+    job.setAutoDelete(false);
+    job.setKey(QStringLiteral("lan_token"));
+    job.setTextData(token);
+    QEventLoop loop;
+    QObject::connect(&job, &QKeychain::WritePasswordJob::finished,
+                     &loop, &QEventLoop::quit);
+    job.start();
+    loop.exec();
+    if (job.error() == QKeychain::NoError) {
+        QFile::remove(P::lanTokenPath());   /* rimuove il vecchio file di fallback */
+        return;
+    }
+    qWarning() << "LanServer: QKeychain write failed:" << job.errorString()
+               << "— fallback a file 0600";
+#endif
+    /* Fallback file-based (0600) */
+    QDir().mkpath(QDir::homePath() + "/.prismalux");
+    QFile f(P::lanTokenPath());
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
+    f.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+    f.write(token.toUtf8());
+}
+
+QString LanServer::loadLanToken()
+{
+#ifdef HAVE_QKEYCHAIN
+    QKeychain::ReadPasswordJob job(QStringLiteral("Prismalux"));
+    job.setAutoDelete(false);
+    job.setKey(QStringLiteral("lan_token"));
+    QEventLoop loop;
+    QObject::connect(&job, &QKeychain::ReadPasswordJob::finished,
+                     &loop, &QEventLoop::quit);
+    job.start();
+    loop.exec();
+    if (job.error() == QKeychain::NoError && !job.textData().isEmpty())
+        return job.textData();
+    if (job.error() != QKeychain::EntryNotFound)
+        qWarning() << "LanServer: QKeychain read failed:" << job.errorString()
+                   << "— fallback a file 0600";
+#endif
+    /* Fallback: legge il file 0600 */
+    QFile f(P::lanTokenPath());
+    if (f.open(QIODevice::ReadOnly))
+        return QString::fromUtf8(f.readAll()).trimmed();
+    return {};
+}
+
 /* Confronto constant-time — evita timing attack sul token Bearer */
 bool LanServer::timingSafeEqual(const QString& a, const QString& b)
 {
