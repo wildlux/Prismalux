@@ -8,12 +8,115 @@ Modalità:
   python3 test_wan_compute.py client <host> <port>
 """
 
-import sys, socket, json, threading, time, subprocess, platform, re
+import sys, socket, json, threading, time, subprocess, platform, re, urllib.request
 
-PORT    = 11600
-SIM_PORT = 11601   # porta per simulazione locale (evita conflitto con app)
-HOST    = "127.0.0.1"
-TIMEOUT = 30   # secondi per task AI (possono essere lenti)
+PORT     = 11600
+SIM_PORT = 11601      # porta simulazione locale (evita conflitto con app)
+HOST     = "127.0.0.1"
+TIMEOUT  = 120        # secondi per task AI
+OLLAMA   = "http://127.0.0.1:11434"
+
+# ══════════════════════════════════════════════════════════════════
+# Ollama — rileva modello disponibile e chiama /api/chat
+# ══════════════════════════════════════════════════════════════════
+
+def ollama_model() -> str:
+    """Restituisce il primo modello chat disponibile (no embed)."""
+    try:
+        with urllib.request.urlopen(f"{OLLAMA}/api/tags", timeout=3) as r:
+            models = json.loads(r.read())["models"]
+        skip = ("embed", "minilm", "rerank", "bge-", "nomic")
+        for m in models:
+            name = m["name"].lower()
+            if not any(s in name for s in skip):
+                return m["name"]
+    except Exception:
+        pass
+    return ""
+
+_OLLAMA_MODEL = None   # lazy init
+
+def ollama_chat(system: str, user: str, timeout: int = TIMEOUT) -> str:
+    """Chiama Ollama /api/chat (non-streaming) e restituisce la risposta."""
+    global _OLLAMA_MODEL
+    if _OLLAMA_MODEL is None:
+        _OLLAMA_MODEL = ollama_model()
+    if not _OLLAMA_MODEL:
+        raise RuntimeError("Nessun modello Ollama disponibile")
+
+    body = json.dumps({
+        "model":    _OLLAMA_MODEL,
+        "stream":   False,
+        "messages": [
+            {"role": "system",  "content": system},
+            {"role": "user",    "content": user},
+        ]
+    }).encode()
+
+    req = urllib.request.Request(
+        f"{OLLAMA}/api/chat",
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST")
+
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        resp = json.loads(r.read())
+    return resp["message"]["content"].strip()
+
+# Prompt AI che replicano quelli di wanCliHandleTask in lan_wan_page.cpp
+AI_PROMPTS = {
+    "ai_query":
+        "Sei un assistente AI preciso e conciso. Rispondi SEMPRE in italiano.",
+    "code_assist":
+        "Sei un esperto programmatore. Scrivi codice pulito, commentato e funzionante. "
+        "Il payload è JSON con chiavi 'lang' e 'task'. Rispondi in italiano.",
+    "code_review":
+        "Sei un esperto revisore di codice. Analizza il codice fornito: "
+        "trova bug, vulnerabilità, inefficienze e suggerisci miglioramenti. "
+        "Rispondi in italiano con sezioni: Bug, Sicurezza, Performance, Stile.",
+    "code_translate":
+        "Sei un esperto di traduzione tra linguaggi di programmazione. "
+        "Il payload è JSON con 'from_lang', 'to_lang' e 'code'. "
+        "Traduci il codice preservando la logica.",
+    "code_reverse":
+        "Sei un esperto di reverse engineering. Il payload è JSON con 'lang' e 'code'. "
+        "Spiega la logica e ricostruisci il sorgente probabile. Rispondi in italiano.",
+    "math_solve":
+        "Sei un professore di matematica. Risolvi il problema passo per passo "
+        "mostrando ogni passaggio con spiegazione. Rispondi in italiano.",
+    "math_seq":
+        "Sei un matematico esperto. Data la sequenza, trova la formula generale, "
+        "il termine n-esimo e la natura della sequenza. Rispondi in italiano.",
+    "math_nth":
+        "Sei un matematico. Il payload può essere JSON con 'sequenza' e 'n' "
+        "oppure testo libero. Calcola il termine richiesto e spiega il metodo. "
+        "Rispondi in italiano.",
+    "paper_gen":
+        "Sei un ricercatore accademico. Genera un paper scientifico strutturato. "
+        "Struttura: Abstract, Introduzione, Metodi, Risultati, Conclusioni. "
+        "Rispondi in italiano con formattazione Markdown.",
+    "web_search":
+        "Sei un assistente di ricerca. Fornisci un riassunto esaustivo "
+        "delle informazioni principali sull'argomento. Rispondi in italiano.",
+    "ai_tutor":
+        "Sei un tutor esperto. Il payload è JSON con 'argomento' e 'livello'. "
+        "Spiega in modo chiaro con esempi pratici ed esercizi. Rispondi in italiano.",
+    "ai_data_analysis":
+        "Sei un analista dati. Il payload è JSON con 'dati' (CSV) e 'richiesta'. "
+        "Analizza, trova pattern e trend. Rispondi in italiano.",
+    "ai_fenomeno":
+        "Sei un analista scientifico. Valuta la probabilità del fenomeno. "
+        "Struttura: PROBABILITÀ (0-100%), Evidenze, Contraddizioni, Verdetto. Rispondi in italiano.",
+    "ai_730":
+        "Sei un esperto fiscalista italiano specializzato nel modello 730. "
+        "Cita gli articoli di legge rilevanti. Rispondi SOLO in italiano.",
+    "ai_tfr":
+        "Sei un esperto di diritto del lavoro. Calcola il TFR (art. 2120 c.c.). "
+        "Mostra: quota annua, rivalutazione, totale lordo, tassazione. Rispondi in italiano.",
+}
+
+def is_ai_task(kind: str) -> bool:
+    return kind in AI_PROMPTS
 
 # ══════════════════════════════════════════════════════════════════
 # Helpers
@@ -83,8 +186,14 @@ def mini_server(tasks_queue: list, results: list, ready_evt, port=PORT):
 # ══════════════════════════════════════════════════════════════════
 
 def run_task_local(kind: str, payload: str) -> tuple[bool, str]:
-    """Esegue un task senza AI — solo task subprocess/sistema."""
+    """Esegue un task: AI via Ollama oppure subprocess/sistema."""
     try:
+        # ── Task AI: delega a Ollama ──
+        if is_ai_task(kind):
+            system = AI_PROMPTS[kind]
+            result = ollama_chat(system, payload)
+            return True, result
+
         if kind == "system_info":
             info = {
                 "os":      platform.system() + " " + platform.release(),
@@ -135,7 +244,7 @@ def run_task_local(kind: str, payload: str) -> tuple[bool, str]:
             return True, out.strip()
 
         else:
-            return False, f"task kind '{kind}' richiede Ollama (non disponibile in sim)"
+            return False, f"task kind '{kind}' non supportato da questo nodo"
 
     except Exception as e:
         return False, str(e)
@@ -146,10 +255,19 @@ def wan_client(host, port):
     sock.connect((host, port))
     print(f"  [client] connesso a {host}:{port}")
 
+    model = ollama_model()
+    if model:
+        print(f"  [client] Ollama: {model}")
+        ai_caps = list(AI_PROMPTS.keys())
+    else:
+        print("  [client] Ollama non disponibile — solo task locali")
+        ai_caps = []
+
+    local_caps = ["system_info","net_info","shell_cmd","eval_script",
+                  "python_repl","math_expr","file_read","git_cmd",
+                  "graphviz_render","matplotlib_plot"]
     send(sock, {"t": "hello", "name": "TestNode-Python",
-                "caps": ["system_info","net_info","shell_cmd",
-                         "eval_script","python_repl","math_expr",
-                         "file_read","git_cmd"]})
+                "caps": local_caps + ai_caps})
     msg = recv_line(sock, 5)
     assert msg.get("t") == "welcome", f"atteso welcome, ricevuto {msg}"
     # server usa "node_id" (non "id")
@@ -182,7 +300,7 @@ def wan_client(host, port):
 # Task da testare
 # ══════════════════════════════════════════════════════════════════
 
-TEST_TASKS = [
+TEST_TASKS_LOCAL = [
     {"id": "t01", "kind": "system_info",  "payload": ""},
     {"id": "t02", "kind": "net_info",     "payload": ""},
     {"id": "t03", "kind": "shell_cmd",    "payload": "uptime && free -h"},
@@ -195,21 +313,37 @@ TEST_TASKS = [
     {"id": "t08", "kind": "git_cmd",      "payload": "git log --oneline -5"},
 ]
 
+TEST_TASKS_AI = [
+    {"id": "a01", "kind": "ai_query",    "payload": "quanto fa 5+5?"},
+    {"id": "a02", "kind": "math_solve",  "payload": "Risolvi per x: x^2 - 5x + 6 = 0"},
+    {"id": "a03", "kind": "math_seq",    "payload": "1, 1, 2, 3, 5, 8, 13, 21"},
+    {"id": "a04", "kind": "code_assist",
+     "payload": '{"lang":"Python","task":"Funzione che calcola i numeri primi fino a N"}'},
+]
+
 # ══════════════════════════════════════════════════════════════════
 # Modalità sim: server + client in thread separati
 # ══════════════════════════════════════════════════════════════════
 
-def mode_sim():
+def mode_sim(with_ai: bool = False):
+    tasks = TEST_TASKS_LOCAL + (TEST_TASKS_AI if with_ai else [])
+    label = "locale + AI" if with_ai else "locale"
     print("=" * 60)
-    print(f"  WAN Compute — Simulazione locale (porta {SIM_PORT})")
+    print(f"  WAN Compute — Simulazione {label} (porta {SIM_PORT})")
     print("=" * 60)
+    if with_ai:
+        model = ollama_model()
+        if not model:
+            print("  ⚠  Ollama non disponibile — i task AI saranno skippati")
+        else:
+            print(f"  🤖 Modello: {model}")
 
     results = []
     ready   = threading.Event()
 
     srv_thread = threading.Thread(
         target=mini_server,
-        args=(TEST_TASKS, results, ready, SIM_PORT),
+        args=(tasks, results, ready, SIM_PORT),
         daemon=True)
     srv_thread.start()
     ready.wait(timeout=3)
@@ -219,19 +353,18 @@ def mode_sim():
     except Exception as e:
         print(f"\n  ERRORE client: {e}")
 
-    srv_thread.join(timeout=5)
+    srv_thread.join(timeout=TIMEOUT + 10)
 
-    # Riepilogo
     print()
     print("=" * 60)
-    print(f"  RIEPILOGO — {len(results)}/{len(TEST_TASKS)} task completati")
+    print(f"  RIEPILOGO — {len(results)}/{len(tasks)} task completati")
     print("=" * 60)
     ok_count = 0
     for r in results:
         status = "✅" if r["ok"] else "❌"
-        result_preview = r["result"].replace("\n", " ")[:80]
+        preview = r["result"].replace("\n", " ")[:100]
         print(f"  {status} [{r['id']}] {r['kind']}")
-        print(f"       → {result_preview}")
+        print(f"       → {preview}")
         if r["ok"]:
             ok_count += 1
     print()
@@ -261,12 +394,15 @@ def mode_client(host, port):
 if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else "sim"
     if mode == "sim":
-        ok = mode_sim()
+        ok = mode_sim(with_ai=False)
+        sys.exit(0 if ok else 1)
+    elif mode == "sim-ai":
+        ok = mode_sim(with_ai=True)
         sys.exit(0 if ok else 1)
     elif mode == "client":
         h = sys.argv[2] if len(sys.argv) > 2 else HOST
         p = int(sys.argv[3]) if len(sys.argv) > 3 else PORT
         mode_client(h, p)
     else:
-        print(f"Uso: {sys.argv[0]} [sim|client [host] [port]]")
+        print(f"Uso: {sys.argv[0]} [sim|sim-ai|client [host] [port]]")
         sys.exit(1)
