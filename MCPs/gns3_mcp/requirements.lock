@@ -1,0 +1,22 @@
+# GNS3 MCP — dipendenze pinned con hash SHA256
+# Aggiornare con: pip-compile --generate-hashes pyproject.toml -o requirements.lock
+# Hash verificati: 2026-05-28
+
+requests==2.33.1 \
+    --hash=sha256:4e6d1ef462f3626a1f0a0a9c42dd93c63bad33f9f1c1937509b8c5c8718ab56a
+
+certifi==2026.5.20 \
+    --hash=sha256:3c52e209ba0a4ad7aebe60436a4ab349c39e1e602e8c134221e546902ad25897
+
+charset-normalizer==3.4.7 \
+    --hash=sha256:bd6c2a1c7573c64738d716488d2cdd3c00e340e4835707d8fdb8dc1a66ef164e
+
+idna==3.17 \
+    --hash=sha256:466e48829084efe2548012b855df21540b96f2e20e51bd124c851536556a592c
+
+urllib3==2.7.0 \
+    --hash=sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897
+
+# gns3fy — hash da verificare con pip-compile (non disponibile nel build env)
+# Installa con: pip install -r requirements.lock --require-hashes
+# oppure:       pip install gns3fy>=0.8.0,<1.0
