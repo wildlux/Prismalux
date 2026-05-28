@@ -1,24 +1,24 @@
-# CLAUDE.md — Prismalux Qt GUI
+# CLAUDE.md — Prismalux Qt GUI  v2.9
 
 ## Build
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
-./build/Prismalux_GUI
+cmake -B build_gui gui/ -DCMAKE_BUILD_TYPE=Release && cmake --build build_gui -j$(nproc)
+./build_gui/Prismalux_GUI
 ```
-Strutturale (nuovo file/CMakeLists) → rifare `cmake -B build`. Solo .cpp/.h → solo `cmake --build build`.
+Strutturale (nuovo file/CMakeLists) → rifare `cmake -B build_gui`. Solo .cpp/.h → solo `cmake --build build_gui`.
 
 ## Layout tab (mainwindow.cpp)
 ```
 Header (72px): logo · backend · model · CPU/RAM/GPU · spinner · ⚙️
 [0] 🤖 Intelligenza Artificiale  Alt+1  Pipeline + Byzantino + CHAT RAG + Agente Autonomo
-[1] 🛠 Strumenti                  Alt+2  sub-tab: Assistente AI · 💰 Finanza · 🏛 Impara con AI · 🎯 Sfida!
-[2] 🎬 Multimedia                        Audio AI · Genera Immagini (SD) · Mappe (Graphviz)
+[1] 🛠 Strumenti                  Alt+2  Assistente AI · 💰 Finanza (730/PIVA/Calcolatori/TFR) · ⏱ Cron · Impara · Sfida!
+[2] 🎬 Multimedia                        Audio AI (Whisper STT+TTS) · Stable Diffusion · Mappe Graphviz
 [3] 📁 File AI                           File AI · Wiki & Web · Excel/CSV · PDF · Word/Testo
-[4] 💻 Programmazione            Alt+3  Editor + Agentica + Interpreter Python
-[5] π  Matematica                Alt+4  Parser formule · Grafico
-[6] 🔬 Ricerca                   Alt+5  Paper · Brevetti · Cytoscape · RDKit · Bioconda · Avogadro
+[4] 💻 Programmazione            Alt+3  Editor+AI · Agentica · Translitter · Reverse Eng. · Git · REPL · Interpreter · Rete · Driver
+[5] π  Matematica                Alt+4  Sequenza→Formula · Costanti · N-esimo · Espressione · Risolvi Passi (SymPy) · Analisi 1&2
+[6] 🔬 Ricerca                   Alt+5  Paper · Brevetti · Lavoro · Cytoscape—Bio · RDKit · Bioconda · RAB₀-L · BLHM · Analisi Fenomeni · Astrale
 [7] 🕹 APP Controller            Alt+6  Blender/FreeCAD/Office/CloudCompare/Anki/KiCAD/TinyMCP/OBS/OpenCode/Godot
-[8] 🌐 LAN & WAN                         LAN Android + GNS3 · WAN placeholder
+[8] 🌐 LAN & WAN                         LAN Android (QR/ADB) · GNS3 MCP · WAN Compute (TCP:11600, 28 task)
 ImpostazioniPage: dialog modale (⚙️ header)
 ```
 Note:
@@ -33,14 +33,19 @@ Note:
 | `mainwindow.h/cpp` | Header, tab bar, llama-server manager |
 | `ai_client.h/cpp` | HTTP Ollama/llama-server — `chat()`, `fetchModels()`, `fetchEmbedding()` |
 | `prismalux_paths.h` | Unico punto di verità per path, porte, QSettings keys |
+| `dpi_utils.h` | `dpiScale(N)` — scala px per DPI/Wayland HiDPI. Usare SEMPRE per dimensioni strutturali |
 | `rag_engine.h/cpp` | RAG JLT 256-dim |
 | `hardware_monitor.h/cpp` | Thread polling CPU/RAM/GPU ogni 2s |
 | `lan_server.h/cpp` | Server TCP LAN per PrismaluxMobile Android (porta 11500) |
+| `lan_wan_page.h/cpp` | LAN Android + GNS3 MCP + WAN Compute (porta 11600) |
 | `pages/agenti_page.*` | Pipeline 6 agenti + Byzantino + Agente Autonomo (15 moduli) |
-| `pages/ricerca_page.*` | Tab Ricerca [6] — include Cyto/RDKit/Bio/Avo |
+| `pages/pratico_page.*` | 730, P.IVA, Calcolatori Finanza, Scheda TFR (C.F. auto D.M. 1976 + Belfiore) |
+| `pages/ricerca_page.*` | Tab Ricerca [6] — include Cyto/RDKit/Bio/Avo + Analisi Fenomeni (allegati PDF) |
+| `pages/matematica_page.*` | Matematica SymPy; errore fetchModels→ setStatus() via holder |
 | `widgets/ai_error_widget.h` | Header-only Q_OBJECT — `showError(msg, onRetry)` — elencato in CPP_SRCS |
 | `widgets/code_interpreter_widget.h/cpp` | Python sandbox: exec, matplotlib PNG, Docker |
 | `MCPs/knowledge_mcp/server.py` | Knowledge Updater MCP (JSON-RPC 2.0 stdio) |
+| `MCPs/ollama_mcp/server.py` | Ollama model cache MCP — SQLite TTL 5min, 5 tool (list/info/search/sync/pull) |
 
 ## Convenzioni critiche
 
@@ -49,7 +54,31 @@ Note:
 #include "prismalux_paths.h"
 namespace P = PrismaluxPaths;
 // P::root(), P::kOllamaPort, P::kLlamaServerPort, P::kOpenCodePort
-// P::modelIcon(sizeBytes, name), P::feedbackPath(), P::userKnowledgePath()
+// P::kWanComputePort (11600), P::modelIcon(sizeBytes, name)
+// P::feedbackPath(), P::userKnowledgePath()
+```
+
+**DPI — usare `dpiScale()` per tutte le dimensioni strutturali:**
+```cpp
+#include "dpi_utils.h"
+setFixedWidth(dpiScale(80));    // non setFixedWidth(80)
+setFixedHeight(dpiScale(36));   // non setFixedHeight(36)
+// dpiScale() è un no-op a 96dpi, scala su HiDPI/Wayland 2×
+```
+
+**fetchModels() con gestione errore:**
+```cpp
+auto* holder = new QObject(this);
+connect(m_ai, &AiClient::modelsReady, holder, [this, holder](const QStringList& l) {
+    holder->deleteLater();
+    fillCombo(l);
+});
+connect(m_ai, &AiClient::error, holder, [this, holder](const QString&) {
+    holder->deleteLater();
+    setStatus("❌ Backend non raggiungibile — avvia Ollama.");
+});
+m_ai->fetchModels();
+// NON lasciare error senza handler: il combo resta vuoto senza feedback
 ```
 
 **Backend:** usa sempre `m_ai->backend()` — non hardcodare `AiClient::Ollama`.
@@ -139,10 +168,24 @@ APK path: `P::root() + "/ANDROID/PrismaluxMobile.apk"` (con `/` iniziale).
 RAG condiviso: `AgentsConfigDialog::m_sharedRag` — iniettato prima del RAG per-agente.
 OpenCode: porta sempre `P::kOpenCodePort`. SSE events: `message.updated`, `session.idle`, `session.error`.
 
+## Scheda TFR — Codice Fiscale automatico (`pratico_page.cpp`)
+- `calcolaCodiceFiscale(cognome, nome, nascita, maschio, belfiore)` — algoritmo D.M. 23/12/1976
+- `cercaBelfiore(comune)` — QHash ~120 comuni IT + ~30 paesi esteri (codici Z)
+- `normalizzaComune(s)` — strip accenti + toLower per lookup case-insensitive
+- UI: Nome/Cognome | Data nascita + Sesso + Comune + Belfiore (auto) | C.F. read-only + 🔓
+- Aggiornamento live ad ogni cambio campo; RAG auto-fill include anche dati anagrafici nascita
+
+## WAN Calcolo Distribuito (`lan_wan_page.h/.cpp`)
+- Porta: `P::kWanComputePort = 11600`; protocollo JSON newline su TCP
+- `WanNode`/`WanTask` struct; `wanDispatch()` assegna pending→idle
+- `wanCliHandleTask(id, kind, payload)` — dispatcher 28 tipi task
+- `wanPopulateKindCombo(QComboBox*)` — QStandardItemModel con separatori NoItemFlags
+- `wanKindTemplate(kind)` — template payload automatico
+
 ## Suite di Test
 ```bash
-cmake -B build_tests -DBUILD_TESTS=ON && cmake --build build_tests -j$(nproc)
-ctest --test-dir build_tests -j4   # 35/37 PASS
+cmake -B build_tests gui/ -DBUILD_TESTS=ON && cmake --build build_tests -j$(nproc)
+ctest --test-dir build_tests -j4   # 33/36 PASS
 ```
 - `SimulatoreAlgos`: FLAKY in -j4, PASS standalone → `RESOURCE_LOCK cpu_heavy` in CMakeLists
 - `AiStress`: OOM RAM (non bug) — richiede `mistral:7b-instruct` e ≥2 GB RAM libera

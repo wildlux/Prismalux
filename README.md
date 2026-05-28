@@ -25,7 +25,7 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 - **Pipeline multi-agente** con anti-allucinazione a 4 livelli logici
 - **RAG ibrido** su file locali + web, con ricerca semantica
 - **105 simulazioni algoritmiche** visualizzate passo per passo
-- **17 plugin MCP** per Blender, FreeCAD, GNS3, RDKit, Cytoscape, OBS, Arduino...
+- **18 plugin MCP** per Blender, FreeCAD, GNS3, RDKit, Cytoscape, OBS, Ollama cache...
 - **Calcolo distribuito WAN** (BOINC-like) su rete locale con 28 tipi di task
 - **Matematica simbolica** con SymPy, grafico interattivo, formule LaTeX
 - **Ricerca scientifica**: paper arXiv, brevetti, Bioconda, analisi fenomeni
@@ -37,9 +37,14 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 
 | Feature | Descrizione |
 |---------|-------------|
-| 💼 **Scheda TFR** | Pagina dedicata in Finanza: form personale, calcolo rivalutato, destinazione (azienda/fondo pensione), **Compila da RAG** auto-fill |
+| 💼 **Scheda TFR** | Pagina dedicata in Finanza: form personale, **C.F. calcolato automaticamente** (algoritmo D.M. 1976 + lookup ~150 comuni/paesi), calcolo rivalutato, **Compila da RAG** auto-fill |
+| 🔢 **C.F. automatico** | Digita nome, cognome, data nascita, sesso, comune → il Codice Fiscale viene calcolato live |
 | 🖧 **WAN Calcolo Distribuito** | Server/client TCP porta 11600, dispatcher universale a 28 tipi task, cron scheduler, AI locale per-nodo |
+| 🦙 **Ollama MCP** | Nuovo plugin: cache SQLite dei modelli Ollama, 5 tool (list/info/search/sync/pull), solo stdlib Python |
 | 📂 **Allegati Analisi Fenomeni** | Upload PDF/TXT/MD/CSV con estrazione pdftotext |
+| 🎓 **Quiz CCNA 209 domande** | Da 64 a 209 domande in 15 temi (CCNA 200-301 completo) |
+| 📐 **DPI HiDPI/Wayland** | `dpiScale()` applicato sistematicamente in tutte le pages — corretto su display 2× |
+| 🌍 **i18n infrastruttura** | `QTranslator` in `main.cpp`, stub `.ts` in `gui/i18n/`, pronto per traduzioni |
 | 🔬 **Cytoscape — Bioinformatica** | Tab rinominato con categoria esplicita |
 
 ---
@@ -55,9 +60,9 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 | 🧠 **Memoria cross-sessione** | Knowledge Base automatica in `user_knowledge.md`; MCP Knowledge Updater |
 | 🎨 **Stable Diffusion** | Generazione immagini via AUTOMATIC1111/Forge/SD.Next (API locale) |
 | 🔬 **105 Simulazioni** | Algoritmi visualizzati barra per barra con spiegazione e complessità O-grande |
-| 🔗 **17 Plugin MCP** | JSON-RPC 2.0 stdio — Blender, Office, GNS3, RDKit, Cytoscape, OBS, Godot... |
+| 🔗 **18 Plugin MCP** | JSON-RPC 2.0 stdio — Blender, Office, GNS3, RDKit, Cytoscape, OBS, Godot, **Ollama cache**... |
 | 🖧 **WAN Compute** | Calcolo distribuito LAN/WAN: server TCP + dispatcher 28 task + cron |
-| 📱 **App Android** | Qt6 native: BLE chat cifrata AES-256-GCM, Quiz CCNA, sincronizzazione LAN |
+| 📱 **App Android** | Qt6 native: BLE chat AES-256-GCM, Quiz CCNA **209 domande** (15 temi), sincronizzazione LAN |
 | 🌐 **LAN Server** | Web app embedded su porta 11500 per accesso da browser/mobile |
 | 🃏 **Byzantino** | Gioco di maggioranza a tolleranza di guasto: m agenti, n disonesti configurabili |
 
@@ -168,7 +173,7 @@ Ogni tipo ha un **template payload** pre-compilato automaticamente alla selezion
 
 ---
 
-## Plugin MCP (17)
+## Plugin MCP (18)
 
 | Plugin | Funzione |
 |--------|---------|
@@ -189,6 +194,7 @@ Ogni tipo ha un **template payload** pre-compilato automaticamente alla selezion
 | `stable_diffusion_local` | API Stable Diffusion (AUTOMATIC1111/Forge/SD.Next) |
 | `tinymcp` | Bridge MCP generico per tool personalizzati |
 | `knowledge_mcp` | Aggiornamento automatico della Knowledge Base utente |
+| `ollama_mcp` | **Nuovo** — Cache SQLite modelli Ollama; tool: list, info, search, sync, pull |
 
 ---
 
@@ -353,7 +359,7 @@ Prismalux/
 |---------|-----------|
 | 📱 LAN Chat | Connessione al server Prismalux desktop via QR code o IP |
 | 🔵 BLE Chat | Comunicazione Bluetooth LE cifrata AES-256-GCM |
-| 🎓 Quiz CCNA | Database quiz con feedback interattivo |
+| 🎓 Quiz CCNA | **209 domande** in 15 temi (CCNA 200-301 completo) con feedback interattivo |
 | 🎵 Audio AI | Registrazione + trascrizione Whisper |
 | ⚙️ Impostazioni | Configurazione backend, porta, token |
 
