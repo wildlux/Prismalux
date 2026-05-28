@@ -720,6 +720,17 @@ QWidget* MultimediaPage::buildOcrTab()
     m_ocrVideoLbl->setMaximumWidth(160);
     cl->addWidget(m_ocrVideoLbl);
 
+    m_ocrTranscribeBtn = new QPushButton(
+        "\xf0\x9f\x8e\xa4  Trascrivi audio", ctrlRow);  /* 🎤 */
+    m_ocrTranscribeBtn->setObjectName("actionBtn");
+    m_ocrTranscribeBtn->setToolTip(
+        "Estrae l'audio dal video con ffmpeg e lo trascrive con Whisper.\n"
+        "Il testo viene aggiunto all'area OCR.");
+    m_ocrTranscribeBtn->setEnabled(false);  /* abilitato solo con video caricato */
+    connect(m_ocrTranscribeBtn, &QPushButton::clicked,
+            this, &MultimediaPage::onOcrTranscribeAudioClicked);
+    cl->addWidget(m_ocrTranscribeBtn);
+
     auto* btnClear = new QPushButton(
         "\xf0\x9f\x97\x91  Cancella", ctrlRow);  /* 🗑 */
     btnClear->setObjectName("actionBtn");
@@ -1025,6 +1036,7 @@ void MultimediaPage::onOcrLoadVideoClicked()
 
     m_ocrVideoPath = path;
     m_ocrVideoLbl->setText(QFileInfo(path).fileName());
+    if (m_ocrTranscribeBtn) m_ocrTranscribeBtn->setEnabled(true);
 
     /* Avvia daemon se non è già in esecuzione, poi invia VIDEO */
     auto sendVideoCmd = [this]{
@@ -1185,6 +1197,95 @@ void MultimediaPage::onOcrDaemonFinished(int, QProcess::ExitStatus)
     if (m_ocrStartBtn && m_ocrStartBtn->isChecked()) {
         m_ocrStartBtn->setChecked(false);
         m_ocrStatus->setText("\xe2\x9a\xa0  Daemon OCR terminato inaspettatamente.");
+    }
+}
+
+void MultimediaPage::onOcrTranscribeAudioClicked()
+{
+    if (m_ocrVideoPath.isEmpty()) return;
+
+    /* Impedisce avvii multipli */
+    if ((m_ocrFfmpegProc  && m_ocrFfmpegProc->state()  != QProcess::NotRunning) ||
+        (m_ocrWhisperProc && m_ocrWhisperProc->state() != QProcess::NotRunning))
+        return;
+
+    m_ocrTranscribeBtn->setEnabled(false);
+    m_ocrAudioWav = QDir::tempPath() + "/prismalux_ocr_audio.wav";
+    m_ocrStatus->setText("\xf0\x9f\x94\x84  Estrazione audio con ffmpeg...");
+
+    /* ffmpeg: estrae audio mono 16kHz PCM — formato nativo per Whisper */
+    m_ocrFfmpegProc = new QProcess(this);
+    connect(m_ocrFfmpegProc,
+            QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &MultimediaPage::onOcrFfmpegFinished);
+    m_ocrFfmpegProc->start("ffmpeg", {
+        "-y", "-i", m_ocrVideoPath,
+        "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le",
+        m_ocrAudioWav
+    });
+    if (!m_ocrFfmpegProc->waitForStarted(3000)) {
+        m_ocrStatus->setText(
+            "\xe2\x9d\x8c  ffmpeg non trovato. Installa con: sudo apt install ffmpeg");
+        m_ocrFfmpegProc->deleteLater();
+        m_ocrFfmpegProc = nullptr;
+        m_ocrTranscribeBtn->setEnabled(true);
+    }
+}
+
+void MultimediaPage::onOcrFfmpegFinished(int code, QProcess::ExitStatus)
+{
+    m_ocrFfmpegProc->deleteLater();
+    m_ocrFfmpegProc = nullptr;
+
+    if (code != 0) {
+        m_ocrStatus->setText(
+            "\xe2\x9d\x8c  Estrazione audio fallita — il video ha audio?");
+        m_ocrTranscribeBtn->setEnabled(true);
+        return;
+    }
+
+    if (!SttWhisper::isAvailable()) {
+        m_ocrStatus->setText(
+            "\xe2\x9a\xa0  " + SttWhisper::setupMessage());
+        m_ocrTranscribeBtn->setEnabled(true);
+        return;
+    }
+
+    m_ocrStatus->setText("\xf0\x9f\x8e\xa4  Trascrizione Whisper in corso...");
+
+    m_ocrWhisperProc = SttWhisper::transcribe(
+        m_ocrAudioWav, "it", this,
+        [this](const QString& text, bool ok) {
+            m_ocrWhisperProc = nullptr;
+            QFile::remove(m_ocrAudioWav);
+            m_ocrTranscribeBtn->setEnabled(true);
+
+            if (!ok || text.trimmed().isEmpty()) {
+                m_ocrStatus->setText(
+                    "\xe2\x9a\xa0  Trascrizione vuota — audio non udibile o lingua errata.");
+                return;
+            }
+
+            /* Appende con separatore al testo OCR esistente */
+            if (!m_ocrText->toPlainText().isEmpty())
+                m_ocrText->append(
+                    "\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
+                    "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
+                    "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
+                    "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
+                    "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
+                    " \xf0\x9f\x8e\xa4 AUDIO \xe2\x94\x80\xe2\x94\x80"
+                    "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
+                    "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80"
+                    "\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\n");
+            m_ocrText->append(text.trimmed());
+            m_ocrStatus->setText(
+                "\xe2\x9c\x85  Trascrizione completata — " +
+                QString::number(text.trimmed().split('\n').size()) + " righe.");
+        });
+
+    if (!m_ocrWhisperProc) {
+        m_ocrTranscribeBtn->setEnabled(true);
     }
 }
 

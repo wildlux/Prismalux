@@ -39,6 +39,8 @@ private slots:
     void onOcrDaemonReadyRead();
     void onOcrDaemonFinished(int code, QProcess::ExitStatus status);
     void onOcrLoadVideoClicked();
+    void onOcrTranscribeAudioClicked();
+    void onOcrFfmpegFinished(int code, QProcess::ExitStatus status);
     void onOcrAnalyzeClicked();
     void onOcrAiToken(const QString& t);
     void onOcrAiFinished(const QString& full);
@@ -89,9 +91,14 @@ private:
     QCheckBox*   m_ocrChkMinLen  = nullptr;
     QSet<QString> m_ocrSeenLines;
     // video OCR
-    QString      m_ocrVideoPath;             ///< path video caricato (vuoto = webcam)
-    QLabel*      m_ocrVideoLbl   = nullptr;  ///< nome file video corrente
-    QSpinBox*    m_ocrVideoStep  = nullptr;  ///< estrai 1 frame ogni N secondi di video
+    QString      m_ocrVideoPath;
+    QLabel*      m_ocrVideoLbl      = nullptr;
+    QSpinBox*    m_ocrVideoStep     = nullptr;
+    // trascrizione audio da video
+    QPushButton* m_ocrTranscribeBtn = nullptr;
+    QProcess*    m_ocrFfmpegProc    = nullptr;
+    QProcess*    m_ocrWhisperProc   = nullptr;
+    QString      m_ocrAudioWav;
     QMetaObject::Connection m_ocrAiTokenConn;
     QMetaObject::Connection m_ocrAiFinishedConn;
     QMetaObject::Connection m_ocrAiErrorConn;
