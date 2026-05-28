@@ -2429,6 +2429,17 @@ namespace {
 
 struct AnalisiTopic { const char* name; const char* html; const char* ex; const char* type; const char* plotEx; };
 
+/* ── Macro per frazioni a linea orizzontale (stile foglio scientifico) ──
+   Genera una mini-tabella inline: numeratore sopra la riga, denominatore sotto.
+   Qt QTextEdit supporta tabelle inline all'interno dei blocchi di testo. */
+#define FR(n,d) \
+  "<table border='0' cellpadding='0' cellspacing='1' " \
+  "style='display:inline-table;vertical-align:middle;margin:0 2px'>" \
+  "<tr><td align='center' style='border-bottom:1px solid #94a3b8;" \
+  "padding:0 4px;font-size:92%'>" n "</td></tr>" \
+  "<tr><td align='center' style='padding:0 4px;font-size:92%'>" d "</td></tr>" \
+  "</table>"
+
 /* Tipo stringa deve corrispondere al testo di m_solveCmb */
 static const AnalisiTopic kA1[] = {
   { "Limiti",
@@ -2437,17 +2448,21 @@ static const AnalisiTopic kA1[] = {
     "lim<sub>x&rarr;c</sub> f(x) = L &hArr; &forall;&epsilon;&gt;0 &exist;&delta;&gt;0 :"
     " 0&lt;|x&minus;c|&lt;&delta; &rArr; |f(x)&minus;L|&lt;&epsilon;</p><hr>"
     "<p><b>Limiti notevoli (x&rarr;0):</b><br>"
-    "&bull; sin(x)/x &rarr; 1 &nbsp;&bull; (1&minus;cos x)/x&sup2; &rarr; &frac12;<br>"
-    "&bull; ln(1+x)/x &rarr; 1 &nbsp;&bull; (e<sup>x</sup>&minus;1)/x &rarr; 1<br>"
-    "&bull; arctan(x)/x &rarr; 1 &nbsp;&bull; (a<sup>x</sup>&minus;1)/x &rarr; ln&thinsp;a<br>"
-    "<b>x&rarr;&infin;:</b> &nbsp;(1+1/x)<sup>x</sup> &rarr; e</p><hr>"
+    "&bull; " FR("sin x","x") " &rarr; 1 &nbsp;"
+    "&bull; " FR("1&minus;cos x","x&sup2;") " &rarr; " FR("1","2") "<br>"
+    "&bull; " FR("ln(1+x)","x") " &rarr; 1 &nbsp;"
+    "&bull; " FR("e<sup>x</sup>&minus;1","x") " &rarr; 1<br>"
+    "&bull; " FR("arctan x","x") " &rarr; 1 &nbsp;"
+    "&bull; " FR("a<sup>x</sup>&minus;1","x") " &rarr; ln a<br>"
+    "<b>x&rarr;&infin;:</b> &nbsp;"
+    "&#x28;1+" FR("1","x") "&#x29;<sup>x</sup> &rarr; e</p><hr>"
     /* ── Box colorato: Regola di L'Hôpital ── */
     "<p style='background:#7c3aed22;border-left:4px solid #a78bfa;"
     "border-radius:4px;padding:7px 10px;margin:6px 0'>"
     "<b style='color:#c4b5fd'>&#x2728; Regola di L&rsquo;H&ocirc;pital</b> "
     "(forme 0/0 o &infin;/&infin;):<br>"
-    "lim f/g = lim f&prime;/g&prime; &nbsp;&mdash;&nbsp; "
-    "si applica iterativamente se la forma rimane indeterminata.</p>"
+    "lim " FR("f","g") " = lim " FR("f&prime;","g&prime;")
+    " &nbsp;&mdash;&nbsp; si applica iterativamente se la forma rimane indeterminata.</p>"
     /* ── Box colorato: Gerarchia degli infiniti ── */
     "<p style='background:#16a34a22;border-left:4px solid #4ade80;"
     "border-radius:4px;padding:7px 10px;margin:6px 0'>"
@@ -2470,14 +2485,16 @@ static const AnalisiTopic kA1[] = {
     " [f(x+h)&minus;f(x)]/h</p><hr>"
     "<p><b>Tavola derivate fondamentali:</b><br>"
     "D[x<sup>n</sup>] = nx<sup>n&minus;1</sup> &bull; D[e<sup>x</sup>] = e<sup>x</sup>"
-    " &bull; D[ln x] = 1/x<br>"
+    " &bull; D[ln x] = " FR("1","x") "<br>"
     "D[sin x] = cos x &bull; D[cos x] = &minus;sin x<br>"
-    "D[tan x] = 1/cos&sup2;x &bull; D[arcsin x] = 1/&radic;(1&minus;x&sup2;)</p><hr>"
+    "D[tan x] = " FR("1","cos&sup2;x")
+    " &bull; D[arcsin x] = " FR("1","&radic;(1&minus;x&sup2;)") "</p><hr>"
     "<p><b>Regole:</b><br>"
-    "(fg)&prime; = f&prime;g+fg&prime; &nbsp;&bull;&nbsp; (f/g)&prime; = (f&prime;g&minus;fg&prime;)/g&sup2;<br>"
+    "(fg)&prime; = f&prime;g+fg&prime; &nbsp;&bull;&nbsp; "
+    "&#x28;" FR("f","g") "&#x29;&prime; = " FR("f&prime;g&minus;fg&prime;","g&sup2;") "<br>"
     "(f&compfn;g)&prime; = (f&prime;&compfn;g)&middot;g&prime; &nbsp;(regola della catena)</p><hr>"
     "<p><b>Teoremi:</b> <b>Rolle:</b> f(a)=f(b) &rArr; &exist;c: f&prime;(c)=0<br>"
-    "<b>Lagrange:</b> &exist;c&isin;(a,b): f&prime;(c)=[f(b)&minus;f(a)]/(b&minus;a)</p>"
+    "<b>Lagrange:</b> &exist;c&isin;(a,b): f&prime;(c) = " FR("f(b)&minus;f(a)","b&minus;a") "</p>"
     "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
     "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Derivata):</b><br>"
     "x**3 - 2*x + 1, x &nbsp;&bull; sin(x)*exp(x), x<br>"
@@ -2488,15 +2505,15 @@ static const AnalisiTopic kA1[] = {
     "<h3 style='color:#60a5fa'>Integrali indefiniti</h3>"
     "<p><b>Definizione:</b> F&prime;(x) = f(x) &rArr; &int;f(x)dx = F(x)+C</p><hr>"
     "<p><b>Integrali immediati:</b><br>"
-    "&int;x<sup>n</sup>dx = x<sup>n+1</sup>/(n+1)+C &nbsp;(n&ne;&minus;1)<br>"
-    "&int;e<sup>x</sup>dx = e<sup>x</sup>+C &nbsp;&bull;&nbsp; "
-    "&int;sin x dx = &minus;cos x+C<br>"
-    "&int;1/x dx = ln|x|+C &nbsp;&bull;&nbsp; "
-    "&int;1/(1+x&sup2;) dx = arctan x+C</p><hr>"
+    "&int;x<sup>n</sup>dx = " FR("x<sup>n+1</sup>","n+1") " + C &nbsp;(n&ne;&minus;1)<br>"
+    "&int;e<sup>x</sup>dx = e<sup>x</sup> + C &nbsp;&bull;&nbsp; "
+    "&int;sin x dx = &minus;cos x + C<br>"
+    "&int;" FR("1","x") "dx = ln|x| + C &nbsp;&bull;&nbsp; "
+    "&int;" FR("1","1+x&sup2;") "dx = arctan x + C</p><hr>"
     "<p><b>Tecniche:</b><br>"
     "<b>Sostituzione:</b> &int;f(g(x))g&prime;(x)dx &rarr; t=g(x)<br>"
     "<b>Per parti:</b> &int;u dv = uv &minus; &int;v du<br>"
-    "<b>Frazioni parziali:</b> p(x)/q(x) con q fattorizzabile</p>"
+    "<b>Frazioni parziali:</b> " FR("p(x)","q(x)") " con q fattorizzabile</p>"
     "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
     "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Integrale):</b><br>"
     "x**2*exp(x), x &nbsp;&bull; sin(x)**2, x<br>"
@@ -2542,14 +2559,17 @@ static const AnalisiTopic kA1[] = {
   { "Serie di Taylor",
     "<h3 style='color:#60a5fa'>Serie di Taylor &amp; Maclaurin</h3>"
     "<p><b>Formula di Taylor in x<sub>0</sub>:</b><br>"
-    "f(x) = &sum;<sub>k=0</sub><sup>n</sup> f<sup>(k)</sup>(x<sub>0</sub>)/k! "
-    "&middot; (x&minus;x<sub>0</sub>)<sup>k</sup> + R<sub>n</sub>(x)</p><hr>"
+    "f(x) = &sum;<sub>k=0</sub><sup>n</sup> "
+    FR("f<sup>(k)</sup>(x<sub>0</sub>)","k!")
+    " &middot; (x&minus;x<sub>0</sub>)<sup>k</sup> + R<sub>n</sub>(x)</p><hr>"
     "<p><b>Sviluppi di Maclaurin fondamentali (in 0):</b><br>"
-    "e<sup>x</sup> = 1 + x + x&sup2;/2! + x&sup3;/3! + &hellip;<br>"
-    "sin x = x &minus; x&sup3;/3! + x&sup5;/5! &minus; &hellip;<br>"
-    "cos x = 1 &minus; x&sup2;/2! + x<sup>4</sup>/4! &minus; &hellip;<br>"
-    "ln(1+x) = x &minus; x&sup2;/2 + x&sup3;/3 &minus; &hellip; &nbsp;(|x|&lt;1)<br>"
-    "(1+x)<sup>&alpha;</sup> = 1 + &alpha;x + &alpha;(&alpha;&minus;1)x&sup2;/2! + &hellip;</p>"
+    "e<sup>x</sup> = 1 + x + " FR("x&sup2;","2!") " + " FR("x&sup3;","3!") " + &hellip;<br>"
+    "sin x = x &minus; " FR("x&sup3;","3!") " + " FR("x&sup5;","5!") " &minus; &hellip;<br>"
+    "cos x = 1 &minus; " FR("x&sup2;","2!") " + " FR("x<sup>4</sup>","4!") " &minus; &hellip;<br>"
+    "ln(1+x) = x &minus; " FR("x&sup2;","2") " + " FR("x&sup3;","3")
+    " &minus; &hellip; &nbsp;(|x|&lt;1)<br>"
+    "(1+x)<sup>&alpha;</sup> = 1 + &alpha;x + "
+    FR("&alpha;(&alpha;&minus;1)x&sup2;","2!") " + &hellip;</p>"
     "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
     "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Semplificazione):</b><br>"
     "series(exp(x), x, 0, 6) &rarr; usa il campo Espressione<br>"
@@ -2564,10 +2584,11 @@ static const AnalisiTopic kA1[] = {
     " converge se S<sub>n</sub> ha limite finito</p><hr>"
     "<p><b>Criteri di convergenza:</b><br>"
     "<b>Confronto:</b> 0&le;a<sub>n</sub>&le;b<sub>n</sub>; b<sub>n</sub> conv. &rArr; a<sub>n</sub> conv.<br>"
-    "<b>Rapporto (D'Alembert):</b> &rho;=lim|a<sub>n+1</sub>/a<sub>n</sub>|; &rho;&lt;1 conv.<br>"
-    "<b>Radice (Cauchy):</b> &rho;=lim&radic;(|a<sub>n</sub>|); &rho;&lt;1 conv.<br>"
+    "<b>Rapporto (D&rsquo;Alembert):</b> &rho; = lim"
+    " &#x7c;" FR("a<sub>n+1</sub>","a<sub>n</sub>") "&#x7c;; &rho;&lt;1 conv.<br>"
+    "<b>Radice (Cauchy):</b> &rho; = lim &radic;(|a<sub>n</sub>|); &rho;&lt;1 conv.<br>"
     "<b>Leibniz:</b> &sum;(&minus;1)<sup>n</sup>a<sub>n</sub> conv. se a<sub>n</sub>&darr;0</p>"
-    "<p><b>Serie geometrica:</b> &sum;q<sup>n</sup> = 1/(1&minus;q) per |q|&lt;1</p>"
+    "<p><b>Serie geometrica:</b> &sum;q<sup>n</sup> = " FR("1","1&minus;q") " per |q|&lt;1</p>"
     "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
     "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Semplificazione):</b><br>"
     "Sum(1/n**2, (n,1,oo)) &rarr; usa Espressione<br>"
@@ -2579,14 +2600,15 @@ static const AnalisiTopic kA2[] = {
   { "Derivate parziali",
     "<h3 style='color:#fb923c'>Derivate parziali</h3>"
     "<p><b>Definizione:</b><br>"
-    "&part;f/&part;x(x<sub>0</sub>,y<sub>0</sub>) = lim<sub>h&rarr;0</sub>"
-    " [f(x<sub>0</sub>+h,y<sub>0</sub>)&minus;f(x<sub>0</sub>,y<sub>0</sub>)]/h</p><hr>"
+    FR("&part;f","&part;x") "(x<sub>0</sub>,y<sub>0</sub>) = lim<sub>h&rarr;0</sub>"
+    " " FR("f(x<sub>0</sub>+h,y<sub>0</sub>)&minus;f(x<sub>0</sub>,y<sub>0</sub>)","h") "</p><hr>"
     "<p><b>Differenziale totale:</b><br>"
-    "df = (&part;f/&part;x)dx + (&part;f/&part;y)dy</p>"
+    "df = " FR("&part;f","&part;x") "dx + " FR("&part;f","&part;y") "dy</p>"
     "<p>f differenziabile in (x<sub>0</sub>,y<sub>0</sub>) &rArr; "
     "derivate parziali continue in quel punto</p><hr>"
     "<p><b>Regola della catena:</b> se z=f(x(t),y(t))<br>"
-    "dz/dt = (&part;f/&part;x)(dx/dt) + (&part;f/&part;y)(dy/dt)</p>"
+    FR("dz","dt") " = " FR("&part;f","&part;x") FR("dx","dt")
+    " + " FR("&part;f","&part;y") FR("dy","dt") "</p>"
     "<p style='background:#431407;border-left:3px solid #f97316;border-radius:3px;padding:6px 10px;color:#fed7aa;"
     "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Derivata):</b><br>"
     "x**2*y + sin(x*y), x &rarr; deriv. parziale in x<br>"
