@@ -17,11 +17,14 @@
 #    - LaTeX KaTeX: rendering formule in Analisi 1/2 (QWebEngineView + KaTeX)
 #      widget LatexView + pannello 🔬 output AI; prompt AI aggiornati
 #    - Randomizer 🔀 Risolvi Passi: 52 formule categorizzate (test CAT-E inclusi)
-#    - Test SymPy CAT-E: 15 test complessi (eq. 3°, biquadratica, integrali,
-#      gaussiano, limiti notevoli, Taylor, disequazioni) — 62/62 PASS
-#    - Donazione PayPal: README badge + sezione, .github/FUNDING.yml (Sponsor),
-#      pulsante in Impostazioni > Ringraziamenti e in APK Android (Info page)
-#    - TODO completato: tutte le voci implementate
+#    - Test SymPy CAT-E: 15 test complessi (62/62 PASS)
+#    - Donazione PayPal: README, .github/FUNDING.yml, app desktop, APK Android
+#    - TTS + STT: web tab "Voce" (SpeechSynthesis + MediaRecorder→Whisper),
+#      APK Android QTextToSpeech + fix STT upload
+#    - FEAT-1 Multi-Agente [tab 9]: GraphMemory SQLite, MasterAgent→JSON→sub-agenti
+#      con depends_on, sintesi finale, export DOT/JSON/TXT
+#    - FEAT-2 Grafo RAG [Ricerca tab]: RagGraph LLM→entità+relazioni,
+#      visualizzazione Graphviz, click-nodo dettaglio, filtro live
 #
 #  Uso:
 #    ./aggiorna.sh              # GUI + AppImage (Linux) / GUI + ZIP (Windows)

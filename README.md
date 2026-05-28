@@ -25,13 +25,15 @@
 Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare modelli AI locali (Ollama, llama-server) senza dipendere da cloud o abbonamenti. È una piattaforma modulare che integra in un'unica finestra:
 
 - **Pipeline multi-agente** con anti-allucinazione a 4 livelli logici
-- **RAG ibrido** su file locali + web, con ricerca semantica
+- **Multi-Agente con GraphMemory** — decomposizione task, sub-agenti, memoria a grafo SQLite
+- **RAG ibrido JLT + Grafo Conoscenza** — ricerca semantica + entità/relazioni estratte da LLM
 - **105 simulazioni algoritmiche** visualizzate passo per passo
 - **18 plugin MCP** per Blender, FreeCAD, GNS3, RDKit, Cytoscape, OBS, Ollama cache...
 - **Calcolo distribuito WAN** (BOINC-like) su rete locale con 28 tipi di task
-- **Matematica simbolica** con SymPy, grafico interattivo, formule LaTeX
-- **Ricerca scientifica**: paper arXiv, brevetti, Bioconda, analisi fenomeni
-- **App mobile Android** (BLE chat, quiz CCNA, sincronizzazione LAN)
+- **Matematica simbolica** con SymPy, grafico interattivo, formule LaTeX (KaTeX)
+- **Voce**: TTS (SpeechSynthesis / QTextToSpeech) + STT (Whisper locale/server)
+- **Ricerca scientifica**: paper arXiv, brevetti, Bioconda, Grafo RAG, analisi fenomeni
+- **App mobile Android** (BLE chat, quiz CCNA, TTS, sincronizzazione LAN)
 
 ---
 
@@ -39,15 +41,18 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 
 | Feature | Descrizione |
 |---------|-------------|
-| 💼 **Scheda TFR** | Pagina dedicata in Finanza: form personale, **C.F. calcolato automaticamente** (algoritmo D.M. 1976 + lookup ~150 comuni/paesi), calcolo rivalutato, **Compila da RAG** auto-fill |
-| 🔢 **C.F. automatico** | Digita nome, cognome, data nascita, sesso, comune → il Codice Fiscale viene calcolato live |
-| 🖧 **WAN Calcolo Distribuito** | Server/client TCP porta 11600, dispatcher universale a 28 tipi task, cron scheduler, AI locale per-nodo |
-| 🦙 **Ollama MCP** | Nuovo plugin: cache SQLite dei modelli Ollama, 5 tool (list/info/search/sync/pull), solo stdlib Python |
-| 📂 **Allegati Analisi Fenomeni** | Upload PDF/TXT/MD/CSV con estrazione pdftotext |
-| 🎓 **Quiz CCNA 209 domande** | Da 64 a 209 domande in 15 temi (CCNA 200-301 completo) |
-| 📐 **DPI HiDPI/Wayland** | `dpiScale()` applicato sistematicamente in tutte le pages — corretto su display 2× |
-| 🌍 **i18n infrastruttura** | `QTranslator` in `main.cpp`, stub `.ts` in `gui/i18n/`, pronto per traduzioni |
-| 🔬 **Cytoscape — Bioinformatica** | Tab rinominato con categoria esplicita |
+| 🕸️ **Multi-Agente + Memoria a Grafo** | Tab [9]: MasterAgent decompone il compito in sub-task JSON → agenti specializzati in sequenza con `depends_on` → sintesi finale. **GraphMemory** SQLite-backed: nodi+archi, BFS, export DOT/JSON/TXT |
+| 🕸️ **Grafo Conoscenza RAG** | Tab 🕸️ Grafo RAG in Ricerca: LLM estrae entità+relazioni dai tuoi documenti → grafo navigabile con Graphviz, click-nodo dettagli, filtro live |
+| 🎙️ **TTS + STT ovunque** | Web app: tab "Voce" con SpeechSynthesis + MediaRecorder→Whisper. APK Android: QTextToSpeech box + fix STT upload |
+| 🔢 **LaTeX KaTeX** | Pannelli teoria Analisi 1/2 renderizzati con KaTeX (QWebEngineView). Pannello 🔬 output AI. Prompt AI aggiornati. |
+| 🔀 **Randomizer formule** | 52 formule categorizzate in Risolvi Passi (equazioni/derivate/integrali/limiti/semplificazioni/disequazioni) |
+| 🧪 **Test SymPy CAT-E** | 15 test complessi che eseguono realmente SymPy (gaussiano √π/2, Taylor, L'Hôpital, biquadratica…) — 62/62 PASS |
+| ☕ **Donazione PayPal** | Badge README, pulsante Sponsor GitHub (`.github/FUNDING.yml`), pulsante in Impostazioni e APK |
+| 💼 **Scheda TFR** | C.F. calcolato automaticamente (D.M. 1976 + ~150 comuni/paesi), calcolo rivalutato, Compila da RAG |
+| 🖧 **WAN Calcolo Distribuito** | Server/client TCP:11600, dispatcher 28 task, cron scheduler |
+| 🦙 **Ollama MCP** | Cache SQLite modelli, 5 tool (list/info/search/sync/pull), solo stdlib |
+| 🎓 **Quiz CCNA 209 domande** | 15 temi CCNA 200-301 completo |
+| 📐 **DPI/i18n** | `dpiScale()` su tutte le pages; `QTranslator` + stub `.ts` |
 
 ---
 
@@ -56,16 +61,20 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 | | |
 |---|---|
 | 🤖 **Pipeline Multi-Agente** | 6 agenti specializzati in sequenza + agente autonomo ReAct |
+| 🕸️ **Multi-Agente + GraphMemory** | MasterAgent decompone → sub-agenti con `depends_on` → memoria a grafo SQLite (nodi, archi, BFS, DOT) |
 | 🛡️ **Anti-Allucinazione** | 4 agenti logici: Originale → Avvocato del Diavolo → Gemello → Giudice |
 | 📂 **RAG Ibrido JLT** | Ricerca semantica 256-dim su documenti locali; inietta fonti citate nel prompt |
+| 🕸️ **Grafo Conoscenza RAG** | LLM estrae entità+relazioni dai documenti → grafo navigabile (Graphviz, click-nodo, filtro) |
+| 🎙️ **TTS + STT** | Web: SpeechSynthesis + MediaRecorder→Whisper. Android: QTextToSpeech + upload Whisper |
 | 💭 **Think Mode** | Ragionamento `<think>` espandibile inline, budget 1-4, auto-classificatore query |
 | 🧠 **Memoria cross-sessione** | Knowledge Base automatica in `user_knowledge.md`; MCP Knowledge Updater |
+| 🔢 **LaTeX KaTeX** | Formule matematiche renderizzate con KaTeX (QWebEngineView) in Analisi 1/2 + output AI |
 | 🎨 **Stable Diffusion** | Generazione immagini via AUTOMATIC1111/Forge/SD.Next (API locale) |
 | 🔬 **105 Simulazioni** | Algoritmi visualizzati barra per barra con spiegazione e complessità O-grande |
 | 🔗 **18 Plugin MCP** | JSON-RPC 2.0 stdio — Blender, Office, GNS3, RDKit, Cytoscape, OBS, Godot, **Ollama cache**... |
 | 🖧 **WAN Compute** | Calcolo distribuito LAN/WAN: server TCP + dispatcher 28 task + cron |
-| 📱 **App Android** | Qt6 native: BLE chat AES-256-GCM, Quiz CCNA **209 domande** (15 temi), sincronizzazione LAN |
-| 🌐 **LAN Server** | Web app embedded su porta 11500 per accesso da browser/mobile |
+| 📱 **App Android** | Qt6 native: BLE chat AES-256-GCM, Quiz CCNA **209 domande**, TTS/STT, sincronizzazione LAN |
+| 🌐 **LAN Server** | Web app embedded su porta 11500: chat, matematica, Voce (TTS+STT), Whisper, Graphviz |
 | 🃏 **Byzantino** | Gioco di maggioranza a tolleranza di guasto: m agenti, n disonesti configurabili |
 
 ---
@@ -79,10 +88,11 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 | 2 | 🎬 **Multimedia** | — | Audio AI (Whisper STT + TTS) · Stable Diffusion · Mappe Graphviz |
 | 3 | 📁 **File AI** | — | Analisi file · Wiki & Web · Excel/CSV · PDF · Word/Testo |
 | 4 | 💻 **Programmazione** | `Alt+3` | Editor+AI · Agentica · Translitter · Reverse Eng. · Git MCP · Python REPL · Interpreter · Rete & Network · Driver & Kernel |
-| 5 | π **Matematica** | `Alt+4` | Sequenza→Formula · Costanti alta precisione · N-esimo · Espressione · Risolvi Passi (SymPy) · Analisi 1 & 2 |
-| 6 | 🔬 **Ricerca** | `Alt+5` | Paper · Brevetto · Doc Tecnico · Cerca arXiv/Brevetti · Lavoro · Cytoscape—Bio · RDKit · Bioconda · Avogadro · RAB₀-L · BLHM · Analisi Fenomeni · Carta Astrale |
+| 5 | π **Matematica** | `Alt+4` | Sequenza→Formula · Costanti · N-esimo · Espressione · **Risolvi Passi** (🔀 52 formule) · Analisi 1&2 (**LaTeX KaTeX**) |
+| 6 | 🔬 **Ricerca** | `Alt+5` | Paper · Brevetto · Cerca arXiv/Brevetti · Lavoro · Cytoscape—Bio · RDKit · Bioconda · RAB₀-L · BLHM · Analisi Fenomeni · **🕸️ Grafo RAG** · Astrale |
 | 7 | 🕹 **APP Controller** | `Alt+6` | Blender · FreeCAD · Office · CloudCompare · Anki · KiCAD · TinyMCP · OBS · OpenCode · Godot |
 | 8 | 🌐 **LAN & WAN** | — | LAN Android (QR APK · ADB USB) · GNS3 MCP · **WAN Calcolo Distribuito** |
+| 9 | 🕸️ **Multi-Agente** | — | MasterAgent → JSON piano → Sub-agenti → **GraphMemory** (nodi/archi/DOT/JSON/TXT) |
 | ⚙️ | **Impostazioni** | header | Backend AI · Modelli · Think Mode · Voce · Visual · Hardware · Memoria · Test |
 
 ### Dettaglio tab Strumenti — Finanza
@@ -323,32 +333,32 @@ Prismalux/
 ├── gui/                        ← GUI C++/Qt6 (sorgente principale)
 │   ├── pages/                  ← Una pagina = un file .cpp/.h
 │   │   ├── agenti_page.*       ← Pipeline multi-agente (15 moduli)
+│   │   ├── agenti_multi_page.* ← [9] 🕸️ Multi-Agente + GraphMemory
 │   │   ├── lan_wan_page.*      ← LAN Android + GNS3 + WAN Compute
 │   │   ├── pratico_page.*      ← 730, P.IVA, Finanza, Scheda TFR
-│   │   ├── ricerca_page.*      ← Paper, brevetti, bio, analisi fenomeni
+│   │   ├── ricerca_page.*      ← Paper, brevetti, bio, Grafo RAG, analisi fenomeni
 │   │   ├── programmazione_page.* ← Editor, REPL, Rete, Driver
-│   │   ├── matematica_page.*   ← SymPy, formule, grafici
+│   │   ├── matematica_page.*   ← SymPy, formule, grafici, LaTeX KaTeX
 │   │   ├── simulatore_page.*   ← 105 algoritmi visualizzati
 │   │   └── ...                 ← altri 20+ moduli
-│   ├── widgets/                ← Componenti riutilizzabili
+│   ├── widgets/                ← Componenti riutilizzabili (incl. LatexView)
+│   ├── graph_memory.h/cpp      ← GraphMemory SQLite-backed (nodi, archi, BFS, DOT)
+│   ├── rag_graph.h/cpp         ← RagGraph: estrazione LLM → GraphMemory
 │   ├── themes/                 ← Temi QSS (dark, light, solarized…)
-│   ├── tests/                  ← Suite ctest
+│   ├── tests/                  ← Suite ctest (62 test, CAT-E SymPy)
 │   ├── CMakeLists.txt          ← Build (versione unica di verità)
 │   └── CLAUDE.md               ← Convenzioni di sviluppo
 ├── ANDROID/                    ← App Android Qt6
-│   └── android_app/            ← BLE chat, Quiz CCNA, LAN sync
-├── MCPs/                       ← 17 plugin MCP (Python, JSON-RPC 2.0)
+│   └── android_app/            ← BLE chat, Quiz CCNA, TTS, STT, LAN sync
+├── MCPs/                       ← 18 plugin MCP (Python, JSON-RPC 2.0)
 ├── RAG/                        ← Documenti per RAG (locale, non in git)
 ├── KNOWLEDGE_USER/             ← Memoria utente (locale, non in git)
-├── models/                     ← Modelli GGUF locali
 ├── scripts/
 │   ├── crea_appimage.sh        ← Genera AppImage Linux
 │   └── crea_zip_windows.py     ← Genera ZIP Windows
 ├── aggiorna.sh                 ← Linux/macOS: build + AppImage + ZIP
 ├── aggiorna.bat                ← Windows: build + ZIP (GUI + MSYS2)
-├── build.bat                   ← Windows: solo compilazione
-├── Avvia_Prismalux.bat         ← Windows: launcher
-└── Prismalux-x86_64.AppImage  ← AppImage precompilata Linux x86_64
+└── .github/FUNDING.yml         ← Pulsante Sponsor GitHub (PayPal)
 ```
 
 ---
@@ -362,7 +372,9 @@ Prismalux/
 | 📱 LAN Chat | Connessione al server Prismalux desktop via QR code o IP |
 | 🔵 BLE Chat | Comunicazione Bluetooth LE cifrata AES-256-GCM |
 | 🎓 Quiz CCNA | **209 domande** in 15 temi (CCNA 200-301 completo) con feedback interattivo |
-| 🎵 Audio AI | Registrazione + trascrizione Whisper |
+| 🎙️ Audio AI | Registrazione + trascrizione Whisper + **TTS** (QTextToSpeech, voce italiana) |
+| 🔊 Sintesi Vocale | Box TTS dedicato: scrivi testo → ascoltalo in italiano |
+| ☕ Donazione | Pulsante PayPal nella pagina Info |
 | ⚙️ Impostazioni | Configurazione backend, porta, token |
 
 **Installazione:**  

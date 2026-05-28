@@ -15,10 +15,11 @@ Header (72px): logo · backend · model · CPU/RAM/GPU · spinner · ⚙️
 [2] 🎬 Multimedia                        Audio AI (Whisper STT+TTS) · Stable Diffusion · Mappe Graphviz
 [3] 📁 File AI                           File AI · Wiki & Web · Excel/CSV · PDF · Word/Testo
 [4] 💻 Programmazione            Alt+3  Editor+AI · Agentica · Translitter · Reverse Eng. · Git · REPL · Interpreter · Rete · Driver
-[5] π  Matematica                Alt+4  Sequenza→Formula · Costanti · N-esimo · Espressione · Risolvi Passi (SymPy) · Analisi 1&2
-[6] 🔬 Ricerca                   Alt+5  Paper · Brevetti · Lavoro · Cytoscape—Bio · RDKit · Bioconda · RAB₀-L · BLHM · Analisi Fenomeni · Astrale
+[5] π  Matematica                Alt+4  Sequenza→Formula · Costanti · N-esimo · Espressione · Risolvi Passi (SymPy+🔀) · Analisi 1&2 (LaTeX KaTeX)
+[6] 🔬 Ricerca                   Alt+5  Paper · Brevetti · Lavoro · Cytoscape—Bio · RDKit · Bioconda · RAB₀-L · BLHM · Analisi Fenomeni · 🕸️ Grafo RAG · Astrale
 [7] 🕹 APP Controller            Alt+6  Blender/FreeCAD/Office/CloudCompare/Anki/KiCAD/TinyMCP/OBS/OpenCode/Godot
 [8] 🌐 LAN & WAN                         LAN Android (QR/ADB) · GNS3 MCP · WAN Compute (TCP:11600, 28 task)
+[9] 🕸️ Multi-Agente                      MasterAgent → SubTask JSON → sub-agenti → GraphMemory (SQLite)
 ImpostazioniPage: dialog modale (⚙️ header)
 ```
 Note:
@@ -26,6 +27,7 @@ Note:
 - Cron (`m_cronPanel`) in StrumentiPage via `installCronPanel()` con `QTimer::singleShot(0)`
 - Cytoscape/RDKit/Bioconda/Avogadro → Ricerca [6]; GNS3 → LAN & WAN [8]; Godot → AppController [7]
 - AppController tab indici: 0=Blender 1=FreeCAD 2=Office 3=CloudCompare 4=Anki 5=KiCAD 6=TinyMCP 7=OBS 8=OpenCode 9=Godot
+- Web app (lan_server.cpp) tab 🎙️ Voce: TTS (SpeechSynthesis) + STT (MediaRecorder→/api/whisper)
 
 ## File chiave
 | File | Ruolo |
@@ -42,6 +44,10 @@ Note:
 | `pages/pratico_page.*` | 730, P.IVA, Calcolatori Finanza, Scheda TFR (C.F. auto D.M. 1976 + Belfiore) |
 | `pages/ricerca_page.*` | Tab Ricerca [6] — include Cyto/RDKit/Bio/Avo + Analisi Fenomeni (allegati PDF) |
 | `pages/matematica_page.*` | Matematica SymPy; errore fetchModels→ setStatus() via holder |
+| `pages/agenti_multi_page.*` | [9] Multi-Agente: MasterAgent, SubTask, GraphMemory live, sintesi finale |
+| `graph_memory.h/cpp` | GraphMemory SQLite-backed: nodi/archi, BFS neighbours, DOT/JSON/TXT export |
+| `rag_graph.h/cpp` | RagGraph: scansiona RAG dirs, estrae entità+relazioni LLM → GraphMemory |
+| `widgets/latex_view.h` | LatexView (QWebEngineView+KaTeX o QTextEdit fallback) per formule |
 | `widgets/ai_error_widget.h` | Header-only Q_OBJECT — `showError(msg, onRetry)` — elencato in CPP_SRCS |
 | `widgets/code_interpreter_widget.h/cpp` | Python sandbox: exec, matplotlib PNG, Docker |
 | `MCPs/knowledge_mcp/server.py` | Knowledge Updater MCP (JSON-RPC 2.0 stdio) |
@@ -182,11 +188,68 @@ OpenCode: porta sempre `P::kOpenCodePort`. SSE events: `message.updated`, `sessi
 - `wanPopulateKindCombo(QComboBox*)` — QStandardItemModel con separatori NoItemFlags
 - `wanKindTemplate(kind)` — template payload automatico
 
+## GraphMemory API (`graph_memory.h`)
+```cpp
+GraphMemory gm("~/.prismalux/graph_memory.db");
+gm.open();
+// Scrittura
+QString nodeId = gm.addNode("entity", "Qt6", "Framework GUI C++", 0.9f);
+gm.addEdge(nodeId, otherNodeId, "usa", 0.8f);
+gm.updateNode(nodeId, "Framework GUI C++ cross-platform", 0.95f);
+// Lettura
+auto nodes = gm.allNodes();          // tutti i nodi, ordinati per importanza
+auto nodes = gm.allNodes("entity");  // filtro per tipo
+auto nbrs  = gm.neighbours(id, 2);  // vicini entro 2 hop (BFS)
+auto found = gm.searchNodes("Qt");   // ricerca testuale
+auto node  = gm.nodeByLabel("Qt6");  // std::optional<GmNode>
+// Export
+QString dot  = gm.toDot("Titolo", 150);   // Graphviz DOT
+QString json = gm.toJson(200);             // JSON compatto
+gm.exportTxt("~/memory.txt", 100);         // snapshot testuale
+// Manutenzione
+gm.pruneByImportance(500);  // tieni solo top-500 nodi
+gm.clearAll();
+connect(&gm, &GraphMemory::changed, this, &MyWidget::onGmChanged);
+```
+Tipi nodo: `entity | concept | fact | task | result | documento | rag_chunk`
+Tipi arco: `relates_to | elaborates | contradicts | causes | part_of | task_of | derived_from | usa | basato_su`
+
+## RagGraph API (`rag_graph.h`)
+```cpp
+RagGraph rg(m_ai, m_gm);
+rg.addDirectory("~/prismalux_rag_docs");
+rg.addFile("/path/to/doc.pdf", "MyDoc");
+rg.startIngest();  // asincrono — segnali progressUpdated + finished
+rg.stopIngest();
+// Ricerca
+auto chunks = rg.searchChunks("Qt6", 10);   // QVector<RagGraphChunk>
+auto nodes  = rg.searchNodes("formula", 20);
+```
+Percorsi RAG analizzati: `~/prismalux_rag_docs/` + `P::root() + "/RAG/"`
+DB separato da FEAT-1: `~/.prismalux/rag_graph.db`
+
+## Multi-Agente (`agenti_multi_page.h`)
+- `GraphMemory* graphMemory()` — accesso alla memoria condivisa dall'esterno
+- Piano MasterAgent: JSON `{"task":"...","subtasks":[{"id":1,"role":"...","prompt":"...","depends_on":[]}]}`
+- Esecuzione: sequenziale rispettando `depends_on` (BFS ordering)
+- Ogni risultato salvato come nodo tipo `"result"` in GraphMemory
+- DB: `~/.prismalux/graph_memory.db`
+
+## LaTeX KaTeX (`widgets/latex_view.h`)
+```cpp
+LatexView* v = new LatexView(parent);
+v->setLatexHtml(htmlWithLatex, "#1e293b", "#e2e8f0");
+// delimitatori: \(...\) inline, \[...\] display
+// richiede Qt6::WebEngineWidgets + libjs-katex (/usr/share/javascript/katex/)
+// fallback automatico a QTextEdit se HAVE_WEBENGINE_WIDGETS non definito
+```
+
 ## Suite di Test
 ```bash
 cmake -B build_tests gui/ -DBUILD_TESTS=ON && cmake --build build_tests -j$(nproc)
-ctest --test-dir build_tests -j4   # 33/36 PASS
+ctest --test-dir build_tests -j4   # 62/62 PASS (incl. CAT-E SymPy)
 ```
 - `SimulatoreAlgos`: FLAKY in -j4, PASS standalone → `RESOURCE_LOCK cpu_heavy` in CMakeLists
 - `AiStress`: OOM RAM (non bug) — richiede `mistral:7b-instruct` e ≥2 GB RAM libera
 - `HardwareMonitor`: richiede `mon.start()` prima di `QVERIFY(spy.wait(...))`
+- **CAT-E** (TestRisolviPassi): 15 test SymPy reali — gaussiano, biquadratica, Taylor, L'Hôpital…

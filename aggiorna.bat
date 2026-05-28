@@ -14,12 +14,12 @@ REM    - BT Android: toggle modalita' chiaro/cifrato (default: chiaro)
 REM    - DPI HiDPI/Wayland: dpiScale() in tutte le pages
 REM    - i18n: QTranslator + stub .ts in gui/i18n/
 REM    - LaTeX KaTeX: rendering formule Analisi 1/2 (QWebEngineView)
-REM      widget LatexView, pannello output AI, prompt AI aggiornati
-REM    - Randomizer formule (tasto shuffle): 52 formule categorizzate
-REM      in Risolvi Passi (eq., deriv., integr., limiti, simpl., diseq.)
-REM    - Test SymPy CAT-E: 15 test complessi - 62/62 PASS
+REM    - Randomizer 52 formule in Risolvi Passi, Test SymPy CAT-E 62/62 PASS
 REM    - Donazione PayPal: README, FUNDING.yml, app desktop, APK Android
-REM    - TODO: tutte le voci completate
+REM    - TTS + STT: web tab Voce (SpeechSynthesis + MediaRecorder→Whisper)
+REM      APK Android: QTextToSpeech + fix STT upload (uploadWhisper)
+REM    - FEAT-1 Multi-Agente [tab 9]: GraphMemory SQLite, sub-agenti JSON
+REM    - FEAT-2 Grafo RAG in Ricerca: RagGraph LLM + Graphviz
 REM
 REM  Rilevamento bash (ordine di priorità):
 REM    1. MSYS2 UCRT64    (C:\msys64\ucrt64)   — migliore per Qt
