@@ -14,6 +14,8 @@
 
 **Piattaforma AI locale e distribuita — zero cloud, zero abbonamenti, tutto sul tuo hardware.**
 
+[![Donate PayPal](https://img.shields.io/badge/Dona%20con-PayPal-00457C?style=flat-square&logo=paypal&logoColor=white)](https://www.paypal.com/donate?token=_oGlLIKu1FVK4KdKsH7ft6L90cMRZpN_zCgeFRglYUfvs_HVkyKKY5w5m198MiQ8yAyzdMpUIp_nZd9b)
+
 </div>
 
 ---
@@ -380,6 +382,20 @@ PR benvenute. Regole essenziali:
 6. **Emoji in stringhe C++**: concatena quando il carattere successivo è cifra hex (`"\xe2\x80\x9c" "Testo"` non `"\xe2\x80\x9cTesto"`).
 
 Vedi `gui/CLAUDE.md` per le convenzioni complete (ThemeManager, LanServer shutdown, AiClient API, Think Mode, RAG, MCP).
+
+---
+
+## Supporta il progetto ☕
+
+Prismalux è software libero, sviluppato nel tempo libero. Se ti è utile e vuoi contribuire alla sua crescita, puoi offrire un caffè:
+
+<div align="center">
+
+[![Dona con PayPal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate?token=_oGlLIKu1FVK4KdKsH7ft6L90cMRZpN_zCgeFRglYUfvs_HVkyKKY5w5m198MiQ8yAyzdMpUIp_nZd9b)
+
+</div>
+
+Ogni contributo aiuta a finanziare lo sviluppo di nuove funzionalità, il supporto multipiattaforma e il tempo dedicato al progetto. Grazie! 🙏
 
 ---
 

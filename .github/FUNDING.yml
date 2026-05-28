@@ -1,0 +1,6 @@
+# Finanziamento del progetto Prismalux
+# Mostra il pulsante "Sponsor" nella pagina GitHub del repository.
+# Documentazione: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+
+custom:
+  - https://www.paypal.com/donate?token=_oGlLIKu1FVK4KdKsH7ft6L90cMRZpN_zCgeFRglYUfvs_HVkyKKY5w5m198MiQ8yAyzdMpUIp_nZd9b
