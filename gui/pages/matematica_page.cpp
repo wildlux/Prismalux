@@ -34,6 +34,7 @@
 #include <QScrollArea>
 #include <QStackedWidget>
 #include <QApplication>
+#include <QRandomGenerator>
 #include "../dpi_utils.h"
 #include <cmath>
 #include <limits>
@@ -2395,6 +2396,130 @@ void MatematicaPage::onProcFinished(int code, QProcess::ExitStatus /*status*/)
 }
 
 /* ══════════════════════════════════════════════════════════════
+   Archivio formule per il pulsante 🔀 Casuale in Risolvi Passi.
+   Include tutti i test di CAT-E + formule aggiuntive per copertura
+   completa di equazioni, disequazioni, derivate, integrali, limiti
+   e semplificazioni.
+   ══════════════════════════════════════════════════════════════ */
+namespace {
+struct SolveExample { const char* expr; const char* tipo; const char* desc; };
+static const SolveExample kSolveExamples[] = {
+    /* ── Equazioni (10) ──────────────────────────────────── */
+    { "x^3 - 6*x^2 + 11*x - 6 = 0",
+      "Equazione", "Terzo grado - radici razionali 1, 2, 3 [TEST]" },
+    { "x^4 - 13*x^2 + 36 = 0",
+      "Equazione", "Biquadratica - radici +-2, +-3 [TEST]" },
+    { "x^2 + x + 1 = 0",
+      "Equazione", "Delta < 0 - radici complesse coniugate [TEST]" },
+    { "2*x^3 + x^2 - 5*x + 2 = 0",
+      "Equazione", "Cubica con radici 1/2, 1, -2" },
+    { "x^4 - 5*x^2 + 4 = 0",
+      "Equazione", "Biquadratica - radici +-1, +-2" },
+    { "x^3 + 3*x^2 - 4 = 0",
+      "Equazione", "Cubica con fattore (x-1)" },
+    { "x^2 - 2*sqrt(3)*x + 3 = 0",
+      "Equazione", "Delta = 0 - radice doppia sqrt(3)" },
+    { "x^5 - x = 0",
+      "Equazione", "Quintico fattorizzabile - 5 radici" },
+    { "x^2 - 5 = 0",
+      "Equazione", "Radici irrazionali +-sqrt(5)" },
+    { "x^3 - x = 0",
+      "Equazione", "Cubica - radici 0, +-1" },
+    /* ── Disequazioni (5) ────────────────────────────────── */
+    { "x^2 - 5*x + 6 > 0",
+      "Disequazione", "Parabola > 0 su (-oo,2) U (3,+oo) [TEST]" },
+    { "x^3 - x > 0",
+      "Disequazione", "Cubica positiva in (-1,0) U (1,+oo)" },
+    { "(x - 1)*(x + 2)*(x - 3) < 0",
+      "Disequazione", "Tre radici 1, -2, 3" },
+    { "x^4 - 5*x^2 + 4 <= 0",
+      "Disequazione", "Biquadratica <= 0 su [-2,-1] U [1,2]" },
+    { "x^2 - 4 >= 0",
+      "Disequazione", "Parabola >= 0 su (-oo,-2] U [2,+oo)" },
+    /* ── Derivate (10) ───────────────────────────────────── */
+    { "sin(x^2 + 1), x",
+      "Derivata", "Catena: D[sin(x^2+1)] = 2x*cos(x^2+1) [TEST]" },
+    { "x^3*exp(x), x, 2",
+      "Derivata", "Derivata seconda di x^3*e^x [TEST]" },
+    { "atan(x), x",
+      "Derivata", "D[arctan(x)] = 1/(1+x^2) [TEST]" },
+    { "log(x^2 + 1)*sin(x), x",
+      "Derivata", "Prodotto ln(x^2+1)*sin(x)" },
+    { "(x^2 + 1)/(x^3 - 1), x",
+      "Derivata", "Derivata di funzione razionale" },
+    { "sin(x)^2, x",
+      "Derivata", "D[sin^2(x)] = sin(2x)" },
+    { "sqrt(x^2 + 1), x",
+      "Derivata", "D[sqrt(x^2+1)] = x/sqrt(x^2+1)" },
+    { "exp(sin(x)), x",
+      "Derivata", "Catena doppia e^{sin(x)}" },
+    { "log(x + sqrt(x^2 + 1)), x",
+      "Derivata", "D[arcsinh(x)] = 1/sqrt(x^2+1)" },
+    { "x^2*exp(-x), x",
+      "Derivata", "Prodotto polinomio x esponenziale" },
+    /* ── Integrali (10) ──────────────────────────────────── */
+    { "x*exp(x), x",
+      "Integrale", "Per parti: Int x*e^x dx = (x-1)*e^x + C [TEST]" },
+    { "sin(x), x, 0, pi",
+      "Integrale", "Definito esatto: Int_0^pi sin(x)dx = 2 [TEST]" },
+    { "exp(-x^2), x, 0, oo",
+      "Integrale", "Gaussiano: Int_0^oo e^{-x^2}dx = sqrt(pi)/2 [TEST]" },
+    { "log(x), x",
+      "Integrale", "Per parti: Int ln(x)dx = x*ln(x)-x + C" },
+    { "x^2*sin(x), x",
+      "Integrale", "Per parti iterata su x^2*sin(x)" },
+    { "1/(x^2 + 1), x",
+      "Integrale", "Int 1/(1+x^2)dx = arctan(x) + C" },
+    { "sqrt(1 - x^2), x, -1, 1",
+      "Integrale", "Area semicerchio = pi/2" },
+    { "sin(x)^2, x",
+      "Integrale", "Formula di riduzione: Int sin^2(x)dx" },
+    { "1/(x^2 - 1), x",
+      "Integrale", "Frazioni parziali: ln|(x-1)/(x+1)|/2 + C" },
+    { "x^3*exp(x), x",
+      "Integrale", "Per parti ripetuta - 4 passaggi" },
+    /* ── Limiti (9) ──────────────────────────────────────── */
+    { "sin(x)/x, x, 0",
+      "Limite", "Limite notevole fondamentale -> 1 [TEST]" },
+    { "(1 - cos(x))/x^2, x, 0",
+      "Limite", "Forma 0/0 -> 1/2 (L'Hopital) [TEST]" },
+    { "(x^2 + 1)/(x^2 - 1), x, oo",
+      "Limite", "Limite all'inf di razionale -> 1 [TEST]" },
+    { "(exp(x) - 1)/x, x, 0",
+      "Limite", "Limite notevole (e^x-1)/x -> 1" },
+    { "(1 + 1/x)^x, x, oo",
+      "Limite", "Definizione di e: (1+1/x)^x -> e" },
+    { "x*log(x), x, 0",
+      "Limite", "Forma 0*oo -> 0" },
+    { "(sqrt(x + 1) - 1)/x, x, 0",
+      "Limite", "Forma 0/0 -> 1/2 (razionalizzazione)" },
+    { "(x^3 - 8)/(x - 2), x, 2",
+      "Limite", "Forma 0/0 - fattorizza cubo -> 12" },
+    { "sin(3*x)/sin(5*x), x, 0",
+      "Limite", "Rapporto seni con limiti notevoli -> 3/5" },
+    /* ── Semplificazioni (8) ─────────────────────────────── */
+    { "sin(x)^2 + cos(x)^2",
+      "Semplificazione", "Identita' di Pitagora = 1 [TEST]" },
+    { "(x^3 - 1)/(x - 1)",
+      "Semplificazione", "Differenza cubi -> x^2+x+1 [TEST]" },
+    { "series(exp(x), x, 0, 6)",
+      "Semplificazione", "Taylor di e^x in 0 all'ordine 5 [TEST]" },
+    { "factor(x^4 - 5*x^2 + 4)",
+      "Semplificazione", "Fattorizzazione quartica" },
+    { "expand((x + 1)^6)",
+      "Semplificazione", "Binomio di Newton ordine 6" },
+    { "simplify(tan(x)^2 + 1 - 1/cos(x)^2)",
+      "Semplificazione", "Identita' sec^2(x) = tan^2(x)+1 -> 0" },
+    { "series(sin(x), x, 0, 8)",
+      "Semplificazione", "Taylor di sin(x) all'ordine 7" },
+    { "factor(x^6 - 1)",
+      "Semplificazione", "Fattorizzazione differenza sesta potenza" },
+};
+static const int kNSolveExamples =
+    static_cast<int>(sizeof(kSolveExamples)/sizeof(kSolveExamples[0]));
+} // namespace
+
+/* ══════════════════════════════════════════════════════════════
    buildSolveTab — risoluzione passo per passo via LLM (stile Derive)
    ══════════════════════════════════════════════════════════════ */
 QWidget* MatematicaPage::buildSolveTab()
@@ -2424,6 +2549,17 @@ QWidget* MatematicaPage::buildSolveTab()
     m_solveCmb->addItem("Limite",          "limite");
     m_solveCmb->addItem("Semplificazione", "semplificazione");
     inputRow->addWidget(m_solveCmb);
+
+    auto* btnRandom = new QPushButton("\xf0\x9f\x94\x80", w);  /* 🔀 */
+    btnRandom->setObjectName("navBtn");
+    btnRandom->setFixedWidth(dpiScale(34));
+    btnRandom->setToolTip(
+        QString("Formula casuale (%1 disponibili) — cambia tipo ed espressione")
+        .arg(kNSolveExamples));
+    connect(btnRandom, &QPushButton::clicked,
+            this, &MatematicaPage::onSolveRandomClicked);
+    inputRow->addWidget(btnRandom);
+
     lay->addLayout(inputRow);
 
     /* Barra pulsanti */
@@ -2502,6 +2638,29 @@ void MatematicaPage::onSolveClicked()
 /* ══════════════════════════════════════════════════════════════
    onSolveStopClicked — interrompe il calcolo (SymPy o AI)
    ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   onSolveRandomClicked — pesca una formula casuale dall'archivio
+   kSolveExamples e la inserisce nel campo + imposta il tipo.
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onSolveRandomClicked()
+{
+    const int idx = static_cast<int>(
+        QRandomGenerator::global()->bounded(static_cast<quint32>(kNSolveExamples)));
+    const SolveExample& ex = kSolveExamples[idx];
+
+    if (m_solveInput)
+        m_solveInput->setText(QString::fromUtf8(ex.expr));
+
+    if (m_solveCmb) {
+        const int ci = m_solveCmb->findText(QString::fromUtf8(ex.tipo));
+        if (ci >= 0) m_solveCmb->setCurrentIndex(ci);
+    }
+
+    setStatus(QString("\xf0\x9f\x94\x80  %1: %2")   /* 🔀 */
+              .arg(QString::fromUtf8(ex.tipo),
+                   QString::fromUtf8(ex.desc)));
+}
+
 void MatematicaPage::onSolveStopClicked()
 {
     if (!m_solveBusy) return;

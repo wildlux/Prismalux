@@ -194,6 +194,7 @@ private slots:
 
     /* tab Risolvi Passi */
     void onSolveClicked();
+    void onSolveRandomClicked();    ///< 🔀 pesca formula casuale dall'archivio
     void onSolveStopClicked();
     void onSolveCopyClicked();
     void onSolveRestoreCopyBtn();
