@@ -228,6 +228,19 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
          "TTS/STT &middot; Cron scheduler &middot; 17 MCP integrati</p>\n"
          "<hr>\n";
 
+    /* donazione */
+    h += "<div style=\"text-align:center;background:" + bg2 + ";"
+         "border:1px solid " + accent + ";"
+         "border-radius:8px;padding:10px 16px;margin:4px 0 8px 0\">\n"
+         "<span style=\"font-size:15px\">&#9749;&nbsp; <b>Supporta Prismalux</b></span><br>"
+         "<span style=\"font-size:12px;color:" + muted + "\">"
+         "Prismalux &egrave; open-source e gratuito. Se ti &egrave; utile puoi offrire un caff&egrave;:</span><br><br>"
+         "<a href=\"https://www.paypal.com/donate?token=_oGlLIKu1FVK4KdKsH7ft6L90cMRZpN_zCgeFRglYUfvs_HVkyKKY5w5m198MiQ8yAyzdMpUIp_nZd9b\""
+         " style=\"background:" + accent + ";color:#fff;padding:7px 22px;"
+         "border-radius:6px;font-weight:700;font-size:13px;text-decoration:none\">"
+         "&#128521;&nbsp; Dona con PayPal</a>"
+         "</div><hr>\n";
+
     /* autore */
     h += "<h2>&#128100;&nbsp; Autore</h2>\n"
          "<table><tr>"

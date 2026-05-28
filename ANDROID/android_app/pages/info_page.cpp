@@ -1,10 +1,14 @@
 #include "info_page.h"
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QScrollArea>
 #include <QGroupBox>
 #include <QFrame>
 #include <QPixmap>
+#include <QPushButton>
+#include <QDesktopServices>
+#include <QUrl>
 #include <QScroller>
 #include <QScrollerProperties>
 
@@ -124,6 +128,35 @@ InfoPage::InfoPage(QWidget* parent) : QWidget(parent)
         "<b>OCR:</b> cattura testo da immagini via Camera e lo inietta nella chat.");
     archLay->addWidget(archLbl);
     vbox->addWidget(archGroup);
+
+    /* ── Dona ── */
+    auto* donaGroup = new QGroupBox(
+        "\xe2\x98\x95  Supporta Prismalux", inner);   /* ☕ */
+    donaGroup->setObjectName("SettingsGroup");
+    auto* donaLay = new QVBoxLayout(donaGroup);
+    donaLay->setSpacing(8);
+
+    auto* donaLbl = new QLabel(donaGroup);
+    donaLbl->setTextFormat(Qt::RichText);
+    donaLbl->setWordWrap(true);
+    donaLbl->setText(
+        "Prismalux \xc3\xa8 open-source e gratuito. "     /* è */
+        "Se ti \xc3\xa8 utile e vuoi sostenere lo sviluppo, "
+        "puoi offrire un caff\xc3\xa8 \xf0\x9f\x8d\xba"); /* è 🍺 */
+    donaLay->addWidget(donaLbl);
+
+    auto* donaBtn = new QPushButton(
+        "\xf0\x9f\x98\x8a  Dona con PayPal", donaGroup);  /* 😊 */
+    donaBtn->setObjectName("ChatSendBtn");
+    donaBtn->setMinimumHeight(44);
+    donaBtn->setCursor(Qt::PointingHandCursor);
+    QObject::connect(donaBtn, &QPushButton::clicked, donaGroup, []() {
+        QDesktopServices::openUrl(QUrl(
+            "https://www.paypal.com/donate"
+            "?token=_oGlLIKu1FVK4KdKsH7ft6L90cMRZpN_zCgeFRglYUfvs_HVkyKKY5w5m198MiQ8yAyzdMpUIp_nZd9b"));
+    });
+    donaLay->addWidget(donaBtn);
+    vbox->addWidget(donaGroup);
 
     /* ── Crediti ── */
     auto* creditGroup = new QGroupBox(
