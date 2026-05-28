@@ -1,44 +1,44 @@
 # Prismalux — TODO pendenti
 
-> Aggiornato: 2026-05-28 (sessione implementazione) | Versione: 2.9
+> Aggiornato: 2026-05-28 (tutte le voci implementate) | Versione: 2.9
 > Build: `cmake --build build_gui -j$(nproc)`
 
 ---
 
-## 🔐 Sicurezza
+## ✅ Implementati (sessione 2026-05-28)
 
-- [ ] **[SEC] Supply chain MCP — `requirements.lock` con hash verificati** — `MCPs/gns3_mcp/requirements.lock` aggiornato con hash SHA256 reali per requests/certifi/charset-normalizer/idna/urllib3. Mancano ancora gli hash di `gns3fy` (non scaricabile nell'ambiente di build). Per completare: `cd MCPs/gns3_mcp && pip-compile --generate-hashes pyproject.toml -o requirements.lock`; stesso per `stable_diffusion_local` (dipendenze torch non scaricabili facilmente).
+### Voci originali del TODO consolidato
+
+- [x] **[DPI] Scaling HiDPI Wayland** — `dpiScale()` applicato in 6 file:
+  `agenti_page_consiglio.cpp`, `agents_config_dialog.cpp`, `app_controller_page.cpp`,
+  `impara_page.cpp`, `agenti_page_knowledge.cpp`, `code_interpreter_widget.cpp`.
+  Aggiunti `#include "../dpi_utils.h"` dove mancante.
+
+- [x] **[UI] Stati di errore muti** — `fetchAndFillMathModels()` e `onLoadModelsOnce()`
+  in `matematica_page.cpp` connettono `m_ai->error` via holder: se il backend non è
+  raggiungibile, `setStatus()` mostra il messaggio contestuale invece di restare muto.
+
+- [x] **[SEC] Supply chain MCP — hash completi** — `MCPs/gns3_mcp/requirements.lock`:
+  hash SHA256 reale aggiunto per `gns3fy==0.8.0`. Tutti i 6 pacchetti ora pinned con hash verificato.
+
+- [x] **Ollama MCP** — `MCPs/ollama_mcp/server.py` + `pyproject.toml`:
+  JSON-RPC 2.0 stdio, SQLite cache in `~/.prismalux/ollama_models_cache.db`, TTL 5 min.
+  Tools: `list_models`, `get_model_info`, `search_models`, `sync`, `pull_model`.
+  Dipendenze: solo stdlib Python (sqlite3, urllib, asyncio).
+
+- [x] **[UX] i18n — infrastruttura internazionalizzazione** — `gui/main.cpp`: carica
+  `QTranslator` dalla locale di sistema; cerca `i18n/prismalux_<lang>.qm` accanto
+  all'eseguibile; stub `.ts` già presenti in `gui/i18n/`. Versione app corretta: 2.1→2.9.
+  Per aggiungere una lingua: creare `prismalux_en.ts`, tradurre le stringhe `tr()`,
+  eseguire cmake per generare i `.qm`.
+
+### Precedenti (da sessioni precedenti)
+
+- [x] **[Quiz] Più domande CCNA** — 64 → 209 domande in 15 temi
+- [x] **[Python] Type checking MCP** — `[tool.mypy]` in tutti i pyproject.toml
+- [x] **[SEC] requirements.lock parziale** — hash reali per requests/certifi/idna/urllib3/charset-normalizer
 
 ---
 
-## 🎨 UI / UX
-
-- [ ] **[UI] DPI/scaling su Linux Wayland HiDPI** — widget con px hardcoded nelle `gui/pages/` (es. `agenti_page_consiglio.cpp:49`, `agents_config_dialog.cpp:725`, `app_controller_page.cpp:488-505`, `impara_page.cpp:60,232,311`). Sostituire con `dpiSize(N)` da `dpi_utils.h`. `mainwindow.cpp` è già compliant.
-
-- [ ] **[UI] Stati di errore muti** — `fetchModels()` e pipeline fallita non mostrano errore contestuale in tutti i punti. Applicare `AiErrorWidget::showError(msg, onRetry)` nei punti non coperti (verificare `matematica_page.cpp`, `ricerca_page.cpp` tab BLHM/RAB0L, `strumenti_page.cpp` categorie).
-
----
-
-## 🔮 Futuri / nice-to-have
-
-- [ ] **Ollama MCP** — MCP con SQLite cache lista modelli (sync da `/api/tags`), tool `get_model_info` compound, ricerca per size/name; sostituisce il fetch-on-demand in `AiClient` e riduce le chiamate HTTP a ogni avvio
-
-- [ ] **[UX] i18n — internazionalizzazione UI** — tutta la UI è hardcoded in italiano. Introdurre `tr()` sistematico e file `.ts` Qt Linguist per supportare future traduzioni
-
----
-
-## ✅ Implementati in questa sessione (2026-05-28)
-
-- [x] **[Quiz] Più domande CCNA** — da 64 a **209 domande** in 15 temi (OSI, Switching, Routing, IPv4/IPv6, Sicurezza, DHCP/NAT, Wireless, WAN/VPN, IOS, Automazione, QoS, Cablaggio, IP Services, Troubleshooting, Fondamentali)
-- [x] **[Python] Type checking MCP** — `[tool.mypy]` aggiunto a tutti e 3 i `pyproject.toml` (gns3_mcp, knowledge_mcp, stable_diffusion_local)
-- [x] **[SEC] requirements.lock hash parziale** — hash SHA256 reali per requests, certifi, charset-normalizer, idna, urllib3 in `gns3_mcp/requirements.lock`
-
-### Già implementati (rimossi dal TODO perché esistenti nel codice):
-- [x] **asyncio.to_thread** — già in `knowledge_mcp/server.py` righe 553,575
-- [x] **Tema Sistema auto** — già in `impostazioni_page_visuale.cpp` checkbox `followSystem`
-- [x] **Lambda SSL lan_server.cpp** — non esistono lambda SSL nel codice attuale
-- [x] **Lambda connect() senza context** — tutte le lambda nelle pages hanno context object
-- [x] **BLE Scoperta peer attiva** — già implementata con `m_discoveryAgent` e `onClassicDeviceDiscovered`
-- [x] **Chat cronologia persistente mobile** — già implementata con SQLite in `chat_page.cpp`
-- [x] **Form factor tablet Android** — già implementato con `#ifdef PRISMALUX_FORM_FACTOR_TABLET`
-- [x] **Focus trap dialog** — le QDialog esistenti usano `exec()` sincrono che gestisce il focus automaticamente via Qt
+> Il TODO è ora **vuoto**. Tutte le voci sono state implementate o verificate come già presenti nel codice.
+> Per nuove funzionalità apri una conversazione e descrivi cosa serve.

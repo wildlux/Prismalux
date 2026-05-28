@@ -17,6 +17,5 @@ idna==3.17 \
 urllib3==2.7.0 \
     --hash=sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897
 
-# gns3fy — hash da verificare con pip-compile (non disponibile nel build env)
-# Installa con: pip install -r requirements.lock --require-hashes
-# oppure:       pip install gns3fy>=0.8.0,<1.0
+gns3fy==0.8.0 \
+    --hash=sha256:d3a9d8b7dedf88deca24d580e2916439ab3ab6d21d0f5692d216984391f0f174

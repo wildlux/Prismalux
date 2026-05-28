@@ -1798,6 +1798,14 @@ void MatematicaPage::fetchAndFillMathModels()
         holder->deleteLater();
         fillMathCombo(list, cur);
     });
+    connect(m_ai, &AiClient::error, holder,
+            [this, holder](const QString&) {
+        holder->deleteLater();
+        setStatus("\xe2\x9d\x8c  Backend non raggiungibile \xe2\x80\x94"
+                  " avvia Ollama o llama-server per le funzioni AI.");
+        if (m_modelCombo) m_modelCombo->setToolTip(
+            "Backend non disponibile. Avvia Ollama: ollama serve");
+    });
     m_ai->fetchModels();
 }
 
@@ -1809,12 +1817,17 @@ void MatematicaPage::onRefreshModelsClicked()
 void MatematicaPage::onLoadModelsOnce()
 {
     if (!m_ai) return;
-    const QString cur = m_ai->model();
     auto* holder = new QObject(this);
     connect(m_ai, &AiClient::modelsReady, holder,
             [this, holder](const QStringList& list) {
         holder->deleteLater();
         fillMathCombo(list, m_ai ? m_ai->model() : QString());
+    });
+    connect(m_ai, &AiClient::error, holder,
+            [this, holder](const QString&) {
+        holder->deleteLater();
+        setStatus("\xe2\x9d\x8c  Backend non raggiungibile \xe2\x80\x94"
+                  " le funzioni AI non sono disponibili.");
     });
     m_ai->fetchModels();
 }

@@ -1,4 +1,5 @@
 #include "impara_page.h"
+#include "../dpi_utils.h"
 #include <QShowEvent>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -54,10 +55,10 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
 
     auto* lbl2 = new QLabel("\xf0\x9f\xa4\x96 Modello:", bar); lbl2->setObjectName("cardDesc");
     auto* cmbModel = new QComboBox(bar);
-    cmbModel->setMinimumWidth(180);
+    cmbModel->setMinimumWidth(dpiScale(180));
 
     auto* refreshBtn = new QPushButton("\xf0\x9f\x94\x84", bar);
-    refreshBtn->setObjectName("actionBtn"); refreshBtn->setFixedWidth(36);
+    refreshBtn->setObjectName("actionBtn"); refreshBtn->setFixedWidth(dpiScale(36));
     refreshBtn->setToolTip("Aggiorna lista modelli");
 
     lay->addWidget(lbl1); lay->addWidget(cmbBackend);
@@ -229,7 +230,7 @@ QWidget* ImparaPage::buildMenu() {
         auto* cl = new QHBoxLayout(card);
         cl->setContentsMargins(16, 14, 16, 14); cl->setSpacing(14);
 
-        auto* ico = new QLabel(it.icon, card); ico->setObjectName("cardIcon"); ico->setFixedWidth(38);
+        auto* ico = new QLabel(it.icon, card); ico->setObjectName("cardIcon"); ico->setFixedWidth(dpiScale(38));
         ico->setAlignment(Qt::AlignCenter);
 
         auto* txt  = new QWidget(card);
@@ -238,7 +239,7 @@ QWidget* ImparaPage::buildMenu() {
         auto* ld = new QLabel(it.desc,  txt); ld->setObjectName("cardDesc"); ld->setWordWrap(true);
         txtL->addWidget(lt); txtL->addWidget(ld);
 
-        auto* btn = new QPushButton("Apri →", card); btn->setObjectName("actionBtn"); btn->setFixedWidth(80);
+        auto* btn = new QPushButton("Apri →", card); btn->setObjectName("actionBtn"); btn->setFixedWidth(dpiScale(80));
         btn->setToolTip("Apri " + it.title);
         btn->setProperty("pageIndex", it.page);
         connect(btn, &QPushButton::clicked, this, &ImparaPage::onMenuCardClicked);
@@ -302,13 +303,13 @@ QWidget* ImparaPage::buildTutor() {
     auto* inRow = new QWidget(w);
     auto* inL   = new QHBoxLayout(inRow); inL->setContentsMargins(0,0,0,0); inL->setSpacing(8);
     m_tutorInp  = new QLineEdit(inRow); m_tutorInp->setObjectName("chatInput");
-    m_tutorInp->setPlaceholderText("Fai una domanda al Tutor AI..."); m_tutorInp->setFixedHeight(38);
+    m_tutorInp->setPlaceholderText("Fai una domanda al Tutor AI..."); m_tutorInp->setFixedHeight(dpiScale(38));
     m_tutorSend = new QPushButton("Chiedi \xe2\x96\xb6", inRow); m_tutorSend->setObjectName("actionBtn");
     m_tutorSend->setToolTip("Invia la domanda al tutor AI (Invio)");
     m_tutorStop = new QPushButton("\xe2\x8f\xb9", inRow);
     m_tutorStop->setObjectName("actionBtn"); m_tutorStop->setProperty("danger", true);
     m_tutorStop->setToolTip("Interrompi la risposta AI");
-    m_tutorStop->setFixedWidth(40); m_tutorStop->setEnabled(false);
+    m_tutorStop->setFixedWidth(dpiScale(40)); m_tutorStop->setEnabled(false);
     inL->addWidget(m_tutorInp, 1); inL->addWidget(m_tutorSend); inL->addWidget(m_tutorStop);
     lay->addWidget(inRow);
 
@@ -808,12 +809,12 @@ void ImparaPage::loadDashboard() {
 
         auto* row = new QWidget(subjBox);
         auto* rl  = new QHBoxLayout(row); rl->setContentsMargins(0,2,0,2); rl->setSpacing(10);
-        auto* nm  = new QLabel(it.key(), row); nm->setFixedWidth(110); nm->setObjectName("cardTitle");
+        auto* nm  = new QLabel(it.key(), row); nm->setFixedWidth(dpiScale(110)); nm->setObjectName("cardTitle");
         auto* bar = new QProgressBar(row);
         bar->setRange(0, 100); bar->setValue((int)pct); bar->setTextVisible(false);
-        bar->setFixedHeight(10); bar->setObjectName("resBar");
+        bar->setFixedHeight(dpiScale(10)); bar->setObjectName("resBar");
         auto* pctLbl = new QLabel(QString("%1%  (%2/%3)").arg(pct,0,'f',1).arg(cor).arg(tot), row);
-        pctLbl->setObjectName("gaugePct"); pctLbl->setFixedWidth(100);
+        pctLbl->setObjectName("gaugePct"); pctLbl->setFixedWidth(dpiScale(100));
         rl->addWidget(nm); rl->addWidget(bar, 1); rl->addWidget(pctLbl);
         subjL->addWidget(row);
     }
@@ -831,11 +832,11 @@ void ImparaPage::loadDashboard() {
                          .toString("dd/MM/yyyy HH:mm");
         auto* row  = new QWidget(recBox);
         auto* rl   = new QHBoxLayout(row); rl->setContentsMargins(0,1,0,1); rl->setSpacing(12);
-        auto* date = new QLabel(dt, row); date->setObjectName("cardDesc"); date->setFixedWidth(130);
+        auto* date = new QLabel(dt, row); date->setObjectName("cardDesc"); date->setFixedWidth(dpiScale(130));
         auto* subj = new QLabel(s["subject"].toString(), row);
-        subj->setObjectName("cardTitle"); subj->setFixedWidth(100);
+        subj->setObjectName("cardTitle"); subj->setFixedWidth(dpiScale(100));
         auto* diff = new QLabel(s["difficulty"].toString(), row);
-        diff->setObjectName("cardDesc"); diff->setFixedWidth(60);
+        diff->setObjectName("cardDesc"); diff->setFixedWidth(dpiScale(60));
         auto* score = new QLabel(
             QString("✅%1/❌%2 — %3%")
             .arg(s["correct"].toInt()).arg(s["wrong"].toInt()).arg(pct,0,'f',0), row);

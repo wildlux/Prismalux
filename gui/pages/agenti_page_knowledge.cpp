@@ -1,4 +1,5 @@
 #include "agenti_page.h"
+#include "../dpi_utils.h"
 #include "agenti_page_p.h"
 #include "agents_config_dialog.h"
 #include "../prismalux_paths.h"
@@ -115,8 +116,8 @@ void AgentiPage::onSaveKnowledge()
     /* ── Dialog ── */
     auto* dlg = new QDialog(this);
     dlg->setWindowTitle("\xf0\x9f\x93\x96  Salva in Knowledge");  /* 📖 */
-    dlg->setMinimumWidth(540);
-    dlg->setMinimumHeight(380);
+    dlg->setMinimumWidth(dpiScale(540));
+    dlg->setMinimumHeight(dpiScale(380));
     auto* lay = new QVBoxLayout(dlg);
     lay->setSpacing(10);
 

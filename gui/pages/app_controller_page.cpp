@@ -1,4 +1,5 @@
 #include "app_controller_page.h"
+#include "../dpi_utils.h"
 #include "opencode_page.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
@@ -277,7 +278,7 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
 
     m_aiProgress = new QProgressBar(this);
     m_aiProgress->setRange(0, 0);
-    m_aiProgress->setFixedHeight(4);
+    m_aiProgress->setFixedHeight(dpiScale(4));
     m_aiProgress->setTextVisible(false);
     m_aiProgress->setVisible(false);
     lay->addWidget(m_aiProgress);
@@ -485,11 +486,11 @@ QWidget* AppControllerPage::buildBlenderTab()
     lbl->setObjectName("hintLabel");
 
     m_blenderHostEdit = new QLineEdit("localhost:6789", connRow);
-    m_blenderHostEdit->setFixedWidth(150);
+    m_blenderHostEdit->setFixedWidth(dpiScale(150));
 
     auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
     pingBtn->setObjectName("actionBtn");
-    pingBtn->setFixedWidth(100);
+    pingBtn->setFixedWidth(dpiScale(100));
 
     m_blenderStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
     m_blenderStatusLbl->setObjectName("hintLabel");
@@ -497,12 +498,12 @@ QWidget* AppControllerPage::buildBlenderTab()
     m_blenderExecBtn = new QPushButton(
         "\xe2\x96\xb6  Esegui in Blender", connRow);
     m_blenderExecBtn->setObjectName("actionBtn");
-    m_blenderExecBtn->setFixedWidth(160);
+    m_blenderExecBtn->setFixedWidth(dpiScale(160));
     m_blenderExecBtn->setEnabled(false);
 
     auto* helpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
     helpBtn->setObjectName("actionBtn");
-    helpBtn->setFixedWidth(80);
+    helpBtn->setFixedWidth(dpiScale(80));
 
     connLay->addWidget(lbl);
     connLay->addWidget(m_blenderHostEdit);
@@ -546,7 +547,7 @@ QWidget* AppControllerPage::buildBlenderTab()
     m_blenderAction->setCurrentIndex(m_blenderAction->count() - 1);
 
     m_blenderModel = new QComboBox(toolRow);
-    m_blenderModel->setMinimumWidth(180);
+    m_blenderModel->setMinimumWidth(dpiScale(180));
     populateModels(m_blenderModel);
 
     toolLay->addWidget(new QLabel("Azione:", toolRow));
@@ -560,8 +561,8 @@ QWidget* AppControllerPage::buildBlenderTab()
     m_blenderInput->setPlaceholderText(
         "Descrivi cosa fare in Blender "
         "(es. 'Crea un cubo', 'Crea una sfera rossa', 'Sposta il piano a Y=3')...");
-    m_blenderInput->setMaximumHeight(80);
-    m_blenderInput->setMinimumHeight(60);
+    m_blenderInput->setMaximumHeight(dpiScale(80));
+    m_blenderInput->setMinimumHeight(dpiScale(60));
     lay->addWidget(m_blenderInput);
 
     /* ── Run/Stop ── */
@@ -585,7 +586,7 @@ QWidget* AppControllerPage::buildBlenderTab()
     m_blenderOutput->setReadOnly(true);
     m_blenderOutput->setObjectName("outputView");
     m_blenderOutput->setPlaceholderText("Output AI apparirà qui...");
-    m_blenderOutput->setMaximumHeight(160);
+    m_blenderOutput->setMaximumHeight(dpiScale(160));
     lay->addWidget(m_blenderOutput, 0);
 
     /* ── Editor codice Python (diretto + popolato dall'AI) ── */
@@ -603,7 +604,7 @@ QWidget* AppControllerPage::buildBlenderTab()
         "import bpy\n"
         "bpy.ops.mesh.primitive_cube_add(size=2, location=(0, 0, 0))");
     m_blenderCodeEdit->setFont(QFont("Monospace", 10));
-    m_blenderCodeEdit->setMinimumHeight(120);
+    m_blenderCodeEdit->setMinimumHeight(dpiScale(120));
     lay->addWidget(m_blenderCodeEdit, 1);
 
     /* ── Connessioni ── */
@@ -701,11 +702,11 @@ QWidget* AppControllerPage::buildFreeCADTab()
     lbl->setObjectName("hintLabel");
 
     m_freecadHostEdit = new QLineEdit("localhost:9876", connRow);
-    m_freecadHostEdit->setFixedWidth(150);
+    m_freecadHostEdit->setFixedWidth(dpiScale(150));
 
     auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
     pingBtn->setObjectName("actionBtn");
-    pingBtn->setFixedWidth(100);
+    pingBtn->setFixedWidth(dpiScale(100));
 
     m_freecadStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
     m_freecadStatusLbl->setObjectName("hintLabel");
@@ -713,7 +714,7 @@ QWidget* AppControllerPage::buildFreeCADTab()
     m_freecadExecBtn = new QPushButton(
         "\xe2\x96\xb6  Esegui in FreeCAD", connRow);
     m_freecadExecBtn->setObjectName("actionBtn");
-    m_freecadExecBtn->setFixedWidth(160);
+    m_freecadExecBtn->setFixedWidth(dpiScale(160));
     m_freecadExecBtn->setEnabled(false);
 
     connLay->addWidget(lbl);
@@ -721,7 +722,7 @@ QWidget* AppControllerPage::buildFreeCADTab()
     connLay->addWidget(pingBtn);
     auto* freecadHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
     freecadHelpBtn->setObjectName("actionBtn");
-    freecadHelpBtn->setFixedWidth(80);
+    freecadHelpBtn->setFixedWidth(dpiScale(80));
     connLay->addWidget(m_freecadStatusLbl, 1);
     connLay->addWidget(m_freecadExecBtn);
     connLay->addWidget(freecadHelpBtn);
@@ -748,7 +749,7 @@ QWidget* AppControllerPage::buildFreeCADTab()
         m_freecadAction->addItem(QString::fromUtf8(kFreeCADActions[i]));
 
     m_freecadModel = new QComboBox(toolRow);
-    m_freecadModel->setMinimumWidth(180);
+    m_freecadModel->setMinimumWidth(dpiScale(180));
     populateModels(m_freecadModel);
 
     toolLay->addWidget(new QLabel("Azione:", toolRow));
@@ -762,8 +763,8 @@ QWidget* AppControllerPage::buildFreeCADTab()
     m_freecadInput->setPlaceholderText(
         "Descrivi cosa modellare in FreeCAD "
         "(es. 'Crea un box 20x10x5mm', 'Esporta il modello attivo in STL')...");
-    m_freecadInput->setMaximumHeight(80);
-    m_freecadInput->setMinimumHeight(60);
+    m_freecadInput->setMaximumHeight(dpiScale(80));
+    m_freecadInput->setMinimumHeight(dpiScale(60));
     lay->addWidget(m_freecadInput);
 
     /* ── Run/Stop ── */
@@ -833,7 +834,7 @@ QWidget* AppControllerPage::buildOfficeTab()
 
     m_officeStartBtn = new QPushButton("\xe2\x96\xb6  Avvia bridge", connRow);
     m_officeStartBtn->setObjectName("actionBtn");
-    m_officeStartBtn->setFixedWidth(120);
+    m_officeStartBtn->setFixedWidth(dpiScale(120));
 
     m_officeStatusLbl = new QLabel("\xe2\x9a\xaa  Bridge inattivo", connRow);
     m_officeStatusLbl->setObjectName("hintLabel");
@@ -841,13 +842,13 @@ QWidget* AppControllerPage::buildOfficeTab()
     m_officeExecBtn = new QPushButton(
         "\xe2\x96\xb6  Esegui in Office", connRow);
     m_officeExecBtn->setObjectName("actionBtn");
-    m_officeExecBtn->setFixedWidth(160);
+    m_officeExecBtn->setFixedWidth(dpiScale(160));
     m_officeExecBtn->setEnabled(false);
 
     connLay->addWidget(lbl);
     auto* officeHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
     officeHelpBtn->setObjectName("actionBtn");
-    officeHelpBtn->setFixedWidth(80);
+    officeHelpBtn->setFixedWidth(dpiScale(80));
     connLay->addWidget(m_officeStartBtn);
     connLay->addWidget(m_officeStatusLbl, 1);
     connLay->addWidget(m_officeExecBtn);
@@ -874,7 +875,7 @@ QWidget* AppControllerPage::buildOfficeTab()
         m_officeAction->addItem(QString::fromUtf8(kOfficeActions[i]));
 
     m_officeModel = new QComboBox(toolRow);
-    m_officeModel->setMinimumWidth(180);
+    m_officeModel->setMinimumWidth(dpiScale(180));
     populateModels(m_officeModel);
 
     toolLay->addWidget(new QLabel("Azione:", toolRow));
@@ -889,8 +890,8 @@ QWidget* AppControllerPage::buildOfficeTab()
         "Descrivi il documento da creare "
         "(es. 'Lettera di presentazione professionale', "
         "'Foglio Excel con budget mensile')...");
-    m_officeInput->setMaximumHeight(80);
-    m_officeInput->setMinimumHeight(60);
+    m_officeInput->setMaximumHeight(dpiScale(80));
+    m_officeInput->setMinimumHeight(dpiScale(60));
     lay->addWidget(m_officeInput);
 
     /* ── Run/Stop ── */
@@ -977,7 +978,7 @@ QWidget* AppControllerPage::buildCloudCompareTab()
 
     auto* ccHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto — CloudComPy", group);
     ccHelpBtn->setObjectName("actionBtn");
-    ccHelpBtn->setFixedWidth(200);
+    ccHelpBtn->setFixedWidth(dpiScale(200));
     glay->addWidget(ccHelpBtn, 0, Qt::AlignLeft);
     glay->addStretch();
 
@@ -1128,11 +1129,11 @@ QWidget* AppControllerPage::buildAnkiTab()
     lbl->setObjectName("hintLabel");
 
     m_ankiHostEdit = new QLineEdit("localhost:8765", connRow);
-    m_ankiHostEdit->setFixedWidth(150);
+    m_ankiHostEdit->setFixedWidth(dpiScale(150));
 
     auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
     pingBtn->setObjectName("actionBtn");
-    pingBtn->setFixedWidth(100);
+    pingBtn->setFixedWidth(dpiScale(100));
 
     m_ankiStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
     m_ankiStatusLbl->setObjectName("hintLabel");
@@ -1140,7 +1141,7 @@ QWidget* AppControllerPage::buildAnkiTab()
     m_ankiSendBtn = new QPushButton(
         "\xf0\x9f\x83\x8f  Invia ad Anki", connRow);
     m_ankiSendBtn->setObjectName("actionBtn");
-    m_ankiSendBtn->setFixedWidth(150);
+    m_ankiSendBtn->setFixedWidth(dpiScale(150));
     m_ankiSendBtn->setEnabled(false);
 
     connLay->addWidget(lbl);
@@ -1148,7 +1149,7 @@ QWidget* AppControllerPage::buildAnkiTab()
     connLay->addWidget(pingBtn);
     auto* ankiHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
     ankiHelpBtn->setObjectName("actionBtn");
-    ankiHelpBtn->setFixedWidth(80);
+    ankiHelpBtn->setFixedWidth(dpiScale(80));
     connLay->addWidget(m_ankiStatusLbl, 1);
     connLay->addWidget(m_ankiSendBtn);
     connLay->addWidget(ankiHelpBtn);
@@ -1174,12 +1175,12 @@ QWidget* AppControllerPage::buildAnkiTab()
         m_ankiAction->addItem(QString::fromUtf8(kAnkiActions[i]));
 
     m_ankiDeckEdit = new QLineEdit("Default", toolRow);
-    m_ankiDeckEdit->setFixedWidth(120);
+    m_ankiDeckEdit->setFixedWidth(dpiScale(120));
     m_ankiDeckEdit->setToolTip("Nome deck Anki destinazione");
     auto* deckEdit = m_ankiDeckEdit;  // alias per il layout
 
     m_ankiModel = new QComboBox(toolRow);
-    m_ankiModel->setMinimumWidth(180);
+    m_ankiModel->setMinimumWidth(dpiScale(180));
     populateModels(m_ankiModel);
 
     toolLay->addWidget(new QLabel("Tipo:", toolRow));
@@ -1196,7 +1197,7 @@ QWidget* AppControllerPage::buildAnkiTab()
         "Descrivi l'argomento per cui vuoi generare carte Anki...\n"
         "Es: 'Algoritmi di ordinamento (bubble sort, merge sort, quicksort)'\n"
         "Es: 'Vocabolario inglese — verbi irregolari comuni'");
-    m_ankiInput->setFixedHeight(90);
+    m_ankiInput->setFixedHeight(dpiScale(90));
     lay->addWidget(m_ankiInput);
 
     /* ── Pulsanti ── */
@@ -1320,11 +1321,11 @@ QWidget* AppControllerPage::buildKiCADTab()
     lbl->setObjectName("hintLabel");
 
     m_kicadHostEdit = new QLineEdit("localhost:3000", connRow);
-    m_kicadHostEdit->setFixedWidth(150);
+    m_kicadHostEdit->setFixedWidth(dpiScale(150));
 
     auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
     pingBtn->setObjectName("actionBtn");
-    pingBtn->setFixedWidth(100);
+    pingBtn->setFixedWidth(dpiScale(100));
 
     m_kicadStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
     m_kicadStatusLbl->setObjectName("hintLabel");
@@ -1332,7 +1333,7 @@ QWidget* AppControllerPage::buildKiCADTab()
     m_kicadExecBtn = new QPushButton(
         "\xf0\x9f\x96\xa5  Esegui in KiCAD", connRow);
     m_kicadExecBtn->setObjectName("actionBtn");
-    m_kicadExecBtn->setFixedWidth(160);
+    m_kicadExecBtn->setFixedWidth(dpiScale(160));
     m_kicadExecBtn->setEnabled(false);
 
     connLay->addWidget(lbl);
@@ -1340,7 +1341,7 @@ QWidget* AppControllerPage::buildKiCADTab()
     connLay->addWidget(pingBtn);
     auto* kicadHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
     kicadHelpBtn->setObjectName("actionBtn");
-    kicadHelpBtn->setFixedWidth(80);
+    kicadHelpBtn->setFixedWidth(dpiScale(80));
     connLay->addWidget(m_kicadStatusLbl, 1);
     connLay->addWidget(m_kicadExecBtn);
     connLay->addWidget(kicadHelpBtn);
@@ -1368,7 +1369,7 @@ QWidget* AppControllerPage::buildKiCADTab()
         m_kicadAction->addItem(QString::fromUtf8(kKiCADActions[i]));
 
     m_kicadModel = new QComboBox(toolRow);
-    m_kicadModel->setMinimumWidth(180);
+    m_kicadModel->setMinimumWidth(dpiScale(180));
     populateModels(m_kicadModel);
 
     toolLay->addWidget(new QLabel("Azione:", toolRow));
@@ -1383,7 +1384,7 @@ QWidget* AppControllerPage::buildKiCADTab()
         "Descrivi il circuito o l'operazione PCB da eseguire...\n"
         "Es: 'Crea un circuito LED con resistore da 470\xce\xa9 alimentato a 5V'\n"
         "Es: 'Posiziona un ESP32 con connettore USB-C e antenna Wi-Fi'");
-    m_kicadInput->setFixedHeight(90);
+    m_kicadInput->setFixedHeight(dpiScale(90));
     lay->addWidget(m_kicadInput);
 
     /* ── Pulsanti ── */
@@ -1477,12 +1478,12 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     lbl->setObjectName("hintLabel");
 
     m_mcuPort = new QComboBox(connRow);
-    m_mcuPort->setMinimumWidth(150);
+    m_mcuPort->setMinimumWidth(dpiScale(150));
     m_mcuPort->setEditable(true);
 
     auto* detectBtn = new QPushButton("\xf0\x9f\x94\x8d  Rileva", connRow);
     detectBtn->setObjectName("actionBtn");
-    detectBtn->setFixedWidth(90);
+    detectBtn->setFixedWidth(dpiScale(90));
 
     m_mcuStatusLbl = new QLabel("\xe2\x9a\xaa  MCU non connesso", connRow);
     m_mcuStatusLbl->setObjectName("hintLabel");
@@ -1490,7 +1491,7 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     m_mcuFlashBtn = new QPushButton(
         "\xe2\x9a\xa1  Flash MCU", connRow);
     m_mcuFlashBtn->setObjectName("actionBtn");
-    m_mcuFlashBtn->setFixedWidth(130);
+    m_mcuFlashBtn->setFixedWidth(dpiScale(130));
     m_mcuFlashBtn->setEnabled(false);
 
     connLay->addWidget(lbl);
@@ -1498,7 +1499,7 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     connLay->addWidget(detectBtn);
     auto* mcuHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
     mcuHelpBtn->setObjectName("actionBtn");
-    mcuHelpBtn->setFixedWidth(80);
+    mcuHelpBtn->setFixedWidth(dpiScale(80));
     connLay->addWidget(m_mcuStatusLbl, 1);
     connLay->addWidget(m_mcuFlashBtn);
     connLay->addWidget(mcuHelpBtn);
@@ -1524,7 +1525,7 @@ QWidget* AppControllerPage::buildTinyMCPTab()
         m_mcuAction->addItem(QString::fromUtf8(kMCUActions[i]));
 
     m_mcuBoardCombo = new QComboBox(toolRow);
-    m_mcuBoardCombo->setFixedWidth(160);
+    m_mcuBoardCombo->setFixedWidth(dpiScale(160));
     m_mcuBoardCombo->addItems({
         "Arduino Uno/Nano",
         "Arduino Mega",
@@ -1537,7 +1538,7 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     auto* boardCombo = m_mcuBoardCombo;  // alias per il layout
 
     m_mcuModel = new QComboBox(toolRow);
-    m_mcuModel->setMinimumWidth(180);
+    m_mcuModel->setMinimumWidth(dpiScale(180));
     populateModels(m_mcuModel);
 
     toolLay->addWidget(new QLabel("Tipo:", toolRow));
@@ -1554,7 +1555,7 @@ QWidget* AppControllerPage::buildTinyMCPTab()
         "Descrivi il programma da generare per il microcontrollore...\n"
         "Es: 'Fai lampeggiare 3 LED in sequenza con intervallo 500ms'\n"
         "Es: 'Leggi temperatura da DHT22 e invia via UART ogni secondo'");
-    m_mcuInput->setFixedHeight(90);
+    m_mcuInput->setFixedHeight(dpiScale(90));
     lay->addWidget(m_mcuInput);
 
     /* ── Pulsanti ── */
@@ -1628,23 +1629,23 @@ QWidget* AppControllerPage::buildOBSTab()
     lbl->setObjectName("hintLabel");
 
     m_obsHostEdit = new QLineEdit("localhost:4455", connRow);
-    m_obsHostEdit->setFixedWidth(150);
+    m_obsHostEdit->setFixedWidth(dpiScale(150));
 
     auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
     pingBtn->setObjectName("actionBtn");
-    pingBtn->setFixedWidth(100);
+    pingBtn->setFixedWidth(dpiScale(100));
 
     m_obsStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
     m_obsStatusLbl->setObjectName("hintLabel");
 
     m_obsExecBtn = new QPushButton("\xf0\x9f\x94\xb4  Esegui in OBS", connRow);
     m_obsExecBtn->setObjectName("actionBtn");
-    m_obsExecBtn->setFixedWidth(150);
+    m_obsExecBtn->setFixedWidth(dpiScale(150));
     m_obsExecBtn->setEnabled(false);
 
     auto* obsHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
     obsHelpBtn->setObjectName("actionBtn");
-    obsHelpBtn->setFixedWidth(80);
+    obsHelpBtn->setFixedWidth(dpiScale(80));
 
     connLay->addWidget(lbl);
     connLay->addWidget(m_obsHostEdit);
@@ -1676,7 +1677,7 @@ QWidget* AppControllerPage::buildOBSTab()
         m_obsAction->addItem(QString::fromUtf8(kOBSActions[i]));
 
     m_obsModel = new QComboBox(toolRow);
-    m_obsModel->setMinimumWidth(180);
+    m_obsModel->setMinimumWidth(dpiScale(180));
     populateModels(m_obsModel);
 
     toolLay->addWidget(new QLabel("Azione:", toolRow));
@@ -1691,7 +1692,7 @@ QWidget* AppControllerPage::buildOBSTab()
         "Descrivi cosa vuoi fare in OBS...\n"
         "Es: 'Avvia la registrazione e cambia scena su Gameplay'\n"
         "Es: 'Silenzia il microfono e abbassa il volume del desktop al 50%'");
-    m_obsInput->setFixedHeight(90);
+    m_obsInput->setFixedHeight(dpiScale(90));
     lay->addWidget(m_obsInput);
 
     /* ── Pulsanti ── */

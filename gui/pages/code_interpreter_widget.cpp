@@ -1,4 +1,5 @@
 #include "code_interpreter_widget.h"
+#include "../dpi_utils.h"
 #include "../widgets/python_exec.h"
 #include "../prismalux_paths.h"
 
@@ -80,8 +81,8 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
     auto* topRow = new QHBoxLayout;
 
     m_modelCombo = new QComboBox(this);
-    m_modelCombo->setMinimumWidth(200);
-    m_modelCombo->setMaximumWidth(300);
+    m_modelCombo->setMinimumWidth(dpiScale(200));
+    m_modelCombo->setMaximumWidth(dpiScale(300));
     m_modelCombo->setToolTip("Modello AI per la generazione");
     topRow->addWidget(new QLabel("Modello:", this));
     topRow->addWidget(m_modelCombo);
@@ -123,7 +124,7 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
     auto* inputLay = new QVBoxLayout(inputGroup);
     inputLay->setContentsMargins(4, 4, 4, 4);
     m_input = new QTextEdit(inputGroup);
-    m_input->setMaximumHeight(72);
+    m_input->setMaximumHeight(dpiScale(72));
     m_input->setPlaceholderText(
         "Es: disegna un grafico a barre dei 5 colori preferiti  \xe2\x80\xa2  "
         "calcola i primi 20 numeri di Fibonacci  \xe2\x80\xa2  "
@@ -186,7 +187,7 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
     /* Immagine matplotlib (nascosta finché non arriva un PNG) */
     auto* imgScroll = new QScrollArea(outGroup);
     imgScroll->setWidgetResizable(true);
-    imgScroll->setMaximumHeight(320);
+    imgScroll->setMaximumHeight(dpiScale(320));
     imgScroll->hide();
     m_imageLabel = new QLabel(imgScroll);
     m_imageLabel->setAlignment(Qt::AlignCenter);

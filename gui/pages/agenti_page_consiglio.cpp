@@ -1,4 +1,5 @@
 #include "agenti_page.h"
+#include "../dpi_utils.h"
 #include "agenti_page_p.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
@@ -46,7 +47,7 @@ void AgentiPage::runConsiglioScientifico()
     {
         auto* dlg = new QDialog(this);
         dlg->setWindowTitle("\xf0\x9f\x8f\x9b  Consiglio Scientifico — Strategia");
-        dlg->setFixedWidth(380);
+        dlg->setFixedWidth(dpiScale(380));
         auto* lay = new QVBoxLayout(dlg);
         lay->addWidget(new QLabel("Scegli la strategia di aggregazione:", dlg));
         auto* cmb = new QComboBox(dlg);

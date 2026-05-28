@@ -1,4 +1,5 @@
 #include "agents_config_dialog.h"
+#include "../dpi_utils.h"
 #include "../prismalux_paths.h"
 #include "../ai_client.h"
 #include <QJsonDocument>
@@ -92,7 +93,7 @@ RagDropWidget::RagDropWidget(QWidget* parent) : QFrame(parent) {
     setAcceptDrops(true);
     setObjectName("ragDrop");
     setFrameShape(QFrame::StyledPanel);
-    setMinimumWidth(120);
+    setMinimumWidth(dpiScale(120));
     setMaximumHeight(52);
     setCursor(Qt::PointingHandCursor);
     setToolTip("Trascina file o cartelle qui per fornire contesto RAG a questo agente.\n"
@@ -722,7 +723,7 @@ void AgentsConfigDialog::setupUI() {
     m_spinShots = new QSpinBox(numRow);
     m_spinShots->setRange(1, MAX_AGENTS);
     m_spinShots->setValue(MAX_AGENTS);
-    m_spinShots->setFixedWidth(56);
+    m_spinShots->setFixedWidth(dpiScale(56));
     m_spinShots->setToolTip("Quanti agenti usare nella pipeline (1-6)");
     connect(m_spinShots, QOverload<int>::of(&QSpinBox::valueChanged),
             this, [this](int v){ updateVisibility(v); });
@@ -740,7 +741,7 @@ void AgentsConfigDialog::setupUI() {
         auto* modeLbl = new QLabel("\xf0\x9f\x8e\xaf  Modalit\xc3\xa0:", modeRow);
         modeLbl->setObjectName("cardDesc");
         m_cmbMode = new QComboBox(modeRow);
-        m_cmbMode->setMinimumWidth(220);
+        m_cmbMode->setMinimumWidth(dpiScale(220));
         m_cmbMode->setToolTip(
             "Seleziona la modalit\xc3\xa0 di esecuzione del Team MOE AI.\n"
             "Preset: pre-configura i ruoli degli agenti per la disciplina scelta.");
@@ -778,7 +779,7 @@ void AgentsConfigDialog::setupUI() {
         m_sharedRag->setToolTip(
             "Trascina file o cartelle per fornire contesto comune a tutti gli agenti.\n"
             "Clicca per aprire il selettore file. Max 16 KB totali.");
-        m_sharedRag->setMinimumWidth(320);
+        m_sharedRag->setMinimumWidth(dpiScale(320));
         sharedLay->addWidget(sharedLbl);
         sharedLay->addWidget(m_sharedRag, 1);
         lay->addWidget(sharedRow);
@@ -877,7 +878,7 @@ void AgentsConfigDialog::setupUI() {
         }
 
         m_modelCombo[i] = new QComboBox(cfgWidget);
-        m_modelCombo[i]->setMinimumWidth(160);
+        m_modelCombo[i]->setMinimumWidth(dpiScale(160));
         m_modelCombo[i]->addItem("(caricamento modelli...)");
 
         m_ragWidget[i] = new RagDropWidget(cfgWidget);
@@ -932,7 +933,7 @@ void AgentsConfigDialog::setupUI() {
 
         m_presetLoadCombo = new QComboBox(presetBox);
         m_presetLoadCombo->setObjectName("settingsCombo");
-        m_presetLoadCombo->setMinimumWidth(160);
+        m_presetLoadCombo->setMinimumWidth(dpiScale(160));
         refreshPresetList();
         pLay->addWidget(m_presetLoadCombo, 3);
 
