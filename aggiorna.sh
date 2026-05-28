@@ -14,6 +14,13 @@
 #    - BT Android: toggle 🔓/🔒 per modalità chiaro/cifrato (default: chiaro)
 #    - DPI HiDPI/Wayland: dpiScale() in tutte le pages
 #    - i18n: QTranslator in main.cpp, stub .ts in gui/i18n/
+#    - LaTeX KaTeX: rendering formule in Analisi 1/2 (QWebEngineView + KaTeX)
+#      widget LatexView + pannello 🔬 output AI; prompt AI aggiornati
+#    - Randomizer 🔀 Risolvi Passi: 52 formule categorizzate (test CAT-E inclusi)
+#    - Test SymPy CAT-E: 15 test complessi (eq. 3°, biquadratica, integrali,
+#      gaussiano, limiti notevoli, Taylor, disequazioni) — 62/62 PASS
+#    - Donazione PayPal: README badge + sezione, .github/FUNDING.yml (Sponsor),
+#      pulsante in Impostazioni > Ringraziamenti e in APK Android (Info page)
 #    - TODO completato: tutte le voci implementate
 #
 #  Uso:
@@ -215,14 +222,14 @@ if [ "$DO_GUI" = "1" ]; then
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Prismalux
-GenericName=Centro di Controllo AI
-Comment=Pipeline Agenti, Tutor AI, Strumenti Pratici
+Name=Prismalux v${PRISMA_VERSION}
+GenericName=Piattaforma AI Locale
+Comment=Pipeline Agenti · RAG · Matematica LaTeX · MCPs · Calcolo Distribuito
 Exec=$GUI_BIN
 Icon=$_ICON_PATH
 Terminal=false
-Categories=Education;Science;Utility;
-Keywords=AI;agenti;matematica;tutor;ollama;
+Categories=Education;Science;Utility;Office;
+Keywords=AI;agenti;matematica;LaTeX;tutor;ollama;llama;rag;mcp;calcolo;
 StartupNotify=true
 StartupWMClass=Prismalux_GUI
 DESKTOP_EOF

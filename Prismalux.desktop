@@ -1,13 +1,13 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Prismalux
-GenericName=Centro di Controllo AI
-Comment=Pipeline Agenti, Tutor AI, Strumenti Pratici
+Name=Prismalux v2.9
+GenericName=Piattaforma AI Locale
+Comment=Pipeline Agenti · RAG · Matematica LaTeX · MCPs · Calcolo Distribuito
 Exec=/home/wildlux/Desktop/Prismalux/build_gui/Prismalux_GUI
 Icon=/home/wildlux/Desktop/Prismalux/ICONA/prismalux.png
 Terminal=false
-Categories=Education;Science;Utility;
-Keywords=AI;agenti;matematica;tutor;ollama;
+Categories=Education;Science;Utility;Office;
+Keywords=AI;agenti;matematica;LaTeX;tutor;ollama;llama;rag;mcp;calcolo;
 StartupNotify=true
 StartupWMClass=Prismalux_GUI

@@ -9,10 +9,16 @@ REM  Novità v2.9 (riepilogo sessioni):
 REM    - Scheda TFR: C.F. calcolato auto (D.M. 1976), lookup 150 comuni/paesi
 REM    - WAN Calcolo Distribuito: TCP:11600, 28 task, cron, dispatcher universale
 REM    - Ollama MCP (18°): cache SQLite, 5 tool, solo stdlib Python
-REM    - Quiz CCNA Android: 64 → 209 domande (15 temi, CCNA 200-301)
-REM    - BT Android: toggle 🔓/🔒 modalità chiaro/cifrato (default: chiaro)
+REM    - Quiz CCNA Android: 64 -> 209 domande (15 temi, CCNA 200-301)
+REM    - BT Android: toggle modalita' chiaro/cifrato (default: chiaro)
 REM    - DPI HiDPI/Wayland: dpiScale() in tutte le pages
 REM    - i18n: QTranslator + stub .ts in gui/i18n/
+REM    - LaTeX KaTeX: rendering formule Analisi 1/2 (QWebEngineView)
+REM      widget LatexView, pannello output AI, prompt AI aggiornati
+REM    - Randomizer formule (tasto shuffle): 52 formule categorizzate
+REM      in Risolvi Passi (eq., deriv., integr., limiti, simpl., diseq.)
+REM    - Test SymPy CAT-E: 15 test complessi - 62/62 PASS
+REM    - Donazione PayPal: README, FUNDING.yml, app desktop, APK Android
 REM    - TODO: tutte le voci completate
 REM
 REM  Rilevamento bash (ordine di priorità):
