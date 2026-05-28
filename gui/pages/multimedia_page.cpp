@@ -44,7 +44,7 @@ MultimediaPage::MultimediaPage(AiClient* ai, QWidget* parent)
     tabs->addTab(buildSDTab(),             "\xf0\x9f\x8e\xa8  Genera Immagini");  /* 🎨 */
     tabs->addTab(buildGraphvizTab(),       "\xf0\x9f\x97\xba  Mappe");             /* 🗺 */
     tabs->addTab(buildSintetizzatoreTab(), "\xf0\x9f\x94\x8a  Sintetizzatore");    /* 🔊 */
-    tabs->addTab(buildOcrTab(),            "\xf0\x9f\x94\x8d  Scansione OCR");     /* 🔍 */
+    tabs->addTab(buildOcrTab(),            "\xf0\x9f\x94\x8d  OCR webcam");     /* 🔍 */
 
     lay->addWidget(tabs);
 }
@@ -621,7 +621,7 @@ void MultimediaPage::onAudioAnalyzeError(const QString& msg)
 }
 
 /* ══════════════════════════════════════════════════════════════
-   buildOcrTab — Scansione OCR continua da webcam
+   buildOcrTab — OCR webcam da webcam
    ══════════════════════════════════════════════════════════════ */
 QWidget* MultimediaPage::buildOcrTab()
 {
@@ -631,7 +631,7 @@ QWidget* MultimediaPage::buildOcrTab()
     vbox->setSpacing(8);
 
     auto* title = new QLabel(
-        "<b>\xf0\x9f\x94\x8d  Scansione OCR continua</b>"
+        "<b>\xf0\x9f\x94\x8d  OCR webcam</b>"
         " \xe2\x80\x94 Legge testo da webcam in tempo reale", panel);
     title->setTextFormat(Qt::RichText);
     vbox->addWidget(title);
