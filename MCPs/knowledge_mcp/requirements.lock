@@ -1,0 +1,5 @@
+# Generato con pip-compile --generate-hashes. Aggiornare con: pip-compile --generate-hashes requirements.txt -o requirements.lock
+#
+# Knowledge MCP — dipendenze pinned
+# Solo stdlib Python, nessuna installazione necessaria.
+# Nessun pacchetto esterno richiesto (compatibile con Python >= 3.10).
