@@ -10,6 +10,7 @@
 #include "pages/ricerca_page.h"
 #include "pages/app_controller_page.h"
 #include "pages/lan_wan_page.h"
+#include "pages/agenti_multi_page.h"
 #include "pages/multimedia_page.h"
 #include "pages/strumenti_file_page.h"
 #include <QVBoxLayout>
@@ -1230,6 +1231,7 @@ QWidget* MainWindow::buildContent()
     buildRicercaTab();
     buildAppControllerTab();
     buildLanWanTab();
+    buildMultiAgentTab();
 
     /* Salva etichette originali e applica modalità da QSettings */
     for (int i = 0; i < m_mainTabs->count(); i++)
@@ -1339,6 +1341,13 @@ void MainWindow::buildLanWanTab()
 {
     m_mainTabs->addTab(new LanWanPage(m_ai, this),
                        "\xf0\x9f\x8c\x90  LAN & WAN");  /* 8 */
+}
+
+/* ── Livello 2: tab [9] Multi-Agente + Grafo ─────────────────────── */
+void MainWindow::buildMultiAgentTab()
+{
+    m_mainTabs->addTab(new AgentiMultiPage(m_ai, this),
+                       "\xf0\x9f\x95\xb8  Multi-Agente");  /* 🕸️ tab 9 */
 }
 
 /* ── Livello 2: barra navigazione menu + sincronizzazione tab ────── */

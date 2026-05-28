@@ -155,6 +155,8 @@ set(CPP_SRCS
     pages/stable_diffusion_widget.cpp
     pages/sintetizzatore_widget.cpp
     pages/matematica_page.cpp
+    pages/agenti_multi_page.cpp
+    graph_memory.cpp
     pages/ricerca_page.cpp
     pages/ricerca_page_astrale.cpp
     pages/rab0l_canvas.cpp

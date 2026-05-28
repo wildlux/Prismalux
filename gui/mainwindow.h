@@ -140,6 +140,7 @@ private:
     void buildRicercaTab();    ///< [6] 🔬 Ricerca
     void buildAppControllerTab(); ///< [7] 🕹 APP Controller
     void buildLanWanTab();     ///< [8] 🌐 LAN & WAN
+    void buildMultiAgentTab(); ///< [9] 🕸️ Multi-Agente + Grafo
     void buildNavMenuBar(QWidget* wrapper, QVBoxLayout* wLay); ///< Barra menu alternativa + sincronizzazione
     void applyContentSettings();  ///< Applica nav style e exec btn mode da QSettings
 
