@@ -2437,14 +2437,29 @@ static const AnalisiTopic kA1[] = {
     "lim<sub>x&rarr;c</sub> f(x) = L &hArr; &forall;&epsilon;&gt;0 &exist;&delta;&gt;0 :"
     " 0&lt;|x&minus;c|&lt;&delta; &rArr; |f(x)&minus;L|&lt;&epsilon;</p><hr>"
     "<p><b>Limiti notevoli (x&rarr;0):</b><br>"
-    "&bull; sin(x)/x &rarr; 1 &nbsp;&bull; (1&minus;cosx)/x&sup2; &rarr; &frac12;<br>"
+    "&bull; sin(x)/x &rarr; 1 &nbsp;&bull; (1&minus;cos x)/x&sup2; &rarr; &frac12;<br>"
     "&bull; ln(1+x)/x &rarr; 1 &nbsp;&bull; (e<sup>x</sup>&minus;1)/x &rarr; 1<br>"
     "&bull; arctan(x)/x &rarr; 1 &nbsp;&bull; (a<sup>x</sup>&minus;1)/x &rarr; ln&thinsp;a<br>"
     "<b>x&rarr;&infin;:</b> &nbsp;(1+1/x)<sup>x</sup> &rarr; e</p><hr>"
-    "<p><b>L'H&ocirc;pital</b> (0/0 o &infin;/&infin;): lim f/g = lim f&prime;/g&prime;</p>"
-    "<p><b>Gerarchia infiniti:</b> log x &lt; x<sup>&alpha;</sup> &lt; e<sup>x</sup> per x&rarr;+&infin;</p>"
-    "<p style='background:#1e293b;border-left:3px solid #3b82f6;padding:6px;"
-    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Limite):</b><br>"
+    /* ── Box colorato: Regola di L'Hôpital ── */
+    "<p style='background:#7c3aed22;border-left:4px solid #a78bfa;"
+    "border-radius:4px;padding:7px 10px;margin:6px 0'>"
+    "<b style='color:#c4b5fd'>&#x2728; Regola di L&rsquo;H&ocirc;pital</b> "
+    "(forme 0/0 o &infin;/&infin;):<br>"
+    "lim f/g = lim f&prime;/g&prime; &nbsp;&mdash;&nbsp; "
+    "si applica iterativamente se la forma rimane indeterminata.</p>"
+    /* ── Box colorato: Gerarchia degli infiniti ── */
+    "<p style='background:#16a34a22;border-left:4px solid #4ade80;"
+    "border-radius:4px;padding:7px 10px;margin:6px 0'>"
+    "<b style='color:#86efac'>&#x221e; Gerarchia degli infiniti</b> per x&rarr;+&infin;:<br>"
+    "log x &nbsp;&lt;&nbsp; x<sup>&alpha;</sup> &nbsp;&lt;&nbsp; e<sup>x</sup> &nbsp;&lt;&nbsp; "
+    "x<sup>x</sup> &nbsp;&nbsp;(&alpha;&gt;0)<br>"
+    "<small>Utile per confrontare infiniti e calcolare limiti &infin;&minus;&infin;.</small></p>"
+    /* ── Box codice: esempi SymPy ── */
+    "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;"
+    "border-radius:3px;padding:6px 10px;"
+    "font-family:monospace;font-size:11px;color:#cbd5e1'>"
+    "<b style='color:#93c5fd'>Esempi SymPy (tipo Limite):</b><br>"
     "sin(x)/x, x, 0 &nbsp;&bull; (exp(x)-1)/x, x, 0<br>"
     "x*log(x), x, 0 &nbsp;&bull; (1+1/x)**x, x, oo</p>",
     "sin(x)/x, x, 0", "Limite", "sin(x)/x" },
@@ -2463,8 +2478,8 @@ static const AnalisiTopic kA1[] = {
     "(f&compfn;g)&prime; = (f&prime;&compfn;g)&middot;g&prime; &nbsp;(regola della catena)</p><hr>"
     "<p><b>Teoremi:</b> <b>Rolle:</b> f(a)=f(b) &rArr; &exist;c: f&prime;(c)=0<br>"
     "<b>Lagrange:</b> &exist;c&isin;(a,b): f&prime;(c)=[f(b)&minus;f(a)]/(b&minus;a)</p>"
-    "<p style='background:#1e293b;border-left:3px solid #3b82f6;padding:6px;"
-    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Derivata):</b><br>"
+    "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
+    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Derivata):</b><br>"
     "x**3 - 2*x + 1, x &nbsp;&bull; sin(x)*exp(x), x<br>"
     "log(x**2+1), x &nbsp;&bull; x**2*cos(x), x, 2 (2&ordf; deriv.)</p>",
     "x**3 - 2*x + 1, x", "Derivata", "x**3 - 2*x + 1" },
@@ -2482,8 +2497,8 @@ static const AnalisiTopic kA1[] = {
     "<b>Sostituzione:</b> &int;f(g(x))g&prime;(x)dx &rarr; t=g(x)<br>"
     "<b>Per parti:</b> &int;u dv = uv &minus; &int;v du<br>"
     "<b>Frazioni parziali:</b> p(x)/q(x) con q fattorizzabile</p>"
-    "<p style='background:#1e293b;border-left:3px solid #3b82f6;padding:6px;"
-    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Integrale):</b><br>"
+    "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
+    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Integrale):</b><br>"
     "x**2*exp(x), x &nbsp;&bull; sin(x)**2, x<br>"
     "1/(x**2-1), x &nbsp;&bull; log(x), x</p>",
     "x**2*exp(x), x", "Integrale", "x**2*exp(x)" },
@@ -2499,8 +2514,8 @@ static const AnalisiTopic kA1[] = {
     "Linearit&agrave;, additivit&agrave; sugli intervalli, monotonia<br>"
     "Teorema della media: &exist;c&isin;(a,b): &int;<sub>a</sub><sup>b</sup>f dx = f(c)(b&minus;a)</p>"
     "<p><b>Applicazioni:</b> area, lunghezza arco, volume solidi di rotazione</p>"
-    "<p style='background:#1e293b;border-left:3px solid #3b82f6;padding:6px;"
-    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Integrale):</b><br>"
+    "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
+    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Integrale):</b><br>"
     "sin(x), x, 0, pi &nbsp;&bull; x**2, x, 0, 1<br>"
     "exp(-x**2), x, 0, 1 &nbsp;&bull; 1/x, x, 1, exp(1)</p>",
     "sin(x), x, 0, pi", "Integrale", "sin(x)" },
@@ -2518,8 +2533,8 @@ static const AnalisiTopic kA1[] = {
     "<li><b>Convessit&agrave;</b> &mdash; f&prime;&prime;&gt;0 conv. &uarr;, f&prime;&prime;&lt;0 conv. &darr;</li>"
     "<li><b>Asintoto obliquo:</b> y=mx+q, m=lim f(x)/x, q=lim[f(x)&minus;mx]</li>"
     "</ol>"
-    "<p style='background:#1e293b;border-left:3px solid #3b82f6;padding:6px;"
-    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Derivata):</b><br>"
+    "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
+    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Derivata):</b><br>"
     "(x**2-1)/(x**2+1), x &nbsp;&bull; x*exp(-x), x<br>"
     "x**3-3*x, x &nbsp;&bull; log(x)/x, x</p>",
     "(x**2-1)/(x**2+1), x", "Derivata", "(x**2-1)/(x**2+1)" },
@@ -2535,8 +2550,8 @@ static const AnalisiTopic kA1[] = {
     "cos x = 1 &minus; x&sup2;/2! + x<sup>4</sup>/4! &minus; &hellip;<br>"
     "ln(1+x) = x &minus; x&sup2;/2 + x&sup3;/3 &minus; &hellip; &nbsp;(|x|&lt;1)<br>"
     "(1+x)<sup>&alpha;</sup> = 1 + &alpha;x + &alpha;(&alpha;&minus;1)x&sup2;/2! + &hellip;</p>"
-    "<p style='background:#1e293b;border-left:3px solid #3b82f6;padding:6px;"
-    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Semplificazione):</b><br>"
+    "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
+    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Semplificazione):</b><br>"
     "series(exp(x), x, 0, 6) &rarr; usa il campo Espressione<br>"
     "series(sin(x), x, 0, 8)<br>"
     "series(log(1+x), x, 0, 5)</p>",
@@ -2553,8 +2568,8 @@ static const AnalisiTopic kA1[] = {
     "<b>Radice (Cauchy):</b> &rho;=lim&radic;(|a<sub>n</sub>|); &rho;&lt;1 conv.<br>"
     "<b>Leibniz:</b> &sum;(&minus;1)<sup>n</sup>a<sub>n</sub> conv. se a<sub>n</sub>&darr;0</p>"
     "<p><b>Serie geometrica:</b> &sum;q<sup>n</sup> = 1/(1&minus;q) per |q|&lt;1</p>"
-    "<p style='background:#1e293b;border-left:3px solid #3b82f6;padding:6px;"
-    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Semplificazione):</b><br>"
+    "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
+    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Semplificazione):</b><br>"
     "Sum(1/n**2, (n,1,oo)) &rarr; usa Espressione<br>"
     "Sum((-1)**n/factorial(n), (n,0,oo))</p>",
     "Sum(1/n**2, (n,1,oo))", "Semplificazione", "1/x**2" },
@@ -2572,8 +2587,8 @@ static const AnalisiTopic kA2[] = {
     "derivate parziali continue in quel punto</p><hr>"
     "<p><b>Regola della catena:</b> se z=f(x(t),y(t))<br>"
     "dz/dt = (&part;f/&part;x)(dx/dt) + (&part;f/&part;y)(dy/dt)</p>"
-    "<p style='background:#1e293b;border-left:3px solid #f97316;padding:6px;"
-    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Derivata):</b><br>"
+    "<p style='background:#431407;border-left:3px solid #f97316;border-radius:3px;padding:6px 10px;color:#fed7aa;"
+    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Derivata):</b><br>"
     "x**2*y + sin(x*y), x &rarr; deriv. parziale in x<br>"
     "exp(x**2+y**2), y &nbsp;&bull; x**3*y**2, x, 2</p>",
     "x**2*y + sin(x*y), x", "Derivata", "x**2*y + sin(x*y)" },
@@ -2587,8 +2602,8 @@ static const AnalisiTopic kA2[] = {
     "<p><b>Piano tangente</b> al grafico z=f(x,y) in (x<sub>0</sub>,y<sub>0</sub>):<br>"
     "z = f(x<sub>0</sub>,y<sub>0</sub>) + f<sub>x</sub>(x<sub>0</sub>,y<sub>0</sub>)(x&minus;x<sub>0</sub>)"
     " + f<sub>y</sub>(x<sub>0</sub>,y<sub>0</sub>)(y&minus;y<sub>0</sub>)</p>"
-    "<p style='background:#1e293b;border-left:3px solid #f97316;padding:6px;"
-    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Derivata):</b><br>"
+    "<p style='background:#431407;border-left:3px solid #f97316;border-radius:3px;padding:6px 10px;color:#fed7aa;"
+    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Derivata):</b><br>"
     "x**2 + y**2, x &nbsp;&bull; x*y*exp(x+y), y<br>"
     "sin(x)*cos(y), x</p>",
     "x**2 + y**2, x", "Derivata", "x**2 + y**2" },
@@ -2603,8 +2618,8 @@ static const AnalisiTopic kA2[] = {
     "&bull; det(H)&gt;0 e f<sub>xx</sub>&lt;0 &rArr; <b>massimo</b><br>"
     "&bull; det(H)&lt;0 &rArr; <b>punto di sella</b><br>"
     "&bull; det(H)=0 &rArr; indecidibile (analisi superiore)</p>"
-    "<p style='background:#1e293b;border-left:3px solid #f97316;padding:6px;"
-    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Semplificazione):</b><br>"
+    "<p style='background:#431407;border-left:3px solid #f97316;border-radius:3px;padding:6px 10px;color:#fed7aa;"
+    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Semplificazione):</b><br>"
     "usa il campo Espressione: hessian(x**4+y**4-4*x*y, [x,y])<br>"
     "oppure: solve([diff(x**3+y**3-3*x*y,x), diff(x**3+y**3-3*x*y,y)])</p>",
     "x**4 + y**4 - 4*x*y", "Semplificazione", "x**4 + y**4 - 4*x*y" },
@@ -2620,7 +2635,7 @@ static const AnalisiTopic kA2[] = {
     "g(x,y) = 0</p><hr>"
     "<p>Estensione a pi&ugrave; variabili e pi&ugrave; vincoli:<br>"
     "&nabla;f = &lambda;<sub>1</sub>&nabla;g<sub>1</sub> + &lambda;<sub>2</sub>&nabla;g<sub>2</sub> + &hellip;</p>"
-    "<p style='background:#1e293b;border-left:3px solid #f97316;padding:6px;"
+    "<p style='background:#431407;border-left:3px solid #f97316;border-radius:3px;padding:6px 10px;color:#fed7aa;"
     "font-family:monospace;font-size:11px'><b>SymPy:</b><br>"
     "Tab Espressione &rarr;<br>"
     "solve([diff(x**2+y**2,x)-lam*diff(x+y-1,x),<br>"
@@ -2637,8 +2652,8 @@ static const AnalisiTopic kA2[] = {
     "<sup>&phi;<sub>2</sub></sup> f(x,y) dy dx</p><hr>"
     "<p><b>Coordinate polari:</b> x=r cos&theta;, y=r sin&theta;<br>"
     "&#8748; f dA = &#8748; f(r cos&theta;, r sin&theta;) &middot; r dr d&theta;</p>"
-    "<p style='background:#1e293b;border-left:3px solid #f97316;padding:6px;"
-    "font-family:monospace;font-size:11px'><b>Esempi SymPy (tipo Integrale):</b><br>"
+    "<p style='background:#431407;border-left:3px solid #f97316;border-radius:3px;padding:6px 10px;color:#fed7aa;"
+    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Integrale):</b><br>"
     "x*y, x, 0, 1 (semplice) &rarr; poi wrap con integrate<br>"
     "Tab Espressione: integrate(integrate(x*y,(y,0,x)),(x,0,1))</p>",
     "integrate(x*y, (y, 0, x))", "Semplificazione", "x*y" },
@@ -2655,7 +2670,7 @@ static const AnalisiTopic kA2[] = {
     "&Delta;&gt;0: y=C<sub>1</sub>e<sup>&lambda;<sub>1</sub>x</sup>+C<sub>2</sub>e<sup>&lambda;<sub>2</sub>x</sup><br>"
     "&Delta;=0: y=(C<sub>1</sub>+C<sub>2</sub>x)e<sup>&lambda;x</sup><br>"
     "&Delta;&lt;0: y=e<sup>&alpha;x</sup>(C<sub>1</sub>cos&beta;x+C<sub>2</sub>sin&beta;x)</p>"
-    "<p style='background:#1e293b;border-left:3px solid #f97316;padding:6px;"
+    "<p style='background:#431407;border-left:3px solid #f97316;border-radius:3px;padding:6px 10px;color:#fed7aa;"
     "font-family:monospace;font-size:11px'><b>SymPy (tab Espressione):</b><br>"
     "dsolve(f(x).diff(x) + f(x) - exp(x), f(x))<br>"
     "dsolve(f(x).diff(x,2)+f(x), f(x))</p>",
@@ -2673,7 +2688,7 @@ static const AnalisiTopic kA2[] = {
     "<p><b>Teorema di Stokes:</b><br>"
     "&#8750;<sub>&part;&Sigma;</sub> F&middot;dr = &#8748;<sub>&Sigma;</sub> rot F &middot; n dS</p>"
     "<p><b>Potenziale:</b> rot F=0 &hArr; F=&nabla;&phi; (campo conservativo)</p>"
-    "<p style='background:#1e293b;border-left:3px solid #f97316;padding:6px;"
+    "<p style='background:#431407;border-left:3px solid #f97316;border-radius:3px;padding:6px 10px;color:#fed7aa;"
     "font-family:monospace;font-size:11px'><b>SymPy (tab Espressione):</b><br>"
     "from sympy.vector import CoordSys3D; N=CoordSys3D('N')<br>"
     "F = N.x**2*N.i + N.y**2*N.j; divergence(F)</p>",
