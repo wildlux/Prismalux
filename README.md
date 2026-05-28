@@ -1,17 +1,46 @@
 <div align="center">
 
+<img src="ICONA/prismalux.png" width="96" alt="Prismalux logo"/>
+
 # 🍺 Prismalux
 
 ### *"Costruito per i mortali che aspirano alla saggezza."*
 
-[![C++/Qt6](https://img.shields.io/badge/GUI-C%2B%2B%20%2F%20Qt6-green?style=flat-square&logo=qt)](https://www.qt.io/)
-[![Version](https://img.shields.io/badge/versione-3.0-blue?style=flat-square)](CHANGELOG)
-[![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](https://github.com/wildlux/Prismalux/blob/master/LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20Android%20(WIP)-informational?style=flat-square)](https://github.com/wildlux/Prismalux)
+[![Version](https://img.shields.io/badge/versione-2.9-blue?style=flat-square)](CHANGELOG)
+[![C++/Qt6](https://img.shields.io/badge/GUI-C%2B%2B%20%2F%20Qt6-41CD52?style=flat-square&logo=qt)](https://www.qt.io/)
+[![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20Android-informational?style=flat-square)](https://github.com/wildlux/Prismalux)
+[![AppImage](https://img.shields.io/badge/AppImage-Linux%20x86__64-orange?style=flat-square)](Prismalux-x86_64.AppImage)
 
-**Piattaforma AI locale — zero cloud, zero abbonamenti, tutto sul tuo hardware.**
+**Piattaforma AI locale e distribuita — zero cloud, zero abbonamenti, tutto sul tuo hardware.**
 
 </div>
+
+---
+
+## Cos'è Prismalux
+
+Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare modelli AI locali (Ollama, llama-server) senza dipendere da cloud o abbonamenti. È una piattaforma modulare che integra in un'unica finestra:
+
+- **Pipeline multi-agente** con anti-allucinazione a 4 livelli logici
+- **RAG ibrido** su file locali + web, con ricerca semantica
+- **105 simulazioni algoritmiche** visualizzate passo per passo
+- **17 plugin MCP** per Blender, FreeCAD, GNS3, RDKit, Cytoscape, OBS, Arduino...
+- **Calcolo distribuito WAN** (BOINC-like) su rete locale con 28 tipi di task
+- **Matematica simbolica** con SymPy, grafico interattivo, formule LaTeX
+- **Ricerca scientifica**: paper arXiv, brevetti, Bioconda, analisi fenomeni
+- **App mobile Android** (BLE chat, quiz CCNA, sincronizzazione LAN)
+
+---
+
+## Novità v2.9
+
+| Feature | Descrizione |
+|---------|-------------|
+| 💼 **Scheda TFR** | Pagina dedicata in Finanza: form personale, calcolo rivalutato, destinazione (azienda/fondo pensione), **Compila da RAG** auto-fill |
+| 🖧 **WAN Calcolo Distribuito** | Server/client TCP porta 11600, dispatcher universale a 28 tipi task, cron scheduler, AI locale per-nodo |
+| 📂 **Allegati Analisi Fenomeni** | Upload PDF/TXT/MD/CSV con estrazione pdftotext |
+| 🔬 **Cytoscape — Bioinformatica** | Tab rinominato con categoria esplicita |
 
 ---
 
@@ -19,52 +48,204 @@
 
 | | |
 |---|---|
-| 🤖 **Multi-Agente** | Pipeline di 6 agenti specializzati + agente autonomo ReAct |
-| 🛡️ **Anti-Allucinazione** | 4 agenti logici: genera → critica → verifica → giudica |
-| 📂 **RAG ibrido** | Ricerca semantica su file locali + web con fonti citate |
-| 💭 **Think Mode** | Ragionamento inline espandibile on-demand |
-| 🧠 **Memoria cross-sessione** | Knowledge automatico senza intervento manuale |
-| 🎨 **Stable Diffusion** | Generazione immagini integrata (AUTOMATIC1111/Forge/SD.Next) |
-| 🔬 **63 Simulazioni algoritmiche** | Grafi, ML, DP, ordinamento — passo-passo |
-| 🔗 **17 Plugin MCP** | Blender, Office, GNS3, RDKit, Bioconda, Cytoscape, Arduino… |
+| 🤖 **Pipeline Multi-Agente** | 6 agenti specializzati in sequenza + agente autonomo ReAct |
+| 🛡️ **Anti-Allucinazione** | 4 agenti logici: Originale → Avvocato del Diavolo → Gemello → Giudice |
+| 📂 **RAG Ibrido JLT** | Ricerca semantica 256-dim su documenti locali; inietta fonti citate nel prompt |
+| 💭 **Think Mode** | Ragionamento `<think>` espandibile inline, budget 1-4, auto-classificatore query |
+| 🧠 **Memoria cross-sessione** | Knowledge Base automatica in `user_knowledge.md`; MCP Knowledge Updater |
+| 🎨 **Stable Diffusion** | Generazione immagini via AUTOMATIC1111/Forge/SD.Next (API locale) |
+| 🔬 **105 Simulazioni** | Algoritmi visualizzati barra per barra con spiegazione e complessità O-grande |
+| 🔗 **17 Plugin MCP** | JSON-RPC 2.0 stdio — Blender, Office, GNS3, RDKit, Cytoscape, OBS, Godot... |
+| 🖧 **WAN Compute** | Calcolo distribuito LAN/WAN: server TCP + dispatcher 28 task + cron |
+| 📱 **App Android** | Qt6 native: BLE chat cifrata AES-256-GCM, Quiz CCNA, sincronizzazione LAN |
+| 🌐 **LAN Server** | Web app embedded su porta 11500 per accesso da browser/mobile |
+| 🃏 **Byzantino** | Gioco di maggioranza a tolleranza di guasto: m agenti, n disonesti configurabili |
 
 ---
 
-## Tab GUI
+## Interfaccia — Tab completi
 
 | # | Tab | Shortcut | Contenuto |
 |---|-----|----------|-----------|
-| 0 | 🤖 Intelligenza Artificiale | `Alt+1` | Pipeline · Byzantino · CHAT RAG · Agente Autonomo |
-| 1 | 🛠 Strumenti AI | `Alt+2` | Studio · Scrittura · Ricerca · Cerca Lavoro · Cron |
-| 2 | 🎬 Multimedia | — | Audio AI · Stable Diffusion · Mappe Graphviz |
-| 3 | 📁 File AI | — | File AI · Wiki & Web · Excel/CSV · PDF · Word |
-| 4 | 💻 Programmazione | `Alt+3` | Editor + AI · Agentica · Interpreter Python |
-| 5 | π Matematica | `Alt+4` | Formule · Grafici · Calcoli simbolici |
-| 6 | 🔬 Ricerca | `Alt+5` | Paper · Brevetti · Cytoscape · RDKit · Bioconda · Avogadro |
-| 7 | 🕹 APP Controller | `Alt+6` | Blender · FreeCAD · Office · Anki · KiCAD · OBS · Godot · OpenCode |
-| 8 | 🌐 LAN & WAN | — | Android LAN (QR APK) · GNS3 |
-| 9 | 📚 Impara | `Alt+7` | Finanza · Tutor AI · Quiz |
+| 0 | 🤖 **Intelligenza Artificiale** | `Alt+1` | Pipeline 6 agenti · Byzantino · CHAT RAG · Agente Autonomo ReAct |
+| 1 | 🛠 **Strumenti** | `Alt+2` | Assistente AI · 💰 Finanza (730, P.IVA, Calcolatori, TFR) · ⏱ Cron · Impara · Sfida! |
+| 2 | 🎬 **Multimedia** | — | Audio AI (Whisper STT + TTS) · Stable Diffusion · Mappe Graphviz |
+| 3 | 📁 **File AI** | — | Analisi file · Wiki & Web · Excel/CSV · PDF · Word/Testo |
+| 4 | 💻 **Programmazione** | `Alt+3` | Editor+AI · Agentica · Translitter · Reverse Eng. · Git MCP · Python REPL · Interpreter · Rete & Network · Driver & Kernel |
+| 5 | π **Matematica** | `Alt+4` | Sequenza→Formula · Costanti alta precisione · N-esimo · Espressione · Risolvi Passi (SymPy) · Analisi 1 & 2 |
+| 6 | 🔬 **Ricerca** | `Alt+5` | Paper · Brevetto · Doc Tecnico · Cerca arXiv/Brevetti · Lavoro · Cytoscape—Bio · RDKit · Bioconda · Avogadro · RAB₀-L · BLHM · Analisi Fenomeni · Carta Astrale |
+| 7 | 🕹 **APP Controller** | `Alt+6` | Blender · FreeCAD · Office · CloudCompare · Anki · KiCAD · TinyMCP · OBS · OpenCode · Godot |
+| 8 | 🌐 **LAN & WAN** | — | LAN Android (QR APK · ADB USB) · GNS3 MCP · **WAN Calcolo Distribuito** |
+| ⚙️ | **Impostazioni** | header | Backend AI · Modelli · Think Mode · Voce · Visual · Hardware · Memoria · Test |
+
+### Dettaglio tab Strumenti — Finanza
+
+| Voce | Funzione |
+|------|---------|
+| 📄 Assistente 730 | Chat AI specializzata: detrazioni, rimborsi, modello precompilato |
+| 💼 Partita IVA | Regime forfettario, calcolo imposte, contributi INPS |
+| 💰 Calcolatori Finanza | Mutuo (piano ammortamento), PAC, Stima Pensione INPS con grafico |
+| 💼 Scheda TFR | Form personale + calcolo art. 2120 c.c. + rivalutazione + fiscalità separata + **Compila da RAG** |
+
+### Dettaglio tab Programmazione
+
+| Sub-tab | Funzione |
+|---------|---------|
+| 💻 Programmazione | Editor codice con AI (Python, C, C++, JS, Bash) + esecuzione |
+| 🤖 Agentica | Agente AI per generazione codice multi-step |
+| 🔀 Translitter | Traduzione automatica tra linguaggi di programmazione |
+| 🔍 Reverse Eng. | Analisi e decompilazione codice sorgente/binario |
+| 🔧 Git MCP | Operazioni Git assistite da AI (clone, commit, diff, log) |
+| 🐍 REPL | Python REPL interattivo |
+| 🧪 Interpreter | Code Interpreter con sandbox Python + matplotlib PNG |
+| 🌐 Rete & Network | Cattura pacchetti · Scan LAN |
+| 🔧 Driver & Kernel | Driver NVIDIA · AMD · Kernel Linux |
+
+---
+
+## Simulazioni Algoritmiche (105 algoritmi)
+
+### 📊 Ordinamento (19)
+Bubble, Selection, Insertion, Shell, Cocktail, Comb, Gnome, Odd-Even, Cycle, Pancake, **Quick**, **Merge**, **Heap**, Bitonic, Counting, Radix, Bucket, **Tim**, Stooge
+
+### 🔍 Ricerca (10)
+Linear, Binary, Jump, Ternary, Interpolation, Exponential, Fibonacci, Two Pointers, Boyer-Moore Voting, Quickselect
+
+### 🗂 Strutture Dati (8)
+Stack, Queue, Deque, Min-Heap Build, Hash Table, Segment Tree, Fenwick Tree (BIT), LRU Cache
+
+### 🕸 Grafi (11)
+BFS, DFS, **Dijkstra**, Bellman-Ford, Floyd-Warshall, Topological Sort, **Kruskal MST**, **Prim MST**, Union-Find, Tarjan SCC, **A\***
+
+### 🧩 Dynamic Programming (10)
+Coin Change, LIS, 0/1 Knapsack, LCS, Edit Distance, Matrix Chain, Egg Drop, Rod Cutting, Subset Sum DP, Max Product Subarray
+
+### 🏆 Greedy (6)
+Activity Selection, Fractional Knapsack, Huffman Coding, Job Scheduling, Coin Change Greedy, Min Platforms
+
+### 🌳 Backtracking (5)
+N-Queens, Subset Sum, Permutazioni, Flood Fill, Rat in a Maze
+
+### 🔤 Stringhe (5)
+KMP Search, Rabin-Karp, Z-Algorithm, Longest Palindrome, Longest Common Prefix
+
+### ➗ Matematica (16)
+Crivello di Eratostene, Crivello di Sundaram, GCD Euclideo, GCD Esteso, Fast Power, Fattorizzazione Prima, Miller-Rabin, Pascal Triangle, Fibonacci DP, Numeri di Catalan, Monte Carlo Pi, Congettura di Collatz, Karatsuba, Prefix Sum, Kadane (Max Subarray), Metodo di Horner
+
+### 🪟 Pattern (8)
+Sliding Window, Dutch National Flag, Trapping Rain Water, Next Greater Element, Fisher-Yates Shuffle, Stock Max Profit, Max Circular Subarray, Count Inversions
+
+### 🎲 Classici (7)
+Reservoir Sampling, Floyd Cycle Detection, Torri di Hanoi, Game of Life (1D), Rule 30 (Wolfram), Spiral Matrix, Sierpinski Triangle
+
+---
+
+## WAN Calcolo Distribuito
+
+Il tab **LAN & WAN → WAN Compute** trasforma ogni PC che esegue Prismalux in un nodo di calcolo. Non richiede software aggiuntivo — solo TCP porta 11600.
+
+```
+Server (Prismalux A)           Rete LAN/WAN            Client (Prismalux B, C, D)
+┌────────────────────────┐                        ┌─────────────────────────┐
+│  • Avvia server :11600 │  ←── TCP JSON ──►     │  • Connetti a Server    │
+│  • Coda task           │                        │  • Esegui task locali   │
+│  • Cron scheduler      │                        │  • Invia risultati      │
+│  • Monitoraggio nodi   │                        │  • AI locale Ollama     │
+└────────────────────────┘                        └─────────────────────────┘
+```
+
+### 28 tipi di task disponibili
+
+| Categoria | Tipi |
+|-----------|------|
+| 🤖 **AI & LLM** | `ai_query`, `code_assist`, `code_review`, `code_translate`, `code_reverse`, `math_solve`, `math_seq`, `paper_gen`, `web_search`, `ai_tutor`, `ai_data_analysis`, `ai_fenomeno`, `ai_730`, `ai_tfr` |
+| 💻 **Codice & Shell** | `python_repl`, `eval_script`, `shell_cmd`, `git_cmd` |
+| 📐 **Matematica** | `math_expr`, `math_nth` |
+| 📁 **File & Sistema** | `file_read`, `file_write`, `system_info`, `net_info` |
+| 🎨 **Grafica** | `graphviz_render`, `matplotlib_plot` |
+
+Ogni tipo ha un **template payload** pre-compilato automaticamente alla selezione. Il **cron scheduler** integrato dispatcha task a intervalli configurabili (1-1440 min).
+
+---
+
+## Plugin MCP (17)
+
+| Plugin | Funzione |
+|--------|---------|
+| `blender_addon` | Genera/modifica scene 3D Blender da prompt o PDF |
+| `freecad_mcp` | Parametrica FreeCAD: solidi, assiemi, disegni tecnici |
+| `office_bridge` | Crea/modifica documenti Word, Excel, PowerPoint |
+| `gns3_mcp` | Topologie di rete GNS3: router, switch, link, simulazione |
+| `cytoscape_mcp` | Analisi reti biologiche (PPI, pathway, genomica) |
+| `rdkit_mcp` | Chemioinformatica: SMILES, fingerprint, similarità molecolare |
+| `bioconda_mcp` | Pipeline bioinformatica Python (Biopython, SeqIO, BLAST) |
+| `avogadro_mcp` | Modellazione molecolare 3D e ottimizzazione geometrica |
+| `graphviz_mcp` | Mappe concettuali e grafi da testo DOT |
+| `obs_mcp` | Controllo OBS Studio: scene, sorgenti, registrazione |
+| `opencode_mcp` | Agente agentica OpenCode (SSE streaming) |
+| `godot_mcp` | Script GDScript per Godot Engine |
+| `kicad_mcp` | Schemi elettronici e PCB KiCad |
+| `anki_mcp` | Generazione deck Anki da argomento o testo |
+| `stable_diffusion_local` | API Stable Diffusion (AUTOMATIC1111/Forge/SD.Next) |
+| `tinymcp` | Bridge MCP generico per tool personalizzati |
+| `knowledge_mcp` | Aggiornamento automatico della Knowledge Base utente |
 
 ---
 
 ## Avvio rapido
 
-**Linux / macOS**
+### Linux — AppImage (consigliato, no installazione)
+
 ```bash
-git clone git@github.com:wildlux/Prismalux.git
-cd Prismalux/gui
-cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
-./build/Prismalux_GUI
+chmod +x Prismalux-x86_64.AppImage
+./Prismalux-x86_64.AppImage
 ```
 
-**Windows** — `build.bat` (una tantum) poi `Avvia_Prismalux.bat`.  
-Richiede MSYS2 UCRT64 o Qt installer.
-
-**Prerequisiti:** Qt6, cmake, gcc/clang, [Ollama](https://ollama.com) + almeno un modello.
+### Linux — Compila da sorgente
 
 ```bash
+git clone https://github.com/wildlux/Prismalux.git
+cd Prismalux
+bash aggiorna.sh --gui          # compila GUI + crea AppImage
+# oppure manualmente:
+cmake -B build_gui gui/ -DCMAKE_BUILD_TYPE=Release
+cmake --build build_gui -j$(nproc)
+./build_gui/Prismalux_GUI
+```
+
+### Windows
+
+```bat
+REM Una tantum — richiede MSYS2 UCRT64 o Qt Installer
+aggiorna.bat           :: compila + crea ZIP distribuibile
+REM poi:
+Avvia_Prismalux.bat    :: avvia l'app
+```
+
+### macOS
+
+```bash
+brew install qt cmake
+cmake -B build_gui gui/ -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$(brew --prefix qt)
+cmake --build build_gui -j$(sysctl -n hw.logicalcpu)
+./build_gui/Prismalux_GUI
+```
+
+### Prerequisiti
+
+| Componente | Versione minima | Note |
+|-----------|----------------|------|
+| Qt6 | 6.4+ | Base, Network, Multimedia, PrintSupport, Svg |
+| CMake | 3.20+ | |
+| GCC / Clang | 11+ / 13+ | C++17 |
+| [Ollama](https://ollama.com) | qualsiasi | Avvia con `ollama serve` |
+| Python 3 | 3.10+ | Per Code Interpreter e ZIP Windows |
+| pdftotext | — | `apt install poppler-utils` (opzionale, per PDF in Analisi Fenomeni) |
+
+```bash
+# Installa Ollama + modello consigliato
 curl -fsSL https://ollama.com/install.sh | sh
-ollama pull qwen3:8b    # ~5 GB — ottimo italiano, think nativo
+ollama pull qwen3:8b     # ~5 GB — ottimo italiano, think nativo
 ```
 
 ---
@@ -72,63 +253,143 @@ ollama pull qwen3:8b    # ~5 GB — ottimo italiano, think nativo
 ## Modelli consigliati
 
 ```bash
-ollama pull qwen3:4b           # 8 GB RAM / 4 GB VRAM
-ollama pull qwen3:8b           # 16 GB RAM             ★ consigliato
-ollama pull qwen2.5-coder:7b   # coding
-ollama pull qwen3:30b          # 64 GB RAM
+# Leggeri (8 GB RAM / 4 GB VRAM)
+ollama pull qwen3:4b               # ★ ottimo rapporto qualità/peso
+ollama pull llama3.2:3b            # veloce, buon inglese
+
+# Bilanciati (16 GB RAM) — consigliati
+ollama pull qwen3:8b               # ★★ italiano eccellente + think mode
+ollama pull mistral:7b-instruct
+
+# Coding (qualsiasi RAM)
+ollama pull qwen2.5-coder:7b       # ★ code review, generazione, debug
+ollama pull deepseek-coder:6.7b
+
+# Potenti (32-64 GB RAM)
+ollama pull qwen3:30b
+ollama pull deepseek-r1:32b        # ragionamento step-by-step
 ```
 
-> 💡 **VRAM scarsa?** Usa *Impostazioni → Modalità Misto GPU+CPU*.  
-> 💾 **RAM limitata?** Attiva *zRAM lz4/zstd* da *Impostazioni → Hardware*.
+> 💡 **VRAM insufficiente?** Impostazioni → Modalità Misto GPU+CPU (overflow automatico in RAM)  
+> 💾 **RAM ≤ 8 GB?** Attiva zRAM lz4/zstd in Impostazioni → Hardware
 
 ---
 
-## Test
+## Backend AI supportati
+
+| Backend | Porta | Quando usarlo |
+|---------|-------|---------------|
+| **Ollama** (default) | 11434 | Installazione semplice, auto-gestione modelli |
+| **llama-server** | 8081 | Controllo fine su `n_gpu_layers`, `ctx`, batch |
+| **OpenCode** | 8092 | Agente agentico con accesso filesystem |
+
+Cambio backend da UI: intestazione → selettore backend → porta → conferma.
+
+---
+
+## Build e Test
 
 ```bash
-cmake -B build_tests -DBUILD_TESTS=ON && cmake --build build_tests -j$(nproc)
-ctest --test-dir build_tests -j4   # 35/37 PASS
+# Test headless (no Ollama richiesto per 33/36 suite)
+cmake -B build_tests gui/ -DBUILD_TESTS=ON
+cmake --build build_tests -j$(nproc)
+ctest --test-dir build_tests -j4
+
+# Test con Ollama attivo (suite AI stress)
+ollama serve &
+ctest --test-dir build_tests -j1 -R AiStress
 ```
 
-Le 2 suite non-pass richiedono Ollama attivo + modello specifico (non sono bug del codice).
+**Stato test:**
+- ✅ 33/36 suite passano senza Ollama
+- ⚠️ `SimulatoreAlgos` — FLAKY in `-j4`, PASS standalone (`RESOURCE_LOCK cpu_heavy`)
+- ⚠️ `AiStress` — richiede Ollama + modello + ≥2 GB RAM libera
+- ⚠️ `SttWhisper` — richiede microfono attivo
 
 ---
 
-## Struttura
+## Struttura del progetto
 
 ```
 Prismalux/
-├── gui/              ← GUI C++/Qt6 (pages/, widgets/, themes/, tests/)
-├── ANDROID/          ← PrismaluxMobile Qt6/Android (APK precompilato)
-├── MCPs/             ← Plugin MCP
-├── models/           ← Modelli GGUF locali
-├── RAG/              ← Documenti indicizzabili
-├── KNOWLEDGE_USER/   ← Memoria utente (locale, non in git)
-├── build.bat         ← Windows: compila
-├── Avvia_Prismalux.bat ← Windows: avvia
-└── aggiorna.sh       ← Linux: build + AppImage + ZIP Windows
+├── gui/                        ← GUI C++/Qt6 (sorgente principale)
+│   ├── pages/                  ← Una pagina = un file .cpp/.h
+│   │   ├── agenti_page.*       ← Pipeline multi-agente (15 moduli)
+│   │   ├── lan_wan_page.*      ← LAN Android + GNS3 + WAN Compute
+│   │   ├── pratico_page.*      ← 730, P.IVA, Finanza, Scheda TFR
+│   │   ├── ricerca_page.*      ← Paper, brevetti, bio, analisi fenomeni
+│   │   ├── programmazione_page.* ← Editor, REPL, Rete, Driver
+│   │   ├── matematica_page.*   ← SymPy, formule, grafici
+│   │   ├── simulatore_page.*   ← 105 algoritmi visualizzati
+│   │   └── ...                 ← altri 20+ moduli
+│   ├── widgets/                ← Componenti riutilizzabili
+│   ├── themes/                 ← Temi QSS (dark, light, solarized…)
+│   ├── tests/                  ← Suite ctest
+│   ├── CMakeLists.txt          ← Build (versione unica di verità)
+│   └── CLAUDE.md               ← Convenzioni di sviluppo
+├── ANDROID/                    ← App Android Qt6
+│   └── android_app/            ← BLE chat, Quiz CCNA, LAN sync
+├── MCPs/                       ← 17 plugin MCP (Python, JSON-RPC 2.0)
+├── RAG/                        ← Documenti per RAG (locale, non in git)
+├── KNOWLEDGE_USER/             ← Memoria utente (locale, non in git)
+├── models/                     ← Modelli GGUF locali
+├── scripts/
+│   ├── crea_appimage.sh        ← Genera AppImage Linux
+│   └── crea_zip_windows.py     ← Genera ZIP Windows
+├── aggiorna.sh                 ← Linux/macOS: build + AppImage + ZIP
+├── aggiorna.bat                ← Windows: build + ZIP (GUI + MSYS2)
+├── build.bat                   ← Windows: solo compilazione
+├── Avvia_Prismalux.bat         ← Windows: launcher
+└── Prismalux-x86_64.AppImage  ← AppImage precompilata Linux x86_64
 ```
 
 ---
 
-## Contribuisci
+## App Mobile Android
+
+**PrismaluxMobile** (cartella `ANDROID/`) è un'app Qt6 nativa per Android:
+
+| Feature | Dettaglio |
+|---------|-----------|
+| 📱 LAN Chat | Connessione al server Prismalux desktop via QR code o IP |
+| 🔵 BLE Chat | Comunicazione Bluetooth LE cifrata AES-256-GCM |
+| 🎓 Quiz CCNA | Database quiz con feedback interattivo |
+| 🎵 Audio AI | Registrazione + trascrizione Whisper |
+| ⚙️ Impostazioni | Configurazione backend, porta, token |
+
+**Installazione:**  
+`LAN & WAN → LAN Android → scansiona QR` → installa l'APK sul telefono.
+
+---
+
+## Contribuire
 
 PR benvenute. Regole essenziali:
 
-1. Branch tematico (`feature/...`, `fix/...`)
-2. Build pulita + `ctest` verde
-3. Lambda nelle `connect()`: il context object (4° argomento) deve essere sempre specificato e tutti i puntatori catturati devono essere figli di quel context. Logica non banale → slot nominato. `static QMetaObject::Connection` è vietata.
+1. **Branch tematico**: `feature/...`, `fix/...`, `refactor/...`
+2. **Build pulita**: nessun errore di compilazione
+3. **Test**: `ctest --test-dir build_tests -j4` verde sulle suite no-Ollama
+4. **Lambda nelle `connect()`**: il context object (4° argomento) deve essere sempre specificato; tutti i puntatori catturati devono essere figli di quel context. Logica > 2 righe → slot nominato. `static QMetaObject::Connection` vietata.
+5. **Path**: usa sempre `P::root()`, `P::kOllamaPort` ecc. da `prismalux_paths.h` — mai hardcode.
+6. **Emoji in stringhe C++**: concatena quando il carattere successivo è cifra hex (`"\xe2\x80\x9c" "Testo"` non `"\xe2\x80\x9cTesto"`).
 
-Vedi `gui/CLAUDE.md` per le convenzioni complete.
+Vedi `gui/CLAUDE.md` per le convenzioni complete (ThemeManager, LanServer shutdown, AiClient API, Think Mode, RAG, MCP).
 
 ---
 
 ## Licenza
 
-**MIT** — usa, modifica e distribuisci liberamente, anche in ambito commerciale.
+**MIT** — usa, modifica e distribuisci liberamente, anche in ambito commerciale.  
+Vedi [LICENSE](LICENSE).
+
+---
 
 <div align="center">
 
 [![GitHub](https://img.shields.io/badge/GitHub-wildlux%2FPrismalux-181717?style=flat-square&logo=github)](https://github.com/wildlux/Prismalux)
+[![Issues](https://img.shields.io/github/issues/wildlux/Prismalux?style=flat-square)](https://github.com/wildlux/Prismalux/issues)
+[![Stars](https://img.shields.io/github/stars/wildlux/Prismalux?style=flat-square)](https://github.com/wildlux/Prismalux/stargazers)
+
+*Prismalux — AI locale per chi non vuole dipendere da nessuno.*
 
 </div>
