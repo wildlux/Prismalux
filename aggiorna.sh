@@ -3,12 +3,18 @@
 #  aggiorna.sh — Ricompila Prismalux GUI Qt6 — Linux, macOS, Windows (MSYS2/Git Bash)
 #  Versione: si legge da gui/CMakeLists.txt (attualmente v2.9)
 #
-#  Novità v2.9:
-#    - Scheda TFR dedicata (Finanza) con RAG auto-fill
-#    - WAN Calcolo Distribuito: server/client TCP, 28 tipi task,
+#  Novità v2.9 (riepilogo sessioni):
+#    - Scheda TFR dedicata (Finanza): C.F. calcolato automaticamente (algoritmo
+#      D.M. 23/12/1976), lookup ~150 comuni/paesi, RAG auto-fill
+#    - WAN Calcolo Distribuito: server/client TCP:11600, 28 tipi task,
 #      cron scheduler, dispatcher universale (AI/shell/Python/Git/Graphviz…)
 #    - Analisi Fenomeni: allegati PDF/TXT/MD/CSV con pdftotext
-#    - Cytoscape rinominato "Cytoscape — Bioinformatica"
+#    - Ollama MCP (18°): cache SQLite modelli, 5 tool, solo stdlib Python
+#    - Quiz CCNA Android: 64 → 209 domande in 15 temi (CCNA 200-301)
+#    - BT Android: toggle 🔓/🔒 per modalità chiaro/cifrato (default: chiaro)
+#    - DPI HiDPI/Wayland: dpiScale() in tutte le pages
+#    - i18n: QTranslator in main.cpp, stub .ts in gui/i18n/
+#    - TODO completato: tutte le voci implementate
 #
 #  Uso:
 #    ./aggiorna.sh              # GUI + AppImage (Linux) / GUI + ZIP (Windows)

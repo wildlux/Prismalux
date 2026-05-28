@@ -135,28 +135,33 @@ BlePage::BlePage(QWidget* parent)
     chatVbox->addLayout(connRow);
     chatVbox->addWidget(infoLbl);
 
-    /* Indicatore cifratura + pulsante chiave */
+    /* Indicatore cifratura + toggle + pulsante chiave */
     auto* cryptoRow = new QHBoxLayout;
-    m_cryptoIndicator = new QLabel(
-        QString::fromUtf8("\xf0\x9f\x94\x92")  /* 🔒 */
-        + " <small>AES-256-GCM attivo</small>",
-        chatPage);
+    m_cryptoIndicator = new QLabel(chatPage);
     m_cryptoIndicator->setTextFormat(Qt::RichText);
+    /* Toggle 🔓/🔒 — cambia modalità a runtime */
+    m_cryptoToggleBtn = new QPushButton(chatPage);
+    m_cryptoToggleBtn->setObjectName("SecondaryBtn");
+    m_cryptoToggleBtn->setCheckable(true);
+    m_cryptoToggleBtn->setChecked(m_cryptoEnabled);
+    m_cryptoToggleBtn->setMaximumWidth(100);
+    m_cryptoToggleBtn->setToolTip("Attiva / disattiva cifratura AES-256-GCM");
     m_keyInfoBtn = new QPushButton(
         QString::fromUtf8("\xf0\x9f\x94\x91")  /* 🔑 */
         + " Chiave",
         chatPage);
     m_keyInfoBtn->setObjectName("SecondaryBtn");
-    m_keyInfoBtn->setMaximumWidth(100);
+    m_keyInfoBtn->setMaximumWidth(90);
     m_keyInfoBtn->setToolTip("Mostra / reimposta chiave di cifratura BLE");
     cryptoRow->addWidget(m_cryptoIndicator, 1);
+    cryptoRow->addWidget(m_cryptoToggleBtn);
     cryptoRow->addWidget(m_keyInfoBtn);
     chatVbox->addLayout(cryptoRow);
 
     /* Input messaggio */
     auto* inputRow = new QHBoxLayout;
     m_chatInput = new QLineEdit(chatPage);
-    m_chatInput->setPlaceholderText("Scrivi un messaggio (cifrato automaticamente)...");
+    m_chatInput->setPlaceholderText("Scrivi un messaggio...");
     m_chatInput->setObjectName("ChatInput");
     m_chatSend = new QPushButton(
         QString::fromUtf8("\xe2\x9e\xa4"), chatPage);  /* ➤ */
@@ -231,7 +236,7 @@ BlePage::BlePage(QWidget* parent)
 
     auto* peerInputRow = new QHBoxLayout;
     m_peerChatInput = new QLineEdit(peerPage);
-    m_peerChatInput->setPlaceholderText("Scrivi un messaggio (cifrato automaticamente)...");
+    m_peerChatInput->setPlaceholderText("Scrivi un messaggio...");
     m_peerChatInput->setObjectName("ChatInput");
     m_peerChatInput->setVisible(false);
     m_peerChatSend = new QPushButton(
@@ -301,9 +306,10 @@ BlePage::BlePage(QWidget* parent)
     connect(m_scanBtn,    &QPushButton::clicked, this, &BlePage::onStartScan);
     connect(m_chatTabBtn, &QPushButton::clicked, this, &BlePage::onShowChat);
     connect(m_scanTabBtn, &QPushButton::clicked, this, &BlePage::onShowScan);
-    connect(m_chatConn,   &QPushButton::clicked, this, &BlePage::onChatConnectClicked);
-    connect(m_chatSend,   &QPushButton::clicked, this, &BlePage::onChatSend);
-    connect(m_chatInput,  &QLineEdit::returnPressed, this, &BlePage::onChatSend);
+    connect(m_chatConn,        &QPushButton::clicked, this, &BlePage::onChatConnectClicked);
+    connect(m_chatSend,        &QPushButton::clicked, this, &BlePage::onChatSend);
+    connect(m_chatInput,       &QLineEdit::returnPressed, this, &BlePage::onChatSend);
+    connect(m_cryptoToggleBtn, &QPushButton::clicked, this, &BlePage::onToggleCrypto);
     connect(m_list,       &QListWidget::itemClicked, this, &BlePage::onDeviceTapped);
 
     /* Navigazione verso pagina Peer */
@@ -609,8 +615,11 @@ void BlePage::onNewConnection()
         QString::fromUtf8("\xf0\x9f\x9f\xa2") + " "
         + m_socket->peerName() + " si è connesso.");
     appendChatMsg("Sistema",
-        QString::fromUtf8("\xf0\x9f\x94\x92")  /* 🔒 */
-        + " Cifratura AES-256-GCM attiva. Assicurati che entrambi i dispositivi usino la stessa chiave.");
+        m_cryptoEnabled
+        ? QString::fromUtf8("\xf0\x9f\x94\x92")  /* 🔒 */
+          + " Cifratura AES-256-GCM attiva. Assicurati che entrambi i dispositivi usino la stessa chiave."
+        : QString::fromUtf8("\xf0\x9f\x94\x93")  /* 🔓 */
+          + " Modalit\xc3\xa0 chiaro attiva \xe2\x80\x94 comunicazione non cifrata.");
 }
 
 void BlePage::onSocketReadyRead()
@@ -823,8 +832,11 @@ void BlePage::onBtClientConnected()
     appendPeerMsg("Sistema",
         QString::fromUtf8("\xf0\x9f\x9f\xa2") + " Connesso a " + peer + ".");
     appendPeerMsg("Sistema",
-        QString::fromUtf8("\xf0\x9f\x94\x92")  /* 🔒 */
-        + " Cifratura AES-256-GCM attiva. Assicurati che entrambi i dispositivi usino la stessa chiave.");
+        m_cryptoEnabled
+        ? QString::fromUtf8("\xf0\x9f\x94\x92")  /* 🔒 */
+          + " Cifratura AES-256-GCM attiva. Assicurati che entrambi i dispositivi usino la stessa chiave."
+        : QString::fromUtf8("\xf0\x9f\x94\x93")  /* 🔓 */
+          + " Modalit\xc3\xa0 chiaro attiva \xe2\x80\x94 comunicazione non cifrata.");
 }
 
 /* ── onBtClientReadyRead — legge e decifra frame ─────────────── */
@@ -982,7 +994,7 @@ void BlePage::onDeviceListSelectionChanged()
    Cifratura BLE — gestione chiave
    ══════════════════════════════════════════════════════════════ */
 
-/* ── updateCryptoIndicator — aggiorna etichetta lucchetto ──────── */
+/* ── updateCryptoIndicator — aggiorna etichetta lucchetto e toggle ── */
 void BlePage::updateCryptoIndicator()
 {
     const QString shortKey = m_cryptoKey.toBase64().left(8) + "...";
@@ -997,10 +1009,44 @@ void BlePage::updateCryptoIndicator()
         ? QString::fromUtf8("\xf0\x9f\x94\x92")  /* 🔒 */
           + QString(" <small><b>%1</b> — chiave: %2</small>").arg(algo, shortKey)
         : QString::fromUtf8("\xf0\x9f\x94\x93")  /* 🔓 */
-          + " <small>Cifratura <b>disabilitata</b></small>";
+          + " <small>Modalit\xc3\xa0 <b>chiaro</b> — nessuna cifratura</small>";
+
+    const QString toggleLabel = m_cryptoEnabled
+        ? QString::fromUtf8("\xf0\x9f\x94\x92") + " Cifrato"   /* 🔒 Cifrato */
+        : QString::fromUtf8("\xf0\x9f\x94\x93") + " Chiaro";   /* 🔓 Chiaro  */
 
     if (m_cryptoIndicator)  m_cryptoIndicator->setText(text);
     if (m_peerCryptoIndic)  m_peerCryptoIndic->setText(text);
+
+    /* Aggiorna il toggle senza ri-emettere il segnale toggled */
+    if (m_cryptoToggleBtn) {
+        m_cryptoToggleBtn->blockSignals(true);
+        m_cryptoToggleBtn->setChecked(m_cryptoEnabled);
+        m_cryptoToggleBtn->setText(toggleLabel);
+        m_cryptoToggleBtn->blockSignals(false);
+    }
+}
+
+/* ── onToggleCrypto — attiva/disattiva cifratura a runtime ─────── */
+void BlePage::onToggleCrypto()
+{
+    m_cryptoEnabled = !m_cryptoEnabled;
+    updateCryptoIndicator();
+
+    const QString modeMsg = m_cryptoEnabled
+        ? QString::fromUtf8("\xf0\x9f\x94\x92")  /* 🔒 */
+          + " Cifratura AES-256-GCM <b>attivata</b>. Il peer deve usare la stessa chiave."
+        : QString::fromUtf8("\xf0\x9f\x94\x93")  /* 🔓 */
+          + " Modalit\xc3\xa0 <b>chiaro</b> attivata — comunicazione non cifrata.";
+
+    if (m_chatLog) {
+        m_chatLog->append(QString("<i><small style='color:#aaa;'>%1</small></i>")
+                          .arg(modeMsg));
+    }
+    if (m_peerChatLog) {
+        m_peerChatLog->append(QString("<i><small style='color:#aaa;'>%1</small></i>")
+                               .arg(modeMsg));
+    }
 }
 
 /* ── onShowKeyInfo — mostra la chiave e offre reset/copia ──────── */

@@ -82,6 +82,7 @@ private slots:
     /* Cifratura — gestione chiave */
     void onShowKeyInfo();   /* mostra chiave corrente (Base64) per condivisione manuale */
     void onResetKey();      /* genera nuova chiave e la salva */
+    void onToggleCrypto();  /* attiva/disattiva cifratura AES-256-GCM a runtime */
 
 private:
     QString rssiIcon(int rssi) const;
@@ -143,9 +144,10 @@ private:
     QMap<QString, int> m_foundIndex;  /* MAC → indice in m_deviceList */
 
     /* ── Cifratura ────────────────────────────────────────────── */
-    QByteArray  m_cryptoKey;          /* chiave AES-256 corrente */
-    bool        m_cryptoEnabled = true; /* false → modalità plain-text (debug) */
-    QLabel*     m_cryptoIndicator  = nullptr;  /* icona lucchetto nella chat */
-    QLabel*     m_peerCryptoIndic  = nullptr;  /* icona lucchetto nella peer chat */
-    QPushButton* m_keyInfoBtn      = nullptr;  /* mostra/resetta chiave */
+    QByteArray   m_cryptoKey;                /* chiave AES-256 corrente */
+    bool         m_cryptoEnabled = false;    /* default: plain-text; true = AES-256-GCM */
+    QLabel*      m_cryptoIndicator  = nullptr;  /* icona lucchetto nella chat */
+    QLabel*      m_peerCryptoIndic  = nullptr;  /* icona lucchetto nella peer chat */
+    QPushButton* m_keyInfoBtn       = nullptr;  /* mostra/resetta chiave */
+    QPushButton* m_cryptoToggleBtn  = nullptr;  /* toggle 🔓/🔒 */
 };

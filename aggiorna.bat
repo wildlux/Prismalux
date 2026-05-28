@@ -5,13 +5,15 @@ REM ═════════════════════════�
 REM  aggiorna.bat — Aggiorna Prismalux su Windows  (v2.9)
 REM  Lancia questo file dalla ROOT del progetto (doppio clic).
 REM
-REM  Novità v2.9:
-REM    - Scheda TFR dedicata (Finanza) con RAG auto-fill
-REM    - WAN Calcolo Distribuito: server/client TCP porta 11600,
-REM      28 tipi task (AI/shell/Python/Git/Graphviz/sistema...)
-REM      con cron scheduler e dispatcher universale
-REM    - Analisi Fenomeni: allegati PDF/TXT/MD/CSV
-REM    - Cytoscape rinominato "Cytoscape — Bioinformatica"
+REM  Novità v2.9 (riepilogo sessioni):
+REM    - Scheda TFR: C.F. calcolato auto (D.M. 1976), lookup 150 comuni/paesi
+REM    - WAN Calcolo Distribuito: TCP:11600, 28 task, cron, dispatcher universale
+REM    - Ollama MCP (18°): cache SQLite, 5 tool, solo stdlib Python
+REM    - Quiz CCNA Android: 64 → 209 domande (15 temi, CCNA 200-301)
+REM    - BT Android: toggle 🔓/🔒 modalità chiaro/cifrato (default: chiaro)
+REM    - DPI HiDPI/Wayland: dpiScale() in tutte le pages
+REM    - i18n: QTranslator + stub .ts in gui/i18n/
+REM    - TODO: tutte le voci completate
 REM
 REM  Rilevamento bash (ordine di priorità):
 REM    1. MSYS2 UCRT64    (C:\msys64\ucrt64)   — migliore per Qt
