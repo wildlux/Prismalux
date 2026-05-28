@@ -314,10 +314,11 @@ private slots:
         QVERIFY(true);
     }
 
-    void quattroTab() {
+    void setteTab() {
         ensurePage();
         QVERIFY2(g_pg->m_tabs != nullptr, "m_tabs non deve essere null");
-        QCOMPARE(g_pg->m_tabs->count(), 4);
+        /* 7 tab: Sequenza, Costanti, N-esimo, Espressione, Risolvi Passi, Analisi 1, Analisi 2 */
+        QCOMPARE(g_pg->m_tabs->count(), 7);
     }
 
     void outputReadOnly() {

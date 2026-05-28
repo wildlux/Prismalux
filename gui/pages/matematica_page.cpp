@@ -17,7 +17,6 @@
 #include <QSplitter>
 #include <QTabWidget>
 #include <QPlainTextEdit>
-#include <QTextEdit>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QComboBox>
@@ -134,6 +133,16 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     connect(btnStop, &QPushButton::clicked, this, &MatematicaPage::onStopClicked);
     ctrlRow->addWidget(btnStop);
 
+    auto* btnLatex = new QPushButton("\xf0\x9f\x94\xac LaTeX", outBox);  /* 🔬 */
+    btnLatex->setObjectName("navBtn");
+    btnLatex->setFixedHeight(26);
+    btnLatex->setCheckable(true);
+    btnLatex->setToolTip("Mostra/nascondi il pannello di rendering LaTeX per l'ultima risposta AI");
+    connect(btnLatex, &QPushButton::toggled, outBox, [this](bool on) {
+        if (m_latexOut) m_latexOut->setVisible(on);
+    });
+    ctrlRow->addWidget(btnLatex);
+
     outLay->addLayout(ctrlRow);
 
     /* ── Barra simboli LaTeX ── */
@@ -150,6 +159,12 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
         "e = 2.71828182845904523536...\n"
         "\xcf\x86 = 1.61803398874989484820...");
     outLay->addWidget(m_output, 1);
+
+    /* ── Pannello LaTeX (rendering KaTeX) — visibile solo se l'utente lo attiva ── */
+    m_latexOut = new LatexView(outBox);
+    m_latexOut->setVisible(false);
+    m_latexOut->setMinimumHeight(dpiScale(160));
+    outLay->addWidget(m_latexOut);
 
     splitter->addWidget(m_tabs);
     splitter->addWidget(outBox);
@@ -2596,7 +2611,9 @@ void MatematicaPage::onSolveToken(const QString& t)
    ══════════════════════════════════════════════════════════════ */
 void MatematicaPage::onSolveFinished(const QString& full)
 {
-    Q_UNUSED(full)
+    if (m_latexOut && m_latexOut->isVisible() && !full.isEmpty())
+        m_latexOut->setLatexHtml(
+            "<div class='ai-out'>" + full.toHtmlEscaped().replace("\n", "<br>") + "</div>");
     delete m_aiSolveHolder;
     m_aiSolveHolder = nullptr;
     m_solveBusy = false;
@@ -2626,296 +2643,287 @@ namespace {
 
 struct AnalisiTopic { const char* name; const char* html; const char* ex; const char* type; const char* plotEx; };
 
-/* ── Macro frazioni inline (Qt QTextEdit: le tabelle sono sempre block-level) ──
-   Usa sup + Unicode FRACTION SLASH U+2044 (⁄) + sub: rende la frazione
-   in una sola riga leggibile, es.  sin(x)⁄x   f'⁄g'   x^(n+1)⁄(n+1)+C */
-/* Frazioni inline: <sup style="text-decoration:underline"> crea la linea
-   di frazione al livello del numeratore elevato; <sub> abbassa il denominatore.
-   Qt QTextEdit non supporta display:block annidato né display:inline-table,
-   quindi questa è la rappresentazione inline più fedele disponibile. */
-#define FR(n,d) \
-  "<span style='white-space:nowrap'>" \
-  "<sup style='font-size:86%;text-decoration:underline'>" n "</sup>" \
-  "<sub style='font-size:86%'>" d "</sub>" \
-  "</span>"
-
 /* Tipo stringa deve corrispondere al testo di m_solveCmb */
 static const AnalisiTopic kA1[] = {
   { "Limiti",
     "<h3 style='color:#60a5fa'>Limiti di funzione</h3>"
-    "<p><b>Definizione &epsilon;-&delta;:</b><br>"
-    "lim<sub>x&rarr;c</sub> f(x) = L &hArr; &forall;&epsilon;&gt;0 &exist;&delta;&gt;0 :"
-    " 0&lt;|x&minus;c|&lt;&delta; &rArr; |f(x)&minus;L|&lt;&epsilon;</p><hr>"
-    "<p><b>Limiti notevoli (x&rarr;0):</b><br>"
-    "&bull; " FR("sin x","x") " &rarr; 1 &nbsp;"
-    "&bull; " FR("1&minus;cos x","x&sup2;") " &rarr; " FR("1","2") "<br>"
-    "&bull; " FR("ln(1+x)","x") " &rarr; 1 &nbsp;"
-    "&bull; " FR("e<sup>x</sup>&minus;1","x") " &rarr; 1<br>"
-    "&bull; " FR("arctan x","x") " &rarr; 1 &nbsp;"
-    "&bull; " FR("a<sup>x</sup>&minus;1","x") " &rarr; ln a<br>"
-    "<b>x&rarr;&infin;:</b> &nbsp;"
-    "&#x28;1+" FR("1","x") "&#x29;<sup>x</sup> &rarr; e</p><hr>"
-    /* ── Box colorato: Regola di L'Hôpital ── */
-    "<p style='background:#7c3aed22;border-left:4px solid #a78bfa;"
-    "border-radius:4px;padding:7px 10px;margin:6px 0'>"
+    "<p><b>Definizione &epsilon;&ndash;&delta;:</b></p>"
+    "\\[\\lim_{x\\to c} f(x) = L \\iff "
+    "\\forall\\varepsilon>0\\;\\exists\\delta>0:\\;"
+    "0<|x-c|<\\delta \\Rightarrow |f(x)-L|<\\varepsilon\\]"
+    "<p><b>Limiti notevoli (\\(x\\to 0\\)):</b></p>"
+    "<ul>"
+    "<li>\\(\\dfrac{\\sin x}{x}\\to 1\\) &nbsp;&nbsp; "
+    "\\(\\dfrac{1-\\cos x}{x^2}\\to\\dfrac{1}{2}\\)</li>"
+    "<li>\\(\\dfrac{\\ln(1+x)}{x}\\to 1\\) &nbsp;&nbsp; "
+    "\\(\\dfrac{e^x-1}{x}\\to 1\\)</li>"
+    "<li>\\(\\dfrac{\\arctan x}{x}\\to 1\\) &nbsp;&nbsp; "
+    "\\(\\dfrac{a^x-1}{x}\\to \\ln a\\)</li>"
+    "<li>Per \\(x\\to\\infty\\): &nbsp; "
+    "\\(\\left(1+\\dfrac{1}{x}\\right)^x\\to e\\)</li>"
+    "</ul><hr>"
+    "<div class='box-purple'>"
     "<b style='color:#c4b5fd'>&#x2728; Regola di L&rsquo;H&ocirc;pital</b> "
-    "(forme 0/0 o &infin;/&infin;):<br>"
-    "lim " FR("f","g") " = lim " FR("f&prime;","g&prime;")
-    " &nbsp;&mdash;&nbsp; si applica iterativamente se la forma rimane indeterminata.</p>"
-    /* ── Box colorato: Gerarchia degli infiniti ── */
-    "<p style='background:#16a34a22;border-left:4px solid #4ade80;"
-    "border-radius:4px;padding:7px 10px;margin:6px 0'>"
-    "<b style='color:#86efac'>&#x221e; Gerarchia degli infiniti</b> per x&rarr;+&infin;:<br>"
-    "log x &nbsp;&lt;&nbsp; x<sup>&alpha;</sup> &nbsp;&lt;&nbsp; e<sup>x</sup> &nbsp;&lt;&nbsp; "
-    "x<sup>x</sup> &nbsp;&nbsp;(&alpha;&gt;0)<br>"
-    "<small>Utile per confrontare infiniti e calcolare limiti &infin;&minus;&infin;.</small></p>"
-    /* ── Box codice: esempi SymPy ── */
-    "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;"
-    "border-radius:3px;padding:6px 10px;"
-    "font-family:monospace;font-size:11px;color:#cbd5e1'>"
-    "<b style='color:#93c5fd'>Esempi SymPy (tipo Limite):</b><br>"
-    "sin(x)/x, x, 0 &nbsp;&bull; (exp(x)-1)/x, x, 0<br>"
-    "x*log(x), x, 0 &nbsp;&bull; (1+1/x)**x, x, oo</p>",
+    "(forme \\(0/0\\) o \\(\\infty/\\infty\\)):"
+    "\\[\\lim\\frac{f}{g}=\\lim\\frac{f'}{g'}\\]"
+    "si applica iterativamente se la forma rimane indeterminata.</div>"
+    "<div class='box-green'>"
+    "<b style='color:#86efac'>&#x221e; Gerarchia degli infiniti</b> "
+    "per \\(x\\to+\\infty\\):"
+    "\\[\\log x \\ll x^{\\alpha} \\ll e^x \\ll x^x \\quad(\\alpha>0)\\]"
+    "<small>Utile per limiti \\(\\infty-\\infty\\).</small></div>"
+    "<div class='box-blue'><b style='color:#93c5fd'>Esempi SymPy (tipo Limite):</b><br>"
+    "sin(x)/x, x, 0 &bull; (exp(x)-1)/x, x, 0<br>"
+    "x*log(x), x, 0 &bull; (1+1/x)**x, x, oo</div>",
     "sin(x)/x, x, 0", "Limite", "sin(x)/x" },
 
   { "Derivate",
     "<h3 style='color:#60a5fa'>Derivate</h3>"
-    "<p><b>Definizione:</b> f&prime;(x) = lim<sub>h&rarr;0</sub>"
-    " [f(x+h)&minus;f(x)]/h</p><hr>"
-    "<p><b>Tavola derivate fondamentali:</b><br>"
-    "D[x<sup>n</sup>] = nx<sup>n&minus;1</sup> &bull; D[e<sup>x</sup>] = e<sup>x</sup>"
-    " &bull; D[ln x] = " FR("1","x") "<br>"
-    "D[sin x] = cos x &bull; D[cos x] = &minus;sin x<br>"
-    "D[tan x] = " FR("1","cos&sup2;x")
-    " &bull; D[arcsin x] = " FR("1","&radic;(1&minus;x&sup2;)") "</p><hr>"
-    "<p><b>Regole:</b><br>"
-    "(fg)&prime; = f&prime;g+fg&prime; &nbsp;&bull;&nbsp; "
-    "&#x28;" FR("f","g") "&#x29;&prime; = " FR("f&prime;g&minus;fg&prime;","g&sup2;") "<br>"
-    "(f&compfn;g)&prime; = (f&prime;&compfn;g)&middot;g&prime; &nbsp;(regola della catena)</p><hr>"
-    "<p><b>Teoremi:</b> <b>Rolle:</b> f(a)=f(b) &rArr; &exist;c: f&prime;(c)=0<br>"
-    "<b>Lagrange:</b> &exist;c&isin;(a,b): f&prime;(c) = " FR("f(b)&minus;f(a)","b&minus;a") "</p>"
-    "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
-    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Derivata):</b><br>"
-    "x**3 - 2*x + 1, x &nbsp;&bull; sin(x)*exp(x), x<br>"
-    "log(x**2+1), x &nbsp;&bull; x**2*cos(x), x, 2 (2&ordf; deriv.)</p>",
+    "<p><b>Definizione:</b>"
+    "\\[f'(x)=\\lim_{h\\to 0}\\frac{f(x+h)-f(x)}{h}\\]</p>"
+    "<p><b>Tavola derivate fondamentali:</b></p>"
+    "<ul>"
+    "<li>\\(D[x^n]=nx^{n-1}\\) &bull; \\(D[e^x]=e^x\\) &bull; "
+    "\\(D[\\ln x]=\\dfrac{1}{x}\\)</li>"
+    "<li>\\(D[\\sin x]=\\cos x\\) &bull; \\(D[\\cos x]=-\\sin x\\)</li>"
+    "<li>\\(D[\\tan x]=\\dfrac{1}{\\cos^2 x}\\) &bull; "
+    "\\(D[\\arcsin x]=\\dfrac{1}{\\sqrt{1-x^2}}\\)</li>"
+    "</ul><hr>"
+    "<p><b>Regole:</b></p><ul>"
+    "<li>\\((fg)'=f'g+fg'\\)</li>"
+    "<li>\\(\\left(\\dfrac{f}{g}\\right)'=\\dfrac{f'g-fg'}{g^2}\\)</li>"
+    "<li>\\((f\\circ g)'=(f'\\circ g)\\cdot g'\\) (catena)</li>"
+    "</ul><hr>"
+    "<p><b>Rolle:</b> \\(f(a)=f(b)\\Rightarrow\\exists c: f'(c)=0\\)<br>"
+    "<b>Lagrange:</b> \\(\\exists c\\in(a,b):\\;"
+    "f'(c)=\\dfrac{f(b)-f(a)}{b-a}\\)</p>"
+    "<div class='box-blue'><b style='color:#93c5fd'>Esempi SymPy (tipo Derivata):</b><br>"
+    "x**3 - 2*x + 1, x &bull; sin(x)*exp(x), x<br>"
+    "log(x**2+1), x &bull; x**2*cos(x), x, 2</div>",
     "x**3 - 2*x + 1, x", "Derivata", "x**3 - 2*x + 1" },
 
   { "Integrali indefiniti",
     "<h3 style='color:#60a5fa'>Integrali indefiniti</h3>"
-    "<p><b>Definizione:</b> F&prime;(x) = f(x) &rArr; &int;f(x)dx = F(x)+C</p><hr>"
-    "<p><b>Integrali immediati:</b><br>"
-    "&int;x<sup>n</sup>dx = " FR("x<sup>n+1</sup>","n+1") " + C &nbsp;(n&ne;&minus;1)<br>"
-    "&int;e<sup>x</sup>dx = e<sup>x</sup> + C &nbsp;&bull;&nbsp; "
-    "&int;sin x dx = &minus;cos x + C<br>"
-    "&int;" FR("1","x") "dx = ln|x| + C &nbsp;&bull;&nbsp; "
-    "&int;" FR("1","1+x&sup2;") "dx = arctan x + C</p><hr>"
-    "<p><b>Tecniche:</b><br>"
-    "<b>Sostituzione:</b> &int;f(g(x))g&prime;(x)dx &rarr; t=g(x)<br>"
-    "<b>Per parti:</b> &int;u dv = uv &minus; &int;v du<br>"
-    "<b>Frazioni parziali:</b> " FR("p(x)","q(x)") " con q fattorizzabile</p>"
-    "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
-    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Integrale):</b><br>"
-    "x**2*exp(x), x &nbsp;&bull; sin(x)**2, x<br>"
-    "1/(x**2-1), x &nbsp;&bull; log(x), x</p>",
+    "<p><b>Definizione:</b> \\(F'(x)=f(x)\\Rightarrow"
+    "\\int f(x)\\,dx=F(x)+C\\)</p><hr>"
+    "<p><b>Integrali immediati:</b></p><ul>"
+    "<li>\\(\\displaystyle\\int x^n\\,dx=\\dfrac{x^{n+1}}{n+1}+C\\quad(n\\ne -1)\\)</li>"
+    "<li>\\(\\displaystyle\\int e^x\\,dx=e^x+C\\) &bull; "
+    "\\(\\displaystyle\\int\\sin x\\,dx=-\\cos x+C\\)</li>"
+    "<li>\\(\\displaystyle\\int\\dfrac{1}{x}\\,dx=\\ln|x|+C\\) &bull; "
+    "\\(\\displaystyle\\int\\dfrac{1}{1+x^2}\\,dx=\\arctan x+C\\)</li>"
+    "</ul><hr>"
+    "<p><b>Tecniche:</b></p><ul>"
+    "<li><b>Sostituzione:</b> \\(\\int f(g(x))g'(x)\\,dx\\;\\to\\; t=g(x)\\)</li>"
+    "<li><b>Per parti:</b> \\(\\int u\\,dv=uv-\\int v\\,du\\)</li>"
+    "<li><b>Frazioni parziali:</b> \\(\\dfrac{p(x)}{q(x)}\\) con \\(q\\) fattorizzabile</li>"
+    "</ul>"
+    "<div class='box-blue'><b style='color:#93c5fd'>Esempi SymPy (tipo Integrale):</b><br>"
+    "x**2*exp(x), x &bull; sin(x)**2, x<br>"
+    "1/(x**2-1), x &bull; log(x), x</div>",
     "x**2*exp(x), x", "Integrale", "x**2*exp(x)" },
 
   { "Integrali definiti",
     "<h3 style='color:#60a5fa'>Integrali definiti</h3>"
-    "<p><b>Def. (somme di Riemann):</b><br>"
-    "&int;<sub>a</sub><sup>b</sup> f(x)dx = lim<sub>n&rarr;&infin;</sub>"
-    " &sum;<sub>k</sub> f(x<sub>k</sub>)&Delta;x</p><hr>"
-    "<p><b>Teorema fondamentale del calcolo:</b><br>"
-    "&int;<sub>a</sub><sup>b</sup> f(x)dx = F(b) &minus; F(a) &nbsp;dove F&prime;=f</p><hr>"
-    "<p><b>Propriet&agrave;:</b><br>"
-    "Linearit&agrave;, additivit&agrave; sugli intervalli, monotonia<br>"
-    "Teorema della media: &exist;c&isin;(a,b): &int;<sub>a</sub><sup>b</sup>f dx = f(c)(b&minus;a)</p>"
-    "<p><b>Applicazioni:</b> area, lunghezza arco, volume solidi di rotazione</p>"
-    "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
-    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Integrale):</b><br>"
-    "sin(x), x, 0, pi &nbsp;&bull; x**2, x, 0, 1<br>"
-    "exp(-x**2), x, 0, 1 &nbsp;&bull; 1/x, x, 1, exp(1)</p>",
+    "<p><b>Def. (somme di Riemann):</b>"
+    "\\[\\int_a^b f(x)\\,dx=\\lim_{n\\to\\infty}\\sum_k f(x_k)\\Delta x\\]</p>"
+    "<p><b>Teorema fondamentale del calcolo:</b>"
+    "\\[\\int_a^b f(x)\\,dx=F(b)-F(a)\\quad\\text{dove }F'=f\\]</p>"
+    "<p><b>Propriet&agrave;:</b> linearit&agrave;, additivit&agrave; sugli intervalli, monotonia.<br>"
+    "<b>Teorema della media:</b> "
+    "\\(\\exists c\\in(a,b):\\int_a^b f\\,dx=f(c)(b-a)\\)</p>"
+    "<p><b>Applicazioni:</b> area, lunghezza arco, volumi di rotazione.</p>"
+    "<div class='box-blue'><b style='color:#93c5fd'>Esempi SymPy (tipo Integrale):</b><br>"
+    "sin(x), x, 0, pi &bull; x**2, x, 0, 1<br>"
+    "exp(-x**2), x, 0, 1 &bull; 1/x, x, 1, exp(1)</div>",
     "sin(x), x, 0, pi", "Integrale", "sin(x)" },
 
   { "Studio di funzione",
     "<h3 style='color:#60a5fa'>Studio di funzione</h3>"
     "<p><b>Schema completo:</b></p>"
-    "<ol style='margin:4px 0 4px 16px;padding:0'>"
-    "<li><b>Dominio</b> &mdash; dove f(x) &egrave; definita</li>"
-    "<li><b>Simmetrie</b> &mdash; pari (f(&minus;x)=f(x)), dispari</li>"
+    "<ol>"
+    "<li><b>Dominio</b> &mdash; dove \\(f(x)\\) &egrave; definita</li>"
+    "<li><b>Simmetrie</b> &mdash; pari (\\(f(-x)=f(x)\\)), dispari</li>"
     "<li><b>Limiti agli estremi</b> &mdash; asintoti orizzontali/verticali</li>"
-    "<li><b>Segno</b> &mdash; f(x)&gt;0, f(x)=0</li>"
-    "<li><b>Monotonia</b> &mdash; f&prime;(x)&gt;0 crescente, &lt;0 decrescente</li>"
-    "<li><b>Estremi relativi</b> &mdash; f&prime;(x<sub>0</sub>)=0 &rarr; f&prime;&prime; decide</li>"
-    "<li><b>Convessit&agrave;</b> &mdash; f&prime;&prime;&gt;0 conv. &uarr;, f&prime;&prime;&lt;0 conv. &darr;</li>"
-    "<li><b>Asintoto obliquo:</b> y=mx+q, m=lim f(x)/x, q=lim[f(x)&minus;mx]</li>"
+    "<li><b>Segno</b> &mdash; \\(f(x)>0\\), \\(f(x)=0\\)</li>"
+    "<li><b>Monotonia</b> &mdash; \\(f'(x)>0\\) crescente, \\(<0\\) decrescente</li>"
+    "<li><b>Estremi relativi</b> &mdash; \\(f'(x_0)=0\\Rightarrow f''\\) decide</li>"
+    "<li><b>Convessit&agrave;</b> &mdash; \\(f''>0\\) conv. \\(\\uparrow\\), "
+    "\\(f''<0\\) conv. \\(\\downarrow\\)</li>"
+    "<li><b>Asintoto obliquo:</b> \\(y=mx+q\\), "
+    "\\(m=\\lim\\dfrac{f(x)}{x}\\), \\(q=\\lim[f(x)-mx]\\)</li>"
     "</ol>"
-    "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
-    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Derivata):</b><br>"
-    "(x**2-1)/(x**2+1), x &nbsp;&bull; x*exp(-x), x<br>"
-    "x**3-3*x, x &nbsp;&bull; log(x)/x, x</p>",
+    "<div class='box-blue'><b style='color:#93c5fd'>Esempi SymPy (tipo Derivata):</b><br>"
+    "(x**2-1)/(x**2+1), x &bull; x*exp(-x), x<br>"
+    "x**3-3*x, x &bull; log(x)/x, x</div>",
     "(x**2-1)/(x**2+1), x", "Derivata", "(x**2-1)/(x**2+1)" },
 
   { "Serie di Taylor",
     "<h3 style='color:#60a5fa'>Serie di Taylor &amp; Maclaurin</h3>"
-    "<p><b>Formula di Taylor in x<sub>0</sub>:</b><br>"
-    "f(x) = &sum;<sub>k=0</sub><sup>n</sup> "
-    "<sup style='font-size:86%;text-decoration:underline'>"
-    "f<sup style='font-size:80%'>(k)</sup>(x<sub>0</sub>)</sup>"
-    "<sub style='font-size:86%'>k!</sub>"
-    " &middot; (x&minus;x<sub>0</sub>)<sup>k</sup>"
-    " &nbsp;+&nbsp; R<sub>n</sub>(x)</p><hr>"
-    "<p><b>Sviluppi di Maclaurin fondamentali (in 0):</b><br>"
-    "e<sup>x</sup> = 1 + x + " FR("x&sup2;","2!") " + " FR("x&sup3;","3!") " + &hellip;<br>"
-    "sin x = x &minus; " FR("x&sup3;","3!") " + " FR("x<sup>5</sup>","5!") " &minus; &hellip;<br>"
-    "cos x = 1 &minus; " FR("x&sup2;","2!") " + " FR("x<sup>4</sup>","4!") " &minus; &hellip;<br>"
-    "ln(1+x) = x &minus; " FR("x&sup2;","2") " + " FR("x&sup3;","3")
-    " &minus; &hellip; &nbsp;(|x|&lt;1)<br>"
-    "(1+x)<sup>&alpha;</sup> = 1 + &alpha;x + "
-    FR("&alpha;(&alpha;&minus;1)x&sup2;","2!") " + &hellip;</p>"
-    "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
-    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Semplificazione):</b><br>"
+    "<p><b>Formula di Taylor in \\(x_0\\):</b>"
+    "\\[f(x)=\\sum_{k=0}^{n}\\frac{f^{(k)}(x_0)}{k!}(x-x_0)^k + R_n(x)\\]</p>"
+    "<p><b>Sviluppi di Maclaurin fondamentali (in 0):</b></p><ul>"
+    "<li>\\(e^x=1+x+\\dfrac{x^2}{2!}+\\dfrac{x^3}{3!}+\\cdots\\)</li>"
+    "<li>\\(\\sin x=x-\\dfrac{x^3}{3!}+\\dfrac{x^5}{5!}-\\cdots\\)</li>"
+    "<li>\\(\\cos x=1-\\dfrac{x^2}{2!}+\\dfrac{x^4}{4!}-\\cdots\\)</li>"
+    "<li>\\(\\ln(1+x)=x-\\dfrac{x^2}{2}+\\dfrac{x^3}{3}-\\cdots\\quad|x|<1\\)</li>"
+    "<li>\\((1+x)^\\alpha=1+\\alpha x+"
+    "\\dfrac{\\alpha(\\alpha-1)}{2!}x^2+\\cdots\\)</li>"
+    "</ul>"
+    "<div class='box-blue'><b style='color:#93c5fd'>Esempi SymPy (tipo Semplificazione):</b><br>"
     "series(exp(x), x, 0, 6) &rarr; usa il campo Espressione<br>"
     "series(sin(x), x, 0, 8)<br>"
-    "series(log(1+x), x, 0, 5)</p>",
+    "series(log(1+x), x, 0, 5)</div>",
     "series(exp(x), x, 0, 6)", "Semplificazione", "exp(x)" },
 
   { "Successioni e serie numeriche",
     "<h3 style='color:#60a5fa'>Successioni e serie</h3>"
-    "<p><b>Successione</b> {a<sub>n</sub>}: converge a L se |a<sub>n</sub>&minus;L|&rarr;0</p>"
-    "<p><b>Serie</b> &sum;a<sub>n</sub>: S<sub>n</sub>=a<sub>1</sub>+&hellip;+a<sub>n</sub>,"
-    " converge se S<sub>n</sub> ha limite finito</p><hr>"
-    "<p><b>Criteri di convergenza:</b><br>"
-    "<b>Confronto:</b> 0&le;a<sub>n</sub>&le;b<sub>n</sub>; b<sub>n</sub> conv. &rArr; a<sub>n</sub> conv.<br>"
-    "<b>Rapporto (D&rsquo;Alembert):</b> &rho; = lim"
-    " &#x7c;" FR("a<sub>n+1</sub>","a<sub>n</sub>") "&#x7c;; &rho;&lt;1 conv.<br>"
-    "<b>Radice (Cauchy):</b> &rho; = lim &radic;(|a<sub>n</sub>|); &rho;&lt;1 conv.<br>"
-    "<b>Leibniz:</b> &sum;(&minus;1)<sup>n</sup>a<sub>n</sub> conv. se a<sub>n</sub>&darr;0</p>"
-    "<p><b>Serie geometrica:</b> &sum;q<sup>n</sup> = " FR("1","1&minus;q") " per |q|&lt;1</p>"
-    "<p style='background:#1e3a5f;border-left:3px solid #3b82f6;border-radius:3px;padding:6px 10px;color:#cbd5e1;"
-    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Semplificazione):</b><br>"
+    "<p><b>Successione</b> \\(\\{a_n\\}\\): converge a \\(L\\) se "
+    "\\(|a_n-L|\\to 0\\)</p>"
+    "<p><b>Serie</b> \\(\\sum a_n\\): \\(S_n=a_1+\\cdots+a_n\\), "
+    "converge se \\(S_n\\) ha limite finito</p><hr>"
+    "<p><b>Criteri di convergenza:</b></p><ul>"
+    "<li><b>Confronto:</b> \\(0\\le a_n\\le b_n\\); "
+    "\\(b_n\\) conv. \\(\\Rightarrow a_n\\) conv.</li>"
+    "<li><b>Rapporto (D&rsquo;Alembert):</b> "
+    "\\(\\rho=\\lim\\left|\\dfrac{a_{n+1}}{a_n}\\right|\\); "
+    "\\(\\rho<1\\) conv.</li>"
+    "<li><b>Radice (Cauchy):</b> "
+    "\\(\\rho=\\lim\\sqrt[n]{|a_n|}\\); \\(\\rho<1\\) conv.</li>"
+    "<li><b>Leibniz:</b> \\(\\sum(-1)^n a_n\\) conv. se \\(a_n\\downarrow 0\\)</li>"
+    "</ul>"
+    "<p><b>Serie geometrica:</b> "
+    "\\(\\displaystyle\\sum q^n=\\dfrac{1}{1-q}\\) per \\(|q|<1\\)</p>"
+    "<div class='box-blue'><b style='color:#93c5fd'>Esempi SymPy (tipo Semplificazione):</b><br>"
     "Sum(1/n**2, (n,1,oo)) &rarr; usa Espressione<br>"
-    "Sum((-1)**n/factorial(n), (n,0,oo))</p>",
+    "Sum((-1)**n/factorial(n), (n,0,oo))</div>",
     "Sum(1/n**2, (n,1,oo))", "Semplificazione", "1/x**2" },
 };
 
 static const AnalisiTopic kA2[] = {
   { "Derivate parziali",
     "<h3 style='color:#fb923c'>Derivate parziali</h3>"
-    "<p><b>Definizione:</b><br>"
-    FR("&part;f","&part;x") "(x<sub>0</sub>,y<sub>0</sub>) = lim<sub>h&rarr;0</sub>"
-    " " FR("f(x<sub>0</sub>+h,y<sub>0</sub>)&minus;f(x<sub>0</sub>,y<sub>0</sub>)","h") "</p><hr>"
-    "<p><b>Differenziale totale:</b><br>"
-    "df = " FR("&part;f","&part;x") "dx + " FR("&part;f","&part;y") "dy</p>"
-    "<p>f differenziabile in (x<sub>0</sub>,y<sub>0</sub>) &rArr; "
-    "derivate parziali continue in quel punto</p><hr>"
-    "<p><b>Regola della catena:</b> se z=f(x(t),y(t))<br>"
-    FR("dz","dt") " = " FR("&part;f","&part;x") FR("dx","dt")
-    " + " FR("&part;f","&part;y") FR("dy","dt") "</p>"
-    "<p style='background:#431407;border-left:3px solid #f97316;border-radius:3px;padding:6px 10px;color:#fed7aa;"
-    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Derivata):</b><br>"
-    "x**2*y + sin(x*y), x &rarr; deriv. parziale in x<br>"
-    "exp(x**2+y**2), y &nbsp;&bull; x**3*y**2, x, 2</p>",
+    "<p><b>Definizione:</b>"
+    "\\[\\frac{\\partial f}{\\partial x}(x_0,y_0)="
+    "\\lim_{h\\to 0}\\frac{f(x_0+h,y_0)-f(x_0,y_0)}{h}\\]</p>"
+    "<p><b>Differenziale totale:</b>"
+    "\\[df=\\frac{\\partial f}{\\partial x}\\,dx+"
+    "\\frac{\\partial f}{\\partial y}\\,dy\\]</p>"
+    "<p>\\(f\\) differenziabile \\(\\Rightarrow\\) derivate parziali continue</p><hr>"
+    "<p><b>Regola della catena:</b> \\(z=f(x(t),y(t))\\)"
+    "\\[\\frac{dz}{dt}=\\frac{\\partial f}{\\partial x}\\frac{dx}{dt}+"
+    "\\frac{\\partial f}{\\partial y}\\frac{dy}{dt}\\]</p>"
+    "<div class='box-orange'><b style='color:#93c5fd'>Esempi SymPy (tipo Derivata):</b><br>"
+    "x**2*y + sin(x*y), x &rarr; deriv. parz. in x<br>"
+    "exp(x**2+y**2), y &bull; x**3*y**2, x, 2</div>",
     "x**2*y + sin(x*y), x", "Derivata", "x**2*y + sin(x*y)" },
 
   { "Gradiente e piano tangente",
     "<h3 style='color:#fb923c'>Gradiente e piano tangente</h3>"
-    "<p><b>Gradiente</b> di f(x,y):<br>"
-    "&nabla;f = (&part;f/&part;x, &part;f/&part;y)</p>"
-    "<p><b>Derivata direzionale:</b> D<sub>u</sub>f = &nabla;f &middot; u&circ;<br>"
-    "Massima direzione di crescita = direzione di &nabla;f</p><hr>"
-    "<p><b>Piano tangente</b> al grafico z=f(x,y) in (x<sub>0</sub>,y<sub>0</sub>):<br>"
-    "z = f(x<sub>0</sub>,y<sub>0</sub>) + f<sub>x</sub>(x<sub>0</sub>,y<sub>0</sub>)(x&minus;x<sub>0</sub>)"
-    " + f<sub>y</sub>(x<sub>0</sub>,y<sub>0</sub>)(y&minus;y<sub>0</sub>)</p>"
-    "<p style='background:#431407;border-left:3px solid #f97316;border-radius:3px;padding:6px 10px;color:#fed7aa;"
-    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Derivata):</b><br>"
-    "x**2 + y**2, x &nbsp;&bull; x*y*exp(x+y), y<br>"
-    "sin(x)*cos(y), x</p>",
+    "<p><b>Gradiente</b> di \\(f(x,y)\\):"
+    "\\[\\nabla f=\\left(\\frac{\\partial f}{\\partial x},"
+    "\\frac{\\partial f}{\\partial y}\\right)\\]</p>"
+    "<p><b>Derivata direzionale:</b> "
+    "\\(D_{\\hat{u}}f=\\nabla f\\cdot\\hat{u}\\)<br>"
+    "Massima crescita = direzione di \\(\\nabla f\\)</p><hr>"
+    "<p><b>Piano tangente</b> a \\(z=f(x,y)\\) in \\((x_0,y_0)\\):"
+    "\\[z=f(x_0,y_0)+f_x(x_0,y_0)(x-x_0)+f_y(x_0,y_0)(y-y_0)\\]</p>"
+    "<div class='box-orange'><b style='color:#93c5fd'>Esempi SymPy (tipo Derivata):</b><br>"
+    "x**2 + y**2, x &bull; x*y*exp(x+y), y<br>"
+    "sin(x)*cos(y), x</div>",
     "x**2 + y**2, x", "Derivata", "x**2 + y**2" },
 
   { "Hessiana ed estremi liberi",
     "<h3 style='color:#fb923c'>Matrice Hessiana ed estremi</h3>"
-    "<p><b>Matrice Hessiana</b> H<sub>f</sub> in (x<sub>0</sub>,y<sub>0</sub>):<br>"
-    "H = [[f<sub>xx</sub> f<sub>xy</sub>], [f<sub>yx</sub> f<sub>yy</sub>]]</p><hr>"
-    "<p><b>Punti critici:</b> &nabla;f = 0 (f<sub>x</sub>=0, f<sub>y</sub>=0)</p>"
-    "<p><b>Criterio dell'Hessiana</b> in un punto critico P<sub>0</sub>:<br>"
-    "&bull; det(H)&gt;0 e f<sub>xx</sub>&gt;0 &rArr; <b>minimo</b><br>"
-    "&bull; det(H)&gt;0 e f<sub>xx</sub>&lt;0 &rArr; <b>massimo</b><br>"
-    "&bull; det(H)&lt;0 &rArr; <b>punto di sella</b><br>"
-    "&bull; det(H)=0 &rArr; indecidibile (analisi superiore)</p>"
-    "<p style='background:#431407;border-left:3px solid #f97316;border-radius:3px;padding:6px 10px;color:#fed7aa;"
-    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Semplificazione):</b><br>"
-    "usa il campo Espressione: hessian(x**4+y**4-4*x*y, [x,y])<br>"
-    "oppure: solve([diff(x**3+y**3-3*x*y,x), diff(x**3+y**3-3*x*y,y)])</p>",
+    "<p><b>Matrice Hessiana</b> \\(H_f\\) in \\((x_0,y_0)\\):"
+    "\\[H=\\begin{pmatrix}f_{xx}&amp;f_{xy}\\\\"
+    "f_{yx}&amp;f_{yy}\\end{pmatrix}\\]</p>"
+    "<p><b>Punti critici:</b> \\(\\nabla f=0\\) "
+    "(\\(f_x=0,\\;f_y=0\\))</p>"
+    "<p><b>Criterio dell&rsquo;Hessiana:</b></p><ul>"
+    "<li>\\(\\det(H)>0\\) e \\(f_{xx}>0 \\Rightarrow\\) <b>minimo</b></li>"
+    "<li>\\(\\det(H)>0\\) e \\(f_{xx}<0 \\Rightarrow\\) <b>massimo</b></li>"
+    "<li>\\(\\det(H)<0 \\Rightarrow\\) <b>punto di sella</b></li>"
+    "<li>\\(\\det(H)=0 \\Rightarrow\\) indecidibile</li>"
+    "</ul>"
+    "<div class='box-orange'><b style='color:#93c5fd'>Esempi SymPy (Semplificazione):</b><br>"
+    "usa Espressione: hessian(x**4+y**4-4*x*y, [x,y])<br>"
+    "oppure: solve([diff(x**3+y**3-3*x*y,x), diff(x**3+y**3-3*x*y,y)])</div>",
     "x**4 + y**4 - 4*x*y", "Semplificazione", "x**4 + y**4 - 4*x*y" },
 
   { "Moltiplicatori di Lagrange",
     "<h3 style='color:#fb923c'>Moltiplicatori di Lagrange</h3>"
-    "<p><b>Problema:</b> max/min f(x,y) soggetto a g(x,y)=0</p>"
-    "<p><b>Condizione necessaria</b> in un punto estremo P<sub>0</sub>:<br>"
-    "&nabla;f(P<sub>0</sub>) = &lambda;&nabla;g(P<sub>0</sub>)</p>"
-    "<p><b>Sistema da risolvere:</b><br>"
-    "f<sub>x</sub> = &lambda;g<sub>x</sub><br>"
-    "f<sub>y</sub> = &lambda;g<sub>y</sub><br>"
-    "g(x,y) = 0</p><hr>"
-    "<p>Estensione a pi&ugrave; variabili e pi&ugrave; vincoli:<br>"
-    "&nabla;f = &lambda;<sub>1</sub>&nabla;g<sub>1</sub> + &lambda;<sub>2</sub>&nabla;g<sub>2</sub> + &hellip;</p>"
-    "<p style='background:#431407;border-left:3px solid #f97316;border-radius:3px;padding:6px 10px;color:#fed7aa;"
-    "font-family:monospace;font-size:11px'><b>SymPy:</b><br>"
-    "Tab Espressione &rarr;<br>"
+    "<p><b>Problema:</b> max/min \\(f(x,y)\\) soggetto a \\(g(x,y)=0\\)</p>"
+    "<p><b>Condizione necessaria</b> in un punto estremo \\(P_0\\):"
+    "\\[\\nabla f(P_0)=\\lambda\\,\\nabla g(P_0)\\]</p>"
+    "<p><b>Sistema da risolvere:</b>"
+    "\\[f_x=\\lambda g_x,\\quad f_y=\\lambda g_y,\\quad g(x,y)=0\\]</p>"
+    "<p>Estensione a pi&ugrave; variabili:"
+    "\\[\\nabla f=\\lambda_1\\nabla g_1+\\lambda_2\\nabla g_2+\\cdots\\]</p>"
+    "<div class='box-orange'><b>SymPy (tab Espressione):</b><br>"
     "solve([diff(x**2+y**2,x)-lam*diff(x+y-1,x),<br>"
-    " diff(x**2+y**2,y)-lam*diff(x+y-1,y), x+y-1], [x,y,lam])</p>",
+    "&nbsp;diff(x**2+y**2,y)-lam*diff(x+y-1,y),x+y-1],[x,y,lam])</div>",
     "x**2 + y**2", "Semplificazione", "x**2 + y**2" },
 
   { "Integrali doppi",
     "<h3 style='color:#fb923c'>Integrali doppi</h3>"
-    "<p><b>Teorema di Fubini</b> su rettangolo [a,b]&times;[c,d]:<br>"
-    "&#8748;<sub>D</sub> f dA = &int;<sub>a</sub><sup>b</sup>"
-    "[&int;<sub>c</sub><sup>d</sup> f(x,y)dy]dx</p><hr>"
-    "<p><b>Dominio normale rispetto a x</b> (a&le;x&le;b, &phi;<sub>1</sub>&le;y&le;&phi;<sub>2</sub>):<br>"
-    "&#8748; f dA = &int;<sub>a</sub><sup>b</sup>&int;<sub>&phi;<sub>1</sub></sub>"
-    "<sup>&phi;<sub>2</sub></sup> f(x,y) dy dx</p><hr>"
-    "<p><b>Coordinate polari:</b> x=r cos&theta;, y=r sin&theta;<br>"
-    "&#8748; f dA = &#8748; f(r cos&theta;, r sin&theta;) &middot; r dr d&theta;</p>"
-    "<p style='background:#431407;border-left:3px solid #f97316;border-radius:3px;padding:6px 10px;color:#fed7aa;"
-    "font-family:monospace;font-size:11px'><b style='color:#93c5fd'>Esempi SymPy (tipo Integrale):</b><br>"
-    "x*y, x, 0, 1 (semplice) &rarr; poi wrap con integrate<br>"
-    "Tab Espressione: integrate(integrate(x*y,(y,0,x)),(x,0,1))</p>",
+    "<p><b>Teorema di Fubini</b> su \\([a,b]\\times[c,d]\\):"
+    "\\[\\iint_D f\\,dA=\\int_a^b\\left[\\int_c^d f(x,y)\\,dy\\right]dx\\]</p>"
+    "<p><b>Dominio normale</b> "
+    "(\\(a\\le x\\le b\\), \\(\\varphi_1\\le y\\le\\varphi_2\\)):"
+    "\\[\\iint f\\,dA=\\int_a^b\\int_{\\varphi_1(x)}^{\\varphi_2(x)}"
+    "f(x,y)\\,dy\\,dx\\]</p>"
+    "<p><b>Coordinate polari:</b> \\(x=r\\cos\\theta\\), "
+    "\\(y=r\\sin\\theta\\)"
+    "\\[\\iint f\\,dA=\\iint f(r\\cos\\theta,r\\sin\\theta)"
+    "\\cdot r\\,dr\\,d\\theta\\]</p>"
+    "<div class='box-orange'><b style='color:#93c5fd'>Esempi SymPy (Integrale):</b><br>"
+    "x*y, x, 0, 1 (semplice)<br>"
+    "Tab Espressione: integrate(integrate(x*y,(y,0,x)),(x,0,1))</div>",
     "integrate(x*y, (y, 0, x))", "Semplificazione", "x*y" },
 
   { "Equazioni differenziali",
     "<h3 style='color:#fb923c'>Equazioni differenziali ordinarie</h3>"
-    "<p><b>EDO I ordine separabile:</b> y&prime; = f(x)g(y)<br>"
-    "&int; dy/g(y) = &int; f(x)dx</p>"
-    "<p><b>EDO I ordine lineare:</b> y&prime; + p(x)y = q(x)<br>"
-    "Fattore integrante: &mu;(x) = e<sup>&int;p dx</sup><br>"
-    "Soluzione: y = [&int;&mu;(x)q(x)dx + C] / &mu;(x)</p><hr>"
-    "<p><b>EDO II ordine lineare a coeff. costanti:</b> ay&prime;&prime;+by&prime;+cy=0<br>"
-    "Eq. caratteristica: a&lambda;&sup2;+b&lambda;+c=0<br>"
-    "&Delta;&gt;0: y=C<sub>1</sub>e<sup>&lambda;<sub>1</sub>x</sup>+C<sub>2</sub>e<sup>&lambda;<sub>2</sub>x</sup><br>"
-    "&Delta;=0: y=(C<sub>1</sub>+C<sub>2</sub>x)e<sup>&lambda;x</sup><br>"
-    "&Delta;&lt;0: y=e<sup>&alpha;x</sup>(C<sub>1</sub>cos&beta;x+C<sub>2</sub>sin&beta;x)</p>"
-    "<p style='background:#431407;border-left:3px solid #f97316;border-radius:3px;padding:6px 10px;color:#fed7aa;"
-    "font-family:monospace;font-size:11px'><b>SymPy (tab Espressione):</b><br>"
+    "<p><b>EDO I ordine separabile:</b> \\(y'=f(x)g(y)\\)"
+    "\\[\\int\\frac{dy}{g(y)}=\\int f(x)\\,dx\\]</p>"
+    "<p><b>EDO I ordine lineare:</b> \\(y'+p(x)y=q(x)\\)<br>"
+    "Fattore integrante: \\(\\mu(x)=e^{\\int p\\,dx}\\)"
+    "\\[y=\\frac{\\int\\mu(x)q(x)\\,dx+C}{\\mu(x)}\\]</p>"
+    "<p><b>EDO II ordine a coeff. costanti:</b> \\(ay''+by'+cy=0\\)<br>"
+    "Eq. caratteristica: \\(a\\lambda^2+b\\lambda+c=0\\)</p><ul>"
+    "<li>\\(\\Delta>0\\): \\(y=C_1 e^{\\lambda_1 x}+C_2 e^{\\lambda_2 x}\\)</li>"
+    "<li>\\(\\Delta=0\\): \\(y=(C_1+C_2 x)e^{\\lambda x}\\)</li>"
+    "<li>\\(\\Delta<0\\): "
+    "\\(y=e^{\\alpha x}(C_1\\cos\\beta x+C_2\\sin\\beta x)\\)</li>"
+    "</ul>"
+    "<div class='box-orange'><b>SymPy (tab Espressione):</b><br>"
     "dsolve(f(x).diff(x) + f(x) - exp(x), f(x))<br>"
-    "dsolve(f(x).diff(x,2)+f(x), f(x))</p>",
+    "dsolve(f(x).diff(x,2)+f(x), f(x))</div>",
     "dsolve(f(x).diff(x) + f(x) - exp(x), f(x))", "Semplificazione", "exp(-x) + exp(x)/2" },
 
   { "Calcolo vettoriale",
     "<h3 style='color:#fb923c'>Calcolo vettoriale</h3>"
-    "<p><b>Divergenza</b> di F=(P,Q,R):<br>"
-    "div F = &part;P/&part;x + &part;Q/&part;y + &part;R/&part;z</p>"
-    "<p><b>Rotore (curl):</b><br>"
-    "rot F = (&part;R/&part;y&minus;&part;Q/&part;z, &part;P/&part;z&minus;&part;R/&part;x,"
-    " &part;Q/&part;x&minus;&part;P/&part;y)</p><hr>"
-    "<p><b>Teorema di Gauss (divergenza):</b><br>"
-    "&#8751;<sub>&part;V</sub> F&middot;n dS = &#8749;<sub>V</sub> div F dV</p>"
-    "<p><b>Teorema di Stokes:</b><br>"
-    "&#8750;<sub>&part;&Sigma;</sub> F&middot;dr = &#8748;<sub>&Sigma;</sub> rot F &middot; n dS</p>"
-    "<p><b>Potenziale:</b> rot F=0 &hArr; F=&nabla;&phi; (campo conservativo)</p>"
-    "<p style='background:#431407;border-left:3px solid #f97316;border-radius:3px;padding:6px 10px;color:#fed7aa;"
-    "font-family:monospace;font-size:11px'><b>SymPy (tab Espressione):</b><br>"
+    "<p><b>Divergenza</b> di \\(\\mathbf{F}=(P,Q,R)\\):"
+    "\\[\\operatorname{div}\\mathbf{F}="
+    "\\frac{\\partial P}{\\partial x}+"
+    "\\frac{\\partial Q}{\\partial y}+"
+    "\\frac{\\partial R}{\\partial z}\\]</p>"
+    "<p><b>Rotore (curl):</b>"
+    "\\[\\operatorname{rot}\\mathbf{F}=\\nabla\\times\\mathbf{F}="
+    "\\begin{vmatrix}\\mathbf{i}&amp;\\mathbf{j}&amp;\\mathbf{k}\\\\"
+    "\\partial_x&amp;\\partial_y&amp;\\partial_z\\\\"
+    "P&amp;Q&amp;R\\end{vmatrix}\\]</p>"
+    "<p><b>Teorema di Gauss:</b>"
+    "\\[\\iint_{\\partial V}\\mathbf{F}\\cdot\\mathbf{n}\\,dS="
+    "\\iiint_V\\operatorname{div}\\mathbf{F}\\,dV\\]</p>"
+    "<p><b>Teorema di Stokes:</b>"
+    "\\[\\oint_{\\partial\\Sigma}\\mathbf{F}\\cdot d\\mathbf{r}="
+    "\\iint_\\Sigma\\operatorname{rot}\\mathbf{F}\\cdot\\mathbf{n}\\,dS\\]</p>"
+    "<p><b>Potenziale:</b> \\(\\operatorname{rot}\\mathbf{F}=0"
+    "\\iff\\mathbf{F}=\\nabla\\varphi\\)</p>"
+    "<div class='box-orange'><b>SymPy (tab Espressione):</b><br>"
     "from sympy.vector import CoordSys3D; N=CoordSys3D('N')<br>"
-    "F = N.x**2*N.i + N.y**2*N.j; divergence(F)</p>",
+    "F = N.x**2*N.i + N.y**2*N.j; divergence(F)</div>",
     "x**2 + y**2 + z**2", "Semplificazione", "x**2 + y**2" },
 };
 
@@ -2970,9 +2978,7 @@ QWidget* MatematicaPage::buildAnalisi1Tab()
     auto* hSplit = new QSplitter(Qt::Horizontal, w);
     hSplit->setHandleWidth(5);
 
-    m_a1Theory = new QTextEdit(hSplit);
-    m_a1Theory->setObjectName("chatLog");
-    m_a1Theory->setReadOnly(true);
+    m_a1Theory = new LatexView(hSplit);
     m_a1Theory->setMinimumWidth(180);
     hSplit->addWidget(m_a1Theory);
 
@@ -3055,9 +3061,7 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     auto* hSplit2 = new QSplitter(Qt::Horizontal, w);
     hSplit2->setHandleWidth(5);
 
-    m_a2Theory = new QTextEdit(hSplit2);
-    m_a2Theory->setObjectName("chatLog");
-    m_a2Theory->setReadOnly(true);
+    m_a2Theory = new LatexView(hSplit2);
     m_a2Theory->setMinimumWidth(180);
     hSplit2->addWidget(m_a2Theory);
 
@@ -3126,7 +3130,7 @@ void MatematicaPage::onA1TopicChanged()
     const int idx = m_a1TopicCmb->currentIndex();
     const int nA1 = static_cast<int>(sizeof(kA1)/sizeof(kA1[0]));
     if (idx < 0 || idx >= nA1) return;
-    m_a1Theory->setHtml(QString::fromUtf8(kA1[idx].html));
+    m_a1Theory->setLatexHtml(QString::fromUtf8(kA1[idx].html));
     if (m_a1Input)     m_a1Input->setText(QString::fromUtf8(kA1[idx].ex));
     if (m_a1PlotInput) m_a1PlotInput->setText(QString::fromUtf8(kA1[idx].plotEx));
     if (m_a1TypeCmb) {
@@ -3218,7 +3222,9 @@ void MatematicaPage::onA1AiClicked()
         "2) teoremi e propriet\xc3\xa0 fondamentali; "
         "3) due esempi svolti passo per passo; "
         "4) un esercizio proposto con soluzione. "
-        "Usa la notazione italiana standard. Rispondi SOLO in italiano.";
+        "Usa OBBLIGATORIAMENTE la notazione LaTeX per le formule: "
+        "\\(...\\) per inline, \\[...\\] per display (es. \\(x^2\\), \\[\\int_a^b f\\,dx\\]). "
+        "Rispondi SOLO in italiano.";
     const QString user = QString("Argomento: %1").arg(topicName);
 
     delete m_aiAnalisiHolder;
@@ -3241,7 +3247,7 @@ void MatematicaPage::onA2TopicChanged()
     const int idx = m_a2TopicCmb->currentIndex();
     const int nA2 = static_cast<int>(sizeof(kA2)/sizeof(kA2[0]));
     if (idx < 0 || idx >= nA2) return;
-    m_a2Theory->setHtml(QString::fromUtf8(kA2[idx].html));
+    m_a2Theory->setLatexHtml(QString::fromUtf8(kA2[idx].html));
     if (m_a2Input)     m_a2Input->setText(QString::fromUtf8(kA2[idx].ex));
     if (m_a2PlotInput) m_a2PlotInput->setText(QString::fromUtf8(kA2[idx].plotEx));
     if (m_a2TypeCmb) {
@@ -3292,7 +3298,9 @@ void MatematicaPage::onA2AiClicked()
         "1) definizione formale; 2) teoremi chiave; "
         "3) due esempi svolti passo per passo; "
         "4) un esercizio proposto con soluzione. "
-        "Usa notazione vettoriale e italiana standard. Rispondi SOLO in italiano.";
+        "Usa OBBLIGATORIAMENTE la notazione LaTeX per le formule: "
+        "\\(...\\) per inline, \\[...\\] per display. "
+        "Usa notazione vettoriale italiana. Rispondi SOLO in italiano.";
     const QString user = QString("Argomento: %1").arg(topicName);
 
     delete m_aiAnalisiHolder;
@@ -3314,12 +3322,18 @@ void MatematicaPage::onAnalisiAiToken(const QString& tok)
     appendOutput(tok);
 }
 
-void MatematicaPage::onAnalisiAiFinished(const QString& /*full*/)
+void MatematicaPage::onAnalisiAiFinished(const QString& full)
 {
     delete m_aiAnalisiHolder;
     m_aiAnalisiHolder = nullptr;
     m_aiRunning = false;
     setStatus("\xe2\x9c\x85  Spiegazione AI completata.");
+    if (m_latexOut && m_latexOut->isVisible() && !full.isEmpty()) {
+        /* toHtmlEscaped() non tocca \ — i delimitatori \(...\) e \[...\] rimangono
+           intatti; KaTeX auto-render li trova e renderizza le formule. */
+        m_latexOut->setLatexHtml(
+            "<div class='ai-out'>" + full.toHtmlEscaped().replace("\n", "<br>") + "</div>");
+    }
 }
 
 void MatematicaPage::onAnalisiAiError(const QString& msg)

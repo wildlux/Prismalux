@@ -2,9 +2,9 @@
 #include <QWidget>
 #include "../ai_client.h"
 #include "grafico_page.h"
+#include "../widgets/latex_view.h"
 class QTabWidget;
 class QPlainTextEdit;
-class QTextEdit;
 class QLineEdit;
 class QSpinBox;
 class QComboBox;
@@ -85,7 +85,7 @@ private:
 
     /* ── tab Analisi 1 ── */
     QComboBox*     m_a1TopicCmb  = nullptr;
-    QTextEdit*     m_a1Theory    = nullptr;
+    LatexView*     m_a1Theory    = nullptr;
     QLineEdit*     m_a1Input     = nullptr;
     QComboBox*     m_a1TypeCmb   = nullptr;
     QLineEdit*     m_a1PlotInput = nullptr;  ///< espressione per il grafico
@@ -97,7 +97,7 @@ private:
 
     /* ── tab Analisi 2 ── */
     QComboBox*     m_a2TopicCmb  = nullptr;
-    QTextEdit*     m_a2Theory    = nullptr;
+    LatexView*     m_a2Theory    = nullptr;
     QLineEdit*     m_a2Input     = nullptr;
     QComboBox*     m_a2TypeCmb   = nullptr;
     QLineEdit*     m_a2PlotInput = nullptr;
@@ -146,6 +146,9 @@ private:
     /* combo modelli matematici */
     void        fillMathCombo(const QStringList& list, const QString& cur);
     void        fetchAndFillMathModels();  ///< fetchModels() + fillMathCombo via one-shot holder
+
+    /* pannello LaTeX output (rendering risposta AI) */
+    LatexView*      m_latexOut   = nullptr;
 
     /* barra simboli LaTeX */
     QLineEdit*      m_symTarget  = nullptr;  ///< input attivo per inserimento simbolo

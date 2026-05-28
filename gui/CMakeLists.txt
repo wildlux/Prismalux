@@ -43,6 +43,18 @@ if(Qt6_FOUND)
     endif()
 endif()
 
+# ── Qt6::WebEngineWidgets — rendering LaTeX via KaTeX (opzionale) ────────
+if(Qt6_FOUND)
+    find_package(Qt6 COMPONENTS WebEngineWidgets QUIET)
+    if(Qt6WebEngineWidgets_FOUND)
+        list(APPEND QT_LIBS Qt6::WebEngineWidgets)
+        add_compile_definitions(HAVE_WEBENGINE_WIDGETS)
+        message(STATUS "Prismalux GUI: Qt6::WebEngineWidgets trovato — rendering LaTeX KaTeX abilitato")
+    else()
+        message(STATUS "Prismalux GUI: Qt6::WebEngineWidgets non trovato — LaTeX usa fallback QTextEdit")
+    endif()
+endif()
+
 # ── QKeychain — salvataggio sicuro token LAN (opzionale) ─────────────────
 # Ricerca cmake config (richiede libqt6keychain-dev su Debian/Ubuntu).
 # Se non trovato, si usa il fallback file-based (0600) già presente.
@@ -169,6 +181,7 @@ set(CPP_SRCS
     widgets/code_highlighter.h
     widgets/python_exec.h
     widgets/ai_error_widget.h
+    widgets/latex_view.h
 )
 
 add_executable(Prismalux_GUI ${CPP_SRCS} ${C_SRCS})
