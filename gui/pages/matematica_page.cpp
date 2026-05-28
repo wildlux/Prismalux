@@ -2629,17 +2629,14 @@ struct AnalisiTopic { const char* name; const char* html; const char* ex; const 
 /* ── Macro frazioni inline (Qt QTextEdit: le tabelle sono sempre block-level) ──
    Usa sup + Unicode FRACTION SLASH U+2044 (⁄) + sub: rende la frazione
    in una sola riga leggibile, es.  sin(x)⁄x   f'⁄g'   x^(n+1)⁄(n+1)+C */
-/* Frazioni con linea orizzontale centrata.
-   Qt 6 supporta display:inline-block → outer span inline nel testo,
-   inner span display:block → impila numeratore/denominatore verticalmente
-   centrati; border-bottom del primo span = linea di frazione. */
+/* Frazioni inline: <sup style="text-decoration:underline"> crea la linea
+   di frazione al livello del numeratore elevato; <sub> abbassa il denominatore.
+   Qt QTextEdit non supporta display:block annidato né display:inline-table,
+   quindi questa è la rappresentazione inline più fedele disponibile. */
 #define FR(n,d) \
-  "<span style='display:inline-block;vertical-align:middle;" \
-  "text-align:center;margin:0 2px;line-height:1.3'>" \
-  "<span style='display:block;border-bottom:1px solid #94a3b8;" \
-  "text-align:center;font-size:86%;padding:0 4px'>" n "</span>" \
-  "<span style='display:block;text-align:center;" \
-  "font-size:86%;padding:0 4px'>" d "</span>" \
+  "<span style='white-space:nowrap'>" \
+  "<sup style='font-size:86%;text-decoration:underline'>" n "</sup>" \
+  "<sub style='font-size:86%'>" d "</sub>" \
   "</span>"
 
 /* Tipo stringa deve corrispondere al testo di m_solveCmb */
@@ -2762,11 +2759,14 @@ static const AnalisiTopic kA1[] = {
     "<h3 style='color:#60a5fa'>Serie di Taylor &amp; Maclaurin</h3>"
     "<p><b>Formula di Taylor in x<sub>0</sub>:</b><br>"
     "f(x) = &sum;<sub>k=0</sub><sup>n</sup> "
-    FR("f<sup>(k)</sup>(x<sub>0</sub>)","k!")
-    " &middot; (x&minus;x<sub>0</sub>)<sup>k</sup> + R<sub>n</sub>(x)</p><hr>"
+    "<sup style='font-size:86%;text-decoration:underline'>"
+    "f<sup style='font-size:80%'>(k)</sup>(x<sub>0</sub>)</sup>"
+    "<sub style='font-size:86%'>k!</sub>"
+    " &middot; (x&minus;x<sub>0</sub>)<sup>k</sup>"
+    " &nbsp;+&nbsp; R<sub>n</sub>(x)</p><hr>"
     "<p><b>Sviluppi di Maclaurin fondamentali (in 0):</b><br>"
     "e<sup>x</sup> = 1 + x + " FR("x&sup2;","2!") " + " FR("x&sup3;","3!") " + &hellip;<br>"
-    "sin x = x &minus; " FR("x&sup3;","3!") " + " FR("x&sup5;","5!") " &minus; &hellip;<br>"
+    "sin x = x &minus; " FR("x&sup3;","3!") " + " FR("x<sup>5</sup>","5!") " &minus; &hellip;<br>"
     "cos x = 1 &minus; " FR("x&sup2;","2!") " + " FR("x<sup>4</sup>","4!") " &minus; &hellip;<br>"
     "ln(1+x) = x &minus; " FR("x&sup2;","2") " + " FR("x&sup3;","3")
     " &minus; &hellip; &nbsp;(|x|&lt;1)<br>"
