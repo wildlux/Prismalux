@@ -3,6 +3,7 @@
 #include <QVector>
 #include <QMap>
 #include <QSet>
+#include <QPointer>
 #include "../ai_client.h"
 #include "../graph_memory.h"
 
@@ -58,7 +59,8 @@ public:
     GraphMemory* graphMemory() const { return m_gm; }
 
     /** Cross-pollination: inietta la GraphMemory del RagGraph esterno.
-     *  I risultati dei sub-agenti saranno scritti anche lì (borrowed). */
+     *  QPointer garantisce che un eventuale destroy di RicercaPage
+     *  non lasci un dangling pointer (diventa nullptr automaticamente). */
     void setExtRagMemory(GraphMemory* gm) { m_extRagGm = gm; }
 
 private:
@@ -96,7 +98,7 @@ private:
     /* ── Membri ── */
     AiClient*    m_ai   = nullptr;
     GraphMemory* m_gm   = nullptr;     ///< memoria a grafo condivisa (owned)
-    GraphMemory* m_extRagGm = nullptr; ///< GraphMemory RAG esterna (borrowed, cross-pollination)
+    QPointer<GraphMemory> m_extRagGm;  ///< GraphMemory RAG esterna (borrowed, cross-pollination)
 
     QVector<SubTask> m_tasks;
     QSet<int>    m_runningTasks;        ///< indici task attualmente in esecuzione (paralleli)

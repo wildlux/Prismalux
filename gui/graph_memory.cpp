@@ -261,9 +261,12 @@ bool GraphMemory::updateNode(const QString& id,
         q.bindValue(":i",  importance);
         q.bindValue(":id", id);
     }
-    const bool ok = q.exec();
-    if (ok) emit changed();
-    return ok;
+    /* exec() ritorna true anche se WHERE non matcha — usiamo numRowsAffected
+       per distinguere "query ok" da "nodo trovato e modificato". */
+    if (!q.exec()) return false;
+    const bool found = q.numRowsAffected() > 0;
+    if (found) emit changed();
+    return found;
 #else
     Q_UNUSED(id) Q_UNUSED(content) Q_UNUSED(importance)
     return false;
@@ -281,9 +284,10 @@ bool GraphMemory::removeNode(const QString& id)
     QSqlQuery q(db);
     q.prepare("DELETE FROM gm_nodes WHERE id=:id");
     q.bindValue(":id", id);
-    const bool ok = q.exec();
-    if (ok) emit changed();
-    return ok;
+    if (!q.exec()) return false;
+    const bool found = q.numRowsAffected() > 0;
+    if (found) emit changed();
+    return found;
 #else
     Q_UNUSED(id)
     return false;

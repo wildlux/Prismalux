@@ -948,7 +948,19 @@ if(BUILD_TESTS)
         target_link_libraries(test_monitor_panel PRIVATE pthread m)
     endif()
 
+    # ── test_graph_memory: GraphMemory SQLite — nodi, archi, BFS, ricerca, export, prune ──
+    add_executable(test_graph_memory
+        tests/test_graph_memory.cpp
+        graph_memory.cpp
+    )
+    target_include_directories(test_graph_memory PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_graph_memory PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_graph_memory PRIVATE pthread m)
+    endif()
+
     enable_testing()
+    add_test(NAME GraphMemory           COMMAND test_graph_memory)
     add_test(NAME SignalLifetime        COMMAND test_signal_lifetime)
     add_test(NAME RagEngine            COMMAND test_rag_engine)
     add_test(NAME CodeUtils            COMMAND test_code_utils)
@@ -999,6 +1011,7 @@ if(BUILD_TESTS)
     # Serializza i test che usano Ollama reale: con -j4 girano in parallelo e saturano RAM/CPU
     set_tests_properties(AiIntegration AiStress TeamCollab
         PROPERTIES RESOURCE_LOCK ollama)
+    set_tests_properties(GraphMemory        PROPERTIES TIMEOUT 30)
     set_tests_properties(LanServer          PROPERTIES TIMEOUT 30)
     set_tests_properties(Sintetizzatore     PROPERTIES TIMEOUT 30)
     set_tests_properties(ImpostazioniPage   PROPERTIES TIMEOUT 60)
@@ -1010,7 +1023,7 @@ if(BUILD_TESTS)
     set_tests_properties(OpenCodePage       PROPERTIES TIMEOUT 30)
     set_tests_properties(ImparaQuiz         PROPERTIES TIMEOUT 30)
     set_tests_properties(MonitorPanel       PROPERTIES TIMEOUT 30)
-    message(STATUS "Build test abilitata: signal_lifetime, rag_engine, code_utils, random_tool, lavoro_page, app_controller, programmazione_page, thinking_detect, ai_integration, ai_stress, team_collab, lavoro_data, tutor_data, rag_engine_avanzato, chat_history, simulatore_algos, formula_parser, strumenti_rag, theme_manager, hardware_monitor, manutenzione_cron, chat_history_stress, matematica_page, qr_code_widget, hw_detect_amd, knowledge_injection")
+    message(STATUS "Build test abilitata: graph_memory, signal_lifetime, rag_engine, code_utils, random_tool, lavoro_page, app_controller, programmazione_page, thinking_detect, ai_integration, ai_stress, team_collab, lavoro_data, tutor_data, rag_engine_avanzato, chat_history, simulatore_algos, formula_parser, strumenti_rag, theme_manager, hardware_monitor, manutenzione_cron, chat_history_stress, matematica_page, qr_code_widget, hw_detect_amd, knowledge_injection")
 
     # Applica ASAN+UBSAN anche a tutti i test target quando ENABLE_SANITIZERS=ON
     if(ENABLE_SANITIZERS AND NOT MSVC)
