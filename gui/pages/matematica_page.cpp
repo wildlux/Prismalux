@@ -85,13 +85,14 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     root->addWidget(sep);
 
     /* ── Splitter verticale: strumenti sopra, output sotto ── */
-    auto* splitter = new QSplitter(Qt::Vertical, this);
+    m_mainSplitter = new QSplitter(Qt::Vertical, this);
+    auto* splitter = m_mainSplitter;
     splitter->setHandleWidth(4);
 
     /* ─── PARTE SUPERIORE: schede strumenti ─── */
     m_tabs = new QTabWidget(splitter);
     m_tabs->setObjectName("mainTabs");
-    m_tabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_tabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
     m_tabs->addTab(buildSeqTab(),   "\xf0\x9f\x94\xa2  Sequenza \xe2\x86\x92 Formula");  /* 🔢 */
     m_tabs->addTab(buildConstTab(), "\xcf\x80  Costanti di precisione");
     m_tabs->addTab(buildNthTab(),   "#\xe2\x83\xbf  N-esimo");
@@ -177,6 +178,16 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
 
     /* Carica la lista modelli al primo avvio (differito per evitare fetchModels nel costruttore) */
     QTimer::singleShot(0, this, &MatematicaPage::onLoadModelsOnce);
+
+    /* Imposta la divisione iniziale dello splitter dopo il primo layout reale:
+       tab compatti (~240px), output prende tutto il resto. */
+    QTimer::singleShot(0, this, [this]() {
+        if (!m_mainSplitter) return;
+        const int total = m_mainSplitter->height();
+        if (total < 100) return;                        /* widget non ancora visibile */
+        const int tabH = qMin(dpiScale(240), total / 3);
+        m_mainSplitter->setSizes({tabH, total - tabH});
+    });
 
     /* Sincronizza il combo modello quando il modello cambia da Impostazioni o
        da un'altra scheda. */
