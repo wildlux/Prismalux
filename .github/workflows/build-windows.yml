@@ -29,7 +29,10 @@ jobs:
 
       - name: Configure CMake
         working-directory: gui
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        # CMAKE_SYSTEM_VERSION=10.0.22621.0: pinna il Windows SDK alla versione 22H2
+        # per evitare il bug C2733 di SDK 10.0.26100.0 (windows-latest/Server 2025)
+        # su _BitScanReverse64 (extern "C" in winnt.h vs intrinseche MSVC C++).
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release "-DCMAKE_SYSTEM_VERSION=10.0.22621.0"
 
       - name: Build
         working-directory: gui

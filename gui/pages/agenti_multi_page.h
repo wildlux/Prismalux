@@ -2,6 +2,7 @@
 #include <QWidget>
 #include <QVector>
 #include <QMap>
+#include <QSet>
 #include "../ai_client.h"
 #include "../graph_memory.h"
 
@@ -56,6 +57,10 @@ public:
 
     GraphMemory* graphMemory() const { return m_gm; }
 
+    /** Cross-pollination: inietta la GraphMemory del RagGraph esterno.
+     *  I risultati dei sub-agenti saranno scritti anche lì (borrowed). */
+    void setExtRagMemory(GraphMemory* gm) { m_extRagGm = gm; }
+
 private:
     /* ── Layout helpers ── */
     QWidget* buildInputBar();
@@ -67,11 +72,17 @@ private:
     void decompose(const QString& userPrompt);
     void parsePlan(const QString& jsonPlan);
     void runNextPendingTask();
-    void runTask(int taskIdx);
+    void runTask(int taskIdx, AiClient* client);
     void onTaskResultToken(int taskIdx, const QString& tok);
     void onTaskResultDone(int taskIdx, const QString& full);
     void onTaskResultError(int taskIdx, const QString& msg);
     void synthesizeFinal();
+
+    /* ── Pool parallelo ── */
+    static constexpr int kMaxParallel = 3;  ///< max sub-agenti simultanei
+    void      initPool();                   ///< crea/aggiorna il pool con le impostazioni di m_ai
+    AiClient* takePoolClient();             ///< prende un client libero (nullptr se pool esaurito)
+    void      returnPoolClient(AiClient* c);///< restituisce al pool
 
     /* ── UI helpers ── */
     void addTaskItem(const SubTask& t);
@@ -84,12 +95,18 @@ private:
 
     /* ── Membri ── */
     AiClient*    m_ai   = nullptr;
-    GraphMemory* m_gm   = nullptr;     ///< memoria a grafo condivisa
+    GraphMemory* m_gm   = nullptr;     ///< memoria a grafo condivisa (owned)
+    GraphMemory* m_extRagGm = nullptr; ///< GraphMemory RAG esterna (borrowed, cross-pollination)
 
     QVector<SubTask> m_tasks;
-    int  m_runningTask   = -1;  ///< indice task in esecuzione (-1 = nessuno)
+    QSet<int>    m_runningTasks;        ///< indici task attualmente in esecuzione (paralleli)
     bool m_decomposeBusy = false;
     bool m_synthBusy     = false;
+
+    /* Pool AiClient per esecuzione parallela */
+    QVector<AiClient*>  m_aiPool;       ///< figli di this → distrutti automaticamente
+    QSet<AiClient*>     m_busyClients;  ///< client attualmente occupati
+    QMap<int,AiClient*> m_taskClients;  ///< taskIdx → client assegnato
 
     /* holder one-shot per decomposizione */
     QObject* m_decompHolder = nullptr;

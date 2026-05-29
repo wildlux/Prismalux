@@ -1325,8 +1325,8 @@ void MainWindow::buildMatematicaTab()
 /* ── Livello 2: tab [6] Ricerca ──────────────────────────────────── */
 void MainWindow::buildRicercaTab()
 {
-    m_mainTabs->addTab(new RicercaPage(m_ai, this),
-                       "\xf0\x9f\x94\xac  Ricerca");  /* 6 */
+    m_ricercaPage = new RicercaPage(m_ai, this);
+    m_mainTabs->addTab(m_ricercaPage, "\xf0\x9f\x94\xac  Ricerca");  /* 6 */
 }
 
 /* ── Livello 2: tab [7] APP Controller ───────────────────────────── */
@@ -1346,8 +1346,13 @@ void MainWindow::buildLanWanTab()
 /* ── Livello 2: tab [9] Multi-Agente + Grafo ─────────────────────── */
 void MainWindow::buildMultiAgentTab()
 {
-    m_mainTabs->addTab(new AgentiMultiPage(m_ai, this),
-                       "\xf0\x9f\x95\xb8  Multi-Agente");  /* 🕸️ tab 9 */
+    m_agentiMultiPage = new AgentiMultiPage(m_ai, this);
+
+    /* Cross-pollination: i risultati dei sub-agenti vanno anche nel RagGraph */
+    if (m_ricercaPage && m_agentiMultiPage)
+        m_agentiMultiPage->setExtRagMemory(m_ricercaPage->ragGraphMemory());
+
+    m_mainTabs->addTab(m_agentiMultiPage, "\xf0\x9f\x95\xb8  Multi-Agente");  /* 🕸️ tab 9 */
 }
 
 /* ── Livello 2: barra navigazione menu + sincronizzazione tab ────── */
@@ -1440,6 +1445,11 @@ void MainWindow::ensureSettingsDialog()
             this, &MainWindow::onIndexingProgress);
     connect(m_impPage, &ImpostazioniPage::indexingFinished,
             this, &MainWindow::onIndexingFinished);
+
+    /* Auto-trigger RagGraph dopo reindicizzazione RAG */
+    if (m_ricercaPage)
+        connect(m_impPage, &ImpostazioniPage::indexingFinished,
+                m_ricercaPage, &RicercaPage::onAutoRagTrigger);
 }
 
 /* ══════════════════════════════════════════════════════════════

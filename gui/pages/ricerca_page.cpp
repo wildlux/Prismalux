@@ -3641,3 +3641,17 @@ void RicercaPage::onRagDotProcFinished(int code, QProcess::ExitStatus /*status*/
         m_ragImgLbl->setPixmap(px);
     }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   onAutoRagTrigger — scatta dopo indexingFinished in ImpostazioniPage.
+   Avvia il RagGraph con un breve ritardo per lasciare che il FS
+   finisca di scrivere i file di indice RAG.
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::onAutoRagTrigger(int nChunks, bool aborted)
+{
+    if (aborted || nChunks == 0) return;            /* nessun documento nuovo */
+    if (m_ragGraph && m_ragGraph->isRunning()) return;  /* già in corso */
+
+    /* Ritardo di 800 ms per lasciare che il FS completi la scrittura */
+    QTimer::singleShot(800, this, &RicercaPage::onRagRunClicked);
+}

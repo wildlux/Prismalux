@@ -209,6 +209,15 @@ if(WIN32)
         # ma la definizione esplicita garantisce compatibilità anche con MSVC.
         _USE_MATH_DEFINES
     )
+    if(MSVC)
+        # Fix C2733: Windows SDK 10.0.26100.0 (Server 2025 / windows-latest post-mar-2025)
+        # dichiara _BitScanReverse64 come extern "C" in winnt.h DOPO che le intrinseche
+        # MSVC l'hanno già dichiarata come C++ → errore di linkage.
+        # /FI forza windows.h come prima inclusione in ogni TU: winnt.h viene elaborato
+        # per primo e la dichiarazione extern "C" non entra in conflitto.
+        # Alternativa robusta: -DCMAKE_SYSTEM_VERSION=10.0.22621.0 in cmake configure.
+        target_compile_options(Prismalux_GUI PRIVATE /FIwindows.h)
+    endif()
     # _WIN32_WINNT rimosso: Qt6 lo definisce già — ridefinirlo causa warning con MinGW GCC
     # Nasconde la console su Windows (app grafica pura)
     set_target_properties(Prismalux_GUI PROPERTIES WIN32_EXECUTABLE TRUE)

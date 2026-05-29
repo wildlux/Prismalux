@@ -85,6 +85,7 @@ AgentiMultiPage::AgentiMultiPage(AiClient* ai, QWidget* parent)
 
 AgentiMultiPage::~AgentiMultiPage()
 {
+    for (AiClient* c : m_aiPool) c->abort();
     delete m_decompHolder;
     delete m_synthHolder;
     for (auto* h : m_taskHolders) delete h;
@@ -289,6 +290,7 @@ void AgentiMultiPage::onDecomposeClicked()
     m_btnStop->setEnabled(true);
     setStatus("\xf0\x9f\x94\x84  Master agent: decomposizione compito...");
 
+    initPool();    /* sinc pool con le impostazioni correnti di m_ai */
     decompose(prompt);
 }
 
@@ -424,57 +426,58 @@ void AgentiMultiPage::parsePlan(const QString& jsonPlan)
 }
 
 /* ══════════════════════════════════════════════════════════════
-   runNextPendingTask — trova il prossimo task eseguibile
+   runNextPendingTask — avvia TUTTI i task eseguibili in parallelo
+   (fino a kMaxParallel sub-agenti simultanei).
    ══════════════════════════════════════════════════════════════ */
 void AgentiMultiPage::runNextPendingTask()
 {
-    /* Trova un task pending i cui depends_on sono tutti Done */
+    /* Avvia ogni task pending i cui depends_on sono tutti Done,
+       fin quando il pool ha client disponibili. */
     for (int i = 0; i < m_tasks.size(); ++i) {
         if (m_tasks[i].state != SubTask::State::Pending) continue;
 
         bool depsOk = true;
         for (int dep : m_tasks[i].dependsOn) {
-            /* cerca il task con quell'id */
-            bool found = false;
+            bool depDone = false;
             for (const auto& t : m_tasks) {
                 if (t.id == dep) {
-                    if (t.state != SubTask::State::Done) depsOk = false;
-                    found = true;
+                    depDone = (t.state == SubTask::State::Done);
                     break;
                 }
             }
-            if (!found) depsOk = false;
-            if (!depsOk) break;
+            if (!depDone) { depsOk = false; break; }
         }
 
-        if (depsOk) {
-            runTask(i);
-            return;
-        }
+        if (!depsOk) continue;
+
+        AiClient* c = takePoolClient();
+        if (!c) break;   /* pool esaurito — riprova quando un task finisce */
+        runTask(i, c);
     }
 
-    /* Nessun task in attesa — tutti Done o bloccati */
+    /* Verifica completamento: tutti i task conclusi e nessuno in esecuzione */
+    if (m_tasks.isEmpty() || !m_runningTasks.isEmpty()) return;
+
     const bool allDone = std::all_of(m_tasks.begin(), m_tasks.end(),
         [](const SubTask& t) {
             return t.state == SubTask::State::Done || t.state == SubTask::State::Error;
         });
 
-    if (allDone && !m_tasks.isEmpty()) {
-        m_runningTask = -1;
+    if (allDone)
         synthesizeFinal();
-    }
 }
 
 /* ══════════════════════════════════════════════════════════════
-   runTask — esegue un singolo sub-agente
+   runTask — esegue un singolo sub-agente usando il client del pool
    ══════════════════════════════════════════════════════════════ */
-void AgentiMultiPage::runTask(int idx)
+void AgentiMultiPage::runTask(int idx, AiClient* client)
 {
-    if (idx < 0 || idx >= m_tasks.size()) return;
+    if (idx < 0 || idx >= m_tasks.size() || !client) return;
 
     SubTask& t = m_tasks[idx];
     t.state = SubTask::State::Running;
-    m_runningTask = idx;
+    m_runningTasks.insert(idx);
+    m_taskClients[idx] = client;
     updateTaskItem(idx);
 
     setStatus(QString("\xf0\x9f\xa4\x96  Sub-agente %1 (%2) in esecuzione...")
@@ -516,20 +519,20 @@ void AgentiMultiPage::runTask(int idx)
         ? t.prompt
         : t.prompt + "\n\n---\nContesto dai task precedenti:\n" + ctx;
 
-    /* Holder one-shot per questo task */
+    /* Holder one-shot per questo task — context object = holder, fonte = client pool */
     delete m_taskHolders.value(idx, nullptr);
     m_taskHolders[idx] = new QObject(this);
 
-    connect(m_ai, &AiClient::token, m_taskHolders[idx],
+    connect(client, &AiClient::token, m_taskHolders[idx],
             [this, idx](const QString& tok) { onTaskResultToken(idx, tok); });
 
-    connect(m_ai, &AiClient::finished, m_taskHolders[idx],
+    connect(client, &AiClient::finished, m_taskHolders[idx],
             [this, idx](const QString& full) { onTaskResultDone(idx, full); });
 
-    connect(m_ai, &AiClient::error, m_taskHolders[idx],
+    connect(client, &AiClient::error, m_taskHolders[idx],
             [this, idx](const QString& msg) { onTaskResultError(idx, msg); });
 
-    m_ai->chat(sys, user);
+    client->chat(sys, user);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -551,12 +554,16 @@ void AgentiMultiPage::onTaskResultDone(int idx, const QString& full)
     delete m_taskHolders.value(idx, nullptr);
     m_taskHolders.remove(idx);
 
+    /* Restituisce il client al pool */
+    returnPoolClient(m_taskClients.take(idx));
+    m_runningTasks.remove(idx);
+
     if (idx < 0 || idx >= m_tasks.size()) return;
     SubTask& t = m_tasks[idx];
     t.state  = SubTask::State::Done;
     t.result = full;
 
-    /* Salva risultato in GraphMemory */
+    /* Salva risultato in GraphMemory locale (Multi-Agente) */
     if (m_gm) {
         const QString nodeId = m_gm->addNode(
             "result",
@@ -573,6 +580,17 @@ void AgentiMultiPage::onTaskResultDone(int idx, const QString& full)
             m_gm->addEdge(nodeId, mainNode.first().id, "task_of");
     }
 
+    /* Cross-pollination: scrive anche nella GraphMemory del RagGraph */
+    if (m_extRagGm) {
+        m_extRagGm->addNode(
+            "fact",
+            QString("Agente-%1/%2").arg(t.id).arg(t.role),
+            full.left(600),
+            0.75f,
+            {{"source", "multi_agent"}, {"role", t.role}}
+        );
+    }
+
     updateTaskItem(idx);
     appendOutput("<p style='color:#6ee7b7'>&#10003; Sub-agente " +
                  QString::number(t.id) + " completato.</p>");
@@ -587,6 +605,9 @@ void AgentiMultiPage::onTaskResultError(int idx, const QString& msg)
 {
     delete m_taskHolders.value(idx, nullptr);
     m_taskHolders.remove(idx);
+
+    returnPoolClient(m_taskClients.take(idx));
+    m_runningTasks.remove(idx);
 
     if (idx < 0 || idx >= m_tasks.size()) return;
     m_tasks[idx].state = SubTask::State::Error;
@@ -752,11 +773,18 @@ void AgentiMultiPage::refreshDot()
    ══════════════════════════════════════════════════════════════ */
 void AgentiMultiPage::onStopClicked()
 {
-    if (m_ai) m_ai->abort();
+    /* Disconnetti prima i holder, poi abortisci i client */
     delete m_decompHolder; m_decompHolder = nullptr;
     delete m_synthHolder;  m_synthHolder  = nullptr;
     for (auto* h : m_taskHolders) delete h;
     m_taskHolders.clear();
+
+    if (m_ai) m_ai->abort();
+    for (AiClient* c : m_aiPool) c->abort();
+    m_busyClients.clear();
+    m_taskClients.clear();
+    m_runningTasks.clear();
+
     m_decomposeBusy = false;
     m_synthBusy     = false;
     m_btnDecompose->setEnabled(true);
@@ -811,6 +839,37 @@ void AgentiMultiPage::onTaskItemClicked(QListWidgetItem* item)
             return;
         }
     }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Pool parallelo — initPool / takePoolClient / returnPoolClient
+   ══════════════════════════════════════════════════════════════ */
+void AgentiMultiPage::initPool()
+{
+    if (!m_ai) return;
+    /* Crea i client mancanti */
+    while (m_aiPool.size() < kMaxParallel)
+        m_aiPool.append(new AiClient(this));
+    /* Aggiorna le impostazioni di tutti i client con quelle correnti di m_ai */
+    for (AiClient* c : m_aiPool)
+        c->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+    m_busyClients.clear();
+}
+
+AiClient* AgentiMultiPage::takePoolClient()
+{
+    for (AiClient* c : m_aiPool) {
+        if (!m_busyClients.contains(c)) {
+            m_busyClients.insert(c);
+            return c;
+        }
+    }
+    return nullptr;  /* pool esaurito */
+}
+
+void AgentiMultiPage::returnPoolClient(AiClient* c)
+{
+    if (c) m_busyClients.remove(c);
 }
 
 void AgentiMultiPage::onFillModels()

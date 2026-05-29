@@ -39,6 +39,13 @@ public:
     explicit RicercaPage(AiClient* ai, QWidget* parent = nullptr);
     ~RicercaPage();
 
+    /** Cross-pollination: espone la GraphMemory del RagGraph per altri moduli. */
+    GraphMemory* ragGraphMemory() const { return m_ragGm; }
+
+    /** Auto-trigger: scatta dopo indexingFinished di ImpostazioniPage.
+     *  Avvia il RagGraph solo se l'indicizzazione è andata a buon fine. */
+    Q_SLOT void onAutoRagTrigger(int nChunks, bool aborted);
+
 private:
     AiClient*    m_ai;
     QTextEdit*   m_outCurrent    = nullptr;

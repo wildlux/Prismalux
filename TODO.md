@@ -5,20 +5,23 @@
 
 ---
 
-## 🟡 Pendenti / prossimi passi
-
-- [ ] **FEAT-1 parallelo**: esecuzione sub-agenti concorrente con `QFuture`
-  (ora sono sequenziali con `depends_on`; il passo successivo è il pool parallelo)
-
-- [ ] **Cross-pollination agenti→grafo RAG**: quando un agente trova un risultato
-  rilevante lo scrive anche in `RagGraph` (ora i due grafi sono separati)
-
-- [ ] **Auto-trigger RagGraph**: trigger automatico quando si aggiunge un documento
-  al RAG dalla pagina Impostazioni (ora richiede click manuale "Analizza RAG")
-
----
-
 ## ✅ Implementati
+
+### Sessione 2026-05-29 — TODO completati
+
+- [x] **FEAT-1 parallelo** — Pool di 3 `AiClient` (`kMaxParallel = 3`)
+  in `AgentiMultiPage`. `runNextPendingTask()` avvia TUTTI i task con
+  dipendenze soddisfatte contemporaneamente (fino a 3). `initPool()` sinc
+  i client col modello corrente ad ogni decomposizione.
+
+- [x] **Cross-pollination agenti→grafo RAG** — `AgentiMultiPage::setExtRagMemory()`
+  riceve la `GraphMemory` di RagGraph; `onTaskResultDone()` scrive ogni
+  risultato come nodo `"fact"` anche nel grafo RAG. Collegato in
+  `MainWindow::buildMultiAgentTab()`.
+
+- [x] **Auto-trigger RagGraph** — `RicercaPage::onAutoRagTrigger()` collega
+  `ImpostazioniPage::indexingFinished` → avvio automatico del RagGraph
+  dopo 800 ms (delay per flush FS). Cablato in `ensureSettingsDialog()`.
 
 ### Sessione 2026-05-29 — FEAT-1 Multi-Agente + FEAT-2 Grafo RAG
 

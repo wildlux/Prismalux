@@ -204,6 +204,10 @@ private:
     QDialog*           m_impDlg      = nullptr;
     class ImpostazioniPage* m_impPage = nullptr;
 
+    /* Pagine con connessioni cross-modulo */
+    class RicercaPage*     m_ricercaPage     = nullptr;   ///< tab [6] — espone ragGraphMemory()
+    class AgentiMultiPage* m_agentiMultiPage = nullptr;   ///< tab [9] — riceve setExtRagMemory()
+
     /* Strumenti — StrumentiPage riceve il pannello Cron reale via ensureSettingsDialog */
     class StrumentiPage* m_strumentiPage = nullptr;
 
