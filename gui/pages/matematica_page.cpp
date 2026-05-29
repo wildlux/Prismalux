@@ -88,7 +88,7 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     m_tabs = new QTabWidget(this);
     m_tabs->setObjectName("mainTabs");
     m_tabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    m_tabs->setMaximumHeight(dpiScale(280));
+    m_tabs->setMaximumHeight(dpiScale(230));
     m_tabs->addTab(buildSeqTab(),   "\xf0\x9f\x94\xa2  Sequenza \xe2\x86\x92 Formula");  /* 🔢 */
     m_tabs->addTab(buildConstTab(), "\xcf\x80  Costanti di precisione");
     m_tabs->addTab(buildNthTab(),   "#\xe2\x83\xbf  N-esimo");
@@ -372,8 +372,8 @@ QWidget* MatematicaPage::buildSeqTab()
 {
     auto* w   = new QWidget;
     auto* lay = new QVBoxLayout(w);
-    lay->setContentsMargins(12, 10, 12, 10);
-    lay->setSpacing(8);
+    lay->setContentsMargins(12, 6, 12, 6);
+    lay->setSpacing(5);
 
     lay->addWidget(new QLabel(
         "<b>Inserisci una sequenza di numeri separati da virgole o spazi:</b>", w));
@@ -398,10 +398,11 @@ QWidget* MatematicaPage::buildSeqTab()
 
     lay->addLayout(inputRow);
 
-    /* Risultato rilevamento locale */
+    /* Risultato rilevamento locale — nascosto finché non c'è testo */
     m_seqResult = new QLabel("", w);
     m_seqResult->setObjectName("statusLabel");
     m_seqResult->setWordWrap(true);
+    m_seqResult->setVisible(false);          /* nessuna altezza quando vuoto */
     lay->addWidget(m_seqResult);
 
     /* Opzioni: termini successivi da suggerire */
@@ -2047,10 +2048,12 @@ void MatematicaPage::onLocalPatternClicked()
     QVector<double> seq = parseSeq(m_seqInput->text(), err);
     if (!err.isEmpty()) {
         m_seqResult->setText("\xe2\x9d\x8c  " + err);
+        m_seqResult->setVisible(true);
         return;
     }
     const QString pat = detectPatternLocal(seq);
     m_seqResult->setText("\xf0\x9f\x94\x8d  " + pat);
+    m_seqResult->setVisible(true);
 }
 
 void MatematicaPage::onSympyClicked()
