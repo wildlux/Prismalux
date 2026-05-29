@@ -522,7 +522,6 @@ QWidget* MatematicaPage::buildConstTab()
         "Per \xce\xb1 > 10 000 cifre considera che il calcolo pu\xc3\xb2 richiedere decine di secondi.</small>", w);
     note->setWordWrap(true);
     lay->addWidget(note);
-    lay->addStretch(1);
     return w;
 }
 
@@ -581,7 +580,6 @@ QWidget* MatematicaPage::buildNthTab()
     btnRow->addWidget(btnCalc);
     btnRow->addStretch(1);
     lay->addLayout(btnRow);
-    lay->addStretch(1);
     return w;
 }
 
@@ -2035,9 +2033,9 @@ void MatematicaPage::onAdjustTabHeight()
     if (!page) return;
     const int barH  = m_tabs->tabBar() ? m_tabs->tabBar()->height() : dpiScale(30);
     const int pageH = page->sizeHint().height();
-    /* Margine di 10px per evitare scrollbar indesiderate nel tab */
+    /* Margine minimo: evita scrollbar senza aggiungere spazio visibile */
     const int total = qBound(barH + dpiScale(80),
-                              pageH + barH + dpiScale(10),
+                              pageH + barH + dpiScale(2),
                               barH + dpiScale(420));   /* max per Analisi */
     m_tabs->setFixedHeight(total);
 }
@@ -2629,7 +2627,6 @@ QWidget* MatematicaPage::buildSolveTab()
         "Il risultato appare nel pannello in basso.</small>", w);
     note->setWordWrap(true);
     lay->addWidget(note);
-    lay->addStretch(1);
     return w;
 }
 
