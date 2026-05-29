@@ -87,8 +87,9 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     /* ─── Schede strumenti (altezza naturale, niente splitter) ─── */
     m_tabs = new QTabWidget(this);
     m_tabs->setObjectName("mainTabs");
-    m_tabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    m_tabs->setMaximumHeight(dpiScale(230));
+    m_tabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    connect(m_tabs, &QTabWidget::currentChanged,
+            this, [this](int) { onAdjustTabHeight(); });
     m_tabs->addTab(buildSeqTab(),   "\xf0\x9f\x94\xa2  Sequenza \xe2\x86\x92 Formula");  /* 🔢 */
     m_tabs->addTab(buildConstTab(), "\xcf\x80  Costanti di precisione");
     m_tabs->addTab(buildNthTab(),   "#\xe2\x83\xbf  N-esimo");
@@ -170,6 +171,8 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
 
     /* Carica la lista modelli al primo avvio (differito per evitare fetchModels nel costruttore) */
     QTimer::singleShot(0, this, &MatematicaPage::onLoadModelsOnce);
+    /* Adatta l'altezza del tab dopo il primo layout reale */
+    QTimer::singleShot(0, this, &MatematicaPage::onAdjustTabHeight);
 
     /* Sincronizza il combo modello quando il modello cambia da Impostazioni o
        da un'altra scheda. */
@@ -2019,6 +2022,24 @@ void MatematicaPage::fetchAndFillMathModels()
 void MatematicaPage::onRefreshModelsClicked()
 {
     fetchAndFillMathModels();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onAdjustTabHeight — setFixedHeight basato sul sizeHint del tab corrente.
+   Chiamato ad ogni cambio tab e al primo avvio (QTimer::singleShot).
+   ══════════════════════════════════════════════════════════════ */
+void MatematicaPage::onAdjustTabHeight()
+{
+    if (!m_tabs) return;
+    QWidget* page = m_tabs->currentWidget();
+    if (!page) return;
+    const int barH  = m_tabs->tabBar() ? m_tabs->tabBar()->height() : dpiScale(30);
+    const int pageH = page->sizeHint().height();
+    /* Margine di 10px per evitare scrollbar indesiderate nel tab */
+    const int total = qBound(barH + dpiScale(80),
+                              pageH + barH + dpiScale(10),
+                              barH + dpiScale(420));   /* max per Analisi */
+    m_tabs->setFixedHeight(total);
 }
 
 void MatematicaPage::onLoadModelsOnce()

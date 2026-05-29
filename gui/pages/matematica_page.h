@@ -169,6 +169,7 @@ private slots:
     /* tab Sequenza */
     void onRefreshModelsClicked();
     void onLoadModelsOnce();
+    void onAdjustTabHeight();  ///< adatta setFixedHeight al contenuto del tab corrente
     void onLocalPatternClicked();
     void onSympyClicked();
     void onAnalyzeAiClicked();
