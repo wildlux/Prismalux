@@ -91,6 +91,7 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     /* ─── PARTE SUPERIORE: schede strumenti ─── */
     m_tabs = new QTabWidget(splitter);
     m_tabs->setObjectName("mainTabs");
+    m_tabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     m_tabs->addTab(buildSeqTab(),   "\xf0\x9f\x94\xa2  Sequenza \xe2\x86\x92 Formula");  /* 🔢 */
     m_tabs->addTab(buildConstTab(), "\xcf\x80  Costanti di precisione");
     m_tabs->addTab(buildNthTab(),   "#\xe2\x83\xbf  N-esimo");
@@ -169,8 +170,8 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
 
     splitter->addWidget(m_tabs);
     splitter->addWidget(outBox);
-    splitter->setStretchFactor(0, 2);
-    splitter->setStretchFactor(1, 3);
+    splitter->setStretchFactor(0, 0);  /* tab: non espandere oltre il contenuto */
+    splitter->setStretchFactor(1, 1);  /* output: prende tutto lo spazio restante */
 
     root->addWidget(splitter, 1);
 
@@ -454,7 +455,6 @@ QWidget* MatematicaPage::buildSeqTab()
     btnRow->addWidget(btnAI);
 
     lay->addLayout(btnRow);
-    lay->addStretch(1);
     return w;
 }
 
@@ -524,7 +524,6 @@ QWidget* MatematicaPage::buildConstTab()
         "Per \xce\xb1 > 10 000 cifre considera che il calcolo pu\xc3\xb2 richiedere decine di secondi.</small>", w);
     note->setWordWrap(true);
     lay->addWidget(note);
-    lay->addStretch(1);
     return w;
 }
 
@@ -584,7 +583,6 @@ QWidget* MatematicaPage::buildNthTab()
     btnRow->addStretch(1);
     lay->addLayout(btnRow);
 
-    lay->addStretch(1);
     return w;
 }
 
@@ -668,7 +666,6 @@ QWidget* MatematicaPage::buildExprTab()
     connect(m_exprInput, &QLineEdit::returnPressed, this, &MatematicaPage::onExprReturnPressed);
     lay->addLayout(btnRow);
 
-    lay->addStretch(1);
     return w;
 }
 
@@ -2560,6 +2557,17 @@ QWidget* MatematicaPage::buildSolveTab()
             this, &MatematicaPage::onSolveRandomClicked);
     inputRow->addWidget(btnRandom);
 
+    auto* btnCopyInput = new QPushButton("\xf0\x9f\x93\x8b", w);  /* 📋 */
+    btnCopyInput->setObjectName("navBtn");
+    btnCopyInput->setFixedWidth(dpiScale(34));
+    btnCopyInput->setToolTip("Copia la formula negli appunti");
+    connect(btnCopyInput, &QPushButton::clicked, m_solveInput, [this]() {
+        const QString t = m_solveInput->text();
+        if (!t.isEmpty())
+            QApplication::clipboard()->setText(t);
+    });
+    inputRow->addWidget(btnCopyInput);
+
     lay->addLayout(inputRow);
 
     /* Barra pulsanti */
@@ -2602,7 +2610,6 @@ QWidget* MatematicaPage::buildSolveTab()
         "Il risultato appare nel pannello in basso.</small>", w);
     note->setWordWrap(true);
     lay->addWidget(note);
-    lay->addStretch(1);
 
     return w;
 }
