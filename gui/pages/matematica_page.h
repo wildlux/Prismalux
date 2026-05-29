@@ -42,10 +42,9 @@ public:
     explicit MatematicaPage(AiClient* ai, QWidget* parent = nullptr);
 
 private:
-    AiClient*       m_ai           = nullptr;
-    QTabWidget*     m_tabs         = nullptr;
-    QSplitter*      m_mainSplitter = nullptr;  ///< splitter verticale tab/output
-    QPlainTextEdit* m_output       = nullptr;
+    AiClient*       m_ai     = nullptr;
+    QTabWidget*     m_tabs   = nullptr;
+    QPlainTextEdit* m_output = nullptr;
     QLabel*         m_status   = nullptr;
     QProcess*       m_proc     = nullptr;
     bool            m_aiRunning = false;

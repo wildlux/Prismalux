@@ -84,13 +84,8 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     root->addWidget(modelBar);
     root->addWidget(sep);
 
-    /* ── Splitter verticale: strumenti sopra, output sotto ── */
-    m_mainSplitter = new QSplitter(Qt::Vertical, this);
-    auto* splitter = m_mainSplitter;
-    splitter->setHandleWidth(4);
-
-    /* ─── PARTE SUPERIORE: schede strumenti ─── */
-    m_tabs = new QTabWidget(splitter);
+    /* ─── Schede strumenti (altezza naturale, niente splitter) ─── */
+    m_tabs = new QTabWidget(this);
     m_tabs->setObjectName("mainTabs");
     m_tabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
     m_tabs->addTab(buildSeqTab(),   "\xf0\x9f\x94\xa2  Sequenza \xe2\x86\x92 Formula");  /* 🔢 */
@@ -101,9 +96,10 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     m_solveTabIdx = m_tabs->count() - 1;
     m_tabs->addTab(buildAnalisi1Tab(), "\xf0\x9f\x93\x98  Analisi 1");                  /* 📘 */
     m_tabs->addTab(buildAnalisi2Tab(), "\xf0\x9f\x93\x99  Analisi 2");                  /* 📙 */
+    root->addWidget(m_tabs);   /* stretch=0: prende solo lo spazio che gli serve */
 
-    /* ─── PARTE INFERIORE: output + controlli ─── */
-    auto* outBox = new QWidget(splitter);
+    /* ─── Output (prende tutto lo spazio restante) ─── */
+    auto* outBox = new QWidget(this);
     auto* outLay = new QVBoxLayout(outBox);
     outLay->setContentsMargins(8, 4, 8, 8);
     outLay->setSpacing(4);
@@ -169,25 +165,10 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     m_latexOut->setMinimumHeight(dpiScale(160));
     outLay->addWidget(m_latexOut);
 
-    splitter->addWidget(m_tabs);
-    splitter->addWidget(outBox);
-    splitter->setStretchFactor(0, 0);  /* tab: non espandere oltre il contenuto */
-    splitter->setStretchFactor(1, 1);  /* output: prende tutto lo spazio restante */
-
-    root->addWidget(splitter, 1);
+    root->addWidget(outBox, 1);  /* stretch=1: prende tutto lo spazio restante */
 
     /* Carica la lista modelli al primo avvio (differito per evitare fetchModels nel costruttore) */
     QTimer::singleShot(0, this, &MatematicaPage::onLoadModelsOnce);
-
-    /* Imposta la divisione iniziale dello splitter dopo il primo layout reale:
-       tab compatti (~240px), output prende tutto il resto. */
-    QTimer::singleShot(0, this, [this]() {
-        if (!m_mainSplitter) return;
-        const int total = m_mainSplitter->height();
-        if (total < 100) return;                        /* widget non ancora visibile */
-        const int tabH = qMin(dpiScale(240), total / 3);
-        m_mainSplitter->setSizes({tabH, total - tabH});
-    });
 
     /* Sincronizza il combo modello quando il modello cambia da Impostazioni o
        da un'altra scheda. */
