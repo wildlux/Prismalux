@@ -247,9 +247,57 @@ v->setLatexHtml(htmlWithLatex, "#1e293b", "#e2e8f0");
 ## Suite di Test
 ```bash
 cmake -B build_tests gui/ -DBUILD_TESTS=ON && cmake --build build_tests -j$(nproc)
-ctest --test-dir build_tests -j4   # 62/62 PASS (incl. CAT-E SymPy)
+ctest --test-dir build_tests -j4   # 41 suite (38 no-Ollama, 3 richiedono Ollama reale)
 ```
-- `SimulatoreAlgos`: FLAKY in -j4, PASS standalone → `RESOURCE_LOCK cpu_heavy` in CMakeLists
-- `AiStress`: OOM RAM (non bug) — richiede `mistral:7b-instruct` e ≥2 GB RAM libera
+
+### Suite per categoria
+
+| Suite | Target ctest | Note |
+|-------|-------------|------|
+| `GraphMemory` | `test_graph_memory` | 65 test: nodi, archi BFS, ricerca, export, prune, changed(), SQL injection |
+| `SignalLifetime` | `test_signal_lifetime` | dangling observer, leakage, invariant violation |
+| `RagEngine` | `test_rag_engine` | JLT 256-dim, chunk, save/load |
+| `RagEngineAvanzato` | `test_rag_engine_avanzato` | edge search, performance |
+| `StrumentiRag` | `test_strumenti_rag` | extractText, sysPromptForAction |
+| `MatematicaPage` | `test_matematica_page` | parseSeq, detectPattern, **CAT-E** 15 test SymPy reali |
+| `FormulaParser` | `test_formula_parser` | eval, sample, tryExtract |
+| `SimulatoreAlgos` | `test_simulatore_algos` | BubbleSort, ricerca, BigO — `RESOURCE_LOCK cpu_heavy` |
+| `CodeUtils` | `test_code_utils` | extractPythonCode, sanitizePyCode |
+| `RandomTool` | `test_random_tool` | distribuzioni, seed |
+| `ChatHistory` | `test_chat_history` | save/load, remove, robustezza |
+| `ChatHistoryStress` | `test_chat_history_stress` | concorrenza 4 thread, durabilità |
+| `LavoroPage` | `test_lavoro_page` | filtri, modelli, database — `RESOURCE_LOCK cpu_heavy` |
+| `LavoroData` | `test_lavoro_data` | offerte, filtrate, icone |
+| `TutorData` | `test_tutor_data` | invarianti, unicità, semantica |
+| `AppController` | `test_app_controller` | state machine, routing, signal isolation |
+| `ProgrammazionePage` | `test_programmazione_page` | isIntentionalError, parseNumbers |
+| `ThinkingDetect` | `test_thinking_detect` | extractName/Size/Prio, classifyQuery, keyLock |
+| `AgentiPipeline` | `test_agenti_pipeline` | buildBubble, markdownToHtml |
+| `AgentsConfigDialog` | `test_agents_config_dialog` | struttura, numAgents, RAG condiviso |
+| `AgentiByzantine` | `test_agenti_byzantine` | voce combo, num agenti, mock stub |
+| `AgenteAutonomo` | `test_agente_autonomo` | ReAct loop, toggle UI, parsing tool call |
+| `LanServer` | `test_lan_server` | lifecycle TCP, token, rate limit |
+| `Onboarding` | `test_onboarding` | QSettings, token LAN, rate limiter |
+| `ImpostazioniPage` | `test_impostazioni_page` | AiChatParams round-trip, ThinkMode, preset |
+| `ThemeManager` | `test_theme_manager` | lista temi, ops |
+| `Grafico` | `test_grafico` | canvas, formula parser integrazione |
+| `HardwareMonitor` | `test_hardware_monitor` | rilevamento CPU/RAM/GPU, thread |
+| `HwDetectAmd` | `test_hw_detect_amd` | AMD via DRM sysfs |
+| `MonitorPanel` | `test_monitor_panel` | struttura, aggiornamento HW |
+| `ManutenzioneeCron` | `test_manutenzione_cron` | cronShouldRun, nextRun, detectConfigFmt |
+| `ManutenzioneeBugs` | `test_manutenzione_bugs` | costruzione, bugtracker widget |
+| `KnowledgeInjection` | `test_knowledge_injection` | readKnowledge, prependKnowledge, cache 30s |
+| `OpenCodePage` | `test_opencode_page` | costruzione, struttura, stato iniziale |
+| `ImparaQuiz` | `test_impara_quiz` | ImparaPage, QuizPage, MateriePage |
+| `QrCodeWidget` | `test_qr_code_widget` | generazione, rendering, lifetime |
+| `Sintetizzatore` | `test_sintetizzatore` | Tono, OscoCanvas, widget |
+| `SttWhisper` | `test_stt_whisper` | paths, availability, permissions, mic |
+| `AiIntegration` | `test_ai_integration` | ⚠️ Ollama reale — classifyQuery, chat, params |
+| `AiStress` | `test_ai_stress` | ⚠️ Ollama reale — sequential, param matrix |
+| `TeamCollab` | `test_team_collab` | ⚠️ Ollama reale — pipeline, quality |
+
+### Note operative
+- `SimulatoreAlgos`: FLAKY in `-j4`, PASS standalone → `RESOURCE_LOCK cpu_heavy`
+- `AiStress` / `AiIntegration` / `TeamCollab`: richiedono Ollama + `mistral:7b-instruct` ≥2 GB RAM
 - `HardwareMonitor`: richiede `mon.start()` prima di `QVERIFY(spy.wait(...))`
-- **CAT-E** (TestRisolviPassi): 15 test SymPy reali — gaussiano, biquadratica, Taylor, L'Hôpital…
+- **CAT-E** (TestRisolviPassi): 15 test SymPy reali via `_runPythonSync()` — `QSKIP` se Python mancante

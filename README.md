@@ -46,7 +46,7 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 | 🎙️ **TTS + STT ovunque** | Web app: tab "Voce" con SpeechSynthesis + MediaRecorder→Whisper. APK Android: QTextToSpeech box + fix STT upload |
 | 🔢 **LaTeX KaTeX** | Pannelli teoria Analisi 1/2 renderizzati con KaTeX (QWebEngineView). Pannello 🔬 output AI. Prompt AI aggiornati. |
 | 🔀 **Randomizer formule** | 52 formule categorizzate in Risolvi Passi (equazioni/derivate/integrali/limiti/semplificazioni/disequazioni) |
-| 🧪 **Test SymPy CAT-E** | 15 test complessi che eseguono realmente SymPy (gaussiano √π/2, Taylor, L'Hôpital, biquadratica…) — 62/62 PASS |
+| 🧪 **Test suite** | 41 suite ctest (38 no-Ollama) — include CAT-E SymPy (15 test reali) + GraphMemory (65 test: nodi/archi/BFS/SQL-injection/`changed()`) |
 | ☕ **Donazione PayPal** | Badge README, pulsante Sponsor GitHub (`.github/FUNDING.yml`), pulsante in Impostazioni e APK |
 | 💼 **Scheda TFR** | C.F. calcolato automaticamente (D.M. 1976 + ~150 comuni/paesi), calcolo rivalutato, Compila da RAG |
 | 🖧 **WAN Calcolo Distribuito** | Server/client TCP:11600, dispatcher 28 task, cron scheduler |
