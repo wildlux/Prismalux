@@ -87,7 +87,8 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     /* ─── Schede strumenti (altezza naturale, niente splitter) ─── */
     m_tabs = new QTabWidget(this);
     m_tabs->setObjectName("mainTabs");
-    m_tabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+    m_tabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_tabs->setMaximumHeight(dpiScale(280));
     m_tabs->addTab(buildSeqTab(),   "\xf0\x9f\x94\xa2  Sequenza \xe2\x86\x92 Formula");  /* 🔢 */
     m_tabs->addTab(buildConstTab(), "\xcf\x80  Costanti di precisione");
     m_tabs->addTab(buildNthTab(),   "#\xe2\x83\xbf  N-esimo");
@@ -447,6 +448,7 @@ QWidget* MatematicaPage::buildSeqTab()
     btnRow->addWidget(btnAI);
 
     lay->addLayout(btnRow);
+    lay->addStretch(1);
     return w;
 }
 
@@ -516,6 +518,7 @@ QWidget* MatematicaPage::buildConstTab()
         "Per \xce\xb1 > 10 000 cifre considera che il calcolo pu\xc3\xb2 richiedere decine di secondi.</small>", w);
     note->setWordWrap(true);
     lay->addWidget(note);
+    lay->addStretch(1);
     return w;
 }
 
@@ -574,7 +577,7 @@ QWidget* MatematicaPage::buildNthTab()
     btnRow->addWidget(btnCalc);
     btnRow->addStretch(1);
     lay->addLayout(btnRow);
-
+    lay->addStretch(1);
     return w;
 }
 
@@ -657,7 +660,7 @@ QWidget* MatematicaPage::buildExprTab()
 
     connect(m_exprInput, &QLineEdit::returnPressed, this, &MatematicaPage::onExprReturnPressed);
     lay->addLayout(btnRow);
-
+    lay->addStretch(1);
     return w;
 }
 
@@ -2602,7 +2605,7 @@ QWidget* MatematicaPage::buildSolveTab()
         "Il risultato appare nel pannello in basso.</small>", w);
     note->setWordWrap(true);
     lay->addWidget(note);
-
+    lay->addStretch(1);
     return w;
 }
 
