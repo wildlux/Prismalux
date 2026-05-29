@@ -61,9 +61,14 @@ static QJsonArray _buildOllamaTools()
                "Calcola un'espressione matematica. "
                "Supporta: +,-,*,/,**, sqrt, sin, cos, log, ecc.",
                strParam("Espressione matematica da calcolare")),
+        mkTool("fetch_url",
+               "Scarica il contenuto HTML o testo di una pagina web dato il suo URL. "
+               "Usare quando si ha un URL diretto (http:// o https://).",
+               strParam("URL completa della pagina da scaricare")),
         mkTool("ricerca",
-               "Esegui una ricerca web su DuckDuckGo e ottieni un riassunto.",
-               strParam("Query di ricerca")),
+               "Cerca informazioni testuali online via DuckDuckGo Instant Answer. "
+               "NON usare per URL — usa fetch_url per scaricare pagine web.",
+               strParam("Query di testo da cercare")),
         mkTool("leggi_file",
                "Legge il contenuto di un file locale.",
                strParam("Percorso assoluto del file")),

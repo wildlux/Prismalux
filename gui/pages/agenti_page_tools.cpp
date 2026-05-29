@@ -253,6 +253,18 @@ void AgentiPage::runToolCall(const QJsonObject& call,
 
     /* ── Ricerca Web DuckDuckGo Instant Answer ── */
     if (tool == "ricerca" || tool == "search" || tool == "web") {
+        if (input.isEmpty()) { onDone("errore: query di ricerca non specificata"); return; }
+        /* Se l'input sembra un URL, reindirizza a fetch_url */
+        const bool looksLikeUrl = input.startsWith("http://") || input.startsWith("https://")
+                                  || input.startsWith("www.");
+        if (looksLikeUrl) {
+            const QString url = input.startsWith("www.") ? "https://" + input : input;
+            QJsonObject fakeCall;
+            fakeCall["tool"]  = QString("fetch_url");
+            fakeCall["input"] = url;
+            runToolCall(fakeCall, onDone);
+            return;
+        }
         QJsonArray _ra; _ra.append(input.left(200));
         const QString _inputJson = QString::fromUtf8(
             QJsonDocument(_ra).toJson(QJsonDocument::Compact)).mid(1).chopped(1);
@@ -264,11 +276,11 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             "    req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})\n"
             "    with urllib.request.urlopen(req,timeout=7) as r: d=json.load(r)\n"
             "    out=[]\n"
-            "    if d.get('AbstractText'): out.append(d['AbstractText'][:300])\n"
-            "    elif d.get('Answer'): out.append(d['Answer'][:300])\n"
-            "    for t in d.get('RelatedTopics',[])[:3]:\n"
-            "        if isinstance(t,dict) and t.get('Text'): out.append(t['Text'][:150])\n"
-            "    print('\\n'.join(out) if out else 'nessun risultato')\n"
+            "    if d.get('AbstractText'): out.append(d['AbstractText'][:400])\n"
+            "    elif d.get('Answer'): out.append(d['Answer'][:400])\n"
+            "    for t in d.get('RelatedTopics',[])[:5]:\n"
+            "        if isinstance(t,dict) and t.get('Text'): out.append(t['Text'][:200])\n"
+            "    print('\\n'.join(out) if out else 'nessun risultato — prova fetch_url se hai un URL diretto')\n"
             "except Exception as e: print('ERRORE:',e)\n";
         auto* proc = new QProcess(this);
         proc->setProcessChannelMode(QProcess::MergedChannels);
@@ -276,11 +288,47 @@ void AgentiPage::runToolCall(const QJsonObject& call,
                 this, [proc, onDone](int, QProcess::ExitStatus) {
             const QString out = QString::fromUtf8(proc->readAll()).trimmed();
             proc->deleteLater();
-            onDone(out.isEmpty() ? "nessun risultato" : out.left(500));
+            onDone(out.isEmpty() ? "nessun risultato" : out.left(600));
         });
         proc->start(P::findPython(), {"-c", script});
         QTimer::singleShot(12000, proc, [proc, onDone]{
             if (proc->state() != QProcess::NotRunning) { proc->kill(); onDone("timeout ricerca"); }
+        });
+        return;
+    }
+
+    /* ── Scarica pagina web (fetch URL) ── */
+    if (tool == "fetch_url" || tool == "scarica_pagina" || tool == "fetch" || tool == "url") {
+        if (input.isEmpty()) { onDone("errore: URL non specificato"); return; }
+        const QString url = (input.startsWith("http://") || input.startsWith("https://"))
+                            ? input : "https://" + input;
+        QJsonArray _ua; _ua.append(url.left(500));
+        const QString _urlJson = QString::fromUtf8(
+            QJsonDocument(_ua).toJson(QJsonDocument::Compact)).mid(1).chopped(1);
+        const QString script =
+            "import urllib.request,html\n"
+            "url=" + _urlJson + "\n"
+            "try:\n"
+            "    req=urllib.request.Request(url,headers={"
+            "'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',"
+            "'Accept':'text/html,application/xhtml+xml,*/*','Accept-Language':'it,en;q=0.9'})\n"
+            "    with urllib.request.urlopen(req,timeout=10) as r:\n"
+            "        raw=r.read()\n"
+            "        enc=r.headers.get_content_charset('utf-8')\n"
+            "        content=raw.decode(enc,errors='replace')\n"
+            "    print(content[:4000])\n"
+            "except Exception as e: print('ERRORE:',e)\n";
+        auto* proc = new QProcess(this);
+        proc->setProcessChannelMode(QProcess::MergedChannels);
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [proc, onDone](int, QProcess::ExitStatus) {
+            const QString out = QString::fromUtf8(proc->readAll()).trimmed();
+            proc->deleteLater();
+            onDone(out.isEmpty() ? "nessun contenuto ricevuto" : out.left(4000));
+        });
+        proc->start(P::findPython(), {"-c", script});
+        QTimer::singleShot(15000, proc, [proc, onDone]{
+            if (proc->state() != QProcess::NotRunning) { proc->kill(); onDone("timeout fetch_url"); }
         });
         return;
     }
