@@ -7,6 +7,7 @@
 #include "pages/grafico_page.h"
 #include "widgets/formula_parser.h"
 #include "ai_client.h"
+#include "dpi_utils.h"
 
 #include <QScrollArea>
 #include <QSplitter>
@@ -151,15 +152,15 @@ GraficoPage::GraficoPage(AiClient* ai, QWidget* parent) : QWidget(parent), m_ai(
     splitter->addWidget(m_canvas);
     splitter->setStretchFactor(0, 0);
     splitter->setStretchFactor(1, 1);
-    splitter->setSizes({278, 700});
+    splitter->setSizes({320, 700});
     mainLay->addWidget(splitter);
 }
 
 /* ── Pannello parametri sinistro ─────────────────────────────── */
 QWidget* GraficoPage::buildLeftPanel() {
     auto* outer = new QWidget(this);
-    outer->setMinimumWidth(240);
-    outer->setMaximumWidth(400);
+    outer->setMinimumWidth(300);
+    outer->setMaximumWidth(450);
     auto* outerLay = new QVBoxLayout(outer);
     outerLay->setContentsMargins(0, 0, 0, 0);
 
@@ -351,6 +352,7 @@ QWidget* GraficoPage::buildLeftPanel() {
             m_genFrom->setValue(1.0);
             m_genFrom->setDecimals(2);
             m_genFrom->setSingleStep(1.0);
+            m_genFrom->setMaximumWidth(dpiScale(72));
 
             auto* lTo = new QLabel("a:", rangeRow);
             lTo->setObjectName("formLabel");
@@ -360,6 +362,7 @@ QWidget* GraficoPage::buildLeftPanel() {
             m_genTo->setValue(10.0);
             m_genTo->setDecimals(2);
             m_genTo->setSingleStep(1.0);
+            m_genTo->setMaximumWidth(dpiScale(72));
 
             auto* lStep = new QLabel("\xce\x94:", rangeRow);  /* Δ */
             lStep->setObjectName("formLabel");
@@ -369,6 +372,7 @@ QWidget* GraficoPage::buildLeftPanel() {
             m_genStep->setValue(1.0);
             m_genStep->setDecimals(3);
             m_genStep->setSingleStep(0.5);
+            m_genStep->setMaximumWidth(dpiScale(72));
 
             rl->addWidget(lFrom);
             rl->addWidget(m_genFrom, 2);
@@ -661,7 +665,7 @@ QWidget* GraficoPage::buildLeftPanel() {
 
     /* Pulsante di installazione — visibile SOLO se non ci sono modelli vision */
     m_btnInstallVision = new QPushButton(
-        "\xf0\x9f\x93\xa5  Clicca qui per scaricare e installare un modello vision da internet",
+        "\xf0\x9f\x93\xa5  Installa modello vision",
         m_imgSection);
     m_btnInstallVision->setObjectName("actionBtn");
     m_btnInstallVision->setFixedHeight(36);
