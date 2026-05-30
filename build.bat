@@ -2,10 +2,12 @@
 setlocal EnableDelayedExpansion
 
 REM ══════════════════════════════════════════════════════════════
-REM  Prismalux v2.8 — Build script per Windows
+REM  Prismalux v2.9 — Build script per Windows
 REM  Lancia questo file dalla ROOT del progetto (doppio clic).
 REM
-REM  Rilevamento toolchain (ordine di priorita'):
+REM  Se MSYS2 e' installato in C:\msys64, apre automaticamente
+REM  una finestra MSYS2 UCRT64 e lancia aggiorna.sh --gui.
+REM  Altrimenti usa cmake nativo con la toolchain rilevata:
 REM    0. COMPILE_WIN\toolchain\  (portatile — lancia prima setup.bat)
 REM    1. MSYS2 UCRT64            (C:\msys64\ucrt64)
 REM    2. MSYS2 MINGW64           (C:\msys64\mingw64)
@@ -13,9 +15,34 @@ REM    3. Qt installer ufficiale  (C:\Qt\6.x\mingw_64)
 REM    4. QT_MANUAL               (percorso personalizzato sotto)
 REM ══════════════════════════════════════════════════════════════
 
+REM ── Se MSYS2 e' installato e NON siamo gia' dentro bash → delega ──────────
+if not defined MSYSTEM (
+    if exist "C:\msys64\usr\bin\bash.exe" (
+        echo.
+        echo  [MSYS2] Trovato C:\msys64 — avvio MSYS2 UCRT64 per la build...
+        echo.
+
+        REM Converti percorso Windows → Unix  (es. C:\foo\bar → /c/foo/bar)
+        set _DIR=%~dp0
+        set _DIR=!_DIR:\=/!
+        set _DRV=!_DIR:~0,1!
+        set _REST=!_DIR:~2!
+        REM Rimuovi eventuale slash finale
+        if "!_REST:~-1!" == "/" set _REST=!_REST:~0,-1!
+        set _UNIX=/!_DRV!!_REST!
+
+        REM Apre una nuova finestra MSYS2 UCRT64 che compila e resta aperta
+        start "Prismalux — Build MSYS2 UCRT64" ^
+            "C:\msys64\usr\bin\bash.exe" --login -i -c ^
+            "cd '!_UNIX!' && bash aggiorna.sh --gui; echo ''; read -rp 'Premi INVIO per chiudere...' _"
+        exit /b
+    )
+)
+
+REM ── Build nativa (cmake senza bash) — usata se MSYS2 non trovato ──────────
 echo.
 echo +--------------------------------------------------+
-echo ^|   Prismalux v2.8 - Build Windows                 ^|
+echo ^|   Prismalux v2.9 - Build Windows                 ^|
 echo +--------------------------------------------------+
 echo.
 
