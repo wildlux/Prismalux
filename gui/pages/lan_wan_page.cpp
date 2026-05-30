@@ -40,6 +40,11 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QStackedWidget>
+#include <QFormLayout>
+#include <QFileDialog>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
 #include <QRadioButton>
 #include <QButtonGroup>
 #include <QSplitter>
@@ -1466,27 +1471,79 @@ QWidget* LanWanPage::buildWanComputeTab()
     addTaskLay1->addWidget(new QLabel("Tipo:"));
     addTaskLay1->addWidget(m_wanTaskKind, 1);
     addTaskLay1->addWidget(m_wanAddTaskBtn);
+    /* ── Stack payload: pagina 0 = textarea raw, pagina 1 = form llm_agent ── */
+    m_wanPayloadStack = new QStackedWidget;
+
+    /* Pagina 0 — textarea JSON raw (tutti i tipi tranne llm_agent) */
     m_wanTaskPayload = new QTextEdit;
-    m_wanTaskPayload->setFixedHeight(80);
+    m_wanTaskPayload->setFixedHeight(dpiScale(80));
     m_wanTaskPayload->setPlaceholderText("Seleziona un tipo per vedere il template\xe2\x80\xa6");
+    m_wanPayloadStack->addWidget(m_wanTaskPayload);   // index 0
+
+    /* Pagina 1 — form campi per llm_agent */
+    m_agentFormFrame = new QFrame;
+    m_agentFormFrame->setFrameShape(QFrame::StyledPanel);
+    m_agentFormFrame->setAcceptDrops(true);
+    m_agentFormFrame->installEventFilter(this);
+    auto* formLay = new QFormLayout(m_agentFormFrame);
+    formLay->setSpacing(4); formLay->setContentsMargins(6,4,6,4);
+
+    m_agentRoleEdit = new QLineEdit;
+    m_agentRoleEdit->setPlaceholderText("es. Ricercatore in fisica quantistica");
+    formLay->addRow("Ruolo:", m_agentRoleEdit);
+
+    m_agentPromptEdit = new QTextEdit;
+    m_agentPromptEdit->setFixedHeight(dpiScale(58));
+    m_agentPromptEdit->setPlaceholderText("Il compito specifico di questo agente\xe2\x80\xa6");
+    formLay->addRow("Prompt:", m_agentPromptEdit);
+
+    m_agentContextEdit = new QTextEdit;
+    m_agentContextEdit->setFixedHeight(dpiScale(38));
+    m_agentContextEdit->setPlaceholderText("Contesto opzionale da agenti precedenti (lascia vuoto per il primo agente)");
+    formLay->addRow("Contesto:", m_agentContextEdit);
+
+    /* Riga pulsanti salva/carica + hint drag-and-drop */
+    auto* agentBtnRow = new QWidget;
+    auto* agentBtnLay = new QHBoxLayout(agentBtnRow);
+    agentBtnLay->setContentsMargins(0,0,0,0); agentBtnLay->setSpacing(6);
+    m_agentSaveBtn = new QPushButton("\xf0\x9f\x92\xbe  Salva JSON");   // 💾
+    m_agentLoadBtn = new QPushButton("\xf0\x9f\x93\x82  Carica JSON");  // 📂
+    auto* dropHintLbl = new QLabel("\xe2\x86\x90 oppure trascina un file .json qui sopra");
+    dropHintLbl->setStyleSheet("color:gray; font-size:11px;");
+    agentBtnLay->addWidget(m_agentSaveBtn);
+    agentBtnLay->addWidget(m_agentLoadBtn);
+    agentBtnLay->addWidget(dropHintLbl, 1);
+    formLay->addRow(agentBtnRow);
+
+    m_wanPayloadStack->addWidget(m_agentFormFrame);   // index 1
+
     addTaskLay->addWidget(addTaskRow1);
-    addTaskLay->addWidget(m_wanTaskPayload);
+    addTaskLay->addWidget(m_wanPayloadStack);
     srvLay->addWidget(addTaskBox);
 
-    /* Auto-fill template quando cambia il tipo */
+    /* Collega pulsanti form */
+    connect(m_agentSaveBtn, &QPushButton::clicked,
+            this, &LanWanPage::onAgentSaveBtnClicked);
+    connect(m_agentLoadBtn, &QPushButton::clicked,
+            this, &LanWanPage::onAgentLoadBtnClicked);
+
+    /* Cambia pagina stack al cambio tipo + auto-fill template per tipi raw */
     connect(m_wanTaskKind,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             m_wanTaskKind, [this](int){
         const QString kind = m_wanTaskKind->currentData().toString();
-        if (kind.isEmpty()) return;          // separatore
-        if (m_wanTaskPayload && m_wanTaskPayload->toPlainText().trimmed().isEmpty())
+        if (kind.isEmpty()) return;
+        const bool isAgent = (kind == "llm_agent");
+        if (m_wanPayloadStack) m_wanPayloadStack->setCurrentIndex(isAgent ? 1 : 0);
+        if (!isAgent && m_wanTaskPayload && m_wanTaskPayload->toPlainText().trimmed().isEmpty())
             m_wanTaskPayload->setPlainText(wanKindTemplate(kind));
     });
-    /* Carica il template per l'item già selezionato al momento della build UI —
-     * setCurrentIndex(1) scatta prima del connect, quindi il segnale viene perso. */
-    if (m_wanTaskPayload) {
+    /* Stato iniziale: llm_agent è selezionato di default → mostra form */
+    {
         const QString initKind = m_wanTaskKind->currentData().toString();
-        if (!initKind.isEmpty())
+        const bool isAgent = (initKind == "llm_agent");
+        if (m_wanPayloadStack) m_wanPayloadStack->setCurrentIndex(isAgent ? 1 : 0);
+        if (!isAgent && m_wanTaskPayload && !initKind.isEmpty())
             m_wanTaskPayload->setPlainText(wanKindTemplate(initKind));
     }
 
@@ -1760,11 +1817,30 @@ void LanWanPage::onWanNodeDisconnected()
 
 void LanWanPage::onWanAddTaskBtnClicked()
 {
-    const QString payload = m_wanTaskPayload ? m_wanTaskPayload->toPlainText().trimmed() : QString();
+    const QString kind = m_wanTaskKind ? m_wanTaskKind->currentData().toString() : "ai_query";
+    QString payload;
+
+    if (kind == "llm_agent" && m_wanPayloadStack && m_wanPayloadStack->currentIndex() == 1) {
+        /* Costruisce JSON dai campi del form */
+        const QString role   = m_agentRoleEdit    ? m_agentRoleEdit->text().trimmed()           : QString();
+        const QString prompt = m_agentPromptEdit  ? m_agentPromptEdit->toPlainText().trimmed()   : QString();
+        const QString ctx    = m_agentContextEdit ? m_agentContextEdit->toPlainText().trimmed()  : QString();
+        if (role.isEmpty() || prompt.isEmpty()) return;
+        QJsonObject obj;
+        obj["role"]     = role;
+        obj["prompt"]   = prompt;
+        obj["context"]  = ctx;
+        obj["depth"]    = 0;
+        obj["chain_id"] = "";
+        payload = QString::fromUtf8(QJsonDocument(obj).toJson(QJsonDocument::Compact));
+    } else {
+        payload = m_wanTaskPayload ? m_wanTaskPayload->toPlainText().trimmed() : QString();
+    }
+
     if (payload.isEmpty()) return;
     WanTask t;
     t.id      = wanNextId();
-    t.kind    = m_wanTaskKind ? m_wanTaskKind->currentData().toString() : "ai_query";
+    t.kind    = kind;
     t.payload = payload;
     t.status  = "pending";
     t.created = QDateTime::currentDateTime();
@@ -2058,6 +2134,101 @@ void LanWanPage::onWanCliAiError(const QString& msg)
     });
     wanCliAppendLog("Task " + m_wanCliCurrentTask + " errore AI: " + msg);
     m_wanCliCurrentTask.clear();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════════════════
+   eventFilter — drag-and-drop di file .json sul form llm_agent
+   ══════════════════════════════════════════════════════════════════════════ */
+bool LanWanPage::eventFilter(QObject* obj, QEvent* e)
+{
+    if (obj != m_agentFormFrame) return QWidget::eventFilter(obj, e);
+
+    if (e->type() == QEvent::DragEnter) {
+        auto* de = static_cast<QDragEnterEvent*>(e);
+        if (de->mimeData()->hasUrls()) {
+            for (const auto& url : de->mimeData()->urls()) {
+                if (url.toLocalFile().endsWith(".json", Qt::CaseInsensitive)) {
+                    de->acceptProposedAction();
+                    m_agentFormFrame->setStyleSheet("QFrame{border:2px dashed #818cf8;}");
+                    return true;
+                }
+            }
+        }
+
+    } else if (e->type() == QEvent::DragLeave) {
+        m_agentFormFrame->setStyleSheet("");
+        return true;
+
+    } else if (e->type() == QEvent::Drop) {
+        m_agentFormFrame->setStyleSheet("");
+        auto* de = static_cast<QDropEvent*>(e);
+        for (const auto& url : de->mimeData()->urls()) {
+            const QString path = url.toLocalFile();
+            if (!path.endsWith(".json", Qt::CaseInsensitive)) continue;
+            QFile f(path);
+            if (!f.open(QIODevice::ReadOnly)) continue;
+            const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+            if (!doc.isObject()) continue;
+            const QJsonObject o = doc.object();
+            if (m_agentRoleEdit)    m_agentRoleEdit->setText(o["role"].toString());
+            if (m_agentPromptEdit)  m_agentPromptEdit->setPlainText(o["prompt"].toString());
+            if (m_agentContextEdit) m_agentContextEdit->setPlainText(o["context"].toString());
+            break;
+        }
+        return true;
+    }
+    return QWidget::eventFilter(obj, e);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   onAgentSaveBtnClicked — salva i campi del form come file .json
+   ══════════════════════════════════════════════════════════════════════════ */
+void LanWanPage::onAgentSaveBtnClicked()
+{
+    const QString role   = m_agentRoleEdit   ? m_agentRoleEdit->text().trimmed()          : QString();
+    const QString prompt = m_agentPromptEdit ? m_agentPromptEdit->toPlainText().trimmed()  : QString();
+    if (role.isEmpty() || prompt.isEmpty()) return;
+
+    QJsonObject obj;
+    obj["role"]     = role;
+    obj["prompt"]   = prompt;
+    obj["context"]  = m_agentContextEdit ? m_agentContextEdit->toPlainText().trimmed() : QString();
+    obj["depth"]    = 0;
+    obj["chain_id"] = "";
+
+    const QString defaultName = role.left(30).replace(QRegularExpression("[^\\w\\s]"), "")
+                                             .replace(' ', '_') + ".json";
+    const QString path = QFileDialog::getSaveFileName(
+        this, "Salva Agente LLM",
+        QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + "/" + defaultName,
+        "JSON (*.json)");
+    if (path.isEmpty()) return;
+
+    QFile f(path);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Text))
+        f.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   onAgentLoadBtnClicked — carica un file .json nel form
+   ══════════════════════════════════════════════════════════════════════════ */
+void LanWanPage::onAgentLoadBtnClicked()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this, "Carica Agente LLM",
+        QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation),
+        "JSON (*.json)");
+    if (path.isEmpty()) return;
+
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) return;
+    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+    if (!doc.isObject()) return;
+    const QJsonObject o = doc.object();
+    if (m_agentRoleEdit)    m_agentRoleEdit->setText(o["role"].toString());
+    if (m_agentPromptEdit)  m_agentPromptEdit->setPlainText(o["prompt"].toString());
+    if (m_agentContextEdit) m_agentContextEdit->setPlainText(o["context"].toString());
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

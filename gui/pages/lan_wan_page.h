@@ -165,6 +165,17 @@ private:
     QString  wanKindTemplate(const QString& kind) const;
     void     wanCliHandleTask(const QString& id, const QString& kind, const QString& payload);
 
+    /* llm_agent form */
+    QStackedWidget* m_wanPayloadStack   = nullptr; ///< 0=raw textarea 1=agent form
+    QFrame*         m_agentFormFrame    = nullptr;
+    QLineEdit*      m_agentRoleEdit     = nullptr;
+    QTextEdit*      m_agentPromptEdit   = nullptr;
+    QTextEdit*      m_agentContextEdit  = nullptr;
+    QPushButton*    m_agentSaveBtn      = nullptr;
+    QPushButton*    m_agentLoadBtn      = nullptr;
+
+    bool eventFilter(QObject* obj, QEvent* e) override;
+
     QWidget* buildLanAndroidTab();
     QWidget* buildGNS3Tab();
     QWidget* buildWanComputeTab();
@@ -225,4 +236,7 @@ private slots:
     void onWanCliAiToken(const QString& t);
     void onWanCliAiFinished(const QString& full);
     void onWanCliAiError(const QString& msg);
+    /* llm_agent form */
+    void onAgentSaveBtnClicked();
+    void onAgentLoadBtnClicked();
 };
