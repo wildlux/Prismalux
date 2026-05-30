@@ -1,319 +1,55 @@
 @echo off
+chcp 65001 > nul
 setlocal EnableDelayedExpansion
 
 REM ══════════════════════════════════════════════════════════════
-REM  Prismalux v2.9 — Build script per Windows
-REM  Lancia questo file dalla ROOT del progetto (doppio clic).
-REM
-REM  Se MSYS2 e' installato in C:\msys64, apre automaticamente
-REM  una finestra MSYS2 UCRT64 e lancia aggiorna.sh --gui.
-REM  Altrimenti usa cmake nativo con la toolchain rilevata:
-REM    0. COMPILE_WIN\toolchain\  (portatile — lancia prima setup.bat)
-REM    1. MSYS2 UCRT64            (C:\msys64\ucrt64)
-REM    2. MSYS2 MINGW64           (C:\msys64\mingw64)
-REM    3. Qt installer ufficiale  (C:\Qt\6.x\mingw_64)
-REM    4. QT_MANUAL               (percorso personalizzato sotto)
+REM  Prismalux v2.9 — Launcher build Windows
+REM  Doppio clic qui per compilare. Tutta la logica e' in build.py
 REM ══════════════════════════════════════════════════════════════
 
-REM ── Se MSYS2 e' installato e NON siamo gia' dentro bash → delega ──────────
-if not defined MSYSTEM (
-    if exist "C:\msys64\usr\bin\bash.exe" (
-        echo.
-        echo  [MSYS2] Trovato C:\msys64 — avvio MSYS2 UCRT64 per la build...
-        echo.
-
-        REM Converti percorso Windows → Unix  (es. C:\foo\bar → /c/foo/bar)
-        set _DIR=%~dp0
-        set _DIR=!_DIR:\=/!
-        set _DRV=!_DIR:~0,1!
-        set _REST=!_DIR:~2!
-        REM Rimuovi eventuale slash finale
-        if "!_REST:~-1!" == "/" set _REST=!_REST:~0,-1!
-        set _UNIX=/!_DRV!!_REST!
-
-        REM Apre una nuova finestra MSYS2 UCRT64 che compila e resta aperta
-        start "Prismalux — Build MSYS2 UCRT64" ^
-            "C:\msys64\usr\bin\bash.exe" --login -i -c ^
-            "cd '!_UNIX!' && bash aggiorna.sh --gui; echo ''; read -rp 'Premi INVIO per chiudere...' _"
-        exit /b
-    )
-)
-
-REM ── Build nativa (cmake senza bash) — usata se MSYS2 non trovato ──────────
-echo.
-echo +--------------------------------------------------+
-echo ^|   Prismalux v2.9 - Build Windows                 ^|
-echo +--------------------------------------------------+
-echo.
-
 set SCRIPT_DIR=%~dp0
-set GUI_DIR=%SCRIPT_DIR%gui
-set TOOLS=%SCRIPT_DIR%COMPILE_WIN\toolchain
+set PYTHON=
 
-REM ── Fallback manuale Qt (decommenta se necessario) ───────────
-REM set QT_MANUAL=C:\Qt\6.9.0\mingw_64
-
-set MSYS2_ROOT=C:\msys64
-set QT_PREFIX=
-set CMAKE_BIN=cmake
-set GEN_FLAG=
-set FOUND_ENV=
-set BUILD_DIR=%GUI_DIR%\build_win
-
-REM ════════════════════════════════════════════════════════════
-REM  0) Toolchain portatile COMPILE_WIN\toolchain\
-REM     (scaricata da COMPILE_WIN\setup.bat)
-REM ════════════════════════════════════════════════════════════
-if exist "%TOOLS%\ready.txt" (
-    REM Trova Qt prefix (es. toolchain\Qt6\6.8.0\mingw_64)
-    for /d %%V in ("%TOOLS%\Qt6\*") do (
-        if not defined QT_PREFIX (
-            if exist "%%V\mingw_64\lib\cmake\Qt6\Qt6Config.cmake" (
-                set QT_PREFIX=%%V\mingw_64
-            )
-        )
-    )
-    if defined QT_PREFIX (
-        REM Trova cmake nella toolchain portatile
-        for /d %%D in ("%TOOLS%\cmake\cmake-*") do (
-            if not defined CMAKE_BIN_FOUND (
-                if exist "%%D\bin\cmake.exe" (
-                    set CMAKE_BIN=%%D\bin\cmake.exe
-                    set CMAKE_BIN_FOUND=1
-                )
-            )
-        )
-        REM Trova ninja
-        if exist "%TOOLS%\ninja\ninja.exe" (
-            set GEN_FLAG=-G "Ninja"
-            set NINJA_PATH=%TOOLS%\ninja
-        )
-        REM Trova GCC (da aqt tools o winlibs)
-        set GCC_PATH=
-        if exist "%TOOLS%\gcc\Tools\mingw1310_64\bin\gcc.exe" (
-            set GCC_PATH=%TOOLS%\gcc\Tools\mingw1310_64\bin
-        ) else if exist "%TOOLS%\gcc\mingw64\bin\gcc.exe" (
-            set GCC_PATH=%TOOLS%\gcc\mingw64\bin
-        )
-        REM Aggiunge toolchain al PATH
-        set PATH=%QT_PREFIX%\bin
-        if defined GCC_PATH    set PATH=!GCC_PATH!;!PATH!
-        if defined NINJA_PATH  set PATH=!NINJA_PATH!;!PATH!
-        for %%D in ("%CMAKE_BIN%") do set PATH=%%~dpD;!PATH!
-        set PATH=!PATH!;%SystemRoot%\system32;%SystemRoot%
-        REM Usa build dir separata per non mescolare con build di sistema
-        set BUILD_DIR=%SCRIPT_DIR%COMPILE_WIN\build
-        set FOUND_ENV=Portatile COMPILE_WIN\toolchain
-        goto :env_found
+REM ── Cerca Python nel PATH di sistema ─────────────────────────
+for %%P in (python3.exe python.exe py.exe) do (
+    if not defined PYTHON (
+        where %%P >nul 2>&1 && set PYTHON=%%P
     )
 )
 
-REM ════════════════════════════════════════════════════════════
-REM  1) MSYS2 UCRT64
-REM ════════════════════════════════════════════════════════════
-if exist "%MSYS2_ROOT%\ucrt64\lib\cmake\Qt6\Qt6Config.cmake" (
-    set QT_PREFIX=%MSYS2_ROOT%\ucrt64
-    set CMAKE_BIN=%MSYS2_ROOT%\ucrt64\bin\cmake.exe
-    set GEN_FLAG=-G "Ninja"
-    set FOUND_ENV=MSYS2 UCRT64
-    set PATH=%QT_PREFIX%\bin;%MSYS2_ROOT%\usr\bin;%PATH%
-    goto :env_found
-)
-
-REM ════════════════════════════════════════════════════════════
-REM  2) MSYS2 MINGW64
-REM ════════════════════════════════════════════════════════════
-if exist "%MSYS2_ROOT%\mingw64\lib\cmake\Qt6\Qt6Config.cmake" (
-    set QT_PREFIX=%MSYS2_ROOT%\mingw64
-    set CMAKE_BIN=%MSYS2_ROOT%\mingw64\bin\cmake.exe
-    set GEN_FLAG=-G "Ninja"
-    set FOUND_ENV=MSYS2 MINGW64
-    set PATH=%QT_PREFIX%\bin;%MSYS2_ROOT%\usr\bin;%PATH%
-    goto :env_found
-)
-
-REM ════════════════════════════════════════════════════════════
-REM  3) Qt installer ufficiale — cerca versione piu' recente
-REM ════════════════════════════════════════════════════════════
-if exist "C:\Qt" (
-    for /f "delims=" %%V in ('dir /b /ad "C:\Qt" 2^>nul ^| findstr /r "^6\." ^| sort /r') do (
-        if not defined QT_PREFIX (
-            for %%S in (mingw_64 msvc2022_64 msvc2019_64) do (
-                if not defined QT_PREFIX (
-                    if exist "C:\Qt\%%V\%%S\lib\cmake\Qt6\Qt6Config.cmake" (
-                        set QT_PREFIX=C:\Qt\%%V\%%S
-                        set CMAKE_BIN=cmake
-                        set GEN_FLAG=-G "MinGW Makefiles"
-                        set FOUND_ENV=Qt installer %%V (%%S)
-                    )
-                )
-            )
-        )
-    )
-    if defined QT_PREFIX (
-        set PATH=%QT_PREFIX%\bin;%PATH%
-        goto :env_found
+REM ── Fallback: Python di MSYS2 UCRT64 ─────────────────────────
+if not defined PYTHON (
+    if exist "C:\msys64\ucrt64\bin\python3.exe" (
+        set PYTHON=C:\msys64\ucrt64\bin\python3.exe
     )
 )
 
-REM ════════════════════════════════════════════════════════════
-REM  4) Percorso manuale
-REM ════════════════════════════════════════════════════════════
-if defined QT_MANUAL (
-    if exist "%QT_MANUAL%\lib\cmake\Qt6\Qt6Config.cmake" (
-        set QT_PREFIX=%QT_MANUAL%
-        set CMAKE_BIN=cmake
-        set GEN_FLAG=-G "MinGW Makefiles"
-        set FOUND_ENV=Manuale (%QT_MANUAL%)
-        set PATH=%QT_PREFIX%\bin;%PATH%
-        goto :env_found
-    )
-)
-
-REM ════════════════════════════════════════════════════════════
-REM  Nessun ambiente trovato
-REM ════════════════════════════════════════════════════════════
-echo  [ERRORE] Qt6 non trovato in nessuna posizione.
-echo.
-echo  Soluzione rapida (zero install):
-echo    1. Apri la cartella COMPILE_WIN\
-echo    2. Doppio clic su setup.bat  (scarica ~600 MB, una volta sola)
-echo    3. Doppio clic su questo build.bat
-echo.
-echo  Soluzione con MSYS2:
-echo    Installa MSYS2 da https://www.msys2.org/ poi da "MSYS2 UCRT64":
-echo    pacman -S --needed mingw-w64-ucrt-x86_64-qt6-base ^
-echo                       mingw-w64-ucrt-x86_64-cmake ^
-echo                       mingw-w64-ucrt-x86_64-ninja ^
-echo                       mingw-w64-ucrt-x86_64-gcc
-echo.
-echo  Soluzione con Qt installer:
-echo    https://www.qt.io/download-qt-installer
-echo    e decommenta la riga QT_MANUAL in questo script.
-echo.
-pause
-exit /b 1
-
-:env_found
-echo  [OK] Ambiente : %FOUND_ENV%
-echo  [OK] Qt       : %QT_PREFIX%
-echo  [OK] Sorgenti : %GUI_DIR%
-echo  [OK] Output   : %BUILD_DIR%
-echo.
-
-REM ── Verifica cmake ───────────────────────────────────────────
-REM  Se CMAKE_BIN e' un percorso assoluto valido, aggiunge la sua
-REM  cartella bin al PATH cosi' 'where cmake' riesce.
-if exist "!CMAKE_BIN!" (
-    for %%D in ("!CMAKE_BIN!") do set PATH=%%~dpD;!PATH!
-)
-where cmake >nul 2>&1
-if errorlevel 1 (
-    echo  [ERRORE] cmake non trovato nel PATH.
+REM ── Python non trovato ────────────────────────────────────────
+if not defined PYTHON (
     echo.
-    echo  Se usi MSYS2 installa cmake con:
-    echo    pacman -S --needed mingw-w64-ucrt-x86_64-cmake
-    echo  oppure:
-    echo    pacman -S --needed mingw-w64-x86_64-cmake
+    echo  [ERRORE] Python non trovato.
+    echo.
+    echo  Installa Python:
+    echo    - Da https://www.python.org/downloads/  (spunta "Add to PATH")
+    echo    - Oppure con MSYS2:  pacman -S mingw-w64-ucrt-x86_64-python
     echo.
     pause
     exit /b 1
 )
-for /f "tokens=3" %%V in ('cmake --version 2^>^&1 ^| findstr /i "cmake version"') do (
-    echo  [OK] cmake %%V
-)
 
-REM ── Verifica sorgenti ────────────────────────────────────────
-if not exist "%GUI_DIR%\CMakeLists.txt" (
-    echo  [ERRORE] %GUI_DIR%\CMakeLists.txt non trovato.
-    pause
-    exit /b 1
-)
-echo  [OK] Sorgenti verificati.
+REM ── Lancia build.py ──────────────────────────────────────────
 echo.
-
-REM ── CMake configure ──────────────────────────────────────────
-echo  Configuro cmake...
-cmake -B "%BUILD_DIR%" -S "%GUI_DIR%" ^
-    %GEN_FLAG% ^
-    -DCMAKE_BUILD_TYPE=Release ^
-    -DCMAKE_PREFIX_PATH="%QT_PREFIX%"
-
-if errorlevel 1 (
-    echo.
-    echo  [ERRORE] cmake configure fallito.
-    pause
-    exit /b 1
-)
-
-REM ── Calcola job paralleli: core totali - 1 (minimo 1) ───────
-set /a COMPILE_JOBS=%NUMBER_OF_PROCESSORS%-1
-if !COMPILE_JOBS! LSS 1 set COMPILE_JOBS=1
-echo  [INFO] Core disponibili : %NUMBER_OF_PROCESSORS%
-echo  [INFO] Job paralleli    : !COMPILE_JOBS! (core-1 per sistema reattivo)
-
-REM ── Compila ──────────────────────────────────────────────────
+echo  Python: !PYTHON!
 echo.
-echo  Compilazione in corso (con !COMPILE_JOBS! core — ~2-3 minuti)...
-cmake --build "%BUILD_DIR%" --config Release -j !COMPILE_JOBS!
+"!PYTHON!" "%SCRIPT_DIR%build.py" %*
+set RC=!ERRORLEVEL!
 
-if errorlevel 1 (
-    echo.
-    echo  [ERRORE] Compilazione fallita.
-    pause
-    exit /b 1
-)
-
-REM ── Deploy DLL Qt ────────────────────────────────────────────
 echo.
-echo  Deploy DLL Qt...
-set DEPLOY=%QT_PREFIX%\bin\windeployqt6.exe
-if not exist "%DEPLOY%" set DEPLOY=%QT_PREFIX%\bin\windeployqt.exe
-
-if exist "%DEPLOY%" (
-    "%DEPLOY%" "%BUILD_DIR%\Prismalux_GUI.exe" >nul 2>&1
-    echo  [OK] DLL Qt copiate con windeployqt.
+if !RC! == 0 (
+    echo  Build completata con successo.
 ) else (
-    echo  [INFO] windeployqt non trovato - copia manuale DLL essenziali...
-    for %%D in (Qt6Core.dll Qt6Gui.dll Qt6Widgets.dll Qt6Network.dll Qt6PrintSupport.dll
-                libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll
-                libdouble-conversion.dll libpcre2-16-0.dll libzstd.dll zlib1.dll
-                libfreetype-6.dll libpng16-16.dll libharfbuzz-0.dll
-                libmd4c.dll libbz2-1.dll libglib-2.0-0.dll) do (
-        if exist "%QT_PREFIX%\bin\%%D" (
-            copy /y "%QT_PREFIX%\bin\%%D" "%BUILD_DIR%\" >nul 2>&1
-        )
-    )
-    if not exist "%BUILD_DIR%\platforms" mkdir "%BUILD_DIR%\platforms"
-    for %%P in (qwindows.dll qminimal.dll) do (
-        for %%BASE in (share\qt6\plugins plugins) do (
-            if exist "%QT_PREFIX%\%%BASE\platforms\%%P" (
-                copy /y "%QT_PREFIX%\%%BASE\platforms\%%P" "%BUILD_DIR%\platforms\" >nul 2>&1
-            )
-        )
-    )
-    if not exist "%BUILD_DIR%\styles" mkdir "%BUILD_DIR%\styles"
-    for %%BASE in (share\qt6\plugins plugins) do (
-        if exist "%QT_PREFIX%\%%BASE\styles\qwindowsvistastyle.dll" (
-            copy /y "%QT_PREFIX%\%%BASE\styles\qwindowsvistastyle.dll" "%BUILD_DIR%\styles\" >nul 2>&1
-        )
-    )
-    echo  [OK] DLL essenziali copiate.
+    echo  Build fallita. Controlla gli errori sopra.
 )
-
-REM ── Risultato ────────────────────────────────────────────────
-echo.
-echo +--------------------------------------------------+
-echo ^|   Prismalux v2.8 compilata con successo!         ^|
-echo +--------------------------------------------------+
-echo.
-echo   Eseguibile : %BUILD_DIR%\Prismalux_GUI.exe
-echo.
-echo   Novita' v2.8:
-echo     - Scarica nuovo modello Ollama  (Manutenzione ^> Aggiornamento)
-echo     - Verifica integrita' GGUF SHA-256             (Manutenzione)
-echo     - Backup automatico KNOWLEDGE_USER/ ogni 24h   (Manutenzione)
-echo     - Code Interpreter sandbox Docker              (Programmazione)
 echo.
 pause
-endlocal
+exit /b !RC!
