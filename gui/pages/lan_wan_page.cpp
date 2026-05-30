@@ -1435,35 +1435,40 @@ QWidget* LanWanPage::buildWanComputeTab()
     srvCtrlLay->addWidget(m_wanSrvStatusLbl, 1);
     srvLay->addWidget(srvCtrlRow);
 
-    /* 2 — Decomponi compito (main feature) */
+    /* 2 — Decomponi compito: textarea sinistra, bottone destra */
     auto* decompBox = new QGroupBox(
         "\xf0\x9f\xa7\xa0  Scrivi un compito — l\xe2\x80\x99AI lo divide in agenti automaticamente");
-    auto* decompLay = new QVBoxLayout(decompBox);
-    decompLay->setSpacing(4);
+    auto* decompLay = new QHBoxLayout(decompBox);
+    decompLay->setSpacing(8); decompLay->setContentsMargins(6,4,6,4);
 
+    /* Sinistra: textarea (stretch = 1, prende tutto lo spazio orizzontale) */
     m_wanDecomposeInput = new QTextEdit;
-    m_wanDecomposeInput->setFixedHeight(dpiScale(56));
+    m_wanDecomposeInput->setMinimumHeight(dpiScale(56));
     m_wanDecomposeInput->setPlaceholderText(
         "es. \"Analizza il mercato delle app fitness in Italia e crea una strategia di lancio\"\n"
         "es. \"Scrivi un articolo scientifico sull\xe2\x80\x99intelligenza artificiale distribuita\"");
-    decompLay->addWidget(m_wanDecomposeInput);
+    decompLay->addWidget(m_wanDecomposeInput, 1);
 
-    auto* decompBtnRow = new QWidget;
-    auto* decompBtnLay = new QHBoxLayout(decompBtnRow);
-    decompBtnLay->setContentsMargins(0,0,0,0); decompBtnLay->setSpacing(8);
+    /* Destra: bottone + stato (colonna fissa) */
+    auto* decompRight = new QWidget;
+    auto* decompRightLay = new QVBoxLayout(decompRight);
+    decompRightLay->setContentsMargins(0,0,0,0); decompRightLay->setSpacing(4);
     m_wanDecomposeBtn = new QPushButton("\xf0\x9f\xa7\xa0  Crea agenti");
     m_wanDecomposeBtn->setObjectName("actionBtn");
-    m_wanDecomposeStatusLbl = new QLabel("Scrivi il compito e premi \xe2\x80\x9cCrea agenti\xe2\x80\x9d");
+    m_wanDecomposeStatusLbl = new QLabel("Scrivi il compito\ne premi \"Crea agenti\"");
     m_wanDecomposeStatusLbl->setStyleSheet("color:gray; font-size:11px;");
-    decompBtnLay->addWidget(m_wanDecomposeBtn);
-    decompBtnLay->addWidget(m_wanDecomposeStatusLbl, 1);
-    decompLay->addWidget(decompBtnRow);
+    m_wanDecomposeStatusLbl->setWordWrap(true);
+    m_wanDecomposeStatusLbl->setFixedWidth(dpiScale(150));
+    decompRightLay->addWidget(m_wanDecomposeBtn);
+    decompRightLay->addWidget(m_wanDecomposeStatusLbl);
+    decompRightLay->addStretch();
+    decompLay->addWidget(decompRight);
 
     connect(m_wanDecomposeBtn, &QPushButton::clicked,
             this, &LanWanPage::onWanDecomposeBtnClicked);
     srvLay->addWidget(decompBox);
 
-    /* 3 — Monitor nodi + coda (altezza ridotta) */
+    /* 3 — Monitor nodi + coda: stretch per occupare lo spazio liberato */
     auto* tableSplit = new QSplitter(Qt::Horizontal);
 
     auto* nodeBox = new QGroupBox("\xf0\x9f\x92\xbb  Nodi connessi");
@@ -1474,7 +1479,7 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanNodeTable->horizontalHeader()->setStretchLastSection(true);
     m_wanNodeTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_wanNodeTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_wanNodeTable->setFixedHeight(dpiScale(95));
+    m_wanNodeTable->setMinimumHeight(dpiScale(120));
     nodeBLay->addWidget(m_wanNodeTable);
     tableSplit->addWidget(nodeBox);
 
@@ -1487,10 +1492,10 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanTaskTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
     m_wanTaskTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_wanTaskTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_wanTaskTable->setFixedHeight(dpiScale(95));
+    m_wanTaskTable->setMinimumHeight(dpiScale(120));
     taskBLay->addWidget(m_wanTaskTable);
     tableSplit->addWidget(taskBox);
-    srvLay->addWidget(tableSplit);
+    srvLay->addWidget(tableSplit, 1);   /* stretch=1: prende tutto lo spazio rimasto */
 
     /* 4 — Avanzato (nascosto di default) */
     auto* advToggle = new QPushButton("\xe2\x96\xb6  Avanzato — aggiungi task singolo, cron");
