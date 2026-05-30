@@ -150,6 +150,15 @@ void LanWanPage::openQrDialog(QPushButton* parent, const QString& url,
 LanWanPage::~LanWanPage()
 {
     AppConfig::s().setValue(P::SK::kLanAutoStart, false);
+    /* Ferma LanServer esplicitamente PRIMA che Qt distrugga i figli.
+     * LanServer::stop() chiama m_ai->abort(); se lo lasciamo al distruttore
+     * automatico, m_ai (figlio di MainWindow) potrebbe già essere distrutto
+     * → SIGSEGV. blockSignals evita che i segnali emessi da stop() raggiungano
+     * ricevitori già distrutti. */
+    if (m_lanServer) {
+        m_lanServer->blockSignals(true);
+        m_lanServer->stop();
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════
