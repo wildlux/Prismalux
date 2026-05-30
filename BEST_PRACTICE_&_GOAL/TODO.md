@@ -49,6 +49,25 @@
   - I/O asincrono: stdin→stdout streaming
   - Importazione librerie, errori runtime, timeout
 
+### 🟠 Bot locali — App Controller (tab già presenti, da implementare)
+
+- [ ] **Telegram Bot locale** — `app_controller_page.cpp::buildTelegramTab()`
+  - Token bot da @BotFather configurabile in Impostazioni
+  - Messaggi in entrata → AI locale risponde
+  - Comandi: `/ask`, `/status`, `/task`, `/stop`
+  - Notifiche proattive (task WAN completato, alert sistema)
+  - Whitelist ID Telegram (sicurezza)
+  - Stack: python-telegram-bot o Telethon via MCP (`github.com/chigwell/telegram-mcp`)
+
+- [ ] **WhatsApp Bot locale** — `app_controller_page.cpp::buildWhatsAppTab()`
+  - Bridge locale via Baileys/whatsapp-web.js (no API ufficiali)
+  - QR code autenticazione WhatsApp Web integrato nel tab
+  - Messaggi in entrata → prompt AI → risposta automatica
+  - Comandi: `!ask`, `!status`, `!immagine`
+  - Whitelist numeri autorizzati
+  - Nessun account Business richiesto
+  - Stack: MCP whatsapp-mcp (`github.com/lharries/whatsapp-mcp`)
+
 ### 🟢 Nice-to-have — feature specializzate
 
 - [ ] **test_astrale** — `ricerca_page_astrale.cpp`

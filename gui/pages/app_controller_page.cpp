@@ -273,6 +273,8 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
     m_tabs->addTab(buildOBSTab(),          "\xf0\x9f\x94\xb4  OBS MCP");
     m_tabs->addTab(buildGodotTab(),          "\xf0\x9f\x8e\xae  Godot");
     m_tabs->addTab(new OpenCodePage(m_tabs), "\xf0\x9f\x96\xa5  OpenCode");
+    m_tabs->addTab(buildTelegramTab(),       "\xf0\x9f\x93\xac  Telegram");  /* 📬 */
+    m_tabs->addTab(buildWhatsAppTab(),       "\xf0\x9f\x92\xac  WhatsApp");  /* 💬 */
 
     lay->addWidget(m_tabs);
 
@@ -1771,4 +1773,105 @@ void AppControllerPage::detectSerialPorts()
         m_mcuStatusLbl->setText(
             QString("\xe2\x9c\x85  %1 porta/e trovata/e").arg(found.size()));
     }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildTelegramTab — placeholder bot Telegram locale
+   TODO: implementare bridge MCP con python-telegram-bot / Telethon
+   ══════════════════════════════════════════════════════════════ */
+QWidget* AppControllerPage::buildTelegramTab()
+{
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(16, 16, 16, 16);
+    lay->setSpacing(12);
+
+    auto* descLbl = new QLabel(
+        "\xf0\x9f\x93\xac  <i>Telegram Bot locale \xe2\x80\x94 "
+        "Collega un bot Telegram al tuo Prismalux locale: invia prompt, "
+        "ricevi risposte AI, controlla il server LAN e i task WAN "
+        "direttamente dalla chat, senza cloud.</i>", w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    lay->addWidget(descLbl);
+
+    auto* group = new QGroupBox(
+        "\xf0\x9f\x93\xac  Telegram Bot \xe2\x80\x94 In sviluppo", w);
+    auto* glay = new QVBoxLayout(group);
+
+    auto* statusLbl = new QLabel(
+        "\xe2\x8f\xb3  <b>Non ancora implementato</b><br><br>"
+        "<b>Funzionalit\xc3\xa0 pianificate:</b><br>"
+        "\xe2\x80\xa2 Token bot (@BotFather) configurabile in Impostazioni<br>"
+        "\xe2\x80\xa2 Invia messaggi Telegram → AI locale risponde<br>"
+        "\xe2\x80\xa2 Comandi: /ask, /status, /task, /stop<br>"
+        "\xe2\x80\xa2 Notifiche proattive (task WAN completato, alert sistema)<br>"
+        "\xe2\x80\xa2 Whitelist utenti Telegram (solo ID autorizzati)<br>"
+        "\xe2\x80\xa2 Funziona in LAN senza esporre porte su internet<br><br>"
+        "<b>Stack previsto:</b> python-telegram-bot o Telethon via MCP<br>"
+        "Repository MCP: "
+        "<a href='https://github.com/chigwell/telegram-mcp'>"
+        "github.com/chigwell/telegram-mcp</a>",
+        group);
+    statusLbl->setWordWrap(true);
+    statusLbl->setOpenExternalLinks(true);
+    statusLbl->setObjectName("hintLabel");
+    glay->addWidget(statusLbl);
+    glay->addStretch();
+
+    lay->addWidget(group, 1);
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildWhatsAppTab — placeholder bot WhatsApp locale
+   TODO: implementare bridge MCP con whatsapp-web.js / Baileys
+   ══════════════════════════════════════════════════════════════ */
+QWidget* AppControllerPage::buildWhatsAppTab()
+{
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(16, 16, 16, 16);
+    lay->setSpacing(12);
+
+    auto* descLbl = new QLabel(
+        "\xf0\x9f\x92\xac  <i>WhatsApp Bot locale \xe2\x80\x94 "
+        "Collega WhatsApp a Prismalux tramite bridge locale: "
+        "rispondi ai messaggi con l\xe2\x80\x99" "AI, automatizza notifiche "
+        "e ricevi report direttamente sul tuo telefono, "
+        "senza account business e senza cloud.</i>", w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    lay->addWidget(descLbl);
+
+    auto* group = new QGroupBox(
+        "\xf0\x9f\x92\xac  WhatsApp Bot \xe2\x80\x94 In sviluppo", w);
+    auto* glay = new QVBoxLayout(group);
+
+    auto* statusLbl = new QLabel(
+        "\xe2\x8f\xb3  <b>Non ancora implementato</b><br><br>"
+        "<b>Funzionalit\xc3\xa0 pianificate:</b><br>"
+        "\xe2\x80\xa2 Bridge locale via whatsapp-web.js (Baileys) o MCP<br>"
+        "\xe2\x80\xa2 QR code di autenticazione WhatsApp Web<br>"
+        "\xe2\x80\xa2 Messaggi in entrata → prompt AI → risposta automatica<br>"
+        "\xe2\x80\xa2 Comandi testuali: !ask, !status, !immagine<br>"
+        "\xe2\x80\xa2 Invio report e notifiche proattive<br>"
+        "\xe2\x80\xa2 Whitelist numeri (solo contatti autorizzati)<br>"
+        "\xe2\x80\xa2 Nessun account Business richiesto (WhatsApp personale)<br><br>"
+        "<b>Nota:</b> WhatsApp non ha API ufficiali locali \xe2\x80\x94 "
+        "il bridge usa reverse engineering (Baileys/whatsapp-web.js).<br>"
+        "Repository MCP: "
+        "<a href='https://github.com/lharries/whatsapp-mcp'>"
+        "github.com/lharries/whatsapp-mcp</a>",
+        group);
+    statusLbl->setWordWrap(true);
+    statusLbl->setOpenExternalLinks(true);
+    statusLbl->setObjectName("hintLabel");
+    glay->addWidget(statusLbl);
+    glay->addStretch();
+
+    lay->addWidget(group, 1);
+    return w;
 }

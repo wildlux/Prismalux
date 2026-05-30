@@ -181,6 +181,8 @@ private:
     QWidget* buildTinyMCPTab();
     QWidget* buildOBSTab();
     QWidget* buildGodotTab();
+    QWidget* buildTelegramTab();
+    QWidget* buildWhatsAppTab();
     void execAnkiAction(const QString& action, const QString& payload);
     void execKiCADAction(const QString& code);
     void detectSerialPorts();
