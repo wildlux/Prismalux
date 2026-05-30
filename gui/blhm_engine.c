@@ -16,11 +16,85 @@
 
 #include <errno.h>
 #include <math.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+/* ── Platform threading layer ─────────────────────────────────────────────
+ * pthread.h non esiste nell'SDK Windows (MSVC/MinGW standalone).
+ * Forniamo wrapper static-inline che mappano le chiamate pthread usate
+ * in questo file sui primitivi Windows Vista+:
+ *
+ *   pthread_mutex_t  → CRITICAL_SECTION
+ *   pthread_cond_t   → CONDITION_VARIABLE  (stessa semantica di pthreads)
+ *   pthread_t        → HANDLE  (da CreateThread)
+ *
+ * Il resto del file compila invariato su entrambe le piattaforme.
+ * ──────────────────────────────────────────────────────────────────────── */
+#ifdef _WIN32
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  include <windows.h>
+
+typedef HANDLE             pthread_t;
+typedef CRITICAL_SECTION   pthread_mutex_t;
+typedef CONDITION_VARIABLE pthread_cond_t;
+
+static inline int pthread_mutex_init(pthread_mutex_t *m, void *a)
+    { (void)a; InitializeCriticalSection(m); return 0; }
+static inline int pthread_mutex_destroy(pthread_mutex_t *m)
+    { DeleteCriticalSection(m); return 0; }
+static inline int pthread_mutex_lock(pthread_mutex_t *m)
+    { EnterCriticalSection(m); return 0; }
+static inline int pthread_mutex_unlock(pthread_mutex_t *m)
+    { LeaveCriticalSection(m); return 0; }
+static inline int pthread_cond_init(pthread_cond_t *c, void *a)
+    { (void)a; InitializeConditionVariable(c); return 0; }
+static inline int pthread_cond_destroy(pthread_cond_t *c)
+    { (void)c; return 0; }
+static inline int pthread_cond_wait(pthread_cond_t *c, pthread_mutex_t *m)
+    { SleepConditionVariableCS(c, m, INFINITE); return 0; }
+static inline int pthread_cond_signal(pthread_cond_t *c)
+    { WakeConditionVariable(c); return 0; }
+static inline int pthread_cond_broadcast(pthread_cond_t *c)
+    { WakeAllConditionVariable(c); return 0; }
+
+/* Trampoline: CreateThread vuole DWORD WINAPI fn(LPVOID), non void* fn(void*).
+ * blhm_worker_main mantiene la firma POSIX; solo questo trampolino fa la
+ * traduzione. pthread_create instrada tutti i thread via questo entry point. */
+static void *blhm_worker_main(void *);   /* forward declaration */
+static DWORD WINAPI blhm_win_thread_entry(LPVOID arg)
+    { blhm_worker_main(arg); return 0; }
+static inline int pthread_create(pthread_t *t, void *a,
+                                  void *(*fn)(void *), void *arg) {
+    (void)a; (void)fn;  /* fn è sempre blhm_worker_main in questo file */
+    *t = CreateThread(NULL, 0, blhm_win_thread_entry, arg, 0, NULL);
+    return (*t == NULL) ? 1 : 0;
+}
+static inline int pthread_join(pthread_t t, void **r)
+    { (void)r; WaitForSingleObject(t, INFINITE); CloseHandle(t); return 0; }
+
+/* Rilevamento edizione Windows: Server vs Desktop (Workstation) a runtime.
+ * Usa RtlGetVersion (ntdll) che non è soggetta ai compatibility shim di
+ * VerifyVersionInfo — restituisce sempre la versione reale del kernel.
+ * wProductType: VER_NT_WORKSTATION=1  VER_NT_DOMAIN_CONTROLLER=2  VER_NT_SERVER=3 */
+static int blhm_is_windows_server(void) {
+    OSVERSIONINFOEXW osvi;
+    typedef LONG (WINAPI *RtlGetVersionFn)(OSVERSIONINFOEXW *);
+    HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+    if (!ntdll) return 0;
+    RtlGetVersionFn fn =
+        (RtlGetVersionFn)(void *)GetProcAddress(ntdll, "RtlGetVersion");
+    if (!fn) return 0;
+    memset(&osvi, 0, sizeof(osvi));
+    osvi.dwOSVersionInfoSize = sizeof(osvi);
+    return fn(&osvi) == 0 && osvi.wProductType != VER_NT_WORKSTATION;
+}
+#else
+#  include <pthread.h>
+#endif
 
 /* ══════════════════════════════════════════════════════════════════════════
    BLHMGraph — internal definition
@@ -294,6 +368,11 @@ static void *blhm_worker_main(void *arg) {
 /* ── Pool init (lazy, adapted from ds4_threads_init) ────────────────────── */
 static void blhm_pool_init(void) {
     if (g_pool.initialized) return;
+
+#ifdef _WIN32
+    fprintf(stderr, "[BLHM] Windows %s — inizializzazione thread-pool (%d cicli)\n",
+            blhm_is_windows_server() ? "Server" : "Desktop", BLHM_N_CYCLES);
+#endif
 
     pthread_mutex_init(&g_pool.mutex,     NULL);
     pthread_cond_init(&g_pool.work_cond,  NULL);
