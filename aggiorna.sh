@@ -210,18 +210,33 @@ if [ "$DO_GUI" = "1" ]; then
     step "Compilo GUI Qt6 (${_UNAME})..."
     cd "$QT_GUI"
 
+    _CMAKE_LOG="$QT_BUILD/prismalux_build.log"
+    mkdir -p "$QT_BUILD"
+
     if [ ! -f "$QT_BUILD/CMakeCache.txt" ]; then
         step "  Prima configurazione cmake..."
         # shellcheck disable=SC2086
         cmake -B "$QT_BUILD" -DCMAKE_BUILD_TYPE=Release $CMAKE_EXTRA \
-            2>&1 | grep -E "(CMAKE|error:|Configuring|fatal)" || true
+            2>&1 | tee "$_CMAKE_LOG" | grep -E "(CMAKE|error:|Configuring|fatal)" || true
+        if ! grep -q "Configuring done\|Build files have been written" "$_CMAKE_LOG" 2>/dev/null; then
+            echo ""
+            echo "--- Log cmake configure (ultimi 40 righe) ---"
+            tail -40 "$_CMAKE_LOG" 2>/dev/null || true
+            fail "cmake configure fallito — controlla il log sopra"
+        fi
     fi
 
+    step "  Compilazione ($NPROC thread)..."
     # shellcheck disable=SC2086
-    cmake --build "$QT_BUILD" -j"$NPROC" 2>&1 \
-        | grep -E "(Building|Linking|error:|warning:|Built target)" || true
+    cmake --build "$QT_BUILD" -j"$NPROC" 2>&1 | tee -a "$_CMAKE_LOG" \
+        | grep -E "(Building|Linking|error:|warning:|Built target|\*\*\*)" || true
 
-    [ -f "$GUI_BIN" ] || fail "Binario GUI non trovato: $GUI_BIN"
+    if [ ! -f "$GUI_BIN" ]; then
+        echo ""
+        echo "--- Ultimi 60 righe del log di build ($QT_BUILD/prismalux_build.log) ---"
+        tail -60 "$_CMAKE_LOG" 2>/dev/null || true
+        fail "Binario GUI non trovato: $GUI_BIN"
+    fi
     ok "GUI compilata → $GUI_BIN"
 
     # Desktop entry solo su Linux
