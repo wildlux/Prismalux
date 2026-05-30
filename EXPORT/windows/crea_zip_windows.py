@@ -74,6 +74,7 @@ SOURCE_EXCLUDE = [
     r"\.o$", r"\.a$", r"\.so(\.\d+)*$", r"\.pyc$",
     r"\.AppImage$",
     r"\.xcf$",                  # Gimp sorgenti — non utili in distribuzione
+    r"\.desktop$",              # collegamento Linux — illegale/inutile su Windows
     r"Prismalux_v.*\.zip$",
     r"Prismalux_Windows.*\.zip$",
     r"[/\\]toolchain[/\\]",     # toolchain portatile scaricata da setup.bat
