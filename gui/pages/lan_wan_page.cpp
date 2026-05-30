@@ -1480,27 +1480,29 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanTaskPayload->setPlaceholderText("Seleziona un tipo per vedere il template\xe2\x80\xa6");
     m_wanPayloadStack->addWidget(m_wanTaskPayload);   // index 0
 
-    /* Pagina 1 — form campi per llm_agent */
+    /* Pagina 1 — form campi per llm_agent
+     * I nomi campo (Ruolo/Prompt/Contesto) sono nel placeholder del campo stesso:
+     * sempre leggibili anche quando il campo è vuoto, senza etichette separate. */
     m_agentFormFrame = new QFrame;
     m_agentFormFrame->setFrameShape(QFrame::StyledPanel);
     m_agentFormFrame->setAcceptDrops(true);
     m_agentFormFrame->installEventFilter(this);
-    auto* formLay = new QFormLayout(m_agentFormFrame);
+    auto* formLay = new QVBoxLayout(m_agentFormFrame);
     formLay->setSpacing(4); formLay->setContentsMargins(6,4,6,4);
 
     m_agentRoleEdit = new QLineEdit;
-    m_agentRoleEdit->setPlaceholderText("es. Ricercatore in fisica quantistica");
-    formLay->addRow("Ruolo:", m_agentRoleEdit);
+    m_agentRoleEdit->setPlaceholderText("Ruolo: es. Ricercatore specializzato in fisica quantistica");
+    formLay->addWidget(m_agentRoleEdit);
 
     m_agentPromptEdit = new QTextEdit;
-    m_agentPromptEdit->setFixedHeight(dpiScale(58));
-    m_agentPromptEdit->setPlaceholderText("Il compito specifico di questo agente\xe2\x80\xa6");
-    formLay->addRow("Prompt:", m_agentPromptEdit);
+    m_agentPromptEdit->setFixedHeight(dpiScale(62));
+    m_agentPromptEdit->setPlaceholderText("Prompt: il compito specifico di questo agente\xe2\x80\xa6");
+    formLay->addWidget(m_agentPromptEdit);
 
     m_agentContextEdit = new QTextEdit;
     m_agentContextEdit->setFixedHeight(dpiScale(38));
-    m_agentContextEdit->setPlaceholderText("Contesto opzionale da agenti precedenti (lascia vuoto per il primo agente)");
-    formLay->addRow("Contesto:", m_agentContextEdit);
+    m_agentContextEdit->setPlaceholderText("Contesto: da agenti precedenti (lascia vuoto per il primo agente)");
+    formLay->addWidget(m_agentContextEdit);
 
     /* Riga pulsanti salva/carica + hint drag-and-drop */
     auto* agentBtnRow = new QWidget;
@@ -1508,12 +1510,12 @@ QWidget* LanWanPage::buildWanComputeTab()
     agentBtnLay->setContentsMargins(0,0,0,0); agentBtnLay->setSpacing(6);
     m_agentSaveBtn = new QPushButton("\xf0\x9f\x92\xbe  Salva JSON");   // 💾
     m_agentLoadBtn = new QPushButton("\xf0\x9f\x93\x82  Carica JSON");  // 📂
-    auto* dropHintLbl = new QLabel("\xe2\x86\x90 oppure trascina un file .json qui sopra");
+    auto* dropHintLbl = new QLabel("oppure trascina qui un file .json");
     dropHintLbl->setStyleSheet("color:gray; font-size:11px;");
     agentBtnLay->addWidget(m_agentSaveBtn);
     agentBtnLay->addWidget(m_agentLoadBtn);
     agentBtnLay->addWidget(dropHintLbl, 1);
-    formLay->addRow(agentBtnRow);
+    formLay->addWidget(agentBtnRow);
 
     m_wanPayloadStack->addWidget(m_agentFormFrame);   // index 1
 
@@ -1535,7 +1537,9 @@ QWidget* LanWanPage::buildWanComputeTab()
         if (kind.isEmpty()) return;
         const bool isAgent = (kind == "llm_agent");
         if (m_wanPayloadStack) m_wanPayloadStack->setCurrentIndex(isAgent ? 1 : 0);
-        if (!isAgent && m_wanTaskPayload && m_wanTaskPayload->toPlainText().trimmed().isEmpty())
+        /* Aggiorna sempre il template al cambio tipo — nessuna condizione isEmpty()
+         * così funziona anche tornando su un tipo già visitato. */
+        if (!isAgent && m_wanTaskPayload)
             m_wanTaskPayload->setPlainText(wanKindTemplate(kind));
     });
     /* Stato iniziale: llm_agent è selezionato di default → mostra form */
