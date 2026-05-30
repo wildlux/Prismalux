@@ -5,6 +5,49 @@
 
 ---
 
+## 🛡️ Analizzatore di Sicurezza Difensiva
+
+> Scopo: aiutare l'utente a **trovare e correggere** falle — mai a sfruttarle.
+> Posizionamento naturale: sub-tab in **Programmazione [4]** o pannello dedicato in **Ricerca [6]**.
+
+- [ ] **SecurityAnalyzerPage** — analisi difensiva del codice e della configurazione locale
+
+  ### Analisi codice (LLM locale)
+  - Carica file sorgente (C++/Python/JS/Bash) o incolla testo
+  - LLM analizza e segnala:
+    - Credenziali/token hardcoded nel codice
+    - Comandi shell non sanificati (injection risk)
+    - Buffer/memory issues (C/C++: strcpy, gets, sprintf senza bounds)
+    - Dipendenze con versioni note vulnerabili
+    - Path traversal, open redirect, SSRF nei server HTTP
+  - Output: lista falle con **severità** (critica/alta/media/bassa) + **rimedio suggerito**
+  - "Spiega il rischio" — bottone per approfondimento AI sulla singola falla
+
+  ### Scanner dipendenze (offline)
+  - Legge `requirements.txt`, `requirements.lock`, `CMakeLists.txt`, `package.json`
+  - Confronta con una copia locale del database OSV/NVD (aggiornabile manualmente)
+  - Segnala: pacchetto → CVE → CVSS score → versione sicura disponibile
+  - Esporta report in Markdown/PDF
+
+  ### Audit configurazione locale
+  - Controlla porte aperte in ascolto sul PC (confronta con quelle note di Prismalux)
+  - Verifica permessi file sensibili (`KNOWLEDGE_USER/`, token LAN, `.claude/`)
+  - Controlla che i token LAN siano nel keychain e non in QSettings in chiaro
+  - Segnala `.env` o file con credenziali senza `.gitignore`
+
+  ### Audit dipendenze Prismalux stesso
+  - Hash SHA-256 dei GGUF in `KNOWLEDGE_USER/model_hashes.json` — già implementato, da integrare nella UI
+  - Verifica integrità dei 18 MCP Python (hash file sorgente al primo avvio, confronto ad ogni riavvio)
+  - Alert se un MCP viene modificato esternamente
+
+  ### Stack previsto
+  - LLM locale (Ollama) per analisi semantica del codice
+  - `pip-audit` o parsing offline di OSV JSON per CVE dipendenze
+  - `ss -tlnp` / `QNetworkInterface` per porte locali
+  - Nessuna chiamata cloud, nessun invio di codice all'esterno
+
+---
+
 ## 🧪 Test mancanti (gap analysis 2026-05-30)
 
 > Suite attuali: 41 (38 no-Ollama). Le aree sotto non hanno suite ctest.
