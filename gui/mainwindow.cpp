@@ -1339,20 +1339,20 @@ void MainWindow::buildAppControllerTab()
 /* ── Livello 2: tab [8] LAN & WAN ────────────────────────────────── */
 void MainWindow::buildLanWanTab()
 {
-    m_mainTabs->addTab(new LanWanPage(m_ai, this),
-                       "\xf0\x9f\x8c\x90  LAN & WAN");  /* 8 */
+    auto* lanWan = new LanWanPage(m_ai, this);
+    m_mainTabs->addTab(lanWan, "\xf0\x9f\x8c\x90  LAN & WAN");  /* 8 */
+    /* Multi-Agente è ora un tab interno a LanWanPage — recupera il riferimento
+     * per poter collegare la cross-pollination con RagGraph. */
+    m_agentiMultiPage = lanWan->multiAgentTab();
 }
 
-/* ── Livello 2: tab [9] Multi-Agente + Grafo ─────────────────────── */
+/* ── Livello 2: ex tab [9] Multi-Agente — ora embedded in LAN & WAN ── */
 void MainWindow::buildMultiAgentTab()
 {
-    m_agentiMultiPage = new AgentiMultiPage(m_ai, this);
-
-    /* Cross-pollination: i risultati dei sub-agenti vanno anche nel RagGraph */
+    /* Nessun tab separato: Multi-Agente vive dentro LanWanPage.
+     * Qui impostiamo solo la cross-pollination con il RagGraph. */
     if (m_ricercaPage && m_agentiMultiPage)
         m_agentiMultiPage->setExtRagMemory(m_ricercaPage->ragGraphMemory());
-
-    m_mainTabs->addTab(m_agentiMultiPage, "\xf0\x9f\x95\xb8  Multi-Agente");  /* 🕸️ tab 9 */
 }
 
 /* ── Livello 2: barra navigazione menu + sincronizzazione tab ────── */

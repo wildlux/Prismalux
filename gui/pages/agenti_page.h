@@ -269,6 +269,7 @@ private:
     RagDropWidget* m_ragInline   = nullptr;
     QWidget*       m_ragPanel    = nullptr;  ///< wrapper collassabile
     QPushButton*   m_btnRag      = nullptr;  ///< toggle visibilità
+    QPushButton*   m_btnTeam     = nullptr;  ///< toggle "Team di agenti"
 
     /* ── Storia Chat pannello collassabile ── */
     QGroupBox*     m_histGroup    = nullptr;  ///< QGroupBox collassabile storia chat

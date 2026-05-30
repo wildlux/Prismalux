@@ -466,7 +466,7 @@ QPushButton* AgentiPage::buildInputActionButtons(QGridLayout* inputGrid, QWidget
     return btnSymbols;
 }
 
-/* ── Pulsante toggle RAG aggiunto alla col 4 della stessa griglia ── */
+/* ── Pulsante toggle RAG + toggle Team nella col 4 ── */
 void AgentiPage::buildInputRagToggle(QGridLayout* inputGrid, QWidget* inputArea)
 {
     m_btnRag = new QPushButton("\xf0\x9f\x93\x8e  RAG", inputArea);
@@ -478,6 +478,17 @@ void AgentiPage::buildInputRagToggle(QGridLayout* inputGrid, QWidget* inputArea)
     inputGrid->setColumnStretch(4, 0);
     inputGrid->addWidget(m_btnRag, 0, 4);
     connect(m_btnRag, &QPushButton::toggled, this, &AgentiPage::onBtnRagToggled);
+
+    /* Toggle Team di agenti — riga 1 colonna 4 */
+    m_btnTeam = new QPushButton("\xf0\x9f\x91\xa5  Team", inputArea);   /* 👥 */
+    m_btnTeam->setObjectName("actionBtn");
+    m_btnTeam->setCheckable(true);
+    m_btnTeam->setToolTip(
+        "Team di agenti ON: la risposta \xc3\xa8 strutturata come se venisse\n"
+        "da pi\xc3\xb9 esperti specializzati (Ricercatore, Analista, Consulente\xe2\x80\xa6)\n"
+        "ciascuno con la propria sezione, pi\xc3\xb9 sintesi finale.\n\n"
+        "Per elaborazioni parallele su pi\xc3\xb9 PC usa LAN & WAN \xe2\x86\x92 WAN Compute.");
+    inputGrid->addWidget(m_btnTeam, 1, 4);
 }
 
 /* ── Tab order: campo testo → Avvia → Voce → Simboli → Traduci → Doc → Img ── */
@@ -1581,6 +1592,17 @@ void AgentiPage::onBtnRunClicked()
         emit pipelineStatus(0, "\xf0\x9f\xa4\x96  Agente autonomo in esecuzione...");
         _setRunBusy(true);
         runAutonomousAgent();
+        return;
+    }
+
+    /* Team di agenti ON: forza singolo agente con system prompt "team".
+     * Il pipeline esistente viene riusato con maxShots=1 — il system prompt
+     * viene sovrascritto in runAgent() quando m_btnTeam è attivo. */
+    if (m_btnTeam && m_btnTeam->isChecked()) {
+        m_cfgDlg->numAgentsSpinBox()->setValue(1);
+        m_maxShots   = 1;
+        m_modePipeline = false;
+        runPipeline();
         return;
     }
 

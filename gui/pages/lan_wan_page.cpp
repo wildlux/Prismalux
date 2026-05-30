@@ -169,6 +169,12 @@ LanWanPage::LanWanPage(AiClient* ai, QWidget* parent)
 
     tabs->addTab(buildWanComputeTab(), "\xf0\x9f\x96\xa7  WAN Compute");
 
+    /* Multi-Agente: stesso concetto di WAN Compute ma eseguito in locale
+     * (pool di AiClient sullo stesso PC, GraphMemory SQLite). */
+    m_multiAgentTab = new AgentiMultiPage(m_ai, this);
+    tabs->addTab(m_multiAgentTab,
+                 "\xf0\x9f\x91\xa5  Multi-Agente locale");   /* 👥 */
+
     lay->addWidget(tabs);
 
     /* Ripristina porta salvata e, se era attivo, avvia automaticamente */

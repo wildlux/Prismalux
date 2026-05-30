@@ -349,9 +349,12 @@ void AgentiPage::runAgent(int idx) {
 
     /* Metadati per la bolla finale */
     const bool isSingleChat = (m_maxShots == 1);
-    m_currentAgentLabel = isSingleChat
-        ? "\xf0\x9f\x92\xac  CHAT con RAG"
-        : role.icon + QString("  Agente %1 \xe2\x80\x94 %2").arg(idx + 1).arg(role.name);
+    const bool isTeamMode   = isSingleChat && m_btnTeam && m_btnTeam->isChecked();
+    m_currentAgentLabel = isTeamMode
+        ? "\xf0\x9f\x91\xa5  Team di agenti"
+        : (isSingleChat
+            ? "\xf0\x9f\x92\xac  CHAT con RAG"
+            : role.icon + QString("  Agente %1 \xe2\x80\x94 %2").arg(idx + 1).arg(role.name));
     m_currentAgentModel = selectedModel;
     m_currentAgentTime  = ts;
 
@@ -409,8 +412,18 @@ void AgentiPage::runAgent(int idx) {
     const QString teamGoalSmall = isSingleChat ? QString()
         : QString(" Task: ") + m_taskOriginal.left(80);
     const QString toolSuffix = (m_toolsEnabled && isSingleChat) ? toolSystemSuffix() : QString();
-    const QString sysFull  = role.sysPrompt      + teamGoalFull  + toolSuffix;
-    const QString sysSmall = role.sysPromptSmall + teamGoalSmall + toolSuffix;
+
+    /* Team di agenti: sovrascrive il system prompt con istruzioni multi-ruolo */
+    static const QString kTeamSys =
+        "Sei un team di esperti multidisciplinari. Rispondi strutturando la risposta "
+        "in sezioni, ognuna scritta da uno specialista diverso tra quelli pertinenti: "
+        "[Ricercatore], [Analista], [Consulente], [Critico]. "
+        "Usa solo le sezioni utili per la domanda. "
+        "Termina sempre con [Sintesi] concisa. Rispondi in italiano.";
+    const QString sysFull  = isTeamMode ? kTeamSys + toolSuffix
+                                        : role.sysPrompt      + teamGoalFull  + toolSuffix;
+    const QString sysSmall = isTeamMode ? kTeamSys + toolSuffix
+                                        : role.sysPromptSmall + teamGoalSmall + toolSuffix;
 
     m_agentTimer.restart();
     m_agentOutputs.append("");

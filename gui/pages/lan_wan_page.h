@@ -20,6 +20,7 @@
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
 #include "../widgets/qr_code_widget.h"
+#include "agenti_multi_page.h"
 
 class LanServer;
 
@@ -162,8 +163,15 @@ private:
     void         wanApplyDecomposedPlan(const QString& jsonPlan);
 
     /* WAN — simulazione locale (server + client sullo stesso PC) */
-    QPushButton* m_wanSimBtn    = nullptr;
-    bool         m_wanSimActive = false;
+    QPushButton*    m_wanSimBtn      = nullptr;
+    bool            m_wanSimActive   = false;
+
+    /* Multi-Agente embed (tab interno) */
+    AgentiMultiPage* m_multiAgentTab = nullptr;
+
+public:
+    AgentiMultiPage* multiAgentTab() const { return m_multiAgentTab; }
+private:
 
     QString  wanNextId() const;
     void     wanDispatch();
