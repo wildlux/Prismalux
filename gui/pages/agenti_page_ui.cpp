@@ -1931,9 +1931,31 @@ void AgentiPage::onAiAborted()
    ────────────────────────────────────────────────────────────── */
 void AgentiPage::_ingestRagFiles(const QList<QUrl>& urls)
 {
+    /* Cartelle RAG persistenti (stesse scansionate da RagGraph) */
+    const QString ragDir  = QDir::cleanPath(P::root() + "/RAG");
+    const QString ragDocs = QDir::cleanPath(QDir::homePath() + "/prismalux_rag_docs");
+
     for (const QUrl& u : urls) {
         const QString path = u.toLocalFile();
         if (path.isEmpty()) continue;
+
+        /* ── Auto-copia in RAG/ se il file è fuori dalle cartelle persistenti ── */
+        const QString canon = QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+        const bool inRag = canon.startsWith(ragDir) || canon.startsWith(ragDocs);
+        if (!inRag) {
+            QDir().mkpath(ragDir);
+            const QString dest = ragDir + "/" + QFileInfo(path).fileName();
+            if (!QFile::exists(dest)) {
+                if (QFile::copy(path, dest)) {
+                    if (m_ragStatusLbl)
+                        m_ragStatusLbl->setText(
+                            "\xf0\x9f\x93\x84  Copiato in RAG/ \xe2\x80\x94 "
+                            "il documento \xc3\xa8 ora persistente");
+                }
+                /* copia fallita → continua con il file originale senza bloccare */
+            }
+        }
+
         const QString pl = path.toLower();
 
         if (pl.endsWith(".txt") || pl.endsWith(".md")) {

@@ -7,7 +7,7 @@
 
 ## 📂 Feature pendenti
 
-- [ ] **Auto-copia documento in RAG/** — quando l'utente carica un file (drag & drop o browse)
+- [x] **Auto-copia documento in RAG/** — quando l'utente carica un file (drag & drop o browse)
   per l'indicizzazione RAG e il file **non risiede già** in `Prismalux/RAG/`,
   copiarlo automaticamente dentro quella cartella prima di indicizzarlo.
 
