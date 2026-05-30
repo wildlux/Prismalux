@@ -68,9 +68,9 @@ fi
 # ── Percorsi ───────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 QT_GUI="$SCRIPT_DIR/gui"
-ZIP_SCRIPT="$SCRIPT_DIR/scripts/crea_zip_windows.py"
-APPIMAGE_SCRIPT="$SCRIPT_DIR/scripts/crea_appimage.sh"
-APPIMAGE_OUT="$SCRIPT_DIR/Prismalux-x86_64.AppImage"
+ZIP_SCRIPT="$SCRIPT_DIR/EXPORT/windows/crea_zip_windows.py"
+APPIMAGE_SCRIPT="$SCRIPT_DIR/EXPORT/linux/crea_appimage.sh"
+APPIMAGE_OUT="$SCRIPT_DIR/EXPORT/linux/Prismalux-x86_64.AppImage"
 APP_BUNDLE_OUT="$SCRIPT_DIR/Prismalux.app"
 WHISPER_WIN_DIR="$SCRIPT_DIR/whisper_win"
 

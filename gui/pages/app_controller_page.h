@@ -261,11 +261,8 @@ private:
     void onMcuStopClicked();
     void onMcuHelpClicked();
 
-    /* ── Slot estratti da lambda — OBS ── */
+    /* ── OBS ── */
     void onObsPingClicked();
-    void onObsPingConnected();
-    void onObsPingError(QAbstractSocket::SocketError err);
-    void onObsPingTimeout();
     void onObsExecClicked();
     void onObsRunClicked();
     void onObsStopClicked();

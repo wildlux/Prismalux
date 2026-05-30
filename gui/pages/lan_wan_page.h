@@ -145,6 +145,9 @@ private:
     /* --- Mode stack --- */
     QStackedWidget* m_wanModeStack  = nullptr;
 
+    /* --- Exec mode stack: 0=Solo PC, 1=Rete LAN --- */
+    QStackedWidget* m_execModeStack = nullptr;
+
     /* --- Helpers --- */
     QString  localLanIp() const;
     QString  serverScheme() const;

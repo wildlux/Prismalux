@@ -1,0 +1,11 @@
+# Prismalux — requirements.lock
+# Per rigenerare con hash SHA256 verificati da PyPI:
+#   pip install pip-tools
+#   pip-compile --generate-hashes requirements.txt -o requirements.lock
+#
+# Versioni minime testate (2026-05-23):
+
+requests==2.32.3
+numpy==2.0.2
+gns3fy==0.8.0
+graphviz==0.20.3

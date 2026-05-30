@@ -170,12 +170,6 @@ LanWanPage::LanWanPage(AiClient* ai, QWidget* parent)
 
     tabs->addTab(buildWanComputeTab(), "\xf0\x9f\x96\xa7  WAN Compute");
 
-    /* Multi-Agente: stesso concetto di WAN Compute ma eseguito in locale
-     * (pool di AiClient sullo stesso PC, GraphMemory SQLite). */
-    m_multiAgentTab = new AgentiMultiPage(m_ai, this);
-    tabs->addTab(m_multiAgentTab,
-                 "\xf0\x9f\x91\xa5  Multi-Agente locale");   /* 👥 */
-
     lay->addWidget(tabs);
 
     /* Ripristina porta salvata e, se era attivo, avvia automaticamente */
@@ -1385,16 +1379,43 @@ QWidget* LanWanPage::buildWanComputeTab()
     vlay->setContentsMargins(12, 10, 12, 10);
     vlay->setSpacing(10);
 
-    /* ── Header ── */
+    /* ── Selezione modalità di esecuzione: Solo questo PC | Rete LAN ── */
+    auto* execModeRow = new QWidget;
+    auto* execModeLay = new QHBoxLayout(execModeRow);
+    execModeLay->setContentsMargins(0,0,0,0); execModeLay->setSpacing(16);
+    auto* localRb = new QRadioButton("\xf0\x9f\xa7\xa0  Solo questo PC");
+    auto* lanRb   = new QRadioButton("\xf0\x9f\x8c\x90  Rete LAN (pi\xc3\xb9 PC insieme)");
+    localRb->setChecked(true);
+    auto* execGrp = new QButtonGroup(execModeRow);
+    execGrp->addButton(localRb, 0);
+    execGrp->addButton(lanRb,   1);
+    execModeLay->addWidget(localRb);
+    execModeLay->addWidget(lanRb);
+    execModeLay->addStretch(1);
+    vlay->addWidget(execModeRow);
+
+    /* ── Stack esecuzione: 0=Multi-Agente locale, 1=Rete LAN ── */
+    m_execModeStack = new QStackedWidget;
+
+    /* index 0 — Multi-Agente locale (pool AiClient + GraphMemory SQLite) */
+    m_multiAgentTab = new AgentiMultiPage(m_ai, root);
+    m_execModeStack->addWidget(m_multiAgentTab);   /* index 0 */
+
+    /* index 1 — Pannello LAN/WAN (tutto il sistema TCP distribuito) */
+    auto* lanWidget = new QWidget;
+    auto* lanVlay   = new QVBoxLayout(lanWidget);
+    lanVlay->setContentsMargins(0,0,0,0); lanVlay->setSpacing(10);
+
+    /* ── Header LAN ── */
     auto* hdrLbl = new QLabel(
         "\xf0\x9f\x96\xa7  <b>WAN Calcolo Distribuito</b>"
         "  <span style='color:gray;font-size:11px;'>"
-        "Rete di nodi AI — server/client su TCP porta 11600</span>");
+        "Rete di nodi AI \xe2\x80\x94 server/client su TCP porta 11600</span>");
     hdrLbl->setTextFormat(Qt::RichText);
     hdrLbl->setObjectName("pageHeader");
-    vlay->addWidget(hdrLbl);
+    lanVlay->addWidget(hdrLbl);
 
-    /* ── Selezione modalità ── */
+    /* ── Selezione modalità Server/Client ── */
     auto* modeRow = new QWidget;
     auto* modeLay = new QHBoxLayout(modeRow);
     modeLay->setContentsMargins(0,0,0,0); modeLay->setSpacing(16);
@@ -1407,7 +1428,7 @@ QWidget* LanWanPage::buildWanComputeTab()
     modeLay->addWidget(srvRb);
     modeLay->addWidget(cliRb);
     modeLay->addStretch(1);
-    vlay->addWidget(modeRow);
+    lanVlay->addWidget(modeRow);
 
     /* ── Stack SERVER / CLIENT ── */
     m_wanModeStack = new QStackedWidget;
@@ -1732,9 +1753,9 @@ QWidget* LanWanPage::buildWanComputeTab()
 
     m_wanModeStack->addWidget(cliPanel);   /* index 1 = client */
 
-    vlay->addWidget(m_wanModeStack, 1);
+    lanVlay->addWidget(m_wanModeStack, 1);
 
-    /* ── Connessioni modo ── */
+    /* ── Connessioni modo Server/Client ── */
     connect(modeGrp, &QButtonGroup::idClicked, m_wanModeStack, [this](int id){
         if (m_wanModeStack) m_wanModeStack->setCurrentIndex(id);
     });
@@ -1748,6 +1769,15 @@ QWidget* LanWanPage::buildWanComputeTab()
     /* ── Connessioni client ── */
     connect(m_wanCliConBtn,   &QPushButton::clicked, this, &LanWanPage::onWanCliConBtnClicked);
     connect(m_wanCliDisconBtn,&QPushButton::clicked, this, &LanWanPage::onWanCliDisconBtnClicked);
+
+    /* ── Chiude il pannello LAN e lo aggiunge allo stack exec ── */
+    m_execModeStack->addWidget(lanWidget);   /* index 1 */
+    vlay->addWidget(m_execModeStack, 1);
+
+    /* ── Connessione radio esecuzione → stack ── */
+    connect(execGrp, &QButtonGroup::idClicked, m_execModeStack, [this](int id){
+        if (m_execModeStack) m_execModeStack->setCurrentIndex(id);
+    });
 
     return root;
 }

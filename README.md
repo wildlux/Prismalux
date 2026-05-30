@@ -10,7 +10,7 @@
 [![C++/Qt6](https://img.shields.io/badge/GUI-C%2B%2B%20%2F%20Qt6-41CD52?style=flat-square&logo=qt)](https://www.qt.io/)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20Android-informational?style=flat-square)](https://github.com/wildlux/Prismalux)
-[![AppImage](https://img.shields.io/badge/AppImage-Linux%20x86__64-orange?style=flat-square)](Prismalux-x86_64.AppImage)
+[![AppImage](https://img.shields.io/badge/AppImage-Linux%20x86__64-orange?style=flat-square)](EXPORT/linux/Prismalux-x86_64.AppImage)
 
 **Piattaforma AI locale e distribuita — zero cloud, zero abbonamenti, tutto sul tuo hardware.**
 
@@ -91,8 +91,7 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 | 5 | π **Matematica** | `Alt+4` | Sequenza→Formula · Costanti · N-esimo · Espressione · **Risolvi Passi** (🔀 52 formule) · Analisi 1&2 (**LaTeX KaTeX**) |
 | 6 | 🔬 **Ricerca** | `Alt+5` | Paper · Brevetto · Cerca arXiv/Brevetti · Lavoro · Cytoscape—Bio · RDKit · Bioconda · RAB₀-L · BLHM · Analisi Fenomeni · **🕸️ Grafo RAG** · Astrale |
 | 7 | 🕹 **APP Controller** | `Alt+6` | Blender · FreeCAD · Office · CloudCompare · Anki · KiCAD · TinyMCP · OBS · OpenCode · Godot |
-| 8 | 🌐 **LAN & WAN** | — | LAN Android (QR APK · ADB USB) · GNS3 MCP · **WAN Calcolo Distribuito** |
-| 9 | 🕸️ **Multi-Agente** | — | MasterAgent → JSON piano → Sub-agenti → **GraphMemory** (nodi/archi/DOT/JSON/TXT) |
+| 8 | 🌐 **LAN & WAN** | — | LAN Android (QR APK · ADB USB) · GNS3 MCP · **WAN Compute** (🧠 Solo questo PC \| 🌐 Rete LAN) → MasterAgent → Sub-agenti → **GraphMemory** |
 | ⚙️ | **Impostazioni** | header | Backend AI · Modelli · Think Mode · Voce · Visual · Hardware · Memoria · Test |
 
 ### Dettaglio tab Strumenti — Finanza
@@ -215,8 +214,8 @@ Ogni tipo ha un **template payload** pre-compilato automaticamente alla selezion
 ### Linux — AppImage (consigliato, no installazione)
 
 ```bash
-chmod +x Prismalux-x86_64.AppImage
-./Prismalux-x86_64.AppImage
+chmod +x EXPORT/linux/Prismalux-x86_64.AppImage
+./EXPORT/linux/Prismalux-x86_64.AppImage
 ```
 
 ### Linux — Compila da sorgente
@@ -330,35 +329,75 @@ ctest --test-dir build_tests -j1 -R AiStress
 
 ```
 Prismalux/
-├── gui/                        ← GUI C++/Qt6 (sorgente principale)
-│   ├── pages/                  ← Una pagina = un file .cpp/.h
-│   │   ├── agenti_page.*       ← Pipeline multi-agente (15 moduli)
-│   │   ├── agenti_multi_page.* ← [9] 🕸️ Multi-Agente + GraphMemory
-│   │   ├── lan_wan_page.*      ← LAN Android + GNS3 + WAN Compute
-│   │   ├── pratico_page.*      ← 730, P.IVA, Finanza, Scheda TFR
-│   │   ├── ricerca_page.*      ← Paper, brevetti, bio, Grafo RAG, analisi fenomeni
+├── gui/                          ← GUI C++/Qt6 (sorgente principale)
+│   ├── pages/                    ← Una pagina = un file .cpp/.h
+│   │   ├── agenti_page.*         ← Pipeline multi-agente (15 moduli)
+│   │   ├── agenti_multi_page.*   ← 🕸️ Multi-Agente + GraphMemory (dentro WAN Compute)
+│   │   ├── lan_wan_page.*        ← LAN Android + GNS3 + WAN Compute (Solo PC | Rete LAN)
+│   │   ├── pratico_page.*        ← 730, P.IVA, Finanza, Scheda TFR
+│   │   ├── ricerca_page.*        ← Paper, brevetti, bio, Grafo RAG, analisi fenomeni
 │   │   ├── programmazione_page.* ← Editor, REPL, Rete, Driver
-│   │   ├── matematica_page.*   ← SymPy, formule, grafici, LaTeX KaTeX
-│   │   ├── simulatore_page.*   ← 105 algoritmi visualizzati
-│   │   └── ...                 ← altri 20+ moduli
-│   ├── widgets/                ← Componenti riutilizzabili (incl. LatexView)
-│   ├── graph_memory.h/cpp      ← GraphMemory SQLite-backed (nodi, archi, BFS, DOT)
-│   ├── rag_graph.h/cpp         ← RagGraph: estrazione LLM → GraphMemory
-│   ├── themes/                 ← Temi QSS (dark, light, solarized…)
-│   ├── tests/                  ← Suite ctest (62 test, CAT-E SymPy)
-│   ├── CMakeLists.txt          ← Build (versione unica di verità)
-│   └── CLAUDE.md               ← Convenzioni di sviluppo
-├── ANDROID/                    ← App Android Qt6
-│   └── android_app/            ← BLE chat, Quiz CCNA, TTS, STT, LAN sync
-├── MCPs/                       ← 18 plugin MCP (Python, JSON-RPC 2.0)
-├── RAG/                        ← Documenti per RAG (locale, non in git)
-├── KNOWLEDGE_USER/             ← Memoria utente (locale, non in git)
-├── scripts/
-│   ├── crea_appimage.sh        ← Genera AppImage Linux
-│   └── crea_zip_windows.py     ← Genera ZIP Windows
-├── aggiorna.sh                 ← Linux/macOS: build + AppImage + ZIP
-├── aggiorna.bat                ← Windows: build + ZIP (GUI + MSYS2)
-└── .github/FUNDING.yml         ← Pulsante Sponsor GitHub (PayPal)
+│   │   ├── matematica_page.*     ← SymPy, formule, grafici, LaTeX KaTeX
+│   │   ├── simulatore_page.*     ← 105 algoritmi visualizzati
+│   │   └── ...                   ← altri 20+ moduli
+│   ├── widgets/                  ← Componenti riutilizzabili (incl. LatexView)
+│   ├── graph_memory.h/cpp        ← GraphMemory SQLite (nodi, archi, BFS, DOT)
+│   ├── rag_graph.h/cpp           ← RagGraph: estrazione LLM → GraphMemory
+│   ├── themes/                   ← Temi QSS (dark, light, solarized…)
+│   ├── tests/                    ← Suite ctest (41 suite, CAT-E SymPy, GraphMemory)
+│   ├── CMakeLists.txt            ← Build (versione unica di verità)
+│   └── CLAUDE.md                 ← Convenzioni di sviluppo
+│
+├── EXPORT/                       ← Artefatti e script di distribuzione per piattaforma
+│   ├── linux/
+│   │   ├── crea_appimage.sh      ← Genera AppImage Linux
+│   │   ├── install_launcher.sh   ← Installa shortcut KDE/GNOME
+│   │   └── Prismalux-x86_64.AppImage
+│   ├── windows/
+│   │   ├── crea_zip_windows.py   ← Genera ZIP distribuibile Windows
+│   │   ├── build_installer_windows.bat ← Crea Prismalux_Deploy/ con DLL Qt
+│   │   └── Prismalux_v2.9_Windows.zip
+│   ├── android/
+│   │   ├── build_apk.sh          ← Compila PrismaluxMobile.apk
+│   │   ├── installa_xiaomi.sh    ← Installa via ADB su Xiaomi
+│   │   └── test_apk.sh / test_utente.sh
+│   └── macos/                    ← (futuro: crea_dmg.sh)
+│
+├── ANDROID/                      ← App Android Qt6
+│   ├── android_app/              ← BLE chat, Quiz CCNA, TTS, STT, LAN sync
+│   └── PrismaluxMobile.apk       ← APK precompilato (scaricabile via QR in-app)
+│
+├── MCPs/                         ← 18 plugin MCP (Python, JSON-RPC 2.0 stdio)
+├── RAG/                          ← Documenti per RAG (locale, non in git)
+├── KNOWLEDGE_USER/               ← Memoria utente (locale, non in git)
+├── BEST_PRACTICE_&_GOAL/         ← Regole, obiettivi, TODO, operazioni
+│   ├── REGOLE_IRREMOVIBILI.md    ← 15 convenzioni fisse del software
+│   ├── TODO.md                   ← Funzionalità pendenti
+│   ├── OPERAZIONI.txt            ← Checklist operazioni completate
+│   ├── BEST_PRACTICE_SECURITY.md
+│   ├── BEST_PRACTICE_USER_EXPERIENCE.md
+│   ├── BEST_PRACTICE_MANAGE_LLM.md
+│   └── BEST_PRACTICE_BONUS.md
+│
+├── COMPILE_WIN/                  ← Toolchain portatile Windows (setup.bat scarica ~600 MB)
+│   ├── setup.bat                 ← Scarica Qt6 + GCC + CMake + Ninja
+│   └── build.bat                 ← Stub → chiama build.bat radice
+│
+├── scripts/                      ← Utility interne
+│   ├── download_model            ← Download modelli GGUF
+│   └── genera_quiz_ccna.py       ← Genera domande quiz CCNA
+│
+├── Test/                         ← Test Python (AI integration, WAN, RAG)
+│   ├── run_all_tests.py
+│   ├── test_wan_compute.py
+│   └── test_rag_paper.py / test_coding_mistral.py / …
+│
+├── build.bat                     ← Windows: build GUI (entry point, rileva MSYS2/Qt)
+├── aggiorna.bat                  ← Windows: build + ZIP distribuibile
+├── aggiorna.sh                   ← Linux/macOS: build + AppImage + ZIP
+├── Avvia_Prismalux.bat           ← Windows: lancia l'app compilata
+├── avvia.sh                      ← Linux: lancia l'app compilata
+└── .github/FUNDING.yml           ← Sponsor GitHub (PayPal)
 ```
 
 ---

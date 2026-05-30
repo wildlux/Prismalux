@@ -229,7 +229,7 @@ REM Crea ZIP Windows con launcher .bat (richiede Python)
 if "!DO_ZIP!"=="1" (
     echo.
     echo  [PASSO 2/2] Creo ZIP Windows con launcher .bat...
-    set ZIP_SCRIPT=%SCRIPT_DIR%scripts\crea_zip_windows.py
+    set ZIP_SCRIPT=%SCRIPT_DIR%EXPORT\windows\crea_zip_windows.py
 
     REM Versione da CMakeLists.txt
     set PRISMA_VERSION=2.8
