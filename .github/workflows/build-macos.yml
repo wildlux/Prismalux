@@ -1,0 +1,187 @@
+name: Build macOS
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "gui/**"
+      - "ICONA/**"
+      - ".github/workflows/build-macos.yml"
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    # macos-13 = Intel x86_64 — runner stabile per Qt 6.7 CI.
+    # Per Apple Silicon (M1/M2): cambia in macos-14 e arch: arm64.
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt6
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.7.*"
+          host: mac
+          target: desktop
+          arch: clang_64
+          modules: ""
+
+      - name: Configure CMake
+        working-directory: gui
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        working-directory: gui
+        run: cmake --build build -j$(sysctl -n hw.logicalcpu)
+
+      - name: Read version
+        id: version
+        run: |
+          VERSION=$(grep -m1 'project(Prismalux_GUI VERSION' gui/CMakeLists.txt \
+                    | grep -oE '[0-9]+\.[0-9]+' | head -1)
+          VERSION="${VERSION:-$(date +%Y%m%d)}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # sips e iconutil sono built-in su ogni runner macOS — nessuna dipendenza extra
+      - name: Create icon (PNG → ICNS)
+        run: |
+          ICON_PNG="ICONA/prismalux.png"
+          if [ -f "$ICON_PNG" ]; then
+            ICONSET="$(mktemp -d).iconset"
+            mkdir -p "$ICONSET"
+            for sz in 16 32 128 256 512; do
+              sips -z $sz $sz "$ICON_PNG" \
+                --out "$ICONSET/icon_${sz}x${sz}.png"           2>/dev/null || true
+              sips -z $((sz*2)) $((sz*2)) "$ICON_PNG" \
+                --out "$ICONSET/icon_${sz}x${sz}@2x.png"        2>/dev/null || true
+            done
+            iconutil -c icns "$ICONSET" -o prismalux.icns 2>/dev/null || true
+            rm -rf "$ICONSET"
+            [ -f prismalux.icns ] \
+              && echo "Icona: $(du -sh prismalux.icns | cut -f1)" \
+              || echo "Icona: generazione fallita (non bloccante)"
+          else
+            echo "ICONA/prismalux.png non trovata — bundle senza icona"
+          fi
+
+      - name: Create .app bundle
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          APP="Prismalux.app"
+          CONTENTS="$APP/Contents"
+          mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
+
+          # Binario
+          cp gui/build/Prismalux_GUI "$CONTENTS/MacOS/Prismalux_GUI"
+          chmod +x "$CONTENTS/MacOS/Prismalux_GUI"
+
+          # Temi QSS (letti da Resources/themes/ a runtime)
+          [ -d gui/build/themes ] && cp -r gui/build/themes "$CONTENTS/Resources/themes"
+
+          # Icona
+          [ -f prismalux.icns ] && cp prismalux.icns "$CONTENTS/Resources/prismalux.icns"
+          ICON_LINE=""
+          [ -f prismalux.icns ] && ICON_LINE="$(printf '    <key>CFBundleIconFile</key>\n    <string>prismalux</string>')"
+
+          # Info.plist
+          cat > "$CONTENTS/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>Prismalux_GUI</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.wildlux.prismalux</string>
+              <key>CFBundleName</key>
+              <string>Prismalux</string>
+              <key>CFBundleDisplayName</key>
+              <string>Prismalux v${VERSION}</string>
+              <key>CFBundleVersion</key>
+              <string>${VERSION}.0</string>
+              <key>CFBundleShortVersionString</key>
+              <string>${VERSION}</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+              <key>NSRequiresAquaSystemAppearance</key>
+              <false/>
+              <key>LSMinimumSystemVersion</key>
+              <string>11.0</string>
+          ${ICON_LINE}
+          </dict>
+          </plist>
+          PLIST
+          echo "Bundle: $APP"
+          echo "Info.plist scritto — versione ${VERSION}"
+
+      # jurplel/install-qt-action aggiunge Qt bin al PATH: macdeployqt è disponibile direttamente
+      - name: Deploy Qt (macdeployqt)
+        run: |
+          if command -v macdeployqt &>/dev/null; then
+            MDQT="macdeployqt"
+          elif [ -n "${Qt6_Dir:-}" ]; then
+            # fallback: Qt6_Dir = .../6.7.x/macos/lib/cmake/Qt6 → risale a bin/
+            MDQT="$(cd "$Qt6_Dir/../../../bin" && pwd)/macdeployqt"
+          else
+            echo "ERRORE: macdeployqt non trovato nel PATH né in Qt6_Dir" && exit 1
+          fi
+          "$MDQT" Prismalux.app -verbose=1
+
+      # hdiutil è built-in su ogni runner macOS.
+      # Il DMG include un symlink a /Applications per il classico drag-and-drop.
+      - name: Create DMG
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          DMG="Prismalux_v${VERSION}_macOS.dmg"
+          STAGING="$(mktemp -d)"
+          cp -r Prismalux.app "$STAGING/"
+          ln -s /Applications "$STAGING/Applications"
+          hdiutil create \
+            -volname "Prismalux v${VERSION}" \
+            -srcfolder "$STAGING" \
+            -ov -format UDZO \
+            "$DMG"
+          rm -rf "$STAGING"
+          echo "DMG: $(ls -lh "$DMG" | awk '{print $5, $9}')"
+
+      - name: Upload .app bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Prismalux-macOS-x64-app
+          path: Prismalux.app
+          retention-days: 14
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: Prismalux-macOS-x64-dmg
+          path: "*.dmg"
+          retention-days: 14
+
+      # ── Release GitHub solo per tag v* ────────────────────────────────────
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.dmg"
+          generate_release_notes: true
+          name: "Prismalux ${{ github.ref_name }}"
+          body: |
+            ## Prismalux ${{ github.ref_name }} — macOS (Intel x86_64)
+
+            DMG con `.app` bundle autonomo per macOS 11+.
+            Include Qt6 frameworks, plugin e temi QSS.
+
+            ### Installazione
+            1. Apri il DMG
+            2. Trascina **Prismalux.app** nella cartella **Applications**
+            3. Al primo avvio: tasto destro → **Apri** (Gatekeeper — app non firmata)
+
+            > Requisito: [Ollama](https://ollama.com) in esecuzione su `localhost:11434`.
