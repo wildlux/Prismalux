@@ -5,6 +5,30 @@
 
 ---
 
+## 📂 Feature pendenti
+
+- [ ] **Auto-copia documento in RAG/** — quando l'utente carica un file (drag & drop o browse)
+  per l'indicizzazione RAG e il file **non risiede già** in `Prismalux/RAG/`,
+  copiarlo automaticamente dentro quella cartella prima di indicizzarlo.
+
+  **Perché:** i documenti fuori da `RAG/` vengono indicizzati in sessione ma non
+  ritrovati al riavvio (RagGraph scansiona solo `~/prismalux_rag_docs/` e `P::root()+"/RAG/"`).
+  La copia garantisce persistenza senza che l'utente debba spostarli manualmente.
+
+  **Comportamento atteso:**
+  - File già in `RAG/` → indicizza senza toccare nulla
+  - File esterno → copia in `RAG/<nomefile>` (sovrascrittura opzionale se esiste già)
+  - Mostra messaggio: `"📄 Copiato in RAG/ — il documento è ora persistente"`
+  - Se la copia fallisce (permessi, disco pieno) → indicizza comunque dalla posizione originale
+    e avvisa l'utente
+
+  **Punti di intervento:**
+  - `agenti_page_ui.cpp` — zona drop RAG (drag & drop PDF/txt/md)
+  - `impostazioni_page_ai.cpp` o `impostazioni_page_slots.cpp` — browse file per indicizzazione
+  - `rag_graph.cpp::addFile()` — eventuale copia automatica a livello di engine
+
+---
+
 ## 🛡️ Analizzatore di Sicurezza Difensiva
 
 > Scopo: aiutare l'utente a **trovare e correggere** falle — mai a sfruttarle.
