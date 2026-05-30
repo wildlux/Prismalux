@@ -57,6 +57,7 @@ SOURCE_ROOT_FILES = [
     "aggiorna.sh",
     "aggiorna.bat",
     "build.bat",
+    "build.py",
     "Avvia_Prismalux.bat",
 ]
 SOURCE_EXCLUDE = [
