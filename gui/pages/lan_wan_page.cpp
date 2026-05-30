@@ -45,6 +45,7 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMimeData>
+#include <QRandomGenerator>
 #include <QRadioButton>
 #include <QButtonGroup>
 #include <QSplitter>
@@ -1471,13 +1472,55 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanDecomposeStatusLbl->setStyleSheet("color:gray; font-size:11px;");
     m_wanDecomposeStatusLbl->setWordWrap(true);
     m_wanDecomposeStatusLbl->setFixedWidth(dpiScale(150));
+    auto* shuffleBtn = new QPushButton("\xf0\x9f\x94\x80  Esempio");   /* 🔀 */
+    shuffleBtn->setToolTip("Carica un compito d\xe2\x80\x99esempio casuale per ispirarti.");
+    shuffleBtn->setFlat(true);
+    shuffleBtn->setStyleSheet("font-size:11px; color:#818cf8;");
+
     decompRightLay->addWidget(m_wanDecomposeBtn);
+    decompRightLay->addWidget(shuffleBtn);
     decompRightLay->addWidget(m_wanDecomposeStatusLbl);
     decompRightLay->addStretch();
     decompLay->addWidget(decompRight);
 
     connect(m_wanDecomposeBtn, &QPushButton::clicked,
             this, &LanWanPage::onWanDecomposeBtnClicked);
+
+    /* Prompt d'esempio: coprono ricerca, codice, business, scienza, creatività */
+    static const QStringList kEsempi {
+        "Analizza il mercato delle app fitness in Italia: competitor, fasce di prezzo, gap di mercato e strategia di lancio per una nuova app.",
+        "Scrivi un articolo scientifico completo sull\xe2\x80\x99impatto dell\xe2\x80\x99intelligenza artificiale distribuita nelle piccole imprese italiane.",
+        "Crea un piano di studio per imparare Python in 3 mesi partendo da zero, con esercizi pratici e progetti reali.",
+        "Progetta un\xe2\x80\x99architettura microservizi per un e-commerce: servizi necessari, comunicazione tra essi, database e deploy su Docker.",
+        "Analizza i pro e contro delle principali energie rinnovabili (solare, eolico, idroelettrico) per l\xe2\x80\x99Italia al 2030.",
+        "Scrivi un business plan per aprire una gelateria artigianale biologica a Milano: costi, ricavi, marketing e break-even.",
+        "Crea una guida completa sulla dieta mediterranea: principi scientifici, menu settimanale, lista della spesa e ricette.",
+        "Analizza il fenomeno del remote working: effetti sulla produttivit\xc3\xa0, salute mentale, mercato immobiliare e futuro del lavoro.",
+        "Progetta un\xe2\x80\x99app mobile per la gestione del tempo (time-blocking): funzionalit\xc3\xa0 chiave, UX/UI, stack tecnologico e piano di sviluppo.",
+        "Studia la storia e l\xe2\x80\x99evoluzione del calcio italiano: dalle origini a oggi, tattiche, campioni e impatto culturale.",
+        "Crea un corso online su machine learning: struttura dei moduli, esercizi, dataset da usare e piattaforma di erogazione.",
+        "Analizza la crisi climatica: cause principali, impatti sull\xe2\x80\x99Italia, soluzioni tecnologiche e politiche necessarie entro il 2050.",
+        "Scrivi una guida al marketing digitale per piccole imprese: SEO, social media, email marketing e budget consigliato.",
+        "Progetta un sistema domotico per una casa intelligente: sensori, automazioni, protocolli (Zigbee/Matter) e privacy.",
+        "Analizza il mercato degli NFT e Web3 in Italia: stato attuale, casi d\xe2\x80\x99uso reali, rischi e prospettive future.",
+        "Crea un piano di allenamento per correre una mezza maratona in 4 mesi: tabella settimanale, nutrizione e recupero.",
+        "Scrivi una serie di 5 episodi di un podcast sulla storia della tecnologia italiana: temi, ospiti e scaletta.",
+        "Progetta un chatbot per il customer service di un negozio online: flussi conversazionali, integrazioni e metriche KPI.",
+        "Analizza i meccanismi della memoria umana e crea tecniche di studio basate sulla neuroscienza cognitiva.",
+        "Crea un\xe2\x80\x99analisi SWOT completa per lanciare un servizio di consegna pasti a domicilio in una citt\xc3\xa0 di 100.000 abitanti.",
+    };
+
+    connect(shuffleBtn, &QPushButton::clicked, m_wanDecomposeInput,
+            [this]() {
+                if (!m_wanDecomposeInput) return;
+                static int lastIdx = -1;
+                int idx;
+                do { idx = QRandomGenerator::global()->bounded(kEsempi.size()); }
+                while (idx == lastIdx && kEsempi.size() > 1);
+                lastIdx = idx;
+                m_wanDecomposeInput->setPlainText(kEsempi[idx]);
+            });
+
     srvLay->addWidget(decompBox);
 
     /* 3 — Monitor nodi + coda: stretch per occupare lo spazio liberato */
