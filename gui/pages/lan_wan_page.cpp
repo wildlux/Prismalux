@@ -596,7 +596,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
     topRowLay->setSpacing(12);
 
     m_qrInlineWidget = new QrCodeWidget(QString(), topRow);
-    m_qrInlineWidget->setFixedSize(dpiSize(220, 220));
+    m_qrInlineWidget->setFixedSize(dpiSize(256, 256));
     m_qrInlineWidget->setToolTip(
         "QR di connessione rapida. Si aggiorna con IP, porta e token.");
     topRowLay->addWidget(m_qrInlineWidget, 0, Qt::AlignTop);
