@@ -23,7 +23,7 @@ Cosa esclude sempre:
 import zipfile, os, re, sys, shutil
 from pathlib import Path
 
-ROOT = Path(__file__).parent.parent   # Prismalux/
+ROOT = Path(__file__).parent.parent.parent   # Prismalux/ (EXPORT/windows/ → EXPORT/ → Prismalux/)
 
 # ── Cerca il binario Windows compilato ─────────────────────────
 def _find_win_binary():
@@ -47,7 +47,7 @@ SOURCE_DIRS = [
     "ICONA",
     "RAG",
     "MCPs",
-    "BEST_PRACTICE",
+    "BEST_PRACTICE_&_GOAL",
     "whisper_win",
     "scripts",
 ]
@@ -99,7 +99,7 @@ BINARY_DATA_DIRS = [
     "RAG",
     "MCPs",
     "ICONA",
-    "BEST_PRACTICE",
+    "BEST_PRACTICE_&_GOAL",
     "whisper_win",
     "KNOWLEDGE_USER",
 ]
