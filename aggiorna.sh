@@ -208,36 +208,50 @@ T_START=$(date +%s)
 # ══════════════════════════════════════════════════════════════
 if [ "$DO_GUI" = "1" ]; then
     step "Compilo GUI Qt6 (${_UNAME})..."
-    cd "$QT_GUI"
 
-    _CMAKE_LOG="$QT_BUILD/prismalux_build.log"
-    mkdir -p "$QT_BUILD"
-
-    if [ ! -f "$QT_BUILD/CMakeCache.txt" ]; then
-        step "  Prima configurazione cmake..."
-        # shellcheck disable=SC2086
-        cmake -B "$QT_BUILD" -DCMAKE_BUILD_TYPE=Release $CMAKE_EXTRA \
-            2>&1 | tee "$_CMAKE_LOG" | grep -E "(CMAKE|error:|Configuring|fatal)" || true
-        if ! grep -q "Configuring done\|Build files have been written" "$_CMAKE_LOG" 2>/dev/null; then
-            echo ""
-            echo "--- Log cmake configure (ultimi 40 righe) ---"
-            tail -40 "$_CMAKE_LOG" 2>/dev/null || true
-            fail "cmake configure fallito — controlla il log sopra"
+    # ── Su Windows delega a build.py (evita problemi con grep/tee/cmake MSYS2) ──
+    if [ "$IS_WIN" = "1" ]; then
+        _PYTHON=""
+        for _py in python3 python py; do
+            if command -v "$_py" &>/dev/null; then
+                _PYTHON="$_py"
+                break
+            fi
+        done
+        # Fallback: Python di MSYS2 UCRT64
+        if [ -z "$_PYTHON" ] && [ -f "/ucrt64/bin/python3.exe" ]; then
+            _PYTHON="/ucrt64/bin/python3.exe"
         fi
-    fi
 
-    step "  Compilazione ($NPROC thread)..."
-    # shellcheck disable=SC2086
-    cmake --build "$QT_BUILD" -j"$NPROC" 2>&1 | tee -a "$_CMAKE_LOG" \
-        | grep -E "(Building|Linking|error:|warning:|Built target|\*\*\*)" || true
+        if [ -n "$_PYTHON" ]; then
+            step "  Delego a build.py (Python: $_PYTHON)..."
+            "$_PYTHON" "$SCRIPT_DIR/build.py"
+            [ -f "$GUI_BIN" ] || fail "Binario GUI non trovato dopo build.py: $GUI_BIN"
+            ok "GUI compilata → $GUI_BIN"
+        else
+            fail "Python non trovato. Installa con: pacman -S mingw-w64-ucrt-x86_64-python"
+        fi
+    else
+        # ── Linux / macOS: cmake diretto ──────────────────────────────────────
+        cd "$QT_GUI"
+        _CMAKE_LOG="$QT_BUILD/prismalux_build.log"
+        mkdir -p "$QT_BUILD"
 
-    if [ ! -f "$GUI_BIN" ]; then
-        echo ""
-        echo "--- Ultimi 60 righe del log di build ($QT_BUILD/prismalux_build.log) ---"
-        tail -60 "$_CMAKE_LOG" 2>/dev/null || true
-        fail "Binario GUI non trovato: $GUI_BIN"
+        if [ ! -f "$QT_BUILD/CMakeCache.txt" ]; then
+            step "  Prima configurazione cmake..."
+            # shellcheck disable=SC2086
+            cmake -B "$QT_BUILD" -DCMAKE_BUILD_TYPE=Release $CMAKE_EXTRA \
+                2>&1 | tee "$_CMAKE_LOG"
+            [ ${PIPESTATUS[0]} -eq 0 ] || fail "cmake configure fallito"
+        fi
+
+        step "  Compilazione ($NPROC thread)..."
+        cmake --build "$QT_BUILD" -j"$NPROC" 2>&1 | tee -a "$_CMAKE_LOG"
+        [ ${PIPESTATUS[0]} -eq 0 ] || fail "cmake build fallito"
+
+        [ -f "$GUI_BIN" ] || fail "Binario GUI non trovato: $GUI_BIN"
+        ok "GUI compilata → $GUI_BIN"
     fi
-    ok "GUI compilata → $GUI_BIN"
 
     # Desktop entry solo su Linux
     if [ "$IS_WIN" = "0" ] && [ "$IS_MAC" = "0" ]; then
