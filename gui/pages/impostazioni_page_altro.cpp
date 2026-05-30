@@ -55,6 +55,7 @@ namespace P = PrismaluxPaths;
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QGuiApplication>
+#include <QPalette>
 #include <QClipboard>
 #include <QMessageBox>
 #include <QProgressBar>
@@ -74,24 +75,20 @@ static void extractQssColors(QString& bg, QString& bg2, QString& bg3,
                               QString& text, QString& muted,
                               QString& accent, QString& border)
 {
-    const QString qss = ThemeManager::instance()->currentQss();
+    const QPalette pal = QGuiApplication::palette();
 
-    auto rx = [&](const QString& pat) {
-        auto m = QRegularExpression(pat).match(qss);
-        return m.hasMatch() ? m.captured(1) : QString();
-    };
+    bg     = pal.color(QPalette::Window).name();
+    text   = pal.color(QPalette::WindowText).name();
+    accent = pal.color(QPalette::Highlight).name();
+    muted  = pal.color(QPalette::PlaceholderText).name();
 
-    accent = rx("accent\\s+(#[0-9a-fA-F]{6,8})");
-    text   = rx("txt1\\s+(#[0-9a-fA-F]{6,8})");
-    muted  = rx("txt2\\s+(#[0-9a-fA-F]{6,8})");
-    bg     = rx("QWidget\\s*\\{\\s*background-color:\\s*(#[0-9a-fA-F]{6,8})");
-
-    /* Fallback per temi senza commento (venom_*, custom) */
-    if (bg.isEmpty())     bg     = rx("background-color:\\s*(#[0-9a-fA-F]{6,8})");
-    if (accent.isEmpty()) accent = "#00c8ff";
-    if (text.isEmpty())   text   = "#e8eaf0";
-    if (muted.isEmpty())  muted  = "#8890a8";
-    if (bg.isEmpty())     bg     = "#0f1117";
+    /* PlaceholderText può coincidere con Window in alcuni stili */
+    if (muted == bg || muted == "#000000") {
+        const QColor bgC(bg);
+        muted = bgC.lightness() < 128
+            ? bgC.lighter(210).name()
+            : bgC.darker(175).name();
+    }
 
     const QColor bgC(bg);
     const bool dark = bgC.lightness() < 128;

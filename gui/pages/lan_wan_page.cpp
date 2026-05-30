@@ -585,18 +585,19 @@ QWidget* LanWanPage::buildLanAndroidTab()
        DESTRA: QR + istruzioni + pulsanti
        ══════════════════════════════════════════════════════════ */
     auto* rightW   = new QWidget(split);
-    auto* rightLay = new QVBoxLayout(rightW);
+    auto* rightLay = new QHBoxLayout(rightW);   /* QR a sinistra, procedura a destra */
     rightLay->setContentsMargins(4, 0, 0, 0);
-    rightLay->setSpacing(8);
+    rightLay->setSpacing(12);
+    rightLay->setAlignment(Qt::AlignTop);
 
-    /* QR inline — fisso in cima, NON scrollabile */
+    /* QR inline — colonna sinistra, allineato in alto */
     m_qrInlineWidget = new QrCodeWidget(QString(), rightW);
-    m_qrInlineWidget->setFixedSize(dpiSize(290, 290));
+    m_qrInlineWidget->setFixedSize(dpiSize(220, 220));
     m_qrInlineWidget->setToolTip(
         "QR di connessione rapida. Si aggiorna con IP, porta e token.");
-    rightLay->addWidget(m_qrInlineWidget, 0, Qt::AlignHCenter);
+    rightLay->addWidget(m_qrInlineWidget, 0, Qt::AlignTop);
 
-    /* ── Scroll area: tutto il resto (sotto il QR) scorre con lo zoom ── */
+    /* ── Scroll area: procedura a destra del QR ── */
     auto* scrollW   = new QWidget;
     auto* scrollLay = new QVBoxLayout(scrollW);
     scrollLay->setContentsMargins(0, 0, 0, 0);
