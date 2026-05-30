@@ -1482,6 +1482,13 @@ QWidget* LanWanPage::buildWanComputeTab()
         if (m_wanTaskPayload && m_wanTaskPayload->toPlainText().trimmed().isEmpty())
             m_wanTaskPayload->setPlainText(wanKindTemplate(kind));
     });
+    /* Carica il template per l'item già selezionato al momento della build UI —
+     * setCurrentIndex(1) scatta prima del connect, quindi il segnale viene perso. */
+    if (m_wanTaskPayload) {
+        const QString initKind = m_wanTaskKind->currentData().toString();
+        if (!initKind.isEmpty())
+            m_wanTaskPayload->setPlainText(wanKindTemplate(initKind));
+    }
 
     /* Cron */
     auto* cronBox = new QGroupBox("\xe2\x8f\xb0  Cron Task (dispatch automatico)");
