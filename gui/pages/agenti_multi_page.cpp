@@ -28,6 +28,19 @@
 
 namespace P = PrismaluxPaths;
 
+/* Rimuove blocchi <think>...</think> prodotti da modelli reasoning
+ * (qwen3, deepseek-r1, qwq). Il regex è non-greedy per gestire
+ * risposte con più blocchi think consecutivi. */
+static QString stripThinkTags(const QString& s)
+{
+    static const QRegularExpression re(
+        "<think>[\\s\\S]*?</think>",
+        QRegularExpression::CaseInsensitiveOption);
+    QString out = s;
+    out.remove(re);
+    return out.trimmed();
+}
+
 /* ══════════════════════════════════════════════════════════════
    Costruttore
    ══════════════════════════════════════════════════════════════ */
@@ -365,8 +378,17 @@ void AgentiMultiPage::decompose(const QString& userPrompt)
    ══════════════════════════════════════════════════════════════ */
 void AgentiMultiPage::parsePlan(const QString& jsonPlan)
 {
-    /* Estrai JSON dall'output (può contenere testo prima/dopo) */
-    QString clean = jsonPlan.trimmed();
+    /* Rimuove <think>...</think> dei modelli reasoning prima di cercare il JSON.
+     * Senza questo, il regex greedy cattura dal primo { dentro <think>
+     * all'ultimo } del piano, producendo JSON invalido. */
+    QString clean = stripThinkTags(jsonPlan);
+
+    /* Rimuove anche eventuali code fence markdown: ```json ... ``` */
+    static const QRegularExpression reFence(R"(```[a-z]*\n?([\s\S]*?)```)");
+    const auto fence = reFence.match(clean);
+    if (fence.hasMatch()) clean = fence.captured(1).trimmed();
+
+    /* Estrai il blocco JSON dall'output (può contenere testo prima/dopo) */
     static const QRegularExpression reJson(R"(\{[\s\S]*\})");
     const auto match = reJson.match(clean);
     if (match.hasMatch()) clean = match.captured(0);
@@ -561,14 +583,16 @@ void AgentiMultiPage::onTaskResultDone(int idx, const QString& full)
     if (idx < 0 || idx >= m_tasks.size()) return;
     SubTask& t = m_tasks[idx];
     t.state  = SubTask::State::Done;
-    t.result = full;
+    /* Salva il testo senza thinking tokens — il risultato visibile all'utente
+     * e quello memorizzato in GraphMemory non devono contenere <think>. */
+    t.result = stripThinkTags(full);
 
     /* Salva risultato in GraphMemory locale (Multi-Agente) */
     if (m_gm) {
         const QString nodeId = m_gm->addNode(
             "result",
             QString("SubAgent-%1 (%2)").arg(t.id).arg(t.role),
-            full.left(800),
+            t.result.left(800),
             0.9f,
             {{"role", t.role}, {"task_id", t.id}}
         );
