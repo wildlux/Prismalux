@@ -161,6 +161,10 @@ private:
     QObject*     m_wanDecompHolder       = nullptr;
     void         wanApplyDecomposedPlan(const QString& jsonPlan);
 
+    /* WAN — simulazione locale (server + client sullo stesso PC) */
+    QPushButton* m_wanSimBtn    = nullptr;
+    bool         m_wanSimActive = false;
+
     QString  wanNextId() const;
     void     wanDispatch();
     void     wanRefreshTables();
@@ -248,4 +252,6 @@ private slots:
     void onAgentLoadBtnClicked();
     /* WAN decomposizione */
     void onWanDecomposeBtnClicked();
+    /* WAN simulazione locale */
+    void onWanSimBtnClicked();
 };

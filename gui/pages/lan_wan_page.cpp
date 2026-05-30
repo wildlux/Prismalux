@@ -1429,10 +1429,16 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanStartBtn->setCheckable(true);
     m_wanSrvStatusLbl = new QLabel("\xe2\x9a\xab  Server fermo");
     m_wanSrvStatusLbl->setStyleSheet("color:gray;");
+    m_wanSimBtn = new QPushButton("\xe2\x9a\x97\xef\xb8\x8f  Prova in locale");  // ⚗️
+    m_wanSimBtn->setToolTip(
+        "Avvia server + connette un nodo virtuale sullo stesso PC.\n"
+        "Permette di testare il sistema senza altri computer.");
     srvCtrlLay->addWidget(new QLabel("Porta:"));
     srvCtrlLay->addWidget(m_wanPortSpin);
     srvCtrlLay->addWidget(m_wanStartBtn);
+    srvCtrlLay->addWidget(m_wanSimBtn);
     srvCtrlLay->addWidget(m_wanSrvStatusLbl, 1);
+    connect(m_wanSimBtn, &QPushButton::clicked, this, &LanWanPage::onWanSimBtnClicked);
     srvLay->addWidget(srvCtrlRow);
 
     /* 2 — Decomponi compito: textarea sinistra, bottone destra */
@@ -2316,6 +2322,60 @@ void LanWanPage::wanApplyDecomposedPlan(const QString& jsonPlan)
         m_wanDecomposeStatusLbl->setText(
             QString("\xe2\x9c\x85  %1 agenti aggiunti alla coda \xe2\x80\x94 \"%2\"")
             .arg(created).arg(mainTask.left(50)));
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   onWanSimBtnClicked — avvia/ferma simulazione locale (server + nodo virtuale)
+
+   Permette di testare WAN Compute su un solo PC senza altri nodi fisici.
+   Il server TCP ascolta su 127.0.0.1:porta; il client (nodo virtuale) si
+   connette allo stesso indirizzo e riceve/esegue i task normalmente.
+   Il risultato appare nella tabella "Coda task" come se venisse da un nodo
+   esterno — l'esperienza è identica a quella in produzione.
+   ══════════════════════════════════════════════════════════════════════════ */
+void LanWanPage::onWanSimBtnClicked()
+{
+    if (m_wanSimActive) {
+        /* ── Ferma simulazione ── */
+        if (m_wanCliPollTimer) m_wanCliPollTimer->stop();
+        if (m_wanCliSock)      m_wanCliSock->disconnectFromHost();
+        m_wanSimActive = false;
+        if (m_wanSimBtn)
+            m_wanSimBtn->setText("\xe2\x9a\x97\xef\xb8\x8f  Prova in locale");
+        if (m_wanSrvStatusLbl)
+            m_wanSrvStatusLbl->setStyleSheet("color:gray;");
+        wanCliAppendLog("Simulazione locale fermata.");
+        return;
+    }
+
+    /* ── Avvia simulazione ──
+     * 1. Avvia il server se non è già in ascolto. */
+    if (!m_wanServer || !m_wanServer->isListening()) {
+        if (m_wanStartBtn) m_wanStartBtn->click();
+        QCoreApplication::processEvents();   // lascia partire il server
+    }
+    if (!m_wanServer || !m_wanServer->isListening()) {
+        if (m_wanSrvStatusLbl)
+            m_wanSrvStatusLbl->setText("\xe2\x9d\x8c  Impossibile avviare il server");
+        return;
+    }
+
+    /* 2. Imposta il client per connettersi a localhost con nome "Nodo locale" */
+    if (m_wanCliHost) m_wanCliHost->setText("127.0.0.1");
+    if (m_wanCliPort) m_wanCliPort->setValue(m_wanPortSpin ? m_wanPortSpin->value()
+                                                            : P::kWanComputePort);
+    if (m_wanCliName) m_wanCliName->setText("Nodo locale (simulazione)");
+
+    /* 3. Avvia la connessione client riusando lo slot esistente
+     *    (non cambia il pannello visibile — rimane la vista server) */
+    onWanCliConBtnClicked();
+
+    m_wanSimActive = true;
+    if (m_wanSimBtn)
+        m_wanSimBtn->setText("\xe2\x8f\xb9  Ferma simulazione");
+    if (m_wanSrvStatusLbl)
+        m_wanSrvStatusLbl->setStyleSheet("color:#22c55e; font-weight:bold;");
+    wanCliAppendLog("Simulazione locale avviata — nodo virtuale connesso a 127.0.0.1.");
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
