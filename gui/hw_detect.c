@@ -237,9 +237,40 @@ static long read_pci_resource_max_mb(const char* pci_slot)
 
 static int detect_intel_gpu(HWDevice* devs, int start_idx, int max_count)
 {
-#if defined(_WIN32) || defined(__APPLE__)
+#if defined(_WIN32)
     (void)devs; (void)start_idx; (void)max_count;
     return 0;
+#elif defined(__APPLE__)
+    /* Intel iGPU su Intel Mac (es. "Intel Iris Plus Graphics 640").
+     * Non presente su Apple Silicon — detect_apple_gpu() gestisce quel caso. */
+    if (max_count <= 0 || start_idx >= HW_MAX_DEVICES) return 0;
+
+    char nm[HW_NAME_LEN] = {0};
+    run_first_line(
+        "system_profiler SPDisplaysDataType 2>/dev/null"
+        " | awk '/Chipset Model/&&/Intel/{gsub(/.*: /,\"\"); print; exit}'",
+        nm, sizeof nm);
+    if (!nm[0]) return 0;
+    trim(nm);
+
+    HWDevice* d = &devs[start_idx];
+    strncpy(d->name, nm, HW_NAME_LEN - 1);
+    d->type         = DEV_INTEL;
+    d->gpu_index    = 0;
+
+    /* VRAM: "VRAM (Dynamic, Max): 1536 MB" — normalizza MB/GB */
+    char vbuf[64] = {0};
+    run_first_line(
+        "system_profiler SPDisplaysDataType 2>/dev/null"
+        " | awk '/Intel/{f=1}"
+        "   f&&/VRAM/{l=$0; gsub(/[^0-9]/,\" \");"
+        "   for(i=1;i<=NF;i++) if($i+0>0){v=$i;break}"
+        "   if(l~/GB/) v*=1024; print v; exit}'",
+        vbuf, sizeof vbuf);
+    d->mem_mb       = atol(vbuf);
+    d->avail_mb     = d->mem_mb;
+    d->n_gpu_layers = 0;   /* iGPU non usata per inferenza Ollama */
+    return 1;
 #else
     if (max_count <= 0 || start_idx >= HW_MAX_DEVICES) return 0;
 
@@ -298,9 +329,40 @@ static int detect_intel_gpu(HWDevice* devs, int start_idx, int max_count)
 
 static int detect_amd(HWDevice* devs, int start_idx, int max_count)
 {
-#if defined(_WIN32) || defined(__APPLE__)
+#if defined(_WIN32)
     (void)devs; (void)start_idx; (void)max_count;
     return 0;
+#elif defined(__APPLE__)
+    /* AMD Radeon su Intel Mac (es. "AMD Radeon Pro 560X").
+     * Su Apple Silicon non esistono GPU AMD discrete. */
+    if (max_count <= 0 || start_idx >= HW_MAX_DEVICES) return 0;
+
+    char nm[HW_NAME_LEN] = {0};
+    run_first_line(
+        "system_profiler SPDisplaysDataType 2>/dev/null"
+        " | awk '/Chipset Model/&&/AMD|Radeon/{gsub(/.*: /,\"\"); print; exit}'",
+        nm, sizeof nm);
+    if (!nm[0]) return 0;
+    trim(nm);
+
+    HWDevice* d = &devs[start_idx];
+    strncpy(d->name, nm, HW_NAME_LEN - 1);
+    d->type      = DEV_AMD;
+    d->gpu_index = 0;
+
+    /* VRAM: "VRAM (Total): 4096 MB" oppure "VRAM (Total): 4 GB" */
+    char vbuf[64] = {0};
+    run_first_line(
+        "system_profiler SPDisplaysDataType 2>/dev/null"
+        " | awk '/AMD|Radeon/{f=1}"
+        "   f&&/VRAM/{l=$0; gsub(/[^0-9]/,\" \");"
+        "   for(i=1;i<=NF;i++) if($i+0>0){v=$i;break}"
+        "   if(l~/GB/) v*=1024; print v; exit}'",
+        vbuf, sizeof vbuf);
+    d->mem_mb   = atol(vbuf);
+    d->avail_mb = (d->mem_mb > 0) ? d->mem_mb : 512;
+    d->n_gpu_layers = estimate_gpu_layers(d->avail_mb);
+    return 1;
 #else
     char buf[256] = {0};
     int use_sysfs = 0;
@@ -414,7 +476,14 @@ static int detect_apple_gpu(HWDevice* devs, int start_idx)
     if (start_idx >= HW_MAX_DEVICES) return 0;
     HWDevice* d = &devs[start_idx];
 
-    strncpy(d->name, "Apple GPU (Metal)", HW_NAME_LEN - 1);
+    /* Nome reale del chip via sysctl (es. "Apple M1 Pro", "Apple M3 Max") */
+    char chip[64] = {0};
+    run_first_line("sysctl -n machdep.cpu.brand_string 2>/dev/null",
+                   chip, sizeof chip);
+    if (chip[0])
+        snprintf(d->name, HW_NAME_LEN, "%s GPU", chip);
+    else
+        strncpy(d->name, "Apple GPU (Metal)", HW_NAME_LEN - 1);
     d->type      = DEV_APPLE;
     d->gpu_index = 0;
 
