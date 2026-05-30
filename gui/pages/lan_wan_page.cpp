@@ -1458,6 +1458,34 @@ QWidget* LanWanPage::buildWanComputeTab()
     tableSplit->addWidget(taskBox);
     srvLay->addWidget(tableSplit);
 
+    /* ── Decomposizione automatica con MasterAgent ────────────────────────── */
+    auto* decompBox = new QGroupBox(
+        "\xf0\x9f\xa7\xa0  Decomponi compito \xe2\x86\x92 task llm_agent automatici");
+    auto* decompLay = new QVBoxLayout(decompBox);
+
+    m_wanDecomposeInput = new QTextEdit;
+    m_wanDecomposeInput->setFixedHeight(dpiScale(52));
+    m_wanDecomposeInput->setPlaceholderText(
+        "Descrivi il compito in italiano\xe2\x80\xa6\n"
+        "es. \"Analizza il mercato delle app fitness in Italia e dammi una strategia di lancio\"");
+    decompLay->addWidget(m_wanDecomposeInput);
+
+    auto* decompBtnRow = new QWidget;
+    auto* decompBtnLay = new QHBoxLayout(decompBtnRow);
+    decompBtnLay->setContentsMargins(0,0,0,0); decompBtnLay->setSpacing(8);
+    m_wanDecomposeBtn = new QPushButton("\xf0\x9f\xa7\xa0  Decomponi e aggiungi task");
+    m_wanDecomposeBtn->setObjectName("actionBtn");
+    m_wanDecomposeStatusLbl = new QLabel("Il MasterAgent crea i task llm_agent automaticamente.");
+    m_wanDecomposeStatusLbl->setStyleSheet("color:gray; font-size:11px;");
+    decompBtnLay->addWidget(m_wanDecomposeBtn);
+    decompBtnLay->addWidget(m_wanDecomposeStatusLbl, 1);
+    decompLay->addWidget(decompBtnRow);
+
+    connect(m_wanDecomposeBtn, &QPushButton::clicked,
+            this, &LanWanPage::onWanDecomposeBtnClicked);
+
+    srvLay->addWidget(decompBox);
+
     /* Aggiungi task manuale — combo categorizzata */
     auto* addTaskBox = new QGroupBox("\xe2\x9e\x95  Aggiungi Task");
     auto* addTaskLay = new QVBoxLayout(addTaskBox);
@@ -2141,6 +2169,143 @@ void LanWanPage::onWanCliAiError(const QString& msg)
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════════════════
+   onWanDecomposeBtnClicked — invia il compito al MasterAgent e crea task
+   ══════════════════════════════════════════════════════════════════════════ */
+void LanWanPage::onWanDecomposeBtnClicked()
+{
+    const QString userTask = m_wanDecomposeInput
+        ? m_wanDecomposeInput->toPlainText().trimmed() : QString();
+    if (userTask.isEmpty() || !m_ai) return;
+
+    m_wanDecomposeBtn->setEnabled(false);
+    if (m_wanDecomposeStatusLbl)
+        m_wanDecomposeStatusLbl->setText(
+            "\xe2\x8f\xb3  MasterAgent in elaborazione\xe2\x80\xa6");
+
+    /* Stesso system prompt di AgentiMultiPage::decompose() */
+    const QString sys =
+        "Sei un orchestratore di agenti AI. Il tuo compito e' scomporre un problema"
+        " complesso in sotto-task specializzati, ognuno assegnabile a un sub-agente diverso.\n\n"
+        "REGOLE:\n"
+        "- Rispondi SOLO con JSON valido, nessun testo fuori dal JSON.\n"
+        "- Massimo 5 sub-task.\n"
+        "- Ogni prompt deve essere autonomo e completo (non fare riferimento ad altri agenti).\n"
+        "- USA depends_on per ordinare i task (lista di id precedenti).\n\n"
+        "FORMATO OUTPUT:\n"
+        "{\n"
+        "  \"task\": \"descrizione del compito principale\",\n"
+        "  \"subtasks\": [\n"
+        "    {\"id\":1,\"role\":\"Ricercatore\",\"prompt\":\"...\",\"depends_on\":[]},\n"
+        "    {\"id\":2,\"role\":\"Analista\",\"prompt\":\"...\",\"depends_on\":[1]},\n"
+        "    {\"id\":3,\"role\":\"Scrittore\",\"prompt\":\"...\",\"depends_on\":[1,2]}\n"
+        "  ]\n"
+        "}";
+
+    delete m_wanDecompHolder;
+    m_wanDecompHolder = new QObject(this);
+
+    connect(m_ai, &AiClient::finished, m_wanDecompHolder,
+            [this](const QString& full) {
+                delete m_wanDecompHolder;
+                m_wanDecompHolder = nullptr;
+                wanApplyDecomposedPlan(full);
+            });
+    connect(m_ai, &AiClient::error, m_wanDecompHolder,
+            [this](const QString& msg) {
+                delete m_wanDecompHolder;
+                m_wanDecompHolder = nullptr;
+                m_wanDecomposeBtn->setEnabled(true);
+                if (m_wanDecomposeStatusLbl)
+                    m_wanDecomposeStatusLbl->setText(
+                        "\xe2\x9d\x8c  Errore: " + msg.left(80));
+            });
+
+    m_ai->chat(sys, "Compito da scomporre:\n" + userTask);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   wanApplyDecomposedPlan — parsifica il JSON del MasterAgent e crea i task
+   ══════════════════════════════════════════════════════════════════════════ */
+void LanWanPage::wanApplyDecomposedPlan(const QString& jsonPlan)
+{
+    m_wanDecomposeBtn->setEnabled(true);
+
+    /* Rimuove <think>...</think> dei modelli reasoning */
+    static const QRegularExpression reThink(
+        "<think>[\\s\\S]*?</think>",
+        QRegularExpression::CaseInsensitiveOption);
+    QString clean = jsonPlan.trimmed();
+    clean.remove(reThink);
+    clean = clean.trimmed();
+
+    /* Rimuove code fence markdown */
+    static const QRegularExpression reFence(R"(```[a-z]*\n?([\s\S]*?)```)");
+    const auto fence = reFence.match(clean);
+    if (fence.hasMatch()) clean = fence.captured(1).trimmed();
+
+    /* Estrai blocco JSON */
+    static const QRegularExpression reJson(R"(\{[\s\S]*\})");
+    const auto match = reJson.match(clean);
+    if (match.hasMatch()) clean = match.captured(0);
+
+    QJsonParseError err;
+    const QJsonDocument doc = QJsonDocument::fromJson(clean.toUtf8(), &err);
+    if (err.error != QJsonParseError::NoError || !doc.isObject()) {
+        if (m_wanDecomposeStatusLbl)
+            m_wanDecomposeStatusLbl->setText(
+                "\xe2\x9a\xa0\xef\xb8\x8f  Piano non JSON \xe2\x80\x94"
+                " riprova o usa un modello diverso");
+        return;
+    }
+
+    const QJsonObject root     = doc.object();
+    const QString     mainTask = root["task"].toString();
+    const QJsonArray  subtasks = root["subtasks"].toArray();
+
+    if (subtasks.isEmpty()) {
+        if (m_wanDecomposeStatusLbl)
+            m_wanDecomposeStatusLbl->setText(
+                "\xe2\x9a\xa0\xef\xb8\x8f  Nessun subtask nel piano \xe2\x80\x94 riprova");
+        return;
+    }
+
+    /* Crea un WanTask llm_agent per ogni subtask */
+    int created = 0;
+    for (const QJsonValue& v : subtasks) {
+        const QJsonObject st     = v.toObject();
+        const QString     role   = st["role"].toString();
+        const QString     prompt = st["prompt"].toString();
+        if (role.isEmpty() || prompt.isEmpty()) continue;
+
+        QJsonObject agentPayload;
+        agentPayload["role"]     = role;
+        agentPayload["prompt"]   = prompt;
+        agentPayload["context"]  = "";
+        agentPayload["depth"]    = 0;
+        agentPayload["chain_id"] = mainTask.left(40);
+
+        WanTask t;
+        t.id      = wanNextId();
+        t.kind    = "llm_agent";
+        t.payload = QString::fromUtf8(
+            QJsonDocument(agentPayload).toJson(QJsonDocument::Compact));
+        t.status  = "pending";
+        t.node    = QString("piano: %1").arg(mainTask.left(30));
+        t.created = QDateTime::currentDateTime();
+        m_wanTasks.push_back(t);
+        created++;
+    }
+
+    wanRefreshTables();
+    wanDispatch();
+
+    if (m_wanDecomposeStatusLbl)
+        m_wanDecomposeStatusLbl->setText(
+            QString("\xe2\x9c\x85  %1 agenti aggiunti alla coda \xe2\x80\x94 \"%2\"")
+            .arg(created).arg(mainTask.left(50)));
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    eventFilter — drag-and-drop di file .json sul form llm_agent
    ══════════════════════════════════════════════════════════════════════════ */

@@ -154,6 +154,13 @@ private:
     void     clientTableRemoveRow(const QString& ip);
     static QString readMacForIp(const QString& ip);
 
+    /* WAN — decomposizione automatica con MasterAgent */
+    QTextEdit*   m_wanDecomposeInput     = nullptr;
+    QPushButton* m_wanDecomposeBtn       = nullptr;
+    QLabel*      m_wanDecomposeStatusLbl = nullptr;
+    QObject*     m_wanDecompHolder       = nullptr;
+    void         wanApplyDecomposedPlan(const QString& jsonPlan);
+
     QString  wanNextId() const;
     void     wanDispatch();
     void     wanRefreshTables();
@@ -239,4 +246,6 @@ private slots:
     /* llm_agent form */
     void onAgentSaveBtnClicked();
     void onAgentLoadBtnClicked();
+    /* WAN decomposizione */
+    void onWanDecomposeBtnClicked();
 };
