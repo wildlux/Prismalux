@@ -1708,6 +1708,35 @@ void LanWanPage::onWanNodeReadyRead()
             wanSendJson(sock, QJsonObject{{"t","ack"},{"id",id}});
             wanRefreshTables();
             wanDispatch();
+
+        } else if (type == "spawn_tasks") {
+            /* Un agente llm_agent chiede di spawnare sub-agenti.
+             * Crea un WanTask llm_agent per ogni entry nell'array "tasks". */
+            const QString parentId = msg["parent_id"].toString();
+            const QString chainId  = msg["chain_id"].toString();
+            const QJsonArray tasks = msg["tasks"].toArray();
+            int spawned = 0;
+            for (const auto& v : tasks) {
+                if (!v.isObject()) continue;
+                const QJsonObject t = v.toObject();
+                WanTask sub;
+                sub.id      = wanNextId();
+                sub.kind    = t["kind"].toString("llm_agent");
+                sub.payload = t["payload"].toString();
+                sub.status  = "pending";
+                sub.created = QDateTime::currentDateTime();
+                // Annotazione nella tabella: mostra relazione parent → child
+                sub.node    = QString("spawned-by:%1").arg(parentId);
+                m_wanTasks.push_back(sub);
+                spawned++;
+            }
+            wanSendJson(sock, QJsonObject{{"t","ack"},{"id",parentId}});
+            wanRefreshTables();
+            wanDispatch();
+            // Log nel cron se attivo
+            if (spawned > 0)
+                wanLogCron(QString("[chain:%1] %2 sub-agente/i spawnati da %3")
+                           .arg(chainId).arg(spawned).arg(parentId));
         }
     }
 }
@@ -1923,11 +1952,80 @@ void LanWanPage::onWanCliAiFinished(const QString&)
     m_wanCliTokenConn = m_wanCliFinishedConn = m_wanCliErrorConn = {};
     m_wanCliAiActive = false;
 
+    const QString raw = m_wanCliAiBuf.trimmed();
+
+    /* ── llm_agent: prova a parsare JSON con "result" + "spawn" opzionale ── */
+    if (m_wanCliIsAgentTask) {
+        m_wanCliIsAgentTask = false;
+        const int     depth   = m_wanCliAgentDepth;
+        const QString chainId = m_wanCliAgentChain;
+        m_wanCliAgentDepth = 0;
+        m_wanCliAgentChain.clear();
+
+        // Estrai il blocco JSON dalla risposta (l'LLM può aggiungere testo prima/dopo)
+        QString jsonCandidate;
+        const int braceOpen  = raw.indexOf('{');
+        const int braceClose = raw.lastIndexOf('}');
+        if (braceOpen != -1 && braceClose > braceOpen)
+            jsonCandidate = raw.mid(braceOpen, braceClose - braceOpen + 1);
+
+        QJsonParseError jerr;
+        const QJsonDocument doc = QJsonDocument::fromJson(jsonCandidate.toUtf8(), &jerr);
+        const bool hasSpawn = doc.isObject()
+                           && doc.object().contains("result")
+                           && doc.object()["spawn"].isArray()
+                           && !doc.object()["spawn"].toArray().isEmpty();
+
+        const QString result = hasSpawn
+            ? doc.object()["result"].toString(raw)
+            : raw;
+
+        // Invia risultato al master
+        wanCliSendJson(QJsonObject{
+            {"t","result"}, {"id", m_wanCliCurrentTask},
+            {"status","done"}, {"result", result}
+        });
+
+        // Se ci sono sub-agenti da spawnare, informa il master
+        if (hasSpawn) {
+            const QJsonArray spawnArr = doc.object()["spawn"].toArray();
+            QJsonArray tasks;
+            for (const auto& v : spawnArr) {
+                if (!v.isObject()) continue;
+                const QJsonObject s = v.toObject();
+                QJsonObject taskPayload{
+                    {"role",     s["role"].toString("Assistente")},
+                    {"prompt",   s["prompt"].toString()},
+                    {"context",  result},
+                    {"depth",    depth + 1},
+                    {"chain_id", chainId}
+                };
+                tasks.append(QJsonObject{
+                    {"kind",    "llm_agent"},
+                    {"payload", QString::fromUtf8(
+                        QJsonDocument(taskPayload).toJson(QJsonDocument::Compact))}
+                });
+            }
+            wanCliSendJson(QJsonObject{
+                {"t",          "spawn_tasks"},
+                {"parent_id",  m_wanCliCurrentTask},
+                {"chain_id",   chainId},
+                {"tasks",      tasks}
+            });
+            wanCliAppendLog(QString("Agente ha richiesto %1 sub-agente/i.").arg(tasks.size()));
+        }
+
+        wanCliAppendLog("Task " + m_wanCliCurrentTask + " completato (agente).");
+        m_wanCliCurrentTask.clear();
+        m_wanCliAiBuf.clear();
+        return;
+    }
+
     wanCliSendJson(QJsonObject{
         {"t","result"},
         {"id", m_wanCliCurrentTask},
         {"status","done"},
-        {"result", m_wanCliAiBuf.trimmed()}
+        {"result", raw}
     });
     wanCliAppendLog("Task " + m_wanCliCurrentTask + " completato (AI).");
     m_wanCliCurrentTask.clear();
@@ -1940,7 +2038,10 @@ void LanWanPage::onWanCliAiError(const QString& msg)
     QObject::disconnect(m_wanCliFinishedConn);
     QObject::disconnect(m_wanCliErrorConn);
     m_wanCliTokenConn = m_wanCliFinishedConn = m_wanCliErrorConn = {};
-    m_wanCliAiActive = false;
+    m_wanCliAiActive     = false;
+    m_wanCliIsAgentTask  = false;
+    m_wanCliAgentDepth   = 0;
+    m_wanCliAgentChain.clear();
 
     wanCliSendJson(QJsonObject{
         {"t","result"},
@@ -1977,6 +2078,7 @@ void LanWanPage::wanPopulateKindCombo(QComboBox* combo)
 
     // ── 🤖 AI & LLM ──
     addSep("── 🤖  AI & LLM ──────────────");
+    addItem("\xf0\x9f\xa4\x96  Agente LLM (ruolo + prompt + spawn)",  "llm_agent");
     addItem("💬  Query AI generica",                  "ai_query");
     addItem("💻  Assistente codice",                  "code_assist");
     addItem("🔍  Revisione codice (code review)",     "code_review");
@@ -2023,6 +2125,14 @@ void LanWanPage::wanPopulateKindCombo(QComboBox* combo)
 QString LanWanPage::wanKindTemplate(const QString& kind) const
 {
     static const QMap<QString, QString> kTemplates {
+        {"llm_agent",
+            "{\n"
+            "  \"role\": \"Ricercatore specializzato in fisica quantistica\",\n"
+            "  \"prompt\": \"Analizza il fenomeno dell'entanglement e identifica le sue applicazioni pratiche emergenti.\",\n"
+            "  \"context\": \"\",\n"
+            "  \"depth\": 0,\n"
+            "  \"chain_id\": \"\"\n"
+            "}"},
         {"ai_query",        "Qual è la capitale della Francia?"},
         {"code_assist",     "{\n  \"lang\": \"Python\",\n  \"task\": \"Scrivi una funzione che calcola i numeri di Fibonacci fino a N\"\n}"},
         {"code_review",     "{\n  \"lang\": \"Python\",\n  \"code\": \"def somma(a, b):\\n    return a + b\"\n}"},
@@ -2121,6 +2231,75 @@ void LanWanPage::wanCliHandleTask(const QString& id, const QString& kind, const 
             "Calcola e spiega il TFR (art. 2120 c.c.) in base ai dati forniti. "
             "Mostra: quota annua, rivalutazione, totale lordo, tassazione separata. Rispondi in italiano."},
     };
+
+    /* ── llm_agent: agente con ruolo personalizzato + supporto spawn ── */
+    if (kind == "llm_agent") {
+        // Parsing payload JSON
+        QString role    = "Assistente AI";
+        QString prompt  = payload;
+        QString context;
+        int     depth   = 0;
+        QString chainId;
+
+        QJsonParseError jerr;
+        const QJsonDocument doc = QJsonDocument::fromJson(payload.toUtf8(), &jerr);
+        if (doc.isObject()) {
+            const QJsonObject obj = doc.object();
+            role    = obj["role"].toString(role);
+            prompt  = obj["prompt"].toString(payload);
+            context = obj["context"].toString();
+            depth   = obj["depth"].toInt(0);
+            chainId = obj["chain_id"].toString();
+        }
+        if (chainId.isEmpty()) chainId = id;   // primo agente della catena
+
+        // Messaggio utente: contesto agente precedente + compito
+        QString userMsg = prompt;
+        if (!context.isEmpty())
+            userMsg = "=== CONTESTO DALL'AGENTE PRECEDENTE ===\n" + context
+                    + "\n\n=== IL TUO COMPITO ===\n" + prompt;
+
+        // System prompt: ruolo + istruzioni spawn (solo se non al limite di profondità)
+        constexpr int kMaxDepth = 4;
+        QString sysPrompt = QString(
+            "Sei: %1\n\n"
+            "Esegui il compito con precisione. Rispondi in italiano.\n"
+        ).arg(role);
+
+        if (depth < kMaxDepth) {
+            sysPrompt +=
+                "\nSe il tuo risultato richiede analisi specialistiche aggiuntive "
+                "da parte di altri agenti, puoi richiederle rispondendo in JSON:\n"
+                "{\n"
+                "  \"result\": \"<il tuo risultato completo qui>\",\n"
+                "  \"spawn\": [\n"
+                "    {\"role\": \"<ruolo agente>\", \"prompt\": \"<compito specifico>\"}\n"
+                "  ]\n"
+                "}\n"
+                "Se NON hai bisogno di altri agenti, rispondi in testo libero normale "
+                "(senza JSON). Non inventare JSON se non serve davvero.\n";
+        }
+
+        // Salva metadati per onWanCliAiFinished
+        m_wanCliIsAgentTask  = true;
+        m_wanCliAgentDepth   = depth;
+        m_wanCliAgentChain   = chainId;
+
+        m_wanCliAiActive = true;
+        m_wanCliAiBuf.clear();
+        QObject::disconnect(m_wanCliTokenConn);
+        QObject::disconnect(m_wanCliFinishedConn);
+        QObject::disconnect(m_wanCliErrorConn);
+        m_wanCliTokenConn    = connect(m_ai, &AiClient::token,
+                                       this, &LanWanPage::onWanCliAiToken);
+        m_wanCliFinishedConn = connect(m_ai, &AiClient::finished,
+                                       this, &LanWanPage::onWanCliAiFinished);
+        m_wanCliErrorConn    = connect(m_ai, &AiClient::error,
+                                       this, &LanWanPage::onWanCliAiError);
+        wanCliAppendLog(QString("Agente [depth=%1] ruolo: %2").arg(depth).arg(role));
+        m_ai->chat(sysPrompt, userMsg);
+        return;
+    }
 
     /* ── Task AI: delega a m_ai->chat() ── */
     if (kAiPrompts.contains(kind)) {

@@ -136,6 +136,10 @@ private:
     QMetaObject::Connection m_wanCliTokenConn;
     QMetaObject::Connection m_wanCliFinishedConn;
     QMetaObject::Connection m_wanCliErrorConn;
+    /* --- llm_agent state --- */
+    bool          m_wanCliIsAgentTask = false; ///< true durante un task llm_agent
+    int           m_wanCliAgentDepth  = 0;     ///< profondità spawn corrente
+    QString       m_wanCliAgentChain;          ///< chain_id per tracciamento
 
     /* --- Mode stack --- */
     QStackedWidget* m_wanModeStack  = nullptr;
