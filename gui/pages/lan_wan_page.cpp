@@ -589,25 +589,18 @@ QWidget* LanWanPage::buildLanAndroidTab()
     rightLay->setContentsMargins(4, 0, 0, 0);
     rightLay->setSpacing(8);
 
-    /* ── Riga superiore: QR a sinistra + istruzioni testuali a destra ── */
-    auto* topRow    = new QWidget(rightW);
-    auto* topRowLay = new QHBoxLayout(topRow);
+    /* ── Riga superiore: QR a sinistra + istruzioni a destra (layout diretto, no widget wrapper) ── */
+    auto* topRowLay = new QHBoxLayout;
     topRowLay->setContentsMargins(0, 0, 0, 0);
     topRowLay->setSpacing(12);
 
-    m_qrInlineWidget = new QrCodeWidget(QString(), topRow);
+    m_qrInlineWidget = new QrCodeWidget(QString(), rightW);
     m_qrInlineWidget->setFixedSize(dpiSize(256, 256));
     m_qrInlineWidget->setToolTip(
         "QR di connessione rapida. Si aggiorna con IP, porta e token.");
     topRowLay->addWidget(m_qrInlineWidget, 0, Qt::AlignTop);
 
-    /* ── Scroll area: URL + pulsanti sotto il QR ── */
-    auto* scrollW   = new QWidget;
-    auto* scrollLay = new QVBoxLayout(scrollW);
-    scrollLay->setContentsMargins(0, 0, 0, 0);
-    scrollLay->setSpacing(8);
-
-    auto* qrInfoLbl = new QLabel(topRow);
+    auto* qrInfoLbl = new QLabel(rightW);
     qrInfoLbl->setTextFormat(Qt::RichText);
     qrInfoLbl->setWordWrap(true);
     qrInfoLbl->setAlignment(Qt::AlignLeft | Qt::AlignTop);
@@ -623,7 +616,13 @@ QWidget* LanWanPage::buildLanAndroidTab()
         "Puoi scansionare anche con il server fermo "
         "per pre-configurare l\xe2\x80\x99" "app.</span>");
     topRowLay->addWidget(qrInfoLbl, 1, Qt::AlignTop);
-    rightLay->addWidget(topRow);
+    rightLay->addLayout(topRowLay);
+
+    /* ── Sotto: URL + pulsanti ── */
+    auto* scrollW   = new QWidget;
+    auto* scrollLay = new QVBoxLayout(scrollW);
+    scrollLay->setContentsMargins(0, 0, 0, 0);
+    scrollLay->setSpacing(8);
 
     /* ── Riga URL stilata: 🌐 IP:porta  [📋 Copia] ── */
     auto* urlRow  = new QWidget(scrollW);
