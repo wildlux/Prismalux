@@ -18,8 +18,7 @@ Header (72px): logo · backend · model · CPU/RAM/GPU · spinner · ⚙️
 [5] π  Matematica                Alt+4  Sequenza→Formula · Costanti · N-esimo · Espressione · Risolvi Passi (SymPy+🔀) · Analisi 1&2 (LaTeX KaTeX)
 [6] 🔬 Ricerca                   Alt+5  Paper · Brevetti · Lavoro · Cytoscape—Bio · RDKit · Bioconda · RAB₀-L · BLHM · Analisi Fenomeni · 🕸️ Grafo RAG · Astrale
 [7] 🕹 APP Controller            Alt+6  Blender/FreeCAD/Office/CloudCompare/Anki/KiCAD/TinyMCP/OBS/OpenCode/Godot
-[8] 🌐 LAN & WAN                         LAN Android (QR/ADB) · GNS3 MCP · WAN Compute (TCP:11600, 28 task)
-[9] 🕸️ Multi-Agente                      MasterAgent → SubTask JSON → sub-agenti → GraphMemory (SQLite)
+[8] 🌐 LAN & WAN                         LAN Android (QR/ADB) · GNS3 MCP · WAN Compute (🧠 Solo PC | 🌐 Rete LAN → Multi-Agente + GraphMemory)
 ImpostazioniPage: dialog modale (⚙️ header)
 ```
 Note:
@@ -28,6 +27,36 @@ Note:
 - Cytoscape/RDKit/Bioconda/Avogadro → Ricerca [6]; GNS3 → LAN & WAN [8]; Godot → AppController [7]
 - AppController tab indici: 0=Blender 1=FreeCAD 2=Office 3=CloudCompare 4=Anki 5=KiCAD 6=TinyMCP 7=OBS 8=OpenCode 9=Godot
 - Web app (lan_server.cpp) tab 🎙️ Voce: TTS (SpeechSynthesis) + STT (MediaRecorder→/api/whisper)
+
+## Struttura cartelle repo
+
+```
+Prismalux/
+├── gui/                          ← sorgente C++/Qt6 (questo progetto)
+│   ├── pages/                    ← una pagina = .h + uno o più .cpp
+│   ├── widgets/                  ← componenti header-only e riutilizzabili
+│   ├── tests/                    ← suite ctest (41 suite, BUILD_TESTS=ON)
+│   ├── themes/                   ← temi QSS
+│   ├── CMakeLists.txt
+│   └── CLAUDE.md                 ← questo file
+├── EXPORT/                       ← script e artefatti di distribuzione
+│   ├── linux/   crea_appimage.sh · install_launcher.sh · Prismalux-x86_64.AppImage
+│   ├── windows/ crea_zip_windows.py · build_installer_windows.bat · ZIP
+│   ├── android/ build_apk.sh · installa_xiaomi.sh · test_apk.sh
+│   └── macos/   (futuro)
+├── ANDROID/                      ← app Android Qt6 (BLE, CCNA, TTS, LAN)
+│   └── PrismaluxMobile.apk       ← path hardcoded: P::root()+"/ANDROID/PrismaluxMobile.apk"
+├── MCPs/                         ← 18 plugin MCP Python (JSON-RPC 2.0 stdio)
+├── BEST_PRACTICE_&_GOAL/         ← regole, TODO, operazioni (non codice)
+│   └── REGOLE_IRREMOVIBILI.md    ← 15 convenzioni fisse — leggere prima di toccare il codice
+├── Test/                         ← test Python AI integration + utility
+├── scripts/                      ← utility interne (download_model, genera_quiz_ccna.py)
+├── RAG/                          ← documenti RAG (locale, non in git)
+├── KNOWLEDGE_USER/               ← memoria utente (locale, non in git)
+├── build.bat / aggiorna.bat      ← entry point Windows
+├── aggiorna.sh / avvia.sh        ← entry point Linux/macOS
+└── COMPILE_WIN/                  ← toolchain portatile Windows (setup.bat scarica ~600 MB)
+```
 
 ## File chiave
 | File | Ruolo |
@@ -44,7 +73,7 @@ Note:
 | `pages/pratico_page.*` | 730, P.IVA, Calcolatori Finanza, Scheda TFR (C.F. auto D.M. 1976 + Belfiore) |
 | `pages/ricerca_page.*` | Tab Ricerca [6] — include Cyto/RDKit/Bio/Avo + Analisi Fenomeni (allegati PDF) |
 | `pages/matematica_page.*` | Matematica SymPy; errore fetchModels→ setStatus() via holder |
-| `pages/agenti_multi_page.*` | [9] Multi-Agente: MasterAgent, SubTask, GraphMemory live, sintesi finale |
+| `pages/agenti_multi_page.*` | Multi-Agente: MasterAgent, SubTask, GraphMemory live — embedded in WAN Compute [8] |
 | `graph_memory.h/cpp` | GraphMemory SQLite-backed: nodi/archi, BFS neighbours, DOT/JSON/TXT export |
 | `rag_graph.h/cpp` | RagGraph: scansiona RAG dirs, estrae entità+relazioni LLM → GraphMemory |
 | `widgets/latex_view.h` | LatexView (QWebEngineView+KaTeX o QTextEdit fallback) per formule |
@@ -187,6 +216,10 @@ OpenCode: porta sempre `P::kOpenCodePort`. SSE events: `message.updated`, `sessi
 - `wanCliHandleTask(id, kind, payload)` — dispatcher 28 tipi task
 - `wanPopulateKindCombo(QComboBox*)` — QStandardItemModel con separatori NoItemFlags
 - `wanKindTemplate(kind)` — template payload automatico
+- `m_execModeStack`: index 0 = `AgentiMultiPage` (Solo PC), index 1 = pannello LAN/WAN
+- Radio "🧠 Solo questo PC | 🌐 Rete LAN" — controlla `m_execModeStack`
+- `m_multiAgentTab` creato dentro `buildWanComputeTab()` (non nel costruttore)
+- API pubblica `multiAgentTab()` usata da `mainwindow.cpp` per cross-pollination RagGraph
 
 ## GraphMemory API (`graph_memory.h`)
 ```cpp
