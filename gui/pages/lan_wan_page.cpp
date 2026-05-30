@@ -1405,19 +1405,25 @@ QWidget* LanWanPage::buildWanComputeTab()
     /* ── Stack SERVER / CLIENT ── */
     m_wanModeStack = new QStackedWidget;
 
-    /* ═══════════ PANNELLO SERVER ═══════════ */
+    /* ═══════════ PANNELLO SERVER ═══════════
+     * Layout semplificato: solo 3 sezioni visibili + "Avanzato" nascosto.
+     *   1. Controllo server (porta + avvia)
+     *   2. Decomponi compito con AI  ← main feature
+     *   3. Monitor (nodi + coda task) compact
+     *   4. [▶ Avanzato] nascosto: aggiungi task singolo + cron
+     * ══════════════════════════════════════ */
     auto* srvPanel = new QWidget;
     auto* srvLay   = new QVBoxLayout(srvPanel);
-    srvLay->setContentsMargins(0,0,0,0); srvLay->setSpacing(8);
+    srvLay->setContentsMargins(0,0,0,0); srvLay->setSpacing(6);
 
-    /* Riga controllo server */
+    /* 1 — Controllo server */
     auto* srvCtrlRow = new QWidget;
     auto* srvCtrlLay = new QHBoxLayout(srvCtrlRow);
     srvCtrlLay->setContentsMargins(0,0,0,0); srvCtrlLay->setSpacing(8);
     m_wanPortSpin = new QSpinBox;
     m_wanPortSpin->setRange(1024, 65535);
     m_wanPortSpin->setValue(P::kWanComputePort);
-    m_wanPortSpin->setFixedWidth(90);
+    m_wanPortSpin->setFixedWidth(dpiScale(80));
     m_wanStartBtn = new QPushButton("\xe2\x96\xb6  Avvia Server");
     m_wanStartBtn->setObjectName("actionBtn");
     m_wanStartBtn->setCheckable(true);
@@ -1429,53 +1435,25 @@ QWidget* LanWanPage::buildWanComputeTab()
     srvCtrlLay->addWidget(m_wanSrvStatusLbl, 1);
     srvLay->addWidget(srvCtrlRow);
 
-    /* Splitter: tabelle nodi + task */
-    auto* tableSplit = new QSplitter(Qt::Horizontal);
-
-    auto* nodeBox = new QGroupBox("\xf0\x9f\x92\xbb  Nodi connessi");
-    auto* nodeBLay = new QVBoxLayout(nodeBox);
-    m_wanNodeTable = new QTableWidget(0, 4);
-    m_wanNodeTable->setHorizontalHeaderLabels(
-        {"Nome", "IP", "Stato", "Capacit\xc3\xa0"});
-    m_wanNodeTable->horizontalHeader()->setStretchLastSection(true);
-    m_wanNodeTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    m_wanNodeTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_wanNodeTable->setFixedHeight(130);
-    nodeBLay->addWidget(m_wanNodeTable);
-    tableSplit->addWidget(nodeBox);
-
-    auto* taskBox = new QGroupBox("\xf0\x9f\x93\x8b  Coda task");
-    auto* taskBLay = new QVBoxLayout(taskBox);
-    m_wanTaskTable = new QTableWidget(0, 5);
-    m_wanTaskTable->setHorizontalHeaderLabels(
-        {"ID", "Tipo", "Payload\xe2\x80\xa6", "Stato", "Nodo"});
-    m_wanTaskTable->horizontalHeader()->setStretchLastSection(false);
-    m_wanTaskTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
-    m_wanTaskTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    m_wanTaskTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_wanTaskTable->setFixedHeight(130);
-    taskBLay->addWidget(m_wanTaskTable);
-    tableSplit->addWidget(taskBox);
-    srvLay->addWidget(tableSplit);
-
-    /* ── Decomposizione automatica con MasterAgent ────────────────────────── */
+    /* 2 — Decomponi compito (main feature) */
     auto* decompBox = new QGroupBox(
-        "\xf0\x9f\xa7\xa0  Decomponi compito \xe2\x86\x92 task llm_agent automatici");
+        "\xf0\x9f\xa7\xa0  Scrivi un compito — l\xe2\x80\x99AI lo divide in agenti automaticamente");
     auto* decompLay = new QVBoxLayout(decompBox);
+    decompLay->setSpacing(4);
 
     m_wanDecomposeInput = new QTextEdit;
-    m_wanDecomposeInput->setFixedHeight(dpiScale(52));
+    m_wanDecomposeInput->setFixedHeight(dpiScale(56));
     m_wanDecomposeInput->setPlaceholderText(
-        "Descrivi il compito in italiano\xe2\x80\xa6\n"
-        "es. \"Analizza il mercato delle app fitness in Italia e dammi una strategia di lancio\"");
+        "es. \"Analizza il mercato delle app fitness in Italia e crea una strategia di lancio\"\n"
+        "es. \"Scrivi un articolo scientifico sull\xe2\x80\x99intelligenza artificiale distribuita\"");
     decompLay->addWidget(m_wanDecomposeInput);
 
     auto* decompBtnRow = new QWidget;
     auto* decompBtnLay = new QHBoxLayout(decompBtnRow);
     decompBtnLay->setContentsMargins(0,0,0,0); decompBtnLay->setSpacing(8);
-    m_wanDecomposeBtn = new QPushButton("\xf0\x9f\xa7\xa0  Decomponi e aggiungi task");
+    m_wanDecomposeBtn = new QPushButton("\xf0\x9f\xa7\xa0  Crea agenti");
     m_wanDecomposeBtn->setObjectName("actionBtn");
-    m_wanDecomposeStatusLbl = new QLabel("Il MasterAgent crea i task llm_agent automaticamente.");
+    m_wanDecomposeStatusLbl = new QLabel("Scrivi il compito e premi \xe2\x80\x9cCrea agenti\xe2\x80\x9d");
     m_wanDecomposeStatusLbl->setStyleSheet("color:gray; font-size:11px;");
     decompBtnLay->addWidget(m_wanDecomposeBtn);
     decompBtnLay->addWidget(m_wanDecomposeStatusLbl, 1);
@@ -1483,11 +1461,59 @@ QWidget* LanWanPage::buildWanComputeTab()
 
     connect(m_wanDecomposeBtn, &QPushButton::clicked,
             this, &LanWanPage::onWanDecomposeBtnClicked);
-
     srvLay->addWidget(decompBox);
 
-    /* Aggiungi task manuale — combo categorizzata */
-    auto* addTaskBox = new QGroupBox("\xe2\x9e\x95  Aggiungi Task");
+    /* 3 — Monitor nodi + coda (altezza ridotta) */
+    auto* tableSplit = new QSplitter(Qt::Horizontal);
+
+    auto* nodeBox = new QGroupBox("\xf0\x9f\x92\xbb  Nodi connessi");
+    auto* nodeBLay = new QVBoxLayout(nodeBox);
+    nodeBLay->setContentsMargins(4,4,4,4);
+    m_wanNodeTable = new QTableWidget(0, 4);
+    m_wanNodeTable->setHorizontalHeaderLabels({"Nome","IP","Stato","Capacit\xc3\xa0"});
+    m_wanNodeTable->horizontalHeader()->setStretchLastSection(true);
+    m_wanNodeTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_wanNodeTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_wanNodeTable->setFixedHeight(dpiScale(95));
+    nodeBLay->addWidget(m_wanNodeTable);
+    tableSplit->addWidget(nodeBox);
+
+    auto* taskBox = new QGroupBox("\xf0\x9f\x93\x8b  Coda task");
+    auto* taskBLay = new QVBoxLayout(taskBox);
+    taskBLay->setContentsMargins(4,4,4,4);
+    m_wanTaskTable = new QTableWidget(0, 5);
+    m_wanTaskTable->setHorizontalHeaderLabels({"ID","Tipo","Payload\xe2\x80\xa6","Stato","Nodo"});
+    m_wanTaskTable->horizontalHeader()->setStretchLastSection(false);
+    m_wanTaskTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+    m_wanTaskTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_wanTaskTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_wanTaskTable->setFixedHeight(dpiScale(95));
+    taskBLay->addWidget(m_wanTaskTable);
+    tableSplit->addWidget(taskBox);
+    srvLay->addWidget(tableSplit);
+
+    /* 4 — Avanzato (nascosto di default) */
+    auto* advToggle = new QPushButton("\xe2\x96\xb6  Avanzato — aggiungi task singolo, cron");
+    advToggle->setCheckable(true);
+    advToggle->setChecked(false);
+    advToggle->setFlat(true);
+    advToggle->setStyleSheet("text-align:left; color:gray; font-size:11px;");
+    srvLay->addWidget(advToggle);
+
+    auto* advPanel = new QWidget;
+    advPanel->setVisible(false);
+    auto* advLay = new QVBoxLayout(advPanel);
+    advLay->setContentsMargins(0,0,0,0); advLay->setSpacing(6);
+
+    connect(advToggle, &QPushButton::toggled, advPanel, &QWidget::setVisible);
+    connect(advToggle, &QPushButton::toggled, advToggle, [advToggle](bool on){
+        advToggle->setText(on
+            ? "\xe2\x96\xbc  Avanzato — aggiungi task singolo, cron"
+            : "\xe2\x96\xb6  Avanzato — aggiungi task singolo, cron");
+    });
+
+    /* Aggiungi task manuale */
+    auto* addTaskBox = new QGroupBox("\xe2\x9e\x95  Aggiungi task singolo");
     auto* addTaskLay = new QVBoxLayout(addTaskBox);
     auto* addTaskRow1 = new QWidget;
     auto* addTaskLay1 = new QHBoxLayout(addTaskRow1);
@@ -1499,18 +1525,15 @@ QWidget* LanWanPage::buildWanComputeTab()
     addTaskLay1->addWidget(new QLabel("Tipo:"));
     addTaskLay1->addWidget(m_wanTaskKind, 1);
     addTaskLay1->addWidget(m_wanAddTaskBtn);
-    /* ── Stack payload: pagina 0 = textarea raw, pagina 1 = form llm_agent ── */
+
+    /* Stack payload: 0 = textarea raw, 1 = form llm_agent */
     m_wanPayloadStack = new QStackedWidget;
 
-    /* Pagina 0 — textarea JSON raw (tutti i tipi tranne llm_agent) */
     m_wanTaskPayload = new QTextEdit;
-    m_wanTaskPayload->setFixedHeight(dpiScale(80));
+    m_wanTaskPayload->setFixedHeight(dpiScale(70));
     m_wanTaskPayload->setPlaceholderText("Seleziona un tipo per vedere il template\xe2\x80\xa6");
     m_wanPayloadStack->addWidget(m_wanTaskPayload);   // index 0
 
-    /* Pagina 1 — form campi per llm_agent
-     * I nomi campo (Ruolo/Prompt/Contesto) sono nel placeholder del campo stesso:
-     * sempre leggibili anche quando il campo è vuoto, senza etichette separate. */
     m_agentFormFrame = new QFrame;
     m_agentFormFrame->setFrameShape(QFrame::StyledPanel);
     m_agentFormFrame->setAcceptDrops(true);
@@ -1523,54 +1546,44 @@ QWidget* LanWanPage::buildWanComputeTab()
     formLay->addWidget(m_agentRoleEdit);
 
     m_agentPromptEdit = new QTextEdit;
-    m_agentPromptEdit->setFixedHeight(dpiScale(62));
+    m_agentPromptEdit->setFixedHeight(dpiScale(52));
     m_agentPromptEdit->setPlaceholderText("Prompt: il compito specifico di questo agente\xe2\x80\xa6");
     formLay->addWidget(m_agentPromptEdit);
 
     m_agentContextEdit = new QTextEdit;
-    m_agentContextEdit->setFixedHeight(dpiScale(38));
-    m_agentContextEdit->setPlaceholderText("Contesto: da agenti precedenti (lascia vuoto per il primo agente)");
+    m_agentContextEdit->setFixedHeight(dpiScale(34));
+    m_agentContextEdit->setPlaceholderText("Contesto: da agenti precedenti (opzionale)");
     formLay->addWidget(m_agentContextEdit);
 
-    /* Riga pulsanti salva/carica + hint drag-and-drop */
     auto* agentBtnRow = new QWidget;
     auto* agentBtnLay = new QHBoxLayout(agentBtnRow);
     agentBtnLay->setContentsMargins(0,0,0,0); agentBtnLay->setSpacing(6);
-    m_agentSaveBtn = new QPushButton("\xf0\x9f\x92\xbe  Salva JSON");   // 💾
-    m_agentLoadBtn = new QPushButton("\xf0\x9f\x93\x82  Carica JSON");  // 📂
-    auto* dropHintLbl = new QLabel("oppure trascina qui un file .json");
+    m_agentSaveBtn = new QPushButton("\xf0\x9f\x92\xbe  Salva JSON");
+    m_agentLoadBtn = new QPushButton("\xf0\x9f\x93\x82  Carica JSON");
+    auto* dropHintLbl = new QLabel("oppure trascina un file .json");
     dropHintLbl->setStyleSheet("color:gray; font-size:11px;");
     agentBtnLay->addWidget(m_agentSaveBtn);
     agentBtnLay->addWidget(m_agentLoadBtn);
     agentBtnLay->addWidget(dropHintLbl, 1);
     formLay->addWidget(agentBtnRow);
-
     m_wanPayloadStack->addWidget(m_agentFormFrame);   // index 1
 
     addTaskLay->addWidget(addTaskRow1);
     addTaskLay->addWidget(m_wanPayloadStack);
-    srvLay->addWidget(addTaskBox);
+    advLay->addWidget(addTaskBox);
 
-    /* Collega pulsanti form */
-    connect(m_agentSaveBtn, &QPushButton::clicked,
-            this, &LanWanPage::onAgentSaveBtnClicked);
-    connect(m_agentLoadBtn, &QPushButton::clicked,
-            this, &LanWanPage::onAgentLoadBtnClicked);
+    connect(m_agentSaveBtn, &QPushButton::clicked, this, &LanWanPage::onAgentSaveBtnClicked);
+    connect(m_agentLoadBtn, &QPushButton::clicked, this, &LanWanPage::onAgentLoadBtnClicked);
 
-    /* Cambia pagina stack al cambio tipo + auto-fill template per tipi raw */
-    connect(m_wanTaskKind,
-            QOverload<int>::of(&QComboBox::currentIndexChanged),
+    connect(m_wanTaskKind, QOverload<int>::of(&QComboBox::currentIndexChanged),
             m_wanTaskKind, [this](int){
         const QString kind = m_wanTaskKind->currentData().toString();
         if (kind.isEmpty()) return;
         const bool isAgent = (kind == "llm_agent");
         if (m_wanPayloadStack) m_wanPayloadStack->setCurrentIndex(isAgent ? 1 : 0);
-        /* Aggiorna sempre il template al cambio tipo — nessuna condizione isEmpty()
-         * così funziona anche tornando su un tipo già visitato. */
         if (!isAgent && m_wanTaskPayload)
             m_wanTaskPayload->setPlainText(wanKindTemplate(kind));
     });
-    /* Stato iniziale: llm_agent è selezionato di default → mostra form */
     {
         const QString initKind = m_wanTaskKind->currentData().toString();
         const bool isAgent = (initKind == "llm_agent");
@@ -1580,7 +1593,7 @@ QWidget* LanWanPage::buildWanComputeTab()
     }
 
     /* Cron */
-    auto* cronBox = new QGroupBox("\xe2\x8f\xb0  Cron Task (dispatch automatico)");
+    auto* cronBox = new QGroupBox("\xe2\x8f\xb0  Cron — ripeti task automaticamente");
     auto* cronLay = new QVBoxLayout(cronBox);
     auto* cronRow1 = new QWidget;
     auto* cronLay1 = new QHBoxLayout(cronRow1);
@@ -1590,9 +1603,9 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanCronInterval->setSuffix(" min");
     m_wanCronKind = new QComboBox;
     wanPopulateKindCombo(m_wanCronKind);
-    m_wanCronStartBtn = new QPushButton("\xe2\x96\xb6  Avvia Cron");
+    m_wanCronStartBtn = new QPushButton("\xe2\x96\xb6  Avvia");
     m_wanCronStartBtn->setObjectName("actionBtn");
-    m_wanCronStopBtn  = new QPushButton("\xe2\x8f\xb9  Stop Cron");
+    m_wanCronStopBtn  = new QPushButton("\xe2\x8f\xb9  Stop");
     m_wanCronStopBtn->setObjectName("actionBtn");
     m_wanCronStopBtn->setEnabled(false);
     cronLay1->addWidget(new QLabel("Ogni:"));
@@ -1603,65 +1616,59 @@ QWidget* LanWanPage::buildWanComputeTab()
     cronLay1->addWidget(m_wanCronStopBtn);
     m_wanCronPayload = new QTextEdit;
     m_wanCronPayload->setPlaceholderText("Payload del task cron (ripetuto ad ogni tick)");
-    m_wanCronPayload->setFixedHeight(54);
+    m_wanCronPayload->setFixedHeight(dpiScale(48));
     m_wanCronLog = new QTextEdit;
     m_wanCronLog->setReadOnly(true);
-    m_wanCronLog->setFixedHeight(68);
+    m_wanCronLog->setFixedHeight(dpiScale(56));
     m_wanCronLog->setPlaceholderText("Log cron\xe2\x80\xa6");
     cronLay->addWidget(cronRow1);
     cronLay->addWidget(m_wanCronPayload);
     cronLay->addWidget(m_wanCronLog);
-    srvLay->addWidget(cronBox);
+    advLay->addWidget(cronBox);
 
+    srvLay->addWidget(advPanel);
     m_wanModeStack->addWidget(srvPanel);   /* index 0 = server */
 
-    /* ═══════════ PANNELLO CLIENT ═══════════ */
+    /* ═══════════ PANNELLO CLIENT ═══════════
+     * Semplificato: una sola riga di connessione + log.
+     * ══════════════════════════════════════ */
     auto* cliPanel = new QWidget;
     auto* cliLay   = new QVBoxLayout(cliPanel);
     cliLay->setContentsMargins(0,0,0,0); cliLay->setSpacing(8);
 
-    auto* cliConBox = new QGroupBox("\xf0\x9f\x94\x8c  Connessione al server");
-    auto* cliConLay = new QVBoxLayout(cliConBox);
-    auto* cliRow1 = new QWidget;
-    auto* cliLay1 = new QHBoxLayout(cliRow1);
-    cliLay1->setContentsMargins(0,0,0,0); cliLay1->setSpacing(8);
-    m_wanCliHost = new QLineEdit; m_wanCliHost->setPlaceholderText("192.168.1.10");
+    /* Connessione — tutto su una riga */
+    auto* cliConRow = new QWidget;
+    auto* cliConLay = new QHBoxLayout(cliConRow);
+    cliConLay->setContentsMargins(0,0,0,0); cliConLay->setSpacing(6);
+    m_wanCliHost = new QLineEdit;
+    m_wanCliHost->setPlaceholderText("IP server (es. 192.168.1.10)");
     m_wanCliPort = new QSpinBox;
     m_wanCliPort->setRange(1024, 65535); m_wanCliPort->setValue(P::kWanComputePort);
-    m_wanCliPort->setFixedWidth(90);
-    m_wanCliName = new QLineEdit; m_wanCliName->setPlaceholderText("Nome nodo (es: PC-Mario)");
-    cliLay1->addWidget(new QLabel("Server:")); cliLay1->addWidget(m_wanCliHost, 2);
-    cliLay1->addWidget(new QLabel("Porta:")); cliLay1->addWidget(m_wanCliPort);
-    cliLay1->addWidget(new QLabel("Nome:")); cliLay1->addWidget(m_wanCliName, 2);
-    auto* cliRow2 = new QWidget;
-    auto* cliLay2 = new QHBoxLayout(cliRow2);
-    cliLay2->setContentsMargins(0,0,0,0); cliLay2->setSpacing(8);
-    m_wanCliConBtn   = new QPushButton("\xf0\x9f\x94\x8c  Connetti");
+    m_wanCliPort->setFixedWidth(dpiScale(80));
+    m_wanCliName = new QLineEdit;
+    m_wanCliName->setPlaceholderText("Nome nodo (es. PC-Mario)");
+    m_wanCliName->setFixedWidth(dpiScale(130));
+    m_wanCliConBtn    = new QPushButton("\xf0\x9f\x94\x8c  Connetti");
     m_wanCliConBtn->setObjectName("actionBtn");
-    m_wanCliDisconBtn = new QPushButton("\xf0\x9f\x94\x8c  Disconnetti");
-    m_wanCliDisconBtn->setObjectName("actionBtn");
+    m_wanCliDisconBtn = new QPushButton("Disconnetti");
     m_wanCliDisconBtn->setEnabled(false);
     m_wanCliStatusLbl = new QLabel("\xe2\x9a\xab  Non connesso");
     m_wanCliStatusLbl->setStyleSheet("color:gray;");
-    cliLay2->addWidget(m_wanCliConBtn);
-    cliLay2->addWidget(m_wanCliDisconBtn);
-    cliLay2->addWidget(m_wanCliStatusLbl, 1);
-    cliConLay->addWidget(cliRow1);
-    cliConLay->addWidget(cliRow2);
-    cliLay->addWidget(cliConBox);
+    cliConLay->addWidget(m_wanCliHost, 2);
+    cliConLay->addWidget(m_wanCliPort);
+    cliConLay->addWidget(m_wanCliName);
+    cliConLay->addWidget(m_wanCliConBtn);
+    cliConLay->addWidget(m_wanCliDisconBtn);
+    cliConLay->addWidget(m_wanCliStatusLbl, 1);
+    cliLay->addWidget(cliConRow);
 
-    auto* cliLogBox = new QGroupBox("\xf0\x9f\x93\x9c  Log esecuzione task");
-    auto* cliLogLay = new QVBoxLayout(cliLogBox);
+    /* Log task eseguiti */
     m_wanCliLog = new QTextEdit;
     m_wanCliLog->setReadOnly(true);
     m_wanCliLog->setPlaceholderText(
-        "Log dei task ricevuti ed eseguiti da questo nodo.\n\n"
-        "Capacit\xc3\xa0 supportate:\n"
-        "  ai_query   \xe2\x86\x92 invia la query al modello AI locale (Ollama)\n"
-        "  shell_cmd  \xe2\x86\x92 esegue il comando nella shell\n"
-        "  eval_script \xe2\x86\x92 esegue lo script Python");
-    cliLogLay->addWidget(m_wanCliLog);
-    cliLay->addWidget(cliLogBox, 1);
+        "Log task ricevuti ed eseguiti da questo nodo.\n"
+        "Connettiti al server per iniziare a ricevere lavoro.");
+    cliLay->addWidget(m_wanCliLog, 1);
 
     m_wanModeStack->addWidget(cliPanel);   /* index 1 = client */
 
