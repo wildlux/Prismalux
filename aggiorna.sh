@@ -33,6 +33,8 @@
 #    ./aggiorna.sh --appimage   # solo AppImage Linux (Linux only)
 #    ./aggiorna.sh --no-zip     # GUI + AppImage, salta ZIP
 #    ./aggiorna.sh --no-appimage# GUI + ZIP, salta AppImage
+#    ./aggiorna.sh --app        # GUI + .app bundle macOS (macOS only)
+#    ./aggiorna.sh --no-app     # salta .app bundle macOS
 #    ./aggiorna.sh --whisper    # solo download binario whisper-cli.exe
 #    ./aggiorna.sh --no-whisper # salta download binario whisper-cli.exe
 #    ./aggiorna.sh --build-whisper  # compila whisper.cpp da sorgente
@@ -69,6 +71,7 @@ QT_GUI="$SCRIPT_DIR/gui"
 ZIP_SCRIPT="$SCRIPT_DIR/scripts/crea_zip_windows.py"
 APPIMAGE_SCRIPT="$SCRIPT_DIR/scripts/crea_appimage.sh"
 APPIMAGE_OUT="$SCRIPT_DIR/Prismalux-x86_64.AppImage"
+APP_BUNDLE_OUT="$SCRIPT_DIR/Prismalux.app"
 WHISPER_WIN_DIR="$SCRIPT_DIR/whisper_win"
 
 # ── Adattamenti per OS ──────────────────────────────────────────
@@ -121,6 +124,7 @@ DO_GUI=1
 DO_WEB=0          # ricompila GUI + mostra URL web app
 DO_ZIP=0          # default OFF — Windows lo attiva automaticamente
 DO_APPIMAGE=1     # default ON  — Windows/macOS lo disattivano
+DO_APP_BUNDLE=0   # default OFF — macOS lo attiva automaticamente
 DO_WHISPER_WIN=0
 DO_BUILD_WHISPER=0
 DO_LLAMA_STUDIO=0
@@ -128,26 +132,29 @@ DO_LLAMA_STUDIO=0
 # ── Default per piattaforma ─────────────────────────────────────
 #   Linux  → AppImage ON,  ZIP OFF  (non ha senso creare .bat su Linux)
 #   Windows→ ZIP ON,       AppImage OFF
-#   macOS  → né ZIP né AppImage di default
+#   macOS  → .app bundle ON, né ZIP né AppImage
 if [ "$IS_WIN" = "1" ]; then
     DO_ZIP=1
     DO_APPIMAGE=0
 elif [ "$IS_MAC" = "1" ]; then
     DO_APPIMAGE=0
+    DO_APP_BUNDLE=1
 fi
 
 for arg in "$@"; do
     case "$arg" in
-        --gui)           DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_WEB=0; DO_WHISPER_WIN=0 ;;
-        --web)           DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_WEB=1; DO_WHISPER_WIN=0 ;;
-        --bat|--zip)     DO_GUI=0; DO_ZIP=1; DO_APPIMAGE=0; DO_WEB=0 ;;
-        --appimage)      DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=1; DO_WEB=0 ;;
-        --whisper)       DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=0; DO_WEB=0; DO_WHISPER_WIN=1 ;;
+        --gui)           DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_APP_BUNDLE=0; DO_WEB=0; DO_WHISPER_WIN=0 ;;
+        --web)           DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_APP_BUNDLE=0; DO_WEB=1; DO_WHISPER_WIN=0 ;;
+        --bat|--zip)     DO_GUI=0; DO_ZIP=1; DO_APPIMAGE=0; DO_APP_BUNDLE=0; DO_WEB=0 ;;
+        --appimage)      DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=1; DO_APP_BUNDLE=0; DO_WEB=0 ;;
+        --app)           DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_APP_BUNDLE=1; DO_WEB=0 ;;
+        --whisper)       DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=0; DO_APP_BUNDLE=0; DO_WEB=0; DO_WHISPER_WIN=1 ;;
         --build-whisper) DO_BUILD_WHISPER=1 ;;
         --llama-studio)  DO_LLAMA_STUDIO=1 ;;
         --no-zip)        DO_ZIP=0 ;;
         --no-bat)        DO_ZIP=0 ;;
         --no-appimage)   DO_APPIMAGE=0 ;;
+        --no-app)        DO_APP_BUNDLE=0 ;;
         --no-web)        DO_WEB=0 ;;
         --no-whisper)    DO_WHISPER_WIN=0 ;;
         -h|--help)
@@ -159,12 +166,13 @@ for arg in "$@"; do
             echo "  --bat        Solo ZIP Windows (.bat + binari) — usabile da Linux/Windows"
             echo "  --zip        Alias per --bat"
             echo "  --appimage   Solo AppImage Linux — solo su Linux"
+            echo "  --app        GUI + .app bundle macOS — solo su macOS"
             echo ""
             echo "  Default per piattaforma (senza argomenti):"
             if [ "$IS_WIN" = "1" ]; then
             echo "    Windows → GUI + ZIP (.bat)                [AppImage: N/A]"
             elif [ "$IS_MAC" = "1" ]; then
-            echo "    macOS   → GUI                             [ZIP/AppImage: usa --bat/--appimage]"
+            echo "    macOS   → GUI + .app bundle               [ZIP/AppImage: N/A]"
             else
             echo "    Linux   → GUI + AppImage                  [ZIP: usa --bat se vuoi .bat Windows]"
             fi
@@ -542,6 +550,156 @@ if [ "$DO_APPIMAGE" = "1" ]; then
 fi
 
 # ══════════════════════════════════════════════════════════════
+#  5. macOS App Bundle (.app + macdeployqt + DMG opzionale)
+# ══════════════════════════════════════════════════════════════
+if [ "$DO_APP_BUNDLE" = "1" ]; then
+    if [ "$IS_MAC" != "1" ]; then
+        echo -e "${Y}⚠  --app disponibile solo su macOS — saltato.${N}"
+    else
+        step "Genero .app bundle macOS..."
+
+        APP_CONTENTS="$APP_BUNDLE_OUT/Contents"
+        APP_MACOS="$APP_CONTENTS/MacOS"
+        APP_RES="$APP_CONTENTS/Resources"
+
+        [ -f "$GUI_BIN" ] || fail "Binario non trovato: $GUI_BIN — esegui prima --gui"
+
+        # ── Struttura bundle ────────────────────────────────────────
+        rm -rf "$APP_BUNDLE_OUT"
+        mkdir -p "$APP_MACOS" "$APP_RES"
+
+        cp "$GUI_BIN" "$APP_MACOS/Prismalux_GUI"
+        chmod +x "$APP_MACOS/Prismalux_GUI"
+        echo -e "  Binario   → $APP_MACOS/Prismalux_GUI"
+
+        # ── Temi → Resources/ ──────────────────────────────────────
+        if [ -d "$QT_GUI/themes" ]; then
+            cp -r "$QT_GUI/themes" "$APP_RES/themes"
+            echo -e "  Temi      → $APP_RES/themes/"
+        fi
+
+        # ── Icona PNG → ICNS (sips + iconutil, entrambi built-in macOS) ─
+        _ICON_KEY=""
+        _ICON_PNG="$SCRIPT_DIR/ICONA/prismalux.png"
+        if [ -f "$_ICON_PNG" ] && command -v sips &>/dev/null && command -v iconutil &>/dev/null; then
+            _ICONSET="$(mktemp -d /tmp/prismalux_iconset_XXXXXX).iconset"
+            mkdir -p "$_ICONSET"
+            for _sz in 16 32 128 256 512; do
+                sips -z "$_sz"        "$_sz"        "$_ICON_PNG" \
+                    --out "$_ICONSET/icon_${_sz}x${_sz}.png"       2>/dev/null || true
+                sips -z "$((_sz*2))" "$((_sz*2))" "$_ICON_PNG" \
+                    --out "$_ICONSET/icon_${_sz}x${_sz}@2x.png"    2>/dev/null || true
+            done
+            iconutil -c icns "$_ICONSET" -o "$APP_RES/prismalux.icns" 2>/dev/null \
+                && _ICON_KEY="prismalux" || true
+            rm -rf "$_ICONSET"
+            [ -n "$_ICON_KEY" ] && echo -e "  Icona     → $APP_RES/prismalux.icns"
+        fi
+
+        # ── Info.plist ─────────────────────────────────────────────
+        {
+        cat <<PLIST_EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>Prismalux_GUI</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.wildlux.prismalux</string>
+    <key>CFBundleName</key>
+    <string>Prismalux</string>
+    <key>CFBundleDisplayName</key>
+    <string>Prismalux v${PRISMA_VERSION}</string>
+    <key>CFBundleVersion</key>
+    <string>${PRISMA_VERSION}.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>${PRISMA_VERSION}</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSRequiresAquaSystemAppearance</key>
+    <false/>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+PLIST_EOF
+        [ -n "$_ICON_KEY" ] && printf '    <key>CFBundleIconFile</key>\n    <string>%s</string>\n' "$_ICON_KEY"
+        echo '</dict>'
+        echo '</plist>'
+        } > "$APP_CONTENTS/Info.plist"
+        echo -e "  Info.plist → $APP_CONTENTS/Info.plist"
+
+        # ── macdeployqt — copia Qt frameworks nel bundle ────────────
+        # Cerca in: PATH, Homebrew (Apple Silicon e Intel), Qt installer
+        _MACDEPLOYQT=""
+        command -v macdeployqt &>/dev/null && _MACDEPLOYQT="macdeployqt"
+        if [ -z "$_MACDEPLOYQT" ]; then
+            # qmake conosce esattamente dove si trovano i tool Qt
+            _QT_BINS="$(qmake -query QT_INSTALL_BINS 2>/dev/null || true)"
+            [ -x "$_QT_BINS/macdeployqt" ] && _MACDEPLOYQT="$_QT_BINS/macdeployqt"
+        fi
+        if [ -z "$_MACDEPLOYQT" ]; then
+            for _qdir in \
+                /opt/homebrew/opt/qt6/bin \
+                /usr/local/opt/qt6/bin \
+                /opt/homebrew/bin \
+                "$HOME/Qt/6"*/macos/bin \
+                "$HOME/Qt/6"*/clang_64/bin; do
+                # shellcheck disable=SC2086
+                _candidate="$(ls $_qdir/macdeployqt 2>/dev/null | head -1)"
+                [ -x "$_candidate" ] && { _MACDEPLOYQT="$_candidate"; break; }
+            done
+        fi
+
+        if [ -n "$_MACDEPLOYQT" ]; then
+            echo -e "  macdeployqt → ${C}$_MACDEPLOYQT${N}"
+            "$_MACDEPLOYQT" "$APP_BUNDLE_OUT" -verbose=1 2>&1 \
+                | grep -E "(copying|Deploying|error|WARNING|Cannot)" || true
+            ok "Qt frameworks copiati nel bundle"
+        else
+            echo -e "${Y}  ⚠  macdeployqt non trovato — bundle non autonomo.${N}"
+            echo -e "${Y}     Installa Qt6: brew install qt6${N}"
+            echo -e "${Y}     poi: export PATH=\"/opt/homebrew/opt/qt6/bin:\$PATH\"${N}"
+        fi
+
+        _APP_SIZE="$(du -sh "$APP_BUNDLE_OUT" 2>/dev/null | cut -f1)"
+        ok ".app bundle → $APP_BUNDLE_OUT  ($_APP_SIZE)"
+
+        # ── DMG — creato se create-dmg o hdiutil è disponibile ─────
+        # create-dmg (brew install create-dmg) produce un DMG con sfondo e link /Applications
+        # hdiutil è built-in macOS e produce un DMG semplice
+        _DMG_OUT="$SCRIPT_DIR/Prismalux_v${PRISMA_VERSION}_macOS.dmg"
+        rm -f "$_DMG_OUT"
+        if command -v create-dmg &>/dev/null; then
+            step "  Genero DMG (create-dmg)..."
+            create-dmg \
+                --volname "Prismalux v${PRISMA_VERSION}" \
+                --window-pos 200 120 --window-size 600 400 \
+                --icon-size 100 \
+                --icon "Prismalux.app" 175 190 \
+                --hide-extension "Prismalux.app" \
+                --app-drop-link 425 190 \
+                "$_DMG_OUT" "$APP_BUNDLE_OUT" 2>/dev/null || true
+        elif command -v hdiutil &>/dev/null; then
+            step "  Genero DMG (hdiutil)..."
+            _TMP_DMG="$(mktemp -d /tmp/prismalux_dmg_XXXXXX)"
+            cp -r "$APP_BUNDLE_OUT" "$_TMP_DMG/"
+            hdiutil create \
+                -volname "Prismalux v${PRISMA_VERSION}" \
+                -srcfolder "$_TMP_DMG" \
+                -ov -format UDZO \
+                "$_DMG_OUT" 2>/dev/null || true
+            rm -rf "$_TMP_DMG"
+        fi
+        [ -f "$_DMG_OUT" ] \
+            && ok "DMG → $_DMG_OUT  ($(du -sh "$_DMG_OUT" | cut -f1))" \
+            || echo -e "${Y}  DMG non generato (installa create-dmg: brew install create-dmg)${N}"
+    fi
+fi
+
+# ══════════════════════════════════════════════════════════════
 #  Riepilogo
 # ══════════════════════════════════════════════════════════════
 T_END=$(date +%s)
@@ -567,6 +725,11 @@ fi
     echo -e "  ${G}ZIP / .bat${N}   $ZIP_OUT  ($(du -sh "$ZIP_OUT" | cut -f1))"
 [ "$DO_APPIMAGE" = "1" ] && [ -f "$APPIMAGE_OUT" ] && \
     echo -e "  ${G}AppImage${N}     $APPIMAGE_OUT  ($(du -sh "$APPIMAGE_OUT" | cut -f1))"
+[ "$DO_APP_BUNDLE" = "1" ] && [ -d "$APP_BUNDLE_OUT" ] && \
+    echo -e "  ${G}.app bundle${N}  $APP_BUNDLE_OUT  ($(du -sh "$APP_BUNDLE_OUT" | cut -f1))"
+_DMG_SUMMARY="$SCRIPT_DIR/Prismalux_v${PRISMA_VERSION}_macOS.dmg"
+[ "$DO_APP_BUNDLE" = "1" ] && [ -f "$_DMG_SUMMARY" ] && \
+    echo -e "  ${G}DMG${N}          $_DMG_SUMMARY  ($(du -sh "$_DMG_SUMMARY" | cut -f1))"
 [ "$DO_WHISPER_WIN"   = "1" ] && [ -f "$WHISPER_WIN_DIR/whisper-cli.exe" ] && \
     echo -e "  ${G}Whisper WIN${N}  $WHISPER_WIN_DIR/whisper-cli.exe"
 echo -e "  ${Y}Tempo: $(( T_END - T_START ))s${N}"
