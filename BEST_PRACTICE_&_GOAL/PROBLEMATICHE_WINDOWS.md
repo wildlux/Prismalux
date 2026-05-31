@@ -1,30 +1,26 @@
 ═══════════════════════════════════════════════════════════════════
-  PRISMALUX — PROBLEMATICHE WINDOWS (aggiornato 2026-05-30)
+  PRISMALUX — PROBLEMATICHE WINDOWS (aggiornato 2026-05-31)
 ═══════════════════════════════════════════════════════════════════
 
 ────────────────────────────────────────────────
-PROBLEMA 1 — Build fallisce in silenzio (aggiorna.sh)
+PROBLEMA 1 — Build fallisce in silenzio  [RISOLTO 2026-05-31]
 ────────────────────────────────────────────────
-Sintomo:
+Sintomo originale:
   "❌ Binario GUI non trovato: .../gui/build_win/Prismalux_GUI.exe"
-  "[ERRORE] aggiorna.sh ha restituito un errore."
   Nessun errore di compilazione visibile nel terminale.
 
-Causa:
-  cmake --build era filtrato con grep + || true: gli errori di
-  compilazione venivano inghiottiti e lo script continuava come
-  se nulla fosse, poi falliva perché il binario non esisteva.
+Soluzione definitiva (build.py):
+  build.py genera automaticamente "errore.txt" nella root del
+  progetto con le righe di errore filtrate (GCC/Clang/CMake/MSVC).
+  Il file include la fase fallita, il log completo e le ultime
+  30 righe del log a schermo.
 
-Fix applicato (commit 5e76243):
-  - Output cmake salvato in build_win/prismalux_build.log (tee)
-  - Se binario assente: stampa ultime 60 righe del log
-  - Controlla esito configure con grep su "Configuring done"
+  Percorso errore: Prismalux/errore.txt
+  Percorso log:    gui/build_win/prismalux_build.log
 
-Come diagnosticare:
-  Aprire MSYS2 UCRT64 e lanciare:
-    cd /C/Users/.../Prismalux_v2.9_Windows
-    bash aggiorna.sh --gui
-  Il log completo è in: gui/build_win/prismalux_build.log
+Come diagnosticare oggi:
+  1. Eseguire build.bat (doppio clic)
+  2. Se fallisce: aprire errore.txt nella root del progetto
 
 Dipendenze MSYS2 necessarie (installare UNA VOLTA):
   pacman -S mingw-w64-ucrt-x86_64-qt6-base
@@ -82,17 +78,25 @@ Fix applicato (commit 5f7167d):
   Aggiunta esclusione *.desktop in crea_zip_windows.py
 
 ────────────────────────────────────────────────
-PROBLEMA 5 — Build Windows mai verificata su hardware reale
+PROBLEMA 5 — Dipendenza da bash/aggiorna.sh su Windows  [RISOLTO 2026-05-31]
 ────────────────────────────────────────────────
-Stato:
-  build.bat e aggiorna.bat non sono mai stati eseguiti su una
-  macchina Windows fisica con MSYS2 installato (solo testati
-  logicamente). La macchina di Paolo (Xeon + AMD GPU lenta)
-  è il primo test reale.
+Sintomo originale:
+  build.bat cercava bash (MSYS2) come fallback e lanciava
+  aggiorna.sh — uno script Unix non nativo Windows.
+  Riferimenti a "build.sh" (file inesistente) in alcune UI.
 
-Rischio:
-  Possibili DLL mancanti, percorsi Qt errati, dipendenze non
-  dichiarate. Ogni nuovo errore va aggiunto a questo file.
+Soluzione definitiva:
+  - build.bat è ora un launcher puro (~80 righe):
+    cerca Python in COMPILE_WIN\toolchain\python\ → PATH → MSYS2
+    poi esegue build.py — nessun bash, nessun .sh
+  - build.py gestisce Windows nativamente (platform.system())
+  - COMPILE_WIN\setup.bat scarica Python embedded automaticamente
+  - Tutti i riferimenti a build.sh corretti in aggiorna.sh
+
+Nuovo flusso Windows:
+  1. COMPILE_WIN\setup.bat  (una tantum — ~600 MB)
+  2. build.bat              (doppio clic per compilare)
+  3. Avvia_Prismalux.bat    (avvia l'app)
 
 Configurazione nota di Paolo:
   MSYS2 in C:\msys64 (UCRT64)

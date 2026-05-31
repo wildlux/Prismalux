@@ -1463,6 +1463,18 @@ void ManutenzioneePage::onVerifyOllamaVersion()
     m_ollamaVerProc->start("ollama", {"--version"});
 }
 
+ManutenzioneePage::~ManutenzioneePage()
+{
+    /* Blocca i segnali di tutti i QProcess figli prima che Qt li distrugga.
+     * Senza questo, il distruttore di QProcess chiama waitForFinished() che
+     * emette finished() su slot che trovano widget già parzialmente distrutti
+     * → SIGSEGV (coredump 2026-05-31: onOllamaVerProcFinished → setText). */
+    for (QProcess* p : {m_srvProc, m_ollamaVerProc, m_listProc, m_gitProc,
+                        m_ramCmdProc, m_updPullProc, m_downloadProc, m_sha256Proc}) {
+        if (p) { p->blockSignals(true); p->kill(); }
+    }
+}
+
 void ManutenzioneePage::onOllamaVerProcFinished(int code, QProcess::ExitStatus)
 {
     if (!m_ollamaVerProc) return;

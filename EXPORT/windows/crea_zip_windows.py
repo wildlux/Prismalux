@@ -28,6 +28,7 @@ ROOT = Path(__file__).parent.parent.parent   # Prismalux/ (EXPORT/windows/ → E
 # ── Cerca il binario Windows compilato ─────────────────────────
 def _find_win_binary():
     candidates = [
+        ROOT / "build_cross_win" / "Prismalux_GUI.exe",   # cross-compilato da Linux
         ROOT / "gui" / "build_win" / "Prismalux_GUI.exe",
         ROOT / "COMPILE_WIN" / "build" / "Prismalux_GUI.exe",
         ROOT / "build_win" / "Prismalux_GUI.exe",
@@ -84,8 +85,8 @@ SOURCE_EXCLUDE = [
     r"COMPILE_WIN[/\\]build$",       # — ma NON build.bat!
 ]
 
-# File singoli oltre questa soglia vengono saltati (RAG PDF enormi, ecc.)
-MAX_FILE_MB = 20
+# File singoli oltre questa soglia vengono saltati (0 = nessun limite)
+MAX_FILE_MB = 0
 
 # ══════════════════════════════════════════════════════════════
 #  Modalità BINARIO
@@ -235,8 +236,9 @@ def crea_zip_binary(out: Path, exe_path: Path):
 def main():
     args = sys.argv[1:]
     out_name = None
-    force_source = "--source" in args
-    force_binary = "--binary" in args
+    force_source  = "--source" in args
+    force_binary  = "--binary" in args
+    include_rag   = "--include-rag" in args   # passato da aggiorna.sh quando l'utente dice sì
 
     if "--out" in args:
         i = args.index("--out")
@@ -260,14 +262,17 @@ def main():
         print("  Compila prima su Windows con build.bat o aggiorna.bat.")
         sys.exit(1)
 
+    # Se --include-rag: nessun limite dimensione file
+    global MAX_FILE_MB
+    if include_rag:
+        MAX_FILE_MB = 0
+
     if (exe and not force_source) or force_binary:
-        # Modalità binario
         suffix = f"_v{version}_Windows_portable"
         if not out_name:
             out_name = f"Prismalux{suffix}.zip"
         crea_zip_binary(ROOT / out_name, exe)
     else:
-        # Modalità sorgenti
         if not out_name:
             out_name = f"Prismalux_v{version}_Windows.zip"
         crea_zip_source(ROOT / out_name)

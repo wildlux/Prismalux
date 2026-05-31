@@ -1,0 +1,4 @@
+# freecad_mcp — dipendenze
+# Nessuna dipendenza pip richiesta.
+# Usa solo la stdlib Python o API native dell'applicazione host.
+# Vedi README.md per l'installazione del software esterno necessario.

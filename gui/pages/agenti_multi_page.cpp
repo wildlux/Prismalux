@@ -135,7 +135,7 @@ QWidget* AgentiMultiPage::buildInputBar()
     m_promptInput->setObjectName("chatLog");
     m_promptInput->setPlaceholderText(
         "Descrivi un compito complesso che richiede pi\xc3\xb9 agenti specializzati...\n"
-        "Es: \xc2\xabAnalizza le ultime ricerche su GraphRAG, compara gli approcci e scrivi un report con codice Python\xc2\xbb");
+        "Es: \xc2\xab" "Analizza le ultime ricerche su GraphRAG, compara gli approcci e scrivi un report con codice Python\xc2\xbb");
     m_promptInput->setMaximumHeight(dpiScale(70));
     lay->addWidget(m_promptInput);
 

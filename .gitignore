@@ -165,3 +165,28 @@ ANDROID/android_app/build-android/
 ANDROID/android_app/build-host/
 ANDROID/build_apk.sh
 ANDROID/*.idsig
+COMPILE_WIN/.venv_tools/
+
+# ── Build artifacts ───────────────────────────────────────────────────────────
+build_gui/
+build_tests/
+cmake/
+whisper.cpp/
+
+# ── DLL Windows bundlate (estratte da MSYS2, non versionare) ─────────────────
+DLL/
+
+# ── RAG — documenti personali locali (possono pesare GB) ─────────────────────
+RAG/
+RAG.zip
+PARERE_RICERCA_BLHM_RAB80L.txt
+
+# ── KNOWLEDGE_USER — tutti i file personali ───────────────────────────────────
+KNOWLEDGE_USER/
+
+# ── Artefatti di distribuzione (rigenerati da aggiorna.sh) ───────────────────
+EXPORT/linux/Prismalux*.AppImage
+EXPORT/linux/Prismalux*.zip
+EXPORT/windows/Prismalux*.zip
+Prismalux_v*.zip
+build_status.txt

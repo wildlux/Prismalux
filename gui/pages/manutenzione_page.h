@@ -31,6 +31,7 @@ class ManutenzioneePage : public QWidget {
     Q_OBJECT
 public:
     explicit ManutenzioneePage(AiClient* ai, HardwareMonitor* hw, QWidget* parent = nullptr);
+    ~ManutenzioneePage() override;
     void onHWReady(const HWInfo& hw);
 
     /** Costruiscono i widget di sezione — chiamati da ImpostazioniPage per tab piatte */

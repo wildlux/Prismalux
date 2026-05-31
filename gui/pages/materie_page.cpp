@@ -316,7 +316,7 @@ QWidget* MateriePage::buildMenu()
         {"\xe2\x9a\x9b\xef\xb8\x8f",  "Fisica",       "Meccanica, Termodinamica, Elettromagnetismo, Quantistica"},
         {"\xf0\x9f\xa7\xaa", "Chimica",                "Inorganica, Organica, Biochimica, Chimica Fisica"},
         {"\xf0\x9f\x94\x92", "Sicurezza Informatica",  "OWASP, Crittografia, Linux, Reti, Pentest, Virtualizzazione"},
-        {"\xf0\x9f\x90\x8d", "Informatica",            "Python basi\xe2\x86\x92avanzato, OOP, Design Patterns, Architettura"},
+        {"\xf0\x9f\x90\x8d", "Informatica",            "Python basi\xe2\x86\x92" "avanzato, OOP, Design Patterns, Architettura"},
         {"\xe2\x9a\xa1", "Algoritmi",                  "Sorting, Grafi, DP, Greedy, Backtracking, Strutture Dati"},
     };
 

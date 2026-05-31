@@ -1,17 +1,47 @@
-# Graphviz MCP
+# Graphviz MCP — Prismalux
 
-**Tipo**: MCP Python locale (graphviz Python library)
+**Tipo**: Python library (locale, nessun server esterno)
 
 ## Funzione
-Permette a Prismalux di generare diagrammi, mappe concettuali, grafi di dipendenza,
-alberi di decisione tramite Graphviz DOT language.
+Genera diagrammi DOT, grafi orientati/non orientati, mappe concettuali
+e alberi in PNG, SVG o PDF.
 
 ## Installazione
+
+### 1. Dipendenze Python
 ```bash
 pip install graphviz
-sudo apt install graphviz  # binari dot, neato, circo, etc.
 ```
 
-## TODO
-- [ ] Scrivere `graphviz_mcp_server.py` — MCP stdio
-- [ ] Strumenti: render_dot, create_graph, add_node, add_edge, export_png_svg
+### 2. Installa il binario Graphviz nel sistema
+Il pacchetto Python è solo un wrapper — il binario `dot` è obbligatorio.
+```bash
+# Linux
+sudo apt install graphviz
+# macOS
+brew install graphviz
+# Windows
+winget install graphviz
+# oppure: choco install graphviz
+# oppure scarica da https://graphviz.org/download/
+```
+
+### 3. Verifica
+```bash
+dot -V
+python3 -c "import graphviz; print('OK', graphviz.__version__)"
+```
+
+## Aggiungere a Claude Code
+In `~/.claude/settings.json`:
+```json
+{
+  "mcpServers": {
+    "graphviz": {
+      "type": "stdio",
+      "command": "python3",
+      "args": ["/home/wildlux/Desktop/Prismalux/MCPs/graphviz_mcp/server.py"]
+    }
+  }
+}
+```

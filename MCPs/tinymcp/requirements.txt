@@ -1,0 +1,12 @@
+# TinyMCP (Arduino) — dipendenze
+# Installazione: pip install -r requirements.txt
+#
+# Richiede anche arduino-cli installato nel sistema:
+#   Linux:   curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
+#   Windows: winget install arduino.arduinocli
+#   macOS:   brew install arduino-cli
+#
+# Linux: aggiungi utente al gruppo seriale:
+#   sudo usermod -a -G dialout $USER
+
+pyserial>=3.5

@@ -51,6 +51,46 @@ pause
 exit /b 1
 
 :found
+REM ── DLL runtime MinGW (libwinpthread, libgcc, libstdc++) ──────
+REM windeployqt non le copia: le cerchiamo in MSYS2 o nella cartella dell'exe.
+REM Se MSYS2 e' installato (necessario per compilare), le DLL sono li'.
+REM ── Copia DLL runtime MinGW nella cartella dell'exe (più affidabile del PATH) ─
+for %%D in ("!EXE!") do set EXE_DIR2=%%~dpD
+set DLL_NEEDED=0
+if not exist "!EXE_DIR2!libwinpthread-1.dll" set DLL_NEEDED=1
+if not exist "!EXE_DIR2!libgcc_s_seh-1.dll"  set DLL_NEEDED=1
+if not exist "!EXE_DIR2!libstdc++-6.dll"      set DLL_NEEDED=1
+
+if "!DLL_NEEDED!"=="1" (
+    set DLL_SRC=
+    REM 1. Cartella DLL/ del progetto
+    if exist "%SCRIPT_DIR%DLL\libwinpthread-1.dll" set "DLL_SRC=%SCRIPT_DIR%DLL"
+    REM 2. MSYS2 su C: o D:
+    if "!DLL_SRC!"=="" (
+        for %%R in (
+            "C:\msys64\ucrt64\bin"
+            "C:\msys2\ucrt64\bin"
+            "D:\msys64\ucrt64\bin"
+            "D:\msys2\ucrt64\bin"
+        ) do (
+            if "!DLL_SRC!"=="" (
+                if exist "%%~R\libwinpthread-1.dll" set "DLL_SRC=%%~R"
+            )
+        )
+    )
+    if not "!DLL_SRC!"=="" (
+        copy /Y "!DLL_SRC!\libwinpthread-1.dll" "!EXE_DIR2!" >nul 2>&1
+        copy /Y "!DLL_SRC!\libgcc_s_seh-1.dll"  "!EXE_DIR2!" >nul 2>&1
+        copy /Y "!DLL_SRC!\libstdc++-6.dll"      "!EXE_DIR2!" >nul 2>&1
+        echo  [OK] DLL runtime copiate da: !DLL_SRC!
+    ) else (
+        echo  [WARN] DLL runtime non trovate. Se l'app non parte copia manualmente
+        echo         libwinpthread-1.dll libgcc_s_seh-1.dll libstdc++-6.dll
+        echo         da C:\msys64\ucrt64\bin\ nella cartella dell'exe.
+    )
+)
+
+:launch
 REM ── Avvia il programma ───────────────────────────────────────
 echo.
 echo  Avvio Prismalux...

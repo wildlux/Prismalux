@@ -104,6 +104,22 @@ if errorlevel 1 (
     exit /b 1
 )
 echo [OK] Python %PY_VER% + pip + aqtinstall pronti.
+
+REM Installa requirements Prismalux (requests, numpy, gns3fy, graphviz)
+set REQ_FILE=%~dp0..\requirements.txt
+echo Installo requirements Prismalux da: !REQ_FILE!
+if exist "!REQ_FILE!" (
+    "%PY_DIR%\python.exe" -m pip install -r "!REQ_FILE!" --quiet
+    if errorlevel 1 (
+        echo [WARN] Alcune dipendenze non installate.
+        echo        Controlla requirements.txt e riprova manualmente:
+        echo          "%PY_DIR%\python.exe" -m pip install -r "!REQ_FILE!"
+    ) else (
+        echo [OK] Requirements Prismalux installati.
+    )
+) else (
+    echo [WARN] requirements.txt non trovato: !REQ_FILE!
+)
 echo.
 
 REM ════════════════════════════════════════════════════════════
@@ -174,6 +190,45 @@ if not errorlevel 1 (
     echo [OK] Ninja %NINJA_VER% pronto.
 ) else (
     echo [WARN] Ninja non scaricato - cmake usera' Make come fallback.
+)
+echo.
+
+REM ════════════════════════════════════════════════════════════
+REM  STEP 6 — pip + requirements nel Python di sistema (opzionale)
+REM  Utile per MCPs, Test/ e script Python esterni al build
+REM ════════════════════════════════════════════════════════════
+echo [6] Installo requirements anche nel Python di sistema...
+set SYS_PYTHON=
+for %%P in (python3.exe python.exe py.exe) do (
+    if not defined SYS_PYTHON (
+        where %%P >nul 2>&1 && set SYS_PYTHON=%%P
+    )
+)
+
+if defined SYS_PYTHON (
+    echo  Python di sistema trovato: !SYS_PYTHON!
+
+    REM Assicura che pip sia presente nel Python di sistema
+    "!SYS_PYTHON!" -m pip --version >nul 2>&1
+    if errorlevel 1 (
+        echo  pip non trovato — installo pip nel Python di sistema...
+        powershell -NoProfile -Command "Invoke-WebRequest 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%TEMP%\get-pip.py' -UseBasicParsing"
+        "!SYS_PYTHON!" "%TEMP%\get-pip.py" --quiet
+        del "%TEMP%\get-pip.py" >nul 2>&1
+    )
+
+    REM Installa requirements nel Python di sistema
+    set REQ_FILE=%~dp0..\requirements.txt
+    if exist "!REQ_FILE!" (
+        "!SYS_PYTHON!" -m pip install -r "!REQ_FILE!" --quiet
+        if errorlevel 1 (
+            echo  [WARN] Alcune dipendenze non installate nel Python di sistema.
+        ) else (
+            echo  [OK] Requirements installati nel Python di sistema.
+        )
+    )
+) else (
+    echo  Python di sistema non trovato — salto ^(solo embedded disponibile^).
 )
 echo.
 

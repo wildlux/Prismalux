@@ -186,78 +186,134 @@ Ogni tipo ha un **template payload** pre-compilato automaticamente alla selezion
 
 ## Plugin MCP (18)
 
-| Plugin | Funzione |
-|--------|---------|
-| `blender_addon` | Genera/modifica scene 3D Blender da prompt o PDF |
-| `freecad_mcp` | Parametrica FreeCAD: solidi, assiemi, disegni tecnici |
-| `office_bridge` | Crea/modifica documenti Word, Excel, PowerPoint |
-| `gns3_mcp` | Topologie di rete GNS3: router, switch, link, simulazione |
-| `cytoscape_mcp` | Analisi reti biologiche (PPI, pathway, genomica) |
-| `rdkit_mcp` | Chemioinformatica: SMILES, fingerprint, similarità molecolare |
-| `bioconda_mcp` | Pipeline bioinformatica Python (Biopython, SeqIO, BLAST) |
-| `avogadro_mcp` | Modellazione molecolare 3D e ottimizzazione geometrica |
-| `graphviz_mcp` | Mappe concettuali e grafi da testo DOT |
-| `obs_mcp` | Controllo OBS Studio: scene, sorgenti, registrazione |
-| `opencode_mcp` | Agente agentica OpenCode (SSE streaming) |
-| `godot_mcp` | Script GDScript per Godot Engine |
-| `kicad_mcp` | Schemi elettronici e PCB KiCad |
-| `anki_mcp` | Generazione deck Anki da argomento o testo |
-| `stable_diffusion_local` | API Stable Diffusion (AUTOMATIC1111/Forge/SD.Next) |
-| `tinymcp` | Bridge MCP generico per tool personalizzati |
-| `knowledge_mcp` | Aggiornamento automatico della Knowledge Base utente |
-| `ollama_mcp` | **Nuovo** — Cache SQLite modelli Ollama; tool: list, info, search, sync, pull |
+Ogni plugin ha `README.md` (guida installazione) e `requirements.txt`.
+
+| Plugin | Funzione | Dipendenze pip |
+|--------|---------|---------------|
+| `blender_addon` | Scene 3D Blender da prompt o PDF | nessuna (API Blender) |
+| `freecad_mcp` | Modellazione FreeCAD: solidi, disegni tecnici | nessuna (bridge HTTP) |
+| `office_bridge` | Crea/modifica Word, Excel, PowerPoint | `python-docx openpyxl python-pptx` |
+| `gns3_mcp` | Topologie GNS3: router, switch, link | `gns3fy requests` |
+| `cytoscape_mcp` | Reti biologiche PPI/pathway/genomica | nessuna (CyREST) |
+| `rdkit_mcp` | Chemioinformatica: SMILES, fingerprint | `rdkit Pillow` |
+| `bioconda_mcp` | Pipeline bioinformatica BLAST/BWA/STAR | nessuna (subprocess conda) |
+| `avogadro_mcp` | Modellazione molecolare 3D | `avogadro` |
+| `graphviz_mcp` | Mappe concettuali e grafi DOT | `graphviz` + binario `dot` |
+| `obs_mcp` | OBS Studio: scene, sorgenti, registrazione | `obsws-python` |
+| `opencode_mcp` | Agente agentica OpenCode (SSE streaming) | nessuna |
+| `godot_mcp` | GDScript per Godot Engine | nessuna (bridge HTTP) |
+| `kicad_mcp` | Schemi elettronici e PCB | nessuna (Scripting Console) |
+| `anki_mcp` | Generazione deck Anki da testo | nessuna (AnkiConnect) |
+| `stable_diffusion_local` | Text-to-image Stable Diffusion locale | `torch diffusers transformers accelerate Pillow` |
+| `tinymcp` | Compila/carica sketch Arduino/ESP32/Pico | `pyserial` |
+| `knowledge_mcp` | Aggiornamento automatico Knowledge Base | nessuna |
+| `ollama_mcp` | Cache SQLite modelli Ollama (list/info/search/sync/pull) | nessuna |
 
 ---
 
 ## Avvio rapido
 
-### Linux — AppImage (consigliato, no installazione)
+### Linux — AppImage (consigliato, zero installazione)
 
 ```bash
-chmod +x EXPORT/linux/Prismalux-x86_64.AppImage
-./EXPORT/linux/Prismalux-x86_64.AppImage
+# Scarica e avvia
+chmod +x Prismalux-x86_64.AppImage
+./Prismalux-x86_64.AppImage
+
+# Se il PC non ha FUSE 2 (Ubuntu 24.04+)
+APPIMAGE_EXTRACT_AND_RUN=1 ./Prismalux-x86_64.AppImage
+
+# Installa FUSE 2 una volta sola (poi funziona con doppio clic)
+sudo apt install libfuse2t64
+```
+
+### Linux — PC nuovo (script automatico)
+
+```bash
+# 1. Installa FUSE 2 + Python + tutti i pacchetti pip
+bash EXPORT/linux/setup_dipendenze.sh
+
+# Solo FUSE 2 (per AppImage)
+bash EXPORT/linux/setup_dipendenze.sh --solo-fuse
+
+# Solo pip base rapido
+bash EXPORT/linux/setup_dipendenze.sh --base
+
+# 2. Avvia
+./Prismalux-x86_64.AppImage
+
+# 3. Integrazione desktop (icona nel menu applicazioni)
+bash EXPORT/linux/install_launcher.sh
 ```
 
 ### Linux — Compila da sorgente
 
 ```bash
-git clone https://github.com/wildlux/Prismalux.git
-cd Prismalux
-bash aggiorna.sh --gui          # compila GUI + crea AppImage
-# oppure manualmente:
+# Installa dipendenze di compilazione
+sudo apt install cmake ninja-build build-essential \
+    qt6-base-dev qt6-tools-dev qt6-webengine-dev \
+    libqt6sql6-sqlite qt6-multimedia-dev
+
+# Compila (metodo semplice — multipiattaforma)
+python3 build.py
+
+# Oppure con cmake diretto
 cmake -B build_gui gui/ -DCMAKE_BUILD_TYPE=Release
 cmake --build build_gui -j$(nproc)
+
+# Avvia
 ./build_gui/Prismalux_GUI
+
+# Compila + genera AppImage + ZIP Windows
+./aggiorna.sh
+
+# Solo GUI (senza AppImage/ZIP)
+./aggiorna.sh --gui
+
+# Installa nel sistema (icona + menu + comando `prismalux`)
+./aggiorna.sh --install
 ```
 
 ### Windows
 
 ```bat
-REM Una tantum — richiede MSYS2 UCRT64 o Qt Installer
-aggiorna.bat           :: compila + crea ZIP distribuibile
-REM poi:
-Avvia_Prismalux.bat    :: avvia l'app
+REM Prima volta — scarica Python embedded + Qt + GCC + CMake + Ninja (~600 MB)
+COMPILE_WIN\setup.bat
+
+REM Doppio clic per compilare (trova Python automaticamente)
+build.bat
+
+REM Avvia l'app
+Avvia_Prismalux.bat
 ```
+
+> `build.bat` cerca Python in: `COMPILE_WIN\toolchain\python\` → PATH sistema → MSYS2.  
+> Al termine mostra chiaramente **BUILD COMPLETATA** o **BUILD FALLITA** con le ultime righe di errore.  
+> In caso di errore viene generato `errore.txt` nella root con i dettagli.
 
 ### macOS
 
 ```bash
-brew install qt cmake
-cmake -B build_gui gui/ -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$(brew --prefix qt)
-cmake --build build_gui -j$(sysctl -n hw.logicalcpu)
-./build_gui/Prismalux_GUI
+brew install qt@6 cmake ninja
+python3 build.py
+# oppure manualmente:
+cmake -B build_mac gui/ -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_PREFIX_PATH=$(brew --prefix qt@6)
+cmake --build build_mac -j$(sysctl -n hw.logicalcpu)
+./build_mac/Prismalux_GUI
 ```
 
 ### Prerequisiti
 
 | Componente | Versione minima | Note |
 |-----------|----------------|------|
-| Qt6 | 6.4+ | Base, Network, Multimedia, PrintSupport, Svg |
+| Qt6 | 6.4+ | Base, Network, Multimedia, PrintSupport, Svg, WebEngine |
 | CMake | 3.20+ | |
 | GCC / Clang | 11+ / 13+ | C++17 |
 | [Ollama](https://ollama.com) | qualsiasi | Avvia con `ollama serve` |
-| Python 3 | 3.10+ | Per Code Interpreter e ZIP Windows |
-| pdftotext | — | `apt install poppler-utils` (opzionale, per PDF in Analisi Fenomeni) |
+| Python 3 | 3.10+ | Per `build.py`, MCPs — `pip install -r requirements.txt` |
+| pdftotext | — | `apt install poppler-utils` (opzionale, PDF in Analisi Fenomeni) |
+| libfuse2t64 | — | `apt install libfuse2t64` (opzionale, per AppImage su Ubuntu 24.04+) |
 
 ```bash
 # Installa Ollama + modello consigliato

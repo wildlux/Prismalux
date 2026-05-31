@@ -446,11 +446,11 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
         { "llama-server", "llama-server",
           "Server llama.cpp (OpenAI/SSE) \xe2\x80\x94 "
           "gi\xc3\xa0 compilato in gui/build/bin/ (Linux) o gui\\build\\bin\\ (Windows). "
-          "Se non trovato: esegui build.sh (Linux) o build.bat (Windows) dalla root.",
+          "Se non trovato: esegui build.bat (Windows) o aggiorna.sh (Linux/macOS) dalla root.",
 #ifdef Q_OS_WIN
           "gi\xc3\xa0 compilato: usa build.bat dalla root. Binario in gui\\build\\bin\\llama-server.exe",
 #else
-          "gi\xc3\xa0 compilato: usa build.sh dalla root. Binario in gui/build/bin/llama-server",
+          "gi\xc3\xa0 compilato: usa aggiorna.sh dalla root. Binario in gui/build/bin/llama-server",
 #endif
           true  },
         { "llama-cli",    "llama-cli",

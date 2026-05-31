@@ -1,11 +1,43 @@
 # Prismalux — requirements.lock
+# Versioni verificate al 2026-05-31 sul sistema di sviluppo Linux (Python 3.14)
+#
 # Per rigenerare con hash SHA256 verificati da PyPI:
 #   pip install pip-tools
 #   pip-compile --generate-hashes requirements.txt -o requirements.lock
 #
-# Versioni minime testate (2026-05-23):
+# Legenda:
+#   [V] versione verificata sull'ambiente di sviluppo Linux
+#   [W] versione verificata nell'embedded Python COMPILE_WIN (Windows)
+#   [P] versione da PyPI — non ancora installata localmente
 
-requests==2.32.3
-numpy==2.0.2
-gns3fy==0.8.0
-graphviz==0.20.3
+# ── Core ─────────────────────────────────────────────────────
+requests==2.33.1          # [V]
+
+# ── Matematica e Scienze ──────────────────────────────────────
+numpy==2.3.5              # [V]
+scipy==1.16.3             # [V]
+sympy==1.14.0             # [V]
+pandas==3.0.3             # [V]
+matplotlib==3.10.7        # [V] apt riporta 3.10.7+dfsg1, upstream è 3.10.7
+seaborn==0.13.2           # [P]
+plotly==5.24.1            # [P]
+
+# ── Computer Vision e Immagini ────────────────────────────────
+opencv-python==4.10.0     # [V]
+Pillow==12.1.1            # [V]
+
+# ── ML ────────────────────────────────────────────────────────
+scikit-learn==1.6.1       # [P]
+
+# ── Documenti Office e PDF ────────────────────────────────────
+openpyxl==3.1.5           # [V]
+python-docx==1.1.2        # [P]
+python-pptx==1.0.2        # [P]
+pdfminer.six==20231228    # [P]
+pypdf==6.7.1              # [V] (sostituisce PyPDF2)
+
+# ── MCPs ──────────────────────────────────────────────────────
+gns3fy==0.8.0             # [V]
+graphviz==0.21            # [V]
+obsws-python==1.7.2       # [P]
+pyserial==3.5             # [P]

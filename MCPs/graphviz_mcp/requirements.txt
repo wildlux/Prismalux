@@ -1,0 +1,9 @@
+# Graphviz MCP — dipendenze
+# Installazione: pip install -r requirements.txt
+#
+# ATTENZIONE: richiede anche il binario di sistema:
+#   Linux:   sudo apt install graphviz
+#   Windows: winget install graphviz
+#   macOS:   brew install graphviz
+
+graphviz>=0.20.0

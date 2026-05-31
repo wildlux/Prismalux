@@ -1,16 +1,43 @@
-# Avogadro MCP
+# Avogadro MCP — Prismalux
 
-**Tipo**: MCP Python locale (avogadro2 Python bindings)
+**Tipo**: Python library (locale, nessun server esterno)
 
 ## Funzione
-Permette a Prismalux di visualizzare e modificare molecole 3D, ottimizzare
-geometrie, calcolare energie molecolari, esportare CML/XYZ/PDB.
+Carica molecole (SDF, XYZ, PDB, CML), converte SMILES in coordinate 3D,
+calcola proprietà molecolari e genera immagini via Avogadro2.
 
 ## Installazione
+
+### 1. Dipendenze Python
 ```bash
-pip install avogadro  # avogadro2 Python bindings
+pip install avogadro
+```
+Su alcune piattaforme:
+```bash
+pip install avogadro2
+# oppure
+conda install -c conda-forge avogadro2
 ```
 
-## TODO
-- [ ] Scrivere `avogadro_mcp_server.py` — MCP stdio
-- [ ] Strumenti: load_molecule, optimize_geometry, export_3d, calculate_energy
+### 2. Software opzionale (visualizzazione 3D interattiva)
+- **Linux**: `sudo apt install avogadro`
+- **Windows / macOS**: scarica da https://www.openchemistry.org/downloads/
+
+### 3. Verifica
+```bash
+python3 -c "import avogadro; print('Avogadro OK', avogadro.__version__)"
+```
+
+## Aggiungere a Claude Code
+In `~/.claude/settings.json`:
+```json
+{
+  "mcpServers": {
+    "avogadro": {
+      "type": "stdio",
+      "command": "python3",
+      "args": ["/home/wildlux/Desktop/Prismalux/MCPs/avogadro_mcp/server.py"]
+    }
+  }
+}
+```

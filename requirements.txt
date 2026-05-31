@@ -1,40 +1,81 @@
 # Prismalux — dipendenze Python
-# Installazione: pip install -r requirements.txt
 # Python >= 3.10 richiesto
 #
-# Suddivisione:
-#   [core]     usato da Test/ e MCPs/ base
-#   [mcp-*]    usato solo da quel MCP specifico
-#   [optional] richiede hardware o setup aggiuntivo
+# Installa tutto in una volta:
+#   pip install -r requirements.txt
+#
+# Oppure installa solo il blocco che ti serve (vedi istruzioni sotto).
 
-# ── Core (richiesti per Test/ e MCPs base) ──────────────────────
-requests>=2.31.0,<3.0.0        # HTTP client — MCPs GNS3, Cytoscape, test
-numpy>=1.26.0,<3.0.0           # array numerici — Test/test_rag_paper.py
+# ── Core ─────────────────────────────────────────────────────────────────────
+# Esegui: pip install requests
+requests>=2.31.0,<3.0.0            # HTTP client — MCPs GNS3, Cytoscape, test
 
-# ── MCP: GNS3 ────────────────────────────────────────────────────
-gns3fy>=0.8.0                  # MCPs/gns3_mcp/server.py
+# ── Matematica e Scienze ──────────────────────────────────────────────────────
+# Esegui: pip install numpy scipy sympy pandas matplotlib seaborn plotly
+numpy>=1.26.0,<3.0.0               # array numerici — base per quasi tutto
+scipy>=1.12.0                      # algebra lineare, ottimizzazione, statistica
+sympy>=1.12.0                      # matematica simbolica — test CAT-E SymPy
+pandas>=2.2.0                      # dataframe, analisi dati tabulari
+matplotlib>=3.8.0                  # grafici 2D/3D scientifici
+seaborn>=0.13.0                    # grafici statistici (su matplotlib)
+plotly>=5.20.0                     # grafici interattivi HTML
 
-# ── MCP: Graphviz ────────────────────────────────────────────────
-graphviz>=0.20.0               # MCPs/graphviz_mcp/server.py
+# ── Computer Vision e Immagini ───────────────────────────────────────────────
+# Esegui: pip install opencv-python Pillow
+opencv-python>=4.9.0               # computer vision — elaborazione immagini
+Pillow>=10.0.0                     # immagini PIL — MCPs Stable Diffusion, icone
 
-# ── MCP: RDKit (chemioinformatica) ───────────────────────────────
-# rdkit                        # installare via: conda install -c conda-forge rdkit
-#                              # oppure: pip install rdkit (Python >=3.10, alcune piattaforme)
+# ── Data Science / ML (CPU) ──────────────────────────────────────────────────
+# Esegui: pip install scikit-learn
+scikit-learn>=1.4.0                # machine learning classico — classificatori, regressione
 
-# ── MCP: Stable Diffusion (optional — richiede GPU o CPU lento) ──
+# ── Documenti Office e PDF ───────────────────────────────────────────────────
+# Esegui: pip install openpyxl python-docx python-pptx pdfminer.six pypdf
+openpyxl>=3.1.0                    # Excel .xlsx — MCP Office
+python-docx>=1.0.0                 # Word .docx — MCP Office
+python-pptx>=0.6.23                # PowerPoint .pptx — MCP Office
+pdfminer.six>=20221105             # estrazione testo PDF — MCP PDF, Analisi Fenomeni
+pypdf>=4.0.0                       # lettura PDF alternativa — MCPs (sostituisce PyPDF2)
+
+# ── MCP: GNS3 ────────────────────────────────────────────────────────────────
+# Esegui: pip install gns3fy
+gns3fy>=0.8.0                      # MCPs/gns3_mcp/server.py
+
+# ── MCP: Graphviz ────────────────────────────────────────────────────────────
+# Esegui: pip install graphviz
+# Nota: richiede anche il binario graphviz installato nel sistema:
+#   Linux:   sudo apt install graphviz
+#   Windows: winget install graphviz  oppure  choco install graphviz
+#   macOS:   brew install graphviz
+graphviz>=0.20.0                   # MCPs/graphviz_mcp/server.py
+
+# ── MCP: OBS WebSocket ───────────────────────────────────────────────────────
+# Esegui: pip install obsws-python
+obsws-python>=1.7.0                # MCPs/obs_mcp/server.py
+
+# ── MCP: Driver seriale ──────────────────────────────────────────────────────
+# Esegui: pip install pyserial
+pyserial>=3.5                      # MCPs/driver_mcp/server.py
+
+# ── MCP: RDKit (chemioinformatica) ───────────────────────────────────────────
+# Esegui: pip install rdkit
+# Nota: su alcune piattaforme preferire conda:
+#   conda install -c conda-forge rdkit
+# rdkit
+
+# ── Opzionali: Stable Diffusion (richiede GPU, ~10 GB) ───────────────────────
+# Esegui (CPU):  pip install diffusers transformers accelerate torch Pillow
+# Esegui (GPU NVIDIA CUDA 12.1):
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+#   pip install diffusers transformers accelerate Pillow
 # diffusers>=0.27.0
 # transformers>=4.40.0
 # accelerate>=0.30.0
 # torch>=2.2.0
-# Pillow>=10.0.0
-# Per installazione GPU NVIDIA (CUDA 12.1):
-#   pip install torch --index-url https://download.pytorch.org/whl/cu121
-# Poi: pip install diffusers transformers accelerate Pillow
 
-# ── MCP: Blender / FreeCAD / KiCAD / Godot / Anki ───────────────
-# Questi MCPs non hanno dipendenze pip: usano le API native
-# dell'applicazione host (bpy, FreeCAD.app, pcbnew, godot, AnkiConnect)
-
-# ── MCP: Office (LibreOffice UNO bridge) ─────────────────────────
-# python-docx>=1.0.0           # opzionale per Word .docx senza LibreOffice
-# openpyxl>=3.1.0              # opzionale per Excel .xlsx senza LibreOffice
+# ── Non installabili via pip — richiedono l'applicazione host ─────────────────
+# bpy          Blender Python API  — installato con Blender
+# FreeCAD      FreeCAD API         — installato con FreeCAD
+# pcbnew       KiCAD API           — installato con KiCAD
+# uno          LibreOffice UNO     — sudo apt install python3-uno  (Linux)
+# avogadro     Avogadro2 API       — installato con Avogadro2

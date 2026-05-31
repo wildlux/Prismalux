@@ -30,6 +30,10 @@ void AgentiPage::_sttStartRecording()
     P::repolish(m_btnVoice);
 
     m_recProc = new QProcess(this);
+
+    /* recSecs dichiarato qui — usato dopo il #endif (righe countdown/timeout) */
+    const int recSecs = m_voiceLoopActive ? 12 : 6;
+
 #ifdef Q_OS_WIN
     /* Windows: sox rec (https://sox.sourceforge.net) */
     const QString recBin = QStandardPaths::findExecutable("rec");
@@ -54,11 +58,8 @@ void AgentiPage::_sttStartRecording()
         return;
     }
 #else
-    /* Durata registrazione: voice loop usa 12s per dare tempo di parlare;
-       la modalità pulsante singolo usa 6s come prima.
-       Se sox è disponibile, usa VAD silenzio-automatico (nessun countdown). */
+    /* Se sox è disponibile, usa VAD silenzio-automatico (nessun countdown). */
     const bool hasSox  = !QStandardPaths::findExecutable("sox").isEmpty();
-    const int  recSecs = m_voiceLoopActive ? 12 : 6;
 
     if (hasSox) {
         /* sox VAD: registra fino a 2s di silenzio, max recSecs*2 secondi.

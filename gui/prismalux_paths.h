@@ -34,6 +34,20 @@
 #include <QDateTime>
 #include <QSettings>
 
+/* windows.h deve stare al livello globale del file — NON dentro una funzione.
+ * Inserirlo nel corpo di una inline causa cascata "expected unqualified-id
+ * before string constant" su tutti gli header Windows (GCC espande il testo
+ * dell'#include nel punto in cui si trova, che sarebbe dentro la funzione). */
+#ifdef Q_OS_WIN
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
+#  include <windows.h>
+#endif
+
 namespace PrismaluxPaths {
 
 /* ══════════════════════════════════════════════════════════════
@@ -353,13 +367,6 @@ inline qint64 totalRamBytes()
         }
     }
 #elif defined(Q_OS_WIN)
-#  ifndef WIN32_LEAN_AND_MEAN
-#    define WIN32_LEAN_AND_MEAN
-#  endif
-#  ifndef NOMINMAX
-#    define NOMINMAX
-#  endif
-#  include <windows.h>
     MEMORYSTATUSEX ms;
     ms.dwLength = sizeof(ms);
     if (GlobalMemoryStatusEx(&ms))

@@ -2,10 +2,17 @@
 
 ## Build
 ```bash
+# Linux (diretto)
 cmake -B build_gui gui/ -DCMAKE_BUILD_TYPE=Release && cmake --build build_gui -j$(nproc)
 ./build_gui/Prismalux_GUI
+
+# Tutte le piattaforme (Windows/Linux/macOS)
+python3 build.py
 ```
 Strutturale (nuovo file/CMakeLists) → rifare `cmake -B build_gui`. Solo .cpp/.h → solo `cmake --build build_gui`.
+
+`build.py` — motore di build multipiattaforma. Genera `errore.txt` in root se fallisce.
+Windows: `build.bat` trova Python ed esegue `build.py`. Prima volta: `COMPILE_WIN\setup.bat`.
 
 ## Layout tab (mainwindow.cpp)
 ```
@@ -46,16 +53,17 @@ Prismalux/
 │   └── macos/   (futuro)
 ├── ANDROID/                      ← app Android Qt6 (BLE, CCNA, TTS, LAN)
 │   └── PrismaluxMobile.apk       ← path hardcoded: P::root()+"/ANDROID/PrismaluxMobile.apk"
-├── MCPs/                         ← 18 plugin MCP Python (JSON-RPC 2.0 stdio)
+├── MCPs/                         ← 18 plugin MCP Python — ognuno ha README.md + requirements.txt
 ├── BEST_PRACTICE_&_GOAL/         ← regole, TODO, operazioni (non codice)
 │   └── REGOLE_IRREMOVIBILI.md    ← 15 convenzioni fisse — leggere prima di toccare il codice
 ├── Test/                         ← test Python AI integration + utility
-├── scripts/                      ← utility interne (download_model, genera_quiz_ccna.py)
 ├── RAG/                          ← documenti RAG (locale, non in git)
 ├── KNOWLEDGE_USER/               ← memoria utente (locale, non in git)
-├── build.bat / aggiorna.bat      ← entry point Windows
-├── aggiorna.sh / avvia.sh        ← entry point Linux/macOS
-└── COMPILE_WIN/                  ← toolchain portatile Windows (setup.bat scarica ~600 MB)
+├── build.py                      ← build multipiattaforma Windows/Linux/macOS (motore unico)
+├── build.bat                     ← launcher Windows: trova Python → esegue build.py
+├── aggiorna.sh / aggiorna.bat    ← build + AppImage/ZIP completo
+├── requirements.txt              ← dipendenze Python (numpy, pandas, opencv, scipy, ecc.)
+└── COMPILE_WIN/                  ← toolchain portatile Windows (setup.bat scarica ~600 MB + Python embedded)
 ```
 
 ## File chiave

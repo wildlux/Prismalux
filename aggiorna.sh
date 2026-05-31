@@ -27,7 +27,7 @@
 #      visualizzazione Graphviz, click-nodo dettaglio, filtro live
 #
 #  Uso:
-#    ./aggiorna.sh              # GUI + AppImage (Linux) / GUI + ZIP (Windows)
+#    ./aggiorna.sh              # GUI + AppImage + ZIP Windows (Linux) / GUI + ZIP (Windows)
 #    ./aggiorna.sh --gui        # solo GUI Qt6
 #    ./aggiorna.sh --zip        # solo ZIP Windows (richiede Python3)
 #    ./aggiorna.sh --appimage   # solo AppImage Linux (Linux only)
@@ -128,9 +128,11 @@ DO_APP_BUNDLE=0   # default OFF — macOS lo attiva automaticamente
 DO_WHISPER_WIN=0
 DO_BUILD_WHISPER=0
 DO_LLAMA_STUDIO=0
+DO_WIN_CROSS=0     # cross-compila .exe Windows da Linux (richiede mingw-w64 + Qt6 mingw)
+DO_INSTALL=0       # installa Prismalux nel sistema Linux dopo la build
 
 # ── Default per piattaforma ─────────────────────────────────────
-#   Linux  → AppImage ON,  ZIP OFF  (non ha senso creare .bat su Linux)
+#   Linux  → AppImage ON,  ZIP ON   (utile per distribuire a utenti Windows)
 #   Windows→ ZIP ON,       AppImage OFF
 #   macOS  → .app bundle ON, né ZIP né AppImage
 if [ "$IS_WIN" = "1" ]; then
@@ -139,6 +141,8 @@ if [ "$IS_WIN" = "1" ]; then
 elif [ "$IS_MAC" = "1" ]; then
     DO_APPIMAGE=0
     DO_APP_BUNDLE=1
+else
+    DO_ZIP=1   # Linux: crea anche ZIP Windows
 fi
 
 for arg in "$@"; do
@@ -151,6 +155,8 @@ for arg in "$@"; do
         --whisper)       DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=0; DO_APP_BUNDLE=0; DO_WEB=0; DO_WHISPER_WIN=1 ;;
         --build-whisper) DO_BUILD_WHISPER=1 ;;
         --llama-studio)  DO_LLAMA_STUDIO=1 ;;
+        --win-cross)     DO_WIN_CROSS=1 ;;
+        --install)       DO_INSTALL=1 ;;
         --no-zip)        DO_ZIP=0 ;;
         --no-bat)        DO_ZIP=0 ;;
         --no-appimage)   DO_APPIMAGE=0 ;;
@@ -164,6 +170,8 @@ for arg in "$@"; do
             echo "  --gui        Solo GUI Qt6 (binario desktop)"
             echo "  --web        GUI Qt6 + aggiorna interfaccia web embedded (LAN server)"
             echo "  --bat        Solo ZIP Windows (.bat + binari) — usabile da Linux/Windows"
+            echo "  --win-cross  Cross-compila Prismalux_GUI.exe per Windows da Linux (mingw-w64)"
+            echo "  --install    Installa Prismalux nel sistema Linux dopo la build"
             echo "  --zip        Alias per --bat"
             echo "  --appimage   Solo AppImage Linux — solo su Linux"
             echo "  --app        GUI + .app bundle macOS — solo su macOS"
@@ -174,7 +182,7 @@ for arg in "$@"; do
             elif [ "$IS_MAC" = "1" ]; then
             echo "    macOS   → GUI + .app bundle               [ZIP/AppImage: N/A]"
             else
-            echo "    Linux   → GUI + AppImage                  [ZIP: usa --bat se vuoi .bat Windows]"
+            echo "    Linux   → GUI + AppImage + ZIP Windows     [--no-zip per saltare lo ZIP]"
             fi
             echo ""
             echo "  Extra:"
@@ -232,15 +240,17 @@ if [ "$DO_GUI" = "1" ]; then
             fail "Python non trovato. Installa con: pacman -S mingw-w64-ucrt-x86_64-python"
         fi
     else
-        # ── Linux / macOS: cmake diretto ──────────────────────────────────────
-        cd "$QT_GUI"
+        # ── Linux / macOS: cmake dalla root del progetto ───────────────────────
+        # Comando: cmake -B build_gui gui/ -DCMAKE_BUILD_TYPE=Release
+        #          cmake --build build_gui -j$(nproc)
+        cd "$SCRIPT_DIR"
         _CMAKE_LOG="$QT_BUILD/prismalux_build.log"
         mkdir -p "$QT_BUILD"
 
         if [ ! -f "$QT_BUILD/CMakeCache.txt" ]; then
             step "  Prima configurazione cmake..."
             # shellcheck disable=SC2086
-            cmake -B "$QT_BUILD" -DCMAKE_BUILD_TYPE=Release $CMAKE_EXTRA \
+            cmake -B "$QT_BUILD" "$QT_GUI" -DCMAKE_BUILD_TYPE=Release $CMAKE_EXTRA \
                 2>&1 | tee "$_CMAKE_LOG"
             [ ${PIPESTATUS[0]} -eq 0 ] || fail "cmake configure fallito"
         fi
@@ -553,7 +563,27 @@ if [ "$DO_ZIP" = "1" ]; then
         fi
 
         [ -f "$ZIP_SCRIPT" ] || fail "Script ZIP non trovato: $ZIP_SCRIPT"
-        "$_PYTHON" "$ZIP_SCRIPT" --out "$ZIP_OUT" \
+
+        # ── Chiedi se includere RAG ───────────────────────────────
+        _ZIP_EXTRA_ARGS=""
+        RAG_DIR="$SCRIPT_DIR/RAG"
+        if [ -d "$RAG_DIR" ] && [ "$(ls -A "$RAG_DIR" 2>/dev/null)" ]; then
+            RAG_SIZE="$(du -sh "$RAG_DIR" 2>/dev/null | cut -f1)"
+            echo ""
+            echo -e "  ${C}Vuoi includere la cartella RAG nello ZIP?${N}"
+            echo -e "  RAG contiene documenti locali usati dall'AI (${Y}${RAG_SIZE}${N})"
+            echo -e "  Il tuo amico li riceverà già pronti senza doverli cercare."
+            echo -e ""
+            printf "  Includi RAG? [s/N] "
+            read -r _rag_answer </dev/tty || _rag_answer="n"
+            case "$_rag_answer" in
+                [sS]|[yY]) _ZIP_EXTRA_ARGS="--include-rag"; ok "RAG incluso nello ZIP" ;;
+                *)          ok "RAG escluso (ZIP più leggero)" ;;
+            esac
+            echo ""
+        fi
+
+        "$_PYTHON" "$ZIP_SCRIPT" --out "$ZIP_OUT" $_ZIP_EXTRA_ARGS \
             2>&1 | grep -E "(SORGENTI|BINARIO|Fatto|file|\+|skip|errore|warn)" || true
         [ -f "$ZIP_OUT" ] || fail "ZIP non generato"
         ok "ZIP aggiornato → $ZIP_OUT  ($(du -sh "$ZIP_OUT" | cut -f1))"
@@ -729,6 +759,47 @@ PLIST_EOF
 fi
 
 # ══════════════════════════════════════════════════════════════
+#  6. Cross-compilazione Windows da Linux (--win-cross)
+# ══════════════════════════════════════════════════════════════
+if [ "$DO_WIN_CROSS" = "1" ]; then
+    if [ "$IS_WIN" = "1" ] || [ "$IS_MAC" = "1" ]; then
+        echo -e "${Y}⚠  --win-cross disponibile solo su Linux — saltato.${N}"
+    else
+        step "Cross-compilazione Windows (mingw-w64)..."
+        CROSS_SCRIPT="$SCRIPT_DIR/EXPORT/windows/cross_compile.sh"
+        [ -f "$CROSS_SCRIPT" ] || fail "Script non trovato: $CROSS_SCRIPT"
+        chmod +x "$CROSS_SCRIPT"
+        bash "$CROSS_SCRIPT"
+        WIN_CROSS_EXE="$SCRIPT_DIR/build_cross_win/Prismalux_GUI.exe"
+        [ -f "$WIN_CROSS_EXE" ] \
+            && ok "Exe Windows → $WIN_CROSS_EXE  ($(du -sh "$WIN_CROSS_EXE" | cut -f1))" \
+            || fail "Cross-compilazione fallita"
+        # Rigenera lo ZIP includendo il binario appena compilato
+        if [ "$DO_ZIP" = "1" ] && [ -n "$_PYTHON" ]; then
+            step "  Rigenero ZIP con binario Windows incluso..."
+            "$_PYTHON" "$ZIP_SCRIPT" --out "$ZIP_OUT" \
+                2>&1 | grep -E "(SORGENTI|BINARIO|Fatto|file|\+|skip)" || true
+            ok "ZIP aggiornato con .exe → $ZIP_OUT  ($(du -sh "$ZIP_OUT" | cut -f1))"
+        fi
+    fi
+fi
+
+# ══════════════════════════════════════════════════════════════
+#  7. Installazione Linux (--install)
+# ══════════════════════════════════════════════════════════════
+if [ "$DO_INSTALL" = "1" ]; then
+    if [ "$IS_WIN" = "1" ] || [ "$IS_MAC" = "1" ]; then
+        echo -e "${Y}⚠  --install disponibile solo su Linux — saltato.${N}"
+    else
+        step "Installazione Linux..."
+        INSTALL_SCRIPT="$SCRIPT_DIR/EXPORT/linux/install_launcher.sh"
+        [ -f "$INSTALL_SCRIPT" ] || fail "Script non trovato: $INSTALL_SCRIPT"
+        chmod +x "$INSTALL_SCRIPT"
+        bash "$INSTALL_SCRIPT" --user
+    fi
+fi
+
+# ══════════════════════════════════════════════════════════════
 #  Riepilogo
 # ══════════════════════════════════════════════════════════════
 T_END=$(date +%s)
@@ -761,5 +832,9 @@ _DMG_SUMMARY="$SCRIPT_DIR/Prismalux_v${PRISMA_VERSION}_macOS.dmg"
     echo -e "  ${G}DMG${N}          $_DMG_SUMMARY  ($(du -sh "$_DMG_SUMMARY" | cut -f1))"
 [ "$DO_WHISPER_WIN"   = "1" ] && [ -f "$WHISPER_WIN_DIR/whisper-cli.exe" ] && \
     echo -e "  ${G}Whisper WIN${N}  $WHISPER_WIN_DIR/whisper-cli.exe"
+[ "$DO_WIN_CROSS" = "1" ] && [ -f "$SCRIPT_DIR/build_cross_win/Prismalux_GUI.exe" ] && \
+    echo -e "  ${G}Win .exe${N}     $SCRIPT_DIR/build_cross_win/Prismalux_GUI.exe  ($(du -sh "$SCRIPT_DIR/build_cross_win/Prismalux_GUI.exe" | cut -f1))"
+[ "$DO_INSTALL"   = "1" ] && \
+    echo -e "  ${G}Installato${N}   prismalux  (comando disponibile nel terminale)"
 echo -e "  ${Y}Tempo: $(( T_END - T_START ))s${N}"
 echo ""
