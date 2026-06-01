@@ -1,0 +1,53 @@
+# ── Build artifacts ────────────────────────────────────────────────
+build_gui/
+build_tests/
+build_debug/
+build_asan/
+build_dbg/
+AppDir/
+gui/build/
+gui/build_*/
+
+# ── File di distribuzione grandi ───────────────────────────────────
+*.AppImage
+*.zip
+*.apk
+*.exe
+
+# ── Dati utente locali (non inclusi nell'immagine) ─────────────────
+RAG/
+RAG.zip
+KNOWLEDGE_USER/
+models/
+llama.cpp/
+whisper.cpp/
+llama_cpp_studio/
+
+# ── Piattaforme non Linux ──────────────────────────────────────────
+ANDROID/
+IOS/
+COMPILE_WIN/
+whisper_win/
+hybrid_llm/
+
+# ── Git e IDE ──────────────────────────────────────────────────────
+.git/
+.github/
+.vscode/
+.idea/
+__pycache__/
+*.pyc
+*.pyo
+
+# ── Log e temporanei ───────────────────────────────────────────────
+*.log
+*.tmp
+aqtinstall.log
+errore.txt
+
+# ── Screenshot e asset non necessari ──────────────────────────────
+SCREENSHOT/
+EXPORT/
+TEST_OPENCODE/
+Test/
+web_preview/

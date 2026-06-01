@@ -1,0 +1,62 @@
+services:
+  prismalux:
+    build:
+      context: ..
+      dockerfile: DOCKER/Dockerfile
+      target: runtime
+    image: prismalux:latest
+    container_name: prismalux
+
+    # ── Display X11 ──────────────────────────────────────────────────
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-}
+      - QT_QPA_PLATFORM=${QT_QPA_PLATFORM:-xcb}
+      - QT_AUTO_SCREEN_SCALE_FACTOR=1
+      - XAUTHORITY=${XAUTHORITY:-}
+      # Ollama sul host Linux (network=host → localhost funziona direttamente)
+      - OLLAMA_HOST=localhost
+
+    volumes:
+      # Socket X11 (display GUI)
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # Xauthority (autenticazione X11)
+      - ${XAUTHORITY:-/dev/null}:/home/prismalux/.Xauthority:ro
+      # Dati utente persistenti: settings, RAG, knowledge, chat history
+      - prismalux_data:/data/prismalux
+      # Cartella RAG locale (montata in sola lettura)
+      - ${HOME}/prismalux_rag_docs:/home/prismalux/prismalux_rag_docs:ro
+
+    # ── Rete ────────────────────────────────────────────────────────
+    # host: il container condivide la rete del PC → localhost:11434 = Ollama sul host
+    network_mode: host
+
+    # ── Risorse ─────────────────────────────────────────────────────
+    # GPU NVIDIA (richiede nvidia-container-toolkit installato sul host)
+    # Decommenta le righe seguenti per abilitare la GPU nel container:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+    # GPU AMD (passa i device DRI direttamente)
+    # devices:
+    #   - /dev/dri:/dev/dri
+
+    # ── Sicurezza ────────────────────────────────────────────────────
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp
+
+    restart: "no"
+    stdin_open: true
+    tty: true
+
+volumes:
+  prismalux_data:
+    name: prismalux_data
