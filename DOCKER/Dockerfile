@@ -102,10 +102,13 @@ COPY DOCKER/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 RUN useradd -ms /bin/bash prismalux
+
+# Quiz CCNA DB (209 domande — cercato in ~/.prismalux/)
+COPY DOCKER/quiz_ccna.db /home/prismalux/.prismalux/quiz_ccna.db
+RUN chown -R prismalux:prismalux /home/prismalux/.prismalux
+
 USER prismalux
 WORKDIR /home/prismalux
-
-RUN mkdir -p /home/prismalux/.prismalux
 
 ENV QT_QPA_PLATFORM=xcb \
     QT_AUTO_SCREEN_SCALE_FACTOR=1 \
