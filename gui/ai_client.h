@@ -56,6 +56,9 @@ public:
     /* ── configurazione backend locale ── */
     void setLocalBackend(const QString& llamaBin, const QString& modelPath);
 
+    /** Azzera la cache modelli: il prossimo fetchModels() interroga Ollama live. */
+    void invalidateModelCache() { m_cacheValid = false; m_models.clear(); }
+
     /* ── parametri di campionamento (anti-allucinazione) ── */
     void setChatParams(const AiChatParams& p) { m_params = p; }
     AiChatParams chatParams() const { return m_params; }

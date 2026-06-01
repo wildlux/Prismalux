@@ -1,4 +1,5 @@
 #include "rag_graph.h"
+#include "prismalux_paths.h"
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
@@ -8,7 +9,10 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QRegularExpression>
+#include <QStandardPaths>
 #include <QDebug>
+
+namespace P = PrismaluxPaths;
 
 /* ══════════════════════════════════════════════════════════════
    Costruttore
@@ -39,7 +43,30 @@ void RagGraph::addDirectory(const QString& dir)
 void RagGraph::addFile(const QString& path, const QString& label)
 {
     const QString lbl = label.isEmpty() ? QFileInfo(path).fileName() : label;
-    m_fileQueue.append({path, lbl});
+
+    /* Auto-copia in RAG/ se il file è fuori dalle dir monitorate.
+     * Garantisce che il documento sia ritrovato al riavvio quando RagGraph
+     * riscansiona ~/prismalux_rag_docs/ e P::root()+"/RAG/". */
+    const QString ragDir  = P::root() + "/RAG";
+    const QString ragDocs = QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
+                            + "/prismalux_rag_docs";
+
+    QString actualPath = path;
+    if (!path.startsWith(ragDir) && !path.startsWith(ragDocs)) {
+        QDir().mkpath(ragDir);
+        const QString dest = ragDir + "/" + QFileInfo(path).fileName();
+        if (!QFileInfo::exists(dest)) {
+            if (QFile::copy(path, dest)) {
+                actualPath = dest;
+                emit fileCopied(lbl, dest);
+            }
+            /* Se la copia fallisce, indicizza dalla posizione originale */
+        } else {
+            actualPath = dest;  /* usa la copia già presente */
+        }
+    }
+
+    m_fileQueue.append({actualPath, lbl});
     m_stats.totalFiles = m_fileQueue.size();
 }
 

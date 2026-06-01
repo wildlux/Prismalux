@@ -27,11 +27,13 @@
 #      visualizzazione Graphviz, click-nodo dettaglio, filtro live
 #
 #  Uso:
-#    ./aggiorna.sh              # GUI + AppImage + ZIP Windows (Linux) / GUI + ZIP (Windows)
+#    ./aggiorna.sh              # GUI + AppImage + ZIP Windows + ZIP Sorgenti Linux (Linux) / GUI + ZIP (Windows)
 #    ./aggiorna.sh --gui        # solo GUI Qt6
 #    ./aggiorna.sh --zip        # solo ZIP Windows (richiede Python3)
+#    ./aggiorna.sh --zip-linux  # solo ZIP Sorgenti Linux (include Prismalux.desktop)
 #    ./aggiorna.sh --appimage   # solo AppImage Linux (Linux only)
-#    ./aggiorna.sh --no-zip     # GUI + AppImage, salta ZIP
+#    ./aggiorna.sh --no-zip     # GUI + AppImage + ZIP Linux, salta ZIP Windows
+#    ./aggiorna.sh --no-zip-linux # GUI + AppImage + ZIP Windows, salta ZIP Sorgenti Linux
 #    ./aggiorna.sh --no-appimage# GUI + ZIP, salta AppImage
 #    ./aggiorna.sh --app        # GUI + .app bundle macOS (macOS only)
 #    ./aggiorna.sh --no-app     # salta .app bundle macOS
@@ -118,11 +120,13 @@ PRISMA_VERSION=$(grep -m1 'project(Prismalux_GUI VERSION' "$QT_GUI/CMakeLists.tx
                  | grep -oE '[0-9]+\.[0-9]+' | head -1)
 PRISMA_VERSION="${PRISMA_VERSION:-2.8}"
 ZIP_OUT="$SCRIPT_DIR/Prismalux_v${PRISMA_VERSION}_Windows.zip"
+ZIP_LINUX_OUT="$SCRIPT_DIR/Prismalux_v${PRISMA_VERSION}_Sorgenti_Linux.zip"
 
 # ── Flags ──────────────────────────────────────────────────────
 DO_GUI=1
 DO_WEB=0          # ricompila GUI + mostra URL web app
 DO_ZIP=0          # default OFF — Windows lo attiva automaticamente
+DO_ZIP_LINUX=0    # default OFF — Linux lo attiva automaticamente
 DO_APPIMAGE=1     # default ON  — Windows/macOS lo disattivano
 DO_APP_BUNDLE=0   # default OFF — macOS lo attiva automaticamente
 DO_WHISPER_WIN=0
@@ -142,7 +146,8 @@ elif [ "$IS_MAC" = "1" ]; then
     DO_APPIMAGE=0
     DO_APP_BUNDLE=1
 else
-    DO_ZIP=1   # Linux: crea anche ZIP Windows
+    DO_ZIP=1         # Linux: crea anche ZIP Windows
+    DO_ZIP_LINUX=1   # Linux: crea anche ZIP Sorgenti Linux
 fi
 
 for arg in "$@"; do
@@ -150,6 +155,7 @@ for arg in "$@"; do
         --gui)           DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_APP_BUNDLE=0; DO_WEB=0; DO_WHISPER_WIN=0 ;;
         --web)           DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_APP_BUNDLE=0; DO_WEB=1; DO_WHISPER_WIN=0 ;;
         --bat|--zip)     DO_GUI=0; DO_ZIP=1; DO_APPIMAGE=0; DO_APP_BUNDLE=0; DO_WEB=0 ;;
+        --zip-linux)     DO_GUI=0; DO_ZIP=0; DO_ZIP_LINUX=1; DO_APPIMAGE=0; DO_APP_BUNDLE=0; DO_WEB=0 ;;
         --appimage)      DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=1; DO_APP_BUNDLE=0; DO_WEB=0 ;;
         --app)           DO_GUI=1; DO_ZIP=0; DO_APPIMAGE=0; DO_APP_BUNDLE=1; DO_WEB=0 ;;
         --whisper)       DO_GUI=0; DO_ZIP=0; DO_APPIMAGE=0; DO_APP_BUNDLE=0; DO_WEB=0; DO_WHISPER_WIN=1 ;;
@@ -159,6 +165,7 @@ for arg in "$@"; do
         --install)       DO_INSTALL=1 ;;
         --no-zip)        DO_ZIP=0 ;;
         --no-bat)        DO_ZIP=0 ;;
+        --no-zip-linux)  DO_ZIP_LINUX=0 ;;
         --no-appimage)   DO_APPIMAGE=0 ;;
         --no-app)        DO_APP_BUNDLE=0 ;;
         --no-web)        DO_WEB=0 ;;
@@ -170,6 +177,7 @@ for arg in "$@"; do
             echo "  --gui        Solo GUI Qt6 (binario desktop)"
             echo "  --web        GUI Qt6 + aggiorna interfaccia web embedded (LAN server)"
             echo "  --bat        Solo ZIP Windows (.bat + binari) — usabile da Linux/Windows"
+            echo "  --zip-linux  Solo ZIP Sorgenti Linux (include Prismalux.desktop) — solo su Linux"
             echo "  --win-cross  Cross-compila Prismalux_GUI.exe per Windows da Linux (mingw-w64)"
             echo "  --install    Installa Prismalux nel sistema Linux dopo la build"
             echo "  --zip        Alias per --bat"
@@ -182,7 +190,7 @@ for arg in "$@"; do
             elif [ "$IS_MAC" = "1" ]; then
             echo "    macOS   → GUI + .app bundle               [ZIP/AppImage: N/A]"
             else
-            echo "    Linux   → GUI + AppImage + ZIP Windows     [--no-zip per saltare lo ZIP]"
+            echo "    Linux   → GUI + AppImage + ZIP Windows + ZIP Sorgenti Linux     [--no-zip / --no-zip-linux per saltare]"
             fi
             echo ""
             echo "  Extra:"
@@ -591,6 +599,58 @@ if [ "$DO_ZIP" = "1" ]; then
 fi
 
 # ══════════════════════════════════════════════════════════════
+#  3b. ZIP Sorgenti Linux (include Prismalux.desktop — solo Linux)
+# ══════════════════════════════════════════════════════════════
+if [ "$DO_ZIP_LINUX" = "1" ]; then
+    if [ "$IS_WIN" = "1" ] || [ "$IS_MAC" = "1" ]; then
+        echo -e "${Y}⚠  ZIP Sorgenti Linux disponibile solo su Linux — saltato.${N}"
+    else
+        step "Rigenero ZIP Sorgenti Linux..."
+        cd "$SCRIPT_DIR"
+
+        if ! command -v zip &>/dev/null; then
+            echo -e "${Y}⚠  'zip' non trovato — salto ZIP Sorgenti Linux.${N}"
+            echo -e "${Y}   Installa con: sudo apt install zip${N}"
+            DO_ZIP_LINUX=0
+        else
+            rm -f "$ZIP_LINUX_OUT"
+
+            _DT="$SCRIPT_DIR/Prismalux.desktop"
+            _DT_ARG=""
+            if [ -f "$_DT" ]; then
+                _DT_ARG="Prismalux.desktop"
+            else
+                echo -e "${Y}  ⚠  Prismalux.desktop non trovato — incluso nel ZIP quando esiste.${N}"
+                echo -e "${Y}     Esegui prima: ./aggiorna.sh --gui${N}"
+            fi
+
+            _SETUP_SH=""
+            [ -f "$SCRIPT_DIR/COMPILA_INSTALLA_Prismalux.sh" ] && _SETUP_SH="COMPILA_INSTALLA_Prismalux.sh"
+
+            zip -r "$ZIP_LINUX_OUT" \
+                gui/ ICONA/ MCPs/ "BEST_PRACTICE_&_GOAL/" scripts/ \
+                EXPORT/linux/ \
+                README.md LICENSE aggiorna.sh \
+                ${_SETUP_SH:+"$_SETUP_SH"} \
+                ${_DT_ARG:+"$_DT_ARG"} \
+                -x "*/build/*" \
+                -x "*/build_*" \
+                -x "*/.git/*" \
+                -x "*/__pycache__/*" \
+                -x "*/models/*" \
+                -x "*/llama.cpp/*" \
+                -x "*/llama_cpp_studio/*" \
+                -x "*.o" -x "*.a" -x "*.so" -x "*.so.*" \
+                -x "*.pyc" -x "*.AppImage" \
+                -x "Prismalux_v*.zip" \
+                > /dev/null
+            [ -f "$ZIP_LINUX_OUT" ] || fail "ZIP Sorgenti Linux non generato"
+            ok "ZIP Sorgenti Linux → $ZIP_LINUX_OUT  ($(du -sh "$ZIP_LINUX_OUT" | cut -f1))"
+        fi
+    fi
+fi
+
+# ══════════════════════════════════════════════════════════════
 #  4. AppImage Linux (solo Linux)
 # ══════════════════════════════════════════════════════════════
 if [ "$DO_APPIMAGE" = "1" ]; then
@@ -823,6 +883,8 @@ fi
     echo -e "  ${G}llama-studio${N} $SCRIPT_DIR/llama_cpp_studio/llama.cpp/build/bin/"
 [ "$DO_ZIP" = "1" ] && [ -f "$ZIP_OUT" ] && \
     echo -e "  ${G}ZIP / .bat${N}   $ZIP_OUT  ($(du -sh "$ZIP_OUT" | cut -f1))"
+[ "$DO_ZIP_LINUX" = "1" ] && [ -f "$ZIP_LINUX_OUT" ] && \
+    echo -e "  ${G}ZIP Linux${N}    $ZIP_LINUX_OUT  ($(du -sh "$ZIP_LINUX_OUT" | cut -f1))"
 [ "$DO_APPIMAGE" = "1" ] && [ -f "$APPIMAGE_OUT" ] && \
     echo -e "  ${G}AppImage${N}     $APPIMAGE_OUT  ($(du -sh "$APPIMAGE_OUT" | cut -f1))"
 [ "$DO_APP_BUNDLE" = "1" ] && [ -d "$APP_BUNDLE_OUT" ] && \

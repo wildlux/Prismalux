@@ -249,8 +249,8 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     connect(sfogliaBtn,  &QPushButton::clicked,
             this, &LavoroPage::onSfogliaBtnClicked);
 
-    // Pre-carica CV di Paolo automaticamente
-    const QString defaultCv = "/home/wildlux/CURRICULUM/IT_CV_18_05_2025_Paolo_Lo_Bello.pdf";
+    // Pre-carica CV se esiste nella home dell'utente corrente
+    const QString defaultCv = QDir::homePath() + "/CURRICULUM/IT_CV_18_05_2025_Paolo_Lo_Bello.pdf";
     if (QFile::exists(defaultCv)) {
         m_cvPath->setText(defaultCv);
         caricaCV(defaultCv);

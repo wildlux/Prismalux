@@ -162,6 +162,7 @@ set(CPP_SRCS
     pages/ricerca_page_astrale.cpp
     pages/rab0l_canvas.cpp
     pages/app_controller_page.cpp
+    pages/security_analyzer_page.cpp
     pages/opencode_page.cpp
     monitor_panel.cpp
     # Widget nuovi: ChatBubble, ChartWidget, FormulaParser, QrCodeWidget, NatalChartWidget

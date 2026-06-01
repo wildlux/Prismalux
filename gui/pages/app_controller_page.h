@@ -6,6 +6,7 @@
 #include <functional>
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
+#include "security_analyzer_page.h"
 
 class QTabWidget;
 class QLineEdit;
@@ -46,8 +47,9 @@ private:
     QObject*       m_tokenHolder  = nullptr;
     bool           m_aiActive     = false;
     int            m_activeTab    = -1;
-    AiErrorWidget* m_aiErrorPanel = nullptr;
-    QProgressBar*  m_aiProgress   = nullptr;  ///< progress indeterminata durante AI
+    AiErrorWidget*        m_aiErrorPanel = nullptr;
+    QProgressBar*         m_aiProgress   = nullptr;  ///< progress indeterminata durante AI
+    SecurityAnalyzerPage* m_secPage      = nullptr;
 
     /* ── Blender ── */
     QLineEdit*           m_blenderHostEdit  = nullptr;
@@ -276,6 +278,23 @@ private:
     void onGodotExecClicked();
     void onGodotRunClicked();
     void onGodotStopClicked();
+
+    /* ── Slot estratti da lambda — Telegram Bot ── */
+    void onTelegramStartClicked();
+    void onTelegramStopClicked();
+    void onTelegramProcReadyRead();
+    void onTelegramProcFinished(int code, QProcess::ExitStatus status);
+
+    /* ── Telegram Bot — membri ── */
+    QLineEdit*   m_telegramTokenEdit     = nullptr;
+    QLineEdit*   m_telegramWhitelistEdit = nullptr;
+    QPushButton* m_telegramStartBtn      = nullptr;
+    QPushButton* m_telegramStopBtn       = nullptr;
+    QLabel*      m_telegramStatusLbl     = nullptr;
+    QTextEdit*   m_telegramLog           = nullptr;
+    QProcess*    m_telegramProc          = nullptr;
+    QObject*     m_telegramAiHolder      = nullptr;
+    int          m_telegramChatId        = 0;
 
     /* ── Stato transitorio per reply one-shot ── */
     QNetworkReply* m_ankiPendingReply  = nullptr;  ///< reply addNotes in volo

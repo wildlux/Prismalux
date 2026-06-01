@@ -4,6 +4,9 @@
 #include <QMap>
 #include <QSet>
 #include <QPointer>
+#include <QFuture>
+#include <QFutureWatcher>
+#include <QPromise>
 #include "../ai_client.h"
 #include "../graph_memory.h"
 
@@ -116,6 +119,10 @@ private:
     QObject* m_synthHolder  = nullptr;
     /* holders one-shot per ogni sub-agente */
     QMap<int, QObject*> m_taskHolders;
+
+    /* QFuture/QPromise per tracciamento parallelo sub-agenti (TODO #1) */
+    QMap<int, QSharedPointer<QPromise<QString>>> m_taskPromises;
+    QMap<int, QFutureWatcher<QString>*>          m_taskWatchers;
 
     /* UI */
     QComboBox*      m_modelCombo   = nullptr;

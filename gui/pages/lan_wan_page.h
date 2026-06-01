@@ -9,6 +9,7 @@
 #include <QProcess>
 #include <QProgressBar>
 #include <QAbstractSocket>
+#include <QCheckBox>
 #include <QTableWidget>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -101,6 +102,7 @@ private:
     QSpinBox*     m_wanPortSpin     = nullptr;
     QPushButton*  m_wanStartBtn     = nullptr;
     QLabel*       m_wanSrvStatusLbl = nullptr;
+    QLineEdit*    m_wanTokenEdit    = nullptr;   ///< token Bearer server WAN (auth nodi)
     QTableWidget* m_wanNodeTable    = nullptr;
     QTableWidget* m_wanTaskTable    = nullptr;
     QComboBox*    m_wanTaskKind     = nullptr;
@@ -122,6 +124,8 @@ private:
     QLineEdit*    m_wanCliHost         = nullptr;
     QSpinBox*     m_wanCliPort         = nullptr;
     QLineEdit*    m_wanCliName         = nullptr;
+    QLineEdit*    m_wanCliTokenEdit    = nullptr;  ///< token per autenticarsi al server
+    QCheckBox*    m_wanCliShellCheck   = nullptr;  ///< abilita esecuzione shell (opt-in esplicito)
     QPushButton*  m_wanCliConBtn       = nullptr;
     QPushButton*  m_wanCliDisconBtn    = nullptr;
     QLabel*       m_wanCliStatusLbl    = nullptr;

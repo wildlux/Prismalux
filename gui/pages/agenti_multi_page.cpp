@@ -102,6 +102,8 @@ AgentiMultiPage::~AgentiMultiPage()
     delete m_decompHolder;
     delete m_synthHolder;
     for (auto* h : m_taskHolders) delete h;
+    for (auto& p : m_taskPromises) p->finish();
+    for (auto* w : m_taskWatchers) delete w;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -502,6 +504,14 @@ void AgentiMultiPage::runTask(int idx, AiClient* client)
     m_taskClients[idx] = client;
     updateTaskItem(idx);
 
+    /* QPromise/QFutureWatcher — tracciamento asincrono del sub-agente */
+    auto promise = QSharedPointer<QPromise<QString>>::create();
+    promise->start();
+    m_taskPromises[idx] = promise;
+    auto* watcher = new QFutureWatcher<QString>(this);
+    watcher->setFuture(promise->future());
+    m_taskWatchers[idx] = watcher;
+
     setStatus(QString("\xf0\x9f\xa4\x96  Sub-agente %1 (%2) in esecuzione...")
               .arg(t.id).arg(t.role));  /* 🤖 */
 
@@ -520,7 +530,7 @@ void AgentiMultiPage::runTask(int idx, AiClient* client)
         }
     }
 
-    /* Legge contesto dalla GraphMemory */
+    /* Legge contesto dalla GraphMemory locale */
     if (m_gm && m_gm->nodeCount() > 0) {
         const auto relevant = m_gm->searchNodes(t.prompt.left(60), 5);
         if (!relevant.isEmpty()) {
@@ -528,6 +538,17 @@ void AgentiMultiPage::runTask(int idx, AiClient* client)
             for (const auto& n : relevant)
                 ctx += "- [" + n.type + "] " + n.label + ": "
                      + n.content.left(150) + "\n";
+        }
+    }
+
+    /* Cross-pollination bidirezionale: legge anche dal RagGraph esterno (TODO #2) */
+    if (m_extRagGm && m_extRagGm->nodeCount() > 0) {
+        const auto ragNodes = m_extRagGm->searchNodes(t.prompt.left(60), 4);
+        if (!ragNodes.isEmpty()) {
+            ctx += "\n## Conoscenza dal RagGraph (documenti indicizzati):\n";
+            for (const auto& n : ragNodes)
+                ctx += "- [RAG/" + n.type + "] " + n.label + ": "
+                     + n.content.left(120) + "\n";
         }
     }
 
@@ -579,6 +600,16 @@ void AgentiMultiPage::onTaskResultDone(int idx, const QString& full)
     /* Restituisce il client al pool */
     returnPoolClient(m_taskClients.take(idx));
     m_runningTasks.remove(idx);
+
+    /* Risolve il QPromise (TODO #1) */
+    if (m_taskPromises.contains(idx)) {
+        m_taskPromises[idx]->addResult(full);
+        m_taskPromises[idx]->finish();
+        m_taskPromises.remove(idx);
+    }
+    if (m_taskWatchers.contains(idx)) {
+        m_taskWatchers.take(idx)->deleteLater();
+    }
 
     if (idx < 0 || idx >= m_tasks.size()) return;
     SubTask& t = m_tasks[idx];
@@ -632,6 +663,15 @@ void AgentiMultiPage::onTaskResultError(int idx, const QString& msg)
 
     returnPoolClient(m_taskClients.take(idx));
     m_runningTasks.remove(idx);
+
+    /* Chiude il QPromise senza risultato (TODO #1) */
+    if (m_taskPromises.contains(idx)) {
+        m_taskPromises[idx]->finish();
+        m_taskPromises.remove(idx);
+    }
+    if (m_taskWatchers.contains(idx)) {
+        m_taskWatchers.take(idx)->deleteLater();
+    }
 
     if (idx < 0 || idx >= m_tasks.size()) return;
     m_tasks[idx].state = SubTask::State::Error;
@@ -802,6 +842,12 @@ void AgentiMultiPage::onStopClicked()
     delete m_synthHolder;  m_synthHolder  = nullptr;
     for (auto* h : m_taskHolders) delete h;
     m_taskHolders.clear();
+
+    /* Chiude tutti i QPromise aperti (TODO #1) */
+    for (auto& p : m_taskPromises) p->finish();
+    m_taskPromises.clear();
+    for (auto* w : m_taskWatchers) w->deleteLater();
+    m_taskWatchers.clear();
 
     if (m_ai) m_ai->abort();
     for (AiClient* c : m_aiPool) c->abort();

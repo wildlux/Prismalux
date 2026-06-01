@@ -46,7 +46,29 @@ OUTPUT="${ROOT}/Prismalux-x86_64.AppImage"
 
 QT_LIBS_DIR="/usr/lib/x86_64-linux-gnu"
 QT_PLUGINS_DIR="${QT_LIBS_DIR}/qt6/plugins"
-QT_LIBEXEC_DIR="${QT_LIBS_DIR}/qt6/libexec"
+
+# Rileva QT_LIBEXEC_DIR — varia per distro
+QT_LIBEXEC_DIR=""
+for _d in "/usr/lib/qt6/libexec" \
+           "/usr/lib/x86_64-linux-gnu/qt6/libexec" \
+           "/usr/lib/$(uname -m)-linux-gnu/qt6/libexec"; do
+  [[ -f "$_d/QtWebEngineProcess" ]] && { QT_LIBEXEC_DIR="$_d"; break; }
+done
+[[ -n "$QT_LIBEXEC_DIR" ]] && ok "QtWebEngineProcess trovato in: $QT_LIBEXEC_DIR" \
+  || warn "QtWebEngineProcess non trovato — KaTeX/WebEngine disabilitato nell'AppImage"
+
+# Rileva risorse e traduzioni WebEngine
+WE_RES_DIR=""
+for _d in "/usr/share/qt6/resources" "/usr/lib/qt6/resources" "${QT_LIBS_DIR}/qt6/resources"; do
+  [[ -d "$_d" ]] && { WE_RES_DIR="$_d"; break; }
+done
+
+WE_TRANS_DIR=""
+for _d in "/usr/share/qt6/translations/qtwebengine_locales" \
+           "/usr/share/qt6/translations" \
+           "/usr/lib/qt6/translations"; do
+  [[ -d "$_d" ]] && { WE_TRANS_DIR="$_d"; break; }
+done
 
 # ── 1. Compila GUI se richiesto ────────────────────────────────
 if $BUILD_FIRST; then
@@ -98,6 +120,10 @@ mkdir -p "${APPDIR}/usr/plugins/wayland-graphics-integration-client"
 mkdir -p "${APPDIR}/usr/plugins/wayland-shell-integration"
 mkdir -p "${APPDIR}/usr/plugins/tls"
 mkdir -p "${APPDIR}/usr/plugins/multimedia"
+mkdir -p "${APPDIR}/usr/plugins/sqldrivers"
+mkdir -p "${APPDIR}/usr/libexec"
+mkdir -p "${APPDIR}/usr/resources"
+mkdir -p "${APPDIR}/usr/translations"
 mkdir -p "${APPDIR}/usr/share/icons/hicolor/256x256/apps"
 
 # ── 4. Copia binario + temi ───────────────────────────────────
@@ -153,6 +179,9 @@ QT6_NEEDED=(
   libQt6Widgets libQt6Network libQt6Gui libQt6Core libQt6DBus
   libQt6OpenGL libQt6OpenGLWidgets libQt6PrintSupport
   libQt6Svg libQt6Xml libQt6Concurrent
+  libQt6Sql
+  libQt6WebEngineCore libQt6WebEngineWidgets libQt6WebChannel
+  libQt6Positioning libQt6Quick libQt6Qml libQt6QmlModels
   libicui18n libicuuc libicudata
   libstdc++ libdouble-conversion libpcre2-16 libzstd
   libharfbuzz libfreetype libfontconfig libpng16
@@ -227,6 +256,50 @@ for f in "${QT_PLUGINS_DIR}/tls"/*.so; do
   [[ -f "$f" ]] && _copy_plugin "$f" "tls"
 done
 
+# SQL drivers (SQLite per GraphMemory e Quiz CCNA)
+for f in "${QT_PLUGINS_DIR}/sqldrivers"/libqsqlite.so \
+          "${QT_PLUGINS_DIR}/sqldrivers"/libqsqlite3.so; do
+  _copy_plugin "$f" "sqldrivers"
+done
+
+# QtWebEngineProcess (necessario per KaTeX/WebEngine)
+if [[ -n "$QT_LIBEXEC_DIR" && -f "${QT_LIBEXEC_DIR}/QtWebEngineProcess" ]]; then
+  cp "${QT_LIBEXEC_DIR}/QtWebEngineProcess" "${APPDIR}/usr/libexec/"
+  chmod +x "${APPDIR}/usr/libexec/QtWebEngineProcess"
+  ok "QtWebEngineProcess copiato"
+fi
+
+# Risorse WebEngine (.pak, icudtl.dat, etc.)
+if [[ -n "$WE_RES_DIR" ]]; then
+  cp -r "${WE_RES_DIR}/." "${APPDIR}/usr/resources/"
+  ok "WebEngine resources copiate da $WE_RES_DIR"
+fi
+
+# Traduzioni WebEngine (.pak locales)
+if [[ -n "$WE_TRANS_DIR" ]]; then
+  # La sottodirectory potrebbe essere qtwebengine_locales/ oppure la dir stessa
+  if find "$WE_TRANS_DIR" -name "*.pak" -maxdepth 2 | grep -q .; then
+    mkdir -p "${APPDIR}/usr/translations/qtwebengine_locales"
+    find "$WE_TRANS_DIR" -name "*.pak" -maxdepth 2 \
+      -exec cp {} "${APPDIR}/usr/translations/qtwebengine_locales/" \; 2>/dev/null || true
+    ok "WebEngine locales copiati"
+  fi
+fi
+
+# quiz_ccna.db — bundled nell'AppImage accanto al binario
+_QUIZ_DB=""
+for _qd in "${ROOT}/DOCKER/quiz_ccna.db" \
+            "${ROOT}/quiz_ccna.db" \
+            "${ROOT}/KNOWLEDGE_USER/quiz_ccna.db"; do
+  [[ -f "$_qd" ]] && { _QUIZ_DB="$_qd"; break; }
+done
+if [[ -n "$_QUIZ_DB" ]]; then
+  cp "$_QUIZ_DB" "${APPDIR}/usr/bin/quiz_ccna.db"
+  ok "quiz_ccna.db incluso ($(du -sh "$_QUIZ_DB" | cut -f1))"
+else
+  warn "quiz_ccna.db non trovato — il Quiz CCNA mostrerà un avviso"
+fi
+
 # Wayland
 for d in wayland-decoration-client wayland-graphics-integration-client wayland-shell-integration; do
   [[ -d "${QT_PLUGINS_DIR}/$d" ]] || continue
@@ -243,6 +316,9 @@ cat > "${APPDIR}/usr/bin/qt.conf" <<'EOF'
 Prefix = ..
 Plugins = plugins
 Libraries = lib
+LibraryExecutables = libexec
+Data = .
+Translations = translations
 EOF
 
 # ── 9. .desktop file ──────────────────────────────────────────
@@ -284,14 +360,28 @@ export LD_LIBRARY_PATH="${HERE}/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 # Plugin Qt
 export QT_PLUGIN_PATH="${HERE}/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
 
+# WebEngine
+export QTWEBENGINEPROCESS_PATH="${HERE}/usr/libexec/QtWebEngineProcess"
+export QTWEBENGINE_RESOURCES_PATH="${HERE}/usr/resources"
+export QTWEBENGINE_LOCALES_PATH="${HERE}/usr/translations/qtwebengine_locales"
+
+# Font e temi
+export FONTCONFIG_PATH="/etc/fonts"
+export QT_AUTO_SCREEN_SCALE_FACTOR=1
+
 # Forza xcb se nessun DISPLAY Wayland disponibile
 if [[ -z "${WAYLAND_DISPLAY}" && -z "${QT_QPA_PLATFORM}" ]]; then
   export QT_QPA_PLATFORM=xcb
 fi
 
-# Font e temi
-export FONTCONFIG_PATH="/etc/fonts"
-export QT_AUTO_SCREEN_SCALE_FACTOR=1
+# quiz_ccna.db — copia in ~/.prismalux/ al primo avvio se non esiste
+_PRISMA_DIR="${HOME}/.prismalux"
+_QUIZ_DEST="${_PRISMA_DIR}/quiz_ccna.db"
+_QUIZ_SRC="${HERE}/usr/bin/quiz_ccna.db"
+if [[ ! -f "$_QUIZ_DEST" && -f "$_QUIZ_SRC" ]]; then
+  mkdir -p "$_PRISMA_DIR"
+  cp "$_QUIZ_SRC" "$_QUIZ_DEST"
+fi
 
 exec "${HERE}/usr/bin/Prismalux_GUI" "$@"
 APPRUN

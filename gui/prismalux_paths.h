@@ -84,11 +84,21 @@ constexpr const char* kLocalHost = "127.0.0.1";
 inline QString root()
 {
 #ifdef PRISMALUX_ROOT
-    return QDir::cleanPath(QString(PRISMALUX_ROOT));
-#else
-    return QDir::cleanPath(
-        QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("../.."));
+    /* Usa il path compilato solo se esiste (evita path di un altro utente su
+       macchine dove il progetto non è installato in quel percorso). */
+    const QString compiledRoot = QDir::cleanPath(QString(PRISMALUX_ROOT));
+    if (QDir(compiledRoot).exists())
+        return compiledRoot;
 #endif
+    /* Runtime fallback: risale 2 livelli dall'eseguibile.
+       AppImage: /tmp/.mount_xxx/usr/bin → /tmp/.mount_xxx/usr
+       build_gui: /…/Prismalux/build_gui → /…/Prismalux/.. */
+    const QString appDir = QCoreApplication::applicationDirPath();
+    /* Se stiamo girando dentro un'AppImage monta, le cartelle utente
+       (RAG, KNOWLEDGE_USER) devono stare nella home, non nel mount. */
+    if (appDir.startsWith("/tmp/.mount_") || qEnvironmentVariableIsSet("APPIMAGE"))
+        return QDir::homePath() + "/.prismalux";
+    return QDir::cleanPath(QDir(appDir).absoluteFilePath("../.."));
 }
 
 /**

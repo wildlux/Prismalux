@@ -1483,6 +1483,22 @@ QWidget* LanWanPage::buildWanComputeTab()
     connect(m_wanSimBtn, &QPushButton::clicked, this, &LanWanPage::onWanSimBtnClicked);
     srvLay->addWidget(srvCtrlRow);
 
+    /* Token auth server — i nodi devono presentarlo nell'hello */
+    auto* srvTokenRow = new QWidget;
+    auto* srvTokenLay = new QHBoxLayout(srvTokenRow);
+    srvTokenLay->setContentsMargins(0,0,0,0); srvTokenLay->setSpacing(6);
+    auto* srvTokenLbl = new QLabel("\xf0\x9f\x94\x91  Token server:", srvTokenRow);  /* 🔑 */
+    m_wanTokenEdit = new QLineEdit(srvTokenRow);
+    m_wanTokenEdit->setPlaceholderText("Lascia vuoto = accetta tutti i nodi (NON sicuro)");
+    m_wanTokenEdit->setEchoMode(QLineEdit::Password);
+    m_wanTokenEdit->setToolTip(
+        "Token segreto condiviso tra server e nodi worker.\n"
+        "Se impostato, ogni nodo deve presentarlo nel messaggio 'hello'.\n"
+        "Consigliato: 16+ caratteri casuali.");
+    srvTokenLay->addWidget(srvTokenLbl);
+    srvTokenLay->addWidget(m_wanTokenEdit, 1);
+    srvLay->addWidget(srvTokenRow);
+
     /* 2 — Decomponi compito: textarea sinistra, bottone destra */
     auto* decompBox = new QGroupBox(
         "\xf0\x9f\xa7\xa0  Scrivi un compito \xe2\x80\x94 l\xe2\x80\x99" "AI lo divide in agenti automaticamente");
@@ -1757,6 +1773,24 @@ QWidget* LanWanPage::buildWanComputeTab()
     cliConLay->addWidget(m_wanCliStatusLbl, 1);
     cliLay->addWidget(cliConRow);
 
+    /* Token client + opt-in shell */
+    auto* cliSecRow = new QWidget;
+    auto* cliSecLay = new QHBoxLayout(cliSecRow);
+    cliSecLay->setContentsMargins(0,0,0,0); cliSecLay->setSpacing(8);
+    auto* cliTokenLbl = new QLabel("\xf0\x9f\x94\x91  Token:", cliSecRow);  /* 🔑 */
+    m_wanCliTokenEdit = new QLineEdit(cliSecRow);
+    m_wanCliTokenEdit->setPlaceholderText("Token server (se impostato)");
+    m_wanCliTokenEdit->setEchoMode(QLineEdit::Password);
+    m_wanCliTokenEdit->setToolTip("Deve coincidere con il token impostato sul server.");
+    m_wanCliShellCheck = new QCheckBox("\xe2\x9a\xa0\xef\xb8\x8f  Permetti shell (rischio RCE)", cliSecRow);
+    m_wanCliShellCheck->setToolTip(
+        "Se spuntato, questo nodo eseguirà comandi bash/python ricevuti dal server.\n"
+        "Abilita SOLO su reti fidate con token auth impostato.");
+    cliSecLay->addWidget(cliTokenLbl);
+    cliSecLay->addWidget(m_wanCliTokenEdit, 1);
+    cliSecLay->addWidget(m_wanCliShellCheck);
+    cliLay->addWidget(cliSecRow);
+
     /* Log task eseguiti */
     m_wanCliLog = new QTextEdit;
     m_wanCliLog->setReadOnly(true);
@@ -1861,6 +1895,17 @@ void LanWanPage::onWanNodeReadyRead()
         const QString type    = msg["t"].toString();
 
         if (type == "hello") {
+            /* Verifica token server — rifiuta nodi non autenticati */
+            const QString serverToken = m_wanTokenEdit ? m_wanTokenEdit->text().trimmed() : QString();
+            if (!serverToken.isEmpty()) {
+                const QString presented = msg["token"].toString();
+                if (presented != serverToken) {
+                    wanSendJson(sock, QJsonObject{{"t","error"},{"msg","auth_failed"}});
+                    sock->disconnectFromHost();
+                    continue;
+                }
+            }
+
             /* Registrazione nuovo nodo */
             WanNode node;
             node.id     = wanNextId();
@@ -1870,7 +1915,8 @@ void LanWanPage::onWanNodeReadyRead()
             node.sock   = sock;
             const QJsonArray caps = msg["caps"].toArray();
             for (const auto& c : caps) node.caps.append(c.toString());
-            if (node.caps.isEmpty()) node.caps << "ai" << "shell";
+            /* Default: solo "ai" — "shell" è opt-in esplicito lato worker */
+            if (node.caps.isEmpty()) node.caps << "ai";
             m_wanNodes.push_back(node);
             wanSendJson(sock, QJsonObject{{"t","welcome"},{"node_id", node.id}});
             wanRefreshTables();
@@ -2070,10 +2116,15 @@ void LanWanPage::onWanCliConBtnClicked()
         const QString name = (m_wanCliName && !m_wanCliName->text().trimmed().isEmpty())
                              ? m_wanCliName->text().trimmed()
                              : QSysInfo::machineHostName();
+        /* Includi token auth e caps: "shell" solo se l'utente ha dato consenso esplicito */
+        QJsonArray workerCaps{"ai"};
+        if (m_wanCliShellCheck && m_wanCliShellCheck->isChecked())
+            workerCaps.append("shell");
         wanCliSendJson(QJsonObject{
             {"t","hello"},
             {"name", name},
-            {"caps", QJsonArray{"ai","shell"}}
+            {"token", m_wanCliTokenEdit ? m_wanCliTokenEdit->text().trimmed() : QString()},
+            {"caps", workerCaps}
         });
         m_wanCliStatusLbl->setText("\xe2\x9c\x85  Connesso — in attesa task");
         m_wanCliStatusLbl->setStyleSheet("color:#4caf50;");
@@ -2834,17 +2885,32 @@ void LanWanPage::wanCliHandleTask(const QString& id, const QString& kind, const 
     QString result;
     QString status = "done";
 
+    /* Esecuzione codice/shell: richiede consenso esplicito utente (opt-in checkbox) */
+    const bool shellAllowed = m_wanCliShellCheck && m_wanCliShellCheck->isChecked();
+
     if (kind == "python_repl" || kind == "eval_script") {
-        QProcess proc;
-        proc.start("python3", {"-c", payload});
-        proc.waitForFinished(30000);
-        result = proc.readAllStandardOutput() + proc.readAllStandardError();
+        if (!shellAllowed) {
+            result = "[SICUREZZA] Esecuzione Python disabilitata. "
+                     "Abilita 'Permetti shell' nelle opzioni nodo WAN.";
+            status = "error";
+        } else {
+            QProcess proc;
+            proc.start("python3", {"-c", payload});
+            proc.waitForFinished(30000);
+            result = proc.readAllStandardOutput() + proc.readAllStandardError();
+        }
 
     } else if (kind == "shell_cmd" || kind == "git_cmd") {
-        QProcess proc;
-        proc.start("bash", {"-c", payload});
-        proc.waitForFinished(20000);
-        result = proc.readAllStandardOutput() + proc.readAllStandardError();
+        if (!shellAllowed) {
+            result = "[SICUREZZA] Esecuzione shell disabilitata. "
+                     "Abilita 'Permetti shell' nelle opzioni nodo WAN.";
+            status = "error";
+        } else {
+            QProcess proc;
+            proc.start("bash", {"-c", payload});
+            proc.waitForFinished(20000);
+            result = proc.readAllStandardOutput() + proc.readAllStandardError();
+        }
 
     } else if (kind == "math_expr") {
         /* Valuta via Python: sicuro per espressioni matematiche */
@@ -2861,10 +2927,16 @@ void LanWanPage::wanCliHandleTask(const QString& id, const QString& kind, const 
         result = proc.readAllStandardOutput().trimmed();
 
     } else if (kind == "matplotlib_plot") {
-        QProcess proc;
-        proc.start("python3", {"-c", payload});
-        proc.waitForFinished(30000);
-        result = proc.readAllStandardOutput() + proc.readAllStandardError();
+        if (!shellAllowed) {
+            result = "[SICUREZZA] Esecuzione Python disabilitata. "
+                     "Abilita 'Permetti shell' nelle opzioni nodo WAN.";
+            status = "error";
+        } else {
+            QProcess proc;
+            proc.start("python3", {"-c", payload});
+            proc.waitForFinished(30000);
+            result = proc.readAllStandardOutput() + proc.readAllStandardError();
+        }
 
     } else if (kind == "graphviz_render") {
         /* Renderizza DOT → SVG */

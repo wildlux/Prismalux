@@ -52,6 +52,7 @@ namespace P = PrismaluxPaths;
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QStandardPaths>
+#include <QFileSystemWatcher>
 #include <cmath>
 
 /* ── helper: barra azioni output (Esporta PDF / Salva .md) ────────── */
@@ -3247,7 +3248,35 @@ QWidget* RicercaPage::buildRagGrafoTab()
                 if (m_ragStatus)
                     m_ragStatus->setText(QString("\xe2\x9a\xa0\xef\xb8\x8f  %1: %2").arg(f, e.left(60)));
             });
+    connect(m_ragGraph, &RagGraph::fileCopied,
+            this, [this](const QString& filename, const QString& dest) {
+                Q_UNUSED(dest)
+                if (m_ragStatus)
+                    m_ragStatus->setText(
+                        QString("\xf0\x9f\x93\x84  Copiato in RAG/ \xe2\x80\x94 %1 ora persistente")
+                        .arg(filename));  /* 📄 */
+            });
     connect(m_ragGm, &GraphMemory::changed, this, &RicercaPage::onRagGraphMemChanged);
+
+    /* QFileSystemWatcher — auto-trigger quando vengono aggiunti nuovi file RAG (TODO #3).
+     * Debounce di 2s per evitare trigger multipli durante copie batch di file. */
+    m_ragDirWatcher   = new QFileSystemWatcher(this);
+    m_ragAutoDebounce = new QTimer(this);
+    m_ragAutoDebounce->setSingleShot(true);
+    m_ragAutoDebounce->setInterval(2000);
+
+    const QString ragDocs  = QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
+                             + "/prismalux_rag_docs";
+    const QString ragLocal = P::root() + "/RAG";
+    if (QDir(ragDocs).exists())  m_ragDirWatcher->addPath(ragDocs);
+    if (QDir(ragLocal).exists()) m_ragDirWatcher->addPath(ragLocal);
+
+    connect(m_ragDirWatcher, &QFileSystemWatcher::directoryChanged,
+            m_ragAutoDebounce, qOverload<>(&QTimer::start));
+    connect(m_ragAutoDebounce, &QTimer::timeout, this, [this]() {
+        if (!m_ragGraph || m_ragGraph->isRunning()) return;
+        onRagRunClicked();
+    });
 
     auto* w = new QWidget;
     auto* lay = new QVBoxLayout(w);
@@ -3460,6 +3489,14 @@ void RicercaPage::onRagRunClicked()
 
     if (QDir(ragDocs).exists()) m_ragGraph->addDirectory(ragDocs);
     if (QDir(ragLocal).exists()) m_ragGraph->addDirectory(ragLocal);
+
+    /* Aggiorna watcher con eventuali nuove dir create dopo l'avvio (TODO #3) */
+    if (m_ragDirWatcher) {
+        if (QDir(ragDocs).exists()  && !m_ragDirWatcher->directories().contains(ragDocs))
+            m_ragDirWatcher->addPath(ragDocs);
+        if (QDir(ragLocal).exists() && !m_ragDirWatcher->directories().contains(ragLocal))
+            m_ragDirWatcher->addPath(ragLocal);
+    }
 
     if (m_ragGraph->stats().totalFiles == 0) {
         m_ragStatus->setText("\xe2\x9a\xa0\xef\xb8\x8f  Nessun file trovato nelle cartelle RAG.");

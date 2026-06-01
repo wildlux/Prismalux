@@ -2,6 +2,7 @@
 #include "widgets/whisper_autosetup.h"
 #include "pages/agenti_page.h"
 #include "pages/impostazioni_page.h"
+#include "pages/manutenzione_page.h"
 #include "pages/strumenti_page.h"
 #include "pages/grafico_page.h"
 /* oracolo_page.h rimosso: OracoloPage sostituita da grafico integrato in AgentiPage */
@@ -13,6 +14,7 @@
 #include "pages/agenti_multi_page.h"
 #include "pages/multimedia_page.h"
 #include "pages/strumenti_file_page.h"
+#include "app_config.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -334,6 +336,12 @@ void MainWindow::setupStatusBar()
     m_statusProgress->setVisible(false);
     statusBar()->addPermanentWidget(m_statusProgress);
 
+    /* Label download LLM — sempre nella status bar, nascosta finché non inizia un download */
+    m_dlStatusLbl = new QLabel(this);
+    m_dlStatusLbl->setObjectName("dlStatusLbl");
+    m_dlStatusLbl->setVisible(false);
+    statusBar()->addWidget(m_dlStatusLbl);
+
     /* ── Pulsanti Zoom +/- (basso destra) ── */
     auto* zoomBar = new QWidget(this);
     zoomBar->setObjectName("zoomBar");
@@ -440,6 +448,28 @@ void MainWindow::setupTimers()
 
     /* Auto-indicizza RAG (incluso Matematica.pdf via OCR) se l'indice è vuoto */
     QTimer::singleShot(6000, this, &MainWindow::onAutoRagIndex);
+
+    /* Avviso cartella RAG mancante — visibile 2s dopo l'avvio */
+    QTimer::singleShot(2000, this, [this] {
+        const QString ragDir = AppConfig::s().value(
+            PrismaluxPaths::SK::kRagDocsDir, "").toString().trimmed();
+        if (!ragDir.isEmpty() && QDir(ragDir).exists()) return;
+        auto* bar = statusBar();
+        auto* lbl = new QLabel(this);
+        lbl->setObjectName("ragWarnStatusLbl");
+        lbl->setText(
+            "\xf0\x9f\x93\x82  Cartella RAG non configurata &mdash; "
+            "<a href='openrag'>Imposta in Impostazioni &rarr; RAG</a>");
+        lbl->setTextFormat(Qt::RichText);
+        lbl->setOpenExternalLinks(false);
+        connect(lbl, &QLabel::linkActivated, this, [this](const QString&) {
+            openSettingsDialog();
+            if (m_impPage) m_impPage->switchToTab("RAG");
+        });
+        bar->addWidget(lbl);
+        /* Scompare automaticamente dopo 20s o quando l'utente configura il path */
+        QTimer::singleShot(20000, lbl, &QLabel::hide);
+    });
 }
 
 /* ── Livello 1: backend Ollama, modelli iniziali, tema ───────────── */
@@ -450,6 +480,11 @@ void MainWindow::setupBackend()
         const QString savedModel = s.value(P::SK::kActiveModel, "").toString();
         m_ai->setBackend(AiClient::Ollama, P::kLocalHost, P::kOllamaPort, savedModel);
     }
+    /* Invalida la cache modelli: il primo fetch interroga sempre Ollama live.
+       Questo garantisce che su una macchina diversa non venga mai mostrata
+       la lista modelli della macchina su cui è stato compilato il binario. */
+    m_ai->invalidateModelCache();
+    m_lblModel->setText("(interrogo Ollama...)");
     m_ai->fetchModels();
     connect(m_ai, &AiClient::modelsReady,   this, &MainWindow::onInitialModelsReady);
     connect(m_ai, &AiClient::modelChanged,  this, &MainWindow::onModelChanged);
@@ -1450,6 +1485,48 @@ void MainWindow::ensureSettingsDialog()
     if (m_ricercaPage)
         connect(m_impPage, &ImpostazioniPage::indexingFinished,
                 m_ricercaPage, &RicercaPage::onAutoRagTrigger);
+
+    /* ── Indicatore download LLM — visibile da qualsiasi tab ── */
+    auto* man = m_impPage->manutenzione();
+    if (man) {
+        connect(man, &ManutenzioneePage::downloadStarted,
+                this, [this](const QString& model) {
+            if (m_dlStatusLbl) {
+                m_dlStatusLbl->setText(
+                    "\xe2\xac\x87 " + model + "  \xe2\x8f\xb3");
+                m_dlStatusLbl->setVisible(true);
+            }
+        }, Qt::QueuedConnection);
+
+        connect(man, &ManutenzioneePage::downloadProgress,
+                this, [this](const QString& line) {
+            if (!m_dlStatusLbl || !m_dlStatusLbl->isVisible()) return;
+            /* Mostra solo testo utile: taglia ANSI e righe troppo lunghe */
+            QString clean = line;
+            clean.remove(QRegularExpression("\x1b\\[[0-9;]*[A-Za-z]"));
+            clean.remove('\r');
+            clean = clean.trimmed().left(60);
+            if (!clean.isEmpty())
+                m_dlStatusLbl->setText("\xe2\xac\x87 " + clean + "  \xe2\x8f\xb3");
+        }, Qt::QueuedConnection);
+
+        connect(man, &ManutenzioneePage::downloadFinished,
+                this, [this](bool ok, const QString& model) {
+            if (!m_dlStatusLbl) return;
+            if (ok) {
+                m_dlStatusLbl->setText("\xe2\x9c\x85 " + model + " scaricato");
+                /* Nasconde la label dopo 5 secondi */
+                QTimer::singleShot(5000, m_dlStatusLbl, [this]{
+                    if (m_dlStatusLbl) m_dlStatusLbl->setVisible(false);
+                });
+            } else {
+                m_dlStatusLbl->setText("\xe2\x9d\x8c Download " + model + " fallito");
+                QTimer::singleShot(8000, m_dlStatusLbl, [this]{
+                    if (m_dlStatusLbl) m_dlStatusLbl->setVisible(false);
+                });
+            }
+        }, Qt::QueuedConnection);
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════

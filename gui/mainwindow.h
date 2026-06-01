@@ -178,7 +178,8 @@ private:
     SpinnerWidget*  m_spinServer  = nullptr;  ///< Spinner animato durante polling /health
     StatusBadge*    m_badgeServer = nullptr;  ///< Dot colorato stato server (Offline/Starting/Online)
     QProgressBar*   m_statusProgress = nullptr;  ///< Barra progresso pipeline nella status bar
-    QLabel*         m_zoomPctLbl     = nullptr;  ///< Label percentuale zoom (status bar)
+    QLabel*         m_dlStatusLbl   = nullptr;  ///< Indicatore download LLM (sempre visibile)
+    QLabel*         m_zoomPctLbl    = nullptr;  ///< Label percentuale zoom (status bar)
     QTimer*         m_zoomDebounce   = nullptr;  ///< Debounce 200ms per riapplicare il tema
     int             m_zoomPct        = 100;       ///< Zoom corrente 50-200%
 

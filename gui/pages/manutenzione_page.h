@@ -29,6 +29,14 @@ class LanServer;
 
 class ManutenzioneePage : public QWidget {
     Q_OBJECT
+signals:
+    /** Emesso quando inizia un download ollama pull. */
+    void downloadStarted(const QString& model);
+    /** Emesso ad ogni chunk di output del download (riga significativa). */
+    void downloadProgress(const QString& status);
+    /** Emesso quando il download termina. success=true se exit code 0. */
+    void downloadFinished(bool success, const QString& model);
+
 public:
     explicit ManutenzioneePage(AiClient* ai, HardwareMonitor* hw, QWidget* parent = nullptr);
     ~ManutenzioneePage() override;

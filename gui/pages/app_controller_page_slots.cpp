@@ -45,6 +45,7 @@
 #include <QTimer>
 #include <QProgressBar>
 #include <QRegularExpression>
+#include <QSettings>
 #include <QVBoxLayout>
 
 namespace P = PrismaluxPaths;
@@ -1165,4 +1166,346 @@ void AppControllerPage::onGodotStopClicked()
     m_godotRunBtn->setEnabled(true);
     m_godotStopBtn->setEnabled(false);
     m_godotOutput->append("\n\xe2\x8f\xb9  Fermato.");
+}
+
+/* ======================================================================
+   Sezione 12 — Telegram Bot slots
+   ====================================================================== */
+
+/* Script Python generato a runtime — usa env vars TOKEN, WHITELIST */
+static QString s_telegramBotScript()
+{
+    return QString(
+        "import os, sys, json, threading\n"
+        "\n"
+        "try:\n"
+        "    from telegram import Update\n"
+        "    from telegram.ext import (\n"
+        "        Updater, CommandHandler, MessageHandler,\n"
+        "        Filters, CallbackContext\n"
+        "    )\n"
+        "except ImportError:\n"
+        "    print('ERRORE: python-telegram-bot non installato.', flush=True)\n"
+        "    print('Installa con: pip install python-telegram-bot==13.*', flush=True)\n"
+        "    sys.exit(1)\n"
+        "\n"
+        "TOKEN     = os.environ.get('TELEGRAM_TOKEN', '').strip()\n"
+        "WHITELIST = [x.strip() for x in\n"
+        "             os.environ.get('TELEGRAM_WHITELIST', '').split(',')\n"
+        "             if x.strip()]\n"
+        "\n"
+        "if not TOKEN:\n"
+        "    print('ERRORE: TELEGRAM_TOKEN non impostato.', flush=True)\n"
+        "    sys.exit(1)\n"
+        "\n"
+        "# Mappa chat_id -> risposta in attesa (threading.Event + container)\n"
+        "pending = {}  # chat_id -> {'event': Event, 'reply': str}\n"
+        "pending_lock = threading.Lock()\n"
+        "\n"
+        "def check_whitelist(update: Update) -> bool:\n"
+        "    if not WHITELIST:\n"
+        "        return True\n"
+        "    return str(update.effective_user.id) in WHITELIST\n"
+        "\n"
+        "def send_query(chat_id: int, text: str) -> None:\n"
+        "    msg = json.dumps({'type': 'query', 'chat_id': chat_id,\n"
+        "                      'text': text}, ensure_ascii=False)\n"
+        "    print(msg, flush=True)\n"
+        "\n"
+        "def wait_reply(chat_id: int, timeout: float = 120.0) -> str:\n"
+        "    evt = threading.Event()\n"
+        "    with pending_lock:\n"
+        "        pending[chat_id] = {'event': evt, 'reply': ''}\n"
+        "    evt.wait(timeout)\n"
+        "    with pending_lock:\n"
+        "        result = pending.pop(chat_id, {}).get('reply', '(timeout)')\n"
+        "    return result\n"
+        "\n"
+        "def handle_message(update: Update, context: CallbackContext) -> None:\n"
+        "    if not check_whitelist(update):\n"
+        "        update.message.reply_text('Non autorizzato.')\n"
+        "        return\n"
+        "    chat_id = update.effective_chat.id\n"
+        "    text    = update.message.text or ''\n"
+        "    send_query(chat_id, text)\n"
+        "    reply = wait_reply(chat_id)\n"
+        "    update.message.reply_text(reply[:4096] if reply else '...')\n"
+        "\n"
+        "def cmd_ask(update: Update, context: CallbackContext) -> None:\n"
+        "    if not check_whitelist(update):\n"
+        "        update.message.reply_text('Non autorizzato.')\n"
+        "        return\n"
+        "    chat_id = update.effective_chat.id\n"
+        "    text    = ' '.join(context.args) if context.args else ''\n"
+        "    if not text:\n"
+        "        update.message.reply_text('Uso: /ask <domanda>')\n"
+        "        return\n"
+        "    send_query(chat_id, text)\n"
+        "    reply = wait_reply(chat_id)\n"
+        "    update.message.reply_text(reply[:4096] if reply else '...')\n"
+        "\n"
+        "def cmd_status(update: Update, context: CallbackContext) -> None:\n"
+        "    if not check_whitelist(update):\n"
+        "        update.message.reply_text('Non autorizzato.')\n"
+        "        return\n"
+        "    update.message.reply_text('Prismalux bot attivo. Invia un messaggio o usa /ask <testo>.')\n"
+        "\n"
+        "def cmd_stop(update: Update, context: CallbackContext) -> None:\n"
+        "    if not check_whitelist(update):\n"
+        "        update.message.reply_text('Non autorizzato.')\n"
+        "        return\n"
+        "    update.message.reply_text('Bot in arresto...')\n"
+        "    context.dispatcher.stop()\n"
+        "\n"
+        "# Thread di lettura stdin per ricevere risposte da Prismalux\n"
+        "def stdin_reader():\n"
+        "    for line in sys.stdin:\n"
+        "        line = line.strip()\n"
+        "        if not line:\n"
+        "            continue\n"
+        "        try:\n"
+        "            obj = json.loads(line)\n"
+        "            chat_id = obj.get('chat_id', 0)\n"
+        "            reply   = obj.get('reply', '')\n"
+        "            with pending_lock:\n"
+        "                entry = pending.get(chat_id)\n"
+        "            if entry:\n"
+        "                entry['reply'] = reply\n"
+        "                entry['event'].set()\n"
+        "        except Exception as e:\n"
+        "            print('stdin parse error: ' + str(e), flush=True)\n"
+        "\n"
+        "t = threading.Thread(target=stdin_reader, daemon=True)\n"
+        "t.start()\n"
+        "\n"
+        "updater = Updater(TOKEN)\n"
+        "dp = updater.dispatcher\n"
+        "dp.add_handler(CommandHandler('ask',    cmd_ask))\n"
+        "dp.add_handler(CommandHandler('status', cmd_status))\n"
+        "dp.add_handler(CommandHandler('stop',   cmd_stop))\n"
+        "dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))\n"
+        "\n"
+        "print(json.dumps({'type': 'ready'}), flush=True)\n"
+        "updater.start_polling(drop_pending_updates=True)\n"
+        "updater.idle()\n"
+    );
+}
+
+void AppControllerPage::onTelegramStartClicked()
+{
+    const QString token = m_telegramTokenEdit->text().trimmed();
+    if (token.isEmpty()) {
+        m_telegramStatusLbl->setText(
+            "\xe2\x9d\x8c  Inserisci il Bot Token prima di avviare.");
+        return;
+    }
+
+    /* Se già in esecuzione, ferma prima */
+    if (m_telegramProc && m_telegramProc->state() == QProcess::Running) {
+        m_telegramProc->terminate();
+        m_telegramProc->waitForFinished(3000);
+    }
+
+    /* Scrive lo script Python nel file runtime */
+    const QString scriptPath = P::root() + "/MCPs/telegram_bot_runtime.py";
+    QFile sf(scriptPath);
+    if (!sf.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        m_telegramStatusLbl->setText(
+            "\xe2\x9d\x8c  Impossibile scrivere " + scriptPath);
+        return;
+    }
+    sf.write(s_telegramBotScript().toUtf8());
+    sf.close();
+
+    /* Crea il QProcess se non esiste */
+    if (!m_telegramProc) {
+        m_telegramProc = new QProcess(this);
+        m_telegramProc->setProcessChannelMode(QProcess::SeparateChannels);
+        connect(m_telegramProc, &QProcess::readyReadStandardOutput,
+                this, &AppControllerPage::onTelegramProcReadyRead);
+        connect(m_telegramProc, &QProcess::readyReadStandardError,
+                this, [this]() {
+            const QString err =
+                QString::fromUtf8(m_telegramProc->readAllStandardError()).trimmed();
+            if (!err.isEmpty())
+                m_telegramLog->append(
+                    "<span style='color:#f87171;'>"
+                    + err.toHtmlEscaped() + "</span>");
+        });
+        connect(m_telegramProc,
+                QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, &AppControllerPage::onTelegramProcFinished);
+    }
+
+    /* Imposta le env var — token e whitelist fuori dal codice */
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("TELEGRAM_TOKEN",     token);
+    env.insert("TELEGRAM_WHITELIST", m_telegramWhitelistEdit->text().trimmed());
+    m_telegramProc->setProcessEnvironment(env);
+
+    m_telegramProc->start(P::findPython(), {scriptPath});
+
+    if (m_telegramProc->waitForStarted(3000)) {
+        m_telegramStartBtn->setEnabled(false);
+        m_telegramStopBtn->setEnabled(true);
+        m_telegramStatusLbl->setText(
+            "\xf0\x9f\x94\x84  Avvio in corso...");
+        m_telegramLog->append(
+            "<b>\xe2\x96\xb6 Bot avviato.</b> Attendo conferma da Telegram...");
+    } else {
+        m_telegramStatusLbl->setText(
+            "\xe2\x9d\x8c  Errore avvio (python3 non trovato?)");
+        m_telegramLog->append(
+            "\xe2\x9d\x8c  python3 non trovato. Verifica l'installazione.");
+    }
+}
+
+void AppControllerPage::onTelegramStopClicked()
+{
+    if (m_telegramProc && m_telegramProc->state() == QProcess::Running) {
+        m_telegramProc->terminate();
+        if (!m_telegramProc->waitForFinished(3000))
+            m_telegramProc->kill();
+    }
+    /* onTelegramProcFinished aggiornerà lo stato */
+}
+
+void AppControllerPage::onTelegramProcReadyRead()
+{
+    while (m_telegramProc->canReadLine()) {
+        const QString line =
+            QString::fromUtf8(m_telegramProc->readLine()).trimmed();
+        if (line.isEmpty()) continue;
+
+        /* Tenta parse JSON */
+        const QJsonObject obj =
+            QJsonDocument::fromJson(line.toUtf8()).object();
+
+        const QString type = obj.value("type").toString();
+
+        if (type == "ready") {
+            m_telegramStatusLbl->setText(
+                "\xe2\x9c\x85  Bot attivo \xe2\x80\x94 in ascolto");
+            m_telegramLog->append(
+                "<b style='color:#4ade80;'>"
+                "\xe2\x9c\x85 Bot pronto.</b>");
+            continue;
+        }
+
+        if (type == "query") {
+            const int     chatId = obj.value("chat_id").toInt();
+            const QString text   = obj.value("text").toString();
+            m_telegramChatId = chatId;
+
+            m_telegramLog->append(
+                QString("<b>\xf0\x9f\x93\xa9 [%1]</b> %2")
+                    .arg(chatId)
+                    .arg(text.toHtmlEscaped()));
+
+            /* Invia al modello AI locale */
+            if (m_telegramAiHolder) {
+                m_telegramAiHolder->deleteLater();
+                m_telegramAiHolder = nullptr;
+            }
+            m_telegramAiHolder = new QObject(this);
+
+            const int savedChatId = chatId;
+
+            connect(m_ai, &AiClient::finished,
+                    m_telegramAiHolder,
+                    [this, savedChatId](const QString& result) {
+                if (m_telegramAiHolder) {
+                    m_telegramAiHolder->deleteLater();
+                    m_telegramAiHolder = nullptr;
+                }
+                /* Rimuovi blocchi <think> se presenti */
+                QString clean = result;
+                static const QRegularExpression reThink(
+                    "<think>[\\s\\S]*?</think>",
+                    QRegularExpression::CaseInsensitiveOption);
+                clean.remove(reThink);
+                clean = clean.trimmed();
+
+                m_telegramLog->append(
+                    QString("<b>\xf0\x9f\xa4\x96 Bot \xe2\x86\x92 [%1]</b> %2")
+                        .arg(savedChatId)
+                        .arg(clean.left(200).toHtmlEscaped()
+                             + (clean.length() > 200 ? "..." : "")));
+
+                /* Scrivi risposta sullo stdin del processo */
+                if (m_telegramProc &&
+                    m_telegramProc->state() == QProcess::Running) {
+                    const QJsonObject resp{
+                        {"chat_id", savedChatId},
+                        {"reply",   clean}
+                    };
+                    const QByteArray payload =
+                        QJsonDocument(resp).toJson(QJsonDocument::Compact)
+                        + "\n";
+                    m_telegramProc->write(payload);
+                }
+            });
+
+            connect(m_ai, &AiClient::error,
+                    m_telegramAiHolder,
+                    [this, savedChatId](const QString& errMsg) {
+                if (m_telegramAiHolder) {
+                    m_telegramAiHolder->deleteLater();
+                    m_telegramAiHolder = nullptr;
+                }
+                m_telegramLog->append(
+                    "<span style='color:#f87171;'>"
+                    "\xe2\x9d\x8c AI error: "
+                    + errMsg.toHtmlEscaped() + "</span>");
+
+                if (m_telegramProc &&
+                    m_telegramProc->state() == QProcess::Running) {
+                    const QJsonObject resp{
+                        {"chat_id", savedChatId},
+                        {"reply",   "Errore AI: " + errMsg}
+                    };
+                    m_telegramProc->write(
+                        QJsonDocument(resp).toJson(QJsonDocument::Compact)
+                        + "\n");
+                }
+            });
+
+            m_ai->chat(
+                "Sei Prismalux, un assistente AI locale. "
+                "Rispondi in modo conciso e utile.",
+                text);
+            continue;
+        }
+
+        /* Messaggio generico dal processo */
+        m_telegramLog->append(line.toHtmlEscaped());
+    }
+}
+
+void AppControllerPage::onTelegramProcFinished(
+    int code, QProcess::ExitStatus /*status*/)
+{
+    m_telegramStartBtn->setEnabled(true);
+    m_telegramStopBtn->setEnabled(false);
+
+    if (code == 0) {
+        m_telegramStatusLbl->setText("\xe2\x9a\xaa  Bot fermato");
+        m_telegramLog->append("<b>\xe2\x8f\xb9 Bot fermato.</b>");
+    } else {
+        m_telegramStatusLbl->setText(
+            QString("\xe2\x9d\x8c  Bot terminato (exit %1)").arg(code));
+        m_telegramLog->append(
+            QString("<span style='color:#f87171;'>"
+                    "\xe2\x9d\x8c Bot uscito con codice %1. "
+                    "Controlla il log sopra.<br>"
+                    "Se manca python-telegram-bot: "
+                    "<code>pip install python-telegram-bot==13.*</code>"
+                    "</span>").arg(code));
+    }
+
+    /* Libera l'holder AI se era attivo */
+    if (m_telegramAiHolder) {
+        m_telegramAiHolder->deleteLater();
+        m_telegramAiHolder = nullptr;
+    }
 }

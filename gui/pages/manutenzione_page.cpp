@@ -1928,6 +1928,7 @@ void ManutenzioneePage::onDownloadModelClicked()
     }
     if (m_downloadStatusLbl) m_downloadStatusLbl->setText("\xe2\x8f\xb3  Download...");
     if (m_btnDownloadModel)  m_btnDownloadModel->setText("\xe2\x8f\xb9  Annulla");
+    emit downloadStarted(model);
 
     if (m_downloadProc) { m_downloadProc->deleteLater(); m_downloadProc = nullptr; }
     m_downloadProc = new QProcess(this);
@@ -1947,10 +1948,22 @@ void ManutenzioneePage::onDownloadProcReadyRead()
     m_updLog->moveCursor(QTextCursor::End);
     m_updLog->insertPlainText(out);
     m_updLog->moveCursor(QTextCursor::End);
+
+    /* Estrai l'ultima riga significativa per il segnale di progresso globale */
+    const QStringList lines = out.split('\n', Qt::SkipEmptyParts);
+    for (int i = lines.size() - 1; i >= 0; --i) {
+        const QString line = lines[i].trimmed();
+        if (!line.isEmpty()) {
+            emit downloadProgress(line);
+            break;
+        }
+    }
 }
 
 void ManutenzioneePage::onDownloadProcFinished(int code, QProcess::ExitStatus)
 {
+    const QString model = m_downloadModelEdit ? m_downloadModelEdit->text().trimmed()
+                                              : QString("modello");
     if (m_btnDownloadModel) m_btnDownloadModel->setText("\xe2\xac\x87  Scarica");
     if (code == 0) {
         if (m_downloadStatusLbl) m_downloadStatusLbl->setText(
@@ -1963,6 +1976,7 @@ void ManutenzioneePage::onDownloadProcFinished(int code, QProcess::ExitStatus)
         if (m_updLog) m_updLog->append(
             "\xe2\x9d\x8c  Download terminato con errore.\n");
     }
+    emit downloadFinished(code == 0, model);
     if (m_downloadProc) { m_downloadProc->deleteLater(); m_downloadProc = nullptr; }
     if (m_ai) m_ai->fetchModels();
 }

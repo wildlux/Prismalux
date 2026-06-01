@@ -124,17 +124,22 @@ void MainWindow::onIdleUnloadTimer()
 
 void MainWindow::onInitialModelsReady(const QStringList& list)
 {
-    if (!list.isEmpty()) {
-        const QString current = m_ai->model();
-        const bool preferredAvail = !current.isEmpty() && list.contains(current);
-        const QString model = preferredAvail ? current : list.first();
-        if (!preferredAvail)
-            m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), model);
-        m_lblModel->setText(model);
+    if (list.isEmpty()) {
+        m_lblModel->setText("(Ollama non trovato)");
         statusBar()->showMessage(
-            QString("\xf0\x9f\x8d\xba  Backend Ollama | Modello: %1 | Modelli disponibili: %2")
-            .arg(model).arg(list.size()));
+            "\xe2\x9a\xa0\xef\xb8\x8f  Ollama non risponde — avvialo con: ollama serve");
+        maybeAutoVramBench();
+        return;
     }
+    const QString current = m_ai->model();
+    const bool preferredAvail = !current.isEmpty() && list.contains(current);
+    const QString model = preferredAvail ? current : list.first();
+    if (!preferredAvail)
+        m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), model);
+    m_lblModel->setText(model);
+    statusBar()->showMessage(
+        QString("\xf0\x9f\x8d\xba  Backend Ollama | Modello: %1 | Modelli disponibili: %2")
+        .arg(model).arg(list.size()));
     maybeAutoVramBench();
 }
 

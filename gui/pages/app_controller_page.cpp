@@ -29,6 +29,7 @@ namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
 #include <QTextBrowser>
 #include <QGroupBox>
+#include <QSettings>
 #include <QDateTime>
 
 /* ──────────────────────────────────────────────────────────────
@@ -275,6 +276,9 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
     m_tabs->addTab(new OpenCodePage(m_tabs), "\xf0\x9f\x96\xa5  OpenCode");
     m_tabs->addTab(buildTelegramTab(),       "\xf0\x9f\x93\xac  Telegram");  /* 📬 */
     m_tabs->addTab(buildWhatsAppTab(),       "\xf0\x9f\x92\xac  WhatsApp");  /* 💬 */
+
+    m_secPage = new SecurityAnalyzerPage(m_ai, this);
+    m_tabs->addTab(m_secPage,               "\xf0\x9f\x94\x90  Sicurezza");  /* 🔐 */
 
     lay->addWidget(m_tabs);
 
@@ -1776,51 +1780,134 @@ void AppControllerPage::detectSerialPorts()
 }
 
 /* ══════════════════════════════════════════════════════════════
-   buildTelegramTab — placeholder bot Telegram locale
-   TODO: implementare bridge MCP con python-telegram-bot / Telethon
+   buildTelegramTab — bot Telegram locale via python-telegram-bot
    ══════════════════════════════════════════════════════════════ */
 QWidget* AppControllerPage::buildTelegramTab()
 {
     auto* w   = new QWidget;
     auto* lay = new QVBoxLayout(w);
-    lay->setContentsMargins(16, 16, 16, 16);
-    lay->setSpacing(12);
+    lay->setContentsMargins(dpiScale(12), dpiScale(12),
+                            dpiScale(12), dpiScale(12));
+    lay->setSpacing(dpiScale(8));
 
+    /* ── Descrizione ── */
     auto* descLbl = new QLabel(
-        "\xf0\x9f\x93\xac  <i>Telegram Bot locale \xe2\x80\x94 "
-        "Collega un bot Telegram al tuo Prismalux locale: invia prompt, "
-        "ricevi risposte AI, controlla il server LAN e i task WAN "
-        "direttamente dalla chat, senza cloud.</i>", w);
+        "\xf0\x9f\x93\xac  <i>Bot Telegram completamente locale: "
+        "invia messaggi al bot, Prismalux li processa con Ollama "
+        "e risponde. Nessun cloud, il token non lascia mai il tuo PC.</i>", w);
     descLbl->setObjectName("hintLabel");
     descLbl->setTextFormat(Qt::RichText);
     descLbl->setWordWrap(true);
     lay->addWidget(descLbl);
 
-    auto* group = new QGroupBox(
-        "\xf0\x9f\x93\xac  Telegram Bot \xe2\x80\x94 In sviluppo", w);
-    auto* glay = new QVBoxLayout(group);
+    /* ── GroupBox Configurazione ── */
+    auto* cfgGroup = new QGroupBox(
+        "\xf0\x9f\x94\xa7  Configurazione", w);
+    auto* cfgLay = new QVBoxLayout(cfgGroup);
+    cfgLay->setSpacing(dpiScale(6));
 
-    auto* statusLbl = new QLabel(
-        "\xe2\x8f\xb3  <b>Non ancora implementato</b><br><br>"
-        "<b>Funzionalit\xc3\xa0 pianificate:</b><br>"
-        "\xe2\x80\xa2 Token bot (@BotFather) configurabile in Impostazioni<br>"
-        "\xe2\x80\xa2 Invia messaggi Telegram → AI locale risponde<br>"
-        "\xe2\x80\xa2 Comandi: /ask, /status, /task, /stop<br>"
-        "\xe2\x80\xa2 Notifiche proattive (task WAN completato, alert sistema)<br>"
-        "\xe2\x80\xa2 Whitelist utenti Telegram (solo ID autorizzati)<br>"
-        "\xe2\x80\xa2 Funziona in LAN senza esporre porte su internet<br><br>"
-        "<b>Stack previsto:</b> python-telegram-bot o Telethon via MCP<br>"
-        "Repository MCP: "
-        "<a href='https://github.com/chigwell/telegram-mcp'>"
-        "github.com/chigwell/telegram-mcp</a>",
-        group);
-    statusLbl->setWordWrap(true);
-    statusLbl->setOpenExternalLinks(true);
-    statusLbl->setObjectName("hintLabel");
-    glay->addWidget(statusLbl);
-    glay->addStretch();
+    /* Token row */
+    auto* tokenRow = new QHBoxLayout;
+    auto* tokenLbl = new QLabel("Bot Token:", cfgGroup);
+    tokenLbl->setFixedWidth(dpiScale(90));
+    m_telegramTokenEdit = new QLineEdit(cfgGroup);
+    m_telegramTokenEdit->setPlaceholderText("123456:ABC-DEF... (da @BotFather)");
+    m_telegramTokenEdit->setEchoMode(QLineEdit::Password);
+    auto* saveTokenBtn = new QPushButton(
+        "\xf0\x9f\x92\xbe  Salva token", cfgGroup);
+    saveTokenBtn->setObjectName("actionBtn");
+    saveTokenBtn->setFixedWidth(dpiScale(110));
+    tokenRow->addWidget(tokenLbl);
+    tokenRow->addWidget(m_telegramTokenEdit, 1);
+    tokenRow->addWidget(saveTokenBtn);
+    cfgLay->addLayout(tokenRow);
 
-    lay->addWidget(group, 1);
+    /* Whitelist row */
+    auto* wlRow = new QHBoxLayout;
+    auto* wlLbl = new QLabel("Whitelist ID:", cfgGroup);
+    wlLbl->setFixedWidth(dpiScale(90));
+    m_telegramWhitelistEdit = new QLineEdit(cfgGroup);
+    m_telegramWhitelistEdit->setPlaceholderText(
+        "123456789,987654321 \xe2\x80\x94 lascia vuoto per tutti");
+    wlRow->addWidget(wlLbl);
+    wlRow->addWidget(m_telegramWhitelistEdit, 1);
+    cfgLay->addLayout(wlRow);
+
+    /* Nota AI */
+    auto* notaLbl = new QLabel(
+        "\xf0\x9f\x94\x92  I messaggi vengono processati da Ollama locale. "
+        "Il token non lascia mai il tuo PC.", cfgGroup);
+    notaLbl->setObjectName("hintLabel");
+    notaLbl->setWordWrap(true);
+    cfgLay->addWidget(notaLbl);
+
+    lay->addWidget(cfgGroup);
+
+    /* ── GroupBox Controllo ── */
+    auto* ctrlGroup = new QGroupBox(
+        "\xe2\x9a\x99\xef\xb8\x8f  Controllo", w);
+    auto* ctrlLay = new QHBoxLayout(ctrlGroup);
+    ctrlLay->setSpacing(dpiScale(8));
+
+    m_telegramStartBtn = new QPushButton(
+        "\xe2\x96\xb6  Avvia Bot", ctrlGroup);
+    m_telegramStartBtn->setObjectName("actionBtn");
+    m_telegramStartBtn->setFixedWidth(dpiScale(120));
+
+    m_telegramStopBtn = new QPushButton(
+        "\xe2\x8f\xb9  Ferma Bot", ctrlGroup);
+    m_telegramStopBtn->setObjectName("actionBtn");
+    m_telegramStopBtn->setFixedWidth(dpiScale(120));
+    m_telegramStopBtn->setEnabled(false);
+
+    m_telegramStatusLbl = new QLabel(
+        "\xe2\x9a\xaa  Bot fermo", ctrlGroup);
+    m_telegramStatusLbl->setObjectName("statusLabel");
+
+    ctrlLay->addWidget(m_telegramStartBtn);
+    ctrlLay->addWidget(m_telegramStopBtn);
+    ctrlLay->addWidget(m_telegramStatusLbl, 1);
+
+    lay->addWidget(ctrlGroup);
+
+    /* ── Log messaggi ── */
+    auto* logGroup = new QGroupBox(
+        "\xf0\x9f\x93\x9d  Log messaggi", w);
+    auto* logLay = new QVBoxLayout(logGroup);
+
+    m_telegramLog = new QTextEdit(logGroup);
+    m_telegramLog->setReadOnly(true);
+    m_telegramLog->setMinimumHeight(dpiScale(180));
+    m_telegramLog->setPlaceholderText(
+        "Il log dei messaggi ricevuti e inviati apparir\xc3\xa0 qui...");
+    logLay->addWidget(m_telegramLog);
+
+    lay->addWidget(logGroup, 1);
+
+    /* ── Carica token salvato ── */
+    {
+        QSettings s("Prismalux", "GUI");
+        const QString savedToken = s.value("telegram/token").toString();
+        const QString savedWl    = s.value("telegram/whitelist").toString();
+        if (!savedToken.isEmpty())
+            m_telegramTokenEdit->setText(savedToken);
+        if (!savedWl.isEmpty())
+            m_telegramWhitelistEdit->setText(savedWl);
+    }
+
+    /* ── Connessioni ── */
+    connect(saveTokenBtn, &QPushButton::clicked, this, [this]() {
+        QSettings s("Prismalux", "GUI");
+        s.setValue("telegram/token",     m_telegramTokenEdit->text().trimmed());
+        s.setValue("telegram/whitelist", m_telegramWhitelistEdit->text().trimmed());
+        m_telegramStatusLbl->setText("\xe2\x9c\x85  Token salvato");
+    });
+
+    connect(m_telegramStartBtn, &QPushButton::clicked,
+            this, &AppControllerPage::onTelegramStartClicked);
+    connect(m_telegramStopBtn,  &QPushButton::clicked,
+            this, &AppControllerPage::onTelegramStopClicked);
+
     return w;
 }
 

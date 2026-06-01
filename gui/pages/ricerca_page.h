@@ -27,6 +27,7 @@
 class QDateEdit;
 class QTimeEdit;
 class QTextBrowser;
+class QFileSystemWatcher;
 
 /* ══════════════════════════════════════════════════════════════
    RicercaPage — "Ricerca e Sviluppo"
@@ -142,8 +143,10 @@ private:
     QWidget* buildRagGrafoTab();   ///< 🕸️ Grafo Conoscenza RAG
 
     /* ── Grafo RAG ── */
-    GraphMemory*    m_ragGm          = nullptr;   ///< GraphMemory dedicata al RAG
-    RagGraph*       m_ragGraph       = nullptr;   ///< estrattore entità
+    GraphMemory*       m_ragGm          = nullptr;
+    RagGraph*          m_ragGraph       = nullptr;
+    QFileSystemWatcher* m_ragDirWatcher = nullptr; ///< auto-trigger su nuovi file (TODO #3)
+    QTimer*            m_ragAutoDebounce = nullptr; ///< debounce 2s per il watcher
     QListWidget*    m_ragNodeList    = nullptr;   ///< lista nodi
     QTextEdit*      m_ragNodeDetail  = nullptr;   ///< dettaglio nodo selezionato
     QLabel*         m_ragImgLbl      = nullptr;   ///< immagine Graphviz

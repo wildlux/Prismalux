@@ -831,9 +831,11 @@ QWidget* ImpostazioniPage::buildRagTab()
     dirEdit->setObjectName("inputLine");
     dirEdit->setPlaceholderText("/percorso/documenti/");
     {
-        /* Default: cartella RAG nella root del progetto Prismalux */
+        /* Default: cartella RAG nella home dell'utente corrente.
+           Non usare P::root() che potrebbe contenere il path dell'utente
+           che ha compilato (es. /home/wildlux/…) invece dell'utente attuale. */
         const QString defaultRagDir =
-            QDir::cleanPath(P::root() + "/../RAG");
+            QDir::homePath() + "/prismalux_rag_docs";
         auto& cfg = AppConfig::s();
         QString saved = cfg.value(P::SK::kRagDocsDir, "").toString();
         if (saved.isEmpty()) {
@@ -845,9 +847,45 @@ QWidget* ImpostazioniPage::buildRagTab()
     auto* browseBtn = new QPushButton("Sfoglia...");
     browseBtn->setObjectName("actionBtn");
     browseBtn->setFixedWidth(90);
+    browseBtn->setToolTip("Scegli la cartella dove metti i tuoi documenti RAG");
+
+    auto* openDirBtn = new QPushButton("\xf0\x9f\x93\x82");   /* 📂 */
+    openDirBtn->setObjectName("actionBtn");
+    openDirBtn->setFixedWidth(36);
+    openDirBtn->setToolTip("Apri la cartella nel file manager");
+    QObject::connect(openDirBtn, &QPushButton::clicked, dirEdit, [dirEdit] {
+        const QString d = dirEdit->text().trimmed();
+        if (!d.isEmpty() && QDir(d).exists())
+            QDesktopServices::openUrl(QUrl::fromLocalFile(d));
+        else
+            QDesktopServices::openUrl(QUrl::fromLocalFile(QDir::homePath()));
+    });
+
     dirLay->addWidget(dirEdit, 1);
     dirLay->addWidget(browseBtn);
-    fl->addRow("Cartella:", dirRow);
+    dirLay->addWidget(openDirBtn);
+    fl->addRow("Cartella RAG:", dirRow);
+
+    /* Avviso se la cartella non esiste */
+    auto* ragWarnLbl = new QLabel;
+    ragWarnLbl->setObjectName("warnLabel");
+    ragWarnLbl->setVisible(false);
+    ragWarnLbl->setWordWrap(true);
+    ragWarnLbl->setTextFormat(Qt::RichText);
+    auto updateRagWarn = [ragWarnLbl, dirEdit] {
+        const QString d = dirEdit->text().trimmed();
+        const bool bad = d.isEmpty() || !QDir(d).exists();
+        ragWarnLbl->setText(
+            bad ? "\xe2\x9a\xa0\xef\xb8\x8f  La cartella non esiste. "
+                  "Cliccla su \xe2\x80\x9cSfoglia...\xe2\x80\x9d per scegliere "
+                  "dove salvare i tuoi documenti RAG, oppure creala con:"
+                  "<br><code>mkdir -p " + (d.isEmpty() ? "~/prismalux_rag_docs" : d.toHtmlEscaped()) + "</code>"
+                : QString());
+        ragWarnLbl->setVisible(bad);
+    };
+    QObject::connect(dirEdit, &QLineEdit::textChanged, ragWarnLbl, updateRagWarn);
+    updateRagWarn();
+    fl->addRow("", ragWarnLbl);
 
     /* Max risultati */
     auto* maxSpin = new QSpinBox;

@@ -93,6 +93,8 @@ signals:
     void finished(const RagGraphStats& stats);
     /** Errore su un file. */
     void fileError(const QString& file, const QString& error);
+    /** File copiato automaticamente in RAG/ per persistenza. */
+    void fileCopied(const QString& filename, const QString& destPath);
 
 private:
     void processNextFile();
