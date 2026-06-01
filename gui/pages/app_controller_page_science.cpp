@@ -5,6 +5,7 @@
    ══════════════════════════════════════════════════════════════ */
 #include "app_controller_page.h"
 #include "../prismalux_paths.h"
+#include "../widgets/model_combo_box.h"
 namespace P = PrismaluxPaths;
 
 #include <QVBoxLayout>
@@ -123,9 +124,7 @@ QWidget* AppControllerPage::buildGodotTab()
     m_godotAction = new QComboBox(toolRow);
     for (int i = 0; kGodotActions[i]; i++)
         m_godotAction->addItem(QString::fromUtf8(kGodotActions[i]));
-    m_godotModel = new QComboBox(toolRow);
-    m_godotModel->setMinimumWidth(180);
-    populateModels(m_godotModel);
+    m_godotModel = new ModelComboBox(m_ai, toolRow);
     toolLay->addWidget(new QLabel("Tipo:", toolRow));
     toolLay->addWidget(m_godotAction, 1);
     toolLay->addWidget(new QLabel("Modello:", toolRow));

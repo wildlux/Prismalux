@@ -2,6 +2,7 @@
 #include "../dpi_utils.h"
 #include "opencode_page.h"
 #include "../prismalux_paths.h"
+#include "../widgets/model_combo_box.h"
 namespace P = PrismaluxPaths;
 #include <QTabWidget>
 #include <QVBoxLayout>
@@ -299,14 +300,6 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
 /* ──────────────────────────────────────────────────────────────
    Helper: popola una combo modelli
    ────────────────────────────────────────────────────────────── */
-void AppControllerPage::populateModels(QComboBox* combo)
-{
-    combo->clear();
-    const QString cur = m_ai->model();
-    if (!cur.isEmpty()) combo->addItem(cur, cur);
-    combo->setCurrentIndex(0);
-    m_ai->fetchModels();
-}
 
 /* ──────────────────────────────────────────────────────────────
    Helper: estrai codice Python dal primo blocco ```...```
@@ -552,9 +545,7 @@ QWidget* AppControllerPage::buildBlenderTab()
     /* Script libero come default: il modello capisce da solo cosa fare */
     m_blenderAction->setCurrentIndex(m_blenderAction->count() - 1);
 
-    m_blenderModel = new QComboBox(toolRow);
-    m_blenderModel->setMinimumWidth(dpiScale(180));
-    populateModels(m_blenderModel);
+    m_blenderModel = new ModelComboBox(m_ai, toolRow);
 
     toolLay->addWidget(new QLabel("Azione:", toolRow));
     toolLay->addWidget(m_blenderAction, 1);
@@ -754,9 +745,7 @@ QWidget* AppControllerPage::buildFreeCADTab()
     for (int i = 0; kFreeCADActions[i]; i++)
         m_freecadAction->addItem(QString::fromUtf8(kFreeCADActions[i]));
 
-    m_freecadModel = new QComboBox(toolRow);
-    m_freecadModel->setMinimumWidth(dpiScale(180));
-    populateModels(m_freecadModel);
+    m_freecadModel = new ModelComboBox(m_ai, toolRow);
 
     toolLay->addWidget(new QLabel("Azione:", toolRow));
     toolLay->addWidget(m_freecadAction, 1);
@@ -880,9 +869,7 @@ QWidget* AppControllerPage::buildOfficeTab()
     for (int i = 0; kOfficeActions[i]; i++)
         m_officeAction->addItem(QString::fromUtf8(kOfficeActions[i]));
 
-    m_officeModel = new QComboBox(toolRow);
-    m_officeModel->setMinimumWidth(dpiScale(180));
-    populateModels(m_officeModel);
+    m_officeModel = new ModelComboBox(m_ai, toolRow);
 
     toolLay->addWidget(new QLabel("Azione:", toolRow));
     toolLay->addWidget(m_officeAction, 1);
@@ -1185,9 +1172,7 @@ QWidget* AppControllerPage::buildAnkiTab()
     m_ankiDeckEdit->setToolTip("Nome deck Anki destinazione");
     auto* deckEdit = m_ankiDeckEdit;  // alias per il layout
 
-    m_ankiModel = new QComboBox(toolRow);
-    m_ankiModel->setMinimumWidth(dpiScale(180));
-    populateModels(m_ankiModel);
+    m_ankiModel = new ModelComboBox(m_ai, toolRow);
 
     toolLay->addWidget(new QLabel("Tipo:", toolRow));
     toolLay->addWidget(m_ankiAction, 1);
@@ -1374,9 +1359,7 @@ QWidget* AppControllerPage::buildKiCADTab()
     for (int i = 0; kKiCADActions[i]; i++)
         m_kicadAction->addItem(QString::fromUtf8(kKiCADActions[i]));
 
-    m_kicadModel = new QComboBox(toolRow);
-    m_kicadModel->setMinimumWidth(dpiScale(180));
-    populateModels(m_kicadModel);
+    m_kicadModel = new ModelComboBox(m_ai, toolRow);
 
     toolLay->addWidget(new QLabel("Azione:", toolRow));
     toolLay->addWidget(m_kicadAction, 1);
@@ -1543,9 +1526,7 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     });
     auto* boardCombo = m_mcuBoardCombo;  // alias per il layout
 
-    m_mcuModel = new QComboBox(toolRow);
-    m_mcuModel->setMinimumWidth(dpiScale(180));
-    populateModels(m_mcuModel);
+    m_mcuModel = new ModelComboBox(m_ai, toolRow);
 
     toolLay->addWidget(new QLabel("Tipo:", toolRow));
     toolLay->addWidget(m_mcuAction, 1);
@@ -1682,9 +1663,7 @@ QWidget* AppControllerPage::buildOBSTab()
     for (int i = 0; kOBSActions[i]; i++)
         m_obsAction->addItem(QString::fromUtf8(kOBSActions[i]));
 
-    m_obsModel = new QComboBox(toolRow);
-    m_obsModel->setMinimumWidth(dpiScale(180));
-    populateModels(m_obsModel);
+    m_obsModel = new ModelComboBox(m_ai, toolRow);
 
     toolLay->addWidget(new QLabel("Azione:", toolRow));
     toolLay->addWidget(m_obsAction, 1);

@@ -9,6 +9,7 @@
 #include <QPromise>
 #include "../ai_client.h"
 #include "../graph_memory.h"
+#include "../widgets/model_combo_box.h"
 
 class QTextEdit;
 class QPlainTextEdit;
@@ -125,7 +126,7 @@ private:
     QMap<int, QFutureWatcher<QString>*>          m_taskWatchers;
 
     /* UI */
-    QComboBox*      m_modelCombo   = nullptr;
+    ModelComboBox*  m_modelCombo   = nullptr;
     QTextEdit*      m_promptInput  = nullptr;
     QPushButton*    m_btnDecompose = nullptr;
     QPushButton*    m_btnStop      = nullptr;
@@ -148,5 +149,4 @@ private slots:
     void onClearMemClicked();
     void onGraphMemoryChanged();
     void onTaskItemClicked(QListWidgetItem* item);
-    void onFillModels();
 };

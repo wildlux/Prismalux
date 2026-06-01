@@ -1,4 +1,5 @@
 #include "ricerca_page.h"
+#include "../widgets/model_combo_box.h"
 #include "../widgets/astro_calc.h"
 #include "../widgets/natal_chart_widget.h"
 #include "../widgets/world_map_widget.h"
@@ -169,8 +170,7 @@ QWidget* RicercaPage::buildAstraleTab()
     auto* modelRow = new QWidget(formGroup);
     auto* modelLay = new QHBoxLayout(modelRow);
     modelLay->setContentsMargins(0, 0, 0, 0); modelLay->setSpacing(6);
-    m_astraleModel = new QComboBox(modelRow);
-    sciPopulateModels(m_astraleModel);
+    m_astraleModel = new ModelComboBox(m_ai, modelRow);
     m_astraleRunBtn = new QPushButton("\xe2\xad\x90  Leggi gli Astri", modelRow);
     m_astraleRunBtn->setObjectName("actionBtn");
     modelLay->addWidget(m_astraleModel, 1);

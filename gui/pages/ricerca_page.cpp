@@ -53,6 +53,7 @@ namespace P = PrismaluxPaths;
 #include <QPlainTextEdit>
 #include <QStandardPaths>
 #include <QFileSystemWatcher>
+#include "../widgets/model_combo_box.h"
 #include <cmath>
 
 /* ── helper: barra azioni output (Esporta PDF / Salva .md) ────────── */
@@ -174,8 +175,7 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     m_sciErrorPanel = new AiErrorWidget(this);
     vlay->addWidget(m_sciErrorPanel);
 
-    /* Propaga modelli a tutti le combo science */
-    connect(m_ai, &AiClient::modelsReady, this, &RicercaPage::onSciModelsReady);
+    /* ModelComboBox gestisce il fetch autonomamente per ogni combo */
 
     /* ── connessioni AI (una sola volta per tutta la pagina) ──────── */
     connect(m_ai, &AiClient::token,    this, &RicercaPage::onAiToken);
@@ -635,14 +635,6 @@ void RicercaPage::salvaMarkdown(QTextEdit* editor,
 /* ══════════════════════════════════════════════════════════════
    Helper science: popola combo modelli
    ══════════════════════════════════════════════════════════════ */
-void RicercaPage::sciPopulateModels(QComboBox* combo)
-{
-    combo->clear();
-    const QString cur = m_ai->model();
-    if (!cur.isEmpty()) combo->addItem(cur, cur);
-    combo->setCurrentIndex(0);
-    m_ai->fetchModels();
-}
 
 /* ══════════════════════════════════════════════════════════════
    Helper science: lancia AI con streaming e gestisce ExecBtn
@@ -975,9 +967,7 @@ QWidget* RicercaPage::buildCytoscapeTab()
     m_cytoAction = new QComboBox(toolRow);
     for (int i = 0; kCytoActionsR[i]; i++)
         m_cytoAction->addItem(QString::fromUtf8(kCytoActionsR[i]));
-    m_cytoModel = new QComboBox(toolRow);
-    m_cytoModel->setMinimumWidth(180);
-    sciPopulateModels(m_cytoModel);
+    m_cytoModel = new ModelComboBox(m_ai, toolRow);
     toolLay->addWidget(new QLabel("Analisi:", toolRow));
     toolLay->addWidget(m_cytoAction, 1);
     toolLay->addWidget(new QLabel("Modello:", toolRow));
@@ -1094,9 +1084,7 @@ QWidget* RicercaPage::buildRDKitTab()
     m_rdkitAction = new QComboBox(toolRow);
     for (int i = 0; kRDKitActionsR[i]; i++)
         m_rdkitAction->addItem(QString::fromUtf8(kRDKitActionsR[i]));
-    m_rdkitModel = new QComboBox(toolRow);
-    m_rdkitModel->setMinimumWidth(180);
-    sciPopulateModels(m_rdkitModel);
+    m_rdkitModel = new ModelComboBox(m_ai, toolRow);
     toolLay->addWidget(new QLabel("Analisi:", toolRow));
     toolLay->addWidget(m_rdkitAction, 1);
     toolLay->addWidget(new QLabel("Modello:", toolRow));
@@ -1215,9 +1203,7 @@ QWidget* RicercaPage::buildBiocondaTab()
     m_bioAction = new QComboBox(toolRow);
     for (int i = 0; kBioActionsR[i]; i++)
         m_bioAction->addItem(QString::fromUtf8(kBioActionsR[i]));
-    m_bioModel = new QComboBox(toolRow);
-    m_bioModel->setMinimumWidth(180);
-    sciPopulateModels(m_bioModel);
+    m_bioModel = new ModelComboBox(m_ai, toolRow);
     toolLay->addWidget(new QLabel("Pipeline:", toolRow));
     toolLay->addWidget(m_bioAction, 1);
     toolLay->addWidget(new QLabel("Modello:", toolRow));
@@ -1347,9 +1333,7 @@ QWidget* RicercaPage::buildAvogadroTab()
     m_avoAction = new QComboBox(toolRow);
     for (int i = 0; kAvoActionsR[i]; i++)
         m_avoAction->addItem(QString::fromUtf8(kAvoActionsR[i]));
-    m_avoModel = new QComboBox(toolRow);
-    m_avoModel->setMinimumWidth(180);
-    sciPopulateModels(m_avoModel);
+    m_avoModel = new ModelComboBox(m_ai, toolRow);
     toolLay->addWidget(new QLabel("Azione:", toolRow));
     toolLay->addWidget(m_avoAction, 1);
     toolLay->addWidget(new QLabel("Modello:", toolRow));
@@ -1397,19 +1381,6 @@ QWidget* RicercaPage::buildAvogadroTab()
 /* ══════════════════════════════════════════════════════════════
    SLOT — AI globali (Paper / Brevetto / DocTecnico via avvia())
    ══════════════════════════════════════════════════════════════ */
-void RicercaPage::onSciModelsReady(const QStringList& models)
-{
-    for (auto* combo : {m_cytoModel, m_rdkitModel, m_bioModel, m_avoModel,
-                        m_analisiModelCombo, m_astraleModel}) {
-        if (!combo) continue;
-        const QString cur = combo->currentData().toString();
-        combo->clear();
-        for (const QString& m : models)
-            combo->addItem(m, m);
-        const int idx = combo->findData(cur);
-        combo->setCurrentIndex(idx >= 0 ? idx : 0);
-    }
-}
 
 void RicercaPage::onSciToken(const QString& t)
 {
@@ -2623,9 +2594,7 @@ QWidget* RicercaPage::buildAnalisiPage()
     ctrlLay->setSpacing(8);
 
     auto* modelLbl = new QLabel("Modello:");
-    m_analisiModelCombo = new QComboBox;
-    m_analisiModelCombo->setMinimumWidth(220);
-    sciPopulateModels(m_analisiModelCombo);
+    m_analisiModelCombo = new ModelComboBox(m_ai, this);
 
     m_analisiRunBtn  = new QPushButton("\xf0\x9f\x94\x8d  Analizza AI");
     m_analisiStopBtn = new QPushButton("\xe2\x96\xa0  Stop");
@@ -3298,14 +3267,8 @@ QWidget* RicercaPage::buildRagGrafoTab()
     titleLbl->setObjectName("cardDesc");
     topLay->addWidget(titleLbl, 1);
 
-    m_ragModelCombo = new QComboBox(topBar);
-    m_ragModelCombo->setObjectName("settingCombo");
-    m_ragModelCombo->setMinimumWidth(160);
+    m_ragModelCombo = new ModelComboBox(m_ai, topBar);
     m_ragModelCombo->setToolTip("Modello LLM per estrazione entit\xc3\xa0");
-    if (m_ai) {
-        const QString cur = m_ai->model();
-        m_ragModelCombo->addItem(cur.isEmpty() ? "(caricamento...)" : cur, cur);
-    }
     topLay->addWidget(m_ragModelCombo);
 
     lay->addWidget(topBar);

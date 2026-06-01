@@ -245,7 +245,6 @@ private:
                   QComboBox* modelCombo,
                   QPushButton* execBtn, QString* codeRef, QLabel* statusLbl);
     void resetButtons();
-    void sciPopulateModels(QComboBox* combo);
 
 public slots:
     /* Output bar (PDF / Markdown / Svuota) — accessibili da makeOutputBar() */
@@ -255,7 +254,6 @@ public slots:
 
 private slots:
     /* AI globali */
-    void onSciModelsReady(const QStringList& models);
     void onSciToken(const QString& t);
     void onSciFinished(const QString& full);
     void onSciError(const QString& msg);

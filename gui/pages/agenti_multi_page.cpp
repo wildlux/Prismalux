@@ -83,14 +83,7 @@ AgentiMultiPage::AgentiMultiPage(AiClient* ai, QWidget* parent)
     root->addWidget(memSep);
     root->addWidget(buildMemoryBar());
 
-    /* Carica modelli al primo avvio */
-    QTimer::singleShot(0, this, &AgentiMultiPage::onFillModels);
-    if (m_ai)
-        connect(m_ai, &AiClient::modelChanged, m_modelCombo,
-                [this](const QString& m) {
-                    const int idx = m_modelCombo->findData(m);
-                    if (idx >= 0) m_modelCombo->setCurrentIndex(idx);
-                });
+    /* ModelComboBox gestisce fetch e modelChanged autonomamente */
 
     refreshMemoryStats();
     setStatus("\xf0\x9f\x95\xb8  Pronto. Descrivi un compito complesso e premi Decomponsi.");  /* 🕸️ */
@@ -125,9 +118,7 @@ QWidget* AgentiMultiPage::buildInputBar()
     title->setObjectName("cardDesc");
     titleRow->addWidget(title, 1);
 
-    m_modelCombo = new QComboBox(bar);
-    m_modelCombo->setObjectName("settingCombo");
-    m_modelCombo->setMinimumWidth(dpiScale(180));
+    m_modelCombo = new ModelComboBox(m_ai, bar);
     m_modelCombo->setToolTip("Modello LLM usato da master e sub-agenti");
     titleRow->addWidget(m_modelCombo);
     lay->addLayout(titleRow);
@@ -942,27 +933,3 @@ void AgentiMultiPage::returnPoolClient(AiClient* c)
     if (c) m_busyClients.remove(c);
 }
 
-void AgentiMultiPage::onFillModels()
-{
-    if (!m_ai) return;
-    const QString cur = m_ai->model();
-    m_modelCombo->clear();
-    m_modelCombo->addItem(cur.isEmpty() ? "(caricamento...)" : cur, cur);
-
-    auto* holder = new QObject(this);
-    connect(m_ai, &AiClient::modelsReady, holder,
-            [this, holder](const QStringList& list) {
-                holder->deleteLater();
-                const QString cur = m_ai->model();
-                m_modelCombo->clear();
-                for (const auto& m : list) {
-                    m_modelCombo->addItem(P::modelIcon(0, m) + m, m);
-                    if (m == cur)
-                        m_modelCombo->setCurrentIndex(m_modelCombo->count() - 1);
-                }
-            });
-    connect(m_ai, &AiClient::error, holder, [holder](const QString&) {
-        holder->deleteLater();
-    });
-    m_ai->fetchModels();
-}

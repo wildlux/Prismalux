@@ -3,6 +3,7 @@
 #include <QVector>
 #include <QMap>
 #include "../ai_client.h"
+#include "../widgets/model_combo_box.h"
 
 class QComboBox;
 class QTextEdit;
@@ -49,7 +50,7 @@ private:
     QVector<AiClient*> m_pool;
 
     /* UI */
-    QComboBox*      m_modelCombo  = nullptr;
+    ModelComboBox*  m_modelCombo  = nullptr;
     QTextEdit*      m_codeInput   = nullptr;
     QPushButton*    m_btnAnalyze  = nullptr;
     QPushButton*    m_btnStop     = nullptr;
@@ -76,5 +77,4 @@ private:
 private slots:
     void onAnalyzeClicked();
     void onStopClicked();
-    void onFillModels();
 };

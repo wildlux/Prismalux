@@ -103,9 +103,7 @@ SecurityAnalyzerPage::SecurityAnalyzerPage(AiClient* ai, QWidget* parent)
     title->setObjectName("cardDesc");
     topLay->addWidget(title, 1);
 
-    m_modelCombo = new QComboBox(topBar);
-    m_modelCombo->setObjectName("settingCombo");
-    m_modelCombo->setMinimumWidth(dpiScale(180));
+    m_modelCombo = new ModelComboBox(m_ai, topBar);
     m_modelCombo->setToolTip("Modello LLM usato dagli agenti di analisi");
     topLay->addWidget(m_modelCombo);
 
@@ -190,7 +188,7 @@ SecurityAnalyzerPage::SecurityAnalyzerPage(AiClient* ai, QWidget* parent)
     root->addWidget(botBar);
 
     /* Carica modelli al primo avvio */
-    QTimer::singleShot(0, this, &SecurityAnalyzerPage::onFillModels);
+    /* ModelComboBox gestisce fetch e modelChanged autonomamente */
 }
 
 SecurityAnalyzerPage::~SecurityAnalyzerPage()
@@ -421,32 +419,3 @@ void SecurityAnalyzerPage::setStatus(const QString& s)
     if (m_status) m_status->setText(s);
 }
 
-/* ══════════════════════════════════════════════════════════════
-   onFillModels — carica la lista modelli nel combo al primo avvio
-   ══════════════════════════════════════════════════════════════ */
-void SecurityAnalyzerPage::onFillModels()
-{
-    if (!m_ai) return;
-    const QString cur = m_ai->model();
-    m_modelCombo->clear();
-    m_modelCombo->addItem(cur.isEmpty() ? "(caricamento...)" : cur, cur);
-
-    auto* holder = new QObject(this);
-    connect(m_ai, &AiClient::modelsReady, holder,
-            [this, holder](const QStringList& list) {
-                holder->deleteLater();
-                const QString cur = m_ai->model();
-                m_modelCombo->clear();
-                for (const auto& m : list) {
-                    m_modelCombo->addItem(P::modelIcon(0, m) + m, m);
-                    if (m == cur)
-                        m_modelCombo->setCurrentIndex(m_modelCombo->count() - 1);
-                }
-            });
-    connect(m_ai, &AiClient::error, holder,
-            [this, holder](const QString&) {
-                holder->deleteLater();
-                setStatus("\xe2\x9d\x8c  Backend non raggiungibile \xe2\x80\x94 avvia Ollama.");
-            });
-    m_ai->fetchModels();
-}

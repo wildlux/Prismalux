@@ -197,8 +197,6 @@ private:
     void runAi(int tabIdx, const QString& sys, const QString& userMsg,
                QTextEdit* output, QPushButton* runBtn, QPushButton* stopBtn,
                QComboBox* modelCombo);
-    void populateModels(QComboBox* combo);
-
     /* ── Slot estratti da lambda — constructor ── */
     void onModelsReady(const QStringList& models);
 

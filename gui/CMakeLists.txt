@@ -185,6 +185,7 @@ set(CPP_SRCS
     widgets/code_highlighter.h
     widgets/python_exec.h
     widgets/ai_error_widget.h
+    widgets/model_combo_box.h
     widgets/latex_view.h
 )
 

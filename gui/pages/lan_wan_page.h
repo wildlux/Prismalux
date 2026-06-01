@@ -206,10 +206,8 @@ private:
     QWidget* buildGNS3Tab();
     QWidget* buildWanComputeTab();
     void     gns3RunAi(const QString& sys, const QString& userMsg);
-    void     gns3PopulateModels(QComboBox* combo);
 
 private slots:
-    void onModelsReady(const QStringList& models);
     void onTokenTextChanged(const QString& t);
     void onEyeBtnToggled(bool show);
     void onRegenBtnClicked();

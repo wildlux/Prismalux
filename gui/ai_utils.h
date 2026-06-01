@@ -1,12 +1,14 @@
 #pragma once
 /* ════════════════════════════════════════════════════════════════
-   ai_utils.h  —  Helper riusabile per popolare una QComboBox
-                   con la lista modelli di AiClient.
+   ai_utils.h  —  Helper per popolare una QComboBox con i modelli.
 
-   Uso:
-       #include "../ai_utils.h"
-       // nel corpo di un build* o in un populate* slot:
-       AiUtils::populateModelCombo(m_ai, m_myModelCombo, this);
+   Preferire il widget riusabile:
+       #include "widgets/model_combo_box.h"
+       auto* combo = new ModelComboBox(m_ai, this);
+
+   Usare populateModelCombo() solo quando si deve riempire un
+   QComboBox già esistente senza cambiarne il tipo (es. widget
+   generici non di proprietà diretta).
 
    Pattern one-shot: si connette a modelsReady/error una sola
    volta, poi si auto-disconnette tramite h->deleteLater().

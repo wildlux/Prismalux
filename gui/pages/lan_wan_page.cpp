@@ -4,6 +4,7 @@
 #include "../prismalux_paths.h"
 #include "../app_config.h"
 #include "../widgets/qr_code_widget.h"
+#include "../widgets/model_combo_box.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QTabWidget>
@@ -175,7 +176,7 @@ LanWanPage::LanWanPage(AiClient* ai, QWidget* parent)
     tabs->addTab(buildLanAndroidTab(), "\xf0\x9f\x93\xb1  LAN Android");  /* 📱 */
     tabs->addTab(buildGNS3Tab(),       "\xf0\x9f\x8c\x90  GNS3 MCP");     /* 🌐 */
 
-    connect(m_ai, &AiClient::modelsReady, this, &LanWanPage::onModelsReady);
+    /* onModelsReady rimosso: ModelComboBox gestisce il fetch autonomamente */
 
     tabs->addTab(buildWanComputeTab(), "\xf0\x9f\x96\xa7  WAN Compute");
 
@@ -196,21 +197,7 @@ LanWanPage::LanWanPage(AiClient* ai, QWidget* parent)
 /* ══════════════════════════════════════════════════════════════
    Slots — LAN Android tab
    ══════════════════════════════════════════════════════════════ */
-void LanWanPage::onModelsReady(const QStringList& models)
-{
-    if (!m_gns3Model) return;
-    const QString cur = m_gns3Model->currentData().toString();
-    m_gns3Model->blockSignals(true);
-    m_gns3Model->clear();
-    namespace P = PrismaluxPaths;
-    for (const auto& m : models) {
-        const qint64 sz = m_ai->modelSizeBytes(m);
-        m_gns3Model->addItem(P::modelIcon(sz, m) + m, m);
-    }
-    int idx = m_gns3Model->findData(cur.isEmpty() ? m_ai->model() : cur);
-    if (idx >= 0) m_gns3Model->setCurrentIndex(idx);
-    m_gns3Model->blockSignals(false);
-}
+/* onModelsReady rimosso: ModelComboBox gestisce il popolamento autonomamente */
 
 void LanWanPage::onTokenTextChanged(const QString& t)
 {
@@ -815,15 +802,6 @@ static const char* kGNS3Actions[] = {
 };
 } // namespace
 
-void LanWanPage::gns3PopulateModels(QComboBox* combo)
-{
-    namespace P = PrismaluxPaths;
-    combo->clear();
-    const QString cur = m_ai->model();
-    if (!cur.isEmpty()) combo->addItem(cur, cur);
-    combo->setCurrentIndex(0);
-    m_ai->fetchModels();
-}
 
 void LanWanPage::gns3RunAi(const QString& sys, const QString& userMsg)
 {
@@ -1105,9 +1083,7 @@ QWidget* LanWanPage::buildGNS3Tab()
     m_gns3Action = new QComboBox(toolRow);
     for (int i = 0; kGNS3Actions[i]; i++)
         m_gns3Action->addItem(QString::fromUtf8(kGNS3Actions[i]));
-    m_gns3Model = new QComboBox(toolRow);
-    m_gns3Model->setMinimumWidth(dpiScale(180));
-    gns3PopulateModels(m_gns3Model);
+    m_gns3Model = new ModelComboBox(m_ai, toolRow);
     toolLay->addWidget(new QLabel("Azione:", toolRow));
     toolLay->addWidget(m_gns3Action, 1);
     toolLay->addWidget(new QLabel("Modello:", toolRow));
