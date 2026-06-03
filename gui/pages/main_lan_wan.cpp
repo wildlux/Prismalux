@@ -1795,6 +1795,14 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanCliName = new QLineEdit;
     m_wanCliName->setPlaceholderText("Nome nodo (es. PC-Mario)");
     m_wanCliName->setFixedWidth(dpiScale(130));
+    m_wanCliWorkerSpin = new QSpinBox;
+    m_wanCliWorkerSpin->setRange(1, 4);
+    m_wanCliWorkerSpin->setValue(1);
+    m_wanCliWorkerSpin->setPrefix("Worker: ");
+    m_wanCliWorkerSpin->setFixedWidth(dpiScale(100));
+    m_wanCliWorkerSpin->setToolTip(
+        "Numero di worker simultanei (1-4).\n"
+        "Ogni worker ha un socket TCP e un AiClient propri.");
     m_wanCliConBtn    = new QPushButton("\xf0\x9f\x94\x8c  Connetti");
     m_wanCliConBtn->setObjectName("actionBtn");
     m_wanCliDisconBtn = new QPushButton("Disconnetti");
@@ -1804,6 +1812,7 @@ QWidget* LanWanPage::buildWanComputeTab()
     cliConLay->addWidget(m_wanCliHost, 2);
     cliConLay->addWidget(m_wanCliPort);
     cliConLay->addWidget(m_wanCliName);
+    cliConLay->addWidget(m_wanCliWorkerSpin);
     cliConLay->addWidget(m_wanCliConBtn);
     cliConLay->addWidget(m_wanCliDisconBtn);
     cliConLay->addWidget(m_wanCliStatusLbl, 1);
@@ -1895,8 +1904,8 @@ void LanWanPage::onWanStartBtnClicked()
                     this, &LanWanPage::onWanHeartbeatTick);
         }
         m_wanHeartbeatTimer->start(30000);
+        onCheckOllamaExposed();   /* controlla sempre, non solo in exposeAll */
         if (exposeAll) {
-            onCheckOllamaExposed();
             m_wanSrvStatusLbl->setText(
                 "\xe2\x9c\x85  In ascolto su " + localLanIp() +
                 ":" + QString::number(port) +
@@ -1939,12 +1948,21 @@ void LanWanPage::onOllamaCheckDone(QProcess* proc)
 {
     const QString out = proc->readAllStandardOutput();
     proc->deleteLater();
-    if (out.contains("0.0.0.0")) {
+
+    /* Check 1: Ollama in ascolto su 0.0.0.0 (da ss -tlnp) */
+    bool exposed = out.contains("0.0.0.0");
+
+    /* Check 2: variabile d'ambiente OLLAMA_HOST pericolosa */
+    const QString ollamaHost = qEnvironmentVariable("OLLAMA_HOST");
+    if (!ollamaHost.isEmpty() && !ollamaHost.startsWith("127.") && ollamaHost != "localhost")
+        exposed = true;
+
+    if (exposed && m_wanSrvStatusLbl) {
         m_wanSrvStatusLbl->setText(
             m_wanSrvStatusLbl->text() +
-            "\n\xe2\x9a\xa0\xef\xb8\x8f  Ollama e' esposto su tutte le interfacce"
-            " \xe2\x80\x94 chi entra in LAN puo' usarlo senza token."
-            " Imposta OLLAMA_HOST=127.0.0.1");
+            "\n\xe2\x9a\xa0\xef\xb8\x8f  Ollama esposto su rete — "
+            "chiunque in LAN puo' usarlo senza token. "
+            "Imposta OLLAMA_HOST=127.0.0.1 prima di avviare il server.");
         m_wanSrvStatusLbl->setStyleSheet("color:#ff9800;");
     }
 }
@@ -2313,66 +2331,95 @@ void LanWanPage::onWanCronFired()
    ══════════════════════════════════════════════════════════════ */
 void LanWanPage::onWanCliConBtnClicked()
 {
-    const QString host = m_wanCliHost ? m_wanCliHost->text().trimmed() : QString();
-    const int     port = m_wanCliPort ? m_wanCliPort->value() : P::kWanComputePort;
+    const QString host  = m_wanCliHost ? m_wanCliHost->text().trimmed() : QString();
+    const int     port  = m_wanCliPort ? m_wanCliPort->value() : P::kWanComputePort;
+    const int     nWork = m_wanCliWorkerSpin ? m_wanCliWorkerSpin->value() : 1;
     if (host.isEmpty()) {
         wanCliAppendLog("Inserisci l'IP del server WAN.");
         return;
     }
 
-    if (!m_wanCliSock) {
-        m_wanCliSock = new QTcpSocket(this);
-        connect(m_wanCliSock, &QTcpSocket::readyRead,
-                this, &LanWanPage::onWanCliSockReadyRead);
-        connect(m_wanCliSock, &QTcpSocket::disconnected,
-                this, &LanWanPage::onWanCliSockDisconnected);
-        connect(m_wanCliSock,
-                QOverload<QAbstractSocket::SocketError>::of(&QTcpSocket::errorOccurred),
-                this, &LanWanPage::onWanCliSockError);
+    /* Disconnetti eventuali worker esistenti prima di ricrearli */
+    if (!m_wanWorkers.isEmpty()) {
+        onWanCliDisconBtnClicked();
+        return;
     }
 
-    m_wanCliSock->connectToHost(host, static_cast<quint16>(port));
+    const QString baseName = (m_wanCliName && !m_wanCliName->text().trimmed().isEmpty())
+                             ? m_wanCliName->text().trimmed()
+                             : QSysInfo::machineHostName();
+    const QString token    = m_wanCliTokenEdit ? m_wanCliTokenEdit->text().trimmed() : QString();
+    const bool    shell    = m_wanCliShellCheck && m_wanCliShellCheck->isChecked();
+
     m_wanCliStatusLbl->setText("\xe2\x8f\xb3  Connessione\xe2\x80\xa6");
     m_wanCliStatusLbl->setStyleSheet("color:#E5C400;");
     m_wanCliConBtn->setEnabled(false);
 
-    /* Invia hello appena connesso */
-    connect(m_wanCliSock, &QTcpSocket::connected, this, [this]{
-        const QString name = (m_wanCliName && !m_wanCliName->text().trimmed().isEmpty())
-                             ? m_wanCliName->text().trimmed()
-                             : QSysInfo::machineHostName();
-        /* Includi token auth e caps: "shell" solo se l'utente ha dato consenso esplicito */
-        QJsonArray workerCaps{"ai"};
-        if (m_wanCliShellCheck && m_wanCliShellCheck->isChecked())
-            workerCaps.append("shell");
-        wanCliSendJson(QJsonObject{
-            {"t","hello"},
-            {"name", name},
-            {"token", m_wanCliTokenEdit ? m_wanCliTokenEdit->text().trimmed() : QString()},
-            {"caps", workerCaps}
-        });
-        m_wanCliStatusLbl->setText("\xe2\x9c\x85  Connesso — in attesa task");
-        m_wanCliStatusLbl->setStyleSheet("color:#4caf50;");
-        m_wanCliConBtn->setEnabled(false);
-        m_wanCliDisconBtn->setEnabled(true);
-        wanCliAppendLog("Connesso al server " +
-                        m_wanCliSock->peerAddress().toString() +
-                        ":" + QString::number(m_wanCliSock->peerPort()));
+    m_wanWorkers.resize(nWork);
 
-        /* Avvia polling */
-        if (!m_wanCliPollTimer) {
-            m_wanCliPollTimer = new QTimer(this);
-            connect(m_wanCliPollTimer, &QTimer::timeout,
-                    this, &LanWanPage::onWanCliPoll);
+    for (int i = 0; i < nWork; ++i) {
+        WanWorker& w = m_wanWorkers[i];
+
+        /* Socket */
+        auto* sock = new QTcpSocket(this);
+        w.sock = sock;
+        connect(sock, &QTcpSocket::readyRead,
+                this, &LanWanPage::onWanWorkerReadyRead);
+        connect(sock, &QTcpSocket::disconnected,
+                this, &LanWanPage::onWanWorkerDisconnected);
+        connect(sock,
+                QOverload<QAbstractSocket::SocketError>::of(&QTcpSocket::errorOccurred),
+                this, &LanWanPage::onWanWorkerError);
+
+        /* AiClient dedicato — copia configurazione backend dal m_ai principale */
+        auto* ai = new AiClient(this);
+        if (m_ai) {
+            ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
         }
-        m_wanCliPollTimer->start(5000);
-    }, Qt::SingleShotConnection);
+        w.ai = ai;
+
+        /* Poll timer */
+        auto* timer = new QTimer(this);
+        w.pollTimer = timer;
+        connect(timer, &QTimer::timeout, this, &LanWanPage::onWanWorkerPoll);
+
+        /* Salva metadati nel worker: usati da onWanWorkerConnected */
+        w.name         = (nWork == 1)
+                         ? baseName
+                         : baseName + "-worker" + QString::number(i + 1);
+        w.token        = token;
+        w.shellAllowed = shell;
+
+        connect(sock, &QTcpSocket::connected,
+                this, &LanWanPage::onWanWorkerConnected);
+
+        sock->connectToHost(host, static_cast<quint16>(port));
+    }
+
+    /* Alias legacy → worker[0] per retrocompatibilità (es. onWanSimBtnClicked) */
+    m_wanCliSock      = m_wanWorkers[0].sock.data();
+    m_wanCliPollTimer = m_wanWorkers[0].pollTimer.data();
 }
 
 void LanWanPage::onWanCliDisconBtnClicked()
 {
-    if (m_wanCliPollTimer) m_wanCliPollTimer->stop();
-    if (m_wanCliSock)      m_wanCliSock->disconnectFromHost();
+    /* Ferma e distrugge tutti i worker */
+    for (WanWorker& w : m_wanWorkers) {
+        if (w.pollTimer) { w.pollTimer->stop(); w.pollTimer->deleteLater(); }
+        if (w.ai)        { w.ai->abort();       w.ai->deleteLater(); }
+        if (w.sock)      { w.sock->disconnectFromHost(); w.sock->deleteLater(); }
+        QObject::disconnect(w.tokConn);
+        QObject::disconnect(w.finConn);
+        QObject::disconnect(w.errConn);
+    }
+    m_wanWorkers.clear();
+
+    /* Reset alias legacy */
+    m_wanCliSock        = nullptr;
+    m_wanCliPollTimer   = nullptr;
+    m_wanCliCurrentTask.clear();
+    m_wanCliAiActive  = false;
+
     m_wanCliConBtn->setEnabled(true);
     m_wanCliDisconBtn->setEnabled(false);
     m_wanCliStatusLbl->setText("\xe2\x9a\xab  Non connesso");
@@ -2381,8 +2428,9 @@ void LanWanPage::onWanCliDisconBtnClicked()
 
 void LanWanPage::onWanCliPoll()
 {
-    if (m_wanCliAiActive) return;   // occupato con AI
-    if (!m_wanCliCurrentTask.isEmpty()) return;  // task in corso
+    /* Legacy slot — usato dalla simulazione locale (worker 0) */
+    if (m_wanCliAiActive) return;
+    if (!m_wanCliCurrentTask.isEmpty()) return;
     wanCliSendJson({{"t","poll"}});
 }
 
@@ -2553,6 +2601,524 @@ void LanWanPage::onWanCliAiError(const QString& msg)
     });
     wanCliAppendLog("Task " + m_wanCliCurrentTask + " errore AI: " + msg);
     m_wanCliCurrentTask.clear();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Multi-worker helper — trova l'indice del worker dato sender()
+   ══════════════════════════════════════════════════════════════════════════ */
+int LanWanPage::wanWorkerIndex(QObject* obj) const
+{
+    for (int i = 0; i < m_wanWorkers.size(); ++i) {
+        const WanWorker& w = m_wanWorkers[i];
+        if (w.sock    && static_cast<QObject*>(w.sock.data())    == obj) return i;
+        if (w.pollTimer && static_cast<QObject*>(w.pollTimer.data()) == obj) return i;
+        if (w.ai      && static_cast<QObject*>(w.ai.data())      == obj) return i;
+    }
+    return -1;
+}
+
+void LanWanPage::wanWorkerSendJson(int idx, const QJsonObject& obj)
+{
+    if (idx < 0 || idx >= m_wanWorkers.size()) return;
+    QTcpSocket* s = m_wanWorkers[idx].sock;
+    if (s) s->write(QJsonDocument(obj).toJson(QJsonDocument::Compact) + "\n");
+}
+
+void LanWanPage::wanWorkerAppendLog(int idx, const QString& msg)
+{
+    const QString prefix = (m_wanWorkers.size() > 1)
+        ? QString("[W%1]").arg(idx + 1) : QString();
+    wanCliAppendLog(prefix + msg);
+}
+
+/* ── Per-worker connected — invia hello e avvia polling ── */
+void LanWanPage::onWanWorkerConnected()
+{
+    const int idx = wanWorkerIndex(sender());
+    if (idx < 0 || idx >= m_wanWorkers.size()) return;
+    WanWorker& w = m_wanWorkers[idx];
+    if (!w.sock) return;
+
+    /* Invia hello con nome, token e caps */
+    QJsonArray caps{"ai"};
+    if (w.shellAllowed) caps.append("shell");
+    wanWorkerSendJson(idx, QJsonObject{
+        {"t",     "hello"},
+        {"name",  w.name},
+        {"token", w.token},
+        {"caps",  caps}
+    });
+
+    /* Solo worker 0 aggiorna lo stato UI generale */
+    if (idx == 0) {
+        m_wanCliStatusLbl->setText("\xe2\x9c\x85  Connesso — in attesa task");
+        m_wanCliStatusLbl->setStyleSheet("color:#4caf50;");
+        m_wanCliConBtn->setEnabled(false);
+        m_wanCliDisconBtn->setEnabled(true);
+        wanCliAppendLog(QString("Pool %1 worker connesso a %2:%3")
+            .arg(m_wanWorkers.size())
+            .arg(w.sock->peerAddress().toString())
+            .arg(w.sock->peerPort()));
+    } else {
+        wanWorkerAppendLog(idx, QString("Worker %1 connesso.").arg(idx + 1));
+    }
+
+    /* Avvia il poll timer di questo worker */
+    if (w.pollTimer) w.pollTimer->start(5000);
+}
+
+/* ── Per-worker poll ── */
+void LanWanPage::onWanWorkerPoll()
+{
+    const int idx = wanWorkerIndex(sender());
+    if (idx < 0 || idx >= m_wanWorkers.size()) return;
+    const WanWorker& w = m_wanWorkers[idx];
+    if (w.aiActive)            return;  // occupato
+    if (!w.currentTask.isEmpty()) return;
+    wanWorkerSendJson(idx, {{"t","poll"}});
+}
+
+/* ── Per-worker readyRead ── */
+void LanWanPage::onWanWorkerReadyRead()
+{
+    const int idx = wanWorkerIndex(sender());
+    if (idx < 0 || idx >= m_wanWorkers.size()) return;
+    WanWorker& w = m_wanWorkers[idx];
+    if (!w.sock) return;
+
+    while (w.sock->canReadLine()) {
+        const QByteArray line = w.sock->readLine().trimmed();
+        QJsonParseError jerr;
+        const QJsonDocument doc = QJsonDocument::fromJson(line, &jerr);
+        if (!doc.isObject()) continue;
+        const QJsonObject msg  = doc.object();
+        const QString     type = msg["t"].toString();
+
+        if (type == "welcome") {
+            w.nodeId = msg["node_id"].toString();
+            wanWorkerAppendLog(idx, "Registrato come nodo " + w.nodeId);
+
+        } else if (type == "idle") {
+            /* nessun task — polling automatico via timer */
+
+        } else if (type == "task") {
+            const QString id      = msg["id"].toString();
+            const QString kind    = msg["kind"].toString();
+            const QString payload = msg["payload"].toString();
+            w.currentTask = id;
+            wanWorkerAppendLog(idx,
+                QString("Task ricevuto [%1] tipo: %2").arg(id, kind));
+            wanWorkerHandleTask(idx, id, kind, payload);
+
+        } else if (type == "ack") {
+            wanWorkerAppendLog(idx,
+                "Server ha ricevuto risultato " + msg["id"].toString());
+        }
+    }
+
+    /* Aggiorna alias legacy dal worker 0 */
+    if (idx == 0) {
+        m_wanCliCurrentTask = m_wanWorkers[0].currentTask;
+        m_wanCliAiActive    = m_wanWorkers[0].aiActive;
+        m_wanCliNodeId      = m_wanWorkers[0].nodeId;
+    }
+}
+
+/* ── Per-worker disconnected ── */
+void LanWanPage::onWanWorkerDisconnected()
+{
+    const int idx = wanWorkerIndex(sender());
+    if (idx < 0 || idx >= m_wanWorkers.size()) return;
+    WanWorker& w = m_wanWorkers[idx];
+
+    if (w.pollTimer) w.pollTimer->stop();
+    w.currentTask.clear();
+    w.aiActive = false;
+    wanWorkerAppendLog(idx, "Disconnesso dal server.");
+
+    /* Se tutti i worker sono disconnessi, aggiorna la UI */
+    bool anyConnected = false;
+    for (const WanWorker& ww : std::as_const(m_wanWorkers)) {
+        if (ww.sock && ww.sock->state() == QAbstractSocket::ConnectedState) {
+            anyConnected = true;
+            break;
+        }
+    }
+    if (!anyConnected) {
+        m_wanCliConBtn->setEnabled(true);
+        m_wanCliDisconBtn->setEnabled(false);
+        m_wanCliStatusLbl->setText("\xe2\x9a\xab  Disconnesso");
+        m_wanCliStatusLbl->setStyleSheet("color:gray;");
+    }
+}
+
+/* ── Per-worker socket error ── */
+void LanWanPage::onWanWorkerError(QAbstractSocket::SocketError)
+{
+    const int idx = wanWorkerIndex(sender());
+    const QString errMsg = (idx >= 0 && idx < m_wanWorkers.size() && m_wanWorkers[idx].sock)
+        ? m_wanWorkers[idx].sock->errorString()
+        : "errore sconosciuto";
+
+    if (idx == 0) {
+        /* Solo il worker 0 aggiorna la UI di stato */
+        m_wanCliStatusLbl->setText("\xe2\x9d\x8c  " + errMsg);
+        m_wanCliStatusLbl->setStyleSheet("color:#f44336;");
+        m_wanCliConBtn->setEnabled(true);
+        m_wanCliDisconBtn->setEnabled(false);
+    }
+    wanWorkerAppendLog(idx, "Errore socket: " + errMsg);
+}
+
+/* ── Per-worker AI token ── */
+void LanWanPage::onWanWorkerAiToken(const QString& t)
+{
+    const int idx = wanWorkerIndex(sender());
+    if (idx < 0 || idx >= m_wanWorkers.size()) return;
+    m_wanWorkers[idx].aiBuf.append(t);
+}
+
+/* ── Per-worker AI finished ── */
+void LanWanPage::onWanWorkerAiFinished(const QString&)
+{
+    const int idx = wanWorkerIndex(sender());
+    if (idx < 0 || idx >= m_wanWorkers.size()) return;
+    WanWorker& w = m_wanWorkers[idx];
+
+    QObject::disconnect(w.tokConn);
+    QObject::disconnect(w.finConn);
+    QObject::disconnect(w.errConn);
+    w.tokConn = w.finConn = w.errConn = {};
+    w.aiActive = false;
+
+    const QString raw = w.aiBuf.trimmed();
+
+    /* ── llm_agent: prova a parsare JSON con "result" + "spawn" opzionale ── */
+    if (w.isAgentTask) {
+        w.isAgentTask = false;
+        const int     depth   = w.agentDepth;
+        const QString chainId = w.agentChain;
+        w.agentDepth = 0;
+        w.agentChain.clear();
+
+        QString jsonCandidate;
+        const int braceOpen  = raw.indexOf('{');
+        const int braceClose = raw.lastIndexOf('}');
+        if (braceOpen != -1 && braceClose > braceOpen)
+            jsonCandidate = raw.mid(braceOpen, braceClose - braceOpen + 1);
+
+        QJsonParseError jerr;
+        const QJsonDocument doc = QJsonDocument::fromJson(jsonCandidate.toUtf8(), &jerr);
+        const bool hasSpawn = doc.isObject()
+                           && doc.object().contains("result")
+                           && doc.object()["spawn"].isArray()
+                           && !doc.object()["spawn"].toArray().isEmpty();
+
+        const QString result = hasSpawn
+            ? doc.object()["result"].toString(raw)
+            : raw;
+
+        wanWorkerSendJson(idx, QJsonObject{
+            {"t","result"}, {"id", w.currentTask},
+            {"status","done"}, {"result", result}
+        });
+
+        if (hasSpawn) {
+            const QJsonArray spawnArr = doc.object()["spawn"].toArray();
+            QJsonArray tasks;
+            for (const auto& v : spawnArr) {
+                if (!v.isObject()) continue;
+                const QJsonObject s = v.toObject();
+                QJsonObject taskPayload{
+                    {"role",     s["role"].toString("Assistente")},
+                    {"prompt",   s["prompt"].toString()},
+                    {"context",  result},
+                    {"depth",    depth + 1},
+                    {"chain_id", chainId}
+                };
+                tasks.append(QJsonObject{
+                    {"kind",    "llm_agent"},
+                    {"payload", QString::fromUtf8(
+                        QJsonDocument(taskPayload).toJson(QJsonDocument::Compact))}
+                });
+            }
+            wanWorkerSendJson(idx, QJsonObject{
+                {"t",          "spawn_tasks"},
+                {"parent_id",  w.currentTask},
+                {"chain_id",   chainId},
+                {"tasks",      tasks}
+            });
+            wanWorkerAppendLog(idx,
+                QString("Agente ha richiesto %1 sub-agente/i.").arg(tasks.size()));
+        }
+
+        wanWorkerAppendLog(idx, "Task " + w.currentTask + " completato (agente).");
+        w.currentTask.clear();
+        w.aiBuf.clear();
+        return;
+    }
+
+    wanWorkerSendJson(idx, QJsonObject{
+        {"t","result"}, {"id", w.currentTask},
+        {"status","done"}, {"result", raw}
+    });
+    wanWorkerAppendLog(idx, "Task " + w.currentTask + " completato (AI).");
+    w.currentTask.clear();
+    w.aiBuf.clear();
+
+    /* Aggiorna alias legacy */
+    if (idx == 0) {
+        m_wanCliCurrentTask = QString();
+        m_wanCliAiActive    = false;
+        m_wanCliAiBuf.clear();
+    }
+}
+
+/* ── Per-worker AI error ── */
+void LanWanPage::onWanWorkerAiError(const QString& msg)
+{
+    const int idx = wanWorkerIndex(sender());
+    if (idx < 0 || idx >= m_wanWorkers.size()) return;
+    WanWorker& w = m_wanWorkers[idx];
+
+    QObject::disconnect(w.tokConn);
+    QObject::disconnect(w.finConn);
+    QObject::disconnect(w.errConn);
+    w.tokConn = w.finConn = w.errConn = {};
+    w.aiActive    = false;
+    w.isAgentTask = false;
+    w.agentDepth  = 0;
+    w.agentChain.clear();
+
+    wanWorkerSendJson(idx, QJsonObject{
+        {"t","result"}, {"id", w.currentTask},
+        {"status","error"}, {"result", msg}
+    });
+    wanWorkerAppendLog(idx, "Task " + w.currentTask + " errore AI: " + msg);
+    w.currentTask.clear();
+
+    if (idx == 0) {
+        m_wanCliCurrentTask = QString();
+        m_wanCliAiActive    = false;
+    }
+}
+
+/* ── wanWorkerHandleTask — dispatcher per il worker idx ── */
+void LanWanPage::wanWorkerHandleTask(int idx, const QString& id,
+                                     const QString& kind, const QString& payload)
+{
+    if (idx < 0 || idx >= m_wanWorkers.size()) return;
+    WanWorker& w = m_wanWorkers[idx];
+
+    /* Mappa kind → system prompt AI (condivisa con wanCliHandleTask) */
+    static const QHash<QString, QString> kAiPrompts {
+        {"ai_query",
+            "Sei un assistente AI preciso e conciso. Rispondi SEMPRE in italiano."},
+        {"code_assist",
+            "Sei un esperto programmatore. Scrivi codice pulito, commentato e funzionante. "
+            "Il payload e' JSON con chiavi 'lang' e 'task'. Rispondi in italiano."},
+        {"code_review",
+            "Sei un esperto revisore di codice. Analizza il codice fornito: "
+            "trova bug, vulnerabilita', inefficienze e suggerisci miglioramenti. "
+            "Rispondi in italiano con sezioni: Bug, Sicurezza, Performance, Stile."},
+        {"math_solve",
+            "Sei un professore di matematica. Risolvi il problema passo per passo. "
+            "Rispondi in italiano."},
+        {"paper_gen",
+            "Sei un ricercatore accademico. Genera un paper scientifico completo. "
+            "Rispondi in italiano con formattazione Markdown."},
+        {"code_translate",
+            "Sei un esperto di traduzione tra linguaggi di programmazione. "
+            "Traduci il codice preservando la logica. Rispondi solo con il codice + breve spiegazione."},
+        {"math_seq",
+            "Sei un matematico esperto. Data la sequenza, trova la formula generale. "
+            "Rispondi in italiano."},
+        {"ai_tutor",
+            "Sei un tutor esperto. Spiega l'argomento in modo chiaro. Rispondi in italiano."},
+        {"ai_data_analysis",
+            "Sei un analista dati. Analizza i dati e trova pattern. Rispondi in italiano."},
+        {"ai_730",
+            "Sei un esperto fiscalista italiano specializzato nel modello 730. "
+            "Rispondi SOLO in italiano."},
+        {"ai_tfr",
+            "Sei un esperto di diritto del lavoro. Calcola e spiega il TFR. Rispondi in italiano."},
+    };
+
+    /* ── llm_agent ── */
+    if (kind == "llm_agent") {
+        QString role    = "Assistente AI";
+        QString prompt  = payload;
+        QString context;
+        int     depth   = 0;
+        QString chainId;
+
+        QJsonParseError jerr;
+        const QJsonDocument doc = QJsonDocument::fromJson(payload.toUtf8(), &jerr);
+        if (doc.isObject()) {
+            const QJsonObject obj = doc.object();
+            role    = obj["role"].toString(role);
+            prompt  = obj["prompt"].toString(payload);
+            context = obj["context"].toString();
+            depth   = obj["depth"].toInt(0);
+            chainId = obj["chain_id"].toString();
+        }
+        if (chainId.isEmpty()) chainId = id;
+
+        QString userMsg = prompt;
+        if (!context.isEmpty())
+            userMsg = "=== CONTESTO DALL'AGENTE PRECEDENTE ===\n" + context
+                    + "\n\n=== IL TUO COMPITO ===\n" + prompt;
+
+        constexpr int kMaxDepth = 4;
+        QString sysPrompt = QString("Sei: %1\n\nEsegui il compito con precisione. "
+                                    "Rispondi in italiano.\n").arg(role);
+        if (depth < kMaxDepth) {
+            sysPrompt +=
+                "\nSe il tuo risultato richiede analisi aggiuntive puoi rispondere in JSON:\n"
+                "{ \"result\": \"<risultato>\", \"spawn\": [{\"role\":\"...\","
+                "\"prompt\":\"...\"}] }\n"
+                "Se NON hai bisogno di altri agenti rispondi in testo libero normale.\n";
+        }
+
+        w.isAgentTask = true;
+        w.agentDepth  = depth;
+        w.agentChain  = chainId;
+        w.aiActive    = true;
+        w.aiBuf.clear();
+
+        QObject::disconnect(w.tokConn);
+        QObject::disconnect(w.finConn);
+        QObject::disconnect(w.errConn);
+        AiClient* ai = w.ai;
+        if (!ai) return;
+        w.tokConn = connect(ai, &AiClient::token,    this, &LanWanPage::onWanWorkerAiToken);
+        w.finConn = connect(ai, &AiClient::finished, this, &LanWanPage::onWanWorkerAiFinished);
+        w.errConn = connect(ai, &AiClient::error,    this, &LanWanPage::onWanWorkerAiError);
+        wanWorkerAppendLog(idx,
+            QString("Agente [depth=%1] ruolo: %2").arg(depth).arg(role));
+        ai->chat(sysPrompt, userMsg);
+        return;
+    }
+
+    /* ── Task sincroni (subprocess) ── */
+    QString result;
+    QString status = "done";
+
+    if (kind == "python_repl" || kind == "eval_script") {
+        if (!w.shellAllowed) {
+            result = "[SICUREZZA] Esecuzione Python disabilitata.";
+            status = "error";
+        } else {
+            QProcess proc;
+            proc.start("python3", {"-c", payload});
+            proc.waitForFinished(30000);
+            result = proc.readAllStandardOutput() + proc.readAllStandardError();
+        }
+
+    } else if (kind == "shell_cmd" || kind == "git_cmd") {
+        if (!w.shellAllowed) {
+            result = "[SICUREZZA] Esecuzione shell disabilitata.";
+            status = "error";
+        } else {
+            QProcess proc;
+            proc.start("bash", {"-c", payload});
+            proc.waitForFinished(20000);
+            result = proc.readAllStandardOutput() + proc.readAllStandardError();
+        }
+
+    } else if (kind == "math_expr") {
+        static const QString kMathExprScript =
+            "import math,cmath,statistics,sys\n"
+            "expr=sys.argv[1]\n"
+            "g=dict(vars(math))\n"
+            "g.update(vars(cmath))\n"
+            "g.update(vars(statistics))\n"
+            "g['__builtins__']={}\n"
+            "try:\n"
+            "    print(eval(expr,g,{}))\n"
+            "except Exception as e:\n"
+            "    print('Errore:', e)\n";
+        QProcess proc;
+        proc.start("python3", {"-c", kMathExprScript, "--", payload.trimmed().left(500)});
+        proc.waitForFinished(5000);
+        result = proc.readAllStandardOutput().trimmed();
+
+    } else if (kind == "matplotlib_plot") {
+        if (!w.shellAllowed) {
+            result = "[SICUREZZA] Esecuzione Python disabilitata.";
+            status = "error";
+        } else {
+            QProcess proc;
+            proc.start("python3", {"-c", payload});
+            proc.waitForFinished(30000);
+            result = proc.readAllStandardOutput() + proc.readAllStandardError();
+        }
+
+    } else if (kind == "graphviz_render") {
+        QProcess proc;
+        proc.start("dot", {"-Tsvg"});
+        proc.write(payload.toUtf8());
+        proc.closeWriteChannel();
+        proc.waitForFinished(15000);
+        const QString svg = proc.readAllStandardOutput();
+        result = svg.isEmpty()
+            ? "Errore Graphviz: " + proc.readAllStandardError() : svg.left(8000);
+
+    } else if (kind == "system_info") {
+        QString ram;
+        QFile meminfo("/proc/meminfo");
+        if (meminfo.open(QIODevice::ReadOnly)) {
+            QTextStream ts(&meminfo);
+            QString line;
+            while (ts.readLineInto(&line)) {
+                if (line.startsWith("MemTotal:") || line.startsWith("MemAvailable:"))
+                    ram += line + "\n";
+            }
+        }
+        result = QString("OS: %1\nKernel: %2\nArch: %3\nHostname: %4\nQt: %5\n%6")
+            .arg(QSysInfo::prettyProductName(), QSysInfo::kernelVersion(),
+                 QSysInfo::currentCpuArchitecture(), QSysInfo::machineHostName(),
+                 qVersion(), ram.trimmed());
+
+    } else if (kind == "net_info") {
+        QStringList lines;
+        for (const QNetworkInterface& iface : QNetworkInterface::allInterfaces()) {
+            if (iface.flags() & QNetworkInterface::IsLoopBack) continue;
+            for (const QNetworkAddressEntry& e : iface.addressEntries()) {
+                if (e.ip().protocol() != QAbstractSocket::IPv4Protocol) continue;
+                lines << QString("%1  %2").arg(iface.name(), -12).arg(e.ip().toString());
+            }
+        }
+        result = lines.isEmpty() ? "Nessuna interfaccia IPv4." : lines.join("\n");
+
+    } else {
+        /* AI task noto o fallback generico */
+        const QString sysPrompt = kAiPrompts.contains(kind)
+            ? kAiPrompts[kind]
+            : "Sei un assistente AI. Esegui il task. Rispondi in italiano.";
+
+        w.aiActive = true;
+        w.aiBuf.clear();
+        QObject::disconnect(w.tokConn);
+        QObject::disconnect(w.finConn);
+        QObject::disconnect(w.errConn);
+        AiClient* ai = w.ai;
+        if (!ai) return;
+        w.tokConn = connect(ai, &AiClient::token,    this, &LanWanPage::onWanWorkerAiToken);
+        w.finConn = connect(ai, &AiClient::finished, this, &LanWanPage::onWanWorkerAiFinished);
+        w.errConn = connect(ai, &AiClient::error,    this, &LanWanPage::onWanWorkerAiError);
+        ai->chat(sysPrompt, kind == "ai_query" ? payload
+                          : QString("[kind: %1]\n%2").arg(kind, payload));
+        return;
+    }
+
+    /* Invia risultato sincrono */
+    wanWorkerSendJson(idx, QJsonObject{
+        {"t","result"}, {"id", id},
+        {"status", status}, {"result", result.trimmed()}
+    });
+    wanWorkerAppendLog(idx, QString("Task %1 completato (%2).").arg(id, kind));
+    w.currentTask.clear();
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

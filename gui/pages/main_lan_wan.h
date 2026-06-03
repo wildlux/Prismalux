@@ -142,14 +142,14 @@ private:
     QPushButton*  m_wanCliDisconBtn    = nullptr;
     QLabel*       m_wanCliStatusLbl    = nullptr;
     QTextEdit*    m_wanCliLog          = nullptr;
-    QTcpSocket*   m_wanCliSock         = nullptr;
-    QTimer*       m_wanCliPollTimer    = nullptr;
+    QTcpSocket*   m_wanCliSock         = nullptr;  ///< legacy — alias a worker[0].sock
+    QTimer*       m_wanCliPollTimer    = nullptr;  ///< legacy — alias a worker[0].pollTimer
     QString       m_wanCliNodeId;
-    QString       m_wanCliCurrentTask;  ///< id del task in esecuzione
+    QString       m_wanCliCurrentTask;  ///< legacy — alias a worker[0].currentTask
 
     /* --- AI lato client --- */
-    bool          m_wanCliAiActive  = false;
-    QString       m_wanCliAiBuf;
+    bool          m_wanCliAiActive  = false;       ///< legacy — alias a worker[0].aiActive
+    QString       m_wanCliAiBuf;                   ///< legacy — alias a worker[0].aiBuf
     QMetaObject::Connection m_wanCliTokenConn;
     QMetaObject::Connection m_wanCliFinishedConn;
     QMetaObject::Connection m_wanCliErrorConn;
@@ -157,6 +157,36 @@ private:
     bool          m_wanCliIsAgentTask = false; ///< true durante un task llm_agent
     int           m_wanCliAgentDepth  = 0;     ///< profondità spawn corrente
     QString       m_wanCliAgentChain;          ///< chain_id per tracciamento
+
+    /* --- Multi-worker pool --- */
+    struct WanWorker {
+        QPointer<QTcpSocket>    sock;
+        QPointer<AiClient>      ai;
+        QPointer<QTimer>        pollTimer;
+        QString                 name;           ///< nome nodo inviato nell'hello
+        QString                 token;          ///< token auth (copiato all'avvio)
+        bool                    shellAllowed   = false;
+        QString                 nodeId;
+        QString                 currentTask;
+        bool                    aiActive       = false;
+        QString                 aiBuf;
+        QMetaObject::Connection tokConn;
+        QMetaObject::Connection finConn;
+        QMetaObject::Connection errConn;
+        /* llm_agent per-worker state */
+        bool                    isAgentTask    = false;
+        int                     agentDepth     = 0;
+        QString                 agentChain;
+    };
+    QVector<WanWorker>  m_wanWorkers;              ///< pool worker attivi (1-4)
+    QSpinBox*           m_wanCliWorkerSpin = nullptr; ///< UI spinbox 1-4 worker
+
+    /* --- Worker helpers --- */
+    int     wanWorkerIndex(QObject* sender) const; ///< -1 se non trovato
+    void    wanWorkerSendJson(int idx, const QJsonObject& obj);
+    void    wanWorkerHandleTask(int idx, const QString& id,
+                                const QString& kind, const QString& payload);
+    void    wanWorkerAppendLog(int idx, const QString& msg);
 
     /* --- Mode stack --- */
     QStackedWidget* m_wanModeStack  = nullptr;
@@ -282,6 +312,15 @@ private slots:
     void onWanCliAiToken(const QString& t);
     void onWanCliAiFinished(const QString& full);
     void onWanCliAiError(const QString& msg);
+    /* WAN Compute — multi-worker slots (usa sender() per identificare il worker) */
+    void onWanWorkerConnected();
+    void onWanWorkerPoll();
+    void onWanWorkerReadyRead();
+    void onWanWorkerDisconnected();
+    void onWanWorkerError(QAbstractSocket::SocketError err);
+    void onWanWorkerAiToken(const QString& t);
+    void onWanWorkerAiFinished(const QString& full);
+    void onWanWorkerAiError(const QString& msg);
     /* llm_agent form */
     void onAgentSaveBtnClicked();
     void onAgentLoadBtnClicked();

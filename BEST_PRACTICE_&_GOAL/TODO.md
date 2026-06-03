@@ -31,7 +31,7 @@
 ### 🟡 Sicurezza
 - [x] **TLS self-signed LAN** — `QSslServer` + `_ensureCert()` + checkbox "Abilita TLS" in Manutenzione LAN; fallback HTTP se openssl non disponibile — `lan_server.h/cpp`, `main_maintenance_lan.cpp` — 2026-06-03
 - [x] **Coda FIFO multi-utente LAN** — `PendingLlmRequest` + `m_llmQueue` (max 10); `handleChat/Generate` accodano se occupato; `closeStreamSession/onClientDisconnected` servono il prossimo — `lan_server.h/cpp` — 2026-06-03
-- [ ] **Parser HTTP fuzzing** — `lan_server.cpp::processSession` mai testato con input malformati; valutare migrazione a parser collaudato
+- [x] **Parser HTTP hardening** — whitelist metodi (GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS); blocco path con null byte o >2048 char; validazione Content-Length (negativo o >25MB → 400); tutti con `disconnectFromHost()` — `lan_server.cpp` — 2026-06-03
 
 ### 🟢 Dashboard BOINC-style
 - [x] **Throughput real-time** — `m_wanThroughputLbl` aggiornato ogni 5s: task/ora (finestra 60min) + ETA stimata — `main_lan_wan.h/cpp` — 2026-06-03
@@ -42,8 +42,8 @@
 ### 📦 Headless server (produzione LAN)
 - [x] **`--server` CLI flag** — `main.cpp::runHeadlessServer()` con `--port` e `--token`
 - [x] **systemd user unit** — `EXPORT/linux/prismalux-server.service` creato — 2026-06-03
-- [ ] **Watchdog crash-restart** — `Restart=on-failure` nella unit (da aggiungere)
-- [ ] **Log strutturato** — output JSON line su stdout per logrotate/journald
+- [x] **Watchdog crash-restart** — `Restart=on-failure` + `StartLimitBurst=5` + `TimeoutStartSec/StopSec` + `OLLAMA_HOST=127.0.0.1` nell'env della unit — `EXPORT/linux/prismalux-server.service` — 2026-06-03
+- [x] **Log strutturato JSON** — `appendAccessLog` scrive JSON a riga singola `{"t":"…","ip":"…","m":"…","p":"…"}`; rotazione automatica >10 MB (mantiene `.1`) — `lan_server.cpp` — 2026-06-03
 
 ---
 
@@ -282,7 +282,7 @@
 
 ### 🔴 Da fare prima di esporre il server
 
-- [ ] **Ollama esposto solo in locale** — verificare che `OLLAMA_HOST` resti `127.0.0.1`
+- [x] **Ollama esposto solo in locale** — `onOllamaCheckDone()` controlla sia `ss -tlnp | grep 11434` sia env `OLLAMA_HOST`; avviso arancione se esposto; check attivato ad ogni avvio server WAN (non solo in exposeAll) — `main_lan_wan.cpp` — 2026-06-03
   - Ollama non ha auth: se ascolta su `0.0.0.0` chiunque in LAN usa l'LLM senza token,
     bypassando del tutto l'auth di Prismalux.
 

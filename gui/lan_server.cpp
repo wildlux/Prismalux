@@ -89,15 +89,32 @@ bool LanServer::timingSafeEqual(const QString& a, const QString& b)
     return diff == 0;
 }
 
-/* Appende una riga al log di accesso ~/.prismalux/access.log */
+/* Appende una riga JSON al log di accesso ~/.prismalux/access.log.
+ * Formato: {"t":"…","ip":"…","m":"…","p":"…"}
+ * Ruota il file se supera 10 MB (mantiene access.log.1 come backup). */
 void LanServer::appendAccessLog(const QString& addr, const QString& method, const QString& path)
 {
     const QString logPath = QDir::homePath() + "/.prismalux/access.log";
+
+    /* Rotazione log > 10 MB */
+    {
+        QFileInfo fi(logPath);
+        if (fi.exists() && fi.size() > 10 * 1024 * 1024) {
+            const QString bak = logPath + ".1";
+            QFile::remove(bak);
+            QFile::rename(logPath, bak);
+        }
+    }
+
     QFile f(logPath);
     if (!f.open(QIODevice::Append | QIODevice::Text)) return;
     QTextStream ts(&f);
-    ts << QDateTime::currentDateTime().toString(Qt::ISODate)
-       << " " << addr << " " << method << " " << path << "\n";
+    /* JSON a riga singola — parsabile con jq/journald */
+    ts << "{\"t\":\""  << QDateTime::currentDateTime().toString(Qt::ISODate)
+       << "\",\"ip\":\"" << addr.toHtmlEscaped()
+       << "\",\"m\":\""  << method
+       << "\",\"p\":\""  << QString(path).replace("\\","\\\\").replace("\"","\\\"")
+       << "\"}\n";
 }
 
 /* Genera certificato self-signed in ~/.prismalux/ se non già presente.
@@ -439,11 +456,24 @@ void LanServer::onClientReadyRead()
         const QList<QByteArray> lines = headerPart.split('\n');
         if (lines.isEmpty()) { sendError(sock, 400, "Bad Request"); return; }
 
-        /* Request line */
+        /* Request line — validazione robusta */
         const QList<QByteArray> reqLine = lines[0].trimmed().split(' ');
-        if (reqLine.size() < 2) { sendError(sock, 400, "Bad Request"); return; }
+        if (reqLine.size() < 2) { sendError(sock, 400, "Bad Request"); sock->disconnectFromHost(); return; }
         s.method = QString::fromLatin1(reqLine[0]).toUpper();
         s.path   = QString::fromLatin1(reqLine[1]);
+
+        /* Solo metodi noti — blocca request smuggling e parser confusion */
+        static const QSet<QString> kAllowedMethods = {
+            "GET","POST","PUT","DELETE","PATCH","HEAD","OPTIONS"
+        };
+        if (!kAllowedMethods.contains(s.method)) {
+            sendError(sock, 405, "Method Not Allowed"); sock->disconnectFromHost(); return;
+        }
+
+        /* Path non deve contenere null byte o lunghezza assurda */
+        if (s.path.contains('\0') || s.path.size() > 2048) {
+            sendError(sock, 400, "Bad Request"); sock->disconnectFromHost(); return;
+        }
 
         /* Separa il query string dal path e usa ?token= come auth fallback.
          * Priorità: header Authorization (già parsato) > query ?token=.
@@ -470,9 +500,16 @@ void LanServer::onClientReadyRead()
             if (colon < 0) continue;
             const QString key = QString::fromLatin1(line.left(colon)).trimmed().toLower();
             const QString val = QString::fromLatin1(line.mid(colon + 1)).trimmed();
-            if (key == "content-length")
-                s.contentLength = val.toInt();
-            else if (key == "authorization")
+            if (key == "content-length") {
+                bool ok = false;
+                const int cl = val.toInt(&ok);
+                /* Rifiuta Content-Length negativo o assurdo (>25 MB) */
+                if (!ok || cl < 0 || cl > 25 * 1024 * 1024) {
+                    sendError(sock, 400, "Bad Content-Length");
+                    sock->disconnectFromHost(); return;
+                }
+                s.contentLength = cl;
+            } else if (key == "authorization")
                 s.authHeader = val;
         }
         s.headersDone = true;

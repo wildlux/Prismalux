@@ -1,15 +1,20 @@
 [Unit]
 Description=Prismalux LAN Server (headless)
 After=network.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
 
 [Service]
 Type=simple
 ExecStart=%h/.local/bin/Prismalux_GUI --server --port 11500
 Restart=on-failure
 RestartSec=10s
+TimeoutStartSec=30s
+TimeoutStopSec=15s
 StandardOutput=journal
 StandardError=journal
 Environment=QT_QPA_PLATFORM=offscreen
+Environment=OLLAMA_HOST=127.0.0.1
 
 [Install]
 WantedBy=default.target
