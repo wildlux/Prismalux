@@ -1,6 +1,43 @@
 # Prismalux — TODO pendenti
 
 > Aggiornato: 2026-06-03 | Versione: 2.9
+
+---
+
+## 🆕 Sessione 2026-06-03 — Nuovi TODO (turno 6, da PROMPT.txt 19:35)
+
+### 🔧 Bug / Fix
+- [x] **Codice fiscale check digit corretto** — bug: posizioni pari con lettere usavano `10+(c-'A')` invece di `(c-'A')`; fix in `pratico_calcs.h`; test `casoRealeRossiMario` aggiornato a RSSMRA90A01H501W; LBLPLA89B15C351G ora corretto — 2026-06-03
+- [ ] **2 pulsanti in "Gestione LLM" si comprimono** — layout QHBoxLayout troppo stretto; verificare dopo rinomina tab — `settings_ai.cpp` o `settings_llm.cpp`
+- [x] **Tile 4ª colonna tronca** — aggiunta QLabel con setWordWrap(true) nella band inferiore della card tema — `settings_visual.cpp` — 2026-06-03
+
+### 🎨 UI / UX
+- [x] **Bottone "ℹ" → "ℹ Informazioni"** — rinominato in `main_ai_ui.cpp` riga 152 — 2026-06-03
+- [x] **Bottone PDF con testo** — `"\xf0\x9f\x93\x84  PDF"` in `main_ai_ui.cpp` riga 138 — 2026-06-03
+- [x] **"Scarica LLM" → "Scarica"** — abbreviato label header in `mainwindow.cpp` riga 645 — 2026-06-03
+- [x] **"AI Locale" → "Gestione LLM"** — tab rinominata in `settings_main.cpp` righe 116+187 — 2026-06-03
+- [x] **Agentica: selettore modello spostato** — integrato in `buildAgenticaToolbar()` a sinistra di "linguaggio" — `main_programming.cpp` — 2026-06-03
+- [ ] **Pulsante "Traccia" sotto il testo** — schermata `/home/wildlux/Pictures/Schermate/Schermata_20260603_202216.png`; pagina da identificare
+
+### 🛑 Stop & controllo compilazione
+- [x] **Stop compilazione llama.cpp** — pulsante "⏹ Ferma" accanto a Compila; `onLlamaStopClicked()` fa `kill()` su m_proc2/m_proc3 — `main_customize.h/cpp` — 2026-06-03
+- [x] **Controllo compilazione recente** — se llama-server compilato <24h fa mostra QMessageBox::question prima di ricompilare — `main_customize.cpp` — 2026-06-03
+
+### 🔊 Voce / TTS
+- [ ] **espeak-ng in configurazione** — aggiungere espeak-ng come opzione TTS nel tab Voce Piper, oppure rimuoverla e usare solo Whisper+Piper — `settings_voice.cpp`
+- [ ] **Test Whisper** — aggiungere test suite `test_stt_whisper_live` per la funzionalità STT in Impostazioni→AI locale→Voce audio — `settings_voice.cpp`
+
+### 📋 Feature
+- [ ] **Copia comando pip negli appunti** — in ogni scheda con `pip install ...`, aggiungere pulsante "📋 Copia" che chiama `QApplication::clipboard()->setText(cmd)` — cercare tutte le label con "pip install" nel progetto
+- [x] **Chat: Canc = conferma, Shift+Canc = 5s undo** — eventFilter su m_chatList; QMessageBox::question per Canc; label "Annulla (5s)" + QTimer per Shift+Canc — `mainwindow.h/cpp/slots.cpp` — 2026-06-03
+- [ ] **Emoji Telegram nel software** — usare le emoji Unicode standard (già supportate da Qt); verificare che il font sistema abbia coverage completa; eventualmente bundlare Noto Emoji
+- [ ] **Grafico 3D: wireframe/solido/superficie + movimento stile Blender** — aggiungere combo `QComboBox` con 3 modalità di rendering al canvas 3D; movimento orbit/pan/zoom stile Blender — `main_graph.cpp` + `main_graph_canvas.cpp`
+- [ ] **Sezione Lavoro in formato web** — esporre `/api/lavoro` nella web app LAN con interfaccia simile a quella desktop — `lan_server.cpp` + `lan_web/webchat.html`
+- [ ] **Quiz errori con spiegazione** — già implementato "Rivedi errori" con struttura `WrongAnswer`; verificare che mostri spiegazione completa e introduzione — `main_learn.cpp`
+
+### 📖 Documentazione
+- [ ] **README.md aggiornare API esterne** — aggiornare link: Blender API, FreeCAD wiki, Bioconda, GDScript, KiCAD-python, Ollama pip — `README.md`
+- [x] **Regola test** — aggiunta regola in CLAUDE.md: ogni nuova suite test deve essere registrata nella tabella Suite con nome ctest, categoria e numero PASS — 2026-06-03
 > Build: `python3 build.py`  (Linux/macOS/Windows — oppure `cmake --build build_gui -j$(nproc)` su Linux)
 
 ---
@@ -274,7 +311,7 @@
     pericolosa esposta in rete.
   - **Rimedio:** disabilitare `/api/launch` in modalità server/headless o renderlo opt-in.
 
-- [ ] **Indirizzo IP stabile + firewall** — il QR punta a un IP che con DHCP cambia
+- [x] **IP DHCP auto-aggiornamento QR** — `QTimer` 30s in `buildLanAndroidTab()` → `onIpWatchTick()`: se IP cambia aggiorna QR inline e mostra avviso in `m_urlDisplayLbl` — `main_lan_wan.h/cpp` — 2026-06-03
   - **Rimedio:** IP statico/reservation per il server; sull'host aprire SOLO la porta del
     server e tenere Ollama (`11434`) in ascolto solo su localhost, mai esposto in LAN.
 
@@ -299,7 +336,7 @@
 
 ### 🟡 Igiene generale
 
-- [ ] **Segreti fuori dal repo** — audit periodico
+- [x] **Audit segreti** — GroupBox in Impostazioni→Pulizia: 5 controlli (.env in .gitignore, *.key in .gitignore, permessi 0600, token LAN non in QSettings, KNOWLEDGE_USER/RAG in .gitignore) — `settings_system.cpp` — 2026-06-03
   - Nessun token in `QSettings`/codice (già usa QKeychain); verificare che `KNOWLEDGE_USER/`,
     `RAG/`, `.env`, `*.key` siano in `.gitignore` e con permessi `0600`.
 
@@ -314,7 +351,7 @@
 - [x] **Validazione input MCP** — verificato JSON object + method regex `[a-zA-Z0-9/_-]{1,64}` + params oggetto prima dell'inoltro — 2026-06-02
   - Assicurarsi che i parametri passati ai MCP siano validati lato server, non solo lato MCP.
 
-- [ ] **Aggiornamenti dipendenze** — scanner OSV/NVD su `requirements.lock` (vedi Analizzatore Sicurezza)
+- [x] **Scanner dipendenze OSV** — tab "Dipendenze" in SecurityAnalyzerPage: legge `requirements.lock`, POST a `api.osv.dev/v1/querybatch`, mostra CVE in rosso/verde — `main_security.h/cpp` — 2026-06-03
 
 ---
 
@@ -402,7 +439,7 @@
 - [x] **test_astrale** — 31 PASS: RicercaPage (12), NatalChartWidget (10), AstroCalc::compute() (9) — 2026-06-03
 - [x] **test_blhm_rab0l** — 38 PASS: Rab0lCanvas (12), BLHM Engine C (14), UI BLHM/RAB₀-L (12) — 2026-06-03
 - [x] **test_gns3_mcp** — 18 PASS, 2 SKIP (GNS3 non avviato): costruzione (8), server mock (2 skip), azioni/combo (8) — 2026-06-03
-- [ ] **test_multi_agente_live** — `agenti_multi_page.cpp` — richiede Ollama reale (simile a AiStress)
+- [x] **test_multi_agente_live** — 13 test: CAT-A costruzione (5), CAT-B decomposizione JSON (2, Ollama), CAT-C esecuzione SubTask (3, Ollama), CAT-D GraphMemory persistenza (4, Ollama) — TIMEOUT 300s — 2026-06-03
 
 ---
 

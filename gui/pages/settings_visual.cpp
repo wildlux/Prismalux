@@ -406,9 +406,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             "  background: qlineargradient(x1:0,y1:0,x2:0,y2:1,"
             "    stop:0 %1, stop:0.65 %2, stop:0.66 %3, stop:1 %3);"
             "  border: 2px solid %4; border-radius: 10px;"
-            "  color: %5; font-weight: 600; font-size: 11px;"
-            "  padding-top: 54px;"
-            "  text-align: center;"
+            "  color: transparent;"
             "}"
             "QPushButton#themeCard:checked {"
             "  border: 3px solid %3; border-radius: 10px;"
@@ -416,14 +414,29 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             "QPushButton#themeCard:hover {"
             "  border-color: %3;"
             "}"
-        ).arg(v.bg2, v.bg, v.accent, borderColor,
-              (t.id == "light") ? "#1a1e30" : "#e5e7eb"));
+        ).arg(v.bg2, v.bg, v.accent, borderColor));
 
-        card->setText(t.label);
+        card->setText(QString());       /* testo gestito dalla label sottostante */
         group->addButton(card, i);
+
+        /* Label nome tema con word-wrap (bottom band del card) */
+        auto* nameLbl = new QLabel(t.label, card);
+        nameLbl->setObjectName("themeNameLabel");
+        nameLbl->setAlignment(Qt::AlignCenter);
+        nameLbl->setWordWrap(true);
+        nameLbl->setStyleSheet(QString(
+            "color: %1; font-size: 11px; font-weight: 600; background: transparent;")
+            .arg((t.id == "light") ? "#1a1e30" : "#e5e7eb"));
+        {
+            const int cardW = dpiScale(130);
+            const int cardH = dpiScale(100);
+            const int lblH  = dpiScale(32);
+            nameLbl->setGeometry(0, cardH - lblH, cardW, lblH);
+        }
 
         /* Checkmark sovrapposto (visibile se selezionato) */
         auto* check = new QLabel("\xe2\x9c\x93", card);
+        check->setObjectName("themeCheckmark");
         check->setAlignment(Qt::AlignTop | Qt::AlignRight);
         check->setStyleSheet(QString(
             "color: %1; font-size: 16px; font-weight: 700; "
@@ -444,8 +457,8 @@ QWidget* ImpostazioniPage::buildTemaTab() {
                     const QString bc = (themes[j].id == t.id) ? vj.accent : "#404040";
                     /* Aggiorna solo la border-color senza ricostruire tutto lo stile */
                     QString s = btn->styleSheet();
-                    /* checkmark visibility */
-                    const auto children = btn->findChildren<QLabel*>();
+                    /* checkmark visibility — solo la label "themeCheckmark" */
+                    const auto children = btn->findChildren<QLabel*>("themeCheckmark");
                     for (auto* lbl : children)
                         lbl->setVisible(themes[j].id == t.id);
                     (void)bc; (void)s;

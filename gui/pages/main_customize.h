@@ -33,6 +33,7 @@ private slots:
 
     /* ── llama.cpp Studio — compilazione ── */
     void onLlamaCompBtnClicked();        ///< avvia git+cmake chain
+    void onLlamaStopClicked();           ///< interrompe compilazione in corso
 
     /* ── llama.cpp Studio — step di build (chain asincrona) ── */
     void onProc1ReadyRead();
@@ -95,6 +96,7 @@ private:
     QStackedWidget* m_llamaStack    = nullptr;
     QTextEdit*      m_llamaLog      = nullptr;
     QPushButton*    m_llamaCompBtn  = nullptr;
+    QPushButton*    m_llamaStopBtn  = nullptr;   ///< "Ferma compilazione"
     QPushButton*    m_llamaServBtn  = nullptr;
     QLineEdit*      m_llamaModelPath = nullptr;
     QLineEdit*      m_llamaPort      = nullptr;

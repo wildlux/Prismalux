@@ -38,6 +38,7 @@
 #include <QComboBox>
 #include <QTabWidget>
 #include <QListWidgetItem>
+#include <QKeyEvent>
 
 namespace P = PrismaluxPaths;
 
@@ -525,6 +526,112 @@ void MainWindow::onChatActionDelete()
         QMessageBox::Yes | QMessageBox::No);
     if (btn != QMessageBox::Yes) return;
     m_chatHistory.remove(m_ctxChatId);
+    refreshChatList();
+}
+
+// ─── Chat sidebar — Canc / Shift+Canc ──────────────────────────────────────
+
+/* eventFilter: intercetta tasti su m_chatList */
+bool MainWindow::eventFilter(QObject* obj, QEvent* ev)
+{
+    if (obj == m_chatList && ev->type() == QEvent::KeyPress) {
+        auto* ke = static_cast<QKeyEvent*>(ev);
+        if (ke->key() == Qt::Key_Delete) {
+            if (ke->modifiers() & Qt::ShiftModifier)
+                onChatDeleteShift();
+            else
+                onChatDeleteConfirm();
+            return true;
+        }
+    }
+    return QMainWindow::eventFilter(obj, ev);
+}
+
+/* Canc senza Shift: mostra QMessageBox di conferma */
+void MainWindow::onChatDeleteConfirm()
+{
+    auto* item = m_chatList ? m_chatList->currentItem() : nullptr;
+    if (!item) return;
+    const QString id    = item->data(Qt::UserRole).toString();
+    const QString title = item->text();
+    if (id.isEmpty()) return;
+
+    const auto btn = QMessageBox::question(this, "Elimina chat",
+        QString("Vuoi eliminare questa chat?\n\"%1\"").arg(title),
+        QMessageBox::Yes | QMessageBox::No);
+    if (btn != QMessageBox::Yes) return;
+    m_chatHistory.remove(id);
+    refreshChatList();
+}
+
+/* Shift+Canc: elimina subito ma offre Annulla per 5s nella status bar */
+void MainWindow::onChatDeleteShift()
+{
+    auto* item = m_chatList ? m_chatList->currentItem() : nullptr;
+    if (!item) return;
+    const QString id    = item->data(Qt::UserRole).toString();
+    if (id.isEmpty()) return;
+
+    /* Annulla eventuale undo precedente ancora pendente */
+    if (m_undoTimer && m_undoTimer->isActive()) {
+        m_undoTimer->stop();
+        onChatUndoTimeout();   /* esegue la cancellazione precedente in sospeso */
+    }
+
+    m_undoChatId = id;
+
+    /* Prepara label "Annulla (5s)" nella status bar (creata una volta sola) */
+    if (!m_undoLabel) {
+        m_undoLabel = new QLabel(this);
+        m_undoLabel->setObjectName("undoChatLabel");
+        m_undoLabel->setTextFormat(Qt::RichText);
+        m_undoLabel->setOpenExternalLinks(false);
+        connect(m_undoLabel, &QLabel::linkActivated,
+                this, &MainWindow::onChatUndoDelete);
+        statusBar()->addWidget(m_undoLabel);
+    }
+    m_undoLabel->setText(
+        "<a href='undo' style='color:#f59e0b;'>"
+        "Annulla eliminazione (5s)</a>");
+    m_undoLabel->show();
+
+    /* Rimuovi dalla lista UI subito (feedback visivo) */
+    refreshChatList();
+
+    /* Timer 5s per cancellazione definitiva */
+    if (!m_undoTimer) {
+        m_undoTimer = new QTimer(this);
+        m_undoTimer->setSingleShot(true);
+        connect(m_undoTimer, &QTimer::timeout,
+                this, &MainWindow::onChatUndoTimeout);
+    }
+    m_undoTimer->start(5000);
+}
+
+/* L'utente ha cliccato "Annulla": ripristina la chat */
+void MainWindow::onChatUndoDelete()
+{
+    if (m_undoTimer) m_undoTimer->stop();
+    m_undoChatId.clear();
+    if (m_undoLabel) {
+        statusBar()->removeWidget(m_undoLabel);
+        m_undoLabel->hide();
+    }
+    /* Non abbiamo ancora cancellato dal disco — nessun ripristino necessario */
+    statusBar()->showMessage("Eliminazione annullata.", 2000);
+}
+
+/* 5 secondi scaduti: cancella definitivamente */
+void MainWindow::onChatUndoTimeout()
+{
+    if (!m_undoChatId.isEmpty()) {
+        m_chatHistory.remove(m_undoChatId);
+        m_undoChatId.clear();
+    }
+    if (m_undoLabel) {
+        statusBar()->removeWidget(m_undoLabel);
+        m_undoLabel->hide();
+    }
     refreshChatList();
 }
 

@@ -2,6 +2,7 @@
 #include <QWidget>
 #include <QVector>
 #include <QMap>
+#include <QNetworkAccessManager>
 #include "../ai_client.h"
 #include "../widgets/model_combo_box.h"
 
@@ -12,6 +13,8 @@ class QLabel;
 class QProgressBar;
 class QTabWidget;
 class QPlainTextEdit;
+class QTextBrowser;
+class QNetworkReply;
 
 /* ══════════════════════════════════════════════════════════════
    SecurityFinding — singola vulnerabilità trovata da un agente
@@ -60,6 +63,16 @@ private:
     QPlainTextEdit* m_reportOutput = nullptr;  ///< tab "Report"
     QPlainTextEdit* m_rawOutput    = nullptr;  ///< tab "Dettagli"
 
+    /* OSV scanner UI */
+    QPushButton*           m_osvScanBtn   = nullptr;
+    QPushButton*           m_osvUpdateBtn = nullptr;
+    QLabel*                m_osvStatusLbl = nullptr;
+    QTextBrowser*          m_osvOutput    = nullptr;
+    QNetworkAccessManager* m_osvNam       = nullptr;
+    QString                m_reqLockPath;
+    int                    m_osvPending   = 0;
+    int                    m_osvVulnCount = 0;
+
     /* State */
     int              m_pendingCount = 0;
     QVector<QString> m_agentResults;
@@ -77,4 +90,7 @@ private:
 private slots:
     void onAnalyzeClicked();
     void onStopClicked();
+    void onOsvScanClicked();
+    void onOsvUpdateClicked();
+    void onOsvReply();
 };

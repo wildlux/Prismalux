@@ -167,9 +167,14 @@ inline QString calcolaCodiceFiscale(
     int somma = 0;
     for (int i = 0; i < 15; ++i) {
         const QChar c = cf15[i];
-        const int idx = c.isDigit() ? c.digitValue() : 10 + (c.unicode() - 'A');
-        if (i % 2 == 0) somma += kDisp[idx];
-        else            somma += idx;
+        if (i % 2 == 0) {
+            /* Posizione dispari (1,3,5,...): tabella kDisp, indice unificato 0-35 */
+            const int idx = c.isDigit() ? c.digitValue() : 10 + (c.unicode() - 'A');
+            somma += kDisp[idx];
+        } else {
+            /* Posizione pari (2,4,6,...): valore diretto — cifra=N, lettera A=0..Z=25 */
+            somma += c.isDigit() ? c.digitValue() : (c.unicode() - 'A');
+        }
     }
     return cf15 + QChar('A' + (somma % 26));
 }

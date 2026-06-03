@@ -141,7 +141,7 @@ private slots:
         const QString cf = PC::calcolaCodiceFiscale(
             "Rossi", "Mario",
             QDate(1990, 1, 1), true, "H501");
-        QCOMPARE(cf, QString("RSSMRA90A01H501K"));
+        QCOMPARE(cf, QString("RSSMRA90A01H501W")); /* D.M. 1976 corretto: somma=100, 100%26=22, 'A'+22='W' */
     }
 
     /* C-2: cognome con < 3 consonanti -> padding con X (es. "Oe" -> OE, voc: OE -> OEX) */
@@ -217,13 +217,14 @@ private slots:
 
     /* C-9: check digit corretto (ultima lettera = 'A' + somma%26) */
     void checkDigitCorretto() {
-        /* Il CF RSSMRA90A01H501K ha check digit 'K' = somma(140)%26=10 */
+        /* CF corretto D.M. 1976: RSSMRA90A01H501W (somma=100, 100%26=22, 'A'+22='W') */
         const QString cf = PC::calcolaCodiceFiscale(
             "Rossi", "Mario",
             QDate(1990, 1, 1), true, "H501");
         QVERIFY(!cf.isEmpty());
 
-        /* Ricalcola la somma sui primi 15 caratteri */
+        /* Ricalcola la somma con l'algoritmo corretto D.M. 1976:
+           posizioni dispari → kDisp; posizioni pari → valore diretto (lettera A=0..Z=25) */
         static const int kDisp[36] = {
              1, 0, 5, 7, 9,13,15,17,19,21,
              1, 0, 5, 7, 9,13,15,17,19,21,
@@ -233,9 +234,12 @@ private slots:
         int somma = 0;
         for (int i = 0; i < 15; ++i) {
             const QChar c = cf[i];
-            const int idx = c.isDigit() ? c.digitValue() : 10 + (c.unicode() - 'A');
-            if (i % 2 == 0) somma += kDisp[idx];
-            else            somma += idx;
+            if (i % 2 == 0) {
+                const int idx = c.isDigit() ? c.digitValue() : 10 + (c.unicode() - 'A');
+                somma += kDisp[idx];
+            } else {
+                somma += c.isDigit() ? c.digitValue() : (c.unicode() - 'A');
+            }
         }
         const QChar atteso = QChar('A' + (somma % 26));
         QVERIFY2(cf[15] == atteso,

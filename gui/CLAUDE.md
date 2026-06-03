@@ -336,9 +336,36 @@ ctest --test-dir build_tests -j4   # 51 suite (48 no-Ollama, 3 richiedono Ollama
 | `AiIntegration` | `test_ai_integration` | ⚠️ Ollama reale — classifyQuery, chat, params |
 | `AiStress` | `test_ai_stress` | ⚠️ Ollama reale — sequential, param matrix |
 | `TeamCollab` | `test_team_collab` | ⚠️ Ollama reale — pipeline, quality |
+| `PraticoFinanza` | `test_pratico_finanza` | 27 PASS — normalizzaComune, cercaBelfiore, calcolaCodiceFiscale (D.M.1976) |
+| `WanComputeTasks` | `test_wan_compute_tasks` | 33 PASS — costruzione, TCP, JSON, sicurezza shell |
+| `RagGraphPipeline` | `test_rag_graph_pipeline` | 25 PASS — costruzione, parsing LLM mock, ricerca, segnali |
+| `Translitter` | `test_translitter` | 37 PASS — langFence helper, widget, kLangs unicità |
+| `DockerSandbox` | `test_docker_sandbox` | 29 PASS, 2 SKIP — PythonExec, Docker, sicurezza |
+| `FileParser` | `test_file_parser` | 38 PASS — StrumentiFilePage, pdftotext, CSV, file non validi |
+| `ReplPython` | `test_repl_python` | 23 PASS, 1 SKIP — costruzione, python3 I/O async, robustezza |
+| `Astrale` | `test_astrale` | 31 PASS — RicercaPage, NatalChartWidget, AstroCalc::compute() |
+| `BlhmRab0l` | `test_blhm_rab0l` | 38 PASS — Rab0lCanvas, BLHM Engine C, UI BLHM/RAB₀-L |
+| `Gns3Mcp` | `test_gns3_mcp` | 18 PASS, 2 SKIP — costruzione, azioni combo (GNS3 non avviato) |
+| `MultiAgenteLive` | `test_multi_agente_live` | 7 PASS, 6 SKIP — CAT-A costruzione; ⚠️ CAT-B/C/D Ollama |
 
 ### Note operative
 - `SimulatoreAlgos`: FLAKY in `-j4`, PASS standalone → `RESOURCE_LOCK cpu_heavy`
 - `AiStress` / `AiIntegration` / `TeamCollab`: richiedono Ollama + `mistral:7b-instruct` ≥2 GB RAM
 - `HardwareMonitor`: richiede `mon.start()` prima di `QVERIFY(spy.wait(...))`
 - **CAT-E** (TestRisolviPassi): 15 test SymPy reali via `_runPythonSync()` — `QSKIP` se Python mancante
+
+### Regola: come aggiungere una nuova suite di test
+
+**Ogni volta che si crea una nuova suite test, obbligatoriamente:**
+1. Creare `gui/tests/test_<nome>.cpp` con almeno CAT-A costruzione (no Ollama)
+2. Aggiungere il target in `gui/CMakeLists.txt` (copia struttura da `test_programmazione_page`)
+3. Aggiungere `add_test(NAME <NomePascal> COMMAND test_<nome>)` vicino ai simili
+4. Aggiornare la tabella "Suite per categoria" qui sopra con: Suite | Target | PASS count | Note
+5. Aggiornare il conteggio in `ctest --test-dir build_tests` (riga 291 di questo file)
+6. Nel test: usare `QSKIP` in `initTestCase()` per dipendenze esterne (Ollama, Docker, ecc.)
+
+**Priorità categorie test:**
+- CAT-A: costruzione widget senza crash (nessuna dipendenza esterna)
+- CAT-B: funzioni pure / helper statiche
+- CAT-C: integrazione con processo esterno (QSKIP se mancante)
+- CAT-D: integrazione Ollama reale (QSKIP se non disponibile)

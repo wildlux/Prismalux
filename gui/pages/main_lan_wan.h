@@ -43,6 +43,8 @@ private:
     QrCodeWidget* m_qrInlineWidget = nullptr;
     QLabel*       m_urlDisplayLbl  = nullptr;
     QString       m_lanConnectIp;
+    QTimer*       m_ipWatchTimer   = nullptr;  ///< polling IP LAN ogni 30s
+    QString       m_lastKnownIp;               ///< IP precedente per rilevare cambi
 
     /* ── Installazione ADB via USB ── */
     QPushButton* m_adbInstallBtn  = nullptr;
@@ -329,4 +331,5 @@ private slots:
     void onWanDecomposeBtnClicked();
     /* WAN simulazione locale */
     void onWanSimBtnClicked();
+    void onIpWatchTick();  ///< rileva cambio IP e aggiorna QR
 };

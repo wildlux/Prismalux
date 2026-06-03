@@ -113,7 +113,7 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
                   "\xf0\x9f\x96\xa5  Hardware");
 
         t->addTab(buildAiLocaleTab(),
-                  "\xf0\x9f\xa6\x99  AI Locale");
+                  "\xf0\x9f\xa6\x99  Gestione LLM");
 
         {
             auto* sc = new QScrollArea;

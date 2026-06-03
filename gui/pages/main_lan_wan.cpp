@@ -287,6 +287,20 @@ void LanWanPage::onUpdateQrInline()
         m_urlDisplayLbl->setText(QString("%1 : %2").arg(ip).arg(port));
 }
 
+void LanWanPage::onIpWatchTick()
+{
+    const QString currentIp = localLanIp();
+    if (currentIp == m_lastKnownIp) return;
+
+    m_lastKnownIp = currentIp;
+    onUpdateQrInline();  /* aggiorna QR con il nuovo IP */
+
+    if (m_urlDisplayLbl)
+        m_urlDisplayLbl->setText(
+            QString("\xf0\x9f\x94\x84  %1 \xe2\x80\x94 IP cambiato, QR aggiornato")
+                .arg(currentIp));
+}
+
 void LanWanPage::onQrApkBtnClicked()
 {
     if (!m_lanServer || !m_lanServer->isRunning()) return;
@@ -764,6 +778,14 @@ QWidget* LanWanPage::buildLanAndroidTab()
     connect(m_lanToggleBtn,  &QPushButton::toggled, this, &LanWanPage::onLanToggleBtnToggled);
     connect(m_lanWebBtn,     &QPushButton::clicked, this, &LanWanPage::onLanWebBtnClicked);
     connect(m_adbInstallBtn, &QPushButton::clicked, this, &LanWanPage::onAdbInstallBtnClicked);
+
+    /* Polling IP LAN ogni 30s — aggiorna QR automaticamente se l'IP cambia (DHCP) */
+    m_lastKnownIp = localLanIp();
+    m_ipWatchTimer = new QTimer(this);
+    m_ipWatchTimer->setInterval(30'000);
+    m_ipWatchTimer->setSingleShot(false);
+    connect(m_ipWatchTimer, &QTimer::timeout, this, &LanWanPage::onIpWatchTick);
+    m_ipWatchTimer->start();
 
     return tab;
 }

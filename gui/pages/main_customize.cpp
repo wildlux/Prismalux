@@ -189,7 +189,13 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     compTitle->setObjectName("cardTitle");
     m_llamaCompBtn = new QPushButton(binExists ? "\xf0\x9f\x94\x84  Aggiorna" : "\xe2\x96\xb6  Compila", compPg);
     m_llamaCompBtn->setObjectName("actionBtn");
-    compTopL->addWidget(backComp); compTopL->addWidget(compTitle, 1); compTopL->addWidget(m_llamaCompBtn);
+    m_llamaStopBtn = new QPushButton("\xe2\x8f\xb9  Ferma", compPg);
+    m_llamaStopBtn->setObjectName("actionBtn");
+    m_llamaStopBtn->setEnabled(false);
+    connect(m_llamaStopBtn, &QPushButton::clicked,
+            this, &PersonalizzaPage::onLlamaStopClicked);
+    compTopL->addWidget(backComp); compTopL->addWidget(compTitle, 1);
+    compTopL->addWidget(m_llamaCompBtn); compTopL->addWidget(m_llamaStopBtn);
     compLay->addWidget(compTop);
 
     auto* compInfo = new QLabel(
@@ -537,9 +543,26 @@ void PersonalizzaPage::onCompNowBtnClicked() {
    ══════════════════════════════════════════════════════════════ */
 void PersonalizzaPage::onLlamaCompBtnClicked() {
     if (!m_llamaLog || !m_llamaCompBtn) return;
+
+    /* ── Feature 2: controllo compilazione recente (< 24h) ── */
+    const QString bin = P::llamaServerBin();
+    if (QFileInfo::exists(bin)) {
+        const QDateTime lastMod = QFileInfo(bin).lastModified();
+        const qint64 hoursAgo = lastMod.secsTo(QDateTime::currentDateTime()) / 3600;
+        if (hoursAgo < 24) {
+            const auto ans = QMessageBox::question(
+                this,
+                "Ricompilare?",
+                QString("llama-server \xc3\xa8 stato compilato %1 ore fa.\nVuoi ricompilare?").arg(hoursAgo),
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+            if (ans == QMessageBox::No) return;
+        }
+    }
+
     m_llamaLog->clear();
     m_buildOutputBuf.clear();
     m_llamaCompBtn->setEnabled(false);
+    if (m_llamaStopBtn) m_llamaStopBtn->setEnabled(true);
 
     const QString studio   = P::llamaStudioDir();
     m_buildCloneDir = studio + "/llama.cpp";
@@ -605,6 +628,7 @@ void PersonalizzaPage::onProc1Finished(int code, QProcess::ExitStatus) {
         if (m_llamaLog)
             m_llamaLog->append(QString("\n\xe2\x9d\x8c  git fallito (code %1).").arg(code));
         if (m_llamaCompBtn) m_llamaCompBtn->setEnabled(true);
+        if (m_llamaStopBtn) m_llamaStopBtn->setEnabled(false);
         return;
     }
     if (m_llamaLog)
@@ -677,6 +701,7 @@ void PersonalizzaPage::onProc2Finished(int code, QProcess::ExitStatus) {
                 if (m_llamaLog)
                     m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare cmake configure (fallback CPU).");
                 if (m_llamaCompBtn) m_llamaCompBtn->setEnabled(true);
+                if (m_llamaStopBtn) m_llamaStopBtn->setEnabled(false);
                 m_proc2->deleteLater();
                 m_proc2 = nullptr;
             }
@@ -685,6 +710,7 @@ void PersonalizzaPage::onProc2Finished(int code, QProcess::ExitStatus) {
         if (m_llamaLog)
             m_llamaLog->append(QString("\n\xe2\x9d\x8c  cmake configure fallito (code %1).").arg(code));
         if (m_llamaCompBtn) m_llamaCompBtn->setEnabled(true);
+        if (m_llamaStopBtn) m_llamaStopBtn->setEnabled(false);
         return;
     }
     if (m_llamaLog)
@@ -731,6 +757,23 @@ void PersonalizzaPage::onProc3Finished(int code, QProcess::ExitStatus) {
         else
             m_llamaLog->append(QString("\n\xe2\x9d\x8c  Build fallita (code %1).").arg(code));
     }
+    if (m_llamaCompBtn) m_llamaCompBtn->setEnabled(true);
+    if (m_llamaStopBtn) m_llamaStopBtn->setEnabled(false);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SLOT — interrompi compilazione
+   ══════════════════════════════════════════════════════════════ */
+void PersonalizzaPage::onLlamaStopClicked() {
+    if (m_proc3 && m_proc3->state() != QProcess::NotRunning) {
+        m_proc3->kill();
+        if (m_llamaLog) m_llamaLog->append("\n\xe2\x8f\xb9  Compilazione interrotta dall'utente.");
+    }
+    if (m_proc2 && m_proc2->state() != QProcess::NotRunning) {
+        m_proc2->kill();
+        if (m_llamaLog) m_llamaLog->append("\n\xe2\x8f\xb9  cmake configure interrotto.");
+    }
+    if (m_llamaStopBtn) m_llamaStopBtn->setEnabled(false);
     if (m_llamaCompBtn) m_llamaCompBtn->setEnabled(true);
 }
 

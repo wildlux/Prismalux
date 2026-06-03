@@ -297,6 +297,12 @@ protected:
      */
     void closeEvent(QCloseEvent* ev) override;
 
+    /**
+     * eventFilter — Intercetta tasti su m_chatList.
+     * Canc → conferma QMessageBox; Shift+Canc → elimina con undo 5s.
+     */
+    bool eventFilter(QObject* obj, QEvent* ev) override;
+
     /** Popola m_chatList con le sessioni salvate (ordine cronologico inverso). */
     void refreshChatList();
 
@@ -362,6 +368,10 @@ private slots:
     void onChatContextMenuRequested(const QPoint& pos);
     void onChatActionPdf();
     void onChatActionDelete();
+    void onChatDeleteConfirm();        ///< Canc: QMessageBox question → elimina
+    void onChatDeleteShift();          ///< Shift+Canc: elimina con undo 5s
+    void onChatUndoDelete();           ///< Annulla la cancellazione pendente
+    void onChatUndoTimeout();          ///< 5s scaduti: cancella definitivamente
 
     /* ── Pagine contenuto ───────────────────────────────────────── */
     void onCronPanelFirstOpen();
@@ -407,6 +417,10 @@ private:
     int                  m_healthTicks  = 0;    ///< Contatore tick polling
     QString              m_ctxChatId;           ///< ID chat per context menu PDF/delete
     QString              m_ctxChatTitle;        ///< Titolo chat per context menu
+    /* Shift+Canc undo-delete */
+    QString              m_undoChatId;          ///< ID chat in attesa di cancellazione (undo)
+    QLabel*              m_undoLabel = nullptr; ///< Label "Annulla (5s)" nella status bar
+    QTimer*              m_undoTimer = nullptr; ///< Timer 5s per cancellazione definitiva
     QPointer<QPushButton> m_navBackendClone;    ///< Clone backend nella nav bar
     QString              m_pendingExecMode;     ///< Modalità pulsanti exec da applicare
     QString              m_pendingTheme;        ///< Tema da applicare via QueuedConnection

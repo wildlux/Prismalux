@@ -512,6 +512,29 @@ if(BUILD_TESTS)
         target_link_libraries(test_team_collab PRIVATE pthread m)
     endif()
 
+    # ── test_multi_agente_live: AgentiMultiPage + GraphMemory ↔ Ollama reale ──
+    # CAT-A: costruzione (nessun Ollama) — CAT-B: decomposizione JSON — 30 s
+    # CAT-C: esecuzione SubTask + nodo result in GraphMemory — 60 s
+    # CAT-D: persistenza GraphMemory, toDot(), toJson() — 60 s
+    # Override modello: PRISMALUX_TEST_MODEL=qwen2.5-coder:7b ./build_tests/test_multi_agente_live
+    add_executable(test_multi_agente_live
+        tests/test_multi_agente_live.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_multi_agente_live PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_multi_agente_live PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_multi_agente_live PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_multi_agente_live PRIVATE pthread m)
+    endif()
+
     # ── test_lavoro_data: kOfferte, offerteFiltrate, tipoIcon, livLabel ──────
     add_executable(test_lavoro_data
         tests/test_lavoro_data.cpp
@@ -1157,6 +1180,7 @@ if(BUILD_TESTS)
     add_test(NAME AiIntegration        COMMAND test_ai_integration)
     add_test(NAME AiStress             COMMAND test_ai_stress)
     add_test(NAME TeamCollab           COMMAND test_team_collab)
+    add_test(NAME MultiAgenteLive      COMMAND test_multi_agente_live)
     add_test(NAME LavoroData           COMMAND test_lavoro_data)
     add_test(NAME TutorData            COMMAND test_tutor_data)
     add_test(NAME RagEngineAvanzato    COMMAND test_rag_engine_avanzato)
@@ -1204,8 +1228,9 @@ if(BUILD_TESTS)
     set_tests_properties(SimulatoreAlgos    PROPERTIES TIMEOUT 120 RESOURCE_LOCK cpu_heavy)
     set_tests_properties(HardwareMonitor    PROPERTIES TIMEOUT 90)   # initTestCase + 2x thread hw_detect
     set_tests_properties(ChatHistoryStress  PROPERTIES TIMEOUT 60)
+    set_tests_properties(MultiAgenteLive PROPERTIES TIMEOUT 300)  # 5 min — pipeline completa
     # Serializza i test che usano Ollama reale: con -j4 girano in parallelo e saturano RAM/CPU
-    set_tests_properties(AiIntegration AiStress TeamCollab
+    set_tests_properties(AiIntegration AiStress TeamCollab MultiAgenteLive
         PROPERTIES RESOURCE_LOCK ollama)
     set_tests_properties(GraphMemory        PROPERTIES TIMEOUT 30)
     set_tests_properties(LanServer          PROPERTIES TIMEOUT 30)

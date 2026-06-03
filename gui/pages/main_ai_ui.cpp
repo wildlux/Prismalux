@@ -135,7 +135,7 @@ void AgentiPage::buildToolbarExportSection(QHBoxLayout* toolLay, QWidget* toolba
     toolLay->addWidget(btnExport);
     connect(btnExport, &QPushButton::clicked, this, &AgentiPage::onBtnExportClicked);
 
-    auto* btnExportPdf = new QPushButton("\xf0\x9f\x93\x84", toolbar);
+    auto* btnExportPdf = new QPushButton("\xf0\x9f\x93\x84  PDF", toolbar);
     btnExportPdf->setObjectName("actionBtn");
     btnExportPdf->setToolTip("Esporta conversazione (.pdf)");
     toolLay->addWidget(btnExportPdf);
@@ -149,7 +149,7 @@ void AgentiPage::buildToolbarExportSection(QHBoxLayout* toolLay, QWidget* toolba
     toolLay->addWidget(m_btnKnowledge);
     connect(m_btnKnowledge, &QPushButton::clicked, this, &AgentiPage::onSaveKnowledge);
 
-    auto* btnInfo = new QPushButton("\xe2\x84\xb9", toolbar);  /* ℹ */
+    auto* btnInfo = new QPushButton("\xe2\x84\xb9  Informazioni", toolbar);  /* ℹ */
     btnInfo->setObjectName("actionBtn");
     btnInfo->setToolTip("Mostra/nascondi suggerimenti");
     toolLay->addWidget(btnInfo);

@@ -6,13 +6,22 @@
 #include <QSplitter>
 #include <QTextEdit>
 #include <QPlainTextEdit>
+#include <QTextBrowser>
 #include <QLabel>
 #include <QPushButton>
 #include <QComboBox>
 #include <QProgressBar>
 #include <QTabWidget>
+#include <QGroupBox>
 #include <QTimer>
 #include <QRegularExpression>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QUrl>
 
 namespace P = PrismaluxPaths;
 
@@ -129,8 +138,13 @@ SecurityAnalyzerPage::SecurityAnalyzerPage(AiClient* ai, QWidget* parent)
     auto* splitter = new QSplitter(Qt::Horizontal, this);
     splitter->setHandleWidth(4);
 
-    /* Pannello sinistro: input codice */
-    m_codeInput = new QTextEdit(splitter);
+    /* Pannello sinistro: input codice + scanner OSV */
+    auto* leftWidget = new QWidget(splitter);
+    auto* leftLay    = new QVBoxLayout(leftWidget);
+    leftLay->setContentsMargins(0, 0, 0, 0);
+    leftLay->setSpacing(6);
+
+    m_codeInput = new QTextEdit(leftWidget);
     m_codeInput->setObjectName("chatLog");
     m_codeInput->setPlaceholderText(
         "Incolla qui il codice da analizzare...\n\n"
@@ -141,7 +155,39 @@ SecurityAnalyzerPage::SecurityAnalyzerPage(AiClient* ai, QWidget* parent)
     mono.setStyleHint(QFont::TypeWriter);
     mono.setPointSize(10);
     m_codeInput->setFont(mono);
-    splitter->addWidget(m_codeInput);
+    leftLay->addWidget(m_codeInput, 1);
+
+    /* ── GroupBox Scanner dipendenze OSV ── */
+    auto* osvBox = new QGroupBox("Scanner dipendenze", leftWidget);
+    auto* osvLay = new QVBoxLayout(osvBox);
+    osvLay->setSpacing(4);
+
+    auto* osvDesc = new QLabel(
+        "Verifica dipendenze Python contro il database OSV (api.osv.dev)", osvBox);
+    osvDesc->setWordWrap(true);
+    osvDesc->setObjectName("cardDesc");
+    osvLay->addWidget(osvDesc);
+
+    m_osvScanBtn = new QPushButton(
+        "\xf0\x9f\x94\x8d  Scansiona requirements.lock", osvBox);  /* 🔍 */
+    m_osvScanBtn->setObjectName("actionBtn");
+    connect(m_osvScanBtn, &QPushButton::clicked,
+            this, &SecurityAnalyzerPage::onOsvScanClicked);
+    osvLay->addWidget(m_osvScanBtn);
+
+    m_osvStatusLbl = new QLabel("", osvBox);
+    m_osvStatusLbl->setObjectName("statusLabel");
+    m_osvStatusLbl->setWordWrap(true);
+    osvLay->addWidget(m_osvStatusLbl);
+
+    m_osvUpdateBtn = new QPushButton(
+        "\xe2\xac\x87  Aggiorna DB OSV locale", osvBox);  /* ⬇ */
+    connect(m_osvUpdateBtn, &QPushButton::clicked,
+            this, &SecurityAnalyzerPage::onOsvUpdateClicked);
+    osvLay->addWidget(m_osvUpdateBtn);
+
+    leftLay->addWidget(osvBox);
+    splitter->addWidget(leftWidget);
 
     /* Pannello destro: tab output */
     m_outputTabs = new QTabWidget(splitter);
@@ -160,6 +206,15 @@ SecurityAnalyzerPage::SecurityAnalyzerPage(AiClient* ai, QWidget* parent)
     m_rawOutput->setPlaceholderText(
         "Output grezzo di ciascun agente...");
     m_outputTabs->addTab(m_rawOutput, "Dettagli");
+
+    m_osvOutput = new QTextBrowser(m_outputTabs);
+    m_osvOutput->setOpenExternalLinks(false);
+    m_osvOutput->setPlaceholderText(
+        "I risultati OSV appariranno qui dopo la scansione...");
+    m_outputTabs->addTab(m_osvOutput, "Dipendenze");
+
+    /* Network manager dedicato allo scanner OSV */
+    m_osvNam = new QNetworkAccessManager(this);
 
     splitter->addWidget(m_outputTabs);
     splitter->setStretchFactor(0, 2);
@@ -417,5 +472,236 @@ void SecurityAnalyzerPage::synthesize()
 void SecurityAnalyzerPage::setStatus(const QString& s)
 {
     if (m_status) m_status->setText(s);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onOsvScanClicked — legge requirements.lock, chiama api.osv.dev
+   ══════════════════════════════════════════════════════════════ */
+void SecurityAnalyzerPage::onOsvScanClicked()
+{
+    /* Determina il path del file lock */
+    m_reqLockPath = P::root() + "/requirements.lock";
+    QFile f(m_reqLockPath);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        m_osvStatusLbl->setText(
+            "\xe2\x9d\x8c  requirements.lock non trovato in: " + m_reqLockPath);  /* ❌ */
+        return;
+    }
+
+    /* Parsa le righe nel formato pacchetto==versione */
+    const QRegularExpression re(
+        "([a-zA-Z0-9._-]+)==([0-9][0-9a-zA-Z._-]*)");
+    QJsonArray queries;
+    while (!f.atEnd()) {
+        const QString line = QString::fromUtf8(f.readLine()).trimmed();
+        if (line.isEmpty() || line.startsWith('#'))
+            continue;
+        const QRegularExpressionMatch m = re.match(line);
+        if (!m.hasMatch())
+            continue;
+        const QString pkg = m.captured(1);
+        const QString ver = m.captured(2);
+        QJsonObject query;
+        QJsonObject pkg_obj;
+        pkg_obj["name"]      = pkg;
+        pkg_obj["ecosystem"] = "PyPI";
+        query["package"] = pkg_obj;
+        query["version"] = ver;
+        queries.append(query);
+    }
+    f.close();
+
+    if (queries.isEmpty()) {
+        m_osvStatusLbl->setText(
+            "\xe2\x9a\xa0\xef\xb8\x8f  Nessuna dipendenza trovata nel file.");  /* ⚠️ */
+        return;
+    }
+
+    m_osvPending   = 1;
+    m_osvVulnCount = 0;
+    m_osvOutput->clear();
+    m_osvOutput->append(
+        "<p style='color:#888'>Interrogazione OSV per "
+        + QString::number(queries.size())
+        + " dipendenze...</p>");
+
+    m_osvStatusLbl->setText(
+        "\xf0\x9f\x94\x84  Scansione in corso ("  /* 🔄 */
+        + QString::number(queries.size()) + " pacchetti)...");
+    m_osvScanBtn->setEnabled(false);
+    m_outputTabs->setCurrentIndex(2);  /* porta in primo piano il tab Dipendenze */
+
+    /* Corpo della richiesta batch */
+    QJsonObject body;
+    body["queries"] = queries;
+    const QByteArray payload = QJsonDocument(body).toJson(QJsonDocument::Compact);
+
+    QNetworkRequest req(QUrl("https://api.osv.dev/v1/querybatch"));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    QNetworkReply* reply = m_osvNam->post(req, payload);
+    connect(reply, &QNetworkReply::finished,
+            this, &SecurityAnalyzerPage::onOsvReply);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onOsvUpdateClicked — health check dell'API OSV
+   ══════════════════════════════════════════════════════════════ */
+void SecurityAnalyzerPage::onOsvUpdateClicked()
+{
+    m_osvStatusLbl->setText(
+        "\xf0\x9f\x94\x84  Verifica raggiungibilita' API OSV...");  /* 🔄 */
+    m_osvUpdateBtn->setEnabled(false);
+
+    /* POST minimo a /v1/query come health check */
+    QJsonObject body;
+    QJsonObject pkg_obj;
+    pkg_obj["name"]      = "requests";
+    pkg_obj["ecosystem"] = "PyPI";
+    body["package"] = pkg_obj;
+    body["version"] = "2.28.0";
+    const QByteArray payload = QJsonDocument(body).toJson(QJsonDocument::Compact);
+
+    QNetworkRequest req(QUrl("https://api.osv.dev/v1/query"));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    QNetworkReply* reply = m_osvNam->post(req, payload);
+
+    connect(reply, &QNetworkReply::finished, this,
+            [this, reply]() {
+                m_osvUpdateBtn->setEnabled(true);
+                if (reply->error() == QNetworkReply::NoError) {
+                    m_osvStatusLbl->setText(
+                        "\xe2\x9c\x85  API OSV raggiungibile.");  /* ✅ */
+                } else {
+                    m_osvStatusLbl->setText(
+                        "\xe2\x9d\x8c  API non raggiungibile: "  /* ❌ */
+                        + reply->errorString());
+                }
+                reply->deleteLater();
+            });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onOsvReply — elabora la risposta JSON da /v1/querybatch
+   ══════════════════════════════════════════════════════════════ */
+void SecurityAnalyzerPage::onOsvReply()
+{
+    auto* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+
+    m_osvScanBtn->setEnabled(true);
+    m_osvPending = 0;
+
+    if (reply->error() != QNetworkReply::NoError) {
+        m_osvStatusLbl->setText(
+            "\xe2\x9d\x8c  Errore rete: " + reply->errorString());  /* ❌ */
+        m_osvOutput->append(
+            "<p style='color:red'>\xe2\x9d\x8c  Errore: "  /* ❌ */
+            + reply->errorString() + "</p>");
+        reply->deleteLater();
+        return;
+    }
+
+    const QByteArray data = reply->readAll();
+    reply->deleteLater();
+
+    const QJsonDocument doc = QJsonDocument::fromJson(data);
+    if (!doc.isObject()) {
+        m_osvStatusLbl->setText(
+            "\xe2\x9d\x8c  Risposta non valida da api.osv.dev");  /* ❌ */
+        return;
+    }
+
+    /* Ricostruisce la lista pacchetti dal file lock per abbinare l'indice */
+    QFile f(m_reqLockPath);
+    QStringList pkgNames, pkgVersions;
+    if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        const QRegularExpression re(
+            "([a-zA-Z0-9._-]+)==([0-9][0-9a-zA-Z._-]*)");
+        while (!f.atEnd()) {
+            const QString line = QString::fromUtf8(f.readLine()).trimmed();
+            if (line.isEmpty() || line.startsWith('#')) continue;
+            const QRegularExpressionMatch m = re.match(line);
+            if (!m.hasMatch()) continue;
+            pkgNames    << m.captured(1);
+            pkgVersions << m.captured(2);
+        }
+        f.close();
+    }
+
+    const QJsonArray results = doc.object().value("results").toArray();
+
+    m_osvOutput->clear();
+    m_osvVulnCount = 0;
+    int safeCount  = 0;
+
+    QString vulnHtml;
+    QString safeHtml;
+
+    for (int i = 0; i < results.size(); ++i) {
+        const QJsonObject res = results[i].toObject();
+        const QJsonArray  vulns = res.value("vulns").toArray();
+        const QString name = (i < pkgNames.size()) ? pkgNames[i] : QString("pkg%1").arg(i);
+        const QString ver  = (i < pkgVersions.size()) ? pkgVersions[i] : "?";
+
+        if (vulns.isEmpty()) {
+            ++safeCount;
+            continue;
+        }
+
+        ++m_osvVulnCount;
+        for (const QJsonValue& v : vulns) {
+            const QJsonObject vuln  = v.toObject();
+            const QString     id    = vuln.value("id").toString();
+            /* Tenta di leggere CVSS score se presente */
+            QString score;
+            const QJsonArray severity = vuln.value("severity").toArray();
+            for (const QJsonValue& sv : severity) {
+                const QJsonObject sObj = sv.toObject();
+                if (!sObj.value("score").toString().isEmpty()) {
+                    score = sObj.value("score").toString();
+                    break;
+                }
+            }
+            const QString scoreStr = score.isEmpty()
+                ? "" : " <span style='color:#f97316'>(score: " + score + ")</span>";
+            vulnHtml +=
+                "<p style='color:#ef4444'>"
+                "\xe2\x9a\xa0\xef\xb8\x8f  "  /* ⚠️ */
+                "<b>" + name.toHtmlEscaped() + "</b>"
+                " == " + ver.toHtmlEscaped()
+                + " \xe2\x86\x92 "  /* → */
+                "<b>" + id.toHtmlEscaped() + "</b>"
+                + scoreStr
+                + "</p>";
+        }
+    }
+
+    if (!vulnHtml.isEmpty()) {
+        m_osvOutput->append(
+            "<h3 style='color:#ef4444'>"
+            "\xe2\x9a\xa0\xef\xb8\x8f  Vulnerabilita' trovate</h3>"  /* ⚠️ */
+            + vulnHtml);
+    }
+
+    if (safeCount > 0) {
+        safeHtml =
+            "<p style='color:#22c55e'>"
+            "\xe2\x9c\x85  "  /* ✅ */
+            + QString::number(safeCount)
+            + " pacchetti sicuri (nessun CVE noto)</p>";
+        m_osvOutput->append(safeHtml);
+    }
+
+    if (m_osvVulnCount == 0) {
+        m_osvStatusLbl->setText(
+            "\xe2\x9c\x85  Nessuna vulnerabilita' trovata ("  /* ✅ */
+            + QString::number(safeCount) + " pacchetti).");
+    } else {
+        m_osvStatusLbl->setText(
+            "\xe2\x9d\x8c  "  /* ❌ */
+            + QString::number(m_osvVulnCount)
+            + " pacchetti vulnerabili su "
+            + QString::number(pkgNames.size()) + " totali.");
+    }
 }
 

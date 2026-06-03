@@ -3,6 +3,7 @@
 #include "../prismalux_paths.h"
 #include "../ai_utils.h"
 #include "../widgets/ai_error_widget.h"
+#include "../dpi_utils.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -1018,7 +1019,6 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
     buildAgenticaHeader(lay, w);
     lay->addWidget(buildAgenticaToolbar(w));
     lay->addWidget(buildAgenticaTaskGroup(w));
-    lay->addWidget(buildAgenticaModelRow(w));
     lay->addWidget(buildAgenticaOutputGroup(w), 1);
     setupAgenticaConnections(nullptr, nullptr);
     return w;
@@ -1069,12 +1069,37 @@ QWidget* ProgrammazionePage::buildAgenticaToolbar(QWidget* parent)
     m_agentType->setMinimumWidth(300);
     toolLay->addWidget(m_agentType);
 
+    /* ── Selettore modello AI (a sinistra di "Linguaggio") ── */
+    toolLay->addSpacing(12);
+    auto* lblModel = new QLabel("\xf0\x9f\xa4\x96  Modello AI:", toolRow);
+    lblModel->setObjectName("cardDesc");
+    toolLay->addWidget(lblModel);
+
+    m_agentModel = new QComboBox(toolRow);
+    m_agentModel->setObjectName("settingCombo");
+    m_agentModel->addItem(
+        m_ai ? (m_ai->model().isEmpty() ? "(nessun modello)" : m_ai->model())
+             : "(AI non disponibile)",
+        m_ai ? m_ai->model() : QString());
+    m_agentModel->setMinimumWidth(dpiScale(160));
+    toolLay->addWidget(m_agentModel);
+
+    auto* btnRefAgent = new QPushButton("\xf0\x9f\x94\x84", toolRow);
+    btnRefAgent->setObjectName("actionBtn");
+    btnRefAgent->setFixedWidth(dpiScale(32));
+    btnRefAgent->setToolTip("Aggiorna lista modelli disponibili");
+    toolLay->addWidget(btnRefAgent);
+    connect(btnRefAgent, &QPushButton::clicked,
+            this, &ProgrammazionePage::populateAgentModels);
+    QTimer::singleShot(0, this, &ProgrammazionePage::populateAgentModels);
+
+    /* ── Linguaggio ── */
     toolLay->addSpacing(12);
     toolLay->addWidget(new QLabel("Linguaggio:", toolRow));
     m_agentLang = new QComboBox(toolRow);
     m_agentLang->setObjectName("settingCombo");
     m_agentLang->addItems({"Python", "C", "C++", "JavaScript", "Bash"});
-    m_agentLang->setFixedWidth(110);
+    m_agentLang->setFixedWidth(dpiScale(110));
     toolLay->addWidget(m_agentLang);
     toolLay->addStretch(1);
 

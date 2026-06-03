@@ -642,7 +642,7 @@ void MainWindow::buildActionButtons(QHBoxLayout* lay)
     lay->addWidget(m_emergencyBtn);
 
     /* 🗑 Scarica LLM */
-    m_btnUnload = new QPushButton("\xf0\x9f\x97\x91  Scarica LLM", hdr);
+    m_btnUnload = new QPushButton("\xf0\x9f\x97\x91  Scarica", hdr);
     m_btnUnload->setObjectName("unloadBtn");
     m_btnUnload->setFixedHeight(dpiScale(36));
     m_btnUnload->setToolTip(
@@ -1210,6 +1210,7 @@ QWidget* MainWindow::buildSidebar() {
     m_chatList->setFrameShape(QFrame::NoFrame);
     m_chatList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_chatList->setSpacing(2);
+    m_chatList->installEventFilter(this);
     lay->addWidget(m_chatList, 1);   /* stretch=1: occupa lo spazio disponibile */
 
     /* Filtra la lista in tempo reale */
