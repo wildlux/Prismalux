@@ -151,11 +151,13 @@ void LanWanPage::openQrDialog(QPushButton* parent, const QString& url,
 LanWanPage::~LanWanPage()
 {
     AppConfig::s().setValue(P::SK::kLanAutoStart, false);
-    /* Ferma LanServer esplicitamente PRIMA che Qt distrugga i figli.
-     * LanServer::stop() chiama m_ai->abort(); se lo lasciamo al distruttore
-     * automatico, m_ai (figlio di MainWindow) potrebbe già essere distrutto
-     * → SIGSEGV. blockSignals evita che i segnali emessi da stop() raggiungano
-     * ricevitori già distrutti. */
+    /* Blocca i segnali di tutti i QProcess figli PRIMA che Qt li distrugga.
+     * QProcess::~QProcess() chiama waitForFinished() che può emettere finished()
+     * → slot come onOllamaCheckDone accedono a widget già in fase di distruzione
+     * → SIGSEGV. blockSignals+kill interrompe questo ciclo. */
+    for (QProcess* p : findChildren<QProcess*>())
+        if (p) { p->blockSignals(true); p->kill(); }
+    /* Ferma LanServer esplicitamente PRIMA che Qt distrugga i figli. */
     if (m_lanServer) {
         m_lanServer->blockSignals(true);
         m_lanServer->stop();

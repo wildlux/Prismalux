@@ -37,7 +37,7 @@
 - [x] **Throughput real-time** — `m_wanThroughputLbl` aggiornato ogni 5s: task/ora (finestra 60min) + ETA stimata — `main_lan_wan.h/cpp` — 2026-06-03
 - [x] **ETA globale** — calcolata da media `startedAt→now` sui task completati, divisa per worker attivi — 2026-06-03
 - [x] **Esportazione CSV** — `m_wanExportBtn` → QFileDialog → CSV completo (id/kind/stato/nodo/retry/priority/created/startedAt/payload/result) — 2026-06-03
-- [ ] **Nodo multi-worker** — il client può avere N worker simultanei; `m_wanCliWorkerCount` SpinBox
+- [x] **Nodo multi-worker** — `WanWorker` struct (sock+ai+pollTimer per worker); SpinBox 1-4; `onWanCliConBtnClicked` crea N worker ognuno indipendente; 8 slot nominati per-worker; `wanWorkerHandleTask` dispatcher 28 task — `main_lan_wan.h/cpp` — 2026-06-03
 
 ### 📦 Headless server (produzione LAN)
 - [x] **`--server` CLI flag** — `main.cpp::runHeadlessServer()` con `--port` e `--token`
@@ -193,7 +193,7 @@
 
 ### 🟡 Importanti
 
-- [ ] **Bind su `QHostAddress::AnyIPv4` (0.0.0.0)** — `lan_server.cpp:194`
+- [x] **Bind LAN configurabile** — `setBindAddress(QHostAddress)` pubblico; headless usa `LocalHost` di default; UI può passare IP LAN specifico — `lan_server.h/cpp` — 2026-06-03
   - Il server ascolta su tutte le interfacce, non solo la LAN. Su hotspot/rete pubblica
     è esposto oltre l'intenzione. Esiste già `P::kLocalHost` documentata come
     "unico valore accettato per sicurezza" ma non applicabile qui (serve raggiungibilità dal telefono).
@@ -261,7 +261,7 @@
 
 ### 🟡 Importanti
 
-- [ ] **`/api/launch` apre app GUI sull'host (konsole/xterm/firefox)** — `lan_server.cpp:510`
+- [x] **`/api/launch` disabilitato in headless** — flag `m_headless`; `setHeadless(true)` in `runHeadlessServer`; risponde 403 se headless — `lan_server.h/cpp`, `main.cpp` — 2026-06-03
   - Whitelist presente (no comando arbitrario) ma chiunque col token apre un terminale
     sul display della macchina server. Su host headless non ha senso ed è una capability
     pericolosa esposta in rete.

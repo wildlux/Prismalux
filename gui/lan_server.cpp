@@ -216,7 +216,7 @@ bool LanServer::start(quint16 port)
                 cfg.setLocalCertificate(cert);
                 cfg.setPrivateKey(key);
                 m_sslServer->setSslConfiguration(cfg);
-                if (m_sslServer->listen(QHostAddress::AnyIPv4, port)) {
+                if (m_sslServer->listen(m_bindAddress, port)) {
                     m_useTls = true;
                     emit statusChanged(true);
                     return true;
@@ -256,7 +256,7 @@ bool LanServer::start(quint16 port)
      * su Windows; lasciamo fare a Qt che usa già le opzioni corrette. */
 #endif
 
-    if (!m_server->listen(QHostAddress::AnyIPv4, port)) return false;
+    if (!m_server->listen(m_bindAddress, port)) return false;
     emit statusChanged(true);
     return true;
 }
@@ -634,6 +634,7 @@ void LanServer::processSession(Session& s)
     } else if (s.path.startsWith("/katex/") && s.method == "GET") {
         handleKatex(s);
     } else if (s.path == "/api/launch" && s.method == "POST") {
+        if (m_headless) { sendError(s.socket, 403, "Disabled in headless mode"); return; }
         if (checkHeavyRateLimit(s)) return;
         const QJsonObject body = QJsonDocument::fromJson(s.body).object();
         const QString app = body["app"].toString().toLower().trimmed();

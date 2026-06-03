@@ -65,6 +65,8 @@ static int runHeadlessServer(int argc, char** argv) {
     auto* ai  = new AiClient(&app);
     auto* srv = new LanServer(ai, &app);
     srv->setAccessToken(token);
+    srv->setHeadless(true);           /* disabilita /api/launch in headless */
+    srv->setBindAddress(QHostAddress::LocalHost); /* bind 127.0.0.1 di default in headless */
 
     if (!srv->start(port)) {
         std::fprintf(stderr, "Prismalux server: impossibile aprire la porta %d\n",

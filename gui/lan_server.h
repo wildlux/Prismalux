@@ -39,6 +39,13 @@ public:
     void setTlsEnabled(bool on) { m_tlsRequested = on; }
     bool isTlsEnabled()   const { return m_useTls; }
 
+    /** Imposta l'indirizzo di bind (default AnyIPv4). */
+    void setBindAddress(const QHostAddress& addr) { m_bindAddress = addr; }
+
+    /** In modalità headless (--server) /api/launch non ha senso e aprirebbe
+     *  terminali sul display del server — disabilitato di default. */
+    void setHeadless(bool on) { m_headless = on; }
+
     /**
      * saveLanToken() / loadLanToken() — persistenza sicura del token LAN.
      *
@@ -121,6 +128,8 @@ private:
     void onKnowledgeRateTimeout(); ///< reset contatore knowledge rate ogni 60s
     void onHeavyRateTimeout();     ///< reset contatore heavy rate ogni 60s
 
+    QHostAddress               m_bindAddress = QHostAddress::AnyIPv4; ///< bind LAN
+    bool                       m_headless    = false; ///< true = /api/launch disabilitato
     QTcpServer*                m_server      = nullptr; ///< HTTP plain
 #if QT_CONFIG(ssl)
     QSslServer*                m_sslServer   = nullptr; ///< HTTPS self-signed
