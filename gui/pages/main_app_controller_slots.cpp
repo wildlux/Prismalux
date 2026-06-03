@@ -39,6 +39,7 @@
 #include <QPushButton>
 #include <QJsonArray>
 #include <QListWidget>
+#include <QMessageBox>
 #include <QSharedPointer>
 #include <QStringList>
 #include <QTcpSocket>
@@ -1957,6 +1958,120 @@ void AppControllerPage::onDevAgentRunClicked()
             .arg(task.toHtmlEscaped(), model));
 }
 
+void AppControllerPage::onDevAgentLoadHistory()
+{
+    const QString scriptPath = P::root() + "/MCPs/devagent_mcp/server.py";
+    if (!QFile::exists(scriptPath)) return;
+
+    /* Avvia processo solo per list_history — processo usa stdin e poi esce */
+    auto* proc = new QProcess(this);
+    proc->setProcessChannelMode(QProcess::SeparateChannels);
+    proc->start(P::findPython(), {scriptPath});
+    if (!proc->waitForStarted(2000)) { proc->deleteLater(); return; }
+
+    proc->write(QJsonDocument(QJsonObject{
+        {"cmd", "list_history"}
+    }).toJson(QJsonDocument::Compact) + "\n");
+    proc->closeWriteChannel();
+
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            proc, [this, proc](int, QProcess::ExitStatus) {
+        const QString out = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+        proc->deleteLater();
+        for (const QString& line : out.split('\n', Qt::SkipEmptyParts)) {
+            const auto doc = QJsonDocument::fromJson(line.toUtf8());
+            if (!doc.isObject()) continue;
+            const QJsonObject obj = doc.object();
+            if (obj.value("event").toString() != "history_list") continue;
+            if (!m_devHistoryList) return;
+            m_devHistoryList->clear();
+            const QJsonArray entries = obj.value("entries").toArray();
+            for (const QJsonValue& v : entries) {
+                const QJsonObject e = v.toObject();
+                const QString ts   = e.value("timestamp").toString().left(19).replace("T"," ");
+                const QString task = e.value("task").toString().left(60);
+                const QString id   = e.value("id").toString();
+                const int nf       = e.value("n_files").toInt();
+                auto* item = new QListWidgetItem(
+                    QString("\xf0\x9f\x95\x90  %1  |  %2  (%3 file)")
+                        .arg(ts, task).arg(nf),
+                    m_devHistoryList);
+                item->setData(Qt::UserRole, id);
+                m_devHistoryList->addItem(item);
+            }
+            if (m_devHistoryList->count() == 0) {
+                auto* item = new QListWidgetItem(
+                    "(nessuno snapshot salvato ancora)", m_devHistoryList);
+                item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
+                m_devHistoryList->addItem(item);
+            }
+        }
+    });
+}
+
+void AppControllerPage::onDevAgentRestoreClicked()
+{
+    if (!m_devHistoryList) return;
+    auto* selected = m_devHistoryList->currentItem();
+    if (!selected || !(selected->flags() & Qt::ItemIsEnabled)) return;
+
+    const QString backupId = selected->data(Qt::UserRole).toString();
+    if (backupId.isEmpty()) return;
+
+    const auto ans = QMessageBox::question(
+        this, "\xe2\x86\xa9  Ripristina snapshot",
+        QString("Ripristinare lo snapshot:\n<b>%1</b>\n\n"
+                "I file modificati torneranno allo stato precedente.\n"
+                "Questa operazione non pu\xc3\xb2 essere annullata.")
+            .arg(backupId),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (ans != QMessageBox::Yes) return;
+
+    const QString scriptPath = P::root() + "/MCPs/devagent_mcp/server.py";
+    if (!QFile::exists(scriptPath)) {
+        if (m_devStatusLbl) m_devStatusLbl->setText("\xe2\x9d\x8c  server.py non trovato");
+        return;
+    }
+
+    if (m_devLog) m_devLog->append(
+        QString("\xe2\x8f\xaa  <b>Ripristino snapshot:</b> %1...").arg(backupId));
+    if (m_devStatusLbl) m_devStatusLbl->setText(
+        "\xe2\x8f\xaa  Ripristino in corso...");
+
+    auto* proc = new QProcess(this);
+    proc->setProcessChannelMode(QProcess::SeparateChannels);
+    proc->start(P::findPython(), {scriptPath});
+    if (!proc->waitForStarted(2000)) {
+        if (m_devStatusLbl) m_devStatusLbl->setText("\xe2\x9d\x8c  Impossibile avviare il processo");
+        proc->deleteLater();
+        return;
+    }
+    proc->write(QJsonDocument(QJsonObject{
+        {"cmd",       "restore"},
+        {"backup_id", backupId}
+    }).toJson(QJsonDocument::Compact) + "\n");
+    proc->closeWriteChannel();
+
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            proc, [this, proc, backupId](int, QProcess::ExitStatus) {
+        const QString out = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+        proc->deleteLater();
+        for (const QString& line : out.split('\n', Qt::SkipEmptyParts)) {
+            const auto doc = QJsonDocument::fromJson(line.toUtf8());
+            if (!doc.isObject()) continue;
+            const QJsonObject obj = doc.object();
+            if (obj.value("event").toString() != "restore_done") continue;
+            const bool ok  = obj.value("success").toBool();
+            const QString msg = obj.value("msg").toString();
+            if (m_devLog) m_devLog->append(
+                (ok ? "\xe2\x9c\x85  <b>Ripristino completato</b>: " : "\xe2\x9d\x8c  ") +
+                msg.toHtmlEscaped());
+            if (m_devStatusLbl) m_devStatusLbl->setText(
+                ok ? "\xe2\x9c\x85  Ripristinato" : "\xe2\x9d\x8c  Ripristino fallito");
+        }
+    });
+}
+
 void AppControllerPage::onDevAgentStopClicked()
 {
     if (m_devProc && m_devProc->state() != QProcess::NotRunning) {
@@ -2041,6 +2156,23 @@ void AppControllerPage::onDevAgentReadOutput()
             if (m_devLog) m_devLog->append(
                 icon + "  <b>Compilazione</b> " + (ok ? "OK" : "ERRORI") +
                 "<br><pre style='font-size:9px'>" + out.toHtmlEscaped() + "</pre>");
+
+        } else if (evt == "backup_created") {
+            /* Aggiunge la nuova entry in cima alla lista cronologia */
+            const QString bid  = obj.value("backup_id").toString();
+            const QString ts   = obj.value("timestamp").toString().left(19).replace("T"," ");
+            const QString task = obj.value("task").toString().left(60);
+            const int     nf   = obj.value("n_files").toInt();
+            if (m_devHistoryList) {
+                auto* item = new QListWidgetItem(
+                    QString("\xf0\x9f\x95\x90  %1  |  %2  (%3 file)")
+                        .arg(ts, task).arg(nf));
+                item->setData(Qt::UserRole, bid);
+                m_devHistoryList->insertItem(0, item);
+            }
+            if (m_devLog) m_devLog->append(
+                QString("\xf0\x9f\x92\xbe  Snapshot salvato: <b>%1</b> (%2 file)")
+                    .arg(bid.toHtmlEscaped()).arg(nf));
 
         } else if (evt == "done") {
             const bool success = obj.value("success").toBool();

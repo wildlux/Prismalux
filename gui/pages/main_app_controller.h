@@ -307,6 +307,8 @@ private:
     void onDevAgentRunClicked();
     void onDevAgentStopClicked();
     void onDevAgentInstallClicked();
+    void onDevAgentRestoreClicked();
+    void onDevAgentLoadHistory();
     void onDevAgentReadOutput();
     void onDevAgentReadError();
     void onDevAgentFinished(int code, QProcess::ExitStatus status);
@@ -341,9 +343,11 @@ private:
     QPushButton* m_devRunBtn        = nullptr;
     QPushButton* m_devStopBtn       = nullptr;
     QPushButton* m_devInstallBtn    = nullptr;
+    QPushButton* m_devRestoreBtn    = nullptr;
     QTextEdit*   m_devLog           = nullptr;
     QTextEdit*   m_devDiff          = nullptr;
     QLabel*      m_devStatusLbl     = nullptr;
+    QListWidget* m_devHistoryList   = nullptr;
     QProcess*    m_devProc          = nullptr;
     QString      m_devPendingOutput;   ///< buffer righe parziali stdout
 

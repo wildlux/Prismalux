@@ -2292,6 +2292,43 @@ QWidget* AppControllerPage::buildDevAgentTab()
     diffLay->addWidget(m_devDiff);
     lay->addWidget(diffGroup, 1);
 
+    /* ── Cronologia snapshot — macchina del tempo ── */
+    auto* histGroup = new QGroupBox(
+        "\xe2\x8f\xaa  Cronologia \xe2\x80\x94 torna indietro nel tempo", w);
+    auto* histLay = new QVBoxLayout(histGroup);
+    histLay->setSpacing(dpiScale(4));
+
+    auto* histHint = new QLabel(
+        "<i>Ogni esecuzione salva un backup in <code>~/.prismalux/devagent_history/</code>. "
+        "Seleziona uno snapshot e clicca Ripristina per annullare le modifiche.</i>", histGroup);
+    histHint->setObjectName("hintLabel");
+    histHint->setTextFormat(Qt::RichText);
+    histHint->setWordWrap(true);
+    histLay->addWidget(histHint);
+
+    m_devHistoryList = new QListWidget(histGroup);
+    m_devHistoryList->setFixedHeight(dpiScale(100));
+    m_devHistoryList->setToolTip(
+        "Doppio clic per selezionare uno snapshot da ripristinare");
+    histLay->addWidget(m_devHistoryList);
+
+    auto* histCtrlRow = new QHBoxLayout;
+    m_devRestoreBtn = new QPushButton(
+        "\xe2\x86\xa9  Ripristina snapshot selezionato", histGroup);
+    m_devRestoreBtn->setObjectName("actionBtn");
+    m_devRestoreBtn->setEnabled(false);
+    m_devRestoreBtn->setToolTip(
+        "Copia i file originali dallo snapshot selezionato\n"
+        "sovrascrivendo le versioni modificate dal Dev Agent.");
+    auto* histRefreshBtn = new QPushButton(
+        "\xf0\x9f\x94\x84  Aggiorna lista", histGroup);
+    histRefreshBtn->setObjectName("actionBtn");
+    histCtrlRow->addWidget(m_devRestoreBtn, 1);
+    histCtrlRow->addWidget(histRefreshBtn);
+    histLay->addLayout(histCtrlRow);
+
+    lay->addWidget(histGroup);
+
     /* ── Connessioni ── */
     connect(m_devRunBtn,     &QPushButton::clicked,
             this, &AppControllerPage::onDevAgentRunClicked);
@@ -2299,6 +2336,17 @@ QWidget* AppControllerPage::buildDevAgentTab()
             this, &AppControllerPage::onDevAgentStopClicked);
     connect(m_devInstallBtn, &QPushButton::clicked,
             this, &AppControllerPage::onDevAgentInstallClicked);
+    connect(m_devRestoreBtn, &QPushButton::clicked,
+            this, &AppControllerPage::onDevAgentRestoreClicked);
+    connect(histRefreshBtn,  &QPushButton::clicked,
+            this, &AppControllerPage::onDevAgentLoadHistory);
+    connect(m_devHistoryList, &QListWidget::currentRowChanged,
+            m_devRestoreBtn, [this](int row) {
+        if (m_devRestoreBtn) m_devRestoreBtn->setEnabled(row >= 0);
+    });
+
+    /* Carica cronologia all'avvio del tab */
+    QTimer::singleShot(300, this, &AppControllerPage::onDevAgentLoadHistory);
 
     return w;
 }

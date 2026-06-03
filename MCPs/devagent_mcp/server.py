@@ -26,7 +26,13 @@ import shutil
 import tempfile
 import urllib.request
 import urllib.error
+import datetime
+import hashlib
+from pathlib import Path
 from typing import TypedDict, List, Optional, Dict
+
+# Directory storia persistente
+HISTORY_DIR = os.path.expanduser("~/.prismalux/devagent_history")
 
 # ---------------------------------------------------------------------------
 # Stato del grafo
@@ -384,6 +390,121 @@ def rollback_from_backup(modified_paths: List[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Storia persistente — snapshot per ogni esecuzione
+# ---------------------------------------------------------------------------
+
+def _snapshot_id(task: str) -> str:
+    """Genera un ID univoco: timestamp + prime 3 parole del task."""
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    words = re.sub(r"[^a-z0-9 ]", "", task.lower()).split()[:3]
+    slug = "_".join(words) if words else "task"
+    return f"{ts}_{slug}"
+
+
+def save_history_snapshot(task: str, model: str, project_root: str,
+                           modified_paths: List[str], patch: str) -> str:
+    """
+    Salva uno snapshot dei file PRIMA delle modifiche in HISTORY_DIR/{id}/.
+    Restituisce il backup_id (nome directory).
+    """
+    snap_id = _snapshot_id(task)
+    snap_dir = os.path.join(HISTORY_DIR, snap_id)
+    files_dir = os.path.join(snap_dir, "files")
+    os.makedirs(files_dir, exist_ok=True)
+
+    saved_files = []
+    for abs_path in modified_paths:
+        if not os.path.exists(abs_path):
+            continue
+        # Salva con path relativo al project_root come nome file
+        try:
+            rel = os.path.relpath(abs_path, project_root)
+        except ValueError:
+            rel = os.path.basename(abs_path)
+        safe_name = rel.replace(os.sep, "__")
+        dest = os.path.join(files_dir, safe_name)
+        shutil.copy2(abs_path, dest)
+        saved_files.append({"rel": rel, "abs": abs_path, "snap": dest})
+
+    metadata = {
+        "id":         snap_id,
+        "task":       task,
+        "model":      model,
+        "timestamp":  datetime.datetime.now().isoformat(),
+        "project_root": project_root,
+        "files":      saved_files,
+        "patch":      patch,
+    }
+    with open(os.path.join(snap_dir, "metadata.json"), "w") as f:
+        json.dump(metadata, f, indent=2, ensure_ascii=False)
+
+    _log(f"Snapshot salvato: {snap_id} ({len(saved_files)} file)")
+    return snap_id
+
+
+def list_history() -> List[dict]:
+    """
+    Restituisce la lista degli snapshot disponibili (dal più recente).
+    """
+    if not os.path.isdir(HISTORY_DIR):
+        return []
+    entries = []
+    for name in sorted(os.listdir(HISTORY_DIR), reverse=True):
+        meta_path = os.path.join(HISTORY_DIR, name, "metadata.json")
+        if not os.path.exists(meta_path):
+            continue
+        try:
+            with open(meta_path) as f:
+                meta = json.load(f)
+            entries.append({
+                "id":        meta.get("id", name),
+                "task":      meta.get("task", ""),
+                "model":     meta.get("model", ""),
+                "timestamp": meta.get("timestamp", ""),
+                "n_files":   len(meta.get("files", [])),
+            })
+        except Exception:
+            pass
+    return entries
+
+
+def restore_snapshot(backup_id: str) -> tuple:
+    """
+    Ripristina i file da uno snapshot.
+    Restituisce (success: bool, message: str, restored_files: List[str]).
+    """
+    snap_dir = os.path.join(HISTORY_DIR, backup_id)
+    meta_path = os.path.join(snap_dir, "metadata.json")
+    if not os.path.exists(meta_path):
+        return False, f"Snapshot '{backup_id}' non trovato", []
+
+    with open(meta_path) as f:
+        meta = json.load(f)
+
+    restored = []
+    errors = []
+    for file_info in meta.get("files", []):
+        snap_file = file_info.get("snap", "")
+        abs_path  = file_info.get("abs", "")
+        if not snap_file or not abs_path:
+            continue
+        if not os.path.exists(snap_file):
+            errors.append(f"File snapshot mancante: {snap_file}")
+            continue
+        try:
+            os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+            shutil.copy2(snap_file, abs_path)
+            restored.append(abs_path)
+            _log(f"Ripristinato: {abs_path}")
+        except Exception as e:
+            errors.append(f"Errore ripristino {abs_path}: {e}")
+
+    if errors:
+        return False, "; ".join(errors), restored
+    return True, f"{len(restored)} file ripristinati dallo snapshot '{backup_id}'", restored
+
+
+# ---------------------------------------------------------------------------
 # Nodi del grafo
 # ---------------------------------------------------------------------------
 
@@ -509,6 +630,55 @@ def node_apply_patch(state: DevAgentState) -> DevAgentState:
             rel = os.path.relpath(p, state["project_root"])
             updated.append({"path": rel, "content": read_file(p)})
         state["modified_files"] = updated
+
+        # Salva snapshot persistente PRIMA delle modifiche (il backup era già fatto in apply_diff)
+        # Recupera i file originali dal backup /tmp per salvarli nella storia
+        tmp_backup = os.path.join(tempfile.gettempdir(), "devagent_backup")
+        original_paths = []
+        for p in modified:
+            fname = p.replace(os.sep, "_").lstrip("_")
+            tmp_path = os.path.join(tmp_backup, fname)
+            if os.path.exists(tmp_path):
+                original_paths.append(tmp_path)
+
+        # Copia i file originali in uno snapshot dedicato
+        snap_id = _snapshot_id(state["task"])
+        snap_dir = os.path.join(HISTORY_DIR, snap_id)
+        files_dir = os.path.join(snap_dir, "files")
+        os.makedirs(files_dir, exist_ok=True)
+        saved_files = []
+        for p in modified:
+            fname = p.replace(os.sep, "_").lstrip("_")
+            tmp_path = os.path.join(tmp_backup, fname)
+            if not os.path.exists(tmp_path):
+                continue
+            try:
+                rel = os.path.relpath(p, state["project_root"])
+            except ValueError:
+                rel = os.path.basename(p)
+            safe_name = rel.replace(os.sep, "__")
+            dest = os.path.join(files_dir, safe_name)
+            shutil.copy2(tmp_path, dest)
+            saved_files.append({"rel": rel, "abs": p, "snap": dest})
+
+        metadata = {
+            "id":           snap_id,
+            "task":         state["task"],
+            "model":        state["model"],
+            "timestamp":    datetime.datetime.now().isoformat(),
+            "project_root": state["project_root"],
+            "files":        saved_files,
+            "patch":        state.get("patch", ""),
+        }
+        with open(os.path.join(snap_dir, "metadata.json"), "w") as f:
+            json.dump(metadata, f, indent=2, ensure_ascii=False)
+
+        emit({"event": "backup_created",
+              "backup_id":  snap_id,
+              "timestamp":  metadata["timestamp"],
+              "task":       state["task"],
+              "n_files":    len(saved_files)})
+
         emit({"event": "step", "node": "apply_patch",
               "files_modified": [os.path.relpath(p, state["project_root"])
                                   for p in modified]})
@@ -837,6 +1007,33 @@ def main() -> None:
             emit({"event": "error", "msg": f"JSON non valido: {e}"})
             continue
 
+        cmd = req.get("cmd", "").strip()
+
+        # ── Comandi di storia ──────────────────────────────────────
+        if cmd == "list_history":
+            try:
+                entries = list_history()
+                emit({"event": "history_list", "entries": entries})
+            except Exception as e:
+                emit({"event": "error", "msg": f"list_history: {e}"})
+            continue
+
+        if cmd == "restore":
+            backup_id = req.get("backup_id", "").strip()
+            if not backup_id:
+                emit({"event": "error", "msg": "Campo 'backup_id' mancante"})
+                continue
+            try:
+                ok, msg, restored = restore_snapshot(backup_id)
+                emit({"event": "restore_done",
+                      "success":  ok,
+                      "msg":      msg,
+                      "restored": restored})
+            except Exception as e:
+                emit({"event": "error", "msg": f"restore: {e}"})
+            continue
+
+        # ── Esecuzione agente ──────────────────────────────────────
         task         = req.get("task", "").strip()
         model        = req.get("model", "deepseek-coder:6.7b").strip()
         project_root = req.get("project_root", "").strip()
