@@ -279,6 +279,7 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
     m_tabs->addTab(new OpenCodePage(m_tabs), "\xf0\x9f\x96\xa5  OpenCode");
     m_tabs->addTab(buildTelegramTab(),       "\xf0\x9f\x93\xac  Telegram");  /* 📬 */
     m_tabs->addTab(buildWhatsAppTab(),       "\xf0\x9f\x92\xac  WhatsApp");  /* 💬 */
+    m_tabs->addTab(buildDevAgentTab(),       "\xf0\x9f\xa4\x96  Dev Agent"); /* 🤖 */
 
     m_secPage = new SecurityAnalyzerPage(m_ai, this);
     m_tabs->addTab(m_secPage,               "\xf0\x9f\x94\x90  Sicurezza");  /* 🔐 */
@@ -2176,6 +2177,128 @@ QWidget* AppControllerPage::buildWhatsAppTab()
             this, &AppControllerPage::onWaBotStartClicked);
     connect(m_waBotStopBtn, &QPushButton::clicked,
             this, &AppControllerPage::onWaBotStopClicked);
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildDevAgentTab — Dev Agent LangGraph locale
+   Modifica il codice di Prismalux in autonomia:
+   read → generate patch → apply → cmake → fix errori → done
+   ══════════════════════════════════════════════════════════════ */
+QWidget* AppControllerPage::buildDevAgentTab()
+{
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(dpiScale(12), dpiScale(12),
+                            dpiScale(12), dpiScale(12));
+    lay->setSpacing(dpiScale(8));
+
+    /* ── Intestazione ── */
+    auto* descLbl = new QLabel(
+        "\xf0\x9f\xa4\x96  <b>Dev Agent LangGraph</b> \xe2\x80\x94 "
+        "<i>Descrivi un task in linguaggio naturale: l\xe2\x80\x99"
+        "agente legge i file, genera una patch, compila e si auto-corregge.</i>",
+        w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    lay->addWidget(descLbl);
+
+    /* ── Configurazione ── */
+    auto* cfgGroup = new QGroupBox("\xf0\x9f\x94\xa7  Configurazione", w);
+    auto* cfgLay   = new QVBoxLayout(cfgGroup);
+    cfgLay->setSpacing(dpiScale(6));
+
+    /* Task input */
+    auto* taskRow = new QHBoxLayout;
+    auto* taskLbl = new QLabel("Task:", cfgGroup);
+    taskLbl->setFixedWidth(dpiScale(55));
+    m_devTaskEdit = new QLineEdit(cfgGroup);
+    m_devTaskEdit->setPlaceholderText(
+        "Es: Aggiungi tooltip al pulsante PDF in main_ai_ui.cpp riga 138");
+    taskRow->addWidget(taskLbl);
+    taskRow->addWidget(m_devTaskEdit, 1);
+    cfgLay->addLayout(taskRow);
+
+    /* Modello */
+    auto* modelRow = new QHBoxLayout;
+    auto* modelLbl = new QLabel("Modello:", cfgGroup);
+    modelLbl->setFixedWidth(dpiScale(55));
+    m_devModelCombo = new QComboBox(cfgGroup);
+    m_devModelCombo->setObjectName("settingCombo");
+    m_devModelCombo->addItem("\xf0\x9f\x90\x8d  deepseek-coder:6.7b  (3.8 GB \xe2\x80\x94 gi\xc3\xa0 installato)",
+                              "deepseek-coder:6.7b");
+    m_devModelCombo->addItem("\xf0\x9f\x90\xa3  qwen2.5-coder:3b  (2 GB \xe2\x80\x94 pi\xc3\xb9 leggero)",
+                              "qwen2.5-coder:3b");
+    m_devModelCombo->addItem("\xf0\x9f\x90\xa3  qwen2.5-coder:1.5b  (1 GB \xe2\x80\x94 ultra-leggero)",
+                              "qwen2.5-coder:1.5b");
+    modelRow->addWidget(modelLbl);
+    modelRow->addWidget(m_devModelCombo, 1);
+    cfgLay->addLayout(modelRow);
+
+    /* Pulsanti controllo */
+    auto* ctrlRow = new QHBoxLayout;
+    m_devRunBtn = new QPushButton(
+        "\xf0\x9f\x9a\x80  Avvia Dev Agent", cfgGroup);
+    m_devRunBtn->setObjectName("primaryBtn");
+    m_devRunBtn->setFixedHeight(dpiScale(36));
+
+    m_devStopBtn = new QPushButton(
+        "\xe2\x8f\xb9  Ferma", cfgGroup);
+    m_devStopBtn->setObjectName("actionBtn");
+    m_devStopBtn->setFixedHeight(dpiScale(36));
+    m_devStopBtn->setEnabled(false);
+
+    m_devInstallBtn = new QPushButton(
+        "\xf0\x9f\x93\xa6  Installa LangGraph", cfgGroup);
+    m_devInstallBtn->setObjectName("actionBtn");
+    m_devInstallBtn->setFixedHeight(dpiScale(36));
+    m_devInstallBtn->setToolTip(
+        "pip install langgraph langchain-community langchain-ollama unidiff");
+
+    m_devStatusLbl = new QLabel("\xe2\x9a\xab  Pronto", cfgGroup);
+    m_devStatusLbl->setObjectName("statusLabel");
+
+    ctrlRow->addWidget(m_devRunBtn);
+    ctrlRow->addWidget(m_devStopBtn);
+    ctrlRow->addWidget(m_devInstallBtn);
+    ctrlRow->addWidget(m_devStatusLbl, 1);
+    cfgLay->addLayout(ctrlRow);
+
+    lay->addWidget(cfgGroup);
+
+    /* ── Log step-by-step ── */
+    auto* logGroup = new QGroupBox(
+        "\xf0\x9f\x93\x8b  Log agente  (Read \xe2\x86\x92 Generate \xe2\x86\x92 Compile \xe2\x86\x92 Fix \xe2\x86\x92 Done)", w);
+    auto* logLay = new QVBoxLayout(logGroup);
+    m_devLog = new QTextEdit(logGroup);
+    m_devLog->setReadOnly(true);
+    m_devLog->setMinimumHeight(dpiScale(140));
+    m_devLog->setPlaceholderText("I passi dell'agente appariranno qui...");
+    m_devLog->setFont(QFont("JetBrains Mono,Fira Code,Consolas", 9));
+    logLay->addWidget(m_devLog);
+    lay->addWidget(logGroup, 1);
+
+    /* ── Diff finale ── */
+    auto* diffGroup = new QGroupBox(
+        "\xf0\x9f\x93\x9d  Diff generato", w);
+    auto* diffLay = new QVBoxLayout(diffGroup);
+    m_devDiff = new QTextEdit(diffGroup);
+    m_devDiff->setReadOnly(true);
+    m_devDiff->setMinimumHeight(dpiScale(120));
+    m_devDiff->setPlaceholderText("Il diff unificato apparirà qui al termine...");
+    m_devDiff->setFont(QFont("JetBrains Mono,Fira Code,Consolas", 9));
+    diffLay->addWidget(m_devDiff);
+    lay->addWidget(diffGroup, 1);
+
+    /* ── Connessioni ── */
+    connect(m_devRunBtn,     &QPushButton::clicked,
+            this, &AppControllerPage::onDevAgentRunClicked);
+    connect(m_devStopBtn,    &QPushButton::clicked,
+            this, &AppControllerPage::onDevAgentStopClicked);
+    connect(m_devInstallBtn, &QPushButton::clicked,
+            this, &AppControllerPage::onDevAgentInstallClicked);
 
     return w;
 }

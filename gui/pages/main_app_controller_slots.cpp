@@ -47,6 +47,7 @@
 #include <QTimer>
 #include <QProgressBar>
 #include <QCheckBox>
+#include <QFile>
 #include <QRegularExpression>
 #include <QSet>
 #include <QSettings>
@@ -1882,4 +1883,209 @@ void AppControllerPage::onWaBotSendReply(const QString& toNumber,
     connect(reply, &QNetworkReply::finished, reply, [reply]() {
         reply->deleteLater();
     });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Dev Agent LangGraph — modifica il codice di Prismalux in autonomia
+   ══════════════════════════════════════════════════════════════ */
+
+void AppControllerPage::onDevAgentRunClicked()
+{
+    const QString task = m_devTaskEdit ? m_devTaskEdit->text().trimmed() : QString();
+    if (task.isEmpty()) {
+        if (m_devStatusLbl) m_devStatusLbl->setText(
+            "\xe2\x9d\x8c  Descrivi il task prima di avviare.");
+        return;
+    }
+
+    /* Percorso server Python */
+    const QString scriptPath = P::root() + "/MCPs/devagent_mcp/server.py";
+    if (!QFile::exists(scriptPath)) {
+        if (m_devLog) m_devLog->append(
+            "\xe2\x9d\x8c  <b>server.py non trovato</b> \xe2\x80\x94 "
+            "Percorso atteso: <code>" + scriptPath + "</code>");
+        return;
+    }
+
+    /* Avvia processo se non già in esecuzione */
+    if (m_devProc && m_devProc->state() != QProcess::NotRunning) {
+        m_devProc->terminate();
+        m_devProc->waitForFinished(2000);
+    }
+    if (!m_devProc) {
+        m_devProc = new QProcess(this);
+        m_devProc->setProcessChannelMode(QProcess::SeparateChannels);
+        connect(m_devProc, &QProcess::readyReadStandardOutput,
+                this, &AppControllerPage::onDevAgentReadOutput);
+        connect(m_devProc, &QProcess::readyReadStandardError,
+                this, &AppControllerPage::onDevAgentReadError);
+        connect(m_devProc,
+                QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, &AppControllerPage::onDevAgentFinished);
+    }
+
+    if (m_devLog)  m_devLog->clear();
+    if (m_devDiff) m_devDiff->clear();
+    m_devPendingOutput.clear();
+
+    const QString model = m_devModelCombo
+        ? m_devModelCombo->currentData().toString()
+        : QStringLiteral("deepseek-coder:6.7b");
+
+    m_devProc->start(P::findPython(), {scriptPath});
+    if (!m_devProc->waitForStarted(3000)) {
+        if (m_devStatusLbl) m_devStatusLbl->setText(
+            "\xe2\x9d\x8c  Impossibile avviare il server Dev Agent.");
+        return;
+    }
+
+    /* Invia il task via stdin */
+    const QJsonObject req{
+        {"task",         task},
+        {"model",        model},
+        {"project_root", P::root()}
+    };
+    m_devProc->write(QJsonDocument(req).toJson(QJsonDocument::Compact) + "\n");
+
+    m_devRunBtn->setEnabled(false);
+    m_devStopBtn->setEnabled(true);
+    if (m_devStatusLbl) m_devStatusLbl->setText(
+        "\xf0\x9f\x9f\xa1  Dev Agent in esecuzione...");
+    if (m_devLog) m_devLog->append(
+        QString("\xf0\x9f\x9a\x80  <b>Task:</b> %1<br>"
+                "\xf0\x9f\xa4\x96  Modello: %2")
+            .arg(task.toHtmlEscaped(), model));
+}
+
+void AppControllerPage::onDevAgentStopClicked()
+{
+    if (m_devProc && m_devProc->state() != QProcess::NotRunning) {
+        m_devProc->terminate();
+        if (!m_devProc->waitForFinished(3000))
+            m_devProc->kill();
+    }
+    if (m_devRunBtn)  m_devRunBtn->setEnabled(true);
+    if (m_devStopBtn) m_devStopBtn->setEnabled(false);
+    if (m_devStatusLbl) m_devStatusLbl->setText("\xe2\x9a\xab  Fermato");
+    if (m_devLog) m_devLog->append("\xf0\x9f\x94\xb4  Dev Agent fermato.");
+}
+
+void AppControllerPage::onDevAgentInstallClicked()
+{
+    if (m_devInstallBtn) m_devInstallBtn->setEnabled(false);
+    if (m_devStatusLbl)  m_devStatusLbl->setText(
+        "\xe2\x8f\xb3  Installazione dipendenze LangGraph...");
+
+    auto* proc = new QProcess(this);
+    proc->setProcessChannelMode(QProcess::MergedChannels);
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            proc, [this, proc](int code, QProcess::ExitStatus) {
+        const QString out = QString::fromUtf8(proc->readAll()).trimmed().right(200);
+        if (code == 0) {
+            if (m_devStatusLbl) m_devStatusLbl->setText(
+                "\xe2\x9c\x85  LangGraph installato correttamente.");
+            if (m_devLog) m_devLog->append(
+                "\xe2\x9c\x85  <b>LangGraph installato</b> \xe2\x80\x94 pronto per l\xe2\x80\x99"
+                "avvio del Dev Agent.");
+        } else {
+            if (m_devStatusLbl) m_devStatusLbl->setText(
+                "\xe2\x9d\x8c  Installazione fallita (code " + QString::number(code) + ")");
+            if (m_devLog) m_devLog->append(
+                "\xe2\x9d\x8c  Errore installazione:<br><pre>" + out.toHtmlEscaped() + "</pre>");
+        }
+        if (m_devInstallBtn) m_devInstallBtn->setEnabled(true);
+        proc->deleteLater();
+    });
+    proc->start(P::findPython(),
+        {"-m", "pip", "install", "--quiet",
+         "langgraph", "langchain-community", "langchain-ollama", "unidiff"});
+}
+
+void AppControllerPage::onDevAgentReadOutput()
+{
+    if (!m_devProc) return;
+    m_devPendingOutput += QString::fromUtf8(m_devProc->readAllStandardOutput());
+
+    /* Processa righe complete */
+    while (m_devPendingOutput.contains('\n')) {
+        const int nl = m_devPendingOutput.indexOf('\n');
+        const QString line = m_devPendingOutput.left(nl).trimmed();
+        m_devPendingOutput.remove(0, nl + 1);
+        if (line.isEmpty()) continue;
+
+        const auto doc = QJsonDocument::fromJson(line.toUtf8());
+        if (!doc.isObject()) {
+            if (m_devLog) m_devLog->append(line.toHtmlEscaped());
+            continue;
+        }
+        const QJsonObject obj = doc.object();
+        const QString evt = obj.value("event").toString();
+
+        if (evt == "step") {
+            const QString node = obj.value("node").toString();
+            const QString msg  = obj.value("msg").toString();
+            const QJsonArray files = obj.value("files").toArray();
+            QString html = QString("\xf0\x9f\x94\xb9  <b>%1</b>").arg(node.toHtmlEscaped());
+            if (!msg.isEmpty())   html += " \xe2\x80\x94 " + msg.toHtmlEscaped();
+            if (!files.isEmpty()) {
+                QStringList fl;
+                for (const auto& f : files) fl << f.toString();
+                html += "<br><small>" + fl.join(", ").toHtmlEscaped() + "</small>";
+            }
+            if (m_devLog) m_devLog->append(html);
+
+        } else if (evt == "compile_output") {
+            const bool ok = obj.value("ok").toBool();
+            const QString out = obj.value("output").toString().right(300);
+            const QString icon = ok ? "\xe2\x9c\x85" : "\xe2\x9d\x8c";
+            if (m_devLog) m_devLog->append(
+                icon + "  <b>Compilazione</b> " + (ok ? "OK" : "ERRORI") +
+                "<br><pre style='font-size:9px'>" + out.toHtmlEscaped() + "</pre>");
+
+        } else if (evt == "done") {
+            const bool success = obj.value("success").toBool();
+            const QString msg  = obj.value("msg").toString();
+            const QString diff = obj.value("diff").toString();
+            if (m_devDiff && !diff.isEmpty()) {
+                /* Colora diff: righe + verde, righe - rosso */
+                QString html;
+                for (const QString& l : diff.split('\n')) {
+                    if (l.startsWith('+'))
+                        html += QString("<span style='color:#4ade80'>%1</span><br>")
+                                    .arg(l.toHtmlEscaped());
+                    else if (l.startsWith('-'))
+                        html += QString("<span style='color:#f87171'>%1</span><br>")
+                                    .arg(l.toHtmlEscaped());
+                    else
+                        html += l.toHtmlEscaped() + "<br>";
+                }
+                m_devDiff->setHtml("<pre style='font-size:9px'>" + html + "</pre>");
+            }
+            const QString icon = success ? "\xf0\x9f\x9f\xa2" : "\xf0\x9f\x94\xb4";
+            if (m_devLog) m_devLog->append(
+                icon + "  <b>" + (success ? "Completato" : "Fallito") + "</b>"
+                + (msg.isEmpty() ? "" : " \xe2\x80\x94 " + msg.toHtmlEscaped()));
+            if (m_devStatusLbl) m_devStatusLbl->setText(
+                success ? "\xf0\x9f\x9f\xa2  Completato" : "\xf0\x9f\x94\xb4  Fallito");
+        }
+    }
+}
+
+void AppControllerPage::onDevAgentReadError()
+{
+    if (!m_devProc) return;
+    const QString err = QString::fromUtf8(
+        m_devProc->readAllStandardError()).trimmed();
+    if (!err.isEmpty() && m_devLog)
+        m_devLog->append(
+            "<span style='color:#888'><i>" + err.left(200).toHtmlEscaped() + "</i></span>");
+}
+
+void AppControllerPage::onDevAgentFinished(int code, QProcess::ExitStatus)
+{
+    if (m_devRunBtn)  m_devRunBtn->setEnabled(true);
+    if (m_devStopBtn) m_devStopBtn->setEnabled(false);
+    if (code != 0 && m_devStatusLbl)
+        m_devStatusLbl->setText(
+            QString("\xe2\x9d\x8c  Processo terminato (code %1)").arg(code));
 }

@@ -189,6 +189,7 @@ private:
     QWidget* buildGodotTab();
     QWidget* buildTelegramTab();
     QWidget* buildWhatsAppTab();
+    QWidget* buildDevAgentTab();
     void execAnkiAction(const QString& action, const QString& payload);
     void execKiCADAction(const QString& code);
     void detectSerialPorts();
@@ -302,6 +303,14 @@ private:
     void onWaPollReply();
     void onWaBotSendReply(const QString& toNumber, const QString& replyText);
 
+    /* ── Dev Agent LangGraph ── */
+    void onDevAgentRunClicked();
+    void onDevAgentStopClicked();
+    void onDevAgentInstallClicked();
+    void onDevAgentReadOutput();
+    void onDevAgentReadError();
+    void onDevAgentFinished(int code, QProcess::ExitStatus status);
+
     /* ── Telegram Bot — membri ── */
     QLineEdit*   m_telegramTokenEdit     = nullptr;
     QLineEdit*   m_telegramWhitelistEdit = nullptr;
@@ -325,6 +334,18 @@ private:
     QLabel*      m_waPromoStatusLbl      = nullptr;
     QLineEdit*   m_waBridgeUrlEdit       = nullptr;
     QNetworkAccessManager* m_waPromoNam  = nullptr;
+
+    /* ── Dev Agent LangGraph — membri ── */
+    QLineEdit*   m_devTaskEdit      = nullptr;
+    QComboBox*   m_devModelCombo    = nullptr;
+    QPushButton* m_devRunBtn        = nullptr;
+    QPushButton* m_devStopBtn       = nullptr;
+    QPushButton* m_devInstallBtn    = nullptr;
+    QTextEdit*   m_devLog           = nullptr;
+    QTextEdit*   m_devDiff          = nullptr;
+    QLabel*      m_devStatusLbl     = nullptr;
+    QProcess*    m_devProc          = nullptr;
+    QString      m_devPendingOutput;   ///< buffer righe parziali stdout
 
     /* ── WhatsApp Bot rispondente — membri ── */
     QLineEdit*             m_waWhitelistEdit  = nullptr;

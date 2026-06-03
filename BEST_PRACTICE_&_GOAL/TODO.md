@@ -4,6 +4,46 @@
 
 ---
 
+## 🤖 Dev Agent LangGraph (in sviluppo 2026-06-03)
+
+> Agente AI locale per modificare il codice di Prismalux in autonomia: legge file, genera patch, compila, si corregge sugli errori.
+
+### Stack
+- **LangGraph** (Python) come orchestratore del grafo agente
+- **Ollama** con modello coding dedicato (default: `deepseek-coder:6.7b` già installato; opzionale: `qwen2.5-coder:3b` ~2GB più leggero)
+- **MCP** `devagent_mcp/` — server Python IPC JSON stdin/stdout (pattern identico al Telegram Bot)
+- **Tab "Dev Agent"** in AppController [7] → tab 10
+
+### Grafo LangGraph
+```
+START → read_context → generate_patch → apply_patch → compile
+                              ↑ (errori compilazione) ←──────
+                              ↓ (OK)
+                         run_tests → done
+```
+
+### Tool del grafo
+- `read_file(path)` — legge un file del progetto
+- `list_files(pattern)` — glob sul progetto
+- `write_file(path, content)` — scrive la modifica
+- `bash(cmd, timeout)` — esegue cmake, ctest, git diff
+- `search_code(query)` — grep nel progetto
+
+### UI in AppController
+- `QLineEdit` — task in linguaggio naturale ("Aggiungi tooltip al pulsante X in main_ai_ui.cpp")
+- `QComboBox` — scegli modello coding (deepseek-coder:6.7b / qwen2.5-coder:3b)
+- `QTextEdit` — log step-by-step (Read→Generate→Compile→Fix→Done)
+- `QPushButton` — Avvia / Ferma / Applica diff / Annulla
+- `QTextEdit` — diff finale (colorato rosso/verde)
+
+### TODO
+- [x] **`MCPs/devagent_mcp/server.py`** — 29KB: DevAgentState, 5 nodi LangGraph (con fallback loop Python), tool read/write/bash/search_code, ollama_chat HTTP diretto, parser unified diff + rollback automatico — 2026-06-03
+- [x] **`MCPs/devagent_mcp/requirements.txt`** — langgraph, langchain-community, langchain-ollama, unidiff (tutti opzionali con fallback) — 2026-06-03
+- [x] **Tab Dev Agent in AppController** — UI Qt completa: task input, model combo (deepseek-coder/qwen2.5-coder), log step-by-step, diff colorato, Avvia/Ferma/Installa — `main_app_controller.h/cpp/slots.cpp` — 2026-06-03
+- [ ] **Pulsante download qwen2.5-coder:3b** nella sezione LLM consigliati
+
+---
+
 ## 🆕 Sessione 2026-06-03 — Nuovi TODO (turno 6, da PROMPT.txt 19:35)
 
 ### 🔧 Bug / Fix
