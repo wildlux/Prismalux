@@ -560,9 +560,13 @@ void BlePage::startServer()
             QString::fromUtf8("\xe2\x9d\x8c") + " Impossibile avviare il server BT.");
         return;
     }
-    /* Link-layer security: lasciamo NoSecurity per compatibilità RFCOMM Classic;
-       la confidenzialità è garantita a livello applicativo da BleCrypto. */
-    m_btServer->setSecurityFlags(QBluetooth::NoSecurity);
+    /* AUDIT-FIX 2026-06-03: richiede Authorization (pairing già avvenuto) a
+       livello link-layer BT Classic. Questo impedisce a dispositivi non
+       accoppiati di connettersi al socket RFCOMM, aggiungendo un secondo
+       strato di difesa oltre a BleCrypto.
+       Nota: su alcuni chipset Android "Authorization" richiede che i due
+       dispositivi siano già accoppiati via PIN/SSP prima di connettersi. */
+    m_btServer->setSecurityFlags(QBluetooth::Authorization);
     m_chatStatus->setText(
         QString::fromUtf8("\xf0\x9f\x93\xb6")  /* 📶 */
         + " In attesa di connessioni BT...\n"

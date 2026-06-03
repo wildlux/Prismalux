@@ -145,7 +145,8 @@ private:
 
     /* ── Cifratura ────────────────────────────────────────────── */
     QByteArray   m_cryptoKey;                /* chiave AES-256 corrente */
-    bool         m_cryptoEnabled = false;    /* default: plain-text; true = AES-256-GCM */
+    /* AUDIT-FIX 2026-06-03: cifratura abilitata di default — opt-out, non opt-in */
+    bool         m_cryptoEnabled = true;     /* default: AES-256-GCM attivo */
     QLabel*      m_cryptoIndicator  = nullptr;  /* icona lucchetto nella chat */
     QLabel*      m_peerCryptoIndic  = nullptr;  /* icona lucchetto nella peer chat */
     QPushButton* m_keyInfoBtn       = nullptr;  /* mostra/resetta chiave */

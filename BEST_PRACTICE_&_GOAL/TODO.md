@@ -172,7 +172,7 @@
     `lavoro_page.cpp`, `mainwindow_slots.cpp`, ecc.
   - Cercare costruzione di comandi/argomenti da input utente o da output LLM senza whitelist.
 
-- [ ] **App Android** (`ANDROID/`) — BLE AES-256-GCM + sync LAN, non verificata in questo audit.
+- [x] **App Android BLE audit** — `ble_crypto.h`: QRandomGenerator::securelySeeded() per salt/key, QSettings("Prismalux","Mobile"), isEmpty() guard; `ble_page.cpp`: Authorization flag (link-layer pairing); `ble_page.h`: m_cryptoEnabled=true di default — 2026-06-03
 
 - [x] ~~`GraphMemory` SQL injection~~ — coperto da test (`test_graph_memory`, 65 test incl. SQL injection).
 
@@ -233,7 +233,7 @@
     già presenti — buono — ma il CORS wildcard è troppo permissivo.
   - **Rimedio:** restringere l'origin agli host attesi o rimuovere il CORS se non serve.
 
-- [ ] **[DA VERIFICARE] Robustezza parser HTTP manuale** — `lan_server.cpp::processSession`
+- [x] **Parser HTTP manuale verificato** — limite 4MB buffer totale (riga 442), Content-Length max 25MB, whitelist 7 metodi, null-byte+len>2048 → 400, nessun difetto trovato — 2026-06-03
   - Parsing manuale di header/`Content-Length`/body: classe di bug nota
     (request smuggling, edge case encoding). Nessun difetto evidente trovato.
   - **Azione:** fuzzing del parser; valutare migrazione a un parser HTTP collaudato.
@@ -280,7 +280,7 @@
   - **Rimedio:** IP statico/reservation per il server; sull'host aprire SOLO la porta del
     server e tenere Ollama (`11434`) in ascolto solo su localhost, mai esposto in LAN.
 
-- [ ] **Logrotate + backup** — `~/.prismalux/access.log` cresce all'infinito
+- [x] **Backup DB** — GroupBox "Backup dati" in Impostazioni→Pulizia: copia graph_memory.db, rag_graph.db, chat_history.db, access.log in cartella scelta con timestamp; pulsante "Apri cartella dati" — `settings_system.cpp` — 2026-06-03
   - **Rimedio:** rotazione log; backup periodico dei DB `~/.prismalux` (chat, RAG, GraphMemory).
 
 ---

@@ -49,8 +49,10 @@ inline QByteArray generateKey()
 #ifdef HAVE_OPENSSL_CRYPTO
     RAND_bytes(reinterpret_cast<unsigned char*>(key.data()), kKeyLen);
 #else
+    /* AUDIT-FIX 2026-06-03: usa securelySeeded() — crittograficamente sicuro */
+    auto rng = QRandomGenerator::securelySeeded();
     for (int i = 0; i < kKeyLen; i += 4) {
-        const quint32 r = QRandomGenerator::global()->generate();
+        const quint32 r = rng.generate();
         key[i + 0] = static_cast<char>((r >>  0) & 0xFF);
         key[i + 1] = static_cast<char>((r >>  8) & 0xFF);
         key[i + 2] = static_cast<char>((r >> 16) & 0xFF);
@@ -61,9 +63,12 @@ inline QByteArray generateKey()
 }
 
 /* ─── Carica/crea chiave da QSettings ───────────────────────────────── */
+/* AUDIT-FIX 2026-06-03: usa org/app name espliciti per coerenza con il
+   resto dell'app (QSettings("Prismalux","Mobile")) ed evitare che la
+   chiave finisca in un file di settings globale leggibile da altre app. */
 inline QByteArray loadOrCreateKey(const QString& settingsGroup = "BleCrypto")
 {
-    QSettings s;
+    QSettings s("Prismalux", "Mobile");
     s.beginGroup(settingsGroup);
     QByteArray key = QByteArray::fromBase64(s.value("session_key", "").toByteArray());
     if (key.size() != kKeyLen) {
@@ -78,7 +83,7 @@ inline QByteArray loadOrCreateKey(const QString& settingsGroup = "BleCrypto")
 inline void saveKey(const QByteArray& key,
                     const QString& settingsGroup = "BleCrypto")
 {
-    QSettings s;
+    QSettings s("Prismalux", "Mobile");  /* AUDIT-FIX 2026-06-03 */
     s.beginGroup(settingsGroup);
     s.setValue("session_key", key.toBase64());
     s.endGroup();
@@ -199,14 +204,17 @@ inline QByteArray encrypt(const QByteArray& plaintext, const QByteArray& key)
 {
     if (key.size() != kKeyLen) return {};
 
-    /* Salt random */
+    /* Salt random — AUDIT-FIX 2026-06-03: usa securelySeeded() */
     QByteArray salt(kSaltLen, Qt::Uninitialized);
-    for (int i = 0; i < kSaltLen; i += 4) {
-        const quint32 r = QRandomGenerator::global()->generate();
-        salt[i + 0] = static_cast<char>((r >>  0) & 0xFF);
-        salt[i + 1] = static_cast<char>((r >>  8) & 0xFF);
-        salt[i + 2] = static_cast<char>((r >> 16) & 0xFF);
-        salt[i + 3] = static_cast<char>((r >> 24) & 0xFF);
+    {
+        auto rng = QRandomGenerator::securelySeeded();
+        for (int i = 0; i < kSaltLen; i += 4) {
+            const quint32 r = rng.generate();
+            salt[i + 0] = static_cast<char>((r >>  0) & 0xFF);
+            salt[i + 1] = static_cast<char>((r >>  8) & 0xFF);
+            salt[i + 2] = static_cast<char>((r >> 16) & 0xFF);
+            salt[i + 3] = static_cast<char>((r >> 24) & 0xFF);
+        }
     }
 
     /* Keystream = SHA256(key + salt) ripetuto */
@@ -242,6 +250,8 @@ inline QByteArray encrypt(const QByteArray& plaintext, const QByteArray& key)
 inline QByteArray decrypt(const QByteArray& frame, const QByteArray& key)
 {
     if (key.size() != kKeyLen) return {};
+    /* AUDIT-FIX 2026-06-03: controlla isEmpty() prima di accedere a frame[0] */
+    if (frame.isEmpty()) return {};
     if (static_cast<unsigned char>(frame[0]) != kFrameTag) {
         /* Frame non cifrato — compatibilità peer legacy */
         return frame;

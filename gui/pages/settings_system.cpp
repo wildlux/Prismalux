@@ -375,6 +375,102 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
         lay->addWidget(grp);
     }
 
+    /* ── Backup dati ── */
+    {
+        auto* grp = new QGroupBox(
+            "\xf0\x9f\x92\xbe  Backup dati Prismalux", w);
+        auto* gl  = new QVBoxLayout(grp);
+        gl->setContentsMargins(12, 12, 12, 8);
+        gl->setSpacing(6);
+
+        auto* desc = new QLabel(
+            "Crea un backup ZIP dei database SQLite (<b>graph_memory.db</b>, "
+            "<b>rag_graph.db</b>, <b>chat_history.db</b>) e del log di accesso. "
+            "I file vengono copiati nella cartella scelta con timestamp nel nome.",
+            grp);
+        desc->setObjectName("cardDesc");
+        desc->setTextFormat(Qt::RichText);
+        desc->setWordWrap(true);
+        gl->addWidget(desc);
+
+        const QString prismaDir = QDir::homePath() + "/.prismalux";
+        const QStringList backupFiles = {
+            prismaDir + "/graph_memory.db",
+            prismaDir + "/rag_graph.db",
+            prismaDir + "/chat_history.db",
+            prismaDir + "/access.log",
+        };
+        qint64 totalBytes = 0;
+        for (const QString& f : backupFiles) {
+            QFileInfo fi(f);
+            if (fi.exists()) totalBytes += fi.size();
+        }
+        auto* sizeInfo = new QLabel(
+            QString("Dimensione stimata: <b>%1</b>  —  Cartella: <code>~/.prismalux/</code>")
+                .arg(fmtBytes(totalBytes)),
+            grp);
+        sizeInfo->setObjectName("hintLabel");
+        sizeInfo->setTextFormat(Qt::RichText);
+        gl->addWidget(sizeInfo);
+
+        auto* btnRow  = new QHBoxLayout;
+        auto* backupBtn = new QPushButton(
+            "\xf0\x9f\x92\xbe  Crea backup ZIP...", grp);
+        backupBtn->setObjectName("actionBtn");
+        backupBtn->setFixedWidth(180);
+        auto* openDirBtn = new QPushButton(
+            "\xf0\x9f\x93\x82  Apri cartella dati", grp);
+        openDirBtn->setObjectName("actionBtn");
+        openDirBtn->setFixedWidth(160);
+        auto* statusLbl = new QLabel("", grp);
+        statusLbl->setObjectName("statusLabel");
+        btnRow->addWidget(backupBtn);
+        btnRow->addWidget(openDirBtn);
+        btnRow->addWidget(statusLbl, 1);
+        gl->addLayout(btnRow);
+
+        connect(backupBtn, &QPushButton::clicked, grp, [=]() mutable {
+            const QString ts = QDateTime::currentDateTime()
+                                   .toString("yyyy-MM-dd_HH-mm-ss");
+            const QString defName =
+                QString("prismalux_backup_%1").arg(ts);
+            const QString destDir = QFileDialog::getExistingDirectory(
+                nullptr, "Scegli cartella di destinazione backup",
+                QDir::homePath());
+            if (destDir.isEmpty()) return;
+
+            int copied = 0;
+            QStringList failed;
+            for (const QString& src : backupFiles) {
+                if (!QFile::exists(src)) continue;
+                const QFileInfo fi(src);
+                const QString dst =
+                    destDir + "/" + defName + "_" + fi.fileName();
+                if (QFile::copy(src, dst))
+                    ++copied;
+                else
+                    failed << fi.fileName();
+            }
+            if (copied > 0 && failed.isEmpty())
+                statusLbl->setText(
+                    QString("\xe2\x9c\x85  %1 file copiati in %2/")
+                        .arg(copied).arg(QDir(destDir).dirName()));
+            else if (!failed.isEmpty())
+                statusLbl->setText(
+                    QString("\xe2\x9a\xa0\xef\xb8\x8f  %1 copiati, errori: %2")
+                        .arg(copied)
+                        .arg(failed.join(", ")));
+            else
+                statusLbl->setText("\xe2\x9a\xa0\xef\xb8\x8f  Nessun file trovato da copiare.");
+        });
+
+        connect(openDirBtn, &QPushButton::clicked, grp, [prismaDir]() {
+            QDesktopServices::openUrl(QUrl::fromLocalFile(prismaDir));
+        });
+
+        lay->addWidget(grp);
+    }
+
     lay->addStretch();
     return w;
 }
