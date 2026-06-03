@@ -19,9 +19,9 @@
 #include <QLabel>
 
 #include "mock_ai_client.h"
-#include "../pages/impara_page.h"
-#include "../pages/quiz_page.h"
-#include "../pages/materie_page.h"
+#include "../pages/main_learn.h"
+#include "../pages/main_quiz.h"
+#include "../pages/main_subjects.h"
 
 /* ══════════════════════════════════════════════════════════════
    CAT-A — ImparaPage

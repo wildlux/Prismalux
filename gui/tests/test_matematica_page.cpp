@@ -20,7 +20,7 @@
 /* Rende accessibili i metodi private di MatematicaPage in questo TU. */
 #define private public
 #define protected public
-#include "../pages/matematica_page.h"
+#include "../pages/main_math.h"
 #undef protected
 #undef private
 

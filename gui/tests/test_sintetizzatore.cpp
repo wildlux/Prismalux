@@ -16,7 +16,7 @@
 #include <QtTest/QtTest>
 #include <QApplication>
 
-#include "../pages/sintetizzatore_widget.h"
+#include "../pages/widget_synthesizer.h"
 
 /* ══════════════════════════════════════════════════════════════
    CAT-A — Struct Tono

@@ -17,7 +17,7 @@
 #include <cmath>
 
 #include "mock_ai_client.h"
-#include "../pages/grafico_page.h"
+#include "../pages/main_graph.h"
 
 /* ══════════════════════════════════════════════════════════════
    CAT-A — GraficoCanvas: costruzione e proprietà base

@@ -25,7 +25,7 @@
           (bug S0b rimosso — pip è solo via C2)
    ══════════════════════════════════════════════════════════════ */
 #include <QtTest/QtTest>
-#include "../pages/agenti_page.h"
+#include "../pages/main_ai.h"
 
 class TestCodeUtils : public QObject {
     Q_OBJECT

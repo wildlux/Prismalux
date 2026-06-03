@@ -18,7 +18,10 @@ class QListWidget;
 class QNetworkAccessManager;
 class QNetworkReply;
 class QTcpSocket;
+#include <QSet>
 class QProgressBar;
+class QCheckBox;
+class QTimer;
 
 /* ══════════════════════════════════════════════════════════════
    AppControllerPage — MCP bridges per applicazioni esterne
@@ -292,6 +295,13 @@ private:
     void onWaRemoveContactClicked();
     void onWaSendPromoClicked();
 
+    /* ── WhatsApp Bot rispondente ── */
+    void onWaBotStartClicked();
+    void onWaBotStopClicked();
+    void onWaPollTick();
+    void onWaPollReply();
+    void onWaBotSendReply(const QString& toNumber, const QString& replyText);
+
     /* ── Telegram Bot — membri ── */
     QLineEdit*   m_telegramTokenEdit     = nullptr;
     QLineEdit*   m_telegramWhitelistEdit = nullptr;
@@ -315,6 +325,18 @@ private:
     QLabel*      m_waPromoStatusLbl      = nullptr;
     QLineEdit*   m_waBridgeUrlEdit       = nullptr;
     QNetworkAccessManager* m_waPromoNam  = nullptr;
+
+    /* ── WhatsApp Bot rispondente — membri ── */
+    QLineEdit*             m_waWhitelistEdit  = nullptr;
+    QCheckBox*             m_waAutoReplyCheck = nullptr;
+    QPushButton*           m_waBotStartBtn    = nullptr;
+    QPushButton*           m_waBotStopBtn     = nullptr;
+    QLabel*                m_waBotStatusLbl   = nullptr;
+    QTextEdit*             m_waBotLog         = nullptr;
+    QTimer*                m_waPollTimer      = nullptr;
+    QNetworkAccessManager* m_waNam            = nullptr;
+    QSet<QString>          m_waSeenMsgIds;
+    QObject*               m_waBotAiHolder    = nullptr;
 
     /* ── Stato transitorio per reply one-shot ── */
     QNetworkReply* m_ankiPendingReply  = nullptr;  ///< reply addNotes in volo

@@ -1098,8 +1098,8 @@ void MainWindow::startLlamaServer(const QString& modelPath, int port, bool mathP
         "--log-disable",
         "-ngl", QString::number(ngl),
         /* Flash Attention: riduce RAM/VRAM KV cache ~30-50% senza perdita di qualità.
-           llama-server lo ignora sui modelli non compatibili. */
-        "--flash-attn",
+           Nuove versioni richiedono valore esplicito: --flash-attn auto|on|off */
+        "--flash-attn", "auto",
         /* KV cache quantizzata q8_0: dimezza la RAM usata dalla KV cache
            rispetto al default f16, con minima perdita di qualità su testi lunghi. */
         "--cache-type-k", "q8_0",
@@ -1602,7 +1602,7 @@ void MainWindow::appendLog(const QString& msg)
 
     const QString ts = QDateTime::currentDateTime().toString("HH:mm:ss");
     const QString line = QString("<span style='color:#888;'>%1</span> &nbsp;%2")
-                         .arg(ts).arg(msg.toHtmlEscaped());
+                         .arg(ts, msg);   /* msg è già HTML — caller usa toHtmlEscaped() sui dati utente */
     m_logView->moveCursor(QTextCursor::End);
     m_logView->insertHtml(line + "<br>");
 

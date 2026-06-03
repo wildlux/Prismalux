@@ -26,7 +26,7 @@
 #include <QSignalSpy>
 
 #include "mock_ai_client.h"
-#include "../pages/agenti_page.h"
+#include "../pages/main_ai.h"
 
 /* ════════════════════════════════════════════════════════════════
    CAT-A — buildAutoStepHtml

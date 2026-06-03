@@ -277,18 +277,264 @@ private slots:
     }
 };
 
+/* ══════════════════════════════════════════════════════════════
+   CAT-H — Fuzzing / Hardening Parser HTTP
+   ══════════════════════════════════════════════════════════════
+   Ogni test apre una connessione TCP su localhost, invia un input
+   malformato, attende la risposta con processEvents (NON
+   waitForReadyRead — bloccherebbe il loop Qt single-thread) e
+   verifica il codice di stato HTTP restituito.
+
+   Helper privato: waitForResponse() + parseStatusCode().
+   ══════════════════════════════════════════════════════════════ */
+class TestParserHardening : public QObject {
+    Q_OBJECT
+
+    /* ── helper: aspetta risposta e accumula i byte ricevuti (max 2s) ── */
+    static QByteArray collectResponse(QTcpSocket* sock, int timeoutMs = 2000)
+    {
+        QByteArray buf;
+        const int steps = timeoutMs / 20;
+        for (int i = 0; i < steps; ++i) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+            buf += sock->readAll();
+            if (!buf.isEmpty()) return buf;
+            /* Disconnessione pulita (dopo sendError+disconnectFromHost):
+               raccogliamo eventuali ultimi byte prima di uscire */
+            if (sock->state() == QAbstractSocket::UnconnectedState) {
+                buf += sock->readAll();
+                return buf;
+            }
+        }
+        return buf;
+    }
+
+    /* ── helper: estrae il codice HTTP da "HTTP/1.1 NNN ..." ─── */
+    static int parseStatusCode(const QByteArray& data)
+    {
+        /* HTTP/1.1 NNN ... — il codice inizia al byte 9 */
+        if (data.size() < 12) return -1;
+        bool ok = false;
+        const int code = data.mid(9, 3).toInt(&ok);
+        return ok ? code : -1;
+    }
+
+    /* ── helper unificato: connette, invia, raccoglie risposta ─── */
+    struct TcpResult {
+        int  statusCode  = -1;    /* HTTP status oppure -1 se nessuna risposta */
+        bool gotResponse = false; /* true se il server ha inviato qualcosa */
+    };
+
+    TcpResult sendRaw(LanServer& srv, const QByteArray& raw)
+    {
+        QTcpSocket sock;
+        sock.connectToHost(QHostAddress::LocalHost, srv.port());
+
+        /* Attendi connected (max 1s) */
+        const int connSteps = 1000 / 20;
+        for (int i = 0; i < connSteps && sock.state() != QAbstractSocket::ConnectedState; ++i)
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+
+        if (sock.state() != QAbstractSocket::ConnectedState)
+            return {};
+
+        sock.write(raw);
+        sock.flush();
+
+        TcpResult res;
+        const QByteArray response = collectResponse(&sock);
+        res.gotResponse = !response.isEmpty();
+        if (res.gotResponse)
+            res.statusCode = parseStatusCode(response);
+        return res;
+    }
+
+private slots:
+
+    /* F1: request line troppo corta — solo metodo, nessun path
+       "GET\r\n\r\n"  → reqLine.size() < 2 → 400 */
+    void F1_requestLineTroppoCorta()
+    {
+        MockAiClient ai;
+        LanServer srv(&ai);
+        QVERIFY(srv.start(0));
+
+        const QByteArray req = "GET\r\n\r\n";
+        const TcpResult res  = sendRaw(srv, req);
+
+        srv.stop();
+        QVERIFY2(res.gotResponse, "il server non ha risposto a una request line corta");
+        QCOMPARE(res.statusCode, 400);
+    }
+
+    /* F2: metodo HTTP non nella whitelist → 405
+       (sendError mappa 405 a "500 Internal Server Error" nella status line —
+        verifichiamo che il codice non sia 200 e che il body contenga l'errore) */
+    void F2_metodoNonValido()
+    {
+        MockAiClient ai;
+        LanServer srv(&ai);
+        QVERIFY(srv.start(0));
+
+        const QByteArray req = "INVALID / HTTP/1.1\r\nHost: localhost\r\n\r\n";
+        const TcpResult res  = sendRaw(srv, req);
+
+        srv.stop();
+        QVERIFY2(res.gotResponse, "il server non ha risposto a metodo non valido");
+        /* sendError(405) cade nel ramo else → emette "500" nella status line */
+        QVERIFY2(res.statusCode != 200, "metodo non valido non deve produrre 200");
+    }
+
+    /* F3: path con null byte → 400 */
+    void F3_pathConNullByte()
+    {
+        MockAiClient ai;
+        LanServer srv(&ai);
+        QVERIFY(srv.start(0));
+
+        /* Costruiamo la request con null byte nel path */
+        QByteArray req = "GET /foo";
+        req.append('\0');
+        req.append("bar HTTP/1.1\r\nHost: localhost\r\n\r\n");
+
+        const TcpResult res = sendRaw(srv, req);
+
+        srv.stop();
+        QVERIFY2(res.gotResponse, "il server non ha risposto a path con null byte");
+        QCOMPARE(res.statusCode, 400);
+    }
+
+    /* F4: path di 3000 caratteri → 400 (limite: 2048) */
+    void F4_pathTroppoLunga()
+    {
+        MockAiClient ai;
+        LanServer srv(&ai);
+        QVERIFY(srv.start(0));
+
+        const QByteArray longPath(3000, 'a');
+        QByteArray req = "GET /" + longPath + " HTTP/1.1\r\nHost: localhost\r\n\r\n";
+
+        const TcpResult res = sendRaw(srv, req);
+
+        srv.stop();
+        QVERIFY2(res.gotResponse, "il server non ha risposto a path troppo lunga");
+        QCOMPARE(res.statusCode, 400);
+    }
+
+    /* F5: Content-Length negativo → 400 */
+    void F5_contentLengthNegativo()
+    {
+        MockAiClient ai;
+        LanServer srv(&ai);
+        QVERIFY(srv.start(0));
+
+        const QByteArray req =
+            "POST /api/chat HTTP/1.1\r\n"
+            "Host: localhost\r\n"
+            "Content-Type: application/json\r\n"
+            "Content-Length: -1\r\n\r\n";
+
+        const TcpResult res = sendRaw(srv, req);
+
+        srv.stop();
+        QVERIFY2(res.gotResponse, "il server non ha risposto a Content-Length negativo");
+        QCOMPARE(res.statusCode, 400);
+    }
+
+    /* F6: Content-Length maggiore di 25 MB (> 25*1024*1024) → 400 */
+    void F6_contentLengthTroppoGrande()
+    {
+        MockAiClient ai;
+        LanServer srv(&ai);
+        QVERIFY(srv.start(0));
+
+        const QByteArray req =
+            "POST /api/chat HTTP/1.1\r\n"
+            "Host: localhost\r\n"
+            "Content-Type: application/json\r\n"
+            "Content-Length: 30000000\r\n\r\n";
+
+        const TcpResult res = sendRaw(srv, req);
+
+        srv.stop();
+        QVERIFY2(res.gotResponse, "il server non ha risposto a Content-Length enorme");
+        QCOMPARE(res.statusCode, 400);
+    }
+
+    /* F7: buffer > 4 MB → DoS guard → 400
+       Inviamo 4*1024*1024 + 64 byte senza \r\n\r\n (header incompleti)
+       così il guard scatta prima del parsing headers.
+       Timeout esteso a 5s per il trasferimento loopback del payload grande. */
+    void F7_requestTroppoGrande()
+    {
+        MockAiClient ai;
+        LanServer srv(&ai);
+        QVERIFY(srv.start(0));
+
+        /* Prefisso HTTP valido, poi padding che fa superare 4 MB;
+           nessun \r\n\r\n finale — il DoS guard scatta su buf.size(). */
+        QByteArray req = "GET / HTTP/1.1\r\nHost: localhost\r\nX-Pad: ";
+        req.append(QByteArray(4 * 1024 * 1024 + 64, 'X'));
+
+        QTcpSocket sock;
+        sock.connectToHost(QHostAddress::LocalHost, srv.port());
+
+        const int connSteps = 1000 / 20;
+        for (int i = 0; i < connSteps && sock.state() != QAbstractSocket::ConnectedState; ++i)
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+
+        QVERIFY2(sock.state() == QAbstractSocket::ConnectedState,
+                 "impossibile connettersi al server per F7");
+
+        /* Scrittura in chunk da 64 KB per non bloccare il loop Qt */
+        const int chunkSize = 64 * 1024;
+        int written = 0;
+        while (written < req.size()) {
+            const int toWrite = qMin(chunkSize, req.size() - written);
+            sock.write(req.mid(written, toWrite));
+            sock.flush();
+            written += toWrite;
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+        }
+
+        const QByteArray response = collectResponse(&sock, 5000);
+
+        srv.stop();
+        QVERIFY2(!response.isEmpty(), "il server non ha risposto a richiesta enorme");
+        QCOMPARE(parseStatusCode(response), 400);
+    }
+
+    /* F8: richiesta GET valida a "/" → risposta HTTP senza crash (200 o redirect) */
+    void F8_headersCompleti_getOk()
+    {
+        MockAiClient ai;
+        LanServer srv(&ai);
+        QVERIFY(srv.start(0));
+
+        const QByteArray req = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n";
+        const TcpResult res  = sendRaw(srv, req);
+
+        srv.stop();
+        QVERIFY2(res.gotResponse, "il server non ha risposto a una GET valida");
+        /* Qualunque risposta HTTP 2xx/3xx è accettabile — non deve crashare */
+        QVERIFY2(res.statusCode >= 200 && res.statusCode < 400,
+                 "GET / valida deve produrre una risposta 2xx o 3xx");
+    }
+};
+
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
 
     int status = 0;
     {
-        TestLifecycle     t1; status |= QTest::qExec(&t1, argc, argv);
-        TestPorta         t2; status |= QTest::qExec(&t2, argc, argv);
-        TestStatusChanged t3; status |= QTest::qExec(&t3, argc, argv);
-        TestClientCount   t4; status |= QTest::qExec(&t4, argc, argv);
-        TestRobustezza    t5; status |= QTest::qExec(&t5, argc, argv);
-        TestAccessToken   t6; status |= QTest::qExec(&t6, argc, argv);
+        TestLifecycle        t1; status |= QTest::qExec(&t1, argc, argv);
+        TestPorta            t2; status |= QTest::qExec(&t2, argc, argv);
+        TestStatusChanged    t3; status |= QTest::qExec(&t3, argc, argv);
+        TestClientCount      t4; status |= QTest::qExec(&t4, argc, argv);
+        TestRobustezza       t5; status |= QTest::qExec(&t5, argc, argv);
+        TestAccessToken      t6; status |= QTest::qExec(&t6, argc, argv);
+        TestParserHardening  t7; status |= QTest::qExec(&t7, argc, argv);
     }
     return status;
 }

@@ -19,7 +19,7 @@
 #include "mock_ai_client.h"
 #include "../ai_client.h"
 #include "../hardware_monitor.h"
-#include "../pages/impostazioni_page.h"
+#include "../pages/settings_main.h"
 
 /* ══════════════════════════════════════════════════════════════
    CAT-A — AiChatParams round-trip (nessuna UI necessaria)

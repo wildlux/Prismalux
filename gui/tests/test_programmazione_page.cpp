@@ -20,7 +20,7 @@
 #include <QPushButton>
 
 #include "mock_ai_client.h"
-#include "../pages/programmazione_page.h"
+#include "../pages/main_programming.h"
 
 /* ══════════════════════════════════════════════════════════════
    CAT-A — isIntentionalError (15 casi)

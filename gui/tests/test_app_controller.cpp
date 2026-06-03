@@ -42,8 +42,8 @@ static bool ollamaAvailable() {
     s.connectToHost("127.0.0.1", 11434);
     return s.waitForConnected(400);
 }
-#include "../pages/app_controller_page.h"
-#include "../pages/lavoro_page.h"
+#include "../pages/main_app_controller.h"
+#include "../pages/main_jobs.h"
 
 /* ══════════════════════════════════════════════════════════════
    CATEGORIA A — extractCode (20 casi)

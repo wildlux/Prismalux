@@ -17,6 +17,7 @@ namespace P = PrismaluxPaths;
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QTcpSocket>
+#include <QCheckBox>
 #include <QProgressBar>
 #include <QPointer>
 #include <QSharedPointer>
@@ -2071,6 +2072,66 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     promoLay->addLayout(promoCtrlRow);
 
     lay->addWidget(promoGroup);
+
+    /* ── GroupBox Bot AI Rispondente ── */
+    auto* botGroup = new QGroupBox(
+        "\xf0\x9f\xa4\x96  Bot AI Rispondente", w);
+    auto* botLay = new QVBoxLayout(botGroup);
+    botLay->setSpacing(dpiScale(6));
+
+    auto* botHint = new QLabel(
+        "<i>Quando il bot \xc3\xa8 attivo, ascolta i messaggi in entrata dal bridge "
+        "e risponde automaticamente con l\xe2\x80\x99" "AI locale. "
+        "Solo i numeri in whitelist ricevono risposta.</i>",
+        botGroup);
+    botHint->setObjectName("hintLabel");
+    botHint->setTextFormat(Qt::RichText);
+    botHint->setWordWrap(true);
+    botLay->addWidget(botHint);
+
+    auto* wlRow = new QHBoxLayout;
+    auto* wlLbl = new QLabel("Whitelist numeri:", botGroup);
+    wlLbl->setFixedWidth(dpiScale(120));
+    m_waWhitelistEdit = new QLineEdit(botGroup);
+    m_waWhitelistEdit->setPlaceholderText("+393331234567, +391234567890 (virgola = separatore)");
+    wlRow->addWidget(wlLbl);
+    wlRow->addWidget(m_waWhitelistEdit, 1);
+    botLay->addLayout(wlRow);
+
+    m_waAutoReplyCheck = new QCheckBox(
+        "Abilita auto-risposta AI ai messaggi in entrata", botGroup);
+    m_waAutoReplyCheck->setChecked(true);
+    botLay->addWidget(m_waAutoReplyCheck);
+
+    auto* botCtrlRow = new QHBoxLayout;
+    m_waBotStartBtn = new QPushButton(
+        "\xf0\x9f\x9f\xa2  Avvia Bot", botGroup);
+    m_waBotStartBtn->setObjectName("actionBtn");
+    m_waBotStartBtn->setFixedWidth(dpiScale(120));
+    m_waBotStopBtn = new QPushButton(
+        "\xf0\x9f\x94\xb4  Ferma Bot", botGroup);
+    m_waBotStopBtn->setObjectName("actionBtn");
+    m_waBotStopBtn->setFixedWidth(dpiScale(120));
+    m_waBotStopBtn->setEnabled(false);
+    m_waBotStatusLbl = new QLabel(
+        "\xe2\x9a\xab  Bot non attivo", botGroup);
+    m_waBotStatusLbl->setObjectName("statusLabel");
+    botCtrlRow->addWidget(m_waBotStartBtn);
+    botCtrlRow->addWidget(m_waBotStopBtn);
+    botCtrlRow->addWidget(m_waBotStatusLbl, 1);
+    botLay->addLayout(botCtrlRow);
+
+    auto* botLogGroup = new QGroupBox("Log messaggi", botGroup);
+    auto* botLogLay   = new QVBoxLayout(botLogGroup);
+    m_waBotLog = new QTextEdit(botLogGroup);
+    m_waBotLog->setReadOnly(true);
+    m_waBotLog->setMinimumHeight(dpiScale(120));
+    m_waBotLog->setPlaceholderText(
+        "I messaggi ricevuti/inviati dal bot appariranno qui...");
+    botLogLay->addWidget(m_waBotLog);
+    botLay->addWidget(botLogGroup);
+
+    lay->addWidget(botGroup);
     lay->addStretch();
 
     /* ── Carica impostazioni salvate ── */
@@ -2084,15 +2145,24 @@ QWidget* AppControllerPage::buildWhatsAppTab()
             s.value("whatsapp_contacts").toStringList();
         for (const QString& c : contacts)
             m_waContactList->addItem(c);
+
+        m_waWhitelistEdit->setText(
+            s.value("whatsapp/bot_whitelist").toString());
+        m_waAutoReplyCheck->setChecked(
+            s.value("whatsapp/bot_auto_reply", true).toBool());
     }
 
     if (!m_waPromoNam)
         m_waPromoNam = new QNetworkAccessManager(this);
+    if (!m_waNam)
+        m_waNam = new QNetworkAccessManager(this);
 
     /* ── Connessioni ── */
     connect(saveBridgeBtn, &QPushButton::clicked, this, [this]() {
         QSettings s("Prismalux", "GUI");
         s.setValue("whatsapp/bridge_url", m_waBridgeUrlEdit->text().trimmed());
+        s.setValue("whatsapp/bot_whitelist", m_waWhitelistEdit->text().trimmed());
+        s.setValue("whatsapp/bot_auto_reply", m_waAutoReplyCheck->isChecked());
         m_waPromoStatusLbl->setText("\xe2\x9c\x85  URL salvato");
     });
 
@@ -2102,6 +2172,10 @@ QWidget* AppControllerPage::buildWhatsAppTab()
             this, &AppControllerPage::onWaRemoveContactClicked);
     connect(waSendAllBtn, &QPushButton::clicked,
             this, &AppControllerPage::onWaSendPromoClicked);
+    connect(m_waBotStartBtn, &QPushButton::clicked,
+            this, &AppControllerPage::onWaBotStartClicked);
+    connect(m_waBotStopBtn, &QPushButton::clicked,
+            this, &AppControllerPage::onWaBotStopClicked);
 
     return w;
 }

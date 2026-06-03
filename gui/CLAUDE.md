@@ -42,7 +42,7 @@ Prismalux/
 ├── gui/                          ← sorgente C++/Qt6 (questo progetto)
 │   ├── pages/                    ← una pagina = .h + uno o più .cpp
 │   ├── widgets/                  ← componenti header-only e riutilizzabili
-│   ├── tests/                    ← suite ctest (41 suite, BUILD_TESTS=ON)
+│   ├── tests/                    ← suite ctest (51 suite, BUILD_TESTS=ON)
 │   ├── themes/                   ← temi QSS
 │   ├── CMakeLists.txt
 │   └── CLAUDE.md                 ← questo file
@@ -288,7 +288,7 @@ v->setLatexHtml(htmlWithLatex, "#1e293b", "#e2e8f0");
 ## Suite di Test
 ```bash
 cmake -B build_tests gui/ -DBUILD_TESTS=ON && cmake --build build_tests -j$(nproc)
-ctest --test-dir build_tests -j4   # 41 suite (38 no-Ollama, 3 richiedono Ollama reale)
+ctest --test-dir build_tests -j4   # 51 suite (48 no-Ollama, 3 richiedono Ollama reale)
 ```
 
 ### Suite per categoria

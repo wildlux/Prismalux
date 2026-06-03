@@ -15,7 +15,7 @@
    ══════════════════════════════════════════════════════════════ */
 #include <QtTest/QtTest>
 #include <QApplication>
-#include "../pages/agenti_page.h"
+#include "../pages/main_ai.h"
 
 /* ══════════════════════════════════════════════════════════════
    CAT-A — buildUserBubble

@@ -46,7 +46,9 @@
 #include <QTextEdit>
 #include <QTimer>
 #include <QProgressBar>
+#include <QCheckBox>
 #include <QRegularExpression>
+#include <QSet>
 #include <QSettings>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -1703,4 +1705,181 @@ void AppControllerPage::onWaSendPromoClicked()
             }
         });
     }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   WhatsApp Bot Rispondente AI — polling bridge + risposta AI
+   ══════════════════════════════════════════════════════════════ */
+
+void AppControllerPage::onWaBotStartClicked()
+{
+    const QString bridgeUrl = m_waBridgeUrlEdit->text().trimmed();
+    if (bridgeUrl.isEmpty()) {
+        m_waBotStatusLbl->setText(
+            "\xe2\x9d\x8c  Inserisci l\xe2\x80\x99" "URL del bridge prima di avviare.");
+        return;
+    }
+
+    m_waSeenMsgIds.clear();
+    m_waBotLog->clear();
+    m_waBotLog->append(
+        QString("\xf0\x9f\x9f\xa2  Bot avviato \xe2\x80\x94 bridge: <b>%1</b>")
+            .arg(bridgeUrl.toHtmlEscaped()));
+
+    if (!m_waPollTimer) {
+        m_waPollTimer = new QTimer(this);
+        m_waPollTimer->setInterval(2000);
+        connect(m_waPollTimer, &QTimer::timeout,
+                this, &AppControllerPage::onWaPollTick);
+    }
+    m_waPollTimer->start();
+
+    m_waBotStartBtn->setEnabled(false);
+    m_waBotStopBtn->setEnabled(true);
+    m_waBotStatusLbl->setText("\xf0\x9f\x9f\xa2  Bot attivo — polling ogni 2s");
+
+    QSettings s("Prismalux", "GUI");
+    s.setValue("whatsapp/bot_whitelist", m_waWhitelistEdit->text().trimmed());
+    s.setValue("whatsapp/bot_auto_reply", m_waAutoReplyCheck->isChecked());
+}
+
+void AppControllerPage::onWaBotStopClicked()
+{
+    if (m_waPollTimer) {
+        m_waPollTimer->stop();
+    }
+    if (m_waBotAiHolder) {
+        m_waBotAiHolder->deleteLater();
+        m_waBotAiHolder = nullptr;
+    }
+    m_waBotStartBtn->setEnabled(true);
+    m_waBotStopBtn->setEnabled(false);
+    m_waBotStatusLbl->setText("\xe2\x9a\xab  Bot fermato");
+    m_waBotLog->append("\xf0\x9f\x94\xb4  Bot fermato.");
+}
+
+void AppControllerPage::onWaPollTick()
+{
+    const QString bridgeUrl = m_waBridgeUrlEdit->text().trimmed();
+    if (bridgeUrl.isEmpty()) return;
+
+    const QUrl url(bridgeUrl.endsWith('/')
+        ? bridgeUrl + "messages"
+        : bridgeUrl + "/messages");
+
+    QNetworkRequest req(url);
+    req.setTransferTimeout(1500);
+    auto* reply = m_waNam->get(req);
+    connect(reply, &QNetworkReply::finished,
+            this, &AppControllerPage::onWaPollReply);
+}
+
+void AppControllerPage::onWaPollReply()
+{
+    auto* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    reply->deleteLater();
+
+    if (reply->error() != QNetworkReply::NoError) {
+        m_waBotStatusLbl->setText(
+            QString("\xe2\x9a\xa0\xef\xb8\x8f  Bridge non raggiungibile: %1")
+                .arg(reply->errorString()));
+        return;
+    }
+
+    if (!m_waAutoReplyCheck || !m_waAutoReplyCheck->isChecked()) return;
+
+    const QByteArray body = reply->readAll();
+    const auto doc = QJsonDocument::fromJson(body);
+    if (!doc.isArray()) return;
+
+    const QStringList whitelist = m_waWhitelistEdit
+        ? m_waWhitelistEdit->text().split(',', Qt::SkipEmptyParts)
+        : QStringList{};
+
+    const QJsonArray msgs = doc.array();
+    for (const QJsonValue& v : msgs) {
+        const QJsonObject msg = v.toObject();
+        const QString id     = msg.value("id").toString();
+        const QString from   = msg.value("from").toString().trimmed();
+        const QString text   = msg.value("body").toString().trimmed();
+
+        if (id.isEmpty() || m_waSeenMsgIds.contains(id)) continue;
+        m_waSeenMsgIds.insert(id);
+
+        if (text.isEmpty()) continue;
+
+        /* Controlla whitelist: se vuota → risponde a tutti, altrimenti solo ai numeri autorizzati */
+        bool authorized = whitelist.isEmpty();
+        if (!authorized) {
+            for (const QString& wl : whitelist) {
+                if (from.contains(wl.trimmed())) { authorized = true; break; }
+            }
+        }
+        if (!authorized) continue;
+
+        m_waBotLog->append(
+            QString("\xf0\x9f\x93\xa8  <b>%1</b>: %2")
+                .arg(from.toHtmlEscaped(), text.toHtmlEscaped()));
+
+        /* Invia all'AI locale per la risposta */
+        if (m_waBotAiHolder) {
+            m_waBotAiHolder->deleteLater();
+            m_waBotAiHolder = nullptr;
+        }
+        m_waBotAiHolder = new QObject(this);
+
+        const QString sysPrompt =
+            "Sei un assistente AI su WhatsApp. "
+            "Rispondi in modo conciso e utile al messaggio dell'utente.";
+        const QString fromCopy = from;
+
+        connect(m_ai, &AiClient::finished, m_waBotAiHolder,
+                [this, fromCopy](const QString& replyText) {
+            if (m_waBotAiHolder) {
+                m_waBotAiHolder->deleteLater();
+                m_waBotAiHolder = nullptr;
+            }
+            onWaBotSendReply(fromCopy, replyText);
+        });
+        connect(m_ai, &AiClient::error, m_waBotAiHolder,
+                [this](const QString& err) {
+            if (m_waBotAiHolder) {
+                m_waBotAiHolder->deleteLater();
+                m_waBotAiHolder = nullptr;
+            }
+            m_waBotLog->append(
+                QString("\xe2\x9d\x8c  AI error: %1").arg(err.toHtmlEscaped()));
+        });
+        m_ai->chat(sysPrompt, text);
+        break;   /* un messaggio alla volta per non sovraccaricare l'AI */
+    }
+}
+
+void AppControllerPage::onWaBotSendReply(const QString& toNumber,
+                                          const QString& replyText)
+{
+    const QString bridgeUrl = m_waBridgeUrlEdit->text().trimmed();
+    if (bridgeUrl.isEmpty() || replyText.trimmed().isEmpty()) return;
+
+    m_waBotLog->append(
+        QString("\xf0\x9f\xa4\x96  Risposta a <b>%1</b>: %2")
+            .arg(toNumber.toHtmlEscaped(), replyText.left(120).toHtmlEscaped()));
+
+    const QUrl url(bridgeUrl.endsWith('/')
+        ? bridgeUrl + "send"
+        : bridgeUrl + "/send");
+    QNetworkRequest req(url);
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    req.setTransferTimeout(5000);
+
+    const QJsonObject body{
+        {"phone",   toNumber},
+        {"message", replyText}
+    };
+    auto* reply = m_waNam->post(req,
+        QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, reply, [reply]() {
+        reply->deleteLater();
+    });
 }

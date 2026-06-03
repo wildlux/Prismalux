@@ -302,6 +302,35 @@ void MainWindow::onEmergencyCacheFinished(int code, QProcess::ExitStatus)
 
 void MainWindow::onServerProcFinished(int code, QProcess::ExitStatus)
 {
+    /* Se il health-timer è ancora attivo il processo è crashato DURANTE lo startup,
+     * prima che /health rispondesse. Non fare fallback automatico a Ollama in questo
+     * caso: l'utente ha scelto llama-server e deve poter riprovare senza che il backend
+     * cambi silenziosamente sotto di lui. */
+    const bool duringStartup = (m_healthTimer != nullptr);
+    if (duringStartup) {
+        if (m_healthTimer) { m_healthTimer->stop(); m_healthTimer->deleteLater(); m_healthTimer = nullptr; }
+        if (m_healthNam)   { m_healthNam->deleteLater(); m_healthNam = nullptr; }
+        const QString lastLines = m_serverProc
+            ? QString::fromLocal8Bit(m_serverProc->readAll()).right(400).trimmed()
+            : QString();
+        appendLog(
+            QString("\xe2\x9d\x8c llama-server terminato durante lo startup (code <b>%1</b>). "
+                    "Backend NON commutato a Ollama \xe2\x80\x94 riprova o scegli un altro modello.")
+            .arg(code));
+        if (!lastLines.isEmpty())
+            appendLog(QString("<pre style='font-size:10px'>%1</pre>").arg(lastLines.toHtmlEscaped()));
+        statusBar()->showMessage(
+            QString("\xe2\x9d\x8c  llama-server terminato (code %1) prima di essere pronto. "
+                    "Riprova o usa Ollama.")
+            .arg(code));
+        if (m_btnBackend) {
+            m_btnBackend->setText("\xe2\x9d\x8c  Crash startup");
+            QTimer::singleShot(4000, this, &MainWindow::refreshBackendBtn);
+        }
+        if (m_serverProc) { m_serverProc->deleteLater(); m_serverProc = nullptr; }
+        return;
+    }
+
     appendLog(
         QString("\xf0\x9f\x94\xb4 llama-server terminato (code <b>%1</b>) \xe2\x80\x94 ripristino Ollama")
         .arg(code));
@@ -330,7 +359,7 @@ void MainWindow::onServerProcessError(QProcess::ProcessError err)
 
 void MainWindow::onHealthTick()
 {
-    static constexpr int MAX_HEALTH_TICKS = 180;
+    static constexpr int MAX_HEALTH_TICKS = 300;   /* 5 minuti — sufficiente per modelli 33b+ su CPU */
     ++m_healthTicks;
 
     if (m_healthTicks % 5 == 0)

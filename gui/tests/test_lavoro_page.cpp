@@ -29,7 +29,7 @@
 #include <QPushButton>
 
 #include "mock_ai_client.h"
-#include "../pages/lavoro_page.h"
+#include "../pages/main_jobs.h"
 
 /* tipi e livelli validi — qualsiasi stringa fuori da queste set è un bug nel DB */
 static const QSet<QString> kTipiValidi {

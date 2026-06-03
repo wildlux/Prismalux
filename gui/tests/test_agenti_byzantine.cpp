@@ -21,7 +21,7 @@
 #include <QSpinBox>
 
 #include "mock_ai_client.h"
-#include "../pages/agents_config_dialog.h"
+#include "../pages/dialog_agents_config.h"
 
 static AgentsConfigDialog* s_dlg = nullptr;
 

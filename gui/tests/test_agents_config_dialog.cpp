@@ -17,7 +17,7 @@
 #include <QApplication>
 #include <QComboBox>
 #include <QCheckBox>
-#include "../pages/agents_config_dialog.h"
+#include "../pages/dialog_agents_config.h"
 
 static QApplication*       s_app = nullptr;
 static AgentsConfigDialog* s_dlg = nullptr;

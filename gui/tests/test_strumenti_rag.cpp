@@ -15,7 +15,7 @@
 #include <QTemporaryFile>
 #include <QTextStream>
 #include <QDir>
-#include "../pages/strumenti_page.h"
+#include "../pages/main_tools.h"
 
 /* ──────────────────────────────────────────────────────────────
    Helper: crea un file temporaneo con contenuto noto

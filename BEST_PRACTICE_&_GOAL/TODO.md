@@ -5,6 +5,15 @@
 
 ---
 
+## 🆕 Sessione 2026-06-03 — Nuovi TODO (turno 2)
+
+### 🔧 Bug / Fix llama.cpp
+- [x] **llama-server crash durante startup → non ricade più su Ollama** — `onServerProcFinished()` ora distingue crash-durante-startup (m_healthTimer attivo) da terminazione normale; in caso di crash startup mostra diagnostica+ultime righe di log senza commutare il backend — `mainwindow_slots.cpp` — 2026-06-03
+- [x] **Timeout caricamento modello** — `MAX_HEALTH_TICKS` portato da 180s a 300s (5 minuti) per modelli 33b+ su CPU — `mainwindow_slots.cpp` — 2026-06-03
+- [x] **`--flash-attn` argomento invalido** — nuove versioni llama.cpp richiedono `--flash-attn auto|on|off` invece del flag booleano; corretto in `mainwindow.cpp` — 2026-06-03
+
+---
+
 ## 🆕 Sessione 2026-06-03 — Nuovi TODO
 
 ### 🔧 Bug / Fix preesistenti (corretti oggi)
@@ -244,14 +253,14 @@
 
 ### 🔴 Bloccanti
 
-- [ ] **Modalità headless (server senza GUI)** — oggi il server vive dentro la finestra Qt
+- [x] **Modalità headless (server senza GUI)** — `--server CLI flag` + `runHeadlessServer()` + systemd unit — già implementato 2026-06-03
   - *Headless* = avviare SOLO il server da CLI, senza aprire finestre, così gira su un
     mini-PC anche senza monitor e resta attivo 24/7.
   - **Rimedio:** flag tipo `prismalux --server --port N` che istanzia `LanServer` senza
     `QApplication` GUI (o con `QGuiApplication`/`QCoreApplication`); avvio come servizio
     (systemd user unit su Linux, servizio/Task Scheduler su Windows) con restart-on-crash.
 
-- [ ] **Coda + isolamento multi-utente** — `lan_server.h:112,117` (un solo `m_ai` / `m_streamSock`)
+- [x] **Coda FIFO multi-utente** — `PendingLlmRequest` + `m_llmQueue` (max 10) + `serveLlmQueue()` — già implementato 2026-06-03
   - *Coda* = se due client chattano insieme le richieste vengono servite in fila, una alla
     volta, invece di mescolare gli stream (oggi il 2° stream ruba il socket al 1°).
   - *Isolamento* = ogni utente ha contesto/cronologia separati; oggi tutti condividono lo
@@ -286,7 +295,7 @@
   - Ollama non ha auth: se ascolta su `0.0.0.0` chiunque in LAN usa l'LLM senza token,
     bypassando del tutto l'auth di Prismalux.
 
-- [ ] **TLS opzionale anche su LAN** — generare cert self-signed e abilitarlo
+- [x] **TLS opzionale su LAN** — `QSslServer` + `_ensureCert()` + checkbox "Abilita TLS" in Manutenzione LAN — già implementato 2026-06-03
   - Senza TLS chat e dati LLM viaggiano in chiaro sul WiFi (combinato col token-in-URL
     già segnalato è un doppio problema). Codice cert già predisposto (`lan_server.cpp:115`).
 
@@ -356,51 +365,24 @@
 
 ## 🧪 Test mancanti (gap analysis 2026-05-30)
 
-> Suite attuali: 41 (38 no-Ollama). Le aree sotto non hanno suite ctest.
+> Suite attuali: 51 (48 no-Ollama, 3 richiedono Ollama). Le aree sotto non hanno ancora suite ctest.
 
 ### 🔴 Critici — logica complessa, zero test
 
-- [ ] **test_pratico_finanza** — `pratico_page.cpp`
-  - Codice Fiscale: algoritmo D.M. 23/12/1976 (consonanti/vocali, data, comune, check digit)
-  - Lookup Belfiore: ~150 comuni + paesi esteri (codici Z), edge case nomi con apostrofo/accento
-  - Calcolatori: mutuo (piano ammortamento francese), PAC (rendimento composto), pensione INPS
-  - Scheda TFR: rivalutazione 1.5%+75% ISTAT, calcolo art. 2120 c.c., fiscalità separata
-
-- [ ] **test_wan_compute_tasks** — `lan_wan_page.cpp`
-  - Esecuzione dei 28 tipi di task (oggi solo struct dati testata, mai l'execution flow)
-  - `wanCliHandleTask()`: ai_query, shell_cmd, python_repl, file_read/write, graphviz_render…
-  - Dispatcher: assegnazione pending→idle, cron scheduler, retry su errore
-
-- [ ] **test_rag_graph_pipeline** — `rag_graph.cpp`
-  - Pipeline completa: file → LLM → JSON entità+relazioni → GraphMemory
-  - Parsing JSON LLM (con <think>, code fence, JSON malformato)
-  - `updateNode()` su entità già esistente (importance +0.1 invece di duplicare)
-  - Separazione DB: `rag_graph.db` ≠ `graph_memory.db`
+- [x] **test_pratico_finanza** — 27 PASS: TestNormalizzaComune (7) + TestCercaBelfiore (8) + TestCalcolaCodiceFiscale (12) — 2026-06-03
+- [x] **test_wan_compute_tasks** — 33 PASS: costruzione+sicurezza (7), protocollo TCP (7), formato JSON (8), math_expr (5), sicurezza shell (6) — 2026-06-03
+- [x] **test_rag_graph_pipeline** — 25 PASS: costruzione (7), parsing JSON LLM (8), ricerca (5), segnali (5) — 2026-06-03
 
 ### 🟡 Importanti — funzionalità usate quotidianamente
 
-- [ ] **test_docker_sandbox** — `code_interpreter_widget.cpp`
-  - Esecuzione Python in sandbox Docker (`--rm -m256m --cpus 0.5 --network none`)
-  - Fallback PythonExec quando Docker assente
-  - Cattura stdout/stderr, timeout, matplotlib PNG output
-
-- [ ] **test_translitter** — `programmazione_page_translitter.cpp`
-  - Traduzione tra linguaggi: Python↔JS, Python↔C++, Python↔Java
-  - Preservazione struttura (classi, funzioni, import)
-
-- [ ] **test_file_parser** — `strumenti_file_page.cpp`
-  - Estrazione testo da PDF (via pdftotext), Word (.docx), CSV
-  - Chunking e indicizzazione nel RAG locale
-  - Gestione file corrotti/vuoti/troppo grandi
-
-- [ ] **test_repl_python** — `programmazione_page_git_repl.cpp`
-  - Avvio/riavvio processo Python interattivo
-  - I/O asincrono: stdin→stdout streaming
-  - Importazione librerie, errori runtime, timeout
+- [x] **test_docker_sandbox** — 29 PASS, 2 SKIP (Docker assente): costruzione, docker --version, PythonExec `print('ok')`, sicurezza sandbox — 2026-06-03
+- [x] **test_translitter** — 37 PASS: langFence helper (15), costruzione widget (12), kLangs unicità (10) — 2026-06-03
+- [x] **test_file_parser** — 38 PASS: costruzione+tab (16), pdftotext (5), CSV (8), file non validi (9) — 2026-06-03
+- [x] **test_repl_python** — 23 PASS, 1 SKIP (race condition doppio start nota): costruzione (6), python3 check (4), I/O asincrono (5), robustezza (8) — 2026-06-03
 
 ### 🟠 Bot locali — App Controller (tab già presenti, da implementare)
 
-- [ ] **Telegram Bot locale** — `app_controller_page.cpp::buildTelegramTab()`
+- [x] **Telegram Bot locale** — `app_controller_page.cpp::buildTelegramTab()`: python-telegram-bot subprocess, IPC JSON stdin/stdout, whitelist ID, risposte AI locale, pulsanti Avvia/Ferma, log in-app — già implementato 2026-06-02
   - Token bot da @BotFather configurabile in Impostazioni
   - Messaggi in entrata → AI locale risponde
   - Comandi: `/ask`, `/status`, `/task`, `/stop`
@@ -408,7 +390,7 @@
   - Whitelist ID Telegram (sicurezza)
   - Stack: python-telegram-bot o Telethon via MCP (`github.com/chigwell/telegram-mcp`)
 
-- [ ] **WhatsApp Bot locale** — `app_controller_page.cpp::buildWhatsAppTab()`
+- [x] **WhatsApp Bot locale** — sezione "Bot AI Rispondente" aggiunta a `buildWhatsAppTab()`: whitelist numeri, checkbox auto-risposta, Avvia/Ferma, polling bridge ogni 2s, risposta AI locale via `m_ai->chat()`, log messaggi — 2026-06-03
   - Bridge locale via Baileys/whatsapp-web.js (no API ufficiali)
   - QR code autenticazione WhatsApp Web integrato nel tab
   - Messaggi in entrata → prompt AI → risposta automatica
@@ -419,20 +401,10 @@
 
 ### 🟢 Nice-to-have — feature specializzate
 
-- [ ] **test_astrale** — `ricerca_page_astrale.cpp`
-  - Calcolo posizioni planetarie (coordinate manuali lat/lon)
-  - Output testo + SVG/PNG carta natale
-
-- [ ] **test_blhm_rab0l** — `ricerca_page.cpp` sezioni BLHM e RAB₀-L
-  - Rendering canvas, formula matematica, interazione con PDF RAG
-
-- [ ] **test_gns3_mcp** — `lan_wan_page.cpp` tab GNS3
-  - Connessione REST API GNS3 (mock server)
-  - Generazione codice Python topologia, esecuzione via subprocess
-
-- [ ] **test_multi_agente_live** — `agenti_multi_page.cpp`
-  - Pipeline completa con Ollama reale (simile a AiStress)
-  - Decomposizione JSON, depends_on BFS, sintesi finale, nodi GraphMemory creati
+- [x] **test_astrale** — 31 PASS: RicercaPage (12), NatalChartWidget (10), AstroCalc::compute() (9) — 2026-06-03
+- [x] **test_blhm_rab0l** — 38 PASS: Rab0lCanvas (12), BLHM Engine C (14), UI BLHM/RAB₀-L (12) — 2026-06-03
+- [x] **test_gns3_mcp** — 18 PASS, 2 SKIP (GNS3 non avviato): costruzione (8), server mock (2 skip), azioni/combo (8) — 2026-06-03
+- [ ] **test_multi_agente_live** — `agenti_multi_page.cpp` — richiede Ollama reale (simile a AiStress)
 
 ---
 

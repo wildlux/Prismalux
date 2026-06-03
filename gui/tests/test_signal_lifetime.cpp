@@ -23,9 +23,9 @@
 #include <QSpinBox>
 
 #include "mock_ai_client.h"
-#include "../pages/programmazione_page.h"
-#include "../pages/agenti_page.h"
-#include "../pages/agents_config_dialog.h"
+#include "../pages/main_programming.h"
+#include "../pages/main_ai.h"
+#include "../pages/dialog_agents_config.h"
 
 /* ══════════════════════════════════════════════════════════════
    CATEGORIA 1 — DANGLING OBSERVER

@@ -53,6 +53,8 @@
 #include <QStandardItemModel>
 #include <QSysInfo>
 #include <QTextStream>
+#include <QPainter>
+#include <QPixmap>
 
 namespace P = PrismaluxPaths;
 
@@ -1625,11 +1627,16 @@ QWidget* LanWanPage::buildWanComputeTab()
         m_wanThroughputLbl = new QLabel("\xf0\x9f\x93\x88  Throughput: \xe2\x80\x94", dashRow);
         m_wanThroughputLbl->setObjectName("cardDesc");
         m_wanThroughputLbl->setTextFormat(Qt::RichText);
+        m_wanChartWidget = new QLabel(dashRow);
+        m_wanChartWidget->setFixedSize(dpiScale(300), dpiScale(60));
+        m_wanChartWidget->setToolTip("Istogramma throughput — ultimi 60 min (bin 5 min)");
+        m_wanChartWidget->setObjectName("cardDesc");
         m_wanExportBtn = new QPushButton(
             "\xf0\x9f\x93\xa5  Esporta CSV", dashRow);
         m_wanExportBtn->setObjectName("actionBtn");
         m_wanExportBtn->setToolTip("Scarica CSV di tutti i task (id, tipo, payload, stato, nodo, durata, risultato)");
         dashLay->addWidget(m_wanThroughputLbl, 1);
+        dashLay->addWidget(m_wanChartWidget);
         dashLay->addWidget(m_wanExportBtn);
         srvLay->addWidget(dashRow);
         connect(m_wanExportBtn, &QPushButton::clicked,
@@ -2195,6 +2202,74 @@ void LanWanPage::updateWanThroughput()
     m_wanThroughputLbl->setText(
         QString("\xf0\x9f\x93\x88  Throughput: <b>%1</b> task/ora%2")
         .arg(perHour).arg(etaTxt));
+
+    /* ── Istogramma throughput — 12 bin da 5 min (ultimi 60 min) ── */
+    if (!m_wanChartWidget) return;
+    const int kBins   = 12;
+    const int kBinSec = 300; // 5 minuti
+    const int chartW  = m_wanChartWidget->width();
+    const int chartH  = m_wanChartWidget->height();
+    QPixmap pix(chartW, chartH);
+    pix.fill(QColor(30, 41, 59));   // sfondo scuro coerente con dark theme
+
+    // Conta i task per bin
+    QVector<int> bins(kBins, 0);
+    const QDateTime now = QDateTime::currentDateTime();
+    for (const QDateTime& ts : m_wanCompletedTs) {
+        const qint64 secsAgo = ts.secsTo(now);
+        if (secsAgo < 0 || secsAgo >= kBins * kBinSec) continue;
+        const int binIdx = static_cast<int>(secsAgo / kBinSec);
+        // binIdx 0 = bin più recente (destra), invertiamo sotto
+        if (binIdx >= 0 && binIdx < kBins)
+            bins[kBins - 1 - binIdx]++;
+    }
+    const int maxVal = *std::max_element(bins.constBegin(), bins.constEnd());
+
+    QPainter p(&pix);
+    p.setRenderHint(QPainter::Antialiasing, false);
+
+    const int padL = dpiScale(4);
+    const int padR = dpiScale(4);
+    const int padT = dpiScale(4);
+    const int padB = dpiScale(14); // spazio etichette asse X
+    const int innerW = chartW - padL - padR;
+    const int innerH = chartH - padT - padB;
+    const int spacing = dpiScale(2);
+    const int barW = (innerW - spacing * (kBins - 1)) / kBins;
+
+    // Linea base
+    p.setPen(QColor(71, 85, 105));
+    p.drawLine(padL, chartH - padB, chartW - padR, chartH - padB);
+
+    // Barre
+    for (int i = 0; i < kBins; i++) {
+        const int x = padL + i * (barW + spacing);
+        const int barH = (maxVal > 0)
+            ? static_cast<int>((static_cast<double>(bins[i]) / maxVal) * innerH)
+            : 0;
+        const int y = padT + innerH - barH;
+        if (barH > 0) {
+            // Gradiente verde: più piena = più luminosa
+            const int green = 120 + static_cast<int>(100.0 * bins[i] / qMax(1, maxVal));
+            p.fillRect(x, y, barW, barH, QColor(34, green, 80));
+        } else {
+            // Barra vuota — segnalino
+            p.fillRect(x, chartH - padB - dpiScale(2), barW, dpiScale(2),
+                       QColor(50, 65, 85));
+        }
+        // Etichetta ogni 4 bin: "-60", "-40", "-20", "0"
+        if (i == 0 || i == 3 || i == 6 || i == 9 || i == 11) {
+            const int minsAgo = (kBins - i) * 5;
+            p.setPen(QColor(148, 163, 184));
+            p.setFont(QFont("monospace", dpiScale(7)));
+            const QString lbl = (i == 11) ? "0" : QString("-%1").arg(minsAgo);
+            p.drawText(x, chartH - padB + dpiScale(2),
+                       barW + spacing, padB - dpiScale(1),
+                       Qt::AlignLeft | Qt::AlignTop, lbl);
+        }
+    }
+    p.end();
+    m_wanChartWidget->setPixmap(pix);
 }
 
 void LanWanPage::onWanExportCsvClicked()

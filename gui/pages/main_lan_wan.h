@@ -120,6 +120,7 @@ private:
     QLabel*          m_wanStatsLbl        = nullptr; ///< stats BOINC-style
     QTimer*          m_wanDashTimer       = nullptr; ///< 5s aggiornamento throughput
     QLabel*          m_wanThroughputLbl   = nullptr; ///< task/ora
+    QLabel*          m_wanChartWidget     = nullptr; ///< istogramma throughput (QPainter su QPixmap)
     QPushButton*     m_wanExportBtn       = nullptr; ///< esporta CSV
     QVector<QDateTime> m_wanCompletedTs;             ///< timestamp task completati (ultimi 60min)
 

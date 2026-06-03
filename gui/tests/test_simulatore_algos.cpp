@@ -19,7 +19,7 @@
 #include <cmath>
 
 #include "mock_ai_client.h"
-#include "../pages/simulatore_page.h"
+#include "../pages/main_simulator.h"
 
 /* ──────────────────────────────────────────────────────────────
    Access structs — delegano l'accesso ai metodi privati tramite

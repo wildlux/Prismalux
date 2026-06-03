@@ -19,7 +19,7 @@
 #include <QDateTime>
 #include <QFile>
 #include <QDir>
-#include "../pages/manutenzione_page.h"
+#include "../pages/main_maintenance.h"
 #include "../hardware_monitor.h"
 #include "mock_ai_client.h"
 

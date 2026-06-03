@@ -22,7 +22,7 @@
 #include <QTextEdit>
 #include <QPushButton>
 
-#include "../pages/opencode_page.h"
+#include "../pages/main_opencode.h"
 
 static OpenCodePage* s_page = nullptr;
 

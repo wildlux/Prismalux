@@ -422,6 +422,25 @@ if(BUILD_TESTS)
         target_link_libraries(test_programmazione_page PRIVATE pthread m)
     endif()
 
+    # ── test_translitter: langFence helper, costruzione widget, kLangs unicità ──
+    add_executable(test_translitter
+        tests/test_translitter.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_translitter PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_translitter PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_translitter PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_translitter PRIVATE pthread m)
+    endif()
+
     # ── test_thinking_detect: _extractThinkingToken + classifyQuery + key-lock ──
     # Dipende solo da ai_client.cpp (per classifyQuery) + ai_thinking_detect.h.
     # NON include TEST_SHARED_SRCS: ai_client.cpp compila senza tutta la UI.
@@ -933,6 +952,24 @@ if(BUILD_TESTS)
         target_link_libraries(test_opencode_page PRIVATE pthread m)
     endif()
 
+    add_executable(test_docker_sandbox
+        tests/test_docker_sandbox.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_docker_sandbox PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_docker_sandbox PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_docker_sandbox PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_docker_sandbox PRIVATE pthread m)
+    endif()
+
     add_executable(test_impara_quiz
         tests/test_impara_quiz.cpp
         tests/mock_ai_client.h
@@ -1010,6 +1047,101 @@ if(BUILD_TESTS)
         target_link_libraries(test_rag_graph_pipeline PRIVATE pthread m)
     endif()
 
+    # ── test_astrale: CAT-A RicercaPage, CAT-B NatalChartWidget, CAT-C AstroCalc::compute ──
+    add_executable(test_astrale
+        tests/test_astrale.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_astrale PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_astrale PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_astrale PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_astrale PRIVATE pthread m)
+    endif()
+
+    # ── test_repl_python: CAT-A costruzione, CAT-B availability, CAT-C I/O, CAT-D robustezza ──
+    add_executable(test_repl_python
+        tests/test_repl_python.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_repl_python PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_repl_python PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_repl_python PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_repl_python PRIVATE pthread m)
+    endif()
+
+    # ── test_file_parser: StrumentiFilePage costruzione, CSV, PDF, file non validi ──
+    add_executable(test_file_parser
+        tests/test_file_parser.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_file_parser PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_file_parser PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_file_parser PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_file_parser PRIVATE pthread m)
+    endif()
+
+    # ── test_gns3_mcp: LanWanPage costruzione, GNS3 widget, combo azioni, host default ──
+    add_executable(test_gns3_mcp
+        tests/test_gns3_mcp.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_gns3_mcp PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_gns3_mcp PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_gns3_mcp PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_gns3_mcp PRIVATE pthread m)
+    endif()
+
+    # ── test_blhm_rab0l: Rab0lCanvas widget, BLHM Engine C, RicercaPage BLHM/RAB0-L ──
+    add_executable(test_blhm_rab0l
+        tests/test_blhm_rab0l.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_blhm_rab0l PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_blhm_rab0l PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_blhm_rab0l PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_blhm_rab0l PRIVATE pthread m)
+    endif()
+
     enable_testing()
     add_test(NAME GraphMemory           COMMAND test_graph_memory)
     add_test(NAME PraticoFinanza        COMMAND test_pratico_finanza)
@@ -1051,11 +1183,19 @@ if(BUILD_TESTS)
     add_test(NAME AgentiByzantine         COMMAND test_agenti_byzantine)
     add_test(NAME AgenteAutonomo          COMMAND test_agente_autonomo)
     add_test(NAME OpenCodePage            COMMAND test_opencode_page)
+    add_test(NAME DockerSandbox           COMMAND test_docker_sandbox)
     add_test(NAME ImparaQuiz              COMMAND test_impara_quiz)
     add_test(NAME MonitorPanel            COMMAND test_monitor_panel)
     add_test(NAME SttWhisper              COMMAND test_stt_whisper)
     add_test(NAME RagGraphPipeline        COMMAND test_rag_graph_pipeline)
+    add_test(NAME Astrale                 COMMAND test_astrale)
+    add_test(NAME BlhmRab0l               COMMAND test_blhm_rab0l)
+    add_test(NAME Translitter             COMMAND test_translitter)
+    add_test(NAME ReplPython              COMMAND test_repl_python)
+    add_test(NAME FileParser              COMMAND test_file_parser)
+    add_test(NAME Gns3Mcp                 COMMAND test_gns3_mcp)
     set_tests_properties(RagGraphPipeline PROPERTIES TIMEOUT 30)
+    set_tests_properties(ReplPython       PROPERTIES TIMEOUT 30)
     set_tests_properties(AiIntegration  PROPERTIES TIMEOUT 900)   # 15 min — CPU-only mistral lento
     set_tests_properties(AiStress       PROPERTIES TIMEOUT 1800)  # 30 min — 6 test reali + stress
     set_tests_properties(TeamCollab PROPERTIES TIMEOUT 2400)  # 40 min totali
@@ -1077,6 +1217,7 @@ if(BUILD_TESTS)
     set_tests_properties(Grafico            PROPERTIES TIMEOUT 30)
     set_tests_properties(AgentiByzantine    PROPERTIES TIMEOUT 30)
     set_tests_properties(OpenCodePage       PROPERTIES TIMEOUT 30)
+    set_tests_properties(FileParser         PROPERTIES TIMEOUT 30)
     set_tests_properties(ImparaQuiz         PROPERTIES TIMEOUT 30)
     set_tests_properties(MonitorPanel       PROPERTIES TIMEOUT 30)
     message(STATUS "Build test abilitata: graph_memory, signal_lifetime, rag_engine, code_utils, random_tool, lavoro_page, app_controller, programmazione_page, thinking_detect, ai_integration, ai_stress, team_collab, lavoro_data, tutor_data, rag_engine_avanzato, chat_history, simulatore_algos, formula_parser, strumenti_rag, theme_manager, hardware_monitor, manutenzione_cron, chat_history_stress, matematica_page, qr_code_widget, hw_detect_amd, knowledge_injection")
