@@ -324,11 +324,31 @@ def handle_sync(_args: dict[str, Any]) -> str:
         conn.close()
 
 
+import re as _re
+
+def _validate_model_name(name: str) -> str:
+    """Valida il nome modello Ollama: solo caratteri sicuri (alfanumerico, ., :, -, _)."""
+    if not isinstance(name, str):
+        raise ValueError("Il nome modello deve essere una stringa.")
+    name = name.strip()
+    if not name:
+        raise ValueError("Nome modello vuoto.")
+    if len(name) > 128:
+        raise ValueError("Nome modello troppo lungo (max 128 caratteri).")
+    if not _re.match(r'^[A-Za-z0-9._:\-/]+$', name):
+        raise ValueError(f"Nome modello non valido: {name!r}. Usa solo lettere, numeri, '.', ':', '-', '/'")
+    return name
+
+
 def handle_pull_model(args: dict[str, Any]) -> str:
+    import subprocess
     name = args.get("name", "").strip()
     if not name:
         return "Specifica il nome del modello da scaricare."
-    import subprocess
+    try:
+        name = _validate_model_name(name)
+    except ValueError as e:
+        return f"[Errore] {e}"
     try:
         subprocess.Popen(
             ["ollama", "pull", name],

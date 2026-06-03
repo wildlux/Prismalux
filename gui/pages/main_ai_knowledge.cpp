@@ -1,0 +1,360 @@
+#include "main_ai.h"
+#include "../dpi_utils.h"
+#include "main_ai_p.h"
+#include "dialog_agents_config.h"
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
+#include <QProcess>
+#include <QTimer>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QDialog>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QTextEdit>
+#include <QComboBox>
+#include <QPushButton>
+#include <QSettings>
+#include <QDateTime>
+#include <QDir>
+#include <QFile>
+#include <QStandardPaths>
+
+/* ══════════════════════════════════════════════════════════════
+   callKnowledgeMcp — chiama auto_extract_and_update via QProcess
+   fire-and-forget: avvia il processo e non aspetta il risultato.
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::callKnowledgeMcp(const QString& summary, const QString& label)
+{
+    if (summary.trimmed().isEmpty()) return;
+
+    const QString serverPy = P::root()
+        + "/MCPs/knowledge_mcp/server.py";
+    if (!QFileInfo::exists(serverPy)) return;
+
+    /* JSON-RPC 2.0: tools/call → auto_extract_and_update */
+    QJsonObject args;
+    args["summary"] = summary.trimmed();
+    if (!label.isEmpty())
+        args["session_label"] = label;
+
+    QJsonObject params;
+    params["name"]      = "auto_extract_and_update";
+    params["arguments"] = args;
+
+    QJsonObject req;
+    req["jsonrpc"] = "2.0";
+    req["id"]      = 1;
+    req["method"]  = "tools/call";
+    req["params"]  = params;
+
+    const QByteArray payload =
+        QJsonDocument(req).toJson(QJsonDocument::Compact) + "\n";
+
+    /* Ferma eventuale processo precedente ancora in esecuzione */
+    if (m_knowledgeProc && m_knowledgeProc->state() != QProcess::NotRunning)
+        m_knowledgeProc->kill();
+
+    auto* proc = new QProcess(this);
+    proc->setProgram(P::findPython());
+    proc->setArguments({ serverPy });
+
+    connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &AgentiPage::onKnowledgeProcFinished);
+    connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            proc, &QProcess::deleteLater);
+
+    /* Timeout 5s — watchdog figlio di proc: auto-eliminato quando proc termina */
+    auto* watchdog = new QTimer(proc);
+    watchdog->setSingleShot(true);
+    connect(watchdog, &QTimer::timeout, this, &AgentiPage::onKnowledgeWatchdogTimeout);
+
+    m_knowledgeProc    = proc;
+    m_knowledgeWatchdog = watchdog;
+
+    proc->start();
+    if (proc->waitForStarted(2000)) {
+        proc->write(payload);
+        proc->closeWriteChannel();
+        watchdog->start(5000);
+        /* Invalida la cache di lettura: il file è stato aggiornato */
+        P::invalidateKnowledgeCache();
+    } else {
+        m_knowledgeProc    = nullptr;
+        m_knowledgeWatchdog = nullptr;
+        proc->deleteLater();  /* elimina anche watchdog (suo figlio) */
+    }
+}
+
+/* Hints statici riusati da onSaveKnowledge e onKnowledgeSaveDlgSectionChanged */
+static const QHash<QString,QString> kSaveHints = {
+    {"contesto",     "Ultimi eventi rilevanti della sessione (rotazione max 10 voci)."},
+    {"ragionamenti", "Decisioni prese con motivazione breve (rotazione max 15 voci)."},
+    {"progetto",     "Stato, stack e priorità correnti del progetto."},
+    {"procedure",    "Algoritmi o flussi consolidati da ricordare."},
+    {"preferenze",   "Stile di risposta, lingua, cosa evitare."},
+    {"chi_sono",     "Ruolo, background, obiettivi e livello tecnico."},
+};
+
+/* ══════════════════════════════════════════════════════════════
+   onSaveKnowledge — P4: dialog "Salva in Knowledge" dalla toolbar
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::onSaveKnowledge()
+{
+    /* Testo precompilato: ultimo output agente o plain text del log */
+    QString preText;
+    if (!m_agentOutputs.isEmpty() && !m_agentOutputs.last().trimmed().isEmpty()) {
+        preText = m_agentOutputs.last().trimmed();
+        /* Tronca a 1500 caratteri per non sprecare context window */
+        if (preText.length() > 1500)
+            preText = preText.left(1500) + "\n[... troncato ...]";
+    } else if (m_log && !m_log->toPlainText().trimmed().isEmpty()) {
+        preText = m_log->toPlainText().trimmed().right(800);
+    }
+
+    /* ── Dialog ── */
+    auto* dlg = new QDialog(this);
+    dlg->setWindowTitle("\xf0\x9f\x93\x96  Salva in Knowledge");  /* 📖 */
+    dlg->setMinimumWidth(dpiScale(540));
+    dlg->setMinimumHeight(dpiScale(380));
+    auto* lay = new QVBoxLayout(dlg);
+    lay->setSpacing(10);
+
+    /* Intestazione */
+    auto* titleLbl = new QLabel(
+        "<b>Salva in <code>user_knowledge.md</code></b><br>"
+        "<small>Scegli sezione e inserisci il testo da memorizzare.</small>",
+        dlg);
+    titleLbl->setTextFormat(Qt::RichText);
+    lay->addWidget(titleLbl);
+
+    /* Riga: Sezione + Modalità */
+    auto* row = new QHBoxLayout;
+    auto* secLbl = new QLabel("Sezione:", dlg);
+    auto* secCmb = new QComboBox(dlg);
+    secCmb->addItems({
+        "contesto",
+        "ragionamenti",
+        "progetto",
+        "procedure",
+        "preferenze",
+        "chi_sono",
+    });
+    secCmb->setCurrentIndex(0);  /* default: contesto */
+
+    auto* modLbl = new QLabel("Modalit\xc3\xa0:", dlg);  /* Modalità */
+    auto* modCmb = new QComboBox(dlg);
+    modCmb->addItems({ "append", "replace_section" });
+
+    row->addWidget(secLbl);
+    row->addWidget(secCmb, 1);
+    row->addSpacing(12);
+    row->addWidget(modLbl);
+    row->addWidget(modCmb);
+    lay->addLayout(row);
+
+    /* Area testo */
+    auto* edit = new QTextEdit(dlg);
+    edit->setPlaceholderText(
+        "Inserisci il testo da salvare. Puoi usare Markdown.\n"
+        "Per 'ragionamenti' e 'contesto' includi una data:\n"
+        "**2026-05-06** — ...");
+    edit->setPlainText(preText);
+    lay->addWidget(edit, 1);
+
+    /* Hint sezione corrente */
+    auto* hintLbl = new QLabel(dlg);
+    hintLbl->setObjectName("hintLabel");
+    hintLbl->setWordWrap(true);
+    m_saveDlgHint = hintLbl;
+    hintLbl->setText("<small>" + kSaveHints.value(secCmb->currentText(), "") + "</small>");
+    connect(secCmb, &QComboBox::currentTextChanged,
+            this, &AgentiPage::onKnowledgeSaveDlgSectionChanged);
+    lay->addWidget(hintLbl);
+
+    /* Bottoni */
+    auto* btnRow = new QHBoxLayout;
+    btnRow->addStretch(1);
+    auto* btnCancel = new QPushButton("Annulla", dlg);
+    auto* btnSave   = new QPushButton("\xf0\x9f\x92\xbe  Salva", dlg);  /* 💾 */
+    btnSave->setObjectName("actionBtn");
+    btnRow->addWidget(btnCancel);
+    btnRow->addWidget(btnSave);
+    lay->addLayout(btnRow);
+
+    connect(btnCancel, &QPushButton::clicked, dlg, &QDialog::reject);
+
+    m_saveDlg     = dlg;
+    m_saveDlgEdit = edit;
+    m_saveDlgSec  = secCmb;
+    m_saveDlgMod  = modCmb;
+    connect(btnSave, &QPushButton::clicked, this, &AgentiPage::onKnowledgeSaveBtnClicked);
+
+    dlg->exec();
+    dlg->deleteLater();
+    m_saveDlg     = nullptr;
+    m_saveDlgEdit = nullptr;
+    m_saveDlgSec  = nullptr;
+    m_saveDlgMod  = nullptr;
+    m_saveDlgHint = nullptr;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   runKnowledgeExtract — P5: agente Estrattore nascosto
+   Chiamato da advancePipeline() al termine della pipeline multi-agente.
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::runKnowledgeExtract()
+{
+    m_knowledgeBuf.clear();
+    m_opMode = OpMode::KnowledgeExtract;
+
+    QString ctx;
+
+    /* ── Modalità CHAT RAG (singolo agente): usa il testo del log ── */
+    if (!m_modePipeline && m_agentOutputs.size() <= 1) {
+        /* Ultimi 3000 caratteri del log (plain text senza HTML) */
+        const QString logText = m_log ? m_log->toPlainText() : QString();
+        ctx = "Conversazione recente:\n" + logText.right(3000);
+    } else {
+        /* ── Modalità Pipeline: task + output per agente ── */
+        ctx = "Task: " + m_taskOriginal.left(300);
+        auto roleList = AgentsConfigDialog::roles();
+        for (int i = 0; i < m_agentOutputs.size(); i++) {
+            int roleIdx = m_cfgDlg->roleCombo(i)->currentIndex();
+            const QString roleName = (roleIdx >= 0 && roleIdx < roleList.size())
+                ? roleList[roleIdx].name : QString("Agente %1").arg(i + 1);
+            const QString out = m_agentOutputs[i].trimmed().left(600);
+            if (!out.isEmpty())
+                ctx += QString("\n\n[%1]:\n%2").arg(roleName, out);
+        }
+    }
+
+    /* Prompt deterministico — NON lascia libertà all'AI */
+    static const char* kSysExtract =
+        "Sei un estrattore di memoria per Prismalux. "
+        "Analizza la conversazione fornita. "
+        "Riassumi in massimo 5 righe le informazioni NUOVE emerse su utente, preferenze o progetto. "
+        "Usa SOLO questi prefissi (uno per riga, ometti se non hai informazioni nuove):\n"
+        "  PREFERENZE: <stile o preferenza utente emersa>\n"
+        "  PROGETTO: <aggiornamento stato o decisione tecnica>\n"
+        "  PROCEDURA: <algoritmo o flusso consolidato>\n"
+        "  DECISIONE: <decisione presa con motivazione breve>\n"
+        "  CONTESTO: <elemento rilevante per le prossime sessioni>\n"
+        "Se la conversazione non contiene nulla di nuovo o rilevante, rispondi solo: NULLA\n"
+        "Rispondi SOLO con le righe prefissate. Nessun'altra parola. Italiano.";
+
+    m_ai->chat(QString::fromLatin1(kSysExtract), ctx);
+}
+
+/* ── slot: watchdog 5s — uccide il processo MCP knowledge se non risponde ──── */
+void AgentiPage::onKnowledgeWatchdogTimeout()
+{
+    if (m_knowledgeProc && m_knowledgeProc->state() != QProcess::NotRunning)
+        m_knowledgeProc->kill();
+}
+
+void AgentiPage::onKnowledgeProcFinished(int, QProcess::ExitStatus)
+{
+    m_knowledgeProc    = nullptr;
+    m_knowledgeWatchdog = nullptr;
+}
+
+void AgentiPage::onKnowledgeSaveDlgSectionChanged(const QString& sec)
+{
+    if (m_saveDlgHint)
+        m_saveDlgHint->setText("<small>" + kSaveHints.value(sec, "") + "</small>");
+}
+
+void AgentiPage::onKnowledgeSaveBtnClicked()
+{
+    if (!m_saveDlg || !m_saveDlgEdit) return;
+
+    const QString text = m_saveDlgEdit->toPlainText().trimmed();
+    if (text.isEmpty()) { m_saveDlg->reject(); return; }
+
+    const QString sec  = m_saveDlgSec  ? m_saveDlgSec->currentText()  : "contesto";
+    const QString mode = m_saveDlgMod  ? m_saveDlgMod->currentText()  : "append";
+
+    const QString serverPy = P::root() + "/MCPs/knowledge_mcp/server.py";
+    if (!QFileInfo::exists(serverPy)) { m_saveDlg->accept(); return; }
+
+    QJsonObject args;
+    args["section"] = sec;
+    args["content"] = text;
+    args["mode"]    = mode;
+
+    QJsonObject params;
+    params["name"]      = "update_knowledge";
+    params["arguments"] = args;
+
+    QJsonObject req;
+    req["jsonrpc"] = "2.0";
+    req["id"]      = 1;
+    req["method"]  = "tools/call";
+    req["params"]  = params;
+
+    const QByteArray payload =
+        QJsonDocument(req).toJson(QJsonDocument::Compact) + "\n";
+
+    auto* proc = new QProcess(this);
+    proc->setProgram(P::findPython());
+    proc->setArguments({ serverPy });
+    connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            proc, &QProcess::deleteLater);
+    proc->start();
+    if (proc->waitForStarted(2000)) {
+        proc->write(payload);
+        proc->closeWriteChannel();
+        P::invalidateKnowledgeCache();
+    } else {
+        proc->deleteLater();
+    }
+    m_saveDlg->accept();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _finishedKnowledgeExtract — risposta estrattore completata
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::_finishedKnowledgeExtract() {
+    const QString extracted = m_knowledgeBuf.trimmed();
+    m_knowledgeBuf.clear();
+    m_opMode = OpMode::Idle;
+
+    const bool isUseful = !extracted.isEmpty()
+                          && !extracted.trimmed().toUpper().startsWith("NULLA");
+    if (isUseful) {
+        const QString modeLabel = m_modePipeline ? "Pipeline" : "Chat";
+        const QString label = QString("%1: %2 \xe2\x80\x94 %3")
+            .arg(modeLabel,
+                 m_taskOriginal.left(30).simplified(),
+                 QDateTime::currentDateTime().toString("yyyy-MM-dd"));
+        callKnowledgeMcp(extracted, label);
+
+        /* Indicatore visivo: "\xf0\x9f\xa7\xa0 Memoria aggiornata" per 3 secondi
+           nel waitLabel della toolbar (stile coerente con TTS hide). */
+        if (m_waitLbl) {
+            m_waitLbl->setText("\xf0\x9f\xa7\xa0  Memoria aggiornata");
+            m_waitLbl->setVisible(true);
+            QTimer::singleShot(3000, this, &AgentiPage::onTtsHideWaitLbl);
+        }
+        /* Status bar: mostra "Memoria aggiornata" come messaggio di completamento */
+        emit pipelineStatus(100,
+            "\xf0\x9f\xa7\xa0  Memoria aggiornata \xe2\x80\x94 " + label);
+    } else {
+        emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
+    }
+
+    if (m_voiceLoopActive && !m_modePipeline && !m_agentOutputs.isEmpty()) {
+        QString resp = m_agentOutputs.last().trimmed();
+        QStringList words = resp.split(' ', Qt::SkipEmptyParts);
+        if (words.size() > 400) words = words.mid(0, 400);
+        const QString ttsText = words.join(" ");
+        if (!ttsText.isEmpty())
+            QTimer::singleShot(200, this, [this, ttsText]{ _ttsPlay(ttsText); });
+    }
+
+    _setRunBusy(false);
+    emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
+}
+

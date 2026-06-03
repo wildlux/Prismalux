@@ -22,6 +22,7 @@ Uso con Claude Code:
 import sys
 import json
 import os
+import re
 import subprocess
 import threading
 import time
@@ -155,6 +156,16 @@ def _run_opencode(message: str, working_dir: str, model: str, continue_session: 
         return f"[Errore interno] {e}"
 
 
+def _validate_model_name_oc(name: str) -> str:
+    """Valida il nome modello OpenCode (formato provider/modello:tag)."""
+    name = name.strip()
+    if not name or len(name) > 128:
+        raise ValueError("Nome modello non valido o troppo lungo.")
+    if not re.match(r'^[A-Za-z0-9._:\-/]+$', name):
+        raise ValueError(f"Nome modello non valido: {name!r}")
+    return name
+
+
 def tool_ask_opencode(args: dict) -> str:
     message        = args.get("message", "").strip()
     working_dir    = args.get("working_dir", DEFAULT_DIR).strip() or DEFAULT_DIR
@@ -163,8 +174,16 @@ def tool_ask_opencode(args: dict) -> str:
 
     if not message:
         return "[Errore] Il campo 'message' è obbligatorio."
+    if len(message) > 8192:
+        return "[Errore] Il messaggio è troppo lungo (max 8192 caratteri)."
 
-    # Normalizza la directory
+    # Valida il modello
+    try:
+        model = _validate_model_name_oc(model)
+    except ValueError as e:
+        return f"[Errore] {e}"
+
+    # Normalizza e verifica la directory
     working_dir = str(Path(working_dir).expanduser().resolve())
     if not Path(working_dir).is_dir():
         return f"[Errore] Directory non trovata: {working_dir}"

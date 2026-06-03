@@ -88,7 +88,18 @@ def tool_list_ports(_):
 def tool_list_boards(args):
     if not shutil.which("arduino-cli"):
         return "[Errore] arduino-cli non installato. Esegui: sudo apt install arduino-cli"
-    stdout, stderr, rc = _run(["arduino-cli", "board", "listall", args.get("filter", "")], timeout=30)
+    board_filter = args.get("filter", "")
+    if not isinstance(board_filter, str):
+        board_filter = ""
+    # Whitelist caratteri: solo alfanumerico, spazio, trattino, underscore
+    import re as _re
+    board_filter = board_filter.strip()[:64]
+    if board_filter and not _re.match(r'^[A-Za-z0-9 _\-]+$', board_filter):
+        return "[Errore] Il filtro contiene caratteri non validi. Usa solo lettere, numeri, spazi e trattini."
+    cmd = ["arduino-cli", "board", "listall"]
+    if board_filter:
+        cmd.append(board_filter)
+    stdout, stderr, rc = _run(cmd, timeout=30)
     if rc != 0: return f"[Errore] {stderr}"
     lines = stdout.splitlines()
     if len(lines) > 30: lines = lines[:30] + [f"... ({len(stdout.splitlines())} totali)"]

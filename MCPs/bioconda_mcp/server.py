@@ -117,8 +117,32 @@ def tool_run_fastqc(args):
     if rc != 0: return f"[Errore FastQC] {stderr}"
     return f"FastQC completato.\nReport in: {out_dir}\n{stdout[-500:]}"
 
+_ALLOWED_RUN_COMMANDS = {
+    "blastn", "blastp", "blastx", "tblastn", "tblastx",
+    "samtools", "bedtools", "bwa", "star", "hisat2", "bowtie2",
+    "fastqc", "trimmomatic", "kallisto", "salmon", "muscle",
+    "bcftools", "gatk", "picard", "snakemake", "nextflow",
+    "seqkit", "minimap2", "cutadapt",
+}
+
 def tool_run_command(args):
-    stdout, stderr, rc = _run(args["command"], timeout=args.get("timeout", 120))
+    raw_cmd = args.get("command", "")
+    if not isinstance(raw_cmd, str) or not raw_cmd.strip():
+        return "[Errore] Il campo 'command' è obbligatorio."
+    # Parsing sicuro: shlex.split + whitelist sul primo token
+    try:
+        parts = shlex.split(raw_cmd)
+    except ValueError as e:
+        return f"[Errore] Comando non parsabile: {e}"
+    if not parts:
+        return "[Errore] Comando vuoto."
+    binary = os.path.basename(parts[0])
+    if binary not in _ALLOWED_RUN_COMMANDS:
+        return (
+            f"[Errore] Comando '{binary}' non consentito. "
+            f"Comandi permessi: {', '.join(sorted(_ALLOWED_RUN_COMMANDS))}"
+        )
+    stdout, stderr, rc = _run(parts, timeout=args.get("timeout", 120))
     result = stdout if stdout else stderr
     if rc != 0: return f"[Errore (rc={rc})]\n{result[-2000:]}"
     return result[-2000:] if result else "(nessun output)"

@@ -94,76 +94,76 @@ set(CPP_SRCS
     theme_manager.cpp
     chat_history.cpp
     rag_engine.cpp
-    pages/agenti_page.cpp
-    pages/agenti_page_ui.cpp
-    pages/agenti_page_stt.cpp
-    pages/agenti_page_tts.cpp
-    pages/agenti_page_files.cpp
-    pages/agenti_page_models.cpp
-    pages/agenti_page_math.cpp
-    pages/agenti_page_tools.cpp
-    pages/agenti_page_pipeline.cpp
-    pages/agenti_page_byzantine.cpp
-    pages/agenti_page_bubbles.cpp
-    pages/agenti_page_exec.cpp
-    pages/agenti_page_format.cpp
-    pages/agenti_page_stream.cpp
-    pages/agenti_page_consiglio.cpp
-    pages/agenti_page_knowledge.cpp
-    pages/agenti_page_auto.cpp
-    pages/agenti_page_feedback.cpp
-    pages/agents_config_dialog.cpp
-    pages/pratico_page.cpp
-    pages/lavoro_data.cpp
-    pages/lavoro_page.cpp
-    pages/impara_page.cpp
-    pages/quiz_page.cpp
-    pages/quiz_ccna_db.cpp
-    pages/oracolo_page.cpp
-    pages/materie_page.cpp
-    pages/tutor_data.cpp
-    pages/personalizza_page.cpp
-    pages/personalizza_page_lora.cpp
-    pages/app_controller_page_science.cpp
-    pages/manutenzione_page.cpp
-    pages/manutenzione_page_bugs.cpp
-    pages/manutenzione_page_cron.cpp
-    pages/manutenzione_page_lan.cpp
+    pages/main_ai.cpp
+    pages/main_ai_ui.cpp
+    pages/main_ai_stt.cpp
+    pages/main_ai_tts.cpp
+    pages/main_ai_files.cpp
+    pages/main_ai_models.cpp
+    pages/main_ai_math.cpp
+    pages/main_ai_tools.cpp
+    pages/main_ai_pipeline.cpp
+    pages/main_ai_byzantine.cpp
+    pages/main_ai_bubbles.cpp
+    pages/main_ai_exec.cpp
+    pages/main_ai_format.cpp
+    pages/main_ai_stream.cpp
+    pages/main_ai_advice.cpp
+    pages/main_ai_knowledge.cpp
+    pages/main_ai_auto.cpp
+    pages/main_ai_feedback.cpp
+    pages/dialog_agents_config.cpp
+    pages/main_finance.cpp
+    pages/main_jobs_data.cpp
+    pages/main_jobs.cpp
+    pages/main_learn.cpp
+    pages/main_quiz.cpp
+    pages/main_quiz_ccna_db.cpp
+    pages/main_oracle.cpp
+    pages/main_subjects.cpp
+    pages/main_learn_data.cpp
+    pages/main_customize.cpp
+    pages/main_customize_lora.cpp
+    pages/main_app_controller_science.cpp
+    pages/main_maintenance.cpp
+    pages/main_maintenance_bugs.cpp
+    pages/main_maintenance_cron.cpp
+    pages/main_maintenance_lan.cpp
     lan_server.cpp
-    pages/impostazioni_page.cpp
-    pages/impostazioni_page_ai.cpp
-    pages/impostazioni_page_slots.cpp
-    pages/impostazioni_page_visuale.cpp
-    pages/impostazioni_page_llm.cpp
-    pages/impostazioni_page_voce.cpp
-    pages/impostazioni_page_sistema.cpp
-    pages/impostazioni_page_altro.cpp
-    pages/simulatore_page.cpp
-    pages/simulatore_algos.cpp
-    pages/strumenti_page.cpp
-    pages/lan_wan_page.cpp
-    pages/multimedia_page.cpp
-    pages/strumenti_file_page.cpp
-    pages/grafico_canvas.cpp
-    pages/grafico_page.cpp
-    pages/programmazione_page.cpp
-    pages/programmazione_page_git_repl.cpp
-    pages/programmazione_page_translitter.cpp
-    pages/programmazione_page_slots.cpp
-    pages/app_controller_page_slots.cpp
-    pages/code_interpreter_widget.cpp
-    pages/stable_diffusion_widget.cpp
-    pages/sintetizzatore_widget.cpp
-    pages/matematica_page.cpp
-    pages/agenti_multi_page.cpp
+    pages/settings_main.cpp
+    pages/settings_ai.cpp
+    pages/settings_slots.cpp
+    pages/settings_visual.cpp
+    pages/settings_llm.cpp
+    pages/settings_voice.cpp
+    pages/settings_system.cpp
+    pages/settings_other.cpp
+    pages/main_simulator.cpp
+    pages/main_simulator_algos.cpp
+    pages/main_tools.cpp
+    pages/main_lan_wan.cpp
+    pages/main_multimedia.cpp
+    pages/main_tools_file.cpp
+    pages/main_graph_canvas.cpp
+    pages/main_graph.cpp
+    pages/main_programming.cpp
+    pages/main_programming_git_repl.cpp
+    pages/main_programming_translitter.cpp
+    pages/main_programming_slots.cpp
+    pages/main_app_controller_slots.cpp
+    pages/widget_code_interpreter.cpp
+    pages/widget_stable_diffusion.cpp
+    pages/widget_synthesizer.cpp
+    pages/main_math.cpp
+    pages/main_multi_agent.cpp
     graph_memory.cpp
     rag_graph.cpp
-    pages/ricerca_page.cpp
-    pages/ricerca_page_astrale.cpp
+    pages/main_research.cpp
+    pages/main_research_astrale.cpp
     pages/rab0l_canvas.cpp
-    pages/app_controller_page.cpp
-    pages/security_analyzer_page.cpp
-    pages/opencode_page.cpp
+    pages/main_app_controller.cpp
+    pages/main_security.cpp
+    pages/main_opencode.cpp
     monitor_panel.cpp
     # Widget nuovi: ChatBubble, ChartWidget, FormulaParser, QrCodeWidget, NatalChartWidget
     widgets/chat_bubble.cpp
@@ -356,7 +356,7 @@ if(BUILD_TESTS)
     # ── test_random_tool: _inject_random da agenti_page_tools.cpp ──
     add_executable(test_random_tool
         tests/test_random_tool.cpp
-        pages/agenti_page_tools.cpp
+        pages/main_ai_tools.cpp
     )
     target_include_directories(test_random_tool PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(test_random_tool PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
@@ -495,7 +495,7 @@ if(BUILD_TESTS)
     # ── test_lavoro_data: kOfferte, offerteFiltrate, tipoIcon, livLabel ──────
     add_executable(test_lavoro_data
         tests/test_lavoro_data.cpp
-        pages/lavoro_data.cpp
+        pages/main_jobs_data.cpp
     )
     target_include_directories(test_lavoro_data PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(test_lavoro_data PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
@@ -506,7 +506,7 @@ if(BUILD_TESTS)
     # ── test_tutor_data: SubjectData × 6 soggetti, invarianti strutturali ───
     add_executable(test_tutor_data
         tests/test_tutor_data.cpp
-        pages/tutor_data.cpp
+        pages/main_learn_data.cpp
     )
     target_include_directories(test_tutor_data PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(test_tutor_data PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
@@ -540,8 +540,8 @@ if(BUILD_TESTS)
     add_executable(test_simulatore_algos
         tests/test_simulatore_algos.cpp
         tests/mock_ai_client.h
-        pages/simulatore_page.cpp
-        pages/simulatore_algos.cpp
+        pages/main_simulator.cpp
+        pages/main_simulator_algos.cpp
         ai_client.cpp
         ${C_SRCS}
     )
@@ -758,6 +758,25 @@ if(BUILD_TESTS)
         target_link_libraries(test_lan_server PRIVATE pthread m)
     endif()
 
+    # ── test_wan_compute_tasks: WAN Compute LanWanPage — costruzione, protocollo TCP, sicurezza shell ──
+    add_executable(test_wan_compute_tasks
+        tests/test_wan_compute_tasks.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_wan_compute_tasks PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_wan_compute_tasks PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_wan_compute_tasks PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_wan_compute_tasks PRIVATE pthread m)
+    endif()
+
     # ── test_sintetizzatore: Tono struct, OscoCanvas, SintetizzatoreWidget ──
     add_executable(test_sintetizzatore
         tests/test_sintetizzatore.cpp
@@ -961,8 +980,39 @@ if(BUILD_TESTS)
         target_link_libraries(test_graph_memory PRIVATE pthread m)
     endif()
 
+    # ── test_pratico_finanza: normalizzaComune, cercaBelfiore, calcolaCodiceFiscale ──
+    add_executable(test_pratico_finanza
+        tests/test_pratico_finanza.cpp
+    )
+    target_include_directories(test_pratico_finanza PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_pratico_finanza PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_pratico_finanza PRIVATE pthread m)
+    endif()
+
+    # ── test_rag_graph_pipeline: pipeline RagGraph — file → LLM mock → parseAndStore → GraphMemory ──
+    add_executable(test_rag_graph_pipeline
+        tests/test_rag_graph_pipeline.cpp
+        tests/mock_ai_client.h
+        rag_graph.cpp
+        graph_memory.cpp
+        ai_client.cpp
+    )
+    target_include_directories(test_rag_graph_pipeline PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_rag_graph_pipeline PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_rag_graph_pipeline PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_rag_graph_pipeline PRIVATE pthread m)
+    endif()
+
     enable_testing()
     add_test(NAME GraphMemory           COMMAND test_graph_memory)
+    add_test(NAME PraticoFinanza        COMMAND test_pratico_finanza)
     add_test(NAME SignalLifetime        COMMAND test_signal_lifetime)
     add_test(NAME RagEngine            COMMAND test_rag_engine)
     add_test(NAME CodeUtils            COMMAND test_code_utils)
@@ -992,6 +1042,7 @@ if(BUILD_TESTS)
     add_test(NAME AgentiPipeline          COMMAND test_agenti_pipeline)
     add_test(NAME AgentsConfigDialog      COMMAND test_agents_config_dialog)
     add_test(NAME LanServer               COMMAND test_lan_server)
+    add_test(NAME WanComputeTasks         COMMAND test_wan_compute_tasks)
     add_test(NAME Sintetizzatore          COMMAND test_sintetizzatore)
     add_test(NAME Onboarding              COMMAND test_onboarding)
     add_test(NAME ImpostazioniPage        COMMAND test_impostazioni_page)
@@ -1003,6 +1054,8 @@ if(BUILD_TESTS)
     add_test(NAME ImparaQuiz              COMMAND test_impara_quiz)
     add_test(NAME MonitorPanel            COMMAND test_monitor_panel)
     add_test(NAME SttWhisper              COMMAND test_stt_whisper)
+    add_test(NAME RagGraphPipeline        COMMAND test_rag_graph_pipeline)
+    set_tests_properties(RagGraphPipeline PROPERTIES TIMEOUT 30)
     set_tests_properties(AiIntegration  PROPERTIES TIMEOUT 900)   # 15 min — CPU-only mistral lento
     set_tests_properties(AiStress       PROPERTIES TIMEOUT 1800)  # 30 min — 6 test reali + stress
     set_tests_properties(TeamCollab PROPERTIES TIMEOUT 2400)  # 40 min totali
@@ -1015,6 +1068,7 @@ if(BUILD_TESTS)
         PROPERTIES RESOURCE_LOCK ollama)
     set_tests_properties(GraphMemory        PROPERTIES TIMEOUT 30)
     set_tests_properties(LanServer          PROPERTIES TIMEOUT 30)
+    set_tests_properties(WanComputeTasks    PROPERTIES TIMEOUT 60)
     set_tests_properties(Sintetizzatore     PROPERTIES TIMEOUT 30)
     set_tests_properties(ImpostazioniPage   PROPERTIES TIMEOUT 60)
     set_tests_properties(SignalLifetime     PROPERTIES TIMEOUT 60 RESOURCE_LOCK cpu_heavy)

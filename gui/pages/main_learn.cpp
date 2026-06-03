@@ -1,0 +1,1024 @@
+#include "main_learn.h"
+#include "../dpi_utils.h"
+#include <QShowEvent>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QGridLayout>
+#include <QLabel>
+#include <QFrame>
+#include <QPushButton>
+#include <QLineEdit>
+#include <QScrollArea>
+#include <QGroupBox>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QDir>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QDateTime>
+#include <QRegularExpression>
+#include <QStandardPaths>
+#include <QScrollBar>
+#include <QMenu>
+#include <QGuiApplication>
+#include <QClipboard>
+#include <QProcess>
+#include <QBrush>
+#include <QColor>
+#include <QButtonGroup>
+
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
+
+/* ── Percorso storia quiz ─────────────────────────────────────── */
+QString ImparaPage::historyPath() const {
+    return QDir::homePath() + "/.prismalux_quiz.json";
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Barra selettore backend/modello (condivisa da Tutor e Quiz)
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImparaPage::buildModelBar(QWidget* parent) {
+    auto* bar  = new QWidget(parent);
+    auto* lay  = new QHBoxLayout(bar);
+    lay->setContentsMargins(0, 0, 0, 0); lay->setSpacing(8);
+
+    auto* lbl1 = new QLabel("\xf0\x9f\x94\x8c Backend:", bar); lbl1->setObjectName("cardDesc");
+    /* Variabili LOCALI al posto dei puntatori membro m_cmbBackend/m_cmbModel.
+     * buildModelBar() viene chiamata due volte (da buildTutor + buildQuiz): se si
+     * usassero i puntatori membro, la seconda chiamata sovrascrive i puntatori e
+     * i lambda della prima barra aggiornano i combo sbagliati → Tutor rimane vuoto. */
+    auto* cmbBackend = new QComboBox(bar);
+    cmbBackend->addItems({"Ollama (HTTP)", "llama-server (HTTP)", "llama.cpp locale"});
+
+    auto* lbl2 = new QLabel("\xf0\x9f\xa4\x96 Modello:", bar); lbl2->setObjectName("cardDesc");
+    auto* cmbModel = new QComboBox(bar);
+    cmbModel->setMinimumWidth(dpiScale(180));
+
+    auto* refreshBtn = new QPushButton("\xf0\x9f\x94\x84", bar);
+    refreshBtn->setObjectName("actionBtn"); refreshBtn->setFixedWidth(dpiScale(36));
+    refreshBtn->setToolTip("Aggiorna lista modelli");
+
+    lay->addWidget(lbl1); lay->addWidget(cmbBackend);
+    lay->addWidget(lbl2); lay->addWidget(cmbModel, 1);
+    lay->addWidget(refreshBtn);
+
+    /* Aggiorna modelli in base al backend selezionato */
+    auto refreshModels = [=]{
+        int idx = cmbBackend->currentIndex();
+        cmbModel->clear();
+
+        if (idx == 0) {
+            /* Ollama */
+            refreshBtn->setEnabled(false);
+            refreshBtn->setText("\xe2\x8f\xb3");
+            m_ai->setBackend(AiClient::Ollama, "127.0.0.1", 11434, "");
+            m_ai->fetchModels();
+        } else if (idx == 1) {
+            /* llama-server */
+            refreshBtn->setEnabled(false);
+            refreshBtn->setText("\xe2\x8f\xb3");
+            m_ai->setBackend(AiClient::LlamaServer, "127.0.0.1", 8080, "");
+            m_ai->fetchModels();
+        } else {
+            /* llama.cpp locale: scansiona directory .gguf */
+            QStringList dirs = {
+                P::modelsDir(),
+                P::llamaStudioDir() + "/models"
+            };
+            QStringList found;
+            for (const auto& d : dirs) {
+                QDir dir(d);
+                if (!dir.exists()) continue;
+                for (const auto& f : dir.entryInfoList({"*.gguf"}, QDir::Files))
+                    found << f.absoluteFilePath();
+            }
+            for (const auto& f : found)
+                cmbModel->addItem(QFileInfo(f).fileName(), f);
+
+            if (found.isEmpty())
+                cmbModel->addItem("(nessun .gguf trovato)", "");
+        }
+    };
+
+    connect(cmbBackend, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            bar, [=](int){ refreshModels(); });
+    connect(refreshBtn, &QPushButton::clicked, bar, [=]{ refreshModels(); });
+
+    /* Quando arrivano i modelli Ollama/llama-server → popola QUESTO combo specifico.
+     * Usa bar come context object: se il bar viene distrutto, la connessione si
+     * disconnette automaticamente — evita doppio-popolamento tra le due barre.
+     *
+     * IMPORTANTE: salva e ripristina la selezione dell'utente dopo il repopulate.
+     * Senza blockSignals(), il clear() triggera currentIndexChanged con idx=0
+     * sovrascrivendo il modello scelto dall'utente. */
+    connect(m_ai, &AiClient::modelsReady, bar, [=](const QStringList& list){
+        if (cmbBackend->currentIndex() >= 2) return;
+
+        /* Salva il modello correntemente scelto dall'utente */
+        const QString prev = cmbModel->currentData().toString();
+
+        /* Ripopola senza emettere segnali intermedi */
+        cmbModel->blockSignals(true);
+        cmbModel->clear();
+
+        const qint64 totalRam = P::totalRamBytes();
+        for (const auto& mdl : list) {
+            const qint64 sz = m_ai->modelSizeBytes(mdl);
+            cmbModel->addItem(P::modelIcon(sz, mdl) + mdl, mdl);
+            /* Colora in rosso i modelli che richiedono più RAM del disponibile
+             * (regola Shannon: serve almeno 2× la dimensione del file) */
+            {
+                const int i = cmbModel->count() - 1;
+                if (totalRam > 0) {
+                    const qint64 sz = m_ai->modelSizeBytes(mdl);
+                    if (sz > 0 && sz * 2 > totalRam) {
+                        cmbModel->setItemData(i, QBrush(QColor("#ef4444")), Qt::ForegroundRole);
+                        cmbModel->setItemData(i,
+                            QString("Attenzione: questo modello richiede ~%1 GB di RAM "
+                                    "(regola 2\xc3\x97) ma il sistema ha solo %2 GB totali.")
+                                .arg(sz * 2 / 1e9, 0, 'f', 1)
+                                .arg(totalRam / 1e9, 0, 'f', 1),
+                            Qt::ToolTipRole);
+                    }
+                }
+                if (P::isKnownBrokenModel(mdl)) {
+                    cmbModel->setItemData(i, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
+                    cmbModel->setItemData(i, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
+                    cmbModel->setItemData(i,
+                        P::knownBrokenModelTooltip(),
+                        Qt::ToolTipRole);
+                }
+            }
+        }
+
+        /* Ripristina la selezione precedente (o il primo se non trovata) */
+        int idx = prev.isEmpty() ? 0 : cmbModel->findData(prev);
+        if (idx < 0) idx = 0;
+        cmbModel->setCurrentIndex(idx);
+        cmbModel->blockSignals(false);
+
+        /* Applica all'AiClient solo se il modello è effettivamente cambiato */
+        if (idx < cmbModel->count()) {
+            const QString mdl = cmbModel->currentData().toString();
+            if (!mdl.isEmpty() && mdl != m_ai->model()) {
+                const int bk = cmbBackend->currentIndex();
+                m_ai->setBackend(bk == 0 ? AiClient::Ollama : AiClient::LlamaServer,
+                                 m_ai->host(), m_ai->port(), mdl);
+            }
+        }
+
+        /* Ripristina il pulsante refresh ora che i modelli sono arrivati */
+        refreshBtn->setEnabled(true);
+        refreshBtn->setText("\xf0\x9f\x94\x84");
+    });
+    /* Se fetchModels fallisce: ripristina il pulsante e mostra un item di errore */
+    connect(m_ai, &AiClient::error, bar, [=](const QString& msg){
+        if (!refreshBtn->isEnabled()) {          /* solo se è in stato "spinner" */
+            refreshBtn->setEnabled(true);
+            refreshBtn->setText("\xf0\x9f\x94\x84");
+            cmbModel->clear();
+            cmbModel->addItem("\xe2\x9a\xa0  " + msg, "");   /* ⚠ + messaggio */
+        }
+    });
+
+    /* Quando l'utente sceglie un modello → aggiorna m_ai */
+    connect(cmbModel, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            bar, [=](int i){
+        if (i < 0) return;
+        int bk = cmbBackend->currentIndex();
+        if (bk == 2) {
+            /* locale */
+            m_ai->setLocalBackend(P::llamaCliBin(), cmbModel->currentData().toString());
+        } else {
+            m_ai->setBackend(bk == 0 ? AiClient::Ollama : AiClient::LlamaServer,
+                             m_ai->host(), m_ai->port(),
+                             cmbModel->currentData().toString());
+        }
+    });
+
+    /* Carica iniziale */
+    refreshModels();
+    return bar;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MENU principale
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImparaPage::buildMenu() {
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(24, 20, 24, 16); lay->setSpacing(12);
+
+    auto* div = new QFrame(w); div->setObjectName("pageDivider");
+    div->setFrameShape(QFrame::HLine); lay->addWidget(div);
+
+    struct Item { QString icon, title, desc; int page; };
+    QList<Item> items = {
+        {"🎓", "Tutor AI",
+         "Spiegazioni personalizzate su qualsiasi materia. Matematica, informatica, fisica e altro.", 1},
+        {"📖", "Materie",
+         "Tutor per argomento: Matematica, Fisica, Chimica, Sicurezza Informatica, Informatica, Algoritmi.", 4},
+        {"⚡", "Simulatore Algoritmi",
+         "Visualizza passo-passo Bubble, Selection, Insertion, Quick, Merge Sort, Linear e Binary Search.", 5},
+    };
+
+    for (auto& it : items) {
+        auto* card = new QFrame(w); card->setObjectName("actionCard");
+        auto* cl = new QHBoxLayout(card);
+        cl->setContentsMargins(16, 14, 16, 14); cl->setSpacing(14);
+
+        auto* ico = new QLabel(it.icon, card); ico->setObjectName("cardIcon"); ico->setFixedWidth(dpiScale(38));
+        ico->setAlignment(Qt::AlignCenter);
+
+        auto* txt  = new QWidget(card);
+        auto* txtL = new QVBoxLayout(txt); txtL->setContentsMargins(0,0,0,0); txtL->setSpacing(3);
+        auto* lt = new QLabel(it.title, txt); lt->setObjectName("cardTitle");
+        auto* ld = new QLabel(it.desc,  txt); ld->setObjectName("cardDesc"); ld->setWordWrap(true);
+        txtL->addWidget(lt); txtL->addWidget(ld);
+
+        auto* btn = new QPushButton("Apri →", card); btn->setObjectName("actionBtn"); btn->setFixedWidth(dpiScale(80));
+        btn->setToolTip("Apri " + it.title);
+        btn->setProperty("pageIndex", it.page);
+        connect(btn, &QPushButton::clicked, this, &ImparaPage::onMenuCardClicked);
+        cl->addWidget(ico); cl->addWidget(txt, 1); cl->addWidget(btn);
+        lay->addWidget(card);
+    }
+
+    lay->addStretch(1);
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TUTOR
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImparaPage::buildTutor() {
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(24, 16, 24, 16); lay->setSpacing(8);
+
+    /* Header */
+    auto* hdrW = new QWidget(w);
+    auto* hdrL = new QHBoxLayout(hdrW); hdrL->setContentsMargins(0,0,0,0);
+    auto* back = new QPushButton("← Torna", hdrW); back->setObjectName("actionBtn");
+    auto* lbl  = new QLabel("🎓  Tutor AI", hdrW); lbl->setObjectName("pageTitle");
+    hdrL->addWidget(back); hdrL->addWidget(lbl, 1);
+    lay->addWidget(hdrW);
+
+    /* Barra backend */
+    lay->addWidget(buildModelBar(w));
+
+    auto* div = new QFrame(w); div->setObjectName("pageDivider"); div->setFrameShape(QFrame::HLine);
+    lay->addWidget(div);
+
+    /* Materia */
+    auto* topRow = new QWidget(w);
+    auto* topL   = new QHBoxLayout(topRow); topL->setContentsMargins(0,0,0,0); topL->setSpacing(10);
+    topL->addWidget(new QLabel("📚 Materia:", topRow));
+    m_tutorSubj = new QComboBox(topRow);
+    m_tutorSubj->addItems({"Matematica","Informatica","Fisica","Chimica","Storia","Letteratura","Inglese","Libero"});
+    auto* clrBtn = new QPushButton("🗑 Pulisci", topRow); clrBtn->setObjectName("actionBtn");
+    clrBtn->setToolTip("Cancella la conversazione corrente con il tutor");
+    topL->addWidget(m_tutorSubj, 1); topL->addWidget(clrBtn);
+    lay->addWidget(topRow);
+
+    /* Log */
+    m_tutorLog = new QTextEdit(w); m_tutorLog->setObjectName("chatLog");
+    m_tutorLog->setReadOnly(true);
+    m_tutorLog->setPlaceholderText("🎓  Tutor AI pronto.\n\nFai una domanda sulla materia selezionata.");
+    lay->addWidget(m_tutorLog, 1);
+
+    /* ── Context menu: copia / leggi ── */
+    m_tutorLog->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_tutorLog, &QTextEdit::customContextMenuRequested, this, &ImparaPage::onTutorContextMenu);
+
+    /* Input */
+    m_tutorWaitLbl = new QLabel("\xe2\x8f\xb3  Elaborazione in corso...", w);
+    m_tutorWaitLbl->setStyleSheet("color:#E5C400; font-style:italic; padding:2px 0;");
+    m_tutorWaitLbl->setVisible(false);
+    lay->addWidget(m_tutorWaitLbl);
+
+    auto* inRow = new QWidget(w);
+    auto* inL   = new QHBoxLayout(inRow); inL->setContentsMargins(0,0,0,0); inL->setSpacing(8);
+    m_tutorInp  = new QLineEdit(inRow); m_tutorInp->setObjectName("chatInput");
+    m_tutorInp->setPlaceholderText("Fai una domanda al Tutor AI..."); m_tutorInp->setFixedHeight(dpiScale(38));
+    m_tutorSend = new QPushButton("Chiedi \xe2\x96\xb6", inRow); m_tutorSend->setObjectName("actionBtn");
+    m_tutorSend->setToolTip("Invia la domanda al tutor AI (Invio)");
+    m_tutorStop = new QPushButton("\xe2\x8f\xb9", inRow);
+    m_tutorStop->setObjectName("actionBtn"); m_tutorStop->setProperty("danger", true);
+    m_tutorStop->setToolTip("Interrompi la risposta AI");
+    m_tutorStop->setFixedWidth(dpiScale(40)); m_tutorStop->setEnabled(false);
+    inL->addWidget(m_tutorInp, 1); inL->addWidget(m_tutorSend); inL->addWidget(m_tutorStop);
+    lay->addWidget(inRow);
+
+    /* Tab order: back → materia → pulisci → input → chiedi → stop */
+    QWidget::setTabOrder(back,        m_tutorSubj);
+    QWidget::setTabOrder(m_tutorSubj, clrBtn);
+    QWidget::setTabOrder(clrBtn,      m_tutorInp);
+    QWidget::setTabOrder(m_tutorInp,  m_tutorSend);
+    QWidget::setTabOrder(m_tutorSend, m_tutorStop);
+
+    connect(back,        &QPushButton::clicked, this,      &ImparaPage::onBackToMenu);
+    connect(clrBtn,      &QPushButton::clicked, m_tutorLog,&QTextEdit::clear);
+    connect(m_tutorStop, &QPushButton::clicked, m_ai,      &AiClient::abort);
+    connect(m_tutorSend, &QPushButton::clicked, this,      &ImparaPage::onTutorSendClicked);
+    connect(m_tutorInp,  &QLineEdit::returnPressed, this,  &ImparaPage::onTutorSendClicked);
+    connect(m_ai, &AiClient::token,    this, &ImparaPage::onTutorToken);
+    connect(m_ai, &AiClient::finished, this, &ImparaPage::onTutorFinished);
+    connect(m_ai, &AiClient::error,    this, &ImparaPage::onTutorError);
+    connect(m_ai, &AiClient::aborted,  this, &ImparaPage::onTutorAborted);
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   QUIZ — generazione domande MCQ
+   ══════════════════════════════════════════════════════════════ */
+/* ── Slot Tutor AI ──────────────────────────────────────────── */
+void ImparaPage::onTutorSendClicked() {
+    if (!m_tutorInp || !m_tutorSend || !m_tutorStop) return;
+    const QString msg = m_tutorInp->text().trimmed();
+    if (msg.isEmpty()) return;
+    m_tutorLog->append(QString("\n\xf0\x9f\x91\xa4  Tu [%1]: %2\n").arg(m_tutorSubj->currentText(), msg));
+    m_tutorLog->append("\xf0\x9f\xa4\x96  Tutor AI: ");
+    m_tutorInp->clear();
+    m_tutorSend->setEnabled(false);
+    m_tutorStop->setEnabled(true);
+    if (m_tutorWaitLbl) m_tutorWaitLbl->setVisible(true);
+    const QString sys = QString("Sei un tutor AI esperto in %1. "
+        "Spiega in modo chiaro con esempi pratici. Rispondi SEMPRE e SOLO in italiano.")
+        .arg(m_tutorSubj->currentText());
+    m_ai->chat(sys, msg);
+}
+
+void ImparaPage::onTutorToken(const QString& t) {
+    if (!m_tutorLog) return;
+    QTextCursor c(m_tutorLog->document());
+    c.movePosition(QTextCursor::End);
+    c.insertText(t);
+    m_tutorLog->ensureCursorVisible();
+}
+
+void ImparaPage::onTutorFinished(const QString&) {
+    if (m_tutorLog)     m_tutorLog->append("\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80");
+    if (m_tutorSend)    m_tutorSend->setEnabled(true);
+    if (m_tutorStop)    m_tutorStop->setEnabled(false);
+    if (m_tutorWaitLbl) m_tutorWaitLbl->setVisible(false);
+}
+
+void ImparaPage::onTutorError(const QString& e) {
+    if (m_tutorLog)     m_tutorLog->append(QString("\n\xe2\x9d\x8c %1").arg(e));
+    if (m_tutorSend)    m_tutorSend->setEnabled(true);
+    if (m_tutorStop)    m_tutorStop->setEnabled(false);
+    if (m_tutorWaitLbl) m_tutorWaitLbl->setVisible(false);
+}
+
+void ImparaPage::onTutorAborted() {
+    if (m_tutorLog)     m_tutorLog->append("\n\xe2\x8f\xb9  Interrotto.\n\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80");
+    if (m_tutorSend)    m_tutorSend->setEnabled(true);
+    if (m_tutorStop)    m_tutorStop->setEnabled(false);
+    if (m_tutorWaitLbl) m_tutorWaitLbl->setVisible(false);
+}
+
+/* ── Slot Quiz AI ───────────────────────────────────────────── */
+void ImparaPage::onQuizToken(const QString& t) {
+    if (m_quizRaw) m_quizRaw->insertPlainText(t);
+}
+
+void ImparaPage::onQuizFinished(const QString& full) {
+    disconnect(m_quizTokConn);
+    disconnect(m_quizFinConn);
+    disconnect(m_quizErrConn);
+    m_quizBusy = false;
+    parseAndShowQuestion(full.isEmpty() ? m_quizRaw->toPlainText() : full);
+    m_quizGen->setEnabled(false);
+}
+
+void ImparaPage::onQuizError(const QString& e) {
+    disconnect(m_quizTokConn);
+    disconnect(m_quizFinConn);
+    disconnect(m_quizErrConn);
+    m_quizBusy = false;
+    m_quizQuestion->setText(QString("\xe2\x9d\x8c  Errore: %1\n\nRiprova o cambia modello.").arg(e));
+    m_quizGen->setEnabled(true);
+}
+
+QWidget* ImparaPage::buildQuiz() {
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(24, 16, 24, 16); lay->setSpacing(8);
+
+    /* Header */
+    auto* hdrW = new QWidget(w);
+    auto* hdrL = new QHBoxLayout(hdrW); hdrL->setContentsMargins(0,0,0,0);
+    auto* back = new QPushButton("← Torna", hdrW); back->setObjectName("actionBtn");
+    auto* lbl  = new QLabel("📝  Quiz Interattivi", hdrW); lbl->setObjectName("pageTitle");
+    hdrL->addWidget(back); hdrL->addWidget(lbl, 1);
+
+    m_quizProgress = new QLabel("", hdrW); m_quizProgress->setObjectName("cardDesc");
+    m_quizScore    = new QLabel("", hdrW); m_quizScore->setObjectName("cardTitle");
+    hdrL->addWidget(m_quizProgress); hdrL->addWidget(m_quizScore);
+    lay->addWidget(hdrW);
+
+    /* Barra backend */
+    lay->addWidget(buildModelBar(w));
+
+    auto* div = new QFrame(w); div->setObjectName("pageDivider"); div->setFrameShape(QFrame::HLine);
+    lay->addWidget(div);
+
+    /* Config quiz */
+    auto* cfgW = new QWidget(w);
+    auto* cfgL = new QHBoxLayout(cfgW); cfgL->setContentsMargins(0,0,0,0); cfgL->setSpacing(12);
+
+    cfgL->addWidget(new QLabel("📚 Materia:"));
+    m_quizSubj = new QComboBox(w);
+    m_quizSubj->addItems({"Matematica","Informatica","Fisica","Chimica","Storia","Letteratura","Inglese"});
+    cfgL->addWidget(m_quizSubj);
+
+    cfgL->addWidget(new QLabel("🎯 Difficoltà:"));
+    m_quizDiff = new QComboBox(w);
+    m_quizDiff->addItems({"Facile","Medio","Difficile"});
+    m_quizDiff->setCurrentIndex(1);
+    cfgL->addWidget(m_quizDiff);
+
+    cfgL->addWidget(new QLabel("🔢 Domande:"));
+    m_quizNum = new QComboBox(w);
+    m_quizNum->addItems({"3","5","10"});
+    m_quizNum->setCurrentIndex(1);
+    cfgL->addWidget(m_quizNum);
+
+    m_quizGen = new QPushButton("▶  Inizia Quiz", w);
+    m_quizGen->setObjectName("actionBtn");
+    m_quizGen->setToolTip("Genera un quiz AI sull'argomento selezionato");
+    cfgL->addWidget(m_quizGen);
+    cfgL->addStretch(1);
+    lay->addWidget(cfgW);
+
+    /* Domanda */
+    m_quizQuestion = new QLabel("Premi \"Inizia Quiz\" per cominciare.", w);
+    m_quizQuestion->setObjectName("cardTitle");
+    m_quizQuestion->setWordWrap(true);
+    m_quizQuestion->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    m_quizQuestion->setContentsMargins(0, 8, 0, 8);
+    lay->addWidget(m_quizQuestion);
+
+    /* Opzioni A-D — QButtonGroup porta l'id direttamente a submitAnswer */
+    static const QString labels[] = {"A", "B", "C", "D"};
+    auto* optsW   = new QWidget(w);
+    auto* optsL   = new QGridLayout(optsW); optsL->setSpacing(8);
+    auto* optsGrp = new QButtonGroup(optsW);
+    optsGrp->setExclusive(false);
+    for (int i = 0; i < 4; i++) {
+        m_quizOpts[i] = new QPushButton(QString("%1)").arg(labels[i]), w);
+        m_quizOpts[i]->setObjectName("actionBtn");
+        m_quizOpts[i]->setEnabled(false);
+        m_quizOpts[i]->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        m_quizOpts[i]->setStyleSheet("text-align:left; padding: 8px 14px;");
+        optsL->addWidget(m_quizOpts[i], i / 2, i % 2);
+        optsGrp->addButton(m_quizOpts[i], i);
+    }
+    connect(optsGrp, &QButtonGroup::idClicked, this, &ImparaPage::submitAnswer);
+    lay->addWidget(optsW);
+
+    /* Feedback */
+    m_quizFeedback = new QLabel("", w);
+    m_quizFeedback->setObjectName("cardDesc");
+    m_quizFeedback->setWordWrap(true);
+    lay->addWidget(m_quizFeedback);
+
+    /* Prossima domanda */
+    m_quizNext = new QPushButton("Prossima domanda →", w);
+    m_quizNext->setObjectName("actionBtn");
+    m_quizNext->setToolTip("Passa alla domanda successiva del quiz");
+    m_quizNext->setVisible(false);
+    lay->addWidget(m_quizNext);
+
+    /* Rivedi errori (visibile solo a fine sessione se ci sono sbagli) */
+    m_reviewBtn = new QPushButton("\xf0\x9f\x94\x8d  Rivedi domande sbagliate", w);
+    m_reviewBtn->setObjectName("actionBtn");
+    m_reviewBtn->setToolTip("Mostra le domande che hai risposto in modo errato con la spiegazione");
+    m_reviewBtn->setVisible(false);
+    lay->addWidget(m_reviewBtn);
+
+    lay->addStretch(1);
+
+    /* Buffer raw AI (debug nascosto) */
+    m_quizRaw = new QTextEdit(w);
+    m_quizRaw->setVisible(false);
+
+    /* Tab order: back → materia → difficoltà → num domande → inizia →
+       opzione A → B → C → D → prossima */
+    QWidget::setTabOrder(back,           m_quizSubj);
+    QWidget::setTabOrder(m_quizSubj,     m_quizDiff);
+    QWidget::setTabOrder(m_quizDiff,     m_quizNum);
+    QWidget::setTabOrder(m_quizNum,      m_quizGen);
+    QWidget::setTabOrder(m_quizGen,      m_quizOpts[0]);
+    QWidget::setTabOrder(m_quizOpts[0],  m_quizOpts[1]);
+    QWidget::setTabOrder(m_quizOpts[1],  m_quizOpts[2]);
+    QWidget::setTabOrder(m_quizOpts[2],  m_quizOpts[3]);
+    QWidget::setTabOrder(m_quizOpts[3],  m_quizNext);
+
+    /* Connessioni */
+    connect(back, &QPushButton::clicked, this, &ImparaPage::onBackToMenu);
+    connect(m_quizGen,  &QPushButton::clicked, this, &ImparaPage::generateQuestion);
+    connect(m_quizNext, &QPushButton::clicked, this, &ImparaPage::nextQuestion);
+    connect(m_reviewBtn, &QPushButton::clicked, this, &ImparaPage::onReviewWrongAnswers);
+
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Quiz logic
+   ══════════════════════════════════════════════════════════════ */
+void ImparaPage::generateQuestion() {
+    /* Guard: ignora click multipli mentre l'AI risponde */
+    if (m_quizBusy) return;
+    m_quizBusy = true;
+
+    /* Prima domanda della sessione → inizializza stato */
+    if (m_quiz.currentQ == 0) {
+        m_quiz.subject    = m_quizSubj->currentText();
+        m_quiz.difficulty = m_quizDiff->currentText();
+        m_quiz.totalQ     = m_quizNum->currentText().toInt();
+        m_quiz.correct    = 0;
+        m_quiz.wrong      = 0;
+        m_quiz.wrongList.clear();
+        if (m_reviewBtn) m_reviewBtn->setVisible(false);
+    }
+    m_quiz.answered = false;
+    m_quizRaw->clear();
+    m_quizGen->setEnabled(false);
+    m_quizNext->setVisible(false);
+    m_quizFeedback->clear();
+    m_quizQuestion->setText("⏳  Generazione domanda in corso...");
+    for (auto* b : m_quizOpts) { b->setEnabled(false); b->setStyleSheet("text-align:left;padding:8px 14px;"); }
+
+    m_quizProgress->setText(QString("Domanda %1 / %2")
+                             .arg(m_quiz.currentQ + 1).arg(m_quiz.totalQ));
+    m_quizScore->setText(QString("✅ %1  ❌ %2").arg(m_quiz.correct).arg(m_quiz.wrong));
+
+    QString sys =
+        "Sei un professore che genera domande a risposta multipla.\n"
+        "Rispondi SOLO con il seguente formato — nessun testo prima o dopo:\n\n"
+        "DOMANDA: [testo della domanda]\n"
+        "A) [opzione]\n"
+        "B) [opzione]\n"
+        "C) [opzione]\n"
+        "D) [opzione]\n"
+        "CORRETTA: [A o B o C o D]\n"
+        "SPIEGAZIONE: [spiegazione breve in 1-2 frasi]\n\n"
+        "La risposta corretta deve essere randomica (non sempre A o B).\n"
+        "Non aggiungere altro testo. Rispondi sempre in italiano.";
+
+    QString usr = QString("Genera una domanda a scelta multipla su %1 di difficoltà %2. "
+                          "Segui esattamente il formato indicato.")
+                  .arg(m_quiz.subject, m_quiz.difficulty);
+
+    disconnect(m_quizTokConn);
+    disconnect(m_quizFinConn);
+    disconnect(m_quizErrConn);
+    m_quizTokConn = connect(m_ai, &AiClient::token,    this, &ImparaPage::onQuizToken);
+    m_quizFinConn = connect(m_ai, &AiClient::finished, this, &ImparaPage::onQuizFinished);
+    m_quizErrConn = connect(m_ai, &AiClient::error,    this, &ImparaPage::onQuizError);
+
+    m_ai->chat(sys, usr);
+}
+
+void ImparaPage::parseAndShowQuestion(const QString& raw) {
+    /* Estrae i campi dal formato strutturato */
+    auto extract = [&](const QString& key) -> QString {
+        QRegularExpression re(key + "\\s*:?\\s*(.+)");
+        auto m = re.match(raw);
+        return m.hasMatch() ? m.captured(1).trimmed() : "";
+    };
+
+    QString question = extract("DOMANDA");
+    QString a        = extract("A\\)");
+    QString b        = extract("B\\)");
+    QString c        = extract("C\\)");
+    QString d        = extract("D\\)");
+    QString correct  = extract("CORRETTA");
+    QString explain  = extract("SPIEGAZIONE");
+
+    if (question.isEmpty() || a.isEmpty() || correct.isEmpty()) {
+        /* Parsing fallito: mostra raw e lascia riprovare */
+        m_quizQuestion->setText("⚠️  Il modello non ha rispettato il formato.\nRiprova.");
+        m_quizGen->setEnabled(true);
+        return;
+    }
+
+    m_quiz.correctLetter = correct.left(1).toUpper();
+    m_quiz.explanation   = explain;
+
+    m_quizQuestion->setText(QString("❓  %1").arg(question));
+    QStringList opts = {a, b, c, d};
+    static const QString labs[] = {"A","B","C","D"};
+    for (int i = 0; i < 4; i++) {
+        m_quizOpts[i]->setText(QString("%1)  %2").arg(labs[i], opts[i]));
+        m_quizOpts[i]->setEnabled(true);
+        m_quizOpts[i]->setStyleSheet("text-align:left; padding:8px 14px;");
+    }
+}
+
+void ImparaPage::submitAnswer(int idx) {
+    if (m_quiz.answered) return;
+    m_quiz.answered = true;
+
+    static const QString labs[] = {"A","B","C","D"};
+    bool correct = (labs[idx] == m_quiz.correctLetter);
+    if (correct) {
+        m_quiz.correct++;
+    } else {
+        m_quiz.wrong++;
+        WrongAnswer wa;
+        wa.question      = m_quizQuestion->text();
+        for (int i = 0; i < 4; i++) wa.opts[i] = m_quizOpts[i]->text();
+        wa.givenLetter   = labs[idx];
+        wa.correctLetter = m_quiz.correctLetter;
+        wa.explanation   = m_quiz.explanation;
+        m_quiz.wrongList.append(wa);
+    }
+
+    /* Colora i bottoni */
+    for (int i = 0; i < 4; i++) {
+        m_quizOpts[i]->setEnabled(false);
+        if (labs[i] == m_quiz.correctLetter)
+            m_quizOpts[i]->setStyleSheet(
+                "text-align:left;padding:8px 14px;background:#2e7d32;color:#fff;border-radius:6px;");
+        else if (i == idx)
+            m_quizOpts[i]->setStyleSheet(
+                "text-align:left;padding:8px 14px;background:#c62828;color:#fff;border-radius:6px;");
+    }
+
+    m_quizScore->setText(QString("✅ %1  ❌ %2").arg(m_quiz.correct).arg(m_quiz.wrong));
+
+    if (correct)
+        m_quizFeedback->setText(QString("✅  Corretto!  —  %1").arg(m_quiz.explanation));
+    else
+        m_quizFeedback->setText(
+            QString("❌  Sbagliato. La risposta corretta era <b>%1</b>.  —  %2")
+            .arg(m_quiz.correctLetter, m_quiz.explanation));
+    m_quizFeedback->setStyleSheet(correct ? "color:#4caf50;" : "color:#ef5350;");
+
+    m_quiz.currentQ++;
+
+    if (m_quiz.currentQ >= m_quiz.totalQ) {
+        m_quizNext->setText("📊  Fine quiz — vedi risultati");
+    } else {
+        m_quizNext->setText(QString("Prossima domanda → (%1/%2)")
+                            .arg(m_quiz.currentQ + 1).arg(m_quiz.totalQ));
+    }
+    m_quizNext->setVisible(true);
+}
+
+void ImparaPage::nextQuestion() {
+    if (m_quiz.currentQ >= m_quiz.totalQ) {
+        endSession();
+    } else {
+        generateQuestion();
+    }
+}
+
+void ImparaPage::endSession() {
+    saveSession();
+    m_quizQuestion->setText(
+        QString("🏁  Quiz completato!\n\n"
+                "Materia: %1  |  Difficoltà: %2\n"
+                "✅ Corrette: %3 / %4  |  ❌ Sbagliate: %5\n\n"
+                "Il risultato è stato salvato nella Dashboard.")
+        .arg(m_quiz.subject, m_quiz.difficulty)
+        .arg(m_quiz.correct).arg(m_quiz.totalQ).arg(m_quiz.wrong));
+
+    for (auto* b : m_quizOpts) { b->setEnabled(false); b->setText(""); b->setStyleSheet(""); }
+    m_quizFeedback->clear();
+    m_quizNext->setVisible(false);
+
+    /* Mostra pulsante revisione errori se ci sono domande sbagliate */
+    if (m_reviewBtn) {
+        if (!m_quiz.wrongList.isEmpty()) {
+            m_reviewBtn->setText(
+                QString("\xf0\x9f\x94\x8d  Rivedi domande sbagliate (%1)").arg(m_quiz.wrongList.size()));
+            m_reviewBtn->setVisible(true);
+        } else {
+            m_reviewBtn->setVisible(false);
+        }
+    }
+
+    /* Ripristina per nuovo quiz */
+    m_quiz.currentQ = 0;
+    m_quizGen->setText("▶  Nuovo Quiz");
+    m_quizGen->setEnabled(true);
+}
+
+void ImparaPage::saveSession() {
+    /* Leggi storico esistente */
+    QFile f(historyPath());
+    QJsonObject root;
+    if (f.open(QIODevice::ReadOnly)) {
+        root = QJsonDocument::fromJson(f.readAll()).object();
+        f.close();
+    }
+    QJsonArray sessions = root["sessions"].toArray();
+
+    /* Aggiungi sessione */
+    QJsonObject s;
+    s["date"]       = QDateTime::currentDateTime().toString(Qt::ISODate);
+    s["subject"]    = m_quiz.subject;
+    s["difficulty"] = m_quiz.difficulty;
+    s["total"]      = m_quiz.totalQ;
+    s["correct"]    = m_quiz.correct;
+    s["wrong"]      = m_quiz.wrong;
+    sessions.prepend(s);   /* più recente in testa */
+
+    /* Mantieni max 500 sessioni */
+    while (sessions.size() > 500) sessions.removeLast();
+
+    root["sessions"] = sessions;
+    if (f.open(QIODevice::WriteOnly)) {
+        f.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+        f.close();
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot Rivedi errori
+   ══════════════════════════════════════════════════════════════ */
+void ImparaPage::onReviewWrongAnswers()
+{
+    if (m_quiz.wrongList.isEmpty()) return;
+
+    auto* dlg = new QDialog(this);
+    dlg->setWindowTitle(QString("\xf0\x9f\x94\x8d  Revisione errori (%1 domande)")
+                        .arg(m_quiz.wrongList.size()));
+    dlg->resize(dpiScale(680), dpiScale(520));
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+
+    auto* mainLay = new QVBoxLayout(dlg);
+    mainLay->setContentsMargins(14, 14, 14, 14);
+    mainLay->setSpacing(10);
+
+    auto* scroll = new QScrollArea(dlg);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+
+    auto* container = new QWidget;
+    auto* contLay   = new QVBoxLayout(container);
+    contLay->setContentsMargins(8, 8, 8, 8);
+    contLay->setSpacing(14);
+
+    static const QString optLabels[] = {"A","B","C","D"};
+    int n = 0;
+    for (const WrongAnswer& wa : m_quiz.wrongList) {
+        n++;
+        auto* card = new QGroupBox(QString("Domanda %1").arg(n), container);
+        card->setObjectName("cardGroup");
+        auto* cLay = new QVBoxLayout(card);
+        cLay->setSpacing(6);
+
+        auto* qLbl = new QLabel(wa.question, card);
+        qLbl->setWordWrap(true);
+        qLbl->setObjectName("cardTitle");
+        cLay->addWidget(qLbl);
+
+        for (int i = 0; i < 4; i++) {
+            auto* oLbl = new QLabel(wa.opts[i], card);
+            oLbl->setWordWrap(true);
+            if (optLabels[i] == wa.correctLetter)
+                oLbl->setStyleSheet("color:#4caf50; font-weight:600;");
+            else if (optLabels[i] == wa.givenLetter)
+                oLbl->setStyleSheet("color:#ef5350;");
+            cLay->addWidget(oLbl);
+        }
+
+        auto* sep = new QFrame(card);
+        sep->setFrameShape(QFrame::HLine);
+        sep->setObjectName("sidebarSep");
+        cLay->addWidget(sep);
+
+        auto* expLbl = new QLabel(
+            QString("\xf0\x9f\x9f\xa2  Corretta: <b>%1</b>  \xe2\x80\x94  %2")
+            .arg(wa.correctLetter, wa.explanation), card);
+        expLbl->setWordWrap(true);
+        expLbl->setTextFormat(Qt::RichText);
+        expLbl->setObjectName("cardDesc");
+        cLay->addWidget(expLbl);
+
+        contLay->addWidget(card);
+    }
+    contLay->addStretch(1);
+    scroll->setWidget(container);
+    mainLay->addWidget(scroll, 1);
+
+    auto* btnBox = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
+    connect(btnBox, &QDialogButtonBox::rejected, dlg, &QDialog::close);
+    mainLay->addWidget(btnBox);
+
+    dlg->exec();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DASHBOARD
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImparaPage::buildDashboard() {
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(24, 16, 24, 16); lay->setSpacing(8);
+
+    auto* hdrW = new QWidget(w);
+    auto* hdrL = new QHBoxLayout(hdrW); hdrL->setContentsMargins(0,0,0,0);
+    auto* back = new QPushButton("← Torna", hdrW); back->setObjectName("actionBtn");
+    auto* lbl  = new QLabel("📊  Dashboard Statistica", hdrW); lbl->setObjectName("pageTitle");
+    auto* refr = new QPushButton("🔄 Aggiorna", hdrW); refr->setObjectName("actionBtn");
+    hdrL->addWidget(back); hdrL->addWidget(lbl, 1); hdrL->addWidget(refr);
+    lay->addWidget(hdrW);
+
+    auto* div = new QFrame(w); div->setObjectName("pageDivider"); div->setFrameShape(QFrame::HLine);
+    lay->addWidget(div);
+
+    /* Area scrollabile con il contenuto della dashboard */
+    auto* scroll = new QScrollArea(w);
+    scroll->setObjectName("chatLog");
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+
+    m_dashContent = new QWidget;
+    m_dashContent->setLayout(new QVBoxLayout);
+    m_dashContent->layout()->setContentsMargins(0,0,0,0);
+    scroll->setWidget(m_dashContent);
+    lay->addWidget(scroll, 1);
+
+    connect(back, &QPushButton::clicked, this, &ImparaPage::onBackToMenu);
+    connect(refr, &QPushButton::clicked, this, &ImparaPage::loadDashboard);
+    return w;
+}
+
+void ImparaPage::loadDashboard() {
+    /* Svuota il contenuto precedente */
+    while (QLayoutItem* item = m_dashContent->layout()->takeAt(0)) {
+        if (item->widget()) item->widget()->deleteLater();
+        delete item;
+    }
+    auto* vlay = qobject_cast<QVBoxLayout*>(m_dashContent->layout());
+
+    /* Leggi storia */
+    QFile f(historyPath());
+    if (!f.exists() || !f.open(QIODevice::ReadOnly)) {
+        auto* msg = new QLabel("📭  Nessun quiz ancora completato.\n\n"
+                               "Completa almeno un quiz per vedere le statistiche qui.", m_dashContent);
+        msg->setObjectName("cardDesc"); msg->setWordWrap(true); msg->setAlignment(Qt::AlignCenter);
+        vlay->addWidget(msg); vlay->addStretch(1);
+        return;
+    }
+    QJsonArray sessions = QJsonDocument::fromJson(f.readAll()).object()["sessions"].toArray();
+    f.close();
+
+    if (sessions.isEmpty()) {
+        auto* msg = new QLabel("📭  Nessun quiz ancora completato.", m_dashContent);
+        msg->setObjectName("cardDesc"); msg->setAlignment(Qt::AlignCenter);
+        vlay->addWidget(msg); vlay->addStretch(1);
+        return;
+    }
+
+    /* ── Statistiche globali ── */
+    int totQ = 0, totC = 0;
+    QMap<QString, QPair<int,int>> bySubject; /* subject → (correct, total) */
+    for (auto v : sessions) {
+        auto s = v.toObject();
+        int tot = s["total"].toInt(); int cor = s["correct"].toInt();
+        totQ += tot; totC += cor;
+        auto& p = bySubject[s["subject"].toString()];
+        p.first += cor; p.second += tot;
+    }
+    double globPct = totQ > 0 ? totC * 100.0 / totQ : 0.0;
+
+    auto* globBox = new QGroupBox("📈  Statistiche globali", m_dashContent);
+    auto* globL   = new QHBoxLayout(globBox);
+    auto addStat = [&](const QString& lbl, const QString& val){
+        auto* col = new QWidget(globBox);
+        auto* cl  = new QVBoxLayout(col); cl->setSpacing(2); cl->setContentsMargins(12,4,12,4);
+        auto* lv  = new QLabel(val, col); lv->setObjectName("pageTitle"); lv->setAlignment(Qt::AlignCenter);
+        auto* ll  = new QLabel(lbl, col); ll->setObjectName("cardDesc"); ll->setAlignment(Qt::AlignCenter);
+        cl->addWidget(lv); cl->addWidget(ll);
+        globL->addWidget(col);
+    };
+    addStat("Quiz completati",   QString::number(sessions.size()));
+    addStat("Domande totali",    QString::number(totQ));
+    addStat("Risposte corrette", QString::number(totC));
+    addStat("Percentuale",       QString("%1%").arg(globPct, 0, 'f', 1));
+    vlay->addWidget(globBox);
+
+    /* ── Per materia ── */
+    auto* subjBox = new QGroupBox("📚  Per materia", m_dashContent);
+    auto* subjL   = new QVBoxLayout(subjBox);
+    for (auto it = bySubject.constBegin(); it != bySubject.constEnd(); ++it) {
+        int cor = it.value().first; int tot = it.value().second;
+        double pct = tot > 0 ? cor * 100.0 / tot : 0.0;
+
+        auto* row = new QWidget(subjBox);
+        auto* rl  = new QHBoxLayout(row); rl->setContentsMargins(0,2,0,2); rl->setSpacing(10);
+        auto* nm  = new QLabel(it.key(), row); nm->setFixedWidth(dpiScale(110)); nm->setObjectName("cardTitle");
+        auto* bar = new QProgressBar(row);
+        bar->setRange(0, 100); bar->setValue((int)pct); bar->setTextVisible(false);
+        bar->setFixedHeight(dpiScale(10)); bar->setObjectName("resBar");
+        auto* pctLbl = new QLabel(QString("%1%  (%2/%3)").arg(pct,0,'f',1).arg(cor).arg(tot), row);
+        pctLbl->setObjectName("gaugePct"); pctLbl->setFixedWidth(dpiScale(100));
+        rl->addWidget(nm); rl->addWidget(bar, 1); rl->addWidget(pctLbl);
+        subjL->addWidget(row);
+    }
+    vlay->addWidget(subjBox);
+
+    /* ── Sessioni recenti ── */
+    auto* recBox = new QGroupBox("🕐  Ultime 10 sessioni", m_dashContent);
+    auto* recL   = new QVBoxLayout(recBox);
+    int count = qMin((int)sessions.size(), 10);
+    for (int i = 0; i < count; i++) {
+        auto s = sessions[i].toObject();
+        double pct = s["total"].toInt() > 0
+            ? s["correct"].toInt() * 100.0 / s["total"].toInt() : 0;
+        QString dt = QDateTime::fromString(s["date"].toString(), Qt::ISODate)
+                         .toString("dd/MM/yyyy HH:mm");
+        auto* row  = new QWidget(recBox);
+        auto* rl   = new QHBoxLayout(row); rl->setContentsMargins(0,1,0,1); rl->setSpacing(12);
+        auto* date = new QLabel(dt, row); date->setObjectName("cardDesc"); date->setFixedWidth(dpiScale(130));
+        auto* subj = new QLabel(s["subject"].toString(), row);
+        subj->setObjectName("cardTitle"); subj->setFixedWidth(dpiScale(100));
+        auto* diff = new QLabel(s["difficulty"].toString(), row);
+        diff->setObjectName("cardDesc"); diff->setFixedWidth(dpiScale(60));
+        auto* score = new QLabel(
+            QString("✅%1/❌%2 — %3%")
+            .arg(s["correct"].toInt()).arg(s["wrong"].toInt()).arg(pct,0,'f',0), row);
+        score->setObjectName("cardDesc");
+        rl->addWidget(date); rl->addWidget(subj); rl->addWidget(diff); rl->addWidget(score, 1);
+        recL->addWidget(row);
+    }
+    vlay->addWidget(recBox);
+    vlay->addStretch(1);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Costruttore
+   ══════════════════════════════════════════════════════════════ */
+void ImparaPage::showEvent(QShowEvent* ev) {
+    QWidget::showEvent(ev);
+    /* Ogni volta che la pagina diventa visibile (click sidebar "Impara con AI")
+     * torna al menu principale interno — evita le "schermate fantasma" */
+    if (m_inner) m_inner->setCurrentIndex(0);
+}
+
+ImparaPage::ImparaPage(AiClient* ai, QWidget* parent)
+    : QWidget(parent), m_ai(ai)
+{
+    auto* lay = new QVBoxLayout(this);
+    lay->setContentsMargins(0, 0, 0, 0);
+    m_inner = new QStackedWidget(this);
+    m_inner->addWidget(buildMenu());      /* 0 */
+    m_inner->addWidget(buildTutor());     /* 1 */
+    m_inner->addWidget(buildQuiz());      /* 2 */
+    m_inner->addWidget(buildDashboard()); /* 3 */
+    m_materiePage = new MateriePage(m_ai, this);
+    m_inner->addWidget(m_materiePage);    /* 4 */
+
+    m_simulatorePage = new SimulatorePage(m_ai, this);
+    connect(m_simulatorePage, &SimulatorePage::backRequested,
+            this, &ImparaPage::onBackToMenu);
+    m_inner->addWidget(m_simulatorePage);  /* 5 */
+
+    lay->addWidget(m_inner);
+}
+
+// ─── Slot ──────────────────────────────────────────────────────────────────
+
+void ImparaPage::onBackToMenu()
+{
+    m_inner->setCurrentIndex(0);
+}
+
+void ImparaPage::onTutorContextMenu(const QPoint& pos)
+{
+    if (!m_tutorLog) return;
+    const QString sel   = m_tutorLog->textCursor().selectedText();
+    const bool hasSel   = !sel.isEmpty();
+    const QString label = hasSel ? "selezione" : "tutto";
+    QMenu menu(m_tutorLog);
+    QAction* actCopy = menu.addAction("\xf0\x9f\x97\x82  Copia " + label);
+    QAction* actRead = menu.addAction("\xf0\x9f\x8e\x99  Leggi " + label);
+    QAction* chosen  = menu.exec(m_tutorLog->mapToGlobal(pos));
+    const QString txt = hasSel ? sel : m_tutorLog->toPlainText();
+    if (chosen == actCopy) {
+        QGuiApplication::clipboard()->setText(txt);
+    } else if (chosen == actRead) {
+        QStringList words = txt.split(' ', Qt::SkipEmptyParts);
+        if (words.size() > 400) words = words.mid(words.size() - 400);
+        QProcess::startDetached("espeak-ng", {"-v", "it+f3", "--punct=none", words.join(" ")});
+    }
+}
+
+void ImparaPage::onMenuCardClicked()
+{
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn || !m_inner) return;
+    m_inner->setCurrentIndex(btn->property("pageIndex").toInt());
+}

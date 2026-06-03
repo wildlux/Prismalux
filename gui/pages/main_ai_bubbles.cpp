@@ -1,0 +1,359 @@
+#include "main_ai.h"
+#include "main_ai_p.h"
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
+#include "../app_config.h"
+#include <QTextDocument>
+#include <QDateTime>
+
+/* ══════════════════════════════════════════════════════════════
+   buildUserBubble / buildAgentBubble
+   Layout chat-style: utente a destra (blu), AI a sinistra (scuro).
+   QTextEdit renderizza HTML4 + CSS2 parziale: usiamo <table> per il
+   layout e style inline per colori/bordi/padding.
+   ══════════════════════════════════════════════════════════════ */
+QString AgentiPage::buildUserBubble(const QString& text, int bubbleIdx)
+{
+    QString safe = text;
+    safe.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+    /* Preserva a capo */
+    safe.replace("\n","<br>");
+
+    /* Barra azioni dentro la bolla — link semplici (QTextBrowser gestisce solo <a href> piani) */
+    const auto& c = bc();
+    QString actionBar;
+    if (bubbleIdx >= 0) {
+        const QString id  = QString::number(bubbleIdx);
+        const QString b64 = text.left(4096).toUtf8().toBase64(
+            QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+        const QString lnk = QString("color:%1;font-size:12px;text-decoration:none;"
+            "border:1px solid %2;padding:2px 10px;background:%3;")
+            .arg(c.uHdr, c.uBtnB, c.uBtn);
+        /* Nota: emoji fuori BMP (>U+FFFF) si usano come HTML entity decimale per
+           garantire il rendering corretto in QTextBrowser su tutte le piattaforme.
+           &#128196; = 📄 copia  &#9998;  = ✎ modifica  &#128264; = 🔈 TTS
+           &#128465; = 🗑 cestino  &#8629; = ↩ rifai */
+        actionBar =
+            "<p align='right' style='margin:6px 0 0 0;'>"
+              "<a href='retry:" + id + ":" + b64 + "' style='" + lnk + "' "
+                 "title='Rifai con il modello corrente'>&#8629; Rifai</a>"
+              " &nbsp; "
+              "<a href='copy:" + id + ":" + b64 + "' style='" + lnk + "' "
+                 "title='Copia testo'>[Copia]</a>"
+              " &nbsp; "
+              "<a href='edit:" + id + ":" + b64 + "' style='" + lnk + "' "
+                 "title='Modifica e reinvia'>&#9998; Modifica</a>"
+              " &nbsp; "
+              "<a href='tts:" + id + ":" + b64 + "' style='" + lnk + "' "
+                 "title='Leggi ad alta voce'>[TTS]</a>"
+              " &nbsp; "
+              "<a href='del:" + id + ":" + b64 + "' style='" + lnk + "' "
+                 "title='Elimina questo messaggio'>[Elimina]</a>"
+            "</p>";
+    }
+
+    const int br = AppConfig::s().value(P::SK::kBubbleRadius, 10).toInt();
+    const QString brs = QString::number(br) + "px";
+    return
+        "<table width='100%' cellpadding='0' cellspacing='0'>"
+        "<tr>"
+          "<td width='80'>&nbsp;</td>"
+          "<td bgcolor='" + QString(c.uBg) + "' style='"
+              "border:1px solid " + c.uBdr + ";"
+              "border-radius:" + brs + ";"
+              "padding:10px 14px;"
+              "color:" + c.uTxt + ";"
+          "'>"
+            "<p style='color:" + c.uHdr + ";font-size:11px;font-weight:bold;"
+                       "margin:0 0 5px 0;'>"
+              "&#128100;  Tu"
+              "<span style='font-weight:normal;color:" + QString(c.uTxt) +
+                ";opacity:0.55;margin-left:8px;font-size:10px;'>"
+              + QDateTime::currentDateTime().toString("HH:mm") +
+              "</span></p>"
+            "<p style='margin:0;line-height:1.6;color:" + c.uTxt + ";'>" + safe + "</p>"
+            + actionBar +
+          "</td>"
+        "</tr>"
+        "</table>"
+        "<p style='margin:6px 0;'></p>";
+}
+
+QString AgentiPage::buildAgentBubble(const QString& label, const QString& model,
+                                     const QString& time,  const QString& htmlContent,
+                                     int bubbleIdx, const QString& thinkContent)
+{
+    /* Header bolla: "🛸  Agente 1 — Ricercatore  ·  🤖 deepseek-r1:7b  ·  01:55:47" */
+    QString esc_model = model;
+    esc_model.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+    QString esc_label = label;
+    esc_label.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+
+    /* 🤖 = U+1F916 → UTF-8 \xf0\x9f\xa4\x96  🕐 = U+1F550 → UTF-8 \xf0\x9f\x95\x90
+       Usare bytes UTF-8 diretti invece di entity decimali > U+FFFF:
+       QTextBrowser non supporta affidabilmente &#NNN; per code point fuori dal BMP. */
+    QString header = esc_label
+        + " &nbsp;\xc2\xb7\xc2\xb7&nbsp; "
+        "\xf0\x9f\xa4\x96 " + esc_model
+        + " &nbsp;\xc2\xb7\xc2\xb7&nbsp; "
+        "\xf0\x9f\x95\x90 " + time;
+
+    /* Barra azioni dentro la bolla agente */
+    const auto& c = bc();
+    QString actionBar;
+    if (bubbleIdx >= 0) {
+        const QString id = QString::number(bubbleIdx);
+        QTextDocument _tmp;
+        _tmp.setHtml(htmlContent);
+        const QString b64 = _tmp.toPlainText().left(4096).toUtf8().toBase64(
+            QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+        QString metaLeft;
+        if (!time.isEmpty() || !model.isEmpty()) {
+            QString esc_t = time;
+            QString esc_m = model;
+            esc_t.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+            esc_m.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+            /* 🕐 = U+1F550 → \xf0\x9f\x95\x90   🤖 = U+1F916 → \xf0\x9f\xa4\x96
+               UTF-8 diretti: QTextBrowser non supporta entity decimali > U+FFFF */
+            metaLeft =
+                "<span style='color:#6b7280;font-size:11px;'>"
+                + (time.isEmpty()  ? QString() : "\xf0\x9f\x95\x90 " + esc_t)
+                + ((!time.isEmpty() && !model.isEmpty()) ? " &nbsp;\xc2\xb7&nbsp; " : QString())
+                + (model.isEmpty() ? QString() : "\xf0\x9f\xa4\x96 " + esc_m)
+                + "</span>";
+        }
+        const QString lnk = QString("color:%1;font-size:12px;text-decoration:none;"
+            "border:1px solid %2;padding:2px 10px;background:%3;")
+            .arg(c.aBtnC, c.aBtnB, c.aBtn);
+        /* 👍 = U+1F44D → UTF-8 \xf0\x9f\x91\x8d   👎 = U+1F44E → UTF-8 \xf0\x9f\x91\x8e
+           UTF-8 diretti invece di entity decimali > U+FFFF: QTextBrowser non le supporta. */
+        actionBar =
+            "<table width='100%' cellpadding='0' cellspacing='0' style='margin:6px 0 0 0;'>"
+            "<tr>"
+              "<td>" + metaLeft + "</td>"
+              "<td align='right' style='white-space:nowrap;'>"
+                "<a href='fb:up:" + id + "' style='" + lnk + "' title='Risposta utile'>"
+                  "\xf0\x9f\x91\x8d" "</a>"
+                " &nbsp; "
+                "<a href='fb:down:" + id + "' style='" + lnk + "' title='Risposta non utile'>"
+                  "\xf0\x9f\x91\x8e" "</a>"
+                " &nbsp;&nbsp; "
+                "<a href='copy:" + id + ":" + b64 + "' style='" + lnk + "' "
+                   "title='Copia testo'>[Copia]</a>"
+                " &nbsp; "
+                "<a href='edit:" + id + ":" + b64 + "' style='" + lnk + "' "
+                   "title='Modifica e reinvia'>&#9998; Modifica</a>"
+                " &nbsp; "
+                "<a href='tts:" + id + ":" + b64 + "' style='" + lnk + "' "
+                   "title='Leggi ad alta voce'>[TTS]</a>"
+                " &nbsp; "
+                "<a href='del:" + id + ":" + b64 + "' style='" + lnk + "' "
+                   "title='Elimina questo messaggio'>[Elimina]</a>"
+              "</td>"
+            "</tr>"
+            "</table>";
+    }
+
+    /* Toggle reasoning collassabile (solo se il modello ha prodotto <think>…</think>) */
+    QString thinkBar;
+    if (!thinkContent.isEmpty() && bubbleIdx >= 0) {
+        const int words = thinkContent.split(' ', Qt::SkipEmptyParts).size();
+        const QString id = QString::number(bubbleIdx);
+        /* &#9654; = ▶ (U+25BA, nel BMP — rendering sicuro in QTextBrowser) */
+        thinkBar =
+            "<p style='margin:0 0 6px 0;'>"
+              "<a href='think:toggle:" + id + "' "
+                 "style='color:" + QString(c.aHdr) + ";font-size:11px;"
+                 "text-decoration:none;opacity:0.75;'>"
+                "&#9654; Ragionamento (" + QString::number(words) + " par.)"
+              "</a>"
+            "</p>";
+    }
+
+    const int br = AppConfig::s().value(P::SK::kBubbleRadius, 10).toInt();
+    const QString brs = QString::number(br) + "px";
+    return
+        "<p style='margin:6px 0;'></p>"
+        "<table width='100%' cellpadding='0' cellspacing='0'>"
+        "<tr>"
+          "<td bgcolor='" + QString(c.aBg) + "' style='"
+              "border:1px solid " + c.aBdr + ";"
+              "border-radius:" + brs + ";"
+              "padding:10px 14px;"
+              "color:" + c.aTxt + ";"
+          "'>"
+            "<p style='color:" + c.aHdr + ";font-size:11px;font-weight:bold;"
+                       "margin:0 0 6px 0;'>"
+              + header +
+            "</p>"
+            "<hr style='border:none;border-top:1px solid " + c.aHr + ";margin:5px 0 8px 0;'>"
+            + thinkBar
+            + htmlContent
+            + actionBar +
+          "</td>"
+          "<td width='30'>&nbsp;</td>"
+        "</tr>"
+        "</table>"
+        "<p style='margin:4px 0;'></p>";
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildLocalBubble — bolla per risposta locale (0 token, math)
+   ══════════════════════════════════════════════════════════════ */
+QString AgentiPage::buildLocalBubble(const QString& result, double ms, int bubbleIdx,
+                                      const QString& extraLinks)
+{
+    QString safe = result;
+    safe.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+    safe.replace("\n","<br>");
+
+    QString timing = ms < 1.0
+        ? QString::number(ms, 'f', 3) + " ms"
+        : QString::number(ms / 1000.0, 'f', 3) + " s";
+
+    /* Barra azioni dentro la bolla locale */
+    const auto& c = bc();
+    QString actionBar;
+    if (bubbleIdx >= 0) {
+        const QString id  = QString::number(bubbleIdx);
+        const QString b64 = result.left(4096).toUtf8().toBase64(
+            QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+        const QString linkStyle = QString(
+            "color:%1;font-size:12px;text-decoration:none;"
+            "border:1px solid %2;padding:2px 10px;background:%3;")
+            .arg(c.lBtnC, c.lBtnB, c.lBtn);
+        actionBar =
+            "<p align='right' style='margin:6px 0 0 0;'>";
+        if (!extraLinks.isEmpty())
+            actionBar += extraLinks + " &nbsp; ";
+        actionBar +=
+              "<a href='copy:" + id + ":" + b64 + "' style='" + linkStyle + "' "
+                 "title='Copia testo'>[Copia]</a>"
+              " &nbsp; "
+              "<a href='edit:" + id + ":" + b64 + "' style='" + linkStyle + "' "
+                 "title='Modifica e reinvia'>&#9998; Modifica</a>"
+              " &nbsp; "
+              "<a href='tts:" + id + ":" + b64 + "' style='" + linkStyle + "' "
+                 "title='Leggi ad alta voce'>[TTS]</a>"
+            "</p>";
+    }
+
+    const int br = AppConfig::s().value(P::SK::kBubbleRadius, 10).toInt();
+    const QString brs = QString::number(br) + "px";
+    return
+        "<p style='margin:6px 0;'></p>"
+        "<table width='100%' cellpadding='0' cellspacing='0'>"
+        "<tr>"
+          "<td bgcolor='" + QString(c.lBg) + "' style='"
+              "border:1px solid " + c.lBdr + ";"
+              "border-radius:" + brs + ";"
+              "padding:10px 14px;"
+              "color:" + c.lTxt + ";"
+          "'>"
+            "<p style='color:" + c.lHdr + ";font-size:11px;font-weight:bold;margin:0 0 5px 0;'>"
+              "&#9889;  Risposta locale  \xc2\xb7\xc2\xb7  0 token  \xc2\xb7\xc2\xb7  "
+              + timing +
+            "</p>"
+            "<hr style='border:none;border-top:1px solid " + c.lHr + ";margin:5px 0 8px 0;'>"
+            "<p style='font-size:15px;font-weight:bold;margin:0;color:" + c.lRes + ";'>"
+              + safe +
+            "</p>"
+            + actionBar +
+          "</td>"
+          "<td width='30'>&nbsp;</td>"
+        "</tr>"
+        "</table>"
+        "<p style='margin:4px 0;'></p>";
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildToolStrip — striscia esecutore Python
+   ══════════════════════════════════════════════════════════════ */
+QString AgentiPage::buildToolStrip(const QString& code, const QString& output,
+                                   int exitCode, double ms)
+{
+    QString esc_out = output;
+    esc_out.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+    if (esc_out.trimmed().isEmpty()) esc_out = "(nessun output)";
+    if (esc_out.length() > 3000) esc_out = esc_out.left(3000) + "\n... [troncato]";
+    esc_out.replace("\n","<br>");
+
+    QString esc_code = code;
+    esc_code.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+    if (esc_code.length() > 500) esc_code = esc_code.left(500) + "\n... [troncato]";
+    esc_code.replace("\n","<br>");
+
+    const auto& c = bc();
+    /* &#9989; = ✅  &#10060; = ❌ (entity decimale, evita varianti VS-16 problematiche) */
+    const QString statusIcon  = (exitCode == 0) ? "&#9989;" : "&#10060;";
+    const QString statusColor = (exitCode == 0) ? c.tStOk : c.tStEr;
+    const QString borderColor = (exitCode == 0) ? c.tBdOk : c.tBdEr;
+    const QString bgColor     = (exitCode == 0) ? c.tBgOk : c.tBgEr;
+
+    return
+        "<p style='margin:2px 0;'></p>"
+        "<table width='100%' cellpadding='0' cellspacing='0'>"
+        "<tr>"
+          "<td width='20'>&nbsp;</td>"
+          "<td bgcolor='" + bgColor + "' style='"
+              "border:1px solid " + borderColor + ";"
+              "border-radius:8px;"
+              "padding:8px 12px;"
+              "color:" + QString(c.tTxt) + ";"
+          "'>"
+            "<p style='font-size:11px;font-weight:bold;margin:0 0 4px 0;color:" + statusColor + ";'>"
+              "&#9881;  Esecutore Python  \xc2\xb7\xc2\xb7  "
+              + statusIcon + " exit " + QString::number(exitCode) +
+              "  \xc2\xb7\xc2\xb7  " + QString::number(ms, 'f', 0) + " ms"
+            "</p>"
+            "<hr style='border:none;border-top:1px solid " + borderColor + ";margin:4px 0;'>"
+            "<p style='font-family:\"JetBrains Mono\",monospace;font-size:11px;"
+               "color:#8b949e;margin:0 0 6px 0;'>"
+              + esc_out +
+            "</p>"
+          "</td>"
+          "<td width='20'>&nbsp;</td>"
+        "</tr>"
+        "</table>"
+        "<p style='margin:2px 0;'></p>";
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildControllerBubble — bolla del controller LLM
+   Colore in base al verdetto: ✅ verde / ⚠️ giallo / ❌ rosso
+   ══════════════════════════════════════════════════════════════ */
+QString AgentiPage::buildControllerBubble(const QString& htmlContent)
+{
+    /* Determina tono in base al verdetto presente nell'HTML */
+    const auto& c = bc();
+    QString bg = c.cBgOk, border = c.cBdOk, hdrColor = c.cHdOk;
+    if (htmlContent.contains("AVVISO") || htmlContent.contains("\xe2\x9a\xa0")) {
+        bg = c.cBgWn; border = c.cBdWn; hdrColor = c.cHdWn;
+    }
+    if (htmlContent.contains("ERRORE") || htmlContent.contains("\xe2\x9d\x8c")) {
+        bg = c.cBgEr; border = c.cBdEr; hdrColor = c.cHdEr;
+    }
+
+    return
+        "<p style='margin:2px 0;'></p>"
+        "<table width='100%' cellpadding='0' cellspacing='0'>"
+        "<tr>"
+          "<td width='40'>&nbsp;</td>"
+          "<td bgcolor='" + bg + "' style='"
+              "border:1px solid " + border + ";"
+              "border-radius:10px;"
+              "padding:10px 14px;"
+              "color:#e2e8f0;"
+          "'>"
+            /* &#128737; = 🛡 (U+1F6E1, fuori BMP → entity decimale) */
+            "<p style='color:" + hdrColor + ";font-size:11px;font-weight:bold;margin:0 0 5px 0;'>"
+              "&#128737;  Controller AI  \xc2\xb7\xc2\xb7  Validatore pipeline"
+            "</p>"
+            "<hr style='border:none;border-top:1px solid " + border + ";margin:5px 0 8px 0;'>"
+            + htmlContent +
+          "</td>"
+        "</tr>"
+        "</table>"
+        "<p style='margin:6px 0;'></p>";
+}
+

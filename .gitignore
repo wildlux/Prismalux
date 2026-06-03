@@ -190,3 +190,5 @@ EXPORT/linux/Prismalux*.zip
 EXPORT/windows/Prismalux*.zip
 Prismalux_v*.zip
 build_status.txt
+MCPs/anki_mcp/node_modules/
+MCPs/anki_mcp/package-lock.json

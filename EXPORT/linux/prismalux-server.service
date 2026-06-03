@@ -1,0 +1,15 @@
+[Unit]
+Description=Prismalux LAN Server (headless)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/Prismalux_GUI --server --port 11500
+Restart=on-failure
+RestartSec=10s
+StandardOutput=journal
+StandardError=journal
+Environment=QT_QPA_PLATFORM=offscreen
+
+[Install]
+WantedBy=default.target

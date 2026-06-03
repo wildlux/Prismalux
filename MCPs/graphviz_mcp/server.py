@@ -17,6 +17,19 @@ logger = logging.getLogger(__name__)
 OUT_DIR = Path.home() / ".prismalux" / "graphviz_output"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+def _safe_fname(filename: str) -> str:
+    """Restituisce il basename sanitizzato, bloccando path traversal."""
+    if not isinstance(filename, str) or not filename.strip():
+        raise ValueError("Nome file non valido.")
+    safe = os.path.basename(filename.replace(" ", "_"))
+    if not safe:
+        raise ValueError("Nome file non valido dopo sanitizzazione.")
+    # Verifica che il percorso risultante stia dentro OUT_DIR
+    candidate = os.path.realpath(str(OUT_DIR / safe))
+    if not candidate.startswith(str(OUT_DIR.resolve())):
+        raise ValueError(f"Path traversal rilevato: {filename}")
+    return safe
+
 def _gv():
     try:
         import graphviz
@@ -58,8 +71,15 @@ def tool_render_dot(args):
     gv = _gv()
     if not gv: return "[Errore] graphviz non installato. Esegui: pip install graphviz && sudo apt install graphviz"
     fmt = args.get("format", "png")
+    if fmt not in ("png", "svg", "pdf"):
+        return "[Errore] Formato non valido. Usa: png, svg, pdf"
     engine = args.get("engine", "dot")
-    fname = args["filename"].replace(" ", "_")
+    if engine not in ("dot", "neato", "circo", "fdp", "sfdp", "twopi"):
+        return "[Errore] Engine non valido."
+    try:
+        fname = _safe_fname(args["filename"])
+    except ValueError as e:
+        return f"[Errore] {e}"
     src = gv.Source(args["dot_code"], filename=str(OUT_DIR / fname), format=fmt, engine=engine)
     out = src.render(cleanup=True)
     return f"Diagramma salvato: {out}"
@@ -67,6 +87,13 @@ def tool_render_dot(args):
 def tool_create_mindmap(args):
     gv = _gv()
     if not gv: return "[Errore] graphviz non installato."
+    fmt = args.get("format", "png")
+    if fmt not in ("png", "svg"):
+        return "[Errore] Formato non valido. Usa: png, svg"
+    try:
+        fname = _safe_fname(args["filename"])
+    except ValueError as e:
+        return f"[Errore] {e}"
     g = gv.Digraph(comment=args["title"], engine="dot")
     g.attr(rankdir="LR", bgcolor="transparent")
     g.attr("node", shape="box", style="rounded,filled", fillcolor="#2a4a6a", fontcolor="white", fontname="Helvetica")
@@ -77,8 +104,6 @@ def tool_create_mindmap(args):
         for child in children:
             g.node(child, child, shape="plaintext", fillcolor="transparent")
             g.edge(parent, child)
-    fmt = args.get("format", "png")
-    fname = args["filename"].replace(" ", "_")
     g.format = fmt
     g.filename = str(OUT_DIR / fname)
     out = g.render(cleanup=True)
@@ -87,6 +112,13 @@ def tool_create_mindmap(args):
 def tool_create_flowchart(args):
     gv = _gv()
     if not gv: return "[Errore] graphviz non installato."
+    fmt = args.get("format", "png")
+    if fmt not in ("png", "svg"):
+        return "[Errore] Formato non valido. Usa: png, svg"
+    try:
+        fname = _safe_fname(args["filename"])
+    except ValueError as e:
+        return f"[Errore] {e}"
     g = gv.Digraph(engine="dot")
     g.attr(rankdir="TB")
     g.attr("node", shape="box", style="rounded,filled", fillcolor="#2a3a5a", fontcolor="white")
@@ -101,8 +133,6 @@ def tool_create_flowchart(args):
             src_n = str(steps.index(edge[0])) if edge[0] in steps else edge[0]
             dst_n = str(steps.index(edge[1])) if edge[1] in steps else edge[1]
             g.edge(src_n, dst_n, label=label)
-    fmt = args.get("format", "png")
-    fname = args["filename"].replace(" ", "_")
     g.format = fmt
     g.filename = str(OUT_DIR / fname)
     out = g.render(cleanup=True)

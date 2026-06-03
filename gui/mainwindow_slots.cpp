@@ -8,11 +8,11 @@
 #include "ai_client.h"
 #include "theme_manager.h"
 #include "widgets/whisper_autosetup.h"
-#include "pages/agenti_page.h"
-#include "pages/impostazioni_page.h"
-#include "pages/strumenti_page.h"
-#include "pages/grafico_page.h"
-#include "pages/programmazione_page.h"
+#include "pages/main_ai.h"
+#include "pages/settings_main.h"
+#include "pages/main_tools.h"
+#include "pages/main_graph.h"
+#include "pages/main_programming.h"
 
 #include <QApplication>
 #include <QSettings>

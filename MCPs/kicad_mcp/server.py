@@ -9,6 +9,35 @@ import urllib.request, urllib.error
 
 KICAD_BASE = "http://localhost:3000"
 
+import re as _re
+
+def _safe_kicad_id(value: str, max_len: int = 64, label: str = "valore") -> str:
+    """Valida un identificatore KiCAD: solo alfanumerico, underscore, trattino."""
+    if not isinstance(value, str):
+        raise ValueError(f"{label} non è una stringa.")
+    value = value.strip()
+    if not value:
+        raise ValueError(f"{label} vuoto.")
+    if len(value) > max_len:
+        raise ValueError(f"{label} troppo lungo (max {max_len}).")
+    if not _re.match(r'^[A-Za-z0-9_\-\.]+$', value):
+        raise ValueError(f"{label} contiene caratteri non validi: {value!r}")
+    return value
+
+def _safe_path_str(value: str, max_len: int = 512, label: str = "path") -> str:
+    """Valida un path file: niente quote singole/backslash che causerebbero code injection."""
+    if not isinstance(value, str):
+        raise ValueError(f"{label} non è una stringa.")
+    value = value.strip()
+    if not value:
+        raise ValueError(f"{label} vuoto.")
+    if len(value) > max_len:
+        raise ValueError(f"{label} troppo lungo (max {max_len}).")
+    for ch in ("'", "\\", "\n", "\r", "\0"):
+        if ch in value:
+            raise ValueError(f"Carattere non consentito in {label}: {ch!r}")
+    return value
+
 def _kc(endpoint, data=None):
     url = KICAD_BASE + endpoint
     body = json.dumps(data).encode() if data is not None else None
@@ -70,16 +99,20 @@ def tool_get_board_info(_):
     return _exec(code)
 
 def tool_add_footprint(args):
-    _lib = args['library']
-    _fp  = args['footprint']
-    _x   = args.get('x', 100)
-    _y   = args.get('y', 100)
+    try:
+        lib  = _safe_kicad_id(args["library"],   label="library")
+        fp   = _safe_kicad_id(args["footprint"],  label="footprint")
+        ref  = _safe_kicad_id(args.get("reference", "R1"), label="reference")
+    except ValueError as e:
+        return f"[Errore] {e}"
+    x = float(args.get("x", 100))
+    y = float(args.get("y", 100))
     code = (f"import pcbnew\nb = pcbnew.GetBoard()\n"
-            f"fp = pcbnew.FootprintLoad('{_lib}', '{_fp}')\n"
-            f"fp.SetReference('{args.get('reference','R1')}')\n"
-            f"fp.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM({_x}), pcbnew.FromMM({_y})))\n"
+            f"fp = pcbnew.FootprintLoad('{lib}', '{fp}')\n"
+            f"fp.SetReference('{ref}')\n"
+            f"fp.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM({x}), pcbnew.FromMM({y})))\n"
             f"b.Add(fp); pcbnew.Refresh()\n"
-            f"print('Footprint aggiunto: {_lib}:{_fp} @ ({_x},{_y}) mm')")
+            f"print('Footprint aggiunto: {lib}:{fp} @ ({x},{y}) mm')")
     return _exec(code)
 
 def tool_list_components(_):
@@ -90,16 +123,19 @@ def tool_list_components(_):
     return _exec(code)
 
 def tool_export_gerber(args):
-    _outdir = args['output_dir']
+    try:
+        outdir = _safe_path_str(args["output_dir"], label="output_dir")
+    except ValueError as e:
+        return f"[Errore] {e}"
     code = (f"import pcbnew\nb = pcbnew.GetBoard()\n"
             f"p = pcbnew.PLOT_CONTROLLER(b)\n"
             f"po = p.GetPlotOptions()\n"
-            f"po.SetOutputDirectory('{_outdir}')\n"
+            f"po.SetOutputDirectory('{outdir}')\n"
             f"po.SetFormat(pcbnew.PLOT_FORMAT_GERBER)\n"
             f"for layer in [pcbnew.F_Cu, pcbnew.B_Cu, pcbnew.F_SilkS, pcbnew.F_Mask, pcbnew.B_Mask, pcbnew.Edge_Cuts]:\n"
             f"  p.OpenPlotfile('', pcbnew.PLOT_FORMAT_GERBER, '')\n"
             f"  p.SetColorMode(False); p.PlotLayer(); p.ClosePlot()\n"
-            f"print('Gerber esportati in: {_outdir}')")
+            f"print('Gerber esportati in: {outdir}')")
     return _exec(code)
 
 def tool_run_drc(_):

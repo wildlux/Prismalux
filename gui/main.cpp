@@ -5,11 +5,16 @@
 #include <QCoreApplication>
 #include <QTranslator>
 #include <QLocale>
+#include <QUuid>
+#include <csignal>
+#include <cstdio>
 #include "mainwindow.h"
+#include "lan_server.h"
+#include "ai_client.h"
+#include "prismalux_paths.h"
 
-/* ── Carica tutti i font .ttf/.otf dalla cartella fonts/ accanto all'exe ──
-   Se la cartella non esiste o è vuota, l'app usa i font di sistema.
-   Per aggiungere un font: copia il file .ttf in Qt_GUI/fonts/ e riavvia. */
+namespace P = PrismaluxPaths;
+
 static void loadBundledFonts() {
     const QString fontsDir = QCoreApplication::applicationDirPath() + "/fonts";
     const QStringList filters{ "*.ttf", "*.otf", "*.TTF", "*.OTF" };
@@ -17,7 +22,78 @@ static void loadBundledFonts() {
         QFontDatabase::addApplicationFont(fi.absoluteFilePath());
 }
 
+static void handleSigInt(int) {
+    QCoreApplication::quit();
+}
+
+static int runHeadlessServer(int argc, char** argv) {
+    QCoreApplication app(argc, argv);
+    app.setApplicationName("Prismalux");
+    app.setApplicationVersion("2.9");
+    app.setOrganizationName("Prismalux");
+
+    const QStringList args = app.arguments();
+
+    quint16 port = static_cast<quint16>(P::SK::kLanPort
+        ? QSettings("Prismalux", "GUI").value(P::SK::kLanPort, 11500).toInt()
+        : 11500);
+
+    {
+        const int portIdx = args.indexOf("--port");
+        if (portIdx != -1 && portIdx + 1 < args.size()) {
+            bool ok = false;
+            const int p = args.at(portIdx + 1).toInt(&ok);
+            if (ok && p > 0 && p < 65536)
+                port = static_cast<quint16>(p);
+        }
+    }
+
+    QString token;
+    {
+        const int tokIdx = args.indexOf("--token");
+        if (tokIdx != -1 && tokIdx + 1 < args.size())
+            token = args.at(tokIdx + 1);
+    }
+
+    if (token.isEmpty())
+        token = LanServer::loadLanToken();
+    if (token.isEmpty())
+        token = QUuid::createUuid().toString(QUuid::WithoutBraces).left(24);
+
+    LanServer::saveLanToken(token);
+
+    auto* ai  = new AiClient(&app);
+    auto* srv = new LanServer(ai, &app);
+    srv->setAccessToken(token);
+
+    if (!srv->start(port)) {
+        std::fprintf(stderr, "Prismalux server: impossibile aprire la porta %d\n",
+                     static_cast<int>(port));
+        return 1;
+    }
+
+    std::printf("Prismalux server avviato su porta %d -- token: %s\n",
+                static_cast<int>(port), token.toUtf8().constData());
+    std::fflush(stdout);
+
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, srv, &LanServer::stop);
+
+    std::signal(SIGINT,  handleSigInt);
+    std::signal(SIGTERM, handleSigInt);
+
+    return app.exec();
+}
+
 int main(int argc, char* argv[]) {
+    {
+        const QStringList args = QCoreApplication::arguments();
+        (void)args;
+    }
+    for (int i = 1; i < argc; ++i) {
+        if (QByteArray(argv[i]) == "--server")
+            return runHeadlessServer(argc, argv);
+    }
+
     QApplication app(argc, argv);
 
     /* ── Metadata applicazione (usato da QSettings in ThemeManager) ── */

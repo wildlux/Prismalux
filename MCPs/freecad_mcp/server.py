@@ -9,6 +9,36 @@ import urllib.request, urllib.error
 
 FREECAD_BASE = "http://localhost:9876"
 
+import re as _re
+
+def _safe_identifier(value: str, max_len: int = 64) -> str:
+    """Valida un identificatore FreeCAD/Python: solo alfanumerico + underscore."""
+    if not isinstance(value, str):
+        raise ValueError(f"Valore non stringa: {value!r}")
+    value = value.strip()
+    if not value:
+        raise ValueError("Identificatore vuoto.")
+    if len(value) > max_len:
+        raise ValueError(f"Identificatore troppo lungo (max {max_len}): {value!r}")
+    if not _re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', value):
+        raise ValueError(f"Identificatore non valido (solo lettere/numeri/underscore): {value!r}")
+    return value
+
+def _safe_path_str(value: str, max_len: int = 512) -> str:
+    """Valida un path file: niente quote singole/backslash che romperebbero l'f-string Python."""
+    if not isinstance(value, str):
+        raise ValueError(f"Path non stringa: {value!r}")
+    value = value.strip()
+    if not value:
+        raise ValueError("Path vuoto.")
+    if len(value) > max_len:
+        raise ValueError(f"Path troppo lungo (max {max_len}).")
+    # Caratteri che potrebbero fare code injection nelle f-string con quote singole
+    for ch in ("'", "\\", "\n", "\r", "\0"):
+        if ch in value:
+            raise ValueError(f"Carattere non consentito nel path: {ch!r}")
+    return value
+
 def _fc(endpoint, data=None):
     url = FREECAD_BASE + endpoint
     body = json.dumps(data).encode() if data is not None else None
@@ -68,38 +98,61 @@ def tool_execute_python(args):
     return _exec(args["code"])
 
 def tool_create_box(args):
+    try:
+        name = _safe_identifier(args.get("name", "Box"))
+    except ValueError as e:
+        return f"[Errore] {e}"
+    length = float(args.get("length", 10.0))
+    width  = float(args.get("width",  10.0))
+    height = float(args.get("height", 10.0))
     code = (f"import FreeCAD, Part\n"
             f"doc = FreeCAD.activeDocument() or FreeCAD.newDocument('Prismalux')\n"
-            f"box = doc.addObject('Part::Box', '{args.get('name','Box')}')\n"
-            f"box.Length = {args.get('length', 10.0)}\n"
-            f"box.Width  = {args.get('width',  10.0)}\n"
-            f"box.Height = {args.get('height', 10.0)}\n"
+            f"box = doc.addObject('Part::Box', '{name}')\n"
+            f"box.Length = {length}\n"
+            f"box.Width  = {width}\n"
+            f"box.Height = {height}\n"
             f"doc.recompute()\n"
-            f"print('Box creato: L={args.get('length',10)} W={args.get('width',10)} H={args.get('height',10)}')")
+            f"print('Box creato: L={length} W={width} H={height}')")
     return _exec(code)
 
 def tool_create_cylinder(args):
+    try:
+        name = _safe_identifier(args.get("name", "Cylinder"))
+    except ValueError as e:
+        return f"[Errore] {e}"
+    radius = float(args.get("radius", 5.0))
+    height = float(args.get("height", 10.0))
     code = (f"import FreeCAD, Part\n"
             f"doc = FreeCAD.activeDocument() or FreeCAD.newDocument('Prismalux')\n"
-            f"cyl = doc.addObject('Part::Cylinder', '{args.get('name','Cylinder')}')\n"
-            f"cyl.Radius = {args.get('radius', 5.0)}\n"
-            f"cyl.Height = {args.get('height', 10.0)}\n"
+            f"cyl = doc.addObject('Part::Cylinder', '{name}')\n"
+            f"cyl.Radius = {radius}\n"
+            f"cyl.Height = {height}\n"
             f"doc.recompute()\n"
-            f"print('Cilindro creato: R={args.get('radius',5)} H={args.get('height',10)}')")
+            f"print('Cilindro creato: R={radius} H={height}')")
     return _exec(code)
 
 def tool_export_model(args):
-    ext  = args["output_path"].split(".")[-1].lower()
-    _out = args["output_path"]
-    fmt_map = {"stl": "Mesh", "step": "Part", "stp": "Part", "obj": "Mesh"}
+    try:
+        out_path = _safe_path_str(args["output_path"])
+    except ValueError as e:
+        return f"[Errore] {e}"
+    ext = out_path.split(".")[-1].lower()
+    if ext not in ("stl", "step", "stp", "obj"):
+        return "[Errore] Formato non supportato. Usa: .stl .step .stp .obj"
+    obj_name = ""
+    if args.get("object_name"):
+        try:
+            obj_name = _safe_identifier(args["object_name"])
+        except ValueError as e:
+            return f"[Errore] {e}"
     code = (f"import FreeCAD, Mesh, Part, ImportGui\n"
             f"doc = FreeCAD.activeDocument()\n"
             f"if doc is None: print('[Errore] Nessun documento aperto.')\n"
             f"else:\n"
-            f"    objs = [doc.getObject('{args.get('object_name','')}') ] if '{args.get('object_name','')}' else doc.Objects\n"
+            f"    objs = [doc.getObject('{obj_name}')] if '{obj_name}' else doc.Objects\n"
             f"    objs = [o for o in objs if o]\n"
-            f"    Mesh.export(objs, '{args['output_path']}') if '{ext}' in ('stl','obj') else Part.export(objs, '{args['output_path']}')\n"
-            f"    print('Esportato: {_out}')")
+            f"    Mesh.export(objs, '{out_path}') if '{ext}' in ('stl','obj') else Part.export(objs, '{out_path}')\n"
+            f"    print('Esportato: {out_path}')")
     return _exec(code)
 
 def tool_list_objects(_):
@@ -113,17 +166,24 @@ def tool_list_objects(_):
 
 def tool_boolean_operation(args):
     op_map = {"fuse": "Part::Fuse", "cut": "Part::Cut", "common": "Part::Common"}
-    _op    = args['operation']
-    _bname = args.get('name', 'BooleanResult')
+    _op = args.get("operation", "")
+    if _op not in op_map:
+        return "[Errore] Operazione non valida. Usa: fuse, cut, common"
+    try:
+        obj1  = _safe_identifier(args["obj1"])
+        obj2  = _safe_identifier(args["obj2"])
+        bname = _safe_identifier(args.get("name", "BooleanResult"))
+    except ValueError as e:
+        return f"[Errore] {e}"
     code = (f"import FreeCAD, Part\n"
             f"doc = FreeCAD.activeDocument()\n"
-            f"o1 = doc.getObject('{args['obj1']}')\n"
-            f"o2 = doc.getObject('{args['obj2']}')\n"
-            f"result = doc.addObject('{op_map[_op]}', '{_bname}')\n"
+            f"o1 = doc.getObject('{obj1}')\n"
+            f"o2 = doc.getObject('{obj2}')\n"
+            f"result = doc.addObject('{op_map[_op]}', '{bname}')\n"
             f"result.Base = o1; result.Tool = o2\n"
             f"o1.Visibility = False; o2.Visibility = False\n"
             f"doc.recompute()\n"
-            f"print('Operazione {_op} completata: {_bname}')")
+            f"print('Operazione {_op} completata: {bname}')")
     return _exec(code)
 
 HANDLERS = {"execute_python": tool_execute_python, "create_box": tool_create_box,

@@ -10,6 +10,21 @@ from pathlib import Path
 OUT_DIR = Path.home() / ".prismalux" / "avogadro_output"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+import os as _os
+
+def _safe_outpath(filename: str, ext: str) -> Path:
+    """Costruisce un percorso sicuro dentro OUT_DIR, bloccando path traversal."""
+    if not isinstance(filename, str) or not filename.strip():
+        raise ValueError("Nome file non valido.")
+    # Rimuovi spazi, poi prendi solo il basename per bloccare ../
+    safe_name = _os.path.basename(filename.replace(" ", "_"))
+    if not safe_name:
+        raise ValueError("Nome file non valido dopo sanitizzazione.")
+    candidate = (OUT_DIR / (safe_name + "." + ext)).resolve()
+    if not str(candidate).startswith(str(OUT_DIR.resolve())):
+        raise ValueError(f"Path traversal rilevato: {filename}")
+    return candidate
+
 def _avo():
     try:
         import avogadro
@@ -73,14 +88,18 @@ def tool_smiles_to_avogadro(args):
     if err: return err
     avo = _avo()
     try:
+        fmt = args.get("format", "sdf")
+        if fmt not in ("sdf", "xyz", "cml"):
+            return "[Errore] Formato non valido. Usa: sdf, xyz, cml"
+        out = _safe_outpath(args["filename"], fmt)
         mol = avo.Molecule()
         builder = avo.io.FileFormat.fileFormats().formatForMimeType("chemical/x-smiles")
         avo.io.read(mol, args["smiles"], "smi")
         avo.calc.generateCoordinates(mol)
-        fmt = args.get("format", "sdf")
-        out = OUT_DIR / (args["filename"].replace(" ","_") + "." + fmt)
         avo.io.write(mol, str(out))
         return f"Molecola salvata: {out}\n  Atomi: {mol.atomCount()}, Legami: {mol.bondCount()}"
+    except ValueError as e:
+        return f"[Errore] {e}"
     except Exception as e:
         return f"[Errore] {e}\nSuggerimento: usa rdkit_mcp per la conversione SMILES→3D."
 

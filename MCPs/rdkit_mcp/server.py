@@ -18,6 +18,18 @@ logger = logging.getLogger(__name__)
 OUT_DIR = Path.home() / ".prismalux" / "rdkit_output"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+def _safe_outpath(filename: str, ext: str) -> Path:
+    """Costruisce un percorso sicuro dentro OUT_DIR, bloccando path traversal."""
+    if not isinstance(filename, str) or not filename.strip():
+        raise ValueError("Nome file non valido.")
+    safe_name = os.path.basename(filename.replace(" ", "_"))
+    if not safe_name:
+        raise ValueError("Nome file vuoto dopo sanitizzazione.")
+    candidate = (OUT_DIR / (safe_name + "." + ext)).resolve()
+    if not str(candidate).startswith(str(OUT_DIR.resolve())):
+        raise ValueError(f"Path traversal rilevato: {filename}")
+    return candidate
+
 def _rd():
     try:
         from rdkit import Chem
@@ -66,8 +78,11 @@ def tool_smiles_to_image(args):
     mol = Chem.MolFromSmiles(args["smiles"])
     if not mol: return f"[Errore] SMILES non valida: {args['smiles']}"
     w, h = args.get("width", 400), args.get("height", 300)
+    try:
+        out = _safe_outpath(args["filename"], "png")
+    except ValueError as e:
+        return f"[Errore] {e}"
     img = Draw.MolToImage(mol, size=(w, h))
-    out = OUT_DIR / (args["filename"].replace(" ","_") + ".png")
     img.save(str(out))
     return f"Immagine molecola salvata: {out}"
 
@@ -117,10 +132,13 @@ def tool_smiles_to_3d(args):
     Chem, _, _, AllChem, _ = r
     mol = Chem.MolFromSmiles(args["smiles"])
     if not mol: return f"[Errore] SMILES non valida."
+    try:
+        out = _safe_outpath(args["filename"], "sdf")
+    except ValueError as e:
+        return f"[Errore] {e}"
     mol = Chem.AddHs(mol)
     AllChem.EmbedMolecule(mol, AllChem.ETKDG())
     AllChem.UFFOptimizeMolecule(mol)
-    out = OUT_DIR / (args["filename"].replace(" ","_") + ".sdf")
     with Chem.SDWriter(str(out)) as w: w.write(mol)
     return f"Struttura 3D salvata: {out}"
 

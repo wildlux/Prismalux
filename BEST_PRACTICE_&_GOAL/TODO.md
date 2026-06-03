@@ -1,7 +1,82 @@
 # Prismalux — TODO pendenti
 
-> Aggiornato: 2026-05-31 | Versione: 2.9
+> Aggiornato: 2026-06-03 | Versione: 2.9
 > Build: `python3 build.py`  (Linux/macOS/Windows — oppure `cmake --build build_gui -j$(nproc)` su Linux)
+
+---
+
+## 🆕 Sessione 2026-06-03 — Nuovi TODO
+
+### 🔧 Bug / Fix preesistenti (corretti oggi)
+- [x] **`LanServer::onLlmFinishedQueued`** — dichiarazione orfana in `lan_server.h` rimossa — 2026-06-03
+- [x] **`QuizPage::onRivediErroriClicked`** — spostata da `private slots` a `public slots` — 2026-06-03
+- [x] **`lan_server.cpp` include** — `lavoro_data.h` → `main_jobs_data.h` — 2026-06-03
+
+### 🎮 Feature
+- [x] **Sfida "Rivedi errori"** — struct `WrongAnswer`, salvataggio sbagliati, pulsante con count, QDialog scrollabile opzioni colorate+spiegazione — `main_learn.h/cpp` — 2026-06-03
+
+---
+
+## 🚀 BOINC-like WAN Compute — TODO 2026-06-03
+
+> Goal: trasformare il WAN Compute da "coda distribuita basilare" a sistema fault-tolerant simile a BOINC per ricerca personale (analisi AI, Python, grafici distribuiti su 2-10 PC LAN).
+
+### 🔴 Critici — Fault Tolerance (senza questi si perde il lavoro)
+- [x] **Riassegnazione task su disconnessione nodo** — `onWanNodeDisconnected()`: task "running" del nodo morto tornano "pending"; `retryCount++`; dopo 3 tentativi → "failed" — `main_lan_wan.cpp` — 2026-06-03
+- [x] **Heartbeat 30s server→nodo** — `QTimer` 30s invia `{"t":"ping"}`; nodo risponde `{"t":"pong"}`; se nodo non risponde per 90s → rimosso → task riassegnati — `main_lan_wan.h/cpp` — 2026-06-03
+- [x] **Priority scheduler** — campo `priority` (0=bassa/1=normale/2=alta) in `WanTask`; `wanDispatch()` sceglie il task pending con priorità massima invece del primo FIFO — `main_lan_wan.h/cpp` — 2026-06-03
+- [x] **`startedAt` tracking** — campo `QDateTime startedAt` in `WanTask`; settato in `wanDispatch()`; ETA stimata nella stats label — 2026-06-03
+- [x] **Stats label BOINC-style** — label sotto le tabelle: nodi idle/working, task in coda/running/completati/falliti — `main_lan_wan.cpp` — 2026-06-03
+
+### 🟡 Sicurezza
+- [x] **TLS self-signed LAN** — `QSslServer` + `_ensureCert()` + checkbox "Abilita TLS" in Manutenzione LAN; fallback HTTP se openssl non disponibile — `lan_server.h/cpp`, `main_maintenance_lan.cpp` — 2026-06-03
+- [x] **Coda FIFO multi-utente LAN** — `PendingLlmRequest` + `m_llmQueue` (max 10); `handleChat/Generate` accodano se occupato; `closeStreamSession/onClientDisconnected` servono il prossimo — `lan_server.h/cpp` — 2026-06-03
+- [ ] **Parser HTTP fuzzing** — `lan_server.cpp::processSession` mai testato con input malformati; valutare migrazione a parser collaudato
+
+### 🟢 Dashboard BOINC-style
+- [x] **Throughput real-time** — `m_wanThroughputLbl` aggiornato ogni 5s: task/ora (finestra 60min) + ETA stimata — `main_lan_wan.h/cpp` — 2026-06-03
+- [x] **ETA globale** — calcolata da media `startedAt→now` sui task completati, divisa per worker attivi — 2026-06-03
+- [x] **Esportazione CSV** — `m_wanExportBtn` → QFileDialog → CSV completo (id/kind/stato/nodo/retry/priority/created/startedAt/payload/result) — 2026-06-03
+- [ ] **Nodo multi-worker** — il client può avere N worker simultanei; `m_wanCliWorkerCount` SpinBox
+
+### 📦 Headless server (produzione LAN)
+- [x] **`--server` CLI flag** — `main.cpp::runHeadlessServer()` con `--port` e `--token`
+- [x] **systemd user unit** — `EXPORT/linux/prismalux-server.service` creato — 2026-06-03
+- [ ] **Watchdog crash-restart** — `Restart=on-failure` nella unit (da aggiungere)
+- [ ] **Log strutturato** — output JSON line su stdout per logrotate/journald
+
+---
+
+## 🆕 Sessione 2026-06-02 — Nuovi TODO
+
+### 🔧 Bug / Fix UI
+- [x] **QR code** — aumentato di ~20px (+8%): 260→280 dialog, 256→276 inline; testo spostato sotto con `\n\n` — 2026-06-02
+- [x] **Docker "Scarica" bottone** — nascondere il bottone dopo che l'immagine è stata scaricata con successo — 2026-06-02
+- [x] **π calcolo** — bug `TypeError: object of type 'int' has no len()` in `matematica_page.cpp` (rimosso `.__len__()`) — 2026-06-02
+- [x] **Grafico 2D/3D** — rimosso stretch factor 1 da `m_paramStack` — 2026-06-02
+- [x] **Voce Piper** — aggiunto scroll indipendente su pannello sinistro (Piper) e destro (Whisper), non si sovrappongono più — 2026-06-02
+- [x] **Simulatore** — aggiunto `setMaxVisibleItems(20)` + `ScrollBarAsNeeded` sul combo algoritmi — 2026-06-02
+- [x] **Sfida** — salvataggio domande sbagliate (`WrongAnswer`), bottone "Rivedi errori" con dialog scroll+colori — 2026-06-02
+
+### 🎨 UI / UX
+- [x] **Selettore LLM globale** — aggiunto `ModelComboBox` in `ricerca_page.cpp`: tab Paper e Brevetto ora hanno selettore modello — 2026-06-02
+- [x] **Visuale → Aspetto** — 4 colonne invece di 3 per la griglia dei temi — 2026-06-02
+- [x] **Visuale → Grafico** — spostato "preset stile grafico" sotto "carattere etichette" — 2026-06-02
+- [x] **AI Locale + Connessione** — `buildUpdateGroup` spostato nella `colsRow` a destra di `buildAdvancedConfigGroup` in `manutenzione_page.cpp` — 2026-06-02
+
+### 📊 Feature / Analisi
+- [x] **Analisi 1 e Analisi 2** — aggiunto `GraficoCanvas` con auto-plot al cambio topic (`plotEx`); split orizzontale testo+grafico — 2026-06-02
+
+### 🔨 Build / Infrastruttura
+- [x] **llama.cpp compilazione Vulkan** — fallback automatico a `GGML_VULKAN=OFF` se cmake detect "glslc" mancante; avviso nel log — 2026-06-02
+- [x] **Anki MCP server v0.18.5** — aggiornato `MCPs/anki_mcp/server.py` con API compatibile v0.18.5: +create_notes_bulk, +get_note, +update_note, +delete_notes, +get_note_types, +get_tags, +sync_anki, +get_cards_due — 2026-06-02
+
+### 🔁 Rinomina codice
+- [x] **Rinomina pagine GUI** — 96 file rinominati con `git mv`; tutti gli include in `mainwindow.cpp`, `mainwindow_slots.cpp`, `gui/pages/` e `gui/tests/` aggiornati; `CMakeLists.txt` aggiornato — 2026-06-02
+
+### 📱 Messaging
+- [x] **Telegram** — aggiunta sezione "Contatti promozionali" in `buildTelegramTab()`: lista contatti, messaggio, "Invia a tutti" via bot API Telegram — 2026-06-02
+- [x] **WhatsApp** — aggiunta sezione "Contatti promozionali" in `buildWhatsAppTab()`: lista numeri, messaggio, "Invia a tutti" via bridge URL — 2026-06-02
 
 ---
 
@@ -37,7 +112,7 @@
 
 ### 🔴🔴 Bloccante assoluto — NON esporre il WAN Compute finché non risolto
 
-- [ ] **Worker esegue comandi shell arbitrari dal server, senza auth** — `lan_wan_page.cpp:2843-2845`
+- [x] **Worker esegue comandi shell arbitrari dal server, senza auth** — opt-in checkbox + sandbox 2026-06-01
   - Il worker (`onWanCliSockReadyRead`, riga 2131) riceve un messaggio `task` e chiama
     `wanCliHandleTask` che per `kind=="shell_cmd"`/`"git_cmd"` esegue **`bash -c payload`**
     e per `python_repl`/`eval_script`/`matplotlib_plot` esegue **`python3 -c payload`**
@@ -47,18 +122,18 @@
   - Nota: `math_expr` (riga 2849) è gestito con escaping "sicuro per espressioni" — quindi
     il rischio era noto, ma `shell_cmd`/`python_repl` restano completamente aperti.
 
-- [ ] **Server registra ed esegue task da chiunque, senza verificare il token** — `lan_wan_page.cpp:1850-1947`
+- [x] **Server registra ed esegue task da chiunque, senza verificare il token** — token auth hello 2026-06-01
   - `onWanNodeReadyRead` accetta `hello`/`poll`/`result`/`spawn_tasks` da qualsiasi socket;
     **non c'è alcun controllo del Bearer token** (caricato ma mai verificato lato WAN).
   - `spawn_tasks` (riga 1919) lascia a un client non autenticato **iniettare nuovi task**
     (`kind`+`payload` arbitrari, es. `shell_cmd`) nella coda, che il server poi **distribuisce
     ad altri nodi onesti** → propagazione tipo worm dell'RCE.
 
-- [ ] **Bind su `QHostAddress::Any` (0.0.0.0) senza TLS** — `lan_wan_page.cpp:1812`
+- [x] **WAN bind 0.0.0.0 senza TLS** — checkbox "Esponi su tutte le interfacce" (default OFF→127.0.0.1); check Ollama esposto su avvio; UI TLS self-signed con openssl — 2026-06-02
   - Il server WAN ascolta su tutte le interfacce; nessuna cifratura → MITM banale su WiFi
     può impersonare il server e iniettare task shell ai worker.
 
-- [ ] **Capability `"shell"` di default** — `lan_wan_page.cpp:1873, 2076`
+- [x] **Capability `"shell"` di default** — `lan_wan_page.cpp` — rimossa 2026-06-01
   - I nodi annunciano `caps = {"ai","shell"}` di default → opt-in automatico all'esecuzione
     di comandi shell. Dovrebbe essere opt-out esplicito con conferma utente.
 
@@ -78,11 +153,11 @@
 > Onestà sullo stato: auditati a fondo solo `lan_server.cpp/.h` e `lan_wan_page.cpp`.
 > Le seguenti superfici NON sono state verificate — non assumere che siano sicure.
 
-- [ ] **18 plugin MCP Python** (`MCPs/*/server.py`) — raggiunti da `/api/mcp` via rete
+- [x] **18 plugin MCP Python** — audit completato 2026-06-02: 10 corretti (bioconda whitelist, avogadro/graphviz/rdkit path traversal, freecad/godot/kicad code injection, ollama/opencode/tinymcp arg validation), 5 già sicuri (anki, cytoscape, gns3, knowledge, obs)
   - Verificare che nessun plugin costruisca comandi shell / path da input non validato
     (command injection, path traversal). Validare i parametri lato server prima dell'inoltro.
 
-- [ ] **~20 file C++ con `QProcess`/`system`** oltre ai due server già auditati
+- [x] **~20 file C++ con `QProcess`** — audit completato 2026-06-02: 2 vulnerabilità HIGH corrette (WAN `math_expr` eval injection in `main_lan_wan.cpp:2930`; LAN `expr`/`simplify` Python injection in `lan_server.cpp:3868`); restanti 23 file SICURI
   - File coinvolti: `programmazione_page_slots.cpp`, `app_controller_page.cpp`,
     `strumenti_file_page.cpp`, `ai_client.cpp`, `agenti_page_tools.cpp`, `pratico_page.cpp`,
     `lavoro_page.cpp`, `mainwindow_slots.cpp`, ecc.
@@ -102,7 +177,7 @@
 
 ### 🔴 Critici
 
-- [ ] **Token nell'URL `?token=` su HTTP in chiaro** — `lan_server.cpp:367`
+- [x] **Token nell'URL `?token=` su HTTP in chiaro** — rimosso fallback API 2026-06-01
   - Il TLS è disabilitato di proposito (`lan_server.cpp:148-150`) ma il token è accettato
     come query string e incluso nel QR code → viaggia in chiaro, finisce nei log proxy,
     sniffabile su WiFi. Il Bearer token autentica ma **non cifra il canale**.
@@ -110,7 +185,7 @@
     fallback `?token=` e l'inclusione del token nell'URL del QR (passare il token in un
     campo separato che l'app Android usa per costruire l'header).
 
-- [ ] **Auth opzionale (token vuoto = nessuna auth)** — `lan_server.h:137`
+- [x] **Auth opzionale (token vuoto = nessuna auth)** — token auto-generato UUID 32-char se vuoto, salvato in keyring, segnale `tokenAutoGenerated` — 2026-06-02
   - Se l'utente non imposta un token, `/api/chat`, `/api/generate`, ecc. sono aperte a
     chiunque sulla rete. È opt-in; per un server che espone un LLM dovrebbe essere opt-out.
   - **Rimedio:** generare un token di default al primo avvio del server; disattivazione
@@ -125,7 +200,7 @@
   - **Rimedio:** bind sull'interfaccia LAN specifica, oppure avviso esplicito quando
     l'interfaccia attiva è una rete pubblica/non fidata.
 
-- [ ] **KaTeX da CDN jsdelivr nella web app** — `lan_server.cpp:1334`
+- [x] **KaTeX da CDN jsdelivr** — endpoint `/katex/` serve da `/usr/share/javascript/katex/` con path-traversal protection + cache 24h; CDN rimosso — 2026-06-02
   - La chat web carica JS/CSS da `cdn.jsdelivr.net`: rischio supply-chain, privacy
     (il telefono contatta un terzo) e niente offline. Sul desktop KaTeX è locale
     (`/usr/share/javascript/katex/`) → coerenza rotta.
@@ -135,14 +210,14 @@
   - I messaggi chat (utente + output LLM) sono inseriti via `d.textContent=t` → escaping
     automatico del browser. Nessun XSS sul flusso chat.
 
-- [ ] **XSS residuo nella lista offerte lavoro** — `lan_server.cpp:2219` (e tool `innerHTML`)
+- [x] **XSS residuo nella lista offerte lavoro** — sostituito innerHTML con createElement/textContent 2026-06-01
   - La lista `/api/lavoro` (dati esterni Indeed) e alcuni pannelli tool costruiscono il DOM
     con `innerHTML` concatenando stringhe. Se un titolo/descrizione offerta contiene HTML
     → injection nel browser del client.
   - **Rimedio:** usare `textContent`/`createElement` anche qui, o sanificare i dati esterni
     prima dell'inserimento.
 
-- [ ] **CORS `Access-Control-Allow-Origin: *`** — `lan_server.cpp:4125,4138`
+- [x] **CORS `Access-Control-Allow-Origin: *`** — rimosso del tutto (app Android nativa + web app same-origin non ne hanno bisogno) — 2026-06-02
   - Qualsiasi pagina web aperta sul telefono/PC del client può chiamare le API del server
     (il token in `localStorage` resta protetto dalla same-origin per la lettura, ma le
     richieste cross-origin partono comunque). Header di sicurezza X-Frame-Options/nosniff
@@ -221,15 +296,15 @@
   - Nessun token in `QSettings`/codice (già usa QKeychain); verificare che `KNOWLEDGE_USER/`,
     `RAG/`, `.env`, `*.key` siano in `.gitignore` e con permessi `0600`.
 
-- [ ] **Rate limiting esteso a tutti gli endpoint** — oggi su chat/knowledge (`lan_server.cpp:305`)
+- [x] **Rate limiting esteso a tutti gli endpoint** — aggiunto checkHeavyRateLimit 6/min per whisper/graphviz/mcp/launch 2026-06-01
   - Estendere a `/api/whisper`, `/api/graphviz`, `/api/launch`, `/api/mcp` per evitare
     abuso/DoS (whisper e graphviz lanciano processi).
 
-- [ ] **Limite upload + tipi file** — `/api/whisper`, `/api/cv` (upload audio/file)
+- [x] **Limite upload + tipi file** — Whisper: 413 se >25 MB, 415 se non audio/*; MCP: validazione method regex + params oggetto — 2026-06-02
   - Verificare limite dimensione e validazione tipo/estensione prima di passare a processi
     esterni (python3, dot, whisper).
 
-- [ ] **Validazione input MCP** — `/api/mcp` (`lan_server.cpp:598`) inoltra a plugin Python
+- [x] **Validazione input MCP** — verificato JSON object + method regex `[a-zA-Z0-9/_-]{1,64}` + params oggetto prima dell'inoltro — 2026-06-02
   - Assicurarsi che i parametri passati ai MCP siano validati lato server, non solo lato MCP.
 
 - [ ] **Aggiornamenti dipendenze** — scanner OSV/NVD su `requirements.lock` (vedi Analizzatore Sicurezza)
@@ -241,7 +316,7 @@
 > Scopo: aiutare l'utente a **trovare e correggere** falle — mai a sfruttarle.
 > Posizionamento naturale: sub-tab in **Programmazione [4]** o pannello dedicato in **Ricerca [6]**.
 
-- [ ] **SecurityAnalyzerPage** — analisi difensiva del codice e della configurazione locale
+- [x] **SecurityAnalyzerPage** — 4 agenti Ollama paralleli in AppController [7], 2026-06-01
 
   ### Analisi codice (LLM locale)
   - Carica file sorgente (C++/Python/JS/Bash) o incolla testo
