@@ -481,7 +481,8 @@ void LanServer::onClientReadyRead()
         const int qmark = s.path.indexOf('?');
         if (qmark >= 0) {
             const QString qs = s.path.mid(qmark + 1);
-            s.path = s.path.left(qmark);
+            s.path        = s.path.left(qmark);
+            s.queryString = qs;   /* salva query string grezza per handler GET */
             /* Cerca token=XXX nella query string */
             for (const QStringView part : QStringView(qs).split('&')) {
                 if (part.startsWith(u"token=")) {
@@ -797,6 +798,37 @@ void LanServer::processSession(Session& s)
         sendJson(s.socket, mcpResp.isEmpty()
             ? QByteArray(R"({"error":"Nessuna risposta dal server MCP"})")
             : mcpResp);
+    } else if (s.path == "/api/lavoro" && s.method == "GET") {
+        /* Ricerca testuale: GET /api/lavoro?q=QUERY */
+        QString q;
+        for (const QStringView part : QStringView(s.queryString).split('&')) {
+            if (part.startsWith(u"q=")) {
+                q = QUrl::fromPercentEncoding(part.mid(2).toString().replace('+', ' ').toLatin1());
+                break;
+            }
+        }
+        const QList<Offerta> tutte = offerteFiltrate("tutti", "tutti");
+        QJsonArray arr;
+        for (const auto& o : tutte) {
+            if (!q.isEmpty()) {
+                const QString ql = q.toLower();
+                const bool match = o.azienda.toLower().contains(ql)
+                                || o.ruolo.toLower().contains(ql)
+                                || o.sede.toLower().contains(ql)
+                                || o.requisiti.toLower().contains(ql);
+                if (!match) continue;
+            }
+            QJsonObject obj;
+            obj["azienda"]   = o.azienda;
+            obj["ruolo"]     = o.ruolo;
+            obj["sede"]      = o.sede;
+            obj["tipo"]      = o.tipo;
+            obj["livello"]   = o.livello;
+            obj["email"]     = o.email;
+            obj["requisiti"] = o.requisiti;
+            arr.append(obj);
+        }
+        sendJson(s.socket, QJsonDocument(arr).toJson(QJsonDocument::Compact));
     } else if (s.path == "/api/lavoro" && s.method == "POST") {
         const QJsonObject req = QJsonDocument::fromJson(s.body).object();
         const QString tipo    = req["tipo"].toString("tutti");

@@ -4304,8 +4304,38 @@ void GraficoCanvas::wheelEvent(QWheelEvent* e) {
 }
 
 void GraficoCanvas::mousePressEvent(QMouseEvent* e) {
+    const bool is3D = (m_type == Scatter3D || m_type == Graph3D);
+
+    /* ── Navigazione 3D stile Blender ──────────────────────────────
+     * Tasto centrale (MMB)         → orbita
+     * Shift + tasto centrale (MMB) → pan
+     * Alt + tasto sinistro (LMB)   → orbita (alternativa)
+     * Shift + Alt + LMB            → pan
+     * ─────────────────────────────────────────────────────────────── */
+    if (is3D) {
+        const bool isMid   = (e->button() == Qt::MiddleButton);
+        const bool isAltLMB= (e->button() == Qt::LeftButton &&
+                              (e->modifiers() & Qt::AltModifier));
+        if (isMid || isAltLMB) {
+            m_dragging  = true;
+            m_dragStart = e->pos();
+            m_rotYD     = m_rotY;
+            m_rotXD     = m_rotX;
+            m_panD      = m_panNC;
+            m_zoomD     = m_zoomNC;
+
+            const bool wantPan = (e->modifiers() & Qt::ShiftModifier);
+            m_drag3DMode = wantPan ? Drag3DPan : Drag3DOrbit;
+            setCursor(wantPan ? Qt::SizeAllCursor : Qt::ClosedHandCursor);
+            e->accept();
+            return;
+        }
+    }
+
+    /* ── Comportamento esistente per LMB ───────────────────────── */
     if (e->button() == Qt::LeftButton) {
         m_dragging = true;
+        m_drag3DMode = Drag3DNone;   /* usa percorso classico in mouseMoveEvent */
         m_dragStart = e->pos();
         m_xVMinD = m_xVMin; m_xVMaxD = m_xVMax;
         m_yVMinD = m_yVMin; m_yVMaxD = m_yVMax;
@@ -4322,6 +4352,21 @@ void GraficoCanvas::mouseMoveEvent(QMouseEvent* e) {
     QPointF d  = e->pos() - m_dragStart;
     QRectF  a  = plotArea(this);
 
+    /* ── Navigazione 3D stile Blender (MMB / Alt+LMB) ─────────── */
+    if (m_drag3DMode == Drag3DOrbit) {
+        m_rotY = m_rotYD + d.x() * 0.008;
+        m_rotX = std::max(-M_PI/2 + 0.05,
+                 std::min( M_PI/2 - 0.05, m_rotXD + d.y() * 0.008));
+        update();
+        return;
+    }
+    if (m_drag3DMode == Drag3DPan) {
+        m_panNC = m_panD + d;
+        update();
+        return;
+    }
+
+    /* ── Percorso classico (LMB senza Alt) ─────────────────────── */
     const bool isCartCoord2 = (m_type == Cartesian || m_type == ScatterXY ||
                                 m_type == Line || m_type == Area || m_type == Step);
     if (isCartCoord2) {
@@ -4334,6 +4379,7 @@ void GraficoCanvas::mouseMoveEvent(QMouseEvent* e) {
             if (fp.ok()) m_cartPts = fp.sample(m_xVMin, m_xVMax, 600);
         }
     } else if (m_type == Scatter3D || m_type == Graph3D) {
+        /* LMB classico su 3D = orbita (comportamento precedente) */
         m_rotY = m_rotYD + d.x() * 0.008;
         m_rotX = std::max(-M_PI/2 + 0.05,
                  std::min( M_PI/2 - 0.05, m_rotXD + d.y() * 0.008));
@@ -4344,8 +4390,11 @@ void GraficoCanvas::mouseMoveEvent(QMouseEvent* e) {
 }
 
 void GraficoCanvas::mouseReleaseEvent(QMouseEvent* e) {
-    if (e->button() == Qt::LeftButton) {
-        m_dragging = false;
+    const bool isReleasedBtn =
+        (e->button() == Qt::LeftButton || e->button() == Qt::MiddleButton);
+    if (isReleasedBtn && m_dragging) {
+        m_dragging   = false;
+        m_drag3DMode = Drag3DNone;
         setCursor(Qt::ArrowCursor);
     }
 }
@@ -4381,4 +4430,14 @@ void GraficoCanvas::onContextSavePng()
     render(&px);
     px.save(path);
     emit statusMessage("\xe2\x9c\x85  PNG salvato: " + path);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot modalità rendering 3D (connesso a QComboBox::currentIndexChanged)
+   ══════════════════════════════════════════════════════════════ */
+void GraficoCanvas::setRenderMode(int mode)
+{
+    m_renderMode3D = static_cast<RenderMode3D>(
+        qBound(0, mode, static_cast<int>(Surface3D)));
+    update();
 }

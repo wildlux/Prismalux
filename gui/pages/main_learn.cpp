@@ -760,6 +760,20 @@ void ImparaPage::onReviewWrongAnswers()
     mainLay->setContentsMargins(14, 14, 14, 14);
     mainLay->setSpacing(10);
 
+    /* Introduzione dolce */
+    auto* introLbl = new QLabel(
+        "\xf0\x9f\x92\xaa  <b>Ripassiamo insieme le domande che ti hanno messo in difficolt\xc3\xa0:</b><br>"
+        "<small style='color:#888;'>"
+        "Verde = risposta corretta &nbsp; \xe2\x80\xa2 &nbsp; "
+        "Rosso = risposta data &nbsp; \xe2\x80\xa2 &nbsp; "
+        "Leggi la spiegazione per capire perch\xc3\xa9."
+        "</small>",
+        dlg);
+    introLbl->setTextFormat(Qt::RichText);
+    introLbl->setObjectName("cardDesc");
+    introLbl->setWordWrap(true);
+    mainLay->addWidget(introLbl);
+
     auto* scroll = new QScrollArea(dlg);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);

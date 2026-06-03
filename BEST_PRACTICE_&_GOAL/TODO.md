@@ -8,7 +8,7 @@
 
 ### 🔧 Bug / Fix
 - [x] **Codice fiscale check digit corretto** — bug: posizioni pari con lettere usavano `10+(c-'A')` invece di `(c-'A')`; fix in `pratico_calcs.h`; test `casoRealeRossiMario` aggiornato a RSSMRA90A01H501W; LBLPLA89B15C351G ora corretto — 2026-06-03
-- [ ] **2 pulsanti in "Gestione LLM" si comprimono** — layout QHBoxLayout troppo stretto; verificare dopo rinomina tab — `settings_ai.cpp` o `settings_llm.cpp`
+- [x] **2 pulsanti Gestore LLM non si comprimono** — `setFixedWidth(200)` → `setMinimumWidth(220)/setMaximumWidth(280)` — `settings_ai.cpp` — 2026-06-03
 - [x] **Tile 4ª colonna tronca** — aggiunta QLabel con setWordWrap(true) nella band inferiore della card tema — `settings_visual.cpp` — 2026-06-03
 
 ### 🎨 UI / UX
@@ -17,26 +17,26 @@
 - [x] **"Scarica LLM" → "Scarica"** — abbreviato label header in `mainwindow.cpp` riga 645 — 2026-06-03
 - [x] **"AI Locale" → "Gestione LLM"** — tab rinominata in `settings_main.cpp` righe 116+187 — 2026-06-03
 - [x] **Agentica: selettore modello spostato** — integrato in `buildAgenticaToolbar()` a sinistra di "linguaggio" — `main_programming.cpp` — 2026-06-03
-- [ ] **Pulsante "Traccia" sotto il testo** — schermata `/home/wildlux/Pictures/Schermate/Schermata_20260603_202216.png`; pagina da identificare
+- [x] **Pulsante "Traccia" fisso sotto scroll** — spostato fuori dalla QScrollArea in `buildLeftPanel()`; `outerLay->addWidget(btnPlot/btnReset)` dopo `sc` → sempre visibile senza scroll — `main_graph.cpp` — 2026-06-03
 
 ### 🛑 Stop & controllo compilazione
 - [x] **Stop compilazione llama.cpp** — pulsante "⏹ Ferma" accanto a Compila; `onLlamaStopClicked()` fa `kill()` su m_proc2/m_proc3 — `main_customize.h/cpp` — 2026-06-03
 - [x] **Controllo compilazione recente** — se llama-server compilato <24h fa mostra QMessageBox::question prima di ricompilare — `main_customize.cpp` — 2026-06-03
 
 ### 🔊 Voce / TTS
-- [ ] **espeak-ng in configurazione** — aggiungere espeak-ng come opzione TTS nel tab Voce Piper, oppure rimuoverla e usare solo Whisper+Piper — `settings_voice.cpp`
-- [ ] **Test Whisper** — aggiungere test suite `test_stt_whisper_live` per la funzionalità STT in Impostazioni→AI locale→Voce audio — `settings_voice.cpp`
+- [x] **espeak-ng** — sostituita nota con "Usa Piper TTS per qualità superiore"; fallback code nel pulsante Parla invariato — `settings_voice.cpp` — 2026-06-03
+- [ ] **Test Whisper live** — aggiungere test suite `test_stt_whisper_live` per la funzionalità STT in Impostazioni→Gestione LLM→Voce audio
 
 ### 📋 Feature
-- [ ] **Copia comando pip negli appunti** — in ogni scheda con `pip install ...`, aggiungere pulsante "📋 Copia" che chiama `QApplication::clipboard()->setText(cmd)` — cercare tutte le label con "pip install" nel progetto
+- [x] **Copia pip clipboard** — pulsante 📋 aggiunto in: main_tools_file (3x), widget_stable_diffusion, main_lan_wan GNS3, main_maintenance NPU — 2026-06-03
 - [x] **Chat: Canc = conferma, Shift+Canc = 5s undo** — eventFilter su m_chatList; QMessageBox::question per Canc; label "Annulla (5s)" + QTimer per Shift+Canc — `mainwindow.h/cpp/slots.cpp` — 2026-06-03
 - [ ] **Emoji Telegram nel software** — usare le emoji Unicode standard (già supportate da Qt); verificare che il font sistema abbia coverage completa; eventualmente bundlare Noto Emoji
-- [ ] **Grafico 3D: wireframe/solido/superficie + movimento stile Blender** — aggiungere combo `QComboBox` con 3 modalità di rendering al canvas 3D; movimento orbit/pan/zoom stile Blender — `main_graph.cpp` + `main_graph_canvas.cpp`
-- [ ] **Sezione Lavoro in formato web** — esporre `/api/lavoro` nella web app LAN con interfaccia simile a quella desktop — `lan_server.cpp` + `lan_web/webchat.html`
-- [ ] **Quiz errori con spiegazione** — già implementato "Rivedi errori" con struttura `WrongAnswer`; verificare che mostri spiegazione completa e introduzione — `main_learn.cpp`
+- [x] **Grafico 3D: Punti/Wireframe/Superficie + movimento Blender** — `m_renderModeCombo` per Scatter3D/Grafo3D; `setRenderMode(int)` slot; Blender orbit (MMB/Alt+LMB) + pan (Shift+MMB) — `main_graph.h/cpp`, `main_graph_canvas.cpp` — 2026-06-03
+- [x] **Sezione Lavoro web** — tab "💼 Lavoro" in webchat.html + endpoint `GET /api/lavoro?q=QUERY` in lan_server.cpp; ricerca case-insensitive su azienda/ruolo/sede — 2026-06-03
+- [x] **Quiz errori con spiegazione** — aggiunta introduzione "Ripassiamo insieme..." + legenda Verde/Rosso nel dialog "Rivedi errori" — `main_learn.cpp` — 2026-06-03
 
 ### 📖 Documentazione
-- [ ] **README.md aggiornare API esterne** — aggiornare link: Blender API, FreeCAD wiki, Bioconda, GDScript, KiCAD-python, Ollama pip — `README.md`
+- [x] **README.md API esterne** — tabella "Riferimenti API ufficiali" con Blender/FreeCAD/Bioconda/GDScript/KiCAD/Ollama pip — `README.md` — 2026-06-03
 - [x] **Regola test** — aggiunta regola in CLAUDE.md: ogni nuova suite test deve essere registrata nella tabella Suite con nome ctest, categoria e numero PASS — 2026-06-03
 > Build: `python3 build.py`  (Linux/macOS/Windows — oppure `cmake --build build_gui -j$(nproc)` su Linux)
 

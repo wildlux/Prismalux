@@ -86,18 +86,33 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     lay->addWidget(m_urlWidget);
 
     /* ── Hint installazione diffusers ── */
+    m_installHintRow = new QWidget(this);
+    auto* installHintLay = new QHBoxLayout(m_installHintRow);
+    installHintLay->setContentsMargins(0, 0, 0, 0);
+    installHintLay->setSpacing(6);
     m_installHint = new QLabel(
         "\xe2\x9a\xa0  <b>diffusers non trovato</b> \xe2\x80\x94 "
         "installa con: "
         "<code>pip install diffusers transformers accelerate torch</code>",
-        this);
+        m_installHintRow);
     m_installHint->setTextFormat(Qt::RichText);
     m_installHint->setWordWrap(true);
     m_installHint->setStyleSheet(
         "background:#4a2a00; color:#ffe0a0; "
         "border:1px solid #a06000; border-radius:4px; padding:6px;");
-    m_installHint->hide();
-    lay->addWidget(m_installHint);
+    auto* copyBtnDiff = new QPushButton("\xf0\x9f\x93\x8b", m_installHintRow);  /* 📋 */
+    copyBtnDiff->setObjectName("actionBtn");
+    copyBtnDiff->setFixedWidth(28);
+    copyBtnDiff->setFixedHeight(24);
+    copyBtnDiff->setToolTip("Copia comando pip negli appunti");
+    connect(copyBtnDiff, &QPushButton::clicked, m_installHintRow, [=]() {
+        QApplication::clipboard()->setText(
+            "pip install diffusers transformers accelerate torch");
+    });
+    installHintLay->addWidget(m_installHint, 1);
+    installHintLay->addWidget(copyBtnDiff);
+    m_installHintRow->hide();
+    lay->addWidget(m_installHintRow);
 
     /* ── Splitter: parametri | immagine ── */
     auto* mainRow = new QHBoxLayout;
@@ -262,7 +277,7 @@ void StableDiffusionWidget::onModeChanged()
 {
     const bool local = isLocalMode();
     m_urlWidget->setVisible(!local);
-    m_installHint->hide();
+    m_installHintRow->hide();
 
     if (local) {
         m_modelCombo->clear();
@@ -308,7 +323,7 @@ void StableDiffusionWidget::checkA1111()
 void StableDiffusionWidget::checkDiffusers()
 {
     m_btnCheck->setEnabled(false);
-    m_installHint->hide();
+    m_installHintRow->hide();
     setStatus("\xf0\x9f\x94\x84  Verifica diffusers...", true);
 
     auto* proc = new QProcess(this);
@@ -570,11 +585,11 @@ void StableDiffusionWidget::onCheckDiffusersFinished(int code, QProcess::ExitSta
         const QString info = proc
             ? QString::fromLocal8Bit(proc->readAllStandardOutput()).trimmed()
             : QString();
-        m_installHint->hide();
+        m_installHintRow->hide();
         m_btnGen->setEnabled(true);
         setStatus("\xe2\x9c\x85  Pronto: " + info, true);
     } else {
-        m_installHint->show();
+        m_installHintRow->show();
         m_btnGen->setEnabled(false);
         setStatus(
             "\xe2\x9d\x8c  diffusers non trovato. Vedi suggerimento sopra.", false);

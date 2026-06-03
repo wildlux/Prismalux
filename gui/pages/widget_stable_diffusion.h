@@ -47,8 +47,9 @@ private:
     /* parametri */
     QRadioButton*     m_rbLocal    = nullptr;
     QRadioButton*     m_rbA1111   = nullptr;
-    QWidget*          m_urlWidget  = nullptr;
-    QLabel*           m_installHint = nullptr;
+    QWidget*          m_urlWidget      = nullptr;
+    QWidget*          m_installHintRow = nullptr;
+    QLabel*           m_installHint    = nullptr;
     QLineEdit*        m_urlEdit    = nullptr;
     QTextEdit*        m_prompt     = nullptr;
     QTextEdit*        m_negPrompt  = nullptr;

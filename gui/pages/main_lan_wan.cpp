@@ -1102,6 +1102,7 @@ QWidget* LanWanPage::buildGNS3Tab()
     connLay->addWidget(m_gns3ExecBtn);
     lay->addWidget(connRow);
 
+    auto* hintRowGns = new QHBoxLayout;
     auto* hintLbl = new QLabel(
         "\xf0\x9f\x8c\x90 <b>GNS3 MCP:</b> simulatore reti. "
         "Avvia GNS3 (porta 3080 di default) e installa: "
@@ -1110,7 +1111,17 @@ QWidget* LanWanPage::buildGNS3Tab()
     hintLbl->setObjectName("hintLabel");
     hintLbl->setOpenExternalLinks(true);
     hintLbl->setWordWrap(true);
-    lay->addWidget(hintLbl);
+    auto* copyBtnGns = new QPushButton("\xf0\x9f\x93\x8b", w);  /* 📋 */
+    copyBtnGns->setObjectName("actionBtn");
+    copyBtnGns->setFixedWidth(28);
+    copyBtnGns->setFixedHeight(24);
+    copyBtnGns->setToolTip("Copia comando pip negli appunti");
+    connect(copyBtnGns, &QPushButton::clicked, w, [=]() {
+        QApplication::clipboard()->setText("pip install gns3fy requests");
+    });
+    hintRowGns->addWidget(hintLbl, 1);
+    hintRowGns->addWidget(copyBtnGns);
+    lay->addLayout(hintRowGns);
 
     /* Azione + Modello */
     auto* toolRow = new QWidget(w);

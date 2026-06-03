@@ -209,6 +209,17 @@ Ogni plugin ha `README.md` (guida installazione) e `requirements.txt`.
 | `knowledge_mcp` | Aggiornamento automatico Knowledge Base | nessuna |
 | `ollama_mcp` | Cache SQLite modelli Ollama (list/info/search/sync/pull) | nessuna |
 
+### Riferimenti API ufficiali
+
+| Strumento | Documentazione |
+|-----------|---------------|
+| Blender Python API | [docs.blender.org/api](https://docs.blender.org/api/current/info_quickstart.html) |
+| FreeCAD Python | [wiki.freecad.org — Power Users Hub](https://wiki.freecad.org/Power_users_hub) |
+| Bioconda | [bioconda.github.io](https://bioconda.github.io/) |
+| GDScript (Godot) | [docs.godotengine.org — GDScript Basics](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_basics.html) |
+| KiCAD Python | [pypi.org/project/kicad-python](https://pypi.org/project/kicad-python/) |
+| Ollama Python SDK | `pip install ollama` |
+
 ---
 
 ## Avvio rapido

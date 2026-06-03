@@ -27,6 +27,8 @@ namespace P = PrismaluxPaths;
 #include <QTextCursor>
 #include <QFrame>
 #include <QPointer>
+#include <QApplication>
+#include <QClipboard>
 
 /* ══════════════════════════════════════════════════════════════
    ManutenzioneePage — costruttore minimale.
@@ -809,6 +811,7 @@ QGroupBox* ManutenzioneePage::buildNpuGroup(QWidget* parent)
         "Richiede: Intel Core Ultra (Meteor Lake+) con driver NPU");
     lay->addWidget(btnIntelNpu, 0, Qt::AlignLeft);
 
+    auto* npuHintRow = new QHBoxLayout;
     auto* npuHint = new QLabel(
         "\xe2\x84\xb9  AMD NPU (XDNA): usa <b>https://github.com/amd/iron</b> "
         "\xe2\x80\x94 attualmente in beta, stabilit\xc3\xa0 non garantita.\n"
@@ -817,7 +820,17 @@ QGroupBox* ManutenzioneePage::buildNpuGroup(QWidget* parent)
     npuHint->setWordWrap(true);
     npuHint->setTextFormat(Qt::RichText);
     npuHint->setObjectName("hintLabel");
-    lay->addWidget(npuHint);
+    auto* copyBtnNpu = new QPushButton("\xf0\x9f\x93\x8b", grp);  /* 📋 */
+    copyBtnNpu->setObjectName("actionBtn");
+    copyBtnNpu->setFixedWidth(28);
+    copyBtnNpu->setFixedHeight(24);
+    copyBtnNpu->setToolTip("Copia comando pip negli appunti");
+    connect(copyBtnNpu, &QPushButton::clicked, grp, [=]() {
+        QApplication::clipboard()->setText("pip install intel-npu-acceleration-library");
+    });
+    npuHintRow->addWidget(npuHint, 1);
+    npuHintRow->addWidget(copyBtnNpu);
+    lay->addLayout(npuHintRow);
     lay->addStretch(1);
 
     connect(btnIntelNpu, &QPushButton::clicked,

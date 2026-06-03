@@ -28,6 +28,8 @@
 #include <QJsonArray>
 #include <QTextCursor>
 #include <QStandardPaths>
+#include <QApplication>
+#include <QClipboard>
 
 namespace P = PrismaluxPaths;
 
@@ -270,6 +272,7 @@ QWidget* StrumentiFilePage::buildDatiTab()
     fileLay->addWidget(m_datiFileLbl, 1);
     vbox->addWidget(fileRow);
 
+    auto* hintRow0 = new QHBoxLayout;
     auto* hintLbl = new QLabel(
         "\xe2\x84\xb9  Formati supportati: XLSX, XLS, CSV, ODS\n"
         "Excel richiede <code>pip install openpyxl</code> (gi\xc3\xa0 in requirements.txt)",
@@ -277,7 +280,17 @@ QWidget* StrumentiFilePage::buildDatiTab()
     hintLbl->setTextFormat(Qt::RichText);
     hintLbl->setObjectName("hintLabel");
     hintLbl->setWordWrap(true);
-    vbox->addWidget(hintLbl);
+    auto* copyBtn0 = new QPushButton("\xf0\x9f\x93\x8b", panel);  /* 📋 */
+    copyBtn0->setObjectName("actionBtn");
+    copyBtn0->setFixedWidth(28);
+    copyBtn0->setFixedHeight(24);
+    copyBtn0->setToolTip("Copia comando pip negli appunti");
+    connect(copyBtn0, &QPushButton::clicked, panel, [=]() {
+        QApplication::clipboard()->setText("pip install openpyxl");
+    });
+    hintRow0->addWidget(hintLbl, 1);
+    hintRow0->addWidget(copyBtn0);
+    vbox->addLayout(hintRow0);
 
     auto* actionRow = new QWidget(panel);
     auto* actionLay = new QHBoxLayout(actionRow);
@@ -388,6 +401,7 @@ QWidget* StrumentiFilePage::buildPdfTab()
     fileLay->addWidget(m_pdfFileLbl, 1);
     vbox->addWidget(fileRow);
 
+    auto* hintRow1 = new QHBoxLayout;
     auto* hintLbl = new QLabel(
         "\xe2\x84\xb9  Richiede <code>pdftotext</code> (poppler-utils) "
         "oppure Python <code>pdfplumber</code>.<br>"
@@ -397,7 +411,17 @@ QWidget* StrumentiFilePage::buildPdfTab()
     hintLbl->setTextFormat(Qt::RichText);
     hintLbl->setObjectName("hintLabel");
     hintLbl->setWordWrap(true);
-    vbox->addWidget(hintLbl);
+    auto* copyBtn1 = new QPushButton("\xf0\x9f\x93\x8b", panel);  /* 📋 */
+    copyBtn1->setObjectName("actionBtn");
+    copyBtn1->setFixedWidth(28);
+    copyBtn1->setFixedHeight(24);
+    copyBtn1->setToolTip("Copia comando pip negli appunti");
+    connect(copyBtn1, &QPushButton::clicked, panel, [=]() {
+        QApplication::clipboard()->setText("pip install pdfplumber");
+    });
+    hintRow1->addWidget(hintLbl, 1);
+    hintRow1->addWidget(copyBtn1);
+    vbox->addLayout(hintRow1);
 
     auto* actionRow = new QWidget(panel);
     auto* actionLay = new QHBoxLayout(actionRow);
@@ -470,6 +494,7 @@ QWidget* StrumentiFilePage::buildWordTab()
     fileLay->addWidget(m_wordFileLbl, 1);
     vbox->addWidget(fileRow);
 
+    auto* hintRow2 = new QHBoxLayout;
     auto* hintLbl = new QLabel(
         "\xe2\x84\xb9  Formati testo puro: TXT, MD, RST, PY, CPP, H, JS, JSON...\n"
         "Per .docx/.odt richiede Python <code>python-docx</code> / <code>odfpy</code>.\n"
@@ -478,7 +503,17 @@ QWidget* StrumentiFilePage::buildWordTab()
     hintLbl->setTextFormat(Qt::RichText);
     hintLbl->setObjectName("hintLabel");
     hintLbl->setWordWrap(true);
-    vbox->addWidget(hintLbl);
+    auto* copyBtn2 = new QPushButton("\xf0\x9f\x93\x8b", panel);  /* 📋 */
+    copyBtn2->setObjectName("actionBtn");
+    copyBtn2->setFixedWidth(28);
+    copyBtn2->setFixedHeight(24);
+    copyBtn2->setToolTip("Copia comando pip negli appunti");
+    connect(copyBtn2, &QPushButton::clicked, panel, [=]() {
+        QApplication::clipboard()->setText("pip install python-docx odfpy");
+    });
+    hintRow2->addWidget(hintLbl, 1);
+    hintRow2->addWidget(copyBtn2);
+    vbox->addLayout(hintRow2);
 
     auto* actionRow = new QWidget(panel);
     auto* actionLay = new QHBoxLayout(actionRow);

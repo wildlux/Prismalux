@@ -88,7 +88,8 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     /* ── Colonna sinistra: selettore gestore ── */
     auto* leftGroup = new QGroupBox("\xf0\x9f\x94\xa7  Gestore LLM", colsRow);
     leftGroup->setObjectName("cardGroup");
-    leftGroup->setFixedWidth(200);
+    leftGroup->setMinimumWidth(220);
+    leftGroup->setMaximumWidth(280);
     auto* leftLay = new QVBoxLayout(leftGroup);
     leftLay->setSpacing(10);
 

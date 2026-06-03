@@ -168,7 +168,7 @@ QWidget* GraficoPage::buildLeftPanel() {
     sc->setWidgetResizable(true);
     sc->setFrameShape(QFrame::NoFrame);
     sc->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    outerLay->addWidget(sc);
+    outerLay->addWidget(sc, 1);   /* scroll prende tutto lo spazio disponibile */
 
     auto* panel = new QWidget(sc);
     panel->setObjectName("leftPanel");
@@ -409,6 +409,30 @@ QWidget* GraficoPage::buildLeftPanel() {
         m_dataEdit->setMinimumHeight(100);
         vl->addWidget(m_dataEdit, 1);
 
+        /* ── Riga modalità rendering 3D (visibile solo per Scatter3D/Grafo3D) ── */
+        m_renderModeRow = new QWidget(w);
+        {
+            auto* rl = new QHBoxLayout(m_renderModeRow);
+            rl->setContentsMargins(0, 4, 0, 0);
+            rl->setSpacing(6);
+            auto* lbl = new QLabel("Rendering:", m_renderModeRow);
+            lbl->setObjectName("formLabel");
+            m_renderModeCombo = new QComboBox(m_renderModeRow);
+            m_renderModeCombo->setObjectName("inputLine");
+            m_renderModeCombo->addItem("Punti",      0);   /* Points3D */
+            m_renderModeCombo->addItem("Wireframe",  1);   /* Wireframe3D */
+            m_renderModeCombo->addItem("Superficie", 2);   /* Surface3D */
+            m_renderModeCombo->setCurrentIndex(0);
+            m_renderModeCombo->setToolTip(
+                "Punti: punti colorati per profondità\n"
+                "Wireframe: griglia di linee (solo Scatter 3D con dati griglia)\n"
+                "Superficie: facce riempite con heatmap Z (solo Scatter 3D con dati griglia)");
+            rl->addWidget(lbl);
+            rl->addWidget(m_renderModeCombo, 1);
+        }
+        m_renderModeRow->setVisible(false);   /* nascosto di default; mostrato per 3D */
+        vl->addWidget(m_renderModeRow);
+
         m_paramStack->addWidget(w);   /* idx 1 */
     }
 
@@ -618,18 +642,11 @@ QWidget* GraficoPage::buildLeftPanel() {
             this, &GraficoPage::onTypeComboChanged);
     onTypeComboChanged(0); /* trigger iniziale */
 
-    /* Pulsanti */
-    auto* btnPlot = new QPushButton("\xf0\x9f\x93\x88  Traccia", panel);
-    btnPlot->setObjectName("primaryBtn");
-    btnPlot->setFixedHeight(34);
-    connect(btnPlot, &QPushButton::clicked, this, &GraficoPage::plot);
-    lay->addWidget(btnPlot);
+    /* Connetti combo modalità rendering 3D → canvas */
+    connect(m_renderModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            m_canvas, &GraficoCanvas::setRenderMode);
 
-    auto* btnReset = new QPushButton("\xf0\x9f\x94\x84  Reset vista", panel);
-    btnReset->setObjectName("actionBtn");
-    btnReset->setFixedHeight(28);
-    connect(btnReset, &QPushButton::clicked, m_canvas, &GraficoCanvas::resetView);
-    lay->addWidget(btnReset);
+    /* btnPlot e btnReset vengono aggiunti FUORI dalla scrollarea (vedi sotto) */
 
     /* ── Sezione immagine → formula (solo Cartesiano) ─────────── */
     m_imgSep = new QFrame(panel);
@@ -716,6 +733,20 @@ QWidget* GraficoPage::buildLeftPanel() {
     lay->addWidget(m_statusLbl);
 
     sc->setWidget(panel);
+
+    /* Pulsanti fissi SOTTO la scroll area — sempre visibili senza scroll */
+    auto* btnPlot = new QPushButton("\xf0\x9f\x93\x88  Traccia", outer);
+    btnPlot->setObjectName("primaryBtn");
+    btnPlot->setFixedHeight(36);
+    connect(btnPlot, &QPushButton::clicked, this, &GraficoPage::plot);
+    outerLay->addWidget(btnPlot);
+
+    auto* btnReset = new QPushButton("\xf0\x9f\x94\x84  Reset vista", outer);
+    btnReset->setObjectName("actionBtn");
+    btnReset->setFixedHeight(28);
+    connect(btnReset, &QPushButton::clicked, m_canvas, &GraficoCanvas::resetView);
+    outerLay->addWidget(btnReset);
+
     return outer;
 }
 
@@ -1818,6 +1849,10 @@ void GraficoPage::onTypeComboChanged(int)
 {
         const int idx = m_typeCombo->currentData().toInt();
         m_canvas->setType(static_cast<GraficoCanvas::ChartType>(idx));
+
+        /* Mostra la riga "Rendering" solo per Scatter3D (5) e Grafo3D (6) */
+        if (m_renderModeRow)
+            m_renderModeRow->setVisible(idx == 5 || idx == 6);
         if (idx == 0) {
             m_paramStack->setCurrentIndex(0);
         } else if (idx == 7) {

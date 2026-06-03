@@ -131,6 +131,12 @@ public:
     void setScatter3D(const QVector<Pt3D>& pts, int gridCols = 0);
     void setRenderMode3D(RenderMode3D m) { m_renderMode3D = m; update(); }
 
+public slots:
+    /** Slot compatibile con QComboBox::currentIndexChanged(int).
+     *  0 = Points3D, 1 = Wireframe3D, 2 = Surface3D. */
+    void setRenderMode(int mode);
+
+
     /* accessor per duplicare il canvas in un dialog separato */
     ChartType            currentType()   const { return m_type; }
     const QString&       cartFormula()   const { return m_formula; }
@@ -392,6 +398,10 @@ private:
     QPointF m_panD;
     double  m_rotYD, m_rotXD;
 
+    /* ── navigazione 3D stile Blender ── */
+    enum Drag3DMode { Drag3DNone = 0, Drag3DOrbit, Drag3DPan };
+    Drag3DMode m_drag3DMode = Drag3DNone;
+
 private slots:
     void onAnimTimerTick();
     void onContextSavePng();
@@ -478,6 +488,10 @@ private:
     QCheckBox*      m_mathPi     = nullptr;
     QCheckBox*      m_mathE      = nullptr;
     QCheckBox*      m_mathPrimes = nullptr;
+
+    /* Combo modalità rendering 3D — visibile solo per Scatter3D / Grafo3D */
+    QComboBox*      m_renderModeCombo = nullptr;
+    QWidget*        m_renderModeRow   = nullptr;   ///< riga contenitore (mostra/nasconde)
 
     /* Parametri Polare (pannello idx 4) */
     QLineEdit*      m_polarFormula = nullptr;

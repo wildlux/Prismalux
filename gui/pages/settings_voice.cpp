@@ -190,10 +190,10 @@ QWidget* ImpostazioniPage::buildVoceTab()
     piperRowLay->addWidget(btnInstall);
     secLay->addWidget(piperRow);
 
-    /* Nota fallback */
+    /* Nota qualità TTS */
     auto* lblFallback = new QLabel(
-        "\xf0\x9f\x92\xa1  Fallback automatico se Piper non disponibile: "
-        "<b>espeak-ng</b> \xe2\x86\x92 spd-say \xe2\x86\x92 festival",
+        "\xf0\x9f\x92\xa1  Usa Piper TTS per qualit\xc3\xa0 superiore: "
+        "installa in <b>Impostazioni \xe2\x86\x92 Personalizza \xe2\x86\x92 Piper</b>",
         secPiper);
     lblFallback->setObjectName("cardDesc");
     lblFallback->setTextFormat(Qt::RichText);
