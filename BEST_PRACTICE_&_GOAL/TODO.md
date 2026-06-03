@@ -240,9 +240,7 @@
 
 ### 🧹 Manutenibilità correlata
 
-- [ ] **Estrarre la web UI dalle stringhe C++** — `lan_server.cpp` (4247 righe, gran parte HTML/JS)
-  - Migliora manutenibilità + linting HTML/JS + riduce rischio escaping/XSS.
-  - **Rimedio:** spostare HTML/JS in file serviti come risorse Qt (`.qrc`).
+- [x] **Estrarre la web UI dalle stringhe C++** — `lan_server.cpp` da 4574 → 2136 righe (-2438); HTML/JS ora in `gui/lan_web/webchat.html` (509 righe, 14 placeholder) + `gui/lan_web/index.html`; caricati via `QFile(":/lan/webchat.html")` + `replace()` placeholder `{{MODEL}}`/`{{AUTH_HEADERS_JS}}` — `lan_web.qrc` — 2026-06-03
 
 ---
 

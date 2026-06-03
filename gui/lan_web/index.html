@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prismalux — Scarica App</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #0f1117 0%, #1a1d2e 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #e0e0f0;
+    }
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      padding: 44px 36px;
+      max-width: 420px;
+      width: 92%;
+      text-align: center;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    }
+    .logo { font-size: 56px; margin-bottom: 12px; }
+    h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; color: #fff; }
+    .subtitle {
+      font-size: 14px;
+      color: #8a8fb0;
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+    .btn-download {
+      display: inline-block;
+      background: linear-gradient(135deg, #6c63ff, #48b4e0);
+      color: #fff;
+      text-decoration: none;
+      font-size: 18px;
+      font-weight: 700;
+      padding: 16px 36px;
+      border-radius: 50px;
+      letter-spacing: 0.3px;
+      box-shadow: 0 4px 20px rgba(108,99,255,0.4);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .btn-download:active { transform: scale(0.97); }
+    .apk-info {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #6a6f90;
+    }
+    .unavailable {
+      background: rgba(244,67,54,0.15);
+      border: 1px solid rgba(244,67,54,0.3);
+      border-radius: 10px;
+      padding: 14px;
+      color: #ef9a9a;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+    .footer {
+      margin-top: 28px;
+      font-size: 11px;
+      color: #4a4f68;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🍺</div>
+    <h1>Prismalux</h1>
+    <p class="subtitle">
+      Benvenuto!<br>
+      Installa l'app Android per usare l'AI locale<br>
+      direttamente dal tuo telefono via Wi-Fi.
+    </p>
+    {{APK_SECTION}}
+    <div class="footer">
+      Assicurati di avere il Wi-Fi abilitato<br>
+      e di consentire l'installazione<br>
+      da sorgenti sconosciute nelle Impostazioni Android.
+    </div>
+  </div>
+</body>
+</html>

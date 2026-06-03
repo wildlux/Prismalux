@@ -130,6 +130,7 @@ set(CPP_SRCS
     pages/main_maintenance_cron.cpp
     pages/main_maintenance_lan.cpp
     lan_server.cpp
+    lan_web.qrc
     pages/settings_main.cpp
     pages/settings_ai.cpp
     pages/settings_slots.cpp

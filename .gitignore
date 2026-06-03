@@ -192,3 +192,6 @@ Prismalux_v*.zip
 build_status.txt
 MCPs/anki_mcp/node_modules/
 MCPs/anki_mcp/package-lock.json
+
+# ── Script di migrazione (eseguito una volta, non fa parte del repo) ─────────
+gui/lan_web/extract_html.py
