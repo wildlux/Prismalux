@@ -855,6 +855,8 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
           "Alibaba. Specializzato in codice C/C++/Python/JS. Top nella categoria ~7B." },
         { "deepseek-coder:6.7b", "DeepSeek Coder 6.7B","~3.8 GB","Coding",       "#166534",
           "DeepSeek. Eccellente su algoritmi, completamento e refactoring." },
+        { "qwen2.5-coder:3b",    "Qwen2.5 Coder 3B \xe2\x96\xb6","~2.0 GB","Coding", "#166534",
+          "Modello leggero consigliato per il Dev Agent (AppController). Solo 2 GB RAM — ideale su PC con risorse limitate. Veloce e preciso su C++/Python." },
         { "codellama:7b",        "Code Llama 7B",      "~3.8 GB", "Coding",       "#166534",
           "Meta. Ottimo per generazione e spiegazione di codice generico." },
         /* ── Matematica ── */

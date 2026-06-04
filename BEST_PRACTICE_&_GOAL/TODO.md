@@ -40,7 +40,7 @@ START → read_context → generate_patch → apply_patch → compile
 - [x] **`MCPs/devagent_mcp/server.py`** — 29KB: DevAgentState, 5 nodi LangGraph (con fallback loop Python), tool read/write/bash/search_code, ollama_chat HTTP diretto, parser unified diff + rollback automatico — 2026-06-03
 - [x] **`MCPs/devagent_mcp/requirements.txt`** — langgraph, langchain-community, langchain-ollama, unidiff (tutti opzionali con fallback) — 2026-06-03
 - [x] **Tab Dev Agent in AppController** — UI Qt completa: task input, model combo (deepseek-coder/qwen2.5-coder), log step-by-step, diff colorato, Avvia/Ferma/Installa — `main_app_controller.h/cpp/slots.cpp` — 2026-06-03
-- [ ] **Pulsante download qwen2.5-coder:3b** nella sezione LLM consigliati
+- [x] **Pulsante download qwen2.5-coder:3b** — aggiunto nella sezione Coding di LLM consigliati (`settings_llm.cpp`): "~2.0 GB — ideale per Dev Agent su PC con risorse limitate" — 2026-06-04
 
 ---
 
