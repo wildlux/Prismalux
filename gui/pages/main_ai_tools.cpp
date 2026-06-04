@@ -17,6 +17,7 @@
 #include "main_ai_p.h"
 #include "../prismalux_paths.h"
 #include "../app_config.h"
+#include "../graph_memory.h"
 namespace P = PrismaluxPaths;
 #include <QRegularExpression>
 #include <QJsonDocument>
@@ -467,6 +468,85 @@ void AgentiPage::runToolCall(const QJsonObject& call,
         return;
     }
 
+    /* ── search_rag — ricerca testuale nei file RAG locali ── */
+    if (tool == "search_rag" || tool == "rag" || tool == "cerca_rag") {
+        const QString query = input.toLower().trimmed();
+        if (query.isEmpty()) { onDone("errore: query vuota"); return; }
+
+        QStringList ragDirs;
+        ragDirs << QDir::homePath() + "/prismalux_rag_docs"
+                << P::root() + "/RAG";
+
+        QStringList hits;
+        static const QStringList kExts = {"txt","md","pdf","csv","docx","doc","json","py","cpp","h"};
+
+        for (const QString& dirPath : ragDirs) {
+            QDir d(dirPath);
+            if (!d.exists()) continue;
+            const auto entries = d.entryInfoList(QDir::Files | QDir::NoDotAndDotDot, QDir::Name);
+            for (const QFileInfo& fi : entries) {
+                if (!kExts.contains(fi.suffix().toLower())) continue;
+                QFile f(fi.absoluteFilePath());
+                if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) continue;
+                const QString content = QString::fromUtf8(f.readAll()).toLower();
+                if (!content.contains(query)) continue;
+                /* Estrae finestre di contesto intorno ai match (rilegge con case originale) */
+                f.seek(0);
+                const QString origContent = QString::fromUtf8(f.readAll());
+                int pos = origContent.toLower().indexOf(query);
+                int count = 0;
+                while (pos >= 0 && count < 3) {
+                    int from = qMax(0, pos - 120);
+                    int len  = qMin(320, origContent.size() - from);
+                    hits << QString("[%1] ...%2...")
+                                .arg(fi.fileName(), origContent.mid(from, len).trimmed());
+                    pos = origContent.toLower().indexOf(query, pos + 1);
+                    ++count;
+                }
+            }
+        }
+
+        if (hits.isEmpty())
+            onDone(QString("Nessun documento RAG contiene '%1'.").arg(input));
+        else
+            onDone(hits.join("\n\n").left(2000));
+        return;
+    }
+
+    /* ── graph_memory — ricerca nella memoria a grafo SQLite ── */
+    if (tool == "graph_memory" || tool == "memoria" || tool == "grafo_memoria") {
+        const QString query = input.trimmed();
+        GraphMemory gm(QDir::homePath() + "/.prismalux/graph_memory.db");
+        if (!gm.open()) {
+            onDone("GraphMemory non disponibile o DB non trovato.");
+            return;
+        }
+        const auto nodes = gm.searchNodes(query.isEmpty() ? "*" : query, 10);
+        if (nodes.isEmpty()) {
+            onDone(QString("Nessun nodo in GraphMemory corrisponde a '%1'.").arg(query));
+            return;
+        }
+        QStringList out;
+        for (const auto& n : nodes) {
+            QString entry = QString("[%1] %2").arg(n.type, n.label);
+            if (!n.content.isEmpty())
+                entry += ": " + n.content.left(200);
+            out << entry;
+        }
+        onDone(out.join("\n").left(2000));
+        return;
+    }
+
+    /* ── get_knowledge — legge la Knowledge Base personale ── */
+    if (tool == "get_knowledge" || tool == "knowledge" || tool == "conoscenza") {
+        const QString kb = P::readUserKnowledge();
+        if (kb.isEmpty())
+            onDone("La Knowledge Base personale è vuota.");
+        else
+            onDone(kb.left(3000));
+        return;
+    }
+
     onDone(QString("strumento non riconosciuto: %1").arg(tool));
 }
 
@@ -475,34 +555,77 @@ void AgentiPage::runToolCall(const QJsonObject& call,
    Adatta il formato Ollama {name, arguments:{...}} al formato
    runToolCall {tool, input} e riprende la conversazione con replyWithTool().
    ══════════════════════════════════════════════════════════════ */
+/* ── Mini-bolla HTML per un tool call ─────────────────────────────────────
+   Stato: "running" (grigio) oppure "done" (verde) / "error" (rosso).     */
+static QString _toolBubble(const QString& name, const QString& input,
+                            const QString& result, bool done, bool error = false)
+{
+    const QString bg      = done ? (error ? "#3b1a1a" : "#1a2e1a") : "#1e2030";
+    const QString border  = done ? (error ? "#ef4444" : "#22c55e") : "#6366f1";
+    const QString icon    = done ? (error ? "\xe2\x9d\x8c" : "\xe2\x9c\x85") : "\xf0\x9f\x94\xa7";
+    const QString status  = done ? (error ? "Errore" : "Completato") : "In esecuzione\xe2\x80\xa6";
+    const QString nameEsc = name.toHtmlEscaped();
+    const QString inEsc   = input.toHtmlEscaped().left(120);
+    const QString resEsc  = result.toHtmlEscaped().left(300);
+
+    QString html =
+        "<div style='"
+          "background:" + bg + ";"
+          "border-left:3px solid " + border + ";"
+          "border-radius:6px;"
+          "padding:6px 10px;"
+          "margin:4px 0 4px 20px;"
+          "font-family:monospace;font-size:11px;"
+        "'>"
+        + icon + "&nbsp;<b>" + nameEsc + "</b>"
+        "&nbsp;<span style='color:#94a3b8;font-size:10px;'>" + status + "</span>";
+
+    if (!input.isEmpty())
+        html += "<br><span style='color:#94a3b8;'>→ </span>"
+                "<code style='color:#e2e8f0;'>" + inEsc + "</code>";
+
+    if (done && !result.isEmpty())
+        html += "<br><span style='color:#86efac;'>"
+                + resEsc + "</span>";
+
+    html += "</div>";
+    return html;
+}
+
 void AgentiPage::onNativeToolCall(const QString& name, const QJsonObject& args)
 {
-    /* Mostra nel log che un tool è stato richiesto */
-    m_log->append(QString(
-        "\n\xf0\x9f\x94\xa7  <b>Tool:</b> <code>%1</code> "
-        "\xe2\x80\x94 esecuzione in corso...\n").arg(name.toHtmlEscaped()));
-
-    /* Converti args Ollama → formato runToolCall {tool, input} */
-    QJsonObject call;
-    call["tool"] = name;
-
-    /* Estrae il valore del primo argomento come input stringa.
-       Ollama invia args con nomi specifici (expression, query, path, code, ecc.). */
+    /* Estrae il valore del primo argomento come input stringa */
     QString input;
     for (auto it = args.constBegin(); it != args.constEnd(); ++it) {
         const QJsonValue v = it.value();
-        if (v.isString())       { input = v.toString(); break; }
-        if (v.isDouble())       { input = QString::number(v.toDouble()); break; }
-        if (v.isObject())       { input = QJsonDocument(v.toObject()).toJson(QJsonDocument::Compact); break; }
+        if (v.isString())  { input = v.toString(); break; }
+        if (v.isDouble())  { input = QString::number(v.toDouble()); break; }
+        if (v.isObject())  { input = QJsonDocument(v.toObject()).toJson(QJsonDocument::Compact); break; }
     }
     if (input.isEmpty())
         input = QJsonDocument(args).toJson(QJsonDocument::Compact);
+
+    /* Inserisce la mini-bolla "in esecuzione" e salva il cursore per aggiornarla */
+    m_log->moveCursor(QTextCursor::End);
+    const int anchorPos = m_log->textCursor().position();
+    m_log->insertHtml(_toolBubble(name, input, {}, false));
+    m_log->append({});
+
+    QJsonObject call;
+    call["tool"]  = name;
     call["input"] = input;
 
-    runToolCall(call, [this, name](const QString& result) {
-        m_log->append(QString(
-            "\xe2\x9c\x85  <b>Risultato</b> <code>%1</code>: %2\n")
-            .arg(name.toHtmlEscaped(), result.toHtmlEscaped().left(200)));
+    runToolCall(call, [this, name, input, anchorPos](const QString& result) {
+        const bool isErr = result.startsWith("errore:") || result.startsWith("Nessun");
+
+        /* Aggiorna la mini-bolla sostituendo il testo dal cursore salvato */
+        QTextCursor cur(m_log->document());
+        cur.setPosition(anchorPos);
+        cur.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+        cur.removeSelectedText();
+        cur.insertHtml(_toolBubble(name, input, result, true, isErr));
+        m_log->append({});
+
         m_ai->replyWithTool(name, result);
     });
 }

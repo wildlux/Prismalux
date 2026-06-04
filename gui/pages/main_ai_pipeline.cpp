@@ -57,6 +57,7 @@ static QJsonArray _buildOllamaTools()
     };
 
     return QJsonArray {
+        /* ── Tool generici ── */
         mkTool("calc",
                "Calcola un'espressione matematica. "
                "Supporta: +,-,*,/,**, sqrt, sin, cos, log, ecc.",
@@ -78,6 +79,20 @@ static QJsonArray _buildOllamaTools()
         mkTool("python",
                "Esegue codice Python in sandbox e ritorna l'output.",
                strParam("Codice Python da eseguire")),
+        /* ── Tool Prismalux-specifici ── */
+        mkTool("search_rag",
+               "Cerca testo nei documenti RAG indicizzati localmente "
+               "(cartelle ~/prismalux_rag_docs/ e Prismalux/RAG/). "
+               "Usare per trovare informazioni nei tuoi documenti personali.",
+               strParam("Query di ricerca nei documenti RAG locali")),
+        mkTool("graph_memory",
+               "Cerca entità, concetti e fatti nella memoria a grafo di Prismalux "
+               "(GraphMemory SQLite). Utile per trovare informazioni apprese in sessioni precedenti.",
+               strParam("Query di ricerca nella memoria a grafo")),
+        mkTool("get_knowledge",
+               "Legge la Knowledge Base personale dell'utente "
+               "(file user_knowledge.md aggiornato automaticamente da Prismalux).",
+               strParam("(lascia vuoto per leggere tutta la Knowledge Base)")),
     };
 }
 
