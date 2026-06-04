@@ -33,6 +33,8 @@
 #include <QDialog>
 #include <QTextBrowser>
 #include <QDialogButtonBox>
+#include <QApplication>
+#include <QPalette>
 
 /* Colore status → HTML */
 static QString statusColor(const QString& s)
@@ -56,31 +58,59 @@ static QString statusIcon(const QString& s)
 
 /* ══════════════════════════════════════════════════════════════
    showGuide — dialogo HTML con guida completa per novellini ed esperti
+   Tema adattivo: legge QPalette → funziona con temi chiari e scuri
    ══════════════════════════════════════════════════════════════ */
 static void showGuide(QWidget* parent)
 {
-    static const QString kHtml = R"HTML(
-<style>
-body  { font-family: sans-serif; font-size: 13px; color: #e2e8f0;
-        background: #0f172a; margin: 14px; line-height: 1.55; }
-h1    { color: #7dd3fc; font-size: 17px; margin-bottom: 4px; }
-h2    { color: #93c5fd; font-size: 14px; margin-top: 18px; margin-bottom: 4px;
-        border-bottom: 1px solid #1e3a5f; padding-bottom: 3px; }
-h3    { color: #60a5fa; font-size: 13px; margin-top: 12px; margin-bottom: 2px; }
-code, pre { background: #1e293b; color: #86efac; padding: 2px 6px;
-            border-radius: 4px; font-size: 12px; }
-pre   { display: block; padding: 10px; margin: 6px 0;
-        white-space: pre-wrap; word-break: break-all; }
-.tag  { display: inline-block; background: #1d4ed8; color: #bfdbfe;
-        padding: 1px 7px; border-radius: 10px; font-size: 11px; margin-right: 4px; }
-.ok   { color: #4ade80; } .warn { color: #fbbf24; } .err { color: #f87171; }
-ul    { margin: 4px 0 4px 18px; padding: 0; }
-li    { margin-bottom: 2px; }
-hr    { border: none; border-top: 1px solid #1e3a5f; margin: 14px 0; }
-table { border-collapse: collapse; width: 100%; margin: 8px 0; }
-th    { background: #1e3a5f; color: #93c5fd; padding: 5px 8px; text-align: left; }
-td    { padding: 4px 8px; border-bottom: 1px solid #1e293b; }
-</style>
+    /* Colori dal tema Qt corrente */
+    const QPalette pal   = QApplication::palette();
+    const bool     dark  = pal.color(QPalette::Base).lightness() < 128;
+
+    const QString cBg    = pal.color(QPalette::Base).name();
+    const QString cText  = pal.color(QPalette::Text).name();
+    const QString cAlt   = pal.color(QPalette::AlternateBase).name();
+    const QString cBord  = pal.color(QPalette::Mid).name();
+    const QString cLink  = pal.color(QPalette::Link).name();
+    const QString cHdr   = dark ? "#93c5fd" : "#1d4ed8";
+    const QString cH1    = dark ? "#7dd3fc" : "#1e40af";
+    const QString cCode  = dark ? "#86efac" : "#065f46";
+    const QString cCodeBg= dark ? "#1e293b" : "#f0fdf4";
+    const QString cTagBg = dark ? "#1d4ed8" : "#dbeafe";
+    const QString cTagFg = dark ? "#bfdbfe" : "#1e3a8a";
+    const QString cThBg  = dark ? "#1e3a5f" : "#dbeafe";
+    const QString cThFg  = dark ? "#93c5fd" : "#1e3a8a";
+    const QString cOk    = dark ? "#4ade80" : "#16a34a";
+    const QString cWarn  = dark ? "#fbbf24" : "#d97706";
+    const QString cErr   = dark ? "#f87171" : "#dc2626";
+    const QString cMuted = dark ? "#475569" : "#6b7280";
+
+    const QString css = QString(
+        "body  { font-family: sans-serif; font-size: 13px; color: %1;"
+        "        background: %2; margin: 14px; line-height: 1.55; }"
+        "h1    { color: %3; font-size: 17px; margin-bottom: 4px; }"
+        "h2    { color: %4; font-size: 14px; margin-top: 18px; margin-bottom: 4px;"
+        "        border-bottom: 1px solid %5; padding-bottom: 3px; }"
+        "h3    { color: %4; font-size: 13px; margin-top: 12px; margin-bottom: 2px; }"
+        "code, pre { background: %6; color: %7; padding: 2px 6px;"
+        "            border-radius: 4px; font-size: 12px; }"
+        "pre   { display: block; padding: 10px; margin: 6px 0;"
+        "        white-space: pre-wrap; word-break: break-all; }"
+        ".tag  { display: inline-block; background: %8; color: %9;"
+        "        padding: 1px 7px; border-radius: 10px; font-size: 11px; margin-right: 4px; }"
+        ".ok   { color: %10; } .warn { color: %11; } .err { color: %12; }"
+        "ul    { margin: 4px 0 4px 18px; padding: 0; }"
+        "li    { margin-bottom: 2px; }"
+        "hr    { border: none; border-top: 1px solid %5; margin: 14px 0; }"
+        "table { border-collapse: collapse; width: 100%%; margin: 8px 0; }"
+        "th    { background: %13; color: %14; padding: 5px 8px; text-align: left; }"
+        "td    { padding: 4px 8px; border-bottom: 1px solid %5; }"
+        "a     { color: %15; }"
+        ".muted{ color: %16; font-size: 11px; }"
+    ).arg(cText,  cBg,    cH1,    cHdr,   cBord,
+          cCodeBg,cCode,  cTagBg, cTagFg, cOk,
+          cWarn,  cErr,   cThBg,  cThFg,  cLink, cMuted);
+
+    const QString kHtml = "<style>" + css + "</style>\n" + R"HTML(
 
 <h1>&#128300; Calcolo Scientifico Distribuito &mdash; Guida</h1>
 <p><span class="tag">novellino</span><span class="tag">esperto</span>
@@ -223,9 +253,9 @@ MKTLLLTLVVVTIVCLDLGAV
               &darr;
          Click sulla riga &rarr; tab Risultati &rarr; output + hash SHA-256</pre>
 
-<p style="color:#475569; font-size:11px; margin-top:18px;">
+<p class="muted" style="margin-top:18px;">
 Prismalux v2.9 &mdash; Calcolo Scientifico Distribuito &mdash;
-<a href="https://github.com/wildlux/Prismalux" style="color:#60a5fa;">github.com/wildlux/Prismalux</a>
+<a href="https://github.com/wildlux/Prismalux">github.com/wildlux/Prismalux</a>
 </p>
 )HTML";
 
@@ -241,7 +271,7 @@ Prismalux v2.9 &mdash; Calcolo Scientifico Distribuito &mdash;
     auto* browser = new QTextBrowser(dlg);
     browser->setOpenExternalLinks(true);
     browser->setHtml(kHtml);
-    browser->setStyleSheet("QTextBrowser { background: #0f172a; border: none; }");
+    browser->setStyleSheet("QTextBrowser { border: none; }");
     lay->addWidget(browser, 1);
 
     auto* box = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
