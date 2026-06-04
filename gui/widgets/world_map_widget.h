@@ -32,9 +32,17 @@ public:
     QSize sizeHint()        const override { return {420, 184}; }
     QSize minimumSizeHint() const override { return {200, 100}; }
 
+    /* ── Route / Itinerario ── */
+    void setRouteMode(bool on);           // true → click aggiunge waypoint invece del marker
+    void addWaypoint(double lat, double lon, const QString& label = {});
+    void clearRoute();
+    void setRouteLine(const QVector<QPair<double,double>>& pts);
+    const QVector<QPair<double,double>>& waypoints() const { return m_waypointCoords; }
+
 signals:
     void coordsChanged(double lat, double lon);
     void cityNameChanged(const QString& name);
+    void waypointAdded(int idx, double lat, double lon);
 
 protected:
     void paintEvent(QPaintEvent*) override;
@@ -66,6 +74,14 @@ private:
     void    positionOverlay();
     void    updateZoomLabel();
     void    handleNominatimReply(QNetworkReply* reply);
+    void    drawWaypoints(QPainter& p);
+    void    drawRouteLine(QPainter& p);
+
+    /* route */
+    bool    m_routeMode = false;
+    QVector<QPair<double,double>> m_waypointCoords;  // (lat, lon)
+    QVector<QString>              m_waypointLabels;
+    QVector<QPair<double,double>> m_routeLine;        // polyline OSRM
 
     /* zoom/pan */
     int     m_zoom      = 3;

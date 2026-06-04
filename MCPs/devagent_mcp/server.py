@@ -987,6 +987,119 @@ def run_agent(task: str, model: str, project_root: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Ripristino da Git / GitHub
+# ---------------------------------------------------------------------------
+
+def git_log(project_root: str, n: int = 20) -> List[dict]:
+    """
+    Restituisce gli ultimi N commit del branch corrente.
+    Ogni entry: {hash, short_hash, author, date, subject}
+    """
+    code, out = bash(
+        f'git -C "{project_root}" log --oneline --format="%H|%h|%an|%ad|%s" '
+        f'--date=short -n {n}',
+        timeout=10
+    )
+    entries = []
+    for line in out.strip().splitlines():
+        parts = line.split("|", 4)
+        if len(parts) < 5:
+            continue
+        entries.append({
+            "hash":       parts[0],
+            "short_hash": parts[1],
+            "author":     parts[2],
+            "date":       parts[3],
+            "subject":    parts[4],
+        })
+    return entries
+
+
+def git_restore_files(project_root: str, commit: str,
+                       files: List[str]) -> tuple:
+    """
+    Ripristina file specifici a un dato commit con:
+      git checkout {commit} -- {file1} {file2} ...
+    Se `files` è vuoto ripristina TUTTO il worktree (reset hard).
+    """
+    if not files:
+        # Reset completo al commit
+        code, out = bash(f'git -C "{project_root}" reset --hard {commit}',
+                         timeout=30)
+        if code != 0:
+            return False, out
+        return True, f"Reset --hard a {commit} completato."
+
+    # Ripristina solo i file indicati
+    file_args = " ".join(f'"{f}"' for f in files)
+    code, out = bash(
+        f'git -C "{project_root}" checkout {commit} -- {file_args}',
+        timeout=20
+    )
+    if code != 0:
+        return False, out
+    return True, f"{len(files)} file ripristinati al commit {commit}."
+
+
+def git_fetch_reset(project_root: str, remote: str = "origin",
+                    branch: str = "master") -> tuple:
+    """
+    Esegue: git fetch {remote} && git reset --hard {remote}/{branch}
+    Scarica lo stato da GitHub e sovrascrive il worktree locale.
+    """
+    code, out = bash(f'git -C "{project_root}" fetch {remote}', timeout=60)
+    if code != 0:
+        return False, f"git fetch fallito: {out}"
+
+    code2, out2 = bash(
+        f'git -C "{project_root}" reset --hard {remote}/{branch}',
+        timeout=20
+    )
+    if code2 != 0:
+        return False, f"git reset --hard fallito: {out2}"
+    return True, f"Ripristinato a {remote}/{branch}:\n{out2}"
+
+
+def git_stash_push(project_root: str, message: str = "") -> tuple:
+    """Salva le modifiche correnti in uno stash Git."""
+    msg_arg = f'--message "{message}"' if message else ""
+    code, out = bash(
+        f'git -C "{project_root}" stash push {msg_arg}', timeout=15
+    )
+    if code != 0:
+        return False, out
+    return True, out.strip() or "Stash salvato."
+
+
+def git_stash_list(project_root: str) -> List[dict]:
+    """Lista gli stash git disponibili."""
+    code, out = bash(
+        f'git -C "{project_root}" stash list --format="%gd|%s|%cr"',
+        timeout=10
+    )
+    entries = []
+    for line in out.strip().splitlines():
+        parts = line.split("|", 2)
+        if len(parts) >= 2:
+            entries.append({
+                "ref":     parts[0],
+                "subject": parts[1] if len(parts) > 1 else "",
+                "when":    parts[2] if len(parts) > 2 else "",
+            })
+    return entries
+
+
+def git_stash_pop(project_root: str, ref: str = "stash@{0}") -> tuple:
+    """Applica e rimuove uno stash git."""
+    code, out = bash(
+        f'git -C "{project_root}" stash pop {ref}', timeout=15
+    )
+    if code != 0:
+        return False, out
+    return True, f"Stash applicato: {out.strip()}"
+
+
+# ---------------------------------------------------------------------------
 # Gestione stdin (protocollo IPC con Qt)
 # ---------------------------------------------------------------------------
 
@@ -1031,6 +1144,72 @@ def main() -> None:
                       "restored": restored})
             except Exception as e:
                 emit({"event": "error", "msg": f"restore: {e}"})
+            continue
+
+        # ── Comandi Git / GitHub ───────────────────────────────────
+        if cmd == "git_log":
+            pr = req.get("project_root", "").strip()
+            n  = int(req.get("n", 20))
+            try:
+                entries = git_log(pr, n)
+                emit({"event": "git_log", "entries": entries})
+            except Exception as e:
+                emit({"event": "error", "msg": f"git_log: {e}"})
+            continue
+
+        if cmd == "git_restore":
+            pr     = req.get("project_root", "").strip()
+            commit = req.get("commit", "HEAD").strip()
+            files  = req.get("files", [])   # lista path relativi
+            try:
+                ok, msg = git_restore_files(pr, commit, files)
+                emit({"event": "git_restore_done",
+                      "success": ok, "msg": msg, "commit": commit})
+            except Exception as e:
+                emit({"event": "error", "msg": f"git_restore: {e}"})
+            continue
+
+        if cmd == "git_fetch_reset":
+            pr     = req.get("project_root", "").strip()
+            remote = req.get("remote", "origin").strip()
+            branch = req.get("branch", "master").strip()
+            try:
+                ok, msg = git_fetch_reset(pr, remote, branch)
+                emit({"event": "git_fetch_reset_done",
+                      "success": ok, "msg": msg})
+            except Exception as e:
+                emit({"event": "error", "msg": f"git_fetch_reset: {e}"})
+            continue
+
+        if cmd == "git_stash_push":
+            pr  = req.get("project_root", "").strip()
+            msg = req.get("message", "devagent stash").strip()
+            try:
+                ok, out = git_stash_push(pr, msg)
+                emit({"event": "git_stash_done",
+                      "success": ok, "msg": out, "action": "push"})
+            except Exception as e:
+                emit({"event": "error", "msg": f"git_stash_push: {e}"})
+            continue
+
+        if cmd == "git_stash_list":
+            pr = req.get("project_root", "").strip()
+            try:
+                entries = git_stash_list(pr)
+                emit({"event": "git_stash_list", "entries": entries})
+            except Exception as e:
+                emit({"event": "error", "msg": f"git_stash_list: {e}"})
+            continue
+
+        if cmd == "git_stash_pop":
+            pr  = req.get("project_root", "").strip()
+            ref = req.get("ref", "stash@{0}").strip()
+            try:
+                ok, out = git_stash_pop(pr, ref)
+                emit({"event": "git_stash_done",
+                      "success": ok, "msg": out, "action": "pop"})
+            except Exception as e:
+                emit({"event": "error", "msg": f"git_stash_pop: {e}"})
             continue
 
         # ── Esecuzione agente ──────────────────────────────────────

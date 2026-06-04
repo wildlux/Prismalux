@@ -375,7 +375,9 @@ void WorldMapWidget::paintEvent(QPaintEvent*)
     p.fillRect(rect(), QColor(170, 210, 240));
 
     drawTiles(p);
-    if (m_hasMarker) drawMarker(p);
+    drawRouteLine(p);
+    drawWaypoints(p);
+    if (m_hasMarker && !m_routeMode) drawMarker(p);
     drawAttrib(p);
 }
 
@@ -497,18 +499,108 @@ void WorldMapWidget::mouseReleaseEvent(QMouseEvent* e)
     m_dragging = false;
 
     if ((QPointF(e->pos()) - m_pressPos).manhattanLength() <= 4) {
-        /* click: imposta marcatore */
         const QPointF w = screenToWorld(e->pos().x(), e->pos().y());
-        worldToLatLon(w.x(), w.y(), m_markerLat, m_markerLon);
-        m_markerLat = qBound(-85.05, m_markerLat, 85.05);
-        m_markerLon = qBound(-180.0, m_markerLon, 180.0);
-        m_hasMarker = true;
-        update();
-        emit coordsChanged(m_markerLat, m_markerLon);
+        double lat, lon;
+        worldToLatLon(w.x(), w.y(), lat, lon);
+        lat = qBound(-85.05, lat, 85.05);
+        lon = qBound(-180.0, lon, 180.0);
+
+        if (m_routeMode) {
+            addWaypoint(lat, lon);
+            emit waypointAdded(m_waypointCoords.size() - 1, lat, lon);
+        } else {
+            m_markerLat = lat;
+            m_markerLon = lon;
+            m_hasMarker = true;
+            update();
+            emit coordsChanged(m_markerLat, m_markerLon);
+        }
     }
 }
 
 void WorldMapWidget::mouseDoubleClickEvent(QMouseEvent*)
 {
     onResetViewClicked();
+}
+
+/* ── Route / Itinerario ─────────────────────────────────────────── */
+
+void WorldMapWidget::setRouteMode(bool on)
+{
+    m_routeMode = on;
+    setToolTip(on
+        ? "Clicca sulla mappa per aggiungere waypoint  |  Rotella: zoom  |  Trascina: pan"
+        : "Clicca: seleziona luogo  |  Rotella: zoom  |  Trascina: pan  |  Doppio clic: reset");
+}
+
+void WorldMapWidget::addWaypoint(double lat, double lon, const QString& label)
+{
+    const int idx = m_waypointCoords.size();
+    m_waypointCoords.append({lat, lon});
+    m_waypointLabels.append(label.isEmpty()
+        ? QString::fromLatin1("%1").arg(QChar('A' + idx % 26))
+        : label);
+    update();
+}
+
+void WorldMapWidget::clearRoute()
+{
+    m_waypointCoords.clear();
+    m_waypointLabels.clear();
+    m_routeLine.clear();
+    update();
+}
+
+void WorldMapWidget::setRouteLine(const QVector<QPair<double,double>>& pts)
+{
+    m_routeLine = pts;
+    update();
+}
+
+void WorldMapWidget::drawWaypoints(QPainter& p)
+{
+    for (int i = 0; i < m_waypointCoords.size(); ++i) {
+        const QPointF wp = latLonToWorld(m_waypointCoords[i].first,
+                                         m_waypointCoords[i].second);
+        const QPointF sp = worldToScreen(wp.x(), wp.y());
+
+        /* Colore: A=verde, B=rosso, intermedi=arancio */
+        QColor col = (i == 0) ? QColor(34, 197, 94)
+                   : (i == m_waypointCoords.size() - 1) ? QColor(239, 68, 68)
+                   : QColor(249, 115, 22);
+
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor(0, 0, 0, 50));
+        p.drawEllipse(sp + QPointF(1.5, 1.5), 9, 9);
+
+        p.setPen(QPen(Qt::white, 2));
+        p.setBrush(col);
+        p.drawEllipse(sp, 9, 9);
+
+        /* Etichetta */
+        const QString lbl = m_waypointLabels.value(i, QString::fromLatin1("%1").arg(QChar('A' + i % 26)));
+        QFont f = font(); f.setPixelSize(10); f.setBold(true); p.setFont(f);
+        p.setPen(Qt::white);
+        p.drawText(QRectF(sp.x() - 9, sp.y() - 9, 18, 18), Qt::AlignCenter, lbl);
+    }
+}
+
+void WorldMapWidget::drawRouteLine(QPainter& p)
+{
+    if (m_routeLine.size() < 2) return;
+
+    QVector<QPointF> screen;
+    screen.reserve(m_routeLine.size());
+    for (const auto& ll : m_routeLine) {
+        const QPointF wp = latLonToWorld(ll.first, ll.second);
+        screen.append(worldToScreen(wp.x(), wp.y()));
+    }
+
+    /* Ombra percorso */
+    p.setPen(QPen(QColor(0, 0, 0, 60), 5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    p.drawPolyline(screen.data(), screen.size());
+
+    /* Percorso blu */
+    p.setPen(QPen(QColor(37, 99, 235), 3.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    p.drawPolyline(screen.data(), screen.size());
 }

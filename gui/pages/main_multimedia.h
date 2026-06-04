@@ -107,6 +107,14 @@ private:
     QWidget* buildGraphvizTab();
     QWidget* buildSintetizzatoreTab();
     QWidget* buildOcrTab();
+    QWidget* buildOsmMapTab();
+
+    /* ── Mappa OSM ── */
+    class WorldMapWidget* m_osmMap         = nullptr;
+    QListWidget*          m_osmWpList      = nullptr;
+    QLabel*               m_osmRouteInfo   = nullptr;
+    QComboBox*            m_osmProfileCmb  = nullptr;
+    QNetworkAccessManager* m_osmNam        = nullptr;
     void runGraphvizAi();
     void _renderDotCode(const QString& dot);
     void _doTranscribe(const QString& wav);

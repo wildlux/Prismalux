@@ -32,6 +32,9 @@ namespace P = PrismaluxPaths;
 #include <QTextBrowser>
 #include <QGroupBox>
 #include <QListWidget>
+#include <QSplitter>
+#include <QScrollArea>
+#include <QFrame>
 #include <QSettings>
 #include <QDateTime>
 
@@ -2278,58 +2281,170 @@ QWidget* AppControllerPage::buildDevAgentTab()
     m_devLog->setPlaceholderText("I passi dell'agente appariranno qui...");
     m_devLog->setFont(QFont("JetBrains Mono,Fira Code,Consolas", 9));
     logLay->addWidget(m_devLog);
-    lay->addWidget(logGroup, 1);
+    /* ── Splitter orizzontale: Log+Diff | Cronologia+Git ── */
+    auto* splitter = new QSplitter(Qt::Horizontal, w);
+    splitter->setChildrenCollapsible(false);
+
+    /* ── Colonna sinistra: Log agente + Diff ── */
+    auto* leftCol    = new QWidget(splitter);
+    auto* leftColLay = new QVBoxLayout(leftCol);
+    leftColLay->setContentsMargins(0, 0, 0, 0);
+    leftColLay->setSpacing(dpiScale(6));
+
+    leftColLay->addWidget(logGroup, 2);
 
     /* ── Diff finale ── */
     auto* diffGroup = new QGroupBox(
-        "\xf0\x9f\x93\x9d  Diff generato", w);
+        "\xf0\x9f\x93\x9d  Diff generato", leftCol);
     auto* diffLay = new QVBoxLayout(diffGroup);
     m_devDiff = new QTextEdit(diffGroup);
     m_devDiff->setReadOnly(true);
-    m_devDiff->setMinimumHeight(dpiScale(120));
+    m_devDiff->setMinimumHeight(dpiScale(100));
     m_devDiff->setPlaceholderText("Il diff unificato apparirà qui al termine...");
     m_devDiff->setFont(QFont("JetBrains Mono,Fira Code,Consolas", 9));
     diffLay->addWidget(m_devDiff);
-    lay->addWidget(diffGroup, 1);
+    leftColLay->addWidget(diffGroup, 1);
 
-    /* ── Cronologia snapshot — macchina del tempo ── */
+    splitter->addWidget(leftCol);
+
+    /* ── Colonna destra: Cronologia + Git (con scroll) ── */
+    auto* rightSc = new QScrollArea(splitter);
+    rightSc->setWidgetResizable(true);
+    rightSc->setFrameShape(QFrame::NoFrame);
+    rightSc->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    rightSc->setMinimumWidth(dpiScale(260));
+    rightSc->setMaximumWidth(dpiScale(400));
+
+    auto* rightCol    = new QWidget;
+    auto* rightColLay = new QVBoxLayout(rightCol);
+    rightColLay->setContentsMargins(dpiScale(4), 0, 0, 0);
+    rightColLay->setSpacing(dpiScale(8));
+
+    /* ── Cronologia snapshot ── */
     auto* histGroup = new QGroupBox(
-        "\xe2\x8f\xaa  Cronologia \xe2\x80\x94 torna indietro nel tempo", w);
+        "\xe2\x8f\xaa  Cronologia \xe2\x80\x94 torna indietro nel tempo", rightCol);
     auto* histLay = new QVBoxLayout(histGroup);
     histLay->setSpacing(dpiScale(4));
 
     auto* histHint = new QLabel(
-        "<i>Ogni esecuzione salva un backup in <code>~/.prismalux/devagent_history/</code>. "
-        "Seleziona uno snapshot e clicca Ripristina per annullare le modifiche.</i>", histGroup);
+        "<i>Backup in <code>~/.prismalux/devagent_history/</code>.<br>"
+        "Seleziona uno snapshot e clicca Ripristina.</i>", histGroup);
     histHint->setObjectName("hintLabel");
     histHint->setTextFormat(Qt::RichText);
     histHint->setWordWrap(true);
     histLay->addWidget(histHint);
 
     m_devHistoryList = new QListWidget(histGroup);
-    m_devHistoryList->setFixedHeight(dpiScale(100));
-    m_devHistoryList->setToolTip(
-        "Doppio clic per selezionare uno snapshot da ripristinare");
+    m_devHistoryList->setFixedHeight(dpiScale(110));
+    m_devHistoryList->setToolTip("Seleziona uno snapshot da ripristinare");
     histLay->addWidget(m_devHistoryList);
 
     auto* histCtrlRow = new QHBoxLayout;
     m_devRestoreBtn = new QPushButton(
-        "\xe2\x86\xa9  Ripristina snapshot selezionato", histGroup);
+        "\xe2\x86\xa9  Ripristina snapshot", histGroup);
     m_devRestoreBtn->setObjectName("actionBtn");
     m_devRestoreBtn->setEnabled(false);
     m_devRestoreBtn->setToolTip(
         "Copia i file originali dallo snapshot selezionato\n"
         "sovrascrivendo le versioni modificate dal Dev Agent.");
-    auto* histRefreshBtn = new QPushButton(
-        "\xf0\x9f\x94\x84  Aggiorna lista", histGroup);
+    auto* histRefreshBtn = new QPushButton("\xf0\x9f\x94\x84", histGroup);
     histRefreshBtn->setObjectName("actionBtn");
+    histRefreshBtn->setFixedWidth(dpiScale(32));
     histCtrlRow->addWidget(m_devRestoreBtn, 1);
     histCtrlRow->addWidget(histRefreshBtn);
     histLay->addLayout(histCtrlRow);
+    rightColLay->addWidget(histGroup);
 
-    lay->addWidget(histGroup);
+    /* ── Ripristina da Git / GitHub ── */
+    auto* gitGroup = new QGroupBox(
+        "\xf0\x9f\x90\x99  Ripristina da Git / GitHub", rightCol);
+    auto* gitLay = new QVBoxLayout(gitGroup);
+    gitLay->setSpacing(dpiScale(4));
 
-    /* ── Connessioni ── */
+    /* Branch + Fetch+Reset */
+    auto* fetchRow = new QHBoxLayout;
+    auto* branchLbl = new QLabel("Branch:", gitGroup);
+    branchLbl->setFixedWidth(dpiScale(55));
+    m_devGitBranchEdit = new QLineEdit(gitGroup);
+    m_devGitBranchEdit->setText("master");
+    m_devGitBranchEdit->setFixedWidth(dpiScale(90));
+    auto* fetchResetBtn = new QPushButton(
+        "\xf0\x9f\x8c\x90  Fetch + Reset da GitHub", gitGroup);
+    fetchResetBtn->setObjectName("actionBtn");
+    fetchResetBtn->setToolTip(
+        "git fetch origin && git reset --hard origin/master\n"
+        "Scarica l'ultimo commit da GitHub e sovrascrive il worktree locale.\n"
+        "\xe2\x9a\xa0  Annulla TUTTE le modifiche locali non committate.");
+    fetchRow->addWidget(branchLbl);
+    fetchRow->addWidget(m_devGitBranchEdit);
+    fetchRow->addWidget(fetchResetBtn, 1);
+    gitLay->addLayout(fetchRow);
+
+    /* Log commit */
+    auto* gitLogRow = new QHBoxLayout;
+    auto* gitLogLbl = new QLabel("Commit:", gitGroup);
+    gitLogLbl->setFixedWidth(dpiScale(55));
+    m_devGitLogList = new QListWidget(gitGroup);
+    m_devGitLogList->setFixedHeight(dpiScale(90));
+    m_devGitLogList->setToolTip(
+        "Seleziona un commit e clicca \"Ripristina al commit\" per\n"
+        "riportare i file modificati dal Dev Agent a quello stato.");
+    auto* gitLogRefresh = new QPushButton("\xf0\x9f\x94\x84", gitGroup);
+    gitLogRefresh->setObjectName("actionBtn");
+    gitLogRefresh->setFixedWidth(dpiScale(32));
+    gitLogRefresh->setToolTip("Aggiorna log git");
+    gitLogRow->addWidget(gitLogLbl, 0, Qt::AlignTop);
+    gitLogRow->addWidget(m_devGitLogList, 1);
+    gitLogRow->addWidget(gitLogRefresh, 0, Qt::AlignTop);
+    gitLay->addLayout(gitLogRow);
+
+    m_devGitRestoreBtn = new QPushButton(
+        "\xe2\x86\xa9  Ripristina file al commit selezionato", gitGroup);
+    m_devGitRestoreBtn->setObjectName("actionBtn");
+    m_devGitRestoreBtn->setEnabled(false);
+    m_devGitRestoreBtn->setToolTip(
+        "git checkout {commit} -- {file1} {file2} ...\n"
+        "Ripristina solo i file toccati dall'ultimo Dev Agent run.");
+    gitLay->addWidget(m_devGitRestoreBtn);
+
+    /* Stash */
+    auto* stashRow = new QHBoxLayout;
+    auto* stashPushBtn = new QPushButton(
+        "\xf0\x9f\x93\xa6  Stash modifiche", gitGroup);
+    stashPushBtn->setObjectName("actionBtn");
+    stashPushBtn->setToolTip("git stash push — salva le modifiche correnti in uno stash");
+
+    m_devStashList = new QListWidget(gitGroup);
+    m_devStashList->setFixedHeight(dpiScale(60));
+    m_devStashList->setToolTip("Lista degli stash git disponibili");
+
+    m_devGitStashPopBtn = new QPushButton(
+        "\xf0\x9f\x93\xa4  Applica stash selezionato", gitGroup);
+    m_devGitStashPopBtn->setObjectName("actionBtn");
+    m_devGitStashPopBtn->setEnabled(false);
+
+    auto* stashListRefresh = new QPushButton("\xf0\x9f\x94\x84", gitGroup);
+    stashListRefresh->setObjectName("actionBtn");
+    stashListRefresh->setFixedWidth(dpiScale(32));
+    stashListRefresh->setToolTip("Aggiorna lista stash");
+
+    stashRow->addWidget(stashPushBtn);
+    stashRow->addWidget(m_devGitStashPopBtn);
+    stashRow->addWidget(stashListRefresh);
+    gitLay->addLayout(stashRow);
+    gitLay->addWidget(m_devStashList);
+
+    rightColLay->addWidget(gitGroup);
+    rightColLay->addStretch(1);
+    rightSc->setWidget(rightCol);
+    splitter->addWidget(rightSc);
+
+    /* Pesi splitter: colonna sinistra 65%, destra 35% */
+    splitter->setStretchFactor(0, 65);
+    splitter->setStretchFactor(1, 35);
+    lay->addWidget(splitter, 1);
+
+    /* ── Connessioni (unico blocco — nessun duplicato) ── */
     connect(m_devRunBtn,     &QPushButton::clicked,
             this, &AppControllerPage::onDevAgentRunClicked);
     connect(m_devStopBtn,    &QPushButton::clicked,
@@ -2344,9 +2459,32 @@ QWidget* AppControllerPage::buildDevAgentTab()
             m_devRestoreBtn, [this](int row) {
         if (m_devRestoreBtn) m_devRestoreBtn->setEnabled(row >= 0);
     });
+    /* Git */
+    connect(gitLogRefresh,      &QPushButton::clicked,
+            this, &AppControllerPage::onDevAgentGitLogClicked);
+    connect(m_devGitRestoreBtn, &QPushButton::clicked,
+            this, &AppControllerPage::onDevAgentGitRestoreClicked);
+    connect(fetchResetBtn,      &QPushButton::clicked,
+            this, &AppControllerPage::onDevAgentGitFetchResetClicked);
+    connect(stashPushBtn,       &QPushButton::clicked,
+            this, &AppControllerPage::onDevAgentGitStashPushClicked);
+    connect(stashListRefresh,   &QPushButton::clicked,
+            this, &AppControllerPage::onDevAgentGitStashListClicked);
+    connect(m_devGitStashPopBtn, &QPushButton::clicked,
+            this, &AppControllerPage::onDevAgentGitStashPopClicked);
+    connect(m_devGitLogList, &QListWidget::currentRowChanged,
+            m_devGitRestoreBtn, [this](int row) {
+        if (m_devGitRestoreBtn) m_devGitRestoreBtn->setEnabled(row >= 0);
+    });
+    connect(m_devStashList, &QListWidget::currentRowChanged,
+            m_devGitStashPopBtn, [this](int row) {
+        if (m_devGitStashPopBtn) m_devGitStashPopBtn->setEnabled(row >= 0);
+    });
 
-    /* Carica cronologia all'avvio del tab */
+    /* Carica cronologia e git log all'avvio del tab */
     QTimer::singleShot(300, this, &AppControllerPage::onDevAgentLoadHistory);
+    QTimer::singleShot(400, this, &AppControllerPage::onDevAgentGitLogClicked);
+    QTimer::singleShot(500, this, &AppControllerPage::onDevAgentGitStashListClicked);
 
     return w;
 }

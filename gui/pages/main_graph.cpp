@@ -648,13 +648,12 @@ QWidget* GraficoPage::buildLeftPanel() {
 
     /* btnPlot e btnReset vengono aggiunti FUORI dalla scrollarea (vedi sotto) */
 
-    /* ── Sezione immagine → formula (solo Cartesiano) ─────────── */
-    m_imgSep = new QFrame(panel);
+    /* ── Sezione immagine → formula (solo Cartesiano) — aggiunta DOPO i pulsanti ── */
+    m_imgSep = new QFrame(outer);
     m_imgSep->setFrameShape(QFrame::HLine);
     m_imgSep->setObjectName("separator");
-    lay->addWidget(m_imgSep);
 
-    m_imgSection = new QWidget(panel);
+    m_imgSection = new QWidget(outer);
     auto* imgLay = new QVBoxLayout(m_imgSection);
     imgLay->setContentsMargins(0, 2, 0, 2);
     imgLay->setSpacing(4);
@@ -706,7 +705,7 @@ QWidget* GraficoPage::buildLeftPanel() {
     connect(m_btnImgFormula, &QPushButton::clicked, this, &GraficoPage::analyzeImage);
     imgLay->addWidget(m_btnImgFormula);
 
-    lay->addWidget(m_imgSection);
+    /* m_imgSection viene aggiunto a outerLay dopo i pulsanti Traccia/Reset */
 
     /* Popola la combo vision la prima volta che i modelli sono disponibili */
     if (m_ai) {
@@ -746,6 +745,10 @@ QWidget* GraficoPage::buildLeftPanel() {
     btnReset->setFixedHeight(28);
     connect(btnReset, &QPushButton::clicked, m_canvas, &GraficoCanvas::resetView);
     outerLay->addWidget(btnReset);
+
+    /* ── Sezione "Grafico → Formula" SOTTO i pulsanti ── */
+    outerLay->addWidget(m_imgSep);
+    outerLay->addWidget(m_imgSection);
 
     return outer;
 }

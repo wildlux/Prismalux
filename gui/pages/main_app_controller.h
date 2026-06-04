@@ -309,6 +309,12 @@ private:
     void onDevAgentInstallClicked();
     void onDevAgentRestoreClicked();
     void onDevAgentLoadHistory();
+    void onDevAgentGitLogClicked();
+    void onDevAgentGitRestoreClicked();
+    void onDevAgentGitFetchResetClicked();
+    void onDevAgentGitStashPushClicked();
+    void onDevAgentGitStashListClicked();
+    void onDevAgentGitStashPopClicked();
     void onDevAgentReadOutput();
     void onDevAgentReadError();
     void onDevAgentFinished(int code, QProcess::ExitStatus status);
@@ -348,6 +354,11 @@ private:
     QTextEdit*   m_devDiff          = nullptr;
     QLabel*      m_devStatusLbl     = nullptr;
     QListWidget* m_devHistoryList   = nullptr;
+    QListWidget* m_devGitLogList    = nullptr;  ///< commit git
+    QListWidget* m_devStashList     = nullptr;  ///< stash git
+    QPushButton* m_devGitRestoreBtn = nullptr;
+    QPushButton* m_devGitStashPopBtn = nullptr;
+    QLineEdit*   m_devGitBranchEdit = nullptr;
     QProcess*    m_devProc          = nullptr;
     QString      m_devPendingOutput;   ///< buffer righe parziali stdout
 

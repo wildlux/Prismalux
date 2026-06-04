@@ -71,6 +71,7 @@ START → read_context → generate_patch → apply_patch → compile
 - [x] **Copia pip clipboard** — pulsante 📋 aggiunto in: main_tools_file (3x), widget_stable_diffusion, main_lan_wan GNS3, main_maintenance NPU — 2026-06-03
 - [x] **Chat: Canc = conferma, Shift+Canc = 5s undo** — eventFilter su m_chatList; QMessageBox::question per Canc; label "Annulla (5s)" + QTimer per Shift+Canc — `mainwindow.h/cpp/slots.cpp` — 2026-06-03
 - [ ] **Emoji Telegram nel software** — usare le emoji Unicode standard (già supportate da Qt); verificare che il font sistema abbia coverage completa; eventualmente bundlare Noto Emoji
+- [ ] **Tool use per modelli abilitati** — i modelli con tool calling (es. qwen3, llama3.1, mistral) devono poter invocare i tool del software (18 MCP, WAN Compute, GraphMemory, ecc.) direttamente dalla chat AI; implementare bridge AiClient→tool dispatcher; visualizzare tool call+risultato nella bolla chat
 - [x] **Grafico 3D: Punti/Wireframe/Superficie + movimento Blender** — `m_renderModeCombo` per Scatter3D/Grafo3D; `setRenderMode(int)` slot; Blender orbit (MMB/Alt+LMB) + pan (Shift+MMB) — `main_graph.h/cpp`, `main_graph_canvas.cpp` — 2026-06-03
 - [x] **Sezione Lavoro web** — tab "💼 Lavoro" in webchat.html + endpoint `GET /api/lavoro?q=QUERY` in lan_server.cpp; ricerca case-insensitive su azienda/ruolo/sede — 2026-06-03
 - [x] **Quiz errori con spiegazione** — aggiunta introduzione "Ripassiamo insieme..." + legenda Verde/Rosso nel dialog "Rivedi errori" — `main_learn.cpp` — 2026-06-03

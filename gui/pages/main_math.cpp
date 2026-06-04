@@ -3180,9 +3180,13 @@ QWidget* MatematicaPage::buildAnalisi1Tab()
     tryRow->addWidget(m_a1Input, 1);
     m_a1TypeCmb = makeAnalisiTypeCmb(w);
     tryRow->addWidget(m_a1TypeCmb);
-    auto* btnTry = new QPushButton("\xf0\x9f\x93\x90  Risolvi", w);
+    auto* btnTry = new QPushButton(
+        "\xf0\x9f\x93\x90  Risolvi nella scheda accanto", w);
     btnTry->setObjectName("actionBtn");
     btnTry->setProperty("highlight", "true");
+    btnTry->setToolTip(
+        "Copia la formula nella scheda \xe2\x80\x9c\xf0\x9f\x93\x90 Risolvi Passi\xe2\x80\x9d "
+        "e avvia il calcolo SymPy passo per passo.");
     connect(btnTry, &QPushButton::clicked, this, &MatematicaPage::onA1TryClicked);
     tryRow->addWidget(btnTry);
     lay->addLayout(tryRow);
@@ -3191,10 +3195,12 @@ QWidget* MatematicaPage::buildAnalisi1Tab()
     auto* plotRow = new QHBoxLayout;
     plotRow->addWidget(new QLabel("\xf0\x9f\x93\x88  Grafico:", w));
     m_a1PlotInput = new QLineEdit(w);
-    m_a1PlotInput->setPlaceholderText("f(x) da disegnare");
+    m_a1PlotInput->setPlaceholderText("f(x) da disegnare nel canvas");
     plotRow->addWidget(m_a1PlotInput, 1);
-    auto* btnPlot1 = new QPushButton("\xf0\x9f\x93\x88  Disegna", w);
+    auto* btnPlot1 = new QPushButton(
+        "\xf0\x9f\x93\x88  Disegna grafico", w);
     btnPlot1->setObjectName("actionBtn");
+    btnPlot1->setToolTip("Traccia f(x) nel canvas a destra");
     connect(btnPlot1, &QPushButton::clicked, this, &MatematicaPage::onA1PlotClicked);
     plotRow->addWidget(btnPlot1);
     m_btnA1Expand = new QPushButton("\xe2\x86\x97", w);   /* ↗ */
@@ -3263,9 +3269,13 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     tryRow->addWidget(m_a2Input, 1);
     m_a2TypeCmb = makeAnalisiTypeCmb(w);
     tryRow->addWidget(m_a2TypeCmb);
-    auto* btnTry = new QPushButton("\xf0\x9f\x93\x90  Risolvi", w);
+    auto* btnTry = new QPushButton(
+        "\xf0\x9f\x93\x90  Risolvi nella scheda accanto", w);
     btnTry->setObjectName("actionBtn");
     btnTry->setProperty("highlight", "true");
+    btnTry->setToolTip(
+        "Copia la formula nella scheda \xe2\x80\x9c\xf0\x9f\x93\x90 Risolvi Passi\xe2\x80\x9d "
+        "e avvia il calcolo SymPy passo per passo.");
     connect(btnTry, &QPushButton::clicked, this, &MatematicaPage::onA2TryClicked);
     tryRow->addWidget(btnTry);
     lay->addLayout(tryRow);
@@ -3276,8 +3286,10 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     m_a2PlotInput = new QLineEdit(w);
     m_a2PlotInput->setPlaceholderText("f(x,y) — con 'y' \xe2\x86\x92 3D");
     plotRow->addWidget(m_a2PlotInput, 1);
-    auto* btnPlot2 = new QPushButton("\xf0\x9f\x93\x88  Disegna", w);
+    auto* btnPlot2 = new QPushButton(
+        "\xf0\x9f\x93\x88  Disegna grafico", w);
     btnPlot2->setObjectName("actionBtn");
+    btnPlot2->setToolTip("Traccia f(x) o f(x,y) nel canvas a destra");
     connect(btnPlot2, &QPushButton::clicked, this, &MatematicaPage::onA2PlotClicked);
     plotRow->addWidget(btnPlot2);
     m_a2RenderCmb = new QComboBox(w);

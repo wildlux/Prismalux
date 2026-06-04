@@ -1,7 +1,9 @@
 #include "main_multimedia.h"
 #include "widget_stable_diffusion.h"
 #include "../prismalux_paths.h"
+#include "../dpi_utils.h"
 #include "../widgets/stt_whisper.h"
+#include "../widgets/world_map_widget.h"
 #include <QSettings>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -29,6 +31,16 @@
 #include <QClipboard>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QUrlQuery>
+#include <QListWidget>
+#include <QCheckBox>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QLabel>
 
 namespace P = PrismaluxPaths;
 
@@ -42,7 +54,8 @@ MultimediaPage::MultimediaPage(AiClient* ai, QWidget* parent)
     auto* tabs = new QTabWidget(this);
     tabs->addTab(buildAudioTab(),           "\xf0\x9f\x8e\xb5  Audio AI");         /* 🎵 */
     tabs->addTab(buildSDTab(),             "\xf0\x9f\x8e\xa8  Genera Immagini");  /* 🎨 */
-    tabs->addTab(buildGraphvizTab(),       "\xf0\x9f\x97\xba  Mappe");             /* 🗺 */
+    tabs->addTab(buildGraphvizTab(),       "\xf0\x9f\x95\xb8  Mappe concettuali"); /* 🕸 */
+    tabs->addTab(buildOsmMapTab(),         "\xf0\x9f\x97\xba  Mappa OSM");         /* 🗺 */
     tabs->addTab(buildSintetizzatoreTab(), "\xf0\x9f\x94\x8a  Sintetizzatore");    /* 🔊 */
     tabs->addTab(buildOcrTab(),            "\xf0\x9f\x94\x8d  OCR webcam");     /* 🔍 */
 
@@ -1342,4 +1355,257 @@ void MultimediaPage::onOcrAiError(const QString& msg)
     QObject::disconnect(m_ocrAiErrorConn);
     m_ocrAiTokenConn = m_ocrAiFinishedConn = m_ocrAiErrorConn = {};
     m_ocrAiOut->setPlainText("\xe2\x9d\x8c  Errore AI: " + msg);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildOsmMapTab — Mappa geografica OpenStreetMap + routing OSRM
+   ══════════════════════════════════════════════════════════════ */
+
+/* Decoder Google Encoded Polyline (usato da OSRM) */
+static QVector<QPair<double,double>> decodePolyline(const QByteArray& enc)
+{
+    QVector<QPair<double,double>> pts;
+    int index = 0, lat = 0, lon = 0;
+    while (index < enc.size()) {
+        auto decode = [&](int& val) {
+            int b, result = 0, shift = 0;
+            do { b = static_cast<unsigned char>(enc[index++]) - 63;
+                 result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+            val += (result & 1) ? ~(result >> 1) : (result >> 1);
+        };
+        decode(lat); decode(lon);
+        pts.append({lat * 1e-5, lon * 1e-5});
+    }
+    return pts;
+}
+
+QWidget* MultimediaPage::buildOsmMapTab()
+{
+    auto* w   = new QWidget;
+    auto* lay = new QHBoxLayout(w);
+    lay->setContentsMargins(0, 0, 0, 0);
+    lay->setSpacing(0);
+
+    /* ── Mappa principale ── */
+    m_osmMap = new WorldMapWidget(w);
+    m_osmMap->setRouteMode(true);
+    lay->addWidget(m_osmMap, 1);
+
+    /* ── Pannello laterale destro ── */
+    auto* panel    = new QWidget(w);
+    auto* panelLay = new QVBoxLayout(panel);
+    panel->setFixedWidth(dpiScale(240));
+    panelLay->setContentsMargins(dpiScale(6), dpiScale(6), dpiScale(6), dpiScale(6));
+    panelLay->setSpacing(dpiScale(8));
+
+    auto* titleLbl = new QLabel(
+        "\xf0\x9f\x97\xba  <b>Mappa OSM</b>", panel);
+    titleLbl->setObjectName("formLabel");
+    titleLbl->setTextFormat(Qt::RichText);
+    panelLay->addWidget(titleLbl);
+
+    auto* hintLbl = new QLabel(
+        "<small>Clicca sulla mappa per aggiungere tappe (A, B, C...).<br>"
+        "Poi calcola il percorso via OSRM.</small>", panel);
+    hintLbl->setObjectName("hintLabel");
+    hintLbl->setTextFormat(Qt::RichText);
+    hintLbl->setWordWrap(true);
+    panelLay->addWidget(hintLbl);
+
+    /* ── Waypoint list ── */
+    auto* wpGroup = new QGroupBox(
+        "\xf0\x9f\x93\x8d  Tappe itinerario", panel);
+    auto* wpLay = new QVBoxLayout(wpGroup);
+    wpLay->setSpacing(dpiScale(4));
+
+    m_osmWpList = new QListWidget(wpGroup);
+    m_osmWpList->setFixedHeight(dpiScale(130));
+    m_osmWpList->setToolTip("Lista delle tappe — clicca sulla mappa per aggiungerne");
+    wpLay->addWidget(m_osmWpList);
+
+    auto* wpBtnRow = new QHBoxLayout;
+    auto* btnRemWp = new QPushButton(
+        "\xe2\x9c\x96  Rimuovi", wpGroup);
+    btnRemWp->setObjectName("actionBtn");
+    btnRemWp->setToolTip("Rimuovi la tappa selezionata");
+
+    auto* btnClrWp = new QPushButton(
+        "\xf0\x9f\x97\x91  Svuota", wpGroup);
+    btnClrWp->setObjectName("actionBtn");
+    btnClrWp->setToolTip("Rimuovi tutte le tappe e il percorso");
+
+    wpBtnRow->addWidget(btnRemWp, 1);
+    wpBtnRow->addWidget(btnClrWp, 1);
+    wpLay->addLayout(wpBtnRow);
+    panelLay->addWidget(wpGroup);
+
+    /* ── Routing ── */
+    auto* rtGroup = new QGroupBox(
+        "\xf0\x9f\x9a\x97  Percorso", panel);
+    auto* rtLay = new QVBoxLayout(rtGroup);
+    rtLay->setSpacing(dpiScale(4));
+
+    auto* profRow = new QHBoxLayout;
+    auto* profLbl = new QLabel("Modalit\xc3\xa0:", rtGroup);
+    profLbl->setFixedWidth(dpiScale(65));
+    m_osmProfileCmb = new QComboBox(rtGroup);
+    m_osmProfileCmb->setObjectName("settingCombo");
+    m_osmProfileCmb->addItem("\xf0\x9f\x9a\x97  Auto",       "driving");
+    m_osmProfileCmb->addItem("\xf0\x9f\x9a\xb6  Piedi",       "foot");
+    m_osmProfileCmb->addItem("\xf0\x9f\x9a\xb2  Bicicletta",  "bike");
+    profRow->addWidget(profLbl);
+    profRow->addWidget(m_osmProfileCmb, 1);
+    rtLay->addLayout(profRow);
+
+    auto* btnCalc = new QPushButton(
+        "\xf0\x9f\x94\x8d  Calcola percorso", rtGroup);
+    btnCalc->setObjectName("primaryBtn");
+    btnCalc->setToolTip("Calcola percorso via OSRM (richiede internet)");
+    rtLay->addWidget(btnCalc);
+
+    m_osmRouteInfo = new QLabel("Distanza: —  |  Tempo: —", rtGroup);
+    m_osmRouteInfo->setObjectName("cardDesc");
+    m_osmRouteInfo->setWordWrap(true);
+    rtLay->addWidget(m_osmRouteInfo);
+
+    auto* btnClrRoute = new QPushButton(
+        "\xf0\x9f\x97\x91  Cancella percorso", rtGroup);
+    btnClrRoute->setObjectName("actionBtn");
+    rtLay->addWidget(btnClrRoute);
+
+    panelLay->addWidget(rtGroup);
+    panelLay->addStretch(1);
+
+    /* Nota copyright */
+    auto* credLbl = new QLabel(
+        "<small>\xa9 <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors<br>"
+        "Percorsi: <a href='https://project-osrm.org/'>OSRM</a></small>", panel);
+    credLbl->setTextFormat(Qt::RichText);
+    credLbl->setOpenExternalLinks(true);
+    credLbl->setObjectName("hintLabel");
+    credLbl->setWordWrap(true);
+    panelLay->addWidget(credLbl);
+
+    lay->addWidget(panel);
+
+    /* ── NAM per OSRM ── */
+    m_osmNam = new QNetworkAccessManager(w);
+
+    /* ── Connessioni ── */
+
+    /* Waypoint aggiunto dalla mappa → aggiorna lista */
+    connect(m_osmMap, &WorldMapWidget::waypointAdded,
+            panel, [this](int idx, double lat, double lon) {
+        const QString lbl = QString::fromLatin1("%1").arg(QChar('A' + idx % 26));
+        auto* item = new QListWidgetItem(
+            QString("%1  %.5f, %.5f").arg(lbl).arg(lat).arg(lon));
+        item->setData(Qt::UserRole, lat);
+        item->setData(Qt::UserRole + 1, lon);
+        if (m_osmWpList) m_osmWpList->addItem(item);
+    });
+
+    /* Rimuovi waypoint selezionato */
+    connect(btnRemWp, &QPushButton::clicked, panel, [this] {
+        if (!m_osmWpList) return;
+        const int row = m_osmWpList->currentRow();
+        if (row < 0) return;
+        m_osmWpList->takeItem(row);
+        /* Ricostruisce i waypoint sul widget mappa */
+        m_osmMap->clearRoute();
+        for (int i = 0; i < m_osmWpList->count(); ++i) {
+            auto* it = m_osmWpList->item(i);
+            const double la = it->data(Qt::UserRole).toDouble();
+            const double lo = it->data(Qt::UserRole + 1).toDouble();
+            m_osmMap->addWaypoint(la, lo);
+        }
+        m_osmRouteInfo->setText("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94");
+    });
+
+    /* Svuota tutto */
+    connect(btnClrWp, &QPushButton::clicked, panel, [this] {
+        if (m_osmMap)    m_osmMap->clearRoute();
+        if (m_osmWpList) m_osmWpList->clear();
+        if (m_osmRouteInfo) m_osmRouteInfo->setText("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94");
+    });
+
+    /* Cancella solo il percorso disegnato */
+    connect(btnClrRoute, &QPushButton::clicked, panel, [this] {
+        if (m_osmMap) m_osmMap->setRouteLine({});
+        if (m_osmRouteInfo) m_osmRouteInfo->setText("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94");
+    });
+
+    /* Calcola percorso OSRM */
+    connect(btnCalc, &QPushButton::clicked, panel, [this, btnCalc] {
+        if (!m_osmWpList || m_osmWpList->count() < 2) {
+            if (m_osmRouteInfo)
+                m_osmRouteInfo->setText(
+                    "\xe2\x9a\xa0  Aggiungi almeno 2 tappe sulla mappa.");
+            return;
+        }
+
+        /* Costruisce la stringa coordinate lon,lat;lon,lat;... */
+        QStringList coords;
+        for (int i = 0; i < m_osmWpList->count(); ++i) {
+            auto* it = m_osmWpList->item(i);
+            coords << QString("%1,%2")
+                          .arg(it->data(Qt::UserRole + 1).toDouble(), 0, 'f', 6)
+                          .arg(it->data(Qt::UserRole).toDouble(), 0, 'f', 6);
+        }
+
+        const QString profile = m_osmProfileCmb
+            ? m_osmProfileCmb->currentData().toString()
+            : "driving";
+
+        const QUrl url(
+            QString("https://router.project-osrm.org/route/v1/%1/%2"
+                    "?overview=full&geometries=polyline")
+                .arg(profile, coords.join(";")));
+
+        QNetworkRequest req(url);
+        req.setHeader(QNetworkRequest::UserAgentHeader,
+                      "Prismalux/2.9 (educational desktop app)");
+
+        btnCalc->setEnabled(false);
+        if (m_osmRouteInfo) m_osmRouteInfo->setText("\xf0\x9f\x94\x84  Calcolo in corso...");
+
+        QNetworkReply* reply = m_osmNam->get(req);
+        connect(reply, &QNetworkReply::finished,
+                reply, [this, reply, btnCalc] {
+            reply->deleteLater();
+            if (btnCalc) btnCalc->setEnabled(true);
+
+            if (reply->error() != QNetworkReply::NoError) {
+                if (m_osmRouteInfo)
+                    m_osmRouteInfo->setText(
+                        "\xe2\x9d\x8c  Errore rete: " + reply->errorString());
+                return;
+            }
+
+            const QJsonObject root = QJsonDocument::fromJson(
+                reply->readAll()).object();
+
+            if (root["code"].toString() != "Ok") {
+                if (m_osmRouteInfo)
+                    m_osmRouteInfo->setText(
+                        "\xe2\x9d\x8c  OSRM: " + root["message"].toString());
+                return;
+            }
+
+            const QJsonObject route  = root["routes"].toArray().first().toObject();
+            const double dist_km     = route["distance"].toDouble() / 1000.0;
+            const double dur_min     = route["duration"].toDouble() / 60.0;
+            const QString geom       = route["geometry"].toString();
+
+            const auto pts = decodePolyline(geom.toUtf8());
+            if (m_osmMap) m_osmMap->setRouteLine(pts);
+
+            const QString info = QString("\xf0\x9f\x93\x8f  %1 km  |  "
+                                          "\xe2\x8f\xb1  %2 min")
+                .arg(dist_km, 0, 'f', 1)
+                .arg(qRound(dur_min));
+            if (m_osmRouteInfo) m_osmRouteInfo->setText(info);
+        });
+    });
+
+    return w;
 }

@@ -2221,3 +2221,316 @@ void AppControllerPage::onDevAgentFinished(int code, QProcess::ExitStatus)
         m_devStatusLbl->setText(
             QString("\xe2\x9d\x8c  Processo terminato (code %1)").arg(code));
 }
+
+/* ── Helper interno: avvia processo Python one-shot per comandi git ── */
+static QProcess* devGitProc(QWidget* parent, const QString& scriptPath)
+{
+    auto* proc = new QProcess(parent);
+    proc->setProcessChannelMode(QProcess::SeparateChannels);
+    proc->start(PrismaluxPaths::findPython(), {scriptPath});
+    if (!proc->waitForStarted(3000)) {
+        proc->deleteLater();
+        return nullptr;
+    }
+    return proc;
+}
+
+void AppControllerPage::onDevAgentGitLogClicked()
+{
+    const QString script = P::root() + "/MCPs/devagent_mcp/server.py";
+    if (!QFile::exists(script)) return;
+    auto* proc = devGitProc(this, script);
+    if (!proc) return;
+
+    proc->write(QJsonDocument(QJsonObject{
+        {"cmd",          "git_log"},
+        {"project_root", P::root()},
+        {"n",            25}
+    }).toJson(QJsonDocument::Compact) + "\n");
+    proc->closeWriteChannel();
+
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            proc, [this, proc](int, QProcess::ExitStatus) {
+        const QString raw = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+        proc->deleteLater();
+        if (!m_devGitLogList) return;
+        m_devGitLogList->clear();
+        for (const QString& line : raw.split('\n', Qt::SkipEmptyParts)) {
+            const auto doc = QJsonDocument::fromJson(line.toUtf8());
+            if (!doc.isObject()) continue;
+            const QJsonObject obj = doc.object();
+            if (obj.value("event").toString() != "git_log") continue;
+            const QJsonArray entries = obj.value("entries").toArray();
+            for (const QJsonValue& v : entries) {
+                const QJsonObject e  = v.toObject();
+                const QString hash   = e.value("hash").toString();
+                const QString shash  = e.value("short_hash").toString();
+                const QString date   = e.value("date").toString();
+                const QString subj   = e.value("subject").toString();
+                auto* item = new QListWidgetItem(
+                    QString("%1  %2  %3").arg(shash, date, subj.left(60)));
+                item->setData(Qt::UserRole, hash);
+                m_devGitLogList->addItem(item);
+            }
+            if (m_devGitLogList->count() == 0) {
+                auto* item = new QListWidgetItem("(nessun commit trovato)");
+                item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
+                m_devGitLogList->addItem(item);
+            }
+        }
+    });
+}
+
+void AppControllerPage::onDevAgentGitRestoreClicked()
+{
+    if (!m_devGitLogList) return;
+    auto* sel = m_devGitLogList->currentItem();
+    if (!sel || !(sel->flags() & Qt::ItemIsEnabled)) return;
+
+    const QString commit = sel->data(Qt::UserRole).toString();
+    if (commit.isEmpty()) return;
+
+    const QString label  = sel->text().left(80);
+    const auto ans = QMessageBox::question(
+        this, "\xe2\x86\xa9  Ripristina al commit",
+        QString("Ripristinare il worktree al commit:\n<b>%1</b>\n\n"
+                "Tutte le modifiche locali non committate andranno perse.\n"
+                "Questa operazione non pu\xc3\xb2 essere annullata.")
+            .arg(label),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (ans != QMessageBox::Yes) return;
+
+    const QString script = P::root() + "/MCPs/devagent_mcp/server.py";
+    if (!QFile::exists(script)) return;
+    auto* proc = devGitProc(this, script);
+    if (!proc) return;
+
+    if (m_devLog) m_devLog->append(
+        QString("\xe2\x8f\xaa  <b>git reset --hard</b> %1...").arg(commit.left(8)));
+    if (m_devStatusLbl) m_devStatusLbl->setText("\xe2\x8f\xaa  Ripristino commit...");
+
+    proc->write(QJsonDocument(QJsonObject{
+        {"cmd",          "git_restore"},
+        {"project_root", P::root()},
+        {"commit",       commit},
+        {"files",        QJsonArray{}}
+    }).toJson(QJsonDocument::Compact) + "\n");
+    proc->closeWriteChannel();
+
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            proc, [this, proc, commit](int, QProcess::ExitStatus) {
+        const QString raw = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+        proc->deleteLater();
+        for (const QString& line : raw.split('\n', Qt::SkipEmptyParts)) {
+            const auto doc = QJsonDocument::fromJson(line.toUtf8());
+            if (!doc.isObject()) continue;
+            const QJsonObject obj = doc.object();
+            if (obj.value("event").toString() != "git_restore_done") continue;
+            const bool ok  = obj.value("success").toBool();
+            const QString msg = obj.value("msg").toString();
+            const QString icon = ok ? "\xf0\x9f\x9f\xa2" : "\xf0\x9f\x94\xb4";
+            if (m_devLog) m_devLog->append(
+                icon + "  <b>Ripristino commit</b> " + commit.left(8).toHtmlEscaped()
+                + "<br>" + msg.toHtmlEscaped());
+            if (m_devStatusLbl) m_devStatusLbl->setText(
+                ok ? "\xf0\x9f\x9f\xa2  Ripristinato" : "\xf0\x9f\x94\xb4  Errore ripristino");
+        }
+    });
+}
+
+void AppControllerPage::onDevAgentGitFetchResetClicked()
+{
+    const QString branch = m_devGitBranchEdit
+        ? m_devGitBranchEdit->text().trimmed()
+        : QStringLiteral("master");
+
+    const auto ans = QMessageBox::warning(
+        this, "\xf0\x9f\x8c\x90  Fetch + Reset da GitHub",
+        QString("Eseguire:\n  git fetch origin\n  git reset --hard origin/%1\n\n"
+                "\xe2\x9a\xa0  Tutte le modifiche locali non committate "
+                "andranno PERSE.\n"
+                "Assicurati di aver fatto uno stash o un commit prima di procedere.")
+            .arg(branch),
+        QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
+    if (ans != QMessageBox::Yes) return;
+
+    const QString script = P::root() + "/MCPs/devagent_mcp/server.py";
+    if (!QFile::exists(script)) return;
+    auto* proc = devGitProc(this, script);
+    if (!proc) return;
+
+    if (m_devLog) m_devLog->append(
+        QString("\xf0\x9f\x8c\x90  <b>git fetch origin && git reset --hard origin/%1</b>...")
+            .arg(branch.toHtmlEscaped()));
+    if (m_devStatusLbl) m_devStatusLbl->setText("\xf0\x9f\x8c\x90  Fetch in corso...");
+
+    proc->write(QJsonDocument(QJsonObject{
+        {"cmd",          "git_fetch_reset"},
+        {"project_root", P::root()},
+        {"remote",       "origin"},
+        {"branch",       branch}
+    }).toJson(QJsonDocument::Compact) + "\n");
+    proc->closeWriteChannel();
+
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            proc, [this, proc, branch](int, QProcess::ExitStatus) {
+        const QString raw = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+        proc->deleteLater();
+        for (const QString& line : raw.split('\n', Qt::SkipEmptyParts)) {
+            const auto doc = QJsonDocument::fromJson(line.toUtf8());
+            if (!doc.isObject()) continue;
+            const QJsonObject obj = doc.object();
+            if (obj.value("event").toString() != "git_fetch_reset_done") continue;
+            const bool ok     = obj.value("success").toBool();
+            const QString msg = obj.value("msg").toString();
+            const QString icon = ok ? "\xf0\x9f\x9f\xa2" : "\xf0\x9f\x94\xb4";
+            if (m_devLog) m_devLog->append(
+                icon + "  <b>Fetch+Reset origin/" + branch.toHtmlEscaped() + "</b><br>"
+                + "<pre style='font-size:9px'>" + msg.toHtmlEscaped() + "</pre>");
+            if (m_devStatusLbl) m_devStatusLbl->setText(
+                ok ? "\xf0\x9f\x9f\xa2  Sincronizzato con GitHub"
+                   : "\xf0\x9f\x94\xb4  Errore fetch/reset");
+            if (ok) {
+                /* Aggiorna il log commit dopo il fetch */
+                QTimer::singleShot(200, this, &AppControllerPage::onDevAgentGitLogClicked);
+            }
+        }
+    });
+}
+
+void AppControllerPage::onDevAgentGitStashPushClicked()
+{
+    const QString script = P::root() + "/MCPs/devagent_mcp/server.py";
+    if (!QFile::exists(script)) return;
+    auto* proc = devGitProc(this, script);
+    if (!proc) return;
+
+    if (m_devLog) m_devLog->append("\xf0\x9f\x93\xa6  <b>git stash push</b>...");
+    if (m_devStatusLbl) m_devStatusLbl->setText("\xf0\x9f\x93\xa6  Stash in corso...");
+
+    proc->write(QJsonDocument(QJsonObject{
+        {"cmd",          "git_stash_push"},
+        {"project_root", P::root()},
+        {"message",      "devagent stash"}
+    }).toJson(QJsonDocument::Compact) + "\n");
+    proc->closeWriteChannel();
+
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            proc, [this, proc](int, QProcess::ExitStatus) {
+        const QString raw = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+        proc->deleteLater();
+        for (const QString& line : raw.split('\n', Qt::SkipEmptyParts)) {
+            const auto doc = QJsonDocument::fromJson(line.toUtf8());
+            if (!doc.isObject()) continue;
+            const QJsonObject obj = doc.object();
+            if (obj.value("event").toString() != "git_stash_done") continue;
+            const bool ok     = obj.value("success").toBool();
+            const QString msg = obj.value("msg").toString();
+            const QString icon = ok ? "\xf0\x9f\x9f\xa2" : "\xf0\x9f\x94\xb4";
+            if (m_devLog) m_devLog->append(
+                icon + "  <b>Stash push</b>: " + msg.toHtmlEscaped());
+            if (m_devStatusLbl) m_devStatusLbl->setText(
+                ok ? "\xf0\x9f\x9f\xa2  Stash salvato"
+                   : "\xf0\x9f\x94\xb4  Stash fallito");
+            if (ok)
+                QTimer::singleShot(100, this,
+                    &AppControllerPage::onDevAgentGitStashListClicked);
+        }
+    });
+}
+
+void AppControllerPage::onDevAgentGitStashListClicked()
+{
+    const QString script = P::root() + "/MCPs/devagent_mcp/server.py";
+    if (!QFile::exists(script)) return;
+    auto* proc = devGitProc(this, script);
+    if (!proc) return;
+
+    proc->write(QJsonDocument(QJsonObject{
+        {"cmd",          "git_stash_list"},
+        {"project_root", P::root()}
+    }).toJson(QJsonDocument::Compact) + "\n");
+    proc->closeWriteChannel();
+
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            proc, [this, proc](int, QProcess::ExitStatus) {
+        const QString raw = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+        proc->deleteLater();
+        if (!m_devStashList) return;
+        m_devStashList->clear();
+        for (const QString& line : raw.split('\n', Qt::SkipEmptyParts)) {
+            const auto doc = QJsonDocument::fromJson(line.toUtf8());
+            if (!doc.isObject()) continue;
+            const QJsonObject obj = doc.object();
+            if (obj.value("event").toString() != "git_stash_list") continue;
+            const QJsonArray entries = obj.value("entries").toArray();
+            for (const QJsonValue& v : entries) {
+                const QJsonObject e   = v.toObject();
+                const QString ref     = e.value("ref").toString();
+                const QString subject = e.value("subject").toString();
+                const QString when    = e.value("when").toString();
+                auto* item = new QListWidgetItem(
+                    QString("%1  %2  (%3)").arg(ref, subject.left(50), when));
+                item->setData(Qt::UserRole, ref);
+                m_devStashList->addItem(item);
+            }
+            if (m_devStashList->count() == 0) {
+                auto* item = new QListWidgetItem("(nessuno stash)");
+                item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
+                m_devStashList->addItem(item);
+            }
+            if (m_devGitStashPopBtn)
+                m_devGitStashPopBtn->setEnabled(m_devStashList->count() > 0
+                    && (m_devStashList->item(0)->flags() & Qt::ItemIsEnabled));
+        }
+    });
+}
+
+void AppControllerPage::onDevAgentGitStashPopClicked()
+{
+    if (!m_devStashList) return;
+    auto* sel = m_devStashList->currentItem();
+    if (!sel || !(sel->flags() & Qt::ItemIsEnabled)) return;
+
+    const QString ref = sel->data(Qt::UserRole).toString();
+    if (ref.isEmpty()) return;
+
+    const QString script = P::root() + "/MCPs/devagent_mcp/server.py";
+    if (!QFile::exists(script)) return;
+    auto* proc = devGitProc(this, script);
+    if (!proc) return;
+
+    if (m_devLog) m_devLog->append(
+        QString("\xf0\x9f\x93\xa4  <b>git stash pop</b> %1...").arg(ref.toHtmlEscaped()));
+    if (m_devStatusLbl) m_devStatusLbl->setText("\xf0\x9f\x93\xa4  Applico stash...");
+
+    proc->write(QJsonDocument(QJsonObject{
+        {"cmd",          "git_stash_pop"},
+        {"project_root", P::root()},
+        {"ref",          ref}
+    }).toJson(QJsonDocument::Compact) + "\n");
+    proc->closeWriteChannel();
+
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            proc, [this, proc](int, QProcess::ExitStatus) {
+        const QString raw = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+        proc->deleteLater();
+        for (const QString& line : raw.split('\n', Qt::SkipEmptyParts)) {
+            const auto doc = QJsonDocument::fromJson(line.toUtf8());
+            if (!doc.isObject()) continue;
+            const QJsonObject obj = doc.object();
+            if (obj.value("event").toString() != "git_stash_done") continue;
+            const bool ok     = obj.value("success").toBool();
+            const QString msg = obj.value("msg").toString();
+            const QString icon = ok ? "\xf0\x9f\x9f\xa2" : "\xf0\x9f\x94\xb4";
+            if (m_devLog) m_devLog->append(
+                icon + "  <b>Stash pop</b>: " + msg.toHtmlEscaped());
+            if (m_devStatusLbl) m_devStatusLbl->setText(
+                ok ? "\xf0\x9f\x9f\xa2  Stash applicato"
+                   : "\xf0\x9f\x94\xb4  Stash pop fallito");
+            if (ok)
+                QTimer::singleShot(100, this,
+                    &AppControllerPage::onDevAgentGitStashListClicked);
+        }
+    });
+}
