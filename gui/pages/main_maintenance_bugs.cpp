@@ -8,6 +8,7 @@
    ══════════════════════════════════════════════════════════════ */
 #include "main_maintenance.h"
 #include "../prismalux_paths.h"
+#include "../widgets/model_combo_helper.h"
 namespace P = PrismaluxPaths;
 
 #include <QVBoxLayout>
@@ -395,18 +396,7 @@ QString ManutenzioneePage::currentBugModel() const
 
 void ManutenzioneePage::onBugModelsReady(const QStringList& list)
 {
-    if (!m_bugModelCombo) return;
-    const QString cur = currentBugModel();
-    m_bugModelCombo->blockSignals(true);
-    m_bugModelCombo->clear();
-    for (const auto& m : list) {
-        const qint64 sz = m_ai->modelSizeBytes(m);
-        m_bugModelCombo->addItem(P::modelIcon(sz, m) + m, m);
-    }
-    int idx = m_bugModelCombo->findData(cur);
-    if (idx < 0) idx = m_bugModelCombo->findData(m_ai->model());
-    if (idx >= 0) m_bugModelCombo->setCurrentIndex(idx);
-    m_bugModelCombo->blockSignals(false);
+    ModelComboHelper::populate(m_bugModelCombo, m_ai, list);
 }
 
 void ManutenzioneePage::onSearchBugClicked()

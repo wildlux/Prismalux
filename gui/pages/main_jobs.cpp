@@ -1,6 +1,8 @@
 #include "main_jobs.h"
 #include "main_jobs_data.h"
 #include "../prismalux_paths.h"
+#include "../widgets/proc_helper.h"
+#include "../widgets/model_combo_helper.h"
 namespace P = PrismaluxPaths;
 #include <QBrush>
 #include <QColor>
@@ -100,10 +102,9 @@ void LavoroPage::caricaCV(const QString& path) {
         m_cvStatus->setStyleSheet("color:#F44336;");
         return;
     }
-    QProcess proc;
-    proc.start("pdftotext", {path, "-"});
-    if (proc.waitForFinished(8000) && proc.exitCode() == 0) {
-        const QString txt = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
+    const auto pr = ProcHelper::run("pdftotext", {path, "-"}, 8000);
+    if (pr.ok) {
+        const QString txt = pr.out.trimmed();
         if (!txt.isEmpty()) {
             m_cvText = txt;
             m_cvStatus->setText(QString("\xe2\x9c\x85 CV caricato: %1 (%2 car.)")
@@ -145,31 +146,7 @@ void LavoroPage::applicaFiltri() {
    popolaModelli — aggiorna il combo con i modelli disponibili
    ══════════════════════════════════════════════════════════════ */
 void LavoroPage::popolaModelli(const QStringList& models) {
-    if (!m_cmbModello) return;
-    const QString current = m_cmbModello->currentData(Qt::UserRole).toString().isEmpty()
-                          ? m_cmbModello->currentText()
-                          : m_cmbModello->currentData(Qt::UserRole).toString();
-    m_cmbModello->blockSignals(true);
-    m_cmbModello->clear();
-    for (const auto& m : models) {
-        const qint64 sz = m_ai->modelSizeBytes(m);
-        m_cmbModello->addItem(P::modelIcon(sz, m) + m, m);
-        if (P::isKnownBrokenModel(m)) {
-            const int i = m_cmbModello->count() - 1;
-            m_cmbModello->setItemData(i, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
-            m_cmbModello->setItemData(i, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
-            m_cmbModello->setItemData(i,
-                P::knownBrokenModelTooltip(),
-                Qt::ToolTipRole);
-        }
-    }
-    const int idx = m_cmbModello->findData(current, Qt::UserRole);
-    m_cmbModello->setCurrentIndex(idx >= 0 ? idx : 0);
-    m_cmbModello->blockSignals(false);
-    if (m_modelloLbl) {
-        const QString raw = m_cmbModello->currentData(Qt::UserRole).toString();
-        m_modelloLbl->setText("\xf0\x9f\xa4\x96 " + (raw.isEmpty() ? m_cmbModello->currentText() : raw));
-    }
+    ModelComboHelper::populate(m_cmbModello, m_ai, models, m_modelloLbl);
 }
 
 /* ══════════════════════════════════════════════════════════════

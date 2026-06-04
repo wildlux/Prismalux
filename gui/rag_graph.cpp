@@ -1,5 +1,6 @@
 #include "rag_graph.h"
 #include "prismalux_paths.h"
+#include "widgets/proc_helper.h"
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
@@ -114,11 +115,7 @@ void RagGraph::processNextFile()
     QString text;
 
     if (path.endsWith(".pdf", Qt::CaseInsensitive)) {
-        /* pdftotext via subprocess */
-        QProcess proc;
-        proc.start("pdftotext", {path, "-"});
-        if (proc.waitForFinished(30000))
-            text = QString::fromUtf8(proc.readAllStandardOutput());
+        text = ProcHelper::run("pdftotext", {path, "-"}, 30000).out;
     } else {
         QFile f(path);
         if (f.open(QIODevice::ReadOnly | QIODevice::Text))

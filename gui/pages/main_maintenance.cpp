@@ -1,5 +1,6 @@
 #include "main_maintenance.h"
 #include "../prismalux_paths.h"
+#include "../widgets/model_combo_helper.h"
 namespace P = PrismaluxPaths;
 #include <QSettings>
 #include <QBrush>
@@ -1403,25 +1404,8 @@ void ManutenzioneePage::onApplyBtnClicked()
 
 void ManutenzioneePage::onBackendModelsReady(const QStringList& list)
 {
-    m_cmbModel->clear();
-    if (list.isEmpty()) {
-        m_cmbModel->addItem("(nessun modello \xe2\x80\x94 backend non raggiungibile)");
-        return;
-    }
-    for (const auto& nm : list) {
-        const qint64 sz = m_ai->modelSizeBytes(nm);
-        m_cmbModel->addItem(P::modelIcon(sz, nm) + nm, nm);  /* UserRole = nome raw */
-        if (P::isKnownBrokenModel(nm)) {
-            const int i = m_cmbModel->count() - 1;
-            m_cmbModel->setItemData(i, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
-            m_cmbModel->setItemData(i, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
-            m_cmbModel->setItemData(i,
-                P::knownBrokenModelTooltip(),
-                Qt::ToolTipRole);
-        }
-    }
-    int idx = m_cmbModel->findData(m_ai->model());
-    if (idx >= 0) m_cmbModel->setCurrentIndex(idx);
+    if (list.isEmpty()) { ModelComboHelper::setError(m_cmbModel); return; }
+    ModelComboHelper::populate(m_cmbModel, m_ai, list);
 }
 
 void ManutenzioneePage::onBackendModelsFetchError(const QString& msg)
