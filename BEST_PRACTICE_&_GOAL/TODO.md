@@ -1,6 +1,99 @@
 # Prismalux — TODO pendenti
 
-> Aggiornato: 2026-06-03 | Versione: 2.9
+> Aggiornato: 2026-06-05 | Versione: 2.9
+
+---
+
+## 🔬 Calcolo Scientifico Distribuito (BOINC-like) — TODO aperti
+
+> Sessione 2026-06-05 — sistema base implementato e funzionante (porta 11601,
+> SQLite WU queue, dispatch, quorum SHA-256, pipeline, LLM scientifico).
+> Queste 3 feature completerebbero il sistema per uso reale in laboratorio.
+
+---
+
+### [ ] WU Generator da dataset
+**Priorità: ALTA** — senza questo creare 1000 task è impossibile manualmente.
+
+Permettere di caricare un file (FASTA multi-sequenza, CSV, lista di UniProt ID)
+e generare automaticamente N Work Unit, una per ogni riga/sequenza del file.
+
+**Implementazione:**
+- Pulsante "📂 Genera WU da file" nel form Nuova Work Unit
+- Dialog: seleziona file + tipo task da applicare a ogni elemento + params template
+- Parser: FASTA (split per `>`), CSV (ogni riga = un WU), TXT (una riga = un WU)
+- Limita a max 500 WU per batch per evitare saturazione
+- Barra di progresso creazione WU
+- File: `gui/pages/main_sci_compute_wu_gen.cpp` (nuovo) oppure inline in `main_sci_compute_ui.cpp`
+
+**Esempio d'uso:**
+```
+File: sequences.fasta  (500 sequenze)
+Tipo: blastn
+→ crea 500 WU automaticamente, distribuite sui nodi disponibili
+```
+
+---
+
+### [ ] Result Aggregator
+**Priorità: ALTA** — senza questo i risultati restano isolati per WU.
+
+Dopo che tutte le WU di una pipeline (o di un batch) sono `done`/`validated`,
+aggregare gli output in un unico file scaricabile (CSV, JSON, FASTA, report HTML).
+
+**Implementazione:**
+- Pulsante "📊 Aggrega risultati" nella toolbar tabella WU
+- Selezione: tutte le WU con stesso `pipeline_id` oppure selezione manuale
+- Formato output configurabile: CSV (una riga per WU), JSON array, testo concatenato
+- Per BLAST: aggrega tabelle TSV in un unico file ordinato per e-value
+- Per LLM: concatena le risposte con separatori e intestazioni WU
+- Salva in `~/.prismalux/sci_results/YYYY-MM-DD_HH-MM_pipeline-id.csv`
+- File: `gui/pages/main_sci_compute_aggregator.cpp` (nuovo)
+
+**Esempio d'uso:**
+```
+500 WU blastn tutte done
+→ "Aggrega" → 1 file TSV con tutti i risultati + metadati (nodo, tempo, WU-id)
+```
+
+---
+
+### [ ] Credit counter per nodo
+**Priorità: MEDIA** — importante per capire affidabilità e contributo di ogni macchina.
+
+Tracciare per ogni nodo: ore CPU contribuite, WU completate con successo,
+WU fallite, WU conflitto quorum. Visualizzato nella tabella Nodi.
+
+**Implementazione:**
+- Nuove colonne in `sci_nodes` SQLite: `wu_done INTEGER`, `wu_error INTEGER`,
+  `cpu_seconds_total INTEGER`, `last_wu_completed INTEGER`
+- Aggiornare i contatori in `handleWorkerMessage()` quando arriva `t=result`
+- Colonne extra nella tabella Nodi: "WU✅", "WU❌", "CPU ore"
+- Badge colorato: verde se >90% successo, giallo se >70%, rosso sotto 70%
+- File: modifica `main_sci_compute.cpp` + `main_sci_compute_ui.cpp`
+
+**Esempio visualizzazione tabella Nodi:**
+```
+Nome      | CPU | RAM | Tool           | WU✅ | WU❌ | CPU ore | Status
+PC-Lab3   |  16 | 64  | blast R gmx    |  847 |    3 |   142h  | idle
+Laptop    |   8 | 16  | python3        |  203 |   12 |    31h  | busy
+```
+
+---
+
+### [ ] (extra) Progress streaming per task lunghi
+**Priorità: BASSA** — nice-to-have per simulazioni MD e BLAST su database grandi.
+
+GROMACS, BLAST e altri tool emettono progresso su stderr durante l'esecuzione.
+Catturarlo e trasmetterlo al coordinator in tempo reale (ogni 5s) invece di
+aspettare il completamento.
+
+**Implementazione:**
+- In `executeLocally()`: usare `QProcess::readyReadStandardError` invece di
+  aspettare `finished()`
+- Nuovo messaggio protocollo: `{"t":"progress","wu_id":"...","pct":45,"msg":"step 45000/100000"}`
+- In `handleWorkerMessage()`: aggiornare colonna Status con percentuale
+- Mostrare nella tabella WU: `🔄 running 45%` invece di `🔄 running`
 
 ---
 
