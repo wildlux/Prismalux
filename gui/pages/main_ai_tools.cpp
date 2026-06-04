@@ -18,6 +18,7 @@
 #include "../prismalux_paths.h"
 #include "../app_config.h"
 #include "../graph_memory.h"
+#include "../widgets/path_guard.h"
 namespace P = PrismaluxPaths;
 #include <QRegularExpression>
 #include <QJsonDocument>
@@ -376,11 +377,11 @@ void AgentiPage::runToolCall(const QJsonObject& call,
 
     /* ── Leggi file ── */
     if (tool == "leggi_file" || tool == "read_file" || tool == "leggi") {
-        const QString path = input.trimmed();
-        if (path.isEmpty()) { onDone("errore: percorso file non specificato"); return; }
-        QFile f(path);
+        const QString safe = PathGuard::checkRead(input);
+        if (safe.isEmpty()) { onDone(PathGuard::deniedMsg(input)); return; }
+        QFile f(safe);
         if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            onDone(QString("errore: impossibile aprire '%1' — %2").arg(path, f.errorString()));
+            onDone(QString("errore: impossibile aprire '%1' — %2").arg(safe, f.errorString()));
             return;
         }
         const QString content = QString::fromUtf8(f.readAll()).left(4000);
@@ -391,40 +392,40 @@ void AgentiPage::runToolCall(const QJsonObject& call,
 
     /* ── Lista file in cartella ── */
     if (tool == "lista_file" || tool == "list_files" || tool == "ls" || tool == "lista") {
-        const QString dirPath = input.trimmed();
-        if (dirPath.isEmpty()) { onDone("errore: percorso cartella non specificato"); return; }
-        QDir dir(dirPath);
+        const QString safe = PathGuard::checkDir(input);
+        if (safe.isEmpty()) { onDone(PathGuard::deniedMsg(input)); return; }
+        QDir dir(safe);
         if (!dir.exists()) {
-            onDone(QString("errore: cartella '%1' non trovata").arg(dirPath));
+            onDone(QString("errore: cartella '%1' non trovata").arg(safe));
             return;
         }
         const QStringList entries = dir.entryList(QDir::AllEntries | QDir::NoDotAndDotDot,
                                                    QDir::Name | QDir::DirsFirst);
         if (entries.isEmpty()) { onDone("(cartella vuota)"); return; }
-        /* Aggiunge '/' ai nomi di directory per distinguerli dai file */
         QStringList annotated;
         annotated.reserve(entries.size());
         for (const QString& e : entries) {
-            const QString full = dirPath + "/" + e;
-            annotated << (QFileInfo(full).isDir() ? e + "/" : e);
+            annotated << (QFileInfo(safe + "/" + e).isDir() ? e + "/" : e);
         }
         onDone(annotated.join("\n").left(2000));
         return;
     }
 
-    /* ── Scrivi file (richiede conferma utente) ── */
+    /* ── Scrivi file (PathGuard write + conferma utente) ── */
     if (tool == "scrivi_file" || tool == "write_file" || tool == "scrivi") {
-        /* Formato input: "percorso|||contenuto" */
         const int sep = input.indexOf("|||");
         if (sep < 0) {
             onDone("errore: formato scrivi_file deve essere \"percorso|||contenuto\"");
             return;
         }
-        const QString filePath = input.left(sep).trimmed();
+        const QString rawPath    = input.left(sep).trimmed();
         const QString fileContent = input.mid(sep + 3);
-        if (filePath.isEmpty()) { onDone("errore: percorso file non specificato"); return; }
+        if (rawPath.isEmpty()) { onDone("errore: percorso file non specificato"); return; }
 
-        /* Conferma utente: sicurezza — non scriviamo file silenziosamente */
+        const QString safe = PathGuard::checkWrite(rawPath);
+        if (safe.isEmpty()) { onDone(PathGuard::deniedMsg(rawPath)); return; }
+
+        /* Conferma utente */
         {
             auto* dlg = new QDialog(this);
             dlg->setWindowTitle("\xf0\x9f\x93\x9d  Scrivi file?");
@@ -433,7 +434,7 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             auto* lbl = new QLabel(
                 QString("L\xe2\x80\x99" "agente autonomo vuole scrivere il file:\n"
                         "<b>%1</b>\n\nContenuto (%2 caratteri):").arg(
-                    filePath.toHtmlEscaped(),
+                    safe.toHtmlEscaped(),
                     QString::number(fileContent.size())), dlg);
             lbl->setTextFormat(Qt::RichText);
             lbl->setWordWrap(true);
@@ -456,15 +457,14 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             if (!ok) { onDone("scrittura annullata dall\xe2\x80\x99utente"); return; }
         }
 
-        QFile f(filePath);
+        QFile f(safe);
         if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
-            onDone(QString("errore: impossibile scrivere '%1' — %2").arg(filePath, f.errorString()));
+            onDone(QString("errore: impossibile scrivere '%1' — %2").arg(safe, f.errorString()));
             return;
         }
         f.write(fileContent.toUtf8());
         f.close();
-        onDone(QString("file '%1' scritto con successo (%2 byte)")
-               .arg(filePath).arg(fileContent.toUtf8().size()));
+        onDone(QString("file '%1' scritto (%2 byte)").arg(safe).arg(fileContent.toUtf8().size()));
         return;
     }
 
@@ -473,9 +473,13 @@ void AgentiPage::runToolCall(const QJsonObject& call,
         const QString query = input.toLower().trimmed();
         if (query.isEmpty()) { onDone("errore: query vuota"); return; }
 
+        /* Le directory RAG sono fisse e consentite — verifica con PathGuard comunque */
         QStringList ragDirs;
-        ragDirs << QDir::homePath() + "/prismalux_rag_docs"
-                << P::root() + "/RAG";
+        for (const QString& d : {QDir::homePath() + "/prismalux_rag_docs",
+                                  P::root() + "/RAG"}) {
+            if (!PathGuard::checkDir(d).isEmpty())
+                ragDirs << d;
+        }
 
         QStringList hits;
         static const QStringList kExts = {"txt","md","pdf","csv","docx","doc","json","py","cpp","h"};
