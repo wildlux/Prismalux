@@ -22,6 +22,51 @@ static void loadBundledFonts() {
         QFontDatabase::addApplicationFont(fi.absoluteFilePath());
 }
 
+/* ── Emoji fallback font ─────────────────────────────────────────────────────
+   Registra NotoColorEmoji (o equivalente) e lo imposta come famiglia
+   di fallback globale per tutti i widget, garantendo la visualizzazione
+   delle emoji Unicode su qualsiasi sistema (Linux, Windows, macOS).       */
+static void setupEmojiFallback() {
+    /* Percorsi in ordine di priorità: bundle app → sistema Linux → Windows */
+    const QString appDir = QCoreApplication::applicationDirPath();
+    static const QStringList kCandidates = {
+        appDir + "/fonts/NotoColorEmoji.ttf",
+        "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+        "/usr/share/fonts/noto/NotoColorEmoji.ttf",
+        "/usr/share/fonts/noto-color-emoji/NotoColorEmoji.ttf",
+        "C:/Windows/Fonts/seguiemj.ttf",
+    };
+
+    for (const QString& p : kCandidates) {
+        if (QFile::exists(p)) {
+            QFontDatabase::addApplicationFont(p);
+            break;
+        }
+    }
+
+    /* Aggiunge le famiglie emoji disponibili come fallback per il font di app */
+    static const QStringList kEmojiFamilies = {
+        "Noto Color Emoji",
+        "Segoe UI Emoji",
+        "Apple Color Emoji",
+        "Twemoji Mozilla",
+        "Emoji One",
+        "EmojiOne Color",
+    };
+
+    const QStringList available = QFontDatabase::families();
+    QFont appFont = qApp->font();
+    QStringList families = appFont.families();
+    if (families.isEmpty()) families << appFont.family();
+
+    for (const QString& ef : kEmojiFamilies)
+        if (available.contains(ef) && !families.contains(ef))
+            families << ef;
+
+    appFont.setFamilies(families);
+    qApp->setFont(appFont);
+}
+
 static void handleSigInt(int) {
     QCoreApplication::quit();
 }
@@ -105,6 +150,9 @@ int main(int argc, char* argv[]) {
 
     /* ── Font professionali dalla cartella fonts/ (facoltativo) ── */
     loadBundledFonts();
+
+    /* ── Fallback emoji globale (NotoColorEmoji o equivalente) ── */
+    setupEmojiFallback();
 
     /* ── Internazionalizzazione (i18n) ────────────────────────────────────────
      * Carica la traduzione corrispondente alla locale di sistema se disponibile.

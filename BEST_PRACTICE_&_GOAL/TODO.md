@@ -70,7 +70,7 @@ START → read_context → generate_patch → apply_patch → compile
 ### 📋 Feature
 - [x] **Copia pip clipboard** — pulsante 📋 aggiunto in: main_tools_file (3x), widget_stable_diffusion, main_lan_wan GNS3, main_maintenance NPU — 2026-06-03
 - [x] **Chat: Canc = conferma, Shift+Canc = 5s undo** — eventFilter su m_chatList; QMessageBox::question per Canc; label "Annulla (5s)" + QTimer per Shift+Canc — `mainwindow.h/cpp/slots.cpp` — 2026-06-03
-- [ ] **Emoji Telegram nel software** — usare le emoji Unicode standard (già supportate da Qt); verificare che il font sistema abbia coverage completa; eventualmente bundlare Noto Emoji
+- [x] **Emoji Telegram nel software** — `setupEmojiFallback()` in `main.cpp`: cerca NotoColorEmoji nei path sistema+bundle, lo registra via `QFontDatabase::addApplicationFont`, imposta come fallback globale con `QFont::setFamilies()`; copiato in `build_gui/fonts/`; `aggiorna.sh` e `crea_appimage.sh` aggiornati per includerlo nel bundle — 2026-06-04
 - [x] **Tool use per modelli abilitati** — 9 tool disponibili: calc, fetch_url, ricerca, leggi_file, lista_file, python, **search_rag** (RAG locale), **graph_memory** (GraphMemory SQLite), **get_knowledge** (Knowledge Base); bolla HTML stilizzata in-place con status running→done/error — `main_ai_tools.cpp`, `main_ai_pipeline.cpp` — 2026-06-04
 - [x] **Grafico 3D: Punti/Wireframe/Superficie + movimento Blender** — `m_renderModeCombo` per Scatter3D/Grafo3D; `setRenderMode(int)` slot; Blender orbit (MMB/Alt+LMB) + pan (Shift+MMB) — `main_graph.h/cpp`, `main_graph_canvas.cpp` — 2026-06-03
 - [x] **Sezione Lavoro web** — tab "💼 Lavoro" in webchat.html + endpoint `GET /api/lavoro?q=QUERY` in lan_server.cpp; ricerca case-insensitive su azienda/ruolo/sede — 2026-06-03

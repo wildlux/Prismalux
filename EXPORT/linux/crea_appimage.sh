@@ -141,6 +141,21 @@ else
   warn "Cartella themes/ non trovata accanto al binario — esegui prima ./aggiorna.sh --gui"
 fi
 
+# Copia fonts/ (NotoColorEmoji + eventuali font custom)
+FONTS_SRC="$(dirname "$GUI_BIN")/fonts"
+if [[ -d "$FONTS_SRC" ]]; then
+  cp -r "$FONTS_SRC" "${APPDIR}/usr/bin/fonts"
+  ok "Font copiati → AppDir/usr/bin/fonts/ ($(ls "${APPDIR}/usr/bin/fonts/" 2>/dev/null | wc -l) file)"
+else
+  # Prova a copiare NotoColorEmoji dal sistema se fonts/ non esiste
+  NOTO="/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf"
+  if [[ -f "$NOTO" ]]; then
+    mkdir -p "${APPDIR}/usr/bin/fonts"
+    cp "$NOTO" "${APPDIR}/usr/bin/fonts/"
+    ok "NotoColorEmoji.ttf copiato dal sistema → AppDir/usr/bin/fonts/"
+  fi
+fi
+
 # ── 5. Funzione: copia una .so con tutte le sue dipendenze ─────
 _copy_lib() {
   local lib="$1"

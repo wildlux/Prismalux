@@ -269,6 +269,15 @@ if [ "$DO_GUI" = "1" ]; then
 
         [ -f "$GUI_BIN" ] || fail "Binario GUI non trovato: $GUI_BIN"
         ok "GUI compilata → $GUI_BIN"
+
+        # Copia NotoColorEmoji nella cartella fonts/ della build (fallback emoji)
+        NOTO_EMOJI_SRC="/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf"
+        FONTS_DIR="$QT_BUILD/fonts"
+        if [ -f "$NOTO_EMOJI_SRC" ] && [ ! -f "$FONTS_DIR/NotoColorEmoji.ttf" ]; then
+            mkdir -p "$FONTS_DIR"
+            cp "$NOTO_EMOJI_SRC" "$FONTS_DIR/"
+            ok "NotoColorEmoji.ttf copiato → $FONTS_DIR/"
+        fi
     fi
 
     # Desktop entry solo su Linux
