@@ -26,6 +26,7 @@
 #include <QHeaderView>
 #include <QTextEdit>
 #include <QScrollArea>
+#include <QFrame>
 #include <QRadioButton>
 #include <QButtonGroup>
 #include <QDateTime>
@@ -194,7 +195,8 @@ QWidget* SciComputePage::buildUi()
     /* Params JSON */
     formLay->addWidget(new QLabel("Parametri JSON:", createGroup));
     m_paramsEdit = new QTextEdit(createGroup);
-    m_paramsEdit->setFixedHeight(dpiScale(110));
+    m_paramsEdit->setMinimumHeight(dpiScale(90));
+    m_paramsEdit->setMaximumHeight(dpiScale(200));
     m_paramsEdit->setPlaceholderText("{}");
     m_paramsEdit->setObjectName("codeEdit");
     formLay->addWidget(m_paramsEdit);
@@ -226,8 +228,15 @@ QWidget* SciComputePage::buildUi()
     addBtn->setObjectName("primaryBtn");
     formLay->addWidget(addBtn);
 
-    createGroup->setFixedWidth(dpiScale(320));
-    topLay->addWidget(createGroup);
+    /* Scroll area per il form — evita overflow/sovrapposizione quando
+       la finestra è bassa. Il form ha ~360px di altezza naturale. */
+    auto* formScroll = new QScrollArea(topWidget);
+    formScroll->setFixedWidth(dpiScale(326));
+    formScroll->setWidgetResizable(true);
+    formScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    formScroll->setFrameShape(QFrame::NoFrame);
+    formScroll->setWidget(createGroup);
+    topLay->addWidget(formScroll);
 
     /* Pannello destra: tabella WU */
     auto* wuGroup = new QGroupBox(
