@@ -19,12 +19,12 @@ Windows: `build.bat` trova Python ed esegue `build.py`. Prima volta: `COMPILE_WI
 Header (72px): logo · backend · model · CPU/RAM/GPU · spinner · ⚙️
 [0] 🤖 Intelligenza Artificiale  Alt+1  Pipeline + Byzantino + CHAT RAG + Agente Autonomo
 [1] 🛠 Strumenti                  Alt+2  Assistente AI · 💰 Finanza (730/PIVA/Calcolatori/TFR) · ⏱ Cron · Impara · Sfida!
-[2] 🎬 Multimedia                        Audio AI (Whisper STT+TTS) · Stable Diffusion · Mappe Graphviz
+[2] 🎬 Multimedia                        Audio AI · Genera Immagini · 🕸 Mappe concettuali · 🗺 Mappa OSM · Sintetizzatore · OCR webcam
 [3] 📁 File AI                           File AI · Wiki & Web · Excel/CSV · PDF · Word/Testo
 [4] 💻 Programmazione            Alt+3  Editor+AI · Agentica · Translitter · Reverse Eng. · Git · REPL · Interpreter · Rete · Driver
 [5] π  Matematica                Alt+4  Sequenza→Formula · Costanti · N-esimo · Espressione · Risolvi Passi (SymPy+🔀) · Analisi 1&2 (LaTeX KaTeX)
 [6] 🔬 Ricerca                   Alt+5  Paper · Brevetti · Lavoro · Cytoscape—Bio · RDKit · Bioconda · RAB₀-L · BLHM · Analisi Fenomeni · 🕸️ Grafo RAG · Astrale
-[7] 🕹 APP Controller            Alt+6  Blender/FreeCAD/Office/CloudCompare/Anki/KiCAD/TinyMCP/OBS/OpenCode/Godot
+[7] 🕹 APP Controller            Alt+6  Blender/FreeCAD/Office/CloudCompare/Anki/KiCAD/TinyMCP/OBS/OpenCode/Godot · 🤖 Dev Agent
 [8] 🌐 LAN & WAN                         LAN Android (QR/ADB) · GNS3 MCP · WAN Compute (🧠 Solo PC | 🌐 Rete LAN → Multi-Agente + GraphMemory)
 ImpostazioniPage: dialog modale (⚙️ header)
 ```
@@ -32,7 +32,8 @@ Note:
 - `LavoroPage` è in StrumentiPage (`m_lavoroPage`), NON in mainwindow
 - Cron (`m_cronPanel`) in StrumentiPage via `installCronPanel()` con `QTimer::singleShot(0)`
 - Cytoscape/RDKit/Bioconda/Avogadro → Ricerca [6]; GNS3 → LAN & WAN [8]; Godot → AppController [7]
-- AppController tab indici: 0=Blender 1=FreeCAD 2=Office 3=CloudCompare 4=Anki 5=KiCAD 6=TinyMCP 7=OBS 8=OpenCode 9=Godot
+- AppController tab indici: 0=Blender 1=FreeCAD 2=Office 3=CloudCompare 4=Anki 5=KiCAD 6=TinyMCP 7=OBS 8=OpenCode 9=Godot 10=Dev Agent
+- Multimedia tab indici: 0=Audio AI 1=Genera Immagini 2=Mappe concettuali 3=Mappa OSM 4=Sintetizzatore 5=OCR webcam
 - Web app (lan_server.cpp) tab 🎙️ Voce: TTS (SpeechSynthesis) + STT (MediaRecorder→/api/whisper)
 
 ## Struttura cartelle repo
@@ -87,8 +88,10 @@ Prismalux/
 | `widgets/latex_view.h` | LatexView (QWebEngineView+KaTeX o QTextEdit fallback) per formule |
 | `widgets/ai_error_widget.h` | Header-only Q_OBJECT — `showError(msg, onRetry)` — elencato in CPP_SRCS |
 | `widgets/code_interpreter_widget.h/cpp` | Python sandbox: exec, matplotlib PNG, Docker |
+| `widgets/world_map_widget.h/cpp` | WorldMapWidget OpenStreetMap tiles + Nominatim + routing OSRM (waypoint, polyline, draw) |
 | `MCPs/knowledge_mcp/server.py` | Knowledge Updater MCP (JSON-RPC 2.0 stdio) |
 | `MCPs/ollama_mcp/server.py` | Ollama model cache MCP — SQLite TTL 5min, 5 tool (list/info/search/sync/pull) |
+| `MCPs/devagent_mcp/server.py` | Dev Agent LangGraph — loop Python fallback, 28 tool IPC, git log/restore/fetch/stash |
 
 ## Convenzioni critiche
 
@@ -284,6 +287,48 @@ v->setLatexHtml(htmlWithLatex, "#1e293b", "#e2e8f0");
 // richiede Qt6::WebEngineWidgets + libjs-katex (/usr/share/javascript/katex/)
 // fallback automatico a QTextEdit se HAVE_WEBENGINE_WIDGETS non definito
 ```
+
+## WorldMapWidget routing (`widgets/world_map_widget.h`)
+```cpp
+WorldMapWidget* map = new WorldMapWidget(parent);
+// Modalità itinerario (click = aggiungi waypoint invece di singolo marker)
+map->setRouteMode(true);
+map->addWaypoint(lat, lon, "A");        // aggiunge tappa con etichetta
+map->clearRoute();                       // pulisce waypoint + polyline
+map->setRouteLine(pts);                  // imposta polyline da OSRM (QVector<QPair<double,double>>)
+const auto& wps = map->waypoints();      // legge waypoint attuali
+// Segnali
+connect(map, &WorldMapWidget::waypointAdded, this, [](int idx, double lat, double lon){});
+// Decoder polyline Google Encoded (usato da OSRM):
+//   decodePolyline(QByteArray encoded) → QVector<QPair<double,double>>
+// OSRM endpoint: https://router.project-osrm.org/route/v1/{driving|foot|bike}/{lon,lat;...}
+//   ?overview=full&geometries=polyline
+// Disegno: drawWaypoints (A=verde/B=rosso/tappe=arancio) + drawRouteLine (blu 3.5px)
+```
+
+## Dev Agent (`MCPs/devagent_mcp/server.py` + `main_app_controller.*`)
+Layout tab Dev Agent [AppController → 10]:
+- **Colonna sinistra 65%** (QSplitter H): Log agente step-by-step + Diff generato
+- **Colonna destra 35%** (QScrollArea): Cronologia snapshot + Ripristina da Git/GitHub
+
+Comandi IPC Python (stdin JSON newline):
+```json
+{"cmd": "list_history"}                          // → event: history_list
+{"cmd": "restore", "backup_id": "..."}           // → event: restore_done
+{"cmd": "git_log", "project_root": "...", "n": 25}        // → event: git_log
+{"cmd": "git_restore", "project_root":"...", "commit":"...", "files":[]}  // → reset hard
+{"cmd": "git_fetch_reset", "project_root":"...", "branch":"master"}       // → fetch+reset
+{"cmd": "git_stash_push", "project_root":"...", "message":"..."}          // → stash push
+{"cmd": "git_stash_list", "project_root":"..."}  // → event: git_stash_list
+{"cmd": "git_stash_pop",  "project_root":"...", "ref":"stash@{0}"}        // → stash pop
+```
+Slot Qt: `onDevAgentGitLogClicked`, `onDevAgentGitRestoreClicked`, `onDevAgentGitFetchResetClicked`,
+`onDevAgentGitStashPushClicked`, `onDevAgentGitStashListClicked`, `onDevAgentGitStashPopClicked`
+
+## Analisi 1/2 (Matematica)
+- Pulsante **"Risolvi nella scheda accanto"** — copia la formula in "Risolvi Passi" e cambia tab
+- Pulsante **"Disegna grafico"** — traccia f(x) / f(x,y) nel GraficoCanvas a destra dello splitter
+- Sezione vision AI ("Grafico → Formula") posizionata SOTTO i pulsanti Traccia/Reset vista (fuori QScrollArea)
 
 ## Suite di Test
 ```bash

@@ -46,6 +46,8 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 | 🎙️ **TTS + STT ovunque** | Web app: tab "Voce" con SpeechSynthesis + MediaRecorder→Whisper. APK Android: QTextToSpeech box + fix STT upload |
 | 🔢 **LaTeX KaTeX** | Pannelli teoria Analisi 1/2 renderizzati con KaTeX (QWebEngineView). Pannello 🔬 output AI. Prompt AI aggiornati. |
 | 🔀 **Randomizer formule** | 52 formule categorizzate in Risolvi Passi (equazioni/derivate/integrali/limiti/semplificazioni/disequazioni) |
+| 🗺️ **Mappa OSM + routing** | Tab "🗺 Mappa OSM" in Multimedia: WorldMapWidget con itinerari multi-tappa (A→B→C), routing OSRM (Auto/Piedi/Bici), polyline colorata, distanza km + tempo stimato |
+| 🤖 **Dev Agent 2 colonne** | AppController [10]: layout QSplitter H — Log+Diff a sinistra, Cronologia+Git a destra; 6 slot git: log, restore, fetch+reset GitHub, stash push/list/pop |
 | 🧪 **Test suite** | 41 suite ctest (38 no-Ollama) — include CAT-E SymPy (15 test reali) + GraphMemory (65 test: nodi/archi/BFS/SQL-injection/`changed()`) |
 | ☕ **Donazione PayPal** | Badge README, pulsante Sponsor GitHub (`.github/FUNDING.yml`), pulsante in Impostazioni e APK |
 | 💼 **Scheda TFR** | C.F. calcolato automaticamente (D.M. 1976 + ~150 comuni/paesi), calcolo rivalutato, Compila da RAG |
@@ -69,6 +71,7 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 | 💭 **Think Mode** | Ragionamento `<think>` espandibile inline, budget 1-4, auto-classificatore query |
 | 🧠 **Memoria cross-sessione** | Knowledge Base automatica in `user_knowledge.md`; MCP Knowledge Updater |
 | 🔢 **LaTeX KaTeX** | Formule matematiche renderizzate con KaTeX (QWebEngineView) in Analisi 1/2 + output AI |
+| 🗺️ **Mappa OSM** | Mappa OpenStreetMap interattiva con itinerari multi-tappa e routing OSRM (Auto/Piedi/Bici) — offline tile cache |
 | 🎨 **Stable Diffusion** | Generazione immagini via AUTOMATIC1111/Forge/SD.Next (API locale) |
 | 🔬 **105 Simulazioni** | Algoritmi visualizzati barra per barra con spiegazione e complessità O-grande |
 | 🔗 **18 Plugin MCP** | JSON-RPC 2.0 stdio — Blender, Office, GNS3, RDKit, Cytoscape, OBS, Godot, **Ollama cache**... |
@@ -85,12 +88,12 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 |---|-----|----------|-----------|
 | 0 | 🤖 **Intelligenza Artificiale** | `Alt+1` | Pipeline 6 agenti · Byzantino · CHAT RAG · Agente Autonomo ReAct |
 | 1 | 🛠 **Strumenti** | `Alt+2` | Assistente AI · 💰 Finanza (730, P.IVA, Calcolatori, TFR) · ⏱ Cron · Impara · Sfida! |
-| 2 | 🎬 **Multimedia** | — | Audio AI (Whisper STT + TTS) · Stable Diffusion · Mappe Graphviz |
+| 2 | 🎬 **Multimedia** | — | Audio AI (Whisper STT + TTS) · Stable Diffusion · 🕸 Mappe concettuali · **🗺 Mappa OSM** (itinerari OSRM) · Sintetizzatore · OCR webcam |
 | 3 | 📁 **File AI** | — | Analisi file · Wiki & Web · Excel/CSV · PDF · Word/Testo |
 | 4 | 💻 **Programmazione** | `Alt+3` | Editor+AI · Agentica · Translitter · Reverse Eng. · Git MCP · Python REPL · Interpreter · Rete & Network · Driver & Kernel |
 | 5 | π **Matematica** | `Alt+4` | Sequenza→Formula · Costanti · N-esimo · Espressione · **Risolvi Passi** (🔀 52 formule) · Analisi 1&2 (**LaTeX KaTeX**) |
 | 6 | 🔬 **Ricerca** | `Alt+5` | Paper · Brevetto · Cerca arXiv/Brevetti · Lavoro · Cytoscape—Bio · RDKit · Bioconda · RAB₀-L · BLHM · Analisi Fenomeni · **🕸️ Grafo RAG** · Astrale |
-| 7 | 🕹 **APP Controller** | `Alt+6` | Blender · FreeCAD · Office · CloudCompare · Anki · KiCAD · TinyMCP · OBS · OpenCode · Godot |
+| 7 | 🕹 **APP Controller** | `Alt+6` | Blender · FreeCAD · Office · CloudCompare · Anki · KiCAD · TinyMCP · OBS · OpenCode · Godot · **🤖 Dev Agent** (git restore + LangGraph) |
 | 8 | 🌐 **LAN & WAN** | — | LAN Android (QR APK · ADB USB) · GNS3 MCP · **WAN Compute** (🧠 Solo questo PC \| 🌐 Rete LAN) → MasterAgent → Sub-agenti → **GraphMemory** |
 | ⚙️ | **Impostazioni** | header | Backend AI · Modelli · Think Mode · Voce · Visual · Hardware · Memoria · Test |
 
