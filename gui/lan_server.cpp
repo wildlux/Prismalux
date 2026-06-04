@@ -13,6 +13,7 @@
 #include <cmath>
 #include "prismalux_paths.h"
 #include "pages/main_jobs_data.h"
+#include "widgets/proc_helper.h"
 namespace P = PrismaluxPaths;
 
 #ifdef HAVE_QKEYCHAIN
@@ -133,15 +134,14 @@ bool LanServer::_ensureCert(QString& certPath, QString& keyPath)
     if (QFileInfo::exists(certPath) && QFileInfo::exists(keyPath))
         return true;
 
-    QProcess proc;
-    proc.start("openssl", {
+    const auto r = ProcHelper::run("openssl", {
         "req", "-x509", "-newkey", "rsa:2048", "-nodes",
         "-days", "3650",
         "-keyout", keyPath,
         "-out",    certPath,
         "-subj",   "/CN=Prismalux-LAN"
-    });
-    if (!proc.waitForFinished(10000) || proc.exitCode() != 0) {
+    }, 10000);
+    if (!r.ok) {
         qWarning() << "LanServer: openssl non disponibile — TLS disabilitato";
         return false;
     }

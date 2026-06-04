@@ -4,6 +4,7 @@
 #include <QMap>
 #include <QSet>
 #include <QPixmap>
+#include <QTimer>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -33,16 +34,23 @@ public:
     QSize minimumSizeHint() const override { return {200, 100}; }
 
     /* ── Route / Itinerario ── */
-    void setRouteMode(bool on);           // true → click aggiunge waypoint invece del marker
+    void setRouteMode(bool on);
     void addWaypoint(double lat, double lon, const QString& label = {});
+    void insertStartWaypoint(double lat, double lon, const QString& label = {});
     void clearRoute();
     void setRouteLine(const QVector<QPair<double,double>>& pts);
-    const QVector<QPair<double,double>>& waypoints() const { return m_waypointCoords; }
+    const QVector<QPair<double,double>>& waypoints()     const { return m_waypointCoords; }
+    const QVector<QString>&             waypointLabels() const { return m_waypointLabels; }
+
+    /* ── Tile offline ── */
+    void downloadVisibleTiles();   // scarica i tile visibili nella cache disco
 
 signals:
     void coordsChanged(double lat, double lon);
     void cityNameChanged(const QString& name);
     void waypointAdded(int idx, double lat, double lon);
+    void waypointsReset();                               // lista waypoint ricostruita (insertStart)
+    void tileDownloadProgress(int done, int total);      // avanzamento download offline
 
 protected:
     void paintEvent(QPaintEvent*) override;
@@ -52,6 +60,7 @@ protected:
     void mouseReleaseEvent(QMouseEvent*) override;
     void mouseDoubleClickEvent(QMouseEvent*) override;
     void resizeEvent(QResizeEvent*) override;
+    void contextMenuEvent(QContextMenuEvent*) override;
 
 private slots:
     void onTileReady(QNetworkReply* reply);
@@ -79,9 +88,20 @@ private:
 
     /* route */
     bool    m_routeMode = false;
-    QVector<QPair<double,double>> m_waypointCoords;  // (lat, lon)
+    QVector<QPair<double,double>> m_waypointCoords;
     QVector<QString>              m_waypointLabels;
-    QVector<QPair<double,double>> m_routeLine;        // polyline OSRM
+    QVector<QPair<double,double>> m_routeLine;
+
+    /* context menu — coordinate right-click */
+    double  m_ctxLat = 0.0;
+    double  m_ctxLon = 0.0;
+
+    /* tile offline download */
+    struct TileJob { int z, x, y; };
+    QVector<TileJob> m_dlQueue;
+    QTimer*          m_dlTimer  = nullptr;
+    int              m_dlDone   = 0;
+    QString          m_tileDir; // ~/.local/share/Prismalux/osm_tiles/
 
     /* zoom/pan */
     int     m_zoom      = 3;

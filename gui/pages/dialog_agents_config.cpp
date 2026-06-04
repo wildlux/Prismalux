@@ -2,6 +2,7 @@
 #include "../dpi_utils.h"
 #include "../prismalux_paths.h"
 #include "../ai_client.h"
+#include "../widgets/model_combo_helper.h"
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -962,30 +963,10 @@ void AgentsConfigDialog::setupUI() {
 
 void AgentsConfigDialog::setModels(const QStringList& models, AiClient* ai) {
     for (int i = 0; i < MAX_AGENTS; i++) {
-        /* Salva il nome raw dal UserRole (non il testo display con icona) */
-        const QString cur = m_modelCombo[i]->currentData().toString().isEmpty()
-                          ? m_modelCombo[i]->currentText()
-                          : m_modelCombo[i]->currentData().toString();
-        m_modelCombo[i]->clear();
-        for (const auto& m : models) {
-            const qint64 sz = ai ? ai->modelSizeBytes(m) : 0;
-            const QString display = ai ? (P::modelIcon(sz, m) + m) : m;
-            m_modelCombo[i]->addItem(display, m);  /* UserRole = nome raw */
-            if (P::isKnownBrokenModel(m)) {
-                const int idx = m_modelCombo[i]->count() - 1;
-                m_modelCombo[i]->setItemData(idx, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
-                m_modelCombo[i]->setItemData(idx, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
-                m_modelCombo[i]->setItemData(idx,
-                    P::knownBrokenModelTooltip(),
-                    Qt::ToolTipRole);
-            }
-        }
-        if (m_modelCombo[i]->count() == 0)
-            m_modelCombo[i]->addItem("(nessun modello)");
-        /* Ripristina selezione per UserRole (nome raw, indipendente dall'icona) */
-        int idx = m_modelCombo[i]->findData(cur);
-        if (idx < 0) idx = m_modelCombo[i]->findText(cur);
-        if (idx >= 0) m_modelCombo[i]->setCurrentIndex(idx);
+        if (models.isEmpty())
+            ModelComboHelper::setError(m_modelCombo[i]);
+        else
+            ModelComboHelper::populate(m_modelCombo[i], ai, models);
     }
 }
 

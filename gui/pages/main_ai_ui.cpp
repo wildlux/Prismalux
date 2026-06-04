@@ -44,6 +44,7 @@ namespace P = PrismaluxPaths;
 #include <QTextDocument>
 #include <QTextCursor>
 #include "../widgets/stt_whisper.h"
+#include "../widgets/model_combo_helper.h"
 #include "../widgets/chart_widget.h"
 #include "../widgets/formula_parser.h"
 #include "dialog_agents_config.h"
@@ -1179,9 +1180,7 @@ void AgentiPage::onToolChkToggled(bool on)
 void AgentiPage::onCmbLLMIndexChanged(int idx)
 {
     if (idx < 0 || !m_cmbLLM) return;
-    const QString mdl = m_cmbLLM->currentData(Qt::UserRole).toString().isEmpty()
-                      ? m_cmbLLM->currentText()
-                      : m_cmbLLM->currentData(Qt::UserRole).toString();
+    const QString mdl = ModelComboHelper::currentModel(m_cmbLLM);
     if (mdl.isEmpty() || mdl == "(caricamento...)") return;
     m_pageModel = mdl;
     m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), mdl);

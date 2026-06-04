@@ -23,6 +23,7 @@ namespace P = PrismaluxPaths;
 #include <algorithm>
 #include "../widgets/formula_parser.h"
 #include "../widgets/chart_widget.h"
+#include "../widgets/model_combo_helper.h"
 #include "dialog_agents_config.h"
 
 /* ══════════════════════════════════════════════════════════════
@@ -323,9 +324,7 @@ void AgentiPage::runAgent(int idx) {
        In pipeline multi-agente usa il modello assegnato nel dialog Configura Agenti. */
     QString selectedModel;
     if (m_maxShots == 1 && m_cmbLLM) {
-        selectedModel = m_cmbLLM->currentData(Qt::UserRole).toString().isEmpty()
-                      ? m_cmbLLM->currentText()
-                      : m_cmbLLM->currentData(Qt::UserRole).toString();
+        selectedModel = ModelComboHelper::currentModel(m_cmbLLM);
     } else {
         selectedModel = m_cfgDlg->modelCombo(idx)->currentData().toString();
         if (selectedModel.isEmpty()) selectedModel = m_cfgDlg->modelCombo(idx)->currentText();
@@ -337,11 +336,7 @@ void AgentiPage::runAgent(int idx) {
         || selectedModel == "(nessun modello)"
         || _isEmbeddingModel(selectedModel))
     {
-        const QString fallback = m_cmbLLM
-            ? (m_cmbLLM->currentData(Qt::UserRole).toString().isEmpty()
-               ? m_cmbLLM->currentText()
-               : m_cmbLLM->currentData(Qt::UserRole).toString())
-            : QString();
+        const QString fallback = ModelComboHelper::currentModel(m_cmbLLM);
         if (!fallback.isEmpty() && !_isEmbeddingModel(fallback))
             selectedModel = fallback;
     }

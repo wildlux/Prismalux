@@ -3,6 +3,7 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QResizeEvent>
+#include <QContextMenuEvent>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
@@ -18,6 +19,11 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QUrlQuery>
+#include <QMenu>
+#include <QAction>
+#include <QDir>
+#include <QFile>
+#include <QStandardPaths>
 #include <cmath>
 
 /* ── Coordinate math (Web Mercator / EPSG:3857) ─────────────────
@@ -71,10 +77,21 @@ void WorldMapWidget::requestTile(int z, int x, int y)
     if (m_cache.size() >= kMaxCache)
         m_cache.remove(m_cache.firstKey());
 
+    /* Controlla cache disco prima della rete */
+    if (!m_tileDir.isEmpty()) {
+        const QString diskPath = m_tileDir + QString("%1/%2/%3.png").arg(z).arg(x).arg(y);
+        QPixmap pix;
+        if (pix.load(diskPath)) {
+            m_cache.insert(key, pix);
+            update();
+            return;
+        }
+    }
+
     m_pending.insert(key);
     const QUrl url(QString("https://tile.openstreetmap.org/%1/%2/%3.png").arg(z).arg(x).arg(y));
     QNetworkRequest req(url);
-    req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/2.8 (educational desktop app)");
+    req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/2.9 (educational desktop app)");
     req.setAttribute(QNetworkRequest::CacheLoadControlAttribute,
                      QNetworkRequest::PreferCache);
     m_net->get(req);
@@ -98,11 +115,29 @@ void WorldMapWidget::onTileReady(QNetworkReply* reply)
     const QString key = tileKey(z, x, y);
     m_pending.remove(key);
 
-    if (reply->error() != QNetworkReply::NoError) return;
+    if (reply->error() != QNetworkReply::NoError) {
+        /* Download offline: conta come completato anche se errore */
+        if (m_dlDone > 0) {
+            ++m_dlDone;
+            emit tileDownloadProgress(m_dlDone, m_dlQueue.size() + m_dlDone);
+        }
+        return;
+    }
 
+    const QByteArray data = reply->readAll();
     QPixmap pix;
-    if (pix.loadFromData(reply->readAll())) {
+    if (pix.loadFromData(data)) {
         m_cache.insert(key, pix);
+
+        /* Salva su disco se in modalità download offline */
+        if (!m_tileDir.isEmpty()) {
+            const QString dir  = m_tileDir + QString("%1/%2").arg(z).arg(x);
+            const QString path = dir + QString("/%1.png").arg(y);
+            if (!QFile::exists(path)) {
+                QDir().mkpath(dir);
+                pix.save(path, "PNG");
+            }
+        }
         update();
     }
 }
@@ -123,6 +158,26 @@ WorldMapWidget::WorldMapWidget(QWidget* parent) : QWidget(parent)
     m_net->setAutoDeleteReplies(true);
     connect(m_net, &QNetworkAccessManager::finished,
             this,  &WorldMapWidget::onTileReady);
+
+    /* Cache tile su disco */
+    m_tileDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+                + "/osm_tiles/";
+    QDir().mkpath(m_tileDir);
+
+    /* Timer download offline (100ms tra un tile e l'altro — rispetta usage policy OSM) */
+    m_dlTimer = new QTimer(this);
+    m_dlTimer->setInterval(100);
+    connect(m_dlTimer, &QTimer::timeout, this, [this] {
+        if (m_dlQueue.isEmpty()) {
+            m_dlTimer->stop();
+            emit tileDownloadProgress(m_dlDone, m_dlDone);
+            return;
+        }
+        const auto job = m_dlQueue.takeFirst();
+        ++m_dlDone;
+        requestTile(job.z, job.x, job.y);
+        emit tileDownloadProgress(m_dlDone, m_dlDone + m_dlQueue.size());
+    });
 
     /* centra su Roma */
     const QPointF wp = latLonToWorld(41.9, 12.5);
@@ -362,6 +417,26 @@ void WorldMapWidget::onResultActivated(QListWidgetItem* item)
     emit cityNameChanged(nm);
     m_resultList->hide();
     m_searchEdit->clear();
+
+    /* In modalità percorso: propone menu "Aggiungi alla rotta" */
+    if (m_routeMode) {
+        QMenu menu(this);
+        menu.addAction(
+            "\xf0\x9f\x9f\xa2  Imposta come Partenza: " + nm,
+            this, [this, lat, lon] {
+                insertStartWaypoint(lat, lon);
+            });
+        menu.addAction(
+            "\xe2\x9e\x95  Aggiungi come Tappa: " + nm,
+            this, [this, lat, lon] {
+                addWaypoint(lat, lon);
+                emit waypointAdded(m_waypointCoords.size() - 1, lat, lon);
+            });
+        /* Posiziona il menu sotto la barra di ricerca */
+        const QPoint pos = m_searchBar->mapToGlobal(
+            QPoint(0, m_searchBar->height() + 2));
+        menu.exec(pos);
+    }
 }
 
 /* ── paintEvent ─────────────────────────────────────────────────── */
@@ -596,11 +671,94 @@ void WorldMapWidget::drawRouteLine(QPainter& p)
         screen.append(worldToScreen(wp.x(), wp.y()));
     }
 
-    /* Ombra percorso */
     p.setPen(QPen(QColor(0, 0, 0, 60), 5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     p.drawPolyline(screen.data(), screen.size());
 
-    /* Percorso blu */
     p.setPen(QPen(QColor(37, 99, 235), 3.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     p.drawPolyline(screen.data(), screen.size());
+}
+
+/* ── Menu contestuale (tasto destro) ───────────────────────────── */
+
+void WorldMapWidget::contextMenuEvent(QContextMenuEvent* e)
+{
+    if (!m_routeMode) { e->ignore(); return; }
+
+    const QPointF w = screenToWorld(e->pos().x(), e->pos().y());
+    worldToLatLon(w.x(), w.y(), m_ctxLat, m_ctxLon);
+
+    QMenu menu(this);
+    menu.addAction(
+        "\xf0\x9f\x9f\xa2  Imposta come Partenza",
+        this, [this] {
+            insertStartWaypoint(m_ctxLat, m_ctxLon);
+        });
+    menu.addAction(
+        "\xe2\x9e\x95  Aggiungi Tappa",
+        this, [this] {
+            addWaypoint(m_ctxLat, m_ctxLon);
+            emit waypointAdded(m_waypointCoords.size() - 1, m_ctxLat, m_ctxLon);
+        });
+    menu.exec(e->globalPos());
+    e->accept();
+}
+
+/* ── insertStartWaypoint — inserisce in posizione 0 e ri-etichetta ── */
+
+void WorldMapWidget::insertStartWaypoint(double lat, double lon, const QString& label)
+{
+    m_waypointCoords.prepend({lat, lon});
+    m_waypointLabels.prepend(label.isEmpty() ? "A" : label);
+    /* Ri-assegna etichette A, B, C... dall'inizio */
+    for (int i = 0; i < m_waypointLabels.size(); ++i)
+        m_waypointLabels[i] = QString::fromLatin1("%1").arg(QChar('A' + i % 26));
+    update();
+    emit waypointsReset();
+}
+
+/* ── downloadVisibleTiles — scarica i tile visibili nella cache disco ── */
+
+void WorldMapWidget::downloadVisibleTiles()
+{
+    if (m_dlTimer->isActive()) return;  /* download già in corso */
+
+    m_dlQueue.clear();
+    m_dlDone = 0;
+
+    /* Scarica zoom corrente + zoom-1 per avere un livello overview */
+    const int zMin = qMax(kMinZoom, m_zoom - 1);
+    const int zMax = m_zoom;
+
+    for (int z = zMin; z <= zMax; ++z) {
+        const int tilesN = 1 << z;
+        const double scale = kTileSize * (double)tilesN;
+
+        /* Centro attuale ricampionato allo zoom z */
+        const double factor = (double)tilesN / (double)(1 << m_zoom);
+        const double cx = m_centerX * factor;
+        const double cy = m_centerY * factor;
+
+        /* Area visibile in coordinate tile */
+        const double halfW = width()  / 2.0;
+        const double halfH = height() / 2.0;
+        const int tx0 = qMax(0,          (int)std::floor((cx - halfW) / kTileSize));
+        const int tx1 = qMin(tilesN - 1, (int)std::floor((cx + halfW) / kTileSize));
+        const int ty0 = qMax(0,          (int)std::floor((cy - halfH) / kTileSize));
+        const int ty1 = qMin(tilesN - 1, (int)std::floor((cy + halfH) / kTileSize));
+
+        for (int tx = tx0; tx <= tx1 && m_dlQueue.size() < 300; ++tx)
+            for (int ty = ty0; ty <= ty1 && m_dlQueue.size() < 300; ++ty) {
+                const QString diskPath = m_tileDir +
+                    QString("%1/%2/%3.png").arg(z).arg(tx).arg(ty);
+                if (!QFile::exists(diskPath))
+                    m_dlQueue.append({z, tx, ty});
+            }
+    }
+
+    if (m_dlQueue.isEmpty()) {
+        emit tileDownloadProgress(0, 0);  /* tutto già in cache */
+        return;
+    }
+    m_dlTimer->start();
+    emit tileDownloadProgress(0, m_dlQueue.size());
 }

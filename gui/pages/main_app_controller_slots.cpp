@@ -19,6 +19,8 @@
    ====================================================================== */
 #include "main_app_controller.h"
 #include "../prismalux_paths.h"
+#include "../widgets/model_combo_helper.h"
+#include "../widgets/proc_helper.h"
 
 #include <QAbstractSocket>
 #include <QCoreApplication>
@@ -81,16 +83,7 @@ void AppControllerPage::onModelsReady(const QStringList& models)
     };
     for (auto* cb : combos) {
         if (!cb) continue;
-        const QString cur = cb->count() > 0 ? cb->currentData().toString() : QString();
-        cb->blockSignals(true);
-        cb->clear();
-        for (const auto& m : models) {
-            const qint64 sz = m_ai->modelSizeBytes(m);
-            cb->addItem(P::modelIcon(sz, m) + m, m);
-        }
-        int idx = cb->findData(cur.isEmpty() ? m_ai->model() : cur);
-        if (idx >= 0) cb->setCurrentIndex(idx);
-        cb->blockSignals(false);
+        ModelComboHelper::populate(cb, m_ai, models);
     }
 }
 

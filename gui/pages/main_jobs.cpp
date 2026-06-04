@@ -874,9 +874,7 @@ void LavoroPage::genLettera() {
     const auto o = cur->data(Qt::UserRole).value<Offerta>();
     const QString cvInfo  = m_cvText.isEmpty() ? cvFallback() : m_cvText.left(3500);
     const QString modello = m_cmbModello
-        ? (m_cmbModello->currentData(Qt::UserRole).toString().isEmpty()
-            ? m_cmbModello->currentText()
-            : m_cmbModello->currentData(Qt::UserRole).toString())
+        ? ModelComboHelper::currentModel(m_cmbModello)
         : m_ai->model();
 
     if (!modello.isEmpty() && !modello.startsWith("\xf0\x9f\x94\x84"))
@@ -935,9 +933,7 @@ void LavoroPage::genCover() {
     const auto o = cur->data(Qt::UserRole).value<Offerta>();
     const QString cvInfo  = m_cvText.isEmpty() ? cvFallback() : m_cvText.left(3500);
     const QString modello = m_cmbModello
-        ? (m_cmbModello->currentData(Qt::UserRole).toString().isEmpty()
-            ? m_cmbModello->currentText()
-            : m_cmbModello->currentData(Qt::UserRole).toString())
+        ? ModelComboHelper::currentModel(m_cmbModello)
         : m_ai->model();
     if (!modello.isEmpty() && !modello.startsWith("\xf0\x9f\x94\x84"))
         m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), modello);
@@ -978,9 +974,7 @@ void LavoroPage::sendFn(const QString& msg) {
     if (msg.isEmpty()) return;
     const QString cvInfo  = m_cvText.isEmpty() ? cvFallback().left(1500) : m_cvText.left(2000);
     const QString modello = m_cmbModello
-        ? (m_cmbModello->currentData(Qt::UserRole).toString().isEmpty()
-            ? m_cmbModello->currentText()
-            : m_cmbModello->currentData(Qt::UserRole).toString())
+        ? ModelComboHelper::currentModel(m_cmbModello)
         : m_ai->model();
     if (!modello.isEmpty() && !modello.startsWith("\xf0\x9f\x94\x84"))
         m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), modello);
@@ -1087,9 +1081,7 @@ void LavoroPage::analizzaUrls(const QStringList& urlList) {
                 guard->m_lavoroLog->append("\xe2\x9c\x85 Download completato \xe2\x86\x92 Analisi AI...\n");
             const QString cvInfo  = guard->m_cvText.isEmpty() ? guard->cvFallback().left(2000) : guard->m_cvText.left(2000);
             const QString modello = guard->m_cmbModello
-                ? (guard->m_cmbModello->currentData(Qt::UserRole).toString().isEmpty()
-                    ? guard->m_cmbModello->currentText()
-                    : guard->m_cmbModello->currentData(Qt::UserRole).toString())
+                ? ModelComboHelper::currentModel(guard->m_cmbModello)
                 : guard->m_ai->model();
             if (!modello.isEmpty() && !modello.startsWith("\xf0\x9f\x94\x84"))
                 guard->m_ai->setBackend(guard->m_ai->backend(), guard->m_ai->host(), guard->m_ai->port(), modello);

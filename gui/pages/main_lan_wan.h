@@ -22,6 +22,7 @@
 #include "../widgets/ai_error_widget.h"
 #include "../widgets/qr_code_widget.h"
 #include "main_multi_agent.h"
+#include "main_sci_compute.h"
 
 class LanServer;
 
@@ -219,7 +220,8 @@ private:
     bool            m_wanSimActive   = false;
 
     /* Multi-Agente embed (tab interno) */
-    AgentiMultiPage* m_multiAgentTab = nullptr;
+    AgentiMultiPage*  m_multiAgentTab  = nullptr;
+    SciComputePage*   m_sciComputeTab  = nullptr;
 
 public:
     AgentiMultiPage* multiAgentTab() const { return m_multiAgentTab; }

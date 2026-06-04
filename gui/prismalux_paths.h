@@ -66,6 +66,9 @@ constexpr int kOpenCodePort = 8092;
 /** Porta default WAN Calcolo Distribuito (server compute node) */
 constexpr int kWanComputePort = 11600;
 
+/** Porta Calcolo Scientifico Distribuito BOINC-like */
+constexpr int kSciComputePort = 11601;
+
 /** Host loopback — unico valore accettato per sicurezza */
 constexpr const char* kLocalHost = "127.0.0.1";
 

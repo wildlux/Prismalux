@@ -96,6 +96,16 @@ public:
         combo->blockSignals(false);
     }
 
+    /* ── Legge il nome raw del modello selezionato ─────────────────
+       Il testo display può contenere icona o badge; UserRole = nome raw.
+       Restituisce QString() se combo è null o vuoto.               */
+    static QString currentModel(const QComboBox* combo)
+    {
+        if (!combo) return {};
+        const QString raw = combo->currentData(Qt::UserRole).toString();
+        return raw.isEmpty() ? combo->currentText() : raw;
+    }
+
     /* ── Pattern completo: fetchModels + holder one-shot ──────────
        Crea un QObject holder (parent = ctx) che si auto-distrugge
        dopo la prima risposta (sia successo che errore).

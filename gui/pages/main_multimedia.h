@@ -115,6 +115,10 @@ private:
     QLabel*               m_osmRouteInfo   = nullptr;
     QComboBox*            m_osmProfileCmb  = nullptr;
     QNetworkAccessManager* m_osmNam        = nullptr;
+    QLabel*               m_osmElevLbl     = nullptr;
+    QLabel*               m_osmWeatherLbl  = nullptr;
+    QLabel*               m_osmDlLbl       = nullptr;
+    QPushButton*          m_osmWeatherBtn  = nullptr;
     void runGraphvizAi();
     void _renderDotCode(const QString& dot);
     void _doTranscribe(const QString& wav);

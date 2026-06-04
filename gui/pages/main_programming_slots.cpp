@@ -22,6 +22,7 @@
 #include "../prismalux_paths.h"
 #include "../ai_utils.h"
 #include "../widgets/ai_error_widget.h"
+#include "../widgets/proc_helper.h"
 
 #include <QApplication>
 #include <QClipboard>
@@ -1088,13 +1089,11 @@ void ProgrammazionePage::enrichMacFromNeigh()
     QMap<QString, QString> cache;
 
     /* 1. Cache ARP del kernel — host remoti già raggiunti */
-    QProcess proc;
-    proc.start("ip", {"neigh", "show"});
-    if (proc.waitForFinished(2000)) {
-        const QString out = QString::fromLocal8Bit(proc.readAllStandardOutput());
+    const QString arpOut = ProcHelper::readOutput("ip", {"neigh", "show"}, 2000);
+    if (!arpOut.isEmpty()) {
         static const QRegularExpression reNeigh(
             R"((\d+\.\d+\.\d+\.\d+)\s+\S+\s+\S+\s+lladdr\s+([\da-fA-F:]{17}))");
-        QRegularExpressionMatchIterator it = reNeigh.globalMatch(out);
+        QRegularExpressionMatchIterator it = reNeigh.globalMatch(arpOut);
         while (it.hasNext()) {
             const auto m = it.next();
             cache[m.captured(1)] = m.captured(2).toUpper();

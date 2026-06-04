@@ -54,6 +54,7 @@ namespace P = PrismaluxPaths;
 #include <QStandardPaths>
 #include <QFileSystemWatcher>
 #include "../widgets/model_combo_box.h"
+#include "../widgets/proc_helper.h"
 #include <cmath>
 
 /* ── helper: barra azioni output (Esporta PDF / Salva .md) ────────── */
@@ -2731,10 +2732,7 @@ void RicercaPage::onAnalisiRunClicked()
             const QFileInfo fi2(path);
             QString content;
             if (fi2.suffix().toLower() == "pdf") {
-                QProcess pdfProc;
-                pdfProc.start("pdftotext", {path, "-"});
-                pdfProc.waitForFinished(10000);
-                content = pdfProc.readAllStandardOutput();
+                content = ProcHelper::run("pdftotext", {path, "-"}, 10000).out;
                 if (content.trimmed().isEmpty())
                     content = "[PDF " + fi2.fileName() + ": impossibile estrarre testo — installa poppler-utils]";
             } else {

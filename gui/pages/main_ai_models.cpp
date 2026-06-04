@@ -1,6 +1,7 @@
 #include "main_ai.h"
 #include "main_ai_p.h"
 #include "../prismalux_paths.h"
+#include "../widgets/model_combo_helper.h"
 namespace P = PrismaluxPaths;
 #include <QComboBox>
 #include <QBrush>
@@ -44,9 +45,7 @@ void AgentiPage::onModelsReady(const QStringList& list) {
         /* Blocca il segnale per evitare cambio modello mentre si ricarica */
         m_cmbLLM->blockSignals(true);
         /* Legge il modello corrente dal UserRole (nome raw senza icona) */
-        const QString prev = m_cmbLLM->currentData(Qt::UserRole).toString().isEmpty()
-                           ? m_cmbLLM->currentText()
-                           : m_cmbLLM->currentData(Qt::UserRole).toString();
+        const QString prev = ModelComboHelper::currentModel(m_cmbLLM);
         m_cmbLLM->clear();
 
         const qint64 totalRam = P::totalRamBytes();

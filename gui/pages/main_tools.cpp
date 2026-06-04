@@ -1,5 +1,7 @@
 #include "main_tools.h"
 #include "main_learn.h"
+#include "../widgets/proc_helper.h"
+#include "../widgets/model_combo_helper.h"
 #include "main_finance.h"
 #include "main_quiz.h"
 #include "widget_stable_diffusion.h"
@@ -1410,10 +1412,8 @@ QString StrumentiPage::ragExtractText(const QString& path)
 {
     const QString ext = QFileInfo(path).suffix().toLower();
     if (ext == "pdf") {
-        QProcess proc;
-        proc.start("pdftotext", {path, "-"});
-        if (!proc.waitForFinished(15000)) return {};
-        return QString::fromUtf8(proc.readAllStandardOutput());
+        const auto r = ProcHelper::run("pdftotext", {path, "-"}, 15000);
+        return r.ok ? r.out : QString();
     }
     /* TXT / MD / CSV / RST — lettura diretta */
     QFile f(path);
@@ -2293,10 +2293,7 @@ void StrumentiPage::onSketchGenBtnClicked()
         m_ai->chatWithImage(P::prependKnowledge(sys), userMsg, raw.toBase64(), mime);
 
     } else if (!m_sketchFilePath.isEmpty() && !m_sketchIsImage) {
-        QProcess proc;
-        proc.start("pdftotext", {m_sketchFilePath, "-"});
-        proc.waitForFinished(15000);
-        const QString pdfText = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
+        const QString pdfText = ProcHelper::run("pdftotext", {m_sketchFilePath, "-"}, 15000).out.trimmed();
         if (!pdfText.isEmpty())
             userMsg += "\n\nCONTENUTO SCHEMA PDF:\n" + pdfText.left(3000);
         else
@@ -2483,17 +2480,15 @@ void StrumentiPage::onBtnRunClicked()
     QString userMsg = m_inputArea->toPlainText().trimmed();
 
     if (navIdx == 5 && !m_pdfPath.isEmpty()) {
-        QProcess proc;
-        proc.start("pdftotext", {m_pdfPath, "-"});
-        if (!proc.waitForFinished(15000)) {
+        const auto ppr = ProcHelper::run("pdftotext", {m_pdfPath, "-"}, 15000);
+        if (!ppr.ok) {
             m_output->append(
                 "\xe2\x9a\xa0  pdftotext non risponde. "
                 "Assicurati che poppler-utils sia installato "
                 "(sudo apt install poppler-utils).");
             return;
         }
-        const QString pdfText = QString::fromUtf8(
-            proc.readAllStandardOutput()).trimmed();
+        const QString pdfText = ppr.out.trimmed();
         if (pdfText.isEmpty()) {
             m_output->append(
                 "\xe2\x9a\xa0  Impossibile estrarre testo dal PDF. "

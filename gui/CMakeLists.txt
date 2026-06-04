@@ -143,6 +143,9 @@ set(CPP_SRCS
     pages/main_simulator_algos.cpp
     pages/main_tools.cpp
     pages/main_lan_wan.cpp
+    pages/main_sci_compute.cpp
+    pages/main_sci_compute_ui.cpp
+    pages/main_sci_protein.cpp
     pages/main_multimedia.cpp
     pages/main_tools_file.cpp
     pages/main_graph_canvas.cpp

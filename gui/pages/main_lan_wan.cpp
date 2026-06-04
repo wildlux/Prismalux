@@ -5,6 +5,7 @@
 #include "../app_config.h"
 #include "../widgets/qr_code_widget.h"
 #include "../widgets/model_combo_box.h"
+#include "../widgets/proc_helper.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QTabWidget>
@@ -1428,25 +1429,32 @@ QWidget* LanWanPage::buildWanComputeTab()
     vlay->setContentsMargins(12, 10, 12, 10);
     vlay->setSpacing(10);
 
-    /* ── Selezione modalità di esecuzione: Solo questo PC | Rete LAN ── */
+    /* ── Selezione modalità di esecuzione ── */
     auto* execModeRow = new QWidget;
     auto* execModeLay = new QHBoxLayout(execModeRow);
     execModeLay->setContentsMargins(0,0,0,0); execModeLay->setSpacing(16);
     auto* localRb = new QRadioButton("\xf0\x9f\xa7\xa0  Solo questo PC");
     auto* lanRb   = new QRadioButton("\xf0\x9f\x8c\x90  Rete LAN (pi\xc3\xb9 PC insieme)");
+    auto* sciRb   = new QRadioButton(
+        "\xf0\x9f\x94\xac  Calcolo Scientifico (BOINC-like)");
+    sciRb->setToolTip(
+        "Distribuisci task scientifici (BLAST, GROMACS, R, Python SciPy...)\n"
+        "sui nodi della rete VPN (Tailscale consigliato)");
     localRb->setChecked(true);
     auto* execGrp = new QButtonGroup(execModeRow);
     execGrp->addButton(localRb, 0);
     execGrp->addButton(lanRb,   1);
+    execGrp->addButton(sciRb,   2);
     execModeLay->addWidget(localRb);
     execModeLay->addWidget(lanRb);
+    execModeLay->addWidget(sciRb);
     execModeLay->addStretch(1);
     vlay->addWidget(execModeRow);
 
-    /* ── Stack esecuzione: 0=Multi-Agente locale, 1=Rete LAN ── */
+    /* ── Stack esecuzione: 0=Multi-Agente, 1=Rete LAN, 2=Scientifico ── */
     m_execModeStack = new QStackedWidget;
 
-    /* index 0 — Multi-Agente locale (pool AiClient + GraphMemory SQLite) */
+    /* index 0 — Multi-Agente locale */
     m_multiAgentTab = new AgentiMultiPage(m_ai, root);
     m_execModeStack->addWidget(m_multiAgentTab);   /* index 0 */
 
@@ -1907,6 +1915,11 @@ QWidget* LanWanPage::buildWanComputeTab()
 
     /* ── Chiude il pannello LAN e lo aggiunge allo stack exec ── */
     m_execModeStack->addWidget(lanWidget);   /* index 1 */
+
+    /* index 2 — Calcolo Scientifico BOINC-like */
+    m_sciComputeTab = new SciComputePage(root);
+    m_execModeStack->addWidget(m_sciComputeTab);   /* index 2 */
+
     vlay->addWidget(m_execModeStack, 1);
 
     /* ── Connessione radio esecuzione → stack ── */
@@ -3119,10 +3132,8 @@ void LanWanPage::wanWorkerHandleTask(int idx, const QString& id,
             result = "[SICUREZZA] Esecuzione Python disabilitata.";
             status = "error";
         } else {
-            QProcess proc;
-            proc.start("python3", {"-c", payload});
-            proc.waitForFinished(30000);
-            result = proc.readAllStandardOutput() + proc.readAllStandardError();
+            const auto r = ProcHelper::run("python3", {"-c", payload}, 30000);
+            result = r.out + r.err;
         }
 
     } else if (kind == "shell_cmd" || kind == "git_cmd") {
@@ -3130,10 +3141,8 @@ void LanWanPage::wanWorkerHandleTask(int idx, const QString& id,
             result = "[SICUREZZA] Esecuzione shell disabilitata.";
             status = "error";
         } else {
-            QProcess proc;
-            proc.start("bash", {"-c", payload});
-            proc.waitForFinished(20000);
-            result = proc.readAllStandardOutput() + proc.readAllStandardError();
+            const auto r = ProcHelper::run("bash", {"-c", payload}, 20000);
+            result = r.out + r.err;
         }
 
     } else if (kind == "math_expr") {
@@ -3148,31 +3157,21 @@ void LanWanPage::wanWorkerHandleTask(int idx, const QString& id,
             "    print(eval(expr,g,{}))\n"
             "except Exception as e:\n"
             "    print('Errore:', e)\n";
-        QProcess proc;
-        proc.start("python3", {"-c", kMathExprScript, "--", payload.trimmed().left(500)});
-        proc.waitForFinished(5000);
-        result = proc.readAllStandardOutput().trimmed();
+        result = ProcHelper::readOutput(
+            "python3", {"-c", kMathExprScript, "--", payload.trimmed().left(500)}, 5000);
 
     } else if (kind == "matplotlib_plot") {
         if (!w.shellAllowed) {
             result = "[SICUREZZA] Esecuzione Python disabilitata.";
             status = "error";
         } else {
-            QProcess proc;
-            proc.start("python3", {"-c", payload});
-            proc.waitForFinished(30000);
-            result = proc.readAllStandardOutput() + proc.readAllStandardError();
+            const auto r = ProcHelper::run("python3", {"-c", payload}, 30000);
+            result = r.out + r.err;
         }
 
     } else if (kind == "graphviz_render") {
-        QProcess proc;
-        proc.start("dot", {"-Tsvg"});
-        proc.write(payload.toUtf8());
-        proc.closeWriteChannel();
-        proc.waitForFinished(15000);
-        const QString svg = proc.readAllStandardOutput();
-        result = svg.isEmpty()
-            ? "Errore Graphviz: " + proc.readAllStandardError() : svg.left(8000);
+        const auto r = ProcHelper::runWithInput("dot", {"-Tsvg"}, payload.toUtf8(), 15000);
+        result = r.out.isEmpty() ? "Errore Graphviz: " + r.err : r.out.left(8000);
 
     } else if (kind == "system_info") {
         QString ram;
@@ -3795,10 +3794,8 @@ void LanWanPage::wanCliHandleTask(const QString& id, const QString& kind, const 
                      "Abilita 'Permetti shell' nelle opzioni nodo WAN.";
             status = "error";
         } else {
-            QProcess proc;
-            proc.start("python3", {"-c", payload});
-            proc.waitForFinished(30000);
-            result = proc.readAllStandardOutput() + proc.readAllStandardError();
+            const auto r = ProcHelper::run("python3", {"-c", payload}, 30000);
+            result = r.out + r.err;
         }
 
     } else if (kind == "shell_cmd" || kind == "git_cmd") {
@@ -3807,10 +3804,8 @@ void LanWanPage::wanCliHandleTask(const QString& id, const QString& kind, const 
                      "Abilita 'Permetti shell' nelle opzioni nodo WAN.";
             status = "error";
         } else {
-            QProcess proc;
-            proc.start("bash", {"-c", payload});
-            proc.waitForFinished(20000);
-            result = proc.readAllStandardOutput() + proc.readAllStandardError();
+            const auto r = ProcHelper::run("bash", {"-c", payload}, 20000);
+            result = r.out + r.err;
         }
 
     } else if (kind == "math_expr") {
@@ -3826,10 +3821,8 @@ void LanWanPage::wanCliHandleTask(const QString& id, const QString& kind, const 
             "    print(eval(expr,g,{}))\n"
             "except Exception as e:\n"
             "    print('Errore:', e)\n";
-        QProcess proc;
-        proc.start("python3", {"-c", kMathExprScript, "--", payload.trimmed().left(500)});
-        proc.waitForFinished(5000);
-        result = proc.readAllStandardOutput().trimmed();
+        result = ProcHelper::readOutput(
+            "python3", {"-c", kMathExprScript, "--", payload.trimmed().left(500)}, 5000);
 
     } else if (kind == "matplotlib_plot") {
         if (!shellAllowed) {
@@ -3837,21 +3830,13 @@ void LanWanPage::wanCliHandleTask(const QString& id, const QString& kind, const 
                      "Abilita 'Permetti shell' nelle opzioni nodo WAN.";
             status = "error";
         } else {
-            QProcess proc;
-            proc.start("python3", {"-c", payload});
-            proc.waitForFinished(30000);
-            result = proc.readAllStandardOutput() + proc.readAllStandardError();
+            const auto r = ProcHelper::run("python3", {"-c", payload}, 30000);
+            result = r.out + r.err;
         }
 
     } else if (kind == "graphviz_render") {
-        /* Renderizza DOT → SVG */
-        QProcess proc;
-        proc.start("dot", {"-Tsvg"});
-        proc.write(payload.toUtf8());
-        proc.closeWriteChannel();
-        proc.waitForFinished(15000);
-        const QString svg = proc.readAllStandardOutput();
-        result = svg.isEmpty() ? "Errore Graphviz: " + proc.readAllStandardError() : svg.left(8000);
+        const auto r = ProcHelper::runWithInput("dot", {"-Tsvg"}, payload.toUtf8(), 15000);
+        result = r.out.isEmpty() ? "Errore Graphviz: " + r.err : r.out.left(8000);
 
     } else if (kind == "file_read") {
         QFile f(payload.trimmed());

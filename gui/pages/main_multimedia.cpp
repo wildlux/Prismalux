@@ -1379,6 +1379,23 @@ static QVector<QPair<double,double>> decodePolyline(const QByteArray& enc)
     return pts;
 }
 
+/* WMO weather code → testo italiano */
+static QString wmoText(int code)
+{
+    if (code == 0)                         return "Sereno";
+    if (code <= 2)                         return "Poco nuvoloso";
+    if (code == 3)                         return "Coperto";
+    if (code == 45 || code == 48)          return "Nebbia";
+    if (code >= 51 && code <= 57)          return "Pioggerella";
+    if (code >= 61 && code <= 65)          return "Pioggia";
+    if (code == 66 || code == 67)          return "Pioggia gelata";
+    if (code >= 71 && code <= 77)          return "Neve";
+    if (code >= 80 && code <= 82)          return "Rovesci";
+    if (code >= 85 && code <= 86)          return "Nevicate";
+    if (code >= 95)                        return "Temporale";
+    return "—";
+}
+
 QWidget* MultimediaPage::buildOsmMapTab()
 {
     auto* w   = new QWidget;
@@ -1391,10 +1408,15 @@ QWidget* MultimediaPage::buildOsmMapTab()
     m_osmMap->setRouteMode(true);
     lay->addWidget(m_osmMap, 1);
 
-    /* ── Pannello laterale destro ── */
-    auto* panel    = new QWidget(w);
+    /* ── Pannello laterale destro (scrollabile) ── */
+    auto* scroll = new QScrollArea(w);
+    scroll->setFixedWidth(dpiScale(248));
+    scroll->setWidgetResizable(true);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setFrameShape(QFrame::NoFrame);
+
+    auto* panel    = new QWidget;
     auto* panelLay = new QVBoxLayout(panel);
-    panel->setFixedWidth(dpiScale(240));
     panelLay->setContentsMargins(dpiScale(6), dpiScale(6), dpiScale(6), dpiScale(6));
     panelLay->setSpacing(dpiScale(8));
 
@@ -1405,8 +1427,11 @@ QWidget* MultimediaPage::buildOsmMapTab()
     panelLay->addWidget(titleLbl);
 
     auto* hintLbl = new QLabel(
-        "<small>Clicca sulla mappa per aggiungere tappe (A, B, C...).<br>"
-        "Poi calcola il percorso via OSRM.</small>", panel);
+        "<small>"
+        "<b>Click sinistro</b> = aggiungi tappa.<br>"
+        "<b>Click destro</b> = menu (Partenza / Tappa).<br>"
+        "Cerca citt\xc3\xa0 → scegli Partenza o Tappa."
+        "</small>", panel);
     hintLbl->setObjectName("hintLabel");
     hintLbl->setTextFormat(Qt::RichText);
     hintLbl->setWordWrap(true);
@@ -1414,45 +1439,41 @@ QWidget* MultimediaPage::buildOsmMapTab()
 
     /* ── Waypoint list ── */
     auto* wpGroup = new QGroupBox(
-        "\xf0\x9f\x93\x8d  Tappe itinerario", panel);
+        "\xf0\x9f\x93\x8d  Tappe  (A = partenza, ultima = arrivo)", panel);
     auto* wpLay = new QVBoxLayout(wpGroup);
     wpLay->setSpacing(dpiScale(4));
 
     m_osmWpList = new QListWidget(wpGroup);
-    m_osmWpList->setFixedHeight(dpiScale(130));
-    m_osmWpList->setToolTip("Lista delle tappe — clicca sulla mappa per aggiungerne");
+    m_osmWpList->setFixedHeight(dpiScale(100));
+    m_osmWpList->setToolTip("Click destro sulla mappa per impostare la partenza");
     wpLay->addWidget(m_osmWpList);
 
     auto* wpBtnRow = new QHBoxLayout;
-    auto* btnRemWp = new QPushButton(
-        "\xe2\x9c\x96  Rimuovi", wpGroup);
+    auto* btnRemWp = new QPushButton("\xe2\x9c\x96  Rimuovi", wpGroup);
     btnRemWp->setObjectName("actionBtn");
     btnRemWp->setToolTip("Rimuovi la tappa selezionata");
-
-    auto* btnClrWp = new QPushButton(
-        "\xf0\x9f\x97\x91  Svuota", wpGroup);
+    auto* btnClrWp = new QPushButton("\xf0\x9f\x97\x91  Svuota", wpGroup);
     btnClrWp->setObjectName("actionBtn");
     btnClrWp->setToolTip("Rimuovi tutte le tappe e il percorso");
-
     wpBtnRow->addWidget(btnRemWp, 1);
     wpBtnRow->addWidget(btnClrWp, 1);
     wpLay->addLayout(wpBtnRow);
     panelLay->addWidget(wpGroup);
 
     /* ── Routing ── */
-    auto* rtGroup = new QGroupBox(
-        "\xf0\x9f\x9a\x97  Percorso", panel);
+    auto* rtGroup = new QGroupBox("\xf0\x9f\x9a\x97  Percorso", panel);
     auto* rtLay = new QVBoxLayout(rtGroup);
     rtLay->setSpacing(dpiScale(4));
 
     auto* profRow = new QHBoxLayout;
     auto* profLbl = new QLabel("Modalit\xc3\xa0:", rtGroup);
-    profLbl->setFixedWidth(dpiScale(65));
+    profLbl->setFixedWidth(dpiScale(60));
     m_osmProfileCmb = new QComboBox(rtGroup);
     m_osmProfileCmb->setObjectName("settingCombo");
-    m_osmProfileCmb->addItem("\xf0\x9f\x9a\x97  Auto",       "driving");
-    m_osmProfileCmb->addItem("\xf0\x9f\x9a\xb6  Piedi",       "foot");
-    m_osmProfileCmb->addItem("\xf0\x9f\x9a\xb2  Bicicletta",  "bike");
+    m_osmProfileCmb->addItem("\xf0\x9f\x9a\x97  Auto",                  "driving");
+    m_osmProfileCmb->addItem("\xf0\x9f\x9a\xb6  Piedi / Trekking",      "foot");
+    m_osmProfileCmb->addItem("\xf0\x9f\x9a\xb5  MTB / Alpinismo",       "foot");
+    m_osmProfileCmb->addItem("\xf0\x9f\x9a\xb2  Bicicletta (strada)",   "bike");
     profRow->addWidget(profLbl);
     profRow->addWidget(m_osmProfileCmb, 1);
     rtLay->addLayout(profRow);
@@ -1463,93 +1484,182 @@ QWidget* MultimediaPage::buildOsmMapTab()
     btnCalc->setToolTip("Calcola percorso via OSRM (richiede internet)");
     rtLay->addWidget(btnCalc);
 
-    m_osmRouteInfo = new QLabel("Distanza: —  |  Tempo: —", rtGroup);
+    m_osmRouteInfo = new QLabel("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94", rtGroup);
     m_osmRouteInfo->setObjectName("cardDesc");
     m_osmRouteInfo->setWordWrap(true);
     rtLay->addWidget(m_osmRouteInfo);
 
-    auto* btnClrRoute = new QPushButton(
-        "\xf0\x9f\x97\x91  Cancella percorso", rtGroup);
+    auto* btnClrRoute = new QPushButton("\xf0\x9f\x97\x91  Cancella percorso", rtGroup);
     btnClrRoute->setObjectName("actionBtn");
     rtLay->addWidget(btnClrRoute);
 
     panelLay->addWidget(rtGroup);
+
+    /* ── Altimetria (ciclisti / alpini) ── */
+    auto* elevGroup = new QGroupBox(
+        "\xe2\x9b\xb0  Altimetria", panel);
+    auto* elevLay = new QVBoxLayout(elevGroup);
+    elevLay->setSpacing(dpiScale(3));
+
+    m_osmElevLbl = new QLabel(
+        "<small>Calcolata automaticamente dopo il percorso.</small>", elevGroup);
+    m_osmElevLbl->setObjectName("hintLabel");
+    m_osmElevLbl->setWordWrap(true);
+    m_osmElevLbl->setTextFormat(Qt::RichText);
+    elevLay->addWidget(m_osmElevLbl);
+    panelLay->addWidget(elevGroup);
+
+    /* ── Meteo Partenza ── */
+    auto* wxGroup = new QGroupBox(
+        "\xf0\x9f\x8c\xa6  Meteo partenza", panel);
+    auto* wxLay = new QVBoxLayout(wxGroup);
+    wxLay->setSpacing(dpiScale(3));
+
+    m_osmWeatherBtn = new QPushButton(
+        "\xf0\x9f\x8c\xa4  Controlla meteo", wxGroup);
+    m_osmWeatherBtn->setObjectName("actionBtn");
+    m_osmWeatherBtn->setToolTip(
+        "Recupera le condizioni meteo attuali della partenza (open-meteo.com)");
+    wxLay->addWidget(m_osmWeatherBtn);
+
+    m_osmWeatherLbl = new QLabel(
+        "<small>Premi il pulsante dopo aver impostato la partenza.</small>",
+        wxGroup);
+    m_osmWeatherLbl->setObjectName("hintLabel");
+    m_osmWeatherLbl->setWordWrap(true);
+    m_osmWeatherLbl->setTextFormat(Qt::RichText);
+    wxLay->addWidget(m_osmWeatherLbl);
+    panelLay->addWidget(wxGroup);
+
+    /* ── Mappe offline ── */
+    auto* dlGroup = new QGroupBox(
+        "\xf0\x9f\x93\xb4  Mappe offline", panel);
+    auto* dlLay = new QVBoxLayout(dlGroup);
+    dlLay->setSpacing(dpiScale(3));
+
+    auto* btnDl = new QPushButton(
+        "\xe2\xac\x87  Scarica area visibile", dlGroup);
+    btnDl->setObjectName("actionBtn");
+    btnDl->setToolTip(
+        "Scarica i tile OSM visibili nella cache locale (~/.cache/Prismalux/osm_tiles/)");
+    dlLay->addWidget(btnDl);
+
+    m_osmDlLbl = new QLabel(
+        "<small>Tile salvati: non scaricati.</small>", dlGroup);
+    m_osmDlLbl->setObjectName("hintLabel");
+    m_osmDlLbl->setWordWrap(true);
+    m_osmDlLbl->setTextFormat(Qt::RichText);
+    dlLay->addWidget(m_osmDlLbl);
+    panelLay->addWidget(dlGroup);
+
     panelLay->addStretch(1);
 
     /* Nota copyright */
     auto* credLbl = new QLabel(
-        "<small>\xa9 <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors<br>"
-        "Percorsi: <a href='https://project-osrm.org/'>OSRM</a></small>", panel);
+        "<small>\xa9 "
+        "<a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>"
+        " contributors | "
+        "<a href='https://project-osrm.org/'>OSRM</a> | "
+        "<a href='https://open-meteo.com/'>Open-Meteo</a></small>",
+        panel);
     credLbl->setTextFormat(Qt::RichText);
     credLbl->setOpenExternalLinks(true);
     credLbl->setObjectName("hintLabel");
     credLbl->setWordWrap(true);
     panelLay->addWidget(credLbl);
 
-    lay->addWidget(panel);
+    scroll->setWidget(panel);
+    lay->addWidget(scroll);
 
-    /* ── NAM per OSRM ── */
+    /* ── NAM per OSRM / Meteo / Altimetria ── */
     m_osmNam = new QNetworkAccessManager(w);
 
     /* ── Connessioni ── */
 
     /* Waypoint aggiunto dalla mappa → aggiorna lista */
     connect(m_osmMap, &WorldMapWidget::waypointAdded,
-            panel, [this](int idx, double lat, double lon) {
+            w, [this](int idx, double lat, double lon) {
         const QString lbl = QString::fromLatin1("%1").arg(QChar('A' + idx % 26));
         auto* item = new QListWidgetItem(
             QString("%1  %.5f, %.5f").arg(lbl).arg(lat).arg(lon));
-        item->setData(Qt::UserRole, lat);
+        item->setData(Qt::UserRole,     lat);
         item->setData(Qt::UserRole + 1, lon);
         if (m_osmWpList) m_osmWpList->addItem(item);
     });
 
+    /* insertStartWaypoint → ricostruisce lista completa */
+    connect(m_osmMap, &WorldMapWidget::waypointsReset,
+            w, [this] {
+        if (!m_osmWpList || !m_osmMap) return;
+        m_osmWpList->clear();
+        const auto& coords = m_osmMap->waypoints();
+        const auto& labels = m_osmMap->waypointLabels();
+        for (int i = 0; i < coords.size(); ++i) {
+            auto* item = new QListWidgetItem(
+                QString("%1  %.5f, %.5f")
+                    .arg(labels.value(i, "?"))
+                    .arg(coords[i].first)
+                    .arg(coords[i].second));
+            item->setData(Qt::UserRole,     coords[i].first);
+            item->setData(Qt::UserRole + 1, coords[i].second);
+            m_osmWpList->addItem(item);
+        }
+        if (m_osmRouteInfo)
+            m_osmRouteInfo->setText("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94");
+    });
+
     /* Rimuovi waypoint selezionato */
-    connect(btnRemWp, &QPushButton::clicked, panel, [this] {
+    connect(btnRemWp, &QPushButton::clicked, w, [this] {
         if (!m_osmWpList) return;
         const int row = m_osmWpList->currentRow();
         if (row < 0) return;
         m_osmWpList->takeItem(row);
-        /* Ricostruisce i waypoint sul widget mappa */
         m_osmMap->clearRoute();
         for (int i = 0; i < m_osmWpList->count(); ++i) {
             auto* it = m_osmWpList->item(i);
-            const double la = it->data(Qt::UserRole).toDouble();
-            const double lo = it->data(Qt::UserRole + 1).toDouble();
-            m_osmMap->addWaypoint(la, lo);
+            m_osmMap->addWaypoint(it->data(Qt::UserRole).toDouble(),
+                                  it->data(Qt::UserRole + 1).toDouble());
         }
-        m_osmRouteInfo->setText("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94");
+        if (m_osmRouteInfo)
+            m_osmRouteInfo->setText("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94");
     });
 
     /* Svuota tutto */
-    connect(btnClrWp, &QPushButton::clicked, panel, [this] {
+    connect(btnClrWp, &QPushButton::clicked, w, [this] {
         if (m_osmMap)    m_osmMap->clearRoute();
         if (m_osmWpList) m_osmWpList->clear();
-        if (m_osmRouteInfo) m_osmRouteInfo->setText("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94");
+        if (m_osmRouteInfo)
+            m_osmRouteInfo->setText("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94");
+        if (m_osmElevLbl)
+            m_osmElevLbl->setText(
+                "<small>Calcolata automaticamente dopo il percorso.</small>");
     });
 
     /* Cancella solo il percorso disegnato */
-    connect(btnClrRoute, &QPushButton::clicked, panel, [this] {
+    connect(btnClrRoute, &QPushButton::clicked, w, [this] {
         if (m_osmMap) m_osmMap->setRouteLine({});
-        if (m_osmRouteInfo) m_osmRouteInfo->setText("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94");
+        if (m_osmRouteInfo)
+            m_osmRouteInfo->setText("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94");
+        if (m_osmElevLbl)
+            m_osmElevLbl->setText(
+                "<small>Calcolata automaticamente dopo il percorso.</small>");
     });
 
-    /* Calcola percorso OSRM */
-    connect(btnCalc, &QPushButton::clicked, panel, [this, btnCalc] {
+    /* Calcola percorso OSRM + altimetria automatica */
+    connect(btnCalc, &QPushButton::clicked, w, [this, btnCalc] {
         if (!m_osmWpList || m_osmWpList->count() < 2) {
             if (m_osmRouteInfo)
                 m_osmRouteInfo->setText(
-                    "\xe2\x9a\xa0  Aggiungi almeno 2 tappe sulla mappa.");
+                    "\xe2\x9a\xa0  Aggiungi almeno 2 tappe (A = partenza).");
             return;
         }
 
-        /* Costruisce la stringa coordinate lon,lat;lon,lat;... */
         QStringList coords;
         for (int i = 0; i < m_osmWpList->count(); ++i) {
             auto* it = m_osmWpList->item(i);
             coords << QString("%1,%2")
                           .arg(it->data(Qt::UserRole + 1).toDouble(), 0, 'f', 6)
-                          .arg(it->data(Qt::UserRole).toDouble(), 0, 'f', 6);
+                          .arg(it->data(Qt::UserRole).toDouble(),     0, 'f', 6);
         }
 
         const QString profile = m_osmProfileCmb
@@ -1566,11 +1676,14 @@ QWidget* MultimediaPage::buildOsmMapTab()
                       "Prismalux/2.9 (educational desktop app)");
 
         btnCalc->setEnabled(false);
-        if (m_osmRouteInfo) m_osmRouteInfo->setText("\xf0\x9f\x94\x84  Calcolo in corso...");
+        if (m_osmRouteInfo)
+            m_osmRouteInfo->setText("\xf0\x9f\x94\x84  Calcolo in corso...");
+        if (m_osmElevLbl)
+            m_osmElevLbl->setText("<small>Calcolo altimetria...</small>");
 
         QNetworkReply* reply = m_osmNam->get(req);
-        connect(reply, &QNetworkReply::finished,
-                reply, [this, reply, btnCalc] {
+        connect(reply, &QNetworkReply::finished, reply,
+                [this, reply, btnCalc] {
             reply->deleteLater();
             if (btnCalc) btnCalc->setEnabled(true);
 
@@ -1591,20 +1704,159 @@ QWidget* MultimediaPage::buildOsmMapTab()
                 return;
             }
 
-            const QJsonObject route  = root["routes"].toArray().first().toObject();
-            const double dist_km     = route["distance"].toDouble() / 1000.0;
-            const double dur_min     = route["duration"].toDouble() / 60.0;
-            const QString geom       = route["geometry"].toString();
+            const QJsonObject route = root["routes"].toArray().first().toObject();
+            const double dist_km    = route["distance"].toDouble() / 1000.0;
+            const double dur_min    = route["duration"].toDouble() / 60.0;
+            const QString geom      = route["geometry"].toString();
 
             const auto pts = decodePolyline(geom.toUtf8());
             if (m_osmMap) m_osmMap->setRouteLine(pts);
 
-            const QString info = QString("\xf0\x9f\x93\x8f  %1 km  |  "
-                                          "\xe2\x8f\xb1  %2 min")
-                .arg(dist_km, 0, 'f', 1)
-                .arg(qRound(dur_min));
-            if (m_osmRouteInfo) m_osmRouteInfo->setText(info);
+            if (m_osmRouteInfo)
+                m_osmRouteInfo->setText(
+                    QString("\xf0\x9f\x93\x8f  %1 km  |  \xe2\x8f\xb1  %2 min")
+                        .arg(dist_km, 0, 'f', 1).arg(qRound(dur_min)));
+
+            /* ── Altimetria: campiona 20 punti dal percorso ── */
+            if (!pts.isEmpty() && m_osmNam) {
+                const int N    = qMin(20, pts.size());
+                const int step = qMax(1, pts.size() / N);
+                QStringList lats, lons;
+                for (int i = 0; i < pts.size(); i += step) {
+                    lats << QString::number(pts[i].first,  'f', 5);
+                    lons << QString::number(pts[i].second, 'f', 5);
+                }
+
+                QNetworkRequest elReq(QUrl(
+                    QString("https://api.open-meteo.com/v1/elevation"
+                            "?latitude=%1&longitude=%2")
+                        .arg(lats.join(","), lons.join(","))));
+                elReq.setHeader(QNetworkRequest::UserAgentHeader,
+                                "Prismalux/2.9");
+
+                QNetworkReply* elRep = m_osmNam->get(elReq);
+                connect(elRep, &QNetworkReply::finished, elRep,
+                        [this, elRep] {
+                    elRep->deleteLater();
+                    if (elRep->error() != QNetworkReply::NoError) {
+                        if (m_osmElevLbl)
+                            m_osmElevLbl->setText(
+                                "<small>Altimetria non disponibile.</small>");
+                        return;
+                    }
+                    const QJsonArray elArr =
+                        QJsonDocument::fromJson(elRep->readAll())
+                            .object()["elevation"].toArray();
+                    if (elArr.isEmpty()) return;
+
+                    double minEl =  1e9, maxEl = -1e9;
+                    double ascent = 0.0, descent = 0.0;
+                    double prev = elArr[0].toDouble();
+                    for (const auto& v : elArr) {
+                        const double e = v.toDouble();
+                        minEl = qMin(minEl, e);
+                        maxEl = qMax(maxEl, e);
+                        if (e > prev) ascent  += (e - prev);
+                        else          descent += (prev - e);
+                        prev = e;
+                    }
+                    if (m_osmElevLbl)
+                        m_osmElevLbl->setText(
+                            QString("<small>"
+                                    "<b>Min:</b> %1 m | <b>Max:</b> %2 m<br>"
+                                    "<b>Salita:</b> +%3 m | <b>Discesa:</b> -%4 m"
+                                    "</small>")
+                                .arg(qRound(minEl))
+                                .arg(qRound(maxEl))
+                                .arg(qRound(ascent))
+                                .arg(qRound(descent)));
+                });
+            }
         });
+    });
+
+    /* Meteo partenza (open-meteo, gratuito) */
+    connect(m_osmWeatherBtn, &QPushButton::clicked, w, [this] {
+        if (!m_osmWpList || m_osmWpList->count() == 0 || !m_osmNam) {
+            if (m_osmWeatherLbl)
+                m_osmWeatherLbl->setText(
+                    "<small>Aggiungi prima la tappa di partenza (A).</small>");
+            return;
+        }
+        const double startLat = m_osmWpList->item(0)->data(Qt::UserRole).toDouble();
+        const double startLon = m_osmWpList->item(0)->data(Qt::UserRole + 1).toDouble();
+
+        if (m_osmWeatherLbl) m_osmWeatherLbl->setText("<small>Caricamento...</small>");
+        if (m_osmWeatherBtn) m_osmWeatherBtn->setEnabled(false);
+
+        QNetworkRequest req(QUrl(
+            QString("https://api.open-meteo.com/v1/forecast"
+                    "?latitude=%1&longitude=%2"
+                    "&current=temperature_2m,windspeed_10m,precipitation,weathercode"
+                    "&timezone=auto")
+                .arg(startLat, 0, 'f', 4)
+                .arg(startLon, 0, 'f', 4)));
+        req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/2.9");
+
+        QNetworkReply* rep = m_osmNam->get(req);
+        connect(rep, &QNetworkReply::finished, rep,
+                [this, rep] {
+            rep->deleteLater();
+            if (m_osmWeatherBtn) m_osmWeatherBtn->setEnabled(true);
+
+            if (rep->error() != QNetworkReply::NoError) {
+                if (m_osmWeatherLbl)
+                    m_osmWeatherLbl->setText(
+                        "<small>Errore meteo: " + rep->errorString() + "</small>");
+                return;
+            }
+            const QJsonObject cur =
+                QJsonDocument::fromJson(rep->readAll())
+                    .object()["current"].toObject();
+
+            const double temp  = cur["temperature_2m"].toDouble();
+            const double wind  = cur["windspeed_10m"].toDouble();
+            const double prec  = cur["precipitation"].toDouble();
+            const int    code  = cur["weathercode"].toInt();
+
+            if (m_osmWeatherLbl)
+                m_osmWeatherLbl->setText(
+                    QString("<small>"
+                            "<b>%1</b><br>"
+                            "Temp: %2\xc2\xb0" "C | Vento: %3 km/h<br>"
+                            "Precipit.: %4 mm"
+                            "</small>")
+                        .arg(wmoText(code))
+                        .arg(temp, 0, 'f', 1)
+                        .arg(qRound(wind))
+                        .arg(prec, 0, 'f', 1));
+        });
+    });
+
+    /* Download mappe offline */
+    connect(btnDl, &QPushButton::clicked, w, [this] {
+        if (!m_osmMap || !m_osmDlLbl) return;
+        if (m_osmDlLbl)
+            m_osmDlLbl->setText("<small>Avvio download...</small>");
+        m_osmMap->downloadVisibleTiles();
+    });
+
+    /* Progresso download tile */
+    connect(m_osmMap, &WorldMapWidget::tileDownloadProgress,
+            w, [this](int done, int total) {
+        if (!m_osmDlLbl) return;
+        if (total == 0) {
+            m_osmDlLbl->setText(
+                "<small>Area gi\xc3\xa0 in cache. Nessun download necessario.</small>");
+        } else if (done >= total) {
+            m_osmDlLbl->setText(
+                QString("<small>Scaricati %1 tile. Mappa disponibile offline.</small>")
+                    .arg(total));
+        } else {
+            m_osmDlLbl->setText(
+                QString("<small>Download: %1 / %2 tile...</small>")
+                    .arg(done).arg(total));
+        }
     });
 
     return w;
