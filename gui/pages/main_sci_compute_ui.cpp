@@ -35,6 +35,7 @@
 #include <QDialogButtonBox>
 #include <QApplication>
 #include <QPalette>
+#include <QProcess>
 
 /* Colore status → HTML */
 static QString statusColor(const QString& s)
@@ -396,6 +397,40 @@ QWidget* SciComputePage::buildUi()
     m_statusLbl->setObjectName("cardDesc");
     rootLay->addWidget(m_statusLbl);
 
+    /* ── Riga LLM Scientifico ── */
+    auto* llmBar  = new QWidget(root);
+    auto* llmLay  = new QHBoxLayout(llmBar);
+    llmLay->setContentsMargins(0,0,0,0); llmLay->setSpacing(dpiScale(6));
+
+    llmLay->addWidget(new QLabel(
+        "\xf0\x9f\xa4\x96  Modello LLM per analisi scientifica:", llmBar));
+
+    m_sciModelEdit = new QLineEdit(llmBar);
+    m_sciModelEdit->setText(m_sciLlmModel);
+    m_sciModelEdit->setPlaceholderText("llama3.2:3b, medllama2, biomistral...");
+    m_sciModelEdit->setFixedWidth(dpiScale(180));
+    m_sciModelEdit->setToolTip(
+        "Modello Ollama dedicato alle analisi scientifiche.\n"
+        "Modelli consigliati:\n"
+        "  llama3.2:3b    — veloce, generale (2GB)\n"
+        "  qwen2.5:7b     — ottimo per scienza/chimica (5GB)\n"
+        "  medllama2      — specializzato medicina (4GB)\n"
+        "  biomistral     — bioinformatica (4GB)\n"
+        "  deepseek-r1:7b — ragionamento scientifico (5GB)");
+    llmLay->addWidget(m_sciModelEdit);
+
+    auto* btnPull = new QPushButton(
+        "\xe2\xac\x87  Scarica", llmBar);
+    btnPull->setObjectName("actionBtn");
+    btnPull->setToolTip("Scarica il modello via Ollama (ollama pull)");
+    llmLay->addWidget(btnPull);
+
+    m_sciModelStatus = new QLabel("", llmBar);
+    m_sciModelStatus->setObjectName("hintLabel");
+    llmLay->addWidget(m_sciModelStatus, 1);
+
+    rootLay->addWidget(llmBar);
+
     /* ── Corpo principale: splitter verticale ── */
     auto* splitter = new QSplitter(Qt::Vertical, root);
 
@@ -484,6 +519,8 @@ QWidget* SciComputePage::buildUi()
     wuGLay->setSpacing(dpiScale(4));
 
     m_wuTable = new QTableWidget(0, 7, wuGroup);
+    /* 4 righe × 22px + header 26px + margini = ~120px minimo visibile */
+    m_wuTable->setMinimumHeight(dpiScale(120));
     m_wuTable->setHorizontalHeaderLabels(
         {"ID", "Tipo", "Label", "Status", "Nodo", "Prior.", "Creato"});
     m_wuTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
@@ -628,6 +665,19 @@ QWidget* SciComputePage::buildUi()
         "Apri prima il tab Proteine/3D, poi avvia questa pipeline",
         "pdb_dock"), 1, 1);
 
+    pipGrid->addWidget(makePipBtn(
+        "\xf0\x9f\xa4\x96", "BLAST + LLM Interpretazione",
+        "BLAST Nucleotide → LLM analisi risultati → ipotesi esperimenti\n"
+        "Il modello LLM interpreta automaticamente i risultati BLAST\n"
+        "Modello usato: quello configurato nel campo sopra",
+        "blast_llm"), 2, 0);
+
+    pipGrid->addWidget(makePipBtn(
+        "\xf0\x9f\xa4\x96", "Fold + LLM Analisi Struttura",
+        "ESMFold API → LLM analisi siti attivi e regioni funzionali\n"
+        "Il modello LLM interpreta la struttura e suggerisce esperimenti di mutagenesi",
+        "fold_llm"), 2, 1);
+
     pipLay->addLayout(pipGrid);
 
     /* Stato pipeline attive */
@@ -646,12 +696,47 @@ QWidget* SciComputePage::buildUi()
     splitter->addWidget(bottomTabs);
     splitter->setStretchFactor(0, 3);
     splitter->setStretchFactor(1, 2);
+    splitter->setSizes({dpiScale(220), dpiScale(200)});
 
     rootLay->addWidget(splitter, 1);
 
     /* ── Connessioni ── */
     connect(btnGuida, &QPushButton::clicked, this,
             [this] { showGuide(this); });
+
+    /* Modello LLM scientifico */
+    connect(m_sciModelEdit, &QLineEdit::textChanged, this,
+            [this](const QString& t) {
+        m_sciLlmModel = t.trimmed();
+        if (m_sciModelStatus) m_sciModelStatus->setText("");
+    });
+
+    connect(btnPull, &QPushButton::clicked, this, [this, btnPull] {
+        const QString model = m_sciModelEdit ? m_sciModelEdit->text().trimmed() : QString();
+        if (model.isEmpty()) return;
+        if (m_sciModelStatus)
+            m_sciModelStatus->setText("\xf0\x9f\x94\x84  Download in corso...");
+        btnPull->setEnabled(false);
+        appendLog("Scaricando modello: " + model + " via Ollama...");
+
+        /* Avvia ollama pull in background */
+        auto* proc = new QProcess(this);
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, proc, model, btnPull](int code, QProcess::ExitStatus) {
+            proc->deleteLater();
+            if (m_sciModelStatus) {
+                m_sciModelStatus->setText(
+                    code == 0
+                    ? "<span style='color:#22c55e;'>\xe2\x9c\x85  " + model + " pronto</span>"
+                    : "<span style='color:#ef4444;'>\xe2\x9d\x8c  Download fallito</span>");
+            }
+            if (btnPull) btnPull->setEnabled(true);
+            appendLog(code == 0
+                ? "\xe2\x9c\x85  Modello scaricato: " + model
+                : "\xe2\x9d\x8c  Errore download modello: " + model);
+        });
+        proc->start("ollama", {"pull", model});
+    });
 
     connect(modeBg, &QButtonGroup::idClicked, this, [this](int id) {
         m_isCoord = (id == 0);

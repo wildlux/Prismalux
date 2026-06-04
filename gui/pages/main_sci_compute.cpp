@@ -114,6 +114,16 @@ const QVector<SciTaskType>& SciComputePage::taskTypes()
         "  \"center_x\": 10.0, \"center_y\": 5.0, \"center_z\": -3.0,\n"
         "  \"box_size\": 20\n}" },
 
+      { "llm_sci_analysis", "LLM Analisi Scientifica", "python3",
+        "IA scientifica",
+        "{\n  \"model\": \"llama3.2:3b\",\n"
+        "  \"system\": \"Sei un biologo molecolare esperto. Analizza i dati "
+        "e fornisci interpretazioni, ipotesi e suggerimenti per esperimenti successivi.\",\n"
+        "  \"prompt\": \"Questi sono i risultati BLAST:\\n[incolla qui i risultati]\\n\\n"
+        "Interpreta e suggerisci i prossimi esperimenti.\",\n"
+        "  \"ollama_host\": \"http://localhost:11434\",\n"
+        "  \"temperature\": 0.3\n}" },
+
       { "esmfold_api",  "ESMFold API (Meta)",        "python3",
         "proteine",
         "{\n  \"sequence\": \"MKTLLLTLVVVTIVCLDLGAV\",\n"
@@ -359,6 +369,70 @@ void SciComputePage::createPipeline(const QString& tmplId,
 
         appendLog(QString("  GROMACS Min → MD → Analisi (%1 → %2 → %3)")
                   .arg(wu1.left(8), wu2.left(8), wu3.left(8)));
+
+    } else if (tmplId == "blast_llm") {
+        /* BLAST → LLM interpreta i risultati e suggerisce esperimenti */
+        const QString seq = userParams["sequence"].toString(
+            ">gene_test\nATGGCCCTGTGGATGCGCCTCCTGCCC");
+        const QString db  = userParams["db"].toString("nt");
+
+        const QString wu1 = insertWu("blastn", "1. BLAST ricerca",
+            QJsonDocument(QJsonObject{
+                {"query",   seq}, {"db", db},
+                {"evalue",  "0.001"}, {"outfmt", "6"}, {"max_hits", 10}
+            }).toJson(), 2, 1, "", pipId);
+
+        const QString llmPrompt =
+            "Questi sono i risultati BLAST (formato tabellare outfmt 6):\\n"
+            "[I risultati sono nel file di output della WU precedente]\\n\\n"
+            "Analizza:\\n"
+            "1. Quali organismi mostrano maggiore omologia?\\n"
+            "2. Ci sono pattern evolutivi interessanti?\\n"
+            "3. Quali esperimenti di biologia molecolare suggeriresti?\\n"
+            "4. Ci sono implicazioni per malattie umane?";
+
+        const QString wu2 = insertWu("llm_sci_analysis", "2. LLM interpreta BLAST",
+            QJsonDocument(QJsonObject{
+                {"model",  m_sciLlmModel},
+                {"system", "Sei un biologo molecolare esperto in genomica comparativa."},
+                {"prompt", llmPrompt},
+                {"ollama_host", "http://localhost:11434"},
+                {"temperature", 0.3}
+            }).toJson(), 2, 1, wu1, pipId);
+
+        appendLog(QString("  BLAST \xe2\x86\x92 LLM (%1 \xe2\x86\x92 %2, modello: %3)")
+                  .arg(wu1.left(8), wu2.left(8), m_sciLlmModel));
+
+    } else if (tmplId == "fold_llm") {
+        /* ESMFold → LLM analisi struttura e siti attivi */
+        const QString seq = userParams["sequence"].toString("MKTLLLTLVVVTIVCLDLGAV");
+
+        const QString wu1 = insertWu("esmfold_api", "1. Predizione struttura",
+            QJsonDocument(QJsonObject{
+                {"sequence", seq}, {"label", "fold_pipeline_" + pipId},
+                {"max_length", 400}
+            }).toJson(), 2, 1, "", pipId);
+
+        const QString llmPrompt =
+            "Una proteina con la seguente sequenza e' stata predetta da ESMFold:\\n"
+            "Sequenza: " + seq + "\\n\\n"
+            "Analizza:\\n"
+            "1. Quali domini funzionali sono probabilmente presenti?\\n"
+            "2. Dove potrebbero trovarsi i siti attivi o di legame?\\n"
+            "3. Quali mutazioni puntiformi potrebbero alterare la funzione?\\n"
+            "4. Suggerisci esperimenti di mutagenesi sito-diretta per validare la funzione.";
+
+        const QString wu2 = insertWu("llm_sci_analysis", "2. LLM analisi struttura",
+            QJsonDocument(QJsonObject{
+                {"model",  m_sciLlmModel},
+                {"system", "Sei un esperto di struttura e funzione delle proteine."},
+                {"prompt", llmPrompt},
+                {"ollama_host", "http://localhost:11434"},
+                {"temperature", 0.25}
+            }).toJson(), 2, 1, wu1, pipId);
+
+        appendLog(QString("  ESMFold \xe2\x86\x92 LLM struttura (%1 \xe2\x86\x92 %2, modello: %3)")
+                  .arg(wu1.left(8), wu2.left(8), m_sciLlmModel));
 
     } else {
         appendLog("\xe2\x9a\xa0  Template pipeline non riconosciuto: " + tmplId);
@@ -1003,6 +1077,54 @@ void SciComputePage::executeLocally(const QString& wuId, const QString& type,
             args << in;
             proc->start("samtools", args);
         }
+    } else if (type == "llm_sci_analysis") {
+        /* LLM scientifico via Ollama (locale o remoto).
+           Chiama l'API /api/generate con il modello scelto.
+           Usa urllib stdlib — nessuna dipendenza extra.             */
+        const QString model   = params["model"].toString(m_sciLlmModel);
+        const QString system  = params["system"].toString(
+            "Sei un assistente scientifico esperto. Analizza i dati e fornisci "
+            "interpretazioni dettagliate e suggerimenti per esperimenti futuri.");
+        const QString prompt  = params["prompt"].toString();
+        const QString host    = params["ollama_host"].toString("http://localhost:11434");
+        const double  temp    = params["temperature"].toDouble(0.3);
+
+        if (prompt.isEmpty()) { errMsg = "prompt vuoto"; validParams = false; }
+        else {
+            /* Escaping delle virgolette nei parametri per il JSON Python inline */
+            auto esc = [](QString s) {
+                return s.replace('\\', "\\\\").replace('"', "\\\"")
+                        .replace('\n', "\\n").replace('\r', "");
+            };
+            const QString script = QString(
+                "import urllib.request, json, sys\n"
+                "url = '%1/api/generate'\n"
+                "payload = json.dumps({"
+                "  'model': '%2', "
+                "  'system': \"%3\", "
+                "  'prompt': \"%4\", "
+                "  'stream': False, "
+                "  'options': {'temperature': %5}"
+                "}).encode()\n"
+                "req = urllib.request.Request(url, payload, "
+                "  {'Content-Type':'application/json'})\n"
+                "try:\n"
+                "    with urllib.request.urlopen(req, timeout=300) as r:\n"
+                "        data = json.loads(r.read())\n"
+                "        print(data.get('response', ''))\n"
+                "        ctx = data.get('context', [])\n"
+                "        if ctx: print(f'\\n[Token usati: {data.get(\"eval_count\",0)}]')\n"
+                "except Exception as e:\n"
+                "    print(f'ERRORE: {e}', file=sys.stderr)\n"
+                "    sys.exit(1)\n"
+            ).arg(host, esc(model), esc(system), esc(prompt))
+             .arg(temp, 0, 'f', 2);
+
+            needsStdin = true;
+            stdinData  = script;
+            proc->start("python3", {"-"});
+        }
+
     } else if (type == "esmfold_api") {
         /* ESMFold API Meta — usa urllib stdlib Python (nessuna dipendenza extra)
            Limite: ~400 aa. Per sequenze più lunghe usare AlphaFold DB o esmfold_local. */

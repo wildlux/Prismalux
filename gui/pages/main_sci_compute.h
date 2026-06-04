@@ -179,5 +179,8 @@ private:
     QCheckBox*    m_localChk      = nullptr;
     QStackedWidget* m_modeStack   = nullptr;
     QString           m_selectedWuId;
-    SciProteinWidget* m_proteinWidget = nullptr;
+    SciProteinWidget* m_proteinWidget  = nullptr;
+    QString           m_sciLlmModel    = "llama3.2:3b"; /* modello LLM per analisi sci */
+    QLineEdit*        m_sciModelEdit   = nullptr;
+    QLabel*           m_sciModelStatus = nullptr;
 };
