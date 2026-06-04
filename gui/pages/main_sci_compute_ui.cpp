@@ -30,6 +30,9 @@
 #include <QRadioButton>
 #include <QButtonGroup>
 #include <QDateTime>
+#include <QDialog>
+#include <QTextBrowser>
+#include <QDialogButtonBox>
 
 /* Colore status → HTML */
 static QString statusColor(const QString& s)
@@ -49,6 +52,204 @@ static QString statusIcon(const QString& s)
     if (s == "conflict")                 return "\xe2\x9a\xa0";
     if (s == "pending")                  return "\xe2\x8f\xb3";
     return "?";
+}
+
+/* ══════════════════════════════════════════════════════════════
+   showGuide — dialogo HTML con guida completa per novellini ed esperti
+   ══════════════════════════════════════════════════════════════ */
+static void showGuide(QWidget* parent)
+{
+    static const QString kHtml = R"HTML(
+<style>
+body  { font-family: sans-serif; font-size: 13px; color: #e2e8f0;
+        background: #0f172a; margin: 14px; line-height: 1.55; }
+h1    { color: #7dd3fc; font-size: 17px; margin-bottom: 4px; }
+h2    { color: #93c5fd; font-size: 14px; margin-top: 18px; margin-bottom: 4px;
+        border-bottom: 1px solid #1e3a5f; padding-bottom: 3px; }
+h3    { color: #60a5fa; font-size: 13px; margin-top: 12px; margin-bottom: 2px; }
+code, pre { background: #1e293b; color: #86efac; padding: 2px 6px;
+            border-radius: 4px; font-size: 12px; }
+pre   { display: block; padding: 10px; margin: 6px 0;
+        white-space: pre-wrap; word-break: break-all; }
+.tag  { display: inline-block; background: #1d4ed8; color: #bfdbfe;
+        padding: 1px 7px; border-radius: 10px; font-size: 11px; margin-right: 4px; }
+.ok   { color: #4ade80; } .warn { color: #fbbf24; } .err { color: #f87171; }
+ul    { margin: 4px 0 4px 18px; padding: 0; }
+li    { margin-bottom: 2px; }
+hr    { border: none; border-top: 1px solid #1e3a5f; margin: 14px 0; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+th    { background: #1e3a5f; color: #93c5fd; padding: 5px 8px; text-align: left; }
+td    { padding: 4px 8px; border-bottom: 1px solid #1e293b; }
+</style>
+
+<h1>&#128300; Calcolo Scientifico Distribuito &mdash; Guida</h1>
+<p><span class="tag">novellino</span><span class="tag">esperto</span>
+Sistema BOINC-like per distribuire task scientifici su pi&ugrave; PC (VPN Tailscale consigliata).</p>
+
+<h2>&#128209; Concetto in 30 secondi</h2>
+<ul>
+  <li><b>Coordinator</b> &mdash; il PC che crea i task e li distribuisce (porta 11601)</li>
+  <li><b>Worker</b> &mdash; qualsiasi PC che esegue i task (deve avere i tool installati)</li>
+  <li>Un PC pu&ograve; essere entrambi &mdash; checkbox <b>&ldquo;Usa questo PC come worker&rdquo;</b></li>
+  <li><b>Token</b> &mdash; parola d&rsquo;ordine condivisa, impedisce accessi non autorizzati</li>
+  <li><b>VPN Tailscale</b> &mdash; collega PC in reti diverse come se fossero in LAN</li>
+</ul>
+
+<hr>
+
+<h2>&#9654; Esempio 1 &mdash; Monte Carlo (solo Python3, immediato)</h2>
+<p><span class="tag ok">0 installazioni</span> Funziona su qualsiasi PC con Python3.</p>
+
+<b>Passo 1</b> &mdash; Avvia il Coordinator<br>
+<code>radio "&#128300; Calcolo Scientifico" &rarr; Coordinator &rarr; &#9989; Usa questo PC come worker &rarr; "&#129001; Avvia Coordinator"</code>
+<p>Lo status diventa: <span class="ok">&#129001; Coordinator attivo &mdash; porta 11601 &mdash; 1 nodi connessi</span></p>
+
+<b>Passo 2</b> &mdash; Crea la Work Unit<br>
+<pre>Tipo:   [generale] Python SciPy / NumPy
+Label:  Stima Pi greco
+Params:
+{
+  "script": "import random\nn=5000000\npi=4*sum(1 for _ in range(n) if random.random()**2+random.random()**2&lt;1)/n\nprint(f'Pi={pi:.6f}')"
+}
+Priorita: 1    Repliche: 1    &rarr; "Aggiungi alla coda"</pre>
+
+<b>Passo 3</b> &mdash; Attendi il dispatch (3 secondi automatici)<br>
+<pre>&#9203; pending &rarr; &#128260; running &rarr; &#9989; done</pre>
+
+<b>Passo 4</b> &mdash; Leggi il risultato<br>
+<code>Click sulla riga WU &rarr; tab "&#128202; Risultati"</code>
+<pre>Pi greco stimato: 3.141587
+Errore: 0.000006</pre>
+
+<hr>
+
+<h2>&#128300; Esempio 2 &mdash; BLAST (bioinformatica, richiede ncbi-blast+)</h2>
+<p><span class="tag warn">richiede BLAST</span> <code>sudo apt install ncbi-blast+</code></p>
+<pre>Tipo:   [bioinformatica] BLAST Nucleotide
+Label:  Ricerca gene insulina
+Params:
+{
+  "query": "&gt;insulin_human\nATGGCCCTGTGGATGCGCCTCCTGCCCCTGCTGGCGCTGCTGGCCCTG",
+  "db": "nt",
+  "evalue": "0.001",
+  "outfmt": "6",
+  "max_hits": 5
+}</pre>
+<p>Risultato: tabella TSV con accession, identit&agrave;%, lunghezza allineamento, e-value.</p>
+
+<hr>
+
+<h2>&#129520; Esempio 3 &mdash; Predizione struttura proteina (ESMFold, no installazione)</h2>
+<p><span class="tag ok">API gratuita</span> Usa il server Meta ESMFold &mdash; max 400 aminoacidi.</p>
+<pre>Tab bottom &rarr; "&#129580; Proteine / 3D"
+
+Sequenza FASTA:
+&gt;MyProtein
+MKTLLLTLVVVTIVCLDLGAV
+
+&rarr; "&#129580; Predici struttura (ESMFold API)"
+&rarr; attendi 30-90 secondi
+&rarr; struttura 3D appare nel viewer (cartoon colorato)
+&rarr; "&#11015; Salva .pdb"</pre>
+
+<b>Ricerca su database:</b>
+<ul>
+  <li><b>AlphaFold DB</b> &mdash; inserisci UniProt ID (es. <code>P05067</code> = APP umana / Alzheimer)</li>
+  <li><b>RCSB PDB</b> &mdash; cerca per nome (es. <code>insulin</code>) o PDB ID (es. <code>1ABC</code>)</li>
+  <li><b>UniProt</b> &mdash; cerca per malattia (es. <code>Parkinson</code>, <code>BRCA1</code>)</li>
+</ul>
+
+<hr>
+
+<h2>&#9939; Esempio 4 &mdash; Pipeline FASTA &rarr; Struttura &rarr; Docking</h2>
+<p><span class="tag warn">richiede AutoDock Vina</span> <code>sudo apt install autodock-vina</code></p>
+<pre>Tab bottom &rarr; "&#9939; Pipeline"
+&rarr; click "&#129580; Protein Fold &rarr; Docking"</pre>
+<p>Crea automaticamente <b>2 Work Unit in sequenza</b>:</p>
+<table>
+  <tr><th>Step</th><th>Tipo</th><th>Dipende da</th><th>Output</th></tr>
+  <tr><td>WU-1</td><td>esmfold_api</td><td>&mdash;</td><td>struttura .pdb</td></tr>
+  <tr><td>WU-2</td><td>autodock</td><td>WU-1 done</td><td>affinit&agrave; binding kcal/mol</td></tr>
+</table>
+<p>WU-2 parte <b>solo quando</b> WU-1 &egrave; <span class="ok">done</span> o <span class="ok">validated</span>.</p>
+
+<hr>
+
+<h2>&#127968; Esempio 5 &mdash; Due PC su rete diversa (Tailscale VPN)</h2>
+<pre><b>PC-A (coordinator):</b>
+  Avvia Coordinator &rarr; copia Token (click &#128065;)
+
+<b>PC-B (worker) &mdash; su un altro PC:</b>
+  Installa Tailscale: curl -fsSL https://tailscale.com/install.sh | sh
+  tailscale up
+  IP VPN del PC-A: es. 100.64.0.1
+
+  Radio: Worker (client)
+  Coordinator IP: 100.64.0.1
+  Token: [incolla]
+  &rarr; "&#128279; Connetti"</pre>
+<p>Appena connesso, PC-B invia le sue capability automaticamente:</p>
+<pre class="ok">&#129001; Nodo connesso: PC-B &mdash; CPU:8 RAM:16GB GPU:no Tool:[python3, R, blastn, fastqc]</pre>
+<p>Da questo momento i task vengono distribuiti al nodo pi&ugrave; capace.</p>
+
+<hr>
+
+<h2>&#128295; Tool scientifici supportati</h2>
+<table>
+  <tr><th>Dominio</th><th>Tool</th><th>Installazione</th></tr>
+  <tr><td>Bioinformatica</td><td>blastn, blastp, blastx</td><td><code>apt install ncbi-blast+</code></td></tr>
+  <tr><td>Bioinformatica</td><td>bwa, samtools, fastqc, bowtie2</td><td><code>apt install bwa samtools fastqc</code></td></tr>
+  <tr><td>Chimica</td><td>GROMACS (gmx)</td><td><code>apt install gromacs</code></td></tr>
+  <tr><td>Chimica</td><td>AutoDock Vina</td><td><code>apt install autodock-vina</code></td></tr>
+  <tr><td>Statistica</td><td>R (Rscript)</td><td><code>apt install r-base</code></td></tr>
+  <tr><td>Generale</td><td>Python3 + SciPy</td><td><code>apt install python3-scipy</code></td></tr>
+  <tr><td>Proteine</td><td>ESMFold locale</td><td><code>pip install fair-esm torch</code> (~20GB)</td></tr>
+</table>
+
+<h2>&#128275; Sicurezza</h2>
+<ul>
+  <li><b>Token</b> &mdash; condividilo solo con i nodi di fiducia</li>
+  <li><b>VPN Tailscale</b> &mdash; tutto il traffico &egrave; cifrato WireGuard, porta 11601 non esposta su internet</li>
+  <li><b>Path validation</b> &mdash; i path nei parametri JSON non possono uscire da <code>/home/</code>, <code>/data/</code>, <code>/tmp/</code></li>
+  <li><b>Tool validation</b> &mdash; il campo <code>"program"</code> accetta solo nomi binari, mai shell string</li>
+</ul>
+
+<h2>&#128202; Flusso visivo</h2>
+<pre>Crea WU &rarr; Coda (&#9203; pending)
+              &darr; dispatch timer 3s
+         Assegnata al nodo capace (&#128260; running)
+              &darr; esecuzione tool
+         Risultato (&#9989; done / &#10060; error / &#128994; validated / &#9888; conflict)
+              &darr;
+         Click sulla riga &rarr; tab Risultati &rarr; output + hash SHA-256</pre>
+
+<p style="color:#475569; font-size:11px; margin-top:18px;">
+Prismalux v2.9 &mdash; Calcolo Scientifico Distribuito &mdash;
+<a href="https://github.com/wildlux/Prismalux" style="color:#60a5fa;">github.com/wildlux/Prismalux</a>
+</p>
+)HTML";
+
+    auto* dlg  = new QDialog(parent);
+    dlg->setWindowTitle("Guida — Calcolo Scientifico Distribuito");
+    dlg->resize(820, 620);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+
+    auto* lay = new QVBoxLayout(dlg);
+    lay->setContentsMargins(0, 0, 0, 8);
+    lay->setSpacing(0);
+
+    auto* browser = new QTextBrowser(dlg);
+    browser->setOpenExternalLinks(true);
+    browser->setHtml(kHtml);
+    browser->setStyleSheet("QTextBrowser { background: #0f172a; border: none; }");
+    lay->addWidget(browser, 1);
+
+    auto* box = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
+    box->setContentsMargins(8, 0, 8, 0);
+    QObject::connect(box, &QDialogButtonBox::rejected, dlg, &QDialog::accept);
+    lay->addWidget(box);
+
+    dlg->show();
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -91,11 +292,19 @@ QWidget* SciComputePage::buildUi()
         "\xf0\x9f\x9f\xa2  Avvia Coordinator", cfgBar);
     m_btnStartStop->setObjectName("primaryBtn");
 
+    auto* btnGuida = new QPushButton(
+        "\xf0\x9f\x93\x96  Guida", cfgBar);
+    btnGuida->setObjectName("actionBtn");
+    btnGuida->setToolTip(
+        "Esempi pratici per novellini ed esperti:\n"
+        "Monte Carlo, BLAST, ESMFold, Pipeline, VPN multi-PC");
+
     cfgLay->addWidget(coordRb);
     cfgLay->addWidget(workerRb);
     cfgLay->addSpacing(dpiScale(12));
     cfgLay->addWidget(m_localChk);
     cfgLay->addStretch(1);
+    cfgLay->addWidget(btnGuida);
     cfgLay->addWidget(m_btnStartStop);
     rootLay->addWidget(cfgBar);
 
@@ -411,6 +620,9 @@ QWidget* SciComputePage::buildUi()
     rootLay->addWidget(splitter, 1);
 
     /* ── Connessioni ── */
+    connect(btnGuida, &QPushButton::clicked, this,
+            [this] { showGuide(this); });
+
     connect(modeBg, &QButtonGroup::idClicked, this, [this](int id) {
         m_isCoord = (id == 0);
         if (m_modeStack) m_modeStack->setCurrentIndex(id);
