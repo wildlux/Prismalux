@@ -289,8 +289,7 @@ QWidget* SciComputePage::buildUi()
     m_nodeTable->verticalHeader()->hide();
     m_nodeTable->setAlternatingRowColors(true);
     nodeLay->addWidget(m_nodeTable);
-    bottomTabs->addTab(nodeWidget,
-        "\xf0\x9f\x96\xa5  Nodi (%1)");
+    bottomTabs->addTab(nodeWidget, "\xf0\x9f\x96\xa5  Nodi");
 
     /* Tab risultati */
     auto* resWidget = new QWidget;
@@ -480,6 +479,17 @@ void SciComputePage::refreshNodeTable()
     if (!m_nodeTable) return;
     const auto rows = queryNodes();
     m_nodeTable->setRowCount(rows.size());
+
+    /* Aggiorna il titolo del tab con il conteggio nodi attivi */
+    if (auto* tabs = qobject_cast<QTabWidget*>(m_nodeTable->parent()
+                        ? m_nodeTable->parent()->parent() : nullptr)) {
+        const int idleCount = std::count_if(rows.begin(), rows.end(),
+            [](const QVariantMap& m){ return m["status"].toString() != "offline"; });
+        for (int i = 0; i < tabs->count(); ++i) {
+            if (tabs->tabText(i).contains("Nodi"))
+                tabs->setTabText(i, QString("\xf0\x9f\x96\xa5  Nodi (%1)").arg(idleCount));
+        }
+    }
     for (int i = 0; i < rows.size(); ++i) {
         const auto& r      = rows[i];
         const QString id   = r["id"].toString();
