@@ -4,6 +4,7 @@
 #include "../dpi_utils.h"
 #include "../widgets/stt_whisper.h"
 #include "../widgets/ffmpeg_utils.h"
+#include "../widgets/opencv_utils.h"
 #include "../widgets/world_map_widget.h"
 #include <QSettings>
 #include <QVBoxLayout>
@@ -655,24 +656,59 @@ QWidget* MultimediaPage::buildOcrTab()
 
     auto* hint = new QLabel(
         "\xe2\x84\xb9  Richiede: "
-        "<code>sudo apt install python3-opencv python3-pandas tesseract-ocr tesseract-ocr-ita</code>"
-        " + <code>python3 -m pip install pytesseract --break-system-packages</code>", panel);
+        "<code>sudo apt install tesseract-ocr tesseract-ocr-ita</code>"
+        " + cv2/pytesseract via venv OpenCV (<b>Installa venv</b>) o sistema", panel);
     hint->setTextFormat(Qt::RichText);
     hint->setObjectName("hintLabel");
     hint->setWordWrap(true);
     hintRow->addWidget(hint, 1);
+
+    /* Pulsante: installa venv OpenCV dedicato in Frameworks/opencv/venv/ */
+    auto* btnVenv = new QPushButton(
+        "\xf0\x9f\x90\x8d  Installa venv OpenCV", panel);  /* 🐍 */
+    btnVenv->setObjectName("navBtn");
+    btnVenv->setFixedHeight(28);
+    btnVenv->setToolTip(
+        "Crea Frameworks/opencv/venv/ con cv2 + pytesseract isolati.\n"
+        "Consigliato: evita conflitti con i pacchetti di sistema.");
+    connect(btnVenv, &QPushButton::clicked, panel, [btnVenv]{
+        const QString script = OpencvUtils::setupVenvScript();
+        const QString path   = OpencvUtils::venvDir() + "/../setup_venv.sh";
+        QFile f(path);
+        if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            f.write(script.toUtf8());
+            f.close();
+            QFile::setPermissions(path,
+                QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner |
+                QFile::ReadGroup | QFile::ReadOther);
+        }
+        auto* proc = new QProcess(btnVenv);
+        proc->setProcessChannelMode(QProcess::MergedChannels);
+        proc->start("bash", {path});
+        btnVenv->setText(tr("\xe2\x8f\xb3  Installazione..."));
+        btnVenv->setEnabled(false);
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                btnVenv, [btnVenv, proc](int code, QProcess::ExitStatus){
+                    proc->deleteLater();
+                    btnVenv->setEnabled(true);
+                    btnVenv->setText(code == 0
+                        ? tr("\xe2\x9c\x85  Venv pronto")
+                        : tr("\xe2\x9d\x8c  Errore venv"));
+                });
+    });
+    hintRow->addWidget(btnVenv);
 
     auto* btnCopyCmd = new QPushButton(
         "\xf0\x9f\x93\x8b  Copia comandi", panel);  /* 📋 */
     btnCopyCmd->setObjectName("navBtn");
     btnCopyCmd->setFixedHeight(28);
     btnCopyCmd->setToolTip(
-        "Copia i comandi di installazione negli appunti:\n"
-        "sudo apt install python3-opencv python3-pandas tesseract-ocr tesseract-ocr-ita -y\n"
+        "Copia i comandi di installazione sistema negli appunti:\n"
+        "sudo apt install python3-opencv tesseract-ocr tesseract-ocr-ita -y\n"
         "python3 -m pip install pytesseract --break-system-packages");
     connect(btnCopyCmd, &QPushButton::clicked, panel, [btnCopyCmd]{
         QApplication::clipboard()->setText(
-            "sudo apt install python3-opencv python3-pandas tesseract-ocr tesseract-ocr-ita -y\n"
+            "sudo apt install python3-opencv tesseract-ocr tesseract-ocr-ita -y\n"
             "python3 -m pip install pytesseract --break-system-packages");
         const QString orig = btnCopyCmd->text();
         btnCopyCmd->setText(tr("\xe2\x9c\x85  Copiato!"));
@@ -989,7 +1025,7 @@ void MultimediaPage::startOcrDaemon()
             this, &MultimediaPage::onOcrDaemonFinished);
 
     m_ocrStatus->setText(tr("\xe2\x8f\xb3  Avvio daemon OCR (import librerie)..."));
-    m_ocrDaemon->start(P::findPython(),
+    m_ocrDaemon->start(OpencvUtils::findCvPython(),
                        QStringList{"-c", ocrDaemonScript(previewPath)});
     if (!m_ocrDaemon->waitForStarted(3000)) {
         m_ocrStatus->setText(tr("\xe2\x9d\x8c  Python non trovato nel PATH."));
