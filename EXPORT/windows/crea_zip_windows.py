@@ -11,7 +11,7 @@ Uso:
 Modalità SORGENTI (default senza .exe):
     Include sorgenti Qt6 C++ + build.bat → l'utente compila con build.bat.
 
-Modalità BINARIO (auto se .exe trovato in gui/build_win/ o COMPILE_WIN/build/):
+Modalità BINARIO (auto se .exe trovato in gui/build_win/ o Tools/compile_win/build/):
     Include Prismalux_GUI.exe + DLL Qt + themes + dati → pronto all'uso.
 
 Cosa esclude sempre:
@@ -30,7 +30,7 @@ def _find_win_binary():
     candidates = [
         ROOT / "build_cross_win" / "Prismalux_GUI.exe",   # cross-compilato da Linux
         ROOT / "gui" / "build_win" / "Prismalux_GUI.exe",
-        ROOT / "COMPILE_WIN" / "build" / "Prismalux_GUI.exe",
+        ROOT / "Tools" / "compile_win" / "build" / "Prismalux_GUI.exe",
         ROOT / "build_win" / "Prismalux_GUI.exe",
         ROOT / "build" / "Prismalux_GUI.exe",
     ]
@@ -44,8 +44,8 @@ def _find_win_binary():
 # ══════════════════════════════════════════════════════════════
 SOURCE_DIRS = [
     "gui",
-    "COMPILE_WIN",
-    "ICONA",
+    "Tools/compile_win",
+    "EXPORT/assets",
     "RAG",
     "MCPs",
     "TOOL_TIP/BEST_PRACTICE_&_GOAL",
@@ -55,11 +55,7 @@ SOURCE_DIRS = [
 SOURCE_ROOT_FILES = [
     "README.md",
     "LICENSE",
-    "aggiorna.sh",
-    "aggiorna.bat",
     "build.bat",
-    "build.py",
-    "Avvia_Prismalux.bat",
 ]
 SOURCE_EXCLUDE = [
     r"[/\\]build[/\\]",         # qualsiasi build/
@@ -81,8 +77,8 @@ SOURCE_EXCLUDE = [
     r"Prismalux_Windows.*\.zip$",
     r"[/\\]toolchain[/\\]",     # toolchain portatile scaricata da setup.bat
     r"[/\\]toolchain$",
-    r"COMPILE_WIN[/\\]build[/\\]",   # COMPILE_WIN/build/ (output compilazione)
-    r"COMPILE_WIN[/\\]build$",       # — ma NON build.bat!
+    r"Tools[/\\]compile_win[/\\]build[/\\]",  # Tools/compile_win/build/ (output compilazione)
+    r"Tools[/\\]compile_win[/\\]build$",
 ]
 
 # File singoli oltre questa soglia vengono saltati (0 = nessun limite)
@@ -94,14 +90,13 @@ MAX_FILE_MB = 0
 BINARY_ROOT_FILES = [
     "README.md",
     "LICENSE",
-    "aggiorna.bat",
-    "Avvia_Prismalux.bat",
+    "build.bat",
 ]
 # Cartelle dati da includere nel binario ZIP
 BINARY_DATA_DIRS = [
     "RAG",
     "MCPs",
-    "ICONA",
+    "EXPORT/assets",
     "TOOL_TIP/BEST_PRACTICE_&_GOAL",
     "Frameworks/whisper/bin_windows",
     "TOOL_TIP/KNOWLEDGE_USER",

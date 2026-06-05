@@ -7,9 +7,9 @@ REM  Prismalux — Build Windows
 REM  Doppio clic per compilare. Tutta la logica e' in build.py.
 REM
 REM  Ordine di ricerca Python:
-REM    1. COMPILE_WIN\toolchain\python\  (embedded, installato da setup.bat)
-REM    2. PATH di sistema                (python3, python, py)
-REM    3. MSYS2                          (C:\msys64\ucrt64\bin\  ecc.)
+REM    1. Tools\compile_win\toolchain\python\  (embedded, installato da setup.bat)
+REM    2. PATH di sistema                       (python3, python, py)
+REM    3. MSYS2                                 (C:\msys64\ucrt64\bin\  ecc.)
 REM ══════════════════════════════════════════════════════════════
 
 set SCRIPT_DIR=%~dp0
@@ -23,15 +23,15 @@ echo.
 echo  Cerco Python nei seguenti percorsi:
 echo.
 
-REM ── 1) Python embedded (COMPILE_WIN\toolchain\python) ────────
-echo  [COMPILE_WIN\toolchain\python\]
-set EMBED_PY=%SCRIPT_DIR%COMPILE_WIN\toolchain\python\python.exe
+REM ── 1) Python embedded (Tools\compile_win\toolchain\python) ──
+echo  [Tools\compile_win\toolchain\python\]
+set EMBED_PY=%SCRIPT_DIR%Tools\compile_win\toolchain\python\python.exe
 if exist "%EMBED_PY%" (
     echo    [OK] python.exe trovato in: %EMBED_PY%
     set PYTHON=%EMBED_PY%
 ) else (
     echo    [--] %EMBED_PY%
-    echo         ^(non presente — esegui COMPILE_WIN\setup.bat per scaricarlo^)
+    echo         ^(non presente — esegui Tools\compile_win\setup.bat per scaricarlo^)
 )
 echo.
 
@@ -82,14 +82,14 @@ REM ── Riepilogo ───────────────────�
 if not defined PYTHON goto :not_found
 
 echo  +--------------------------------------------------+
-echo  ^|   Python trovato — avvio build.py                ^|
+echo  ^|   Python trovato — avvio Tools\build\build.py     ^|
 echo  +--------------------------------------------------+
 echo.
 echo  Interprete : !PYTHON!
-echo  Script     : %SCRIPT_DIR%build.py
+echo  Script     : %SCRIPT_DIR%Tools\build\build.py
 echo.
 
-"!PYTHON!" "%SCRIPT_DIR%build.py" %*
+"!PYTHON!" "%SCRIPT_DIR%Tools\build\build.py" %*
 set RC=!ERRORLEVEL!
 
 echo.
@@ -99,7 +99,7 @@ if !RC! == 0 (
     echo   ##################################################
     echo   ##                                              ##
     echo   ##     BUILD COMPLETATA CON SUCCESSO            ##
-    echo   ##     Doppio clic su Avvia_Prismalux.bat       ##
+    echo   ##     Doppio clic su Tools\build\Avvia_Prismalux.bat  ##
     echo   ##                                              ##
     echo   ##################################################
     echo.
@@ -133,9 +133,9 @@ echo  Python e' necessario per compilare Prismalux su Windows.
 echo  Scegli uno dei metodi seguenti:
 echo.
 echo  ── Metodo A: toolchain portatile (consigliato) ──────
-echo     Doppio clic su COMPILE_WIN\setup.bat
+echo     Doppio clic su Tools\compile_win\setup.bat
 echo     Scarica Python + Qt + GCC + CMake + Ninja (~600 MB)
-echo     Python sara' in: %SCRIPT_DIR%COMPILE_WIN\toolchain\python\python.exe
+echo     Python sara' in: %SCRIPT_DIR%Tools\compile_win\toolchain\python\python.exe
 echo.
 echo  ── Metodo B: Python ufficiale ───────────────────────
 echo     1. Scarica da: https://www.python.org/downloads/

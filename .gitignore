@@ -104,7 +104,7 @@ photo_*.jpg
 photo_*.png
 screenshot_*.jpg
 screenshot_*.png
-ICONA/storico/
+EXPORT/assets/storico/
 
 # ── File di sistema ───────────────────────────────────────────────────────────
 .DS_Store
@@ -147,9 +147,9 @@ Schermata_*.png
 Prismalux_v*.zip
 ANDROID/*.zip
 
-# ── COMPILE_WIN — toolchain scaricata (troppo grande) e output build ─────────
-COMPILE_WIN/toolchain/
-COMPILE_WIN/build/
+# ── Tools/compile_win — toolchain scaricata (troppo grande) e output build ───
+Tools/compile_win/toolchain/
+Tools/compile_win/build/
 
 # ── KNOWLEDGE_USER — dati personali, non versionare ─────────────────────────
 TOOL_TIP/KNOWLEDGE_USER/user_knowledge.md
@@ -165,7 +165,7 @@ ANDROID/android_app/build-android/
 ANDROID/android_app/build-host/
 ANDROID/build_apk.sh
 ANDROID/*.idsig
-COMPILE_WIN/.venv_tools/
+Tools/compile_win/.venv_tools/
 
 # ── Build artifacts ───────────────────────────────────────────────────────────
 build_gui/
