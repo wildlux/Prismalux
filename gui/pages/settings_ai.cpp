@@ -1080,6 +1080,9 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
         proc->start("python3", args);
     });
 
+    /* ── Auto-verifica al primo caricamento ── */
+    QTimer::singleShot(400, verifyBtn, [verifyBtn]() { verifyBtn->click(); });
+
     /* ── Wrapper QTabWidget: Moduli MCP + Dipendenze esterne ── */
     auto* innerTabs = new QTabWidget;
     innerTabs->setObjectName("innerTabs");
