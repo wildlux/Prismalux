@@ -137,6 +137,10 @@ gui/build_*/
 # ── Binari whisper Windows in Frameworks/whisper/bin_windows ──────────────────
 Frameworks/whisper/bin_windows/
 
+# ── OpenCV — build artifacts (compilati localmente) ───────────────────────────
+Frameworks/opencv/build/
+Frameworks/opencv/bin_windows/
+
 # ── Configurazione MCP locale ─────────────────────────────────────────────────
 .mcp.json
 

@@ -602,6 +602,15 @@ inline QString whisperModelsDir()
 }
 
 /**
+ * opencvDir() — Cartella OpenCV dentro il progetto.
+ *   root() = Prismalux/  →  Prismalux/Frameworks/opencv/
+ */
+inline QString opencvDir()
+{
+    return root() + "/Frameworks/opencv";
+}
+
+/**
  * findPython() — Restituisce il percorso ASSOLUTO dell'eseguibile Python.
  *
  * PROBLEMA WINDOWS (double-quoting bug):
