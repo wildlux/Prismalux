@@ -620,6 +620,15 @@ inline QString ffmpegDir()
 }
 
 /**
+ * onnxDir() — Cartella ONNX Runtime dentro il progetto.
+ *   root() = Prismalux/  →  Prismalux/Frameworks/onnx/
+ */
+inline QString onnxDir()
+{
+    return root() + "/Frameworks/onnx";
+}
+
+/**
  * findPython() — Restituisce il percorso ASSOLUTO dell'eseguibile Python.
  *
  * PROBLEMA WINDOWS (double-quoting bug):
