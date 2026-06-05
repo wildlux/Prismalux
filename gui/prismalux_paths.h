@@ -611,6 +611,15 @@ inline QString opencvDir()
 }
 
 /**
+ * ffmpegDir() — Cartella FFmpeg dentro il progetto.
+ *   root() = Prismalux/  →  Prismalux/Frameworks/ffmpeg/
+ */
+inline QString ffmpegDir()
+{
+    return root() + "/Frameworks/ffmpeg";
+}
+
+/**
  * findPython() — Restituisce il percorso ASSOLUTO dell'eseguibile Python.
  *
  * PROBLEMA WINDOWS (double-quoting bug):
