@@ -2118,7 +2118,7 @@ void LanServer::handleSync(const Session& s)
             return;
         }
 
-        const QString syncPath = P::root() + "/KNOWLEDGE_USER/mobile_sync.json";
+        const QString syncPath = P::root() + "/TOOL_TIP/KNOWLEDGE_USER/mobile_sync.json";
         QDir().mkpath(QFileInfo(syncPath).absolutePath());
 
         /* Leggi sync esistente e mergia */

@@ -68,7 +68,7 @@ QWidget* ManutenzioneePage::buildBugTracker()
 
     m_bugModelCombo = new QComboBox(searchRow);
     m_bugModelCombo->setMinimumWidth(220);
-    m_bugModelCombo->setToolTip("Seleziona il modello da analizzare");
+    m_bugModelCombo->setToolTip(tr("Seleziona il modello da analizzare"));
     if (!m_ai->model().isEmpty())
         m_bugModelCombo->addItem(m_ai->model());
     searchLay->addWidget(m_bugModelCombo, 1);
@@ -76,7 +76,7 @@ QWidget* ManutenzioneePage::buildBugTracker()
     auto* btnRefMod = new QPushButton("\xf0\x9f\x94\x84", searchRow);
     btnRefMod->setObjectName("actionBtn");
     btnRefMod->setFixedWidth(34);
-    btnRefMod->setToolTip("Aggiorna lista modelli");
+    btnRefMod->setToolTip(tr("Aggiorna lista modelli"));
     searchLay->addWidget(btnRefMod);
 
     m_btnSearchBug = new QPushButton("\xf0\x9f\x94\x8d  Cerca bug", searchRow);
@@ -122,7 +122,7 @@ QWidget* ManutenzioneePage::buildBugTracker()
     auto* btnClearFix = new QPushButton(
         "\xf0\x9f\x97\x91  Rimuovi fix", fixRow);
     btnClearFix->setObjectName("actionBtn");
-    btnClearFix->setToolTip("Rimuovi i fix salvati per il modello corrente");
+    btnClearFix->setToolTip(tr("Rimuovi i fix salvati per il modello corrente"));
     fixLay->addWidget(btnClearFix);
 
     m_bugStatusLbl = new QLabel("", fixRow);
@@ -403,7 +403,7 @@ void ManutenzioneePage::onSearchBugClicked()
 {
     const QString model = currentBugModel();
     if (model.isEmpty() || model.startsWith("(")) {
-        if (m_bugStatusLbl) m_bugStatusLbl->setText("\xe2\x9a\xa0  Seleziona prima un modello valido.");
+        if (m_bugStatusLbl) m_bugStatusLbl->setText(tr("\xe2\x9a\xa0  Seleziona prima un modello valido."));
         return;
     }
     searchBugs(model);
@@ -415,7 +415,7 @@ void ManutenzioneePage::onClearBugFixClicked()
     if (model.isEmpty()) return;
     QFile f(P::modelParamsPath());
     if (!f.open(QIODevice::ReadOnly)) {
-        if (m_bugStatusLbl) m_bugStatusLbl->setText("\xe2\x84\xb9  Nessun fix salvato per questo modello.");
+        if (m_bugStatusLbl) m_bugStatusLbl->setText(tr("\xe2\x84\xb9  Nessun fix salvato per questo modello."));
         return;
     }
     QJsonObject all = QJsonDocument::fromJson(f.readAll()).object();

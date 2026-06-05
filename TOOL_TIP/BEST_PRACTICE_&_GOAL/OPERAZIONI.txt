@@ -34,7 +34,8 @@ UI / UX
 [x] Font DPI adattivo — scaling font-size:Npx in CSS via regex in ThemeManager::apply() (dpi>108)
 [x] WCAG accessibilità — setAccessibleName/Description su lavoro_page, manutenzione_page,
     agenti_page (già presenti), impostazioni_page_ai (già presenti), strumenti_page (già presenti)
-[~] i18n tr() sistematico — wrappare stringhe UI in tr() [bassa priorità, non blocca produzione]
+[x] i18n tr() sistematico — ~720 setText/setToolTip/setPlaceholderText/setWindowTitle wrappati in tr() su tutti i gui/pages/*.cpp — 2026-06-05
+[x] BLE onShareKey() — QR code condivisione chiave (qrcodegen), pulsante 📷 in cryptoRow, CMakeLists Android aggiornato — 2026-06-05
 
 DATI & PERSISTENZA
 [x] Backup automatico KNOWLEDGE_USER/ — QTimer 24h in ManutenzioneePage::installKnowledgeBackupTimer()

@@ -317,7 +317,7 @@ QWidget* SciComputePage::buildUi()
 
     m_localChk = new QCheckBox("Usa questo PC come worker", cfgBar);
     m_localChk->setChecked(true);
-    m_localChk->setToolTip("Il coordinator esegue anche task locali");
+    m_localChk->setToolTip(tr("Il coordinator esegue anche task locali"));
 
     m_btnStartStop = new QPushButton(
         "\xf0\x9f\x9f\xa2  Avvia Coordinator", cfgBar);
@@ -350,7 +350,7 @@ QWidget* SciComputePage::buildUi()
     m_tokenEdit = new QLineEdit(coordCfg);
     m_tokenEdit->setEchoMode(QLineEdit::Password);
     m_tokenEdit->setText(m_token);
-    m_tokenEdit->setToolTip("Token condiviso con tutti i worker (VPN Tailscale consigliata)");
+    m_tokenEdit->setToolTip(tr("Token condiviso con tutti i worker (VPN Tailscale consigliata)"));
     m_tokenEdit->setFixedWidth(dpiScale(220));
     auto* btnShowToken = new QPushButton("\xf0\x9f\x91\x81", coordCfg);
     btnShowToken->setFixedWidth(dpiScale(30));
@@ -371,14 +371,14 @@ QWidget* SciComputePage::buildUi()
     wcLay->setContentsMargins(0,0,0,0); wcLay->setSpacing(dpiScale(6));
     wcLay->addWidget(new QLabel("Coordinator IP:", workerCfg));
     m_coordHostEdit = new QLineEdit(workerCfg);
-    m_coordHostEdit->setPlaceholderText("100.64.0.1  (IP Tailscale)");
+    m_coordHostEdit->setPlaceholderText(tr("100.64.0.1  (IP Tailscale)"));
     m_coordHostEdit->setFixedWidth(dpiScale(160));
     wcLay->addWidget(m_coordHostEdit);
     wcLay->addWidget(new QLabel("Token:", workerCfg));
     auto* wTokenEdit = new QLineEdit(workerCfg);
     wTokenEdit->setEchoMode(QLineEdit::Password);
     wTokenEdit->setFixedWidth(dpiScale(180));
-    wTokenEdit->setToolTip("Deve corrispondere al token del coordinator");
+    wTokenEdit->setToolTip(tr("Deve corrispondere al token del coordinator"));
     connect(wTokenEdit, &QLineEdit::textChanged, this,
             [this](const QString& t){ m_token = t; });
     wcLay->addWidget(wTokenEdit);
@@ -407,7 +407,7 @@ QWidget* SciComputePage::buildUi()
 
     m_sciModelEdit = new QLineEdit(llmBar);
     m_sciModelEdit->setText(m_sciLlmModel);
-    m_sciModelEdit->setPlaceholderText("llama3.2:3b, medllama2, biomistral...");
+    m_sciModelEdit->setPlaceholderText(tr("llama3.2:3b, medllama2, biomistral..."));
     m_sciModelEdit->setFixedWidth(dpiScale(180));
     m_sciModelEdit->setToolTip(
         "Modello Ollama dedicato alle analisi scientifiche.\n"
@@ -422,7 +422,7 @@ QWidget* SciComputePage::buildUi()
     auto* btnPull = new QPushButton(
         "\xe2\xac\x87  Scarica", llmBar);
     btnPull->setObjectName("actionBtn");
-    btnPull->setToolTip("Scarica il modello via Ollama (ollama pull)");
+    btnPull->setToolTip(tr("Scarica il modello via Ollama (ollama pull)"));
     llmLay->addWidget(btnPull);
 
     m_sciModelStatus = new QLabel("", llmBar);
@@ -462,7 +462,7 @@ QWidget* SciComputePage::buildUi()
     auto* lblRow = new QHBoxLayout;
     lblRow->addWidget(new QLabel("Label:", createGroup));
     m_labelEdit = new QLineEdit(createGroup);
-    m_labelEdit->setPlaceholderText("Descrizione breve (opzionale)");
+    m_labelEdit->setPlaceholderText(tr("Descrizione breve (opzionale)"));
     lblRow->addWidget(m_labelEdit, 1);
     formLay->addLayout(lblRow);
 
@@ -471,7 +471,7 @@ QWidget* SciComputePage::buildUi()
     m_paramsEdit = new QTextEdit(createGroup);
     m_paramsEdit->setMinimumHeight(dpiScale(90));
     m_paramsEdit->setMaximumHeight(dpiScale(200));
-    m_paramsEdit->setPlaceholderText("{}");
+    m_paramsEdit->setPlaceholderText(tr("{}"));
     m_paramsEdit->setObjectName("codeEdit");
     formLay->addWidget(m_paramsEdit);
 
@@ -549,10 +549,10 @@ QWidget* SciComputePage::buildUi()
     auto* wuBtnRow = new QHBoxLayout;
     auto* btnRefWu = new QPushButton("\xf0\x9f\x94\x84", wuGroup);
     btnRefWu->setObjectName("actionBtn");
-    btnRefWu->setToolTip("Aggiorna lista WU");
+    btnRefWu->setToolTip(tr("Aggiorna lista WU"));
     auto* btnDelWu = new QPushButton("\xf0\x9f\x97\x91  Elimina", wuGroup);
     btnDelWu->setObjectName("actionBtn");
-    btnDelWu->setToolTip("Elimina WU selezionata (solo se non in esecuzione)");
+    btnDelWu->setToolTip(tr("Elimina WU selezionata (solo se non in esecuzione)"));
     m_btnAggregate = new QPushButton("\xf0\x9f\x93\x8a  Aggrega risultati", wuGroup);
     m_btnAggregate->setObjectName("actionBtn");
     m_btnAggregate->setToolTip(
@@ -604,7 +604,7 @@ QWidget* SciComputePage::buildUi()
     m_resultView = new QTextEdit(resWidget);
     m_resultView->setReadOnly(true);
     m_resultView->setObjectName("codeEdit");
-    m_resultView->setPlaceholderText("Seleziona una WU nella tabella per vedere il risultato...");
+    m_resultView->setPlaceholderText(tr("Seleziona una WU nella tabella per vedere il risultato..."));
     resLay->addWidget(m_resultView);
     bottomTabs->addTab(resWidget, "\xf0\x9f\x93\x8a  Risultati");
 
@@ -736,7 +736,7 @@ QWidget* SciComputePage::buildUi()
         const QString model = m_sciModelEdit ? m_sciModelEdit->text().trimmed() : QString();
         if (model.isEmpty()) return;
         if (m_sciModelStatus)
-            m_sciModelStatus->setText("\xf0\x9f\x94\x84  Download in corso...");
+            m_sciModelStatus->setText(tr("\xf0\x9f\x94\x84  Download in corso..."));
         btnPull->setEnabled(false);
         appendLog("Scaricando modello: " + model + " via Ollama...");
 

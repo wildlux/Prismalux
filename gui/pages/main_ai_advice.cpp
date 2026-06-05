@@ -46,7 +46,7 @@ void AgentiPage::runConsiglioScientifico()
     /* Selezione strategia tramite dialog */
     {
         auto* dlg = new QDialog(this);
-        dlg->setWindowTitle("\xf0\x9f\x8f\x9b  Consiglio Scientifico — Strategia");
+        dlg->setWindowTitle(tr("\xf0\x9f\x8f\x9b  Consiglio Scientifico — Strategia"));
         dlg->setFixedWidth(dpiScale(380));
         auto* lay = new QVBoxLayout(dlg);
         lay->addWidget(new QLabel("Scegli la strategia di aggregazione:", dlg));

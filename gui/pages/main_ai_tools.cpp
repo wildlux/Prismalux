@@ -428,7 +428,7 @@ void AgentiPage::runToolCall(const QJsonObject& call,
         /* Conferma utente */
         {
             auto* dlg = new QDialog(this);
-            dlg->setWindowTitle("\xf0\x9f\x93\x9d  Scrivi file?");
+            dlg->setWindowTitle(tr("\xf0\x9f\x93\x9d  Scrivi file?"));
             dlg->setMinimumSize(480, 320);
             auto* lay = new QVBoxLayout(dlg);
             auto* lbl = new QLabel(

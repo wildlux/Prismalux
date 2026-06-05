@@ -456,7 +456,7 @@ void SintetizzatoreWidget::onStop()
     if (m_aplay && m_aplay->state() != QProcess::NotRunning)
         m_aplay->terminate();
     m_canvas->setAnimating(false);
-    m_statusLbl->setText("Fermato");
+    m_statusLbl->setText(tr("Fermato"));
     m_playBtn->setEnabled(true);
     m_stopBtn->setEnabled(false);
 }
@@ -467,13 +467,13 @@ void SintetizzatoreWidget::onPlayFinished(int, QProcess::ExitStatus)
     m_canvas->setAnimating(false);
     m_playBtn->setEnabled(true);
     m_stopBtn->setEnabled(false);
-    m_statusLbl->setText("\xe2\x9c\x85  Riproduzione completata");
+    m_statusLbl->setText(tr("\xe2\x9c\x85  Riproduzione completata"));
 }
 
 void SintetizzatoreWidget::onSalvaSeq()
 {
     if (m_seq.isEmpty()) {
-        m_statusLbl->setText("\xe2\x9a\xa0  Nessun tono da salvare");
+        m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun tono da salvare"));
         return;
     }
     QString path = QFileDialog::getSaveFileName(
@@ -493,7 +493,7 @@ void SintetizzatoreWidget::onSalvaSeq()
     }
     QFile f(path);
     if (!f.open(QFile::WriteOnly)) {
-        m_statusLbl->setText("\xe2\x9d\x8c  Impossibile scrivere il file");
+        m_statusLbl->setText(tr("\xe2\x9d\x8c  Impossibile scrivere il file"));
         return;
     }
     f.write(QJsonDocument(arr).toJson());
@@ -510,13 +510,13 @@ void SintetizzatoreWidget::onCaricaSeq()
 
     QFile f(path);
     if (!f.open(QFile::ReadOnly)) {
-        m_statusLbl->setText("\xe2\x9d\x8c  File non leggibile");
+        m_statusLbl->setText(tr("\xe2\x9d\x8c  File non leggibile"));
         return;
     }
     QJsonParseError err;
     const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &err);
     if (err.error != QJsonParseError::NoError || !doc.isArray()) {
-        m_statusLbl->setText("\xe2\x9d\x8c  File JSON non valido");
+        m_statusLbl->setText(tr("\xe2\x9d\x8c  File JSON non valido"));
         return;
     }
     m_seq.clear();
@@ -537,7 +537,7 @@ void SintetizzatoreWidget::onCaricaSeq()
 void SintetizzatoreWidget::onSalvaWav()
 {
     if (m_seq.isEmpty()) {
-        m_statusLbl->setText("\xe2\x9a\xa0  Nessun tono da esportare");
+        m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun tono da esportare"));
         return;
     }
     QString path = QFileDialog::getSaveFileName(
@@ -548,7 +548,7 @@ void SintetizzatoreWidget::onSalvaWav()
 
     QFile f(path);
     if (!f.open(QFile::WriteOnly)) {
-        m_statusLbl->setText("\xe2\x9d\x8c  Impossibile scrivere il file WAV");
+        m_statusLbl->setText(tr("\xe2\x9d\x8c  Impossibile scrivere il file WAV"));
         return;
     }
     f.write(makeWav(m_seq));

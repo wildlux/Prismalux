@@ -339,7 +339,7 @@ void LanWanPage::onLanServerStatusChanged(bool running)
             QString::number(m_lanServer->port()));
         m_lanStatusLbl->setStyleSheet("color: #4caf50; font-weight: bold;");
     } else {
-        m_lanStatusLbl->setText("\xe2\x97\x8b  Fermo");
+        m_lanStatusLbl->setText(tr("\xe2\x97\x8b  Fermo"));
         m_lanStatusLbl->setStyleSheet("color: #9e9e9e;");
     }
 }
@@ -439,7 +439,7 @@ void LanWanPage::onLanToggleBtnToggled(bool on)
             m_lanServer->setAccessToken(tok);
         }
         if (m_lanServer->start(port)) {
-            m_lanToggleBtn->setText("\xe2\x97\x8f  Server ON");
+            m_lanToggleBtn->setText(tr("\xe2\x97\x8f  Server ON"));
             m_lanPortSpin->setEnabled(false);
             AppConfig::s().setValue(P::SK::kLanAutoStart, true);
             AppConfig::s().setValue(P::SK::kLanPort, (int)port);
@@ -447,13 +447,13 @@ void LanWanPage::onLanToggleBtnToggled(bool on)
             m_lanToggleBtn->blockSignals(true);
             m_lanToggleBtn->setChecked(false);
             m_lanToggleBtn->blockSignals(false);
-            m_lanStatusLbl->setText("\xe2\x9d\x8c  Impossibile aprire la porta");
+            m_lanStatusLbl->setText(tr("\xe2\x9d\x8c  Impossibile aprire la porta"));
             m_lanStatusLbl->setStyleSheet("color: #f44336;");
             AppConfig::s().setValue(P::SK::kLanAutoStart, false);
         }
     } else {
         if (m_lanServer) m_lanServer->stop();
-        m_lanToggleBtn->setText("\xe2\x97\x8b  Server OFF");
+        m_lanToggleBtn->setText(tr("\xe2\x97\x8b  Server OFF"));
         m_lanPortSpin->setEnabled(true);
         m_qrApkBtn->setEnabled(false);
         m_qrPageBtn->setEnabled(false);
@@ -589,11 +589,11 @@ QWidget* LanWanPage::buildLanAndroidTab()
     m_kickBtn = new QPushButton("\xf0\x9f\x9a\xab  Disconnetti selezionato", kickRow);
     m_kickBtn->setObjectName("actionBtn");
     m_kickBtn->setProperty("danger", true);
-    m_kickBtn->setToolTip("Chiude la connessione del client selezionato");
+    m_kickBtn->setToolTip(tr("Chiude la connessione del client selezionato"));
     m_kickAllBtn = new QPushButton("\xf0\x9f\x9a\xab  Disconnetti tutti", kickRow);
     m_kickAllBtn->setObjectName("actionBtn");
     m_kickAllBtn->setProperty("danger", true);
-    m_kickAllBtn->setToolTip("Chiude tutte le connessioni client attive");
+    m_kickAllBtn->setToolTip(tr("Chiude tutte le connessioni client attive"));
     kickLay->addWidget(m_kickBtn, 1);
     kickLay->addWidget(m_kickAllBtn, 1);
     clientLay->addWidget(kickRow);
@@ -669,7 +669,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
 
     auto* urlCopyBtn = new QPushButton("\xf0\x9f\x93\x8b", urlRow);  /* 📋 */
     urlCopyBtn->setFixedSize(dpiSize(28, 24));
-    urlCopyBtn->setToolTip("Copia URL negli appunti");
+    urlCopyBtn->setToolTip(tr("Copia URL negli appunti"));
     urlCopyBtn->setObjectName("actionBtn");
     urlCopyBtn->setAccessibleName("Copia URL server LAN negli appunti");
 
@@ -682,9 +682,9 @@ QWidget* LanWanPage::buildLanAndroidTab()
         const QString url = QString("%1://%2")
             .arg(serverScheme()).arg(m_urlDisplayLbl->text().trimmed());
         QGuiApplication::clipboard()->setText(url);
-        urlCopyBtn->setText("\xe2\x9c\x85");                  /* ✅ feedback */
+        urlCopyBtn->setText(tr("\xe2\x9c\x85"));                  /* ✅ feedback */
         QTimer::singleShot(1500, urlCopyBtn, [urlCopyBtn]{
-            urlCopyBtn->setText("\xf0\x9f\x93\x8b");
+            urlCopyBtn->setText(tr("\xf0\x9f\x93\x8b"));
         });
     });
 
@@ -704,7 +704,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
     auto* qrConnectBtn = new QPushButton(
         "\xf0\x9f\x93\xb1  QR Connetti (schermo intero)", scrollW);
     qrConnectBtn->setObjectName("actionBtn");
-    qrConnectBtn->setToolTip("Mostra il QR in un dialogo grande");
+    qrConnectBtn->setToolTip(tr("Mostra il QR in un dialogo grande"));
     connect(qrConnectBtn, &QPushButton::clicked,
             this, &LanWanPage::onQrConnectBtnClicked);
     scrollLay->addWidget(qrConnectBtn);
@@ -760,7 +760,7 @@ QWidget* LanWanPage::buildLanAndroidTab()
     m_adbLog->setReadOnly(true);
     m_adbLog->setObjectName("chatLog");
     m_adbLog->setMaximumHeight(dpiScale(110));
-    m_adbLog->setPlaceholderText("Output adb...");
+    m_adbLog->setPlaceholderText(tr("Output adb..."));
     m_adbLog->hide();
     scrollLay->addWidget(m_adbLog);
 
@@ -956,7 +956,7 @@ void LanWanPage::onPingBtnClicked()
     const QString addr = m_gns3HostEdit->text().trimmed();
     const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
     const int port = addr.contains(':') ? addr.section(':', 1).toInt() : 3080;
-    m_gns3StatusLbl->setText("\xf0\x9f\x94\x84  Connessione...");
+    m_gns3StatusLbl->setText(tr("\xf0\x9f\x94\x84  Connessione..."));
     auto* sock = new QTcpSocket(this);
     sock->setProperty("gns3ping", true);
     connect(sock, &QTcpSocket::connected,
@@ -967,7 +967,7 @@ void LanWanPage::onPingBtnClicked()
     QPointer<QTcpSocket> sockPtr(sock);
     QTimer::singleShot(3000, this, [this, sockPtr](){
         if (sockPtr && sockPtr->state() != QAbstractSocket::ConnectedState) {
-            m_gns3StatusLbl->setText("\xe2\x9d\x8c  Timeout");
+            m_gns3StatusLbl->setText(tr("\xe2\x9d\x8c  Timeout"));
             sockPtr->abort(); sockPtr->deleteLater();
         }
     });
@@ -977,7 +977,7 @@ void LanWanPage::onGns3SockConnected()
 {
     auto* sock = qobject_cast<QTcpSocket*>(sender());
     if (sock) { sock->disconnectFromHost(); sock->deleteLater(); }
-    m_gns3StatusLbl->setText("\xe2\x9c\x85  Server raggiungibile");
+    m_gns3StatusLbl->setText(tr("\xe2\x9c\x85  Server raggiungibile"));
     m_gns3ExecBtn->setEnabled(!m_gns3Code.isEmpty());
 }
 
@@ -1002,7 +1002,7 @@ void LanWanPage::onGns3ExecBtnClicked()
     const QString tmpPath = QDir::tempPath() + "/prismalux_gns3_script.py";
     QFile f(tmpPath);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        m_gns3StatusLbl->setText("\xe2\x9d\x8c  Impossibile creare script");
+        m_gns3StatusLbl->setText(tr("\xe2\x9d\x8c  Impossibile creare script"));
         return;
     }
     f.write(m_gns3Code.toUtf8());
@@ -1015,7 +1015,7 @@ void LanWanPage::onGns3ExecBtnClicked()
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &LanWanPage::onGns3ProcFinished);
     m_gns3ExecBtn->setEnabled(false);
-    m_gns3StatusLbl->setText("\xf0\x9f\x94\x84  Esecuzione script Python...");
+    m_gns3StatusLbl->setText(tr("\xf0\x9f\x94\x84  Esecuzione script Python..."));
     if (m_gns3Progress) m_gns3Progress->show();
     m_gns3ExecProc->start(P::findPython(), {tmpPath});
 }
@@ -1116,9 +1116,9 @@ QWidget* LanWanPage::buildGNS3Tab()
     copyBtnGns->setObjectName("actionBtn");
     copyBtnGns->setFixedWidth(28);
     copyBtnGns->setFixedHeight(24);
-    copyBtnGns->setToolTip("Copia comando pip negli appunti");
+    copyBtnGns->setToolTip(tr("Copia comando pip negli appunti"));
     connect(copyBtnGns, &QPushButton::clicked, w, [=]() {
-        QApplication::clipboard()->setText("pip install gns3fy requests");
+        QApplication::clipboard()->setText(tr("pip install gns3fy requests"));
     });
     hintRowGns->addWidget(hintLbl, 1);
     hintRowGns->addWidget(copyBtnGns);
@@ -1171,7 +1171,7 @@ QWidget* LanWanPage::buildGNS3Tab()
     m_gns3Output = new QTextEdit(w);
     m_gns3Output->setReadOnly(true);
     m_gns3Output->setObjectName("outputView");
-    m_gns3Output->setPlaceholderText("Script Python GNS3 REST API appare qui...");
+    m_gns3Output->setPlaceholderText(tr("Script Python GNS3 REST API appare qui..."));
     lay->addWidget(m_gns3Output, 1);
 
     m_gns3ErrorPanel = new AiErrorWidget(w);
@@ -1235,7 +1235,7 @@ void LanWanPage::onAdbInstallBtnClicked()
 
     m_adbLog->clear();
     m_adbLog->show();
-    m_adbInstallBtn->setText("\xe2\x8f\xb9  Annulla");
+    m_adbInstallBtn->setText(tr("\xe2\x8f\xb9  Annulla"));
     m_adbStatusLbl->setText(
         "\xe2\x8f\xb3  Installazione in corso... (attendi il telefono)");
 
@@ -1539,7 +1539,7 @@ QWidget* LanWanPage::buildWanComputeTab()
     srvTokenLay->setContentsMargins(0,0,0,0); srvTokenLay->setSpacing(6);
     auto* srvTokenLbl = new QLabel("\xf0\x9f\x94\x91  Token server:", srvTokenRow);  /* 🔑 */
     m_wanTokenEdit = new QLineEdit(srvTokenRow);
-    m_wanTokenEdit->setPlaceholderText("Lascia vuoto = accetta tutti i nodi (NON sicuro)");
+    m_wanTokenEdit->setPlaceholderText(tr("Lascia vuoto = accetta tutti i nodi (NON sicuro)"));
     m_wanTokenEdit->setEchoMode(QLineEdit::Password);
     m_wanTokenEdit->setToolTip(
         "Token segreto condiviso tra server e nodi worker.\n"
@@ -1670,12 +1670,12 @@ QWidget* LanWanPage::buildWanComputeTab()
         m_wanThroughputLbl->setTextFormat(Qt::RichText);
         m_wanChartWidget = new QLabel(dashRow);
         m_wanChartWidget->setFixedSize(dpiScale(300), dpiScale(60));
-        m_wanChartWidget->setToolTip("Istogramma throughput — ultimi 60 min (bin 5 min)");
+        m_wanChartWidget->setToolTip(tr("Istogramma throughput — ultimi 60 min (bin 5 min)"));
         m_wanChartWidget->setObjectName("cardDesc");
         m_wanExportBtn = new QPushButton(
             "\xf0\x9f\x93\xa5  Esporta CSV", dashRow);
         m_wanExportBtn->setObjectName("actionBtn");
-        m_wanExportBtn->setToolTip("Scarica CSV di tutti i task (id, tipo, payload, stato, nodo, durata, risultato)");
+        m_wanExportBtn->setToolTip(tr("Scarica CSV di tutti i task (id, tipo, payload, stato, nodo, durata, risultato)"));
         dashLay->addWidget(m_wanThroughputLbl, 1);
         dashLay->addWidget(m_wanChartWidget);
         dashLay->addWidget(m_wanExportBtn);
@@ -1728,7 +1728,7 @@ QWidget* LanWanPage::buildWanComputeTab()
 
     m_wanTaskPayload = new QTextEdit;
     m_wanTaskPayload->setFixedHeight(dpiScale(70));
-    m_wanTaskPayload->setPlaceholderText("Seleziona un tipo per vedere il template\xe2\x80\xa6");
+    m_wanTaskPayload->setPlaceholderText(tr("Seleziona un tipo per vedere il template\xe2\x80\xa6"));
     m_wanPayloadStack->addWidget(m_wanTaskPayload);   // index 0
 
     m_agentFormFrame = new QFrame;
@@ -1739,17 +1739,17 @@ QWidget* LanWanPage::buildWanComputeTab()
     formLay->setSpacing(4); formLay->setContentsMargins(6,4,6,4);
 
     m_agentRoleEdit = new QLineEdit;
-    m_agentRoleEdit->setPlaceholderText("Ruolo: es. Ricercatore specializzato in fisica quantistica");
+    m_agentRoleEdit->setPlaceholderText(tr("Ruolo: es. Ricercatore specializzato in fisica quantistica"));
     formLay->addWidget(m_agentRoleEdit);
 
     m_agentPromptEdit = new QTextEdit;
     m_agentPromptEdit->setFixedHeight(dpiScale(52));
-    m_agentPromptEdit->setPlaceholderText("Prompt: il compito specifico di questo agente\xe2\x80\xa6");
+    m_agentPromptEdit->setPlaceholderText(tr("Prompt: il compito specifico di questo agente\xe2\x80\xa6"));
     formLay->addWidget(m_agentPromptEdit);
 
     m_agentContextEdit = new QTextEdit;
     m_agentContextEdit->setFixedHeight(dpiScale(34));
-    m_agentContextEdit->setPlaceholderText("Contesto: da agenti precedenti (opzionale)");
+    m_agentContextEdit->setPlaceholderText(tr("Contesto: da agenti precedenti (opzionale)"));
     formLay->addWidget(m_agentContextEdit);
 
     auto* agentBtnRow = new QWidget;
@@ -1812,12 +1812,12 @@ QWidget* LanWanPage::buildWanComputeTab()
     cronLay1->addWidget(m_wanCronStartBtn);
     cronLay1->addWidget(m_wanCronStopBtn);
     m_wanCronPayload = new QTextEdit;
-    m_wanCronPayload->setPlaceholderText("Payload del task cron (ripetuto ad ogni tick)");
+    m_wanCronPayload->setPlaceholderText(tr("Payload del task cron (ripetuto ad ogni tick)"));
     m_wanCronPayload->setFixedHeight(dpiScale(48));
     m_wanCronLog = new QTextEdit;
     m_wanCronLog->setReadOnly(true);
     m_wanCronLog->setFixedHeight(dpiScale(56));
-    m_wanCronLog->setPlaceholderText("Log cron\xe2\x80\xa6");
+    m_wanCronLog->setPlaceholderText(tr("Log cron\xe2\x80\xa6"));
     cronLay->addWidget(cronRow1);
     cronLay->addWidget(m_wanCronPayload);
     cronLay->addWidget(m_wanCronLog);
@@ -1838,12 +1838,12 @@ QWidget* LanWanPage::buildWanComputeTab()
     auto* cliConLay = new QHBoxLayout(cliConRow);
     cliConLay->setContentsMargins(0,0,0,0); cliConLay->setSpacing(6);
     m_wanCliHost = new QLineEdit;
-    m_wanCliHost->setPlaceholderText("IP server (es. 192.168.1.10)");
+    m_wanCliHost->setPlaceholderText(tr("IP server (es. 192.168.1.10)"));
     m_wanCliPort = new QSpinBox;
     m_wanCliPort->setRange(1024, 65535); m_wanCliPort->setValue(P::kWanComputePort);
     m_wanCliPort->setFixedWidth(dpiScale(80));
     m_wanCliName = new QLineEdit;
-    m_wanCliName->setPlaceholderText("Nome nodo (es. PC-Mario)");
+    m_wanCliName->setPlaceholderText(tr("Nome nodo (es. PC-Mario)"));
     m_wanCliName->setFixedWidth(dpiScale(130));
     m_wanCliWorkerSpin = new QSpinBox;
     m_wanCliWorkerSpin->setRange(1, 4);
@@ -1874,9 +1874,9 @@ QWidget* LanWanPage::buildWanComputeTab()
     cliSecLay->setContentsMargins(0,0,0,0); cliSecLay->setSpacing(8);
     auto* cliTokenLbl = new QLabel("\xf0\x9f\x94\x91  Token:", cliSecRow);  /* 🔑 */
     m_wanCliTokenEdit = new QLineEdit(cliSecRow);
-    m_wanCliTokenEdit->setPlaceholderText("Token server (se impostato)");
+    m_wanCliTokenEdit->setPlaceholderText(tr("Token server (se impostato)"));
     m_wanCliTokenEdit->setEchoMode(QLineEdit::Password);
-    m_wanCliTokenEdit->setToolTip("Deve coincidere con il token impostato sul server.");
+    m_wanCliTokenEdit->setToolTip(tr("Deve coincidere con il token impostato sul server."));
     m_wanCliShellCheck = new QCheckBox("\xe2\x9a\xa0\xef\xb8\x8f  Permetti shell (rischio RCE)", cliSecRow);
     m_wanCliShellCheck->setToolTip(
         "Se spuntato, questo nodo eseguirà comandi bash/python ricevuti dal server.\n"
@@ -1981,8 +1981,8 @@ void LanWanPage::onWanStartBtnClicked()
         m_wanNodes.clear();
         wanRefreshTables();
         updateWanStats();
-        m_wanStartBtn->setText("\xe2\x96\xb6  Avvia Server");
-        m_wanSrvStatusLbl->setText("\xe2\x9a\xab  Server fermo");
+        m_wanStartBtn->setText(tr("\xe2\x96\xb6  Avvia Server"));
+        m_wanSrvStatusLbl->setText(tr("\xe2\x9a\xab  Server fermo"));
         m_wanSrvStatusLbl->setStyleSheet("color:gray;");
         m_wanPortSpin->setEnabled(true);
         if (m_wanExposeAllCheck) m_wanExposeAllCheck->setEnabled(true);
@@ -2474,7 +2474,7 @@ void LanWanPage::onWanCliConBtnClicked()
     const QString token    = m_wanCliTokenEdit ? m_wanCliTokenEdit->text().trimmed() : QString();
     const bool    shell    = m_wanCliShellCheck && m_wanCliShellCheck->isChecked();
 
-    m_wanCliStatusLbl->setText("\xe2\x8f\xb3  Connessione\xe2\x80\xa6");
+    m_wanCliStatusLbl->setText(tr("\xe2\x8f\xb3  Connessione\xe2\x80\xa6"));
     m_wanCliStatusLbl->setStyleSheet("color:#E5C400;");
     m_wanCliConBtn->setEnabled(false);
 
@@ -2545,7 +2545,7 @@ void LanWanPage::onWanCliDisconBtnClicked()
 
     m_wanCliConBtn->setEnabled(true);
     m_wanCliDisconBtn->setEnabled(false);
-    m_wanCliStatusLbl->setText("\xe2\x9a\xab  Non connesso");
+    m_wanCliStatusLbl->setText(tr("\xe2\x9a\xab  Non connesso"));
     m_wanCliStatusLbl->setStyleSheet("color:gray;");
 }
 
@@ -2594,7 +2594,7 @@ void LanWanPage::onWanCliSockDisconnected()
     if (m_wanCliPollTimer) m_wanCliPollTimer->stop();
     m_wanCliConBtn->setEnabled(true);
     m_wanCliDisconBtn->setEnabled(false);
-    m_wanCliStatusLbl->setText("\xe2\x9a\xab  Disconnesso");
+    m_wanCliStatusLbl->setText(tr("\xe2\x9a\xab  Disconnesso"));
     m_wanCliStatusLbl->setStyleSheet("color:gray;");
     wanCliAppendLog("Disconnesso dal server.");
     m_wanCliCurrentTask.clear();
@@ -2774,7 +2774,7 @@ void LanWanPage::onWanWorkerConnected()
 
     /* Solo worker 0 aggiorna lo stato UI generale */
     if (idx == 0) {
-        m_wanCliStatusLbl->setText("\xe2\x9c\x85  Connesso — in attesa task");
+        m_wanCliStatusLbl->setText(tr("\xe2\x9c\x85  Connesso — in attesa task"));
         m_wanCliStatusLbl->setStyleSheet("color:#4caf50;");
         m_wanCliConBtn->setEnabled(false);
         m_wanCliDisconBtn->setEnabled(true);
@@ -2870,7 +2870,7 @@ void LanWanPage::onWanWorkerDisconnected()
     if (!anyConnected) {
         m_wanCliConBtn->setEnabled(true);
         m_wanCliDisconBtn->setEnabled(false);
-        m_wanCliStatusLbl->setText("\xe2\x9a\xab  Disconnesso");
+        m_wanCliStatusLbl->setText(tr("\xe2\x9a\xab  Disconnesso"));
         m_wanCliStatusLbl->setStyleSheet("color:gray;");
     }
 }
@@ -3385,7 +3385,7 @@ void LanWanPage::onWanSimBtnClicked()
         if (m_wanCliSock)      m_wanCliSock->disconnectFromHost();
         m_wanSimActive = false;
         if (m_wanSimBtn)
-            m_wanSimBtn->setText("\xe2\x9a\x97\xef\xb8\x8f  Prova in locale");
+            m_wanSimBtn->setText(tr("\xe2\x9a\x97\xef\xb8\x8f  Prova in locale"));
         if (m_wanSrvStatusLbl)
             m_wanSrvStatusLbl->setStyleSheet("color:gray;");
         wanCliAppendLog("Simulazione locale fermata.");
@@ -3400,15 +3400,15 @@ void LanWanPage::onWanSimBtnClicked()
     }
     if (!m_wanServer || !m_wanServer->isListening()) {
         if (m_wanSrvStatusLbl)
-            m_wanSrvStatusLbl->setText("\xe2\x9d\x8c  Impossibile avviare il server");
+            m_wanSrvStatusLbl->setText(tr("\xe2\x9d\x8c  Impossibile avviare il server"));
         return;
     }
 
     /* 2. Imposta il client per connettersi a localhost con nome "Nodo locale" */
-    if (m_wanCliHost) m_wanCliHost->setText("127.0.0.1");
+    if (m_wanCliHost) m_wanCliHost->setText(tr("127.0.0.1"));
     if (m_wanCliPort) m_wanCliPort->setValue(m_wanPortSpin ? m_wanPortSpin->value()
                                                             : P::kWanComputePort);
-    if (m_wanCliName) m_wanCliName->setText("Nodo locale (simulazione)");
+    if (m_wanCliName) m_wanCliName->setText(tr("Nodo locale (simulazione)"));
 
     /* 3. Avvia la connessione client riusando lo slot esistente
      *    (non cambia il pannello visibile — rimane la vista server) */
@@ -3416,7 +3416,7 @@ void LanWanPage::onWanSimBtnClicked()
 
     m_wanSimActive = true;
     if (m_wanSimBtn)
-        m_wanSimBtn->setText("\xe2\x8f\xb9  Ferma simulazione");
+        m_wanSimBtn->setText(tr("\xe2\x8f\xb9  Ferma simulazione"));
     if (m_wanSrvStatusLbl)
         m_wanSrvStatusLbl->setStyleSheet("color:#22c55e; font-weight:bold;");
     wanCliAppendLog("Simulazione locale avviata — nodo virtuale connesso a 127.0.0.1.");

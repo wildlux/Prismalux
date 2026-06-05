@@ -75,7 +75,7 @@ void ProgrammazionePage::onAutoFixToggled(bool on)
     if (s.value(P::SK::kLoopFixWarning, false).toBool()) return;
 
     QMessageBox dlg(this);
-    dlg.setWindowTitle("Loop Fix — Esecuzione automatica di codice AI");
+    dlg.setWindowTitle(tr("Loop Fix — Esecuzione automatica di codice AI"));
     dlg.setIcon(QMessageBox::Warning);
     dlg.setText(
         "<b>Loop Fix eseguir\xc3\xa0 automaticamente il codice</b><br>"
@@ -85,8 +85,8 @@ void ProgrammazionePage::onAutoFixToggled(bool on)
         "Il loop si ferma automaticamente dopo il numero di tentativi indicato dallo slider "
         "o se rileva un errore intenzionale (SyntaxError custom).");
     dlg.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-    dlg.button(QMessageBox::Ok)->setText("Ho capito, abilita");
-    dlg.button(QMessageBox::Cancel)->setText("Annulla");
+    dlg.button(QMessageBox::Ok)->setText(tr("Ho capito, abilita"));
+    dlg.button(QMessageBox::Cancel)->setText(tr("Annulla"));
 
     auto* chk = new QCheckBox("Non mostrare pi\xc3\xb9 questo avviso", &dlg);
     dlg.setCheckBox(chk);
@@ -135,7 +135,7 @@ void ProgrammazionePage::onLangChanged(int /*idx*/)
 void ProgrammazionePage::onBtnClearClicked()
 {
     if (m_output) m_output->clear();
-    if (m_status) m_status->setText("Pronto.");
+    if (m_status) m_status->setText(tr("Pronto."));
     if (m_chartGroup) m_chartGroup->hide();
     m_fullOutput.clear();
 }
@@ -252,7 +252,7 @@ void ProgrammazionePage::onBtnRunClicked()
     if (m_proc && m_proc->state() != QProcess::NotRunning) {
         m_proc->kill();
         setRunning(false);
-        if (m_status) m_status->setText("Esecuzione interrotta.");
+        if (m_status) m_status->setText(tr("Esecuzione interrotta."));
         return;
     }
     runCode();
@@ -314,7 +314,7 @@ void ProgrammazionePage::onProcFinished(int code, QProcess::ExitStatus /*status*
     setRunning(false);
 
     if (code == 0) {
-        if (m_status) m_status->setText("\xe2\x9c\x85  Completato con successo.");
+        if (m_status) m_status->setText(tr("\xe2\x9c\x85  Completato con successo."));
         tryShowChart();
         m_lastError.clear();
         m_loopActive = false;
@@ -777,7 +777,7 @@ void ProgrammazionePage::netFixPermissions()
         return;
     }
     if (m_netStatus)
-        m_netStatus->setText("\xe2\x8f\xb3  Richiesta permessi in corso...");
+        m_netStatus->setText(tr("\xe2\x8f\xb3  Richiesta permessi in corso..."));
     auto* proc = new QProcess(this);
     /* context=this, proc è figlio di this → cattura sicura */
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
@@ -1323,7 +1323,7 @@ void ProgrammazionePage::onReplReadyRead()
 void ProgrammazionePage::onReplStarted()
 {
     if (m_replStatus)
-        m_replStatus->setText("\xe2\x9c\x85  Sessione attiva");
+        m_replStatus->setText(tr("\xe2\x9c\x85  Sessione attiva"));
     if (m_replInput) {
         m_replInput->setEnabled(true);
         m_replInput->setFocus();
@@ -1351,7 +1351,7 @@ void ProgrammazionePage::onReplErrorOccurred(QProcess::ProcessError err)
 {
     if (err != QProcess::FailedToStart) return;
     if (m_replStatus)
-        m_replStatus->setText("\xe2\x9d\x8c  python3 non trovato");
+        m_replStatus->setText(tr("\xe2\x9d\x8c  python3 non trovato"));
     if (m_replOutput)
         m_replOutput->appendPlainText(
             "\xe2\x9d\x8c  python3 non trovato nel PATH. "
@@ -1521,7 +1521,7 @@ void ProgrammazionePage::onBtnTrCopyClicked()
     if (!m_trOutput || !m_btnTrCopy) return;
     QApplication::clipboard()->setText(m_trOutput->toPlainText());
     m_trCopyOrigTxt = m_btnTrCopy->text();
-    m_btnTrCopy->setText("\xe2\x9c\x85  Copiato!");
+    m_btnTrCopy->setText(tr("\xe2\x9c\x85  Copiato!"));
     QTimer::singleShot(1500, this, &ProgrammazionePage::onTrCopyRestoreText);
 }
 
@@ -1954,7 +1954,7 @@ void ProgrammazionePage::onVpnGenerateClicked()
     const QString tipoPkg = m_vpnTypeCombo
         ? m_vpnTypeCombo->currentText() : QStringLiteral("VPN");
 
-    m_vpnStatusLbl->setText("\xf0\x9f\xa4\x96  AI in elaborazione...");
+    m_vpnStatusLbl->setText(tr("\xf0\x9f\xa4\x96  AI in elaborazione..."));
     m_vpnLog->append(
         QString("<span style='color:#94a3b8;'>\xf0\x9f\xa4\x96  "
                 "Invio configurazione %1 all'AI...</span>").arg(tipoPkg));
@@ -1997,7 +1997,7 @@ void ProgrammazionePage::onVpnAiFinished(const QString& /*full*/)
     disconnect(m_vpnAiFinishedConn);
     disconnect(m_vpnAiErrorConn);
     if (m_vpnStatusLbl)
-        m_vpnStatusLbl->setText("\xe2\x9c\x85  Config aggiornata dall'AI");
+        m_vpnStatusLbl->setText(tr("\xe2\x9c\x85  Config aggiornata dall'AI"));
     m_vpnLog->append(
         "<span style='color:#4ade80;'>\xe2\x9c\x85  Configurazione migliorata dall'AI.</span>");
 }
@@ -2008,7 +2008,7 @@ void ProgrammazionePage::onVpnAiError(const QString& msg)
     disconnect(m_vpnAiFinishedConn);
     disconnect(m_vpnAiErrorConn);
     if (m_vpnStatusLbl)
-        m_vpnStatusLbl->setText("\xe2\x9d\x8c  Errore AI");
+        m_vpnStatusLbl->setText(tr("\xe2\x9d\x8c  Errore AI"));
     m_vpnLog->append(
         "<span style='color:#f87171;'>\xe2\x9d\x8c  " + msg.toHtmlEscaped() + "</span>");
 }
@@ -2032,7 +2032,7 @@ void ProgrammazionePage::onVpnApplyClicked()
             "\xf0\x9f\x93\x8b  Comandi SSH copiati negli appunti.<br>"
             "<span style='color:#94a3b8;'>Incolla in un terminale per eseguirli.</span>");
         if (m_vpnStatusLbl)
-            m_vpnStatusLbl->setText("\xf0\x9f\x93\x8b  Copiato negli appunti");
+            m_vpnStatusLbl->setText(tr("\xf0\x9f\x93\x8b  Copiato negli appunti"));
         return;
     }
 
@@ -2087,7 +2087,7 @@ void ProgrammazionePage::onVpnApplyClicked()
     QStringList pkArgs = {cmd};
     pkArgs += args;
     m_vpnProc->start("pkexec", pkArgs);
-    if (m_vpnStatusLbl) m_vpnStatusLbl->setText("\xf0\x9f\x94\x84  Esecuzione in corso...");
+    if (m_vpnStatusLbl) m_vpnStatusLbl->setText(tr("\xf0\x9f\x94\x84  Esecuzione in corso..."));
 }
 
 void ProgrammazionePage::onVpnStopClicked()
@@ -2097,7 +2097,7 @@ void ProgrammazionePage::onVpnStopClicked()
         m_vpnProc->terminate();
         m_vpnProc->waitForFinished(2000);
     }
-    if (m_vpnStatusLbl) m_vpnStatusLbl->setText("\xe2\x8f\xb9  Fermato");
+    if (m_vpnStatusLbl) m_vpnStatusLbl->setText(tr("\xe2\x8f\xb9  Fermato"));
 }
 
 void ProgrammazionePage::onVpnProcReadyRead()
@@ -2111,7 +2111,7 @@ void ProgrammazionePage::onVpnProcFinished(int code, QProcess::ExitStatus /*stat
 {
     if (!m_vpnStatusLbl || !m_vpnLog) return;
     if (code == 0) {
-        m_vpnStatusLbl->setText("\xe2\x9c\x85  Completato");
+        m_vpnStatusLbl->setText(tr("\xe2\x9c\x85  Completato"));
         m_vpnLog->append(
             "<span style='color:#4ade80;'>\xe2\x9c\x85  Comando completato correttamente.</span>");
     } else {

@@ -89,7 +89,7 @@ QWidget* PraticoPage::buildChat(const QString& title,
     inL->setContentsMargins(0,0,0,0); inL->setSpacing(8);
     auto* inp = new QLineEdit(inputRow);
     inp->setObjectName("chatInput");
-    inp->setPlaceholderText("Scrivi la tua domanda...");
+    inp->setPlaceholderText(tr("Scrivi la tua domanda..."));
     inp->setFixedHeight(38);
     auto* send = new QPushButton("Invia \xe2\x96\xb6", inputRow);
     send->setObjectName("actionBtn");

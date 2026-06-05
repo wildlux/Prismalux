@@ -60,7 +60,7 @@ OpenCodePage::OpenCodePage(QWidget* parent) : QWidget(parent) {
     cfgRow->addWidget(m_cwdEdit, 1);
     auto* cwdBtn = new QPushButton("\xf0\x9f\x93\x82", this);
     cwdBtn->setFixedWidth(32);
-    cwdBtn->setToolTip("Sfoglia directory");
+    cwdBtn->setToolTip(tr("Sfoglia directory"));
     cfgRow->addWidget(cwdBtn);
 
     /* ── Splitter: log a sinistra, sessioni a destra ── */
@@ -165,7 +165,7 @@ void OpenCodePage::startServer() {
             this, &OpenCodePage::onProcFinished);
 
     m_proc->start();
-    m_statusLbl->setText("\xe2\x97\x90  Avvio in corso...");
+    m_statusLbl->setText(tr("\xe2\x97\x90  Avvio in corso..."));
     m_statusLbl->setStyleSheet("color:#f59e0b; font-weight:bold;");
     m_startBtn->setEnabled(false);
 
@@ -193,7 +193,7 @@ void OpenCodePage::stopServer() {
 void OpenCodePage::onPollTick() {
      if (++m_pollTicks > kPollMaxTicks) {
          m_pollTimer->stop();
-         m_statusLbl->setText("\xe2\x97\x8f  Timeout avvio");
+         m_statusLbl->setText(tr("\xe2\x97\x8f  Timeout avvio"));
          m_statusLbl->setStyleSheet("color:#ef4444; font-weight:bold;");
          m_startBtn->setEnabled(true);
          appendSystem("<span style='color:#ef4444'>\xe2\x9d\x8c  OpenCode non risponde entro 30s.</span>");
@@ -540,7 +540,7 @@ void OpenCodePage::onCwdBrowse() {
    ══════════════════════════════════════════════════════════════ */
 void OpenCodePage::onProcErrorOccurred(QProcess::ProcessError err) {
     if (err == QProcess::FailedToStart) {
-        m_statusLbl->setText("\xe2\x97\x8f  Errore avvio");
+        m_statusLbl->setText(tr("\xe2\x97\x8f  Errore avvio"));
         m_statusLbl->setStyleSheet("color:#ef4444; font-weight:bold;");
         appendSystem("<span style='color:#ef4444'>\xe2\x9d\x8c  opencode serve: FailedToStart</span>");
         m_proc->deleteLater(); m_proc = nullptr;
@@ -580,7 +580,7 @@ void OpenCodePage::onPollReplyFinished() {
         m_pollErrorCount++;
         if (m_pollErrorCount >= 5) {
             m_pollTimer->stop();
-            m_statusLbl->setText("\xe2\x97\x8f  Errore di rete");
+            m_statusLbl->setText(tr("\xe2\x97\x8f  Errore di rete"));
             m_statusLbl->setStyleSheet("color:#ef4444; font-weight:bold;");
             m_startBtn->setEnabled(true);
             appendSystem(QString("<span style='color:#ef4444'>\xe2\x9d\x8c  Impossibile connettersi a OpenCode dopo %1 tentativi: %2</span>")

@@ -80,7 +80,7 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     urlRow->setContentsMargins(0, 0, 0, 0);
     urlRow->addWidget(new QLabel("WebUI URL:", m_urlWidget));
     m_urlEdit = new QLineEdit(kDefaultUrl, m_urlWidget);
-    m_urlEdit->setPlaceholderText("http://localhost:7860");
+    m_urlEdit->setPlaceholderText(tr("http://localhost:7860"));
     urlRow->addWidget(m_urlEdit, 1);
     m_urlWidget->hide();
     lay->addWidget(m_urlWidget);
@@ -104,7 +104,7 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     copyBtnDiff->setObjectName("actionBtn");
     copyBtnDiff->setFixedWidth(28);
     copyBtnDiff->setFixedHeight(24);
-    copyBtnDiff->setToolTip("Copia comando pip negli appunti");
+    copyBtnDiff->setToolTip(tr("Copia comando pip negli appunti"));
     connect(copyBtnDiff, &QPushButton::clicked, m_installHintRow, [=]() {
         QApplication::clipboard()->setText(
             "pip install diffusers transformers accelerate torch");
@@ -181,7 +181,7 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
 
     grid->addWidget(new QLabel("Seed:", paramGroup), 2, 0);
     m_seed = new QLineEdit("-1", paramGroup);
-    m_seed->setPlaceholderText("-1 = casuale");
+    m_seed->setPlaceholderText(tr("-1 = casuale"));
     m_seed->setMaximumWidth(100);
     grid->addWidget(m_seed, 2, 1);
 
@@ -395,7 +395,7 @@ void StableDiffusionWidget::generateLocal()
     };
 
     m_btnGen->setEnabled(false);
-    m_btnGen->setText("\xf0\x9f\x94\x84  Generazione locale...");
+    m_btnGen->setText(tr("\xf0\x9f\x94\x84  Generazione locale..."));
     m_progress->setRange(0, 0);
     m_progress->show();
     setStatus(
@@ -414,7 +414,7 @@ void StableDiffusionWidget::generateLocal()
         m_sdProc->deleteLater();
         m_sdProc = nullptr;
         m_btnGen->setEnabled(true);
-        m_btnGen->setText("\xf0\x9f\x8e\xa8  Genera immagine");
+        m_btnGen->setText(tr("\xf0\x9f\x8e\xa8  Genera immagine"));
     }
 }
 
@@ -456,7 +456,7 @@ void StableDiffusionWidget::generateA1111()
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
     m_btnGen->setEnabled(false);
-    m_btnGen->setText("\xf0\x9f\x94\x84  Generazione in corso...");
+    m_btnGen->setText(tr("\xf0\x9f\x94\x84  Generazione in corso..."));
     setStatus(
         "\xf0\x9f\x8e\xa8  A1111: "
         + QString::number(m_steps->value()) + " steps, "
@@ -526,13 +526,13 @@ void StableDiffusionWidget::onBtnCopyClicked()
     px.loadFromData(m_lastPng, "PNG");
     if (!px.isNull())
         QApplication::clipboard()->setPixmap(px);
-    m_btnCopy->setText("\xe2\x9c\x85  Copiata!");
+    m_btnCopy->setText(tr("\xe2\x9c\x85  Copiata!"));
     QTimer::singleShot(2000, this, &StableDiffusionWidget::onCopyFeedbackReset);
 }
 
 void StableDiffusionWidget::onCopyFeedbackReset()
 {
-    m_btnCopy->setText("\xf0\x9f\x93\x8b  Copia");
+    m_btnCopy->setText(tr("\xf0\x9f\x93\x8b  Copia"));
 }
 
 void StableDiffusionWidget::onImageReady(bool ok)
@@ -619,7 +619,7 @@ void StableDiffusionWidget::onLocalProcReadyRead()
 void StableDiffusionWidget::onLocalProcFinished(int code, QProcess::ExitStatus)
 {
     m_btnGen->setEnabled(true);
-    m_btnGen->setText("\xf0\x9f\x8e\xa8  Genera immagine");
+    m_btnGen->setText(tr("\xf0\x9f\x8e\xa8  Genera immagine"));
     m_progress->hide();
     if (m_sdProc) {
         m_sdProc->deleteLater();
@@ -646,7 +646,7 @@ void StableDiffusionWidget::onA1111ReplyFinished()
     auto* reply = m_genReply;
     m_genReply = nullptr;
     m_btnGen->setEnabled(true);
-    m_btnGen->setText("\xf0\x9f\x8e\xa8  Genera immagine");
+    m_btnGen->setText(tr("\xf0\x9f\x8e\xa8  Genera immagine"));
     if (!reply) return;
     reply->deleteLater();
 

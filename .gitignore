@@ -12,7 +12,7 @@ __pycache__/
 *.pyd
 
 # ── llama.cpp — repo clonato (si riclona dal llama Studio) ──────────────────
-llama_cpp_studio/llama.cpp/
+ENGINE_LLM/llama_cpp_studio/llama.cpp/
 C_software/llama.cpp/
 
 # ── C_software — binari e oggetti compilati ───────────────────────────────────
@@ -64,12 +64,12 @@ Qt_GUI_v3/build_tests/
 # ── Cartelle root duplicate/sperimentali (non fanno parte del progetto principale)
 # Nota: / iniziale ancora il pattern alla root del repo
 /Qt_GUI/
-/llama_cpp_studio/
+/ENGINE_LLM/llama_cpp_studio/
 
 # ── Artefatti generati e file personali ───────────────────────────────────────
 Prismalux_Windows_full.zip
 *.pdf
-hybrid_llm/
+ENGINE_LLM/hybrid_llm/
 C_software/C_software/
 C_software/llama_cpp_studio/
 
@@ -78,7 +78,7 @@ C_software/llama_cpp_studio/
 AppDir/
 
 # ── Modelli GGUF personali (troppo grandi per git) ───────────────────────────
-llama_cpp_studio/models/*.gguf
+ENGINE_LLM/llama_cpp_studio/models/*.gguf
 *.gguf
 
 # ── Output Multi-Agente (generati a runtime, tutti in esportazioni/) ─────────
@@ -131,11 +131,11 @@ strumento_pratico/cv/*.txt
 gui/build/
 gui/build_*/
 
-# ── llama.cpp standalone alla root ────────────────────────────────────────────
-/llama.cpp/
+# ── llama.cpp standalone in ENGINE_LLM ────────────────────────────────────────
+/ENGINE_LLM/llama.cpp/
 
-# ── Binari whisper Windows (scaricati da aggiorna.sh --whisper) ───────────────
-whisper_win/
+# ── Binari whisper Windows in Frameworks/whisper/bin_windows ──────────────────
+Frameworks/whisper/bin_windows/
 
 # ── Configurazione MCP locale ─────────────────────────────────────────────────
 .mcp.json
@@ -152,7 +152,7 @@ COMPILE_WIN/toolchain/
 COMPILE_WIN/build/
 
 # ── KNOWLEDGE_USER — dati personali, non versionare ─────────────────────────
-KNOWLEDGE_USER/user_knowledge.md
+TOOL_TIP/KNOWLEDGE_USER/user_knowledge.md
 
 # ── Screenshot e foto inviate/ricevute ───────────────────────────────────────
 SCREENSHOT/
@@ -170,8 +170,7 @@ COMPILE_WIN/.venv_tools/
 # ── Build artifacts ───────────────────────────────────────────────────────────
 build_gui/
 build_tests/
-cmake/
-whisper.cpp/
+Frameworks/whisper/
 
 # ── DLL Windows bundlate (estratte da MSYS2, non versionare) ─────────────────
 DLL/
@@ -182,7 +181,7 @@ RAG.zip
 PARERE_RICERCA_BLHM_RAB80L.txt
 
 # ── KNOWLEDGE_USER — tutti i file personali ───────────────────────────────────
-KNOWLEDGE_USER/
+TOOL_TIP/KNOWLEDGE_USER/
 
 # ── Artefatti di distribuzione (rigenerati da aggiorna.sh) ───────────────────
 EXPORT/linux/Prismalux*.AppImage

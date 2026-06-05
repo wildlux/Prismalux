@@ -4,6 +4,19 @@
 
 ---
 
+## 🗂️ Riorganizzazione cartelle root — 2026-06-05 (Paolo)
+
+> Troppo piatta — unificare cartelle correlate in gruppi logici.
+
+### [x] Frameworks/whisper/ — unisce whisper.cpp + whisper_win — 2026-06-05
+### [x] ENGINE_LLM/ — raggruppa tutti i motori LLM — 2026-06-05
+### [x] Test/TEST_OPENCODE/ — spostato dentro Test/ — 2026-06-05
+### [x] TOOL_TIP/ — KNOWLEDGE_USER + BEST_PRACTICE_&_GOAL — 2026-06-05
+### [x] Tools/ — scripts/ + cmake/ — 2026-06-05
+> Tutti i riferimenti C++, Python, shell aggiornati e build verificata — 2026-06-05
+
+---
+
 ## 🔬 Calcolo Scientifico Distribuito (BOINC-like) — TODO aperti
 
 > Sessione 2026-06-05 — sistema base implementato e funzionante (porta 11601,
@@ -81,7 +94,7 @@ Laptop    |   8 | 16  | python3        |  203 |   12 |    31h  | busy
 
 ---
 
-### [ ] (extra) Progress streaming per task lunghi
+### [x] (extra) Progress streaming per task lunghi — 2026-06-05
 **Priorità: BASSA** — nice-to-have per simulazioni MD e BLAST su database grandi.
 
 GROMACS, BLAST e altri tool emettono progresso su stderr durante l'esecuzione.

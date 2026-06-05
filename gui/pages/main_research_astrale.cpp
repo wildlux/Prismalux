@@ -132,15 +132,15 @@ QWidget* RicercaPage::buildAstraleTab()
     auto* coordLay = new QHBoxLayout(coordRow);
     coordLay->setContentsMargins(0, 0, 0, 0); coordLay->setSpacing(6);
     m_astraleCustomCitta = new QLineEdit(coordRow);
-    m_astraleCustomCitta->setPlaceholderText("Citt\xc3\xa0 (es. Roma)");
+    m_astraleCustomCitta->setPlaceholderText(tr("Citt\xc3\xa0 (es. Roma)"));
     m_astraleCustomLat   = new QLineEdit(coordRow);
-    m_astraleCustomLat->setPlaceholderText("Lat");
+    m_astraleCustomLat->setPlaceholderText(tr("Lat"));
     m_astraleCustomLat->setMaximumWidth(62);
-    m_astraleCustomLat->setText("41.90");
+    m_astraleCustomLat->setText(tr("41.90"));
     m_astraleCustomLon   = new QLineEdit(coordRow);
-    m_astraleCustomLon->setPlaceholderText("Lon");
+    m_astraleCustomLon->setPlaceholderText(tr("Lon"));
     m_astraleCustomLon->setMaximumWidth(62);
-    m_astraleCustomLon->setText("12.50");
+    m_astraleCustomLon->setText(tr("12.50"));
     coordLay->addWidget(m_astraleCustomCitta, 1);
     coordLay->addWidget(m_astraleCustomLat);
     coordLay->addWidget(m_astraleCustomLon);
@@ -264,7 +264,7 @@ QWidget* RicercaPage::buildAstraleTab()
     auto* btnSavePng = new QPushButton(
         "\xf0\x9f\x96\xbc  Salva immagine .png", chartContainer);  /* 🖼 */
     btnSavePng->setObjectName("actionBtn");
-    btnSavePng->setToolTip("Salva la ruota astrale come file PNG ad alta risoluzione");
+    btnSavePng->setToolTip(tr("Salva la ruota astrale come file PNG ad alta risoluzione"));
     chartBtnRow->addWidget(btnSavePng);
     chartBtnRow->addStretch(1);
     connect(btnSavePng, &QPushButton::clicked,
@@ -601,7 +601,7 @@ void RicercaPage::onAstraleRunClicked()
     m_astraleErrorConn    = connect(m_ai, &AiClient::error,
                                     this, &RicercaPage::onAstraleError);
 
-    m_astraleRunBtn->setText("\xe2\x96\xa0  Stop");
+    m_astraleRunBtn->setText(tr("\xe2\x96\xa0  Stop"));
     m_astraleRunBtn->setProperty("running", true);
     if (m_sciProgress) m_sciProgress->setVisible(true);
 
@@ -676,7 +676,7 @@ void RicercaPage::onAstraleFinished(const QString& full)
     QObject::disconnect(m_astraleErrorConn);
     m_astraleTokenConn = m_astraleFinishedConn = m_astraleErrorConn = {};
 
-    m_astraleRunBtn->setText("\xe2\xad\x90  Leggi gli Astri");
+    m_astraleRunBtn->setText(tr("\xe2\xad\x90  Leggi gli Astri"));
     m_astraleRunBtn->setProperty("running", false);
     if (m_sciProgress) m_sciProgress->setVisible(false);
     m_astraleOutput->append("\n" + QString(50, QChar(0x2500)));
@@ -702,7 +702,7 @@ void RicercaPage::onAstraleError(const QString& msg)
     QObject::disconnect(m_astraleErrorConn);
     m_astraleTokenConn = m_astraleFinishedConn = m_astraleErrorConn = {};
 
-    m_astraleRunBtn->setText("\xe2\xad\x90  Leggi gli Astri");
+    m_astraleRunBtn->setText(tr("\xe2\xad\x90  Leggi gli Astri"));
     m_astraleRunBtn->setProperty("running", false);
     if (m_sciProgress) m_sciProgress->setVisible(false);
     m_sciErrorPanel->showError(msg, [this]{ onAstraleRunClicked(); });

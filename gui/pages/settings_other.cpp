@@ -502,16 +502,16 @@ QWidget* ImpostazioniPage::buildMcpTab()
                         [proc, btnStart, scriptPath]{
                     if (proc->state() == QProcess::NotRunning) {
                         proc->start(P::findPython(), {scriptPath});
-                        btnStart->setText("\xe2\x96\xa0  Ferma server");
+                        btnStart->setText(tr("\xe2\x96\xa0  Ferma server"));
                     } else {
                         proc->terminate();
-                        btnStart->setText("\xe2\x96\xb6  Avvia server");
+                        btnStart->setText(tr("\xe2\x96\xb6  Avvia server"));
                     }
                 });
                 connect(proc, &QProcess::stateChanged, card,
                         [btnStart](QProcess::ProcessState st){
                     if (st == QProcess::NotRunning)
-                        btnStart->setText("\xe2\x96\xb6  Avvia server");
+                        btnStart->setText(tr("\xe2\x96\xb6  Avvia server"));
                 });
             }
 
@@ -589,10 +589,10 @@ QWidget* ImpostazioniPage::buildMcpTab()
             cfg["mcpServers"] = mcp;
             writeCfg(cfg);
             fbkOllama->setStyleSheet("color: green;");
-            fbkOllama->setText("\xe2\x9c\x85  Aggiunto a settings.json");
+            fbkOllama->setText(tr("\xe2\x9c\x85  Aggiunto a settings.json"));
         });
         connect(btnCopia, &QPushButton::clicked, page, []{
-            QGuiApplication::clipboard()->setText("npx -y ollama-mcp-server");
+            QGuiApplication::clipboard()->setText(tr("npx -y ollama-mcp-server"));
         });
 
         rightL->addWidget(box);
@@ -606,11 +606,11 @@ QWidget* ImpostazioniPage::buildMcpTab()
         form->setSpacing(8);
 
         auto* editNome = new QLineEdit;
-        editNome->setPlaceholderText("es. my-mcp");
+        editNome->setPlaceholderText(tr("es. my-mcp"));
         auto* cmbTipo = new QComboBox;
         cmbTipo->addItems({"stdio", "sse", "http"});
         auto* editCmd = new QLineEdit;
-        editCmd->setPlaceholderText("es. python3   oppure   npx");
+        editCmd->setPlaceholderText(tr("es. python3   oppure   npx"));
         auto* editArgs = new QLineEdit;
         editArgs->setPlaceholderText(
             "es. /percorso/server.py   (separati da spazio)");
@@ -639,7 +639,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
             const QString cmd  = editCmd->text().trimmed();
             if (nome.isEmpty() || cmd.isEmpty()) {
                 fbk->setStyleSheet("color: red;");
-                fbk->setText("Nome e Comando sono obbligatori.");
+                fbk->setText(tr("Nome e Comando sono obbligatori."));
                 return;
             }
             QJsonObject cfg = readCfg();

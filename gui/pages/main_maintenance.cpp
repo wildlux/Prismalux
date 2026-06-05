@@ -115,14 +115,14 @@ QGroupBox* ManutenzioneePage::buildConnectionModelGroup(QWidget* parent)
 
     m_hostEdit = new QLineEdit("127.0.0.1", grp);
     m_hostEdit->setObjectName("chatInput");
-    m_hostEdit->setPlaceholderText("Host");
+    m_hostEdit->setPlaceholderText(tr("Host"));
     m_hostEdit->setAccessibleName("Indirizzo host del backend AI");
     lay->addWidget(new QLabel("Host:", grp));
     lay->addWidget(m_hostEdit);
 
     m_portEdit = new QLineEdit("11434", grp);
     m_portEdit->setObjectName("chatInput");
-    m_portEdit->setPlaceholderText("Porta");
+    m_portEdit->setPlaceholderText(tr("Porta"));
     m_portEdit->setAccessibleName("Porta del backend AI");
     lay->addWidget(new QLabel("Porta:", grp));
     lay->addWidget(m_portEdit);
@@ -166,7 +166,7 @@ QWidget* ManutenzioneePage::buildModelButtonRow(QGroupBox* parent)
     auto* refreshBtn = new QPushButton("\xf0\x9f\x94\x84", parent);
     refreshBtn->setObjectName("actionBtn");
     refreshBtn->setFixedWidth(36);
-    refreshBtn->setToolTip("Aggiorna lista modelli");
+    refreshBtn->setToolTip(tr("Aggiorna lista modelli"));
     refreshBtn->setAccessibleName("Aggiorna lista modelli AI");
     auto* setModelBtn = new QPushButton("\xe2\x9c\x93  Usa questo", parent);
     setModelBtn->setObjectName("actionBtn");
@@ -261,7 +261,7 @@ void ManutenzioneePage::buildLlamaServerSection(QGroupBox* grp, QVBoxLayout* lay
     srvModelL->setSpacing(8);
     m_srvModelPath = new QLineEdit(m_grpServ);
     m_srvModelPath->setObjectName("chatInput");
-    m_srvModelPath->setPlaceholderText("percorso/al/modello.gguf");
+    m_srvModelPath->setPlaceholderText(tr("percorso/al/modello.gguf"));
     auto* srvBrowse = new QPushButton("\xe2\x80\xa6", m_grpServ);
     srvBrowse->setObjectName("actionBtn");
     srvBrowse->setFixedWidth(32);
@@ -297,7 +297,7 @@ void ManutenzioneePage::buildLlamaServerSection(QGroupBox* grp, QVBoxLayout* lay
     m_srvLog->setReadOnly(true);
     m_srvLog->setObjectName("chatLog");
     m_srvLog->setMinimumHeight(80);
-    m_srvLog->setPlaceholderText("Log llama-server...");
+    m_srvLog->setPlaceholderText(tr("Log llama-server..."));
     srvLay->addWidget(m_srvLog);
 
     lay->addWidget(m_grpServ);
@@ -377,7 +377,7 @@ QGroupBox* ManutenzioneePage::buildUpdateGroup(QWidget* parent)
     dlRowL->setContentsMargins(0,0,0,0); dlRowL->setSpacing(8);
     dlRowL->addWidget(new QLabel("\xe2\xac\x87  Scarica nuovo modello Ollama:", dlRow));
     m_downloadModelEdit = new QLineEdit(dlRow);
-    m_downloadModelEdit->setPlaceholderText("es. llama3.2:3b  \xe2\x80\xa2  qwen2.5-coder:7b");
+    m_downloadModelEdit->setPlaceholderText(tr("es. llama3.2:3b  \xe2\x80\xa2  qwen2.5-coder:7b"));
     m_downloadModelEdit->setAccessibleName("Nome modello Ollama da scaricare");
     m_btnDownloadModel = new QPushButton("\xe2\xac\x87  Scarica", dlRow);
     m_btnDownloadModel->setObjectName("actionBtn");
@@ -399,7 +399,7 @@ QGroupBox* ManutenzioneePage::buildUpdateGroup(QWidget* parent)
     m_btnVerifyGguf = new QPushButton(
         "\xf0\x9f\x94\x92  Verifica integrit\xc3\xa0 GGUF", ggufRow);
     m_btnVerifyGguf->setObjectName("actionBtn");
-    m_btnVerifyGguf->setToolTip("Calcola SHA-256 dei file .gguf in models/ e confronta con le firme salvate");
+    m_btnVerifyGguf->setToolTip(tr("Calcola SHA-256 dei file .gguf in models/ e confronta con le firme salvate"));
     m_btnVerifyGguf->setAccessibleName("Verifica integrità file modelli GGUF tramite SHA-256");
     m_ggufStatusLbl = new QLabel("", ggufRow);
     m_ggufStatusLbl->setObjectName("cardDesc");
@@ -631,7 +631,7 @@ QGroupBox* ManutenzioneePage::buildRamOptGroup(QWidget* parent)
     m_ramLog->setMaximumHeight(110);
     m_ramLog->setStyleSheet(
         "font-family:'Consolas','Courier New',monospace; font-size:10px;");
-    m_ramLog->setPlaceholderText("Output comandi...");
+    m_ramLog->setPlaceholderText(tr("Output comandi..."));
     lay->addWidget(m_ramLog);
 
     return grp;
@@ -825,9 +825,9 @@ QGroupBox* ManutenzioneePage::buildNpuGroup(QWidget* parent)
     copyBtnNpu->setObjectName("actionBtn");
     copyBtnNpu->setFixedWidth(28);
     copyBtnNpu->setFixedHeight(24);
-    copyBtnNpu->setToolTip("Copia comando pip negli appunti");
+    copyBtnNpu->setToolTip(tr("Copia comando pip negli appunti"));
     connect(copyBtnNpu, &QPushButton::clicked, grp, [=]() {
-        QApplication::clipboard()->setText("pip install intel-npu-acceleration-library");
+        QApplication::clipboard()->setText(tr("pip install intel-npu-acceleration-library"));
     });
     npuHintRow->addWidget(npuHint, 1);
     npuHintRow->addWidget(copyBtnNpu);
@@ -1508,7 +1508,7 @@ void ManutenzioneePage::onUpdAllBtnClicked()
 {
     if (m_updAllBtn) m_updAllBtn->setEnabled(false);
     if (m_updLog) m_updLog->clear();
-    if (m_updStatusLbl) m_updStatusLbl->setText("\xf0\x9f\x94\x84  Recupero lista modelli...");
+    if (m_updStatusLbl) m_updStatusLbl->setText(tr("\xf0\x9f\x94\x84  Recupero lista modelli..."));
 
     if (m_listProc) {
         m_listProc->kill();
@@ -1538,7 +1538,7 @@ void ManutenzioneePage::onListProcFinished(int, QProcess::ExitStatus)
     }
 
     if (models.isEmpty()) {
-        if (m_updStatusLbl) m_updStatusLbl->setText("\xe2\x9d\x8c  Nessun modello trovato. Ollama in esecuzione?");
+        if (m_updStatusLbl) m_updStatusLbl->setText(tr("\xe2\x9d\x8c  Nessun modello trovato. Ollama in esecuzione?"));
         if (m_updAllBtn) m_updAllBtn->setEnabled(true);
         return;
     }
@@ -1562,7 +1562,7 @@ void ManutenzioneePage::onListProcError(QProcess::ProcessError)
         m_listProc->deleteLater();
         m_listProc = nullptr;
     }
-    if (m_updStatusLbl) m_updStatusLbl->setText("\xe2\x9d\x8c  Ollama non trovato. Verifica il PATH.");
+    if (m_updStatusLbl) m_updStatusLbl->setText(tr("\xe2\x9d\x8c  Ollama non trovato. Verifica il PATH."));
     if (m_updAllBtn) m_updAllBtn->setEnabled(true);
 }
 
@@ -1637,7 +1637,7 @@ void ManutenzioneePage::onUpdLlamaBtnClicked()
 {
     if (m_updLlamaBtn) m_updLlamaBtn->setEnabled(false);
     if (m_updLog) m_updLog->clear();
-    if (m_updStatusLbl) m_updStatusLbl->setText("\xf0\x9f\x94\x84  Scansione modelli GGUF...");
+    if (m_updStatusLbl) m_updStatusLbl->setText(tr("\xf0\x9f\x94\x84  Scansione modelli GGUF..."));
 
     const QStringList ggufFiles = P::scanGgufFiles();
     if (m_updLog) {
@@ -1653,8 +1653,8 @@ void ManutenzioneePage::onUpdLlamaBtnClicked()
     }
 
     QString llamaDir;
-    for (const QString& c : {P::root() + "/llama_cpp_studio/llama.cpp",
-                              P::root() + "/llama.cpp"}) {
+    for (const QString& c : {P::root() + "/ENGINE_LLM/llama_cpp_studio/llama.cpp",
+                              P::root() + "/ENGINE_LLM/llama.cpp"}) {
         if (QDir(c + "/.git").exists()) { llamaDir = c; break; }
     }
 
@@ -1663,13 +1663,13 @@ void ManutenzioneePage::onUpdLlamaBtnClicked()
             m_updLog->append("\n\xe2\x84\xb9  Repository llama.cpp non trovato — aggiornamento git non disponibile.");
             m_updLog->append("   I file .gguf vanno aggiornati manualmente da HuggingFace Hub.");
         }
-        if (m_updStatusLbl) m_updStatusLbl->setText("\xe2\x9c\x85  Scansione completata.");
+        if (m_updStatusLbl) m_updStatusLbl->setText(tr("\xe2\x9c\x85  Scansione completata."));
         if (m_updLlamaBtn) m_updLlamaBtn->setEnabled(true);
         return;
     }
 
     if (m_updLog) m_updLog->append(QString("\n\xf0\x9f\x94\x84  git pull: %1").arg(llamaDir));
-    if (m_updStatusLbl) m_updStatusLbl->setText("\xf0\x9f\x94\x84  Aggiornamento llama.cpp...");
+    if (m_updStatusLbl) m_updStatusLbl->setText(tr("\xf0\x9f\x94\x84  Aggiornamento llama.cpp..."));
 
     if (m_gitProc) {
         m_gitProc->kill();
@@ -1701,9 +1701,9 @@ void ManutenzioneePage::onGitProcFinished(int code, QProcess::ExitStatus)
     }
     if (m_updStatusLbl) {
         if (code == 0)
-            m_updStatusLbl->setText("\xe2\x9c\x85  llama.cpp aggiornato.");
+            m_updStatusLbl->setText(tr("\xe2\x9c\x85  llama.cpp aggiornato."));
         else
-            m_updStatusLbl->setText("\xe2\x9a\xa0  git pull fallito (verifica connessione).");
+            m_updStatusLbl->setText(tr("\xe2\x9a\xa0  git pull fallito (verifica connessione)."));
     }
     if (m_updLlamaBtn) m_updLlamaBtn->setEnabled(true);
 }
@@ -1715,7 +1715,7 @@ void ManutenzioneePage::onGitProcError(QProcess::ProcessError)
         m_gitProc = nullptr;
     }
     if (m_updLog) m_updLog->append("\xe2\x9d\x8c  git non trovato nel PATH.");
-    if (m_updStatusLbl) m_updStatusLbl->setText("\xe2\x9a\xa0  git non disponibile.");
+    if (m_updStatusLbl) m_updStatusLbl->setText(tr("\xe2\x9a\xa0  git non disponibile."));
     if (m_updLlamaBtn) m_updLlamaBtn->setEnabled(true);
 }
 
@@ -1922,8 +1922,8 @@ void ManutenzioneePage::onDownloadModelClicked()
         m_updLog->append(QString("\n\xe2\xac\x87  Download: <b>%1</b>...")
                          .arg(model.toHtmlEscaped()));
     }
-    if (m_downloadStatusLbl) m_downloadStatusLbl->setText("\xe2\x8f\xb3  Download...");
-    if (m_btnDownloadModel)  m_btnDownloadModel->setText("\xe2\x8f\xb9  Annulla");
+    if (m_downloadStatusLbl) m_downloadStatusLbl->setText(tr("\xe2\x8f\xb3  Download..."));
+    if (m_btnDownloadModel)  m_btnDownloadModel->setText(tr("\xe2\x8f\xb9  Annulla"));
     emit downloadStarted(model);
 
     if (m_downloadProc) { m_downloadProc->deleteLater(); m_downloadProc = nullptr; }
@@ -1960,7 +1960,7 @@ void ManutenzioneePage::onDownloadProcFinished(int code, QProcess::ExitStatus)
 {
     const QString model = m_downloadModelEdit ? m_downloadModelEdit->text().trimmed()
                                               : QString("modello");
-    if (m_btnDownloadModel) m_btnDownloadModel->setText("\xe2\xac\x87  Scarica");
+    if (m_btnDownloadModel) m_btnDownloadModel->setText(tr("\xe2\xac\x87  Scarica"));
     if (code == 0) {
         if (m_downloadStatusLbl) m_downloadStatusLbl->setText(
             "\xe2\x9c\x85  Download completato.");

@@ -48,9 +48,9 @@ SOURCE_DIRS = [
     "ICONA",
     "RAG",
     "MCPs",
-    "BEST_PRACTICE_&_GOAL",
-    "whisper_win",
-    "scripts",
+    "TOOL_TIP/BEST_PRACTICE_&_GOAL",
+    "Frameworks/whisper/bin_windows",
+    "Tools/scripts",
 ]
 SOURCE_ROOT_FILES = [
     "README.md",
@@ -102,9 +102,9 @@ BINARY_DATA_DIRS = [
     "RAG",
     "MCPs",
     "ICONA",
-    "BEST_PRACTICE_&_GOAL",
-    "whisper_win",
-    "KNOWLEDGE_USER",
+    "TOOL_TIP/BEST_PRACTICE_&_GOAL",
+    "Frameworks/whisper/bin_windows",
+    "TOOL_TIP/KNOWLEDGE_USER",
 ]
 # Estensioni DLL/plugin da includere dalla cartella build
 BINARY_BUILD_EXTS = {".exe", ".dll", ".pdb"}

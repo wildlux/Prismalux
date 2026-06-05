@@ -113,14 +113,14 @@ RagDropWidget::RagDropWidget(QWidget* parent) : QFrame(parent) {
     /* Pulsante URL web */
     m_urlBtn = new QPushButton("\xf0\x9f\x8c\x90", this);
     m_urlBtn->setFixedSize(22, 22);
-    m_urlBtn->setToolTip("Carica pagina web nel RAG");
+    m_urlBtn->setToolTip(tr("Carica pagina web nel RAG"));
     m_urlBtn->setCursor(Qt::PointingHandCursor);
     lay->addWidget(m_urlBtn);
 
     m_clearBtn = new QPushButton("\xc3\x97", this);
     m_clearBtn->setFixedSize(18, 18);
     m_clearBtn->setVisible(false);
-    m_clearBtn->setToolTip("Rimuovi tutti i file/URL RAG");
+    m_clearBtn->setToolTip(tr("Rimuovi tutti i file/URL RAG"));
     lay->addWidget(m_clearBtn);
 
     connect(m_urlBtn,   &QPushButton::clicked, this, &RagDropWidget::onUrlBtnClicked);
@@ -206,7 +206,7 @@ void RagDropWidget::fetchUrl(const QString& url)
 
     m_pendingFetches++;
     m_urlBtn->setEnabled(false);
-    m_lbl->setText("\xf0\x9f\x8c\x90 Download in corso...");
+    m_lbl->setText(tr("\xf0\x9f\x8c\x90 Download in corso..."));
     emit webFetchStarted(url);
 
     const QUrl qurl(url);
@@ -249,7 +249,7 @@ void RagDropWidget::updateLabel() {
     bool hasFiles = !m_files.isEmpty();
     m_clearBtn->setVisible(hasFiles);
     if (m_pendingFetches > 0) {
-        m_lbl->setText("\xf0\x9f\x8c\x90 Download in corso...");
+        m_lbl->setText(tr("\xf0\x9f\x8c\x90 Download in corso..."));
         return;
     }
     if (hasFiles) {
@@ -270,7 +270,7 @@ void RagDropWidget::updateLabel() {
                     .arg(fileCount).arg(kb, 0, 'f', 1);
         m_lbl->setText(label);
     } else {
-        m_lbl->setText("\xf0\x9f\x93\x8e Trascina file");
+        m_lbl->setText(tr("\xf0\x9f\x93\x8e Trascina file"));
     }
 }
 
@@ -689,7 +689,7 @@ void AgentsConfigDialog::showEvent(QShowEvent* e) {
 }
 
 void AgentsConfigDialog::setupUI() {
-    setWindowTitle("\xe2\x9a\x99\xef\xb8\x8f  Configurazione Agenti — Prismalux");
+    setWindowTitle(tr("\xe2\x9a\x99\xef\xb8\x8f  Configurazione Agenti — Prismalux"));
     setMinimumSize(920, 480);
     resize(1020, 560);
 
@@ -725,7 +725,7 @@ void AgentsConfigDialog::setupUI() {
     m_spinShots->setRange(1, MAX_AGENTS);
     m_spinShots->setValue(MAX_AGENTS);
     m_spinShots->setFixedWidth(dpiScale(56));
-    m_spinShots->setToolTip("Quanti agenti usare nella pipeline (1-6)");
+    m_spinShots->setToolTip(tr("Quanti agenti usare nella pipeline (1-6)"));
     connect(m_spinShots, QOverload<int>::of(&QSpinBox::valueChanged),
             this, [this](int v){ updateVisibility(v); });
     numLay->addWidget(numLbl);
@@ -921,7 +921,7 @@ void AgentsConfigDialog::setupUI() {
         pLay->setSpacing(8);
 
         m_presetNameEdit = new QLineEdit(presetBox);
-        m_presetNameEdit->setPlaceholderText("Nome preset...");
+        m_presetNameEdit->setPlaceholderText(tr("Nome preset..."));
         m_presetNameEdit->setObjectName("chatInput");
         pLay->addWidget(m_presetNameEdit, 2);
 
@@ -1085,7 +1085,7 @@ void AgentsConfigDialog::applyPreset(int modeIdx) {
    ───────────────────────────────────────────────────────────────── */
 QString AgentsConfigDialog::presetDir() const
 {
-    const QString d = P::root() + "/KNOWLEDGE_USER/agent_presets";
+    const QString d = P::root() + "/TOOL_TIP/KNOWLEDGE_USER/agent_presets";
     QDir().mkpath(d);
     return d;
 }

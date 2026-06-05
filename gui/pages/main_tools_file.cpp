@@ -109,7 +109,7 @@ QWidget* StrumentiFilePage::buildFileSearchTab()
     m_fileSearchAiBtn->setObjectName("actionBtn");
     m_fileSearchAiBtn->setFixedWidth(100);
     m_fileSearchAiBtn->setEnabled(false);
-    m_fileSearchAiBtn->setToolTip("Manda i file trovati al modello AI per analisi");
+    m_fileSearchAiBtn->setToolTip(tr("Manda i file trovati al modello AI per analisi"));
     qLay->addWidget(m_fileSearchAiBtn);
     lay->addWidget(qRow);
 
@@ -170,7 +170,7 @@ QWidget* StrumentiFilePage::buildWikiTab()
     m_wikiLangCombo->addItem("fr", "fr");
     m_wikiLangCombo->addItem("de", "de");
     m_wikiLangCombo->addItem("es", "es");
-    m_wikiLangCombo->setToolTip("Lingua Wikipedia");
+    m_wikiLangCombo->setToolTip(tr("Lingua Wikipedia"));
     sLay->addWidget(m_wikiLangCombo);
 
     auto* btnFetch = new QPushButton(
@@ -284,9 +284,9 @@ QWidget* StrumentiFilePage::buildDatiTab()
     copyBtn0->setObjectName("actionBtn");
     copyBtn0->setFixedWidth(28);
     copyBtn0->setFixedHeight(24);
-    copyBtn0->setToolTip("Copia comando pip negli appunti");
+    copyBtn0->setToolTip(tr("Copia comando pip negli appunti"));
     connect(copyBtn0, &QPushButton::clicked, panel, [=]() {
-        QApplication::clipboard()->setText("pip install openpyxl");
+        QApplication::clipboard()->setText(tr("pip install openpyxl"));
     });
     hintRow0->addWidget(hintLbl, 1);
     hintRow0->addWidget(copyBtn0);
@@ -415,9 +415,9 @@ QWidget* StrumentiFilePage::buildPdfTab()
     copyBtn1->setObjectName("actionBtn");
     copyBtn1->setFixedWidth(28);
     copyBtn1->setFixedHeight(24);
-    copyBtn1->setToolTip("Copia comando pip negli appunti");
+    copyBtn1->setToolTip(tr("Copia comando pip negli appunti"));
     connect(copyBtn1, &QPushButton::clicked, panel, [=]() {
-        QApplication::clipboard()->setText("pip install pdfplumber");
+        QApplication::clipboard()->setText(tr("pip install pdfplumber"));
     });
     hintRow1->addWidget(hintLbl, 1);
     hintRow1->addWidget(copyBtn1);
@@ -507,9 +507,9 @@ QWidget* StrumentiFilePage::buildWordTab()
     copyBtn2->setObjectName("actionBtn");
     copyBtn2->setFixedWidth(28);
     copyBtn2->setFixedHeight(24);
-    copyBtn2->setToolTip("Copia comando pip negli appunti");
+    copyBtn2->setToolTip(tr("Copia comando pip negli appunti"));
     connect(copyBtn2, &QPushButton::clicked, panel, [=]() {
-        QApplication::clipboard()->setText("pip install python-docx odfpy");
+        QApplication::clipboard()->setText(tr("pip install python-docx odfpy"));
     });
     hintRow2->addWidget(hintLbl, 1);
     hintRow2->addWidget(copyBtn2);

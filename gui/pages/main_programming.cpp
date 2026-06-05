@@ -268,7 +268,7 @@ QWidget* ProgrammazionePage::buildCodingToolbar(QWidget* parent,
 
     m_btnRun = new QPushButton("\xe2\x96\xb6  Esegui", toolRow);
     m_btnRun->setObjectName("actionBtn");
-    m_btnRun->setToolTip("Esegui il codice nell’editor (F5)");
+    m_btnRun->setToolTip(tr("Esegui il codice nell’editor (F5)"));
     tagExecP(m_btnRun, "\xe2\x96\xb6", "Esegui");
 
     auto* btnClear = new QPushButton("\xf0\x9f\x97\x91  Pulisci", toolRow);
@@ -281,7 +281,7 @@ QWidget* ProgrammazionePage::buildCodingToolbar(QWidget* parent,
     m_btnAi = new QPushButton("\xf0\x9f\xa4\x96  Chiedi all’AI", toolRow);
     m_btnAi->setObjectName("actionBtn");
     m_btnAi->setCheckable(true);
-    m_btnAi->setToolTip("Apri il pannello AI per scrivere una richiesta");
+    m_btnAi->setToolTip(tr("Apri il pannello AI per scrivere una richiesta"));
     tagExecP(m_btnAi, "\xf0\x9f\xa4\x96", "Chiedi all’AI");
     toolLay->addWidget(m_btnAi);
 
@@ -313,7 +313,7 @@ QWidget* ProgrammazionePage::buildCodingToolbar(QWidget* parent,
     m_fixSlider->setRange(1, 10);
     m_fixSlider->setValue(m_loopMax);
     m_fixSlider->setFixedWidth(80);
-    m_fixSlider->setToolTip("Numero massimo di tentativi Loop Fix (10 = illimitati)");
+    m_fixSlider->setToolTip(tr("Numero massimo di tentativi Loop Fix (10 = illimitati)"));
     m_fixSliderLbl = new QLabel(QString::number(m_loopMax), toolRow);
     m_fixSliderLbl->setObjectName("cardDesc");
     m_fixSliderLbl->setFixedWidth(22);
@@ -451,7 +451,7 @@ QWidget* ProgrammazionePage::buildAiPanel(QWidget* parent,
     outBtnRefreshMod = new QPushButton("\xf0\x9f\x94\x84", modelRow);
     outBtnRefreshMod->setObjectName("actionBtn");
     outBtnRefreshMod->setFixedWidth(32);
-    outBtnRefreshMod->setToolTip("Aggiorna lista modelli disponibili");
+    outBtnRefreshMod->setToolTip(tr("Aggiorna lista modelli disponibili"));
     modelLay->addWidget(outBtnRefreshMod);
     aiLay->addWidget(modelRow);
 
@@ -485,7 +485,7 @@ QWidget* ProgrammazionePage::buildAiPanel(QWidget* parent,
     outBtnCloseAi = new QPushButton("\xe2\x9c\x95", aiInputRow);
     outBtnCloseAi->setObjectName("actionBtn");
     outBtnCloseAi->setFixedWidth(32);
-    outBtnCloseAi->setToolTip("Chiudi pannello AI");
+    outBtnCloseAi->setToolTip(tr("Chiudi pannello AI"));
 
     aiInputLay->addWidget(m_btnSend);
     aiInputLay->addWidget(m_btnInsert);
@@ -753,10 +753,10 @@ void ProgrammazionePage::appendOutput(const QString& text)
 void ProgrammazionePage::setRunning(bool running)
 {
     if (running) {
-        m_btnRun->setText("\xe2\x96\xa0  Stop");
+        m_btnRun->setText(tr("\xe2\x96\xa0  Stop"));
         m_btnRun->setProperty("danger", true);
     } else {
-        m_btnRun->setText("\xe2\x96\xb6  Esegui");
+        m_btnRun->setText(tr("\xe2\x96\xb6  Esegui"));
         m_btnRun->setProperty("danger", false);
     }
     m_btnRun->setEnabled(true);
@@ -781,7 +781,7 @@ void ProgrammazionePage::runCode()
 {
     const QString code = m_editor->toPlainText().trimmed();
     if (code.isEmpty()) {
-        m_status->setText("\xe2\x9d\x8c  Nessun codice da eseguire.");
+        m_status->setText(tr("\xe2\x9d\x8c  Nessun codice da eseguire."));
         return;
     }
 
@@ -802,7 +802,7 @@ void ProgrammazionePage::runCode()
 
     const QString cmd = buildRunCommand(filePath);
     if (cmd.isEmpty()) {
-        m_status->setText("\xe2\x9d\x8c  Linguaggio non supportato.");
+        m_status->setText(tr("\xe2\x9d\x8c  Linguaggio non supportato."));
         return;
     }
 
@@ -812,7 +812,7 @@ void ProgrammazionePage::runCode()
     if (m_chartGroup) m_chartGroup->hide();
     appendOutput(QString("$ %1\n").arg(cmd));
     setRunning(true);
-    m_status->setText("\xe2\x8f\xb3  Esecuzione in corso...");
+    m_status->setText(tr("\xe2\x8f\xb3  Esecuzione in corso..."));
 
     if (m_proc) { m_proc->kill(); m_proc->deleteLater(); m_proc = nullptr; }
     m_proc = new QProcess(this);
@@ -882,15 +882,15 @@ void ProgrammazionePage::triggerFix(bool includeError)
 {
     const QString codice = m_editor->toPlainText().trimmed();
     if (codice.isEmpty()) {
-        m_status->setText("\xe2\x9d\x8c  Nessun codice nell'editor da correggere.");
+        m_status->setText(tr("\xe2\x9d\x8c  Nessun codice nell'editor da correggere."));
         return;
     }
     if (!m_ai) {
-        m_status->setText("\xe2\x9d\x8c  AI non disponibile.");
+        m_status->setText(tr("\xe2\x9d\x8c  AI non disponibile."));
         return;
     }
     if (m_ai->busy()) {
-        m_status->setText("\xe2\x9a\xa0\xef\xb8\x8f  AI occupata. Attendi o premi Stop.");
+        m_status->setText(tr("\xe2\x9a\xa0\xef\xb8\x8f  AI occupata. Attendi o premi Stop."));
         return;
     }
 
@@ -1090,7 +1090,7 @@ QWidget* ProgrammazionePage::buildAgenticaToolbar(QWidget* parent)
     auto* btnRefAgent = new QPushButton("\xf0\x9f\x94\x84", toolRow);
     btnRefAgent->setObjectName("actionBtn");
     btnRefAgent->setFixedWidth(dpiScale(32));
-    btnRefAgent->setToolTip("Aggiorna lista modelli disponibili");
+    btnRefAgent->setToolTip(tr("Aggiorna lista modelli disponibili"));
     toolLay->addWidget(btnRefAgent);
     connect(btnRefAgent, &QPushButton::clicked,
             this, &ProgrammazionePage::populateAgentModels);
@@ -1109,14 +1109,14 @@ QWidget* ProgrammazionePage::buildAgenticaToolbar(QWidget* parent)
     m_btnAgentRun = new QPushButton("\xe2\x96\xb6  Genera", toolRow);
     m_btnAgentRun->setObjectName("actionBtn");
     m_btnAgentRun->setProperty("highlight", "true");
-    m_btnAgentRun->setToolTip("Genera il codice agente (F5)");
+    m_btnAgentRun->setToolTip(tr("Genera il codice agente (F5)"));
     toolLay->addWidget(m_btnAgentRun);
 
     m_btnAgentStop = new QPushButton("\xe2\x96\xa0  Stop", toolRow);
     m_btnAgentStop->setObjectName("actionBtn");
     m_btnAgentStop->setProperty("danger", "true");
     m_btnAgentStop->setEnabled(false);
-    m_btnAgentStop->setToolTip("Interrompi la generazione");
+    m_btnAgentStop->setToolTip(tr("Interrompi la generazione"));
     toolLay->addWidget(m_btnAgentStop);
 
     return toolRow;
@@ -1174,7 +1174,7 @@ QWidget* ProgrammazionePage::buildAgenticaModelRow(QWidget* parent)
     auto* btnRefAgent = new QPushButton("\xf0\x9f\x94\x84", modelRow);
     btnRefAgent->setObjectName("actionBtn");
     btnRefAgent->setFixedWidth(32);
-    btnRefAgent->setToolTip("Aggiorna lista modelli disponibili");
+    btnRefAgent->setToolTip(tr("Aggiorna lista modelli disponibili"));
     modelLay->addWidget(btnRefAgent);
 
     connect(btnRefAgent, &QPushButton::clicked,
@@ -1482,7 +1482,7 @@ QWidget* ProgrammazionePage::buildRevOptionsRow(QWidget* parent,
     m_btnRevAnalyze->setObjectName("actionBtn");
     m_btnRevAnalyze->setProperty("highlight", "true");
     m_btnRevAnalyze->setEnabled(false);
-    m_btnRevAnalyze->setToolTip("Invia il file all'AI per la ricostruzione del sorgente");
+    m_btnRevAnalyze->setToolTip(tr("Invia il file all'AI per la ricostruzione del sorgente"));
     optLay->addWidget(m_btnRevAnalyze);
 
     m_btnRevStop = new QPushButton("\xe2\x96\xa0  Stop", optRow);
@@ -1519,7 +1519,7 @@ QWidget* ProgrammazionePage::buildRevOptionsRow(QWidget* parent,
     outBtnRefRev = new QPushButton("\xf0\x9f\x94\x84", modelRow);
     outBtnRefRev->setObjectName("actionBtn");
     outBtnRefRev->setFixedWidth(32);
-    outBtnRefRev->setToolTip("Aggiorna lista modelli disponibili");
+    outBtnRefRev->setToolTip(tr("Aggiorna lista modelli disponibili"));
     modelLay->addWidget(outBtnRefRev);
 
     contLay->addWidget(modelRow);
@@ -1790,7 +1790,7 @@ void ProgrammazionePage::buildNetToolbar(QVBoxLayout* lay, QWidget* w)
     m_netPort->setValue(0);
     m_netPort->setSpecialValueText("Tutte");
     m_netPort->setFixedWidth(80);
-    m_netPort->setToolTip("0 = tutte le porte");
+    m_netPort->setToolTip(tr("0 = tutte le porte"));
     toolRow->addWidget(m_netPort);
 
     toolRow->addWidget(new QLabel("Max:", w));
@@ -1835,7 +1835,7 @@ QWidget* ProgrammazionePage::buildNetLogSplitter(QWidget* parent)
     QFont mono("JetBrains Mono", 9);
     mono.setStyleHint(QFont::Monospace);
     m_netLog->setFont(mono);
-    m_netLog->setPlaceholderText("I pacchetti catturati appariranno qui...");
+    m_netLog->setPlaceholderText(tr("I pacchetti catturati appariranno qui..."));
     splitter->addWidget(m_netLog);
 
     m_netAiOutput = new QTextEdit(splitter);
@@ -2501,7 +2501,7 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
     m_vpnConfig = new QTextEdit(cfgGroup);
     m_vpnConfig->setFont(QFont("JetBrains Mono,Fira Code,Consolas,Monospace", 9));
     m_vpnConfig->setMinimumHeight(dpiScale(180));
-    m_vpnConfig->setPlaceholderText("Template qui...");
+    m_vpnConfig->setPlaceholderText(tr("Template qui..."));
     m_vpnConfig->setPlainText(QString::fromUtf8(kVpnTypes[0].tmpl));
     cfgLay->addWidget(m_vpnConfig);
     lay->addWidget(cfgGroup, 1);
@@ -2569,7 +2569,7 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
             [this, btnCopy]() {
         qApp->clipboard()->setText(m_vpnConfig->toPlainText());
         const QString orig = btnCopy->text();
-        btnCopy->setText("\xe2\x9c\x85  Copiato!");
+        btnCopy->setText(tr("\xe2\x9c\x85  Copiato!"));
         QTimer::singleShot(1500, btnCopy, [btnCopy, orig]() {
             btnCopy->setText(orig);
         });
@@ -2592,7 +2592,7 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
             m_vpnProc->terminate();
         btnGen->setEnabled(true);
         btnStop->setEnabled(false);
-        if (m_vpnStatusLbl) m_vpnStatusLbl->setText("\xe2\x8f\xb9  Fermato");
+        if (m_vpnStatusLbl) m_vpnStatusLbl->setText(tr("\xe2\x8f\xb9  Fermato"));
     });
 
     return w;

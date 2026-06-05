@@ -113,7 +113,7 @@ SecurityAnalyzerPage::SecurityAnalyzerPage(AiClient* ai, QWidget* parent)
     topLay->addWidget(title, 1);
 
     m_modelCombo = new ModelComboBox(m_ai, topBar);
-    m_modelCombo->setToolTip("Modello LLM usato dagli agenti di analisi");
+    m_modelCombo->setToolTip(tr("Modello LLM usato dagli agenti di analisi"));
     topLay->addWidget(m_modelCombo);
 
     m_btnAnalyze = new QPushButton(

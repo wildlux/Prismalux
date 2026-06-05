@@ -339,8 +339,8 @@ void MultimediaPage::onFileBtnClicked()
 void MultimediaPage::onRecBtnToggled(bool on)
 {
     if (on) {
-        m_recBtn->setText("\xe2\x8f\xb9  Ferma registrazione");
-        m_audioFileLbl->setText("\xf0\x9f\x94\xb4  Registrazione in corso...");
+        m_recBtn->setText(tr("\xe2\x8f\xb9  Ferma registrazione"));
+        m_audioFileLbl->setText(tr("\xf0\x9f\x94\xb4  Registrazione in corso..."));
         m_recProc = new QProcess(this);
         m_recProc->setProcessChannelMode(QProcess::MergedChannels);
         connect(m_recProc,
@@ -355,10 +355,10 @@ void MultimediaPage::onRecBtnToggled(bool on)
             m_recProc->terminate();
             m_recProc->waitForFinished(2000);
         }
-        m_recBtn->setText("\xf0\x9f\x8e\x99  Registra");
+        m_recBtn->setText(tr("\xf0\x9f\x8e\x99  Registra"));
         if (QFile::exists(m_recPath)) {
             m_audioFilePath = m_recPath;
-            m_audioFileLbl->setText("\xe2\x9c\x85  prismalux_record.wav");
+            m_audioFileLbl->setText(tr("\xe2\x9c\x85  prismalux_record.wav"));
             m_audioTranscript->clear();
             m_audioOutput->clear();
         } else {
@@ -549,7 +549,7 @@ void MultimediaPage::_renderDotCode(const QString& dot)
         if (f.open(QFile::WriteOnly | QFile::Text))
             QTextStream(&f) << dot;
     }
-    m_graphvizStatus->setText("\xe2\x8f\xb3  Rendering con Graphviz...");
+    m_graphvizStatus->setText(tr("\xe2\x8f\xb3  Rendering con Graphviz..."));
     m_graphvizImg->setText("");
 
     if (m_graphvizProc && m_graphvizProc->state() != QProcess::NotRunning)
@@ -606,7 +606,7 @@ void MultimediaPage::onGraphvizAiError(const QString& msg)
     QObject::disconnect(m_graphvizErrorConn);
     m_graphvizFinishedConn = {};
     m_graphvizErrorConn    = {};
-    m_graphvizStatus->setText("\xe2\x9d\x8c  Errore AI");
+    m_graphvizStatus->setText(tr("\xe2\x9d\x8c  Errore AI"));
     m_graphvizErr->showError(msg, [this]{ runGraphvizAi(); });
 }
 
@@ -674,7 +674,7 @@ QWidget* MultimediaPage::buildOcrTab()
             "sudo apt install python3-opencv python3-pandas tesseract-ocr tesseract-ocr-ita -y\n"
             "python3 -m pip install pytesseract --break-system-packages");
         const QString orig = btnCopyCmd->text();
-        btnCopyCmd->setText("\xe2\x9c\x85  Copiato!");
+        btnCopyCmd->setText(tr("\xe2\x9c\x85  Copiato!"));
         QTimer::singleShot(2000, btnCopyCmd, [btnCopyCmd, orig]{
             btnCopyCmd->setText(orig);
         });
@@ -700,7 +700,7 @@ QWidget* MultimediaPage::buildOcrTab()
     m_ocrInterval->setRange(1, 60);
     m_ocrInterval->setValue(3);
     m_ocrInterval->setSuffix(" s");
-    m_ocrInterval->setToolTip("Secondi tra una scansione webcam e l'altra");
+    m_ocrInterval->setToolTip(tr("Secondi tra una scansione webcam e l'altra"));
     cl->addWidget(m_ocrInterval);
 
     /* Separatore visivo */
@@ -725,7 +725,7 @@ QWidget* MultimediaPage::buildOcrTab()
     m_ocrVideoStep->setRange(1, 30);
     m_ocrVideoStep->setValue(2);
     m_ocrVideoStep->setSuffix(" s");
-    m_ocrVideoStep->setToolTip("Estrai 1 frame ogni N secondi di video");
+    m_ocrVideoStep->setToolTip(tr("Estrai 1 frame ogni N secondi di video"));
     cl->addWidget(m_ocrVideoStep);
 
     m_ocrVideoLbl = new QLabel("Nessun video", ctrlRow);
@@ -771,17 +771,17 @@ QWidget* MultimediaPage::buildOcrTab()
 
     m_ocrChkDedup = new QCheckBox("Deduplicazione (righe gi\xc3\xa0 viste)", panel);
     m_ocrChkDedup->setChecked(true);
-    m_ocrChkDedup->setToolTip("Scarta le righe identiche gi\xc3\xa0 presenti nell'area testo");
+    m_ocrChkDedup->setToolTip(tr("Scarta le righe identiche gi\xc3\xa0 presenti nell'area testo"));
     fl->addWidget(m_ocrChkDedup);
 
     m_ocrChkAlpha = new QCheckBox("Solo testo (>50% lettere)", panel);
     m_ocrChkAlpha->setChecked(true);
-    m_ocrChkAlpha->setToolTip("Scarta righe composte principalmente da numeri o simboli");
+    m_ocrChkAlpha->setToolTip(tr("Scarta righe composte principalmente da numeri o simboli"));
     fl->addWidget(m_ocrChkAlpha);
 
     m_ocrChkMinLen = new QCheckBox("Lunghezza \xe2\x89\xa5 4 caratteri", panel);  /* ≥ */
     m_ocrChkMinLen->setChecked(true);
-    m_ocrChkMinLen->setToolTip("Scarta parole/frammenti troppo corti");
+    m_ocrChkMinLen->setToolTip(tr("Scarta parole/frammenti troppo corti"));
     fl->addWidget(m_ocrChkMinLen);
 
     fl->addStretch(1);
@@ -797,7 +797,7 @@ QWidget* MultimediaPage::buildOcrTab()
     m_ocrPreview = new QLabel(previewBox);
     m_ocrPreview->setAlignment(Qt::AlignCenter);
     m_ocrPreview->setMinimumSize(280, 200);
-    m_ocrPreview->setText("\xf0\x9f\x93\xb7  In attesa...");
+    m_ocrPreview->setText(tr("\xf0\x9f\x93\xb7  In attesa..."));
     m_ocrPreview->setObjectName("hintLabel");
     pbLay->addWidget(m_ocrPreview, 1);
     splitter->addWidget(previewBox);
@@ -987,11 +987,11 @@ void MultimediaPage::startOcrDaemon()
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MultimediaPage::onOcrDaemonFinished);
 
-    m_ocrStatus->setText("\xe2\x8f\xb3  Avvio daemon OCR (import librerie)...");
+    m_ocrStatus->setText(tr("\xe2\x8f\xb3  Avvio daemon OCR (import librerie)..."));
     m_ocrDaemon->start(P::findPython(),
                        QStringList{"-c", ocrDaemonScript(previewPath)});
     if (!m_ocrDaemon->waitForStarted(3000)) {
-        m_ocrStatus->setText("\xe2\x9d\x8c  Python non trovato nel PATH.");
+        m_ocrStatus->setText(tr("\xe2\x9d\x8c  Python non trovato nel PATH."));
         m_ocrDaemon->deleteLater();
         m_ocrDaemon = nullptr;
     }
@@ -1022,14 +1022,14 @@ void MultimediaPage::requestOcrCapture()
 void MultimediaPage::onOcrStartStopClicked(bool on)
 {
     if (on) {
-        m_ocrStartBtn->setText("\xe2\x8f\xb9  Ferma");  /* ⏹ */
+        m_ocrStartBtn->setText(tr("\xe2\x8f\xb9  Ferma"));  /* ⏹ */
         startOcrDaemon();
         m_ocrTimer->start(m_ocrInterval->value() * 1000);
     } else {
         m_ocrTimer->stop();
         stopOcrDaemon();
-        m_ocrStartBtn->setText("\xe2\x96\xb6  Avvia webcam");
-        m_ocrStatus->setText("Scansione fermata.");
+        m_ocrStartBtn->setText(tr("\xe2\x96\xb6  Avvia webcam"));
+        m_ocrStatus->setText(tr("Scansione fermata."));
     }
 }
 
@@ -1108,7 +1108,7 @@ void MultimediaPage::onOcrDaemonReadyRead()
                 QString::number(obj["frames"].toInt()) + " frame elaborati.");
             m_ocrPending = false;
             m_ocrVideoPath.clear();
-            m_ocrVideoLbl->setText("Nessun video");
+            m_ocrVideoLbl->setText(tr("Nessun video"));
             continue;
         }
 
@@ -1209,7 +1209,7 @@ void MultimediaPage::onOcrDaemonFinished(int, QProcess::ExitStatus)
     m_ocrPending = false;
     if (m_ocrStartBtn && m_ocrStartBtn->isChecked()) {
         m_ocrStartBtn->setChecked(false);
-        m_ocrStatus->setText("\xe2\x9a\xa0  Daemon OCR terminato inaspettatamente.");
+        m_ocrStatus->setText(tr("\xe2\x9a\xa0  Daemon OCR terminato inaspettatamente."));
     }
 }
 
@@ -1224,7 +1224,7 @@ void MultimediaPage::onOcrTranscribeAudioClicked()
 
     m_ocrTranscribeBtn->setEnabled(false);
     m_ocrAudioWav = QDir::tempPath() + "/prismalux_ocr_audio.wav";
-    m_ocrStatus->setText("\xf0\x9f\x94\x84  Estrazione audio con ffmpeg...");
+    m_ocrStatus->setText(tr("\xf0\x9f\x94\x84  Estrazione audio con ffmpeg..."));
 
     /* ffmpeg: estrae audio mono 16kHz PCM — formato nativo per Whisper */
     m_ocrFfmpegProc = new QProcess(this);
@@ -1264,7 +1264,7 @@ void MultimediaPage::onOcrFfmpegFinished(int code, QProcess::ExitStatus)
         return;
     }
 
-    m_ocrStatus->setText("\xf0\x9f\x8e\xa4  Trascrizione Whisper in corso...");
+    m_ocrStatus->setText(tr("\xf0\x9f\x8e\xa4  Trascrizione Whisper in corso..."));
 
     m_ocrWhisperProc = SttWhisper::transcribe(
         m_ocrAudioWav, "it", this,
@@ -1318,7 +1318,7 @@ void MultimediaPage::onOcrAnalyzeClicked()
         "o istruzioni importanti. Rispondi in italiano.";
 
     m_ocrAiOut->clear();
-    m_ocrAiOut->setPlaceholderText("\xe2\x8c\x9b  Analisi AI in corso...");
+    m_ocrAiOut->setPlaceholderText(tr("\xe2\x8c\x9b  Analisi AI in corso..."));
 
     QObject::disconnect(m_ocrAiTokenConn);
     QObject::disconnect(m_ocrAiFinishedConn);
@@ -1445,16 +1445,16 @@ QWidget* MultimediaPage::buildOsmMapTab()
 
     m_osmWpList = new QListWidget(wpGroup);
     m_osmWpList->setFixedHeight(dpiScale(100));
-    m_osmWpList->setToolTip("Click destro sulla mappa per impostare la partenza");
+    m_osmWpList->setToolTip(tr("Click destro sulla mappa per impostare la partenza"));
     wpLay->addWidget(m_osmWpList);
 
     auto* wpBtnRow = new QHBoxLayout;
     auto* btnRemWp = new QPushButton("\xe2\x9c\x96  Rimuovi", wpGroup);
     btnRemWp->setObjectName("actionBtn");
-    btnRemWp->setToolTip("Rimuovi la tappa selezionata");
+    btnRemWp->setToolTip(tr("Rimuovi la tappa selezionata"));
     auto* btnClrWp = new QPushButton("\xf0\x9f\x97\x91  Svuota", wpGroup);
     btnClrWp->setObjectName("actionBtn");
-    btnClrWp->setToolTip("Rimuovi tutte le tappe e il percorso");
+    btnClrWp->setToolTip(tr("Rimuovi tutte le tappe e il percorso"));
     wpBtnRow->addWidget(btnRemWp, 1);
     wpBtnRow->addWidget(btnClrWp, 1);
     wpLay->addLayout(wpBtnRow);
@@ -1481,7 +1481,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
     auto* btnCalc = new QPushButton(
         "\xf0\x9f\x94\x8d  Calcola percorso", rtGroup);
     btnCalc->setObjectName("primaryBtn");
-    btnCalc->setToolTip("Calcola percorso via OSRM (richiede internet)");
+    btnCalc->setToolTip(tr("Calcola percorso via OSRM (richiede internet)"));
     rtLay->addWidget(btnCalc);
 
     m_osmRouteInfo = new QLabel("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94", rtGroup);
@@ -1605,7 +1605,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
             m_osmWpList->addItem(item);
         }
         if (m_osmRouteInfo)
-            m_osmRouteInfo->setText("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94");
+            m_osmRouteInfo->setText(tr("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94"));
     });
 
     /* Rimuovi waypoint selezionato */
@@ -1621,7 +1621,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
                                   it->data(Qt::UserRole + 1).toDouble());
         }
         if (m_osmRouteInfo)
-            m_osmRouteInfo->setText("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94");
+            m_osmRouteInfo->setText(tr("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94"));
     });
 
     /* Svuota tutto */
@@ -1629,7 +1629,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
         if (m_osmMap)    m_osmMap->clearRoute();
         if (m_osmWpList) m_osmWpList->clear();
         if (m_osmRouteInfo)
-            m_osmRouteInfo->setText("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94");
+            m_osmRouteInfo->setText(tr("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94"));
         if (m_osmElevLbl)
             m_osmElevLbl->setText(
                 "<small>Calcolata automaticamente dopo il percorso.</small>");
@@ -1639,7 +1639,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
     connect(btnClrRoute, &QPushButton::clicked, w, [this] {
         if (m_osmMap) m_osmMap->setRouteLine({});
         if (m_osmRouteInfo)
-            m_osmRouteInfo->setText("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94");
+            m_osmRouteInfo->setText(tr("Distanza: \xe2\x80\x94  |  Tempo: \xe2\x80\x94"));
         if (m_osmElevLbl)
             m_osmElevLbl->setText(
                 "<small>Calcolata automaticamente dopo il percorso.</small>");
@@ -1677,7 +1677,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
 
         btnCalc->setEnabled(false);
         if (m_osmRouteInfo)
-            m_osmRouteInfo->setText("\xf0\x9f\x94\x84  Calcolo in corso...");
+            m_osmRouteInfo->setText(tr("\xf0\x9f\x94\x84  Calcolo in corso..."));
         if (m_osmElevLbl)
             m_osmElevLbl->setText("<small>Calcolo altimetria...</small>");
 

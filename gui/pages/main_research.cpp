@@ -235,11 +235,11 @@ QWidget* RicercaPage::buildPaperTab()
     form->setLabelAlignment(Qt::AlignRight);
 
     auto* editTitolo  = new QLineEdit;
-    editTitolo->setPlaceholderText("es. BLHM: A Novel Hybrid LLM Architecture");
+    editTitolo->setPlaceholderText(tr("es. BLHM: A Novel Hybrid LLM Architecture"));
     auto* editAutori  = new QLineEdit;
-    editAutori->setPlaceholderText("es. Mario Rossi, Luigi Verdi");
+    editAutori->setPlaceholderText(tr("es. Mario Rossi, Luigi Verdi"));
     auto* editKw      = new QLineEdit;
-    editKw->setPlaceholderText("es. LLM, ontology, parallel inference");
+    editKw->setPlaceholderText(tr("es. LLM, ontology, parallel inference"));
     auto* cmbTipo     = new QComboBox;
     cmbTipo->addItems({"Preprint arXiv", "Conference Paper", "Journal Article",
                        "Workshop Paper", "Technical Report"});
@@ -359,7 +359,7 @@ QWidget* RicercaPage::buildBrevettoTab()
     editTitolo->setPlaceholderText(
         "es. Sistema ibrido di inferenza ontologica per LLM");
     auto* editInventori = new QLineEdit;
-    editInventori->setPlaceholderText("es. Mario Rossi (IT)");
+    editInventori->setPlaceholderText(tr("es. Mario Rossi (IT)"));
     auto* cmbIpc = new QComboBox;
     cmbIpc->setEditable(true);
     cmbIpc->addItems({
@@ -493,9 +493,9 @@ QWidget* RicercaPage::buildDocTecnicoTab()
     editNome->setPlaceholderText(
         "es. BLHM — Documento Tecnico v1.0");
     auto* editAutore = new QLineEdit;
-    editAutore->setPlaceholderText("es. wildlux");
+    editAutore->setPlaceholderText(tr("es. wildlux"));
     auto* editVers   = new QLineEdit;
-    editVers->setPlaceholderText("es. 1.0");
+    editVers->setPlaceholderText(tr("es. 1.0"));
     auto* cmbLingua  = new QComboBox;
     cmbLingua->addItems({"Italiano", "English"});
     auto* cmbStile   = new QComboBox;
@@ -901,7 +901,7 @@ QWidget* RicercaPage::buildCercaLetteraturaTab()
     m_litResults = new QTextEdit(w);
     m_litResults->setReadOnly(true);
     m_litResults->setObjectName("outputView");
-    m_litResults->setPlaceholderText("I risultati appariranno qui...");
+    m_litResults->setPlaceholderText(tr("I risultati appariranno qui..."));
     lay->addWidget(m_litResults, 1);
 
     m_litAiBtn = new QPushButton(
@@ -1016,7 +1016,7 @@ QWidget* RicercaPage::buildCytoscapeTab()
     m_cytoOutput = new QTextEdit(w);
     m_cytoOutput->setReadOnly(true);
     m_cytoOutput->setObjectName("outputView");
-    m_cytoOutput->setPlaceholderText("Script Python CyREST appare qui...");
+    m_cytoOutput->setPlaceholderText(tr("Script Python CyREST appare qui..."));
     lay->addWidget(m_cytoOutput, 1);
 
     connect(pingBtn, &QPushButton::clicked, this, &RicercaPage::onCytoPingClicked);
@@ -1133,7 +1133,7 @@ QWidget* RicercaPage::buildRDKitTab()
     m_rdkitOutput = new QTextEdit(w);
     m_rdkitOutput->setReadOnly(true);
     m_rdkitOutput->setObjectName("outputView");
-    m_rdkitOutput->setPlaceholderText("Script Python RDKit appare qui...");
+    m_rdkitOutput->setPlaceholderText(tr("Script Python RDKit appare qui..."));
     lay->addWidget(m_rdkitOutput, 1);
 
     connect(checkBtn, &QPushButton::clicked, this, &RicercaPage::onRdkitCheckClicked);
@@ -1252,7 +1252,7 @@ QWidget* RicercaPage::buildBiocondaTab()
     m_bioOutput = new QTextEdit(w);
     m_bioOutput->setReadOnly(true);
     m_bioOutput->setObjectName("outputView");
-    m_bioOutput->setPlaceholderText("Script Bash/Python bioinformatica appare qui...");
+    m_bioOutput->setPlaceholderText(tr("Script Bash/Python bioinformatica appare qui..."));
     lay->addWidget(m_bioOutput, 1);
 
     connect(checkBtn, &QPushButton::clicked, this, &RicercaPage::onBioCheckClicked);
@@ -1382,7 +1382,7 @@ QWidget* RicercaPage::buildAvogadroTab()
     m_avoOutput = new QTextEdit(w);
     m_avoOutput->setReadOnly(true);
     m_avoOutput->setObjectName("outputView");
-    m_avoOutput->setPlaceholderText("Script Python Avogadro appare qui...");
+    m_avoOutput->setPlaceholderText(tr("Script Python Avogadro appare qui..."));
     lay->addWidget(m_avoOutput, 1);
 
     connect(checkBtn, &QPushButton::clicked, this, &RicercaPage::onAvoCheckClicked);
@@ -1429,7 +1429,7 @@ void RicercaPage::onSciFinished(const QString& full)
                 if (!m_sciCodeRef->isEmpty()) {
                     m_sciExecBtn->setEnabled(true);
                     if (m_sciStatusLbl)
-                        m_sciStatusLbl->setText("\xe2\x9c\x85  Codice pronto \xe2\x80\x94 premi Esegui");
+                        m_sciStatusLbl->setText(tr("\xe2\x9c\x85  Codice pronto \xe2\x80\x94 premi Esegui"));
                 }
             }
         }
@@ -1488,7 +1488,7 @@ void RicercaPage::onAiAborted()
     if (m_astraleFinishedConn) { disconnect(m_astraleFinishedConn); m_astraleFinishedConn = {}; }
     if (m_astraleErrorConn)    { disconnect(m_astraleErrorConn);    m_astraleErrorConn    = {}; }
     if (m_astraleRunBtn) {
-        m_astraleRunBtn->setText("\xe2\xad\x90  Leggi gli Astri");
+        m_astraleRunBtn->setText(tr("\xe2\xad\x90  Leggi gli Astri"));
         m_astraleRunBtn->setProperty("running", false);
     }
 }
@@ -1500,14 +1500,14 @@ void RicercaPage::onLitSearchClicked()
 {
     const QString q = m_litQuery->text().trimmed();
     if (q.isEmpty()) {
-        m_litStatus->setText("\xe2\x9a\xa0  Inserisci una query.");
+        m_litStatus->setText(tr("\xe2\x9a\xa0  Inserisci una query."));
         return;
     }
     m_litResults->clear();
     m_litAiBtn->setEnabled(false);
     m_litSearchBtn->setEnabled(false);
     const QString src = m_litSource->currentData().toString();
-    m_litStatus->setText("\xf0\x9f\x94\x84  Ricerca in corso...");
+    m_litStatus->setText(tr("\xf0\x9f\x94\x84  Ricerca in corso..."));
 
     QUrl url;
     if (src == "arxiv") {
@@ -1646,7 +1646,7 @@ void RicercaPage::onLitAiClicked()
     if (ctx.isEmpty()) return;
     const QString q = m_litQuery->text().trimmed();
     m_litAiBtn->setEnabled(false);
-    m_litStatus->setText("\xf0\x9f\xa4\x96  Analisi AI...");
+    m_litStatus->setText(tr("\xf0\x9f\xa4\x96  Analisi AI..."));
     m_litResults->append("\n" + QString(50, QChar(0x2500)) + "\n");
 
     const QString sys =
@@ -1680,7 +1680,7 @@ void RicercaPage::onLitAiFinished(const QString&)
     disconnect(m_litAiFinishedConn); m_litAiFinishedConn = {};
     disconnect(m_litAiErrorConn);    m_litAiErrorConn    = {};
     m_litAiBtn->setEnabled(true);
-    m_litStatus->setText("\xe2\x9c\x85  Analisi completata");
+    m_litStatus->setText(tr("\xe2\x9c\x85  Analisi completata"));
 }
 
 void RicercaPage::onLitAiError(const QString& e)
@@ -1700,7 +1700,7 @@ void RicercaPage::onCytoPingClicked()
     const QString addr = m_cytoHostEdit->text().trimmed();
     const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
     const int port = addr.contains(':') ? addr.section(':', 1).toInt() : 1234;
-    m_cytoStatusLbl->setText("\xf0\x9f\x94\x84  Connessione...");
+    m_cytoStatusLbl->setText(tr("\xf0\x9f\x94\x84  Connessione..."));
     if (m_cytoSock) { m_cytoSock->abort(); m_cytoSock->deleteLater(); m_cytoSock = nullptr; }
     m_cytoSock = new QTcpSocket(this);
     m_cytoSock->connectToHost(host, static_cast<quint16>(port));
@@ -1716,7 +1716,7 @@ void RicercaPage::onCytoSockConnected()
     auto* sock = qobject_cast<QTcpSocket*>(sender());
     if (sock) { sock->disconnectFromHost(); sock->deleteLater(); }
     if (m_cytoSock == sock) m_cytoSock = nullptr;
-    m_cytoStatusLbl->setText("\xe2\x9c\x85  Server raggiungibile");
+    m_cytoStatusLbl->setText(tr("\xe2\x9c\x85  Server raggiungibile"));
     m_cytoExecBtn->setEnabled(!m_cytoCode.isEmpty());
 }
 
@@ -1732,7 +1732,7 @@ void RicercaPage::onCytoSockError(QAbstractSocket::SocketError)
 void RicercaPage::onCytoPingTimeout()
 {
     if (m_cytoSock && m_cytoSock->state() != QAbstractSocket::ConnectedState) {
-        m_cytoStatusLbl->setText("\xe2\x9d\x8c  Timeout");
+        m_cytoStatusLbl->setText(tr("\xe2\x9d\x8c  Timeout"));
         m_cytoSock->abort();
         m_cytoSock->deleteLater();
         m_cytoSock = nullptr;
@@ -1921,14 +1921,14 @@ QWidget* RicercaPage::buildRab0lTab()
     hlay->setSpacing(8);
 
     m_rab0lSeq1 = new QLineEdit;
-    m_rab0lSeq1->setPlaceholderText("Sequenza 1  (es. ATCGATCGGCTA)");
+    m_rab0lSeq1->setPlaceholderText(tr("Sequenza 1  (es. ATCGATCGGCTA)"));
     m_rab0lSeq2 = new QLineEdit;
-    m_rab0lSeq2->setPlaceholderText("Sequenza 2  (opzionale — calcola SIM)");
+    m_rab0lSeq2->setPlaceholderText(tr("Sequenza 2  (opzionale — calcola SIM)"));
 
     auto* btnAn = new QPushButton("\xe2\x96\xb6  Analizza");
     btnAn->setObjectName("primaryBtn");
     auto* btnCl = new QPushButton("\xf0\x9f\x97\x91");
-    btnCl->setToolTip("Pulisci");
+    btnCl->setToolTip(tr("Pulisci"));
     btnCl->setFixedWidth(32);
 
     m_rab0lSimLbl = new QLabel;
@@ -2091,8 +2091,8 @@ QWidget* RicercaPage::buildBlhmTab()
         qHlay->setSpacing(6);
 
         m_blhmQuery = new QLineEdit;
-        m_blhmQuery->setPlaceholderText("Query path  es. Bio,Ani,Mam,Cane");
-        m_blhmQuery->setText("Bio,Ani,Mam,Cane");
+        m_blhmQuery->setPlaceholderText(tr("Query path  es. Bio,Ani,Mam,Cane"));
+        m_blhmQuery->setText(tr("Bio,Ani,Mam,Cane"));
 
         auto* btnCalc = new QPushButton("\xf0\x9f\xa7\xae  Calcola R");
         btnCalc->setObjectName("primaryBtn");
@@ -2150,7 +2150,7 @@ QWidget* RicercaPage::buildBlhmTab()
         btnSave->setObjectName("primaryBtn");
         auto* btnClr  = new QPushButton("\xf0\x9f\x97\x91");
         btnClr->setFixedWidth(32);
-        btnClr->setToolTip("Svuota");
+        btnClr->setToolTip(tr("Svuota"));
 
         blay->addWidget(lbl);
         blay->addStretch();
@@ -2200,15 +2200,15 @@ QWidget* RicercaPage::buildBlhmTab()
         hlay->setSpacing(6);
 
         m_blhmDnaSeq1 = new QLineEdit;
-        m_blhmDnaSeq1->setPlaceholderText("Sequenza DNA 1  (A/T/C/G)");
+        m_blhmDnaSeq1->setPlaceholderText(tr("Sequenza DNA 1  (A/T/C/G)"));
 
         m_blhmDnaSeq2 = new QLineEdit;
-        m_blhmDnaSeq2->setPlaceholderText("Sequenza DNA 2  (opzionale, per confronto SIM)");
+        m_blhmDnaSeq2->setPlaceholderText(tr("Sequenza DNA 2  (opzionale, per confronto SIM)"));
 
         auto* btnAn = new QPushButton("\xf0\x9f\xa7\xac  Analizza");
         btnAn->setObjectName("primaryBtn");
         auto* btnCl = new QPushButton("\xf0\x9f\x97\x91");
-        btnCl->setToolTip("Pulisci");
+        btnCl->setToolTip(tr("Pulisci"));
         btnCl->setFixedWidth(32);
 
         m_blhmDnaSimLbl = new QLabel;
@@ -3100,7 +3100,7 @@ void RicercaPage::onBlhmEngineSaveClicked()
     }
     QString path = QFileDialog::getSaveFileName(
         this, "Salva grafo BLHM",
-        P::root() + "/KNOWLEDGE_USER/blhm_graph.blhm",
+        P::root() + "/TOOL_TIP/KNOWLEDGE_USER/blhm_graph.blhm",
         "BLHM Graph (*.blhm);;Tutti i file (*)");
     if (path.isEmpty()) return;
 
@@ -3282,7 +3282,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
     topLay->addWidget(titleLbl, 1);
 
     m_ragModelCombo = new ModelComboBox(m_ai, topBar);
-    m_ragModelCombo->setToolTip("Modello LLM per estrazione entit\xc3\xa0");
+    m_ragModelCombo->setToolTip(tr("Modello LLM per estrazione entit\xc3\xa0"));
     topLay->addWidget(m_ragModelCombo);
 
     lay->addWidget(topBar);
@@ -3321,7 +3321,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
 
     auto* btnRefreshDot = new QPushButton("\xf0\x9f\x8c\xbf  Rigenera Grafo", w);
     btnRefreshDot->setObjectName("navBtn");
-    btnRefreshDot->setToolTip("Rigenera la visualizzazione Graphviz dal grafo corrente");
+    btnRefreshDot->setToolTip(tr("Rigenera la visualizzazione Graphviz dal grafo corrente"));
     connect(btnRefreshDot, &QPushButton::clicked, this, &RicercaPage::onRagRefreshDot);
     ctrlLay->addWidget(btnRefreshDot);
 
@@ -3358,7 +3358,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
     auto* searchLbl = new QLabel("\xf0\x9f\x94\x8d", leftPanel);
     searchRow->addWidget(searchLbl);
     m_ragSearchEdit = new QLineEdit(leftPanel);
-    m_ragSearchEdit->setPlaceholderText("Cerca nodo...");
+    m_ragSearchEdit->setPlaceholderText(tr("Cerca nodo..."));
     m_ragSearchEdit->setObjectName("settingCombo");
     connect(m_ragSearchEdit, &QLineEdit::textChanged,
             this, &RicercaPage::onRagSearchChanged);
@@ -3381,7 +3381,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
     m_ragNodeDetail->setObjectName("chatLog");
     m_ragNodeDetail->setReadOnly(true);
     m_ragNodeDetail->setMaximumHeight(120);
-    m_ragNodeDetail->setPlaceholderText("Clicca un nodo per i dettagli...");
+    m_ragNodeDetail->setPlaceholderText(tr("Clicca un nodo per i dettagli..."));
     leftLay->addWidget(m_ragNodeDetail);
 
     splitter->addWidget(leftPanel);
@@ -3414,7 +3414,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
     m_ragDotView->setObjectName("chatLog");
     m_ragDotView->setReadOnly(true);
     m_ragDotView->setLineWrapMode(QTextEdit::NoWrap);
-    m_ragDotView->setPlaceholderText("Graphviz DOT del grafo...");
+    m_ragDotView->setPlaceholderText(tr("Graphviz DOT del grafo..."));
     vizTabs->addTab(m_ragDotView, "\xf0\x9f\x93\x9d  DOT");  /* 📝 */
 
     rightLay->addWidget(vizTabs, 1);
@@ -3476,7 +3476,7 @@ void RicercaPage::onRagRunClicked()
     }
 
     if (m_ragGraph->stats().totalFiles == 0) {
-        m_ragStatus->setText("\xe2\x9a\xa0\xef\xb8\x8f  Nessun file trovato nelle cartelle RAG.");
+        m_ragStatus->setText(tr("\xe2\x9a\xa0\xef\xb8\x8f  Nessun file trovato nelle cartelle RAG."));
         return;
     }
 
@@ -3495,7 +3495,7 @@ void RicercaPage::onRagStopClicked()
     if (m_ragRunBtn)   m_ragRunBtn->setEnabled(true);
     if (m_ragStopBtn)  m_ragStopBtn->setEnabled(false);
     if (m_ragProgress) m_ragProgress->setVisible(false);
-    if (m_ragStatus)   m_ragStatus->setText("\xe2\x96\xa0  Analisi interrotta.");
+    if (m_ragStatus)   m_ragStatus->setText(tr("\xe2\x96\xa0  Analisi interrotta."));
 }
 
 void RicercaPage::onRagClearClicked()
@@ -3506,7 +3506,7 @@ void RicercaPage::onRagClearClicked()
     if (m_ragNodeDetail) m_ragNodeDetail->clear();
     if (m_ragImgLbl) m_ragImgLbl->clear();
     if (m_ragDotView) m_ragDotView->clear();
-    if (m_ragStatus) m_ragStatus->setText("\xf0\x9f\x97\x91  Grafo svuotato.");
+    if (m_ragStatus) m_ragStatus->setText(tr("\xf0\x9f\x97\x91  Grafo svuotato."));
 }
 
 /* ══════════════════════════════════════════════════════════════

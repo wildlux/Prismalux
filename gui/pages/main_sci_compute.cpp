@@ -668,7 +668,7 @@ void SciComputePage::startServer()
         connectToCoord("127.0.0.1", port);
 
     updateStatus();
-    if (m_btnStartStop) m_btnStartStop->setText("\xe2\x8f\xb9  Ferma server");
+    if (m_btnStartStop) m_btnStartStop->setText(tr("\xe2\x8f\xb9  Ferma server"));
 }
 
 void SciComputePage::stopServer()
@@ -680,7 +680,7 @@ void SciComputePage::stopServer()
     m_heartbeatTimer->stop();
     appendLog("\xf0\x9f\x94\xb4  Server fermato.");
     updateStatus();
-    if (m_btnStartStop) m_btnStartStop->setText("\xf0\x9f\x9f\xa2  Avvia Coordinator");
+    if (m_btnStartStop) m_btnStartStop->setText(tr("\xf0\x9f\x9f\xa2  Avvia Coordinator"));
 }
 
 void SciComputePage::onServerNewConn()
@@ -1766,7 +1766,7 @@ static QStringList parseBatchFile(const QString& path)
 void SciComputePage::onGenerateFromFileClicked()
 {
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xf0\x9f\x93\x82  Genera Work Units da file");
+    dlg->setWindowTitle(tr("\xf0\x9f\x93\x82  Genera Work Units da file"));
     dlg->resize(dpiScale(700), dpiScale(520));
     dlg->setAttribute(Qt::WA_DeleteOnClose);
 
@@ -1777,7 +1777,7 @@ void SciComputePage::onGenerateFromFileClicked()
     /* File */
     auto* fileRow  = new QHBoxLayout;
     auto* fileEdit = new QLineEdit(dlg);
-    fileEdit->setPlaceholderText("File FASTA (.fa/.fasta), CSV (.csv) o TXT (.txt)...");
+    fileEdit->setPlaceholderText(tr("File FASTA (.fa/.fasta), CSV (.csv) o TXT (.txt)..."));
     auto* browseBtn = new QPushButton("\xf0\x9f\x93\x81  Sfoglia", dlg);
     browseBtn->setObjectName("actionBtn");
     fileRow->addWidget(new QLabel("File:", dlg));
@@ -1817,7 +1817,7 @@ void SciComputePage::onGenerateFromFileClicked()
     auto* optRow = new QHBoxLayout;
     optRow->addWidget(new QLabel("Label prefix:", dlg));
     auto* lblEdit = new QLineEdit(dlg);
-    lblEdit->setPlaceholderText("WU da file");
+    lblEdit->setPlaceholderText(tr("WU da file"));
     lblEdit->setFixedWidth(dpiScale(150));
     optRow->addWidget(lblEdit);
     optRow->addSpacing(dpiScale(10));
@@ -1847,7 +1847,7 @@ void SciComputePage::onGenerateFromFileClicked()
     /* Buttons */
     auto* btnBox = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
-    btnBox->button(QDialogButtonBox::Ok)->setText("\xe2\x9e\x95  Genera WU");
+    btnBox->button(QDialogButtonBox::Ok)->setText(tr("\xe2\x9e\x95  Genera WU"));
     btnBox->button(QDialogButtonBox::Ok)->setObjectName("primaryBtn");
     lay->addWidget(btnBox);
 

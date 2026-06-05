@@ -93,13 +93,13 @@ QWidget* ProgrammazionePage::buildTrControlRow(QWidget* parent,
     m_trSrcLang->setObjectName("settingCombo");
     m_trSrcLang->addItems(kLangs);
     m_trSrcLang->setCurrentText("C");
-    m_trSrcLang->setToolTip("Linguaggio sorgente del codice da tradurre");
+    m_trSrcLang->setToolTip(tr("Linguaggio sorgente del codice da tradurre"));
     ctrlLay->addWidget(m_trSrcLang);
 
     outBtnSwap = new QPushButton("\xe2\x87\x84", ctrlRow);
     outBtnSwap->setObjectName("actionBtn");
     outBtnSwap->setFixedWidth(36);
-    outBtnSwap->setToolTip("Scambia linguaggio sorgente e destinazione");
+    outBtnSwap->setToolTip(tr("Scambia linguaggio sorgente e destinazione"));
     ctrlLay->addWidget(outBtnSwap);
 
     ctrlLay->addWidget(new QLabel("A:", ctrlRow));
@@ -107,7 +107,7 @@ QWidget* ProgrammazionePage::buildTrControlRow(QWidget* parent,
     m_trDstLang->setObjectName("settingCombo");
     m_trDstLang->addItems(kLangs);
     m_trDstLang->setCurrentText("Python");
-    m_trDstLang->setToolTip("Linguaggio di destinazione della traduzione");
+    m_trDstLang->setToolTip(tr("Linguaggio di destinazione della traduzione"));
     ctrlLay->addWidget(m_trDstLang);
 
     ctrlLay->addSpacing(16);
@@ -130,7 +130,7 @@ QWidget* ProgrammazionePage::buildTrControlRow(QWidget* parent,
     m_btnTrRun = new QPushButton("\xf0\x9f\x94\x80  Traduci", ctrlRow);
     m_btnTrRun->setObjectName("actionBtn");
     m_btnTrRun->setProperty("highlight", "true");
-    m_btnTrRun->setToolTip("Avvia la traduzione del codice sorgente nel linguaggio scelto");
+    m_btnTrRun->setToolTip(tr("Avvia la traduzione del codice sorgente nel linguaggio scelto"));
     ctrlLay->addWidget(m_btnTrRun);
 
     m_btnTrStop = new QPushButton("\xe2\x96\xa0  Stop", ctrlRow);
@@ -215,7 +215,7 @@ QWidget* ProgrammazionePage::buildTrSplitter(QWidget* parent)
     m_btnTrCopy = new QPushButton("\xf0\x9f\x93\x8b  Copia", outBtnRow);
     m_btnTrCopy->setObjectName("btnTrCopy");
     m_btnTrCopy->setEnabled(false);
-    m_btnTrCopy->setToolTip("Copia tutto il testo dell'output negli appunti");
+    m_btnTrCopy->setToolTip(tr("Copia tutto il testo dell'output negli appunti"));
     outBtnLay->addWidget(m_btnTrCopy);
     outBtnLay->addStretch(1);
 

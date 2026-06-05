@@ -3764,12 +3764,12 @@ void SimulatorePage::showStep(int idx) {
 }
 
 void SimulatorePage::startAuto() {
-    m_autoBtn->setText("\u23f8 Pausa");
+    m_autoBtn->setText(tr("\u23f8 Pausa"));
     m_timer->start(1600 - m_speedSlider->value()); /* slider alto = veloce */
 }
 
 void SimulatorePage::stopAuto() {
     m_timer->stop();
-    m_autoBtn->setText("\u25b6\u25b6 Auto");
+    m_autoBtn->setText(tr("\u25b6\u25b6 Auto"));
 }
 

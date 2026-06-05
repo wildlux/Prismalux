@@ -83,7 +83,7 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
     m_modelCombo = new QComboBox(this);
     m_modelCombo->setMinimumWidth(dpiScale(200));
     m_modelCombo->setMaximumWidth(dpiScale(300));
-    m_modelCombo->setToolTip("Modello AI per la generazione");
+    m_modelCombo->setToolTip(tr("Modello AI per la generazione"));
     topRow->addWidget(new QLabel("Modello:", this));
     topRow->addWidget(m_modelCombo);
     topRow->addStretch();
@@ -229,7 +229,7 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
         if (m_ai) m_ai->abort();
         m_busy = false;
         setRunning(false);
-        m_status->setText("\xe2\x8f\xb9  Interrotto.");
+        m_status->setText(tr("\xe2\x8f\xb9  Interrotto."));
     });
 
     connect(m_btnCopyCode, &QPushButton::clicked, this, [this]{
@@ -249,7 +249,7 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
         if (auto* sc = qobject_cast<QWidget*>(
                 m_imageLabel->property("scrollParent").value<QWidget*>()))
             sc->hide();
-        m_status->setText("Pronto.");
+        m_status->setText(tr("Pronto."));
     });
 }
 
@@ -432,7 +432,7 @@ void CodeInterpreterWidget::executeStepDocker(const QString& code, int attempt)
             } else {
                 const QStringList lines = out.split('\n');
                 const QString err = lines.mid(qMax(0, lines.size()-20)).join('\n').trimmed();
-                if (attempt >= kMaxAttempts) { m_status->setText("\xe2\x9d\x8c  Fallito."); setRunning(false); return; }
+                if (attempt >= kMaxAttempts) { m_status->setText(tr("\xe2\x9d\x8c  Fallito.")); setRunning(false); return; }
                 requestFix(code, err, attempt);
             }
         });

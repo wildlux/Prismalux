@@ -54,6 +54,8 @@ public:
     ~SciComputePage();
 
     static const QVector<SciTaskType>& taskTypes();
+    static bool isSafeToolName(const QString& name);
+    static bool isSafePath(const QString& path);
 
 private slots:
     void onServerNewConn();
@@ -132,8 +134,6 @@ private:
 
     /* ── Capability ── */
     static QJsonObject detectCapabilities();
-    static bool        isSafeToolName(const QString& name);
-    static bool        isSafePath(const QString& path);
 
     /* ── UI (in main_sci_compute_ui.cpp) ── */
     QWidget* buildUi();

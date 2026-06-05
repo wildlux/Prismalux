@@ -65,7 +65,7 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     m_modelCombo = new QComboBox(modelBar);
     m_modelCombo->setObjectName("settingCombo");
     m_modelCombo->setMinimumWidth(200);
-    m_modelCombo->setToolTip("Modello LLM usato da tutte le schede Matematica");
+    m_modelCombo->setToolTip(tr("Modello LLM usato da tutte le schede Matematica"));
     const QString curModel = m_ai ? m_ai->model() : QString();
     m_modelCombo->addItem(curModel.isEmpty() ? "(caricamento...)" : curModel, curModel);
     modelBarLay->addWidget(m_modelCombo, 1);
@@ -73,7 +73,7 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     auto* btnRefreshBar = new QPushButton("\xf0\x9f\x94\x84", modelBar);  /* 🔄 */
     btnRefreshBar->setObjectName("navBtn");
     btnRefreshBar->setFixedSize(26, 26);
-    btnRefreshBar->setToolTip("Aggiorna lista modelli");
+    btnRefreshBar->setToolTip(tr("Aggiorna lista modelli"));
     connect(btnRefreshBar, &QPushButton::clicked, this, &MatematicaPage::onRefreshModelsClicked);
     modelBarLay->addWidget(btnRefreshBar);
 
@@ -115,7 +115,7 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     auto* btnCopy = new QPushButton("\xf0\x9f\x93\x8b  Copia", outBox);
     btnCopy->setObjectName("actionBtn");
     btnCopy->setFixedHeight(26);
-    btnCopy->setToolTip("Copia tutto l'output negli appunti");
+    btnCopy->setToolTip(tr("Copia tutto l'output negli appunti"));
     connect(btnCopy, &QPushButton::clicked, this, &MatematicaPage::onCopyClicked);
     ctrlRow->addWidget(btnCopy);
 
@@ -138,7 +138,7 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     btnLatex->setObjectName("navBtn");
     btnLatex->setFixedHeight(26);
     btnLatex->setCheckable(true);
-    btnLatex->setToolTip("Mostra/nascondi il pannello di rendering LaTeX per l'ultima risposta AI");
+    btnLatex->setToolTip(tr("Mostra/nascondi il pannello di rendering LaTeX per l'ultima risposta AI"));
     connect(btnLatex, &QPushButton::toggled, outBox, [this](bool on) {
         if (m_latexOut) m_latexOut->setVisible(on);
     });
@@ -383,7 +383,7 @@ QWidget* MatematicaPage::buildSeqTab()
 
     auto* inputRow = new QHBoxLayout;
     m_seqInput = new QLineEdit(w);
-    m_seqInput->setPlaceholderText("es. 1, 4, 9, 16, 25   oppure   1 1 2 3 5 8 13");
+    m_seqInput->setPlaceholderText(tr("es. 1, 4, 9, 16, 25   oppure   1 1 2 3 5 8 13"));
     m_seqInput->setMinimumWidth(320);
     inputRow->addWidget(m_seqInput, 1);
 
@@ -555,8 +555,8 @@ QWidget* MatematicaPage::buildNthTab()
 
     grid->addWidget(new QLabel("N =", w), 1, 0);
     m_nthInput = new QLineEdit(w);
-    m_nthInput->setPlaceholderText("es. 1000000  (un milione)");
-    m_nthInput->setText("100");
+    m_nthInput->setPlaceholderText(tr("es. 1000000  (un milione)"));
+    m_nthInput->setText(tr("100"));
     grid->addWidget(m_nthInput, 1, 1);
     lay->addLayout(grid);
 
@@ -2181,7 +2181,7 @@ void MatematicaPage::onNthTypeChanged()
         m_nthDescLbl->setText("Restituisce la N-esima cifra decimale di \xcf\x80 (dopo il punto). "
                          "Es. N=1 \xe2\x86\x92 1, N=2 \xe2\x86\x92 4, N=3 \xe2\x86\x92 1...");
     else if (k == "e_digit")
-        m_nthDescLbl->setText("N-esima cifra decimale di e. Es. N=1 \xe2\x86\x92 7, N=2 \xe2\x86\x92 1...");
+        m_nthDescLbl->setText(tr("N-esima cifra decimale di e. Es. N=1 \xe2\x86\x92 7, N=2 \xe2\x86\x92 1..."));
     else if (k == "prime")
         m_nthDescLbl->setText("Il primo con indice N. p(1)=2, p(2)=3, p(3)=5... "
                          "(sympy per N fino a ~10 000 000)");
@@ -2192,12 +2192,12 @@ void MatematicaPage::onNthTypeChanged()
         m_nthDescLbl->setText("N! \xe2\x80\x94 fattoriale. 1!=1, 5!=120, 100!=93326215443944..."
                          " (precisione arbitraria).");
     else if (k == "pow2")
-        m_nthDescLbl->setText("2^N. Anche per N molto grandi (migliaia di cifre).");
+        m_nthDescLbl->setText(tr("2^N. Anche per N molto grandi (migliaia di cifre)."));
     else if (k == "pi_block")
         m_nthDescLbl->setText("Le prime N cifre di \xcf\x80 come blocco continuo "
                          "(includa la parte intera: 3.14159...).");
     else if (k == "phi_block")
-        m_nthDescLbl->setText("Le prime N cifre di \xcf\x86 (sezione aurea).");
+        m_nthDescLbl->setText(tr("Le prime N cifre di \xcf\x86 (sezione aurea)."));
 }
 
 void MatematicaPage::onNthCalcClicked()
@@ -2577,7 +2577,7 @@ QWidget* MatematicaPage::buildSolveTab()
     auto* btnCopyInput = new QPushButton("\xf0\x9f\x93\x8b", w);  /* 📋 */
     btnCopyInput->setObjectName("navBtn");
     btnCopyInput->setFixedWidth(dpiScale(34));
-    btnCopyInput->setToolTip("Copia la formula negli appunti");
+    btnCopyInput->setToolTip(tr("Copia la formula negli appunti"));
     connect(btnCopyInput, &QPushButton::clicked, m_solveInput, [this]() {
         const QString t = m_solveInput->text();
         if (!t.isEmpty())
@@ -2604,7 +2604,7 @@ QWidget* MatematicaPage::buildSolveTab()
 
     m_btnSolveAi = new QPushButton("\xf0\x9f\xa4\x96  Spiega con AI", w);  /* 🤖 */
     m_btnSolveAi->setObjectName("actionBtn");
-    m_btnSolveAi->setToolTip("Usa l'LLM selezionato per spiegare i passi SymPy in italiano");
+    m_btnSolveAi->setToolTip(tr("Usa l'LLM selezionato per spiegare i passi SymPy in italiano"));
     m_btnSolveAi->setVisible(false);
     connect(m_btnSolveAi, &QPushButton::clicked, this, &MatematicaPage::onSolveAiClicked);
     btnRow->addWidget(m_btnSolveAi);
@@ -2767,7 +2767,7 @@ void MatematicaPage::onSolveCopyClicked()
     const QString txt = m_output->toPlainText();
     if (txt.isEmpty()) return;
     QApplication::clipboard()->setText(txt);
-    if (m_btnSolveCopy) m_btnSolveCopy->setText("\xe2\x9c\x85  Copiato!");
+    if (m_btnSolveCopy) m_btnSolveCopy->setText(tr("\xe2\x9c\x85  Copiato!"));
     QTimer::singleShot(1500, this, &MatematicaPage::onSolveRestoreCopyBtn);
 }
 
@@ -2777,7 +2777,7 @@ void MatematicaPage::onSolveCopyClicked()
 void MatematicaPage::onSolveRestoreCopyBtn()
 {
     if (m_btnSolveCopy)
-        m_btnSolveCopy->setText("\xf0\x9f\x93\x8b  Copia");
+        m_btnSolveCopy->setText(tr("\xf0\x9f\x93\x8b  Copia"));
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -3176,7 +3176,7 @@ QWidget* MatematicaPage::buildAnalisi1Tab()
     auto* tryRow = new QHBoxLayout;
     tryRow->addWidget(new QLabel("\xf0\x9f\x93\x90  Risolvi:", w));
     m_a1Input = new QLineEdit(w);
-    m_a1Input->setPlaceholderText("Espressione SymPy (pre-compilata dall'argomento)");
+    m_a1Input->setPlaceholderText(tr("Espressione SymPy (pre-compilata dall'argomento)"));
     tryRow->addWidget(m_a1Input, 1);
     m_a1TypeCmb = makeAnalisiTypeCmb(w);
     tryRow->addWidget(m_a1TypeCmb);
@@ -3195,25 +3195,25 @@ QWidget* MatematicaPage::buildAnalisi1Tab()
     auto* plotRow = new QHBoxLayout;
     plotRow->addWidget(new QLabel("\xf0\x9f\x93\x88  Grafico:", w));
     m_a1PlotInput = new QLineEdit(w);
-    m_a1PlotInput->setPlaceholderText("f(x) da disegnare nel canvas");
+    m_a1PlotInput->setPlaceholderText(tr("f(x) da disegnare nel canvas"));
     plotRow->addWidget(m_a1PlotInput, 1);
     auto* btnPlot1 = new QPushButton(
         "\xf0\x9f\x93\x88  Disegna grafico", w);
     btnPlot1->setObjectName("actionBtn");
-    btnPlot1->setToolTip("Traccia f(x) nel canvas a destra");
+    btnPlot1->setToolTip(tr("Traccia f(x) nel canvas a destra"));
     connect(btnPlot1, &QPushButton::clicked, this, &MatematicaPage::onA1PlotClicked);
     plotRow->addWidget(btnPlot1);
     m_a1RenderCmb = new QComboBox(w);
     m_a1RenderCmb->addItem("\xe2\x80\x94  Linea",   0);
     m_a1RenderCmb->addItem("\xe2\x97\x8f  Punti",   1);
     m_a1RenderCmb->addItem("\xe2\x96\xb2  Area",    2);
-    m_a1RenderCmb->setToolTip("Stile rendering 2D");
+    m_a1RenderCmb->setToolTip(tr("Stile rendering 2D"));
     m_a1RenderCmb->setMaximumWidth(110);
     connect(m_a1RenderCmb, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &MatematicaPage::onA1RenderChanged);
     plotRow->addWidget(m_a1RenderCmb);
     m_btnA1Expand = new QPushButton("\xe2\x86\x97", w);   /* ↗ */
-    m_btnA1Expand->setToolTip("Apri grafico in finestra separata");
+    m_btnA1Expand->setToolTip(tr("Apri grafico in finestra separata"));
     m_btnA1Expand->setFixedWidth(32);
     connect(m_btnA1Expand, &QPushButton::clicked, this, &MatematicaPage::onA1ExpandClicked);
     plotRow->addWidget(m_btnA1Expand);
@@ -3274,7 +3274,7 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     auto* tryRow = new QHBoxLayout;
     tryRow->addWidget(new QLabel("\xf0\x9f\x93\x90  Risolvi:", w));
     m_a2Input = new QLineEdit(w);
-    m_a2Input->setPlaceholderText("Espressione SymPy (pre-compilata dall'argomento)");
+    m_a2Input->setPlaceholderText(tr("Espressione SymPy (pre-compilata dall'argomento)"));
     tryRow->addWidget(m_a2Input, 1);
     m_a2TypeCmb = makeAnalisiTypeCmb(w);
     tryRow->addWidget(m_a2TypeCmb);
@@ -3293,12 +3293,12 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     auto* plotRow = new QHBoxLayout;
     plotRow->addWidget(new QLabel("\xf0\x9f\x93\x88  Grafico:", w));
     m_a2PlotInput = new QLineEdit(w);
-    m_a2PlotInput->setPlaceholderText("f(x,y) — con 'y' \xe2\x86\x92 3D");
+    m_a2PlotInput->setPlaceholderText(tr("f(x,y) — con 'y' \xe2\x86\x92 3D"));
     plotRow->addWidget(m_a2PlotInput, 1);
     auto* btnPlot2 = new QPushButton(
         "\xf0\x9f\x93\x88  Disegna grafico", w);
     btnPlot2->setObjectName("actionBtn");
-    btnPlot2->setToolTip("Traccia f(x) o f(x,y) nel canvas a destra");
+    btnPlot2->setToolTip(tr("Traccia f(x) o f(x,y) nel canvas a destra"));
     connect(btnPlot2, &QPushButton::clicked, this, &MatematicaPage::onA2PlotClicked);
     plotRow->addWidget(btnPlot2);
     m_a2RenderCmb = new QComboBox(w);
@@ -3306,13 +3306,13 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     m_a2RenderCmb->addItem("\xf0\x9f\x95\xb8  Wireframe",   GraficoCanvas::Wireframe3D);
     m_a2RenderCmb->addItem("\xe2\x96\xa0  Superficie",      GraficoCanvas::Surface3D);
     m_a2RenderCmb->addItem("\xf0\x9f\x9f\xa6  Solido",      GraficoCanvas::Solid3D);
-    m_a2RenderCmb->setToolTip("Stile rendering 3D");
+    m_a2RenderCmb->setToolTip(tr("Stile rendering 3D"));
     m_a2RenderCmb->setMaximumWidth(130);
     connect(m_a2RenderCmb, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &MatematicaPage::onA2RenderChanged);
     plotRow->addWidget(m_a2RenderCmb);
     m_btnA2Expand = new QPushButton("\xe2\x86\x97", w);   /* ↗ */
-    m_btnA2Expand->setToolTip("Apri grafico in finestra separata");
+    m_btnA2Expand->setToolTip(tr("Apri grafico in finestra separata"));
     m_btnA2Expand->setFixedWidth(32);
     connect(m_btnA2Expand, &QPushButton::clicked, this, &MatematicaPage::onA2ExpandClicked);
     plotRow->addWidget(m_btnA2Expand);

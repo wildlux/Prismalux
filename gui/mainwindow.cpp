@@ -703,7 +703,7 @@ void MainWindow::showServerDialog()
 
     lay->addWidget(new QLabel(
         "<span style='color:#5a5f80;font-size:11px;'>"
-        "Binario cercato in: llama_cpp_studio/llama.cpp/build/bin/llama-server<br>"
+        "Binario cercato in: ENGINE_LLM/llama_cpp_studio/llama.cpp/build/bin/llama-server<br>"
         "Usa <i>avvia_qt.sh</i> dalla cartella Prismalux se il server non parte.</span>",
         dlg));
 

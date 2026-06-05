@@ -823,6 +823,25 @@ if(BUILD_TESTS)
         target_link_libraries(test_wan_compute_tasks PRIVATE pthread m)
     endif()
 
+    # ── test_sci_compute: SciComputePage — costruzione, isSafeToolName, isSafePath, taskTypes ──
+    add_executable(test_sci_compute
+        tests/test_sci_compute.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_sci_compute PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_sci_compute PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_sci_compute PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_sci_compute PRIVATE pthread m)
+    endif()
+
     # ── test_sintetizzatore: Tono struct, OscoCanvas, SintetizzatoreWidget ──
     add_executable(test_sintetizzatore
         tests/test_sintetizzatore.cpp
@@ -1222,6 +1241,7 @@ if(BUILD_TESTS)
     add_test(NAME AgentsConfigDialog      COMMAND test_agents_config_dialog)
     add_test(NAME LanServer               COMMAND test_lan_server)
     add_test(NAME WanComputeTasks         COMMAND test_wan_compute_tasks)
+    add_test(NAME SciCompute              COMMAND test_sci_compute)
     add_test(NAME Sintetizzatore          COMMAND test_sintetizzatore)
     add_test(NAME Onboarding              COMMAND test_onboarding)
     add_test(NAME ImpostazioniPage        COMMAND test_impostazioni_page)
@@ -1258,6 +1278,7 @@ if(BUILD_TESTS)
     set_tests_properties(GraphMemory        PROPERTIES TIMEOUT 30)
     set_tests_properties(LanServer          PROPERTIES TIMEOUT 30)
     set_tests_properties(WanComputeTasks    PROPERTIES TIMEOUT 60)
+    set_tests_properties(SciCompute         PROPERTIES TIMEOUT 30)
     set_tests_properties(Sintetizzatore     PROPERTIES TIMEOUT 30)
     set_tests_properties(ImpostazioniPage   PROPERTIES TIMEOUT 60)
     set_tests_properties(SignalLifetime     PROPERTIES TIMEOUT 60 RESOURCE_LOCK cpu_heavy)

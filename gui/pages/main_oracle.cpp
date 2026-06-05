@@ -125,12 +125,12 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     /* Pulsanti controllo a sinistra */
     m_btnSys = new QPushButton("\xe2\x9a\x99", inputRow);  /* ⚙ */
     m_btnSys->setObjectName("actionBtn");
-    m_btnSys->setToolTip("Mostra/nascondi system prompt");
+    m_btnSys->setToolTip(tr("Mostra/nascondi system prompt"));
     m_btnSys->setFixedSize(32, 32);
 
     m_btnImg = new QPushButton("\xf0\x9f\x93\xb7", inputRow);  /* 📷 */
     m_btnImg->setObjectName("actionBtn");
-    m_btnImg->setToolTip("Allega immagine");
+    m_btnImg->setToolTip(tr("Allega immagine"));
     m_btnImg->setFixedSize(32, 32);
 
     /* Textarea principale */
@@ -153,7 +153,7 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     m_btnNascondi = new QPushButton(
         "\xf0\x9f\x91\x81  Nascondi", inputRow);   /* 👁 Nascondi */
     m_btnNascondi->setObjectName("actionBtn");
-    m_btnNascondi->setToolTip("Mostra/nascondi le azioni rapide");
+    m_btnNascondi->setToolTip(tr("Mostra/nascondi le azioni rapide"));
     m_btnNascondi->setCheckable(true);
     m_btnNascondi->setChecked(true);   /* quick bar visibile di default */
 
@@ -583,7 +583,7 @@ void OracoloPage::showCartesianChart(const QVector<QPointF>& points) {
     const double padY = std::max(std::abs(yMax - yMin) * 0.25, 1.0);
 
     auto* chart = new ChartWidget;
-    chart->setTitle("\xf0\x9f\x93\x8d  Piano Cartesiano");
+    chart->setTitle(tr("\xf0\x9f\x93\x8d  Piano Cartesiano"));
     chart->setAxisLabels("x", "y");
     chart->setRange(xMin - padX, xMax + padX, yMin - padY, yMax + padY);
 
@@ -649,11 +649,11 @@ void OracoloPage::scrollToBottom() {
 void OracoloPage::_setSendBusy(bool busy)
 {
     if (busy) {
-        m_btnSend->setText("\xe2\x8f\xb9 Stop");
+        m_btnSend->setText(tr("\xe2\x8f\xb9 Stop"));
         m_btnSend->setProperty("danger", true);
         m_btnSend->setProperty("primary", false);
     } else {
-        m_btnSend->setText("\xe2\x9c\x88  Invia");
+        m_btnSend->setText(tr("\xe2\x9c\x88  Invia"));
         m_btnSend->setProperty("danger", false);
         m_btnSend->setProperty("primary", true);
     }

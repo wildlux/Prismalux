@@ -292,12 +292,12 @@ void ManutenzioneePage::cronAddOrEdit(int idx)
     form->setSpacing(8);
 
     auto* edName = new QLineEdit(src.name, dlg);
-    edName->setPlaceholderText("Es. Report mattutino");
+    edName->setPlaceholderText(tr("Es. Report mattutino"));
     form->addRow("Nome:", edName);
 
     auto* edPrompt = new QTextEdit(dlg);
     edPrompt->setPlainText(src.prompt);
-    edPrompt->setPlaceholderText("Prompt inviato all'AI…");
+    edPrompt->setPlaceholderText(tr("Prompt inviato all'AI…"));
     edPrompt->setFixedHeight(90);
     form->addRow("Prompt:", edPrompt);
 

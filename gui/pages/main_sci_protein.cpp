@@ -147,11 +147,11 @@ SciProteinWidget::SciProteinWidget(QWidget* parent)
 
     auto* afRow = new QHBoxLayout;
     m_uniprotEdit = new QLineEdit(afGroup);
-    m_uniprotEdit->setPlaceholderText("UniProt ID  (es. P05067)");
+    m_uniprotEdit->setPlaceholderText(tr("UniProt ID  (es. P05067)"));
     m_btnAlpha = new QPushButton("\xf0\x9f\x94\x8d", afGroup);
     m_btnAlpha->setFixedWidth(dpiScale(30));
     m_btnAlpha->setObjectName("actionBtn");
-    m_btnAlpha->setToolTip("Scarica struttura da AlphaFold DB");
+    m_btnAlpha->setToolTip(tr("Scarica struttura da AlphaFold DB"));
     afRow->addWidget(m_uniprotEdit, 1);
     afRow->addWidget(m_btnAlpha);
     afLay->addLayout(afRow);
@@ -165,7 +165,7 @@ SciProteinWidget::SciProteinWidget(QWidget* parent)
 
     auto* pdbRow  = new QHBoxLayout;
     m_pdbQuery    = new QLineEdit(dbGroup);
-    m_pdbQuery->setPlaceholderText("Cerca in RCSB PDB (es. insulin, 1ABC)");
+    m_pdbQuery->setPlaceholderText(tr("Cerca in RCSB PDB (es. insulin, 1ABC)"));
     auto* btnPdb  = new QPushButton("\xf0\x9f\x94\x8d", dbGroup);
     btnPdb->setFixedWidth(dpiScale(30));
     btnPdb->setObjectName("actionBtn");
@@ -175,7 +175,7 @@ SciProteinWidget::SciProteinWidget(QWidget* parent)
 
     auto* upRow   = new QHBoxLayout;
     m_upQuery     = new QLineEdit(dbGroup);
-    m_upQuery->setPlaceholderText("Cerca in UniProt (es. Alzheimer, BRCA1)");
+    m_upQuery->setPlaceholderText(tr("Cerca in UniProt (es. Alzheimer, BRCA1)"));
     auto* btnUp   = new QPushButton("\xf0\x9f\x94\x8d", dbGroup);
     btnUp->setFixedWidth(dpiScale(30));
     btnUp->setObjectName("actionBtn");
@@ -324,7 +324,7 @@ void SciProteinWidget::onEsmFoldClicked()
     }
 
     m_btnFold->setEnabled(false);
-    m_foldStatus->setText("\xf0\x9f\x94\x84  Predizione in corso (30-120s)...");
+    m_foldStatus->setText(tr("\xf0\x9f\x94\x84  Predizione in corso (30-120s)..."));
     appendLog("ESMFold API: invio sequenza " + QString::number(seq.size()) + " aa...");
 
     QNetworkRequest req(QUrl("https://api.esmatlas.com/foldSequence/v1/pdb/"));

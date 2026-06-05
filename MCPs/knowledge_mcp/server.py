@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 # ─── Configurazione ───────────────────────────────────────────────────────────
 
-KNOWLEDGE_DIR  = Path(__file__).parent.parent.parent / "KNOWLEDGE_USER"
+KNOWLEDGE_DIR  = Path(__file__).parent.parent.parent / "TOOL_TIP" / "KNOWLEDGE_USER"
 KNOWLEDGE_FILE = KNOWLEDGE_DIR / "user_knowledge.md"
 
 # Sezioni valide (ordine fisso nel file)

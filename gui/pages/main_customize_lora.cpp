@@ -85,7 +85,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
             "\xf0\x9f\xa6\x99  <b>llama-finetune</b> \xe2\x80\x94 "
             "CPU+GPU nativo llama.cpp \xe2\x80\x94 nessuna GPU richiesta (ma consigliata).<br>"
             "Richiede: <code>llama-finetune</code> compilato in "
-            "<code>Prismalux/whisper.cpp/../llama.cpp/build/bin/</code>",
+            "<code>Prismalux/ENGINE_LLM/llama.cpp/build/bin/</code>",
             tab);
         info->setWordWrap(true);
         info->setTextFormat(Qt::RichText);
@@ -108,10 +108,10 @@ QWidget* PersonalizzaPage::buildLoraTab()
         grpModel->setObjectName("cardGroup");
         auto* mLay = new QHBoxLayout(grpModel);
         m_loraModelEdit = new QLineEdit(grpModel);
-        m_loraModelEdit->setPlaceholderText("Path assoluto al modello GGUF base...");
+        m_loraModelEdit->setPlaceholderText(tr("Path assoluto al modello GGUF base..."));
         auto* modelBtn  = new QPushButton("\xf0\x9f\x93\x82", grpModel);
         modelBtn->setFixedWidth(32);
-        modelBtn->setToolTip("Seleziona file .gguf");
+        modelBtn->setToolTip(tr("Seleziona file .gguf"));
         mLay->addWidget(m_loraModelEdit, 1);
         mLay->addWidget(modelBtn);
         connect(modelBtn, &QPushButton::clicked,
@@ -123,10 +123,10 @@ QWidget* PersonalizzaPage::buildLoraTab()
         grpData->setObjectName("cardGroup");
         auto* dLay = new QHBoxLayout(grpData);
         m_loraDataEdit = new QLineEdit(grpData);
-        m_loraDataEdit->setPlaceholderText("Path al file JSONL (righe: {\"text\": \"...\"})");
+        m_loraDataEdit->setPlaceholderText(tr("Path al file JSONL (righe: {\"text\": \"...\"})"));
         auto* dataBtn  = new QPushButton("\xf0\x9f\x93\x82", grpData);
         dataBtn->setFixedWidth(32);
-        dataBtn->setToolTip("Seleziona dataset JSONL");
+        dataBtn->setToolTip(tr("Seleziona dataset JSONL"));
         dLay->addWidget(m_loraDataEdit, 1);
         dLay->addWidget(dataBtn);
         connect(dataBtn, &QPushButton::clicked,
@@ -142,39 +142,39 @@ QWidget* PersonalizzaPage::buildLoraTab()
 
         m_loraSpinEpochs = new QSpinBox(grpHyper);
         m_loraSpinEpochs->setRange(1, 100); m_loraSpinEpochs->setValue(3);
-        m_loraSpinEpochs->setToolTip("Numero di passaggi sull'intero dataset");
+        m_loraSpinEpochs->setToolTip(tr("Numero di passaggi sull'intero dataset"));
         hGrid->addWidget(new QLabel("Epoche:"),        0, 0, Qt::AlignRight);
         hGrid->addWidget(m_loraSpinEpochs,             0, 1);
 
         m_loraSpinR = new QSpinBox(grpHyper);
         m_loraSpinR->setRange(1, 256); m_loraSpinR->setValue(8);
-        m_loraSpinR->setToolTip("Rango LoRA: valori bassi = meno parametri");
+        m_loraSpinR->setToolTip(tr("Rango LoRA: valori bassi = meno parametri"));
         hGrid->addWidget(new QLabel("Rango LoRA (r):"), 0, 2, Qt::AlignRight);
         hGrid->addWidget(m_loraSpinR,                   0, 3);
 
         m_loraSpinAlpha = new QSpinBox(grpHyper);
         m_loraSpinAlpha->setRange(1, 512); m_loraSpinAlpha->setValue(32);
-        m_loraSpinAlpha->setToolTip("Alpha LoRA: scala l'impatto dell'adapter (tipico: 2-4× rank)");
+        m_loraSpinAlpha->setToolTip(tr("Alpha LoRA: scala l'impatto dell'adapter (tipico: 2-4× rank)"));
         hGrid->addWidget(new QLabel("Alpha LoRA:"),    1, 0, Qt::AlignRight);
         hGrid->addWidget(m_loraSpinAlpha,              1, 1);
 
         m_loraDspLr = new QDoubleSpinBox(grpHyper);
         m_loraDspLr->setRange(1e-6, 1e-2); m_loraDspLr->setValue(1e-4);
         m_loraDspLr->setDecimals(7); m_loraDspLr->setSingleStep(1e-5);
-        m_loraDspLr->setToolTip("Learning rate (tipico: 1e-4 – 3e-4)");
+        m_loraDspLr->setToolTip(tr("Learning rate (tipico: 1e-4 – 3e-4)"));
         hGrid->addWidget(new QLabel("Learning rate:"), 1, 2, Qt::AlignRight);
         hGrid->addWidget(m_loraDspLr,                  1, 3);
 
         m_loraSpinBatch = new QSpinBox(grpHyper);
         m_loraSpinBatch->setRange(1, 64); m_loraSpinBatch->setValue(4);
-        m_loraSpinBatch->setToolTip("Batch size: su CPU limitare a 1-4");
+        m_loraSpinBatch->setToolTip(tr("Batch size: su CPU limitare a 1-4"));
         hGrid->addWidget(new QLabel("Batch size:"),    2, 0, Qt::AlignRight);
         hGrid->addWidget(m_loraSpinBatch,              2, 1);
 
         m_loraSpinCtx = new QSpinBox(grpHyper);
         m_loraSpinCtx->setRange(128, 32768); m_loraSpinCtx->setValue(512);
         m_loraSpinCtx->setSingleStep(128);
-        m_loraSpinCtx->setToolTip("Lunghezza contesto per ogni esempio");
+        m_loraSpinCtx->setToolTip(tr("Lunghezza contesto per ogni esempio"));
         hGrid->addWidget(new QLabel("Context size:"),  2, 2, Qt::AlignRight);
         hGrid->addWidget(m_loraSpinCtx,                2, 3);
 
@@ -399,8 +399,8 @@ void PersonalizzaPage::onLoraStartBtnClicked() {
 
     /* Cerca llama-finetune nel build di llama.cpp */
     QStringList candidates = {
-        P::root() + "/llama.cpp/build/bin/llama-finetune",
-        P::root() + "/llama.cpp/build/llama-finetune",
+        P::root() + "/ENGINE_LLM/llama.cpp/build/bin/llama-finetune",
+        P::root() + "/ENGINE_LLM/llama.cpp/build/llama-finetune",
         QStandardPaths::findExecutable("llama-finetune"),
     };
     QString ftBin;

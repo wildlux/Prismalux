@@ -158,7 +158,7 @@ QWidget* AppControllerPage::buildGodotTab()
     auto* out = new QTextEdit(w);
     out->setReadOnly(true);
     out->setObjectName("outputView");
-    out->setPlaceholderText("GDScript generato dall'AI appare qui...");
+    out->setPlaceholderText(tr("GDScript generato dall'AI appare qui..."));
     m_godotOutput = out;
     lay->addWidget(m_godotOutput, 1);
 

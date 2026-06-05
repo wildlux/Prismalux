@@ -163,6 +163,9 @@ endif()
 
 if(Qt6Bluetooth_FOUND)
     list(APPEND SRCS pages/ble_page.cpp)
+    # qrcodegen per QR condivisione chiave BLE (onShareKey)
+    list(APPEND SRCS ${CMAKE_SOURCE_DIR}/../../gui/qrcodegen.c)
+    list(APPEND _EXTRA_INCS "${CMAKE_SOURCE_DIR}/../../gui")
 endif()
 
 # ── Form factor ───────────────────────────────────────────────────────────

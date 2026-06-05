@@ -160,7 +160,7 @@ void AppControllerPage::onBlenderPingClicked()
     if (addr.isEmpty()) addr = "localhost:6789";
     const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
     const int     port = addr.contains(':') ? addr.section(':', 1).toInt() : 6789;
-    m_blenderStatusLbl->setText("\xf0\x9f\x94\x84  Connessione...");
+    m_blenderStatusLbl->setText(tr("\xf0\x9f\x94\x84  Connessione..."));
     QJsonObject req;
     req["type"]        = "execute";
     req["code"]        = "import bpy; result = {'ok': True, 'blender': bpy.app.version_string, "
@@ -195,7 +195,7 @@ void AppControllerPage::onBlenderExecClicked()
     const int     port = addr.contains(':') ? addr.section(':', 1).toInt() : 6789;
 
     m_blenderExecBtn->setEnabled(false);
-    m_blenderStatusLbl->setText("\xf0\x9f\x94\x84  Verifica connessione...");
+    m_blenderStatusLbl->setText(tr("\xf0\x9f\x94\x84  Verifica connessione..."));
 
     /* Ping automatico prima di eseguire */
     QJsonObject pingReq;
@@ -240,11 +240,11 @@ void AppControllerPage::onBlenderExecClicked()
                 else if (!rv.isNull())  out = QString::fromUtf8(
                     QJsonDocument(rv.toObject()).toJson(QJsonDocument::Compact));
                 else                    out = raw;
-                m_blenderStatusLbl->setText("\xe2\x9c\x85  Eseguito in Blender");
+                m_blenderStatusLbl->setText(tr("\xe2\x9c\x85  Eseguito in Blender"));
                 m_blenderOutput->append("\n\xe2\x9c\x85  Blender: "
                     + (out.isEmpty() ? "OK" : out));
             } else {
-                m_blenderStatusLbl->setText("\xe2\x9d\x8c  Errore esecuzione");
+                m_blenderStatusLbl->setText(tr("\xe2\x9d\x8c  Errore esecuzione"));
                 m_blenderOutput->append("\n\xe2\x9d\x8c  Blender: "
                     + res.value("error").toString(raw));
             }
@@ -255,7 +255,7 @@ void AppControllerPage::onBlenderExecClicked()
 void AppControllerPage::onBlenderHelpClicked()
 {
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xf0\x9f\x8e\xa8  Installazione Blender MCP");
+    dlg->setWindowTitle(tr("\xf0\x9f\x8e\xa8  Installazione Blender MCP"));
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->resize(540, 480);
     auto* dlay    = new QVBoxLayout(dlg);
@@ -345,7 +345,7 @@ void AppControllerPage::onFreecadPingClicked()
     if (addr.isEmpty()) addr = "localhost:9876";
     const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
     const int     port = addr.contains(':') ? addr.section(':', 1).toInt() : 9876;
-    m_freecadStatusLbl->setText("\xf0\x9f\x94\x84  Connessione...");
+    m_freecadStatusLbl->setText(tr("\xf0\x9f\x94\x84  Connessione..."));
     if (m_freecadPingSock) { m_freecadPingSock->abort(); m_freecadPingSock->deleteLater(); }
     m_freecadPingSock = new QTcpSocket(this);
     connect(m_freecadPingSock, &QTcpSocket::connected,
@@ -362,7 +362,7 @@ void AppControllerPage::onFreecadPingConnected()
     m_freecadPingSock->disconnectFromHost();
     m_freecadPingSock->deleteLater();
     m_freecadPingSock = nullptr;
-    m_freecadStatusLbl->setText("\xe2\x9c\x85  FreeCAD connesso");
+    m_freecadStatusLbl->setText(tr("\xe2\x9c\x85  FreeCAD connesso"));
 }
 
 void AppControllerPage::onFreecadPingError(QAbstractSocket::SocketError)
@@ -377,7 +377,7 @@ void AppControllerPage::onFreecadPingTimeout()
 {
     if (m_freecadPingSock &&
         m_freecadPingSock->state() != QAbstractSocket::ConnectedState) {
-        m_freecadStatusLbl->setText("\xe2\x9d\x8c  Timeout");
+        m_freecadStatusLbl->setText(tr("\xe2\x9d\x8c  Timeout"));
         m_freecadPingSock->abort();
         m_freecadPingSock->deleteLater();
         m_freecadPingSock = nullptr;
@@ -396,7 +396,7 @@ void AppControllerPage::onFreecadExecClicked()
     payload["params"] = params;
     m_freecadExecBody = QJsonDocument(payload).toJson(QJsonDocument::Compact);
     m_freecadExecBtn->setEnabled(false);
-    m_freecadStatusLbl->setText("\xf0\x9f\x94\x84  Invio a FreeCAD...");
+    m_freecadStatusLbl->setText(tr("\xf0\x9f\x94\x84  Invio a FreeCAD..."));
     if (m_freecadExecSock) { m_freecadExecSock->abort(); m_freecadExecSock->deleteLater(); }
     m_freecadExecSock = new QTcpSocket(this);
     connect(m_freecadExecSock, &QTcpSocket::connected,
@@ -435,7 +435,7 @@ void AppControllerPage::onFreecadExecReadyRead()
     QJsonObject res = QJsonDocument::fromJson(data).object();
     const QString st = res["status"].toString();
     if (st == "ok" || st == "success") {
-        m_freecadStatusLbl->setText("\xe2\x9c\x85  Eseguito");
+        m_freecadStatusLbl->setText(tr("\xe2\x9c\x85  Eseguito"));
         m_freecadOutput->append("\n\xe2\x9c\x85  FreeCAD: "
             + res["result"].toString("OK"));
     } else {
@@ -466,7 +466,7 @@ void AppControllerPage::onFreecadStopClicked()
 void AppControllerPage::onFreecadHelpClicked()
 {
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xf0\x9f\x94\xa9  Installazione FreeCAD MCP");
+    dlg->setWindowTitle(tr("\xf0\x9f\x94\xa9  Installazione FreeCAD MCP"));
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->resize(540, 440);
     auto* dlay    = new QVBoxLayout(dlg);
@@ -524,8 +524,8 @@ void AppControllerPage::onOfficeStartClicked()
         m_officeBridgeProc->state() == QProcess::Running) {
         m_officeBridgeProc->terminate();
         m_officeBridgeProc->waitForFinished(2000);
-        m_officeStartBtn->setText("\xe2\x96\xb6  Avvia bridge");
-        m_officeStatusLbl->setText("\xe2\x9a\xaa  Bridge fermato");
+        m_officeStartBtn->setText(tr("\xe2\x96\xb6  Avvia bridge"));
+        m_officeStatusLbl->setText(tr("\xe2\x9a\xaa  Bridge fermato"));
         return;
     }
     const QString path = s_findOfficeBridgePath();
@@ -541,10 +541,10 @@ void AppControllerPage::onOfficeStartClicked()
                 QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &AppControllerPage::onOfficeBridgeFinished);
     }
-    m_officeStatusLbl->setText("\xf0\x9f\x94\x84  Avvio bridge...");
+    m_officeStatusLbl->setText(tr("\xf0\x9f\x94\x84  Avvio bridge..."));
     m_officeBridgeProc->start(P::findPython(), {path});
     if (m_officeBridgeProc->state() == QProcess::Running) {
-        m_officeStartBtn->setText("\xe2\x8f\xb9  Ferma bridge");
+        m_officeStartBtn->setText(tr("\xe2\x8f\xb9  Ferma bridge"));
         QTimer::singleShot(1200, this, &AppControllerPage::onOfficeStatusReply);
     } else {
         m_officeStatusLbl->setText(
@@ -554,8 +554,8 @@ void AppControllerPage::onOfficeStartClicked()
 
 void AppControllerPage::onOfficeBridgeFinished(int /*exitCode*/, QProcess::ExitStatus /*status*/)
 {
-    m_officeStartBtn->setText("\xe2\x96\xb6  Avvia bridge");
-    m_officeStatusLbl->setText("\xe2\x9a\xaa  Bridge fermato");
+    m_officeStartBtn->setText(tr("\xe2\x96\xb6  Avvia bridge"));
+    m_officeStatusLbl->setText(tr("\xe2\x9a\xaa  Bridge fermato"));
 }
 
 void AppControllerPage::onOfficeStatusReply()
@@ -600,7 +600,7 @@ void AppControllerPage::onOfficeExecClicked()
     req.setRawHeader("Authorization", ("Bearer " + m_officeBridgeToken).toUtf8());
     req.setTransferTimeout(30000);
     m_officeExecBtn->setEnabled(false);
-    m_officeStatusLbl->setText("\xf0\x9f\x94\x84  Invio a Office...");
+    m_officeStatusLbl->setText(tr("\xf0\x9f\x94\x84  Invio a Office..."));
     m_officeExecReply = m_officeNam->post(req, body);
     connect(m_officeExecReply, &QNetworkReply::finished,
             this, &AppControllerPage::onOfficeExecReply);
@@ -616,11 +616,11 @@ void AppControllerPage::onOfficeExecReply()
     if (reply->error() == QNetworkReply::NoError) {
         QJsonObject res = QJsonDocument::fromJson(reply->readAll()).object();
         if (res["ok"].toBool()) {
-            m_officeStatusLbl->setText("\xe2\x9c\x85  Eseguito");
+            m_officeStatusLbl->setText(tr("\xe2\x9c\x85  Eseguito"));
             m_officeOutput->append("\n\xe2\x9c\x85  Office: "
                 + res["output"].toString("OK"));
         } else {
-            m_officeStatusLbl->setText("\xe2\x9d\x8c  Errore");
+            m_officeStatusLbl->setText(tr("\xe2\x9d\x8c  Errore"));
             m_officeOutput->append("\n\xe2\x9d\x8c  Office errore: "
                 + res["error"].toString());
         }
@@ -650,7 +650,7 @@ void AppControllerPage::onOfficeStopClicked()
 void AppControllerPage::onOfficeHelpClicked()
 {
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xf0\x9f\x96\xa5  Installazione Office Bridge");
+    dlg->setWindowTitle(tr("\xf0\x9f\x96\xa5  Installazione Office Bridge"));
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->resize(540, 420);
     auto* dlay    = new QVBoxLayout(dlg);
@@ -684,7 +684,7 @@ void AppControllerPage::onOfficeHelpClicked()
 void AppControllerPage::onCcHelpClicked()
 {
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xf0\x9f\x94\xb5  Installazione CloudComPy");
+    dlg->setWindowTitle(tr("\xf0\x9f\x94\xb5  Installazione CloudComPy"));
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->resize(560, 460);
     auto* dlay    = new QVBoxLayout(dlg);
@@ -729,7 +729,7 @@ void AppControllerPage::onAnkiPingClicked()
     body["version"] = 6;
     if (m_ankiPingReply) { m_ankiPingReply->abort(); m_ankiPingReply->deleteLater(); }
     m_ankiPingReply = m_ankiNam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
-    m_ankiStatusLbl->setText("\xf0\x9f\x94\x84  Verifica...");
+    m_ankiStatusLbl->setText(tr("\xf0\x9f\x94\x84  Verifica..."));
     connect(m_ankiPingReply, &QNetworkReply::finished,
             this, &AppControllerPage::onAnkiPingReplyFinished);
 }
@@ -741,10 +741,10 @@ void AppControllerPage::onAnkiPingReplyFinished()
     const bool ok = (m_ankiPingReply->error() == QNetworkReply::NoError);
     m_ankiPingReply = nullptr;
     if (ok) {
-        m_ankiStatusLbl->setText("\xe2\x9c\x85  AnkiConnect attivo");
+        m_ankiStatusLbl->setText(tr("\xe2\x9c\x85  AnkiConnect attivo"));
         m_ankiSendBtn->setEnabled(true);
     } else {
-        m_ankiStatusLbl->setText("\xe2\x9d\x8c  Anki non raggiungibile (avvia Anki)");
+        m_ankiStatusLbl->setText(tr("\xe2\x9d\x8c  Anki non raggiungibile (avvia Anki)"));
     }
 }
 
@@ -777,7 +777,7 @@ void AppControllerPage::onAnkiStopClicked()
 void AppControllerPage::onAnkiHelpClicked()
 {
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xf0\x9f\x83\x8f  Installazione AnkiConnect");
+    dlg->setWindowTitle(tr("\xf0\x9f\x83\x8f  Installazione AnkiConnect"));
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->resize(540, 420);
     auto* dlay    = new QVBoxLayout(dlg);
@@ -833,15 +833,15 @@ void AppControllerPage::onKicadPingClicked()
     auto* sock = new QTcpSocket(this);
     const QStringList parts = host.split(':');
     const int port = parts.size() > 1 ? parts[1].toInt() : 3000;
-    m_kicadStatusLbl->setText("\xf0\x9f\x94\x84  Verifica...");
+    m_kicadStatusLbl->setText(tr("\xf0\x9f\x94\x84  Verifica..."));
     connect(sock, &QTcpSocket::connected, this, [this, sock]() {
-        m_kicadStatusLbl->setText("\xe2\x9c\x85  KiCAD MCP Server attivo");
+        m_kicadStatusLbl->setText(tr("\xe2\x9c\x85  KiCAD MCP Server attivo"));
         sock->disconnectFromHost();
         sock->deleteLater();
     });
     connect(sock, &QTcpSocket::errorOccurred, this,
             [this, sock](QAbstractSocket::SocketError) {
-        m_kicadStatusLbl->setText("\xe2\x9d\x8c  KiCAD MCP non raggiungibile");
+        m_kicadStatusLbl->setText(tr("\xe2\x9d\x8c  KiCAD MCP non raggiungibile"));
         sock->deleteLater();
     });
     sock->connectToHost(parts[0], static_cast<quint16>(port));
@@ -874,7 +874,7 @@ void AppControllerPage::onKicadStopClicked()
 void AppControllerPage::onKicadHelpClicked()
 {
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xf0\x9f\x96\xa5  Installazione KiCAD MCP Server");
+    dlg->setWindowTitle(tr("\xf0\x9f\x96\xa5  Installazione KiCAD MCP Server"));
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->resize(540, 460);
     auto* dlay    = new QVBoxLayout(dlg);
@@ -914,11 +914,11 @@ void AppControllerPage::onKicadExecReply()
     if (reply->error() == QNetworkReply::NoError) {
         const QJsonObject res = QJsonDocument::fromJson(reply->readAll()).object();
         if (res["ok"].toBool(true)) {
-            m_kicadStatusLbl->setText("\xe2\x9c\x85  Eseguito in KiCAD");
+            m_kicadStatusLbl->setText(tr("\xe2\x9c\x85  Eseguito in KiCAD"));
             m_kicadOutput->append("\n\xe2\x9c\x85  KiCAD: "
                 + res["output"].toString("OK"));
         } else {
-            m_kicadStatusLbl->setText("\xe2\x9d\x8c  Errore KiCAD");
+            m_kicadStatusLbl->setText(tr("\xe2\x9d\x8c  Errore KiCAD"));
             m_kicadOutput->append("\n\xe2\x9d\x8c  Errore: "
                 + res["error"].toString(reply->errorString()));
         }
@@ -987,7 +987,7 @@ void AppControllerPage::onMcuStopClicked()
 void AppControllerPage::onMcuHelpClicked()
 {
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xe2\x9a\xa1  TinyMCP \xe2\x80\x94 Microcontrollori");
+    dlg->setWindowTitle(tr("\xe2\x9a\xa1  TinyMCP \xe2\x80\x94 Microcontrollori"));
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->resize(560, 500);
     auto* dlay    = new QVBoxLayout(dlg);
@@ -1028,7 +1028,7 @@ void AppControllerPage::onMcuHelpClicked()
 void AppControllerPage::onObsPingClicked()
 {
     if (QProcess::execute("python3", {"-c", "import obsws_python"}) != 0) {
-        m_obsStatusLbl->setText("\xe2\x9d\x8c  obsws-python non installato");
+        m_obsStatusLbl->setText(tr("\xe2\x9d\x8c  obsws-python non installato"));
         m_obsOutput->append(
             "<span style='color:#f87171;'>"
             "\xe2\x9d\x8c  Modulo mancante \xe2\x80\x94 clicca per installarlo: "
@@ -1040,12 +1040,12 @@ void AppControllerPage::onObsPingClicked()
     const QString addr = m_obsHostEdit->text().trimmed();
     const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
     const int     port = addr.contains(':') ? addr.section(':', 1).toInt() : 4455;
-    m_obsStatusLbl->setText("\xf0\x9f\x94\x84  Connessione...");
+    m_obsStatusLbl->setText(tr("\xf0\x9f\x94\x84  Connessione..."));
     auto* sock = new QTcpSocket(this);
     sock->connectToHost(host, static_cast<quint16>(port));
     connect(sock, &QTcpSocket::connected, this, [this, sock]() {
         sock->disconnectFromHost(); sock->deleteLater();
-        m_obsStatusLbl->setText("\xe2\x9c\x85  OBS WebSocket attivo");
+        m_obsStatusLbl->setText(tr("\xe2\x9c\x85  OBS WebSocket attivo"));
         m_obsExecBtn->setEnabled(!m_obsCode.isEmpty());
     });
     connect(sock, &QAbstractSocket::errorOccurred, this,
@@ -1056,7 +1056,7 @@ void AppControllerPage::onObsPingClicked()
     QPointer<QTcpSocket> sockPtr(sock);
     QTimer::singleShot(3000, this, [sockPtr, this]() {
         if (sockPtr && sockPtr->state() != QAbstractSocket::ConnectedState) {
-            m_obsStatusLbl->setText("\xe2\x9d\x8c  Timeout \xe2\x80\x94 OBS non raggiungibile");
+            m_obsStatusLbl->setText(tr("\xe2\x9d\x8c  Timeout \xe2\x80\x94 OBS non raggiungibile"));
             sockPtr->abort(); sockPtr->deleteLater();
         }
     });
@@ -1081,10 +1081,10 @@ void AppControllerPage::onObsExecClicked()
                 this, &AppControllerPage::onObsProcFinished);
     }
     m_obsExecBtn->setEnabled(false);
-    m_obsStatusLbl->setText("\xf0\x9f\x94\x84  Esecuzione script...");
+    m_obsStatusLbl->setText(tr("\xf0\x9f\x94\x84  Esecuzione script..."));
     m_obsExecProc->start(P::findPython(), {tmpPath});
     if (m_obsExecProc->state() == QProcess::NotRunning)
-        m_obsStatusLbl->setText("\xe2\x9d\x8c  Python non trovato");
+        m_obsStatusLbl->setText(tr("\xe2\x9d\x8c  Python non trovato"));
 }
 
 void AppControllerPage::onObsProcReadyRead()
@@ -1122,7 +1122,7 @@ void AppControllerPage::onObsStopClicked()
 void AppControllerPage::onObsHelpClicked()
 {
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xf0\x9f\x94\xb4  Installazione OBS MCP");
+    dlg->setWindowTitle(tr("\xf0\x9f\x94\xb4  Installazione OBS MCP"));
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->resize(560, 500);
     auto* dlay    = new QVBoxLayout(dlg);
@@ -1167,7 +1167,7 @@ void AppControllerPage::onGodotExecClicked()
         f.write(m_godotCode.toUtf8());
         m_godotStatusLbl->setText("\xe2\x9c\x85  Salvato: " + path);
     } else {
-        m_godotStatusLbl->setText("\xe2\x9d\x8c  Impossibile salvare il file");
+        m_godotStatusLbl->setText(tr("\xe2\x9d\x8c  Impossibile salvare il file"));
     }
 }
 
@@ -1194,20 +1194,20 @@ void AppControllerPage::onGodotStopClicked()
    ====================================================================== */
 
 /* Script Python generato a runtime — usa env vars TOKEN, WHITELIST */
+/* Script per python-telegram-bot v20+ (async, httpx, Python 3.14 compatibile) */
 static QString s_telegramBotScript()
 {
     return QString(
-        "import os, sys, json, threading\n"
+        "import os, sys, json, threading, asyncio\n"
         "\n"
         "try:\n"
         "    from telegram import Update\n"
         "    from telegram.ext import (\n"
-        "        Updater, CommandHandler, MessageHandler,\n"
-        "        Filters, CallbackContext\n"
+        "        Application, CommandHandler, MessageHandler,\n"
+        "        filters, ContextTypes\n"
         "    )\n"
-        "except ImportError:\n"
-        "    print('ERRORE: python-telegram-bot non installato.', flush=True)\n"
-        "    print('Installa con: pip install python-telegram-bot==13.*', flush=True)\n"
+        "except ImportError as e:\n"
+        "    print(json.dumps({'type':'error','msg':'Modulo mancante: ' + str(e)}), flush=True)\n"
         "    sys.exit(1)\n"
         "\n"
         "TOKEN     = os.environ.get('TELEGRAM_TOKEN', '').strip()\n"
@@ -1216,112 +1216,102 @@ static QString s_telegramBotScript()
         "             if x.strip()]\n"
         "\n"
         "if not TOKEN:\n"
-        "    print('ERRORE: TELEGRAM_TOKEN non impostato.', flush=True)\n"
+        "    print(json.dumps({'type':'error','msg':'TELEGRAM_TOKEN non impostato.'}), flush=True)\n"
         "    sys.exit(1)\n"
         "\n"
-        "# Mappa chat_id -> risposta in attesa (threading.Event + container)\n"
-        "pending = {}  # chat_id -> {'event': Event, 'reply': str}\n"
+        "# Risposte pendenti: chat_id -> (Event, container)\n"
+        "pending      = {}\n"
         "pending_lock = threading.Lock()\n"
+        "_loop        = None\n"
+        "_bot         = None\n"
         "\n"
-        "def check_whitelist(update: Update) -> bool:\n"
-        "    if not WHITELIST:\n"
-        "        return True\n"
+        "def allowed(update: Update) -> bool:\n"
+        "    if not WHITELIST: return True\n"
         "    return str(update.effective_user.id) in WHITELIST\n"
         "\n"
-        "def send_query(chat_id: int, text: str) -> None:\n"
-        "    msg = json.dumps({'type': 'query', 'chat_id': chat_id,\n"
-        "                      'text': text}, ensure_ascii=False)\n"
-        "    print(msg, flush=True)\n"
-        "\n"
-        "def wait_reply(chat_id: int, timeout: float = 120.0) -> str:\n"
+        "async def on_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):\n"
+        "    if not update.message: return\n"
+        "    if not allowed(update):\n"
+        "        await update.message.reply_text('Non autorizzato.')\n"
+        "        return\n"
+        "    cid  = update.effective_chat.id\n"
+        "    text = update.message.text or ''\n"
+        "    # Invia la query a Prismalux via stdout\n"
+        "    print(json.dumps({'type':'query','chat_id':cid,'text':text}), flush=True)\n"
+        "    # Attendi risposta con timeout 120 s\n"
         "    evt = threading.Event()\n"
         "    with pending_lock:\n"
-        "        pending[chat_id] = {'event': evt, 'reply': ''}\n"
-        "    evt.wait(timeout)\n"
+        "        pending[cid] = {'event': evt, 'reply': ''}\n"
+        "    await asyncio.get_event_loop().run_in_executor(None, evt.wait, 120.0)\n"
         "    with pending_lock:\n"
-        "        result = pending.pop(chat_id, {}).get('reply', '(timeout)')\n"
-        "    return result\n"
+        "        reply = pending.pop(cid, {}).get('reply', '(timeout)')\n"
+        "    await update.message.reply_text(reply[:4096] if reply else '...')\n"
         "\n"
-        "def handle_message(update: Update, context: CallbackContext) -> None:\n"
-        "    if not check_whitelist(update):\n"
-        "        update.message.reply_text('Non autorizzato.')\n"
+        "async def on_ask(update: Update, ctx: ContextTypes.DEFAULT_TYPE):\n"
+        "    if not allowed(update):\n"
+        "        await update.message.reply_text('Non autorizzato.')\n"
         "        return\n"
-        "    chat_id = update.effective_chat.id\n"
-        "    text    = update.message.text or ''\n"
-        "    send_query(chat_id, text)\n"
-        "    reply = wait_reply(chat_id)\n"
-        "    update.message.reply_text(reply[:4096] if reply else '...')\n"
-        "\n"
-        "def cmd_ask(update: Update, context: CallbackContext) -> None:\n"
-        "    if not check_whitelist(update):\n"
-        "        update.message.reply_text('Non autorizzato.')\n"
-        "        return\n"
-        "    chat_id = update.effective_chat.id\n"
-        "    text    = ' '.join(context.args) if context.args else ''\n"
+        "    text = ' '.join(ctx.args) if ctx.args else ''\n"
         "    if not text:\n"
-        "        update.message.reply_text('Uso: /ask <domanda>')\n"
+        "        await update.message.reply_text('Uso: /ask <domanda>')\n"
         "        return\n"
-        "    send_query(chat_id, text)\n"
-        "    reply = wait_reply(chat_id)\n"
-        "    update.message.reply_text(reply[:4096] if reply else '...')\n"
+        "    update.message.text = text\n"
+        "    await on_message(update, ctx)\n"
         "\n"
-        "def cmd_status(update: Update, context: CallbackContext) -> None:\n"
-        "    if not check_whitelist(update):\n"
-        "        update.message.reply_text('Non autorizzato.')\n"
+        "async def on_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE):\n"
+        "    if not allowed(update):\n"
+        "        await update.message.reply_text('Non autorizzato.')\n"
         "        return\n"
-        "    update.message.reply_text('Prismalux bot attivo. Invia un messaggio o usa /ask <testo>.')\n"
+        "    await update.message.reply_text(\n"
+        "        '\U0001f7e2 Prismalux Bot attivo. Invia un messaggio o usa /ask <testo>.')\n"
         "\n"
-        "def cmd_stop(update: Update, context: CallbackContext) -> None:\n"
-        "    if not check_whitelist(update):\n"
-        "        update.message.reply_text('Non autorizzato.')\n"
-        "        return\n"
-        "    update.message.reply_text('Bot in arresto...')\n"
-        "    context.dispatcher.stop()\n"
-        "\n"
-        "# Thread di lettura stdin per ricevere risposte da Prismalux\n"
-        "def stdin_reader():\n"
-        "    for line in sys.stdin:\n"
-        "        line = line.strip()\n"
-        "        if not line:\n"
-        "            continue\n"
+        "def stdin_loop():\n"
+        "    for raw in sys.stdin:\n"
+        "        raw = raw.strip()\n"
+        "        if not raw: continue\n"
         "        try:\n"
-        "            obj = json.loads(line)\n"
-        "            chat_id = obj.get('chat_id', 0)\n"
-        "            reply   = obj.get('reply', '')\n"
+        "            obj = json.loads(raw)\n"
+        "            cid   = obj.get('chat_id', 0)\n"
+        "            reply = obj.get('reply', '')\n"
         "            with pending_lock:\n"
-        "                entry = pending.get(chat_id)\n"
+        "                entry = pending.get(cid)\n"
         "            if entry:\n"
         "                entry['reply'] = reply\n"
         "                entry['event'].set()\n"
-        "        except Exception as e:\n"
-        "            print('stdin parse error: ' + str(e), flush=True)\n"
+        "        except Exception as exc:\n"
+        "            print('stdin error: ' + str(exc), flush=True)\n"
         "\n"
-        "t = threading.Thread(target=stdin_reader, daemon=True)\n"
-        "t.start()\n"
+        "async def post_init(app: Application):\n"
+        "    global _loop, _bot\n"
+        "    _loop = asyncio.get_event_loop()\n"
+        "    _bot  = app.bot\n"
+        "    threading.Thread(target=stdin_loop, daemon=True).start()\n"
+        "    print(json.dumps({'type': 'ready'}), flush=True)\n"
         "\n"
-        "updater = Updater(TOKEN)\n"
-        "dp = updater.dispatcher\n"
-        "dp.add_handler(CommandHandler('ask',    cmd_ask))\n"
-        "dp.add_handler(CommandHandler('status', cmd_status))\n"
-        "dp.add_handler(CommandHandler('stop',   cmd_stop))\n"
-        "dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))\n"
-        "\n"
-        "print(json.dumps({'type': 'ready'}), flush=True)\n"
-        "updater.start_polling(drop_pending_updates=True)\n"
-        "updater.idle()\n"
+        "app = (\n"
+        "    Application.builder()\n"
+        "    .token(TOKEN)\n"
+        "    .post_init(post_init)\n"
+        "    .build()\n"
+        ")\n"
+        "app.add_handler(CommandHandler('ask',    on_ask))\n"
+        "app.add_handler(CommandHandler('status', on_status))\n"
+        "app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))\n"
+        "app.run_polling(drop_pending_updates=True)\n"
     );
 }
 
 void AppControllerPage::onTelegramStartClicked()
 {
-    if (QProcess::execute("python3", {"-c", "import telegram"}) != 0) {
+    if (QProcess::execute("python3",
+            {"-c", "from telegram.ext import Application"}) != 0) {
         m_telegramStatusLbl->setText(
-            "\xe2\x9d\x8c  python-telegram-bot non installato");
+            "\xe2\x9d\x8c  python-telegram-bot v20+ non installato");
         m_telegramLog->append(
             "<span style='color:#f87171;'>"
             "\xe2\x9d\x8c  Modulo mancante \xe2\x80\x94 clicca qui per installarlo: "
-            "<a href='pip://python-telegram-bot==13.*' style='color:#fbbf24;'>"
-            "\xf0\x9f\x94\xa7 Installa python-telegram-bot==13.*</a>"
+            "<a href='pip://python-telegram-bot' style='color:#fbbf24;'>"
+            "\xf0\x9f\x94\xa7 Installa python-telegram-bot</a>"
             "</span>");
         return;
     }
@@ -1425,6 +1415,29 @@ void AppControllerPage::onTelegramProcReadyRead()
             continue;
         }
 
+        if (type == "error") {
+            const QString msg = obj.value("msg").toString();
+            m_telegramStatusLbl->setText(tr("\xe2\x9d\x8c  Errore bot"));
+            const bool isMissing = msg.contains("Modulo mancante",
+                                                Qt::CaseInsensitive) ||
+                                   msg.contains("No module named",
+                                                Qt::CaseInsensitive);
+            if (isMissing) {
+                m_telegramLog->append(
+                    "<span style='color:#f87171;'>"
+                    "\xe2\x9d\x8c  " + msg.toHtmlEscaped() + "<br>"
+                    "Clicca per installare: "
+                    "<a href='pip://python-telegram-bot' style='color:#fbbf24;'>"
+                    "\xf0\x9f\x94\xa7 Installa python-telegram-bot</a>"
+                    "</span>");
+            } else {
+                m_telegramLog->append(
+                    "<span style='color:#f87171;'>"
+                    "\xe2\x9d\x8c  " + msg.toHtmlEscaped() + "</span>");
+            }
+            continue;
+        }
+
         if (type == "query") {
             const int     chatId = obj.value("chat_id").toInt();
             const QString text   = obj.value("text").toString();
@@ -1522,19 +1535,15 @@ void AppControllerPage::onTelegramProcFinished(
     m_telegramStopBtn->setEnabled(false);
 
     if (code == 0) {
-        m_telegramStatusLbl->setText("\xe2\x9a\xaa  Bot fermato");
+        m_telegramStatusLbl->setText(tr("\xe2\x9a\xaa  Bot fermato"));
         m_telegramLog->append("<b>\xe2\x8f\xb9 Bot fermato.</b>");
     } else {
         m_telegramStatusLbl->setText(
             QString("\xe2\x9d\x8c  Bot terminato (exit %1)").arg(code));
         m_telegramLog->append(
             QString("<span style='color:#f87171;'>"
-                    "\xe2\x9d\x8c Bot uscito con codice %1. "
-                    "Controlla il log sopra.<br>"
-                    "Se manca python-telegram-bot: "
-                    "<a href='pip://python-telegram-bot==13.*' style='color:#fbbf24;'>"
-                    "\xf0\x9f\x94\xa7 Installa python-telegram-bot==13.*</a>"
-                    "</span>").arg(code));
+                    "\xe2\x9d\x8c  Bot uscito con codice %1. "
+                    "Controlla il log sopra.</span>").arg(code));
     }
 
     /* Libera l'holder AI se era attivo */
@@ -1765,7 +1774,7 @@ void AppControllerPage::onWaBotStartClicked()
 
     m_waBotStartBtn->setEnabled(false);
     m_waBotStopBtn->setEnabled(true);
-    m_waBotStatusLbl->setText("\xf0\x9f\x9f\xa2  Bot attivo — polling ogni 2s");
+    m_waBotStatusLbl->setText(tr("\xf0\x9f\x9f\xa2  Bot attivo — polling ogni 2s"));
 
     QSettings s("Prismalux", "GUI");
     s.setValue("whatsapp/bot_whitelist", m_waWhitelistEdit->text().trimmed());
@@ -1783,7 +1792,7 @@ void AppControllerPage::onWaBotStopClicked()
     }
     m_waBotStartBtn->setEnabled(true);
     m_waBotStopBtn->setEnabled(false);
-    m_waBotStatusLbl->setText("\xe2\x9a\xab  Bot fermato");
+    m_waBotStatusLbl->setText(tr("\xe2\x9a\xab  Bot fermato"));
     m_waBotLog->append("\xf0\x9f\x94\xb4  Bot fermato.");
 }
 
@@ -2056,7 +2065,7 @@ void AppControllerPage::onDevAgentRestoreClicked()
 
     const QString scriptPath = P::root() + "/MCPs/devagent_mcp/server.py";
     if (!QFile::exists(scriptPath)) {
-        if (m_devStatusLbl) m_devStatusLbl->setText("\xe2\x9d\x8c  server.py non trovato");
+        if (m_devStatusLbl) m_devStatusLbl->setText(tr("\xe2\x9d\x8c  server.py non trovato"));
         return;
     }
 
@@ -2069,7 +2078,7 @@ void AppControllerPage::onDevAgentRestoreClicked()
     proc->setProcessChannelMode(QProcess::SeparateChannels);
     proc->start(P::findPython(), {scriptPath});
     if (!proc->waitForStarted(2000)) {
-        if (m_devStatusLbl) m_devStatusLbl->setText("\xe2\x9d\x8c  Impossibile avviare il processo");
+        if (m_devStatusLbl) m_devStatusLbl->setText(tr("\xe2\x9d\x8c  Impossibile avviare il processo"));
         proc->deleteLater();
         return;
     }
@@ -2108,7 +2117,7 @@ void AppControllerPage::onDevAgentStopClicked()
     }
     if (m_devRunBtn)  m_devRunBtn->setEnabled(true);
     if (m_devStopBtn) m_devStopBtn->setEnabled(false);
-    if (m_devStatusLbl) m_devStatusLbl->setText("\xe2\x9a\xab  Fermato");
+    if (m_devStatusLbl) m_devStatusLbl->setText(tr("\xe2\x9a\xab  Fermato"));
     if (m_devLog) m_devLog->append("\xf0\x9f\x94\xb4  Dev Agent fermato.");
 }
 
@@ -2340,7 +2349,7 @@ void AppControllerPage::onDevAgentGitRestoreClicked()
 
     if (m_devLog) m_devLog->append(
         QString("\xe2\x8f\xaa  <b>git reset --hard</b> %1...").arg(commit.left(8)));
-    if (m_devStatusLbl) m_devStatusLbl->setText("\xe2\x8f\xaa  Ripristino commit...");
+    if (m_devStatusLbl) m_devStatusLbl->setText(tr("\xe2\x8f\xaa  Ripristino commit..."));
 
     proc->write(QJsonDocument(QJsonObject{
         {"cmd",          "git_restore"},
@@ -2395,7 +2404,7 @@ void AppControllerPage::onDevAgentGitFetchResetClicked()
     if (m_devLog) m_devLog->append(
         QString("\xf0\x9f\x8c\x90  <b>git fetch origin && git reset --hard origin/%1</b>...")
             .arg(branch.toHtmlEscaped()));
-    if (m_devStatusLbl) m_devStatusLbl->setText("\xf0\x9f\x8c\x90  Fetch in corso...");
+    if (m_devStatusLbl) m_devStatusLbl->setText(tr("\xf0\x9f\x8c\x90  Fetch in corso..."));
 
     proc->write(QJsonDocument(QJsonObject{
         {"cmd",          "git_fetch_reset"},
@@ -2439,7 +2448,7 @@ void AppControllerPage::onDevAgentGitStashPushClicked()
     if (!proc) return;
 
     if (m_devLog) m_devLog->append("\xf0\x9f\x93\xa6  <b>git stash push</b>...");
-    if (m_devStatusLbl) m_devStatusLbl->setText("\xf0\x9f\x93\xa6  Stash in corso...");
+    if (m_devStatusLbl) m_devStatusLbl->setText(tr("\xf0\x9f\x93\xa6  Stash in corso..."));
 
     proc->write(QJsonDocument(QJsonObject{
         {"cmd",          "git_stash_push"},
@@ -2535,7 +2544,7 @@ void AppControllerPage::onDevAgentGitStashPopClicked()
 
     if (m_devLog) m_devLog->append(
         QString("\xf0\x9f\x93\xa4  <b>git stash pop</b> %1...").arg(ref.toHtmlEscaped()));
-    if (m_devStatusLbl) m_devStatusLbl->setText("\xf0\x9f\x93\xa4  Applico stash...");
+    if (m_devStatusLbl) m_devStatusLbl->setText(tr("\xf0\x9f\x93\xa4  Applico stash..."));
 
     proc->write(QJsonDocument(QJsonObject{
         {"cmd",          "git_stash_pop"},

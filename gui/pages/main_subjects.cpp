@@ -75,7 +75,7 @@ SubjectTutorWidget::SubjectTutorWidget(AiClient* ai, const QString& subject,
 
     m_inp = new QLineEdit(inputRow);
     m_inp->setObjectName("chatInput");
-    m_inp->setPlaceholderText("Domanda libera...");
+    m_inp->setPlaceholderText(tr("Domanda libera..."));
     m_inp->setFixedHeight(38);
 
     m_send = new QPushButton("Chiedi ▶", inputRow);

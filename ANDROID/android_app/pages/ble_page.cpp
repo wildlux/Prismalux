@@ -11,6 +11,13 @@
 #include <QFont>
 #include <QScrollBar>
 #include <QInputDialog>
+#include <QDialog>
+#include <QLabel>
+#include <QPushButton>
+#include <QImage>
+#include <QPainter>
+#include <QPixmap>
+#include "qrcodegen.h"
 
 /* UUID custom per il servizio chat Prismalux */
 static const QBluetoothUuid kChatUuid(
@@ -153,9 +160,16 @@ BlePage::BlePage(QWidget* parent)
     m_keyInfoBtn->setObjectName("SecondaryBtn");
     m_keyInfoBtn->setMaximumWidth(90);
     m_keyInfoBtn->setToolTip("Mostra / reimposta chiave di cifratura BLE");
+    m_keyShareBtn = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x93\xb7"),  /* 📷 */
+        chatPage);
+    m_keyShareBtn->setObjectName("SecondaryBtn");
+    m_keyShareBtn->setFixedWidth(44);
+    m_keyShareBtn->setToolTip("Mostra QR code della chiave (per condivisione rapida col peer)");
     cryptoRow->addWidget(m_cryptoIndicator, 1);
     cryptoRow->addWidget(m_cryptoToggleBtn);
     cryptoRow->addWidget(m_keyInfoBtn);
+    cryptoRow->addWidget(m_keyShareBtn);
     chatVbox->addLayout(cryptoRow);
 
     /* Input messaggio */
@@ -351,9 +365,11 @@ BlePage::BlePage(QWidget* parent)
     connect(m_activeAgent, &QBluetoothDeviceDiscoveryAgent::finished,
             this, &BlePage::onPeerScanFinished);
 
-    /* Cifratura: pulsante chiave */
-    connect(m_keyInfoBtn, &QPushButton::clicked,
+    /* Cifratura: pulsante chiave + QR */
+    connect(m_keyInfoBtn,   &QPushButton::clicked,
             this, &BlePage::onShowKeyInfo);
+    connect(m_keyShareBtn,  &QPushButton::clicked,
+            this, &BlePage::onShareKey);
 
     /* ── Carica (o genera) la chiave AES-256 ── */
     m_cryptoKey = BleCrypto::loadOrCreateKey();
@@ -1070,7 +1086,7 @@ void BlePage::onShowKeyInfo()
                 "Chiave corrente (Base64, 44 char = 256 bit):\n%2\n\n"
                 "Condividi questa chiave con l'altro dispositivo tramite:\n"
                 "  • Copia e incolla via messaggio sicuro\n"
-                "  • QR code (funzione in sviluppo)\n\n"
+                "  • Pulsante \xf0\x9f\x93\xb7 per mostrare il QR code\n\n"
                 "Vuoi generare una NUOVA chiave?\n"
                 "(i messaggi precedenti non saranno più leggibili)")
             .arg(algoInfo, keyB64);
@@ -1092,6 +1108,100 @@ void BlePage::onShowKeyInfo()
     } else if (choice == 1) {
         onResetKey();
     }
+}
+
+/* ── onShareKey — QR code della chiave per condivisione facile ──── */
+void BlePage::onShareKey()
+{
+    const QString keyB64 = m_cryptoKey.toBase64();
+    const QByteArray keyUtf8 = keyB64.toUtf8();
+
+    /* Genera QR code con qrcodegen */
+    uint8_t qrcode[qrcodegen_BUFFER_LEN_MAX];
+    uint8_t tempBuf[qrcodegen_BUFFER_LEN_MAX];
+    const bool ok = qrcodegen_encodeText(
+        keyUtf8.constData(),
+        tempBuf, qrcode,
+        qrcodegen_Ecc_MEDIUM,
+        qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX,
+        qrcodegen_Mask_AUTO, true);
+
+    if (!ok) {
+        appendChatMsg("Sistema",
+            QString::fromUtf8("\xe2\x9d\x8c")
+            + " Impossibile generare QR code per questa chiave.");
+        return;
+    }
+
+    /* Disegna il QR come QImage */
+    const int sz    = qrcodegen_getSize(qrcode);
+    const int scale = 6;
+    const int margin = scale * 2;
+    const int imgSide = sz * scale + margin * 2;
+
+    QImage img(imgSide, imgSide, QImage::Format_RGB32);
+    img.fill(Qt::white);
+    {
+        QPainter p(&img);
+        for (int y = 0; y < sz; ++y) {
+            for (int x = 0; x < sz; ++x) {
+                if (qrcodegen_getModule(qrcode, x, y))
+                    p.fillRect(margin + x * scale, margin + y * scale,
+                               scale, scale, Qt::black);
+            }
+        }
+    }
+
+    /* Dialog con QR + pulsante copia */
+    auto* dlg = new QDialog(this);
+    dlg->setWindowTitle(
+        QString::fromUtf8("\xf0\x9f\x94\x91") /* 🔑 */
+        + " Condividi Chiave BLE");
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setMinimumWidth(imgSide + 32);
+
+    auto* lay = new QVBoxLayout(dlg);
+    lay->setSpacing(10);
+
+    auto* hintLbl = new QLabel(
+        "Mostra questo QR al dispositivo peer.\n"
+        "Il peer deve scansionarlo e incollare la chiave\n"
+        "manualmente nel suo campo Token.", dlg);
+    hintLbl->setAlignment(Qt::AlignCenter);
+    hintLbl->setWordWrap(true);
+    lay->addWidget(hintLbl);
+
+    auto* qrLbl = new QLabel(dlg);
+    qrLbl->setPixmap(QPixmap::fromImage(img));
+    qrLbl->setAlignment(Qt::AlignCenter);
+    lay->addWidget(qrLbl);
+
+    auto* fpLbl = new QLabel(
+        "Fingerprint: " + keyB64.left(16) + QString::fromUtf8("\xe2\x80\xa6"),
+        dlg);
+    fpLbl->setAlignment(Qt::AlignCenter);
+    fpLbl->setStyleSheet("font-size:11px; color:#888888;");
+    lay->addWidget(fpLbl);
+
+    auto* btnRow = new QHBoxLayout;
+    auto* copyBtn  = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x93\x8b") + " Copia chiave", dlg);
+    auto* closeBtn = new QPushButton("Chiudi", dlg);
+    btnRow->addWidget(copyBtn);
+    btnRow->addWidget(closeBtn);
+    lay->addLayout(btnRow);
+
+    connect(copyBtn, &QPushButton::clicked, this,
+            [this, keyB64, dlg] {
+        QGuiApplication::clipboard()->setText(keyB64);
+        appendChatMsg("Sistema",
+            QString::fromUtf8("\xf0\x9f\x93\x8b")
+            + " Chiave copiata negli appunti. Inviala al peer in modo sicuro.");
+        dlg->accept();
+    });
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
+    dlg->exec();
 }
 
 /* ── onResetKey — genera e salva nuova chiave ──────────────────── */

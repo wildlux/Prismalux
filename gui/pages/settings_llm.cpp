@@ -519,7 +519,7 @@ QWidget* ImpostazioniPage::buildTestTab()
         runOut->setReadOnly(true);
         runOut->setObjectName("outputView");
         runOut->setMinimumHeight(80);
-        runOut->setPlaceholderText("Output test appare qui...");
+        runOut->setPlaceholderText(tr("Output test appare qui..."));
         llay->addWidget(runOut);
 
         /* QProcess vive finché il widget esiste */
@@ -1157,7 +1157,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
         if (url.isEmpty()) return;
         const QString filename = QUrl(url).fileName();
         if (filename.isEmpty() || !filename.endsWith(".gguf", Qt::CaseInsensitive)) {
-            logOut->setText("\xe2\x9a\xa0  L'URL deve puntare a un file .gguf");
+            logOut->setText(tr("\xe2\x9a\xa0  L'URL deve puntare a un file .gguf"));
             logOut->setVisible(true);
             return;
         }
@@ -1177,7 +1177,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
             if (code == 0)
                 logOut->setText(QString("\xe2\x9c\x85  %1 scaricato.").arg(filename));
             else
-                logOut->setText("\xe2\x9d\x8c  Download fallito. Controlla URL e connessione.");
+                logOut->setText(tr("\xe2\x9d\x8c  Download fallito. Controlla URL e connessione."));
             customDlBtn->setEnabled(true);
             proc->deleteLater();
         });
@@ -1281,7 +1281,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
     auto populate = [=]() {
         modelList->clear();
         installBtn->setEnabled(false);
-        detailLbl->setText("Seleziona un modello per i dettagli.");
+        detailLbl->setText(tr("Seleziona un modello per i dettagli."));
         logOut->setVisible(false);
 
         const bool isOllama  = btnOllama->isChecked();
@@ -1331,13 +1331,13 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
             [=](QListWidgetItem* cur, QListWidgetItem*) {
         if (!cur) {
             installBtn->setEnabled(false);
-            detailLbl->setText("Seleziona un modello per i dettagli.");
+            detailLbl->setText(tr("Seleziona un modello per i dettagli."));
             return;
         }
         const int  idx   = cur->data(Qt::UserRole).toInt();
         const bool isOll = cur->data(Qt::UserRole + 1).toBool();
         installBtn->setEnabled(true);
-        installBtn->setText("\xe2\xac\x87  Installa");
+        installBtn->setText(tr("\xe2\xac\x87  Installa"));
         installBtn->setStyleSheet("");
 
         if (isOll) {
@@ -1368,7 +1368,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
         const bool isOll = cur->data(Qt::UserRole + 1).toBool();
 
         installBtn->setEnabled(false);
-        installBtn->setText("\xe2\x8f\xb3  ...");
+        installBtn->setText(tr("\xe2\x8f\xb3  ..."));
         logOut->setVisible(true);
 
         if (isOll) {
@@ -1384,13 +1384,13 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
             connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                     page, [proc, installBtn, logOut, ollamaName](int code, QProcess::ExitStatus) {
                 if (code == 0) {
-                    installBtn->setText("\xe2\x9c\x94  Installato");
+                    installBtn->setText(tr("\xe2\x9c\x94  Installato"));
                     installBtn->setStyleSheet("color:#4ade80;");
                     logOut->setText(QString("\xe2\x9c\x85  %1 installato.").arg(ollamaName));
                 } else {
                     installBtn->setEnabled(true);
-                    installBtn->setText("\xe2\xac\x87  Installa");
-                    logOut->setText("\xe2\x9d\x8c  Errore. Assicurati che ollama sia in esecuzione.");
+                    installBtn->setText(tr("\xe2\xac\x87  Installa"));
+                    logOut->setText(tr("\xe2\x9d\x8c  Errore. Assicurati che ollama sia in esecuzione."));
                 }
                 proc->deleteLater();
             });
@@ -1410,13 +1410,13 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
             connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                     page, [proc, installBtn, logOut, ggufFile](int code, QProcess::ExitStatus) {
                 if (code == 0) {
-                    installBtn->setText("\xe2\x9c\x94  Scaricato");
+                    installBtn->setText(tr("\xe2\x9c\x94  Scaricato"));
                     installBtn->setStyleSheet("color:#4ade80;");
                     logOut->setText(QString("\xe2\x9c\x85  %1 scaricato.").arg(ggufFile));
                 } else {
                     installBtn->setEnabled(true);
-                    installBtn->setText("\xe2\xac\x87  Installa");
-                    logOut->setText("\xe2\x9d\x8c  Errore download. Controlla wget/connessione.");
+                    installBtn->setText(tr("\xe2\xac\x87  Installa"));
+                    logOut->setText(tr("\xe2\x9d\x8c  Errore download. Controlla wget/connessione."));
                 }
                 proc->deleteLater();
             });
@@ -1432,13 +1432,13 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
                 connect(curl, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                         page, [curl, installBtn, logOut, ggufFile](int code, QProcess::ExitStatus) {
                     if (code == 0) {
-                        installBtn->setText("\xe2\x9c\x94  Scaricato");
+                        installBtn->setText(tr("\xe2\x9c\x94  Scaricato"));
                         installBtn->setStyleSheet("color:#4ade80;");
                         logOut->setText(QString("\xe2\x9c\x85  %1 scaricato.").arg(ggufFile));
                     } else {
                         installBtn->setEnabled(true);
-                        installBtn->setText("\xe2\xac\x87  Installa");
-                        logOut->setText("\xe2\x9d\x8c  Errore: installa wget o curl.");
+                        installBtn->setText(tr("\xe2\xac\x87  Installa"));
+                        logOut->setText(tr("\xe2\x9d\x8c  Errore: installa wget o curl."));
                     }
                     curl->deleteLater();
                 });
@@ -1780,7 +1780,7 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
             const QString vramStr = "~" + QString::number(qRound(vramGb)) + " GB";
             auto* vramItem = new QTableWidgetItem(vramStr);
             vramItem->setTextAlignment(Qt::AlignCenter);
-            vramItem->setToolTip("Stima VRAM per inferenza Q4 (ram_gb / 1.2)");
+            vramItem->setToolTip(tr("Stima VRAM per inferenza Q4 (ram_gb / 1.2)"));
             table->setItem(row, 7, vramItem);
 
             /* Colonna 8: categoria */
@@ -1849,7 +1849,7 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
                 logLbl->setText(QString("\xe2\x9c\x85  %1 installato con successo.")
                                  .arg(e.display));
             else
-                logLbl->setText("\xe2\x9d\x8c  Installazione fallita. Ollama attivo?");
+                logLbl->setText(tr("\xe2\x9d\x8c  Installazione fallita. Ollama attivo?"));
             installBtn->setEnabled(true);
             proc->deleteLater();
         });

@@ -492,10 +492,10 @@ void QuizPage::onGeneraClicked() {
 void QuizPage::onCopyClicked()
 {
     QApplication::clipboard()->setText(m_fullText);
-    m_btnCopy->setText("\xe2\x9c\x85  Copiato!");
+    m_btnCopy->setText(tr("\xe2\x9c\x85  Copiato!"));
     QTimer::singleShot(2000, this, &QuizPage::onCopyRestoreText);
 }
-void QuizPage::onCopyRestoreText() { m_btnCopy->setText("\xf0\x9f\x93\x8b  Copia"); }
+void QuizPage::onCopyRestoreText() { m_btnCopy->setText(tr("\xf0\x9f\x93\x8b  Copia")); }
 
 void QuizPage::onQuizToken(const QString& tok)
 {
@@ -535,10 +535,10 @@ void QuizPage::_setGenerateBusy(bool busy)
 {
     m_generating = busy;
     if (busy) {
-        m_btnGenera->setText("\xe2\x8f\xb9  Stop");
+        m_btnGenera->setText(tr("\xe2\x8f\xb9  Stop"));
         m_btnGenera->setProperty("danger", true);
     } else {
-        m_btnGenera->setText("\xf0\x9f\x8e\xaf  Genera Quiz");
+        m_btnGenera->setText(tr("\xf0\x9f\x8e\xaf  Genera Quiz"));
         m_btnGenera->setProperty("danger", false);
     }
     m_btnGenera->setEnabled(true);
@@ -704,7 +704,7 @@ void QuizPage::showQuestion(int idx)
         disconnect(m_btnNext, &QPushButton::clicked, this, &QuizPage::onNextQuestion);
         disconnect(m_btnNext, &QPushButton::clicked, this, &QuizPage::onOpenNext);
         connect(m_btnNext, &QPushButton::clicked, this, &QuizPage::onOpenNext);
-        m_btnNext->setText("Avanti \xe2\x86\x92");
+        m_btnNext->setText(tr("Avanti \xe2\x86\x92"));
         m_btnNext->setVisible(true);
     }
 }
@@ -732,7 +732,7 @@ void QuizPage::onOptionSelected()
         ++m_score;
         clicked->setStyleSheet(
             "QPushButton { background:#1a7a1a; color:#ffffff; border:2px solid #22aa22; }");
-        m_feedbackLbl->setText("\xe2\x9c\x85  Corretto!");
+        m_feedbackLbl->setText(tr("\xe2\x9c\x85  Corretto!"));
         m_feedbackLbl->setStyleSheet("color:#22cc22; font-weight:bold; font-size:15px;");
     } else {
         WrongAnswer wa;
@@ -752,7 +752,7 @@ void QuizPage::onOptionSelected()
                 QString("\xe2\x9d\x8c  Sbagliato! La risposta corretta era: <b>%1</b>")
                     .arg(labels[q.correctIdx]));
         } else {
-            m_feedbackLbl->setText("\xe2\x9d\x8c  Sbagliato!");
+            m_feedbackLbl->setText(tr("\xe2\x9d\x8c  Sbagliato!"));
         }
         m_feedbackLbl->setStyleSheet("color:#cc2222; font-weight:bold; font-size:15px;");
     }

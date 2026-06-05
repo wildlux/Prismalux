@@ -231,7 +231,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     m_modDirLbl->setObjectName("cardDesc");
     auto* refreshBtn = new QPushButton("\xf0\x9f\x94\x84", modPg);
     refreshBtn->setObjectName("actionBtn"); refreshBtn->setFixedWidth(32);
-    refreshBtn->setToolTip("Aggiorna lista");
+    refreshBtn->setToolTip(tr("Aggiorna lista"));
     modTopL->addWidget(backMod);
     modTopL->addWidget(modTitle, 1);
     modTopL->addWidget(m_modDirLbl);
@@ -278,7 +278,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     m_modDlLog  = makeLog("Output wget appare qui...");
     m_modUrlEdit = new QLineEdit(modDlBox);
     m_modUrlEdit->setObjectName("chatInput");
-    m_modUrlEdit->setPlaceholderText("URL HuggingFace .gguf personalizzato...");
+    m_modUrlEdit->setPlaceholderText(tr("URL HuggingFace .gguf personalizzato..."));
     m_modDlBtn  = new QPushButton("\xe2\xac\x87  Scarica URL", modDlBox);
     m_modDlBtn->setObjectName("actionBtn");
 
@@ -440,7 +440,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     auto* urlRowL = new QHBoxLayout(urlRow);
     urlRowL->setContentsMargins(0,0,0,0); urlRowL->setSpacing(8);
     m_dlCustomUrlEdit = new QLineEdit(customCard);
-    m_dlCustomUrlEdit->setPlaceholderText("https://huggingface.co/.../resolve/main/modello.gguf");
+    m_dlCustomUrlEdit->setPlaceholderText(tr("https://huggingface.co/.../resolve/main/modello.gguf"));
     m_dlCustomBtn = new QPushButton("\xe2\xac\x87 Scarica", customCard);
     m_dlCustomBtn->setObjectName("actionBtn"); m_dlCustomBtn->setFixedWidth(100);
     urlRowL->addWidget(m_dlCustomUrlEdit, 1); urlRowL->addWidget(m_dlCustomBtn);
@@ -833,7 +833,7 @@ void PersonalizzaPage::refreshModelList() {
         size->setObjectName("cardDesc"); size->setFixedWidth(72);
         auto* delBtn = new QPushButton("\xf0\x9f\x97\x91", card);
         delBtn->setObjectName("actionBtn"); delBtn->setFixedWidth(32);
-        delBtn->setToolTip("Elimina modello");
+        delBtn->setToolTip(tr("Elimina modello"));
         delBtn->setProperty("danger", true);
         delBtn->setProperty("_filePath",  f.absoluteFilePath());
         delBtn->setProperty("_fileName",  f.fileName());

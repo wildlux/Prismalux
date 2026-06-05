@@ -127,13 +127,13 @@ QWidget* ProgrammazionePage::buildGitRepoRow(QWidget* parent,
     m_gitRepoPath = new QLineEdit(repoRow);
     m_gitRepoPath->setObjectName("chatInput");
     m_gitRepoPath->setText(QDir::cleanPath(P::root() + "/.."));
-    m_gitRepoPath->setPlaceholderText("/percorso/repository");
+    m_gitRepoPath->setPlaceholderText(tr("/percorso/repository"));
     repoLay->addWidget(m_gitRepoPath, 1);
 
     outBtnBrowse = new QPushButton("\xf0\x9f\x93\x82", repoRow);
     outBtnBrowse->setObjectName("actionBtn");
     outBtnBrowse->setFixedWidth(34);
-    outBtnBrowse->setToolTip("Scegli cartella repository");
+    outBtnBrowse->setToolTip(tr("Scegli cartella repository"));
     repoLay->addWidget(outBtnBrowse);
 
     connect(outBtnBrowse, &QPushButton::clicked,
@@ -195,18 +195,18 @@ QWidget* ProgrammazionePage::buildGitCommitRow(QWidget* parent,
 
     m_gitCommitMsg = new QLineEdit(commitRow);
     m_gitCommitMsg->setObjectName("chatInput");
-    m_gitCommitMsg->setPlaceholderText("Messaggio di commit...");
+    m_gitCommitMsg->setPlaceholderText(tr("Messaggio di commit..."));
     commitLay->addWidget(m_gitCommitMsg, 1);
 
     outBtnAddCommit = new QPushButton("\xe2\x9c\x85  Add + Commit", commitRow);
     outBtnAddCommit->setObjectName("actionBtn");
     outBtnAddCommit->setProperty("highlight", "true");
-    outBtnAddCommit->setToolTip("git add -A  \xe2\x86\x92  git commit -m \"...\"");
+    outBtnAddCommit->setToolTip(tr("git add -A  \xe2\x86\x92  git commit -m \"...\""));
     commitLay->addWidget(outBtnAddCommit);
 
     outBtnPush = new QPushButton("\xe2\xac\x86  Push", commitRow);
     outBtnPush->setObjectName("actionBtn");
-    outBtnPush->setToolTip("git push (richiede conferma)");
+    outBtnPush->setToolTip(tr("git push (richiede conferma)"));
     commitLay->addWidget(outBtnPush);
 
     return commitRow;
@@ -320,7 +320,7 @@ QWidget* ProgrammazionePage::buildGitAiPanel(QWidget* parent,
     m_gitAiOutput->setReadOnly(true);
     m_gitAiOutput->setMaximumBlockCount(2000);
     m_gitAiOutput->setMaximumHeight(200);
-    m_gitAiOutput->setPlaceholderText("L'analisi AI appari\xc3\xa0 qui...");
+    m_gitAiOutput->setPlaceholderText(tr("L'analisi AI appari\xc3\xa0 qui..."));
     aiLay->addWidget(m_gitAiOutput);
 
     m_gitAiPanel->hide();
@@ -523,7 +523,7 @@ QWidget* ProgrammazionePage::buildReplHeader(QWidget* parent,
 
     outBtnRestart = new QPushButton("\xf0\x9f\x94\x84  Riavvia REPL", hdr);
     outBtnRestart->setObjectName("actionBtn");
-    outBtnRestart->setToolTip("Riavvia il processo Python (resetta tutte le variabili)");
+    outBtnRestart->setToolTip(tr("Riavvia il processo Python (resetta tutte le variabili)"));
     hdrLay->addWidget(outBtnRestart);
 
     outBtnImport = new QPushButton("\xe2\x86\x90  Importa dall'editor", hdr);
@@ -641,7 +641,7 @@ void ProgrammazionePage::replStart()
         m_replOutput->appendPlainText(
             "\n\xe2\x8f\xa9  Avvio sessione Python...\n");
     if (m_replStatus)
-        m_replStatus->setText("\xe2\x8f\xb3  Avvio...");
+        m_replStatus->setText(tr("\xe2\x8f\xb3  Avvio..."));
     if (m_replInput) m_replInput->setEnabled(false);
 
     m_replProc = new QProcess(this);

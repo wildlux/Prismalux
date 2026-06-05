@@ -19,7 +19,7 @@ QT_CROSS_DIR="$ROOT/COMPILE_WIN/qt6_cross"
 QT_VER="6.8.0"
 QT_ARCH="win64_mingw"
 QT_PREFIX="$QT_CROSS_DIR/$QT_VER/mingw_64"
-TOOLCHAIN="$ROOT/cmake/toolchain-mingw64.cmake"
+TOOLCHAIN="$ROOT/Tools/cmake/toolchain-mingw64.cmake"
 
 C="\033[36m"; G="\033[32m"; Y="\033[33m"; R="\033[31m"; N="\033[0m"; B="\033[1m"
 ok()   { echo -e "  ${G}✅${N} $*"; }

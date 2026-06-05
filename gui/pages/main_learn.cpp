@@ -61,7 +61,7 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
 
     auto* refreshBtn = new QPushButton("\xf0\x9f\x94\x84", bar);
     refreshBtn->setObjectName("actionBtn"); refreshBtn->setFixedWidth(dpiScale(36));
-    refreshBtn->setToolTip("Aggiorna lista modelli");
+    refreshBtn->setToolTip(tr("Aggiorna lista modelli"));
 
     lay->addWidget(lbl1); lay->addWidget(cmbBackend);
     lay->addWidget(lbl2); lay->addWidget(cmbModel, 1);
@@ -75,13 +75,13 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
         if (idx == 0) {
             /* Ollama */
             refreshBtn->setEnabled(false);
-            refreshBtn->setText("\xe2\x8f\xb3");
+            refreshBtn->setText(tr("\xe2\x8f\xb3"));
             m_ai->setBackend(AiClient::Ollama, "127.0.0.1", 11434, "");
             m_ai->fetchModels();
         } else if (idx == 1) {
             /* llama-server */
             refreshBtn->setEnabled(false);
-            refreshBtn->setText("\xe2\x8f\xb3");
+            refreshBtn->setText(tr("\xe2\x8f\xb3"));
             m_ai->setBackend(AiClient::LlamaServer, "127.0.0.1", 8080, "");
             m_ai->fetchModels();
         } else {
@@ -174,13 +174,13 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
 
         /* Ripristina il pulsante refresh ora che i modelli sono arrivati */
         refreshBtn->setEnabled(true);
-        refreshBtn->setText("\xf0\x9f\x94\x84");
+        refreshBtn->setText(tr("\xf0\x9f\x94\x84"));
     });
     /* Se fetchModels fallisce: ripristina il pulsante e mostra un item di errore */
     connect(m_ai, &AiClient::error, bar, [=](const QString& msg){
         if (!refreshBtn->isEnabled()) {          /* solo se è in stato "spinner" */
             refreshBtn->setEnabled(true);
-            refreshBtn->setText("\xf0\x9f\x94\x84");
+            refreshBtn->setText(tr("\xf0\x9f\x94\x84"));
             cmbModel->clear();
             cmbModel->addItem("\xe2\x9a\xa0  " + msg, "");   /* ⚠ + messaggio */
         }
@@ -282,14 +282,14 @@ QWidget* ImparaPage::buildTutor() {
     m_tutorSubj = new QComboBox(topRow);
     m_tutorSubj->addItems({"Matematica","Informatica","Fisica","Chimica","Storia","Letteratura","Inglese","Libero"});
     auto* clrBtn = new QPushButton("🗑 Pulisci", topRow); clrBtn->setObjectName("actionBtn");
-    clrBtn->setToolTip("Cancella la conversazione corrente con il tutor");
+    clrBtn->setToolTip(tr("Cancella la conversazione corrente con il tutor"));
     topL->addWidget(m_tutorSubj, 1); topL->addWidget(clrBtn);
     lay->addWidget(topRow);
 
     /* Log */
     m_tutorLog = new QTextEdit(w); m_tutorLog->setObjectName("chatLog");
     m_tutorLog->setReadOnly(true);
-    m_tutorLog->setPlaceholderText("🎓  Tutor AI pronto.\n\nFai una domanda sulla materia selezionata.");
+    m_tutorLog->setPlaceholderText(tr("🎓  Tutor AI pronto.\n\nFai una domanda sulla materia selezionata."));
     lay->addWidget(m_tutorLog, 1);
 
     /* ── Context menu: copia / leggi ── */
@@ -305,12 +305,12 @@ QWidget* ImparaPage::buildTutor() {
     auto* inRow = new QWidget(w);
     auto* inL   = new QHBoxLayout(inRow); inL->setContentsMargins(0,0,0,0); inL->setSpacing(8);
     m_tutorInp  = new QLineEdit(inRow); m_tutorInp->setObjectName("chatInput");
-    m_tutorInp->setPlaceholderText("Fai una domanda al Tutor AI..."); m_tutorInp->setFixedHeight(dpiScale(38));
+    m_tutorInp->setPlaceholderText(tr("Fai una domanda al Tutor AI...")); m_tutorInp->setFixedHeight(dpiScale(38));
     m_tutorSend = new QPushButton("Chiedi \xe2\x96\xb6", inRow); m_tutorSend->setObjectName("actionBtn");
-    m_tutorSend->setToolTip("Invia la domanda al tutor AI (Invio)");
+    m_tutorSend->setToolTip(tr("Invia la domanda al tutor AI (Invio)"));
     m_tutorStop = new QPushButton("\xe2\x8f\xb9", inRow);
     m_tutorStop->setObjectName("actionBtn"); m_tutorStop->setProperty("danger", true);
-    m_tutorStop->setToolTip("Interrompi la risposta AI");
+    m_tutorStop->setToolTip(tr("Interrompi la risposta AI"));
     m_tutorStop->setFixedWidth(dpiScale(40)); m_tutorStop->setEnabled(false);
     inL->addWidget(m_tutorInp, 1); inL->addWidget(m_tutorSend); inL->addWidget(m_tutorStop);
     lay->addWidget(inRow);
@@ -452,7 +452,7 @@ QWidget* ImparaPage::buildQuiz() {
 
     m_quizGen = new QPushButton("▶  Inizia Quiz", w);
     m_quizGen->setObjectName("actionBtn");
-    m_quizGen->setToolTip("Genera un quiz AI sull'argomento selezionato");
+    m_quizGen->setToolTip(tr("Genera un quiz AI sull'argomento selezionato"));
     cfgL->addWidget(m_quizGen);
     cfgL->addStretch(1);
     lay->addWidget(cfgW);
@@ -492,14 +492,14 @@ QWidget* ImparaPage::buildQuiz() {
     /* Prossima domanda */
     m_quizNext = new QPushButton("Prossima domanda →", w);
     m_quizNext->setObjectName("actionBtn");
-    m_quizNext->setToolTip("Passa alla domanda successiva del quiz");
+    m_quizNext->setToolTip(tr("Passa alla domanda successiva del quiz"));
     m_quizNext->setVisible(false);
     lay->addWidget(m_quizNext);
 
     /* Rivedi errori (visibile solo a fine sessione se ci sono sbagli) */
     m_reviewBtn = new QPushButton("\xf0\x9f\x94\x8d  Rivedi domande sbagliate", w);
     m_reviewBtn->setObjectName("actionBtn");
-    m_reviewBtn->setToolTip("Mostra le domande che hai risposto in modo errato con la spiegazione");
+    m_reviewBtn->setToolTip(tr("Mostra le domande che hai risposto in modo errato con la spiegazione"));
     m_reviewBtn->setVisible(false);
     lay->addWidget(m_reviewBtn);
 
@@ -553,7 +553,7 @@ void ImparaPage::generateQuestion() {
     m_quizGen->setEnabled(false);
     m_quizNext->setVisible(false);
     m_quizFeedback->clear();
-    m_quizQuestion->setText("⏳  Generazione domanda in corso...");
+    m_quizQuestion->setText(tr("⏳  Generazione domanda in corso..."));
     for (auto* b : m_quizOpts) { b->setEnabled(false); b->setStyleSheet("text-align:left;padding:8px 14px;"); }
 
     m_quizProgress->setText(QString("Domanda %1 / %2")
@@ -605,7 +605,7 @@ void ImparaPage::parseAndShowQuestion(const QString& raw) {
 
     if (question.isEmpty() || a.isEmpty() || correct.isEmpty()) {
         /* Parsing fallito: mostra raw e lascia riprovare */
-        m_quizQuestion->setText("⚠️  Il modello non ha rispettato il formato.\nRiprova.");
+        m_quizQuestion->setText(tr("⚠️  Il modello non ha rispettato il formato.\nRiprova."));
         m_quizGen->setEnabled(true);
         return;
     }
@@ -666,7 +666,7 @@ void ImparaPage::submitAnswer(int idx) {
     m_quiz.currentQ++;
 
     if (m_quiz.currentQ >= m_quiz.totalQ) {
-        m_quizNext->setText("📊  Fine quiz — vedi risultati");
+        m_quizNext->setText(tr("📊  Fine quiz — vedi risultati"));
     } else {
         m_quizNext->setText(QString("Prossima domanda → (%1/%2)")
                             .arg(m_quiz.currentQ + 1).arg(m_quiz.totalQ));
@@ -709,7 +709,7 @@ void ImparaPage::endSession() {
 
     /* Ripristina per nuovo quiz */
     m_quiz.currentQ = 0;
-    m_quizGen->setText("▶  Nuovo Quiz");
+    m_quizGen->setText(tr("▶  Nuovo Quiz"));
     m_quizGen->setEnabled(true);
 }
 

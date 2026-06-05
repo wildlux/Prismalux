@@ -118,7 +118,7 @@ inline QString modelsDir()
 {
     const QStringList candidates = {
         root() + "/models",
-        root() + "/llama_cpp_studio/models",
+        root() + "/ENGINE_LLM/llama_cpp_studio/models",
     };
     for (const QString& d : candidates)
         if (QDir(d).exists()) return d;
@@ -138,7 +138,7 @@ inline QStringList scanGgufFiles()
     /* Cartelle da ispezionare in ordine */
     const QStringList dirs = {
         modelsDir(),
-        root() + "/llama_cpp_studio/models",
+        root() + "/ENGINE_LLM/llama_cpp_studio/models",
     };
 
     QStringList result;
@@ -167,15 +167,15 @@ inline QString exeExt()
 /**
  * llamaServerBin() — Path al binario llama-server.
  *
- * Cerca prima dentro llama_cpp_studio/ (compilazione tramite aggiorna.sh --llama-studio),
- * poi in llama.cpp/ alla radice.
+ * Cerca prima dentro ENGINE_LLM/llama_cpp_studio/ (compilazione tramite aggiorna.sh --llama-studio),
+ * poi in ENGINE_LLM/llama.cpp/ alla radice.
  */
 inline QString llamaServerBin()
 {
     const QString ext = exeExt();
     const QStringList candidates = {
-        root() + "/llama_cpp_studio/llama.cpp/build/bin/llama-server" + ext,
-        root() + "/llama.cpp/build/bin/llama-server" + ext,
+        root() + "/ENGINE_LLM/llama_cpp_studio/llama.cpp/build/bin/llama-server" + ext,
+        root() + "/ENGINE_LLM/llama.cpp/build/bin/llama-server" + ext,
     };
     for (const QString& b : candidates)
         if (QFileInfo::exists(b)) return b;
@@ -189,8 +189,8 @@ inline QString llamaCliBin()
 {
     const QString ext = exeExt();
     const QStringList candidates = {
-        root() + "/llama_cpp_studio/llama.cpp/build/bin/llama-cli" + ext,
-        root() + "/llama.cpp/build/bin/llama-cli" + ext,
+        root() + "/ENGINE_LLM/llama_cpp_studio/llama.cpp/build/bin/llama-cli" + ext,
+        root() + "/ENGINE_LLM/llama.cpp/build/bin/llama-cli" + ext,
     };
     for (const QString& b : candidates)
         if (QFileInfo::exists(b)) return b;
@@ -198,12 +198,12 @@ inline QString llamaCliBin()
 }
 
 /**
- * llamaStudioDir() — Cartella llama_cpp_studio (con config.json, llama.cpp/, etc.).
+ * llamaStudioDir() — Cartella ENGINE_LLM/llama_cpp_studio (con config.json, llama.cpp/, etc.).
  */
 inline QString llamaStudioDir()
 {
     const QStringList candidates = {
-        root() + "/llama_cpp_studio",
+        root() + "/ENGINE_LLM/llama_cpp_studio",
     };
     for (const QString& d : candidates)
         if (QDir(d).exists()) return d;
@@ -421,7 +421,7 @@ inline QString lanTokenPath()
 /** userKnowledgePath() — Percorso del file memoria persistente utente. */
 inline QString userKnowledgePath()
 {
-    return root() + "/KNOWLEDGE_USER/user_knowledge.md";
+    return root() + "/TOOL_TIP/KNOWLEDGE_USER/user_knowledge.md";
 }
 
 /* Stato cache per readUserKnowledge() — esposto per invalidateKnowledgeCache(). */
@@ -486,7 +486,7 @@ inline QString prependKnowledge(const QString& systemPrompt)
 /** mathKnowledgePath() — Percorso cache conoscenza matematica (estratta da RAG/Matematica.pdf). */
 inline QString mathKnowledgePath()
 {
-    return root() + "/KNOWLEDGE_USER/math_knowledge.md";
+    return root() + "/TOOL_TIP/KNOWLEDGE_USER/math_knowledge.md";
 }
 
 /* Stato cache per readMathKnowledge() */
@@ -556,18 +556,18 @@ inline void repolish(QWidget* w)
    ══════════════════════════════════════════════════════════════ */
 
 /**
- * whisperDir() — Cartella sorgente whisper.cpp dentro il progetto.
- *   root() = Prismalux/  →  Prismalux/whisper.cpp/
+ * whisperDir() — Cartella whisper dentro il progetto.
+ *   root() = Prismalux/  →  Prismalux/Frameworks/whisper/
  */
 inline QString whisperDir()
 {
-    return root() + "/whisper.cpp";
+    return root() + "/Frameworks/whisper";
 }
 
 /**
  * whisperBin() — Binario whisper-cli.
  * Cerca in ordine:
- *   1. Posizione progetto (root/whisper.cpp/build/...)
+ *   1. Posizione progetto (root/Frameworks/whisper/build/...)
  *   2. Vecchia posizione (~/.prismalux/whisper.cpp/build/...)
  *   3. PATH di sistema (sudo apt install whisper-cpp)
  * Restituisce stringa vuota se non trovato.
@@ -594,11 +594,11 @@ inline QString whisperBin()
 
 /**
  * whisperModelsDir() — Cartella modelli GGML dentro il progetto.
- *   Prismalux/whisper.cpp/models/
+ *   Prismalux/Frameworks/whisper/models/
  */
 inline QString whisperModelsDir()
 {
-    return root() + "/whisper.cpp/models";
+    return root() + "/Frameworks/whisper/models";
 }
 
 /**

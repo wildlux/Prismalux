@@ -128,7 +128,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         /* La connessione viene completata dopo la creazione di grid_w (vedi sotto) */
 #else
         sysCb->setEnabled(false);
-        sysCb->setToolTip("Richiede Qt 6.5 o superiore.");
+        sysCb->setToolTip(tr("Richiede Qt 6.5 o superiore."));
 #endif
 
         auto* sysHint = new QLabel(
@@ -175,7 +175,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
 
         auto* radiusPreview = new QLabel(secBolle);
         radiusPreview->setObjectName("cardDesc");
-        radiusPreview->setText("(applicato alle nuove bolle)");
+        radiusPreview->setText(tr("(applicato alle nuove bolle)"));
 
         auto updateRadius = [radiusSpin, radiusPreview]() {
             QSettings("Prismalux", "GUI").setValue(P::SK::kBubbleRadius, radiusSpin->value());

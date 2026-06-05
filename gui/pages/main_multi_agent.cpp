@@ -119,7 +119,7 @@ QWidget* AgentiMultiPage::buildInputBar()
     titleRow->addWidget(title, 1);
 
     m_modelCombo = new ModelComboBox(m_ai, bar);
-    m_modelCombo->setToolTip("Modello LLM usato da master e sub-agenti");
+    m_modelCombo->setToolTip(tr("Modello LLM usato da master e sub-agenti"));
     titleRow->addWidget(m_modelCombo);
     lay->addLayout(titleRow);
 
@@ -219,7 +219,7 @@ QWidget* AgentiMultiPage::buildOutputPanel()
     m_dotView->setObjectName("chatLog");
     m_dotView->setReadOnly(true);
     m_dotView->setLineWrapMode(QPlainTextEdit::NoWrap);
-    m_dotView->setPlaceholderText("Il grafo Graphviz DOT della memoria condivisa...");
+    m_dotView->setPlaceholderText(tr("Il grafo Graphviz DOT della memoria condivisa..."));
     m_outputTabs->addTab(m_dotView, "\xf0\x9f\x95\xb8  Grafo DOT");
 
     /* Tab 3: JSON memoria */
@@ -227,7 +227,7 @@ QWidget* AgentiMultiPage::buildOutputPanel()
     m_jsonView->setObjectName("chatLog");
     m_jsonView->setReadOnly(true);
     m_jsonView->setLineWrapMode(QPlainTextEdit::NoWrap);
-    m_jsonView->setPlaceholderText("Dump JSON della GraphMemory...");
+    m_jsonView->setPlaceholderText(tr("Dump JSON della GraphMemory..."));
     m_outputTabs->addTab(m_jsonView, "\xf0\x9f\x93\x8b  JSON");
 
     return m_outputTabs;
@@ -257,7 +257,7 @@ QWidget* AgentiMultiPage::buildMemoryBar()
         "\xf0\x9f\x93\x84  Esporta TXT", bar);  /* 📄 */
     m_btnExportTxt->setObjectName("navBtn");
     m_btnExportTxt->setFixedHeight(dpiScale(24));
-    m_btnExportTxt->setToolTip("Salva snapshot testuale della memoria condivisa");
+    m_btnExportTxt->setToolTip(tr("Salva snapshot testuale della memoria condivisa"));
     connect(m_btnExportTxt, &QPushButton::clicked,
             this, &AgentiMultiPage::onExportTxtClicked);
     lay->addWidget(m_btnExportTxt);
@@ -266,7 +266,7 @@ QWidget* AgentiMultiPage::buildMemoryBar()
         "\xf0\x9f\x97\x91  Svuota Grafo", bar);  /* 🗑 */
     m_btnClearMem->setObjectName("navBtn");
     m_btnClearMem->setFixedHeight(dpiScale(24));
-    m_btnClearMem->setToolTip("Cancella tutta la memoria a grafo (irreversibile)");
+    m_btnClearMem->setToolTip(tr("Cancella tutta la memoria a grafo (irreversibile)"));
     connect(m_btnClearMem, &QPushButton::clicked,
             this, &AgentiMultiPage::onClearMemClicked);
     lay->addWidget(m_btnClearMem);

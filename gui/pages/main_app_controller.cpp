@@ -609,7 +609,7 @@ QWidget* AppControllerPage::buildBlenderTab()
     m_blenderOutput = new QTextEdit(w);
     m_blenderOutput->setReadOnly(true);
     m_blenderOutput->setObjectName("outputView");
-    m_blenderOutput->setPlaceholderText("Output AI apparirà qui...");
+    m_blenderOutput->setPlaceholderText(tr("Output AI apparirà qui..."));
     m_blenderOutput->setMaximumHeight(dpiScale(160));
     lay->addWidget(m_blenderOutput, 0);
 
@@ -809,7 +809,7 @@ QWidget* AppControllerPage::buildFreeCADTab()
     m_freecadOutput = new QTextEdit(w);
     m_freecadOutput->setReadOnly(true);
     m_freecadOutput->setObjectName("outputView");
-    m_freecadOutput->setPlaceholderText("Output AI e FreeCAD apparirà qui...");
+    m_freecadOutput->setPlaceholderText(tr("Output AI e FreeCAD apparirà qui..."));
     lay->addWidget(m_freecadOutput, 1);
 
     /* ── Connessioni ── */
@@ -934,7 +934,7 @@ QWidget* AppControllerPage::buildOfficeTab()
     m_officeOutput = new QTextEdit(w);
     m_officeOutput->setReadOnly(true);
     m_officeOutput->setObjectName("outputView");
-    m_officeOutput->setPlaceholderText("Output AI e Office apparirà qui...");
+    m_officeOutput->setPlaceholderText(tr("Output AI e Office apparirà qui..."));
     lay->addWidget(m_officeOutput, 1);
 
     /* ── Connessioni bridge ── */
@@ -1008,7 +1008,7 @@ QWidget* AppControllerPage::buildCloudCompareTab()
     m_ccOutput = new QTextEdit(w);
     m_ccOutput->setReadOnly(true);
     m_ccOutput->setObjectName("outputView");
-    m_ccOutput->setPlaceholderText("Output CloudCompare apparirà qui (prossimamente)...");
+    m_ccOutput->setPlaceholderText(tr("Output CloudCompare apparirà qui (prossimamente)..."));
 
     lay->addWidget(group, 1);
     lay->addWidget(m_ccOutput, 1);
@@ -1196,7 +1196,7 @@ QWidget* AppControllerPage::buildAnkiTab()
 
     m_ankiDeckEdit = new QLineEdit("Default", toolRow);
     m_ankiDeckEdit->setFixedWidth(dpiScale(120));
-    m_ankiDeckEdit->setToolTip("Nome deck Anki destinazione");
+    m_ankiDeckEdit->setToolTip(tr("Nome deck Anki destinazione"));
     auto* deckEdit = m_ankiDeckEdit;  // alias per il layout
 
     m_ankiModel = new ModelComboBox(m_ai, toolRow);
@@ -1238,7 +1238,7 @@ QWidget* AppControllerPage::buildAnkiTab()
     m_ankiOutput = new QTextEdit(w);
     m_ankiOutput->setReadOnly(true);
     m_ankiOutput->setObjectName("outputView");
-    m_ankiOutput->setPlaceholderText("Le carte generate appariranno qui in formato JSON...");
+    m_ankiOutput->setPlaceholderText(tr("Le carte generate appariranno qui in formato JSON..."));
     lay->addWidget(m_ankiOutput, 1);
 
     /* ── NAM per AnkiConnect ── */
@@ -1304,7 +1304,7 @@ void AppControllerPage::execAnkiAction(const QString& deck, const QString& cards
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setTransferTimeout(10000);
 
-    m_ankiStatusLbl->setText("\xf0\x9f\x94\x84  Invio carte ad Anki...");
+    m_ankiStatusLbl->setText(tr("\xf0\x9f\x94\x84  Invio carte ad Anki..."));
     m_ankiPendingCount = notes.size();
     m_ankiPendingReply = m_ankiNam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
     connect(m_ankiPendingReply, &QNetworkReply::finished,
@@ -1423,7 +1423,7 @@ QWidget* AppControllerPage::buildKiCADTab()
     m_kicadOutput = new QTextEdit(w);
     m_kicadOutput->setReadOnly(true);
     m_kicadOutput->setObjectName("outputView");
-    m_kicadOutput->setPlaceholderText("Script Python KiCAD appari\xc3\xa0 qui...");
+    m_kicadOutput->setPlaceholderText(tr("Script Python KiCAD appari\xc3\xa0 qui..."));
     lay->addWidget(m_kicadOutput, 1);
 
     /* ── NAM per KiCAD ── */
@@ -1459,7 +1459,7 @@ void AppControllerPage::execKiCADAction(const QString& code)
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setTransferTimeout(15000);
 
-    m_kicadStatusLbl->setText("\xf0\x9f\x94\x84  Invio a KiCAD...");
+    m_kicadStatusLbl->setText(tr("\xf0\x9f\x94\x84  Invio a KiCAD..."));
     m_kicadExecBtn->setEnabled(false);
     m_kicadPendingReply = m_kicadNam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
     connect(m_kicadPendingReply, &QNetworkReply::finished,
@@ -1804,7 +1804,7 @@ QWidget* AppControllerPage::buildOBSTab()
     m_obsOutput->setReadOnly(true);
     m_obsOutput->setObjectName("outputView");
     m_obsOutput->setOpenLinks(false);
-    m_obsOutput->setPlaceholderText("Script Python OBS apparir\xc3\xa0 qui...");
+    m_obsOutput->setPlaceholderText(tr("Script Python OBS apparir\xc3\xa0 qui..."));
     connect(m_obsOutput, &QTextBrowser::anchorClicked,
             this, &AppControllerPage::onPipLinkClicked);
     lay->addWidget(m_obsOutput, 1);
@@ -1854,7 +1854,7 @@ void AppControllerPage::detectSerialPorts()
 
     if (found.isEmpty()) {
         m_mcuPort->addItem("(nessuna porta rilevata)");
-        m_mcuStatusLbl->setText("\xe2\x9a\xaa  Nessun MCU rilevato — connetti via USB");
+        m_mcuStatusLbl->setText(tr("\xe2\x9a\xaa  Nessun MCU rilevato — connetti via USB"));
     } else {
         for (const auto& p : found)
             m_mcuPort->addItem(p);
@@ -1916,14 +1916,14 @@ QWidget* AppControllerPage::buildTelegramTab()
         lay->addWidget(banner);
 
         QObject::connect(goBtn, &QPushButton::clicked, this,
-            [this]() { emit openSettingsDipendenze("python-telegram-bot==13.*"); });
+            [this]() { emit openSettingsDipendenze("python-telegram-bot"); });
 
         auto* chk = new QProcess(w);
         QObject::connect(chk, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             banner, [banner](int code, QProcess::ExitStatus) {
                 if (code != 0) banner->show();
             });
-        chk->start("python3", {"-c", "import telegram"});
+        chk->start("python3", {"-c", "from telegram.ext import Application"});
     }
 
     /* ════════════════════════════════════════════════════════
@@ -1950,10 +1950,10 @@ QWidget* AppControllerPage::buildTelegramTab()
     auto* tokenLbl = new QLabel("Token:", step1);
     tokenLbl->setFixedWidth(dpiScale(60));
     m_telegramTokenEdit = new QLineEdit(step1);
-    m_telegramTokenEdit->setPlaceholderText("7123456789:AAF-DEFxxx...");
+    m_telegramTokenEdit->setPlaceholderText(tr("7123456789:AAF-DEFxxx..."));
     m_telegramTokenEdit->setEchoMode(QLineEdit::Password);
     auto* eyeBtn = new QPushButton("\xf0\x9f\x91\x81", step1);   /* 👁 */
-    eyeBtn->setToolTip("Mostra / nascondi token");
+    eyeBtn->setToolTip(tr("Mostra / nascondi token"));
     eyeBtn->setFixedWidth(dpiScale(36));
     eyeBtn->setCheckable(true);
     auto* saveTokenBtn = new QPushButton(
@@ -2136,7 +2136,7 @@ QWidget* AppControllerPage::buildTelegramTab()
         QSettings s("Prismalux", "GUI");
         s.setValue("telegram/token",     m_telegramTokenEdit->text().trimmed());
         s.setValue("telegram/whitelist", m_telegramWhitelistEdit->text().trimmed());
-        m_telegramStatusLbl->setText("\xe2\x9c\x85  Token salvato");
+        m_telegramStatusLbl->setText(tr("\xe2\x9c\x85  Token salvato"));
     });
 
     connect(m_telegramStartBtn, &QPushButton::clicked,
@@ -2186,7 +2186,7 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     auto* bridgeLbl = new QLabel("Bridge URL:", cfgGroup);
     bridgeLbl->setFixedWidth(dpiScale(90));
     m_waBridgeUrlEdit = new QLineEdit(cfgGroup);
-    m_waBridgeUrlEdit->setPlaceholderText("http://localhost:3000");
+    m_waBridgeUrlEdit->setPlaceholderText(tr("http://localhost:3000"));
     auto* saveBridgeBtn = new QPushButton(
         "\xf0\x9f\x92\xbe  Salva", cfgGroup);
     saveBridgeBtn->setObjectName("actionBtn");
@@ -2226,7 +2226,7 @@ QWidget* AppControllerPage::buildWhatsAppTab()
 
     auto* promoAddRow = new QHBoxLayout;
     m_waPromoContactEdit = new QLineEdit(promoGroup);
-    m_waPromoContactEdit->setPlaceholderText("+393331234567");
+    m_waPromoContactEdit->setPlaceholderText(tr("+393331234567"));
     auto* waAddBtn = new QPushButton(
         "\xe2\x9e\x95  Aggiungi", promoGroup);
     waAddBtn->setObjectName("actionBtn");
@@ -2284,7 +2284,7 @@ QWidget* AppControllerPage::buildWhatsAppTab()
     auto* wlLbl = new QLabel("Whitelist numeri:", botGroup);
     wlLbl->setFixedWidth(dpiScale(120));
     m_waWhitelistEdit = new QLineEdit(botGroup);
-    m_waWhitelistEdit->setPlaceholderText("+393331234567, +391234567890 (virgola = separatore)");
+    m_waWhitelistEdit->setPlaceholderText(tr("+393331234567, +391234567890 (virgola = separatore)"));
     wlRow->addWidget(wlLbl);
     wlRow->addWidget(m_waWhitelistEdit, 1);
     botLay->addLayout(wlRow);
@@ -2357,7 +2357,7 @@ QWidget* AppControllerPage::buildWhatsAppTab()
         s.setValue("whatsapp/bridge_url", m_waBridgeUrlEdit->text().trimmed());
         s.setValue("whatsapp/bot_whitelist", m_waWhitelistEdit->text().trimmed());
         s.setValue("whatsapp/bot_auto_reply", m_waAutoReplyCheck->isChecked());
-        m_waPromoStatusLbl->setText("\xe2\x9c\x85  URL salvato");
+        m_waPromoStatusLbl->setText(tr("\xe2\x9c\x85  URL salvato"));
     });
 
     connect(waAddBtn, &QPushButton::clicked,
@@ -2469,7 +2469,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
     m_devLog->setReadOnly(true);
     m_devLog->setOpenLinks(false);
     m_devLog->setMinimumHeight(dpiScale(140));
-    m_devLog->setPlaceholderText("I passi dell'agente appariranno qui...");
+    m_devLog->setPlaceholderText(tr("I passi dell'agente appariranno qui..."));
     m_devLog->setFont(QFont("JetBrains Mono,Fira Code,Consolas", 9));
     connect(m_devLog, &QTextBrowser::anchorClicked,
             this, &AppControllerPage::onPipLinkClicked);
@@ -2493,7 +2493,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
     m_devDiff = new QTextEdit(diffGroup);
     m_devDiff->setReadOnly(true);
     m_devDiff->setMinimumHeight(dpiScale(100));
-    m_devDiff->setPlaceholderText("Il diff unificato apparirà qui al termine...");
+    m_devDiff->setPlaceholderText(tr("Il diff unificato apparirà qui al termine..."));
     m_devDiff->setFont(QFont("JetBrains Mono,Fira Code,Consolas", 9));
     diffLay->addWidget(m_devDiff);
     leftColLay->addWidget(diffGroup, 1);
@@ -2529,7 +2529,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
 
     m_devHistoryList = new QListWidget(histGroup);
     m_devHistoryList->setFixedHeight(dpiScale(110));
-    m_devHistoryList->setToolTip("Seleziona uno snapshot da ripristinare");
+    m_devHistoryList->setToolTip(tr("Seleziona uno snapshot da ripristinare"));
     histLay->addWidget(m_devHistoryList);
 
     auto* histCtrlRow = new QHBoxLayout;
@@ -2559,7 +2559,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
     auto* branchLbl = new QLabel("Branch:", gitGroup);
     branchLbl->setFixedWidth(dpiScale(55));
     m_devGitBranchEdit = new QLineEdit(gitGroup);
-    m_devGitBranchEdit->setText("master");
+    m_devGitBranchEdit->setText(tr("master"));
     m_devGitBranchEdit->setFixedWidth(dpiScale(90));
     auto* fetchResetBtn = new QPushButton(
         "\xf0\x9f\x8c\x90  Fetch + Reset da GitHub", gitGroup);
@@ -2585,7 +2585,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
     auto* gitLogRefresh = new QPushButton("\xf0\x9f\x94\x84", gitGroup);
     gitLogRefresh->setObjectName("actionBtn");
     gitLogRefresh->setFixedWidth(dpiScale(32));
-    gitLogRefresh->setToolTip("Aggiorna log git");
+    gitLogRefresh->setToolTip(tr("Aggiorna log git"));
     gitLogRow->addWidget(gitLogLbl, 0, Qt::AlignTop);
     gitLogRow->addWidget(m_devGitLogList, 1);
     gitLogRow->addWidget(gitLogRefresh, 0, Qt::AlignTop);
@@ -2605,11 +2605,11 @@ QWidget* AppControllerPage::buildDevAgentTab()
     auto* stashPushBtn = new QPushButton(
         "\xf0\x9f\x93\xa6  Stash modifiche", gitGroup);
     stashPushBtn->setObjectName("actionBtn");
-    stashPushBtn->setToolTip("git stash push — salva le modifiche correnti in uno stash");
+    stashPushBtn->setToolTip(tr("git stash push — salva le modifiche correnti in uno stash"));
 
     m_devStashList = new QListWidget(gitGroup);
     m_devStashList->setFixedHeight(dpiScale(60));
-    m_devStashList->setToolTip("Lista degli stash git disponibili");
+    m_devStashList->setToolTip(tr("Lista degli stash git disponibili"));
 
     m_devGitStashPopBtn = new QPushButton(
         "\xf0\x9f\x93\xa4  Applica stash selezionato", gitGroup);
@@ -2619,7 +2619,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
     auto* stashListRefresh = new QPushButton("\xf0\x9f\x94\x84", gitGroup);
     stashListRefresh->setObjectName("actionBtn");
     stashListRefresh->setFixedWidth(dpiScale(32));
-    stashListRefresh->setToolTip("Aggiorna lista stash");
+    stashListRefresh->setToolTip(tr("Aggiorna lista stash"));
 
     stashRow->addWidget(stashPushBtn);
     stashRow->addWidget(m_devGitStashPopBtn);

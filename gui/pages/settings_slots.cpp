@@ -93,8 +93,8 @@ void ImpostazioniPage::populateOllamaModels()
 {
     if (!m_aiModelList) return;
     m_aiModelList->clear();
-    if (m_aiHintLbl)   m_aiHintLbl->setText("Caricamento modelli Ollama...");
-    if (m_aiStatusLbl) m_aiStatusLbl->setText("\xe2\x8f\xb3 Ollama...");
+    if (m_aiHintLbl)   m_aiHintLbl->setText(tr("Caricamento modelli Ollama..."));
+    if (m_aiStatusLbl) m_aiStatusLbl->setText(tr("\xe2\x8f\xb3 Ollama..."));
     if (m_aiUseBtn)    m_aiUseBtn->setEnabled(false);
 
     auto* holder = new QObject(this);
@@ -104,7 +104,7 @@ void ImpostazioniPage::populateOllamaModels()
         if (!m_aiModelList) return;
         m_aiModelList->clear();
         if (list.isEmpty()) {
-            if (m_aiStatusLbl) m_aiStatusLbl->setText("\xe2\x9d\x8c Nessun modello");
+            if (m_aiStatusLbl) m_aiStatusLbl->setText(tr("\xe2\x9d\x8c Nessun modello"));
             if (m_aiHintLbl)   m_aiHintLbl->setText(
                 "Ollama non raggiungibile o nessun modello installato.\n"
                 "Avvia Ollama e riprova.");
@@ -136,7 +136,7 @@ void ImpostazioniPage::populateLlamaModels()
 
     const QStringList files = PrismaluxPaths::scanGgufFiles();
     if (files.isEmpty()) {
-        if (m_aiStatusLbl) m_aiStatusLbl->setText("0 modelli");
+        if (m_aiStatusLbl) m_aiStatusLbl->setText(tr("0 modelli"));
         if (m_aiHintLbl)   m_aiHintLbl->setText(
             "Nessun file .gguf trovato.\n"
             "Scarica un modello dalla scheda LLM.");
@@ -261,7 +261,7 @@ void ImpostazioniPage::onOllamaLanBtnClicked()
     env.insert("OLLAMA_HOST", "0.0.0.0:11434");
     m_ollamaLanProc->setProcessEnvironment(env);
     if (m_lanBtn) m_lanBtn->setEnabled(false);
-    if (m_lanStatusLbl) m_lanStatusLbl->setText("\xe2\x8f\xb3 Avvio in corso...");
+    if (m_lanStatusLbl) m_lanStatusLbl->setText(tr("\xe2\x8f\xb3 Avvio in corso..."));
     m_ollamaLanProc->start("ollama", {"serve"});
 }
 
@@ -269,23 +269,23 @@ void ImpostazioniPage::onOllamaLanStarted()
 {
     if (m_lanBtn) {
         m_lanBtn->setEnabled(true);
-        m_lanBtn->setText("\xf0\x9f\x94\xb4  Ferma Ollama LAN");
+        m_lanBtn->setText(tr("\xf0\x9f\x94\xb4  Ferma Ollama LAN"));
     }
     if (m_lanStatusLbl)
-        m_lanStatusLbl->setText("\xe2\x9c\x85 In ascolto su 0.0.0.0:11434");
+        m_lanStatusLbl->setText(tr("\xe2\x9c\x85 In ascolto su 0.0.0.0:11434"));
 }
 
 void ImpostazioniPage::onOllamaLanError(QProcess::ProcessError err)
 {
     if (m_lanBtn) {
         m_lanBtn->setEnabled(true);
-        m_lanBtn->setText("\xf0\x9f\x9f\xa2  Avvia Ollama LAN");
+        m_lanBtn->setText(tr("\xf0\x9f\x9f\xa2  Avvia Ollama LAN"));
     }
     if (m_lanStatusLbl) {
         if (err == QProcess::FailedToStart)
-            m_lanStatusLbl->setText("\xe2\x9d\x8c ollama non trovato nel PATH");
+            m_lanStatusLbl->setText(tr("\xe2\x9d\x8c ollama non trovato nel PATH"));
         else
-            m_lanStatusLbl->setText("\xe2\x9d\x8c Errore di avvio");
+            m_lanStatusLbl->setText(tr("\xe2\x9d\x8c Errore di avvio"));
     }
 }
 
@@ -293,10 +293,10 @@ void ImpostazioniPage::onOllamaLanFinished(int, QProcess::ExitStatus)
 {
     if (m_lanBtn) {
         m_lanBtn->setEnabled(true);
-        m_lanBtn->setText("\xf0\x9f\x9f\xa2  Avvia Ollama LAN");
+        m_lanBtn->setText(tr("\xf0\x9f\x9f\xa2  Avvia Ollama LAN"));
     }
     if (m_lanStatusLbl)
-        m_lanStatusLbl->setText("\xe2\x9a\xaa Inattivo");
+        m_lanStatusLbl->setText(tr("\xe2\x9a\xaa Inattivo"));
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -921,7 +921,7 @@ void ImpostazioniPage::onSandboxPullBtnClicked()
     const QString img = AppConfig::s()
         .value(P::SK::kSandboxImage, "python:3.11-slim").toString();
     m_sandboxPullBtn->setEnabled(false);
-    m_sandboxPullStatus->setText("\xf0\x9f\x94\x84  Pull in corso...");
+    m_sandboxPullStatus->setText(tr("\xf0\x9f\x94\x84  Pull in corso..."));
 
     auto* proc = new QProcess(this);
     proc->setProcessChannelMode(QProcess::MergedChannels);
@@ -1026,7 +1026,7 @@ void ImpostazioniPage::onLlmConsModelChanged(QListWidgetItem* cur, QListWidgetIt
     if (!m_llmConsInstallBtn || !m_llmConsDetailLbl) return;
     if (!cur) {
         m_llmConsInstallBtn->setEnabled(false);
-        m_llmConsDetailLbl->setText("Seleziona un modello per i dettagli.");
+        m_llmConsDetailLbl->setText(tr("Seleziona un modello per i dettagli."));
         return;
     }
     /* Abilita il pulsante; il testo di dettaglio viene aggiornato
@@ -1153,5 +1153,5 @@ void ImpostazioniPage::onMcpOpenFileClicked()
 
 void ImpostazioniPage::onMcpCopyOllamaCmdClicked()
 {
-    QGuiApplication::clipboard()->setText("npx -y ollama-mcp-server");
+    QGuiApplication::clipboard()->setText(tr("npx -y ollama-mcp-server"));
 }

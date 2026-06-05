@@ -115,7 +115,7 @@ void AgentiPage::onSaveKnowledge()
 
     /* ── Dialog ── */
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xf0\x9f\x93\x96  Salva in Knowledge");  /* 📖 */
+    dlg->setWindowTitle(tr("\xf0\x9f\x93\x96  Salva in Knowledge"));  /* 📖 */
     dlg->setMinimumWidth(dpiScale(540));
     dlg->setMinimumHeight(dpiScale(380));
     auto* lay = new QVBoxLayout(dlg);
@@ -334,7 +334,7 @@ void AgentiPage::_finishedKnowledgeExtract() {
         /* Indicatore visivo: "\xf0\x9f\xa7\xa0 Memoria aggiornata" per 3 secondi
            nel waitLabel della toolbar (stile coerente con TTS hide). */
         if (m_waitLbl) {
-            m_waitLbl->setText("\xf0\x9f\xa7\xa0  Memoria aggiornata");
+            m_waitLbl->setText(tr("\xf0\x9f\xa7\xa0  Memoria aggiornata"));
             m_waitLbl->setVisible(true);
             QTimer::singleShot(3000, this, &AgentiPage::onTtsHideWaitLbl);
         }

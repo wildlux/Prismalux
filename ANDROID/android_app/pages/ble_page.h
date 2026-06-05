@@ -29,7 +29,7 @@
      BleCrypto::decryptFromWire() al momento della lettura.
      La chiave simmetrica (256 bit) è generata casualmente al
      primo avvio e persistita in QSettings ("BleCrypto/session_key").
-     Può essere condivisa col peer via QR o PIN (vedere onShareKey()).
+     Può essere condivisa col peer via QR (onShareKey()) o copia manuale (onShowKeyInfo()).
    -------------------------------------------------------------- */
 class BlePage : public QWidget {
     Q_OBJECT
@@ -81,6 +81,7 @@ private slots:
 
     /* Cifratura — gestione chiave */
     void onShowKeyInfo();   /* mostra chiave corrente (Base64) per condivisione manuale */
+    void onShareKey();      /* mostra QR code della chiave per scansione facile */
     void onResetKey();      /* genera nuova chiave e la salva */
     void onToggleCrypto();  /* attiva/disattiva cifratura AES-256-GCM a runtime */
 
@@ -150,5 +151,6 @@ private:
     QLabel*      m_cryptoIndicator  = nullptr;  /* icona lucchetto nella chat */
     QLabel*      m_peerCryptoIndic  = nullptr;  /* icona lucchetto nella peer chat */
     QPushButton* m_keyInfoBtn       = nullptr;  /* mostra/resetta chiave */
+    QPushButton* m_keyShareBtn      = nullptr;  /* QR code condivisione chiave */
     QPushButton* m_cryptoToggleBtn  = nullptr;  /* toggle 🔓/🔒 */
 };

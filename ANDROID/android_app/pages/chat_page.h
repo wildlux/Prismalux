@@ -11,7 +11,6 @@
 #include <QJsonArray>
 #include <QMap>
 #include <QButtonGroup>
-// TODO: aggiungere Qt::Sql a CMakeLists.txt (target_link_libraries ... Qt6::Sql)
 #include <QtSql/QSqlDatabase>
 #include <QtSql/QSqlQuery>
 

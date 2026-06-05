@@ -853,7 +853,7 @@ SimulatorePage::SimulatorePage(AiClient* ai, QWidget* parent)
     m_speedSlider = new QSlider(Qt::Horizontal, navW);
     m_speedSlider->setRange(200, 1500); m_speedSlider->setValue(700);
     m_speedSlider->setFixedWidth(120);
-    m_speedSlider->setToolTip("Sinistra = lento   Destra = veloce");
+    m_speedSlider->setToolTip(tr("Sinistra = lento   Destra = veloce"));
     navL->addWidget(m_speedSlider);
     lay->addWidget(navW);
 

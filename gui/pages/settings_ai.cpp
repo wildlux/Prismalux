@@ -356,7 +356,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
     auto* useBtn = new QPushButton("\xe2\x9c\x94  Usa modello", leftGroup);
     useBtn->setObjectName("actionBtn");
     useBtn->setEnabled(false);
-    useBtn->setToolTip("Imposta il modello selezionato come modello attivo");
+    useBtn->setToolTip(tr("Imposta il modello selezionato come modello attivo"));
     useBtn->setAccessibleName("Attiva modello selezionato");
     leftLay->insertWidget(3, useBtn);
 
@@ -787,9 +787,9 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
           "Avogadro MCP",
           "Visualizzazione molecole 3D (Avogadro2)",
           "Ricerca \xe2\x86\x92 Avogadro" },
-        { "python-telegram-bot==13.*", "telegram",
+        { "python-telegram-bot", "telegram.ext",
           "Telegram Bot",
-          "Bot Telegram locale con risposta AI (v13.x)",
+          "Bot Telegram locale con risposta AI (v20+, Python 3.14 compatibile)",
           "AppController \xe2\x86\x92 Telegram" },
     };
     const int nPkgs = static_cast<int>(sizeof(kPkgs) / sizeof(kPkgs[0]));
@@ -966,7 +966,7 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
         logLbl->show();
         logView->show();
         btn->setEnabled(false);
-        btn->setText("\xe2\x8f\xb3 ...");
+        btn->setText(tr("\xe2\x8f\xb3 ..."));
         logView->append(
             QString("<span style='color:#94a3b8;'>$ pip install %1</span>")
                 .arg(pipPkg));
@@ -1032,15 +1032,15 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
         }
 
         if (missing.isEmpty()) {
-            installAllBtn->setText("\xe2\x9c\x85  Tutto gi\xc3\xa0 installato!");
+            installAllBtn->setText(tr("\xe2\x9c\x85  Tutto gi\xc3\xa0 installato!"));
             QTimer::singleShot(2000, installAllBtn, [installAllBtn]() {
-                installAllBtn->setText("\xf0\x9f\x9a\x80  Installa tutti i mancanti");
+                installAllBtn->setText(tr("\xf0\x9f\x9a\x80  Installa tutti i mancanti"));
             });
             return;
         }
 
         installAllBtn->setEnabled(false);
-        installAllBtn->setText("\xe2\x8f\xb3 Installazione in corso...");
+        installAllBtn->setText(tr("\xe2\x8f\xb3 Installazione in corso..."));
         logLbl->show();
         logView->show();
         logView->append(
@@ -1072,7 +1072,7 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
                     installBtns[idx]->setText(ok ? "\xe2\x9c\x85  OK" : "\xf0\x9f\x92\xbe  Installa");
                     installBtns[idx]->setEnabled(!ok);
                 }
-                installAllBtn->setText("\xf0\x9f\x9a\x80  Installa tutti i mancanti");
+                installAllBtn->setText(tr("\xf0\x9f\x9a\x80  Installa tutti i mancanti"));
                 installAllBtn->setEnabled(true);
                 proc->deleteLater();
             });
@@ -1156,7 +1156,7 @@ QWidget* ImpostazioniPage::buildRagTab()
     m_ragDirEdit = new QLineEdit;
     auto* dirEdit = m_ragDirEdit;   /* alias locale */
     dirEdit->setObjectName("inputLine");
-    dirEdit->setPlaceholderText("/percorso/documenti/");
+    dirEdit->setPlaceholderText(tr("/percorso/documenti/"));
     {
         /* Default: cartella RAG nella home dell'utente corrente.
            Non usare P::root() che potrebbe contenere il path dell'utente
@@ -1174,12 +1174,12 @@ QWidget* ImpostazioniPage::buildRagTab()
     auto* browseBtn = new QPushButton("Sfoglia...");
     browseBtn->setObjectName("actionBtn");
     browseBtn->setFixedWidth(90);
-    browseBtn->setToolTip("Scegli la cartella dove metti i tuoi documenti RAG");
+    browseBtn->setToolTip(tr("Scegli la cartella dove metti i tuoi documenti RAG"));
 
     auto* openDirBtn = new QPushButton("\xf0\x9f\x93\x82");   /* 📂 */
     openDirBtn->setObjectName("actionBtn");
     openDirBtn->setFixedWidth(36);
-    openDirBtn->setToolTip("Apri la cartella nel file manager");
+    openDirBtn->setToolTip(tr("Apri la cartella nel file manager"));
     QObject::connect(openDirBtn, &QPushButton::clicked, dirEdit, [dirEdit] {
         const QString d = dirEdit->text().trimmed();
         if (!d.isEmpty() && QDir(d).exists())
@@ -1309,7 +1309,7 @@ QWidget* ImpostazioniPage::buildRagTab()
         auto* embedLbl = new QLabel("Modello embedding:");
         embedLbl->setObjectName("hintLabel");
         auto* embedEdit = new QLineEdit;
-        embedEdit->setPlaceholderText("nomic-embed-text");
+        embedEdit->setPlaceholderText(tr("nomic-embed-text"));
         embedEdit->setFixedHeight(28);
         {
             const QString saved = AppConfig::s().value(P::SK::kRagEmbedModel, "").toString();
@@ -1746,7 +1746,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
 
     auto* resetBtn = new QPushButton("\xf0\x9f\x94\x84  Ripristina default");
     resetBtn->setObjectName("actionBtn");
-    resetBtn->setToolTip("Ripristina i valori ottimali anti-allucinazione");
+    resetBtn->setToolTip(tr("Ripristina i valori ottimali anti-allucinazione"));
 
     auto* saveBtn  = new QPushButton("\xe2\x9c\x85  Salva");
     saveBtn->setObjectName("actionBtn");
@@ -1828,7 +1828,7 @@ QWidget* ImpostazioniPage::buildSandboxTab()
 
     const QString docker = P::findDocker();
     if (!docker.isEmpty()) {
-        statusIcon->setText("\xf0\x9f\x9f\xa2  Docker disponibile");
+        statusIcon->setText(tr("\xf0\x9f\x9f\xa2  Docker disponibile"));
         statusIcon->setStyleSheet("color:#4ade80;font-weight:bold;");
         statusDesc->setText(
             QString("Daemon raggiungibile: <code>%1</code><br>"
@@ -1836,7 +1836,7 @@ QWidget* ImpostazioniPage::buildSandboxTab()
                     "(rete disabilitata, nessun volume, max RAM configurabile).")
             .arg(docker));
     } else {
-        statusIcon->setText("\xf0\x9f\x94\xb4  Docker non disponibile");
+        statusIcon->setText(tr("\xf0\x9f\x94\xb4  Docker non disponibile"));
         statusIcon->setStyleSheet("color:#f87171;font-weight:bold;");
         statusDesc->setText(
             "Docker non trovato o il daemon non \xc3\xa8 avviato.<br>"
@@ -1874,7 +1874,7 @@ QWidget* ImpostazioniPage::buildSandboxTab()
 
         auto* imgEdit = new QLineEdit(page);
         imgEdit->setObjectName("settingsEdit");
-        imgEdit->setPlaceholderText("python:3.11-slim");
+        imgEdit->setPlaceholderText(tr("python:3.11-slim"));
         {
             imgEdit->setText(AppConfig::s().value(P::SK::kSandboxImage, "python:3.11-slim").toString());
         }
@@ -1926,7 +1926,7 @@ QWidget* ImpostazioniPage::buildSandboxTab()
             const QString img = AppConfig::s()
                 .value(P::SK::kSandboxImage, "python:3.11-slim").toString();
             pullBtn->setEnabled(false);
-            pullStatus->setText("\xf0\x9f\x94\x84  Pull in corso...");
+            pullStatus->setText(tr("\xf0\x9f\x94\x84  Pull in corso..."));
             auto* proc = new QProcess(pullBtn->window());
             proc->setProcessChannelMode(QProcess::MergedChannels);
             connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),

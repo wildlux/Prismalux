@@ -114,14 +114,14 @@ void AgentiPage::buildToolbarTtsSection(QHBoxLayout* toolLay, QWidget* toolbar)
 
     m_btnTtsStop = new QPushButton("\xe2\x8f\xb9 Ferma lettura", toolbar);
     m_btnTtsStop->setObjectName("actionBtn");
-    m_btnTtsStop->setToolTip("Interrompi la lettura vocale");
+    m_btnTtsStop->setToolTip(tr("Interrompi la lettura vocale"));
     m_btnTtsStop->setVisible(false);
     toolLay->addWidget(m_btnTtsStop);
     connect(m_btnTtsStop, &QPushButton::clicked, this, &AgentiPage::onTtsStopClicked);
 
     m_btnTtsPause = new QPushButton("\xe2\x8f\xb8  Pausa", toolbar);
     m_btnTtsPause->setObjectName("actionBtn");
-    m_btnTtsPause->setToolTip("Metti in pausa / riprendi la lettura vocale");
+    m_btnTtsPause->setToolTip(tr("Metti in pausa / riprendi la lettura vocale"));
     m_btnTtsPause->setVisible(false);
     toolLay->addWidget(m_btnTtsPause);
     connect(m_btnTtsPause, &QPushButton::clicked, this, &AgentiPage::onTtsPauseClicked);
@@ -132,13 +132,13 @@ void AgentiPage::buildToolbarExportSection(QHBoxLayout* toolLay, QWidget* toolba
 {
     auto* btnExport = new QPushButton("\xf0\x9f\x92\xbe  Esporta", toolbar);
     btnExport->setObjectName("actionBtn");
-    btnExport->setToolTip("Esporta conversazione (.md / .html / .txt)");
+    btnExport->setToolTip(tr("Esporta conversazione (.md / .html / .txt)"));
     toolLay->addWidget(btnExport);
     connect(btnExport, &QPushButton::clicked, this, &AgentiPage::onBtnExportClicked);
 
     auto* btnExportPdf = new QPushButton("\xf0\x9f\x93\x84  PDF", toolbar);
     btnExportPdf->setObjectName("actionBtn");
-    btnExportPdf->setToolTip("Esporta conversazione (.pdf)");
+    btnExportPdf->setToolTip(tr("Esporta conversazione (.pdf)"));
     toolLay->addWidget(btnExportPdf);
     connect(btnExportPdf, &QPushButton::clicked, this, &AgentiPage::onBtnExportPdfClicked);
 
@@ -152,7 +152,7 @@ void AgentiPage::buildToolbarExportSection(QHBoxLayout* toolLay, QWidget* toolba
 
     auto* btnInfo = new QPushButton("\xe2\x84\xb9  Informazioni", toolbar);  /* ℹ */
     btnInfo->setObjectName("actionBtn");
-    btnInfo->setToolTip("Mostra/nascondi suggerimenti");
+    btnInfo->setToolTip(tr("Mostra/nascondi suggerimenti"));
     toolLay->addWidget(btnInfo);
     connect(btnInfo, &QPushButton::clicked, this, &AgentiPage::onBtnInfoClicked);
 }
@@ -222,7 +222,7 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
     m_cmbLLM = new QComboBox(toolbar);
     m_cmbLLM->setObjectName("settingsCombo");
     m_cmbLLM->setMinimumWidth(dpiScale(160));
-    m_cmbLLM->setToolTip("Seleziona il modello AI da usare.");
+    m_cmbLLM->setToolTip(tr("Seleziona il modello AI da usare."));
     m_cmbLLM->setAccessibleName("Selettore modello AI");
     m_cmbLLM->addItem("(caricamento...)");
     toolLay->addWidget(llmLbl);
@@ -296,14 +296,14 @@ void AgentiPage::buildChartPanel(QVBoxLayout* lay)
 
     m_btnChartOpen = new QPushButton("\xf0\x9f\x93\x88  Apri nel Grafico", m_chartPanel);
     m_btnChartOpen->setObjectName("actionBtn");
-    m_btnChartOpen->setToolTip("Apri nella sezione Grafico per zoom, export e personalizzazione");
+    m_btnChartOpen->setToolTip(tr("Apri nella sezione Grafico per zoom, export e personalizzazione"));
     connect(m_btnChartOpen, &QPushButton::clicked, this, &AgentiPage::onBtnChartOpenClicked);
     cpHL->addWidget(m_btnChartOpen);
 
     auto* cpClose = new QPushButton("\xc3\x97", m_chartPanel);
     cpClose->setObjectName("actionBtn");
     cpClose->setFixedSize(dpiSize(22, 22));
-    cpClose->setToolTip("Chiudi grafico");
+    cpClose->setToolTip(tr("Chiudi grafico"));
     connect(cpClose, &QPushButton::clicked, m_chartPanel, &QWidget::hide);
     cpHL->addWidget(cpClose);
 
@@ -331,7 +331,7 @@ void AgentiPage::buildHistoryPanel(QVBoxLayout* lay)
 
     m_historyList = new QListWidget(histGroup);
     m_historyList->setObjectName("chatLog");
-    m_historyList->setToolTip("Clicca su una voce per riaprire la conversazione");
+    m_historyList->setToolTip(tr("Clicca su una voce per riaprire la conversazione"));
     m_historyList->setMaximumHeight(dpiScale(160));
     histLay->addWidget(m_historyList);
 
@@ -355,13 +355,13 @@ QWidget* AgentiPage::buildHistoryButtonRow(QWidget* parent)
 
     auto* btnNewChat = new QPushButton("\xe2\x9e\x95  Nuova chat", histBtnRow);
     btnNewChat->setObjectName("actionBtn");
-    btnNewChat->setToolTip("Azzera il log e avvia una nuova conversazione");
+    btnNewChat->setToolTip(tr("Azzera il log e avvia una nuova conversazione"));
     histBtnLay->addWidget(btnNewChat);
     connect(btnNewChat, &QPushButton::clicked, this, &AgentiPage::onHistoryNewChatClicked);
 
     auto* btnDelChat = new QPushButton("\xf0\x9f\x97\x91  Cancella", histBtnRow);
     btnDelChat->setObjectName("actionBtn");
-    btnDelChat->setToolTip("Elimina la conversazione selezionata dalla storia");
+    btnDelChat->setToolTip(tr("Elimina la conversazione selezionata dalla storia"));
     histBtnLay->addWidget(btnDelChat);
     connect(btnDelChat, &QPushButton::clicked, this, &AgentiPage::onHistoryDeleteClicked);
 
@@ -398,7 +398,7 @@ void AgentiPage::buildInputTextField(QGridLayout* inputGrid, QWidget* inputArea)
 {
     m_input = new QTextEdit(inputArea);
     m_input->setObjectName("chatInput");
-    m_input->setPlaceholderText("Scrivi la tua domanda...");
+    m_input->setPlaceholderText(tr("Scrivi la tua domanda..."));
     m_input->setAcceptRichText(false);
     m_input->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_input->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -428,30 +428,30 @@ QPushButton* AgentiPage::buildInputActionButtons(QGridLayout* inputGrid, QWidget
 
     m_btnVoice = new QPushButton("\xf0\x9f\x8e\xa4 Voce", inputArea);
     m_btnVoice->setObjectName("actionBtn");
-    m_btnVoice->setToolTip("Parla — trascrivi la voce nel campo di testo (whisper.cpp)");
+    m_btnVoice->setToolTip(tr("Parla — trascrivi la voce nel campo di testo (whisper.cpp)"));
     m_btnVoice->setAccessibleName("Trascrivi voce in testo");
     tagExec(m_btnVoice, "\xf0\x9f\x8e\xa4", "Voce");
 
     auto* btnSymbols = new QPushButton("\xce\xa9  Simboli", inputArea);
     btnSymbols->setObjectName("actionBtn");
-    btnSymbols->setToolTip("Inserisci caratteri speciali: matematica, greco, lingue");
+    btnSymbols->setToolTip(tr("Inserisci caratteri speciali: matematica, greco, lingue"));
     btnSymbols->setAccessibleName("Inserisci simbolo speciale");
 
     m_btnTranslate = new QPushButton("\xf0\x9f\x8c\x90  Traduci", inputArea);
     m_btnTranslate->setObjectName("actionBtn");
-    m_btnTranslate->setToolTip("Traduci il testo selezionando lingue e modello AI");
+    m_btnTranslate->setToolTip(tr("Traduci il testo selezionando lingue e modello AI"));
     m_btnTranslate->setAccessibleName("Traduci testo");
     tagExec(m_btnTranslate, "\xf0\x9f\x8c\x90", "Traduci");
 
     m_btnDoc = new QPushButton("\xf0\x9f\x93\x8e  Documenti", inputArea);
     m_btnDoc->setObjectName("actionBtn");
-    m_btnDoc->setToolTip("Allega documento (.txt, .md, .csv, .json, .py, .cpp, .h, .pdf...)");
+    m_btnDoc->setToolTip(tr("Allega documento (.txt, .md, .csv, .json, .py, .cpp, .h, .pdf...)"));
     m_btnDoc->setAccessibleName("Allega documento al messaggio");
     tagExec(m_btnDoc, "\xf0\x9f\x93\x8e", "Documenti");
 
     m_btnImg = new QPushButton("\xf0\x9f\x96\xbc  Immagini", inputArea);
     m_btnImg->setObjectName("actionBtn");
-    m_btnImg->setToolTip("Allega immagine per vision models (.png, .jpg, .jpeg, .gif, .webp)");
+    m_btnImg->setToolTip(tr("Allega immagine per vision models (.png, .jpg, .jpeg, .gif, .webp)"));
     m_btnImg->setAccessibleName("Allega immagine al messaggio");
     tagExec(m_btnImg, "\xf0\x9f\x96\xbc", "Immagini");
 
@@ -632,7 +632,7 @@ void AgentiPage::buildRagPanel(QVBoxLayout* lay)
     row3Lay->addWidget(urlIco);
 
     m_ragUrlLine = new QLineEdit(row3);
-    m_ragUrlLine->setPlaceholderText("https://... — Aggiungi pagina web al RAG");
+    m_ragUrlLine->setPlaceholderText(tr("https://... — Aggiungi pagina web al RAG"));
     m_ragUrlLine->setClearButtonEnabled(true);
     row3Lay->addWidget(m_ragUrlLine, 1);
 
@@ -673,7 +673,7 @@ void AgentiPage::onRagIngestionDone()
             "\xf0\x9f\x93\x84  Trascina qui PDF / .txt / .md\n"
             "per indicizzarli nel RAG");
     if (m_ragStatusLbl)
-        m_ragStatusLbl->setText("\xe2\x9c\x85  Indicizzato nel RAG");
+        m_ragStatusLbl->setText(tr("\xe2\x9c\x85  Indicizzato nel RAG"));
     /* Nasconde il messaggio dopo 3 secondi via slot nominato */
     if (m_ragStatusLbl)
         QTimer::singleShot(3000, m_ragStatusLbl, &QLabel::clear);
@@ -704,7 +704,7 @@ void AgentiPage::buildHintFooter(QVBoxLayout* lay)
     auto* btnHide = new QPushButton("\xe2\x9c\x95", m_hintWidget);
     btnHide->setFixedSize(dpiSize(18, 18));
     btnHide->setObjectName("hintCloseBtn");
-    btnHide->setToolTip("Nascondi suggerimenti");
+    btnHide->setToolTip(tr("Nascondi suggerimenti"));
     btnHide->setStyleSheet(
         "QPushButton{background:transparent;border:none;color:#475569;"
         "font-size:11px;padding:0;}"
@@ -978,15 +978,15 @@ void AgentiPage::buildExtraConnections()
 void AgentiPage::_setRunBusy(bool busy)
 {
     if (busy) {
-        m_btnRun->setText("\xe2\x8f\xb9 Stop");
+        m_btnRun->setText(tr("\xe2\x8f\xb9 Stop"));
         m_btnRun->setProperty("danger", true);
     } else {
         if (m_autoEnabled)
-            m_btnRun->setText("\xf0\x9f\xa4\x96  Avvia Agente");
+            m_btnRun->setText(tr("\xf0\x9f\xa4\x96  Avvia Agente"));
         else if (m_modePipeline)
-            m_btnRun->setText("\xe2\x96\xb6  Avvia");
+            m_btnRun->setText(tr("\xe2\x96\xb6  Avvia"));
         else
-            m_btnRun->setText("\xf0\x9f\x92\xac CHAT con RAG");
+            m_btnRun->setText(tr("\xf0\x9f\x92\xac CHAT con RAG"));
         m_btnRun->setProperty("danger", false);
     }
     m_btnRun->setEnabled(true);
@@ -1012,7 +1012,7 @@ void AgentiPage::onTtsStopClicked()
     QProcess::startDetached("pkill", {"-9", "piper"});
 #endif
     m_ttsPaused = false;
-    if (m_btnTtsPause) { m_btnTtsPause->setText("\xe2\x8f\xb8  Pausa"); m_btnTtsPause->setVisible(false); }
+    if (m_btnTtsPause) { m_btnTtsPause->setText(tr("\xe2\x8f\xb8  Pausa")); m_btnTtsPause->setVisible(false); }
     m_btnTtsStop->setVisible(false);
 }
 
@@ -1027,12 +1027,12 @@ void AgentiPage::onTtsPauseClicked()
         sendSig(m_ttsProc,   SIGSTOP);
         sendSig(m_piperProc, SIGSTOP);
         m_ttsPaused = true;
-        m_btnTtsPause->setText("\xe2\x96\xb6  Riprendi");
+        m_btnTtsPause->setText(tr("\xe2\x96\xb6  Riprendi"));
     } else {
         sendSig(m_ttsProc,   SIGCONT);
         sendSig(m_piperProc, SIGCONT);
         m_ttsPaused = false;
-        m_btnTtsPause->setText("\xe2\x8f\xb8  Pausa");
+        m_btnTtsPause->setText(tr("\xe2\x8f\xb8  Pausa"));
     }
 #else
     /* Windows: pausa non supportata, simula stop */
@@ -1111,7 +1111,7 @@ void AgentiPage::onVoiceLoopToggled(bool on)
     m_voiceLoopActive = on;
     m_btnVoiceLoop->setStyleSheet(on ? kVoiceOn : kVoiceOff);
     if (on) {
-        m_btnVoiceLoop->setText("\xf0\x9f\x94\xb4  In ascolto...");
+        m_btnVoiceLoop->setText(tr("\xf0\x9f\x94\xb4  In ascolto..."));
     } else {
         const QString pName = P::personalityName();
         m_btnVoiceLoop->setText(pName.isEmpty()
@@ -1163,7 +1163,7 @@ void AgentiPage::onVoiceLoopToggled(bool on)
                 m_recProc = nullptr;
             }
             m_sttState = SttState::Idle;
-            m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
+            m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi voce"));
             m_btnVoice->setProperty("danger","false");
             P::repolish(m_btnVoice);
             m_btnVoice->setEnabled(true);
@@ -1319,7 +1319,7 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
     /* ── Elimina messaggio con conferma ── */
     if (s.startsWith("del:")) {
         QMessageBox ask(this);
-        ask.setWindowTitle("\xf0\x9f\x97\x91  Elimina messaggio");
+        ask.setWindowTitle(tr("\xf0\x9f\x97\x91  Elimina messaggio"));
         ask.setText("<b>Eliminare questo messaggio dalla chat?</b>");
         ask.setInformativeText(
             "Questa operazione \xc3\xa8 irreversibile.");
@@ -1436,7 +1436,7 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         /* Apre un dialog di modifica: l'utente può editare il testo liberamente
            e scegliere se rimpiazzare la bolla nel log o inviare come nuovo task */
         auto* dlg  = new QDialog(this);
-        dlg->setWindowTitle("\xe2\x9c\x8f\xef\xb8\x8f  Modifica testo");
+        dlg->setWindowTitle(tr("\xe2\x9c\x8f\xef\xb8\x8f  Modifica testo"));
         dlg->setMinimumSize(dpiSize(520, 360));
         auto* dlgLay = new QVBoxLayout(dlg);
         dlgLay->setSpacing(10);
@@ -1459,7 +1459,7 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         auto* btnUpdate = btnBox->addButton("Aggiorna bolla \xf0\x9f\x94\x84",
                                             QDialogButtonBox::ApplyRole);
         auto* btnCancel = btnBox->addButton(QDialogButtonBox::Cancel);
-        btnCancel->setText("Annulla");
+        btnCancel->setText(tr("Annulla"));
         dlgLay->addWidget(btnBox);
 
         /* done(1)=task, done(2)=aggiorna bolla, reject=annulla */
@@ -1671,7 +1671,7 @@ bool AgentiPage::_buildTranslateDialog(const QString& inputText,
     };
 
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xf0\x9f\x8c\x90  Traduci testo");
+    dlg->setWindowTitle(tr("\xf0\x9f\x8c\x90  Traduci testo"));
     dlg->setFixedWidth(dpiScale(420));
     auto* dlgLay = new QVBoxLayout(dlg);
     dlgLay->setSpacing(10);
@@ -1717,7 +1717,7 @@ bool AgentiPage::_buildTranslateDialog(const QString& inputText,
 
     auto* bb = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
-    bb->button(QDialogButtonBox::Ok)->setText("\xf0\x9f\x8c\x90  Traduci");
+    bb->button(QDialogButtonBox::Ok)->setText(tr("\xf0\x9f\x8c\x90  Traduci"));
     dlgLay->addWidget(bb);
     connect(bb, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
     connect(bb, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
@@ -1805,7 +1805,7 @@ void AgentiPage::onBtnVoiceClicked()
     if (m_sttState == SttState::Recording) {
         if (m_recProc) { m_recProc->kill(); m_recProc->waitForFinished(300); }
         m_sttState = SttState::Idle;
-        m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
+        m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi voce"));
         m_btnVoice->setProperty("danger","false");
         P::repolish(m_btnVoice);
         m_btnVoice->setEnabled(true);
@@ -2005,7 +2005,7 @@ void AgentiPage::onRagUrlAddClicked()
     if (!m_ragUrlLine) return;
     const QString urlStr = m_ragUrlLine->text().trimmed();
     if (!urlStr.startsWith("http://") && !urlStr.startsWith("https://")) {
-        if (m_ragStatusLbl) m_ragStatusLbl->setText("\xe2\x9a\xa0\xef\xb8\x8f  URL non valido");
+        if (m_ragStatusLbl) m_ragStatusLbl->setText(tr("\xe2\x9a\xa0\xef\xb8\x8f  URL non valido"));
         return;
     }
 
@@ -2018,7 +2018,7 @@ void AgentiPage::onRagUrlAddClicked()
         m_ragUrlReply = nullptr;
     }
 
-    if (m_ragStatusLbl) m_ragStatusLbl->setText("\xf0\x9f\x8c\x90  Recupero pagina...");
+    if (m_ragStatusLbl) m_ragStatusLbl->setText(tr("\xf0\x9f\x8c\x90  Recupero pagina..."));
 
     QNetworkRequest req;
     req.setUrl(QUrl(urlStr));
@@ -2072,7 +2072,7 @@ void AgentiPage::onRagUrlFetched()
         text = text.left(8000) + "\n\n[...]";
 
     if (text.isEmpty()) {
-        if (m_ragStatusLbl) m_ragStatusLbl->setText("\xe2\x9a\xa0\xef\xb8\x8f  Nessun testo trovato");
+        if (m_ragStatusLbl) m_ragStatusLbl->setText(tr("\xe2\x9a\xa0\xef\xb8\x8f  Nessun testo trovato"));
         return;
     }
 

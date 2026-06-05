@@ -377,7 +377,7 @@ fi
 #  1c. whisper.cpp — compilazione da sorgente
 # ══════════════════════════════════════════════════════════════
 if [ "$DO_BUILD_WHISPER" = "1" ]; then
-    WHISPER_SRC="$SCRIPT_DIR/whisper.cpp"
+    WHISPER_SRC="$SCRIPT_DIR/Frameworks/whisper"
     WHISPER_CLI="$WHISPER_SRC/build/bin/whisper-cli${EXE_EXT}"
 
     if [ -f "$WHISPER_CLI" ]; then
@@ -414,7 +414,7 @@ fi
 #  1c. llama.cpp Studio — compila llama-server + llama-cli
 # ══════════════════════════════════════════════════════════════
 if [ "$DO_LLAMA_STUDIO" = "1" ]; then
-    LLAMA_STUDIO_DIR="$SCRIPT_DIR/llama_cpp_studio"
+    LLAMA_STUDIO_DIR="$SCRIPT_DIR/ENGINE_LLM/llama_cpp_studio"
     LLAMA_SRC="$LLAMA_STUDIO_DIR/llama.cpp"
     LLAMA_SERVER="$LLAMA_SRC/build/bin/llama-server${EXE_EXT}"
     LLAMA_CLI="$LLAMA_SRC/build/bin/llama-cli${EXE_EXT}"

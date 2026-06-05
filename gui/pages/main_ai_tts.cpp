@@ -39,7 +39,7 @@ void AgentiPage::_ttsPlay(const QString& tts)
 
     /* Avviso caricamento moduli vocali */
     if (m_waitLbl) {
-        m_waitLbl->setText("\xf0\x9f\x94\x8a  Avvio lettura...");
+        m_waitLbl->setText(tr("\xf0\x9f\x94\x8a  Avvio lettura..."));
         m_waitLbl->setVisible(true);
     }
 
@@ -107,7 +107,7 @@ void AgentiPage::onTtsProcFinished(int, QProcess::ExitStatus)
     if (m_waitLbl)    m_waitLbl->setVisible(false);
     if (m_btnTtsStop) m_btnTtsStop->setVisible(false);
     m_ttsPaused = false;
-    if (m_btnTtsPause) { m_btnTtsPause->setText("\xe2\x8f\xb8  Pausa"); m_btnTtsPause->setVisible(false); }
+    if (m_btnTtsPause) { m_btnTtsPause->setText(tr("\xe2\x8f\xb8  Pausa")); m_btnTtsPause->setVisible(false); }
     if (m_piperProc) {
         m_piperProc->terminate();
         m_piperProc->waitForFinished(300);
@@ -124,7 +124,7 @@ void AgentiPage::onTtsProcError(QProcess::ProcessError err)
     if (m_waitLbl)    m_waitLbl->setVisible(false);
     if (m_btnTtsStop) m_btnTtsStop->setVisible(false);
     m_ttsPaused = false;
-    if (m_btnTtsPause) { m_btnTtsPause->setText("\xe2\x8f\xb8  Pausa"); m_btnTtsPause->setVisible(false); }
+    if (m_btnTtsPause) { m_btnTtsPause->setText(tr("\xe2\x8f\xb8  Pausa")); m_btnTtsPause->setVisible(false); }
     const QString errStr = (err == QProcess::FailedToStart)
         ? "binario non trovato o permessi mancanti"
         : (err == QProcess::Crashed ? "processo terminato inaspettatamente" : "errore sconosciuto");

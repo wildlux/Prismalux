@@ -761,7 +761,7 @@ QWidget* StrumentiPage::buildCodeModelRow()
 
     m_codeModelRefresh = new QPushButton("\xf0\x9f\x94\x84", m_codeModelRow);
     m_codeModelRefresh->setFixedWidth(32);
-    m_codeModelRefresh->setToolTip("Aggiorna lista modelli");
+    m_codeModelRefresh->setToolTip(tr("Aggiorna lista modelli"));
     lay->addWidget(m_codeModelRefresh);
 
     m_codeModelInfo = new QLabel(m_codeModelRow);
@@ -800,7 +800,7 @@ QWidget* StrumentiPage::buildInputRow()
 
     m_btnRun = new QPushButton("\xe2\x96\xb6  Esegui", m_inputRow);
     m_btnRun->setObjectName("actionBtn");
-    m_btnRun->setToolTip("Invia la richiesta al modello AI (Invio+Ctrl)");
+    m_btnRun->setToolTip(tr("Invia la richiesta al modello AI (Invio+Ctrl)"));
     m_btnRun->setAccessibleName("Esegui richiesta AI");
     m_btnRun->setFixedWidth(110);
 
@@ -882,7 +882,7 @@ QWidget* StrumentiPage::buildRagRow()
     auto* ragAddBtn = new QPushButton("\xf0\x9f\x93\x82  Aggiungi", row);
     ragAddBtn->setObjectName("actionBtn");
     ragAddBtn->setFixedWidth(100);
-    ragAddBtn->setToolTip("Aggiungi PDF, TXT o Markdown all'indice RAG");
+    ragAddBtn->setToolTip(tr("Aggiungi PDF, TXT o Markdown all'indice RAG"));
     lay->addWidget(ragAddBtn);
 
     m_ragInfoLbl = new QLabel("Nessun documento caricato", row);
@@ -891,7 +891,7 @@ QWidget* StrumentiPage::buildRagRow()
 
     auto* ragClearBtn = new QPushButton("\xf0\x9f\x97\x91  Svuota", row);
     ragClearBtn->setObjectName("actionBtn");
-    ragClearBtn->setToolTip("Rimuove tutti i documenti dall'indice RAG in-page");
+    ragClearBtn->setToolTip(tr("Rimuove tutti i documenti dall'indice RAG in-page"));
     ragClearBtn->setFixedWidth(80);
     lay->addWidget(ragClearBtn);
 
@@ -950,7 +950,7 @@ QWidget* StrumentiPage::buildBlenderRow()
 
     m_blenderHostEdit = new QLineEdit("localhost:6789", row);
     m_blenderHostEdit->setFixedWidth(160);
-    m_blenderHostEdit->setPlaceholderText("localhost:6789");
+    m_blenderHostEdit->setPlaceholderText(tr("localhost:6789"));
 
     auto* blenderPingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", row);
     blenderPingBtn->setObjectName("actionBtn");
@@ -1113,7 +1113,7 @@ QWidget* StrumentiPage::buildFreecadRow()
 
     m_freecadHostEdit = new QLineEdit("localhost:9876", row);
     m_freecadHostEdit->setFixedWidth(160);
-    m_freecadHostEdit->setPlaceholderText("localhost:9876");
+    m_freecadHostEdit->setPlaceholderText(tr("localhost:9876"));
 
     auto* freecadPingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", row);
     freecadPingBtn->setObjectName("actionBtn");
@@ -1296,7 +1296,7 @@ void StrumentiPage::runTool(const QString& sys, const QString& userMsg) {
     }
 
     m_output->clear();
-    m_waitLbl->setText("\xf0\x9f\x94\x84  Elaborazione in corso...");
+    m_waitLbl->setText(tr("\xf0\x9f\x94\x84  Elaborazione in corso..."));
     m_waitLbl->setVisible(true); m_waitBar->setVisible(true);
     m_active = true;
     _setRunBusy(true);
@@ -1382,10 +1382,10 @@ void StrumentiPage::onError(const QString& msg) {
 void StrumentiPage::_setRunBusy(bool busy)
 {
     if (busy) {
-        m_btnRun->setText("\xe2\x8f\xb9  Stop");
+        m_btnRun->setText(tr("\xe2\x8f\xb9  Stop"));
         m_btnRun->setProperty("danger", true);
     } else {
-        m_btnRun->setText("\xe2\x96\xb6  Esegui");
+        m_btnRun->setText(tr("\xe2\x96\xb6  Esegui"));
         m_btnRun->setProperty("danger", false);
     }
     m_btnRun->setEnabled(true);
@@ -1700,7 +1700,7 @@ void StrumentiPage::onRagClearBtnClicked()
     m_ragChunks.clear();
     m_ragFileNames.clear();
     m_ragCheck->setChecked(false);
-    m_ragInfoLbl->setText("Nessun documento caricato");
+    m_ragInfoLbl->setText(tr("Nessun documento caricato"));
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1722,7 +1722,7 @@ void StrumentiPage::onPdfBtnClicked()
 void StrumentiPage::onBlenderHelpBtnClicked()
 {
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xf0\x9f\x8e\xa8  Installazione Blender MCP");
+    dlg->setWindowTitle(tr("\xf0\x9f\x8e\xa8  Installazione Blender MCP"));
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->resize(560, 500);
     auto* dlay = new QVBoxLayout(dlg);
@@ -1812,7 +1812,7 @@ void StrumentiPage::onBlenderExecBtnClicked()
     req.setTransferTimeout(20000);
 
     m_blenderExecBtn->setEnabled(false);
-    m_blenderStatusLbl->setText("\xf0\x9f\x94\x84  Invio a Blender...");
+    m_blenderStatusLbl->setText(tr("\xf0\x9f\x94\x84  Invio a Blender..."));
 
     auto* reply = m_blenderNam->post(req, body);
     connect(reply, &QNetworkReply::finished,
@@ -1828,11 +1828,11 @@ void StrumentiPage::onBlenderExecReplyFinished()
     if (reply->error() == QNetworkReply::NoError) {
         QJsonObject res = QJsonDocument::fromJson(reply->readAll()).object();
         if (res["ok"].toBool()) {
-            m_blenderStatusLbl->setText("\xe2\x9c\x85  Eseguito");
+            m_blenderStatusLbl->setText(tr("\xe2\x9c\x85  Eseguito"));
             QString out = res["output"].toString();
             m_output->append("\n\xe2\x9c\x85  Blender: " + (out.isEmpty() ? "OK" : out));
         } else {
-            m_blenderStatusLbl->setText("\xe2\x9d\x8c  Errore Blender");
+            m_blenderStatusLbl->setText(tr("\xe2\x9d\x8c  Errore Blender"));
             m_output->append("\n\xe2\x9d\x8c  Blender errore:\n" + res["error"].toString());
         }
     } else {
@@ -1847,7 +1847,7 @@ void StrumentiPage::onBlenderExecReplyFinished()
 void StrumentiPage::onOfficeHelpBtnClicked()
 {
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xf0\x9f\x96\xa5  Setup Office \xe2\x80\x94 LibreOffice & Microsoft 365");
+    dlg->setWindowTitle(tr("\xf0\x9f\x96\xa5  Setup Office \xe2\x80\x94 LibreOffice & Microsoft 365"));
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->resize(580, 560);
     auto* dlay = new QVBoxLayout(dlg);
@@ -1906,14 +1906,14 @@ void StrumentiPage::onOfficeStartBtnClicked()
         m_officeBridgeProc->state() == QProcess::Running) {
         m_officeBridgeProc->terminate();
         m_officeBridgeProc->waitForFinished(2000);
-        m_officeStartBtn->setText("\xe2\x96\xb6  Avvia bridge");
-        m_officeStatusLbl->setText("\xe2\x9a\xaa  Bridge fermato");
+        m_officeStartBtn->setText(tr("\xe2\x96\xb6  Avvia bridge"));
+        m_officeStatusLbl->setText(tr("\xe2\x9a\xaa  Bridge fermato"));
         return;
     }
 
     QString path = _officeBridgePath();
     if (path.isEmpty()) {
-        m_officeStatusLbl->setText("\xe2\x9d\x8c  prismalux_office_bridge.py non trovato");
+        m_officeStatusLbl->setText(tr("\xe2\x9d\x8c  prismalux_office_bridge.py non trovato"));
         return;
     }
 
@@ -1925,23 +1925,23 @@ void StrumentiPage::onOfficeStartBtnClicked()
                 this, &StrumentiPage::onOfficeBridgeProcFinished);
     }
 
-    m_officeStatusLbl->setText("\xf0\x9f\x94\x84  Avvio bridge...");
+    m_officeStatusLbl->setText(tr("\xf0\x9f\x94\x84  Avvio bridge..."));
     m_officeBridgeProc->start("python3", {path});
     if (!m_officeBridgeProc->waitForStarted(3000))
         m_officeBridgeProc->start("python", {path});
 
     if (m_officeBridgeProc->state() == QProcess::Running) {
-        m_officeStartBtn->setText("\xe2\x8f\xb9  Ferma bridge");
+        m_officeStartBtn->setText(tr("\xe2\x8f\xb9  Ferma bridge"));
         QTimer::singleShot(1200, this, &StrumentiPage::onOfficeStatusCheckTimeout);
     } else {
-        m_officeStatusLbl->setText("\xe2\x9d\x8c  Errore avvio (python3 non trovato?)");
+        m_officeStatusLbl->setText(tr("\xe2\x9d\x8c  Errore avvio (python3 non trovato?)"));
     }
 }
 
 void StrumentiPage::onOfficeBridgeProcFinished(int, QProcess::ExitStatus)
 {
-    m_officeStartBtn->setText("\xe2\x96\xb6  Avvia bridge");
-    m_officeStatusLbl->setText("\xe2\x9a\xaa  Bridge fermato");
+    m_officeStartBtn->setText(tr("\xe2\x96\xb6  Avvia bridge"));
+    m_officeStatusLbl->setText(tr("\xe2\x9a\xaa  Bridge fermato"));
 }
 
 void StrumentiPage::onOfficeStatusCheckTimeout()
@@ -1970,7 +1970,7 @@ void StrumentiPage::onOfficeBridgeStatusReplyFinished()
             "\xe2\x9c\x85  " +
             (ok.isEmpty() ? "Bridge pronto (nessuna lib)" : "Pronto: " + ok.join(", ")));
     } else {
-        m_officeStatusLbl->setText("\xe2\x9a\xa0  Bridge avviato (verifica fallita)");
+        m_officeStatusLbl->setText(tr("\xe2\x9a\xa0  Bridge avviato (verifica fallita)"));
     }
 }
 
@@ -1992,7 +1992,7 @@ void StrumentiPage::onOfficeExecBtnClicked()
     req.setTransferTimeout(30000);
 
     m_officeExecBtn->setEnabled(false);
-    m_officeStatusLbl->setText("\xf0\x9f\x94\x84  Esecuzione...");
+    m_officeStatusLbl->setText(tr("\xf0\x9f\x94\x84  Esecuzione..."));
 
     auto* reply = m_officeNam->post(req, body);
     connect(reply, &QNetworkReply::finished,
@@ -2008,14 +2008,14 @@ void StrumentiPage::onOfficeExecReplyFinished()
     if (reply->error() == QNetworkReply::NoError) {
         QJsonObject res = QJsonDocument::fromJson(reply->readAll()).object();
         if (res["ok"].toBool()) {
-            m_officeStatusLbl->setText("\xe2\x9c\x85  Completato");
+            m_officeStatusLbl->setText(tr("\xe2\x9c\x85  Completato"));
             m_output->append("\n\xe2\x9c\x85  Office: " + res["output"].toString());
         } else {
-            m_officeStatusLbl->setText("\xe2\x9d\x8c  Errore");
+            m_officeStatusLbl->setText(tr("\xe2\x9d\x8c  Errore"));
             m_output->append("\n\xe2\x9d\x8c  Office errore:\n" + res["error"].toString());
         }
     } else {
-        m_officeStatusLbl->setText("\xe2\x9d\x8c  Bridge non raggiungibile");
+        m_officeStatusLbl->setText(tr("\xe2\x9d\x8c  Bridge non raggiungibile"));
         m_output->append("\n\xe2\x9d\x8c  Bridge non raggiungibile (avvialo prima).");
     }
 }
@@ -2026,7 +2026,7 @@ void StrumentiPage::onOfficeExecReplyFinished()
 void StrumentiPage::onFreecadHelpBtnClicked()
 {
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xf0\x9f\x94\xa9  Installazione FreeCAD MCP");
+    dlg->setWindowTitle(tr("\xf0\x9f\x94\xa9  Installazione FreeCAD MCP"));
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->resize(560, 500);
     auto* dlay = new QVBoxLayout(dlg);
@@ -2081,7 +2081,7 @@ void StrumentiPage::onFreecadPingBtnClicked()
     const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
     const int port     = addr.contains(':') ? addr.section(':', 1).toInt() : 9876;
 
-    m_freecadStatusLbl->setText("\xf0\x9f\x94\x84  Connessione...");
+    m_freecadStatusLbl->setText(tr("\xf0\x9f\x94\x84  Connessione..."));
 
     if (m_freecadPingSock) {
         m_freecadPingSock->abort();
@@ -2102,7 +2102,7 @@ void StrumentiPage::onFreecadSockConnected()
         m_freecadPingSock->disconnectFromHost();
         m_freecadPingSock->deleteLater();
     }
-    m_freecadStatusLbl->setText("\xe2\x9c\x85  FreeCAD connesso");
+    m_freecadStatusLbl->setText(tr("\xe2\x9c\x85  FreeCAD connesso"));
 }
 
 void StrumentiPage::onFreecadSockError(QAbstractSocket::SocketError)
@@ -2142,7 +2142,7 @@ void StrumentiPage::onFreecadExecBtnClicked()
     const QByteArray body = QJsonDocument(payload).toJson(QJsonDocument::Compact);
 
     m_freecadExecBtn->setEnabled(false);
-    m_freecadStatusLbl->setText("\xf0\x9f\x94\x84  Invio a FreeCAD...");
+    m_freecadStatusLbl->setText(tr("\xf0\x9f\x94\x84  Invio a FreeCAD..."));
 
     if (m_freecadExecSock) {
         m_freecadExecSock->abort();
@@ -2177,7 +2177,7 @@ void StrumentiPage::onFreecadExecSockReadyRead()
     const QJsonObject res = QJsonDocument::fromJson(data).object();
     const QString status  = res["status"].toString();
     if (status == "ok" || status == "success") {
-        m_freecadStatusLbl->setText("\xe2\x9c\x85  Eseguito");
+        m_freecadStatusLbl->setText(tr("\xe2\x9c\x85  Eseguito"));
         const QString out = res["result"].toString();
         m_output->moveCursor(QTextCursor::End);
         m_output->append("\n\xe2\x9c\x85  FreeCAD: " + (out.isEmpty() ? "OK" : out));
@@ -2270,7 +2270,7 @@ void StrumentiPage::onSketchGenBtnClicked()
 
     m_output->clear();
     _setRunBusy(true);
-    m_waitLbl->setText("\xf0\x9f\x94\x84  Analisi disegno in corso...");
+    m_waitLbl->setText(tr("\xf0\x9f\x94\x84  Analisi disegno in corso..."));
     m_waitLbl->setVisible(true);
     m_waitBar->setVisible(true);
     m_active = true;
@@ -2413,7 +2413,7 @@ void StrumentiPage::onCodeModelRefreshClicked()
 {
     if (!m_codeModelRefresh) return;
     m_codeModelRefresh->setEnabled(false);
-    m_codeModelRefresh->setText("\xe2\x8f\xb3");
+    m_codeModelRefresh->setText(tr("\xe2\x8f\xb3"));
     m_ai->fetchModels();
 }
 
@@ -2421,7 +2421,7 @@ void StrumentiPage::onCodeModelsReady(const QStringList& models)
 {
     if (m_codeModelRefresh) {
         m_codeModelRefresh->setEnabled(true);
-        m_codeModelRefresh->setText("\xf0\x9f\x94\x84");
+        m_codeModelRefresh->setText(tr("\xf0\x9f\x94\x84"));
     }
     if (!m_codeModelCombo) return;
 
@@ -2458,7 +2458,7 @@ void StrumentiPage::onCodeModelError(const QString& msg)
 {
     if (!m_codeModelRefresh || m_codeModelRefresh->isEnabled()) return;
     m_codeModelRefresh->setEnabled(true);
-    m_codeModelRefresh->setText("\xf0\x9f\x94\x84");
+    m_codeModelRefresh->setText(tr("\xf0\x9f\x94\x84"));
     if (m_codeModelCombo && m_codeModelCombo->count() == 0)
         m_codeModelCombo->addItem("\xe2\x9a\xa0  " + msg, "");
 }

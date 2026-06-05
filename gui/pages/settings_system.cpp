@@ -239,7 +239,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
             statusLbl->setText(QString("\xe2\x9c\x85  %1 cartell%2 rimosse")
                                .arg(removed).arg(removed == 1 ? "a" : "e"));
             btn->setEnabled(false);
-            sizeLbl->setText("0 cartelle \xc2\xb7 0 B");
+            sizeLbl->setText(tr("0 cartelle \xc2\xb7 0 B"));
         });
     }
 
@@ -290,7 +290,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
             statusLbl->setText(QString("\xe2\x9c\x85  %1 cartell%2 rimosse")
                                .arg(removed).arg(removed == 1 ? "a" : "e"));
             btn->setEnabled(false);
-            sizeLbl->setText("0 cartelle \xc2\xb7 0 B");
+            sizeLbl->setText(tr("0 cartelle \xc2\xb7 0 B"));
         });
     }
 
@@ -323,7 +323,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
             }
             statusLbl->setText(QString("\xe2\x9c\x85  %1 file rimossi").arg(removed));
             btn->setEnabled(false);
-            sizeLbl->setText("0 file \xc2\xb7 0 B");
+            sizeLbl->setText(tr("0 file \xc2\xb7 0 B"));
         });
     }
 
@@ -461,7 +461,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
                         .arg(copied)
                         .arg(failed.join(", ")));
             else
-                statusLbl->setText("\xe2\x9a\xa0\xef\xb8\x8f  Nessun file trovato da copiare.");
+                statusLbl->setText(tr("\xe2\x9a\xa0\xef\xb8\x8f  Nessun file trovato da copiare."));
         });
 
         connect(openDirBtn, &QPushButton::clicked, grp, [prismaDir]() {
@@ -497,7 +497,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
         auto* auditLog = new QTextEdit(grp);
         auditLog->setReadOnly(true);
         auditLog->setFixedHeight(150);
-        auditLog->setPlaceholderText("Risultati audit...");
+        auditLog->setPlaceholderText(tr("Risultati audit..."));
         gl->addWidget(auditBtn);
         gl->addWidget(auditLog);
 

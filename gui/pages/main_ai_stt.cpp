@@ -25,7 +25,7 @@ void AgentiPage::_sttStartRecording()
     QFile::remove(wavPath);
 
     m_sttState = SttState::Recording;
-    m_btnVoice->setText("\xf0\x9f\x94\xb4 Registrando... (click per fermare)");
+    m_btnVoice->setText(tr("\xf0\x9f\x94\xb4 Registrando... (click per fermare)"));
     m_btnVoice->setProperty("danger","true");
     P::repolish(m_btnVoice);
 
@@ -47,7 +47,7 @@ void AgentiPage::_sttStartRecording()
              wavPath, "trim","0","6"});
     } else {
         m_sttState = SttState::Idle;
-        m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
+        m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi voce"));
         m_btnVoice->setProperty("danger","false");
         P::repolish(m_btnVoice);
         m_log->append(
@@ -141,7 +141,7 @@ void AgentiPage::onSttTimeout()
 
     if (!QFileInfo::exists(wavPath)) {
         m_sttState = SttState::Idle;
-        m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
+        m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi voce"));
         m_btnVoice->setProperty("danger","false");
         P::repolish(m_btnVoice);
         m_log->append("\xe2\x9a\xa0  Registrazione fallita (arecord non disponibile?)");
@@ -149,7 +149,7 @@ void AgentiPage::onSttTimeout()
     }
 
     m_sttState = SttState::Transcribing;
-    m_btnVoice->setText("\xe2\x8c\x9b Trascrivendo...");
+    m_btnVoice->setText(tr("\xe2\x8c\x9b Trascrivendo..."));
     m_btnVoice->setProperty("danger","false");
     P::repolish(m_btnVoice);
     m_btnVoice->setEnabled(false);
@@ -158,7 +158,7 @@ void AgentiPage::onSttTimeout()
             [this](const QString& text, bool ok) {
                 m_sttState = SttState::Idle;
                 m_sttProc  = nullptr;
-                m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
+                m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi voce"));
                 m_btnVoice->setEnabled(true);
 
                 if (ok && !text.isEmpty()) {
@@ -195,7 +195,7 @@ void AgentiPage::downloadWhisperModel()
 
     m_sttState = SttState::Downloading;
     m_btnVoice->setEnabled(false);
-    m_btnVoice->setText("\xf0\x9f\x93\xa5 Download modello...");
+    m_btnVoice->setText(tr("\xf0\x9f\x93\xa5 Download modello..."));
 
     m_log->append(
         "\xf0\x9f\x93\xa5  <b>Download modello whisper (ggml-small, ~141 MB)...</b><br>"
@@ -255,7 +255,7 @@ void AgentiPage::onWhisperDlProcFinished(int code, QProcess::ExitStatus)
         _sttStartRecording();
     } else {
         m_sttState = SttState::Idle;
-        m_btnVoice->setText("\xf0\x9f\x8e\xa4 Trascrivi voce");
+        m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi voce"));
         if (QFileInfo::exists(destFile) &&
             QFileInfo(destFile).size() < 10'000'000LL)
             QFile::remove(destFile);

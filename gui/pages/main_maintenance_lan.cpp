@@ -102,7 +102,7 @@ QWidget* ManutenzioneePage::buildLanServer()
     auto* qrBtn = new QPushButton(
         "\xf0\x9f\x93\xb1" "  Scarica APK (QR Code)", group);  // 📱
     qrBtn->setObjectName("actionBtn");
-    qrBtn->setToolTip("Mostra il QR code per scaricare PrismaluxMobile.apk sul telefono");
+    qrBtn->setToolTip(tr("Mostra il QR code per scaricare PrismaluxMobile.apk sul telefono"));
     qrBtn->setEnabled(false);
     gl->addWidget(qrBtn);
 
@@ -149,7 +149,7 @@ QWidget* ManutenzioneePage::buildLanServer()
     m_tlsLog = new QTextEdit(tlsGroup);
     m_tlsLog->setReadOnly(true);
     m_tlsLog->setFixedHeight(72);
-    m_tlsLog->setPlaceholderText("Output generazione certificato TLS\xe2\x80\xa6");
+    m_tlsLog->setPlaceholderText(tr("Output generazione certificato TLS\xe2\x80\xa6"));
     tlsLay->addWidget(m_tlsLog);
 
     vbox->addWidget(tlsGroup);
@@ -193,7 +193,7 @@ void ManutenzioneePage::onQrBtnClicked()
                    .arg(m_lanServer->port());
 
     auto* dlg = new QDialog(window());
-    dlg->setWindowTitle("Scarica PrismaluxMobile");
+    dlg->setWindowTitle(tr("Scarica PrismaluxMobile"));
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     auto* vl = new QVBoxLayout(dlg);
     vl->setSpacing(12);
@@ -274,7 +274,7 @@ void ManutenzioneePage::onLanToggleBtnToggled(bool on)
             m_lanToggleBtn->blockSignals(true);
             m_lanToggleBtn->setChecked(false);
             m_lanToggleBtn->blockSignals(false);
-            m_lanStatusLbl->setText("\xe2\x9d\x8c  Impossibile aprire la porta");  // ❌
+            m_lanStatusLbl->setText(tr("\xe2\x9d\x8c  Impossibile aprire la porta"));  // ❌
             m_lanStatusLbl->setStyleSheet("color: #f44336;");
         }
     } else {
@@ -298,7 +298,7 @@ void ManutenzioneePage::onLanServerStatusChanged(bool running)
     } else {
         m_lanStatusLbl->setText("\xe2\x97\x8b" "  Fermo");  // ○
         m_lanStatusLbl->setStyleSheet("color: #9e9e9e;");
-        m_lanClientsLbl->setText("Client connessi: 0");
+        m_lanClientsLbl->setText(tr("Client connessi: 0"));
     }
 }
 

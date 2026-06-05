@@ -268,8 +268,8 @@ QWidget* GraficoPage::buildLeftPanel() {
 
         m_formulaEdit = new QLineEdit(w);
         m_formulaEdit->setObjectName("inputLine");
-        m_formulaEdit->setPlaceholderText("sin(x) * 2 + 1");
-        m_formulaEdit->setText("sin(x)");
+        m_formulaEdit->setPlaceholderText(tr("sin(x) * 2 + 1"));
+        m_formulaEdit->setText(tr("sin(x)"));
         connect(m_formulaEdit, &QLineEdit::returnPressed, this, &GraficoPage::plot);
         fl->addRow("y = f(x):", m_formulaEdit);
 
@@ -335,7 +335,7 @@ QWidget* GraficoPage::buildLeftPanel() {
             m_genExpr = new QLineEdit(m_genSection);
             m_genExpr->setObjectName("inputLine");
             m_genExpr->setFont(QFont("JetBrains Mono,Fira Code,Consolas", 9));
-            m_genExpr->setPlaceholderText("f(x)  es: x^2  sin(x)  x*(x+1)/2");
+            m_genExpr->setPlaceholderText(tr("f(x)  es: x^2  sin(x)  x*(x+1)/2"));
             gl->addWidget(m_genExpr);
 
             /* Range — da/a/passo su una riga */
@@ -590,8 +590,8 @@ QWidget* GraficoPage::buildLeftPanel() {
 
         m_polarFormula = new QLineEdit(w);
         m_polarFormula->setObjectName("inputLine");
-        m_polarFormula->setPlaceholderText("cos(3*x)  oppure  sin(2*x)*2");
-        m_polarFormula->setText("cos(3*x)");
+        m_polarFormula->setPlaceholderText(tr("cos(3*x)  oppure  sin(2*x)*2"));
+        m_polarFormula->setText(tr("cos(3*x)"));
         connect(m_polarFormula, &QLineEdit::returnPressed, this, &GraficoPage::plot);
         fl->addRow("r = f(\xce\xb8):", m_polarFormula);
 
@@ -676,7 +676,7 @@ QWidget* GraficoPage::buildLeftPanel() {
     m_visionCombo->setToolTip(
         "Modello vision da usare (solo quelli con supporto immagini).\n"
         "Es: llama3.2-vision, llava, minicpm-v, moondream");
-    m_visionCombo->setPlaceholderText("Seleziona modello vision...");
+    m_visionCombo->setPlaceholderText(tr("Seleziona modello vision..."));
     imgLay->addWidget(m_visionCombo);
 
     /* Pulsante di installazione — visibile SOLO se non ci sono modelli vision */
@@ -701,7 +701,7 @@ QWidget* GraficoPage::buildLeftPanel() {
         "\xf0\x9f\x93\xb7  Analizza immagine", m_imgSection);
     m_btnImgFormula->setObjectName("actionBtn");
     m_btnImgFormula->setFixedHeight(30);
-    m_btnImgFormula->setToolTip("Apri un'immagine PNG/JPG e lascia che l'AI estragga la formula");
+    m_btnImgFormula->setToolTip(tr("Apri un'immagine PNG/JPG e lascia che l'AI estragga la formula"));
     connect(m_btnImgFormula, &QPushButton::clicked, this, &GraficoPage::analyzeImage);
     imgLay->addWidget(m_btnImgFormula);
 
@@ -827,19 +827,19 @@ void GraficoPage::plot() {
     switch (type) {
         case 0: {   /* Cartesiano */
             QString f = m_formulaEdit->text().trimmed();
-            if (f.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Inserisci una formula"); return; }
+            if (f.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Inserisci una formula")); return; }
             double xMin = m_xMinSpin->value(), xMax = m_xMaxSpin->value();
             if (xMin >= xMax)  { m_statusLbl->setText("\xe2\x9a\xa0  x min deve essere < x max"); return; }
             m_canvas->setCartesian(f, xMin, xMax);
             FormulaParser fp(f);
             if (!fp.ok()) m_statusLbl->setText("\xe2\x9a\xa0  " + fp.err());
-            else          m_statusLbl->setText("\xe2\x9c\x85  Grafico aggiornato");
+            else          m_statusLbl->setText(tr("\xe2\x9c\x85  Grafico aggiornato"));
             break;
         }
         case 1:
         case 2: {   /* Torta / Istogramma */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<double> vals; QStringList lbls;
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
                 QString l = line.trimmed(); if (l.isEmpty()) continue;
@@ -853,7 +853,7 @@ void GraficoPage::plot() {
                     if (ok) { lbls.append(QString::number(vals.size()+1)); vals.append(v); }
                 }
             }
-            if (vals.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun valore valido"); return; }
+            if (vals.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun valore valido")); return; }
             m_canvas->setData(vals, lbls);
             m_canvas->setType(type == 1 ? GraficoCanvas::Pie : GraficoCanvas::Histogram);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(vals.size()) + " voci");
@@ -861,7 +861,7 @@ void GraficoPage::plot() {
         }
         case 3: {   /* Scatter XY */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<QPointF> pts; QStringList lbls;
             static QRegularExpression sep("[,;\\s]+");
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
@@ -879,28 +879,28 @@ void GraficoPage::plot() {
                     }
                 }
             }
-            if (pts.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessuna coppia x,y valida"); return; }
+            if (pts.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessuna coppia x,y valida")); return; }
             m_canvas->setScatter(pts);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(pts.size()) + " punti");
             break;
         }
         case 4: {   /* Grafo */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun arco"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun arco")); return; }
             QVector<QPair<QString,QString>> edges;
             static QRegularExpression edgeSep("\\s*[-\xe2\x80\x93>]+\\s*");
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
                 QStringList p = line.trimmed().split(edgeSep, Qt::SkipEmptyParts);
                 if (p.size() >= 2) edges.append({p[0].trimmed(), p[1].trimmed()});
             }
-            if (edges.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun arco valido (A-B)"); return; }
+            if (edges.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun arco valido (A-B)")); return; }
             m_canvas->setEdges(edges);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(edges.size()) + " archi");
             break;
         }
         case 5: {   /* 3D Scatter */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<GraficoCanvas::Pt3D> pts;
             static QRegularExpression sep3("[,;\\s]+");
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
@@ -915,7 +915,7 @@ void GraficoPage::plot() {
                     }
                 }
             }
-            if (pts.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessuna tripla x,y,z valida"); return; }
+            if (pts.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessuna tripla x,y,z valida")); return; }
             m_canvas->setScatter3D(pts);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(pts.size()) + " punti 3D");
             break;
@@ -954,7 +954,7 @@ void GraficoPage::plot() {
         }
         case 8: {   /* Math Const — π · e · Primi */
             if (!m_mathPi->isChecked() && !m_mathE->isChecked() && !m_mathPrimes->isChecked()) {
-                m_statusLbl->setText("\xe2\x9a\xa0  Seleziona almeno una serie");
+                m_statusLbl->setText(tr("\xe2\x9a\xa0  Seleziona almeno una serie"));
                 return;
             }
             m_canvas->setMathConst(
@@ -971,7 +971,7 @@ void GraficoPage::plot() {
         }
         case 6: {   /* Grafo 3D — righe "Nome, x, y, z" + "A-B" mescolate */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<GraficoCanvas::Node3D>          nodes;
             QVector<QPair<QString,QString>>          edges;
             static QRegularExpression sepN("[,;\\s]+");
@@ -996,7 +996,7 @@ void GraficoPage::plot() {
                 if (parts.size() >= 2)
                     edges.append({parts[0].trimmed(), parts[1].trimmed()});
             }
-            if (nodes.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun nodo (formato: Nome, x, y, z)"); return; }
+            if (nodes.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun nodo (formato: Nome, x, y, z)")); return; }
             m_canvas->setGraph3D(nodes, edges);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(nodes.size()) +
                                   " nodi, " + QString::number(edges.size()) + " archi");
@@ -1006,7 +1006,7 @@ void GraficoPage::plot() {
         case 15:  /* Area riempita  */
         case 17: { /* Scalini (Step) */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<QVector<QPointF>> series;
             QStringList names;
             static QRegularExpression sepMS("[,;\\s]+");
@@ -1029,7 +1029,7 @@ void GraficoPage::plot() {
                 }
             }
             if (series.isEmpty()) {
-                m_statusLbl->setText("\xe2\x9a\xa0  Nessuna colonna x,y valida");
+                m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessuna colonna x,y valida"));
                 return;
             }
             m_canvas->setLine(series, names);
@@ -1040,19 +1040,19 @@ void GraficoPage::plot() {
             break;
         }
         case 10: { /* Polare r = f(θ) */
-            if (!m_polarFormula) { m_statusLbl->setText("\xe2\x9a\xa0  Pannello non pronto"); return; }
+            if (!m_polarFormula) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Pannello non pronto")); return; }
             QString f = m_polarFormula->text().trimmed();
-            if (f.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Inserisci r = f(\xce\xb8)"); return; }
+            if (f.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Inserisci r = f(\xce\xb8)")); return; }
             double tMin = m_polarTMinSpin->value();
             double tMax = m_polarTMaxSpin->value();
             if (tMin >= tMax) { m_statusLbl->setText("\xe2\x9a\xa0  \xce\xb8 min deve essere < \xce\xb8 max"); return; }
             m_canvas->setPolar(f, tMin, tMax);
-            m_statusLbl->setText("\xe2\x9c\x85  Grafico polare aggiornato");
+            m_statusLbl->setText(tr("\xe2\x9c\x85  Grafico polare aggiornato"));
             break;
         }
         case 11: { /* Radar (Spider) — riusa parsing Torta/Istogramma */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<double> vals; QStringList lbls;
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
                 QString l = line.trimmed(); if (l.isEmpty()) continue;
@@ -1067,7 +1067,7 @@ void GraficoPage::plot() {
                 }
             }
             if (vals.size() < 3) {
-                m_statusLbl->setText("\xe2\x9a\xa0  Servono almeno 3 categorie");
+                m_statusLbl->setText(tr("\xe2\x9a\xa0  Servono almeno 3 categorie"));
                 return;
             }
             m_canvas->setData(vals, lbls);
@@ -1077,7 +1077,7 @@ void GraficoPage::plot() {
         }
         case 12: { /* Bolle: x, y, raggio [, etichetta] */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<GraficoCanvas::Pt3D> pts;
             static QRegularExpression sepB("[,;\\s]+");
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
@@ -1091,7 +1091,7 @@ void GraficoPage::plot() {
                     pts.append({x, y, r, tok.size() > 3 ? tok.mid(3).join(" ") : ""});
             }
             if (pts.isEmpty()) {
-                m_statusLbl->setText("\xe2\x9a\xa0  Nessuna terna x,y,raggio valida");
+                m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessuna terna x,y,raggio valida"));
                 return;
             }
             m_canvas->setScatter3D(pts);
@@ -1101,7 +1101,7 @@ void GraficoPage::plot() {
         }
         case 13: { /* Heatmap */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<QVector<double>> data;
             QStringList rowLbls, colLbls;
             static QRegularExpression sepH("[,;\\s]+");
@@ -1125,7 +1125,7 @@ void GraficoPage::plot() {
                 if (!row.isEmpty()) data.append(row);
             }
             if (data.isEmpty()) {
-                m_statusLbl->setText("\xe2\x9a\xa0  Nessun valore numerico trovato");
+                m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun valore numerico trovato"));
                 return;
             }
             m_canvas->setHeatmap(data, rowLbls, colLbls);
@@ -1135,7 +1135,7 @@ void GraficoPage::plot() {
         }
         case 14: { /* Candlestick OHLC */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<GraficoCanvas::OhlcPt> pts;
             static QRegularExpression sepC("[,;]+");
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
@@ -1150,7 +1150,7 @@ void GraficoPage::plot() {
                     pts.append({o, h, l, c, tok[0].trimmed()});
             }
             if (pts.isEmpty()) {
-                m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato OHLC valido (formato: Label,O,H,L,C)");
+                m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato OHLC valido (formato: Label,O,H,L,C)"));
                 return;
             }
             m_canvas->setCandlestick(pts);
@@ -1159,7 +1159,7 @@ void GraficoPage::plot() {
         }
         case 16: { /* Waterfall */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<double> vals; QStringList lbls;
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
                 QString l = line.trimmed(); if (l.isEmpty()) continue;
@@ -1176,7 +1176,7 @@ void GraficoPage::plot() {
                     if (ok) { lbls.append(QString::number(vals.size()+1)); vals.append(v); }
                 }
             }
-            if (vals.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun valore valido"); return; }
+            if (vals.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun valore valido")); return; }
             m_canvas->setData(vals, lbls);
             m_canvas->setType(GraficoCanvas::Waterfall);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(vals.size()) + " voci");
@@ -1191,7 +1191,7 @@ void GraficoPage::plot() {
         case 28: /* DotPlot   */
         {
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<double> vals; QStringList lbls;
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
                 QString l = line.trimmed(); if (l.startsWith('#') || l.isEmpty()) continue;
@@ -1205,7 +1205,7 @@ void GraficoPage::plot() {
                     if (ok) { lbls.append(QString::number(vals.size()+1)); vals.append(v); }
                 }
             }
-            if (vals.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun valore valido"); return; }
+            if (vals.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun valore valido")); return; }
             m_canvas->setData(vals, lbls);
             static const GraficoCanvas::ChartType kT[] = {
                 GraficoCanvas::Column, GraficoCanvas::HBar,
@@ -1227,7 +1227,7 @@ void GraficoPage::plot() {
         case 35: /* Pyramid       */
         {
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<QVector<QPointF>> series;
             QStringList names;
             static QRegularExpression sepGr("[,;\\s]+");
@@ -1252,7 +1252,7 @@ void GraficoPage::plot() {
                 }
             }
             if (series.isEmpty()) {
-                m_statusLbl->setText("\xe2\x9a\xa0  Nessuna serie valida");
+                m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessuna serie valida"));
                 return;
             }
             m_canvas->setLine(series, names);
@@ -1270,7 +1270,7 @@ void GraficoPage::plot() {
         }
         case 26: { /* Sunburst — Categoria/Subcategoria: valore */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<QPair<QString,double>> data;
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
                 QString l = line.trimmed();
@@ -1281,7 +1281,7 @@ void GraficoPage::plot() {
                     if (ok) data.append({l.left(pos).trimmed(), v});
                 }
             }
-            if (data.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato valido"); return; }
+            if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato valido")); return; }
             m_canvas->setSunburstData(data);
             m_canvas->setType(GraficoCanvas::Sunburst);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " voci");
@@ -1289,7 +1289,7 @@ void GraficoPage::plot() {
         }
         case 27: { /* BoxPlot */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<GraficoCanvas::BoxData> data;
             static QRegularExpression sepBx("[,;\\s]+");
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
@@ -1307,7 +1307,7 @@ void GraficoPage::plot() {
                 if (o1&&o2&&o3&&o4&&o5)
                     data.append({mn, q1, md, q3, mx, lbl.isEmpty() ? QString::number(data.size()+1) : lbl});
             }
-            if (data.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Formato: label: min,Q1,med,Q3,max"); return; }
+            if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: label: min,Q1,med,Q3,max")); return; }
             m_canvas->setBoxData(data);
             m_canvas->setType(GraficoCanvas::BoxPlot);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " box");
@@ -1315,14 +1315,14 @@ void GraficoPage::plot() {
         }
         case 29: { /* Density — valori grezzi */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<double> data;
             static QRegularExpression sepDs("[,;\\s\n]+");
             for (auto& tok : raw.split(sepDs, Qt::SkipEmptyParts)) {
                 bool ok; double v = tok.trimmed().toDouble(&ok);
                 if (ok) data.append(v);
             }
-            if (data.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun valore numerico"); return; }
+            if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun valore numerico")); return; }
             m_canvas->setDensityData(data);
             m_canvas->setType(GraficoCanvas::Density);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " campioni");
@@ -1330,7 +1330,7 @@ void GraficoPage::plot() {
         }
         case 31: { /* OHLC — stessa struttura Candlestick */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<GraficoCanvas::OhlcPt> pts;
             static QRegularExpression sepOh("[,;]+");
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
@@ -1341,7 +1341,7 @@ void GraficoPage::plot() {
                        l = tok[3].trimmed().toDouble(&ol), c = tok[4].trimmed().toDouble(&oc);
                 if (oo&&oh&&ol&&oc) pts.append({o, h, l, c, tok[0].trimmed()});
             }
-            if (pts.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Formato: Label,O,H,L,C"); return; }
+            if (pts.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: Label,O,H,L,C")); return; }
             m_canvas->setCandlestick(pts);
             m_canvas->setType(GraficoCanvas::OHLC);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(pts.size()) + " barre OHLC");
@@ -1349,7 +1349,7 @@ void GraficoPage::plot() {
         }
         case 32: { /* Gauge — valore:massimo su riga 1, etichetta opzionale riga 2 */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QStringList lines = raw.split('\n', Qt::SkipEmptyParts);
             QVector<double> vals; QStringList lbls;
             QString line0 = lines[0].trimmed();
@@ -1358,7 +1358,7 @@ void GraficoPage::plot() {
             bool ok0, ok1;
             double v0 = p0[0].trimmed().toDouble(&ok0);
             double v1 = p0.size() > 1 ? p0[1].trimmed().toDouble(&ok1) : (ok1=true, 100.0);
-            if (!ok0 || !ok1) { m_statusLbl->setText("\xe2\x9a\xa0  Formato: valore:massimo"); return; }
+            if (!ok0 || !ok1) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: valore:massimo")); return; }
             vals.append(v0); vals.append(v1);
             lbls.append(lines.size() > 1 ? lines[1].trimmed() : "");
             m_canvas->setData(vals, lbls);
@@ -1368,7 +1368,7 @@ void GraficoPage::plot() {
         }
         case 33: { /* Bullet Chart */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<GraficoCanvas::BulletBar> data;
             static QRegularExpression sepBu("[,;]+");
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
@@ -1385,7 +1385,7 @@ void GraficoPage::plot() {
                 if (o1&&o2&&o3&&o4)
                     data.append({lbl.isEmpty() ? QString::number(data.size()+1) : lbl, val, tgt, rlo, rhi});
             }
-            if (data.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Formato: label: valore, target, min, max"); return; }
+            if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: label: valore, target, min, max")); return; }
             m_canvas->setBulletData(data);
             m_canvas->setType(GraficoCanvas::Bullet);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " barre bullet");
@@ -1393,7 +1393,7 @@ void GraficoPage::plot() {
         }
         case 34: { /* Gantt */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<GraficoCanvas::GanttTask> data;
             static QRegularExpression sepGa("[,;]+");
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
@@ -1411,7 +1411,7 @@ void GraficoPage::plot() {
                     data.append({name, cat, s, e});
                 }
             }
-            if (data.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Formato: task: inizio, fine [, categoria]"); return; }
+            if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: task: inizio, fine [, categoria]")); return; }
             m_canvas->setGanttData(data);
             m_canvas->setType(GraficoCanvas::Gantt);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " task");
@@ -1419,7 +1419,7 @@ void GraficoPage::plot() {
         }
         case 36: { /* ParallelCoord — come multi-serie */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<QVector<QPointF>> series;
             QStringList names;
             static QRegularExpression sepPC("[,;\\s]+");
@@ -1439,7 +1439,7 @@ void GraficoPage::plot() {
                 }
                 if (!row.isEmpty()) series.append(row);
             }
-            if (series.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessuna riga valida"); return; }
+            if (series.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessuna riga valida")); return; }
             m_canvas->setLine(series, names);
             m_canvas->setType(GraficoCanvas::ParallelCoord);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(series.size()) + " entit\xc3\xa0");
@@ -1447,7 +1447,7 @@ void GraficoPage::plot() {
         }
         case 37: { /* Sankey */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<GraficoCanvas::SankeyLink> data;
             static QRegularExpression arrowSep("\\s*[\xe2\x86\x92>]+\\s*|\\s*->\\s*");
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
@@ -1466,7 +1466,7 @@ void GraficoPage::plot() {
                 if (parts.size() >= 2)
                     data.append({parts[0].trimmed(), parts[parts.size()-1].trimmed(), val});
             }
-            if (data.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Formato: A \xe2\x86\x92 B: valore"); return; }
+            if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: A \xe2\x86\x92 B: valore")); return; }
             m_canvas->setSankeyData(data);
             m_canvas->setType(GraficoCanvas::Sankey);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " flussi");
@@ -1474,7 +1474,7 @@ void GraficoPage::plot() {
         }
         case 38: { /* Tree */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<GraficoCanvas::TreeEdge> data;
             static QRegularExpression sepTr("[,;]+");
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
@@ -1489,7 +1489,7 @@ void GraficoPage::plot() {
                     if (!c.isEmpty()) data.append({parent, c});
                 }
             }
-            if (data.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Formato: padre: figlio1, figlio2"); return; }
+            if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: padre: figlio1, figlio2")); return; }
             m_canvas->setTreeData(data);
             m_canvas->setType(GraficoCanvas::Tree);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " archi");
@@ -1497,7 +1497,7 @@ void GraficoPage::plot() {
         }
         case 39: { /* Chord */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<GraficoCanvas::ChordLink> data;
             static QRegularExpression arrowCh("\\s*[\xe2\x86\x92>]+\\s*|\\s*->\\s*");
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
@@ -1511,7 +1511,7 @@ void GraficoPage::plot() {
                 if (parts.size() >= 2)
                     data.append({parts[0].trimmed(), parts[parts.size()-1].trimmed(), val});
             }
-            if (data.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Formato: A \xe2\x86\x92 B: valore"); return; }
+            if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: A \xe2\x86\x92 B: valore")); return; }
             m_canvas->setChordData(data);
             m_canvas->setType(GraficoCanvas::Chord);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " corde");
@@ -1519,7 +1519,7 @@ void GraficoPage::plot() {
         }
         case 40: { /* Violin Plot */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<QPair<QString,QVector<double>>> data;
             static QRegularExpression sepV("[,;\\s]+");
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
@@ -1534,7 +1534,7 @@ void GraficoPage::plot() {
                 }
                 if (!vals.isEmpty()) data.append({name, vals});
             }
-            if (data.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Formato: NomeSerie: v1 v2 v3"); return; }
+            if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: NomeSerie: v1 v2 v3")); return; }
             m_canvas->setViolinData(data);
             m_canvas->setType(GraficoCanvas::Violin);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " serie");
@@ -1542,7 +1542,7 @@ void GraficoPage::plot() {
         }
         case 41: { /* Word Cloud */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<QPair<QString,double>> data;
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
                 QString l = line.trimmed();
@@ -1552,7 +1552,7 @@ void GraficoPage::plot() {
                 bool ok; double v = l.mid(colon+1).trimmed().toDouble(&ok);
                 if (ok) data.append({l.left(colon).trimmed(), v});
             }
-            if (data.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Formato: parola:frequenza"); return; }
+            if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: parola:frequenza")); return; }
             m_canvas->setWordCloudData(data);
             m_canvas->setType(GraficoCanvas::WordCloud);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " parole");
@@ -1560,7 +1560,7 @@ void GraficoPage::plot() {
         }
         case 42: { /* Albero Radiale — stessa struttura di Tree */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<GraficoCanvas::TreeEdge> data;
             static QRegularExpression sepRT("[,;]+");
             for (auto& line : raw.split('\n', Qt::SkipEmptyParts)) {
@@ -1575,7 +1575,7 @@ void GraficoPage::plot() {
                     if (!c.isEmpty()) data.append({parent, c});
                 }
             }
-            if (data.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Formato: padre: figlio1, figlio2"); return; }
+            if (data.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Formato: padre: figlio1, figlio2")); return; }
             m_canvas->setTreeData(data);
             m_canvas->setType(GraficoCanvas::RadialTree);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(data.size()) + " archi");
@@ -1583,7 +1583,7 @@ void GraficoPage::plot() {
         }
         case 43: { /* Linea Animata — stessa struttura di Linea */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<QVector<QPointF>> series;
             QStringList names;
             static QRegularExpression sepAN("[,;\\s]+");
@@ -1606,7 +1606,7 @@ void GraficoPage::plot() {
                     series[c-1].append({x, y});
                 }
             }
-            if (series.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessuna serie"); return; }
+            if (series.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessuna serie")); return; }
             m_canvas->setLine(series, names);
             m_canvas->setType(GraficoCanvas::AnimatedLine);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(series.size()) + " serie — animazione avviata");
@@ -1614,7 +1614,7 @@ void GraficoPage::plot() {
         }
         case 44: { /* Small Multiples — stessa struttura di Linea */
             QString raw = m_dataEdit->toPlainText().trimmed();
-            if (raw.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessun dato"); return; }
+            if (raw.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun dato")); return; }
             QVector<QVector<QPointF>> series;
             QStringList names;
             static QRegularExpression sepSM("[,;\\s]+");
@@ -1637,7 +1637,7 @@ void GraficoPage::plot() {
                     series[c-1].append({x, y});
                 }
             }
-            if (series.isEmpty()) { m_statusLbl->setText("\xe2\x9a\xa0  Nessuna serie"); return; }
+            if (series.isEmpty()) { m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessuna serie")); return; }
             m_canvas->setLine(series, names);
             m_canvas->setType(GraficoCanvas::SmallMultiples);
             m_statusLbl->setText("\xe2\x9c\x85  " + QString::number(series.size()) + " pannelli");
@@ -1653,16 +1653,16 @@ void GraficoPage::plot() {
    ──────────────────────────────────────────────────────────────── */
 void GraficoPage::analyzeImage() {
     if (!m_ai) {
-        m_statusLbl->setText("\xe2\x9a\xa0  AiClient non disponibile");
+        m_statusLbl->setText(tr("\xe2\x9a\xa0  AiClient non disponibile"));
         return;
     }
     if (m_ai->busy()) {
-        m_statusLbl->setText("\xe2\x9a\xa0  AI occupata — attendi il termine dell'operazione");
+        m_statusLbl->setText(tr("\xe2\x9a\xa0  AI occupata — attendi il termine dell'operazione"));
         return;
     }
     const QString modello = m_visionCombo->currentText().trimmed();
     if (modello.isEmpty() || modello.startsWith("(")) {
-        m_statusLbl->setText("\xe2\x9a\xa0  Seleziona un modello vision dalla lista");
+        m_statusLbl->setText(tr("\xe2\x9a\xa0  Seleziona un modello vision dalla lista"));
         return;
     }
 
@@ -1677,7 +1677,7 @@ void GraficoPage::analyzeImage() {
 
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
-        m_statusLbl->setText("\xe2\x9d\x8c  Impossibile aprire il file");
+        m_statusLbl->setText(tr("\xe2\x9d\x8c  Impossibile aprire il file"));
         return;
     }
     const QByteArray raw   = f.readAll();
@@ -1688,7 +1688,7 @@ void GraficoPage::analyzeImage() {
     const QString modeloPrecedente = m_ai->model();
     m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), modello);
 
-    m_statusLbl->setText("\xf0\x9f\x94\x8d  Analisi in corso...");
+    m_statusLbl->setText(tr("\xf0\x9f\x94\x8d  Analisi in corso..."));
     m_btnImgFormula->setEnabled(false);
 
     static const char* kSys =
@@ -1771,7 +1771,7 @@ void GraficoPage::onGenFormulaClicked()
     double x1   = m_genTo->value();
     double step = m_genStep->value();
     if (x0 > x1 || step <= 0) {
-        m_statusLbl->setText("\xe2\x9a\xa0  Range non valido");
+        m_statusLbl->setText(tr("\xe2\x9a\xa0  Range non valido"));
         return;
     }
     int type = m_typeCombo->currentData().toInt();
@@ -1794,7 +1794,7 @@ void GraficoPage::onGenFormulaClicked()
         ++idx;
     }
     if (out.isEmpty()) {
-        m_statusLbl->setText("\xe2\x9a\xa0  Nessun valore finito generato");
+        m_statusLbl->setText(tr("\xe2\x9a\xa0  Nessun valore finito generato"));
         return;
     }
     m_dataEdit->setPlainText(out.trimmed());

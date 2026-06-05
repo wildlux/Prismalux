@@ -384,6 +384,7 @@ ctest --test-dir build_tests -j4   # 52 suite (49 no-Ollama, 3 richiedono Ollama
 | `TeamCollab` | `test_team_collab` | ⚠️ Ollama reale — pipeline, quality |
 | `PraticoFinanza` | `test_pratico_finanza` | 27 PASS — normalizzaComune, cercaBelfiore, calcolaCodiceFiscale (D.M.1976) |
 | `WanComputeTasks` | `test_wan_compute_tasks` | 33 PASS — costruzione, TCP, JSON, sicurezza shell |
+| `SciCompute` | `test_sci_compute` | 35 PASS — costruzione, isSafeToolName (9), isSafePath (8), taskTypes invarianti (6) |
 | `RagGraphPipeline` | `test_rag_graph_pipeline` | 25 PASS — costruzione, parsing LLM mock, ricerca, segnali |
 | `Translitter` | `test_translitter` | 37 PASS — langFence helper, widget, kLangs unicità |
 | `DockerSandbox` | `test_docker_sandbox` | 29 PASS, 2 SKIP — PythonExec, Docker, sicurezza |

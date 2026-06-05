@@ -180,9 +180,9 @@ QWidget* ImpostazioniPage::buildVoceTab()
     std::function<void()> refreshBtn = [btnInstall]() {
         const bool installed = !ImpostazioniPage::piperBinPath().isEmpty();
         if (installed)
-            btnInstall->setText("\xe2\x9c\x85  Installato");
+            btnInstall->setText(tr("\xe2\x9c\x85  Installato"));
         else
-            btnInstall->setText("\xf0\x9f\x93\xa5  Installa Piper");
+            btnInstall->setText(tr("\xf0\x9f\x93\xa5  Installa Piper"));
     };
     refreshBtn();
 
@@ -297,8 +297,8 @@ QWidget* ImpostazioniPage::buildVoceTab()
             const QString jsonDest = voicesDir + "/" + voiceId + ".onnx.json";
 
             btnDl->setEnabled(false);
-            btnDl->setText("\xe2\x8f\xb3 Scaricamento...");
-            lblVoiceStatus->setText("\xe2\x8f\xb3 Download .json...");
+            btnDl->setText(tr("\xe2\x8f\xb3 Scaricamento..."));
+            lblVoiceStatus->setText(tr("\xe2\x8f\xb3 Download .json..."));
 
 #ifdef Q_OS_WIN
             const QString downloader = "curl.exe";
@@ -316,12 +316,12 @@ QWidget* ImpostazioniPage::buildVoceTab()
                         downloader, onnxUrl, onnxDest, voiceId](int code, QProcess::ExitStatus) {
                     procJson->deleteLater();
                     if (code != 0) {
-                        lblVoiceStatus->setText("\xe2\x9d\x8c Errore .json");
+                        lblVoiceStatus->setText(tr("\xe2\x9d\x8c Errore .json"));
                         btnDl->setEnabled(true);
-                        btnDl->setText("\xf0\x9f\x93\xa5 Scarica");
+                        btnDl->setText(tr("\xf0\x9f\x93\xa5 Scarica"));
                         return;
                     }
-                    lblVoiceStatus->setText("\xe2\x8f\xb3 Download .onnx...");
+                    lblVoiceStatus->setText(tr("\xe2\x8f\xb3 Download .onnx..."));
                     auto* procOnnx = new QProcess(btnDl);
                     procOnnx->start(downloader,
                         { "-L", "-o", onnxDest, onnxUrl });
@@ -331,11 +331,11 @@ QWidget* ImpostazioniPage::buildVoceTab()
                             procOnnx->deleteLater();
                             btnDl->setEnabled(true);
                             if (code2 == 0) {
-                                lblVoiceStatus->setText("\xe2\x9c\x85 Installata");
-                                btnDl->setText("\xf0\x9f\x94\x84 Reinstalla");
+                                lblVoiceStatus->setText(tr("\xe2\x9c\x85 Installata"));
+                                btnDl->setText(tr("\xf0\x9f\x94\x84 Reinstalla"));
                             } else {
-                                lblVoiceStatus->setText("\xe2\x9d\x8c Errore .onnx");
-                                btnDl->setText("\xf0\x9f\x93\xa5 Scarica");
+                                lblVoiceStatus->setText(tr("\xe2\x9d\x8c Errore .onnx"));
+                                btnDl->setText(tr("\xf0\x9f\x93\xa5 Scarica"));
                             }
                         });
                 });
@@ -369,8 +369,8 @@ QWidget* ImpostazioniPage::buildVoceTab()
         const QString archivePath = installDir + "/" + PIPER_ARCHIVE2;
 
         btnInstall->setEnabled(false);
-        btnInstall->setText("\xe2\x8f\xb3 Scaricamento...");
-        lblPiperStatus->setText("\xe2\x8f\xb3 Download binario Piper...");
+        btnInstall->setText(tr("\xe2\x8f\xb3 Scaricamento..."));
+        lblPiperStatus->setText(tr("\xe2\x8f\xb3 Download binario Piper..."));
 
 #ifdef Q_OS_WIN
         const QString downloader = "curl.exe";
@@ -385,12 +385,12 @@ QWidget* ImpostazioniPage::buildVoceTab()
                          archivePath, installDir](int code, QProcess::ExitStatus) {
                 proc->deleteLater();
                 if (code != 0) {
-                    lblPiperStatus->setText("\xe2\x9d\x8c Errore download. Verifica la connessione.");
+                    lblPiperStatus->setText(tr("\xe2\x9d\x8c Errore download. Verifica la connessione."));
                     btnInstall->setEnabled(true);
-                    btnInstall->setText("\xf0\x9f\x93\xa5  Installa Piper");
+                    btnInstall->setText(tr("\xf0\x9f\x93\xa5  Installa Piper"));
                     return;
                 }
-                lblPiperStatus->setText("\xe2\x8f\xb3 Estrazione archivio...");
+                lblPiperStatus->setText(tr("\xe2\x8f\xb3 Estrazione archivio..."));
                 /* Estrai: tar o unzip */
                 auto* procEx = new QProcess(btnInstall);
 #ifdef Q_OS_WIN
@@ -421,7 +421,7 @@ QWidget* ImpostazioniPage::buildVoceTab()
                                 ? "\xe2\x9c\x85  Installato"
                                 : "\xf0\x9f\x93\xa5  Installa Piper");
                         } else {
-                            lblPiperStatus->setText("\xe2\x9d\x8c Errore estrazione.");
+                            lblPiperStatus->setText(tr("\xe2\x9d\x8c Errore estrazione."));
                         }
                     });
             });
@@ -447,13 +447,13 @@ QWidget* ImpostazioniPage::buildVoceTab()
 
     auto* txtTest = new QLineEdit(secTest);
     txtTest->setObjectName("chatInput");
-    txtTest->setPlaceholderText("Scrivi un testo di prova...");
-    txtTest->setText("Ciao, sono Prismalux. La conoscenza \xc3\xa8 potere.");
+    txtTest->setPlaceholderText(tr("Scrivi un testo di prova..."));
+    txtTest->setText(tr("Ciao, sono Prismalux. La conoscenza \xc3\xa8 potere."));
 
     auto* btnSpeak = new QPushButton(
         "\xf0\x9f\x94\x8a  Parla", secTest);
     btnSpeak->setObjectName("actionBtn");
-    btnSpeak->setToolTip("Legge il testo con la voce selezionata");
+    btnSpeak->setToolTip(tr("Legge il testo con la voce selezionata"));
 
     testRowLay->addWidget(txtTest, 1);
     testRowLay->addWidget(btnSpeak);
@@ -476,7 +476,7 @@ QWidget* ImpostazioniPage::buildVoceTab()
         if (!piperBin.isEmpty() && QFileInfo::exists(onnxPath)) {
             /* Usa Piper: echo TEXT | piper --model VOICE --output_raw | aplay */
             btnSpeak->setEnabled(false);
-            lblTestStatus->setText("\xf0\x9f\x94\x8a  Piper in esecuzione...");
+            lblTestStatus->setText(tr("\xf0\x9f\x94\x8a  Piper in esecuzione..."));
 #ifdef Q_OS_WIN
             const QString cmd = QString(
                 "echo %1 | \"%2\" --model \"%3\" --output_raw | "
@@ -572,7 +572,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     auto* btnRescan = new QPushButton("\xf0\x9f\x94\x84  Ricontrolla", secBin);
     btnRescan->setObjectName("actionBtn");
     btnRescan->setFixedHeight(28);
-    btnRescan->setToolTip("Riscansiona i percorsi noti per whisper-cli.");
+    btnRescan->setToolTip(tr("Riscansiona i percorsi noti per whisper-cli."));
     secBinLay->addWidget(btnRescan);
 
     /* Pulsante compila da sorgente — visibile solo se binario mancante */
@@ -648,7 +648,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
         btnCompileWsp->setEnabled(false);
         secCompile->setVisible(true);
         compileLog->clear();
-        lblCompileStatus->setText("\xe2\x8c\x9b  Avvio in corso...");
+        lblCompileStatus->setText(tr("\xe2\x8c\x9b  Avvio in corso..."));
 
         const QString wspDir  = QDir::homePath() + "/.prismalux/whisper.cpp";
         const QString bldDir  = wspDir + "/build";
@@ -829,7 +829,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
 
     auto* btnApply = new QPushButton("\xe2\x9c\x94  Applica", secActive);
     btnApply->setObjectName("actionBtn");
-    btnApply->setToolTip("Imposta il modello selezionato come modello attivo");
+    btnApply->setToolTip(tr("Imposta il modello selezionato come modello attivo"));
     QObject::connect(btnApply, &QPushButton::clicked, inner,
                      [cmbModel, refreshActive, lblActivePath](){
         const QString path = cmbModel->currentData().toString();
@@ -917,8 +917,8 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
         {
             QDir().mkpath(modelsDir);
             btnDl->setEnabled(false);
-            btnDl->setText("\xe2\x8f\xb3  Download...");
-            lblStatus->setText("\xe2\x8f\xb3 Scaricamento...");
+            btnDl->setText(tr("\xe2\x8f\xb3  Download..."));
+            lblStatus->setText(tr("\xe2\x8f\xb3 Scaricamento..."));
 
 #ifdef Q_OS_WIN
             const QString dl = "curl.exe";
@@ -946,8 +946,8 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
                 btnDl->setEnabled(true);
                 const qint64 sz = QFileInfo(modelPath).size();
                 if (code == 0 && sz > 10'000'000LL) {
-                    lblStatus->setText("\xe2\x9c\x85 Presente");
-                    btnDl->setText("\xf0\x9f\x94\x84  Riscarica");
+                    lblStatus->setText(tr("\xe2\x9c\x85 Presente"));
+                    btnDl->setText(tr("\xf0\x9f\x94\x84  Riscarica"));
                     /* Aggiorna il testo della voce nel combo */
                     for (int j = 0; j < cmbModel->count(); j++) {
                         if (cmbModel->itemData(j).toString() == modelPath) {
@@ -964,8 +964,8 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
                 } else {
                     /* Download incompleto — rimuovi file parziale */
                     if (sz < 10'000'000LL) QFile::remove(modelPath);
-                    lblStatus->setText("\xe2\x9d\x8c Errore");
-                    btnDl->setText("\xf0\x9f\x93\xa5  Scarica");
+                    lblStatus->setText(tr("\xe2\x9d\x8c Errore"));
+                    btnDl->setText(tr("\xf0\x9f\x93\xa5  Scarica"));
                 }
             });
         });
@@ -1170,7 +1170,7 @@ void ImpostazioniPage::onMicToggleBtnClicked()
         const QAudioDevice defDevice = QMediaDevices::defaultAudioInput();
         if (defDevice.isNull()) {
             m_micToggleBtn->setChecked(false);
-            m_micToggleBtn->setText("\xe2\x9a\xa0  Microfono non trovato");
+            m_micToggleBtn->setText(tr("\xe2\x9a\xa0  Microfono non trovato"));
             return;
         }
 
@@ -1188,14 +1188,14 @@ void ImpostazioniPage::onMicToggleBtnClicked()
             delete m_micSource;
             m_micSource = nullptr;
             m_micToggleBtn->setChecked(false);
-            m_micToggleBtn->setText("\xe2\x9d\x8c  Impossibile aprire il microfono");
+            m_micToggleBtn->setText(tr("\xe2\x9d\x8c  Impossibile aprire il microfono"));
             return;
         }
 
         connect(m_micDevice, &QIODevice::readyRead,
                 this, &ImpostazioniPage::onMicAudioData);
 
-        m_micToggleBtn->setText("\xe2\x8f\xb9  Ferma monitoraggio");   /* ⏹ */
+        m_micToggleBtn->setText(tr("\xe2\x8f\xb9  Ferma monitoraggio"));   /* ⏹ */
         if (m_micLevelBar) {
             m_micLevelBar->setValue(0);
             m_micLevelBar->setEnabled(true);
@@ -1208,7 +1208,7 @@ void ImpostazioniPage::onMicToggleBtnClicked()
             m_micSource = nullptr;
             m_micDevice = nullptr;   /* deleteLater gestito da QAudioSource */
         }
-        m_micToggleBtn->setText("\xf0\x9f\x94\xb4  Avvia monitoraggio");   /* 🔴 */
+        m_micToggleBtn->setText(tr("\xf0\x9f\x94\xb4  Avvia monitoraggio"));   /* 🔴 */
         if (m_micLevelBar) {
             m_micLevelBar->setValue(0);
             m_micLevelBar->setEnabled(false);
