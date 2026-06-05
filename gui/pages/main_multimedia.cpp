@@ -3,6 +3,7 @@
 #include "../prismalux_paths.h"
 #include "../dpi_utils.h"
 #include "../widgets/stt_whisper.h"
+#include "../widgets/ffmpeg_utils.h"
 #include "../widgets/world_map_widget.h"
 #include <QSettings>
 #include <QVBoxLayout>
@@ -437,8 +438,8 @@ void MultimediaPage::onTranscribeBtnClicked()
         connect(m_ffmpegProc,
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MultimediaPage::onFfmpegFinished);
-        m_ffmpegProc->start("ffmpeg", {"-y", "-i", m_audioFilePath,
-            "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", m_ffmpegWavTmp});
+        m_ffmpegProc->start(FfmpegUtils::findFfmpeg(),
+            FfmpegUtils::whisperArgs(m_audioFilePath, m_ffmpegWavTmp));
     }
 }
 
@@ -1231,11 +1232,8 @@ void MultimediaPage::onOcrTranscribeAudioClicked()
     connect(m_ocrFfmpegProc,
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MultimediaPage::onOcrFfmpegFinished);
-    m_ocrFfmpegProc->start("ffmpeg", {
-        "-y", "-i", m_ocrVideoPath,
-        "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le",
-        m_ocrAudioWav
-    });
+    m_ocrFfmpegProc->start(FfmpegUtils::findFfmpeg(),
+        FfmpegUtils::extractArgs(m_ocrVideoPath, m_ocrAudioWav));
     if (!m_ocrFfmpegProc->waitForStarted(3000)) {
         m_ocrStatus->setText(
             "\xe2\x9d\x8c  ffmpeg non trovato. Installa con: sudo apt install ffmpeg");

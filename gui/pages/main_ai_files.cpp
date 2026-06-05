@@ -14,6 +14,7 @@ namespace P = PrismaluxPaths;
 #include <QStandardPaths>
 #include <functional>
 #include "../widgets/stt_whisper.h"
+#include "../widgets/ffmpeg_utils.h"
 
 /* ══════════════════════════════════════════════════════════════
    loadDroppedFile — dispatcher per tutti i tipi di file
@@ -453,7 +454,7 @@ void AgentiPage::_loadAudioAsText(const QString& filePath)
     if (ext == "wav") {
         runTranscription(filePath);
     } else {
-        const QString ffmpeg = QStandardPaths::findExecutable("ffmpeg");
+        const QString ffmpeg = FfmpegUtils::findFfmpeg();
         if (ffmpeg.isEmpty()) {
             m_log->append(
                 "\xe2\x9a\xa0  <b>ffmpeg</b> non trovato.<br>"
@@ -462,10 +463,7 @@ void AgentiPage::_loadAudioAsText(const QString& filePath)
         }
         QFile::remove(wavTmp);
         auto* convProc = new QProcess(this);
-        convProc->start(ffmpeg, {
-            "-y", "-i", filePath,
-            "-ar", "16000", "-ac", "1", "-f", "wav", wavTmp
-        });
+        convProc->start(ffmpeg, FfmpegUtils::whisperArgs(filePath, wavTmp));
         connect(convProc,
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, [this, convProc, wavTmp, runTranscription](int code, QProcess::ExitStatus){
