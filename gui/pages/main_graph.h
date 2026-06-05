@@ -83,7 +83,7 @@ public:
     enum AxisPos { AtData = 0, BottomLeft, BottomRight, TopLeft, TopRight };
 
     /** Stile rendering per superfici 3D (richiede grid topology da setScatter3D). */
-    enum RenderMode3D { Points3D = 0, Wireframe3D, Surface3D };
+    enum RenderMode3D { Points3D = 0, Wireframe3D, Surface3D, Solid3D };
 
     /** Stile visivo del canvas — colori, font, palette serie. */
     struct ChartStyle {
@@ -130,6 +130,9 @@ public:
     void setEdges(const QVector<QPair<QString,QString>>& edges);
     void setScatter3D(const QVector<Pt3D>& pts, int gridCols = 0);
     void setRenderMode3D(RenderMode3D m) { m_renderMode3D = m; update(); }
+
+    QVector<QPointF>            scatterPts()  const { return m_scatterPts; }
+    QVector<QVector<QPointF>>   lineSeries()  const { return m_lineSeries; }
 
 public slots:
     /** Slot compatibile con QComboBox::currentIndexChanged(int).

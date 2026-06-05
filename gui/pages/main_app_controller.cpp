@@ -266,6 +266,27 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
     lay->setContentsMargins(0, 0, 0, 0);
     lay->setSpacing(0);
 
+    /* ── Toolbar rapida ── */
+    auto* toolbar = new QWidget(this);
+    auto* tbLay   = new QHBoxLayout(toolbar);
+    tbLay->setContentsMargins(dpiScale(8), dpiScale(4),
+                              dpiScale(8), dpiScale(4));
+    tbLay->setSpacing(dpiScale(6));
+
+    auto* pipBtn = new QPushButton(
+        "\xf0\x9f\x90\x8d  Moduli Python", toolbar);
+    pipBtn->setObjectName("actionBtn");
+    pipBtn->setToolTip(
+        "Apri Impostazioni \xe2\x86\x92 Moduli Python "
+        "per installare i moduli necessari");
+    pipBtn->setFixedHeight(dpiScale(28));
+    tbLay->addWidget(pipBtn);
+    tbLay->addStretch();
+    lay->addWidget(toolbar);
+
+    connect(pipBtn, &QPushButton::clicked, this,
+            [this]() { emit openSettingsDipendenze({}); });
+
     m_tabs = new QTabWidget(this);
     m_tabs->setObjectName("innerTabs");
     m_tabs->setTabPosition(QTabWidget::North);
@@ -1509,6 +1530,42 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     hintLbl->setWordWrap(true);
     lay->addWidget(hintLbl);
 
+    /* ── Banner modulo mancante: pyserial (controllo async, non blocca UI) ── */
+    {
+        auto* banner    = new QWidget(w);
+        auto* bannerLay = new QHBoxLayout(banner);
+        bannerLay->setContentsMargins(8, 4, 8, 4);
+        bannerLay->setSpacing(10);
+        banner->setStyleSheet(
+            "background:#78350f;border-radius:6px;border:1px solid #f59e0b;");
+        banner->hide();
+
+        auto* warnLbl = new QLabel(
+            "\xe2\x9a\xa0  Modulo <b>pyserial</b> non installato "
+            "\xe2\x80\x94 comunicazione seriale non disponibile.", banner);
+        warnLbl->setObjectName("hintLabel");
+        warnLbl->setStyleSheet("color:#fcd34d;background:transparent;border:none;");
+
+        auto* goBtn = new QPushButton(
+            "\xe2\x9a\x99\xef\xb8\x8f  Installa in Impostazioni", banner);
+        goBtn->setObjectName("actionBtn");
+        goBtn->setFixedWidth(dpiScale(195));
+
+        bannerLay->addWidget(warnLbl, 1);
+        bannerLay->addWidget(goBtn);
+        lay->addWidget(banner);
+
+        QObject::connect(goBtn, &QPushButton::clicked, this,
+            [this]() { emit openSettingsDipendenze("pyserial"); });
+
+        auto* chk = new QProcess(w);
+        QObject::connect(chk, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            banner, [banner](int code, QProcess::ExitStatus) {
+                if (code != 0) banner->show();
+            });
+        chk->start("python3", {"-c", "import serial"});
+    }
+
     /* ── Azione + Scheda + Modello ── */
     auto* toolRow = new QWidget(w);
     auto* toolLay = new QHBoxLayout(toolRow);
@@ -1568,12 +1625,15 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     lay->addWidget(btnRow);
 
     /* ── Output ── */
-    m_mcuOutput = new QTextEdit(w);
+    m_mcuOutput = new QTextBrowser(w);
     m_mcuOutput->setReadOnly(true);
     m_mcuOutput->setObjectName("outputView");
+    m_mcuOutput->setOpenLinks(false);
     m_mcuOutput->setPlaceholderText(
         "Il codice C++/Python per microcontrollore apparir\xc3\xa0 qui...\n"
         "Dopo la generazione premi 'Flash MCU' per caricare sulla scheda.");
+    connect(m_mcuOutput, &QTextBrowser::anchorClicked,
+            this, &AppControllerPage::onPipLinkClicked);
     lay->addWidget(m_mcuOutput, 1);
 
     /* ── Connessioni ── */
@@ -1659,6 +1719,42 @@ QWidget* AppControllerPage::buildOBSTab()
     hintLbl->setWordWrap(true);
     lay->addWidget(hintLbl);
 
+    /* ── Banner modulo mancante: obsws-python (controllo async, non blocca UI) ── */
+    {
+        auto* banner    = new QWidget(w);
+        auto* bannerLay = new QHBoxLayout(banner);
+        bannerLay->setContentsMargins(8, 4, 8, 4);
+        bannerLay->setSpacing(10);
+        banner->setStyleSheet(
+            "background:#78350f;border-radius:6px;border:1px solid #f59e0b;");
+        banner->hide();
+
+        auto* warnLbl = new QLabel(
+            "\xe2\x9a\xa0  Modulo <b>obsws-python</b> non installato "
+            "\xe2\x80\x94 OBS MCP non sar\xc3\xa0 disponibile.", banner);
+        warnLbl->setObjectName("hintLabel");
+        warnLbl->setStyleSheet("color:#fcd34d;background:transparent;border:none;");
+
+        auto* goBtn = new QPushButton(
+            "\xe2\x9a\x99\xef\xb8\x8f  Installa in Impostazioni", banner);
+        goBtn->setObjectName("actionBtn");
+        goBtn->setFixedWidth(dpiScale(195));
+
+        bannerLay->addWidget(warnLbl, 1);
+        bannerLay->addWidget(goBtn);
+        lay->addWidget(banner);
+
+        QObject::connect(goBtn, &QPushButton::clicked, this,
+            [this]() { emit openSettingsDipendenze("obsws-python"); });
+
+        auto* chk = new QProcess(w);
+        QObject::connect(chk, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            banner, [banner](int code, QProcess::ExitStatus) {
+                if (code != 0) banner->show();
+            });
+        chk->start("python3", {"-c", "import obsws_python"});
+    }
+
     /* ── Azione + Modello ── */
     auto* toolRow = new QWidget(w);
     auto* toolLay = new QHBoxLayout(toolRow);
@@ -1704,10 +1800,13 @@ QWidget* AppControllerPage::buildOBSTab()
     lay->addWidget(btnRow);
 
     /* ── Output ── */
-    m_obsOutput = new QTextEdit(w);
+    m_obsOutput = new QTextBrowser(w);
     m_obsOutput->setReadOnly(true);
     m_obsOutput->setObjectName("outputView");
+    m_obsOutput->setOpenLinks(false);
     m_obsOutput->setPlaceholderText("Script Python OBS apparir\xc3\xa0 qui...");
+    connect(m_obsOutput, &QTextBrowser::anchorClicked,
+            this, &AppControllerPage::onPipLinkClicked);
     lay->addWidget(m_obsOutput, 1);
 
     /* ── Connessioni ── */
@@ -1769,68 +1868,141 @@ void AppControllerPage::detectSerialPorts()
    ══════════════════════════════════════════════════════════════ */
 QWidget* AppControllerPage::buildTelegramTab()
 {
+    /* Scroll area esterna — la sezione è alta */
+    auto* scroll = new QScrollArea;
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+
     auto* w   = new QWidget;
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(dpiScale(12), dpiScale(12),
                             dpiScale(12), dpiScale(12));
-    lay->setSpacing(dpiScale(8));
+    lay->setSpacing(dpiScale(10));
 
-    /* ── Descrizione ── */
+    /* ── Intestazione ── */
     auto* descLbl = new QLabel(
-        "\xf0\x9f\x93\xac  <i>Bot Telegram completamente locale: "
-        "invia messaggi al bot, Prismalux li processa con Ollama "
-        "e risponde. Nessun cloud, il token non lascia mai il tuo PC.</i>", w);
+        "\xf0\x9f\x93\xac  <b>Bot Telegram locale</b> \xe2\x80\x94 "
+        "Prismalux risponde ai tuoi messaggi Telegram usando Ollama. "
+        "Il token <b>non lascia mai il tuo PC</b>.", w);
     descLbl->setObjectName("hintLabel");
     descLbl->setTextFormat(Qt::RichText);
     descLbl->setWordWrap(true);
     lay->addWidget(descLbl);
 
-    /* ── GroupBox Configurazione ── */
-    auto* cfgGroup = new QGroupBox(
-        "\xf0\x9f\x94\xa7  Configurazione", w);
-    auto* cfgLay = new QVBoxLayout(cfgGroup);
-    cfgLay->setSpacing(dpiScale(6));
+    /* ── Banner python-telegram-bot mancante (async) ── */
+    {
+        auto* banner    = new QWidget(w);
+        auto* bannerLay = new QHBoxLayout(banner);
+        bannerLay->setContentsMargins(8, 6, 8, 6);
+        bannerLay->setSpacing(10);
+        banner->setStyleSheet(
+            "background:#78350f;border-radius:6px;border:1px solid #f59e0b;");
+        banner->hide();
 
-    /* Token row */
+        auto* warnLbl = new QLabel(
+            "\xe2\x9a\xa0  Modulo <b>python-telegram-bot</b> non installato \xe2\x80\x94 "
+            "il bot non pu\xc3\xb2 avviarsi.", banner);
+        warnLbl->setObjectName("hintLabel");
+        warnLbl->setStyleSheet("color:#fcd34d;background:transparent;border:none;");
+        warnLbl->setWordWrap(true);
+
+        auto* goBtn = new QPushButton(
+            "\xe2\x9a\x99\xef\xb8\x8f  Installa in Impostazioni", banner);
+        goBtn->setObjectName("actionBtn");
+        goBtn->setFixedWidth(dpiScale(200));
+
+        bannerLay->addWidget(warnLbl, 1);
+        bannerLay->addWidget(goBtn);
+        lay->addWidget(banner);
+
+        QObject::connect(goBtn, &QPushButton::clicked, this,
+            [this]() { emit openSettingsDipendenze("python-telegram-bot==13.*"); });
+
+        auto* chk = new QProcess(w);
+        QObject::connect(chk, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            banner, [banner](int code, QProcess::ExitStatus) {
+                if (code != 0) banner->show();
+            });
+        chk->start("python3", {"-c", "import telegram"});
+    }
+
+    /* ════════════════════════════════════════════════════════
+       PASSO 1 — Token del bot
+       ════════════════════════════════════════════════════════ */
+    auto* step1 = new QGroupBox(
+        "\xf0\x9f\x94\x91  Passo 1 \xe2\x80\x94 Token del bot", w);
+    auto* s1Lay = new QVBoxLayout(step1);
+    s1Lay->setSpacing(dpiScale(6));
+
+    auto* step1Hint = new QLabel(
+        "Il token identifica il tuo bot presso Telegram. "
+        "Ottienilo cos\xc3\xac:\n"
+        "  1. Apri Telegram e cerca <b>@BotFather</b>\n"
+        "  2. Scrivi <code>/newbot</code> e segui le istruzioni\n"
+        "  3. Copia il token (formato: <code>7123456789:AAF-xxxx</code>)",
+        step1);
+    step1Hint->setObjectName("hintLabel");
+    step1Hint->setTextFormat(Qt::RichText);
+    step1Hint->setWordWrap(true);
+    s1Lay->addWidget(step1Hint);
+
     auto* tokenRow = new QHBoxLayout;
-    auto* tokenLbl = new QLabel("Bot Token:", cfgGroup);
-    tokenLbl->setFixedWidth(dpiScale(90));
-    m_telegramTokenEdit = new QLineEdit(cfgGroup);
-    m_telegramTokenEdit->setPlaceholderText("123456:ABC-DEF... (da @BotFather)");
+    auto* tokenLbl = new QLabel("Token:", step1);
+    tokenLbl->setFixedWidth(dpiScale(60));
+    m_telegramTokenEdit = new QLineEdit(step1);
+    m_telegramTokenEdit->setPlaceholderText("7123456789:AAF-DEFxxx...");
     m_telegramTokenEdit->setEchoMode(QLineEdit::Password);
+    auto* eyeBtn = new QPushButton("\xf0\x9f\x91\x81", step1);   /* 👁 */
+    eyeBtn->setToolTip("Mostra / nascondi token");
+    eyeBtn->setFixedWidth(dpiScale(36));
+    eyeBtn->setCheckable(true);
     auto* saveTokenBtn = new QPushButton(
-        "\xf0\x9f\x92\xbe  Salva token", cfgGroup);
+        "\xf0\x9f\x92\xbe  Salva", step1);
     saveTokenBtn->setObjectName("actionBtn");
-    saveTokenBtn->setFixedWidth(dpiScale(110));
+    saveTokenBtn->setFixedWidth(dpiScale(80));
     tokenRow->addWidget(tokenLbl);
     tokenRow->addWidget(m_telegramTokenEdit, 1);
+    tokenRow->addWidget(eyeBtn);
     tokenRow->addWidget(saveTokenBtn);
-    cfgLay->addLayout(tokenRow);
+    s1Lay->addLayout(tokenRow);
+    lay->addWidget(step1);
 
-    /* Whitelist row */
+    /* ════════════════════════════════════════════════════════
+       PASSO 2 — Chi può scrivere al bot (sicurezza)
+       ════════════════════════════════════════════════════════ */
+    auto* step2 = new QGroupBox(
+        "\xf0\x9f\x9b\xa1  Passo 2 \xe2\x80\x94 Chi pu\xc3\xb2 scrivere al bot", w);
+    auto* s2Lay = new QVBoxLayout(step2);
+    s2Lay->setSpacing(dpiScale(6));
+
+    auto* step2Hint = new QLabel(
+        "Inserisci gli <b>ID numerici</b> Telegram delle persone autorizzate, "
+        "separati da virgola.<br>"
+        "<b>Se lasci vuoto</b>, il bot risponde a chiunque gli scriva.<br>"
+        "Per trovare il tuo ID: apri Telegram e scrivi a "
+        "<b>@userinfobot</b> \xe2\x80\x94 risponde con il tuo ID numerico.",
+        step2);
+    step2Hint->setObjectName("hintLabel");
+    step2Hint->setTextFormat(Qt::RichText);
+    step2Hint->setWordWrap(true);
+    s2Lay->addWidget(step2Hint);
+
     auto* wlRow = new QHBoxLayout;
-    auto* wlLbl = new QLabel("Whitelist ID:", cfgGroup);
-    wlLbl->setFixedWidth(dpiScale(90));
-    m_telegramWhitelistEdit = new QLineEdit(cfgGroup);
+    auto* wlLbl = new QLabel("ID autorizzati:", step2);
+    wlLbl->setFixedWidth(dpiScale(100));
+    m_telegramWhitelistEdit = new QLineEdit(step2);
     m_telegramWhitelistEdit->setPlaceholderText(
-        "123456789,987654321 \xe2\x80\x94 lascia vuoto per tutti");
+        "123456789, 987654321  \xe2\x80\x94 vuoto = tutti");
     wlRow->addWidget(wlLbl);
     wlRow->addWidget(m_telegramWhitelistEdit, 1);
-    cfgLay->addLayout(wlRow);
+    s2Lay->addLayout(wlRow);
+    lay->addWidget(step2);
 
-    /* Nota AI */
-    auto* notaLbl = new QLabel(
-        "\xf0\x9f\x94\x92  I messaggi vengono processati da Ollama locale. "
-        "Il token non lascia mai il tuo PC.", cfgGroup);
-    notaLbl->setObjectName("hintLabel");
-    notaLbl->setWordWrap(true);
-    cfgLay->addWidget(notaLbl);
-
-    lay->addWidget(cfgGroup);
-
-    /* ── GroupBox Controllo ── */
+    /* ════════════════════════════════════════════════════════
+       Controllo avvia / ferma
+       ════════════════════════════════════════════════════════ */
     auto* ctrlGroup = new QGroupBox(
-        "\xe2\x9a\x99\xef\xb8\x8f  Controllo", w);
+        "\xe2\x9a\x99\xef\xb8\x8f  Controllo bot", w);
     auto* ctrlLay = new QHBoxLayout(ctrlGroup);
     ctrlLay->setSpacing(dpiScale(8));
 
@@ -1852,80 +2024,91 @@ QWidget* AppControllerPage::buildTelegramTab()
     ctrlLay->addWidget(m_telegramStartBtn);
     ctrlLay->addWidget(m_telegramStopBtn);
     ctrlLay->addWidget(m_telegramStatusLbl, 1);
-
     lay->addWidget(ctrlGroup);
 
-    /* ── Log messaggi ── */
+    /* Log messaggi */
     auto* logGroup = new QGroupBox(
-        "\xf0\x9f\x93\x9d  Log messaggi", w);
+        "\xf0\x9f\x93\x9d  Log messaggi in tempo reale", w);
     auto* logLay = new QVBoxLayout(logGroup);
-
-    m_telegramLog = new QTextEdit(logGroup);
+    m_telegramLog = new QTextBrowser(logGroup);
     m_telegramLog->setReadOnly(true);
-    m_telegramLog->setMinimumHeight(dpiScale(180));
+    m_telegramLog->setOpenLinks(false);
+    m_telegramLog->setMinimumHeight(dpiScale(160));
     m_telegramLog->setPlaceholderText(
-        "Il log dei messaggi ricevuti e inviati apparir\xc3\xa0 qui...");
+        "Qui appariranno i messaggi ricevuti e le risposte inviate...");
+    connect(m_telegramLog, &QTextBrowser::anchorClicked,
+            this, &AppControllerPage::onPipLinkClicked);
     logLay->addWidget(m_telegramLog);
-
     lay->addWidget(logGroup, 1);
 
-    /* ── GroupBox Contatti promozionali ── */
-    auto* promoGroup = new QGroupBox(
-        "\xf0\x9f\x93\xa3  Contatti promozionali", w);
-    auto* promoLay = new QVBoxLayout(promoGroup);
-    promoLay->setSpacing(dpiScale(6));
+    /* ════════════════════════════════════════════════════════
+       PASSO 3 — Invia messaggio a destinatari specifici
+       ════════════════════════════════════════════════════════ */
+    auto* step3 = new QGroupBox(
+        "\xf0\x9f\x93\xa4  Passo 3 \xe2\x80\x94 Invia messaggio a destinatari", w);
+    auto* s3Lay = new QVBoxLayout(step3);
+    s3Lay->setSpacing(dpiScale(6));
 
-    auto* promoHintLbl = new QLabel(
-        "<i>Inserisci gli ID Telegram (numerici) o username (@nome) dei destinatari. "
-        "Il bot deve aver ricevuto almeno un messaggio da ciascun contatto.</i>",
-        promoGroup);
-    promoHintLbl->setObjectName("hintLabel");
-    promoHintLbl->setTextFormat(Qt::RichText);
-    promoHintLbl->setWordWrap(true);
-    promoLay->addWidget(promoHintLbl);
+    auto* step3Hint = new QLabel(
+        "Aggiungi i destinatari a cui inviare messaggi (indipendentemente dal bot).<br>"
+        "\xe2\x80\xa2 <b>Utente</b>: ID numerico (es. <code>123456789</code>) "
+        "oppure <code>@username</code><br>"
+        "\xe2\x80\xa2 <b>Gruppo/Canale</b>: ID negativo "
+        "(es. <code>-1001234567890</code>)<br>"
+        "<i>Per trovare l\xe2\x80\x99ID di un gruppo: aggiungi "
+        "<b>@userinfobot</b> al gruppo e scrivi <code>/id</code>. "
+        "Il bot deve aver gi\xc3\xa0 ricevuto almeno un messaggio dal destinatario.</i>",
+        step3);
+    step3Hint->setObjectName("hintLabel");
+    step3Hint->setTextFormat(Qt::RichText);
+    step3Hint->setWordWrap(true);
+    s3Lay->addWidget(step3Hint);
 
     auto* promoAddRow = new QHBoxLayout;
-    m_telegramPromoContactEdit = new QLineEdit(promoGroup);
+    m_telegramPromoContactEdit = new QLineEdit(step3);
     m_telegramPromoContactEdit->setPlaceholderText(
-        "ID numerico (es. 123456789) o @username");
+        "ID numerico, @username oppure -1001234567890 (gruppo)");
     auto* tgAddBtn = new QPushButton(
-        "\xe2\x9e\x95  Aggiungi", promoGroup);
+        "\xe2\x9e\x95  Aggiungi", step3);
     tgAddBtn->setObjectName("actionBtn");
     tgAddBtn->setFixedWidth(dpiScale(100));
     auto* tgRemoveBtn = new QPushButton(
-        "\xe2\x9e\x96  Rimuovi", promoGroup);
+        "\xe2\x9e\x96  Rimuovi", step3);
     tgRemoveBtn->setObjectName("actionBtn");
     tgRemoveBtn->setFixedWidth(dpiScale(100));
     promoAddRow->addWidget(m_telegramPromoContactEdit, 1);
     promoAddRow->addWidget(tgAddBtn);
     promoAddRow->addWidget(tgRemoveBtn);
-    promoLay->addLayout(promoAddRow);
+    s3Lay->addLayout(promoAddRow);
 
-    m_telegramContactList = new QListWidget(promoGroup);
+    m_telegramContactList = new QListWidget(step3);
     m_telegramContactList->setFixedHeight(dpiScale(80));
-    promoLay->addWidget(m_telegramContactList);
+    s3Lay->addWidget(m_telegramContactList);
 
-    auto* promoMsgLbl = new QLabel("Messaggio:", promoGroup);
-    promoLay->addWidget(promoMsgLbl);
-    m_telegramPromoMsgEdit = new QTextEdit(promoGroup);
+    auto* promoMsgLbl = new QLabel(
+        "Messaggio da inviare:", step3);
+    s3Lay->addWidget(promoMsgLbl);
+    m_telegramPromoMsgEdit = new QTextEdit(step3);
     m_telegramPromoMsgEdit->setFixedHeight(dpiScale(60));
     m_telegramPromoMsgEdit->setPlaceholderText(
-        "Testo del messaggio promozionale...");
-    promoLay->addWidget(m_telegramPromoMsgEdit);
+        "Scrivi il testo del messaggio...");
+    s3Lay->addWidget(m_telegramPromoMsgEdit);
 
     auto* promoCtrlRow = new QHBoxLayout;
     auto* tgSendAllBtn = new QPushButton(
-        "\xf0\x9f\x93\xa4  Invia a tutti", promoGroup);
+        "\xf0\x9f\x93\xa4  Invia a tutti i destinatari", step3);
     tgSendAllBtn->setObjectName("actionBtn");
-    m_telegramPromoStatusLbl = new QLabel("", promoGroup);
+    m_telegramPromoStatusLbl = new QLabel("", step3);
     m_telegramPromoStatusLbl->setObjectName("statusLabel");
     promoCtrlRow->addWidget(tgSendAllBtn);
     promoCtrlRow->addWidget(m_telegramPromoStatusLbl, 1);
-    promoLay->addLayout(promoCtrlRow);
+    s3Lay->addLayout(promoCtrlRow);
+    lay->addWidget(step3);
 
-    lay->addWidget(promoGroup);
+    lay->addStretch();
+    scroll->setWidget(w);
 
-    /* ── Carica token salvato ── */
+    /* ── Carica dati salvati ── */
     {
         QSettings s("Prismalux", "GUI");
         const QString savedToken = s.value("telegram/token").toString();
@@ -1934,9 +2117,7 @@ QWidget* AppControllerPage::buildTelegramTab()
             m_telegramTokenEdit->setText(savedToken);
         if (!savedWl.isEmpty())
             m_telegramWhitelistEdit->setText(savedWl);
-
-        const QStringList contacts =
-            s.value("telegram_contacts").toStringList();
+        const QStringList contacts = s.value("telegram_contacts").toStringList();
         for (const QString& c : contacts)
             m_telegramContactList->addItem(c);
     }
@@ -1945,6 +2126,12 @@ QWidget* AppControllerPage::buildTelegramTab()
         m_telegramPromoNam = new QNetworkAccessManager(this);
 
     /* ── Connessioni ── */
+    connect(eyeBtn, &QPushButton::toggled, m_telegramTokenEdit,
+            [this](bool show) {
+        m_telegramTokenEdit->setEchoMode(
+            show ? QLineEdit::Normal : QLineEdit::Password);
+    });
+
     connect(saveTokenBtn, &QPushButton::clicked, this, [this]() {
         QSettings s("Prismalux", "GUI");
         s.setValue("telegram/token",     m_telegramTokenEdit->text().trimmed());
@@ -1963,7 +2150,7 @@ QWidget* AppControllerPage::buildTelegramTab()
     connect(tgSendAllBtn, &QPushButton::clicked,
             this, &AppControllerPage::onTelegramSendPromoClicked);
 
-    return w;
+    return scroll;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2127,11 +2314,14 @@ QWidget* AppControllerPage::buildWhatsAppTab()
 
     auto* botLogGroup = new QGroupBox("Log messaggi", botGroup);
     auto* botLogLay   = new QVBoxLayout(botLogGroup);
-    m_waBotLog = new QTextEdit(botLogGroup);
+    m_waBotLog = new QTextBrowser(botLogGroup);
     m_waBotLog->setReadOnly(true);
+    m_waBotLog->setOpenLinks(false);
     m_waBotLog->setMinimumHeight(dpiScale(120));
     m_waBotLog->setPlaceholderText(
         "I messaggi ricevuti/inviati dal bot appariranno qui...");
+    connect(m_waBotLog, &QTextBrowser::anchorClicked,
+            this, &AppControllerPage::onPipLinkClicked);
     botLogLay->addWidget(m_waBotLog);
     botLay->addWidget(botLogGroup);
 
@@ -2275,11 +2465,14 @@ QWidget* AppControllerPage::buildDevAgentTab()
     auto* logGroup = new QGroupBox(
         "\xf0\x9f\x93\x8b  Log agente  (Read \xe2\x86\x92 Generate \xe2\x86\x92 Compile \xe2\x86\x92 Fix \xe2\x86\x92 Done)", w);
     auto* logLay = new QVBoxLayout(logGroup);
-    m_devLog = new QTextEdit(logGroup);
+    m_devLog = new QTextBrowser(logGroup);
     m_devLog->setReadOnly(true);
+    m_devLog->setOpenLinks(false);
     m_devLog->setMinimumHeight(dpiScale(140));
     m_devLog->setPlaceholderText("I passi dell'agente appariranno qui...");
     m_devLog->setFont(QFont("JetBrains Mono,Fira Code,Consolas", 9));
+    connect(m_devLog, &QTextBrowser::anchorClicked,
+            this, &AppControllerPage::onPipLinkClicked);
     logLay->addWidget(m_devLog);
     /* ── Splitter orizzontale: Log+Diff | Cronologia+Git ── */
     auto* splitter = new QSplitter(Qt::Horizontal, w);

@@ -69,6 +69,8 @@ private slots:
     void onTypeComboChanged(int idx);
     void onWuTableRowClicked(int row);
     void onDeleteWuClicked();
+    void onGenerateFromFileClicked();
+    void onAggregateResultsClicked();
 
 private:
     /* ── DB ── */
@@ -125,6 +127,9 @@ private:
     QMap<QString, QString> m_fileRegistry;    /* name → localPath (coordinator) */
     QMap<QString, QString> m_pendingFileSaves; /* name → savePath (worker) */
 
+    /* ── Progress streaming ── */
+    void updateWuProgress(const QString& wuId, int pct, const QString& msg);
+
     /* ── Capability ── */
     static QJsonObject detectCapabilities();
     static bool        isSafeToolName(const QString& name);
@@ -158,6 +163,10 @@ private:
     bool    m_isCoord    = true;
     bool    m_useLocal   = true;
 
+    /* ── Progress streaming ── */
+    QMap<QString, QPair<int,QString>> m_wuProgress;    /* wuId → {pct, msg} */
+    QMap<QString, qint64>             m_lastProgressMs; /* throttle 2s per wuId */
+
     /* ── DB ── */
     QString m_connName;
 
@@ -176,6 +185,7 @@ private:
     QComboBox*    m_replicasCmb   = nullptr;
     QPushButton*  m_btnStartStop  = nullptr;
     QPushButton*  m_btnConnect    = nullptr;
+    QPushButton*  m_btnAggregate  = nullptr;
     QCheckBox*    m_localChk      = nullptr;
     QStackedWidget* m_modeStack   = nullptr;
     QString           m_selectedWuId;

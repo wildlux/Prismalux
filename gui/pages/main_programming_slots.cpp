@@ -1847,3 +1847,279 @@ void ProgrammazionePage::onKernelSafetyClicked()
         "\xe2\x80\xa2 Testare prima in una macchina virtuale o ambiente di staging.\n\n"
         "Procedere solo se si ha esperienza con la gestione del sistema Linux.");
 }
+
+/* ══════════════════════════════════════════════════════════════
+   VPN & Tunnel — slot
+   ══════════════════════════════════════════════════════════════ */
+
+static const char* kVpnTemplates[] = {
+    "# WireGuard — configurazione client\n"
+    "# Salva come /etc/wireguard/wg0.conf e usa: sudo wg-quick up wg0\n"
+    "\n"
+    "[Interface]\n"
+    "Address = 10.0.0.2/24\n"
+    "PrivateKey = <CHIAVE_PRIVATA_CLIENT>\n"
+    "DNS = 1.1.1.1\n"
+    "\n"
+    "[Peer]\n"
+    "PublicKey = <CHIAVE_PUBBLICA_SERVER>\n"
+    "AllowedIPs = 0.0.0.0/0, ::/0\n"
+    "Endpoint = <SERVER_IP>:51820\n"
+    "PersistentKeepalive = 25\n"
+    "\n"
+    "# Genera le chiavi con:\n"
+    "#   wg genkey | tee privatekey | wg pubkey > publickey\n",
+
+    "# OpenVPN — configurazione client (.ovpn)\n"
+    "# Usa: sudo openvpn --config client.ovpn\n"
+    "\n"
+    "client\n"
+    "dev tun\n"
+    "proto udp\n"
+    "remote <SERVER_IP> 1194\n"
+    "resolv-retry infinite\n"
+    "nobind\n"
+    "persist-key\n"
+    "persist-tun\n"
+    "cipher AES-256-CBC\n"
+    "auth SHA256\n"
+    "verb 3\n"
+    "keepalive 10 120\n"
+    "\n"
+    "<ca>\n"
+    "# Incolla il contenuto di ca.crt\n"
+    "</ca>\n"
+    "<cert>\n"
+    "# Incolla il contenuto di client.crt\n"
+    "</cert>\n"
+    "<key>\n"
+    "# Incolla il contenuto di client.key\n"
+    "</key>\n",
+
+    "# SSH Tunnel — esempi pronti all'uso\n"
+    "\n"
+    "# 1. Tunnel LOCALE: porta locale 8080 -> server:80\n"
+    "ssh -N -L 8080:localhost:80 utente@<SERVER>\n"
+    "\n"
+    "# 2. Tunnel REMOTO: porta remota 9090 -> localhost:80\n"
+    "ssh -N -R 9090:localhost:80 utente@<SERVER>\n"
+    "\n"
+    "# 3. SOCKS proxy dinamico (porta 1080)\n"
+    "ssh -N -D 1080 -C utente@<SERVER>\n"
+    "\n"
+    "# 4. Sessione persistente con autossh\n"
+    "#    sudo apt install autossh\n"
+    "autossh -M 20000 -N -L 8080:localhost:80 utente@<SERVER>\n"
+    "\n"
+    "# Configura in /etc/ssh/sshd_config del server:\n"
+    "#   AllowTcpForwarding yes\n"
+    "#   GatewayPorts yes       # solo per tunnel remoti\n",
+
+    "#!/bin/bash\n"
+    "# Wi-Fi Hotspot con NetworkManager\n"
+    "# Adatta SSID, password e interfaccia (wlan0 / wlp3s0)\n"
+    "\n"
+    "IFACE=\"wlan0\"\n"
+    "SSID=\"PrismaluxNet\"\n"
+    "PASSWORD=\"password_sicura\"\n"
+    "CON_NAME=\"PrismaluxAP\"\n"
+    "\n"
+    "nmcli con add type wifi ifname \"$IFACE\" con-name \"$CON_NAME\" \\\n"
+    "  ssid \"$SSID\" mode ap\n"
+    "\n"
+    "nmcli con modify \"$CON_NAME\" \\\n"
+    "  wifi.band bg wifi.channel 6 \\\n"
+    "  wifi-sec.key-mgmt wpa-psk wifi-sec.psk \"$PASSWORD\"\n"
+    "\n"
+    "nmcli con modify \"$CON_NAME\" ipv4.method shared\n"
+    "nmcli con up \"$CON_NAME\"\n"
+    "echo \"Hotspot '$SSID' attivo su $IFACE\"\n"
+    "\n"
+    "# Per fermare:\n"
+    "# nmcli con down \"$CON_NAME\"\n",
+};
+
+void ProgrammazionePage::onVpnTypeChanged(int idx)
+{
+    if (!m_vpnConfig) return;
+    if (idx >= 0 && idx < 4)
+        m_vpnConfig->setPlainText(QString::fromUtf8(kVpnTemplates[idx]));
+}
+
+void ProgrammazionePage::onVpnGenerateClicked()
+{
+    if (!m_vpnConfig || !m_vpnLog || !m_vpnStatusLbl) return;
+
+    const QString config  = m_vpnConfig->toPlainText().trimmed();
+    const QString tipoPkg = m_vpnTypeCombo
+        ? m_vpnTypeCombo->currentText() : QStringLiteral("VPN");
+
+    m_vpnStatusLbl->setText("\xf0\x9f\xa4\x96  AI in elaborazione...");
+    m_vpnLog->append(
+        QString("<span style='color:#94a3b8;'>\xf0\x9f\xa4\x96  "
+                "Invio configurazione %1 all'AI...</span>").arg(tipoPkg));
+
+    const QString sys =
+        "Sei un esperto di reti e sicurezza informatica su Linux. "
+        "Analizza la configurazione " + tipoPkg + " che ti fornisco, "
+        "identifica eventuali problemi di sicurezza o configurazioni mancanti, "
+        "e restituisci una versione migliorata e completa con commenti esplicativi. "
+        "Rispondi con solo il file di configurazione migliorato, senza spiegazioni aggiuntive.";
+
+    disconnect(m_vpnAiTokenConn);
+    disconnect(m_vpnAiFinishedConn);
+    disconnect(m_vpnAiErrorConn);
+
+    m_vpnConfig->clear();
+
+    m_vpnAiTokenConn = connect(m_ai, &AiClient::token,
+                               this, &ProgrammazionePage::onVpnAiToken);
+    m_vpnAiFinishedConn = connect(m_ai, &AiClient::finished,
+                                  this, &ProgrammazionePage::onVpnAiFinished);
+    m_vpnAiErrorConn = connect(m_ai, &AiClient::error,
+                               this, &ProgrammazionePage::onVpnAiError);
+
+    m_ai->chat(sys, config);
+}
+
+void ProgrammazionePage::onVpnAiToken(const QString& t)
+{
+    if (!m_vpnConfig) return;
+    QTextCursor c = m_vpnConfig->textCursor();
+    c.movePosition(QTextCursor::End);
+    c.insertText(t);
+    m_vpnConfig->setTextCursor(c);
+}
+
+void ProgrammazionePage::onVpnAiFinished(const QString& /*full*/)
+{
+    disconnect(m_vpnAiTokenConn);
+    disconnect(m_vpnAiFinishedConn);
+    disconnect(m_vpnAiErrorConn);
+    if (m_vpnStatusLbl)
+        m_vpnStatusLbl->setText("\xe2\x9c\x85  Config aggiornata dall'AI");
+    m_vpnLog->append(
+        "<span style='color:#4ade80;'>\xe2\x9c\x85  Configurazione migliorata dall'AI.</span>");
+}
+
+void ProgrammazionePage::onVpnAiError(const QString& msg)
+{
+    disconnect(m_vpnAiTokenConn);
+    disconnect(m_vpnAiFinishedConn);
+    disconnect(m_vpnAiErrorConn);
+    if (m_vpnStatusLbl)
+        m_vpnStatusLbl->setText("\xe2\x9d\x8c  Errore AI");
+    m_vpnLog->append(
+        "<span style='color:#f87171;'>\xe2\x9d\x8c  " + msg.toHtmlEscaped() + "</span>");
+}
+
+void ProgrammazionePage::onVpnApplyClicked()
+{
+    if (!m_vpnConfig || !m_vpnLog || !m_vpnTypeCombo) return;
+
+    const int    idx    = m_vpnTypeCombo->currentIndex();
+    const QString cfg   = m_vpnConfig->toPlainText().trimmed();
+
+    if (cfg.isEmpty()) {
+        m_vpnLog->append("<span style='color:#f87171;'>\xe2\x9d\x8c  Configurazione vuota.</span>");
+        return;
+    }
+
+    /* SSH: copia il comando negli appunti e suggerisce di eseguirlo in terminale */
+    if (idx == 2) {
+        qApp->clipboard()->setText(cfg);
+        m_vpnLog->append(
+            "\xf0\x9f\x93\x8b  Comandi SSH copiati negli appunti.<br>"
+            "<span style='color:#94a3b8;'>Incolla in un terminale per eseguirli.</span>");
+        if (m_vpnStatusLbl)
+            m_vpnStatusLbl->setText("\xf0\x9f\x93\x8b  Copiato negli appunti");
+        return;
+    }
+
+    /* Determina file temporaneo e comando */
+    QString tmpPath, cmd;
+    QStringList args;
+
+    if (idx == 0) {
+        /* WireGuard */
+        tmpPath = "/tmp/prismalux_wg0.conf";
+        cmd = "bash";
+        args = {"-c",
+                "cp " + tmpPath + " /etc/wireguard/wg0.conf && "
+                "wg-quick up wg0 && echo 'WireGuard attivato.'"};
+    } else if (idx == 1) {
+        /* OpenVPN */
+        tmpPath = "/tmp/prismalux_client.ovpn";
+        cmd = "openvpn";
+        args = {"--config", tmpPath};
+    } else {
+        /* Hotspot script bash */
+        tmpPath = "/tmp/prismalux_hotspot.sh";
+        cmd = "bash";
+        args = {tmpPath};
+    }
+
+    /* Scrivi il file temporaneo */
+    QFile tf(tmpPath);
+    if (!tf.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        m_vpnLog->append(
+            "<span style='color:#f87171;'>\xe2\x9d\x8c  Impossibile scrivere "
+            + tmpPath.toHtmlEscaped() + "</span>");
+        return;
+    }
+    tf.write(cfg.toUtf8());
+    tf.close();
+
+    m_vpnLog->append(
+        QString("<span style='color:#94a3b8;'>\xe2\x96\xb6  pkexec %1 %2</span>")
+            .arg(cmd).arg(args.join(" ")));
+
+    if (!m_vpnProc) {
+        m_vpnProc = new QProcess(this);
+        m_vpnProc->setProcessChannelMode(QProcess::MergedChannels);
+        connect(m_vpnProc, &QProcess::readyRead,
+                this, &ProgrammazionePage::onVpnProcReadyRead);
+        connect(m_vpnProc,
+                QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, &ProgrammazionePage::onVpnProcFinished);
+    }
+
+    QStringList pkArgs = {cmd};
+    pkArgs += args;
+    m_vpnProc->start("pkexec", pkArgs);
+    if (m_vpnStatusLbl) m_vpnStatusLbl->setText("\xf0\x9f\x94\x84  Esecuzione in corso...");
+}
+
+void ProgrammazionePage::onVpnStopClicked()
+{
+    m_ai->abort();
+    if (m_vpnProc && m_vpnProc->state() != QProcess::NotRunning) {
+        m_vpnProc->terminate();
+        m_vpnProc->waitForFinished(2000);
+    }
+    if (m_vpnStatusLbl) m_vpnStatusLbl->setText("\xe2\x8f\xb9  Fermato");
+}
+
+void ProgrammazionePage::onVpnProcReadyRead()
+{
+    if (!m_vpnProc || !m_vpnLog) return;
+    const QString out = QString::fromUtf8(m_vpnProc->readAll()).trimmed();
+    if (!out.isEmpty()) m_vpnLog->append(out.toHtmlEscaped());
+}
+
+void ProgrammazionePage::onVpnProcFinished(int code, QProcess::ExitStatus /*status*/)
+{
+    if (!m_vpnStatusLbl || !m_vpnLog) return;
+    if (code == 0) {
+        m_vpnStatusLbl->setText("\xe2\x9c\x85  Completato");
+        m_vpnLog->append(
+            "<span style='color:#4ade80;'>\xe2\x9c\x85  Comando completato correttamente.</span>");
+    } else {
+        m_vpnStatusLbl->setText(
+            QString("\xe2\x9d\x8c  Uscito con codice %1").arg(code));
+        m_vpnLog->append(
+            QString("<span style='color:#f87171;'>\xe2\x9d\x8c  "
+                    "Comando uscito con codice %1.</span>").arg(code));
+    }
+}
+

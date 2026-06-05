@@ -3,6 +3,7 @@
 #include <QAbstractSocket>
 #include <QProcess>
 #include <QJsonObject>
+#include <QUrl>
 #include <functional>
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
@@ -11,6 +12,7 @@
 class QTabWidget;
 class QLineEdit;
 class QTextEdit;
+class QTextBrowser;
 class QComboBox;
 class QPushButton;
 class QLabel;
@@ -44,6 +46,11 @@ class AppControllerPage : public QWidget {
     Q_OBJECT
 public:
     explicit AppControllerPage(AiClient* ai, QWidget* parent = nullptr);
+
+signals:
+    /** Emesso quando un modulo Python necessario a un MCP risulta mancante.
+     *  @p pipPkg — nome del pacchetto pip (es. "obsws-python") */
+    void openSettingsDipendenze(const QString& pipPkg);
 
 private:
     AiClient*      m_ai           = nullptr;
@@ -133,7 +140,7 @@ private:
     QComboBox*   m_mcuAction     = nullptr;
     QComboBox*   m_mcuModel      = nullptr;
     QTextEdit*   m_mcuInput      = nullptr;
-    QTextEdit*   m_mcuOutput     = nullptr;
+    QTextBrowser* m_mcuOutput    = nullptr;
     QPushButton* m_mcuRunBtn     = nullptr;
     QPushButton* m_mcuStopBtn    = nullptr;
     QString      m_mcuCode;
@@ -147,7 +154,7 @@ private:
     QComboBox*   m_obsAction    = nullptr;
     QComboBox*   m_obsModel     = nullptr;
     QTextEdit*   m_obsInput     = nullptr;
-    QTextEdit*   m_obsOutput    = nullptr;
+    QTextBrowser* m_obsOutput   = nullptr;
     QPushButton* m_obsRunBtn    = nullptr;
     QPushButton* m_obsStopBtn   = nullptr;
     QString      m_obsCode;
@@ -303,6 +310,9 @@ private:
     void onWaPollReply();
     void onWaBotSendReply(const QString& toNumber, const QString& replyText);
 
+    /* ── Link pip cliccabili nei log QTextBrowser ── */
+    void onPipLinkClicked(const QUrl& url);
+
     /* ── Dev Agent LangGraph ── */
     void onDevAgentRunClicked();
     void onDevAgentStopClicked();
@@ -325,7 +335,7 @@ private:
     QPushButton* m_telegramStartBtn      = nullptr;
     QPushButton* m_telegramStopBtn       = nullptr;
     QLabel*      m_telegramStatusLbl     = nullptr;
-    QTextEdit*   m_telegramLog           = nullptr;
+    QTextBrowser* m_telegramLog           = nullptr;
     QProcess*    m_telegramProc          = nullptr;
     QObject*     m_telegramAiHolder      = nullptr;
     int          m_telegramChatId        = 0;
@@ -350,7 +360,7 @@ private:
     QPushButton* m_devStopBtn       = nullptr;
     QPushButton* m_devInstallBtn    = nullptr;
     QPushButton* m_devRestoreBtn    = nullptr;
-    QTextEdit*   m_devLog           = nullptr;
+    QTextBrowser* m_devLog           = nullptr;
     QTextEdit*   m_devDiff          = nullptr;
     QLabel*      m_devStatusLbl     = nullptr;
     QListWidget* m_devHistoryList   = nullptr;
@@ -368,7 +378,7 @@ private:
     QPushButton*           m_waBotStartBtn    = nullptr;
     QPushButton*           m_waBotStopBtn     = nullptr;
     QLabel*                m_waBotStatusLbl   = nullptr;
-    QTextEdit*             m_waBotLog         = nullptr;
+    QTextBrowser*          m_waBotLog         = nullptr;
     QTimer*                m_waPollTimer      = nullptr;
     QNetworkAccessManager* m_waNam            = nullptr;
     QSet<QString>          m_waSeenMsgIds;

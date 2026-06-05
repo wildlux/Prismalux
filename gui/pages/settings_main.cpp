@@ -166,6 +166,9 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
             t->addTab(sc, "\xf0\x9f\x90\xb3  Sandbox");
         }
 
+        t->addTab(buildPythonDepsTab(),
+                  "\xf0\x9f\x90\x8d  Moduli Python");
+
         t->addTab(m_personalizza->buildLoraTab(),
                   "\xf0\x9f\xa7\xa0  Fine-tuning");
 
@@ -288,6 +291,37 @@ void ImpostazioniPage::switchToTab(const QString& name)
             }
         }
     }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   jumpToPipInstall — apre Moduli Python ed evidenzia il pacchetto
+   ══════════════════════════════════════════════════════════════ */
+void ImpostazioniPage::jumpToPipInstall(const QString& pipPkg)
+{
+    switchToTab("Moduli Python");
+    /* Assicura che sia visibile la sub-tab "Moduli MCP" (index 0) */
+    if (m_pipModuliTabs) m_pipModuliTabs->setCurrentIndex(0);
+    if (pipPkg.isEmpty()) return;
+
+    QLabel* dot = m_pipDots.value(pipPkg, nullptr);
+    if (!dot) return;
+
+    /* Scrolla per rendere visibile la riga del pacchetto */
+    if (m_pipScroll) {
+        QWidget* rowWidget = dot->parentWidget();
+        if (rowWidget)
+            QTimer::singleShot(80, m_pipScroll,
+                [this, rowWidget]() {
+                    m_pipScroll->ensureWidgetVisible(rowWidget);
+                });
+    }
+
+    /* Flash arancione per evidenziare */
+    const QString orig = dot->styleSheet();
+    dot->setStyleSheet("color:#f59e0b;font-size:16px;");
+    QTimer::singleShot(1800, dot, [dot, orig]() {
+        dot->setStyleSheet(orig);
+    });
 }
 
 /* ══════════════════════════════════════════════════════════════

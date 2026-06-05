@@ -376,6 +376,7 @@ private slots:
     /* ── Pagine contenuto ───────────────────────────────────────── */
     void onCronPanelFirstOpen();
     void onGraficoRequestSettings(const QString& tabName);
+    void onOpenSettingsDipendenze(const QString& pipPkg);
     void onMathSubTabChanged(int idx);
     void onMainTabChanged(int idx);
     void onSyncNavBackendClone();

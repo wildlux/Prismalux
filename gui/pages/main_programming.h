@@ -513,4 +513,25 @@ private:
     void     onKernelListClicked();
     void     onKernelGuideClicked();
     void     onKernelSafetyClicked();
+
+    /* ── VPN & Tunnel sub-tab ── */
+    QComboBox*  m_vpnTypeCombo  = nullptr;  ///< WireGuard / OpenVPN / SSH / Hotspot
+    QTextEdit*  m_vpnConfig     = nullptr;  ///< editor config/script generato
+    QTextEdit*  m_vpnLog        = nullptr;  ///< output comandi applicati
+    QLabel*     m_vpnStatusLbl  = nullptr;
+    QProcess*   m_vpnProc       = nullptr;
+    QMetaObject::Connection m_vpnAiTokenConn;
+    QMetaObject::Connection m_vpnAiFinishedConn;
+    QMetaObject::Connection m_vpnAiErrorConn;
+
+    QWidget* buildVpnTab(QWidget* parent);
+    void     onVpnTypeChanged(int idx);
+    void     onVpnGenerateClicked();
+    void     onVpnApplyClicked();
+    void     onVpnStopClicked();
+    void     onVpnAiToken(const QString& t);
+    void     onVpnAiFinished(const QString& full);
+    void     onVpnAiError(const QString& msg);
+    void     onVpnProcReadyRead();
+    void     onVpnProcFinished(int code, QProcess::ExitStatus status);
 };

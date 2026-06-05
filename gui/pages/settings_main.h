@@ -3,6 +3,8 @@
 #include <QDialog>
 #include <QFutureWatcher>
 #include <QPair>
+#include <QMap>
+#include <QScrollArea>
 #include <QAbstractButton>
 #include <QListWidgetItem>
 #include <QProcess>
@@ -48,6 +50,9 @@ public:
 
     /** Porta in primo piano il tab il cui titolo contiene @p name (case-insensitive) */
     void switchToTab(const QString& name);
+
+    /** Apre il tab "Moduli Python" e, se specificato, evidenzia il pacchetto @p pipPkg */
+    void jumpToPipInstall(const QString& pipPkg = {});
 
     /** Aggiunge il tab "Grafico" con i controlli di posizione degli assi.
      *  Deve essere chiamato DOPO la costruzione, quando il canvas è disponibile. */
@@ -163,6 +168,7 @@ private:
     QWidget* buildRagTab();
     QWidget* buildSandboxTab();      ///< Docker sandbox per esecuzione codice AI
     QWidget* buildDipendenzeTab();
+    QWidget* buildPythonDepsTab();
     QWidget* buildLlmConsigliatiTab();
     QWidget* buildLlmClassificaTab();  ///< ranking oggettivo open-weight (ArtificialAnalysis + benchmark locali)
     QWidget* buildAiParamsTab();   ///< parametri anti-allucinazione + preferenze modello
@@ -275,6 +281,11 @@ private:
     QLabel*         m_llmRankDetailLbl      = nullptr;
     QPushButton*    m_llmRankInstallBtn     = nullptr;
     QLabel*         m_llmRankLogLbl         = nullptr;
+
+    /* ── buildPythonDepsTab member state ── */
+    QMap<QString, QLabel*> m_pipDots;    ///< pipName → pallino stato
+    QScrollArea*           m_pipScroll     = nullptr; ///< scroll area della lista pip
+    QTabWidget*            m_pipModuliTabs = nullptr; ///< inner tabs di "Moduli Python"
 
     /* ── buildMcpTab member state ── */
     QString         m_mcpClaudeCfgPath;

@@ -71,6 +71,17 @@ extern const char* kOBSSys[];
 extern const char* kGodotSys[];
 
 /* ======================================================================
+   Link pip cliccabili nei log QTextBrowser
+   URL schema: pip://<pacchetto>  →  apre Impostazioni→Moduli Python
+   ====================================================================== */
+
+void AppControllerPage::onPipLinkClicked(const QUrl& url)
+{
+    if (url.scheme() == QLatin1String("pip"))
+        emit openSettingsDipendenze(url.path());
+}
+
+/* ======================================================================
    Sezione 1 — Constructor: modelsReady
    ====================================================================== */
 
@@ -1016,6 +1027,16 @@ void AppControllerPage::onMcuHelpClicked()
 
 void AppControllerPage::onObsPingClicked()
 {
+    if (QProcess::execute("python3", {"-c", "import obsws_python"}) != 0) {
+        m_obsStatusLbl->setText("\xe2\x9d\x8c  obsws-python non installato");
+        m_obsOutput->append(
+            "<span style='color:#f87171;'>"
+            "\xe2\x9d\x8c  Modulo mancante \xe2\x80\x94 clicca per installarlo: "
+            "<a href='pip://obsws-python' style='color:#fbbf24;'>"
+            "\xf0\x9f\x94\xa7 Installa obsws-python</a>"
+            "</span>");
+        return;
+    }
     const QString addr = m_obsHostEdit->text().trimmed();
     const QString host = addr.contains(':') ? addr.section(':', 0, 0) : addr;
     const int     port = addr.contains(':') ? addr.section(':', 1).toInt() : 4455;
@@ -1293,6 +1314,18 @@ static QString s_telegramBotScript()
 
 void AppControllerPage::onTelegramStartClicked()
 {
+    if (QProcess::execute("python3", {"-c", "import telegram"}) != 0) {
+        m_telegramStatusLbl->setText(
+            "\xe2\x9d\x8c  python-telegram-bot non installato");
+        m_telegramLog->append(
+            "<span style='color:#f87171;'>"
+            "\xe2\x9d\x8c  Modulo mancante \xe2\x80\x94 clicca qui per installarlo: "
+            "<a href='pip://python-telegram-bot==13.*' style='color:#fbbf24;'>"
+            "\xf0\x9f\x94\xa7 Installa python-telegram-bot==13.*</a>"
+            "</span>");
+        return;
+    }
+
     const QString token = m_telegramTokenEdit->text().trimmed();
     if (token.isEmpty()) {
         m_telegramStatusLbl->setText(
@@ -1499,7 +1532,8 @@ void AppControllerPage::onTelegramProcFinished(
                     "\xe2\x9d\x8c Bot uscito con codice %1. "
                     "Controlla il log sopra.<br>"
                     "Se manca python-telegram-bot: "
-                    "<code>pip install python-telegram-bot==13.*</code>"
+                    "<a href='pip://python-telegram-bot==13.*' style='color:#fbbf24;'>"
+                    "\xf0\x9f\x94\xa7 Installa python-telegram-bot==13.*</a>"
                     "</span>").arg(code));
     }
 
@@ -2099,7 +2133,13 @@ void AppControllerPage::onDevAgentInstallClicked()
             if (m_devStatusLbl) m_devStatusLbl->setText(
                 "\xe2\x9d\x8c  Installazione fallita (code " + QString::number(code) + ")");
             if (m_devLog) m_devLog->append(
-                "\xe2\x9d\x8c  Errore installazione:<br><pre>" + out.toHtmlEscaped() + "</pre>");
+                "<span style='color:#f87171;'>"
+                "\xe2\x9d\x8c  Errore installazione:<br><pre>" + out.toHtmlEscaped() + "</pre>"
+                "Riprova manualmente: "
+                "<a href='pip://langgraph langchain-community langchain-ollama unidiff'"
+                " style='color:#fbbf24;'>"
+                "\xf0\x9f\x94\xa7 Installa LangGraph + dipendenze</a>"
+                "</span>");
         }
         if (m_devInstallBtn) m_devInstallBtn->setEnabled(true);
         proc->deleteLater();

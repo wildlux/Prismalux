@@ -3203,6 +3203,15 @@ QWidget* MatematicaPage::buildAnalisi1Tab()
     btnPlot1->setToolTip("Traccia f(x) nel canvas a destra");
     connect(btnPlot1, &QPushButton::clicked, this, &MatematicaPage::onA1PlotClicked);
     plotRow->addWidget(btnPlot1);
+    m_a1RenderCmb = new QComboBox(w);
+    m_a1RenderCmb->addItem("\xe2\x80\x94  Linea",   0);
+    m_a1RenderCmb->addItem("\xe2\x97\x8f  Punti",   1);
+    m_a1RenderCmb->addItem("\xe2\x96\xb2  Area",    2);
+    m_a1RenderCmb->setToolTip("Stile rendering 2D");
+    m_a1RenderCmb->setMaximumWidth(110);
+    connect(m_a1RenderCmb, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MatematicaPage::onA1RenderChanged);
+    plotRow->addWidget(m_a1RenderCmb);
     m_btnA1Expand = new QPushButton("\xe2\x86\x97", w);   /* ↗ */
     m_btnA1Expand->setToolTip("Apri grafico in finestra separata");
     m_btnA1Expand->setFixedWidth(32);
@@ -3296,6 +3305,7 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     m_a2RenderCmb->addItem("\xf0\x9f\x94\xb5  Punti",       GraficoCanvas::Points3D);
     m_a2RenderCmb->addItem("\xf0\x9f\x95\xb8  Wireframe",   GraficoCanvas::Wireframe3D);
     m_a2RenderCmb->addItem("\xe2\x96\xa0  Superficie",      GraficoCanvas::Surface3D);
+    m_a2RenderCmb->addItem("\xf0\x9f\x9f\xa6  Solido",      GraficoCanvas::Solid3D);
     m_a2RenderCmb->setToolTip("Stile rendering 3D");
     m_a2RenderCmb->setMaximumWidth(130);
     connect(m_a2RenderCmb, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -3612,8 +3622,25 @@ void MatematicaPage::onA1PlotClicked()
     if (!m_a1Canvas || !m_a1PlotInput) return;
     const QString expr = m_a1PlotInput->text().trimmed();
     if (expr.isEmpty()) return;
-    m_a1Canvas->setCartesian(sympyToCanvas(expr), -8.0, 8.0);
-    m_a1Canvas->setType(GraficoCanvas::Cartesian);
+    const int mode = m_a1RenderCmb ? m_a1RenderCmb->currentIndex() : 0;
+    if (mode == 1) {
+        FormulaParser fp(sympyToCanvas(expr));
+        m_a1Canvas->setScatter(fp.sample(-8.0, 8.0, 300));
+        m_a1Canvas->setType(GraficoCanvas::ScatterXY);
+    } else if (mode == 2) {
+        FormulaParser fp(sympyToCanvas(expr));
+        m_a1Canvas->setLine({fp.sample(-8.0, 8.0, 300)}, {});
+        m_a1Canvas->setType(GraficoCanvas::Area);
+    } else {
+        m_a1Canvas->setCartesian(sympyToCanvas(expr), -8.0, 8.0);
+        m_a1Canvas->setType(GraficoCanvas::Cartesian);
+    }
+}
+
+void MatematicaPage::onA1RenderChanged(int /*idx*/)
+{
+    if (!m_a1PlotInput || m_a1PlotInput->text().trimmed().isEmpty()) return;
+    onA1PlotClicked();
 }
 
 void MatematicaPage::onA2PlotClicked()
@@ -3653,13 +3680,24 @@ static void openCanvasInWindow(GraficoCanvas* src, const QString& title, QWidget
     auto* canvas = new GraficoCanvas(dlg);
 
     /* copia stato */
-    if (src->currentType() == GraficoCanvas::Scatter3D) {
+    switch (src->currentType()) {
+    case GraficoCanvas::Scatter3D:
         canvas->setScatter3D(src->pts3d(), src->grid3dCols());
         canvas->setType(GraficoCanvas::Scatter3D);
         canvas->setRenderMode3D(src->renderMode3D());
-    } else {
+        break;
+    case GraficoCanvas::ScatterXY:
+        canvas->setScatter(src->scatterPts());
+        canvas->setType(GraficoCanvas::ScatterXY);
+        break;
+    case GraficoCanvas::Area:
+        canvas->setLine(src->lineSeries(), {});
+        canvas->setType(GraficoCanvas::Area);
+        break;
+    default:
         canvas->setCartesian(src->cartFormula(), src->cartXMin(), src->cartXMax());
         canvas->setType(GraficoCanvas::Cartesian);
+        break;
     }
     lay->addWidget(canvas);
     dlg->show();

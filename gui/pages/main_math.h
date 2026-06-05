@@ -88,9 +88,10 @@ private:
     LatexView*     m_a1Theory    = nullptr;
     QLineEdit*     m_a1Input     = nullptr;
     QComboBox*     m_a1TypeCmb   = nullptr;
-    QLineEdit*     m_a1PlotInput = nullptr;  ///< espressione per il grafico
+    QLineEdit*     m_a1PlotInput  = nullptr;  ///< espressione per il grafico
     GraficoCanvas* m_a1Canvas    = nullptr;  ///< canvas interattivo (zoom/pan)
     QPushButton*   m_btnA1Expand = nullptr;  ///< apri in finestra separata
+    QComboBox*     m_a1RenderCmb = nullptr;  ///< Linea / Punti / Area
 
     /* ── highlight zona limite attiva ── */
     GraficoCanvas* m_limitCanvas = nullptr;  ///< canvas su cui è attivo il highlight limite
@@ -209,6 +210,7 @@ private slots:
     void onA1TryClicked();
     void onA1AiClicked();
     void onA1PlotClicked();
+    void onA1RenderChanged(int idx);
     void onA1ExpandClicked();
 
     /* tab Analisi 2 */

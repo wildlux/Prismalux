@@ -28,6 +28,14 @@
 #include <QStackedWidget>
 #include <QRegularExpression>
 #include <QSysInfo>
+#include <QSharedPointer>
+#include <QFileDialog>
+#include <QInputDialog>
+#include <QMessageBox>
+#include <QSpinBox>
+#include <QDialogButtonBox>
+#include <QFormLayout>
+#include "../dpi_utils.h"
 
 #ifdef HAVE_QT_SQL
 #  include <QSqlDatabase>
@@ -227,6 +235,11 @@ void SciComputePage::initSchema()
     /* Migrazione: aggiungi colonne se il DB esiste già senza di esse */
     q.exec("ALTER TABLE work_units ADD COLUMN depends_on  TEXT DEFAULT ''");
     q.exec("ALTER TABLE work_units ADD COLUMN pipeline_id TEXT DEFAULT ''");
+    /* Credit counter migration (no-op se colonne già esistono) */
+    q.exec("ALTER TABLE sci_nodes ADD COLUMN wu_done            INTEGER DEFAULT 0");
+    q.exec("ALTER TABLE sci_nodes ADD COLUMN wu_error           INTEGER DEFAULT 0");
+    q.exec("ALTER TABLE sci_nodes ADD COLUMN cpu_seconds_total  INTEGER DEFAULT 0");
+    q.exec("ALTER TABLE sci_nodes ADD COLUMN last_wu_completed  INTEGER DEFAULT 0");
     q.exec("CREATE TABLE IF NOT EXISTS sci_nodes ("
            "  id          TEXT PRIMARY KEY,"
            "  name        TEXT DEFAULT '',"
@@ -584,7 +597,8 @@ QVector<QVariantMap> SciComputePage::queryNodes()
 {
 #ifdef HAVE_QT_SQL
     QSqlQuery q(QSqlDatabase::database(m_connName));
-    q.exec("SELECT id,name,address,port,cpu_cores,ram_gb,gpu_name,tools,status"
+    q.exec("SELECT id,name,address,port,cpu_cores,ram_gb,gpu_name,tools,status,"
+           "wu_done,wu_error,cpu_seconds_total"
            " FROM sci_nodes ORDER BY name");
     QVector<QVariantMap> rows;
     while (q.next()) {
@@ -593,7 +607,10 @@ QVector<QVariantMap> SciComputePage::queryNodes()
         m["addr"] = q.value(2); m["port"]   = q.value(3);
         m["cpu"]  = q.value(4); m["ram"]    = q.value(5);
         m["gpu"]  = q.value(6); m["tools"]  = q.value(7);
-        m["status"]= q.value(8);
+        m["status"]     = q.value(8);
+        m["wu_done"]    = q.value(9);
+        m["wu_error"]   = q.value(10);
+        m["cpu_seconds"]= q.value(11);
         rows << m;
     }
     return rows;
@@ -786,6 +803,28 @@ void SciComputePage::handleWorkerMessage(QTcpSocket* s, const QJsonObject& msg)
         saveResult(wuId, nodeId, output, hash);
 
 #ifdef HAVE_QT_SQL
+        /* Credit counter */
+        {
+            QSqlQuery tq(QSqlDatabase::database(m_connName));
+            tq.prepare("SELECT started_at FROM work_units WHERE id=?");
+            tq.addBindValue(wuId); tq.exec();
+            const qint64 startedAt = tq.next() ? tq.value(0).toLongLong() : 0LL;
+            const qint64 nowSec    = QDateTime::currentSecsSinceEpoch();
+            const int    cpuSecs   = startedAt > 0
+                                     ? (int)qMax(0LL, nowSec - startedAt) : 0;
+            QSqlQuery cq(QSqlDatabase::database(m_connName));
+            if (status == "done") {
+                cq.prepare("UPDATE sci_nodes SET wu_done=wu_done+1,"
+                           " cpu_seconds_total=cpu_seconds_total+?,"
+                           " last_wu_completed=? WHERE id=?");
+                cq.addBindValue(cpuSecs); cq.addBindValue(nowSec); cq.addBindValue(nodeId);
+            } else {
+                cq.prepare("UPDATE sci_nodes SET wu_error=wu_error+1 WHERE id=?");
+                cq.addBindValue(nodeId);
+            }
+            cq.exec();
+        }
+
         QSqlQuery rq(QSqlDatabase::database(m_connName));
         rq.prepare("SELECT replicas FROM work_units WHERE id=?");
         rq.addBindValue(wuId); rq.exec();
@@ -799,6 +838,8 @@ void SciComputePage::handleWorkerMessage(QTcpSocket* s, const QJsonObject& msg)
             checkQuorum(wuId, replicas);
         }
 
+        m_wuProgress.remove(wuId);
+        m_lastProgressMs.remove(wuId);
         appendLog(QString("%1  WU %2 — %3 (nodo: %4)")
                   .arg(status == "done" ? "\xe2\x9c\x85" : "\xe2\x9d\x8c")
                   .arg(wuId.left(8), status,
@@ -812,6 +853,13 @@ void SciComputePage::handleWorkerMessage(QTcpSocket* s, const QJsonObject& msg)
             m_nodeLastSeen[nodeId] = QDateTime::currentMSecsSinceEpoch();
             setNodeStatus(nodeId, "idle");
         }
+
+    } else if (t == "progress") {
+        /* Worker remoto riporta avanzamento task */
+        const QString wuId   = msg["wu_id"].toString();
+        const int     pct    = msg["pct"].toInt(-1);
+        const QString pmsg   = msg["msg"].toString();
+        if (!wuId.isEmpty()) updateWuProgress(wuId, pct, pmsg);
 
     } else if (t == "file_req") {
         /* Worker richiede un file di input */
@@ -973,6 +1021,38 @@ void SciComputePage::handleCoordMessage(const QJsonObject& msg)
    Esecuzione locale dei task
    ══════════════════════════════════════════════════════════════ */
 
+/* ── Parsing progress da stderr ─────────────────────────────── */
+static QPair<int,QString> parseStderrProgress(const QByteArray& buf)
+{
+    if (buf.isEmpty()) return {-1, {}};
+    const QString text = QString::fromUtf8(buf).trimmed();
+
+    /* Cerca "45%" o "45.2%" — tqdm, progress bar, GROMACS percentuale */
+    static const QRegularExpression rePct(R"(\b(\d{1,3})(?:\.\d+)?\s*%)");
+    const auto mp = rePct.match(text);
+    if (mp.hasMatch()) {
+        const int pct = qBound(0, mp.captured(1).toInt(), 100);
+        const auto lines = text.split('\n', Qt::SkipEmptyParts);
+        return {pct, lines.last().trimmed().left(80)};
+    }
+
+    /* Cerca "Step X/N" o "iter X/N" — GROMACS, BLAST iterations */
+    static const QRegularExpression reStepN(
+        R"(\b(?:step|Step|iter)\s+(\d+)\s*/\s*(\d+))",
+        QRegularExpression::CaseInsensitiveOption);
+    const auto ms = reStepN.match(text);
+    if (ms.hasMatch()) {
+        const int cur = ms.captured(1).toInt();
+        const int tot = ms.captured(2).toInt();
+        if (tot > 0) return {qBound(0, cur * 100 / tot, 100),
+                             QString("step %1/%2").arg(cur).arg(tot)};
+    }
+
+    /* Ultima riga non vuota come messaggio, senza percentuale */
+    const auto lines = text.split('\n', Qt::SkipEmptyParts);
+    return {-1, lines.last().trimmed().left(80)};
+}
+
 bool SciComputePage::isSafeToolName(const QString& name)
 {
     /* Solo nome binario — no path, no shell metachar */
@@ -996,7 +1076,7 @@ void SciComputePage::executeLocally(const QString& wuId, const QString& type,
                                      const QJsonObject& params)
 {
     auto* proc = new QProcess(this);
-    proc->setProcessChannelMode(QProcess::MergedChannels);
+    proc->setProcessChannelMode(QProcess::SeparateChannels);
 
     bool        needsStdin = false;
     QString     stdinData;
@@ -1218,17 +1298,38 @@ void SciComputePage::executeLocally(const QString& wuId, const QString& type,
         proc->closeWriteChannel();
     }
 
+    /* ── Progress streaming via stderr (throttle 2s verso coordinator) ── */
+    auto stderrBuf = QSharedPointer<QByteArray>::create();
+    connect(proc, &QProcess::readyReadStandardError, this,
+            [this, proc, wuId, stderrBuf] {
+        *stderrBuf += proc->readAllStandardError();
+        /* Tieni solo gli ultimi 2 KB per non consumare RAM */
+        if (stderrBuf->size() > 4096)
+            *stderrBuf = stderrBuf->right(2048);
+        const auto [pct, msg] = parseStderrProgress(*stderrBuf);
+        if (!msg.isEmpty()) updateWuProgress(wuId, pct, msg);
+    });
+
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, proc, wuId](int exitCode, QProcess::ExitStatus) {
+            this, [this, proc, wuId, stderrBuf](int exitCode, QProcess::ExitStatus) {
         /* Rimuovi eventuale file temporaneo query BLAST */
         const QString tmp = proc->property("tmpFile").toString();
         if (!tmp.isEmpty()) QFile::remove(tmp);
 
-        const QString output = QString::fromUtf8(proc->readAll()).left(65536);
-        const bool    ok     = (exitCode == 0);
-        const QString hash   = ok ? QString::fromLatin1(
+        /* stdout = risultato; stderr allegato solo in caso di errore */
+        const QString stdOut = QString::fromUtf8(
+            proc->readAllStandardOutput()).left(65536);
+        const QString stdErr = QString::fromUtf8(
+            proc->readAllStandardError()).left(8192);
+        const bool ok = (exitCode == 0);
+        const QString output = ok ? stdOut
+            : (stdOut + (stdErr.isEmpty() ? "" : "\n--- stderr ---\n" + stdErr)).left(65536);
+        const QString hash = ok ? QString::fromLatin1(
             QCryptographicHash::hash(output.toUtf8(),
                 QCryptographicHash::Sha256).toHex()) : QString();
+
+        m_wuProgress.remove(wuId);
+        m_lastProgressMs.remove(wuId);
         handleLocalResult(wuId, ok, output, hash,
                           ok ? QString() : "exit code " + QString::number(exitCode));
         proc->deleteLater();
@@ -1256,6 +1357,30 @@ void SciComputePage::handleLocalResult(const QString& wuId, bool ok,
         checkQuorum(wuId, replicas);
 
     setNodeStatus(m_myNodeId, "idle");
+
+#ifdef HAVE_QT_SQL
+    /* Credit counter locale */
+    {
+        QSqlQuery tq(QSqlDatabase::database(m_connName));
+        tq.prepare("SELECT started_at FROM work_units WHERE id=?");
+        tq.addBindValue(wuId); tq.exec();
+        const qint64 startedAt = tq.next() ? tq.value(0).toLongLong() : 0LL;
+        const qint64 nowSec    = QDateTime::currentSecsSinceEpoch();
+        const int    cpuSecs   = startedAt > 0
+                                 ? (int)qMax(0LL, nowSec - startedAt) : 0;
+        QSqlQuery cq(QSqlDatabase::database(m_connName));
+        if (ok) {
+            cq.prepare("UPDATE sci_nodes SET wu_done=wu_done+1,"
+                       " cpu_seconds_total=cpu_seconds_total+?,"
+                       " last_wu_completed=? WHERE id=?");
+            cq.addBindValue(cpuSecs); cq.addBindValue(nowSec); cq.addBindValue(m_myNodeId);
+        } else {
+            cq.prepare("UPDATE sci_nodes SET wu_error=wu_error+1 WHERE id=?");
+            cq.addBindValue(m_myNodeId);
+        }
+        cq.exec();
+    }
+#endif
 
     appendLog(QString("%1  WU %2 completata localmente.")
               .arg(ok ? "\xe2\x9c\x85" : "\xe2\x9d\x8c")
@@ -1562,6 +1687,427 @@ void SciComputePage::onDeleteWuClicked()
     m_selectedWuId.clear();
     refreshWuTable();
     refreshResults();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   updateWuProgress — aggiorna progress in-memory + tabella WU
+   ══════════════════════════════════════════════════════════════ */
+void SciComputePage::updateWuProgress(const QString& wuId, int pct, const QString& msg)
+{
+    m_wuProgress[wuId] = {pct, msg};
+
+    /* Aggiorna cella status direttamente senza query DB */
+    if (m_wuTable) {
+        for (int r = 0; r < m_wuTable->rowCount(); ++r) {
+            auto* it0 = m_wuTable->item(r, 0);
+            if (!it0 || it0->data(Qt::UserRole).toString() != wuId) continue;
+            auto* it3 = m_wuTable->item(r, 3);
+            if (!it3) break;
+            it3->setText(pct >= 0
+                ? QString("\xf0\x9f\x94\x84 %1%").arg(pct)
+                : "\xf0\x9f\x94\x84 running...");
+            it3->setForeground(QColor("#3b82f6"));
+            break;
+        }
+    }
+
+    /* Worker remoto: invia progress al coordinator con throttle 2s */
+    if (!m_isCoord && m_selfSock &&
+        m_selfSock->state() == QAbstractSocket::ConnectedState) {
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        if (now - m_lastProgressMs.value(wuId, 0) >= 2000) {
+            m_lastProgressMs[wuId] = now;
+            sendJson(m_selfSock, {
+                {"t",      "progress"},
+                {"wu_id",  wuId},
+                {"pct",    pct},
+                {"msg",    msg}
+            });
+        }
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   WU Generator da dataset (FASTA / CSV / TXT)
+   ══════════════════════════════════════════════════════════════ */
+
+static QStringList parseBatchFile(const QString& path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) return {};
+    const QString content = QString::fromUtf8(f.readAll());
+    const QString ext     = QFileInfo(path).suffix().toLower();
+
+    if (ext == "fasta" || ext == "fa" || ext == "fas") {
+        QStringList items;
+        QString cur;
+        for (const auto& line : content.split('\n')) {
+            if (line.startsWith('>')) {
+                if (!cur.trimmed().isEmpty()) items << cur.trimmed();
+                cur = line + '\n';
+            } else { cur += line + '\n'; }
+        }
+        if (!cur.trimmed().isEmpty()) items << cur.trimmed();
+        return items;
+    } else if (ext == "csv") {
+        QStringList items;
+        const auto lines = content.split('\n', Qt::SkipEmptyParts);
+        for (const auto& ln : lines)
+            if (!ln.trimmed().isEmpty()) items << ln.trimmed();
+        return items;
+    } else {
+        QStringList items;
+        for (const auto& ln : content.split('\n'))
+            if (!ln.trimmed().isEmpty()) items << ln.trimmed();
+        return items;
+    }
+}
+
+void SciComputePage::onGenerateFromFileClicked()
+{
+    auto* dlg = new QDialog(this);
+    dlg->setWindowTitle("\xf0\x9f\x93\x82  Genera Work Units da file");
+    dlg->resize(dpiScale(700), dpiScale(520));
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+
+    auto* lay = new QVBoxLayout(dlg);
+    lay->setSpacing(dpiScale(8));
+    lay->setContentsMargins(dpiScale(12), dpiScale(12), dpiScale(12), dpiScale(12));
+
+    /* File */
+    auto* fileRow  = new QHBoxLayout;
+    auto* fileEdit = new QLineEdit(dlg);
+    fileEdit->setPlaceholderText("File FASTA (.fa/.fasta), CSV (.csv) o TXT (.txt)...");
+    auto* browseBtn = new QPushButton("\xf0\x9f\x93\x81  Sfoglia", dlg);
+    browseBtn->setObjectName("actionBtn");
+    fileRow->addWidget(new QLabel("File:", dlg));
+    fileRow->addWidget(fileEdit, 1);
+    fileRow->addWidget(browseBtn);
+    lay->addLayout(fileRow);
+
+    /* Tipo task */
+    auto* typeRow = new QHBoxLayout;
+    typeRow->addWidget(new QLabel("Tipo task:", dlg));
+    auto* typeCombo = new QComboBox(dlg);
+    typeCombo->setObjectName("settingCombo");
+    for (const auto& t : taskTypes())
+        typeCombo->addItem(QString("[%1]  %2").arg(t.domain, t.name), t.id);
+    typeRow->addWidget(typeCombo, 1);
+    lay->addLayout(typeRow);
+
+    /* Template params con {{INPUT}} */
+    lay->addWidget(new QLabel(
+        "Template parametri JSON \xe2\x80\x94 usa <b>{{INPUT}}</b> dove vuoi i dati di ogni elemento:", dlg));
+    auto* tmplEdit = new QTextEdit(dlg);
+    tmplEdit->setObjectName("codeEdit");
+    tmplEdit->setMinimumHeight(dpiScale(130));
+    lay->addWidget(tmplEdit);
+
+    {
+        auto* synHint = new QLabel(
+            "<span style='color:gray;font-size:11px;'>"
+            "FASTA: ogni record \">Header\\nSEQ\" diventa {{INPUT}}  \xe2\x80\x94  "
+            "CSV: ogni riga  \xe2\x80\x94  TXT: ogni riga non vuota  (max 500 WU per batch)"
+            "</span>", dlg);
+        synHint->setTextFormat(Qt::RichText);
+        lay->addWidget(synHint);
+    }
+
+    /* Opzioni */
+    auto* optRow = new QHBoxLayout;
+    optRow->addWidget(new QLabel("Label prefix:", dlg));
+    auto* lblEdit = new QLineEdit(dlg);
+    lblEdit->setPlaceholderText("WU da file");
+    lblEdit->setFixedWidth(dpiScale(150));
+    optRow->addWidget(lblEdit);
+    optRow->addSpacing(dpiScale(10));
+
+    optRow->addWidget(new QLabel("Priorit\xc3\xa0:", dlg));
+    auto* prioCmb = new QComboBox(dlg);
+    prioCmb->setObjectName("settingCombo");
+    prioCmb->addItem("1 \xe2\x80\x94 Normale", 1);
+    prioCmb->addItem("2 \xe2\x80\x94 Alta",    2);
+    prioCmb->addItem("3 \xe2\x80\x94 Urgente", 3);
+    optRow->addWidget(prioCmb);
+    optRow->addSpacing(dpiScale(10));
+
+    optRow->addWidget(new QLabel("Max WU:", dlg));
+    auto* maxSpin = new QSpinBox(dlg);
+    maxSpin->setRange(1, 500); maxSpin->setValue(100);
+    optRow->addWidget(maxSpin);
+    optRow->addStretch(1);
+    lay->addLayout(optRow);
+
+    /* Info generazione */
+    auto* infoLbl = new QLabel("", dlg);
+    infoLbl->setObjectName("hintLabel");
+    infoLbl->setTextFormat(Qt::RichText);
+    lay->addWidget(infoLbl);
+
+    /* Buttons */
+    auto* btnBox = new QDialogButtonBox(
+        QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
+    btnBox->button(QDialogButtonBox::Ok)->setText("\xe2\x9e\x95  Genera WU");
+    btnBox->button(QDialogButtonBox::Ok)->setObjectName("primaryBtn");
+    lay->addWidget(btnBox);
+
+    /* Pre-carica template */
+    auto syncTmpl = [=] {
+        const QString tid = typeCombo->currentData().toString();
+        for (const auto& t : taskTypes()) {
+            if (t.id != tid) continue;
+            QString tmpl = t.paramsTemplate;
+            if (!tmpl.contains("{{INPUT}}")) {
+                /* Inietta placeholder nell'ultimo campo del template */
+                const int rb = tmpl.lastIndexOf('}');
+                if (rb > 0)
+                    tmpl.insert(rb, ",\n  \"batch_input\": \"{{INPUT}}\"");
+            }
+            tmplEdit->setPlainText(tmpl);
+            break;
+        }
+    };
+    syncTmpl();
+
+    QObject::connect(typeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                     dlg, [=](int){ syncTmpl(); });
+
+    auto updateInfo = [=] {
+        if (fileEdit->text().isEmpty()) return;
+        const auto items = parseBatchFile(fileEdit->text());
+        const int shown  = qMin(items.size(), maxSpin->value());
+        infoLbl->setText(QString("\xf0\x9f\x93\x84  Trovati <b>%1</b> elementi"
+                                 " \xe2\x80\x94 saranno create <b>%2</b> WU")
+                         .arg(items.size()).arg(shown));
+    };
+
+    QObject::connect(browseBtn, &QPushButton::clicked, dlg, [=] {
+        const QString path = QFileDialog::getOpenFileName(
+            dlg, "Seleziona file dataset", QDir::homePath(),
+            "Dataset scientifici (*.fasta *.fa *.fas *.csv *.txt);;Tutti (*.*)");
+        if (!path.isEmpty()) { fileEdit->setText(path); updateInfo(); }
+    });
+    QObject::connect(maxSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+                     dlg, [=](int){ updateInfo(); });
+
+    QObject::connect(btnBox, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+    QObject::connect(btnBox, &QDialogButtonBox::accepted, dlg, [=] {
+        const QString filePath = fileEdit->text().trimmed();
+        if (filePath.isEmpty()) {
+            QMessageBox::warning(dlg, "File mancante", "Seleziona un file dataset.");
+            return;
+        }
+        const auto items = parseBatchFile(filePath);
+        if (items.isEmpty()) {
+            QMessageBox::warning(dlg, "File vuoto",
+                "Nessun elemento trovato nel file.");
+            return;
+        }
+        const QString tmplStr = tmplEdit->toPlainText();
+        if (!tmplStr.contains("{{INPUT}}")) {
+            QMessageBox::warning(dlg, "Template incompleto",
+                "Inserisci {{INPUT}} nel template dove vuoi i dati di ogni elemento.");
+            return;
+        }
+        const QString typeId   = typeCombo->currentData().toString();
+        const QString lblPfx   = lblEdit->text().trimmed().isEmpty()
+                                 ? typeId : lblEdit->text().trimmed();
+        const int priority     = prioCmb->currentData().toInt();
+        const int maxWu        = maxSpin->value();
+        const QString pipId    = QUuid::createUuid().toString(
+                                     QUuid::WithoutBraces).left(8);
+
+        int created = 0, skipped = 0;
+        for (int i = 0; i < items.size() && created < maxWu; ++i) {
+            const QString item = items[i];
+            /* Escaping per JSON inline */
+            const QString safeItem = QString(item)
+                .replace('\\', "\\\\").replace('"', "\\\"")
+                .replace('\n', "\\n").replace('\r', "");
+            const QString params = QString(tmplStr).replace("{{INPUT}}", safeItem);
+            QJsonParseError je;
+            QJsonDocument::fromJson(params.toUtf8(), &je);
+            if (je.error != QJsonParseError::NoError) { ++skipped; continue; }
+            insertWu(typeId,
+                     QString("%1 %2/%3").arg(lblPfx).arg(i+1).arg(items.size()),
+                     params, priority, 1, {}, pipId);
+            ++created;
+        }
+
+        appendLog(QString("\xf0\x9f\x93\x82  Batch: %1 WU create, %2 saltate"
+                          " (pipeline: %3, tipo: %4)")
+                  .arg(created).arg(skipped).arg(pipId, typeId));
+        refreshWuTable();
+        dlg->accept();
+    });
+
+    dlg->exec();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Result Aggregator
+   ══════════════════════════════════════════════════════════════ */
+
+void SciComputePage::onAggregateResultsClicked()
+{
+    if (m_selectedWuId.isEmpty()) {
+        appendLog("\xe2\x9a\xa0  Seleziona prima una WU dalla tabella.");
+        return;
+    }
+
+    /* Pipeline id della WU selezionata */
+    QString pipelineId;
+    int wuDoneCount = 0;
+#ifdef HAVE_QT_SQL
+    {
+        QSqlQuery pq(QSqlDatabase::database(m_connName));
+        pq.prepare("SELECT pipeline_id FROM work_units WHERE id=?");
+        pq.addBindValue(m_selectedWuId); pq.exec();
+        if (pq.next()) pipelineId = pq.value(0).toString();
+    }
+    if (!pipelineId.isEmpty()) {
+        QSqlQuery cq(QSqlDatabase::database(m_connName));
+        cq.prepare("SELECT COUNT(*) FROM work_units"
+                   " WHERE pipeline_id=? AND status IN ('done','validated')");
+        cq.addBindValue(pipelineId); cq.exec();
+        if (cq.next()) wuDoneCount = cq.value(0).toInt();
+    } else { wuDoneCount = 1; }
+#endif
+
+    /* Scelta formato */
+    const QStringList fmts = {
+        "CSV (una riga per WU)",
+        "JSON array",
+        "Testo concatenato"
+    };
+    bool ok;
+    const QString descPip = pipelineId.isEmpty()
+                            ? "WU: " + m_selectedWuId.left(8)
+                            : "Pipeline: " + pipelineId;
+    const QString fmtChoice = QInputDialog::getItem(this,
+        "\xf0\x9f\x93\x8a  Aggrega risultati",
+        QString("%1 — %2 WU completate\n\nFormato di esportazione:")
+            .arg(descPip).arg(wuDoneCount),
+        fmts, 0, false, &ok);
+    if (!ok) return;
+    const QString format = fmtChoice.startsWith("CSV") ? "csv"
+                         : fmtChoice.startsWith("JSON") ? "json" : "txt";
+
+    /* Raccolta WU */
+    QVector<QVariantMap> allWus;
+#ifdef HAVE_QT_SQL
+    {
+        QSqlQuery wq(QSqlDatabase::database(m_connName));
+        if (!pipelineId.isEmpty()) {
+            wq.prepare("SELECT id,type,label,status,assigned_node FROM work_units"
+                       " WHERE pipeline_id=? AND status IN ('done','validated')"
+                       " ORDER BY created_at");
+            wq.addBindValue(pipelineId);
+        } else {
+            wq.prepare("SELECT id,type,label,status,assigned_node FROM work_units"
+                       " WHERE id=?");
+            wq.addBindValue(m_selectedWuId);
+        }
+        wq.exec();
+        while (wq.next()) {
+            QVariantMap row;
+            row["id"]     = wq.value(0); row["type"]   = wq.value(1);
+            row["label"]  = wq.value(2); row["status"] = wq.value(3);
+            row["node"]   = wq.value(4);
+            allWus << row;
+        }
+    }
+#endif
+
+    if (allWus.isEmpty()) {
+        QMessageBox::information(this, "Nessun risultato",
+            "Nessuna WU completata trovata.");
+        return;
+    }
+
+    /* Costruzione output */
+    QString output;
+    if (format == "csv") {
+        output = "wu_id,type,label,status,node,completed_at,hash,output\n";
+        for (const auto& wu : allWus) {
+            const auto results = queryResults(wu["id"].toString());
+            for (const auto& r : results) {
+                const QString out = QString(r["output"].toString().left(4096))
+                    .replace('"', "\"\"").replace('\n', "\\n");
+                output += QString("\"%1\",\"%2\",\"%3\",\"%4\",\"%5\",%6,\"%7\",\"%8\"\n")
+                    .arg(wu["id"].toString(), wu["type"].toString(),
+                         wu["label"].toString(), wu["status"].toString(),
+                         wu["node"].toString())
+                    .arg(r["ts"].toLongLong())
+                    .arg(r["hash"].toString().left(16), out);
+            }
+        }
+    } else if (format == "json") {
+        QJsonArray arr;
+        for (const auto& wu : allWus) {
+            const auto results = queryResults(wu["id"].toString());
+            QJsonArray resArr;
+            for (const auto& r : results)
+                resArr.append(QJsonObject{
+                    {"node_id", r["node_id"].toString()},
+                    {"node",    r["node_name"].toString()},
+                    {"output",  r["output"].toString().left(65536)},
+                    {"hash",    r["hash"].toString()},
+                    {"ts",      r["ts"].toLongLong()}
+                });
+            arr.append(QJsonObject{
+                {"wu_id",   wu["id"].toString()},
+                {"type",    wu["type"].toString()},
+                {"label",   wu["label"].toString()},
+                {"status",  wu["status"].toString()},
+                {"node",    wu["node"].toString()},
+                {"results", resArr}
+            });
+        }
+        output = QJsonDocument(arr).toJson(QJsonDocument::Indented);
+    } else {
+        for (const auto& wu : allWus) {
+            output += QString("\xe2\x95\x90\xe2\x95\x90 WU: %1 (%2) \xe2\x95\x90\xe2\x95\x90\n")
+                      .arg(wu["label"].toString(), wu["id"].toString().left(8));
+            const auto results = queryResults(wu["id"].toString());
+            for (const auto& r : results) {
+                const QString nodeName = r["node_name"].toString().isEmpty()
+                    ? r["node_id"].toString().left(8) : r["node_name"].toString();
+                output += QString("Nodo: %1 | %2\n")
+                    .arg(nodeName)
+                    .arg(QDateTime::fromSecsSinceEpoch(r["ts"].toLongLong())
+                         .toString("dd/MM HH:mm"));
+                output += r["output"].toString() + "\n\n";
+            }
+        }
+    }
+
+    /* Salvataggio */
+    QDir().mkpath(QDir::homePath() + "/.prismalux/sci_results");
+    const QString ts      = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm");
+    const QString pipPart = pipelineId.isEmpty() ? m_selectedWuId.left(8) : pipelineId;
+    const QString defPath = QDir::homePath() + "/.prismalux/sci_results/"
+                            + ts + "_" + pipPart + "." + format;
+
+    const QString path = QFileDialog::getSaveFileName(
+        this, "\xf0\x9f\x93\x8a  Salva risultati aggregati", defPath,
+        format == "csv" ? "CSV (*.csv)"
+                        : format == "json" ? "JSON (*.json)" : "Testo (*.txt)");
+    if (path.isEmpty()) return;
+
+    QFile outFile(path);
+    if (!outFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        QMessageBox::warning(this, "Errore",
+            "Impossibile scrivere: " + path);
+        return;
+    }
+    outFile.write(output.toUtf8());
+    outFile.close();
+
+    appendLog(QString("\xf0\x9f\x93\x8a  Aggregati %1 WU \xe2\x86\x92 %2")
+              .arg(allWus.size()).arg(path));
+    QMessageBox::information(this, "Esportazione completata",
+        QString("Esportati %1 WU in:\n%2").arg(allWus.size()).arg(path));
 }
 
 void SciComputePage::updateStatus()

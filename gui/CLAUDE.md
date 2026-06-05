@@ -43,7 +43,7 @@ Prismalux/
 ├── gui/                          ← sorgente C++/Qt6 (questo progetto)
 │   ├── pages/                    ← una pagina = .h + uno o più .cpp
 │   ├── widgets/                  ← componenti header-only e riutilizzabili
-│   ├── tests/                    ← suite ctest (51 suite, BUILD_TESTS=ON)
+│   ├── tests/                    ← suite ctest (52 suite, BUILD_TESTS=ON)
 │   ├── themes/                   ← temi QSS
 │   ├── CMakeLists.txt
 │   └── CLAUDE.md                 ← questo file
@@ -333,7 +333,7 @@ Slot Qt: `onDevAgentGitLogClicked`, `onDevAgentGitRestoreClicked`, `onDevAgentGi
 ## Suite di Test
 ```bash
 cmake -B build_tests gui/ -DBUILD_TESTS=ON && cmake --build build_tests -j$(nproc)
-ctest --test-dir build_tests -j4   # 51 suite (48 no-Ollama, 3 richiedono Ollama reale)
+ctest --test-dir build_tests -j4   # 52 suite (49 no-Ollama, 3 richiedono Ollama reale)
 ```
 
 ### Suite per categoria
@@ -378,6 +378,7 @@ ctest --test-dir build_tests -j4   # 51 suite (48 no-Ollama, 3 richiedono Ollama
 | `QrCodeWidget` | `test_qr_code_widget` | generazione, rendering, lifetime |
 | `Sintetizzatore` | `test_sintetizzatore` | Tono, OscoCanvas, widget |
 | `SttWhisper` | `test_stt_whisper` | paths, availability, permissions, mic |
+| `SttWhisperLive` | `test_stt_whisper_live` | 21 PASS, 1 SKIP — paths, ImpostazioniPage voce, transcribe() contract, savePreferredModel round-trip |
 | `AiIntegration` | `test_ai_integration` | ⚠️ Ollama reale — classifyQuery, chat, params |
 | `AiStress` | `test_ai_stress` | ⚠️ Ollama reale — sequential, param matrix |
 | `TeamCollab` | `test_team_collab` | ⚠️ Ollama reale — pipeline, quality |

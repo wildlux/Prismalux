@@ -497,10 +497,20 @@ QWidget* SciComputePage::buildUi()
     prioRow->addStretch(1);
     formLay->addLayout(prioRow);
 
+    auto* addBtnRow = new QHBoxLayout;
     auto* addBtn = new QPushButton(
         "\xe2\x9e\x95  Aggiungi alla coda", createGroup);
     addBtn->setObjectName("primaryBtn");
-    formLay->addWidget(addBtn);
+    addBtnRow->addWidget(addBtn, 1);
+
+    auto* btnGenFile = new QPushButton(
+        "\xf0\x9f\x93\x82  Genera da file", createGroup);
+    btnGenFile->setObjectName("actionBtn");
+    btnGenFile->setToolTip(
+        "Carica FASTA/CSV/TXT e genera N Work Unit automaticamente\n"
+        "max 500 WU per batch — usa {{INPUT}} nel template JSON");
+    addBtnRow->addWidget(btnGenFile);
+    formLay->addLayout(addBtnRow);
 
     /* Scroll area per il form — evita overflow/sovrapposizione quando
        la finestra è bassa. Il form ha ~360px di altezza naturale. */
@@ -543,8 +553,14 @@ QWidget* SciComputePage::buildUi()
     auto* btnDelWu = new QPushButton("\xf0\x9f\x97\x91  Elimina", wuGroup);
     btnDelWu->setObjectName("actionBtn");
     btnDelWu->setToolTip("Elimina WU selezionata (solo se non in esecuzione)");
+    m_btnAggregate = new QPushButton("\xf0\x9f\x93\x8a  Aggrega risultati", wuGroup);
+    m_btnAggregate->setObjectName("actionBtn");
+    m_btnAggregate->setToolTip(
+        "Aggrega tutti i risultati della pipeline (o della WU selezionata)\n"
+        "Esporta in CSV / JSON / Testo concatenato");
     wuBtnRow->addWidget(btnRefWu);
     wuBtnRow->addWidget(btnDelWu);
+    wuBtnRow->addWidget(m_btnAggregate);
     wuBtnRow->addStretch(1);
     wuGLay->addLayout(wuBtnRow);
 
@@ -559,9 +575,11 @@ QWidget* SciComputePage::buildUi()
     auto* nodeWidget = new QWidget;
     auto* nodeLay    = new QVBoxLayout(nodeWidget);
     nodeLay->setContentsMargins(4,4,4,4);
-    m_nodeTable = new QTableWidget(0, 7, nodeWidget);
+    m_nodeTable = new QTableWidget(0, 10, nodeWidget);
     m_nodeTable->setHorizontalHeaderLabels(
-        {"ID", "Nome", "Indirizzo", "CPU", "RAM (GB)", "GPU", "Tool disponibili"});
+        {"ID", "Nome", "Indirizzo", "CPU", "RAM (GB)", "GPU",
+         "Tool disponibili",
+         "WU\xe2\x9c\x85", "WU\xe2\x9d\x8c", "CPU ore"});
     m_nodeTable->horizontalHeader()->setSectionResizeMode(6, QHeaderView::Stretch);
     m_nodeTable->setColumnWidth(0, dpiScale(70));
     m_nodeTable->setColumnWidth(1, dpiScale(90));
@@ -569,6 +587,9 @@ QWidget* SciComputePage::buildUi()
     m_nodeTable->setColumnWidth(3, dpiScale(40));
     m_nodeTable->setColumnWidth(4, dpiScale(60));
     m_nodeTable->setColumnWidth(5, dpiScale(110));
+    m_nodeTable->setColumnWidth(7, dpiScale(55));
+    m_nodeTable->setColumnWidth(8, dpiScale(55));
+    m_nodeTable->setColumnWidth(9, dpiScale(65));
     m_nodeTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_nodeTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_nodeTable->verticalHeader()->hide();
@@ -763,6 +784,10 @@ QWidget* SciComputePage::buildUi()
             this, [this]{ refreshWuTable(); refreshNodeTable(); });
     connect(btnDelWu, &QPushButton::clicked,
             this, &SciComputePage::onDeleteWuClicked);
+    connect(btnGenFile, &QPushButton::clicked,
+            this, &SciComputePage::onGenerateFromFileClicked);
+    connect(m_btnAggregate, &QPushButton::clicked,
+            this, &SciComputePage::onAggregateResultsClicked);
 
     /* Pre-carica template primo tipo */
     onTypeComboChanged(0);
@@ -801,7 +826,15 @@ void SciComputePage::refreshWuTable()
         setCell(0, id.left(8));
         setCell(1, r["type"].toString());
         setCell(2, r["label"].toString().isEmpty() ? r["type"].toString() : r["label"].toString());
-        setCell(3, statusIcon(status) + " " + status, statusColor(status));
+        /* Per WU running mostra percentuale se disponibile */
+        if (status == "running" && m_wuProgress.contains(id)) {
+            const int p = m_wuProgress[id].first;
+            setCell(3, p >= 0
+                ? QString("\xf0\x9f\x94\x84 %1%").arg(p)
+                : "\xf0\x9f\x94\x84 running...", "#3b82f6");
+        } else {
+            setCell(3, statusIcon(status) + " " + status, statusColor(status));
+        }
         setCell(4, r["node"].toString().left(8));
         setCell(5, r["priority"].toString());
         setCell(6, time);
@@ -856,6 +889,26 @@ void SciComputePage::refreshNodeTable()
         QStringList tList;
         for (const auto& v : toolsArr) tList << v.toString();
         setCell(6, tList.join("  "));
+
+        /* Credit counter */
+        const int  done  = r["wu_done"].toInt();
+        const int  err   = r["wu_error"].toInt();
+        const int  total = done + err;
+        /* Colore badge: verde ≥90%, giallo ≥70%, rosso <70% */
+        const QString badgeColor = (total == 0) ? "#6b7280"
+                                 : ((done * 100 / total) >= 90) ? "#22c55e"
+                                 : ((done * 100 / total) >= 70) ? "#f59e0b"
+                                 : "#ef4444";
+        setCell(7, QString::number(done),  badgeColor);
+        setCell(8, QString::number(err),   err > 0 ? "#ef4444" : "#6b7280");
+
+        const qint64 cpuSec  = r["cpu_seconds"].toLongLong();
+        const QString cpuStr = cpuSec >= 3600
+                               ? QString("%1h").arg(cpuSec / 3600)
+                               : cpuSec >= 60
+                               ? QString("%1m").arg(cpuSec / 60)
+                               : (cpuSec > 0 ? QString("%1s").arg(cpuSec) : "\xe2\x80\x94");
+        setCell(9, cpuStr);
 
         m_nodeTable->setRowHeight(i, dpiScale(22));
     }

@@ -1368,8 +1368,10 @@ void MainWindow::buildRicercaTab()
 /* ── Livello 2: tab [7] APP Controller ───────────────────────────── */
 void MainWindow::buildAppControllerTab()
 {
-    m_mainTabs->addTab(new AppControllerPage(m_ai, this),
-                       "\xf0\x9f\x95\xb9  APP Controller");  /* 7 */
+    auto* appCtrl = new AppControllerPage(m_ai, this);
+    connect(appCtrl, &AppControllerPage::openSettingsDipendenze,
+            this,    &MainWindow::onOpenSettingsDipendenze);
+    m_mainTabs->addTab(appCtrl, "\xf0\x9f\x95\xb9  APP Controller");  /* 7 */
 }
 
 /* ── Livello 2: tab [8] LAN & WAN ────────────────────────────────── */

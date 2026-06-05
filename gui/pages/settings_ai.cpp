@@ -340,14 +340,6 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
                 this, &ImpostazioniPage::onOpenKnowledgeFileClicked);
     }
 
-    /* ── Dipendenze — occupa tutto lo spazio residuo ── */
-    auto* sepBot = new QFrame(page);
-    sepBot->setFrameShape(QFrame::HLine);
-    sepBot->setObjectName("sidebarSep");
-    mainLay->addWidget(sepBot);
-
-    mainLay->addWidget(buildDipendenzeTab(), 1);
-
     /* ── Logica: popola la lista in base al gestore selezionato ── */
 
     /* Label che mostra il modello attivo corrente */
@@ -764,6 +756,337 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
     });
 
     return page;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildPythonDepsTab — moduli Python richiesti dagli MCP
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildPythonDepsTab()
+{
+    struct PyPkg {
+        const char* pip;
+        const char* importN;
+        const char* mcp;
+        const char* desc;
+        const char* where;
+    };
+    static const PyPkg kPkgs[] = {
+        { "obsws-python", "obsws_python",
+          "OBS MCP",
+          "Client WebSocket per OBS Studio (porta 4455)",
+          "AppController \xe2\x86\x92 OBS" },
+        { "pyserial", "serial",
+          "TinyMCP",
+          "Comunicazione USB/seriale per Arduino / ESP32",
+          "AppController \xe2\x86\x92 TinyMCP" },
+        { "rdkit", "rdkit",
+          "RDKit MCP",
+          "Chemioinformatica: strutture e propriet\xc3\xa0 molecolari",
+          "Ricerca \xe2\x86\x92 RDKit" },
+        { "avogadro", "avogadro",
+          "Avogadro MCP",
+          "Visualizzazione molecole 3D (Avogadro2)",
+          "Ricerca \xe2\x86\x92 Avogadro" },
+        { "python-telegram-bot==13.*", "telegram",
+          "Telegram Bot",
+          "Bot Telegram locale con risposta AI (v13.x)",
+          "AppController \xe2\x86\x92 Telegram" },
+    };
+    const int nPkgs = static_cast<int>(sizeof(kPkgs) / sizeof(kPkgs[0]));
+
+    auto* page  = new QWidget;
+    auto* outer = new QVBoxLayout(page);
+    outer->setContentsMargins(16, 16, 16, 16);
+    outer->setSpacing(10);
+
+    auto* titleLbl = new QLabel("\xf0\x9f\x90\x8d  Moduli Python per MCP", page);
+    titleLbl->setObjectName("sectionTitle");
+    outer->addWidget(titleLbl);
+
+    auto* descLbl = new QLabel(
+        "Installa solo i moduli che servono al tuo flusso di lavoro. "
+        "Premi <b>Verifica stato</b> per controllare cosa manca.", page);
+    descLbl->setWordWrap(true);
+    descLbl->setObjectName("hintLabel");
+    outer->addWidget(descLbl);
+
+    /* ── Pulsanti azioni globali ── */
+    auto* btnRow = new QWidget(page);
+    auto* btnLay = new QHBoxLayout(btnRow);
+    btnLay->setContentsMargins(0, 0, 0, 0);
+    btnLay->setSpacing(8);
+
+    auto* verifyBtn     = new QPushButton("\xf0\x9f\x94\x8d  Verifica stato", btnRow);
+    auto* installAllBtn = new QPushButton("\xf0\x9f\x9a\x80  Installa tutti i mancanti", btnRow);
+    verifyBtn->setObjectName("actionBtn");
+    installAllBtn->setObjectName("actionBtn");
+    btnLay->addWidget(verifyBtn);
+    btnLay->addWidget(installAllBtn);
+    btnLay->addStretch();
+    outer->addWidget(btnRow);
+
+    /* ── Scroll area con righe pacchetti ── */
+    auto* scroll = new QScrollArea(page);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    m_pipScroll = scroll;
+
+    auto* container = new QWidget;
+    auto* listLay   = new QVBoxLayout(container);
+    listLay->setContentsMargins(0, 0, 0, 0);
+    listLay->setSpacing(2);
+
+    /* Intestazione colonne */
+    {
+        auto* hdr    = new QWidget;
+        auto* hdrLay = new QHBoxLayout(hdr);
+        hdrLay->setContentsMargins(8, 2, 8, 2);
+        hdrLay->setSpacing(10);
+        auto mk = [](const QString& t, int w = -1) {
+            auto* l = new QLabel("<b>" + t + "</b>");
+            l->setObjectName("hintLabel");
+            if (w > 0) l->setFixedWidth(w);
+            return l;
+        };
+        hdrLay->addWidget(mk("",                    20));
+        hdrLay->addWidget(mk("Pacchetto (pip)",     155));
+        hdrLay->addWidget(mk("MCP",                 110));
+        hdrLay->addWidget(mk("Descrizione"),         1 );
+        hdrLay->addWidget(mk("Usato in",            195));
+        hdrLay->addWidget(mk("",                     90));
+        listLay->addWidget(hdr);
+    }
+    {
+        auto* sep = new QFrame; sep->setFrameShape(QFrame::HLine);
+        sep->setObjectName("sidebarSep");
+        listLay->addWidget(sep);
+    }
+
+    /* ── Raccoglie vettori per closure ── */
+    QVector<QLabel*>      dots;
+    QVector<QString>      importNames;
+    QVector<QString>      pipNames;
+    QVector<QPushButton*> installBtns;
+
+    for (int i = 0; i < nPkgs; ++i) {
+        const PyPkg& p = kPkgs[i];
+
+        auto* row    = new QWidget;
+        auto* rowLay = new QHBoxLayout(row);
+        rowLay->setContentsMargins(8, 5, 8, 5);
+        rowLay->setSpacing(10);
+        row->setObjectName((i % 2 == 0) ? "depRowEven" : "depRowOdd");
+
+        auto* dot = new QLabel("\xe2\x97\x8f", row);
+        dot->setFixedWidth(20);
+        dot->setAlignment(Qt::AlignCenter);
+        dot->setStyleSheet("color:#4a5568;font-size:10px;");
+
+        auto* pkgLbl = new QLabel(
+            QString("<b><code>%1</code></b>").arg(QString::fromUtf8(p.pip)), row);
+        pkgLbl->setTextFormat(Qt::RichText);
+        pkgLbl->setFixedWidth(155);
+
+        auto* mcpLbl = new QLabel(QString::fromUtf8(p.mcp), row);
+        mcpLbl->setFixedWidth(110);
+        mcpLbl->setObjectName("hintLabel");
+
+        auto* descL = new QLabel(QString::fromUtf8(p.desc), row);
+        descL->setObjectName("hintLabel");
+
+        auto* whereL = new QLabel(QString::fromUtf8(p.where), row);
+        whereL->setFixedWidth(195);
+        whereL->setObjectName("hintLabel");
+
+        auto* btn = new QPushButton("\xf0\x9f\x92\xbe  Installa", row);
+        btn->setFixedWidth(90);
+        btn->setObjectName("actionBtn");
+
+        rowLay->addWidget(dot);
+        rowLay->addWidget(pkgLbl);
+        rowLay->addWidget(mcpLbl);
+        rowLay->addWidget(descL, 1);
+        rowLay->addWidget(whereL);
+        rowLay->addWidget(btn);
+        listLay->addWidget(row);
+
+        const QString pipN    = QString::fromUtf8(p.pip);
+        const QString importN = QString::fromUtf8(p.importN);
+        m_pipDots.insert(pipN, dot);
+
+        dots.append(dot);
+        importNames.append(importN);
+        pipNames.append(pipN);
+        installBtns.append(btn);
+    }
+    listLay->addStretch();
+    scroll->setWidget(container);
+    outer->addWidget(scroll, 1);
+
+    /* ── Output pip (nascosto finché non si installa) ── */
+    auto* logLbl = new QLabel("Output installazione:", page);
+    logLbl->setObjectName("hintLabel");
+    logLbl->hide();
+    outer->addWidget(logLbl);
+
+    auto* logView = new QTextEdit(page);
+    logView->setReadOnly(true);
+    logView->setMaximumHeight(110);
+    logView->setObjectName("codeView");
+    logView->hide();
+    outer->addWidget(logView);
+
+    /* ── Legenda ── */
+    auto* legendLbl = new QLabel(
+        "\xe2\x97\x8f  Non verificato \xc2\xa0"
+        "<span style='color:#4ade80;'>\xe2\x97\x8f</span>  Installato \xc2\xa0"
+        "<span style='color:#f87171;'>\xe2\x97\x8f</span>  Mancante",
+        page);
+    legendLbl->setTextFormat(Qt::RichText);
+    legendLbl->setObjectName("hintLabel");
+    outer->addWidget(legendLbl);
+
+    /* ── Helper: verifica importabilità modulo Python ── */
+    auto checkImport = [](const QString& importN) -> bool {
+        return QProcess::execute("python3", {"-c", "import " + importN}) == 0;
+    };
+
+    /* ── Helper: aggiorna stile pallino ── */
+    auto setDot = [](QLabel* dot, bool found) {
+        dot->setStyleSheet(found
+            ? "color:#4ade80;font-size:10px;"
+            : "color:#f87171;font-size:10px;");
+    };
+
+    /* ── Helper: avvia pip install asincrono ── */
+    auto runPip = [page, logLbl, logView](
+            const QString& pipPkg,
+            QPushButton*   btn,
+            QLabel*        dot) {
+        logLbl->show();
+        logView->show();
+        btn->setEnabled(false);
+        btn->setText("\xe2\x8f\xb3 ...");
+        logView->append(
+            QString("<span style='color:#94a3b8;'>$ pip install %1</span>")
+                .arg(pipPkg));
+
+        auto* proc = new QProcess(page);
+        proc->setProcessChannelMode(QProcess::MergedChannels);
+
+        QObject::connect(proc, &QProcess::readyRead, logView,
+            [proc, logView]() {
+                const QString out = QString::fromUtf8(proc->readAll()).trimmed();
+                if (!out.isEmpty()) logView->append(out);
+            });
+
+        QObject::connect(
+            proc,
+            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            page,
+            [proc, btn, dot](int code, QProcess::ExitStatus) {
+                const bool ok = (code == 0);
+                dot->setStyleSheet(ok
+                    ? "color:#4ade80;font-size:10px;"
+                    : "color:#f87171;font-size:10px;");
+                btn->setText(ok ? "\xe2\x9c\x85  OK" : "\xf0\x9f\x92\xbe  Installa");
+                btn->setEnabled(!ok);
+                proc->deleteLater();
+            });
+
+        proc->start("python3", {"-m", "pip", "install", pipPkg,
+                                "--no-input", "--break-system-packages"});
+    };
+
+    /* ── Verifica stato ── */
+    QObject::connect(verifyBtn, &QPushButton::clicked, page,
+        [dots, importNames, installBtns, checkImport, setDot]() {
+        for (int i = 0; i < dots.size(); ++i) {
+            const bool found = checkImport(importNames[i]);
+            setDot(dots[i], found);
+            installBtns[i]->setText(found ? "\xe2\x9c\x85  OK" : "\xf0\x9f\x92\xbe  Installa");
+            installBtns[i]->setEnabled(!found);
+        }
+    });
+
+    /* ── Install singolo per ogni riga ── */
+    for (int i = 0; i < nPkgs; ++i) {
+        QObject::connect(installBtns[i], &QPushButton::clicked, page,
+            [i, dots, pipNames, installBtns, runPip]() {
+                runPip(pipNames[i], installBtns[i], dots[i]);
+            });
+    }
+
+    /* ── Install tutti i mancanti ── */
+    QObject::connect(installAllBtn, &QPushButton::clicked, page,
+        [dots, importNames, pipNames, installBtns,
+         installAllBtn, page, logLbl, logView, checkImport, setDot]() {
+
+        QStringList missing;
+        QVector<int> missingIdx;
+        for (int i = 0; i < dots.size(); ++i) {
+            if (!checkImport(importNames[i])) {
+                missing << pipNames[i];
+                missingIdx << i;
+            }
+        }
+
+        if (missing.isEmpty()) {
+            installAllBtn->setText("\xe2\x9c\x85  Tutto gi\xc3\xa0 installato!");
+            QTimer::singleShot(2000, installAllBtn, [installAllBtn]() {
+                installAllBtn->setText("\xf0\x9f\x9a\x80  Installa tutti i mancanti");
+            });
+            return;
+        }
+
+        installAllBtn->setEnabled(false);
+        installAllBtn->setText("\xe2\x8f\xb3 Installazione in corso...");
+        logLbl->show();
+        logView->show();
+        logView->append(
+            QString("<span style='color:#94a3b8;'>$ pip install %1</span>")
+                .arg(missing.join(" ")));
+
+        auto* proc = new QProcess(page);
+        proc->setProcessChannelMode(QProcess::MergedChannels);
+
+        QObject::connect(proc, &QProcess::readyRead, logView,
+            [proc, logView]() {
+                const QString out = QString::fromUtf8(proc->readAll()).trimmed();
+                if (!out.isEmpty()) logView->append(out);
+            });
+
+        QStringList args = {"-m", "pip", "install"};
+        args += missing;
+        args << "--no-input" << "--break-system-packages";
+
+        QObject::connect(
+            proc,
+            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            page,
+            [proc, installAllBtn, dots, installBtns,
+             missingIdx, setDot](int code, QProcess::ExitStatus) {
+                const bool ok = (code == 0);
+                for (int idx : missingIdx) {
+                    setDot(dots[idx], ok);
+                    installBtns[idx]->setText(ok ? "\xe2\x9c\x85  OK" : "\xf0\x9f\x92\xbe  Installa");
+                    installBtns[idx]->setEnabled(!ok);
+                }
+                installAllBtn->setText("\xf0\x9f\x9a\x80  Installa tutti i mancanti");
+                installAllBtn->setEnabled(true);
+                proc->deleteLater();
+            });
+
+        proc->start("python3", args);
+    });
+
+    /* ── Wrapper QTabWidget: Moduli MCP + Dipendenze esterne ── */
+    auto* innerTabs = new QTabWidget;
+    innerTabs->setObjectName("innerTabs");
+    innerTabs->addTab(page,                "\xf0\x9f\x90\x8d  Moduli MCP");
+    innerTabs->addTab(buildDipendenzeTab(), "\xf0\x9f\x93\xa6  Dipendenze esterne");
+    m_pipModuliTabs = innerTabs;
+    return innerTabs;
 }
 
 /* ══════════════════════════════════════════════════════════════

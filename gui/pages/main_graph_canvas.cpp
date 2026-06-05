@@ -722,6 +722,49 @@ void GraficoCanvas::drawScatter3D(QPainter& p, const QRectF& a) {
         }
         p.setRenderHint(QPainter::Antialiasing, true);
 
+    } else if (hasGrid && m_renderMode3D == Solid3D) {
+        /* ── Solido — quad colore piatto con depth shading ── */
+        struct Quad { int r, c; double avgDepth; };
+        QVector<Quad> quads;
+        quads.reserve((rows-1)*(cols-1));
+        for (int r = 0; r < rows-1; r++) {
+            for (int c = 0; c < cols-1; c++) {
+                const int i00=r*cols+c, i10=r*cols+c+1;
+                const int i01=(r+1)*cols+c, i11=(r+1)*cols+c+1;
+                if (!proj[i00].valid||!proj[i10].valid||
+                    !proj[i01].valid||!proj[i11].valid) continue;
+                quads.append({r, c,
+                    (proj[i00].depth+proj[i10].depth+
+                     proj[i01].depth+proj[i11].depth)*0.25});
+            }
+        }
+        std::sort(quads.begin(), quads.end(),
+                  [](const Quad& a, const Quad& b){ return a.avgDepth > b.avgDepth; });
+        double dMin = 1e18, dMax = -1e18;
+        for (const auto& q : quads) {
+            dMin = std::min(dMin, q.avgDepth);
+            dMax = std::max(dMax, q.avgDepth);
+        }
+        const double dRange = (dMax > dMin) ? (dMax - dMin) : 1.0;
+        const QColor baseColor(0x3b, 0x82, 0xf6);
+        p.setRenderHint(QPainter::Antialiasing, false);
+        for (const auto& q : quads) {
+            const int i00=q.r*cols+q.c, i10=q.r*cols+q.c+1;
+            const int i01=(q.r+1)*cols+q.c, i11=(q.r+1)*cols+q.c+1;
+            const double t = (q.avgDepth - dMin) / dRange;
+            const int factor = 100 + static_cast<int>((1.0 - t) * 100);
+            const QColor col = baseColor.darker(factor);
+            QPolygonF poly;
+            poly << QPointF(proj[i00].sx,proj[i00].sy)
+                 << QPointF(proj[i10].sx,proj[i10].sy)
+                 << QPointF(proj[i11].sx,proj[i11].sy)
+                 << QPointF(proj[i01].sx,proj[i01].sy);
+            p.setBrush(col);
+            p.setPen(QPen(col.darker(130), 0.5));
+            p.drawPolygon(poly);
+        }
+        p.setRenderHint(QPainter::Antialiasing, true);
+
     } else if (hasGrid && m_renderMode3D == Wireframe3D) {
         /* ── Wireframe — linee colorate per z ── */
         p.setRenderHint(QPainter::Antialiasing, true);
@@ -4438,6 +4481,6 @@ void GraficoCanvas::onContextSavePng()
 void GraficoCanvas::setRenderMode(int mode)
 {
     m_renderMode3D = static_cast<RenderMode3D>(
-        qBound(0, mode, static_cast<int>(Surface3D)));
+        qBound(0, mode, static_cast<int>(Solid3D)));
     update();
 }

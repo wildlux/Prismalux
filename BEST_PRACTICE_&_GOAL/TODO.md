@@ -12,7 +12,7 @@
 
 ---
 
-### [ ] WU Generator da dataset
+### [x] WU Generator da dataset — 2026-06-05
 **Priorità: ALTA** — senza questo creare 1000 task è impossibile manualmente.
 
 Permettere di caricare un file (FASTA multi-sequenza, CSV, lista di UniProt ID)
@@ -35,7 +35,7 @@ Tipo: blastn
 
 ---
 
-### [ ] Result Aggregator
+### [x] Result Aggregator — 2026-06-05
 **Priorità: ALTA** — senza questo i risultati restano isolati per WU.
 
 Dopo che tutte le WU di una pipeline (o di un batch) sono `done`/`validated`,
@@ -58,7 +58,7 @@ aggregare gli output in un unico file scaricabile (CSV, JSON, FASTA, report HTML
 
 ---
 
-### [ ] Credit counter per nodo
+### [x] Credit counter per nodo — 2026-06-05
 **Priorità: MEDIA** — importante per capire affidabilità e contributo di ogni macchina.
 
 Tracciare per ogni nodo: ore CPU contribuite, WU completate con successo,
@@ -158,7 +158,7 @@ START → read_context → generate_patch → apply_patch → compile
 
 ### 🔊 Voce / TTS
 - [x] **espeak-ng** — sostituita nota con "Usa Piper TTS per qualità superiore"; fallback code nel pulsante Parla invariato — `settings_voice.cpp` — 2026-06-03
-- [ ] **Test Whisper live** — aggiungere test suite `test_stt_whisper_live` per la funzionalità STT in Impostazioni→Gestione LLM→Voce audio
+- [x] **Test Whisper live** — `test_stt_whisper_live` 21 PASS 1 SKIP (paths/ImpostazioniPage/transcribe/savePreferredModel) — 2026-06-05
 
 ### 📋 Feature
 - [x] **Copia pip clipboard** — pulsante 📋 aggiunto in: main_tools_file (3x), widget_stable_diffusion, main_lan_wan GNS3, main_maintenance NPU — 2026-06-03

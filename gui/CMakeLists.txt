@@ -851,6 +851,25 @@ if(BUILD_TESTS)
         target_link_libraries(test_stt_whisper PRIVATE pthread m)
     endif()
 
+    # ── test_stt_whisper_live: STT integration in impostazioni→voce ──
+    add_executable(test_stt_whisper_live
+        tests/test_stt_whisper_live.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_stt_whisper_live PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_stt_whisper_live PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_stt_whisper_live PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_stt_whisper_live PRIVATE pthread m)
+    endif()
+
     # ── test_onboarding: onboarding wizard QSettings, token LAN, rate limiter ──
     add_executable(test_onboarding
         tests/test_onboarding.cpp
@@ -1215,6 +1234,7 @@ if(BUILD_TESTS)
     add_test(NAME ImparaQuiz              COMMAND test_impara_quiz)
     add_test(NAME MonitorPanel            COMMAND test_monitor_panel)
     add_test(NAME SttWhisper              COMMAND test_stt_whisper)
+    add_test(NAME SttWhisperLive          COMMAND test_stt_whisper_live)
     add_test(NAME RagGraphPipeline        COMMAND test_rag_graph_pipeline)
     add_test(NAME Astrale                 COMMAND test_astrale)
     add_test(NAME BlhmRab0l               COMMAND test_blhm_rab0l)

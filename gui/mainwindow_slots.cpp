@@ -652,6 +652,20 @@ void MainWindow::onGraficoRequestSettings(const QString& tabName)
     if (m_impPage) m_impPage->switchToTab(tabName);
 }
 
+void MainWindow::onOpenSettingsDipendenze(const QString& pipPkg)
+{
+    ensureSettingsDialog();
+    m_impDlg->show();
+    m_impDlg->raise();
+    m_impDlg->activateWindow();
+    if (!m_impPage) return;
+    /* Defer di un tick: la dialog processa il show() prima della navigazione tab */
+    const QString pkg = pipPkg;
+    QTimer::singleShot(0, m_impPage, [this, pkg]() {
+        m_impPage->jumpToPipInstall(pkg);
+    });
+}
+
 void MainWindow::onMathSubTabChanged(int idx)
 {
     if (idx == 1 && m_grafCanvas)
