@@ -1,4 +1,5 @@
 #include "settings_main.h"
+#include "../log_bus.h"
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
 #include "main_customize.h"
@@ -425,8 +426,89 @@ QWidget* ImpostazioniPage::buildMcpTab()
             refreshTable();
         });
 
+        /* ── Riga 2: Esporta / Importa lista MCP ── */
+        auto* btnRow2 = new QWidget;
+        auto* btnLay2 = new QHBoxLayout(btnRow2);
+        btnLay2->setContentsMargins(0, 0, 0, 0);
+        btnLay2->setSpacing(6);
+
+        auto* btnExport = new QPushButton(
+            "\xf0\x9f\x92\xbe  Esporta lista MCP...");
+        auto* btnImport = new QPushButton(
+            "\xf0\x9f\x93\x82  Importa lista MCP...");
+        auto* fbkIo = new QLabel;
+        fbkIo->setStyleSheet("font-size: 11px;");
+        btnExport->setObjectName("actionBtn");
+        btnImport->setObjectName("actionBtn");
+        btnLay2->addWidget(btnExport);
+        btnLay2->addWidget(btnImport);
+        btnLay2->addWidget(fbkIo, 1);
+
+        connect(btnExport, &QPushButton::clicked, page,
+                [readCfg, fbkIo, page]{
+            const QString path = QFileDialog::getSaveFileName(
+                page,
+                "Esporta lista MCP",
+                QDir::homePath() + "/mcp_list.json",
+                "JSON (*.json)");
+            if (path.isEmpty()) return;
+            QJsonObject root;
+            root["mcpServers"] = readCfg().value("mcpServers").toObject();
+            QFile f(path);
+            if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+                f.write(QJsonDocument(root).toJson());
+                fbkIo->setStyleSheet("color: green; font-size:11px;");
+                fbkIo->setText("\xe2\x9c\x85  Salvato in " +
+                    QFileInfo(path).fileName());
+            } else {
+                fbkIo->setStyleSheet("color: red; font-size:11px;");
+                fbkIo->setText("\xe2\x9d\x8c  Errore scrittura file");
+                LogBus::post("\xe2\x9d\x8c Impostazioni: Errore scrittura file MCP JSON");
+            }
+        });
+
+        connect(btnImport, &QPushButton::clicked, page,
+                [readCfg, writeCfg, refreshTable, fbkIo, page]{
+            const QString path = QFileDialog::getOpenFileName(
+                page,
+                "Importa lista MCP",
+                QDir::homePath(),
+                "JSON (*.json)");
+            if (path.isEmpty()) return;
+            QFile f(path);
+            if (!f.open(QIODevice::ReadOnly)) {
+                fbkIo->setStyleSheet("color: red; font-size:11px;");
+                fbkIo->setText("\xe2\x9d\x8c  File non leggibile");
+                LogBus::post("\xe2\x9d\x8c Impostazioni: File MCP non leggibile");
+                return;
+            }
+            const QJsonObject loaded =
+                QJsonDocument::fromJson(f.readAll()).object();
+            /* accetta sia {"mcpServers":{…}} che direttamente {nome:{…}} */
+            const QJsonObject imported = loaded.contains("mcpServers")
+                ? loaded.value("mcpServers").toObject()
+                : loaded;
+            if (imported.isEmpty()) {
+                fbkIo->setStyleSheet("color: red; font-size:11px;");
+                fbkIo->setText("\xe2\x9d\x8c  Nessun MCP trovato nel file");
+                LogBus::post("\xe2\x9d\x8c Impostazioni: Nessun MCP trovato nel file importato");
+                return;
+            }
+            QJsonObject cfg = readCfg();
+            QJsonObject mcp = cfg.value("mcpServers").toObject();
+            for (const QString& k : imported.keys())
+                mcp[k] = imported.value(k);
+            cfg["mcpServers"] = mcp;
+            writeCfg(cfg);
+            refreshTable();
+            fbkIo->setStyleSheet("color: green; font-size:11px;");
+            fbkIo->setText(QString("\xe2\x9c\x85  %1 MCP importati")
+                .arg(imported.size()));
+        });
+
         blay->addWidget(table);
         blay->addWidget(btnRow);
+        blay->addWidget(btnRow2);
         leftL->addWidget(box);
     }
 

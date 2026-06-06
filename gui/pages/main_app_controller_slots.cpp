@@ -18,6 +18,7 @@
     11.  Godot tab slots (science file)
    ====================================================================== */
 #include "main_app_controller.h"
+#include "../log_bus.h"
 #include "../prismalux_paths.h"
 #include "../widgets/model_combo_helper.h"
 #include "../widgets/proc_helper.h"
@@ -178,8 +179,9 @@ void AppControllerPage::onBlenderPingClicked()
                 "\xe2\x9c\x85  Blender " + ver
                 + "  \xc2\xb7  " + QString::number(objs) + " oggetti");
         } else {
-            m_blenderStatusLbl->setText(
-                "\xe2\x9d\x8c  " + res.value("error").toString("non raggiungibile"));
+            const QString blenderErr = res.value("error").toString("non raggiungibile");
+            m_blenderStatusLbl->setText("\xe2\x9d\x8c  " + blenderErr);
+            LogBus::post("\xe2\x9d\x8c Blender: Ping fallito: " + blenderErr);
         }
     });
 }
@@ -208,12 +210,12 @@ void AppControllerPage::onBlenderExecClicked()
                    [this, host, port, code](const QJsonObject& pingRes, bool pingOk) {
         if (!pingOk) {
             m_blenderExecBtn->setEnabled(true);
-            m_blenderStatusLbl->setText(
-                "\xe2\x9d\x8c  Non raggiungibile: "
-                + pingRes.value("error").toString("connessione rifiutata"));
+            const QString blenderPingErr = pingRes.value("error").toString("connessione rifiutata");
+            m_blenderStatusLbl->setText("\xe2\x9d\x8c  Non raggiungibile: " + blenderPingErr);
             m_blenderOutput->append(
                 "\n\xe2\x9d\x8c  Blender non connesso. "
                 "Avvia il server MCP in Blender (N \xe2\x86\x92 MCP \xe2\x86\x92 Start).");
+            LogBus::post("\xe2\x9d\x8c Blender: Non raggiungibile: " + blenderPingErr);
             return;
         }
         const QJsonObject r   = pingRes.value("result").toObject();
@@ -244,9 +246,10 @@ void AppControllerPage::onBlenderExecClicked()
                 m_blenderOutput->append("\n\xe2\x9c\x85  Blender: "
                     + (out.isEmpty() ? "OK" : out));
             } else {
+                const QString blenderExecErr = res.value("error").toString(raw);
                 m_blenderStatusLbl->setText(tr("\xe2\x9d\x8c  Errore esecuzione"));
-                m_blenderOutput->append("\n\xe2\x9d\x8c  Blender: "
-                    + res.value("error").toString(raw));
+                m_blenderOutput->append("\n\xe2\x9d\x8c  Blender: " + blenderExecErr);
+                LogBus::post("\xe2\x9d\x8c Blender: Errore esecuzione: " + blenderExecErr);
             }
         });
     });
@@ -368,7 +371,9 @@ void AppControllerPage::onFreecadPingConnected()
 void AppControllerPage::onFreecadPingError(QAbstractSocket::SocketError)
 {
     if (!m_freecadPingSock) return;
-    m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + m_freecadPingSock->errorString());
+    const QString freecadPingErr = m_freecadPingSock->errorString();
+    m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + freecadPingErr);
+    LogBus::post("\xe2\x9d\x8c FreeCAD: Ping errore: " + freecadPingErr);
     m_freecadPingSock->deleteLater();
     m_freecadPingSock = nullptr;
 }
@@ -378,6 +383,7 @@ void AppControllerPage::onFreecadPingTimeout()
     if (m_freecadPingSock &&
         m_freecadPingSock->state() != QAbstractSocket::ConnectedState) {
         m_freecadStatusLbl->setText(tr("\xe2\x9d\x8c  Timeout"));
+        LogBus::post("\xe2\x9d\x8c FreeCAD: Ping timeout.");
         m_freecadPingSock->abort();
         m_freecadPingSock->deleteLater();
         m_freecadPingSock = nullptr;
@@ -411,7 +417,9 @@ void AppControllerPage::onFreecadExecClicked()
 void AppControllerPage::onFreecadExecError(QAbstractSocket::SocketError)
 {
     if (!m_freecadExecSock) return;
-    m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + m_freecadExecSock->errorString());
+    const QString freecadExecErr = m_freecadExecSock->errorString();
+    m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + freecadExecErr);
+    LogBus::post("\xe2\x9d\x8c FreeCAD: Exec errore: " + freecadExecErr);
     m_freecadExecBtn->setEnabled(true);
     m_freecadExecSock->deleteLater();
     m_freecadExecSock = nullptr;
@@ -439,9 +447,10 @@ void AppControllerPage::onFreecadExecReadyRead()
         m_freecadOutput->append("\n\xe2\x9c\x85  FreeCAD: "
             + res["result"].toString("OK"));
     } else {
-        m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + res["message"].toString());
-        m_freecadOutput->append("\n\xe2\x9d\x8c  FreeCAD errore: "
-            + res["message"].toString());
+        const QString freecadResErr = res["message"].toString();
+        m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + freecadResErr);
+        m_freecadOutput->append("\n\xe2\x9d\x8c  FreeCAD errore: " + freecadResErr);
+        LogBus::post("\xe2\x9d\x8c FreeCAD: Errore risposta: " + freecadResErr);
     }
 }
 
@@ -1200,6 +1209,24 @@ static QString s_telegramBotScript()
     return QString(
         "import os, sys, json, threading, asyncio\n"
         "\n"
+        "# APScheduler 3.x + pytz compat (Python 3.14 usa stdlib timezone.utc)\n"
+        "try:\n"
+        "    import pytz as _pytz\n"
+        "    import apscheduler.schedulers.base as _aps_base\n"
+        "    from datetime import timezone as _stdlib_tz\n"
+        "    _orig_aps_tz = _aps_base.astimezone\n"
+        "    def _compat_aps_tz(obj):\n"
+        "        if isinstance(obj, _stdlib_tz):\n"
+        "            secs = obj.utcoffset(None).total_seconds()\n"
+        "            return _pytz.FixedOffset(int(secs / 60)) if secs else _pytz.UTC\n"
+        "        return _orig_aps_tz(obj)\n"
+        "    _aps_base.astimezone = _compat_aps_tz\n"
+        "except Exception:\n"
+        "    pass\n"
+        "\n"
+        "# event loop esplicito obbligatorio in Python 3.14\n"
+        "asyncio.set_event_loop(asyncio.new_event_loop())\n"
+        "\n"
         "try:\n"
         "    from telegram import Update\n"
         "    from telegram.ext import (\n"
@@ -1219,33 +1246,51 @@ static QString s_telegramBotScript()
         "    print(json.dumps({'type':'error','msg':'TELEGRAM_TOKEN non impostato.'}), flush=True)\n"
         "    sys.exit(1)\n"
         "\n"
-        "# Risposte pendenti: chat_id -> (Event, container)\n"
         "pending      = {}\n"
         "pending_lock = threading.Lock()\n"
-        "_loop        = None\n"
-        "_bot         = None\n"
         "\n"
         "def allowed(update: Update) -> bool:\n"
         "    if not WHITELIST: return True\n"
         "    return str(update.effective_user.id) in WHITELIST\n"
+        "\n"
+        "def _emit_contact(update: Update) -> None:\n"
+        "    u = update.effective_user\n"
+        "    if not u: return\n"
+        "    print(json.dumps({\n"
+        "        'type':       'new_contact',\n"
+        "        'chat_id':    update.effective_chat.id,\n"
+        "        'username':   u.username or '',\n"
+        "        'first_name': u.first_name or ''\n"
+        "    }), flush=True)\n"
+        "\n"
+        "async def on_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):\n"
+        "    if not update.message: return\n"
+        "    _emit_contact(update)\n"
+        "    name = update.effective_user.first_name or 'utente'\n"
+        "    await update.message.reply_text(\n"
+        "        'Ciao ' + name + '! Sei registrato. '\n"
+        "        'Scrivi un messaggio o usa /ask <domanda> per parlare con l AI.')\n"
+        "\n"
+        "async def _query_and_wait(cid: int, text: str, update: Update) -> None:\n"
+        "    print(json.dumps({'type':'query','chat_id':cid,'text':text}), flush=True)\n"
+        "    evt = threading.Event()\n"
+        "    with pending_lock:\n"
+        "        pending[cid] = {'event': evt, 'reply': ''}\n"
+        "    loop = asyncio.get_running_loop()\n"
+        "    await loop.run_in_executor(None, evt.wait, 120.0)\n"
+        "    with pending_lock:\n"
+        "        reply = pending.pop(cid, {}).get('reply', '(timeout)')\n"
+        "    await update.message.reply_text(reply[:4096] if reply else '...')\n"
         "\n"
         "async def on_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):\n"
         "    if not update.message: return\n"
         "    if not allowed(update):\n"
         "        await update.message.reply_text('Non autorizzato.')\n"
         "        return\n"
+        "    _emit_contact(update)\n"
         "    cid  = update.effective_chat.id\n"
         "    text = update.message.text or ''\n"
-        "    # Invia la query a Prismalux via stdout\n"
-        "    print(json.dumps({'type':'query','chat_id':cid,'text':text}), flush=True)\n"
-        "    # Attendi risposta con timeout 120 s\n"
-        "    evt = threading.Event()\n"
-        "    with pending_lock:\n"
-        "        pending[cid] = {'event': evt, 'reply': ''}\n"
-        "    await asyncio.get_event_loop().run_in_executor(None, evt.wait, 120.0)\n"
-        "    with pending_lock:\n"
-        "        reply = pending.pop(cid, {}).get('reply', '(timeout)')\n"
-        "    await update.message.reply_text(reply[:4096] if reply else '...')\n"
+        "    await _query_and_wait(cid, text, update)\n"
         "\n"
         "async def on_ask(update: Update, ctx: ContextTypes.DEFAULT_TYPE):\n"
         "    if not allowed(update):\n"
@@ -1255,8 +1300,8 @@ static QString s_telegramBotScript()
         "    if not text:\n"
         "        await update.message.reply_text('Uso: /ask <domanda>')\n"
         "        return\n"
-        "    update.message.text = text\n"
-        "    await on_message(update, ctx)\n"
+        "    cid = update.effective_chat.id\n"
+        "    await _query_and_wait(cid, text, update)\n"
         "\n"
         "async def on_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE):\n"
         "    if not allowed(update):\n"
@@ -1282,18 +1327,17 @@ static QString s_telegramBotScript()
         "            print('stdin error: ' + str(exc), flush=True)\n"
         "\n"
         "async def post_init(app: Application):\n"
-        "    global _loop, _bot\n"
-        "    _loop = asyncio.get_event_loop()\n"
-        "    _bot  = app.bot\n"
         "    threading.Thread(target=stdin_loop, daemon=True).start()\n"
         "    print(json.dumps({'type': 'ready'}), flush=True)\n"
         "\n"
         "app = (\n"
         "    Application.builder()\n"
         "    .token(TOKEN)\n"
+        "    .job_queue(None)\n"
         "    .post_init(post_init)\n"
         "    .build()\n"
         ")\n"
+        "app.add_handler(CommandHandler('start',  on_start))\n"
         "app.add_handler(CommandHandler('ask',    on_ask))\n"
         "app.add_handler(CommandHandler('status', on_status))\n"
         "app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))\n"
@@ -1350,10 +1394,12 @@ void AppControllerPage::onTelegramStartClicked()
                 this, [this]() {
             const QString err =
                 QString::fromUtf8(m_telegramProc->readAllStandardError()).trimmed();
-            if (!err.isEmpty())
+            if (!err.isEmpty()) {
                 m_telegramLog->append(
                     "<span style='color:#f87171;'>"
                     + err.toHtmlEscaped() + "</span>");
+                LogBus::post("\xe2\x9d\x8c Telegram Bot: " + err);
+            }
         });
         connect(m_telegramProc,
                 QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
@@ -1418,9 +1464,12 @@ void AppControllerPage::onTelegramProcReadyRead()
         if (type == "error") {
             const QString msg = obj.value("msg").toString();
             m_telegramStatusLbl->setText(tr("\xe2\x9d\x8c  Errore bot"));
+            LogBus::post("\xe2\x9d\x8c Telegram Bot: " + msg);
             const bool isMissing = msg.contains("Modulo mancante",
                                                 Qt::CaseInsensitive) ||
                                    msg.contains("No module named",
+                                                Qt::CaseInsensitive) ||
+                                   msg.contains("non installato",
                                                 Qt::CaseInsensitive);
             if (isMissing) {
                 m_telegramLog->append(
@@ -1523,6 +1572,43 @@ void AppControllerPage::onTelegramProcReadyRead()
             continue;
         }
 
+        if (type == "new_contact") {
+            const QString cid  = QString::number(obj.value("chat_id").toInt());
+            const QString user = obj.value("username").toString();
+            const QString name = obj.value("first_name").toString();
+
+            /* Logga sempre nel pannello bot */
+            const QString displayName = user.isEmpty() ? name : "@" + user;
+            m_telegramLog->append(
+                QString("<span style='color:#86efac;'>"
+                        "\xf0\x9f\x91\xa4 Nuovo contatto: <b>%1</b> (ID: %2)</span>")
+                    .arg(displayName.toHtmlEscaped(), cid));
+
+            /* Aggiunge alla lista solo se checkbox attivo e ID non già presente */
+            if (m_telegramAutoAddCheck && m_telegramAutoAddCheck->isChecked()) {
+                bool found = false;
+                for (int i = 0; i < m_telegramContactList->count(); ++i) {
+                    if (m_telegramContactList->item(i)->text() == cid) {
+                        found = true; break;
+                    }
+                }
+                if (!found) {
+                    m_telegramContactList->addItem(cid);
+                    QSettings s("Prismalux", "GUI");
+                    QStringList all;
+                    all.reserve(m_telegramContactList->count());
+                    for (int i = 0; i < m_telegramContactList->count(); ++i)
+                        all << m_telegramContactList->item(i)->text();
+                    s.setValue("telegram_contacts", all);
+                    m_telegramLog->append(
+                        QString("<span style='color:#86efac;'>"
+                                "\xe2\x9c\x85 ID %1 aggiunto ai destinatari.</span>")
+                            .arg(cid));
+                }
+            }
+            continue;
+        }
+
         /* Messaggio generico dal processo */
         m_telegramLog->append(line.toHtmlEscaped());
     }
@@ -1531,6 +1617,7 @@ void AppControllerPage::onTelegramProcReadyRead()
 void AppControllerPage::onTelegramProcFinished(
     int code, QProcess::ExitStatus /*status*/)
 {
+    if (!m_telegramStartBtn || !m_telegramStopBtn) return;
     m_telegramStartBtn->setEnabled(true);
     m_telegramStopBtn->setEnabled(false);
 
@@ -1544,6 +1631,8 @@ void AppControllerPage::onTelegramProcFinished(
             QString("<span style='color:#f87171;'>"
                     "\xe2\x9d\x8c  Bot uscito con codice %1. "
                     "Controlla il log sopra.</span>").arg(code));
+        LogBus::post(
+            QString("\xe2\x9d\x8c Telegram Bot terminato con errore (exit %1)").arg(code));
     }
 
     /* Libera l'holder AI se era attivo */
@@ -1636,11 +1725,39 @@ void AppControllerPage::onTelegramSendPromoClicked()
         const int idx = i + 1;
         connect(reply, &QNetworkReply::finished,
                 this, [this, reply, idx, total, chatId]() {
+            const QByteArray body = reply->readAll();
             reply->deleteLater();
             if (reply->error() != QNetworkReply::NoError) {
-                m_telegramPromoStatusLbl->setText(
-                    QString("\xe2\x9d\x8c  Errore su %1: %2")
-                        .arg(chatId, reply->errorString()));
+                /* Legge la descrizione reale dall'API Telegram */
+                const QJsonObject tgObj = QJsonDocument::fromJson(body).object();
+                const int errCode = tgObj.value("error_code").toInt(
+                    reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt());
+                const QString tgDesc = tgObj.value("description").toString();
+
+                QString hint;
+                if (errCode == 403) {
+                    if (tgDesc.contains("initiate"))
+                        hint = " \xe2\x86\x92 il contatto deve inviare /start al bot";
+                    else if (tgDesc.contains("blocked"))
+                        hint = " \xe2\x86\x92 il contatto ha bloccato il bot";
+                    else if (tgDesc.contains("not a member"))
+                        hint = " \xe2\x86\x92 il bot non \xc3\xa8 membro del gruppo";
+                    else if (chatId.startsWith('@') && !chatId.startsWith("-"))
+                        hint = " \xe2\x86\x92 i bot non possono ricevere messaggi da altri bot";
+                } else if (errCode == 400) {
+                    if (tgDesc.contains("chat not found"))
+                        hint = " \xe2\x86\x92 ID non trovato: usa l'ID numerico dopo che il contatto ha inviato /start";
+                    else if (!chatId.at(0).isDigit() && !chatId.startsWith('-'))
+                        hint = " \xe2\x86\x92 usa l'ID numerico, non @username";
+                }
+
+                const QString detail = tgDesc.isEmpty() ? reply->errorString()
+                                                        : tgDesc;
+                const QString errMsg =
+                    QString("\xe2\x9d\x8c  Errore su %1 (%2): %3%4")
+                        .arg(chatId).arg(errCode).arg(detail, hint);
+                m_telegramPromoStatusLbl->setText(errMsg);
+                LogBus::post("Telegram: " + errMsg);
             } else if (idx == total) {
                 m_telegramPromoStatusLbl->setText(
                     QString("\xe2\x9c\x85  Inviato a %1 contatti.").arg(total));
@@ -1734,9 +1851,11 @@ void AppControllerPage::onWaSendPromoClicked()
                 this, [this, reply, idx, total, number]() {
             reply->deleteLater();
             if (reply->error() != QNetworkReply::NoError) {
-                m_waPromoStatusLbl->setText(
+                const QString errMsg =
                     QString("\xe2\x9d\x8c  Errore su %1: %2")
-                        .arg(number, reply->errorString()));
+                        .arg(number, reply->errorString());
+                m_waPromoStatusLbl->setText(errMsg);
+                LogBus::post("WhatsApp: " + errMsg);
             } else if (idx == total) {
                 m_waPromoStatusLbl->setText(
                     QString("\xe2\x9c\x85  Inviato a %1 contatti.").arg(total));

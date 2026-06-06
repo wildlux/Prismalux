@@ -1,5 +1,6 @@
 #include "ai_client.h"
 #include "prismalux_paths.h"
+#include "widgets/onnx_embedder.h"
 #include <QNetworkRequest>
 #include <QHttpMultiPart>
 #include <QJsonDocument>
@@ -108,6 +109,93 @@ AiClient::QueryType AiClient::classifyQuery(const QString& text)
     }
 
     return (len <= 30) ? QuerySimple : QueryAuto;  /* FIX T1: era QuerySimple:QuerySimple */
+}
+
+/* ══════════════════════════════════════════════════════════════
+   detectQueryDomain — rileva il dominio semantico della query
+   per suggerire il modello più adatto (math-capable per STEM).
+   ══════════════════════════════════════════════════════════════ */
+AiClient::QueryDomain AiClient::detectQueryDomain(const QString& text)
+{
+    const QString lo = text.toLower();
+
+    /* Conversione unità di misura — keyword esplicite */
+    static const QString kUnitKW[] = {
+        "converti", "converte", "conversione", "in metro", "in km", "in kg",
+        "in litri", "in kelvin", "in celsius", "in fahrenheit", "in gradi",
+        "da metro", "da kg", "da km", "quanti ", "quanto fa", "equivale",
+        "in joule", "in watt", "in pascal", "in newton", "in ampere", "in volt",
+        "in ohm", "in hertz", "in rad", "in mol", "in atm", "in bar",
+        "in pollici", "in miglia", "in yard", "in piedi", "in pound", "in oz",
+    };
+    for (const auto& kw : kUnitKW)
+        if (lo.contains(kw)) return DomainUnitConvert;
+
+    /* Elettronica */
+    static const QString kElecKW[] = {
+        "resistenza", "condensatore", "induttanza", "impedenza", "transistor",
+        "amplificatore", "filtro rc", "filtro rl", "filtro lc", "filtro passa",
+        "circuito", "legge di ohm", "corrente", "tensione alternata",
+        "frequenza di taglio", "guadagno", "decibel", "laplace", "bode",
+        "semiconduttore", "diodo", "bjt", "mosfet", "op-amp", "operazionale",
+        "nodo", "maglia", "kirchhoff", "thevenin", "norton", "pwm", "adc", "dac",
+    };
+    for (const auto& kw : kElecKW)
+        if (lo.contains(kw)) return DomainElectronics;
+
+    /* Chimica */
+    static const QString kChemKW[] = {
+        "mol", "moli", "molecola", "atomo", "elemento", "reazione chimica",
+        "stechiometri", "ph ", "acido", "base", "ossidazione", "riduzione",
+        "redox", "legame", "orbitale", "entalpia", "entropia", "gibbs",
+        "massa molare", "numero di avogadro", "concentrazione", "soluzione",
+        "precipitato", "elettronegativit", "valenza", "ione", "catione",
+        "anione", "formula chimica", "bilanciare", "equazione chimica",
+    };
+    for (const auto& kw : kChemKW)
+        if (lo.contains(kw)) return DomainChemistry;
+
+    /* Fisica */
+    static const QString kPhysKW[] = {
+        "forza", "massa", "accelerazione", "velocit", "energia cinetica",
+        "energia potenziale", "lavoro", "potenza", "pressione", "volume",
+        "temperatura", "calore", "termodinamica", "entropia termica",
+        "gravitazione", "gravit", "campo elettrico", "campo magnetico",
+        "ottica", "rifrazione", "interferenza", "diffrazione", "onda",
+        "frequenza", "lunghezza d'onda", "fotone", "relativi", "quantistic",
+        "momento", "impulso", "attrito", "pendolo", "oscillazione",
+        "legge di newton", "secondo principio", "terzo principio",
+    };
+    for (const auto& kw : kPhysKW)
+        if (lo.contains(kw)) return DomainPhysics;
+
+    /* Matematica */
+    static const QString kMathKW[] = {
+        "deriva", "integr", "limit", "funzione", "matrice", "determinante",
+        "autovalore", "equazione differenziale", "serie di taylor", "serie di fourier",
+        "prodotto scalare", "prodotto vettoriale", "gradiente", "divergenza",
+        "rotore", "laplaciano", "probabilit", "statistica", "varianza",
+        "deviazione standard", "combinatori", "permutazione", "combinazione",
+        "numero complesso", "modulo", "argomento", "radice", "potenza",
+        "logaritmo", "esponenziale", "trigonometri", "seno", "coseno",
+        "tangente", "geometria", "teorema", "dimostrazione",
+        "somma", "prodotto", "sequenza", "serie", "ricorrenza",
+        "calcolo", "algebra", "analisi", "numerica",
+    };
+    for (const auto& kw : kMathKW)
+        if (lo.contains(kw)) return DomainMath;
+
+    /* Codice */
+    static const QString kCodeKW[] = {
+        "codice", "funzione", "classe", "metodo", "variabile", "algoritmo",
+        "debug", "errore di compilazione", "python", "c++", "javascript",
+        "typescript", "rust", "go lang", "script", "api", "refactor",
+        "implementa", "scrivi una funzione", "scrivi un programma",
+    };
+    for (const auto& kw : kCodeKW)
+        if (lo.contains(kw)) return DomainCoding;
+
+    return DomainGeneral;
 }
 
 /* ── Anti-data-leak: verifica che l'host sia localhost ───────────────────
@@ -1096,6 +1184,24 @@ void AiClient::onFetchLayersFinished()
    Non blocca il thread UI; emette embeddingReady o embeddingError.
    ══════════════════════════════════════════════════════════════ */
 void AiClient::fetchEmbedding(const QString& text) {
+    /* Percorso ONNX locale — prioritario, nessuna rete richiesta */
+    if (m_onnxEmbedder && m_onnxEmbedder->isReady()) {
+        /* Collega i segnali dell'embedder ai segnali di AiClient una-tantum */
+        auto* holder = new QObject(this);
+        connect(m_onnxEmbedder, &OnnxEmbedder::embeddingReady,
+                holder, [this, holder](const QVector<float>& v) {
+                    holder->deleteLater();
+                    emit embeddingReady(v);
+                });
+        connect(m_onnxEmbedder, &OnnxEmbedder::embeddingError,
+                holder, [this, holder](const QString& msg) {
+                    holder->deleteLater();
+                    emit embeddingError(msg);
+                });
+        m_onnxEmbedder->embedAsync(text);
+        return;
+    }
+
     if (m_backend == LlamaLocal) {
         emit embeddingError("Embedding non disponibile con llama.cpp locale (serve Ollama o llama-server)");
         return;

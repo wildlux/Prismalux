@@ -1,6 +1,7 @@
 #include "main_ai.h"
 #include "main_ai_p.h"
 #include "../prismalux_paths.h"
+#include "../log_bus.h"
 namespace P = PrismaluxPaths;
 #include <cmath>
 #include <cstdlib>
@@ -625,6 +626,8 @@ bool AgentiPage::checkRam()
     if (ramPct >= 92.0) {
         m_log->append(QString("\xe2\x9d\x8c  <b>RAM critica (%1% usata)</b> — operazione bloccata.")
                       .arg(ramPct, 0, 'f', 0));
+        LogBus::post(QString("\xe2\x9d\x8c AI Math: RAM critica (%1% usata) — operazione bloccata.")
+                     .arg(ramPct, 0, 'f', 0));
         m_log->append("\xf0\x9f\x92\xa1  Chiudi altre applicazioni o scarica il modello prima di continuare.");
         emit pipelineStatus(-1, "");
         return false;

@@ -9,6 +9,7 @@
 #include "../prismalux_paths.h"
 #include "../lan_server.h"
 #include "../widgets/ai_error_widget.h"
+#include "../log_bus.h"
 #include <QScrollArea>
 #include <QSpinBox>
 #include <QGroupBox>
@@ -1377,6 +1378,7 @@ void StrumentiPage::onError(const QString& msg) {
     m_errPanel->showError(msg, [this]{ onBtnRunClicked(); });
     m_output->append(
         QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
+    LogBus::post("\xe2\x9d\x8c Strumenti: Errore AI: " + msg);
 }
 
 void StrumentiPage::_setRunBusy(bool busy)
@@ -1446,6 +1448,7 @@ void StrumentiPage::ragAddFile(const QString& path)
         m_ragInfoLbl->setText(
             QString("\xe2\x9d\x8c  Impossibile estrarre testo da: %1")
             .arg(QFileInfo(path).fileName()));
+        LogBus::post("\xe2\x9d\x8c Strumenti: Impossibile estrarre testo da: " + QFileInfo(path).fileName());
         return;
     }
     const QStringList newChunks = ragChunkText(text);
@@ -1791,6 +1794,7 @@ void StrumentiPage::onBlenderPingReplyFinished()
         m_blenderStatusLbl->setText("\xe2\x9c\x85  Blender " + ver + " connesso");
     } else {
         m_blenderStatusLbl->setText("\xe2\x9d\x8c  " + reply->errorString());
+        LogBus::post("\xe2\x9d\x8c Strumenti: Blender ping errore: " + reply->errorString());
     }
 }
 
@@ -1834,10 +1838,12 @@ void StrumentiPage::onBlenderExecReplyFinished()
         } else {
             m_blenderStatusLbl->setText(tr("\xe2\x9d\x8c  Errore Blender"));
             m_output->append("\n\xe2\x9d\x8c  Blender errore:\n" + res["error"].toString());
+            LogBus::post("\xe2\x9d\x8c Strumenti: Blender errore: " + res["error"].toString());
         }
     } else {
         m_blenderStatusLbl->setText("\xe2\x9d\x8c  " + reply->errorString());
         m_output->append("\n\xe2\x9d\x8c  Connessione a Blender fallita: " + reply->errorString());
+        LogBus::post("\xe2\x9d\x8c Strumenti: Connessione a Blender fallita: " + reply->errorString());
     }
 }
 
@@ -1914,6 +1920,7 @@ void StrumentiPage::onOfficeStartBtnClicked()
     QString path = _officeBridgePath();
     if (path.isEmpty()) {
         m_officeStatusLbl->setText(tr("\xe2\x9d\x8c  prismalux_office_bridge.py non trovato"));
+        LogBus::post("\xe2\x9d\x8c Strumenti: prismalux_office_bridge.py non trovato.");
         return;
     }
 
@@ -1935,6 +1942,7 @@ void StrumentiPage::onOfficeStartBtnClicked()
         QTimer::singleShot(1200, this, &StrumentiPage::onOfficeStatusCheckTimeout);
     } else {
         m_officeStatusLbl->setText(tr("\xe2\x9d\x8c  Errore avvio (python3 non trovato?)"));
+        LogBus::post("\xe2\x9d\x8c Strumenti: Office bridge errore avvio (python3 non trovato?).");
     }
 }
 
@@ -2013,10 +2021,12 @@ void StrumentiPage::onOfficeExecReplyFinished()
         } else {
             m_officeStatusLbl->setText(tr("\xe2\x9d\x8c  Errore"));
             m_output->append("\n\xe2\x9d\x8c  Office errore:\n" + res["error"].toString());
+            LogBus::post("\xe2\x9d\x8c Strumenti: Office errore: " + res["error"].toString());
         }
     } else {
         m_officeStatusLbl->setText(tr("\xe2\x9d\x8c  Bridge non raggiungibile"));
         m_output->append("\n\xe2\x9d\x8c  Bridge non raggiungibile (avvialo prima).");
+        LogBus::post("\xe2\x9d\x8c Strumenti: Office bridge non raggiungibile.");
     }
 }
 
@@ -2109,6 +2119,7 @@ void StrumentiPage::onFreecadSockError(QAbstractSocket::SocketError)
 {
     if (!m_freecadPingSock) return;
     m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + m_freecadPingSock->errorString());
+    LogBus::post("\xe2\x9d\x8c Strumenti: FreeCAD errore socket: " + m_freecadPingSock->errorString());
     m_freecadPingSock->deleteLater();
 }
 
@@ -2118,6 +2129,7 @@ void StrumentiPage::onFreecadPingTimeout()
         m_freecadPingSock->state() != QAbstractSocket::ConnectedState) {
         m_freecadStatusLbl->setText(
             "\xe2\x9d\x8c  Timeout \xe2\x80\x94 FreeCAD non risponde");
+        LogBus::post("\xe2\x9d\x8c Strumenti: FreeCAD timeout connessione.");
         m_freecadPingSock->abort();
         m_freecadPingSock->deleteLater();
     }
@@ -2186,6 +2198,7 @@ void StrumentiPage::onFreecadExecSockReadyRead()
         m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + err);
         m_output->moveCursor(QTextCursor::End);
         m_output->append("\n\xe2\x9d\x8c  FreeCAD errore: " + err);
+        LogBus::post("\xe2\x9d\x8c Strumenti: FreeCAD errore: " + err);
     }
 }
 
@@ -2193,6 +2206,7 @@ void StrumentiPage::onFreecadExecSockError(QAbstractSocket::SocketError)
 {
     if (!m_freecadExecSock) return;
     m_freecadStatusLbl->setText("\xe2\x9d\x8c  " + m_freecadExecSock->errorString());
+    LogBus::post("\xe2\x9d\x8c Strumenti: FreeCAD errore exec socket: " + m_freecadExecSock->errorString());
     m_freecadExecBtn->setEnabled(true);
     m_freecadExecSock->deleteLater();
 }
@@ -2279,6 +2293,7 @@ void StrumentiPage::onSketchGenBtnClicked()
         QFile f(m_sketchFilePath);
         if (!f.open(QIODevice::ReadOnly)) {
             m_output->append("\xe2\x9d\x8c  Impossibile aprire il file immagine.");
+            LogBus::post("\xe2\x9d\x8c Strumenti: Impossibile aprire il file immagine.");
             m_active = false;
             _setRunBusy(false);
             m_waitLbl->setVisible(false);

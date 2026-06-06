@@ -3,6 +3,7 @@
    ══════════════════════════════════════════════════════════════ */
 #include "main_sci_protein.h"
 #include "../dpi_utils.h"
+#include "../log_bus.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -348,6 +349,7 @@ void SciProteinWidget::onEsmFoldReply(QNetworkReply* reply)
         m_foldStatus->setText(
             "<span style='color:#ef4444'>\xe2\x9d\x8c  " + err + "</span>");
         appendLog("ESMFold errore: " + err);
+        LogBus::post("\xe2\x9d\x8c SciProtein: ESMFold errore: " + err);
         return;
     }
 
@@ -357,6 +359,7 @@ void SciProteinWidget::onEsmFoldReply(QNetworkReply* reply)
             "<span style='color:#ef4444'>\xe2\x9d\x8c  Risposta API non valida."
             " Riprova tra qualche secondo.</span>");
         appendLog("ESMFold: risposta non PDB (" + pdb.left(80) + ")");
+        LogBus::post("\xe2\x9d\x8c SciProtein: ESMFold risposta non PDB.");
         return;
     }
 
@@ -398,6 +401,7 @@ void SciProteinWidget::onAlphaFoldReply(QNetworkReply* reply)
 
     if (reply->error() != QNetworkReply::NoError) {
         appendLog("AlphaFold DB errore: " + reply->errorString());
+        LogBus::post("\xe2\x9d\x8c SciProtein: AlphaFold DB errore: " + reply->errorString());
         return;
     }
     const QJsonArray arr = QJsonDocument::fromJson(reply->readAll()).array();
@@ -410,7 +414,11 @@ void SciProteinWidget::onAlphaFoldReply(QNetworkReply* reply)
     const QString uniId     = entry["uniprotId"].toString();
     appendLog(QString("AlphaFold DB: struttura trovata (%1). Download PDB...").arg(uniId));
 
-    if (pdbUrl.isEmpty()) { appendLog("URL PDB mancante nella risposta."); return; }
+    if (pdbUrl.isEmpty()) {
+        appendLog("URL PDB mancante nella risposta.");
+        LogBus::post("\xe2\x9d\x8c SciProtein: URL PDB mancante nella risposta AlphaFold.");
+        return;
+    }
 
     const QUrl afPdbQUrl(pdbUrl);
     QNetworkRequest pdbReq(afPdbQUrl);
@@ -422,6 +430,7 @@ void SciProteinWidget::onAlphaFoldReply(QNetworkReply* reply)
         pdbReply->deleteLater();
         if (pdbReply->error() != QNetworkReply::NoError) {
             appendLog("Download PDB fallito: " + pdbReply->errorString());
+            LogBus::post("\xe2\x9d\x8c SciProtein: Download PDB fallito: " + pdbReply->errorString());
             return;
         }
         const QString pdb = QString::fromUtf8(pdbReply->readAll());
@@ -483,6 +492,7 @@ void SciProteinWidget::onPdbReply(QNetworkReply* reply)
     reply->deleteLater();
     if (reply->error() != QNetworkReply::NoError) {
         appendLog("RCSB errore: " + reply->errorString());
+        LogBus::post("\xe2\x9d\x8c SciProtein: RCSB errore: " + reply->errorString());
         return;
     }
     const QJsonObject root = QJsonDocument::fromJson(reply->readAll()).object();
@@ -534,6 +544,7 @@ void SciProteinWidget::onUniprotReply(QNetworkReply* reply)
     reply->deleteLater();
     if (reply->error() != QNetworkReply::NoError) {
         appendLog("UniProt errore: " + reply->errorString());
+        LogBus::post("\xe2\x9d\x8c SciProtein: UniProt errore: " + reply->errorString());
         return;
     }
     const QJsonObject root    = QJsonDocument::fromJson(reply->readAll()).object();
@@ -582,6 +593,7 @@ void SciProteinWidget::onSearchItemClicked(int row)
             reply->deleteLater();
             if (reply->error() != QNetworkReply::NoError) {
                 appendLog("Download fallito: " + reply->errorString());
+                LogBus::post("\xe2\x9d\x8c SciProtein: Download PDB " + pdbId + " fallito: " + reply->errorString());
                 return;
             }
             loadInViewer(QString::fromUtf8(reply->readAll()), "PDB_" + pdbId);

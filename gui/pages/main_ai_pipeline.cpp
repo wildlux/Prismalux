@@ -1,6 +1,7 @@
 #include "main_ai.h"
 #include "main_ai_p.h"
 #include "../prismalux_paths.h"
+#include "../log_bus.h"
 namespace P = PrismaluxPaths;
 #include "../app_config.h"
 #include <QElapsedTimer>
@@ -882,6 +883,7 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                                 "<div style='color:#f87171;margin:4px 0'>"
                                 "\xe2\x9d\x8c  pip install '%1' fallito.<br>"
                                 "<code>pip install %1</code></div>").arg(pkg));
+                            LogBus::post(QString("\xe2\x9d\x8c AI Pipeline: pip install '%1' fallito.").arg(pkg));
                             QFile::remove(tmpPath);
                             m_executorOutput = pipOut;
                             if (m_cfgDlg->controllerEnabled()) runPipelineController();

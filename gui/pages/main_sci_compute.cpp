@@ -4,6 +4,7 @@
 #include "main_sci_compute.h"
 #include "../prismalux_paths.h"
 #include "../widgets/proc_helper.h"
+#include "../log_bus.h"
 
 #include <QUuid>
 #include <QDateTime>
@@ -656,6 +657,7 @@ void SciComputePage::startServer()
     const int port = P::kSciComputePort;
     if (!m_server->listen(QHostAddress::Any, port)) {
         appendLog("\xe2\x9d\x8c  Server non avviato: " + m_server->errorString());
+        LogBus::post("\xe2\x9d\x8c SciCompute: Server non avviato: " + m_server->errorString());
         return;
     }
     m_isCoord = true;
@@ -759,6 +761,7 @@ void SciComputePage::handleWorkerMessage(QTcpSocket* s, const QJsonObject& msg)
         if (msg["token"].toString() != m_token) {
             if (s) sendJson(s, {{"t","error"}, {"msg","token non valido"}});
             appendLog("\xe2\x9a\xa0  Connessione rifiutata: token errato.");
+            LogBus::post("\xe2\x9d\x8c SciCompute: Connessione rifiutata: token errato.");
             if (s) { s->disconnectFromHost(); }
             return;
         }
@@ -1014,6 +1017,7 @@ void SciComputePage::handleCoordMessage(const QJsonObject& msg)
 
     } else if (t == "file_error") {
         appendLog("\xe2\x9d\x8c  File broker errore: " + msg["msg"].toString());
+        LogBus::post("\xe2\x9d\x8c SciCompute: File broker errore: " + msg["msg"].toString());
     }
 }
 
@@ -1385,6 +1389,7 @@ void SciComputePage::handleLocalResult(const QString& wuId, bool ok,
     appendLog(QString("%1  WU %2 completata localmente.")
               .arg(ok ? "\xe2\x9c\x85" : "\xe2\x9d\x8c")
               .arg(wuId.left(8)));
+    if (!ok) LogBus::post("\xe2\x9d\x8c SciCompute: WU " + wuId.left(8) + " fallita localmente.");
     refreshWuTable();
     if (wuId == m_selectedWuId) refreshResults(wuId);
 

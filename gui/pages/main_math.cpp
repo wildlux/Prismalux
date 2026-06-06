@@ -1,5 +1,7 @@
 #include "main_math.h"
 #include "../prismalux_paths.h"
+#include "../log_bus.h"
+#include "../ai_client.h"
 
 #include "main_graph.h"
 #include "../widgets/formula_parser.h"
@@ -35,6 +37,7 @@
 #include <QStackedWidget>
 #include <QApplication>
 #include <QRandomGenerator>
+#include <QRegularExpression>
 #include "../dpi_utils.h"
 #include <cmath>
 #include <limits>
@@ -731,6 +734,7 @@ void MatematicaPage::runNth()
     const long long N = nStr.toLongLong(&ok);
     if (!ok || N < 1) {
         setStatus("\xe2\x9d\x8c  Inserisci un numero intero positivo per N.");
+        LogBus::post("\xe2\x9d\x8c Matematica: Inserisci un numero intero positivo per N.");
         return;
     }
 
@@ -857,6 +861,11 @@ void MatematicaPage::runNth()
     runPython(py);
 }
 
+/* Forward declarations degli helper definiti più avanti nel file */
+static int     mathModelScore(const QString& name);
+static QString buildDomainHint(AiClient*, const QString&, const QComboBox*);
+static QString buildUnitConvertScript(const QString&);
+
 /* ══════════════════════════════════════════════════════════════
    runExpr — valuta espressione con sympy + mpmath
    ══════════════════════════════════════════════════════════════ */
@@ -864,6 +873,63 @@ void MatematicaPage::runExpr()
 {
     const QString expr = m_exprInput->text().trimmed();
     if (expr.isEmpty()) return;
+
+    /* ── Rilevamento conversione unità di misura ────────────────
+       Se la query è una conversione con unità nota → calcola direttamente.
+       Se la query sembra una conversione ma l'unità non è riconosciuta →
+       chiede al LLM di interpretare l'unità, poi avvia il calcolo. */
+    using D = AiClient::QueryDomain;
+    const D dom = AiClient::detectQueryDomain(expr);
+
+    if (dom == D::DomainUnitConvert) {
+        const QString unitPy = buildUnitConvertScript(expr);
+        if (!unitPy.isEmpty()) {
+            /* Unità nota → calcola con Python direttamente */
+            clearOutput();
+            appendOutput(QString("\xf0\x9f\x94\x84  Conversione: %1\n\n").arg(expr));
+            runPython(unitPy);
+            return;
+        }
+
+        /* Unità non riconosciuta → chiede al LLM */
+        if (!m_ai) {
+            clearOutput();
+            appendOutput("\xe2\x9d\x8c  Unità non riconosciuta e nessun backend AI disponibile.\n"
+                         "Prova a scrivere l'espressione SymPy direttamente (es. 5 * 1000).");
+            return;
+        }
+
+        clearOutput();
+        appendOutput(QString("\xf0\x9f\xa4\x96  Unità non riconosciuta nella query:\n"
+                             "   \"%1\"\n\nChiedo al modello AI di interpretarla...\n\n").arg(expr));
+
+        const QString sys =
+            "Sei un esperto di metrologia. L'utente vuole convertire un valore da un'unità "
+            "di misura a un'altra. Rispondi SOLO con la formula Python su una riga che calcola "
+            "il risultato, nel formato:\n"
+            "  print(f'{valore_in} {unita_in}  =  {risultato:.6g} {unita_out}')\n\n"
+            "Non aggiungere testo, commenti o spiegazioni. Solo la riga print().";
+
+        delete m_aiSeqHolder;
+        m_aiSeqHolder = new QObject(this);
+        connect(m_ai, &AiClient::token, m_aiSeqHolder,
+                [this](const QString& t){ onAiSeqToken(t); });
+        connect(m_ai, &AiClient::finished, m_aiSeqHolder,
+                [this](const QString& full) {
+                    onAiSeqFinished(full);
+                    /* Esegue la formula Python estratta dalla risposta LLM */
+                    const QString code = full.trimmed();
+                    if (code.startsWith("print("))
+                        runPython(code);
+                });
+        connect(m_ai, &AiClient::error, m_aiSeqHolder,
+                [this](const QString& e){ onAiSeqError(e); });
+
+        m_aiRunning = true;
+        m_ai->chat(sys, expr);
+        return;
+    }
+
     const int prec = m_exprPrec->value();
 
     const QString py = QString(
@@ -976,6 +1042,7 @@ void MatematicaPage::runPython(const QString& code)
     m_proc->start(P::findPython(), QStringList{"-c", code});
     if (!m_proc->waitForStarted(3000)) {
         setStatus("\xe2\x9d\x8c  Python non trovato nel PATH. Installa Python da python.org");
+        LogBus::post("\xe2\x9d\x8c Matematica: Python non trovato nel PATH.");
         m_proc->deleteLater();
         m_proc = nullptr;
     }
@@ -1834,6 +1901,7 @@ void MatematicaPage::importFromFile()
 
     if (!err.isEmpty()) {
         setStatus("\xe2\x9d\x8c  " + err);
+        LogBus::post("\xe2\x9d\x8c Matematica: " + err);
         QMessageBox::warning(this, "Errore importazione", err);
         return;
     }
@@ -1958,6 +2026,156 @@ static bool isEmbedModel(const QString& n)
            n.contains("e5-") || n.contains("-embed");
 }
 
+/* ── Genera avviso dominio + suggerisci modello migliore disponibile ─
+   Restituisce un messaggio HTML da mostrare nell'output.
+   Se il modello corrente è già math-capable restituisce stringa vuota. */
+static QString buildDomainHint(AiClient* ai, const QString& query,
+                               const QComboBox* combo)
+{
+    using D = AiClient::QueryDomain;
+    const D dom = AiClient::detectQueryDomain(query);
+    if (!AiClient::domainNeedsMathModel(dom)) return {};
+
+    const QString cur = ai ? ai->model() : QString();
+    if (mathModelScore(cur) >= 50) return {};  /* già adatto */
+
+    /* Cerca il migliore disponibile nella combo */
+    QString best;
+    int bestSc = -1;
+    if (combo) {
+        for (int i = 0; i < combo->count(); ++i) {
+            const QString m = combo->itemData(i).toString();
+            const int sc = mathModelScore(m);
+            if (sc > bestSc) { bestSc = sc; best = m; }
+        }
+    }
+
+    static const char* domLabel[] = {
+        nullptr, "matematica", "fisica", "chimica", "elettronica", nullptr, nullptr
+    };
+    const char* dl = (dom < 7) ? domLabel[dom] : nullptr;
+    QString msg = QString(
+        "\xf0\x9f\x92\xa1  <b>Query di %1</b> rilevata. "
+        "Il modello attuale (<code>%2</code>) non \xc3\xa8 specializzato per calcoli STEM.")
+        .arg(dl ? dl : "scienze").arg(cur.isEmpty() ? "nessuno" : cur);
+
+    if (!best.isEmpty() && bestSc >= 50)
+        msg += QString(" <span style='color:#a3e635;'>Consigliato: <b>%1</b> "
+                       "(punteggio math: %2)</span>.").arg(best).arg(bestSc);
+    else
+        msg += " Installa <code>qwen2.5-math:7b</code> o <code>deepseek-r1:7b</code> "
+               "per risultati migliori.";
+
+    return msg;
+}
+
+/* ── Converte una query testuale di conversione unità in SymPy ───────
+   Riconosce pattern come "converti 5 km in metro", "quanto fa 100 mph in km/h".
+   Ritorna lo script Python se riconosce la richiesta, stringa vuota altrimenti. */
+static QString buildUnitConvertScript(const QString& text)
+{
+    /* Tabella conversioni note: (pattern regex-like, factorIn, unitIn, factorOut, unitOut) */
+    struct UnitEntry {
+        const char* fromU;   /* parole che identificano l'unità sorgente */
+        const char* toU;     /* parole che identificano l'unità destinazione */
+        double      factor;  /* valore_out = valore_in * factor */
+        const char* labelIn;
+        const char* labelOut;
+    };
+    static const UnitEntry kUnits[] = {
+        /* lunghezza */
+        { "km",   "metro",   1000.0,      "km",   "m"   },
+        { "metro", "km",     0.001,       "m",    "km"  },
+        { "cm",   "metro",   0.01,        "cm",   "m"   },
+        { "mm",   "metro",   0.001,       "mm",   "m"   },
+        { "miglia","km",     1.60934,     "mi",   "km"  },
+        { "km",   "miglia",  0.621371,    "km",   "mi"  },
+        { "pollici","cm",    2.54,        "in",   "cm"  },
+        { "piedi", "metro",  0.3048,      "ft",   "m"   },
+        /* massa */
+        { "kg",   "libbre",  2.20462,     "kg",   "lb"  },
+        { "libbre","kg",     0.453592,    "lb",   "kg"  },
+        { "grammi","kg",     0.001,       "g",    "kg"  },
+        { "once", "grammi",  28.3495,     "oz",   "g"   },
+        /* temperatura */
+        { "celsius","fahrenheit", 0.0,   "°C",   "°F"  },   /* caso speciale */
+        { "fahrenheit","celsius", 0.0,   "°F",   "°C"  },
+        { "celsius","kelvin",     0.0,   "°C",   "K"   },
+        { "kelvin","celsius",     0.0,   "K",    "°C"  },
+        /* velocità */
+        { "km/h", "m/s",    0.277778,    "km/h", "m/s" },
+        { "m/s",  "km/h",   3.6,         "m/s",  "km/h"},
+        { "mph",  "km/h",   1.60934,     "mph",  "km/h"},
+        /* pressione */
+        { "atm",  "pascal", 101325.0,    "atm",  "Pa"  },
+        { "bar",  "pascal", 100000.0,    "bar",  "Pa"  },
+        { "psi",  "pascal", 6894.76,     "psi",  "Pa"  },
+        /* energia */
+        { "cal",  "joule",  4.184,       "cal",  "J"   },
+        { "joule","cal",    0.239006,    "J",    "cal" },
+        { "kwh",  "joule",  3600000.0,   "kWh",  "J"   },
+        /* potenza */
+        { "watt", "cavallo",0.00134102,  "W",    "HP"  },
+        { "cavallo","watt", 745.7,       "HP",   "W"   },
+        /* angolo */
+        { "gradi","radianti",0.0174533,  "deg",  "rad" },
+        { "radianti","gradi",57.2958,    "rad",  "deg" },
+    };
+
+    const QString lo = text.toLower();
+
+    /* Estrai numero dalla query (primo numero trovato) */
+    static const QRegularExpression rxNum(R"([\-\+]?\d+[\.,]?\d*)");
+    const auto mNum = rxNum.match(text);
+    if (!mNum.hasMatch()) return {};   /* nessun numero → non è una conversione numerica */
+
+    double val = mNum.captured(0).replace(',', '.').toDouble();
+
+    for (const UnitEntry& u : kUnits) {
+        if (!lo.contains(u.fromU) || !lo.contains(u.toU)) continue;
+
+        /* Casi speciali temperatura */
+        if (QString(u.fromU) == "celsius" && QString(u.toU) == "fahrenheit") {
+            return QString(
+                "v = %1\n"
+                "r = v * 9/5 + 32\n"
+                "print(f'{v} \xc2\xb0C  =  {r:.4f} \xc2\xb0F')\n"
+            ).arg(val);
+        }
+        if (QString(u.fromU) == "fahrenheit" && QString(u.toU) == "celsius") {
+            return QString(
+                "v = %1\n"
+                "r = (v - 32) * 5/9\n"
+                "print(f'{v} \xc2\xb0F  =  {r:.4f} \xc2\xb0C')\n"
+            ).arg(val);
+        }
+        if (QString(u.fromU) == "celsius" && QString(u.toU) == "kelvin") {
+            return QString(
+                "v = %1\n"
+                "r = v + 273.15\n"
+                "print(f'{v} \xc2\xb0C  =  {r:.4f} K')\n"
+            ).arg(val);
+        }
+        if (QString(u.fromU) == "kelvin" && QString(u.toU) == "celsius") {
+            return QString(
+                "v = %1\n"
+                "r = v - 273.15\n"
+                "print(f'{v} K  =  {r:.4f} \xc2\xb0C')\n"
+            ).arg(val);
+        }
+
+        return QString(
+            "v = %1\n"
+            "f = %2\n"
+            "r = v * f\n"
+            "print(f'{v} %3  =  {r:.6g} %4')\n"
+            "print(f'(fattore di conversione: {f})')\n"
+        ).arg(val).arg(u.factor).arg(u.labelIn).arg(u.labelOut);
+    }
+
+    return {};  /* unità non riconosciuta */
+}
+
 void MatematicaPage::fillMathCombo(const QStringList& list, const QString& cur)
 {
     if (!m_modelCombo) return;
@@ -2011,6 +2229,7 @@ void MatematicaPage::fetchAndFillMathModels()
         holder->deleteLater();
         setStatus("\xe2\x9d\x8c  Backend non raggiungibile \xe2\x80\x94"
                   " avvia Ollama o llama-server per le funzioni AI.");
+        LogBus::post("\xe2\x9d\x8c Matematica: Backend non raggiungibile.");
         if (m_modelCombo) m_modelCombo->setToolTip(
             "Backend non disponibile. Avvia Ollama: ollama serve");
     });
@@ -2054,6 +2273,7 @@ void MatematicaPage::onLoadModelsOnce()
         holder->deleteLater();
         setStatus("\xe2\x9d\x8c  Backend non raggiungibile \xe2\x80\x94"
                   " le funzioni AI non sono disponibili.");
+        LogBus::post("\xe2\x9d\x8c Matematica: Backend non raggiungibile (onRefresh).");
     });
     m_ai->fetchModels();
 }
@@ -2067,6 +2287,7 @@ void MatematicaPage::onLocalPatternClicked()
     QVector<double> seq = parseSeq(m_seqInput->text(), err);
     if (!err.isEmpty()) {
         m_seqResult->setText("\xe2\x9d\x8c  " + err);
+        LogBus::post("\xe2\x9d\x8c Matematica: " + err);
         m_seqResult->setVisible(true);
         return;
     }
@@ -2079,8 +2300,8 @@ void MatematicaPage::onSympyClicked()
 {
     QString err;
     QVector<double> seq = parseSeq(m_seqInput->text(), err);
-    if (!err.isEmpty()) { setStatus("\xe2\x9d\x8c  " + err); return; }
-    if (seq.size() < 2) { setStatus("\xe2\x9d\x8c  Inserisci almeno 2 termini."); return; }
+    if (!err.isEmpty()) { setStatus("\xe2\x9d\x8c  " + err); LogBus::post("\xe2\x9d\x8c Matematica: " + err); return; }
+    if (seq.size() < 2) { setStatus("\xe2\x9d\x8c  Inserisci almeno 2 termini."); LogBus::post("\xe2\x9d\x8c Matematica: Inserisci almeno 2 termini."); return; }
 
     QString listStr = "[";
     for (int i = 0; i < seq.size(); ++i) {
@@ -2132,8 +2353,8 @@ void MatematicaPage::onAnalyzeAiClicked()
 {
     QString err;
     QVector<double> seq = parseSeq(m_seqInput->text(), err);
-    if (!err.isEmpty()) { setStatus("\xe2\x9d\x8c  " + err); return; }
-    if (seq.size() < 2) { setStatus("\xe2\x9d\x8c  Inserisci almeno 2 termini."); return; }
+    if (!err.isEmpty()) { setStatus("\xe2\x9d\x8c  " + err); LogBus::post("\xe2\x9d\x8c Matematica: " + err); return; }
+    if (seq.size() < 2) { setStatus("\xe2\x9d\x8c  Inserisci almeno 2 termini."); LogBus::post("\xe2\x9d\x8c Matematica: Inserisci almeno 2 termini."); return; }
     runAiSequence(m_seqInput->text().trimmed(), m_nextTerms->value());
 }
 
@@ -2275,6 +2496,7 @@ void MatematicaPage::onAiSeqError(const QString& msg)
     m_aiRunning = false;
     appendOutput("\n\xe2\x9d\x8c  Errore AI: " + msg);
     setStatus("\xe2\x9d\x8c  Errore AI.");
+    LogBus::post("\xe2\x9d\x8c Matematica: Errore AI sequenza: " + msg);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2385,6 +2607,7 @@ void MatematicaPage::onProcFinished(int code, QProcess::ExitStatus /*status*/)
         if (m_btnSolve)   m_btnSolve->setEnabled(true);
         if (m_btnSolveAi) m_btnSolveAi->setVisible(true);
         setStatus(code == 0 ? "\xe2\x9c\x85  SymPy completato." : "\xe2\x9d\x8c  Errore nel calcolo SymPy.");
+        if (code != 0) LogBus::post("\xe2\x9d\x8c Matematica: Errore nel calcolo SymPy.");
 
         /* ── Aggiorna il marcatore L sul canvas del limite ─────────────── */
         if (m_limitCanvas && code == 0) {
@@ -2402,6 +2625,7 @@ void MatematicaPage::onProcFinished(int code, QProcess::ExitStatus /*status*/)
     } else {
         setStatus(code != 0 ? QString("\xe2\x9d\x8c  Python uscito con codice %1.").arg(code)
                             : "\xe2\x9c\x85  Calcolo completato.");
+        if (code != 0) LogBus::post(QString("\xe2\x9d\x8c Matematica: Python uscito con codice %1.").arg(code));
     }
     if (m_proc) {
         m_proc->deleteLater();
@@ -2640,6 +2864,7 @@ void MatematicaPage::onSolveClicked()
     const QString expr = m_solveInput->text().trimmed();
     if (expr.isEmpty()) {
         appendOutput("\xe2\x9d\x8c  Inserisci un'equazione o espressione prima di procedere.\n");
+        LogBus::post("\xe2\x9d\x8c Matematica: Inserisci un'equazione o espressione prima di procedere.");
         return;
     }
 
@@ -2714,6 +2939,13 @@ void MatematicaPage::onSolveAiClicked()
         const QString sel = m_modelCombo->currentData().toString();
         if (!sel.isEmpty() && sel != m_ai->model())
             m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), sel);
+    }
+
+    /* ── Hint dominio: suggerisci modello math-capable se la query è STEM ── */
+    if (m_solveInput) {
+        const QString hint = buildDomainHint(m_ai, m_solveInput->text(), m_modelCombo);
+        if (!hint.isEmpty())
+            appendOutput(hint + "\n\n");
     }
 
     m_solveBusy = true;
@@ -2816,6 +3048,7 @@ void MatematicaPage::onSolveError(const QString& msg)
     if (m_btnSolveAi) { m_btnSolveAi->setEnabled(true); m_btnSolveAi->setVisible(true); }
     appendOutput("\n\xe2\x9d\x8c  Errore AI: " + msg + "\n");
     setStatus("\xe2\x9d\x8c  Errore AI.");
+    LogBus::post("\xe2\x9d\x8c Matematica: Errore AI risoluzione: " + msg);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -3564,6 +3797,7 @@ void MatematicaPage::onAnalisiAiError(const QString& msg)
     m_aiRunning = false;
     appendOutput("\n\xe2\x9d\x8c  Errore AI: " + msg + "\n");
     setStatus("\xe2\x9d\x8c  Errore AI.");
+    LogBus::post("\xe2\x9d\x8c Matematica: Errore AI analisi: " + msg);
 }
 
 /* ══════════════════════════════════════════════════════════════

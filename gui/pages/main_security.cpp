@@ -1,6 +1,7 @@
 #include "main_security.h"
 #include "../prismalux_paths.h"
 #include "../dpi_utils.h"
+#include "../log_bus.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QSplitter>
@@ -393,6 +394,7 @@ void SecurityAnalyzerPage::onAgentError(int idx, const QString& msg)
 
     m_rawOutput->appendPlainText(
         "\n── " + agentName + " ── ERRORE: " + msg + "\n");
+    LogBus::post("\xe2\x9d\x8c Sicurezza: " + agentName + " errore: " + msg);
 
     --m_pendingCount;
     if (m_pendingCount == 0)
@@ -459,6 +461,7 @@ void SecurityAnalyzerPage::synthesize()
                 m_btnStop->setEnabled(false);
                 m_progress->setVisible(false);
                 setStatus("\xe2\x9d\x8c  Errore sintesi: " + msg.left(80));  /* ❌ */
+                LogBus::post("\xe2\x9d\x8c Sicurezza: Errore sintesi: " + msg.left(80));
                 m_reportOutput->appendPlainText(
                     "\n[Errore durante la sintesi: " + msg + "]");
             });
@@ -485,6 +488,7 @@ void SecurityAnalyzerPage::onOsvScanClicked()
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
         m_osvStatusLbl->setText(
             "\xe2\x9d\x8c  requirements.lock non trovato in: " + m_reqLockPath);  /* ❌ */
+        LogBus::post("\xe2\x9d\x8c Sicurezza: requirements.lock non trovato: " + m_reqLockPath);
         return;
     }
 
@@ -575,6 +579,7 @@ void SecurityAnalyzerPage::onOsvUpdateClicked()
                     m_osvStatusLbl->setText(
                         "\xe2\x9d\x8c  API non raggiungibile: "  /* ❌ */
                         + reply->errorString());
+                    LogBus::post("\xe2\x9d\x8c Sicurezza: API OSV non raggiungibile: " + reply->errorString());
                 }
                 reply->deleteLater();
             });
@@ -597,6 +602,7 @@ void SecurityAnalyzerPage::onOsvReply()
         m_osvOutput->append(
             "<p style='color:red'>\xe2\x9d\x8c  Errore: "  /* ❌ */
             + reply->errorString() + "</p>");
+        LogBus::post("\xe2\x9d\x8c Sicurezza: Errore rete OSV: " + reply->errorString());
         reply->deleteLater();
         return;
     }
@@ -608,6 +614,7 @@ void SecurityAnalyzerPage::onOsvReply()
     if (!doc.isObject()) {
         m_osvStatusLbl->setText(
             "\xe2\x9d\x8c  Risposta non valida da api.osv.dev");  /* ❌ */
+        LogBus::post("\xe2\x9d\x8c Sicurezza: Risposta non valida da api.osv.dev.");
         return;
     }
 
@@ -702,6 +709,8 @@ void SecurityAnalyzerPage::onOsvReply()
             + QString::number(m_osvVulnCount)
             + " pacchetti vulnerabili su "
             + QString::number(pkgNames.size()) + " totali.");
+        LogBus::post(QString("\xe2\x9d\x8c Sicurezza: %1 pacchetti vulnerabili su %2 totali.")
+                     .arg(m_osvVulnCount).arg(pkgNames.size()));
     }
 }
 

@@ -502,12 +502,19 @@ QWidget* ImpostazioniPage::buildVoceTab()
             return;
         }
 
-        /* Fallback: espeak-ng */
+        /* Fallback: espeak-ng → spd-say → errore visibile */
         lblTestStatus->setText(piperBin.isEmpty()
-            ? "\xe2\x9a\xa0  Piper non trovato, uso espeak-ng"
-            : "\xe2\x9a\xa0  Voce non installata, uso espeak-ng");
-        if (!QProcess::startDetached("espeak-ng", { "-l", "it", text }))
-            QProcess::startDetached("spd-say", { "--lang", "it", "--", text });
+            ? "\xe2\x9a\xa0  Piper non trovato \xe2\x80\x94 tento espeak-ng..."
+            : "\xe2\x9a\xa0  Voce non installata \xe2\x80\x94 tento espeak-ng...");
+        if (!QProcess::startDetached("espeak-ng", { "-l", "it", text })) {
+            if (!QProcess::startDetached("spd-say", { "--lang", "it", "--", text })) {
+                lblTestStatus->setText(
+                    "\xe2\x9d\x8c  Nessun sintetizzatore trovato. "
+                    "Installa Piper (sopra) oppure: "
+                    "<code>sudo apt install espeak-ng</code>");
+                return;
+            }
+        }
         QTimer::singleShot(3000, lblTestStatus, [lblTestStatus]{ lblTestStatus->setText(""); });
     });
 

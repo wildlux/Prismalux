@@ -1,5 +1,6 @@
 #include "main_opencode.h"
 #include "../prismalux_paths.h"
+#include "../log_bus.h"
 namespace P = PrismaluxPaths;
 
 #include <QSplitter>
@@ -148,6 +149,7 @@ void OpenCodePage::startServer() {
             "<span style='color:#ef4444'>\xe2\x9d\x8c  OpenCode non trovato in: "
             + bin.toHtmlEscaped()
             + "<br>Installalo con: <code>curl -fsSL https://opencode.ai/install | bash</code></span>");
+        LogBus::post("\xe2\x9d\x8c OpenCode: binario non trovato in: " + bin);
         return;
     }
 
@@ -197,6 +199,7 @@ void OpenCodePage::onPollTick() {
          m_statusLbl->setStyleSheet("color:#ef4444; font-weight:bold;");
          m_startBtn->setEnabled(true);
          appendSystem("<span style='color:#ef4444'>\xe2\x9d\x8c  OpenCode non risponde entro 30s.</span>");
+         LogBus::post("\xe2\x9d\x8c OpenCode: timeout avvio — non risponde entro 30s.");
          return;
      }
 
@@ -330,6 +333,7 @@ void OpenCodePage::handleEvent(const QJsonObject& ev) {
         appendSystem("<span style='color:#ef4444'>\xe2\x9d\x8c  Errore OpenCode: "
                      + (msg.isEmpty() ? err["name"].toString() : msg).toHtmlEscaped()
                      + "</span>");
+        LogBus::post("\xe2\x9d\x8c OpenCode: errore sessione: " + (msg.isEmpty() ? err["name"].toString() : msg));
         m_abortBtn->setEnabled(false);
         m_sendBtn->setEnabled(true);
         m_input->setEnabled(true);
@@ -543,6 +547,7 @@ void OpenCodePage::onProcErrorOccurred(QProcess::ProcessError err) {
         m_statusLbl->setText(tr("\xe2\x97\x8f  Errore avvio"));
         m_statusLbl->setStyleSheet("color:#ef4444; font-weight:bold;");
         appendSystem("<span style='color:#ef4444'>\xe2\x9d\x8c  opencode serve: FailedToStart</span>");
+        LogBus::post("\xe2\x9d\x8c OpenCode: FailedToStart — opencode serve non avviato.");
         m_proc->deleteLater(); m_proc = nullptr;
     }
 }
@@ -586,6 +591,7 @@ void OpenCodePage::onPollReplyFinished() {
             appendSystem(QString("<span style='color:#ef4444'>\xe2\x9d\x8c  Impossibile connettersi a OpenCode dopo %1 tentativi: %2</span>")
                          .arg(m_pollErrorCount)
                          .arg(errStr.toHtmlEscaped()));
+            LogBus::post(QString("\xe2\x9d\x8c OpenCode: impossibile connettersi dopo %1 tentativi: %2").arg(m_pollErrorCount).arg(errStr));
         }
     }
 }
@@ -605,6 +611,7 @@ void OpenCodePage::onCreateSessionReplyFinished() {
     if (!ok) {
         appendSystem("<span style='color:#ef4444'>\xe2\x9d\x8c  Errore creazione sessione: "
                      + errStr.toHtmlEscaped() + "</span>");
+        LogBus::post("\xe2\x9d\x8c OpenCode: errore creazione sessione: " + errStr);
         m_sendBtn->setEnabled(true); m_abortBtn->setEnabled(false);
         m_input->setEnabled(true);
         return;
@@ -628,6 +635,7 @@ void OpenCodePage::onSendMessageReplyFinished() {
     if (!ok) {
         appendSystem("<span style='color:#ef4444'>\xe2\x9d\x8c  Errore invio messaggio: "
                      + errStr.toHtmlEscaped() + "</span>");
+        LogBus::post("\xe2\x9d\x8c OpenCode: errore invio messaggio: " + errStr);
         m_sendBtn->setEnabled(true); m_abortBtn->setEnabled(false);
         m_input->setEnabled(true);
     }

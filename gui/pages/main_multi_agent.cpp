@@ -1,6 +1,7 @@
 #include "main_multi_agent.h"
 #include "../prismalux_paths.h"
 #include "../dpi_utils.h"
+#include "../log_bus.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QSplitter>
@@ -361,6 +362,7 @@ void AgentiMultiPage::decompose(const QString& userPrompt)
                 m_btnStop->setEnabled(false);
                 setStatus("\xe2\x9d\x8c  Errore decomposizione: " + msg.left(80));
                 appendOutput("<p style='color:#f87171'>\xe2\x9d\x8c Errore: " + msg + "</p>");
+                LogBus::post("\xe2\x9d\x8c MultiAgente: Errore decomposizione: " + msg.left(80));
             });
 
     m_ai->chat(sys, user);
@@ -669,6 +671,7 @@ void AgentiMultiPage::onTaskResultError(int idx, const QString& msg)
     updateTaskItem(idx);
     appendOutput("<p style='color:#f87171'>\xe2\x9d\x8c Sub-agente "
                  + QString::number(m_tasks[idx].id) + " errore: " + msg + "</p>");
+    LogBus::post("\xe2\x9d\x8c MultiAgente: Sub-agente " + QString::number(m_tasks[idx].id) + " errore: " + msg.left(80));
 
     runNextPendingTask();
 }
@@ -746,6 +749,7 @@ void AgentiMultiPage::synthesizeFinal()
                 m_btnDecompose->setEnabled(true);
                 m_btnStop->setEnabled(false);
                 setStatus("\xe2\x9d\x8c  Errore sintesi: " + msg.left(80));
+                LogBus::post("\xe2\x9d\x8c MultiAgente: Errore sintesi: " + msg.left(80));
             });
 
     m_ai->chat(sys, user);

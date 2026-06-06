@@ -6,6 +6,7 @@
 #include "../widgets/qr_code_widget.h"
 #include "../widgets/model_combo_box.h"
 #include "../widgets/proc_helper.h"
+#include "../log_bus.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QTabWidget>
@@ -448,6 +449,7 @@ void LanWanPage::onLanToggleBtnToggled(bool on)
             m_lanToggleBtn->setChecked(false);
             m_lanToggleBtn->blockSignals(false);
             m_lanStatusLbl->setText(tr("\xe2\x9d\x8c  Impossibile aprire la porta"));
+            LogBus::post("\xe2\x9d\x8c LAN WAN: Impossibile aprire la porta LAN.");
             m_lanStatusLbl->setStyleSheet("color: #f44336;");
             AppConfig::s().setValue(P::SK::kLanAutoStart, false);
         }
@@ -946,6 +948,7 @@ void LanWanPage::onGns3AiError(const QString& msg)
     m_gns3ErrorPanel->showError(msg, [this, sys, userMsg]{
         gns3RunAi(sys, userMsg);
     });
+    LogBus::post("\xe2\x9d\x8c LAN WAN: GNS3 errore AI: " + msg);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -968,6 +971,7 @@ void LanWanPage::onPingBtnClicked()
     QTimer::singleShot(3000, this, [this, sockPtr](){
         if (sockPtr && sockPtr->state() != QAbstractSocket::ConnectedState) {
             m_gns3StatusLbl->setText(tr("\xe2\x9d\x8c  Timeout"));
+            LogBus::post("\xe2\x9d\x8c LAN WAN: GNS3 timeout connessione.");
             sockPtr->abort(); sockPtr->deleteLater();
         }
     });
@@ -986,6 +990,7 @@ void LanWanPage::onGns3SockError(QAbstractSocket::SocketError)
     auto* sock = qobject_cast<QTcpSocket*>(sender());
     if (!sock) return;
     m_gns3StatusLbl->setText("\xe2\x9d\x8c  " + sock->errorString());
+    LogBus::post("\xe2\x9d\x8c LAN WAN: GNS3 errore socket: " + sock->errorString());
     sock->deleteLater();
 }
 
@@ -1003,6 +1008,7 @@ void LanWanPage::onGns3ExecBtnClicked()
     QFile f(tmpPath);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
         m_gns3StatusLbl->setText(tr("\xe2\x9d\x8c  Impossibile creare script"));
+        LogBus::post("\xe2\x9d\x8c LAN WAN: GNS3 impossibile creare script temporaneo.");
         return;
     }
     f.write(m_gns3Code.toUtf8());
@@ -1034,6 +1040,7 @@ void LanWanPage::onGns3ProcFinished(int code, QProcess::ExitStatus)
     m_gns3StatusLbl->setText(code == 0
         ? "\xe2\x9c\x85  Completato"
         : "\xe2\x9d\x8c  Terminato con errore");
+    if (code != 0) LogBus::post(QString("\xe2\x9d\x8c LAN WAN: GNS3 script terminato con errore (exit %1).").arg(code));
     m_gns3ExecBtn->setEnabled(true);
     if (m_gns3ExecProc == proc) m_gns3ExecProc = nullptr;
     if (proc) proc->deleteLater();
@@ -1222,6 +1229,7 @@ void LanWanPage::onAdbInstallBtnClicked()
     if (adb.isEmpty()) {
         m_adbStatusLbl->setText(
             "\xe2\x9d\x8c  adb non trovato. Installa: sudo apt install adb");
+        LogBus::post("\xe2\x9d\x8c LAN WAN: adb non trovato nel PATH.");
         return;
     }
 
@@ -1230,6 +1238,7 @@ void LanWanPage::onAdbInstallBtnClicked()
     if (!QFile::exists(apk)) {
         m_adbStatusLbl->setText(
             "\xe2\x9d\x8c  APK non trovato: " + apk);
+        LogBus::post("\xe2\x9d\x8c LAN WAN: APK non trovato: " + apk);
         return;
     }
 
@@ -1255,6 +1264,7 @@ void LanWanPage::onAdbInstallBtnClicked()
     if (!m_adbProc->waitForStarted(3000)) {
         m_adbStatusLbl->setText(
             "\xe2\x9d\x8c  Impossibile avviare adb. Controlla la connessione USB.");
+        LogBus::post("\xe2\x9d\x8c LAN WAN: Impossibile avviare adb.");
         m_adbLog->append("Errore: adb non si avvia.");
         m_adbInstallBtn->setText(
             "\xf0\x9f\x94\x8c  Installa APK via USB  (adb)");
@@ -1304,10 +1314,12 @@ void LanWanPage::onAdbProcFinished(int code, QProcess::ExitStatus)
     } else if (log.contains("no devices") || log.contains("unauthorized")) {
         m_adbStatusLbl->setText(
             "\xe2\x9d\x8c  Nessun dispositivo. Abilita USB Debugging e accetta il popup sul telefono.");
+        LogBus::post("\xe2\x9d\x8c LAN WAN: adb nessun dispositivo USB.");
         m_adbStatusLbl->setStyleSheet("color:#f44336;font-size:11px;");
     } else {
         m_adbStatusLbl->setText(
             QString("\xe2\x9d\x8c  Installazione fallita (exit %1). Vedi log.").arg(code));
+        LogBus::post(QString("\xe2\x9d\x8c LAN WAN: Installazione APK fallita (exit %1).").arg(code));
         m_adbStatusLbl->setStyleSheet("color:#f44336;font-size:11px;");
     }
 }
@@ -1949,6 +1961,7 @@ void LanWanPage::onWanStartBtnClicked()
             m_wanStartBtn->setChecked(false);
             m_wanSrvStatusLbl->setText(
                 "\xe2\x9d\x8c  Errore: " + m_wanServer->errorString());
+            LogBus::post("\xe2\x9d\x8c LAN WAN: WAN server errore: " + m_wanServer->errorString());
             m_wanSrvStatusLbl->setStyleSheet("color:#f44336;");
             return;
         }
@@ -2605,6 +2618,7 @@ void LanWanPage::onWanCliSockError(QAbstractSocket::SocketError)
 {
     const QString msg = m_wanCliSock ? m_wanCliSock->errorString() : "errore sconosciuto";
     m_wanCliStatusLbl->setText("\xe2\x9d\x8c  " + msg);
+    LogBus::post("\xe2\x9d\x8c LAN WAN: WAN client errore socket: " + msg);
     m_wanCliStatusLbl->setStyleSheet("color:#f44336;");
     m_wanCliConBtn->setEnabled(true);
     m_wanCliDisconBtn->setEnabled(false);
@@ -2886,6 +2900,7 @@ void LanWanPage::onWanWorkerError(QAbstractSocket::SocketError)
     if (idx == 0) {
         /* Solo il worker 0 aggiorna la UI di stato */
         m_wanCliStatusLbl->setText("\xe2\x9d\x8c  " + errMsg);
+        LogBus::post("\xe2\x9d\x8c LAN WAN: WAN worker errore socket: " + errMsg);
         m_wanCliStatusLbl->setStyleSheet("color:#f44336;");
         m_wanCliConBtn->setEnabled(true);
         m_wanCliDisconBtn->setEnabled(false);
@@ -3281,6 +3296,7 @@ void LanWanPage::onWanDecomposeBtnClicked()
                 if (m_wanDecomposeStatusLbl)
                     m_wanDecomposeStatusLbl->setText(
                         "\xe2\x9d\x8c  Errore: " + msg.left(80));
+                LogBus::post("\xe2\x9d\x8c LAN WAN: WAN decomposizione errore AI: " + msg.left(80));
             });
 
     m_ai->chat(sys, "Compito da scomporre:\n" + userTask);
@@ -3401,6 +3417,7 @@ void LanWanPage::onWanSimBtnClicked()
     if (!m_wanServer || !m_wanServer->isListening()) {
         if (m_wanSrvStatusLbl)
             m_wanSrvStatusLbl->setText(tr("\xe2\x9d\x8c  Impossibile avviare il server"));
+        LogBus::post("\xe2\x9d\x8c LAN WAN: Impossibile avviare il server WAN.");
         return;
     }
 

@@ -4,6 +4,7 @@
 #include "../ai_utils.h"
 #include "../widgets/ai_error_widget.h"
 #include "../dpi_utils.h"
+#include "../log_bus.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -795,6 +796,7 @@ void ProgrammazionePage::runCode()
     QFile f(filePath);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
         m_status->setText(QString("\xe2\x9d\x8c  Impossibile creare file temp: %1").arg(filePath));
+        LogBus::post("\xe2\x9d\x8c Programmazione: Impossibile creare file temp: " + filePath);
         return;
     }
     f.write(code.toUtf8());
@@ -803,6 +805,7 @@ void ProgrammazionePage::runCode()
     const QString cmd = buildRunCommand(filePath);
     if (cmd.isEmpty()) {
         m_status->setText(tr("\xe2\x9d\x8c  Linguaggio non supportato."));
+        LogBus::post("\xe2\x9d\x8c Programmazione: Linguaggio non supportato.");
         return;
     }
 
@@ -883,10 +886,12 @@ void ProgrammazionePage::triggerFix(bool includeError)
     const QString codice = m_editor->toPlainText().trimmed();
     if (codice.isEmpty()) {
         m_status->setText(tr("\xe2\x9d\x8c  Nessun codice nell'editor da correggere."));
+        LogBus::post("\xe2\x9d\x8c Programmazione: Nessun codice nell'editor da correggere.");
         return;
     }
     if (!m_ai) {
         m_status->setText(tr("\xe2\x9d\x8c  AI non disponibile."));
+        LogBus::post("\xe2\x9d\x8c Programmazione: AI non disponibile.");
         return;
     }
     if (m_ai->busy()) {
@@ -1916,6 +1921,7 @@ void ProgrammazionePage::netStart()
     if (!m_netProc->waitForStarted(2000)) {
         m_netStatus->setText(
             "\xe2\x9d\x8c  Impossibile avviare il tool. Permessi root necessari?");
+        LogBus::post("\xe2\x9d\x8c Programmazione: Impossibile avviare il tool di rete. Permessi root necessari?");
         return;
     }
     m_btnNetStart->setEnabled(false);
@@ -2456,8 +2462,32 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
             "# Per fermare:\n"
             "# nmcli con down \"$CON_NAME\"\n"
         },
+        {
+            "n2n Supernode",
+            "\xf0\x9f\x8c\x90 Nodo centrale VPN n2n (C puro) per WAN Prismalux. "
+            "Installa: <code>sudo apt install n2n</code>. "
+            "Apri firewall: <code>sudo ufw allow 7654/udp</code>.",
+            "#!/bin/bash\n"
+            "# n2n Supernode — nodo centrale WAN Prismalux (scritto in C)\n"
+            "SUPERNODE_PORT=7654\n"
+            "supernode -p \"$SUPERNODE_PORT\" -v\n"
+        },
+        {
+            "n2n Edge (worker)",
+            "\xf0\x9f\x94\x97 Worker WAN n2n — cifrato AES-256, scritto in C. "
+            "Clicca <b>Genera chiavi n2n</b>, poi <b>Applica</b> per copiare "
+            "lo script da avviare su ogni nodo remoto con <code>sudo bash</code>.",
+            "#!/bin/bash\n"
+            "# n2n Edge — worker WAN Prismalux\n"
+            "SUPERNODE_IP=\"<SERVER_IP>\"\n"
+            "COMMUNITY=\"prismalux_wan\"\n"
+            "PSK=\"<CHIAVE_CONDIVISA_AES256>\"\n"
+            "EDGE_IP=\"10.10.0.2/24\"\n"
+            "edge -c \"$COMMUNITY\" -k \"$PSK\" -a \"$EDGE_IP\" \\\n"
+            "     -l \"$SUPERNODE_IP:7654\" -f\n"
+        },
     };
-    constexpr int kN = 4;
+    constexpr int kN = 6;
 
     auto* w   = new QWidget(parent);
     auto* lay = new QVBoxLayout(w);
@@ -2525,8 +2555,26 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
     btnStop->setProperty("danger", true);
     btnStop->setEnabled(false);
 
+    m_vpnGenKeysBtn = new QPushButton(
+        "\xf0\x9f\x94\x91  Genera chiavi n2n", actRow);
+    m_vpnGenKeysBtn->setToolTip(tr("Genera community name e PSK casuali per n2n"));
+    m_vpnGenKeysBtn->setVisible(false);
+
+    m_vpnValidateBtn = new QPushButton(
+        "\xf0\x9f\x94\x8d  Valida config", actRow);
+    m_vpnValidateBtn->setToolTip(
+        tr("Simula e valida la configurazione senza avviare la VPN\n"
+           "Controlla: placeholder, binari, porte, raggiungibilita' server"));
+
+    auto* btnImport = new QPushButton(
+        "\xf0\x9f\x93\x82  Importa", actRow);
+    btnImport->setToolTip(tr("Carica un file di configurazione VPN esistente"));
+
     actHL->addWidget(btnGen);
+    actHL->addWidget(m_vpnGenKeysBtn);
     actHL->addStretch();
+    actHL->addWidget(btnImport);
+    actHL->addWidget(m_vpnValidateBtn);
     actHL->addWidget(btnCopy);
     actHL->addWidget(btnApply);
     actHL->addWidget(btnStop);
@@ -2548,7 +2596,7 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &ProgrammazionePage::onVpnTypeChanged);
 
-    /* Aggiorna desc e template al cambio tipo */
+    /* Aggiorna desc al cambio tipo */
     connect(m_vpnTypeCombo,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             descLbl,
@@ -2560,8 +2608,14 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
             "Installa: <code>sudo apt install openvpn</code>",
             "\xf0\x9f\x94\x8c Reindirizzamento porte SSH — senza software extra.",
             "\xf0\x9f\x93\xa1 Condividi la connessione via Wi-Fi con nmcli.",
+            "\xf0\x9f\x8c\x90 Nodo centrale VPN n2n (C puro) per WAN Prismalux. "
+            "Installa: <code>sudo apt install n2n</code>. "
+            "Apri firewall: <code>sudo ufw allow 7654/udp</code>.",
+            "\xf0\x9f\x94\x97 Worker WAN n2n — cifrato AES-256, scritto in C. "
+            "Clicca <b>Genera chiavi n2n</b>, poi <b>Applica</b> per copiare "
+            "lo script da avviare su ogni nodo remoto con <code>sudo bash</code>.",
         };
-        if (idx >= 0 && idx < 4)
+        if (idx >= 0 && idx < 6)
             descLbl->setText(QString::fromUtf8(descs[idx]));
     });
 
@@ -2594,6 +2648,15 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
         btnStop->setEnabled(false);
         if (m_vpnStatusLbl) m_vpnStatusLbl->setText(tr("\xe2\x8f\xb9  Fermato"));
     });
+
+    connect(m_vpnGenKeysBtn, &QPushButton::clicked,
+            this, &ProgrammazionePage::onVpnGenN2nKeys);
+
+    connect(m_vpnValidateBtn, &QPushButton::clicked,
+            this, &ProgrammazionePage::onVpnValidateClicked);
+
+    connect(btnImport, &QPushButton::clicked,
+            this, &ProgrammazionePage::onVpnImportClicked);
 
     return w;
 }

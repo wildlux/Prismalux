@@ -76,6 +76,25 @@ else()
     message(STATUS "Prismalux GUI: QKeychain non trovato — token LAN usa fallback file 0600 (~/.prismalux/lan_token.key)")
 endif()
 
+# ── ONNX Runtime — embedding locale senza rete (opzionale) ──────────────────
+# Installa: sudo apt install libonnxruntime-dev
+# Runtime già presente: libonnxruntime1.23 (~= /usr/lib/x86_64-linux-gnu/libonnxruntime.so.1.23)
+find_path(ONNX_INCLUDE_DIR
+    NAMES onnxruntime/core/session/onnxruntime_cxx_api.h
+          onnxruntime_cxx_api.h
+    HINTS /usr/include /usr/local/include
+)
+find_library(ONNX_LIB
+    NAMES onnxruntime
+    HINTS /usr/lib /usr/lib/x86_64-linux-gnu /usr/local/lib
+)
+if(ONNX_INCLUDE_DIR AND ONNX_LIB)
+    add_compile_definitions(HAVE_ONNX)
+    message(STATUS "Prismalux GUI: ONNX Runtime trovato — embedding locale abilitato (${ONNX_LIB})")
+else()
+    message(STATUS "Prismalux GUI: ONNX Runtime non trovato — usa 'sudo apt install libonnxruntime-dev' per abilitarlo")
+endif()
+
 # ── Backend C: hw_detect (GPU cross-platform) + blhm_engine (POSIX thread pool) ──
 set(C_SRCS
     hw_detect.c
@@ -162,6 +181,7 @@ set(CPP_SRCS
     pages/main_multi_agent.cpp
     graph_memory.cpp
     rag_graph.cpp
+    log_bus.cpp
     pages/main_research.cpp
     pages/main_research_astrale.cpp
     pages/rab0l_canvas.cpp
@@ -177,6 +197,7 @@ set(CPP_SRCS
     widgets/natal_chart_widget.cpp
     widgets/world_map_widget.cpp
     widgets/astro_calc.cpp
+    widgets/onnx_embedder.cpp
     # Widget header-only con Q_OBJECT: vanno elencati per AUTOMOC
     widgets/spinner_widget.h
     widgets/status_badge.h
@@ -237,6 +258,12 @@ if(WIN32)
 else()
     target_link_libraries(Prismalux_GUI PRIVATE pthread m)
     target_compile_options(Prismalux_GUI PRIVATE -Wno-overflow)
+endif()
+
+# ── ONNX Runtime link + include (se trovato) ────────────────────────────────
+if(ONNX_INCLUDE_DIR AND ONNX_LIB)
+    target_include_directories(Prismalux_GUI PRIVATE ${ONNX_INCLUDE_DIR})
+    target_link_libraries(Prismalux_GUI PRIVATE ${ONNX_LIB})
 endif()
 
 # ── Sanitizers (ASAN + UBSAN): attiva con -DENABLE_SANITIZERS=ON ─────────

@@ -169,6 +169,7 @@ private:
     QPushButton*    m_settingsBtn   = nullptr;  ///< Pulsante ⚙️ header (accanto hamburger) → Impostazioni
     QPushButton*    m_logBtn        = nullptr;  ///< Pulsante 📋 header (accanto hamburger) → Messaggi/Log
     QLabel*         m_logBadge      = nullptr;  ///< Badge contatore messaggi non letti
+    QLineEdit*      m_tabSearchEdit = nullptr;  ///< Ricerca schede nell'header
     QDialog*        m_logDlg        = nullptr;  ///< Dialog log (creato lazy)
     QTextEdit*      m_logView       = nullptr;  ///< Area testo del log
     int             m_logUnread     = 0;        ///< Contatore messaggi non letti
@@ -195,8 +196,9 @@ private:
     QString   m_serverModel;            ///< Nome file modello caricato nel server
 
     /* ── Servizi di background ───────────────────────────────── */
-    HardwareMonitor* m_hw = nullptr;  ///< Thread monitor CPU/RAM/GPU
-    AiClient*        m_ai = nullptr;  ///< Client HTTP per Ollama/llama-server
+    HardwareMonitor*    m_hw           = nullptr;  ///< Thread monitor CPU/RAM/GPU
+    AiClient*           m_ai           = nullptr;  ///< Client HTTP per Ollama/llama-server
+    class OnnxEmbedder* m_onnxEmbedder = nullptr;  ///< Embedder ONNX locale (opzionale)
 
     /* Timer auto-scarico: ogni 90s verifica se RAM > 40% e AI idle → scarica */
     QTimer* m_idleUnloadTimer = nullptr;

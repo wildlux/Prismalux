@@ -1,5 +1,6 @@
 #include "main_customize.h"
 #include "../prismalux_paths.h"
+#include "../log_bus.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -60,6 +61,7 @@ void PersonalizzaPage::runProcArgs(QProcess* proc,
     proc->start(program, args);
     if (!proc->waitForStarted(4000)) {
         log->append("\xe2\x9d\x8c  Impossibile avviare il processo. Controlla il PATH.");
+        LogBus::post("\xe2\x9d\x8c Personalizza: Impossibile avviare il processo. Controlla il PATH.");
         if (btn) btn->setEnabled(true);
         proc->deleteLater();
     }
@@ -87,6 +89,7 @@ void PersonalizzaPage::runProc(QProcess* proc, const QString& cmd,
 #endif
     if (!proc->waitForStarted(4000)) {
         log->append("\xe2\x9d\x8c  Impossibile avviare il processo. Controlla il PATH.");
+        LogBus::post("\xe2\x9d\x8c Personalizza: Impossibile avviare il processo. Controlla il PATH.");
         if (btn) btn->setEnabled(true);
         proc->deleteLater();
     }
@@ -113,7 +116,10 @@ void PersonalizzaPage::onHelperProcFinished(int code, QProcess::ExitStatus) {
         proc->property("_btn").value<QObject*>());
     if (log) {
         if (code == 0) log->append("\n\xe2\x9c\x85  Completato con successo.");
-        else           log->append(QString("\n\xe2\x9d\x8c  Uscito con codice %1.").arg(code));
+        else {
+            log->append(QString("\n\xe2\x9d\x8c  Uscito con codice %1.").arg(code));
+            LogBus::post(QString("\xe2\x9d\x8c Personalizza: Processo uscito con codice %1.").arg(code));
+        }
     }
     if (btn) btn->setEnabled(true);
     proc->deleteLater();
@@ -607,6 +613,7 @@ void PersonalizzaPage::onLlamaCompBtnClicked() {
     m_proc1->start("git", gitArgs);
     if (!m_proc1->waitForStarted(8000)) {
         m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare git. Verifica che git sia nel PATH.");
+        LogBus::post("\xe2\x9d\x8c Personalizza: Impossibile avviare git. Verifica che git sia nel PATH.");
         m_llamaCompBtn->setEnabled(true);
         m_proc1->deleteLater();
         m_proc1 = nullptr;
@@ -627,6 +634,7 @@ void PersonalizzaPage::onProc1Finished(int code, QProcess::ExitStatus) {
     if (code != 0) {
         if (m_llamaLog)
             m_llamaLog->append(QString("\n\xe2\x9d\x8c  git fallito (code %1).").arg(code));
+        LogBus::post(QString("\xe2\x9d\x8c Personalizza: git fallito (code %1).").arg(code));
         if (m_llamaCompBtn) m_llamaCompBtn->setEnabled(true);
         if (m_llamaStopBtn) m_llamaStopBtn->setEnabled(false);
         return;
@@ -652,6 +660,7 @@ void PersonalizzaPage::onProc1Finished(int code, QProcess::ExitStatus) {
     if (!m_proc2->waitForStarted(5000)) {
         if (m_llamaLog)
             m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare cmake configure.");
+        LogBus::post("\xe2\x9d\x8c Personalizza: Impossibile avviare cmake configure.");
         if (m_llamaCompBtn) m_llamaCompBtn->setEnabled(true);
         m_proc2->deleteLater();
         m_proc2 = nullptr;
@@ -700,6 +709,7 @@ void PersonalizzaPage::onProc2Finished(int code, QProcess::ExitStatus) {
             if (!m_proc2->waitForStarted(5000)) {
                 if (m_llamaLog)
                     m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare cmake configure (fallback CPU).");
+                LogBus::post("\xe2\x9d\x8c Personalizza: Impossibile avviare cmake configure (fallback CPU).");
                 if (m_llamaCompBtn) m_llamaCompBtn->setEnabled(true);
                 if (m_llamaStopBtn) m_llamaStopBtn->setEnabled(false);
                 m_proc2->deleteLater();
@@ -709,6 +719,7 @@ void PersonalizzaPage::onProc2Finished(int code, QProcess::ExitStatus) {
         }
         if (m_llamaLog)
             m_llamaLog->append(QString("\n\xe2\x9d\x8c  cmake configure fallito (code %1).").arg(code));
+        LogBus::post(QString("\xe2\x9d\x8c Personalizza: cmake configure fallito (code %1).").arg(code));
         if (m_llamaCompBtn) m_llamaCompBtn->setEnabled(true);
         if (m_llamaStopBtn) m_llamaStopBtn->setEnabled(false);
         return;

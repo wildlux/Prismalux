@@ -1,6 +1,7 @@
 #include "main_ai.h"
 #include "main_ai_p.h"
 #include "../prismalux_paths.h"
+#include "../log_bus.h"
 namespace P = PrismaluxPaths;
 #include <QImage>
 #include <QBuffer>
@@ -27,7 +28,11 @@ void AgentiPage::loadDroppedFile(const QString& filePath)
     static const QStringList imgExts = {"png","jpg","jpeg","gif","webp","bmp","tiff","tif"};
     if (imgExts.contains(ext)) {
         QImage img(filePath);
-        if (img.isNull()) { m_log->append("\xe2\x9d\x8c  Immagine non leggibile."); return; }
+        if (img.isNull()) {
+            m_log->append("\xe2\x9d\x8c  Immagine non leggibile.");
+            LogBus::post("\xe2\x9d\x8c AI Files: Immagine non leggibile.");
+            return;
+        }
         QFileInfo fi(filePath);
         if (fi.size() > 1024*1024)
             img = img.scaled(1024,1024,Qt::KeepAspectRatio,Qt::SmoothTransformation);
@@ -150,6 +155,7 @@ void AgentiPage::loadDroppedFile(const QString& filePath)
     QFile f(filePath);
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
         m_log->append(QString("\xe2\x9d\x8c  Impossibile aprire: %1").arg(filePath));
+        LogBus::post("\xe2\x9d\x8c AI Files: Impossibile aprire: " + filePath);
         return;
     }
     QTextStream ts(&f);
@@ -216,6 +222,7 @@ void AgentiPage::_extractPdfPython(
     tmpScript->setAutoRemove(false);
     if (!tmpScript->open()) {
         m_log->append("\xe2\x9d\x8c  Impossibile creare script Python temporaneo.");
+        LogBus::post("\xe2\x9d\x8c AI Files: Impossibile creare script Python temporaneo (PDF).");
         return;
     }
     QTextStream ts(tmpScript);
@@ -266,6 +273,7 @@ void AgentiPage::_extractXlsPython(
     tmpScript->setAutoRemove(false);
     if (!tmpScript->open()) {
         m_log->append("\xe2\x9d\x8c  Impossibile creare script Python temporaneo.");
+        LogBus::post("\xe2\x9d\x8c AI Files: Impossibile creare script Python temporaneo (XLS).");
         return;
     }
     {
@@ -470,6 +478,7 @@ void AgentiPage::_loadAudioAsText(const QString& filePath)
                 convProc->deleteLater();
                 if (code != 0 || !QFileInfo::exists(wavTmp)) {
                     m_log->append("\xe2\x9d\x8c  Conversione audio fallita (ffmpeg errore).");
+                    LogBus::post("\xe2\x9d\x8c AI Files: Conversione audio fallita (ffmpeg errore).");
                     return;
                 }
                 runTranscription(wavTmp);

@@ -2,6 +2,7 @@
 #include "../dpi_utils.h"
 #include "main_ai_p.h"
 #include "../prismalux_paths.h"
+#include "../log_bus.h"
 namespace P = PrismaluxPaths;
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -73,6 +74,7 @@ void AgentiPage::runConsiglioScientifico()
     }
     if (selected.isEmpty()) {
         m_log->append("\xe2\x9d\x8c  Nessun modello selezionabile.");
+        LogBus::post("\xe2\x9d\x8c AI Consiglio: Nessun modello selezionabile.");
         return;
     }
 

@@ -1,14 +1,31 @@
-import os, sys, json, threading
+import os, sys, json, threading, asyncio
+
+# APScheduler 3.x + pytz compat (Python 3.14 usa stdlib timezone.utc)
+try:
+    import pytz as _pytz
+    import apscheduler.schedulers.base as _aps_base
+    from datetime import timezone as _stdlib_tz
+    _orig_aps_tz = _aps_base.astimezone
+    def _compat_aps_tz(obj):
+        if isinstance(obj, _stdlib_tz):
+            secs = obj.utcoffset(None).total_seconds()
+            return _pytz.FixedOffset(int(secs / 60)) if secs else _pytz.UTC
+        return _orig_aps_tz(obj)
+    _aps_base.astimezone = _compat_aps_tz
+except Exception:
+    pass
+
+# event loop esplicito obbligatorio in Python 3.14
+asyncio.set_event_loop(asyncio.new_event_loop())
 
 try:
     from telegram import Update
     from telegram.ext import (
-        Updater, CommandHandler, MessageHandler,
-        Filters, CallbackContext
+        Application, CommandHandler, MessageHandler,
+        filters, ContextTypes
     )
-except ImportError:
-    print('ERRORE: python-telegram-bot non installato.', flush=True)
-    print('Installa con: pip install python-telegram-bot==13.*', flush=True)
+except ImportError as e:
+    print(json.dumps({'type':'error','msg':'Modulo mancante: ' + str(e)}), flush=True)
     sys.exit(1)
 
 TOKEN     = os.environ.get('TELEGRAM_TOKEN', '').strip()
@@ -17,96 +34,82 @@ WHITELIST = [x.strip() for x in
              if x.strip()]
 
 if not TOKEN:
-    print('ERRORE: TELEGRAM_TOKEN non impostato.', flush=True)
+    print(json.dumps({'type':'error','msg':'TELEGRAM_TOKEN non impostato.'}), flush=True)
     sys.exit(1)
 
-# Mappa chat_id -> risposta in attesa (threading.Event + container)
-pending = {}  # chat_id -> {'event': Event, 'reply': str}
+pending      = {}
 pending_lock = threading.Lock()
 
-def check_whitelist(update: Update) -> bool:
-    if not WHITELIST:
-        return True
+def allowed(update: Update) -> bool:
+    if not WHITELIST: return True
     return str(update.effective_user.id) in WHITELIST
 
-def send_query(chat_id: int, text: str) -> None:
-    msg = json.dumps({'type': 'query', 'chat_id': chat_id,
-                      'text': text}, ensure_ascii=False)
-    print(msg, flush=True)
-
-def wait_reply(chat_id: int, timeout: float = 120.0) -> str:
+async def _query_and_wait(cid: int, text: str, update: Update) -> None:
+    print(json.dumps({'type':'query','chat_id':cid,'text':text}), flush=True)
     evt = threading.Event()
     with pending_lock:
-        pending[chat_id] = {'event': evt, 'reply': ''}
-    evt.wait(timeout)
+        pending[cid] = {'event': evt, 'reply': ''}
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, evt.wait, 120.0)
     with pending_lock:
-        result = pending.pop(chat_id, {}).get('reply', '(timeout)')
-    return result
+        reply = pending.pop(cid, {}).get('reply', '(timeout)')
+    await update.message.reply_text(reply[:4096] if reply else '...')
 
-def handle_message(update: Update, context: CallbackContext) -> None:
-    if not check_whitelist(update):
-        update.message.reply_text('Non autorizzato.')
+async def on_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    if not update.message: return
+    if not allowed(update):
+        await update.message.reply_text('Non autorizzato.')
         return
-    chat_id = update.effective_chat.id
-    text    = update.message.text or ''
-    send_query(chat_id, text)
-    reply = wait_reply(chat_id)
-    update.message.reply_text(reply[:4096] if reply else '...')
+    cid  = update.effective_chat.id
+    text = update.message.text or ''
+    await _query_and_wait(cid, text, update)
 
-def cmd_ask(update: Update, context: CallbackContext) -> None:
-    if not check_whitelist(update):
-        update.message.reply_text('Non autorizzato.')
+async def on_ask(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    if not allowed(update):
+        await update.message.reply_text('Non autorizzato.')
         return
-    chat_id = update.effective_chat.id
-    text    = ' '.join(context.args) if context.args else ''
+    text = ' '.join(ctx.args) if ctx.args else ''
     if not text:
-        update.message.reply_text('Uso: /ask <domanda>')
+        await update.message.reply_text('Uso: /ask <domanda>')
         return
-    send_query(chat_id, text)
-    reply = wait_reply(chat_id)
-    update.message.reply_text(reply[:4096] if reply else '...')
+    cid = update.effective_chat.id
+    await _query_and_wait(cid, text, update)
 
-def cmd_status(update: Update, context: CallbackContext) -> None:
-    if not check_whitelist(update):
-        update.message.reply_text('Non autorizzato.')
+async def on_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    if not allowed(update):
+        await update.message.reply_text('Non autorizzato.')
         return
-    update.message.reply_text('Prismalux bot attivo. Invia un messaggio o usa /ask <testo>.')
+    await update.message.reply_text(
+        '🟢 Prismalux Bot attivo. Invia un messaggio o usa /ask <testo>.')
 
-def cmd_stop(update: Update, context: CallbackContext) -> None:
-    if not check_whitelist(update):
-        update.message.reply_text('Non autorizzato.')
-        return
-    update.message.reply_text('Bot in arresto...')
-    context.dispatcher.stop()
-
-# Thread di lettura stdin per ricevere risposte da Prismalux
-def stdin_reader():
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
+def stdin_loop():
+    for raw in sys.stdin:
+        raw = raw.strip()
+        if not raw: continue
         try:
-            obj = json.loads(line)
-            chat_id = obj.get('chat_id', 0)
-            reply   = obj.get('reply', '')
+            obj = json.loads(raw)
+            cid   = obj.get('chat_id', 0)
+            reply = obj.get('reply', '')
             with pending_lock:
-                entry = pending.get(chat_id)
+                entry = pending.get(cid)
             if entry:
                 entry['reply'] = reply
                 entry['event'].set()
-        except Exception as e:
-            print('stdin parse error: ' + str(e), flush=True)
+        except Exception as exc:
+            print('stdin error: ' + str(exc), flush=True)
 
-t = threading.Thread(target=stdin_reader, daemon=True)
-t.start()
+async def post_init(app: Application):
+    threading.Thread(target=stdin_loop, daemon=True).start()
+    print(json.dumps({'type': 'ready'}), flush=True)
 
-updater = Updater(TOKEN)
-dp = updater.dispatcher
-dp.add_handler(CommandHandler('ask',    cmd_ask))
-dp.add_handler(CommandHandler('status', cmd_status))
-dp.add_handler(CommandHandler('stop',   cmd_stop))
-dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
-
-print(json.dumps({'type': 'ready'}), flush=True)
-updater.start_polling(drop_pending_updates=True)
-updater.idle()
+app = (
+    Application.builder()
+    .token(TOKEN)
+    .job_queue(None)
+    .post_init(post_init)
+    .build()
+)
+app.add_handler(CommandHandler('ask',    on_ask))
+app.add_handler(CommandHandler('status', on_status))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
+app.run_polling(drop_pending_updates=True)

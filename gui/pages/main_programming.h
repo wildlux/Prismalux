@@ -515,11 +515,14 @@ private:
     void     onKernelSafetyClicked();
 
     /* ── VPN & Tunnel sub-tab ── */
-    QComboBox*  m_vpnTypeCombo  = nullptr;  ///< WireGuard / OpenVPN / SSH / Hotspot
-    QTextEdit*  m_vpnConfig     = nullptr;  ///< editor config/script generato
-    QTextEdit*  m_vpnLog        = nullptr;  ///< output comandi applicati
-    QLabel*     m_vpnStatusLbl  = nullptr;
-    QProcess*   m_vpnProc       = nullptr;
+    QComboBox*   m_vpnTypeCombo    = nullptr;  ///< WireGuard / OpenVPN / SSH / Hotspot / n2n
+    QTextEdit*   m_vpnConfig       = nullptr;  ///< editor config/script generato
+    QTextEdit*   m_vpnLog          = nullptr;  ///< output comandi applicati
+    QLabel*      m_vpnStatusLbl    = nullptr;
+    QProcess*    m_vpnProc         = nullptr;
+    QPushButton* m_vpnGenKeysBtn   = nullptr;  ///< visibile solo per n2n (idx >= 4)
+    QPushButton* m_vpnValidateBtn  = nullptr;  ///< simulazione/validazione senza root
+    bool         m_vpnValidating   = false;
     QMetaObject::Connection m_vpnAiTokenConn;
     QMetaObject::Connection m_vpnAiFinishedConn;
     QMetaObject::Connection m_vpnAiErrorConn;
@@ -529,6 +532,9 @@ private:
     void     onVpnGenerateClicked();
     void     onVpnApplyClicked();
     void     onVpnStopClicked();
+    void     onVpnGenN2nKeys();
+    void     onVpnValidateClicked();
+    void     onVpnImportClicked();
     void     onVpnAiToken(const QString& t);
     void     onVpnAiFinished(const QString& full);
     void     onVpnAiError(const QString& msg);

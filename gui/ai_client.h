@@ -70,6 +70,26 @@ public:
     enum QueryType { QueryAuto, QuerySimple, QueryComplex };
     static QueryType classifyQuery(const QString& text);
 
+    /** Dominio semantico rilevato nella query.
+     *  Usato per scegliere il modello più adatto (math-capable per STEM). */
+    enum QueryDomain {
+        DomainGeneral,      ///< domanda generica o linguistica
+        DomainMath,         ///< algebra, calcolo, sequenze, derivate, integrali
+        DomainPhysics,      ///< meccanica, termodinamica, ottica, onde, relatività
+        DomainChemistry,    ///< stechiometria, reazioni, moli, pH, orbitali
+        DomainElectronics,  ///< circuiti, Ohm, impedenza, filtri, transistor
+        DomainUnitConvert,  ///< conversione esplicita di unità di misura
+        DomainCoding,       ///< codice, algoritmi, debug, linguaggi
+    };
+    static QueryDomain detectQueryDomain(const QString& text);
+
+    /** Restituisce true se il dominio richiede un modello math-capable
+     *  (qwen2.5-math, deepseek-r1, qwen3 con thinking). */
+    static bool domainNeedsMathModel(QueryDomain d) {
+        return d == DomainMath || d == DomainPhysics ||
+               d == DomainChemistry || d == DomainElectronics;
+    }
+
     /* ── chat ── */
 
     /** Overload legacy — compatibile con tutto il codice esistente.
@@ -125,6 +145,14 @@ public:
      * Usa un QNetworkReply separato: non interferisce con la chat in corso.
      */
     void fetchEmbedding(const QString& text);
+
+    /**
+     * setOnnxEmbedder — collega un OnnxEmbedder pre-caricato.
+     * Se pronto, fetchEmbedding() usa ONNX invece dell'endpoint HTTP.
+     * Il proprietario dell'oggetto resta il chiamante.
+     */
+    void setOnnxEmbedder(class OnnxEmbedder* emb) { m_onnxEmbedder = emb; }
+    class OnnxEmbedder* onnxEmbedder() const { return m_onnxEmbedder; }
 
     /**
      * transcribeAudio — invia un file audio a un server Whisper compatibile OpenAI
@@ -310,6 +338,9 @@ private:
     /* fetchEmbedding — reply salvato per lo slot nominato */
     QPointer<QNetworkReply>    m_embeddingReply;
     Backend                    m_embeddingBackend = Ollama;
+
+    /* ONNX embedder locale (opzionale — non owned) */
+    class OnnxEmbedder* m_onnxEmbedder = nullptr;
 
     /* transcribeAudio — reply e multipart salvati per lo slot nominato */
     QPointer<QNetworkReply>    m_transcriptionReply;

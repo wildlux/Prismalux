@@ -259,6 +259,25 @@ static const char* kOBSActions[] = {
 /* ══════════════════════════════════════════════════════════════
    Costruttore
    ══════════════════════════════════════════════════════════════ */
+AppControllerPage::~AppControllerPage()
+{
+    /* disconnect() prima che QWidget::~QWidget() → deleteChildren() →
+     * QProcess::~QProcess() → waitForFinished() → finished() →
+     * onTelegramProcFinished() tenti di accedere a widget già distrutti.
+     * disconnect() rimuove fisicamente tutti i collegamenti segnale/slot
+     * dove m_telegramProc è sender; blockSignals è la seconda difesa. */
+    if (m_telegramProc) {
+        m_telegramProc->disconnect();
+        m_telegramProc->blockSignals(true);
+        if (m_telegramProc->state() == QProcess::Running) {
+            m_telegramProc->terminate();
+            m_telegramProc->waitForFinished(1000);
+            if (m_telegramProc->state() == QProcess::Running)
+                m_telegramProc->kill();
+        }
+    }
+}
+
 AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
     : QWidget(parent), m_ai(ai)
 {
@@ -301,7 +320,29 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
     m_tabs->addTab(buildOBSTab(),          "\xf0\x9f\x94\xb4  OBS MCP");
     m_tabs->addTab(buildGodotTab(),          "\xf0\x9f\x8e\xae  Godot");
     m_tabs->addTab(new OpenCodePage(m_tabs), "\xf0\x9f\x96\xa5  OpenCode");
-    m_tabs->addTab(buildTelegramTab(),       "\xf0\x9f\x93\xac  Telegram");  /* 📬 */
+    {
+        auto* tgTab = buildTelegramTab();
+        m_tabs->addTab(tgTab, "\xf0\x9f\x93\xac  Telegram");  /* 📬 */
+        const int tgIdx = m_tabs->indexOf(tgTab);
+        connect(m_tabs, &QTabWidget::currentChanged, this,
+            [this, tgIdx](int idx) {
+                if (idx != tgIdx || !m_telegramModuleBanner) return;
+                QTimer::singleShot(15000, this, [this]() {
+                    if (!m_telegramModuleBanner) return;
+                    auto* chk = new QProcess(this);
+                    connect(chk,
+                        QOverload<int,QProcess::ExitStatus>::of(
+                            &QProcess::finished),
+                        this, [this, chk](int code, QProcess::ExitStatus) {
+                            if (m_telegramModuleBanner)
+                                m_telegramModuleBanner->setVisible(code != 0);
+                            chk->deleteLater();
+                        });
+                    chk->start("python3",
+                        {"-c", "from telegram.ext import Application"});
+                });
+            });
+    }
     m_tabs->addTab(buildWhatsAppTab(),       "\xf0\x9f\x92\xac  WhatsApp");  /* 💬 */
     m_tabs->addTab(buildDevAgentTab(),       "\xf0\x9f\xa4\x96  Dev Agent"); /* 🤖 */
 
@@ -1892,6 +1933,7 @@ QWidget* AppControllerPage::buildTelegramTab()
     /* ── Banner python-telegram-bot mancante (async) ── */
     {
         auto* banner    = new QWidget(w);
+        m_telegramModuleBanner = banner;
         auto* bannerLay = new QHBoxLayout(banner);
         bannerLay->setContentsMargins(8, 6, 8, 6);
         bannerLay->setSpacing(10);
@@ -2050,14 +2092,19 @@ QWidget* AppControllerPage::buildTelegramTab()
     s3Lay->setSpacing(dpiScale(6));
 
     auto* step3Hint = new QLabel(
-        "Aggiungi i destinatari a cui inviare messaggi (indipendentemente dal bot).<br>"
-        "\xe2\x80\xa2 <b>Utente</b>: ID numerico (es. <code>123456789</code>) "
-        "oppure <code>@username</code><br>"
-        "\xe2\x80\xa2 <b>Gruppo/Canale</b>: ID negativo "
-        "(es. <code>-1001234567890</code>)<br>"
-        "<i>Per trovare l\xe2\x80\x99ID di un gruppo: aggiungi "
-        "<b>@userinfobot</b> al gruppo e scrivi <code>/id</code>. "
-        "Il bot deve aver gi\xc3\xa0 ricevuto almeno un messaggio dal destinatario.</i>",
+        "<b>Come aggiungere un destinatario:</b><br><br>"
+        "<span style='color:#f87171;'>"
+        "\xe2\x9a\xa0  <b>@username NON funziona per gli utenti privati.</b>"
+        "</span> Telegram richiede l\xe2\x80\x99<b>ID numerico</b> del contatto.<br><br>"
+        "<b>Come ottenere l\xe2\x80\x99ID di un utente privato:</b><br>"
+        "1. Chiedi al contatto di aprire il tuo bot su Telegram e inviare <code>/start</code><br>"
+        "2. Il suo ID numerico apparir\xc3\xa0 nel log qui sopra: "
+        "<code>\xf0\x9f\x93\xa9 [123456789] /start</code><br>"
+        "3. Copia quel numero e incollalo nel campo qui sotto<br><br>"
+        "<b>Canali e gruppi pubblici:</b> usa l\xe2\x80\x99ID negativo "
+        "(es. <code>-1001234567890</code>) oppure <code>@nome_canale</code>. "
+        "Per trovare l\xe2\x80\x99ID di un gruppo: aggiungi <b>@userinfobot</b> "
+        "al gruppo e scrivi <code>/id</code>.",
         step3);
     step3Hint->setObjectName("hintLabel");
     step3Hint->setTextFormat(Qt::RichText);
@@ -2067,7 +2114,7 @@ QWidget* AppControllerPage::buildTelegramTab()
     auto* promoAddRow = new QHBoxLayout;
     m_telegramPromoContactEdit = new QLineEdit(step3);
     m_telegramPromoContactEdit->setPlaceholderText(
-        "ID numerico, @username oppure -1001234567890 (gruppo)");
+        "ID numerico utente (es. 123456789) oppure -1001234567890 (gruppo/canale)");
     auto* tgAddBtn = new QPushButton(
         "\xe2\x9e\x95  Aggiungi", step3);
     tgAddBtn->setObjectName("actionBtn");
@@ -2084,6 +2131,13 @@ QWidget* AppControllerPage::buildTelegramTab()
     m_telegramContactList = new QListWidget(step3);
     m_telegramContactList->setFixedHeight(dpiScale(80));
     s3Lay->addWidget(m_telegramContactList);
+
+    m_telegramAutoAddCheck = new QCheckBox(
+        "\xf0\x9f\xa4\x96  Aggiungi automaticamente chi scrive al bot", step3);
+    m_telegramAutoAddCheck->setToolTip(
+        "Quando un utente invia qualsiasi messaggio al bot (incluso /start),\n"
+        "il suo ID numerico viene aggiunto automaticamente alla lista destinatari.");
+    s3Lay->addWidget(m_telegramAutoAddCheck);
 
     auto* promoMsgLbl = new QLabel(
         "Messaggio da inviare:", step3);
@@ -2120,6 +2174,8 @@ QWidget* AppControllerPage::buildTelegramTab()
         const QStringList contacts = s.value("telegram_contacts").toStringList();
         for (const QString& c : contacts)
             m_telegramContactList->addItem(c);
+        m_telegramAutoAddCheck->setChecked(
+            s.value("telegram/auto_add_contacts", true).toBool());
     }
 
     if (!m_telegramPromoNam)
@@ -2149,6 +2205,11 @@ QWidget* AppControllerPage::buildTelegramTab()
             this, &AppControllerPage::onTelegramRemoveContactClicked);
     connect(tgSendAllBtn, &QPushButton::clicked,
             this, &AppControllerPage::onTelegramSendPromoClicked);
+    connect(m_telegramAutoAddCheck, &QCheckBox::toggled,
+            this, [this](bool checked) {
+        QSettings s("Prismalux", "GUI");
+        s.setValue("telegram/auto_add_contacts", checked);
+    });
 
     return scroll;
 }

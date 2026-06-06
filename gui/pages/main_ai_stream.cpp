@@ -1,6 +1,7 @@
 #include "main_ai.h"
 #include "main_ai_p.h"
 #include "../prismalux_paths.h"
+#include "../log_bus.h"
 #include <QListWidget>
 namespace P = PrismaluxPaths;
 #include <QElapsedTimer>
@@ -288,8 +289,10 @@ void AgentiPage::onError(const QString& msg) {
             " border: 2px solid #b91c1c; border-radius: 3px; }");
 
     const QString categorized = _categorizeError(msg, m_ai->backend());
-    if (!categorized.isEmpty())
+    if (!categorized.isEmpty()) {
         m_log->append("\n" + categorized);
+        LogBus::post("\xe2\x9d\x8c AI Stream: " + msg.left(120));
+    }
 
     /* Aggiorna la barra di stato: abort silenzioso → nascondi, errore reale → mostra */
     if (categorized.isEmpty())

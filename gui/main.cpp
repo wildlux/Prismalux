@@ -187,6 +187,11 @@ int main(int argc, char* argv[]) {
             qputenv("PRISMALUX_COMPUTE_MODE", cm.toUtf8());
     }
 
+    /* ── Disabilita dialog nativi KDE/GNOME — evita crash KIO "unknown protocol"
+     * che si manifesta con Dolphin quando kioworker non trova il protocollo file://.
+     * Qt usa il proprio dialog embedded che non dipende da kio-extras.           */
+    app.setAttribute(Qt::AA_DontUseNativeDialogs);
+
     /* ── Finestra principale (carica il tema saved via ThemeManager) ── */
     MainWindow w;
     w.show();

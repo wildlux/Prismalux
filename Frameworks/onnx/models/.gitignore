@@ -1,0 +1,5 @@
+# File modelli ONNX — troppo grandi per git
+*.onnx
+*.bin
+# vocab.txt è piccolo (~226 KB) — incluso se presente
+!vocab.txt

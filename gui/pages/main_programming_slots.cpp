@@ -23,6 +23,9 @@
 #include "../ai_utils.h"
 #include "../widgets/ai_error_widget.h"
 #include "../widgets/proc_helper.h"
+#include "../log_bus.h"
+
+#include <QRandomGenerator>
 
 #include <QApplication>
 #include <QClipboard>
@@ -323,6 +326,7 @@ void ProgrammazionePage::onProcFinished(int code, QProcess::ExitStatus /*status*
         m_lastError = m_fullOutput.right(2000);
         if (m_status)
             m_status->setText(QString("\xe2\x9d\x8c  Errore (exit %1).").arg(code));
+        LogBus::post(QString("\xe2\x9d\x8c Programmazione: Processo uscito con errore (exit %1).").arg(code));
 
         /* Loop Fix automatico */
         const QString src = m_editor ? m_editor->toPlainText() : QString();
@@ -345,6 +349,7 @@ void ProgrammazionePage::onProcFinished(int code, QProcess::ExitStatus /*status*
                 m_loopActive = false;
                 if (m_status)
                     m_status->setText(QString("\xe2\x9d\x8c  Loop Fix esaurito (%1 tentativi).").arg(m_loopCount));
+                LogBus::post(QString("\xe2\x9d\x8c Programmazione: Loop Fix esaurito (%1 tentativi).").arg(m_loopCount));
                 m_loopCount = 0;
             }
         }
@@ -362,6 +367,7 @@ void ProgrammazionePage::onProcErrorOccurred(QProcess::ProcessError err)
             m_status->setText(
                 "\xe2\x9d\x8c  Impossibile avviare il processo. "
                 "Controlla che il compilatore/interprete sia nel PATH.");
+        LogBus::post("\xe2\x9d\x8c Programmazione: Impossibile avviare il processo.");
         setRunning(false);
     }
 }
@@ -418,6 +424,7 @@ void ProgrammazionePage::onAiError(const QString& msg)
         m_aiOutput->insertPlainText(
             QString("\n\xe2\x9d\x8c  Errore AI: %1").arg(msg));
     }
+    LogBus::post("\xe2\x9d\x8c Programmazione: Errore AI: " + msg);
 }
 
 /* ======================================================================
@@ -491,6 +498,7 @@ void ProgrammazionePage::onFixError(const QString& msg)
         m_aiOutput->insertPlainText(
             QString("\n\xe2\x9d\x8c  Errore Fix AI: %1").arg(msg));
     }
+    LogBus::post("\xe2\x9d\x8c Programmazione: Errore Fix AI: " + msg);
 }
 
 /* ======================================================================
@@ -565,6 +573,7 @@ void ProgrammazionePage::onAgentError(const QString& msg)
         m_agentOutput->insertPlainText(
             QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
     }
+    LogBus::post("\xe2\x9d\x8c Programmazione: Agentica errore AI: " + msg);
 }
 
 /* ======================================================================
@@ -590,6 +599,7 @@ void ProgrammazionePage::onBtnRevLoadClicked()
         if (m_revFilePath)
             m_revFilePath->setText(
                 QString("\xe2\x9d\x8c  Impossibile aprire: %1").arg(path));
+        LogBus::post("\xe2\x9d\x8c Programmazione: Impossibile aprire: " + path);
         return;
     }
     m_revFileData = f.read(1024 * 1024); /* max 1 MB */
@@ -706,6 +716,7 @@ void ProgrammazionePage::onRevError(const QString& msg)
         m_revOutput->insertPlainText(
             QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
     }
+    LogBus::post("\xe2\x9d\x8c Programmazione: Reverse Engineering errore AI: " + msg);
 }
 
 /* ======================================================================
@@ -774,6 +785,7 @@ void ProgrammazionePage::netFixPermissions()
             m_netStatus->setText(
                 "\xe2\x9d\x8c  pkexec non trovato. Esegui manualmente: "
                 "sudo setcap cap_net_raw+eip " + m_netTool);
+        LogBus::post("\xe2\x9d\x8c Programmazione: pkexec non trovato.");
         return;
     }
     if (m_netStatus)
@@ -788,6 +800,7 @@ void ProgrammazionePage::netFixPermissions()
                         ? "\xe2\x9c\x85  Permessi applicati. Premi Start per avviare la cattura."
                         : "\xe2\x9d\x8c  Operazione annullata o fallita (code " +
                           QString::number(code) + ").");
+                if (code != 0) LogBus::post(QString("\xe2\x9d\x8c Programmazione: setcap fallito (code %1).").arg(code));
             });
     proc->start(pkexec, {"setcap", "cap_net_raw+eip", m_netTool});
 }
@@ -801,6 +814,7 @@ void ProgrammazionePage::onNetFinished(int code, QProcess::ExitStatus /*status*/
             code == 0
             ? "\xe2\x9c\x85  Cattura completata."
             : QString("\xe2\x9d\x8c  Terminato (code %1).").arg(code));
+    if (code != 0) LogBus::post(QString("\xe2\x9d\x8c Programmazione: Network analyzer terminato (code %1).").arg(code));
 
     const bool hasData = m_netLog && !m_netLog->toPlainText().trimmed().isEmpty();
     if (m_btnNetAnalyze) m_btnNetAnalyze->setEnabled(hasData);
@@ -839,6 +853,7 @@ void ProgrammazionePage::onNetAiError(const QString& msg)
         m_netAiOutput->insertPlainText(
             QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
     }
+    LogBus::post("\xe2\x9d\x8c Programmazione: Network AI errore: " + msg);
 }
 
 /* ======================================================================
@@ -924,6 +939,7 @@ void ProgrammazionePage::onLanScanNmapClicked()
         if (m_lanStatusLbl)
             m_lanStatusLbl->setText(
                 "\xe2\x9d\x8c  Impossibile determinare la subnet.");
+        LogBus::post("\xe2\x9d\x8c Programmazione: Impossibile determinare la subnet.");
         lanResetBtns();
         return;
     }
@@ -971,6 +987,7 @@ void ProgrammazionePage::onLanArpError(QProcess::ProcessError err)
         m_lanStatusLbl->setText(
             "\xe2\x9d\x8c  Impossibile eseguire 'ip neigh show'. "
             "Installa iproute2: sudo apt install iproute2");
+    LogBus::post("\xe2\x9d\x8c Programmazione: Impossibile eseguire 'ip neigh show'.");
     lanResetBtns();
     if (auto* p = qobject_cast<QProcess*>(sender())) { p->deleteLater(); m_lanProc = nullptr; }
 }
@@ -1937,13 +1954,95 @@ static const char* kVpnTemplates[] = {
     "\n"
     "# Per fermare:\n"
     "# nmcli con down \"$CON_NAME\"\n",
+
+    /* idx 4 — n2n Supernode */
+    "#!/bin/bash\n"
+    "# n2n Supernode — nodo centrale WAN Prismalux (scritto in C)\n"
+    "# Installa: sudo apt install n2n\n"
+    "# Avvia sul server: sudo bash /tmp/prismalux_n2n_supernode.sh\n"
+    "# Apri nel firewall: sudo ufw allow 7654/udp\n"
+    "\n"
+    "SUPERNODE_PORT=7654\n"
+    "\n"
+    "if ! command -v supernode &>/dev/null; then\n"
+    "    echo '[n2n] Installo n2n...'\n"
+    "    apt-get install -y n2n\n"
+    "fi\n"
+    "\n"
+    "echo \"[Prismalux] Avvio supernode n2n su UDP $SUPERNODE_PORT...\"\n"
+    "supernode -p \"$SUPERNODE_PORT\" -v\n"
+    "\n"
+    "# Dopo aver avviato il supernode, connetti anche questo host come edge\n"
+    "# (IP server nella VPN = 10.10.0.1):\n"
+    "# sudo edge -c prismalux_wan -k <PSK> -a 10.10.0.1/24 -l localhost:$SUPERNODE_PORT -f\n",
+
+    /* idx 5 — n2n Edge (worker WAN) */
+    "#!/bin/bash\n"
+    "# n2n Edge — worker WAN Prismalux (esegui su ogni nodo remoto)\n"
+    "# Installa: sudo apt install n2n\n"
+    "# Avvia: sudo bash prismalux_n2n_edge.sh\n"
+    "# Clicca 'Genera chiavi n2n' per riempire COMMUNITY e PSK automaticamente.\n"
+    "\n"
+    "SUPERNODE_IP=\"<SERVER_IP>\"\n"
+    "SUPERNODE_PORT=7654\n"
+    "COMMUNITY=\"prismalux_wan\"\n"
+    "PSK=\"<CHIAVE_CONDIVISA_AES256>\"\n"
+    "EDGE_IP=\"10.10.0.2/24\"\n"
+    "# Cambia EDGE_IP per ogni worker: 10.10.0.3/24, 10.10.0.4/24 ...\n"
+    "\n"
+    "if ! command -v edge &>/dev/null; then\n"
+    "    echo '[n2n] Installo n2n...'\n"
+    "    apt-get install -y n2n\n"
+    "fi\n"
+    "\n"
+    "echo \"[Prismalux] Connessione al supernode $SUPERNODE_IP:$SUPERNODE_PORT...\"\n"
+    "edge -c \"$COMMUNITY\" \\\n"
+    "     -k \"$PSK\" \\\n"
+    "     -a \"$EDGE_IP\" \\\n"
+    "     -l \"$SUPERNODE_IP:$SUPERNODE_PORT\" \\\n"
+    "     -f\n"
+    "\n"
+    "# Il WAN Compute Prismalux (porta 11600) sara' raggiungibile via VPN:\n"
+    "#   Server: 10.10.0.1:11600  |  Questo nodo: 10.10.0.2\n",
 };
 
 void ProgrammazionePage::onVpnTypeChanged(int idx)
 {
     if (!m_vpnConfig) return;
-    if (idx >= 0 && idx < 4)
+    if (idx >= 0 && idx < 6)
         m_vpnConfig->setPlainText(QString::fromUtf8(kVpnTemplates[idx]));
+    if (m_vpnGenKeysBtn)
+        m_vpnGenKeysBtn->setVisible(idx >= 4);
+}
+
+void ProgrammazionePage::onVpnGenN2nKeys()
+{
+    if (!m_vpnConfig || !m_vpnLog) return;
+
+    const QString alphanum = QStringLiteral("abcdefghijklmnopqrstuvwxyz0123456789");
+    QString community = QStringLiteral("plx_");
+    for (int i = 0; i < 8; ++i)
+        community += alphanum[QRandomGenerator::global()->bounded(alphanum.size())];
+
+    QString psk;
+    for (int i = 0; i < 32; ++i)
+        psk += QString::number(QRandomGenerator::global()->bounded(16), 16);
+
+    QString cfg = m_vpnConfig->toPlainText();
+    cfg.replace(QStringLiteral("prismalux_wan"), community);
+    cfg.replace(QStringLiteral("<CHIAVE_CONDIVISA_AES256>"), psk);
+    m_vpnConfig->setPlainText(cfg);
+
+    m_vpnLog->append(
+        QString("<span style='color:#4ade80;'>"
+                "\xf0\x9f\x94\x91  Chiavi n2n generate:<br>"
+                "&nbsp; Community: <b>%1</b><br>"
+                "&nbsp; PSK&nbsp;&nbsp;&nbsp;&nbsp;: <b>%2</b><br>"
+                "Usa <b>le stesse</b> su ogni nodo edge e sul server.</span>")
+            .arg(community.toHtmlEscaped())
+            .arg(psk.toHtmlEscaped()));
+
+    LogBus::post(QString("\xf0\x9f\x94\x91 n2n — chiavi generate. Community: %1").arg(community));
 }
 
 void ProgrammazionePage::onVpnGenerateClicked()
@@ -2036,6 +2135,25 @@ void ProgrammazionePage::onVpnApplyClicked()
         return;
     }
 
+    /* n2n Edge: gira sul nodo remoto — copia script negli appunti */
+    if (idx == 5) {
+        if (cfg.contains("<SERVER_IP>") || cfg.contains("<CHIAVE_CONDIVISA_AES256>")) {
+            m_vpnLog->append(
+                "<span style='color:#f87171;'>\xe2\x9d\x8c  "
+                "Sostituisci &lt;SERVER_IP&gt; e genera le chiavi prima di procedere.</span>");
+            LogBus::post("\xe2\x9d\x8c VPN n2n edge: configura SERVER_IP e chiavi prima di applicare.");
+            return;
+        }
+        qApp->clipboard()->setText(cfg);
+        m_vpnLog->append(
+            "\xf0\x9f\x93\x8b  Script edge n2n copiato negli appunti.<br>"
+            "<span style='color:#94a3b8;'>Incolla e avvia con "
+            "<b>sudo bash</b> su ogni nodo worker remoto.</span>");
+        if (m_vpnStatusLbl)
+            m_vpnStatusLbl->setText(tr("\xf0\x9f\x93\x8b  Copiato negli appunti"));
+        return;
+    }
+
     /* Determina file temporaneo e comando */
     QString tmpPath, cmd;
     QStringList args;
@@ -2052,8 +2170,13 @@ void ProgrammazionePage::onVpnApplyClicked()
         tmpPath = "/tmp/prismalux_client.ovpn";
         cmd = "openvpn";
         args = {"--config", tmpPath};
+    } else if (idx == 4) {
+        /* n2n Supernode — avvia localmente con pkexec */
+        tmpPath = "/tmp/prismalux_n2n_supernode.sh";
+        cmd = "bash";
+        args = {tmpPath};
     } else {
-        /* Hotspot script bash */
+        /* Hotspot script bash (idx == 3) */
         tmpPath = "/tmp/prismalux_hotspot.sh";
         cmd = "bash";
         args = {tmpPath};
@@ -2097,7 +2220,188 @@ void ProgrammazionePage::onVpnStopClicked()
         m_vpnProc->terminate();
         m_vpnProc->waitForFinished(2000);
     }
+    m_vpnValidating = false;
+    if (m_vpnValidateBtn) m_vpnValidateBtn->setEnabled(true);
     if (m_vpnStatusLbl) m_vpnStatusLbl->setText(tr("\xe2\x8f\xb9  Fermato"));
+}
+
+/* ── Valida config — simulazione senza root ── */
+void ProgrammazionePage::onVpnValidateClicked()
+{
+    if (!m_vpnConfig || !m_vpnLog || !m_vpnTypeCombo) return;
+    if (m_vpnProc && m_vpnProc->state() != QProcess::NotRunning) {
+        m_vpnLog->append(
+            "<span style='color:#f87171;'>\xe2\x9d\x8c  "
+            "Un processo VPN e' gia' in esecuzione.</span>");
+        return;
+    }
+
+    const QString cfg = m_vpnConfig->toPlainText().trimmed();
+    if (cfg.isEmpty()) {
+        m_vpnLog->append(
+            "<span style='color:#f87171;'>\xe2\x9d\x8c  Configurazione vuota.</span>");
+        return;
+    }
+
+    /* Scrivi config in file temp */
+    const QString tmpCfg = QStringLiteral("/tmp/prismalux_vpn_validate.cfg");
+    QFile fc(tmpCfg);
+    if (!fc.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        m_vpnLog->append(
+            "<span style='color:#f87171;'>\xe2\x9d\x8c  "
+            "Impossibile creare il file temporaneo.</span>");
+        return;
+    }
+    fc.write(cfg.toUtf8());
+    fc.close();
+
+    /* Tipo corrente come stringa */
+    static const char* kTypes[] = {
+        "wireguard", "openvpn", "ssh", "hotspot", "n2n_supernode", "n2n_edge"
+    };
+    const int idx = m_vpnTypeCombo->currentIndex();
+    const QString type = (idx >= 0 && idx < 6)
+        ? QString::fromUtf8(kTypes[idx]) : QStringLiteral("unknown");
+
+    /* Script bash di validazione (no root) */
+    const QString script =
+        "#!/bin/bash\n"
+        "CFG=\"/tmp/prismalux_vpn_validate.cfg\"\n"
+        "TYPE=\"" + type + "\"\n"
+        "PASS=0; FAIL=0; WARN=0\n"
+        "ok()   { echo \"[OK]  $1\"; ((PASS++)); }\n"
+        "err()  { echo \"[ERR] $1\"; ((FAIL++)); }\n"
+        "warn() { echo \"[WRN] $1\"; ((WARN++)); }\n"
+        "\n"
+        "# 1. Placeholder\n"
+        "PH=$(grep -oP '<[A-Z_]+>' \"$CFG\" | sort -u | tr '\\n' ' ')\n"
+        "if [ -z \"$PH\" ]; then ok \"Nessun placeholder da sostituire\";\n"
+        "else err \"Placeholder non sostituiti: $PH\"; fi\n"
+        "\n"
+        "# 2. Binario richiesto\n"
+        "case \"$TYPE\" in\n"
+        "  wireguard)     BIN=wg;         PKG=wireguard ;;\n"
+        "  openvpn)       BIN=openvpn;    PKG=openvpn ;;\n"
+        "  ssh)           BIN=ssh;        PKG=openssh-client ;;\n"
+        "  hotspot)       BIN=nmcli;      PKG=network-manager ;;\n"
+        "  n2n_supernode) BIN=supernode;  PKG=n2n ;;\n"
+        "  n2n_edge)      BIN=edge;       PKG=n2n ;;\n"
+        "  *)             BIN=; PKG= ;;\n"
+        "esac\n"
+        "if [ -n \"$BIN\" ]; then\n"
+        "  if command -v \"$BIN\" &>/dev/null;\n"
+        "  then ok \"Binario trovato: $(command -v $BIN)\";\n"
+        "  else err \"Binario mancante: $BIN  (installa: sudo apt install $PKG)\"; fi\n"
+        "fi\n"
+        "\n"
+        "# 3. Porta locale libera\n"
+        "if [ \"$TYPE\" = \"n2n_supernode\" ]; then\n"
+        "  if ss -lun 2>/dev/null | grep -q ':7654 ';\n"
+        "  then err \"Porta UDP 7654 gia' in uso\";\n"
+        "  else ok \"Porta UDP 7654 libera\"; fi\n"
+        "fi\n"
+        "if [ \"$TYPE\" = \"wireguard\" ]; then\n"
+        "  PORT=$(grep -oP 'ListenPort\\s*=\\s*\\K\\d+' \"$CFG\" | head -1)\n"
+        "  [ -z \"$PORT\" ] && PORT=51820\n"
+        "  if ss -lun 2>/dev/null | grep -q \":$PORT \";\n"
+        "  then warn \"Porta UDP $PORT gia' in uso (server locale)\"; fi\n"
+        "fi\n"
+        "\n"
+        "# 4. Estrai IP server e testa raggiungibilita'\n"
+        "SRV=\"\"\n"
+        "case \"$TYPE\" in\n"
+        "  wireguard)  SRV=$(grep -oP 'Endpoint\\s*=\\s*\\K[^:\\s]+' \"$CFG\" | head -1) ;;\n"
+        "  openvpn)    SRV=$(grep -oP '^remote\\s+\\K\\S+' \"$CFG\" | head -1) ;;\n"
+        "  n2n_edge)   SRV=$(grep -oP 'SUPERNODE_IP=\"?\\K[^\"\\s]+' \"$CFG\" | head -1) ;;\n"
+        "esac\n"
+        "if [ -n \"$SRV\" ] && [[ \"$SRV\" != *'<'* ]]; then\n"
+        "  warn \"Test ping $SRV (timeout 2s)...\"\n"
+        "  if ping -c 1 -W 2 \"$SRV\" &>/dev/null 2>&1;\n"
+        "  then ok \"Server raggiungibile: $SRV\";\n"
+        "  else warn \"Ping non risponde: $SRV (potrebbe essere filtrato dal firewall)\"; fi\n"
+        "fi\n"
+        "\n"
+        "# 5. Lunghezza minima config\n"
+        "LINES=$(wc -l < \"$CFG\")\n"
+        "if [ \"$LINES\" -lt 3 ]; then\n"
+        "  warn \"Config molto corta ($LINES righe) — controlla che sia completa\"\n"
+        "fi\n"
+        "\n"
+        "echo \"\"\n"
+        "echo \"--- Validazione: $PASS OK  |  $FAIL errori  |  $WARN avvisi ---\"\n"
+        "[ \"$FAIL\" -eq 0 ] && exit 0 || exit 1\n";
+
+    const QString scriptPath = QStringLiteral("/tmp/prismalux_vpn_check.sh");
+    QFile sf(scriptPath);
+    if (!sf.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        m_vpnLog->append(
+            "<span style='color:#f87171;'>\xe2\x9d\x8c  "
+            "Impossibile creare lo script di validazione.</span>");
+        return;
+    }
+    sf.write(script.toUtf8());
+    sf.close();
+
+    m_vpnValidating = true;
+    if (m_vpnValidateBtn) m_vpnValidateBtn->setEnabled(false);
+    m_vpnLog->append(
+        "<span style='color:#94a3b8;'>\xf0\x9f\x94\x8d  "
+        "Validazione in corso (senza root)...</span>");
+    if (m_vpnStatusLbl) m_vpnStatusLbl->setText(tr("\xf0\x9f\x94\x8d  Validazione..."));
+    LogBus::post(QString("\xf0\x9f\x94\x8d VPN — validazione avviata (%1)").arg(type));
+
+    if (!m_vpnProc) {
+        m_vpnProc = new QProcess(this);
+        m_vpnProc->setProcessChannelMode(QProcess::MergedChannels);
+        connect(m_vpnProc, &QProcess::readyRead,
+                this, &ProgrammazionePage::onVpnProcReadyRead);
+        connect(m_vpnProc,
+                QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, &ProgrammazionePage::onVpnProcFinished);
+    }
+    m_vpnProc->start(QStringLiteral("bash"), {scriptPath});
+}
+
+/* ── Importa config da file (DontUseNativeDialog evita crash Dolphin) ── */
+void ProgrammazionePage::onVpnImportClicked()
+{
+    if (!m_vpnConfig || !m_vpnTypeCombo) return;
+
+    static const char* kFilters[] = {
+        "Config WireGuard (*.conf);;Tutti i file (*)",
+        "Config OpenVPN (*.ovpn *.conf);;Tutti i file (*)",
+        "Script shell (*.sh);;Tutti i file (*)",
+        "Script shell (*.sh);;Tutti i file (*)",
+        "Script shell (*.sh);;Tutti i file (*)",
+        "Script shell (*.sh);;Tutti i file (*)",
+    };
+    const int idx = m_vpnTypeCombo->currentIndex();
+    const QString filter = QString::fromUtf8(
+        (idx >= 0 && idx < 6) ? kFilters[idx] : kFilters[2]);
+
+    QFileDialog dlg(this, tr("Importa configurazione VPN"));
+    dlg.setOption(QFileDialog::DontUseNativeDialog);   // evita crash Dolphin KDE
+    dlg.setFileMode(QFileDialog::ExistingFile);
+    dlg.setNameFilter(filter);
+
+    if (dlg.exec() != QDialog::Accepted) return;
+    const QStringList files = dlg.selectedFiles();
+    if (files.isEmpty()) return;
+
+    QFile f(files.first());
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        if (m_vpnLog)
+            m_vpnLog->append(
+                "<span style='color:#f87171;'>\xe2\x9d\x8c  "
+                "Impossibile aprire: " + files.first().toHtmlEscaped() + "</span>");
+        return;
+    }
+    m_vpnConfig->setPlainText(QString::fromUtf8(f.readAll()));
+    if (m_vpnLog)
+        m_vpnLog->append(
+            QString("<span style='color:#4ade80;'>\xf0\x9f\x93\x82  "
+                    "Importato: %1</span>").arg(files.first().toHtmlEscaped()));
+    LogBus::post("\xf0\x9f\x93\x82 VPN — config importata: " + files.first());
 }
 
 void ProgrammazionePage::onVpnProcReadyRead()
@@ -2110,6 +2414,26 @@ void ProgrammazionePage::onVpnProcReadyRead()
 void ProgrammazionePage::onVpnProcFinished(int code, QProcess::ExitStatus /*status*/)
 {
     if (!m_vpnStatusLbl || !m_vpnLog) return;
+
+    if (m_vpnValidating) {
+        m_vpnValidating = false;
+        if (m_vpnValidateBtn) m_vpnValidateBtn->setEnabled(true);
+        if (code == 0) {
+            m_vpnStatusLbl->setText(tr("\xe2\x9c\x85  Valida"));
+            m_vpnLog->append(
+                "<span style='color:#4ade80;'>\xe2\x9c\x85  "
+                "<b>Configurazione valida</b> — pronta per essere applicata.</span>");
+            LogBus::post("\xe2\x9c\x85 VPN — validazione superata");
+        } else {
+            m_vpnStatusLbl->setText(tr("\xe2\x9d\x8c  Errori trovati"));
+            m_vpnLog->append(
+                "<span style='color:#f87171;'>\xe2\x9d\x8c  "
+                "<b>Trovati errori</b> — correggi prima di applicare.</span>");
+            LogBus::post("\xe2\x9d\x8c VPN — validazione fallita");
+        }
+        return;
+    }
+
     if (code == 0) {
         m_vpnStatusLbl->setText(tr("\xe2\x9c\x85  Completato"));
         m_vpnLog->append(

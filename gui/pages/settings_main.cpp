@@ -1,4 +1,5 @@
 #include "settings_main.h"
+#include "../dpi_utils.h"
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
 #include "main_customize.h"
@@ -52,6 +53,7 @@ namespace P = PrismaluxPaths;  /* alias file-scope per P::SK::kXxx */
 #include <functional>
 #include <QStackedWidget>
 #include <QColorDialog>
+#include <QSplitter>
 #include <QPainter>
 #include <QPen>
 #include <QJsonDocument>
@@ -132,14 +134,12 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
         }
 
         {
-            /* Sinistra (Piper TTS) — larghezza fissa 40%, scrollabile.
-               Destra (Whisper STT) — larghezza fissa 60%, scrollabile verticalmente.
-               Divisione non ridimensionabile dall'utente. */
             auto* leftScroll = new QScrollArea;
             leftScroll->setWidgetResizable(true);
             leftScroll->setFrameShape(QFrame::NoFrame);
             leftScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
             leftScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+            leftScroll->setMinimumWidth(dpiScale(340));
             leftScroll->setWidget(buildVoceTab());
 
             auto* rightScroll = new QScrollArea;
@@ -147,15 +147,16 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
             rightScroll->setFrameShape(QFrame::NoFrame);
             rightScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
             rightScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+            rightScroll->setMinimumWidth(dpiScale(300));
             rightScroll->setWidget(buildTrascriviTab());
 
-            auto* w = new QWidget;
-            auto* l = new QHBoxLayout(w);
-            l->setContentsMargins(8, 8, 8, 8);
-            l->setSpacing(10);
-            l->addWidget(leftScroll,  2);   /* 40% */
-            l->addWidget(rightScroll, 3);   /* 60% */
-            t->addTab(w, "\xf0\x9f\x8e\xa4  Voce & Audio");
+            auto* spl = new QSplitter(Qt::Horizontal);
+            spl->setChildrenCollapsible(false);
+            spl->setContentsMargins(8, 8, 8, 8);
+            spl->addWidget(leftScroll);
+            spl->addWidget(rightScroll);
+            spl->setSizes({ 520, 480 });   /* TTS leggermente più largo */
+            t->addTab(spl, "\xf0\x9f\x8e\xa4  Voce & Audio");
         }
 
         {
@@ -266,7 +267,103 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
        ════════════════════════════════════════════════════════════ */
     tabs->addTab(buildRingraziamentiTab(), "\xf0\x9f\x93\x9c  Ringraziamenti");
 
+    /* ── Campo ricerca — angolo in alto a destra della tab bar ── */
+    {
+        auto* corner = new QWidget(tabs);
+        auto* cLay = new QHBoxLayout(corner);
+        cLay->setContentsMargins(0, 2, 8, 2);
+        cLay->setSpacing(4);
+
+        auto* ico = new QLabel("\xf0\x9f\x94\x8d", corner);
+        ico->setFixedWidth(dpiScale(18));
+        ico->setAlignment(Qt::AlignCenter);
+
+        m_searchEdit = new QLineEdit(corner);
+        m_searchEdit->setPlaceholderText(tr("Ricerca..."));
+        m_searchEdit->setClearButtonEnabled(true);
+        m_searchEdit->setObjectName("settingsSearch");
+        m_searchEdit->setFixedWidth(dpiScale(190));
+
+        cLay->addWidget(ico);
+        cLay->addWidget(m_searchEdit);
+        tabs->setCornerWidget(corner, Qt::TopRightCorner);
+    }
+
     lay->addWidget(tabs);
+
+    /* ── Indice ricerca + collegamento segnali ─────────────────── */
+    buildSearchIndex();
+
+    m_searchTimer = new QTimer(this);
+    m_searchTimer->setSingleShot(true);
+    m_searchTimer->setInterval(7000);
+    connect(m_searchTimer, &QTimer::timeout, this, [this]{
+        onSearchChanged(m_searchEdit->text());
+    });
+
+    connect(m_searchEdit, &QLineEdit::returnPressed, this, [this]{
+        m_searchTimer->stop();
+        onSearchChanged(m_searchEdit->text());
+    });
+    connect(m_searchEdit, &QLineEdit::textChanged, this, [this](const QString& t){
+        if (t.trimmed().isEmpty())
+            m_searchTimer->stop();
+        else
+            m_searchTimer->start();
+    });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildSearchIndex — costruisce indice piatto di tutti i tab
+   ══════════════════════════════════════════════════════════════ */
+void ImpostazioniPage::buildSearchIndex()
+{
+    m_searchIndex.clear();
+    if (!m_tabs) return;
+
+    for (int o = 0; o < m_tabs->count(); ++o) {
+        const QString outerLabel = m_tabs->tabText(o).trimmed();
+        auto* inner = qobject_cast<QTabWidget*>(m_tabs->widget(o));
+        if (inner) {
+            for (int i = 0; i < inner->count(); ++i) {
+                SearchEntry e;
+                e.outer = o;
+                e.inner = i;
+                e.label = outerLabel + " \xe2\x86\x92 " + inner->tabText(i).trimmed();
+                m_searchIndex.append(e);
+            }
+        } else {
+            SearchEntry e;
+            e.outer = o;
+            e.inner = -1;
+            e.label = outerLabel;
+            m_searchIndex.append(e);
+        }
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onSearchChanged — naviga direttamente al primo tab che corrisponde
+   ══════════════════════════════════════════════════════════════ */
+void ImpostazioniPage::onSearchChanged(const QString& text)
+{
+    const QString query = text.trimmed();
+    if (query.isEmpty() || !m_tabs) return;
+
+    for (const SearchEntry& e : m_searchIndex) {
+        if (e.label.contains(query, Qt::CaseInsensitive)) {
+            if (e.outer >= 0 && e.outer < m_tabs->count())
+                m_tabs->setCurrentIndex(e.outer);
+            if (e.inner >= 0) {
+                auto* inner = qobject_cast<QTabWidget*>(m_tabs->widget(e.outer));
+                if (inner && e.inner < inner->count())
+                    inner->setCurrentIndex(e.inner);
+            }
+            m_searchEdit->clear();
+            return;
+        }
+    }
+    m_searchEdit->clear();
 }
 
 /* ══════════════════════════════════════════════════════════════

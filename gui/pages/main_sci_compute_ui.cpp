@@ -3,6 +3,7 @@
    ══════════════════════════════════════════════════════════════ */
 #include "main_sci_compute.h"
 #include "../dpi_utils.h"
+#include "../log_bus.h"
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QDateTime>
@@ -755,6 +756,7 @@ QWidget* SciComputePage::buildUi()
             appendLog(code == 0
                 ? "\xe2\x9c\x85  Modello scaricato: " + model
                 : "\xe2\x9d\x8c  Errore download modello: " + model);
+            if (code != 0) LogBus::post("\xe2\x9d\x8c SciCompute: Errore download modello: " + model);
         });
         proc->start("ollama", {"pull", model});
     });

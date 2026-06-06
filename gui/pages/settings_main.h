@@ -4,6 +4,7 @@
 #include <QFutureWatcher>
 #include <QPair>
 #include <QMap>
+#include <QList>
 #include <QScrollArea>
 #include <QAbstractButton>
 #include <QListWidgetItem>
@@ -90,6 +91,8 @@ signals:
     void indexingFinished(int n, bool aborted);
 
 private slots:
+    /* ── ricerca tab ── */
+    void onSearchChanged(const QString& text);
     /* ── buildAiLocaleTab ── */
     void onThinkModeIdClicked(int id);
     void onThinkBudgetChanged(int v);
@@ -159,6 +162,15 @@ private slots:
     void onMcpCopyOllamaCmdClicked();
 
 private:
+    /* ── ricerca tab: struttura indice ── */
+    struct SearchEntry {
+        int     outer = -1;
+        int     inner = -1;
+        QString label;
+    };
+    void buildSearchIndex();
+    QList<SearchEntry> m_searchIndex;
+
     QWidget* buildTemaTab();
     QWidget* buildTestTab();
     QWidget* buildVoceTab();
@@ -190,6 +202,8 @@ private:
     PersonalizzaPage*  m_personalizza  = nullptr;
     ManutenzioneePage* m_manutenzione  = nullptr;
     QTabWidget*        m_tabs          = nullptr;
+    QLineEdit*         m_searchEdit    = nullptr;
+    QTimer*            m_searchTimer   = nullptr;
     QTabWidget*        m_tabAiLocale   = nullptr;  ///< inner tab: Connessione/HW/RAG/Voce/…
     QTabWidget*        m_tabLlm        = nullptr;  ///< inner tab: LLM/Classifica/Test
     QTabWidget*        m_tabVisuale    = nullptr;  ///< inner tab: Aspetto + Grafico (dinamico)
@@ -202,7 +216,8 @@ private:
     QStringList     m_ragQueue;           ///< chunk da indicizzare
     QStringList     m_ragQueueSource;     ///< nome file sorgente per ogni chunk (parallelo a m_ragQueue)
     int             m_ragQueuePos = 0;    ///< posizione corrente nel queue
-    QLabel*         m_ragFeedbackLbl = nullptr;
+    QLabel*         m_ragFeedbackLbl    = nullptr;
+    QProgressBar*   m_ragProgressBar    = nullptr;
     bool            m_ragNoSave      = false;  ///< se true, non salva l'indice su disco (M2)
     QPushButton*    m_btnStopIndex   = nullptr; ///< "Ferma indicizzazione" — abilitato durante indexing
     bool            m_indexAborted   = false;   ///< flag settato da "Ferma" per interrompere indexNext

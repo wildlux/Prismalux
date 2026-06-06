@@ -36,6 +36,7 @@ private slots:
     // OCR
     void onOcrStartStopClicked(bool on);
     void onOcrTimerTick();
+    void onOcrPreviewTick();
     void onOcrDaemonReadyRead();
     void onOcrDaemonFinished(int code, QProcess::ExitStatus status);
     void onOcrLoadVideoClicked();
@@ -82,13 +83,17 @@ private:
     QPushButton* m_ocrStartBtn   = nullptr;
     QProcess*    m_ocrDaemon     = nullptr;   ///< processo Python persistente (no respawn)
     QByteArray   m_ocrLineBuf;               ///< buffer linea parziale dal daemon
-    QTimer*      m_ocrTimer      = nullptr;
-    QSpinBox*    m_ocrInterval   = nullptr;
+    QTimer*      m_ocrTimer        = nullptr;
+    QTimer*      m_ocrPreviewTimer = nullptr; ///< 200ms — aggiorna anteprima senza OCR
+    QSpinBox*    m_ocrInterval     = nullptr;
+    QComboBox*   m_ocrResCambo     = nullptr; ///< risoluzione webcam
     bool         m_ocrPending    = false;     ///< evita richieste sovrapposte
     // filtri testo OCR
-    QCheckBox*   m_ocrChkDedup   = nullptr;
-    QCheckBox*   m_ocrChkAlpha   = nullptr;
-    QCheckBox*   m_ocrChkMinLen  = nullptr;
+    QCheckBox*        m_ocrChkDedup        = nullptr;
+    QCheckBox*        m_ocrChkAlpha        = nullptr;
+    QCheckBox*        m_ocrChkMinLen       = nullptr;
+    QCheckBox*        m_ocrChkSkipUnchanged = nullptr;
+    QDoubleSpinBox*   m_ocrThreshSpin      = nullptr;
     QSet<QString> m_ocrSeenLines;
     // video OCR
     QString      m_ocrVideoPath;

@@ -6,6 +6,7 @@
    ══════════════════════════════════════════════════════════════ */
 #include "main_programming.h"
 #include "../prismalux_paths.h"
+#include "../log_bus.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -371,12 +372,14 @@ void ProgrammazionePage::gitRun(const QString& subcmd, const QStringList& args)
         if (m_gitOutput)
             m_gitOutput->appendPlainText(
                 "\xe2\x9d\x8c  Imposta il percorso del repository.\n");
+        LogBus::post("\xe2\x9d\x8c Git: Percorso del repository non impostato.");
         return;
     }
     if (!QDir(repo).exists()) {
         if (m_gitOutput)
             m_gitOutput->appendPlainText(
                 QString("\xe2\x9d\x8c  Cartella non trovata: %1\n").arg(repo));
+        LogBus::post("\xe2\x9d\x8c Git: Cartella non trovata: " + repo);
         return;
     }
     if (!QDir(repo + "/.git").exists() && !QFile::exists(repo + "/.git")) {
@@ -385,6 +388,7 @@ void ProgrammazionePage::gitRun(const QString& subcmd, const QStringList& args)
                 QString("\xe2\x9d\x8c  \"%1\" non \xc3\xa8 un repository git.\n"
                         "      Seleziona la cartella radice del progetto (quella che contiene .git).\n")
                 .arg(repo));
+        LogBus::post("\xe2\x9d\x8c Git: \"" + repo + "\" non e' un repository git.");
         return;
     }
 

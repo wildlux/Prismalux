@@ -1,4 +1,6 @@
 #include "settings_main.h"
+#include "../log_bus.h"
+#include "../dpi_utils.h"
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
 #include "main_customize.h"
@@ -787,9 +789,9 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
           "Avogadro MCP",
           "Visualizzazione molecole 3D (Avogadro2)",
           "Ricerca \xe2\x86\x92 Avogadro" },
-        { "python-telegram-bot", "telegram.ext",
+        { "python-telegram-bot", "telegram.ext; from telegram.ext import Application",
           "Telegram Bot",
-          "Bot Telegram locale con risposta AI (v20+, Python 3.14 compatibile)",
+          "Bot Telegram locale con risposta AI (v20+ richiesta)",
           "AppController \xe2\x86\x92 Telegram" },
     };
     const int nPkgs = static_cast<int>(sizeof(kPkgs) / sizeof(kPkgs[0]));
@@ -967,9 +969,12 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
         logView->show();
         btn->setEnabled(false);
         btn->setText(tr("\xe2\x8f\xb3 ..."));
+        const QString logTarget = (pipPkg == "python-telegram-bot")
+            ? "python-telegram-bot>=20"
+            : pipPkg;
         logView->append(
             QString("<span style='color:#94a3b8;'>$ pip install %1</span>")
-                .arg(pipPkg));
+                .arg(logTarget));
 
         auto* proc = new QProcess(page);
         proc->setProcessChannelMode(QProcess::MergedChannels);
@@ -994,7 +999,10 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
                 proc->deleteLater();
             });
 
-        proc->start("python3", {"-m", "pip", "install", pipPkg,
+        const QString installTarget = (pipPkg == "python-telegram-bot")
+            ? "python-telegram-bot>=20"
+            : pipPkg;
+        proc->start("python3", {"-m", "pip", "install", installTarget,
                                 "--no-input", "--break-system-packages"});
     };
 
@@ -1043,9 +1051,13 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
         installAllBtn->setText(tr("\xe2\x8f\xb3 Installazione in corso..."));
         logLbl->show();
         logView->show();
+        QStringList logTargets;
+        for (const QString& pkg : missing)
+            logTargets << (pkg == "python-telegram-bot"
+                           ? "python-telegram-bot>=20" : pkg);
         logView->append(
             QString("<span style='color:#94a3b8;'>$ pip install %1</span>")
-                .arg(missing.join(" ")));
+                .arg(logTargets.join(" ")));
 
         auto* proc = new QProcess(page);
         proc->setProcessChannelMode(QProcess::MergedChannels);
@@ -1056,8 +1068,12 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
                 if (!out.isEmpty()) logView->append(out);
             });
 
+        QStringList installTargets;
+        for (const QString& pkg : missing)
+            installTargets << (pkg == "python-telegram-bot"
+                               ? "python-telegram-bot>=20" : pkg);
         QStringList args = {"-m", "pip", "install"};
-        args += missing;
+        args += installTargets;
         args << "--no-input" << "--break-system-packages";
 
         QObject::connect(
@@ -1325,6 +1341,70 @@ QWidget* ImpostazioniPage::buildRagTab()
         embedRow->addWidget(embedLbl);
         embedRow->addWidget(embedEdit, 1);
         outer->addLayout(embedRow);
+
+        /* ── Card: modelli embedding consigliati ── */
+        struct EmbedRec { const char* name; const char* size; const char* note; };
+        static const EmbedRec kEmbed[] = {
+            { "all-minilm",        "~46 MB",  "Ultraleggero. Ideale su PC con poca RAM. Qualità sufficiente per RAG su documenti brevi." },
+            { "nomic-embed-text",  "~274 MB", "Bilanciato. Miglior rapporto qualità/peso. Consigliato per uso quotidiano." },
+            { "mxbai-embed-large", "~670 MB", "Alta qualità. Ottimo per documenti tecnici lunghi e multilingua." },
+        };
+
+        auto* embedCard = new QFrame(page);
+        embedCard->setObjectName("cardFrame");
+        auto* embedCardLay = new QVBoxLayout(embedCard);
+        embedCardLay->setContentsMargins(12, 10, 12, 10);
+        embedCardLay->setSpacing(6);
+
+        auto* embedCardTitle = new QLabel(
+            "\xf0\x9f\x9b\x96  <b>Modelli embedding consigliati</b> "
+            "<span style='color:#94a3b8;font-size:11px;font-weight:normal;'>"
+            "piccoli — non pesano sulla RAM del modello chat</span>",
+            embedCard);
+        embedCardTitle->setTextFormat(Qt::RichText);
+        embedCardLay->addWidget(embedCardTitle);
+
+        auto* embedGrid = new QGridLayout;
+        embedGrid->setSpacing(4);
+        embedGrid->setColumnStretch(2, 1);
+
+        int embedRow2 = 0;
+        for (const EmbedRec& r : kEmbed) {
+            auto* nameLbl = new QLabel(
+                QString("<code style='color:#60a5fa;'>%1</code>").arg(r.name), embedCard);
+            nameLbl->setTextFormat(Qt::RichText);
+            auto* sizeLbl = new QLabel(
+                QString("<span style='color:#a3e635;'>%1</span>").arg(r.size), embedCard);
+            sizeLbl->setTextFormat(Qt::RichText);
+            sizeLbl->setFixedWidth(70);
+            auto* noteLbl = new QLabel(r.note, embedCard);
+            noteLbl->setObjectName("cardDesc");
+            noteLbl->setWordWrap(true);
+
+            auto* useBtn = new QPushButton("Usa", embedCard);
+            useBtn->setObjectName("navBtn");
+            useBtn->setFixedSize(46, 22);
+            const QString modelName = r.name;
+            QObject::connect(useBtn, &QPushButton::clicked, embedEdit,
+                [embedEdit, modelName] { embedEdit->setText(modelName); });
+
+            embedGrid->addWidget(nameLbl, embedRow2, 0);
+            embedGrid->addWidget(sizeLbl, embedRow2, 1);
+            embedGrid->addWidget(noteLbl, embedRow2, 2);
+            embedGrid->addWidget(useBtn,  embedRow2, 3);
+            ++embedRow2;
+        }
+        embedCardLay->addLayout(embedGrid);
+
+        auto* embedHint = new QLabel(
+            "\xe2\x9a\xa0\xef\xb8\x8f  I modelli chat (qwen3, llama, ecc.) NON supportano /api/embeddings "
+            "e non devono essere usati qui.", embedCard);
+        embedHint->setObjectName("hintLabel");
+        embedHint->setWordWrap(true);
+        embedHint->setStyleSheet("color:#f59e0b;");
+        embedCardLay->addWidget(embedHint);
+
+        outer->addWidget(embedCard);
     }
 
     /* Riga pulsanti: [Ferma indicizzazione]  [Reindicizza ora] */
@@ -1354,6 +1434,18 @@ QWidget* ImpostazioniPage::buildRagTab()
     btnRow->addWidget(reindexBtn);
 
     outer->addLayout(btnRow);
+
+    /* Barra progresso indicizzazione */
+    auto* progressBar = new QProgressBar;
+    progressBar->setObjectName("ragProgressBar");
+    progressBar->setRange(0, 100);
+    progressBar->setValue(0);
+    progressBar->setTextVisible(true);
+    progressBar->setFormat("%p%  (%v / %m chunk)");
+    progressBar->setFixedHeight(dpiScale(22));
+    progressBar->setVisible(false);
+    outer->addWidget(progressBar);
+    m_ragProgressBar = progressBar;
 
     /* Label feedback */
     auto* feedbackLbl = new QLabel;
@@ -1938,9 +2030,11 @@ QWidget* ImpostazioniPage::buildSandboxTab()
                     pullBtn->setVisible(false);
                     pullStatus->setText(
                         QString("\xe2\x9c\x85  %1 scaricata con successo.").arg(img));
-                } else
+                } else {
                     pullStatus->setText(
                         QString("\xe2\x9d\x8c  Errore: %1").arg(out.left(120)));
+                    LogBus::post("\xe2\x9d\x8c Sandbox: docker pull fallito: " + out.left(120));
+                }
             });
             proc->start(P::findDocker(), {"pull", img});
         });

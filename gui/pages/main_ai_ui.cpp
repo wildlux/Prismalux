@@ -2,6 +2,7 @@
 #include "main_ai_p.h"
 #include "../dpi_utils.h"
 #include "../prismalux_paths.h"
+#include "../log_bus.h"
 namespace P = PrismaluxPaths;
 #include "../app_config.h"
 #include <QTime>
@@ -2050,6 +2051,9 @@ void AgentiPage::onRagUrlFetched()
     if (err != QNetworkReply::NoError) {
         if (m_ragStatusLbl) m_ragStatusLbl->setText("\xe2\x9d\x8c  Errore rete: " +
             QString::number(static_cast<int>(err)));
+        LogBus::post(QString("\xe2\x9d\x8c AI UI: Errore rete RAG URL: %1 (codice %2)")
+                     .arg(finalUrl.toString())
+                     .arg(static_cast<int>(err)));
         return;
     }
 

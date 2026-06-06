@@ -1,4 +1,5 @@
 #include "settings_main.h"
+#include "../log_bus.h"
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
 #include "main_customize.h"
@@ -1001,6 +1002,103 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
     titleLbl->setTextFormat(Qt::RichText);
     mainLay->addWidget(titleLbl);
 
+    /* ── Card: routing automatico per dominio ────────────────────── */
+    {
+        struct DomainRec {
+            const char* icon;
+            const char* domain;
+            const char* models;   /* modelli consigliati */
+            const char* reason;
+            const char* badge;    /* colore sfondo pill */
+        };
+        static const DomainRec kDomains[] = {
+            { "\xf0\x9f\x94\xa2", "Matematica / Fisica / Chimica",
+              "qwen2.5-math:7b \xe2\x80\xa2 deepseek-r1:7b \xe2\x80\xa2 qwen3:8b",
+              "Ragionamento simbolico, equazioni, derivate, integrali, stechiometria, circuiti. "
+              "Prismalux riconosce automaticamente le query STEM e preferisce questi modelli.",
+              "#92400e" },
+            { "\xe2\x9a\xa1", "Elettronica / Circuiti",
+              "qwen2.5-math:7b \xe2\x80\xa2 deepseek-r1:7b",
+              "Legge di Ohm, filtri RC/RL, trasformate di Laplace, analisi nodale. "
+              "Calcoli numerici diretti via SymPy quando le formule sono note.",
+              "#1e3a5f" },
+            { "\xf0\x9f\x92\xac", "Linguaggio / Generale",
+              "qwen3:4b \xe2\x80\xa2 qwen3:8b \xe2\x80\xa2 mistral:7b",
+              "Conversazioni, riassunti, traduzioni, domande aperte. "
+              "Routing automatico: se la query non contiene simboli o numeri, usa il modello generale.",
+              "#0e4d92" },
+            { "\xf0\x9f\x96\xa5", "Codice / Debug",
+              "qwen2.5-coder:7b \xe2\x80\xa2 deepseek-coder:6.7b \xe2\x80\xa2 qwen2.5-coder:3b",
+              "Generazione, analisi e refactoring di codice C++/Python/JS. "
+              "Il Dev Agent (AppController) usa automaticamente un modello coding.",
+              "#166534" },
+        };
+
+        auto* domCard = new QFrame(page);
+        domCard->setObjectName("cardFrame");
+        auto* domLay = new QVBoxLayout(domCard);
+        domLay->setContentsMargins(12, 10, 12, 10);
+        domLay->setSpacing(8);
+
+        auto* domTitle = new QLabel(
+            "\xf0\x9f\x94\x80  <b>Routing intelligente per dominio</b> "
+            "<span style='color:#94a3b8;font-size:11px;font-weight:normal;'>"
+            "Prismalux sceglie il modello migliore in base al tipo di query</span>",
+            domCard);
+        domTitle->setTextFormat(Qt::RichText);
+        domLay->addWidget(domTitle);
+
+        auto* domGrid = new QGridLayout;
+        domGrid->setSpacing(6);
+        domGrid->setColumnStretch(2, 1);
+
+        int domRow = 0;
+        for (const DomainRec& d : kDomains) {
+            auto* icoLbl = new QLabel(d.icon, domCard);
+            icoLbl->setFixedWidth(24);
+            icoLbl->setAlignment(Qt::AlignCenter);
+
+            auto* domLbl = new QLabel(
+                QString("<b style='color:#e2e8f0;'>%1</b>").arg(d.domain), domCard);
+            domLbl->setTextFormat(Qt::RichText);
+
+            auto* modLbl = new QLabel(
+                QString("<code style='color:#60a5fa;font-size:11px;'>%1</code>").arg(d.models),
+                domCard);
+            modLbl->setTextFormat(Qt::RichText);
+            modLbl->setWordWrap(true);
+
+            auto* reasonLbl = new QLabel(d.reason, domCard);
+            reasonLbl->setObjectName("cardDesc");
+            reasonLbl->setWordWrap(true);
+
+            auto* badgeWrap = new QFrame(domCard);
+            badgeWrap->setStyleSheet(
+                QString("QFrame { background:%1; border-radius:3px; }").arg(d.badge));
+            badgeWrap->setFixedSize(8, 44);
+
+            domGrid->addWidget(badgeWrap, domRow, 0, 2, 1);
+            domGrid->addWidget(icoLbl,   domRow, 1);
+            domGrid->addWidget(domLbl,   domRow, 2);
+            domGrid->addWidget(modLbl,   domRow + 1, 2);
+            domGrid->addWidget(reasonLbl, domRow, 3, 2, 1);
+            ++domRow; ++domRow;
+        }
+        domLay->addLayout(domGrid);
+
+        auto* domHint = new QLabel(
+            "\xf0\x9f\x92\xa1  Nelle schede <b>Matematica</b>, <b>Ricerca</b> e <b>Strumenti</b> "
+            "la combo modello evidenzia in <span style='color:#92400e;'>arancione</span> "
+            "i modelli consigliati per il dominio rilevato nella query.",
+            domCard);
+        domHint->setTextFormat(Qt::RichText);
+        domHint->setObjectName("hintLabel");
+        domHint->setWordWrap(true);
+        domLay->addWidget(domHint);
+
+        mainLay->addWidget(domCard);
+    }
+
     /* ── 2 colonne ── */
     auto* colsRow = new QWidget(page);
     auto* colsLay = new QHBoxLayout(colsRow);
@@ -1176,8 +1274,10 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
                 page, [proc, logOut, customDlBtn, filename](int code, QProcess::ExitStatus) {
             if (code == 0)
                 logOut->setText(QString("\xe2\x9c\x85  %1 scaricato.").arg(filename));
-            else
+            else {
                 logOut->setText(tr("\xe2\x9d\x8c  Download fallito. Controlla URL e connessione."));
+                LogBus::post("\xe2\x9d\x8c LLM: Download GGUF fallito: " + filename);
+            }
             customDlBtn->setEnabled(true);
             proc->deleteLater();
         });
@@ -1391,6 +1491,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
                     installBtn->setEnabled(true);
                     installBtn->setText(tr("\xe2\xac\x87  Installa"));
                     logOut->setText(tr("\xe2\x9d\x8c  Errore. Assicurati che ollama sia in esecuzione."));
+                    LogBus::post("\xe2\x9d\x8c LLM: ollama pull fallito: " + ollamaName);
                 }
                 proc->deleteLater();
             });
@@ -1417,6 +1518,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
                     installBtn->setEnabled(true);
                     installBtn->setText(tr("\xe2\xac\x87  Installa"));
                     logOut->setText(tr("\xe2\x9d\x8c  Errore download. Controlla wget/connessione."));
+                    LogBus::post("\xe2\x9d\x8c LLM: Download GGUF (wget) fallito: " + ggufFile);
                 }
                 proc->deleteLater();
             });
@@ -1439,6 +1541,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
                         installBtn->setEnabled(true);
                         installBtn->setText(tr("\xe2\xac\x87  Installa"));
                         logOut->setText(tr("\xe2\x9d\x8c  Errore: installa wget o curl."));
+                        LogBus::post("\xe2\x9d\x8c LLM: Download GGUF (curl) fallito: " + ggufFile);
                     }
                     curl->deleteLater();
                 });
@@ -1848,8 +1951,10 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
             if (code == 0)
                 logLbl->setText(QString("\xe2\x9c\x85  %1 installato con successo.")
                                  .arg(e.display));
-            else
+            else {
                 logLbl->setText(tr("\xe2\x9d\x8c  Installazione fallita. Ollama attivo?"));
+                LogBus::post(QString("\xe2\x9d\x8c LLM: Installazione fallita (Classifica): ") + e.display);
+            }
             installBtn->setEnabled(true);
             proc->deleteLater();
         });

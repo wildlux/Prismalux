@@ -1,6 +1,7 @@
 #include "main_maintenance.h"
 #include "../prismalux_paths.h"
 #include "../widgets/model_combo_helper.h"
+#include "../log_bus.h"
 namespace P = PrismaluxPaths;
 #include <QSettings>
 #include <QBrush>
@@ -1311,6 +1312,7 @@ void ManutenzioneePage::onSrvStartClicked()
 {
     if (m_srvModelPath->text().trimmed().isEmpty()) {
         m_srvLog->append("\xe2\x9d\x8c  Seleziona un file .gguf prima di avviare il server.");
+        LogBus::post("\xe2\x9d\x8c Manutenzione: Nessun file .gguf selezionato per llama-server.");
         return;
     }
     m_srvLog->clear();
@@ -1363,6 +1365,7 @@ void ManutenzioneePage::onSrvProcErrorOccurred(QProcess::ProcessError err)
 {
     if (err == QProcess::FailedToStart) {
         m_srvLog->append("\xe2\x9d\x8c  llama-server non trovato. Compilalo nella scheda \xf0\x9f\xa6\x99 llama.cpp.");
+        LogBus::post("\xe2\x9d\x8c Manutenzione: llama-server non trovato nel PATH.");
         m_srvStartBtn->setEnabled(true);
         m_srvStopBtn->setEnabled(false);
         m_srvProc = nullptr;
@@ -1386,9 +1389,11 @@ void ManutenzioneePage::onFmtApplyClicked()
         m_fmtStatus->setText(
             QString("\xe2\x9c\x85  Config salvato in formato %1")
             .arg(newFmt.toUpper()));
-    else
+    else {
         m_fmtStatus->setText(
             QString("\xe2\x9d\x8c  %1").arg(err));
+        LogBus::post("\xe2\x9d\x8c Manutenzione: Errore conversione config: " + err);
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1539,6 +1544,7 @@ void ManutenzioneePage::onListProcFinished(int, QProcess::ExitStatus)
 
     if (models.isEmpty()) {
         if (m_updStatusLbl) m_updStatusLbl->setText(tr("\xe2\x9d\x8c  Nessun modello trovato. Ollama in esecuzione?"));
+        LogBus::post("\xe2\x9d\x8c Manutenzione: Nessun modello trovato. Ollama in esecuzione?");
         if (m_updAllBtn) m_updAllBtn->setEnabled(true);
         return;
     }
@@ -1563,6 +1569,7 @@ void ManutenzioneePage::onListProcError(QProcess::ProcessError)
         m_listProc = nullptr;
     }
     if (m_updStatusLbl) m_updStatusLbl->setText(tr("\xe2\x9d\x8c  Ollama non trovato. Verifica il PATH."));
+    LogBus::post("\xe2\x9d\x8c Manutenzione: Ollama non trovato nel PATH.");
     if (m_updAllBtn) m_updAllBtn->setEnabled(true);
 }
 
@@ -1715,6 +1722,7 @@ void ManutenzioneePage::onGitProcError(QProcess::ProcessError)
         m_gitProc = nullptr;
     }
     if (m_updLog) m_updLog->append("\xe2\x9d\x8c  git non trovato nel PATH.");
+    LogBus::post("\xe2\x9d\x8c Manutenzione: git non trovato nel PATH.");
     if (m_updStatusLbl) m_updStatusLbl->setText(tr("\xe2\x9a\xa0  git non disponibile."));
     if (m_updLlamaBtn) m_updLlamaBtn->setEnabled(true);
 }

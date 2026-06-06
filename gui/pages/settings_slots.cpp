@@ -4,7 +4,9 @@
  * durante la conversione lambda→slot (commit 65b4bc7).
  */
 #include "settings_main.h"
+#include "../log_bus.h"
 #include "../widgets/toggle_switch.h"
+#include <QProgressBar>
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
 #include "../app_config.h"
@@ -105,6 +107,7 @@ void ImpostazioniPage::populateOllamaModels()
         m_aiModelList->clear();
         if (list.isEmpty()) {
             if (m_aiStatusLbl) m_aiStatusLbl->setText(tr("\xe2\x9d\x8c Nessun modello"));
+            LogBus::post("\xe2\x9d\x8c Impostazioni: Nessun modello Ollama trovato");
             if (m_aiHintLbl)   m_aiHintLbl->setText(
                 "Ollama non raggiungibile o nessun modello installato.\n"
                 "Avvia Ollama e riprova.");
@@ -646,6 +649,11 @@ void ImpostazioniPage::startEmbeddingPhase(const QString& dir)
             QString("\xe2\x8f\xb3  Indicizzazione: 0 / %1 chunk...").arg(m_ragQueue.size()));
         m_ragFeedbackLbl->setVisible(true);
     }
+    if (m_ragProgressBar) {
+        m_ragProgressBar->setRange(0, m_ragQueue.size());
+        m_ragProgressBar->setValue(0);
+        m_ragProgressBar->setVisible(true);
+    }
     emit indexingProgress(0, m_ragQueue.size());
 
     auto errCount  = std::make_shared<int>(0);
@@ -699,6 +707,10 @@ void ImpostazioniPage::startEmbeddingPhase(const QString& dir)
                                 : "Indice salvato in <code>~/.prismalux_rag.json</code>."));
                 }
             }
+            if (m_ragProgressBar) {
+                m_ragProgressBar->setValue(wasAborted ? m_ragQueuePos : m_ragQueue.size());
+                m_ragProgressBar->setVisible(false);
+            }
             if (m_btnStopIndex)  m_btnStopIndex->setEnabled(false);
             if (m_ragReindexBtn) m_ragReindexBtn->setEnabled(true);
             emit indexingFinished(n, wasAborted);
@@ -714,6 +726,8 @@ void ImpostazioniPage::startEmbeddingPhase(const QString& dir)
                     .arg(srcName.isEmpty()
                         ? "..."
                         : " da <b>" + srcName + "</b>"));
+        if (m_ragProgressBar)
+            m_ragProgressBar->setValue(m_ragQueuePos);
         emit indexingProgress(m_ragQueuePos, m_ragQueue.size());
 
         const QString chunk = m_ragQueue[m_ragQueuePos++];

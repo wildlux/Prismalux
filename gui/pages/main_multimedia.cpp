@@ -6,6 +6,7 @@
 #include "../widgets/ffmpeg_utils.h"
 #include "../widgets/opencv_utils.h"
 #include "../widgets/world_map_widget.h"
+#include "../log_bus.h"
 #include <QSettings>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -29,6 +30,7 @@
 #include <QRegularExpression>
 #include <QTextCursor>
 #include <QSpinBox>
+#include <QDoubleSpinBox>
 #include <QApplication>
 #include <QClipboard>
 #include <QJsonDocument>
@@ -366,6 +368,7 @@ void MultimediaPage::onRecBtnToggled(bool on)
         } else {
             m_audioFileLbl->setText(
                 "\xe2\x9d\x8c  Registrazione fallita (arecord non trovato?)");
+            LogBus::post("\xe2\x9d\x8c Multimedia: Registrazione fallita (arecord non trovato?)");
         }
     }
 }
@@ -400,6 +403,7 @@ void MultimediaPage::onTranscribeBtnClicked()
     if (m_audioFilePath.isEmpty()) {
         m_audioTranscript->setPlainText(
             "\xe2\x9d\x8c  Carica prima un file audio.");
+        LogBus::post("\xe2\x9d\x8c Audio AI: Carica prima un file audio.");
         return;
     }
 
@@ -460,6 +464,7 @@ void MultimediaPage::onHttpTranscriptionError(const QString& msg)
     m_audioTranscript->setPlainText(
         "\xe2\x9d\x8c  Errore trascrizione HTTP:\n" + msg);
     m_audioErr->showError(msg);
+    LogBus::post("\xe2\x9d\x8c Audio AI: Errore trascrizione HTTP: " + msg);
 }
 
 void MultimediaPage::onFfmpegFinished(int code, QProcess::ExitStatus)
@@ -472,6 +477,7 @@ void MultimediaPage::onFfmpegFinished(int code, QProcess::ExitStatus)
         m_audioTranscript->setPlainText(
             "\xe2\x9d\x8c  Conversione fallita.\n"
             "Installa ffmpeg: sudo apt install ffmpeg");
+        LogBus::post("\xe2\x9d\x8c Audio AI: Conversione fallita (ffmpeg).");
     }
 }
 
@@ -481,6 +487,7 @@ void MultimediaPage::onAnalyzeBtnClicked()
     if (transcript.isEmpty()) {
         m_audioOutput->setPlainText(
             "\xe2\x9d\x8c  Trascrivi prima il file audio (o incolla il testo).");
+        LogBus::post("\xe2\x9d\x8c Audio AI: Trascrivi prima il file audio (o incolla il testo).");
         return;
     }
 
@@ -539,6 +546,7 @@ void MultimediaPage::onGraphvizProcFinished(int code, QProcess::ExitStatus)
         m_graphvizStatus->setText(
             "\xe2\x9d\x8c  Errore Graphviz: " + err.left(200) +
             "\n\xe2\x84\xb9  Installa: sudo apt install graphviz");
+        LogBus::post("\xe2\x9d\x8c Graphviz: Errore Graphviz: " + err.left(200));
     }
 }
 
@@ -566,6 +574,7 @@ void MultimediaPage::_renderDotCode(const QString& dot)
         m_graphvizStatus->setText(
             "\xe2\x9d\x8c  Graphviz non trovato. "
             "Installa con: <b>sudo apt install graphviz</b>");
+        LogBus::post("\xe2\x9d\x8c Graphviz: Graphviz non trovato nel PATH.");
         m_graphvizProc->deleteLater();
         m_graphvizProc = nullptr;
     }
@@ -610,6 +619,7 @@ void MultimediaPage::onGraphvizAiError(const QString& msg)
     m_graphvizErrorConn    = {};
     m_graphvizStatus->setText(tr("\xe2\x9d\x8c  Errore AI"));
     m_graphvizErr->showError(msg, [this]{ runGraphvizAi(); });
+    LogBus::post("\xe2\x9d\x8c Graphviz: Errore AI: " + msg);
 }
 
 void MultimediaPage::onAudioToken(const QString& t)
@@ -633,6 +643,7 @@ void MultimediaPage::onAudioAnalyzeError(const QString& msg)
     QObject::disconnect(m_audioErrorConn);
     m_audioTokenConn = m_audioFinishedConn = m_audioErrorConn = {};
     m_audioErr->showError(msg);
+    LogBus::post("\xe2\x9d\x8c Audio AI: Errore analisi: " + msg);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -740,6 +751,24 @@ QWidget* MultimediaPage::buildOcrTab()
     m_ocrInterval->setToolTip(tr("Secondi tra una scansione webcam e l'altra"));
     cl->addWidget(m_ocrInterval);
 
+    cl->addWidget(new QLabel("Risoluzione:", ctrlRow));
+    m_ocrResCambo = new QComboBox(ctrlRow);
+    m_ocrResCambo->addItem("640\xc3\x97" "480  (veloce)",   QStringLiteral("640x480"));
+    m_ocrResCambo->addItem("1280\xc3\x97" "720  (consigliata)", QStringLiteral("1280x720"));
+    m_ocrResCambo->addItem("1920\xc3\x97" "1080 (qualit\xc3\xa0 max)", QStringLiteral("1920x1080"));
+    m_ocrResCambo->setCurrentIndex(1);   /* 720p default */
+    m_ocrResCambo->setToolTip(
+        tr("Risoluzione di cattura webcam.\n"
+           "Pi\xc3\xb9 alta = testo pi\xc3\xb9 nitido, pi\xc3\xb9 lenta.\n"
+           "720p \xc3\xa8 il miglior compromesso velocit\xc3\xa0/qualit\xc3\xa0."));
+    connect(m_ocrResCambo, &QComboBox::currentIndexChanged,
+            this, [this](int) {
+                if (m_ocrDaemon && m_ocrDaemon->state() == QProcess::Running)
+                    m_ocrDaemon->write(
+                        ("SETRES:" + m_ocrResCambo->currentData().toString() + "\n").toUtf8());
+            });
+    cl->addWidget(m_ocrResCambo);
+
     /* Separatore visivo */
     auto* sep = new QFrame(ctrlRow);
     sep->setFrameShape(QFrame::VLine);
@@ -821,6 +850,47 @@ QWidget* MultimediaPage::buildOcrTab()
     m_ocrChkMinLen->setToolTip(tr("Scarta parole/frammenti troppo corti"));
     fl->addWidget(m_ocrChkMinLen);
 
+    /* separatore visivo */
+    auto* sepFilter = new QFrame(filterRow);
+    sepFilter->setFrameShape(QFrame::VLine);
+    sepFilter->setFrameShadow(QFrame::Sunken);
+    fl->addWidget(sepFilter);
+
+    m_ocrChkSkipUnchanged = new QCheckBox("Salta OCR se scena invariata", panel);
+    m_ocrChkSkipUnchanged->setChecked(true);
+    m_ocrChkSkipUnchanged->setToolTip(
+        tr("Confronta l'istogramma di colore del frame corrente con l'ultimo scansionato.\n"
+           "Se la somiglianza supera la soglia, Tesseract viene saltato (~5ms invece di ~1-2s)."));
+    fl->addWidget(m_ocrChkSkipUnchanged);
+
+    fl->addWidget(new QLabel("Soglia:", panel));
+    m_ocrThreshSpin = new QDoubleSpinBox(panel);
+    m_ocrThreshSpin->setRange(0.80, 0.999);
+    m_ocrThreshSpin->setSingleStep(0.01);
+    m_ocrThreshSpin->setDecimals(3);
+    m_ocrThreshSpin->setValue(0.970);
+    m_ocrThreshSpin->setToolTip(
+        tr("Correlazione istogramma: 1.0=identici, 0.80=molto diversi.\n"
+           "0.97 = salta OCR se il 97% della distribuzione colori \xc3\xa8 uguale."));  /* è */
+    connect(m_ocrThreshSpin, &QDoubleSpinBox::valueChanged,
+            this, [this](double v) {
+                if (m_ocrDaemon && m_ocrDaemon->state() == QProcess::Running) {
+                    const bool skip = m_ocrChkSkipUnchanged && m_ocrChkSkipUnchanged->isChecked();
+                    const double thresh = skip ? v : 2.0;
+                    m_ocrDaemon->write(
+                        QString("SETTHRESH:%1\n").arg(thresh, 0, 'f', 3).toUtf8());
+                }
+            });
+    connect(m_ocrChkSkipUnchanged, &QCheckBox::toggled,
+            this, [this](bool on) {
+                if (m_ocrDaemon && m_ocrDaemon->state() == QProcess::Running) {
+                    const double thresh = on ? m_ocrThreshSpin->value() : 2.0;
+                    m_ocrDaemon->write(
+                        QString("SETTHRESH:%1\n").arg(thresh, 0, 'f', 3).toUtf8());
+                }
+            });
+    fl->addWidget(m_ocrThreshSpin);
+
     fl->addStretch(1);
     vbox->addWidget(filterRow);
 
@@ -884,6 +954,12 @@ QWidget* MultimediaPage::buildOcrTab()
     connect(m_ocrTimer, &QTimer::timeout,
             this, &MultimediaPage::onOcrTimerTick);
 
+    m_ocrPreviewTimer = new QTimer(panel);
+    m_ocrPreviewTimer->setSingleShot(false);
+    m_ocrPreviewTimer->setInterval(200);   /* ~5fps live preview */
+    connect(m_ocrPreviewTimer, &QTimer::timeout,
+            this, &MultimediaPage::onOcrPreviewTick);
+
     connect(m_ocrStartBtn, &QPushButton::toggled,
             this, &MultimediaPage::onOcrStartStopClicked);
 
@@ -899,6 +975,7 @@ static QString ocrDaemonScript(const QString& previewPath)
 {
     return QString(R"PY(
 import sys, json, re as _re
+import numpy as _np
 sys.stdout.reconfigure(line_buffering=True)
 try:
     import cv2
@@ -909,21 +986,112 @@ except ImportError as e:
 
 PREVIEW = '%1'
 
+# ── Frame matching via istogramma di colore ──────────────────────────
+_last_hist   = None
+_skip_thresh = 0.970
+
+def _frame_hist(frame):
+    small = cv2.resize(frame, (64, 64), interpolation=cv2.INTER_NEAREST)
+    hsv   = cv2.cvtColor(small, cv2.COLOR_BGR2HSV)
+    h_h = cv2.calcHist([hsv], [0], None, [32], [0, 180])
+    h_s = cv2.calcHist([hsv], [1], None, [32], [0, 256])
+    h_v = cv2.calcHist([hsv], [2], None, [32], [0, 256])
+    for h in (h_h, h_s, h_v):
+        cv2.normalize(h, h)
+    return _np.concatenate([h_h.flatten(), h_s.flatten(), h_v.flatten()])
+
+def _hist_similarity(a, b):
+    denom = (_np.std(a) * _np.std(b))
+    if denom < 1e-9:
+        return 1.0
+    return float(_np.corrcoef(a, b)[0, 1])
+
+# ── Deskew prospettico ────────────────────────────────────────────────
+def _four_point_transform(image, pts):
+    """Warp prospettico dati 4 punti nell'ordine TL,TR,BR,BL.
+    Aggiunge 2% di padding su ogni lato per non troncare i caratteri di bordo."""
+    s    = pts.sum(axis=1)
+    diff = _np.diff(pts, axis=1)
+    rect = _np.zeros((4, 2), dtype='float32')
+    rect[0] = pts[_np.argmin(s)]     # top-left
+    rect[2] = pts[_np.argmax(s)]     # bottom-right
+    rect[1] = pts[_np.argmin(diff)]  # top-right
+    rect[3] = pts[_np.argmax(diff)]  # bottom-left
+    tl, tr, br, bl = rect
+    w = int(max(_np.linalg.norm(br - bl), _np.linalg.norm(tr - tl)))
+    h = int(max(_np.linalg.norm(tr - br), _np.linalg.norm(tl - bl)))
+    if w < 10 or h < 10:
+        return image
+    # Padding 2% per lato — evita troncatura testo a bordo
+    pw = max(6, int(w * 0.02))
+    ph = max(6, int(h * 0.02))
+    dst = _np.array([[pw, ph],[w-1+pw, ph],[w-1+pw, h-1+ph],[pw, h-1+ph]], dtype='float32')
+    M   = cv2.getPerspectiveTransform(rect, dst)
+    return cv2.warpPerspective(image, M, (w + 2*pw, h + 2*ph),
+                               borderMode=cv2.BORDER_REPLICATE)
+
+def _auto_deskew(frame):
+    """Rileva il documento più grande e lo raddrizza prospetticamente.
+       Se non trovato, restituisce il frame originale."""
+    h0, w0 = frame.shape[:2]
+    sc = min(1.0, 800.0 / max(h0, w0, 1))
+    small = cv2.resize(frame, (int(w0 * sc), int(h0 * sc)))
+    gray  = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+    gray  = cv2.GaussianBlur(gray, (5, 5), 0)
+    edged = cv2.Canny(gray, 30, 150)
+    edged = cv2.dilate(edged, _np.ones((5, 5), _np.uint8), iterations=2)
+    cnts, _ = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:8]
+    min_area = h0 * w0 * sc * sc * 0.08   # almeno 8% del frame
+    for c in cnts:
+        if cv2.contourArea(c) < min_area:
+            continue
+        peri  = cv2.arcLength(c, True)
+        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+        if len(approx) == 4:
+            pts = (approx.reshape(4, 2) / sc).astype('float32')
+            return _four_point_transform(frame, pts)
+    return frame   # nessun quadrilatero trovato
+
+# ── OCR su singolo frame ──────────────────────────────────────────────
 def ocr_frame(frame):
-    """Elabora un frame e restituisce le righe di testo filtrate."""
+    """Preprocessing avanzato + Tesseract; restituisce righe di testo."""
+    # 1. Anteprima prima del deskew (più rappresentativa)
     cv2.imwrite(PREVIEW, cv2.resize(frame, (320, 240)))
+
+    # 2. Raddrizzamento prospettico
+    frame = _auto_deskew(frame)
+
+    # 3. Upscale al lato lungo >= 2000px (fondamentale per testo piccolo)
     h, w = frame.shape[:2]
-    if w > 1000:
-        frame = cv2.resize(frame, (1000, int(h * 1000 / w)))
+    long_side = max(h, w)
+    if long_side < 2000:
+        sc = 2000.0 / long_side
+        frame = cv2.resize(frame, (int(w * sc), int(h * sc)),
+                           interpolation=cv2.INTER_CUBIC)
+
+    # 4. Converti in grigio
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    gray = cv2.GaussianBlur(gray, (3, 3), 0)
-    _, gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    # 5. CLAHE: contrasto adattivo (regge illuminazione non uniforme)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    gray  = clahe.apply(gray)
+
+    # 6. Sharpening leggero per bordi lettere
+    kernel_sharp = _np.array([[0,-1,0],[-1,5,-1],[0,-1,0]], dtype=_np.float32)
+    gray = cv2.filter2D(gray, -1, kernel_sharp)
+
+    # 7. Threshold adattivo (meglio di Otsu su background non uniforme)
+    gray = cv2.adaptiveThreshold(gray, 255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 10)
+
+    # 8. Tesseract: PSM 3 (auto page layout), MIN_CONF 48
     data = pytesseract.image_to_data(gray, lang='ita+eng',
-        config='--psm 6 --oem 3', output_type=pytesseract.Output.DICT)
-    MIN_CONF = 55
+        config='--psm 3 --oem 3', output_type=pytesseract.Output.DICT)
+    MIN_CONF = 48
     seen_key = None
     line_buf = []
-    lines = []
+    raw_lines = []
     n = len(data['text'])
     for i in range(n):
         conf = int(data['conf'][i])
@@ -936,23 +1104,50 @@ def ocr_frame(frame):
         if key != seen_key:
             if line_buf:
                 j = ' '.join(line_buf)
-                if len(j) >= 3: lines.append(j)
+                if len(j) >= 3:
+                    raw_lines.append(j)
             line_buf = []
             seen_key = key
         line_buf.append(word)
     if line_buf:
         j = ' '.join(line_buf)
-        if len(j) >= 3: lines.append(j)
-    return lines
+        if len(j) >= 3:
+            raw_lines.append(j)
 
-# Apri webcam e fai warmup
+    # Filtro qualità post-OCR: scarta spazzatura ma preserva email/@, tel/numeri, URL
+    def _line_is_useful(line):
+        # Contiene email o URL → sempre utile
+        if '@' in line or 'http' in line.lower():
+            return True
+        # Contiene almeno 3 cifre consecutive → indirizzo/telefono
+        if _re.search(r'\d{3,}', line):
+            return True
+        # Lunghezza media parola >= 4 (parole reali, non frammenti)
+        words = line.split()
+        if not words:
+            return False
+        avg_len = sum(len(w) for w in words) / len(words)
+        return avg_len >= 4.0
+
+    return [l for l in raw_lines if _line_is_useful(l)]
+
+# Apri webcam: 720p default, 30fps
 cap = cv2.VideoCapture(0)
 if not cap.isOpened():
     print(json.dumps({'error': 'Webcam non disponibile — controlla /dev/video0'}), flush=True)
     sys.exit(0)
-for _ in range(3):
+cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT,  720)
+cap.set(cv2.CAP_PROP_FPS, 30)
+# Warmup: scarta i frame di inizializzazione (alcuni driver ne accumulano diversi)
+for _ in range(5):
     cap.read()
 print(json.dumps({'ready': True}), flush=True)
+
+def _read_fresh(cap):
+    """Legge due frame e scarta il primo: quello rimasto nel buffer interno."""
+    cap.read()        # scarta frame vecchio
+    return cap.read() # restituisce quello corrente
 
 # Loop comandi
 for raw_line in sys.stdin:
@@ -960,12 +1155,57 @@ for raw_line in sys.stdin:
     if not cmd:
         continue
 
+    # ── SETRES:WxH — cambia risoluzione webcam a caldo ──
+    if cmd.startswith('SETRES:'):
+        try:
+            wh = cmd.split(':', 1)[1].split('x')
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH,  int(wh[0]))
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, int(wh[1]))
+            for _ in range(3): cap.read()   # svuota buffer con nuova res
+        except Exception:
+            pass
+        continue
+
+    # ── SETTHRESH:x.xxx — aggiorna soglia match scena a caldo ──
+    if cmd.startswith('SETTHRESH:'):
+        try:
+            _skip_thresh = float(cmd.split(':', 1)[1])
+        except Exception:
+            pass
+        continue
+
+    # ── PREVIEW: solo frame visivo, senza OCR (~15ms) ──
+    if cmd == 'PREVIEW':
+        ret, frame = _read_fresh(cap)
+        if ret:
+            cv2.imwrite(PREVIEW, cv2.resize(frame, (320, 240)))
+            print(json.dumps({'preview': PREVIEW, 'preview_only': True}), flush=True)
+        continue
+
     # ── SCAN: singolo frame dalla webcam ──
     if cmd == 'SCAN':
-        ret, frame = cap.read()
+        ret, frame = _read_fresh(cap)
         if not ret:
             print(json.dumps({'error': 'Frame non catturato'}), flush=True)
             continue
+
+        # Confronto istogramma in RAM — salta OCR se scena troppo simile
+        if _skip_thresh <= 1.0 and _last_hist is not None:
+            cur_hist = _frame_hist(frame)
+            sim = _hist_similarity(_last_hist, cur_hist)
+            if sim >= _skip_thresh:
+                # Aggiorna comunque l'anteprima per il timer veloce
+                cv2.imwrite(PREVIEW, cv2.resize(frame, (320, 240)))
+                print(json.dumps({
+                    'unchanged': True,
+                    'similarity': round(sim, 4),
+                    'preview': PREVIEW
+                }), flush=True)
+                continue
+        else:
+            cur_hist = _frame_hist(frame)
+
+        _last_hist = cur_hist
         lines = ocr_frame(frame)
         print(json.dumps({'text': '\n'.join(lines), 'preview': PREVIEW}), flush=True)
 
@@ -1029,6 +1269,7 @@ void MultimediaPage::startOcrDaemon()
                        QStringList{"-c", ocrDaemonScript(previewPath)});
     if (!m_ocrDaemon->waitForStarted(3000)) {
         m_ocrStatus->setText(tr("\xe2\x9d\x8c  Python non trovato nel PATH."));
+        LogBus::post("\xe2\x9d\x8c OCR webcam: Python non trovato nel PATH.");
         m_ocrDaemon->deleteLater();
         m_ocrDaemon = nullptr;
     }
@@ -1062,8 +1303,10 @@ void MultimediaPage::onOcrStartStopClicked(bool on)
         m_ocrStartBtn->setText(tr("\xe2\x8f\xb9  Ferma"));  /* ⏹ */
         startOcrDaemon();
         m_ocrTimer->start(m_ocrInterval->value() * 1000);
+        m_ocrPreviewTimer->start();
     } else {
         m_ocrTimer->stop();
+        m_ocrPreviewTimer->stop();
         stopOcrDaemon();
         m_ocrStartBtn->setText(tr("\xe2\x96\xb6  Avvia webcam"));
         m_ocrStatus->setText(tr("Scansione fermata."));
@@ -1073,6 +1316,17 @@ void MultimediaPage::onOcrStartStopClicked(bool on)
 void MultimediaPage::onOcrTimerTick()
 {
     requestOcrCapture();
+}
+
+void MultimediaPage::onOcrPreviewTick()
+{
+    /* Invia PREVIEW solo se il daemon è vivo e non sta già elaborando un SCAN/VIDEO.
+       Il daemon risponderà con {"preview":path, "preview_only":true} in ~15ms. */
+    if (!m_ocrDaemon || m_ocrDaemon->state() != QProcess::Running)
+        return;
+    if (m_ocrPending)
+        return;
+    m_ocrDaemon->write("PREVIEW\n");
 }
 
 void MultimediaPage::onOcrLoadVideoClicked()
@@ -1121,7 +1375,35 @@ void MultimediaPage::onOcrDaemonReadyRead()
 
         const QJsonObject obj = QJsonDocument::fromJson(line).object();
 
+        /* Risposta rapida solo-preview: aggiorna l'immagine e continua */
+        if (obj.value("preview_only").toBool()) {
+            const QString pp = obj["preview"].toString();
+            if (!pp.isEmpty()) {
+                const QPixmap px(pp);
+                if (!px.isNull())
+                    m_ocrPreview->setPixmap(
+                        px.scaled(m_ocrPreview->size(),
+                                   Qt::KeepAspectRatio,
+                                   Qt::SmoothTransformation));
+            }
+            continue;
+        }
+
         if (obj.contains("ready")) {
+            /* Invia risoluzione selezionata (il daemon parte già a 720p,
+               ma se l'utente ha cambiato il combo, allineiamo subito) */
+            if (m_ocrResCambo) {
+                const QString res = m_ocrResCambo->currentData().toString();
+                if (res != "1280x720")
+                    m_ocrDaemon->write(("SETRES:" + res + "\n").toUtf8());
+            }
+            /* Invia subito la soglia di matching */
+            const bool skipOn = m_ocrChkSkipUnchanged && m_ocrChkSkipUnchanged->isChecked();
+            const double thresh = skipOn && m_ocrThreshSpin
+                                  ? m_ocrThreshSpin->value() : 2.0;
+            m_ocrDaemon->write(
+                QString("SETTHRESH:%1\n").arg(thresh, 0, 'f', 3).toUtf8());
+
             if (!m_ocrVideoPath.isEmpty()) {
                 /* daemon pronto con video in coda — invia VIDEO */
                 const QString cmd = QString("VIDEO:%1:%2\n")
@@ -1162,8 +1444,26 @@ void MultimediaPage::onOcrDaemonReadyRead()
 
         m_ocrPending = false;
 
+        /* Scena invariata: aggiorna solo anteprima, mostra similarità */
+        if (obj.value("unchanged").toBool()) {
+            const QString pp = obj["preview"].toString();
+            if (!pp.isEmpty()) {
+                const QPixmap px(pp);
+                if (!px.isNull())
+                    m_ocrPreview->setPixmap(
+                        px.scaled(m_ocrPreview->size(),
+                                   Qt::KeepAspectRatio,
+                                   Qt::SmoothTransformation));
+            }
+            m_ocrStatus->setText(
+                QString("\xe2\x8f\xad  Scena invariata (sim. %1) — OCR saltato")  /* ⏭ */
+                .arg(obj["similarity"].toDouble(), 0, 'f', 3));
+            continue;
+        }
+
         if (obj.contains("error")) {
             m_ocrStatus->setText("\xe2\x9d\x8c  " + obj["error"].toString());
+            LogBus::post("\xe2\x9d\x8c OCR webcam: " + obj["error"].toString());
             continue;
         }
 
@@ -1273,6 +1573,7 @@ void MultimediaPage::onOcrTranscribeAudioClicked()
     if (!m_ocrFfmpegProc->waitForStarted(3000)) {
         m_ocrStatus->setText(
             "\xe2\x9d\x8c  ffmpeg non trovato. Installa con: sudo apt install ffmpeg");
+        LogBus::post("\xe2\x9d\x8c OCR webcam: ffmpeg non trovato nel PATH.");
         m_ocrFfmpegProc->deleteLater();
         m_ocrFfmpegProc = nullptr;
         m_ocrTranscribeBtn->setEnabled(true);
@@ -1287,6 +1588,7 @@ void MultimediaPage::onOcrFfmpegFinished(int code, QProcess::ExitStatus)
     if (code != 0) {
         m_ocrStatus->setText(
             "\xe2\x9d\x8c  Estrazione audio fallita — il video ha audio?");
+        LogBus::post("\xe2\x9d\x8c OCR webcam: Estrazione audio fallita (ffmpeg).");
         m_ocrTranscribeBtn->setEnabled(true);
         return;
     }
@@ -1342,6 +1644,7 @@ void MultimediaPage::onOcrAnalyzeClicked()
     if (testo.isEmpty()) {
         m_ocrAiOut->setPlainText(
             "\xe2\x9d\x8c  Avvia prima la scansione per raccogliere del testo.");
+        LogBus::post("\xe2\x9d\x8c OCR webcam: Avvia prima la scansione per raccogliere del testo.");
         return;
     }
 
@@ -1389,6 +1692,7 @@ void MultimediaPage::onOcrAiError(const QString& msg)
     QObject::disconnect(m_ocrAiErrorConn);
     m_ocrAiTokenConn = m_ocrAiFinishedConn = m_ocrAiErrorConn = {};
     m_ocrAiOut->setPlainText("\xe2\x9d\x8c  Errore AI: " + msg);
+    LogBus::post("\xe2\x9d\x8c OCR webcam: Errore AI: " + msg);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1725,6 +2029,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
                 if (m_osmRouteInfo)
                     m_osmRouteInfo->setText(
                         "\xe2\x9d\x8c  Errore rete: " + reply->errorString());
+                LogBus::post("\xe2\x9d\x8c Mappa OSM: Errore rete: " + reply->errorString());
                 return;
             }
 
@@ -1735,6 +2040,7 @@ QWidget* MultimediaPage::buildOsmMapTab()
                 if (m_osmRouteInfo)
                     m_osmRouteInfo->setText(
                         "\xe2\x9d\x8c  OSRM: " + root["message"].toString());
+                LogBus::post("\xe2\x9d\x8c Mappa OSM: OSRM: " + root["message"].toString());
                 return;
             }
 

@@ -1,5 +1,6 @@
 #include "main_tools_file.h"
 #include "../prismalux_paths.h"
+#include "../log_bus.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QTabWidget>
@@ -574,6 +575,7 @@ void StrumentiFilePage::onFileSearchSearchClicked()
     if (root.isEmpty() || !QDir(root).exists()) {
         m_fileSearchOut->setPlainText(
             "\xe2\x9d\x8c  Cartella non valida: " + root);
+        LogBus::post("\xe2\x9d\x8c File AI: Cartella non valida: " + root);
         return;
     }
 
@@ -626,6 +628,7 @@ void StrumentiFilePage::onFileSearchProcFinished(int exitCode, QProcess::ExitSta
     if (exitCode != 0 || raw.isEmpty()) {
         m_fileSearchOut->setPlainText(
             "\xe2\x9d\x8c  Errore nella ricerca:\n" + raw.left(300));
+        LogBus::post("\xe2\x9d\x8c File AI: Errore nella ricerca file.");
         return;
     }
 
@@ -711,6 +714,7 @@ void StrumentiFilePage::onFileSearchAiToken(const QString& t)
 void StrumentiFilePage::onFileSearchAiError(const QString& msg)
 {
     m_fileSearchOut->append("\n\xe2\x9d\x8c  " + msg);
+    LogBus::post("\xe2\x9d\x8c File AI: Ricerca AI errore: " + msg);
     /* h->deleteLater() handled by caller (the QObject guardian) */
     if (auto* h = qobject_cast<QObject*>(sender()->parent()))
         h->deleteLater();
@@ -784,6 +788,7 @@ void StrumentiFilePage::onWikiReplyFinished()
             "\xe2\x9d\x8c  Errore: " + reply->errorString() +
             "\n\nSuggerimento: verifica l\xe2\x80\x99" "ortografia del titolo "
             "e prova in altra lingua.");
+        LogBus::post("\xe2\x9d\x8c File AI: Wiki errore rete: " + reply->errorString());
         return;
     }
 
@@ -871,6 +876,7 @@ void StrumentiFilePage::onWikiAiToken(const QString& t)
 void StrumentiFilePage::onWikiAiError(const QString& msg)
 {
     m_wikiContent->append("\n\xe2\x9d\x8c  " + msg);
+    LogBus::post("\xe2\x9d\x8c File AI: Wiki AI errore: " + msg);
     if (auto* h = qobject_cast<QObject*>(sender()->parent()))
         h->deleteLater();
 }
@@ -886,6 +892,7 @@ void StrumentiFilePage::onWikiActAiToken(const QString& t)
 void StrumentiFilePage::onWikiActAiError(const QString& msg)
 {
     m_wikiContent->append("\n\xe2\x9d\x8c  " + msg);
+    LogBus::post("\xe2\x9d\x8c File AI: Wiki azione AI errore: " + msg);
     if (auto* h = qobject_cast<QObject*>(sender()->parent()))
         h->deleteLater();
 }
@@ -916,6 +923,7 @@ void StrumentiFilePage::onDatiFileBtnClicked()
         QFile f(path);
         if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
             m_datiPreview->setPlainText("\xe2\x9d\x8c  Impossibile aprire il file.");
+            LogBus::post("\xe2\x9d\x8c File AI: Impossibile aprire il file dati.");
             return;
         }
         QTextStream in(&f);
@@ -937,6 +945,7 @@ void StrumentiFilePage::onDatiFileBtnClicked()
         if (!tmpScript->open()) {
             m_datiPreview->setPlainText(
                 "\xe2\x9d\x8c  Impossibile creare script temporaneo.");
+            LogBus::post("\xe2\x9d\x8c File AI: Impossibile creare script temporaneo.");
             return;
         }
         {
@@ -1007,10 +1016,12 @@ void StrumentiFilePage::onDatiXlsProcFinished(int code, QProcess::ExitStatus)
         m_datiPreview->setPlainText(
             "\xe2\x9d\x8c  openpyxl non installato.\n"
             "Installa con: pip install openpyxl");
+        LogBus::post("\xe2\x9d\x8c File AI: openpyxl non installato.");
     } else {
         m_datiPreview->setPlainText(
             "\xe2\x9d\x8c  Conversione fallita.\n"
             "Controlla che il file non sia corrotto.");
+        LogBus::post("\xe2\x9d\x8c File AI: Conversione file fallita.");
     }
     Q_UNUSED(scriptPath)
 }
@@ -1020,6 +1031,7 @@ void StrumentiFilePage::onDatiPreviewBtnClicked()
     if (m_datiCsvText.isEmpty()) {
         m_datiPreview->setPlainText(
             "\xe2\x9d\x8c  Carica prima un file.");
+        LogBus::post("\xe2\x9d\x8c File AI: Carica prima un file dati.");
     }
 }
 
@@ -1028,6 +1040,7 @@ void StrumentiFilePage::onDatiAnalyzeBtnClicked()
     if (m_datiCsvText.isEmpty()) {
         m_datiOutput->setPlainText(
             "\xe2\x9d\x8c  Carica prima un file dati.");
+        LogBus::post("\xe2\x9d\x8c File AI: Carica prima un file dati.");
         return;
     }
     static const char* kDatiActions[] = {
@@ -1069,6 +1082,7 @@ void StrumentiFilePage::onDatiAiToken(const QString& t)
 void StrumentiFilePage::onDatiAiError(const QString& msg)
 {
     m_datiOutput->append("\n\xe2\x9d\x8c  " + msg);
+    LogBus::post("\xe2\x9d\x8c File AI: Dati AI errore: " + msg);
     if (auto* h = qobject_cast<QObject*>(sender()->parent()))
         h->deleteLater();
 }
@@ -1126,6 +1140,7 @@ void StrumentiFilePage::onPdfAnalyzeBtnClicked()
 {
     if (m_pdfPath.isEmpty()) {
         m_pdfOutput->setPlainText("\xe2\x9d\x8c  Carica prima un file PDF.");
+        LogBus::post("\xe2\x9d\x8c File AI: Carica prima un file PDF.");
         return;
     }
 
@@ -1180,6 +1195,7 @@ void StrumentiFilePage::onPdfPlumberFinished(int code, QProcess::ExitStatus)
             "Installa uno dei seguenti:\n"
             "  sudo apt install poppler-utils\n"
             "  pip install pdfplumber");
+        LogBus::post("\xe2\x9d\x8c File AI: Impossibile estrarre testo dal PDF.");
     }
 }
 
@@ -1192,6 +1208,7 @@ void StrumentiFilePage::onPdfAiToken(const QString& t)
 void StrumentiFilePage::onPdfAiError(const QString& msg)
 {
     m_pdfOutput->append("\n\xe2\x9d\x8c  " + msg);
+    LogBus::post("\xe2\x9d\x8c File AI: PDF AI errore: " + msg);
     if (auto* h = qobject_cast<QObject*>(sender()->parent()))
         h->deleteLater();
 }
@@ -1253,6 +1270,7 @@ void StrumentiFilePage::onWordFileBtnClicked()
                 "Clicca 'Analizza con AI' per procedere.");
         } else {
             m_wordOutputEdit->setPlainText("\xe2\x9d\x8c  Impossibile aprire il file.");
+            LogBus::post("\xe2\x9d\x8c File AI: Impossibile aprire il file Word.");
         }
     }
 }
@@ -1274,6 +1292,7 @@ void StrumentiFilePage::onWordDocxProcFinished(int code, QProcess::ExitStatus)
         m_wordOutputEdit->setPlainText(
             "\xe2\x9d\x8c  Impossibile leggere il .docx.\n"
             "Installa: pip install python-docx");
+        LogBus::post("\xe2\x9d\x8c File AI: Impossibile leggere il file .docx.");
     }
 }
 
@@ -1294,6 +1313,7 @@ void StrumentiFilePage::onWordOdtProcFinished(int code, QProcess::ExitStatus)
         m_wordOutputEdit->setPlainText(
             "\xe2\x9d\x8c  Impossibile leggere l'.odt.\n"
             "Installa: pip install odfpy");
+        LogBus::post("\xe2\x9d\x8c File AI: Impossibile leggere il file .odt.");
     }
 }
 
@@ -1301,6 +1321,7 @@ void StrumentiFilePage::onWordAnalyzeBtnClicked()
 {
     if (m_wordFileContent.isEmpty()) {
         m_wordOutputEdit->setPlainText("\xe2\x9d\x8c  Carica prima un file.");
+        LogBus::post("\xe2\x9d\x8c File AI: Carica prima un file Word.");
         return;
     }
     static const char* kWordActions[] = {
@@ -1337,6 +1358,7 @@ void StrumentiFilePage::onWordAiToken(const QString& t)
 void StrumentiFilePage::onWordAiError(const QString& msg)
 {
     m_wordOutputEdit->append("\n\xe2\x9d\x8c  " + msg);
+    LogBus::post("\xe2\x9d\x8c File AI: Word AI errore: " + msg);
     if (auto* h = qobject_cast<QObject*>(sender()->parent()))
         h->deleteLater();
 }

@@ -9,6 +9,7 @@
 #include "main_programming.h"
 #include "../prismalux_paths.h"
 #include "../ai_utils.h"
+#include "../log_bus.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -258,6 +259,7 @@ void ProgrammazionePage::runTranslitter()
             m_trOutput->setPlainText(
                 "\xe2\x9d\x8c  Nessun codice sorgente da tradurre.\n"
                 "Incolla il codice nel pannello di sinistra.");
+        LogBus::post("\xe2\x9d\x8c Translitter: Nessun codice sorgente da tradurre.");
         return;
     }
 

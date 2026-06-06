@@ -2,6 +2,7 @@
 #include "main_jobs.h"
 #include "../prismalux_paths.h"
 #include "../widgets/astro_calc.h"
+#include "../log_bus.h"
 namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -300,6 +301,7 @@ QWidget* RicercaPage::buildPaperTab()
         if (titolo.isEmpty()) {
             outEdit->setPlainText(
                 "\xe2\x9d\x8c  Inserisci almeno il titolo del paper.");
+            LogBus::post("\xe2\x9d\x8c Ricerca: Inserisci almeno il titolo del paper.");
             return;
         }
         const QString lingua = cmbLingua->currentText();
@@ -433,6 +435,7 @@ QWidget* RicercaPage::buildBrevettoTab()
         if (titolo.isEmpty()) {
             outEdit->setPlainText(
                 "\xe2\x9d\x8c  Inserisci il titolo dell'invenzione.");
+            LogBus::post("\xe2\x9d\x8c Ricerca: Inserisci il titolo dell'invenzione.");
             return;
         }
         const QString sys =
@@ -560,6 +563,7 @@ QWidget* RicercaPage::buildDocTecnicoTab()
         if (nome.isEmpty()) {
             outEdit->setPlainText(
                 "\xe2\x9d\x8c  Inserisci il nome del progetto.");
+            LogBus::post("\xe2\x9d\x8c Ricerca: Inserisci il nome del progetto.");
             return;
         }
         const QString lingua = cmbLingua->currentText();
@@ -817,6 +821,7 @@ static void runSciScript(const QString& code, bool isBash,
     QFile f(tmpPath);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
         statusLbl->setText("\xe2\x9d\x8c  Impossibile creare script temporaneo");
+        LogBus::post("\xe2\x9d\x8c Ricerca: Impossibile creare script temporaneo.");
         return;
     }
     f.write(code.toUtf8());
@@ -845,8 +850,10 @@ static void runSciScript(const QString& code, bool isBash,
     } else {
         procRef->start(P::findPython(), {tmpPath});
     }
-    if (procRef->state() == QProcess::NotRunning)
+    if (procRef->state() == QProcess::NotRunning) {
         statusLbl->setText("\xe2\x9d\x8c  Interprete non trovato");
+        LogBus::post("\xe2\x9d\x8c Ricerca: Interprete non trovato.");
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1450,6 +1457,7 @@ void RicercaPage::onSciError(const QString& msg)
         avviaSci(m_sciSys, m_sciUserMsg, m_sciOut, m_sciRunBtn, m_sciStopBtn,
                  m_sciModelCombo, m_sciExecBtn, m_sciCodeRef, m_sciStatusLbl);
     });
+    LogBus::post("\xe2\x9d\x8c Ricerca: Errore AI: " + msg);
 }
 
 void RicercaPage::onAiToken(const QString& t)
@@ -1469,6 +1477,7 @@ void RicercaPage::onAiError(const QString& err)
 {
     if (!m_outCurrent) return;
     m_outCurrent->append("\n\xe2\x9d\x8c  Errore: " + err);
+    LogBus::post("\xe2\x9d\x8c Ricerca: Errore AI: " + err);
     resetButtons();
 }
 
@@ -1546,6 +1555,8 @@ void RicercaPage::onLitReplyFinished()
             ? "\xe2\x8f\xb1  Timeout (15s) \xe2\x80\x94 premi Cerca per ritentare"
             : "\xe2\x9d\x8c  Errore: " + reply->errorString()
               + " \xe2\x80\x94 premi Cerca per ritentare");
+        if (!isTimeout)
+            LogBus::post("\xe2\x9d\x8c Ricerca: Errore rete: " + reply->errorString());
         return;
     }
     const QByteArray data = reply->readAll();
@@ -1690,6 +1701,7 @@ void RicercaPage::onLitAiError(const QString& e)
     disconnect(m_litAiErrorConn);    m_litAiErrorConn    = {};
     m_litAiBtn->setEnabled(true);
     m_litStatus->setText("\xe2\x9d\x8c  " + e);
+    LogBus::post("\xe2\x9d\x8c Ricerca: Errore AI letteratura: " + e);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1725,6 +1737,7 @@ void RicercaPage::onCytoSockError(QAbstractSocket::SocketError)
     auto* sock = qobject_cast<QTcpSocket*>(sender());
     const QString errStr = sock ? sock->errorString() : QString();
     m_cytoStatusLbl->setText("\xe2\x9d\x8c  " + errStr);
+    LogBus::post("\xe2\x9d\x8c Ricerca: Cytoscape errore socket: " + errStr);
     if (sock) sock->deleteLater();
     if (m_cytoSock == sock) m_cytoSock = nullptr;
 }
@@ -1733,6 +1746,7 @@ void RicercaPage::onCytoPingTimeout()
 {
     if (m_cytoSock && m_cytoSock->state() != QAbstractSocket::ConnectedState) {
         m_cytoStatusLbl->setText(tr("\xe2\x9d\x8c  Timeout"));
+        LogBus::post("\xe2\x9d\x8c Ricerca: Cytoscape timeout connessione.");
         m_cytoSock->abort();
         m_cytoSock->deleteLater();
         m_cytoSock = nullptr;
@@ -1781,6 +1795,7 @@ void RicercaPage::onRdkitCheckFinished(int code, QProcess::ExitStatus)
     m_rdkitStatusLbl->setText(code == 0
         ? "\xe2\x9c\x85  " + out
         : "\xe2\x9d\x8c  rdkit non trovato \xe2\x80\x94 pip install rdkit");
+    if (code != 0) LogBus::post("\xe2\x9d\x8c Ricerca: rdkit non trovato.");
     proc->deleteLater();
 }
 
@@ -1826,6 +1841,7 @@ void RicercaPage::onBioCheckFinished(int code, QProcess::ExitStatus)
     m_bioStatusLbl->setText(code == 0
         ? "\xe2\x9c\x85  " + out + " disponibile"
         : "\xe2\x9d\x8c  conda non trovato \xe2\x80\x94 installa Miniforge");
+    if (code != 0) LogBus::post("\xe2\x9d\x8c Ricerca: conda non trovato.");
     proc->deleteLater();
 }
 
@@ -1877,6 +1893,7 @@ void RicercaPage::onAvoCheckFinished(int code, QProcess::ExitStatus)
     m_avoStatusLbl->setText(code == 0
         ? "\xe2\x9c\x85  avogadro disponibile"
         : "\xe2\x9d\x8c  avogadro non trovato \xe2\x80\x94 pip install avogadro");
+    if (code != 0) LogBus::post("\xe2\x9d\x8c Ricerca: avogadro non trovato.");
     proc->deleteLater();
 }
 
@@ -2828,6 +2845,7 @@ void RicercaPage::onAnalisiError(const QString& msg)
     m_analisiStopBtn->setEnabled(false);
     if (m_sciProgress) m_sciProgress->setVisible(false);
     m_sciErrorPanel->showError(msg, [this]{ onAnalisiRunClicked(); });
+    LogBus::post("\xe2\x9d\x8c Ricerca: Errore analisi AI: " + msg);
 }
 /* ─────────────────────────────────────────────────────────────────
    Slot — Output bar (PDF / Markdown / Svuota)
@@ -3636,6 +3654,7 @@ void RicercaPage::onRagRefreshDot()
             m_ragImgLbl->setText(
                 "<p style='color:#f87171'>\xe2\x9d\x8c  Graphviz non trovato.<br>"
                 "Installa con: <code>sudo apt install graphviz</code></p>");
+        LogBus::post("\xe2\x9d\x8c RAG Graph: Graphviz non trovato nel PATH.");
         m_ragDotProc->deleteLater();
         m_ragDotProc = nullptr;
     }

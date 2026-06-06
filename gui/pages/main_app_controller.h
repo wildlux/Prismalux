@@ -46,6 +46,7 @@ class AppControllerPage : public QWidget {
     Q_OBJECT
 public:
     explicit AppControllerPage(AiClient* ai, QWidget* parent = nullptr);
+    ~AppControllerPage() override;
 
 signals:
     /** Emesso quando un modulo Python necessario a un MCP risulta mancante.
@@ -344,6 +345,8 @@ private:
     QTextEdit*   m_telegramPromoMsgEdit     = nullptr;
     QLabel*      m_telegramPromoStatusLbl   = nullptr;
     QNetworkAccessManager* m_telegramPromoNam = nullptr;
+    QCheckBox*   m_telegramAutoAddCheck     = nullptr;
+    QWidget*     m_telegramModuleBanner     = nullptr;
 
     /* ── WhatsApp — membri ── */
     QLineEdit*   m_waPromoContactEdit    = nullptr;

@@ -1,4 +1,6 @@
 #include "mainwindow.h"
+#include "log_bus.h"
+#include "widgets/onnx_embedder.h"
 #include "widgets/whisper_autosetup.h"
 #include "pages/main_ai.h"
 #include "pages/settings_main.h"
@@ -275,7 +277,7 @@ void ResourceGauge::setLevel(double pct) {
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
-    setWindowTitle("🍺 Prismalux v2.1 — Centro di Controllo");
+    setWindowTitle("🍺 Prismalux v2.9 — Centro di Controllo");
     setWindowIcon(QIcon(P::root() + "/EXPORT/assets/prismalux.png"));
     setMinimumSize(dpiScale(1060), dpiScale(680));
     resize(dpiScale(1200), dpiScale(760));
@@ -298,6 +300,24 @@ void MainWindow::setupServices()
     m_ai = new AiClient(this);
     connect(m_hw, &HardwareMonitor::updated,     this, &MainWindow::onHWUpdated);
     connect(m_hw, &HardwareMonitor::hwInfoReady, this, &MainWindow::onHWReady);
+
+    /* LogBus globale — qualsiasi scheda può usare LogBus::post() per inviare qui */
+    connect(LogBus::instance(), &LogBus::event, this, &MainWindow::appendLog);
+
+    /* ONNX embedder locale — caricato in background se i file modello esistono */
+    m_onnxEmbedder = new OnnxEmbedder(this);
+    if (OnnxEmbedder::defaultModelExists()) {
+        QTimer::singleShot(500, this, [this]() {
+            const bool ok = m_onnxEmbedder->loadModel(
+                OnnxEmbedder::defaultModelPath(),
+                OnnxEmbedder::defaultVocabPath());
+            if (ok) {
+                m_ai->setOnnxEmbedder(m_onnxEmbedder);
+                appendLog(tr("ONNX embedder: modello caricato (%1 dim)").arg(m_onnxEmbedder->dims()));
+            }
+        });
+    }
+
     /* m_hw->start() è chiamato alla fine del costruttore, dopo che tutti
      * i widget (m_gCpu, m_gRam, m_gGpu) sono stati creati da setupLayout(). */
 }
@@ -1269,6 +1289,41 @@ QWidget* MainWindow::buildContent()
     buildLanWanTab();
     buildMultiAgentTab();
 
+    /* 🔍 Ricerca schede — corner widget destro, a destra di "LAN WAN" */
+    {
+        auto* srchWrap = new QWidget(m_mainTabs);
+        auto* srchLay  = new QHBoxLayout(srchWrap);
+        srchLay->setContentsMargins(4, 2, 6, 2);
+        srchLay->setSpacing(3);
+
+        auto* ico = new QLabel("\xf0\x9f\x94\x8d", srchWrap);
+        ico->setFixedWidth(dpiScale(16));
+        ico->setAlignment(Qt::AlignCenter);
+
+        m_tabSearchEdit = new QLineEdit(srchWrap);
+        m_tabSearchEdit->setObjectName("tabSearchEdit");
+        m_tabSearchEdit->setPlaceholderText(tr("Scheda..."));
+        m_tabSearchEdit->setClearButtonEnabled(true);
+        m_tabSearchEdit->setFixedWidth(dpiScale(130));
+
+        srchLay->addWidget(ico);
+        srchLay->addWidget(m_tabSearchEdit);
+        m_mainTabs->setCornerWidget(srchWrap, Qt::TopRightCorner);
+
+        connect(m_tabSearchEdit, &QLineEdit::textChanged, this, [this](const QString& t) {
+            if (t.trimmed().isEmpty()) return;
+            const QString q = t.trimmed();
+            for (int i = 0; i < m_mainTabs->count(); ++i) {
+                if (m_mainTabs->tabText(i).contains(q, Qt::CaseInsensitive)) {
+                    m_mainTabs->setCurrentIndex(i);
+                    break;
+                }
+            }
+        });
+        connect(m_tabSearchEdit, &QLineEdit::returnPressed,
+                this, [this]{ m_tabSearchEdit->clear(); });
+    }
+
     /* Salva etichette originali e applica modalità da QSettings */
     for (int i = 0; i < m_mainTabs->count(); i++)
         m_tabOrigLabels << m_mainTabs->tabText(i);
@@ -1308,7 +1363,7 @@ void MainWindow::buildStrumentiTab()
     m_strumentiPage = new StrumentiPage(m_ai, this);
     connect(m_strumentiPage, &StrumentiPage::cronPanelFirstOpen,
             this, &MainWindow::onCronPanelFirstOpen);
-    m_mainTabs->addTab(m_strumentiPage, "\xf0\x9f\x9b\xa0  Strumenti");  /* 1 */
+    m_mainTabs->addTab(m_strumentiPage, "\xf0\x9f\x9b\xa0\xef\xb8\x8f  Strumenti");  /* 1 */
 }
 
 /* ── Livello 2: tab [2] Multimedia ───────────────────────────────── */
@@ -1349,13 +1404,13 @@ void MainWindow::buildMatematicaTab()
     auto* mathSubTabs = new QTabWidget(mathContainer);
     mathSubTabs->setObjectName("mathSubTabs");
     mathSubTabs->setTabPosition(QTabWidget::North);
-    mathSubTabs->addTab(new MatematicaPage(m_ai, mathContainer), "\xcf\x80  Matematica");
+    mathSubTabs->addTab(new MatematicaPage(m_ai, mathContainer), "\xf0\x9f\x93\x90  Matematica");
     mathSubTabs->addTab(grafPage, "\xf0\x9f\x93\x88  Grafico");
     connect(mathSubTabs, &QTabWidget::currentChanged,
             this, &MainWindow::onMathSubTabChanged);
 
     mcLay->addWidget(mathSubTabs);
-    m_mainTabs->addTab(mathContainer, "\xcf\x80  Matematica");  /* 5 */
+    m_mainTabs->addTab(mathContainer, "\xf0\x9f\x93\x90  Matematica");  /* 5 */
 }
 
 /* ── Livello 2: tab [6] Ricerca ──────────────────────────────────── */
@@ -1371,7 +1426,7 @@ void MainWindow::buildAppControllerTab()
     auto* appCtrl = new AppControllerPage(m_ai, this);
     connect(appCtrl, &AppControllerPage::openSettingsDipendenze,
             this,    &MainWindow::onOpenSettingsDipendenze);
-    m_mainTabs->addTab(appCtrl, "\xf0\x9f\x95\xb9  APP Controller");  /* 7 */
+    m_mainTabs->addTab(appCtrl, "\xf0\x9f\x95\xb9\xef\xb8\x8f  APP Controller");  /* 7 */
 }
 
 /* ── Livello 2: tab [8] LAN & WAN ────────────────────────────────── */
