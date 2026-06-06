@@ -689,9 +689,9 @@ def node_apply_patch(state: DevAgentState) -> DevAgentState:
 def node_compile(state: DevAgentState) -> DevAgentState:
     """
     Compila il progetto con cmake --build.
-    Richiede che build_gui/ esista già (cmake configurato).
+    Richiede che gui/build_gui/ esista già (cmake configurato).
     """
-    build_dir = os.path.join(state["project_root"], "build_gui")
+    build_dir = os.path.join(state["project_root"], "gui", "build_gui")
     cmd = f"cmake --build {build_dir} -j4 2>&1"
     _log(f"compile: {cmd}")
 
@@ -713,12 +713,12 @@ def node_compile(state: DevAgentState) -> DevAgentState:
 def node_run_tests(state: DevAgentState) -> DevAgentState:
     """
     Esegue ctest nella directory di build dei test.
-    Prova prima build_gui (se contiene i test), poi build_tests.
+    Prova prima gui/build_gui (se contiene i test), poi Test/build_tests.
     """
     # Determina la directory di test
     test_dirs = [
-        os.path.join(state["project_root"], "build_gui"),
-        os.path.join(state["project_root"], "build_tests"),
+        os.path.join(state["project_root"], "gui", "build_gui"),
+        os.path.join(state["project_root"], "Test", "build_tests"),
     ]
     test_dir = None
     for td in test_dirs:

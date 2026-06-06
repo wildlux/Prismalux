@@ -3,13 +3,13 @@
 ## Build
 ```bash
 # Linux (diretto)
-cmake -B build_gui gui/ -DCMAKE_BUILD_TYPE=Release && cmake --build build_gui -j$(nproc)
-./build_gui/Prismalux_GUI
+cmake -B gui/build_gui gui/ -DCMAKE_BUILD_TYPE=Release && cmake --build gui/build_gui -j$(nproc)
+./gui/build_gui/Prismalux_GUI
 
 # Tutte le piattaforme (Windows/Linux/macOS)
 python3 build.py
 ```
-Strutturale (nuovo file/CMakeLists) → rifare `cmake -B build_gui`. Solo .cpp/.h → solo `cmake --build build_gui`.
+Strutturale (nuovo file/CMakeLists) → rifare `cmake -B gui/build_gui gui/`. Solo .cpp/.h → solo `cmake --build gui/build_gui`.
 
 `build.py` — motore di build multipiattaforma. Genera `errore.txt` in root se fallisce.
 Windows: `build.bat` trova Python ed esegue `build.py`. Prima volta: `COMPILE_WIN\setup.bat`.
@@ -332,8 +332,8 @@ Slot Qt: `onDevAgentGitLogClicked`, `onDevAgentGitRestoreClicked`, `onDevAgentGi
 
 ## Suite di Test
 ```bash
-cmake -B build_tests gui/ -DBUILD_TESTS=ON && cmake --build build_tests -j$(nproc)
-ctest --test-dir build_tests -j4   # 52 suite (49 no-Ollama, 3 richiedono Ollama reale)
+cmake -B Test/build_tests gui/ -DBUILD_TESTS=ON && cmake --build Test/build_tests -j$(nproc)
+ctest --test-dir Test/build_tests -j4   # 52 suite (49 no-Ollama, 3 richiedono Ollama reale)
 ```
 
 ### Suite per categoria
@@ -408,7 +408,7 @@ ctest --test-dir build_tests -j4   # 52 suite (49 no-Ollama, 3 richiedono Ollama
 2. Aggiungere il target in `gui/CMakeLists.txt` (copia struttura da `test_programmazione_page`)
 3. Aggiungere `add_test(NAME <NomePascal> COMMAND test_<nome>)` vicino ai simili
 4. Aggiornare la tabella "Suite per categoria" qui sopra con: Suite | Target | PASS count | Note
-5. Aggiornare il conteggio in `ctest --test-dir build_tests` (riga 291 di questo file)
+5. Aggiornare il conteggio in `ctest --test-dir Test/build_tests` (riga 291 di questo file)
 6. Nel test: usare `QSKIP` in `initTestCase()` per dipendenze esterne (Ollama, Docker, ecc.)
 
 **Priorità categorie test:**

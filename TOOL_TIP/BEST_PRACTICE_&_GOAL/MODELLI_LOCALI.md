@@ -87,7 +87,7 @@ ollama pull qwen2.5-coder:7b
    modello forte: Claude/Opus (già nel codice, niente esce dal PC) o un `:cloud` se accetti la privacy.
 2. **Esecuzione meccanica** (un fix circoscritto alla volta, contesto fornito) →
    `qwen2.5-coder:3b` (se scaricato) o `deepseek-coder:6.7b`.
-3. **Verifica** → `python3 build.py` + `ctest --test-dir build_tests` (suite `LanServer`, ecc.).
+3. **Verifica** → `python3 build.py` + `ctest --test-dir Test/build_tests` (suite `LanServer`, ecc.).
 
 > Nota: un fix di sicurezza plausibile ma sbagliato è peggio di nessun fix.
 > Non fidarsi a scatola chiusa dell'output di un modello locale ≤7B su codice critico.

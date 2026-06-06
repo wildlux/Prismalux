@@ -41,7 +41,7 @@ cd gui && cmake -B build && cmake --build build -j$(nproc) && ./build/Prismalux_
 
 ### Con test
 ```bash
-cmake -B build_tests -DBUILD_TESTS=ON && cmake --build build_tests -j$(nproc)
+cmake -B build_tests -DBUILD_TESTS=ON && cmake --build Test/build_tests -j$(nproc)
 ```
 
 ---

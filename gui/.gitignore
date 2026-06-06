@@ -2,6 +2,7 @@ build/
 build_check/
 build_dbg/
 build_debug/
+build_gui/
 build_tests/
 *.o
 *.a

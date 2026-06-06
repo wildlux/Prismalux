@@ -41,7 +41,7 @@ START -> read_context -> generate_patch -> apply_patch -> compile
 **Obbligatorie** (solo stdlib Python):
 - Python >= 3.10
 - Ollama in esecuzione su `http://127.0.0.1:11434`
-- build_gui/ gia configurato (`cmake -B build_gui gui/`)
+- build_gui/ gia configurato (`cmake -B gui/build_gui gui/`)
 
 **Opzionali** (installabili con `pip install -r requirements.txt`):
 - `langgraph>=0.2.0` — grafo esplicito con routing condizionale

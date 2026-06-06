@@ -272,11 +272,11 @@ sudo apt install cmake ninja-build build-essential \
 python3 build.py
 
 # Oppure con cmake diretto
-cmake -B build_gui gui/ -DCMAKE_BUILD_TYPE=Release
-cmake --build build_gui -j$(nproc)
+cmake -B gui/build_gui gui/ -DCMAKE_BUILD_TYPE=Release
+cmake --build gui/build_gui -j$(nproc)
 
 # Avvia
-./build_gui/Prismalux_GUI
+./gui/build_gui/Prismalux_GUI
 
 # Compila + genera AppImage + ZIP Windows
 ./aggiorna.sh
@@ -378,13 +378,13 @@ Cambio backend da UI: intestazione → selettore backend → porta → conferma.
 
 ```bash
 # Test headless (no Ollama richiesto per 33/36 suite)
-cmake -B build_tests gui/ -DBUILD_TESTS=ON
-cmake --build build_tests -j$(nproc)
-ctest --test-dir build_tests -j4
+cmake -B Test/build_tests gui/ -DBUILD_TESTS=ON
+cmake --build Test/build_tests -j$(nproc)
+ctest --test-dir Test/build_tests -j4
 
 # Test con Ollama attivo (suite AI stress)
 ollama serve &
-ctest --test-dir build_tests -j1 -R AiStress
+ctest --test-dir Test/build_tests -j1 -R AiStress
 ```
 
 **Stato test:**
@@ -497,7 +497,7 @@ PR benvenute. Regole essenziali:
 
 1. **Branch tematico**: `feature/...`, `fix/...`, `refactor/...`
 2. **Build pulita**: nessun errore di compilazione
-3. **Test**: `ctest --test-dir build_tests -j4` verde sulle suite no-Ollama
+3. **Test**: `ctest --test-dir Test/build_tests -j4` verde sulle suite no-Ollama
 4. **Lambda nelle `connect()`**: il context object (4° argomento) deve essere sempre specificato; tutti i puntatori catturati devono essere figli di quel context. Logica > 2 righe → slot nominato. `static QMetaObject::Connection` vietata.
 5. **Path**: usa sempre `P::root()`, `P::kOllamaPort` ecc. da `prismalux_paths.h` — mai hardcode.
 6. **Emoji in stringhe C++**: concatena quando il carattere successivo è cifra hex (`"\xe2\x80\x9c" "Testo"` non `"\xe2\x80\x9cTesto"`).

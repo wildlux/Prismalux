@@ -318,8 +318,8 @@ endif()
 #   - Signal Leakage    (token ricevuti da pagine in stato Idle)
 #   - Invariant Violation (checkbox nascosti ≠ deselezionati)
 #
-# Build: cmake -B build_tests -DBUILD_TESTS=ON && cmake --build build_tests
-# Run:   ./build_tests/test_signal_lifetime
+# Build: cmake -B Test/build_tests gui/ -DBUILD_TESTS=ON && cmake --build Test/build_tests
+# Run:   ./Test/build_tests/test_signal_lifetime
 if(BUILD_TESTS)
     if(Qt6_FOUND)
         find_package(Qt6 COMPONENTS Test REQUIRED)

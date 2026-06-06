@@ -15,7 +15,7 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 APPIMAGE="$ROOT_DIR/EXPORT/linux/Prismalux-x86_64.AppImage"
 [ -f "$APPIMAGE" ] || APPIMAGE="$ROOT_DIR/Prismalux-x86_64.AppImage"
 
-BINARY="$ROOT_DIR/build_gui/Prismalux_GUI"
+BINARY="$ROOT_DIR/gui/build_gui/Prismalux_GUI"
 DESKTOP_SRC="$ROOT_DIR/gui/prismalux.desktop"
 ICO_SRC="$ROOT_DIR/ICONA/prismaluce.ico"
 PNG_SRC="$ROOT_DIR/ICONA/prismaluce.png"
