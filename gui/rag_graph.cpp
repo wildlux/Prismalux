@@ -29,7 +29,13 @@ void RagGraph::addDirectory(const QString& dir)
 {
     static const QStringList kFilters{
         "*.txt","*.md","*.pdf","*.rst","*.csv",
-        "*.py","*.cpp","*.h","*.c","*.java","*.json"
+        "*.py","*.cpp","*.h","*.c","*.java","*.json",
+        /* immagini */
+        "*.png","*.jpg","*.jpeg","*.webp","*.bmp","*.tiff","*.tif",
+        /* video */
+        "*.mp4","*.avi","*.mkv","*.mov","*.webm",
+        /* documenti Office */
+        "*.docx","*.odt","*.doc"
     };
 
     QDirIterator it(dir, kFilters, QDir::Files, QDirIterator::Subdirectories);
@@ -114,8 +120,97 @@ void RagGraph::processNextFile()
     /* Legge il testo del file */
     QString text;
 
-    if (path.endsWith(".pdf", Qt::CaseInsensitive)) {
+    const QString lower = path.toLower();
+
+    auto isImg = [&](const QString& p) {
+        return p.endsWith(".png") || p.endsWith(".jpg") || p.endsWith(".jpeg")
+            || p.endsWith(".webp") || p.endsWith(".bmp")
+            || p.endsWith(".tiff") || p.endsWith(".tif");
+    };
+    auto isVideo = [&](const QString& p) {
+        return p.endsWith(".mp4") || p.endsWith(".avi") || p.endsWith(".mkv")
+            || p.endsWith(".mov") || p.endsWith(".webm");
+    };
+    auto isOffice = [&](const QString& p) {
+        return p.endsWith(".docx") || p.endsWith(".odt") || p.endsWith(".doc");
+    };
+
+    if (lower.endsWith(".pdf")) {
         text = ProcHelper::run("pdftotext", {path, "-"}, 30000).out;
+
+    } else if (isImg(lower)) {
+        /* OCR via tesseract */
+        const QString tmpBase = "/tmp/prismalux_rag_ocr";
+        const QString tmpTxt  = tmpBase + ".txt";
+        QFile::remove(tmpTxt);
+        ProcHelper::run("tesseract", {path, tmpBase, "txt"}, 20000);
+        QFile f(tmpTxt);
+        if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+            text = QString::fromUtf8(f.readAll());
+        QFile::remove(tmpTxt);
+
+    } else if (isVideo(lower)) {
+        /* Estrai audio con ffmpeg → WAV, poi trascrivi con whisper se disponibile */
+        const QString wavTmp = "/tmp/prismalux_rag_audio.wav";
+        QFile::remove(wavTmp);
+        ProcHelper::run("ffmpeg",
+            {"-y","-i",path,"-ac","1","-ar","16000","-f","wav", wavTmp},
+            60000);
+
+        /* Prova whisper CLI, poi python3 -m whisper, poi fallback ffprobe */
+        bool transcribed = false;
+        const QString srtTmp = "/tmp/prismalux_rag_audio.txt";
+        QFile::remove(srtTmp);
+
+        if (QFileInfo::exists(wavTmp)) {
+            auto res = ProcHelper::run("whisper",
+                {wavTmp,"--model","tiny","--output_format","txt",
+                 "--output_dir","/tmp","--language","it"}, 120000);
+            if (!res.out.trimmed().isEmpty()) {
+                text = res.out;
+                transcribed = true;
+            } else {
+                auto res2 = ProcHelper::run("python3",
+                    {"-m","whisper", wavTmp,"--model","tiny",
+                     "--output_format","txt","--output_dir","/tmp",
+                     "--language","it"}, 120000);
+                if (!res2.out.trimmed().isEmpty()) {
+                    text = res2.out;
+                    transcribed = true;
+                }
+                /* Leggi file .txt generato da whisper se stdout vuoto */
+                if (!transcribed) {
+                    QFile fTxt(srtTmp);
+                    if (fTxt.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                        text = QString::fromUtf8(fTxt.readAll());
+                        transcribed = !text.trimmed().isEmpty();
+                    }
+                }
+            }
+        }
+
+        if (!transcribed) {
+            /* Fallback: metadati video via ffprobe */
+            auto meta = ProcHelper::run("ffprobe",
+                {"-v","quiet","-print_format","json","-show_format",path}, 15000);
+            text = QString("[VIDEO] %1\nMetadati: %2").arg(label, meta.out);
+        }
+
+        QFile::remove(wavTmp);
+        QFile::remove(srtTmp);
+
+    } else if (isOffice(lower)) {
+        /* Conversione a testo via LibreOffice */
+        ProcHelper::run("libreoffice",
+            {"--headless","--convert-to","txt","--outdir","/tmp", path},
+            60000);
+        const QString baseName = QFileInfo(path).completeBaseName();
+        const QString outTxt   = "/tmp/" + baseName + ".txt";
+        QFile f(outTxt);
+        if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+            text = QString::fromUtf8(f.readAll());
+        QFile::remove(outTxt);
+
     } else {
         QFile f(path);
         if (f.open(QIODevice::ReadOnly | QIODevice::Text))
