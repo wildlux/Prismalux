@@ -514,6 +514,36 @@ private:
     void     onKernelGuideClicked();
     void     onKernelSafetyClicked();
 
+    /* ── Policy Generator sub-tab ── */
+    QComboBox*   m_policyTypeCombo  = nullptr;
+    QTextEdit*   m_policyDesc       = nullptr;
+    QTextEdit*   m_policyOutput     = nullptr;
+    QLabel*      m_policyStatusLbl  = nullptr;
+    QMetaObject::Connection m_policyAiTokConn;
+    QMetaObject::Connection m_policyAiFinConn;
+    QMetaObject::Connection m_policyAiErrConn;
+
+    QWidget* buildPolicyTab(QWidget* parent);
+    void     onPolicyGenerateClicked();
+    void     onPolicyAiToken(const QString& t);
+    void     onPolicyAiFinished(const QString& full);
+    void     onPolicyAiError(const QString& msg);
+
+    /* ── Subnet Calculator sub-tab ── */
+    QLineEdit*   m_subnetInput      = nullptr;
+    QSpinBox*    m_subnetCount      = nullptr;
+    QTextEdit*   m_subnetResults    = nullptr;
+    QLabel*      m_subnetGraphImg   = nullptr;
+    QLabel*      m_subnetStatusLbl  = nullptr;
+    QProcess*    m_subnetDotProc    = nullptr;
+    QString      m_subnetTmpPng;
+    QString      m_subnetLastDot;
+
+    QWidget* buildSubnetTab(QWidget* parent);
+    void     onSubnetCalculateClicked();
+    void     onSubnetRenderGraph();
+    void     onSubnetDotFinished(int code, QProcess::ExitStatus status);
+
     /* ── VPN & Tunnel sub-tab ── */
     QComboBox*   m_vpnTypeCombo    = nullptr;  ///< WireGuard / OpenVPN / SSH / Hotspot / n2n
     QTextEdit*   m_vpnConfig       = nullptr;  ///< editor config/script generato

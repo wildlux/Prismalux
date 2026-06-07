@@ -202,6 +202,10 @@ void ProgrammazionePage::buildInnerTabs()
         "\xf0\x9f\x8c\x90  Scan LAN");
     reteTabs->addTab(buildVpnTab(reteTabs),
         "\xf0\x9f\x94\x92  VPN & Tunnel");
+    reteTabs->addTab(buildPolicyTab(reteTabs),
+        "\xf0\x9f\x9b\xa1  Policy");
+    reteTabs->addTab(buildSubnetTab(reteTabs),
+        "\xf0\x9f\x94\xa2  Sottoreti");
     reteLay->addWidget(reteTabs);
     m_innerTabs->addTab(reteWrap,
         "\xf0\x9f\x8c\x90  Rete & Network");
