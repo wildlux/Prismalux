@@ -1573,6 +1573,27 @@ QWidget* LanWanPage::buildWanComputeTab()
     srvTokenLay->addWidget(m_wanTokenEdit, 1);
     srvLay->addWidget(srvTokenRow);
 
+    /* Nota WireGuard — visibile solo quando exposeAll è ON */
+    m_wanVpnNoteLbl = new QLabel(srvPanel);
+    m_wanVpnNoteLbl->setWordWrap(true);
+    m_wanVpnNoteLbl->setTextFormat(Qt::RichText);
+    m_wanVpnNoteLbl->setText(
+        "<span style='color:#60a5fa;font-size:11px;'>"
+        "\xf0\x9f\x94\x92 <b>Consiglio sicurezza per reti con pi\xc3\xb9 PC</b><br>"
+        "Usa <b>WireGuard</b> su tutti i worker: cifra il traffico WAN e "
+        "limita l\xe2\x80\x99accesso ai soli peer autorizzati.<br>"
+        "Configura il server WAN su <code>10.0.0.1</code> (IP WireGuard) invece di <code>0.0.0.0</code>, "
+        "cos\xc3\xac la porta 11600 \xc3\xa8 raggiungibile solo dai PC nella VPN.<br>"
+        "Con token WAN + WireGuard la sicurezza \xc3\xa8 doppia: "
+        "prima il tunnel cifrato, poi l\xe2\x80\x99" "autenticazione."
+        "</span>"
+    );
+    m_wanVpnNoteLbl->setVisible(false);
+    srvLay->addWidget(m_wanVpnNoteLbl);
+
+    connect(m_wanExposeAllCheck, &QCheckBox::toggled,
+            m_wanVpnNoteLbl,     &QLabel::setVisible);
+
     /* 2 — Decomponi compito: textarea sinistra, bottone destra */
     auto* decompBox = new QGroupBox(
         "\xf0\x9f\xa7\xa0  Scrivi un compito \xe2\x80\x94 l\xe2\x80\x99" "AI lo divide in agenti automaticamente");

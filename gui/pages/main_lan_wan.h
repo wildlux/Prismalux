@@ -112,6 +112,7 @@ private:
     QLabel*       m_wanSrvStatusLbl    = nullptr;
     QCheckBox*    m_wanExposeAllCheck  = nullptr; ///< bind su 0.0.0.0 se ON, 127.0.0.1 se OFF
     QLineEdit*    m_wanTokenEdit       = nullptr;   ///< token Bearer server WAN (auth nodi)
+    QLabel*       m_wanVpnNoteLbl      = nullptr; ///< suggerimento WireGuard visibile quando exposeAll=ON
     QTableWidget* m_wanNodeTable    = nullptr;
     QTableWidget* m_wanTaskTable    = nullptr;
     QComboBox*    m_wanTaskKind     = nullptr;
