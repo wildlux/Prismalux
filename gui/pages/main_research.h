@@ -140,7 +140,8 @@ private:
     QWidget* buildBlhmTab();
     QWidget* buildAnalisiPage();
     QWidget* buildAstraleTab();
-    QWidget* buildRagGrafoTab();   ///< 🕸️ Grafo Conoscenza RAG
+    QWidget* buildRagGrafoTab();    ///< 🕸️ Grafo Conoscenza RAG
+    QWidget* buildRagTesterTab();   ///< 🧪 Test comprensione documenti RAG
 
     /* ── Grafo RAG ── */
     GraphMemory*       m_ragGm          = nullptr;
@@ -163,6 +164,16 @@ private:
     QProcess*       m_ragDotProc     = nullptr;
     QString         m_ragTmpPng;
     QString         m_ragTmpDot;
+
+    /* ── RAG Tester ── */
+    QListWidget* m_ragTesterDocList  = nullptr;
+    QTextEdit*   m_ragTesterQuestions = nullptr;
+    QTextEdit*   m_ragTesterAnswers   = nullptr;
+    QLabel*      m_ragTesterStatus    = nullptr;
+    QPushButton* m_ragTesterGenBtn    = nullptr;
+    QPushButton* m_ragTesterRunBtn    = nullptr;
+    QPushButton* m_ragTesterEvalBtn   = nullptr;
+    QString      m_ragTesterDocText;  ///< testo grezzo del documento selezionato
 
     /* ── Carta Astrale ── */
     QDateEdit*      m_astraleNascita    = nullptr;

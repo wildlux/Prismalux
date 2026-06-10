@@ -1836,7 +1836,13 @@ QWidget* LanWanPage::buildWanComputeTab()
     advLay->addWidget(cronBox);
 
     srvLay->addWidget(advPanel);
-    m_wanModeStack->addWidget(srvPanel);   /* index 0 = server */
+
+    auto* srvScroll = new QScrollArea;
+    srvScroll->setWidgetResizable(true);
+    srvScroll->setFrameShape(QFrame::NoFrame);
+    srvScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    srvScroll->setWidget(srvPanel);
+    m_wanModeStack->addWidget(srvScroll);   /* index 0 = server */
 
     /* ═══════════ PANNELLO CLIENT ═══════════
      * Semplificato: una sola riga di connessione + log.

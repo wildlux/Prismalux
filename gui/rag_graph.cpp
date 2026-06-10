@@ -53,8 +53,8 @@ void RagGraph::addFile(const QString& path, const QString& label)
 
     /* Auto-copia in RAG/ se il file è fuori dalle dir monitorate.
      * Garantisce che il documento sia ritrovato al riavvio quando RagGraph
-     * riscansiona ~/prismalux_rag_docs/ e P::root()+"/RAG/". */
-    const QString ragDir  = P::root() + "/RAG";
+     * riscansiona ~/prismalux_rag_docs/ e P::ragDir(). */
+    const QString ragDir  = P::ragDir();
     const QString ragDocs = QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
                             + "/prismalux_rag_docs";
 

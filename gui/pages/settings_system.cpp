@@ -108,6 +108,24 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
         return QString("%1 GB").arg(b>>30);
     };
 
+    /* ── Layout a 2 colonne: sinistra griglia 2×2 + destra 3 card ── */
+    auto* mainRow    = new QWidget(w);
+    auto* mainRowLay = new QHBoxLayout(mainRow);
+    mainRowLay->setContentsMargins(0, 0, 0, 0);
+    mainRowLay->setSpacing(12);
+
+    auto* gridW   = new QWidget(mainRow);
+    auto* gridLay = new QGridLayout(gridW);
+    gridLay->setContentsMargins(0, 0, 0, 0);
+    gridLay->setSpacing(10);
+    gridLay->setAlignment(Qt::AlignTop);
+
+    auto* rightW   = new QWidget(mainRow);
+    auto* rightLay = new QVBoxLayout(rightW);
+    rightLay->setContentsMargins(0, 0, 0, 0);
+    rightLay->setSpacing(10);
+    rightLay->setAlignment(Qt::AlignTop);
+
     /* ── Helper: crea una card di pulizia ── */
     auto makeCard = [&](const QString& icon,
                         const QString& heading,
@@ -193,6 +211,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
             auto [b2, c2] = calcFilesSize(esportDir);
             sizeLbl->setText(QString("%1 file \xc2\xb7 %2").arg(c2).arg(fmtBytes(b2)));
         });
+        gridLay->addWidget(grp, 0, 0);
     }
 
     /* ──────────────────────────────────────────────────────────
@@ -241,6 +260,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
             btn->setEnabled(false);
             sizeLbl->setText(tr("0 cartelle \xc2\xb7 0 B"));
         });
+        gridLay->addWidget(grp, 0, 1);
     }
 
     /* ──────────────────────────────────────────────────────────
@@ -292,6 +312,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
             btn->setEnabled(false);
             sizeLbl->setText(tr("0 cartelle \xc2\xb7 0 B"));
         });
+        gridLay->addWidget(grp, 1, 0);
     }
 
     /* ──────────────────────────────────────────────────────────
@@ -325,6 +346,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
             btn->setEnabled(false);
             sizeLbl->setText(tr("0 file \xc2\xb7 0 B"));
         });
+        gridLay->addWidget(grp, 1, 1);
     }
 
     /* ──────────────────────────────────────────────────────────
@@ -372,7 +394,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
         note->setObjectName("hintLabel");
         note->setWordWrap(true);
         gl->addWidget(note);
-        lay->addWidget(grp);
+        rightLay->addWidget(grp);
     }
 
     /* ── Backup dati ── */
@@ -468,7 +490,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
             QDesktopServices::openUrl(QUrl::fromLocalFile(prismaDir));
         });
 
-        lay->addWidget(grp);
+        rightLay->addWidget(grp);
     }
 
     /* ── Audit segreti ── */
@@ -600,10 +622,13 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
                 .arg(pass).arg(warn));
         });
 
-        lay->addWidget(grp);
+        rightLay->addWidget(grp);
+        rightLay->addStretch();
     }
 
-    lay->addStretch();
+    mainRowLay->addWidget(gridW, 1);
+    mainRowLay->addWidget(rightW, 1);
+    lay->addWidget(mainRow, 1);
     return w;
 }
 

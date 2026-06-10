@@ -1,6 +1,7 @@
 #include "ai_client.h"
 #include "prismalux_paths.h"
 #include "widgets/onnx_embedder.h"
+#include "rag_engine.h"
 #include <QNetworkRequest>
 #include <QHttpMultiPart>
 #include <QJsonDocument>
@@ -403,6 +404,29 @@ static const char* kCavemanPrefix =
 
 /* ── chat (wrapper legacy — compatibile con tutto il codice esistente) ─── */
 quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg) {
+    /* Global RAG injection — se abilitato e il RAG ha documenti, arricchisce il
+     * system prompt con i chunk più rilevanti prima di inviare la chat al backend.
+     * Il flag m_ragQueryPending evita ricorsione e interferenze con embed paralleli. */
+    if (m_globalRag && m_globalRagEnabled && !m_ragQueryPending
+            && m_globalRag->chunkCount() > 0 && !busy()) {
+        m_ragQueryPending = true;
+        _fetchEmbeddingForRag(userMsg,
+            [this, systemPrompt, userMsg](const QVector<float>& vec) {
+                m_ragQueryPending = false;
+                const auto hits = m_globalRag->search(vec, 3);
+                QString ctx;
+                for (const auto& h : hits)
+                    ctx += "\n---\n" + h.text.left(600);
+                const QString enriched = ctx.isEmpty() ? systemPrompt
+                    : systemPrompt + "\n\n[CONTESTO DAI DOCUMENTI]\n" + ctx;
+                chat(enriched, userMsg, QJsonArray(), classifyQuery(userMsg));
+            },
+            [this, systemPrompt, userMsg]() {
+                m_ragQueryPending = false;
+                chat(systemPrompt, userMsg, QJsonArray(), classifyQuery(userMsg));
+            });
+        return m_reqId;
+    }
     return chat(systemPrompt, userMsg, QJsonArray(), classifyQuery(userMsg));  /* FIX T2: era QueryAuto hardcoded */
 }
 
@@ -1266,6 +1290,72 @@ void AiClient::onEmbeddingFinished()
     for (const QJsonValue& v : arr)
         vec.append((float)v.toDouble());
     emit embeddingReady(vec);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _fetchEmbeddingForRag — embedding privato per il global RAG injection.
+   Non usa m_embeddingReply né emette embeddingReady: callback diretta.
+   Usa ONNX se disponibile, altrimenti HTTP separato.
+   ══════════════════════════════════════════════════════════════ */
+void AiClient::_fetchEmbeddingForRag(const QString& text,
+    std::function<void(const QVector<float>&)> onReady,
+    std::function<void()> onError)
+{
+    if (m_backend == LlamaLocal) { onError(); return; }
+
+    /* ONNX locale — nessuna rete */
+    if (m_onnxEmbedder && m_onnxEmbedder->isReady()) {
+        auto* holder = new QObject(this);
+        connect(m_onnxEmbedder, &OnnxEmbedder::embeddingReady, holder,
+            [holder, onReady](const QVector<float>& v) {
+                holder->deleteLater(); onReady(v);
+            });
+        connect(m_onnxEmbedder, &OnnxEmbedder::embeddingError, holder,
+            [holder, onError](const QString&) {
+                holder->deleteLater(); onError();
+            });
+        m_onnxEmbedder->embedAsync(text);
+        return;
+    }
+
+    /* HTTP separato — non usa m_embeddingReply per evitare conflitti */
+    QString urlStr;
+    QJsonObject body;
+    if (m_backend == Ollama) {
+        urlStr = QString("http://%1:%2/api/embeddings").arg(m_host).arg(m_port);
+        QSettings s("Prismalux", "GUI");
+        const QString em = s.value("rag/embedModel", "").toString();
+        body["model"]  = em.isEmpty() ? m_model : em;
+        body["prompt"] = text;
+    } else {
+        urlStr = QString("http://%1:%2/v1/embeddings").arg(m_host).arg(m_port);
+        body["model"] = m_model;
+        body["input"] = text;
+    }
+    QUrl ragEmbedUrl(urlStr);
+    QNetworkRequest req(ragEmbedUrl);
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    req.setTransferTimeout(30'000);
+    QNetworkReply* ragEmbedReply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    auto* holder = new QObject(this);
+    connect(ragEmbedReply, &QNetworkReply::finished, holder,
+        [holder, ragEmbedReply, onReady, onError]() mutable {
+        holder->deleteLater();
+        ragEmbedReply->deleteLater();
+        if (ragEmbedReply->error() != QNetworkReply::NoError) { onError(); return; }
+        const QJsonObject obj = QJsonDocument::fromJson(ragEmbedReply->readAll()).object();
+        QJsonArray arr;
+        if (obj.contains("embedding"))
+            arr = obj["embedding"].toArray();
+        else if (obj.contains("data")) {
+            const QJsonArray d = obj["data"].toArray();
+            if (!d.isEmpty()) arr = d.first().toObject()["embedding"].toArray();
+        }
+        if (arr.isEmpty()) { onError(); return; }
+        QVector<float> vec; vec.reserve(arr.size());
+        for (const QJsonValue& v : arr) vec.append(static_cast<float>(v.toDouble()));
+        onReady(vec);
+    });
 }
 
 /* ══════════════════════════════════════════════════════════════

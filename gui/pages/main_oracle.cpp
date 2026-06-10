@@ -180,8 +180,13 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     lay->addWidget(inputRow);
 
     /* Carica indice RAG esistente */
-    if (m_rag.load(ragIndexPath()))
+    if (m_rag.load(ragIndexPath())) {
         updateRagBtn();
+        /* Registra come RAG globale — tutte le chat() di qualsiasi tab avranno
+         * accesso automatico ai documenti indicizzati (se l'utente lo desidera). */
+        m_ai->setGlobalRag(&m_rag);
+        m_ai->setGlobalRagEnabled(m_rag.chunkCount() > 0);
+    }
 
     /* ── 6. Quick bar — pillole azione rapida ── */
     m_quickBar = new QWidget(this);

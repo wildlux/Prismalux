@@ -86,22 +86,51 @@ constexpr const char* kLocalHost = "127.0.0.1";
  */
 inline QString root()
 {
+    /* ── Rilevazione AppImage ─────────────────────────────────────────────
+       APPDIR è impostata da TUTTI i runtime AppImage (Type 1 e 2) e punta
+       alla directory montata — è la variabile più affidabile.
+       APPIMAGE contiene il path del file .AppImage (impostata dal launcher).
+       Alcune distribuzioni montano in percorsi diversi da /tmp/.mount_*.
+       In tutti questi casi i dati utente (RAG, KNOWLEDGE_USER) devono stare
+       nella home dell'utente corrente, NON nel filesystem read-only dell'AppImage. */
+    const QString appDir = QCoreApplication::applicationDirPath();
+    const bool isAppImage = qEnvironmentVariableIsSet("APPDIR")
+        || qEnvironmentVariableIsSet("APPIMAGE")
+        || appDir.startsWith("/tmp/.mount_");
+    if (isAppImage)
+        return QDir::homePath() + "/.prismalux";
+
 #ifdef PRISMALUX_ROOT
-    /* Usa il path compilato solo se esiste (evita path di un altro utente su
-       macchine dove il progetto non è installato in quel percorso). */
+    /* In sviluppo usa il path compilato solo se esiste sul disco corrente
+       (evita di usare il path di un altro utente su macchine diverse). */
     const QString compiledRoot = QDir::cleanPath(QString(PRISMALUX_ROOT));
     if (QDir(compiledRoot).exists())
         return compiledRoot;
 #endif
-    /* Runtime fallback: risale 2 livelli dall'eseguibile.
-       AppImage: /tmp/.mount_xxx/usr/bin → /tmp/.mount_xxx/usr
-       build_gui: /…/Prismalux/build_gui → /…/Prismalux/.. */
-    const QString appDir = QCoreApplication::applicationDirPath();
-    /* Se stiamo girando dentro un'AppImage monta, le cartelle utente
-       (RAG, KNOWLEDGE_USER) devono stare nella home, non nel mount. */
-    if (appDir.startsWith("/tmp/.mount_") || qEnvironmentVariableIsSet("APPIMAGE"))
-        return QDir::homePath() + "/.prismalux";
+    /* Fallback build: risale 2 livelli dall'eseguibile.
+       build_gui/Prismalux_GUI → gui/build_gui → gui → Prismalux */
     return QDir::cleanPath(QDir(appDir).absoluteFilePath("../.."));
+}
+
+/**
+ * ragDir() — Cartella RAG dove l'utente deposita i documenti da indicizzare.
+ *
+ * AppImage: ~/PRISMALUX_RAG  (visibile, facile da trovare)
+ * Sviluppo: <root>/RAG       (dentro la cartella progetto)
+ *
+ * La cartella viene creata automaticamente se non esiste.
+ */
+inline QString ragDir()
+{
+    const QString appDir = QCoreApplication::applicationDirPath();
+    const bool isAppImage = qEnvironmentVariableIsSet("APPDIR")
+        || qEnvironmentVariableIsSet("APPIMAGE")
+        || appDir.startsWith("/tmp/.mount_");
+    const QString d = isAppImage
+        ? QDir::homePath() + "/PRISMALUX_RAG"
+        : root() + "/RAG";
+    QDir().mkpath(d);
+    return d;
 }
 
 /**

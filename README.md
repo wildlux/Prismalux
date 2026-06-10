@@ -14,7 +14,7 @@
 
 **Piattaforma AI locale e distribuita — zero cloud, zero abbonamenti, tutto sul tuo hardware.**
 
-[![Donate PayPal](https://img.shields.io/badge/Dona%20con-PayPal-00457C?style=flat-square&logo=paypal&logoColor=white)](https://www.paypal.com/donate?token=_oGlLIKu1FVK4KdKsH7ft6L90cMRZpN_zCgeFRglYUfvs_HVkyKKY5w5m198MiQ8yAyzdMpUIp_nZd9b)
+[![Donate PayPal](https://img.shields.io/badge/Dona%20con-PayPal-00457C?style=flat-square&logo=paypal&logoColor=white)](https://www.paypal.com/donate?business=wildlux%40gmail.com&item_name=Prismalux&currency_code=EUR)
 
 </div>
 
@@ -512,7 +512,7 @@ Prismalux è software libero, sviluppato nel tempo libero. Se ti è utile e vuoi
 
 <div align="center">
 
-[![Dona con PayPal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate?token=_oGlLIKu1FVK4KdKsH7ft6L90cMRZpN_zCgeFRglYUfvs_HVkyKKY5w5m198MiQ8yAyzdMpUIp_nZd9b)
+[![Dona con PayPal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate?business=wildlux%40gmail.com&item_name=Prismalux&currency_code=EUR)
 
 </div>
 

@@ -184,6 +184,7 @@ private:
     QLabel*         m_zoomPctLbl    = nullptr;  ///< Label percentuale zoom (status bar)
     QTimer*         m_zoomDebounce   = nullptr;  ///< Debounce 200ms per riapplicare il tema
     int             m_zoomPct        = 100;       ///< Zoom corrente 50-200%
+    bool            m_thermalCriticalWarned = false; ///< Evita spam avvisi temperatura critica
 
     /* ── Chat History (sidebar) ───────────────────────────────── */
     ChatHistory   m_chatHistory;                  ///< Persistenza sessioni in ~/.prismalux_chats/

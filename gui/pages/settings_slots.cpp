@@ -762,6 +762,12 @@ void ImpostazioniPage::startEmbeddingPhase(const QString& dir)
                 cfg.setValue(P::SK::kRagDocCount, n);
                 cfg.setValue(P::SK::kRagLastIndexed,
                     QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm"));
+                /* Aggiorna il puntatore global RAG in AiClient — tutte le tab usano
+                 * l'indice appena creato per arricchire le loro chat(). */
+                if (m_ai) {
+                    m_ai->setGlobalRag(&m_rag);
+                    m_ai->setGlobalRagEnabled(true);
+                }
             }
             refreshRagStatus();
 
@@ -867,7 +873,7 @@ void ImpostazioniPage::autoIndexIfEmpty()
     /* Controlla che la cartella default contenga file indicizzabili */
     const QString defaultDir = m_ragDirEdit
         ? m_ragDirEdit->text().trimmed()
-        : QDir::cleanPath(P::root() + "/../RAG");
+        : P::ragDir();
     if (defaultDir.isEmpty() || !QDir(defaultDir).exists()) return;
 
     QStringList indexable{"*.txt","*.md","*.pdf","*.cpp","*.h","*.py","*.c","*.rst"};

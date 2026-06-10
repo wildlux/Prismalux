@@ -129,6 +129,7 @@ set(CPP_SRCS
     pages/main_ai_stream.cpp
     pages/main_ai_advice.cpp
     pages/main_ai_knowledge.cpp
+    pages/main_ai_hermes.cpp
     pages/main_ai_auto.cpp
     pages/main_ai_feedback.cpp
     pages/dialog_agents_config.cpp
@@ -187,6 +188,7 @@ set(CPP_SRCS
     log_bus.cpp
     pages/main_research.cpp
     pages/main_research_astrale.cpp
+    pages/main_research_rag_tester.cpp
     pages/rab0l_canvas.cpp
     pages/main_app_controller.cpp
     pages/main_security.cpp

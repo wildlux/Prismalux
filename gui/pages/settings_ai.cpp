@@ -1283,7 +1283,7 @@ QWidget* ImpostazioniPage::buildRagTab()
             "Scarica le circolari e le risoluzioni dell'Agenzia delle Entrate 2026\n"
             "nella cartella RAG per l'indicizzazione automatica.");
         connect(adeBtn, &QPushButton::clicked, this, [this](){
-            const QString ragDir = P::root() + "/RAG/ADE_2026/";
+            const QString ragDir = P::ragDir() + "/ADE_2026/";
             QDir().mkpath(ragDir);
             const QStringList urls = {
                 "https://www.agenziaentrate.gov.it/portale/web/guest/schede/comunicazioni/circolare-1-2026",

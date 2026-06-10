@@ -29,6 +29,7 @@
 #include <QGroupBox>
 #include "../ai_client.h"
 #include "../chat_history.h"
+#include "../graph_memory.h"
 
 class ChartWidget;  /* forward declare — chart_widget.h incluso in .cpp */
 
@@ -402,6 +403,19 @@ private:
     /** Avvia l'agente Estrattore nascosto al termine della pipeline (P5) */
     void runKnowledgeExtract();
 
+    /* ── Hermes Agent — Persistent Memory + Skill Self-Improving ── */
+    GraphMemory* m_hermesGm      = nullptr;  ///< DB: ~/.prismalux/hermes_memory.db
+    QPushButton* m_hermesToggle  = nullptr;  ///< toggle "🧠 Memoria" in toolbar
+    bool         m_hermesEnabled = false;
+
+    void hermesInit();
+    /** Cerca in hermesGm nodi pertinenti alla query e aggiunge al prompt di sistema. */
+    void hermesInjectContext(QString& sysPrompt, const QString& query);
+    /** Salva la conversazione come nodo in hermesGm (fire-and-forget). */
+    void hermesStoreConversation(const QString& userMsg, const QString& aiResp);
+    /** Avvia la riflessione: l'AI analizza i nodi recenti e propone aggiornamenti. */
+    void hermesReflect();
+
     /* ── Handler di completamento per onFinished() — un metodo per modalità ── */
     void _finishedTranslating(const QString& full);
     void _finishedKnowledgeExtract();
@@ -435,6 +449,8 @@ private slots:
     void onCmbLLMIndexChanged(int idx);
     void onModeToggleToggled(bool autoOn);
     void onBtnRegenClicked();  ///< Rigenera ultima risposta con il modello corrente
+    void onHermesToggled(bool on);
+    void onHermesReflectClicked();
 
     /* ── Log / scroll ── */
     void onLogScrollValueChanged(int value);

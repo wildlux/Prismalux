@@ -475,10 +475,17 @@ void AgentiPage::runAgent(int idx) {
         "[Ricercatore], [Analista], [Consulente], [Critico]. "
         "Usa solo le sezioni utili per la domanda. "
         "Termina sempre con [Sintesi] concisa. Rispondi in italiano.";
-    const QString sysFull  = isTeamMode ? kTeamSys + toolSuffix
-                                        : role.sysPrompt      + teamGoalFull  + toolSuffix;
-    const QString sysSmall = isTeamMode ? kTeamSys + toolSuffix
-                                        : role.sysPromptSmall + teamGoalSmall + toolSuffix;
+    QString sysFullMut  = isTeamMode ? kTeamSys + toolSuffix
+                                     : role.sysPrompt      + teamGoalFull  + toolSuffix;
+    QString sysSmallMut = isTeamMode ? kTeamSys + toolSuffix
+                                     : role.sysPromptSmall + teamGoalSmall + toolSuffix;
+
+    /* Hermes: inietta memoria da sessioni precedenti (solo chat singola) */
+    if (m_hermesEnabled && isSingleChat && !m_taskOriginal.isEmpty())
+        hermesInjectContext(sysFullMut, m_taskOriginal);
+
+    const QString sysFull  = sysFullMut;
+    const QString sysSmall = sysSmallMut;
 
     m_agentTimer.restart();
     m_agentOutputs.append("");
@@ -935,7 +942,8 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                         }
                     });
                     pip->start(PrismaluxPaths::findPython(), {"-m", "pip", "install", pkg,
-                        "--quiet", "--trusted-host", "pypi.org",
+                        "--quiet", "--break-system-packages",
+                        "--trusted-host", "pypi.org",
                         "--trusted-host", "files.pythonhosted.org"});
                     return;
                 }

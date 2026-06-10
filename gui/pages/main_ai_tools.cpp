@@ -476,7 +476,7 @@ void AgentiPage::runToolCall(const QJsonObject& call,
         /* Le directory RAG sono fisse e consentite — verifica con PathGuard comunque */
         QStringList ragDirs;
         for (const QString& d : {QDir::homePath() + "/prismalux_rag_docs",
-                                  P::root() + "/RAG"}) {
+                                  P::ragDir()}) {
             if (!PathGuard::checkDir(d).isEmpty())
                 ragDirs << d;
         }

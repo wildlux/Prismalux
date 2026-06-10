@@ -262,15 +262,18 @@ def main():
     if include_rag:
         MAX_FILE_MB = 0
 
+    out_dir = ROOT / "EXPORT" / "windows"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     if (exe and not force_source) or force_binary:
         suffix = f"_v{version}_Windows_portable"
         if not out_name:
             out_name = f"Prismalux{suffix}.zip"
-        crea_zip_binary(ROOT / out_name, exe)
+        crea_zip_binary(out_dir / out_name, exe)
     else:
         if not out_name:
             out_name = f"Prismalux_v{version}_Windows.zip"
-        crea_zip_source(ROOT / out_name)
+        crea_zip_source(out_dir / out_name)
 
 
 if __name__ == "__main__":

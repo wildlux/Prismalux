@@ -154,6 +154,13 @@ public:
     void setOnnxEmbedder(class OnnxEmbedder* emb) { m_onnxEmbedder = emb; }
     class OnnxEmbedder* onnxEmbedder() const { return m_onnxEmbedder; }
 
+    /** Global RAG injection — inietta automaticamente contesto RAG in tutte le chat(sys,user).
+     *  setGlobalRag() registra il RagEngine caricato (puntatore non owned).
+     *  setGlobalRagEnabled(true) attiva l'iniezione automatica. */
+    void setGlobalRag(class RagEngine* r)   { m_globalRag = r; }
+    void setGlobalRagEnabled(bool on)       { m_globalRagEnabled = on; }
+    bool isGlobalRagEnabled()         const { return m_globalRagEnabled; }
+
     /**
      * transcribeAudio — invia un file audio a un server Whisper compatibile OpenAI
      * via POST multipart/form-data a /v1/audio/transcriptions.
@@ -341,6 +348,14 @@ private:
 
     /* ONNX embedder locale (opzionale — non owned) */
     class OnnxEmbedder* m_onnxEmbedder = nullptr;
+
+    /* Global RAG injection (puntatore non owned, impostato da OracoloPage) */
+    class RagEngine* m_globalRag        = nullptr;
+    bool             m_globalRagEnabled = false;
+    bool             m_ragQueryPending  = false;
+    void _fetchEmbeddingForRag(const QString& text,
+        std::function<void(const QVector<float>&)> onReady,
+        std::function<void()> onError);
 
     /* transcribeAudio — reply e multipart salvati per lo slot nominato */
     QPointer<QNetworkReply>    m_transcriptionReply;

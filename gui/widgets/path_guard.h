@@ -144,10 +144,12 @@ private:
         const QString proj = PrismaluxPaths::root();
         const QString rag1 = QDir::homePath() + "/prismalux_rag_docs/";
         const QString rag2 = proj + "/RAG/";
+        const QString rag3 = QDir::homePath() + "/PRISMALUX_RAG/";
         const QString tmp  = QDir::tempPath() + "/";
         return canon.startsWith(proj + "/")
             || canon.startsWith(rag1)
             || canon.startsWith(rag2)
+            || canon.startsWith(rag3)
             || canon.startsWith(tmp);
     }
 

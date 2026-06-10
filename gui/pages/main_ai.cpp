@@ -63,6 +63,7 @@ AgentiPage::AgentiPage(AiClient* ai, QWidget* parent)
     m_cmbMode = m_cfgDlg->modeCombo();
 
     setupUI();
+    hermesInit();
 
     connect(m_ai, &AiClient::token,            this, &AgentiPage::onToken);
     connect(m_ai, &AiClient::finished,         this, &AgentiPage::onFinished);

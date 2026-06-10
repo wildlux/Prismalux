@@ -85,11 +85,20 @@ QWidget* ManutenzioneePage::buildBackendPage()
     colsLay->setContentsMargins(0, 0, 0, 0);
     colsLay->setSpacing(16);
 
-    auto* leftGroup  = buildConnectionModelGroup(colsRow);
-    auto* rightGroup = buildAdvancedConfigGroup(colsRow);
+    /* Colonna sinistra: Connessione & Modello + Configurazione Avanzata sotto */
+    auto* leftStack    = new QWidget(colsRow);
+    auto* leftStackLay = new QVBoxLayout(leftStack);
+    leftStackLay->setContentsMargins(0, 0, 0, 0);
+    leftStackLay->setSpacing(12);
+    auto* leftGroup  = buildConnectionModelGroup(leftStack);
+    auto* rightGroup = buildAdvancedConfigGroup(leftStack);
+    leftStackLay->addWidget(leftGroup);
+    leftStackLay->addWidget(rightGroup);
+    leftStackLay->addStretch();
+
+    /* Colonna destra allargata: Aggiornamento Modelli GPU/RAM */
     auto* updGroup   = buildUpdateGroup(colsRow);
-    colsLay->addWidget(leftGroup);
-    colsLay->addWidget(rightGroup, 1);
+    colsLay->addWidget(leftStack);
     colsLay->addWidget(updGroup, 1);
     mainLay->addWidget(colsRow, 1);
 
@@ -1905,7 +1914,8 @@ void ManutenzioneePage::onDoppiaBtnClicked()
 void ManutenzioneePage::onBtnIntelNpuClicked()
 {
     if (m_ramLog) m_ramLog->append("\xf0\x9f\x94\xb5  Installazione intel-npu-acceleration-library...\n");
-    runRamCmd("pip", {"install", "intel-npu-acceleration-library"},
+    runRamCmd(P::findPython(), {"-m", "pip", "install", "--break-system-packages",
+               "intel-npu-acceleration-library"},
                "pip install intel-npu-acceleration-library");
 }
 

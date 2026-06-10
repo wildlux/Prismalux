@@ -1793,15 +1793,41 @@ void MainWindow::onHWUpdated(SysSnapshot snap) {
         if (!parts.isEmpty()) {
             m_tempLbl->setText("\xf0\x9f\x8c\xa1  " + parts.join(" | "));  /* 🌡 */
             const double maxTemp = qMax(snap.cpu_temp_c, snap.gpu_temp_c);
-            if (maxTemp >= 90)
+            if (maxTemp >= 90) {
                 m_tempLbl->setStyleSheet(
                     "QLabel#tempLabel{color:#f87171;font-size:11px;padding:0 4px;font-weight:bold;}");
-            else if (maxTemp >= 75)
+                if (!m_thermalCriticalWarned) {
+                    m_thermalCriticalWarned = true;
+                    QTimer::singleShot(0, this, [this, maxTemp]() {
+                        auto* mb = new QMessageBox(this);
+                        mb->setWindowTitle(tr("Temperatura critica"));
+                        mb->setIcon(QMessageBox::Warning);
+                        mb->setText(
+                            QString("\xf0\x9f\x8c\xa1  <b>Temperatura %1\xc2\xb0""C</b> \xe2\x80\x94 "
+                                    "rischio throttling o danno hardware!<br><br>"
+                                    "Vuoi fermare il flusso AI per ridurre il carico?")
+                                .arg((int)maxTemp));
+                        mb->setTextFormat(Qt::RichText);
+                        auto* btnStop = mb->addButton(
+                            "\xf0\x9f\x9b\x91  Ferma AI", QMessageBox::AcceptRole);
+                        mb->addButton(tr("Continua"), QMessageBox::RejectRole);
+                        mb->setAttribute(Qt::WA_DeleteOnClose);
+                        connect(mb, &QMessageBox::finished, this,
+                                [this, mb, btnStop](int) {
+                            if (mb->clickedButton() == btnStop)
+                                m_ai->abort();
+                        });
+                        mb->show();
+                    });
+                }
+            } else if (maxTemp >= 75)
                 m_tempLbl->setStyleSheet(
                     "QLabel#tempLabel{color:#f59e0b;font-size:11px;padding:0 4px;}");
-            else
+            else {
                 m_tempLbl->setStyleSheet(
                     "QLabel#tempLabel{color:#94a3b8;font-size:11px;padding:0 4px;}");
+                m_thermalCriticalWarned = false;  /* resetta quando la temp scende */
+            }
             m_tempLbl->setVisible(true);
         }
     }

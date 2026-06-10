@@ -2273,7 +2273,7 @@ void AppControllerPage::onDevAgentInstallClicked()
         proc->deleteLater();
     });
     proc->start(P::findPython(),
-        {"-m", "pip", "install", "--quiet",
+        {"-m", "pip", "install", "--quiet", "--break-system-packages",
          "langgraph", "langchain-community", "langchain-ollama", "unidiff"});
 }
 

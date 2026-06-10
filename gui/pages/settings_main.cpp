@@ -250,7 +250,7 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
         }
 
         t->addTab(m_manutenzione->buildBugTracker(),
-                  "\xf0\x9f\x94\x8d  Bug Tracker");
+                  "\xf0\x9f\x94\x8d  Bug LLMs");
 
         /* Cron spostato in Strumenti → pulsante ⏱ Cron */
 
@@ -750,14 +750,27 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
     palLay->addWidget(btnResetPal);
     palLay->addStretch();
 
-    /* ── Riga 1: Posizione Assi + Palette ─────────────────────── */
-    auto* row1 = new QWidget(inner);
-    auto* row1Lay = new QHBoxLayout(row1);
-    row1Lay->setContentsMargins(0,0,0,0);
-    row1Lay->setSpacing(12);
-    row1Lay->addWidget(axCard, 1);
-    row1Lay->addWidget(palCard, 1);
-    outer->addWidget(row1);
+    /* ── Layout principale: 2 colonne ─────────────────────────── */
+    auto* twoCol    = new QWidget(inner);
+    auto* twoColLay = new QHBoxLayout(twoCol);
+    twoColLay->setContentsMargins(0,0,0,0);
+    twoColLay->setSpacing(12);
+
+    /* Colonna sinistra: Posizione Assi + Colori */
+    auto* leftColW   = new QWidget(twoCol);
+    auto* leftColLay = new QVBoxLayout(leftColW);
+    leftColLay->setContentsMargins(0,0,0,0);
+    leftColLay->setSpacing(12);
+    leftColLay->setAlignment(Qt::AlignTop);
+
+    /* Colonna destra: Palette + Carattere etichette + Preset */
+    auto* rightColW   = new QWidget(twoCol);
+    auto* rightColLay = new QVBoxLayout(rightColW);
+    rightColLay->setContentsMargins(0,0,0,0);
+    rightColLay->setSpacing(12);
+    rightColLay->setAlignment(Qt::AlignTop);
+
+    leftColLay->addWidget(axCard);
 
     /* ── Sezione 2: Colori ─────────────────────────────────────── */
     auto* colCard = new QFrame(inner);
@@ -812,6 +825,7 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
 
     colLay->addLayout(colForm);
     colLay->addStretch();
+    leftColLay->addWidget(colCard);
 
     /* ── Sezione 4: Font (affiancata a Colori grafico) ─────────── */
     auto* fntCard = new QFrame(inner);
@@ -857,12 +871,8 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
 
     fntLay->addLayout(fntForm);
     fntLay->addStretch();
-
-    /* ── Riga 2: Colori grafico ───────────────────────────────── */
-    outer->addWidget(colCard);
-
-    /* ── Riga 3: Carattere etichette ─────────────────────────── */
-    outer->addWidget(fntCard);
+    rightColLay->addWidget(palCard);
+    rightColLay->addWidget(fntCard);
 
     /* ── Sezione 5: Preset temi ────────────────────────────────── */
     auto* preCard = new QFrame(inner);
@@ -954,7 +964,11 @@ QWidget* ImpostazioniPage::buildGraficoTab(GraficoCanvas* canvas)
     }
     preRowLay->addStretch();
     preLay->addWidget(preRow);
-    outer->addWidget(preCard);
+    rightColLay->addWidget(preCard);
+
+    twoColLay->addWidget(leftColW, 1);
+    twoColLay->addWidget(rightColW, 1);
+    outer->addWidget(twoCol);
 
     /* ── Reset totale ──────────────────────────────────────────── */
     auto* btnReset = new QPushButton(

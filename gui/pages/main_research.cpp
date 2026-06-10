@@ -142,6 +142,8 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     /* ── Gruppo 6: Astrologia ── */
     tabs->addTab(buildRagGrafoTab(),
                  "\xf0\x9f\x95\xb8  Grafo RAG");   /* 🕸️ */
+    tabs->addTab(buildRagTesterTab(),
+                 "\xf0\x9f\xa7\xaa  Test RAG");    /* 🧪 */
     tabs->addTab(buildAstraleTab(),
                  "\xe2\xad\x90  Carta Astrale");
 
@@ -2189,7 +2191,7 @@ QWidget* RicercaPage::buildBlhmTab()
 
         /* auto-carica note esistenti */
         {
-            QFile f(P::root() + "/RAG/BLHM_note.md");
+            QFile f(P::ragDir() + "/BLHM_note.md");
             if (f.open(QIODevice::ReadOnly | QIODevice::Text))
                 m_blhmNoteEdit->setPlainText(QTextStream(&f).readAll());
         }
@@ -2501,7 +2503,7 @@ void RicercaPage::onBlhmComputeClicked()
 
 void RicercaPage::onBlhmNoteSave()
 {
-    const QString path = P::root() + "/RAG/BLHM_note.md";
+    const QString path = P::ragDir() + "/BLHM_note.md";
     QFile f(path);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) return;
     QTextStream(&f) << m_blhmNoteEdit->toPlainText();
@@ -2509,7 +2511,7 @@ void RicercaPage::onBlhmNoteSave()
 
 void RicercaPage::onBlhmNoteLoad()
 {
-    const QString path = P::root() + "/RAG/BLHM_note.md";
+    const QString path = P::ragDir() + "/BLHM_note.md";
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
     m_blhmNoteEdit->setPlainText(QTextStream(&f).readAll());
@@ -3268,7 +3270,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
 
     const QString ragDocs  = QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
                              + "/prismalux_rag_docs";
-    const QString ragLocal = P::root() + "/RAG";
+    const QString ragLocal = P::ragDir();
     if (QDir(ragDocs).exists())  m_ragDirWatcher->addPath(ragDocs);
     if (QDir(ragLocal).exists()) m_ragDirWatcher->addPath(ragLocal);
 
@@ -3476,7 +3478,7 @@ void RicercaPage::onRagRunClicked()
 
     /* Aggiungi directory RAG */
     const QString ragDocs = QDir::homePath() + "/prismalux_rag_docs";
-    const QString ragLocal = P::root() + "/RAG";
+    const QString ragLocal = P::ragDir();
 
     if (!QDir(ragDocs).exists() && !QDir(ragLocal).exists()) {
         if (m_ragStatus)

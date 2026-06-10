@@ -507,7 +507,9 @@ void PersonalizzaPage::onLoraInstallBtnClicked() {
     connect(m_loraInstallProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PersonalizzaPage::onLoraInstallFinished);
     m_loraLog2->append("\xf0\x9f\x93\xa6  Installazione in corso...\n");
-    m_loraInstallProc->start("pip", {"install", "unsloth", "trl", "datasets", "transformers"});
+    m_loraInstallProc->start(P::findPython(),
+        {"-m", "pip", "install", "--break-system-packages",
+         "unsloth", "trl", "datasets", "transformers"});
     if (!m_loraInstallProc->waitForStarted(3000)) {
         m_loraLog2->append("\xe2\x9d\x8c  pip non trovato.");
         m_loraInstallProc->deleteLater();

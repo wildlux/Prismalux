@@ -14,6 +14,7 @@
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSplitter>
+#include <QStorageInfo>
 
 namespace P = PrismaluxPaths;
 
@@ -478,21 +479,40 @@ void VoiceClonerWidget::onInstallClicked()
     const bool needChatterbox = (m_backend == BackendNone || m_backend == BackendEdge);
     /* Se edge-tts è già installato, offri chatterbox come upgrade a voice cloning */
 
+    /* Spazio disponibile sulla partizione home */
+    const QStorageInfo storage(QDir::homePath());
+    const double availableGb = storage.isValid()
+        ? storage.bytesAvailable() / 1073741824.0
+        : -1.0;
+    const QString availStr = (availableGb >= 0)
+        ? QString("<b>Spazio disponibile: %1 GB</b>")
+              .arg(availableGb, 0, 'f', 1)
+        : "Spazio disponibile: <i>non rilevabile</i>";
+
     QString pkg, info;
     if (needChatterbox) {
         pkg  = "chatterbox-tts";
+        const QString warn = (availableGb >= 0 && availableGb < 5.0)
+            ? "<br><span style='color:#f87171;'>"
+              "\xe2\x9a\xa0\xef\xb8\x8f  Spazio ridotto: potrebbero esserci problemi durante l'installazione.</span>"
+            : "";
         info = "Verr\xc3\xa0 installato <b>chatterbox-tts</b> (Resemble AI, Python 3.12+).<br>"
-               "Supporta la clonazione vocale zero-shot da campione audio.<br>"
-               "Dimensione modello: ~1 GB. CPU supportata (lenta), GPU raccomandata.<br>"
-               "Richiede: torch, torchaudio (scaricati automaticamente).<br><br>"
-               "Continuare?";
+               "Supporta la clonazione vocale zero-shot da campione audio.<br><br>"
+               "Download richiesto: <b>~4-5 GB</b> totali<br>"
+               "&nbsp;&nbsp;&bull;&nbsp;torch + torchaudio: ~3-4 GB<br>"
+               "&nbsp;&nbsp;&bull;&nbsp;modello chatterbox: ~1 GB<br>"
+               "&nbsp;&nbsp;&bull;&nbsp;GPU raccomandata (CPU supportata ma lenta)<br><br>"
+               + availStr + warn + "<br><br>"
+               "Vuoi procedere con il download e l'installazione?";
     } else {
         pkg  = "edge-tts";
         info = "Verr\xc3\xa0 installato <b>edge-tts</b> (Microsoft Edge TTS, online).<br>"
                "Non richiede GPU, supporta italiano e molte lingue.<br>"
-               "<i>Nota: non clona la voce — usa voci predefinite ad alta qualit\xc3\xa0</i>.<br>"
-               "Per voice cloning usa chatterbox-tts.<br><br>"
-               "Continuare?";
+               "<i>Nota: non clona la voce — usa voci predefinite ad alta qualit\xc3\xa0.</i><br>"
+               "Per voice cloning reale usa chatterbox-tts.<br><br>"
+               "Download richiesto: <b>~5 MB</b><br>"
+               + availStr + "<br><br>"
+               "Vuoi procedere con l'installazione?";
     }
 
     auto reply = QMessageBox::question(this, "Installa TTS", info,

@@ -247,6 +247,29 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
     m_modelWarnLbl->setWordWrap(false);
     m_modelWarnLbl->setVisible(false);
     toolLay->addWidget(m_modelWarnLbl);
+
+    /* ── Hermes toggle ── */
+    m_hermesToggle = new QPushButton("\xf0\x9f\xa7\xa0", toolbar);  /* 🧠 */
+    m_hermesToggle->setCheckable(true);
+    m_hermesToggle->setFixedSize(dpiScale(28), dpiScale(28));
+    m_hermesToggle->setToolTip(
+        "\xf0\x9f\xa7\xa0 Memoria Hermes DISATTIVA — clicca per abilitare "
+        "la memoria persistente tra sessioni");
+    toolLay->addWidget(m_hermesToggle);
+    connect(m_hermesToggle, &QPushButton::toggled,
+            this, &AgentiPage::onHermesToggled);
+
+    auto* hermesReflectBtn = new QPushButton("\xf0\x9f\x94\x84", toolbar);  /* 🔄 */
+    hermesReflectBtn->setFixedSize(dpiScale(28), dpiScale(28));
+    hermesReflectBtn->setToolTip(
+        "Riflessione Hermes: analizza le conversazioni memorizzate e "
+        "identifica pattern e suggerimenti");
+    hermesReflectBtn->setVisible(false);
+    toolLay->addWidget(hermesReflectBtn);
+    connect(m_hermesToggle, &QPushButton::toggled,
+            hermesReflectBtn, &QPushButton::setVisible);
+    connect(hermesReflectBtn, &QPushButton::clicked,
+            this, &AgentiPage::onHermesReflectClicked);
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -1497,7 +1520,7 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         if (query.isEmpty()) return;
 
         /* Cartella destinazione */
-        const QString ragDir = P::root() + "/RAG/RICERCA";
+        const QString ragDir = P::ragDir() + "/RICERCA";
         QDir().mkpath(ragDir);
         /* Slug filename: primi 40 char, senza caratteri speciali */
         QString slug = query.left(40);
@@ -2109,27 +2132,37 @@ void AgentiPage::onAiAborted()
 void AgentiPage::_ingestRagFiles(const QList<QUrl>& urls)
 {
     /* Cartelle RAG persistenti (stesse scansionate da RagGraph) */
-    const QString ragDir  = QDir::cleanPath(P::root() + "/RAG");
+    const QString ragDir  = P::ragDir();
     const QString ragDocs = QDir::cleanPath(QDir::homePath() + "/prismalux_rag_docs");
 
     for (const QUrl& u : urls) {
         const QString path = u.toLocalFile();
         if (path.isEmpty()) continue;
 
-        /* ── Auto-copia in RAG/ se il file è fuori dalle cartelle persistenti ── */
+        /* ── Copia in RAG/ se il file è fuori dalle cartelle persistenti (con conferma) ── */
         const QString canon = QDir::cleanPath(QFileInfo(path).absoluteFilePath());
         const bool inRag = canon.startsWith(ragDir) || canon.startsWith(ragDocs);
         if (!inRag) {
-            QDir().mkpath(ragDir);
             const QString dest = ragDir + "/" + QFileInfo(path).fileName();
             if (!QFile::exists(dest)) {
-                if (QFile::copy(path, dest)) {
-                    if (m_ragStatusLbl)
-                        m_ragStatusLbl->setText(
-                            "\xf0\x9f\x93\x84  Copiato in RAG/ \xe2\x80\x94 "
-                            "il documento \xc3\xa8 ora persistente");
+                const QString msg = QString(
+                    "Vuoi copiare \"%1\" nella cartella RAG?\n\n"
+                    "Destinazione: %2\n\n"
+                    "Copiando il file, Prismalux potr\xc3\xa0 indicizzarlo automaticamente "
+                    "e usarlo come base di conoscenza in tutte le sessioni future.")
+                    .arg(QFileInfo(path).fileName(), ragDir);
+                const auto ans = QMessageBox::question(
+                    this, "Copia nella cartella RAG", msg,
+                    QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+                if (ans == QMessageBox::Yes) {
+                    QDir().mkpath(ragDir);
+                    if (QFile::copy(path, dest)) {
+                        if (m_ragStatusLbl)
+                            m_ragStatusLbl->setText(
+                                "\xf0\x9f\x93\x84  Copiato in RAG/ \xe2\x80\x94 "
+                                "il documento \xc3\xa8 ora persistente");
+                    }
                 }
-                /* copia fallita → continua con il file originale senza bloccare */
             }
         }
 
