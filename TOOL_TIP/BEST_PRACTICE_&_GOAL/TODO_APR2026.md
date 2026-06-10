@@ -9,7 +9,7 @@
 
 | # | Stato | Task | File / Contesto |
 |---|-------|------|-----------------|
-| C1 | ⬜ | **Push su GitHub** — branch `master` è avanti all'origin | `git push origin master` |
+| C1 | ✅ | **Push su GitHub** — commit `a317832` pushato su `master` — 2026-06-11 | `git push origin master` |
 | C2 | ✅ | **Unifica Start/Stop** — bottone unico run↔stop via `_setRunBusy/_setSendBusy/_setGenerateBusy` | `agenti_page`, `oracolo_page`, `quiz_page`, `programmazione_page`, `strumenti_page` |
 | C3 | ✅ | **Chat persistente** — `ChatHistory` salva ogni sessione in `~/.prismalux_chats/*.json`; sidebar lista sessioni con caricamento/export/elimina | `gui/chat_history.h/cpp` · `gui/mainwindow.cpp:onChatCompleted` |
 | C4 | ✅ | **Warning hex** — fix `\x9cCertamente` e `\xa464GB` con split stringa literal | `gui/pages/impostazioni_page.cpp:4498,4655` |
@@ -48,6 +48,7 @@
 | N8 | ✅ | **Auto-update** — controllo all'avvio via GitHub API per nuova versione disponibile; notifica non intrusiva nell'header | `mainwindow_slots.cpp::checkForUpdates()` — GitHub API 10s dopo avvio, label `🆕 vX.Y` in status bar — 2026-06-11 |
 | N9 | ✅ | **CloudCompare stub** — attualmente mostra "in arrivo"; rimuovere la voce o implementare il bridge CloudComPy | `main_tools.cpp::buildCloudCompareRow()` — aggiunto pulsante "Apri CloudCompare" + istruzioni install apt/flatpak/win — 2026-06-11 |
 | N10 | ✅ | **macOS** — teoricamente compilabile con Qt6 ma mai testato; aggiungere istruzioni build + test su CI | `CMakeLists.txt` sezione `APPLE` (MACOSX_BUNDLE + macdeployqt); istruzioni Homebrew in `gui/CLAUDE.md` — 2026-06-11 |
+| N11 | ⬜ | **Trascrivi via LLM** — nella tab "Trascrivi" di ImpostazioniPage, aggiungere opzione per usare un LLM multimodale al posto di Whisper: radio "Whisper / LLM"; se LLM, invia l'audio (base64 o path) al modello Ollama selezionato con capacità audio (es. `whisper-large-v3` via llama.cpp, `gemma3n`, o qualsiasi modello con `audio` in `model_info.capabilities`); utile quando Whisper non è installato o si vuole correzione LLM post-trascrizione | `gui/pages/settings_voice.cpp` · `gui/pages/settings_slots.cpp` · `ai_client.h` (nuovo overload `transcribeViaLlm`) |
 
 ---
 
