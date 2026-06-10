@@ -1237,7 +1237,13 @@ QWidget* ImpostazioniPage::buildRagTab()
         maxSpin->setValue(AppConfig::s().value(P::SK::kRagMaxResults, 5).toInt());
     }
     maxSpin->setSuffix("  risultati");
+    maxSpin->setToolTip(
+        "Numero massimo di chunk RAG restituiti per ogni query.\n"
+        "Ogni chunk e' un frammento di documento (~400 caratteri).\n"
+        "Valore piu' alto = piu' contesto, ma piu' token usati.\n"
+        "Consigliato: 3-5.");
     fl->addRow("Massimi:", maxSpin);
+    fl->labelForField(maxSpin)->setToolTip(maxSpin->toolTip());
 
     outer->addLayout(fl);
 
@@ -1267,6 +1273,32 @@ QWidget* ImpostazioniPage::buildRagTab()
 
         jlLay->addWidget(jlChk);
         jlLay->addWidget(jlHint);
+
+        /* Pulsante download documenti ADE 2026 (Agenzia delle Entrate) */
+        auto* adeBtnRow = new QHBoxLayout;
+        auto* adeBtn = new QPushButton(
+            "\xf0\x9f\x93\xa5  Scarica documenti ufficiali ADE 2026", jlFrame);  /* 📥 */
+        adeBtn->setObjectName("navBtn");
+        adeBtn->setToolTip(
+            "Scarica le circolari e le risoluzioni dell'Agenzia delle Entrate 2026\n"
+            "nella cartella RAG per l'indicizzazione automatica.");
+        connect(adeBtn, &QPushButton::clicked, this, [this](){
+            const QString ragDir = P::root() + "/RAG/ADE_2026/";
+            QDir().mkpath(ragDir);
+            const QStringList urls = {
+                "https://www.agenziaentrate.gov.it/portale/web/guest/schede/comunicazioni/circolare-1-2026",
+                "https://www.agenziaentrate.gov.it/portale/web/guest/schede/comunicazioni/risoluzione-2026"
+            };
+            const QString info = QString(
+                "\xf0\x9f\x93\xa5  Documenti ADE 2026 — cartella di destinazione:\n%1\n\n"
+                "Per scaricare manualmente i documenti PDF:\n%2")
+                .arg(ragDir)
+                .arg(urls.join("\n"));
+            QMessageBox::information(this, "Documenti ADE 2026", info);
+        });
+        adeBtnRow->addWidget(adeBtn);
+        adeBtnRow->addStretch(1);
+        jlLay->addLayout(adeBtnRow);
 
         connect(jlChk, &QCheckBox::toggled,
                 this, &ImpostazioniPage::onRagJlToggled);
@@ -1324,22 +1356,49 @@ QWidget* ImpostazioniPage::buildRagTab()
         auto* embedRow = new QHBoxLayout;
         auto* embedLbl = new QLabel("Modello embedding:");
         embedLbl->setObjectName("hintLabel");
-        auto* embedEdit = new QLineEdit;
-        embedEdit->setPlaceholderText(tr("nomic-embed-text"));
-        embedEdit->setFixedHeight(28);
-        {
-            const QString saved = AppConfig::s().value(P::SK::kRagEmbedModel, "").toString();
-            embedEdit->setText(saved.isEmpty() ? "nomic-embed-text" : saved);
-        }
-        embedEdit->setToolTip(
+
+        m_ragEmbedCombo = new QComboBox;
+        m_ragEmbedCombo->setFixedHeight(28);
+        m_ragEmbedCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        m_ragEmbedCombo->setToolTip(
             "Modello Ollama dedicato per gli embedding (vettorizzazione del testo).\n"
             "I modelli chat (qwen3, llama, ecc.) NON supportano /api/embeddings.\n"
-            "Modello consigliato: nomic-embed-text\n"
-            "Installa con: ollama pull nomic-embed-text");
-        QObject::connect(embedEdit, &QLineEdit::textChanged,
-                         this, &ImpostazioniPage::onRagEmbedModelChanged);
+            "Modelli compatibili con RAG sono marcati con un segno di spunta.");
+        {
+            /* Pre-popola con il valore salvato + modelli statici noti */
+            const QString saved = AppConfig::s().value(P::SK::kRagEmbedModel, "").toString();
+            const QString cur = saved.isEmpty() ? "nomic-embed-text" : saved;
+            static const char* kKnown[] = {
+                "nomic-embed-text", "all-minilm", "mxbai-embed-large",
+                "bge-large", "bge-base", "bge-small", "e5-large", "e5-base",
+                "e5-small", "jina-embeddings-v2-base-en", "stella-en-1.5b-v5", nullptr
+            };
+            for (int i = 0; kKnown[i]; ++i) {
+                m_ragEmbedCombo->addItem(
+                    QString("\xe2\x9c\x94 %1").arg(kKnown[i]), QString(kKnown[i]));
+            }
+            /* Assicura che il modello salvato sia presente */
+            int idx = m_ragEmbedCombo->findData(cur);
+            if (idx < 0) {
+                m_ragEmbedCombo->addItem(QString("\xe2\x9c\x94 %1").arg(cur), cur);
+                idx = m_ragEmbedCombo->count() - 1;
+            }
+            m_ragEmbedCombo->setCurrentIndex(idx);
+        }
+        QObject::connect(m_ragEmbedCombo,
+                         QOverload<int>::of(&QComboBox::currentIndexChanged),
+                         this, &ImpostazioniPage::onRagEmbedComboChanged);
+
+        auto* embedRefreshBtn = new QPushButton("\xf0\x9f\x94\x84");
+        embedRefreshBtn->setObjectName("navBtn");
+        embedRefreshBtn->setFixedSize(28, 28);
+        embedRefreshBtn->setToolTip("Aggiorna lista modelli da Ollama");
+        QObject::connect(embedRefreshBtn, &QPushButton::clicked,
+                         this, &ImpostazioniPage::onRagEmbedRefreshClicked);
+
         embedRow->addWidget(embedLbl);
-        embedRow->addWidget(embedEdit, 1);
+        embedRow->addWidget(m_ragEmbedCombo, 1);
+        embedRow->addWidget(embedRefreshBtn);
         outer->addLayout(embedRow);
 
         /* ── Card: modelli embedding consigliati ── */
@@ -1385,8 +1444,16 @@ QWidget* ImpostazioniPage::buildRagTab()
             useBtn->setObjectName("navBtn");
             useBtn->setFixedSize(46, 22);
             const QString modelName = r.name;
-            QObject::connect(useBtn, &QPushButton::clicked, embedEdit,
-                [embedEdit, modelName] { embedEdit->setText(modelName); });
+            QObject::connect(useBtn, &QPushButton::clicked, m_ragEmbedCombo,
+                [this, modelName] {
+                    int i = m_ragEmbedCombo->findData(modelName);
+                    if (i >= 0) m_ragEmbedCombo->setCurrentIndex(i);
+                    else {
+                        m_ragEmbedCombo->addItem(
+                            QString("\xe2\x9c\x94 %1").arg(modelName), modelName);
+                        m_ragEmbedCombo->setCurrentIndex(m_ragEmbedCombo->count()-1);
+                    }
+                });
 
             embedGrid->addWidget(nameLbl, embedRow2, 0);
             embedGrid->addWidget(sizeLbl, embedRow2, 1);

@@ -115,6 +115,9 @@ private slots:
     void onRagDirChanged(const QString& t);
     void onRagMaxResultsChanged(int v);
     void onRagEmbedModelChanged(const QString& v);
+    void onRagEmbedComboChanged(int idx);
+    void onRagEmbedRefreshClicked();
+    void onRagEmbedModelsReady(const QStringList& models);
     void onRagDownloadBtnClicked();
     void onRagJlToggled(bool checked);
     void onStopIndexClicked();
@@ -249,6 +252,7 @@ private:
     QLabel*         m_ragStatusLbl      = nullptr;
     QPushButton*    m_ragReindexBtn     = nullptr;
     QPushButton*    m_ragDownloadBtn    = nullptr;
+    QComboBox*      m_ragEmbedCombo     = nullptr;  ///< selettore modello embedding
 
     /* ── buildAiParamsTab member state ── */
     QDoubleSpinBox* m_tempSpin          = nullptr;

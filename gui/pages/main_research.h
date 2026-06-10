@@ -152,8 +152,10 @@ private:
     QLabel*         m_ragImgLbl      = nullptr;   ///< immagine Graphviz
     QTextEdit*      m_ragDotView     = nullptr;   ///< DOT sorgente
     QLabel*         m_ragStatus      = nullptr;
+    QLabel*         m_ragTempLbl     = nullptr;  ///< indicatore temperatura in-tab RAG
     QProgressBar*   m_ragProgress    = nullptr;
     QPushButton*    m_ragRunBtn      = nullptr;
+    QPushButton*    m_ragPauseBtn    = nullptr;
     QPushButton*    m_ragStopBtn     = nullptr;
     QPushButton*    m_ragClearBtn    = nullptr;
     QComboBox*      m_ragModelCombo  = nullptr;
@@ -255,6 +257,8 @@ public slots:
     void onOutputBarPdfClicked();
     void onOutputBarMdClicked();
     void onOutputBarClrClicked();
+    /** Aggiorna display temperature nel tab RAG; auto-pausa/riprendi ingest termico. */
+    void onThermalUpdate(double cpuTempC, double gpuTempC);
 
 private slots:
     /* AI globali */
@@ -344,6 +348,7 @@ private slots:
 
     /* Grafo RAG */
     void onRagRunClicked();
+    void onRagPauseClicked();
     void onRagStopClicked();
     void onRagClearClicked();
     void onRagSearchChanged(const QString& q);

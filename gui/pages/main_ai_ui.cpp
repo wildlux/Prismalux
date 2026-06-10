@@ -240,6 +240,13 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
     m_btnRegen->setVisible(false);
     toolLay->addWidget(m_btnRegen);
     connect(m_btnRegen, &QPushButton::clicked, this, &AgentiPage::onBtnRegenClicked);
+
+    m_modelWarnLbl = new QLabel(toolbar);
+    m_modelWarnLbl->setObjectName("modelWarnLbl");
+    m_modelWarnLbl->setStyleSheet("color:#f59e0b;font-size:11px;font-style:italic;");
+    m_modelWarnLbl->setWordWrap(false);
+    m_modelWarnLbl->setVisible(false);
+    toolLay->addWidget(m_modelWarnLbl);
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -1178,6 +1185,28 @@ void AgentiPage::onToolChkToggled(bool on)
         m_toolsEnabled = on;
 }
 
+/* Helper: ritorna true se il modello supporta vision multimodale */
+static bool isVisionCapable(const QString& mdl)
+{
+    const QString m = mdl.toLower();
+    return m.contains("vision") || m.contains("-vl") || m.contains("llava")
+        || m.contains("minicpm-v") || m.contains("bakllava") || m.contains("cogvlm")
+        || m.contains("moondream") || m.contains("idefics") || m.contains("phi-3-v")
+        || m.contains("phi3-v") || m.contains("internvl") || m.contains("qwen-vl")
+        || m.contains("qwen2-vl") || m.contains("omnivision");
+}
+
+/* Helper: ritorna true se il modello supporta function/tool calling */
+static bool isToolCapable(const QString& mdl)
+{
+    const QString m = mdl.toLower();
+    if (m.contains("deepseek-coder")) return false;
+    if (m.contains("deepseek-r1"))    return false;
+    if (m.contains("codellama"))      return false;
+    if (m.contains("phi-2"))          return false;
+    return true;
+}
+
 void AgentiPage::onCmbLLMIndexChanged(int idx)
 {
     if (idx < 0 || !m_cmbLLM) return;
@@ -1186,9 +1215,54 @@ void AgentiPage::onCmbLLMIndexChanged(int idx)
     m_pageModel = mdl;
     m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), mdl);
 
+    /* ── Capability check: vision ── */
+    const bool isDeepSeek = mdl.toLower().contains("deepseek");
+    const bool hasVision  = isVisionCapable(mdl);
+    if (m_btnImg) {
+        m_btnImg->setEnabled(hasVision || !isDeepSeek);
+        if (isDeepSeek && !hasVision) {
+            m_btnImg->setToolTip(tr("DeepSeek non supporta vision — usa llava o un modello *-vl"));
+            m_btnImg->setStyleSheet("color:#9ca3af;");  /* grigio quando disabilitato */
+        } else {
+            m_btnImg->setToolTip(tr("Allega immagine per vision models (.png, .jpg, .jpeg, .gif, .webp)"));
+            m_btnImg->setStyleSheet("");
+        }
+    }
+
+    /* ── Capability check: tool use ── */
+    const bool hasTool = isToolCapable(mdl);
+    if (m_toolChk && !m_autoEnabled) {
+        m_toolChk->setEnabled(hasTool);
+        if (!hasTool) {
+            m_toolChk->setChecked(false);
+            m_toolChk->setToolTip(tr("%1 non supporta function calling — tools disabilitati").arg(mdl));
+        } else {
+            m_toolChk->setToolTip(
+                "Abilita il function calling (Ollama tool use) nella prossima risposta.\n"
+                "Il modello pu\xc3\xb2 chiamare: leggi_file, lista_file, calc, cerca_web, python.\n"
+                "Richiede un modello tool-capable (qwen3, llama3.1, mistral-nemo...).\n"
+                "In modalit\xc3\xa0 Agente Autonomo i tool sono sempre attivi.");
+        }
+    }
+
+    /* ── Etichetta avviso combinata ── */
+    QStringList warns;
+    if (isDeepSeek && !hasVision) warns << "\xf0\x9f\x9b\x87 no vision";  /* 🛇 */
+    if (!hasTool)                  warns << "\xf0\x9f\x94\xa7 no tools";  /* 🔧 */
+    if (m_modelWarnLbl) {
+        if (!warns.isEmpty()) {
+            m_modelWarnLbl->setText(warns.join("  "));
+            m_modelWarnLbl->setToolTip(
+                (isDeepSeek && !hasVision ? tr("Questo modello non supporta le immagini in input.\n") : QString()) +
+                (!hasTool ? tr("Questo modello non supporta il function calling.") : QString()));
+            m_modelWarnLbl->setVisible(true);
+        } else {
+            m_modelWarnLbl->setVisible(false);
+        }
+    }
+
     /* Mostra il pulsante "Rigenera" solo se la chat ha già contenuto */
     if (m_btnRegen && m_log && !m_log->toPlainText().trimmed().isEmpty()) {
-        /* Aggiorna etichetta col nome del modello corrente (troncato a 18 char) */
         QString shortMdl = mdl;
         if (shortMdl.length() > 18)
             shortMdl = shortMdl.left(16) + "\xe2\x80\xa6";  /* … */
@@ -1412,6 +1486,105 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
 
         m_log->setHtml(html);
         m_log->verticalScrollBar()->setValue(scrollPos);
+        return;
+    }
+
+    /* ── Ricerca online → salva in RAG/RICERCA/<slug>.md ── */
+    if (s.startsWith("websearch:")) {
+        const QString q64  = s.mid(10);
+        const QString query = QString::fromUtf8(
+            QByteArray::fromBase64(q64.toLatin1(), QByteArray::Base64UrlEncoding)).trimmed();
+        if (query.isEmpty()) return;
+
+        /* Cartella destinazione */
+        const QString ragDir = P::root() + "/RAG/RICERCA";
+        QDir().mkpath(ragDir);
+        /* Slug filename: primi 40 char, senza caratteri speciali */
+        QString slug = query.left(40);
+        slug.replace(QRegularExpression("[^a-zA-Z0-9_àèìòùÀÈÌÒÙ ]"), "_");
+        slug = slug.simplified().replace(' ', '_');
+        const QString outFile = ragDir + "/" +
+            QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss") + "_" + slug + ".md";
+
+        /* Conferma utente */
+        auto reply = QMessageBox::question(
+            this,
+            "\xf0\x9f\x94\x8d  Cerca online",
+            QString("Vuoi cercare online:\n<b>%1</b>\n\n"
+                    "Il risultato sar\xc3\xa0 salvato in:\n%2\n\n"
+                    "e iniettato come contesto RAG.")
+                .arg(query.toHtmlEscaped(), outFile),
+            QMessageBox::Yes | QMessageBox::No);
+        if (reply != QMessageBox::Yes) return;
+
+        /* Script Python: usa duckduckgo_search (pip install duckduckgo-search) */
+        const QString script = QString(
+            "import sys, json, datetime\n"
+            "query = %1\n"
+            "out_file = %2\n"
+            "try:\n"
+            "    from duckduckgo_search import DDGS\n"
+            "    results = []\n"
+            "    with DDGS() as ddgs:\n"
+            "        for r in ddgs.text(query, max_results=5):\n"
+            "            results.append(r)\n"
+            "    if not results:\n"
+            "        print('NORESULT', flush=True)\n"
+            "        sys.exit(0)\n"
+            "    lines = [f'# Ricerca: {query}', f'Data: {datetime.date.today()}', '']\n"
+            "    for i, r in enumerate(results, 1):\n"
+            "        lines.append(f'## {i}. {r.get(\"title\",\"\")}' )\n"
+            "        lines.append(f'URL: {r.get(\"href\",\"\")}')\n"
+            "        lines.append(r.get('body',''))\n"
+            "        lines.append('')\n"
+            "    with open(out_file, 'w', encoding='utf-8') as f:\n"
+            "        f.write('\\n'.join(lines))\n"
+            "    print('DONE:' + out_file, flush=True)\n"
+            "except ImportError:\n"
+            "    print('NODEPS', flush=True)\n"
+            "    sys.exit(2)\n"
+            "except Exception as e:\n"
+            "    print(f'ERROR:{e}', flush=True)\n"
+            "    sys.exit(1)\n"
+        ).arg(QString("r\"\"\"%1\"\"\"").arg(query))
+         .arg(QString("r\"%1\"").arg(outFile));
+
+        auto* proc = new QProcess(this);
+        /* Banner avvio */
+        m_log->moveCursor(QTextCursor::End);
+        m_log->insertHtml(
+            "<p style='color:#60a5fa;font-size:11px;margin:4px 0;'>"
+            "\xf0\x9f\x94\x8d  Ricerca in corso: <i>" +
+            query.toHtmlEscaped() + "</i>...</p>");
+
+        connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, proc, query, outFile](int code, QProcess::ExitStatus) {
+            proc->deleteLater();
+            const QString out = proc->readAllStandardOutput().trimmed();
+            m_log->moveCursor(QTextCursor::End);
+            if (out.startsWith("DONE:")) {
+                m_log->insertHtml(
+                    "<p style='color:#4ade80;font-size:11px;margin:4px 0;'>"
+                    "\xe2\x9c\x85  Salvato in RAG/RICERCA. "
+                    "Fai una nuova domanda per usare il contesto.</p>");
+                /* Inietta nel RAG automaticamente se RagGraph disponibile */
+                emit onlineSearchResultReady(outFile, query);
+            } else if (out == "NODEPS") {
+                m_log->insertHtml(
+                    "<p style='color:#facc15;font-size:11px;margin:4px 0;'>"
+                    "\xe2\x9a\xa0  Installa prima: "
+                    "<code>pip install duckduckgo-search</code></p>");
+            } else if (out == "NORESULT") {
+                m_log->insertHtml(
+                    "<p style='color:#94a3b8;font-size:11px;margin:4px 0;'>"
+                    "\xf0\x9f\x94\x8d  Nessun risultato trovato per questa query.</p>");
+            } else {
+                m_log->insertHtml(
+                    "<p style='color:#f87171;font-size:11px;margin:4px 0;'>"
+                    "\xe2\x9d\x8c  Errore ricerca (codice " + QString::number(code) + ")</p>");
+            }
+        });
+        proc->start("python3", {"-c", script});
         return;
     }
 
@@ -1914,6 +2087,10 @@ void AgentiPage::onAiAborted()
     m_currentAgent = 0;
     m_agentOutputs.clear();
     m_byzStep      = 0;
+    /* Reset background mode se abort avviene mentre siamo in background */
+    m_bgMode = false;
+    m_bgBuffer.clear();
+    m_bgHtmlSave.clear();
     _setRunBusy(false);
     emit pipelineStatus(0, "\xe2\x9c\x8b  Interrotto");
     for (int i = 0; i < MAX_AGENTS; i++)

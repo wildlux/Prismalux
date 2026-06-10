@@ -73,7 +73,14 @@ public:
     /** Ferma l'elaborazione. */
     void stopIngest();
 
+    /** Mette in pausa l'elaborazione (il file corrente termina prima di fermarsi). */
+    void pauseIngest();
+
+    /** Riprende l'elaborazione dopo una pausa. */
+    void resumeIngest();
+
     bool isRunning() const { return m_stats.running; }
+    bool isPaused()  const { return m_paused; }
 
     /* ── Query ──────────────────────────────────────────────── */
 
@@ -119,6 +126,7 @@ private:
     int m_maxEntities        = 12;
 
     RagGraphStats m_stats;
+    bool          m_paused = false;
 
     /* Mappa nodeId→testo chunk sorgente per searchChunks() */
     QMap<QString, RagGraphChunk> m_chunkMap;   ///< nodeId → chunk

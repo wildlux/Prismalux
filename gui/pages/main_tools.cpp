@@ -1,5 +1,6 @@
 #include "main_tools.h"
 #include "main_learn.h"
+#include "main_tools_file.h"
 #include "../widgets/proc_helper.h"
 #include "../widgets/model_combo_helper.h"
 #include "main_finance.h"
@@ -510,6 +511,10 @@ void StrumentiPage::buildLayout()
             this, &StrumentiPage::onQuizAiModelsReady);
     m_tabs->addTab(new QuizPage(m_quizAi, m_tabs),
                    "\xf0\x9f\x8e\xaf  Sfida!");
+
+    /* ── Tab 10: File AI (spostato da tab principale a sub-tab di Strumenti) ── */
+    m_tabs->addTab(new StrumentiFilePage(m_ai, m_tabs),
+                   "\xf0\x9f\x93\x81  File AI"); /* 📁 */
 
     /* rootLay[0] = m_tabs (stretch 0 per tab categoria, 1 per le altre) */
     rootLay->addWidget(m_tabs, 0);

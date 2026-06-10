@@ -643,6 +643,14 @@ void MainWindow::buildGaugesSection(QHBoxLayout* lay)
     lay->addWidget(m_gCpu);
     lay->addWidget(m_gRam);
     lay->addWidget(m_gGpu);
+
+    m_tempLbl = new QLabel("", hdr);
+    m_tempLbl->setObjectName("tempLabel");
+    m_tempLbl->setToolTip(tr("Temperatura CPU / GPU rilevata dal sensore termico"));
+    m_tempLbl->setStyleSheet(
+        "QLabel#tempLabel{color:#94a3b8;font-size:11px;padding:0 4px;}");
+    m_tempLbl->setVisible(false);
+    lay->addWidget(m_tempLbl);
 }
 
 /* ── Livello 2: 🚨 emergenza RAM + Scarica LLM + backend toggle ───── */
@@ -1281,7 +1289,7 @@ QWidget* MainWindow::buildContent()
     buildAiTab();
     buildStrumentiTab();
     buildMultimediaTab();
-    buildFileAiTab();
+    /* File AI è ora sub-tab 10 di StrumentiPage */
     buildProgrammazioneTab();
     buildMatematicaTab();
     buildRicercaTab();
@@ -1380,14 +1388,14 @@ void MainWindow::buildFileAiTab()
                        "\xf0\x9f\x93\x81  File AI");  /* 3 */
 }
 
-/* ── Livello 2: tab [4] Programmazione ───────────────────────────── */
+/* ── Livello 2: tab [3] Programmazione ───────────────────────────── */
 void MainWindow::buildProgrammazioneTab()
 {
     m_mainTabs->addTab(new ProgrammazionePage(m_ai, this),
-                       "\xf0\x9f\x92\xbb  Programmazione");  /* 4 */
+                       "\xf0\x9f\x92\xbb  Programmazione");  /* 3 */
 }
 
-/* ── Livello 2: tab [5] Matematica + Grafico ─────────────────────── */
+/* ── Livello 2: tab [4] Matematica + Grafico ─────────────────────── */
 void MainWindow::buildMatematicaTab()
 {
     auto* grafPage = new GraficoPage(m_ai, this);
@@ -1410,30 +1418,30 @@ void MainWindow::buildMatematicaTab()
             this, &MainWindow::onMathSubTabChanged);
 
     mcLay->addWidget(mathSubTabs);
-    m_mainTabs->addTab(mathContainer, "\xf0\x9f\x93\x90  Matematica");  /* 5 */
+    m_mainTabs->addTab(mathContainer, "\xf0\x9f\x93\x90  Matematica");  /* 4 */
 }
 
-/* ── Livello 2: tab [6] Ricerca ──────────────────────────────────── */
+/* ── Livello 2: tab [5] Ricerca ──────────────────────────────────── */
 void MainWindow::buildRicercaTab()
 {
     m_ricercaPage = new RicercaPage(m_ai, this);
-    m_mainTabs->addTab(m_ricercaPage, "\xf0\x9f\x94\xac  Ricerca");  /* 6 */
+    m_mainTabs->addTab(m_ricercaPage, "\xf0\x9f\x94\xac  Ricerca");  /* 5 */
 }
 
-/* ── Livello 2: tab [7] APP Controller ───────────────────────────── */
+/* ── Livello 2: tab [6] APP Controller ───────────────────────────── */
 void MainWindow::buildAppControllerTab()
 {
     auto* appCtrl = new AppControllerPage(m_ai, this);
     connect(appCtrl, &AppControllerPage::openSettingsDipendenze,
             this,    &MainWindow::onOpenSettingsDipendenze);
-    m_mainTabs->addTab(appCtrl, "\xf0\x9f\x95\xb9\xef\xb8\x8f  APP Controller");  /* 7 */
+    m_mainTabs->addTab(appCtrl, "\xf0\x9f\x95\xb9\xef\xb8\x8f  APP Controller");  /* 6 */
 }
 
-/* ── Livello 2: tab [8] LAN & WAN ────────────────────────────────── */
+/* ── Livello 2: tab [7] LAN & WAN ────────────────────────────────── */
 void MainWindow::buildLanWanTab()
 {
     auto* lanWan = new LanWanPage(m_ai, this);
-    m_mainTabs->addTab(lanWan, "\xf0\x9f\x8c\x90  LAN & WAN");  /* 8 */
+    m_mainTabs->addTab(lanWan, "\xf0\x9f\x8c\x90  LAN & WAN");  /* 7 */
     /* Multi-Agente è ora un tab interno a LanWanPage — recupera il riferimento
      * per poter collegare la cross-pollination con RagGraph. */
     m_agentiMultiPage = lanWan->multiAgentTab();
@@ -1774,6 +1782,33 @@ void MainWindow::onHWUpdated(SysSnapshot snap) {
                        snap.gpu_name.isEmpty() ? "" : snap.gpu_name);
     else
         m_gGpu->update(0, "Rilevamento...");
+
+    /* Indicatore temperatura header */
+    if (m_tempLbl) {
+        QStringList parts;
+        if (snap.cpu_temp_c >= 0)
+            parts << QString("CPU %1\xc2\xb0" "C").arg((int)snap.cpu_temp_c);
+        if (snap.gpu_temp_c >= 0)
+            parts << QString("GPU %1\xc2\xb0" "C").arg((int)snap.gpu_temp_c);
+        if (!parts.isEmpty()) {
+            m_tempLbl->setText("\xf0\x9f\x8c\xa1  " + parts.join(" | "));  /* 🌡 */
+            const double maxTemp = qMax(snap.cpu_temp_c, snap.gpu_temp_c);
+            if (maxTemp >= 90)
+                m_tempLbl->setStyleSheet(
+                    "QLabel#tempLabel{color:#f87171;font-size:11px;padding:0 4px;font-weight:bold;}");
+            else if (maxTemp >= 75)
+                m_tempLbl->setStyleSheet(
+                    "QLabel#tempLabel{color:#f59e0b;font-size:11px;padding:0 4px;}");
+            else
+                m_tempLbl->setStyleSheet(
+                    "QLabel#tempLabel{color:#94a3b8;font-size:11px;padding:0 4px;}");
+            m_tempLbl->setVisible(true);
+        }
+    }
+
+    /* Invia temperatura alla RicercaPage per il RAG thermal throttle */
+    if (m_ricercaPage)
+        m_ricercaPage->onThermalUpdate(snap.cpu_temp_c, snap.gpu_temp_c);
 }
 
 /* ══════════════════════════════════════════════════════════════

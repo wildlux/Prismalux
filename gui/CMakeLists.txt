@@ -179,6 +179,7 @@ set(CPP_SRCS
     pages/widget_code_interpreter.cpp
     pages/widget_stable_diffusion.cpp
     pages/widget_synthesizer.cpp
+    pages/widget_voice_cloner.cpp
     pages/main_math.cpp
     pages/main_multi_agent.cpp
     graph_memory.cpp

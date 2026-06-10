@@ -63,6 +63,22 @@ pyserial>=3.5                      # MCPs/driver_mcp/server.py
 #   conda install -c conda-forge rdkit
 # rdkit
 
+# ── Voice Cloning / TTS — scheda "Clona Voce" in Multimedia ─────────────────
+# Scegli in base alla versione Python:
+#
+#   Python < 3.12 (voice cloning XTTS-v2, ~2 GB):
+#     pip install TTS
+#
+#   Python >= 3.12 (voice cloning zero-shot, ~1 GB, raccomandato):
+#     pip install chatterbox-tts
+#
+#   Fallback online senza voice cloning (qualsiasi Python):
+#     pip install edge-tts
+#
+# chatterbox-tts     # voice cloning Python>=3.12 — pip install chatterbox-tts
+# edge-tts           # TTS online fallback (no cloning) — pip install edge-tts
+# TTS                # Coqui XTTS-v2 solo Python < 3.12 — pip install TTS
+
 # ── Opzionali: Stable Diffusion (richiede GPU, ~10 GB) ───────────────────────
 # Esegui (CPU):  pip install diffusers transformers accelerate torch Pillow
 # Esegui (GPU NVIDIA CUDA 12.1):

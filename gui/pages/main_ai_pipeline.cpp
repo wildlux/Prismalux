@@ -126,6 +126,12 @@ void AgentiPage::runPipeline() {
     QString task = _sanitize_prompt(m_input->toPlainText().trimmed());
     if (task.isEmpty()) { m_log->append("\xe2\x9a\xa0  Inserisci un task."); return; }
 
+    /* Avviso se l'estrazione asincrona del file allegato non è ancora completata */
+    if (m_docLoading) {
+        m_log->append("\xe2\x8f\xb3  Attendi: estrazione del documento in corso...");
+        return;
+    }
+
     /* Grafici AI: pipeline risponde normalmente, tryShowChart() mostra inline.
        Il pulsante "Apri nel Grafico" nel panel consente di spostare poi. */
 
@@ -214,11 +220,14 @@ void AgentiPage::runPipeline() {
         if (m_cfgDlg->enabledChk(i)->isChecked()) count++;
     if (count == 0) { m_log->append("\xe2\x9a\xa0  Abilita almeno un agente."); return; }
 
-    /* Aggiunge il contesto documento se allegato */
+    /* Aggiunge il contesto documento se allegato, poi lo svuota (usa-e-getta) */
     if (!m_docContext.isEmpty()) {
         task += "\n\n--- DOCUMENTO ALLEGATO ---\n" + m_docContext.left(8000);
+        m_docContext.clear();
+        if (m_input)
+            m_input->setPlaceholderText(tr("Scrivi un task o una domanda..."));
     }
-    m_taskOriginal  = _inject_random(_inject_math(task));
+    m_taskOriginal  = _inject_random(_inject_math(_inject_science(task)));
     m_agentOutputs.clear();
     m_currentAgent  = 0;
     m_maxShots      = m_cfgDlg->numAgents();
@@ -276,6 +285,41 @@ void AgentiPage::advancePipeline() {
                 if (doChat) m_singleChatTurns = 0; /* reset dopo ogni estrazione */
                 runKnowledgeExtract();   /* cambia opMode → KnowledgeExtract */
                 return;                  /* onFinished gestirà la chiusura */
+            }
+        }
+
+        /* ── Ricerca online fallback: suggerisci se LLM esprime incertezza ── */
+        if (!m_agentOutputs.isEmpty()) {
+            const QString& lastOut = m_agentOutputs.last();
+            const QString lo = lastOut.toLower();
+            static const QStringList kUncertainPhrases = {
+                "non so ", "non ho informazioni", "non posso rispondere",
+                "non sono sicuro", "non ho conoscenza", "non ho dati",
+                "la mia conoscenza", "il mio limite", "non sono in grado",
+                "non conosco", "non ho dettagli", "non trovo informazioni",
+                "potrebbe essere cambiato", "non ho aggiornamenti",
+                "non ho accesso a", "informazioni aggiornate"
+            };
+            bool uncertain = false;
+            for (const QString& ph : kUncertainPhrases)
+                if (lo.contains(ph)) { uncertain = true; break; }
+
+            if (uncertain && !m_taskOriginal.isEmpty()) {
+                const QString q64 = m_taskOriginal.toUtf8()
+                    .toBase64(QByteArray::Base64UrlEncoding);
+                const QString searchHint =
+                    "<p style='margin:6px 0 2px 0;"
+                    "background:#1e293b;border-radius:6px;"
+                    "border-left:3px solid #3b82f6;"
+                    "padding:6px 10px;'>"
+                    "<span style='color:#94a3b8;font-size:11px;'>"
+                    "\xf0\x9f\x94\x8d  Il modello non conosce la risposta. "
+                    "</span>"
+                    "<a href='websearch:" + q64 + "' "
+                    "style='color:#60a5fa;font-size:11px;text-decoration:none;'>"
+                    "Cerca online e salva nel RAG &rarr;</a></p>";
+                m_log->moveCursor(QTextCursor::End);
+                m_log->insertHtml(searchHint);
             }
         }
 

@@ -42,6 +42,9 @@ namespace P = PrismaluxPaths;
 #include <QTextEdit>
 #include <QDoubleSpinBox>
 #include <QAbstractButton>
+#include <QComboBox>
+#include <QColor>
+#include <QSet>
 #include <QButtonGroup>
 #include <QGuiApplication>
 #include <QClipboard>
@@ -339,6 +342,95 @@ void ImpostazioniPage::onRagMaxResultsChanged(int v)
 void ImpostazioniPage::onRagEmbedModelChanged(const QString& v)
 {
     AppConfig::s().setValue(P::SK::kRagEmbedModel, v.trimmed());
+}
+
+void ImpostazioniPage::onRagEmbedComboChanged(int idx)
+{
+    if (!m_ragEmbedCombo || idx < 0) return;
+    const QString model = m_ragEmbedCombo->itemData(idx).toString();
+    AppConfig::s().setValue(P::SK::kRagEmbedModel, model);
+}
+
+void ImpostazioniPage::onRagEmbedRefreshClicked()
+{
+    if (!m_ragEmbedCombo || !m_ai) return;
+    m_ragEmbedCombo->setEnabled(false);
+    auto* holder = new QObject(this);
+    connect(m_ai, &AiClient::modelsReady, holder,
+            [this, holder](const QStringList& models) {
+                holder->deleteLater();
+                onRagEmbedModelsReady(models);
+            });
+    connect(m_ai, &AiClient::error, holder,
+            [this, holder](const QString&) {
+                holder->deleteLater();
+                if (m_ragEmbedCombo) m_ragEmbedCombo->setEnabled(true);
+            });
+    m_ai->fetchModels();
+}
+
+void ImpostazioniPage::onRagEmbedModelsReady(const QStringList& models)
+{
+    if (!m_ragEmbedCombo) return;
+
+    /* Helper: è un modello di embedding Ollama conosciuto? */
+    auto isEmbedCapable = [](const QString& m) -> bool {
+        const QString lo = m.toLower();
+        return lo.contains("embed") || lo.contains("nomic")
+            || lo.contains("all-minilm") || lo.contains("mxbai")
+            || lo.startsWith("bge-") || lo.startsWith("e5-")
+            || lo.startsWith("jina-embed") || lo.startsWith("stella-en");
+    };
+
+    const QString saved = m_ragEmbedCombo->currentData().toString();
+
+    /* Ricostruisce la lista mantenendo il set statico + aggiunge modelli Ollama */
+    static const char* kStatic[] = {
+        "nomic-embed-text", "all-minilm", "mxbai-embed-large",
+        "bge-large", "bge-base", "bge-small", "e5-large", "e5-base",
+        "e5-small", "jina-embeddings-v2-base-en", "stella-en-1.5b-v5", nullptr
+    };
+    QSet<QString> seen;
+    QVector<QPair<bool,QString>> entries; // <isEmbed, name>
+    for (int i = 0; kStatic[i]; ++i) {
+        const QString n = kStatic[i];
+        if (!seen.contains(n)) { seen.insert(n); entries.append({true, n}); }
+    }
+    for (const QString& m : models) {
+        if (!seen.contains(m)) {
+            seen.insert(m);
+            entries.append({isEmbedCapable(m), m});
+        }
+    }
+
+    m_ragEmbedCombo->blockSignals(true);
+    m_ragEmbedCombo->clear();
+    for (const auto& [isEmbed, name] : entries) {
+        if (isEmbed) {
+            m_ragEmbedCombo->addItem(QString("\xe2\x9c\x94 %1").arg(name), name);
+            const int i = m_ragEmbedCombo->count() - 1;
+            m_ragEmbedCombo->setItemData(i, QColor(Qt::green), Qt::ForegroundRole);
+        } else {
+            m_ragEmbedCombo->addItem(
+                QString("\xe2\x9a\xa0 %1 \xe2\x80\x94 non compatibile RAG").arg(name), name);
+            const int i = m_ragEmbedCombo->count() - 1;
+            m_ragEmbedCombo->setItemData(i, QColor("#f87171"), Qt::ForegroundRole);
+            m_ragEmbedCombo->setItemData(
+                i,
+                QString("Il modello '%1' non e' un modello di embedding e "
+                        "non supporta /api/embeddings.\n"
+                        "Usa nomic-embed-text o all-minilm.").arg(name),
+                Qt::ToolTipRole);
+        }
+    }
+    m_ragEmbedCombo->blockSignals(false);
+
+    /* Ripristina selezione */
+    int idx = m_ragEmbedCombo->findData(saved);
+    if (idx < 0) idx = m_ragEmbedCombo->findData(QString("nomic-embed-text"));
+    if (idx < 0) idx = 0;
+    m_ragEmbedCombo->setCurrentIndex(idx);
+    m_ragEmbedCombo->setEnabled(true);
 }
 
 void ImpostazioniPage::refreshRagStatus()

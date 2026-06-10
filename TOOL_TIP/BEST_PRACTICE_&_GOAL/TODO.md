@@ -1,6 +1,79 @@
 # Prismalux — TODO pendenti
 
-> Aggiornato: 2026-06-05 | Versione: 2.9
+> Aggiornato: 2026-06-10 | Versione: 2.9
+
+---
+
+## 📋 Richieste Paolo — 07-09/06/2026
+
+> Chat Telegram → da implementare (non ancora completate).
+
+### [07/06/26 01:45] Feature
+
+- [ ] **Generatore di policy** — schermata/funzione per creare policy di sicurezza di rete
+- [ ] **Calcolo delle sottoreti con grafo** — visualizzazione grafica del subnetting (già presente schermata grafo Rete, integrare calcolo CIDR→nodi grafo)
+
+### [07/06/26 01:51] Bug — versione
+
+- [x] **Titolo finestra mostra v2.1 invece di v2.9** — fix: `aggiorna.sh` puntava a `build_gui/` vecchio invece di `gui/build_gui/`; `Prismalux.desktop` aggiornato; binary ora in `gui/build_gui/Prismalux_GUI` — 2026-06-10
+
+### [07/06/26 02:01 / 02:11] Test e feature RAG multiformat
+
+- [ ] **Test inserimento RAG — tutti i formati devono funzionare**: immagini, video, PDF, TXT
+  - Immagini: OCR (tesseract) + descrizione vision LLM → testo → indicizza
+  - Video: estrazione frame chiave + audio→whisper→testo → indicizza
+  - PDF: già parzialmente funzionante — verificare
+  - TXT: già funzionante — verificare
+
+### [07/06/26 11:34] Spostamento tab
+
+- [x] **Sposta "File AI" dentro "Strumenti"** — `StrumentiFilePage` aggiunta come sub-tab 10 in `StrumentiPage`; rimossa dal tab bar principale; indici Alt+N aggiornati — 2026-06-10
+
+### [07/06/26 11:35] RAG — miglioramenti UX + bug
+
+- [x] **Pulsante Pausa/Riprendi indicizzazione** — `RagGraph::pauseIngest()/resumeIngest()` in `rag_graph.h/cpp`; pulsante ⏸/⏵ in `main_research.cpp` — 2026-06-10
+- [x] **Modello embedding selezionabile nel contesto RAG** — `m_ragEmbedCombo` in `settings_main.h` + `settings_ai.cpp`: combo con modelli statici noti (✓) + pulsante 🔄 per caricare da Ollama; modelli chat marcati con ⚠️ e tooltip "non compatibile con RAG" — 2026-06-10
+- [x] **Spiegazione "Risultati: 5"** — tooltip su `maxSpin` in `settings_ai.cpp`: "Numero massimo di chunk RAG restituiti per ogni query" — 2026-06-10
+- [x] **Pulsante "Scarica documenti ufficiali consigliati (ADE 2026)"** — in `settings_ai.cpp` dentro QGroupBox "Ottimizzazione vettori RAG"; apre dialog con info e URL — 2026-06-10
+- [x] **Controllo temperatura CPU/GPU nel RAG** — `onThermalUpdate()` in `main_research.cpp`: auto-pausa ingest a ≥80°C, auto-riprende a <75°C; label `m_ragTempLbl` in ctrlBar — 2026-06-10
+- [x] **Temperatura sempre visibile nel RAG** — `m_ragTempLbl` accanto alla progress bar del RAG in `main_research.cpp` — 2026-06-10
+- [x] **Temperatura vicino all'indicatore GPU nella schermata iniziale (tab AI)** — `m_tempLbl` in `buildHeader()` di `mainwindow.cpp`; colori: rosso ≥90°C, arancio ≥75°C — 2026-06-10
+- [x] **Bug: RAG non inietta il contesto dei file nella chat** — `onEmbeddingError()` in `main_oracle.cpp` ora mostra avviso con nome modello embedding fallito + istruzione `ollama pull`; `onEmbeddingReady()` mostra conteggio chunk trovati o avviso 0 chunk — 2026-06-10
+
+### [07/06/26 12:26] Bug — modelli DeepSeek e vision
+
+- [x] **DeepSeek (r1, coder, janus) non supporta vision su Ollama** — `onCmbLLMIndexChanged()`: label warning `m_modelWarnLbl` "🛇 no vision" + disabilita `m_btnImg` + tooltip aggiornato — 2026-06-10
+- [x] **`deepseek-coder:6.7b` non supporta tool use** — `isToolCapable()` in `onCmbLLMIndexChanged()`: disabilita `m_toolChk` + label warning "🔧 no tools" — 2026-06-10
+
+### [07/06/26 12:39] Bug — caricamento file e LLM
+
+- [x] **File caricato non viene inizializzato per il contesto LLM** — 3 fix: (1) flag `m_docLoading` blocca invio prematuro; (2) `m_docContext` svuotato dopo l'uso in `runPipeline()` (era persistente); (3) placeholder reset post-uso — 2026-06-10
+
+### [07/06/26 13:27] Bug — stop richiesta al cambio chat
+
+- [x] **Cambio chat ferma la query in corso** — `m_bgMode`: cambio sessione mette AI in background; token accumulati in `m_bgBuffer`; `onChatCompletedSave()` salva nella sessione originale e mostra "✅ Risposta completata nella sessione precedente" — 2026-06-10
+
+### [09/06/26 03:17] Feature — ricerca online fallback
+
+- [x] **LLM non conosce risposta → offri ricerca online** — rilevamento frasi incertezza in `advancePipeline()` (`main_ai_pipeline.cpp`), link `websearch:` iniettato sotto la bolla; handler in `onLogAnchorClicked` esegue `duckduckgo_search` via Python e salva in `RAG/RICERCA/<slug>.md`; emette `onlineSearchResultReady` — 2026-06-10
+
+### [09/06/26 03:22] Feature — calcoli scientifici conversazionali
+
+- [x] **Calcola formule inverse e conversioni direttamente nella chat** — `_inject_science()` in `main_ai_math.cpp`; riconosce: Ohm (V=IR/I=V/R/R=V/I), P=VI, τ=RC, fc=1/(2πRC), velocità, energia cinetica, conversioni (kWh/J, atm/Pa, bar/Pa, km/h↔m/s, dBm↔mW, dB guadagno, mol↔g, pH↔[H⁺]); antepone `[Calcolo locale: ...]` nel prompt — 2026-06-10
+
+### [09/06/26 14:25] Feature — Hermes Agent (persistent memory + skill self-improving)
+
+- [ ] **Prismalux come "Hermes Agent"** — meccanismo unico:
+  - **Persistent memory**: le conversazioni e i fatti appresi vengono salvati in GraphMemory e riutilizzati nelle sessioni successive (già parzialmente in GraphMemory; da connettere alla chat principale)
+  - **Skill self-improving**: l'agente analizza i propri errori e aggiorna le sue strategie di risposta (log errori LLM → riflessione periodica → aggiornamento knowledge base)
+
+### [09/06/26 15:49] Raccomandazione modello per GPU 4 GB
+
+- [x] **Consigliare `deepseek-coder:6.7b-instruct-q4_K_M`** — aggiunto in `settings_llm.cpp` sezione Coding con nota "quantizzato Q4_K_M — per GPU ≤4 GB VRAM" — 2026-06-10
+
+### [09/06/26 22:26] Feature — Sintetizzatore vocale da campione audio
+
+- [x] **Sintetizzatore vocale da audio/campione di registrazione** — `gui/pages/widget_voice_cloner.h/cpp` + tab "🎤 Clona Voce" in MultimediaPage (indice 5); XTTS-v2 via Python subprocess; pulsante installa TTS; carica/registra campione; genera WAV; riproduci/salva — 2026-06-10
 
 ---
 

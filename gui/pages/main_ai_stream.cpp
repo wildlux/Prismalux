@@ -41,6 +41,29 @@ void AgentiPage::onToken(const QString& t) {
     if (m_opMode == OpMode::Idle) return;
 
     m_waitLbl->setVisible(false);
+
+    /* Quando l'utente sta visualizzando una sessione diversa, accumuliamo
+       i token in m_bgBuffer senza mostrarli nel log corrente. */
+    if (m_bgMode) {
+        m_bgBuffer += t;
+        if (m_opMode == OpMode::Pipeline && !m_agentOutputs.isEmpty())
+            m_agentOutputs.last() += t;
+        else if (m_opMode == OpMode::Byzantine) {
+            if      (m_byzStep == 0) m_byzA += t;
+            else if (m_byzStep == 2) m_byzC += t;
+        } else if (m_opMode == OpMode::MathTheory) {
+            if      (m_byzStep == 0) m_byzA += t;
+            else if (m_byzStep == 2) m_byzC += t;
+        } else if (m_opMode == OpMode::PipelineControl) {
+            m_ctrlAccum += t;
+        } else if (m_opMode == OpMode::KnowledgeExtract) {
+            m_knowledgeBuf += t;
+        } else if (m_opMode == OpMode::AutonomousAgent) {
+            m_autoBuf += t;
+        }
+        return;
+    }
+
     QTextCursor cursor(m_log->document());
     cursor.movePosition(QTextCursor::End);
     cursor.insertText(t);
@@ -366,8 +389,28 @@ void AgentiPage::onChatCompletedSave(const QString& title, const QString& logHtm
     if (m_sessionId.isEmpty())
         m_sessionId = m_chatHistory.newSession(title);
 
-    /* Aggiorna il log HTML su disco */
-    m_chatHistory.saveLog(m_sessionId, logHtml);
+    if (m_bgMode) {
+        /* L'utente stava visualizzando un'altra sessione: salva il contenuto
+           accumulato in background (m_bgHtmlSave + m_bgBuffer come blocco testo). */
+        const QString bgFull = m_bgHtmlSave
+            + (m_bgBuffer.isEmpty() ? QString()
+               : "<p style='color:#94a3b8;font-size:11px;margin:4px 8px;'>"
+                 + m_bgBuffer.toHtmlEscaped()
+                 + "</p>");
+        m_chatHistory.saveLog(m_sessionId, bgFull);
+        m_bgMode = false;
+        m_bgBuffer.clear();
+        m_bgHtmlSave.clear();
+        if (m_log) {
+            m_log->moveCursor(QTextCursor::End);
+            m_log->insertHtml(
+                "<p style='color:#4ade80;font-size:11px;text-align:center;margin:4px 0;'>"
+                "\xe2\x9c\x85  Risposta completata e salvata nella sessione precedente.</p>");
+        }
+    } else {
+        /* Salvataggio normale */
+        m_chatHistory.saveLog(m_sessionId, logHtml);
+    }
 
     /* Aggiorna il pannello storico */
     refreshHistoryList();
@@ -428,16 +471,29 @@ void AgentiPage::onHistoryItemClicked(int row)
 {
     if (row < 0 || row >= m_historyIds.size()) return;
     const QString id = m_historyIds.at(row);
+    if (id == m_sessionId) return;   /* stessa sessione, niente da fare */
+
     const QString html = m_chatHistory.loadLog(id);
     if (html.isEmpty()) return;
+
+    /* Se una query è in corso, non la interrompiamo: la mettiamo in background.
+       I token continuano ad accumularsi in m_bgBuffer; quando finisce, il risultato
+       viene salvato nella sessione originale (m_sessionId rimasto invariato). */
+    if (m_ai && m_ai->busy() && !m_bgMode) {
+        m_bgMode     = true;
+        m_bgBuffer.clear();
+        m_bgHtmlSave = m_log->toHtml();
+    }
 
     /* Carica la sessione selezionata nel log, iniettando il retry link
        nelle bolle utente che non lo avevano (chat salvate in precedenza) */
     m_log->setHtml(injectMissingRetryLinks(html));
     m_log->moveCursor(QTextCursor::End);
 
-    /* Marca la sessione corrente così i prossimi salvataggi aggiornano quella esistente */
-    m_sessionId = id;
+    /* NON aggiornare m_sessionId se siamo in background mode: la sessione
+       in esecuzione continua a salvarsi nell'id originale. */
+    if (!m_bgMode)
+        m_sessionId = id;
 }
 
 void AgentiPage::onHistoryNewChatClicked()

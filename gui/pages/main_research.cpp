@@ -3326,6 +3326,13 @@ QWidget* RicercaPage::buildRagGrafoTab()
     connect(m_ragRunBtn, &QPushButton::clicked, this, &RicercaPage::onRagRunClicked);
     ctrlLay->addWidget(m_ragRunBtn);
 
+    m_ragPauseBtn = new QPushButton("\xe2\x8f\xb8  Pausa", w);  /* ⏸ */
+    m_ragPauseBtn->setObjectName("navBtn");
+    m_ragPauseBtn->setEnabled(false);
+    m_ragPauseBtn->setToolTip(tr("Sospendi l'indicizzazione RAG tra un file e l'altro; riprendi senza ripartire da zero"));
+    connect(m_ragPauseBtn, &QPushButton::clicked, this, &RicercaPage::onRagPauseClicked);
+    ctrlLay->addWidget(m_ragPauseBtn);
+
     m_ragStopBtn = new QPushButton("\xe2\x96\xa0  Stop", w);  /* ■ */
     m_ragStopBtn->setObjectName("stopBtn");
     m_ragStopBtn->setEnabled(false);
@@ -3348,6 +3355,15 @@ QWidget* RicercaPage::buildRagGrafoTab()
     m_ragStatus = new QLabel("\xf0\x9f\x95\xb8  Pronto.", ctrlBar);
     m_ragStatus->setObjectName("statusLabel");
     ctrlLay->addWidget(m_ragStatus, 2);
+
+    m_ragTempLbl = new QLabel("", ctrlBar);
+    m_ragTempLbl->setObjectName("ragTempLabel");
+    m_ragTempLbl->setStyleSheet(
+        "QLabel#ragTempLabel{color:#94a3b8;font-size:11px;padding:0 6px;}");
+    m_ragTempLbl->setToolTip(
+        tr("Temperatura rilevata — se >80°C l'indicizzazione RAG viene rallentata automaticamente."));
+    m_ragTempLbl->setVisible(false);
+    ctrlLay->addWidget(m_ragTempLbl);
 
     m_ragProgress = new QProgressBar(ctrlBar);
     m_ragProgress->setRange(0, 0);
@@ -3499,6 +3515,7 @@ void RicercaPage::onRagRunClicked()
     }
 
     m_ragRunBtn->setEnabled(false);
+    if (m_ragPauseBtn) m_ragPauseBtn->setEnabled(true);
     m_ragStopBtn->setEnabled(true);
     if (m_ragProgress) m_ragProgress->setVisible(true);
     m_ragStatus->setText(QString("\xf0\x9f\x94\x84  Analisi in corso (%1 file)...")
@@ -3507,10 +3524,25 @@ void RicercaPage::onRagRunClicked()
     m_ragGraph->startIngest();
 }
 
+void RicercaPage::onRagPauseClicked()
+{
+    if (!m_ragGraph) return;
+    if (m_ragGraph->isPaused()) {
+        m_ragGraph->resumeIngest();
+        if (m_ragPauseBtn) m_ragPauseBtn->setText("\xe2\x8f\xb8  Pausa");  /* ⏸ */
+        if (m_ragStatus) m_ragStatus->setText(tr("\xf0\x9f\x94\x84  Analisi ripresa..."));
+    } else {
+        m_ragGraph->pauseIngest();
+        if (m_ragPauseBtn) m_ragPauseBtn->setText("\xe2\x8f\xb5  Riprendi");  /* ⏵ */
+        if (m_ragStatus) m_ragStatus->setText(tr("\xe2\x8f\xb8  Analisi in pausa dopo il file corrente."));
+    }
+}
+
 void RicercaPage::onRagStopClicked()
 {
     if (m_ragGraph) m_ragGraph->stopIngest();
     if (m_ragRunBtn)   m_ragRunBtn->setEnabled(true);
+    if (m_ragPauseBtn) { m_ragPauseBtn->setEnabled(false); m_ragPauseBtn->setText("\xe2\x8f\xb8  Pausa"); }
     if (m_ragStopBtn)  m_ragStopBtn->setEnabled(false);
     if (m_ragProgress) m_ragProgress->setVisible(false);
     if (m_ragStatus)   m_ragStatus->setText(tr("\xe2\x96\xa0  Analisi interrotta."));
@@ -3528,6 +3560,45 @@ void RicercaPage::onRagClearClicked()
 }
 
 /* ══════════════════════════════════════════════════════════════
+   Slot: temperatura CPU/GPU — aggiornamento label + throttle RAG
+   ══════════════════════════════════════════════════════════════ */
+void RicercaPage::onThermalUpdate(double cpuTempC, double gpuTempC)
+{
+    const double maxTemp = qMax(cpuTempC, gpuTempC);
+    if (maxTemp <= 0) return;
+
+    /* Aggiorna label temperatura in-tab */
+    if (m_ragTempLbl) {
+        QStringList parts;
+        if (cpuTempC > 0) parts << QString("CPU %1\xc2\xb0" "C").arg((int)cpuTempC);
+        if (gpuTempC > 0) parts << QString("GPU %1\xc2\xb0" "C").arg((int)gpuTempC);
+        m_ragTempLbl->setText("\xf0\x9f\x8c\xa1  " + parts.join(" | "));
+        const QString col = maxTemp >= 90 ? "#f87171" : maxTemp >= 75 ? "#f59e0b" : "#94a3b8";
+        m_ragTempLbl->setStyleSheet(
+            QString("QLabel#ragTempLabel{color:%1;font-size:11px;padding:0 6px;}").arg(col));
+        m_ragTempLbl->setVisible(true);
+    }
+
+    /* Thermal throttle: sopra 80°C sospendi il RAG tra un file e l'altro */
+    if (!m_ragGraph || !m_ragGraph->isRunning()) return;
+
+    if (maxTemp >= 80.0 && !m_ragGraph->isPaused()) {
+        m_ragGraph->pauseIngest();
+        if (m_ragPauseBtn) m_ragPauseBtn->setText("\xe2\x8f\xb5  Riprendi");
+        if (m_ragStatus)
+            m_ragStatus->setText(
+                tr("\xf0\x9f\x8c\xa1  Temperatura elevata (%1\xc2\xb0" "C) — "
+                   "indicizzazione sospesa automaticamente.")
+                .arg((int)maxTemp));
+    } else if (maxTemp < 75.0 && m_ragGraph->isPaused()) {
+        /* Auto-riprende solo se la pausa era termica (non manuale) */
+        m_ragGraph->resumeIngest();
+        if (m_ragPauseBtn) m_ragPauseBtn->setText("\xe2\x8f\xb8  Pausa");
+        if (m_ragStatus) m_ragStatus->setText(tr("\xf0\x9f\x94\x84  Temperatura ok — analisi ripresa."));
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
    Slot: progress e finish da RagGraph
    ══════════════════════════════════════════════════════════════ */
 void RicercaPage::onRagGraphProgress(int cur, int tot, const QString& file)
@@ -3540,6 +3611,7 @@ void RicercaPage::onRagGraphProgress(int cur, int tot, const QString& file)
 void RicercaPage::onRagGraphFinished(const RagGraphStats& stats)
 {
     if (m_ragRunBtn)   m_ragRunBtn->setEnabled(true);
+    if (m_ragPauseBtn) { m_ragPauseBtn->setEnabled(false); m_ragPauseBtn->setText("\xe2\x8f\xb8  Pausa"); }
     if (m_ragStopBtn)  m_ragStopBtn->setEnabled(false);
     if (m_ragProgress) m_ragProgress->setVisible(false);
 

@@ -97,10 +97,25 @@ void RagGraph::startIngest()
 void RagGraph::stopIngest()
 {
     if (!m_stats.running) return;
+    m_paused        = false;
     m_stats.running = false;
     delete m_llmHolder;
     m_llmHolder = nullptr;
     if (m_ai) m_ai->abort();
+}
+
+void RagGraph::pauseIngest()
+{
+    if (m_stats.running && !m_paused)
+        m_paused = true;
+}
+
+void RagGraph::resumeIngest()
+{
+    if (m_stats.running && m_paused) {
+        m_paused = false;
+        processNextFile();
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -108,6 +123,7 @@ void RagGraph::stopIngest()
    ══════════════════════════════════════════════════════════════ */
 void RagGraph::processNextFile()
 {
+    if (m_paused) return;   /* pausa: il prossimo file aspetta resumeIngest() */
     if (!m_stats.running || m_currentFileIdx >= m_fileQueue.size()) {
         m_stats.running = false;
         emit finished(m_stats);

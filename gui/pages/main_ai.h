@@ -86,6 +86,8 @@ signals:
     void pipelineStatus(int pct, const QString& text);
     /** Chiede a MainWindow di aprire le Impostazioni sul tab indicato (es. "trascrivi") */
     void requestOpenSettings(const QString& tabName);
+    /** Emesso quando una ricerca online è completata e il file è pronto nel RAG */
+    void onlineSearchResultReady(const QString& filePath, const QString& query);
     /** Chiede a MainWindow di mostrare un grafico nel tab Grafico (Alt+3).
      *  Se @p formula è non vuota → grafico cartesiano y=f(x) su [xMin, xMax].
      *  Se @p formula è vuota e @p points non è vuoto → scatter di punti. */
@@ -261,6 +263,7 @@ private:
     QPushButton* m_btnImg    = nullptr;
     QByteArray   m_imgBase64;  ///< Base64 dell'immagine allegata
     QString      m_imgMime;
+    bool         m_docLoading = false;  ///< true mentre estrazione PDF/Excel è in corso
 
     /* ── Pannello scroll caratteri speciali ── */
     QScrollArea*   m_symbolsScrollArea = nullptr;  ///< wrapper scrollabile del pannello simboli
@@ -273,6 +276,11 @@ private:
 
     /* ── Storia Chat pannello collassabile ── */
     QGroupBox*     m_histGroup    = nullptr;  ///< QGroupBox collassabile storia chat
+
+    /* ── Query in background (cambio sessione durante elaborazione AI) ── */
+    bool    m_bgMode    = false;   ///< true = AI in corso ma si sta visualizzando altra sessione
+    QString m_bgBuffer;            ///< token accumulati mentre non vengono mostrati nel log
+    QString m_bgHtmlSave;          ///< HTML parziale del log al momento dello switch
 
     /* ── Zona drop RAG per PDF / .txt / .md (indicizzazione nel RagEngine) ── */
     QLabel*        m_ragDropZone  = nullptr;  ///< drop target PDF/txt/md
@@ -295,9 +303,10 @@ private:
                             std::function<void(const QString&)> onText);
 
     /* ── Selettore LLM principale (toolbar) ── */
-    QComboBox*   m_cmbLLM    = nullptr;  ///< Selettore LLM singolo nella toolbar
-    QString      m_pageModel;            ///< Modello preferito per questa scheda (privato)
-    QPushButton* m_btnRegen  = nullptr;  ///< "Rigenera con [modello]" — visibile dopo cambio LLM
+    QComboBox*   m_cmbLLM       = nullptr;  ///< Selettore LLM singolo nella toolbar
+    QString      m_pageModel;               ///< Modello preferito per questa scheda (privato)
+    QPushButton* m_btnRegen     = nullptr;  ///< "Rigenera con [modello]" — visibile dopo cambio LLM
+    QLabel*      m_modelWarnLbl = nullptr;  ///< avviso capabilities modello (vision/tool)
 
     /* ── Pannello grafico (appare quando l'AI restituisce una formula) ── */
     QWidget*     m_chartPanel    = nullptr;

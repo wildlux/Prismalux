@@ -27,6 +27,10 @@ struct SysSnapshot {
     double  igpu_freq_pct = 0.0;  /* frequenza relativa (cur/max) come proxy utilizzo */
     QString igpu_name;
     bool    igpu_ready    = false;
+
+    /* Temperature (°C) — -1 se non disponibile */
+    double  cpu_temp_c    = -1.0;   /* CPU package (x86_pkg_temp) o acpitz */
+    double  gpu_temp_c    = -1.0;   /* GPU (hwmon o nvidia-smi) */
 };
 
 /* ══════════════════════════════════════════════════════════════

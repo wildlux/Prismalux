@@ -11,7 +11,7 @@
                             e li inietta nel task come [DATI RANDOM: ...].
 
    Pattern d'uso in runPipeline():
-     m_taskOriginal = _inject_random(_inject_math(task));
+     m_taskOriginal = _inject_random(_inject_math(_inject_science(task)));
    ══════════════════════════════════════════════════════════════ */
 #include "main_ai.h"
 #include "main_ai_p.h"

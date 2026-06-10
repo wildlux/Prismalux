@@ -66,6 +66,9 @@ QString _buildSys(const QString& task, const QString& full,
 QString _buildSys(const QString& task, const QString& full,
                   const QString& modelName, AiClient::Backend backend);
 QString _inject_math(const QString& task);
+/** Calcola formule scientifiche (Ohm, RC, conversioni unità, chimica) direttamente.
+ *  Antepone "[Calcolo locale: ...]" se la query corrisponde a un pattern noto. */
+QString _inject_science(const QString& task);
 /** Inietta numeri casuali reali nel task se l'utente li richiede.
  *  Usa std::random_device + std::mt19937 (= randomize C nativo con seed crittografico).
  *  Definita in agenti_page_tools.cpp. */

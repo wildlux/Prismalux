@@ -721,8 +721,8 @@ void MainWindow::onRequestShowInGrafico(const QString& formula, double xMin, dou
 {
     if (!m_grafCanvas) return;
     if (m_mainTabs) {
-        m_mainTabs->setCurrentIndex(5);
-        if (auto* mc = qobject_cast<QWidget*>(m_mainTabs->widget(5)))
+        m_mainTabs->setCurrentIndex(4);
+        if (auto* mc = qobject_cast<QWidget*>(m_mainTabs->widget(4)))
             if (auto* st = mc->findChild<QTabWidget*>("mathSubTabs"))
                 st->setCurrentIndex(1);
     }

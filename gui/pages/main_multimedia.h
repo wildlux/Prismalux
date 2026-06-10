@@ -12,6 +12,7 @@
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
 #include "widget_synthesizer.h"
+#include "widget_voice_cloner.h"
 
 class MultimediaPage : public QWidget {
     Q_OBJECT
@@ -111,6 +112,7 @@ private:
     QWidget* buildSDTab();
     QWidget* buildGraphvizTab();
     QWidget* buildSintetizzatoreTab();
+    QWidget* buildVoiceClonerTab();
     QWidget* buildOcrTab();
     QWidget* buildOsmMapTab();
 

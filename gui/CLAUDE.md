@@ -18,22 +18,22 @@ Windows: `build.bat` trova Python ed esegue `build.py`. Prima volta: `COMPILE_WI
 ```
 Header (72px): logo · backend · model · CPU/RAM/GPU · spinner · ⚙️
 [0] 🤖 Intelligenza Artificiale  Alt+1  Pipeline + Byzantino + CHAT RAG + Agente Autonomo
-[1] 🛠 Strumenti                  Alt+2  Assistente AI · 💰 Finanza (730/PIVA/Calcolatori/TFR) · ⏱ Cron · Impara · Sfida!
-[2] 🎬 Multimedia                        Audio AI · Genera Immagini · 🕸 Mappe concettuali · 🗺 Mappa OSM · Sintetizzatore · OCR webcam
-[3] 📁 File AI                           File AI · Wiki & Web · Excel/CSV · PDF · Word/Testo
-[4] 💻 Programmazione            Alt+3  Editor+AI · Agentica · Translitter · Reverse Eng. · Git · REPL · Interpreter · Rete · Driver
-[5] π  Matematica                Alt+4  Sequenza→Formula · Costanti · N-esimo · Espressione · Risolvi Passi (SymPy+🔀) · Analisi 1&2 (LaTeX KaTeX)
-[6] 🔬 Ricerca                   Alt+5  Paper · Brevetti · Lavoro · Cytoscape—Bio · RDKit · Bioconda · RAB₀-L · BLHM · Analisi Fenomeni · 🕸️ Grafo RAG · Astrale
-[7] 🕹 APP Controller            Alt+6  Blender/FreeCAD/Office/CloudCompare/Anki/KiCAD/TinyMCP/OBS/OpenCode/Godot · 🤖 Dev Agent
-[8] 🌐 LAN & WAN                         LAN Android (QR/ADB) · GNS3 MCP · WAN Compute (🧠 Solo PC | 🌐 Rete LAN → Multi-Agente + GraphMemory)
+[1] 🛠 Strumenti                  Alt+2  Assistente AI · 💰 Finanza (730/PIVA/Calcolatori/TFR) · ⏱ Cron · Impara · Sfida! · 📁 File AI
+[2] 🎬 Multimedia                        Audio AI · Genera Immagini · 🕸 Mappe concettuali · 🗺 Mappa OSM · Sintetizzatore · 🎤 Clona Voce · OCR webcam
+[3] 💻 Programmazione            Alt+3  Editor+AI · Agentica · Translitter · Reverse Eng. · Git · REPL · Interpreter · Rete · Driver
+[4] π  Matematica                Alt+4  Sequenza→Formula · Costanti · N-esimo · Espressione · Risolvi Passi (SymPy+🔀) · Analisi 1&2 (LaTeX KaTeX)
+[5] 🔬 Ricerca                   Alt+5  Paper · Brevetti · Lavoro · Cytoscape—Bio · RDKit · Bioconda · RAB₀-L · BLHM · Analisi Fenomeni · 🕸️ Grafo RAG · Astrale
+[6] 🕹 APP Controller            Alt+6  Blender/FreeCAD/Office/CloudCompare/Anki/KiCAD/TinyMCP/OBS/OpenCode/Godot · 🤖 Dev Agent
+[7] 🌐 LAN & WAN                         LAN Android (QR/ADB) · GNS3 MCP · WAN Compute (🧠 Solo PC | 🌐 Rete LAN → Multi-Agente + GraphMemory)
 ImpostazioniPage: dialog modale (⚙️ header)
 ```
 Note:
 - `LavoroPage` è in StrumentiPage (`m_lavoroPage`), NON in mainwindow
 - Cron (`m_cronPanel`) in StrumentiPage via `installCronPanel()` con `QTimer::singleShot(0)`
-- Cytoscape/RDKit/Bioconda/Avogadro → Ricerca [6]; GNS3 → LAN & WAN [8]; Godot → AppController [7]
+- Cytoscape/RDKit/Bioconda/Avogadro → Ricerca [5]; GNS3 → LAN & WAN [7]; Godot → AppController [6]
 - AppController tab indici: 0=Blender 1=FreeCAD 2=Office 3=CloudCompare 4=Anki 5=KiCAD 6=TinyMCP 7=OBS 8=OpenCode 9=Godot 10=Dev Agent
-- Multimedia tab indici: 0=Audio AI 1=Genera Immagini 2=Mappe concettuali 3=Mappa OSM 4=Sintetizzatore 5=OCR webcam
+- Multimedia tab indici: 0=Audio AI 1=Genera Immagini 2=Mappe concettuali 3=Mappa OSM 4=Sintetizzatore 5=Clona Voce 6=OCR webcam
+- Strumenti sub-tab indici: 0-5=categorie assistente 6=Cron 7=Finanza 8=Impara 9=Sfida 10=File AI
 - Web app (lan_server.cpp) tab 🎙️ Voce: TTS (SpeechSynthesis) + STT (MediaRecorder→/api/whisper)
 
 ## Struttura cartelle repo

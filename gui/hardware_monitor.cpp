@@ -15,6 +15,8 @@
 #  include <unistd.h>
 #  include <sys/statvfs.h>
 #  include <time.h>
+#  include <cstring>
+#  include <cstdio>
 #endif
 
 /* ── Lettura CPU cross-platform ─────────────────────────────── */
@@ -229,6 +231,63 @@ SysSnapshot HardwareMonitor::readSnapshot() const {
         if (read_igpu_freq(&fp)) {
             s.igpu_freq_pct = fp;
             s.igpu_ready    = true;
+        }
+    }
+
+    /* Temperatura CPU: cerca x86_pkg_temp, poi acpitz come fallback */
+    {
+        const char* prefer[] = { "x86_pkg_temp", "coretemp", "acpitz", nullptr };
+        for (int attempt = 0; attempt < 2 && s.cpu_temp_c < 0; attempt++) {
+            for (int z = 0; z < 16; z++) {
+                char typePath[128], tempPath[128];
+                snprintf(typePath, sizeof(typePath),
+                         "/sys/class/thermal/thermal_zone%d/type", z);
+                snprintf(tempPath, sizeof(tempPath),
+                         "/sys/class/thermal/thermal_zone%d/temp", z);
+                FILE* ft = fopen(typePath, "r");
+                if (!ft) break;
+                char typeBuf[64] = {};
+                fgets(typeBuf, sizeof(typeBuf), ft);
+                fclose(ft);
+                bool match = false;
+                for (int i = 0; prefer[i] && !match; i++)
+                    match = (strstr(typeBuf, prefer[i]) != nullptr);
+                if (!match && attempt == 0) continue;   /* prima pass: solo prefer */
+                FILE* fv = fopen(tempPath, "r");
+                if (!fv) continue;
+                long milliC = 0;
+                fscanf(fv, "%ld", &milliC);
+                fclose(fv);
+                if (milliC > 0) { s.cpu_temp_c = milliC / 1000.0; break; }
+            }
+            /* seconda pass: prende il primo valore positivo qualsiasi */
+        }
+    }
+
+    /* Temperatura GPU: NVIDIA via hwmon, AMD via hwmon sysfs */
+    if (m_hwReady && m_hw.secondary >= 0) {
+        const HWDevice& gpu = m_hw.dev[m_hw.secondary];
+        if (gpu.type == DEV_NVIDIA) {
+            FILE* f = popen("nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader 2>/dev/null", "r");
+            if (f) {
+                int t = -1;
+                fscanf(f, "%d", &t);
+                pclose(f);
+                if (t > 0) s.gpu_temp_c = t;
+            }
+        } else if (gpu.type == DEV_AMD) {
+            /* AMD: /sys/class/drm/card0/device/hwmon/hwmonN/temp1_input */
+            for (int h = 0; h < 8 && s.gpu_temp_c < 0; h++) {
+                char path[128];
+                snprintf(path, sizeof(path),
+                         "/sys/class/drm/card0/device/hwmon/hwmon%d/temp1_input", h);
+                FILE* f = fopen(path, "r");
+                if (!f) continue;
+                long milliC = 0;
+                fscanf(f, "%ld", &milliC);
+                fclose(f);
+                if (milliC > 0) s.gpu_temp_c = milliC / 1000.0;
+            }
         }
     }
 #endif

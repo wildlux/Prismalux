@@ -771,6 +771,14 @@ void OracoloPage::onEmbeddingReady(const QVector<float>& vec)
             ctx += QString("[%1] %2\n").arg(i + 1).arg(hits[i].text.left(400));
         ctx += "--- FINE CONTESTO ---\n"
                "Usa SOLO le informazioni nel contesto quando rispondi alla domanda.\n";
+        if (m_activeBubble)
+            m_activeBubble->appendToken(
+                QString("\xf0\x9f\x93\x84 <i>RAG: %1 chunk trovati</i>\n\n").arg(hits.size()));
+    } else if (m_activeBubble) {
+        /* Nessun chunk pertinente — possibile incompatibilità modello embedding */
+        m_activeBubble->appendToken(
+            "\xf0\x9f\x94\x8d <i>RAG attivo ma 0 chunk pertinenti trovati "
+            "(verifica il modello embedding in Impostazioni \xe2\x86\x92 RAG)</i>\n\n");
     }
 
     QString sys = m_sysEdit->toPlainText().trimmed();
@@ -794,8 +802,21 @@ void OracoloPage::onEmbeddingError(const QString& err)
     if (m_pendingMsg.isEmpty()) return;
     QString msg = m_pendingMsg;
     m_pendingMsg.clear();
-    startChatWithContext(msg);
+
+    /* Avvisa l'utente: il RAG non è stato usato perché l'embedding è fallito.
+     * Motivo più comune: modello embedding non installato (nomic-embed-text). */
+    if (m_activeBubble) {
+        QSettings ragS("Prismalux", "GUI");
+        const QString embedMdl = ragS.value("rag/embedModel", "nomic-embed-text").toString();
+        m_activeBubble->appendToken(
+            QString("\n\n\xe2\x9a\xa0 <i>RAG disattivato per questa domanda — "
+                    "embedding fallito (modello: <b>%1</b>).<br>"
+                    "Installa con: <code>ollama pull %1</code></i>\n\n")
+            .arg(embedMdl.toHtmlEscaped()));
+    }
+
     Q_UNUSED(err);
+    startChatWithContext(msg);
 }
 
 /* ══════════════════════════════════════════════════════════════

@@ -61,6 +61,7 @@ MultimediaPage::MultimediaPage(AiClient* ai, QWidget* parent)
     tabs->addTab(buildGraphvizTab(),       "\xf0\x9f\x95\xb8  Mappe concettuali"); /* 🕸 */
     tabs->addTab(buildOsmMapTab(),         "\xf0\x9f\x97\xba  Mappa OSM");         /* 🗺 */
     tabs->addTab(buildSintetizzatoreTab(), "\xf0\x9f\x94\x8a  Sintetizzatore");    /* 🔊 */
+    tabs->addTab(buildVoiceClonerTab(),   "\xf0\x9f\x8e\xa4  Clona Voce");       /* 🎤 */
     tabs->addTab(buildOcrTab(),            "\xf0\x9f\x94\x8d  OCR webcam");     /* 🔍 */
 
     lay->addWidget(tabs);
@@ -74,6 +75,11 @@ QWidget* MultimediaPage::buildSDTab()
 QWidget* MultimediaPage::buildSintetizzatoreTab()
 {
     return new SintetizzatoreWidget(this);
+}
+
+QWidget* MultimediaPage::buildVoiceClonerTab()
+{
+    return new VoiceClonerWidget(this);
 }
 
 QWidget* MultimediaPage::buildAudioTab()

@@ -58,9 +58,11 @@ void AgentiPage::loadDroppedFile(const QString& filePath)
     /* ── PDF: pdftotext (Linux) + fallback pypdf Python (cross-platform) ── */
     if (ext == "pdf") {
         m_log->append("\xf0\x9f\x93\x84  Estrazione PDF in corso...");
+        m_docLoading = true;
 
         /* Helper: applica il testo estratto al contesto */
         auto applyPdfText = [this, filePath](const QString& text) {
+            m_docLoading = false;
             m_docContext = _sanitize_prompt(text);
             const QString fname = QFileInfo(filePath).fileName();
             m_input->setPlaceholderText(
@@ -94,8 +96,10 @@ void AgentiPage::loadDroppedFile(const QString& filePath)
     static const QStringList xlsExts = {"xls","xlsx","ods","ots","fods","xlsm","xlsb"};
     if (xlsExts.contains(ext)) {
         m_log->append("\xf0\x9f\x93\x8a  Conversione foglio di calcolo...");
+        m_docLoading = true;
 
         auto applyXls = [this, filePath](const QString& text) {
+            m_docLoading = false;
             m_docContext = _sanitize_prompt(text);
             const QString fname = QFileInfo(filePath).fileName();
             m_input->setPlaceholderText(

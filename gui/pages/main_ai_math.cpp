@@ -693,3 +693,234 @@ bool AgentiPage::checkModelSize(const QString& model)
     return true;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   _inject_science — calcoli scientifici conversazionali
+   Fisica / Elettronica / Chimica / Conversioni unità
+   Pre-appende il risultato prima di inviare al LLM.
+   ══════════════════════════════════════════════════════════════ */
+
+static double _num(const QString& s) { return s.trimmed().replace(',','.').toDouble(); }
+static QString _sci(double v) {
+    if (std::abs(v) >= 1e6  || (std::abs(v) < 1e-3 && v != 0.0))
+        return QString::number(v, 'g', 5);
+    if (std::abs(v - std::round(v)) < 1e-9) return QString::number((long long)std::round(v));
+    return QString::number(v, 'f', 4).remove(QRegularExpression("0+$")).remove(QRegularExpression("\\.$"));
+}
+
+/* Regex di supporto */
+static const QRegularExpression reN(R"(([+\-]?[0-9]+(?:[.,][0-9]+)?(?:[eE][+\-]?[0-9]+)?))");
+
+QString _inject_science(const QString& task)
+{
+    const QString lo = task.toLower().trimmed();
+    if (lo.length() > 300) return task; /* prompt troppo lungo — non intercettare */
+
+    /* ── helpers lambda ── */
+    auto matchN = [](const QString& txt, int group = 1) -> double {
+        static QRegularExpression re(R"(([+\-]?[0-9]+(?:[.,][0-9]+)?(?:[eE][+\-]?[0-9]+)?))");
+        auto m = re.globalMatch(txt);
+        int i = 0;
+        while (m.hasNext()) { auto c = m.next(); if (++i == group) return _num(c.captured(1)); }
+        return std::numeric_limits<double>::quiet_NaN();
+    };
+
+    struct Result { bool ok = false; QString label; QString value; };
+    Result res;
+
+    /* ══ ELETTRONICA ══ */
+
+    /* Legge di Ohm: V=IR, I=V/R, R=V/I */
+    {
+        static QRegularExpression reVIR(
+            R"(v\s*=\s*)" + reN.pattern() + R"(\s*\*?\s*)" + reN.pattern(), QRegularExpression::CaseInsensitiveOption);
+        /* "quanti volt con R=470 e I=25mA" */
+        static QRegularExpression reVoltRE(
+            R"((?:quanti\s+)?volt.{0,20}r\s*=?\s*)" + reN.pattern() + R"(\s*[ohmΩ]?.{0,10}i\s*=?\s*)" + reN.pattern() + R"(\s*(m?a)?)",
+            QRegularExpression::CaseInsensitiveOption);
+        auto mv = reVoltRE.match(lo);
+        if (mv.hasMatch()) {
+            double R = _num(mv.captured(1));
+            double I = _num(mv.captured(2));
+            if (lo.contains("ma")) I /= 1000.0;
+            double V = I * R;
+            res = {true, "Ohm: V = I × R", _sci(V) + " V"};
+        }
+    }
+    if (!res.ok) {
+        /* "quanta corrente con V=12V e R=470" */
+        static QRegularExpression reCurrRE(
+            R"((?:quanta\s+)?(?:corrente|amper.{0,5}).{0,20}v\s*=?\s*)" + reN.pattern() + R"(\s*v?.{0,10}r\s*=?\s*)" + reN.pattern(),
+            QRegularExpression::CaseInsensitiveOption);
+        auto mi = reCurrRE.match(lo);
+        if (mi.hasMatch()) {
+            double V = _num(mi.captured(1)), R = _num(mi.captured(2));
+            double I = (R != 0) ? V / R : std::numeric_limits<double>::infinity();
+            res = {true, "Ohm: I = V / R", _sci(I * 1000.0) + " mA (" + _sci(I) + " A)"};
+        }
+    }
+    if (!res.ok) {
+        /* "quanta resistenza con V=12 I=25mA" */
+        static QRegularExpression reResRE(
+            R"((?:quanta\s+)?(?:resistenza|ohm).{0,20}v\s*=?\s*)" + reN.pattern() + R"(\s*v?.{0,10}i\s*=?\s*)" + reN.pattern(),
+            QRegularExpression::CaseInsensitiveOption);
+        auto mr = reResRE.match(lo);
+        if (mr.hasMatch()) {
+            double V = _num(mr.captured(1)), I = _num(mr.captured(2));
+            if (lo.contains("ma")) I /= 1000.0;
+            double R = (I != 0) ? V / I : std::numeric_limits<double>::infinity();
+            res = {true, "Ohm: R = V / I", _sci(R) + " \xce\xa9"};
+        }
+    }
+
+    /* Potenza: P=VI, P=I²R, P=V²/R */
+    if (!res.ok) {
+        static QRegularExpression rePowRE(
+            R"((?:quanta\s+)?potenza.{0,20}(?:v|u)\s*=?\s*)" + reN.pattern() + R"(\s*v?.{0,10}i\s*=?\s*)" + reN.pattern(),
+            QRegularExpression::CaseInsensitiveOption);
+        auto mp = rePowRE.match(lo);
+        if (mp.hasMatch()) {
+            double V = _num(mp.captured(1)), I = _num(mp.captured(2));
+            if (lo.contains("ma")) I /= 1000.0;
+            double P = V * I;
+            res = {true, "P = V × I", _sci(P * 1000.0) + " mW (" + _sci(P) + " W)"};
+        }
+    }
+
+    /* Costante di tempo RC: τ = R × C */
+    if (!res.ok) {
+        static QRegularExpression reTauRE(
+            R"(tau|costante.{0,10}tempo.{0,20}r\s*=?\s*)" + reN.pattern() + R"(\s*k?[oΩ]?.{0,10}c\s*=?\s*)" + reN.pattern() + R"(\s*([un]?f)?)",
+            QRegularExpression::CaseInsensitiveOption);
+        auto mt = reTauRE.match(lo);
+        if (mt.hasMatch()) {
+            double R = _num(mt.captured(1)), C = _num(mt.captured(2));
+            /* Unità: k → ×1000; µ/u → ×1e-6; n → ×1e-9 */
+            if (lo.contains("k\xce\xa9") || lo.contains("kohm")) R *= 1e3;
+            if (lo.contains("\xc2\xb5""f") || lo.contains("uf"))  C *= 1e-6;
+            else if (lo.contains("nf"))                            C *= 1e-9;
+            double tau = R * C;
+            res = {true, "\xcf\x84 = R \xc3\x97 C", _sci(tau) + " s"};
+        }
+    }
+
+    /* Frequenza di taglio RC: fc = 1/(2πRC) */
+    if (!res.ok && (lo.contains("freq") || lo.contains("taglio") || lo.contains("fc"))) {
+        static QRegularExpression reFcRE(
+            R"(r\s*=?\s*)" + reN.pattern() + R"(\s*k?[oΩ]?.{0,10}c\s*=?\s*)" + reN.pattern() + R"(\s*([un]?f)?)",
+            QRegularExpression::CaseInsensitiveOption);
+        auto mf = reFcRE.match(lo);
+        if (mf.hasMatch()) {
+            double R = _num(mf.captured(1)), C = _num(mf.captured(2));
+            if (lo.contains("k\xce\xa9") || lo.contains("kohm")) R *= 1e3;
+            if (lo.contains("\xc2\xb5""f") || lo.contains("uf"))  C *= 1e-6;
+            else if (lo.contains("nf"))                            C *= 1e-9;
+            if (R > 0 && C > 0) {
+                double fc = 1.0 / (2.0 * M_PI * R * C);
+                res = {true, "fc = 1/(2\xcf\x80RC)", _sci(fc) + " Hz"};
+            }
+        }
+    }
+
+    /* ══ FISICA ══ */
+
+    /* Velocità: v = d/t */
+    if (!res.ok && (lo.contains("velocit") || lo.contains("m/s") || lo.contains("km/h"))) {
+        static QRegularExpression reVelRE(
+            R"((?:d|distanza)\s*=?\s*)" + reN.pattern() + R"(\s*k?m?.{0,10}(?:t|tempo)\s*=?\s*)" + reN.pattern(),
+            QRegularExpression::CaseInsensitiveOption);
+        auto mv = reVelRE.match(lo);
+        if (mv.hasMatch()) {
+            double d = _num(mv.captured(1)), t = _num(mv.captured(2));
+            double v = (t != 0) ? d / t : std::numeric_limits<double>::infinity();
+            res = {true, "v = d / t", _sci(v) + (lo.contains("km") ? " km/h" : " m/s")};
+        }
+    }
+
+    /* Energia cinetica: Ek = 0.5 × m × v² */
+    if (!res.ok && lo.contains("cinetica")) {
+        static QRegularExpression reEkRE(
+            R"((?:m|massa)\s*=?\s*)" + reN.pattern() + R"(\s*k?g?.{0,10}(?:v|velocit\S*)\s*=?\s*)" + reN.pattern(),
+            QRegularExpression::CaseInsensitiveOption);
+        auto me = reEkRE.match(lo);
+        if (me.hasMatch()) {
+            double m = _num(me.captured(1)), v = _num(me.captured(2));
+            double Ek = 0.5 * m * v * v;
+            res = {true, "Ek = \xc2\xbd m v\xc2\xb2", _sci(Ek) + " J"};
+        }
+    }
+
+    /* ══ CONVERSIONI UNITÀ ══ */
+
+    /* kWh → J */
+    if (!res.ok && lo.contains("kwh") && (lo.contains("joule") || lo.contains("j"))) {
+        double n = matchN(lo);
+        if (!std::isnan(n)) res = {true, "kWh \xe2\x86\x92 J", _sci(n * 3.6e6) + " J"};
+    }
+    /* atm → Pa */
+    if (!res.ok && lo.contains("atm") && lo.contains("pa")) {
+        double n = matchN(lo);
+        if (!std::isnan(n)) res = {true, "atm \xe2\x86\x92 Pa", _sci(n * 101325.0) + " Pa"};
+    }
+    /* bar → Pa */
+    if (!res.ok && lo.contains("bar") && lo.contains("pa")) {
+        double n = matchN(lo);
+        if (!std::isnan(n)) res = {true, "bar \xe2\x86\x92 Pa", _sci(n * 1e5) + " Pa"};
+    }
+    /* kmh → ms */
+    if (!res.ok && lo.contains("km/h") && lo.contains("m/s")) {
+        double n = matchN(lo);
+        if (!std::isnan(n)) res = {true, "km/h \xe2\x86\x92 m/s", _sci(n / 3.6) + " m/s"};
+    }
+    /* ms → kmh */
+    if (!res.ok && lo.contains("m/s") && lo.contains("km/h")) {
+        double n = matchN(lo);
+        if (!std::isnan(n)) res = {true, "m/s \xe2\x86\x92 km/h", _sci(n * 3.6) + " km/h"};
+    }
+    /* dBm → mW */
+    if (!res.ok && lo.contains("dbm") && (lo.contains("mw") || lo.contains("watt"))) {
+        double dbm = matchN(lo);
+        if (!std::isnan(dbm)) res = {true, "dBm \xe2\x86\x92 mW", _sci(std::pow(10.0, dbm / 10.0)) + " mW"};
+    }
+    /* mW → dBm */
+    if (!res.ok && lo.contains("mw") && lo.contains("dbm")) {
+        double mw = matchN(lo);
+        if (!std::isnan(mw) && mw > 0) res = {true, "mW \xe2\x86\x92 dBm", _sci(10.0 * std::log10(mw)) + " dBm"};
+    }
+    /* dB tensione: Vout/Vin da guadagno dB */
+    if (!res.ok && lo.contains("db") && lo.contains("guadagno")) {
+        double db = matchN(lo);
+        if (!std::isnan(db)) res = {true, "dB \xe2\x86\x92 rapporto tensione", _sci(std::pow(10.0, db / 20.0)) + "\xc3\x97 (Vout/Vin)"};
+    }
+
+    /* ══ CHIMICA ══ */
+
+    /* moli ↔ grammi: m = n × M */
+    if (!res.ok && (lo.contains("mol") && (lo.contains("gramm") || lo.contains(" g ")))) {
+        /* "quanti grammi sono 2 mol di NaCl (M=58.44)" */
+        static QRegularExpression reMolRE(
+            R"()" + reN.pattern() + R"(\s*mol.{0,30}m(?:assa\s+molare)?\s*=?\s*)" + reN.pattern() + R"(\s*g)",
+            QRegularExpression::CaseInsensitiveOption);
+        auto mm = reMolRE.match(lo);
+        if (mm.hasMatch()) {
+            double n = _num(mm.captured(1)), M = _num(mm.captured(2));
+            res = {true, "m = n \xc3\x97 M", _sci(n * M) + " g"};
+        }
+    }
+
+    /* pH da [H+] */
+    if (!res.ok && lo.contains("ph") && lo.contains("[h") && lo.contains("mol")) {
+        double c = matchN(lo);
+        if (!std::isnan(c) && c > 0) res = {true, "pH = -log\xe2\x82\x81\xe2\x82\x80[H\xe2\x81\xba]", _sci(-std::log10(c))};
+    }
+    /* [H+] da pH */
+    if (!res.ok && lo.contains("ph") && lo.contains("concentrazione")) {
+        double ph = matchN(lo);
+        if (!std::isnan(ph)) res = {true, "[H\xe2\x81\xba] da pH", _sci(std::pow(10.0, -ph)) + " mol/L"};
+    }
+
+    if (!res.ok) return task;
+
+    /* Prepende il risultato come contesto per l'AI */
+    return QString("[Calcolo locale: %1 = %2]\n\n").arg(res.label, res.value) + task;
+}
+

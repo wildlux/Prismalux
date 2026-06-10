@@ -132,15 +132,15 @@ private:
 
     /* ── buildContent — livello 2 ───────────────────────────── */
     void buildAiTab();         ///< [0] 🤖 Intelligenza artificiale
-    void buildStrumentiTab();  ///< [1] 🛠 Strumenti
+    void buildStrumentiTab();  ///< [1] 🛠 Strumenti (sub-tab 10: File AI)
     void buildMultimediaTab(); ///< [2] 🎬 Multimedia
-    void buildFileAiTab();     ///< [3] 📁 File AI
-    void buildProgrammazioneTab(); ///< [4] 💻 Programmazione
-    void buildMatematicaTab(); ///< [5] π Matematica + Grafico
-    void buildRicercaTab();    ///< [6] 🔬 Ricerca
-    void buildAppControllerTab(); ///< [7] 🕹 APP Controller
-    void buildLanWanTab();     ///< [8] 🌐 LAN & WAN
-    void buildMultiAgentTab(); ///< [9] 🕸️ Multi-Agente + Grafo
+    void buildFileAiTab();     ///< non più chiamata — File AI è in StrumentiPage tab 10
+    void buildProgrammazioneTab(); ///< [3] 💻 Programmazione
+    void buildMatematicaTab(); ///< [4] π Matematica + Grafico
+    void buildRicercaTab();    ///< [5] 🔬 Ricerca
+    void buildAppControllerTab(); ///< [6] 🕹 APP Controller
+    void buildLanWanTab();     ///< [7] 🌐 LAN & WAN
+    void buildMultiAgentTab(); ///< [8] 🕸️ Multi-Agente + Grafo
     void buildNavMenuBar(QWidget* wrapper, QVBoxLayout* wLay); ///< Barra menu alternativa + sincronizzazione
     void applyContentSettings();  ///< Applica nav style e exec btn mode da QSettings
 
@@ -164,6 +164,7 @@ private:
     ResourceGauge*  m_gRam        = nullptr;  ///< Gauge RAM nell'header
     ResourceGauge*  m_gGpu        = nullptr;  ///< Gauge GPU dedicata nell'header
     ResourceGauge*  m_gIgpu       = nullptr;  ///< Gauge Intel iGPU (nascosto se assente)
+    QLabel*         m_tempLbl     = nullptr;  ///< Indicatore temperatura CPU/GPU nell'header
     QLabel*         m_lblBackend  = nullptr;  ///< Testo "🦙 Ollama → 127.0.0.1:11434"
     QLabel*         m_lblModel    = nullptr;  ///< Nome modello AI attivo
     QPushButton*    m_settingsBtn   = nullptr;  ///< Pulsante ⚙️ header (accanto hamburger) → Impostazioni
@@ -315,13 +316,13 @@ private slots:
 
     /* ── Navigazione ─────────────────────────────────────────────── */
     void navigateTo(int idx);
-    void onShortcutAlt1() { navigateTo(0); }
-    void onShortcutAlt2() { navigateTo(1); }
-    void onShortcutAlt3() { navigateTo(4); }
-    void onShortcutAlt4() { navigateTo(5); }
-    void onShortcutAlt5() { navigateTo(6); }
-    void onShortcutAlt6() { navigateTo(7); }
-    void onShortcutAlt7() { navigateTo(9); }
+    void onShortcutAlt1() { navigateTo(0); }  /* AI */
+    void onShortcutAlt2() { navigateTo(1); }  /* Strumenti */
+    void onShortcutAlt3() { navigateTo(3); }  /* Programmazione (File AI → sub-tab Strumenti) */
+    void onShortcutAlt4() { navigateTo(4); }  /* Matematica */
+    void onShortcutAlt5() { navigateTo(5); }  /* Ricerca */
+    void onShortcutAlt6() { navigateTo(6); }  /* AppController */
+    void onShortcutAlt7() { navigateTo(8); }  /* Multi-Agente */
 
     /* ── Agenti / Pipeline ──────────────────────────────────────── */
     void onChatCompleted(const QString& title, const QString& logHtml);
