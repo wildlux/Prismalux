@@ -71,8 +71,12 @@ public:
     /** Espone ManutenzioneePage per permettere a StrumentiPage di usare buildCronTab(). */
     ManutenzioneePage* manutenzione() { return m_manutenzione; }
 
-    /** Tipo risultato estrazione testo (chunk, sorgenti) — pubblico per il thread worker. */
-    using RagExtractResult = QPair<QStringList, QStringList>;
+    /** Tipo risultato estrazione testo (chunk, sorgenti, mtime) — pubblico per il thread worker. */
+    struct RagExtractResult {
+        QStringList   chunks;   ///< testi dei chunk
+        QStringList   sources;  ///< percorso file sorgente per ogni chunk (pieno)
+        QList<qint64> mtimes;   ///< lastModified msecs del file sorgente per ogni chunk
+    };
 
     /** Avvia l'indicizzazione RAG se l'indice è vuoto e la cartella default ha file.
      *  Pensato per essere chiamato una volta all'avvio (es. via QTimer::singleShot). */
@@ -217,7 +221,8 @@ private:
     QFutureWatcher<RagExtractResult>* m_extractWatcher = nullptr;
     RagEngine       m_rag;
     QStringList     m_ragQueue;           ///< chunk da indicizzare
-    QStringList     m_ragQueueSource;     ///< nome file sorgente per ogni chunk (parallelo a m_ragQueue)
+    QStringList     m_ragQueueSource;     ///< percorso file sorgente per ogni chunk (pieno)
+    QList<qint64>   m_ragQueueMtime;      ///< mtime del file per ogni chunk (parallelo a m_ragQueue)
     int             m_ragQueuePos = 0;    ///< posizione corrente nel queue
     QLabel*         m_ragFeedbackLbl    = nullptr;
     QProgressBar*   m_ragProgressBar    = nullptr;

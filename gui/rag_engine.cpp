@@ -49,11 +49,38 @@ QVector<float> RagEngine::project(const QVector<float>& fullEmb) {
 /* ══════════════════════════════════════════════════════════════
    addChunk
    ══════════════════════════════════════════════════════════════ */
-void RagEngine::addChunk(const QString& text, const QVector<float>& fullEmb) {
+void RagEngine::addChunk(const QString& text, const QVector<float>& fullEmb,
+                          const QString& source, qint64 mtime) {
     RagChunk c;
-    c.text = text;
-    c.vec  = project(fullEmb);
+    c.text   = text;
+    c.source = source;
+    c.mtime  = mtime;
+    c.vec    = project(fullEmb);
     m_chunks.append(c);
+}
+
+bool RagEngine::isFileIndexed(const QString& source, qint64 mtime) const {
+    if (source.isEmpty()) return false;
+    for (const RagChunk& c : m_chunks)
+        if (c.source == source && c.mtime == mtime)
+            return true;
+    return false;
+}
+
+void RagEngine::removeChunksForFile(const QString& source) {
+    if (source.isEmpty()) return;
+    m_chunks.erase(
+        std::remove_if(m_chunks.begin(), m_chunks.end(),
+            [&](const RagChunk& c){ return c.source == source; }),
+        m_chunks.end());
+}
+
+QHash<QString, qint64> RagEngine::indexedFileMap() const {
+    QHash<QString, qint64> map;
+    for (const RagChunk& c : m_chunks)
+        if (!c.source.isEmpty())
+            map.insert(c.source, c.mtime);
+    return map;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -120,6 +147,8 @@ bool RagEngine::save(const QString& path) const {
     for (const RagChunk& c : m_chunks) {
         QJsonObject co;
         co["text"] = c.text;
+        if (!c.source.isEmpty()) co["s"] = c.source;
+        if (c.mtime)             co["m"] = c.mtime;
         QJsonArray va;
         for (float f : c.vec) va.append((double)f);
         co["vec"] = va;
@@ -150,7 +179,9 @@ bool RagEngine::load(const QString& path) {
     for (const QJsonValue& cv : root["chunks"].toArray()) {
         const QJsonObject co = cv.toObject();
         RagChunk c;
-        c.text = co["text"].toString();
+        c.text   = co["text"].toString();
+        c.source = co["s"].toString();
+        c.mtime  = (qint64)co["m"].toDouble(0);
         const QJsonArray va = co["vec"].toArray();
         c.vec.reserve(va.size());
         for (const QJsonValue& v : va)

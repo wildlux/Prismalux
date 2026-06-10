@@ -571,16 +571,18 @@ void ImpostazioniPage::onStopIndexClicked()
    Matematica.pdf con contenuto OCR.
    Restituisce {queue di chunk, sorgenti parallele}. */
 static ImpostazioniPage::RagExtractResult extractRagContent(const QString& dir,
-                                                            const QString& mathKnPath)
+                                                            const QString& mathKnPath,
+                                                            QHash<QString,qint64> alreadyIndexed)
 {
-    QStringList queue, sources;
+    ImpostazioniPage::RagExtractResult res;
 
-    auto addChunks = [&](const QString& content, const QString& fileName) {
+    auto addChunks = [&](const QString& content, const QString& fullPath, qint64 mtime) {
         for (int i = 0; i < content.size(); i += 400) {
             QString chunk = content.mid(i, 500).simplified();
             if (chunk.size() >= 30) {
-                queue   << chunk;
-                sources << fileName;
+                res.chunks  << chunk;
+                res.sources << fullPath;
+                res.mtimes  << mtime;
             }
         }
     };
@@ -589,10 +591,12 @@ static ImpostazioniPage::RagExtractResult extractRagContent(const QString& dir,
     QStringList filters{"*.txt","*.md","*.csv","*.rst","*.py","*.cpp","*.h","*.c"};
     QDirIterator it(dir, filters, QDir::Files, QDirIterator::Subdirectories);
     while (it.hasNext()) {
-        const QString fp = it.next();
+        const QString fp    = it.next();
+        const qint64  mtime = QFileInfo(fp).lastModified().toMSecsSinceEpoch();
+        if (alreadyIndexed.value(fp, -1) == mtime) continue;  /* già aggiornato */
         QFile f(fp);
         if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) continue;
-        addChunks(QString::fromUtf8(f.readAll()), QFileInfo(fp).fileName());
+        addChunks(QString::fromUtf8(f.readAll()), fp, mtime);
     }
 
     /* ── PDF: pdftotext + fallback OCR tesseract per PDF scansionati ── */
@@ -604,6 +608,8 @@ static ImpostazioniPage::RagExtractResult extractRagContent(const QString& dir,
                        QDirIterator::Subdirectories);
     while (pdfIt.hasNext()) {
         const QString pdfPath = pdfIt.next();
+        const qint64  mtime   = QFileInfo(pdfPath).lastModified().toMSecsSinceEpoch();
+        if (alreadyIndexed.value(pdfPath, -1) == mtime) continue;  /* già aggiornato */
         const QString pdfName = QFileInfo(pdfPath).fileName();
 
         /* 1) Prova pdftotext */
@@ -644,8 +650,7 @@ static ImpostazioniPage::RagExtractResult extractRagContent(const QString& dir,
 
         if (pdfText.trimmed().isEmpty()) continue;
 
-        const QString label = pdfName + (needsOcr ? " [OCR]" : "");
-        addChunks(pdfText, label);
+        addChunks(pdfText, pdfPath, mtime);
 
         /* Salva conoscenza matematica se è Matematica.pdf */
         if (needsOcr && pdfName.contains("Matematica", Qt::CaseInsensitive)
@@ -657,7 +662,7 @@ static ImpostazioniPage::RagExtractResult extractRagContent(const QString& dir,
         }
     }
 
-    return {queue, sources};
+    return res;
 }
 
 void ImpostazioniPage::onReindexBtnClicked()
@@ -692,15 +697,48 @@ void ImpostazioniPage::onReindexBtnClicked()
     m_indexAborted = false;
     m_ragQueue.clear();
     m_ragQueueSource.clear();
+    m_ragQueueMtime.clear();
     m_ragQueuePos = 0;
-    m_rag.clear();
+    /* NON fare m_rag.clear() — aggiornamento incrementale */
+
+    /* ── Pulizia file eliminati o modificati dall'indice ── */
+    const QHash<QString, qint64> indexedMap = m_rag.indexedFileMap();
+    static const QStringList kRagFilters{
+        "*.txt","*.md","*.csv","*.rst","*.py","*.cpp","*.h","*.c","*.pdf"
+    };
+    QHash<QString, qint64> currentFiles;
+    QDirIterator scanIt(dir, kRagFilters, QDir::Files, QDirIterator::Subdirectories);
+    while (scanIt.hasNext()) {
+        const QString fp = scanIt.next();
+        currentFiles.insert(fp, QFileInfo(fp).lastModified().toMSecsSinceEpoch());
+    }
+    for (auto it = indexedMap.constBegin(); it != indexedMap.constEnd(); ++it) {
+        if (!currentFiles.contains(it.key()) ||
+            currentFiles.value(it.key()) != it.value())
+            m_rag.removeChunksForFile(it.key());
+    }
+
+    /* Costruisce mappa dei file già aggiornati da passare al thread */
+    QHash<QString, qint64> alreadyIndexed;
+    for (auto it = currentFiles.constBegin(); it != currentFiles.constEnd(); ++it) {
+        if (m_rag.isFileIndexed(it.key(), it.value()))
+            alreadyIndexed.insert(it.key(), it.value());
+    }
+    const int toProcess = currentFiles.size() - alreadyIndexed.size();
 
     if (m_ragReindexBtn) m_ragReindexBtn->setEnabled(false);
     if (m_btnStopIndex)  m_btnStopIndex->setEnabled(false);
     if (m_ragFeedbackLbl) {
         m_ragFeedbackLbl->setText(
-            "\xe2\x8f\xb3  Estrazione testo (OCR se necessario)... potrebbe richiedere alcuni minuti.");
+            toProcess == 0
+            ? "\xe2\x9c\x85  Indice gi\xc3\xa0 aggiornato \xe2\x80\x94 nessun file modificato."
+            : QString("\xe2\x8f\xb3  Estrazione testo da %1 file nuovi/modificati...")
+                .arg(toProcess));
         m_ragFeedbackLbl->setVisible(true);
+    }
+    if (toProcess == 0) {
+        if (m_ragReindexBtn) m_ragReindexBtn->setEnabled(true);
+        return;
     }
 
     /* Fase 1: estrazione testo in background thread (evita freeze UI) */
@@ -709,16 +747,17 @@ void ImpostazioniPage::onReindexBtnClicked()
     connect(m_extractWatcher, &QFutureWatcher<RagExtractResult>::finished,
             this, [this, dir]() {
                 if (!m_extractWatcher) return;
-                auto result = m_extractWatcher->result();
-                m_ragQueue       = result.first;
-                m_ragQueueSource = result.second;
+                auto result       = m_extractWatcher->result();
+                m_ragQueue        = result.chunks;
+                m_ragQueueSource  = result.sources;
+                m_ragQueueMtime   = result.mtimes;
                 m_extractWatcher->deleteLater();
                 m_extractWatcher = nullptr;
                 startEmbeddingPhase(dir);
             });
 
     m_extractWatcher->setFuture(
-        QtConcurrent::run(extractRagContent, dir, mathKnPath));
+        QtConcurrent::run(extractRagContent, dir, mathKnPath, alreadyIndexed));
 }
 
 /* ── Fase 2: avvia il loop di embedding (chiamato dopo l'estrazione testo) ── */
@@ -815,12 +854,18 @@ void ImpostazioniPage::startEmbeddingPhase(const QString& dir)
             return;
         }
 
-        const QString srcName = (m_ragQueuePos < m_ragQueueSource.size())
-            ? m_ragQueueSource[m_ragQueuePos] : QString();
+        const int     curPos   = m_ragQueuePos;
+        const QString srcFull  = (curPos < m_ragQueueSource.size())
+                                    ? m_ragQueueSource[curPos] : QString();
+        const QString srcName  = srcFull.isEmpty()
+                                    ? QString()
+                                    : QFileInfo(srcFull).fileName();
+        const qint64  srcMtime = (curPos < m_ragQueueMtime.size())
+                                    ? m_ragQueueMtime[curPos] : 0LL;
         if (m_ragFeedbackLbl)
             m_ragFeedbackLbl->setText(
                 QString("\xf0\x9f\x93\x84  chunk %1 / %2%3")
-                    .arg(m_ragQueuePos + 1).arg(m_ragQueue.size())
+                    .arg(curPos + 1).arg(m_ragQueue.size())
                     .arg(srcName.isEmpty()
                         ? "..."
                         : " da <b>" + srcName + "</b>"));
@@ -834,10 +879,10 @@ void ImpostazioniPage::startEmbeddingPhase(const QString& dir)
         auto connErr = std::make_shared<QMetaObject::Connection>();
 
         *conn = connect(m_ai, &AiClient::embeddingReady, this,
-            [this, chunk, indexNext, conn, connErr](const QVector<float>& vec) {
+            [this, chunk, srcFull, srcMtime, indexNext, conn, connErr](const QVector<float>& vec) {
                 disconnect(*conn);
                 disconnect(*connErr);
-                m_rag.addChunk(chunk, vec);
+                m_rag.addChunk(chunk, vec, srcFull, srcMtime);
                 (*indexNext)();
             }, Qt::SingleShotConnection);
 

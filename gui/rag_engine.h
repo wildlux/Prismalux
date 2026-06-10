@@ -20,8 +20,10 @@
    ══════════════════════════════════════════════════════════════ */
 
 struct RagChunk {
-    QString        text;   ///< testo originale del chunk
-    QVector<float> vec;    ///< embedding compresso: kTargetDim float
+    QString        text;          ///< testo originale del chunk
+    QString        source;        ///< percorso file sorgente (canonico)
+    qint64         mtime = 0;     ///< lastModified in msecs since epoch
+    QVector<float> vec;           ///< embedding compresso: kTargetDim float
 };
 
 class RagEngine {
@@ -36,7 +38,17 @@ public:
     QVector<float> project(const QVector<float>& fullEmb);
 
     /** Aggiunge un chunk: proietta e memorizza nell'indice. */
-    void addChunk(const QString& text, const QVector<float>& fullEmb);
+    void addChunk(const QString& text, const QVector<float>& fullEmb,
+                  const QString& source = {}, qint64 mtime = 0);
+
+    /** True se il file è già nell'indice con lo stesso mtime (non modificato). */
+    bool isFileIndexed(const QString& source, qint64 mtime) const;
+
+    /** Rimuove tutti i chunk del file indicato (file eliminato o modificato). */
+    void removeChunksForFile(const QString& source);
+
+    /** Mappa path→mtime di tutti i file attualmente nell'indice. */
+    QHash<QString, qint64> indexedFileMap() const;
 
     /* ── Query ─────────────────────────────────────────────────── */
 
