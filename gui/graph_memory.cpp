@@ -395,10 +395,16 @@ QVector<GmNode> GraphMemory::searchNodes(const QString& query, int limit) const
     if (!m_open || query.isEmpty()) return result;
     QSqlDatabase db = QSqlDatabase::database(m_connName);
     QSqlQuery q(db);
-    const QString like = "%" + query + "%";
+    /* Escape metacaratteri LIKE: \ → \\  % → \%  _ → \_  */
+    QString safe = query;
+    safe.replace(QLatin1Char('\\'), "\\\\");
+    safe.replace(QLatin1Char('%'),  "\\%");
+    safe.replace(QLatin1Char('_'),  "\\_");
+    const QString like = "%" + safe + "%";
     q.prepare(
         "SELECT * FROM gm_nodes"
-        " WHERE label LIKE :q COLLATE NOCASE OR content LIKE :q2 COLLATE NOCASE"
+        " WHERE label LIKE :q ESCAPE '\\' COLLATE NOCASE"
+        "    OR content LIKE :q2 ESCAPE '\\' COLLATE NOCASE"
         " ORDER BY importance DESC LIMIT :lim"
     );
     q.bindValue(":q",   like);

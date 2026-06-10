@@ -17,6 +17,7 @@
 #include <QNetworkInterface>
 #include <QHostAddress>
 #include <QDialog>
+#include <QMessageBox>
 #include <QApplication>
 #include <QClipboard>
 #include <QUuid>
@@ -257,11 +258,22 @@ void LanWanPage::onQrConnectBtnClicked()
         url += "?token=" + enc;
     }
 
-    const QString note = token.isEmpty()
-        ? "\xf0\x9f\x93\xb1" "  Impostazioni \xe2\x86\x92 \xf0\x9f\x93\xb7 Scansiona QR<br>"  /* 📱 📷 */
-          "<small>Nessun token — aggiungi un token per la sicurezza</small>"
-        : "\xf0\x9f\x93\xb1" "  Impostazioni \xe2\x86\x92 \xf0\x9f\x93\xb7 Scansiona QR<br>"
-          "<small>IP + porta + token sono gi\xc3\xa0 inclusi nel QR</small>";
+    const bool hasTls = m_lanServer && m_lanServer->isTlsEnabled();
+    QString note;
+    if (token.isEmpty()) {
+        note = "\xf0\x9f\x93\xb1" "  Impostazioni \xe2\x86\x92 \xf0\x9f\x93\xb7 Scansiona QR<br>"
+               "<small>Nessun token \xe2\x80\x94 aggiungi un token per la sicurezza</small>";
+    } else if (!hasTls) {
+        note = "\xf0\x9f\x93\xb1" "  Impostazioni \xe2\x86\x92 \xf0\x9f\x93\xb7 Scansiona QR<br>"
+               "<small>IP + porta + token inclusi nel QR</small><br>"
+               "<small style='color:#f59e0b;'>"
+               "\xe2\x9a\xa0\xef\xb8\x8f" "  TLS non attivo \xe2\x80\x94 il token viaggia in chiaro sulla rete."
+               " Abilita TLS nelle impostazioni server.</small>";
+    } else {
+        note = "\xf0\x9f\x93\xb1" "  Impostazioni \xe2\x86\x92 \xf0\x9f\x93\xb7 Scansiona QR<br>"
+               "<small>IP + porta + token inclusi nel QR \xe2\x80\x94 "
+               "\xf0\x9f\x94\x92 TLS attivo</small>";
+    }
 
     openQrDialog(btn, url,
                  "QR \xe2\x80\x94 Connetti Prismalux Mobile",
@@ -1962,6 +1974,27 @@ void LanWanPage::onWanStartBtnClicked()
     if (m_wanStartBtn->isChecked()) {
         const int port = m_wanPortSpin->value();
         const bool exposeAll = m_wanExposeAllCheck && m_wanExposeAllCheck->isChecked();
+
+        /* Warn se il server è esposto su tutta la rete senza token */
+        if (exposeAll) {
+            const QString wanTok = m_wanTokenEdit ? m_wanTokenEdit->text().trimmed() : QString();
+            if (wanTok.isEmpty()) {
+                const auto ans = QMessageBox::warning(this,
+                    tr("WAN senza token \xe2\x80\x94 rischio sicurezza"),
+                    tr("Il server WAN sar\xc3\xa0 esposto su tutta la rete "
+                       "senza token di autenticazione.\n"
+                       "Qualsiasi macchina raggiungibile in rete pu\xc3\xb2 "
+                       "connettersi e ricevere task AI.\n\n"
+                       "Imposta un token nella casella \"Token server\" "
+                       "prima di procedere.\n\nContinuare comunque?"),
+                    QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+                if (ans != QMessageBox::Yes) {
+                    m_wanStartBtn->setChecked(false);
+                    return;
+                }
+            }
+        }
+
         const QHostAddress bindAddr = exposeAll ? QHostAddress::Any : QHostAddress::LocalHost;
         if (!m_wanServer->listen(bindAddr, static_cast<quint16>(port))) {
             m_wanStartBtn->setChecked(false);
