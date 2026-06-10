@@ -41,6 +41,7 @@
 #include <QJsonObject>
 #include <QProcess>
 #include <QTimer>
+#include <QElapsedTimer>
 #include <QListWidget>
 #include <QComboBox>
 #include <QDialog>
@@ -165,6 +166,9 @@ private:
     ResourceGauge*  m_gGpu        = nullptr;  ///< Gauge GPU dedicata nell'header
     ResourceGauge*  m_gIgpu       = nullptr;  ///< Gauge Intel iGPU (nascosto se assente)
     QLabel*         m_tempLbl     = nullptr;  ///< Indicatore temperatura CPU/GPU nell'header
+    QLabel*         m_ttftLbl     = nullptr;  ///< TTFT ultimo token (header)
+    QElapsedTimer   m_ttftTimer;              ///< Misura TTFT per ogni richiesta
+    bool            m_ttftGotFirst = false;   ///< True dopo il primo token della richiesta corrente
     QLabel*         m_lblBackend  = nullptr;  ///< Testo "🦙 Ollama → 127.0.0.1:11434"
     QLabel*         m_lblModel    = nullptr;  ///< Nome modello AI attivo
     QPushButton*    m_settingsBtn   = nullptr;  ///< Pulsante ⚙️ header (accanto hamburger) → Impostazioni
@@ -401,6 +405,9 @@ private slots:
 
     /* ── zRAM setup ─────────────────────────────────────────────── */
     void onZramSetupTimer();
+
+    /* ── Auto-update GitHub ─────────────────────────────────────── */
+    void checkForUpdates();
 
     /* ── Math download button (showServerDialog) ─────────────────── */
     void onMathDlBtnClicked();

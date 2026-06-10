@@ -41,6 +41,8 @@ namespace P = PrismaluxPaths;
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QPointer>
+#include <QPixmap>
+#include <QPainter>
 #include <memory>
 
 /* ══════════════════════════════════════════════════════════════
@@ -168,6 +170,35 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_cvBox = new QGroupBox("\xf0\x9f\x93\x84  Curriculum Vitae", topRow);
     auto* cvLay = new QHBoxLayout(m_cvBox);
     cvLay->setSpacing(8);
+
+    /* Foto profilo — placeholder 48×48 arrotondato */
+    m_fotoLbl = new QLabel(m_cvBox);
+    m_fotoLbl->setObjectName("fotoProfiloLbl");
+    m_fotoLbl->setFixedSize(48, 48);
+    m_fotoLbl->setAlignment(Qt::AlignCenter);
+    m_fotoLbl->setToolTip(tr("Foto profilo per il CV"));
+    m_fotoLbl->setStyleSheet(
+        "QLabel#fotoProfiloLbl{"
+        "  border: 2px solid palette(mid);"
+        "  border-radius: 24px;"
+        "  background: palette(base);"
+        "  color: palette(text);"
+        "  font-size: 22px;"
+        "}");
+    m_fotoLbl->setText("\xf0\x9f\x91\xa4");  /* 👤 */
+    auto* fotoPicker = new QPushButton("\xf0\x9f\x93\xb7", m_cvBox);
+    fotoPicker->setObjectName("actionBtn");
+    fotoPicker->setFixedSize(26, 26);
+    fotoPicker->setToolTip(tr("Seleziona foto profilo (JPG / PNG)"));
+    connect(fotoPicker, &QPushButton::clicked, this, &LavoroPage::onFotoBtnClicked);
+
+    auto* fotoWrap = new QWidget(m_cvBox);
+    auto* fotoWrapLay = new QVBoxLayout(fotoWrap);
+    fotoWrapLay->setContentsMargins(0, 0, 0, 0);
+    fotoWrapLay->setSpacing(2);
+    fotoWrapLay->addWidget(m_fotoLbl);
+    fotoWrapLay->addWidget(fotoPicker, 0, Qt::AlignHCenter);
+    cvLay->addWidget(fotoWrap);
 
     m_cvPath = new QLineEdit(m_cvBox);
     m_cvPath->setPlaceholderText(tr("Percorso file PDF..."));
@@ -1353,4 +1384,41 @@ void LavoroPage::precompilaStipendioDaOfferta(const Offerta& o) {
         .arg(mkt.minA / 1000)    /* %4 */
         .arg(mkt.maxA / 1000)    /* %5 */
         .arg(mkt.minA / 12));    /* %6 */
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onFotoBtnClicked — seleziona e mostra foto profilo CV
+   Pixmap scalata a 48×48 con maschera circolare per il tema QSS.
+   ══════════════════════════════════════════════════════════════ */
+void LavoroPage::onFotoBtnClicked()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this, tr("Seleziona foto profilo"), QDir::homePath(),
+        tr("Immagini (*.jpg *.jpeg *.png *.bmp *.gif)"));
+    if (path.isEmpty()) return;
+
+    QPixmap src(path);
+    if (src.isNull()) return;
+
+    m_fotoPath = path;
+
+    /* Scala + ritaglia circolare */
+    const int sz = 44;
+    QPixmap scaled = src.scaled(sz, sz, Qt::KeepAspectRatioByExpanding,
+                                 Qt::SmoothTransformation);
+    /* Centra il crop quadrato */
+    const int ox = (scaled.width()  - sz) / 2;
+    const int oy = (scaled.height() - sz) / 2;
+    scaled = scaled.copy(ox, oy, sz, sz);
+
+    QPixmap circle(sz, sz);
+    circle.fill(Qt::transparent);
+    QPainter p(&circle);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setClipRegion(QRegion(0, 0, sz, sz, QRegion::Ellipse));
+    p.drawPixmap(0, 0, scaled);
+
+    m_fotoLbl->setPixmap(circle);
+    m_fotoLbl->setText("");
+    m_fotoLbl->setToolTip(QFileInfo(path).fileName());
 }

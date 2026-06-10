@@ -14,6 +14,24 @@ Strutturale (nuovo file/CMakeLists) → rifare `cmake -B gui/build_gui gui/`. So
 `build.py` — motore di build multipiattaforma. Genera `errore.txt` in root se fallisce.
 Windows: `build.bat` trova Python ed esegue `build.py`. Prima volta: `COMPILE_WIN\setup.bat`.
 
+### Build macOS (N10 — non ancora testato su hardware reale)
+```bash
+# Requisiti: Homebrew + Qt6 + cmake
+brew install qt6 cmake ninja
+
+# Opzione A — build.py automatico (rileva Homebrew Qt6)
+python3 build.py
+
+# Opzione B — cmake diretto (Qt6 da Homebrew Apple Silicon)
+export PATH="/opt/homebrew/opt/qt6/bin:$PATH"
+cmake -B gui/build_gui gui/ -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt6
+cmake --build gui/build_gui -j$(nproc)
+open gui/build_gui/Prismalux_GUI.app
+```
+CMakeLists.txt genera `Prismalux_GUI.app` bundle + copia i framework Qt con `macdeployqt` automaticamente.
+Nota: `QSslServer` (TLS LAN) richiede `brew install openssl` e linkage esplicito — aggiungere se necessario.
+
 ## Layout tab (mainwindow.cpp)
 ```
 Header (72px): logo · backend · model · CPU/RAM/GPU · spinner · ⚙️

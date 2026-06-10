@@ -469,6 +469,9 @@ void MainWindow::setupTimers()
     /* Auto-indicizza RAG (incluso Matematica.pdf via OCR) se l'indice è vuoto */
     QTimer::singleShot(6000, this, &MainWindow::onAutoRagIndex);
 
+    /* Controlla aggiornamenti GitHub 10s dopo l'avvio */
+    QTimer::singleShot(10000, this, &MainWindow::checkForUpdates);
+
     /* Avviso cartella RAG mancante — visibile 2s dopo l'avvio */
     QTimer::singleShot(2000, this, [this] {
         const QString ragDir = AppConfig::s().value(
@@ -508,6 +511,25 @@ void MainWindow::setupBackend()
     m_ai->fetchModels();
     connect(m_ai, &AiClient::modelsReady,   this, &MainWindow::onInitialModelsReady);
     connect(m_ai, &AiClient::modelChanged,  this, &MainWindow::onModelChanged);
+
+    /* TTFT tracking nell'header */
+    connect(m_ai, &AiClient::requestStarted, this, [this](const QString&, const QString&) {
+        m_ttftTimer.restart();
+        m_ttftGotFirst = false;
+    });
+    connect(m_ai, &AiClient::token, this, [this](const QString&) {
+        if (m_ttftGotFirst || !m_ttftLbl) return;
+        m_ttftGotFirst = true;
+        const qint64 ms = m_ttftTimer.elapsed();
+        m_ttftLbl->setText(QString("\xe2\x9a\xa1 %1ms").arg(ms));
+        const char* clr = (ms < 1000) ? "#22c55e" : (ms < 3000) ? "#f59e0b" : "#ef4444";
+        m_ttftLbl->setStyleSheet(
+            QString("QLabel#ttftLabel{color:%1;font-size:11px;padding:0 4px;}").arg(clr));
+        m_ttftLbl->setVisible(true);
+    });
+    connect(m_ai, &AiClient::aborted, this, [this]() {
+        if (m_ttftLbl) m_ttftLbl->setVisible(false);
+    });
 
     ThemeManager::instance()->loadSaved();
     navigateTo(0);
@@ -651,6 +673,14 @@ void MainWindow::buildGaugesSection(QHBoxLayout* lay)
         "QLabel#tempLabel{color:#94a3b8;font-size:11px;padding:0 4px;}");
     m_tempLbl->setVisible(false);
     lay->addWidget(m_tempLbl);
+
+    m_ttftLbl = new QLabel("", hdr);
+    m_ttftLbl->setObjectName("ttftLabel");
+    m_ttftLbl->setToolTip(tr("TTFT \xe2\x80\x94 Time To First Token dell'ultima risposta AI\n"
+                              "Verde < 1s  \xc2\xb7  Arancio 1-3s  \xc2\xb7  Rosso > 3s"));
+    m_ttftLbl->setStyleSheet("QLabel#ttftLabel{color:#64748b;font-size:11px;padding:0 4px;}");
+    m_ttftLbl->setVisible(false);
+    lay->addWidget(m_ttftLbl);
 }
 
 /* ── Livello 2: 🚨 emergenza RAM + Scarica LLM + backend toggle ───── */

@@ -33,8 +33,11 @@
 #include <QDir>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QNetworkAccessManager>
 #include <QUrl>
 #include <QStatusBar>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QComboBox>
 #include <QTabWidget>
 #include <QListWidgetItem>
@@ -865,4 +868,39 @@ void MainWindow::onZoomApplyDebounced()
     QFont f = QApplication::font();
     f.setPointSize(pt);
     QApplication::setFont(f);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   checkForUpdates — controlla nuova versione su GitHub API
+   Notifica non intrusiva nella status bar se disponibile.
+   ══════════════════════════════════════════════════════════════ */
+void MainWindow::checkForUpdates()
+{
+    auto* nam = new QNetworkAccessManager(this);
+    QNetworkRequest req(
+        QUrl("https://api.github.com/repos/wildlux/Prismalux/releases/latest"));
+    req.setRawHeader("User-Agent", "Prismalux/2.9");
+    req.setRawHeader("Accept", "application/vnd.github+json");
+    req.setTransferTimeout(8000);
+    auto* reply = nam->get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, nam]() {
+        reply->deleteLater();
+        nam->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) return;
+        const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        if (!doc.isObject()) return;
+        QString tag = doc.object().value("tag_name").toString().trimmed();
+        if (tag.isEmpty()) return;
+        if (tag.startsWith('v') || tag.startsWith('V')) tag = tag.mid(1);
+        if (tag == "2.9") return;
+        auto* lbl = new QLabel(this);
+        lbl->setObjectName("updateStatusLbl");
+        lbl->setTextFormat(Qt::RichText);
+        lbl->setOpenExternalLinks(true);
+        lbl->setStyleSheet("QLabel#updateStatusLbl{color:#f59e0b;font-weight:bold;}");
+        lbl->setText(
+            "\xf0\x9f\x86\x95 Prismalux <b>v" + tag + "</b> disponibile &mdash; "
+            "<a href='https://github.com/wildlux/Prismalux/releases'>Scarica</a>");
+        statusBar()->addPermanentWidget(lbl);
+    });
 }

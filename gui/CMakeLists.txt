@@ -263,6 +263,25 @@ if(WIN32)
 else()
     target_link_libraries(Prismalux_GUI PRIVATE pthread m)
     target_compile_options(Prismalux_GUI PRIVATE -Wno-overflow)
+    if(APPLE)
+        # Bundle macOS + deploy automatico framework Qt
+        set_target_properties(Prismalux_GUI PROPERTIES
+            MACOSX_BUNDLE TRUE
+            MACOSX_BUNDLE_BUNDLE_NAME      "Prismalux"
+            MACOSX_BUNDLE_BUNDLE_VERSION   "${PROJECT_VERSION}"
+            MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+            MACOSX_BUNDLE_IDENTIFIER       "com.prismalux.app"
+            MACOSX_BUNDLE_COPYRIGHT        "2026 Paolo Lo Bello"
+        )
+        find_program(MACDEPLOYQT macdeployqt HINTS "${Qt6_DIR}/../../../bin")
+        if(MACDEPLOYQT)
+            add_custom_command(TARGET Prismalux_GUI POST_BUILD
+                COMMAND ${MACDEPLOYQT}
+                        "$<TARGET_BUNDLE_DIR:Prismalux_GUI>"
+                        -verbose=1
+                COMMENT "Copia framework Qt con macdeployqt...")
+        endif()
+    endif()
 endif()
 
 # ── ONNX Runtime link + include (se trovato) ────────────────────────────────

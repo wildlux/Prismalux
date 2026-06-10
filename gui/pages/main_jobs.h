@@ -39,6 +39,9 @@ private slots:
     void onAnalizzaUrlBtnClicked();
     void onAnalizzaCvBtnClicked();
 
+    /* ── Foto profilo ── */
+    void onFotoBtnClicked();
+
     /* ── Segnali AI ── */
     void onAiToken(const QString& t);
     void onAiFinished(const QString& text);
@@ -85,6 +88,8 @@ private:
     QTextEdit*   m_coverLog      = nullptr;
     QLabel*      m_cvStatus      = nullptr;
     QLineEdit*   m_cvPath        = nullptr;
+    QLabel*      m_fotoLbl       = nullptr;  ///< Anteprima foto profilo (64×64, arrotondato)
+    QString      m_fotoPath;
     QComboBox*   m_filtroTipo    = nullptr;
     QComboBox*   m_filtroLivello = nullptr;
     QListWidget* m_offerteLista  = nullptr;

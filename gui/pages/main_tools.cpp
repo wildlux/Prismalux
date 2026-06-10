@@ -1239,7 +1239,26 @@ QWidget* StrumentiPage::buildCloudCompareRow()
     auto* row = new QWidget(this);
     auto* lay = new QVBoxLayout(row);
     lay->setContentsMargins(8, 8, 8, 8);
-    lay->setSpacing(6);
+    lay->setSpacing(8);
+
+    /* Pulsante Apri CloudCompare (se installato) */
+    auto* btnRow = new QWidget(row);
+    auto* btnLay = new QHBoxLayout(btnRow);
+    btnLay->setContentsMargins(0, 0, 0, 0);
+    btnLay->addStretch(1);
+
+    auto* openBtn = new QPushButton(
+        "\xf0\x9f\x94\xb5  Apri CloudCompare", btnRow);
+    openBtn->setObjectName("actionBtn");
+    openBtn->setToolTip(tr("Avvia CloudCompare se installato sul sistema"));
+    connect(openBtn, &QPushButton::clicked, row, []() {
+        if (!QProcess::startDetached("cloudcompare", {})) {
+            QProcess::startDetached("CloudCompare", {});
+        }
+    });
+    btnLay->addWidget(openBtn);
+    btnLay->addStretch(1);
+    lay->addWidget(btnRow);
 
     auto* banner = new QLabel(row);
     banner->setObjectName("hintLabel");
@@ -1247,22 +1266,19 @@ QWidget* StrumentiPage::buildCloudCompareRow()
     banner->setWordWrap(true);
     banner->setAlignment(Qt::AlignCenter);
     banner->setText(
-        "<b>\xf0\x9f\x94\xb5 CloudCompare \xe2\x80\x94 in arrivo</b><br><br>"
-        "\xf0\x9f\x95\x90 Questa sezione \xc3\xa8 <b>riservata a sviluppi futuri</b>. "
-        "Non esiste ancora un bridge stabile per controllare CloudCompare via AI.<br><br>"
-        "<b>Stato attuale:</b><br>"
-        "\xe2\x80\xa2 Esiste un demo sperimentale: "
-        "<a href='https://github.com/truebelief/CloudCompareMCP'>CloudCompareMCP</a> "
-        "(richiede forte personalizzazione)<br>"
-        "\xe2\x80\xa2 Il wrapper Python ufficiale \xc3\xa8 "
-        "<a href='https://github.com/CloudCompare/CloudComPy'>CloudComPy</a> "
-        "(base per qualsiasi bridge futuro)<br>"
-        "\xe2\x80\xa2 Prismalux integrer\xc3\xa0 il bridge non appena sar\xc3\xa0 disponibile "
-        "una versione stabile<br><br>"
-        "<b>Funzionalit\xc3\xa0 pianificate:</b> "
-        "carica nuvola punti \xe2\x80\xa2 calcola normali \xe2\x80\xa2 "
-        "registrazione ICP \xe2\x80\xa2 distanze \xe2\x80\xa2 filtro/segmentazione \xe2\x80\xa2 "
-        "esporta PLY/LAS \xe2\x80\xa2 script libero CloudComPy");
+        "<b>\xf0\x9f\x94\xb5 CloudCompare \xe2\x80\x94 bridge AI in sviluppo</b><br><br>"
+        "Il bridge AI non \xc3\xa8 ancora stabile. Nel frattempo puoi aprire CloudCompare "
+        "direttamente con il pulsante sopra.<br><br>"
+        "<b>Installa CloudCompare:</b><br>"
+        "\xe2\x80\xa2 Ubuntu/Debian: <code>sudo apt install cloudcompare</code><br>"
+        "\xe2\x80\xa2 Flatpak: <code>flatpak install flathub org.cloudcompare.CloudCompare</code><br>"
+        "\xe2\x80\xa2 Windows: scarica da "
+        "<a href='https://www.danielgm.net/cc/'>danielgm.net/cc</a><br><br>"
+        "<b>Bridge futuro (MCP):</b><br>"
+        "\xe2\x80\xa2 Demo sperimentale: "
+        "<a href='https://github.com/truebelief/CloudCompareMCP'>CloudCompareMCP</a><br>"
+        "\xe2\x80\xa2 Wrapper Python ufficiale: "
+        "<a href='https://github.com/CloudCompare/CloudComPy'>CloudComPy</a>");
     lay->addWidget(banner);
     row->setVisible(false);
     return row;

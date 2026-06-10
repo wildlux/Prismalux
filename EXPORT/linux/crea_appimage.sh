@@ -37,7 +37,7 @@ APPIMAGETOOL="${HOME}/.local/bin/appimagetool"
   || die "appimagetool non trovato. Scaricalo da https://github.com/AppImage/AppImageKit/releases"
 
 GUI_BIN="${ROOT}/gui/build_gui/Prismalux_GUI"
-ICON_SRC="${ROOT}/ICONA/prismalux.png"
+ICON_SRC="${ROOT}/EXPORT/assets/prismalux.png"
 APPDIR="${ROOT}/AppDir"
 VERSION=$(grep -m1 'project(Prismalux_GUI VERSION' "${ROOT}/gui/CMakeLists.txt" \
           | grep -oE '[0-9]+\.[0-9]+' | head -1)
@@ -81,13 +81,13 @@ fi
 # ── 2. Prepara icona PNG ───────────────────────────────────────
 if [[ ! -f "$ICON_SRC" ]]; then
   warn "Icona PNG non trovata — la genero dall'ICO..."
-  ICO="${ROOT}/ICONA/prismaluce.ico"
+  ICO="${ROOT}/EXPORT/assets/prismaluce.ico"
   if [[ -f "$ICO" ]] && command -v convert &>/dev/null; then
     convert "${ICO}[0]" -resize 256x256 "$ICON_SRC"
     ok "Icona creata: ${ICON_SRC}"
   else
     # Genera icona SVG minimalista come fallback
-    ICON_SRC="${ROOT}/ICONA/prismalux_fallback.svg"
+    ICON_SRC="${ROOT}/EXPORT/assets/prismalux_fallback.svg"
     cat > "$ICON_SRC" <<'SVGEOF'
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>

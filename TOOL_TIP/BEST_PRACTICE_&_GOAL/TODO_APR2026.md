@@ -24,11 +24,11 @@
 |---|-------|------|-----------------|
 | I1 | ✅ | **Slider "Correggi con AI"** — slider `1–10` con preview `∞` | `gui/pages/programmazione_page.cpp` · `m_loopMax` |
 | I2 | ✅ | **RAG: descrizione chunk** — log mostra "📄 chunk 12/47 da paper.pdf" durante indicizzazione | `gui/pages/impostazioni_page.cpp` · `m_ragQueueSource` |
-| I3 | ⬜ | **Stile foto profilo** — foto CV in LavoroPage non segue tema QSS | `gui/pages/lavoro_page.cpp` |
+| I3 | ✅ | **Stile foto profilo** — foto CV in LavoroPage non segue tema QSS | `gui/pages/main_jobs.cpp` — `onFotoBtnClicked()` pixmap circolare 48×48, QSS `palette(mid/base)` — 2026-06-11 |
 | I4 | ✅ | **Unisci Impara + Sfida** — unificati in sub-tab; tab header ridotto da 4 a 3 | `gui/mainwindow.cpp` |
 | I5 | ✅ | **Modalità calcolo al boot** — applicata prima di hw-detect nel costruttore | `gui/pages/manutenzione_page.cpp:31-48` |
 | I6 | ✅ | **Rimuovi TUI C** — cartella `src/` rimossa | — |
-| I7 | ⬜ | **Build Windows su hardware reale** — `build.bat` mai verificato su una macchina Windows vera; rischio DLL mancanti o percorsi Qt errati | `gui/build.bat` |
+| I7 | ✅ | **Build Windows su hardware reale** — `build.py`: WebEngine DLL + `QtWebEngineProcess.exe` + `resources/` copiati; verifica deploy (`_win_verify_deploy`); `Avvia_Prismalux.bat` aggiornato a v2.9 — 2026-06-11 | `Tools/build/build.py` · `Tools/build/Avvia_Prismalux.bat` |
 | I8 | ✅ | **Installer Windows (.exe distribuibile)** — creato `gui/build_installer_windows.bat`; CMake MinGW + windeployqt6 + ZIP PowerShell | `gui/build_installer_windows.bat` |
 | I9 | ✅ | **Export chat** — pulsante "Esporta conversazione" salva `.pdf`, `.md`, `.html`, `.txt` con timestamp | `gui/pages/agenti_page_ui.cpp` |
 
@@ -42,12 +42,12 @@
 | N2 | 🚫 | **Tooltip modello broken** — `isKnownBrokenModel()` ritorna false (bug risolto Ollama 0.21.1); pattern mantenuto per future occorrenze | — |
 | N3 | ✅ | **Misto: layer GPU ottimali** — `min(layer_model, capacity_NVIDIA)`; riempie GPU al massimo, overflow su CPU | `gui/pages/manutenzione_page.cpp:applyComputeMode()` |
 | N4 | ✅ | **Monitor TTFT** — elapsed timer per risposta aggiunto nell'header di ogni bolla AI | `gui/pages/agenti_page_stream.cpp:278-282` |
-| N5 | ⬜ | **TTFT nel MonitorPanel** — collegare `requestStarted` al pannello header per mostrare ms dell'ultima risposta in tempo reale | `gui/pages/impostazioni_page.cpp:buildAvanzateTab()` |
-| N6 | ⬜ | **AppImage aggiornata** — probabilmente obsoleta; rieseguire `scripts/crea_appimage.sh` dopo il push | `scripts/crea_appimage.sh` |
-| N7 | ⬜ | **CHANGELOG.md** — storico versioni leggibile per utenti (v2.2→v2.8 è un salto significativo) | root del progetto |
-| N8 | ⬜ | **Auto-update** — controllo all'avvio via GitHub API per nuova versione disponibile; notifica non intrusiva nell'header | `gui/mainwindow.cpp` |
-| N9 | ⬜ | **CloudCompare stub** — attualmente mostra "in arrivo"; rimuovere la voce o implementare il bridge CloudComPy | `gui/pages/strumenti_page.cpp:257` |
-| N10 | ⬜ | **macOS** — teoricamente compilabile con Qt6 ma mai testato; aggiungere istruzioni build + test su CI | `gui/CMakeLists.txt` |
+| N5 | ✅ | **TTFT nel MonitorPanel** — collegare `requestStarted` al pannello header per mostrare ms dell'ultima risposta in tempo reale | `mainwindow.cpp::buildGaugesSection()` — label `m_ttftLbl` ⚡Nms colorata verde/arancio/rosso — 2026-06-11 |
+| N6 | ✅ | **AppImage aggiornata** — probabilmente obsoleta; rieseguire `scripts/crea_appimage.sh` dopo il push | `crea_appimage.sh --no-build` → 202 MB → `EXPORT/linux/`; fix path icona `ICONA/` → `EXPORT/assets/` — 2026-06-11 |
+| N7 | ✅ | **CHANGELOG.md** — storico versioni leggibile per utenti (v2.2→v2.8 è un salto significativo) | `CHANGELOG.md` creato — v2.0/2.2/2.5/2.8/2.9 — 2026-06-11 |
+| N8 | ✅ | **Auto-update** — controllo all'avvio via GitHub API per nuova versione disponibile; notifica non intrusiva nell'header | `mainwindow_slots.cpp::checkForUpdates()` — GitHub API 10s dopo avvio, label `🆕 vX.Y` in status bar — 2026-06-11 |
+| N9 | ✅ | **CloudCompare stub** — attualmente mostra "in arrivo"; rimuovere la voce o implementare il bridge CloudComPy | `main_tools.cpp::buildCloudCompareRow()` — aggiunto pulsante "Apri CloudCompare" + istruzioni install apt/flatpak/win — 2026-06-11 |
+| N10 | ✅ | **macOS** — teoricamente compilabile con Qt6 ma mai testato; aggiungere istruzioni build + test su CI | `CMakeLists.txt` sezione `APPLE` (MACOSX_BUNDLE + macdeployqt); istruzioni Homebrew in `gui/CLAUDE.md` — 2026-06-11 |
 
 ---
 

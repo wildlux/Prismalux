@@ -91,6 +91,7 @@ multi_agente/report_*.html
 Python_Software/**/*.c
 Python_Software/**/*.html
 build/
+!Tools/build/
 dist/
 *.egg-info/
 setup_cython.py
