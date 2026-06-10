@@ -19,7 +19,7 @@
 
 ### [07/06/26 02:01 / 02:11] Test e feature RAG multiformat
 
-- [ ] **Test inserimento RAG — tutti i formati devono funzionare**: immagini, video, PDF, TXT
+- [x] **Test inserimento RAG — tutti i formati devono funzionare**: immagini, video, PDF, TXT
   - Immagini: OCR (tesseract) + descrizione vision LLM → testo → indicizza
   - Video: estrazione frame chiave + audio→whisper→testo → indicizza
   - PDF: già parzialmente funzionante — verificare

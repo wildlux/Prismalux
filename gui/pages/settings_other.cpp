@@ -233,7 +233,7 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
          "<span style=\"font-size:15px\">&#9749;&nbsp; <b>Supporta Prismalux</b></span><br>"
          "<span style=\"font-size:12px;color:" + muted + "\">"
          "Prismalux &egrave; open-source e gratuito. Se ti &egrave; utile puoi offrire un caff&egrave;:</span><br><br>"
-         "<a href=\"https://www.paypal.com/donate?business=wildlux%40gmail.com&item_name=Prismalux&currency_code=EUR\""
+         "<a href=\"https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=wildlux%40gmail.com&item_name=Prismalux&currency_code=EUR&source=url\""
          " style=\"background:" + accent + ";color:#fff;padding:7px 22px;"
          "border-radius:6px;font-weight:700;font-size:13px;text-decoration:none\">"
          "&#128521;&nbsp; Dona con PayPal</a>"
