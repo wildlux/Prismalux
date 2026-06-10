@@ -59,6 +59,9 @@ public:
     static void    saveLanToken(const QString& token);
     static QString loadLanToken();
 
+    /** Confronto constant-time — evita timing attack sui token Bearer. */
+    [[nodiscard]] static bool timingSafeEqual(const QString& a, const QString& b);
+
     /** Imposta il RagEngine condiviso (opzionale — se nullptr /api/rag ritorna 503). */
     void setRag(RagEngine* rag) { m_rag = rag; }
 
@@ -118,7 +121,6 @@ private:
     void closeStreamSession();
     [[nodiscard]] QByteArray httpOkHeader(const char* contentType) const;
     [[nodiscard]] QByteArray httpStreamHeader() const;
-    [[nodiscard]] static bool timingSafeEqual(const QString& a, const QString& b);
     static void appendAccessLog(const QString& addr, const QString& method, const QString& path);
     /** Genera certificato self-signed in ~/.prismalux/ se non esiste. Ritorna false se openssl non disponibile. */
     [[nodiscard]] static bool _ensureCert(QString& certPath, QString& keyPath);

@@ -2070,7 +2070,7 @@ void LanWanPage::onWanNodeReadyRead()
             const QString serverToken = m_wanTokenEdit ? m_wanTokenEdit->text().trimmed() : QString();
             if (!serverToken.isEmpty()) {
                 const QString presented = msg["token"].toString();
-                if (presented != serverToken) {
+                if (!LanServer::timingSafeEqual(presented, serverToken)) {
                     wanSendJson(sock, QJsonObject{{"t","error"},{"msg","auth_failed"}});
                     sock->disconnectFromHost();
                     continue;
