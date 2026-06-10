@@ -336,6 +336,11 @@ void AgentiPage::advancePipeline() {
         emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
         _setRunBusy(false);
         m_opMode = OpMode::Idle;
+
+        /* Hermes: memorizza la conversazione al termine */
+        if (m_hermesEnabled && !m_taskOriginal.isEmpty() && !m_agentOutputs.isEmpty())
+            hermesStoreConversation(m_taskOriginal, m_agentOutputs.last());
+
         emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
         return;
     }

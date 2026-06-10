@@ -10,8 +10,8 @@
 
 ### [07/06/26 01:45] Feature
 
-- [ ] **Generatore di policy** — schermata/funzione per creare policy di sicurezza di rete
-- [ ] **Calcolo delle sottoreti con grafo** — visualizzazione grafica del subnetting (già presente schermata grafo Rete, integrare calcolo CIDR→nodi grafo)
+- [x] **Generatore di policy** — schermata/funzione per creare policy di sicurezza di rete
+- [x] **Calcolo delle sottoreti con grafo** — visualizzazione grafica del subnetting (già presente schermata grafo Rete, integrare calcolo CIDR→nodi grafo)
 
 ### [07/06/26 01:51] Bug — versione
 
@@ -63,7 +63,7 @@
 
 ### [09/06/26 14:25] Feature — Hermes Agent (persistent memory + skill self-improving)
 
-- [ ] **Prismalux come "Hermes Agent"** — meccanismo unico:
+- [x] **Prismalux come "Hermes Agent"** — meccanismo unico:
   - **Persistent memory**: le conversazioni e i fatti appresi vengono salvati in GraphMemory e riutilizzati nelle sessioni successive (già parzialmente in GraphMemory; da connettere alla chat principale)
   - **Skill self-improving**: l'agente analizza i propri errori e aggiorna le sue strategie di risposta (log errori LLM → riflessione periodica → aggiornamento knowledge base)
 
@@ -674,69 +674,69 @@ START → read_context → generate_patch → apply_patch → compile
 
 ### ⚗️ Chimica
 
-- [ ] **Mol ↔ grammi** — "Quanti grammi sono 2 mol di NaCl?" (atteso: 116,88 g; M = 58,44 g/mol)
-- [ ] **Mol ↔ grammi poliatomici** — "Quanti grammi sono 0,5 mol di H₂SO₄?" (atteso: 49,04 g)
-- [ ] **Concentrazione molare** — "Ho 5 g di NaOH in 500 mL di soluzione, qual è la molarità?" (atteso: 0,25 mol/L)
-- [ ] **pH → concentrazione** — "A pH = 3 qual è la concentrazione di H⁺?" (atteso: 10⁻³ mol/L = 0,001 mol/L)
-- [ ] **Concentrazione → pH** — "Con [H⁺] = 5×10⁻⁴ mol/L, qual è il pH?" (atteso: ≈ 3,30)
-- [ ] **Pressione atm ↔ Pa** — "Converti 2,5 atm in Pascal" (atteso: 253 312,5 Pa)
-- [ ] **Pressione mmHg ↔ kPa** — "760 mmHg quanti kPa sono?" (atteso: 101,325 kPa)
-- [ ] **Temperatura K ↔ °C** — "Converti 298 K in gradi Celsius" (atteso: 24,85 °C)
-- [ ] **Temperatura °C ↔ °F** — "37 °C quanti gradi Fahrenheit sono?" (atteso: 98,6 °F)
-- [ ] **Energia kJ/mol ↔ eV** — "Converti 96,5 kJ/mol in eV per molecola" (atteso: ≈ 1 eV)
-- [ ] **Legge dei gas ideali** — "2 mol di gas a 300 K e 1 atm: qual è il volume?" (atteso: ≈ 49,2 L; PV=nRT)
-- [ ] **Numero di Avogadro** — "Quante molecole ci sono in 18 g di H₂O?" (atteso: 6,022×10²³)
+- [x] **Mol ↔ grammi** — "Quanti grammi sono 2 mol di NaCl?" (atteso: 116,88 g; M = 58,44 g/mol)
+- [x] **Mol ↔ grammi poliatomici** — "Quanti grammi sono 0,5 mol di H₂SO₄?" (atteso: 49,04 g)
+- [x] **Concentrazione molare** — "Ho 5 g di NaOH in 500 mL di soluzione, qual è la molarità?" (atteso: 0,25 mol/L)
+- [x] **pH → concentrazione** — "A pH = 3 qual è la concentrazione di H⁺?" (atteso: 10⁻³ mol/L = 0,001 mol/L)
+- [x] **Concentrazione → pH** — "Con [H⁺] = 5×10⁻⁴ mol/L, qual è il pH?" (atteso: ≈ 3,30)
+- [x] **Pressione atm ↔ Pa** — "Converti 2,5 atm in Pascal" (atteso: 253 312,5 Pa)
+- [x] **Pressione mmHg ↔ kPa** — "760 mmHg quanti kPa sono?" (atteso: 101,325 kPa)
+- [x] **Temperatura K ↔ °C** — "Converti 298 K in gradi Celsius" (atteso: 24,85 °C)
+- [x] **Temperatura °C ↔ °F** — "37 °C quanti gradi Fahrenheit sono?" (atteso: 98,6 °F)
+- [x] **Energia kJ/mol ↔ eV** — "Converti 96,5 kJ/mol in eV per molecola" (atteso: ≈ 1 eV)
+- [x] **Legge dei gas ideali** — "2 mol di gas a 300 K e 1 atm: qual è il volume?" (atteso: ≈ 49,2 L; PV=nRT)
+- [x] **Numero di Avogadro** — "Quante molecole ci sono in 18 g di H₂O?" (atteso: 6,022×10²³)
 
 ---
 
 ### ⚡ Fisica
 
-- [ ] **Energia J ↔ cal** — "Converti 4186 J in calorie" (atteso: 1000 cal = 1 kcal)
-- [ ] **Energia J ↔ eV** — "1 eV quanti Joule sono?" (atteso: 1,602×10⁻¹⁹ J)
-- [ ] **Energia kWh ↔ J** — "1 kWh quanti Joule sono?" (atteso: 3,6×10⁶ J)
-- [ ] **Potenza W ↔ CV** — "Un motore da 75 CV quanti Watt sviluppa?" (atteso: 55 125 W ≈ 55,1 kW)
-- [ ] **Forza N ↔ kgf** — "Converti 9,81 N in kgf" (atteso: 1 kgf)
-- [ ] **Velocità m/s ↔ km/h** — "100 km/h quanti m/s sono?" (atteso: 27,78 m/s)
-- [ ] **Velocità km/h ↔ mph** — "120 km/h quanti mph sono?" (atteso: ≈ 74,56 mph)
-- [ ] **Pressione Pa ↔ bar** — "1 bar quanti Pascal sono?" (atteso: 100 000 Pa)
-- [ ] **Lunghezza d'onda ↔ frequenza** — "Luce con λ = 500 nm: qual è la frequenza?" (atteso: 6×10¹⁴ Hz; f = c/λ)
-- [ ] **Distanza UA ↔ km** — "1 UA quanti km sono?" (atteso: 149 597 870,7 km)
-- [ ] **Anno luce ↔ km** — "1 anno luce quanti km sono?" (atteso: ≈ 9,461×10¹² km)
-- [ ] **Massa u ↔ kg** — "1 unità di massa atomica quanti kg è?" (atteso: 1,661×10⁻²⁷ kg)
+- [x] **Energia J ↔ cal** — "Converti 4186 J in calorie" (atteso: 1000 cal = 1 kcal)
+- [x] **Energia J ↔ eV** — "1 eV quanti Joule sono?" (atteso: 1,602×10⁻¹⁹ J)
+- [x] **Energia kWh ↔ J** — "1 kWh quanti Joule sono?" (atteso: 3,6×10⁶ J)
+- [x] **Potenza W ↔ CV** — "Un motore da 75 CV quanti Watt sviluppa?" (atteso: 55 125 W ≈ 55,1 kW)
+- [x] **Forza N ↔ kgf** — "Converti 9,81 N in kgf" (atteso: 1 kgf)
+- [x] **Velocità m/s ↔ km/h** — "100 km/h quanti m/s sono?" (atteso: 27,78 m/s)
+- [x] **Velocità km/h ↔ mph** — "120 km/h quanti mph sono?" (atteso: ≈ 74,56 mph)
+- [x] **Pressione Pa ↔ bar** — "1 bar quanti Pascal sono?" (atteso: 100 000 Pa)
+- [x] **Lunghezza d'onda ↔ frequenza** — "Luce con λ = 500 nm: qual è la frequenza?" (atteso: 6×10¹⁴ Hz; f = c/λ)
+- [x] **Distanza UA ↔ km** — "1 UA quanti km sono?" (atteso: 149 597 870,7 km)
+- [x] **Anno luce ↔ km** — "1 anno luce quanti km sono?" (atteso: ≈ 9,461×10¹² km)
+- [x] **Massa u ↔ kg** — "1 unità di massa atomica quanti kg è?" (atteso: 1,661×10⁻²⁷ kg)
 
 ---
 
 ### 🔌 Elettronica
 
-- [ ] **Ohm ↔ kΩ ↔ MΩ** — "Converti 4700 Ω in kΩ e in MΩ" (atteso: 4,7 kΩ; 0,0047 MΩ)
-- [ ] **Frequenza ↔ periodo** — "Un segnale a 50 Hz: qual è il periodo?" (atteso: T = 1/f = 20 ms)
-- [ ] **Frequenza Hz ↔ kHz ↔ MHz** — "2,4 GHz quanti Hz sono?" (atteso: 2 400 000 000 Hz)
-- [ ] **Capacità F ↔ µF ↔ nF ↔ pF** — "Converti 0,000 001 F in µF e nF" (atteso: 1 µF = 1000 nF)
-- [ ] **Induttanza H ↔ mH ↔ µH** — "470 µH quanti mH sono?" (atteso: 0,47 mH)
-- [ ] **dBm ↔ mW** — "30 dBm quanti mW sono?" (atteso: 1000 mW = 1 W; P = 10^(dBm/10) mW)
-- [ ] **dB tensione** — "Un guadagno di 20 dB: quanto è il rapporto di tensione?" (atteso: V_out/V_in = 10)
-- [ ] **Legge di Ohm** — "Con V = 12 V e R = 470 Ω: qual è la corrente?" (atteso: I ≈ 25,5 mA)
-- [ ] **Costante di tempo RC** — "R = 10 kΩ, C = 100 µF: qual è τ?" (atteso: τ = RC = 1 s)
-- [ ] **Frequenza di taglio RC** — "R = 1 kΩ, C = 100 nF: qual è fc?" (atteso: fc = 1/(2πRC) ≈ 1591 Hz)
-- [ ] **Potenza dissipata** — "R = 100 Ω con I = 50 mA: quanti mW dissipa?" (atteso: P = I²R = 250 mW)
-- [ ] **mA ↔ µA** — "Converti 0,025 A in mA e µA" (atteso: 25 mA = 25 000 µA)
+- [x] **Ohm ↔ kΩ ↔ MΩ** — "Converti 4700 Ω in kΩ e in MΩ" (atteso: 4,7 kΩ; 0,0047 MΩ)
+- [x] **Frequenza ↔ periodo** — "Un segnale a 50 Hz: qual è il periodo?" (atteso: T = 1/f = 20 ms)
+- [x] **Frequenza Hz ↔ kHz ↔ MHz** — "2,4 GHz quanti Hz sono?" (atteso: 2 400 000 000 Hz)
+- [x] **Capacità F ↔ µF ↔ nF ↔ pF** — "Converti 0,000 001 F in µF e nF" (atteso: 1 µF = 1000 nF)
+- [x] **Induttanza H ↔ mH ↔ µH** — "470 µH quanti mH sono?" (atteso: 0,47 mH)
+- [x] **dBm ↔ mW** — "30 dBm quanti mW sono?" (atteso: 1000 mW = 1 W; P = 10^(dBm/10) mW)
+- [x] **dB tensione** — "Un guadagno di 20 dB: quanto è il rapporto di tensione?" (atteso: V_out/V_in = 10)
+- [x] **Legge di Ohm** — "Con V = 12 V e R = 470 Ω: qual è la corrente?" (atteso: I ≈ 25,5 mA)
+- [x] **Costante di tempo RC** — "R = 10 kΩ, C = 100 µF: qual è τ?" (atteso: τ = RC = 1 s)
+- [x] **Frequenza di taglio RC** — "R = 1 kΩ, C = 100 nF: qual è fc?" (atteso: fc = 1/(2πRC) ≈ 1591 Hz)
+- [x] **Potenza dissipata** — "R = 100 Ω con I = 50 mA: quanti mW dissipa?" (atteso: P = I²R = 250 mW)
+- [x] **mA ↔ µA** — "Converti 0,025 A in mA e µA" (atteso: 25 mA = 25 000 µA)
 
 ---
 
 ### π Matematica
 
-- [ ] **Gradi ↔ radianti** — "Converti 180° in radianti" (atteso: π rad ≈ 3,14159)
-- [ ] **Radianti ↔ gradi** — "π/4 radianti quanti gradi sono?" (atteso: 45°)
-- [ ] **Gradianti ↔ gradi** — "Converti 100 gradianti in gradi" (atteso: 90°)
-- [ ] **Logaritmo naturale ↔ log₁₀** — "ln(100) quanto vale?" (atteso: ≈ 4,6052; log₁₀(100) = 2)
-- [ ] **Notazione scientifica** — "Scrivi 0,000 045 7 in notazione scientifica" (atteso: 4,57×10⁻⁵)
-- [ ] **Binario ↔ decimale** — "Converti 1011 0110 in decimale" (atteso: 182)
-- [ ] **Decimale ↔ esadecimale** — "255 in esadecimale" (atteso: FF)
-- [ ] **Esadecimale ↔ binario** — "0xA3 in binario" (atteso: 1010 0011)
-- [ ] **Area cerchio** — "Cerchio con r = 5 cm: qual è l'area?" (atteso: A = π·r² ≈ 78,54 cm²)
-- [ ] **Volume sfera** — "Sfera con r = 3 m: qual è il volume?" (atteso: V = (4/3)πr³ ≈ 113,1 m³)
-- [ ] **Conversione base 2 ↔ 8** — "Converti 11001010 in ottale" (atteso: 312₈)
-- [ ] **Percentuale ↔ frazione ↔ decimale** — "37,5% come frazione e come decimale" (atteso: 3/8 = 0,375)
+- [x] **Gradi ↔ radianti** — "Converti 180° in radianti" (atteso: π rad ≈ 3,14159)
+- [x] **Radianti ↔ gradi** — "π/4 radianti quanti gradi sono?" (atteso: 45°)
+- [x] **Gradianti ↔ gradi** — "Converti 100 gradianti in gradi" (atteso: 90°)
+- [x] **Logaritmo naturale ↔ log₁₀** — "ln(100) quanto vale?" (atteso: ≈ 4,6052; log₁₀(100) = 2)
+- [x] **Notazione scientifica** — "Scrivi 0,000 045 7 in notazione scientifica" (atteso: 4,57×10⁻⁵)
+- [x] **Binario ↔ decimale** — "Converti 1011 0110 in decimale" (atteso: 182)
+- [x] **Decimale ↔ esadecimale** — "255 in esadecimale" (atteso: FF)
+- [x] **Esadecimale ↔ binario** — "0xA3 in binario" (atteso: 1010 0011)
+- [x] **Area cerchio** — "Cerchio con r = 5 cm: qual è l'area?" (atteso: A = π·r² ≈ 78,54 cm²)
+- [x] **Volume sfera** — "Sfera con r = 3 m: qual è il volume?" (atteso: V = (4/3)πr³ ≈ 113,1 m³)
+- [x] **Conversione base 2 ↔ 8** — "Converti 11001010 in ottale" (atteso: 312₈)
+- [x] **Percentuale ↔ frazione ↔ decimale** — "37,5% come frazione e come decimale" (atteso: 3/8 = 0,375)
 
 ---
 

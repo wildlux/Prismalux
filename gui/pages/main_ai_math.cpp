@@ -918,6 +918,362 @@ QString _inject_science(const QString& task)
         if (!std::isnan(ph)) res = {true, "[H\xe2\x81\xba] da pH", _sci(std::pow(10.0, -ph)) + " mol/L"};
     }
 
+    /* Concentrazione molare: c = m / (M * V) */
+    if (!res.ok && lo.contains("molarit")) {
+        static QRegularExpression reConcRE(
+            R"((\d+(?:[.,]\d+)?)\s*g.{0,30}(\d+(?:[.,]\d+)?)\s*g/mol.{0,30}(\d+(?:[.,]\d+)?)\s*(ml|l\b))",
+            QRegularExpression::CaseInsensitiveOption);
+        auto mc = reConcRE.match(lo);
+        if (mc.hasMatch()) {
+            double m = _num(mc.captured(1)), M = _num(mc.captured(2));
+            double V = _num(mc.captured(3));
+            if (mc.captured(4).toLower() == "ml") V /= 1000.0;
+            double c = (M > 0 && V > 0) ? (m / M) / V : 0.0;
+            res = {true, "c = m/(M\xc3\x97""V)", _sci(c) + " mol/L"};
+        }
+    }
+
+    /* Legge dei gas ideali: PV = nRT  (R=0.08206 L\xc2\xb7atm/mol\xc2\xb7K) */
+    if (!res.ok && (lo.contains("gas ideal") || (lo.contains("pv") && lo.contains("nrt")))) {
+        static QRegularExpression reGasRE(
+            R"((\d+(?:[.,]\d+)?)\s*mol.{0,20}(\d+(?:[.,]\d+)?)\s*k.{0,10}(\d+(?:[.,]\d+)?)\s*atm)",
+            QRegularExpression::CaseInsensitiveOption);
+        auto mg = reGasRE.match(lo);
+        if (mg.hasMatch()) {
+            double n = _num(mg.captured(1)), T = _num(mg.captured(2)), P = _num(mg.captured(3));
+            double V = n * 0.082057 * T / P;
+            res = {true, "V = nRT/P", _sci(V) + " L"};
+        }
+    }
+
+    /* Numero di Avogadro: molecole = (m/M) * Na */
+    if (!res.ok && (lo.contains("molecol") || lo.contains("avogadro")) && lo.contains("mol")) {
+        static QRegularExpression reAvRE(
+            R"((\d+(?:[.,]\d+)?)\s*g.{0,20}m(?:assa\s+molare)?\s*=?\s*(\d+(?:[.,]\d+)?)\s*g/mol)",
+            QRegularExpression::CaseInsensitiveOption);
+        auto mav = reAvRE.match(lo);
+        if (mav.hasMatch()) {
+            double m = _num(mav.captured(1)), M = _num(mav.captured(2));
+            double mol = m / M;
+            double N = mol * 6.02214076e23;
+            res = {true, "N = (m/M)\xc3\x97""Na", _sci(N) + " molecole"};
+        }
+    }
+
+    /* ══ TEMPERATURE ══ */
+
+    /* K → °C */
+    if (!res.ok && lo.contains("kelvin") && (lo.contains("celsius") || lo.contains("\xc2\xb0""c"))) {
+        double K = matchN(lo);
+        if (!std::isnan(K)) res = {true, "\xc2\xb0""C = K - 273.15", _sci(K - 273.15) + " \xc2\xb0""C"};
+    }
+    /* °C → K */
+    if (!res.ok && (lo.contains("celsius") || lo.contains("\xc2\xb0""c")) && lo.contains("kelvin")) {
+        double C = matchN(lo);
+        if (!std::isnan(C)) res = {true, "K = \xc2\xb0""C + 273.15", _sci(C + 273.15) + " K"};
+    }
+    /* °C → °F */
+    if (!res.ok && (lo.contains("celsius") || lo.contains("\xc2\xb0""c")) && lo.contains("fahrenheit")) {
+        double C = matchN(lo);
+        if (!std::isnan(C)) res = {true, "\xc2\xb0""F = \xc2\xb0""C \xc3\x97 1.8 + 32", _sci(C * 1.8 + 32.0) + " \xc2\xb0""F"};
+    }
+    /* °F → °C */
+    if (!res.ok && lo.contains("fahrenheit") && (lo.contains("celsius") || lo.contains("\xc2\xb0""c"))) {
+        double F = matchN(lo);
+        if (!std::isnan(F)) res = {true, "\xc2\xb0""C = (\xc2\xb0""F-32)/1.8", _sci((F - 32.0) / 1.8) + " \xc2\xb0""C"};
+    }
+
+    /* ══ ENERGIA / LAVORO ══ */
+
+    /* J → cal */
+    if (!res.ok && lo.contains(" j") && lo.contains("cal") && !lo.contains("kcal")) {
+        double j = matchN(lo);
+        if (!std::isnan(j)) res = {true, "cal = J / 4.184", _sci(j / 4.184) + " cal"};
+    }
+    /* cal → J */
+    if (!res.ok && lo.contains("cal") && (lo.contains("joule") || lo.contains(" j "))) {
+        double cal = matchN(lo);
+        if (!std::isnan(cal)) res = {true, "J = cal \xc3\x97 4.184", _sci(cal * 4.184) + " J"};
+    }
+    /* J → eV */
+    if (!res.ok && (lo.contains("joule") || lo.contains(" j ")) && lo.contains("ev")) {
+        double j = matchN(lo);
+        if (!std::isnan(j)) res = {true, "eV = J / 1.602\xc3\x97""10\xe2\x81\xbb\xc2\xb9\xc2\xb9",
+                                   _sci(j / 1.602176634e-19) + " eV"};
+    }
+    /* eV → J */
+    if (!res.ok && lo.contains("ev") && (lo.contains("joule") || lo.contains(" j "))) {
+        double ev = matchN(lo);
+        if (!std::isnan(ev)) res = {true, "J = eV \xc3\x97 1.602\xc3\x97""10\xe2\x81\xbb\xc2\xb9\xc2\xb9",
+                                    _sci(ev * 1.602176634e-19) + " J"};
+    }
+    /* kJ/mol → eV */
+    if (!res.ok && lo.contains("kj/mol") && lo.contains("ev")) {
+        double kj = matchN(lo);
+        if (!std::isnan(kj)) res = {true, "eV = kJ/mol / 96.485", _sci(kj / 96.485) + " eV/molecola"};
+    }
+
+    /* ══ POTENZA / FORZA ══ */
+
+    /* W → CV (cavalli vapore: 1 CV = 735.499 W) */
+    if (!res.ok && (lo.contains(" cv") || lo.contains("cavalli")) && lo.contains("watt")) {
+        double cv = matchN(lo);
+        if (!std::isnan(cv)) res = {true, "W = CV \xc3\x97 735.499", _sci(cv * 735.499) + " W"};
+    }
+    /* CV → W */
+    if (!res.ok && lo.contains("watt") && (lo.contains("cv") || lo.contains("cavalli"))) {
+        double w = matchN(lo);
+        if (!std::isnan(w)) res = {true, "CV = W / 735.499", _sci(w / 735.499) + " CV"};
+    }
+    /* N → kgf */
+    if (!res.ok && lo.contains(" n ") && lo.contains("kgf")) {
+        double n = matchN(lo);
+        if (!std::isnan(n)) res = {true, "kgf = N / 9.80665", _sci(n / 9.80665) + " kgf"};
+    }
+    /* kgf → N */
+    if (!res.ok && lo.contains("kgf") && lo.contains(" n ")) {
+        double kgf = matchN(lo);
+        if (!std::isnan(kgf)) res = {true, "N = kgf \xc3\x97 9.80665", _sci(kgf * 9.80665) + " N"};
+    }
+    /* P = I²R */
+    if (!res.ok && lo.contains("dissi") && lo.contains("resistenz") && lo.contains("ma")) {
+        static QRegularExpression rePdissRE(
+            R"(r\s*=?\s*(\d+(?:[.,]\d+)?)\s*[oΩ]?.{0,10}i\s*=?\s*(\d+(?:[.,]\d+)?)\s*ma)",
+            QRegularExpression::CaseInsensitiveOption);
+        auto pd = rePdissRE.match(lo);
+        if (pd.hasMatch()) {
+            double R = _num(pd.captured(1)), I = _num(pd.captured(2)) / 1000.0;
+            res = {true, "P = I\xc2\xb2\xc3\x97""R", _sci(I * I * R * 1000.0) + " mW"};
+        }
+    }
+
+    /* ══ VELOCITÀ ══ */
+
+    /* km/h → mph */
+    if (!res.ok && lo.contains("km/h") && lo.contains("mph")) {
+        double kmh = matchN(lo);
+        if (!std::isnan(kmh)) res = {true, "mph = km/h / 1.60934", _sci(kmh / 1.60934) + " mph"};
+    }
+    /* mph → km/h */
+    if (!res.ok && lo.contains("mph") && lo.contains("km/h")) {
+        double mph = matchN(lo);
+        if (!std::isnan(mph)) res = {true, "km/h = mph \xc3\x97 1.60934", _sci(mph * 1.60934) + " km/h"};
+    }
+
+    /* ══ ELETTRONICA — UNITÀ PREFISSATE ══ */
+
+    /* Ω ↔ kΩ ↔ MΩ */
+    if (!res.ok && (lo.contains("kohm") || lo.contains("k\xce\xa9") || lo.contains("mohm") || lo.contains("m\xce\xa9"))
+            && lo.contains("ohm")) {
+        double v = matchN(lo);
+        if (!std::isnan(v)) {
+            if (lo.contains("mohm") || lo.contains("m\xce\xa9"))
+                res = {true, "k\xce\xa9 = M\xce\xa9 \xc3\x97 1000", _sci(v) + " M\xce\xa9 = " + _sci(v * 1e3) + " k\xce\xa9 = " + _sci(v * 1e6) + " \xce\xa9"};
+            else
+                res = {true, "\xce\xa9 da k\xce\xa9", _sci(v) + " k\xce\xa9 = " + _sci(v * 1e3) + " \xce\xa9 = " + _sci(v / 1e3) + " M\xce\xa9"};
+        }
+    }
+    /* Hz ↔ periodo T = 1/f */
+    if (!res.ok && (lo.contains("periodo") || lo.contains("t = 1/f")) && lo.contains("hz")) {
+        double f = matchN(lo);
+        if (!std::isnan(f) && f > 0) res = {true, "T = 1/f", _sci(1.0 / f * 1000.0) + " ms"};
+    }
+    /* Hz ↔ kHz ↔ MHz ↔ GHz */
+    if (!res.ok && (lo.contains("ghz") || lo.contains("mhz") || lo.contains("khz")) && lo.contains("hz")) {
+        double v = matchN(lo);
+        if (!std::isnan(v)) {
+            double hz = lo.contains("ghz") ? v * 1e9 : lo.contains("mhz") ? v * 1e6 : v * 1e3;
+            res = {true, "Hz espanso", _sci(hz) + " Hz = " + _sci(hz / 1e3) + " kHz = " + _sci(hz / 1e6) + " MHz = " + _sci(hz / 1e9) + " GHz"};
+        }
+    }
+    /* F ↔ µF ↔ nF ↔ pF */
+    if (!res.ok && (lo.contains("\xc2\xb5""f") || lo.contains("uf") || lo.contains("nf") || lo.contains("pf"))
+            && (lo.contains("farad") || lo.contains("capacit"))) {
+        double v = matchN(lo);
+        if (!std::isnan(v)) {
+            double F = lo.contains("pf") ? v * 1e-12 : lo.contains("nf") ? v * 1e-9 : v * 1e-6;
+            res = {true, "F espanso", _sci(F) + " F = " + _sci(F * 1e6) + " \xc2\xb5""F = " + _sci(F * 1e9) + " nF = " + _sci(F * 1e12) + " pF"};
+        }
+    }
+    /* H ↔ mH ↔ µH */
+    if (!res.ok && (lo.contains("mh") || lo.contains("\xc2\xb5""h")) && lo.contains("henry")) {
+        double v = matchN(lo);
+        if (!std::isnan(v)) {
+            double H = lo.contains("\xc2\xb5""h") ? v * 1e-6 : v * 1e-3;
+            res = {true, "H espanso", _sci(H) + " H = " + _sci(H * 1e3) + " mH = " + _sci(H * 1e6) + " \xc2\xb5""H"};
+        }
+    }
+    /* mA ↔ µA ↔ A */
+    if (!res.ok && (lo.contains("ma") || lo.contains("\xc2\xb5""a")) && lo.contains("ampere")) {
+        double v = matchN(lo);
+        if (!std::isnan(v)) {
+            double A = lo.contains("\xc2\xb5""a") ? v * 1e-6 : v * 1e-3;
+            res = {true, "A espanso", _sci(A) + " A = " + _sci(A * 1e3) + " mA = " + _sci(A * 1e6) + " \xc2\xb5""A"};
+        }
+    }
+    /* Pressione mmHg → kPa */
+    if (!res.ok && lo.contains("mmhg") && lo.contains("kpa")) {
+        double mmhg = matchN(lo);
+        if (!std::isnan(mmhg)) res = {true, "kPa = mmHg \xc3\x97 0.133322", _sci(mmhg * 0.133322) + " kPa"};
+    }
+    /* kPa → mmHg */
+    if (!res.ok && lo.contains("kpa") && lo.contains("mmhg")) {
+        double kpa = matchN(lo);
+        if (!std::isnan(kpa)) res = {true, "mmHg = kPa / 0.133322", _sci(kpa / 0.133322) + " mmHg"};
+    }
+
+    /* ══ ASTRONOMIA ══ */
+
+    /* UA → km (rimosso blocco duplicato — ora solo nel secondo blocco sotto) */
+
+    /* Anno luce → km */
+    if (!res.ok && (lo.contains("anno luce") || lo.contains("anno-luce") || lo.contains("ly")) && lo.contains("km")) {
+        double ly = matchN(lo);
+        if (!std::isnan(ly)) res = {true, "km = al " "\xc3\x97" " 9.461" "\xc3\x97" "10\xc2\xb9\xc2\xb2", _sci(ly * 9.4607304725808e12) + " km"};
+    }
+    /* u → kg */
+    if (!res.ok && (lo.contains("unita di massa") || lo.contains("massa atomica") || lo.contains(" u ") || lo.contains("amu")) && lo.contains("kg")) {
+        double u = matchN(lo);
+        if (!std::isnan(u)) res = {true, "kg = u " "\xc3\x97" " 1.661" "\xc3\x97" "10\xe2\x81\xbb\xc2\xb2\xc2\xb7",
+                                   _sci(u * 1.66053906660e-27) + " kg"};
+    }
+
+    /* ══ MATEMATICA / TRIGONOMETRIA ══ */
+
+    /* Notazione scientifica */
+    if (!res.ok && lo.contains("notazione scientifica")) {
+        double v = matchN(lo);
+        if (!std::isnan(v) && v != 0.0) {
+            int exp = (int)std::floor(std::log10(std::abs(v)));
+            double mantissa = v / std::pow(10.0, exp);
+            res = {true, "notaz. scientifica",
+                   _sci(mantissa) + " \xc3\x97 10^" + QString::number(exp)};
+        }
+    }
+
+    /* gradi → radianti */
+    if (!res.ok && (lo.contains("gradi") || lo.contains("\xc2\xb0")) && lo.contains("radiant")) {
+        double deg = matchN(lo);
+        if (!std::isnan(deg)) res = {true, "rad = \xc2\xb0 \xc3\x97 \xcf\x80/180", _sci(deg * M_PI / 180.0) + " rad"};
+    }
+    /* radianti → gradi */
+    if (!res.ok && lo.contains("radiant") && (lo.contains("grad") || lo.contains("\xc2\xb0"))) {
+        double rad = matchN(lo);
+        if (!std::isnan(rad)) res = {true, "\xc2\xb0 = rad \xc3\x97 180/\xcf\x80", _sci(rad * 180.0 / M_PI) + "\xc2\xb0"};
+    }
+    /* gradianti → gradi (1 gon = 0.9°) */
+    if (!res.ok && (lo.contains("gradiante") || lo.contains(" gon"))) {
+        double gon = matchN(lo);
+        if (!std::isnan(gon)) res = {true, "\xc2\xb0 = gon \xc3\x97 0.9", _sci(gon * 0.9) + "\xc2\xb0"};
+    }
+    /* ln ↔ log10 */
+    if (!res.ok && (lo.contains("logaritmo natural") || lo.contains(" ln(") || lo.contains("ln ")) && !lo.contains("log10")) {
+        double x = matchN(lo);
+        if (!std::isnan(x) && x > 0) res = {true, "ln(x)", _sci(std::log(x)) + " (log\xe2\x82\x81\xe2\x82\x80 = " + _sci(std::log10(x)) + ")"};
+    }
+    /* Area cerchio */
+    if (!res.ok && lo.contains("area") && lo.contains("cerchio") && lo.contains("r")) {
+        double r = matchN(lo);
+        if (!std::isnan(r) && r > 0) res = {true, "A = \xcf\x80 r\xc2\xb2", _sci(M_PI * r * r) + " (unit\xc3\xa0\xc2\xb2)"};
+    }
+    /* Volume sfera */
+    if (!res.ok && lo.contains("volume") && lo.contains("sfera")) {
+        double r = matchN(lo);
+        if (!std::isnan(r) && r > 0) res = {true, "V = (4/3)\xcf\x80 r\xc2\xb3", _sci((4.0 / 3.0) * M_PI * r * r * r) + " (unit\xc3\xa0\xc2\xb3)"};
+    }
+
+    /* ══ INFORMATICA — BASI NUMERICHE ══ */
+
+    /* Binario → decimale */
+    if (!res.ok && (lo.contains("binario") || lo.contains("bin ")) && lo.contains("decimal")) {
+        static QRegularExpression reBinRE(R"(\b([01][01\s]{1,30})\b)");
+        auto mb = reBinRE.match(lo);
+        if (mb.hasMatch()) {
+            QString bits = mb.captured(1).remove(' ');
+            bool ok2; long long dec = bits.toLongLong(&ok2, 2);
+            if (ok2) res = {true, "bin \xe2\x86\x92 dec", bits + "\xe2\x82\x82 = " + QString::number(dec) + "\xe2\x82\x81\xe2\x82\x80 = 0x" + QString::number(dec, 16).toUpper()};
+        }
+    }
+    /* Decimale → esadecimale */
+    if (!res.ok && (lo.contains("esadecimale") || lo.contains(" hex")) && lo.contains("decimal")) {
+        double v = matchN(lo);
+        if (!std::isnan(v) && v >= 0 && v < 1e15) {
+            long long iv = (long long)std::round(v);
+            res = {true, "dec \xe2\x86\x92 hex", QString::number(iv) + " = 0x" + QString::number(iv, 16).toUpper() + " = " + QString::number(iv, 2) + "\xe2\x82\x82"};
+        }
+    }
+    /* Hex → decimale/binario */
+    if (!res.ok && (lo.contains("0x") || lo.contains("hex ")) && lo.contains("decimal")) {
+        static QRegularExpression reHexRE(R"(0[xX]([0-9A-Fa-f]+))");
+        auto mh = reHexRE.match(lo);
+        if (mh.hasMatch()) {
+            bool ok2; long long dec = mh.captured(1).toLongLong(&ok2, 16);
+            if (ok2) res = {true, "hex \xe2\x86\x92 dec", "0x" + mh.captured(1).toUpper() + " = " + QString::number(dec) + " = " + QString::number(dec, 2) + "\xe2\x82\x82"};
+        }
+    }
+
+    /* Frequenza luce ↔ lunghezza d'onda: f = c/λ, λ = c/f */
+    if (!res.ok && (lo.contains("lunghezza d") || lo.contains("lambda") || lo.contains("\xce\xbb") || lo.contains("nm ")) && lo.contains("frequen")) {
+        double nm = matchN(lo);
+        if (!std::isnan(nm) && nm > 0) {
+            double lambda = nm * 1e-9;
+            double f = 2.99792458e8 / lambda;
+            res = {true, "f = c/\xce\xbb", _sci(f) + " Hz (" + _sci(f / 1e12) + " THz)"};
+        }
+    }
+
+    /* UA → km (unit\xc3\xa0 astronomica) */
+    if (!res.ok && (lo.contains(" ua ") || lo.contains("astronomica") || lo.contains("astronomica")) && lo.contains("km")) {
+        double ua = matchN(lo);
+        if (!std::isnan(ua)) res = {true, "km = UA \xc3\x97 149 597 871", _sci(ua * 1.495978707e8) + " km"};
+    }
+
+    /* Conversione A → mA / µA */
+    if (!res.ok && (lo.contains("ampere") || lo.contains(" a ")) && (lo.contains("ma") || lo.contains("\xc2\xb5""a") || lo.contains("milliamper") || lo.contains("microamper"))) {
+        double a = matchN(lo);
+        if (!std::isnan(a) && a > 0 && a < 1000) {
+            res = {true, "A \xe2\x86\x92 mA / \xc2\xb5""A", _sci(a) + " A = " + _sci(a * 1e3) + " mA = " + _sci(a * 1e6) + " \xc2\xb5""A"};
+        }
+    }
+
+    /* Binario → ottale */
+    if (!res.ok && (lo.contains("binario") || lo.contains("bin ")) && lo.contains("ottal")) {
+        static QRegularExpression reBin2RE(R"(\b([01][01\s]{1,30})\b)");
+        auto mb = reBin2RE.match(lo);
+        if (mb.hasMatch()) {
+            QString bits = mb.captured(1).remove(' ');
+            bool ok2; long long dec = bits.toLongLong(&ok2, 2);
+            if (ok2) res = {true, "bin \xe2\x86\x92 oct", bits + "\xe2\x82\x82 = " + QString::number(dec, 8) + "\xe2\x82\x88 = " + QString::number(dec) + "\xe2\x82\x81\xe2\x82\x80"};
+        }
+    }
+    /* Decimale → ottale */
+    if (!res.ok && lo.contains("decimal") && lo.contains("ottal")) {
+        double v = matchN(lo);
+        if (!std::isnan(v) && v >= 0 && v < 1e12) {
+            long long iv = (long long)std::round(v);
+            res = {true, "dec \xe2\x86\x92 oct", QString::number(iv) + "\xe2\x82\x81\xe2\x82\x80 = " + QString::number(iv, 8) + "\xe2\x82\x88"};
+        }
+    }
+
+    /* Percentuale ↔ frazione ↔ decimale */
+    if (!res.ok && lo.contains("%") && (lo.contains("frazioni") || lo.contains("frazione") || lo.contains("decimal"))) {
+        static QRegularExpression rePctRE(R"((\d+(?:[.,]\d+)?)\s*%)");
+        auto mp = rePctRE.match(lo);
+        if (mp.hasMatch()) {
+            double pct = _num(mp.captured(1));
+            double dec = pct / 100.0;
+            // calcola frazione ridotta
+            long long num = (long long)std::round(pct * 10);
+            long long den = 1000;
+            auto gcd = [](long long a, long long b) -> long long {
+                while (b) { long long t = b; b = a % b; a = t; } return a; };
+            long long g = gcd(std::abs(num), den);
+            num /= g; den /= g;
+            res = {true, "% \xe2\x86\x92 fraz./dec.",
+                   _sci(pct) + "% = " + _sci(dec) + " = " + QString::number(num) + "/" + QString::number(den)};
+        }
+    }
+
     if (!res.ok) return task;
 
     /* Prepende il risultato come contesto per l'AI */
