@@ -43,6 +43,9 @@ private:
     void updateModeUI(int modeIdx);
     QString buildSystemPrompt(int modeIdx, const QString& input) const;
 
+    QPushButton* m_solveRandomBtn = nullptr;
+    QLabel*      m_solveInfoLbl   = nullptr;
+
     QMetaObject::Connection m_tokConn;
     QMetaObject::Connection m_finConn;
     QMetaObject::Connection m_errConn;
@@ -55,6 +58,7 @@ private slots:
     void onCopyRestore();
     void onClearClicked();
     void onExampleClicked();
+    void onSolveRandomClicked();
     void onToken(const QString& t);
     void onFinished(const QString& full);
     void onError(const QString& e);

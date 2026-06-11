@@ -12,6 +12,73 @@
 #include <QTimer>
 #include <QScroller>
 #include <QScrollerProperties>
+#include <QRandomGenerator>
+
+/* ── 52 formule per il pulsante 🔀 (da gui/pages/main_math.cpp) ─ */
+namespace {
+struct SolveEx { const char* expr; const char* tipo; const char* desc; };
+static const SolveEx kSolveExamples[] = {
+    /* Equazioni (10) */
+    {"x^3 - 6*x^2 + 11*x - 6 = 0",       "Equazione",       "Terzo grado - radici 1, 2, 3"},
+    {"x^4 - 13*x^2 + 36 = 0",             "Equazione",       "Biquadratica - radici +-2, +-3"},
+    {"x^2 + x + 1 = 0",                   "Equazione",       "Delta < 0 - radici complesse"},
+    {"2*x^3 + x^2 - 5*x + 2 = 0",         "Equazione",       "Cubica con radici 1/2, 1, -2"},
+    {"x^4 - 5*x^2 + 4 = 0",               "Equazione",       "Biquadratica - radici +-1, +-2"},
+    {"x^3 + 3*x^2 - 4 = 0",               "Equazione",       "Cubica con fattore (x-1)"},
+    {"x^2 - 2*sqrt(3)*x + 3 = 0",         "Equazione",       "Delta = 0 - radice doppia sqrt(3)"},
+    {"x^5 - x = 0",                       "Equazione",       "Quintico fattorizzabile - 5 radici"},
+    {"x^2 - 5 = 0",                       "Equazione",       "Radici irrazionali +-sqrt(5)"},
+    {"x^3 - x = 0",                       "Equazione",       "Cubica - radici 0, +-1"},
+    /* Disequazioni (5) */
+    {"x^2 - 5*x + 6 > 0",                 "Disequazione",    "Parabola > 0 su (-oo,2) U (3,+oo)"},
+    {"x^3 - x > 0",                       "Disequazione",    "Cubica positiva in (-1,0) U (1,+oo)"},
+    {"(x - 1)*(x + 2)*(x - 3) < 0",       "Disequazione",    "Tre radici 1, -2, 3"},
+    {"x^4 - 5*x^2 + 4 <= 0",             "Disequazione",    "Biquadratica <= 0 su [-2,-1] U [1,2]"},
+    {"x^2 - 4 >= 0",                      "Disequazione",    "Parabola >= 0 su (-oo,-2] U [2,+oo)"},
+    /* Derivate (10) */
+    {"sin(x^2 + 1), x",                   "Derivata",        "Catena: D[sin(x^2+1)] = 2x*cos(x^2+1)"},
+    {"x^3*exp(x), x, 2",                  "Derivata",        "Derivata seconda di x^3*e^x"},
+    {"atan(x), x",                        "Derivata",        "D[arctan(x)] = 1/(1+x^2)"},
+    {"log(x^2 + 1)*sin(x), x",            "Derivata",        "Prodotto ln(x^2+1)*sin(x)"},
+    {"(x^2 + 1)/(x^3 - 1), x",            "Derivata",        "Derivata di funzione razionale"},
+    {"sin(x)^2, x",                       "Derivata",        "D[sin^2(x)] = sin(2x)"},
+    {"sqrt(x^2 + 1), x",                  "Derivata",        "D[sqrt(x^2+1)] = x/sqrt(x^2+1)"},
+    {"exp(sin(x)), x",                    "Derivata",        "Catena doppia e^{sin(x)}"},
+    {"log(x + sqrt(x^2 + 1)), x",         "Derivata",        "D[arcsinh(x)] = 1/sqrt(x^2+1)"},
+    {"x^2*exp(-x), x",                    "Derivata",        "Prodotto polinomio x esponenziale"},
+    /* Integrali (10) */
+    {"x*exp(x), x",                       "Integrale",       "Per parti: x*e^x -> (x-1)*e^x + C"},
+    {"sin(x), x, 0, pi",                  "Integrale",       "Definito esatto = 2"},
+    {"exp(-x^2), x, 0, oo",               "Integrale",       "Gaussiano = sqrt(pi)/2"},
+    {"log(x), x",                         "Integrale",       "Per parti: x*ln(x)-x + C"},
+    {"x^2*sin(x), x",                     "Integrale",       "Per parti iterata"},
+    {"1/(x^2 + 1), x",                    "Integrale",       "= arctan(x) + C"},
+    {"sqrt(1 - x^2), x, -1, 1",           "Integrale",       "Area semicerchio = pi/2"},
+    {"sin(x)^2, x",                       "Integrale",       "Formula di riduzione"},
+    {"1/(x^2 - 1), x",                    "Integrale",       "Frazioni parziali"},
+    {"x^3*exp(x), x",                     "Integrale",       "Per parti ripetuta - 4 passaggi"},
+    /* Limiti (9) */
+    {"sin(x)/x, x, 0",                    "Limite",          "Limite notevole -> 1"},
+    {"(1 - cos(x))/x^2, x, 0",            "Limite",          "Forma 0/0 -> 1/2"},
+    {"(x^2 + 1)/(x^2 - 1), x, oo",        "Limite",          "Razionale -> 1"},
+    {"(exp(x) - 1)/x, x, 0",              "Limite",          "(e^x-1)/x -> 1"},
+    {"(1 + 1/x)^x, x, oo",                "Limite",          "Def. di e"},
+    {"x*log(x), x, 0",                    "Limite",          "Forma 0*oo -> 0"},
+    {"(sqrt(x + 1) - 1)/x, x, 0",         "Limite",          "Forma 0/0 -> 1/2"},
+    {"(x^3 - 8)/(x - 2), x, 2",           "Limite",          "Fattorizza cubo -> 12"},
+    {"sin(3*x)/sin(5*x), x, 0",           "Limite",          "Rapporto seni -> 3/5"},
+    /* Semplificazioni (8) */
+    {"sin(x)^2 + cos(x)^2",               "Semplificazione", "Identita' Pitagora = 1"},
+    {"(x^3 - 1)/(x - 1)",                 "Semplificazione", "Differenza cubi -> x^2+x+1"},
+    {"series(exp(x), x, 0, 6)",            "Semplificazione", "Taylor di e^x ordine 5"},
+    {"factor(x^4 - 5*x^2 + 4)",           "Semplificazione", "Fattorizzazione quartica"},
+    {"expand((x + 1)^6)",                 "Semplificazione", "Binomio di Newton ordine 6"},
+    {"simplify(tan(x)^2 + 1 - 1/cos(x)^2)", "Semplificazione", "Identita' sec^2(x)"},
+    {"series(sin(x), x, 0, 8)",            "Semplificazione", "Taylor di sin(x) ordine 7"},
+    {"factor(x^6 - 1)",                   "Semplificazione", "Fattorizzazione differenza sesta potenza"},
+};
+static constexpr int kNSolve = static_cast<int>(sizeof(kSolveExamples)/sizeof(kSolveExamples[0]));
+} // namespace
 
 static void applyTouchScroll(QScrollArea* sa)
 {
@@ -81,6 +148,8 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
         QString::fromUtf8("\xf0\x9f\x93\x90") + "  Geometria / Trigonometria", 4);
     m_modeCombo->addItem(
         QString::fromUtf8("\xf0\x9f\x93\x88") + "  Statistica / Probabilità", 5);
+    m_modeCombo->addItem(
+        QString::fromUtf8("\xf0\x9f\x93\x90") + "  Risolvi Passi (52 formule)", 6);
     m_modeCombo->setMinimumHeight(48);
     modeVbox->addWidget(m_modeCombo);
     vbox->addWidget(modeGroup);
@@ -128,6 +197,24 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
         exGrid->addWidget(btn, i / 3, i % 3);
     }
     inputVbox->addWidget(m_examplesRow);
+
+    /* Pulsante 🔀 + label info formula (visibili solo in mode 6) */
+    m_solveRandomBtn = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x94\x80") + " Formula Casuale  (" +
+        QString::number(kNSolve) + " disponibili)", inner);
+    m_solveRandomBtn->setObjectName("PrimaryBtn");
+    m_solveRandomBtn->setMinimumHeight(44);
+    m_solveRandomBtn->setVisible(false);
+    connect(m_solveRandomBtn, &QPushButton::clicked,
+            this, &MatematicaPage::onSolveRandomClicked);
+    inputVbox->addWidget(m_solveRandomBtn);
+
+    m_solveInfoLbl = new QLabel("", inner);
+    m_solveInfoLbl->setObjectName("StatusLabel");
+    m_solveInfoLbl->setWordWrap(true);
+    m_solveInfoLbl->setVisible(false);
+    inputVbox->addWidget(m_solveInfoLbl);
+
     vbox->addWidget(inputGroup);
 
     /* ── Bottoni azione ── */
@@ -264,9 +351,27 @@ void MatematicaPage::updateModeUI(int idx)
         },
     };
 
-    if (idx < 0 || idx >= 6) return;
-    m_inputHint->setText(modes[idx].hint);
-    m_inputEdit->setPlaceholderText(modes[idx].placeholder);
+    if (idx < 0 || idx >= 7) return;
+
+    const bool isSolve = (idx == 6);
+    m_examplesRow->setVisible(!isSolve);
+    if (m_solveRandomBtn) m_solveRandomBtn->setVisible(isSolve);
+    if (m_solveInfoLbl)   m_solveInfoLbl->setVisible(isSolve);
+
+    if (idx < 6) {
+        m_inputHint->setText(modes[idx].hint);
+        m_inputEdit->setPlaceholderText(modes[idx].placeholder);
+    } else {
+        m_inputHint->setText(
+            "Inserisci un'equazione, disequazione, derivata, integrale o limite. "
+            "L'AI spiegherà ogni passaggio in dettaglio.");
+        m_inputEdit->setPlaceholderText(
+            "Esempi:\n"
+            "x^2 - 5*x + 6 = 0   (equazione)\n"
+            "sin(x)/x, x, 0       (limite)\n"
+            "x*exp(x), x          (derivata)\n"
+            "Oppure usa 🔀 Formula Casuale");
+    }
 }
 
 void MatematicaPage::onModeChanged(int idx) { updateModeUI(idx); }
@@ -324,7 +429,6 @@ QString MatematicaPage::buildSystemPrompt(int idx, const QString& input) const
             "Usa schizzi ASCII se aiutano la comprensione.";
 
     case 5:
-    default:
         return
             "Sei un esperto di statistica e probabilità. "
             "Risolvi questo problema: " + input + "\n"
@@ -333,6 +437,15 @@ QString MatematicaPage::buildSystemPrompt(int idx, const QString& input) const
             "3. Mostra tutti i calcoli intermedi\n"
             "4. Interpreta il risultato in linguaggio semplice\n"
             "Se stai calcolando statistiche descrittive, mostra: media, mediana, moda, varianza, dev.std.";
+
+    case 6:
+    default:
+        return
+            "Sei un professore di matematica. Risolvi PASSO PER PASSO:\n\n"
+            + input + "\n\n"
+            "Per ogni passo: mostra l'operazione, spiega il motivo, mostra il risultato intermedio.\n"
+            "Usa la notazione matematica corretta. "
+            "Evidenzia chiaramente la soluzione finale.";
     }
 }
 
@@ -371,7 +484,10 @@ void MatematicaPage::onCalcClicked()
     m_errConn = connect(m_ai, &AiClient::error,
                         this, &MatematicaPage::onError);
 
-    m_ai->chat(sys, "Analizza: " + input);
+    const QString userMsg = (idx == 6)
+        ? "Risolvi passo per passo: " + input
+        : "Analizza: " + input;
+    m_ai->chat(sys, userMsg);
 }
 
 void MatematicaPage::onStopClicked()
@@ -449,4 +565,17 @@ void MatematicaPage::onExampleClicked()
     const QString ex = btn->property("mathExample").toString();
     if (!ex.isEmpty())
         m_inputEdit->setPlainText(ex);
+}
+
+void MatematicaPage::onSolveRandomClicked()
+{
+    const int idx = static_cast<int>(
+        QRandomGenerator::global()->bounded(static_cast<quint32>(kNSolve)));
+    const auto& ex = kSolveExamples[idx];
+    m_inputEdit->setPlainText(QString::fromUtf8(ex.expr));
+    if (m_solveInfoLbl)
+        m_solveInfoLbl->setText(
+            QString::fromUtf8("\xf0\x9f\x93\x90") + " "
+            + ex.tipo + " — " + ex.desc);
+    m_modeCombo->setCurrentIndex(6);
 }
