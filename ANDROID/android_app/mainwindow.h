@@ -49,6 +49,10 @@ class RicercaPage;
 class MatematicaPage;
 class SintetizzatorePage;
 class AssistentePage;
+class OraclePage;
+class HermesPage;
+class FileAiPage;
+class FinanzaPage;
 
 #ifdef HAVE_MULTIMEDIA
 class CameraPage;
@@ -136,6 +140,10 @@ private:
     MatematicaPage*      m_matematicaPage      = nullptr;
     SintetizzatorePage*  m_sintetizzatorePage  = nullptr;
     AssistentePage*      m_assistentePage      = nullptr;
+    OraclePage*          m_oraclePage          = nullptr;
+    HermesPage*          m_hermesPage          = nullptr;
+    FileAiPage*          m_fileAiPage          = nullptr;
+    FinanzaPage*         m_finanzaPage         = nullptr;
 
 #ifdef HAVE_MULTIMEDIA
     CameraPage*   m_cameraPage   = nullptr;
@@ -165,6 +173,10 @@ private:
     int m_idxMatematica      = 13;
     int m_idxSintetizzatore  = 14;
     int m_idxAssistente      = 15;
+    int m_idxOracle          = 16;
+    int m_idxHermes          = 17;
+    int m_idxFileAi          = 18;
+    int m_idxFinanza         = 19;
 
 #ifdef PRISMALUX_FORM_FACTOR_TABLET
     QWidget*     m_navRail    = nullptr;

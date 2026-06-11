@@ -75,10 +75,10 @@ QDir().mkpath(dataDir);
 | C3 RECORD_AUDIO permesso | ✅ | già presente nel Manifest |
 | A3 GraphMemory mobile | ✅ | `graph_memory_mobile.h/cpp` |
 | A1 Assistente AI Categorico | ✅ | `pages/assistente_page.h/cpp` (indice 15) |
-| A2 Oracle + pillole | ⬜ | 3h |
-| A5 Hermes memoria | ⬜ | 4h — dopo A3 |
-| A7 FinanzaPage | ⬜ | 4h — codice portabile da desktop |
-| A8 FileAiPage | ⬜ | 3h — riusa extractPdfText |
+| A2 Oracle + pillole | ✅ | `pages/oracle_page.h/cpp` (indice 16) |
+| A5 Hermes memoria | ✅ | `pages/hermes_page.h/cpp` (indice 17) |
+| A7 FinanzaPage | ✅ | `pages/finanza_page.h/cpp` (indice 19) |
+| A8 FileAiPage | ✅ | `pages/file_ai_page.h/cpp` (indice 18) |
 | B1 Chat estensioni | ⬜ | 3h: storia+TTFT+export+vision |
 | A4 MultiAgent | ⬜ | 5h — dopo A3 |
 | A6 ChartWidget | ⬜ | 3h — QPainter custom |
@@ -114,12 +114,12 @@ QDir().mkpath(dataDir);
 | 13 | MatematicaPage |
 | 14 | SintetizzatorePage |
 | 15 | AssistentePage ✅ |
-| 16 | OraclePage *(da aggiungere A2)* |
-| 17 | MultiAgentPage *(da aggiungere A4)* |
-| 18 | HermesPage *(da aggiungere A5)* |
-| 19 | ChartPage *(da aggiungere A6)* |
-| 20 | FinanzaPage *(da aggiungere A7)* |
-| 21 | FileAiPage *(da aggiungere A8)* |
+| 16 | OraclePage ✅ |
+| 17 | HermesPage ✅ |
+| 18 | FileAiPage ✅ |
+| 19 | FinanzaPage ✅ |
+| 20 | MultiAgentPage *(da aggiungere A4)* |
+| 21 | ChartPage *(da aggiungere A6)* |
 | 22 | SecurityPage *(da aggiungere B6)* |
 | 23 | SimulatorePage *(da aggiungere B7)* |
 

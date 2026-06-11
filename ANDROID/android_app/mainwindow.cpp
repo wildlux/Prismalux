@@ -16,6 +16,10 @@
 #include "pages/matematica_page.h"
 #include "pages/sintetizzatore_page.h"
 #include "pages/assistente_page.h"
+#include "pages/oracle_page.h"
+#include "pages/hermes_page.h"
+#include "pages/file_ai_page.h"
+#include "pages/finanza_page.h"
 
 #ifdef HAVE_MULTIMEDIA
 #include "pages/camera_page.h"
@@ -163,6 +167,22 @@ MainWindow::MainWindow(QWidget* parent)
     m_assistentePage = new AssistentePage(m_ai, this);
     m_stack->addWidget(m_assistentePage); // indice 15
 
+    /* Oracle — Chat rapida con pillole azione tocco-singolo */
+    m_oraclePage = new OraclePage(m_ai, this);
+    m_stack->addWidget(m_oraclePage);     // indice 16
+
+    /* Hermes — Memoria utente persistente con agente estrattore */
+    m_hermesPage = new HermesPage(m_ai, this);
+    m_stack->addWidget(m_hermesPage);     // indice 17
+
+    /* File AI — Analisi documenti PDF/TXT/MD */
+    m_fileAiPage = new FileAiPage(m_ai, this);
+    m_stack->addWidget(m_fileAiPage);     // indice 18
+
+    /* Finanza — IVA / IRPEF / TFR + Chat AI */
+    m_finanzaPage = new FinanzaPage(m_ai, this);
+    m_stack->addWidget(m_finanzaPage);    // indice 19
+
     auto* central = new QWidget(this);
 
 #ifdef PRISMALUX_FORM_FACTOR_TABLET
@@ -306,6 +326,10 @@ void MainWindow::buildDrawer()
     const NavItem items[] = {
         { "\xf0\x9f\xa4\x96",              "Chat",               m_idxChat         },
         { "\xf0\x9f\x9b\xa0\xef\xb8\x8f", "Assistente AI",      m_idxAssistente   },
+        { "\xe2\x9a\xa1",                 "Oracle",             m_idxOracle       },
+        { "\xf0\x9f\xa7\xa0",            "Hermes Memoria",     m_idxHermes       },
+        { "\xf0\x9f\x93\x81",            "File AI",            m_idxFileAi       },
+        { "\xf0\x9f\x92\xb0",            "Finanza",            m_idxFinanza      },
         { "\xf0\x9f\x93\x9a",              "Studia",             m_idxStudio     },
         { "\xf0\x9f\xa7\xa0",              "Impara con AI",      m_idxImpara     },
         { "\xcf\x80",                       "Matematica",         m_idxMatematica },
@@ -539,6 +563,11 @@ void MainWindow::onTabChanged(int index)
         { 10, "Informazioni"       }, { 11, "Impara con AI"      },
         { 12, "Ricerca e Sviluppo" }, { 13, "Matematica"         },
         { 14, "Sintetizzatore"     },
+        { 15, "Assistente AI"      },
+        { 16, "Oracle"             },
+        { 17, "Hermes Memoria"    },
+        { 18, "File AI"           },
+        { 19, "Finanza"           },
     };
     if (m_titleLbl) {
         for (const auto& t : kTitles) {

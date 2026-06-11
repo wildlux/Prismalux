@@ -155,6 +155,10 @@ set(SRCS
     pages/matematica_page.cpp
     pages/sintetizzatore_page.cpp
     pages/assistente_page.cpp
+    pages/oracle_page.cpp
+    pages/hermes_page.cpp
+    pages/file_ai_page.cpp
+    pages/finanza_page.cpp
     graph_memory_mobile.cpp
 )
 
