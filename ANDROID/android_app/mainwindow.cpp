@@ -21,6 +21,7 @@
 #include "pages/file_ai_page.h"
 #include "pages/finanza_page.h"
 #include "pages/simulatore_page.h"
+#include "pages/wan_client_page.h"
 
 #ifdef HAVE_MULTIMEDIA
 #include "pages/camera_page.h"
@@ -188,6 +189,10 @@ MainWindow::MainWindow(QWidget* parent)
     m_simulatorePage = new SimulatorePage(m_ai, this);
     m_stack->addWidget(m_simulatorePage); // indice 20
 
+    /* WAN Compute Client — nodo worker per server desktop porta 11600 */
+    m_wanClientPage = new WanClientPage(m_ai, this);
+    m_stack->addWidget(m_wanClientPage);  // indice 21
+
     auto* central = new QWidget(this);
 
 #ifdef PRISMALUX_FORM_FACTOR_TABLET
@@ -336,6 +341,7 @@ void MainWindow::buildDrawer()
         { "\xf0\x9f\x93\x81",            "File AI",            m_idxFileAi       },
         { "\xf0\x9f\x92\xb0",            "Finanza",            m_idxFinanza      },
         { "\xf0\x9f\xa4\x96",            "Simulatore Algoritmi", m_idxSimulatore  },
+        { "\xf0\x9f\x8c\x90",            "WAN Client",           m_idxWanClient   },
         { "\xf0\x9f\x93\x9a",              "Studia",             m_idxStudio     },
         { "\xf0\x9f\xa7\xa0",              "Impara con AI",      m_idxImpara     },
         { "\xcf\x80",                       "Matematica",         m_idxMatematica },
@@ -613,6 +619,7 @@ void MainWindow::onTabChanged(int index)
         { 18, "File AI"           },
         { 19, "Finanza"             },
         { 20, "Simulatore Algoritmi"},
+        { 21, "WAN Client"         },
     };
     if (m_titleLbl) {
         for (const auto& t : kTitles) {

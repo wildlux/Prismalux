@@ -160,6 +160,7 @@ set(SRCS
     pages/file_ai_page.cpp
     pages/finanza_page.cpp
     pages/simulatore_page.cpp
+    pages/wan_client_page.cpp
     graph_memory_mobile.cpp
 )
 

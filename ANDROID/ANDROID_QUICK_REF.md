@@ -82,14 +82,14 @@ QDir().mkpath(dataDir);
 | B1 Chat estensioni | ⬜ | 3h: storia+TTFT+export+vision |
 | A4 MultiAgent | ⬜ | 5h — dopo A3 |
 | A6 ChartWidget | ⬜ | 3h — QPainter custom |
-| B4 Matematica 52 formule | ⬜ | 2h |
+| B4 Matematica 52 formule | ✅ | modo 6 "Risolvi Passi" + shuffle random |
 | B2 LavoroPage estensioni | ⬜ | 3h: tracker+cover+foto |
 | B5 Ricerca+Astrale+GPS | ⬜ | 3h |
 | B7 Simulatore Algoritmi | ✅ | `pages/simulatore_page.h/cpp` (indice 20) |
-| C1 Drawer animazione | ⬜ | 1h — QPropertyAnimation |
+| C1 Drawer animazione | ✅ | QPropertyAnimation 220ms OutCubic |
 | B6 SecurityPage | ⬜ | 4h |
 | B8 Voice Loop | ⬜ | 2h — dopo C3 |
-| B9 WAN client | ⬜ | 2h |
+| B9 WAN client | ✅ | `pages/wan_client_page.h/cpp` (indice 21) |
 | C8 Test nuove pagine | ⬜ | 3h |
 
 ---
@@ -118,10 +118,11 @@ QDir().mkpath(dataDir);
 | 17 | HermesPage ✅ |
 | 18 | FileAiPage ✅ |
 | 19 | FinanzaPage ✅ |
-| 20 | MultiAgentPage *(da aggiungere A4)* |
-| 21 | ChartPage *(da aggiungere A6)* |
-| 22 | SecurityPage *(da aggiungere B6)* |
-| 23 | SimulatorePage *(da aggiungere B7)* |
+| 20 | SimulatorePage ✅ |
+| 21 | WanClientPage ✅ |
+| 22 | MultiAgentPage *(da aggiungere A4)* |
+| 23 | ChartPage *(da aggiungere A6)* |
+| 24 | SecurityPage *(da aggiungere B6)* |
 
 ---
 

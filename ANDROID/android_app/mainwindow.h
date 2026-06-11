@@ -55,6 +55,7 @@ class HermesPage;
 class FileAiPage;
 class FinanzaPage;
 class SimulatorePage;
+class WanClientPage;
 
 #ifdef HAVE_MULTIMEDIA
 class CameraPage;
@@ -149,6 +150,7 @@ private:
     FileAiPage*          m_fileAiPage          = nullptr;
     FinanzaPage*         m_finanzaPage         = nullptr;
     SimulatorePage*      m_simulatorePage      = nullptr;
+    WanClientPage*       m_wanClientPage       = nullptr;
 
 #ifdef HAVE_MULTIMEDIA
     CameraPage*   m_cameraPage   = nullptr;
@@ -183,6 +185,7 @@ private:
     int m_idxFileAi          = 18;
     int m_idxFinanza         = 19;
     int m_idxSimulatore      = 20;
+    int m_idxWanClient       = 21;
 
 #ifdef PRISMALUX_FORM_FACTOR_TABLET
     QWidget*     m_navRail    = nullptr;
