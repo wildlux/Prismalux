@@ -159,6 +159,7 @@ set(SRCS
     pages/hermes_page.cpp
     pages/file_ai_page.cpp
     pages/finanza_page.cpp
+    pages/simulatore_page.cpp
     graph_memory_mobile.cpp
 )
 

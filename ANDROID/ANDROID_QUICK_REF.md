@@ -85,7 +85,7 @@ QDir().mkpath(dataDir);
 | B4 Matematica 52 formule | ⬜ | 2h |
 | B2 LavoroPage estensioni | ⬜ | 3h: tracker+cover+foto |
 | B5 Ricerca+Astrale+GPS | ⬜ | 3h |
-| B7 Simulatore Algoritmi | ⬜ | 3h |
+| B7 Simulatore Algoritmi | ✅ | `pages/simulatore_page.h/cpp` (indice 20) |
 | C1 Drawer animazione | ⬜ | 1h — QPropertyAnimation |
 | B6 SecurityPage | ⬜ | 4h |
 | B8 Voice Loop | ⬜ | 2h — dopo C3 |

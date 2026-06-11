@@ -20,6 +20,7 @@
 #include "pages/hermes_page.h"
 #include "pages/file_ai_page.h"
 #include "pages/finanza_page.h"
+#include "pages/simulatore_page.h"
 
 #ifdef HAVE_MULTIMEDIA
 #include "pages/camera_page.h"
@@ -183,6 +184,10 @@ MainWindow::MainWindow(QWidget* parent)
     m_finanzaPage = new FinanzaPage(m_ai, this);
     m_stack->addWidget(m_finanzaPage);    // indice 19
 
+    /* Simulatore Algoritmi — sorting, search, grafi, DP */
+    m_simulatorePage = new SimulatorePage(m_ai, this);
+    m_stack->addWidget(m_simulatorePage); // indice 20
+
     auto* central = new QWidget(this);
 
 #ifdef PRISMALUX_FORM_FACTOR_TABLET
@@ -330,6 +335,7 @@ void MainWindow::buildDrawer()
         { "\xf0\x9f\xa7\xa0",            "Hermes Memoria",     m_idxHermes       },
         { "\xf0\x9f\x93\x81",            "File AI",            m_idxFileAi       },
         { "\xf0\x9f\x92\xb0",            "Finanza",            m_idxFinanza      },
+        { "\xf0\x9f\xa4\x96",            "Simulatore Algoritmi", m_idxSimulatore  },
         { "\xf0\x9f\x93\x9a",              "Studia",             m_idxStudio     },
         { "\xf0\x9f\xa7\xa0",              "Impara con AI",      m_idxImpara     },
         { "\xcf\x80",                       "Matematica",         m_idxMatematica },
@@ -359,6 +365,13 @@ void MainWindow::buildDrawer()
 
     connect(closeBtn, &QToolButton::clicked, this, &MainWindow::onToggleDrawer);
     updateDrawerGeometry();
+
+    /* Animazione slide-in dal bordo sinistro */
+    m_drawerAnim = new QPropertyAnimation(m_drawer, "geometry", this);
+    m_drawerAnim->setDuration(220);
+    m_drawerAnim->setEasingCurve(QEasingCurve::OutCubic);
+    connect(m_drawerAnim, &QPropertyAnimation::finished,
+            this, &MainWindow::onDrawerAnimFinished);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -527,11 +540,42 @@ void MainWindow::onToggleDrawer()
     m_drawerOpen = !m_drawerOpen;
     if (m_drawerOpen) {
         updateDrawerGeometry();
+        const QRect endRect   = m_drawer->geometry();
+        const QRect startRect = QRect(-endRect.width(), endRect.top(),
+                                       endRect.width(), endRect.height());
         m_overlay->raise();
+        m_drawer->setGeometry(startRect);
+        m_drawer->setVisible(true);
         m_drawer->raise();
+        if (m_overlay) m_overlay->setVisible(true);
+        if (m_drawerAnim) {
+            m_drawerAnim->stop();
+            m_drawerAnim->setStartValue(startRect);
+            m_drawerAnim->setEndValue(endRect);
+            m_drawerAnim->start();
+        }
+    } else {
+        if (m_drawerAnim) {
+            const QRect startRect = m_drawer->geometry();
+            const QRect endRect   = QRect(-startRect.width(), startRect.top(),
+                                           startRect.width(), startRect.height());
+            m_drawerAnim->stop();
+            m_drawerAnim->setStartValue(startRect);
+            m_drawerAnim->setEndValue(endRect);
+            m_drawerAnim->start();
+        } else {
+            m_drawer->setVisible(false);
+        }
+        if (m_overlay) m_overlay->setVisible(false);
     }
-    m_drawer->setVisible(m_drawerOpen);
-    if (m_overlay) m_overlay->setVisible(m_drawerOpen);
+#endif
+}
+
+void MainWindow::onDrawerAnimFinished()
+{
+#ifndef PRISMALUX_FORM_FACTOR_TABLET
+    if (!m_drawerOpen)
+        m_drawer->setVisible(false);
 #endif
 }
 
@@ -567,7 +611,8 @@ void MainWindow::onTabChanged(int index)
         { 16, "Oracle"             },
         { 17, "Hermes Memoria"    },
         { 18, "File AI"           },
-        { 19, "Finanza"           },
+        { 19, "Finanza"             },
+        { 20, "Simulatore Algoritmi"},
     };
     if (m_titleLbl) {
         for (const auto& t : kTitles) {

@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QToolButton>
 #include <QPainter>
+#include <QPropertyAnimation>
 #ifdef PRISMALUX_FORM_FACTOR_TABLET
 #include <QVBoxLayout>
 #endif
@@ -53,6 +54,7 @@ class OraclePage;
 class HermesPage;
 class FileAiPage;
 class FinanzaPage;
+class SimulatorePage;
 
 #ifdef HAVE_MULTIMEDIA
 class CameraPage;
@@ -88,6 +90,7 @@ private slots:
     void onTabChanged(int index);
     void onToggleDrawer();
     void onDrawerNavClicked();
+    void onDrawerAnimFinished();
     void onQuizFullscreen(bool on);
 #ifdef PRISMALUX_FORM_FACTOR_TABLET
     void onNavTablet_0();
@@ -115,12 +118,13 @@ private:
     void buildNavRail();
 #endif
 
-    QStackedWidget* m_stack      = nullptr;
-    QWidget*        m_headerBar  = nullptr;
-    QWidget*        m_drawer     = nullptr;
-    QWidget*        m_overlay    = nullptr;
-    QLabel*         m_titleLbl   = nullptr;
-    bool            m_drawerOpen = false;
+    QStackedWidget*     m_stack       = nullptr;
+    QWidget*            m_headerBar   = nullptr;
+    QWidget*            m_drawer      = nullptr;
+    QWidget*            m_overlay     = nullptr;
+    QLabel*             m_titleLbl    = nullptr;
+    bool                m_drawerOpen  = false;
+    QPropertyAnimation* m_drawerAnim  = nullptr;
 
     AiClient*        m_ai       = nullptr;
     LocalLlmClient*  m_localLlm = nullptr;
@@ -144,6 +148,7 @@ private:
     HermesPage*          m_hermesPage          = nullptr;
     FileAiPage*          m_fileAiPage          = nullptr;
     FinanzaPage*         m_finanzaPage         = nullptr;
+    SimulatorePage*      m_simulatorePage      = nullptr;
 
 #ifdef HAVE_MULTIMEDIA
     CameraPage*   m_cameraPage   = nullptr;
@@ -177,6 +182,7 @@ private:
     int m_idxHermes          = 17;
     int m_idxFileAi          = 18;
     int m_idxFinanza         = 19;
+    int m_idxSimulatore      = 20;
 
 #ifdef PRISMALUX_FORM_FACTOR_TABLET
     QWidget*     m_navRail    = nullptr;
