@@ -10,10 +10,13 @@
 #include <QFileInfo>
 #include <QTextStream>
 #include <QProcess>
+#include <QUrlQuery>
+#include <QUrl>
 #include <cmath>
 #include "prismalux_paths.h"
 #include "pages/main_jobs_data.h"
 #include "widgets/proc_helper.h"
+#include "pages/pratico_calcs.h"
 namespace P = PrismaluxPaths;
 
 #ifdef HAVE_QKEYCHAIN
@@ -634,6 +637,18 @@ void LanServer::processSession(Session& s)
         handleWebChat(s);
     } else if (s.path.startsWith("/katex/") && s.method == "GET") {
         handleKatex(s);
+    } else if (s.path.startsWith("/bootstrap/") && s.method == "GET") {
+        handleBootstrap(s);
+    } else if (s.path == "/api/file" && s.method == "POST") {
+        if (checkHeavyRateLimit(s)) return;
+        handleFileApi(s);
+    } else if (s.path == "/api/repl" && s.method == "POST") {
+        if (checkHeavyRateLimit(s)) return;
+        handleReplApi(s);
+    } else if (s.path == "/api/finanza/cf" && s.method == "POST") {
+        handleFinanzaCf(s);
+    } else if (s.path.startsWith("/api/graph") && s.method == "GET") {
+        handleGraphApi(s);
     } else if (s.path == "/api/launch" && s.method == "POST") {
         if (m_headless) { sendError(s.socket, 403, "Disabled in headless mode"); return; }
         if (checkHeavyRateLimit(s)) return;
@@ -1939,6 +1954,231 @@ void LanServer::handleKatex(Session& s)
     else if (ext == "woff") mime = "font/woff";
     else if (ext == "woff2")mime = "font/woff2";
     else if (ext == "ttf")  mime = "font/ttf";
+
+    QByteArray resp = httpOkHeader(mime);
+    resp += "Cache-Control: max-age=86400\r\n";
+    resp += "Content-Length: " + QByteArray::number(data.size()) + "\r\n\r\n";
+    resp += data;
+    s.socket->write(resp);
+    s.socket->flush();
+}
+
+/* ── /api/file — estrai testo da PDF/DOCX/TXT/CSV/codice ────────────────── */
+
+void LanServer::handleFileApi(Session& s)
+{
+    /* Estrai Content-Type dal buffer grezzo della richiesta (stesso pattern di handleWhisper) */
+    const QByteArray ct = [&]() -> QByteArray {
+        const int cti = s.buf.indexOf("Content-Type:");
+        if (cti < 0) return {};
+        const int lf = s.buf.indexOf('\n', cti);
+        return s.buf.mid(cti + 13, lf - cti - 13).trimmed();
+    }();
+
+    const int boundPos = ct.indexOf("boundary=");
+    if (boundPos < 0) { sendError(s.socket, 400, "Missing boundary"); return; }
+    const QByteArray boundary = "--" + ct.mid(boundPos + 9).trimmed();
+
+    /* Estrai la parte "file" */
+    const int partStart = s.body.indexOf(boundary);
+    if (partStart < 0) { sendError(s.socket, 400, "No part found"); return; }
+    const int headerEnd = s.body.indexOf("\r\n\r\n", partStart);
+    if (headerEnd < 0) { sendError(s.socket, 400, "Malformed part"); return; }
+    const QByteArray partHeader = s.body.mid(partStart, headerEnd - partStart);
+    const int dataStart = headerEnd + 4;
+    const int nextBound = s.body.indexOf("\r\n" + boundary, dataStart);
+    const QByteArray fileData = (nextBound > 0)
+        ? s.body.mid(dataStart, nextBound - dataStart)
+        : s.body.mid(dataStart);
+
+    /* Ricava il filename dall'header della parte */
+    QString filename;
+    {
+        const QString ph = QString::fromUtf8(partHeader);
+        const QRegularExpression re(R"re(filename="([^"]+)")re",
+                                    QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(ph);
+        if (m.hasMatch()) filename = m.captured(1);
+    }
+
+    const QString ext = QFileInfo(filename).suffix().toLower();
+
+    /* Salva su file temporaneo */
+    const QString tmp = QDir::tempPath() + "/plx_upload_" +
+                        QString::number(QDateTime::currentMSecsSinceEpoch()) + "." + ext;
+    {
+        QFile f(tmp);
+        if (!f.open(QIODevice::WriteOnly)) { sendError(s.socket, 500, "Cannot write tmp"); return; }
+        f.write(fileData);
+    }
+
+    QString text;
+    if (ext == "pdf") {
+        const auto r = ProcHelper::run("pdftotext", {tmp, "-"}, 15'000);
+        text = r.ok ? r.out : r.err;
+    } else if (ext == "docx") {
+        const QString pyCode =
+            "import sys, docx\n"
+            "d = docx.Document(sys.argv[1])\n"
+            "print('\\n'.join(p.text for p in d.paragraphs))\n";
+        const auto r = ProcHelper::runWithInput(
+            "python3", QStringList{"-c", pyCode, tmp}, QByteArray{}, 10'000);
+        text = r.ok ? r.out : ("Errore: " + r.err);
+    } else {
+        QFile f(tmp);
+        if (f.open(QIODevice::ReadOnly))
+            text = QString::fromUtf8(f.readAll());
+    }
+    QFile::remove(tmp);
+
+    if (text.length() > 60'000)
+        text = text.left(60'000) + "\n[... troncato a 60 000 caratteri ...]";
+
+    QJsonObject obj;
+    obj["text"]     = text;
+    obj["filename"] = filename;
+    obj["chars"]    = text.length();
+    sendJson(s.socket, QJsonDocument(obj).toJson(QJsonDocument::Compact));
+}
+
+/* ── /api/repl — esegui Python/Bash con timeout ──────────────────────────── */
+
+void LanServer::handleReplApi(Session& s)
+{
+    const QJsonObject body = QJsonDocument::fromJson(s.body).object();
+    const QString code = body["code"].toString().trimmed();
+    const QString lang = body["lang"].toString().toLower().trimmed();
+
+    if (code.isEmpty()) { sendError(s.socket, 400, "Empty code"); return; }
+    if (code.length() > 16'000) { sendError(s.socket, 400, "Code too large"); return; }
+
+    ProcResult r;
+    if (lang == "python" || lang == "python3" || lang.isEmpty()) {
+        r = ProcHelper::runWithInput("python3", {"-"}, code.toUtf8(), 15'000);
+    } else if (lang == "javascript" || lang == "node") {
+        r = ProcHelper::runWithInput("node", QStringList{"-e", code}, QByteArray{}, 10'000);
+    } else if (lang == "bash") {
+        r = ProcHelper::runWithInput("bash", {"-s"}, code.toUtf8(), 10'000);
+    } else {
+        sendError(s.socket, 400, "Unsupported lang: " + lang.toUtf8()); return;
+    }
+
+    QJsonObject obj;
+    obj["output"]   = r.out.left(20'000);
+    obj["error"]    = r.err.left(4'000);
+    obj["exit_code"] = r.code;
+    obj["ok"]       = r.ok;
+    sendJson(s.socket, QJsonDocument(obj).toJson(QJsonDocument::Compact));
+}
+
+/* ── /api/finanza/cf — calcola Codice Fiscale (D.M. 1976) ───────────────── */
+
+void LanServer::handleFinanzaCf(Session& s)
+{
+    const QJsonObject body = QJsonDocument::fromJson(s.body).object();
+    const QString cognome = body["cognome"].toString().trimmed();
+    const QString nome    = body["nome"].toString().trimmed();
+    const QString data    = body["data"].toString().trimmed();   /* YYYY-MM-DD */
+    const QString sesso   = body["sesso"].toString().trimmed().toUpper();
+    const QString comune  = body["comune"].toString().trimmed();
+
+    if (cognome.isEmpty() || nome.isEmpty() || data.isEmpty()) {
+        sendError(s.socket, 400, "Campi obbligatori: cognome, nome, data, sesso, comune");
+        return;
+    }
+
+    const QDate nascita = QDate::fromString(data, Qt::ISODate);
+    if (!nascita.isValid()) { sendError(s.socket, 400, "Data non valida (usa YYYY-MM-DD)"); return; }
+
+    const bool maschio = (sesso != "F");
+    const QString belfiore = PraticoCalcs::cercaBelfiore(comune);
+
+    QJsonObject obj;
+    if (belfiore.isEmpty()) {
+        obj["error"] = "Comune non trovato nel database Belfiore. Specifica il codice manualmente.";
+        obj["belfiore_hint"] = QString();
+    } else {
+        const QString cf = PraticoCalcs::calcolaCodiceFiscale(cognome, nome, nascita, maschio, belfiore);
+        obj["cf"]       = cf;
+        obj["belfiore"] = belfiore;
+    }
+    sendJson(s.socket, QJsonDocument(obj).toJson(QJsonDocument::Compact));
+}
+
+/* ── /api/graph — query GraphMemory ─────────────────────────────────────── */
+
+void LanServer::handleGraphApi(Session& s)
+{
+    if (!m_graphMemory) {
+        sendError(s.socket, 503, "GraphMemory non disponibile (avvia Multi-Agente nella GUI)");
+        return;
+    }
+
+    /* /api/graph/dot → esporta DOT */
+    if (s.path.endsWith("/dot")) {
+        const QString dot = m_graphMemory->toDot("Prismalux Memory", 150);
+        QJsonObject obj;
+        obj["dot"] = dot;
+        sendJson(s.socket, QJsonDocument(obj).toJson(QJsonDocument::Compact));
+        return;
+    }
+
+    /* /api/graph/nodes?q=...&limit=... → cerca nodi */
+    const QUrlQuery q(s.queryString);
+    const QString query = q.queryItemValue("q", QUrl::FullyDecoded).trimmed();
+    const int limit = qBound(1, q.queryItemValue("limit").toInt(), 200);
+    const int lim   = (limit > 0) ? limit : 50;
+
+    const QVector<GmNode> nodes = query.isEmpty()
+        ? m_graphMemory->allNodes().mid(0, lim)
+        : m_graphMemory->searchNodes(query, lim);
+
+    QJsonArray arr;
+    for (const GmNode& n : nodes) {
+        QJsonObject o;
+        o["id"]         = n.id;
+        o["type"]       = n.type;
+        o["label"]      = n.label;
+        o["content"]    = n.content.left(400);
+        o["importance"] = static_cast<double>(n.importance);
+        arr.append(o);
+    }
+    QJsonObject obj;
+    obj["nodes"] = arr;
+    obj["total"] = arr.size();
+    sendJson(s.socket, QJsonDocument(obj).toJson(QJsonDocument::Compact));
+}
+
+/* ── /bootstrap/ — serve Bootstrap da gui/lan_web/ ───────────────────────── */
+
+void LanServer::handleBootstrap(Session& s)
+{
+    const QString relPath = s.path.mid(11);  /* strip "/bootstrap/" */
+
+    static const QRegularExpression kTraversal(QStringLiteral("\\.\\."));
+    if (relPath.isEmpty() || kTraversal.match(relPath).hasMatch()) {
+        sendError(s.socket, 400, "Bad Request");
+        return;
+    }
+
+    const QString filePath = P::root() + "/gui/lan_web/" + relPath;
+    if (!QFileInfo::exists(filePath)) {
+        sendError(s.socket, 404, "Bootstrap file not found");
+        return;
+    }
+
+    QFile f(filePath);
+    if (!f.open(QIODevice::ReadOnly)) {
+        sendError(s.socket, 500, "Cannot read Bootstrap file");
+        return;
+    }
+    const QByteArray data = f.readAll();
+    f.close();
+
+    const QString ext = QFileInfo(filePath).suffix().toLower();
+    const char* mime  = "application/octet-stream";
+    if      (ext == "css") mime = "text/css; charset=utf-8";
+    else if (ext == "js")  mime = "application/javascript; charset=utf-8";
 
     QByteArray resp = httpOkHeader(mime);
     resp += "Cache-Control: max-age=86400\r\n";

@@ -1481,6 +1481,8 @@ QWidget* LanWanPage::buildWanComputeTab()
     /* index 0 — Multi-Agente locale */
     m_multiAgentTab = new AgentiMultiPage(m_ai, root);
     m_execModeStack->addWidget(m_multiAgentTab);   /* index 0 */
+    if (m_lanServer)
+        m_lanServer->setGraphMemory(m_multiAgentTab->graphMemory());
 
     /* index 1 — Pannello LAN/WAN (tutto il sistema TCP distribuito) */
     auto* lanWidget = new QWidget;

@@ -255,6 +255,17 @@ MKTLLLTLVVVTIVCLDLGAV
               &darr;
          Click sulla riga &rarr; tab Risultati &rarr; output + hash SHA-256</pre>
 
+<h2>&#129302; Modelli LLM consigliati (Ollama)</h2>
+<table>
+  <tr><th>Modello</th><th>Dimensione</th><th>Uso ideale</th><th>Comando</th></tr>
+  <tr><td><b>llama3.2:3b</b></td><td>2 GB</td><td>Generale, veloce</td><td><code>ollama pull llama3.2:3b</code></td></tr>
+  <tr><td><b>qwen2.5:7b</b></td><td>5 GB</td><td>Scienza, chimica, coding</td><td><code>ollama pull qwen2.5:7b</code></td></tr>
+  <tr><td><b>medllama2</b></td><td>4 GB</td><td>Medicina, biologia</td><td><code>ollama pull medllama2</code></td></tr>
+  <tr><td><b>biomistral</b></td><td>4 GB</td><td>Bioinformatica, genomica</td><td><code>ollama pull biomistral</code></td></tr>
+  <tr><td><b>deepseek-r1:7b</b></td><td>5 GB</td><td>Ragionamento scientifico</td><td><code>ollama pull deepseek-r1:7b</code></td></tr>
+</table>
+<p class="muted">Scegli il modello nel campo <b>&#129302; LLM</b> nel form &ldquo;Nuova Work Unit&rdquo; prima di aggiungere il task.</p>
+
 <p class="muted" style="margin-top:18px;">
 Prismalux v2.9 &mdash; Calcolo Scientifico Distribuito &mdash;
 <a href="https://github.com/wildlux/Prismalux">github.com/wildlux/Prismalux</a>
@@ -324,11 +335,32 @@ QWidget* SciComputePage::buildUi()
         "\xf0\x9f\x9f\xa2  Avvia Coordinator", cfgBar);
     m_btnStartStop->setObjectName("primaryBtn");
 
+    /* Token inline — visibile solo in modalità Coordinator */
+    auto* tokenWidget = new QWidget(cfgBar);
+    auto* tokenLay = new QHBoxLayout(tokenWidget);
+    tokenLay->setContentsMargins(0,0,0,0); tokenLay->setSpacing(dpiScale(4));
+    tokenLay->addWidget(new QLabel("Token:", tokenWidget));
+    m_tokenEdit = new QLineEdit(tokenWidget);
+    m_tokenEdit->setEchoMode(QLineEdit::Password);
+    m_tokenEdit->setText(m_token);
+    m_tokenEdit->setToolTip(tr("Token condiviso con tutti i worker (VPN Tailscale consigliata)"));
+    m_tokenEdit->setFixedWidth(dpiScale(180));
+    auto* btnShowToken = new QPushButton("\xf0\x9f\x91\x81", tokenWidget);
+    btnShowToken->setFixedWidth(dpiScale(28));
+    btnShowToken->setObjectName("actionBtn");
+    connect(btnShowToken, &QPushButton::clicked, this, [this] {
+        m_tokenEdit->setEchoMode(
+            m_tokenEdit->echoMode() == QLineEdit::Password
+            ? QLineEdit::Normal : QLineEdit::Password);
+    });
+    tokenLay->addWidget(m_tokenEdit);
+    tokenLay->addWidget(btnShowToken);
+
     auto* btnGuida = new QPushButton(
         "\xf0\x9f\x93\x96  Guida", cfgBar);
     btnGuida->setObjectName("actionBtn");
     btnGuida->setToolTip(
-        "Esempi pratici per novellini ed esperti:\n"
+        "Esempi pratici, modelli LLM consigliati, sicurezza:\n"
         "Monte Carlo, BLAST, ESMFold, Pipeline, VPN multi-PC");
 
     cfgLay->addWidget(coordRb);
@@ -336,37 +368,19 @@ QWidget* SciComputePage::buildUi()
     cfgLay->addSpacing(dpiScale(12));
     cfgLay->addWidget(m_localChk);
     cfgLay->addStretch(1);
+    cfgLay->addWidget(tokenWidget);
     cfgLay->addWidget(btnGuida);
     cfgLay->addWidget(m_btnStartStop);
     rootLay->addWidget(cfgBar);
 
-    /* ── Token + host (stack: coordinator vs worker) ── */
+    /* ── Riga worker (nascosta di default) ── */
     m_modeStack = new QStackedWidget(root);
+    m_modeStack->setMaximumHeight(dpiScale(36));
 
-    /* Coordinator: solo token */
-    auto* coordCfg = new QWidget;
-    auto* ccLay    = new QHBoxLayout(coordCfg);
-    ccLay->setContentsMargins(0,0,0,0); ccLay->setSpacing(dpiScale(6));
-    ccLay->addWidget(new QLabel("Token:", coordCfg));
-    m_tokenEdit = new QLineEdit(coordCfg);
-    m_tokenEdit->setEchoMode(QLineEdit::Password);
-    m_tokenEdit->setText(m_token);
-    m_tokenEdit->setToolTip(tr("Token condiviso con tutti i worker (VPN Tailscale consigliata)"));
-    m_tokenEdit->setFixedWidth(dpiScale(220));
-    auto* btnShowToken = new QPushButton("\xf0\x9f\x91\x81", coordCfg);
-    btnShowToken->setFixedWidth(dpiScale(30));
-    btnShowToken->setObjectName("actionBtn");
-    connect(btnShowToken, &QPushButton::clicked, this, [this] {
-        m_tokenEdit->setEchoMode(
-            m_tokenEdit->echoMode() == QLineEdit::Password
-            ? QLineEdit::Normal : QLineEdit::Password);
-    });
-    ccLay->addWidget(m_tokenEdit);
-    ccLay->addWidget(btnShowToken);
-    ccLay->addStretch(1);
-    m_modeStack->addWidget(coordCfg);   /* index 0 */
+    /* index 0: placeholder coordinator (nascosto, token è nel cfgBar) */
+    m_modeStack->addWidget(new QWidget);
 
-    /* Worker: host + token + connect */
+    /* index 1: Worker — host + token + connect */
     auto* workerCfg = new QWidget;
     auto* wcLay     = new QHBoxLayout(workerCfg);
     wcLay->setContentsMargins(0,0,0,0); wcLay->setSpacing(dpiScale(6));
@@ -387,9 +401,15 @@ QWidget* SciComputePage::buildUi()
     m_btnConnect->setObjectName("primaryBtn");
     wcLay->addWidget(m_btnConnect);
     wcLay->addStretch(1);
-    m_modeStack->addWidget(workerCfg);  /* index 1 */
+    m_modeStack->addWidget(workerCfg);   /* index 1 */
 
     rootLay->addWidget(m_modeStack);
+
+    /* Mostra/nascondi token e stack in base al modo */
+    connect(modeBg, &QButtonGroup::idClicked, cfgBar, [this, tokenWidget](int id) {
+        tokenWidget->setVisible(id == 0);
+        if (m_modeStack) m_modeStack->setCurrentIndex(id);
+    });
 
     /* Status bar */
     m_statusLbl = new QLabel(
@@ -397,40 +417,6 @@ QWidget* SciComputePage::buildUi()
     m_statusLbl->setTextFormat(Qt::RichText);
     m_statusLbl->setObjectName("cardDesc");
     rootLay->addWidget(m_statusLbl);
-
-    /* ── Riga LLM Scientifico ── */
-    auto* llmBar  = new QWidget(root);
-    auto* llmLay  = new QHBoxLayout(llmBar);
-    llmLay->setContentsMargins(0,0,0,0); llmLay->setSpacing(dpiScale(6));
-
-    llmLay->addWidget(new QLabel(
-        "\xf0\x9f\xa4\x96  Modello LLM per analisi scientifica:", llmBar));
-
-    m_sciModelEdit = new QLineEdit(llmBar);
-    m_sciModelEdit->setText(m_sciLlmModel);
-    m_sciModelEdit->setPlaceholderText(tr("llama3.2:3b, medllama2, biomistral..."));
-    m_sciModelEdit->setFixedWidth(dpiScale(180));
-    m_sciModelEdit->setToolTip(
-        "Modello Ollama dedicato alle analisi scientifiche.\n"
-        "Modelli consigliati:\n"
-        "  llama3.2:3b    — veloce, generale (2GB)\n"
-        "  qwen2.5:7b     — ottimo per scienza/chimica (5GB)\n"
-        "  medllama2      — specializzato medicina (4GB)\n"
-        "  biomistral     — bioinformatica (4GB)\n"
-        "  deepseek-r1:7b — ragionamento scientifico (5GB)");
-    llmLay->addWidget(m_sciModelEdit);
-
-    auto* btnPull = new QPushButton(
-        "\xe2\xac\x87  Scarica", llmBar);
-    btnPull->setObjectName("actionBtn");
-    btnPull->setToolTip(tr("Scarica il modello via Ollama (ollama pull)"));
-    llmLay->addWidget(btnPull);
-
-    m_sciModelStatus = new QLabel("", llmBar);
-    m_sciModelStatus->setObjectName("hintLabel");
-    llmLay->addWidget(m_sciModelStatus, 1);
-
-    rootLay->addWidget(llmBar);
 
     /* ── Corpo principale: splitter verticale ── */
     auto* splitter = new QSplitter(Qt::Vertical, root);
@@ -466,6 +452,30 @@ QWidget* SciComputePage::buildUi()
     m_labelEdit->setPlaceholderText(tr("Descrizione breve (opzionale)"));
     lblRow->addWidget(m_labelEdit, 1);
     formLay->addLayout(lblRow);
+
+    /* LLM del server */
+    auto* llmRow = new QHBoxLayout;
+    llmRow->addWidget(new QLabel("\xf0\x9f\xa4\x96  LLM:", createGroup));
+    m_wuLlmCombo = new QComboBox(createGroup);
+    m_wuLlmCombo->setObjectName("settingCombo");
+    m_wuLlmCombo->setEditable(true);
+    m_wuLlmCombo->addItem(m_sciLlmModel);
+    m_wuLlmCombo->setToolTip(
+        "Modello Ollama usato per le analisi LLM in questa WU.\n"
+        "Consigliati:\n"
+        "  llama3.2:3b    — veloce, generale (2GB)\n"
+        "  qwen2.5:7b     — scienza/chimica (5GB)\n"
+        "  medllama2      — medicina (4GB)\n"
+        "  biomistral     — bioinformatica (4GB)\n"
+        "  deepseek-r1:7b — ragionamento scientifico (5GB)");
+    llmRow->addWidget(m_wuLlmCombo, 1);
+    auto* btnRefLlm = new QPushButton("\xf0\x9f\x94\x84", createGroup);
+    btnRefLlm->setObjectName("actionBtn");
+    btnRefLlm->setFixedWidth(dpiScale(28));
+    btnRefLlm->setToolTip(tr("Aggiorna lista modelli Ollama disponibili"));
+    connect(btnRefLlm, &QPushButton::clicked, this, &SciComputePage::onFetchLlmModels);
+    llmRow->addWidget(btnRefLlm);
+    formLay->addLayout(llmRow);
 
     /* Params JSON */
     formLay->addWidget(new QLabel("Parametri JSON:", createGroup));
@@ -516,12 +526,12 @@ QWidget* SciComputePage::buildUi()
     /* Scroll area per il form — evita overflow/sovrapposizione quando
        la finestra è bassa. Il form ha ~360px di altezza naturale. */
     auto* formScroll = new QScrollArea(topWidget);
-    formScroll->setFixedWidth(dpiScale(326));
+    formScroll->setMinimumWidth(dpiScale(200));
     formScroll->setWidgetResizable(true);
     formScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     formScroll->setFrameShape(QFrame::NoFrame);
     formScroll->setWidget(createGroup);
-    topLay->addWidget(formScroll);
+    topLay->addWidget(formScroll, 1);
 
     /* Pannello destra: tabella WU */
     auto* wuGroup = new QGroupBox(
@@ -545,6 +555,9 @@ QWidget* SciComputePage::buildUi()
     m_wuTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_wuTable->verticalHeader()->hide();
     m_wuTable->setAlternatingRowColors(true);
+    m_wuTable->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_wuTable, &QTableWidget::customContextMenuRequested,
+            this, &SciComputePage::onWuContextMenu);
     wuGLay->addWidget(m_wuTable, 1);
 
     auto* wuBtnRow = new QHBoxLayout;
@@ -595,6 +608,9 @@ QWidget* SciComputePage::buildUi()
     m_nodeTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_nodeTable->verticalHeader()->hide();
     m_nodeTable->setAlternatingRowColors(true);
+    m_nodeTable->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_nodeTable, &QTableWidget::customContextMenuRequested,
+            this, &SciComputePage::onNodeContextMenu);
     nodeLay->addWidget(m_nodeTable);
     bottomTabs->addTab(nodeWidget, "\xf0\x9f\x96\xa5  Nodi");
 
@@ -726,41 +742,6 @@ QWidget* SciComputePage::buildUi()
     connect(btnGuida, &QPushButton::clicked, this,
             [this] { showGuide(this); });
 
-    /* Modello LLM scientifico */
-    connect(m_sciModelEdit, &QLineEdit::textChanged, this,
-            [this](const QString& t) {
-        m_sciLlmModel = t.trimmed();
-        if (m_sciModelStatus) m_sciModelStatus->setText("");
-    });
-
-    connect(btnPull, &QPushButton::clicked, this, [this, btnPull] {
-        const QString model = m_sciModelEdit ? m_sciModelEdit->text().trimmed() : QString();
-        if (model.isEmpty()) return;
-        if (m_sciModelStatus)
-            m_sciModelStatus->setText(tr("\xf0\x9f\x94\x84  Download in corso..."));
-        btnPull->setEnabled(false);
-        appendLog("Scaricando modello: " + model + " via Ollama...");
-
-        /* Avvia ollama pull in background */
-        auto* proc = new QProcess(this);
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, proc, model, btnPull](int code, QProcess::ExitStatus) {
-            proc->deleteLater();
-            if (m_sciModelStatus) {
-                m_sciModelStatus->setText(
-                    code == 0
-                    ? "<span style='color:#22c55e;'>\xe2\x9c\x85  " + model + " pronto</span>"
-                    : "<span style='color:#ef4444;'>\xe2\x9d\x8c  Download fallito</span>");
-            }
-            if (btnPull) btnPull->setEnabled(true);
-            appendLog(code == 0
-                ? "\xe2\x9c\x85  Modello scaricato: " + model
-                : "\xe2\x9d\x8c  Errore download modello: " + model);
-            if (code != 0) LogBus::post("\xe2\x9d\x8c SciCompute: Errore download modello: " + model);
-        });
-        proc->start("ollama", {"pull", model});
-    });
-
     connect(modeBg, &QButtonGroup::idClicked, this, [this](int id) {
         m_isCoord = (id == 0);
         if (m_modeStack) m_modeStack->setCurrentIndex(id);
@@ -876,9 +857,11 @@ void SciComputePage::refreshNodeTable()
             m_nodeTable->setItem(i, col, item);
         };
 
-        /* Evidenzia nodo locale */
+        /* Evidenzia nodo locale — salva ID completo in UserRole per context menu */
         const QString dispId = (id == m_myNodeId) ? id.left(8) + " (io)" : id.left(8);
         setCell(0, dispId, id == m_myNodeId ? "#a78bfa" : QString());
+        if (m_nodeTable->item(i, 0))
+            m_nodeTable->item(i, 0)->setData(Qt::UserRole, id);
         setCell(1, r["name"].toString() + "  [" + st + "]", stColor);
         setCell(2, r["addr"].toString() + ":" + r["port"].toString());
         setCell(3, r["cpu"].toString());

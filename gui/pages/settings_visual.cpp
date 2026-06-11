@@ -97,17 +97,13 @@ QWidget* ImpostazioniPage::buildTemaTab() {
     leftCol->setContentsMargins(0, 0, 0, 0);
     leftCol->setSpacing(16);
 
-    /* Titolo + hint in cima alla colonna sinistra (allineati con "Tema corrente") */
+    /* Titolo in cima alla colonna sinistra */
     auto* title = new QLabel("\xf0\x9f\x8e\xa8  Aspetto e Tema", leftColW);
     title->setStyleSheet("font-size:16px; font-weight:700; color:#e5e7eb;");
+    title->setToolTip(
+        "Copia file .qss nella cartella themes/ accanto "
+        "all'eseguibile per aggiungere temi personalizzati.");
     leftCol->addWidget(title);
-
-    auto* hint = new QLabel(
-        "Copia file <b>.qss</b> nella cartella <code>themes/</code> accanto "
-        "all'eseguibile per aggiungere temi personalizzati.", leftColW);
-    hint->setWordWrap(true);
-    hint->setStyleSheet("color:#9ca3af; font-size:12px;");
-    leftCol->addWidget(hint);
 
     /* ── Sezione: Segui tema di sistema ── */
     /* sysCb dichiarato a scope funzione: deve essere accessibile più avanti per il wiring con grid_w */
@@ -122,23 +118,19 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         sysCb = new QCheckBox(
             "\xf0\x9f\x8c\x99  Segui tema di sistema (Dark/Light automatico)", secSystem);
         sysCb->setObjectName("cardDesc");
+        sysCb->setToolTip(
+            "Quando attivo, Prismalux segue automaticamente il tema chiaro/scuro\n"
+            "impostato nel sistema operativo. Disattiva per scegliere manualmente.");
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
         sysCb->setEnabled(true);
         sysCb->setChecked(ThemeManager::instance()->followSystem());
-        /* La connessione viene completata dopo la creazione di grid_w (vedi sotto) */
 #else
         sysCb->setEnabled(false);
         sysCb->setToolTip(tr("Richiede Qt 6.5 o superiore."));
 #endif
 
-        auto* sysHint = new QLabel(
-            "Quando attivo, Prismalux segue automaticamente il tema chiaro/scuro "
-            "impostato nel sistema operativo. Disattiva per scegliere manualmente.", secSystem);
-        sysHint->setObjectName("hintLabel");
-        sysHint->setWordWrap(true);
-
         sysLay->addWidget(sysCb);
-        sysLay->addWidget(sysHint, 1);
+        sysLay->addStretch(1);
         leftCol->addWidget(secSystem);
     }
 
@@ -213,12 +205,8 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             "\xf0\x9f\x8f\xb7\xef\xb8\x8f  <b>Modalit\xc3\xa0 etichette tab</b>", secNav);
         navTitle->setObjectName("cardTitle");
         navTitle->setTextFormat(Qt::RichText);
+        navTitle->setToolTip("Scegli come visualizzare le etichette dei tab principali.");
         navLay->addWidget(navTitle);
-
-        auto* navHint = new QLabel(
-            "Scegli come visualizzare le etichette dei tab principali.", secNav);
-        navHint->setObjectName("hintLabel");
-        navLay->addWidget(navHint);
 
         struct NavMode { const char* label; const char* value; };
         static const NavMode kNavModes[] = {
@@ -232,23 +220,22 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         const QString curNavMode = navSett.value(P::SK::kNavTabMode, "icons_text").toString();
 
         auto* navGroup = new QButtonGroup(secNav);
-        auto* navRowW  = new QWidget(secNav);
-        auto* navRowL  = new QHBoxLayout(navRowW);
-        navRowL->setContentsMargins(0, 0, 0, 0);
-        navRowL->setSpacing(8);
+        /* Due righe da 2 per evitare overflow orizzontale */
+        auto* navGrid  = new QGridLayout;
+        navGrid->setContentsMargins(0, 0, 0, 0);
+        navGrid->setSpacing(6);
 
-        for (const auto& nm : kNavModes) {
+        for (int ni = 0; ni < 4; ++ni) {
+            const auto& nm = kNavModes[ni];
             auto* rb = new QRadioButton(QString::fromUtf8(nm.label), secNav);
             rb->setObjectName("cardDesc");
             rb->setChecked(curNavMode == nm.value);
             navGroup->addButton(rb);
-            navRowL->addWidget(rb);
-
+            navGrid->addWidget(rb, ni / 2, ni % 2);
             rb->setProperty("modeValue", QLatin1String(nm.value));
             connect(rb, &QRadioButton::toggled, this, &ImpostazioniPage::onNavTabModeToggled);
         }
-        navRowL->addStretch();
-        navLay->addWidget(navRowW);
+        navLay->addLayout(navGrid);
 
         leftCol->addWidget(secNav);
     }
@@ -265,14 +252,9 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             "\xf0\x9f\x97\x82\xef\xb8\x8f  <b>Stile navigazione</b>", secStyle);
         sTitle->setObjectName("cardTitle");
         sTitle->setTextFormat(Qt::RichText);
+        sTitle->setToolTip(
+            "Schede in alto (predefinito) oppure\nmen\xc3\xb9 orizzontale a pulsanti con categorie.");
         sLay->addWidget(sTitle);
-
-        auto* sHint = new QLabel(
-            "Schede in alto (predefinito) oppure men\xc3\xb9 orizzontale a pulsanti con categorie.",
-            secStyle);
-        sHint->setObjectName("hintLabel");
-        sHint->setWordWrap(true);
-        sLay->addWidget(sHint);
 
         struct NavStyleOpt { const char* label; const char* value; };
         static const NavStyleOpt kStyles[] = {
@@ -315,13 +297,8 @@ QWidget* ImpostazioniPage::buildTemaTab() {
             "\xe2\x96\xb6  <b>Pulsanti di esecuzione</b>", secExec);
         eTitle->setObjectName("cardTitle");
         eTitle->setTextFormat(Qt::RichText);
+        eTitle->setToolTip("Avvia, Stop, Esegui, Calcola e simili \xe2\x80\x94 in tutte le schede.");
         eLay->addWidget(eTitle);
-
-        auto* eHint = new QLabel(
-            "Avvia, Stop, Esegui, Calcola e simili \xe2\x80\x94 in tutte le schede.", secExec);
-        eHint->setObjectName("hintLabel");
-        eHint->setWordWrap(true);
-        eLay->addWidget(eHint);
 
         struct ExecMode { const char* label; const char* value; };
         static const ExecMode kExecModes[] = {
@@ -357,13 +334,13 @@ QWidget* ImpostazioniPage::buildTemaTab() {
 
     /* ═══════════════ COLONNA DESTRA ═══════════════ */
     auto* rightColW = new QWidget(outer);
-    rightColW->setMinimumWidth(dpiScale(400));
-    rightColW->setMaximumWidth(dpiScale(520));
+    /* 4 card × 130px + 3 × 6px spaziatura + 16px margini = 554px minimo */
+    rightColW->setMinimumWidth(dpiScale(554));
     auto* rightCol  = new QVBoxLayout(rightColW);
     rightCol->setContentsMargins(0, 0, 0, 0);
     rightCol->setSpacing(8);
 
-    /* ── Griglia card (3 per riga, card 130×100) ── */
+    /* ── Griglia card (4 per riga, card 130×100) ── */
     auto* scroll = new QScrollArea(rightColW);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
@@ -480,8 +457,9 @@ QWidget* ImpostazioniPage::buildTemaTab() {
 #endif
 
     /* ── Assembla le colonne nella riga principale ── */
-    mainRow->addWidget(leftColW, 1);
-    mainRow->addWidget(rightColW, 0);
+    leftColW->setMaximumWidth(dpiScale(360));
+    mainRow->addWidget(leftColW, 0);
+    mainRow->addWidget(rightColW, 1);
     vlay->addLayout(mainRow, 1);
 
     return outer;

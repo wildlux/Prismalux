@@ -73,6 +73,9 @@ private slots:
     void onDeleteWuClicked();
     void onGenerateFromFileClicked();
     void onAggregateResultsClicked();
+    void onWuContextMenu(const QPoint& pos);
+    void onNodeContextMenu(const QPoint& pos);
+    void onFetchLlmModels();
 
 private:
     /* ── DB ── */
@@ -191,6 +194,5 @@ private:
     QString           m_selectedWuId;
     SciProteinWidget* m_proteinWidget  = nullptr;
     QString           m_sciLlmModel    = "llama3.2:3b"; /* modello LLM per analisi sci */
-    QLineEdit*        m_sciModelEdit   = nullptr;
-    QLabel*           m_sciModelStatus = nullptr;
+    QComboBox*        m_wuLlmCombo     = nullptr;  /* combo LLM nel form Nuova WU */
 };

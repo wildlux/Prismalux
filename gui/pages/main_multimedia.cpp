@@ -1925,7 +1925,8 @@ QWidget* MultimediaPage::buildOsmMapTab()
             w, [this](int idx, double lat, double lon) {
         const QString lbl = QString::fromLatin1("%1").arg(QChar('A' + idx % 26));
         auto* item = new QListWidgetItem(
-            QString("%1  %.5f, %.5f").arg(lbl).arg(lat).arg(lon));
+            QString("%1  %2, %3").arg(lbl)
+                .arg(lat, 0, 'f', 5).arg(lon, 0, 'f', 5));
         item->setData(Qt::UserRole,     lat);
         item->setData(Qt::UserRole + 1, lon);
         if (m_osmWpList) m_osmWpList->addItem(item);
@@ -1940,10 +1941,10 @@ QWidget* MultimediaPage::buildOsmMapTab()
         const auto& labels = m_osmMap->waypointLabels();
         for (int i = 0; i < coords.size(); ++i) {
             auto* item = new QListWidgetItem(
-                QString("%1  %.5f, %.5f")
+                QString("%1  %2, %3")
                     .arg(labels.value(i, "?"))
-                    .arg(coords[i].first)
-                    .arg(coords[i].second));
+                    .arg(coords[i].first,  0, 'f', 5)
+                    .arg(coords[i].second, 0, 'f', 5));
             item->setData(Qt::UserRole,     coords[i].first);
             item->setData(Qt::UserRole + 1, coords[i].second);
             m_osmWpList->addItem(item);

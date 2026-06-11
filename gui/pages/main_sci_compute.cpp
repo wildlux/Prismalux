@@ -29,10 +29,14 @@
 #include <QStackedWidget>
 #include <QRegularExpression>
 #include <QSysInfo>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
 #include <QSharedPointer>
 #include <QFileDialog>
 #include <QInputDialog>
 #include <QMessageBox>
+#include <QMenu>
 #include <QSpinBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -677,9 +681,11 @@ void SciComputePage::stopServer()
 {
     disconnectFromCoord();
     if (m_server) { m_server->close(); }
-    for (auto* s : m_srvBufs.keys()) { s->disconnectFromHost(); s->deleteLater(); }
+    for (auto* s : m_srvBufs.keys()) {
+        if (s) { s->blockSignals(true); s->disconnectFromHost(); s->deleteLater(); }
+    }
     m_srvBufs.clear(); m_sockNode.clear(); m_nodeSock.clear();
-    m_heartbeatTimer->stop();
+    if (m_heartbeatTimer) m_heartbeatTimer->stop();
     appendLog("\xf0\x9f\x94\xb4  Server fermato.");
     updateStatus();
     if (m_btnStartStop) m_btnStartStop->setText(tr("\xf0\x9f\x9f\xa2  Avvia Coordinator"));
@@ -1636,11 +1642,28 @@ void SciComputePage::onAddWuClicked()
     if (!m_typeCombo || !m_paramsEdit) return;
     const QString type     = m_typeCombo->currentData().toString();
     const QString label    = m_labelEdit ? m_labelEdit->text().trimmed() : type;
-    const QString params   = m_paramsEdit->toPlainText().trimmed();
     const int     priority = m_priorityCmb ? m_priorityCmb->currentData().toInt() : 1;
     const int     replicas = m_replicasCmb ? m_replicasCmb->currentData().toInt() : 1;
 
     if (type.isEmpty()) return;
+
+    /* Seleziona il modello LLM scelto e aggiornalo in m_sciLlmModel */
+    if (m_wuLlmCombo && !m_wuLlmCombo->currentText().isEmpty())
+        m_sciLlmModel = m_wuLlmCombo->currentText().trimmed();
+
+    /* Inietta "model" nei params se il task è di tipo LLM */
+    QString params = m_paramsEdit->toPlainText().trimmed();
+    const bool isLlmTask = type.contains("llm") || type.contains("ai_analysis")
+                        || type == "llm_agent" || type == "llm_sci_analysis";
+    if (isLlmTask) {
+        QJsonParseError jerr2;
+        QJsonObject obj = QJsonDocument::fromJson(params.toUtf8(), &jerr2).object();
+        if (jerr2.error == QJsonParseError::NoError) {
+            obj["model"] = m_sciLlmModel;
+            params = QString::fromUtf8(QJsonDocument(obj).toJson(QJsonDocument::Indented));
+            m_paramsEdit->setPlainText(params);
+        }
+    }
 
     /* Validazione JSON params */
     QJsonParseError jerr;
@@ -1655,6 +1678,31 @@ void SciComputePage::onAddWuClicked()
     appendLog(QString("\xe2\x9e\x95  WU aggiunta: %1 (%2) — id %3")
               .arg(label, type, id.left(8)));
     refreshWuTable();
+}
+
+void SciComputePage::onFetchLlmModels()
+{
+    if (!m_wuLlmCombo) return;
+    auto* reply = new QNetworkAccessManager(this);
+    connect(reply, &QNetworkAccessManager::finished, this,
+            [this, reply](QNetworkReply* r) {
+        reply->deleteLater();
+        if (r->error() != QNetworkReply::NoError) {
+            appendLog("\xe2\x9a\xa0  Ollama non raggiungibile (" + r->errorString() + ")");
+            return;
+        }
+        const QJsonArray models =
+            QJsonDocument::fromJson(r->readAll()).object()["models"].toArray();
+        if (models.isEmpty()) return;
+        const QString prev = m_wuLlmCombo->currentText();
+        m_wuLlmCombo->clear();
+        for (const auto& v : models)
+            m_wuLlmCombo->addItem(v.toObject()["name"].toString());
+        const int idx = m_wuLlmCombo->findText(prev);
+        m_wuLlmCombo->setCurrentIndex(idx >= 0 ? idx : 0);
+        appendLog(QString("\xf0\x9f\xa4\x96  %1 modelli Ollama caricati").arg(models.size()));
+    });
+    reply->get(QNetworkRequest(QUrl("http://127.0.0.1:11434/api/tags")));
 }
 
 void SciComputePage::onTypeComboChanged(int idx)
@@ -1692,6 +1740,109 @@ void SciComputePage::onDeleteWuClicked()
     m_selectedWuId.clear();
     refreshWuTable();
     refreshResults();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onWuContextMenu — menu contestuale sulla tabella Work Units
+   ══════════════════════════════════════════════════════════════ */
+void SciComputePage::onWuContextMenu(const QPoint& pos)
+{
+    if (!m_wuTable) return;
+    const int row = m_wuTable->rowAt(pos.y());
+    if (row < 0) return;
+
+    auto* it0 = m_wuTable->item(row, 0);
+    const QString wuId = it0 ? it0->data(Qt::UserRole).toString() : QString();
+    if (wuId.isEmpty()) return;
+
+    const QString status = m_wuTable->item(row, 3)
+                           ? m_wuTable->item(row, 3)->text() : QString();
+    const bool canDelete = !status.contains("running");
+    const bool canRestart = (status == "done" || status == "error"
+                             || status == "validated" || status == "conflict"
+                             || status.contains('%'));
+
+    QMenu menu(this);
+    auto* actDelete  = menu.addAction("\xf0\x9f\x97\x91  Elimina WU");
+    auto* actRestart = menu.addAction("\xf0\x9f\x94\x84  Riavvia WU");
+    actDelete->setEnabled(canDelete);
+    actRestart->setEnabled(canRestart);
+
+    auto* chosen = menu.exec(m_wuTable->viewport()->mapToGlobal(pos));
+    if (!chosen) return;
+
+    if (chosen == actDelete) {
+        m_selectedWuId = wuId;
+        onDeleteWuClicked();
+    } else if (chosen == actRestart) {
+#ifdef HAVE_QT_SQL
+        QSqlQuery q(QSqlDatabase::database(m_connName));
+        q.prepare("UPDATE work_units SET status='pending', node_id=NULL, "
+                  "started_at=NULL, finished_at=NULL WHERE id=?");
+        q.addBindValue(wuId);
+        q.exec();
+        q.prepare("DELETE FROM wu_results WHERE wu_id=?");
+        q.addBindValue(wuId);
+        q.exec();
+#endif
+        appendLog("WU " + wuId.left(8) + " rimessa in coda");
+        refreshWuTable();
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onNodeContextMenu — menu contestuale sulla tabella Nodi
+   ══════════════════════════════════════════════════════════════ */
+void SciComputePage::onNodeContextMenu(const QPoint& pos)
+{
+    if (!m_nodeTable) return;
+    const int row = m_nodeTable->rowAt(pos.y());
+    if (row < 0) return;
+
+    auto* it0 = m_nodeTable->item(row, 0);
+    const QString nodeId = it0 ? it0->data(Qt::UserRole).toString() : QString();
+    if (nodeId.isEmpty()) return;
+
+    QMenu menu(this);
+    auto* actDisconn = menu.addAction("\xf0\x9f\x94\x8c  Disconnetti nodo");
+    auto* actRemove  = menu.addAction("\xf0\x9f\x97\x91  Rimuovi nodo dal DB");
+
+    /* Col 1 contiene testo "Nome  [status]" */
+    const QString col1 = m_nodeTable->item(row, 1)
+                         ? m_nodeTable->item(row, 1)->text() : QString();
+    actDisconn->setEnabled(!col1.contains("[offline]"));
+
+    auto* chosen = menu.exec(m_nodeTable->viewport()->mapToGlobal(pos));
+    if (!chosen) return;
+
+    if (chosen == actDisconn) {
+        /* Chiude il socket se connesso */
+        if (m_nodeSock.contains(nodeId)) {
+            QTcpSocket* s = m_nodeSock.value(nodeId);
+            if (s) s->disconnectFromHost();
+        }
+        setNodeStatus(nodeId, "offline");
+        appendLog("Nodo " + nodeId.left(8) + " disconnesso");
+        refreshNodeTable();
+    } else if (chosen == actRemove) {
+        const auto btn = QMessageBox::question(this,
+            tr("Rimuovi nodo"),
+            tr("Rimuovere il nodo %1 dal database?").arg(nodeId.left(8)),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+        if (btn != QMessageBox::Yes) return;
+        if (m_nodeSock.contains(nodeId)) {
+            QTcpSocket* s = m_nodeSock.value(nodeId);
+            if (s) s->disconnectFromHost();
+        }
+#ifdef HAVE_QT_SQL
+        QSqlQuery q(QSqlDatabase::database(m_connName));
+        q.prepare("DELETE FROM sci_nodes WHERE id=?");
+        q.addBindValue(nodeId);
+        q.exec();
+#endif
+        appendLog("Nodo " + nodeId.left(8) + " rimosso");
+        refreshNodeTable();
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════

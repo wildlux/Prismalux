@@ -161,6 +161,8 @@ QWidget* ImpostazioniPage::buildVoceTab()
 
     auto* lblPiperStatus = new QLabel(secPiper);
     lblPiperStatus->setObjectName("cardDesc");
+    lblPiperStatus->setWordWrap(true);
+    lblPiperStatus->setTextFormat(Qt::RichText);
 
     auto refreshStatus = [lblPiperStatus]() {
         const QString bin = ImpostazioniPage::piperBinPath();

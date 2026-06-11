@@ -14,6 +14,7 @@
 #endif
 #include "ai_client.h"
 #include "rag_engine.h"
+#include "graph_memory.h"
 
 
 class LanServer : public QObject {
@@ -65,6 +66,9 @@ public:
     /** Imposta il RagEngine condiviso (opzionale — se nullptr /api/rag ritorna 503). */
     void setRag(RagEngine* rag) { m_rag = rag; }
 
+    /** Imposta la GraphMemory condivisa (opzionale — per /api/graph/*). */
+    void setGraphMemory(GraphMemory* gm) { m_graphMemory = gm; }
+
 signals:
     void statusChanged(bool running);
     void clientConnected(const QString& addr);
@@ -115,6 +119,11 @@ private:
     void handleIndex(Session& s);
     void handleWebChat(Session& s);
     void handleKatex(Session& s);
+    void handleBootstrap(Session& s);
+    void handleFileApi(Session& s);
+    void handleReplApi(Session& s);
+    void handleFinanzaCf(Session& s);
+    void handleGraphApi(Session& s);
     void sendJson(QTcpSocket* sock, const QByteArray& json);
     void sendStreamLine(const QByteArray& json);
     void sendError(QTcpSocket* sock, int code, const QString& msg);
@@ -169,6 +178,9 @@ private:
     RagEngine*              m_rag     = nullptr;
     QTcpSocket*             m_ragSock = nullptr;
     int                     m_ragK    = 5;
+
+    /* GraphMemory: borrowed pointer (owned by AgentiMultiPage) */
+    GraphMemory*            m_graphMemory = nullptr;
 
     /* Rate limiting /knowledge: max 10 req/min per IP */
     QMap<QString, int> m_knowledgeReqCount;

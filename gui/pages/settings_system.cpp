@@ -119,6 +119,10 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
     gridLay->setContentsMargins(0, 0, 0, 0);
     gridLay->setSpacing(10);
     gridLay->setAlignment(Qt::AlignTop);
+    gridLay->setColumnStretch(0, 1);
+    gridLay->setColumnStretch(1, 1);
+    gridLay->setRowStretch(0, 1);
+    gridLay->setRowStretch(1, 1);
 
     auto* rightW   = new QWidget(mainRow);
     auto* rightLay = new QVBoxLayout(rightW);
@@ -134,6 +138,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
                         const QString& sizeText) -> QGroupBox* {
         auto* grp = new QGroupBox(w);
         grp->setObjectName("cardGroup");
+        grp->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
         auto* gl  = new QVBoxLayout(grp);
         gl->setContentsMargins(12, 12, 12, 8);
         gl->setSpacing(4);
@@ -145,11 +150,13 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
         auto* dsc = new QLabel(desc, grp);
         dsc->setObjectName("cardDesc");
         dsc->setWordWrap(true);
+        dsc->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::MinimumExpanding);
         gl->addWidget(dsc);
 
         auto* pth = new QLabel(pathHint, grp);
         pth->setObjectName("hintLabel");
         pth->setWordWrap(true);
+        pth->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::MinimumExpanding);
         gl->addWidget(pth);
 
         auto* row = new QWidget(grp);
