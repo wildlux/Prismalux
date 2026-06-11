@@ -154,6 +154,8 @@ set(SRCS
     pages/ricerca_page.cpp
     pages/matematica_page.cpp
     pages/sintetizzatore_page.cpp
+    pages/assistente_page.cpp
+    graph_memory_mobile.cpp
 )
 
 if(Qt6Multimedia_FOUND)

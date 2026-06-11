@@ -15,6 +15,7 @@
 #include "pages/ricerca_page.h"
 #include "pages/matematica_page.h"
 #include "pages/sintetizzatore_page.h"
+#include "pages/assistente_page.h"
 
 #ifdef HAVE_MULTIMEDIA
 #include "pages/camera_page.h"
@@ -158,6 +159,10 @@ MainWindow::MainWindow(QWidget* parent)
     m_sintetizzatorePage = new SintetizzatorePage(this);
     m_stack->addWidget(m_sintetizzatorePage); // indice 14
 
+    /* Assistente AI a categorie (Studio/Scrittura/Ricerca/Libri/Produttività/Documenti) */
+    m_assistentePage = new AssistentePage(m_ai, this);
+    m_stack->addWidget(m_assistentePage); // indice 15
+
     auto* central = new QWidget(this);
 
 #ifdef PRISMALUX_FORM_FACTOR_TABLET
@@ -299,7 +304,8 @@ void MainWindow::buildDrawer()
 
     struct NavItem { const char* icon; const char* label; int idx; };
     const NavItem items[] = {
-        { "\xf0\x9f\xa4\x96",              "Chat",               m_idxChat       },
+        { "\xf0\x9f\xa4\x96",              "Chat",               m_idxChat         },
+        { "\xf0\x9f\x9b\xa0\xef\xb8\x8f", "Assistente AI",      m_idxAssistente   },
         { "\xf0\x9f\x93\x9a",              "Studia",             m_idxStudio     },
         { "\xf0\x9f\xa7\xa0",              "Impara con AI",      m_idxImpara     },
         { "\xcf\x80",                       "Matematica",         m_idxMatematica },
