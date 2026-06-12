@@ -394,12 +394,15 @@
 6. Default → LOCALE (veloce, gratis, privacy)
 
 **Integrazione con Prismalux:**
-- [ ] **Smart Router in AiClient** — aggiungere `decideBackend(query)` in `ai_client.cpp`
-      che applica le 5 regole sopra e commuta `m_backend` tra Ollama e un endpoint
-      OpenAI-compatible configurabile in Impostazioni→AI Locale→"Backend cloud (fallback)".
-      Prerequisito: campo URL + API key nel dialog impostazioni.
-- [ ] **Indicatore visivo routing** — nella bolla di risposta mostrare
-      `[LOCALE]` / `[CLOUD]` come parte del metadata già presente.
+- [x] **Smart Router in AiClient** — FATTO 2026-06-13: `AiClient::decideCloud(query)` con 5
+      regole (keyword sensibili→locale, >1500 char→cloud, keyword complessità→cloud,
+      default→locale). `setSmartRouter(enabled, url, model, apiKey)` + segnale `routedToCloud`.
+      Settings in Impostazioni→AI Locale: checkbox + URL + modello + API key (password field).
+      Caricato all'avvio da `mainwindow.cpp`. Routing cloud usa `/v1/chat/completions`
+      OpenAI-compatible con `Authorization: Bearer`. `gui/ai_client.cpp` + `settings_ai.cpp`.
+- [x] **Indicatore visivo routing** — FATTO 2026-06-13: badge `☁️ CLOUD` / `🏠 LOCALE`
+      accanto al campo input in OracoloPage, aggiornato ad ogni richiesta tramite
+      segnale `routedToCloud(bool)`. `m_routerLbl` in `main_oracle.cpp`.
 
 ### [12/06/26 01:04] AI Orchestrator completo (AIMemory + SmartRouter + Feedback)
 
