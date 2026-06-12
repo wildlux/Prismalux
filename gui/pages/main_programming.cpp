@@ -2584,6 +2584,19 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
     actHL->addWidget(btnStop);
     lay->addWidget(actRow);
 
+    /* ── Stato connessione VPN live ── */
+    auto* statusRow = new QWidget(w);
+    auto* statusHL  = new QHBoxLayout(statusRow);
+    statusHL->setContentsMargins(0, 0, 0, 0);
+    auto* statusCap = new QLabel(tr("Connessione:"), statusRow);
+    m_vpnLiveStatusLbl = new QLabel(tr("\xe2\x9a\xaa  Nessuna VPN attiva"), statusRow);
+    m_vpnTestBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica stato", statusRow);
+    m_vpnTestBtn->setToolTip(tr("Rileva interfacce VPN attive (wg/tun) e il loro IP, senza root"));
+    statusHL->addWidget(statusCap);
+    statusHL->addWidget(m_vpnLiveStatusLbl, 1);
+    statusHL->addWidget(m_vpnTestBtn);
+    lay->addWidget(statusRow);
+
     /* ── Log output ── */
     auto* logGroup = new QGroupBox(
         "\xf0\x9f\x93\x9f  Output comandi", w);
@@ -2661,6 +2674,19 @@ QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
 
     connect(btnImport, &QPushButton::clicked,
             this, &ProgrammazionePage::onVpnImportClicked);
+
+    connect(m_vpnTestBtn, &QPushButton::clicked,
+            this, &ProgrammazionePage::onVpnTestClicked);
+
+    /* Polling leggero dello stato VPN (QNetworkInterface, nessun processo). */
+    if (!m_vpnStatusTimer) {
+        m_vpnStatusTimer = new QTimer(this);
+        m_vpnStatusTimer->setInterval(5000);
+        connect(m_vpnStatusTimer, &QTimer::timeout,
+                this, &ProgrammazionePage::vpnRefreshStatus);
+        m_vpnStatusTimer->start();
+    }
+    vpnRefreshStatus();
 
     return w;
 }

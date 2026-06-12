@@ -191,6 +191,7 @@ set(CPP_SRCS
     pages/main_research_rag_tester.cpp
     pages/rab0l_canvas.cpp
     pages/main_app_controller.cpp
+    pages/main_mcp_manager.cpp
     pages/main_security.cpp
     pages/main_opencode.cpp
     monitor_panel.cpp
@@ -437,6 +438,24 @@ if(BUILD_TESTS)
     )
     if(NOT WIN32)
         target_link_libraries(test_lavoro_page PRIVATE pthread m)
+    endif()
+
+    # ── test_mcp_manager: McpManagerPage helper + costruzione ──
+    add_executable(test_mcp_manager
+        tests/test_mcp_manager.cpp
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_mcp_manager PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_mcp_manager PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_mcp_manager PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_mcp_manager PRIVATE pthread m)
     endif()
 
     # ── test_app_controller: AppControllerPage 100 test in 9 categorie ──
@@ -1267,6 +1286,7 @@ if(BUILD_TESTS)
     add_test(NAME RandomTool           COMMAND test_random_tool)
     add_test(NAME LavoroPage           COMMAND test_lavoro_page)
     add_test(NAME AppController        COMMAND test_app_controller)
+    add_test(NAME McpManager           COMMAND test_mcp_manager)
     add_test(NAME ProgrammazionePage   COMMAND test_programmazione_page)
     add_test(NAME ThinkingDetect       COMMAND test_thinking_detect)
     add_test(NAME AiIntegration        COMMAND test_ai_integration)

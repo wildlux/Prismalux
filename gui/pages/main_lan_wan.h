@@ -120,6 +120,13 @@ private:
     QPushButton*  m_wanAddTaskBtn   = nullptr;
     QVector<WanNode> m_wanNodes;
     QVector<WanTask> m_wanTasks;
+    /* Persistenza coda WU su SQLite (~/.prismalux/wan_tasks.db): la coda sopravvive
+       a chiusura/crash del coordinatore. wanLoadTasks() rimette "running"→"pending". */
+    void             wanLoadTasks();
+    void             wanPersistTasks();
+    void             wanSchedulePersist();   ///< salvataggio con debounce
+    QTimer*          m_wanPersistTimer    = nullptr;
+    QString          m_wanDbConn;            ///< nome connessione SQLite univoco
     QTimer*          m_wanHeartbeatTimer  = nullptr; ///< 30s ping nodi
     QLabel*          m_wanStatsLbl        = nullptr; ///< stats BOINC-style
     QTimer*          m_wanDashTimer       = nullptr; ///< 5s aggiornamento throughput

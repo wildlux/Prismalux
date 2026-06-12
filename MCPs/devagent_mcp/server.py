@@ -111,6 +111,41 @@ def bash(cmd: str, timeout: int = 120) -> tuple:
         return -1, str(e)
 
 
+# Pattern di validazione per argomenti git — usati da _git_safe()
+_RE_COMMIT  = re.compile(r'^[\w./^~@{}\[\]-]{1,200}$')   # hash, branch, tag, ref relativo
+_RE_REMOTE  = re.compile(r'^[\w.\-]{1,100}$')              # "origin", "upstream"
+_RE_BRANCH  = re.compile(r'^[\w./\-]{1,200}$')             # "master", "feature/x"
+_RE_STASH   = re.compile(r'^stash@\{\d+\}$')               # "stash@{0}"
+_RE_ROOT    = re.compile(r'^/')                             # path assoluto
+
+
+def _git_safe(project_root: str, args: list, timeout: int = 30) -> tuple:
+    """
+    Esegue git con argomenti come lista (shell=False) per evitare injection.
+    project_root deve essere un path assoluto esistente.
+    """
+    if not _RE_ROOT.match(project_root):
+        return -1, f"project_root deve essere assoluto: {project_root!r}"
+    if not os.path.isdir(project_root):
+        return -1, f"project_root non esiste: {project_root!r}"
+    try:
+        result = subprocess.run(
+            ["git", "-C", project_root] + args,
+            shell=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            encoding="utf-8",
+            errors="replace",
+        )
+        combined = result.stdout + result.stderr
+        return result.returncode, combined
+    except subprocess.TimeoutExpired:
+        return -1, f"[TIMEOUT dopo {timeout}s] git {' '.join(args)}"
+    except Exception as e:
+        return -1, str(e)
+
+
 def search_code(query: str, root: str, max_files: int = 5) -> List[str]:
     """
     Cerca file rilevanti nel progetto con grep (parole chiave della task).
@@ -1022,19 +1057,17 @@ def git_restore_files(project_root: str, commit: str,
       git checkout {commit} -- {file1} {file2} ...
     Se `files` è vuoto ripristina TUTTO il worktree (reset hard).
     """
+    if not _RE_COMMIT.match(commit):
+        return False, f"commit non valido: {commit!r}"
     if not files:
-        # Reset completo al commit
-        code, out = bash(f'git -C "{project_root}" reset --hard {commit}',
-                         timeout=30)
+        code, out = _git_safe(project_root, ["reset", "--hard", commit], timeout=30)
         if code != 0:
             return False, out
         return True, f"Reset --hard a {commit} completato."
 
-    # Ripristina solo i file indicati
-    file_args = " ".join(f'"{f}"' for f in files)
-    code, out = bash(
-        f'git -C "{project_root}" checkout {commit} -- {file_args}',
-        timeout=20
+    # Ripristina solo i file indicati (ogni file come argomento separato)
+    code, out = _git_safe(
+        project_root, ["checkout", commit, "--"] + list(files), timeout=20
     )
     if code != 0:
         return False, out
@@ -1047,25 +1080,27 @@ def git_fetch_reset(project_root: str, remote: str = "origin",
     Esegue: git fetch {remote} && git reset --hard {remote}/{branch}
     Scarica lo stato da GitHub e sovrascrive il worktree locale.
     """
-    code, out = bash(f'git -C "{project_root}" fetch {remote}', timeout=60)
+    if not _RE_REMOTE.match(remote):
+        return False, f"remote non valido: {remote!r}"
+    if not _RE_BRANCH.match(branch):
+        return False, f"branch non valido: {branch!r}"
+    code, out = _git_safe(project_root, ["fetch", remote], timeout=60)
     if code != 0:
         return False, f"git fetch fallito: {out}"
 
-    code2, out2 = bash(
-        f'git -C "{project_root}" reset --hard {remote}/{branch}',
-        timeout=20
-    )
+    ref = f"{remote}/{branch}"
+    code2, out2 = _git_safe(project_root, ["reset", "--hard", ref], timeout=20)
     if code2 != 0:
         return False, f"git reset --hard fallito: {out2}"
-    return True, f"Ripristinato a {remote}/{branch}:\n{out2}"
+    return True, f"Ripristinato a {ref}:\n{out2}"
 
 
 def git_stash_push(project_root: str, message: str = "") -> tuple:
     """Salva le modifiche correnti in uno stash Git."""
-    msg_arg = f'--message "{message}"' if message else ""
-    code, out = bash(
-        f'git -C "{project_root}" stash push {msg_arg}', timeout=15
-    )
+    args = ["stash", "push"]
+    if message:
+        args += ["--message", message]
+    code, out = _git_safe(project_root, args, timeout=15)
     if code != 0:
         return False, out
     return True, out.strip() or "Stash salvato."
@@ -1073,9 +1108,8 @@ def git_stash_push(project_root: str, message: str = "") -> tuple:
 
 def git_stash_list(project_root: str) -> List[dict]:
     """Lista gli stash git disponibili."""
-    code, out = bash(
-        f'git -C "{project_root}" stash list --format="%gd|%s|%cr"',
-        timeout=10
+    code, out = _git_safe(
+        project_root, ["stash", "list", "--format=%gd|%s|%cr"], timeout=10
     )
     entries = []
     for line in out.strip().splitlines():
@@ -1091,9 +1125,9 @@ def git_stash_list(project_root: str) -> List[dict]:
 
 def git_stash_pop(project_root: str, ref: str = "stash@{0}") -> tuple:
     """Applica e rimuove uno stash git."""
-    code, out = bash(
-        f'git -C "{project_root}" stash pop {ref}', timeout=15
-    )
+    if not _RE_STASH.match(ref):
+        return False, f"ref stash non valido: {ref!r}"
+    code, out = _git_safe(project_root, ["stash", "pop", ref], timeout=15)
     if code != 0:
         return False, out
     return True, f"Stash applicato: {out.strip()}"

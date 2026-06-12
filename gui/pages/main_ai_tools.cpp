@@ -307,18 +307,39 @@ void AgentiPage::runToolCall(const QJsonObject& call,
         QJsonArray _ua; _ua.append(url.left(500));
         const QString _urlJson = QString::fromUtf8(
             QJsonDocument(_ua).toJson(QJsonDocument::Compact)).mid(1).chopped(1);
+        /* SSRF guard: rifiuta host che risolvono a IP loopback/privati/link-local,
+           sia per l'URL iniziale sia per ogni redirect. Mitiga prompt-injection→SSRF
+           (es. http://127.0.0.1:11434 verso Ollama, o metadata cloud 169.254.169.254). */
         const QString script =
-            "import urllib.request,html\n"
+            "import urllib.request,urllib.parse,ipaddress,socket,html\n"
+            "def _blocked(host):\n"
+            "    if not host: return True\n"
+            "    try: infos=socket.getaddrinfo(host,None)\n"
+            "    except Exception: return True\n"
+            "    for info in infos:\n"
+            "        try: a=ipaddress.ip_address(info[4][0])\n"
+            "        except Exception: return True\n"
+            "        if a.is_private or a.is_loopback or a.is_link_local or a.is_reserved or a.is_multicast or a.is_unspecified: return True\n"
+            "    return False\n"
+            "class _SafeRedirect(urllib.request.HTTPRedirectHandler):\n"
+            "    def redirect_request(self,req,fp,code,msg,headers,newurl):\n"
+            "        if _blocked(urllib.parse.urlparse(newurl).hostname): return None\n"
+            "        return super().redirect_request(req,fp,code,msg,headers,newurl)\n"
             "url=" + _urlJson + "\n"
             "try:\n"
-            "    req=urllib.request.Request(url,headers={"
+            "    p=urllib.parse.urlparse(url)\n"
+            "    if p.scheme not in ('http','https') or _blocked(p.hostname):\n"
+            "        print('ERRORE: URL non consentito (host interno/privato o schema non valido)')\n"
+            "    else:\n"
+            "        req=urllib.request.Request(url,headers={"
             "'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',"
             "'Accept':'text/html,application/xhtml+xml,*/*','Accept-Language':'it,en;q=0.9'})\n"
-            "    with urllib.request.urlopen(req,timeout=10) as r:\n"
-            "        raw=r.read()\n"
-            "        enc=r.headers.get_content_charset('utf-8')\n"
-            "        content=raw.decode(enc,errors='replace')\n"
-            "    print(content[:4000])\n"
+            "        opener=urllib.request.build_opener(_SafeRedirect)\n"
+            "        with opener.open(req,timeout=10) as r:\n"
+            "            raw=r.read()\n"
+            "            enc=r.headers.get_content_charset('utf-8')\n"
+            "            content=raw.decode(enc,errors='replace')\n"
+            "        print(content[:4000])\n"
             "except Exception as e: print('ERRORE:',e)\n";
         auto* proc = new QProcess(this);
         proc->setProcessChannelMode(QProcess::MergedChannels);

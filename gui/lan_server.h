@@ -60,6 +60,18 @@ public:
     static void    saveLanToken(const QString& token);
     static QString loadLanToken();
 
+    /**
+     * saveSecret() / loadSecret() / deleteSecret() — storage sicuro generico.
+     *
+     * Stessa logica di saveLanToken (keyring di sistema con QKeychain, fallback file
+     * ~/.prismalux/<key>.key con permessi 0600), ma per una chiave arbitraria.
+     * Usato per i segreti dei bot (es. "telegram_token") così non finiscono in
+     * QSettings in chiaro.
+     */
+    static void    saveSecret(const QString& key, const QString& value);
+    static QString loadSecret(const QString& key);
+    static void    deleteSecret(const QString& key);
+
     /** Confronto constant-time — evita timing attack sui token Bearer. */
     [[nodiscard]] static bool timingSafeEqual(const QString& a, const QString& b);
 

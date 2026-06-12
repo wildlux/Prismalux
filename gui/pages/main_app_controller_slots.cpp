@@ -1202,148 +1202,6 @@ void AppControllerPage::onGodotStopClicked()
    Sezione 12 — Telegram Bot slots
    ====================================================================== */
 
-/* Script Python generato a runtime — usa env vars TOKEN, WHITELIST */
-/* Script per python-telegram-bot v20+ (async, httpx, Python 3.14 compatibile) */
-static QString s_telegramBotScript()
-{
-    return QString(
-        "import os, sys, json, threading, asyncio\n"
-        "\n"
-        "# APScheduler 3.x + pytz compat (Python 3.14 usa stdlib timezone.utc)\n"
-        "try:\n"
-        "    import pytz as _pytz\n"
-        "    import apscheduler.schedulers.base as _aps_base\n"
-        "    from datetime import timezone as _stdlib_tz\n"
-        "    _orig_aps_tz = _aps_base.astimezone\n"
-        "    def _compat_aps_tz(obj):\n"
-        "        if isinstance(obj, _stdlib_tz):\n"
-        "            secs = obj.utcoffset(None).total_seconds()\n"
-        "            return _pytz.FixedOffset(int(secs / 60)) if secs else _pytz.UTC\n"
-        "        return _orig_aps_tz(obj)\n"
-        "    _aps_base.astimezone = _compat_aps_tz\n"
-        "except Exception:\n"
-        "    pass\n"
-        "\n"
-        "# event loop esplicito obbligatorio in Python 3.14\n"
-        "asyncio.set_event_loop(asyncio.new_event_loop())\n"
-        "\n"
-        "try:\n"
-        "    from telegram import Update\n"
-        "    from telegram.ext import (\n"
-        "        Application, CommandHandler, MessageHandler,\n"
-        "        filters, ContextTypes\n"
-        "    )\n"
-        "except ImportError as e:\n"
-        "    print(json.dumps({'type':'error','msg':'Modulo mancante: ' + str(e)}), flush=True)\n"
-        "    sys.exit(1)\n"
-        "\n"
-        "TOKEN     = os.environ.get('TELEGRAM_TOKEN', '').strip()\n"
-        "WHITELIST = [x.strip() for x in\n"
-        "             os.environ.get('TELEGRAM_WHITELIST', '').split(',')\n"
-        "             if x.strip()]\n"
-        "\n"
-        "if not TOKEN:\n"
-        "    print(json.dumps({'type':'error','msg':'TELEGRAM_TOKEN non impostato.'}), flush=True)\n"
-        "    sys.exit(1)\n"
-        "\n"
-        "pending      = {}\n"
-        "pending_lock = threading.Lock()\n"
-        "\n"
-        "def allowed(update: Update) -> bool:\n"
-        "    if not WHITELIST: return True\n"
-        "    return str(update.effective_user.id) in WHITELIST\n"
-        "\n"
-        "def _emit_contact(update: Update) -> None:\n"
-        "    u = update.effective_user\n"
-        "    if not u: return\n"
-        "    print(json.dumps({\n"
-        "        'type':       'new_contact',\n"
-        "        'chat_id':    update.effective_chat.id,\n"
-        "        'username':   u.username or '',\n"
-        "        'first_name': u.first_name or ''\n"
-        "    }), flush=True)\n"
-        "\n"
-        "async def on_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):\n"
-        "    if not update.message: return\n"
-        "    _emit_contact(update)\n"
-        "    name = update.effective_user.first_name or 'utente'\n"
-        "    await update.message.reply_text(\n"
-        "        'Ciao ' + name + '! Sei registrato. '\n"
-        "        'Scrivi un messaggio o usa /ask <domanda> per parlare con l AI.')\n"
-        "\n"
-        "async def _query_and_wait(cid: int, text: str, update: Update) -> None:\n"
-        "    print(json.dumps({'type':'query','chat_id':cid,'text':text}), flush=True)\n"
-        "    evt = threading.Event()\n"
-        "    with pending_lock:\n"
-        "        pending[cid] = {'event': evt, 'reply': ''}\n"
-        "    loop = asyncio.get_running_loop()\n"
-        "    await loop.run_in_executor(None, evt.wait, 120.0)\n"
-        "    with pending_lock:\n"
-        "        reply = pending.pop(cid, {}).get('reply', '(timeout)')\n"
-        "    await update.message.reply_text(reply[:4096] if reply else '...')\n"
-        "\n"
-        "async def on_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):\n"
-        "    if not update.message: return\n"
-        "    if not allowed(update):\n"
-        "        await update.message.reply_text('Non autorizzato.')\n"
-        "        return\n"
-        "    _emit_contact(update)\n"
-        "    cid  = update.effective_chat.id\n"
-        "    text = update.message.text or ''\n"
-        "    await _query_and_wait(cid, text, update)\n"
-        "\n"
-        "async def on_ask(update: Update, ctx: ContextTypes.DEFAULT_TYPE):\n"
-        "    if not allowed(update):\n"
-        "        await update.message.reply_text('Non autorizzato.')\n"
-        "        return\n"
-        "    text = ' '.join(ctx.args) if ctx.args else ''\n"
-        "    if not text:\n"
-        "        await update.message.reply_text('Uso: /ask <domanda>')\n"
-        "        return\n"
-        "    cid = update.effective_chat.id\n"
-        "    await _query_and_wait(cid, text, update)\n"
-        "\n"
-        "async def on_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE):\n"
-        "    if not allowed(update):\n"
-        "        await update.message.reply_text('Non autorizzato.')\n"
-        "        return\n"
-        "    await update.message.reply_text(\n"
-        "        '\U0001f7e2 Prismalux Bot attivo. Invia un messaggio o usa /ask <testo>.')\n"
-        "\n"
-        "def stdin_loop():\n"
-        "    for raw in sys.stdin:\n"
-        "        raw = raw.strip()\n"
-        "        if not raw: continue\n"
-        "        try:\n"
-        "            obj = json.loads(raw)\n"
-        "            cid   = obj.get('chat_id', 0)\n"
-        "            reply = obj.get('reply', '')\n"
-        "            with pending_lock:\n"
-        "                entry = pending.get(cid)\n"
-        "            if entry:\n"
-        "                entry['reply'] = reply\n"
-        "                entry['event'].set()\n"
-        "        except Exception as exc:\n"
-        "            print('stdin error: ' + str(exc), flush=True)\n"
-        "\n"
-        "async def post_init(app: Application):\n"
-        "    threading.Thread(target=stdin_loop, daemon=True).start()\n"
-        "    print(json.dumps({'type': 'ready'}), flush=True)\n"
-        "\n"
-        "app = (\n"
-        "    Application.builder()\n"
-        "    .token(TOKEN)\n"
-        "    .job_queue(None)\n"
-        "    .post_init(post_init)\n"
-        "    .build()\n"
-        ")\n"
-        "app.add_handler(CommandHandler('start',  on_start))\n"
-        "app.add_handler(CommandHandler('ask',    on_ask))\n"
-        "app.add_handler(CommandHandler('status', on_status))\n"
-        "app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))\n"
-        "app.run_polling(drop_pending_updates=True)\n"
-    );
-}
 
 void AppControllerPage::onTelegramStartClicked()
 {
@@ -1373,16 +1231,13 @@ void AppControllerPage::onTelegramStartClicked()
         m_telegramProc->waitForFinished(3000);
     }
 
-    /* Scrive lo script Python nel file runtime */
+    /* Usa direttamente il file versionato — non sovrascrivere */
     const QString scriptPath = P::root() + "/MCPs/telegram_bot_runtime.py";
-    QFile sf(scriptPath);
-    if (!sf.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    if (!QFileInfo::exists(scriptPath)) {
         m_telegramStatusLbl->setText(
-            "\xe2\x9d\x8c  Impossibile scrivere " + scriptPath);
+            "\xe2\x9d\x8c  File non trovato: " + scriptPath);
         return;
     }
-    sf.write(s_telegramBotScript().toUtf8());
-    sf.close();
 
     /* Crea il QProcess se non esiste */
     if (!m_telegramProc) {
@@ -1966,11 +1821,17 @@ void AppControllerPage::onWaPollReply()
 
         if (text.isEmpty()) continue;
 
-        /* Controlla whitelist: se vuota → risponde a tutti, altrimenti solo ai numeri autorizzati */
-        bool authorized = whitelist.isEmpty();
-        if (!authorized) {
-            for (const QString& wl : whitelist) {
-                if (from.contains(wl.trimmed())) { authorized = true; break; }
+        /* Fail-closed: whitelist vuota = nessuno autorizzato (WhatsApp è rete pubblica).
+           Confronto sul numero normalizzato (solo cifre) — niente match per sottostringa,
+           che permetteva a una voce parziale di autorizzare numeri non previsti. */
+        if (whitelist.isEmpty()) continue;
+        QString fromNorm; for (const QChar& c : from) if (c.isDigit()) fromNorm += c;
+        bool authorized = false;
+        for (const QString& wl : whitelist) {
+            QString wlNorm; for (const QChar& c : wl) if (c.isDigit()) wlNorm += c;
+            if (wlNorm.size() < 6) continue;  // ignora voci troppo corte (evita match larghi)
+            if (fromNorm == wlNorm || (wlNorm.size() >= 9 && fromNorm.endsWith(wlNorm))) {
+                authorized = true; break;
             }
         }
         if (!authorized) continue;

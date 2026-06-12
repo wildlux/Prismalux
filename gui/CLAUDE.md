@@ -61,7 +61,7 @@ Prismalux/
 ├── gui/                          ← sorgente C++/Qt6 (questo progetto)
 │   ├── pages/                    ← una pagina = .h + uno o più .cpp
 │   ├── widgets/                  ← componenti header-only e riutilizzabili
-│   ├── tests/                    ← suite ctest (52 suite, BUILD_TESTS=ON)
+│   ├── tests/                    ← suite ctest (53 suite, BUILD_TESTS=ON)
 │   ├── themes/                   ← temi QSS
 │   ├── CMakeLists.txt
 │   └── CLAUDE.md                 ← questo file
@@ -351,7 +351,7 @@ Slot Qt: `onDevAgentGitLogClicked`, `onDevAgentGitRestoreClicked`, `onDevAgentGi
 ## Suite di Test
 ```bash
 cmake -B Test/build_tests gui/ -DBUILD_TESTS=ON && cmake --build Test/build_tests -j$(nproc)
-ctest --test-dir Test/build_tests -j4   # 52 suite (49 no-Ollama, 3 richiedono Ollama reale)
+ctest --test-dir Test/build_tests -j4   # 53 suite (50 no-Ollama, 3 richiedono Ollama reale)
 ```
 
 ### Suite per categoria
@@ -374,6 +374,7 @@ ctest --test-dir Test/build_tests -j4   # 52 suite (49 no-Ollama, 3 richiedono O
 | `LavoroData` | `test_lavoro_data` | offerte, filtrate, icone |
 | `TutorData` | `test_tutor_data` | invarianti, unicità, semantica |
 | `AppController` | `test_app_controller` | state machine, routing, signal isolation |
+| `McpManager` | `test_mcp_manager` | 8 test — venv path, smoke test JSON-RPC parsing, scan MCPs/, costruzione widget |
 | `ProgrammazionePage` | `test_programmazione_page` | isIntentionalError, parseNumbers |
 | `ThinkingDetect` | `test_thinking_detect` | extractName/Size/Prio, classifyQuery, keyLock |
 | `AgentiPipeline` | `test_agenti_pipeline` | buildBubble, markdownToHtml |

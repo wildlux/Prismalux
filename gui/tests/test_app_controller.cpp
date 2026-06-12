@@ -996,11 +996,15 @@ private slots:
                             .arg(initialCount).arg(finalCount)));
     }
 
-    /* G-7: modulo AppControllerPage crea il numero atteso di tab */
+    /* G-7: AppControllerPage crea almeno le tab principali.
+       Floor robusto (>=10) invece di un numero esatto: il pannello cresce nel tempo
+       (Godot, OpenCode, Gestione MCP, Telegram, WhatsApp, Dev Agent...) e un conteggio
+       esatto si romperebbe a ogni tab aggiunta senza segnalare un vero problema. */
     void sevenTabsCreated() {
         auto* tabs = m_page->findChild<QTabWidget*>();
         QVERIFY2(tabs, "QTabWidget non trovato in AppControllerPage");
-        QCOMPARE(tabs->count(), 9);  // Blender, FreeCAD, Office, CloudCompare, Anki, KiCAD, TinyMCP, OBS, OpenCode
+        QVERIFY2(tabs->count() >= 10,
+                 qPrintable(QString("Attese >=10 tab principali, trovate %1").arg(tabs->count())));
     }
 
     /* G-8: tutti i tab hanno titoli non vuoti */

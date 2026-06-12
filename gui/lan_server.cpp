@@ -4,6 +4,7 @@
 #include <QJsonArray>
 #include <QDateTime>
 #include <QDir>
+#include <QSet>
 #include <QFile>
 #include <QUuid>
 #include <QRegularExpression>
@@ -32,20 +33,28 @@ namespace P = PrismaluxPaths;
    su Windows). Fallback: file ~/.prismalux/lan_token.key (0600).
    ══════════════════════════════════════════════════════════════ */
 
-void LanServer::saveLanToken(const QString& token)
+/* Percorso del file di fallback 0600 per una chiave generica. */
+static QString secretFallbackPath(const QString& key)
+{
+    if (key == QLatin1String("lan_token"))
+        return P::lanTokenPath();   /* compatibilità col percorso storico */
+    return QDir::homePath() + "/.prismalux/" + key + ".key";
+}
+
+void LanServer::saveSecret(const QString& key, const QString& value)
 {
 #ifdef HAVE_QKEYCHAIN
     QKeychain::WritePasswordJob job(QStringLiteral("Prismalux"));
     job.setAutoDelete(false);
-    job.setKey(QStringLiteral("lan_token"));
-    job.setTextData(token);
+    job.setKey(key);
+    job.setTextData(value);
     QEventLoop loop;
     QObject::connect(&job, &QKeychain::WritePasswordJob::finished,
                      &loop, &QEventLoop::quit);
     job.start();
     loop.exec();
     if (job.error() == QKeychain::NoError) {
-        QFile::remove(P::lanTokenPath());   /* rimuove il vecchio file di fallback */
+        QFile::remove(secretFallbackPath(key));   /* rimuove il vecchio file di fallback */
         return;
     }
     qWarning() << "LanServer: QKeychain write failed:" << job.errorString()
@@ -53,18 +62,18 @@ void LanServer::saveLanToken(const QString& token)
 #endif
     /* Fallback file-based (0600) */
     QDir().mkpath(QDir::homePath() + "/.prismalux");
-    QFile f(P::lanTokenPath());
+    QFile f(secretFallbackPath(key));
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
     f.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
-    f.write(token.toUtf8());
+    f.write(value.toUtf8());
 }
 
-QString LanServer::loadLanToken()
+QString LanServer::loadSecret(const QString& key)
 {
 #ifdef HAVE_QKEYCHAIN
     QKeychain::ReadPasswordJob job(QStringLiteral("Prismalux"));
     job.setAutoDelete(false);
-    job.setKey(QStringLiteral("lan_token"));
+    job.setKey(key);
     QEventLoop loop;
     QObject::connect(&job, &QKeychain::ReadPasswordJob::finished,
                      &loop, &QEventLoop::quit);
@@ -77,11 +86,29 @@ QString LanServer::loadLanToken()
                    << "— fallback a file 0600";
 #endif
     /* Fallback: legge il file 0600 */
-    QFile f(P::lanTokenPath());
+    QFile f(secretFallbackPath(key));
     if (f.open(QIODevice::ReadOnly))
         return QString::fromUtf8(f.readAll()).trimmed();
     return {};
 }
+
+void LanServer::deleteSecret(const QString& key)
+{
+#ifdef HAVE_QKEYCHAIN
+    QKeychain::DeletePasswordJob job(QStringLiteral("Prismalux"));
+    job.setAutoDelete(false);
+    job.setKey(key);
+    QEventLoop loop;
+    QObject::connect(&job, &QKeychain::DeletePasswordJob::finished,
+                     &loop, &QEventLoop::quit);
+    job.start();
+    loop.exec();
+#endif
+    QFile::remove(secretFallbackPath(key));
+}
+
+void LanServer::saveLanToken(const QString& token) { saveSecret(QStringLiteral("lan_token"), token); }
+QString LanServer::loadLanToken()                  { return loadSecret(QStringLiteral("lan_token")); }
 
 /* Confronto constant-time — evita timing attack sul token Bearer */
 bool LanServer::timingSafeEqual(const QString& a, const QString& b)
@@ -148,6 +175,8 @@ bool LanServer::_ensureCert(QString& certPath, QString& keyPath)
         qWarning() << "LanServer: openssl non disponibile — TLS disabilitato";
         return false;
     }
+    /* Chiave privata non cifrata (-nodes): permessi 0600 per impedire lettura ad altri utenti */
+    QFile::setPermissions(keyPath, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
     return QFileInfo::exists(certPath) && QFileInfo::exists(keyPath);
 #endif
 }
@@ -590,7 +619,11 @@ void LanServer::processSession(Session& s)
                         s.path == "/api/cv"        ||
                         s.path == "/api/rag"       ||
                         s.path == "/api/graphviz"  ||
-                        s.path == "/api/whisper");
+                        s.path == "/api/whisper"   ||
+                        s.path == "/api/file"      ||
+                        s.path == "/api/repl"      ||
+                        s.path == "/api/finanza/cf"||
+                        s.path.startsWith("/api/graph"));
 
     /* Auth check: le route API richiedono header Authorization: Bearer TOKEN.
        Il fallback ?token= è rimosso per sicurezza — il token non deve
@@ -643,6 +676,7 @@ void LanServer::processSession(Session& s)
         if (checkHeavyRateLimit(s)) return;
         handleFileApi(s);
     } else if (s.path == "/api/repl" && s.method == "POST") {
+        if (m_headless) { sendError(s.socket, 403, "Disabled in headless mode"); return; }
         if (checkHeavyRateLimit(s)) return;
         handleReplApi(s);
     } else if (s.path == "/api/finanza/cf" && s.method == "POST") {
@@ -863,35 +897,15 @@ void LanServer::processSession(Session& s)
         }
         sendJson(s.socket, QJsonDocument(arr).toJson(QJsonDocument::Compact));
     } else if (s.path == "/api/cv" && s.method == "GET") {
-        static const QString cvTxt =
-            "Paolo Lo Bello, nato il 15/02/1989, Catania (36 anni).\n"
-            "Email: wildlux@gmail.com | Tel: +39 340 96 25 057\n"
-            "Patente B Europea. Dislessico (certificato ASL Catania).\n\n"
-            "TITOLO DI STUDIO:\n"
-            "- Perito Informatico — ITIS G. Marconi, Catania (2003-2010) — voto 67/100 — MQRF Level 4\n"
-            "- CCNA Cisco Certificate Associate — ICE Malta (2023-2024)\n"
-            "- Certificato E-Commerce (Joomla, PHP, HTML, Web Marketing) — CESIS (2010-2012)\n"
-            "- Certificato Photoshop CS5 — ITIS Galileo Ferraris Acireale (2012)\n"
-            "- Inglese A2 (ELA Malta, 2019)\n\n"
-            "ESPERIENZE LAVORATIVE:\n"
-            "- Lidl LTD Malta (lug 2024): cassa POS, muletto elettrico, controllo stock e date\n"
-            "- Scott Supermarket Malta (apr 2020 - mag 2024): muletto manuale, facing product, ricollocamento\n"
-            "- Playmobil/Poultons Ltd Malta (dic 2019 - feb 2020): operatore macchina, controllo qualita'\n"
-            "- Convenience Shop Malta (giu-ago 2019): assistente negozio, cassa, scaffali\n"
-            "- Karma Swim Catania (2014-2015): grafico freelance — Adobe Illustrator\n"
-            "- Techno Work srl Catania (nov 2013): Python developer su Raspberry Pi 3, GNU/Linux\n"
-            "- Almaviva Misterbianco (gen-feb 2012): call center Mediaset Premium\n"
-            "- Mics SRL Misterbianco (giu-lug 2011): inbound call operator Enel Energia\n"
-            "- Gio' Casa Misterbianco (ago 2005): assistenza e vendita condizionatori\n\n"
-            "COMPETENZE TECNICHE:\n"
-            "- Reti: CCNA Cisco, SSH, Kleopatra, PuTTY, FileZilla\n"
-            "- Sviluppo: Python, C++, HTML, PHP, SQL, MySQL, JavaScript, Node.js, Assembler x86\n"
-            "- OS: GNU/Linux, macOS, Windows\n"
-            "- Web: WordPress, Joomla, Prestashop, Django\n"
-            "- Grafica: Adobe Photoshop CS5, GIMP, Adobe Illustrator\n"
-            "- 3D: Blender (2007-oggi) — mesh, rigging, rendering, video promozionali\n"
-            "- Virtual: VirtualBox, Docker\n"
-            "- Office: LibreOffice, Microsoft Office, gestione email";
+        /* CV caricato da file locale (PII non versionato) */
+        const QString cvFile = QDir::homePath() + "/.prismalux/cv.txt";
+        QFile f(cvFile);
+        QString cvTxt;
+        if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            cvTxt = QTextStream(&f).readAll().trimmed();
+        } else {
+            cvTxt = "[CV non configurato — crea il file ~/.prismalux/cv.txt con i tuoi dati]";
+        }
         QJsonObject cvj;
         cvj["cv"] = cvTxt;
         sendJson(s.socket, QJsonDocument(cvj).toJson(QJsonDocument::Compact));
@@ -1330,6 +1344,14 @@ void LanServer::handleWebChat(Session& s)
     html.replace("{{AUTH_HEADERS_JS}}", authHeadersJs);
 
     QByteArray resp = httpOkHeader("text/html; charset=utf-8");
+    resp += "Cache-Control: no-cache, no-store, must-revalidate\r\n";
+    resp += "Pragma: no-cache\r\n";
+    /* CSP: blocca script/connessioni verso domini esterni (anti-esfiltrazione e
+       supply-chain). 'unsafe-inline' resta necessario perché il JS della web chat è
+       inline; rimuoverlo richiederebbe estrarre tutto lo script in un file servito. */
+    resp += "Content-Security-Policy: default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'\r\n";
     resp += "Content-Length: " + QByteArray::number(html.size()) + "\r\n\r\n";
     resp += html;
     s.socket->write(resp);
@@ -1741,9 +1763,19 @@ void LanServer::handleGraphviz(const Session& s)
         return;
     }
 
+    /* Blocca attributi Graphviz che referenziano file locali (disclosure) */
+    static const QRegularExpression kDotDangerousAttr(
+        R"(\b(image|shapefile|fontpath|imagepath)\s*=)",
+        QRegularExpression::CaseInsensitiveOption);
+    if (kDotDangerousAttr.match(dot).hasMatch()) {
+        sendError(s.socket, 400, "DOT contiene attributi file non consentiti (image/shapefile/fontpath)");
+        return;
+    }
+
     QProcess proc;
     proc.setProcessChannelMode(QProcess::SeparateChannels);
-    proc.start("dot", QStringList{"-Tpng"});
+    /* -Gimagepath= vuoto impedisce il caricamento di immagini da disco */
+    proc.start("dot", QStringList{"-Tpng", "-Gimagepath="});
     if (!proc.waitForStarted(3000)) {
         QJsonObject err;
         err["error"] = "graphviz (dot) non trovato. Installa graphviz sul server desktop.";
@@ -2002,6 +2034,20 @@ void LanServer::handleFileApi(Session& s)
     }
 
     const QString ext = QFileInfo(filename).suffix().toLower();
+
+    /* Limite dimensione: evita di passare upload enormi ai processi esterni. */
+    if (fileData.size() > 25 * 1024 * 1024) {
+        sendError(s.socket, 413, "File too large (max 25 MB)");
+        return;
+    }
+    /* Whitelist estensioni: solo formati che gli estrattori sanno gestire. */
+    static const QSet<QString> kAllowedExt = {
+        "pdf", "docx", "doc", "txt", "csv", "md", "rtf", "odt", "json", "xml", "html", "htm"
+    };
+    if (!kAllowedExt.contains(ext)) {
+        sendError(s.socket, 415, "Unsupported file type: " + ext.toUtf8());
+        return;
+    }
 
     /* Salva su file temporaneo */
     const QString tmp = QDir::tempPath() + "/plx_upload_" +

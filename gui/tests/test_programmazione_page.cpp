@@ -272,6 +272,9 @@ private slots:
     void editorHasDefaultTemplate() {
         auto* ed = page->findChild<QPlainTextEdit*>("codeEditor");
         QVERIFY(ed != nullptr);
+        qDebug() << "DEBUG n_codeEditor=" << page->findChildren<QPlainTextEdit*>("codeEditor").size()
+                 << "len=" << ed->toPlainText().length()
+                 << "head=" << ed->toPlainText().left(60);
         QVERIFY(!ed->toPlainText().isEmpty());
     }
 

@@ -1,6 +1,8 @@
 #include "main_app_controller.h"
 #include "../dpi_utils.h"
 #include "main_opencode.h"
+#include "main_mcp_manager.h"
+#include "../lan_server.h"
 #include "../prismalux_paths.h"
 #include "../widgets/model_combo_box.h"
 namespace P = PrismaluxPaths;
@@ -320,6 +322,7 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
     m_tabs->addTab(buildOBSTab(),          "\xf0\x9f\x94\xb4  OBS MCP");
     m_tabs->addTab(buildGodotTab(),          "\xf0\x9f\x8e\xae  Godot");
     m_tabs->addTab(new OpenCodePage(m_tabs), "\xf0\x9f\x96\xa5  OpenCode");
+    m_tabs->addTab(new McpManagerPage(m_tabs), "\xf0\x9f\x94\x8c  Gestione MCP");
     {
         auto* tgTab = buildTelegramTab();
         m_tabs->addTab(tgTab, "\xf0\x9f\x93\xac  Telegram");  /* 📬 */
@@ -2165,8 +2168,16 @@ QWidget* AppControllerPage::buildTelegramTab()
     /* ── Carica dati salvati ── */
     {
         QSettings s("Prismalux", "GUI");
-        const QString savedToken = s.value("telegram/token").toString();
-        const QString savedWl    = s.value("telegram/whitelist").toString();
+        /* Token bot: storage sicuro (keychain / file 0600). Migra il vecchio valore
+           in chiaro eventualmente presente in QSettings e lo rimuove. */
+        QString savedToken = LanServer::loadSecret(QStringLiteral("telegram_token"));
+        const QString legacyToken = s.value("telegram/token").toString();
+        if (savedToken.isEmpty() && !legacyToken.isEmpty()) {
+            savedToken = legacyToken;
+            LanServer::saveSecret(QStringLiteral("telegram_token"), legacyToken);
+            s.remove("telegram/token");
+        }
+        const QString savedWl = s.value("telegram/whitelist").toString();
         if (!savedToken.isEmpty())
             m_telegramTokenEdit->setText(savedToken);
         if (!savedWl.isEmpty())
@@ -2190,7 +2201,10 @@ QWidget* AppControllerPage::buildTelegramTab()
 
     connect(saveTokenBtn, &QPushButton::clicked, this, [this]() {
         QSettings s("Prismalux", "GUI");
-        s.setValue("telegram/token",     m_telegramTokenEdit->text().trimmed());
+        const QString tok = m_telegramTokenEdit->text().trimmed();
+        if (tok.isEmpty()) LanServer::deleteSecret(QStringLiteral("telegram_token"));
+        else               LanServer::saveSecret(QStringLiteral("telegram_token"), tok);
+        s.remove("telegram/token");   /* il token non resta mai in chiaro in QSettings */
         s.setValue("telegram/whitelist", m_telegramWhitelistEdit->text().trimmed());
         m_telegramStatusLbl->setText(tr("\xe2\x9c\x85  Token salvato"));
     });

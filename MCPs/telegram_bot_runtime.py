@@ -37,11 +37,17 @@ if not TOKEN:
     print(json.dumps({'type':'error','msg':'TELEGRAM_TOKEN non impostato.'}), flush=True)
     sys.exit(1)
 
+if not WHITELIST:
+    print(json.dumps({'type':'warning',
+        'msg':'WHITELIST vuota: nessun utente autorizzato. Configura almeno un ID Telegram nelle impostazioni.'}),
+        flush=True)
+
 pending      = {}
 pending_lock = threading.Lock()
 
 def allowed(update: Update) -> bool:
-    if not WHITELIST: return True
+    # Fail-closed: senza whitelist nessuno è autorizzato (Telegram è una rete pubblica).
+    if not WHITELIST: return False
     return str(update.effective_user.id) in WHITELIST
 
 async def _query_and_wait(cid: int, text: str, update: Update) -> None:

@@ -553,6 +553,9 @@ private:
     QPushButton* m_vpnGenKeysBtn   = nullptr;  ///< visibile solo per n2n (idx >= 4)
     QPushButton* m_vpnValidateBtn  = nullptr;  ///< simulazione/validazione senza root
     bool         m_vpnValidating   = false;
+    QLabel*      m_vpnLiveStatusLbl = nullptr; ///< stato connessione VPN live (interfacce up)
+    QPushButton* m_vpnTestBtn       = nullptr; ///< verifica stato VPN su richiesta
+    QTimer*      m_vpnStatusTimer   = nullptr; ///< polling 5s dello stato VPN
     QMetaObject::Connection m_vpnAiTokenConn;
     QMetaObject::Connection m_vpnAiFinishedConn;
     QMetaObject::Connection m_vpnAiErrorConn;
@@ -565,6 +568,8 @@ private:
     void     onVpnGenN2nKeys();
     void     onVpnValidateClicked();
     void     onVpnImportClicked();
+    void     onVpnTestClicked();      ///< verifica immediata dello stato VPN
+    void     vpnRefreshStatus();      ///< aggiorna la label di stato live (QNetworkInterface)
     void     onVpnAiToken(const QString& t);
     void     onVpnAiFinished(const QString& full);
     void     onVpnAiError(const QString& msg);

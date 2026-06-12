@@ -58,6 +58,11 @@
 #include <QTextStream>
 #include <QPainter>
 #include <QPixmap>
+#ifdef HAVE_QT_SQL
+#include <QtSql/QSqlDatabase>
+#include <QtSql/QSqlQuery>
+#include <QtSql/QSqlError>
+#endif
 
 namespace P = PrismaluxPaths;
 
@@ -1441,6 +1446,108 @@ void LanWanPage::wanRefreshTables()
             m_wanTaskTable->setItem(i, 4, new QTableWidgetItem(nodeAndPri));
         }
     }
+    wanSchedulePersist();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ *  Persistenza coda WU su SQLite — la coda sopravvive a chiusura/crash.
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+void LanWanPage::wanSchedulePersist()
+{
+#ifdef HAVE_QT_SQL
+    if (!m_wanPersistTimer) {
+        m_wanPersistTimer = new QTimer(this);
+        m_wanPersistTimer->setSingleShot(true);
+        m_wanPersistTimer->setInterval(800);  // debounce: salva 0,8s dopo l'ultima modifica
+        connect(m_wanPersistTimer, &QTimer::timeout, this, &LanWanPage::wanPersistTasks);
+    }
+    m_wanPersistTimer->start();
+#endif
+}
+
+#ifdef HAVE_QT_SQL
+static QString wanDbPath()
+{
+    return QDir::homePath() + "/.prismalux/wan_tasks.db";
+}
+#endif
+
+void LanWanPage::wanLoadTasks()
+{
+#ifdef HAVE_QT_SQL
+    QDir().mkpath(QDir::homePath() + "/.prismalux");
+    if (m_wanDbConn.isEmpty())
+        m_wanDbConn = QString("wan_tasks_%1").arg(reinterpret_cast<quintptr>(this));
+
+    QSqlDatabase db = QSqlDatabase::contains(m_wanDbConn)
+        ? QSqlDatabase::database(m_wanDbConn)
+        : QSqlDatabase::addDatabase("QSQLITE", m_wanDbConn);
+    db.setDatabaseName(wanDbPath());
+    if (!db.open()) return;
+
+    QSqlQuery q(db);
+    q.exec("CREATE TABLE IF NOT EXISTS wan_tasks ("
+           "  id TEXT PRIMARY KEY, kind TEXT, payload TEXT, status TEXT, node TEXT,"
+           "  result TEXT, created TEXT, started_at TEXT, retry_count INTEGER, priority INTEGER)");
+
+    m_wanTasks.clear();
+    if (q.exec("SELECT id,kind,payload,status,node,result,created,started_at,retry_count,priority "
+               "FROM wan_tasks")) {
+        while (q.next()) {
+            WanTask t;
+            t.id         = q.value(0).toString();
+            t.kind       = q.value(1).toString();
+            t.payload    = q.value(2).toString();
+            t.status     = q.value(3).toString();
+            t.node       = q.value(4).toString();
+            t.result     = q.value(5).toString();
+            t.created    = QDateTime::fromString(q.value(6).toString(), Qt::ISODate);
+            t.startedAt  = QDateTime::fromString(q.value(7).toString(), Qt::ISODate);
+            t.retryCount = q.value(8).toInt();
+            t.priority   = q.value(9).toInt();
+            /* Un task "running" al ripristino significa che il coordinatore si è chiuso
+               mentre era in esecuzione: rimettilo in coda (con un retry in più). */
+            if (t.status == "running") {
+                t.status = "pending";
+                t.node.clear();
+                t.startedAt = QDateTime();
+                t.retryCount += 1;
+            }
+            m_wanTasks.push_back(t);
+        }
+    }
+#endif
+}
+
+void LanWanPage::wanPersistTasks()
+{
+#ifdef HAVE_QT_SQL
+    if (m_wanDbConn.isEmpty() || !QSqlDatabase::contains(m_wanDbConn)) return;
+    QSqlDatabase db = QSqlDatabase::database(m_wanDbConn);
+    if (!db.isOpen()) return;
+
+    db.transaction();
+    QSqlQuery q(db);
+    q.exec("DELETE FROM wan_tasks");
+    q.prepare("INSERT INTO wan_tasks "
+              "(id,kind,payload,status,node,result,created,started_at,retry_count,priority) "
+              "VALUES (?,?,?,?,?,?,?,?,?,?)");
+    for (const WanTask& t : m_wanTasks) {
+        q.addBindValue(t.id);
+        q.addBindValue(t.kind);
+        q.addBindValue(t.payload);
+        q.addBindValue(t.status);
+        q.addBindValue(t.node);
+        q.addBindValue(t.result);
+        q.addBindValue(t.created.toString(Qt::ISODate));
+        q.addBindValue(t.startedAt.toString(Qt::ISODate));
+        q.addBindValue(t.retryCount);
+        q.addBindValue(t.priority);
+        q.exec();
+    }
+    db.commit();
+#endif
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1979,6 +2086,10 @@ QWidget* LanWanPage::buildWanComputeTab()
     connect(execGrp, &QButtonGroup::idClicked, m_execModeStack, [this](int id){
         if (m_execModeStack) m_execModeStack->setCurrentIndex(id);
     });
+
+    /* Ripristina la coda WU persistita (task "running" → "pending" dopo un crash). */
+    wanLoadTasks();
+    wanRefreshTables();
 
     return root;
 }

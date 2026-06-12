@@ -2112,6 +2112,50 @@ void ProgrammazionePage::onVpnAiError(const QString& msg)
         "<span style='color:#f87171;'>\xe2\x9d\x8c  " + msg.toHtmlEscaped() + "</span>");
 }
 
+/* Rileva le interfacce VPN attive (nomi wg, tun, tap, ppp, n2n) e il loro IPv4,
+   usando QNetworkInterface: nessun processo esterno, nessun privilegio root. */
+void ProgrammazionePage::vpnRefreshStatus()
+{
+    if (!m_vpnLiveStatusLbl) return;
+
+    QStringList active;
+    const auto ifaces = QNetworkInterface::allInterfaces();
+    for (const QNetworkInterface& ni : ifaces) {
+        const QString n = ni.name();
+        const bool isVpn = n.startsWith("wg")  || n.startsWith("tun") ||
+                           n.startsWith("tap") || n.startsWith("ppp") || n.startsWith("n2n");
+        if (!isVpn) continue;
+        const auto flags = ni.flags();
+        if (!flags.testFlag(QNetworkInterface::IsUp) ||
+            !flags.testFlag(QNetworkInterface::IsRunning))
+            continue;
+        QString ip;
+        for (const QNetworkAddressEntry& e : ni.addressEntries()) {
+            if (e.ip().protocol() == QAbstractSocket::IPv4Protocol) {
+                ip = e.ip().toString();
+                break;
+            }
+        }
+        active << QString("%1 (%2)").arg(n, ip.isEmpty() ? tr("nessun IP") : ip);
+    }
+
+    if (active.isEmpty()) {
+        m_vpnLiveStatusLbl->setText(tr("\xe2\x9a\xaa  Nessuna VPN attiva"));
+        m_vpnLiveStatusLbl->setStyleSheet("color:#94a3b8;");
+    } else {
+        m_vpnLiveStatusLbl->setText(QString::fromUtf8("\xf0\x9f\x9f\xa2  ") + active.join(", "));
+        m_vpnLiveStatusLbl->setStyleSheet("color:#22c55e;");
+    }
+}
+
+void ProgrammazionePage::onVpnTestClicked()
+{
+    vpnRefreshStatus();
+    if (m_vpnLog && m_vpnLiveStatusLbl)
+        m_vpnLog->append(QString::fromUtf8("\xf0\x9f\x94\x8d  ") +
+                         tr("Stato VPN: ") + m_vpnLiveStatusLbl->text());
+}
+
 void ProgrammazionePage::onVpnApplyClicked()
 {
     if (!m_vpnConfig || !m_vpnLog || !m_vpnTypeCombo) return;

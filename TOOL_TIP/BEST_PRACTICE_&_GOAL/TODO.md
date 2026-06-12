@@ -1,6 +1,425 @@
 # Prismalux — TODO pendenti
 
-> Aggiornato: 2026-06-10 | Versione: 2.9
+> Aggiornato: 2026-06-12 | Versione: 2.9
+
+---
+
+## 🚨 SICUREZZA PRODUZIONE — da chiudere PRIMA del rilascio (audit 2026-06-12)
+
+> Audit del codice attuale dopo il commit `10c33e0` (thin-client API web).
+> **Le prime due voci sono regressioni introdotte da quel commit**: i nuovi
+> endpoint web saltano il controllo del token già esistente. Verificate
+> direttamente in `gui/lan_server.cpp`.
+
+### 🔴🔴 Bloccanti assoluti — NON mettere in produzione finché aperti
+
+- [x] **`/api/repl` è una RCE NON autenticata** — FATTO 2026-06-12: aggiunto a `isApi`
+      (ora richiede il Bearer token) + gating headless (403 se `m_headless`) come `/api/launch`.
+      Resta da fare la sandbox vera (container/seccomp) — vedi voce limiti risorse sotto.
+      `lan_server.cpp:2048` `handleReplApi()`
+      esegue `python3 -`, `bash -s`, `node -e` con **codice arbitrario** preso dal
+      body JSON. L'endpoint **non è nella lista `isApi`** (righe 581-593), quindi il
+      controllo `Bearer token` (riga 598) **non viene mai applicato**: chiunque sulla
+      LAN fa `POST /api/repl {"lang":"bash","code":"..."}` ed esegue comandi sulla
+      macchina server. La "sandbox" citata nel commit è **solo un timeout** (10-15s),
+      nessun isolamento reale (no container/seccomp/namespace/utente dedicato).
+      - **Rimedio:** (1) aggiungere `/api/repl` a `isApi` così richiede il token;
+        (2) gating esplicito come `/api/launch` — disabilitato di default e in headless
+        (`m_headless` → 403); (3) eseguire in sandbox vera (container/`bwrap`/seccomp)
+        o rimuovere `bash` del tutto e tenere solo un REPL Python ristretto.
+
+- [x] **Endpoint nuovi fuori dal controllo auth** — FATTO 2026-06-12: aggiunti a `isApi`
+      `/api/file`, `/api/repl`, `/api/finanza/cf` e `/api/graph` (via `startsWith`), ora tutti
+      richiedono il token. (Resta consigliato il passaggio a "deny by default" per il futuro.)
+      Sempre lista `isApi` (581-593):
+      mancano anche `/api/file`, `/api/finanza/cf`, `/api/graph`.
+      - `/api/graph` (`handleGraphApi`, riga 2112) espone la **GraphMemory** (memoria e
+        conoscenza dell'utente, contenuto nodi) a chiunque senza token.
+      - `/api/finanza/cf` (riga 2078) calcola **codici fiscali** (dato personale) in
+        chiaro senza auth.
+      - `/api/file` (riga 1970) accetta upload e lo passa a processi esterni.
+      - **Rimedio:** aggiungere tutti e quattro a `isApi`. Valutare un approccio
+        "deny by default": autenticare TUTTI i path tranne una whitelist esplicita di
+        risorse pubbliche (`/`, `/web`, `/katex/`, `/bootstrap/`, `/apk`), invece di
+        elencare a mano ogni endpoint protetto — così un endpoint nuovo nasce protetto.
+
+### 🔴 XSS — regressione introdotta dal commit `10c33e0`
+
+- [x] **XSS reintrodotto nella lista offerte lavoro** — FATTO 2026-06-12: `renderLavResults`
+      riscritta con `createElement` + `textContent` per ogni campo (azienda/ruolo/sede/
+      requisiti), niente più `innerHTML` con dati esterni. `gui/lan_web/webchat.html:630`
+      `renderLavResults()` costruisce il DOM con `innerHTML` concatenando dati esterni
+      (`o.azienda`, `o.ruolo`, `o.sede`, `o.requisiti` da `/api/lavoro`, origine Indeed).
+      Se un'offerta contiene HTML/`<script>` → injection nel browser del client.
+      Questo XSS era **già stato chiuso il 2026-06-01** (vedi voce più sotto) e nel
+      codice esiste già la versione sicura `lavRender()` (riga 277) che usa
+      `createElement` + `textContent`. La nuova tab Lavoro ha duplicato la lista col
+      pattern insicuro invece di riusare quello bonificato.
+      - **Rimedio:** riscrivere `renderLavResults` come `lavRender`/`grfLoad`
+        (`textContent` per ogni campo), oppure escapare i dati. Le altre render del
+        nuovo webchat sono OK: `ragSearch` (riga 519) escapa, `grfLoad` (riga 611-616)
+        usa `textContent`.
+
+### 🔴 SSRF — tool `fetch_url` senza validazione di destinazione
+
+- [x] **SSRF nel tool `fetch_url`** — FATTO 2026-06-12: lo script Python ora valida lo schema
+      (`http`/`https`) e risolve l'host rifiutando IP loopback/privati/link-local/reserved/
+      multicast, sia sull'URL iniziale sia su ogni redirect (handler `_SafeRedirect`). Resta
+      una finestra TOCTOU teorica (DNS rebinding) accettabile per uso locale.
+      `gui/pages/main_ai_tools.cpp:303-335`: scarica
+      **qualsiasi URL** via `urllib.request.urlopen` senza alcun controllo sull'host di
+      destinazione. Nessun filtro su IP loopback/privati/link-local né sui redirect.
+      - **Impatto:** il tool è invocabile dall'**output dell'LLM** (tool use automatico) e
+        innescabile da **contenuti RAG non fidati**, non solo dall'utente. Un URL come
+        `http://127.0.0.1:11434/...` raggiunge **Ollama (senza auth)**; `http://169.254.169.254`
+        i metadata cloud; o servizi interni della LAN altrimenti non esposti. Combinato con
+        l'iniezione RAG già supportata, è una catena prompt-injection → SSRF.
+      - **Rimedio:** risolvere il DNS dell'host e **rifiutare se l'IP risolto è
+        loopback/privato/link-local/multicast** (controllo `ipaddress.ip_address().is_private`
+        ecc. lato script Python); consentire solo schemi `http`/`https`; disabilitare o
+        validare i redirect (no redirect verso IP interni). Stesso filtro va applicato a
+        ogni futuro tool che esegue richieste di rete da URL arbitrario.
+
+### 🔴 Bot Telegram + WhatsApp — fail-open con whitelist vuota (3 posizioni)
+
+- [x] **I bot rispondono a CHIUNQUE se la whitelist è vuota** — FATTO 2026-06-12: fail-closed
+      in tutti e tre i punti (whitelist vuota = nessuno autorizzato); il runtime Telegram emette
+      anche un `warning` all'avvio se la whitelist è vuota. Stesso fail-**open** era in tre
+      punti distinti:
+      1. `MCPs/telegram_bot_runtime.py:44` — `def allowed(): if not WHITELIST: return True`.
+      2. `gui/pages/main_app_controller_slots.cpp:1252-1254` — **seconda copia inline** dello
+         stesso bot Telegram, generata come stringa C++, con identico `if not WHITELIST:
+         return True`. (Esistono quindi due implementazioni duplicate del bot — vedi anche
+         debito di manutenibilità sotto.)
+      3. `gui/pages/main_app_controller_slots.cpp:1970` — bot WhatsApp:
+         `bool authorized = whitelist.isEmpty();` col commento esplicito "*se vuota →
+         risponde a tutti*".
+      A differenza del server LAN (rete locale), Telegram e WhatsApp sono **reti pubbliche
+      mondiali**: con whitelist vuota chiunque conosca/indovini il bot chatta con l'AI locale
+      ed esegue `/ask`. L'impostazione apparentemente "neutra" è la più pericolosa.
+      - **Rimedio:** fail-closed in **tutti e tre** i punti → whitelist vuota = nessuno
+        autorizzato (o il bot non si avvia e avvisa "configura almeno un ID/numero").
+
+- [x] **Whitelist WhatsApp con match per sottostringa** — FATTO 2026-06-12: confronto sul numero
+      normalizzato (solo cifre), uguaglianza esatta o suffisso per numeri ≥9 cifre; voci <6 cifre
+      ignorate. Niente più `contains`. `main_app_controller_slots.cpp:1973`
+      `if (from.contains(wl.trimmed()))`: usa `contains` invece del confronto esatto, quindi
+      una voce come `123` autorizza qualunque mittente che *contenga* "123"
+      (`3912345678`, `99123`, ...). Bypass della whitelist con numeri parziali.
+      - **Rimedio:** confronto esatto del numero normalizzato (rimuovere `+`, spazi, suffisso
+        `@c.us` del bridge) invece di `contains`.
+
+- [x] **Debito: doppia implementazione del bot Telegram** — FATTO 2026-06-13:
+      rimossa la funzione `s_telegramBotScript()` (140 righe di stringa C++ inline) da
+      `main_app_controller_slots.cpp`. `onTelegramStartClicked()` ora usa direttamente
+      `MCPs/telegram_bot_runtime.py` già esistente (versionato, con fail-closed corretto).
+      Unica sorgente di verità.
+
+### 🟡 Token bot in QSettings in chiaro (non nel keychain)
+
+- [x] **Token Telegram salvato in `QSettings` in chiaro** — FATTO 2026-06-12: generalizzato il
+      meccanismo del token LAN in `LanServer::saveSecret/loadSecret/deleteSecret` (keychain con
+      fallback file 0600); il token Telegram ora usa quello. All'apertura del tab il vecchio
+      valore in chiaro in `telegram/token` viene migrato al keychain e rimosso da QSettings; al
+      salvataggio non viene più scritto in chiaro. (Storico) `main_app_controller.cpp:2193`
+      `s.setValue("telegram/token", ...)`. Il token del bot dà **controllo completo del bot**
+      a chiunque legga il file di config (`~/.config/...`, di norma 0644). Il progetto già
+      impone il keychain per i segreti (BEST_PRACTICE_SECURITY §7, token LAN via QKeychain) e
+      l'"Audit segreti" del TODO elenca "token non in QSettings" come controllo: il token
+      Telegram lo viola. Idem la whitelist WhatsApp (riga 2419).
+      - **Rimedio:** spostare `telegram/token` (e gli altri segreti bot) in QKeychain come il
+        token LAN. *Nota positiva:* al runtime il token è già passato via **variabile
+        d'ambiente** (`TELEGRAM_TOKEN`, `main_app_controller_slots.cpp:1411`), non in argv —
+        quindi non è visibile in `ps`. Il problema è solo la persistenza su disco.
+
+### 🟡 Graphviz — accesso a file locali via DOT
+
+- [x] **`/api/graphviz` esegue `dot` su sorgente DOT arbitrario** — FATTO 2026-06-13:
+      validazione regex sul contenuto DOT che rifiuta `image=`, `shapefile=`, `fontpath=`,
+      `imagepath=`; aggiunto `-Gimagepath=` (vuoto) al comando `dot` per bloccare il
+      caricamento di immagini da disco. `lan_server.cpp handleGraphviz()`.
+
+### 🟡 DevAgent MCP — `shell=True` con interpolazione non quotata
+
+- [x] **Comandi git costruiti con f-string in `bash(shell=True)`** — FATTO 2026-06-13:
+      aggiunto helper `_git_safe(project_root, args, timeout)` che usa
+      `subprocess.run([...], shell=False)` con lista di argomenti. Aggiunti pattern
+      di validazione `_RE_COMMIT`, `_RE_REMOTE`, `_RE_BRANCH`, `_RE_STASH` e
+      `_RE_ROOT` (path assoluto). Tutte le 6 funzioni git (`git_restore_files`,
+      `git_fetch_reset`, `git_stash_push`, `git_stash_list`, `git_stash_pop`) ora
+      usano `_git_safe` con validazione preventiva dei parametri.
+      `MCPs/devagent_mcp/server.py`.
+
+### 🟢 Igiene segreti — `.gitignore` preventivo
+
+- [x] **`.env` / `*.key` / `*.pem` non sono in `.gitignore`** — FATTO 2026-06-13:
+      aggiunti `.env`, `*.env`, `*.key`, `*.pem`, `*.p12` in sezione
+      "Segreti — prevenzione commit accidentale" in `.gitignore`.
+
+### 🟡 Dati personali (PII) hardcoded nel sorgente — `/api/cv`
+
+- [x] **CV con nome, data di nascita, email e telefono hardcoded nel codice** — FATTO 2026-06-13:
+      la stringa statica con PII rimossa da `lan_server.cpp`; `/api/cv` ora carica
+      `~/.prismalux/cv.txt` (0600, fuori repo) a runtime. Fallback: messaggio
+      "[CV non configurato — crea il file ~/.prismalux/cv.txt]".
+      File creato in `~/.prismalux/cv.txt` con i dati originali.
+      - *Verificato sicuro:* `handleRag` (riga 1214) ha guard su RAG nullo, indice vuoto e
+        query concorrente — nessuna injection di path/processo.
+
+### 🟢 Chiave privata TLS senza permessi ristretti
+
+- [x] **`server.key` generata senza `chmod 0600`** — FATTO 2026-06-13:
+      aggiunto `QFile::setPermissions(keyPath, QFileDevice::ReadOwner | QFileDevice::WriteOwner)`
+      dopo la generazione OpenSSL in `_ensureCert()`. `lan_server.cpp`.
+      - *Verificato sicuro nello stesso ambito:* `appendAccessLog` (riga 120) **escapa** già `\`
+        e `"` nel campo `path` → nessuna log injection nell'`access.log`.
+
+### 🟢 Android — cleartext HTTP permesso globalmente
+
+- [ ] **`cleartextTrafficPermitted="true"` globale** —
+      `ANDROID/android_app/android/res/xml/network_security_config.xml:12` usa un `base-config`
+      che permette HTTP in chiaro verso **qualsiasi dominio**, non solo la LAN. Il commento nel
+      file lo riconosce: "la restrizione solo-LAN è garantita a livello applicativo, non dal
+      manifest" (perché Android non accetta range CIDR nei `<domain>`). Oggi l'unico endpoint è
+      l'IP LAN inserito dall'utente, ma è difesa in profondità mancante: una futura chiamata
+      HTTP a un host internet non verrebbe bloccata dalla piattaforma.
+      - **Rimedio:** dove possibile, `base-config cleartextTrafficPermitted="false"` +
+        `domain-config` cleartext per i soli host LAN configurati; in alternativa documentare
+        la scelta come accettata e abbinarla al TLS LAN opzionale già presente lato desktop.
+      - *Nota positiva verificata:* `allowBackup="false"` nel manifest — i dati dell'app
+        (token, chat, DB) non finiscono nei backup cloud automatici di Android.
+
+### 🟡 Hardening web — difesa in profondità
+
+- [x] **Nessun header `Content-Security-Policy`** — FATTO 2026-06-12: aggiunta CSP alla pagina
+      web chat (`handleWebChat`): `default-src 'self'`, `script-src/style-src 'self'
+      'unsafe-inline'`, `img-src 'self' data:`, `connect-src 'self'`, `frame-ancestors 'none'`.
+      Blocca script/connessioni verso domini esterni (anti-esfiltrazione e supply-chain).
+      `'unsafe-inline'` resta perché il JS della chat è inline — rimuoverlo richiede estrarre
+      lo script in un file servito (follow-up). (Storico) `lan_server.cpp` inviava
+      `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` ma **nessuna CSP**
+      sulle pagine HTML. Con Bootstrap e KaTeX ora serviti localmente si può impostare
+      una CSP stretta (`default-src 'self'; script-src 'self'; img-src 'self' data:;
+      style-src 'self' 'unsafe-inline'`) che neutralizza la maggior parte degli XSS DOM
+      anche in caso di regressioni come quella sopra. Valutare anche `Permissions-Policy`
+      per limitare microfono/camera ai soli usi previsti (STT).
+
+### 🟡 Importanti — prima dell'esposizione su rete reale
+
+- [x] **`/api/file` — costruzione path da filename utente** — FATTO 2026-06-12: aggiunti
+      limite dimensione (413 se >25 MB) e whitelist estensioni (415 se non in
+      pdf/docx/doc/txt/csv/md/rtf/odt/json/xml/html/htm) prima di scrivere il tmp e invocare
+      gli estrattori. `lan_server.cpp` `handleFileApi`.
+- [ ] **`/api/repl` — limiti risorse** — anche dietro auth, aggiungere limiti CPU/memoria
+      (`ulimit`/`cgroup`) oltre al timeout, per evitare DoS da loop infiniti o fork-bomb.
+- [ ] **Rotazione/scadenza del token LAN** — il token auto-generato è permanente. Per
+      produzione: comando per rigenerarlo e invalidare le sessioni precedenti.
+
+### 🟢 Igiene — verifiche rapide
+
+- [ ] **Test di non-regressione auth** — estendere `test_lan_server` con un caso che
+      verifica che OGNI endpoint `/api/*` risponda 401 senza token. Avrebbe intercettato
+      subito questa regressione.
+- [ ] **Audit periodico lista `isApi`** — finché si usa la whitelist a mano, ogni PR che
+      aggiunge un endpoint deve aggiornarla; meglio passare al "deny by default" sopra.
+
+---
+
+## 🧩 VPN · BOINC-like · MCP — analisi e configurazione assistita (richiesta 2026-06-12)
+
+> Tre aree da approfondire/completare. Stato attuale verificato nel codice.
+
+### 🌐 VPN & Tunnel (tab Programmazione → Rete)
+
+> Stato: `main_programming_slots.cpp:1869+` è un **generatore di template di
+> configurazione** (WireGuard, OpenVPN, SSH tunnel, n2n con `onVpnGenN2nKeys`).
+> Produce testo che l'utente salva ed esegue a mano con `sudo`. **Non stabilisce né
+> monitora connessioni attive.**
+
+- [x] **Pulsante "Verifica stato VPN"** — FATTO 2026-06-12: pulsante "🔍 Verifica stato" nel
+      tab VPN → `onVpnTestClicked`/`vpnRefreshStatus` (`main_programming.*`).
+- [x] **Stato VPN live** — FATTO 2026-06-12: label di stato aggiornata ogni 5s via
+      `QNetworkInterface` (rileva interfacce wg/tun/tap/ppp/n2n up + IPv4 assegnato), senza
+      processi né root. Verde "🟢 wg0 (10.x)" se attiva, "⚪ Nessuna VPN attiva" altrimenti.
+- [x] **Avvio/stop assistito** — GIÀ PRESENTE (scoperto 2026-06-12): `onVpnApplyClicked`/
+      `onVpnStopClicked` gestiscono WireGuard/OpenVPN/SSH/n2n (SSH e n2n via clipboard).
+- [x] **Validazione config** — GIÀ PRESENTE: `onVpnValidateClicked` (`m_vpnValidateBtn`)
+      valida/simula la config senza root.
+- [ ] **Guida "quando serve la VPN"** — parziale: le descrizioni per tipo (`descLbl`) ci sono;
+      manca una nota esplicita "la VPN collega nodi WAN/BOINC fuori dalla stessa LAN".
+
+### 🔬 BOINC-like — Calcolo Distribuito (WAN Compute 11600 + Sci Compute 11601)
+
+> Stato: due sistemi distinti e funzionanti. **WAN Compute** (`main_lan_wan.cpp`, porta
+> 11600, 28 task, fault tolerance, multi-worker) e **Sci Compute** (`main_sci_compute.cpp`,
+> porta 11601, SQLite `sci_nodes`, WU queue, quorum SHA-256, credit counter, aggregator).
+> Test: `test_sci_compute` 35 PASS, `test_wan_compute_tasks` 33 PASS.
+
+- [ ] **Analisi end-to-end con 2+ macchine reali** — verificare il flusso completo su LAN/VPN:
+      creazione WU → dispatch → esecuzione su nodo remoto → quorum → aggregazione risultati.
+      I test coprono le unità, manca una prova di integrazione su nodi reali.
+- [ ] **Chiarire la relazione WAN Compute vs Sci Compute** — due porte e due sistemi simili.
+      Documentare in-app/README quando usare l'uno o l'altro (o valutarne l'unificazione).
+- [ ] **Guida configurazione nodo worker** — passi minimi per aggiungere una macchina come
+      nodo (IP/porta, token, capability, dipendenze tool tipo blast/gmx/python) in un punto solo.
+- [ ] **Health check nodi** — già c'è heartbeat sul WAN; verificare che Sci Compute marchi
+      offline i nodi non risponsivi e ridistribuisca le WU (come fa il WAN).
+- [x] **WAN Compute: coda WU non persistente (in RAM)** — FATTO 2026-06-12: la coda è ora
+      persistita su SQLite in `~/.prismalux/wan_tasks.db` (`wanLoadTasks`/`wanPersistTasks`/
+      `wanSchedulePersist` in `main_lan_wan.cpp`, sotto `HAVE_QT_SQL`). Salvataggio con debounce
+      0,8s agganciato a `wanRefreshTables()`; al riavvio `wanLoadTasks()` ripristina la coda e
+      rimette "running"→"pending" (con `retryCount += 1`) i task interrotti da un crash.
+      - Follow-up: test di round-trip dedicato (i metodi sono privati e legati alla UI — serve
+        un piccolo hook di test o estrarre la logica DB).
+- [ ] **Sicurezza (rimando):** prima di esporre questi servizi vedi la sezione 🚨 SICUREZZA —
+      auth obbligatoria, niente shell di default, TLS o VPN fidata.
+
+### 🔌 MCP — far funzionare tutti i 22 plugin + configurazione assistita
+
+> Stato: 22 voci in `MCPs/`. Quasi tutti hanno `requirements.txt` + `server.py`. Eccezioni
+> verificate: `blender_mcp` (manca `requirements.txt`), `CLOUDcompare` e `meshroom` (nessun
+> server/requirements — sono solo launcher di app esterne). Ogni MCP è oggi **cablato
+> individualmente** nella sua tab; **non esiste un pannello centrale** di installazione/test.
+
+- [x] **Pannello "Gestione MCP" centralizzato** — FATTO 2026-06-12:
+      `gui/pages/main_mcp_manager.h/cpp`, tab "🔌 Gestione MCP" in AppController [6]. Lista
+      degli MCP con server.py, stato requirements, pulsanti "Prepara ambiente (venv)",
+      "Installa" (pip nel venv, con conferma) e "Testa" (smoke test JSON-RPC), log in-app.
+      Test `test_mcp_manager` (CAT-A + CAT-B) PASS. Una schermata sola con la lista degli MCP e,
+      per ciascuno: stato (server presente? dipendenze installate? eseguibile esterno trovato?),
+      pulsante **"Installa dipendenze"** (`pip install -r requirements.txt` con conferma, come
+      da BEST_PRACTICE §2), pulsante **"Testa"** (smoke test: avvia il server, invia un
+      `initialize`/`tools/list` JSON-RPC, verifica la risposta), e link alla guida.
+- [x] **Smoke test per ogni MCP** — FATTO 2026-06-12: pulsante "Testa" per MCP nel pannello;
+      invia `initialize` + `tools/list` e verifica la risposta `result`; mostra la causa
+      (stderr sanificato) se il server esce senza rispondere. Manca solo un "Testa tutti" batch.
+- [x] **Isolamento dipendenze MCP (venv)** — FATTO 2026-06-12: il pannello Gestione MCP crea
+      e usa un venv condiviso in `~/.prismalux/venv`; "Installa" esegue `pip install -r` dentro
+      quel venv e "Testa" lancia i server con il python del venv. Niente più
+      `--break-system-packages` per gli MCP. (Storico) gli MCP installavano le
+      dipendenze nel **Python di sistema** con `--break-system-packages`
+      (`main_customize_lora.cpp:511` e pattern simili), bypassando PEP 668. Con 22 plugin dalle
+      dipendenze pesanti e potenzialmente in conflitto (rdkit, torch/CUDA di Stable Diffusion,
+      langgraph, python-telegram-bot…) questo causa **conflitti di versione** e inquina il
+      Python di sistema → far funzionare *tutti* insieme è fragile.
+      - **Rimedio:** un **venv dedicato** (per-MCP o un venv condiviso del progetto in
+        `~/.prismalux/venv`) in cui installare i `requirements.txt`, evitando
+        `--break-system-packages` globale. Il pannello Gestione MCP crea/usa quel venv.
+- [ ] **Auto-restart MCP morti + log centralizzato** — se un `server.py` esce per errore,
+      rilevarlo e offrire riavvio; raccogliere lo stderr di tutti gli MCP in un log unico
+      consultabile dal pannello (oggi i log sono sparsi per tab).
+- [ ] **`blender_mcp/requirements.txt` mancante** — aggiungerlo (anche solo per coerenza/doc
+      delle dipendenze) o documentare che non ne ha bisogno.
+- [ ] **Guida configurazione per MCP che richiedono app esterne** — Blender, FreeCAD, KiCAD,
+      Anki (AnkiConnect), OBS (obs-websocket), GNS3, Cytoscape, CloudCompare, Meshroom: per
+      ognuno servono passi specifici (porta, plugin, token). Raccogliere in un'unica guida
+      in-app "Configura quando ti serve", richiamabile dal pannello Gestione MCP.
+- [ ] **Diagnostica "perché non funziona"** — quando un MCP fallisce, mostrare la causa
+      probabile (es. "Anki non in ascolto su 8765 — apri Anki con AnkiConnect") invece di un
+      errore generico.
+- [ ] **Verifica integrità MCP** — già previsto in SecurityAnalyzerPage (hash sorgente al
+      primo avvio); integrarlo nel pannello Gestione MCP come colonna "integrità".
+
+---
+
+## 📋 Richieste Paolo — 11-12/06/2026
+
+> Chat Telegram → idee e feature da valutare/implementare.
+
+### [11/06/26 23:24] Memoria LLM — contesto e compressione
+
+- [ ] **Compattatore di conversazioni** — le chat lunghe saturano la finestra di contesto
+      dell'LLM; servono strumenti per comprimerle/riassumerle prima di inietterle.
+      Domande aperte di Paolo:
+      - La memoria persistente su file (GraphMemory/RAG) quanto incide sui token usati?
+      - Che tipo di tools servono in produzione per un sistema di memoria LLM?
+      **Risposta tecnica da documentare:**
+      - GraphMemory usa `searchNodes(query)` → inietta solo chunk rilevanti (non tutto);
+        il numero di token dipende dal parametro `maxChunks` (default 5 × ~200 token = 1000 tok).
+      - Per produzione servono: compressore conversazione (rolling summary), RAG semantico
+        per selezionare solo i chunk rilevanti, token counter prima dell'inject,
+        threshold configurabile (es. non iniettare se già >80% del context window).
+      - Approccio consigliato: `AiClient::chat(sys, msg, historyJson)` già comprime la
+        storia in `compressHistory()` — estendere con soglia configurabile.
+
+### [12/06/26 00:51] Git come sistema di memoria versionata per LLM
+
+> Idea di Paolo: usare un repository Git locale (`~/.ai-memory/`) come "cervello
+> cronologico" dell'assistente AI. Ogni preferenza appresa, ogni feedback, ogni
+> interazione è un commit → storia completa, revertibile, analizzabile con `git log`.
+
+**Struttura repo proposta:**
+```
+~/.ai-memory/
+├── profile/
+│   ├── preferences.yaml    # preferenze apprese (response_length, ecc.)
+│   ├── habits.yaml
+│   └── demographics.yaml
+├── interactions/
+│   └── YYYY-MM/
+│       ├── DD.md           # conversazioni del giorno
+│       └── feedback.yaml   # 👍/👎 con motivo + tag
+├── context/
+│   └── active_context.yaml
+└── .git/
+```
+
+**Vantaggi rispetto a GraphMemory:**
+- Storia temporale completa con `git log --all --oneline`
+- Revert preferenze errate con `git checkout <hash> -- profile/`
+- `git blame` per capire l'origine di ogni preferenza
+- Analisi pattern: `git log --grep="rating: 👍" | ...`
+- Portabile tra dispositivi via `git push/pull`
+
+**Integrazione con Prismalux:**
+- [ ] **AIMemory C++** — classe che gestisce `~/.ai-memory/` tramite `QProcess("git", ...)`
+      con `initialize()`, `logFeedback(query, response, bool, target, reason)`,
+      `getRelevantContext(query)` (carica `preferences.yaml` + ultimi N feedback).
+- [ ] **Feedback loop in chat** — dopo ogni risposta, pulsante 👍/👎 nella bolla che
+      chiama `AIMemory::logFeedback()` e committa nel repo Git.
+- [ ] **Visualizzazione storia preferenze** — tab in Impostazioni o in Multi-Agente
+      che mostra `git log --oneline -- profile/` con pulsante "Ripristina versione".
+
+### [12/06/26 01:02] Smart Router C++ — decisione LOCAL vs CLOUD
+
+> Paolo ha condiviso un progetto C++ standalone (`smart_router.cpp`) con logica di
+> routing automatico tra Ollama locale e API cloud. Il codice è in questa chat.
+
+**Logica di routing (5 regole ordinate):**
+1. Offline → sempre LOCALE
+2. Ollama non attivo → CLOUD
+3. Keywords sensibili (password/IBAN/token) → LOCALE (privacy)
+4. Query lunga (>1500 char) → CLOUD (contesto ampio)
+5. Keywords complessità ("analizza profondamente", "dimostra che") → CLOUD
+6. Default → LOCALE (veloce, gratis, privacy)
+
+**Integrazione con Prismalux:**
+- [ ] **Smart Router in AiClient** — aggiungere `decideBackend(query)` in `ai_client.cpp`
+      che applica le 5 regole sopra e commuta `m_backend` tra Ollama e un endpoint
+      OpenAI-compatible configurabile in Impostazioni→AI Locale→"Backend cloud (fallback)".
+      Prerequisito: campo URL + API key nel dialog impostazioni.
+- [ ] **Indicatore visivo routing** — nella bolla di risposta mostrare
+      `[LOCALE]` / `[CLOUD]` come parte del metadata già presente.
+
+### [12/06/26 01:04] AI Orchestrator completo (AIMemory + SmartRouter + Feedback)
+
+> Paolo ha condiviso `ai_assistant.cpp`: sistema completo che unisce i tre pezzi:
+> `AIMemory` (Git) + `SmartRouter` (LOCAL/CLOUD) + feedback loop automatico post-risposta.
+> Compilabile standalone con `g++ -std=c++17 -O2 ai_assistant.cpp -o ai_assistant`.
+
+**Caratteristiche del prototipo C++ standalone:**
+- `AIMemory::initialize()` — crea `~/.ai-memory/` + init git
+- `AIMemory::logFeedback()` — append su YAML + `git commit` automatico
+- `SmartRouter::decideRoute()` — 5 regole sopra
+- `AIOrchestrator::processQuery()` — contesto + routing + risposta + feedback 👍/👎
+- Zero dipendenze oltre `curl` e `git`
+
+**TODO Prismalux:**
+- [ ] **Prototipo standalone testabile** — compilare `ai_assistant.cpp` in `Tools/` come
+      utility CLI separata (non integrata nella GUI) per validare il concetto con utenti reali.
+- [ ] **Integrazione graduale** — una volta validato il prototipo, portare la logica
+      nelle classi Qt: `AIMemory` → `GraphMemory` estesa, `SmartRouter` → `AiClient`,
+      feedback loop → bolla chat con 👍/👎.
 
 ---
 

@@ -207,3 +207,10 @@ MCPs/anki_mcp/package-lock.json
 
 # ── Script di migrazione (eseguito una volta, non fa parte del repo) ─────────
 gui/lan_web/extract_html.py
+
+# ── Segreti — prevenzione commit accidentale ─────────────────────────────────
+.env
+*.env
+*.key
+*.pem
+*.p12
