@@ -59,6 +59,8 @@ signals:
     void chartRequested(const QString& formula);
     /** Utente ha cliccato "Modifica": testo corrente da rimettere nell'input. */
     void editRequested(const QString& text);
+    /** Utente ha valutato la risposta AI con 👍 (true) o 👎 (false). */
+    void feedbackGiven(bool thumbsUp);
 
 private slots:
     void onCopy();
@@ -67,14 +69,18 @@ private slots:
     void onChartBtnClicked();
     void onEditBtnClicked();
     void onCopyFeedbackReset();
+    void onFeedbackUp();
+    void onFeedbackDown();
 
 private:
     Role          m_role;
     QString       m_plain;
-    QTextBrowser* m_text          = nullptr;
+    QTextBrowser* m_text           = nullptr;
     QWidget*      m_chartContainer = nullptr;  /* layout del grafico */
-    QPushButton*  m_btnChart      = nullptr;
-    QPushButton*  m_btnCopy       = nullptr;
-    QPushButton*  m_btnTts        = nullptr;
-    QPushButton*  m_btnEdit       = nullptr;   /* solo bubble utente */
+    QPushButton*  m_btnChart       = nullptr;
+    QPushButton*  m_btnCopy        = nullptr;
+    QPushButton*  m_btnTts         = nullptr;
+    QPushButton*  m_btnEdit        = nullptr;  /* solo bubble utente */
+    QPushButton*  m_btnUp          = nullptr;  /* 👍 — solo bubble AI */
+    QPushButton*  m_btnDown        = nullptr;  /* 👎 — solo bubble AI */
 };

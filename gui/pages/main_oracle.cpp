@@ -311,6 +311,9 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
         m_routerLbl->setText(toCloud ? "\xe2\x98\x81\xef\xb8\x8f CLOUD" : "\xf0\x9f\x8f\xa0 LOCALE");
         m_routerLbl->setVisible(true);
     });
+
+    /* AIMemory — inizializzazione asincrona (non blocca la UI) */
+    QTimer::singleShot(0, this, [this] { m_aiMemory.initialize(); });
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -533,6 +536,9 @@ ChatBubble* OracoloPage::addAIBubble(const QString& senderName) {
     auto* bubble = new ChatBubble(ChatBubble::AI, senderName, {}, m_chatContainer);
     connect(bubble, &ChatBubble::chartRequested,
             this, &OracoloPage::onBubbleChartRequested);
+    connect(bubble, &ChatBubble::feedbackGiven, bubble, [this, bubble](bool thumbsUp) {
+        m_aiMemory.logFeedback(m_lastUserMsg, bubble->plainText(), thumbsUp);
+    });
     m_chatLay->insertWidget(m_chatLay->count() - 1, bubble);
     scrollToBottom();
     return bubble;
@@ -856,8 +862,10 @@ void OracoloPage::onAiFinished(const QString& full)
     _setSendBusy(false);
     m_waitLbl->setVisible(false);
 
-    if (!m_lastUserMsg.isEmpty() && !full.isEmpty())
+    if (!m_lastUserMsg.isEmpty() && !full.isEmpty()) {
         addToHistory(m_lastUserMsg, full);
+        m_aiMemory.saveInteraction(m_lastUserMsg, full);
+    }
     m_lastUserMsg.clear();
 
     scrollToBottom();

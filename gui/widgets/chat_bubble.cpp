@@ -100,6 +100,20 @@ ChatBubble::ChatBubble(Role role, const QString& sender,
         btnLay->addWidget(m_btnEdit);
     }
 
+    /* Pulsanti feedback 👍/👎 — solo bubble AI, nascosti fino a finalizeStream() */
+    if (role == AI) {
+        m_btnUp   = new QPushButton("\xf0\x9f\x91\x8d", actionBar);
+        m_btnDown = new QPushButton("\xf0\x9f\x91\x8e", actionBar);
+        m_btnUp->setObjectName("bubbleBtn");
+        m_btnDown->setObjectName("bubbleBtn");
+        m_btnUp->setToolTip("Risposta utile");
+        m_btnDown->setToolTip("Risposta non utile");
+        m_btnUp->setVisible(false);
+        m_btnDown->setVisible(false);
+        btnLay->addWidget(m_btnUp);
+        btnLay->addWidget(m_btnDown);
+    }
+
     vlay->addWidget(actionBar);
 
     /* ── Posiziona la bubble a sinistra (AI) o destra (Utente) ── */
@@ -124,6 +138,8 @@ ChatBubble::ChatBubble(Role role, const QString& sender,
     if (m_btnEdit) {
         connect(m_btnEdit, &QPushButton::clicked, this, &ChatBubble::onEditBtnClicked);
     }
+    if (m_btnUp)   connect(m_btnUp,   &QPushButton::clicked, this, &ChatBubble::onFeedbackUp);
+    if (m_btnDown) connect(m_btnDown, &QPushButton::clicked, this, &ChatBubble::onFeedbackDown);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -147,6 +163,9 @@ void ChatBubble::finalizeStream() {
         FormulaParser fp(formula);
         if (fp.ok()) m_btnChart->setVisible(true);
     }
+    /* Mostra i pulsanti feedback alla fine dello stream */
+    if (m_btnUp)   m_btnUp->setVisible(true);
+    if (m_btnDown) m_btnDown->setVisible(true);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -199,4 +218,18 @@ void ChatBubble::onEditBtnClicked() {
 
 void ChatBubble::onCopyFeedbackReset() {
     m_btnCopy->setText("\xf0\x9f\x97\x82");
+}
+
+void ChatBubble::onFeedbackUp() {
+    emit feedbackGiven(true);
+    m_btnUp->setText("\xe2\x9c\x85");   /* ✅ conferma visiva */
+    m_btnUp->setEnabled(false);
+    m_btnDown->setEnabled(false);
+}
+
+void ChatBubble::onFeedbackDown() {
+    emit feedbackGiven(false);
+    m_btnDown->setText("\xe2\x9d\x8c"); /* ❌ conferma visiva */
+    m_btnUp->setEnabled(false);
+    m_btnDown->setEnabled(false);
 }

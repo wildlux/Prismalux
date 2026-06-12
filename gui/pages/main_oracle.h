@@ -9,6 +9,7 @@
 #include <QVector>
 #include <QPointF>
 #include "ai_client.h"
+#include "ai_memory.h"
 #include "rag_engine.h"
 
 class ChatBubble;
@@ -124,6 +125,9 @@ private:
 
     /* ── Chart richiesto da bolla AI ── */
     QPointer<ChatBubble> m_chartBubble;
+
+    /* ── AIMemory — memoria versionata Git ─────────────────────── */
+    AIMemory     m_aiMemory;
 
     /* ── RAG ────────────────────────────────────────────────────── */
     RagEngine    m_rag;           ///< indice RAG con JLT

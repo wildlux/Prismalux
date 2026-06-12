@@ -110,6 +110,7 @@ set(CPP_SRCS
     mainwindow_slots.cpp
     hardware_monitor.cpp
     ai_client.cpp
+    ai_memory.cpp
     theme_manager.cpp
     chat_history.cpp
     rag_engine.cpp
@@ -495,6 +496,19 @@ if(BUILD_TESTS)
     if(NOT WIN32)
         target_link_libraries(test_programmazione_page PRIVATE pthread m)
     endif()
+
+    # ── test_ai_memory: AIMemory git-backed (CAT-A costruzione + CAT-B operazioni) ──
+    add_executable(test_ai_memory
+        tests/test_ai_memory.cpp
+        ai_memory.cpp
+        ${C_SRCS}
+    )
+    target_include_directories(test_ai_memory PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_ai_memory PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_ai_memory PRIVATE pthread m)
+    endif()
+    add_test(NAME AiMemory COMMAND test_ai_memory)
 
     # ── test_translitter: langFence helper, costruzione widget, kLangs unicità ──
     add_executable(test_translitter
