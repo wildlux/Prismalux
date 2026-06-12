@@ -372,13 +372,16 @@
 - Portabile tra dispositivi via `git push/pull`
 
 **Integrazione con Prismalux:**
-- [ ] **AIMemory C++** — classe che gestisce `~/.ai-memory/` tramite `QProcess("git", ...)`
-      con `initialize()`, `logFeedback(query, response, bool, target, reason)`,
-      `getRelevantContext(query)` (carica `preferences.yaml` + ultimi N feedback).
-- [ ] **Feedback loop in chat** — dopo ogni risposta, pulsante 👍/👎 nella bolla che
-      chiama `AIMemory::logFeedback()` e committa nel repo Git.
-- [ ] **Visualizzazione storia preferenze** — tab in Impostazioni o in Multi-Agente
-      che mostra `git log --oneline -- profile/` con pulsante "Ripristina versione".
+- [x] **AIMemory C++** — FATTO 2026-06-13: `gui/ai_memory.h/cpp`. Gestisce `~/.ai-memory/`
+      con `initialize()` (git init idempotente), `logFeedback()`, `saveInteraction()`,
+      `getRelevantContext()` (preferences.yaml + N feedback), `updatePreference()`,
+      `gitLog(n)`, `revertFile(hash, path)`. QProcess shell=false per tutti i comandi git.
+      Test `AiMemory`: 12 PASS (CAT-A + CAT-B).
+- [x] **Feedback loop in chat** — FATTO 2026-06-13: pulsanti 👍/👎 in ChatBubble (AI),
+      visibili dopo `finalizeStream()`. Segnale `feedbackGiven(bool)` connesso in
+      `addAIBubble()` → `AIMemory::logFeedback()`. Ogni scelta disabilita entrambi i btn.
+- [ ] **Visualizzazione storia preferenze** — tab in Impostazioni o Multi-Agente con
+      `gitLog()` + pulsante "Ripristina versione" → `revertFile()`.
 
 ### [12/06/26 01:02] Smart Router C++ — decisione LOCAL vs CLOUD
 
