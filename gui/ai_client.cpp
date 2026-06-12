@@ -236,6 +236,39 @@ bool AiClient::isThinkCapable() const {
            m_model.startsWith("qwen2.5");
 }
 
+/* ── Smart Router: 5 regole ordinate per decidere se usare il cloud ── */
+bool AiClient::decideCloud(const QString& userMsg) const
+{
+    if (!m_smartRouterEnabled || m_cloudUrl.isEmpty() || m_cloudApiKey.isEmpty())
+        return false;
+
+    /* Regola 3 — dati sensibili → locale (privacy) */
+    static const QStringList kSensitive = {
+        "password", "credenziali", "iban", "codice fiscale",
+        "token privato", "chiave ssh", "api key", "secret"
+    };
+    const QString lower = userMsg.toLower();
+    for (const QString& kw : kSensitive) {
+        if (lower.contains(kw)) return false;
+    }
+
+    /* Regola 4 — query molto lunga → cloud (contesto ampio) */
+    if (userMsg.length() > 1500) return true;
+
+    /* Regola 5 — ragionamento complesso → cloud */
+    static const QStringList kComplex = {
+        "analizza profondamente", "spiegami la teoria",
+        "dimostra che", "progetta un", "ottimizza l'algoritmo",
+        "ragiona passo passo", "confronta dettagliatamente"
+    };
+    for (const QString& kw : kComplex) {
+        if (lower.contains(kw)) return true;
+    }
+
+    /* Regola 6 — default → locale */
+    return false;
+}
+
 void AiClient::setLocalBackend(const QString& llamaBin, const QString& modelPath) {
     m_backend    = LlamaLocal;
     m_llamaBin   = llamaBin;
@@ -688,12 +721,29 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
             body["keep_alive"] = 30;
     }
 
-    QString url = (m_backend == Ollama)
-        ? QString("http://%1:%2/api/chat").arg(m_host).arg(m_port)
-        : QString("http://%1:%2/v1/chat/completions").arg(m_host).arg(m_port);
+    /* Smart Router: se attivo e la query va al cloud, sovrascriviamo URL/modello/auth */
+    const bool useCloud = decideCloud(userMsg);
+    emit routedToCloud(useCloud);
+
+    QString url;
+    if (useCloud) {
+        url = m_cloudUrl;
+        /* Formato OpenAI-compatible: rimuovi campi Ollama-specifici, imposta modello cloud */
+        body.remove("options");
+        body.remove("keep_alive");
+        body["model"]       = m_cloudModel;
+        body["temperature"] = m_params.temperature;
+        body["max_tokens"]  = m_params.num_predict;
+    } else {
+        url = (m_backend == Ollama)
+            ? QString("http://%1:%2/api/chat").arg(m_host).arg(m_port)
+            : QString("http://%1:%2/v1/chat/completions").arg(m_host).arg(m_port);
+    }
 
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    if (useCloud)
+        req.setRawHeader("Authorization", ("Bearer " + m_cloudApiKey).toUtf8());
     /* Timeout 5 minuti: previene hang infiniti su modelli lenti o Ollama bloccato.
        Il valore è alto deliberatamente perché i modelli grandi (33B+) possono
        impiegare minuti per generare la prima risposta su hardware lento. */

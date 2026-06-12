@@ -203,6 +203,23 @@ public:
     void setActiveTools(const QJsonArray& tools) { m_activeTools = tools; }
     void clearActiveTools() { m_activeTools = QJsonArray(); }
 
+    /* ── Smart Router LOCAL/CLOUD ─────────────────────────────────────────
+     * Quando abilitato, decideCloud() applica 5 regole ordinate e,
+     * se la query deve andare al cloud, sovrascrive URL/modello/auth
+     * dentro chat() senza cambiare m_backend permanentemente.
+     * L'endpoint cloud deve essere OpenAI-compatible (/v1/chat/completions). */
+    void setSmartRouter(bool enabled,
+                        const QString& url,
+                        const QString& model,
+                        const QString& apiKey)
+    {
+        m_smartRouterEnabled = enabled;
+        m_cloudUrl           = url.trimmed();
+        m_cloudModel         = model.trimmed();
+        m_cloudApiKey        = apiKey.trimmed();
+    }
+    bool smartRouterEnabled() const { return m_smartRouterEnabled; }
+
     /** Continua la conversazione dopo l'esecuzione locale di un tool.
      *  Invia il risultato del tool al modello e riprende lo streaming.
      *  Chiama onReadyRead/onFinished come una chat() normale. */
@@ -245,6 +262,10 @@ signals:
      *  Il chiamante deve eseguire il tool e chiamare replyWithTool() con il risultato. */
     void toolCallRequired(const QString& name, const QJsonObject& args);
 
+    /** Emesso appena prima di ogni richiesta LLM dal Smart Router.
+     *  toCloud=true → la query è stata instradata al backend cloud configurato. */
+    void routedToCloud(bool toCloud);
+
 private slots:
     void onReadyRead();
     void onFinished();
@@ -257,6 +278,7 @@ private slots:
 
 private:
     bool isThinkCapable() const;
+    bool decideCloud(const QString& userMsg) const;
 
     /* HTTP */
     QNetworkAccessManager* m_nam   = nullptr;
@@ -359,4 +381,10 @@ private:
 
     /* transcribeAudio — reply e multipart salvati per lo slot nominato */
     QPointer<QNetworkReply>    m_transcriptionReply;
+
+    /* Smart Router — non persistente (caricato da QSettings all'avvio) */
+    bool    m_smartRouterEnabled = false;
+    QString m_cloudUrl;
+    QString m_cloudModel;
+    QString m_cloudApiKey;
 };

@@ -855,6 +855,12 @@ constexpr const char* kAutoZramDoppia       = "ai/autoZramDoppia";       ///< av
 constexpr const char* kAutoOptApplied       = "ai/autoOptApplied";       ///< preset RAM automatico già applicato al primo avvio (default: false)
 constexpr const char* kAiPersonality        = "ai/personality";           ///< personalità AI: "nessuna"|"jarvis"|"kitt"|"yoda"|"snake"|"sonic"|"mario"
 
+/* ── Smart Router LOCAL/CLOUD ────────────────────── */
+constexpr const char* kSmartRouterEnabled = "ai/smartRouterEnabled"; ///< abilita routing automatico LOCAL→CLOUD (default: false)
+constexpr const char* kCloudApiUrl        = "ai/cloudApiUrl";        ///< endpoint cloud OpenAI-compatible (es. https://api.openai.com/v1/chat/completions)
+constexpr const char* kCloudApiModel      = "ai/cloudApiModel";      ///< modello cloud (es. gpt-4o-mini)
+constexpr const char* kCloudApiKey        = "ai/cloudApiKey";        ///< API key cloud (in chiaro su QSettings — spostare in keychain in futuro)
+
 /* ── Onboarding ─────────────────────────────────── */
 constexpr const char* kSetupDone      = "setup/done";   ///< wizard primo avvio già mostrato
 

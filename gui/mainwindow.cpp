@@ -502,6 +502,13 @@ void MainWindow::setupBackend()
         QSettings s("Prismalux", "GUI");
         const QString savedModel = s.value(P::SK::kActiveModel, "").toString();
         m_ai->setBackend(AiClient::Ollama, P::kLocalHost, P::kOllamaPort, savedModel);
+
+        /* Carica configurazione Smart Router all'avvio */
+        m_ai->setSmartRouter(
+            s.value(P::SK::kSmartRouterEnabled, false).toBool(),
+            s.value(P::SK::kCloudApiUrl, "").toString(),
+            s.value(P::SK::kCloudApiModel, "gpt-4o-mini").toString(),
+            s.value(P::SK::kCloudApiKey, "").toString());
     }
     /* Invalida la cache modelli: il primo fetch interroga sempre Ollama live.
        Questo garantisce che su una macchina diversa non venga mai mostrata

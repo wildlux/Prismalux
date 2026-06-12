@@ -131,6 +131,7 @@ private:
     QString      m_pendingMsg;    ///< messaggio sospeso in attesa embedding RAG
     QPushButton* m_btnRag      = nullptr;
     QLabel*      m_ragLbl      = nullptr;  ///< "📚 N chunk"
+    QLabel*      m_routerLbl  = nullptr;  ///< Smart Router badge: "☁️ CLOUD" / "🏠 LOCALE"
 
     void startChatWithContext(const QString& userMsg);
     void updateRagBtn();

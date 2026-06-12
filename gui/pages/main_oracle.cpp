@@ -170,10 +170,16 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     m_ragLbl = new QLabel("", inputRow);
     m_ragLbl->setObjectName("hintLabel");
 
+    /* Smart Router badge — visibile solo quando il router è attivo */
+    m_routerLbl = new QLabel("", inputRow);
+    m_routerLbl->setObjectName("hintLabel");
+    m_routerLbl->setVisible(false);
+
     inputLay->addWidget(m_btnSys);
     inputLay->addWidget(m_btnImg);
     inputLay->addWidget(m_btnRag);
     inputLay->addWidget(m_ragLbl);
+    inputLay->addWidget(m_routerLbl);
     inputLay->addWidget(m_input, 1);
     inputLay->addWidget(m_btnSend);
     inputLay->addWidget(m_btnNascondi);
@@ -298,6 +304,13 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     connect(m_ai, &AiClient::finished, this, &OracoloPage::onAiFinished);
     connect(m_ai, &AiClient::aborted,  this, &OracoloPage::onAiAborted);
     connect(m_ai, &AiClient::error,    this, &OracoloPage::onAiError);
+
+    /* Smart Router — badge visivo accanto al campo input */
+    connect(m_ai, &AiClient::routedToCloud, this, [this](bool toCloud) {
+        if (!m_ai->smartRouterEnabled()) { m_routerLbl->setVisible(false); return; }
+        m_routerLbl->setText(toCloud ? "\xe2\x98\x81\xef\xb8\x8f CLOUD" : "\xf0\x9f\x8f\xa0 LOCALE");
+        m_routerLbl->setVisible(true);
+    });
 }
 
 /* ══════════════════════════════════════════════════════════════

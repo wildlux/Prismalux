@@ -416,6 +416,87 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &ImpostazioniPage::onOllamaLanFinished);
 
+    /* ══════════════════════════════════════════════════
+       Smart Router — LOCAL/CLOUD automatico
+       ══════════════════════════════════════════════════ */
+    {
+        auto* srGroup = new QGroupBox(
+            "\xe2\x98\x81\xef\xb8\x8f  Smart Router \xe2\x80\x94 LOCAL / CLOUD automatico", page);
+        srGroup->setObjectName("cardGroup");
+        auto* srLay = new QVBoxLayout(srGroup);
+        srLay->setSpacing(8);
+
+        /* Descrizione */
+        auto* srDesc = new QLabel(
+            "Se abilitato, le query lunghe o complesse vengono instradata al backend cloud "
+            "configurato (OpenAI-compatible). Dati sensibili rimangono sempre in locale.", srGroup);
+        srDesc->setObjectName("hintLabel");
+        srDesc->setWordWrap(true);
+        srLay->addWidget(srDesc);
+
+        /* Checkbox abilitazione */
+        m_smartRouterChk = new QCheckBox("Abilita Smart Router (LOCAL \xe2\x86\x92 CLOUD)", srGroup);
+        QSettings s;
+        m_smartRouterChk->setChecked(s.value(P::SK::kSmartRouterEnabled, false).toBool());
+        srLay->addWidget(m_smartRouterChk);
+
+        /* Form campi */
+        auto* form = new QFormLayout;
+        form->setSpacing(6);
+        form->setContentsMargins(0, 4, 0, 0);
+
+        m_cloudUrlEdit = new QLineEdit(
+            s.value(P::SK::kCloudApiUrl,
+                    "https://api.openai.com/v1/chat/completions").toString(), srGroup);
+        m_cloudUrlEdit->setPlaceholderText("https://api.openai.com/v1/chat/completions");
+        form->addRow("URL endpoint:", m_cloudUrlEdit);
+
+        m_cloudModelEdit = new QLineEdit(
+            s.value(P::SK::kCloudApiModel, "gpt-4o-mini").toString(), srGroup);
+        m_cloudModelEdit->setPlaceholderText("gpt-4o-mini");
+        form->addRow("Modello cloud:", m_cloudModelEdit);
+
+        m_cloudApiKeyEdit = new QLineEdit(
+            s.value(P::SK::kCloudApiKey, "").toString(), srGroup);
+        m_cloudApiKeyEdit->setEchoMode(QLineEdit::Password);
+        m_cloudApiKeyEdit->setPlaceholderText("sk-...");
+        form->addRow("API key:", m_cloudApiKeyEdit);
+
+        srLay->addLayout(form);
+
+        /* Pulsante salva + status */
+        auto* srRow = new QHBoxLayout;
+        auto* srSaveBtn = new QPushButton("\xf0\x9f\x92\xbe  Salva", srGroup);
+        srSaveBtn->setObjectName("actionBtn");
+        srSaveBtn->setFixedWidth(dpiScale(120));
+        m_smartRouterStatusLbl = new QLabel("", srGroup);
+        m_smartRouterStatusLbl->setObjectName("hintLabel");
+        srRow->addWidget(srSaveBtn);
+        srRow->addWidget(m_smartRouterStatusLbl);
+        srRow->addStretch(1);
+        srLay->addLayout(srRow);
+
+        mainLay->addWidget(srGroup);
+
+        connect(srSaveBtn, &QPushButton::clicked, this, [this]() {
+            QSettings s2;
+            s2.setValue(P::SK::kSmartRouterEnabled, m_smartRouterChk->isChecked());
+            s2.setValue(P::SK::kCloudApiUrl,        m_cloudUrlEdit->text().trimmed());
+            s2.setValue(P::SK::kCloudApiModel,      m_cloudModelEdit->text().trimmed());
+            s2.setValue(P::SK::kCloudApiKey,        m_cloudApiKeyEdit->text().trimmed());
+            m_ai->setSmartRouter(
+                m_smartRouterChk->isChecked(),
+                m_cloudUrlEdit->text().trimmed(),
+                m_cloudModelEdit->text().trimmed(),
+                m_cloudApiKeyEdit->text().trimmed());
+            m_smartRouterStatusLbl->setText("\xe2\x9c\x85  Salvato");
+            QTimer::singleShot(2000, m_smartRouterStatusLbl,
+                               [this]{ m_smartRouterStatusLbl->setText(""); });
+        });
+    }
+
+    mainLay->addStretch(1);
+
     return page;
 }
 

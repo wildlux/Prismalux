@@ -252,6 +252,13 @@ private:
     QPushButton*    m_lanBtn            = nullptr;
     QProcess*       m_ollamaLanProc     = nullptr;
 
+    /* ── Smart Router member state ── */
+    QCheckBox*      m_smartRouterChk         = nullptr;
+    QLineEdit*      m_cloudUrlEdit           = nullptr;
+    QLineEdit*      m_cloudModelEdit         = nullptr;
+    QLineEdit*      m_cloudApiKeyEdit        = nullptr;
+    QLabel*         m_smartRouterStatusLbl   = nullptr;
+
     /* ── buildRagTab member state ── */
     QLineEdit*      m_ragDirEdit        = nullptr;
     QLabel*         m_ragStatusLbl      = nullptr;
