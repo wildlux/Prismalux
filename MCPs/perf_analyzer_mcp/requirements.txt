@@ -1,0 +1,5 @@
+# perf_analyzer_mcp
+# Dipendenze di sistema (opzionali, degradano gracefully se assenti):
+#   sudo apt install valgrind kcachegrind linux-perf binutils
+# Python opzionale:
+#   pip install memory-profiler  # per analisi memoria script Python

@@ -28,7 +28,7 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 - **Multi-Agente con GraphMemory** — decomposizione task, sub-agenti, memoria a grafo SQLite
 - **RAG ibrido JLT + Grafo Conoscenza** — ricerca semantica + entità/relazioni estratte da LLM
 - **105 simulazioni algoritmiche** visualizzate passo per passo
-- **28 plugin MCP** per Blender, FreeCAD, GNS3, RDKit, Cytoscape, OBS, Ollama cache, sicurezza...
+- **35 plugin MCP** per Blender, FreeCAD, GNS3, RDKit, Cytoscape, OBS, Ollama cache, sicurezza, analisi architetturale, best practice...
 - **Sicurezza informatica** — 5 MCP dedicati: secrets scanner, audit CVE, CVE lookup NVD, network recon, SAST
 - **Calcolo distribuito WAN** (BOINC-like) su rete locale con 28 tipi di task
 - **Matematica simbolica** con SymPy, grafico interattivo, formule LaTeX (KaTeX)
@@ -75,7 +75,7 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 | 🗺️ **Mappa OSM** | Mappa OpenStreetMap interattiva con itinerari multi-tappa e routing OSRM (Auto/Piedi/Bici) — offline tile cache |
 | 🎨 **Stable Diffusion** | Generazione immagini via AUTOMATIC1111/Forge/SD.Next (API locale) |
 | 🔬 **105 Simulazioni** | Algoritmi visualizzati barra per barra con spiegazione e complessità O-grande |
-| 🔗 **28 Plugin MCP** | JSON-RPC 2.0 stdio — Blender, Office, GNS3, RDKit, Cytoscape, OBS, Godot, **Ollama cache**, 5 MCP sicurezza... |
+| 🔗 **35 Plugin MCP** | JSON-RPC 2.0 stdio — Blender, Office, GNS3, RDKit, Cytoscape, OBS, Godot, **Ollama cache**, 5 MCP sicurezza, 7 MCP best practice... |
 | 🖧 **WAN Compute** | Calcolo distribuito LAN/WAN: server TCP + dispatcher 28 task + cron |
 | 📱 **App Android** | Qt6 native: BLE chat AES-256-GCM, Quiz CCNA **209 domande**, TTS/STT, sincronizzazione LAN |
 | 🌐 **LAN Server** | Web app embedded su porta 11500: chat, matematica, Voce (TTS+STT), Whisper, Graphviz |
@@ -188,7 +188,7 @@ Ogni tipo ha un **template payload** pre-compilato automaticamente alla selezion
 
 ---
 
-## Plugin MCP (28)
+## Plugin MCP (35)
 
 Ogni plugin ha `requirements.txt`. Tutti usano il protocollo **JSON-RPC 2.0 stdio** e sono compatibili sia con Claude Code (`~/.claude/settings.json`) sia con l'interfaccia **McpAddonsPage** interna all'app.
 
@@ -252,6 +252,32 @@ pipx install safety
 ```
 
 > `scan_staged` è il tool più utile nel quotidiano: va eseguito prima di ogni `git commit` per intercettare segreti prima che finiscano nel repository.
+
+### Sviluppo software — Best Practice (7)
+
+MCP orientati alla qualità del codice: architettura, UX, sicurezza OWASP, test, performance, changelog e licenze. Tutti in stdlib Python, nessuna dipendenza pip obbligatoria.
+
+| Plugin | Funzione | Tool chiave |
+|--------|---------|------------|
+| `arch_analyzer_mcp` | Analisi architetturale C++: dipendenze circolari, God Class, coupling afferente/efferente, complessità ciclomatica | `analyze_dependencies`, `find_god_classes`, `coupling_report`, `check_conventions`, `complexity_estimate` |
+| `ui_ux_checker_mcp` | Verifica UI/UX: dpiScale(), touch target ≥44dp (Android), tooltip mancanti, contrasto WCAG AA, accessibilità | `check_dpi`, `check_touch_targets`, `check_tooltips`, `check_qss_contrast`, `full_ux_audit` |
+| `owasp_mcp` | OWASP Top 10 adattato a Qt6 C++ e Python: injection, broken auth, crypto, config, logging insicuro | `check_a01`…`check_a09`, `full_scan`, `explain` |
+| `test_generator_mcp` | Generazione scheletri test QTest (C++) e pytest (Python) da header/file sorgente | `generate_qt_tests`, `generate_pytest`, `list_untested`, `analyze_test_gaps`, `suggest_edge_cases` |
+| `perf_analyzer_mcp` | Performance: valgrind memcheck/callgrind, perf stat hardware counters, cProfile Python, dimensione binario ELF | `valgrind_memcheck`, `callgrind_profile`, `perf_stat`, `python_profile`, `check_binary_size` |
+| `changelog_mcp` | Conventional Commits: genera CHANGELOG.md, valida messaggi, suggerisce bump semver | `list_unreleased`, `validate_commits`, `suggest_version`, `generate_entry`, `format_release` |
+| `license_checker_mcp` | Licenze PyPI: verifica GPL/LGPL/MIT, compatibilità per prodotto commerciale, genera NOTICE.txt | `check_requirements`, `lookup_license`, `check_compatibility`, `generate_notice` |
+
+**Dipendenze di sistema opzionali (degradano gracefully se assenti):**
+
+```bash
+# perf_analyzer_mcp
+sudo apt install valgrind kcachegrind linux-perf binutils
+pip install memory-profiler
+
+# test_generator_mcp (per compilare i test generati)
+sudo apt install qtbase5-dev
+pip install pytest pytest-asyncio pytest-qt
+```
 
 ### Riferimenti API ufficiali
 
@@ -526,7 +552,7 @@ Prismalux/
 │   ├── android_app/              ← BLE chat, Quiz CCNA, TTS, STT, LAN sync
 │   └── PrismaluxMobile.apk       ← APK precompilato (scaricabile via QR in-app)
 │
-├── MCPs/                         ← 28 plugin MCP (Python, JSON-RPC 2.0 stdio)
+├── MCPs/                         ← 35 plugin MCP (Python, JSON-RPC 2.0 stdio)
 ├── RAG/                          ← Documenti per RAG (locale, non in git)
 ├── KNOWLEDGE_USER/               ← Memoria utente (locale, non in git)
 ├── BEST_PRACTICE_&_GOAL/         ← Regole, obiettivi, TODO, operazioni

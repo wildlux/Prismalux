@@ -1,0 +1,3 @@
+# ui_ux_checker_mcp — stdlib only
+# Analisi statica QSS/C++: nessuna dipendenza esterna.
+# Opzionale: pillow (pip install pillow) per analisi colori immagini

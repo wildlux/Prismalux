@@ -1,0 +1,5 @@
+# test_generator_mcp — stdlib only
+# Generazione scheletri test Qt6/pytest: nessuna dipendenza esterna.
+# Dipendenze di TEST (non di runtime MCP):
+#   sudo apt install qtbase5-dev  # per compilare test Qt
+#   pip install pytest pytest-asyncio pytest-qt

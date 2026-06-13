@@ -1,0 +1,3 @@
+# arch_analyzer_mcp — stdlib only
+# Nessuna dipendenza esterna richiesta.
+# Opzionale per visualizzazione: graphviz (apt install graphviz)

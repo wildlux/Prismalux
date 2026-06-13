@@ -1,0 +1,3 @@
+# changelog_mcp — stdlib only
+# Richiede git nel PATH (già presente nel sistema).
+# Formato atteso: Conventional Commits (feat/fix/docs/…)
