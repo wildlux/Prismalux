@@ -28,7 +28,7 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 - **Multi-Agente con GraphMemory** — decomposizione task, sub-agenti, memoria a grafo SQLite
 - **RAG ibrido JLT + Grafo Conoscenza** — ricerca semantica + entità/relazioni estratte da LLM
 - **105 simulazioni algoritmiche** visualizzate passo per passo
-- **35 plugin MCP** per Blender, FreeCAD, GNS3, RDKit, Cytoscape, OBS, Ollama cache, sicurezza, analisi architetturale, best practice...
+- **47 plugin MCP** per Blender, FreeCAD, GNS3, RDKit, Cytoscape, OBS, Ollama cache, sicurezza, analisi architetturale, best practice...
 - **Sicurezza informatica** — 5 MCP dedicati: secrets scanner, audit CVE, CVE lookup NVD, network recon, SAST
 - **Calcolo distribuito WAN** (BOINC-like) su rete locale con 28 tipi di task
 - **Matematica simbolica** con SymPy, grafico interattivo, formule LaTeX (KaTeX)
@@ -75,7 +75,7 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 | 🗺️ **Mappa OSM** | Mappa OpenStreetMap interattiva con itinerari multi-tappa e routing OSRM (Auto/Piedi/Bici) — offline tile cache |
 | 🎨 **Stable Diffusion** | Generazione immagini via AUTOMATIC1111/Forge/SD.Next (API locale) |
 | 🔬 **105 Simulazioni** | Algoritmi visualizzati barra per barra con spiegazione e complessità O-grande |
-| 🔗 **35 Plugin MCP** | JSON-RPC 2.0 stdio — Blender, Office, GNS3, RDKit, Cytoscape, OBS, Godot, **Ollama cache**, 5 MCP sicurezza, 7 MCP best practice... |
+| 🔗 **47 Plugin MCP** | JSON-RPC 2.0 stdio — Blender, Office, GNS3, RDKit, Cytoscape, OBS, Godot, **Ollama cache**, 5 sicurezza, 7 best practice, 12 produttività... |
 | 🖧 **WAN Compute** | Calcolo distribuito LAN/WAN: server TCP + dispatcher 28 task + cron |
 | 📱 **App Android** | Qt6 native: BLE chat AES-256-GCM, Quiz CCNA **209 domande**, TTS/STT, sincronizzazione LAN |
 | 🌐 **LAN Server** | Web app embedded su porta 11500: chat, matematica, Voce (TTS+STT), Whisper, Graphviz |
@@ -188,7 +188,7 @@ Ogni tipo ha un **template payload** pre-compilato automaticamente alla selezion
 
 ---
 
-## Plugin MCP (35)
+## Plugin MCP (47)
 
 Ogni plugin ha `requirements.txt`. Tutti usano il protocollo **JSON-RPC 2.0 stdio** e sono compatibili sia con Claude Code (`~/.claude/settings.json`) sia con l'interfaccia **McpAddonsPage** interna all'app.
 
@@ -278,6 +278,25 @@ pip install memory-profiler
 sudo apt install qtbase5-dev
 pip install pytest pytest-asyncio pytest-qt
 ```
+
+### Produttività e infrastruttura (12)
+
+MCP pratici per il workflow quotidiano: i18n, database, monitoraggio, API, snippet, OCR, SSH, documentazione, traduzione, Docker, email, backup cloud.
+
+| Plugin | Funzione | Tool chiave | Dipendenze |
+|--------|---------|------------|------------|
+| `qt_i18n_mcp` | Gestione .ts Qt6: lupdate/lrelease, stringhe non tradotte, copertura | `run_lupdate`, `find_untranslated`, `coverage_report`, `add_translation` | `qttools5-dev-tools` (apt) |
+| `sqlite_inspector_mcp` | Query read-only su graph_memory.db e rag_graph.db | `query`, `schema`, `stats`, `export_csv`, `vacuum` | stdlib only |
+| `system_monitor_mcp` | CPU/RAM/GPU in tempo reale, processi Ollama, porte Prismalux | `cpu_mem`, `gpu_usage`, `watch_processes`, `network_io` | `psutil` (opzionale) |
+| `api_tester_mcp` | Test endpoint LAN server :11500, WAN Compute :11600, Ollama | `check_lan_server`, `check_ollama`, `load_test`, `http_post` | stdlib only |
+| `snippet_mcp` | Boilerplate Qt6 (page, widget, MCP, QTest) + snippet pattern | `new_page`, `new_widget`, `new_mcp`, `new_test`, `get_snippet` | stdlib only |
+| `ocr_mcp` | OCR PDF scansionati → testo → RAG/ con Tesseract | `ocr_pdf`, `ocr_to_rag`, `batch_ocr`, `list_rag_pdfs` | `tesseract-ocr`, `pdf2image`, `pytesseract` |
+| `ssh_remote_mcp` | SSH/rsync su host remoti, deploy WAN client | `connect_test`, `run_command`, `sync_build`, `deploy_wan_client` | `ssh rsync` (apt) |
+| `docs_generator_mcp` | Doxygen HTML, copertura commenti, funzioni non documentate | `run_doxygen`, `check_coverage`, `find_undocumented`, `generate_doxyfile` | `doxygen graphviz` (apt) |
+| `translation_mcp` | Auto-traduzione .ts Qt6 con LibreTranslate (self-hosted) | `translate_ts_file`, `translate_string`, `batch_translate` | LibreTranslate locale o remoto |
+| `docker_mcp` | Gestione container Docker: run/stop/logs/build/exec | `list_containers`, `run_container`, `container_logs`, `build_image` | `docker.io` (apt) |
+| `email_notify_mcp` | Notifiche email SMTP (build pass/fail, alert sistema) | `configure`, `notify_build`, `notify_alert`, `send_notification` | stdlib only (smtplib) |
+| `cloud_backup_mcp` | Backup RAG/KNOWLEDGE/DB su Google Drive, Dropbox, S3 con rclone | `backup_all`, `backup_rag`, `restore_rag`, `list_cloud_files` | `rclone` (apt/curl) |
 
 ### Riferimenti API ufficiali
 
@@ -552,7 +571,7 @@ Prismalux/
 │   ├── android_app/              ← BLE chat, Quiz CCNA, TTS, STT, LAN sync
 │   └── PrismaluxMobile.apk       ← APK precompilato (scaricabile via QR in-app)
 │
-├── MCPs/                         ← 35 plugin MCP (Python, JSON-RPC 2.0 stdio)
+├── MCPs/                         ← 47 plugin MCP (Python, JSON-RPC 2.0 stdio)
 ├── RAG/                          ← Documenti per RAG (locale, non in git)
 ├── KNOWLEDGE_USER/               ← Memoria utente (locale, non in git)
 ├── BEST_PRACTICE_&_GOAL/         ← Regole, obiettivi, TODO, operazioni

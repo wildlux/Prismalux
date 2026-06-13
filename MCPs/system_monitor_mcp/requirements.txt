@@ -1,0 +1,4 @@
+# system_monitor_mcp
+# pip: psutil  (opzionale, fallback /proc)
+# pip install psutil
+# Sistema opzionale: nvidia-utils (nvidia-smi), rocm-smi

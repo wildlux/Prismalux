@@ -1,0 +1,2 @@
+# sqlite_inspector_mcp — stdlib only (sqlite3, csv)
+# Nessuna dipendenza esterna.

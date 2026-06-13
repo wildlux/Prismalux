@@ -1,0 +1,2 @@
+# snippet_mcp — stdlib only
+# Genera boilerplate Qt6/MCP/QTest.

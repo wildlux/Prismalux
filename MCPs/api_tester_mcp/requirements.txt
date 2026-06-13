@@ -1,0 +1,2 @@
+# api_tester_mcp — stdlib only (urllib, socket)
+# Nessuna dipendenza esterna.

@@ -1,0 +1,4 @@
+# ocr_mcp
+# Sistema: sudo apt install tesseract-ocr tesseract-ocr-ita poppler-utils
+# pip: pytesseract pdf2image Pillow
+# pip install pytesseract pdf2image Pillow

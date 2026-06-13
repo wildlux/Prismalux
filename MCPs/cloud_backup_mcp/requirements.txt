@@ -1,0 +1,3 @@
+# cloud_backup_mcp
+# Sistema: sudo apt install rclone  (o curl https://rclone.org/install.sh | sudo bash)
+# Nessuna dipendenza pip.
