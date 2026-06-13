@@ -77,6 +77,11 @@ protected:
 OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     : QWidget(parent), m_ai(ai)
 {
+    {
+        QSettings ss("Prismalux", "GUI");
+        m_maxRecentTurns = qBound(1, ss.value(P::SK::kChatMaxTurns, 3).toInt(), 20);
+    }
+
     auto* lay = new QVBoxLayout(this);
     lay->setContentsMargins(0, 0, 0, 0);
     lay->setSpacing(0);
@@ -440,9 +445,9 @@ void OracoloPage::addToHistory(const QString& user, const QString& assistant) {
    compressHistory — sposta i turni eccedenti verso summarizeAsync()
    ══════════════════════════════════════════════════════════════ */
 void OracoloPage::compressHistory() {
-    if (m_history.size() <= kMaxRecentTurns) return;
+    if (m_history.size() <= m_maxRecentTurns) return;
 
-    const int toCompress = m_history.size() - kMaxRecentTurns;
+    const int toCompress = m_history.size() - m_maxRecentTurns;
     const QVector<ConvTurn> overflow = m_history.mid(0, toCompress);
     m_history = m_history.mid(toCompress);   /* taglia subito — non aspetta l'AI */
 

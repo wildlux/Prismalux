@@ -133,6 +133,10 @@ private slots:
     void onRpcToggled(bool on);
     void onRpcNodesEditFinished();
     void onRpcCheckClicked();
+    void onRpcSshUserEditFinished();
+    void onRpcPathEditFinished();
+    void onRpcStartNodesClicked();
+    void onRpcStopNodesClicked();
     void onAiParamsSave();
     void onAiParamsSaveStatusClear();
     void onAiParamsReset();
@@ -286,6 +290,10 @@ private:
     QCheckBox*      m_rpcCb             = nullptr;
     QLineEdit*      m_rpcNodesEdit      = nullptr;
     QLabel*         m_rpcStatusLbl      = nullptr;
+    QLineEdit*      m_rpcSshUserEdit    = nullptr;
+    QLineEdit*      m_rpcPathEdit       = nullptr;
+    QPushButton*    m_rpcStartBtn       = nullptr;
+    QPushButton*    m_rpcStopBtn        = nullptr;
 
     /* ── buildSandboxTab member state ── */
     QLineEdit*      m_sandboxImgEdit    = nullptr;

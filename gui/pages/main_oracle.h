@@ -154,11 +154,11 @@ private:
        Vantaggi: il modello ha contesto senza mandare decine di turni raw.
        ─────────────────────────────────────────────────────────────── */
     struct ConvTurn { QString user; QString assistant; };
-    QVector<ConvTurn> m_history;         ///< ultimi kMaxRecentTurns turni
+    QVector<ConvTurn> m_history;         ///< ultimi m_maxRecentTurns turni (caricato da QSettings kChatMaxTurns)
     QString           m_historySummary;  ///< turni vecchi compressi in testo
     QString           m_lastUserMsg;     ///< messaggio utente corrente (per storia)
 
-    static constexpr int kMaxRecentTurns = 3;  ///< turni completi da tenere raw
+    int  m_maxRecentTurns = 3;  ///< turni completi prima della compressione (da QSettings)
 
     /** Aggiunge un turno alla storia e comprime se supera kMaxRecentTurns. */
     void addToHistory(const QString& user, const QString& assistant);

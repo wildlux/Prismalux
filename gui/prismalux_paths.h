@@ -877,6 +877,10 @@ constexpr const char* kLanPort        = "lan/port";                ///< porta TC
 /* ── llama.cpp RPC Cluster ───────────────────────── */
 constexpr const char* kRpcEnabled     = "llama/rpcEnabled";        ///< abilita --rpc su llama-server (default: false)
 constexpr const char* kRpcNodes       = "llama/rpcNodes";          ///< lista nodi RPC separati da virgola: "host1:50052,host2:50052"
+constexpr const char* kRpcSshUser     = "llama/rpcSshUser";        ///< utente SSH per avviare rpc-server sui nodi remoti
+constexpr const char* kRpcServerPath  = "llama/rpcServerPath";     ///< path del binario rpc-server sui nodi remoti
+
+constexpr const char* kChatMaxTurns   = "chat/maxRecentTurns";     ///< turni completi da tenere raw prima della compressione (default: 3)
 
 }  // namespace SK
 

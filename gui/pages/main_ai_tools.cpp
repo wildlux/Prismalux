@@ -15,6 +15,7 @@
    ══════════════════════════════════════════════════════════════ */
 #include "main_ai.h"
 #include "main_ai_p.h"
+#include "dialog_agents_config.h"
 #include "../prismalux_paths.h"
 #include "../app_config.h"
 #include "../graph_memory.h"
@@ -599,9 +600,41 @@ void AgentiPage::runToolCall(const QJsonObject& call,
         ++m_spawnedAgents;
         const int agentNum = m_spawnedAgents;
 
+        /* Contesto RAG: inline + condiviso (se presenti) */
+        QString ragCtx;
+        if (m_ragInline && m_ragInline->hasContext())
+            ragCtx += m_ragInline->ragContext();
+        if (m_cfgDlg && m_cfgDlg->sharedRagWidget() && m_cfgDlg->sharedRagWidget()->hasContext())
+            ragCtx += m_cfgDlg->sharedRagWidget()->ragContext();
+
         /* Sub-AiClient configurato come il principale */
         auto* sub = new AiClient(this);
         sub->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+
+        /* Tool list senza spawn_agent (evita ricorsione) */
+        auto mkTool = [](const QString& n, const QString& d, const QString& pd) -> QJsonObject {
+            QJsonObject props; QJsonObject val;
+            val["type"] = QLatin1String("string"); val["description"] = pd;
+            props["value"] = val;
+            QJsonObject params; params["type"] = QLatin1String("object");
+            params["properties"] = props;
+            params["required"] = QJsonArray{ QLatin1String("value") };
+            QJsonObject fn; fn["name"] = n; fn["description"] = d; fn["parameters"] = params;
+            QJsonObject t; t["type"] = QLatin1String("function"); t["function"] = fn;
+            return t;
+        };
+        const QJsonArray subTools {
+            mkTool("calc",        "Calcola un'espressione matematica.",                    "Espressione matematica"),
+            mkTool("fetch_url",   "Scarica il contenuto di una pagina web (URL diretta).", "URL completa"),
+            mkTool("ricerca",     "Cerca informazioni online via DuckDuckGo.",              "Query di testo"),
+            mkTool("leggi_file",  "Legge il contenuto di un file locale.",                 "Percorso assoluto del file"),
+            mkTool("lista_file",  "Elenca i file in una directory locale.",                "Percorso assoluto della cartella"),
+            mkTool("python",      "Esegue codice Python in sandbox.",                      "Codice Python da eseguire"),
+            mkTool("search_rag",  "Cerca nei documenti RAG indicizzati.",                  "Query di ricerca nei documenti RAG"),
+            mkTool("graph_memory","Cerca nella memoria a grafo di Prismalux.",             "Query di ricerca nella memoria"),
+            mkTool("get_knowledge","Legge la Knowledge Base personale dell'utente.",       "(lascia vuoto per leggere tutto)"),
+        };
+        sub->setActiveTools(subTools);
 
         const QString sysSub = QString::fromUtf8(
             "Sei un agente specializzato con il seguente ruolo: ") + role +
@@ -610,18 +643,41 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             "Rispondi SOLO con il risultato del tuo compito, senza preamboli. "
             "Rispondi in italiano.");
 
-        connect(sub, &AiClient::finished, sub, [this, sub, onDone, agentNum, role](const QString& full) {
+        /* Gestione tool call del sub-agente — stesso pattern di onNativeToolCall */
+        connect(sub, &AiClient::toolCallRequired, this,
+                [this, sub](const QString& tName, const QJsonObject& tArgs) {
+                    QString tInput;
+                    for (auto it = tArgs.constBegin(); it != tArgs.constEnd(); ++it) {
+                        const QJsonValue v = it.value();
+                        if (v.isString())  { tInput = v.toString(); break; }
+                        if (v.isDouble())  { tInput = QString::number(v.toDouble()); break; }
+                        if (v.isObject())  { tInput = QJsonDocument(v.toObject()).toJson(QJsonDocument::Compact); break; }
+                    }
+                    if (tInput.isEmpty())
+                        tInput = QJsonDocument(tArgs).toJson(QJsonDocument::Compact);
+
+                    QJsonObject call;
+                    call["tool"]  = tName;
+                    call["input"] = tInput;
+                    runToolCall(call, [sub, tName](const QString& result) {
+                        sub->replyWithTool(tName, result);
+                    });
+                });
+
+        connect(sub, &AiClient::finished, this, [this, sub, onDone, agentNum, role](const QString& full) {
             const QString out = QString("[Sub-agente %1 \xe2\x80\x94 %2]\n%3")
                                 .arg(agentNum).arg(role).arg(full.trimmed().left(2000));
             onDone(out);
             sub->deleteLater();
         });
-        connect(sub, &AiClient::error, sub, [this, sub, onDone, agentNum](const QString& err) {
+        connect(sub, &AiClient::error, this, [this, sub, onDone, agentNum](const QString& err) {
             onDone(QString("[Sub-agente %1 errore]: %2").arg(agentNum).arg(err));
             sub->deleteLater();
         });
 
-        sub->chat(sysSub, task);
+        /* Inietta RAG nel task se disponibile */
+        const QString taskFinal = ragCtx.isEmpty() ? task : (task + ragCtx);
+        sub->chat(sysSub, taskFinal);
         return;
     }
 

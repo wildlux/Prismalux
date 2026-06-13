@@ -348,23 +348,15 @@
 
 ### [14/06/26] Sub-agenti (spawn_agent) — tool e RAG
 
-- [ ] **Sub-agenti: accesso ai tool** — attualmente il sub-`AiClient` creato da `spawn_agent`
-      non ha accesso ai tool (calc, ricerca, leggi_file, lista_file, python, fetch_url, ecc.).
-      **Da fare:** in `runToolCall()` (sezione `spawn_agent`), chiamare
-      `sub->setActiveTools(_buildOllamaTools())` prima di `sub->chat(...)`.
-      Poi connettere `sub`→`nativeToolCall` → `runToolCall` con un secondo livello di dispatch
-      (attenzione: serve un limite di ricorsione per evitare loop infiniti di spawn_agent→spawn_agent).
+- [x] **Sub-agenti: accesso ai tool** — FATTO 2026-06-14: `sub->setActiveTools(subTools)` +
+      `connect(sub, toolCallRequired, this, [...] { runToolCall → sub->replyWithTool })`.
+      Tool list inline in `runToolCall()` sezione spawn_agent, senza spawn_agent.
 
-- [ ] **Sub-agenti: accesso al RAG** — il sub-agente non vede né il RAG inline né il RAG condiviso.
-      **Da fare:** in `runToolCall()` (sezione `spawn_agent`), recuperare il contesto RAG attivo
-      (`m_ragInline->ragContext()` + `m_cfgDlg->sharedRagWidget()->ragContext()`) e
-      iniettarlo nel `task` prima di chiamare `sub->chat(sysSub, ragCtx + task)`.
-      Alternativa più pulita: passarlo nel `sysSub` come sezione separata con header
-      `"— Contesto RAG disponibile —"` + istruzione di pertinenza (già presente in `ragContext()`).
+- [x] **Sub-agenti: accesso al RAG** — FATTO 2026-06-14: raccolta `m_ragInline->ragContext()` +
+      `m_cfgDlg->sharedRagWidget()->ragContext()` → iniettato in `taskFinal` prima di `sub->chat()`.
 
-- [ ] **Sub-agenti: limite ricorsione spawn_agent** — un sub-agente NON deve poter chiamare
-      spawn_agent a sua volta (loop infinito). Soluzione: nel `sysSub` di spawn_agent
-      omettere `spawn_agent` dalla lista tool e non chiamare `sub->setActiveTools()` con quel tool.
+- [x] **Sub-agenti: limite ricorsione spawn_agent** — FATTO 2026-06-14: la `subTools` list non
+      include `spawn_agent`; il sub-agente non può crearne altri.
 
 ---
 

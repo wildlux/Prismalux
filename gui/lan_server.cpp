@@ -2105,9 +2105,11 @@ void LanServer::handleReplApi(Session& s)
     /* ulimit applicato via bash wrapper:
      *  -v 262144  → 256 MB virtual memory (in KB)
      *  -t 10      → 10 s CPU time
+     *  -u 50      → max 50 processi utente (anti fork-bomb)
+     *  -n 100     → max 100 file descriptor (anti fd exhaustion)
      * Su sistemi senza bash (macOS) il fallback exec non applica i limiti
      * ma il timeout QProcess (15/10 s) resta comunque attivo. */
-    static const QLatin1String kLimits("ulimit -v 262144 -t 10 2>/dev/null; ");
+    static const QLatin1String kLimits("ulimit -v 262144 -t 10 -u 50 -n 100 2>/dev/null; ");
 
     ProcResult r;
     if (lang == "python" || lang == "python3" || lang.isEmpty()) {

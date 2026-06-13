@@ -1013,6 +1013,71 @@ void ImpostazioniPage::onRpcCheckClicked()
     m_rpcStatusLbl->setText(results.join("   "));
 }
 
+void ImpostazioniPage::onRpcSshUserEditFinished()
+{
+    if (!m_rpcSshUserEdit) return;
+    AppConfig::s().setValue(P::SK::kRpcSshUser, m_rpcSshUserEdit->text().trimmed());
+}
+
+void ImpostazioniPage::onRpcPathEditFinished()
+{
+    if (!m_rpcPathEdit) return;
+    AppConfig::s().setValue(P::SK::kRpcServerPath, m_rpcPathEdit->text().trimmed());
+}
+
+void ImpostazioniPage::onRpcStartNodesClicked()
+{
+    if (!m_rpcNodesEdit || !m_rpcSshUserEdit || !m_rpcPathEdit || !m_rpcStatusLbl) return;
+
+    const QString nodes   = m_rpcNodesEdit->text().trimmed();
+    const QString sshUser = m_rpcSshUserEdit->text().trimmed();
+    const QString rpcPath = m_rpcPathEdit->text().trimmed().isEmpty()
+                            ? "~/llama.cpp/build/bin/rpc-server"
+                            : m_rpcPathEdit->text().trimmed();
+
+    if (nodes.isEmpty()) {
+        m_rpcStatusLbl->setText("\xe2\x84\xb9  Nessun nodo configurato.");
+        return;
+    }
+    AppConfig::s().setValue(P::SK::kRpcSshUser, sshUser);
+    AppConfig::s().setValue(P::SK::kRpcServerPath, m_rpcPathEdit->text().trimmed());
+
+    const QString userPrefix = sshUser.isEmpty() ? "" : sshUser + "@";
+    QStringList lines;
+    for (const QString& node : nodes.split(',', Qt::SkipEmptyParts)) {
+        const int colon = node.lastIndexOf(':');
+        const QString host = (colon > 0) ? node.left(colon).trimmed() : node.trimmed();
+        const int port     = (colon > 0) ? node.mid(colon + 1).trimmed().toInt() : 50052;
+        const QString cmd  = QString("ssh %1%2 'nohup %3 -H 0.0.0.0 -p %4 > /tmp/rpc.log 2>&1 &'")
+                                .arg(userPrefix).arg(host).arg(rpcPath).arg(port);
+        QProcess::startDetached("bash", {"-c", cmd});
+        lines << QString("\xf0\x9f\x9a\x80 avviato: %1").arg(host);  /* 🚀 */
+    }
+    m_rpcStatusLbl->setText(lines.join("   "));
+}
+
+void ImpostazioniPage::onRpcStopNodesClicked()
+{
+    if (!m_rpcNodesEdit || !m_rpcSshUserEdit || !m_rpcStatusLbl) return;
+
+    const QString nodes   = m_rpcNodesEdit->text().trimmed();
+    const QString sshUser = m_rpcSshUserEdit->text().trimmed();
+    if (nodes.isEmpty()) {
+        m_rpcStatusLbl->setText("\xe2\x84\xb9  Nessun nodo configurato.");
+        return;
+    }
+    const QString userPrefix = sshUser.isEmpty() ? "" : sshUser + "@";
+    QStringList lines;
+    for (const QString& node : nodes.split(',', Qt::SkipEmptyParts)) {
+        const int colon = node.lastIndexOf(':');
+        const QString host = (colon > 0) ? node.left(colon).trimmed() : node.trimmed();
+        const QString cmd  = QString("ssh %1%2 'pkill -f rpc-server'").arg(userPrefix).arg(host);
+        QProcess::startDetached("bash", {"-c", cmd});
+        lines << QString("\xe2\x8f\xb9 fermato: %1").arg(host);  /* ⏹ */
+    }
+    m_rpcStatusLbl->setText(lines.join("   "));
+}
+
 void ImpostazioniPage::onAiParamsSave()
 {
     if (!m_tempSpin || !m_topPSpin || !m_topKSpin || !m_repSpin ||
