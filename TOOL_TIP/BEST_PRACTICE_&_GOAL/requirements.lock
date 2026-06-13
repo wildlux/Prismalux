@@ -1,5 +1,5 @@
 # Prismalux — requirements.lock
-# Versioni verificate al 2026-05-31 sul sistema di sviluppo Linux (Python 3.14)
+# Versioni verificate al 2026-06-13 sul sistema di sviluppo Linux (Python 3.14)
 #
 # Per rigenerare con hash SHA256 verificati da PyPI:
 #   pip install pip-tools
@@ -9,6 +9,81 @@
 #   [V] versione verificata sull'ambiente di sviluppo Linux
 #   [W] versione verificata nell'embedded Python COMPILE_WIN (Windows)
 #   [P] versione da PyPI — non ancora installata localmente
+
+# ════════════════════════════════════════════════════════════════
+# DIPENDENZE DI SISTEMA (non pip)
+# ════════════════════════════════════════════════════════════════
+#
+# Installazione completa Linux (Ubuntu/Debian):
+#   sudo apt install \
+#     build-essential cmake git \
+#     qt6-base-dev qt6-multimedia-dev qt6-webengine-dev \
+#     libqt6sql6 libqt6bluetooth6 qt6-speech \
+#     libqt6keychain1 qt6keychain-dev \
+#     libonnxruntime-dev \
+#     ffmpeg \
+#     graphviz \
+#     sqlite3 libsqlite3-dev \
+#     openssl libssl-dev \
+#     android-tools-adb \
+#     ripgrep \
+#     nmap whois traceroute dnsutils \
+#     cppcheck \
+#     python3-uno \
+#     portaudio19-dev \
+#     poppler-utils \
+#     tesseract-ocr tesseract-ocr-ita \
+#     imagemagick \
+#     curl wget \
+#     jq \
+#     pipx
+#
+# Installazione Windows (MSYS2 UCRT64 — per Paolo):
+#   pacman -S mingw-w64-ucrt-x86_64-{qt6-base,qt6-multimedia,cmake,ffmpeg,graphviz,sqlite3,openssl}
+#   winget install Nmap.Nmap Cppcheck.Cppcheck ripgrep BurntSushi.ripgrep.MSVC
+#
+# Dettaglio per ogni pacchetto:
+#
+#   build-essential cmake    — compilatore C++ e build system GUI Qt6
+#   git                      — controllo versione (obbligatorio)
+#   qt6-base-dev             — Qt6 Core/Widgets/Network (GUI principale)
+#   qt6-multimedia-dev       — Qt6::Multimedia (microfono, TTS Android)
+#   qt6-webengine-dev        — Qt6::WebEngineWidgets (KaTeX LaTeX rendering)
+#   libqt6sql6               — Qt6::Sql (quiz CCNA SQLite)
+#   libqt6bluetooth6         — Qt6::Bluetooth (BLE chat Android)
+#   qt6-speech               — Qt6::TextToSpeech (TTS Android voice loop)
+#   qt6keychain-dev          — QKeychain (token LAN nel keyring di sistema)
+#   libonnxruntime-dev       — ONNX Runtime (embedder RAG locale senza Python)
+#   ffmpeg                   — audio/video: STT Whisper (estrazione WAV), MCP Multimedia
+#   graphviz                 — rendering grafi DOT: GraphMemory, RagGraph, Multi-Agente
+#   sqlite3 libsqlite3-dev   — database locale: GraphMemory, quiz CCNA, RAG graph
+#   openssl libssl-dev       — TLS per LAN server, BLE AES-256-GCM
+#   android-tools-adb        — ADB per MCP android-adb e deploy APK
+#   ripgrep                  — grep veloce: MCP prismalux-search (grep_symbol)
+#   nmap                     — port scanner: MCP network-recon
+#   whois dnsutils traceroute — ricognizione rete: MCP network-recon
+#   cppcheck                 — SAST C++: MCP sast (cppcheck_scan)
+#   python3-uno              — LibreOffice UNO API (MCP office_bridge)
+#   portaudio19-dev          — audio I/O: PyAudio (se usato per STT)
+#   poppler-utils            — pdftotext, pdfinfo: alternativa a pdfminer
+#   tesseract-ocr            — OCR immagini/PDF scansionati (futura feature)
+#   tesseract-ocr-ita        — dizionario italiano per Tesseract
+#   imagemagick              — conversione immagini batch
+#   jq                       — parse JSON da shell — utile negli script bash
+#   pipx                     — installazione isolata tool Python (bandit, pip-audit)
+#   curl wget                — download file negli script (aggiorna.sh)
+#
+# Software applicativi (non da apt):
+#   Ollama      — https://ollama.com/download  (LLM server porta 11434)
+#   llama.cpp   — ENGINE_LLM/llama.cpp        (inference nativa porta 8081)
+#   Blender     — blender.org                  (MCP blender_mcp porta 6789)
+#   FreeCAD     — freecad.org                  (MCP freecad_mcp)
+#   KiCAD       — kicad.org                    (MCP kicad_mcp)
+#   GNS3        — gns3.com                     (MCP gns3_mcp)
+#   Arduino CLI — arduino.github.io/arduino-cli (MCP tinymcp)
+#   OBS Studio  — obsproject.com               (MCP obs_mcp WebSocket)
+#   OpenCode    — github.com/opencode-ai       (porta 8092)
+# ════════════════════════════════════════════════════════════════
 
 # ── Core ─────────────────────────────────────────────────────
 requests==2.33.1          # [V]
@@ -36,6 +111,19 @@ python-pptx==1.0.2        # [P]
 pdfminer.six==20231228    # [P]
 pypdf==6.7.1              # [V] (sostituisce PyPDF2)
 
+# ── Utilità sistema ───────────────────────────────────────────
+psutil==7.2.2             # [V] info CPU/RAM/disco/processo
+python-dotenv==1.2.2      # [V] carica .env
+watchdog==6.0.0           # [V] filesystem watcher — RAG auto-reload
+
+# ── Web scraping ──────────────────────────────────────────────
+beautifulsoup4==4.14.3    # [V] parsing HTML — wiki_web_page
+lxml==6.0.2               # [V] parser HTML/XML per BeautifulSoup4
+
+# ── Crittografia runtime ──────────────────────────────────────
+cryptography==46.0.5      # [V] AES-GCM, RSA — BLE, token WAN
+PyJWT==2.10.1             # [V] JWT encode/decode — auth API
+
 # ── MCPs ──────────────────────────────────────────────────────
 gns3fy==0.8.0             # [V]
 graphviz==0.21            # [V]
@@ -43,20 +131,22 @@ obsws-python==1.7.2       # [P]
 pyserial==3.5             # [P]
 
 # ── Sicurezza — tool di audit (FACOLTATIVI, solo sviluppo) ────
-# NON aggiungere al venv principale — installare con: pip install --user o pipx
-# Questi pacchetti NON sono dipendenze runtime di Prismalux.
+# NON aggiungere al venv principale. Installare con pipx (raccomandato).
+#   pipx install bandit && pipx install pip-audit && pipx install safety
 #
-# bandit==1.8.5           # [P] SAST Python — pip install --user bandit
-# pip-audit==2.9.0        # [P] audit CVE pip — pip install --user pip-audit
-# safety==3.5.0           # [P] check CVE safety DB — pip install --user safety
+# bandit==1.8.5           # [P] SAST Python — MCP sast
+# pip-audit==2.9.0        # [P] audit CVE pip — MCP dep_audit
+# safety==3.5.0           # [P] check safety DB — MCP dep_audit
+# semgrep==1.x            # [P] SAST multilingua avanzato — pipx install semgrep
 #
-# Tool di sistema (nessun conflitto pip):
-#   cppcheck 2.x          # sudo apt install cppcheck
-#   nmap 7.x              # sudo apt install nmap
-#   whois                 # sudo apt install whois
-#   traceroute            # sudo apt install traceroute
+# Tool di sistema (già nella sezione DIPENDENZE DI SISTEMA sopra):
+#   cppcheck, nmap, whois, traceroute, dnsutils, ripgrep
+
+# ── Qualità codice (FACOLTATIVI, solo sviluppo) ────────────────
+# pipx install ruff && pipx install mypy && pip install pre-commit
 #
-# MCP cve_lookup e dep_audit usano OSV.dev API (HTTP, nessuna dipendenza pip).
-# MCP network_recon usa socket Python stdlib + subprocess nmap (fallback socket).
-# MCP secrets_scanner usa solo stdlib re/pathlib/subprocess.
-# MCP sast usa subprocess → bandit/cppcheck (se installati) + stdlib regex.
+# ruff>=0.4.0             # [P] linter+formatter (sostituisce flake8+black+isort)
+# mypy>=1.10.0            # [P] type checking — già in pyproject.toml
+# pre-commit>=3.7.0       # [P] git hooks: secrets scan + ruff + mypy pre-commit
+# pytest>=8.0.0           # [P] test runner Python
+# pytest-asyncio>=0.23.0  # [P] test MCP server asyncio

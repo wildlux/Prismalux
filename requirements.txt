@@ -1,12 +1,11 @@
 # Prismalux — dipendenze Python
 # Python >= 3.10 richiesto
 #
-# Installa tutto in una volta:
+# Installa tutto in una volta (dipendenze core):
 #   pip install -r requirements.txt
-# sudo apt install libonnxruntime-dev
-
 #
-# Oppure installa solo il blocco che ti serve (vedi istruzioni sotto).
+# Oppure installa solo il blocco che ti serve (vedi sezioni sotto).
+# Le sezioni marcate [OPZIONALE] non impattano il funzionamento base dell'app.
 
 # ── Core ─────────────────────────────────────────────────────────────────────
 # Esegui: pip install requests
@@ -39,6 +38,69 @@ python-pptx>=0.6.23                # PowerPoint .pptx — MCP Office
 pdfminer.six>=20221105             # estrazione testo PDF — MCP PDF, Analisi Fenomeni
 pypdf>=4.0.0                       # lettura PDF alternativa — MCPs (sostituisce PyPDF2)
 
+# ── Utilità sistema e processo ────────────────────────────────────────────────
+# Esegui: pip install psutil python-dotenv watchdog
+psutil>=5.9.0                      # info CPU/RAM/disco/processi — MCPs system monitor
+python-dotenv>=1.0.0               # carica .env — gestione variabili d'ambiente MCP
+watchdog>=4.0.0                    # filesystem watcher — RAG auto-reload, cron locale
+
+# ── Web scraping e parsing HTML ───────────────────────────────────────────────
+# Esegui: pip install beautifulsoup4 lxml
+beautifulsoup4>=4.12.0             # parsing HTML/XML — wiki_web_page, ricerca online
+lxml>=5.1.0                        # parser veloce per BeautifulSoup4
+
+# ── Crittografia e sicurezza runtime ─────────────────────────────────────────
+# Esegui: pip install cryptography PyJWT
+cryptography>=42.0.0               # AES-GCM, RSA, cert — BLE AES-256-GCM, token WAN
+PyJWT>=2.8.0                       # JWT encode/decode — autenticazione token API
+
+# ── Telegram Bot [OPZIONALE] ─────────────────────────────────────────────────
+# Esegui: pip install "python-telegram-bot>=20.0"
+# Nota: v20+ usa asyncio nativo (non compatibile con v13.x — breaking change).
+# Il bot Prismalux usa subprocess IPC (stdin/stdout JSON) quindi questa
+# libreria serve solo se si vuole fare bot nativamente in Python puro.
+# python-telegram-bot>=20.7,<21.0  # Telegram bot asyncio — app_controller_page.cpp
+
+# ── RAG — Embeddings locali [OPZIONALE, ~500 MB] ─────────────────────────────
+# Esegui: pip install sentence-transformers
+# Nota: scarica modelli ~500 MB la prima volta; richiede torch.
+# Alternativa leggera già usata: ONNX Runtime (libonnxruntime-dev) + modello .onnx
+# sentence-transformers>=2.7.0     # embeddings BERT/MiniLM per RAG semantico
+
+# ── RAG — Vector store locale [OPZIONALE] ────────────────────────────────────
+# Scegli UNO tra:
+#   pip install faiss-cpu           # Facebook FAISS — veloce, nessuna dipendenza server
+#   pip install chromadb            # ChromaDB — persistente, REST API, più semplice
+# Nota: Prismalux usa attualmente ONNX + SQLite (graph_memory.db) per il RAG.
+# faiss-cpu>=1.8.0                 # vector search CPU — alternativa a ONNX embedder
+# chromadb>=0.5.0                  # vector DB con UI — alternativa più user-friendly
+
+# ── Whisper STT [OPZIONALE, ~150 MB–3 GB a seconda del modello] ───────────────
+# Scegli UNO tra (in ordine di consiglio):
+#
+#   1. faster-whisper (raccomandato — 4× più veloce, meno RAM):
+#        pip install faster-whisper
+#        Sistema: sudo apt install ffmpeg
+#
+#   2. openai-whisper (ufficiale, più compatibile):
+#        pip install openai-whisper
+#        Sistema: sudo apt install ffmpeg
+#
+#   3. whisper.cpp (binario C++, zero pip, più leggero):
+#        Scarica da: https://github.com/ggerganov/whisper.cpp
+#        Prismalux lo cerca automaticamente (stt_whisper.h → ProcHelper::run("whisper",...))
+#
+# faster-whisper>=1.0.0            # STT Whisper veloce — stt_whisper.h, lan_server.cpp
+# openai-whisper>=20231117         # STT Whisper originale OpenAI
+
+# ── LangGraph / LangChain — MCP devagent [OPZIONALE] ────────────────────────
+# Esegui: pip install langgraph langchain-community langchain-ollama unidiff
+# Nota: solo per MCPs/devagent_mcp — NON necessario per la GUI Qt6.
+# langgraph>=0.2.0                 # orchestrazione agenti LLM — devagent_mcp
+# langchain-community>=0.2.0       # tool LangChain community
+# langchain-ollama>=0.1.0          # integrazione Ollama per LangChain
+# unidiff>=0.7.5                   # parsing diff patch — devagent_mcp
+
 # ── MCP: GNS3 ────────────────────────────────────────────────────────────────
 # Esegui: pip install gns3fy
 gns3fy>=0.8.0                      # MCPs/gns3_mcp/server.py
@@ -55,17 +117,18 @@ graphviz>=0.20.0                   # MCPs/graphviz_mcp/server.py
 # Esegui: pip install obsws-python
 obsws-python>=1.7.0                # MCPs/obs_mcp/server.py
 
-# ── MCP: Driver seriale ──────────────────────────────────────────────────────
+# ── MCP: Driver seriale / Arduino ────────────────────────────────────────────
 # Esegui: pip install pyserial
-pyserial>=3.5                      # MCPs/driver_mcp/server.py
+pyserial>=3.5                      # MCPs/driver_mcp/server.py, MCPs/tinymcp/server.py
+# Linux: aggiungi utente al gruppo seriale: sudo usermod -a -G dialout $USER
 
-# ── MCP: RDKit (chemioinformatica) ───────────────────────────────────────────
+# ── MCP: RDKit (chemioinformatica) [OPZIONALE] ───────────────────────────────
 # Esegui: pip install rdkit
 # Nota: su alcune piattaforme preferire conda:
 #   conda install -c conda-forge rdkit
 # rdkit
 
-# ── Voice Cloning / TTS — scheda "Clona Voce" in Multimedia ─────────────────
+# ── Voice Cloning / TTS — scheda "Clona Voce" in Multimedia [OPZIONALE] ──────
 # Scegli in base alla versione Python:
 #
 #   Python < 3.12 (voice cloning XTTS-v2, ~2 GB):
@@ -81,7 +144,7 @@ pyserial>=3.5                      # MCPs/driver_mcp/server.py
 # edge-tts           # TTS online fallback (no cloning) — pip install edge-tts
 # TTS                # Coqui XTTS-v2 solo Python < 3.12 — pip install TTS
 
-# ── Opzionali: Stable Diffusion (richiede GPU, ~10 GB) ───────────────────────
+# ── Stable Diffusion [OPZIONALE, richiede GPU, ~10 GB] ───────────────────────
 # Esegui (CPU):  pip install diffusers transformers accelerate torch Pillow
 # Esegui (GPU NVIDIA CUDA 12.1):
 #   pip install torch --index-url https://download.pytorch.org/whl/cu121
@@ -91,29 +154,31 @@ pyserial>=3.5                      # MCPs/driver_mcp/server.py
 # accelerate>=0.30.0
 # torch>=2.2.0
 
-# ── Sicurezza — MCP secrets_scanner, dep_audit, sast ─────────────────────────
-# Nota: questi tool sono FACOLTATIVI e vanno installati nell'ambiente
-# di sviluppo/audit, NON nell'ambiente di produzione dell'app.
+# ── Qualità codice e testing [SOLO SVILUPPO] ──────────────────────────────────
+# NON installare in produzione. Usare: pip install --user o pipx.
+#
+#   pip install pytest pytest-asyncio pytest-cov  # test runner asincrono + coverage
+#   pip install ruff                               # linter+formatter ultra-veloce (sostituisce flake8+isort+black)
+#   pip install mypy                               # type checking (già in pyproject.toml)
+#   pip install pre-commit                         # hook git automatici (secrets, ruff, mypy)
+#   pipx install ipython                           # REPL interattivo avanzato
+#
+# pytest>=8.0.0                    # test framework
+# pytest-asyncio>=0.23.0          # test asyncio per MCP server
+# pytest-cov>=5.0.0               # code coverage HTML
+# ruff>=0.4.0                      # linter + formatter (sostituisce flake8/black/isort)
+# pre-commit>=3.7.0                # git hooks automatici
+
+# ── Sicurezza — MCP secrets_scanner, dep_audit, sast [SOLO SVILUPPO] ─────────
+# Nota: FACOLTATIVI, solo per audit. NON nel venv di produzione.
 # Non impattano la GUI Qt6 né le funzionalità core di Prismalux.
-#
-# Python (installare globalmente o in un venv separato):
-#   pip install bandit pip-audit safety
-#
-# Sistema (Linux):
-#   sudo apt install cppcheck nmap whois traceroute
-#
-# Sistema (Windows MSYS2/UCRT64):
-#   pacman -S mingw-w64-ucrt-x86_64-nmap  oppure  winget install Nmap.Nmap
-#   winget install cppcheck
 #
 # bandit e pip-audit NON vanno aggiunti a requirements.txt perché:
 #   - bandit dipende da astunparse/pbr che confliggono con alcuni venv
 #   - pip-audit usa pip internamente — non va installato nello stesso venv del progetto
 #   - safety richiede account gratuito per database aggiornato
 #
-# Installazione consigliata (isola i tool di audit):
-#   pip install --user bandit pip-audit safety
-#   oppure con pipx (raccomandato):
+# Installazione consigliata (isola i tool):
 #   pipx install bandit && pipx install pip-audit && pipx install safety
 
 # ── Non installabili via pip — richiedono l'applicazione host ─────────────────
