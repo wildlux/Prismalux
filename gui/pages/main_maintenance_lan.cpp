@@ -16,6 +16,8 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QTextEdit>
+#include <QTimer>
+#include <QUuid>
 
 /* ── IP locale LAN — preferisce 192.168.x.x su 10.x.x.x ────────────────── */
 static QString localLanIP()
@@ -153,6 +155,45 @@ QWidget* ManutenzioneePage::buildLanServer()
     tlsLay->addWidget(m_tlsLog);
 
     vbox->addWidget(tlsGroup);
+
+    /* ── Sezione Token di accesso LAN ── */
+    auto* tokenGroup = new QGroupBox(w);
+    auto* tokenLay   = new QVBoxLayout(tokenGroup);
+    tokenLay->setSpacing(6);
+
+    auto* tokenTitleLbl = new QLabel(
+        "<b>" "\xf0\x9f\x94\x91" " Token di accesso LAN</b>", tokenGroup);
+    tokenTitleLbl->setTextFormat(Qt::RichText);
+    tokenLay->addWidget(tokenTitleLbl);
+
+    auto* tokenInfoLbl = new QLabel(
+        "<small>Il token autentica le richieste API dalle app Android. "
+        "Rigenerarlo invalida le sessioni precedenti.</small>", tokenGroup);
+    tokenInfoLbl->setTextFormat(Qt::RichText);
+    tokenInfoLbl->setWordWrap(true);
+    tokenLay->addWidget(tokenInfoLbl);
+
+    {
+        const QString tok = LanServer::loadLanToken();
+        const QString masked = tok.isEmpty()
+            ? tr("(auto-generato all\xe2\x80\x99avvio server)")
+            : tok.left(4) + "\xe2\x80\xa6" + tok.right(4);
+        m_tokenLbl = new QLabel("<code>" + masked + "</code>", tokenGroup);
+        m_tokenLbl->setTextFormat(Qt::RichText);
+        tokenLay->addWidget(m_tokenLbl);
+    }
+
+    m_regenBtn = new QPushButton(
+        "\xf0\x9f\x94\x84" "  Rigenera Token", tokenGroup);
+    m_regenBtn->setObjectName("actionBtn");
+    m_regenBtn->setToolTip(tr(
+        "Genera un nuovo token UUID e lo copia negli appunti.\n"
+        "Il vecchio token viene invalidato immediatamente se il server \xc3\xa8 attivo."));
+    connect(m_regenBtn, &QPushButton::clicked,
+            this, &ManutenzioneePage::onRegenTokenClicked);
+    tokenLay->addWidget(m_regenBtn);
+
+    vbox->addWidget(tokenGroup);
     vbox->addStretch();
 
     m_qrBtn = qrBtn;
@@ -382,4 +423,25 @@ void ManutenzioneePage::onTlsEnableToggled(bool on)
     QSettings s("Prismalux", "GUI");
     s.setValue("lan/tls_enabled", on);
     if (m_lanServer) m_lanServer->setTlsEnabled(on);
+}
+
+void ManutenzioneePage::onRegenTokenClicked()
+{
+    const QString newToken =
+        QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-');
+    LanServer::saveLanToken(newToken);
+    if (m_lanServer)
+        m_lanServer->setAccessToken(newToken);
+
+    if (m_tokenLbl) {
+        const QString masked = newToken.left(4) + "\xe2\x80\xa6" + newToken.right(4);
+        m_tokenLbl->setText("<code>" + masked + "</code>");
+    }
+    QApplication::clipboard()->setText(newToken);
+
+    if (m_regenBtn) {
+        m_regenBtn->setText("\xe2\x9c\x85  Rigenerato (copiato negli appunti)");
+        QTimer::singleShot(2500, m_regenBtn,
+            [this]{ if (m_regenBtn) m_regenBtn->setText("\xf0\x9f\x94\x84  Rigenera Token"); });
+    }
 }

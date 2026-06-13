@@ -212,8 +212,10 @@
       gli estrattori. `lan_server.cpp` `handleFileApi`.
 - [ ] **`/api/repl` — limiti risorse** — anche dietro auth, aggiungere limiti CPU/memoria
       (`ulimit`/`cgroup`) oltre al timeout, per evitare DoS da loop infiniti o fork-bomb.
-- [ ] **Rotazione/scadenza del token LAN** — il token auto-generato è permanente. Per
-      produzione: comando per rigenerarlo e invalidare le sessioni precedenti.
+- [x] **Rotazione/scadenza del token LAN** — FATTO 2026-06-13: GroupBox "Token di accesso LAN"
+      in Manutenzione→LAN Server con pulsante "🔄 Rigenera Token" — genera UUID, salva via
+      `LanServer::saveLanToken()`, aggiorna `m_lanServer->setAccessToken()` se attivo, copia
+      negli appunti e mostra token mascherato (prime4…ultime4 cifre). `main_maintenance_lan.cpp`.
 
 ### 🟢 Igiene — verifiche rapide
 
@@ -314,9 +316,11 @@
       Anki (AnkiConnect), OBS (obs-websocket), GNS3, Cytoscape, CloudCompare, Meshroom: per
       ognuno servono passi specifici (porta, plugin, token). Raccogliere in un'unica guida
       in-app "Configura quando ti serve", richiamabile dal pannello Gestione MCP.
-- [ ] **Diagnostica "perché non funziona"** — quando un MCP fallisce, mostrare la causa
-      probabile (es. "Anki non in ascolto su 8765 — apri Anki con AnkiConnect") invece di un
-      errore generico.
+- [x] **Diagnostica "perché non funziona"** — FATTO 2026-06-13: `mcpExternalDiag()` in
+      `main_mcp_manager.cpp`: controlla porta TCP per anki(8765)/obs(4455)/gns3(3080)/
+      opencode(8092)/blender(6789)/cytoscape(1234); se non risponde appende messaggio
+      "Causa probabile: Anki con AnkiConnect non è in ascolto su porta 8765 — aprilo
+      prima di testare l'MCP." al log di test quando smoke test fallisce.
 - [ ] **Verifica integrità MCP** — già previsto in SecurityAnalyzerPage (hash sorgente al
       primo avvio); integrarlo nel pannello Gestione MCP come colonna "integrità".
 
@@ -380,8 +384,10 @@
 - [x] **Feedback loop in chat** — FATTO 2026-06-13: pulsanti 👍/👎 in ChatBubble (AI),
       visibili dopo `finalizeStream()`. Segnale `feedbackGiven(bool)` connesso in
       `addAIBubble()` → `AIMemory::logFeedback()`. Ogni scelta disabilita entrambi i btn.
-- [ ] **Visualizzazione storia preferenze** — tab in Impostazioni o Multi-Agente con
-      `gitLog()` + pulsante "Ripristina versione" → `revertFile()`.
+- [x] **Visualizzazione storia preferenze** — FATTO 2026-06-13: tab "🧠 Memoria AI" in
+      Impostazioni→Sistema. `buildAiMemoryTab()` in `settings_other.cpp`: QListWidget con ultimi
+      30 commit git, pulsante "Ripristina preferences.yaml" (checkout hash selezionato), pulsante
+      "Apri cartella ~/.ai-memory/". AIMemory istanziata localmente nel tab (owner: widget).
 
 ### [12/06/26 01:02] Smart Router C++ — decisione LOCAL vs CLOUD
 

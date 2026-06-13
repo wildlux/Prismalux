@@ -16,8 +16,38 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QDateTime>
+#include <QTcpSocket>
+#include <QHostAddress>
 
 namespace P = PrismaluxPaths;
+
+/* Per ogni MCP che richiede un'app esterna, verifica se la porta è in ascolto
+ * e restituisce un suggerimento leggibile. Stringa vuota = nessun suggerimento. */
+static QString mcpExternalDiag(const QString& mcpName)
+{
+    struct Dep { const char* prefix; const char* app; quint16 port; };
+    static const Dep kDeps[] = {
+        { "anki",      "Anki con AnkiConnect",   8765 },
+        { "obs",       "OBS con obs-websocket",   4455 },
+        { "gns3",      "GNS3",                    3080 },
+        { "opencode",  "OpenCode",                8092 },
+        { "blender",   "Blender con addon",       6789 },
+        { "cytoscape", "Cytoscape",               1234 },
+    };
+    for (const auto& d : kDeps) {
+        if (!mcpName.startsWith(d.prefix)) continue;
+        QTcpSocket sock;
+        sock.connectToHost(QHostAddress::LocalHost, d.port);
+        if (!sock.waitForConnected(300)) {
+            return QString::fromUtf8(
+                "\nCausa probabile: %1 non \xc3\xa8 in ascolto su porta %2 "
+                "\xe2\x80\x94 aprilo prima di testare l'MCP.")
+                .arg(d.app).arg(d.port);
+        }
+        break;
+    }
+    return {};
+}
 
 /* ════════════════════════════════════════════════════════════════════════
  *  Helper statici
@@ -417,6 +447,7 @@ void McpManagerPage::onTestFinished(int code, QProcess::ExitStatus)
         detail = QString::fromUtf8("Il server è uscito (codice %1) senza rispondere.").arg(code);
         if (!err.trimmed().isEmpty())
             detail += "\n" + P::sanitizeErrorOutput(err, 12);
+        detail += mcpExternalDiag(m_busyName);
     }
     finishCurrentTest(ok, detail);
 }

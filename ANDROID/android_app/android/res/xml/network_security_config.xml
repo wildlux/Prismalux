@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Consente HTTP cleartext per connessioni LAN (Prismalux Desktop).
-  La restrizione "solo LAN" è garantita a livello applicativo:
-  l'unico endpoint configurabile è l'IP inserito dall'utente in Impostazioni.
-  Nessun endpoint internet è hardcodato nell'app.
 
-  Nota tecnica: Android non supporta range CIDR nei tag <domain>.
-  La policy "cleartext solo LAN" è applicata dall'app, non dal manifest.
+  SCELTA ACCETTATA E DOCUMENTATA (audit 2026-06-13):
+  Android non supporta range CIDR né wildcard IP nei tag <domain>,
+  quindi non è possibile restringere il cleartext ai soli IP LAN a livello
+  di manifest. La restrizione "solo LAN" è garantita a livello applicativo:
+  l'unico endpoint raggiungibile è l'IP inserito dall'utente in Impostazioni,
+  e nessun endpoint internet è hardcodato nell'app.
+
+  Per eliminare completamente il cleartext: abilitare TLS lato desktop
+  (checkbox "Abilita TLS" in Manutenzione LAN) — il server genera un
+  certificato self-signed con openssl (HTTPS/WSS su porta configurata).
+  Con TLS attivo questa policy non è necessaria e può essere portata a false.
 -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">

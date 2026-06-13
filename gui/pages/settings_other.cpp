@@ -1,4 +1,5 @@
 #include "settings_main.h"
+#include "../ai_memory.h"
 #include "../log_bus.h"
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
@@ -846,6 +847,93 @@ QWidget* ImpostazioniPage::buildMcpTab()
     sc->setFrameShape(QFrame::NoFrame);
     sc->setWidget(page);
     return sc;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildAiMemoryTab — storia preferenze AIMemory (gitLog + revertFile)
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildAiMemoryTab()
+{
+    auto* w    = new QWidget;
+    auto* vbox = new QVBoxLayout(w);
+    vbox->setContentsMargins(12, 12, 12, 12);
+    vbox->setSpacing(10);
+
+    auto* titleLbl = new QLabel(
+        "<b>" "\xf0\x9f\xa7\xa0" " Memoria AI — storia versionata</b>", w);
+    titleLbl->setTextFormat(Qt::RichText);
+    vbox->addWidget(titleLbl);
+
+    auto* infoLbl = new QLabel(
+        "<small>Ogni preferenza appresa e feedback " "\xf0\x9f\x91\x8d\xf0\x9f\x91\x8e"
+        " viene salvato come commit Git in <code>~/.ai-memory/</code>.<br>"
+        "Seleziona un commit e usa <b>Ripristina</b> per tornare alle preferenze di quella versione.</small>",
+        w);
+    infoLbl->setTextFormat(Qt::RichText);
+    infoLbl->setWordWrap(true);
+    vbox->addWidget(infoLbl);
+
+    auto* mem = new AIMemory(w);
+    mem->initialize();
+
+    auto* logList = new QListWidget(w);
+    logList->setAlternatingRowColors(true);
+    logList->setFont(QFont("monospace", 9));
+    vbox->addWidget(logList, 1);
+
+    auto doRefresh = [mem, logList]() {
+        logList->clear();
+        for (const QString& entry : mem->gitLog(30))
+            logList->addItem(entry);
+        if (logList->count() == 0)
+            logList->addItem("(nessun commit — scrivi qualcosa nella chat AI per cominciare)");
+    };
+    doRefresh();
+
+    /* ── pulsanti ── */
+    auto* btnRow = new QHBoxLayout;
+
+    auto* refreshBtn = new QPushButton("\xf0\x9f\x94\x84  Aggiorna", w);
+    connect(refreshBtn, &QPushButton::clicked, w, doRefresh);
+    btnRow->addWidget(refreshBtn);
+
+    auto* revertBtn = new QPushButton("\xe2\x86\xa9  Ripristina preferences.yaml", w);
+    revertBtn->setToolTip(
+        "Ripristina il file profile/preferences.yaml al commit selezionato.\n"
+        "Gli altri file (interactions/, context/) non vengono toccati.");
+    connect(revertBtn, &QPushButton::clicked, w, [mem, logList, w, doRefresh]() {
+        QListWidgetItem* item = logList->currentItem();
+        if (!item || item->text().startsWith('(')) {
+            QMessageBox::information(w, "Seleziona un commit",
+                "Seleziona un commit dalla lista per ripristinare le preferenze.");
+            return;
+        }
+        const QString hash = item->text().split(' ').first();
+        if (QMessageBox::question(w, "Ripristina preferenze",
+                "Ripristinare <code>profile/preferences.yaml</code> al commit <b>" + hash + "</b>?",
+                QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes) {
+            if (mem->revertFile(hash, "profile/preferences.yaml")) {
+                QMessageBox::information(w, "Completato",
+                    "preferences.yaml ripristinato al commit " + hash + ".");
+                doRefresh();
+            } else {
+                QMessageBox::warning(w, "Errore",
+                    "Impossibile ripristinare. Verifica che git sia installato e il commit esista.");
+            }
+        }
+    });
+    btnRow->addWidget(revertBtn);
+
+    auto* openBtn = new QPushButton("\xf0\x9f\x93\x82  Apri cartella", w);
+    openBtn->setToolTip("Apre ~/.ai-memory/ nel gestore file di sistema");
+    connect(openBtn, &QPushButton::clicked, w, []() {
+        QDesktopServices::openUrl(
+            QUrl::fromLocalFile(QDir::homePath() + "/.ai-memory"));
+    });
+    btnRow->addWidget(openBtn);
+
+    vbox->addLayout(btnRow);
+    return w;
 }
 
 /* ══════════════════════════════════════════════════════════════

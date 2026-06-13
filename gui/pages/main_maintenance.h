@@ -251,6 +251,8 @@ private:
     QCheckBox*   m_tlsEnableCheck = nullptr;   ///< abilita TLS (richiede cert)
     QTextEdit*   m_tlsLog         = nullptr;   ///< output generazione cert
     QProcess*    m_tlsProc        = nullptr;   ///< processo openssl
+    QLabel*      m_tokenLbl       = nullptr;   ///< token LAN corrente (mascherato)
+    QPushButton* m_regenBtn       = nullptr;   ///< rigenera token LAN
 
     friend struct CronAccess;   ///< accesso test suite a cronShouldRun/cronNextRun
     friend struct ManutAccess;  ///< accesso test suite a detectConfigFmt/convertConfig
@@ -344,6 +346,7 @@ private slots:
     void onTlsProcReadyRead();
     void onTlsProcFinished(int code, QProcess::ExitStatus status);
     void onTlsEnableToggled(bool on);
+    void onRegenTokenClicked();
 
     /* ── Bug Tracker ── */
     void onBugModelsReady(const QStringList& list);

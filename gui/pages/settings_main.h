@@ -194,6 +194,7 @@ private:
     QWidget* buildPuliziaTab();       ///< pulizia file temporanei, build, cache
     QWidget* buildMcpTab();           ///< configurazione Model Context Protocol
     QWidget* buildRingraziamentiTab(); ///< licenza MIT + crediti autore e librerie
+    QWidget* buildAiMemoryTab();      ///< AIMemory storia preferenze (gitLog + revertFile)
 
     /* helper invocato da populateOllama (slot onOllamaRadioToggled / onAiLocalRefreshClicked) */
     void populateOllamaModels();
