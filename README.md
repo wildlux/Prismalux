@@ -28,7 +28,8 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 - **Multi-Agente con GraphMemory** — decomposizione task, sub-agenti, memoria a grafo SQLite
 - **RAG ibrido JLT + Grafo Conoscenza** — ricerca semantica + entità/relazioni estratte da LLM
 - **105 simulazioni algoritmiche** visualizzate passo per passo
-- **18 plugin MCP** per Blender, FreeCAD, GNS3, RDKit, Cytoscape, OBS, Ollama cache...
+- **28 plugin MCP** per Blender, FreeCAD, GNS3, RDKit, Cytoscape, OBS, Ollama cache, sicurezza...
+- **Sicurezza informatica** — 5 MCP dedicati: secrets scanner, audit CVE, CVE lookup NVD, network recon, SAST
 - **Calcolo distribuito WAN** (BOINC-like) su rete locale con 28 tipi di task
 - **Matematica simbolica** con SymPy, grafico interattivo, formule LaTeX (KaTeX)
 - **Voce**: TTS (SpeechSynthesis / QTextToSpeech) + STT (Whisper locale/server)
@@ -74,7 +75,7 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 | 🗺️ **Mappa OSM** | Mappa OpenStreetMap interattiva con itinerari multi-tappa e routing OSRM (Auto/Piedi/Bici) — offline tile cache |
 | 🎨 **Stable Diffusion** | Generazione immagini via AUTOMATIC1111/Forge/SD.Next (API locale) |
 | 🔬 **105 Simulazioni** | Algoritmi visualizzati barra per barra con spiegazione e complessità O-grande |
-| 🔗 **18 Plugin MCP** | JSON-RPC 2.0 stdio — Blender, Office, GNS3, RDKit, Cytoscape, OBS, Godot, **Ollama cache**... |
+| 🔗 **28 Plugin MCP** | JSON-RPC 2.0 stdio — Blender, Office, GNS3, RDKit, Cytoscape, OBS, Godot, **Ollama cache**, 5 MCP sicurezza... |
 | 🖧 **WAN Compute** | Calcolo distribuito LAN/WAN: server TCP + dispatcher 28 task + cron |
 | 📱 **App Android** | Qt6 native: BLE chat AES-256-GCM, Quiz CCNA **209 domande**, TTS/STT, sincronizzazione LAN |
 | 🌐 **LAN Server** | Web app embedded su porta 11500: chat, matematica, Voce (TTS+STT), Whisper, Graphviz |
@@ -187,9 +188,11 @@ Ogni tipo ha un **template payload** pre-compilato automaticamente alla selezion
 
 ---
 
-## Plugin MCP (18)
+## Plugin MCP (28)
 
-Ogni plugin ha `README.md` (guida installazione) e `requirements.txt`.
+Ogni plugin ha `requirements.txt`. Tutti usano il protocollo **JSON-RPC 2.0 stdio** e sono compatibili sia con Claude Code (`~/.claude/settings.json`) sia con l'interfaccia **McpAddonsPage** interna all'app.
+
+### Applicazioni e creatività (18)
 
 | Plugin | Funzione | Dipendenze pip |
 |--------|---------|---------------|
@@ -211,6 +214,44 @@ Ogni plugin ha `README.md` (guida installazione) e `requirements.txt`.
 | `tinymcp` | Compila/carica sketch Arduino/ESP32/Pico | `pyserial` |
 | `knowledge_mcp` | Aggiornamento automatico Knowledge Base | nessuna |
 | `ollama_mcp` | Cache SQLite modelli Ollama (list/info/search/sync/pull) | nessuna |
+
+### Sviluppo Prismalux — MCP dedicati (5)
+
+Ottimizzati per il workflow di sviluppo interno: navigazione codebase, build, deploy Android, git, RAG.
+
+| Plugin | Funzione | Tool chiave |
+|--------|---------|------------|
+| `prismalux_search_mcp` | Ricerca simboli, file, TODO nel codebase | `grep_symbol`, `find_file`, `read_file`, `list_pages`, `get_context`, `search_todo` |
+| `prismalux_build_mcp` | Build e test senza uscire dalla sessione | `build`, `run_tests`, `cmake_config`, `get_build_log`, `check_compile` |
+| `android_adb_mcp` | Gestione dispositivo Android via ADB | `list_devices`, `install_apk`, `read_logcat`, `screenshot`, `push_file`, `shell_safe` |
+| `git_prismalux_mcp` | Git con output formattato/troncato | `log`, `diff`, `blame`, `search_commits`, `recent_files`, `branch_info` |
+| `rag_manager_mcp` | Documenti RAG e KNOWLEDGE\_USER/ | `list_docs`, `add_doc`, `search_content`, `save_knowledge`, `stats` |
+
+### Sicurezza informatica (5)
+
+Strumenti di audit e ricognizione — tutti con fallback graceful se il tool di sistema non è installato. Nessuna dipendenza pip obbligatoria: usano stdlib Python + API HTTP gratuite.
+
+| Plugin | Funzione | Tool chiave | Dipendenze sistema |
+|--------|---------|------------|-------------------|
+| `secrets_scanner_mcp` | Rileva segreti hardcodati nel codebase (22 pattern: API key, JWT, chiavi private, token, URL con credenziali) | `scan_project`, `scan_staged`, `scan_diff`, `add_whitelist` | nessuna (stdlib) |
+| `dep_audit_mcp` | Audit CVE sui requirements Python via OSV.dev API + pip-audit | `audit_requirements`, `audit_project`, `check_package` | `pip-audit` opzionale (`pipx install pip-audit`) |
+| `cve_lookup_mcp` | Ricerca CVE in NVD/NIST e OSV.dev, spiegazione CVSS | `lookup_cve`, `search_cve`, `recent_critical`, `cvss_explain` | nessuna (HTTP stdlib) |
+| `network_recon_mcp` | Ricognizione rete: port scan, DNS, WHOIS, verifica porte Prismalux | `scan_ports`, `check_prismalux`, `dns_lookup`, `scan_local_net` | `nmap whois dnsutils traceroute` (con fallback socket Python) |
+| `sast_mcp` | Analisi statica sicurezza codice Python (bandit) e C++ (cppcheck + 13 pattern custom) | `bandit_scan`, `cppcheck_scan`, `regex_audit`, `full_audit` | `cppcheck` (apt) + `bandit` (pipx) opzionali |
+
+**Installazione tool sicurezza (consigliata):**
+
+```bash
+# Strumenti di sistema
+sudo apt install nmap whois dnsutils traceroute cppcheck
+
+# Tool Python — FUORI dal venv principale (evita conflitti)
+pipx install bandit
+pipx install pip-audit
+pipx install safety
+```
+
+> `scan_staged` è il tool più utile nel quotidiano: va eseguito prima di ogni `git commit` per intercettare segreti prima che finiscano nel repository.
 
 ### Riferimenti API ufficiali
 
@@ -266,7 +307,10 @@ bash EXPORT/linux/install_launcher.sh
 # Installa dipendenze di compilazione
 sudo apt install cmake ninja-build build-essential \
     qt6-base-dev qt6-tools-dev qt6-webengine-dev \
-    libqt6sql6-sqlite qt6-multimedia-dev
+    libqt6sql6-sqlite qt6-multimedia-dev \
+    libqt6bluetooth6 qt6-speech qt6keychain-dev \
+    libonnxruntime-dev ffmpeg graphviz \
+    sqlite3 openssl libssl-dev
 
 # Compila (metodo semplice — multipiattaforma)
 python3 build.py
@@ -319,20 +363,65 @@ cmake --build build_mac -j$(sysctl -n hw.logicalcpu)
 
 ### Prerequisiti
 
+#### Obbligatori
+
 | Componente | Versione minima | Note |
 |-----------|----------------|------|
-| Qt6 | 6.4+ | Base, Network, Multimedia, PrintSupport, Svg, WebEngine |
+| Qt6 | 6.4+ | Base, Network, Multimedia, PrintSupport, WebEngine |
 | CMake | 3.20+ | |
 | GCC / Clang | 11+ / 13+ | C++17 |
-| [Ollama](https://ollama.com) | qualsiasi | Avvia con `ollama serve` |
-| Python 3 | 3.10+ | Per `build.py`, MCPs — `pip install -r requirements.txt` |
-| pdftotext | — | `apt install poppler-utils` (opzionale, PDF in Analisi Fenomeni) |
-| libfuse2t64 | — | `apt install libfuse2t64` (opzionale, per AppImage su Ubuntu 24.04+) |
+| [Ollama](https://ollama.com) | qualsiasi | Avvia con `ollama serve` — porta 11434 |
+| Python 3 | 3.10+ | Per `build.py` e MCPs — `pip install -r requirements.txt` |
+
+#### Opzionali — funzionalità aggiuntive
+
+| Componente | Installazione | Funzionalità abilitata |
+|-----------|--------------|----------------------|
+| `qt6-webengine-dev` | `apt install qt6-webengine-dev` | Rendering LaTeX KaTeX (Analisi 1/2, output AI) |
+| `libqt6bluetooth6` | `apt install libqt6bluetooth6` | BLE Chat Android AES-256-GCM |
+| `qt6-speech` | `apt install qt6-speech` | TTS Android (QTextToSpeech voice loop) |
+| `qt6keychain-dev` | `apt install qt6keychain-dev` | Token LAN nel keyring di sistema (fallback: file 0600) |
+| `libonnxruntime-dev` | `apt install libonnxruntime-dev` | Embedder RAG locale ONNX (senza Python) |
+| `ffmpeg` | `apt install ffmpeg` | STT Whisper (estrazione WAV), MCP Multimedia |
+| `graphviz` | `apt install graphviz` | Rendering grafi DOT: GraphMemory, RagGraph, Multi-Agente |
+| `android-tools-adb` | `apt install android-tools-adb` | MCP android-adb, deploy APK via ADB |
+| `ripgrep` | `apt install ripgrep` | MCP prismalux-search (grep\_symbol veloce) |
+| `poppler-utils` | `apt install poppler-utils` | pdftotext — PDF in Analisi Fenomeni, RAG |
+| `libfuse2t64` | `apt install libfuse2t64` | AppImage su Ubuntu 24.04+ |
+| **Sicurezza** | | |
+| `nmap` | `apt install nmap` | MCP network-recon (port scan con fallback socket) |
+| `whois dnsutils traceroute` | `apt install whois dnsutils traceroute` | MCP network-recon (WHOIS, DNS, traceroute) |
+| `cppcheck` | `apt install cppcheck` | MCP sast (analisi statica C++ `gui/`) |
+| `bandit` | `pipx install bandit` | MCP sast (analisi sicurezza codice Python MCPs/) |
+| `pip-audit` | `pipx install pip-audit` | MCP dep-audit (CVE nei requirements) |
+
+**Installazione completa in una riga (Linux):**
+
+```bash
+sudo apt install cmake ninja-build build-essential git \
+    qt6-base-dev qt6-tools-dev qt6-webengine-dev qt6-multimedia-dev \
+    libqt6sql6-sqlite libqt6bluetooth6 qt6-speech qt6keychain-dev \
+    libonnxruntime-dev ffmpeg graphviz sqlite3 openssl libssl-dev \
+    android-tools-adb ripgrep poppler-utils libfuse2t64 \
+    nmap whois dnsutils traceroute cppcheck pipx
+```
 
 ```bash
 # Installa Ollama + modello consigliato
 curl -fsSL https://ollama.com/install.sh | sh
 ollama pull qwen3:8b     # ~5 GB — ottimo italiano, think nativo
+
+# Dipendenze Python (core)
+pip install -r requirements.txt
+
+# Dipendenze Python aggiuntive per funzionalità specifiche
+pip install psutil python-dotenv watchdog          # utilità sistema e RAG auto-reload
+pip install beautifulsoup4 lxml                    # web scraping (wiki, ricerca online)
+pip install cryptography PyJWT                     # crittografia runtime, token BLE/WAN
+pip install faster-whisper                         # STT Whisper (4× più veloce, ~150 MB)
+
+# Tool di audit sicurezza (fuori dal venv principale)
+pipx install bandit && pipx install pip-audit && pipx install safety
 ```
 
 ---
@@ -388,9 +477,9 @@ ctest --test-dir Test/build_tests -j1 -R AiStress
 ```
 
 **Stato test:**
-- ✅ 33/36 suite passano senza Ollama
+- ✅ 38/41 suite passano senza Ollama
 - ⚠️ `SimulatoreAlgos` — FLAKY in `-j4`, PASS standalone (`RESOURCE_LOCK cpu_heavy`)
-- ⚠️ `AiStress` — richiede Ollama + modello + ≥2 GB RAM libera
+- ⚠️ `AiStress` / `AiIntegration` / `TeamCollab` — richiedono Ollama + modello + ≥2 GB RAM libera
 - ⚠️ `SttWhisper` — richiede microfono attivo
 
 ---
@@ -437,7 +526,7 @@ Prismalux/
 │   ├── android_app/              ← BLE chat, Quiz CCNA, TTS, STT, LAN sync
 │   └── PrismaluxMobile.apk       ← APK precompilato (scaricabile via QR in-app)
 │
-├── MCPs/                         ← 18 plugin MCP (Python, JSON-RPC 2.0 stdio)
+├── MCPs/                         ← 28 plugin MCP (Python, JSON-RPC 2.0 stdio)
 ├── RAG/                          ← Documenti per RAG (locale, non in git)
 ├── KNOWLEDGE_USER/               ← Memoria utente (locale, non in git)
 ├── BEST_PRACTICE_&_GOAL/         ← Regole, obiettivi, TODO, operazioni
