@@ -13,7 +13,6 @@
      #include "widgets/tts_speak.h"
      TtsSpeak::speak("Ciao mondo", parentQObject);
    ══════════════════════════════════════════════════════════════ */
-#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -25,9 +24,9 @@
 
 namespace TtsSpeak {
 
-/* ── Cartella piper accanto all'eseguibile ── */
+/* ── Cartella piper in ~/.prismalux/piper/ ── */
 inline QString piperDir() {
-    return QCoreApplication::applicationDirPath() + "/piper";
+    return QDir::homePath() + "/.prismalux/piper";
 }
 
 /* ── Percorso binario piper ── */

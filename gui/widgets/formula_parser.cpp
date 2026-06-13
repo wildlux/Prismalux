@@ -6,7 +6,20 @@
 /* ══════════════════════════════════════════════════════════════
    FormulaParser — costruttore + validazione
    ══════════════════════════════════════════════════════════════ */
-FormulaParser::FormulaParser(const QString& expr) : m_expr(expr.trimmed()) {
+/* Normalizza alias italiani/comuni prima del parsing:
+   sen→sin, tg→tan, ctg→cot (approssimato via 1/tan), arcsen→asin,
+   ln→ln (già ok), log→log10 (già ok). */
+static QString normalizeAliases(const QString& expr)
+{
+    QString s = expr;
+    s.replace(QRegularExpression(R"(\bsen\b)", QRegularExpression::CaseInsensitiveOption), "sin");
+    s.replace(QRegularExpression(R"(\btg\b)",  QRegularExpression::CaseInsensitiveOption), "tan");
+    s.replace(QRegularExpression(R"(\barcsen\b)", QRegularExpression::CaseInsensitiveOption), "asin");
+    s.replace(QRegularExpression(R"(\barctg\b)",  QRegularExpression::CaseInsensitiveOption), "atan");
+    return s;
+}
+
+FormulaParser::FormulaParser(const QString& expr) : m_expr(normalizeAliases(expr.trimmed())) {
     /* test parse con x = 1.0 */
     m_pos = 0; m_xVal = 1.0; m_errHit = false;
     double r = parseExpr();
@@ -79,9 +92,10 @@ QString FormulaParser::tryExtract(const QString& text) {
     auto m2 = re2.match(norm);
     if (m2.hasMatch()) {
         QString candidate = m2.captured(1).trimmed();
-        /* Deve contenere x o una funzione trigonometrica/matematica */
+        /* Deve contenere x o una funzione trigonometrica/matematica
+           (inclusi alias italiani: sen, tg, arcsen, arctg) */
         static const QRegularExpression reHasX(
-            R"(\bx\b|sin|cos|tan|sqrt|log|exp|abs)",
+            R"(\bx\b|sin|cos|tan|sen|tg\b|sqrt|log|exp|abs|arcsen|arctg)",
             QRegularExpression::CaseInsensitiveOption);
         if (reHasX.match(candidate).hasMatch()) {
             /* Escludi coppie di coordinate tipo "x=3 + y=10" o "x=3, y=10":
@@ -95,6 +109,22 @@ QString FormulaParser::tryExtract(const QString& text) {
                 R"(\s+(?:per\s+x|da\s+x|con\s+x|nel(?:l[ao])?\s*intervall))");
             const int stop = candidate.indexOf(reStop);
             if (stop > 0) candidate = candidate.left(stop).trimmed();
+
+            /* Normalizza alias italiani nel candidato estratto */
+            candidate = normalizeAliases(candidate);
+
+            /* Se la formula ha un'equazione tipo "sin^2=1" (lato sinistro senza x)
+               interpreta come "sin(x)^2" — prende il lato sinistro dell'uguale */
+            static const QRegularExpression reEq(R"(\s*=\s*[\d.]+\s*$)");
+            if (!candidate.contains(QRegularExpression(R"(\bx\b)")))
+                candidate.remove(reEq);  // rimuovi "=1" finale, plottiamo la funzione
+
+            /* Se ancora non ha x, tenta di inserirla dopo la funzione:
+               "sin^2" → "sin(x)^2" */
+            static const QRegularExpression reTrig(
+                R"(\b(sin|cos|tan|sqrt|log|exp|abs|ln)\s*\^)");
+            candidate.replace(reTrig, R"(\1(x)^)");
+
             return candidate;
         }
     }

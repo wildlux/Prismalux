@@ -423,6 +423,7 @@ private:
     void _finishedPipeline(const QString& full);
     void _finishedMathTheory();
     void _finishedByzantine();
+    void _repopulateBubbleTexts(const QString& html);
 
 private slots:
     void onToken(const QString& t);

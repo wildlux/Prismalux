@@ -3,6 +3,7 @@
 #include "../prismalux_paths.h"
 #include "../log_bus.h"
 #include <QListWidget>
+#include <QRegularExpression>
 namespace P = PrismaluxPaths;
 #include <QElapsedTimer>
 #include <QTextCursor>
@@ -488,6 +489,7 @@ void AgentiPage::onHistoryItemClicked(int row)
     /* Carica la sessione selezionata nel log, iniettando il retry link
        nelle bolle utente che non lo avevano (chat salvate in precedenza) */
     m_log->setHtml(injectMissingRetryLinks(html));
+    _repopulateBubbleTexts(m_log->toHtml());
     m_log->moveCursor(QTextCursor::End);
 
     /* NON aggiornare m_sessionId se siamo in background mode: la sessione
@@ -500,7 +502,29 @@ void AgentiPage::onHistoryNewChatClicked()
 {
     m_sessionId.clear();
     m_log->clear();
+    m_bubbleTexts.clear();
+    m_bubbleIdx = 0;
     m_userScrolled = false;
+}
+
+/* Ripopola m_bubbleTexts dai link copy:N:BASE64URL presenti nell'HTML.
+   Chiamata dopo setHtml() su una chat ricaricata dalla history, in modo
+   che i pulsanti TTS/Copia/Elimina funzionino anche sulle chat vecchie. */
+void AgentiPage::_repopulateBubbleTexts(const QString& html)
+{
+    m_bubbleTexts.clear();
+    static const QRegularExpression re(R"(href=['"]copy:(\d+):([A-Za-z0-9_=-]+)['"])");
+    auto it = re.globalMatch(html);
+    while (it.hasNext()) {
+        const auto m = it.next();
+        const int n = m.captured(1).toInt();
+        const QString decoded = QString::fromUtf8(
+            QByteArray::fromBase64(m.captured(2).toLatin1(),
+                                   QByteArray::Base64UrlEncoding));
+        if (!decoded.isEmpty())
+            m_bubbleTexts[n] = decoded;
+    }
+    m_bubbleIdx = m_bubbleTexts.isEmpty() ? 0 : m_bubbleTexts.lastKey() + 1;
 }
 
 void AgentiPage::onHistoryDeleteClicked()

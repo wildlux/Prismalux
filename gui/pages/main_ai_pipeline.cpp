@@ -164,7 +164,12 @@ void AgentiPage::runPipeline() {
                 FormulaParser::tryExtractXRange(task, xMin, xMax);
                 const auto pts = fp.sample(xMin, xMax, 400);
                 if (!pts.isEmpty()) {
-                    m_log->clear();
+                    /* In CHAT RAG i messaggi si accumulano (non clear); in Pipeline si resetta */
+                    if (m_cfgDlg->numAgents() <= 1) {
+                        /* CHAT RAG: non cancellare i messaggi precedenti */
+                    } else {
+                        m_log->clear();
+                    }
                     m_taskOriginal = task;
                     { int i = m_bubbleIdx++; m_bubbleTexts[i] = task;
                       m_log->moveCursor(QTextCursor::End);
@@ -216,6 +221,31 @@ void AgentiPage::runPipeline() {
         }
     }
 
+    /* ── Guardia Calcoli Fisici: _inject_science ha trovato una conversione nota
+       (CV↔W, km↔mi, kg↔lb, Ohm, ecc.) → risposta locale, zero token AI ── */
+    {
+        const QString injected = _inject_science(task);
+        static const QString kTag = "[Calcolo locale:";
+        if (injected.startsWith(kTag)) {
+            const int close = injected.indexOf(']');
+            const QString calcResult = close > 0
+                ? injected.mid(kTag.length(), close - kTag.length()).trimmed()
+                : injected.left(injected.indexOf('\n')).trimmed();
+            QElapsedTimer tmr; tmr.start();
+            const double ms = tmr.nsecsElapsed() / 1e6;
+            { int i = m_bubbleIdx++; m_bubbleTexts[i] = task;
+              m_log->moveCursor(QTextCursor::End);
+              m_log->insertHtml(buildUserBubble(task, i)); }
+            m_log->append("");
+            { int i = m_bubbleIdx++; m_bubbleTexts[i] = calcResult;
+              m_log->moveCursor(QTextCursor::End);
+              m_log->insertHtml(buildLocalBubble(calcResult, ms, i)); }
+            m_input->clear();
+            emit chatCompleted(task.left(40), m_log->toHtml());
+            return;
+        }
+    }
+
     int count = 0;
     for (int i = 0; i < MAX_AGENTS; i++)
         if (m_cfgDlg->enabledChk(i)->isChecked()) count++;
@@ -240,10 +270,10 @@ void AgentiPage::runPipeline() {
     emit pipelineStatus(0, "Avvio pipeline...");
 
     /* NON si cancella il log: le Q&A si accumulano nella stessa chat */
-    /* Bolla utente — mostra il task come messaggio "Tu" */
-    { int i = m_bubbleIdx++; m_bubbleTexts[i] = m_taskOriginal;
+    /* Bolla utente — mostra il testo originale (senza prefissi inject_science/math) */
+    { int i = m_bubbleIdx++; m_bubbleTexts[i] = task;
       m_log->moveCursor(QTextCursor::End);
-      m_log->insertHtml(buildUserBubble(m_taskOriginal, i)); }
+      m_log->insertHtml(buildUserBubble(task, i)); }
     m_log->append("");
 
     /* ── Controllo RAM e dimensione modello pre-pipeline ── */
