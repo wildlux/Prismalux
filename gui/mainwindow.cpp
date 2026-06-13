@@ -1185,13 +1185,27 @@ void MainWindow::startLlamaServer(const QString& modelPath, int port, bool mathP
         QSettings s("Prismalux", "GUI");
         if (s.value(P::SK::kMlockModel, false).toBool())
             args << "--mlock";
+
+        if (s.value(P::SK::kRpcEnabled, false).toBool()) {
+            const QString nodes = s.value(P::SK::kRpcNodes, "").toString().trimmed();
+            if (!nodes.isEmpty())
+                args << "--rpc" << nodes;
+        }
     }
 
-    statusBar()->showMessage(
-        QString("\xe2\x8f\xb3  Avvio llama-server — %1%2 — porta %3")
-        .arg(hwDesc)
-        .arg(mathProfile ? " | profilo matematico" : "")
-        .arg(port));
+    {
+        QSettings s2("Prismalux", "GUI");
+        const bool rpcOn   = s2.value(P::SK::kRpcEnabled, false).toBool();
+        const QString rpcNodes = s2.value(P::SK::kRpcNodes, "").toString().trimmed();
+        const QString rpcDesc  = (rpcOn && !rpcNodes.isEmpty())
+            ? QString(" | RPC: %1").arg(rpcNodes) : "";
+        statusBar()->showMessage(
+            QString("\xe2\x8f\xb3  Avvio llama-server — %1%2%3 — porta %4")
+            .arg(hwDesc)
+            .arg(mathProfile ? " | profilo matematico" : "")
+            .arg(rpcDesc)
+            .arg(port));
+    }
 
     m_serverProc->start(bin, args);
 

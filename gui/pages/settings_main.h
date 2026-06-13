@@ -130,6 +130,9 @@ private slots:
     void onCtxSpinChanged(int ctx);
     void onPersonaBtnClicked(QAbstractButton* btn);
     void onMlockToggled(bool on);
+    void onRpcToggled(bool on);
+    void onRpcNodesEditFinished();
+    void onRpcCheckClicked();
     void onAiParamsSave();
     void onAiParamsSaveStatusClear();
     void onAiParamsReset();
@@ -280,6 +283,9 @@ private:
     QLabel*         m_cavemanBadge      = nullptr;
     QCheckBox*      m_flashCb           = nullptr;
     QLabel*         m_saveStatus        = nullptr;
+    QCheckBox*      m_rpcCb             = nullptr;
+    QLineEdit*      m_rpcNodesEdit      = nullptr;
+    QLabel*         m_rpcStatusLbl      = nullptr;
 
     /* ── buildSandboxTab member state ── */
     QLineEdit*      m_sandboxImgEdit    = nullptr;

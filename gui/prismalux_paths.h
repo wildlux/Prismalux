@@ -874,6 +874,10 @@ constexpr const char* kLanToken       = "lan/accessToken";         ///< token Be
 constexpr const char* kLanAutoStart   = "lan/autoStart";           ///< true = server si avvia automaticamente all'apertura dell'app
 constexpr const char* kLanPort        = "lan/port";                ///< porta TCP (default 11500)
 
+/* ── llama.cpp RPC Cluster ───────────────────────── */
+constexpr const char* kRpcEnabled     = "llama/rpcEnabled";        ///< abilita --rpc su llama-server (default: false)
+constexpr const char* kRpcNodes       = "llama/rpcNodes";          ///< lista nodi RPC separati da virgola: "host1:50052,host2:50052"
+
 }  // namespace SK
 
 /* ── Personalità AI — nome visualizzato e suffisso system prompt ─── */

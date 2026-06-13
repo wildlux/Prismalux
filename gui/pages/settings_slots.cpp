@@ -31,6 +31,7 @@ namespace P = PrismaluxPaths;
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QTimer>
+#include <QTcpSocket>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
@@ -970,6 +971,46 @@ void ImpostazioniPage::onPersonaBtnClicked(QAbstractButton* btn)
 void ImpostazioniPage::onMlockToggled(bool on)
 {
     AppConfig::s().setValue(P::SK::kMlockModel, on);
+}
+
+void ImpostazioniPage::onRpcToggled(bool on)
+{
+    AppConfig::s().setValue(P::SK::kRpcEnabled, on);
+}
+
+void ImpostazioniPage::onRpcNodesEditFinished()
+{
+    if (!m_rpcNodesEdit) return;
+    AppConfig::s().setValue(P::SK::kRpcNodes, m_rpcNodesEdit->text().trimmed());
+}
+
+void ImpostazioniPage::onRpcCheckClicked()
+{
+    if (!m_rpcNodesEdit || !m_rpcStatusLbl) return;
+    const QString raw = m_rpcNodesEdit->text().trimmed();
+    AppConfig::s().setValue(P::SK::kRpcNodes, raw);
+
+    if (raw.isEmpty()) {
+        m_rpcStatusLbl->setText("\xe2\x84\xb9  Nessun nodo configurato.");  /* ℹ */
+        return;
+    }
+
+    const QStringList nodes = raw.split(',', Qt::SkipEmptyParts);
+    QStringList results;
+    for (const QString& node : nodes) {
+        const int colon = node.lastIndexOf(':');
+        const QString host = (colon > 0) ? node.left(colon).trimmed() : node.trimmed();
+        const int port     = (colon > 0) ? node.mid(colon + 1).trimmed().toInt() : 50052;
+
+        QTcpSocket sock;
+        sock.connectToHost(host, static_cast<quint16>(port));
+        const bool ok = sock.waitForConnected(1500);
+        sock.abort();
+        results << (ok
+            ? "\xe2\x9c\x85 " + node.trimmed()   /* ✅ */
+            : "\xe2\x9d\x8c " + node.trimmed());  /* ❌ */
+    }
+    m_rpcStatusLbl->setText(results.join("   "));
 }
 
 void ImpostazioniPage::onAiParamsSave()

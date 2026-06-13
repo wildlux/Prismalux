@@ -1946,6 +1946,63 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     connect(mlockCb, &QCheckBox::toggled,
             this,    &ImpostazioniPage::onMlockToggled);
 
+    /* ── RPC Cluster (llama.cpp multi-machine) ── */
+    auto* rpcSep = new QFrame; rpcSep->setFrameShape(QFrame::HLine); rpcSep->setObjectName("sidebarSep");
+    outer->addWidget(rpcSep);
+
+    auto* rpcTitleLbl = new QLabel("\xf0\x9f\x96\xa7  RPC Cluster — calcolo distribuito su pi\xc3\xb9 macchine", page);  /* 🖧 */
+    rpcTitleLbl->setObjectName("sectionTitle");
+    outer->addWidget(rpcTitleLbl);
+
+    auto* rpcCb = new QCheckBox(
+        "Abilita RPC Cluster (--rpc, llama-server)", page);
+    rpcCb->setObjectName("cardDesc");
+    rpcCb->setChecked(AppConfig::s().value(P::SK::kRpcEnabled, false).toBool());
+    outer->addWidget(rpcCb);
+
+    auto* rpcNodesLbl = new QLabel("Nodi RPC (host:porta, separati da virgola):", page);
+    rpcNodesLbl->setObjectName("hintLabel");
+    outer->addWidget(rpcNodesLbl);
+
+    auto* rpcRow = new QWidget;
+    auto* rpcRowLay = new QHBoxLayout(rpcRow);
+    rpcRowLay->setContentsMargins(0, 0, 0, 0);
+    rpcRowLay->setSpacing(8);
+
+    auto* rpcNodesEdit = new QLineEdit(page);
+    rpcNodesEdit->setPlaceholderText("192.168.1.10:50052,192.168.1.11:50052");
+    rpcNodesEdit->setText(AppConfig::s().value(P::SK::kRpcNodes, "").toString());
+    rpcNodesEdit->setObjectName("settingsInput");
+    rpcRowLay->addWidget(rpcNodesEdit, 1);
+
+    auto* rpcCheckBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica nodi", page);  /* 🔍 */
+    rpcCheckBtn->setObjectName("actionBtn");
+    rpcRowLay->addWidget(rpcCheckBtn);
+    outer->addWidget(rpcRow);
+
+    auto* rpcStatusLbl = new QLabel("", page);
+    rpcStatusLbl->setObjectName("hintLabel");
+    rpcStatusLbl->setWordWrap(true);
+    outer->addWidget(rpcStatusLbl);
+
+    auto* rpcDesc = new QLabel(
+        "\xe2\x84\xb9  Distribuisce i layer del modello su pi\xc3\xb9 macchine via TCP porta 50052. "  /* ℹ */
+        "Ogni nodo remoto deve eseguire: <b>./rpc-server -H 0.0.0.0 -p 50052</b> "
+        "(nella cartella build/bin di llama.cpp). "
+        "Solo llama-server — Ollama non supporta RPC. Richiede riavvio del server.", page);
+    rpcDesc->setWordWrap(true);
+    rpcDesc->setObjectName("hintLabel");
+    rpcDesc->setTextFormat(Qt::RichText);
+    outer->addWidget(rpcDesc);
+
+    m_rpcCb        = rpcCb;
+    m_rpcNodesEdit = rpcNodesEdit;
+    m_rpcStatusLbl = rpcStatusLbl;
+
+    connect(rpcCb,        &QCheckBox::toggled,      this, &ImpostazioniPage::onRpcToggled);
+    connect(rpcNodesEdit, &QLineEdit::editingFinished, this, &ImpostazioniPage::onRpcNodesEditFinished);
+    connect(rpcCheckBtn,  &QPushButton::clicked,    this, &ImpostazioniPage::onRpcCheckClicked);
+
     /* ── Preset "8 GB RAM" ── */
     auto* presetRow = new QWidget;
     auto* presetLay = new QHBoxLayout(presetRow);
