@@ -1985,23 +1985,78 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     rpcStatusLbl->setWordWrap(true);
     outer->addWidget(rpcStatusLbl);
 
+    /* SSH utente + path rpc-server per automazione */
+    auto* rpcSshRow = new QWidget;
+    auto* rpcSshLay = new QHBoxLayout(rpcSshRow);
+    rpcSshLay->setContentsMargins(0, 4, 0, 0);
+    rpcSshLay->setSpacing(8);
+
+    auto* rpcSshLbl = new QLabel("Utente SSH:", page);
+    rpcSshLbl->setObjectName("hintLabel");
+    rpcSshLay->addWidget(rpcSshLbl);
+
+    auto* rpcSshUserEdit = new QLineEdit(page);
+    rpcSshUserEdit->setPlaceholderText(qgetenv("USER"));
+    rpcSshUserEdit->setText(AppConfig::s().value(P::SK::kRpcSshUser,
+        QString::fromLocal8Bit(qgetenv("USER"))).toString());
+    rpcSshUserEdit->setObjectName("settingsInput");
+    rpcSshLay->addWidget(rpcSshUserEdit, 1);
+
+    auto* rpcPathLbl = new QLabel("Path rpc-server:", page);
+    rpcPathLbl->setObjectName("hintLabel");
+    rpcSshLay->addWidget(rpcPathLbl);
+
+    auto* rpcPathEdit = new QLineEdit(page);
+    rpcPathEdit->setPlaceholderText("~/llama.cpp/build/bin/rpc-server");
+    rpcPathEdit->setText(AppConfig::s().value(P::SK::kRpcServerPath, "").toString());
+    rpcPathEdit->setObjectName("settingsInput");
+    rpcSshLay->addWidget(rpcPathEdit, 2);
+    outer->addWidget(rpcSshRow);
+
+    /* Pulsanti Avvia / Ferma nodi */
+    auto* rpcCtrlRow = new QWidget;
+    auto* rpcCtrlLay = new QHBoxLayout(rpcCtrlRow);
+    rpcCtrlLay->setContentsMargins(0, 4, 0, 0);
+    rpcCtrlLay->setSpacing(8);
+
+    auto* rpcStartBtn = new QPushButton(
+        "\xf0\x9f\x9a\x80  Avvia nodi RPC", page);  /* 🚀 */
+    rpcStartBtn->setObjectName("actionBtn");
+    rpcStartBtn->setToolTip("SSH su ogni nodo → avvia rpc-server in background");
+    rpcCtrlLay->addWidget(rpcStartBtn);
+
+    auto* rpcStopBtn = new QPushButton(
+        "\xe2\x8f\xb9  Ferma nodi RPC", page);  /* ⏹ */
+    rpcStopBtn->setObjectName("actionBtn");
+    rpcStopBtn->setToolTip("SSH su ogni nodo → pkill rpc-server");
+    rpcCtrlLay->addWidget(rpcStopBtn);
+    rpcCtrlLay->addStretch();
+    outer->addWidget(rpcCtrlRow);
+
     auto* rpcDesc = new QLabel(
-        "\xe2\x84\xb9  Distribuisce i layer del modello su pi\xc3\xb9 macchine via TCP porta 50052. "  /* ℹ */
-        "Ogni nodo remoto deve eseguire: <b>./rpc-server -H 0.0.0.0 -p 50052</b> "
-        "(nella cartella build/bin di llama.cpp). "
+        "\xe2\x84\xb9  Richiede SSH senza password (chiave pubblica) verso ogni nodo. "  /* ℹ */
+        "Su ogni PC remoto deve essere compilato llama.cpp con <b>-DGGML_RPC=ON</b>. "
         "Solo llama-server — Ollama non supporta RPC. Richiede riavvio del server.", page);
     rpcDesc->setWordWrap(true);
     rpcDesc->setObjectName("hintLabel");
     rpcDesc->setTextFormat(Qt::RichText);
     outer->addWidget(rpcDesc);
 
-    m_rpcCb        = rpcCb;
-    m_rpcNodesEdit = rpcNodesEdit;
-    m_rpcStatusLbl = rpcStatusLbl;
+    m_rpcCb          = rpcCb;
+    m_rpcNodesEdit   = rpcNodesEdit;
+    m_rpcStatusLbl   = rpcStatusLbl;
+    m_rpcSshUserEdit = rpcSshUserEdit;
+    m_rpcPathEdit    = rpcPathEdit;
+    m_rpcStartBtn    = rpcStartBtn;
+    m_rpcStopBtn     = rpcStopBtn;
 
-    connect(rpcCb,        &QCheckBox::toggled,      this, &ImpostazioniPage::onRpcToggled);
-    connect(rpcNodesEdit, &QLineEdit::editingFinished, this, &ImpostazioniPage::onRpcNodesEditFinished);
-    connect(rpcCheckBtn,  &QPushButton::clicked,    this, &ImpostazioniPage::onRpcCheckClicked);
+    connect(rpcCb,          &QCheckBox::toggled,        this, &ImpostazioniPage::onRpcToggled);
+    connect(rpcNodesEdit,   &QLineEdit::editingFinished, this, &ImpostazioniPage::onRpcNodesEditFinished);
+    connect(rpcCheckBtn,    &QPushButton::clicked,       this, &ImpostazioniPage::onRpcCheckClicked);
+    connect(rpcSshUserEdit, &QLineEdit::editingFinished, this, &ImpostazioniPage::onRpcSshUserEditFinished);
+    connect(rpcPathEdit,    &QLineEdit::editingFinished, this, &ImpostazioniPage::onRpcPathEditFinished);
+    connect(rpcStartBtn,    &QPushButton::clicked,       this, &ImpostazioniPage::onRpcStartNodesClicked);
+    connect(rpcStopBtn,     &QPushButton::clicked,       this, &ImpostazioniPage::onRpcStopNodesClicked);
 
     /* ── Preset "8 GB RAM" ── */
     auto* presetRow = new QWidget;
@@ -2086,6 +2141,48 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     connect(predSpin,  QOverload<int>::of(&QSpinBox::valueChanged),          this, &ImpostazioniPage::onAiParamsSave);
     connect(ctxSpin,   QOverload<int>::of(&QSpinBox::valueChanged),          this, &ImpostazioniPage::onAiParamsSave);
     connect(honestyCb, &QCheckBox::toggled,                                  this, &ImpostazioniPage::onAiParamsSave);
+
+    /* ── Compressione storia chat ── */
+    {
+        auto* sep = new QFrame; sep->setFrameShape(QFrame::HLine); sep->setObjectName("sidebarSep");
+        outer->addWidget(sep);
+
+        auto* chatGroup = new QGroupBox("\xf0\x9f\x92\xac  Memoria conversazione");
+        auto* chatLay   = new QVBoxLayout(chatGroup);
+        auto* chatFl    = new QFormLayout;
+        chatFl->setSpacing(10);
+        chatFl->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+        auto* turnsSpin = new QSpinBox;
+        turnsSpin->setRange(1, 20);
+        turnsSpin->setValue(qBound(1, QSettings("Prismalux","GUI")
+                                          .value(P::SK::kChatMaxTurns, 3).toInt(), 20));
+        turnsSpin->setSuffix("  turni");
+        turnsSpin->setToolTip(
+            "Numero di turni recenti da mantenere in formato grezzo nel contesto dell'AI.\n"
+            "I turni pi\xc3\xb9 vecchi vengono compressi (riassunti via AI) per risparmiare token.\n"
+            "Valore alto = pi\xc3\xb9 contesto raw, ma pi\xc3\xb9 token per richiesta.\n"
+            "Consigliato: 3-6.");
+        chatFl->addRow("Turni in memoria:", turnsSpin);
+        chatFl->labelForField(turnsSpin)->setToolTip(turnsSpin->toolTip());
+
+        auto* chatHint = new QLabel(
+            "\xe2\x84\xb9  I turni eccedenti vengono riassunti dall'AI e iniettati come contesto compatto. "
+            "Aumenta se l'AI " "\xe2\x80\x9c" "dimentica" "\xe2\x80\x9d"
+            " troppo presto; riduci per risparmiare token.");
+        chatHint->setObjectName("hintLabel");
+        chatHint->setWordWrap(true);
+
+        chatLay->addLayout(chatFl);
+        chatLay->addWidget(chatHint);
+        outer->addWidget(chatGroup);
+
+        connect(turnsSpin, QOverload<int>::of(&QSpinBox::valueChanged), turnsSpin,
+                [](int v) {
+                    QSettings ss("Prismalux", "GUI");
+                    ss.setValue(P::SK::kChatMaxTurns, qBound(1, v, 20));
+                });
+    }
 
     outer->addStretch();
     return page;

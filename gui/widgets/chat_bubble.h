@@ -62,6 +62,9 @@ signals:
     /** Utente ha valutato la risposta AI con 👍 (true) o 👎 (false). */
     void feedbackGiven(bool thumbsUp);
 
+protected:
+    void changeEvent(QEvent* event) override;
+
 private slots:
     void onCopy();
     void onTTS();
@@ -73,6 +76,11 @@ private slots:
     void onFeedbackDown();
 
 private:
+    /* Ri-applica il colore palette(Text) corrente a tutto il documento.
+     * Chiamato su PaletteChange (cambio tema) per sincronizzare testo
+     * già inserito. QTextBrowser sotto Fusion/Breeze usa nero di default
+     * senza questo override esplicito. */
+    void syncTextColor();
     Role          m_role;
     QString       m_plain;
     QTextBrowser* m_text           = nullptr;

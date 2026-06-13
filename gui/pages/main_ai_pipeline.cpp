@@ -95,6 +95,26 @@ static QJsonArray _buildOllamaTools()
                "Legge la Knowledge Base personale dell'utente "
                "(file user_knowledge.md aggiornato automaticamente da Prismalux).",
                strParam("(lascia vuoto per leggere tutta la Knowledge Base)")),
+        /* ── Sub-agente ── */
+        mkTool("spawn_agent",
+               "Crea un sub-agente AI specializzato che esegue un sotto-compito e restituisce il risultato. "
+               "Utile per parallelizzare analisi, delegare sotto-task complessi o ottenere un secondo parere. "
+               "Massimo 4 sub-agenti per sessione. "
+               "Il sub-agente non ha accesso alla cronologia corrente: fornigli tutto il contesto nel campo 'task'.",
+               [&]() -> QJsonObject {
+                   QJsonObject p;
+                   p["type"] = QLatin1String("object");
+                   QJsonObject props;
+                   QJsonObject role; role["type"] = QLatin1String("string");
+                   role["description"] = QLatin1String("Ruolo/persona del sub-agente (es. 'Esperto di finanza', 'Analista dati', 'Revisore critico')");
+                   QJsonObject task; task["type"] = QLatin1String("string");
+                   task["description"] = QLatin1String("Compito completo da eseguire, incluso tutto il contesto necessario");
+                   props["role"] = role;
+                   props["task"] = task;
+                   p["properties"] = props;
+                   p["required"]   = QJsonArray{ QLatin1String("role"), QLatin1String("task") };
+                   return p;
+               }()),
     };
 }
 
@@ -260,6 +280,7 @@ void AgentiPage::runPipeline() {
     }
     m_taskOriginal  = _inject_random(_inject_math(_inject_science(task)));
     m_agentOutputs.clear();
+    m_spawnedAgents = 0;
     m_currentAgent  = 0;
     m_maxShots      = m_cfgDlg->numAgents();
     m_toolIteration = 0;

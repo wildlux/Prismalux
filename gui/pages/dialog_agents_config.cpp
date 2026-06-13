@@ -36,6 +36,9 @@ namespace P = PrismaluxPaths;
 #include <QTimer>
 #include <QUrl>
 #include <QRegularExpression>
+#include <QListWidget>
+#include <QDialogButtonBox>
+#include <QDialog>
 #include <algorithm>
 
 /* ── Stripping HTML → testo plain ───────────────────────────────────── */
@@ -117,14 +120,23 @@ RagDropWidget::RagDropWidget(QWidget* parent) : QFrame(parent) {
     m_urlBtn->setCursor(Qt::PointingHandCursor);
     lay->addWidget(m_urlBtn);
 
+    /* Pulsante selezione per file (visibile solo quando ci sono file) */
+    m_selectBtn = new QPushButton("\xf0\x9f\x93\x8b", this);  /* 📋 */
+    m_selectBtn->setFixedSize(22, 22);
+    m_selectBtn->setVisible(false);
+    m_selectBtn->setToolTip(tr("Scegli quali file includere nel RAG"));
+    m_selectBtn->setCursor(Qt::PointingHandCursor);
+    lay->addWidget(m_selectBtn);
+
     m_clearBtn = new QPushButton("\xc3\x97", this);
     m_clearBtn->setFixedSize(18, 18);
     m_clearBtn->setVisible(false);
     m_clearBtn->setToolTip(tr("Rimuovi tutti i file/URL RAG"));
     lay->addWidget(m_clearBtn);
 
-    connect(m_urlBtn,   &QPushButton::clicked, this, &RagDropWidget::onUrlBtnClicked);
-    connect(m_clearBtn, &QPushButton::clicked, this, &RagDropWidget::onClearBtnClicked);
+    connect(m_urlBtn,    &QPushButton::clicked, this, &RagDropWidget::onUrlBtnClicked);
+    connect(m_selectBtn, &QPushButton::clicked, this, &RagDropWidget::onSelectBtnClicked);
+    connect(m_clearBtn,  &QPushButton::clicked, this, &RagDropWidget::onClearBtnClicked);
 }
 
 void RagDropWidget::dragEnterEvent(QDragEnterEvent* ev) {
@@ -246,17 +258,21 @@ bool RagDropWidget::hasWebEntries() const
 }
 
 void RagDropWidget::updateLabel() {
-    bool hasFiles = !m_files.isEmpty();
+    const bool hasFiles = !m_files.isEmpty();
     m_clearBtn->setVisible(hasFiles);
+    m_selectBtn->setVisible(hasFiles);
+
     if (m_pendingFetches > 0) {
         m_lbl->setText(tr("\xf0\x9f\x8c\x90 Download in corso..."));
         return;
     }
     if (hasFiles) {
-        int webCount  = 0;
-        int fileCount = 0;
-        for (const auto& fe : m_files)
+        int webCount = 0, fileCount = 0, enabledCount = 0;
+        for (const auto& fe : m_files) {
             fe.isWeb ? ++webCount : ++fileCount;
+            if (fe.enabled) ++enabledCount;
+        }
+        const int total = m_files.size();
         double kb = m_totalBytes / 1024.0;
         QString label;
         if (fileCount > 0 && webCount > 0)
@@ -269,6 +285,9 @@ void RagDropWidget::updateLabel() {
             label = QString("\xf0\x9f\x93\x84 %1 file  \xe2\x80\xa2  %2 KB")
                     .arg(fileCount).arg(kb, 0, 'f', 1);
         m_lbl->setText(label);
+        /* Pulsante selezione: mostra N/M attivi */
+        m_selectBtn->setText(QString("\xf0\x9f\x93\x8b %1/%2").arg(enabledCount).arg(total));
+        m_selectBtn->setToolTip(tr("%1 di %2 file attivi nel RAG — clicca per modificare").arg(enabledCount).arg(total));
     } else {
         m_lbl->setText(tr("\xf0\x9f\x93\x8e Trascina file"));
     }
@@ -277,12 +296,20 @@ void RagDropWidget::updateLabel() {
 QString RagDropWidget::ragContext() const {
     if (m_files.isEmpty()) return {};
 
-    /* Separa file locali e voci web */
+    /* Separa file locali e voci web — solo quelli abilitati */
     QVector<const FileEntry*> webEntries, fileEntries;
-    for (const auto& fe : m_files)
+    for (const auto& fe : m_files) {
+        if (!fe.enabled) continue;
         (fe.isWeb ? webEntries : fileEntries).append(&fe);
+    }
+    if (webEntries.isEmpty() && fileEntries.isEmpty()) return {};
 
-    QString ctx = "\n\n\xe2\x80\x94\xe2\x80\x94 Contesto RAG (documenti forniti) \xe2\x80\x94\xe2\x80\x94\n";
+    QString ctx = "\n\n\xe2\x80\x94\xe2\x80\x94 Contesto RAG (documenti forniti) \xe2\x80\x94\xe2\x80\x94\n"
+                  "ISTRUZIONE: usa questi documenti SOLO se pertinenti alla domanda dell'utente.\n"
+                  "Se la domanda riguarda storia, letteratura, cultura, scienza o qualsiasi\n"
+                  "argomento NON presente nei documenti, IGNORA completamente il contesto RAG\n"
+                  "e rispondi dalla tua conoscenza. Non mischiare mai i due contesti.\n"
+                  "\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\xe2\x80\x94\n";
 
     /* File locali */
     for (const auto* fe : fileEntries) {
@@ -1004,6 +1031,72 @@ void RagDropWidget::onClearBtnClicked()
     m_files.clear();
     m_totalBytes = 0;
     updateLabel();
+}
+
+void RagDropWidget::onSelectBtnClicked()
+{
+    if (m_files.isEmpty()) return;
+
+    auto* dlg = new QDialog(this);
+    dlg->setWindowTitle(tr("\xf0\x9f\x93\x8b  Selezione file RAG"));
+    dlg->setMinimumWidth(340);
+    auto* lay = new QVBoxLayout(dlg);
+    lay->setSpacing(6);
+
+    auto* hdr = new QLabel(tr("Seleziona i file da includere nel contesto RAG:"), dlg);
+    hdr->setWordWrap(true);
+    lay->addWidget(hdr);
+
+    /* Lista con checkbox per ogni file */
+    auto* list = new QListWidget(dlg);
+    list->setAlternatingRowColors(true);
+    for (int i = 0; i < m_files.size(); ++i) {
+        auto* item = new QListWidgetItem(
+            (m_files[i].isWeb ? "\xf0\x9f\x8c\x90 " : "\xf0\x9f\x93\x84 ") + m_files[i].name,
+            list);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(m_files[i].enabled ? Qt::Checked : Qt::Unchecked);
+        item->setData(Qt::UserRole, i);
+    }
+    lay->addWidget(list, 1);
+
+    /* Pulsanti Tutti / Nessuno */
+    auto* selRow = new QWidget(dlg);
+    auto* selLay = new QHBoxLayout(selRow);
+    selLay->setContentsMargins(0, 0, 0, 0);
+    selLay->setSpacing(6);
+    auto* allBtn  = new QPushButton(tr("\xe2\x9c\x85  Tutti"),    selRow);
+    auto* noneBtn = new QPushButton(tr("\xe2\x9c\x96  Nessuno"), selRow);
+    allBtn->setObjectName("actionBtn");
+    noneBtn->setObjectName("actionBtn");
+    selLay->addWidget(allBtn);
+    selLay->addWidget(noneBtn);
+    selLay->addStretch();
+    lay->addWidget(selRow);
+
+    connect(allBtn,  &QPushButton::clicked, list, [list]{
+        for (int r = 0; r < list->count(); ++r)
+            list->item(r)->setCheckState(Qt::Checked);
+    });
+    connect(noneBtn, &QPushButton::clicked, list, [list]{
+        for (int r = 0; r < list->count(); ++r)
+            list->item(r)->setCheckState(Qt::Unchecked);
+    });
+
+    auto* bbox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
+    lay->addWidget(bbox);
+    connect(bbox, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
+    connect(bbox, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+
+    if (dlg->exec() == QDialog::Accepted) {
+        for (int r = 0; r < list->count(); ++r) {
+            const int idx = list->item(r)->data(Qt::UserRole).toInt();
+            if (idx >= 0 && idx < m_files.size())
+                m_files[idx].enabled = (list->item(r)->checkState() == Qt::Checked);
+        }
+        updateLabel();
+    }
+    dlg->deleteLater();
 }
 
 void RagDropWidget::onFetchUrlReplyFinished()

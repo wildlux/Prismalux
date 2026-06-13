@@ -280,3 +280,19 @@ QPushButton#strActBtn:hover { background: #13141f; color: #e8eaf6; }
 
 QWidget#ragRow {
     background: #13141f; border: 1px solid #313239; border-radius: 6px; }
+
+/* ── Chat Bubbles — override tema Dark Cyan ── */
+QFrame#bubbleAI {
+    background-color: #0a1628;
+    border: 1px solid rgba(0, 184, 217, 0.28);
+}
+QFrame#bubbleUser {
+    background-color: #0e3248;
+    border: 1px solid rgba(0, 184, 217, 0.45);
+}
+#bubbleSenderAI   { color: #38bdf8; }
+#bubbleSenderUser { color: #7dd3fc; }
+QTextBrowser#bubbleText { color: #e2e8f0; }
+QPushButton#bubbleBtn   { background-color: #0f1f35; color: #64748b; border: 1px solid rgba(0,184,217,0.25); }
+QPushButton#bubbleBtn:hover { background-color: #1a3a5c; border-color: #00b8d9; color: #e2e8f0; }
+#chatScroll { background-color: #0d0e17; }

@@ -611,6 +611,25 @@ QWidget* SciComputePage::buildUi()
     m_nodeTable->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_nodeTable, &QTableWidget::customContextMenuRequested,
             this, &SciComputePage::onNodeContextMenu);
+    /* Guida aggiunta nodo worker */
+    {
+        auto* workerGuide = new QLabel(nodeWidget);
+        workerGuide->setObjectName("hintLabel");
+        workerGuide->setTextFormat(Qt::RichText);
+        workerGuide->setWordWrap(true);
+        workerGuide->setText(
+            "<b>\xf0\x9f\x96\xa5  Come aggiungere un nodo worker Sci Compute:</b>"
+            "<ol style='margin:4px 0 4px 16px; padding:0;'>"
+            "<li>Installa Python 3.10+ e le dipendenze dei tool scientifici "
+            "necessari (es. <tt>blast+</tt>, <tt>gromacs</tt>, <tt>scipy</tt>).</li>"
+            "<li>Copia <b>MCPs/sci_worker/sci_worker.py</b> sul nodo remoto.</li>"
+            "<li>Avvia: <tt>python3 sci_worker.py --host IP_SERVER --port 11601 "
+            "--token TOKEN --capabilities blast,gmx,python</tt></li>"
+            "<li>Il nodo appare qui sotto dopo la prima connessione. "
+            "Il server assegna automaticamente le WU compatibili con le sue capability.</li>"
+            "</ol>");
+        nodeLay->insertWidget(0, workerGuide);
+    }
     nodeLay->addWidget(m_nodeTable);
     bottomTabs->addTab(nodeWidget, "\xf0\x9f\x96\xa5  Nodi");
 

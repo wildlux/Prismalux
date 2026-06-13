@@ -339,6 +339,7 @@ private:
     QTextBrowser* m_telegramLog           = nullptr;
     QProcess*    m_telegramProc          = nullptr;
     QObject*     m_telegramAiHolder      = nullptr;
+    bool         m_telegramIntentionalStop = false;
     int          m_telegramChatId        = 0;
     QLineEdit*   m_telegramPromoContactEdit = nullptr;
     QListWidget* m_telegramContactList      = nullptr;
@@ -386,6 +387,7 @@ private:
     QNetworkAccessManager* m_waNam            = nullptr;
     QSet<QString>          m_waSeenMsgIds;
     QObject*               m_waBotAiHolder    = nullptr;
+    int                    m_waPollFailCount  = 0;
 
     /* ── Stato transitorio per reply one-shot ── */
     QNetworkReply* m_ankiPendingReply  = nullptr;  ///< reply addNotes in volo

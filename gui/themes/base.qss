@@ -112,3 +112,76 @@ QPushButton#zoomResetBtn:hover {
 QPushButton#zoomResetBtn:pressed {
     background: rgba(76,155,232,0.25);
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Chat Bubbles — regole palette-relative (funzionano su tutti i temi).
+   base.qss è caricato per ULTIMO, quindi questi override vincono sul tema.
+   ══════════════════════════════════════════════════════════════ */
+
+#chatBubbleRow {
+    background: transparent;
+    border: none;
+}
+
+QFrame#bubbleAI {
+    background-color: palette(alternateBase);
+    border: 1px solid rgba(128,128,128,0.22);
+    border-radius: 14px;
+    border-top-left-radius: 3px;
+}
+
+QFrame#bubbleUser {
+    background-color: palette(alternateBase);
+    border: 1px solid rgba(128,128,128,0.38);
+    border-radius: 14px;
+    border-top-right-radius: 3px;
+}
+
+#bubbleSenderAI {
+    font-size: 11px;
+    font-weight: 600;
+    color: palette(highlight);
+}
+
+#bubbleSenderUser {
+    font-size: 11px;
+    font-weight: 600;
+    color: palette(highlight);
+}
+
+QTextBrowser#bubbleText {
+    background: transparent;
+    border: none;
+    color: palette(text);
+    font-size: 13px;
+    selection-background-color: palette(highlight);
+    selection-color: palette(highlighted-text);
+}
+
+QPushButton#bubbleBtn {
+    background-color: transparent;
+    border: 1px solid rgba(128,128,128,0.22);
+    border-radius: 5px;
+    color: palette(mid);
+    font-size: 11px;
+    padding: 3px 10px;
+    min-width: 0;
+}
+
+QPushButton#bubbleBtn:hover {
+    background-color: rgba(128,128,128,0.12);
+    border-color: palette(highlight);
+    color: palette(text);
+}
+
+QPushButton#bubbleBtn:pressed {
+    background-color: rgba(128,128,128,0.22);
+}
+
+#chatScroll {
+    border: none;
+}
+
+#chatContainer {
+    background-color: transparent;
+}

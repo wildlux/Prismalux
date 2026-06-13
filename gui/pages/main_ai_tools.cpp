@@ -195,15 +195,23 @@ QString _inject_random(const QString& task) {
 
 QString AgentiPage::toolSystemSuffix()
 {
-    return QString::fromLatin1(
-        "\n\n[STRUMENTI DISPONIBILI - usali se necessario]\n"
-        "TOOL_CALL: {\"tool\": \"calc\", \"input\": \"sqrt(144)\"}\n"
-        "TOOL_CALL: {\"tool\": \"ricerca\", \"input\": \"query\"}\n"
-        "TOOL_CALL: {\"tool\": \"python\", \"input\": \"print(2+2)\"}\n"
-        "TOOL_CALL: {\"tool\": \"leggi_file\", \"input\": \"/percorso/file.txt\"}\n"
-        "TOOL_CALL: {\"tool\": \"lista_file\", \"input\": \"/percorso/cartella/\"}\n"
-        "Scrivi UNA riga TOOL_CALL: {...} e attendi TOOL_RESULT. "
-        "Se non ti servono strumenti, rispondi normalmente in italiano.");
+    const QString proj = P::root();
+    return
+        QString::fromUtf8(
+            "\n\n[STRUMENTI DISPONIBILI - usali solo se necessario]\n"
+            "TOOL_CALL: {\"tool\": \"calc\", \"input\": \"sqrt(144)\"}\n"
+            "TOOL_CALL: {\"tool\": \"ricerca\", \"input\": \"query\"}\n"
+            "TOOL_CALL: {\"tool\": \"python\", \"input\": \"print(2+2)\"}\n"
+            "TOOL_CALL: {\"tool\": \"leggi_file\", \"input\": \"PERCORSO_ESPLICITO\"}\n"
+            "TOOL_CALL: {\"tool\": \"lista_file\", \"input\": \"PERCORSO_ESPLICITO\"}\n"
+            "Scrivi UNA riga TOOL_CALL: {...} e attendi TOOL_RESULT.\n"
+            "REGOLA FILE: usa leggi_file/lista_file SOLO con percorsi forniti dall'utente\n"
+            "o dentro la cartella del progetto:\n") +
+        proj + "/MCPs  oppure  " + proj + QString::fromUtf8(
+            "/Tools\n"
+            "NON inventare percorsi /home/... — per cultura generale rispondi direttamente.\n"
+            "TOOL_CALL: {\"tool\": \"spawn_agent\", \"input\": \"Ruolo|||Compito completo\"}\n"
+            "spawn_agent: crea un sub-agente specializzato (max 4 per sessione) — utile per sotto-task complessi.");
 }
 
 QJsonObject AgentiPage::detectFirstToolCall(const QString& text)
@@ -572,6 +580,51 @@ void AgentiPage::runToolCall(const QJsonObject& call,
         return;
     }
 
+    /* ── spawn_agent — sub-agente AI (max 4 per sessione) ── */
+    if (tool == "spawn_agent" || tool == "sub_agent" || tool == "subagent") {
+        constexpr int kMaxSpawn = 4;
+        if (m_spawnedAgents >= kMaxSpawn) {
+            onDone(QString("limite raggiunto: massimo %1 sub-agenti per sessione.").arg(kMaxSpawn));
+            return;
+        }
+
+        /* Formato input: "Ruolo|||Compito" oppure solo "Compito" */
+        const int sep  = input.indexOf("|||");
+        const QString role = (sep > 0) ? input.left(sep).trimmed()
+                                       : "Assistente specializzato";
+        const QString task = (sep > 0) ? input.mid(sep + 3).trimmed() : input.trimmed();
+
+        if (task.isEmpty()) { onDone("errore: task vuoto per spawn_agent"); return; }
+
+        ++m_spawnedAgents;
+        const int agentNum = m_spawnedAgents;
+
+        /* Sub-AiClient configurato come il principale */
+        auto* sub = new AiClient(this);
+        sub->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+
+        const QString sysSub = QString::fromUtf8(
+            "Sei un agente specializzato con il seguente ruolo: ") + role +
+            QString::fromUtf8(
+            ".\nEsegui il compito assegnato in modo preciso e conciso. "
+            "Rispondi SOLO con il risultato del tuo compito, senza preamboli. "
+            "Rispondi in italiano.");
+
+        connect(sub, &AiClient::finished, sub, [this, sub, onDone, agentNum, role](const QString& full) {
+            const QString out = QString("[Sub-agente %1 \xe2\x80\x94 %2]\n%3")
+                                .arg(agentNum).arg(role).arg(full.trimmed().left(2000));
+            onDone(out);
+            sub->deleteLater();
+        });
+        connect(sub, &AiClient::error, sub, [this, sub, onDone, agentNum](const QString& err) {
+            onDone(QString("[Sub-agente %1 errore]: %2").arg(agentNum).arg(err));
+            sub->deleteLater();
+        });
+
+        sub->chat(sysSub, task);
+        return;
+    }
+
     onDone(QString("strumento non riconosciuto: %1").arg(tool));
 }
 
@@ -619,16 +672,23 @@ static QString _toolBubble(const QString& name, const QString& input,
 
 void AgentiPage::onNativeToolCall(const QString& name, const QJsonObject& args)
 {
-    /* Estrae il valore del primo argomento come input stringa */
+    /* spawn_agent ha due parametri (role + task) — li combiniamo con ||| */
     QString input;
-    for (auto it = args.constBegin(); it != args.constEnd(); ++it) {
-        const QJsonValue v = it.value();
-        if (v.isString())  { input = v.toString(); break; }
-        if (v.isDouble())  { input = QString::number(v.toDouble()); break; }
-        if (v.isObject())  { input = QJsonDocument(v.toObject()).toJson(QJsonDocument::Compact); break; }
+    if (name == QLatin1String("spawn_agent")) {
+        const QString role = args.value("role").toString().trimmed();
+        const QString task = args.value("task").toString().trimmed();
+        input = role + "|||" + task;
+    } else {
+        /* Tutti gli altri tool: estrae il valore del primo argomento */
+        for (auto it = args.constBegin(); it != args.constEnd(); ++it) {
+            const QJsonValue v = it.value();
+            if (v.isString())  { input = v.toString(); break; }
+            if (v.isDouble())  { input = QString::number(v.toDouble()); break; }
+            if (v.isObject())  { input = QJsonDocument(v.toObject()).toJson(QJsonDocument::Compact); break; }
+        }
+        if (input.isEmpty())
+            input = QJsonDocument(args).toJson(QJsonDocument::Compact);
     }
-    if (input.isEmpty())
-        input = QJsonDocument(args).toJson(QJsonDocument::Compact);
 
     /* Inserisce la mini-bolla "in esecuzione" e salva il cursore per aggiornarla */
     m_log->moveCursor(QTextCursor::End);

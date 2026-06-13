@@ -18,8 +18,74 @@
 #include <QDateTime>
 #include <QTcpSocket>
 #include <QHostAddress>
+#include <QCryptographicHash>
+#include <QSettings>
+#include <QFile>
+#include <QDialog>
+#include <QTextBrowser>
+#include <QDialogButtonBox>
 
 namespace P = PrismaluxPaths;
+
+/* Calcola SHA-256 hex di un file (max 4 MB — i server.py non lo superano mai). */
+static QString fileHash(const QString& path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) return {};
+    return QCryptographicHash::hash(f.readAll(), QCryptographicHash::Sha256).toHex();
+}
+
+/* Istruzioni di configurazione per MCP che richiedono app esterne.
+ * Restituisce HTML pronto per QTextBrowser, stringa vuota se non serve. */
+static QString mcpSetupGuide(const QString& name)
+{
+    struct Guide { const char* prefix; const char* html; };
+    static const Guide kGuides[] = {
+      { "anki", "<b>Anki + AnkiConnect (porta 8765)</b><ol>"
+                "<li>Apri Anki.</li>"
+                "<li>Vai in <b>Strumenti \xe2\x86\x92 Add-on \xe2\x86\x92 Sfoglia e installa</b> e incolla il codice "
+                "<tt>2055492159</tt> (AnkiConnect).</li>"
+                "<li>Riavvia Anki — il server parte in ascolto su <tt>http://localhost:8765</tt>.</li>"
+                "<li>Torna in Prismalux e premi <b>Testa</b>.</li></ol>" },
+      { "blender", "<b>Blender con MCP addon (porta 6789)</b><ol>"
+                   "<li>Apri Blender.</li>"
+                   "<li>Vai in <b>Modifica \xe2\x86\x92 Preferenze \xe2\x86\x92 Componenti aggiuntivi</b>, "
+                   "installa <tt>MCPs/blender_mcp/blender_addon.py</tt>.</li>"
+                   "<li>Attiva l'addon e premi <b>Avvia Server MCP</b> nel pannello N.</li>"
+                   "<li>Il server parte su <tt>http://localhost:6789</tt>.</li></ol>" },
+      { "obs", "<b>OBS Studio + obs-websocket (porta 4455)</b><ol>"
+               "<li>Installa OBS Studio.</li>"
+               "<li>Vai in <b>Strumenti \xe2\x86\x92 obs-websocket Settings</b> e abilita il server.</li>"
+               "<li>Imposta la porta su <tt>4455</tt> e un token (lascialo vuoto per test).</li>"
+               "<li>Avvia OBS e premi <b>Testa</b> in Prismalux.</li></ol>" },
+      { "gns3", "<b>GNS3 (porta 3080)</b><ol>"
+                "<li>Installa e avvia GNS3 (gns3server oppure GNS3 GUI).</li>"
+                "<li>Il server parte automaticamente su <tt>http://localhost:3080</tt>.</li>"
+                "<li>Premi <b>Testa</b> in Prismalux.</li></ol>" },
+      { "cytoscape", "<b>Cytoscape (porta 1234)</b><ol>"
+                     "<li>Installa e avvia Cytoscape.</li>"
+                     "<li>Vai in <b>Apps \xe2\x86\x92 App Manager</b> e installa <b>CyREST</b>.</li>"
+                     "<li>Cytoscape esporr\xc3\xa0 l\xe2\x80\x99 API su <tt>http://localhost:1234/v1</tt>.</li></ol>" },
+      { "freecad", "<b>FreeCAD con FreeCAD-MCP (porta 12345)</b><ol>"
+                   "<li>Apri FreeCAD.</li>"
+                   "<li>Installa la macro <tt>MCPs/freecad_mcp/freecad_macro.py</tt> "
+                   "da <b>Macro \xe2\x86\x92 Gestisci macro</b>.</li>"
+                   "<li>Esegui la macro \xe2\x80\x94 avvia un mini-server TCP su porta 12345.</li></ol>" },
+      { "kicad", "<b>KiCAD con scripting Python (porta 8765)</b><ol>"
+                 "<li>Apri KiCAD.</li>"
+                 "<li>Abilita la console Python da <b>Strumenti \xe2\x86\x92 Scripting Console</b>.</li>"
+                 "<li>Esegui lo script <tt>MCPs/kicad_mcp/kicad_server.py</tt> dalla console.</li></ol>" },
+      { "opencode", "<b>OpenCode (porta 8092)</b><ol>"
+                    "<li>Installa OpenCode: <tt>go install github.com/opencodesdev/opencode@latest</tt></li>"
+                    "<li>Avvia: <tt>opencode serve --port 8092</tt></li>"
+                    "<li>Oppure usa il pulsante <b>OpenCode</b> nel tab AppController.</li></ol>" },
+    };
+    for (const auto& g : kGuides) {
+        if (name.startsWith(QLatin1String(g.prefix)))
+            return QString::fromUtf8(g.html);
+    }
+    return {};
+}
 
 /* Per ogni MCP che richiede un'app esterna, verifica se la porta è in ascolto
  * e restituisce un suggerimento leggibile. Stringa vuota = nessun suggerimento. */
@@ -153,14 +219,20 @@ void McpManagerPage::buildUi()
     m_prepareBtn = new QPushButton(QString::fromUtf8("\xf0\x9f\x90\x8d  Prepara ambiente (venv)"), this);
     m_venvLbl    = new QLabel(this);
     m_venvLbl->setWordWrap(true);
-    m_refreshBtn = new QPushButton(QString::fromUtf8("\xf0\x9f\x94\x84  Aggiorna stato"), this);
+    m_refreshBtn  = new QPushButton(QString::fromUtf8("\xf0\x9f\x94\x84  Aggiorna stato"), this);
+    m_testAllBtn  = new QPushButton(QString::fromUtf8("\xf0\x9f\xa7\xaa  Testa tutti"), this);
+    m_testAllBtn->setToolTip(QString::fromUtf8(
+        "Esegue lo smoke test JSON-RPC su tutti i plugin MCP in sequenza.\n"
+        "I risultati compaiono nel log centralizzato sottostante."));
     topRow->addWidget(m_prepareBtn);
     topRow->addWidget(m_venvLbl, 1);
+    topRow->addWidget(m_testAllBtn);
     topRow->addWidget(m_refreshBtn);
     root->addLayout(topRow);
 
     connect(m_prepareBtn, &QPushButton::clicked, this, &McpManagerPage::onPrepareVenvClicked);
     connect(m_refreshBtn, &QPushButton::clicked, this, &McpManagerPage::onRefreshClicked);
+    connect(m_testAllBtn, &QPushButton::clicked, this, &McpManagerPage::onTestAllClicked);
 
     /* Lista MCP in area scrollabile */
     auto* scroll = new QScrollArea(this);
@@ -208,6 +280,36 @@ void McpManagerPage::rebuildList()
         e.statusLbl = new QLabel(rowW);
         e.statusLbl->setWordWrap(true);
 
+        /* Verifica integrità SHA-256 del server.py */
+        e.hashLbl = new QLabel(rowW);
+        e.hashLbl->setToolTip(QString::fromUtf8(
+            "SHA-256 di server.py. Verde = invariato dal primo avvio; "
+            "Arancio = hash sconosciuto; Rosso = file modificato."));
+        {
+            const QString currentHash = fileHash(e.serverPy);
+            const QString settingsKey = QLatin1String("mcp_hash/") + name;
+            QSettings ss("Prismalux", "GUI");
+            if (currentHash.isEmpty()) {
+                e.hashLbl->setText(QString::fromUtf8("\xe2\x9d\x93"));
+                e.hashLbl->setStyleSheet("color: palette(mid);");
+            } else {
+                const QString stored = ss.value(settingsKey).toString();
+                if (stored.isEmpty()) {
+                    ss.setValue(settingsKey, currentHash);
+                    e.hashLbl->setText(QString::fromUtf8("\xf0\x9f\x93\x9d"));
+                    e.hashLbl->setStyleSheet("color: #b26a00;");
+                } else if (stored == currentHash) {
+                    e.hashLbl->setText(QString::fromUtf8("\xe2\x9c\x85"));
+                    e.hashLbl->setStyleSheet("color: #2e7d32;");
+                } else {
+                    e.hashLbl->setText(QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f"));
+                    e.hashLbl->setStyleSheet("color: #c62828;");
+                    appendLog(QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f <b>") + name +
+                              QString::fromUtf8("</b>: server.py modificato (hash cambiato dal primo avvio)!"));
+                }
+            }
+        }
+
         e.installBtn = new QPushButton(QString::fromUtf8("\xe2\xac\x87  Installa"), rowW);
         e.installBtn->setProperty("mcpName", name);
         e.installBtn->setEnabled(e.hasReq);
@@ -221,6 +323,23 @@ void McpManagerPage::rebuildList()
 
         row->addWidget(nameLbl);
         row->addWidget(e.statusLbl, 1);
+        row->addWidget(e.hashLbl);
+
+        /* Pulsante guida configurazione (solo per MCP con app esterne) */
+        const QString guide = mcpSetupGuide(name);
+        if (!guide.isEmpty()) {
+            auto* guideBtn = new QPushButton(QString::fromUtf8("\xe2\x84\xb9"), rowW);
+            guideBtn->setFlat(true);
+            guideBtn->setFixedWidth(dpiScale(28));
+            guideBtn->setToolTip(QString::fromUtf8(
+                "Mostra istruzioni di configurazione per questo MCP"));
+            guideBtn->setProperty("mcpName", name);
+            guideBtn->setProperty("mcpGuide", guide);
+            connect(guideBtn, &QPushButton::clicked,
+                    this, &McpManagerPage::onMcpGuideClicked);
+            row->addWidget(guideBtn);
+        }
+
         row->addWidget(e.installBtn);
         row->addWidget(e.testBtn);
 
@@ -478,6 +597,47 @@ void McpManagerPage::finishCurrentTest(bool passed, const QString& detail)
 
     m_busyName.clear();
     setBusy(false);
+
+    /* Se c'è una coda "Testa tutti" in corso, avanza al prossimo */
+    advanceTestQueue();
+}
+
+void McpManagerPage::onTestAllClicked()
+{
+    if (m_busy) {
+        appendLog(QString::fromUtf8("Operazione in corso, attendi\xe2\x80\xa6"));
+        return;
+    }
+    m_testQueue.clear();
+    for (const McpEntry& e : m_entries)
+        m_testQueue.append(e.name);
+
+    if (m_testQueue.isEmpty()) {
+        appendLog(QString::fromUtf8("Nessun MCP trovato."));
+        return;
+    }
+    const QString ts = QDateTime::currentDateTime().toString("HH:mm:ss");
+    appendLog(QString::fromUtf8("[%1] \xf0\x9f\xa7\xaa Inizio test batch: %2 plugin\xe2\x80\xa6")
+              .arg(ts).arg(m_testQueue.size()));
+    advanceTestQueue();
+}
+
+void McpManagerPage::advanceTestQueue()
+{
+    if (m_testQueue.isEmpty()) {
+        if (m_testAllBtn) m_testAllBtn->setEnabled(true);
+        return;
+    }
+    if (m_testAllBtn) m_testAllBtn->setEnabled(false);
+
+    const QString name = m_testQueue.takeFirst();
+    McpEntry* e = entryByName(name);
+    if (!e || e->testBtn == nullptr) {
+        advanceTestQueue();  /* salta MCP senza testBtn, prova il prossimo */
+        return;
+    }
+    /* Simula il click del tasto "Testa" per quell'MCP */
+    e->testBtn->click();
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -514,4 +674,30 @@ void McpManagerPage::appendLog(const QString& text)
     if (!m_log) return;
     const QString ts = QDateTime::currentDateTime().toString("HH:mm:ss");
     m_log->append("[" + ts + "] " + text);
+}
+
+void McpManagerPage::onMcpGuideClicked()
+{
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn) return;
+    const QString name  = btn->property("mcpName").toString();
+    const QString guide = btn->property("mcpGuide").toString();
+    if (guide.isEmpty()) return;
+
+    auto* dlg = new QDialog(this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setWindowTitle(name + QString::fromUtf8(" \xe2\x80\x94 Configurazione"));
+    dlg->resize(dpiScale(480), dpiScale(320));
+
+    auto* lay = new QVBoxLayout(dlg);
+    auto* tb = new QTextBrowser(dlg);
+    tb->setOpenExternalLinks(false);
+    tb->setHtml("<html><body style='font-size:13px;'>" + guide + "</body></html>");
+    lay->addWidget(tb);
+
+    auto* bb = new QDialogButtonBox(QDialogButtonBox::Ok, dlg);
+    connect(bb, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
+    lay->addWidget(bb);
+
+    dlg->open();
 }

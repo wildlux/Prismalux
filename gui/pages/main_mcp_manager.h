@@ -17,6 +17,7 @@ struct McpEntry {
     QString      serverPy;             // path del server.py (vuoto se non presente)
     bool         hasReq = false;       // requirements.txt presente
     QLabel*      statusLbl = nullptr;  // etichetta stato nella riga UI
+    QLabel*      hashLbl   = nullptr;  // integrità SHA-256 server.py
     QPushButton* installBtn = nullptr;
     QPushButton* testBtn = nullptr;
 };
@@ -54,6 +55,8 @@ private slots:
     void onInstallClicked();
     void onInstallFinished(int code, QProcess::ExitStatus st);
     void onTestClicked();
+    void onTestAllClicked();
+    void onMcpGuideClicked();
     void onTestReadyRead();
     void onTestTimeout();
     void onTestFinished(int code, QProcess::ExitStatus st);
@@ -68,6 +71,7 @@ private:
     McpEntry* entryByName(const QString& name);
     /* Conclude il test in corso una sola volta (guard su m_testProc). */
     void finishCurrentTest(bool passed, const QString& detail);
+    void advanceTestQueue();
 
     QVBoxLayout* m_listLay = nullptr;   // layout che contiene le righe MCP
     QTextEdit*   m_log = nullptr;
@@ -77,12 +81,14 @@ private:
 
     QVector<McpEntry> m_entries;
 
-    QProcess* m_venvProc = nullptr;     // creazione venv
-    QProcess* m_installProc = nullptr;  // pip install
-    QProcess* m_testProc = nullptr;     // smoke test
-    QByteArray m_testBuf;               // stdout accumulato del test
-    QString    m_busyName;              // MCP su cui sto operando
-    bool       m_busy = false;
+    QProcess*   m_venvProc    = nullptr;  // creazione venv
+    QProcess*   m_installProc = nullptr;  // pip install
+    QProcess*   m_testProc    = nullptr;  // smoke test
+    QByteArray  m_testBuf;               // stdout accumulato del test
+    QString     m_busyName;              // MCP su cui sto operando
+    bool        m_busy = false;
+    QStringList m_testQueue;             // coda "Testa tutti" sequenziale
+    QPushButton* m_testAllBtn = nullptr;
 };
 
 #endif // MAIN_MCP_MANAGER_H

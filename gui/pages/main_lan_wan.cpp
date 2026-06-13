@@ -1561,6 +1561,24 @@ QWidget* LanWanPage::buildWanComputeTab()
     vlay->setContentsMargins(12, 10, 12, 10);
     vlay->setSpacing(10);
 
+    /* Distinzione WAN Compute vs Sci Compute */
+    {
+        auto* diffLbl = new QLabel(root);
+        diffLbl->setObjectName("hintLabel");
+        diffLbl->setTextFormat(Qt::RichText);
+        diffLbl->setWordWrap(true);
+        diffLbl->setText(
+            "<b>\xf0\x9f\x96\xa7 WAN Compute</b> (porta 11600) \xe2\x80\x94 "
+            "distribuisce <b>task generici</b> (shell, Python, file I/O, matplotlib, LLM) "
+            "su macchine qualsiasi della rete. "
+            "Usa per pipeline AI/automatizzazione, batch script, job creativi.<br>"
+            "<b>\xf0\x9f\x94\xac Sci Compute</b> (porta 11601) \xe2\x80\x94 "
+            "distribuisce <b>Work Unit scientifiche</b> (BLAST, GROMACS, SymPy, R, SciPy) "
+            "con heartbeat, credit counter e aggregatore risultati BOINC-style. "
+            "Usa per ricerca computazionale e bioinformatica.");
+        vlay->addWidget(diffLbl);
+    }
+
     /* ── Selezione modalità di esecuzione ── */
     auto* execModeRow = new QWidget;
     auto* execModeLay = new QHBoxLayout(execModeRow);
@@ -1778,6 +1796,31 @@ QWidget* LanWanPage::buildWanComputeTab()
             });
 
     srvLay->addWidget(decompBox);
+
+    /* Guida aggiunta nodo worker */
+    {
+        auto* workerGuide = new QLabel;
+        workerGuide->setObjectName("hintLabel");
+        workerGuide->setTextFormat(Qt::RichText);
+        workerGuide->setWordWrap(true);
+        workerGuide->setText(
+            "<b>\xf0\x9f\x96\xa5  Come aggiungere un nodo worker:</b>"
+            "<ol style='margin:4px 0 0 16px; padding:0;'>"
+            "<li>Installa Python 3.10+ sul nodo remoto.</li>"
+            "<li>Copia <b>MCPs/wan_worker/wan_worker.py</b> sul nodo "
+            "oppure clona il repo Prismalux.</li>"
+            "<li>Avvia il worker: "
+            "<tt>python3 wan_worker.py --host IP_SERVER --port 11600 "
+            "--token TOKEN --name NomeNodo</tt><br>"
+            "(IP_SERVER = IP della macchina con Prismalux; TOKEN = token "
+            "mostrato nella sezione Autenticazione sopra).</li>"
+            "<li>Il nodo appare automaticamente nella tabella qui sotto "
+            "una volta connesso.</li>"
+            "<li>Per nodi su reti diverse (internet/ufficio) attiva la VPN "
+            "nella tab Programmazione \xe2\x86\x92 Rete.</li>"
+            "</ol>");
+        srvLay->addWidget(workerGuide);
+    }
 
     /* 3 — Monitor nodi + coda: stretch per occupare lo spazio liberato */
     auto* tableSplit = new QSplitter(Qt::Horizontal);

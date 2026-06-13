@@ -98,6 +98,7 @@ signals:
 private:
     AiClient*           m_ai;
     AgentsConfigDialog* m_cfgDlg    = nullptr;  ///< Dialog configurazione agenti
+    int                 m_spawnedAgents = 0;    ///< sub-agenti spawned in questa sessione (max 4)
 
     /* ── Widget interfaccia principale ── */
     QTextBrowser* m_log       = nullptr;  ///< log conversazione (HTML, QTextBrowser per link click)

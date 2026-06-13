@@ -12,6 +12,8 @@
 #include <QProcess>
 #include <QSizePolicy>
 #include <QTimer>
+#include <QEvent>
+#include <QTextCharFormat>
 
 /* ══════════════════════════════════════════════════════════════
    ChatBubble — costruttore
@@ -150,7 +152,9 @@ void ChatBubble::appendToken(const QString& token) {
     m_plain += token;
     QTextCursor cur(m_text->document());
     cur.movePosition(QTextCursor::End);
-    cur.insertText(token);
+    QTextCharFormat fmt;
+    fmt.setForeground(m_text->palette().color(QPalette::Active, QPalette::Text));
+    cur.insertText(token, fmt);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -205,6 +209,21 @@ void ChatBubble::onTTS() {
 void ChatBubble::onDocContentsChanged() {
     int h = qMax(22, (int)m_text->document()->size().height() + 6);
     m_text->setFixedHeight(h);
+}
+
+void ChatBubble::syncTextColor() {
+    if (!m_text || m_text->document()->isEmpty()) return;
+    QTextCharFormat fmt;
+    fmt.setForeground(m_text->palette().color(QPalette::Active, QPalette::Text));
+    QTextCursor all(m_text->document());
+    all.select(QTextCursor::Document);
+    all.mergeCharFormat(fmt);
+}
+
+void ChatBubble::changeEvent(QEvent* event) {
+    QFrame::changeEvent(event);
+    if (event->type() == QEvent::PaletteChange)
+        syncTextColor();
 }
 
 void ChatBubble::onChartBtnClicked() {

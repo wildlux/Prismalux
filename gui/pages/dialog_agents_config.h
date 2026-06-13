@@ -41,7 +41,7 @@ public:
     /** Testo aggregato da tutti i file/URL caricati (max 32 KB totali).
      *  Le voci web includono citazione [N] e istruzione di riferimento. */
     QString ragContext() const;
-    bool    hasContext()    const { return !m_files.isEmpty(); }
+    bool    hasContext()    const { return std::any_of(m_files.begin(), m_files.end(), [](const FileEntry& f){ return f.enabled; }); }
     bool    hasWebEntries() const;
 
     /** Aggiunge una voce web pre-fetchata (chiamato dal fetcher async). */
@@ -62,6 +62,7 @@ private slots:
     void onClearBtnClicked();
     void onFetchUrlReplyFinished();
     void onLabelRestoreTimer();
+    void onSelectBtnClicked();
 
 private:
     void addPath(const QString& path);
@@ -69,15 +70,16 @@ private:
     void fetchUrl(const QString& url);
     void updateLabel();
 
-    struct FileEntry { QString name; QString content; bool isWeb = false; };
+    struct FileEntry { QString name; QString content; bool isWeb = false; bool enabled = true; };
     QVector<FileEntry>    m_files;
-    QLabel*               m_lbl      = nullptr;
-    QPushButton*          m_clearBtn = nullptr;
-    QPushButton*          m_urlBtn   = nullptr;
-    QNetworkAccessManager* m_nam     = nullptr;
-    int                   m_totalBytes  = 0;
+    QLabel*               m_lbl       = nullptr;
+    QPushButton*          m_selectBtn = nullptr;  ///< 📋 N/M — apre selezione per file
+    QPushButton*          m_clearBtn  = nullptr;
+    QPushButton*          m_urlBtn    = nullptr;
+    QNetworkAccessManager* m_nam      = nullptr;
+    int                   m_totalBytes     = 0;
     int                   m_pendingFetches = 0;
-    QNetworkReply*        m_fetchReply  = nullptr;  ///< Reply corrente fetchUrl (slot)
+    QNetworkReply*        m_fetchReply     = nullptr;
 
     static constexpr int MAX_PER_FILE = 4096;
     static constexpr int MAX_PER_WEB  = 12000;

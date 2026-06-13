@@ -78,8 +78,13 @@ extern const char* kGodotSys[];
 
 void AppControllerPage::onPipLinkClicked(const QUrl& url)
 {
-    if (url.scheme() == QLatin1String("pip"))
+    if (url.scheme() == QLatin1String("pip")) {
         emit openSettingsDipendenze(url.path());
+    } else if (url.scheme() == QLatin1String("tg-restart")) {
+        onTelegramStartClicked();
+    } else if (url.scheme() == QLatin1String("wa-restart")) {
+        onWaBotStartClicked();
+    }
 }
 
 /* ======================================================================
@@ -1205,6 +1210,7 @@ void AppControllerPage::onGodotStopClicked()
 
 void AppControllerPage::onTelegramStartClicked()
 {
+    m_telegramIntentionalStop = false;
     if (QProcess::execute("python3",
             {"-c", "from telegram.ext import Application"}) != 0) {
         m_telegramStatusLbl->setText(
@@ -1286,6 +1292,7 @@ void AppControllerPage::onTelegramStartClicked()
 
 void AppControllerPage::onTelegramStopClicked()
 {
+    m_telegramIntentionalStop = true;
     if (m_telegramProc && m_telegramProc->state() == QProcess::Running) {
         m_telegramProc->terminate();
         if (!m_telegramProc->waitForFinished(3000))
@@ -1476,25 +1483,34 @@ void AppControllerPage::onTelegramProcFinished(
     m_telegramStartBtn->setEnabled(true);
     m_telegramStopBtn->setEnabled(false);
 
-    if (code == 0) {
-        m_telegramStatusLbl->setText(tr("\xe2\x9a\xaa  Bot fermato"));
-        m_telegramLog->append("<b>\xe2\x8f\xb9 Bot fermato.</b>");
-    } else {
-        m_telegramStatusLbl->setText(
-            QString("\xe2\x9d\x8c  Bot terminato (exit %1)").arg(code));
-        m_telegramLog->append(
-            QString("<span style='color:#f87171;'>"
-                    "\xe2\x9d\x8c  Bot uscito con codice %1. "
-                    "Controlla il log sopra.</span>").arg(code));
-        LogBus::post(
-            QString("\xe2\x9d\x8c Telegram Bot terminato con errore (exit %1)").arg(code));
-    }
-
     /* Libera l'holder AI se era attivo */
     if (m_telegramAiHolder) {
         m_telegramAiHolder->deleteLater();
         m_telegramAiHolder = nullptr;
     }
+
+    if (m_telegramIntentionalStop) {
+        m_telegramStatusLbl->setText(tr("\xe2\x9a\xaa  Bot fermato"));
+        m_telegramLog->append("<b>\xe2\x8f\xb9 Bot fermato.</b>");
+        return;
+    }
+
+    /* Crash inatteso — mostra notifica con link riavvio */
+    const QString exitInfo = (code == 0)
+        ? tr("exit 0 (riavvio inatteso)")
+        : QString("exit %1").arg(code);
+    m_telegramStatusLbl->setText(
+        QString("\xe2\x9a\xa0\xef\xb8\x8f  Bot crashato (%1)").arg(exitInfo));
+    m_telegramLog->append(
+        QString("<span style='color:#f87171;'>"
+                "\xe2\x9a\xa0\xef\xb8\x8f  <b>Bot terminato inaspettatamente</b> (%1). "
+                "Controlla il log sopra per la causa."
+                "</span><br>"
+                "<a href='tg-restart://' style='color:#fbbf24;'>"
+                "\xf0\x9f\x94\x84 Riavvia bot Telegram</a>")
+        .arg(exitInfo.toHtmlEscaped()));
+    LogBus::post(
+        QString("\xe2\x9a\xa0 Telegram Bot crashato (%1) — riavvio disponibile in app").arg(exitInfo));
 }
 
 /* ======================================================================
@@ -1793,11 +1809,23 @@ void AppControllerPage::onWaPollReply()
     reply->deleteLater();
 
     if (reply->error() != QNetworkReply::NoError) {
+        ++m_waPollFailCount;
         m_waBotStatusLbl->setText(
             QString("\xe2\x9a\xa0\xef\xb8\x8f  Bridge non raggiungibile: %1")
                 .arg(reply->errorString()));
+        /* Dopo 5 fallimenti consecutivi offri restart del polling */
+        if (m_waPollFailCount == 5) {
+            m_waBotLog->append(
+                "<span style='color:#f87171;'>"
+                "\xe2\x9a\xa0\xef\xb8\x8f  <b>Bridge irraggiungibile da 5 poll consecutivi.</b><br>"
+                "Verifica che il server WhatsApp bridge sia avviato, poi:"
+                "</span><br>"
+                "<a href='wa-restart://' style='color:#fbbf24;'>"
+                "\xf0\x9f\x94\x84 Riavvia polling WhatsApp</a>");
+        }
         return;
     }
+    m_waPollFailCount = 0;
 
     if (!m_waAutoReplyCheck || !m_waAutoReplyCheck->isChecked()) return;
 
