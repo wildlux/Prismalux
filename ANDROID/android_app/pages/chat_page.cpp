@@ -27,6 +27,8 @@
 #include <QStandardPaths>
 #include <QGroupBox>
 #include <QDateTime>
+#include <QTextStream>
+#include <QMessageBox>
 #include <QtSql/QSqlDatabase>
 #include <QtSql/QSqlQuery>
 
@@ -90,13 +92,24 @@ ChatBubbleWidget::ChatBubbleWidget(const QString& role,
         m_speakBtn->setToolTip("Leggi ad alta voce");
         m_speakBtn->setVisible(false);
 
+        /* B3 — salva risposta in memoria Hermes */
+        m_saveMemBtn = new QPushButton(
+            QString::fromUtf8("\xf0\x9f\xa7\xa0"), this);   /* 🧠 */
+        m_saveMemBtn->setObjectName("BubbleActionBtn");
+        m_saveMemBtn->setFixedSize(36, 36);
+        m_saveMemBtn->setToolTip("Salva in Memoria Hermes");
+        m_saveMemBtn->setVisible(false);
+
         actRow->addWidget(m_copyBtn);
         actRow->addWidget(m_speakBtn);
+        actRow->addWidget(m_saveMemBtn);
 
-        connect(m_copyBtn,  &QPushButton::clicked,
-                this,       &ChatBubbleWidget::onCopyClicked);
-        connect(m_speakBtn, &QPushButton::clicked,
-                this,       &ChatBubbleWidget::onSpeakClicked);
+        connect(m_copyBtn,    &QPushButton::clicked,
+                this,         &ChatBubbleWidget::onCopyClicked);
+        connect(m_speakBtn,   &QPushButton::clicked,
+                this,         &ChatBubbleWidget::onSpeakClicked);
+        connect(m_saveMemBtn, &QPushButton::clicked,
+                this,         &ChatBubbleWidget::onSaveMemClicked);
 
         vbox->addLayout(actRow);
     }
@@ -111,8 +124,14 @@ void ChatBubbleWidget::appendText(const QString& chunk)
 
 void ChatBubbleWidget::showActions()
 {
-    if (m_copyBtn)  m_copyBtn->setVisible(true);
-    if (m_speakBtn) m_speakBtn->setVisible(true);
+    if (m_copyBtn)    m_copyBtn->setVisible(true);
+    if (m_speakBtn)   m_speakBtn->setVisible(true);
+    if (m_saveMemBtn) m_saveMemBtn->setVisible(true);
+}
+
+void ChatBubbleWidget::onSaveMemClicked()
+{
+    emit saveMemClicked(m_fullText);
 }
 
 void ChatBubbleWidget::onCopyClicked()
@@ -264,8 +283,34 @@ ChatPage::ChatPage(AiClient* ai, RagEngineSimple* rag, QWidget* parent)
     m_clearBtn->setObjectName("IconBtn");
     m_clearHistoryBtn->setObjectName("IconBtn");
     m_clearHistoryBtn->setToolTip("Cancella cronologia chat dal database");
+
+    /* B1 — TTFT label e pulsante export */
+    m_ttftLbl = new QLabel(this);
+    m_ttftLbl->setObjectName("TtftLbl");
+    m_ttftLbl->setVisible(false);
+    {
+        QFont f = m_ttftLbl->font();
+        f.setPointSize(10);
+        m_ttftLbl->setFont(f);
+    }
+    m_exportBtn = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x93\xa4"), this);  /* 📤 */
+    m_exportBtn->setObjectName("IconBtn");
+    m_exportBtn->setToolTip("Esporta chat in TXT o Markdown");
+
+    /* B3 — toggle Hermes memoria */
+    m_hermesToggle = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\xa7\xa0"), this);  /* 🧠 */
+    m_hermesToggle->setObjectName("IconBtn");
+    m_hermesToggle->setCheckable(true);
+    m_hermesToggle->setChecked(false);
+    m_hermesToggle->setToolTip("Abilita memoria Hermes nel contesto (usa user_knowledge.md)");
+
     header->addWidget(m_modelBtn, 1);
+    header->addWidget(m_ttftLbl);
+    header->addWidget(m_hermesToggle);
     header->addWidget(m_stopBtn);
+    header->addWidget(m_exportBtn);
     header->addWidget(m_clearBtn);
     header->addWidget(m_clearHistoryBtn);
 
@@ -401,6 +446,7 @@ ChatPage::ChatPage(AiClient* ai, RagEngineSimple* rag, QWidget* parent)
     connect(m_stopBtn,         &QPushButton::clicked,  this, &ChatPage::onStop);
     connect(m_clearBtn,        &QPushButton::clicked,  this, &ChatPage::onClear);
     connect(m_clearHistoryBtn, &QPushButton::clicked,  this, &ChatPage::onClearHistory);
+    connect(m_exportBtn,       &QPushButton::clicked,  this, &ChatPage::onExportClicked);
     connect(m_modelBtn, &QPushButton::clicked,  this, &ChatPage::onModelBtnClicked);
     connect(m_ragBtn,   &QPushButton::clicked,  this, &ChatPage::onAttachClicked);
     connect(m_input,    &QLineEdit::returnPressed, this, &ChatPage::onSend);
@@ -436,6 +482,21 @@ QString ChatPage::buildSystemPrompt(const QString& userMsg) const
 {
     QString sys = "Sei un assistente AI locale. Rispondi in italiano, "
                   "in modo preciso e conciso.";
+
+    /* B3 — Hermes memoria: inietta user_knowledge.md se toggle attivo */
+    if (m_hermesToggle && m_hermesToggle->isChecked()) {
+        const QString memPath =
+            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+            + "/user_knowledge.md";
+        QFile memFile(memPath);
+        if (memFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            const QString mem = QTextStream(&memFile).readAll().left(2000);
+            memFile.close();
+            if (!mem.trimmed().isEmpty())
+                sys += "\n\nMEMORIA UTENTE (Hermes):\n" + mem
+                     + "\n\nUsa queste informazioni per personalizzare la risposta.";
+        }
+    }
 
     /* Contesto da Camera (documento scansionato) */
     if (!m_pendingContext.isEmpty()) {
@@ -497,6 +558,11 @@ void ChatPage::onSend()
     m_pendingContext.clear();   // consumato
     m_ai->chat(sys, msg, m_history);
 
+    /* B1 — avvia timer TTFT */
+    m_ttftTimer.start();
+    m_ttftStarted = true;
+    if (m_ttftLbl) m_ttftLbl->setVisible(false);
+
     emit queryStarted();
 }
 
@@ -507,6 +573,21 @@ void ChatPage::onToken(const QString& chunk)
 {
     if (!m_streamBubble) return;
     m_streamBubble->appendText(chunk);
+
+    /* B1 — mostra TTFT al primo token */
+    if (m_ttftStarted && m_ttftLbl) {
+        m_ttftStarted = false;
+        const qint64 ms = m_ttftTimer.elapsed();
+        const QString color = (ms < 1000) ? "#4caf50"
+                            : (ms < 3000) ? "#ff9800"
+                                          : "#f44336";
+        m_ttftLbl->setText(
+            QString("<span style='color:%1'>\xe2\x9a\xa1 %2ms</span>")
+                .arg(color).arg(ms));
+        m_ttftLbl->setTextFormat(Qt::RichText);
+        m_ttftLbl->setVisible(true);
+    }
+
     QTimer::singleShot(0, this, &ChatPage::scrollToBottom);
 }
 
@@ -598,6 +679,30 @@ void ChatPage::onBubbleSpeakClicked(const QString& text)
     QApplication::clipboard()->setText(text);
 }
 
+/* ── B3 onBubbleSaveMemClicked — salva risposta AI in Hermes ─── */
+void ChatPage::onBubbleSaveMemClicked(const QString& text)
+{
+    const QString memPath =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+        + "/user_knowledge.md";
+
+    QFile f(memPath);
+    if (!f.open(QIODevice::Append | QIODevice::Text)) {
+        appendBubble("system",
+            QString::fromUtf8("\xe2\x9d\x8c")   /* ❌ */
+            + "  Impossibile scrivere la memoria Hermes.");
+        return;
+    }
+    QTextStream out(&f);
+    out << "\n\n## Nota salvata il " << QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm") << "\n";
+    out << text.left(1500) << "\n";
+    f.close();
+
+    appendBubble("system",
+        QString::fromUtf8("\xf0\x9f\xa7\xa0")  /* 🧠 */
+        + "  Salvato in Memoria Hermes.");
+}
+
 /* ── prependContext (da CameraPage) ─────────────────────────── */
 void ChatPage::prependContext(const QString& text)
 {
@@ -633,6 +738,8 @@ void ChatPage::appendBubble(const QString& role, const QString& text)
             this,   &ChatPage::onBubbleCopyClicked);
     connect(bubble, &ChatBubbleWidget::speakClicked,
             this,   &ChatPage::onBubbleSpeakClicked);
+    connect(bubble, &ChatBubbleWidget::saveMemClicked,
+            this,   &ChatPage::onBubbleSaveMemClicked);
 
     if (role == "user")
         m_chatLayout->addWidget(bubble, 0, Qt::AlignRight);
@@ -650,6 +757,8 @@ void ChatPage::appendStreamBlock()
             this,   &ChatPage::onBubbleCopyClicked);
     connect(bubble, &ChatBubbleWidget::speakClicked,
             this,   &ChatPage::onBubbleSpeakClicked);
+    connect(bubble, &ChatBubbleWidget::saveMemClicked,
+            this,   &ChatPage::onBubbleSaveMemClicked);
     m_chatLayout->addWidget(bubble);
     m_streamBubble = bubble;
     QTimer::singleShot(0, this, &ChatPage::scrollToBottom);
@@ -988,6 +1097,62 @@ void ChatPage::onClearHistory()
     appendBubble("system",
         QString::fromUtf8("\xf0\x9f\x97\x83")  /* 🗃 */
         + "  Cronologia cancellata dal database.");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   B1 — onExportClicked: esporta la chat in TXT o Markdown
+   ══════════════════════════════════════════════════════════════ */
+void ChatPage::onExportClicked()
+{
+    /* Legge la cronologia dal DB */
+    QSqlDatabase db = QSqlDatabase::database("chat_db");
+    if (!db.isOpen()) {
+        QMessageBox::warning(this, "Esporta chat", "Nessuna cronologia disponibile.");
+        return;
+    }
+    QSqlQuery q(db);
+    q.exec("SELECT role, content, timestamp FROM messages ORDER BY id ASC");
+
+    QStringList linesTxt, linesMd;
+    linesMd << "# Chat Prismalux\n";
+    while (q.next()) {
+        const QString role    = q.value(0).toString();
+        const QString content = q.value(1).toString();
+        const QString ts = QDateTime::fromSecsSinceEpoch(q.value(2).toLongLong())
+                               .toString("yyyy-MM-dd hh:mm");
+        const QString label = (role == "user") ? "Tu" : "AI";
+        linesTxt << QString("[%1] %2: %3").arg(ts, label, content);
+        linesMd  << QString("**[%1] %2:**\n%3\n").arg(ts, label, content);
+    }
+
+    if (linesTxt.isEmpty()) {
+        QMessageBox::information(this, "Esporta chat", "La chat è vuota.");
+        return;
+    }
+
+    /* Menu formato */
+    const QString path = QFileDialog::getSaveFileName(
+        this, "Esporta chat",
+        QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)
+            + "/chat_prismalux_"
+            + QDateTime::currentDateTime().toString("yyyyMMdd_HHmm"),
+        "Testo (*.txt);;Markdown (*.md)");
+    if (path.isEmpty()) return;
+
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::critical(this, "Esporta chat",
+            "Impossibile scrivere il file:\n" + path);
+        return;
+    }
+    QTextStream out(&f);
+    const bool isMd = path.endsWith(".md", Qt::CaseInsensitive);
+    out << (isMd ? linesMd.join("\n---\n") : linesTxt.join("\n"));
+    f.close();
+
+    appendBubble("system",
+        QString::fromUtf8("\xf0\x9f\x93\xa4")  /* 📤 */
+        + "  Chat esportata: " + QFileInfo(path).fileName());
 }
 
 /* ── onCloudModeClicked — attiva Cloud con le impostazioni salvate ── */

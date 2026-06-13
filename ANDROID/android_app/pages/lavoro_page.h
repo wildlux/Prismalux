@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QProgressBar>
 #include <QComboBox>
+#include <QPixmap>
 #include "../ai_client.h"
 
 /* --------------------------------------------------------------
@@ -19,14 +20,16 @@ public:
 private:
     void runAction(const QString& sys);
 
-    AiClient*     m_ai       = nullptr;
-    QTextEdit*    m_input    = nullptr;
-    QTextEdit*    m_output   = nullptr;
-    QProgressBar* m_progress = nullptr;
-    QLabel*       m_status   = nullptr;
-    QPushButton*  m_btnStop  = nullptr;
-    QPushButton*  m_btnPdf   = nullptr;
-    bool          m_busy     = false;
+    AiClient*     m_ai          = nullptr;
+    QTextEdit*    m_input       = nullptr;
+    QTextEdit*    m_output      = nullptr;
+    QProgressBar* m_progress    = nullptr;
+    QLabel*       m_status      = nullptr;
+    QPushButton*  m_btnStop     = nullptr;
+    QPushButton*  m_btnPdf      = nullptr;
+    QLabel*       m_fotoLbl     = nullptr;
+    QPushButton*  m_fotoBtn     = nullptr;
+    bool          m_busy        = false;
 
 private slots:
     void onToken(const QString& t);
@@ -35,4 +38,6 @@ private slots:
     void onAborted();
     void onLoadPdf();
     void onActionBtnClicked();
+    void onFotoBtnClicked();
+    void onEmailBtnClicked();
 };

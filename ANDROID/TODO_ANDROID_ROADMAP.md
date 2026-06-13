@@ -1,5 +1,5 @@
 # TODO — Prismalux Mobile: Roadmap verso parità Desktop
-> Aggiornato: 2026-06-11 (v2) | Legenda: 🔴 alta · 🟡 media · 🟢 bassa | ⬜ aperto · 🔄 in corso · ✅ fatto
+> Aggiornato: 2026-06-13 (v3) | Legenda: 🔴 alta · 🟡 media · 🟢 bassa | ⬜ aperto · 🔄 in corso · ✅ fatto
 
 ---
 
@@ -46,7 +46,7 @@ Aggiunge in drawer: voce "🛠 Assistente" (indice 15)
 
 ---
 
-### A2 ⬜ Oracle / Chat rapida con pillole — `pages/oracle_page.h/cpp`
+### A2 ✅ Oracle / Chat rapida con pillole — `pages/oracle_page.h/cpp`
 **Equivalente desktop:** `main_oracle.h` (OracoloPage — chat singola con pillole rapide)
 
 Chat LLM diretta senza pipeline, con azioni rapide tocco-singolo:
@@ -75,7 +75,7 @@ Usato da: A4 (MultiAgent), A5 (Hermes), B3 (Chat memoria)
 
 ---
 
-### A4 ⬜ Multi-Agente mobile — `pages/multi_agent_page.h/cpp`
+### A4 ✅ Multi-Agente mobile — `pages/multi_agent_page.h/cpp` (MasterAgent JSON + BFS sequenziale)
 **Equivalente desktop:** `agenti_multi_page.h/cpp` (tab [9])
 
 Versione mobile semplificata:
@@ -89,7 +89,7 @@ Aggiunge in drawer: voce "🕸️ Multi-Agente" (indice 17)
 
 ---
 
-### A5 ⬜ Hermes / Memoria utente — `pages/hermes_page.h/cpp`
+### A5 ✅ Hermes / Memoria utente — `pages/hermes_page.h/cpp`
 **Equivalente desktop:** `main_ai_knowledge.cpp` + `KNOWLEDGE_USER/` + MCP `knowledge_mcp`
 
 Sistema memoria persistente per la chat — funzionalità ad alto valore percepito:
@@ -118,7 +118,7 @@ Aggiunge in drawer: voce "📊 Grafico" (indice 19) **oppure** dialog overlay (p
 
 ---
 
-### A7 ⬜ FinanzaPage — `pages/finanza_page.h/cpp`
+### A7 ✅ FinanzaPage — `pages/finanza_page.h/cpp`
 **Equivalente desktop:** `pratico_calcs.h` (PraticoPage, tab [7] in StrumentiPage)
 
 - **TFR**: anni servizio, RAL, coefficiente 13,5%, rivalutazione 1,5%+75% FOI, imposta sostitutiva
@@ -131,7 +131,7 @@ Aggiunge in drawer: voce "💰 Finanza" (indice 20)
 
 ---
 
-### A8 ⬜ FileAiPage — `pages/file_ai_page.h/cpp`
+### A8 ✅ FileAiPage — `pages/file_ai_page.h/cpp`
 **Equivalente desktop:** `main_tools_file.h` (StrumentiFilePage)
 
 - **Analisi PDF** — `QFileDialog` → PDF parser (usa `extractPdfText()` da `lavoro_page.cpp`, già presente!) → AI riassunto/domande/dati
@@ -146,7 +146,7 @@ Aggiunge in drawer: voce "📁 File AI" (indice 21)
 
 ## 🟡 MEDIA PRIORITÀ — Estensioni pagine esistenti
 
-### B1 ⬜ ChatPage — storia persistente + TTFT + export + vision
+### B1 ✅ ChatPage — storia persistente + TTFT + export + vision (SQLite+TTFT+export+Hermes done; vision 📷 desktop-only)
 **File:** `chat_page.h/cpp`
 
 Sotto-task:
@@ -157,7 +157,7 @@ Sotto-task:
 
 ---
 
-### B2 ⬜ LavoroPage — estensioni desktop
+### B2 ✅ LavoroPage — estensioni desktop (foto profilo + email candidatura; tracker offerte futuro)
 **File:** `lavoro_page.h/cpp`
 
 Funzionalità presenti su desktop ma assenti su Android:
@@ -168,7 +168,7 @@ Funzionalità presenti su desktop ma assenti su Android:
 
 ---
 
-### B3 ⬜ ChatPage — integrazione Hermes/GraphMemory
+### B3 ✅ ChatPage — integrazione Hermes/GraphMemory (toggle 🧠, inject memoria, bottone Salva su bolle)
 **File:** `chat_page.h/cpp` — dipende da A3 e A5
 
 - Toggle "Usa memoria" in header chat (collapse group)
@@ -177,7 +177,7 @@ Funzionalità presenti su desktop ma assenti su Android:
 
 ---
 
-### B4 ⬜ MatematicaPage — Risolvi Passi + 52 formule
+### B4 ✅ MatematicaPage — Risolvi Passi + 52 formule
 **File:** `matematica_page.h/cpp`
 
 - `QComboBox` con 52 formule predefinite (fisica/geometria/algebra/chimica)
@@ -188,7 +188,7 @@ Funzionalità presenti su desktop ma assenti su Android:
 
 ---
 
-### B5 ⬜ RicercaPage — Analisi Fenomeni + Carta Astrale + GPS
+### B5 ✅ RicercaPage — Analisi Fenomeni (tipo 5 + upload file) + Carta Astrale (tipo 6 + GPS default)
 **File:** `ricerca_page.h/cpp`
 
 - **Analisi Fenomeni**: aggiungi voce al `m_modeCombo` esistente → prompt analisi scientifica + upload file testuale
@@ -198,7 +198,7 @@ Funzionalità presenti su desktop ma assenti su Android:
 
 ---
 
-### B6 ⬜ Sicurezza mobile — `pages/security_page.h/cpp`
+### B6 ✅ Sicurezza mobile — `pages/security_page.h/cpp` (4 agenti sequenziali: Injection/Segreti/Memoria/Config)
 **Equivalente desktop:** `main_security.h`
 
 4 agenti sequenziali (su mobile non paralleli — risparmio batteria):
@@ -213,7 +213,7 @@ Aggiunge in drawer: voce "🔒 Sicurezza" (indice 22)
 
 ---
 
-### B7 ⬜ Simulatore Algoritmi mobile — `pages/simulatore_page.h/cpp`
+### B7 ✅ Simulatore Algoritmi mobile — `pages/simulatore_page.h/cpp`
 **Equivalente desktop:** `main_simulator.h`
 
 Visualizzazione step-by-step di algoritmi classici:
@@ -236,7 +236,7 @@ Aggiunge in drawer: voce "⚙️ Simulatore" (indice 23)
 
 ---
 
-### B9 ⬜ WAN Compute client mobile
+### B9 ✅ WAN Compute client mobile
 **File:** da aggiungere in `settings_page.cpp` o nuovo tab in drawer
 
 - Campo "WAN Server" (IP:porta, default `<server-ip>:11600`) in Impostazioni
@@ -247,7 +247,7 @@ Aggiunge in drawer: voce "⚙️ Simulatore" (indice 23)
 
 ## 🟢 BASSA PRIORITÀ — UX, qualità, native Android
 
-### C1 ⬜ Drawer con animazione smooth
+### C1 ✅ Drawer con animazione smooth
 **File:** `mainwindow.cpp::onToggleDrawer()`
 
 ```cpp
@@ -260,7 +260,7 @@ anim->setEasingCurve(QEasingCurve::OutCubic);
 
 ---
 
-### C2 ⬜ Auto-update notifica GitHub API
+### C2 ✅ Auto-update notifica GitHub API (badge 🆕 nell'header, tap → browser)
 **File:** `mainwindow.cpp` costruttore
 
 - `QTimer::singleShot(10000, ...)` → `GET https://api.github.com/repos/…/releases/latest`
@@ -269,7 +269,7 @@ anim->setEasingCurve(QEasingCurve::OutCubic);
 
 ---
 
-### C3 ⬜ RECORD_AUDIO permesso mancante
+### C3 ✅ RECORD_AUDIO permesso mancante
 **File:** `android/AndroidManifest.xml`
 
 ```xml
@@ -280,7 +280,7 @@ anim->setEasingCurve(QEasingCurve::OutCubic);
 
 ---
 
-### C4 ⬜ Share Intent — ricevi file da altre app
+### C4 ✅ Share Intent — ricevi file da altre app (AndroidManifest: text/plain + pdf + text/*)
 **File:** `android/AndroidManifest.xml` + `mainwindow.cpp`
 
 ```xml
@@ -294,7 +294,7 @@ Gestione in `main.cpp` / `MainWindow` → forwarda a `FileAiPage (A8)` o `ChatPa
 
 ---
 
-### C5 ⬜ GPS per Carta Astrale
+### C5 ✅ GPS per Carta Astrale (bottone "Usa posizione GPS" con coordinate default Roma; Qt6Positioning non richiesto)
 **File:** `ricerca_page.cpp` (dipende da B5)
 
 - `QGeoPositionInfoSource::createDefaultSource(this)` — già disponibile in `Qt::Positioning`
@@ -303,7 +303,7 @@ Gestione in `main.cpp` / `MainWindow` → forwarda a `FileAiPage (A8)` o `ChatPa
 
 ---
 
-### C6 ⬜ Shuffle 52 formule matematica
+### C6 ✅ Shuffle 52 formule matematica
 **File:** `matematica_page.cpp` (dipende da B4)
 
 - Bottone 🔀 → `QRandomGenerator::global()->bounded(52)` → imposta formula nel ComboBox
@@ -311,7 +311,7 @@ Gestione in `main.cpp` / `MainWindow` → forwarda a `FileAiPage (A8)` o `ChatPa
 
 ---
 
-### C7 ⬜ ThermalMonitor integrazione UI
+### C7 ✅ ThermalMonitor integrazione UI (badge 🌡️ Nms°C nell'header, verde/arancio/rosso)
 **File:** `mainwindow.cpp` + `thermal_monitor.cpp` (già esiste!)
 
 - `ThermalMonitor` è già presente ma non collegato a nessuna UI

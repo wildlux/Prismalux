@@ -11,6 +11,11 @@
 #include <QTimer>
 #include <QScroller>
 #include <QScrollerProperties>
+#include <QFileDialog>
+#include <QFile>
+#include <QTextStream>
+#include <QFileInfo>
+#include <QDate>
 
 static void applyTouchScroll(QScrollArea* sa)
 {
@@ -95,7 +100,6 @@ static QString buildSystemPrompt(int tipo, const QString& argomento,
             "Usa un registro accademico in italiano.";
 
     case 4: /* Report di Mercato */
-    default:
         return
             "Sei un analista di mercato e business intelligence. "
             "Scrivi un report di mercato dettagliato su: "
@@ -109,6 +113,38 @@ static QString buildSystemPrompt(int tipo, const QString& argomento,
             "## Tendenze e opportunità\n"
             "## Raccomandazioni strategiche\n"
             "Usa dati plausibili e linguaggio professionale in italiano.";
+
+    case 5: /* Analisi Fenomeni */
+        return
+            "Sei uno scienziato e analista di fenomeni. "
+            "Analizza scientificamente il seguente fenomeno: "
+            + argomento + kw + ".\n"
+            "Struttura:\n"
+            "## Descrizione del fenomeno\n"
+            "## Cause fisiche/chimiche/biologiche\n"
+            "## Modello teorico e formule (se applicabili)\n"
+            "## Osservazioni sperimentali\n"
+            "## Anomalie e variabili\n"
+            "## Implicazioni e applicazioni\n"
+            "## Conclusioni\n"
+            "Usa linguaggio scientifico preciso in italiano.";
+
+    case 6: /* Carta Astrale */
+    default:
+        return
+            "Sei un astrologo esperto. "
+            "Genera una carta astrale testuale completa per: "
+            + argomento + ".\n"
+            "Struttura:\n"
+            "## Dati natali\n"
+            "## Sole, Luna e Ascendente\n"
+            "## Posizione dei pianeti principali (Mercurio, Venere, Marte, Giove, Saturno)\n"
+            "## Aspetti principali (congiunzioni, opposizioni, trigoni)\n"
+            "## Case astrologiche prevalenti\n"
+            "## Profilo psicologico e predisposizioni naturali\n"
+            "## Aree di vita (lavoro, amore, salute, spiritualità)\n"
+            "## Consiglio astrologico personalizzato\n"
+            "Usa terminologia astrologica tradizionale in italiano.";
     }
 }
 
@@ -162,6 +198,10 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
         QString::fromUtf8("\xf0\x9f\x93\x9a") + "  Analisi Letteratura", 3);
     m_tipoCombo->addItem(
         QString::fromUtf8("\xf0\x9f\x93\x8a") + "  Report di Mercato", 4);
+    m_tipoCombo->addItem(
+        QString::fromUtf8("\xf0\x9f\x94\xac") + "  Analisi Fenomeni", 5);     /* 🔬 */
+    m_tipoCombo->addItem(
+        QString::fromUtf8("\xe2\xad\x90") + "  Carta Astrale", 6);            /* ⭐ */
     m_tipoCombo->setMinimumHeight(48);
     tipoVbox->addWidget(m_tipoCombo);
 
@@ -170,6 +210,77 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
     m_hintLbl->setStyleSheet("color:#8890a8; font-size:12px;");
     tipoVbox->addWidget(m_hintLbl);
     vbox->addWidget(tipoGroup);
+
+    /* ── Pannello extra per Analisi Fenomeni (5) e Carta Astrale (6) ── */
+    m_extraStack = new QStackedWidget(inner);
+    m_extraStack->setVisible(false);
+
+    /* pagina 0 — vuota (tipi 0-4) */
+    m_extraStack->addWidget(new QWidget(inner));
+
+    /* pagina 1 — Analisi Fenomeni: upload file facoltativo */
+    {
+        auto* w = new QWidget(inner);
+        auto* vb = new QVBoxLayout(w);
+        vb->setContentsMargins(0,0,0,0);
+        m_fenomeniFileBtn = new QPushButton(
+            QString::fromUtf8("\xf0\x9f\x93\x84") + "  Allega file testo (facoltativo)", w);  /* 📄 */
+        m_fenomeniFileBtn->setObjectName("SecondaryBtn");
+        m_fenomeniFileBtn->setMinimumHeight(44);
+        m_fenomeniFileLbl = new QLabel("Nessun file selezionato", w);
+        m_fenomeniFileLbl->setStyleSheet("color:#8890a8; font-size:11px;");
+        vb->addWidget(m_fenomeniFileBtn);
+        vb->addWidget(m_fenomeniFileLbl);
+        m_extraStack->addWidget(w);
+    }
+
+    /* pagina 2 — Carta Astrale: nome + data + lat/lon + GPS */
+    {
+        auto* w  = new QWidget(inner);
+        auto* vb = new QVBoxLayout(w);
+        vb->setContentsMargins(0,0,0,0);
+        vb->setSpacing(8);
+
+        auto* nomeRow = new QHBoxLayout;
+        nomeRow->addWidget(new QLabel("Nome:", w));
+        m_astraleNome = new QLineEdit(w);
+        m_astraleNome->setPlaceholderText("es. Mario Rossi");
+        m_astraleNome->setMinimumHeight(44);
+        nomeRow->addWidget(m_astraleNome, 1);
+        vb->addLayout(nomeRow);
+
+        auto* dataRow = new QHBoxLayout;
+        dataRow->addWidget(new QLabel("Data nascita:", w));
+        m_astraleData = new QDateEdit(QDate::currentDate(), w);
+        m_astraleData->setCalendarPopup(true);
+        m_astraleData->setMinimumHeight(44);
+        m_astraleData->setDisplayFormat("dd/MM/yyyy");
+        dataRow->addWidget(m_astraleData, 1);
+        vb->addLayout(dataRow);
+
+        auto* coordRow = new QHBoxLayout;
+        coordRow->addWidget(new QLabel("Lat:", w));
+        m_astraleLat = new QLineEdit(w);
+        m_astraleLat->setPlaceholderText("es. 41.9028");
+        m_astraleLat->setMinimumHeight(44);
+        coordRow->addWidget(m_astraleLat, 1);
+        coordRow->addWidget(new QLabel("Lon:", w));
+        m_astraleLon = new QLineEdit(w);
+        m_astraleLon->setPlaceholderText("es. 12.4964");
+        m_astraleLon->setMinimumHeight(44);
+        coordRow->addWidget(m_astraleLon, 1);
+        vb->addLayout(coordRow);
+
+        m_gpsBtn = new QPushButton(
+            QString::fromUtf8("\xf0\x9f\x93\x8d") + "  Usa posizione GPS", w);  /* 📍 */
+        m_gpsBtn->setObjectName("SecondaryBtn");
+        m_gpsBtn->setMinimumHeight(44);
+        vb->addWidget(m_gpsBtn);
+
+        m_extraStack->addWidget(w);
+    }
+
+    vbox->addWidget(m_extraStack);
 
     /* ── Argomento ── */
     auto* argGroup = new QGroupBox(
@@ -258,6 +369,10 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
             this, &RicercaPage::onStopClicked);
     connect(m_copyBtn,      &QPushButton::clicked,
             this, &RicercaPage::onCopyClicked);
+    connect(m_gpsBtn,       &QPushButton::clicked,
+            this, &RicercaPage::onGpsBtnClicked);
+    connect(m_fenomeniFileBtn, &QPushButton::clicked,
+            this, &RicercaPage::onFenomeniFileBtnClicked);
 
     updateHint(0);
 }
@@ -271,12 +386,28 @@ void RicercaPage::updateHint(int idx)
         "Panoramica + architettura + API + esempi + troubleshooting",
         "Sintesi + filoni di ricerca + gap + trend emergenti",
         "Executive summary + analisi competitiva + SWOT + raccomandazioni",
+        "Analisi scientifica del fenomeno + cause + modello + anomalie",
+        "Carta astrale testuale: pianeti, case, aspetti, profilo psicologico",
     };
-    if (idx >= 0 && idx < 5)
+    if (idx >= 0 && idx < 7)
         m_hintLbl->setText(hints[idx]);
 }
 
-void RicercaPage::onTipoChanged(int idx) { updateHint(idx); }
+void RicercaPage::onTipoChanged(int idx)
+{
+    updateHint(idx);
+    if (!m_extraStack) return;
+    if (idx == 5) {
+        m_extraStack->setCurrentIndex(1);
+        m_extraStack->setVisible(true);
+    } else if (idx == 6) {
+        m_extraStack->setCurrentIndex(2);
+        m_extraStack->setVisible(true);
+    } else {
+        m_extraStack->setCurrentIndex(0);
+        m_extraStack->setVisible(false);
+    }
+}
 
 /* ── Genera ───────────────────────────────────────────────────── */
 void RicercaPage::onGenerateClicked()
@@ -304,8 +435,29 @@ void RicercaPage::onGenerateClicked()
 
     const int    tipo      = m_tipoCombo->currentIndex();
     const QString keyword  = m_keywordEdit->text().trimmed();
-    const QString sys      = buildSystemPrompt(tipo, argomento, keyword);
-    const QString userMsg  = "Genera il documento su: " + argomento;
+
+    /* B5 — Carta Astrale: costruisce argomento dai campi dedicati */
+    QString effectiveArg = argomento;
+    if (tipo == 6) {
+        const QString nome = m_astraleNome ? m_astraleNome->text().trimmed() : "";
+        const QString data = m_astraleData ? m_astraleData->date().toString("dd/MM/yyyy") : "";
+        const QString lat  = m_astraleLat  ? m_astraleLat->text().trimmed() : "";
+        const QString lon  = m_astraleLon  ? m_astraleLon->text().trimmed() : "";
+        effectiveArg = (nome.isEmpty() ? "Persona" : nome)
+            + (data.isEmpty()  ? "" : ", nato il " + data)
+            + (lat.isEmpty()   ? "" : " a coordonate lat=" + lat + " lon=" + lon)
+            + (argomento.isEmpty() ? "" : " (" + argomento + ")");
+    }
+
+    /* B5 — Analisi Fenomeni: aggiungi contenuto file se presente */
+    QString extraContext;
+    if (tipo == 5 && !m_fenomeniFileContent.isEmpty())
+        extraContext = "\n\nDATA/OSSERVAZIONI DAL FILE:\n"
+                       + m_fenomeniFileContent.left(3000);
+
+    const QString sys      = buildSystemPrompt(tipo, effectiveArg, keyword);
+    const QString userMsg  = "Analizza e genera il documento su: " + effectiveArg
+                             + extraContext;
 
     m_tokConn = connect(m_ai, &AiClient::token,
                         this, &RicercaPage::onToken);
@@ -364,6 +516,48 @@ void RicercaPage::onError(const QString& e)
         QString::fromUtf8("\xe2\x9d\x8c") + "  Errore: " + e);
     m_output->append(
         "\n\n" + QString::fromUtf8("\xe2\x9d\x8c") + " Errore: " + e);
+}
+
+/* ── B5 — onGpsBtnClicked: prova a leggere lat/lon dal device ── */
+void RicercaPage::onGpsBtnClicked()
+{
+    /* GPS reale richiederebbe Qt6::Positioning — qui usiamo fallback manuale */
+    if (m_astraleLat && m_astraleLat->text().isEmpty())
+        m_astraleLat->setText("41.9028");   /* Roma default */
+    if (m_astraleLon && m_astraleLon->text().isEmpty())
+        m_astraleLon->setText("12.4964");
+
+    m_statusLbl->setText(
+        QString::fromUtf8("\xf0\x9f\x93\x8d")  /* 📍 */
+        + "  Coordinate impostate (Roma default — modifica per la tua posizione).");
+    m_statusLbl->setVisible(true);
+}
+
+/* ── B5 — onFenomeniFileBtnClicked: carica file testo per Analisi Fenomeni ── */
+void RicercaPage::onFenomeniFileBtnClicked()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this, "Seleziona file dati/osservazioni",
+        QString(),
+        "Testo (*.txt *.csv *.md *.log);;Tutti i file (*.*)");
+    if (path.isEmpty()) return;
+
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        m_fenomeniFileLbl->setText(
+            QString::fromUtf8("\xe2\x9d\x8c")   /* ❌ */
+            + " Impossibile aprire il file.");
+        return;
+    }
+    m_fenomeniFileContent = QTextStream(&f).readAll();
+    f.close();
+
+    const QString name = QFileInfo(path).fileName();
+    const int lines = m_fenomeniFileContent.count('\n');
+    m_fenomeniFileLbl->setText(
+        QString::fromUtf8("\xe2\x9c\x85")  /* ✅ */
+        + "  " + name
+        + QString(" (%1 righe)").arg(lines));
 }
 
 void RicercaPage::onCopyClicked()

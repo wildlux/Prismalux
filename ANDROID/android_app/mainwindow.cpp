@@ -2,6 +2,11 @@
 #include "ai_client.h"
 #include "local_llm_client.h"
 #include "rag_engine_simple.h"
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QDesktopServices>
+#include <QUrl>
+#include <QTimer>
 #include "pages/chat_page.h"
 #include "pages/studio_page.h"
 #include "pages/lavoro_page.h"
@@ -22,6 +27,8 @@
 #include "pages/finanza_page.h"
 #include "pages/simulatore_page.h"
 #include "pages/wan_client_page.h"
+#include "pages/security_page.h"
+#include "pages/multi_agent_page.h"
 
 #ifdef HAVE_MULTIMEDIA
 #include "pages/camera_page.h"
@@ -193,6 +200,14 @@ MainWindow::MainWindow(QWidget* parent)
     m_wanClientPage = new WanClientPage(m_ai, this);
     m_stack->addWidget(m_wanClientPage);  // indice 21
 
+    /* B6 — SecurityPage: analisi sicurezza con 4 agenti sequenziali */
+    m_securityPage = new SecurityPage(m_ai, this);
+    m_stack->addWidget(m_securityPage);   // indice 22
+
+    /* A4 — MultiAgentPage: MasterAgent + pipeline sequenziale */
+    m_multiAgentPage = new MultiAgentPage(m_ai, this);
+    m_stack->addWidget(m_multiAgentPage); // indice 23
+
     auto* central = new QWidget(this);
 
 #ifdef PRISMALUX_FORM_FACTOR_TABLET
@@ -216,6 +231,16 @@ MainWindow::MainWindow(QWidget* parent)
 
     buildDrawer();
 #endif
+
+    /* C7 — ThermalMonitor badge nell'header */
+    m_thermal = new ThermalMonitor(this);
+    connect(m_thermal, &ThermalMonitor::tempUpdated,
+            this, &MainWindow::onThermalTemp, Qt::QueuedConnection);
+    m_thermal->start(4000);
+
+    /* C2 — Auto-update: controlla versione su GitHub dopo 12s dall'avvio */
+    m_netMgr = new QNetworkAccessManager(this);
+    QTimer::singleShot(12000, this, &MainWindow::checkForUpdates);
 
     connect(m_studioPage, &StudioPage::quizFullscreen,
             this, &MainWindow::onQuizFullscreen);
@@ -265,6 +290,32 @@ void MainWindow::buildHeaderBar()
     tf.setBold(true);
     m_titleLbl->setFont(tf);
     hbox->addWidget(m_titleLbl, 1);
+
+    /* C7 — badge temperatura CPU (nascosto finché non disponibile) */
+    m_thermalLbl = new QLabel(m_headerBar);
+    m_thermalLbl->setObjectName("ThermalBadge");
+    m_thermalLbl->setVisible(false);
+    {
+        QFont f = m_thermalLbl->font();
+        f.setPointSize(10);
+        m_thermalLbl->setFont(f);
+    }
+    hbox->addWidget(m_thermalLbl);
+
+    /* C2 — badge aggiornamento (nascosto finché non c'è una nuova versione) */
+    m_updateLbl = new QLabel(m_headerBar);
+    m_updateLbl->setObjectName("UpdateBadge");
+    m_updateLbl->setVisible(false);
+    m_updateLbl->setCursor(Qt::PointingHandCursor);
+    {
+        QFont f = m_updateLbl->font();
+        f.setPointSize(10);
+        m_updateLbl->setFont(f);
+    }
+    connect(m_updateLbl, &QLabel::linkActivated, [](const QString& url) {
+        QDesktopServices::openUrl(QUrl(url));
+    });
+    hbox->addWidget(m_updateLbl);
 
     connect(menuBtn, &QToolButton::clicked, this, &MainWindow::onToggleDrawer);
 }
@@ -342,6 +393,8 @@ void MainWindow::buildDrawer()
         { "\xf0\x9f\x92\xb0",            "Finanza",            m_idxFinanza      },
         { "\xf0\x9f\xa4\x96",            "Simulatore Algoritmi", m_idxSimulatore  },
         { "\xf0\x9f\x8c\x90",            "WAN Client",           m_idxWanClient   },
+        { "\xf0\x9f\x94\x92",            "Sicurezza",            m_idxSecurity   },
+        { "\xf0\x9f\x95\xb8\xef\xb8\x8f", "Multi-Agente",       m_idxMultiAgent },
         { "\xf0\x9f\x93\x9a",              "Studia",             m_idxStudio     },
         { "\xf0\x9f\xa7\xa0",              "Impara con AI",      m_idxImpara     },
         { "\xcf\x80",                       "Matematica",         m_idxMatematica },
@@ -620,6 +673,8 @@ void MainWindow::onTabChanged(int index)
         { 19, "Finanza"             },
         { 20, "Simulatore Algoritmi"},
         { 21, "WAN Client"         },
+        { 22, "Sicurezza"          },
+        { 23, "Multi-Agente"       },
     };
     if (m_titleLbl) {
         for (const auto& t : kTitles) {
@@ -652,4 +707,72 @@ void MainWindow::onQuizFullscreen(bool on)
     if (m_headerBar)
         m_headerBar->setVisible(!on);
 #endif
+}
+
+/* ══════════════════════════════════════════════════════════════
+   C7 — onThermalTemp: aggiorna il badge temperatura nell'header.
+   Verde <65°C, arancio <72°C, rosso ≥72°C.
+   ══════════════════════════════════════════════════════════════ */
+void MainWindow::onThermalTemp(float celsius)
+{
+    if (!m_thermalLbl) return;
+    if (celsius <= 0.0f) { m_thermalLbl->setVisible(false); return; }
+
+    const QString color = (celsius < ThermalMonitor::kWarnTemp)
+        ? "#4caf50"  /* verde */
+        : (celsius < ThermalMonitor::kPauseTemp) ? "#ff9800" /* arancio */
+                                                 : "#f44336"; /* rosso */
+    m_thermalLbl->setText(
+        QString("<span style='color:%1'>\xf0\x9f\x8c\xa1 %2\xc2\xb0\x43</span>")
+            .arg(color)
+            .arg(static_cast<int>(celsius)));
+    m_thermalLbl->setTextFormat(Qt::RichText);
+    m_thermalLbl->setVisible(true);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   C2 — checkForUpdates: GET GitHub releases/latest → confronta tag.
+   ══════════════════════════════════════════════════════════════ */
+void MainWindow::checkForUpdates()
+{
+    if (!m_netMgr) return;
+    QNetworkRequest req(QUrl(
+        "https://api.github.com/repos/wildlux/Prismalux/releases/latest"));
+    req.setRawHeader("Accept", "application/vnd.github+json");
+    req.setRawHeader("User-Agent", "PrismaluxMobile/1.0");
+    m_updateReply = m_netMgr->get(req);
+    connect(m_updateReply, &QNetworkReply::finished,
+            this, &MainWindow::onUpdateReply, Qt::UniqueConnection);
+}
+
+void MainWindow::onUpdateReply()
+{
+    if (!m_updateReply) return;
+    m_updateReply->deleteLater();
+
+    if (m_updateReply->error() != QNetworkReply::NoError) {
+        m_updateReply = nullptr;
+        return;
+    }
+    const QByteArray data = m_updateReply->readAll();
+    m_updateReply = nullptr;
+
+    const QJsonObject obj = QJsonDocument::fromJson(data).object();
+    const QString tag = obj.value("tag_name").toString().trimmed();
+    if (tag.isEmpty()) return;
+
+    /* Versione corrente dell'APK Android */
+    static const QString kCurrentVer = "1.0";
+    if (tag == kCurrentVer || tag == "v" + kCurrentVer) return;
+
+    const QString url = obj.value("html_url").toString();
+    if (m_updateLbl) {
+        m_updateLbl->setText(
+            QString("<a href='%1' style='color:#ffeb3b;text-decoration:none;'>"
+                    "\xf0\x9f\x86\x95 %2</a>")
+                .arg(url, tag));
+        m_updateLbl->setTextFormat(Qt::RichText);
+        m_updateLbl->setOpenExternalLinks(false);
+        m_updateLbl->setVisible(true);
+    }
 }

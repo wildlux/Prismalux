@@ -161,6 +161,8 @@ set(SRCS
     pages/finanza_page.cpp
     pages/simulatore_page.cpp
     pages/wan_client_page.cpp
+    pages/security_page.cpp
+    pages/multi_agent_page.cpp
     graph_memory_mobile.cpp
 )
 

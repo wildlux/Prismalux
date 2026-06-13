@@ -6,6 +6,10 @@
 #include <QToolButton>
 #include <QPainter>
 #include <QPropertyAnimation>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include "thermal_monitor.h"
 #ifdef PRISMALUX_FORM_FACTOR_TABLET
 #include <QVBoxLayout>
 #endif
@@ -56,6 +60,8 @@ class FileAiPage;
 class FinanzaPage;
 class SimulatorePage;
 class WanClientPage;
+class SecurityPage;
+class MultiAgentPage;
 
 #ifdef HAVE_MULTIMEDIA
 class CameraPage;
@@ -93,6 +99,9 @@ private slots:
     void onDrawerNavClicked();
     void onDrawerAnimFinished();
     void onQuizFullscreen(bool on);
+    void checkForUpdates();
+    void onUpdateReply();
+    void onThermalTemp(float celsius);
 #ifdef PRISMALUX_FORM_FACTOR_TABLET
     void onNavTablet_0();
     void onNavTablet_1();
@@ -124,8 +133,13 @@ private:
     QWidget*            m_drawer      = nullptr;
     QWidget*            m_overlay     = nullptr;
     QLabel*             m_titleLbl    = nullptr;
+    QLabel*             m_thermalLbl  = nullptr;
+    QLabel*             m_updateLbl   = nullptr;
     bool                m_drawerOpen  = false;
     QPropertyAnimation* m_drawerAnim  = nullptr;
+    ThermalMonitor*     m_thermal     = nullptr;
+    QNetworkAccessManager* m_netMgr   = nullptr;
+    QNetworkReply*         m_updateReply = nullptr;
 
     AiClient*        m_ai       = nullptr;
     LocalLlmClient*  m_localLlm = nullptr;
@@ -151,6 +165,8 @@ private:
     FinanzaPage*         m_finanzaPage         = nullptr;
     SimulatorePage*      m_simulatorePage      = nullptr;
     WanClientPage*       m_wanClientPage       = nullptr;
+    SecurityPage*        m_securityPage        = nullptr;
+    MultiAgentPage*      m_multiAgentPage      = nullptr;
 
 #ifdef HAVE_MULTIMEDIA
     CameraPage*   m_cameraPage   = nullptr;
@@ -186,6 +202,8 @@ private:
     int m_idxFinanza         = 19;
     int m_idxSimulatore      = 20;
     int m_idxWanClient       = 21;
+    int m_idxSecurity        = 22;
+    int m_idxMultiAgent      = 23;
 
 #ifdef PRISMALUX_FORM_FACTOR_TABLET
     QWidget*     m_navRail    = nullptr;

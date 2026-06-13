@@ -11,6 +11,7 @@
 #include <QJsonArray>
 #include <QMap>
 #include <QButtonGroup>
+#include <QElapsedTimer>
 #include <QtSql/QSqlDatabase>
 #include <QtSql/QSqlQuery>
 
@@ -38,14 +39,17 @@ public:
 signals:
     void copyClicked(const QString& text);
     void speakClicked(const QString& text);
+    void saveMemClicked(const QString& text);
 private slots:
     void onCopyClicked();
     void onSpeakClicked();
     void onCopyRestored();
+    void onSaveMemClicked();
 private:
-    QLabel*      m_textLbl  = nullptr;
-    QPushButton* m_copyBtn  = nullptr;
-    QPushButton* m_speakBtn = nullptr;
+    QLabel*      m_textLbl    = nullptr;
+    QPushButton* m_copyBtn    = nullptr;
+    QPushButton* m_speakBtn   = nullptr;
+    QPushButton* m_saveMemBtn = nullptr;
     QString      m_fullText;
 };
 
@@ -120,9 +124,11 @@ private slots:
     void onAiLocalModeChanged(bool on);
     void onBubbleCopyClicked(const QString& text);
     void onBubbleSpeakClicked(const QString& text);
+    void onBubbleSaveMemClicked(const QString& text);
     void onCloudModeClicked();
     void scrollToBottom();
     void onClearHistory();
+    void onExportClicked();
 
 private:
     void appendBubble(const QString& role, const QString& text);
@@ -149,12 +155,17 @@ private:
     QPushButton* m_clearHistoryBtn = nullptr;
     QPushButton* m_ragBtn         = nullptr;
     QPushButton* m_modelBtn       = nullptr;
+    QPushButton* m_exportBtn      = nullptr;
+    QPushButton* m_hermesToggle   = nullptr;
     QPushButton*  m_cloudBtn        = nullptr;
     QPushButton*  m_serverBtn       = nullptr;
     QPushButton*  m_localBtn        = nullptr;
     QButtonGroup* m_backendGroup    = nullptr;
     QLabel*       m_backendStatusLbl = nullptr;
+    QLabel*       m_ttftLbl          = nullptr;
     QStringList  m_modelList;
+    QElapsedTimer m_ttftTimer;
+    bool          m_ttftStarted = false;
 
 #ifdef HAVE_TTS
     QTextToSpeech* m_tts = nullptr;

@@ -10,6 +10,8 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QPainter>
+#include <QBitmap>
 #include <zlib.h>
 
 /* Decomprime un singolo stream FlateDecode (formato zlib). */
@@ -134,6 +136,27 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     title->setAlignment(Qt::AlignCenter);
     vbox->addWidget(title);
 
+    /* B2 — Foto profilo CV (48×48, circolare) */
+    {
+        auto* fotoRow = new QHBoxLayout;
+        m_fotoLbl = new QLabel(this);
+        m_fotoLbl->setFixedSize(52, 52);
+        m_fotoLbl->setObjectName("FotoProfiloLbl");
+        m_fotoLbl->setStyleSheet(
+            "border:2px solid palette(mid); border-radius:26px;"
+            "background:palette(base); font-size:22px;");
+        m_fotoLbl->setAlignment(Qt::AlignCenter);
+        m_fotoLbl->setText(QString::fromUtf8("\xf0\x9f\x91\xa4"));  /* 👤 */
+        m_fotoBtn = new QPushButton(
+            QString::fromUtf8("\xf0\x9f\x93\xb7") + " Foto", this);  /* 📷 */
+        m_fotoBtn->setFixedWidth(80);
+        m_fotoBtn->setMinimumHeight(36);
+        fotoRow->addWidget(m_fotoLbl);
+        fotoRow->addWidget(m_fotoBtn);
+        fotoRow->addStretch();
+        vbox->addLayout(fotoRow);
+    }
+
     auto* inputRow = new QHBoxLayout;
     auto* inputLbl = new QLabel("CV / offerta / domanda:", this);
     inputRow->addWidget(inputLbl, 1);
@@ -212,8 +235,17 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_output->setPlaceholderText("La risposta AI apparirà qui...");
     vbox->addWidget(m_output);
 
+    /* B2 — Email candidatura (bottone separato) */
+    auto* emailBtn = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x93\xa7") + "  Genera email candidatura", this);  /* 📧 */
+    emailBtn->setObjectName("SecondaryBtn");
+    emailBtn->setMinimumHeight(44);
+    vbox->addWidget(emailBtn);
+
     connect(m_btnPdf,  &QPushButton::clicked, this, &LavoroPage::onLoadPdf);
     connect(m_btnStop, &QPushButton::clicked, m_ai, &AiClient::abort);
+    connect(m_fotoBtn, &QPushButton::clicked, this, &LavoroPage::onFotoBtnClicked);
+    connect(emailBtn,  &QPushButton::clicked, this, &LavoroPage::onEmailBtnClicked);
     connect(m_ai, &AiClient::token,    this, &LavoroPage::onToken);
     connect(m_ai, &AiClient::finished, this, &LavoroPage::onFinished);
     connect(m_ai, &AiClient::error,    this, &LavoroPage::onError);
@@ -315,4 +347,40 @@ void LavoroPage::onLoadPdf()
         + " PDF caricato: " + QFileInfo(path).fileName()
         + " (" + QString::number(text.length()) + " caratteri). "
           "Premi un'azione per elaborarlo.");
+}
+
+/* ── B2 — onFotoBtnClicked: carica foto profilo CV 48×48 circolare ── */
+void LavoroPage::onFotoBtnClicked()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this, "Foto profilo CV",
+        QString(), "Immagini (*.png *.jpg *.jpeg *.bmp *.webp)");
+    if (path.isEmpty()) return;
+
+    QPixmap pm(path);
+    if (pm.isNull()) return;
+
+    /* Scala a 44×44 e applica maschera ellittica */
+    pm = pm.scaled(44, 44, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    QPixmap result(44, 44);
+    result.fill(Qt::transparent);
+    QPainter p(&result);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setClipRegion(QRegion(0, 0, 44, 44, QRegion::Ellipse));
+    p.drawPixmap(0, 0, pm);
+    p.end();
+
+    m_fotoLbl->setPixmap(result);
+    m_fotoLbl->setText("");
+}
+
+/* ── B2 — onEmailBtnClicked: genera email di candidatura via AI ── */
+void LavoroPage::onEmailBtnClicked()
+{
+    const QString sys =
+        "Sei un esperto di ricerca lavoro. Scrivi una email di candidatura "
+        "professionale e personale basata sulle informazioni fornite. "
+        "Struttura: Oggetto, Corpo (apertura + competenze chiave + motivazione + chiusura). "
+        "Tono: formale ma diretto. Rispondi in italiano.";
+    runAction(sys);
 }
