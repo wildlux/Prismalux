@@ -28,7 +28,7 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 - **Multi-Agente con GraphMemory** — decomposizione task, sub-agenti, memoria a grafo SQLite
 - **RAG ibrido JLT + Grafo Conoscenza** — ricerca semantica + entità/relazioni estratte da LLM
 - **105 simulazioni algoritmiche** visualizzate passo per passo
-- **47 plugin MCP** per Blender, FreeCAD, GNS3, RDKit, Cytoscape, OBS, Ollama cache, sicurezza, analisi architetturale, best practice...
+- **50 plugin MCP** per Blender, FreeCAD, GNS3, RDKit, Cytoscape, OBS, Ollama cache, sicurezza, analisi architetturale, best practice...
 - **Sicurezza informatica** — 5 MCP dedicati: secrets scanner, audit CVE, CVE lookup NVD, network recon, SAST
 - **Calcolo distribuito WAN** (BOINC-like) su rete locale con 28 tipi di task
 - **Matematica simbolica** con SymPy, grafico interattivo, formule LaTeX (KaTeX)
@@ -75,7 +75,7 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 | 🗺️ **Mappa OSM** | Mappa OpenStreetMap interattiva con itinerari multi-tappa e routing OSRM (Auto/Piedi/Bici) — offline tile cache |
 | 🎨 **Stable Diffusion** | Generazione immagini via AUTOMATIC1111/Forge/SD.Next (API locale) |
 | 🔬 **105 Simulazioni** | Algoritmi visualizzati barra per barra con spiegazione e complessità O-grande |
-| 🔗 **47 Plugin MCP** | JSON-RPC 2.0 stdio — Blender, Office, GNS3, RDKit, Cytoscape, OBS, Godot, **Ollama cache**, 5 sicurezza, 7 best practice, 12 produttività... |
+| 🔗 **50 Plugin MCP** | JSON-RPC 2.0 stdio — Blender, Office, GNS3, RDKit, Cytoscape, OBS, Godot, **Ollama cache**, 5 sicurezza, 7 best practice, 12 produttività, chat memory, web scraper, note... |
 | 🖧 **WAN Compute** | Calcolo distribuito LAN/WAN: server TCP + dispatcher 28 task + cron |
 | 📱 **App Android** | Qt6 native: BLE chat AES-256-GCM, Quiz CCNA **209 domande**, TTS/STT, sincronizzazione LAN |
 | 🌐 **LAN Server** | Web app embedded su porta 11500: chat, matematica, Voce (TTS+STT), Whisper, Graphviz |
@@ -188,7 +188,7 @@ Ogni tipo ha un **template payload** pre-compilato automaticamente alla selezion
 
 ---
 
-## Plugin MCP (47)
+## Plugin MCP (50)
 
 Ogni plugin ha `requirements.txt`. Tutti usano il protocollo **JSON-RPC 2.0 stdio** e sono compatibili sia con Claude Code (`~/.claude/settings.json`) sia con l'interfaccia **McpAddonsPage** interna all'app.
 
@@ -297,6 +297,9 @@ MCP pratici per il workflow quotidiano: i18n, database, monitoraggio, API, snipp
 | `docker_mcp` | Gestione container Docker: run/stop/logs/build/exec | `list_containers`, `run_container`, `container_logs`, `build_image` | `docker.io` (apt) |
 | `email_notify_mcp` | Notifiche email SMTP (build pass/fail, alert sistema) | `configure`, `notify_build`, `notify_alert`, `send_notification` | stdlib only (smtplib) |
 | `cloud_backup_mcp` | Backup RAG/KNOWLEDGE/DB su Google Drive, Dropbox, S3 con rclone | `backup_all`, `backup_rag`, `restore_rag`, `list_cloud_files` | `rclone` (apt/curl) |
+| `chat_memory_mcp` | Cronologia conversazioni LLM con ricerca temporale ("cosa ho detto stamattina?") | `save_exchange`, `ask_history`, `search_history`, `get_recent` | stdlib only (sqlite3) |
+| `web_scraper_mcp` | Scarica e pulisce pagine web, Wikipedia, abstract arXiv → RAG/ | `fetch_to_rag`, `fetch_wikipedia`, `fetch_arxiv`, `batch_fetch` | stdlib only (urllib) |
+| `note_mcp` | Note rapide con tag, scadenza e ricerca; reminder "due_today" | `add_note`, `search_notes`, `due_today`, `update_note` | stdlib only (sqlite3) |
 
 ### Riferimenti API ufficiali
 
@@ -571,7 +574,7 @@ Prismalux/
 │   ├── android_app/              ← BLE chat, Quiz CCNA, TTS, STT, LAN sync
 │   └── PrismaluxMobile.apk       ← APK precompilato (scaricabile via QR in-app)
 │
-├── MCPs/                         ← 47 plugin MCP (Python, JSON-RPC 2.0 stdio)
+├── MCPs/                         ← 50 plugin MCP (Python, JSON-RPC 2.0 stdio)
 ├── RAG/                          ← Documenti per RAG (locale, non in git)
 ├── KNOWLEDGE_USER/               ← Memoria utente (locale, non in git)
 ├── BEST_PRACTICE_&_GOAL/         ← Regole, obiettivi, TODO, operazioni
