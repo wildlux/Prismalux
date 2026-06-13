@@ -252,6 +252,14 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
         t->addTab(m_manutenzione->buildBugTracker(),
                   "\xf0\x9f\x94\x8d  Bug LLMs");
 
+        {
+            auto* sc = new QScrollArea;
+            sc->setWidgetResizable(true);
+            sc->setFrameShape(QFrame::NoFrame);
+            sc->setWidget(buildAiMemoryTab());
+            t->addTab(sc, "\xf0\x9f\xa7\xa0  Memoria AI");
+        }
+
         /* Cron spostato in Strumenti → pulsante ⏱ Cron */
 
         tabs->addTab(t, "\xf0\x9f\x94\xa7  Sistema");
