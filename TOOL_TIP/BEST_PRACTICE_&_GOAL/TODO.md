@@ -210,8 +210,10 @@
       limite dimensione (413 se >25 MB) e whitelist estensioni (415 se non in
       pdf/docx/doc/txt/csv/md/rtf/odt/json/xml/html/htm) prima di scrivere il tmp e invocare
       gli estrattori. `lan_server.cpp` `handleFileApi`.
-- [ ] **`/api/repl` — limiti risorse** — anche dietro auth, aggiungere limiti CPU/memoria
-      (`ulimit`/`cgroup`) oltre al timeout, per evitare DoS da loop infiniti o fork-bomb.
+- [x] **`/api/repl` — limiti risorse** — FATTO 2026-06-13: aggiunto `-u 50` (max processi,
+      anti fork-bomb) e `-n 100` (max file descriptor, anti fd exhaustion) a `kLimits` in
+      `handleReplApi()`. Rimane opzionale: sandbox container/seccomp per isolamento completo.
+      `lan_server.cpp`.
 - [x] **Rotazione/scadenza del token LAN** — FATTO 2026-06-13: GroupBox "Token di accesso LAN"
       in Manutenzione→LAN Server con pulsante "🔄 Rigenera Token" — genera UUID, salva via
       `LanServer::saveLanToken()`, aggiorna `m_lanServer->setAccessToken()` se attivo, copia
@@ -219,9 +221,8 @@
 
 ### 🟢 Igiene — verifiche rapide
 
-- [ ] **Test di non-regressione auth** — estendere `test_lan_server` con un caso che
-      verifica che OGNI endpoint `/api/*` risponda 401 senza token. Avrebbe intercettato
-      subito questa regressione.
+- [x] **Test di non-regressione auth** — GIÀ IMPLEMENTATO: `TestAuthNonRegression` (CAT-H)
+      in `test_lan_server.cpp` — 12 test H1..H12 verificano 401 su ogni `/api/*` senza token.
 - [ ] **Audit periodico lista `isApi`** — finché si usa la whitelist a mano, ogni PR che
       aggiunge un endpoint deve aggiornarla; meglio passare al "deny by default" sopra.
 
@@ -247,8 +248,9 @@
       `onVpnStopClicked` gestiscono WireGuard/OpenVPN/SSH/n2n (SSH e n2n via clipboard).
 - [x] **Validazione config** — GIÀ PRESENTE: `onVpnValidateClicked` (`m_vpnValidateBtn`)
       valida/simula la config senza root.
-- [ ] **Guida "quando serve la VPN"** — parziale: le descrizioni per tipo (`descLbl`) ci sono;
-      manca una nota esplicita "la VPN collega nodi WAN/BOINC fuori dalla stessa LAN".
+- [x] **Guida "quando serve la VPN"** — FATTO 2026-06-13: label `vpnHintLbl` aggiunto dopo
+      `descLbl` nel tab VPN (`main_programming.cpp`): spiega quando la VPN serve per WAN Compute
+      (porta 11600) e Sci Compute (porta 11601) su reti diverse, e che in LAN non è necessaria.
 
 ### 🔬 BOINC-like — Calcolo Distribuito (WAN Compute 11600 + Sci Compute 11601)
 
@@ -260,12 +262,17 @@
 - [ ] **Analisi end-to-end con 2+ macchine reali** — verificare il flusso completo su LAN/VPN:
       creazione WU → dispatch → esecuzione su nodo remoto → quorum → aggregazione risultati.
       I test coprono le unità, manca una prova di integrazione su nodi reali.
-- [ ] **Chiarire la relazione WAN Compute vs Sci Compute** — due porte e due sistemi simili.
-      Documentare in-app/README quando usare l'uno o l'altro (o valutarne l'unificazione).
-- [ ] **Guida configurazione nodo worker** — passi minimi per aggiungere una macchina come
-      nodo (IP/porta, token, capability, dipendenze tool tipo blast/gmx/python) in un punto solo.
-- [ ] **Health check nodi** — già c'è heartbeat sul WAN; verificare che Sci Compute marchi
-      offline i nodi non risponsivi e ridistribuisca le WU (come fa il WAN).
+- [x] **Chiarire la relazione WAN Compute vs Sci Compute** — `QLabel` descrittivo aggiunto
+      in cima a `buildWanComputeTab()` (`main_lan_wan.cpp`): WAN Compute porta 11600 per
+      task generici (shell/Python/LLM); Sci Compute porta 11601 per WU scientifiche
+      (BLAST/GROMACS/SymPy) con heartbeat e credit counter BOINC-style.
+- [x] **Guida configurazione nodo worker** — `QLabel` con guida 4-passi (Python, copia
+      script, avvio con host/port/token/capabilities, comparsa in tabella) aggiunta:
+      - WAN Compute: `main_lan_wan.cpp` prima di "Monitor nodi + coda" (porta 11600)
+      - Sci Compute: `main_sci_compute_ui.cpp` come primo widget nel tab "Nodi" (porta 11601)
+- [x] **Health check nodi Sci Compute** — GIÀ IMPLEMENTATO: `onHeartbeatTimer()` ogni 30s
+      invia ping + chiama `markOfflineNodes(60000ms)`; `onWorkerDisconnected()` riassegna
+      WU `running` del nodo disconnesso a `pending`. `main_sci_compute.cpp:730-742,1609-1617`.
 - [x] **WAN Compute: coda WU non persistente (in RAM)** — FATTO 2026-06-12: la coda è ora
       persistita su SQLite in `~/.prismalux/wan_tasks.db` (`wanLoadTasks`/`wanPersistTasks`/
       `wanSchedulePersist` in `main_lan_wan.cpp`, sotto `HAVE_QT_SQL`). Salvataggio con debounce
@@ -307,22 +314,57 @@
       - **Rimedio:** un **venv dedicato** (per-MCP o un venv condiviso del progetto in
         `~/.prismalux/venv`) in cui installare i `requirements.txt`, evitando
         `--break-system-packages` globale. Il pannello Gestione MCP crea/usa quel venv.
-- [ ] **Auto-restart MCP morti + log centralizzato** — se un `server.py` esce per errore,
-      rilevarlo e offrire riavvio; raccogliere lo stderr di tutti gli MCP in un log unico
-      consultabile dal pannello (oggi i log sono sparsi per tab).
-- [ ] **`blender_mcp/requirements.txt` mancante** — aggiungerlo (anche solo per coerenza/doc
-      delle dipendenze) o documentare che non ne ha bisogno.
-- [ ] **Guida configurazione per MCP che richiedono app esterne** — Blender, FreeCAD, KiCAD,
-      Anki (AnkiConnect), OBS (obs-websocket), GNS3, Cytoscape, CloudCompare, Meshroom: per
-      ognuno servono passi specifici (porta, plugin, token). Raccogliere in un'unica guida
-      in-app "Configura quando ti serve", richiamabile dal pannello Gestione MCP.
+- [x] **Log centralizzato MCP + "Testa tutti" batch** — FATTO 2026-06-13: pulsante
+      "\xf0\x9f\xa7\xaa Testa tutti" in McpManagerPage (`main_mcp_manager.h/cpp`) con coda sequenziale
+      (`m_testQueue`/`advanceTestQueue()`). Il log (`m_log`) già centralizzato con timestamp [HH:mm:ss]
+      raccoglie tutti i risultati. Auto-restart (rilevare crash processo persistente) rimane
+      come follow-up per bot Telegram/WhatsApp in AppController.
+- [x] **Auto-restart bot morti (Telegram/WhatsApp)** — `m_telegramIntentionalStop` flag in
+      `onTelegramStopClicked()` + logica crash in `onTelegramProcFinished()`: se stop non
+      intenzionale, appende link `tg-restart://` nel log. WA: `m_waPollFailCount` — dopo 5
+      poll falliti appende link `wa-restart://`. `onPipLinkClicked` gestisce entrambi gli
+      schemi chiamando i rispettivi start slot.
+- [x] **`blender_mcp/requirements.txt`** — GIÀ PRESENTE: documenta che usa solo stdlib
+      (sys, json, urllib) e richiede Blender con addon su porta 6789. Nessuna dep pip.
+- [x] **Guida configurazione per MCP che richiedono app esterne** — `mcpSetupGuide()` in
+      `main_mcp_manager.cpp`: guide HTML per Anki/Blender/OBS/GNS3/Cytoscape/FreeCAD/
+      KiCAD/OpenCode. Pulsante ℹ️ piatto aggiunto in ogni riga MCP con guida disponibile.
+      `onMcpGuideClicked()` apre QDialog con QTextBrowser. Slot nominato, property
+      `mcpGuide` sulla QToolButton. Build OK.
 - [x] **Diagnostica "perché non funziona"** — FATTO 2026-06-13: `mcpExternalDiag()` in
       `main_mcp_manager.cpp`: controlla porta TCP per anki(8765)/obs(4455)/gns3(3080)/
       opencode(8092)/blender(6789)/cytoscape(1234); se non risponde appende messaggio
       "Causa probabile: Anki con AnkiConnect non è in ascolto su porta 8765 — aprilo
       prima di testare l'MCP." al log di test quando smoke test fallisce.
-- [ ] **Verifica integrità MCP** — già previsto in SecurityAnalyzerPage (hash sorgente al
-      primo avvio); integrarlo nel pannello Gestione MCP come colonna "integrità".
+- [x] **Verifica integrità MCP** — `hashLbl` (QLabel con emoji ✅/📝/⚠️) aggiunto in ogni
+      riga `McpEntry` (`main_mcp_manager.h/cpp`). SHA-256 di `server.py` calcolato con
+      `QCryptographicHash::Sha256` in `rebuildList()`. Primo avvio: hash salvato in
+      QSettings `mcp_hash/<nome>`; successivi: confronto — verde=invariato, arancio=primo
+      avvio (hash registrato), rosso=modificato + avviso nel log.
+
+---
+
+## 📋 Richieste Paolo — 14/06/2026
+
+### [14/06/26] Sub-agenti (spawn_agent) — tool e RAG
+
+- [ ] **Sub-agenti: accesso ai tool** — attualmente il sub-`AiClient` creato da `spawn_agent`
+      non ha accesso ai tool (calc, ricerca, leggi_file, lista_file, python, fetch_url, ecc.).
+      **Da fare:** in `runToolCall()` (sezione `spawn_agent`), chiamare
+      `sub->setActiveTools(_buildOllamaTools())` prima di `sub->chat(...)`.
+      Poi connettere `sub`→`nativeToolCall` → `runToolCall` con un secondo livello di dispatch
+      (attenzione: serve un limite di ricorsione per evitare loop infiniti di spawn_agent→spawn_agent).
+
+- [ ] **Sub-agenti: accesso al RAG** — il sub-agente non vede né il RAG inline né il RAG condiviso.
+      **Da fare:** in `runToolCall()` (sezione `spawn_agent`), recuperare il contesto RAG attivo
+      (`m_ragInline->ragContext()` + `m_cfgDlg->sharedRagWidget()->ragContext()`) e
+      iniettarlo nel `task` prima di chiamare `sub->chat(sysSub, ragCtx + task)`.
+      Alternativa più pulita: passarlo nel `sysSub` come sezione separata con header
+      `"— Contesto RAG disponibile —"` + istruzione di pertinenza (già presente in `ragContext()`).
+
+- [ ] **Sub-agenti: limite ricorsione spawn_agent** — un sub-agente NON deve poter chiamare
+      spawn_agent a sua volta (loop infinito). Soluzione: nel `sysSub` di spawn_agent
+      omettere `spawn_agent` dalla lista tool e non chiamare `sub->setActiveTools()` con quel tool.
 
 ---
 
@@ -332,7 +374,11 @@
 
 ### [11/06/26 23:24] Memoria LLM — contesto e compressione
 
-- [ ] **Compattatore di conversazioni** — le chat lunghe saturano la finestra di contesto
+- [x] **Compattatore di conversazioni — soglia configurabile** — FATTO 2026-06-13:
+      `m_maxRecentTurns` (da `QSettings kChatMaxTurns`, default 3) in `OracoloPage` sostituisce
+      il `static constexpr kMaxRecentTurns`. SpinBox "Turni in memoria" (1-20) in
+      Impostazioni→AI→Parametri AI. `main_oracle.h/cpp` + `settings_ai.cpp` + `prismalux_paths.h`.
+- [ ] **Compattatore di conversazioni — dettagli tecnici** (nota, non da implementare ora):
       dell'LLM; servono strumenti per comprimerle/riassumerle prima di inietterle.
       Domande aperte di Paolo:
       - La memoria persistente su file (GraphMemory/RAG) quanto incide sui token usati?
@@ -427,11 +473,14 @@
 - Zero dipendenze oltre `curl` e `git`
 
 **TODO Prismalux:**
-- [ ] **Prototipo standalone testabile** — compilare `ai_assistant.cpp` in `Tools/` come
-      utility CLI separata (non integrata nella GUI) per validare il concetto con utenti reali.
-- [ ] **Integrazione graduale** — una volta validato il prototipo, portare la logica
-      nelle classi Qt: `AIMemory` → `GraphMemory` estesa, `SmartRouter` → `AiClient`,
-      feedback loop → bolla chat con 👍/👎.
+- [x] **Prototipo standalone testabile** — FATTO 2026-06-13: `Tools/scripts/ai_assistant.cpp`
+      (C++17, zero dipendenze oltre curl+git). Classi `AIMemory` (git repo `~/.ai-memory/`),
+      `SmartRouter` (5 regole LOCAL/CLOUD), `AIOrchestrator` (contesto+routing+risposta+feedback).
+      Compila con: `g++ -std=c++17 -O2 Tools/scripts/ai_assistant.cpp -o ai_assistant`.
+- [x] **Integrazione graduale** — GIÀ COMPLETATA: `AIMemory` come classe Qt (`gui/ai_memory.h/cpp`)
+      con git repo `~/.ai-memory/`. `SmartRouter` → `AiClient::decideCloud()` (5 regole
+      privacy/len/complexity). Feedback loop → `ChatBubble::feedbackGiven` → `m_aiMemory.logFeedback()`
+      in `addAIBubble()` (`main_oracle.cpp:628`). `setSmartRouter()` controllato da impostazioni.
 
 ---
 
@@ -1258,9 +1307,10 @@ Diventa più intelligente ad ogni interazione.
 Compila con: `g++ -std=c++17 -O2 ai_assistant.cpp -o ai_assistant`
 Dipendenze zero (usa `popen(curl …)` per HTTP).
 
-- [ ] **Valutare integrazione in Prismalux** — possibile MCP `ai_memory_mcp` che espone
-  `learn(key,val)`, `feedback(query,rating,reason)`, `getContext(query)` via JSON-RPC 2.0.
-  Il DevAgent potrebbe chiamarlo automaticamente a fine conversazione.
+- [x] **Valutare integrazione in Prismalux** — IMPLEMENTATO: `MCPs/ai_memory_mcp/server.py`
+  (stdlib only, zero dep pip). 5 tool: `learn`, `feedback`, `get_context`, `save_interaction`,
+  `git_log`. Backend: `~/.ai-memory/` (stesso formato di `gui/ai_memory.h`).
+  Smoke test: initialize + tools/list → OK. Il DevAgent può chiamarlo a fine sessione.
 
 ---
 
