@@ -3,6 +3,8 @@
 #
 # Installa tutto in una volta:
 #   pip install -r requirements.txt
+# sudo apt install libonnxruntime-dev
+
 #
 # Oppure installa solo il blocco che ti serve (vedi istruzioni sotto).
 

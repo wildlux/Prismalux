@@ -556,7 +556,11 @@ void LanServer::onClientReadyRead()
 
     processSession(s);
 
-    /* Reset per eventuale richiesta successiva sulla stessa connessione */
+    /* Reset per eventuale richiesta successiva sulla stessa connessione.
+     * processSession() può chiudere il socket (es. 401 + disconnectFromHost)
+     * emettendo disconnected() in modo sincrono → onClientDisconnected() erasa
+     * la sessione → s sarebbe dangling. Guard obbligatorio. */
+    if (!m_sessions.contains(sock)) return;
     s.method.clear(); s.path.clear();
     s.contentLength = 0;
     s.headersDone   = false;
@@ -2098,13 +2102,26 @@ void LanServer::handleReplApi(Session& s)
     if (code.isEmpty()) { sendError(s.socket, 400, "Empty code"); return; }
     if (code.length() > 16'000) { sendError(s.socket, 400, "Code too large"); return; }
 
+    /* ulimit applicato via bash wrapper:
+     *  -v 262144  → 256 MB virtual memory (in KB)
+     *  -t 10      → 10 s CPU time
+     * Su sistemi senza bash (macOS) il fallback exec non applica i limiti
+     * ma il timeout QProcess (15/10 s) resta comunque attivo. */
+    static const QLatin1String kLimits("ulimit -v 262144 -t 10 2>/dev/null; ");
+
     ProcResult r;
     if (lang == "python" || lang == "python3" || lang.isEmpty()) {
-        r = ProcHelper::runWithInput("python3", {"-"}, code.toUtf8(), 15'000);
+        r = ProcHelper::runWithInput(
+            "bash", {"-c", kLimits + "exec python3 -"},
+            code.toUtf8(), 15'000);
     } else if (lang == "javascript" || lang == "node") {
-        r = ProcHelper::runWithInput("node", QStringList{"-e", code}, QByteArray{}, 10'000);
+        r = ProcHelper::runWithInput(
+            "bash", {"-c", kLimits + "exec node"},
+            code.toUtf8(), 10'000);
     } else if (lang == "bash") {
-        r = ProcHelper::runWithInput("bash", {"-s"}, code.toUtf8(), 10'000);
+        const QByteArray safeCode =
+            QByteArray(kLimits.data(), kLimits.size()) + "\n" + code.toUtf8();
+        r = ProcHelper::runWithInput("bash", {"-s"}, safeCode, 10'000);
     } else {
         sendError(s.socket, 400, "Unsupported lang: " + lang.toUtf8()); return;
     }

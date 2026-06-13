@@ -27,11 +27,19 @@ namespace P = PrismaluxPaths;
 #include <QMessageBox>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
 #include <algorithm>
 #include <cmath>
 
 static QString ragIndexPath() {
     return QDir::homePath() + "/.prismalux_rag.json";
+}
+
+static QString chatHistoryPath() {
+    return QDir::homePath() + "/.prismalux/chat_history.json";
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -314,6 +322,9 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
 
     /* AIMemory — inizializzazione asincrona (non blocca la UI) */
     QTimer::singleShot(0, this, [this] { m_aiMemory.initialize(); });
+
+    /* Ripristina storia cross-sessione */
+    loadHistory();
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -362,14 +373,25 @@ void OracoloPage::sendMessage() {
    • Storia attiva           → chat() con history + QueryType
    • Nessuna storia          → generate() via /api/generate (più leggero)
    ══════════════════════════════════════════════════════════════ */
-void OracoloPage::startChatWithContext(const QString& userMsg) {
-    m_lastUserMsg = userMsg;    /* salvato per addToHistory() nel finished handler */
-
+QString OracoloPage::buildSysPrompt(const QString& userMsg) const
+{
     QString sys = m_sysEdit->toPlainText().trimmed();
     if (sys.isEmpty())
         sys = "Sei un assistente AI utile e preciso. "
               "Rispondi SEMPRE e SOLO in italiano. "
               "Quando fornisci formule matematiche usa la notazione y = f(x).";
+
+    const QString mem = m_aiMemory.getRelevantContext(userMsg);
+    if (!mem.isEmpty())
+        sys += "\n\n---\n[Memoria utente — rispetta queste preferenze e vincoli]\n" + mem;
+
+    return sys;
+}
+
+void OracoloPage::startChatWithContext(const QString& userMsg) {
+    m_lastUserMsg = userMsg;    /* salvato per addToHistory() nel finished handler */
+
+    const QString sys = buildSysPrompt(userMsg);
 
     if (!m_pendingImg.isEmpty()) {
         m_ai->chatWithImage(sys, userMsg, m_pendingImg, m_pendingImgMime);
@@ -415,30 +437,91 @@ void OracoloPage::addToHistory(const QString& user, const QString& assistant) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   compressHistory — sposta i turni eccedenti nel summary locale
-   Il summary ha il formato:
-     "U: <testo utente>\nA: <risposta AI>\n"
-   per ciascun turno compresso. Questo viene poi iniettato come
-   turno sintetico "assistant" all'inizio della storia per dare
-   contesto senza mandare tutti i raw.
+   compressHistory — sposta i turni eccedenti verso summarizeAsync()
    ══════════════════════════════════════════════════════════════ */
 void OracoloPage::compressHistory() {
     if (m_history.size() <= kMaxRecentTurns) return;
 
     const int toCompress = m_history.size() - kMaxRecentTurns;
-    QString addition;
-    for (int i = 0; i < toCompress; ++i) {
-        const ConvTurn& t = m_history[i];
-        /* Tronca ulteriormente per il summary */
-        addition += "U: " + t.user.left(200) + "\n";
-        addition += "A: " + t.assistant.left(300) + "\n";
+    const QVector<ConvTurn> overflow = m_history.mid(0, toCompress);
+    m_history = m_history.mid(toCompress);   /* taglia subito — non aspetta l'AI */
+
+    summarizeAsync(overflow);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   summarizeAsync — chiede all'LLM di riassumere i turni in overflow.
+   Usa una POST diretta con stream:false su un QNetworkAccessManager
+   dedicato — non interferisce con i segnali streaming di m_ai.
+   In caso di errore: fallback al troncamento testuale.
+   ══════════════════════════════════════════════════════════════ */
+void OracoloPage::summarizeAsync(const QVector<ConvTurn>& turns) {
+    if (turns.isEmpty()) return;
+
+    /* Costruisce il testo da riassumere */
+    QString conv;
+    for (const ConvTurn& t : turns)
+        conv += "Utente: " + t.user + "\nAI: " + t.assistant + "\n\n";
+
+    const QString prompt =
+        "Riassumi in italiano la seguente conversazione in modo SINTETICO ma "
+        "COMPLETO, preservando TUTTI i fatti concreti menzionati dall'utente "
+        "(nomi, cifre, date, eventi). Massimo 400 parole:\n\n" + conv;
+
+    /* Corpo della richiesta — formato dipende dal backend */
+    QJsonObject body;
+    QString endpoint;
+    if (m_ai->backend() == AiClient::LlamaServer) {
+        endpoint = QString("http://%1:%2/completion")
+                       .arg(m_ai->host()).arg(m_ai->port());
+        body["prompt"]    = prompt;
+        body["n_predict"] = 600;
+        body["stream"]    = false;
+    } else {
+        /* Ollama e LlamaLocal usano /api/generate */
+        endpoint = QString("http://%1:%2/api/generate")
+                       .arg(m_ai->host()).arg(m_ai->port());
+        body["model"]  = m_ai->model();
+        body["prompt"] = prompt;
+        body["stream"] = false;
     }
 
-    if (!m_historySummary.isEmpty())
-        m_historySummary += "\n";
-    m_historySummary += addition;
+    if (!m_summaryNam)
+        m_summaryNam = new QNetworkAccessManager(this);
 
-    m_history = m_history.mid(toCompress);
+    QNetworkRequest req;
+    req.setUrl(QUrl(endpoint));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    /* Fallback testuale — usato se l'LLM fallisce */
+    QString fallback;
+    for (const ConvTurn& t : turns)
+        fallback += "U: " + t.user.left(200) + "\nA: " + t.assistant.left(300) + "\n";
+
+    auto* reply = m_summaryNam->post(req, QJsonDocument(body).toJson());
+    connect(reply, &QNetworkReply::finished, this, [this, fallback]() {
+        auto* r = qobject_cast<QNetworkReply*>(sender());
+        if (!r) return;
+        r->deleteLater();
+
+        QString summary;
+        if (r->error() == QNetworkReply::NoError) {
+            const QJsonObject obj =
+                QJsonDocument::fromJson(r->readAll()).object();
+            /* Ollama → "response", LlamaServer → "content" */
+            summary = obj.contains("response")
+                          ? obj["response"].toString().trimmed()
+                          : obj["content"].toString().trimmed();
+        }
+
+        if (summary.isEmpty())
+            summary = fallback;   /* fallback testuale se LLM non risponde */
+
+        if (!m_historySummary.isEmpty())
+            m_historySummary += "\n\n";
+        m_historySummary += summary;
+        saveHistory();
+    });
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -518,6 +601,7 @@ void OracoloPage::clearChat() {
     m_history.clear();
     m_historySummary.clear();
     m_lastUserMsg.clear();
+    QFile::remove(chatHistoryPath());
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -805,12 +889,7 @@ void OracoloPage::onEmbeddingReady(const QVector<float>& vec)
             "(verifica il modello embedding in Impostazioni \xe2\x86\x92 RAG)</i>\n\n");
     }
 
-    QString sys = m_sysEdit->toPlainText().trimmed();
-    if (sys.isEmpty())
-        sys = "Sei un assistente AI utile e preciso. "
-              "Rispondi SEMPRE e SOLO in italiano. "
-              "Quando fornisci formule matematiche usa la notazione y = f(x).";
-    sys += ctx;
+    const QString sys = buildSysPrompt(msg) + ctx;
 
     const AiClient::QueryType qt = AiClient::classifyQuery(msg);
     const bool hasHistory = !m_history.isEmpty() || !m_historySummary.isEmpty();
@@ -865,6 +944,7 @@ void OracoloPage::onAiFinished(const QString& full)
     if (!m_lastUserMsg.isEmpty() && !full.isEmpty()) {
         addToHistory(m_lastUserMsg, full);
         m_aiMemory.saveInteraction(m_lastUserMsg, full);
+        saveHistory();
     }
     m_lastUserMsg.clear();
 
@@ -924,4 +1004,38 @@ void OracoloPage::onScrollToBottomTimer()
     if (!m_scroll) return;
     auto* sb = m_scroll->verticalScrollBar();
     if (sb) sb->setValue(sb->maximum());
+}
+
+/* ══════════════════════════════════════════════════════════════
+   saveHistory / loadHistory — persistenza cross-sessione
+   File: ~/.prismalux/chat_history.json
+   Formato: { "summary": "...", "turns": [{"user":"...","assistant":"..."}] }
+   ══════════════════════════════════════════════════════════════ */
+void OracoloPage::saveHistory() {
+    QJsonArray turns;
+    for (const ConvTurn& t : m_history) {
+        QJsonObject obj;
+        obj["user"]      = t.user;
+        obj["assistant"] = t.assistant;
+        turns.append(obj);
+    }
+    QJsonObject root;
+    root["summary"] = m_historySummary;
+    root["turns"]   = turns;
+
+    QDir().mkpath(QDir::homePath() + "/.prismalux");
+    QFile f(chatHistoryPath());
+    if (f.open(QIODevice::WriteOnly))
+        f.write(QJsonDocument(root).toJson());
+}
+
+void OracoloPage::loadHistory() {
+    QFile f(chatHistoryPath());
+    if (!f.open(QIODevice::ReadOnly)) return;
+    const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
+    m_historySummary = root["summary"].toString();
+    for (const QJsonValue& v : root["turns"].toArray()) {
+        const QJsonObject obj = v.toObject();
+        m_history.append({ obj["user"].toString(), obj["assistant"].toString() });
+    }
 }

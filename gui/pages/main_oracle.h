@@ -12,6 +12,8 @@
 #include "ai_memory.h"
 #include "rag_engine.h"
 
+class QNetworkAccessManager;
+
 class ChatBubble;
 class ChartWidget;
 
@@ -126,6 +128,9 @@ private:
     /* ── Chart richiesto da bolla AI ── */
     QPointer<ChatBubble> m_chartBubble;
 
+    /* ── Summarizer asincrono — NAM dedicato, non interferisce con m_ai ── */
+    QNetworkAccessManager* m_summaryNam = nullptr;
+
     /* ── AIMemory — memoria versionata Git ─────────────────────── */
     AIMemory     m_aiMemory;
 
@@ -139,6 +144,8 @@ private:
 
     void startChatWithContext(const QString& userMsg);
     void updateRagBtn();
+    /** Costruisce il system prompt: base + contesto AIMemory (preferenze/vincoli). */
+    QString buildSysPrompt(const QString& userMsg) const;
 
     /* ── Storia conversazione compressa ─────────────────────────────
        Strategia: manteniamo gli ultimi 3 turni completi in m_history.
@@ -159,6 +166,12 @@ private:
     void compressHistory();
     /** Costruisce il QJsonArray da passare a AiClient::chat(). */
     QJsonArray buildHistoryArray() const;
+    /** Salva storia su ~/.prismalux/chat_history.json */
+    void saveHistory();
+    /** Carica storia da ~/.prismalux/chat_history.json */
+    void loadHistory();
+    /** Riassume i turni in overflow via LLM (non-blocking) e aggiorna m_historySummary */
+    void summarizeAsync(const QVector<ConvTurn>& turns);
 
     /* ── Stato ── */
     bool m_streaming = false;

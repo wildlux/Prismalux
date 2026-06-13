@@ -522,19 +522,127 @@ private slots:
     }
 };
 
+/* ══════════════════════════════════════════════════════════════
+   CAT-H — Non-regressione auth: ogni /api/* risponde 401 senza token
+   Avrebbe intercettato la regressione del commit 10c33e0 dove i
+   nuovi endpoint non erano nella lista isApi.
+   ══════════════════════════════════════════════════════════════ */
+class TestAuthNonRegression : public QObject {
+    Q_OBJECT
+
+    /* ── stesso helper di TestParserHardening ── */
+    static QByteArray collectResponse(QTcpSocket* sock, int timeoutMs = 2000)
+    {
+        QByteArray buf;
+        const int steps = timeoutMs / 20;
+        for (int i = 0; i < steps; ++i) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+            buf += sock->readAll();
+            if (!buf.isEmpty()) return buf;
+            if (sock->state() == QAbstractSocket::UnconnectedState) {
+                buf += sock->readAll();
+                return buf;
+            }
+        }
+        return buf;
+    }
+
+    static int parseStatusCode(const QByteArray& data)
+    {
+        if (data.size() < 12) return -1;
+        bool ok = false;
+        const int code = data.mid(9, 3).toInt(&ok);
+        return ok ? code : -1;
+    }
+
+    /* Invia una richiesta HTTP senza header Authorization e ritorna lo status code.
+     * Chiude esplicitamente il socket e drena gli eventi prima di restituire il
+     * controllo, così il LanServer processa la disconnessione prima di stop(). */
+    int requestWithoutToken(LanServer& srv, const QByteArray& method, const QByteArray& path)
+    {
+        QTcpSocket sock;
+        sock.connectToHost(QHostAddress::LocalHost, srv.port());
+        const int connSteps = 1000 / 20;
+        for (int i = 0; i < connSteps && sock.state() != QAbstractSocket::ConnectedState; ++i)
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        if (sock.state() != QAbstractSocket::ConnectedState) return -1;
+
+        const QByteArray req = method + " " + path + " HTTP/1.1\r\n"
+                               "Host: localhost\r\n"
+                               "Content-Type: application/json\r\n"
+                               "Content-Length: 2\r\n\r\n{}";
+        sock.write(req);
+        sock.flush();
+
+        const int code = parseStatusCode(collectResponse(&sock));
+
+        /* Chiudi il socket lato client e lascia che il server elabori la disconnessione
+         * prima che sock vada fuori scope — evita null-deref in onClientDisconnected. */
+        sock.disconnectFromHost();
+        if (sock.state() != QAbstractSocket::UnconnectedState)
+            sock.waitForDisconnected(500);
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+
+        return code;
+    }
+
+private slots:
+
+    /* H-1..H-12: ogni endpoint /api/* con token impostato e richiesta
+       senza Authorization → deve rispondere 401 (non 200/400/500).
+       Se qualcuno risponde 200, significa che l'endpoint è sfuggito
+       alla lista isApi. */
+
+    void H1_apiTags()       { _check("GET",  "/api/tags"); }
+    void H2_apiChat()       { _check("POST", "/api/chat"); }
+    void H3_apiGenerate()   { _check("POST", "/api/generate"); }
+    void H4_apiLaunch()     { _check("POST", "/api/launch"); }
+    void H5_apiMcp()        { _check("POST", "/api/mcp"); }
+    void H6_apiLavoro()     { _check("GET",  "/api/lavoro"); }
+    void H7_apiGraphviz()   { _check("POST", "/api/graphviz"); }
+    void H8_apiWhisper()    { _check("POST", "/api/whisper"); }
+    void H9_apiFile()       { _check("POST", "/api/file"); }
+    void H10_apiRepl()      { _check("POST", "/api/repl"); }
+    void H11_apiFinanzaCf() { _check("POST", "/api/finanza/cf"); }
+    void H12_apiGraph()     { _check("GET",  "/api/graph"); }
+
+private:
+    void _check(const QByteArray& method, const QByteArray& path)
+    {
+        MockAiClient ai;
+        LanServer srv(&ai);
+        srv.setAccessToken("testtokenXYZ");
+        QVERIFY(srv.start(0));
+
+        const int code = requestWithoutToken(srv, method, path);
+
+        /* blockSignals obbligatorio prima di stop() su LanServer — evita SIGSEGV */
+        srv.blockSignals(true);
+        srv.stop();
+
+        QVERIFY2(code != -1,
+            qPrintable(QString("Nessuna risposta per %1 %2")
+                       .arg(QString(method)).arg(QString(path))));
+        QVERIFY2(code == 401,
+            qPrintable(QString("%1 %2 senza token → atteso 401, ottenuto %3")
+                       .arg(QString(method)).arg(QString(path)).arg(code)));
+    }
+};
+
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
 
     int status = 0;
     {
-        TestLifecycle        t1; status |= QTest::qExec(&t1, argc, argv);
-        TestPorta            t2; status |= QTest::qExec(&t2, argc, argv);
-        TestStatusChanged    t3; status |= QTest::qExec(&t3, argc, argv);
-        TestClientCount      t4; status |= QTest::qExec(&t4, argc, argv);
-        TestRobustezza       t5; status |= QTest::qExec(&t5, argc, argv);
-        TestAccessToken      t6; status |= QTest::qExec(&t6, argc, argv);
-        TestParserHardening  t7; status |= QTest::qExec(&t7, argc, argv);
+        TestLifecycle           t1; status |= QTest::qExec(&t1, argc, argv);
+        TestPorta               t2; status |= QTest::qExec(&t2, argc, argv);
+        TestStatusChanged       t3; status |= QTest::qExec(&t3, argc, argv);
+        TestClientCount         t4; status |= QTest::qExec(&t4, argc, argv);
+        TestRobustezza          t5; status |= QTest::qExec(&t5, argc, argv);
+        TestAccessToken         t6; status |= QTest::qExec(&t6, argc, argv);
+        TestParserHardening     t7; status |= QTest::qExec(&t7, argc, argv);
+        TestAuthNonRegression   t8; status |= QTest::qExec(&t8, argc, argv);
     }
     return status;
 }
