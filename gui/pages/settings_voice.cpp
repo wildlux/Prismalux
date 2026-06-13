@@ -47,6 +47,7 @@ namespace P = PrismaluxPaths;
 #include <QGroupBox>
 #include <QPlainTextEdit>
 #include <QThread>
+#include <QPointer>
 #include <QStackedWidget>
 #include <QColorDialog>
 #include <QPainter>
@@ -850,18 +851,24 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
         const QString bldDir  = wspDir + "/build";
         const int     threads = std::max(1, QThread::idealThreadCount());
 
-        /* Usiamo un QProcess* condiviso tramite un piccolo wrapper a step */
+        /* Usiamo un QProcess* condiviso tramite un piccolo wrapper a step.
+           QPointer<T> per i widget: se il dialog viene chiuso mentre un
+           processo è in esecuzione, QProcess::~QProcess() chiama internamente
+           waitForFinished() che processa eventi Qt — i widget possono essere
+           già distrutti in quel momento. QPointer li azzeera automaticamente
+           evitando l'accesso a memoria liberata (SIGSEGV). */
         struct StepRunner {
-            QPlainTextEdit*  log;
-            QLabel*          status;
-            QPushButton*     btn;
-            QLabel*          lblBin;
-            int              step = 0;
+            QPointer<QPlainTextEdit>  log;
+            QPointer<QLabel>          status;
+            QPointer<QPushButton>     btn;
+            QPointer<QLabel>          lblBin;
+            int                       step = 0;
 
             void run(const QString& prog, const QStringList& args,
                      const QString& desc,
                      std::function<void(bool ok)> next)
             {
+                if (!log || !status) { next(false); return; }
                 log->appendPlainText("\n\xe2\x96\xb6 " + desc);
                 log->appendPlainText("$ " + prog + " " + args.join(" ") + "\n");
                 status->setText("\xe2\x8c\x9b  " + desc + "...");
@@ -869,12 +876,12 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
                 auto* proc = new QProcess(log);
                 QObject::connect(proc, &QProcess::readyReadStandardOutput,
                                  log, [proc, this]{
-                    log->appendPlainText(
+                    if (log) log->appendPlainText(
                         QString::fromLocal8Bit(proc->readAllStandardOutput()));
                 });
                 QObject::connect(proc, &QProcess::readyReadStandardError,
                                  log, [proc, this]{
-                    log->appendPlainText(
+                    if (log) log->appendPlainText(
                         QString::fromLocal8Bit(proc->readAllStandardError()));
                 });
                 QObject::connect(
@@ -882,6 +889,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
                     QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                     log, [proc, next, this](int code, QProcess::ExitStatus) {
                         proc->deleteLater();
+                        if (!log || !status) { delete this; return; }
                         const bool ok = (code == 0);
                         if (!ok)
                             log->appendPlainText("\n\xe2\x9d\x8c  Step fallito (codice " +
@@ -890,7 +898,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
                     });
                 proc->start(prog, args);
                 if (!proc->waitForStarted(3000)) {
-                    log->appendPlainText(
+                    if (log) log->appendPlainText(
                         "\xe2\x9d\x8c  Impossibile avviare: " + prog +
                         "\n  Verifica che git/cmake/gcc siano installati.");
                     proc->deleteLater();

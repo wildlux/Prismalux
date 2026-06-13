@@ -19,17 +19,22 @@ void AgentiPage::_ttsPlay(const QString& tts)
 {
     if (tts.trimmed().isEmpty()) return;
 
-    /* Ferma TTS precedente se attivo — prima piper, poi aplay */
+    /* Ferma TTS precedente se attivo — prima piper, poi aplay.
+       disconnect() prima di kill() evita che errorOccurred(Crashed)
+       venga emesso e mostri un falso errore nel log della chat. */
     if (m_piperProc) {
+        m_piperProc->disconnect();
         m_piperProc->kill();
         m_piperProc->waitForFinished(300);
         m_piperProc->deleteLater();
         m_piperProc = nullptr;
     }
     if (m_ttsProc) {
+        m_ttsProc->disconnect();
         m_ttsProc->kill();
         m_ttsProc->waitForFinished(300);
-        if (m_ttsProc) { m_ttsProc->deleteLater(); m_ttsProc = nullptr; }
+        m_ttsProc->deleteLater();
+        m_ttsProc = nullptr;
     }
 #ifndef Q_OS_WIN
     QProcess::startDetached("pkill", {"-9", "aplay"});

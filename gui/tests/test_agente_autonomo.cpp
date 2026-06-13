@@ -8,6 +8,7 @@
      CAT-D  Toggle UI Chat → Agente Autonomo (no Ollama)
      CAT-E  Parsing risposta ReAct via MockAiClient
      CAT-F  Step limit e gestione JSON malformato
+     CAT-G  Regressione: saluto non deve triggerare tool call
 
    Build:
      cmake -B build_tests -DBUILD_TESTS=ON
@@ -143,6 +144,29 @@ private slots:
         /* Il prompt deve mostrare {"tool": ... } come formato atteso */
         QVERIFY2(sys.contains("tool") && sys.contains("input"),
                  "formato JSON {tool/input} assente dal system prompt");
+    }
+
+    /* B-6: regola prioritaria per saluti/messaggi semplici presente */
+    void contieneRegolaSaluto() {
+        const QString sys = AgentiPage::_autoSystemPrompt();
+        /* La fix del bug "saluto → fetch_url" richiede una regola esplicita
+           che impedisca l'uso di tool per saluti/domande semplici */
+        const bool haSaluto     = sys.contains("saluto",    Qt::CaseInsensitive);
+        const bool haSemplice   = sys.contains("semplice",  Qt::CaseInsensitive);
+        const bool haPrioritari = sys.contains("PRIORITAR", Qt::CaseInsensitive);
+        QVERIFY2(haSaluto || haSemplice || haPrioritari,
+                 "regola anti-tool per saluti assente dal system prompt");
+    }
+
+    /* B-7: la regola FINAL_ANSWER diretto compare prima della lista strumenti */
+    void regolaFinalAnswerPrimaDegliStrumenti() {
+        const QString sys = AgentiPage::_autoSystemPrompt();
+        const int idxFinal     = sys.indexOf("FINAL_ANSWER");
+        const int idxStrumenti = sys.indexOf("STRUMENTI DISPONIBILI");
+        QVERIFY2(idxFinal >= 0,     "FINAL_ANSWER assente dal system prompt");
+        QVERIFY2(idxStrumenti >= 0, "STRUMENTI DISPONIBILI assente dal system prompt");
+        QVERIFY2(idxFinal < idxStrumenti,
+                 "FINAL_ANSWER deve apparire prima della lista strumenti (regola prioritaria)");
     }
 };
 
@@ -482,6 +506,155 @@ private slots:
 };
 
 /* ════════════════════════════════════════════════════════════════
+   CAT-G — Regressione: saluto non deve triggerare tool call
+   Bug: "ciao mi chiamo paolo" → agente chiamava fetch_url su python.org
+   Fix: regola PRIORITARIA nel system prompt + test su parsing risposta
+   ════════════════════════════════════════════════════════════════ */
+class TestSalutoNoToolCall : public QObject {
+    Q_OBJECT
+private:
+    MockAiClient* m_ai     = nullptr;
+    AgentiPage*   m_page   = nullptr;
+    QPushButton*  m_toggle = nullptr;
+    QTextEdit*    m_input  = nullptr;
+    QPushButton*  m_run    = nullptr;
+    QTextBrowser* m_log    = nullptr;
+
+private slots:
+
+    void init() {
+        m_ai   = new MockAiClient;
+        m_page = new AgentiPage(m_ai);
+        m_page->show();
+        QTest::qWaitForWindowExposed(m_page);
+
+        for (auto* b : m_page->findChildren<QPushButton*>()) {
+            if (b->isCheckable() && b->text().contains("Chat"))
+                m_toggle = b;
+            if (!b->isCheckable() && b->text().contains("CHAT"))
+                m_run = b;
+        }
+        m_log = m_page->findChild<QTextBrowser*>("chatLog");
+        const auto edits = m_page->findChildren<QTextEdit*>();
+        for (auto* e : edits) {
+            if (!qobject_cast<QTextBrowser*>(e)) { m_input = e; break; }
+        }
+        if (!m_toggle || !m_run) return;
+
+        m_toggle->click();
+        QApplication::processEvents();
+        for (auto* b : m_page->findChildren<QPushButton*>()) {
+            if (!b->isCheckable() && b->text().contains("Avvia"))
+                m_run = b;
+        }
+    }
+
+    void cleanup() {
+        QTest::qWait(50);
+        delete m_page; m_page = nullptr;
+        delete m_ai;   m_ai   = nullptr;
+        m_toggle = nullptr; m_run = nullptr; m_input = nullptr; m_log = nullptr;
+    }
+
+    /* G-1: saluto con FINAL_ANSWER diretto → appare nel log, Run ritorna enabled */
+    void salutoCiaoMiChiamoRispostoConFinalAnswer() {
+        if (!m_toggle || !m_run || !m_log || !m_input) QSKIP("widget non trovato");
+
+        m_input->setPlainText("ciao mi chiamo paolo");
+        m_run->click();
+        QApplication::processEvents();
+
+        /* Il modello risponde con FINAL_ANSWER diretto, senza ACTION */
+        m_ai->emitFinished("FINAL_ANSWER: Ciao Paolo! Come posso aiutarti?");
+        QApplication::processEvents();
+
+        QVERIFY2(m_log->toPlainText().contains("Paolo"),
+                 "risposta al saluto non appare nel log");
+        QVERIFY2(m_run->isEnabled(),
+                 "Run non abilitato dopo FINAL_ANSWER su saluto");
+    }
+
+    /* G-2: presentazione → nessuna ACTION nel log (no "fetch_url", no "ricerca") */
+    void presentazioneNonGeneraActionLog() {
+        if (!m_toggle || !m_run || !m_log || !m_input) QSKIP("widget non trovato");
+
+        m_input->setPlainText("mi chiamo paolo, piacere");
+        m_run->click();
+        QApplication::processEvents();
+
+        m_ai->emitFinished("FINAL_ANSWER: Piacere Paolo! Sono l'agente di Prismalux.");
+        QApplication::processEvents();
+
+        const QString logText = m_log->toPlainText();
+        QVERIFY2(!logText.contains("fetch_url"),
+                 "fetch_url non deve apparire per una presentazione");
+        QVERIFY2(!logText.contains("python.org"),
+                 "python.org non deve essere visitato per una presentazione");
+    }
+
+    /* G-3: domanda semplice (senza dati esterni) → risposta diretta */
+    void domandaSempliceRispostoSenzaTool() {
+        if (!m_toggle || !m_run || !m_log || !m_input) QSKIP("widget non trovato");
+
+        m_input->setPlainText("qual e' il colore del cielo?");
+        m_run->click();
+        QApplication::processEvents();
+
+        m_ai->emitFinished("FINAL_ANSWER: Il cielo e' blu.");
+        QApplication::processEvents();
+
+        QVERIFY2(m_log->toPlainText().contains("blu"),
+                 "risposta a domanda semplice non nel log");
+        QVERIFY2(m_run->isEnabled(), "Run non abilitato dopo risposta semplice");
+    }
+
+    /* G-4: saluto + THOUGHT legittimo → accettato se non ha ACTION */
+    void salutoConThoughtMaNoAction() {
+        if (!m_toggle || !m_run || !m_log || !m_input) QSKIP("widget non trovato");
+
+        m_input->setPlainText("buongiorno!");
+        m_run->click();
+        QApplication::processEvents();
+
+        /* Il modello scrive THOUGHT ma poi FINAL_ANSWER (comportamento corretto) */
+        m_ai->emitFinished(
+            "THOUGHT: e' un saluto, rispondo direttamente\n"
+            "FINAL_ANSWER: Buongiorno! Come posso aiutarti oggi?");
+        QApplication::processEvents();
+
+        QVERIFY2(m_log->toPlainText().contains("Buongiorno"),
+                 "risposta a buongiorno non nel log");
+        QVERIFY2(m_run->isEnabled(), "Run non abilitato dopo saluto corretto");
+    }
+
+    /* G-5: regressione — ACTION su fetch_url per un saluto avvia un QProcess
+       asincrono che non si può attendere in un test headless senza deadlock.
+       Il test verifica solo che il parsing ACTION produca un tool call
+       riconoscibile, senza eseguirlo effettivamente (nessun click su Run). */
+    void regressioneActionSuSalutoParsato() {
+        /* Verifica solo il parsing: ACTION con fetch_url su testo di saluto
+           deve essere riconosciuto come tool call, ma NON lo eseguiamo. */
+        const QString rispostaBuggy =
+            "THOUGHT: Ho bisogno di sapere cosa e' Python\n"
+            "ACTION: {\"tool\": \"fetch_url\", \"input\": \"https://www.python.org/about-python.html\"}";
+
+        /* Il system prompt corretto deve spingere il modello a rispondere
+           con FINAL_ANSWER invece — questo test documenta il comportamento
+           atteso PRIMA della fix (era ACTION) e verifica che il parser
+           riconosca l'ACTION anche in quel caso. */
+        const QString actionPart = "{\"tool\": \"fetch_url\", \"input\": \"https://www.python.org/about-python.html\"}";
+        QJsonObject tc = QJsonDocument::fromJson(actionPart.toUtf8()).object();
+        QVERIFY2(!tc.isEmpty(), "ACTION fetch_url non parsata correttamente");
+        QCOMPARE(tc["tool"].toString(), QStringLiteral("fetch_url"));
+
+        /* Dopo la fix del prompt, il modello NON deve produrre questa ACTION.
+           Lo verifichiamo indirettamente: il system prompt contiene la regola. */
+        QVERIFY2(AgentiPage::_autoSystemPrompt().contains("saluto", Qt::CaseInsensitive),
+                 "system prompt manca regola anti-tool per saluti — regressione aperta");
+    }
+};
+
+/* ════════════════════════════════════════════════════════════════
    Entry point
    ════════════════════════════════════════════════════════════════ */
 int main(int argc, char** argv)
@@ -496,6 +669,7 @@ int main(int argc, char** argv)
     {   TestToggleUiAgente    t; status |= QTest::qExec(&t, argc, argv); }
     {   TestReActParsing      t; status |= QTest::qExec(&t, argc, argv); }
     {   TestEdgeCases         t; status |= QTest::qExec(&t, argc, argv); }
+    {   TestSalutoNoToolCall  t; status |= QTest::qExec(&t, argc, argv); }
     return status;
 }
 

@@ -50,6 +50,7 @@ bool GraphMemory::open()
                    << db.lastError().text();
         return false;
     }
+    QFile::setPermissions(m_dbPath, QFile::ReadOwner | QFile::WriteOwner);
     initSchema();
     m_open = true;
     return true;

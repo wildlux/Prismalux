@@ -1,5 +1,6 @@
 #include "main_quiz_ccna_db.h"
 #include "../prismalux_paths.h"
+#include <QFile>
 namespace P = PrismaluxPaths;
 
 #include <QSqlDatabase>
@@ -46,6 +47,8 @@ QuizCcnaDb::QuizCcnaDb(QObject* parent)
         qWarning() << "[QuizCcnaDb] open error:" << db.lastError().text();
         return;
     }
+    if (db.databaseName().contains("/.prismalux/"))
+        QFile::setPermissions(db.databaseName(), QFile::ReadOwner | QFile::WriteOwner);
 
     QSqlQuery q(db);
     q.exec("PRAGMA journal_mode=WAL");

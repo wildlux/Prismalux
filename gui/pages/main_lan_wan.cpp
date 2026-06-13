@@ -1485,6 +1485,7 @@ void LanWanPage::wanLoadTasks()
         : QSqlDatabase::addDatabase("QSQLITE", m_wanDbConn);
     db.setDatabaseName(wanDbPath());
     if (!db.open()) return;
+    QFile::setPermissions(wanDbPath(), QFile::ReadOwner | QFile::WriteOwner);
 
     QSqlQuery q(db);
     q.exec("CREATE TABLE IF NOT EXISTS wan_tasks ("

@@ -148,6 +148,7 @@ void AgentiPage::runPipeline() {
             { int i = m_bubbleIdx++; m_bubbleTexts[i] = ris;
               m_log->moveCursor(QTextCursor::End);
               m_log->insertHtml(buildLocalBubble(ris, ms, i)); }
+            m_input->clear();
             emit chatCompleted(task.left(40), m_log->toHtml());
             return;
         }
@@ -251,6 +252,7 @@ void AgentiPage::runPipeline() {
 
     _setRunBusy(true);
     m_waitLbl->setVisible(true);
+    m_input->clear();
 
     advancePipeline();
 }

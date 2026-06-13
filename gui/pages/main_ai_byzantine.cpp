@@ -26,6 +26,7 @@ void AgentiPage::runByzantine() {
             { int i = m_bubbleIdx++; m_bubbleTexts[i] = ris;
               m_log->moveCursor(QTextCursor::End);
               m_log->insertHtml(buildLocalBubble(ris, ms, i)); }
+            m_input->clear();
             emit chatCompleted(fact.left(40), m_log->toHtml());
             return;
         }
@@ -83,6 +84,7 @@ void AgentiPage::runMathTheory() {
             { int i = m_bubbleIdx++; m_bubbleTexts[i] = ris;
               m_log->moveCursor(QTextCursor::End);
               m_log->insertHtml(buildLocalBubble(ris, ms, i)); }
+            m_input->clear();
             emit chatCompleted(problem.left(40), m_log->toHtml());
             return;
         }

@@ -212,6 +212,7 @@ void SciComputePage::openDb()
         qWarning() << "SciCompute: impossibile aprire DB:" << db.lastError().text();
         return;
     }
+    QFile::setPermissions(path, QFile::ReadOwner | QFile::WriteOwner);
     initSchema();
 #endif
 }

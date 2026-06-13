@@ -279,9 +279,9 @@ sudo apt install qtbase5-dev
 pip install pytest pytest-asyncio pytest-qt
 ```
 
-### Produttività e infrastruttura (12)
+### Produttività e infrastruttura (15)
 
-MCP pratici per il workflow quotidiano: i18n, database, monitoraggio, API, snippet, OCR, SSH, documentazione, traduzione, Docker, email, backup cloud.
+MCP pratici per il workflow quotidiano: i18n, database, monitoraggio, API, snippet, OCR, SSH, documentazione, traduzione, Docker, email, backup cloud, memoria chat, web scraping, note.
 
 | Plugin | Funzione | Tool chiave | Dipendenze |
 |--------|---------|------------|------------|

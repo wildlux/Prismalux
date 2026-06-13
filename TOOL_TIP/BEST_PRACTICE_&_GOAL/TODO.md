@@ -1223,6 +1223,47 @@ START → read_context → generate_patch → apply_patch → compile
 - [x] **Donazione PayPal** — README badge + sezione, `.github/FUNDING.yml`,
   pulsante in Impostazioni→Ringraziamenti e APK Android Info page
 
+---
+
+## 💡 IDEA — Git come "Sistema di Memoria Versionata" per LLM
+> [12/06/26 00:51] Paolo
+
+Sistema a tre componenti C++ standalone (`~/.ai-memory/`):
+
+### 1. AIMemory — Repo Git locale
+```
+~/.ai-memory/
+├── profile/preferences.yaml      # risposta_length, interface, os…
+├── interactions/YYYY-MM/DD-feedback.yaml  # 👍👎 per query+risposta
+└── .git/                          # storia completa versionata
+```
+Ogni apprendimento → `git commit -m "learn: chiave = valore"` con metadati (confidence, trigger).
+Feedback negativo → `git commit -m "feedback: 👎"` + motivazione.
+Analisi pattern: `git log --grep="rating: 👍"` per vedere cosa funziona.
+Revert errori: `git checkout <hash> -- profile/preferences.yaml`.
+
+### 2. SmartRouter — Routing automatico LOCALE/CLOUD
+Regole in ordine di priorità:
+1. Offline rilevato → LOCALE (sempre)
+2. Ollama non attivo → CLOUD
+3. Dati sensibili (`password`, `iban`, `codice fiscale`…) → LOCALE (privacy)
+4. Query > 1500 char → CLOUD (contesto ampio)
+5. Keyword ragionamento complesso (`analizza profondamente`, `dimostra che`…) → CLOUD
+6. Default → LOCALE (veloce, gratis, privacy)
+
+### 3. AIOrchestrator — Binario completo `./ai-assistant`
+Flusso: `getRelevantContext(query)` → `decideRoute()` → `callLocal()|callCloud()` → mostra risposta → chiede 👍/👎 → `logFeedback()` → git commit automatico.
+Diventa più intelligente ad ogni interazione.
+
+Compila con: `g++ -std=c++17 -O2 ai_assistant.cpp -o ai_assistant`
+Dipendenze zero (usa `popen(curl …)` per HTTP).
+
+- [ ] **Valutare integrazione in Prismalux** — possibile MCP `ai_memory_mcp` che espone
+  `learn(key,val)`, `feedback(query,rating,reason)`, `getContext(query)` via JSON-RPC 2.0.
+  Il DevAgent potrebbe chiamarlo automaticamente a fine conversazione.
+
+---
+
 ### Sessioni precedenti
 
 - [x] LaTeX KaTeX rendering (Analisi 1/2, output AI) + LatexView widget
