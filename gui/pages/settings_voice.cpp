@@ -558,6 +558,193 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     ilay->setSpacing(8);
 
     /* ══════════════════════════════════════════
+       Sezione 0: Modalità trascrizione (N11)
+       Radio: whisper locale | LLM via Ollama
+       ══════════════════════════════════════════ */
+    {
+        auto* secMode = new QFrame(inner);
+        secMode->setObjectName("cardFrame");
+        auto* secModeLay = new QVBoxLayout(secMode);
+        secModeLay->setContentsMargins(14, 10, 14, 10);
+        secModeLay->setSpacing(8);
+
+        auto* modeTitle = new QLabel(
+            "\xf0\x9f\x94\xa7  <b>Modalit\xc3\xa0 di trascrizione</b>", secMode);
+        modeTitle->setObjectName("cardTitle");
+        modeTitle->setTextFormat(Qt::RichText);
+        secModeLay->addWidget(modeTitle);
+
+        auto* radioWhisper = new QRadioButton(
+            "\xe2\x9c\x85  Whisper locale (predefinito)", secMode);
+        radioWhisper->setObjectName("settingsRadio");
+        radioWhisper->setChecked(true);
+
+        auto* radioLlm = new QRadioButton(
+            "\xf0\x9f\xa4\x96  LLM audio via Ollama (sperimentale)", secMode);
+        radioLlm->setObjectName("settingsRadio");
+
+        {
+            QSettings hs("Prismalux", "GUI");
+            const QString mode = hs.value("stt/mode", "whisper").toString();
+            radioLlm->setChecked(mode == "llm");
+            radioWhisper->setChecked(mode != "llm");
+        }
+
+        secModeLay->addWidget(radioWhisper);
+        secModeLay->addWidget(radioLlm);
+
+        /* Pannello LLM — visibile solo quando radio LLM selezionata */
+        auto* llmPanel = new QWidget(secMode);
+        llmPanel->setVisible(radioLlm->isChecked());
+        auto* llmLay = new QVBoxLayout(llmPanel);
+        llmLay->setContentsMargins(0, 6, 0, 0);
+        llmLay->setSpacing(6);
+
+        auto* llmDesc = new QLabel(
+            "\xf0\x9f\x94\xac  Seleziona un modello Ollama con capacit\xc3\xa0 audio.<br>"
+            "<small style='color:#f59e0b;'>"
+            "\xe2\x9a\xa0  Attualmente nessun modello Ollama supporta audio nativo.<br>"
+            "Quando disponibili, appariranno nel selettore qui sotto.</small>",
+            llmPanel);
+        llmDesc->setObjectName("cardDesc");
+        llmDesc->setTextFormat(Qt::RichText);
+        llmDesc->setWordWrap(true);
+        llmLay->addWidget(llmDesc);
+
+        auto* llmModelRow = new QHBoxLayout;
+        auto* llmModelCombo = new QComboBox(llmPanel);
+        llmModelCombo->setObjectName("settingsCombo");
+        llmModelCombo->setEnabled(false);
+        llmModelCombo->addItem(
+            "\xe2\x80\x94  Nessun modello audio disponibile", "");
+        llmModelRow->addWidget(new QLabel("Modello:", llmPanel));
+        llmModelRow->addWidget(llmModelCombo, 1);
+
+        auto* llmRefreshBtn = new QPushButton(
+            "\xf0\x9f\x94\x84  Ricarica modelli", llmPanel);
+        llmRefreshBtn->setObjectName("actionBtn");
+        llmModelRow->addWidget(llmRefreshBtn);
+        llmLay->addLayout(llmModelRow);
+
+        auto* llmStatus = new QLabel("", llmPanel);
+        llmStatus->setObjectName("cardDesc");
+        llmLay->addWidget(llmStatus);
+
+        /* Ricarica lista modelli da Ollama e filtra quelli con capabilities audio */
+        auto refreshLlmModels = [llmModelCombo, llmStatus, llmRefreshBtn]() {
+            llmRefreshBtn->setEnabled(false);
+            llmStatus->setText(tr("\xe2\x8f\xb3  Controllo modelli Ollama…"));
+
+            QSettings hs("Prismalux", "GUI");
+            const QString ollamaHost =
+                hs.value("ollama/host", "http://localhost:11434").toString();
+
+            auto* nam   = new QNetworkAccessManager(llmModelCombo);
+            auto* reply = nam->get(QNetworkRequest{
+                QUrl(ollamaHost + "/api/tags")});
+
+            QObject::connect(reply, &QNetworkReply::finished,
+                llmModelCombo,
+                [reply, nam, llmModelCombo, llmStatus, llmRefreshBtn]() {
+                    reply->deleteLater();
+                    nam->deleteLater();
+                    llmRefreshBtn->setEnabled(true);
+
+                    if (reply->error() != QNetworkReply::NoError) {
+                        llmStatus->setText(
+                            tr("\xe2\x9d\x8c  Ollama non raggiungibile: ")
+                            + reply->errorString());
+                        return;
+                    }
+
+                    const QJsonDocument doc =
+                        QJsonDocument::fromJson(reply->readAll());
+                    const QJsonArray models =
+                        doc.object()["models"].toArray();
+
+                    /* Filtra modelli con "audio" nelle capabilities
+                       (attualmente nessuno — preparato per future versioni) */
+                    QStringList audioModels;
+                    for (const QJsonValue& v : models) {
+                        const QJsonObject m = v.toObject();
+                        const QString     name = m["name"].toString();
+                        const QJsonObject details = m["details"].toObject();
+                        const QJsonArray  families =
+                            details["families"].toArray();
+                        for (const QJsonValue& f : families) {
+                            if (f.toString().contains("audio",
+                                Qt::CaseInsensitive)) {
+                                audioModels << name;
+                                break;
+                            }
+                        }
+                    }
+
+                    llmModelCombo->clear();
+                    if (audioModels.isEmpty()) {
+                        llmModelCombo->addItem(
+                            "\xe2\x80\x94  Nessun modello audio trovato", "");
+                        llmModelCombo->setEnabled(false);
+                        llmStatus->setText(
+                            tr("\xe2\x9a\xa0  Nessun modello audio in Ollama. "
+                               "Attendi futuri modelli con supporto audio "
+                               "oppure usa Whisper."));
+                    } else {
+                        for (const QString& n : audioModels)
+                            llmModelCombo->addItem(n, n);
+                        llmModelCombo->setEnabled(true);
+                        llmStatus->setText(
+                            tr("\xe2\x9c\x85  %1 modello/i audio trovato/i.")
+                            .arg(audioModels.size()));
+
+                        /* Ripristina selezione precedente */
+                        QSettings hs2("Prismalux", "GUI");
+                        const QString saved =
+                            hs2.value("stt/llm_model", "").toString();
+                        for (int i = 0; i < llmModelCombo->count(); i++) {
+                            if (llmModelCombo->itemData(i).toString() == saved) {
+                                llmModelCombo->setCurrentIndex(i);
+                                break;
+                            }
+                        }
+                    }
+                });
+        };
+
+        QObject::connect(llmRefreshBtn, &QPushButton::clicked,
+                         llmPanel, refreshLlmModels);
+
+        /* Salva selezione modello */
+        QObject::connect(llmModelCombo,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            llmPanel, [llmModelCombo](int) {
+                const QString model =
+                    llmModelCombo->currentData().toString();
+                QSettings hs("Prismalux", "GUI");
+                hs.setValue("stt/llm_model", model);
+            });
+
+        secModeLay->addWidget(llmPanel);
+
+        /* Mostra/nascondi pannello LLM e salva modalità */
+        QObject::connect(radioLlm, &QRadioButton::toggled,
+            secMode, [radioLlm, llmPanel, refreshLlmModels](bool on) {
+                llmPanel->setVisible(on);
+                QSettings hs("Prismalux", "GUI");
+                hs.setValue("stt/mode", on ? "llm" : "whisper");
+                if (on) refreshLlmModels();
+            });
+        QObject::connect(radioWhisper, &QRadioButton::toggled,
+            secMode, [](bool on) {
+                if (!on) return;
+                QSettings hs("Prismalux", "GUI");
+                hs.setValue("stt/mode", "whisper");
+            });
+
+        ilay->addWidget(secMode);
+    }
+
+    /* ══════════════════════════════════════════
        Sezione 1: stato binario whisper-cli
        ══════════════════════════════════════════ */
     auto* secBin = new QFrame(inner);

@@ -18,6 +18,16 @@
 #ifdef HAVE_TTS
 #include <QTextToSpeech>
 #endif
+#ifdef HAVE_MULTIMEDIA
+#include <QMediaCaptureSession>
+#include <QMediaRecorder>
+#include <QMediaFormat>
+#include <QAudioInput>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QHttpMultiPart>
+#include <QTimer>
+#endif
 
 class AiClient;
 class RagEngineSimple;
@@ -129,6 +139,14 @@ private slots:
     void scrollToBottom();
     void onClearHistory();
     void onExportClicked();
+    void onVoiceLoopClicked();
+#ifdef HAVE_TTS
+    void onTtsStateChanged(QTextToSpeech::State s);
+#endif
+#ifdef HAVE_MULTIMEDIA
+    void onLoopRecordTimeout();
+    void onLoopWhisperReply();
+#endif
 
 private:
     void appendBubble(const QString& role, const QString& text);
@@ -163,12 +181,24 @@ private:
     QButtonGroup* m_backendGroup    = nullptr;
     QLabel*       m_backendStatusLbl = nullptr;
     QLabel*       m_ttftLbl          = nullptr;
+    QPushButton*  m_voiceLoopBtn     = nullptr;
+    bool          m_voiceLoopActive  = false;
+    QString       m_loopLastResponse;
     QStringList  m_modelList;
     QElapsedTimer m_ttftTimer;
     bool          m_ttftStarted = false;
 
 #ifdef HAVE_TTS
     QTextToSpeech* m_tts = nullptr;
+#endif
+#ifdef HAVE_MULTIMEDIA
+    QMediaCaptureSession* m_loopSession   = nullptr;
+    QMediaRecorder*       m_loopRecorder  = nullptr;
+    QAudioInput*          m_loopAudioIn   = nullptr;
+    QTimer*               m_loopRecTimer  = nullptr;
+    QNetworkAccessManager* m_loopNam      = nullptr;
+    QNetworkReply*         m_loopReply    = nullptr;
+    QString                m_loopRecFile;
 #endif
 
     QJsonArray  m_history;

@@ -306,9 +306,22 @@ ChatPage::ChatPage(AiClient* ai, RagEngineSimple* rag, QWidget* parent)
     m_hermesToggle->setChecked(false);
     m_hermesToggle->setToolTip("Abilita memoria Hermes nel contesto (usa user_knowledge.md)");
 
+    /* B8 — toggle Voice Loop (TTS legge risposta → STT ascolta → re-invia) */
+    m_voiceLoopBtn = new QPushButton(
+        QString::fromUtf8("\xf0\x9f\x8e\x99"), this);  /* 🎙 */
+    m_voiceLoopBtn->setObjectName("IconBtn");
+    m_voiceLoopBtn->setCheckable(true);
+    m_voiceLoopBtn->setChecked(false);
+    m_voiceLoopBtn->setToolTip("Loop Vocale: AI risponde→TTS legge→STT ascolta→invia");
+#if !defined(HAVE_TTS) || !defined(HAVE_MULTIMEDIA)
+    m_voiceLoopBtn->setEnabled(false);
+    m_voiceLoopBtn->setToolTip("Loop Vocale: richiede TTS + Multimedia");
+#endif
+
     header->addWidget(m_modelBtn, 1);
     header->addWidget(m_ttftLbl);
     header->addWidget(m_hermesToggle);
+    header->addWidget(m_voiceLoopBtn);
     header->addWidget(m_stopBtn);
     header->addWidget(m_exportBtn);
     header->addWidget(m_clearBtn);
@@ -411,6 +424,27 @@ ChatPage::ChatPage(AiClient* ai, RagEngineSimple* rag, QWidget* parent)
 #ifdef HAVE_TTS
     m_tts = new QTextToSpeech(this);
     m_tts->setLocale(QLocale(QLocale::Italian, QLocale::Italy));
+    connect(m_tts, &QTextToSpeech::stateChanged,
+            this,  &ChatPage::onTtsStateChanged);
+#endif
+#ifdef HAVE_MULTIMEDIA
+    m_loopSession   = new QMediaCaptureSession(this);
+    m_loopAudioIn   = new QAudioInput(this);
+    m_loopRecorder  = new QMediaRecorder(this);
+    m_loopSession->setAudioInput(m_loopAudioIn);
+    m_loopSession->setRecorder(m_loopRecorder);
+    {
+        QMediaFormat fmt;
+        fmt.setFileFormat(QMediaFormat::Wave);
+        m_loopRecorder->setMediaFormat(fmt);
+        m_loopRecorder->setAudioSampleRate(16000);
+        m_loopRecorder->setAudioChannelCount(1);
+    }
+    m_loopRecTimer = new QTimer(this);
+    m_loopRecTimer->setSingleShot(true);
+    connect(m_loopRecTimer, &QTimer::timeout,
+            this, &ChatPage::onLoopRecordTimeout);
+    m_loopNam = new QNetworkAccessManager(this);
 #endif
 
     /* ── Allega file (📎) ── */
@@ -447,6 +481,7 @@ ChatPage::ChatPage(AiClient* ai, RagEngineSimple* rag, QWidget* parent)
     connect(m_clearBtn,        &QPushButton::clicked,  this, &ChatPage::onClear);
     connect(m_clearHistoryBtn, &QPushButton::clicked,  this, &ChatPage::onClearHistory);
     connect(m_exportBtn,       &QPushButton::clicked,  this, &ChatPage::onExportClicked);
+    connect(m_voiceLoopBtn,    &QPushButton::clicked,  this, &ChatPage::onVoiceLoopClicked);
     connect(m_modelBtn, &QPushButton::clicked,  this, &ChatPage::onModelBtnClicked);
     connect(m_ragBtn,   &QPushButton::clicked,  this, &ChatPage::onAttachClicked);
     connect(m_input,    &QLineEdit::returnPressed, this, &ChatPage::onSend);
@@ -615,6 +650,17 @@ void ChatPage::onFinished(const QString& full)
     }
     m_lastUserMsg.clear();
     m_streamBubble = nullptr;
+
+    /* B8 — Voice Loop: legge la risposta con TTS */
+#ifdef HAVE_TTS
+    if (m_voiceLoopActive && m_tts && !full.isEmpty()) {
+        if (m_tts->state() == QTextToSpeech::Speaking)
+            m_tts->stop();
+        /* Leggi solo le prime 600 char per non bloccare troppo */
+        m_tts->say(full.left(600));
+    }
+#endif
+
     emit queryFinished();
 }
 
@@ -1154,6 +1200,134 @@ void ChatPage::onExportClicked()
         QString::fromUtf8("\xf0\x9f\x93\xa4")  /* 📤 */
         + "  Chat esportata: " + QFileInfo(path).fileName());
 }
+
+/* ════════════════════════════════════════════════════════════════
+   B8 — Voice Loop: TTS legge risposta → STT ascolta → re-invia
+   ════════════════════════════════════════════════════════════════ */
+void ChatPage::onVoiceLoopClicked()
+{
+    m_voiceLoopActive = m_voiceLoopBtn->isChecked();
+    if (!m_voiceLoopActive) {
+#ifdef HAVE_MULTIMEDIA
+        if (m_loopRecorder &&
+            m_loopRecorder->recorderState() == QMediaRecorder::RecordingState)
+            m_loopRecorder->stop();
+        if (m_loopRecTimer) m_loopRecTimer->stop();
+        if (m_loopReply) { m_loopReply->abort(); m_loopReply = nullptr; }
+#endif
+#ifdef HAVE_TTS
+        if (m_tts && m_tts->state() == QTextToSpeech::Speaking)
+            m_tts->stop();
+#endif
+        appendBubble("system",
+            QString::fromUtf8("\xf0\x9f\x8e\x99")
+            + "  Loop Vocale disattivato.");
+    } else {
+        appendBubble("system",
+            QString::fromUtf8("\xf0\x9f\x8e\x99")
+            + "  Loop Vocale attivato: parler\xc3\xb2 dopo ogni risposta, poi ascolto.");
+    }
+}
+
+#ifdef HAVE_TTS
+void ChatPage::onTtsStateChanged(QTextToSpeech::State s)
+{
+    /* Quando TTS finisce, avvia la registrazione per STT (solo se loop attivo) */
+    if (!m_voiceLoopActive || m_streaming) return;
+    if (s != QTextToSpeech::Ready) return;
+
+#ifdef HAVE_MULTIMEDIA
+    if (!m_loopRecorder) return;
+    /* Breve pausa prima di registrare (300ms per far fermare il microfono dall'altoparlante) */
+    QTimer::singleShot(300, this, [this]{
+        if (!m_voiceLoopActive) return;
+        const QString tmp = QStandardPaths::writableLocation(
+            QStandardPaths::TempLocation) + "/prismalux_loop_voice.wav";
+        m_loopRecFile = tmp;
+        m_loopRecorder->setOutputLocation(QUrl::fromLocalFile(tmp));
+        m_loopRecorder->record();
+        appendBubble("system",
+            QString::fromUtf8("\xf0\x9f\x94\xb4")  /* 🔴 */
+            + "  Registrazione (6 secondi)…");
+        m_loopRecTimer->start(6000);
+    });
+#endif
+}
+#endif  /* HAVE_TTS */
+
+#ifdef HAVE_MULTIMEDIA
+void ChatPage::onLoopRecordTimeout()
+{
+    if (!m_loopRecorder) return;
+    m_loopRecorder->stop();
+    if (m_loopRecFile.isEmpty()) return;
+
+    /* Upload a /api/whisper sul server corrente */
+    QFile* audioFile = new QFile(m_loopRecFile, this);
+    if (!audioFile->open(QIODevice::ReadOnly)) {
+        audioFile->deleteLater();
+        appendBubble("system",
+            QString::fromUtf8("\xe2\x9d\x8c")
+            + "  Impossibile leggere il file audio registrato.");
+        return;
+    }
+
+    const QString url =
+        QString("http://%1:%2/api/whisper")
+        .arg(m_ai->host()).arg(m_ai->port());
+
+    auto* multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType, this);
+    QHttpPart filePart;
+    filePart.setHeader(QNetworkRequest::ContentTypeHeader, "audio/wav");
+    filePart.setHeader(QNetworkRequest::ContentDispositionHeader,
+        "form-data; name=\"file\"; filename=\"voice.wav\"");
+    filePart.setBodyDevice(audioFile);
+    audioFile->setParent(multiPart);
+    multiPart->append(filePart);
+
+    QNetworkRequest req{QUrl(url)};
+    if (m_loopReply) { m_loopReply->abort(); m_loopReply->deleteLater(); }
+    m_loopReply = m_loopNam->post(req, multiPart);
+    multiPart->setParent(m_loopReply);
+
+    connect(m_loopReply, &QNetworkReply::finished,
+            this, &ChatPage::onLoopWhisperReply);
+
+    appendBubble("system",
+        QString::fromUtf8("\xe2\x8f\xb3")   /* ⏳ */
+        + "  Trascrizione in corso…");
+}
+
+void ChatPage::onLoopWhisperReply()
+{
+    if (!m_loopReply) return;
+    const QByteArray body = m_loopReply->readAll();
+    m_loopReply->deleteLater();
+    m_loopReply = nullptr;
+
+    if (body.isEmpty()) {
+        appendBubble("system",
+            QString::fromUtf8("\xe2\x9d\x8c")
+            + "  Nessuna risposta dal trascrittore.");
+        return;
+    }
+
+    QString transcribed;
+    const QJsonDocument doc = QJsonDocument::fromJson(body);
+    if (doc.isObject()) {
+        transcribed = doc.object()["text"].toString().trimmed();
+    }
+    if (transcribed.isEmpty()) {
+        transcribed = QString::fromUtf8(body).trimmed().left(500);
+    }
+    if (transcribed.isEmpty()) return;
+
+    /* Re-invia come nuovo messaggio utente */
+    m_input->setText(transcribed);
+    if (m_voiceLoopActive)
+        onSend();
+}
+#endif  /* HAVE_MULTIMEDIA */
 
 /* ── onCloudModeClicked — attiva Cloud con le impostazioni salvate ── */
 void ChatPage::onCloudModeClicked()

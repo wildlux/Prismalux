@@ -29,6 +29,7 @@
 #include "pages/wan_client_page.h"
 #include "pages/security_page.h"
 #include "pages/multi_agent_page.h"
+#include "pages/chart_page.h"
 
 #ifdef HAVE_MULTIMEDIA
 #include "pages/camera_page.h"
@@ -207,6 +208,10 @@ MainWindow::MainWindow(QWidget* parent)
     /* A4 — MultiAgentPage: MasterAgent + pipeline sequenziale */
     m_multiAgentPage = new MultiAgentPage(m_ai, this);
     m_stack->addWidget(m_multiAgentPage); // indice 23
+
+    /* A6 — ChartPage: grafico QPainter f(x) con pan/zoom */
+    m_chartPage = new ChartPage(m_ai, this);
+    m_stack->addWidget(m_chartPage);      // indice 24
 
     auto* central = new QWidget(this);
 
@@ -395,6 +400,7 @@ void MainWindow::buildDrawer()
         { "\xf0\x9f\x8c\x90",            "WAN Client",           m_idxWanClient   },
         { "\xf0\x9f\x94\x92",            "Sicurezza",            m_idxSecurity   },
         { "\xf0\x9f\x95\xb8\xef\xb8\x8f", "Multi-Agente",       m_idxMultiAgent },
+        { "\xf0\x9f\x93\x88",            "Grafico",            m_idxChart      },
         { "\xf0\x9f\x93\x9a",              "Studia",             m_idxStudio     },
         { "\xf0\x9f\xa7\xa0",              "Impara con AI",      m_idxImpara     },
         { "\xcf\x80",                       "Matematica",         m_idxMatematica },
@@ -675,6 +681,7 @@ void MainWindow::onTabChanged(int index)
         { 21, "WAN Client"         },
         { 22, "Sicurezza"          },
         { 23, "Multi-Agente"       },
+        { 24, "Grafico"            },
     };
     if (m_titleLbl) {
         for (const auto& t : kTitles) {

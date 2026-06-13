@@ -163,6 +163,7 @@ set(SRCS
     pages/wan_client_page.cpp
     pages/security_page.cpp
     pages/multi_agent_page.cpp
+    pages/chart_page.cpp
     graph_memory_mobile.cpp
 )
 

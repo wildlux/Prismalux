@@ -62,6 +62,7 @@ class SimulatorePage;
 class WanClientPage;
 class SecurityPage;
 class MultiAgentPage;
+class ChartPage;
 
 #ifdef HAVE_MULTIMEDIA
 class CameraPage;
@@ -167,6 +168,7 @@ private:
     WanClientPage*       m_wanClientPage       = nullptr;
     SecurityPage*        m_securityPage        = nullptr;
     MultiAgentPage*      m_multiAgentPage      = nullptr;
+    ChartPage*           m_chartPage           = nullptr;
 
 #ifdef HAVE_MULTIMEDIA
     CameraPage*   m_cameraPage   = nullptr;
@@ -204,6 +206,7 @@ private:
     int m_idxWanClient       = 21;
     int m_idxSecurity        = 22;
     int m_idxMultiAgent      = 23;
+    int m_idxChart           = 24;
 
 #ifdef PRISMALUX_FORM_FACTOR_TABLET
     QWidget*     m_navRail    = nullptr;

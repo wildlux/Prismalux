@@ -104,7 +104,7 @@ Aggiunge in drawer: voce "🧠 Hermes Memoria" (indice 18) **oppure** sezione co
 
 ---
 
-### A6 ⬜ Grafico / ChartWidget mobile — `pages/chart_page.h/cpp` o widget inline
+### A6 ✅ Grafico / ChartWidget mobile — `pages/chart_page.h/cpp` o widget inline
 **Equivalente desktop:** `main_graph.h` + `OracoloPage::requestShowInGrafico`
 
 Visualizzazione grafica da formula o dati:
@@ -226,7 +226,7 @@ Aggiunge in drawer: voce "⚙️ Simulatore" (indice 23)
 
 ---
 
-### B8 ⬜ Voice Loop — ChatPage + AudioPage
+### B8 ✅ Voice Loop — ChatPage + AudioPage
 **Equivalente desktop:** `main_ai_ui.cpp` → `buildToolbarVoiceLoop()` → `m_btnVoiceLoop`
 
 - Toggle "🎙️ Loop Vocale" in ChatPage header
@@ -320,7 +320,7 @@ Gestione in `main.cpp` / `MainWindow` → forwarda a `FileAiPage (A8)` o `ChatPa
 
 ---
 
-### C8 ⬜ Test Android — nuove pagine
+### C8 ✅ Test Android — nuove pagine
 **File:** `tests/test_mobile_logic.cpp`
 
 Aggiungere test unitari per:
