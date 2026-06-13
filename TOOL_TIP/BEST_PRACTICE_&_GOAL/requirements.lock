@@ -41,3 +41,22 @@ gns3fy==0.8.0             # [V]
 graphviz==0.21            # [V]
 obsws-python==1.7.2       # [P]
 pyserial==3.5             # [P]
+
+# ── Sicurezza — tool di audit (FACOLTATIVI, solo sviluppo) ────
+# NON aggiungere al venv principale — installare con: pip install --user o pipx
+# Questi pacchetti NON sono dipendenze runtime di Prismalux.
+#
+# bandit==1.8.5           # [P] SAST Python — pip install --user bandit
+# pip-audit==2.9.0        # [P] audit CVE pip — pip install --user pip-audit
+# safety==3.5.0           # [P] check CVE safety DB — pip install --user safety
+#
+# Tool di sistema (nessun conflitto pip):
+#   cppcheck 2.x          # sudo apt install cppcheck
+#   nmap 7.x              # sudo apt install nmap
+#   whois                 # sudo apt install whois
+#   traceroute            # sudo apt install traceroute
+#
+# MCP cve_lookup e dep_audit usano OSV.dev API (HTTP, nessuna dipendenza pip).
+# MCP network_recon usa socket Python stdlib + subprocess nmap (fallback socket).
+# MCP secrets_scanner usa solo stdlib re/pathlib/subprocess.
+# MCP sast usa subprocess → bandit/cppcheck (se installati) + stdlib regex.

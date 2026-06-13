@@ -1,0 +1,34 @@
+# network_recon_mcp — dipendenze Python
+#
+# Dipendenze RUNTIME (stdlib):
+#   socket, subprocess, re, json, asyncio, ipaddress — tutto stdlib
+#   NON richiede nessun pacchetto pip.
+#
+# Dipendenze di SISTEMA (opzionali — il MCP ha fallback Python per ognuna):
+#
+#   nmap       — scan_ports, scan_services, scan_local_net
+#                Fallback: scanner socket Python (meno dettagliato)
+#                Linux:   sudo apt install nmap
+#                Windows: winget install Nmap.Nmap
+#                         oppure: choco install nmap
+#
+#   whois      — whois_query
+#                Fallback: nessuno (richiesto per questa funzione)
+#                Linux:   sudo apt install whois
+#                Windows: winget install NSIS.WhoisCL
+#
+#   traceroute — traceroute()
+#                Fallback: tracepath (già installato su molte distro Linux)
+#                Linux:   sudo apt install traceroute
+#                Windows: nativo (tracert.exe già presente)
+#
+#   dig        — dns_lookup
+#                Fallback: socket.getaddrinfo() per record A
+#                Linux:   sudo apt install dnsutils
+#                Windows: incluso in BIND per Windows
+#
+#   ping       — ping_host
+#                Disponibile su tutti i sistemi operativi nativamente.
+#
+# Installazione consigliata Linux (tutto in una volta):
+#   sudo apt install nmap whois traceroute dnsutils

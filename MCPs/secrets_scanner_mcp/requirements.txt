@@ -1,0 +1,9 @@
+# secrets_scanner_mcp — dipendenze Python
+#
+# Questo MCP usa SOLO stdlib Python (re, pathlib, subprocess, json, asyncio).
+# NON richiede nessun pacchetto pip aggiuntivo.
+#
+# Dipendenza di sistema opzionale (per scan_staged / scan_diff):
+#   git  — già presente su qualsiasi sistema di sviluppo
+#
+# Nessuna installazione necessaria.

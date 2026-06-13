@@ -1,0 +1,17 @@
+# cve_lookup_mcp — dipendenze Python
+#
+# Dipendenze RUNTIME (stdlib):
+#   urllib.request, urllib.parse, json, re, datetime, asyncio — tutto stdlib
+#   NON richiede nessun pacchetto pip.
+#
+# API esterne usate (connessione internet richiesta):
+#   NVD/NIST API  — https://services.nvd.nist.gov/rest/json/cves/2.0
+#                   Gratuita, nessuna API key obbligatoria.
+#                   API key opzionale (rate limit più alto):
+#                     export NVD_API_KEY=<tua_chiave>
+#                     Richiedi su: https://nvd.nist.gov/developers/request-an-api-key
+#
+#   OSV.dev API   — https://api.osv.dev/v1/query
+#                   Gratuita, nessuna autenticazione.
+#
+# Nessuna installazione pip necessaria.

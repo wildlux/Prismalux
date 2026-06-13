@@ -1,0 +1,19 @@
+# dep_audit_mcp — dipendenze Python
+#
+# Dipendenze RUNTIME (stdlib):
+#   urllib.request, json, re, subprocess, pathlib, datetime — tutto stdlib
+#   NON richiede nessun pacchetto pip per funzionare.
+#
+# Dipendenze OPZIONALI per funzionalità avanzate:
+#   Il MCP usa OSV.dev API (HTTP puro) come percorso primario — nessun pip.
+#   I tool sottostanti (pip-audit, safety) vengono rilevati a runtime e usati
+#   se presenti, ma NON devono essere nel venv del progetto Prismalux.
+#
+# Installazione consigliata (FUORI dal venv Prismalux):
+#   pip install --user pip-audit   # oppure: pipx install pip-audit
+#   pip install --user safety      # oppure: pipx install safety
+#
+# AVVISO DI COMPATIBILITÀ:
+#   pip-audit non va installato nello stesso venv del progetto perché usa pip
+#   internamente e può causare conflitti di versione con le dipendenze esistenti.
+#   safety>=3.x richiede account (anche gratuito) per il database CVE completo.

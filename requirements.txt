@@ -91,6 +91,31 @@ pyserial>=3.5                      # MCPs/driver_mcp/server.py
 # accelerate>=0.30.0
 # torch>=2.2.0
 
+# ── Sicurezza — MCP secrets_scanner, dep_audit, sast ─────────────────────────
+# Nota: questi tool sono FACOLTATIVI e vanno installati nell'ambiente
+# di sviluppo/audit, NON nell'ambiente di produzione dell'app.
+# Non impattano la GUI Qt6 né le funzionalità core di Prismalux.
+#
+# Python (installare globalmente o in un venv separato):
+#   pip install bandit pip-audit safety
+#
+# Sistema (Linux):
+#   sudo apt install cppcheck nmap whois traceroute
+#
+# Sistema (Windows MSYS2/UCRT64):
+#   pacman -S mingw-w64-ucrt-x86_64-nmap  oppure  winget install Nmap.Nmap
+#   winget install cppcheck
+#
+# bandit e pip-audit NON vanno aggiunti a requirements.txt perché:
+#   - bandit dipende da astunparse/pbr che confliggono con alcuni venv
+#   - pip-audit usa pip internamente — non va installato nello stesso venv del progetto
+#   - safety richiede account gratuito per database aggiornato
+#
+# Installazione consigliata (isola i tool di audit):
+#   pip install --user bandit pip-audit safety
+#   oppure con pipx (raccomandato):
+#   pipx install bandit && pipx install pip-audit && pipx install safety
+
 # ── Non installabili via pip — richiedono l'applicazione host ─────────────────
 # bpy          Blender Python API  — installato con Blender
 # FreeCAD      FreeCAD API         — installato con FreeCAD

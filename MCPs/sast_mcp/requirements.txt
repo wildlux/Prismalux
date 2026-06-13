@@ -1,0 +1,33 @@
+# sast_mcp — dipendenze Python
+#
+# Dipendenze RUNTIME (stdlib):
+#   subprocess, re, json, pathlib, asyncio, datetime — tutto stdlib
+#   NON richiede nessun pacchetto pip per funzionare.
+#   La regex_audit e check_includes girano senza nessun tool esterno.
+#
+# Dipendenze OPZIONALI per funzionalità avanzate:
+#   Il MCP rileva a runtime se i tool sono presenti e li usa solo se disponibili.
+#
+#   bandit     — bandit_scan (analisi sicurezza codice Python)
+#                AVVISO: NON installare nel venv principale di Prismalux.
+#                bandit dipende da astunparse e pbr che possono conflittare.
+#                Installazione consigliata:
+#                  pip install --user bandit
+#                  oppure: pipx install bandit   (raccomandato)
+#                Versione testata: bandit>=1.7.0
+#
+#   cppcheck   — cppcheck_scan (analisi statica C++ gui/)
+#                Tool di sistema, nessun conflitto pip.
+#                Linux:   sudo apt install cppcheck
+#                Windows: winget install Cppcheck.Cppcheck
+#                         oppure scarica da https://cppcheck.sourceforge.io/
+#                Versione minima: cppcheck 2.x
+#
+# Tool aggiuntivi rilevati da check_tool_avail (non usati direttamente):
+#   flake8     — pip install --user flake8   (linting Python)
+#   mypy       — già configurato in pyproject.toml del progetto
+#   semgrep    — pip install --user semgrep  (SAST avanzato multilingua)
+#
+# Installazione consigliata (tutti i tool di audit, FUORI dal venv):
+#   pipx install bandit
+#   sudo apt install cppcheck
