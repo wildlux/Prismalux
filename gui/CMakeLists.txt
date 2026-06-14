@@ -213,6 +213,7 @@ set(CPP_SRCS
     widgets/natal_chart_widget.h
     widgets/world_map_widget.h
     widgets/toggle_switch.h
+    widgets/tri_mode_button.h
     widgets/whisper_autosetup.h
     widgets/code_highlighter.h
     widgets/python_exec.h

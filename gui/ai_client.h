@@ -59,6 +59,10 @@ public:
     /** Azzera la cache modelli: il prossimo fetchModels() interroga Ollama live. */
     void invalidateModelCache() { m_cacheValid = false; m_models.clear(); }
 
+    /** Cambia solo il modello senza toccare backend/host/port.
+     *  Usato per override temporanei (es. Policy Generator, RE Kernel). */
+    void setModel(const QString& model) { m_model = model; }
+
     /* ── parametri di campionamento (anti-allucinazione) ── */
     void setChatParams(const AiChatParams& p) { m_params = p; }
     AiChatParams chatParams() const { return m_params; }

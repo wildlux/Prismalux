@@ -466,7 +466,7 @@ void AgentiPage::runAgent(int idx) {
     m_currentAgentLabel = isTeamMode
         ? "\xf0\x9f\x91\xa5  Team di agenti"
         : (isSingleChat
-            ? "\xf0\x9f\x92\xac  CHAT con RAG"
+            ? "\xf0\x9f\x93\xa4  Invia"
             : role.icon + QString("  Agente %1 \xe2\x80\x94 %2").arg(idx + 1).arg(role.name));
     m_currentAgentModel = selectedModel;
     m_currentAgentTime  = ts;
@@ -476,7 +476,7 @@ void AgentiPage::runAgent(int idx) {
         const QString backendTag = (m_ai->backend() == AiClient::Ollama)
             ? "Ollama" : "llama-server";
         const QString modelTag   = selectedModel.isEmpty() ? "?" : selectedModel;
-        m_log->append(QString("\n\xf0\x9f\x92\xac  [CHAT con RAG]  \xf0\x9f\xa4\x96 %1 \xc2\xb7 %2  \xf0\x9f\x94\x84 generando...\n")
+        m_log->append(QString("\n\xf0\x9f\x93\xa4  [Invia]  \xf0\x9f\xa4\x96 %1 \xc2\xb7 %2  \xf0\x9f\x94\x84 generando...\n")
                       .arg(backendTag, modelTag));
     } else
         m_log->append(QString("\n%1  [Agente %2 \xe2\x80\x94 %3]  \xf0\x9f\x94\x84 generando...\n")
@@ -551,7 +551,7 @@ void AgentiPage::runAgent(int idx) {
     /* Tool use nativo Ollama: attiva solo in CHAT singola con tool abilitati
        e backend Ollama (llama-server non supporta tool_calls nel formato Ollama). */
     if (m_toolsEnabled && isSingleChat && m_ai->backend() == AiClient::Ollama)
-        m_ai->setActiveTools(_buildOllamaTools());
+        m_ai->setActiveTools(buildEnabledTools());
     else
         m_ai->clearActiveTools();
 
@@ -1035,5 +1035,24 @@ void AgentiPage::_finishedPipeline(const QString& full) {
         /* Nessun codice trovato: avanza direttamente */
         advancePipeline();
     }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildEnabledTools — array tools filtrato dalle checkbox del pannello.
+   Restituisce solo i tool con nome presente in m_enabledTools.
+   Se m_enabledTools è vuoto, restituisce array vuoto (tool use disattivato).
+   ══════════════════════════════════════════════════════════════ */
+QJsonArray AgentiPage::buildEnabledTools() const
+{
+    const QJsonArray all = _buildOllamaTools();
+    if (m_enabledTools.isEmpty()) return QJsonArray{};
+
+    QJsonArray out;
+    for (const QJsonValue& v : all) {
+        const QString name = v.toObject()["function"].toObject()["name"].toString();
+        if (m_enabledTools.contains(name))
+            out.append(v);
+    }
+    return out;
 }
 

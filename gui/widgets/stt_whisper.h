@@ -127,8 +127,14 @@ inline QProcess* transcribe(
                 R"(\[\d{2}:\d{2}:\d{2}\.\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}\.\d{3}\]\s*)");
             out.remove(reTs);
             out = out.trimmed();
+            /* Filtra output composto solo da etichette meta whisper:
+               [Musica], [Silenzio], [Applausi], (musica), ecc.
+               Questi indicano assenza di parlato reale. */
+            static const QRegularExpression reMeta(
+                R"(^\s*[\[\(][^\]\)]{0,30}[\]\)]\s*$)");
+            const bool isMeta = reMeta.match(out).hasMatch();
             proc->deleteLater();
-            if (onDone) onDone(out, code == 0 && !out.isEmpty());
+            if (onDone) onDone(out, code == 0 && !out.isEmpty() && !isMeta);
         });
 
     /* Numero di thread: metà dei core logici, min 2, max 8 */

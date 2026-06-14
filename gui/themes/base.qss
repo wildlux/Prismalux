@@ -178,6 +178,11 @@ QPushButton#bubbleBtn:pressed {
     background-color: rgba(128,128,128,0.22);
 }
 
+/* Pulsante Run alto (rowspan 3) — angoli molto smussati */
+QPushButton#actionBtn[bigBtn="true"] {
+    border-radius: 14px;
+}
+
 #chatScroll {
     border: none;
 }

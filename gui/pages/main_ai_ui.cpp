@@ -74,6 +74,8 @@ void AgentiPage::setupUI()
     buildHintFooter(lay);
     buildInputConnections(btnSymbols);
     buildSymbolsPanel(lay, btnSymbols);
+    buildToolsPanel(lay);
+    buildBottomBar(lay);
     buildExtraConnections();
 }
 
@@ -92,7 +94,7 @@ void AgentiPage::buildToolbar(QVBoxLayout* lay)
     buildToolbarTtsSection(toolLay, toolbar);
     buildToolbarExportSection(toolLay, toolbar);
     toolLay->addStretch(1);
-    buildToolbarVoiceLoop(toolLay, toolbar);
+    /* m_btnVoiceLoop rimosso: funzionalità Conversa gestita dal TriModeButton */
     buildToolbarModeToggle(toolLay, toolbar);
     buildToolbarLLMSelector(toolLay, toolbar);
 
@@ -183,36 +185,9 @@ void AgentiPage::buildToolbarVoiceLoop(QHBoxLayout* toolLay, QWidget* toolbar)
     connect(m_btnVoiceLoop, &QPushButton::toggled, this, &AgentiPage::onVoiceLoopToggled);
 }
 
-/* ── Toggle Chat / Agente Autonomo + checkbox Tools ── */
-void AgentiPage::buildToolbarModeToggle(QHBoxLayout* toolLay, QWidget* toolbar)
+/* ── Toggle Chat/Agentico/Conversa — TriModeButton creato in buildInputRagToggle() ── */
+void AgentiPage::buildToolbarModeToggle(QHBoxLayout* /*toolLay*/, QWidget* /*toolbar*/)
 {
-    static const char* kStyleChat =
-        "QPushButton{"
-          "background:#1e2d45;border:2px solid #334155;color:#64748b;"
-          "border-radius:14px;padding:4px 16px;font-weight:bold;font-size:12px;}"
-        "QPushButton:hover{background:#243650;color:#94a3b8;}";
-
-    m_btnModeToggle = new QPushButton("\xf0\x9f\x92\xac  Chat", toolbar);
-    m_btnModeToggle->setCheckable(true);
-    m_btnModeToggle->setChecked(false);
-    m_btnModeToggle->setStyleSheet(kStyleChat);
-    m_btnModeToggle->setAccessibleName("Modalità chat o agente autonomo");
-    m_btnModeToggle->setToolTip(
-        "\xf0\x9f\x92\xac Chat \xe2\x80\x94 risposta diretta dal modello (default)\n"
-        "\xf0\x9f\xa4\x96 Agente Autonomo \xe2\x80\x94 l\xe2\x80\x99" "AI pianifica, usa strumenti e itera\n"
-        "automaticamente (ReAct, max 8 step)");
-    toolLay->addWidget(m_btnModeToggle);
-    connect(m_btnModeToggle, &QPushButton::toggled, this, &AgentiPage::onModeToggleToggled);
-
-    m_toolChk = new QCheckBox("\xf0\x9f\x94\xa7  Tools", toolbar);  /* 🔧 */
-    m_toolChk->setObjectName("toolUseChk");
-    m_toolChk->setToolTip(
-        "Abilita il function calling (Ollama tool use) nella prossima risposta.\n"
-        "Il modello pu\xc3\xb2 chiamare: leggi_file, lista_file, calc, cerca_web, python.\n"
-        "Richiede un modello tool-capable (qwen3, llama3.1, mistral-nemo...).\n"
-        "In modalit\xc3\xa0 Agente Autonomo i tool sono sempre attivi.");
-    toolLay->addWidget(m_toolChk);
-    connect(m_toolChk, &QCheckBox::toggled, this, &AgentiPage::onToolChkToggled);
 }
 
 /* ── Selettore LLM nella toolbar ── */
@@ -248,28 +223,7 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
     m_modelWarnLbl->setVisible(false);
     toolLay->addWidget(m_modelWarnLbl);
 
-    /* ── Hermes toggle ── */
-    m_hermesToggle = new QPushButton("\xf0\x9f\xa7\xa0", toolbar);  /* 🧠 */
-    m_hermesToggle->setCheckable(true);
-    m_hermesToggle->setFixedSize(dpiScale(28), dpiScale(28));
-    m_hermesToggle->setToolTip(
-        "\xf0\x9f\xa7\xa0 Memoria Hermes DISATTIVA — clicca per abilitare "
-        "la memoria persistente tra sessioni");
-    toolLay->addWidget(m_hermesToggle);
-    connect(m_hermesToggle, &QPushButton::toggled,
-            this, &AgentiPage::onHermesToggled);
-
-    auto* hermesReflectBtn = new QPushButton("\xf0\x9f\x94\x84", toolbar);  /* 🔄 */
-    hermesReflectBtn->setFixedSize(dpiScale(28), dpiScale(28));
-    hermesReflectBtn->setToolTip(
-        "Riflessione Hermes: analizza le conversazioni memorizzate e "
-        "identifica pattern e suggerimenti");
-    hermesReflectBtn->setVisible(false);
-    toolLay->addWidget(hermesReflectBtn);
-    connect(m_hermesToggle, &QPushButton::toggled,
-            hermesReflectBtn, &QPushButton::setVisible);
-    connect(hermesReflectBtn, &QPushButton::clicked,
-            this, &AgentiPage::onHermesReflectClicked);
+    /* Hermes toggle rimosso dalla toolbar — ora nella barra inferiore */
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -449,89 +403,100 @@ QPushButton* AgentiPage::buildInputActionButtons(QGridLayout* inputGrid, QWidget
         btn->setProperty("execText", QString::fromUtf8(text));
     };
 
-    m_btnRun = new QPushButton("\xf0\x9f\x92\xac CHAT con RAG", inputArea);
+    m_btnRun = new QPushButton("\xf0\x9f\x93\xa4 Invia", inputArea);
     m_btnRun->setObjectName("actionBtn");
+    m_btnRun->setProperty("bigBtn", "true");
     m_btnRun->setToolTip(
         "Risposta immediata con contesto RAG \xe2\x80\x94 1 solo agente (Invio)\n"
-        "Stop da fermo \xe2\x86\x92 cambia modalit\xc3\xa0 (CHAT con RAG \xe2\x86\x94 Avvia)");
+        "Stop da fermo \xe2\x86\x92 cambia modalit\xc3\xa0 (Invia \xe2\x86\x94 Avvia)");
     m_btnRun->setAccessibleName("Avvia o ferma la risposta AI");
-    tagExec(m_btnRun, "\xf0\x9f\x92\xac", "CHAT con RAG");
+    tagExec(m_btnRun, "\xf0\x9f\x93\xa4", "Invia");
 
-    m_btnVoice = new QPushButton("\xf0\x9f\x8e\xa4 Voce", inputArea);
+    m_btnVoice = new QPushButton("\xf0\x9f\x8e\xa4 Trascrivi parlato", inputArea);
     m_btnVoice->setObjectName("actionBtn");
     m_btnVoice->setToolTip(tr("Parla — trascrivi la voce nel campo di testo (whisper.cpp)"));
     m_btnVoice->setAccessibleName("Trascrivi voce in testo");
-    tagExec(m_btnVoice, "\xf0\x9f\x8e\xa4", "Voce");
+    tagExec(m_btnVoice, "\xf0\x9f\x8e\xa4", "Trascrivi parlato");
 
     auto* btnSymbols = new QPushButton("\xce\xa9  Simboli", inputArea);
     btnSymbols->setObjectName("actionBtn");
     btnSymbols->setToolTip(tr("Inserisci caratteri speciali: matematica, greco, lingue"));
     btnSymbols->setAccessibleName("Inserisci simbolo speciale");
 
-    m_btnTranslate = new QPushButton("\xf0\x9f\x8c\x90  Traduci", inputArea);
-    m_btnTranslate->setObjectName("actionBtn");
-    m_btnTranslate->setToolTip(tr("Traduci il testo selezionando lingue e modello AI"));
-    m_btnTranslate->setAccessibleName("Traduci testo");
-    tagExec(m_btnTranslate, "\xf0\x9f\x8c\x90", "Traduci");
-
-    m_btnDoc = new QPushButton("\xf0\x9f\x93\x8e  Documenti", inputArea);
+    m_btnDoc = new QPushButton("\xf0\x9f\x93\x8e  Allega file", inputArea);
     m_btnDoc->setObjectName("actionBtn");
-    m_btnDoc->setToolTip(tr("Allega documento (.txt, .md, .csv, .json, .py, .cpp, .h, .pdf...)"));
-    m_btnDoc->setAccessibleName("Allega documento al messaggio");
-    tagExec(m_btnDoc, "\xf0\x9f\x93\x8e", "Documenti");
+    m_btnDoc->setToolTip(tr(
+        "Allega un file alla chat.\n"
+        "Documenti: .txt .md .csv .json .py .cpp .h .pdf .xls\n"
+        "Immagini:  .png .jpg .jpeg .gif .webp (richiede modello vision)"));
+    m_btnDoc->setAccessibleName("Allega file al messaggio");
+    tagExec(m_btnDoc, "\xf0\x9f\x93\x8e", "Allega file");
 
-    m_btnImg = new QPushButton("\xf0\x9f\x96\xbc  Immagini", inputArea);
-    m_btnImg->setObjectName("actionBtn");
-    m_btnImg->setToolTip(tr("Allega immagine per vision models (.png, .jpg, .jpeg, .gif, .webp)"));
-    m_btnImg->setAccessibleName("Allega immagine al messaggio");
-    tagExec(m_btnImg, "\xf0\x9f\x96\xbc", "Immagini");
-
-    /* r0: Avvia · Simboli · Documenti
-       r1: Voce  · Traduci · Immagini  */
-    inputGrid->addWidget(m_btnRun,       0, 1);
-    inputGrid->addWidget(m_btnVoice,     1, 1);
-    inputGrid->addWidget(btnSymbols,     0, 2);
-    inputGrid->addWidget(m_btnTranslate, 1, 2);
-    inputGrid->addWidget(m_btnDoc,       0, 3);
-    inputGrid->addWidget(m_btnImg,       1, 3);
+    /* Col 1: Run (rowspan 3)  Col 3 r0: Allega file  r1: Simboli  r2: Trascrivi parlato */
+    inputGrid->addWidget(m_btnRun,   0, 1, 3, 1);
+    inputGrid->addWidget(m_btnDoc,   0, 3);
+    inputGrid->addWidget(btnSymbols, 1, 3);
+    inputGrid->addWidget(m_btnVoice, 2, 3);
 
     return btnSymbols;
 }
 
-/* ── Pulsante toggle RAG + toggle Team nella col 4 ── */
+/* ── Cerchio 3 settori (col 2, rowspan 2) + Tools/Memoria (col 4) ── */
 void AgentiPage::buildInputRagToggle(QGridLayout* inputGrid, QWidget* inputArea)
 {
-    m_btnRag = new QPushButton("\xf0\x9f\x93\x8e  RAG", inputArea);
-    m_btnRag->setObjectName("actionBtn");
-    m_btnRag->setCheckable(true);
-    m_btnRag->setToolTip(
-        "Mostra/nascondi la zona RAG.\n"
-        "Trascina file .txt .md .pdf o URL web per aggiungere contesto alla chat.");
-    inputGrid->setColumnStretch(4, 0);
-    inputGrid->addWidget(m_btnRag, 0, 4);
-    connect(m_btnRag, &QPushButton::toggled, this, &AgentiPage::onBtnRagToggled);
+    m_modeBtn = new TriModeButton(inputArea);
+    inputGrid->addWidget(m_modeBtn, 0, 2, 3, 1);
+    connect(m_modeBtn, &TriModeButton::modeChanged, this, &AgentiPage::onModeBtnChanged);
 
-    /* Toggle Team di agenti — riga 1 colonna 4 */
-    m_btnTeam = new QPushButton("\xf0\x9f\x91\xa5  Team", inputArea);   /* 👥 */
-    m_btnTeam->setObjectName("actionBtn");
-    m_btnTeam->setCheckable(true);
-    m_btnTeam->setToolTip(
-        "Team di agenti ON: la risposta \xc3\xa8 strutturata come se venisse\n"
-        "da pi\xc3\xb9 esperti specializzati (Ricercatore, Analista, Consulente\xe2\x80\xa6)\n"
-        "ciascuno con la propria sezione, pi\xc3\xb9 sintesi finale.\n\n"
-        "Per elaborazioni parallele su pi\xc3\xb9 PC usa LAN & WAN \xe2\x86\x92 WAN Compute.");
-    inputGrid->addWidget(m_btnTeam, 1, 4);
+    /* Col 4: Tools (riga 0) + Memoria Hermes (riga 1) */
+    inputGrid->setColumnStretch(4, 0);
+
+    m_btnToolsToggle = new QPushButton("\xf0\x9f\x94\xa7  Tools", inputArea);
+    m_btnToolsToggle->setCheckable(true);
+    m_btnToolsToggle->setObjectName("actionBtn");
+    m_btnToolsToggle->setToolTip(
+        "Apri/chiudi pannello strumenti.\n"
+        "Scegli quali Function Tools e MCP Plugin abilitare per questa chat.");
+    inputGrid->addWidget(m_btnToolsToggle, 0, 4);
+    connect(m_btnToolsToggle, &QPushButton::toggled,
+            this, &AgentiPage::onToolsPanelToggle);
+
+    /* Cella composita: [Memoria persistente][⌛] — ⌛ appare solo quando attivo */
+    auto* hermesCell = new QWidget(inputArea);
+    auto* hermesCellLay = new QHBoxLayout(hermesCell);
+    hermesCellLay->setContentsMargins(0, 0, 0, 0);
+    hermesCellLay->setSpacing(2);
+
+    m_hermesToggleBar = new QPushButton("\xf0\x9f\xa7\xa0  Memoria persistente", hermesCell);
+    m_hermesToggleBar->setCheckable(true);
+    m_hermesToggleBar->setObjectName("actionBtn");
+    m_hermesToggleBar->setToolTip(
+        "Attiva la memoria persistente tra sessioni.\n"
+        "Le conversazioni vengono salvate in GraphMemory\n"
+        "e usate come contesto nelle sessioni future.");
+    hermesCellLay->addWidget(m_hermesToggleBar, 1);
+
+    /* Pulsante Riflessione — icona ⌛ — visibile solo quando Hermes è attivo */
+    m_hermesReflectBar = new QPushButton("\xe2\x8c\x9b", hermesCell);
+    m_hermesReflectBar->setObjectName("actionBtn");
+    m_hermesReflectBar->setFixedWidth(dpiScale(30));
+    m_hermesReflectBar->setToolTip(
+        "\xe2\x8c\x9b  Riflessione\n"
+        "L'AI analizza le sessioni memorizzate e identifica\n"
+        "pattern, lacune e suggerimenti per sessioni future.");
+    m_hermesReflectBar->setVisible(false);
+    hermesCellLay->addWidget(m_hermesReflectBar);
+
+    inputGrid->addWidget(hermesCell, 1, 4);
 }
 
-/* ── Tab order: campo testo → Avvia → Voce → Simboli → Traduci → Doc → Img ── */
+/* ── Tab order: campo testo → Avvia → Voce → Simboli → Allega file ── */
 void AgentiPage::buildInputTabOrder(QPushButton* btnSymbols)
 {
-    QWidget::setTabOrder(m_input,        m_btnRun);
-    QWidget::setTabOrder(m_btnRun,       m_btnVoice);
-    QWidget::setTabOrder(m_btnVoice,     btnSymbols);
-    QWidget::setTabOrder(btnSymbols,     m_btnTranslate);
-    QWidget::setTabOrder(m_btnTranslate, m_btnDoc);
-    QWidget::setTabOrder(m_btnDoc,       m_btnImg);
+    QWidget::setTabOrder(m_input,    m_btnRun);
+    QWidget::setTabOrder(m_btnRun,   m_btnVoice);
+    QWidget::setTabOrder(m_btnVoice, btnSymbols);
+    QWidget::setTabOrder(btnSymbols, m_btnDoc);
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -813,10 +778,8 @@ void AgentiPage::buildInputConnections(QPushButton* btnSymbols)
     m_input->installEventFilter(new DropFilter(this, this));
 
     connect(btnSymbols, &QPushButton::clicked, this, &AgentiPage::onBtnSymbolsClicked);
-    connect(m_btnTranslate, &QPushButton::clicked, this, &AgentiPage::onBtnTranslateClicked);
-    connect(m_btnDoc,       &QPushButton::clicked, this, &AgentiPage::onBtnDocClicked);
-    connect(m_btnImg,       &QPushButton::clicked, this, &AgentiPage::onBtnImgClicked);
-    connect(m_btnVoice,     &QPushButton::clicked, this, &AgentiPage::onBtnVoiceClicked);
+    connect(m_btnDoc,   &QPushButton::clicked, this, &AgentiPage::onBtnDocClicked);
+    connect(m_btnVoice, &QPushButton::clicked, this, &AgentiPage::onBtnVoiceClicked);
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -1017,7 +980,7 @@ void AgentiPage::_setRunBusy(bool busy)
         else if (m_modePipeline)
             m_btnRun->setText(tr("\xe2\x96\xb6  Avvia"));
         else
-            m_btnRun->setText(tr("\xf0\x9f\x92\xac CHAT con RAG"));
+            m_btnRun->setText(tr("\xf0\x9f\x93\xa4 Invia"));
         m_btnRun->setProperty("danger", false);
     }
     m_btnRun->setEnabled(true);
@@ -1171,30 +1134,39 @@ void AgentiPage::onVoiceLoopToggled(bool on)
         if (m_sttState == SttState::Idle)
             _sttStartRecording();
     } else {
-        /* Ferma TTS se in lettura */
+        /* Ferma TTS se in lettura (local ptr + null prima di wait → evita double-free) */
         if (m_piperProc) {
-            m_piperProc->kill();
-            m_piperProc->waitForFinished(300);
-            m_piperProc->deleteLater();
+            QProcess* p = m_piperProc;
             m_piperProc = nullptr;
+            p->kill();
+            p->waitForFinished(300);
+            p->deleteLater();
         }
         if (m_ttsProc) {
-            m_ttsProc->kill();
-            m_ttsProc->waitForFinished(300);
-            if (m_ttsProc) { m_ttsProc->deleteLater(); m_ttsProc = nullptr; }
+            QProcess* p = m_ttsProc;
+            m_ttsProc = nullptr;
+            p->kill();
+            p->waitForFinished(300);
+            p->deleteLater();
         }
         if (m_btnTtsStop)  m_btnTtsStop->setVisible(false);
         if (m_btnTtsPause) m_btnTtsPause->setVisible(false);
-        /* Ferma registrazione se attiva */
+        /* Ferma tick countdown */
+        if (m_sttTick) { m_sttTick->stop(); m_sttTick->deleteLater(); m_sttTick = nullptr; }
+        /* Ferma registrazione se attiva.
+           IMPORTANTE: azzerare m_sttState e m_recProc PRIMA di kill()+waitForFinished(),
+           altrimenti il segnale finished() → onRecProcFinished → onSttTimeout può fare
+           un secondo deleteLater() sullo stesso puntatore (double-free → SIGSEGV). */
         if (m_sttState == SttState::Recording) {
-            if (m_recProc) {
-                m_recProc->kill();
-                m_recProc->waitForFinished(300);
-                m_recProc->deleteLater();
-                m_recProc = nullptr;
-            }
             m_sttState = SttState::Idle;
-            m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi voce"));
+            if (m_recProc) {
+                QProcess* p = m_recProc;
+                m_recProc = nullptr;
+                p->kill();
+                p->waitForFinished(300);
+                p->deleteLater();
+            }
+            m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"));
             m_btnVoice->setProperty("danger","false");
             P::repolish(m_btnVoice);
             m_btnVoice->setEnabled(true);
@@ -1238,17 +1210,27 @@ void AgentiPage::onCmbLLMIndexChanged(int idx)
     m_pageModel = mdl;
     m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), mdl);
 
-    /* ── Capability check: vision ── */
+    /* ── Capability check: vision — avvisa in tooltip di Allega file ── */
     const bool isDeepSeek = mdl.toLower().contains("deepseek");
     const bool hasVision  = isVisionCapable(mdl);
-    if (m_btnImg) {
-        m_btnImg->setEnabled(hasVision || !isDeepSeek);
+    if (m_btnDoc) {
         if (isDeepSeek && !hasVision) {
-            m_btnImg->setToolTip(tr("DeepSeek non supporta vision — usa llava o un modello *-vl"));
-            m_btnImg->setStyleSheet("color:#9ca3af;");  /* grigio quando disabilitato */
+            m_btnDoc->setToolTip(
+                tr("Allega file alla chat.\n"
+                   "Documenti: .txt .md .csv .json .py .cpp .h .pdf .xls\n"
+                   "Immagini: .png .jpg .jpeg .gif .webp\n"
+                   "\xe2\x9a\xa0  Attenzione: il modello attuale (DeepSeek) non supporta immagini."));
+        } else if (!hasVision) {
+            m_btnDoc->setToolTip(
+                tr("Allega file alla chat.\n"
+                   "Documenti: .txt .md .csv .json .py .cpp .h .pdf .xls\n"
+                   "Immagini: .png .jpg .jpeg .gif .webp\n"
+                   "\xe2\x84\xb9  Per inviare immagini usa un modello vision (*-vl, llava, gemma3\xe2\x80\xa6)"));
         } else {
-            m_btnImg->setToolTip(tr("Allega immagine per vision models (.png, .jpg, .jpeg, .gif, .webp)"));
-            m_btnImg->setStyleSheet("");
+            m_btnDoc->setToolTip(
+                tr("Allega file alla chat.\n"
+                   "Documenti: .txt .md .csv .json .py .cpp .h .pdf .xls\n"
+                   "Immagini: .png .jpg .jpeg .gif .webp"));
         }
     }
 
@@ -1330,17 +1312,6 @@ void AgentiPage::onBtnRegenClicked()
 
 void AgentiPage::onModeToggleToggled(bool autoOn)
 {
-    static const char* kStyleChat =
-        "QPushButton{"
-          "background:#1e2d45;border:2px solid #334155;color:#64748b;"
-          "border-radius:14px;padding:4px 16px;font-weight:bold;font-size:12px;}"
-        "QPushButton:hover{background:#243650;color:#94a3b8;}";
-    static const char* kStyleAuto =
-        "QPushButton{"
-          "background:#1e1b4b20;border:2px solid #818cf8;color:#818cf8;"
-          "border-radius:14px;padding:4px 16px;font-weight:bold;font-size:12px;}"
-        "QPushButton:hover{background:#1e1b4b35;}";
-
     m_autoEnabled   = autoOn;
     m_toolsEnabled  = autoOn || (m_toolChk && m_toolChk->isChecked());
     m_toolIteration = 0;
@@ -1353,14 +1324,41 @@ void AgentiPage::onModeToggleToggled(bool autoOn)
         m_toolChk->blockSignals(false);
     }
 
-    m_btnModeToggle->setText(autoOn
-        ? "\xf0\x9f\xa4\x96  Agente Autonomo"
-        : "\xf0\x9f\x92\xac  Chat");
-    m_btnModeToggle->setStyleSheet(autoOn ? kStyleAuto : kStyleChat);
-
     m_btnRun->setText(autoOn
         ? "\xf0\x9f\xa4\x96  Avvia Agente"
-        : "\xf0\x9f\x92\xac CHAT con RAG");
+        : "\xf0\x9f\x93\xa4 Invia");
+}
+
+/* ── Settore TriModeButton selezionato: 0=Chat  1=Agentico  2=Conversa ── */
+void AgentiPage::onModeBtnChanged(int mode)
+{
+    /* 1. Ferma modalità precedente */
+    if (m_autoEnabled) onModeToggleToggled(false);
+
+    /* Ferma loop voce / registrazione attiva (con blockSignals per evitare re-entranza) */
+    if (m_voiceLoopActive || m_sttState == SttState::Recording) {
+        onVoiceLoopToggled(false);
+    }
+    if (m_btnVoiceLoop && m_btnVoiceLoop->isChecked()) {
+        m_btnVoiceLoop->blockSignals(true);
+        m_btnVoiceLoop->setChecked(false);
+        m_btnVoiceLoop->blockSignals(false);
+    }
+
+    /* 2. Ripristina run button di default, poi specializza */
+    m_btnRun->setText("\xf0\x9f\x93\xa4 Invia");
+
+    /* 3. Attiva nuova modalità */
+    switch (mode) {
+    case 0:   /* Chat */
+        break;
+    case 1:   /* Agentico */
+        onModeToggleToggled(true);   /* gestisce anche il testo del run button */
+        break;
+    case 2:   /* Conversa: NON avvia registrazione — aspetta clic su "Inizia Conversazione" */
+        m_btnRun->setText("\xf0\x9f\x8e\x99  Dialoga");
+        break;
+    }
 }
 
 void AgentiPage::onLogScrollValueChanged(int value)
@@ -1757,6 +1755,26 @@ void AgentiPage::onBtnHintHideClicked()
 
 void AgentiPage::onBtnRunClicked()
 {
+    /* ── Conversa mode: il Run button gestisce la voce ────────────────────────
+       - Se AI occupata → stop
+       - Se in registrazione → ferma e trascrive
+       - Se in trascrizione → attendi
+       - Se input vuoto → avvia registrazione (auto-loop se Voce è attiva)
+       - Se input ha testo → invia come chat normale (fall-through)
+       ────────────────────────────────────────────────────────────────────── */
+    if (m_modeBtn && m_modeBtn->currentMode() == TriModeButton::Conversa) {
+        if (m_ai->busy()) { m_ai->abort(); return; }
+        if (m_sttState == SttState::Recording)    { onSttTimeout(); return; }
+        if (m_sttState == SttState::Transcribing) { return; }
+        if (m_input->toPlainText().trimmed().isEmpty()) {
+            /* Avvia registrazione; auto-loop basato sullo stato del pulsante Voce */
+            m_voiceLoopActive = true; /* in Conversa il loop è sempre attivo */
+            _sttStartRecording();
+            return;
+        }
+        /* Input non vuoto → invia come chat (fall-through) */
+    }
+
     if (m_ai->busy()) { m_ai->abort(); return; }
 
     /* Agente Autonomo: intercetta prima della pipeline normale */
@@ -1976,23 +1994,17 @@ void AgentiPage::_startTranslation(const QString& src, const QString& dst,
 void AgentiPage::onBtnDocClicked()
 {
     static const QString filter =
-        "Tutti i documenti supportati "
+        "Tutti i file supportati "
         "(*.txt *.md *.csv *.json *.py *.cpp *.c *.h *.html *.xml *.rst *.log "
-        "*.pdf *.xls *.xlsx *.ods *.ots *.fods);;"
-        "Testo (*.txt *.md *.csv *.json *.py *.cpp *.c *.h *.html *.xml *.rst *.log);;"
+        "*.pdf *.xls *.xlsx *.ods *.ots *.fods "
+        "*.png *.jpg *.jpeg *.gif *.webp);;"
+        "Documenti (*.txt *.md *.csv *.json *.py *.cpp *.c *.h *.html *.xml *.rst *.log);;"
         "PDF (*.pdf);;"
-        "Excel / Foglio di calcolo (*.xls *.xlsx *.ods *.ots *.fods);;"
+        "Fogli di calcolo (*.xls *.xlsx *.ods *.ots *.fods);;"
+        "Immagini (*.png *.jpg *.jpeg *.gif *.webp);;"
         "Tutti (*)";
     const QString fp = QFileDialog::getOpenFileName(
-        this, "Allega documento", QString(), filter);
-    if (!fp.isEmpty()) loadDroppedFile(fp);
-}
-
-void AgentiPage::onBtnImgClicked()
-{
-    const QString fp = QFileDialog::getOpenFileName(
-        this, "Allega immagine", QString(),
-        "Immagini (*.png *.jpg *.jpeg *.gif *.webp);;Tutti (*)");
+        this, "Allega file", QString(), filter);
     if (!fp.isEmpty()) loadDroppedFile(fp);
 }
 
@@ -2002,7 +2014,7 @@ void AgentiPage::onBtnVoiceClicked()
     if (m_sttState == SttState::Recording) {
         if (m_recProc) { m_recProc->kill(); m_recProc->waitForFinished(300); }
         m_sttState = SttState::Idle;
-        m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi voce"));
+        m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"));
         m_btnVoice->setProperty("danger","false");
         P::repolish(m_btnVoice);
         m_btnVoice->setEnabled(true);
@@ -2298,5 +2310,343 @@ void AgentiPage::onRagUrlFetched()
             QString("\xe2\x9c\x85  Pagina aggiunta (%1 car.)").arg(text.size()));
         QTimer::singleShot(3000, m_ragStatusLbl, &QLabel::clear);
     }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildToolsPanel — pannello collassabile Tools (2 col) | MCP (2 col)
+   4 colonne totali: sinistra Function Tools, destra MCP Plugin.
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
+{
+    /* label = testo italiano breve mostrato nella checkbox
+       desc  = spiegazione completa nel tooltip */
+    static const struct {
+        const char* name; const char* icon;
+        const char* label; const char* desc;
+    } kTools[] = {
+        { "calc",         "\xf0\x9f\x94\xa2", "Calcola espressioni",
+          "Valuta espressioni matematiche (2+2, sqrt(16), sin(pi/4)...)" },
+        { "ricerca",      "\xf0\x9f\x94\x8d", "Cerca online",
+          "Cerca informazioni su internet via DuckDuckGo" },
+        { "fetch_url",    "\xf0\x9f\x8c\x90", "Scarica pagina",
+          "Scarica e legge il contenuto di una pagina web" },
+        { "leggi_file",   "\xf0\x9f\x93\x84", "Leggi file",
+          "Legge un file di testo dal disco (percorso assoluto)" },
+        { "lista_file",   "\xf0\x9f\x93\x82", "Elenca cartella",
+          "Mostra l'elenco dei file in una directory" },
+        { "python",       "\xf0\x9f\x90\x8d", "Esegui Python",
+          "Esegue un frammento di codice Python in ambiente sandbox" },
+        { "search_rag",   "\xf0\x9f\x93\x9a", "Cerca documenti",
+          "Cerca nei documenti che hai indicizzato nel RAG" },
+        { "graph_memory", "\xf0\x9f\x95\xb8", "Memoria sessioni",
+          "Cerca nella memoria persistente delle sessioni precedenti (GraphMemory)" },
+        { "get_knowledge","\xf0\x9f\xa7\xa0", "Base conoscenza",
+          "Legge la tua Knowledge Base personale (file KNOWLEDGE_USER/)" },
+        { "spawn_agent",  "\xf0\x9f\xa4\x96", "Crea agente",
+          "Avvia un sub-agente specializzato per un sotto-compito autonomo" },
+    };
+    constexpr int kNTools = 10;
+
+    /* Descrizioni italiane per MCP noti; fallback automatico per gli altri */
+    static const QHash<QString, QString> kMcpLabels = {
+        { "ai_memory_mcp",        "Memoria AI" },
+        { "android_adb_mcp",      "Android ADB" },
+        { "anki_mcp",             "Flashcard Anki" },
+        { "arch_analyzer_mcp",    "Analisi architettura" },
+        { "devagent_mcp",         "Dev Agent" },
+        { "gns3_mcp",             "Simulatore GNS3" },
+        { "knowledge_mcp",        "Aggiorna conoscenza" },
+        { "mypy_mcp",             "Analisi Python (mypy)" },
+        { "ollama_mcp",           "Modelli Ollama" },
+        { "opencode_mcp",         "Editor AI OpenCode" },
+        { "owasp_mcp",            "Sicurezza OWASP" },
+        { "perf_analyzer_mcp",    "Analisi performance" },
+        { "prismalux_build_mcp",  "Build Prismalux" },
+        { "prismalux_search_mcp", "Ricerca Prismalux" },
+        { "qt_i18n_mcp",          "Traduzioni Qt" },
+        { "rag_manager_mcp",      "Gestione RAG" },
+        { "rdkit_mcp",            "Chimica (RDKit)" },
+        { "sast_mcp",             "Sicurezza statica" },
+        { "secrets_scanner_mcp",  "Scanner segreti" },
+        { "snippet_mcp",          "Snippet codice" },
+        { "sqlite_inspector_mcp", "Inspector SQLite" },
+        { "ssh_remote_mcp",       "Connessione SSH" },
+        { "system_monitor_mcp",   "Monitor sistema" },
+        { "test_generator_mcp",   "Genera test" },
+        { "tinymcp",              "Gestore MCP" },
+        { "translation_mcp",      "Traduzione testi" },
+        { "ui_ux_checker_mcp",    "Verifica UI/UX" },
+        { "web_scraper_mcp",      "Web scraping" },
+    };
+    /* Fallback: rimuove _mcp, _ → spazio, capitalizza prima lettera */
+    auto mcpLabel = [&kMcpLabels](const QString& name) -> QString {
+        if (kMcpLabels.contains(name)) return kMcpLabels.value(name);
+        QString s = name;
+        if (s.endsWith("_mcp")) s.chop(4);
+        s.replace('_', ' ');
+        if (!s.isEmpty()) s[0] = s[0].toUpper();
+        return s;
+    };
+
+    m_toolsPanel = new QFrame(this);
+    m_toolsPanel->setObjectName("symbolsPanel");
+    m_toolsPanel->setVisible(false);
+    m_toolsPanel->setMaximumHeight(dpiScale(300));
+
+    /* Layout orizzontale: colonna Tools | separatore | colonna MCP */
+    auto* outerLay = new QHBoxLayout(m_toolsPanel);
+    outerLay->setContentsMargins(8, 6, 8, 6);
+    outerLay->setSpacing(0);
+
+    /* ══ Metà sinistra: Function Tools (2 colonne) ══ */
+    {
+        auto* leftCol = new QWidget(m_toolsPanel);
+        auto* leftLay = new QVBoxLayout(leftCol);
+        leftLay->setContentsMargins(0, 0, 6, 0);
+        leftLay->setSpacing(4);
+
+        /* Header */
+        auto* hdr = new QLabel(leftCol);
+        hdr->setTextFormat(Qt::RichText);
+        hdr->setText(
+            "<b>\xf0\x9f\x94\xa7 Function Tools</b>"
+            "<span style='color:#64748b;font-size:10px;'>"
+            " \xe2\x80\x94 in-process, &lt;1ms</span>");
+        leftLay->addWidget(hdr);
+
+        /* Grid 2 colonne */
+        auto* grid = new QWidget(leftCol);
+        auto* gl   = new QGridLayout(grid);
+        gl->setContentsMargins(0, 0, 0, 0);
+        gl->setSpacing(4);
+        gl->setColumnStretch(0, 1);
+        gl->setColumnStretch(1, 1);
+
+        for (int i = 0; i < kNTools; ++i) {
+            const QString name  = QString::fromLatin1(kTools[i].name);
+            const QString icon  = QString::fromUtf8(kTools[i].icon);
+            const QString label = QString::fromUtf8(kTools[i].label);
+            const QString desc  = QString::fromUtf8(kTools[i].desc);
+
+            /* Formato A: icona  Descrizione  (nome_tecnico) */
+            auto* chk = new QCheckBox(icon + "  " + label + "  (" + name + ")", grid);
+            chk->setToolTip(desc);
+            chk->setChecked(true);
+            chk->setMinimumHeight(dpiScale(22));
+            m_enabledTools.insert(name);
+            gl->addWidget(chk, i / 2, i % 2);
+
+            connect(chk, &QCheckBox::toggled, this, [this, name](bool on){
+                if (on) m_enabledTools.insert(name);
+                else    m_enabledTools.remove(name);
+                onToolEnabledChanged();
+            });
+        }
+
+        /* Pulsanti Tutti/Nessuno inline */
+        auto* btnRow = new QWidget(leftCol);
+        auto* btnLay = new QHBoxLayout(btnRow);
+        btnLay->setContentsMargins(0, 2, 0, 0);
+        btnLay->setSpacing(4);
+        auto* btnAll  = new QPushButton("\xe2\x9c\x85  Tutti",   btnRow);
+        auto* btnNone = new QPushButton("\xe2\x96\xa1  Nessuno", btnRow);
+        btnAll->setObjectName("actionBtn");
+        btnNone->setObjectName("actionBtn");
+        btnAll->setFixedHeight(dpiScale(22));
+        btnNone->setFixedHeight(dpiScale(22));
+        btnLay->addWidget(btnAll);
+        btnLay->addWidget(btnNone);
+        connect(btnAll, &QPushButton::clicked, grid, [grid]{
+            for (auto* c : grid->findChildren<QCheckBox*>()) c->setChecked(true);
+        });
+        connect(btnNone, &QPushButton::clicked, grid, [grid]{
+            for (auto* c : grid->findChildren<QCheckBox*>()) c->setChecked(false);
+        });
+
+        leftLay->addWidget(grid);
+        leftLay->addWidget(btnRow);
+        leftLay->addStretch();
+        outerLay->addWidget(leftCol, 1);
+    }
+
+    /* Separatore verticale */
+    {
+        auto* vline = new QFrame(m_toolsPanel);
+        vline->setFrameShape(QFrame::VLine);
+        vline->setFrameShadow(QFrame::Sunken);
+        outerLay->addWidget(vline);
+    }
+
+    /* ══ Metà destra: MCP Plugin (2 colonne + scroll) ══ */
+    {
+        auto* rightCol = new QWidget(m_toolsPanel);
+        auto* rightLay = new QVBoxLayout(rightCol);
+        rightLay->setContentsMargins(6, 0, 0, 0);
+        rightLay->setSpacing(4);
+
+        /* Scansiona MCPs/ */
+        QStringList mcpNames;
+        {
+            const QString mcpsRoot = P::root() + "/MCPs";
+            for (const QString& d :
+                 QDir(mcpsRoot).entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name))
+                if (QFileInfo::exists(mcpsRoot + "/" + d + "/server.py"))
+                    mcpNames << d;
+        }
+
+        /* Header con pulsanti Tutti/Nessuno */
+        auto* hdrRow = new QWidget(rightCol);
+        auto* hdrLay = new QHBoxLayout(hdrRow);
+        hdrLay->setContentsMargins(0, 0, 0, 0);
+        hdrLay->setSpacing(4);
+        auto* hdr = new QLabel(hdrRow);
+        hdr->setTextFormat(Qt::RichText);
+        hdr->setText(
+            "<b>\xf0\x9f\x94\x8c MCP Plugin</b>"
+            "<span style='color:#64748b;font-size:10px;'>"
+            " \xe2\x80\x94 subprocess, +latenza</span>");
+        hdrLay->addWidget(hdr, 1);
+
+        auto* btnAllMcp  = new QPushButton("\xe2\x9c\x85  Tutti",   hdrRow);
+        auto* btnNoneMcp = new QPushButton("\xe2\x96\xa1  Nessuno", hdrRow);
+        btnAllMcp->setObjectName("actionBtn");
+        btnNoneMcp->setObjectName("actionBtn");
+        btnAllMcp->setFixedHeight(dpiScale(20));
+        btnNoneMcp->setFixedHeight(dpiScale(20));
+        hdrLay->addWidget(btnAllMcp);
+        hdrLay->addWidget(btnNoneMcp);
+        rightLay->addWidget(hdrRow);
+
+        /* Scroll area per i ~50 MCP */
+        auto* mcpScroll = new QScrollArea(rightCol);
+        mcpScroll->setWidgetResizable(true);
+        mcpScroll->setFrameShape(QFrame::NoFrame);
+        mcpScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        mcpScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+
+        auto* grid = new QWidget;
+        auto* gl   = new QGridLayout(grid);
+        gl->setContentsMargins(0, 2, 0, 2);
+        gl->setSpacing(4);
+        gl->setColumnStretch(0, 1);
+        gl->setColumnStretch(1, 1);
+
+        if (mcpNames.isEmpty()) {
+            gl->addWidget(new QLabel(
+                "<span style='color:#64748b;'>Nessun MCP in MCPs/</span>", grid),
+                0, 0, 1, 2);
+        } else {
+            QSettings s("Prismalux", "GUI");
+            const QStringList savedEnabled =
+                s.value("tools/enabledMcps", mcpNames).toStringList();
+
+            for (int i = 0; i < mcpNames.size(); ++i) {
+                const QString& name = mcpNames[i];
+                const bool en = savedEnabled.contains(name);
+                if (en) m_enabledMcps.insert(name);
+
+                /* Formato A: icona  Descrizione italiana  (nome_tecnico) */
+                auto* chk = new QCheckBox(
+                    "\xf0\x9f\x94\x8c  " + mcpLabel(name) + "  (" + name + ")", grid);
+                chk->setChecked(en);
+                chk->setMinimumHeight(dpiScale(22));
+                chk->setToolTip("MCPs/" + name + "/server.py\n"
+                    "Processo Python separato (JSON-RPC 2.0 stdio).\n"
+                    "Usalo da AppController \xe2\x86\x92 TinyMCP per chiamate dirette.");
+                gl->addWidget(chk, i / 2, i % 2);
+
+                connect(chk, &QCheckBox::toggled, this, [this, name](bool on){
+                    if (on) m_enabledMcps.insert(name);
+                    else    m_enabledMcps.remove(name);
+                    QSettings s2("Prismalux", "GUI");
+                    s2.setValue("tools/enabledMcps",
+                        QStringList(m_enabledMcps.begin(), m_enabledMcps.end()));
+                    onToolEnabledChanged();
+                });
+            }
+
+            connect(btnAllMcp, &QPushButton::clicked, grid, [grid]{
+                for (auto* c : grid->findChildren<QCheckBox*>()) c->setChecked(true);
+            });
+            connect(btnNoneMcp, &QPushButton::clicked, grid, [grid]{
+                for (auto* c : grid->findChildren<QCheckBox*>()) c->setChecked(false);
+            });
+        }
+
+        mcpScroll->setWidget(grid);
+        rightLay->addWidget(mcpScroll, 1);
+        outerLay->addWidget(rightCol, 1);
+    }
+
+    lay->addWidget(m_toolsPanel);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildBottomBar — barra inferiore: 🔧 Tools · 🧠 Hermes · 🔄
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::buildBottomBar(QVBoxLayout* lay)
+{
+    auto* bar = new QWidget(this);
+    bar->setObjectName("bottomBar");
+    auto* bl  = new QHBoxLayout(bar);
+    bl->setContentsMargins(0, 2, 0, 0);
+    bl->setSpacing(6);
+
+    bl->addStretch();
+
+    /* ── Hint modello tools ── */
+    auto* hintLbl = new QLabel(
+        "<span style='color:#475569;font-size:11px;'>"
+        "I Function Tools richiedono un modello tool-capable "
+        "(qwen3, llama3.1, mistral-nemo\xe2\x80\xa6)</span>",
+        bar);
+    hintLbl->setTextFormat(Qt::RichText);
+    bl->addWidget(hintLbl);
+
+    lay->addWidget(bar);
+
+    /* ── Connessioni ── */
+    connect(m_hermesToggleBar, &QPushButton::toggled, this,
+            [this](bool on){
+        m_hermesToggleBar->setText(
+            on ? "\xf0\x9f\xa7\xa0  Memoria persistente \xe2\x9c\x94"
+               : "\xf0\x9f\xa7\xa0  Memoria persistente");
+        if (m_hermesReflectBar) m_hermesReflectBar->setVisible(on);
+        /* Sincronizza con il vecchio toggle per compatibilità */
+        if (m_hermesToggle && m_hermesToggle->isChecked() != on)
+            m_hermesToggle->setChecked(on);
+        onHermesToggled(on);
+    });
+
+    connect(m_hermesReflectBar, &QPushButton::clicked,
+            this, &AgentiPage::onHermesReflectClicked);
+
+    /* Aggiorna label iniziale */
+    updateToolsBtnLabel();
+}
+
+/* ── Aggiorna il testo del pulsante Tools con il contatore abilitati ── */
+void AgentiPage::updateToolsBtnLabel()
+{
+    if (!m_btnToolsToggle) return;
+    const int n = static_cast<int>(m_enabledTools.size());
+    m_btnToolsToggle->setText(
+        n == 0
+        ? "\xf0\x9f\x94\xa7  Tools  (disabilitati)"
+        : QString("\xf0\x9f\x94\xa7  Tools  (%1 abilitati)").arg(n));
+}
+
+void AgentiPage::onToolsPanelToggle()
+{
+    if (m_toolsPanel) m_toolsPanel->setVisible(m_btnToolsToggle->isChecked());
+}
+
+void AgentiPage::onToolEnabledChanged()
+{
+    updateToolsBtnLabel();
+    /* Sincronizza m_toolsEnabled: attivo se almeno un tool è selezionato */
+    m_toolsEnabled = !m_enabledTools.isEmpty();
+    if (m_toolChk && m_toolChk->isChecked() != m_toolsEnabled)
+        m_toolChk->setChecked(m_toolsEnabled);
 }
 

@@ -47,7 +47,7 @@ void AgentiPage::_sttStartRecording()
              wavPath, "trim","0","6"});
     } else {
         m_sttState = SttState::Idle;
-        m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi voce"));
+        m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"));
         m_btnVoice->setProperty("danger","false");
         P::repolish(m_btnVoice);
         m_log->append(
@@ -63,14 +63,15 @@ void AgentiPage::_sttStartRecording()
 
     if (hasSox) {
         /* sox VAD: registra fino a 2s di silenzio, max recSecs*2 secondi.
-           silence 1 0.1 1% = inizia a registrare non appena c'è segnale;
-           1 2.0 1%         = ferma dopo 2s di silenzio sotto l'1% del picco. */
+           Soglia 0.3% invece di 1%: funziona anche con microfoni poco sensibili.
+           silence 1 0.1 0.3% = inizia quando il segnale supera lo 0.3% del picco;
+                  1 2.0 0.3%  = ferma dopo 2s sotto quella soglia. */
         m_recProc->start("sox",
             {"-t", "alsa", "default",
              "-r", "16000", "-c", "1", "-b", "16",
              wavPath,
-             "silence", "1", "0.1", "1%",
-                        "1", "2.0", "1%",
+             "silence", "1", "0.1", "0.3%",
+                        "1", "2.0", "0.3%",
              "trim", "0", QString::number(recSecs * 2)});
     } else {
         m_recProc->start("arecord",
@@ -139,12 +140,22 @@ void AgentiPage::onSttTimeout()
 
     const QString wavPath = m_sttWavPath;
 
-    if (!QFileInfo::exists(wavPath)) {
+    /* File WAV mancante o troppo piccolo (<2 KB = solo header, nessun audio) */
+    const qint64 wavSize = QFileInfo(wavPath).size();
+    if (!QFileInfo::exists(wavPath) || wavSize < 2000) {
         m_sttState = SttState::Idle;
-        m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi voce"));
+        m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"));
         m_btnVoice->setProperty("danger","false");
         P::repolish(m_btnVoice);
-        m_log->append("\xe2\x9a\xa0  Registrazione fallita (arecord non disponibile?)");
+        m_btnVoice->setEnabled(true);
+        if (m_voiceLoopActive) {
+            /* In loop voce: riprova silenziosamente senza mostrare errore */
+            QTimer::singleShot(500, this, &AgentiPage::onSttVoiceLoopRetry);
+        } else {
+            m_log->append(
+                "\xe2\x9a\xa0  Nessun audio registrato \xe2\x80\x94 "
+                "verifica il microfono o parla pi\xc3\xb9 vicino.");
+        }
         return;
     }
 
@@ -158,18 +169,17 @@ void AgentiPage::onSttTimeout()
             [this](const QString& text, bool ok) {
                 m_sttState = SttState::Idle;
                 m_sttProc  = nullptr;
-                m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi voce"));
+                m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"));
                 m_btnVoice->setEnabled(true);
 
                 if (ok && !text.isEmpty()) {
-                    if (m_voiceLoopActive) {
-                        m_input->setPlainText(text);   /* loop: sostituisce sempre */
-                    } else {
-                        const QString cur = m_input->toPlainText();
-                        m_input->setPlainText(cur.isEmpty() ? text : cur + " " + text);
-                    }
+                    m_input->setPlainText(text);   /* sostituisce sempre (loop o conversa) */
                     m_input->setFocus();
-                    if (m_voiceLoopActive && !m_ai->busy())
+                    /* Auto-invio se: auto-loop attivo OPPURE Conversa mode (l'utente ha già
+                       cliccato "Inizia Conversazione" → la trascrizione va inviata subito) */
+                    const bool inConversa = m_modeBtn
+                        && m_modeBtn->currentMode() == TriModeButton::Conversa;
+                    if ((m_voiceLoopActive || inConversa) && !m_ai->busy())
                         QTimer::singleShot(150, this, &AgentiPage::onSttVoiceLoopAutoSend);
                 } else {
                     m_log->append(
@@ -255,7 +265,7 @@ void AgentiPage::onWhisperDlProcFinished(int code, QProcess::ExitStatus)
         _sttStartRecording();
     } else {
         m_sttState = SttState::Idle;
-        m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi voce"));
+        m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"));
         if (QFileInfo::exists(destFile) &&
             QFileInfo(destFile).size() < 10'000'000LL)
             QFile::remove(destFile);

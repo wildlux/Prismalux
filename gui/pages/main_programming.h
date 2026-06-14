@@ -21,6 +21,8 @@ class QSpinBox;
 class QSlider;
 class QTableWidget;
 class QVBoxLayout;
+class QNetworkAccessManager;
+class QNetworkReply;
 
 /* ══════════════════════════════════════════════════════════════
    ProgrammazionePage — Editor codice + esecuzione + grafico + AI
@@ -487,6 +489,11 @@ private:
     QTextEdit*   m_driverOutput       = nullptr;  ///< output NVIDIA
     QTextEdit*   m_driverAmdOutput    = nullptr;  ///< output AMD
     QTextEdit*   m_driverKernelOutput = nullptr;  ///< output Kernel
+
+    /* ── RE Kernel sub-tab ── */
+    QTextEdit*   m_reKernelOutput = nullptr;
+    QLineEdit*   m_reTargetEdit   = nullptr;
+    QProcess*    m_reProcess      = nullptr;
     QProcess*    m_driverProcess      = nullptr;
     bool         m_driverAiBusy       = false;
     QTextEdit*   m_driverAiActive     = nullptr;  ///< punta all'output corrente per lo streaming AI
@@ -514,8 +521,100 @@ private:
     void     onKernelGuideClicked();
     void     onKernelSafetyClicked();
 
+    /* RE Kernel slot */
+    void     onReRunCmd(const QString& cmd, const QString& header = {});
+    void     onReCmdOutput();
+    void     onReCmdFinished(int exitCode, QProcess::ExitStatus status);
+    void     onReFileClicked();
+    void     onReReadelfClicked();
+    void     onReObjdumpClicked();
+    void     onReNmClicked();
+    void     onReStringsClicked();
+    void     onReLddClicked();
+    void     onReModinfoClicked();
+    void     onReLsmodClicked();
+    void     onReKallsymsClicked();
+    void     onReDmesgDrvClicked();
+    void     onReStraceClicked();
+    void     onReKprobesClicked();
+    void     onReAiAnalyzeClicked();
+
+    /* ── USB / Firmware & Videocam LAN sub-tab ── */
+    QTextEdit*            m_usbOutput         = nullptr;
+    QLineEdit*            m_usbVidPidEdit     = nullptr;
+    QComboBox*            m_camDeviceCombo    = nullptr;
+    QSpinBox*             m_camPortSpin       = nullptr;
+    QLabel*               m_camServerStatus   = nullptr;
+    QProcess*             m_camStreamProc     = nullptr;
+    QString               m_camStreamScript;
+    QLabel*               m_camPreviewLbl     = nullptr;  ///< viewer MJPEG inline
+    QLineEdit*            m_camPreviewUrl     = nullptr;  ///< URL stream corrente
+    QNetworkAccessManager* m_camNam           = nullptr;
+    QNetworkReply*        m_camReply          = nullptr;
+    QByteArray            m_camBuf;
+
+    void     onUsbListClicked();
+    void     onUsbV4l2Clicked();
+    void     onUsbDetailsClicked();
+    void     onUsbUdevClicked();
+    void     onDfuListClicked();
+    void     onDfuDumpClicked();
+    void     onDfuFlashClicked();
+    void     onCamRefreshDevices();
+    void     onCamServerStartClicked();
+    void     onCamServerStopClicked();
+    void     onUsbAiGuideClicked();
+    void     onUsbRunCmd(const QString& cmd);
+    void     onUsbCmdOutput();
+    void     onUsbCmdFinished(int exitCode, QProcess::ExitStatus status);
+    void     onCamPreviewConnect();
+    void     onCamPreviewData();
+    void     onCamPreviewFinished();
+
+    /* ── WIBY Camera PTZ (LAN locale) ── */
+    QProcess*    m_wibyProc        = nullptr;
+    bool         m_wibyReady       = false;
+    bool         m_wibyPendingDiscover = false;
+    QLabel*      m_wibyStatusLbl   = nullptr;
+    QPushButton* m_wibyBtnPtzUp    = nullptr;
+    QPushButton* m_wibyBtnPtzDown  = nullptr;
+    QPushButton* m_wibyBtnPtzLeft  = nullptr;
+    QPushButton* m_wibyBtnPtzRight = nullptr;
+
+    /* Stream WIBY diretto via ffmpeg (nessun server intermedio) */
+    QProcess*    m_wibyFfmpegProc  = nullptr;
+    QByteArray   m_wibyFfmpegBuf;
+    QLineEdit*   m_wibyStreamUrl   = nullptr;   ///< URL HLS inserito/ottenuto
+
+    void onWibyDiscoverClicked();
+    void onWibyConnectClicked();
+    void onWibyDisconnectClicked();
+    void onWibyPtzClicked(const QString& direction);
+    void onWibyPtzStop();
+    void onWibyToggleDp(int dp, bool value, const QString& code);
+    void onWibyToggleDp(int dp, const QString& value, const QString& code);
+    void onWibyCmdOutput();
+    void onWibyProcFinished(int exitCode, QProcess::ExitStatus status);
+    void wibySend(const QJsonObject& cmd);
+    void wibyUpdateStatus(bool connected);
+    void onWibyGetStreamUrl();
+    void onWibyStartStream();
+    void onWibyStopStream();
+    void onWibyFfmpegFrame();
+    void onWibyFirmwareGuide();
+
+    /* ── WIBY MITM ── */
+    QProcess*    m_wibyMitmProc    = nullptr;
+    QLabel*      m_wibyMitmStatus  = nullptr;
+
+    void onWibyMitmStartClicked();
+    void onWibyMitmStopClicked();
+    void onWibyMitmOutput();
+
     /* ── Policy Generator sub-tab ── */
     QComboBox*   m_policyTypeCombo  = nullptr;
+    QComboBox*   m_policyModelCombo = nullptr;  ///< modello dedicato (programmazione/reasoning)
+    QString      m_policyPrevModel;             ///< modello globale da ripristinare dopo chat
     QTextEdit*   m_policyDesc       = nullptr;
     QTextEdit*   m_policyOutput     = nullptr;
     QLabel*      m_policyStatusLbl  = nullptr;
@@ -528,6 +627,7 @@ private:
     void     onPolicyAiToken(const QString& t);
     void     onPolicyAiFinished(const QString& full);
     void     onPolicyAiError(const QString& msg);
+    void     onPolicyRefreshModels();
 
     /* ── Subnet Calculator sub-tab ── */
     QLineEdit*   m_subnetInput      = nullptr;

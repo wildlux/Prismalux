@@ -1,5 +1,6 @@
 #pragma once
 #include <functional>
+#include "../widgets/tri_mode_button.h"
 #include <QWidget>
 #include <QFrame>
 #include <QTextEdit>
@@ -111,8 +112,8 @@ private:
     QTextEdit*    m_input     = nullptr;
     QPushButton*  m_btnRun        = nullptr;  ///< Pulsante unico: run (idle) ↔ stop (busy)
     bool          m_modePipeline  = false;    ///< false=Chat/Autonomo, true=Pipeline backend
-    QPushButton*  m_btnModeToggle = nullptr;   ///< Toggle Chat / Agente Autonomo
-    QPushButton*  m_btnTranslate   = nullptr;  ///< Apre dialog traduzione
+    class TriModeButton* m_modeBtn = nullptr;   ///< Cerchio 3 settori: Chat / Agentico / Conversa
+    QPushButton*  m_btnTranslate   = nullptr;  ///< mantenuto per compatibilità slot esistenti
     QPushButton*  m_btnKnowledge   = nullptr;  ///< Salva risposta in user_knowledge.md (P4)
     QWidget*      m_hintWidget     = nullptr;  ///< Footer suggerimenti (nascondibile)
     QFrame*       m_symbolsPanel = nullptr;   ///< Pannello inline caratteri speciali (toggle)
@@ -223,12 +224,24 @@ private:
     /* ── Tool Use ── */
     bool         m_toolsEnabled    = false;
     int          m_toolIteration   = 0;
-    QCheckBox*   m_toolChk         = nullptr;  ///< toggle "🔧 Tools" nella toolbar
+    QCheckBox*   m_toolChk         = nullptr;  ///< rimosso dalla toolbar, tenuto per compatibilità
 
     /** Esegue uno strumento (calc/ricerca/python/leggi_file/lista_file/scrivi_file). Async. */
     void runToolCall(const QJsonObject& call, std::function<void(QString)> onDone);
     /** Testo da aggiungere al system prompt quando tool use è attivo */
     static QString toolSystemSuffix();
+
+    /* ── Pannello Tools/MCP (barra inferiore) ── */
+    QWidget*       m_toolsPanel     = nullptr;  ///< pannello collassabile con checkbox tool+MCP
+    QPushButton*   m_btnToolsToggle = nullptr;  ///< pulsante in basso "🔧 Tools (N abilitati)"
+    QSet<QString>  m_enabledTools;              ///< tool Ollama abilitati (tutti di default)
+    QSet<QString>  m_enabledMcps;               ///< MCP abilitati (tutti di default)
+
+    /** Costruisce l'array tools filtrato per la chat() — sostituisce _buildOllamaTools(). */
+    QJsonArray     buildEnabledTools() const;
+    void           buildBottomBar(QVBoxLayout* lay);
+    void           buildToolsPanel(QVBoxLayout* lay);
+    void           updateToolsBtnLabel();
 
     /* ── Agente Autonomo (ReAct: Reasoning + Acting loop) ── */
     bool         m_autoEnabled    = false;   ///< true = modalità autonoma attiva
@@ -257,12 +270,10 @@ private:
     /** Avvia TTS tracciato con feedback "Avvio lettura..." (Piper → espeak-ng → spd-say) */
     void _ttsPlay(const QString& tts);
 
-    /* ── Lettore Documenti ── */
+    /* ── Allega file (doc + immagini unificate) ── */
     QPushButton* m_btnDoc    = nullptr;
     QString      m_docContext;              ///< Testo estratto dal documento allegato
-
-    /* ── Analizzatore Immagini ── */
-    QPushButton* m_btnImg    = nullptr;
+    QPushButton* m_btnImg    = nullptr;     ///< non più usato in UI — mantenuto per slot esistenti
     QByteArray   m_imgBase64;  ///< Base64 dell'immagine allegata
     QString      m_imgMime;
     bool         m_docLoading = false;  ///< true mentre estrazione PDF/Excel è in corso
@@ -405,9 +416,11 @@ private:
     void runKnowledgeExtract();
 
     /* ── Hermes Agent — Persistent Memory + Skill Self-Improving ── */
-    GraphMemory* m_hermesGm      = nullptr;  ///< DB: ~/.prismalux/hermes_memory.db
-    QPushButton* m_hermesToggle  = nullptr;  ///< toggle "🧠 Memoria" in toolbar
-    bool         m_hermesEnabled = false;
+    GraphMemory* m_hermesGm          = nullptr;  ///< DB: ~/.prismalux/hermes_memory.db
+    QPushButton* m_hermesToggle      = nullptr;  ///< rimosso dalla toolbar, tenuto per compatibilità
+    QPushButton* m_hermesToggleBar   = nullptr;  ///< pulsante in barra inferiore
+    QPushButton* m_hermesReflectBar  = nullptr;  ///< riflessione in barra inferiore
+    bool         m_hermesEnabled     = false;
 
     void hermesInit();
     /** Cerca in hermesGm nodi pertinenti alla query e aggiunge al prompt di sistema. */
@@ -449,10 +462,13 @@ private slots:
     void onVoiceLoopToggled(bool on);
     void onToolChkToggled(bool on);
     void onCmbLLMIndexChanged(int idx);
-    void onModeToggleToggled(bool autoOn);
+    void onModeToggleToggled(bool autoOn);  ///< mantenuto per compatibilità (ora usato da ciclo 3 stati)
+    void onModeBtnChanged(int mode);        ///< settore TriModeButton selezionato: 0=Chat 1=Agentico 2=Conversa
     void onBtnRegenClicked();  ///< Rigenera ultima risposta con il modello corrente
     void onHermesToggled(bool on);
     void onHermesReflectClicked();
+    void onToolsPanelToggle();       ///< apre/chiude il pannello Tools/MCP
+    void onToolEnabledChanged();     ///< una checkbox tool/MCP è cambiata → aggiorna label
 
     /* ── Log / scroll ── */
     void onLogScrollValueChanged(int value);
@@ -475,9 +491,8 @@ private slots:
     void onBtnRunClicked();
     void onSymbolBtnClicked();      ///< inserisce il simbolo da sender()->property("symbol")
     void onBtnSymbolsClicked();     ///< mostra/nasconde m_symbolsScrollArea
-    void onBtnTranslateClicked();
-    void onBtnDocClicked();
-    void onBtnImgClicked();
+    void onBtnTranslateClicked();   ///< mantenuto — usato internamente da translatePanel
+    void onBtnDocClicked();         ///< allega doc + immagini (unificate)
     void onBtnVoiceClicked();
 
     /* ── Pipeline / preset ── */

@@ -358,6 +358,35 @@
 - [x] **Sub-agenti: limite ricorsione spawn_agent** — FATTO 2026-06-14: la `subTools` list non
       include `spawn_agent`; il sub-agente non può crearne altri.
 
+### [14/06/26] Accesso MCP da Mistral / Agente Autonomo / sub-agenti
+
+> I 52 plugin MCP (`MCPs/`) non sono raggiungibili da `runToolCall()`. Il `McpManagerPage`
+> gestisce solo setup/venv/test — nessuna API di invocazione esterna.
+
+- [ ] **Tool `mcp_call` in `_buildOllamaTools()`** — aggiungere uno strumento con schema
+      `{plugin: string, tool_name: string, args: object}` che permette a Mistral (e ai
+      sub-agenti) di invocare qualsiasi plugin MCP attivo.
+      File: `gui/pages/main_ai_pipeline.cpp` → `_buildOllamaTools()`.
+
+- [ ] **Handler `mcp_call` in `runToolCall()`** — in `gui/pages/main_ai_tools.cpp`:
+      1. Ricava il percorso del server Python dal `QSettings` / `McpManagerPage::m_entries`
+      2. Avvia `QProcess` in modalità stdio (JSON-RPC 2.0): `initialize` → `tools/call`
+      3. Timeout 30s; legge stdout riga per riga finché arriva il risultato
+      4. Chiama `onDone(risultato)` e termina il processo
+      Nota: il processo va avviato nel venv corretto (`MCPs/<plugin>/venv/bin/python`).
+      Usare `McpManagerPage::venvPythonPath(name)` se disponibile, altrimenti costruirlo
+      da `P::root() + "/MCPs/" + plugin + "/venv/bin/python"`.
+
+- [ ] **Elenco plugin disponibili accessibile da `runToolCall()`** — per poter validare il
+      parametro `plugin` prima di lanciare il processo, serve una lista dei plugin attivi.
+      Opzione A: lettura diretta di `MCPs/*/server.py` con `QDir`.
+      Opzione B: API pubblica `McpManagerPage::activePluginNames() → QStringList`.
+
+- [ ] **Stesso accesso MCP per i sub-agenti** — una volta implementato `mcp_call` in
+      `runToolCall()`, aggiungerlo alla `subTools` list nella sezione `spawn_agent`
+      (stesso file, stessa funzione). Non richiede modifiche aggiuntive: il dispatch
+      viene già ereditato dai sub-agenti tramite il `runToolCall` dell'agente padre.
+
 ---
 
 ## 📋 Richieste Paolo — 11-12/06/2026
