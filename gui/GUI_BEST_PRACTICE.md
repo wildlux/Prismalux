@@ -128,7 +128,7 @@ Altrimenti AUTOMOC non genera il vtable → linker error.
 
 ## Alta priorità
 - [N/A] **Quiz Interattivi C** — `src/quiz.c` e Python non esistono più; quiz CCNA implementato in Qt (`QuizCcnaPage`)
-- [ ] **Voce 🎙** — STT implementato in Android (`AudioPage`); desktop usa Whisper via `/api/whisper` in LanServer
+- [x] **Voce 🎙** — FATTO: STT desktop implementato in `main_ai_stt.cpp` (`_sttStartRecording()`, `SttWhisper`, `QAudioSource`); connesso in `main_ai_ui.cpp` (3 punti di trigger)
 - [ ] **CPU+GPU dialog** — split model layers tra NVIDIA + iGPU via agent_scheduler con budget VRAM per dispositivo
 - [x] **RAM inter-agente** — FATTO 2026-06-15: in `advancePipeline()` (quando `m_currentAgent > 0`), legge `/proc/meminfo`; se RAM ≥92% interrompe con messaggio senza dialog bloccante. Il check pre-pipeline (≥92% block, ≥75% warn) rimane in `checkRam()`
 
@@ -146,8 +146,8 @@ Altrimenti AUTOMOC non genera il vtable → linker error.
 - [x] **generateQuestion() in ImparaPage** — FATTO: guard `m_quizBusy` in `ImparaPage::generateQuestion()` previene click multipli
 - [N/A] **Refactor funzioni lunghe** — le funzioni C/Python citate non esistono più; equivalenti Qt già strutturate
 - [x] **sort modelli llama-server** — FATTO 2026-06-15: `list.sort(Qt::CaseInsensitive)` in `AiClient::onModelsReply()` ramo LlamaServer
-- [ ] **Animazione navigazione** — fade breve (QGraphicsOpacityEffect) tra tab per migliorare UX
+- [ ] **Animazione navigazione** — fade breve tra tab; ATTENZIONE: `QGraphicsOpacityEffect` causa blank rendering su tab con `QWebEngineView` (KaTeX, chat) — richiede skip selettivo
 
 ## Ottimizzazioni identificate nel CLAUDE.md Qt_GUI
 - [x] Cache fetchModels con TTL 30s — FATTO (vedi sopra)
-- [ ] Navigazione animata (fade) tra le sezioni principali
+- [ ] Navigazione animata (fade) — vedi nota sopra (WebEngine constraint)
