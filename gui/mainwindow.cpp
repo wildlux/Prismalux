@@ -258,10 +258,12 @@ ResourceGauge::ResourceGauge(const QString& label, QWidget* parent)
     lay->addWidget(m_pct);
 }
 
-void ResourceGauge::update(double pct, const QString& /*detail*/) {
+void ResourceGauge::update(double pct, const QString& detail) {
     m_bar->setValue(static_cast<int>(pct));
     m_pct->setText(QString("%1%").arg(pct, 5, 'f', 1));
     setLevel(pct);
+    if (!detail.isEmpty())
+        setToolTip(detail);
 }
 
 void ResourceGauge::setLevel(double pct) {
@@ -1591,6 +1593,9 @@ void MainWindow::ensureSettingsDialog()
             this,      &MainWindow::applyNavStyle);
     connect(m_impPage, &ImpostazioniPage::execBtnModeChanged,
             this,      &MainWindow::applyExecBtnMode);
+    if (auto* ap = findChild<AgentiPage*>())
+        connect(m_impPage, &ImpostazioniPage::bubbleStyleChanged,
+                ap, &AgentiPage::onBubbleStyleChanged);
 
     /* Feedback indicizzazione RAG nella status bar — visibile anche a dialog chiuso */
     connect(m_impPage, &ImpostazioniPage::indexingProgress,
@@ -1801,7 +1806,7 @@ void MainWindow::navigateTo(int idx) {
    ══════════════════════════════════════════════════════════════ */
 void MainWindow::onHWUpdated(SysSnapshot snap) {
     if (!m_gCpu || !m_gRam || !m_gGpu) return;
-    m_gCpu->update(snap.cpu_pct);
+    m_gCpu->update(snap.cpu_pct, snap.cpu_name);
     double rp = snap.ram_total > 0 ? snap.ram_used/snap.ram_total*100.0 : 0;
     m_gRam->update(rp, QString("%1/%2 GB")
                    .arg(snap.ram_used,0,'f',1)
@@ -1828,11 +1833,16 @@ void MainWindow::onHWUpdated(SysSnapshot snap) {
         statusBar()->showMessage(
             "\xe2\x9a\xa0  RAM critica — inference AI interrotta automaticamente per proteggere il sistema.");
     }
-    if (snap.gpu_ready)
-        m_gGpu->update(snap.gpu_pct,
-                       snap.gpu_name.isEmpty() ? "" : snap.gpu_name);
-    else
+    if (snap.gpu_ready) {
+        QString gpuTip = snap.gpu_name;
+        if (snap.vram_total > 0)
+            gpuTip += QString(" | VRAM %1/%2 GB")
+                      .arg(snap.vram_used,0,'f',1)
+                      .arg(snap.vram_total,0,'f',1);
+        m_gGpu->update(snap.gpu_pct, gpuTip);
+    } else {
         m_gGpu->update(0, "Rilevamento...");
+    }
 
     /* Indicatore temperatura header */
     if (m_tempLbl) {

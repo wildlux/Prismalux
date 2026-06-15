@@ -82,7 +82,7 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
             /* llama-server */
             refreshBtn->setEnabled(false);
             refreshBtn->setText(tr("\xe2\x8f\xb3"));
-            m_ai->setBackend(AiClient::LlamaServer, "127.0.0.1", 8080, "");
+            m_ai->setBackend(AiClient::LlamaServer, "127.0.0.1", P::kLlamaServerPort, "");
             m_ai->fetchModels();
         } else {
             /* llama.cpp locale: scansiona directory .gguf */

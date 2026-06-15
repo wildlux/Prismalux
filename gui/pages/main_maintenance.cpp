@@ -1212,7 +1212,7 @@ QString ManutenzioneePage::convertConfig(const QString& newFmt)
         int     ollamaPort   = 11434;
         QString ollamaModel;
         QString lserverHost  = "127.0.0.1";
-        int     lserverPort  = 8080;
+        int     lserverPort  = P::kLlamaServerPort;
         QString lserverModel;
         QString llamaModel;
         QString guiPath      = "Qt_GUI/build/Prismalux_GUI";
@@ -1262,7 +1262,7 @@ QString ManutenzioneePage::convertConfig(const QString& newFmt)
         cfg.llamaModel   = tget("llama_model");
         cfg.guiPath      = tget("gui_path");
         if (cfg.ollamaPort  == 0) cfg.ollamaPort  = 11434;
-        if (cfg.lserverPort == 0) cfg.lserverPort = 8080;
+        if (cfg.lserverPort == 0) cfg.lserverPort = P::kLlamaServerPort;
     }
 
     QString destPath = (newFmt == "toon") ? pathToon : pathJson;

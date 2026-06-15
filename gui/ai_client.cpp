@@ -367,6 +367,7 @@ void AiClient::onModelsReply() {
     } else {
         for (auto v : obj["data"].toArray())
             list << v.toObject()["id"].toString();
+        list.sort(Qt::CaseInsensitive); /* llama-server: size sempre 0, ordine alfabetico */
     }
     m_models = list;
     if (!list.isEmpty() && m_model.isEmpty()) {

@@ -127,30 +127,27 @@ Altrimenti AUTOMOC non genera il vtable → linker error.
 # TODO — Cose da fare
 
 ## Alta priorità
-- [ ] **Quiz Interattivi C** — implementare `src/quiz.c` (stub presente; versione Python pronta)
-- [ ] **Voce 🎙** — pulsante presente in agenti_page.cpp ma disabilitato (stub); implementare riconoscimento vocale Qt
+- [N/A] **Quiz Interattivi C** — `src/quiz.c` e Python non esistono più; quiz CCNA implementato in Qt (`QuizCcnaPage`)
+- [ ] **Voce 🎙** — STT implementato in Android (`AudioPage`); desktop usa Whisper via `/api/whisper` in LanServer
 - [ ] **CPU+GPU dialog** — split model layers tra NVIDIA + iGPU via agent_scheduler con budget VRAM per dispositivo
 - [ ] **RAM inter-agente** — il check pre-pipeline non copre la crescita RAM *durante* l'esecuzione
 
 ## Media priorità
-- [ ] **Dashboard Statistica C** — stub; versione Python pronta in `dashboard_statistica.py`
-- [ ] **Analisi Dati AI C** — stub; versione Python pronta in `tutor_dati.py`
-- [ ] **Cerca Lavoro + CV Reader** — presenti in Python, non ancora nel C/Qt
+- [N/A] **Dashboard Statistica C** / **Analisi Dati AI C** — i file Python non esistono più; funzionalità integrate nelle tab Qt
+- [x] **Cerca Lavoro + CV Reader** — FATTO: `LavoroPage` in `StrumentiPage` (`m_lavoroPage`) con AI + CV reader
 - [ ] **StatusBadge nell'header** — widget esiste ma non usato; aggiungere `● Online`/`● Avvio` accanto a m_lblBackend
-- [ ] **Cache modelli** — `fetchModels()` chiamato ad ogni cambio backend; aggiungere TTL 30s con `m_lastBackend`
-- [ ] **Tooltip ricchi sui gauge** — mostrare GB usati/totali RAM e nome GPU (dati già disponibili in SysSnapshot)
-- [ ] **Auto-assign con llama-server** — quando c'è un solo modello caricato, disabilitare il pulsante "Auto-assegna" o mostrare messaggio
+- [x] **Cache modelli** — FATTO: TTL 30s implementato in `AiClient::fetchModels()` (`m_cacheTimer`/`m_cacheValid`)
+- [x] **Tooltip ricchi sui gauge** — FATTO 2026-06-15: `ResourceGauge::update()` usa il `detail` come `setToolTip()`; RAM mostra "X/Y GB", CPU mostra nome CPU, GPU mostra "nome | VRAM X/Y GB"
+- [N/A] **Auto-assign con llama-server** — pulsante "Auto-assegna" non esiste più nella UI v2.9
 
 ## Bassa priorità
-- [ ] **buildModelBar() porta 8080** — in impostazioni_page.cpp c'è ancora 8080 hardcoded; sostituire con `P::kLlamaServerPort`
-- [ ] **Typo** — `buildCythoStudio` → `buildCythonoStudio` in personalizza_page.cpp
-- [ ] **generateQuestion() in ImparaPage** — variabili `static` di connessione: rischio race condition; usare flag `m_generating`
-- [ ] **Refactor funzioni lunghe** — `load_gguf_model()`, `multi_agent_run()`, `gestisci_modelli()`, `choose_model()` (>150 righe)
-- [ ] **Test su strada** — eseguire `./prismalux` manualmente su tutti i menu, edge case
+- [x] **buildModelBar() porta 8080** — FATTO 2026-06-15: `main_maintenance.cpp` + `main_learn.cpp` usano `P::kLlamaServerPort`
+- [N/A] **Typo buildCythoStudio** — `personalizza_page.cpp` non esiste più nella v2.9
+- [x] **generateQuestion() in ImparaPage** — FATTO: guard `m_quizBusy` in `ImparaPage::generateQuestion()` previene click multipli
+- [N/A] **Refactor funzioni lunghe** — le funzioni C/Python citate non esistono più; equivalenti Qt già strutturate
+- [x] **sort modelli llama-server** — FATTO 2026-06-15: `list.sort(Qt::CaseInsensitive)` in `AiClient::onModelsReply()` ramo LlamaServer
 - [ ] **Animazione navigazione** — fade breve (QGraphicsOpacityEffect) tra tab per migliorare UX
-- [ ] **sort modelli llama-server** — `m_modelInfos` ordina per size ma con llama-server tutti size=0; fallback alfabetico
 
 ## Ottimizzazioni identificate nel CLAUDE.md Qt_GUI
-- [ ] Disabilitare "Auto-assegna" con llama-server (un solo modello disponibile → nessuna scelta)
-- [ ] Cache fetchModels con TTL 30s per evitare fetch ridondanti
+- [x] Cache fetchModels con TTL 30s — FATTO (vedi sopra)
 - [ ] Navigazione animata (fade) tra le sezioni principali
