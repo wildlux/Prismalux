@@ -275,6 +275,13 @@ QString _buildSys(const QString& task,
         sys += " Nella risposta finale, vai direttamente al punto senza "
                "riformulare il processo di ragionamento.";
 
+    /* Identità base: sempre iniettata per evitare "Non lo so chi sono" */
+    static const QString kIdentity =
+        "Il tuo nome e' Prismalux. Sei l'assistente AI integrato nell'applicazione Prismalux "
+        "(sviluppata da Paolo). Quando ti viene chiesto come ti chiami o chi sei, "
+        "rispondi sempre 'Prismalux'. ";
+    sys = kIdentity + sys;
+
     const QString persona = P::personalityPrompt();
     if (!persona.isEmpty())
         sys = persona + "\n\n" + sys;
