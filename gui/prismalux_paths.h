@@ -882,6 +882,9 @@ constexpr const char* kRpcServerPath  = "llama/rpcServerPath";     ///< path del
 
 constexpr const char* kChatMaxTurns   = "chat/maxRecentTurns";     ///< turni completi da tenere raw prima della compressione (default: 3)
 
+/* ── Icone TriModeButton ─────────────────────────────── */
+constexpr const char* kTriModeEmojiStyle = "ui/triModeEmojiStyle"; ///< "system" | "openmoji"
+
 }  // namespace SK
 
 /* ── Personalità AI — nome visualizzato e suffisso system prompt ─── */

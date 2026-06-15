@@ -89,6 +89,8 @@ signals:
     void navStyleChanged(const QString& style);
     /** Emesso quando l'utente cambia la modalità dei pulsanti di esecuzione. */
     void execBtnModeChanged(const QString& mode);
+    /** Emesso quando l'utente cambia il raggio delle bolle chat (applicazione in tempo reale). */
+    void bubbleStyleChanged();
     /** Emesso ogni chunk durante l'indicizzazione (per progress bar in MainWindow). */
     void indexingProgress(int done, int total);
     /** Emesso al completamento o all'interruzione dell'indicizzazione. */
@@ -174,6 +176,10 @@ private slots:
     /* ── buildMcpTab (altro) ── */
     void onMcpOpenFileClicked();
     void onMcpCopyOllamaCmdClicked();
+    /* ── buildBenchmarkLocaleTab ── */
+    void onBenchmarkRunClicked();
+    void onBenchmarkProcReadyRead();
+    void onBenchmarkProcFinished(int code, QProcess::ExitStatus status);
 
 private:
     /* ── ricerca tab: struttura indice ── */
@@ -197,6 +203,7 @@ private:
     QWidget* buildPythonDepsTab();
     QWidget* buildLlmConsigliatiTab();
     QWidget* buildLlmClassificaTab();  ///< ranking oggettivo open-weight (ArtificialAnalysis + benchmark locali)
+    QWidget* buildBenchmarkLocaleTab(); ///< risultati benchmark temperatura "su strada" (2026-06-15)
     QWidget* buildAiParamsTab();   ///< parametri anti-allucinazione + preferenze modello
     QWidget* buildPuliziaTab();       ///< pulizia file temporanei, build, cache
     QWidget* buildMcpTab();           ///< configurazione Model Context Protocol
@@ -327,6 +334,12 @@ private:
     QLabel*         m_llmRankDetailLbl      = nullptr;
     QPushButton*    m_llmRankInstallBtn     = nullptr;
     QLabel*         m_llmRankLogLbl         = nullptr;
+
+    /* ── buildBenchmarkLocaleTab member state ── */
+    QProcess*       m_benchmarkProc         = nullptr;
+    QLabel*         m_benchmarkImgLbl       = nullptr;
+    QPushButton*    m_benchmarkRunBtn       = nullptr;
+    QLabel*         m_benchmarkStatusLbl    = nullptr;
 
     /* ── buildPythonDepsTab member state ── */
     QMap<QString, QLabel*> m_pipDots;    ///< pipName → pallino stato

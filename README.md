@@ -50,6 +50,9 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 | 🗺️ **Mappa OSM + routing** | Tab "🗺 Mappa OSM" in Multimedia: WorldMapWidget con itinerari multi-tappa (A→B→C), routing OSRM (Auto/Piedi/Bici), polyline colorata, distanza km + tempo stimato |
 | 🤖 **Dev Agent 2 colonne** | AppController [10]: layout QSplitter H — Log+Diff a sinistra, Cronologia+Git a destra; 6 slot git: log, restore, fetch+reset GitHub, stash push/list/pop |
 | 🧪 **Test suite** | 41 suite ctest (38 no-Ollama) — include CAT-E SymPy (15 test reali) + GraphMemory (65 test: nodi/archi/BFS/SQL-injection/`changed()`) |
+| 🎛️ **TriModeButton** | Pulsante ovale a 3 settori (Chat / Agentico / Conversa) nel tab AI: cicla con Shift+Tab, colori dal tema. Supporto emoji SVG OpenMoji (impostabile in Visuale → Aspetto) |
+| ⚡ **Tool Veloci / 🔌 Tool Lenti** | Tool AI separati in due pannelli distinti: Function Tools in-process (⚡, griglia 2 col) e Plugin MCP subprocess (🔌, griglia 4 col). Comportamento radio: un solo pannello aperto alla volta |
+| 🫧 **Arrotondamento bolle live** | Cambio raggio bolle in Visuale → Aspetto si applica immediatamente alle bolle già visibili (regex replace sull'HTML del log) |
 | ☕ **Donazione PayPal** | Badge README, pulsante Sponsor GitHub (`.github/FUNDING.yml`), pulsante in Impostazioni e APK |
 | 💼 **Scheda TFR** | C.F. calcolato automaticamente (D.M. 1976 + ~150 comuni/paesi), calcolo rivalutato, Compila da RAG |
 | 🖧 **WAN Calcolo Distribuito** | Server/client TCP:11600, dispatcher 28 task, cron scheduler |
@@ -426,6 +429,7 @@ cmake --build build_mac -j$(sysctl -n hw.logicalcpu)
 | Componente | Installazione | Funzionalità abilitata |
 |-----------|--------------|----------------------|
 | `qt6-webengine-dev` | `apt install qt6-webengine-dev` | Rendering LaTeX KaTeX (Analisi 1/2, output AI) |
+| `qt6-svg-dev` | `apt install qt6-svg-dev` | Emoji SVG OpenMoji nel TriModeButton (opzionale, fallback testo emoji) |
 | `libqt6bluetooth6` | `apt install libqt6bluetooth6` | BLE Chat Android AES-256-GCM |
 | `qt6-speech` | `apt install qt6-speech` | TTS Android (QTextToSpeech voice loop) |
 | `qt6keychain-dev` | `apt install qt6keychain-dev` | Token LAN nel keyring di sistema (fallback: file 0600) |
@@ -447,7 +451,7 @@ cmake --build build_mac -j$(sysctl -n hw.logicalcpu)
 
 ```bash
 sudo apt install cmake ninja-build build-essential git \
-    qt6-base-dev qt6-tools-dev qt6-webengine-dev qt6-multimedia-dev \
+    qt6-base-dev qt6-tools-dev qt6-webengine-dev qt6-multimedia-dev qt6-svg-dev \
     libqt6sql6-sqlite libqt6bluetooth6 qt6-speech qt6keychain-dev \
     libonnxruntime-dev ffmpeg graphviz sqlite3 openssl libssl-dev \
     android-tools-adb ripgrep poppler-utils libfuse2t64 \
@@ -594,6 +598,7 @@ Prismalux/
 │   ├── download_model            ← Download modelli GGUF
 │   └── genera_quiz_ccna.py       ← Genera domande quiz CCNA
 │
+├── EXTERNAL_DeviceS/             ← Script/config dispositivi fisici (cam WIBY, Tuya, PTZ — non in git)
 ├── Test/                         ← Test Python (AI integration, WAN, RAG)
 │   ├── run_all_tests.py
 │   ├── test_wan_compute.py

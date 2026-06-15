@@ -1,5 +1,7 @@
 #include "settings_main.h"
 #include "../log_bus.h"
+#include "../dpi_utils.h"
+#include <QPixmap>
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
 #include "main_customize.h"
@@ -1972,6 +1974,212 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
             page, populate);
 
     return page;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildBenchmarkLocaleTab — risultati test temperatura "su strada"
+   Mostra la tabella dei modelli testati con T ottimale e score,
+   il grafico benchmark_combined.png e un pulsante per rieseguire.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildBenchmarkLocaleTab()
+{
+    auto* page    = new QWidget;
+    auto* mainLay = new QVBoxLayout(page);
+    mainLay->setContentsMargins(16, 14, 16, 14);
+    mainLay->setSpacing(10);
+
+    /* ── Titolo ── */
+    auto* titleLbl = new QLabel(
+        "\xf0\x9f\x93\x88  <b>Benchmark temperatura — su strada</b>"
+        "<span style='color:#94a3b8;font-size:12px;font-weight:normal;'>"
+        "  \xe2\x80\x94  Test reali su Ollama locale  \xe2\x80\xa2  2026-06-15"
+        "</span>", page);
+    titleLbl->setObjectName("sectionTitle");
+    titleLbl->setTextFormat(Qt::RichText);
+    mainLay->addWidget(titleLbl);
+
+    /* ── Nota metodologia ── */
+    auto* notaLbl = new QLabel(
+        "<span style='color:#64748b;font-size:11px;'>"
+        "Temperature testate: 0.1 \xe2\x80\x93 0.3 \xe2\x80\x93 0.5 \xe2\x80\x93 0.7 \xe2\x80\x93 0.9 \xe2\x80\x93 1.1  "
+        "\xe2\x80\xa2  2 run per punto  \xe2\x80\xa2  5 domande (identit\xc3\xa0, geo, aritmetica, auto-desc, cultura)"
+        "<br>Causa score 0 qwen3: <b>think:false mancante nello script Python</b> "
+        "+ language bias (modello Alibaba, reasoning in cinese)."
+        "</span>", page);
+    notaLbl->setTextFormat(Qt::RichText);
+    notaLbl->setWordWrap(true);
+    mainLay->addWidget(notaLbl);
+
+    /* ── Tabella risultati ── */
+    auto* table = new QTableWidget(page);
+    table->setObjectName("modelsList");
+    table->setColumnCount(5);
+    table->setHorizontalHeaderLabels({
+        "Modello", "T ottimale", "Score", "Tempo", "Note"
+    });
+    table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+    table->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
+    table->setColumnWidth(1, 90);
+    table->setColumnWidth(2, 70);
+    table->setColumnWidth(3, 75);
+    table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setAlternatingRowColors(true);
+    table->verticalHeader()->setVisible(false);
+
+    struct BenchRow {
+        const char* model;
+        const char* t_opt;
+        int         score;
+        const char* tempo;
+        const char* note;
+    };
+    static const BenchRow kRows[] = {
+        { "llama3.2:3b",                        "0.1", 100,  "113s",  "" },
+        { "granite4:1b",                         "0.1", 100,  "132s",  "" },
+        { "phi3:3.8b",                           "0.1", 100,  "317s",  "" },
+        { "deepseek-coder:6.7b-instruct-q4_K_M","0.1", 100,  "555s",  "" },
+        { "antconsales/antonio-gemma3-evo-q4",   "0.1", 100,  "117s",  "" },
+        { "gemma-1B-LinuxCLI-GGUF:BF16",         "0.1", 100,   "87s",  "" },
+        { "mistral:7b-instruct",                 "0.1", 100,  "313s",  "Era 0.3 pre-fix kIdentity" },
+        { "qwen3:4b",                            "N/A",   0,  "596s",  "Reasoning: think:false mancante" },
+        { "qwen3.5:4b",                          "N/A",   0, "1608s",  "Reasoning + timeout 90s" },
+    };
+
+    table->setRowCount(static_cast<int>(sizeof(kRows) / sizeof(kRows[0])));
+    for (int r = 0; r < table->rowCount(); ++r) {
+        const auto& row = kRows[r];
+        auto* itMod  = new QTableWidgetItem(QString::fromUtf8(row.model));
+        auto* itTopt = new QTableWidgetItem(QString::fromUtf8(row.t_opt));
+        auto* itSc   = new QTableWidgetItem(QString::number(row.score) + "%");
+        auto* itT    = new QTableWidgetItem(QString::fromUtf8(row.tempo));
+        auto* itNote = new QTableWidgetItem(QString::fromUtf8(row.note));
+
+        itTopt->setTextAlignment(Qt::AlignCenter);
+        itSc->setTextAlignment(Qt::AlignCenter);
+        itT->setTextAlignment(Qt::AlignCenter);
+
+        const QColor colScore = (row.score == 100) ? QColor("#4ade80")
+                              : (row.score >= 80)  ? QColor("#fbbf24")
+                                                   : QColor("#f87171");
+        itSc->setForeground(colScore);
+        itSc->setFont([]{ QFont f; f.setBold(true); return f; }());
+
+        if (row.score == 0)
+            for (auto* it : {itMod, itTopt, itT, itNote})
+                it->setForeground(QColor("#64748b"));
+
+        table->setItem(r, 0, itMod);
+        table->setItem(r, 1, itTopt);
+        table->setItem(r, 2, itSc);
+        table->setItem(r, 3, itT);
+        table->setItem(r, 4, itNote);
+    }
+    mainLay->addWidget(table);
+
+    /* ── Grafico benchmark_combined.png ── */
+    const QString imgPath = P::root() + "/benchmark_out/benchmark_combined.png";
+    auto* imgLbl = new QLabel(page);
+    m_benchmarkImgLbl = imgLbl;
+    imgLbl->setAlignment(Qt::AlignCenter);
+    imgLbl->setMinimumHeight(dpiScale(180));
+    imgLbl->setStyleSheet("background:#0f172a;border-radius:8px;");
+    auto refreshImg = [imgLbl, imgPath]() {
+        QPixmap px(imgPath);
+        if (!px.isNull())
+            imgLbl->setPixmap(px.scaledToWidth(
+                qMin(px.width(), 900), Qt::SmoothTransformation));
+        else
+            imgLbl->setText("<span style='color:#475569;'>Grafico non disponibile — esegui il benchmark.</span>");
+        imgLbl->setTextFormat(Qt::RichText);
+    };
+    refreshImg();
+    mainLay->addWidget(imgLbl, 1);
+
+    /* ── Barra azioni: riesegui + stato ── */
+    auto* actRow = new QWidget(page);
+    auto* actLay = new QHBoxLayout(actRow);
+    actLay->setContentsMargins(0, 4, 0, 0);
+    actLay->setSpacing(10);
+
+    auto* runBtn = new QPushButton(
+        "\xf0\x9f\x94\x84  Riesegui benchmark", actRow);  /* 🔄 */
+    runBtn->setObjectName("actionBtn");
+    runBtn->setFixedWidth(dpiScale(190));
+    m_benchmarkRunBtn = runBtn;
+
+    auto* statusLbl = new QLabel(
+        "<span style='color:#64748b;'>Premi per avviare — output in benchmark_out/</span>",
+        actRow);
+    statusLbl->setTextFormat(Qt::RichText);
+    m_benchmarkStatusLbl = statusLbl;
+
+    actLay->addWidget(runBtn);
+    actLay->addWidget(statusLbl, 1);
+    mainLay->addWidget(actRow);
+
+    connect(runBtn, &QPushButton::clicked, this, &ImpostazioniPage::onBenchmarkRunClicked);
+
+    return page;
+}
+
+void ImpostazioniPage::onBenchmarkRunClicked()
+{
+    if (m_benchmarkProc && m_benchmarkProc->state() != QProcess::NotRunning) {
+        m_benchmarkProc->kill();
+        return;
+    }
+    const QString script = P::root() + "/Tools/scripts/temp_benchmark.py";
+    if (!QFile::exists(script)) {
+        if (m_benchmarkStatusLbl)
+            m_benchmarkStatusLbl->setText(
+                "<span style='color:#f87171;'>\xe2\x9d\x8c Script non trovato: " + script + "</span>");
+        return;
+    }
+    if (m_benchmarkRunBtn) m_benchmarkRunBtn->setText("\xe2\x96\xa0  Stop benchmark");
+    if (m_benchmarkStatusLbl)
+        m_benchmarkStatusLbl->setText(
+            "<span style='color:#facc15;'>\xe2\x8f\xb3 Benchmark in corso...</span>");
+
+    m_benchmarkProc = new QProcess(this);
+    m_benchmarkProc->setWorkingDirectory(P::root());
+    connect(m_benchmarkProc, &QProcess::readyReadStandardOutput,
+            this, &ImpostazioniPage::onBenchmarkProcReadyRead);
+    connect(m_benchmarkProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &ImpostazioniPage::onBenchmarkProcFinished);
+    m_benchmarkProc->start("python3", {script, "--out", P::root() + "/benchmark_out"});
+}
+
+void ImpostazioniPage::onBenchmarkProcReadyRead()
+{
+    if (!m_benchmarkProc || !m_benchmarkStatusLbl) return;
+    const QString line = QString::fromUtf8(
+        m_benchmarkProc->readAllStandardOutput()).trimmed().split('\n').last();
+    if (!line.isEmpty())
+        m_benchmarkStatusLbl->setText(
+            "<span style='color:#94a3b8;font-family:monospace;font-size:11px;'>"
+            + line.toHtmlEscaped() + "</span>");
+}
+
+void ImpostazioniPage::onBenchmarkProcFinished(int code, QProcess::ExitStatus)
+{
+    if (m_benchmarkRunBtn)
+        m_benchmarkRunBtn->setText("\xf0\x9f\x94\x84  Riesegui benchmark");
+    const bool ok = (code == 0);
+    if (m_benchmarkStatusLbl)
+        m_benchmarkStatusLbl->setText(ok
+            ? "<span style='color:#4ade80;'>\xe2\x9c\x85 Benchmark completato — grafico aggiornato.</span>"
+            : "<span style='color:#f87171;'>\xe2\x9d\x8c Benchmark terminato con errore.</span>");
+    /* aggiorna immagine */
+    if (ok && m_benchmarkImgLbl) {
+        const QString imgPath = P::root() + "/benchmark_out/benchmark_combined.png";
+        QPixmap px(imgPath);
+        if (!px.isNull())
+            m_benchmarkImgLbl->setPixmap(px.scaledToWidth(
+                qMin(px.width(), 900), Qt::SmoothTransformation));
+    }
+    m_benchmarkProc->deleteLater();
+    m_benchmarkProc = nullptr;
 }
 
 /* ══════════════════════════════════════════════════════════════

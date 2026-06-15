@@ -2072,7 +2072,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
     preset8gb->setObjectName("actionBtn");
     preset8gb->setToolTip(
         "Applica impostazioni ottimali per macchine con 8 GB RAM:\n"
-        "num_ctx=4096  num_predict=1024  temperature=0.05  Flash Attention ON");
+        "num_ctx=4096  num_predict=1024  temperature=0.1  Flash Attention ON");
     presetLay->addWidget(preset8gb);
 
     auto* presetLong = new QPushButton("\xf0\x9f\x93\x9c  Contesto lungo", page);  /* 📜 */

@@ -1,0 +1,16 @@
+{
+  "llama3.2:3b": {
+    "elapsed": 10.59833812713623,
+    "timeout": false,
+    "thinking_len": 0,
+    "response": "Mi chiamo Prismalux. Come posso aiutarti oggi?",
+    "id_ok": true
+  },
+  "qwen3:4b": {
+    "elapsed": 29.137128591537476,
+    "timeout": false,
+    "thinking_len": 0,
+    "response": "Prismalux",
+    "id_ok": true
+  }
+}

@@ -413,134 +413,102 @@ void AgentiPage::onChatCompletedSave(const QString& title, const QString& logHtm
         m_chatHistory.saveLog(m_sessionId, logHtml);
     }
 
-    /* Aggiorna il pannello storico */
-    refreshHistoryList();
 }
 
-void AgentiPage::refreshHistoryList()
+/* ══════════════════════════════════════════════════════════════
+   _detectWebIntent — pattern matching senza LLM.
+   Rileva domande che richiedono dati in tempo reale o ricerca online.
+   ══════════════════════════════════════════════════════════════ */
+bool AgentiPage::_detectWebIntent(const QString& msg)
 {
-    if (!m_historyList) return;
-
-    m_historyList->blockSignals(true);
-    m_historyList->clear();
-    m_historyIds.clear();
-
-    const QVector<ChatSession> sessions = m_chatHistory.list();
-    for (const ChatSession& s : sessions) {
-        m_historyList->addItem(s.title.isEmpty() ? s.id : s.title);
-        m_historyIds.append(s.id);
-    }
-
-    m_historyList->blockSignals(false);
+    static const QStringList kPatterns = {
+        /* Orario / data */
+        "che ore sono", "che ora", "ora attuale", "orario attuale",
+        "che giorno", "data di oggi", "data oggi", "giorno oggi",
+        "che giorno \xc3\xa8",   /* è */
+        /* Richiesta esplicita di connessione online */
+        "collegati online", "vai online", "cerca online", "cerca su internet",
+        "cerca in rete", "cerca sul web", "cerca su google", "cerca su bing",
+        "naviga", "apri internet", "connettiti",
+        /* Notizie / eventi recenti */
+        "ultime notizie", "notizie di oggi", "notizie recenti", "cosa \xc3\xa8 successo",
+        "cosa sta succedendo", "aggiornamento", "novit\xc3\xa0 di oggi",
+        /* Meteo */
+        "meteo", "previsioni", "tempo oggi", "temperatura fuori", "piove",
+        /* Finanza */
+        "prezzo attuale", "quotazione", "cambio valuta", "borsa oggi",
+        "bitcoin", "criptovaluta",
+        /* Ricerca generica */
+        "cerca informazioni su", "trovami informazioni", "dimmi qualcosa su",
+        "wikipedia", "cosa sai di recente", "in tempo reale",
+    };
+    const QString lower = msg.toLower();
+    for (const QString& p : kPatterns)
+        if (lower.contains(p))
+            return true;
+    return false;
 }
 
-/* Inietta il link "↩ Rifai" nelle bolle utente che ne sono prive.
-   Le chat salvate prima dell'introduzione del retry button non lo contengono.
-   Opera sull'HTML Qt: cerca href="copy:N:B64" e inserisce href="retry:N:B64" prima,
-   ma solo per gli indici N dove retry non è già presente. */
-static QString injectMissingRetryLinks(const QString& html)
+/* ══════════════════════════════════════════════════════════════
+   runWebSearchAgent — agente di ricerca online.
+   1. Bolla utente  2. "Cerco online..."  3. DuckDuckGo  4. Sintesi LLM
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::runWebSearchAgent(const QString& query)
 {
-    static const QRegularExpression reCopy(
-        R"((<a\s[^>]*href=\")copy:(\d+):([^\"]+)(\"[^>]*>))");
-
-    QString result = html;
-    QRegularExpressionMatchIterator it = reCopy.globalMatch(html);
-
-    QVector<QRegularExpressionMatch> matches;
-    while (it.hasNext()) matches.append(it.next());
-
-    /* Processa al contrario per non invalidare le posizioni successive */
-    for (int i = matches.size() - 1; i >= 0; --i) {
-        const auto& m = matches.at(i);
-        const QString idx = m.captured(2);
-        const QString b64 = m.captured(3);
-        if (html.contains(QString("retry:%1:").arg(idx)))
-            continue;
-        const QString retryLink =
-            QString("<a href=\"retry:%1:%2\" "
-                    "style=\"color:#1d4ed8;font-size:12px;"
-                    "text-decoration:none;border:1px solid #93c5fd;"
-                    "padding:2px 10px;background:#dbeafe;\">"
-                    "&#8629; Rifai</a> &nbsp; ")
-            .arg(idx, b64);
-        result.insert(m.capturedStart(), retryLink);
-    }
-    return result;
-}
-
-void AgentiPage::onHistoryItemClicked(int row)
-{
-    if (row < 0 || row >= m_historyIds.size()) return;
-    const QString id = m_historyIds.at(row);
-    if (id == m_sessionId) return;   /* stessa sessione, niente da fare */
-
-    const QString html = m_chatHistory.loadLog(id);
-    if (html.isEmpty()) return;
-
-    /* Se una query è in corso, non la interrompiamo: la mettiamo in background.
-       I token continuano ad accumularsi in m_bgBuffer; quando finisce, il risultato
-       viene salvato nella sessione originale (m_sessionId rimasto invariato). */
-    if (m_ai && m_ai->busy() && !m_bgMode) {
-        m_bgMode     = true;
-        m_bgBuffer.clear();
-        m_bgHtmlSave = m_log->toHtml();
-    }
-
-    /* Carica la sessione selezionata nel log, iniettando il retry link
-       nelle bolle utente che non lo avevano (chat salvate in precedenza) */
-    m_log->setHtml(injectMissingRetryLinks(html));
-    _repopulateBubbleTexts(m_log->toHtml());
+    /* ── Bolla utente ── */
+    const int bubbleId = m_bubbleIdx++;
+    m_bubbleTexts[bubbleId] = query;
     m_log->moveCursor(QTextCursor::End);
+    m_log->insertHtml(buildUserBubble(query, bubbleId));
+    m_log->append("");
 
-    /* NON aggiornare m_sessionId se siamo in background mode: la sessione
-       in esecuzione continua a salvarsi nell'id originale. */
-    if (!m_bgMode)
-        m_sessionId = id;
+    /* ── Bolla AI placeholder "Cerco online..." ── */
+    const int aiBubbleId = m_bubbleIdx++;
+    m_bubbleTexts[aiBubbleId] = "";
+    m_log->moveCursor(QTextCursor::End);
+    m_log->insertHtml(
+        "<p style='margin:4px 0 4px 8px;padding:10px 14px;"
+        "background:#1e293b;border-radius:12px;color:#94a3b8;"
+        "font-style:italic;max-width:85%;'>"
+        "\xf0\x9f\x94\x8d  Cerco online: <b>" + query.toHtmlEscaped() + "</b>...</p>");
+    m_log->append("");
+
+    emit pipelineStatus(10, "\xf0\x9f\x94\x8d  Ricerca online in corso...");
+    _setRunBusy(true);
+
+    /* ── Chiamata DuckDuckGo tramite runToolCall ── */
+    QJsonObject call;
+    call["tool"]  = "ricerca";
+    call["input"] = query;
+
+    runToolCall(call, [this, query, aiBubbleId](const QString& searchResult) {
+        /* ── Sintesi LLM con i risultati ── */
+        const QString now = QDateTime::currentDateTime()
+                                .toString("dddd d MMMM yyyy, HH:mm");
+        const QString sys = _buildSys(
+            "Sei un assistente che risponde a domande usando risultati di ricerca web. "
+            "Data e ora attuale: " + now + ". "
+            "Rispondi in italiano, in modo conciso e diretto. "
+            "Se i risultati non contengono la risposta, dillo chiaramente.",
+            QString(), m_ai->model(), m_ai->backend());
+
+        const QString userWithContext =
+            "Domanda originale: " + query + "\n\n"
+            "Risultati ricerca online:\n" + searchResult + "\n\n"
+            "Rispondi alla domanda originale usando questi risultati.";
+
+        /* Rimuovi il placeholder e aggiungi bolla AI reale */
+        m_log->moveCursor(QTextCursor::End);
+        m_log->insertHtml(
+            "<p style='margin:4px 0 4px 8px;padding:10px 14px;"
+            "background:#1e293b;border-radius:12px;color:#64748b;"
+            "font-size:11px;font-style:italic;max-width:85%;'>"
+            "\xf0\x9f\x94\x8d  Fonte: DuckDuckGo  "
+            "<span style='color:#475569;'>&mdash; elaborazione in corso...</span></p>");
+
+        emit pipelineStatus(40, "\xf0\x9f\xa4\x96  Elaboro risultati...");
+        m_ai->chat(sys, userWithContext);
+    });
 }
 
-void AgentiPage::onHistoryNewChatClicked()
-{
-    m_sessionId.clear();
-    m_log->clear();
-    m_bubbleTexts.clear();
-    m_bubbleIdx = 0;
-    m_userScrolled = false;
-}
-
-/* Ripopola m_bubbleTexts dai link copy:N:BASE64URL presenti nell'HTML.
-   Chiamata dopo setHtml() su una chat ricaricata dalla history, in modo
-   che i pulsanti TTS/Copia/Elimina funzionino anche sulle chat vecchie. */
-void AgentiPage::_repopulateBubbleTexts(const QString& html)
-{
-    m_bubbleTexts.clear();
-    static const QRegularExpression re(R"(href=['"]copy:(\d+):([A-Za-z0-9_=-]+)['"])");
-    auto it = re.globalMatch(html);
-    while (it.hasNext()) {
-        const auto m = it.next();
-        const int n = m.captured(1).toInt();
-        const QString decoded = QString::fromUtf8(
-            QByteArray::fromBase64(m.captured(2).toLatin1(),
-                                   QByteArray::Base64UrlEncoding));
-        if (!decoded.isEmpty())
-            m_bubbleTexts[n] = decoded;
-    }
-    m_bubbleIdx = m_bubbleTexts.isEmpty() ? 0 : m_bubbleTexts.lastKey() + 1;
-}
-
-void AgentiPage::onHistoryDeleteClicked()
-{
-    if (!m_historyList) return;
-    const int row = m_historyList->currentRow();
-    if (row < 0 || row >= m_historyIds.size()) return;
-
-    const QString id = m_historyIds.at(row);
-    m_chatHistory.remove(id);
-
-    /* Se era la sessione corrente, resetta */
-    if (id == m_sessionId) {
-        m_sessionId.clear();
-        m_log->clear();
-    }
-    refreshHistoryList();
-}
 

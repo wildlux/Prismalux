@@ -434,7 +434,7 @@ void MainWindow::setupAutoOptimizations()
         if (ramMb > 0 && ramMb < 10000) {
             p.num_ctx     = 4096;
             p.num_predict = 1024;
-            p.temperature = 0.05;
+            p.temperature = 0.1;
             statusBar()->showMessage(
                 "\xf0\x9f\x8e\x9b  Preset 8 GB RAM applicato automaticamente.", 5000);
         } else if (ramMb >= 16000) {

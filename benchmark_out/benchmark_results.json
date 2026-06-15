@@ -1,0 +1,650 @@
+{
+  "llama3.2:3b": {
+    "optimal_temperature": 0.1,
+    "optimal_score": 100.0,
+    "per_temperature": [
+      {
+        "temperature": 0.1,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.3,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.5,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.7,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.9,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 1.1,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      }
+    ]
+  },
+  "granite4:1b": {
+    "optimal_temperature": 0.1,
+    "optimal_score": 100.0,
+    "per_temperature": [
+      {
+        "temperature": 0.1,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.3,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.5,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.7,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.9,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 1.1,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      }
+    ]
+  },
+  "qwen3:4b": {
+    "optimal_temperature": 0.1,
+    "optimal_score": 0.0,
+    "per_temperature": [
+      {
+        "temperature": 0.1,
+        "score": 0.0,
+        "per_question": {
+          "Identità AI": 0.0,
+          "Conoscenza geografica": 0.0,
+          "Aritmetica base": 0.0,
+          "Auto-descrizione": 0.0,
+          "Cultura generale": 0.0
+        }
+      },
+      {
+        "temperature": 0.3,
+        "score": 0.0,
+        "per_question": {
+          "Identità AI": 0.0,
+          "Conoscenza geografica": 0.0,
+          "Aritmetica base": 0.0,
+          "Auto-descrizione": 0.0,
+          "Cultura generale": 0.0
+        }
+      },
+      {
+        "temperature": 0.5,
+        "score": 0.0,
+        "per_question": {
+          "Identità AI": 0.0,
+          "Conoscenza geografica": 0.0,
+          "Aritmetica base": 0.0,
+          "Auto-descrizione": 0.0,
+          "Cultura generale": 0.0
+        }
+      },
+      {
+        "temperature": 0.7,
+        "score": 0.0,
+        "per_question": {
+          "Identità AI": 0.0,
+          "Conoscenza geografica": 0.0,
+          "Aritmetica base": 0.0,
+          "Auto-descrizione": 0.0,
+          "Cultura generale": 0.0
+        }
+      },
+      {
+        "temperature": 0.9,
+        "score": 0.0,
+        "per_question": {
+          "Identità AI": 0.0,
+          "Conoscenza geografica": 0.0,
+          "Aritmetica base": 0.0,
+          "Auto-descrizione": 0.0,
+          "Cultura generale": 0.0
+        }
+      },
+      {
+        "temperature": 1.1,
+        "score": 0.0,
+        "per_question": {
+          "Identità AI": 0.0,
+          "Conoscenza geografica": 0.0,
+          "Aritmetica base": 0.0,
+          "Auto-descrizione": 0.0,
+          "Cultura generale": 0.0
+        }
+      }
+    ]
+  },
+  "qwen3.5:4b": {
+    "optimal_temperature": 0.1,
+    "optimal_score": 0.0,
+    "per_temperature": [
+      {
+        "temperature": 0.1,
+        "score": 0.0,
+        "per_question": {
+          "Identità AI": 0.0,
+          "Conoscenza geografica": 0.0,
+          "Aritmetica base": 0.0,
+          "Auto-descrizione": 0.0,
+          "Cultura generale": 0.0
+        }
+      },
+      {
+        "temperature": 0.3,
+        "score": 0.0,
+        "per_question": {
+          "Identità AI": 0.0,
+          "Conoscenza geografica": 0.0,
+          "Aritmetica base": 0.0,
+          "Auto-descrizione": 0.0,
+          "Cultura generale": 0.0
+        }
+      },
+      {
+        "temperature": 0.5,
+        "score": 0.0,
+        "per_question": {
+          "Identità AI": 0.0,
+          "Conoscenza geografica": 0.0,
+          "Aritmetica base": 0.0,
+          "Auto-descrizione": 0.0,
+          "Cultura generale": 0.0
+        }
+      },
+      {
+        "temperature": 0.7,
+        "score": 0.0,
+        "per_question": {
+          "Identità AI": 0.0,
+          "Conoscenza geografica": 0.0,
+          "Aritmetica base": 0.0,
+          "Auto-descrizione": 0.0,
+          "Cultura generale": 0.0
+        }
+      },
+      {
+        "temperature": 0.9,
+        "score": 0.0,
+        "per_question": {
+          "Identità AI": 0.0,
+          "Conoscenza geografica": 0.0,
+          "Aritmetica base": 0.0,
+          "Auto-descrizione": 0.0,
+          "Cultura generale": 0.0
+        }
+      },
+      {
+        "temperature": 1.1,
+        "score": 0.0,
+        "per_question": {
+          "Identità AI": 0.0,
+          "Conoscenza geografica": 0.0,
+          "Aritmetica base": 0.0,
+          "Auto-descrizione": 0.0,
+          "Cultura generale": 0.0
+        }
+      }
+    ]
+  },
+  "phi3:3.8b": {
+    "optimal_temperature": 0.1,
+    "optimal_score": 100.0,
+    "per_temperature": [
+      {
+        "temperature": 0.1,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.3,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.5,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.7,
+        "score": 91.25,
+        "per_question": {
+          "Identità AI": 75.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.9,
+        "score": 96.25,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 75.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 1.1,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      }
+    ]
+  },
+  "mistral:7b-instruct": {
+    "optimal_temperature": 0.3,
+    "optimal_score": 82.5,
+    "per_temperature": [
+      {
+        "temperature": 0.1,
+        "score": 65.0,
+        "per_question": {
+          "Identità AI": 0.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.3,
+        "score": 82.5,
+        "per_question": {
+          "Identità AI": 50.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.5,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.7,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.9,
+        "score": 82.5,
+        "per_question": {
+          "Identità AI": 50.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 1.1,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      }
+    ]
+  },
+  "deepseek-coder:6.7b-instruct-q4_K_M": {
+    "optimal_temperature": 0.1,
+    "optimal_score": 100.0,
+    "per_temperature": [
+      {
+        "temperature": 0.1,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.3,
+        "score": 82.5,
+        "per_question": {
+          "Identità AI": 50.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.5,
+        "score": 91.25,
+        "per_question": {
+          "Identità AI": 75.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.7,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.9,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 1.1,
+        "score": 77.5,
+        "per_question": {
+          "Identità AI": 50.0,
+          "Conoscenza geografica": 75.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      }
+    ]
+  },
+  "antconsales/antonio-gemma3-evo-q4:latest": {
+    "optimal_temperature": 0.1,
+    "optimal_score": 100.0,
+    "per_temperature": [
+      {
+        "temperature": 0.1,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.3,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.5,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.7,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.9,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 1.1,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      }
+    ]
+  },
+  "hf.co/hwpoison89/gemma-1B-LinuxCLI-GGUF:BF16": {
+    "optimal_temperature": 0.1,
+    "optimal_score": 100.0,
+    "per_temperature": [
+      {
+        "temperature": 0.1,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.3,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.5,
+        "score": 92.5,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 50.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.7,
+        "score": 92.5,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 50.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 0.9,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      },
+      {
+        "temperature": 1.1,
+        "score": 100.0,
+        "per_question": {
+          "Identità AI": 100.0,
+          "Conoscenza geografica": 100.0,
+          "Aritmetica base": 100.0,
+          "Auto-descrizione": 100.0,
+          "Cultura generale": 100.0
+        }
+      }
+    ]
+  }
+}

@@ -169,7 +169,7 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         radiusPreview->setObjectName("cardDesc");
         radiusPreview->setText(tr("(applicato alle nuove bolle)"));
 
-        auto updateRadius = [radiusSpin, radiusPreview]() {
+        auto updateRadius = [this, radiusSpin, radiusPreview]() {
             QSettings("Prismalux", "GUI").setValue(P::SK::kBubbleRadius, radiusSpin->value());
             radiusPreview->setText(
                 radiusSpin->value() == 0
@@ -179,11 +179,12 @@ QWidget* ImpostazioniPage::buildTemaTab() {
                         : radiusSpin->value() <= 14
                             ? "Bolle arrotondate (default)"
                             : "Bolle molto arrotondate");
+            emit bubbleStyleChanged();
         };
         updateRadius();
 
         QObject::connect(radiusSpin, QOverload<int>::of(&QSpinBox::valueChanged),
-                         secBolle, [updateRadius](int){ updateRadius(); });
+                         this, [updateRadius](int){ updateRadius(); });
 
         radiusLay->addWidget(radiusLbl);
         radiusLay->addWidget(radiusSpin);
@@ -328,6 +329,65 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         execRowL->addStretch();
         eLay->addWidget(execRow);
         leftCol->addWidget(secExec);
+    }
+
+    /* ── Sezione: Icone modalità AI (TriModeButton) ── */
+    {
+        auto* secEmoji = new QFrame(leftColW);
+        secEmoji->setObjectName("cardFrame");
+        auto* emLay = new QVBoxLayout(secEmoji);
+        emLay->setContentsMargins(16, 10, 16, 10);
+        emLay->setSpacing(8);
+
+        auto* emTitle = new QLabel(
+            "\xf0\x9f\x8e\xad  <b>Icone modalit\xc3\xa0 AI</b>", secEmoji);
+        emTitle->setObjectName("cardTitle");
+        emTitle->setTextFormat(Qt::RichText);
+        emTitle->setToolTip("Stile emoji nel pulsante TriMode (Chat / Agentico / Conversa).");
+        emLay->addWidget(emTitle);
+
+        auto* emDesc = new QLabel(
+            "Scegli come vengono visualizzate le emoji nel pulsante circolare AI.", secEmoji);
+        emDesc->setObjectName("cardDesc");
+        emDesc->setWordWrap(true);
+        emLay->addWidget(emDesc);
+
+        struct EmojiMode { const char* label; const char* value; const char* tip; };
+        static const EmojiMode kEmojiModes[] = {
+            { "Sistema (font emoji)",
+              "system",
+              "Usa le emoji native del sistema operativo." },
+            { "OpenMoji (SVG)",
+              "openmoji",
+              "Usa le icone SVG open-source OpenMoji \xe2\x80\x94 aspetto coerente su tutti i sistemi." },
+        };
+
+        QSettings emSett("Prismalux", "GUI");
+        const QString curEmoji = emSett.value(P::SK::kTriModeEmojiStyle, "system").toString();
+
+        auto* emGroup = new QButtonGroup(secEmoji);
+        auto* emRow   = new QWidget(secEmoji);
+        auto* emRowL  = new QHBoxLayout(emRow);
+        emRowL->setContentsMargins(0, 0, 0, 0);
+        emRowL->setSpacing(20);
+
+        for (const auto& em : kEmojiModes) {
+            auto* rb = new QRadioButton(QString::fromUtf8(em.label), secEmoji);
+            rb->setObjectName("cardDesc");
+            rb->setToolTip(QString::fromUtf8(em.tip));
+            rb->setChecked(curEmoji == em.value);
+            rb->setProperty("emojiStyleValue", QLatin1String(em.value));
+            emGroup->addButton(rb);
+            emRowL->addWidget(rb);
+            connect(rb, &QRadioButton::toggled, this, [this, rb](bool checked) {
+                if (!checked) return;
+                const QString val = rb->property("emojiStyleValue").toString();
+                QSettings("Prismalux", "GUI").setValue(P::SK::kTriModeEmojiStyle, val);
+            });
+        }
+        emRowL->addStretch();
+        emLay->addWidget(emRow);
+        leftCol->addWidget(secEmoji);
     }
 
     leftCol->addStretch();

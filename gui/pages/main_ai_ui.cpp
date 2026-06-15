@@ -8,6 +8,7 @@ namespace P = PrismaluxPaths;
 #include <QTime>
 #include <QElapsedTimer>
 #include <QKeyEvent>
+#include <QShortcut>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -68,7 +69,6 @@ void AgentiPage::setupUI()
     buildToolbar(lay);
     buildChatLog(lay);
     buildChartPanel(lay);
-    buildHistoryPanel(lay);
     QPushButton* btnSymbols = buildInputArea(lay);
     buildRagPanel(lay);
     buildHintFooter(lay);
@@ -299,62 +299,6 @@ void AgentiPage::buildChartPanel(QVBoxLayout* lay)
 }
 
 /* ──────────────────────────────────────────────────────────────
-   buildHistoryPanel — QGroupBox collassabile con lista sessioni
-   ────────────────────────────────────────────────────────────── */
-void AgentiPage::buildHistoryPanel(QVBoxLayout* lay)
-{
-    m_histGroup = new QGroupBox("\xf0\x9f\x93\x9c  Storia Chat", this);  /* 📜 */
-    auto* histGroup = m_histGroup;
-    histGroup->setObjectName("cardFrame");
-    histGroup->setCheckable(true);
-    histGroup->setChecked(false);
-    histGroup->setMaximumHeight(dpiScale(20));
-
-    auto* histLay = new QVBoxLayout(histGroup);
-    histLay->setContentsMargins(6, 4, 6, 4);
-    histLay->setSpacing(4);
-
-    m_historyList = new QListWidget(histGroup);
-    m_historyList->setObjectName("chatLog");
-    m_historyList->setToolTip(tr("Clicca su una voce per riaprire la conversazione"));
-    m_historyList->setMaximumHeight(dpiScale(160));
-    histLay->addWidget(m_historyList);
-
-    histLay->addWidget(buildHistoryButtonRow(histGroup));
-
-    connect(histGroup, &QGroupBox::toggled, this, &AgentiPage::onHistGroupToggled);
-    connect(m_historyList, &QListWidget::currentRowChanged,
-            this, &AgentiPage::onHistoryItemClicked);
-
-    lay->addWidget(histGroup);
-    refreshHistoryList();
-}
-
-/* ── Riga pulsanti Nuova chat / Cancella nel pannello storia ── */
-QWidget* AgentiPage::buildHistoryButtonRow(QWidget* parent)
-{
-    auto* histBtnRow = new QWidget(parent);
-    auto* histBtnLay = new QHBoxLayout(histBtnRow);
-    histBtnLay->setContentsMargins(0, 0, 0, 0);
-    histBtnLay->setSpacing(6);
-
-    auto* btnNewChat = new QPushButton("\xe2\x9e\x95  Nuova chat", histBtnRow);
-    btnNewChat->setObjectName("actionBtn");
-    btnNewChat->setToolTip(tr("Azzera il log e avvia una nuova conversazione"));
-    histBtnLay->addWidget(btnNewChat);
-    connect(btnNewChat, &QPushButton::clicked, this, &AgentiPage::onHistoryNewChatClicked);
-
-    auto* btnDelChat = new QPushButton("\xf0\x9f\x97\x91  Cancella", histBtnRow);
-    btnDelChat->setObjectName("actionBtn");
-    btnDelChat->setToolTip(tr("Elimina la conversazione selezionata dalla storia"));
-    histBtnLay->addWidget(btnDelChat);
-    connect(btnDelChat, &QPushButton::clicked, this, &AgentiPage::onHistoryDeleteClicked);
-
-    histBtnLay->addStretch(1);
-    return histBtnRow;
-}
-
-/* ──────────────────────────────────────────────────────────────
    buildInputArea — griglia testo + pulsanti azione
    Restituisce il pulsante Simboli (necessario a buildSymbolsPanel)
    ────────────────────────────────────────────────────────────── */
@@ -390,7 +334,7 @@ void AgentiPage::buildInputTextField(QGridLayout* inputGrid, QWidget* inputArea)
     m_input->setAccessibleName("Campo messaggio chat");
     m_input->setAccessibleDescription(
         "Scrivi qui il messaggio da inviare all'AI. Premi Ctrl+Invio per inviare.");
-    inputGrid->addWidget(m_input, 0, 0, 2, 1);
+    inputGrid->addWidget(m_input, 0, 0, 3, 1);
 }
 
 /* ── Pulsanti azione (col 1-3): Avvia/Voce/Simboli/Traduci/Documenti/Immagini ──
@@ -406,6 +350,7 @@ QPushButton* AgentiPage::buildInputActionButtons(QGridLayout* inputGrid, QWidget
     m_btnRun = new QPushButton("\xf0\x9f\x93\xa4 Invia", inputArea);
     m_btnRun->setObjectName("actionBtn");
     m_btnRun->setProperty("bigBtn", "true");
+    m_btnRun->setVisible(false);   /* hub ovale TriModeButton è l'azione visiva */
     m_btnRun->setToolTip(
         "Risposta immediata con contesto RAG \xe2\x80\x94 1 solo agente (Invio)\n"
         "Stop da fermo \xe2\x86\x92 cambia modalit\xc3\xa0 (Invia \xe2\x86\x94 Avvia)");
@@ -432,11 +377,10 @@ QPushButton* AgentiPage::buildInputActionButtons(QGridLayout* inputGrid, QWidget
     m_btnDoc->setAccessibleName("Allega file al messaggio");
     tagExec(m_btnDoc, "\xf0\x9f\x93\x8e", "Allega file");
 
-    /* Col 1: Run (rowspan 3)  Col 3 r0: Allega file  r1: Simboli  r2: Trascrivi parlato */
-    inputGrid->addWidget(m_btnRun,   0, 1, 3, 1);
-    inputGrid->addWidget(m_btnDoc,   0, 3);
-    inputGrid->addWidget(btnSymbols, 1, 3);
-    inputGrid->addWidget(m_btnVoice, 2, 3);
+    /* Col 2 r0: Allega file  r1: Simboli  r2: Trascrivi parlato (m_btnRun nascosto) */
+    inputGrid->addWidget(m_btnDoc,   0, 2);
+    inputGrid->addWidget(btnSymbols, 1, 2);
+    inputGrid->addWidget(m_btnVoice, 2, 2);
 
     return btnSymbols;
 }
@@ -445,23 +389,37 @@ QPushButton* AgentiPage::buildInputActionButtons(QGridLayout* inputGrid, QWidget
 void AgentiPage::buildInputRagToggle(QGridLayout* inputGrid, QWidget* inputArea)
 {
     m_modeBtn = new TriModeButton(inputArea);
-    inputGrid->addWidget(m_modeBtn, 0, 2, 3, 1);
-    connect(m_modeBtn, &TriModeButton::modeChanged, this, &AgentiPage::onModeBtnChanged);
+    inputGrid->addWidget(m_modeBtn, 0, 1, 3, 1);   /* col 1, rowspan 3 */
+    m_modeBtn->setActionText("\xf0\x9f\x93\xa4 Invia");
+    connect(m_modeBtn, &TriModeButton::modeChanged,   this, &AgentiPage::onModeBtnChanged);
+    connect(m_modeBtn, &TriModeButton::actionClicked, this, &AgentiPage::onBtnRunClicked);
 
-    /* Col 4: Tools (riga 0) + Memoria Hermes (riga 1) */
-    inputGrid->setColumnStretch(4, 0);
+    /* Col 3: ⚡ Tool Veloci (r0) · 🔌 Tool Lenti (r1) · Memoria (r2) */
+    inputGrid->setColumnStretch(3, 0);
 
-    m_btnToolsToggle = new QPushButton("\xf0\x9f\x94\xa7  Tools", inputArea);
+    m_btnToolsToggle = new QPushButton("\xe2\x9a\xa1  Tool Veloci", inputArea);
     m_btnToolsToggle->setCheckable(true);
     m_btnToolsToggle->setObjectName("actionBtn");
     m_btnToolsToggle->setToolTip(
-        "Apri/chiudi pannello strumenti.\n"
-        "Scegli quali Function Tools e MCP Plugin abilitare per questa chat.");
-    inputGrid->addWidget(m_btnToolsToggle, 0, 4);
+        "Apri/chiudi i Tool Veloci (Function Tools).\n"
+        "Eseguiti in-process, risposta < 1ms.\n"
+        "Calcola, cerca online, leggi file, Python, RAG\xe2\x80\xa6");
+    inputGrid->addWidget(m_btnToolsToggle, 0, 3);
     connect(m_btnToolsToggle, &QPushButton::toggled,
             this, &AgentiPage::onToolsPanelToggle);
 
-    /* Cella composita: [Memoria persistente][⌛] — ⌛ appare solo quando attivo */
+    m_btnMcpToggle = new QPushButton("\xf0\x9f\x94\x8c  Tool Lenti (MCP)", inputArea);
+    m_btnMcpToggle->setCheckable(true);
+    m_btnMcpToggle->setObjectName("actionBtn");
+    m_btnMcpToggle->setToolTip(
+        "Apri/chiudi i Tool Lenti \xe2\x80\x94 MCP Plugin.\n"
+        "Avviati come processo separato (JSON-RPC 2.0 stdio).\n"
+        "Latenza maggiore ma accesso a strumenti esterni.");
+    inputGrid->addWidget(m_btnMcpToggle, 1, 3);
+    connect(m_btnMcpToggle, &QPushButton::toggled,
+            this, &AgentiPage::onMcpPanelToggle);
+
+    /* Cella composita: [Memoria persistente][⌛] — riga 2 */
     auto* hermesCell = new QWidget(inputArea);
     auto* hermesCellLay = new QHBoxLayout(hermesCell);
     hermesCellLay->setContentsMargins(0, 0, 0, 0);
@@ -487,14 +445,13 @@ void AgentiPage::buildInputRagToggle(QGridLayout* inputGrid, QWidget* inputArea)
     m_hermesReflectBar->setVisible(false);
     hermesCellLay->addWidget(m_hermesReflectBar);
 
-    inputGrid->addWidget(hermesCell, 1, 4);
+    inputGrid->addWidget(hermesCell, 2, 3);
 }
 
 /* ── Tab order: campo testo → Avvia → Voce → Simboli → Allega file ── */
 void AgentiPage::buildInputTabOrder(QPushButton* btnSymbols)
 {
-    QWidget::setTabOrder(m_input,    m_btnRun);
-    QWidget::setTabOrder(m_btnRun,   m_btnVoice);
+    QWidget::setTabOrder(m_input,    m_btnVoice);
     QWidget::setTabOrder(m_btnVoice, btnSymbols);
     QWidget::setTabOrder(btnSymbols, m_btnDoc);
 }
@@ -780,6 +737,11 @@ void AgentiPage::buildInputConnections(QPushButton* btnSymbols)
     connect(btnSymbols, &QPushButton::clicked, this, &AgentiPage::onBtnSymbolsClicked);
     connect(m_btnDoc,   &QPushButton::clicked, this, &AgentiPage::onBtnDocClicked);
     connect(m_btnVoice, &QPushButton::clicked, this, &AgentiPage::onBtnVoiceClicked);
+
+    /* Shift+Tab cicla le modalità del TriModeButton (solo se un figlio ha il focus) */
+    auto* scMode = new QShortcut(Qt::Key_Backtab, this);
+    scMode->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(scMode, &QShortcut::activated, this, &AgentiPage::onCycleModeShortcut);
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -985,6 +947,11 @@ void AgentiPage::_setRunBusy(bool busy)
     }
     m_btnRun->setEnabled(true);
     P::repolish(m_btnRun);
+    if (m_modeBtn) {
+        m_modeBtn->setActionText(m_btnRun->text());
+        m_modeBtn->setActionEnabled(true);
+        m_modeBtn->setActionDanger(busy);
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1103,14 +1070,16 @@ void AgentiPage::onVoiceLoopToggled(bool on)
         "QPushButton:hover{background:#7f1d1d35;}";
 
     m_voiceLoopActive = on;
-    m_btnVoiceLoop->setStyleSheet(on ? kVoiceOn : kVoiceOff);
-    if (on) {
-        m_btnVoiceLoop->setText(tr("\xf0\x9f\x94\xb4  In ascolto..."));
-    } else {
-        const QString pName = P::personalityName();
-        m_btnVoiceLoop->setText(pName.isEmpty()
-            ? "\xf0\x9f\x8e\x99  Conversa"
-            : "\xf0\x9f\x8e\x99  Conversa con " + pName);
+    if (m_btnVoiceLoop) {
+        m_btnVoiceLoop->setStyleSheet(on ? kVoiceOn : kVoiceOff);
+        if (on) {
+            m_btnVoiceLoop->setText(tr("\xf0\x9f\x94\xb4  In ascolto..."));
+        } else {
+            const QString pName = P::personalityName();
+            m_btnVoiceLoop->setText(pName.isEmpty()
+                ? "\xf0\x9f\x8e\x99  Conversa"
+                : "\xf0\x9f\x8e\x99  Conversa con " + pName);
+        }
     }
 
     if (on) {
@@ -1122,13 +1091,13 @@ void AgentiPage::onVoiceLoopToggled(bool on)
                 "Impostazioni \xe2\x86\x92 Trascrivi</a> per installarlo."
                 "</p>");
             m_voiceLoopActive = false;
-            m_btnVoiceLoop->setChecked(false);
+            if (m_btnVoiceLoop) m_btnVoiceLoop->setChecked(false);
             return;
         }
         if (SttWhisper::whisperModel().isEmpty()) {
             downloadWhisperModel();
             m_voiceLoopActive = false;
-            m_btnVoiceLoop->setChecked(false);
+            if (m_btnVoiceLoop) m_btnVoiceLoop->setChecked(false);
             return;
         }
         if (m_sttState == SttState::Idle)
@@ -1327,9 +1296,17 @@ void AgentiPage::onModeToggleToggled(bool autoOn)
     m_btnRun->setText(autoOn
         ? "\xf0\x9f\xa4\x96  Avvia Agente"
         : "\xf0\x9f\x93\xa4 Invia");
+    if (m_modeBtn) m_modeBtn->setActionText(m_btnRun->text());
 }
 
 /* ── Settore TriModeButton selezionato: 0=Chat  1=Agentico  2=Conversa ── */
+void AgentiPage::onCycleModeShortcut()
+{
+    if (!m_modeBtn || !isVisible()) return;   /* solo quando tab AI è visibile */
+    const int next = ((int)m_modeBtn->currentMode() + 1) % 3;
+    m_modeBtn->setMode((TriModeButton::Mode)next, true);
+}
+
 void AgentiPage::onModeBtnChanged(int mode)
 {
     /* 1. Ferma modalità precedente */
@@ -1347,16 +1324,18 @@ void AgentiPage::onModeBtnChanged(int mode)
 
     /* 2. Ripristina run button di default, poi specializza */
     m_btnRun->setText("\xf0\x9f\x93\xa4 Invia");
+    if (m_modeBtn) m_modeBtn->setActionText("\xf0\x9f\x93\xa4 Invia");
 
     /* 3. Attiva nuova modalità */
     switch (mode) {
     case 0:   /* Chat */
         break;
     case 1:   /* Agentico */
-        onModeToggleToggled(true);   /* gestisce anche il testo del run button */
+        onModeToggleToggled(true);   /* gestisce anche il testo del run button + hub */
         break;
-    case 2:   /* Conversa: NON avvia registrazione — aspetta clic su "Inizia Conversazione" */
+    case 2:   /* Conversa */
         m_btnRun->setText("\xf0\x9f\x8e\x99  Dialoga");
+        if (m_modeBtn) m_modeBtn->setActionText("\xf0\x9f\x8e\x99  Dialoga");
         break;
     }
 }
@@ -1777,6 +1756,16 @@ void AgentiPage::onBtnRunClicked()
 
     if (m_ai->busy()) { m_ai->abort(); return; }
 
+    /* ── Agente ricerca web: intercetta domande che richiedono info online ── */
+    {
+        const QString userMsg = m_input->toPlainText().trimmed();
+        if (!userMsg.isEmpty() && _detectWebIntent(userMsg)) {
+            m_input->clear();
+            runWebSearchAgent(userMsg);
+            return;
+        }
+    }
+
     /* Agente Autonomo: intercetta prima della pipeline normale */
     if (m_autoEnabled && !m_modePipeline) {
         const QString task = m_input->toPlainText().trimmed();
@@ -1840,8 +1829,23 @@ void AgentiPage::onSymbolBtnClicked()
 
 void AgentiPage::onBtnSymbolsClicked()
 {
-    if (m_symbolsScrollArea)
-        m_symbolsScrollArea->setVisible(!m_symbolsScrollArea->isVisible());
+    const bool nowVisible = m_symbolsScrollArea && !m_symbolsScrollArea->isVisible();
+    if (nowVisible) {
+        /* Chiudi Tool Veloci e Tool Lenti */
+        if (m_btnToolsToggle && m_btnToolsToggle->isChecked()) {
+            m_btnToolsToggle->blockSignals(true);
+            m_btnToolsToggle->setChecked(false);
+            m_btnToolsToggle->blockSignals(false);
+            if (m_toolsPanel) m_toolsPanel->setVisible(false);
+        }
+        if (m_btnMcpToggle && m_btnMcpToggle->isChecked()) {
+            m_btnMcpToggle->blockSignals(true);
+            m_btnMcpToggle->setChecked(false);
+            m_btnMcpToggle->blockSignals(false);
+            if (m_mcpPanel) m_mcpPanel->setVisible(false);
+        }
+    }
+    if (m_symbolsScrollArea) m_symbolsScrollArea->setVisible(nowVisible);
 }
 
 void AgentiPage::onBtnTranslateClicked()
@@ -2252,15 +2256,6 @@ void AgentiPage::onRagUrlAddClicked()
     connect(m_ragUrlReply, &QNetworkReply::finished, this, &AgentiPage::onRagUrlFetched);
 }
 
-/* ──────────────────────────────────────────────────────────────
-   onHistGroupToggled — espande/comprime il pannello storia chat
-   ────────────────────────────────────────────────────────────── */
-void AgentiPage::onHistGroupToggled(bool on)
-{
-    if (m_histGroup)
-        m_histGroup->setMaximumHeight(on ? dpiScale(220) : dpiScale(20));
-}
-
 void AgentiPage::onRagUrlFetched()
 {
     if (!m_ragUrlReply) return;
@@ -2313,13 +2308,12 @@ void AgentiPage::onRagUrlFetched()
 }
 
 /* ══════════════════════════════════════════════════════════════
-   buildToolsPanel — pannello collassabile Tools (2 col) | MCP (2 col)
-   4 colonne totali: sinistra Function Tools, destra MCP Plugin.
+   buildToolsPanel — due pannelli separati:
+     m_toolsPanel  ⚡ Tool Veloci   (Function Tools, in-process)
+     m_mcpPanel    🔌 Tool Lenti    (MCP Plugin, subprocess)
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
 {
-    /* label = testo italiano breve mostrato nella checkbox
-       desc  = spiegazione completa nel tooltip */
     static const struct {
         const char* name; const char* icon;
         const char* label; const char* desc;
@@ -2346,6 +2340,95 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
           "Avvia un sub-agente specializzato per un sotto-compito autonomo" },
     };
     constexpr int kNTools = 10;
+
+    /* ══ PANNELLO 1: ⚡ Tool Veloci (Function Tools, in-process) ══ */
+    m_toolsPanel = new QFrame(this);
+    m_toolsPanel->setObjectName("symbolsPanel");
+    m_toolsPanel->setVisible(false);
+
+    auto* fastLay = new QVBoxLayout(m_toolsPanel);
+    fastLay->setContentsMargins(8, 6, 8, 6);
+    fastLay->setSpacing(6);
+
+    /* Header ⚡ */
+    {
+        auto* hdrRow = new QWidget(m_toolsPanel);
+        auto* hdrLay = new QHBoxLayout(hdrRow);
+        hdrLay->setContentsMargins(0, 0, 0, 0);
+        hdrLay->setSpacing(8);
+
+        auto* hdr = new QLabel(hdrRow);
+        hdr->setTextFormat(Qt::RichText);
+        hdr->setText(
+            "<b>\xe2\x9a\xa1 Tool Veloci</b>"
+            "<span style='color:#16a34a;font-size:10px;font-weight:bold;'>"
+            " \xe2\x80\x94 eseguiti in-process, &lt;1ms</span>"
+            "<br><span style='color:#64748b;font-size:9px;'>"
+            "Function Tools integrati: calcola, cerca, leggi file, Python, RAG\xe2\x80\xa6</span>");
+        hdrLay->addWidget(hdr, 1);
+
+        auto* btnAll  = new QPushButton("\xe2\x9c\x85  Tutti",   hdrRow);
+        auto* btnNone = new QPushButton("\xe2\x96\xa1  Nessuno", hdrRow);
+        btnAll->setObjectName("actionBtn");
+        btnNone->setObjectName("actionBtn");
+        btnAll->setFixedHeight(dpiScale(22));
+        btnNone->setFixedHeight(dpiScale(22));
+        hdrLay->addWidget(btnAll);
+        hdrLay->addWidget(btnNone);
+        fastLay->addWidget(hdrRow);
+
+        /* Grid 2 colonne */
+        auto* grid = new QWidget(m_toolsPanel);
+        auto* gl   = new QGridLayout(grid);
+        gl->setContentsMargins(0, 0, 0, 0);
+        gl->setSpacing(4);
+        gl->setColumnStretch(0, 1);
+        gl->setColumnStretch(1, 1);
+
+        for (int i = 0; i < kNTools; ++i) {
+            const QString name  = QString::fromLatin1(kTools[i].name);
+            const QString icon  = QString::fromUtf8(kTools[i].icon);
+            const QString label = QString::fromUtf8(kTools[i].label);
+            const QString desc  = QString::fromUtf8(kTools[i].desc);
+
+            auto* chk = new QCheckBox(icon + "  " + label + "  (" + name + ")", grid);
+            chk->setToolTip(desc);
+            chk->setChecked(true);
+            chk->setMinimumHeight(dpiScale(22));
+            m_enabledTools.insert(name);
+            gl->addWidget(chk, i / 2, i % 2);
+
+            connect(chk, &QCheckBox::toggled, this, [this, name](bool on){
+                if (on) m_enabledTools.insert(name);
+                else    m_enabledTools.remove(name);
+                onToolEnabledChanged();
+            });
+        }
+
+        connect(btnAll, &QPushButton::clicked, grid, [grid]{
+            for (auto* c : grid->findChildren<QCheckBox*>()) c->setChecked(true);
+        });
+        connect(btnNone, &QPushButton::clicked, grid, [grid]{
+            for (auto* c : grid->findChildren<QCheckBox*>()) c->setChecked(false);
+        });
+        fastLay->addWidget(grid);
+    }
+
+    /* Hint modello tool-capable — visibile solo dentro questo pannello */
+    {
+        auto* hintLbl = new QLabel(
+            "<span style='color:#475569;font-size:10px;'>"
+            "Richiedono un modello tool-capable "
+            "(qwen3, llama3.1, mistral-nemo\xe2\x80\xa6)</span>",
+            m_toolsPanel);
+        hintLbl->setTextFormat(Qt::RichText);
+        hintLbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        fastLay->addWidget(hintLbl);
+    }
+
+    lay->addWidget(m_toolsPanel);
+
+    /* ══ PANNELLO 2: 🔌 Tool Lenti — MCP Plugin (subprocess JSON-RPC) ══ */
 
     /* Descrizioni italiane per MCP noti; fallback automatico per gli altri */
     static const QHash<QString, QString> kMcpLabels = {
@@ -2378,7 +2461,6 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
         { "ui_ux_checker_mcp",    "Verifica UI/UX" },
         { "web_scraper_mcp",      "Web scraping" },
     };
-    /* Fallback: rimuove _mcp, _ → spazio, capitalizza prima lettera */
     auto mcpLabel = [&kMcpLabels](const QString& name) -> QString {
         if (kMcpLabels.contains(name)) return kMcpLabels.value(name);
         QString s = name;
@@ -2388,101 +2470,41 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
         return s;
     };
 
-    m_toolsPanel = new QFrame(this);
-    m_toolsPanel->setObjectName("symbolsPanel");
-    m_toolsPanel->setVisible(false);
-    m_toolsPanel->setMaximumHeight(dpiScale(300));
+    m_mcpPanel = new QFrame(this);
+    m_mcpPanel->setObjectName("symbolsPanel");
+    m_mcpPanel->setVisible(false);
+    m_mcpPanel->setMaximumHeight(dpiScale(280));
 
-    /* Layout orizzontale: colonna Tools | separatore | colonna MCP */
-    auto* outerLay = new QHBoxLayout(m_toolsPanel);
-    outerLay->setContentsMargins(8, 6, 8, 6);
-    outerLay->setSpacing(0);
+    auto* slowLay = new QVBoxLayout(m_mcpPanel);
+    slowLay->setContentsMargins(8, 6, 8, 6);
+    slowLay->setSpacing(6);
 
-    /* ══ Metà sinistra: Function Tools (2 colonne) ══ */
+    /* Header 🔌 con Tutti/Nessuno */
     {
-        auto* leftCol = new QWidget(m_toolsPanel);
-        auto* leftLay = new QVBoxLayout(leftCol);
-        leftLay->setContentsMargins(0, 0, 6, 0);
-        leftLay->setSpacing(4);
+        auto* hdrRow = new QWidget(m_mcpPanel);
+        auto* hdrLay = new QHBoxLayout(hdrRow);
+        hdrLay->setContentsMargins(0, 0, 0, 0);
+        hdrLay->setSpacing(8);
 
-        /* Header */
-        auto* hdr = new QLabel(leftCol);
+        auto* hdr = new QLabel(hdrRow);
         hdr->setTextFormat(Qt::RichText);
         hdr->setText(
-            "<b>\xf0\x9f\x94\xa7 Function Tools</b>"
-            "<span style='color:#64748b;font-size:10px;'>"
-            " \xe2\x80\x94 in-process, &lt;1ms</span>");
-        leftLay->addWidget(hdr);
+            "<b>\xf0\x9f\x94\x8c Tool Lenti (MCP)</b>"
+            "<span style='color:#dc2626;font-size:10px;font-weight:bold;'>"
+            " \xe2\x80\x94 processo separato, +latenza</span>"
+            "<br><span style='color:#64748b;font-size:9px;'>"
+            "MCP Plugin: avviati come subprocess JSON-RPC 2.0 stdio</span>");
+        hdrLay->addWidget(hdr, 1);
 
-        /* Grid 2 colonne */
-        auto* grid = new QWidget(leftCol);
-        auto* gl   = new QGridLayout(grid);
-        gl->setContentsMargins(0, 0, 0, 0);
-        gl->setSpacing(4);
-        gl->setColumnStretch(0, 1);
-        gl->setColumnStretch(1, 1);
-
-        for (int i = 0; i < kNTools; ++i) {
-            const QString name  = QString::fromLatin1(kTools[i].name);
-            const QString icon  = QString::fromUtf8(kTools[i].icon);
-            const QString label = QString::fromUtf8(kTools[i].label);
-            const QString desc  = QString::fromUtf8(kTools[i].desc);
-
-            /* Formato A: icona  Descrizione  (nome_tecnico) */
-            auto* chk = new QCheckBox(icon + "  " + label + "  (" + name + ")", grid);
-            chk->setToolTip(desc);
-            chk->setChecked(true);
-            chk->setMinimumHeight(dpiScale(22));
-            m_enabledTools.insert(name);
-            gl->addWidget(chk, i / 2, i % 2);
-
-            connect(chk, &QCheckBox::toggled, this, [this, name](bool on){
-                if (on) m_enabledTools.insert(name);
-                else    m_enabledTools.remove(name);
-                onToolEnabledChanged();
-            });
-        }
-
-        /* Pulsanti Tutti/Nessuno inline */
-        auto* btnRow = new QWidget(leftCol);
-        auto* btnLay = new QHBoxLayout(btnRow);
-        btnLay->setContentsMargins(0, 2, 0, 0);
-        btnLay->setSpacing(4);
-        auto* btnAll  = new QPushButton("\xe2\x9c\x85  Tutti",   btnRow);
-        auto* btnNone = new QPushButton("\xe2\x96\xa1  Nessuno", btnRow);
-        btnAll->setObjectName("actionBtn");
-        btnNone->setObjectName("actionBtn");
-        btnAll->setFixedHeight(dpiScale(22));
-        btnNone->setFixedHeight(dpiScale(22));
-        btnLay->addWidget(btnAll);
-        btnLay->addWidget(btnNone);
-        connect(btnAll, &QPushButton::clicked, grid, [grid]{
-            for (auto* c : grid->findChildren<QCheckBox*>()) c->setChecked(true);
-        });
-        connect(btnNone, &QPushButton::clicked, grid, [grid]{
-            for (auto* c : grid->findChildren<QCheckBox*>()) c->setChecked(false);
-        });
-
-        leftLay->addWidget(grid);
-        leftLay->addWidget(btnRow);
-        leftLay->addStretch();
-        outerLay->addWidget(leftCol, 1);
-    }
-
-    /* Separatore verticale */
-    {
-        auto* vline = new QFrame(m_toolsPanel);
-        vline->setFrameShape(QFrame::VLine);
-        vline->setFrameShadow(QFrame::Sunken);
-        outerLay->addWidget(vline);
-    }
-
-    /* ══ Metà destra: MCP Plugin (2 colonne + scroll) ══ */
-    {
-        auto* rightCol = new QWidget(m_toolsPanel);
-        auto* rightLay = new QVBoxLayout(rightCol);
-        rightLay->setContentsMargins(6, 0, 0, 0);
-        rightLay->setSpacing(4);
+        auto* btnAllMcp  = new QPushButton("\xe2\x9c\x85  Tutti",   hdrRow);
+        auto* btnNoneMcp = new QPushButton("\xe2\x96\xa1  Nessuno", hdrRow);
+        btnAllMcp->setObjectName("actionBtn");
+        btnNoneMcp->setObjectName("actionBtn");
+        btnAllMcp->setFixedHeight(dpiScale(22));
+        btnNoneMcp->setFixedHeight(dpiScale(22));
+        hdrLay->addWidget(btnAllMcp);
+        hdrLay->addWidget(btnNoneMcp);
+        slowLay->addWidget(hdrRow);
 
         /* Scansiona MCPs/ */
         QStringList mcpNames;
@@ -2494,31 +2516,8 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
                     mcpNames << d;
         }
 
-        /* Header con pulsanti Tutti/Nessuno */
-        auto* hdrRow = new QWidget(rightCol);
-        auto* hdrLay = new QHBoxLayout(hdrRow);
-        hdrLay->setContentsMargins(0, 0, 0, 0);
-        hdrLay->setSpacing(4);
-        auto* hdr = new QLabel(hdrRow);
-        hdr->setTextFormat(Qt::RichText);
-        hdr->setText(
-            "<b>\xf0\x9f\x94\x8c MCP Plugin</b>"
-            "<span style='color:#64748b;font-size:10px;'>"
-            " \xe2\x80\x94 subprocess, +latenza</span>");
-        hdrLay->addWidget(hdr, 1);
-
-        auto* btnAllMcp  = new QPushButton("\xe2\x9c\x85  Tutti",   hdrRow);
-        auto* btnNoneMcp = new QPushButton("\xe2\x96\xa1  Nessuno", hdrRow);
-        btnAllMcp->setObjectName("actionBtn");
-        btnNoneMcp->setObjectName("actionBtn");
-        btnAllMcp->setFixedHeight(dpiScale(20));
-        btnNoneMcp->setFixedHeight(dpiScale(20));
-        hdrLay->addWidget(btnAllMcp);
-        hdrLay->addWidget(btnNoneMcp);
-        rightLay->addWidget(hdrRow);
-
         /* Scroll area per i ~50 MCP */
-        auto* mcpScroll = new QScrollArea(rightCol);
+        auto* mcpScroll = new QScrollArea(m_mcpPanel);
         mcpScroll->setWidgetResizable(true);
         mcpScroll->setFrameShape(QFrame::NoFrame);
         mcpScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -2530,11 +2529,13 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
         gl->setSpacing(4);
         gl->setColumnStretch(0, 1);
         gl->setColumnStretch(1, 1);
+        gl->setColumnStretch(2, 1);
+        gl->setColumnStretch(3, 1);
 
         if (mcpNames.isEmpty()) {
             gl->addWidget(new QLabel(
                 "<span style='color:#64748b;'>Nessun MCP in MCPs/</span>", grid),
-                0, 0, 1, 2);
+                0, 0, 1, 4);
         } else {
             QSettings s("Prismalux", "GUI");
             const QStringList savedEnabled =
@@ -2545,7 +2546,6 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
                 const bool en = savedEnabled.contains(name);
                 if (en) m_enabledMcps.insert(name);
 
-                /* Formato A: icona  Descrizione italiana  (nome_tecnico) */
                 auto* chk = new QCheckBox(
                     "\xf0\x9f\x94\x8c  " + mcpLabel(name) + "  (" + name + ")", grid);
                 chk->setChecked(en);
@@ -2553,7 +2553,7 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
                 chk->setToolTip("MCPs/" + name + "/server.py\n"
                     "Processo Python separato (JSON-RPC 2.0 stdio).\n"
                     "Usalo da AppController \xe2\x86\x92 TinyMCP per chiamate dirette.");
-                gl->addWidget(chk, i / 2, i % 2);
+                gl->addWidget(chk, i / 4, i % 4);
 
                 connect(chk, &QCheckBox::toggled, this, [this, name](bool on){
                     if (on) m_enabledMcps.insert(name);
@@ -2574,11 +2574,10 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
         }
 
         mcpScroll->setWidget(grid);
-        rightLay->addWidget(mcpScroll, 1);
-        outerLay->addWidget(rightCol, 1);
+        slowLay->addWidget(mcpScroll, 1);
     }
 
-    lay->addWidget(m_toolsPanel);
+    lay->addWidget(m_mcpPanel);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2593,15 +2592,6 @@ void AgentiPage::buildBottomBar(QVBoxLayout* lay)
     bl->setSpacing(6);
 
     bl->addStretch();
-
-    /* ── Hint modello tools ── */
-    auto* hintLbl = new QLabel(
-        "<span style='color:#475569;font-size:11px;'>"
-        "I Function Tools richiedono un modello tool-capable "
-        "(qwen3, llama3.1, mistral-nemo\xe2\x80\xa6)</span>",
-        bar);
-    hintLbl->setTextFormat(Qt::RichText);
-    bl->addWidget(hintLbl);
 
     lay->addWidget(bar);
 
@@ -2625,28 +2615,78 @@ void AgentiPage::buildBottomBar(QVBoxLayout* lay)
     updateToolsBtnLabel();
 }
 
-/* ── Aggiorna il testo del pulsante Tools con il contatore abilitati ── */
+/* ── Aggiorna il testo dei due pulsanti Tool Veloci / Tool Lenti ── */
 void AgentiPage::updateToolsBtnLabel()
 {
-    if (!m_btnToolsToggle) return;
-    const int n = static_cast<int>(m_enabledTools.size());
-    m_btnToolsToggle->setText(
-        n == 0
-        ? "\xf0\x9f\x94\xa7  Tools  (disabilitati)"
-        : QString("\xf0\x9f\x94\xa7  Tools  (%1 abilitati)").arg(n));
+    const int nT = static_cast<int>(m_enabledTools.size());
+    const int nM = static_cast<int>(m_enabledMcps.size());
+
+    if (m_btnToolsToggle) {
+        m_btnToolsToggle->setText(
+            nT == 0
+            ? "\xe2\x9a\xa1  Tool Veloci  (disabilitati)"
+            : QString("\xe2\x9a\xa1  Tool Veloci  (%1)").arg(nT));
+    }
+    if (m_btnMcpToggle) {
+        m_btnMcpToggle->setText(
+            nM == 0
+            ? "\xf0\x9f\x94\x8c  Tool Lenti  (disabilitati)"
+            : QString("\xf0\x9f\x94\x8c  Tool Lenti  (%1)").arg(nM));
+    }
 }
 
 void AgentiPage::onToolsPanelToggle()
 {
-    if (m_toolsPanel) m_toolsPanel->setVisible(m_btnToolsToggle->isChecked());
+    const bool opening = m_btnToolsToggle && m_btnToolsToggle->isChecked();
+    if (opening) {
+        /* Chiudi Simboli e Tool Lenti */
+        if (m_symbolsScrollArea) m_symbolsScrollArea->setVisible(false);
+        if (m_btnMcpToggle && m_btnMcpToggle->isChecked()) {
+            m_btnMcpToggle->blockSignals(true);
+            m_btnMcpToggle->setChecked(false);
+            m_btnMcpToggle->blockSignals(false);
+            if (m_mcpPanel) m_mcpPanel->setVisible(false);
+        }
+    }
+    if (m_toolsPanel) m_toolsPanel->setVisible(opening);
+}
+
+void AgentiPage::onMcpPanelToggle()
+{
+    const bool opening = m_btnMcpToggle && m_btnMcpToggle->isChecked();
+    if (opening) {
+        /* Chiudi Simboli e Tool Veloci */
+        if (m_symbolsScrollArea) m_symbolsScrollArea->setVisible(false);
+        if (m_btnToolsToggle && m_btnToolsToggle->isChecked()) {
+            m_btnToolsToggle->blockSignals(true);
+            m_btnToolsToggle->setChecked(false);
+            m_btnToolsToggle->blockSignals(false);
+            if (m_toolsPanel) m_toolsPanel->setVisible(false);
+        }
+    }
+    if (m_mcpPanel) m_mcpPanel->setVisible(opening);
 }
 
 void AgentiPage::onToolEnabledChanged()
 {
     updateToolsBtnLabel();
-    /* Sincronizza m_toolsEnabled: attivo se almeno un tool è selezionato */
     m_toolsEnabled = !m_enabledTools.isEmpty();
     if (m_toolChk && m_toolChk->isChecked() != m_toolsEnabled)
         m_toolChk->setChecked(m_toolsEnabled);
+}
+
+void AgentiPage::onBubbleStyleChanged()
+{
+    if (!m_log || m_log->toPlainText().trimmed().isEmpty()) return;
+
+    const int newBr = AppConfig::s().value(P::SK::kBubbleRadius, 10).toInt();
+    const int scrollPos = m_log->verticalScrollBar()->value();
+
+    QString html = m_log->toHtml();
+    static const QRegularExpression reBr("border-radius:\\s*\\d+px");
+    html.replace(reBr, QString("border-radius: %1px").arg(newBr));
+
+    m_log->setHtml(html);
+    m_log->verticalScrollBar()->setValue(scrollPos);
 }
 

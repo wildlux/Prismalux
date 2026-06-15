@@ -172,8 +172,6 @@ private:
 
     /* ── Storico chat persistente ── */
     ChatHistory       m_chatHistory;
-    QListWidget*      m_historyList = nullptr;  ///< pannello storia chat
-    QVector<QString>  m_historyIds;             ///< mappa indice → session id
 
     /* ── Stack undo per eliminazione bolle (del:) ── */
     QStack<QString> m_undoHtmlStack;
@@ -231,10 +229,19 @@ private:
     /** Testo da aggiungere al system prompt quando tool use è attivo */
     static QString toolSystemSuffix();
 
-    /* ── Pannello Tools/MCP (barra inferiore) ── */
-    QWidget*       m_toolsPanel     = nullptr;  ///< pannello collassabile con checkbox tool+MCP
-    QPushButton*   m_btnToolsToggle = nullptr;  ///< pulsante in basso "🔧 Tools (N abilitati)"
+    /** Rileva se il messaggio richiede ricerca online (pattern matching, senza LLM). */
+    static bool _detectWebIntent(const QString& msg);
+    /** Agente di ricerca web: cerca su DuckDuckGo e sintetizza la risposta con l'LLM. */
+    void runWebSearchAgent(const QString& query);
+
+    /* ── Pannello Tool Veloci (Function Tools) ── */
+    QWidget*       m_toolsPanel     = nullptr;  ///< pannello ⚡ Tool Veloci (Function Tools)
+    QPushButton*   m_btnToolsToggle = nullptr;  ///< toggle "⚡ Tool Veloci (N)"
     QSet<QString>  m_enabledTools;              ///< tool Ollama abilitati (tutti di default)
+
+    /* ── Pannello Tool Lenti (MCP) ── */
+    QFrame*        m_mcpPanel       = nullptr;  ///< pannello 🔌 Tool Lenti (MCP Plugin)
+    QPushButton*   m_btnMcpToggle   = nullptr;  ///< toggle "🔌 Tool Lenti (M)"
     QSet<QString>  m_enabledMcps;               ///< MCP abilitati (tutti di default)
 
     /** Costruisce l'array tools filtrato per la chat() — sostituisce _buildOllamaTools(). */
@@ -286,9 +293,6 @@ private:
     QWidget*       m_ragPanel    = nullptr;  ///< wrapper collassabile
     QPushButton*   m_btnRag      = nullptr;  ///< toggle visibilità
     QPushButton*   m_btnTeam     = nullptr;  ///< toggle "Team di agenti"
-
-    /* ── Storia Chat pannello collassabile ── */
-    QGroupBox*     m_histGroup    = nullptr;  ///< QGroupBox collassabile storia chat
 
     /* ── Query in background (cambio sessione durante elaborazione AI) ── */
     bool    m_bgMode    = false;   ///< true = AI in corso ma si sta visualizzando altra sessione
@@ -346,7 +350,6 @@ private:
     void buildToolbar(QVBoxLayout* lay);
     void buildChatLog(QVBoxLayout* lay);
     void buildChartPanel(QVBoxLayout* lay);
-    void buildHistoryPanel(QVBoxLayout* lay);
     QPushButton* buildInputArea(QVBoxLayout* lay);
     void buildRagPanel(QVBoxLayout* lay);
     void buildHintFooter(QVBoxLayout* lay);
@@ -360,7 +363,6 @@ private:
     void buildToolbarVoiceLoop(QHBoxLayout* toolLay, QWidget* toolbar);
     void buildToolbarModeToggle(QHBoxLayout* toolLay, QWidget* toolbar);
     void buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar);
-    QWidget* buildHistoryButtonRow(QWidget* parent);
     void buildInputTextField(QGridLayout* inputGrid, QWidget* inputArea);
     QPushButton* buildInputActionButtons(QGridLayout* inputGrid, QWidget* inputArea);
     void buildInputRagToggle(QGridLayout* inputGrid, QWidget* inputArea);
@@ -437,7 +439,9 @@ private:
     void _finishedPipeline(const QString& full);
     void _finishedMathTheory();
     void _finishedByzantine();
-    void _repopulateBubbleTexts(const QString& html);
+
+public slots:
+    void onBubbleStyleChanged();     ///< aggiorna border-radius bolle esistenti in m_log
 
 private slots:
     void onToken(const QString& t);
@@ -464,10 +468,12 @@ private slots:
     void onCmbLLMIndexChanged(int idx);
     void onModeToggleToggled(bool autoOn);  ///< mantenuto per compatibilità (ora usato da ciclo 3 stati)
     void onModeBtnChanged(int mode);        ///< settore TriModeButton selezionato: 0=Chat 1=Agentico 2=Conversa
+    void onCycleModeShortcut();             ///< Shift+Tab: cicla Chat→Agentico→Conversa
     void onBtnRegenClicked();  ///< Rigenera ultima risposta con il modello corrente
     void onHermesToggled(bool on);
     void onHermesReflectClicked();
-    void onToolsPanelToggle();       ///< apre/chiude il pannello Tools/MCP
+    void onToolsPanelToggle();       ///< apre/chiude il pannello ⚡ Tool Veloci
+    void onMcpPanelToggle();         ///< apre/chiude il pannello 🔌 Tool Lenti (MCP)
     void onToolEnabledChanged();     ///< una checkbox tool/MCP è cambiata → aggiorna label
 
     /* ── Log / scroll ── */
@@ -520,17 +526,6 @@ private slots:
     void onConsiglioPeerFinished(const QString& full);
     void onConsiglioPeerError(const QString& err);
 
-    /* ── Storia Chat ── */
-    /** Espande/comprime il pannello storia chat */
-    void onHistGroupToggled(bool on);
-    /** Salva la sessione corrente e aggiorna la lista storico */
+    /** Salva la sessione corrente */
     void onChatCompletedSave(const QString& title, const QString& logHtml);
-    /** Click su voce della lista → carica HTML nel log */
-    void onHistoryItemClicked(int row);
-    /** Ricostruisce m_historyList e m_historyIds dalla ChatHistory */
-    void refreshHistoryList();
-    /** Bottone Nuova Chat: azzera log e session id */
-    void onHistoryNewChatClicked();
-    /** Bottone Cancella: rimuove voce selezionata dalla storia */
-    void onHistoryDeleteClicked();
 };

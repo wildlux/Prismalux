@@ -21,7 +21,7 @@
    Nessun valore è hardcoded nel codice sorgente.
    ══════════════════════════════════════════════════════════════ */
 struct AiChatParams {
-    double temperature    = 0.05;
+    double temperature    = 0.1;
     double top_p          = 0.85;
     int    top_k          = 20;
     double repeat_penalty = 1.20;

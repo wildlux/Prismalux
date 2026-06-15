@@ -205,6 +205,9 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
         t->addTab(buildLlmClassificaTab(),
                   "\xf0\x9f\x93\x8a  Classifica");
 
+        t->addTab(buildBenchmarkLocaleTab(),
+                  "\xf0\x9f\x93\x88  Benchmark");
+
         {
             auto* sc  = new QScrollArea;
             sc->setWidgetResizable(true);

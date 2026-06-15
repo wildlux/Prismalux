@@ -96,8 +96,22 @@ QUESTIONS = [
 
 # ── Chiamata Ollama ───────────────────────────────────────────────────────────
 
+THINK_CAPABLE = ("qwen3", "qwen3.5", "deepseek-r1", "qwq", "qwen2.5")
+
+def _is_think_capable(model: str) -> bool:
+    return any(model.startswith(p) for p in THINK_CAPABLE)
+
 def ollama_chat(base_url: str, model: str, user: str, temperature: float) -> Optional[str]:
     """Chiama /api/chat e restituisce il testo della risposta o None in caso di errore."""
+    opts: dict = {
+        "temperature": temperature,
+        "num_predict": 120,    # risposta breve
+    }
+    # Modelli reasoning: disabilita thinking via parametro API (non testo nel prompt).
+    # think:false fa rispondere direttamente senza blocco <think>.
+    if _is_think_capable(model):
+        opts["think"] = False
+
     payload = {
         "model":    model,
         "messages": [
@@ -105,10 +119,7 @@ def ollama_chat(base_url: str, model: str, user: str, temperature: float) -> Opt
             {"role": "user",    "content": user},
         ],
         "stream":  False,
-        "options": {
-            "temperature": temperature,
-            "num_predict": 120,    # risposta breve
-        },
+        "options": opts,
     }
     try:
         r = requests.post(f"{base_url}/api/chat", json=payload, timeout=TIMEOUT_S)
