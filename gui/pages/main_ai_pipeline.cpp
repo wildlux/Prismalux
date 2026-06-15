@@ -115,6 +115,27 @@ static QJsonArray _buildOllamaTools()
                    p["required"]   = QJsonArray{ QLatin1String("role"), QLatin1String("task") };
                    return p;
                }()),
+        /* ── Plugin MCP ── */
+        mkTool("mcp_call",
+               "Invoca un tool di un plugin MCP attivo in Prismalux. "
+               "I plugin disponibili sono in MCPs/ (es. anki_mcp, ollama_mcp, devagent_mcp, knowledge_mcp). "
+               "Usare per accedere a funzionalita' avanzate non coperte dagli altri tool built-in.",
+               [&]() -> QJsonObject {
+                   QJsonObject p; p["type"] = QLatin1String("object");
+                   QJsonObject props;
+                   QJsonObject plugin;   plugin["type"]    = QLatin1String("string");
+                                         plugin["description"] = QLatin1String("Nome del plugin MCP (es. anki_mcp, ollama_mcp, knowledge_mcp)");
+                   QJsonObject toolName; toolName["type"]  = QLatin1String("string");
+                                         toolName["description"] = QLatin1String("Nome del tool da invocare nel plugin");
+                   QJsonObject argsJson; argsJson["type"]  = QLatin1String("string");
+                                         argsJson["description"] = QLatin1String("Argomenti come stringa JSON (es. {\"query\":\"...\"}); usa {} se nessun argomento");
+                   props["plugin"]    = plugin;
+                   props["tool_name"] = toolName;
+                   props["args_json"] = argsJson;
+                   p["properties"] = props;
+                   p["required"]   = QJsonArray{ QLatin1String("plugin"), QLatin1String("tool_name") };
+                   return p;
+               }()),
     };
 }
 
