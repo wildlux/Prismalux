@@ -419,6 +419,32 @@ void AgentiPage::advancePipeline() {
         return;
     }
 
+    /* Check RAM inter-agente: non blocca con dialog, interrompe silenziosamente */
+    if (m_currentAgent > 0) {
+        QFile minfo("/proc/meminfo");
+        if (minfo.open(QIODevice::ReadOnly)) {
+            long long total_kb = 0, avail_kb = 0;
+            while (!minfo.atEnd()) {
+                const QByteArray line = minfo.readLine().trimmed();
+                if (line.startsWith("MemTotal:"))
+                    total_kb = line.split(' ').last().trimmed().toLongLong();
+                else if (line.startsWith("MemAvailable:"))
+                    avail_kb = line.split(' ').last().trimmed().toLongLong();
+            }
+            minfo.close();
+            const double ramPct = (total_kb > 0)
+                ? 100.0 * (total_kb - avail_kb) / total_kb : 0.0;
+            if (ramPct >= 92.0) {
+                m_log->append(QString(
+                    "\xe2\x9a\xa0  <b>RAM al %1%</b> \xe2\x80\x94 pipeline interrotta "
+                    "per proteggere il sistema. Chiudi altre applicazioni o scarica il modello.")
+                    .arg(ramPct, 0, 'f', 0));
+                emit pipelineStatus(-1, "");
+                return;
+            }
+        }
+    }
+
     int total = 0, done = 0;
     for (int i = 0; i < MAX_AGENTS; i++)
         if (m_cfgDlg->enabledChk(i)->isChecked()) total++;

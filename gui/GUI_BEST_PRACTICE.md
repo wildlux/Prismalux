@@ -130,7 +130,7 @@ Altrimenti AUTOMOC non genera il vtable → linker error.
 - [N/A] **Quiz Interattivi C** — `src/quiz.c` e Python non esistono più; quiz CCNA implementato in Qt (`QuizCcnaPage`)
 - [ ] **Voce 🎙** — STT implementato in Android (`AudioPage`); desktop usa Whisper via `/api/whisper` in LanServer
 - [ ] **CPU+GPU dialog** — split model layers tra NVIDIA + iGPU via agent_scheduler con budget VRAM per dispositivo
-- [ ] **RAM inter-agente** — il check pre-pipeline non copre la crescita RAM *durante* l'esecuzione
+- [x] **RAM inter-agente** — FATTO 2026-06-15: in `advancePipeline()` (quando `m_currentAgent > 0`), legge `/proc/meminfo`; se RAM ≥92% interrompe con messaggio senza dialog bloccante. Il check pre-pipeline (≥92% block, ≥75% warn) rimane in `checkRam()`
 
 ## Media priorità
 - [N/A] **Dashboard Statistica C** / **Analisi Dati AI C** — i file Python non esistono più; funzionalità integrate nelle tab Qt
