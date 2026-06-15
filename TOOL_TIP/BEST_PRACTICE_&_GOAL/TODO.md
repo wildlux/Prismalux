@@ -176,16 +176,12 @@
 
 ### 🟢 Android — cleartext HTTP permesso globalmente
 
-- [ ] **`cleartextTrafficPermitted="true"` globale** —
-      `ANDROID/android_app/android/res/xml/network_security_config.xml:12` usa un `base-config`
-      che permette HTTP in chiaro verso **qualsiasi dominio**, non solo la LAN. Il commento nel
-      file lo riconosce: "la restrizione solo-LAN è garantita a livello applicativo, non dal
-      manifest" (perché Android non accetta range CIDR nei `<domain>`). Oggi l'unico endpoint è
-      l'IP LAN inserito dall'utente, ma è difesa in profondità mancante: una futura chiamata
-      HTTP a un host internet non verrebbe bloccata dalla piattaforma.
-      - **Rimedio:** dove possibile, `base-config cleartextTrafficPermitted="false"` +
-        `domain-config` cleartext per i soli host LAN configurati; in alternativa documentare
-        la scelta come accettata e abbinarla al TLS LAN opzionale già presente lato desktop.
+- [x] **`cleartextTrafficPermitted="true"` globale** — SCELTA DOCUMENTATA 2026-06-15:
+      Android non supporta range CIDR/wildcard IP nei `<domain>`, quindi `domain-config`
+      LAN-only non è tecnicamente realizzabile. La scelta è documentata come accettata nel
+      file XML con commento "SCELTA ACCETTATA E DOCUMENTATA": la restrizione solo-LAN è
+      garantita a livello applicativo (unico endpoint è l'IP inserito dall'utente), e il TLS
+      lato desktop (`"Abilita TLS"`) elimina completamente la necessità di cleartext.
       - *Nota positiva verificata:* `allowBackup="false"` nel manifest — i dati dell'app
         (token, chat, DB) non finiscono nei backup cloud automatici di Android.
 

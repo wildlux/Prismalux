@@ -1,4 +1,4 @@
-# CLAUDE.md — Prismalux Qt GUI  v2.9
+# CLAUDE.md — Prismalux Qt GUI  v2.9 (agg. 2026-06-15)
 
 ## Build
 ```bash
@@ -61,7 +61,7 @@ Prismalux/
 ├── gui/                          ← sorgente C++/Qt6 (questo progetto)
 │   ├── pages/                    ← una pagina = .h + uno o più .cpp
 │   ├── widgets/                  ← componenti header-only e riutilizzabili
-│   ├── tests/                    ← suite ctest (53 suite, BUILD_TESTS=ON)
+│   ├── tests/                    ← suite ctest (55 suite, BUILD_TESTS=ON)
 │   ├── themes/                   ← temi QSS
 │   ├── CMakeLists.txt
 │   └── CLAUDE.md                 ← questo file
@@ -72,9 +72,10 @@ Prismalux/
 │   └── macos/   (futuro)
 ├── ANDROID/                      ← app Android Qt6 (BLE, CCNA, TTS, LAN)
 │   └── PrismaluxMobile.apk       ← path hardcoded: P::root()+"/ANDROID/PrismaluxMobile.apk"
-├── MCPs/                         ← 18 plugin MCP Python — ognuno ha README.md + requirements.txt
+├── MCPs/                         ← 50 plugin MCP Python — ognuno ha README.md + requirements.txt
 ├── BEST_PRACTICE_&_GOAL/         ← regole, TODO, operazioni (non codice)
 │   └── REGOLE_IRREMOVIBILI.md    ← 15 convenzioni fisse — leggere prima di toccare il codice
+├── EXTERNAL_DeviceS/             ← script e config dispositivi fisici (WIBY cam, Tuya, PTZ — non in git)
 ├── Test/                         ← test Python AI integration + utility
 ├── RAG/                          ← documenti RAG (locale, non in git)
 ├── KNOWLEDGE_USER/               ← memoria utente (locale, non in git)
@@ -104,6 +105,7 @@ Prismalux/
 | `graph_memory.h/cpp` | GraphMemory SQLite-backed: nodi/archi, BFS neighbours, DOT/JSON/TXT export |
 | `rag_graph.h/cpp` | RagGraph: scansiona RAG dirs, estrae entità+relazioni LLM → GraphMemory |
 | `widgets/latex_view.h` | LatexView (QWebEngineView+KaTeX o QTextEdit fallback) per formule |
+| `widgets/tri_mode_button.h` | TriModeButton: ovale QPainter 3 settori (Chat/Agentico/Conversa) + hub azione; emoji SVG OpenMoji opzionale; Shift+Tab cicla modalità |
 | `widgets/ai_error_widget.h` | Header-only Q_OBJECT — `showError(msg, onRetry)` — elencato in CPP_SRCS |
 | `widgets/code_interpreter_widget.h/cpp` | Python sandbox: exec, matplotlib PNG, Docker |
 | `widgets/world_map_widget.h/cpp` | WorldMapWidget OpenStreetMap tiles + Nominatim + routing OSRM (waypoint, polyline, draw) |
@@ -150,6 +152,12 @@ m_ai->fetchModels();
 **Emoji hex:** concatena quando il char successivo è cifra hex:
 `"\xe2\x80\x9c" "Costruito..."` — non `"\xe2\x80\x9cCostruito..."` (C è hex valida).
 
+**Emoji in `const char*` desc**: ASCII puro per evitare warning "hex escape out of range" quando una sequenza `\xNN` è seguita da cifre 0-9/a-f.
+
+**HAVE_SVG**: `Qt6::Svg` è opzionale. CMakeLists: `find_package(Qt6 COMPONENTS Svg QUIET)` + `add_compile_definitions(HAVE_SVG)`. Metti `Q_UNUSED(var)` nel blocco `#else`, non in `#ifdef`.
+
+**m_btnVoiceLoop**: presente come membro ma `buildToolbarVoiceLoop()` non è chiamata (funzionalità Conversa ora nel TriModeButton). Tutti gli accessi devono avere `if (m_btnVoiceLoop)`.
+
 **Combo modello:**
 ```cpp
 combo->addItem(P::modelIcon(sz, m) + m, m);
@@ -182,6 +190,49 @@ Pattern one-shot preferito: `QMetaObject::Connection` come membro, disconnect es
 **ThemeManager:** `static ThemeManager inst(nullptr)` — MAI `inst(qApp)` → ABRT shutdown.
 
 **LanServer shutdown:** `blockSignals(true)` prima di `stop()` — evita SIGSEGV.
+
+## TriModeButton (`widgets/tri_mode_button.h`)
+
+Widget header-only (QPainter), ovale a 3 settori selezionabili + hub centrale ovale (pulsante azione).
+
+| Settore | Modo | Emoji |
+|---------|------|-------|
+| Top | `Chat = 0` | 💬 (U+1F4AC) |
+| Lower-right | `Agentico = 1` | 👔 (U+1F454) |
+| Lower-left | `Conversa = 2` | 🎙 (U+1F399) |
+
+```cpp
+m_modeBtn = new TriModeButton(parent);
+connect(m_modeBtn, &TriModeButton::modeChanged, this, &AgentiPage::onModeBtnChanged);
+connect(m_modeBtn, &TriModeButton::actionClicked, this, &AgentiPage::onBtnRunClicked);
+m_modeBtn->setActionText("\xf0\x9f\x93\xa4 Invia");
+m_modeBtn->setActionEnabled(true);
+m_modeBtn->setActionDanger(false);   // hub rosso durante stream
+m_modeBtn->setMode(TriModeButton::Chat, /*emitSignal=*/false);
+```
+
+**Shortcut Shift+Tab** (`Qt::Key_Backtab`): cicla Chat→Agentico→Conversa solo quando la pagina AI è visibile (`Qt::WidgetWithChildrenShortcut`).
+
+**Emoji style**: letto da `QSettings("Prismalux","GUI").value("ui/triModeEmojiStyle","system")`.
+- `"system"` → testo emoji con outline 8-offset (fallback universale)
+- `"openmoji"` + `HAVE_SVG` → `QSvgRenderer` da `gui/resources/emoji/1F4AC.svg` ecc. (OpenMoji CC BY-SA 4.0)
+
+I renderer SVG sono `static QSvgRenderer* rend[3]` (inizializzati on-demand). Impostazione in Visuale → Aspetto → "Icone modalità AI".
+
+**Colori**: usano palette del tema attivo. Settore attivo → accento HSV. Settore inattivo hover → `QPalette::Button`. Divisori → `QPalette::Mid` (non Shadow). Hub base → `QPalette::Button`.
+
+## AgentiPage — pannelli Tool
+
+Due pannelli separati con **comportamento radio** (solo uno visibile alla volta):
+
+| Widget | Pulsante | Contenuto |
+|--------|----------|-----------|
+| `m_toolsPanel` | `m_btnToolsToggle` "⚡ Tool Veloci" | Function Tools in-process, grid 2 colonne + hint modello tool-capable |
+| `m_mcpPanel` | `m_btnMcpToggle` "🔌 Tool Lenti (MCP)" | MCP subprocess, scroll grid 4 colonne |
+
+Apertura di un pannello chiude automaticamente gli altri due (Simboli incluso) tramite `blockSignals(true/false)`.
+
+**Bubble radius in tempo reale**: `ImpostazioniPage::bubbleStyleChanged()` → `AgentiPage::onBubbleStyleChanged()` — regex `(border-radius:)(\d+)(px;padding:10px 14px)` su `m_log->toHtml()` per aggiornare solo le celle delle bolle principali (non tool strip che usa `padding:8px 12px`).
 
 ## AiClient — API
 ```cpp
@@ -351,7 +402,7 @@ Slot Qt: `onDevAgentGitLogClicked`, `onDevAgentGitRestoreClicked`, `onDevAgentGi
 ## Suite di Test
 ```bash
 cmake -B Test/build_tests gui/ -DBUILD_TESTS=ON && cmake --build Test/build_tests -j$(nproc)
-ctest --test-dir Test/build_tests -j4   # 53 suite (50 no-Ollama, 3 richiedono Ollama reale)
+ctest --test-dir Test/build_tests -j4   # 55 suite (52 no-Ollama, 3 richiedono Ollama reale)
 ```
 
 ### Suite per categoria
@@ -382,9 +433,11 @@ ctest --test-dir Test/build_tests -j4   # 53 suite (50 no-Ollama, 3 richiedono O
 | `AgentiByzantine` | `test_agenti_byzantine` | voce combo, num agenti, mock stub |
 | `AgenteAutonomo` | `test_agente_autonomo` | ReAct loop, toggle UI, parsing tool call |
 | `LanServer` | `test_lan_server` | lifecycle TCP, token, rate limit |
+| `LanServerEndpoints` | `test_lan_server_endpoints` | /knowledge (GET/POST), /apk, requestHandled signal |
 | `Onboarding` | `test_onboarding` | QSettings, token LAN, rate limiter |
 | `ImpostazioniPage` | `test_impostazioni_page` | AiChatParams round-trip, ThinkMode, preset |
 | `ThemeManager` | `test_theme_manager` | lista temi, ops |
+| `ThemeManagerCrash` | `test_theme_manager_crash` | fix ABRT Signal 6 (parent=nullptr), lifetime singleton |
 | `Grafico` | `test_grafico` | canvas, formula parser integrazione |
 | `HardwareMonitor` | `test_hardware_monitor` | rilevamento CPU/RAM/GPU, thread |
 | `HwDetectAmd` | `test_hw_detect_amd` | AMD via DRM sysfs |

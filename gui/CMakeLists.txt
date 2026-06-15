@@ -55,6 +55,18 @@ if(Qt6_FOUND)
     endif()
 endif()
 
+# ── Qt6::Svg — rendering SVG per emoji OpenMoji nel TriModeButton ────────
+if(Qt6_FOUND)
+    find_package(Qt6 COMPONENTS Svg QUIET)
+    if(Qt6Svg_FOUND)
+        list(APPEND QT_LIBS Qt6::Svg)
+        add_compile_definitions(HAVE_SVG)
+        message(STATUS "Prismalux GUI: Qt6::Svg trovato — emoji OpenMoji SVG abilitato")
+    else()
+        message(STATUS "Prismalux GUI: Qt6::Svg non trovato — emoji usa font di sistema")
+    endif()
+endif()
+
 # ── QKeychain — salvataggio sicuro token LAN (opzionale) ─────────────────
 # Ricerca cmake config (richiede libqt6keychain-dev su Debian/Ubuntu).
 # Se non trovato, si usa il fallback file-based (0600) già presente.
@@ -152,6 +164,7 @@ set(CPP_SRCS
     pages/main_maintenance_lan.cpp
     lan_server.cpp
     lan_web.qrc
+    emoji.qrc
     pages/settings_main.cpp
     pages/settings_ai.cpp
     pages/settings_slots.cpp
@@ -732,6 +745,20 @@ if(BUILD_TESTS)
         target_link_libraries(test_theme_manager PRIVATE pthread m)
     endif()
 
+    # ── test_theme_manager_crash: fix ABRT Signal 6 (parent=nullptr) ──
+    add_executable(test_theme_manager_crash
+        tests/test_theme_manager_crash.cpp
+        theme_manager.cpp
+    )
+    target_include_directories(test_theme_manager_crash PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_theme_manager_crash PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_theme_manager_crash PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_theme_manager_crash PRIVATE pthread m)
+    endif()
+
     # ── test_hardware_monitor: hw_detect + HardwareMonitor thread ──
     add_executable(test_hardware_monitor
         tests/test_hardware_monitor.cpp
@@ -887,6 +914,25 @@ if(BUILD_TESTS)
     )
     if(NOT WIN32)
         target_link_libraries(test_lan_server PRIVATE pthread m)
+    endif()
+
+    # ── test_lan_server_endpoints: endpoint HTTP /knowledge e /apk ──
+    add_executable(test_lan_server_endpoints
+        tests/test_lan_server_endpoints.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_lan_server_endpoints PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_lan_server_endpoints PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_lan_server_endpoints PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_lan_server_endpoints PRIVATE pthread m)
     endif()
 
     # ── test_wan_compute_tasks: WAN Compute LanWanPage — costruzione, protocollo TCP, sicurezza shell ──
@@ -1316,6 +1362,7 @@ if(BUILD_TESTS)
     add_test(NAME FormulaParser        COMMAND test_formula_parser)
     add_test(NAME StrumentiRag         COMMAND test_strumenti_rag)
     add_test(NAME ThemeManager         COMMAND test_theme_manager)
+    add_test(NAME ThemeManagerCrash    COMMAND test_theme_manager_crash)
     add_test(NAME HardwareMonitor      COMMAND test_hardware_monitor)
     add_test(NAME ManutenzioneeCron    COMMAND test_manutenzione_cron)
     add_test(NAME ChatHistoryStress    COMMAND test_chat_history_stress)
@@ -1326,6 +1373,7 @@ if(BUILD_TESTS)
     add_test(NAME AgentiPipeline          COMMAND test_agenti_pipeline)
     add_test(NAME AgentsConfigDialog      COMMAND test_agents_config_dialog)
     add_test(NAME LanServer               COMMAND test_lan_server)
+    add_test(NAME LanServerEndpoints      COMMAND test_lan_server_endpoints)
     add_test(NAME WanComputeTasks         COMMAND test_wan_compute_tasks)
     add_test(NAME SciCompute              COMMAND test_sci_compute)
     add_test(NAME Sintetizzatore          COMMAND test_sintetizzatore)
@@ -1362,7 +1410,9 @@ if(BUILD_TESTS)
     set_tests_properties(AiIntegration AiStress TeamCollab MultiAgenteLive
         PROPERTIES RESOURCE_LOCK ollama)
     set_tests_properties(GraphMemory        PROPERTIES TIMEOUT 30)
-    set_tests_properties(LanServer          PROPERTIES TIMEOUT 30)
+    set_tests_properties(LanServer              PROPERTIES TIMEOUT 30)
+    set_tests_properties(LanServerEndpoints     PROPERTIES TIMEOUT 30)
+    set_tests_properties(ThemeManagerCrash      PROPERTIES TIMEOUT 30)
     set_tests_properties(WanComputeTasks    PROPERTIES TIMEOUT 60)
     set_tests_properties(SciCompute         PROPERTIES TIMEOUT 30)
     set_tests_properties(Sintetizzatore     PROPERTIES TIMEOUT 30)
@@ -1376,7 +1426,7 @@ if(BUILD_TESTS)
     set_tests_properties(FileParser         PROPERTIES TIMEOUT 30)
     set_tests_properties(ImparaQuiz         PROPERTIES TIMEOUT 30)
     set_tests_properties(MonitorPanel       PROPERTIES TIMEOUT 30)
-    message(STATUS "Build test abilitata: graph_memory, signal_lifetime, rag_engine, code_utils, random_tool, lavoro_page, app_controller, programmazione_page, thinking_detect, ai_integration, ai_stress, team_collab, lavoro_data, tutor_data, rag_engine_avanzato, chat_history, simulatore_algos, formula_parser, strumenti_rag, theme_manager, hardware_monitor, manutenzione_cron, chat_history_stress, matematica_page, qr_code_widget, hw_detect_amd, knowledge_injection")
+    message(STATUS "Build test abilitata: graph_memory, signal_lifetime, rag_engine, code_utils, random_tool, lavoro_page, app_controller, programmazione_page, thinking_detect, ai_integration, ai_stress, team_collab, lavoro_data, tutor_data, rag_engine_avanzato, chat_history, simulatore_algos, formula_parser, strumenti_rag, theme_manager, theme_manager_crash, hardware_monitor, manutenzione_cron, chat_history_stress, matematica_page, qr_code_widget, hw_detect_amd, knowledge_injection, lan_server_endpoints")
 
     # Applica ASAN+UBSAN anche a tutti i test target quando ENABLE_SANITIZERS=ON
     if(ENABLE_SANITIZERS AND NOT MSVC)

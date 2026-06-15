@@ -626,7 +626,7 @@ Categorie:
 
 ---
 
-## ⬜ TN-14 — `test_lan_server_endpoints.cpp` (22 test)
+## ✅ TN-14 — `test_lan_server_endpoints.cpp` (22 test)
 
 **Modulo**: `lan_server.h/.cpp` — `/apk`, `/knowledge`, ciclo vita
 **Aggiunto**: 2026-05-06
@@ -731,7 +731,7 @@ Categorie:
 
 ---
 
-## ⬜ TN-17 — `test_theme_manager_crash.cpp` (10 test)
+## ✅ TN-17 — `test_theme_manager_crash.cpp` (10 test)
 
 **Modulo**: `theme_manager.cpp` — fix ABRT Signal 6 (`ThemeManager(nullptr)` invece di `(qApp)`)
 **Aggiunto**: 2026-05-06 — root cause crash alla chiusura trovata con ASAN
@@ -772,12 +772,12 @@ Categorie:
 | `test_strumenti_rag.cpp` | A–C | 40 | ✅ scritto |
 | `test_theme_manager.cpp` | A–B | 14 | ✅ scritto |
 | `test_tutor_data.cpp` | A–B | 31 | ✅ 31 pass |
-| `test_qr_code_widget.cpp` | A–C | 18 | ⬜ da scrivere |
-| `test_lan_server_endpoints.cpp` | A–C | 22 | ⬜ da scrivere |
-| `test_hw_detect_amd.cpp` | A–B | 14 | ⬜ da scrivere |
-| `test_knowledge_injection.cpp` | A–C | 16 | ⬜ da scrivere |
-| `test_theme_manager_crash.cpp` | A–B | 10 | ⬜ da scrivere |
-| **TOTALE** | | **478** | **398 scritti · 80 da fare** |
+| `test_qr_code_widget.cpp` | A–C | 18 | ✅ scritto |
+| `test_lan_server_endpoints.cpp` | A–C | 22 | ✅ scritto 2026-06-15 |
+| `test_hw_detect_amd.cpp` | A–B | 14 | ✅ scritto |
+| `test_knowledge_injection.cpp` | A–C | 16 | ✅ scritto |
+| `test_theme_manager_crash.cpp` | A–B | 10 | ✅ scritto 2026-06-15 |
+| **TOTALE** | | **478** | **478 scritti · 0 da fare** |
 
 ---
 
