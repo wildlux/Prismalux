@@ -132,6 +132,7 @@ void MainWindow::onInitialModelsReady(const QStringList& list)
         m_lblModel->setText("(Ollama non trovato)");
         statusBar()->showMessage(
             "\xe2\x9a\xa0\xef\xb8\x8f  Ollama non risponde — avvialo con: ollama serve");
+        if (m_badgeServer) m_badgeServer->setStatus(StatusBadge::Error, "Offline");
         maybeAutoVramBench();
         return;
     }
@@ -144,6 +145,7 @@ void MainWindow::onInitialModelsReady(const QStringList& list)
     statusBar()->showMessage(
         QString("\xf0\x9f\x8d\xba  Backend Ollama | Modello: %1 | Modelli disponibili: %2")
         .arg(model).arg(list.size()));
+    if (m_badgeServer) m_badgeServer->setStatus(StatusBadge::Online, "Online");
     maybeAutoVramBench();
 }
 
@@ -166,6 +168,7 @@ void MainWindow::onApplyBackendModelsReady(const QStringList& list)
         statusBar()->showMessage(
             QString("\xe2\x9c\x85  %1 | Modello: %2 | %3 disponibili")
             .arg(m_pendingBkName, list.first(), QString::number(list.size())));
+        if (m_badgeServer) m_badgeServer->setStatus(StatusBadge::Online, "Online");
     } else {
         m_lblModel->setText("(server non raggiungibile)");
         appendLog(
@@ -174,6 +177,7 @@ void MainWindow::onApplyBackendModelsReady(const QStringList& list)
         statusBar()->showMessage(
             QString("\xe2\x9a\xa0\xef\xb8\x8f  %1 non risponde \xe2\x80\x94 avvialo prima di usare l'AI")
             .arg(m_pendingBkName));
+        if (m_badgeServer) m_badgeServer->setStatus(StatusBadge::Error, "Offline");
     }
 }
 

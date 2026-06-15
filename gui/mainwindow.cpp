@@ -937,6 +937,7 @@ QWidget* MainWindow::buildServerMathSection(QWidget* parent,
    ══════════════════════════════════════════════════════════════ */
 void MainWindow::applyBackend(AiClient::Backend b, const QString& host, int port) {
     m_ai->setBackend(b, host, port, "");
+    if (m_badgeServer) m_badgeServer->setStatus(StatusBadge::Starting, "Avvio...");
     m_ai->fetchModels();
 
     refreshBackendBtn();
@@ -1327,15 +1328,19 @@ QWidget* MainWindow::buildContent()
     m_mainTabs->setMovable(false);
     m_mainTabs->setAccessibleName("Sezioni principali di Prismalux");
 
-    /* Backend button come corner widget sinistro */
+    /* Backend button + status badge come corner widget sinistro */
     if (m_btnBackend) {
         m_btnBackend->setFixedHeight(dpiScale(28));
         m_btnBackend->setMinimumWidth(dpiScale(110));
         m_cornerContainer = new QWidget(m_mainTabs);
         auto* cornerLay = new QHBoxLayout(m_cornerContainer);
         cornerLay->setContentsMargins(4, 0, 8, 0);
-        cornerLay->setSpacing(0);
+        cornerLay->setSpacing(6);
         cornerLay->addWidget(m_btnBackend);
+        m_badgeServer = new StatusBadge("Offline", m_cornerContainer);
+        m_badgeServer->setFixedHeight(dpiScale(22));
+        m_badgeServer->setStatus(StatusBadge::Offline, "Offline");
+        cornerLay->addWidget(m_badgeServer);
         m_mainTabs->setCornerWidget(m_cornerContainer, Qt::TopLeftCorner);
     }
 

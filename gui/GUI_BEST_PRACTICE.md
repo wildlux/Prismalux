@@ -135,7 +135,7 @@ Altrimenti AUTOMOC non genera il vtable → linker error.
 ## Media priorità
 - [N/A] **Dashboard Statistica C** / **Analisi Dati AI C** — i file Python non esistono più; funzionalità integrate nelle tab Qt
 - [x] **Cerca Lavoro + CV Reader** — FATTO: `LavoroPage` in `StrumentiPage` (`m_lavoroPage`) con AI + CV reader
-- [ ] **StatusBadge nell'header** — widget esiste ma non usato; aggiungere `● Online`/`● Avvio` accanto a m_lblBackend
+- [x] **StatusBadge nell'header** — FATTO 2026-06-15: `m_badgeServer` creato in `buildContent()` nel corner container accanto a `m_btnBackend`. Offline→Starting→Online/Error in `applyBackend()`, `onInitialModelsReady()`, `onApplyBackendModelsReady()`
 - [x] **Cache modelli** — FATTO: TTL 30s implementato in `AiClient::fetchModels()` (`m_cacheTimer`/`m_cacheValid`)
 - [x] **Tooltip ricchi sui gauge** — FATTO 2026-06-15: `ResourceGauge::update()` usa il `detail` come `setToolTip()`; RAM mostra "X/Y GB", CPU mostra nome CPU, GPU mostra "nome | VRAM X/Y GB"
 - [N/A] **Auto-assign con llama-server** — pulsante "Auto-assegna" non esiste più nella UI v2.9
