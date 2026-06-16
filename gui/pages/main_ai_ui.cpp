@@ -1756,6 +1756,17 @@ void AgentiPage::onBtnRunClicked()
 
     if (m_ai->busy()) { m_ai->abort(); return; }
 
+    /* Avviso se i tool sono abilitati ma il modello non supporta function calling */
+    if (m_toolsEnabled && !isToolCapable(m_ai->model())) {
+        m_log->moveCursor(QTextCursor::End);
+        m_log->insertHtml(
+            "<p style='color:#f59e0b;font-size:11px;font-style:italic;margin:2px 0;'>"
+            "\xf0\x9f\x94\xa7 Il modello <b>" + m_ai->model().toHtmlEscaped() +
+            "</b> non supporta il function calling: i tool verranno ignorati. "
+            "Seleziona qwen3, llama3.1, mistral-nemo o un altro modello tool-capable.</p>");
+        m_log->append({});
+    }
+
     /* ── Agente ricerca web: intercetta domande che richiedono info online ── */
     {
         const QString userMsg = m_input->toPlainText().trimmed();
@@ -2461,7 +2472,7 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
         { "ui_ux_checker_mcp",    "Verifica UI/UX" },
         { "web_scraper_mcp",      "Web scraping" },
     };
-    auto mcpLabel = [&kMcpLabels](const QString& name) -> QString {
+    auto mcpLabel = [](const QString& name) -> QString {
         if (kMcpLabels.contains(name)) return kMcpLabels.value(name);
         QString s = name;
         if (s.endsWith("_mcp")) s.chop(4);

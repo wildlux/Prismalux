@@ -27,6 +27,7 @@ namespace P = PrismaluxPaths;
 #include <QJsonArray>
 #include <QProcess>
 #include <QTimer>
+#include <QDateTime>
 #include <QTextCursor>
 #include <QFile>
 #include <QDir>
@@ -39,6 +40,49 @@ namespace P = PrismaluxPaths;
 #include <QFont>
 #include <random>
 #include <cmath>
+
+/* ── Helper: tronca risultati tool lunghi con suffisso leggibile ── */
+static QString _truncateResult(const QString& s, int maxLen = 2000)
+{
+    if (s.size() <= maxLen) return s;
+    return s.left(maxLen) + "\n[...troncato a " + QString::number(maxLen) + " caratteri]";
+}
+
+/* ── Helper: parse risposta JSON-RPC 2.0 tools/call (id=2) ── */
+static QString _parseMcpOutput(const QByteArray& raw,
+                               const QString& plugin, const QString& toolName)
+{
+    for (const QByteArray& line : raw.split('\n')) {
+        const QByteArray l = line.trimmed();
+        if (l.isEmpty()) continue;
+        const QJsonObject obj = QJsonDocument::fromJson(l).object();
+        if (obj.value("id").toInt() != 2) continue;
+        if (obj.contains("error")) {
+            return QString("[MCP %1::%2 errore] %3").arg(plugin, toolName,
+                obj.value("error").toObject().value("message").toString("errore sconosciuto"));
+        }
+        const QJsonObject res = obj.value("result").toObject();
+        QString text;
+        for (const auto& c : res.value("content").toArray()) {
+            if (c.toObject().value("type").toString() == "text")
+                text += c.toObject().value("text").toString() + "\n";
+        }
+        if (text.isEmpty())
+            text = QJsonDocument(res).toJson(QJsonDocument::Compact);
+        return _truncateResult(text.trimmed());
+    }
+    return {};   /* stringa vuota = nessuna risposta valida trovata */
+}
+
+/* ── Cache DuckDuckGo: QHash<query, {risultato, timestamp_ms}> — TTL 5 min ── */
+static QHash<QString, QPair<QString, qint64>> s_ddgCache;
+
+/* ── MCP Tool Discovery cache: plugin → "tool1(desc), tool2(desc)" ── */
+static QHash<QString, QString> s_mcpToolDescs;
+static bool s_mcpDiscoveryDone = false;
+
+/* ── MCP Keepalive: plugin → processo ancora vivo ── */
+static QHash<QString, QPointer<QProcess>> s_mcpAlive;
 
 /* ══════════════════════════════════════════════════════════════
    _parseRandomParams — estrae parametri dal testo naturale.
@@ -197,6 +241,31 @@ QString _inject_random(const QString& task) {
 QString AgentiPage::toolSystemSuffix()
 {
     const QString proj = P::root();
+
+    /* Lista plugin MCP disponibili costruita dinamicamente */
+    QStringList mcpPlugins;
+    const QDir mcpDir(proj + "/MCPs");
+    if (mcpDir.exists()) {
+        for (const QString& d : mcpDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name))
+            if (QFile::exists(proj + "/MCPs/" + d + "/server.py"))
+                mcpPlugins << d;
+    }
+    /* Lista arricchita con tool names se discovery disponibile */
+    QString mcpList;
+    for (const QString& p : mcpPlugins) {
+        if (!mcpList.isEmpty()) mcpList += ", ";
+        const QString desc = s_mcpToolDescs.value(p);
+        mcpList += desc.isEmpty() ? p : p + "[" + desc + "]";
+    }
+    const QString mcpBlock = mcpPlugins.isEmpty() ? QString() :
+        QString::fromUtf8("\n[MCP PLUGIN disponibili via mcp_call]: ") +
+        mcpList +
+        QString::fromUtf8(
+            "\nEsempio: TOOL_CALL: {\"tool\": \"mcp_call\", "
+            "\"input\": \"{\\\"plugin\\\": \\\"knowledge_mcp\\\", "
+            "\\\"tool_name\\\": \\\"get_knowledge\\\", \\\"args_json\\\": \\\"{}\\\"}\"}\n"
+            "Usa mcp_call per accedere a funzionalita' avanzate non coperte dai tool built-in.");
+
     return
         QString::fromUtf8(
             "\n\n[STRUMENTI DISPONIBILI - usali solo se necessario]\n"
@@ -212,7 +281,87 @@ QString AgentiPage::toolSystemSuffix()
             "/Tools\n"
             "NON inventare percorsi /home/... — per cultura generale rispondi direttamente.\n"
             "TOOL_CALL: {\"tool\": \"spawn_agent\", \"input\": \"Ruolo|||Compito completo\"}\n"
-            "spawn_agent: crea un sub-agente specializzato (max 4 per sessione) — utile per sotto-task complessi.");
+            "spawn_agent: crea un sub-agente specializzato (max 4 per sessione) — utile per sotto-task complessi.") +
+        mcpBlock;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   startMcpDiscovery — esegue tools/list su ogni plugin MCP in sequenza
+   (lambda ricorsiva via shared_ptr<function>) e popola s_mcpToolDescs.
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::startMcpDiscovery()
+{
+    if (s_mcpDiscoveryDone) return;
+    s_mcpDiscoveryDone = true;
+
+    auto plugins = std::make_shared<QStringList>();
+    const QDir mcpDir(P::root() + "/MCPs");
+    if (!mcpDir.exists()) return;
+    for (const QString& d : mcpDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name))
+        if (QFile::exists(P::root() + "/MCPs/" + d + "/server.py"))
+            *plugins << d;
+    if (plugins->isEmpty()) return;
+
+    const QString python     = P::findPython();
+    const QString sharedVenv = QDir::homePath() + "/.prismalux/venv/bin/python";
+    const QString mcpRoot    = P::root() + "/MCPs";
+
+    /* Lambda ricorsiva: si cattura da sola tramite shared_ptr<function> */
+    auto fn = std::make_shared<std::function<void()>>();
+    *fn = [this, fn, plugins, python, sharedVenv, mcpRoot]() mutable {
+        if (plugins->isEmpty()) return;
+        const QString plugin     = plugins->takeFirst();
+        const QString serverPath = mcpRoot + "/" + plugin + "/server.py";
+        const QString venvPy     = mcpRoot + "/" + plugin + "/venv/bin/python";
+        const QString py         = QFile::exists(venvPy)    ? venvPy
+                                 : QFile::exists(sharedVenv) ? sharedVenv
+                                 : python;
+
+        const QByteArray initMsg = QJsonDocument(QJsonObject{
+            {"jsonrpc","2.0"},{"id",1},{"method","initialize"},
+            {"params",QJsonObject{{"protocolVersion","2024-11-05"},
+                {"capabilities",QJsonObject{}},
+                {"clientInfo",QJsonObject{{"name","prismalux"},{"version","2.9"}}}}}
+        }).toJson(QJsonDocument::Compact) + "\n";
+        const QByteArray listMsg = QJsonDocument(QJsonObject{
+            {"jsonrpc","2.0"},{"id",2},{"method","tools/list"},{"params",QJsonObject{}}
+        }).toJson(QJsonDocument::Compact) + "\n";
+
+        auto* proc = new QProcess(this);
+        proc->setProgram(py);
+        proc->setArguments({ serverPath });
+        proc->setProcessChannelMode(QProcess::SeparateChannels);
+        proc->start();
+        if (!proc->waitForStarted(2000)) { proc->deleteLater(); (*fn)(); return; }
+        proc->write(initMsg);
+        proc->write(listMsg);
+        proc->closeWriteChannel();
+
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, proc, plugin, fn](int, QProcess::ExitStatus) mutable {
+            proc->deleteLater();
+            for (const QByteArray& line : proc->readAllStandardOutput().split('\n')) {
+                const QByteArray l = line.trimmed();
+                if (l.isEmpty()) continue;
+                const QJsonObject obj = QJsonDocument::fromJson(l).object();
+                if (obj.value("id").toInt() != 2) continue;
+                const QJsonArray tools = obj.value("result").toObject().value("tools").toArray();
+                QStringList names;
+                for (const auto& t : tools) {
+                    const QString nm = t.toObject().value("name").toString();
+                    if (!nm.isEmpty()) names << nm;
+                }
+                if (!names.isEmpty()) s_mcpToolDescs[plugin] = names.join("|");
+                break;
+            }
+            (*fn)();
+        });
+        QTimer::singleShot(8000, proc, [proc]{
+            if (proc->state() != QProcess::NotRunning) proc->kill();
+        });
+    };
+
+    QTimer::singleShot(500, this, [fn]{ (*fn)(); });
 }
 
 QJsonObject AgentiPage::detectFirstToolCall(const QString& text)
@@ -276,6 +425,17 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             runToolCall(fakeCall, onDone);
             return;
         }
+        /* Cache TTL 5 min: evita richieste duplicate nella stessa sessione */
+        const QString cacheKey = input.left(200).toLower().trimmed();
+        const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+        if (s_ddgCache.contains(cacheKey)) {
+            const auto& cached = s_ddgCache[cacheKey];
+            if (nowMs - cached.second < 5 * 60 * 1000) {
+                onDone(cached.first);
+                return;
+            }
+            s_ddgCache.remove(cacheKey);
+        }
         QJsonArray _ra; _ra.append(input.left(200));
         const QString _inputJson = QString::fromUtf8(
             QJsonDocument(_ra).toJson(QJsonDocument::Compact)).mid(1).chopped(1);
@@ -296,10 +456,12 @@ void AgentiPage::runToolCall(const QJsonObject& call,
         auto* proc = new QProcess(this);
         proc->setProcessChannelMode(QProcess::MergedChannels);
         connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [proc, onDone](int, QProcess::ExitStatus) {
-            const QString out = QString::fromUtf8(proc->readAll()).trimmed();
+                this, [proc, onDone, cacheKey](int, QProcess::ExitStatus) {
+            const QString out = _truncateResult(QString::fromUtf8(proc->readAll()).trimmed(), 600);
             proc->deleteLater();
-            onDone(out.isEmpty() ? "nessun risultato" : out.left(600));
+            const QString result = out.isEmpty() ? "nessun risultato" : out;
+            s_ddgCache[cacheKey] = { result, QDateTime::currentMSecsSinceEpoch() };
+            onDone(result);
         });
         proc->start(P::findPython(), {"-c", script});
         QTimer::singleShot(12000, proc, [proc, onDone]{
@@ -354,9 +516,9 @@ void AgentiPage::runToolCall(const QJsonObject& call,
         proc->setProcessChannelMode(QProcess::MergedChannels);
         connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                 this, [proc, onDone](int, QProcess::ExitStatus) {
-            const QString out = QString::fromUtf8(proc->readAll()).trimmed();
+            const QString out = _truncateResult(QString::fromUtf8(proc->readAll()).trimmed());
             proc->deleteLater();
-            onDone(out.isEmpty() ? "nessun contenuto ricevuto" : out.left(4000));
+            onDone(out.isEmpty() ? "nessun contenuto ricevuto" : out);
         });
         proc->start(P::findPython(), {"-c", script});
         QTimer::singleShot(15000, proc, [proc, onDone]{
@@ -725,11 +887,18 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             return;
         }
 
-        /* Python: venv del plugin se presente, altrimenti system python3 */
-        const QString venvPy = P::root() + "/MCPs/" + plugin + "/venv/bin/python";
-        const QString pythonExe = QFile::exists(venvPy) ? venvPy : "python3";
+        /* Python: venv del plugin → venv condiviso ~/.prismalux/venv → python3 di sistema */
+        const QString venvPy     = P::root() + "/MCPs/" + plugin + "/venv/bin/python";
+        const QString sharedVenv = QDir::homePath() + "/.prismalux/venv/bin/python";
+        const QString pythonExe  = QFile::exists(venvPy)    ? venvPy
+                                 : QFile::exists(sharedVenv) ? sharedVenv
+                                 : P::findPython();
 
-        const QJsonObject argsObj = QJsonDocument::fromJson(argsJson.toUtf8()).object();
+        /* Valida args_json: se malformato o non-oggetto, usa {} come fallback */
+        QJsonParseError argsErr;
+        const QJsonDocument argsDoc = QJsonDocument::fromJson(argsJson.toUtf8(), &argsErr);
+        const QJsonObject argsObj = (argsErr.error == QJsonParseError::NoError && argsDoc.isObject())
+                                    ? argsDoc.object() : QJsonObject{};
 
         /* Messaggi JSON-RPC 2.0: initialize (id=1) + tools/call (id=2) */
         const QByteArray initMsg = QJsonDocument(QJsonObject{
@@ -746,62 +915,119 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             {"params", QJsonObject{{"name",toolName},{"arguments",argsObj}}}
         }).toJson(QJsonDocument::Compact) + "\n";
 
-        auto* proc = new QProcess(this);
-        proc->setProgram(pythonExe);
-        proc->setArguments({ serverPath });
-        proc->setProcessChannelMode(QProcess::SeparateChannels);
-        proc->start();
-
-        if (!proc->waitForStarted(3000)) {
-            proc->deleteLater();
-            onDone(QString("errore mcp_call: impossibile avviare '%1'").arg(plugin));
-            return;
+        /* ── Keepalive: riusa processo vivo o crea nuovo.
+           Non chiudiamo stdin: il server MCP resta in ascolto per chiamate successive.
+           Leggiamo via readyRead (non finished) per permettere reuse. ── */
+        QProcess* proc = nullptr;
+        if (s_mcpAlive.contains(plugin)) {
+            QProcess* alive = s_mcpAlive.value(plugin).data();
+            if (alive && alive->state() == QProcess::Running) {
+                alive->readAllStandardOutput();   /* scarta output residuo */
+                proc = alive;
+            } else {
+                s_mcpAlive.remove(plugin);
+            }
         }
-        proc->write(initMsg);
-        proc->write(callMsg);
-        proc->closeWriteChannel();
 
-        /* Flag condiviso per evitare double-call tra finished e timer */
-        auto called = QSharedPointer<bool>::create(false);
-
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                proc, [proc, onDone, called, plugin, toolName](int, QProcess::ExitStatus) {
-            proc->deleteLater();
-            if (*called) return;
-            *called = true;
-            const QByteArray raw = proc->readAllStandardOutput();
-            /* Cerca riga JSON con id=2 (risposta tools/call) */
-            for (const QByteArray& line : raw.split('\n')) {
-                const QByteArray l = line.trimmed();
-                if (l.isEmpty()) continue;
-                const QJsonObject obj = QJsonDocument::fromJson(l).object();
-                if (obj.value("id").toInt() != 2) continue;
-                if (obj.contains("error")) {
-                    const QString msg = obj.value("error").toObject()
-                                           .value("message").toString("errore sconosciuto");
-                    onDone(QString("[MCP %1::%2 errore] %3").arg(plugin, toolName, msg));
-                } else {
-                    const QJsonObject res = obj.value("result").toObject();
-                    QString text;
-                    for (const auto& c : res.value("content").toArray()) {
-                        if (c.toObject().value("type").toString() == "text")
-                            text += c.toObject().value("text").toString() + "\n";
-                    }
-                    if (text.isEmpty())
-                        text = QJsonDocument(res).toJson(QJsonDocument::Compact);
-                    onDone(text.trimmed().left(3000));
-                }
+        const bool isNew = (proc == nullptr);
+        if (isNew) {
+            proc = new QProcess(qApp);            /* parent=qApp: vive oltre la funzione */
+            proc->setProgram(pythonExe);
+            proc->setArguments({ serverPath });
+            proc->setProcessChannelMode(QProcess::SeparateChannels);
+            proc->start();
+            if (!proc->waitForStarted(3000)) {
+                proc->deleteLater();
+                onDone(QString("errore mcp_call: impossibile avviare '%1'").arg(plugin));
                 return;
             }
-            onDone(QString("[MCP %1::%2] nessuna risposta valida ricevuta").arg(plugin, toolName));
-        });
+            proc->write(initMsg);                 /* handshake una sola volta */
+            s_mcpAlive[plugin] = proc;
+            /* Rimuove dal keepalive quando il server esce */
+            connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                    proc, [plugin](int, QProcess::ExitStatus) { s_mcpAlive.remove(plugin); });
+        }
+        proc->write(callMsg);                     /* invia chiamata tool */
+        /* NON closeWriteChannel(): mantiene stdin aperto per chiamate successive */
 
-        QTimer::singleShot(30000, proc, [proc, onDone, called, plugin, toolName]() {
-            if (*called || proc->state() == QProcess::NotRunning) return;
+        /* ── Leggi risposta via readyRead con buffer accumulante ── */
+        auto buf    = QSharedPointer<QByteArray>::create();
+        auto called = QSharedPointer<bool>::create(false);
+        auto retried = QSharedPointer<bool>::create(false);
+        auto conn   = QSharedPointer<QMetaObject::Connection>::create();
+
+        auto finalize = [this, proc, onDone, called, conn, plugin, toolName,
+                         pythonExe, serverPath, initMsg, callMsg, retried, buf]
+                        (const QString& result) mutable
+        {
+            if (*called) return;
             *called = true;
+            QObject::disconnect(*conn);
+
+            if (!result.isEmpty()) { onDone(result); return; }
+
+            /* Nessuna risposta → retry con processo fresco */
+            if (*retried) { onDone(QString("[MCP %1::%2] nessuna risposta").arg(plugin, toolName)); return; }
+            *retried = true;
+            s_mcpAlive.remove(plugin);
             proc->kill();
-            onDone(QString("[MCP %1::%2] timeout 30s").arg(plugin, toolName));
-        });
+
+            auto* proc2 = new QProcess(qApp);
+            proc2->setProgram(pythonExe);
+            proc2->setArguments({ serverPath });
+            proc2->setProcessChannelMode(QProcess::SeparateChannels);
+            proc2->start();
+            if (!proc2->waitForStarted(3000)) {
+                proc2->deleteLater();
+                onDone(QString("[MCP %1::%2] avvio fallito dopo retry").arg(plugin, toolName));
+                return;
+            }
+            proc2->write(initMsg);
+            proc2->write(callMsg);
+            s_mcpAlive[plugin] = proc2;
+            connect(proc2, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                    proc2, [plugin](int, QProcess::ExitStatus) { s_mcpAlive.remove(plugin); });
+
+            auto buf2    = QSharedPointer<QByteArray>::create();
+            auto called2 = QSharedPointer<bool>::create(false);
+            auto conn2   = QSharedPointer<QMetaObject::Connection>::create();
+            *conn2 = connect(proc2, &QProcess::readyRead, this,
+                [proc2, buf2, called2, conn2, onDone, plugin, toolName]() mutable {
+                    *buf2 += proc2->readAllStandardOutput();
+                    const QString r = _parseMcpOutput(*buf2, plugin, toolName);
+                    if (r.isEmpty()) return;
+                    if (*called2) return;
+                    *called2 = true;
+                    *buf2 = {};
+                    QObject::disconnect(*conn2);
+                    onDone(r);
+                });
+            QTimer::singleShot(P::mcpTimeoutMs(plugin), this,
+                [proc2, called2, conn2, onDone, plugin, toolName]() mutable {
+                    if (*called2) return;
+                    *called2 = true;
+                    QObject::disconnect(*conn2);
+                    s_mcpAlive.remove(plugin);
+                    proc2->kill();
+                    onDone(QString("[MCP %1::%2] timeout (retry)").arg(plugin, toolName));
+                });
+        };
+
+        *conn = connect(proc, &QProcess::readyRead, this,
+            [proc, buf, finalize, called, conn, plugin, toolName]() mutable {
+                *buf += proc->readAllStandardOutput();
+                if (*called) return;
+                const QString result = _parseMcpOutput(*buf, plugin, toolName);
+                if (!result.isEmpty()) {
+                    *buf = {};
+                    finalize(result);
+                }
+            });
+
+        QTimer::singleShot(P::mcpTimeoutMs(plugin), this,
+            [finalize, called, plugin, toolName]() mutable {
+                if (!*called) finalize({});
+            });
         return;
     }
 
@@ -814,14 +1040,22 @@ void AgentiPage::runToolCall(const QJsonObject& call,
    runToolCall {tool, input} e riprende la conversazione con replyWithTool().
    ══════════════════════════════════════════════════════════════ */
 /* ── Mini-bolla HTML per un tool call ─────────────────────────────────────
-   Stato: "running" (grigio) oppure "done" (verde) / "error" (rosso).     */
+   Stato: "running" (grigio) oppure "done" (verde) / "error" (rosso).
+   elapsedSecs > 0 mostra il timer durante l'attesa (per MCP lenti).       */
 static QString _toolBubble(const QString& name, const QString& input,
-                            const QString& result, bool done, bool error = false)
+                            const QString& result, bool done,
+                            bool error = false, int elapsedSecs = 0)
 {
     const QString bg      = done ? (error ? "#3b1a1a" : "#1a2e1a") : "#1e2030";
     const QString border  = done ? (error ? "#ef4444" : "#22c55e") : "#6366f1";
     const QString icon    = done ? (error ? "\xe2\x9d\x8c" : "\xe2\x9c\x85") : "\xf0\x9f\x94\xa7";
-    const QString status  = done ? (error ? "Errore" : "Completato") : "In esecuzione\xe2\x80\xa6";
+    QString status;
+    if (done)
+        status = error ? "Errore" : "Completato";
+    else if (elapsedSecs > 0)
+        status = QString("In esecuzione\xe2\x80\xa6 %1s").arg(elapsedSecs);
+    else
+        status = "In esecuzione\xe2\x80\xa6";
     const QString nameEsc = name.toHtmlEscaped();
     const QString inEsc   = input.toHtmlEscaped().left(120);
     const QString resEsc  = result.toHtmlEscaped().left(300);
@@ -839,7 +1073,7 @@ static QString _toolBubble(const QString& name, const QString& input,
         "&nbsp;<span style='color:#94a3b8;font-size:10px;'>" + status + "</span>";
 
     if (!input.isEmpty())
-        html += "<br><span style='color:#94a3b8;'>→ </span>"
+        html += "<br><span style='color:#94a3b8;'>&#x2192; </span>"
                 "<code style='color:#e2e8f0;'>" + inEsc + "</code>";
 
     if (done && !result.isEmpty())
@@ -850,55 +1084,121 @@ static QString _toolBubble(const QString& name, const QString& input,
     return html;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   onNativeToolCall — accumula tool calls del turno corrente.
+   Ollama può emettere più tool_calls in una risposta; tutti arrivano
+   in un loop sincrono, poi l'event loop riprende. Con singleShot(0)
+   ci assicuriamo di processarli tutti insieme in processToolBatch().
+   ══════════════════════════════════════════════════════════════ */
 void AgentiPage::onNativeToolCall(const QString& name, const QJsonObject& args)
 {
-    /* spawn_agent ha due parametri (role + task) — li combiniamo con ||| */
-    /* mcp_call ha tre parametri (plugin + tool_name + args_json) — JSON compatto */
-    QString input;
-    if (name == QLatin1String("spawn_agent")) {
-        const QString role = args.value("role").toString().trimmed();
-        const QString task = args.value("task").toString().trimmed();
-        input = role + "|||" + task;
-    } else if (name == QLatin1String("mcp_call")) {
-        QJsonObject jo;
-        jo["plugin"]    = args.value("plugin").toString().trimmed();
-        jo["tool_name"] = args.value("tool_name").toString().trimmed();
-        const QString aj = args.value("args_json").toString().trimmed();
-        jo["args_json"] = aj.isEmpty() ? "{}" : aj;
-        input = QJsonDocument(jo).toJson(QJsonDocument::Compact);
-    } else {
-        /* Tutti gli altri tool: estrae il valore del primo argomento */
-        for (auto it = args.constBegin(); it != args.constEnd(); ++it) {
-            const QJsonValue v = it.value();
-            if (v.isString())  { input = v.toString(); break; }
-            if (v.isDouble())  { input = QString::number(v.toDouble()); break; }
-            if (v.isObject())  { input = QJsonDocument(v.toObject()).toJson(QJsonDocument::Compact); break; }
-        }
-        if (input.isEmpty())
-            input = QJsonDocument(args).toJson(QJsonDocument::Compact);
+    m_incomingToolBatch.append({ name, args });
+    if (!m_toolBatchScheduled) {
+        m_toolBatchScheduled = true;
+        QTimer::singleShot(0, this, &AgentiPage::processToolBatch);
     }
+}
 
-    /* Inserisce la mini-bolla "in esecuzione" e salva il cursore per aggiornarla */
-    m_log->moveCursor(QTextCursor::End);
-    const int anchorPos = m_log->textCursor().position();
-    m_log->insertHtml(_toolBubble(name, input, {}, false));
-    m_log->append({});
+/* ══════════════════════════════════════════════════════════════
+   processToolBatch — esegue tutti i tool del turno in parallelo
+   (async) e chiama replyWithAllTools() quando tutti completano.
+   Gestisce: spinner per MCP lenti, keepalive processo MCP.
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::processToolBatch()
+{
+    m_toolBatchScheduled = false;
+    if (m_incomingToolBatch.isEmpty()) return;
 
-    QJsonObject call;
-    call["tool"]  = name;
-    call["input"] = input;
+    const int n = m_incomingToolBatch.size();
+    m_toolBatchResults.clear();
+    m_toolBatchResults.resize(n);
+    m_toolBatchTotal = n;
+    m_toolBatchDone  = 0;
 
-    runToolCall(call, [this, name, input, anchorPos](const QString& result) {
-        const bool isErr = result.startsWith("errore:") || result.startsWith("Nessun");
+    for (int i = 0; i < n; ++i) {
+        const QString      name = m_incomingToolBatch[i].first;
+        const QJsonObject& args = m_incomingToolBatch[i].second;
 
-        /* Aggiorna la mini-bolla sostituendo il testo dal cursore salvato */
-        QTextCursor cur(m_log->document());
-        cur.setPosition(anchorPos);
-        cur.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
-        cur.removeSelectedText();
-        cur.insertHtml(_toolBubble(name, input, result, true, isErr));
+        /* ── Costruisce input canonico per runToolCall ── */
+        QString input;
+        if (name == QLatin1String("spawn_agent")) {
+            input = args.value("role").toString().trimmed() + "|||"
+                  + args.value("task").toString().trimmed();
+        } else if (name == QLatin1String("mcp_call")) {
+            QJsonObject jo;
+            jo["plugin"]    = args.value("plugin").toString().trimmed();
+            jo["tool_name"] = args.value("tool_name").toString().trimmed();
+            const QString aj = args.value("args_json").toString().trimmed();
+            jo["args_json"] = aj.isEmpty() ? "{}" : aj;
+            input = QJsonDocument(jo).toJson(QJsonDocument::Compact);
+        } else {
+            for (auto it = args.constBegin(); it != args.constEnd(); ++it) {
+                const QJsonValue v = it.value();
+                if (v.isString()) { input = v.toString(); break; }
+                if (v.isDouble()) { input = QString::number(v.toDouble()); break; }
+                if (v.isObject()) { input = QJsonDocument(v.toObject()).toJson(QJsonDocument::Compact); break; }
+            }
+            if (input.isEmpty())
+                input = QJsonDocument(args).toJson(QJsonDocument::Compact);
+        }
+
+        /* ── Mini-bolla "in esecuzione" ── */
+        m_log->moveCursor(QTextCursor::End);
+        const int anchorPos = m_log->textCursor().position();
+        m_log->insertHtml(_toolBubble(name, input, {}, false));
         m_log->append({});
 
-        m_ai->replyWithTool(name, result);
-    });
+        /* ── Spinner per MCP lenti (aggiorna bolla ogni secondo) ── */
+        QTimer* spinnerTimer = nullptr;
+        if (name == QLatin1String("mcp_call")) {
+            spinnerTimer = new QTimer(this);
+            spinnerTimer->setInterval(1000);
+            auto elapsed = QSharedPointer<int>::create(0);
+            connect(spinnerTimer, &QTimer::timeout, this,
+                    [this, name, input, anchorPos, elapsed]() {
+                ++(*elapsed);
+                QTextCursor cur(m_log->document());
+                cur.setPosition(anchorPos);
+                cur.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+                cur.removeSelectedText();
+                cur.insertHtml(_toolBubble(name, input, {}, false, false, *elapsed));
+                m_log->append({});
+            });
+            spinnerTimer->start();
+        }
+
+        QJsonObject call;
+        call["tool"]  = name;
+        call["input"] = input;
+
+        runToolCall(call, [this, i, n, name, input, anchorPos, spinnerTimer](const QString& result) {
+            /* Ferma spinner se presente */
+            if (spinnerTimer) { spinnerTimer->stop(); spinnerTimer->deleteLater(); }
+
+            const bool isErr = result.startsWith("errore:") || result.startsWith("Nessun")
+                             || result.startsWith("[MCP");
+
+            /* Aggiorna bolla finale */
+            QTextCursor cur(m_log->document());
+            cur.setPosition(anchorPos);
+            cur.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+            cur.removeSelectedText();
+            cur.insertHtml(_toolBubble(name, input, result, true, isErr));
+            m_log->append({});
+
+            m_toolBatchResults[i] = { name, result };
+            ++m_toolBatchDone;
+
+            if (m_toolBatchDone == m_toolBatchTotal) {
+                /* Tutti completati: invia risultati in un solo round-trip */
+                if (m_toolBatchResults.size() == 1) {
+                    m_ai->replyWithTool(m_toolBatchResults[0].first,
+                                        m_toolBatchResults[0].second);
+                } else {
+                    m_ai->replyWithAllTools(m_toolBatchResults);
+                }
+                m_incomingToolBatch.clear();
+            }
+        });
+    }
 }

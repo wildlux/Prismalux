@@ -1206,6 +1206,63 @@ void AiClient::replyWithTool(const QString& toolName, const QString& result)
 }
 
 /* ══════════════════════════════════════════════════════════════
+   replyWithAllTools — invia N risultati tool in un solo request.
+   Per ogni risultato: aggiunge un messaggio "tool" nella storia.
+   Usato quando una singola risposta del modello conteneva più tool_calls.
+   ══════════════════════════════════════════════════════════════ */
+void AiClient::replyWithAllTools(const QVector<QPair<QString,QString>>& results)
+{
+    if (results.isEmpty() || m_lastChatMessages.isEmpty() || m_backend != Ollama) return;
+
+    QJsonArray messages = m_lastChatMessages;
+
+    QJsonObject assistMsg;
+    assistMsg["role"]    = QLatin1String("assistant");
+    assistMsg["content"] = QLatin1String("");
+    messages.append(assistMsg);
+
+    for (const auto& [toolName, toolResult] : results) {
+        QJsonObject toolMsg;
+        toolMsg["role"]    = QLatin1String("tool");
+        toolMsg["content"] = toolResult;
+        toolMsg["name"]    = toolName;
+        messages.append(toolMsg);
+    }
+    m_lastChatMessages = messages;
+
+    QJsonObject body;
+    body["model"]    = m_model;
+    body["stream"]   = true;
+    body["messages"] = messages;
+
+    if (m_backend == Ollama) {
+        QJsonObject opts;
+        opts["temperature"]    = m_params.temperature;
+        opts["top_p"]          = m_params.top_p;
+        opts["top_k"]          = m_params.top_k;
+        opts["repeat_penalty"] = m_params.repeat_penalty;
+        opts["num_ctx"]        = m_params.num_ctx;
+        opts["num_predict"]    = m_params.num_predict;
+        if (m_numGpu >= 0) opts["num_gpu"] = m_numGpu;
+        body["options"] = opts;
+    }
+
+    abort();
+    m_isGenerateMode = false;
+    m_accum.clear();
+    m_thinkingAccum.clear();
+    m_thinkingKey.clear();
+    m_pendingToolCalls = QJsonArray();
+
+    const QString url = QString("http://%1:%2/api/chat").arg(m_host).arg(m_port);
+    QNetworkRequest req(url);
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    m_reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(m_reply, &QNetworkReply::readyRead, this, &AiClient::onReadyRead);
+    connect(m_reply, &QNetworkReply::finished,  this, &AiClient::onFinished);
+}
+
+/* ══════════════════════════════════════════════════════════════
    fetchModelLayers — recupera il numero di layer del modello da /api/show.
    Cerca *.block_count in modelinfo (llama.block_count, qwen3.block_count, ecc.).
    Usa un QNetworkReply separato — non interferisce con la chat in corso.

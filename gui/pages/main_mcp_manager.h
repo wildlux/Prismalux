@@ -56,6 +56,7 @@ private slots:
     void onInstallFinished(int code, QProcess::ExitStatus st);
     void onTestClicked();
     void onTestAllClicked();
+    void onTestMcpCallClicked();
     void onMcpGuideClicked();
     void onTestReadyRead();
     void onTestTimeout();
@@ -88,7 +89,8 @@ private:
     QString     m_busyName;              // MCP su cui sto operando
     bool        m_busy = false;
     QStringList m_testQueue;             // coda "Testa tutti" sequenziale
-    QPushButton* m_testAllBtn = nullptr;
+    QPushButton* m_testAllBtn     = nullptr;
+    QPushButton* m_testMcpCallBtn = nullptr;  // testa via risoluzione python mcp_call
 };
 
 #endif // MAIN_MCP_MANAGER_H

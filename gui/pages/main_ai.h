@@ -228,6 +228,15 @@ private:
     void runToolCall(const QJsonObject& call, std::function<void(QString)> onDone);
     /** Testo da aggiungere al system prompt quando tool use è attivo */
     static QString toolSystemSuffix();
+    /** Esegue tools/list su ogni MCP in background per arricchire il system prompt */
+    void startMcpDiscovery();
+
+    /* ── Batching tool calls: raccoglie tutti i tool_calls di un turno prima di eseguirli ── */
+    QVector<QPair<QString,QJsonObject>> m_incomingToolBatch;  ///< tool calls ricevuti in questo turno
+    bool                                m_toolBatchScheduled = false; ///< true = processToolBatch() già schedulato
+    QVector<QPair<QString,QString>>     m_toolBatchResults;  ///< risultati accumulati del batch
+    int                                 m_toolBatchTotal = 0; ///< quanti tool_call in questo batch
+    int                                 m_toolBatchDone  = 0; ///< quanti risultati ricevuti
 
     /** Rileva se il messaggio richiede ricerca online (pattern matching, senza LLM). */
     static bool _detectWebIntent(const QString& msg);
@@ -449,6 +458,7 @@ private slots:
     void onError(const QString& msg);
     void onModelsReady(const QStringList& list);
     void onNativeToolCall(const QString& name, const QJsonObject& args);
+    void processToolBatch();   ///< esegue tutti i tool_calls accumulati in m_incomingToolBatch
     void onSttTick();     ///< scatta ogni 1s durante registrazione: aggiorna testo pulsante
     void onSttTimeout();  ///< scatta a 6.5s: ferma registrazione e avvia trascrizione
 

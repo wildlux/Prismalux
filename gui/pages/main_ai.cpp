@@ -81,6 +81,7 @@ AgentiPage::AgentiPage(AiClient* ai, QWidget* parent)
     connect(this, &AgentiPage::chatCompleted, this, &AgentiPage::onChatCompletedSave);
 
     m_ai->fetchModels();
+    startMcpDiscovery();
 }
 
 /* ── slot: aggiorna combo LLM quando il modello cambia da Impostazioni ──────── */

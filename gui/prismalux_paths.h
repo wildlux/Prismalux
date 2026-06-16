@@ -69,6 +69,11 @@ constexpr int kWanComputePort = 11600;
 /** Porta Calcolo Scientifico Distribuito BOINC-like */
 constexpr int kSciComputePort = 11601;
 
+/** Timeout invocazione MCP standard (plugin leggeri: Anki, OBS, GNS3, ecc.) */
+constexpr int kMcpDefaultTimeoutMs = 30'000;
+/** Timeout invocazione MCP per plugin pesanti: Stable Diffusion, Blender, FreeCAD */
+constexpr int kMcpSlowTimeoutMs    = 120'000;
+
 /** Host loopback — unico valore accettato per sicurezza */
 constexpr const char* kLocalHost = "127.0.0.1";
 
@@ -910,6 +915,15 @@ inline QString personalityPrompt() {
     if (p == "sonic")  return "Rispondi come Sonic the Hedgehog: rapido, energico, spiritoso, leggermente impaziente con le cose lente.";
     if (p == "mario")  return "Rispondi come Super Mario: entusiasta, positivo, usa esclamazioni come \"Wahoo!\" e \"Mamma mia!\", sempre incoraggiante.";
     return {};
+}
+
+/** mcpTimeoutMs — restituisce il timeout appropriato in ms per il plugin.
+ *  Plugin pesanti (Stable Diffusion, Blender, FreeCAD) usano kMcpSlowTimeoutMs. */
+inline int mcpTimeoutMs(const QString& plugin) {
+    const QString p = plugin.toLower();
+    if (p.contains("diffusion") || p.startsWith("blender") || p.startsWith("freecad"))
+        return kMcpSlowTimeoutMs;
+    return kMcpDefaultTimeoutMs;
 }
 
 } // namespace PrismaluxPaths

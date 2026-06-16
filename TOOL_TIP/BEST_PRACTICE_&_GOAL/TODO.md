@@ -340,6 +340,82 @@
 
 ---
 
+## 📋 Ottimizzazioni Tool & MCP — 16/06/2026
+
+> Voci emerse dall'implementazione di `mcp_call` (2026-06-15) e dall'uso in produzione
+> dei 9 tool in-process. Non sono bug bloccanti ma riducono errori silenziosi e latenza.
+
+### 🔧 Tool in-process (`runToolCall` — `main_ai_tools.cpp`)
+
+- [x] **Path MCP assoluto** — FATTO 2026-06-16: `mcp_call` usava già `P::root()+"/MCPs/"`;
+      `toolSystemSuffix()` ora usa `QDir(proj+"/MCPs/")` per la lista dinamica plugin.
+      *File:* `gui/pages/main_ai_tools.cpp`.
+
+- [x] **Venv condiviso come fallback intermedio per `mcp_call`** — FATTO 2026-06-16:
+      ordine: venv-per-plugin → `~/.prismalux/venv` → `P::findPython()`.
+      Stesso fallback applicato a `onTestMcpCallClicked()` in McpManagerPage.
+      *File:* `gui/pages/main_ai_tools.cpp` + `main_mcp_manager.cpp`.
+
+- [x] **Tool discovery dinamica per `mcp_call`** — FATTO 2026-06-16: `startMcpDiscovery()`
+      esegue `tools/list` sequenzialmente su ogni plugin via `shared_ptr<function>` ricorsiva,
+      popola `s_mcpToolDescs[plugin]`. `toolSystemSuffix()` inietta `plugin[tool1|tool2|...]`
+      nel system prompt. *File:* `gui/pages/main_ai_tools.cpp`.
+
+- [x] **Troncamento intelligente dei risultati tool** — FATTO 2026-06-16: helper statico
+      `_truncateResult(s, maxLen=2000)` con suffisso `[...troncato a N caratteri]`.
+      Applicato a `fetch_url` (4000→2000) e `mcp_call` (3000→2000). Cache DDG già a 600.
+      *File:* `gui/pages/main_ai_tools.cpp`.
+
+- [x] **Tool paralleli** — FATTO 2026-06-16: `onNativeToolCall` accoda in `m_incomingToolBatch`
+      + `QTimer::singleShot(0)` per raccogliere tutti i `tool_calls` del turno. `processToolBatch()`
+      esegue i tool in parallelo (async), raccoglie risultati e chiama `replyWithAllTools()` in
+      un'unica richiesta HTTP a Ollama. *File:* `gui/pages/main_ai_tools.cpp` + `gui/ai_client.cpp`.
+
+- [x] **Timeout configurabile per-tool** — FATTO 2026-06-16: `kMcpDefaultTimeoutMs=30s`,
+      `kMcpSlowTimeoutMs=120s`, `mcpTimeoutMs(plugin)` in `prismalux_paths.h`.
+      Usato nel timer di `mcp_call` e retry. SD/Blender/FreeCAD → 120s.
+
+- [x] **Cache risultati `ricerca` (DuckDuckGo)** — FATTO 2026-06-16: `s_ddgCache`
+      `QHash<QString, QPair<QString,qint64>>` TTL 5 min in `runToolCall` sezione `ricerca`.
+      *File:* `gui/pages/main_ai_tools.cpp`.
+
+- [x] **Avviso modello non tool-capable** — FATTO 2026-06-16: nota gialla in log prima
+      dell'invio se `m_toolsEnabled && !isToolCapable(model)`.
+      *File:* `gui/pages/main_ai_ui.cpp` `onBtnRunClicked()`.
+
+### 🔌 MCP (`MCPs/` — invocazione da `mcp_call` + McpManagerPage)
+
+- [x] **Test batch `mcp_call` con tutti i plugin** — FATTO 2026-06-16: pulsante
+      "🧪 Testa mcp_call" in McpManagerPage con struct `Runner` che testa ogni plugin
+      sequenzialmente (venv-fallback incluso), logga ✅/❌ e riepilogo finale.
+      *File:* `gui/pages/main_mcp_manager.h/cpp`.
+
+- [x] **System prompt con lista MCP disponibili** — FATTO 2026-06-16: `toolSystemSuffix()`
+      in `main_ai_tools.cpp` elenca dinamicamente i plugin con `server.py` da
+      `QDir(P::root()+"/MCPs/")` e li aggiunge in coda al system prompt come
+      `[MCP PLUGIN disponibili via mcp_call]: nome1, nome2, ...`.
+
+- [x] **Retry automatico su crash MCP** — FATTO 2026-06-16: `QSharedPointer<bool> retried`
+      + helper `_parseMcpOutput()`. Un solo retry; secondo fallimento → messaggio esplicito.
+      *File:* `gui/pages/main_ai_tools.cpp` sezione `mcp_call`.
+
+- [x] **Keepalive processo MCP per sessioni stateful** — FATTO 2026-06-16: `s_mcpAlive`
+      `QHash<QString, QPointer<QProcess>>` statica in `main_ai_tools.cpp`. Processo creato con
+      `parent=qApp` e stdin aperto (no `closeWriteChannel`). Risposta letta via `readyRead`
+      con buffer accumulante. Retry automatico con processo fresco se timeout. Plugin come
+      Anki/OBS mantengono lo stato tra le chiamate. *File:* `gui/pages/main_ai_tools.cpp`.
+
+- [x] **Validazione `args_json` con fallback `{}`** — FATTO 2026-06-16: `QJsonParseError`
+      check + fallback a `QJsonObject{}` se non è un oggetto valido, prima di inviare al MCP.
+      *File:* `gui/pages/main_ai_tools.cpp`.
+
+- [x] **Indicatore progresso per MCP lenti** — FATTO 2026-06-16: `_toolBubble()` accetta
+      `elapsedSecs` opzionale → mostra "In esecuzione… Ns". In `processToolBatch()` un
+      `QTimer` a 1s aggiorna la bolla placeholder del `mcp_call` con i secondi trascorsi,
+      sostituita dal risultato finale in `onDone`. *File:* `gui/pages/main_ai_tools.cpp`.
+
+---
+
 ## 📋 Richieste Paolo — 14/06/2026
 
 ### [14/06/26] Sub-agenti (spawn_agent) — tool e RAG

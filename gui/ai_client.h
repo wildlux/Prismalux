@@ -228,6 +228,9 @@ public:
      *  Invia il risultato del tool al modello e riprende lo streaming.
      *  Chiama onReadyRead/onFinished come una chat() normale. */
     void replyWithTool(const QString& toolName, const QString& result);
+    /** Continua la conversazione inviando N risultati tool in un solo request.
+     *  Usato quando il modello ha emesso più tool_calls in una singola risposta. */
+    void replyWithAllTools(const QVector<QPair<QString,QString>>& results);
 
     /**
      * isModelLoaded() — true se Ollama ha ricevuto almeno una risposta di inferenza

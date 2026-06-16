@@ -224,15 +224,22 @@ void McpManagerPage::buildUi()
     m_testAllBtn->setToolTip(QString::fromUtf8(
         "Esegue lo smoke test JSON-RPC su tutti i plugin MCP in sequenza.\n"
         "I risultati compaiono nel log centralizzato sottostante."));
+    m_testMcpCallBtn = new QPushButton(QString::fromUtf8("\xf0\x9f\xa7\xaa  Testa mcp_call"), this);
+    m_testMcpCallBtn->setToolTip(QString::fromUtf8(
+        "Verifica che tutti i plugin siano raggiungibili con la stessa risoluzione\n"
+        "python usata da mcp_call: venv plugin \xe2\x86\x92 venv condiviso \xe2\x86\x92 python3.\n"
+        "Usa questo test dopo aver aggiunto nuovi plugin o cambiato il venv."));
     topRow->addWidget(m_prepareBtn);
     topRow->addWidget(m_venvLbl, 1);
     topRow->addWidget(m_testAllBtn);
+    topRow->addWidget(m_testMcpCallBtn);
     topRow->addWidget(m_refreshBtn);
     root->addLayout(topRow);
 
-    connect(m_prepareBtn, &QPushButton::clicked, this, &McpManagerPage::onPrepareVenvClicked);
-    connect(m_refreshBtn, &QPushButton::clicked, this, &McpManagerPage::onRefreshClicked);
-    connect(m_testAllBtn, &QPushButton::clicked, this, &McpManagerPage::onTestAllClicked);
+    connect(m_prepareBtn,     &QPushButton::clicked, this, &McpManagerPage::onPrepareVenvClicked);
+    connect(m_refreshBtn,     &QPushButton::clicked, this, &McpManagerPage::onRefreshClicked);
+    connect(m_testAllBtn,     &QPushButton::clicked, this, &McpManagerPage::onTestAllClicked);
+    connect(m_testMcpCallBtn, &QPushButton::clicked, this, &McpManagerPage::onTestMcpCallClicked);
 
     /* Lista MCP in area scrollabile */
     auto* scroll = new QScrollArea(this);
@@ -700,4 +707,101 @@ void McpManagerPage::onMcpGuideClicked()
     lay->addWidget(bb);
 
     dlg->open();
+}
+
+/* ── Testa mcp_call ───────────────────────────────────────────────────────
+ * Usa la stessa risoluzione python di mcp_call (venv-plugin → venv-condiviso
+ * → python3) per avviare ogni server e inviare initialize + tools/list.
+ * Verifica che il path python scelto sia corretto prima ancora di chiamare
+ * il tool in chat. */
+void McpManagerPage::onTestMcpCallClicked()
+{
+    if (m_busy) return;
+    const QString mcpsRoot = P::root() + "/MCPs";
+    const QStringList names = scanMcpServers(mcpsRoot);
+    if (names.isEmpty()) {
+        appendLog(QString::fromUtf8("\xf0\x9f\xa7\xaa  Testa mcp_call: nessun plugin trovato."));
+        return;
+    }
+    appendLog(QString::fromUtf8("\xf0\x9f\xa7\xaa  Testa mcp_call — avvio test su %1 plugin...")
+              .arg(names.size()));
+    setBusy(true);
+    if (m_testMcpCallBtn) m_testMcpCallBtn->setEnabled(false);
+
+    /* Usa QTimer::singleShot a cascata per eseguire i test in sequenza
+       senza bloccare il thread UI. */
+    struct Runner {
+        McpManagerPage* page;
+        QStringList     queue;
+        QString         mcpsRoot;
+        int             passed = 0, failed = 0;
+
+        void next() {
+            if (queue.isEmpty()) {
+                page->appendLog(
+                    QString::fromUtf8(
+                        "\xf0\x9f\xa7\xaa  mcp_call test completato: "
+                        "<span style='color:#22c55e;'>%1 OK</span>  "
+                        "<span style='color:#ef4444;'>%2 KO</span>")
+                    .arg(passed).arg(failed));
+                page->setBusy(false);
+                if (page->m_testMcpCallBtn) page->m_testMcpCallBtn->setEnabled(true);
+                delete this;
+                return;
+            }
+            const QString name = queue.takeFirst();
+            const QString serverPy = mcpsRoot + "/" + name + "/server.py";
+            /* Stessa priorità venv di mcp_call */
+            const QString venvPy     = mcpsRoot + "/" + name + "/venv/bin/python";
+            const QString sharedVenv = QDir::homePath() + "/.prismalux/venv/bin/python";
+            const QString pyExe = QFile::exists(venvPy)    ? venvPy
+                                : QFile::exists(sharedVenv) ? sharedVenv
+                                : "python3";
+
+            auto* proc = new QProcess(page);
+            proc->setProgram(pyExe);
+            proc->setArguments({serverPy});
+            proc->setProcessChannelMode(QProcess::SeparateChannels);
+            proc->start();
+            if (!proc->waitForStarted(3000)) {
+                proc->deleteLater();
+                page->appendLog(
+                    QString::fromUtf8("  \xe2\x9d\x8c [mcp_call] %1 — avvio fallito (%2)")
+                    .arg(name, pyExe));
+                ++failed;
+                QTimer::singleShot(0, page, [this]{ next(); });
+                return;
+            }
+            proc->write(McpManagerPage::smokeTestRequests());
+            proc->closeWriteChannel();
+
+            /* Timeout 8s per plugin (test leggero, nessuna tools/call) */
+            auto* timer = new QTimer(proc);
+            timer->setSingleShot(true);
+            timer->start(8000);
+
+            connect(timer, &QTimer::timeout, proc, [proc]{ proc->kill(); });
+
+            connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                    proc, [this, proc, name, pyExe](int, QProcess::ExitStatus) {
+                proc->deleteLater();
+                const bool ok = McpManagerPage::smokeTestPassed(proc->readAllStandardOutput());
+                if (ok) {
+                    page->appendLog(
+                        QString::fromUtf8("  \xe2\x9c\x85 [mcp_call] %1 (%2)").arg(name, pyExe));
+                    ++passed;
+                } else {
+                    const QString diag = mcpExternalDiag(name);
+                    page->appendLog(
+                        QString::fromUtf8("  \xe2\x9d\x8c [mcp_call] %1 — nessuna risposta%2")
+                        .arg(name, diag));
+                    ++failed;
+                }
+                QTimer::singleShot(0, page, [this]{ next(); });
+            });
+        }
+    };
+
+    auto* runner = new Runner{ this, names, mcpsRoot };
+    runner->next();
 }
