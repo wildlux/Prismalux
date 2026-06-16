@@ -1,0 +1,8 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+  <qresource prefix="/emoji">
+    <file>resources/emoji/1F4AC.svg</file>
+    <file>resources/emoji/1F454.svg</file>
+    <file>resources/emoji/1F399.svg</file>
+  </qresource>
+</RCC>

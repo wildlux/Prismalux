@@ -208,6 +208,20 @@ MCPs/anki_mcp/package-lock.json
 # ── Script di migrazione (eseguito una volta, non fa parte del repo) ─────────
 gui/lan_web/extract_html.py
 
+# ── Android build-desktop (artefatto build locale) ───────────────────────────
+ANDROID/android_app/build-desktop/
+
+# ── Dispositivi esterni (dati personali/locali) ───────────────────────────────
+EXTERNAL_DeviceS/
+
+# ── KNOWLEDGE_USER root (dati utente locali) ─────────────────────────────────
+KNOWLEDGE_USER/
+
+# ── Wiby camera scripts (contengono LOCAL_KEY e PASSWORD hardcoded) ───────────
+Tools/scripts/wiby_controller.py
+Tools/scripts/wiby_mitm.py
+Tools/scripts/wiby_stream_server.py
+
 # ── Segreti — prevenzione commit accidentale ─────────────────────────────────
 .env
 *.env
