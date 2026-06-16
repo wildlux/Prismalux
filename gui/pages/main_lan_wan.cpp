@@ -3779,7 +3779,7 @@ void LanWanPage::wanPopulateKindCombo(QComboBox* combo)
     addItem("💬  Query AI generica",                  "ai_query");
     addItem("💻  Assistente codice",                  "code_assist");
     addItem("🔍  Revisione codice (code review)",     "code_review");
-    addItem("🔀  Traduci codice (Translitter)",       "code_translate");
+    addItem("🔀  Converti Codice (C\xe2\x86\x92" "Python, Py\xe2\x86\x92" "JS\xe2\x80\xa6)", "code_translate");
     addItem("🔍  Reverse Engineering",                "code_reverse");
     addItem("📐  Risolvi passo per passo (Matematica)","math_solve");
     addItem("🔢  Formula da sequenza (Matematica)",   "math_seq");

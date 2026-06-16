@@ -184,7 +184,7 @@ void ProgrammazionePage::buildInnerTabs()
     m_innerTabs->addTab(buildAgentica(m_innerTabs),
         "\xf0\x9f\x8f\x97\xef\xb8\x8f  Architetta Software");
     m_innerTabs->addTab(buildTranslitter(m_innerTabs),
-        "\xf0\x9f\x94\x80  Translitter");
+        "\xf0\x9f\x94\x80  Converti Codice");
     m_innerTabs->addTab(buildReverseEngineering(m_innerTabs),
         "\xf0\x9f\x94\x8d  Reverse Eng.");
     m_innerTabs->addTab(buildGitMcp(m_innerTabs),
