@@ -164,6 +164,7 @@ set(SRCS
     pages/security_page.cpp
     pages/multi_agent_page.cpp
     pages/chart_page.cpp
+    pages/opencode_page.cpp
     graph_memory_mobile.cpp
 )
 

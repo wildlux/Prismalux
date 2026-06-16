@@ -30,6 +30,7 @@
 #include "pages/security_page.h"
 #include "pages/multi_agent_page.h"
 #include "pages/chart_page.h"
+#include "pages/opencode_page.h"
 
 #ifdef HAVE_MULTIMEDIA
 #include "pages/camera_page.h"
@@ -212,6 +213,10 @@ MainWindow::MainWindow(QWidget* parent)
     /* A6 — ChartPage: grafico QPainter f(x) con pan/zoom */
     m_chartPage = new ChartPage(m_ai, this);
     m_stack->addWidget(m_chartPage);      // indice 24
+
+    /* A7 — OpenCodePage: client per opencode serve sul PC desktop */
+    m_openCodePage = new OpenCodePage(this);
+    m_stack->addWidget(m_openCodePage);   // indice 25
 
     auto* central = new QWidget(this);
 
@@ -401,6 +406,7 @@ void MainWindow::buildDrawer()
         { "\xf0\x9f\x94\x92",            "Sicurezza",            m_idxSecurity   },
         { "\xf0\x9f\x95\xb8\xef\xb8\x8f", "Multi-Agente",       m_idxMultiAgent },
         { "\xf0\x9f\x93\x88",            "Grafico",            m_idxChart      },
+        { "\xf0\x9f\x96\xa5\xef\xb8\x8f", "OpenCode",         m_idxOpenCode   },
         { "\xf0\x9f\x93\x9a",              "Studia",             m_idxStudio     },
         { "\xf0\x9f\xa7\xa0",              "Impara con AI",      m_idxImpara     },
         { "\xcf\x80",                       "Matematica",         m_idxMatematica },
