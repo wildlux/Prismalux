@@ -937,7 +937,7 @@ QWidget* MainWindow::buildServerMathSection(QWidget* parent,
    ══════════════════════════════════════════════════════════════ */
 void MainWindow::applyBackend(AiClient::Backend b, const QString& host, int port) {
     m_ai->setBackend(b, host, port, "");
-    if (m_badgeServer) m_badgeServer->setStatus(StatusBadge::Starting, "Avvio...");
+    if (m_btnBackend) m_btnBackend->setStyleSheet("color:#f59e0b;");
     m_ai->fetchModels();
 
     refreshBackendBtn();
@@ -1337,10 +1337,6 @@ QWidget* MainWindow::buildContent()
         cornerLay->setContentsMargins(4, 0, 8, 0);
         cornerLay->setSpacing(6);
         cornerLay->addWidget(m_btnBackend);
-        m_badgeServer = new StatusBadge("Offline", m_cornerContainer);
-        m_badgeServer->setFixedHeight(dpiScale(22));
-        m_badgeServer->setStatus(StatusBadge::Offline, "Offline");
-        cornerLay->addWidget(m_badgeServer);
         m_mainTabs->setCornerWidget(m_cornerContainer, Qt::TopLeftCorner);
     }
 

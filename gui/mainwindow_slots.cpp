@@ -132,7 +132,7 @@ void MainWindow::onInitialModelsReady(const QStringList& list)
         m_lblModel->setText("(Ollama non trovato)");
         statusBar()->showMessage(
             "\xe2\x9a\xa0\xef\xb8\x8f  Ollama non risponde — avvialo con: ollama serve");
-        if (m_badgeServer) m_badgeServer->setStatus(StatusBadge::Error, "Offline");
+        if (m_btnBackend) m_btnBackend->setStyleSheet("color:#ef4444;");
         maybeAutoVramBench();
         return;
     }
@@ -145,7 +145,7 @@ void MainWindow::onInitialModelsReady(const QStringList& list)
     statusBar()->showMessage(
         QString("\xf0\x9f\x8d\xba  Backend Ollama | Modello: %1 | Modelli disponibili: %2")
         .arg(model).arg(list.size()));
-    if (m_badgeServer) m_badgeServer->setStatus(StatusBadge::Online, "Online");
+    if (m_btnBackend) m_btnBackend->setStyleSheet("color:#10a37f;");
     maybeAutoVramBench();
 }
 
@@ -168,16 +168,16 @@ void MainWindow::onApplyBackendModelsReady(const QStringList& list)
         statusBar()->showMessage(
             QString("\xe2\x9c\x85  %1 | Modello: %2 | %3 disponibili")
             .arg(m_pendingBkName, list.first(), QString::number(list.size())));
-        if (m_badgeServer) m_badgeServer->setStatus(StatusBadge::Online, "Online");
+        if (m_btnBackend) m_btnBackend->setStyleSheet("color:#10a37f;");
     } else {
         m_lblModel->setText("(server non raggiungibile)");
         appendLog(
-            QString("\xe2\x9a\xa0\xef\xb8\x8f <b>%1</b> non risponde \xe2\x80\x94 nessun modello disponibile")
+            QString("\xe2\x9a\xa0\xef\xb8\x8f <b>%1</b> non risponde \xe2\x80\x94 nessun modelli disponibile")
             .arg(m_pendingBkName));
         statusBar()->showMessage(
             QString("\xe2\x9a\xa0\xef\xb8\x8f  %1 non risponde \xe2\x80\x94 avvialo prima di usare l'AI")
             .arg(m_pendingBkName));
-        if (m_badgeServer) m_badgeServer->setStatus(StatusBadge::Error, "Offline");
+        if (m_btnBackend) m_btnBackend->setStyleSheet("color:#ef4444;");
     }
 }
 
