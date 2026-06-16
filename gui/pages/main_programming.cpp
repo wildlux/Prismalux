@@ -182,7 +182,7 @@ void ProgrammazionePage::buildInnerTabs()
     m_innerTabs->addTab(buildCodingTab(m_innerTabs),
         "\xf0\x9f\x92\xbb  Programmazione");
     m_innerTabs->addTab(buildAgentica(m_innerTabs),
-        "\xf0\x9f\xa4\x96  Agentica");
+        "\xf0\x9f\x8f\x97\xef\xb8\x8f  Architetta Software");
     m_innerTabs->addTab(buildTranslitter(m_innerTabs),
         "\xf0\x9f\x94\x80  Translitter");
     m_innerTabs->addTab(buildReverseEngineering(m_innerTabs),
@@ -1047,8 +1047,8 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
 void ProgrammazionePage::buildAgenticaHeader(QVBoxLayout* lay, QWidget* w)
 {
     auto* desc = new QLabel(
-        "\xf0\x9f\xa4\x96  <b>Programmazione Agentica</b> \xe2\x80\x94 "
-        "Genera sistemi AI multi-step: pipeline, RAG, tool-use e agenti autonomi.", w);
+        "\xf0\x9f\x8f\x97\xef\xb8\x8f  <b>Architetta Software</b> \xe2\x80\x94 "
+        "Progetta sistemi AI complessi: pipeline multi-agente, RAG, refactoring e test unitari.", w);
     desc->setObjectName("hintLabel");
     desc->setWordWrap(true);
     lay->addWidget(desc);
