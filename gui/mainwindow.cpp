@@ -942,7 +942,9 @@ void MainWindow::applyBackend(AiClient::Backend b, const QString& host, int port
 
     refreshBackendBtn();
 
-    const QString bkName = (b == AiClient::Ollama) ? "Ollama" : "llama.cpp";
+    const QString bkName = (b == AiClient::Ollama)
+        ? (port == P::kDwarfStarPort ? "DwarfStar" : "Ollama")
+        : "llama.cpp";
     const QString bkIcon = (b == AiClient::Ollama)
         ? "\xf0\x9f\xa6\x99  Ollama"
         : "\xf0\x9f\xa6\x99  llama.cpp";

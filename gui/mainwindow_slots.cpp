@@ -128,10 +128,11 @@ void MainWindow::onIdleUnloadTimer()
 
 void MainWindow::onInitialModelsReady(const QStringList& list)
 {
+    const QString bkDisp = (m_ai->port() == P::kDwarfStarPort) ? "DwarfStar" : "Ollama";
     if (list.isEmpty()) {
-        m_lblModel->setText("(Ollama non trovato)");
+        m_lblModel->setText("(" + bkDisp + " non attivo)");
         statusBar()->showMessage(
-            "\xe2\x9a\xa0\xef\xb8\x8f  Ollama non risponde — avvialo con: ollama serve");
+            "\xe2\x9a\xa0\xef\xb8\x8f  " + bkDisp + " non risponde — avvialo prima di usare l'AI");
         if (m_btnBackend) m_btnBackend->setStyleSheet("color:#ef4444;");
         maybeAutoVramBench();
         return;
@@ -143,8 +144,8 @@ void MainWindow::onInitialModelsReady(const QStringList& list)
         m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), model);
     m_lblModel->setText(model);
     statusBar()->showMessage(
-        QString("\xf0\x9f\x8d\xba  Backend Ollama | Modello: %1 | Modelli disponibili: %2")
-        .arg(model).arg(list.size()));
+        QString("\xf0\x9f\x8d\xba  Backend %1 | Modello: %2 | Modelli disponibili: %3")
+        .arg(bkDisp, model, QString::number(list.size())));
     if (m_btnBackend) m_btnBackend->setStyleSheet("color:#10a37f;");
     maybeAutoVramBench();
 }
@@ -212,6 +213,7 @@ void MainWindow::onBackendBtnClicked()
 {
     auto* menu = new QMenu(m_btnBackend);
     menu->setObjectName("backendMenu");
+    menu->setStyleSheet("QMenu { color: palette(buttonText); background: palette(window); }");
 
     const bool serverRunning = m_serverProc &&
                                m_serverProc->state() != QProcess::NotRunning;
@@ -247,7 +249,7 @@ void MainWindow::onBackendBtnClicked()
         auto* actLSrv = menu->addAction(
             "\xf0\x9f\xa6\x99\xe2\x9a\xa1\xef\xb8\x8f  Avvia llama-server...");
         actLSrv->setCheckable(true);
-        actLSrv->setChecked(!isOllama);
+        actLSrv->setChecked(m_ai->backend() == AiClient::LlamaServer);
         connect(actLSrv, &QAction::triggered, this, &MainWindow::showServerDialog);
     }
 
