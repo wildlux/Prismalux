@@ -236,7 +236,7 @@ void MainWindow::onBackendBtnClicked()
 
     if (serverRunning) {
         auto* actInfo = menu->addAction(
-            QString("\xf0\x9f\xa6\x99\xe2\x98\x81\xef\xb8\x8f  llama-server :%1  \xe2\x97\x8f in esecuzione")
+            QString("\xf0\x9f\xa6\x99\xe2\x9a\xa1\xef\xb8\x8f  llama-server :%1  \xe2\x97\x8f in esecuzione")
             .arg(m_serverPort));
         actInfo->setEnabled(false);
 
@@ -245,7 +245,7 @@ void MainWindow::onBackendBtnClicked()
         connect(actStop, &QAction::triggered, this, &MainWindow::stopLlamaServer);
     } else {
         auto* actLSrv = menu->addAction(
-            "\xf0\x9f\xa6\x99\xe2\x98\x81\xef\xb8\x8f  Avvia llama-server...");
+            "\xf0\x9f\xa6\x99\xe2\x9a\xa1\xef\xb8\x8f  Avvia llama-server...");
         actLSrv->setCheckable(true);
         actLSrv->setChecked(!isOllama);
         connect(actLSrv, &QAction::triggered, this, &MainWindow::showServerDialog);

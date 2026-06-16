@@ -742,7 +742,7 @@ void MainWindow::showServerDialog()
     const QStringList modelPaths = P::scanGgufFiles();
 
     auto* dlg = new QDialog(this);
-    dlg->setWindowTitle("\xf0\x9f\xa6\x99\xe2\x98\x81\xef\xb8\x8f  Avvia llama-server");
+    dlg->setWindowTitle("\xf0\x9f\xa6\x99\xe2\x9a\xa1\xef\xb8\x8f  Avvia llama-server");
     dlg->setFixedWidth(dpiScale(460));
     auto* lay = new QVBoxLayout(dlg);
     lay->setSpacing(10);
@@ -1259,7 +1259,7 @@ void MainWindow::refreshBackendBtn() {
             m_btnBackend->setProperty("backendActive", "ollama");
         }
     } else {
-        m_btnBackend->setText("\xf0\x9f\xa6\x99\xe2\x98\x81\xef\xb8\x8f  llama-server");
+        m_btnBackend->setText("\xf0\x9f\xa6\x99\xe2\x9a\xa1\xef\xb8\x8f  llama-server");
         m_btnBackend->setProperty("backendActive", "llama");
     }
     P::repolish(m_btnBackend);
