@@ -10,14 +10,12 @@ Uso:
 
 Pacchetti generati:
     EXPORT/linux/Prismalux_v<VER>_Linux.zip              — AppImage + script install
-    EXPORT/linux/Prismalux_v<VER>_Sorgenti_Linux.zip     — sorgenti complete
-    EXPORT/linux/Prismalux_v<VER>_Sorgenti_Compila_Linux.zip — script compilazione
+    EXPORT/Prismalux_v<VER>_Sorgenti_Linux.zip           — sorgenti complete
+    EXPORT/Prismalux_v<VER>_Sorgenti_Compila_Linux.zip   — script compilazione
     EXPORT/windows/Prismalux_v<VER>_Windows.zip          — sorgenti Windows
-    EXPORT/Prismalux_v<VER>_Sorgenti_Linux.zip           — copia in EXPORT/
-    EXPORT/Prismalux_v<VER>_Windows.zip                  — copia in EXPORT/
 """
 
-import zipfile, os, re, sys, shutil, subprocess
+import zipfile, os, re, sys, subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent  # EXPORT/ → Prismalux/
@@ -39,6 +37,7 @@ print(f"Prismalux v{VERSION} — generazione pacchetti distribuzione\n")
 GLOBAL_EXCLUDE = [
     r"[/\\]\.git([/\\]|$)",
     r"[/\\]__pycache__([/\\]|$)",
+    r"[/\\]node_modules([/\\]|$)",
     r"[/\\]build_gui([/\\]|$)",
     r"[/\\]build([/\\]|$)",
     r"[/\\]build_",
@@ -87,12 +86,10 @@ def _report(out: Path, total: int):
 # ══════════════════════════════════════════════════════════════
 def zip_linux_appimage():
     out = ROOT / "EXPORT" / "linux" / f"Prismalux_v{VERSION}_Linux.zip"
-    # Cerca AppImage nella root o in EXPORT/linux/
-    appimage = ROOT / "Prismalux-x86_64.AppImage"
+    # Cerca AppImage in EXPORT/linux/ o nella root (legacy)
+    appimage = ROOT / "EXPORT" / "linux" / "Prismalux-x86_64.AppImage"
     if not appimage.exists():
-        appimage = ROOT / "EXPORT" / "linux" / "Prismalux-x86_64.AppImage"
-    if not appimage.exists():
-        print(f"  [skip] AppImage non trovata")
+        print("  [skip] AppImage non trovata")
         print("         Esegui prima: bash EXPORT/linux/crea_appimage.sh --no-build")
         return
     total = 0
@@ -109,7 +106,7 @@ def zip_linux_appimage():
 #  2. ZIP SORGENTI LINUX — sorgenti complete
 # ══════════════════════════════════════════════════════════════
 def zip_sorgenti_linux():
-    out = ROOT / "EXPORT" / "linux" / f"Prismalux_v{VERSION}_Sorgenti_Linux.zip"
+    out = ROOT / "EXPORT" / f"Prismalux_v{VERSION}_Sorgenti_Linux.zip"
     total = 0
     with _make_zip(out) as zf:
         for d, prefix in [
@@ -125,15 +122,12 @@ def zip_sorgenti_linux():
         for f in ["README.md", "LICENSE", "Prismalux.desktop"]:
             if _add_file(zf, ROOT / f): total += 1
     _report(out, total)
-    # Copia in EXPORT/
-    shutil.copy2(out, ROOT / "EXPORT" / out.name)
-    print(f"  → copia in EXPORT/{out.name}")
 
 # ══════════════════════════════════════════════════════════════
 #  3. ZIP SORGENTI COMPILA LINUX — script + essenziali compilazione
 # ══════════════════════════════════════════════════════════════
 def zip_sorgenti_compila_linux():
-    out = ROOT / "EXPORT" / "linux" / f"Prismalux_v{VERSION}_Sorgenti_Compila_Linux.zip"
+    out = ROOT / "EXPORT" / f"Prismalux_v{VERSION}_Sorgenti_Compila_Linux.zip"
     total = 0
     with _make_zip(out) as zf:
         for f, arcname in [
@@ -201,9 +195,6 @@ def zip_windows():
         ]:
             if _add_file(zf, f, arcname): total += 1
     _report(out, total)
-    # Copia in EXPORT/
-    shutil.copy2(out, ROOT / "EXPORT" / out.name)
-    print(f"  → copia in EXPORT/{out.name}")
 
 # ══════════════════════════════════════════════════════════════
 #  5. AppImage (opzionale — lunga)
@@ -219,10 +210,10 @@ def build_appimage():
     if result.returncode != 0:
         print(f"  [ERRORE] crea_appimage.sh fallito (code {result.returncode})")
     else:
-        ai = ROOT / "Prismalux-x86_64.AppImage"
+        ai = ROOT / "EXPORT" / "linux" / "Prismalux-x86_64.AppImage"
         if ai.exists():
             mb = ai.stat().st_size / 1_048_576
-            print(f"  → Prismalux-x86_64.AppImage ({mb:.0f} MB)")
+            print(f"  → EXPORT/linux/Prismalux-x86_64.AppImage ({mb:.0f} MB)")
 
 # ══════════════════════════════════════════════════════════════
 #  Main

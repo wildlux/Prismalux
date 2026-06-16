@@ -346,7 +346,7 @@ bash EXPORT/linux/setup_dipendenze.sh --solo-fuse
 bash EXPORT/linux/setup_dipendenze.sh --base
 
 # 2. Avvia
-./Prismalux-x86_64.AppImage
+./EXPORT/linux/Prismalux-x86_64.AppImage
 
 # 3. Integrazione desktop (icona nel menu applicazioni)
 bash EXPORT/linux/install_launcher.sh
@@ -560,10 +560,13 @@ Prismalux/
 │   └── CLAUDE.md                 ← Convenzioni di sviluppo
 │
 ├── EXPORT/                       ← Artefatti e script di distribuzione per piattaforma
+│   ├── Prismalux_v2.9_Sorgenti_Linux.zip         ← sorgenti pure Linux
+│   ├── Prismalux_v2.9_Sorgenti_Compila_Linux.zip ← script + sorgenti compilazione
 │   ├── linux/
 │   │   ├── crea_appimage.sh      ← Genera AppImage Linux
 │   │   ├── install_launcher.sh   ← Installa shortcut KDE/GNOME
-│   │   └── Prismalux-x86_64.AppImage
+│   │   ├── Prismalux-x86_64.AppImage
+│   │   └── Prismalux_v2.9_Linux.zip  ← AppImage + script install
 │   ├── windows/
 │   │   ├── crea_zip_windows.py   ← Genera ZIP distribuibile Windows
 │   │   ├── build_installer_windows.bat ← Crea Prismalux_Deploy/ con DLL Qt

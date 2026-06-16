@@ -12,7 +12,7 @@
 #    - gcc, cmake, make (per --build)
 #
 #  Output:
-#    Prismalux-x86_64.AppImage  (nella root del progetto)
+#    EXPORT/linux/Prismalux-x86_64.AppImage
 # ═══════════════════════════════════════════════════════════════
 
 set -euo pipefail
@@ -42,7 +42,7 @@ APPDIR="${ROOT}/AppDir"
 VERSION=$(grep -m1 'project(Prismalux_GUI VERSION' "${ROOT}/gui/CMakeLists.txt" \
           | grep -oE '[0-9]+\.[0-9]+' | head -1)
 VERSION="${VERSION:-$(date +%Y%m%d)}"
-OUTPUT="${ROOT}/Prismalux-x86_64.AppImage"
+OUTPUT="${ROOT}/EXPORT/linux/Prismalux-x86_64.AppImage"
 
 QT_LIBS_DIR="/usr/lib/x86_64-linux-gnu"
 QT_PLUGINS_DIR="${QT_LIBS_DIR}/qt6/plugins"
@@ -161,15 +161,18 @@ _copy_lib() {
   local lib="$1"
   local dest="${APPDIR}/usr/lib"
   [[ -f "$lib" ]] || return 0
-  local basename
-  basename="$(basename "$lib")"
-  [[ -f "${dest}/${basename}" ]] && return 0  # già copiata
-  cp "$lib" "${dest}/"
-  # Segui symlink
+  local bname real realname
+  bname="$(basename "$lib")"
   if [[ -L "$lib" ]]; then
-    local real
     real="$(readlink -f "$lib")"
-    [[ -f "${dest}/$(basename "$real")" ]] || cp "$real" "${dest}/"
+    realname="$(basename "$real")"
+    # copia il file reale una sola volta
+    [[ -f "${dest}/${realname}" ]] || cp "$real" "${dest}/"
+    # symlink leggero per il nome breve
+    [[ -e "${dest}/${bname}" ]] || ln -sf "$realname" "${dest}/${bname}"
+  else
+    [[ -f "${dest}/${bname}" ]] && return 0
+    cp "$lib" "${dest}/"
   fi
 }
 
@@ -231,12 +234,8 @@ _copy_plugin() {
   done < <(ldd "$src" 2>/dev/null)
 }
 
-# Platform plugins (xcb + wayland)
-for f in "${QT_PLUGINS_DIR}/platforms"/libqxcb.so \
-          "${QT_PLUGINS_DIR}/platforms"/libqwayland-generic.so \
-          "${QT_PLUGINS_DIR}/platforms"/libqwayland-egl.so \
-          "${QT_PLUGINS_DIR}/platforms"/libqminimal.so \
-          "${QT_PLUGINS_DIR}/platforms"/libqoffscreen.so; do
+# Platform plugins — tutti quelli disponibili (xcb, wayland, eglfs, vnc…)
+for f in "${QT_PLUGINS_DIR}/platforms"/*.so; do
   _copy_plugin "$f" "platforms"
 done
 
@@ -303,7 +302,8 @@ fi
 
 # quiz_ccna.db — bundled nell'AppImage accanto al binario
 _QUIZ_DB=""
-for _qd in "${ROOT}/DOCKER/quiz_ccna.db" \
+for _qd in "${ROOT}/Tools/docker/quiz_ccna.db" \
+            "${ROOT}/DOCKER/quiz_ccna.db" \
             "${ROOT}/quiz_ccna.db" \
             "${ROOT}/KNOWLEDGE_USER/quiz_ccna.db"; do
   [[ -f "$_qd" ]] && { _QUIZ_DB="$_qd"; break; }
@@ -384,9 +384,13 @@ export QTWEBENGINE_LOCALES_PATH="${HERE}/usr/translations/qtwebengine_locales"
 export FONTCONFIG_PATH="/etc/fonts"
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
 
-# Forza xcb se nessun DISPLAY Wayland disponibile
-if [[ -z "${WAYLAND_DISPLAY}" && -z "${QT_QPA_PLATFORM}" ]]; then
-  export QT_QPA_PLATFORM=xcb
+# Selezione piattaforma Qt: wayland se disponibile nel bundle, altrimenti xcb
+if [[ -z "${QT_QPA_PLATFORM}" ]]; then
+  if [[ -n "${WAYLAND_DISPLAY}" ]] && [[ -f "${HERE}/usr/plugins/platforms/libqwayland.so" ]]; then
+    export QT_QPA_PLATFORM=wayland
+  else
+    export QT_QPA_PLATFORM=xcb
+  fi
 fi
 
 # quiz_ccna.db — copia in ~/.prismalux/ al primo avvio se non esiste
@@ -415,6 +419,6 @@ ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$APPIMAGETOOL" \
 SIZE_MB=$(du -m "$OUTPUT" | cut -f1)
 ok "AppImage creata: $(basename "$OUTPUT")  (${SIZE_MB} MB)"
 echo ""
-echo -e "  ${CYN}Esecuzione:${NC}  chmod +x Prismalux-x86_64.AppImage && ./Prismalux-x86_64.AppImage"
-echo -e "  ${CYN}Integrazione desktop:${NC}  ./Prismalux-x86_64.AppImage --appimage-extract-and-run"
+echo -e "  ${CYN}Esecuzione:${NC}  chmod +x EXPORT/linux/Prismalux-x86_64.AppImage && ./EXPORT/linux/Prismalux-x86_64.AppImage"
+echo -e "  ${CYN}Integrazione desktop:${NC}  ./EXPORT/linux/Prismalux-x86_64.AppImage --appimage-extract-and-run"
 echo ""

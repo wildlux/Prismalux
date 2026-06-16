@@ -73,7 +73,7 @@ QT_GUI="$SCRIPT_DIR/gui"
 ZIP_SCRIPT="$SCRIPT_DIR/EXPORT/windows/crea_zip_windows.py"
 APPIMAGE_SCRIPT="$SCRIPT_DIR/EXPORT/linux/crea_appimage.sh"
 APPIMAGE_OUT="$SCRIPT_DIR/EXPORT/linux/Prismalux-x86_64.AppImage"
-APP_BUNDLE_OUT="$SCRIPT_DIR/Prismalux.app"
+APP_BUNDLE_OUT="$SCRIPT_DIR/EXPORT/macos/Prismalux.app"
 WHISPER_WIN_DIR="$SCRIPT_DIR/Frameworks/whisper/bin_windows"
 
 # ── Adattamenti per OS ──────────────────────────────────────────
@@ -119,8 +119,8 @@ fi
 PRISMA_VERSION=$(grep -m1 'project(Prismalux_GUI VERSION' "$QT_GUI/CMakeLists.txt" \
                  | grep -oE '[0-9]+\.[0-9]+' | head -1)
 PRISMA_VERSION="${PRISMA_VERSION:-2.8}"
-ZIP_OUT="$SCRIPT_DIR/Prismalux_v${PRISMA_VERSION}_Windows.zip"
-ZIP_LINUX_OUT="$SCRIPT_DIR/Prismalux_v${PRISMA_VERSION}_Sorgenti_Linux.zip"
+ZIP_OUT="$SCRIPT_DIR/EXPORT/windows/Prismalux_v${PRISMA_VERSION}_Windows.zip"
+ZIP_LINUX_OUT="$SCRIPT_DIR/EXPORT/Prismalux_v${PRISMA_VERSION}_Sorgenti_Linux.zip"
 
 # ── Flags ──────────────────────────────────────────────────────
 DO_GUI=1

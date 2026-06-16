@@ -190,6 +190,6 @@ echo -e "${BLD}${GRN}║              Setup completato!                       �
 echo -e "${BLD}${GRN}╚══════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "  Per avviare Prismalux:"
-echo -e "  ${CYN}./Prismalux-x86_64.AppImage${NC}          (se hai FUSE 2)"
-echo -e "  ${CYN}APPIMAGE_EXTRACT_AND_RUN=1 ./Prismalux-x86_64.AppImage${NC}  (senza FUSE)"
+echo -e "  ${CYN}./EXPORT/linux/Prismalux-x86_64.AppImage${NC}          (se hai FUSE 2)"
+echo -e "  ${CYN}APPIMAGE_EXTRACT_AND_RUN=1 ./EXPORT/linux/Prismalux-x86_64.AppImage${NC}  (senza FUSE)"
 echo ""

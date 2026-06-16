@@ -65,6 +65,8 @@ SOURCE_EXCLUDE = [
     r"[/\\]\.git$",
     r"[/\\]__pycache__[/\\]",
     r"[/\\]__pycache__$",
+    r"[/\\]node_modules[/\\]",
+    r"[/\\]node_modules$",
     r"[/\\]models[/\\]",
     r"[/\\]models$",
     r"[/\\]llama\.cpp[/\\]",
