@@ -13,6 +13,29 @@ OpenCodePage::OpenCodePage(QWidget* parent)
     root->setContentsMargins(8, 8, 8, 8);
     root->setSpacing(6);
 
+    /* ── Guida prerequisiti ── */
+    auto* guideFrame = new QFrame(this);
+    guideFrame->setFrameShape(QFrame::StyledPanel);
+    guideFrame->setStyleSheet(
+        "QFrame { background:#eff6ff; border:1px solid #93c5fd; border-radius:8px; }");
+    auto* guideLayout = new QVBoxLayout(guideFrame);
+    guideLayout->setContentsMargins(10, 8, 10, 8);
+    guideLayout->setSpacing(2);
+    auto* guideTitleLbl = new QLabel(
+        "\xf0\x9f\x93\x8b <b>Prerequisiti per usare OpenCode</b>", guideFrame);
+    guideLayout->addWidget(guideTitleLbl);
+    auto* guideTextLbl = new QLabel(
+        "\xe2\x80\xa2 <b>OpenCode deve essere gi\xc3\xa0 avviato sul PC</b> "
+        "(premi Start nella tab OpenCode dell'app desktop, oppure esegui "
+        "<code>opencode serve</code> da terminale sul PC).<br>"
+        "\xe2\x80\xa2 <b>Il cellulare e il PC devono essere sulla stessa rete LAN</b> "
+        "(stesso Wi-Fi o cavo). L'IP del PC si configura in Impostazioni.",
+        guideFrame);
+    guideTextLbl->setWordWrap(true);
+    guideTextLbl->setTextFormat(Qt::RichText);
+    guideLayout->addWidget(guideTextLbl);
+    root->addWidget(guideFrame);
+
     /* ── Barra stato (IP:porta + sessione) ── */
     m_statusLbl = new QLabel("OpenCode — nessuna sessione", this);
     m_statusLbl->setWordWrap(true);

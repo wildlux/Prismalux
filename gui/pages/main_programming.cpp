@@ -1,5 +1,6 @@
 #include "main_programming.h"
 #include "widget_code_interpreter.h"
+#include "widget_coding_lab.h"
 #include "../prismalux_paths.h"
 #include "../ai_utils.h"
 #include "../widgets/ai_error_widget.h"
@@ -216,6 +217,8 @@ void ProgrammazionePage::buildInnerTabs()
 
     m_innerTabs->addTab(buildDriverKernelTab(m_innerTabs),
         "\xf0\x9f\x94\xa7  Driver & Kernel");
+    m_innerTabs->addTab(new CodingLabWidget(m_ai, m_innerTabs),
+        "\xf0\x9f\xa7\xaa  Lab Coding");
 }
 
 /* ── Livello 1: tab Coding completo ── */

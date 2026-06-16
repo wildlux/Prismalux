@@ -192,6 +192,7 @@ set(CPP_SRCS
     pages/main_net_subnet.cpp
     pages/main_app_controller_slots.cpp
     pages/widget_code_interpreter.cpp
+    pages/widget_coding_lab.cpp
     pages/widget_stable_diffusion.cpp
     pages/widget_synthesizer.cpp
     pages/widget_voice_cloner.cpp
