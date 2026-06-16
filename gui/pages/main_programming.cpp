@@ -1047,8 +1047,9 @@ QWidget* ProgrammazionePage::buildAgentica(QWidget* parent)
 void ProgrammazionePage::buildAgenticaHeader(QVBoxLayout* lay, QWidget* w)
 {
     auto* desc = new QLabel(
-        "\xf0\x9f\x8f\x97\xef\xb8\x8f  <b>Architetta Software</b> \xe2\x80\x94 "
-        "Progetta sistemi AI complessi: pipeline multi-agente, RAG, refactoring e test unitari.", w);
+        "\xf0\x9f\x8f\x97\xef\xb8\x8f <b>Architetta Software</b> \xe2\x86\x92 "
+        "<i>\xe2\x80\x9c" "Costruisci un sistema\xe2\x80\x9d</i>"
+        " \xe2\x80\x94 output da copiare nel progetto", w);
     desc->setObjectName("hintLabel");
     desc->setWordWrap(true);
     lay->addWidget(desc);

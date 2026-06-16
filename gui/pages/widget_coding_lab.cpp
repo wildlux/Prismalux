@@ -19,9 +19,9 @@ CodingLabWidget::CodingLabWidget(AiClient* ai, QWidget* parent)
 
     /* ── Titolo ── */
     auto* titleLbl = new QLabel(
-        "<b>\xf0\x9f\xa7\xaa Lab Coding</b>"
-        " <span style='color:#64748b;font-size:11pt'>"
-        "— Descrivi cosa vuoi, il codice viene generato, testato e poi ti mostro il risultato.</span>",
+        "\xf0\x9f\xa7\xaa <b>Lab Coding</b> \xe2\x86\x92"
+        " <i>\xe2\x80\x9c" "Fammi vedere il risultato adesso\xe2\x80\x9d</i>"
+        " \xe2\x80\x94 esegue e mostra",
         this);
     titleLbl->setWordWrap(true);
     root->addWidget(titleLbl);
