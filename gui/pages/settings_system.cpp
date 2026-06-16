@@ -1,4 +1,5 @@
 #include "settings_main.h"
+#include "../dpi_utils.h"
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
 #include "main_customize.h"
@@ -637,6 +638,133 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
     mainRowLay->addWidget(rightW, 1);
     lay->addWidget(mainRow, 1);
     return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildSistemaConsigliTab — consigli ottimizzazione hardware e temperatura.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildSistemaConsigliTab()
+{
+    auto* root = new QWidget;
+    auto* vlay = new QVBoxLayout(root);
+    vlay->setContentsMargins(dpiScale(16), dpiScale(16), dpiScale(16), dpiScale(16));
+    vlay->setSpacing(dpiScale(14));
+
+    /* ── Titolo ─────────────────────────────────────────────── */
+    auto* title = new QLabel(
+        "<h2>\xf0\x9f\x8c\xa1\xef\xb8\x8f Consigli Ottimizzazione Sistema</h2>"
+        "<p style='color:gray;margin-top:2px;'>"
+        "Suggerimenti per ridurre il surriscaldamento e migliorare le prestazioni del PC."
+        "</p>");
+    title->setWordWrap(true);
+    vlay->addWidget(title);
+
+    /* ── Helper per costruire una card consiglio ──────────────── */
+    struct Tip {
+        const char* icon;
+        const char* titolo;
+        const char* desc;
+        const char* cmd;   /* nullptr = nessun comando da copiare */
+    };
+
+    static const Tip TIPS[] = {
+        {
+            "\xf0\x9f\xa7\xb9",
+            "Pulizia fisica (causa principale)",
+            "La polvere accumulata nelle griglie e sul dissipatore "
+            "\xc3\xa8 la causa pi\xc3\xb9 comune di surriscaldamento sui laptop. "
+            "Soffia aria compressa nelle griglie laterali/posteriori. "
+            "Su un laptop con anni di utilizzo si abbassano tipicamente 15\xe2\x80\x9320\xc2\xb0C.",
+            nullptr
+        },
+        {
+            "\xf0\x9f\x92\xa4",
+            "Modalit\xc3\xa0 risparmio energia CPU (powersave)",
+            "Mantiene il processore a frequenze pi\xc3\xb9 basse quando non serve, "
+            "producendo meno calore. Non influisce sulla reattivit\xc3\xa0 percepita nell'uso normale. "
+            "Torna automaticamente alle frequenze alte quando serve. "
+            "Per renderlo permanente dopo il riavvio aggiungi il comando a /etc/rc.local.",
+            "sudo cpupower frequency-set -g powersave"
+        },
+        {
+            "\xf0\x9f\x9b\xa1\xef\xb8\x8f",
+            "Intel thermald (gestione termica automatica)",
+            "Abbassa attivamente le frequenze prima che la temperatura superi le soglie critiche, "
+            "evitando il thermal throttling brusco del BIOS. "
+            "Se gi\xc3\xa0 installato, abilita il servizio permanente con il comando qui sotto.",
+            "sudo systemctl enable --now thermald"
+        },
+        {
+            "\xf0\x9f\x93\x8a",
+            "Controlla le temperature in tempo reale",
+            "Mostra le temperature di CPU, GPU e chipset. "
+            "Valori normali a riposo: CPU 40\xe2\x80\x9360\xc2\xb0C. "
+            "Valori preoccupanti: CPU >80\xc2\xb0C costante, ACPI >85\xc2\xb0C.",
+            "watch -n 2 sensors"
+        },
+        {
+            "\xf0\x9f\x94\x8d",
+            "Trova processi che consumano CPU",
+            "Ordina i processi per uso CPU. Se un processo occupa costantemente il 30%+ "
+            "a riposo \xc3\xa8 un candidato da investigare o terminare.",
+            "top -bn1 | sort -t',' -k9 -rn | head -15"
+        },
+    };
+
+    for (const auto& tip : TIPS) {
+        auto* card = new QFrame;
+        card->setFrameShape(QFrame::StyledPanel);
+        card->setContentsMargins(dpiScale(2), dpiScale(2), dpiScale(2), dpiScale(2));
+
+        auto* cLay = new QVBoxLayout(card);
+        cLay->setContentsMargins(dpiScale(14), dpiScale(12), dpiScale(14), dpiScale(12));
+        cLay->setSpacing(dpiScale(6));
+
+        auto* hdr = new QLabel(
+            QString("<b>%1 %2</b>").arg(tip.icon).arg(tip.titolo));
+        hdr->setWordWrap(true);
+        cLay->addWidget(hdr);
+
+        auto* desc = new QLabel(tip.desc);
+        desc->setWordWrap(true);
+        cLay->addWidget(desc);
+
+        if (tip.cmd) {
+            auto* cmdRow = new QHBoxLayout;
+            cmdRow->setSpacing(dpiScale(8));
+
+            auto* cmdLbl = new QLabel(
+                QString("<code style='background:rgba(128,128,128,0.15);"
+                        "padding:3px 8px;border-radius:4px;'>%1</code>")
+                .arg(tip.cmd));
+            cmdLbl->setTextFormat(Qt::RichText);
+            cmdLbl->setWordWrap(true);
+            cmdRow->addWidget(cmdLbl, 1);
+
+            auto* btnCopy = new QPushButton("\xf0\x9f\x93\x8b Copia");
+            btnCopy->setFixedWidth(dpiScale(90));
+            const QString cmdStr = tip.cmd;
+            connect(btnCopy, &QPushButton::clicked, btnCopy, [cmdStr] {
+                QGuiApplication::clipboard()->setText(cmdStr);
+            });
+            cmdRow->addWidget(btnCopy);
+            cLay->addLayout(cmdRow);
+        }
+
+        vlay->addWidget(card);
+    }
+
+    /* ── Nota finale ─────────────────────────────────────────── */
+    auto* nota = new QLabel(
+        "<p style='color:gray;font-size:small;'>"
+        "\xf0\x9f\x92\xa1 <b>Consiglio:</b> Inizia sempre dalla pulizia fisica &mdash; "
+        "\xc3\xa8 gratuita e risolve il 90% dei casi di surriscaldamento sui laptop."
+        "</p>");
+    nota->setWordWrap(true);
+    vlay->addWidget(nota);
+
+    vlay->addStretch();
+    return root;
 }
 
 /* ══════════════════════════════════════════════════════════════

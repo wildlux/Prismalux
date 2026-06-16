@@ -263,7 +263,13 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
             t->addTab(sc, "\xf0\x9f\xa7\xa0  Memoria AI");
         }
 
-        /* Cron spostato in Strumenti → pulsante ⏱ Cron */
+        {
+            auto* sc = new QScrollArea;
+            sc->setWidgetResizable(true);
+            sc->setFrameShape(QFrame::NoFrame);
+            sc->setWidget(buildSistemaConsigliTab());
+            t->addTab(sc, "\xf0\x9f\x8c\xa1\xef\xb8\x8f  Consigli");
+        }
 
         tabs->addTab(t, "\xf0\x9f\x94\xa7  Sistema");
     }
