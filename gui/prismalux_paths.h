@@ -57,6 +57,9 @@ namespace PrismaluxPaths {
 /** Porta default Ollama (documentata: https://ollama.ai) */
 constexpr int kOllamaPort      = 11434;
 
+/** Porta default DwarfStar — github.com/antirez/ds4 (compatibile API Ollama) */
+constexpr int kDwarfStarPort   = 11435;
+
 /** Porta default llama-server quando avviato dalla GUI */
 constexpr int kLlamaServerPort = 8081;
 

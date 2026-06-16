@@ -152,6 +152,7 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
         { "Poppler",          "Estrazione testo da PDF per indicizzazione RAG",                   "GPL v2/LGPL","gitlab.freedesktop.org/poppler",   "https://gitlab.freedesktop.org/poppler/poppler" },
         { "OpenCode",         "Agente coding AI con server HTTP+SSE integrato",                   "MIT",        "github.com/sst/opencode",          "https://github.com/sst/opencode" },
         { "Python 3",         "Esecuzione codice generato dall'AI in sandbox controllata",        "PSF",        "github.com/python/cpython",        "https://github.com/python/cpython" },
+        { "ds4 (antirez)",    "Strutture dati compresse per LLM (bit packing) &mdash; ispirazione per il motore BLHM di Prismalux", "BSD", "github.com/antirez/ds4", "https://github.com/antirez/ds4" },
     };
 
     /* ── Dati plugin MCP ── */
@@ -289,6 +290,21 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
             td("",   lnk(r.lbl, r.url))
         );
     }
+    h += "</table><hr>\n";
+
+    /* ringraziamenti speciali */
+    h += "<h2>&#11088;&nbsp; Ringraziamenti speciali</h2>\n"
+         "<table><tr>"
+         "<th style=\"width:180px\">Persona</th>"
+         "<th>Contributo</th>"
+         "<th style=\"width:210px\">Progetto</th></tr>\n";
+    ri = 0;
+    h += TR(
+        td("nm", "Salvatore Sanfilippo") +
+        td("",   "Creatore di Redis e autore di <b>ds4</b> &mdash; strutture dati compresse "
+                 "per LLM con bit packing. Il suo lavoro ha ispirato il motore BLHM di Prismalux.") +
+        td("",   lnk("github.com/antirez/ds4", "https://github.com/antirez/ds4"))
+    );
     h += "</table><hr>\n";
 
     /* licenza */

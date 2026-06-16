@@ -215,13 +215,22 @@ void MainWindow::onBackendBtnClicked()
 
     const bool serverRunning = m_serverProc &&
                                m_serverProc->state() != QProcess::NotRunning;
-    const bool isOllama = (m_ai->backend() == AiClient::Ollama);
+    const bool isOllama     = (m_ai->backend() == AiClient::Ollama
+                                && m_ai->port() == P::kOllamaPort);
+    const bool isDwarfStar  = (m_ai->backend() == AiClient::Ollama
+                                && m_ai->port() == P::kDwarfStarPort);
 
     auto* actOllama = menu->addAction(
         "\xf0\x9f\xa6\x99  Ollama  \xe2\x80\x94  localhost:11434");
     actOllama->setCheckable(true);
     actOllama->setChecked(isOllama);
     connect(actOllama, &QAction::triggered, this, &MainWindow::onOllamaActionTriggered);
+
+    auto* actDwarf = menu->addAction(
+        "\xe2\xad\x90  DwarfStar  \xe2\x80\x94  localhost:11435");
+    actDwarf->setCheckable(true);
+    actDwarf->setChecked(isDwarfStar);
+    connect(actDwarf, &QAction::triggered, this, &MainWindow::onDwarfStarActionTriggered);
 
     menu->addSeparator();
 
@@ -249,6 +258,11 @@ void MainWindow::onBackendBtnClicked()
 void MainWindow::onOllamaActionTriggered()
 {
     applyBackend(AiClient::Ollama, P::kLocalHost, P::kOllamaPort);
+}
+
+void MainWindow::onDwarfStarActionTriggered()
+{
+    applyBackend(AiClient::Ollama, P::kLocalHost, P::kDwarfStarPort);
 }
 
 // ─── Emergenza RAM ────────────────────────────────────────────────────────

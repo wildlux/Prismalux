@@ -1251,8 +1251,13 @@ void MainWindow::stopLlamaServer() {
 void MainWindow::refreshBackendBtn() {
     if (!m_btnBackend) return;
     if (m_ai->backend() == AiClient::Ollama) {
-        m_btnBackend->setText("\xf0\x9f\xa6\x99  Ollama");
-        m_btnBackend->setProperty("backendActive", "ollama");
+        if (m_ai->port() == P::kDwarfStarPort) {
+            m_btnBackend->setText("\xe2\xad\x90  DwarfStar");
+            m_btnBackend->setProperty("backendActive", "ollama");
+        } else {
+            m_btnBackend->setText("\xf0\x9f\xa6\x99  Ollama");
+            m_btnBackend->setProperty("backendActive", "ollama");
+        }
     } else {
         m_btnBackend->setText("\xf0\x9f\xa6\x99\xe2\x98\x81\xef\xb8\x8f  llama-server");
         m_btnBackend->setProperty("backendActive", "llama");

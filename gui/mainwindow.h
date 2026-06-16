@@ -357,6 +357,7 @@ private slots:
     void onUnloadModelClicked();
     void onBackendBtnClicked();
     void onOllamaActionTriggered();
+    void onDwarfStarActionTriggered();
 
     /* ── Emergenza RAM ──────────────────────────────────────────── */
     void onEmergencyRamClicked();
