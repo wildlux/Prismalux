@@ -49,6 +49,10 @@ static QString _truncateResult(const QString& s, int maxLen = 2000)
 }
 
 /* ── Helper: parse risposta JSON-RPC 2.0 tools/call (id=2) ── */
+/* Cerca la prima riga JSON con "id":2 nel buffer raw e ne estrae il risultato.
+ * Restituisce "" se il buffer non contiene ancora una risposta completa (JSON parziale
+ * o nessuna riga con id=2) — il chiamante interpreta "" come "riprova / retry".
+ * Non restituisce mai "" per errori MCP: quelli producono una stringa di errore non vuota. */
 static QString _parseMcpOutput(const QByteArray& raw,
                                const QString& plugin, const QString& toolName)
 {
@@ -83,6 +87,65 @@ static bool s_mcpDiscoveryDone = false;
 
 /* ── MCP Keepalive: plugin → processo ancora vivo ── */
 static QHash<QString, QPointer<QProcess>> s_mcpAlive;
+
+/* Avvia un nuovo processo MCP, lo registra in s_mcpAlive e invia l'handshake iniziale.
+ * Ritorna nullptr se waitForStarted fallisce (proc già distrutto). */
+static QProcess* _launchMcpProcess(const QString& pythonExe,
+                                    const QString& serverPath,
+                                    const QString& plugin,
+                                    const QByteArray& initMsg)
+{
+    auto* proc = new QProcess(qApp);
+    proc->setProgram(pythonExe);
+    proc->setArguments({ serverPath });
+    proc->setProcessChannelMode(QProcess::SeparateChannels);
+    proc->start();
+    if (!proc->waitForStarted(3000)) {
+        proc->deleteLater();
+        return nullptr;
+    }
+    proc->write(initMsg);
+    s_mcpAlive[plugin] = proc;
+    QObject::connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                     proc, [plugin](int, QProcess::ExitStatus) { s_mcpAlive.remove(plugin); });
+    return proc;
+}
+
+/* Collega readyRead + timeout a un processo MCP già avviato.
+ * onDone(result) è chiamato esattamente una volta:
+ *   - result non vuoto → risposta MCP (successo o errore JSON-RPC)
+ *   - result vuoto    → timeout; il caller può fare retry oppure segnalare errore */
+template<typename F>
+static void _attachMcpReader(QProcess* proc, QObject* ctx,
+                              const QString& plugin, const QString& toolName,
+                              F onDone)
+{
+    auto buf    = QSharedPointer<QByteArray>::create();
+    auto called = QSharedPointer<bool>::create(false);
+    auto conn   = QSharedPointer<QMetaObject::Connection>::create();
+
+    *conn = QObject::connect(proc, &QProcess::readyRead, ctx,
+        [proc, buf, called, conn, onDone, plugin, toolName]() mutable {
+            *buf += proc->readAllStandardOutput();
+            if (*called) return;
+            const QString r = _parseMcpOutput(*buf, plugin, toolName);
+            if (r.isEmpty()) return;
+            *buf = {};
+            *called = true;
+            QObject::disconnect(*conn);
+            onDone(r);
+        });
+
+    QTimer::singleShot(P::mcpTimeoutMs(plugin), ctx,
+        [proc, called, conn, onDone, plugin, toolName]() mutable {
+            if (*called) return;
+            *called = true;
+            QObject::disconnect(*conn);
+            s_mcpAlive.remove(plugin);
+            proc->kill();
+            onDone({});
+        });
+}
 
 /* ══════════════════════════════════════════════════════════════
    _parseRandomParams — estrae parametri dal testo naturale.
@@ -272,6 +335,10 @@ QString AgentiPage::toolSystemSuffix()
             "TOOL_CALL: {\"tool\": \"calc\", \"input\": \"sqrt(144)\"}\n"
             "TOOL_CALL: {\"tool\": \"ricerca\", \"input\": \"query\"}\n"
             "TOOL_CALL: {\"tool\": \"python\", \"input\": \"print(2+2)\"}\n"
+            "TOOL_CALL: {\"tool\": \"get_datetime\", \"input\": \"\"}\n"
+            "TOOL_CALL: {\"tool\": \"date_calc\", \"input\": \"quanti mesi mancano a dicembre\"}\n"
+            "TOOL_CALL: {\"tool\": \"date_calc\", \"input\": \"convertimi 120 minuti in ore\"}\n"
+            "TOOL_CALL: {\"tool\": \"date_calc\", \"input\": \"quanti secondi sono un anno solare\"}\n"
             "TOOL_CALL: {\"tool\": \"leggi_file\", \"input\": \"PERCORSO_ESPLICITO\"}\n"
             "TOOL_CALL: {\"tool\": \"lista_file\", \"input\": \"PERCORSO_ESPLICITO\"}\n"
             "Scrivi UNA riga TOOL_CALL: {...} e attendi TOOL_RESULT.\n"
@@ -734,6 +801,225 @@ void AgentiPage::runToolCall(const QJsonObject& call,
     }
 
     /* ── get_knowledge — legge la Knowledge Base personale ── */
+    /* ── get_datetime — data/ora locale + UTC/GMT + timezone + Unix timestamp ── */
+    if (tool == "get_datetime" || tool == "datetime" || tool == "ora" || tool == "data_ora") {
+        const QDateTime local = QDateTime::currentDateTime();
+        const QDateTime utc   = local.toUTC();
+        const int offsetSec   = local.timeZone().offsetFromUtc(local);
+        const int offsetH     = qAbs(offsetSec) / 3600;
+        const int offsetM     = (qAbs(offsetSec) % 3600) / 60;
+        const QLatin1Char sign = (offsetSec >= 0) ? QLatin1Char('+') : QLatin1Char('-');
+        onDone(QString(
+            "Data/ora locale: %1\n"
+            "UTC/GMT:         %2\n"
+            "Timezone:        %3 (UTC%4%5:%6)\n"
+            "Giorno:          %7, settimana %8\n"
+            "Unix timestamp:  %9")
+            .arg(local.toString("yyyy-MM-dd HH:mm:ss"))
+            .arg(utc.toString("yyyy-MM-dd HH:mm:ss"))
+            .arg(local.timeZone().abbreviation(local))
+            .arg(sign).arg(offsetH, 2, 10, QLatin1Char('0')).arg(offsetM, 2, 10, QLatin1Char('0'))
+            .arg(local.toString("dddd"))
+            .arg(local.date().weekNumber())
+            .arg(local.toSecsSinceEpoch()));
+        return;
+    }
+
+    /* ── date_calc — calcolo durate e conversione unità di tempo ── */
+    if (tool == "date_calc" || tool == "calcola_date" || tool == "calcola_tempo"
+        || tool == "converti_tempo" || tool == "durata") {
+
+        const QDateTime now = QDateTime::currentDateTime();
+        const QString   q   = input.simplified();   // 'input' = call["input"] definito sopra
+        const QString   ql  = q.toLower();
+
+        // Tabella unità → secondi
+        struct UDef { QStringList n; double s; };
+        static const QVector<UDef> kU = {
+            {{"secondo","secondi","sec"},         1.0},
+            {{"minuto","minuti","min"},           60.0},
+            {{"ora","ore"},                       3600.0},
+            {{"giorno","giorni"},                 86400.0},
+            {{"settimana","settimane"},            7.0*86400.0},
+            {{"mese","mesi"},                      30.4375*86400.0},
+            {{"anno","anni"},                      365.2422*86400.0},
+        };
+        static const QMap<QString,int> kMesi = {
+            {"gennaio",1},{"febbraio",2},{"marzo",3},{"aprile",4},
+            {"maggio",5},{"giugno",6},{"luglio",7},{"agosto",8},
+            {"settembre",9},{"ottobre",10},{"novembre",11},{"dicembre",12},
+            {"gen",1},{"feb",2},{"mar",3},{"apr",4},
+            {"mag",5},{"giu",6},{"lug",7},{"ago",8},
+            {"set",9},{"ott",10},{"nov",11},{"dic",12},
+        };
+        // Periodi nominati → secondi (ricercati come sottostringa — mettere i più lunghi prima)
+        static const QVector<QPair<QString,double>> kPer = {
+            {"anno gregoriano", 365.2425*86400.0},
+            {"anno tropicale",  365.2422*86400.0},
+            {"anno tropico",    365.2422*86400.0},
+            {"anno bisestile",  366.0   *86400.0},
+            {"anno solare",     365.2422*86400.0},
+            {"anno civile",     365.0   *86400.0},
+            {"anno comune",     365.0   *86400.0},
+            {"semestre",        365.2422*86400.0/2.0},
+            {"trimestre",       365.2422*86400.0/4.0},
+        };
+
+        auto unitSec = [&](const QString& w) -> double {
+            for (const auto& u : kU) if (u.n.contains(w)) return u.s;
+            return 0.0;
+        };
+        // Formatta numero con unità; usa intero se quasi-esatto, 6 cifre per valori < 0.01
+        auto fmtVal = [](double v, const QString& unit) -> QString {
+            if (v >= 1.0 && qAbs(v - qRound(v)) < 0.005)
+                return QString("%1 %2").arg(qRound64(v)).arg(unit);
+            if (qAbs(v) < 0.01)
+                return QString("%1 %2").arg(v, 0, 'f', 6).arg(unit);
+            return QString("%1 %2").arg(v, 0, 'f', 2).arg(unit);
+        };
+
+        // ── Pattern 1: "quanti X mancano [prep] TARGET" ─────────────
+        static const QRegularExpression reQ1(
+            R"(quanti\s+(\w+)\s+mancano\s+(.+))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m1 = reQ1.match(ql);
+        if (m1.hasMatch()) {
+            const QString unitWord = m1.captured(1);
+            QString rest           = m1.captured(2).trimmed();
+            // Rimuove preposizioni e locuzioni introduttive comuni
+            static const QRegularExpression rePrep(
+                R"(^(?:a|al|alla|allo|agli|alle|all'?|fino\s+a|sino\s+a)(?:\s*evento\s+di|\s*appuntamento\s+di|\s*scadenza\s+di)?\s*)",
+                QRegularExpression::CaseInsensitiveOption);
+            rest.remove(rePrep);
+
+            const double uSec = unitSec(unitWord);
+            if (uSec <= 0) { onDone("Unità non riconosciuta: " + unitWord); return; }
+
+            QDate target;
+            // "giorno N [di mese]"
+            static const QRegularExpression reGiorno(
+                R"(giorno\s+(\d{1,2})(?:\s+(?:di\s+)?(\w+))?)",
+                QRegularExpression::CaseInsensitiveOption);
+            const auto mg = reGiorno.match(rest);
+            if (mg.hasMatch()) {
+                const int day = mg.captured(1).toInt();
+                int mon = now.date().month(), yr = now.date().year();
+                if (!mg.captured(2).isEmpty()) {
+                    const int m2 = kMesi.value(mg.captured(2).toLower(), 0);
+                    if (m2 > 0) mon = m2;
+                }
+                target = QDate(yr, mon, day);
+                if (!target.isValid() || target <= now.date())
+                    target = mg.captured(2).isEmpty() ? target.addMonths(1) : QDate(yr+1, mon, day);
+            }
+            // Nome mese (con giorno opzionale davanti: "15 dicembre", "dicembre")
+            if (!target.isValid()) {
+                for (auto it = kMesi.cbegin(); it != kMesi.cend(); ++it) {
+                    if (!rest.contains(it.key())) continue;
+                    const int yr = now.date().year();
+                    static const QRegularExpression reDM(R"((\d{1,2})\s+\w+)");
+                    const auto dm = reDM.match(rest);
+                    const int day = (dm.hasMatch() && dm.captured(1).toInt() >= 1) ? dm.captured(1).toInt() : 1;
+                    target = QDate(yr, it.value(), day);
+                    if (!target.isValid() || target <= now.date())
+                        target = QDate(yr+1, it.value(), day);
+                    break;
+                }
+            }
+            if (!target.isValid()) { onDone("Non riconosco la data: " + rest); return; }
+
+            const QDateTime targetDt(target, QTime(0, 0));
+            const double diffSec = static_cast<double>(now.secsTo(targetDt));
+            if (diffSec < 0) {
+                onDone(QString("La data %1 e' gia' passata (%2 fa).")
+                    .arg(target.toString("d MMMM yyyy"), fmtVal(-diffSec / uSec, unitWord)));
+                return;
+            }
+
+            // Calcolo "calendario" per mesi/giorni/settimane, secondi per le altre
+            QString result;
+            if (unitWord == "mesi" || unitWord == "mese") {
+                // monthsTo non esiste in Qt6: calcolo manuale con anno/mese
+                const int months = (target.year() - now.date().year()) * 12
+                                   + (target.month() - now.date().month());
+                const int remD   = now.date().addMonths(months).daysTo(target);
+                result = QString("%1 mesi").arg(months);
+                if (remD > 0) result += QString(" e %1 giorni").arg(remD);
+            } else if (unitWord == "giorni" || unitWord == "giorno") {
+                result = fmtVal(static_cast<double>(now.date().daysTo(target)), "giorni");
+            } else if (unitWord == "settimane" || unitWord == "settimana") {
+                const qint64 days = now.date().daysTo(target);
+                result = fmtVal(days / 7.0, "settimane") + QString(" (%1 giorni)").arg(days);
+            } else {
+                result = fmtVal(diffSec / uSec, unitWord);
+            }
+            onDone(QString("Da oggi (%1) al %2: **%3**")
+                .arg(now.toString("d MMMM yyyy"), target.toString("d MMMM yyyy"), result));
+            return;
+        }
+
+        // ── Pattern 2: "converti[mi] [N] X in Y" ────────────────────
+        static const QRegularExpression reConv(
+            R"(converti(?:mi)?\s+([\d.,]+)?\s*(\w+)\s+in\s+(\w+))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m2 = reConv.match(ql);
+        if (m2.hasMatch()) {
+            const double n  = m2.captured(1).isEmpty() ? 1.0
+                              : m2.captured(1).replace(',', '.').toDouble();
+            const double s1 = unitSec(m2.captured(2));
+            const double s2 = unitSec(m2.captured(3));
+            if (s1 <= 0 || s2 <= 0) { onDone("Unita' non riconosciuta."); return; }
+            onDone(QString("%1 = **%2**")
+                .arg(fmtVal(n, m2.captured(2)), fmtVal(n * s1 / s2, m2.captured(3))));
+            return;
+        }
+
+        // ── Pattern 3: "quanti X sono [un/una] [periodo/N Y]" ────────
+        static const QRegularExpression reQ3(
+            R"(quanti\s+(\w+)\s+(?:sono|ci\s+sono\s+in|equivalgono\s+a)\s+(?:un[ao]?\s+)?(.+?)[\?!\.\s]*$)",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m3 = reQ3.match(ql);
+        if (m3.hasMatch()) {
+            const QString unitDest  = m3.captured(1);
+            const QString per       = m3.captured(2).trimmed();
+            const double  uDestSec  = unitSec(unitDest);
+            if (uDestSec <= 0) { onDone("Unita' non riconosciuta: " + unitDest); return; }
+
+            double totalSec = 0.0;
+            for (const auto& [name, sec] : kPer)
+                if (per.contains(name)) { totalSec = sec; break; }
+            if (totalSec == 0.0) {
+                // "N unità" (es. "3 giorni")
+                static const QRegularExpression reNU(R"(([\d.,]+)\s+(\w+))");
+                const auto mn = reNU.match(per);
+                if (mn.hasMatch()) {
+                    const double n2 = mn.captured(1).replace(',', '.').toDouble();
+                    const double s2 = unitSec(mn.captured(2));
+                    if (s2 > 0) totalSec = n2 * s2;
+                }
+            }
+            if (totalSec == 0.0) totalSec = unitSec(per);  // singola unità es. "giorno"
+
+            if (totalSec <= 0.0) { onDone("Non riconosco il periodo: " + per); return; }
+            // "3 giorni" contiene già la quantità — non aggiungere "1" davanti
+            static const QRegularExpression reStartsNum(R"(^\d)");
+            const QString prefix = reStartsNum.match(per).hasMatch() ? per : ("1 " + per);
+            onDone(QString("%1 = **%2**").arg(prefix, fmtVal(totalSec / uDestSec, unitDest)));
+            return;
+        }
+
+        // Fallback: aiuto contestuale
+        onDone(
+            "Esempi:\n"
+            "TOOL_CALL: {\"tool\": \"date_calc\", \"input\": \"quanti mesi mancano a dicembre\"}\n"
+            "TOOL_CALL: {\"tool\": \"date_calc\", \"input\": \"quanti minuti mancano all'evento di giorno 5\"}\n"
+            "TOOL_CALL: {\"tool\": \"date_calc\", \"input\": \"convertimi 120 minuti in ore\"}\n"
+            "TOOL_CALL: {\"tool\": \"date_calc\", \"input\": \"converti minuti in giorni\"}\n"
+            "TOOL_CALL: {\"tool\": \"date_calc\", \"input\": \"quanti secondi sono un anno solare\"}\n"
+            "TOOL_CALL: {\"tool\": \"date_calc\", \"input\": \"quanti minuti sono 3 giorni\"}");
+        return;
+    }
+
     if (tool == "get_knowledge" || tool == "knowledge" || tool == "conoscenza") {
         const QString kb = P::readUserKnowledge();
         if (kb.isEmpty())
@@ -874,6 +1160,14 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             return;
         }
 
+        /* Valida nome plugin: solo caratteri alfanumerici/trattini/underscore — evita path traversal.
+           static OK: mcp_call è sempre invocato dal main thread (Qt event loop). */
+        static const QRegularExpression kPluginNameRe(QStringLiteral("^[a-zA-Z0-9_\\-]{1,64}$"));
+        if (!kPluginNameRe.match(plugin).hasMatch()) {
+            onDone(QString("errore mcp_call: nome plugin non valido '%1'").arg(plugin));
+            return;
+        }
+
         /* Valida plugin: MCPs/<plugin>/server.py deve esistere */
         const QString serverPath = P::root() + "/MCPs/" + plugin + "/server.py";
         if (!QFile::exists(serverPath)) {
@@ -922,111 +1216,47 @@ void AgentiPage::runToolCall(const QJsonObject& call,
         if (s_mcpAlive.contains(plugin)) {
             QProcess* alive = s_mcpAlive.value(plugin).data();
             if (alive && alive->state() == QProcess::Running) {
-                alive->readAllStandardOutput();   /* scarta output residuo */
+                /* Svuota buffer prima della nuova chiamata: readyRead non garantisce
+                   di esaurire il buffer in un solo segnale — frammenti stale del
+                   keepalive precedente contaminerebbero la risposta JSON successiva. */
+                alive->readAllStandardOutput();
                 proc = alive;
             } else {
                 s_mcpAlive.remove(plugin);
             }
         }
 
-        const bool isNew = (proc == nullptr);
-        if (isNew) {
-            proc = new QProcess(qApp);            /* parent=qApp: vive oltre la funzione */
-            proc->setProgram(pythonExe);
-            proc->setArguments({ serverPath });
-            proc->setProcessChannelMode(QProcess::SeparateChannels);
-            proc->start();
-            if (!proc->waitForStarted(3000)) {
-                proc->deleteLater();
+        if (!proc) {
+            proc = _launchMcpProcess(pythonExe, serverPath, plugin, initMsg);
+            if (!proc) {
                 onDone(QString("errore mcp_call: impossibile avviare '%1'").arg(plugin));
                 return;
             }
-            proc->write(initMsg);                 /* handshake una sola volta */
-            s_mcpAlive[plugin] = proc;
-            /* Rimuove dal keepalive quando il server esce */
-            connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                    proc, [plugin](int, QProcess::ExitStatus) { s_mcpAlive.remove(plugin); });
         }
-        proc->write(callMsg);                     /* invia chiamata tool */
-        /* NON closeWriteChannel(): mantiene stdin aperto per chiamate successive */
+        proc->write(callMsg);  /* NON closeWriteChannel(): mantiene stdin aperto */
 
-        /* ── Leggi risposta via readyRead con buffer accumulante ── */
-        auto buf    = QSharedPointer<QByteArray>::create();
-        auto called = QSharedPointer<bool>::create(false);
         auto retried = QSharedPointer<bool>::create(false);
-        auto conn   = QSharedPointer<QMetaObject::Connection>::create();
 
-        auto finalize = [this, proc, onDone, called, conn, plugin, toolName,
-                         pythonExe, serverPath, initMsg, callMsg, retried, buf]
-                        (const QString& result) mutable
-        {
-            if (*called) return;
-            *called = true;
-            QObject::disconnect(*conn);
-
-            if (!result.isEmpty()) { onDone(result); return; }
-
-            /* Nessuna risposta → retry con processo fresco */
-            if (*retried) { onDone(QString("[MCP %1::%2] nessuna risposta").arg(plugin, toolName)); return; }
-            *retried = true;
-            s_mcpAlive.remove(plugin);
-            proc->kill();
-
-            auto* proc2 = new QProcess(qApp);
-            proc2->setProgram(pythonExe);
-            proc2->setArguments({ serverPath });
-            proc2->setProcessChannelMode(QProcess::SeparateChannels);
-            proc2->start();
-            if (!proc2->waitForStarted(3000)) {
-                proc2->deleteLater();
-                onDone(QString("[MCP %1::%2] avvio fallito dopo retry").arg(plugin, toolName));
-                return;
-            }
-            proc2->write(initMsg);
-            proc2->write(callMsg);
-            s_mcpAlive[plugin] = proc2;
-            connect(proc2, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                    proc2, [plugin](int, QProcess::ExitStatus) { s_mcpAlive.remove(plugin); });
-
-            auto buf2    = QSharedPointer<QByteArray>::create();
-            auto called2 = QSharedPointer<bool>::create(false);
-            auto conn2   = QSharedPointer<QMetaObject::Connection>::create();
-            *conn2 = connect(proc2, &QProcess::readyRead, this,
-                [proc2, buf2, called2, conn2, onDone, plugin, toolName]() mutable {
-                    *buf2 += proc2->readAllStandardOutput();
-                    const QString r = _parseMcpOutput(*buf2, plugin, toolName);
-                    if (r.isEmpty()) return;
-                    if (*called2) return;
-                    *called2 = true;
-                    *buf2 = {};
-                    QObject::disconnect(*conn2);
-                    onDone(r);
-                });
-            QTimer::singleShot(P::mcpTimeoutMs(plugin), this,
-                [proc2, called2, conn2, onDone, plugin, toolName]() mutable {
-                    if (*called2) return;
-                    *called2 = true;
-                    QObject::disconnect(*conn2);
-                    s_mcpAlive.remove(plugin);
-                    proc2->kill();
-                    onDone(QString("[MCP %1::%2] timeout (retry)").arg(plugin, toolName));
-                });
-        };
-
-        *conn = connect(proc, &QProcess::readyRead, this,
-            [proc, buf, finalize, called, conn, plugin, toolName]() mutable {
-                *buf += proc->readAllStandardOutput();
-                if (*called) return;
-                const QString result = _parseMcpOutput(*buf, plugin, toolName);
-                if (!result.isEmpty()) {
-                    *buf = {};
-                    finalize(result);
+        _attachMcpReader(proc, this, plugin, toolName,
+            [this, proc, plugin, toolName, pythonExe, serverPath,
+             initMsg, callMsg, onDone, retried](const QString& result) mutable {
+                if (!result.isEmpty()) { onDone(result); return; }
+                /* Nessuna risposta (timeout) → un solo retry con processo fresco */
+                if (*retried) {
+                    onDone(QString("[MCP %1::%2] nessuna risposta").arg(plugin, toolName));
+                    return;
                 }
-            });
+                *retried = true;
+                s_mcpAlive.remove(plugin);
+                proc->kill();
 
-        QTimer::singleShot(P::mcpTimeoutMs(plugin), this,
-            [finalize, called, plugin, toolName]() mutable {
-                if (!*called) finalize({});
+                QProcess* proc2 = _launchMcpProcess(pythonExe, serverPath, plugin, initMsg);
+                if (!proc2) {
+                    onDone(QString("[MCP %1::%2] avvio fallito dopo retry").arg(plugin, toolName));
+                    return;
+                }
+                proc2->write(callMsg);
+                _attachMcpReader(proc2, this, plugin, toolName, onDone);
             });
         return;
     }

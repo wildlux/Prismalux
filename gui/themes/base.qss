@@ -183,10 +183,60 @@ QPushButton#actionBtn[bigBtn="true"] {
     border-radius: 14px;
 }
 
+/* Pulsanti header: hamburger ≡, messaggi 📋, impostazioni ⚙️ */
+QPushButton#hamburgerBtn {
+    background: transparent;
+    border: 1px solid palette(mid);
+    border-radius: 8px;
+    font-size: 18px;
+    padding: 2px 6px;
+}
+QPushButton#hamburgerBtn:hover   { background: palette(button); border-color: palette(highlight); }
+QPushButton#hamburgerBtn:pressed { background: palette(dark); }
+
 #chatScroll {
     border: none;
 }
 
 #chatContainer {
     background-color: transparent;
+}
+
+/* ── Splitter sidebar ↔ contenuto ── */
+QSplitter#bodySplitter::handle {
+    background: palette(mid);
+    width: 4px;
+}
+QSplitter#bodySplitter::handle:hover {
+    background: palette(highlight);
+}
+
+/* ── Wrapper trasparenti nella sidebar e nell'header ── */
+QWidget#logWrap       { background: transparent; }
+QWidget#chatBtnRow    { background: transparent; }
+QWidget#chatSearchRow { background: transparent; }
+
+/* ── Checkbox "Seleziona tutto" nella sidebar ── */
+QCheckBox#selectAllChk {
+    spacing: 0;
+    background: transparent;
+}
+QCheckBox#selectAllChk::indicator {
+    width: 15px;
+    height: 15px;
+    border: 1.5px solid palette(mid);
+    border-radius: 2px;
+    background: transparent;
+}
+QCheckBox#selectAllChk::indicator:hover {
+    border-color: palette(highlight);
+}
+QCheckBox#selectAllChk::indicator:checked {
+    background: palette(highlight);
+    border-color: palette(highlight);
+    image: none;
+}
+QCheckBox#selectAllChk::indicator:indeterminate {
+    background: palette(mid);
+    border-color: palette(mid);
 }

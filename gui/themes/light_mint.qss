@@ -22,7 +22,7 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height:0; }
 #headerSub   { font-size:11px; color:#90b0a8; }
 #headerBeer  { font-size:22px; }
 
-#sidebar { background:#f2faf7; border-right:1px solid #c8ebe0; min-width:210px; max-width:210px; }
+#sidebar { background:#f2faf7; border-right:1px solid #c8ebe0; min-width:0; }
 
 QPushButton#navBtn { background:transparent; border:none; border-left:3px solid transparent; color:#90b0a8; text-align:left; padding:0; }
 QPushButton#navBtn:hover { background:#e4f5ef; border-left-color:#a8d8cc; color:#2a5048; }
@@ -88,7 +88,7 @@ QPushButton#emergencyBtn:hover   { background:#e53935; }
 QPushButton#emergencyBtn:pressed { background:#7f0000; }
 QPushButton#emergencyBtn:disabled{ background:#888; color:#bbb; }
 
-QPushButton#hamburgerBtn { background:transparent; border:1px solid #a8d8c8; border-radius:6px; color:#3a8070; font-size:18px; padding:2px; }
+QPushButton#hamburgerBtn { background:transparent; border:1px solid #a8d8c8; border-radius:8px; color:#3a8070; font-size:18px; padding:2px; }
 QPushButton#hamburgerBtn:hover   { background:#e4f5ef; border-color:#00897b; color:#00897b; }
 QPushButton#hamburgerBtn:pressed { background:#c8ebe0; }
 

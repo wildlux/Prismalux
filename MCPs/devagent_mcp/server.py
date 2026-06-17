@@ -22,6 +22,7 @@ import os
 import json
 import subprocess
 import re
+import shlex
 import shutil
 import tempfile
 import urllib.request
@@ -185,7 +186,7 @@ def search_code(query: str, root: str, max_files: int = 5) -> List[str]:
                 break
             cmd = (
                 f"grep -rl --include='*.cpp' --include='*.h' --include='*.py' "
-                f"-e {repr(word)} {repr(root)} 2>/dev/null | head -10"
+                f"-e {shlex.quote(word)} {shlex.quote(root)} 2>/dev/null | head -10"
             )
             _, output = bash(cmd, timeout=15)
             for line in output.strip().splitlines():
@@ -354,6 +355,16 @@ def _apply_file_patch(original_lines: List[str], hunks: List[dict]) -> List[str]
     return result
 
 
+def _backup_fname(abs_path: str) -> str:
+    """Nome file per backup temporaneo in /tmp (sep=_ singolo, usato solo per rollback)."""
+    return _backup_fname(abs_path)
+
+
+def _snap_fname(rel_path: str) -> str:
+    """Nome file per snapshot permanente in HISTORY_DIR (sep=__ doppio, ricostruibile)."""
+    return rel_path.replace(os.sep, "__")
+
+
 def apply_diff(diff_text: str, project_root: str) -> tuple:
     """
     Applica un unified diff al filesystem.
@@ -387,7 +398,7 @@ def apply_diff(diff_text: str, project_root: str) -> tuple:
                     original = f.readlines()
                 # Backup
                 backup_path = os.path.join(
-                    backup_dir, rel_path.replace(os.sep, "_").lstrip("_")
+                    backup_dir, _backup_fname(rel_path)
                 )
                 shutil.copy2(abs_path, backup_path)
             else:
@@ -414,7 +425,7 @@ def rollback_from_backup(modified_paths: List[str]) -> None:
     """Ripristina i file originali dal backup in /tmp/devagent_backup/."""
     backup_dir = os.path.join(tempfile.gettempdir(), "devagent_backup")
     for abs_path in modified_paths:
-        fname = abs_path.replace(os.sep, "_").lstrip("_")
+        fname = _backup_fname(abs_path)
         backup_path = os.path.join(backup_dir, fname)
         if os.path.exists(backup_path):
             try:
@@ -456,7 +467,7 @@ def save_history_snapshot(task: str, model: str, project_root: str,
             rel = os.path.relpath(abs_path, project_root)
         except ValueError:
             rel = os.path.basename(abs_path)
-        safe_name = rel.replace(os.sep, "__")
+        safe_name = _snap_fname(rel)
         dest = os.path.join(files_dir, safe_name)
         shutil.copy2(abs_path, dest)
         saved_files.append({"rel": rel, "abs": abs_path, "snap": dest})
@@ -503,11 +514,15 @@ def list_history() -> List[dict]:
     return entries
 
 
+_RE_BACKUP_ID = re.compile(r'^[a-zA-Z0-9_\-]{1,80}$')
+
 def restore_snapshot(backup_id: str) -> tuple:
     """
     Ripristina i file da uno snapshot.
     Restituisce (success: bool, message: str, restored_files: List[str]).
     """
+    if not _RE_BACKUP_ID.match(backup_id):  # M-5: blocca path traversal via backup_id
+        return False, f"backup_id non valido: {backup_id!r}", []
     snap_dir = os.path.join(HISTORY_DIR, backup_id)
     meta_path = os.path.join(snap_dir, "metadata.json")
     if not os.path.exists(meta_path):
@@ -516,12 +531,30 @@ def restore_snapshot(backup_id: str) -> tuple:
     with open(meta_path) as f:
         meta = json.load(f)
 
+    project_root = meta.get("project_root", "")
+    if not project_root or not os.path.isabs(project_root):
+        return False, "metadata.json: project_root mancante o non assoluto", []
+    project_root = os.path.normpath(project_root)
+    # snap_dir è costruito da codice controllato; normpath serve solo a normalizzare
+    # il separatore finale per rendere startswith() affidabile su tutti i sistemi
+    snap_dir_norm = os.path.normpath(snap_dir)
+
     restored = []
     errors = []
     for file_info in meta.get("files", []):
         snap_file = file_info.get("snap", "")
         abs_path  = file_info.get("abs", "")
         if not snap_file or not abs_path:
+            continue
+        # Impedisce lettura di file arbitrari tramite snap_file malevolo
+        snap_file = os.path.normpath(snap_file)
+        if not snap_file.startswith(snap_dir_norm + os.sep):
+            errors.append(f"snap_file fuori dallo snapshot dir: {snap_file!r}")
+            continue
+        # Impedisce scrittura fuori dal project_root tramite abs_path malevolo
+        abs_path = os.path.normpath(abs_path)
+        if not abs_path.startswith(project_root + os.sep):
+            errors.append(f"abs_path fuori dal project_root: {abs_path!r}")
             continue
         if not os.path.exists(snap_file):
             errors.append(f"File snapshot mancante: {snap_file}")
@@ -535,7 +568,7 @@ def restore_snapshot(backup_id: str) -> tuple:
             errors.append(f"Errore ripristino {abs_path}: {e}")
 
     if errors:
-        return False, "; ".join(errors), restored
+        return False, f"{len(restored)} ripristinati, errori: {'; '.join(errors)}", restored
     return True, f"{len(restored)} file ripristinati dallo snapshot '{backup_id}'", restored
 
 
@@ -671,7 +704,7 @@ def node_apply_patch(state: DevAgentState) -> DevAgentState:
         tmp_backup = os.path.join(tempfile.gettempdir(), "devagent_backup")
         original_paths = []
         for p in modified:
-            fname = p.replace(os.sep, "_").lstrip("_")
+            fname = _backup_fname(p)
             tmp_path = os.path.join(tmp_backup, fname)
             if os.path.exists(tmp_path):
                 original_paths.append(tmp_path)
@@ -683,7 +716,7 @@ def node_apply_patch(state: DevAgentState) -> DevAgentState:
         os.makedirs(files_dir, exist_ok=True)
         saved_files = []
         for p in modified:
-            fname = p.replace(os.sep, "_").lstrip("_")
+            fname = _backup_fname(p)
             tmp_path = os.path.join(tmp_backup, fname)
             if not os.path.exists(tmp_path):
                 continue
@@ -691,7 +724,7 @@ def node_apply_patch(state: DevAgentState) -> DevAgentState:
                 rel = os.path.relpath(p, state["project_root"])
             except ValueError:
                 rel = os.path.basename(p)
-            safe_name = rel.replace(os.sep, "__")
+            safe_name = _snap_fname(rel)
             dest = os.path.join(files_dir, safe_name)
             shutil.copy2(tmp_path, dest)
             saved_files.append({"rel": rel, "abs": p, "snap": dest})
@@ -727,10 +760,19 @@ def node_compile(state: DevAgentState) -> DevAgentState:
     Richiede che gui/build_gui/ esista già (cmake configurato).
     """
     build_dir = os.path.join(state["project_root"], "gui", "build_gui")
-    cmd = f"cmake --build {build_dir} -j4 2>&1"
-    _log(f"compile: {cmd}")
+    _log(f"compile: cmake --build {build_dir} -j4")
 
-    rc, output = bash(cmd, timeout=120)
+    try:
+        result = subprocess.run(
+            ["cmake", "--build", build_dir, "-j4"],
+            shell=False, capture_output=True, text=True, timeout=120,
+            encoding="utf-8", errors="replace",
+        )
+        rc, output = result.returncode, result.stdout + result.stderr
+    except subprocess.TimeoutExpired:
+        rc, output = -1, "[TIMEOUT] cmake --build"
+    except Exception as e:
+        rc, output = -1, str(e)
     compile_ok = (rc == 0)
 
     emit({
@@ -766,9 +808,18 @@ def node_run_tests(state: DevAgentState) -> DevAgentState:
         emit({"event": "test_output", "output": state["test_output"]})
         return state
 
-    cmd = f"ctest --test-dir {test_dir} -j4 --output-on-failure 2>&1"
-    _log(f"run_tests: {cmd}")
-    _, output = bash(cmd, timeout=120)
+    _log(f"run_tests: ctest --test-dir {test_dir} -j4 --output-on-failure")
+    try:
+        result = subprocess.run(
+            ["ctest", "--test-dir", test_dir, "-j4", "--output-on-failure"],
+            shell=False, capture_output=True, text=True, timeout=120,
+            encoding="utf-8", errors="replace",
+        )
+        _, output = result.returncode, result.stdout + result.stderr
+    except subprocess.TimeoutExpired:
+        output = "[TIMEOUT] ctest"
+    except Exception as e:
+        output = str(e)
 
     emit({
         "event": "test_output",
@@ -1030,10 +1081,10 @@ def git_log(project_root: str, n: int = 20) -> List[dict]:
     Restituisce gli ultimi N commit del branch corrente.
     Ogni entry: {hash, short_hash, author, date, subject}
     """
-    code, out = bash(
-        f'git -C "{project_root}" log --oneline --format="%H|%h|%an|%ad|%s" '
-        f'--date=short -n {n}',
-        timeout=10
+    code, out = _git_safe(
+        project_root,
+        ["log", "--oneline", f"--format=%H|%h|%an|%ad|%s", "--date=short", f"-n{n}"],
+        timeout=10,
     )
     entries = []
     for line in out.strip().splitlines():

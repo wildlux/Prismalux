@@ -42,7 +42,7 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 #sidebar {
     background: #0d0e17;
     border-right: 1px solid #1a1b28;
-    min-width: 210px; max-width: 210px;
+    min-width: 0;
 }
 
 /* ── Nav buttons ── */
@@ -181,7 +181,7 @@ QPushButton#emergencyBtn:hover   { background: rgba(183,28,28,0.18); }
 QPushButton#emergencyBtn:pressed { background: rgba(183,28,28,0.32); }
 QPushButton#emergencyBtn:disabled{ background: transparent; opacity: 0.4; }
 
-QPushButton#hamburgerBtn { background: transparent; border: none; border-radius: 6px; color: #a0c4d8; font-size: 18px; padding: 2px; }
+QPushButton#hamburgerBtn { background: transparent; border: none; border-radius: 8px; color: #a0c4d8; font-size: 18px; padding: 2px; }
 QPushButton#hamburgerBtn:hover   { background: #1a2535; color: #00b8d9; }
 QPushButton#hamburgerBtn:pressed { background: #0d1520; }
 

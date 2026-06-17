@@ -25,7 +25,7 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 #headerSub { font-size: 11px; color: #a0a8c8; }
 #headerBeer { font-size: 22px; }
 
-#sidebar { background: #f0f2f8; border-right: 1px solid #d8ddf0; min-width: 210px; max-width: 210px; }
+#sidebar { background: #f0f2f8; border-right: 1px solid #d8ddf0; min-width: 0; }
 
 QPushButton#navBtn { background: transparent; border: none; border-left: 3px solid transparent; color: #a0a8c8; text-align: left; padding: 0; }
 QPushButton#navBtn:hover { background: #e8ecf5; border-left-color: #c0c8e8; color: #3a4070; }
@@ -90,6 +90,10 @@ QPushButton#emergencyBtn { background: transparent; border: none; border-radius:
 QPushButton#emergencyBtn:hover   { background: rgba(183,28,28,0.18); }
 QPushButton#emergencyBtn:pressed { background: rgba(183,28,28,0.32); }
 QPushButton#emergencyBtn:disabled{ background: transparent; opacity: 0.4; }
+
+QPushButton#hamburgerBtn { background: transparent; border: 1px solid #d0d5ec; border-radius: 8px; color: #4a5080; font-size: 18px; padding: 2px 6px; }
+QPushButton#hamburgerBtn:hover   { background: #e8ecf5; border-color: #0072c6; color: #0072c6; }
+QPushButton#hamburgerBtn:pressed { background: #dce3f5; }
 
 #footerHints { font-size:11px; color:#a0a8c8; background:#f0f2f8; padding:2px 6px; }
 

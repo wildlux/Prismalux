@@ -524,8 +524,8 @@ private slots:
 
 /* ══════════════════════════════════════════════════════════════
    CAT-H — Non-regressione auth: ogni /api/* risponde 401 senza token
-   Avrebbe intercettato la regressione del commit 10c33e0 dove i
-   nuovi endpoint non erano nella lista isApi.
+   Con il deny-by-default (isPublic) un endpoint futuro è protetto
+   automaticamente — non serve aggiungerlo a nessuna lista.
    ══════════════════════════════════════════════════════════════ */
 class TestAuthNonRegression : public QObject {
     Q_OBJECT
@@ -590,8 +590,8 @@ private slots:
 
     /* H-1..H-12: ogni endpoint /api/* con token impostato e richiesta
        senza Authorization → deve rispondere 401 (non 200/400/500).
-       Se qualcuno risponde 200, significa che l'endpoint è sfuggito
-       alla lista isApi. */
+       Con deny-by-default qualsiasi percorso non in isPublic è protetto
+       automaticamente; questi test verificano la correttezza del subset /api/*. */
 
     void H1_apiTags()       { _check("GET",  "/api/tags"); }
     void H2_apiChat()       { _check("POST", "/api/chat"); }
@@ -605,6 +605,76 @@ private slots:
     void H10_apiRepl()      { _check("POST", "/api/repl"); }
     void H11_apiFinanzaCf() { _check("POST", "/api/finanza/cf"); }
     void H12_apiGraph()     { _check("GET",  "/api/graph"); }
+
+    /* H-13..H-14: percorsi pubblici (isPublic) NON devono restituire 401.
+       Devono essere raggiungibili senza token (200/301/404 qualsiasi, non 401). */
+    void H13_publicRoot()
+    {
+        MockAiClient ai;
+        LanServer srv(&ai);
+        srv.setAccessToken("testtokenXYZ");
+        QVERIFY(srv.start(0));
+        const int code = requestWithoutToken(srv, "GET", "/");
+        srv.blockSignals(true);
+        srv.stop();
+        QVERIFY2(code != 401,
+            qPrintable(QString("/ senza token → non deve dare 401, ottenuto %1").arg(code)));
+    }
+
+    void H14_webRequiresTokenButAcceptsFallback()
+    {
+        /* /web è protetta:
+           14a: senza credenziali → 401
+           14b: ?token=TOKEN valido → 302 redirect + Set-Cookie (non 401)
+           14c: Cookie p_session=TOKEN → autenticato (non 401) */
+        MockAiClient ai;
+        LanServer srv(&ai);
+        srv.setAccessToken("testtokenXYZ");
+        QVERIFY(srv.start(0));
+        const quint16 port = srv.port();
+
+        /* 14a: senza token → 401 */
+        const int code401 = requestWithoutToken(srv, "GET", "/web");
+
+        auto connectAndSend = [&](const QByteArray& req) -> QByteArray {
+            QTcpSocket sock;
+            sock.connectToHost(QHostAddress::LocalHost, port);
+            for (int i = 0; i < 50 && sock.state() != QAbstractSocket::ConnectedState; ++i)
+                QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+            if (sock.state() != QAbstractSocket::ConnectedState) return {};
+            sock.write(req);
+            sock.flush();
+            const QByteArray resp = collectResponse(&sock);
+            sock.disconnectFromHost();
+            sock.waitForDisconnected(500);
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+            return resp;
+        };
+
+        /* 14b: ?token=TOKEN valido → 302 + Set-Cookie */
+        const QByteArray resp14b = connectAndSend(
+            "GET /web?token=testtokenXYZ HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n");
+        const int code14b = parseStatusCode(resp14b);
+        const bool hasCookie = resp14b.contains("Set-Cookie: p_session=");
+
+        /* 14c: Cookie p_session=TOKEN → non 401 (200 OK webchat) */
+        const QByteArray resp14c = connectAndSend(
+            "GET /web HTTP/1.1\r\nHost: localhost\r\n"
+            "Cookie: p_session=testtokenXYZ\r\nContent-Length: 0\r\n\r\n");
+        const int code14c = parseStatusCode(resp14c);
+
+        srv.blockSignals(true);
+        srv.stop();
+
+        QVERIFY2(code401 == 401,
+            qPrintable(QString("/web senza credenziali → atteso 401, ottenuto %1").arg(code401)));
+        QVERIFY2(code14b == 302,
+            qPrintable(QString("/web?token=TOKEN → atteso 302, ottenuto %1").arg(code14b)));
+        QVERIFY2(hasCookie,
+            "302 response deve includere Set-Cookie: p_session=");
+        QVERIFY2(code14c != 401,
+            qPrintable(QString("/web con Cookie p_session → non deve dare 401, ottenuto %1").arg(code14c)));
+    }
 
 private:
     void _check(const QByteArray& method, const QByteArray& path)

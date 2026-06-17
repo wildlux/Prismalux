@@ -4,8 +4,10 @@
 #include <QJsonArray>
 #include <QDateTime>
 #include <QDir>
+#include <QStandardPaths>
 #include <QSet>
 #include <QFile>
+#include <QTemporaryFile>
 #include <QUuid>
 #include <QRegularExpression>
 #include <QFileInfo>
@@ -542,8 +544,16 @@ void LanServer::onClientReadyRead()
                     sock->disconnectFromHost(); return;
                 }
                 s.contentLength = cl;
-            } else if (key == "authorization")
+            } else if (key == "authorization") {
                 s.authHeader = val;
+            } else if (key == "cookie") {
+                /* Estrai p_session dal Cookie header (può contenere più cookie) */
+                for (const QStringView kv : QStringView(val).split(';')) {
+                    const QStringView t = kv.trimmed();
+                    if (t.startsWith(u"p_session="))
+                        s.cookieSession = t.mid(10).toString();
+                }
+            }
         }
         s.headersDone = true;
     }
@@ -565,6 +575,10 @@ void LanServer::onClientReadyRead()
     s.contentLength = 0;
     s.headersDone   = false;
     s.body.clear();
+    s.authHeader.clear();
+    s.authHeaderFallback.clear();
+    s.cookieSession.clear();
+    s.queryString.clear();
 }
 
 /* ── disconnessione client ───────────────────────────────────────────────── */
@@ -610,31 +624,56 @@ void LanServer::processSession(Session& s)
     emit requestHandled(s.method, s.path, s.addr);
     appendAccessLog(s.addr, s.method, s.path);
 
-    /* Percorsi API Ollama — contano come "client APK" */
-    const bool isApi = (s.path == "/api/tags"     ||
-                        s.path == "/api/chat"      ||
-                        s.path == "/api/generate"  ||
-                        s.path == "/knowledge"     ||
-                        s.path == "/apk"           ||
-                        s.path == "/api/launch"    ||
-                        s.path == "/api/sysinfo"   ||
-                        s.path == "/api/mcp"       ||
-                        s.path == "/api/lavoro"    ||
-                        s.path == "/api/cv"        ||
-                        s.path == "/api/rag"       ||
-                        s.path == "/api/graphviz"  ||
-                        s.path == "/api/whisper"   ||
-                        s.path == "/api/file"      ||
-                        s.path == "/api/repl"      ||
-                        s.path == "/api/finanza/cf"||
-                        s.path.startsWith("/api/graph"));
+    /* deny-by-default: solo le risorse statiche/web sono pubbliche;
+       qualsiasi altro percorso (compreso ogni futuro /api/*) richiede token.
+       Aggiungere qui nuovi percorsi pubblici, non in una lista protetti. */
+    /* Risorse statiche pubbliche — non richiedono token.
+       /web è protetta: i browser vi arrivano tramite QR code con ?token= */
+    const bool isPublic = (s.path == "/"        ||
+                           s.path == "/index"   ||
+                           s.path == "/download"||
+                           s.path.startsWith("/katex/")     ||
+                           s.path.startsWith("/bootstrap/"));
 
-    /* Auth check: le route API richiedono header Authorization: Bearer TOKEN.
-       Il fallback ?token= è rimosso per sicurezza — il token non deve
-       comparire in URL, log proxy o cronologia browser. */
-    if (isApi && !m_accessToken.isEmpty()) {
+    /* Scambio token→cookie per /web: il browser arriva da QR code con ?token=TOKEN.
+       Se il token è valido emettiamo Set-Cookie e facciamo redirect 302 /web senza
+       query string — così la cronologia e la barra indirizzi del browser non mostrano
+       mai il token. L'app Android legge il token dal testo del QR direttamente, non
+       via questo flusso browser, quindi non è impattata. */
+    if (s.path == "/web" && s.method == "GET" &&
+        !s.authHeaderFallback.isEmpty() && !m_accessToken.isEmpty()) {
         const QString expected  = "Bearer " + m_accessToken;
-        const QString effective = s.authHeader;
+        const QString presented = "Bearer " + s.authHeaderFallback;
+        if (timingSafeEqual(presented, expected)) {
+            /* Token valido: emetti cookie HttpOnly + redirect a /web (no query) */
+            QString safe = m_accessToken;
+            /* RFC 6265 §4.1: cookie-value = VCHAR esclusi CTL, ';', '"', '\', spazio, virgola */
+            static const QRegularExpression kCookieUnsafe(QStringLiteral("[^\\x21-\\x7E]|[;,\"\\\\]"));
+            safe.remove(kCookieUnsafe);
+            QByteArray resp = "HTTP/1.1 302 Found\r\n"
+                              "Location: /web\r\n";
+            resp += "Set-Cookie: p_session=" + safe.toUtf8()
+                    + "; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400\r\n";
+            resp += "Cache-Control: no-store\r\n"
+                    "Content-Length: 0\r\n\r\n";
+            s.socket->write(resp);
+            s.socket->flush();
+            return;  /* non serve disconnettere: il browser fa GET /web subito dopo */
+        }
+        /* Token non valido: cade nel check auth standard sotto → 401 */
+    }
+
+    /* Auth check: tutto ciò che non è esplicitamente pubblico richiede
+       header Authorization: Bearer TOKEN oppure cookie p_session.
+       Il cookie p_session è accettato SOLO per /web (match esatto) — i sub-path
+       futuri e tutte le API devono usare header Authorization. */
+    if (!isPublic && !m_accessToken.isEmpty()) {
+        const QString expected  = "Bearer " + m_accessToken;
+        const QString effective = !s.authHeader.isEmpty()
+                                  ? s.authHeader
+                                  : (s.path == "/web" && !s.cookieSession.isEmpty()
+                                     ? "Bearer " + s.cookieSession
+                                     : QString());
         if (!timingSafeEqual(effective, expected)) {
             QByteArray resp = "HTTP/1.1 401 Unauthorized\r\n"
                               "Content-Type: application/json\r\n"
@@ -649,7 +688,7 @@ void LanServer::processSession(Session& s)
         }
     }
 
-    if (isApi && !s.isApiClient) {
+    if (!isPublic && !s.isApiClient) {
         s.isApiClient = true;
         if (!m_appClientIps.contains(s.addr)) {
             m_appClientIps.insert(s.addr);
@@ -780,6 +819,31 @@ void LanServer::processSession(Session& s)
         sj["uptime"]       = uptime;
         sj["hostname"]     = hostname;
         sendJson(s.socket, QJsonDocument(sj).toJson(QJsonDocument::Compact));
+    } else if (s.path == "/api/datetime" && s.method == "GET") {
+        /* Data/ora locale + UTC/GMT + timezone + Unix timestamp.
+           Accessibile da web app, Android, MCP esterni e qualsiasi client HTTP autenticato. */
+        const QDateTime local      = QDateTime::currentDateTime();
+        const QDateTime utc        = local.toUTC();
+        const int       offsetSec  = local.timeZone().offsetFromUtc(local);
+        const int       offsetH    = qAbs(offsetSec) / 3600;
+        const int       offsetM    = (qAbs(offsetSec) % 3600) / 60;
+        const QString   sign       = (offsetSec >= 0) ? "+" : "-";
+        const QString   utcOffset  = QString("UTC%1%2:%3")
+                                     .arg(sign)
+                                     .arg(offsetH, 2, 10, QLatin1Char('0'))
+                                     .arg(offsetM, 2, 10, QLatin1Char('0'));
+        QJsonObject dtj;
+        dtj["local"]              = local.toString("yyyy-MM-dd HH:mm:ss");
+        dtj["local_iso"]          = local.toString(Qt::ISODate);
+        dtj["utc"]                = utc.toString("yyyy-MM-dd HH:mm:ss");
+        dtj["utc_iso"]            = utc.toString(Qt::ISODate);
+        dtj["timezone"]           = local.timeZone().abbreviation(local);
+        dtj["utc_offset"]         = utcOffset;
+        dtj["utc_offset_seconds"] = offsetSec;
+        dtj["unix"]               = local.toSecsSinceEpoch();
+        dtj["day_of_week"]        = local.toString("dddd");
+        dtj["week_number"]        = local.date().weekNumber();
+        sendJson(s.socket, QJsonDocument(dtj).toJson(QJsonDocument::Compact));
     } else if (s.path == "/api/mcp" && s.method == "POST") {
         if (checkHeavyRateLimit(s)) return;
         const QJsonDocument wrapDoc = QJsonDocument::fromJson(s.body);
@@ -819,38 +883,96 @@ void LanServer::processSession(Session& s)
 
         const int       port    = wrapper["port"].toInt(8765);
         const QString   host    = wrapper["host"].toString("127.0.0.1");
+
+        /* C-1: allowlist host — /api/mcp non deve fungere da proxy verso host arbitrari */
+        static const QSet<QString> kAllowedMcpHosts = { "127.0.0.1", "localhost" };
+        if (!kAllowedMcpHosts.contains(host)) {
+            sendError(s.socket, 400, "MCP host non consentito — solo 127.0.0.1/localhost");
+            return;
+        }
+        if (port < 1024 || port > 65535) {
+            sendError(s.socket, 400, "MCP port fuori range");
+            return;
+        }
+
         const QJsonObject mcpReq = wrapper["request"].toObject();
         const QByteArray mcpBody = QJsonDocument(mcpReq).toJson(QJsonDocument::Compact);
 
-        QTcpSocket mcp;
-        mcp.connectToHost(host, static_cast<quint16>(port));
-        if (!mcp.waitForConnected(3000)) {
-            sendJson(s.socket, R"({"error":"MCP non raggiungibile","code":-1})");
-            return;
-        }
         const QByteArray httpReq = QByteArray("POST / HTTP/1.1\r\n")
             + "Host: " + host.toLatin1() + ":" + QByteArray::number(port) + "\r\n"
             + "Content-Type: application/json\r\n"
             + "Content-Length: " + QByteArray::number(mcpBody.size()) + "\r\n"
             + "Connection: close\r\n\r\n"
             + mcpBody;
-        mcp.write(httpReq);
-        mcp.flush();
 
-        QByteArray response;
-        while (mcp.state() == QAbstractSocket::ConnectedState
-               || mcp.waitForReadyRead(5000)) {
-            const QByteArray chunk = mcp.readAll();
-            if (chunk.isEmpty() && mcp.state() != QAbstractSocket::ConnectedState) break;
-            response += chunk;
-        }
-        response += mcp.readAll();
+        /* Connessione asincrona al server MCP — non blocca l'event loop Qt.
+         * mcp ha parent this: viene distrutto con LanServer se serve cleanup. */
+        auto* mcp       = new QTcpSocket(this);
+        auto* mcpTimer  = new QTimer(mcp);          /* distrutto insieme a mcp */
+        auto clientSock = QPointer<QTcpSocket>(s.socket);
+        auto buf        = QSharedPointer<QByteArray>::create();
+        auto responded  = QSharedPointer<bool>::create(false);
 
-        const int sep = response.indexOf("\r\n\r\n");
-        const QByteArray mcpResp = sep >= 0 ? response.mid(sep + 4) : response;
-        sendJson(s.socket, mcpResp.isEmpty()
-            ? QByteArray(R"({"error":"Nessuna risposta dal server MCP"})")
-            : mcpResp);
+        static constexpr int kMcpMaxResponseBytes = 10 * 1024 * 1024; /* H-1: cap 10 MB */
+
+        /* Invia la request HTTP non appena il socket è connesso */
+        connect(mcp, &QTcpSocket::connected, mcp, [mcp, httpReq]() {
+            mcp->write(httpReq);
+            mcp->flush();
+        });
+
+        /* Accumula chunk; se supera il cap, abort() per innescare disconnected */
+        connect(mcp, &QTcpSocket::readyRead, mcp, [mcp, buf, responded]() mutable {
+            *buf += mcp->readAll();
+            if (!*responded && buf->size() > kMcpMaxResponseBytes)
+                mcp->abort();
+        });
+
+        /* Invia la risposta al client LAN quando il server MCP chiude la connessione */
+        auto finalize = [this, mcp, mcpTimer, buf, clientSock, responded]
+                        (bool connErr) mutable {
+            mcpTimer->stop();
+            if (*responded) return;
+            *responded = true;
+            if (clientSock) {
+                if (connErr && buf->isEmpty()) {
+                    sendJson(clientSock, R"({"error":"MCP non raggiungibile","code":-1})");
+                } else if (buf->size() > kMcpMaxResponseBytes) {
+                    sendError(clientSock, 502, "Risposta MCP troppo grande");
+                } else {
+                    const int sep = buf->indexOf("\r\n\r\n");
+                    const QByteArray body = sep >= 0 ? buf->mid(sep + 4) : *buf;
+                    sendJson(clientSock, body.isEmpty()
+                        ? QByteArray(R"({"error":"Nessuna risposta dal server MCP"})")
+                        : body);
+                }
+            }
+            mcp->deleteLater();
+        };
+
+        /* disconnected: fine normale della comunicazione HTTP/1.0 */
+        connect(mcp, &QTcpSocket::disconnected, this,
+            [finalize]() mutable { finalize(false); });
+
+        /* errorOccurred: connect rifiutata o reset.
+           Se lo stato è già UnconnectedState, disconnected non verrà emesso. */
+        connect(mcp, &QAbstractSocket::errorOccurred, this,
+            [finalize, mcp](QAbstractSocket::SocketError) mutable {
+                if (mcp->state() == QAbstractSocket::UnconnectedState)
+                    finalize(true);
+                /* Altrimenti disconnected viene emesso subito dopo → finalize(false) lì */
+            });
+
+        /* Timeout globale: connect (3s) + read (5s) = 8s */
+        connect(mcpTimer, &QTimer::timeout, this,
+            [finalize, mcp]() mutable {
+                mcp->abort();   /* → errorOccurred + eventuale disconnected */
+                finalize(true); /* forza risposta se disconnected non arriva */
+            });
+
+        mcpTimer->setSingleShot(true);
+        mcpTimer->start(8000);
+        mcp->connectToHost(host, static_cast<quint16>(port));
     } else if (s.path == "/api/lavoro" && s.method == "GET") {
         /* Ricerca testuale: GET /api/lavoro?q=QUERY */
         QString q;
@@ -922,6 +1044,7 @@ void LanServer::processSession(Session& s)
         if (checkHeavyRateLimit(s)) return;
         handleWhisper(s);
     } else if (s.path == "/api/sync") {
+        if (s.method == "POST" && checkHeavyRateLimit(s)) return; /* M-2 */
         handleSync(s);
     } else if (s.path == "/api/math" && s.method == "POST") {
         handleMath(s.socket, s);
@@ -1732,7 +1855,7 @@ void LanServer::handleMath(QTcpSocket* sock, const Session& s)
 
     QProcess proc;
     proc.setProcessChannelMode(QProcess::MergedChannels);
-    proc.start("python3", QStringList{"-c", pyCode});
+    proc.start(P::findPython(), QStringList{"-c", pyCode});
     if (!proc.waitForStarted(3000)) {
         sendJson(sock, R"({"error":"python3 non trovato o non avviato"})");
         return;
@@ -1874,14 +1997,14 @@ void LanServer::handleWhisper(const Session& s)
         return;
     }
 
-    /* Salva in file temporaneo */
-    const QString tmpPath = QDir::tempPath() + "/prismalux_wsp_" +
-                            QString::number(QDateTime::currentMSecsSinceEpoch()) + ".wav";
-    QFile tmpFile(tmpPath);
-    if (!tmpFile.open(QIODevice::WriteOnly)) {
+    /* M-6: QTemporaryFile con nome univoco (evita TOCTOU su timestamp) */
+    QTemporaryFile tmpFile(QDir::tempPath() + "/prismalux_wsp_XXXXXX.wav");
+    tmpFile.setAutoRemove(false); /* rimosso manualmente dopo l'uso da QFile::remove */
+    if (!tmpFile.open()) {
         sendError(s.socket, 500, "impossibile scrivere file temporaneo");
         return;
     }
+    const QString tmpPath = tmpFile.fileName();
     tmpFile.write(audioData);
     tmpFile.close();
 
@@ -1963,7 +2086,8 @@ void LanServer::handleKatex(Session& s)
 
     QString filePath;
     for (const QString& base : kSearchDirs) {
-        const QString candidate = base + "/" + relPath;
+        const QString candidate = QDir::cleanPath(base + "/" + relPath);
+        if (!candidate.startsWith(base + "/")) continue; /* M-3: blocca path traversal post-clean */
         if (QFileInfo::exists(candidate)) {
             filePath = candidate;
             break;
@@ -2091,7 +2215,12 @@ void LanServer::handleFileApi(Session& s)
     sendJson(s.socket, QJsonDocument(obj).toJson(QJsonDocument::Compact));
 }
 
-/* ── /api/repl — esegui Python/Bash con timeout ──────────────────────────── */
+/* ── /api/repl — REPL Python in sandbox bwrap ───────────────────────────────
+ * Sandbox a due livelli:
+ *   1. bwrap (bubblewrap): namespace isolation — no rete, no pid, no ipc, /tmp vuota
+ *   2. ulimit interno: limiti CPU/memoria/processi/fd anche dentro il container
+ * bash e node rimossi: superficie d'attacco non necessaria per il REPL web.
+ * Fallback ulimit-only se bwrap non è installato (meno sicuro — loggato). */
 
 void LanServer::handleReplApi(Session& s)
 {
@@ -2102,37 +2231,68 @@ void LanServer::handleReplApi(Session& s)
     if (code.isEmpty()) { sendError(s.socket, 400, "Empty code"); return; }
     if (code.length() > 16'000) { sendError(s.socket, 400, "Code too large"); return; }
 
-    /* ulimit applicato via bash wrapper:
-     *  -v 262144  → 256 MB virtual memory (in KB)
-     *  -t 10      → 10 s CPU time
-     *  -u 50      → max 50 processi utente (anti fork-bomb)
-     *  -n 100     → max 100 file descriptor (anti fd exhaustion)
-     * Su sistemi senza bash (macOS) il fallback exec non applica i limiti
-     * ma il timeout QProcess (15/10 s) resta comunque attivo. */
+    if (lang == "bash") {
+        sendError(s.socket, 403,
+            "bash REPL disabilitato per sicurezza. Usa lang=python.");
+        return;
+    }
+    if (lang == "javascript" || lang == "node") {
+        sendError(s.socket, 403,
+            "node REPL disabilitato. Usa lang=python.");
+        return;
+    }
+    if (lang != "python" && lang != "python3" && !lang.isEmpty()) {
+        sendError(s.socket, 400, "Unsupported lang: " + lang.toUtf8());
+        return;
+    }
+
+    // Ulimit applicato dentro il sandbox (secondo strato di difesa)
     static const QLatin1String kLimits("ulimit -v 262144 -t 10 -u 50 -n 100 2>/dev/null; ");
 
     ProcResult r;
-    if (lang == "python" || lang == "python3" || lang.isEmpty()) {
+    static const QString kBwrap = QStandardPaths::findExecutable("bwrap");
+
+    if (!kBwrap.isEmpty()) {
+        /* bwrap: namespace isolation completa.
+         * --ro-bind / /    → tutto il filesystem host è read-only (no scrittura su /etc, /home…)
+         * --tmpfs /tmp     → /tmp scrivibile ma isolato (non persiste tra chiamate)
+         * --tmpfs /run     → /run scrivibile in sandbox
+         * --unshare-net    → nessun accesso di rete dall'interno
+         * --unshare-pid    → PID namespace separato (processo vede solo sé stesso; pid=2)
+         * --unshare-ipc    → IPC namespace separato
+         * --unshare-uts    → hostname non modificabile
+         * --new-session    → nuovo session ID (no SIGINT dall'esterno)
+         * --die-with-parent → il child viene killato se il parent muore
+         * Secondo strato: ulimit dentro bwrap per CPU/vmem/processi/fd */
+        const QStringList bwArgs = {
+            "--ro-bind",     "/", "/",
+            "--tmpfs",       "/tmp",
+            "--tmpfs",       "/run",
+            "--dev",         "/dev",
+            "--proc",        "/proc",
+            "--unshare-pid",
+            "--unshare-net",
+            "--unshare-ipc",
+            "--unshare-uts",
+            "--new-session",
+            "--die-with-parent",
+            "bash", "-c", kLimits + "exec python3 -",
+        };
+        r = ProcHelper::runWithInput(kBwrap, bwArgs, code.toUtf8(), 15'000);
+    } else {
+        // Fallback senza bwrap: solo ulimit (meno sicuro)
+        qWarning("[REPL] bwrap non trovato — sandbox ridotta a ulimit");
         r = ProcHelper::runWithInput(
             "bash", {"-c", kLimits + "exec python3 -"},
             code.toUtf8(), 15'000);
-    } else if (lang == "javascript" || lang == "node") {
-        r = ProcHelper::runWithInput(
-            "bash", {"-c", kLimits + "exec node"},
-            code.toUtf8(), 10'000);
-    } else if (lang == "bash") {
-        const QByteArray safeCode =
-            QByteArray(kLimits.data(), kLimits.size()) + "\n" + code.toUtf8();
-        r = ProcHelper::runWithInput("bash", {"-s"}, safeCode, 10'000);
-    } else {
-        sendError(s.socket, 400, "Unsupported lang: " + lang.toUtf8()); return;
     }
 
     QJsonObject obj;
-    obj["output"]   = r.out.left(20'000);
-    obj["error"]    = r.err.left(4'000);
+    obj["output"]    = r.out.left(20'000);
+    obj["error"]     = r.err.left(4'000);
     obj["exit_code"] = r.code;
-    obj["ok"]       = r.ok;
+    obj["ok"]        = r.ok;
+    obj["sandbox"]   = kBwrap.isEmpty() ? QLatin1String("ulimit") : QLatin1String("bwrap");
     sendJson(s.socket, QJsonDocument(obj).toJson(QJsonDocument::Compact));
 }
 
@@ -2226,7 +2386,12 @@ void LanServer::handleBootstrap(Session& s)
         return;
     }
 
-    const QString filePath = P::root() + "/gui/lan_web/" + relPath;
+    const QString base     = P::root() + "/gui/lan_web";
+    const QString filePath = QDir::cleanPath(base + "/" + relPath);
+    if (!filePath.startsWith(base + "/")) { /* M-3: blocca path traversal post-clean */
+        sendError(s.socket, 400, "Path traversal rilevato");
+        return;
+    }
     if (!QFileInfo::exists(filePath)) {
         sendError(s.socket, 404, "Bootstrap file not found");
         return;
@@ -2420,6 +2585,11 @@ void LanServer::handleSync(const Session& s)
         const QJsonObject body = QJsonDocument::fromJson(s.body).object();
         if (body.isEmpty()) {
             sendError(s.socket, 400, "body JSON vuoto");
+            return;
+        }
+        /* M-2: limita dimensione notes per evitare scritture unbounded su disco */
+        if (body["notes"].toString().size() > 64 * 1024) {
+            sendError(s.socket, 413, "notes troppo grandi (max 64 KB)");
             return;
         }
 

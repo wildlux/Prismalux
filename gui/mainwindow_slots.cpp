@@ -186,8 +186,13 @@ void MainWindow::onApplyBackendModelsReady(const QStringList& list)
 
 void MainWindow::onHamburgerClicked()
 {
-    if (m_sidebarWidget)
-        m_sidebarWidget->setVisible(!m_sidebarWidget->isVisible());
+    if (!m_sidebarWidget) return;
+    const bool show = !m_sidebarWidget->isVisible();
+    m_sidebarWidget->setVisible(show);
+    if (show && m_bodySplitter) {
+        const int sw = dpiScale(305);
+        m_bodySplitter->setSizes({sw, m_bodySplitter->width() - sw});
+    }
 }
 
 void MainWindow::onLogBtnClicked()
@@ -552,7 +557,30 @@ void MainWindow::onChatActionDelete()
     refreshChatList();
 }
 
-// ─── Chat sidebar — Canc / Shift+Canc ──────────────────────────────────────
+// ─── Chat sidebar — Canc / Shift+Canc / multi-selezione ───────────────────
+
+/* Pulsante "Cancella": elimina tutte le chat selezionate con una conferma. */
+void MainWindow::onDeleteSelectedChatsClicked()
+{
+    if (!m_chatList) return;
+    const auto items = m_chatList->selectedItems();
+    if (items.isEmpty()) return;
+
+    const int n = items.size();
+    const QString msg = n == 1
+        ? QString("Eliminare la chat \"%1\"?").arg(items.first()->text())
+        : QString("Eliminare %1 chat selezionate?").arg(n);
+
+    const auto ans = QMessageBox::question(this, "Elimina chat",
+        msg, QMessageBox::Yes | QMessageBox::No);
+    if (ans != QMessageBox::Yes) return;
+
+    for (auto* item : items) {
+        const QString id = item->data(Qt::UserRole).toString();
+        if (!id.isEmpty()) m_chatHistory.remove(id);
+    }
+    refreshChatList();
+}
 
 /* eventFilter: intercetta tasti su m_chatList */
 bool MainWindow::eventFilter(QObject* obj, QEvent* ev)
@@ -560,17 +588,22 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* ev)
     if (obj == m_chatList && ev->type() == QEvent::KeyPress) {
         auto* ke = static_cast<QKeyEvent*>(ev);
         if (ke->key() == Qt::Key_Delete) {
-            if (ke->modifiers() & Qt::ShiftModifier)
+            const auto sel = m_chatList->selectedItems();
+            if (sel.size() > 1) {
+                /* Più chat selezionate: usa il nuovo slot multi-cancellazione */
+                onDeleteSelectedChatsClicked();
+            } else if (ke->modifiers() & Qt::ShiftModifier) {
                 onChatDeleteShift();
-            else
+            } else {
                 onChatDeleteConfirm();
+            }
             return true;
         }
     }
     return QMainWindow::eventFilter(obj, ev);
 }
 
-/* Canc senza Shift: mostra QMessageBox di conferma */
+/* Canc senza Shift (singola): mostra QMessageBox di conferma */
 void MainWindow::onChatDeleteConfirm()
 {
     auto* item = m_chatList ? m_chatList->currentItem() : nullptr;

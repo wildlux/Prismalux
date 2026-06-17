@@ -14,6 +14,7 @@
 #include "pages/main_app_controller.h"
 #include "pages/main_lan_wan.h"
 #include "pages/main_multi_agent.h"
+#include "pages/main_distillazione_page.h"
 #include "pages/main_multimedia.h"
 #include "pages/main_tools_file.h"
 #include "app_config.h"
@@ -55,6 +56,12 @@
 #include <QPageLayout>
 #include <QMarginsF>
 #include <QMessageBox>
+#include <QApplication>
+#include <QPainter>
+#include <QStyledItemDelegate>
+#include <QStyleOptionViewItem>
+#include <QAbstractItemView>
+#include <QMouseEvent>
 
 namespace P = PrismaluxPaths;
 
@@ -274,6 +281,104 @@ void ResourceGauge::setLevel(double pct) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   ChatListDelegate — checkbox Gmail-style nella sidebar chat
+   ══════════════════════════════════════════════════════════════ */
+class ChatListDelegate : public QStyledItemDelegate {
+    static constexpr int kCbZone = 26; // px riservati a sinistra per la checkbox
+public:
+    explicit ChatListDelegate(QObject* parent = nullptr)
+        : QStyledItemDelegate(parent) {}
+
+    void paint(QPainter* p, const QStyleOptionViewItem& opt,
+               const QModelIndex& idx) const override
+    {
+        p->save();
+        QStyleOptionViewItem o(opt);
+        initStyleOption(&o, idx);
+        QStyle* sty = o.widget ? o.widget->style() : QApplication::style();
+
+        // 1. Background intera riga (selezione / hover)
+        sty->drawPrimitive(QStyle::PE_PanelItemViewItem, &o, p, o.widget);
+
+        // 2. Checkbox a sinistra
+        const bool sel = (o.state & QStyle::State_Selected) != 0;
+        const bool hov = (o.state & QStyle::State_MouseOver) != 0;
+        drawCb(p, o.rect, sel, hov, o.palette);
+
+        // 3. Testo spostato a destra della zona checkbox
+        QRect tr = o.rect.adjusted(kCbZone + 2, 0, -4, 0);
+        QColor tc = sel ? o.palette.highlightedText().color()
+                        : o.palette.text().color();
+        p->setPen(tc);
+        p->setFont(o.font);
+        p->drawText(tr, Qt::AlignVCenter | Qt::AlignLeft,
+            o.fontMetrics.elidedText(o.text, Qt::ElideRight, tr.width()));
+
+        p->restore();
+    }
+
+    bool editorEvent(QEvent* evt, QAbstractItemModel* /*model*/,
+                     const QStyleOptionViewItem& opt,
+                     const QModelIndex& idx) override
+    {
+        if (evt->type() == QEvent::MouseButtonPress) {
+            auto* me = static_cast<QMouseEvent*>(evt);
+            if (me->button() == Qt::LeftButton && cbRect(opt.rect).contains(me->pos())) {
+                // Click nella zona checkbox: toggle selezione senza aprire la chat
+                auto* view = qobject_cast<QAbstractItemView*>(
+                    const_cast<QWidget*>(opt.widget));
+                if (view) {
+                    const bool was = view->selectionModel()->isSelected(idx);
+                    view->selectionModel()->select(
+                        idx,
+                        was ? QItemSelectionModel::Deselect
+                            : QItemSelectionModel::Select);
+                }
+                return true; // evento consumato — itemClicked non parte
+            }
+        }
+        return false;
+    }
+
+private:
+    QRect cbRect(const QRect& row) const {
+        constexpr int sz = 14;
+        return {row.left() + (kCbZone - sz) / 2,
+                row.center().y() - sz / 2, sz, sz};
+    }
+
+    void drawCb(QPainter* p, const QRect& row, bool checked,
+                bool hov, const QPalette& pal) const
+    {
+        QRect r = cbRect(row);
+        p->setRenderHint(QPainter::Antialiasing, true);
+        if (checked) {
+            p->setPen(Qt::NoPen);
+            p->setBrush(pal.highlight());
+            p->drawRoundedRect(r, 2.5, 2.5);
+            // Spunta bianca
+            p->setPen(QPen(pal.highlightedText().color(), 1.8f,
+                           Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+            p->setBrush(Qt::NoBrush);
+            const float l = r.left(), t = r.top(),
+                        w = r.width(), h = r.height();
+            QPointF pts[] = {
+                {l + w * 0.18f, t + h * 0.52f},
+                {l + w * 0.43f, t + h * 0.76f},
+                {l + w * 0.83f, t + h * 0.25f},
+            };
+            p->drawPolyline(pts, 3);
+        } else {
+            QColor bc = hov ? pal.mid().color().lighter(160)
+                            : pal.mid().color();
+            p->setPen(QPen(bc, 1.3f));
+            p->setBrush(Qt::NoBrush);
+            p->drawRoundedRect(QRectF(r), 2.5, 2.5);
+        }
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
    MainWindow — costruttore (stepdown: ogni chiamata è un livello)
    ══════════════════════════════════════════════════════════════ */
 MainWindow::MainWindow(QWidget* parent)
@@ -337,8 +442,25 @@ void MainWindow::setupLayout()
     auto* bodyLay = new QHBoxLayout(body);
     bodyLay->setContentsMargins(0, 0, 0, 0);
     bodyLay->setSpacing(0);
-    bodyLay->addWidget(buildSidebar());
-    bodyLay->addWidget(buildContent(), 1);
+
+    m_bodySplitter = new QSplitter(Qt::Horizontal, body);
+    m_bodySplitter->setObjectName("bodySplitter");
+    m_bodySplitter->setHandleWidth(dpiScale(4));
+    m_bodySplitter->setChildrenCollapsible(false);
+    m_bodySplitter->addWidget(buildSidebar());   // index 0 — sidebar
+    m_bodySplitter->addWidget(buildContent());   // index 1 — contenuto
+    m_bodySplitter->setStretchFactor(0, 0);
+    m_bodySplitter->setStretchFactor(1, 1);
+    m_bodySplitter->setCollapsible(0, true);     // sidebar collassabile verso sinistra
+    m_bodySplitter->setSizes({dpiScale(335), 1});
+
+    /* Trascina il separatore oltre la soglia → nascondi sidebar (come hamburger) */
+    connect(m_bodySplitter, &QSplitter::splitterMoved, this, [this](int pos, int) {
+        if (m_sidebarWidget && m_sidebarWidget->isVisible() && pos < dpiScale(60))
+            m_sidebarWidget->setVisible(false);
+    });
+
+    bodyLay->addWidget(m_bodySplitter, 1);
     rootLay->addWidget(body, 1);
 
     setCentralWidget(root);
@@ -614,6 +736,7 @@ void MainWindow::buildHamburgerSection(QHBoxLayout* lay)
 
     /* 📋 Messaggi — pulsante + badge non-letti sovrapposto */
     auto* logWrap = new QWidget(hdr);
+    logWrap->setObjectName("logWrap");
     logWrap->setFixedSize(dpiSize(46, 36));
     m_logBtn = new QPushButton("\xf0\x9f\x93\x8b", logWrap);
     m_logBtn->setObjectName("hamburgerBtn");
@@ -1273,25 +1396,64 @@ void MainWindow::refreshBackendBtn() {
 QWidget* MainWindow::buildSidebar() {
     auto* bar = new QWidget(this);
     bar->setObjectName("sidebar");
+    bar->setMinimumWidth(dpiScale(160));
 
     auto* lay = new QVBoxLayout(bar);
     lay->setContentsMargins(0, 8, 0, 8);
     lay->setSpacing(2);
 
-    /* ── Pulsante Nuova chat ── */
-    auto* newChatBtn = new QPushButton("\xe2\x9c\x8f\xef\xb8\x8f  Nuova chat", bar);
-    newChatBtn->setObjectName("actionBtn");
-    newChatBtn->setFixedHeight(dpiScale(30));
-    newChatBtn->setToolTip("Inizia una nuova conversazione (reset log)");
-    connect(newChatBtn, &QPushButton::clicked, this, &MainWindow::onNewChatClicked);
-    lay->addWidget(newChatBtn);
+    /* ── Pulsanti: Nuova chat e Cancella in colonna verticale ── */
+    {
+        auto* btnRow = new QWidget(bar);
+        btnRow->setObjectName("chatBtnRow");
+        auto* btnLay = new QVBoxLayout(btnRow);
+        btnLay->setContentsMargins(dpiScale(8), 0, dpiScale(8), 0);
+        btnLay->setSpacing(dpiScale(4));
 
-    /* ── Ricerca chat history ── */
-    m_chatSearch = new QLineEdit(bar);
-    m_chatSearch->setPlaceholderText("\xf0\x9f\x94\x8d  Cerca chat...");  /* 🔍 */
-    m_chatSearch->setClearButtonEnabled(true);
-    m_chatSearch->setObjectName("chatSearchEdit");
-    lay->addWidget(m_chatSearch);
+        auto* newChatBtn = new QPushButton("\xe2\x9c\x8f\xef\xb8\x8f  Nuova chat", btnRow);
+        newChatBtn->setObjectName("actionBtn");
+        newChatBtn->setFixedHeight(dpiScale(30));
+        newChatBtn->setToolTip("Inizia una nuova conversazione (reset log)");
+        connect(newChatBtn, &QPushButton::clicked, this, &MainWindow::onNewChatClicked);
+        btnLay->addWidget(newChatBtn);
+
+        m_btnDeleteChats = new QPushButton("\xf0\x9f\x97\x91  Cancella chat", btnRow);
+        m_btnDeleteChats->setObjectName("actionBtn");
+        m_btnDeleteChats->setProperty("danger", true);
+        m_btnDeleteChats->setFixedHeight(dpiScale(30));
+        m_btnDeleteChats->setLayoutDirection(Qt::LeftToRight);
+        m_btnDeleteChats->setStyleSheet("text-align: left; padding-left: 8px;");
+        m_btnDeleteChats->setEnabled(false);
+        m_btnDeleteChats->setToolTip("Elimina le chat selezionate (Canc)");
+        connect(m_btnDeleteChats, &QPushButton::clicked,
+                this, &MainWindow::onDeleteSelectedChatsClicked);
+        btnLay->addWidget(m_btnDeleteChats);
+
+        lay->addWidget(btnRow);
+    }
+
+    /* ── Riga ricerca: [☐] [🔍 Cerca chat...] ── */
+    {
+        auto* searchRow = new QWidget(bar);
+        searchRow->setObjectName("chatSearchRow");
+        auto* searchLay = new QHBoxLayout(searchRow);
+        searchLay->setContentsMargins(dpiScale(6), 0, dpiScale(6), 0);
+        searchLay->setSpacing(dpiScale(4));
+
+        m_chkSelectAll = new QCheckBox(searchRow);
+        m_chkSelectAll->setObjectName("selectAllChk");
+        m_chkSelectAll->setToolTip(tr("Seleziona / deseleziona tutte le chat visibili"));
+        m_chkSelectAll->setTristate(true);
+        searchLay->addWidget(m_chkSelectAll);
+
+        m_chatSearch = new QLineEdit(searchRow);
+        m_chatSearch->setPlaceholderText("\xf0\x9f\x94\x8d  Cerca chat...");
+        m_chatSearch->setClearButtonEnabled(true);
+        m_chatSearch->setObjectName("chatSearchEdit");
+        searchLay->addWidget(m_chatSearch, 1);
+
+        lay->addWidget(searchRow);
+    }
 
     /* ── Lista chat history ── */
     m_chatList = new QListWidget(bar);
@@ -1299,12 +1461,39 @@ QWidget* MainWindow::buildSidebar() {
     m_chatList->setFrameShape(QFrame::NoFrame);
     m_chatList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_chatList->setSpacing(2);
+    m_chatList->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    m_chatList->setMouseTracking(true);
+    m_chatList->viewport()->setMouseTracking(true);
+    m_chatList->setItemDelegate(new ChatListDelegate(m_chatList));
     m_chatList->installEventFilter(this);
     lay->addWidget(m_chatList, 1);   /* stretch=1: occupa lo spazio disponibile */
 
     /* Filtra la lista in tempo reale */
     connect(m_chatSearch, &QLineEdit::textChanged, this, &MainWindow::onChatSearchChanged);
     connect(m_chatList, &QListWidget::itemClicked, this, &MainWindow::onChatItemClicked);
+    connect(m_chatList, &QListWidget::itemSelectionChanged, this, [this] {
+        if (m_btnDeleteChats)
+            m_btnDeleteChats->setEnabled(!m_chatList->selectedItems().isEmpty());
+        if (m_chkSelectAll) {
+            int visible = 0;
+            for (int i = 0; i < m_chatList->count(); ++i)
+                if (m_chatList->item(i) && !m_chatList->item(i)->isHidden()) visible++;
+            const int sel = m_chatList->selectedItems().size();
+            QSignalBlocker b(m_chkSelectAll);
+            m_chkSelectAll->setCheckState(
+                sel == 0         ? Qt::Unchecked :
+                sel >= visible   ? Qt::Checked   : Qt::PartiallyChecked);
+        }
+    });
+
+    /* Checkbox "Seleziona tutto" */
+    connect(m_chkSelectAll, &QCheckBox::toggled, this, [this](bool checked) {
+        for (int i = 0; i < m_chatList->count(); ++i) {
+            auto* item = m_chatList->item(i);
+            if (item && !item->isHidden())
+                item->setSelected(checked);
+        }
+    });
 
     /* ── Context menu tasto destro sulle chat ── */
     m_chatList->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -1357,6 +1546,7 @@ QWidget* MainWindow::buildContent()
     buildAppControllerTab();
     buildLanWanTab();
     buildMultiAgentTab();
+    buildDistillazioneTab();
 
     /* 🔍 Ricerca schede — corner widget destro, a destra di "LAN WAN" */
     {
@@ -1515,6 +1705,14 @@ void MainWindow::buildMultiAgentTab()
      * Qui impostiamo solo la cross-pollination con il RagGraph. */
     if (m_ricercaPage && m_agentiMultiPage)
         m_agentiMultiPage->setExtRagMemory(m_ricercaPage->ragGraphMemory());
+}
+
+/* ── Livello 2: tab [9] 🧬 Distillazione Sintetica ─────────────── */
+void MainWindow::buildDistillazioneTab()
+{
+    m_distillazionePage = new DistillazionePage(m_ai, this);
+    m_mainTabs->addTab(m_distillazionePage,
+                       "\xf0\x9f\xa7\xac  Distillazione");  /* 9 */
 }
 
 /* ── Livello 2: barra navigazione menu + sincronizzazione tab ────── */

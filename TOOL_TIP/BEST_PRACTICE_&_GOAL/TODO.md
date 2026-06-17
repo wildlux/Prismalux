@@ -1427,3 +1427,30 @@ Dipendenze zero (usa `popen(curl …)` per HTTP).
 - [x] Ollama MCP (18° plugin, cache SQLite, 5 tool)
 - [x] Quiz CCNA 209 domande (15 temi)
 - [x] DPI dpiScale(), i18n QTranslator, supply chain hash
+
+
+
+
+
+
+
+
+### 🐛 Bug noti nei test esistenti                       
+      1237 +                                                         
+      1238 +- [ ] **MultiAgenteLive CAT-C: nodi "result" non salvati 
+           +in GraphMemory** — 2026-06-17                            
+      1239 +  - `nodoResultInGraphMemory` (C-2): dopo esecuzione di u
+           +n SubTask, il nodo tipo `"result"` non viene             
+      1240 +    aggiunto in GraphMemory. `allNodes("result").count()`
+           + rimane invariato anche dopo 60 s di polling.            
+      1241 +  - `nodoResultContenutoNonVuoto` (C-3): i nodi result es
+           +istenti hanno `content` vuoto.                           
+      1242 +  - I SubTask vengono eseguiti correttamente (C-1 PASS: r
+           +isultato `'4'` trovato), ma il salvataggio               
+      1243 +    in GraphMemory fallisce. Cercare in `agenti_multi_pag
+           +e.cpp` il punto in cui `runTask()` chiama                
+      1244 +    `m_gm->addNode("result", ...)` e verificare che il `n
+           +odeId` sia valido e la transazione SQL vada              
+      1245 +    a buon fine (possibile race condition o connessione D
+           +B chiusa prematuramente).                                
+      1246 +                                              

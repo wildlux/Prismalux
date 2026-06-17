@@ -198,6 +198,7 @@ set(CPP_SRCS
     pages/widget_voice_cloner.cpp
     pages/main_math.cpp
     pages/main_multi_agent.cpp
+    pages/main_distillazione_page.cpp
     graph_memory.cpp
     rag_graph.cpp
     log_bus.cpp
@@ -1339,6 +1340,25 @@ if(BUILD_TESTS)
         target_link_libraries(test_blhm_rab0l PRIVATE pthread m)
     endif()
 
+    # ── test_distillazione: DistillazionePage — costruzione, stato iniziale (CAT-A) ──
+    add_executable(test_distillazione
+        tests/test_distillazione.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_distillazione PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_distillazione PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_distillazione PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_distillazione PRIVATE pthread m)
+    endif()
+
     enable_testing()
     add_test(NAME GraphMemory           COMMAND test_graph_memory)
     add_test(NAME PraticoFinanza        COMMAND test_pratico_finanza)
@@ -1397,6 +1417,7 @@ if(BUILD_TESTS)
     add_test(NAME ReplPython              COMMAND test_repl_python)
     add_test(NAME FileParser              COMMAND test_file_parser)
     add_test(NAME Gns3Mcp                 COMMAND test_gns3_mcp)
+    add_test(NAME Distillazione           COMMAND test_distillazione)
     set_tests_properties(RagGraphPipeline PROPERTIES TIMEOUT 30)
     set_tests_properties(ReplPython       PROPERTIES TIMEOUT 30)
     set_tests_properties(AiIntegration  PROPERTIES TIMEOUT 900)   # 15 min — CPU-only mistral lento

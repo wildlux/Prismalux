@@ -43,6 +43,8 @@
 #include <QTimer>
 #include <QElapsedTimer>
 #include <QListWidget>
+#include <QCheckBox>
+#include <QSplitter>
 #include <QComboBox>
 #include <QDialog>
 #include <QTextEdit>
@@ -141,7 +143,8 @@ private:
     void buildRicercaTab();    ///< [5] 🔬 Ricerca
     void buildAppControllerTab(); ///< [6] 🕹 APP Controller
     void buildLanWanTab();     ///< [7] 🌐 LAN & WAN
-    void buildMultiAgentTab(); ///< [8] 🕸️ Multi-Agente + Grafo
+    void buildMultiAgentTab();     ///< [8] 🕸️ Multi-Agente + Grafo
+    void buildDistillazioneTab();  ///< [9] 🧬 Distillazione Sintetica
     void buildNavMenuBar(QWidget* wrapper, QVBoxLayout* wLay); ///< Barra menu alternativa + sincronizzazione
     void applyContentSettings();  ///< Applica nav style e exec btn mode da QSettings
 
@@ -192,8 +195,11 @@ private:
 
     /* ── Chat History (sidebar) ───────────────────────────────── */
     ChatHistory   m_chatHistory;                  ///< Persistenza sessioni in ~/.prismalux_chats/
+    QSplitter*    m_bodySplitter    = nullptr;     ///< Splitter sidebar ↔ contenuto
     QListWidget*  m_chatList       = nullptr;     ///< Lista chat nella sidebar
     QLineEdit*    m_chatSearch     = nullptr;     ///< Filtro ricerca chat history
+    QPushButton*  m_btnDeleteChats = nullptr;     ///< Cancella chat selezionate
+    QCheckBox*    m_chkSelectAll   = nullptr;     ///< Seleziona/deseleziona tutte le chat visibili
     QString       m_currentChatId;               ///< ID sessione chat corrente
 
     /* ── Gestione llama-server avviato dalla GUI ─────────────── */
@@ -215,7 +221,8 @@ private:
 
     /* Pagine con connessioni cross-modulo */
     class RicercaPage*     m_ricercaPage     = nullptr;   ///< tab [6] — espone ragGraphMemory()
-    class AgentiMultiPage* m_agentiMultiPage = nullptr;   ///< tab [9] — riceve setExtRagMemory()
+    class AgentiMultiPage*   m_agentiMultiPage    = nullptr;   ///< embedded in LAN & WAN
+    class DistillazionePage* m_distillazionePage  = nullptr;   ///< tab [9] 🧬 Distillazione
 
     /* Strumenti — StrumentiPage riceve il pannello Cron reale via ensureSettingsDialog */
     class StrumentiPage* m_strumentiPage = nullptr;
@@ -377,6 +384,7 @@ private slots:
     void onChatContextMenuRequested(const QPoint& pos);
     void onChatActionPdf();
     void onChatActionDelete();
+    void onDeleteSelectedChatsClicked(); ///< Pulsante Cancella: rimuove tutte le selezionate
     void onChatDeleteConfirm();        ///< Canc: QMessageBox question → elimina
     void onChatDeleteShift();          ///< Shift+Canc: elimina con undo 5s
     void onChatUndoDelete();           ///< Annulla la cancellazione pendente

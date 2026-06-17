@@ -110,7 +110,8 @@ private:
         bool        headersDone   = false;
         QByteArray  body;
         QString     authHeader;         ///< valore header Authorization (es. "Bearer TOKEN")
-        QString     authHeaderFallback; ///< token estratto da ?token= URL query (fallback)
+        QString     authHeaderFallback; ///< token estratto da ?token= URL query (scambio cookie)
+        QString     cookieSession;      ///< valore cookie p_session= (dopo redirect OTP)
         QString     queryString;        ///< query string grezza (es. "q=sviluppatore&tipo=IT")
         /* true solo se ha chiamato almeno una API Ollama (non /apk né /) */
         bool        isApiClient   = false;
