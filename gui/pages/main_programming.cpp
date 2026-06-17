@@ -175,13 +175,13 @@ void ProgrammazionePage::buildInnerTabs()
 {
     /* Titolo nella tab bar */
     auto* titleCorner = new QLabel(
-        "\xf0\x9f\x92\xbb  Programmazione", m_innerTabs);
+        "\xf0\x9f\x92\xbb  Codifica", m_innerTabs);
     titleCorner->setObjectName("pageTitle");
     titleCorner->setContentsMargins(4, 0, 16, 0);
     m_innerTabs->setCornerWidget(titleCorner, Qt::TopLeftCorner);
 
     m_innerTabs->addTab(buildCodingTab(m_innerTabs),
-        "\xf0\x9f\x92\xbb  Codifica");
+        "\xf0\x9f\x92\xbb  Programmazione");
     m_innerTabs->addTab(buildAgentica(m_innerTabs),
         "\xf0\x9f\x8f\x97\xef\xb8\x8f  Architetta Software");
     m_innerTabs->addTab(buildTranslitter(m_innerTabs),
