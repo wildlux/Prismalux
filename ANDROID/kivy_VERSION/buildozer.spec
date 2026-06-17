@@ -8,7 +8,7 @@ source.exclude_dirs = .buildozer, tests, __pycache__, .git, res
 version = 1.1
 
 # pyttsx3 e sounddevice NON hanno recipe p4a — esclusi intenzionalmente
-requirements = python3,kivy==2.3.0,requests,plyer,android
+requirements = python3,kivy==2.2.1,requests,plyer,android
 
 orientation = portrait
 fullscreen = 0
