@@ -228,3 +228,12 @@ Tools/scripts/wiby_stream_server.py
 *.key
 *.pem
 *.p12
+
+# ── ENGINE_LLM/swarfstar — repo clonato da antirez/ds4, binari compilati ────
+ENGINE_LLM/swarfstar/
+
+# ── ANDROID/QT_ANDROID_Version — cartella Android Qt (SDK/NDK inclusi, >4GB) ─
+ANDROID/QT_ANDROID_Version/
+
+# ── Kivy buildozer — cache build locale (>3GB) ───────────────────────────────
+ANDROID/kivy_VERSION/.buildozer/

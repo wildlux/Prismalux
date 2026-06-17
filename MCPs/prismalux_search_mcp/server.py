@@ -61,7 +61,7 @@ TOOL_DEFS: list[dict[str, Any]] = [
                 },
                 "path": {
                     "type": "string",
-                    "description": "Sottocartella in cui cercare (es. 'gui/', 'ANDROID/android_app/'). Default: tutto il progetto.",
+                    "description": "Sottocartella in cui cercare (es. 'gui/', 'ANDROID/QT_ANDROID_Version/android_app/'). Default: tutto il progetto.",
                     "default": "",
                 },
                 "definition_only": {
@@ -345,7 +345,7 @@ def handle_list_pages(args: dict[str, Any]) -> str:
             lines.append(f"  [{idx}] {name}{sc}  →  gui/pages/{file}.h/cpp")
 
     if target in ("android", "all"):
-        lines.append("\n=== Android Mobile (ANDROID/android_app/) ===")
+        lines.append("\n=== Android Mobile (ANDROID/QT_ANDROID_Version/android_app/) ===")
         android_pages = [
             ( 0, "🤖 Chat AI",       "chat_page"),
             ( 1, "📚 Studio",        "studio_page"),
@@ -419,8 +419,8 @@ EMOJI in C++:
     "build": """\
 BUILD COMANDI:
   Desktop:        cmake --build gui/build_gui -j$(nproc)
-  Android desk:   cmake --build ANDROID/android_app/build-desktop -j$(nproc)
-  Android tests:  cmake --build ANDROID/android_app/tests/build && ./test_mobile_logic
+  Android desk:   cmake --build ANDROID/QT_ANDROID_Version/android_app/build-desktop -j$(nproc)
+  Android tests:  cmake --build ANDROID/QT_ANDROID_Version/android_app/tests/build && ./test_mobile_logic
   Desktop tests:  ctest --test-dir gui/Test/build_tests -j4
   Riconfigura:    cmake -B gui/build_gui gui/ -DCMAKE_BUILD_TYPE=Release
 
@@ -433,13 +433,13 @@ ANDROID SPECIFICO:
   onTabChanged(): mappa indice → titolo header
   Conditional: HAVE_TTS, HAVE_MULTIMEDIA, HAVE_BLE, HAVE_SQL, HAVE_LOCAL_LLM
   Emoji Android: usare \\xNN\\xNN escape, non QString::fromUtf8 diretto
-  File CMakeLists: ANDROID/android_app/CMakeLists.txt
+  File CMakeLists: ANDROID/QT_ANDROID_Version/android_app/CMakeLists.txt
   Build desktop per test: build-desktop/ (non build_android!)""",
 
     "test": """\
 TEST STRUTTURA:
   Desktop: gui/tests/ + gui/Test/build_tests/ — 53 suite, ctest
-  Android: ANDROID/android_app/tests/ — QtTest, logica pura (no UI, no NDK)
+  Android: ANDROID/QT_ANDROID_Version/android_app/tests/ — QtTest, logica pura (no UI, no NDK)
   Pattern test: estrarre logica in struct helper, testare quella (vedi AttachState in test_mobile_logic.cpp)
   Aggiungere test desktop: gui/CMakeLists.txt (copia struttura test_programmazione_page)
   CAT-A: costruzione (no Ollama) | CAT-B: logica pura | CAT-C: processo esterno (QSKIP) | CAT-D: Ollama reale""",
@@ -457,11 +457,11 @@ def handle_get_context(args: dict[str, Any]) -> str:
         sections.append("STRUTTURA CARTELLE CHIAVE:\n"
             "  gui/pages/           — pagine desktop (settings_*.cpp, main_*.h)\n"
             "  gui/widgets/         — widget riutilizzabili\n"
-            "  ANDROID/android_app/ — app mobile Qt6\n"
+            "  ANDROID/QT_ANDROID_Version/android_app/ — app mobile Qt6\n"
             "  MCPs/                — 20+ plugin MCP Python\n"
             "  RAG/                 — documenti RAG (non in git)\n"
             "  gui/build_gui/       — cmake build desktop\n"
-            "  ANDROID/android_app/build-desktop/ — cmake build Android desk")
+            "  ANDROID/QT_ANDROID_Version/android_app/build-desktop/ — cmake build Android desk")
         return "\n\n".join(sections)
 
     content = _CONVENTIONS.get(topic)

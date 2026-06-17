@@ -506,7 +506,7 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
     }
 
     {
-        static const char* BKNAMES[] = {"Ollama", "llama-server", "llama-local"};
+        static const char* BKNAMES[] = {"Ollama", "llama-server", "llama-local", "ds4-server"};
         emit requestStarted(m_backend == LlamaLocal ? m_localModel : m_model,
                             BKNAMES[m_backend]);
     }

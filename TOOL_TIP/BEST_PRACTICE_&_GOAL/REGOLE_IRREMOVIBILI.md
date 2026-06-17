@@ -149,7 +149,7 @@ Usare SEMPRE le costanti di prismalux_paths.h:
 12. NUOVI FILE CPP — Aggiungere in CMakeLists.txt
 ────────────────────────────────────────────────
   Ogni nuovo .cpp va in gui/CMakeLists.txt nella lista CPP_SRCS.
-  Mobile:   ANDROID/android_app/CMakeLists.txt
+  Mobile:   ANDROID/QT_ANDROID_Version/android_app/CMakeLists.txt
   Test:     gui/CMakeLists.txt nella sezione BUILD_TESTS
 
 ────────────────────────────────────────────────

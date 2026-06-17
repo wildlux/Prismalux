@@ -57,7 +57,7 @@ namespace PrismaluxPaths {
 /** Porta default Ollama (documentata: https://ollama.ai) */
 constexpr int kOllamaPort      = 11434;
 
-/** Porta default DwarfStar — github.com/antirez/ds4 (compatibile API Ollama) */
+/** Porta default DwarfStar — github.com/antirez/ds4 (compatibile API OpenAI) */
 constexpr int kDwarfStarPort   = 11435;
 
 /** Porta default llama-server quando avviato dalla GUI */
@@ -259,6 +259,15 @@ inline QString llamaLibDir()
     return QFileInfo(llamaServerBin()).absolutePath();
 }
 
+
+/**
+ * ds4ServerBin() — Path al binario ds4-server (ENGINE_LLM/swarfstar/).
+ * Compilato con `make cpu` nella cartella ENGINE_LLM/swarfstar/.
+ */
+inline QString ds4ServerBin()
+{
+    return root() + "/ENGINE_LLM/swarfstar/ds4-server" + exeExt();
+}
 
 /**
  * vramBenchBin() — Binario vram_bench (Prismalux/vram_bench).

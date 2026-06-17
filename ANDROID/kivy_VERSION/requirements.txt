@@ -1,0 +1,6 @@
+kivy>=2.3.0
+requests>=2.31.0
+pyttsx3>=2.90
+sounddevice>=0.4.6
+soundfile>=0.12.1
+numpy>=1.24.0

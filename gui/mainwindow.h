@@ -200,10 +200,11 @@ private:
     QCheckBox*    m_chkSelectAll   = nullptr;     ///< Seleziona/deseleziona tutte le chat visibili
     QString       m_currentChatId;               ///< ID sessione chat corrente
 
-    /* ── Gestione llama-server avviato dalla GUI ─────────────── */
-    QProcess* m_serverProc  = nullptr;  ///< Processo llama-server (nullptr = fermo)
+    /* ── Gestione llama-server / ds4-server avviati dalla GUI ── */
+    QProcess* m_serverProc  = nullptr;  ///< Processo server (nullptr = fermo)
     int       m_serverPort  = 8081;     ///< Porta corrente del server
     QString   m_serverModel;            ///< Nome file modello caricato nel server
+    bool      m_serverIsDs4 = false;    ///< true quando il server è ds4-server, false = llama-server
 
     /* ── Servizi di background ───────────────────────────────── */
     HardwareMonitor*    m_hw           = nullptr;  ///< Thread monitor CPU/RAM/GPU
@@ -252,10 +253,14 @@ private:
      */
     void startLlamaServer(const QString& modelPath, int port, bool mathProfile = false);
 
+    /** Avvia ds4-server come processo figlio sulla porta indicata. */
+    void startDs4Server(const QString& modelPath, int port);
+
     /** Invia SIGTERM al processo server e aggiorna il pulsante. */
     void stopLlamaServer();
 
-    void showServerDialog();  ///< Dialog avvio llama-server (estratto dal lambda)
+    void showServerDialog();      ///< Dialog avvio llama-server
+    void showDwarfStarDialog();   ///< Dialog avvio ds4-server
 
     /**
      * ensureSettingsDialog — Crea il dialog Impostazioni la prima volta (lazy).

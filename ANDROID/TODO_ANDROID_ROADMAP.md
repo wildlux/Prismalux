@@ -400,7 +400,7 @@ A8 (FileAi)      ──→ C4 (Share Intent)
 | **Touch scroll** | `applyTouchScroll(sa)` — static helper già in ogni pagina |
 | **No lambda senza context** | 4° arg sempre in `connect()` — regola progetto |
 | **PDF parser** | `extractPdfText()` già in `lavoro_page.cpp:50-100` — copiare in `file_ai_page.cpp` |
-| **CMakeLists.txt** | Aggiungere ogni nuovo `.cpp` in `ANDROID/android_app/CMakeLists.txt` SOURCES |
+| **CMakeLists.txt** | Aggiungere ogni nuovo `.cpp` in `ANDROID/QT_ANDROID_Version/android_app/CMakeLists.txt` SOURCES |
 | **mainwindow.h** | Forward declare + membro puntatore per ogni nuova pagina |
 | **DrawerNavItem** | Aggiungere struct `{ icon, label, index }` nell'array `kNavItems[]` in `buildDrawer()` |
 | **Permessi nuovi** | Aggiungere in `android/AndroidManifest.xml` + runtime check con `QtAndroidPrivate` |

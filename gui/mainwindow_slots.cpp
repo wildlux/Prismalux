@@ -213,10 +213,8 @@ void MainWindow::onBackendBtnClicked()
 
     const bool serverRunning = m_serverProc &&
                                m_serverProc->state() != QProcess::NotRunning;
-    const bool isOllama     = (m_ai->backend() == AiClient::Ollama
-                                && m_ai->port() == P::kOllamaPort);
-    const bool isDwarfStar  = (m_ai->backend() == AiClient::Ollama
-                                && m_ai->port() == P::kDwarfStarPort);
+    const bool isOllama    = (m_ai->backend() == AiClient::Ollama);
+    const bool isDwarfStar = (m_ai->backend() == AiClient::Ds4Server);
 
     auto* actOllama = menu->addAction(
         "\xf0\x9f\xa6\x99  Ollama  \xe2\x80\x94  localhost:11434");
@@ -233,9 +231,10 @@ void MainWindow::onBackendBtnClicked()
     menu->addSeparator();
 
     if (serverRunning) {
+        const QString srvName = m_serverIsDs4 ? "ds4-server" : "llama-server";
         auto* actInfo = menu->addAction(
-            QString("\xf0\x9f\xa6\x99\xe2\x9a\xa1\xef\xb8\x8f  llama-server :%1  \xe2\x97\x8f in esecuzione")
-            .arg(m_serverPort));
+            QString("\xf0\x9f\xa6\x99\xe2\x9a\xa1\xef\xb8\x8f  %1 :%2  \xe2\x97\x8f in esecuzione")
+            .arg(srvName).arg(m_serverPort));
         actInfo->setEnabled(false);
 
         auto* actStop = menu->addAction(
@@ -245,8 +244,14 @@ void MainWindow::onBackendBtnClicked()
         auto* actLSrv = menu->addAction(
             "\xf0\x9f\xa6\x99\xe2\x9a\xa1\xef\xb8\x8f  Avvia llama-server...");
         actLSrv->setCheckable(true);
-        actLSrv->setChecked(m_ai->backend() == AiClient::LlamaServer);
+        actLSrv->setChecked(m_ai->backend() == AiClient::LlamaServer && !m_serverIsDs4);
         connect(actLSrv, &QAction::triggered, this, &MainWindow::showServerDialog);
+
+        auto* actDs4 = menu->addAction(
+            "\xe2\xad\x90  Avvia ds4-server...");
+        actDs4->setCheckable(true);
+        actDs4->setChecked(false);
+        connect(actDs4, &QAction::triggered, this, &MainWindow::showDwarfStarDialog);
     }
 
     menu->exec(m_btnBackend->mapToGlobal(QPoint(0, m_btnBackend->height())));
@@ -260,7 +265,7 @@ void MainWindow::onOllamaActionTriggered()
 
 void MainWindow::onDwarfStarActionTriggered()
 {
-    applyBackend(AiClient::Ollama, P::kLocalHost, P::kDwarfStarPort);
+    applyBackend(AiClient::Ds4Server, P::kLocalHost, P::kDwarfStarPort);
 }
 
 // ─── Emergenza RAM ────────────────────────────────────────────────────────
@@ -337,16 +342,17 @@ void MainWindow::onServerProcFinished(int code, QProcess::ExitStatus)
         const QString lastLines = m_serverProc
             ? QString::fromLocal8Bit(m_serverProc->readAll()).right(400).trimmed()
             : QString();
+        const QString srvN = m_serverIsDs4 ? "ds4-server" : "llama-server";
         appendLog(
-            QString("\xe2\x9d\x8c llama-server terminato durante lo startup (code <b>%1</b>). "
+            QString("\xe2\x9d\x8c %1 terminato durante lo startup (code <b>%2</b>). "
                     "Backend NON commutato a Ollama \xe2\x80\x94 riprova o scegli un altro modello.")
-            .arg(code));
+            .arg(srvN).arg(code));
         if (!lastLines.isEmpty())
             appendLog(QString("<pre style='font-size:10px'>%1</pre>").arg(lastLines.toHtmlEscaped()));
         statusBar()->showMessage(
-            QString("\xe2\x9d\x8c  llama-server terminato (code %1) prima di essere pronto. "
+            QString("\xe2\x9d\x8c  %1 terminato (code %2) prima di essere pronto. "
                     "Riprova o usa Ollama.")
-            .arg(code));
+            .arg(srvN).arg(code));
         if (m_btnBackend) {
             m_btnBackend->setText("\xe2\x9d\x8c  Crash startup");
             QTimer::singleShot(4000, this, &MainWindow::refreshBackendBtn);
@@ -355,12 +361,14 @@ void MainWindow::onServerProcFinished(int code, QProcess::ExitStatus)
         return;
     }
 
+    const QString srvName = m_serverIsDs4 ? "ds4-server" : "llama-server";
+    m_serverIsDs4 = false;
     appendLog(
-        QString("\xf0\x9f\x94\xb4 llama-server terminato (code <b>%1</b>) \xe2\x80\x94 ripristino Ollama")
-        .arg(code));
+        QString("\xf0\x9f\x94\xb4 %1 terminato (code <b>%2</b>) \xe2\x80\x94 ripristino Ollama")
+        .arg(srvName).arg(code));
     statusBar()->showMessage(
-        QString("\xf0\x9f\x94\xb4  llama-server terminato (code %1). Backend tornato a Ollama.")
-        .arg(code));
+        QString("\xf0\x9f\x94\xb4  %1 terminato (code %2). Backend tornato a Ollama.")
+        .arg(srvName).arg(code));
     if (m_serverProc) { m_serverProc->deleteLater(); m_serverProc = nullptr; }
     applyBackend(AiClient::Ollama, P::kLocalHost, P::kOllamaPort);
 }
@@ -372,8 +380,9 @@ void MainWindow::onServerProcessError(QProcess::ProcessError err)
             m_btnBackend->setText("\xe2\x9d\x8c  Errore avvio");
             QTimer::singleShot(3000, this, &MainWindow::refreshBackendBtn);
         }
+        const QString srvLabel = m_serverIsDs4 ? "ds4-server" : "llama-server";
         appendLog(
-            "\xe2\x9d\x8c <b>llama-server</b>: impossibile avviare \xe2\x80\x94 "
+            "\xe2\x9d\x8c <b>" + srvLabel + "</b>: impossibile avviare \xe2\x80\x94 "
             "verifica il percorso binario");
         statusBar()->showMessage(
             "\xe2\x9d\x8c  Impossibile avviare llama-server. Verifica il percorso binario.");
@@ -435,12 +444,21 @@ void MainWindow::onHealthReply()
         m_btnBackend->setText("\xe2\x9c\x85  Pronto");
         QTimer::singleShot(2000, this, &MainWindow::refreshBackendBtn);
     }
-    appendLog(
-        QString("\xf0\x9f\xa6\x99 llama-server pronto su porta <b>%1</b>").arg(m_serverPort));
-    statusBar()->showMessage(
-        QString("\xe2\x9c\x85  llama-server pronto su porta %1 \xe2\x80\x94 backend commutato.")
-        .arg(m_serverPort));
-    applyBackend(AiClient::LlamaServer, P::kLocalHost, m_serverPort);
+    if (m_serverIsDs4) {
+        appendLog(
+            QString("\xe2\xad\x90 ds4-server pronto su porta <b>%1</b>").arg(m_serverPort));
+        statusBar()->showMessage(
+            QString("\xe2\x9c\x85  ds4-server pronto su porta %1 \xe2\x80\x94 backend commutato.")
+            .arg(m_serverPort));
+        applyBackend(AiClient::Ds4Server, P::kLocalHost, m_serverPort);
+    } else {
+        appendLog(
+            QString("\xf0\x9f\xa6\x99 llama-server pronto su porta <b>%1</b>").arg(m_serverPort));
+        statusBar()->showMessage(
+            QString("\xe2\x9c\x85  llama-server pronto su porta %1 \xe2\x80\x94 backend commutato.")
+            .arg(m_serverPort));
+        applyBackend(AiClient::LlamaServer, P::kLocalHost, m_serverPort);
+    }
 }
 
 // ─── Chat sidebar ─────────────────────────────────────────────────────────

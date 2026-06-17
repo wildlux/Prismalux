@@ -904,6 +904,130 @@ void MainWindow::showServerDialog()
     dlg->deleteLater();
 }
 
+/* ══════════════════════════════════════════════════════════════
+   showDwarfStarDialog — Dialog avvio ds4-server (ENGINE_LLM/swarfstar/)
+   ══════════════════════════════════════════════════════════════ */
+void MainWindow::showDwarfStarDialog()
+{
+    const QString bin = P::ds4ServerBin();
+    const bool binExists = QFileInfo::exists(bin);
+
+    auto* dlg = new QDialog(this);
+    dlg->setWindowTitle("\xe2\xad\x90  Avvia DwarfStar (ds4-server)");
+    dlg->setFixedWidth(dpiScale(480));
+    auto* lay = new QVBoxLayout(dlg);
+    lay->setSpacing(10);
+
+    lay->addWidget(new QLabel(
+        "<b>ds4-server</b> \xe2\x80\x94 motore inferenza OpenAI-compatibile per DeepSeek V4 Flash.<br>"
+        "Binario: <code>" + bin.toHtmlEscaped() + "</code>", dlg));
+
+    if (!binExists) {
+        auto* warn = new QLabel(
+            "<span style='color:#ef4444;'>"
+            "\xe2\x9d\x8c  Binario non trovato. Compila con:<br>"
+            "<code>cd ENGINE_LLM/swarfstar &amp;&amp; make cpu</code></span>", dlg);
+        warn->setWordWrap(true);
+        lay->addWidget(warn);
+    }
+
+    /* Modello .gguf */
+    auto* rowMdl = new QHBoxLayout;
+    rowMdl->addWidget(new QLabel("Modello (.gguf):", dlg));
+    auto* edModel = new QLineEdit(dlg);
+    edModel->setPlaceholderText("(opzionale — lascia vuoto se non richiesto)");
+    rowMdl->addWidget(edModel, 1);
+    auto* btnBrowse = new QPushButton("\xe2\x80\xa6", dlg);
+    btnBrowse->setFixedWidth(dpiScale(30));
+    connect(btnBrowse, &QPushButton::clicked, dlg, [edModel, dlg]() {
+        const QString f = QFileDialog::getOpenFileName(
+            dlg, "Seleziona modello .gguf",
+            QDir::homePath(),
+            "Modelli GGUF (*.gguf);;Tutti i file (*.*)");
+        if (!f.isEmpty()) edModel->setText(f);
+    });
+    rowMdl->addWidget(btnBrowse);
+    lay->addLayout(rowMdl);
+
+    /* Porta */
+    auto* rowPort = new QHBoxLayout;
+    rowPort->addWidget(new QLabel("Porta:", dlg));
+    auto* spPort = new QSpinBox(dlg);
+    spPort->setRange(1024, 65535);
+    spPort->setValue(P::kDwarfStarPort);
+    rowPort->addWidget(spPort);
+    rowPort->addStretch();
+    lay->addLayout(rowPort);
+
+    auto* bb = new QDialogButtonBox(
+        QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
+    bb->button(QDialogButtonBox::Ok)->setText("\xe2\x96\xb6  Avvia");
+    bb->button(QDialogButtonBox::Ok)->setEnabled(binExists);
+    lay->addWidget(bb);
+    connect(bb, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
+    connect(bb, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+
+    if (dlg->exec() == QDialog::Accepted && binExists)
+        startDs4Server(edModel->text().trimmed(), spPort->value());
+    dlg->deleteLater();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   startDs4Server — Avvia ds4-server come processo figlio.
+   Riusa m_serverProc + health polling di llama-server.
+   Dopo /health risponde → applyBackend(Ds4Server).
+   ══════════════════════════════════════════════════════════════ */
+void MainWindow::startDs4Server(const QString& modelPath, int port)
+{
+    const QString bin = P::ds4ServerBin();
+    if (!QFileInfo::exists(bin)) {
+        statusBar()->showMessage(
+            "\xe2\x9d\x8c  ds4-server non trovato. Compila con: cd ENGINE_LLM/swarfstar && make cpu");
+        return;
+    }
+
+    if (m_serverProc && m_serverProc->state() != QProcess::NotRunning) {
+        m_serverProc->terminate();
+        m_serverProc->waitForFinished(3000);
+        m_serverProc->deleteLater();
+        m_serverProc = nullptr;
+    }
+
+    m_serverPort  = port;
+    m_serverModel = modelPath.isEmpty() ? "(built-in)" : QFileInfo(modelPath).fileName();
+    m_serverIsDs4 = true;
+
+    m_serverProc = new QProcess(this);
+    m_serverProc->setProcessChannelMode(QProcess::MergedChannels);
+
+    connect(m_serverProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &MainWindow::onServerProcFinished);
+    connect(m_serverProc, &QProcess::errorOccurred,
+            this, &MainWindow::onServerProcessError);
+
+    QStringList args = {"--port", QString::number(port), "--host", "127.0.0.1"};
+    if (!modelPath.isEmpty()) args << "--model" << modelPath;
+
+    statusBar()->showMessage(
+        QString("\xe2\x8f\xb3  Avvio ds4-server sulla porta %1...").arg(port));
+    appendLog(
+        QString("\xe2\xad\x90 Avvio <b>ds4-server</b> sulla porta <b>%1</b>...").arg(port));
+
+    m_serverProc->start(bin, args);
+
+    /* Health polling: stessa logica di llama-server */
+    m_healthTicks = 0;
+    m_healthNam   = new QNetworkAccessManager(this);
+    m_healthTimer = new QTimer(this);
+    m_healthTimer->setInterval(1000);
+    connect(m_healthTimer, &QTimer::timeout, this, &MainWindow::onHealthTick);
+    m_healthTimer->start();
+    if (m_btnBackend) {
+        m_btnBackend->setText("\xe2\x8f\xb3  ds4 avvio...");
+        P::repolish(m_btnBackend);
+    }
+}
+
 /* ── Livello 2: banner GPU/CPU rilevato ──────────────────────────── */
 QWidget* MainWindow::buildServerHwBanner(QWidget* parent)
 {
@@ -1054,12 +1178,17 @@ void MainWindow::applyBackend(AiClient::Backend b, const QString& host, int port
 
     refreshBackendBtn();
 
-    const QString bkName = (b == AiClient::Ollama)
-        ? (port == P::kDwarfStarPort ? "DwarfStar" : "Ollama")
-        : "llama.cpp";
-    const QString bkIcon = (b == AiClient::Ollama)
-        ? "\xf0\x9f\xa6\x99  Ollama"
-        : "\xf0\x9f\xa6\x99  llama.cpp";
+    QString bkName, bkIcon;
+    if (b == AiClient::Ds4Server) {
+        bkName = "DwarfStar";
+        bkIcon = "\xe2\xad\x90  DwarfStar";
+    } else if (b == AiClient::Ollama) {
+        bkName = "Ollama";
+        bkIcon = "\xf0\x9f\xa6\x99  Ollama";
+    } else {
+        bkName = "llama.cpp";
+        bkIcon = "\xf0\x9f\xa6\x99  llama.cpp";
+    }
     m_lblBackend->setText(bkIcon + "  \xe2\x86\x92  " + host + ":" + QString::number(port));
     /* Lo stato viene mostrato nel testo di m_btnBackend — nessun widget extra. */
     m_lblModel->setText("(caricamento modelli...)");
@@ -1220,6 +1349,7 @@ void MainWindow::startLlamaServer(const QString& modelPath, int port, bool mathP
 
     m_serverPort  = port;
     m_serverModel = QFileInfo(modelPath).fileName();
+    m_serverIsDs4 = false;
 
     /* Variabile d'ambiente per le librerie condivise (.so nella stessa dir del binario) */
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
@@ -1364,17 +1494,19 @@ void MainWindow::stopLlamaServer() {
 /* ── Aggiorna testo e colore del pulsante backend ── */
 void MainWindow::refreshBackendBtn() {
     if (!m_btnBackend) return;
-    if (m_ai->backend() == AiClient::Ollama) {
-        if (m_ai->port() == P::kDwarfStarPort) {
-            m_btnBackend->setText("\xe2\xad\x90  DwarfStar");
-            m_btnBackend->setProperty("backendActive", "ollama");
-        } else {
-            m_btnBackend->setText("\xf0\x9f\xa6\x99  Ollama");
-            m_btnBackend->setProperty("backendActive", "ollama");
-        }
-    } else {
+    switch (m_ai->backend()) {
+    case AiClient::Ds4Server:
+        m_btnBackend->setText("\xe2\xad\x90  DwarfStar");
+        m_btnBackend->setProperty("backendActive", "llama");
+        break;
+    case AiClient::Ollama:
+        m_btnBackend->setText("\xf0\x9f\xa6\x99  Ollama");
+        m_btnBackend->setProperty("backendActive", "ollama");
+        break;
+    default:
         m_btnBackend->setText("\xf0\x9f\xa6\x99\xe2\x9a\xa1\xef\xb8\x8f  llama-server");
         m_btnBackend->setProperty("backendActive", "llama");
+        break;
     }
     P::repolish(m_btnBackend);
 }

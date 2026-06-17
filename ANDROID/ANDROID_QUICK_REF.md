@@ -7,7 +7,7 @@
 
 ```bash
 # Build APK debug
-cd ANDROID/android_app
+cd ANDROID/QT_ANDROID_Version/android_app
 cmake -B build-android -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
   -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-26 ..
 cmake --build build-android -j$(nproc)
@@ -20,8 +20,8 @@ cd build-android && ctest --output-on-failure -L no_ble
 
 ## AGGIUNGERE UNA NUOVA PAGINA — Checklist
 
-1. `ANDROID/android_app/pages/nome_page.h` — class + signals/slots
-2. `ANDROID/android_app/pages/nome_page.cpp` — implementazione
+1. `ANDROID/QT_ANDROID_Version/android_app/pages/nome_page.h` — class + signals/slots
+2. `ANDROID/QT_ANDROID_Version/android_app/pages/nome_page.cpp` — implementazione
 3. **`CMakeLists.txt`** → aggiungi `pages/nome_page.cpp` in `SOURCES`
 4. **`mainwindow.h`** → forward declare + `NomePage* m_nomePage = nullptr;`
 5. **`mainwindow.cpp`** → `#include`, costruzione, `m_stack->addWidget(m_nomePage, idx)`, voce drawer
