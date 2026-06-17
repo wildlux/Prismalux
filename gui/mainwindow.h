@@ -219,8 +219,10 @@ private:
     class ImpostazioniPage* m_impPage = nullptr;
 
     /* Pagine con connessioni cross-modulo */
-    class RicercaPage*     m_ricercaPage     = nullptr;   ///< tab [6] — espone ragGraphMemory()
-    class AgentiMultiPage*   m_agentiMultiPage    = nullptr;   ///< embedded in LAN & WAN
+    class RicercaPage*       m_ricercaPage      = nullptr;
+    class AgentiMultiPage*   m_agentiMultiPage  = nullptr;
+    class ProgrammazionePage* m_progPage        = nullptr;
+    class LanWanPage*         m_lanWanPage      = nullptr;
     /* Strumenti — StrumentiPage riceve il pannello Cron reale via ensureSettingsDialog */
     class StrumentiPage* m_strumentiPage = nullptr;
 

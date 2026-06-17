@@ -1640,8 +1640,8 @@ void MainWindow::buildFileAiTab()
 /* ── Livello 2: tab [3] Programmazione ───────────────────────────── */
 void MainWindow::buildProgrammazioneTab()
 {
-    m_mainTabs->addTab(new ProgrammazionePage(m_ai, this),
-                       "\xf0\x9f\x92\xbb  Programmazione");  /* 3 */
+    m_progPage = new ProgrammazionePage(m_ai, this);
+    m_mainTabs->addTab(m_progPage, "\xf0\x9f\x92\xbb  Programmazione");  /* 3 */
 }
 
 /* ── Livello 2: tab [4] Matematica + Grafico ─────────────────────── */
@@ -1689,11 +1689,15 @@ void MainWindow::buildAppControllerTab()
 /* ── Livello 2: tab [7] LAN & WAN ────────────────────────────────── */
 void MainWindow::buildLanWanTab()
 {
-    auto* lanWan = new LanWanPage(m_ai, this);
-    m_mainTabs->addTab(lanWan, "\xf0\x9f\x8c\x90  LAN & WAN");  /* 7 */
-    /* Multi-Agente è ora un tab interno a LanWanPage — recupera il riferimento
-     * per poter collegare la cross-pollination con RagGraph. */
-    m_agentiMultiPage = lanWan->multiAgentTab();
+    m_lanWanPage = new LanWanPage(m_ai, this);
+    m_mainTabs->addTab(m_lanWanPage, "\xf0\x9f\x8c\x90  LAN & WAN");  /* 7 */
+    m_agentiMultiPage = m_lanWanPage->multiAgentTab();
+
+    /* Sposta "Rete & Network" da ProgrammazionePage a LanWanPage */
+    if (m_progPage)
+        m_lanWanPage->addExtraTab(
+            m_progPage->buildReteNetworkWidget(m_lanWanPage),
+            "\xf0\x9f\x94\xa1  Rete & Network");  /* 🔡 */
 }
 
 /* ── Livello 2: ex tab [9] Multi-Agente — ora embedded in LAN & WAN ── */

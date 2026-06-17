@@ -31,7 +31,11 @@ class LanWanPage : public QWidget {
 public:
     explicit LanWanPage(AiClient* ai, QWidget* parent = nullptr);
     ~LanWanPage() override;
+
+    void addExtraTab(QWidget* w, const QString& label);
+
 private:
+    QTabWidget* m_tabs = nullptr;
     AiClient*    m_ai           = nullptr;
     LanServer*   m_lanServer    = nullptr;
     QPushButton* m_lanToggleBtn = nullptr;

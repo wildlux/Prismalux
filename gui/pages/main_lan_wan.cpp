@@ -110,6 +110,11 @@ QString LanWanPage::serverScheme() const
     return (m_lanServer && m_lanServer->isTlsEnabled()) ? "https" : "http";
 }
 
+void LanWanPage::addExtraTab(QWidget* w, const QString& label)
+{
+    if (m_tabs) m_tabs->addTab(w, label);
+}
+
 void LanWanPage::openQrDialog(QPushButton* parent, const QString& url,
                                const QString& title, const QString& subtitle,
                                const QString& note)
@@ -184,7 +189,8 @@ LanWanPage::LanWanPage(AiClient* ai, QWidget* parent)
     lay->setContentsMargins(0, 0, 0, 0);
     lay->setSpacing(0);
 
-    auto* tabs = new QTabWidget(this);
+    m_tabs = new QTabWidget(this);
+    auto* tabs = m_tabs;
     tabs->addTab(buildLanAndroidTab(), "\xf0\x9f\x93\xb1  LAN Android");  /* 📱 */
     tabs->addTab(buildGNS3Tab(),       "\xf0\x9f\x8c\x90  GNS3 MCP");     /* 🌐 */
 

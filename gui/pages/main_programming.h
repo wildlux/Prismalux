@@ -59,6 +59,9 @@ public:
     bool hasUnsavedWork() const;
     void saveCurrentFile();
 
+    /* Rete & Network widget — creato una volta sola, ceduto a LanWanPage */
+    QWidget* buildReteNetworkWidget(QWidget* parent);
+
 private:
     AiClient*       m_ai        = nullptr;
 

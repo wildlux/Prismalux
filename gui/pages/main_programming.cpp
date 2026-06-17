@@ -195,27 +195,6 @@ void ProgrammazionePage::buildInnerTabs()
     m_innerTabs->addTab(new CodeInterpreterWidget(m_ai, m_innerTabs),
         "\xf0\x9f\xa7\xaa  Interpreter");
 
-    /* Rete & Network: sub-tab interni */
-    auto* reteWrap = new QWidget(m_innerTabs);
-    auto* reteLay  = new QVBoxLayout(reteWrap);
-    reteLay->setContentsMargins(0, 0, 0, 0);
-    reteLay->setSpacing(0);
-    auto* reteTabs = new QTabWidget(reteWrap);
-    reteTabs->setObjectName("innerTabs");
-    reteTabs->addTab(buildNetworkAnalyzer(reteTabs),
-        "\xf0\x9f\x94\xa1  Cattura pacchetti");
-    reteTabs->addTab(buildReteLan(reteTabs),
-        "\xf0\x9f\x8c\x90  Scan LAN");
-    reteTabs->addTab(buildVpnTab(reteTabs),
-        "\xf0\x9f\x94\x92  VPN & Tunnel");
-    reteTabs->addTab(buildPolicyTab(reteTabs),
-        "\xf0\x9f\x9b\xa1  Policy");
-    reteTabs->addTab(buildSubnetTab(reteTabs),
-        "\xf0\x9f\x94\xa2  Sottoreti");
-    reteLay->addWidget(reteTabs);
-    m_innerTabs->addTab(reteWrap,
-        "\xf0\x9f\x8c\x90  Rete & Network");
-
     m_innerTabs->addTab(buildDriverKernelTab(m_innerTabs),
         "\xf0\x9f\x94\xa7  Driver & Kernel");
     m_innerTabs->addTab(new CodingLabWidget(m_ai, m_innerTabs),
@@ -1741,6 +1720,24 @@ void ProgrammazionePage::runReverseEngineering()
     m_revFinishedConn = connect(m_ai, &AiClient::finished, this, &ProgrammazionePage::onRevFinished);
     m_revErrorConn    = connect(m_ai, &AiClient::error,    this, &ProgrammazionePage::onRevError);
     m_ai->chat(P::prependKnowledge(sys), user);
+}
+
+/* Rete & Network — widget autonomo cedibile a LanWanPage */
+QWidget* ProgrammazionePage::buildReteNetworkWidget(QWidget* parent)
+{
+    auto* reteWrap = new QWidget(parent);
+    auto* reteLay  = new QVBoxLayout(reteWrap);
+    reteLay->setContentsMargins(0, 0, 0, 0);
+    reteLay->setSpacing(0);
+    auto* reteTabs = new QTabWidget(reteWrap);
+    reteTabs->setObjectName("innerTabs");
+    reteTabs->addTab(buildNetworkAnalyzer(reteTabs), "\xf0\x9f\x94\xa1  Cattura pacchetti");
+    reteTabs->addTab(buildReteLan(reteTabs),         "\xf0\x9f\x8c\x90  Scan LAN");
+    reteTabs->addTab(buildVpnTab(reteTabs),          "\xf0\x9f\x94\x92  VPN & Tunnel");
+    reteTabs->addTab(buildPolicyTab(reteTabs),       "\xf0\x9f\x9b\xa1  Policy");
+    reteTabs->addTab(buildSubnetTab(reteTabs),       "\xf0\x9f\x94\xa2  Sottoreti");
+    reteLay->addWidget(reteTabs);
+    return reteWrap;
 }
 
 /* ══════════════════════════════════════════════════════════════
