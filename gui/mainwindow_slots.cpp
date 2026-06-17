@@ -205,15 +205,6 @@ void MainWindow::onLogBtnClicked()
     m_logDlg->activateWindow();
 }
 
-void MainWindow::onUnloadModelClicked()
-{
-    m_ai->unloadModel();
-    statusBar()->showMessage(
-        "\xf0\x9f\x97\x91  Richiesta scarico modello inviata a Ollama \xe2\x80\x94 "
-        "il modello verr\xc3\xa0 rimosso dalla RAM.");
-    QTimer::singleShot(4000, this, &MainWindow::onRestoreDefaultStatus);
-}
-
 void MainWindow::onBackendBtnClicked()
 {
     auto* menu = new QMenu(m_btnBackend);
@@ -277,8 +268,12 @@ void MainWindow::onDwarfStarActionTriggered()
 void MainWindow::onEmergencyRamClicked()
 {
     if (m_emergencyBtn) m_emergencyBtn->setEnabled(false);
+
+    /* Step 1: scarico gentile via API (keep_alive=0) */
+    m_ai->unloadModel();
+
     statusBar()->showMessage(
-        "\xf0\x9f\x9a\xa8  Emergenza RAM \xe2\x80\x94 arresto modelli Ollama...");
+        "\xf0\x9f\x9a\xa8  Emergenza RAM \xe2\x80\x94 scarico modello + arresto Ollama...");
 
     m_emergencyStopProc = new QProcess(this);
     m_emergencyStopProc->start("bash", {"-c",

@@ -240,3 +240,7 @@ QCheckBox#selectAllChk::indicator:indeterminate {
     background: palette(mid);
     border-color: palette(mid);
 }
+
+/* ── emergencyBtn urgency: colore di sfondo in base alla RAM usata ── */
+QPushButton#emergencyBtn[urgency="warn"]  { background: rgba(255,193,7,0.28);  }
+QPushButton#emergencyBtn[urgency="high"]  { background: rgba(183,28,28,0.42);  }

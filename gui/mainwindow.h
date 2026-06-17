@@ -181,7 +181,6 @@ private:
     QTextEdit*      m_logView       = nullptr;  ///< Area testo del log
     int             m_logUnread     = 0;        ///< Contatore messaggi non letti
     QWidget*        m_sidebarWidget = nullptr;  ///< Sidebar (mostra/nascondi con ☰)
-    QPushButton*    m_btnUnload   = nullptr;  ///< Pulsante 🗑 Scarica LLM (diventa giallo sopra 40% RAM)
     QPushButton*    m_btnBackend  = nullptr;  ///< Backend AI: Ollama / avvia-ferma llama-server
     SpinnerWidget*  m_spinServer  = nullptr;  ///< Spinner animato durante polling /health
     StatusBadge*    m_badgeServer = nullptr;  ///< Dot colorato stato server (Offline/Starting/Online)
@@ -360,7 +359,6 @@ private slots:
     /* ── Header buttons ─────────────────────────────────────────── */
     void onHamburgerClicked();
     void onLogBtnClicked();
-    void onUnloadModelClicked();
     void onBackendBtnClicked();
     void onOllamaActionTriggered();
     void onDwarfStarActionTriggered();

@@ -824,23 +824,13 @@ void MainWindow::buildActionButtons(QHBoxLayout* lay)
     m_emergencyBtn->setObjectName("emergencyBtn");
     m_emergencyBtn->setToolTip(
         "EMERGENZA RAM\n"
-        "1. Ferma tutti i modelli Ollama\n"
-        "2. Libera cache kernel (richiede password admin)");
+        "1. Scarica modello corrente dalla RAM (keep_alive=0)\n"
+        "2. Ferma tutti i modelli Ollama\n"
+        "3. Libera cache kernel (richiede password admin)\n"
+        "Diventa giallo se RAM > 40%, rosso se > 75%.");
     m_emergencyBtn->setFixedSize(dpiSize(42, 36));
     connect(m_emergencyBtn, &QPushButton::clicked, this, &MainWindow::onEmergencyRamClicked);
     lay->addWidget(m_emergencyBtn);
-
-    /* 🗑 Scarica LLM */
-    m_btnUnload = new QPushButton("\xf0\x9f\x97\x91  Scarica", hdr);
-    m_btnUnload->setObjectName("unloadBtn");
-    m_btnUnload->setFixedHeight(dpiScale(36));
-    m_btnUnload->setToolTip(
-        "Scarica il modello dalla RAM (keep_alive=0)\n"
-        "Utile quando Ollama tiene il modello caricato\n"
-        "anche dopo che hai finito di usarlo.\n"
-        "Diventa giallo se RAM > 40%, rosso se > 75%.");
-    connect(m_btnUnload, &QPushButton::clicked, this, &MainWindow::onUnloadModelClicked);
-    lay->addWidget(m_btnUnload);
 
     /* 🦙 Backend toggle — reparentato in buildContent come corner widget */
     m_btnBackend = new QPushButton("\xf0\x9f\xa6\x99  Ollama", hdr);
@@ -2016,12 +2006,12 @@ void MainWindow::onHWUpdated(SysSnapshot snap) {
     double freePct = snap.ram_total > 0 ? (snap.ram_total - snap.ram_used) / snap.ram_total * 100.0 : 100.0;
     m_ai->setRamFreePct(freePct);
 
-    /* Colora "Scarica LLM" via property QSS: normale→warn→high */
-    if (m_btnUnload) {
+    /* Colora 🚨 via property QSS in base alla RAM: normale→warn→high */
+    if (m_emergencyBtn) {
         const char* urgency = rp > 75.0 ? "high" : rp > 40.0 ? "warn" : "";
-        if (m_btnUnload->property("urgency").toString() != urgency) {
-            m_btnUnload->setProperty("urgency", urgency);
-            P::repolish(m_btnUnload);
+        if (m_emergencyBtn->property("urgency").toString() != urgency) {
+            m_emergencyBtn->setProperty("urgency", urgency);
+            P::repolish(m_emergencyBtn);
         }
     }
 
