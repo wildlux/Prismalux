@@ -1,6 +1,6 @@
 # Prismalux — TODO pendenti
 
-> Aggiornato: 2026-06-12 | Versione: 2.9
+> Aggiornato: 2026-06-16 | Versione: 2.9
 
 ---
 
@@ -206,10 +206,12 @@
       limite dimensione (413 se >25 MB) e whitelist estensioni (415 se non in
       pdf/docx/doc/txt/csv/md/rtf/odt/json/xml/html/htm) prima di scrivere il tmp e invocare
       gli estrattori. `lan_server.cpp` `handleFileApi`.
-- [x] **`/api/repl` — limiti risorse** — FATTO 2026-06-13: aggiunto `-u 50` (max processi,
-      anti fork-bomb) e `-n 100` (max file descriptor, anti fd exhaustion) a `kLimits` in
-      `handleReplApi()`. Rimane opzionale: sandbox container/seccomp per isolamento completo.
-      `lan_server.cpp`.
+- [x] **`/api/repl` — sandbox bwrap completa** — FATTO 2026-06-16: `handleReplApi()` ora usa
+      `bwrap` (bubblewrap) se disponibile: `--ro-bind / /` (host read-only), `--tmpfs /tmp`,
+      `--unshare-net` (nessuna rete), `--unshare-pid`, `--unshare-ipc`, `--unshare-uts`,
+      `--new-session`, `--die-with-parent` + ulimit interno come secondo strato.
+      bash e node rimossi (403 se richiesti). Fallback ulimit-only se bwrap assente (loggato).
+      `obj["sandbox"]` nel JSON di risposta indica "bwrap" o "ulimit". `lan_server.cpp`.
 - [x] **Rotazione/scadenza del token LAN** — FATTO 2026-06-13: GroupBox "Token di accesso LAN"
       in Manutenzione→LAN Server con pulsante "🔄 Rigenera Token" — genera UUID, salva via
       `LanServer::saveLanToken()`, aggiorna `m_lanServer->setAccessToken()` se attivo, copia
@@ -219,8 +221,10 @@
 
 - [x] **Test di non-regressione auth** — GIÀ IMPLEMENTATO: `TestAuthNonRegression` (CAT-H)
       in `test_lan_server.cpp` — 12 test H1..H12 verificano 401 su ogni `/api/*` senza token.
-- [ ] **Audit periodico lista `isApi`** — finché si usa la whitelist a mano, ogni PR che
-      aggiunge un endpoint deve aggiornarla; meglio passare al "deny by default" sopra.
+- [x] **Audit periodico lista `isApi`** — FATTO 2026-06-16: implementato deny-by-default
+      con `isPublic` (whitelist corta: `/`, `/index`, `/download`, `/web`, `/katex/`, `/bootstrap/`).
+      Ogni endpoint futuro è protetto automaticamente senza modifiche. Test H13/H14 verificano
+      che i percorsi pubblici NON restituiscano 401. `lan_server.cpp::processSession()`.
 
 ---
 
@@ -863,6 +867,7 @@ START → read_context → generate_patch → apply_patch → compile
 
 ### 🟡 Sicurezza
 - [x] **TLS self-signed LAN** — `QSslServer` + `_ensureCert()` + checkbox "Abilita TLS" in Manutenzione LAN; fallback HTTP se openssl non disponibile — `lan_server.h/cpp`, `main_maintenance_lan.cpp` — 2026-06-03
+- [x] **TLS nginx reverse proxy (internet)** — `EXPORT/linux/setup_tls.sh`: installa nginx, genera cert self-signed (LAN) o richiede Let's Encrypt via certbot (internet), configura proxy TLS 1.2/1.3 verso localhost:11500 con header X-Forwarded-For e proxy_buffering off per streaming — 2026-06-16
 - [x] **Coda FIFO multi-utente LAN** — `PendingLlmRequest` + `m_llmQueue` (max 10); `handleChat/Generate` accodano se occupato; `closeStreamSession/onClientDisconnected` servono il prossimo — `lan_server.h/cpp` — 2026-06-03
 - [x] **Parser HTTP hardening** — whitelist metodi (GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS); blocco path con null byte o >2048 char; validazione Content-Length (negativo o >25MB → 400); tutti con `disconnectFromHost()` — `lan_server.cpp` — 2026-06-03
 
@@ -1227,6 +1232,17 @@ START → read_context → generate_patch → apply_patch → compile
 - [x] **test_blhm_rab0l** — 38 PASS: Rab0lCanvas (12), BLHM Engine C (14), UI BLHM/RAB₀-L (12) — 2026-06-03
 - [x] **test_gns3_mcp** — 18 PASS, 2 SKIP (GNS3 non avviato): costruzione (8), server mock (2 skip), azioni/combo (8) — 2026-06-03
 - [x] **test_multi_agente_live** — 13 test: CAT-A costruzione (5), CAT-B decomposizione JSON (2, Ollama), CAT-C esecuzione SubTask (3, Ollama), CAT-D GraphMemory persistenza (4, Ollama) — TIMEOUT 300s — 2026-06-03
+
+### 🐛 Bug noti nei test esistenti
+
+- [ ] **MultiAgenteLive CAT-C: nodi "result" non salvati in GraphMemory** — 2026-06-17
+  - `nodoResultInGraphMemory` (C-2): dopo esecuzione di un SubTask, il nodo tipo `"result"` non viene
+    aggiunto in GraphMemory. `allNodes("result").count()` rimane invariato anche dopo 60 s di polling.
+  - `nodoResultContenutoNonVuoto` (C-3): i nodi result esistenti hanno `content` vuoto.
+  - I SubTask vengono eseguiti correttamente (C-1 PASS: risultato `'4'` trovato), ma il salvataggio
+    in GraphMemory fallisce. Cercare in `agenti_multi_page.cpp` il punto in cui `runTask()` chiama
+    `m_gm->addNode("result", ...)` e verificare che il `nodeId` sia valido e la transazione SQL vada
+    a buon fine (possibile race condition o connessione DB chiusa prematuramente).
 
 ---
 

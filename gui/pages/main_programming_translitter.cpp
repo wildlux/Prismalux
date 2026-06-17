@@ -166,7 +166,7 @@ QWidget* ProgrammazionePage::buildTrSplitter(QWidget* parent)
 
     m_trInput = new QPlainTextEdit(srcGroup);
     m_trInput->setFont(monoFont);
-    m_trInput->setObjectName("codeEditor");
+    m_trInput->setObjectName("trCodeEditor");
     m_trInput->setPlaceholderText(
         "Incolla qui il codice da tradurre...\n\n"
         "Esempio C:\n"

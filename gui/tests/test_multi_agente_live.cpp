@@ -183,9 +183,9 @@ private slots:
     {
         if (m_skip) QSKIP("Ollama non disponibile");
 
-        auto* page = new AgentiMultiPage(nullptr);  /* crea con ai interno */
-        auto* ai = new AiClient(page);              /* parent = page → gestione automatica */
+        auto* ai = new AiClient;
         ai->setBackend(AiClient::Ollama, "127.0.0.1", 11434, testModel());
+        auto* page = new AgentiMultiPage(ai);
         page->show();
         QApplication::processEvents(QEventLoop::AllEvents, 200);
 
@@ -222,8 +222,7 @@ private slots:
         elapsed.start();
         while (taskList->count() <= initialCount &&
                elapsed.elapsed() < kDecompTimeoutMs) {
-            QTest::qWait(kPollIntervalMs);
-            QApplication::processEvents();
+            { QEventLoop _l; QTimer::singleShot(kPollIntervalMs, &_l, &QEventLoop::quit); _l.exec(); }
         }
 
         const int finalCount = taskList->count();
@@ -277,8 +276,7 @@ private slots:
         elapsed.start();
         while (page->graphMemory()->nodeCount() <= nodesBefore &&
                elapsed.elapsed() < kDecompTimeoutMs) {
-            QTest::qWait(kPollIntervalMs);
-            QApplication::processEvents();
+            { QEventLoop _l; QTimer::singleShot(kPollIntervalMs, &_l, &QEventLoop::quit); _l.exec(); }
         }
 
         const int nodesAfter = page->graphMemory()->nodeCount();
@@ -347,8 +345,7 @@ private slots:
         elapsed.start();
         bool hasResult = false;
         while (!hasResult && elapsed.elapsed() < kExecTimeoutMs) {
-            QTest::qWait(kPollIntervalMs);
-            QApplication::processEvents();
+            { QEventLoop _l; QTimer::singleShot(kPollIntervalMs, &_l, &QEventLoop::quit); _l.exec(); }
             const auto nodes = page->graphMemory()->allNodes("result");
             if (!nodes.isEmpty()) {
                 hasResult = true;
@@ -426,8 +423,7 @@ private slots:
         int resultNodesAfter = resultNodesBefore;
         while (resultNodesAfter <= resultNodesBefore &&
                elapsed.elapsed() < kExecTimeoutMs) {
-            QTest::qWait(kPollIntervalMs);
-            QApplication::processEvents();
+            { QEventLoop _l; QTimer::singleShot(kPollIntervalMs, &_l, &QEventLoop::quit); _l.exec(); }
             resultNodesAfter = page->graphMemory()->allNodes("result").size();
         }
 
@@ -476,8 +472,7 @@ private slots:
         elapsed.start();
         QVector<GmNode> resultNodes;
         while (resultNodes.isEmpty() && elapsed.elapsed() < kExecTimeoutMs) {
-            QTest::qWait(kPollIntervalMs);
-            QApplication::processEvents();
+            { QEventLoop _l; QTimer::singleShot(kPollIntervalMs, &_l, &QEventLoop::quit); _l.exec(); }
             resultNodes = page->graphMemory()->allNodes("result");
         }
 
@@ -555,8 +550,7 @@ private slots:
         elapsed.start();
         while (page->graphMemory()->nodeCount() == 0 &&
                elapsed.elapsed() < kExecTimeoutMs) {
-            QTest::qWait(kPollIntervalMs);
-            QApplication::processEvents();
+            { QEventLoop _l; QTimer::singleShot(kPollIntervalMs, &_l, &QEventLoop::quit); _l.exec(); }
         }
 
         const int nodeCount = page->graphMemory()->nodeCount();
@@ -601,8 +595,7 @@ private slots:
         elapsed.start();
         while (page->graphMemory()->nodeCount() == 0 &&
                elapsed.elapsed() < kExecTimeoutMs) {
-            QTest::qWait(kPollIntervalMs);
-            QApplication::processEvents();
+            { QEventLoop _l; QTimer::singleShot(kPollIntervalMs, &_l, &QEventLoop::quit); _l.exec(); }
         }
 
         const auto nodes = page->graphMemory()->allNodes();
@@ -657,8 +650,7 @@ private slots:
         elapsed.start();
         while (page->graphMemory()->nodeCount() == 0 &&
                elapsed.elapsed() < kExecTimeoutMs) {
-            QTest::qWait(kPollIntervalMs);
-            QApplication::processEvents();
+            { QEventLoop _l; QTimer::singleShot(kPollIntervalMs, &_l, &QEventLoop::quit); _l.exec(); }
         }
 
         if (page->graphMemory()->nodeCount() == 0) {
@@ -708,8 +700,7 @@ private slots:
         elapsed.start();
         while (page->graphMemory()->nodeCount() == 0 &&
                elapsed.elapsed() < kExecTimeoutMs) {
-            QTest::qWait(kPollIntervalMs);
-            QApplication::processEvents();
+            { QEventLoop _l; QTimer::singleShot(kPollIntervalMs, &_l, &QEventLoop::quit); _l.exec(); }
         }
 
         if (page->graphMemory()->nodeCount() == 0) {

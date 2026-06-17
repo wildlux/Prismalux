@@ -213,10 +213,10 @@ private slots:
         QVERIFY2(found, "QComboBox destinazione linguaggio Translitter non trovata");
     }
 
-    /* B-8: il QPlainTextEdit di input esiste con objectName "codeEditor" */
+    /* B-8: il QPlainTextEdit di input esiste con objectName "trCodeEditor" */
     void trInputEsiste() {
-        const auto editors = m_page->findChildren<QPlainTextEdit*>("codeEditor");
-        QVERIFY2(!editors.isEmpty(), "QPlainTextEdit codeEditor non trovato in Translitter");
+        const auto editors = m_page->findChildren<QPlainTextEdit*>("trCodeEditor");
+        QVERIFY2(!editors.isEmpty(), "QPlainTextEdit trCodeEditor non trovato in Translitter");
     }
 
     /* B-9: il pulsante Traduci esiste */
