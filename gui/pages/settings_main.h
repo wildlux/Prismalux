@@ -13,6 +13,7 @@
 #include "../hardware_monitor.h"
 #include "../monitor_panel.h"
 #include "../rag_engine.h"
+#include "../widgets/zoomable_image_view.h"
 #ifdef HAVE_QT_MULTIMEDIA
 #  include <QAudioSource>
 #  include <QAudioFormat>
@@ -338,7 +339,7 @@ private:
 
     /* ── buildBenchmarkLocaleTab member state ── */
     QProcess*       m_benchmarkProc         = nullptr;
-    QLabel*         m_benchmarkImgLbl       = nullptr;
+    ZoomableImageView* m_benchmarkImgLbl    = nullptr;
     QPushButton*    m_benchmarkRunBtn       = nullptr;
     QLabel*         m_benchmarkStatusLbl    = nullptr;
 

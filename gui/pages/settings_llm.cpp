@@ -2077,24 +2077,18 @@ QWidget* ImpostazioniPage::buildBenchmarkLocaleTab()
     }
     mainLay->addWidget(table);
 
-    /* ── Grafico benchmark_combined.png ── */
+    /* ── Grafico benchmark_combined.png (zoom+pan interattivo) ── */
     const QString imgPath = P::root() + "/benchmark_out/benchmark_combined.png";
-    auto* imgLbl = new QLabel(page);
-    m_benchmarkImgLbl = imgLbl;
-    imgLbl->setAlignment(Qt::AlignCenter);
-    imgLbl->setMinimumHeight(dpiScale(180));
-    imgLbl->setStyleSheet("background:#0f172a;border-radius:8px;");
-    auto refreshImg = [imgLbl, imgPath]() {
+    auto* imgView = new ZoomableImageView(page);
+    imgView->setMinimumHeight(dpiScale(280));
+    imgView->setToolTip("Rotella: zoom \xe2\x80\xa2 Trascina: pan \xe2\x80\xa2 Doppio click: reset");
+    m_benchmarkImgLbl = imgView;
+    auto refreshImg = [imgView, imgPath]() {
         QPixmap px(imgPath);
-        if (!px.isNull())
-            imgLbl->setPixmap(px.scaledToWidth(
-                qMin(px.width(), 900), Qt::SmoothTransformation));
-        else
-            imgLbl->setText("<span style='color:#475569;'>Grafico non disponibile — esegui il benchmark.</span>");
-        imgLbl->setTextFormat(Qt::RichText);
+        imgView->setPixmap(px);   /* ZoomableImageView gestisce il caso px.isNull() */
     };
     refreshImg();
-    mainLay->addWidget(imgLbl, 1);
+    mainLay->addWidget(imgView, 1);
 
     /* ── Barra azioni: riesegui + stato ── */
     auto* actRow = new QWidget(page);
@@ -2171,13 +2165,8 @@ void ImpostazioniPage::onBenchmarkProcFinished(int code, QProcess::ExitStatus)
             ? "<span style='color:#4ade80;'>\xe2\x9c\x85 Benchmark completato — grafico aggiornato.</span>"
             : "<span style='color:#f87171;'>\xe2\x9d\x8c Benchmark terminato con errore.</span>");
     /* aggiorna immagine */
-    if (ok && m_benchmarkImgLbl) {
-        const QString imgPath = P::root() + "/benchmark_out/benchmark_combined.png";
-        QPixmap px(imgPath);
-        if (!px.isNull())
-            m_benchmarkImgLbl->setPixmap(px.scaledToWidth(
-                qMin(px.width(), 900), Qt::SmoothTransformation));
-    }
+    if (ok && m_benchmarkImgLbl)
+        m_benchmarkImgLbl->setPixmap(QPixmap(P::root() + "/benchmark_out/benchmark_combined.png"));
     m_benchmarkProc->deleteLater();
     m_benchmarkProc = nullptr;
 }
