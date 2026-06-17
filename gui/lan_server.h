@@ -136,6 +136,9 @@ private:
     void handleFileApi(Session& s);
     void handleReplApi(Session& s);
     void handleFinanzaCf(Session& s);
+    void handleFinanzaTfr(const Session& s);
+    void handleGitApi(const Session& s);
+    void handleWikiApi(const Session& s);
     void handleGraphApi(Session& s);
     void sendJson(QTcpSocket* sock, const QByteArray& json);
     void sendStreamLine(const QByteArray& json);

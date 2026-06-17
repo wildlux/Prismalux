@@ -3422,6 +3422,17 @@ QWidget* MatematicaPage::buildAnalisi1Tab()
         "e avvia il calcolo SymPy passo per passo.");
     connect(btnTry, &QPushButton::clicked, this, &MatematicaPage::onA1TryClicked);
     tryRow->addWidget(btnTry);
+
+    auto* btnQuickPlot1 = new QPushButton(
+        "\xf0\x9f\x93\x88  Disegna grafico", w);
+    btnQuickPlot1->setObjectName("actionBtn");
+    btnQuickPlot1->setToolTip(tr("Copia l'espressione nel campo Grafico e traccia subito"));
+    connect(btnQuickPlot1, &QPushButton::clicked, this, [this]() {
+        if (m_a1Input && m_a1PlotInput)
+            m_a1PlotInput->setText(m_a1Input->text());
+        onA1PlotClicked();
+    });
+    tryRow->addWidget(btnQuickPlot1);
     lay->addLayout(tryRow);
 
     /* ─── Riga Grafico ─── */
@@ -3520,6 +3531,17 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
         "e avvia il calcolo SymPy passo per passo.");
     connect(btnTry, &QPushButton::clicked, this, &MatematicaPage::onA2TryClicked);
     tryRow->addWidget(btnTry);
+
+    auto* btnQuickPlot = new QPushButton(
+        "\xf0\x9f\x93\x88  Disegna grafico", w);
+    btnQuickPlot->setObjectName("actionBtn");
+    btnQuickPlot->setToolTip(tr("Copia l'espressione nel campo Grafico e traccia subito"));
+    connect(btnQuickPlot, &QPushButton::clicked, this, [this]() {
+        if (m_a2Input && m_a2PlotInput)
+            m_a2PlotInput->setText(m_a2Input->text());
+        onA2PlotClicked();
+    });
+    tryRow->addWidget(btnQuickPlot);
     lay->addLayout(tryRow);
 
     /* ─── Riga Grafico ─── */

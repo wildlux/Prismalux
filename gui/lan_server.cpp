@@ -724,6 +724,14 @@ void LanServer::processSession(Session& s)
         handleReplApi(s);
     } else if (s.path == "/api/finanza/cf" && s.method == "POST") {
         handleFinanzaCf(s);
+    } else if (s.path == "/api/finanza/tfr" && s.method == "POST") {
+        handleFinanzaTfr(s);
+    } else if (s.path == "/api/git" && s.method == "POST") {
+        if (checkHeavyRateLimit(s)) return;
+        handleGitApi(s);
+    } else if (s.path == "/api/wiki" && s.method == "GET") {
+        if (checkHeavyRateLimit(s)) return;
+        handleWikiApi(s);
     } else if (s.path.startsWith("/api/graph") && s.method == "GET") {
         handleGraphApi(s);
     } else if (s.path == "/api/launch" && s.method == "POST") {
@@ -1469,6 +1477,7 @@ void LanServer::handleWebChat(Session& s)
     QByteArray html = f.readAll();
     html.replace("{{MODEL}}", model);
     html.replace("{{AUTH_HEADERS_JS}}", authHeadersJs);
+    html.replace("{{TOKEN_VAL}}", m_accessToken.toUtf8());
 
     QByteArray resp = httpOkHeader("text/html; charset=utf-8");
     resp += "Cache-Control: no-cache, no-store, must-revalidate\r\n";
@@ -1479,10 +1488,15 @@ void LanServer::handleWebChat(Session& s)
     resp += "Content-Security-Policy: default-src 'self'; "
             "script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'\r\n";
-    resp += "Content-Length: " + QByteArray::number(html.size()) + "\r\n\r\n";
-    resp += html;
+    resp += "Connection: close\r\n";
+    resp += "\r\n";
     s.socket->write(resp);
-    s.socket->flush();
+    s.socket->write(html);
+    while (s.socket->bytesToWrite() > 0
+           && s.socket->state() == QAbstractSocket::ConnectedState)
+        s.socket->waitForBytesWritten(5000);
+    s.socket->disconnectFromHost();
+    s.socket->waitForDisconnected(5000);
 }
 
 
@@ -1519,10 +1533,15 @@ void LanServer::handleIndex(Session& s)
     html.replace("{{APK_SECTION}}", apkSection);
 
     QByteArray resp = httpOkHeader("text/html; charset=utf-8");
-    resp += "Content-Length: " + QByteArray::number(html.size()) + "\r\n\r\n";
-    resp += html;
+    resp += "Connection: close\r\n";
+    resp += "\r\n";
     s.socket->write(resp);
-    s.socket->flush();
+    s.socket->write(html);
+    while (s.socket->bytesToWrite() > 0
+           && s.socket->state() == QAbstractSocket::ConnectedState)
+        s.socket->waitForBytesWritten(5000);
+    s.socket->disconnectFromHost();
+    s.socket->waitForDisconnected(5000);
 }
 
 /* ── /apk — serve il file APK Android ───────────────────────────────────── */
@@ -2117,10 +2136,15 @@ void LanServer::handleKatex(Session& s)
 
     QByteArray resp = httpOkHeader(mime);
     resp += "Cache-Control: max-age=86400\r\n";
-    resp += "Content-Length: " + QByteArray::number(data.size()) + "\r\n\r\n";
-    resp += data;
+    resp += "Connection: close\r\n";
+    resp += "\r\n";
     s.socket->write(resp);
-    s.socket->flush();
+    s.socket->write(data);
+    while (s.socket->bytesToWrite() > 0
+           && s.socket->state() == QAbstractSocket::ConnectedState)
+        s.socket->waitForBytesWritten(5000);
+    s.socket->disconnectFromHost();
+    s.socket->waitForDisconnected(5000);
 }
 
 /* ── /api/file — estrai testo da PDF/DOCX/TXT/CSV/codice ────────────────── */
@@ -2412,10 +2436,15 @@ void LanServer::handleBootstrap(Session& s)
 
     QByteArray resp = httpOkHeader(mime);
     resp += "Cache-Control: max-age=86400\r\n";
-    resp += "Content-Length: " + QByteArray::number(data.size()) + "\r\n\r\n";
-    resp += data;
+    resp += "Connection: close\r\n";
+    resp += "\r\n";
     s.socket->write(resp);
-    s.socket->flush();
+    s.socket->write(data);
+    while (s.socket->bytesToWrite() > 0
+           && s.socket->state() == QAbstractSocket::ConnectedState)
+        s.socket->waitForBytesWritten(5000);
+    s.socket->disconnectFromHost();
+    s.socket->waitForDisconnected(5000);
 }
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
@@ -2640,4 +2669,160 @@ void LanServer::handleSync(const Session& s)
     } else {
         sendError(s.socket, 405, "Method Not Allowed");
     }
+}
+
+/* ── /api/finanza/tfr — calcolo TFR (art. 2120 c.c.) ──────────────────────
+   POST  { stipendio_annuo: float, anni: int, inflazione: float,
+           fondo_pensione: bool }
+   ─────────────────────────────────────────────────────────────────────────── */
+void LanServer::handleFinanzaTfr(const Session& s)
+{
+    const QJsonObject req = QJsonDocument::fromJson(s.body).object();
+
+    const double stipendio    = req["stipendio_annuo"].toDouble();
+    const int    anni         = qMax(1, req["anni"].toInt());
+    const double inflazione   = req["inflazione"].toDouble(2.0);
+    const bool   fondoPension = req["fondo_pensione"].toBool(false);
+
+    if (stipendio <= 0) {
+        sendError(s.socket, 400, "stipendio_annuo deve essere positivo");
+        return;
+    }
+    if (anni > 50) {
+        sendError(s.socket, 400, "anni troppo elevati (max 50)");
+        return;
+    }
+
+    const double quotaAnnua  = stipendio / 13.5;
+    const double tassoRival  = 0.015 + 0.75 * (inflazione / 100.0);
+    double fondo = 0.0;
+
+    for (int yr = 1; yr <= anni; ++yr) {
+        fondo += quotaAnnua;
+        fondo *= (1.0 + tassoRival);
+    }
+
+    const double tfrSemplice = quotaAnnua * anni;
+    const double plusvalenza = fondo - tfrSemplice;
+    const double netto       = fondoPension ? fondo * 0.88 : fondo * 0.77;
+    const QString fiscalita  = fondoPension
+        ? "Fondo Pensione: imposta sostitutiva 15% (riduzione 0,3%/anno oltre il 15°, min 9%)"
+        : "In azienda: tassazione separata art. 17 TUIR, aliquota stimata 23%";
+
+    QJsonObject resp;
+    resp["quota_annua"]     = qRound(quotaAnnua * 100.0) / 100.0;
+    resp["tasso_rival_pct"] = qRound(tassoRival * 10000.0) / 100.0;
+    resp["tfr_semplice"]    = qRound(tfrSemplice * 100.0) / 100.0;
+    resp["tfr_rivalutato"]  = qRound(fondo * 100.0) / 100.0;
+    resp["plusvalenza"]     = qRound(plusvalenza * 100.0) / 100.0;
+    resp["netto_stimato"]   = qRound(netto * 100.0) / 100.0;
+    resp["fiscalita"]       = fiscalita;
+    resp["anni"]            = anni;
+    resp["stipendio_annuo"] = stipendio;
+    sendJson(s.socket, QJsonDocument(resp).toJson(QJsonDocument::Compact));
+}
+
+/* ── /api/git — esegui sottocomandi git nella cartella progetto ─────────────
+   POST  { cmd: "status"|"log"|"diff"|"diff-staged"|"branch" }
+   ─────────────────────────────────────────────────────────────────────────── */
+void LanServer::handleGitApi(const Session& s)
+{
+    const QJsonObject req = QJsonDocument::fromJson(s.body).object();
+    const QString cmd = req["cmd"].toString().trimmed().toLower();
+
+    /* Allowlist di sottocomandi sicuri (sola lettura) */
+    static const QMap<QString, QStringList> kAllowed = {
+        {"status",      {"status", "--short"}},
+        {"log",         {"log", "--oneline", "-30", "--decorate"}},
+        {"diff",        {"diff"}},
+        {"diff-staged", {"diff", "--cached"}},
+        {"branch",      {"branch", "-a"}},
+    };
+
+    if (!kAllowed.contains(cmd)) {
+        sendError(s.socket, 400, "cmd non consentito. Usa: status, log, diff, diff-staged, branch");
+        return;
+    }
+
+    const QStringList args = kAllowed[cmd];
+    QProcess proc;
+    proc.setWorkingDirectory(P::root());
+    proc.setProcessChannelMode(QProcess::MergedChannels);
+    proc.start("git", args);
+    if (!proc.waitForStarted(3000)) {
+        sendError(s.socket, 500, "git non trovato sul server");
+        return;
+    }
+    proc.waitForFinished(10000);
+
+    const QString output = QString::fromUtf8(proc.readAll()).trimmed();
+    QJsonObject resp;
+    resp["cmd"]    = "git " + args.join(" ");
+    resp["output"] = output.isEmpty() ? "(nessun output)" : output;
+    resp["exit"]   = proc.exitCode();
+    sendJson(s.socket, QJsonDocument(resp).toJson(QJsonDocument::Compact));
+}
+
+/* ── /api/wiki — riepilogo Wikipedia via REST API ───────────────────────────
+   GET   /api/wiki?q=QUERY&lang=it
+   ─────────────────────────────────────────────────────────────────────────── */
+void LanServer::handleWikiApi(const Session& s)
+{
+    /* Estrai q e lang dalla querystring */
+    QString q, lang = "it";
+    for (const QString& part : s.queryString.split('&')) {
+        if (part.startsWith("q="))
+            q = QUrl::fromPercentEncoding(part.mid(2).toUtf8()).replace('+', ' ');
+        else if (part.startsWith("lang="))
+            lang = part.mid(5).toLower();
+    }
+
+    q = q.trimmed();
+    if (q.isEmpty()) {
+        sendError(s.socket, 400, "parametro q mancante");
+        return;
+    }
+
+    /* Sanifica: solo it/en/fr/de/es/pt/ja/zh */
+    static const QStringList kLangs = {"it","en","fr","de","es","pt","ja","zh","ar","ru"};
+    if (!kLangs.contains(lang)) lang = "it";
+
+    /* Sanitizza titolo per URL: sostituisce spazi con _ */
+    const QString title = QString(q).replace(' ', '_');
+    const QString url   = QString("https://%1.wikipedia.org/api/rest_v1/page/summary/%2")
+                          .arg(lang, QString(QUrl::toPercentEncoding(title)));
+
+    /* Chiama curl con timeout 8s */
+    QProcess proc;
+    proc.setProcessChannelMode(QProcess::SeparateChannels);
+    proc.start("curl", QStringList{
+        "-s", "--max-time", "8",
+        "-H", "User-Agent: Prismalux/2.9 (Qt6; Linux)",
+        url
+    });
+    if (!proc.waitForStarted(3000)) {
+        sendError(s.socket, 500, "curl non disponibile");
+        return;
+    }
+    proc.waitForFinished(10000);
+
+    const QByteArray raw = proc.readAllStandardOutput();
+    const QJsonObject wiki = QJsonDocument::fromJson(raw).object();
+
+    if (wiki.contains("type") && wiki["type"].toString() == "https://mediawiki.org/wiki/HyperSwitch/errors/not_found") {
+        QJsonObject err;
+        err["error"] = "Voce non trovata su Wikipedia (" + lang + "): " + q;
+        sendJson(s.socket, QJsonDocument(err).toJson(QJsonDocument::Compact));
+        return;
+    }
+
+    QJsonObject resp;
+    resp["title"]       = wiki["title"].toString();
+    resp["extract"]     = wiki["extract"].toString();
+    resp["description"] = wiki["description"].toString();
+    resp["url"]         = wiki.value("content_urls").toObject()
+                              .value("desktop").toObject()
+                              .value("page").toString();
+    resp["lang"]        = lang;
+    sendJson(s.socket, QJsonDocument(resp).toJson(QJsonDocument::Compact));
 }

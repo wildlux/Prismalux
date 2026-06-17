@@ -490,8 +490,11 @@ void LanWanPage::onLanToggleBtnToggled(bool on)
 void LanWanPage::onLanWebBtnClicked()
 {
     if (!m_lanServer || !m_lanServer->isRunning()) return;
-    const QString url = QString("%1://%2:%3/web")
-                            .arg(serverScheme()).arg(localLanIp()).arg(m_lanServer->port());
+    QString url = QString("%1://%2:%3/web")
+                      .arg(serverScheme()).arg(localLanIp()).arg(m_lanServer->port());
+    const QString token = m_lanTokenEdit ? m_lanTokenEdit->text().trimmed() : QString();
+    if (!token.isEmpty())
+        url += "?token=" + QString::fromLatin1(QUrl::toPercentEncoding(token));
     QDesktopServices::openUrl(QUrl(url));
 }
 

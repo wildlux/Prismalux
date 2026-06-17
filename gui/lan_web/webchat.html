@@ -59,7 +59,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 .ai-details{font-size:11px;color:var(--dim);padding:2px 14px;align-self:flex-start;max-width:82%}
 #tabbar{display:flex;background:var(--hdr);border-bottom:1px solid var(--brd);flex-shrink:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 #tabbar::-webkit-scrollbar{display:none}
-.tab{flex:0 0 auto;white-space:nowrap;padding:10px 14px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--dim);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tab{flex:0 0 auto;white-space:nowrap;padding:7px 9px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--dim);font-size:11.5px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .tab.on{color:var(--acc);border-bottom-color:var(--acc);font-weight:600}
 #tab-chat{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 #tab-apps,#tab-sys{flex:1;min-height:0;overflow-y:auto;padding:16px;display:none;box-sizing:border-box}
@@ -170,7 +170,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 <div id="drw-bd"></div>
 <div id="drw"><div id="drw-hdr"><h2>&#9776; Menu</h2><button id="cls" aria-label="Chiudi">&#10005;</button></div><div class="dsec"><h3>Modello</h3><select id="mdl-sel" class="form-select form-select-sm" aria-label="Seleziona modello AI"><option>Caricamento...</option></select></div><div class="dsec"><h3>Personalit&#224;</h3><button class="pbtn" data-p="nessuna" data-sys="">&#x1F6AB; Nessuna</button><button class="pbtn" data-p="jarvis" data-sys="Rispondi come JARVIS, l'AI di Tony Stark: professionale, preciso, con sottile ironia britannica. Chiama l'utente 'signore'.">&#x1F916; Jarvis</button><button class="pbtn" data-p="kitt" data-sys="Rispondi come KITT, il sistema di bordo di Knight Rider: sofisticato, calmo, formale, con occasionali riferimenti alla guida e alla sicurezza stradale.">&#x1F697; KITT</button><button class="pbtn" data-p="yoda" data-sys="Rispondi come Yoda di Star Wars. Sintassi invertita (complemento-soggetto-verbo). Breve, saggio, sereno.">&#x1F33F; Yoda</button><button class="pbtn" data-p="snake" data-sys="Rispondi come Solid Snake di Metal Gear Solid: diretto, tattico, cinismo controllato, frasi brevi e incisive.">&#x1F3AE; Snake</button><button class="pbtn" data-p="sonic" data-sys="Rispondi come Sonic the Hedgehog: rapido, energico, spiritoso, leggermente impaziente con le cose lente.">&#x1F4A8; Sonic</button><button class="pbtn" data-p="mario" data-sys="Rispondi come Super Mario: entusiasta, positivo, usa esclamazioni come 'Wahoo!' e 'Mamma mia!', sempre incoraggiante.">&#x1F344; Mario</button></div><div class="dsec"><h3>Strumenti</h3><button class="tbtn" data-t="nessuno" data-sys="">&#x1F4AC; Nessuno</button><button class="tbtn" data-t="scrittura" data-sys="Sei un esperto di scrittura e comunicazione. Aiuta l'utente a scrivere testi chiari, coinvolgenti e grammaticalmente corretti. Proponi miglioramenti stilistici quando utile.">&#x270D; Scrittura</button><button class="tbtn" data-t="programmazione" data-sys="Sei un esperto programmatore. Fornisci codice corretto, sicuro e idiomatico. Spiega le scelte tecniche, segnala bug e vulnerabilit&#224;, suggerisci refactoring quando opportuno.">&#x1F4BB; Programmazione</button><button class="tbtn" data-t="matematica" data-sys="Sei un esperto di matematica e statistica. Risolvi problemi passo per passo, mostra i calcoli intermedi e spiega i concetti in modo rigoroso ma accessibile.">&#x03C0; Matematica</button><button class="tbtn" data-t="ricerca" data-sys="Sei un assistente di ricerca accademica. Analizza fonti, individua metodologie, sintetizza concetti complessi e aiuta a strutturare argomenti in modo rigoroso e citabile.">&#x1F52C; Ricerca</button><button class="tbtn" data-t="impara" data-sys="Sei un tutor paziente e motivante. Adatta il livello di spiegazione all'utente, usa esempi concreti, poni domande di verifica e incoraggia la curiosit&#224; intellettuale.">&#x1F4DA; Impara</button><button class="tbtn" data-t="lavoro" data-sys="Sei un career coach esperto. Aiuta con CV, lettere di presentazione, preparazione colloqui, analisi offerte di lavoro e strategie di ricerca dell'impiego.">&#x1F4BC; Cerca Lavoro</button></div><div class="dsec"><h3>Tema</h3><select id="tsel" class="form-select form-select-sm" aria-label="Seleziona tema visivo"><optgroup label="─ Dark"><option value="dark">&#x1F311; Dark</option><option value="dark_classic">🔵 Classic Blue</option><option value="dark_amber">🟡 Amber</option><option value="dark_cyan">🔷 Cyan</option><option value="dark_green">🟢 Green</option><option value="dark_lavender">💜 Lavender</option><option value="dark_ocean">🌊 Ocean</option><option value="dark_purple">🟣 Purple</option><option value="dark_sunset">🌅 Sunset</option><option value="dark_rainbow">🌈 Rainbow</option></optgroup><optgroup label="─ Speciali"><option value="dracula">🧛 Dracula</option><option value="nord">❄ Nord</option><option value="hacker">💀 Hacker</option><option value="military">🪖 Military</option><option value="neon">✨ Neon</option><option value="pink">🌸 Pink</option><option value="solar">☀ Solar</option></optgroup><optgroup label="─ Venom"><option value="venom_blue">⚡ Venom Blue</option><option value="venom_red">🔴 Venom Red</option><option value="venom_orange">🟠 Venom Orange</option><option value="venom_green">🟩 Venom Green</option></optgroup><optgroup label="─ Light"><option value="light">☀ Chiaro</option><option value="light_mint">🌿 Mint</option><option value="light_rose">🌹 Rose</option><option value="light_sky">🌤 Sky</option><option value="light_sand">🏖 Sand</option></optgroup></select></div><div class="dsec"><h3>&#128190; Sessioni Chat</h3><div id="ses-list"></div><div id="ses-act"><button class="ses-btn" id="ses-new">&#x1F5D1; Nuova chat</button><button class="ses-btn" id="ses-save">✏ Salva</button><button class="ses-btn" id="ses-exp">⬇ Esporta</button></div></div></div>
 <div id="hdr"><button id="ham">&#9776;</button><span style="font-size:22px">&#127866;</span><h1>Prismalux</h1><span id="mdlBadge" class="mdl">{{MODEL}}</span></div>
-<div id="tabbar"><button class="tab on" data-tab="chat">&#x1F4AC; Chat</button><button class="tab" data-tab="apps">&#x1F680; App</button><button class="tab" data-tab="sys">&#x1F4CA; Sistema</button><button class="tab" data-tab="mat">π Matematica</button><button class="tab" data-tab="age">🤖 Agenti</button><button class="tab" data-tab="imp">📚 Impara</button><button class="tab" data-tab="mul">🎬 Multimedia</button><button class="tab" data-tab="rag">📚 RAG</button><button class="tab" data-tab="cod">💻 Coding</button><button class="tab" data-tab="gvz">🗺 Graphviz</button><button class="tab" data-tab="wsp">🎙 Voce</button><button class="tab" data-tab="lav">💼 Lavoro</button><button class="tab" data-tab="fil">📁 File AI</button><button class="tab" data-tab="fin">💰 Finanza</button><button class="tab" data-tab="grf">🕸 Grafo</button></div>
+<div id="tabbar"><button class="tab on" data-tab="chat">&#x1F4AC; Chat</button><button class="tab" data-tab="apps">&#x1F680; App</button><button class="tab" data-tab="sys">&#x1F4CA; Sistema</button><button class="tab" data-tab="mat">π Matematica</button><button class="tab" data-tab="age">🤖 Agenti</button><button class="tab" data-tab="imp">📚 Impara</button><button class="tab" data-tab="mul">🎬 Multimedia</button><button class="tab" data-tab="rag">📚 RAG</button><button class="tab" data-tab="cod">💻 Coding</button><button class="tab" data-tab="gvz">🗺 Graphviz</button><button class="tab" data-tab="wsp">🎙 Voce</button><button class="tab" data-tab="lav">💼 Lavoro</button><button class="tab" data-tab="fil">📁 File AI</button><button class="tab" data-tab="fin">💰 Finanza</button><button class="tab" data-tab="grf">🕸 Grafo</button><button class="tab" data-tab="repl">🐍 REPL</button><button class="tab" data-tab="knw">📖 Knowledge</button><button class="tab" data-tab="tfr">📊 TFR</button><button class="tab" data-tab="git">🌿 Git</button><button class="tab" data-tab="wik">📰 Wiki</button></div>
 <div id="tab-chat"><div id="tool-ind"></div><div id="lavoro-panel"><div id="lav-filters"><select id="lav-tipo" aria-label="Settore lavorativo"><option value="tutti">Tutti i settori</option><option value="IT">IT / Informatica</option><option value="Retail">Retail</option><option value="Ristorazione">Ristorazione</option><option value="Edilizia">Edilizia</option><option value="Logistica">Logistica</option><option value="Finanza">Finanza</option><option value="Sanitario">Sanitario</option><option value="Produzione">Produzione</option><option value="Tecnico">Tecnico</option><option value="Turismo">Turismo</option><option value="Admin">Admin</option><option value="Commerciale">Commerciale</option><option value="Altro">Altro</option></select><select id="lav-liv" aria-label="Livello istruzione"><option value="tutti">Qualsiasi livello</option><option value="media">Media</option><option value="diploma" selected>Diploma</option><option value="laurea_t">Laurea triennale</option><option value="laurea_m">Laurea magistrale</option></select><button id="lav-search">&#x1F50D; Cerca</button><button id="lav-cv-btn">&#x1F4C4; CV</button></div><div id="lav-list"><div id="lav-empty">Premi Cerca per caricare le offerte</div></div></div><div id="log"></div><div id="bar"><input type="file" id="att-in" style="display:none"><div id="bar-mid"><div id="att-tag"><span id="att-name"></span><button id="att-clr">&#10005;</button></div><div id="tool-extra"></div><textarea id="txt" class="form-control" rows="3" placeholder="Scrivi un messaggio..."></textarea></div><div id="bar-right"><div id="bar-tools"><button id="att-btn">&#x1F4CE;</button><button id="mic-btn">&#x1F3A4;</button></div><button id="snd">Invia</button></div></div></div>
 <div id="tab-apps"><div class="sec-hd">&#x1F579; App Controller</div><div class="app-grid"><button class="app-btn" data-cmd="blender"><span>&#x1F3A8;</span><span>Blender</span><span class="app-st"></span></button><button class="app-btn" data-cmd="freecad"><span>&#x2699;&#xFE0F;</span><span>FreeCAD</span><span class="app-st"></span></button><button class="app-btn" data-cmd="libreoffice"><span>&#x1F4C4;</span><span>LibreOffice</span><span class="app-st"></span></button><button class="app-btn" data-cmd="cloudcompare"><span>&#x2601;&#xFE0F;</span><span>CloudCmp</span><span class="app-st"></span></button><button class="app-btn" data-cmd="anki"><span>&#x1F0CF;</span><span>Anki</span><span class="app-st"></span></button><button class="app-btn" data-cmd="kicad"><span>&#x1F50C;</span><span>KiCAD</span><span class="app-st"></span></button><button class="app-btn" data-cmd="obs"><span>&#x1F3AC;</span><span>OBS</span><span class="app-st"></span></button><button class="app-btn" data-cmd="opencode"><span>&#x1F916;</span><span>OpenCode</span><span class="app-st"></span></button><button class="app-btn" data-cmd="godot"><span>&#x1F3AE;</span><span>Godot</span><span class="app-st"></span></button><button class="app-btn" data-cmd="tinymcp"><span>&#x1F9E9;</span><span>TinyMCP</span><span class="app-st"></span></button></div><div class="sec-hd">&#x1F58C;&#xFE0F; Grafica &amp; Media</div><div class="app-grid"><button class="app-btn" data-cmd="gimp"><span>&#x1F5BC;&#xFE0F;</span><span>GIMP</span><span class="app-st"></span></button><button class="app-btn" data-cmd="inkscape"><span>&#x270F;&#xFE0F;</span><span>Inkscape</span><span class="app-st"></span></button><button class="app-btn" data-cmd="vlc"><span>&#x1F3B5;</span><span>VLC</span><span class="app-st"></span></button><button class="app-btn" data-cmd="vscode"><span>&#x1F4BB;</span><span>VS Code</span><span class="app-st"></span></button></div><div class="sec-hd">&#x1F5A5;&#xFE0F; Sistema</div><div class="app-grid"><button class="app-btn" data-cmd="firefox"><span>&#x1F98A;</span><span>Firefox</span><span class="app-st"></span></button><button class="app-btn" data-cmd="chromium"><span>&#x1F310;</span><span>Chromium</span><span class="app-st"></span></button><button class="app-btn" data-cmd="nautilus"><span>&#x1F4C1;</span><span>File</span><span class="app-st"></span></button><button class="app-btn" data-cmd="konsole"><span>&#x1F5A5;&#xFE0F;</span><span>Terminale</span><span class="app-st"></span></button></div><div class="sec-hd">&#x1F50C; MCP &#x2014; Controllo Diretto</div><div id="mcp-panel"><div id="mcp-top"><select id="mcp-preset" aria-label="Preset MCP"><option value="8765">&#x1F3A8; Blender (8765)</option><option value="8766">&#x2699;&#xFE0F; FreeCAD (8766)</option><option value="8765">&#x1F50C; KiCAD (8765)</option><option value="9001">&#x1F3AE; Godot (9001)</option><option value="8765">&#x1F916; OpenCode (8765)</option><option value="custom">&#x270F;&#xFE0F; Personalizzato...</option></select><input type="number" id="mcp-port" placeholder="Porta" min="1" max="65535"><button id="mcp-conn">&#x1F517; Connetti</button></div><div id="mcp-tools" style="display:none"><select id="mcp-tool-sel" aria-label="Strumento MCP"><option value="">-- seleziona strumento --</option></select><div class="mcp-desc" id="mcp-desc"></div><textarea id="mcp-params" rows="3" placeholder="{}"></textarea><button id="mcp-run">&#x25B6; Esegui</button><div id="mcp-result"></div></div></div></div>
 <div id="tab-sys">
@@ -234,7 +234,97 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 <div id="grf-nodes" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>
 <div id="grf-dot-out" style="background:var(--aim);border:1px solid var(--brd);border-radius:8px;padding:10px;font-family:monospace;font-size:12px;white-space:pre-wrap;max-height:300px;overflow-y:auto;display:none"></div>
 </div>
+<div id="tab-repl" style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:none;box-sizing:border-box">
+<div class="tab-hd">🐍 Python REPL</div>
+<p style="font-size:13px;color:var(--dim);margin-bottom:10px">Esegui codice Python in sandbox isolata (bwrap + ulimit). Max 16 KB di codice, 15 s di esecuzione.</p>
+<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
+  <span style="font-size:12px;color:var(--dim)">Esempi rapidi:</span>
+  <button class="repl-ex" data-code="import sys,math&#10;print(sys.version)&#10;print('pi =', math.pi)">🔢 Versione</button>
+  <button class="repl-ex" data-code="import sympy as sp&#10;x=sp.Symbol('x')&#10;print(sp.integrate(sp.sin(x),x))">∫ SymPy</button>
+  <button class="repl-ex" data-code="primes=[x for x in range(2,100) if all(x%i for i in range(2,x))]&#10;print(primes)">📋 Primi</button>
+</div>
+<textarea id="repl-code" rows="10" style="width:100%;background:var(--aim);border:1px solid var(--brd);border-radius:8px;color:var(--txt);padding:10px 12px;font-family:monospace;font-size:13px;resize:vertical;margin-bottom:8px" placeholder="# scrivi codice Python...&#10;print('hello world')"></textarea>
+<div style="display:flex;gap:8px;margin-bottom:8px">
+  <button id="repl-run" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:14px;font-weight:700;cursor:pointer">▶ Esegui</button>
+  <button id="repl-clr" style="background:transparent;border:1px solid var(--brd);color:var(--dim);border-radius:8px;padding:9px 16px;font-size:13px;cursor:pointer">🗑 Pulisci</button>
+  <span id="repl-sandbox" style="font-size:11px;color:var(--dim);align-self:center;margin-left:auto"></span>
+</div>
+<div id="repl-status" style="font-size:13px;color:var(--dim);margin-bottom:6px"></div>
+<div id="repl-out" style="background:#0a0d0f;border:1px solid var(--brd);border-radius:8px;padding:12px;font-family:monospace;font-size:13px;white-space:pre-wrap;min-height:80px;max-height:400px;overflow-y:auto;display:none"></div>
+<div id="repl-err" style="background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.3);border-radius:8px;padding:12px;font-family:monospace;font-size:13px;white-space:pre-wrap;color:#f87171;margin-top:6px;display:none"></div>
+</div>
+
+<div id="tab-knw" style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:none;box-sizing:border-box">
+<div class="tab-hd">📖 Knowledge Base</div>
+<p style="font-size:13px;color:var(--dim);margin-bottom:12px">La knowledge base viene iniettata automaticamente nel contesto di ogni chat AI. Max 32 KB per aggiornamento.</p>
+<div style="display:flex;gap:8px;margin-bottom:8px">
+  <button id="knw-load" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">📥 Carica</button>
+  <button id="knw-append" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">➕ Aggiungi</button>
+  <button id="knw-replace" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">♻ Sostituisci</button>
+</div>
+<div id="knw-status" style="font-size:13px;color:var(--dim);margin-bottom:8px"></div>
+<textarea id="knw-txt" rows="16" style="width:100%;background:var(--aim);border:1px solid var(--brd);border-radius:8px;color:var(--txt);padding:10px 12px;font-size:13px;resize:vertical;font-family:monospace" placeholder="La knowledge base è vuota. Premi 'Carica' per leggerla dal server."></textarea>
+<p style="font-size:11px;color:var(--dim);margin-top:6px">💡 <b>Aggiungi</b>: accoda il testo in fondo al file esistente. <b>Sostituisci</b>: sovrascrive l'intero file.</p>
+</div>
+<!-- ── Tab 📊 TFR ── -->
+<div id="tab-tfr" style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:none;box-sizing:border-box">
+<div class="tab-hd">📊 TFR — Trattamento di Fine Rapporto</div>
+<p style="font-size:13px;color:var(--dim);margin-bottom:14px">Calcolo TFR secondo art. 2120 c.c. — logica eseguita dal server Qt.</p>
+<div style="display:flex;flex-direction:column;gap:10px;max-width:480px">
+  <div style="display:flex;gap:8px">
+    <div style="flex:2"><span style="font-size:12px;color:var(--dim);display:block;margin-bottom:3px">Stipendio lordo annuo (€)</span><input id="tfr-stip" type="number" class="form-control" value="30000" min="1"></div>
+    <div style="flex:1"><span style="font-size:12px;color:var(--dim);display:block;margin-bottom:3px">Anni lavorati</span><input id="tfr-anni" type="number" class="form-control" value="10" min="1" max="50"></div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <div style="flex:1"><span style="font-size:12px;color:var(--dim);display:block;margin-bottom:3px">Inflazione annua (%)</span><input id="tfr-infl" type="number" class="form-control" value="2.0" min="0" max="30" step="0.1"></div>
+    <div style="flex:1"><span style="font-size:12px;color:var(--dim);display:block;margin-bottom:3px">Destinazione</span><select id="tfr-dest" class="form-select" aria-label="Destinazione TFR"><option value="false">In azienda</option><option value="true">Fondo Pensione</option></select></div>
+  </div>
+  <button id="tfr-calc" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:11px;font-size:15px;cursor:pointer;font-weight:600">📊 Calcola TFR</button>
+  <div id="tfr-status" style="font-size:13px;color:var(--dim)"></div>
+  <div id="tfr-result" style="display:none;background:var(--aim);border:1px solid var(--acc);border-radius:10px;padding:16px;font-size:14px;line-height:1.8"></div>
+</div>
+</div>
+
+<!-- ── Tab 🌿 Git ── -->
+<div id="tab-git" style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:none;box-sizing:border-box">
+<div class="tab-hd">🌿 Git — Repository Prismalux</div>
+<p style="font-size:13px;color:var(--dim);margin-bottom:12px">Comandi di sola lettura sul repository del progetto (cartella server Qt).</p>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+  <button class="git-btn" data-cmd="status" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">📋 Status</button>
+  <button class="git-btn" data-cmd="log" style="background:var(--aim);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">📜 Log</button>
+  <button class="git-btn" data-cmd="diff" style="background:var(--aim);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">🔍 Diff</button>
+  <button class="git-btn" data-cmd="diff-staged" style="background:var(--aim);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">🔍 Diff Staged</button>
+  <button class="git-btn" data-cmd="branch" style="background:var(--aim);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">🌿 Branch</button>
+</div>
+<div id="git-cmd-lbl" style="font-size:11px;color:var(--dim);margin-bottom:4px;font-family:monospace"></div>
+<div id="git-status" style="font-size:13px;color:var(--dim);margin-bottom:6px"></div>
+<pre id="git-out" style="background:var(--aim);border:1px solid var(--brd);border-radius:8px;padding:12px;font-family:monospace;font-size:12px;white-space:pre-wrap;word-break:break-all;min-height:80px;max-height:400px;overflow-y:auto;color:var(--txt)">Seleziona un comando git...</pre>
+</div>
+
+<!-- ── Tab 📰 Wiki ── -->
+<div id="tab-wik" style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:none;box-sizing:border-box">
+<div class="tab-hd">📰 Wikipedia — Ricerca rapida</div>
+<p style="font-size:13px;color:var(--dim);margin-bottom:12px">Cerca una voce Wikipedia — il server Qt recupera il riepilogo via REST API.</p>
+<div style="display:flex;gap:8px;margin-bottom:8px">
+  <input id="wik-q" type="text" class="form-control" style="flex:1" placeholder="Es: Calcolo integrale, Python, Roma...">
+  <select id="wik-lang" class="form-select" style="width:80px" aria-label="Lingua Wikipedia"><option value="it">IT</option><option value="en">EN</option><option value="fr">FR</option><option value="de">DE</option><option value="es">ES</option></select>
+  <button id="wik-srch" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0">🔍</button>
+</div>
+<div id="wik-status" style="font-size:13px;color:var(--dim);margin-bottom:8px"></div>
+<div id="wik-card" style="display:none;background:var(--aim);border:1px solid var(--brd);border-radius:10px;padding:16px">
+  <div id="wik-title" style="font-size:17px;font-weight:700;color:var(--acc);margin-bottom:4px"></div>
+  <div id="wik-desc" style="font-size:12px;color:var(--dim);margin-bottom:10px;font-style:italic"></div>
+  <div id="wik-extract" style="font-size:14px;line-height:1.7;color:var(--txt);white-space:pre-wrap;max-height:340px;overflow-y:auto"></div>
+  <div style="margin-top:12px;display:flex;gap:8px">
+    <a id="wik-url" href="#" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:var(--acc);text-decoration:none">🌐 Apri su Wikipedia</a>
+    <button id="wik-chat" style="background:transparent;border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:4px 12px;font-size:12px;cursor:pointer;margin-left:auto">💬 Invia in Chat</button>
+  </div>
+</div>
+</div>
+
 <script>
+const TOKEN='{{TOKEN_VAL}}';
+function bearerHdr(){return TOKEN?{'Authorization':'Bearer '+TOKEN}:{};}
 const THEMES={dark:        {bg:'#0f1117',hdr:'#1a1d2e',brd:'#2a2d4e',acc:'#6c63ff',usr:'#6c63ff',aim:'#1e2235',txt:'#e0e0f0',dim:'#888',inp:'#0f1117'},dark_classic:{bg:'#0c0e18',hdr:'#121420',brd:'#1e2438',acc:'#4a90e2',usr:'#4a90e2',aim:'#141622',txt:'#d8e4f8',dim:'#7a9cc8',inp:'#0c0e18'},dark_amber:  {bg:'#17140c',hdr:'#211c10',brd:'#3a3020',acc:'#ffb300',usr:'#ffb300',aim:'#261f12',txt:'#f5e8cc',dim:'#c0a870',inp:'#17140c'},dark_cyan:   {bg:'#13141f',hdr:'#1a1b28',brd:'#2a2b40',acc:'#00b8d9',usr:'#00b8d9',aim:'#1c1c26',txt:'#e8eaf6',dim:'#b0b4d0',inp:'#13141f'},dark_green:  {bg:'#0d1510',hdr:'#121e15',brd:'#1e3020',acc:'#2ecc71',usr:'#2ecc71',aim:'#152018',txt:'#d4f0da',dim:'#8ac890',inp:'#0d1510'},dark_lavender:{bg:'#0f0c18',hdr:'#161022',brd:'#261c38',acc:'#8b68e8',usr:'#8b68e8',aim:'#181228',txt:'#e0d8f8',dim:'#9878c8',inp:'#0f0c18'},dark_ocean:  {bg:'#0a1318',hdr:'#0e1c24',brd:'#1a2c38',acc:'#20c4da',usr:'#20c4da',aim:'#101e28',txt:'#d0eaf8',dim:'#7ab8d0',inp:'#0a1318'},dark_purple: {bg:'#130f1c',hdr:'#1c1727',brd:'#2e2442',acc:'#b47df5',usr:'#9c5ff0',aim:'#1f1a2c',txt:'#ede8f5',dim:'#a088c8',inp:'#130f1c'},dark_sunset: {bg:'#17100a',hdr:'#21160e',brd:'#382010',acc:'#fd7e14',usr:'#fd7e14',aim:'#261810',txt:'#f8e8d0',dim:'#c08050',inp:'#17100a'},dark_rainbow:{bg:'#111118',hdr:'#18181f',brd:'#282838',acc:'#ff6b6b',usr:'#ff6b6b',aim:'#1c1c24',txt:'#f0eefc',dim:'#b0b0d0',inp:'#111118'},dracula:     {bg:'#282a36',hdr:'#21222c',brd:'#44475a',acc:'#bd93f9',usr:'#ff79c6',aim:'#383a59',txt:'#f8f8f2',dim:'#6272a4',inp:'#282a36'},nord:        {bg:'#2e3440',hdr:'#3b4252',brd:'#434c5e',acc:'#88c0d0',usr:'#5e81ac',aim:'#3b4252',txt:'#eceff4',dim:'#8fbcbb',inp:'#2e3440'},hacker:      {bg:'#000000',hdr:'#001a00',brd:'#003300',acc:'#00ff00',usr:'#00ff00',aim:'#002200',txt:'#00ff00',dim:'#00cc00',inp:'#000000'},military:    {bg:'#1a2e1a',hdr:'#2d4a2d',brd:'#3d5a3d',acc:'#9acd32',usr:'#9acd32',aim:'#344e34',txt:'#d4ed91',dim:'#8ab040',inp:'#1a2e1a'},neon:        {bg:'#0a0a0a',hdr:'#1a1a1a',brd:'#2a2a2a',acc:'#00ff9d',usr:'#00ff9d',aim:'#1e1e1e',txt:'#ffffff',dim:'#60c090',inp:'#0a0a0a'},pink:        {bg:'#2d1b2d',hdr:'#4a1a4a',brd:'#6b2a6b',acc:'#ec4899',usr:'#ec4899',aim:'#541e54',txt:'#fce7f3',dim:'#d07090',inp:'#2d1b2d'},solar:       {bg:'#002b36',hdr:'#073642',brd:'#0f4c5c',acc:'#268bd2',usr:'#268bd2',aim:'#093a4a',txt:'#839496',dim:'#657b83',inp:'#002b36'},venom_blue:  {bg:'#0a0a0a',hdr:'#1a1a1a',brd:'#2a2a2a',acc:'#00bfff',usr:'#00bfff',aim:'#1e1e1e',txt:'#ffffff',dim:'#808080',inp:'#0a0a0a'},venom_red:   {bg:'#0a0a0a',hdr:'#1a1a1a',brd:'#2a2a2a',acc:'#ff0000',usr:'#ff0000',aim:'#1e1e1e',txt:'#ffffff',dim:'#808080',inp:'#0a0a0a'},venom_orange:{bg:'#0a0a0a',hdr:'#1a1a1a',brd:'#2a2a2a',acc:'#ff4500',usr:'#ff4500',aim:'#1e1e1e',txt:'#ffffff',dim:'#808080',inp:'#0a0a0a'},venom_green: {bg:'#0a0a0a',hdr:'#1a1a1a',brd:'#2a2a2a',acc:'#00ff00',usr:'#00ff00',aim:'#1e1e1e',txt:'#ffffff',dim:'#808080',inp:'#0a0a0a'},light:       {bg:'#f0f2f5',hdr:'#ffffff',brd:'#dce3f5',acc:'#0072c6',usr:'#0072c6',aim:'#edf0fa',txt:'#1a1e30',dim:'#7880a8',inp:'#f0f2f5'},light_mint:  {bg:'#f0f9f6',hdr:'#ffffff',brd:'#a8d8cc',acc:'#00897b',usr:'#00897b',aim:'#e0f5ee',txt:'#1a2e28',dim:'#6a9088',inp:'#f0f9f6'},light_rose:  {bg:'#fef0f4',hdr:'#ffffff',brd:'#f48fb1',acc:'#c2185b',usr:'#c2185b',aim:'#fde8ef',txt:'#2e0a18',dim:'#9a6070',inp:'#fef0f4'},light_sky:   {bg:'#f0f7ff',hdr:'#ffffff',brd:'#90c8f0',acc:'#0277bd',usr:'#0277bd',aim:'#e0f0ff',txt:'#0a1828',dim:'#6a90a8',inp:'#f0f7ff'},light_sand:  {bg:'#fdf5ea',hdr:'#ffffff',brd:'#ffcc80',acc:'#e65100',usr:'#e65100',aim:'#fdecd8',txt:'#2e1800',dim:'#9a7040',inp:'#fdf5ea'}};
 function applyTheme(n){if(n==='solarized')n='solar';const t=THEMES[n]||THEMES.dark,r=document.documentElement.style;r.setProperty('--bg',t.bg);r.setProperty('--hdr',t.hdr);r.setProperty('--brd',t.brd);r.setProperty('--acc',t.acc);r.setProperty('--usr',t.usr);r.setProperty('--aim',t.aim);r.setProperty('--txt',t.txt);r.setProperty('--dim',t.dim);r.setProperty('--inp',t.inp);localStorage.setItem('plx-theme',n);}
 const tSaved=localStorage.getItem('plx-theme')||'dark';applyTheme(tSaved);const tsel=document.getElementById('tsel');if(tsel)tsel.value=THEMES[tSaved]?tSaved:'dark';
@@ -418,7 +508,9 @@ const content=(j.result&&j.result.content)||[];
 if(content.length){MRES.textContent=content.map(function(c){return c.text||JSON.stringify(c);}).join('\n');}else{MRES.textContent=JSON.stringify(j.result||j,null,2);}}catch(e){MRES.textContent='Errore: '+e.message;}});
 const TABS=document.querySelectorAll('.tab'),TC=document.getElementById('tab-chat'),TA=document.getElementById('tab-apps'),TS=document.getElementById('tab-sys'),TM=document.getElementById('tab-mat'),TG=document.getElementById('tab-age'),TI=document.getElementById('tab-imp'),TU=document.getElementById('tab-mul'),TR=document.getElementById('tab-rag'),TCOD=document.getElementById('tab-cod'),TGVZ=document.getElementById('tab-gvz'),TWSP=document.getElementById('tab-wsp'),TLAV=document.getElementById('tab-lav'),TFIL=document.getElementById('tab-fil'),TFIN=document.getElementById('tab-fin'),TGRF=document.getElementById('tab-grf');
 let sysItv=null;
-function switchTab(n){TABS.forEach(function(t){t.classList.toggle('on',t.dataset.tab===n);});TC.className=n==='chat'?'tab-on-flex':'tab-off';TA.className=n==='apps'?'tab-on-block':'tab-off';TS.className=n==='sys'?'tab-on-block':'tab-off';TM.className=n==='mat'?'tab-on-block':'tab-off';TG.className=n==='age'?'tab-on-block':'tab-off';TI.className=n==='imp'?'tab-on-block':'tab-off';TU.className=n==='mul'?'tab-on-block':'tab-off';TR.className=n==='rag'?'tab-on-block':'tab-off';TCOD.className=n==='cod'?'tab-on-block':'tab-off';TGVZ.className=n==='gvz'?'tab-on-block':'tab-off';TWSP.className=n==='wsp'?'tab-on-block':'tab-off';TLAV.className=n==='lav'?'tab-on-block':'tab-off';TFIL.className=n==='fil'?'tab-on-block':'tab-off';TFIN.className=n==='fin'?'tab-on-block':'tab-off';TGRF.className=n==='grf'?'tab-on-block':'tab-off';if(n==='sys'){fetchSys();if(!sysItv)sysItv=setInterval(fetchSys,3000);}else{if(sysItv){clearInterval(sysItv);sysItv=null;}}}
+var TREPL=document.getElementById('tab-repl'),TKNW=document.getElementById('tab-knw');
+var TTFR=document.getElementById('tab-tfr'),TGIT=document.getElementById('tab-git'),TWIK=document.getElementById('tab-wik');
+function switchTab(n){TABS.forEach(function(t){t.classList.toggle('on',t.dataset.tab===n);});TC.className=n==='chat'?'tab-on-flex':'tab-off';TA.className=n==='apps'?'tab-on-block':'tab-off';TS.className=n==='sys'?'tab-on-block':'tab-off';TM.className=n==='mat'?'tab-on-block':'tab-off';TG.className=n==='age'?'tab-on-block':'tab-off';TI.className=n==='imp'?'tab-on-block':'tab-off';TU.className=n==='mul'?'tab-on-block':'tab-off';TR.className=n==='rag'?'tab-on-block':'tab-off';TCOD.className=n==='cod'?'tab-on-block':'tab-off';TGVZ.className=n==='gvz'?'tab-on-block':'tab-off';TWSP.className=n==='wsp'?'tab-on-block':'tab-off';TLAV.className=n==='lav'?'tab-on-block':'tab-off';TFIL.className=n==='fil'?'tab-on-block':'tab-off';TFIN.className=n==='fin'?'tab-on-block':'tab-off';TGRF.className=n==='grf'?'tab-on-block':'tab-off';TREPL.className=n==='repl'?'tab-on-block':'tab-off';TKNW.className=n==='knw'?'tab-on-block':'tab-off';TTFR.className=n==='tfr'?'tab-on-block':'tab-off';TGIT.className=n==='git'?'tab-on-block':'tab-off';TWIK.className=n==='wik'?'tab-on-block':'tab-off';if(n==='sys'){fetchSys();if(!sysItv)sysItv=setInterval(fetchSys,3000);}else{if(sysItv){clearInterval(sysItv);sysItv=null;}}}
 TABS.forEach(function(t){t.addEventListener('click',function(){switchTab(this.dataset.tab);});});
 switchTab('chat');
 document.querySelectorAll('.app-btn').forEach(function(btn){btn.addEventListener('click',async function(){const cmd=this.dataset.cmd;const st=this.querySelector('.app-st');if(st){st.textContent='...';st.className='app-st';}
@@ -521,10 +613,10 @@ html+='<div class="rag-card">'+'<p>'+txt+'</p>'+'<small>📊 Score: '+score+' �
 res.innerHTML=html;}catch(e){res.innerHTML='<p style="color:#f44">Errore di rete: '+e.message+'</p>';}}
 document.getElementById('rag-srch').addEventListener('click',ragSearch);
 document.getElementById('rag-query').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ragSearch();}});
-document.getElementById('cod-run').addEventListener('click',function(){var code=document.getElementById('cod-editor').value.trim();var lang=document.getElementById('cod-lang').value;if(!code){return;}var out=document.getElementById('cod-out');out.textContent='⏳ Analisi AI in corso...';var sys='Sei un esperto di '+lang+'. Analizza il seguente codice, spiega cosa fa, segnala bug e suggerisci miglioramenti in italiano.';var body=JSON.stringify({model:curModel,messages:[{role:'system',content:sys},{role:'user',content:'```'+lang+'\n'+code+'\n```'}],stream:false});fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:body}).then(function(r){return r.json();}).then(function(d){out.textContent=d.message&&d.message.content?d.message.content:JSON.stringify(d);}).catch(function(e){out.textContent='Errore: '+e;});});
+document.getElementById('cod-run').addEventListener('click',function(){var code=document.getElementById('cod-editor').value.trim();var lang=document.getElementById('cod-lang').value;if(!code){return;}var out=document.getElementById('cod-out');out.textContent='⏳ Analisi AI in corso...';var sys='Sei un esperto di '+lang+'. Analizza il seguente codice, spiega cosa fa, segnala bug e suggerisci miglioramenti in italiano.';var body=JSON.stringify({model:curModel,messages:[{role:'system',content:sys},{role:'user',content:'```'+lang+'\n'+code+'\n```'}],stream:false});fetch('/api/chat',{method:'POST',headers:{{{AUTH_HEADERS_JS}}},body:body}).then(function(r){return r.json();}).then(function(d){out.textContent=d.message&&d.message.content?d.message.content:JSON.stringify(d);}).catch(function(e){out.textContent='Errore: '+e;});});
 document.getElementById('cod-clr').addEventListener('click',function(){document.getElementById('cod-editor').value='';document.getElementById('cod-out').textContent='';});
-document.getElementById('gvz-ai').addEventListener('click',function(){var desc=document.getElementById('gvz-desc').value.trim();if(!desc)return;document.getElementById('gvz-err').textContent='⏳ Generazione DOT...';var sys='Genera codice DOT Graphviz per il seguente grafo. Rispondi SOLO con il codice DOT tra ``` e ```, nient\'altro.';var body=JSON.stringify({model:curModel,messages:[{role:'system',content:sys},{role:'user',content:desc}],stream:false});fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:body}).then(function(r){return r.json();}).then(function(d){var txt=d.message&&d.message.content?d.message.content:'';var m=txt.match(/```[^\n]*\n([\s\S]*?)```/);if(m){document.getElementById('gvz-dot').value=m[1].trim();}else{document.getElementById('gvz-dot').value=txt.trim();}document.getElementById('gvz-err').textContent='';}).catch(function(e){document.getElementById('gvz-err').textContent='Errore AI: '+e;});});
-document.getElementById('gvz-run').addEventListener('click',function(){var dot=document.getElementById('gvz-dot').value.trim();if(!dot)return;document.getElementById('gvz-err').textContent='⏳ Rendering...';fetch('/api/graphviz',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:JSON.stringify({dot:dot})}).then(function(r){return r.json();}).then(function(d){if(d.png){document.getElementById('gvz-img').innerHTML='<img src="data:image/png;base64,'+d.png+'" style="max-width:100%;border-radius:8px">';document.getElementById('gvz-err').textContent='';}else{document.getElementById('gvz-err').textContent=d.error||'Errore rendering';}}).catch(function(e){document.getElementById('gvz-err').textContent='Errore: '+e;});});
+document.getElementById('gvz-ai').addEventListener('click',function(){var desc=document.getElementById('gvz-desc').value.trim();if(!desc)return;document.getElementById('gvz-err').textContent='⏳ Generazione DOT...';var sys='Genera codice DOT Graphviz per il seguente grafo. Rispondi SOLO con il codice DOT tra ``` e ```, nient\'altro.';var body=JSON.stringify({model:curModel,messages:[{role:'system',content:sys},{role:'user',content:desc}],stream:false});fetch('/api/chat',{method:'POST',headers:{{{AUTH_HEADERS_JS}}},body:body}).then(function(r){return r.json();}).then(function(d){var txt=d.message&&d.message.content?d.message.content:'';var m=txt.match(/```[^\n]*\n([\s\S]*?)```/);if(m){document.getElementById('gvz-dot').value=m[1].trim();}else{document.getElementById('gvz-dot').value=txt.trim();}document.getElementById('gvz-err').textContent='';}).catch(function(e){document.getElementById('gvz-err').textContent='Errore AI: '+e;});});
+document.getElementById('gvz-run').addEventListener('click',function(){var dot=document.getElementById('gvz-dot').value.trim();if(!dot)return;document.getElementById('gvz-err').textContent='⏳ Rendering...';fetch('/api/graphviz',{method:'POST',headers:{{{AUTH_HEADERS_JS}}},body:JSON.stringify({dot:dot})}).then(function(r){return r.json();}).then(function(d){if(d.png){document.getElementById('gvz-img').innerHTML='<img src="data:image/png;base64,'+d.png+'" style="max-width:100%;border-radius:8px">';document.getElementById('gvz-err').textContent='';}else{document.getElementById('gvz-err').textContent=d.error||'Errore rendering';}}).catch(function(e){document.getElementById('gvz-err').textContent='Errore: '+e;});});
 document.getElementById('gvz-clr').addEventListener('click',function(){document.getElementById('gvz-dot').value='';document.getElementById('gvz-desc').value='';document.getElementById('gvz-img').innerHTML='';document.getElementById('gvz-err').textContent='';});
 (function(){
 var synth=window.speechSynthesis;
@@ -596,7 +688,7 @@ var sesso=document.getElementById('fin-sesso').value;
 var comune=document.getElementById('fin-comune').value.trim();
 if(!nome||!cogn||!data||!comune){finStatus.textContent='⚠️ Compila tutti i campi';return;}
 finStatus.textContent='⏳ Calcolo...';finCalc.disabled=true;finResult.style.display='none';
-try{var r=await fetch('/api/finanza/cf',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:JSON.stringify({nome:nome,cognome:cogn,data_nascita:data,sesso:sesso,comune:comune})});
+try{var r=await fetch('/api/finanza/cf',{method:'POST',headers:{{{AUTH_HEADERS_JS}}},body:JSON.stringify({nome:nome,cognome:cogn,data_nascita:data,sesso:sesso,comune:comune})});
 var j=await r.json();if(j.error){finStatus.textContent='❌ '+j.error;}else{finCf.textContent=j.cf;finResult.style.display='block';finStatus.textContent=j.info||'';}}catch(e){finStatus.textContent='❌ Errore: '+e.message;}
 finCalc.disabled=false;});
 finCopy.addEventListener('click',function(){navigator.clipboard.writeText(finCf.textContent).then(function(){finCopy.textContent='✅ Copiato!';setTimeout(function(){finCopy.textContent='📋 Copia';},1800);});});
@@ -605,7 +697,7 @@ finCopy.addEventListener('click',function(){navigator.clipboard.writeText(finCf.
 (function(){
 var grfQ=document.getElementById('grf-q'),grfSrch=document.getElementById('grf-srch'),grfDotBtn=document.getElementById('grf-dot'),grfStatus=document.getElementById('grf-status'),grfNodes=document.getElementById('grf-nodes'),grfDotOut=document.getElementById('grf-dot-out');
 async function grfLoad(){var q=grfQ.value.trim();var url='/api/graph/nodes'+(q?'?q='+encodeURIComponent(q):'');grfStatus.textContent='⏳ Caricamento nodi...';grfNodes.innerHTML='';grfDotOut.style.display='none';
-try{var r=await fetch(url,{headers:{'Authorization':'Bearer '+TOKEN}});var j=await r.json();
+try{var r=await fetch(url,{headers:bearerHdr()});var j=await r.json();
 if(j.error){grfStatus.textContent='❌ '+j.error;return;}
 var nodes=Array.isArray(j)?j:(j.nodes||[]);grfStatus.textContent=nodes.length+' nodi trovati';
 nodes.forEach(function(n){var card=document.createElement('div');card.style.cssText='background:var(--aim);border:1px solid var(--brd);border-radius:8px;padding:10px 12px;font-size:13px';
@@ -616,7 +708,7 @@ hdr.appendChild(lbl);hdr.appendChild(typ);
 var cnt=document.createElement('div');cnt.style.cssText='color:var(--dim);font-size:12px;white-space:pre-wrap;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical';cnt.textContent=n.content||'';
 card.appendChild(hdr);card.appendChild(cnt);grfNodes.appendChild(card);});}catch(e){grfStatus.textContent='❌ '+e.message;}}
 async function grfDot(){var title=grfQ.value.trim()||'GraphMemory';grfStatus.textContent='⏳ Generazione DOT...';grfDotOut.style.display='none';
-try{var r=await fetch('/api/graph/dot?title='+encodeURIComponent(title),{headers:{'Authorization':'Bearer '+TOKEN}});var j=await r.json();
+try{var r=await fetch('/api/graph/dot?title='+encodeURIComponent(title),{headers:bearerHdr()});var j=await r.json();
 if(j.error){grfStatus.textContent='❌ '+j.error;return;}
 grfDotOut.textContent=j.dot||'(grafo vuoto)';grfDotOut.style.display='block';grfStatus.textContent='✅ DOT generato — incollalo in tab Graphviz per visualizzarlo';}catch(e){grfStatus.textContent='❌ '+e.message;}}
 grfSrch.addEventListener('click',grfLoad);
@@ -631,6 +723,190 @@ function renderLavResults(offerte){lavQResults.innerHTML='';if(!offerte.length){
 async function lavSearch(){var q=lavQInput.value.trim();lavQStatus.textContent='Ricerca in corso...';lavQResults.innerHTML='';try{var url='/api/lavoro'+(q?'?q='+encodeURIComponent(q):'');var r=await fetch(url,{headers:{{{AUTH_HEADERS_JS}}}});var data=await r.json();lavQStatus.textContent=(Array.isArray(data)?data.length:0)+' offerte trovate'+(q?' per "'+q+'"':'');renderLavResults(Array.isArray(data)?data:[]);}catch(e){lavQStatus.textContent='Errore: '+e.message;}}
 lavQBtn.addEventListener('click',lavSearch);
 lavQInput.addEventListener('keydown',function(e){if(e.key==='Enter'){lavSearch();}});
+})();
+
+// ── REPL Python ──────────────────────────────────────────────────────────────
+(function(){
+var replCode=document.getElementById('repl-code');
+var replRun=document.getElementById('repl-run');
+var replClr=document.getElementById('repl-clr');
+var replStatus=document.getElementById('repl-status');
+var replOut=document.getElementById('repl-out');
+var replErr=document.getElementById('repl-err');
+var replSandbox=document.getElementById('repl-sandbox');
+
+document.querySelectorAll('.repl-ex').forEach(function(b){
+  b.style.cssText='background:transparent;border:1px solid var(--brd);color:var(--dim);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer';
+  b.addEventListener('click',function(){
+    replCode.value=b.dataset.code.replace(/&#10;/g,'\n');
+    replCode.focus();
+  });
+});
+
+replClr.addEventListener('click',function(){
+  replCode.value='';replOut.style.display='none';replErr.style.display='none';replStatus.textContent='';replSandbox.textContent='';
+});
+
+replRun.addEventListener('click',async function(){
+  var code=replCode.value.trim();
+  if(!code){replStatus.textContent='Inserisci del codice prima.';return;}
+  replRun.disabled=true;replStatus.textContent='⏳ Esecuzione...';
+  replOut.style.display='none';replErr.style.display='none';
+  try{
+    var r=await fetch('/api/repl',{method:'POST',headers:{{{AUTH_HEADERS_JS}}},body:JSON.stringify({code:code,lang:'python'})});
+    var d=await r.json();
+    replSandbox.textContent='sandbox: '+(d.sandbox||'?');
+    if(d.output){replOut.textContent=d.output;replOut.style.display='block';}
+    if(d.error){replErr.textContent=d.error;replErr.style.display='block';}
+    replStatus.textContent=d.ok?'✅ Completato (exit '+d.exit_code+')':'❌ Errore (exit '+d.exit_code+')';
+    replStatus.style.color=d.ok?'#4ade80':'#f87171';
+  }catch(e){replStatus.textContent='❌ '+e.message;replStatus.style.color='#f87171';}
+  replRun.disabled=false;
+});
+
+replCode.addEventListener('keydown',function(e){
+  if(e.key==='Tab'){e.preventDefault();var s=replCode.selectionStart,end=replCode.selectionEnd;replCode.value=replCode.value.substring(0,s)+'    '+replCode.value.substring(end);replCode.selectionStart=replCode.selectionEnd=s+4;}
+  if(e.ctrlKey&&e.key==='Enter'){replRun.click();}
+});
+})();
+
+// ── Knowledge Base ────────────────────────────────────────────────────────────
+(function(){
+var knwTxt=document.getElementById('knw-txt');
+var knwStatus=document.getElementById('knw-status');
+
+document.getElementById('knw-load').addEventListener('click',async function(){
+  knwStatus.textContent='⏳ Caricamento...';
+  try{
+    var r=await fetch('/knowledge',{headers:bearerHdr()});
+    var d=await r.json();
+    knwTxt.value=d.content||'';
+    knwStatus.textContent=d.available?'✅ '+knwTxt.value.length+' caratteri caricati.':'⚠️ Knowledge base vuota.';
+    knwStatus.style.color=d.available?'#4ade80':'var(--dim)';
+  }catch(e){knwStatus.textContent='❌ '+e.message;knwStatus.style.color='#f87171';}
+});
+
+async function saveKnw(mode){
+  var txt=knwTxt.value.trim();
+  if(!txt){knwStatus.textContent='Nessun testo da salvare.';return;}
+  knwStatus.textContent='⏳ Salvataggio...';
+  try{
+    var r=await fetch('/knowledge',{method:'POST',headers:{{{AUTH_HEADERS_JS}}},body:JSON.stringify({content:txt,mode:mode})});
+    var d=await r.json();
+    knwStatus.textContent=d.ok?'✅ Salvato ('+mode+').':'❌ Errore dal server.';
+    knwStatus.style.color=d.ok?'#4ade80':'#f87171';
+  }catch(e){knwStatus.textContent='❌ '+e.message;knwStatus.style.color='#f87171';}
+}
+
+document.getElementById('knw-append').addEventListener('click',function(){saveKnw('append');});
+document.getElementById('knw-replace').addEventListener('click',function(){
+  if(!confirm('Sovrascrivere l\'intera knowledge base con il testo attuale?'))return;
+  saveKnw('replace');
+});
+})();
+
+// ── TFR Calculator ────────────────────────────────────────────────────────────
+(function(){
+var tfrCalc=document.getElementById('tfr-calc');
+var tfrStatus=document.getElementById('tfr-status');
+var tfrResult=document.getElementById('tfr-result');
+
+tfrCalc.addEventListener('click',async function(){
+  var stip=parseFloat(document.getElementById('tfr-stip').value)||0;
+  var anni=parseInt(document.getElementById('tfr-anni').value)||0;
+  var infl=parseFloat(document.getElementById('tfr-infl').value)||2.0;
+  var fondo=document.getElementById('tfr-dest').value==='true';
+  if(stip<=0||anni<=0){tfrStatus.textContent='Inserisci stipendio e anni validi.';return;}
+  tfrStatus.textContent='⏳ Calcolo...';tfrCalc.disabled=true;tfrResult.style.display='none';
+  try{
+    var r=await fetch('/api/finanza/tfr',{method:'POST',headers:{{{AUTH_HEADERS_JS}}},body:JSON.stringify({stipendio_annuo:stip,anni:anni,inflazione:infl,fondo_pensione:fondo})});
+    var d=await r.json();
+    if(d.error){tfrStatus.textContent='❌ '+d.error;return;}
+    var fmt=function(n){return n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});};
+    tfrResult.innerHTML=
+      '<b>💼 Scheda TFR — Trattamento di Fine Rapporto</b><br><br>'+
+      '<table style="width:100%;border-collapse:collapse;font-size:13px">'+
+      '<tr><td style="color:var(--dim);padding:3px 0">Stipendio lordo annuo</td><td style="text-align:right"><b>'+fmt(d.stipendio_annuo)+' €</b></td></tr>'+
+      '<tr><td style="color:var(--dim);padding:3px 0">Anni lavorati</td><td style="text-align:right"><b>'+d.anni+'</b></td></tr>'+
+      '<tr><td style="color:var(--dim);padding:3px 0">Quota annua (÷ 13,5)</td><td style="text-align:right"><b>'+fmt(d.quota_annua)+' €</b></td></tr>'+
+      '<tr><td style="color:var(--dim);padding:3px 0">Tasso rivalutazione</td><td style="text-align:right"><b>'+d.tasso_rival_pct+'%</b></td></tr>'+
+      '<tr style="border-top:1px solid var(--brd)"><td style="padding:6px 0 3px">TFR senza rivalutazione</td><td style="text-align:right">'+fmt(d.tfr_semplice)+' €</td></tr>'+
+      '<tr><td style="padding:3px 0">Plusvalenza rivalutazione</td><td style="text-align:right">'+fmt(d.plusvalenza)+' €</td></tr>'+
+      '<tr><td style="padding:3px 0;font-weight:600;color:var(--acc)">TFR rivalutato stimato</td><td style="text-align:right;font-weight:700;color:var(--acc);font-size:16px">'+fmt(d.tfr_rivalutato)+' €</td></tr>'+
+      '<tr style="border-top:1px solid var(--brd)"><td style="padding:6px 0 3px;color:#4ade80;font-weight:600">Netto stimato</td><td style="text-align:right;color:#4ade80;font-weight:700">'+fmt(d.netto_stimato)+' €</td></tr>'+
+      '</table><br>'+
+      '<div style="font-size:12px;color:var(--dim);border-top:1px solid var(--brd);padding-top:8px">'+d.fiscalita+'</div>'+
+      '<div style="font-size:11px;color:var(--dim);margin-top:6px;font-style:italic">Calcolo indicativo (art. 2120 c.c.) — non ha valore legale.</div>';
+    tfrResult.style.display='block';
+    tfrStatus.textContent='✅ Calcolo completato';
+    tfrStatus.style.color='#4ade80';
+  }catch(e){tfrStatus.textContent='❌ '+e.message;tfrStatus.style.color='#f87171';}
+  tfrCalc.disabled=false;
+});
+})();
+
+// ── Git Viewer ────────────────────────────────────────────────────────────────
+(function(){
+var gitOut=document.getElementById('git-out');
+var gitStatus=document.getElementById('git-status');
+var gitCmdLbl=document.getElementById('git-cmd-lbl');
+
+document.querySelectorAll('.git-btn').forEach(function(btn){
+  btn.addEventListener('click',async function(){
+    var cmd=btn.dataset.cmd;
+    gitStatus.textContent='⏳ Esecuzione...';gitOut.textContent='';gitCmdLbl.textContent='';
+    try{
+      var r=await fetch('/api/git',{method:'POST',headers:{{{AUTH_HEADERS_JS}}},body:JSON.stringify({cmd:cmd})});
+      var d=await r.json();
+      if(d.error){gitStatus.textContent='❌ '+d.error;return;}
+      gitCmdLbl.textContent='$ '+d.cmd;
+      gitOut.textContent=d.output;
+      gitStatus.textContent='✅ exit '+d.exit;
+      gitStatus.style.color=d.exit===0?'#4ade80':'#f87171';
+    }catch(e){gitStatus.textContent='❌ '+e.message;gitStatus.style.color='#f87171';}
+  });
+});
+})();
+
+// ── Wikipedia ─────────────────────────────────────────────────────────────────
+(function(){
+var wikQ=document.getElementById('wik-q');
+var wikLang=document.getElementById('wik-lang');
+var wikSrch=document.getElementById('wik-srch');
+var wikStatus=document.getElementById('wik-status');
+var wikCard=document.getElementById('wik-card');
+var wikTitle=document.getElementById('wik-title');
+var wikDesc=document.getElementById('wik-desc');
+var wikExtract=document.getElementById('wik-extract');
+var wikUrl=document.getElementById('wik-url');
+var wikChat=document.getElementById('wik-chat');
+var lastExtract='';var lastTitleStr='';
+
+async function wikSearch(){
+  var q=wikQ.value.trim();if(!q)return;
+  wikStatus.textContent='⏳ Ricerca in corso...';wikCard.style.display='none';
+  try{
+    var url='/api/wiki?q='+encodeURIComponent(q)+'&lang='+wikLang.value;
+    var r=await fetch(url,{headers:bearerHdr()});
+    var d=await r.json();
+    if(d.error){wikStatus.textContent='❌ '+d.error;wikStatus.style.color='#f87171';return;}
+    lastTitleStr=d.title||q;lastExtract=d.extract||'';
+    wikTitle.textContent=d.title||q;
+    wikDesc.textContent=d.description||'';
+    wikExtract.textContent=d.extract||'(nessun testo estratto)';
+    if(d.url){wikUrl.href=d.url;wikUrl.style.display='inline';}else{wikUrl.style.display='none';}
+    wikCard.style.display='block';
+    wikStatus.textContent='✅ Trovato';wikStatus.style.color='#4ade80';
+  }catch(e){wikStatus.textContent='❌ '+e.message;wikStatus.style.color='#f87171';}
+}
+
+wikSrch.addEventListener('click',wikSearch);
+wikQ.addEventListener('keydown',function(e){if(e.key==='Enter')wikSearch();});
+wikChat.addEventListener('click',function(){
+  switchTab('chat');
+  T.value='Analizza questa voce Wikipedia e approfondiscila:\n\n'+lastTitleStr+':\n'+lastExtract.slice(0,6000)+(lastExtract.length>6000?'\n...(troncato)':'');
+  T.style.height='';T.style.height=Math.min(T.scrollHeight,200)+'px';T.focus();
+});
 })();
 </script>
 </body>
