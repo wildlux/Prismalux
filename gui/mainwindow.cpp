@@ -1409,14 +1409,6 @@ QWidget* MainWindow::buildSidebar() {
         btnLay->setContentsMargins(dpiScale(8), 0, dpiScale(8), 0);
         btnLay->setSpacing(dpiScale(4));
 
-        auto* newChatBtn = new QPushButton("\xe2\x9c\x8f\xef\xb8\x8f  Nuova chat", btnRow);
-        newChatBtn->setObjectName("actionBtn");
-        newChatBtn->setFixedHeight(dpiScale(30));
-        newChatBtn->setStyleSheet("text-align: left; padding-left: 8px;");
-        newChatBtn->setToolTip("Inizia una nuova conversazione (reset log)");
-        connect(newChatBtn, &QPushButton::clicked, this, &MainWindow::onNewChatClicked);
-        btnLay->addWidget(newChatBtn);
-
         m_btnDeleteChats = new QPushButton("\xf0\x9f\x97\x91  Cancella chat", btnRow);
         m_btnDeleteChats->setObjectName("actionBtn");
         m_btnDeleteChats->setProperty("danger", true);
@@ -1428,6 +1420,14 @@ QWidget* MainWindow::buildSidebar() {
         connect(m_btnDeleteChats, &QPushButton::clicked,
                 this, &MainWindow::onDeleteSelectedChatsClicked);
         btnLay->addWidget(m_btnDeleteChats);
+
+        auto* newChatBtn = new QPushButton("\xe2\x9c\x8f\xef\xb8\x8f  Nuova chat", btnRow);
+        newChatBtn->setObjectName("actionBtn");
+        newChatBtn->setFixedHeight(dpiScale(30));
+        newChatBtn->setStyleSheet("text-align: left; padding-left: 8px;");
+        newChatBtn->setToolTip("Inizia una nuova conversazione (reset log)");
+        connect(newChatBtn, &QPushButton::clicked, this, &MainWindow::onNewChatClicked);
+        btnLay->addWidget(newChatBtn);
 
         lay->addWidget(btnRow);
     }
