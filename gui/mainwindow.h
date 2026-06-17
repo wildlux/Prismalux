@@ -144,7 +144,6 @@ private:
     void buildAppControllerTab(); ///< [6] 🕹 APP Controller
     void buildLanWanTab();     ///< [7] 🌐 LAN & WAN
     void buildMultiAgentTab();     ///< [8] 🕸️ Multi-Agente + Grafo
-    void buildDistillazioneTab();  ///< [9] 🧬 Distillazione Sintetica
     void buildNavMenuBar(QWidget* wrapper, QVBoxLayout* wLay); ///< Barra menu alternativa + sincronizzazione
     void applyContentSettings();  ///< Applica nav style e exec btn mode da QSettings
 
@@ -222,8 +221,6 @@ private:
     /* Pagine con connessioni cross-modulo */
     class RicercaPage*     m_ricercaPage     = nullptr;   ///< tab [6] — espone ragGraphMemory()
     class AgentiMultiPage*   m_agentiMultiPage    = nullptr;   ///< embedded in LAN & WAN
-    class DistillazionePage* m_distillazionePage  = nullptr;   ///< tab [9] 🧬 Distillazione
-
     /* Strumenti — StrumentiPage riceve il pannello Cron reale via ensureSettingsDialog */
     class StrumentiPage* m_strumentiPage = nullptr;
 

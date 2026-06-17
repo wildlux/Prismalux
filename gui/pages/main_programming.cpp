@@ -1,4 +1,5 @@
 #include "main_programming.h"
+#include "main_distillazione_page.h"
 #include "widget_code_interpreter.h"
 #include "widget_coding_lab.h"
 #include "../prismalux_paths.h"
@@ -180,7 +181,7 @@ void ProgrammazionePage::buildInnerTabs()
     m_innerTabs->setCornerWidget(titleCorner, Qt::TopLeftCorner);
 
     m_innerTabs->addTab(buildCodingTab(m_innerTabs),
-        "\xf0\x9f\x92\xbb  Programmazione");
+        "\xf0\x9f\x92\xbb  Codifica");
     m_innerTabs->addTab(buildAgentica(m_innerTabs),
         "\xf0\x9f\x8f\x97\xef\xb8\x8f  Architetta Software");
     m_innerTabs->addTab(buildTranslitter(m_innerTabs),
@@ -219,6 +220,8 @@ void ProgrammazionePage::buildInnerTabs()
         "\xf0\x9f\x94\xa7  Driver & Kernel");
     m_innerTabs->addTab(new CodingLabWidget(m_ai, m_innerTabs),
         "\xf0\x9f\xa7\xaa  Lab Coding");
+    m_innerTabs->addTab(new DistillazionePage(m_ai, m_innerTabs),
+        "\xf0\x9f\xa7\xac  Distillazione");
 }
 
 /* ── Livello 1: tab Coding completo ── */

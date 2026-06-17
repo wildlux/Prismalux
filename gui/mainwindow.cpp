@@ -14,7 +14,6 @@
 #include "pages/main_app_controller.h"
 #include "pages/main_lan_wan.h"
 #include "pages/main_multi_agent.h"
-#include "pages/main_distillazione_page.h"
 #include "pages/main_multimedia.h"
 #include "pages/main_tools_file.h"
 #include "app_config.h"
@@ -1547,8 +1546,6 @@ QWidget* MainWindow::buildContent()
     buildAppControllerTab();
     buildLanWanTab();
     buildMultiAgentTab();
-    buildDistillazioneTab();
-
     /* 🔍 Ricerca schede — corner widget destro, a destra di "LAN WAN" */
     {
         auto* srchWrap = new QWidget(m_mainTabs);
@@ -1706,14 +1703,6 @@ void MainWindow::buildMultiAgentTab()
      * Qui impostiamo solo la cross-pollination con il RagGraph. */
     if (m_ricercaPage && m_agentiMultiPage)
         m_agentiMultiPage->setExtRagMemory(m_ricercaPage->ragGraphMemory());
-}
-
-/* ── Livello 2: tab [9] 🧬 Distillazione Sintetica ─────────────── */
-void MainWindow::buildDistillazioneTab()
-{
-    m_distillazionePage = new DistillazionePage(m_ai, this);
-    m_mainTabs->addTab(m_distillazionePage,
-                       "\xf0\x9f\xa7\xac  Distillazione");  /* 9 */
 }
 
 /* ── Livello 2: barra navigazione menu + sincronizzazione tab ────── */
