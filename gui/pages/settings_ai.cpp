@@ -1636,552 +1636,406 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
 {
     auto* page  = new QWidget;
     auto* outer = new QVBoxLayout(page);
-    outer->setContentsMargins(20, 20, 20, 20);
-    outer->setSpacing(16);
+    outer->setContentsMargins(16, 16, 16, 16);
+    outer->setSpacing(12);
 
-    /* Titolo */
-    auto* title = new QLabel("\xe2\x9a\x99\xef\xb8\x8f  Parametri AI \xe2\x80\x94 Anti-allucinazione e precisione");
+    const AiChatParams cur = AiChatParams::load();
+
+    /* ── Header ── */
+    auto* title = new QLabel("\xe2\x9a\x99\xef\xb8\x8f  Parametri AI");
     title->setObjectName("sectionTitle");
     outer->addWidget(title);
 
-    auto* desc = new QLabel(
-        "Modalit\xc3\xa0 <b>Brutal Honesty</b>: il modello ammette l'incertezza invece di inventare. "
-        "Temperatura vicina a 0 = risposte deterministiche e ripetibili. "
-        "Il prefisso di onest\xc3\xa0 istruisce il modello a dire "
-        "\xe2\x80\x9cNon lo so\xe2\x80\x9d invece di inventare fatti, numeri o citazioni.");
-    desc->setWordWrap(true);
-    desc->setObjectName("hintLabel");
-    outer->addWidget(desc);
-
-    auto* fl = new QFormLayout;
-    fl->setContentsMargins(0, 8, 0, 0);
-    fl->setSpacing(12);
-    fl->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
-
-    /* Legge dall'unica fonte: ~/.prismalux/ai_params.json */
-    const AiChatParams cur = AiChatParams::load();
-
-    /* Mostra percorso file sotto il titolo */
     auto* fileLbl = new QLabel(
-        "\xf0\x9f\x93\x84  Sorgente: <code>" + AiChatParams::filePath() + "</code> "
-        "(modificabile anche con un editor di testo)");
+        "\xf0\x9f\x93\x84  <code>" + AiChatParams::filePath() + "</code>");
     fileLbl->setWordWrap(true);
     fileLbl->setObjectName("hintLabel");
+    fileLbl->setTextFormat(Qt::RichText);
     outer->addWidget(fileLbl);
 
-    auto* sep0b = new QFrame; sep0b->setFrameShape(QFrame::HLine); sep0b->setObjectName("sidebarSep");
-    outer->addWidget(sep0b);
-
-    /* ── Temperatura ── */
-    auto* tempSpin = new QDoubleSpinBox;
-    tempSpin->setRange(0.0, 1.5);
-    tempSpin->setSingleStep(0.05);
-    tempSpin->setDecimals(2);
-    tempSpin->setValue(cur.temperature);
-    tempSpin->setToolTip("0 = deterministico puro (risposta identica ogni volta)\n"
-                         "0.05 = quasi deterministico — Brutal Honesty (default)\n"
-                         "0.3+ = creativo ma meno affidabile per fatti precisi");
-    fl->addRow("Temperatura:", tempSpin);
-
-    auto* tempHint = new QLabel(
-        "\xe2\x84\xb9  0.0" "\xe2\x80\x93" "0.1 = fatti certi e ripetibili (Brutal Honesty)  |  0.3+ = creativo/inventivo");
-    tempHint->setObjectName("hintLabel");
-    fl->addRow("", tempHint);
-
-    /* ── Top-P ── */
-    auto* topPSpin = new QDoubleSpinBox;
-    topPSpin->setRange(0.1, 1.0);
-    topPSpin->setSingleStep(0.05);
-    topPSpin->setDecimals(2);
-    topPSpin->setValue(cur.top_p);
-    topPSpin->setToolTip("Nucleus sampling: include solo i token pi\xc3\xb9 probabili.\n"
-                         "0.85 = scelte conservative (Brutal Honesty)");
-    fl->addRow("Top-P:", topPSpin);
-
-    /* ── Top-K ── */
-    auto* topKSpin = new QSpinBox;
-    topKSpin->setRange(1, 200);
-    topKSpin->setValue(cur.top_k);
-    topKSpin->setToolTip("Limita la scelta ai K token pi\xc3\xb9 probabili.\n"
-                         "20 = molto conservativo — favorisce i fatti sicuri.");
-    fl->addRow("Top-K:", topKSpin);
-
-    /* ── Penalità ripetizioni ── */
-    auto* repSpin = new QDoubleSpinBox;
-    repSpin->setRange(1.0, 2.0);
-    repSpin->setSingleStep(0.05);
-    repSpin->setDecimals(2);
-    repSpin->setValue(cur.repeat_penalty);
-    repSpin->setToolTip("Penalizza i token gi\xc3\xa0 generati per ridurre le ripetizioni.\n"
-                        "1.20 = riduce loop e riempitivi.");
-    fl->addRow("Penalità ripetizioni:", repSpin);
-
-    /* ── Max token risposta ── */
-    auto* predSpin = new QSpinBox;
-    predSpin->setRange(256, 16384);
-    predSpin->setSingleStep(256);
-    predSpin->setValue(cur.num_predict);
-    predSpin->setSuffix("  token");
-    predSpin->setToolTip("Numero massimo di token generati per risposta.\n"
-                         "2048 = risposte lunghe complete  |  512 = risposte brevi e veloci");
-    fl->addRow("Max token risposta:", predSpin);
-
-    /* ── Context window ── */
-    auto* ctxSpin = new QSpinBox;
-    ctxSpin->setRange(1024, 65536);
-    ctxSpin->setSingleStep(1024);
-    ctxSpin->setValue(cur.num_ctx);
-    ctxSpin->setSuffix("  token");
-    ctxSpin->setToolTip(
-        "Finestra di contesto: quanti token la chat tiene in memoria.\n"
-        "\n"
-        "Impatto VRAM (KV-cache, stima per modello 4B):\n"
-        "  2048 token  \xe2\x86\x92  ~0.7 GB  \xe2\x86\x92  modello 4B entra quasi tutto in GPU 4 GB\n"
-        "  4096 token  \xe2\x86\x92  ~1.3 GB  \xe2\x86\x92  necessario Misto (GPU+CPU)\n"
-        "  8192 token  \xe2\x86\x92  ~2.7 GB  \xe2\x86\x92  Misto obbligatorio, ~46% su CPU\n"
-        " 16384 token  \xe2\x86\x92  ~5.4 GB  \xe2\x86\x92  quasi tutto su CPU (GPU insufficiente)\n"
-        "\n"
-        "Regola: abbassa il contesto per massimizzare i layer su NVIDIA VRAM.");
-    fl->addRow("Finestra contesto:", ctxSpin);
-
-    /* Hint dinamico: stima KV-cache VRAM al cambio del valore */
-    auto* ctxHint = new QLabel("", outer->parentWidget());
-    ctxHint->setObjectName("hintLabel");
-    ctxHint->setWordWrap(true);
-    fl->addRow("", ctxHint);
-
-    auto updateCtxHint = [ctxHint](int ctx) {
-        /* Stima KV-cache: ~0.33 MB/token per modello 4B (GQA 32 layer, fp16) */
-        const double kvGb = ctx * 0.00033;
-        QString level, advice;
-        if (kvGb < 1.0) {
-            level  = "\xe2\x9c\x85";
-            advice = "modello 4B quasi interamente su GPU 4 GB";
-        } else if (kvGb < 2.0) {
-            level  = "\xf0\x9f\x9f\xa1";
-            advice = "Misto GPU+CPU consigliato";
-        } else if (kvGb < 4.0) {
-            level  = "\xf0\x9f\x9f\xa0";
-            advice = "Misto obbligatorio, parte significativa su CPU/RAM";
-        } else {
-            level  = "\xf0\x9f\x94\xb4";
-            advice = "GPU 4 GB insufficiente — quasi tutto su CPU";
-        }
-        ctxHint->setText(QString("%1  KV-cache stimata: ~%2 GB  \xe2\x80\x94  %3")
-                         .arg(level).arg(kvGb, 0, 'f', 1).arg(advice));
-    };
-    updateCtxHint(ctxSpin->value());
-    QObject::connect(ctxSpin, QOverload<int>::of(&QSpinBox::valueChanged),
-                     ctxHint, updateCtxHint);
-
-    outer->addLayout(fl);
-
-    /* ── Prefisso di onestà assoluta ── */
-    auto* honestyCb = new QCheckBox(
-        "\xf0\x9f\x94\x92  Prefisso Brutal Honesty (consigliato)");
-    honestyCb->setChecked(cur.honesty_prefix);
-    honestyCb->setToolTip(
-        "Aggiunge all'inizio di ogni system prompt la regola:\n"
-        "\"Se non conosci qualcosa, dillo. Non inventare mai fatti, numeri o citazioni.\"\n"
-        "Questo \xc3\xa8 il metodo pi\xc3\xb9 efficace per ridurre le allucinazioni.");
-    outer->addWidget(honestyCb);
-
-    auto* honestyHint = new QLabel(
-        "\xe2\x84\xb9  Con questa opzione attiva il modello risponde "
-        "\xe2\x80\x9cNon lo so\xe2\x80\x9d invece di inventare. Disattiva solo se vuoi risposte pi\xc3\xb9 fluide.");
-    honestyHint->setWordWrap(true);
-    honestyHint->setObjectName("hintLabel");
-    outer->addWidget(honestyHint);
-
-    /* ── Modalità Caveman (risposte dirette, zero riempitivi) ── */
-    auto* sepCaveman = new QFrame; sepCaveman->setFrameShape(QFrame::HLine);
-    sepCaveman->setObjectName("sidebarSep");
-    outer->addWidget(sepCaveman);
-
-    /* Riga: toggle + etichetta */
-    auto* cavemanRow = new QWidget;
-    auto* cavemanLay = new QHBoxLayout(cavemanRow);
-    cavemanLay->setContentsMargins(0, 4, 0, 4);
-    cavemanLay->setSpacing(12);
-
-    const bool cavemanOn = AiChatParams::load().caveman_mode;
-    auto* cavemanToggle = new ToggleSwitch({}, this);
-    cavemanToggle->setChecked(cavemanOn);
-    cavemanToggle->setFixedHeight(26);
-
-    auto* cavemanLbl = new QLabel(
-        "\xf0\x9f\xa6\x96  <b>Modalit\xc3\xa0 Caveman</b> \xe2\x80\x94 risposte dirette, senza convenevoli");
-    cavemanLbl->setWordWrap(false);
-
-    /* Badge stato ON/OFF visivo accanto al toggle */
-    auto* cavemanBadge = new QLabel(cavemanOn ? "  ON " : "  OFF");
-    cavemanBadge->setObjectName(cavemanOn ? "badgeActive" : "badgeInactive");
-    cavemanBadge->setFixedWidth(44);
-    cavemanBadge->setAlignment(Qt::AlignCenter);
-
-    cavemanLay->addWidget(cavemanToggle);
-    cavemanLay->addWidget(cavemanBadge);
-    cavemanLay->addWidget(cavemanLbl);
-    cavemanLay->addStretch();
-    outer->addWidget(cavemanRow);
-
-    auto* cavemanDesc = new QLabel(
-        "\xe2\x84\xb9  Elimina frasi come \xe2\x80\x9c" "Certamente!\xe2\x80\x9d o \xe2\x80\x9c" "Spero di averti aiutato\xe2\x80\x9d. "
-        "Il modello va dritto al contenuto. Utile per pipeline agenti e query rapide "
-        "(meno token sprecati = risposte pi\xc3\xb9 veloci).");
-    cavemanDesc->setWordWrap(true);
-    cavemanDesc->setObjectName("hintLabel");
-    outer->addWidget(cavemanDesc);
-
-    /* ── Personalità AI ── */
-    auto* sepPersona = new QFrame; sepPersona->setFrameShape(QFrame::HLine);
-    sepPersona->setObjectName("sidebarSep");
-    outer->addWidget(sepPersona);
-
-    auto* personaTitleRow = new QWidget;
-    auto* personaTitleLay = new QHBoxLayout(personaTitleRow);
-    personaTitleLay->setContentsMargins(0, 4, 0, 2);
-    personaTitleLay->setSpacing(8);
-    auto* personaLbl = new QLabel(
-        "\xf0\x9f\x8e\xad  <b>Personalit\xc3\xa0 AI</b> \xe2\x80\x94 stile di risposta del modello");
-    personaLbl->setWordWrap(false);
-    personaTitleLay->addWidget(personaLbl);
-    personaTitleLay->addStretch();
-    outer->addWidget(personaTitleRow);
-
-    struct PersonaDef { const char* key; const char* label; };
-    static const PersonaDef kPersonas[] = {
-        {"nessuna", "\xf0\x9f\x9a\xab  Nessuna"},
-        {"jarvis",  "\xf0\x9f\xa4\x96  Jarvis  (Tony Stark)"},
-        {"kitt",    "\xf0\x9f\x9a\x97  KITT  (Knight Rider)"},
-        {"yoda",    "\xf0\x9f\x8c\xbf  Yoda  (Star Wars)"},
-        {"snake",   "\xf0\x9f\x8e\xae  Snake  (Metal Gear)"},
-        {"sonic",   "\xf0\x9f\x92\xa8  Sonic"},
-        {"mario",   "\xf0\x9f\x8d\x84  Super Mario"},
-    };
-
+    /* ═══════════════════════════════════════════════
+       1. CAMPIONAMENTO
+       ═══════════════════════════════════════════════ */
     {
+        auto* grp = new QGroupBox("\xe2\x9a\x97\xef\xb8\x8f  Campionamento");
+        auto* gl  = new QVBoxLayout(grp);
+        auto* fl  = new QFormLayout;
+        fl->setSpacing(10);
+        fl->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+        auto* tempSpin = new QDoubleSpinBox;
+        tempSpin->setRange(0.0, 1.5); tempSpin->setSingleStep(0.05); tempSpin->setDecimals(2);
+        tempSpin->setValue(cur.temperature);
+        tempSpin->setToolTip("0 = deterministico puro\n0.05 = Brutal Honesty (default)\n0.3+ = creativo");
+        fl->addRow("Temperatura:", tempSpin);
+
+        auto* topPSpin = new QDoubleSpinBox;
+        topPSpin->setRange(0.1, 1.0); topPSpin->setSingleStep(0.05); topPSpin->setDecimals(2);
+        topPSpin->setValue(cur.top_p);
+        topPSpin->setToolTip("Nucleus sampling — 0.85 = conservativo (Brutal Honesty)");
+        fl->addRow("Top-P:", topPSpin);
+
+        auto* topKSpin = new QSpinBox;
+        topKSpin->setRange(1, 200); topKSpin->setValue(cur.top_k);
+        topKSpin->setToolTip("Limita ai K token pi\xc3\xb9 probabili — 20 = molto conservativo");
+        fl->addRow("Top-K:", topKSpin);
+
+        auto* repSpin = new QDoubleSpinBox;
+        repSpin->setRange(1.0, 2.0); repSpin->setSingleStep(0.05); repSpin->setDecimals(2);
+        repSpin->setValue(cur.repeat_penalty);
+        repSpin->setToolTip("Penalizza token gi\xc3\xa0 generati — 1.20 = riduce loop");
+        fl->addRow("Penalità ripetizioni:", repSpin);
+
+        auto* hint = new QLabel(
+            "\xe2\x84\xb9  T 0.0\xe2\x80\x930.1 = risposte fattuali e ripetibili  \xe2\x80\xa2  T 0.3+ = creativo/inventivo");
+        hint->setObjectName("hintLabel");
+
+        gl->addLayout(fl);
+        gl->addWidget(hint);
+        outer->addWidget(grp);
+
+        m_tempSpin = tempSpin; m_topPSpin = topPSpin;
+        m_topKSpin = topKSpin; m_repSpin  = repSpin;
+
+        connect(tempSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &ImpostazioniPage::onAiParamsSave);
+        connect(topPSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &ImpostazioniPage::onAiParamsSave);
+        connect(topKSpin, QOverload<int>::of(&QSpinBox::valueChanged),          this, &ImpostazioniPage::onAiParamsSave);
+        connect(repSpin,  QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &ImpostazioniPage::onAiParamsSave);
+    }
+
+    /* ═══════════════════════════════════════════════
+       2. CONTESTO E MEMORIA
+       ═══════════════════════════════════════════════ */
+    {
+        auto* grp = new QGroupBox("\xf0\x9f\x92\xac  Contesto e memoria");
+        auto* gl  = new QVBoxLayout(grp);
+        auto* fl  = new QFormLayout;
+        fl->setSpacing(10);
+        fl->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+        auto* predSpin = new QSpinBox;
+        predSpin->setRange(256, 16384); predSpin->setSingleStep(256);
+        predSpin->setValue(cur.num_predict); predSpin->setSuffix("  token");
+        predSpin->setToolTip("Max token generati per risposta\n2048 = completo  |  512 = breve e veloce");
+        fl->addRow("Max token risposta:", predSpin);
+
+        auto* ctxSpin = new QSpinBox;
+        ctxSpin->setRange(1024, 65536); ctxSpin->setSingleStep(1024);
+        ctxSpin->setValue(cur.num_ctx); ctxSpin->setSuffix("  token");
+        ctxSpin->setToolTip(
+            "Token mantenuti in memoria per la chat.\n\n"
+            "KV-cache stimata (modello 4B):\n"
+            "  2048 → ~0.7 GB   4096 → ~1.3 GB\n"
+            "  8192 → ~2.7 GB  16384 → ~5.4 GB");
+        fl->addRow("Finestra contesto:", ctxSpin);
+
+        auto* ctxHint = new QLabel;
+        ctxHint->setObjectName("hintLabel"); ctxHint->setWordWrap(true);
+        fl->addRow("", ctxHint);
+
+        auto updateCtxHint = [ctxHint](int ctx) {
+            const double kvGb = ctx * 0.00033;
+            QString icon;
+            if      (kvGb < 1.0) icon = "\xe2\x9c\x85";
+            else if (kvGb < 2.0) icon = "\xf0\x9f\x9f\xa1";
+            else if (kvGb < 4.0) icon = "\xf0\x9f\x9f\xa0";
+            else                 icon = "\xf0\x9f\x94\xb4";
+            ctxHint->setText(icon + QString("  KV-cache stimata: ~%1 GB").arg(kvGb, 0, 'f', 1));
+        };
+        updateCtxHint(ctxSpin->value());
+        QObject::connect(ctxSpin, QOverload<int>::of(&QSpinBox::valueChanged), ctxHint, updateCtxHint);
+
+        auto* turnsSpin = new QSpinBox;
+        turnsSpin->setRange(1, 20); turnsSpin->setSuffix("  turni");
+        turnsSpin->setValue(qBound(1, QSettings("Prismalux","GUI")
+                                          .value(P::SK::kChatMaxTurns, 3).toInt(), 20));
+        turnsSpin->setToolTip(
+            "Turni recenti in formato grezzo nel contesto AI.\n"
+            "I turni pi\xc3\xb9 vecchi vengono compressi via AI.\n"
+            "Consigliato: 3-6.");
+        fl->addRow("Turni in memoria:", turnsSpin);
+
+        auto* memHint = new QLabel(
+            "\xe2\x84\xb9  I turni eccedenti vengono riassunti e iniettati come contesto compatto. "
+            "Aumenta se l'AI \xe2\x80\x9cdimentica\xe2\x80\x9d troppo presto.");
+        memHint->setObjectName("hintLabel"); memHint->setWordWrap(true);
+
+        gl->addLayout(fl);
+        gl->addWidget(memHint);
+        outer->addWidget(grp);
+
+        m_predSpin = predSpin; m_ctxSpin = ctxSpin; m_ctxHint = ctxHint;
+
+        connect(predSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &ImpostazioniPage::onAiParamsSave);
+        connect(ctxSpin,  QOverload<int>::of(&QSpinBox::valueChanged), this, &ImpostazioniPage::onAiParamsSave);
+        connect(turnsSpin, QOverload<int>::of(&QSpinBox::valueChanged), turnsSpin, [](int v) {
+            QSettings("Prismalux","GUI").setValue(P::SK::kChatMaxTurns, qBound(1,v,20));
+        });
+    }
+
+    /* ═══════════════════════════════════════════════
+       3. COMPORTAMENTO AI
+       ═══════════════════════════════════════════════ */
+    {
+        auto* grp = new QGroupBox("\xf0\x9f\xa7\xa0  Comportamento AI");
+        auto* gl  = new QVBoxLayout(grp);
+        gl->setSpacing(10);
+
+        /* Brutal Honesty */
+        auto* honestyCb = new QCheckBox(
+            "\xf0\x9f\x94\x92  Prefisso Brutal Honesty (consigliato)");
+        honestyCb->setChecked(cur.honesty_prefix);
+        honestyCb->setToolTip(
+            "Aggiunge al system prompt: \"Se non conosci qualcosa, dillo.\n"
+            "Non inventare mai fatti, numeri o citazioni.\"");
+        gl->addWidget(honestyCb);
+
+        auto* honestyHint = new QLabel(
+            "\xe2\x84\xb9  Il modello risponde \xe2\x80\x9cNon lo so\xe2\x80\x9d "
+            "invece di inventare. Disattiva solo per risposte pi\xc3\xb9 fluide.");
+        honestyHint->setObjectName("hintLabel"); honestyHint->setWordWrap(true);
+        gl->addWidget(honestyHint);
+
+        /* Caveman */
+        auto* cavemanRow = new QWidget;
+        auto* cavemanLay = new QHBoxLayout(cavemanRow);
+        cavemanLay->setContentsMargins(0, 4, 0, 0); cavemanLay->setSpacing(10);
+
+        const bool cavemanOn = AiChatParams::load().caveman_mode;
+        auto* cavemanToggle = new ToggleSwitch({}, this);
+        cavemanToggle->setChecked(cavemanOn); cavemanToggle->setFixedHeight(26);
+
+        auto* cavemanBadge = new QLabel(cavemanOn ? "  ON " : "  OFF");
+        cavemanBadge->setObjectName(cavemanOn ? "badgeActive" : "badgeInactive");
+        cavemanBadge->setFixedWidth(44); cavemanBadge->setAlignment(Qt::AlignCenter);
+
+        auto* cavemanLbl = new QLabel(
+            "\xf0\x9f\xa6\x96  <b>Modalit\xc3\xa0 Caveman</b> \xe2\x80\x94 risposte dirette, zero convenevoli");
+        cavemanLay->addWidget(cavemanToggle);
+        cavemanLay->addWidget(cavemanBadge);
+        cavemanLay->addWidget(cavemanLbl);
+        cavemanLay->addStretch();
+        gl->addWidget(cavemanRow);
+
+        auto* cavemanDesc = new QLabel(
+            "\xe2\x84\xb9  Elimina \xe2\x80\x9cCertamente!\xe2\x80\x9d e \xe2\x80\x9cSpero di averti aiutato\xe2\x80\x9d. "
+            "Meno token sprecati = risposte pi\xc3\xb9 veloci.");
+        cavemanDesc->setObjectName("hintLabel"); cavemanDesc->setWordWrap(true);
+        gl->addWidget(cavemanDesc);
+
+        /* Personalità */
+        auto* personaLbl = new QLabel(
+            "\xf0\x9f\x8e\xad  <b>Personalit\xc3\xa0</b> \xe2\x80\x94 stile di risposta");
+        personaLbl->setTextFormat(Qt::RichText);
+        gl->addWidget(personaLbl);
+
+        struct PersonaDef { const char* key; const char* label; };
+        static const PersonaDef kPersonas[] = {
+            {"nessuna", "\xf0\x9f\x9a\xab  Nessuna"},
+            {"jarvis",  "\xf0\x9f\xa4\x96  Jarvis"},
+            {"kitt",    "\xf0\x9f\x9a\x97  KITT"},
+            {"yoda",    "\xf0\x9f\x8c\xbf  Yoda"},
+            {"snake",   "\xf0\x9f\x8e\xae  Snake"},
+            {"sonic",   "\xf0\x9f\x92\xa8  Sonic"},
+            {"mario",   "\xf0\x9f\x8d\x84  Mario"},
+        };
         const QString curPersona = AppConfig::s().value(P::SK::kAiPersonality, "nessuna").toString();
-
-        /* Prima riga: Nessuna + Jarvis + KITT */
-        auto* row1 = new QWidget; auto* lay1 = new QHBoxLayout(row1);
-        lay1->setContentsMargins(0, 0, 0, 0); lay1->setSpacing(6);
-        /* Seconda riga: Yoda + Snake + Sonic + Mario */
-        auto* row2 = new QWidget; auto* lay2 = new QHBoxLayout(row2);
-        lay2->setContentsMargins(0, 0, 0, 4); lay2->setSpacing(6);
-
-        QButtonGroup* grp = new QButtonGroup(page);
-        int idx = 0;
+        auto* personaRow = new QWidget;
+        auto* personaLay = new QHBoxLayout(personaRow);
+        personaLay->setContentsMargins(0,0,0,0); personaLay->setSpacing(6);
+        QButtonGroup* grpBtns = new QButtonGroup(page);
         for (const auto& pd : kPersonas) {
             auto* btn = new QPushButton(pd.label, page);
             btn->setCheckable(true);
             btn->setChecked(QString(pd.key) == curPersona);
             btn->setObjectName("actionBtn");
             btn->setProperty("persona_key", QString(pd.key));
-            grp->addButton(btn);
-            (idx < 3 ? lay1 : lay2)->addWidget(btn);
-            idx++;
+            grpBtns->addButton(btn);
+            personaLay->addWidget(btn);
         }
-        lay1->addStretch(); lay2->addStretch();
-        outer->addWidget(row1);
-        outer->addWidget(row2);
+        personaLay->addStretch();
+        gl->addWidget(personaRow);
 
-        connect(grp, &QButtonGroup::buttonClicked,
-                this, &ImpostazioniPage::onPersonaBtnClicked);
+        outer->addWidget(grp);
+
+        m_honestyCb    = honestyCb;
+        m_cavemanToggle = cavemanToggle;
+        m_cavemanBadge = cavemanBadge;
+
+        connect(honestyCb,    &QCheckBox::toggled,       this, &ImpostazioniPage::onAiParamsSave);
+        connect(cavemanToggle,&QAbstractButton::toggled, this, &ImpostazioniPage::onCavemanToggled);
+        connect(grpBtns,      &QButtonGroup::buttonClicked, this, &ImpostazioniPage::onPersonaBtnClicked);
     }
 
-    auto* personaDesc = new QLabel(
-        "\xe2\x84\xb9  La personalit\xc3\xa0 modifica lo stile di risposta del modello e il testo del "
-        "pulsante Conversa. Si applica a tutte le chat.");
-    personaDesc->setWordWrap(true);
-    personaDesc->setObjectName("hintLabel");
-    outer->addWidget(personaDesc);
-
-    /* ── Flash Attention ── */
-    auto* flashRow = new QWidget;
-    auto* flashLay = new QHBoxLayout(flashRow);
-    flashLay->setContentsMargins(0, 4, 0, 4);
-    flashLay->setSpacing(12);
-
-    auto* flashCb = new QCheckBox(
-        "\xe2\x9a\xa1  Flash Attention (riduce RAM/VRAM KV cache ~30-50%)", page);
-    flashCb->setObjectName("cardDesc");
-    flashCb->setChecked(AiChatParams::load().flash_attn);
-    flashLay->addWidget(flashCb);
-    flashLay->addStretch();
-    outer->addWidget(flashRow);
-
-    auto* flashDesc = new QLabel(
-        "\xe2\x84\xb9  Consigliato su macchine con \xe2\x89\xa4 8 GB RAM. "
-        "Riduce la memoria usata dalla KV cache durante la generazione. "
-        "Ollama e llama-server lo ignorano se il modello non lo supporta.");
-    flashDesc->setWordWrap(true);
-    flashDesc->setObjectName("hintLabel");
-    outer->addWidget(flashDesc);
-
-    /* ── mlock: blocca modello in RAM (solo llama-server) ── */
-    auto* mlockRow = new QWidget;
-    auto* mlockLay = new QHBoxLayout(mlockRow);
-    mlockLay->setContentsMargins(0, 4, 0, 0);
-    mlockLay->setSpacing(12);
-
-    auto* mlockCb = new QCheckBox(
-        "\xf0\x9f\x94\x92  Blocca modello in RAM (--mlock, llama-server)", page);  /* 🔒 */
-    mlockCb->setObjectName("cardDesc");
+    /* ═══════════════════════════════════════════════
+       4. OTTIMIZZAZIONE HARDWARE
+       ═══════════════════════════════════════════════ */
     {
+        auto* grp = new QGroupBox("\xe2\x9a\xa1  Ottimizzazione hardware");
+        auto* gl  = new QVBoxLayout(grp);
+        gl->setSpacing(8);
+
+        auto* flashCb = new QCheckBox(
+            "\xe2\x9a\xa1  Flash Attention — riduce KV-cache RAM/VRAM del 30-50%");
+        flashCb->setObjectName("cardDesc");
+        flashCb->setChecked(AiChatParams::load().flash_attn);
+        flashCb->setToolTip("Consigliato con \xe2\x89\xa4 8 GB RAM. Ignorato se il modello non lo supporta.");
+        gl->addWidget(flashCb);
+
+        auto* mlockCb = new QCheckBox(
+            "\xf0\x9f\x94\x92  Blocca modello in RAM (--mlock, solo llama-server)");
+        mlockCb->setObjectName("cardDesc");
         mlockCb->setChecked(AppConfig::s().value(P::SK::kMlockModel, false).toBool());
+        mlockCb->setToolTip("Impedisce lo swap su disco. Utile con \xe2\x89\xa5 16 GB RAM. Richiede riavvio server.");
+        gl->addWidget(mlockCb);
+
+        auto* hwHint = new QLabel(
+            "\xe2\x84\xb9  Flash Attention funziona su Ollama e llama-server. "
+            "mlock solo su llama-server.");
+        hwHint->setObjectName("hintLabel"); hwHint->setWordWrap(true);
+        gl->addWidget(hwHint);
+
+        outer->addWidget(grp);
+
+        m_flashCb = flashCb;
+
+        connect(flashCb, &QCheckBox::toggled, this, &ImpostazioniPage::onAiParamsSave);
+        connect(mlockCb, &QCheckBox::toggled, this, &ImpostazioniPage::onMlockToggled);
     }
-    mlockLay->addWidget(mlockCb);
-    mlockLay->addStretch();
-    outer->addWidget(mlockRow);
 
-    auto* mlockDesc = new QLabel(
-        "\xe2\x84\xb9  Impedisce all'OS di fare swap delle pagine del modello su disco. "
-        "Riduce i picchi di latenza su sistemi con RAM sufficiente (>= 16 GB). "
-        "Solo llama-server — Ollama lo ignora. Richiede riavvio del server.");
-    mlockDesc->setWordWrap(true);
-    mlockDesc->setObjectName("hintLabel");
-    outer->addWidget(mlockDesc);
-
-    connect(mlockCb, &QCheckBox::toggled,
-            this,    &ImpostazioniPage::onMlockToggled);
-
-    /* ── RPC Cluster (llama.cpp multi-machine) ── */
-    auto* rpcSep = new QFrame; rpcSep->setFrameShape(QFrame::HLine); rpcSep->setObjectName("sidebarSep");
-    outer->addWidget(rpcSep);
-
-    auto* rpcTitleLbl = new QLabel("\xf0\x9f\x96\xa7  RPC Cluster — calcolo distribuito su pi\xc3\xb9 macchine", page);  /* 🖧 */
-    rpcTitleLbl->setObjectName("sectionTitle");
-    outer->addWidget(rpcTitleLbl);
-
-    auto* rpcCb = new QCheckBox(
-        "Abilita RPC Cluster (--rpc, llama-server)", page);
-    rpcCb->setObjectName("cardDesc");
-    rpcCb->setChecked(AppConfig::s().value(P::SK::kRpcEnabled, false).toBool());
-    outer->addWidget(rpcCb);
-
-    auto* rpcNodesLbl = new QLabel("Nodi RPC (host:porta, separati da virgola):", page);
-    rpcNodesLbl->setObjectName("hintLabel");
-    outer->addWidget(rpcNodesLbl);
-
-    auto* rpcRow = new QWidget;
-    auto* rpcRowLay = new QHBoxLayout(rpcRow);
-    rpcRowLay->setContentsMargins(0, 0, 0, 0);
-    rpcRowLay->setSpacing(8);
-
-    auto* rpcNodesEdit = new QLineEdit(page);
-    rpcNodesEdit->setPlaceholderText("192.168.1.10:50052,192.168.1.11:50052");
-    rpcNodesEdit->setText(AppConfig::s().value(P::SK::kRpcNodes, "").toString());
-    rpcNodesEdit->setObjectName("settingsInput");
-    rpcRowLay->addWidget(rpcNodesEdit, 1);
-
-    auto* rpcCheckBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica nodi", page);  /* 🔍 */
-    rpcCheckBtn->setObjectName("actionBtn");
-    rpcRowLay->addWidget(rpcCheckBtn);
-    outer->addWidget(rpcRow);
-
-    auto* rpcStatusLbl = new QLabel("", page);
-    rpcStatusLbl->setObjectName("hintLabel");
-    rpcStatusLbl->setWordWrap(true);
-    outer->addWidget(rpcStatusLbl);
-
-    /* SSH utente + path rpc-server per automazione */
-    auto* rpcSshRow = new QWidget;
-    auto* rpcSshLay = new QHBoxLayout(rpcSshRow);
-    rpcSshLay->setContentsMargins(0, 4, 0, 0);
-    rpcSshLay->setSpacing(8);
-
-    auto* rpcSshLbl = new QLabel("Utente SSH:", page);
-    rpcSshLbl->setObjectName("hintLabel");
-    rpcSshLay->addWidget(rpcSshLbl);
-
-    auto* rpcSshUserEdit = new QLineEdit(page);
-    rpcSshUserEdit->setPlaceholderText(qgetenv("USER"));
-    rpcSshUserEdit->setText(AppConfig::s().value(P::SK::kRpcSshUser,
-        QString::fromLocal8Bit(qgetenv("USER"))).toString());
-    rpcSshUserEdit->setObjectName("settingsInput");
-    rpcSshLay->addWidget(rpcSshUserEdit, 1);
-
-    auto* rpcPathLbl = new QLabel("Path rpc-server:", page);
-    rpcPathLbl->setObjectName("hintLabel");
-    rpcSshLay->addWidget(rpcPathLbl);
-
-    auto* rpcPathEdit = new QLineEdit(page);
-    rpcPathEdit->setPlaceholderText("~/llama.cpp/build/bin/rpc-server");
-    rpcPathEdit->setText(AppConfig::s().value(P::SK::kRpcServerPath, "").toString());
-    rpcPathEdit->setObjectName("settingsInput");
-    rpcSshLay->addWidget(rpcPathEdit, 2);
-    outer->addWidget(rpcSshRow);
-
-    /* Pulsanti Avvia / Ferma nodi */
-    auto* rpcCtrlRow = new QWidget;
-    auto* rpcCtrlLay = new QHBoxLayout(rpcCtrlRow);
-    rpcCtrlLay->setContentsMargins(0, 4, 0, 0);
-    rpcCtrlLay->setSpacing(8);
-
-    auto* rpcStartBtn = new QPushButton(
-        "\xf0\x9f\x9a\x80  Avvia nodi RPC", page);  /* 🚀 */
-    rpcStartBtn->setObjectName("actionBtn");
-    rpcStartBtn->setToolTip("SSH su ogni nodo → avvia rpc-server in background");
-    rpcCtrlLay->addWidget(rpcStartBtn);
-
-    auto* rpcStopBtn = new QPushButton(
-        "\xe2\x8f\xb9  Ferma nodi RPC", page);  /* ⏹ */
-    rpcStopBtn->setObjectName("actionBtn");
-    rpcStopBtn->setToolTip("SSH su ogni nodo → pkill rpc-server");
-    rpcCtrlLay->addWidget(rpcStopBtn);
-    rpcCtrlLay->addStretch();
-    outer->addWidget(rpcCtrlRow);
-
-    auto* rpcDesc = new QLabel(
-        "\xe2\x84\xb9  Richiede SSH senza password (chiave pubblica) verso ogni nodo. "  /* ℹ */
-        "Su ogni PC remoto deve essere compilato llama.cpp con <b>-DGGML_RPC=ON</b>. "
-        "Solo llama-server — Ollama non supporta RPC. Richiede riavvio del server.", page);
-    rpcDesc->setWordWrap(true);
-    rpcDesc->setObjectName("hintLabel");
-    rpcDesc->setTextFormat(Qt::RichText);
-    outer->addWidget(rpcDesc);
-
-    m_rpcCb          = rpcCb;
-    m_rpcNodesEdit   = rpcNodesEdit;
-    m_rpcStatusLbl   = rpcStatusLbl;
-    m_rpcSshUserEdit = rpcSshUserEdit;
-    m_rpcPathEdit    = rpcPathEdit;
-    m_rpcStartBtn    = rpcStartBtn;
-    m_rpcStopBtn     = rpcStopBtn;
-
-    connect(rpcCb,          &QCheckBox::toggled,        this, &ImpostazioniPage::onRpcToggled);
-    connect(rpcNodesEdit,   &QLineEdit::editingFinished, this, &ImpostazioniPage::onRpcNodesEditFinished);
-    connect(rpcCheckBtn,    &QPushButton::clicked,       this, &ImpostazioniPage::onRpcCheckClicked);
-    connect(rpcSshUserEdit, &QLineEdit::editingFinished, this, &ImpostazioniPage::onRpcSshUserEditFinished);
-    connect(rpcPathEdit,    &QLineEdit::editingFinished, this, &ImpostazioniPage::onRpcPathEditFinished);
-    connect(rpcStartBtn,    &QPushButton::clicked,       this, &ImpostazioniPage::onRpcStartNodesClicked);
-    connect(rpcStopBtn,     &QPushButton::clicked,       this, &ImpostazioniPage::onRpcStopNodesClicked);
-
-    /* ── Preset "8 GB RAM" ── */
-    auto* presetRow = new QWidget;
-    auto* presetLay = new QHBoxLayout(presetRow);
-    presetLay->setContentsMargins(0, 4, 0, 4);
-    presetLay->setSpacing(8);
-
-    auto* presetLbl = new QLabel("\xf0\x9f\x8e\x9b  Preset:", page);  /* 🎛 */
-    presetLbl->setObjectName("cardDesc");
-    presetLay->addWidget(presetLbl);
-
-    auto* preset8gb = new QPushButton("8 GB RAM", page);
-    preset8gb->setObjectName("actionBtn");
-    preset8gb->setToolTip(
-        "Applica impostazioni ottimali per macchine con 8 GB RAM:\n"
-        "num_ctx=4096  num_predict=1024  temperature=0.1  Flash Attention ON");
-    presetLay->addWidget(preset8gb);
-
-    auto* presetLong = new QPushButton("\xf0\x9f\x93\x9c  Contesto lungo", page);  /* 📜 */
-    presetLong->setObjectName("actionBtn");
-    presetLong->setToolTip(
-        "Aumenta la finestra di contesto per documenti e conversazioni lunghe.\n"
-        "num_ctx=16384  Flash Attention ON\n\n"
-        "Richiede \xe2\x89\xa5 16 GB RAM o VRAM adeguata.\n"
-        "Su Ollama: invia num_ctx=16384 in ogni richiesta.\n"
-        "Su llama-server: riavviare il server dopo aver applicato.");
-    presetLay->addWidget(presetLong);
-    presetLay->addStretch();
-    outer->addWidget(presetRow);
-
-    auto* sep1 = new QFrame; sep1->setFrameShape(QFrame::HLine); sep1->setObjectName("sidebarSep");
-    outer->addWidget(sep1);
-
-    /* ── Bottoni reset / salva ── */
-    auto* btnRow  = new QWidget;
-    auto* btnLay  = new QHBoxLayout(btnRow);
-    btnLay->setContentsMargins(0, 0, 0, 0);
-    btnLay->setSpacing(8);
-
-    auto* resetBtn = new QPushButton("\xf0\x9f\x94\x84  Ripristina default");
-    resetBtn->setObjectName("actionBtn");
-    resetBtn->setToolTip(tr("Ripristina i valori ottimali anti-allucinazione"));
-
-    auto* saveBtn  = new QPushButton("\xe2\x9c\x85  Salva");
-    saveBtn->setObjectName("actionBtn");
-
-    auto* saveStatus = new QLabel("");
-    saveStatus->setObjectName("hintLabel");
-
-    btnLay->addWidget(resetBtn);
-    btnLay->addStretch();
-    btnLay->addWidget(saveStatus);
-    btnLay->addWidget(saveBtn);
-    outer->addWidget(btnRow);
-
-    /* Salva puntatori come member variables per i slot */
-    m_tempSpin     = tempSpin;
-    m_topPSpin     = topPSpin;
-    m_topKSpin     = topKSpin;
-    m_repSpin      = repSpin;
-    m_predSpin     = predSpin;
-    m_ctxSpin      = ctxSpin;
-    m_ctxHint      = ctxHint;
-    m_honestyCb    = honestyCb;
-    m_cavemanToggle = cavemanToggle;
-    m_cavemanBadge = cavemanBadge;
-    m_flashCb      = flashCb;
-    m_saveStatus   = saveStatus;
-
-    connect(saveBtn,  &QPushButton::clicked, this, &ImpostazioniPage::onAiParamsSave);
-    connect(resetBtn, &QPushButton::clicked, this, &ImpostazioniPage::onAiParamsReset);
-    connect(flashCb,  &QCheckBox::toggled,   this, &ImpostazioniPage::onAiParamsSave);
-    connect(preset8gb,  &QPushButton::clicked, this, &ImpostazioniPage::onAiPreset8GbClicked);
-    connect(presetLong, &QPushButton::clicked, this, &ImpostazioniPage::onAiPresetLongClicked);
-    connect(cavemanToggle, &QAbstractButton::toggled, this, &ImpostazioniPage::onCavemanToggled);
-
-    /* Auto-salva su ogni variazione di parametro */
-    connect(tempSpin,  QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &ImpostazioniPage::onAiParamsSave);
-    connect(topPSpin,  QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &ImpostazioniPage::onAiParamsSave);
-    connect(topKSpin,  QOverload<int>::of(&QSpinBox::valueChanged),          this, &ImpostazioniPage::onAiParamsSave);
-    connect(repSpin,   QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &ImpostazioniPage::onAiParamsSave);
-    connect(predSpin,  QOverload<int>::of(&QSpinBox::valueChanged),          this, &ImpostazioniPage::onAiParamsSave);
-    connect(ctxSpin,   QOverload<int>::of(&QSpinBox::valueChanged),          this, &ImpostazioniPage::onAiParamsSave);
-    connect(honestyCb, &QCheckBox::toggled,                                  this, &ImpostazioniPage::onAiParamsSave);
-
-    /* ── Compressione storia chat ── */
+    /* ═══════════════════════════════════════════════
+       5. RPC CLUSTER
+       ═══════════════════════════════════════════════ */
     {
-        auto* sep = new QFrame; sep->setFrameShape(QFrame::HLine); sep->setObjectName("sidebarSep");
-        outer->addWidget(sep);
+        auto* grp = new QGroupBox("\xf0\x9f\x96\xa7  RPC Cluster — calcolo distribuito");
+        auto* gl  = new QVBoxLayout(grp);
+        gl->setSpacing(8);
 
-        auto* chatGroup = new QGroupBox("\xf0\x9f\x92\xac  Memoria conversazione");
-        auto* chatLay   = new QVBoxLayout(chatGroup);
-        auto* chatFl    = new QFormLayout;
-        chatFl->setSpacing(10);
-        chatFl->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        auto* rpcCb = new QCheckBox("Abilita RPC Cluster (--rpc, llama-server)");
+        rpcCb->setObjectName("cardDesc");
+        rpcCb->setChecked(AppConfig::s().value(P::SK::kRpcEnabled, false).toBool());
+        gl->addWidget(rpcCb);
 
-        auto* turnsSpin = new QSpinBox;
-        turnsSpin->setRange(1, 20);
-        turnsSpin->setValue(qBound(1, QSettings("Prismalux","GUI")
-                                          .value(P::SK::kChatMaxTurns, 3).toInt(), 20));
-        turnsSpin->setSuffix("  turni");
-        turnsSpin->setToolTip(
-            "Numero di turni recenti da mantenere in formato grezzo nel contesto dell'AI.\n"
-            "I turni pi\xc3\xb9 vecchi vengono compressi (riassunti via AI) per risparmiare token.\n"
-            "Valore alto = pi\xc3\xb9 contesto raw, ma pi\xc3\xb9 token per richiesta.\n"
-            "Consigliato: 3-6.");
-        chatFl->addRow("Turni in memoria:", turnsSpin);
-        chatFl->labelForField(turnsSpin)->setToolTip(turnsSpin->toolTip());
+        auto* fl = new QFormLayout;
+        fl->setSpacing(8);
+        fl->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
-        auto* chatHint = new QLabel(
-            "\xe2\x84\xb9  I turni eccedenti vengono riassunti dall'AI e iniettati come contesto compatto. "
-            "Aumenta se l'AI " "\xe2\x80\x9c" "dimentica" "\xe2\x80\x9d"
-            " troppo presto; riduci per risparmiare token.");
-        chatHint->setObjectName("hintLabel");
-        chatHint->setWordWrap(true);
+        auto* rpcNodesEdit = new QLineEdit;
+        rpcNodesEdit->setPlaceholderText("192.168.1.10:50052,192.168.1.11:50052");
+        rpcNodesEdit->setText(AppConfig::s().value(P::SK::kRpcNodes, "").toString());
+        rpcNodesEdit->setObjectName("settingsInput");
 
-        chatLay->addLayout(chatFl);
-        chatLay->addWidget(chatHint);
-        outer->addWidget(chatGroup);
+        auto* rpcCheckBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica nodi");
+        rpcCheckBtn->setObjectName("actionBtn");
 
-        connect(turnsSpin, QOverload<int>::of(&QSpinBox::valueChanged), turnsSpin,
-                [](int v) {
-                    QSettings ss("Prismalux", "GUI");
-                    ss.setValue(P::SK::kChatMaxTurns, qBound(1, v, 20));
-                });
+        auto* nodesRow = new QWidget;
+        auto* nodesLay = new QHBoxLayout(nodesRow);
+        nodesLay->setContentsMargins(0,0,0,0); nodesLay->setSpacing(6);
+        nodesLay->addWidget(rpcNodesEdit, 1);
+        nodesLay->addWidget(rpcCheckBtn);
+        fl->addRow("Nodi (host:porta):", nodesRow);
+
+        auto* rpcSshUserEdit = new QLineEdit;
+        rpcSshUserEdit->setPlaceholderText(qgetenv("USER"));
+        rpcSshUserEdit->setText(AppConfig::s().value(P::SK::kRpcSshUser,
+            QString::fromLocal8Bit(qgetenv("USER"))).toString());
+        rpcSshUserEdit->setObjectName("settingsInput");
+        fl->addRow("Utente SSH:", rpcSshUserEdit);
+
+        auto* rpcPathEdit = new QLineEdit;
+        rpcPathEdit->setPlaceholderText("~/llama.cpp/build/bin/rpc-server");
+        rpcPathEdit->setText(AppConfig::s().value(P::SK::kRpcServerPath, "").toString());
+        rpcPathEdit->setObjectName("settingsInput");
+        fl->addRow("Path rpc-server:", rpcPathEdit);
+
+        gl->addLayout(fl);
+
+        auto* rpcStatusLbl = new QLabel;
+        rpcStatusLbl->setObjectName("hintLabel"); rpcStatusLbl->setWordWrap(true);
+        gl->addWidget(rpcStatusLbl);
+
+        auto* ctrlRow = new QWidget;
+        auto* ctrlLay = new QHBoxLayout(ctrlRow);
+        ctrlLay->setContentsMargins(0,0,0,0); ctrlLay->setSpacing(8);
+        auto* rpcStartBtn = new QPushButton("\xf0\x9f\x9a\x80  Avvia nodi RPC");
+        rpcStartBtn->setObjectName("actionBtn");
+        rpcStartBtn->setToolTip("SSH su ogni nodo → avvia rpc-server in background");
+        auto* rpcStopBtn = new QPushButton("\xe2\x8f\xb9  Ferma nodi RPC");
+        rpcStopBtn->setObjectName("actionBtn");
+        rpcStopBtn->setToolTip("SSH su ogni nodo → pkill rpc-server");
+        ctrlLay->addWidget(rpcStartBtn); ctrlLay->addWidget(rpcStopBtn); ctrlLay->addStretch();
+        gl->addWidget(ctrlRow);
+
+        auto* rpcDesc = new QLabel(
+            "\xe2\x84\xb9  Richiede SSH senza password e llama.cpp compilato con "
+            "<b>-DGGML_RPC=ON</b> su ogni nodo remoto.");
+        rpcDesc->setObjectName("hintLabel"); rpcDesc->setWordWrap(true);
+        rpcDesc->setTextFormat(Qt::RichText);
+        gl->addWidget(rpcDesc);
+
+        outer->addWidget(grp);
+
+        m_rpcCb = rpcCb; m_rpcNodesEdit = rpcNodesEdit; m_rpcStatusLbl = rpcStatusLbl;
+        m_rpcSshUserEdit = rpcSshUserEdit; m_rpcPathEdit = rpcPathEdit;
+        m_rpcStartBtn = rpcStartBtn; m_rpcStopBtn = rpcStopBtn;
+
+        connect(rpcCb,          &QCheckBox::toggled,         this, &ImpostazioniPage::onRpcToggled);
+        connect(rpcNodesEdit,   &QLineEdit::editingFinished,  this, &ImpostazioniPage::onRpcNodesEditFinished);
+        connect(rpcCheckBtn,    &QPushButton::clicked,        this, &ImpostazioniPage::onRpcCheckClicked);
+        connect(rpcSshUserEdit, &QLineEdit::editingFinished,  this, &ImpostazioniPage::onRpcSshUserEditFinished);
+        connect(rpcPathEdit,    &QLineEdit::editingFinished,  this, &ImpostazioniPage::onRpcPathEditFinished);
+        connect(rpcStartBtn,    &QPushButton::clicked,        this, &ImpostazioniPage::onRpcStartNodesClicked);
+        connect(rpcStopBtn,     &QPushButton::clicked,        this, &ImpostazioniPage::onRpcStopNodesClicked);
+    }
+
+    /* ── Preset + Salva/Reset ── */
+    {
+        auto* presetRow = new QWidget;
+        auto* presetLay = new QHBoxLayout(presetRow);
+        presetLay->setContentsMargins(0, 4, 0, 0); presetLay->setSpacing(8);
+
+        auto* presetLbl = new QLabel("\xf0\x9f\x8e\x9b  Preset rapidi:");
+        presetLbl->setObjectName("cardDesc");
+        presetLay->addWidget(presetLbl);
+
+        auto* preset8gb = new QPushButton("8 GB RAM");
+        preset8gb->setObjectName("actionBtn");
+        preset8gb->setToolTip("num_ctx=4096  num_predict=1024  T=0.1  Flash Attention ON");
+        presetLay->addWidget(preset8gb);
+
+        auto* presetLong = new QPushButton("\xf0\x9f\x93\x9c  Contesto lungo");
+        presetLong->setObjectName("actionBtn");
+        presetLong->setToolTip("num_ctx=16384  Flash Attention ON\nRichiede \xe2\x89\xa5 16 GB RAM");
+        presetLay->addWidget(presetLong);
+        presetLay->addStretch();
+        outer->addWidget(presetRow);
+
+        auto* btnRow = new QWidget;
+        auto* btnLay = new QHBoxLayout(btnRow);
+        btnLay->setContentsMargins(0, 0, 0, 0); btnLay->setSpacing(8);
+
+        auto* resetBtn = new QPushButton("\xf0\x9f\x94\x84  Ripristina default");
+        resetBtn->setObjectName("actionBtn");
+        resetBtn->setToolTip(tr("Ripristina i valori ottimali anti-allucinazione"));
+
+        auto* saveBtn = new QPushButton("\xe2\x9c\x85  Salva");
+        saveBtn->setObjectName("actionBtn");
+
+        auto* saveStatus = new QLabel;
+        saveStatus->setObjectName("hintLabel");
+
+        btnLay->addWidget(resetBtn);
+        btnLay->addStretch();
+        btnLay->addWidget(saveStatus);
+        btnLay->addWidget(saveBtn);
+        outer->addWidget(btnRow);
+
+        m_saveStatus = saveStatus;
+
+        connect(saveBtn,    &QPushButton::clicked, this, &ImpostazioniPage::onAiParamsSave);
+        connect(resetBtn,   &QPushButton::clicked, this, &ImpostazioniPage::onAiParamsReset);
+        connect(preset8gb,  &QPushButton::clicked, this, &ImpostazioniPage::onAiPreset8GbClicked);
+        connect(presetLong, &QPushButton::clicked, this, &ImpostazioniPage::onAiPresetLongClicked);
     }
 
     outer->addStretch();

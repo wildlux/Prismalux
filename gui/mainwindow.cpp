@@ -1413,6 +1413,7 @@ QWidget* MainWindow::buildSidebar() {
         auto* newChatBtn = new QPushButton("\xe2\x9c\x8f\xef\xb8\x8f  Nuova chat", btnRow);
         newChatBtn->setObjectName("actionBtn");
         newChatBtn->setFixedHeight(dpiScale(30));
+        newChatBtn->setStyleSheet("text-align: left; padding-left: 8px;");
         newChatBtn->setToolTip("Inizia una nuova conversazione (reset log)");
         connect(newChatBtn, &QPushButton::clicked, this, &MainWindow::onNewChatClicked);
         btnLay->addWidget(newChatBtn);
