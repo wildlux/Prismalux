@@ -301,13 +301,16 @@ void LanWanPage::onLanPortChanged(int v)
 void LanWanPage::onUpdateQrInline()
 {
     if (!m_qrInlineWidget) return;
-    const QString ip    = localLanIp();
-    const int     port  = m_lanPortSpin ? m_lanPortSpin->value() : 11500;
-    const QString token = m_lanTokenEdit ? m_lanTokenEdit->text().trimmed() : QString();
+    const QString ip   = localLanIp();
+    const int     port = m_lanPortSpin ? m_lanPortSpin->value() : 11500;
+    QString token = m_lanTokenEdit ? m_lanTokenEdit->text().trimmed() : QString();
+    if (token.isEmpty())
+        token = LanServer::loadLanToken();   // fallback diretto al file
     QString url = QString("http://%1:%2/web").arg(ip).arg(port);
     if (!token.isEmpty())
         url += "?token=" + QString::fromLatin1(QUrl::toPercentEncoding(token));
     m_qrInlineWidget->setText(url);
+    m_qrInlineWidget->setToolTip(url);       // hover → URL completo con token visibile
     if (m_urlDisplayLbl)
         m_urlDisplayLbl->setText(QString("%1 : %2").arg(ip).arg(port));
 }
@@ -707,8 +710,13 @@ QWidget* LanWanPage::buildLanAndroidTab()
     scrollLay->addWidget(urlRow);
 
     connect(urlCopyBtn, &QPushButton::clicked, urlCopyBtn, [this, urlCopyBtn]{
-        const QString url = QString("%1://%2")
-            .arg(serverScheme()).arg(m_urlDisplayLbl->text().trimmed());
+        const QString ip   = localLanIp();
+        const int     port = m_lanPortSpin ? m_lanPortSpin->value() : 11500;
+        QString token = m_lanTokenEdit ? m_lanTokenEdit->text().trimmed() : QString();
+        if (token.isEmpty()) token = LanServer::loadLanToken();
+        QString url = QString("%1://%2:%3/web").arg(serverScheme()).arg(ip).arg(port);
+        if (!token.isEmpty())
+            url += "?token=" + QString::fromLatin1(QUrl::toPercentEncoding(token));
         QGuiApplication::clipboard()->setText(url);
         urlCopyBtn->setText(tr("\xe2\x9c\x85"));                  /* ✅ feedback */
         QTimer::singleShot(1500, urlCopyBtn, [urlCopyBtn]{

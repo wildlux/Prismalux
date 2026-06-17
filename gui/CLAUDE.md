@@ -191,6 +191,12 @@ Pattern one-shot preferito: `QMetaObject::Connection` come membro, disconnect es
 
 **LanServer shutdown:** `blockSignals(true)` prima di `stop()` — evita SIGSEGV.
 
+**webchat.html tab bar (v2.9+):** 2 righe per sezione (`#tabbar` → `flex-direction:column`). Riga 1: AI (Chat/Agenti/RAG/Grafo/Know.) + Strumenti (Finanza/TFR/Lavoro/File AI/REPL). Riga 2: Learn (Impara/Media/Voce/App) + Dev (Coding/Matema./Graphviz/Git/Wiki/Sistema). CSS: `.tab-row` wraps; `.sec-lbl` label di sezione con bordo destro.
+
+**webchat.html font size:** CSS var `--fz:14px` su `:root`. Pulsanti `#fz-dn` / `#fz-up` (A-/A+) in `#hdr` aggiornano `--fz` + `localStorage.plx-fz`. `.msg` usa `font-size:var(--fz)`.
+
+**onUpdateQrInline():** legge token da `m_lanTokenEdit`; se vuoto → fallback `LanServer::loadLanToken()`. URL completo con token nel tooltip del QR. Copy button usa stesso URL con token + `/web` path.
+
 ## TriModeButton (`widgets/tri_mode_button.h`)
 
 Widget header-only (QPainter), ovale a 3 settori selezionabili + hub centrale ovale (pulsante azione).
