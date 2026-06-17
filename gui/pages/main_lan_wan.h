@@ -45,7 +45,8 @@ private:
     QLineEdit*   m_lanTokenEdit = nullptr;
     QPushButton* m_qrApkBtn        = nullptr;
     QPushButton* m_qrPageBtn       = nullptr;
-    QrCodeWidget* m_qrInlineWidget = nullptr;
+    QrCodeWidget* m_qrInlineWidget  = nullptr;  ///< QR generico (web browser)
+    QrCodeWidget* m_qrAndroidWidget = nullptr;  ///< QR app Flutter Android
     QLabel*       m_urlDisplayLbl  = nullptr;
     QString       m_lanConnectIp;
     QTimer*       m_ipWatchTimer   = nullptr;  ///< polling IP LAN ogni 30s

@@ -309,8 +309,15 @@ void LanWanPage::onUpdateQrInline()
     QString url = QString("http://%1:%2/web").arg(ip).arg(port);
     if (!token.isEmpty())
         url += "?token=" + QString::fromLatin1(QUrl::toPercentEncoding(token));
+
     m_qrInlineWidget->setText(url);
-    m_qrInlineWidget->setToolTip(url);       // hover → URL completo con token visibile
+    m_qrInlineWidget->setToolTip(url);       // hover → URL con token visibile
+
+    if (m_qrAndroidWidget) {
+        m_qrAndroidWidget->setText(url);
+        m_qrAndroidWidget->setToolTip(url);
+    }
+
     if (m_urlDisplayLbl)
         m_urlDisplayLbl->setText(QString("%1 : %2").arg(ip).arg(port));
 }
@@ -650,29 +657,85 @@ QWidget* LanWanPage::buildLanAndroidTab()
     rightLay->setContentsMargins(4, 0, 0, 0);
     rightLay->setSpacing(8);
 
-    /* ── QR centrato + istruzioni sotto ── */
-    m_qrInlineWidget = new QrCodeWidget(QString(), rightW);
-    m_qrInlineWidget->setFixedSize(dpiSize(276, 276));
-    m_qrInlineWidget->setToolTip(
-        "QR di connessione rapida. Si aggiorna con IP, porta e token.");
-    rightLay->addWidget(m_qrInlineWidget, 0, Qt::AlignHCenter | Qt::AlignTop);
+    /* ── Coppia QR affiancata: sinistra = web generico, destra = app Android ── */
+    auto* qrPairW    = new QWidget(rightW);
+    auto* qrPairLay  = new QHBoxLayout(qrPairW);
+    qrPairLay->setContentsMargins(0, 0, 0, 0);
+    qrPairLay->setSpacing(dpiScale(10));
 
+    /* — colonna sinistra: QR generico (browser web) — */
+    auto* qrWebCol    = new QWidget(qrPairW);
+    auto* qrWebColLay = new QVBoxLayout(qrWebCol);
+    qrWebColLay->setContentsMargins(0, 0, 0, 0);
+    qrWebColLay->setSpacing(4);
+
+    auto* qrWebLbl = new QLabel("\xf0\x9f\x8c\x90  <b>Web Chat</b>", qrWebCol);
+    qrWebLbl->setTextFormat(Qt::RichText);
+    qrWebLbl->setAlignment(Qt::AlignCenter);
+    qrWebLbl->setStyleSheet("font-size:12px;");
+    qrWebColLay->addWidget(qrWebLbl, 0, Qt::AlignHCenter);
+
+    m_qrInlineWidget = new QrCodeWidget(QString(), qrWebCol);
+    m_qrInlineWidget->setFixedSize(dpiSize(130, 130));
+    m_qrInlineWidget->setToolTip(
+        "QR web: apre la chat nel browser del telefono.\n"
+        "Si aggiorna automaticamente con IP, porta e token.");
+    qrWebColLay->addWidget(m_qrInlineWidget, 0, Qt::AlignHCenter);
+
+    auto* qrWebHintLbl = new QLabel("<small>Apri nel browser</small>", qrWebCol);
+    qrWebHintLbl->setTextFormat(Qt::RichText);
+    qrWebHintLbl->setAlignment(Qt::AlignCenter);
+    qrWebHintLbl->setStyleSheet("color: gray; font-size:11px;");
+    qrWebColLay->addWidget(qrWebHintLbl, 0, Qt::AlignHCenter);
+
+    /* — colonna destra: QR app Flutter Android — */
+    auto* qrAppCol    = new QWidget(qrPairW);
+    auto* qrAppColLay = new QVBoxLayout(qrAppCol);
+    qrAppColLay->setContentsMargins(0, 0, 0, 0);
+    qrAppColLay->setSpacing(4);
+
+    auto* qrAppLbl = new QLabel("\xf0\x9f\x93\xb1  <b>App Android</b>", qrAppCol);
+    qrAppLbl->setTextFormat(Qt::RichText);
+    qrAppLbl->setAlignment(Qt::AlignCenter);
+    qrAppLbl->setStyleSheet("font-size:12px;");
+    qrAppColLay->addWidget(qrAppLbl, 0, Qt::AlignHCenter);
+
+    m_qrAndroidWidget = new QrCodeWidget(QString(), qrAppCol);
+    m_qrAndroidWidget->setFixedSize(dpiSize(130, 130));
+    m_qrAndroidWidget->setToolTip(
+        "QR app Flutter: scansiona con PrismaluxMobile\n"
+        "Impostazioni \xe2\x86\x92 Scansiona QR\n"
+        "Configura IP, porta e token in automatico.");
+    qrAppColLay->addWidget(m_qrAndroidWidget, 0, Qt::AlignHCenter);
+
+    auto* qrAppHintLbl = new QLabel(
+        "<small>Impostazioni \xe2\x86\x92 \xf0\x9f\x93\xb7 Scansiona QR</small>",
+        qrAppCol);
+    qrAppHintLbl->setTextFormat(Qt::RichText);
+    qrAppHintLbl->setAlignment(Qt::AlignCenter);
+    qrAppHintLbl->setStyleSheet("color: gray; font-size:11px;");
+    qrAppColLay->addWidget(qrAppHintLbl, 0, Qt::AlignHCenter);
+
+    qrPairLay->addWidget(qrWebCol, 1);
+    qrPairLay->addWidget(qrAppCol, 1);
+    rightLay->addWidget(qrPairW, 0, Qt::AlignTop);
+
+    /* ── Istruzioni rapide ── */
     auto* qrInfoLbl = new QLabel(rightW);
     qrInfoLbl->setTextFormat(Qt::RichText);
     qrInfoLbl->setWordWrap(true);
     qrInfoLbl->setAlignment(Qt::AlignLeft | Qt::AlignTop);
     qrInfoLbl->setText(
-        "\n\n"
-        "<span style='font-size:14px;'>"
-        "<b>\xf0\x9f\x93\xb1  Connetti l\xe2\x80\x99" "app Android</b></span><br>"
+        "<br>"
         "<span style='font-size:13px;'>"
+        "<b>\xf0\x9f\x93\xb1  Connetti l\xe2\x80\x99" "app Android</b></span><br>"
+        "<span style='font-size:12px;'>"
         "1. Avvia <b>PrismaluxMobile</b> sul telefono<br>"
         "2. Apri <b>Impostazioni</b> \xe2\x86\x92 "
-        "<b>\xf0\x9f\x93\xb7 Scansiona QR dal PC</b><br>"
-        "3. Punta la fotocamera su questo QR<br><br>"
-        "<i>IP + Porta + Token vengono configurati in automatico.</i><br>"
-        "Puoi scansionare anche con il server fermo "
-        "per pre-configurare l\xe2\x80\x99" "app.</span>");
+        "<b>\xf0\x9f\x93\xb7 Scansiona QR</b><br>"
+        "3. Punta la fotocamera sul QR <b>App Android</b> (destra)<br>"
+        "<span style='color:gray;font-size:11px;'>"
+        "IP + Porta + Token configurati in automatico.</span></span>");
     rightLay->addWidget(qrInfoLbl);
 
     /* ── Sotto: URL + pulsanti ── */
