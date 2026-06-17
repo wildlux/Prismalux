@@ -266,10 +266,12 @@ def make_plots(all_results: dict[str, list[TempResult]], out_dir: str):
               facecolor="#0f172a", edgecolor="#334155", labelcolor="#cbd5e1", fontsize=9)
     ax.grid(True, color="#334155", alpha=0.5, linewidth=0.5)
 
+    path_svg = os.path.join(out_dir, "benchmark_combined.svg")
+    fig.savefig(path_svg, format="svg", bbox_inches="tight", facecolor=fig.get_facecolor())
     path_combined = os.path.join(out_dir, "benchmark_combined.png")
     fig.savefig(path_combined, dpi=150, bbox_inches="tight", facecolor=fig.get_facecolor())
     plt.close(fig)
-    print(f"[GRAFICO] {path_combined}")
+    print(f"[GRAFICO] {path_svg}")
 
     # ── Grafici individuali ──
     for model, results in all_results.items():

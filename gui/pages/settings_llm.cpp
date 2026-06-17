@@ -2077,15 +2077,19 @@ QWidget* ImpostazioniPage::buildBenchmarkLocaleTab()
     }
     mainLay->addWidget(table);
 
-    /* ── Grafico benchmark_combined.png (zoom+pan interattivo) ── */
-    const QString imgPath = P::root() + "/benchmark_out/benchmark_combined.png";
+    /* ── Grafico benchmark (SVG vettoriale con zoom+pan interattivo) ── */
     auto* imgView = new ZoomableImageView(page);
     imgView->setMinimumHeight(dpiScale(280));
     imgView->setToolTip("Rotella: zoom \xe2\x80\xa2 Trascina: pan \xe2\x80\xa2 Doppio click: reset");
     m_benchmarkImgLbl = imgView;
-    auto refreshImg = [imgView, imgPath]() {
-        QPixmap px(imgPath);
-        imgView->setPixmap(px);   /* ZoomableImageView gestisce il caso px.isNull() */
+    auto refreshImg = [imgView]() {
+        const QString svgPath = P::root() + "/benchmark_out/benchmark_combined.svg";
+        const QString pngPath = P::root() + "/benchmark_out/benchmark_combined.png";
+        if (QFile::exists(svgPath))
+            imgView->setSvgFile(svgPath);
+        else if (QFile::exists(pngPath))
+            imgView->setPixmap(QPixmap(pngPath));
+        /* altrimenti ZoomableImageView mostra il messaggio "non disponibile" */
     };
     refreshImg();
     mainLay->addWidget(imgView, 1);
@@ -2165,8 +2169,14 @@ void ImpostazioniPage::onBenchmarkProcFinished(int code, QProcess::ExitStatus)
             ? "<span style='color:#4ade80;'>\xe2\x9c\x85 Benchmark completato — grafico aggiornato.</span>"
             : "<span style='color:#f87171;'>\xe2\x9d\x8c Benchmark terminato con errore.</span>");
     /* aggiorna immagine */
-    if (ok && m_benchmarkImgLbl)
-        m_benchmarkImgLbl->setPixmap(QPixmap(P::root() + "/benchmark_out/benchmark_combined.png"));
+    if (ok && m_benchmarkImgLbl) {
+        const QString svgPath = P::root() + "/benchmark_out/benchmark_combined.svg";
+        const QString pngPath = P::root() + "/benchmark_out/benchmark_combined.png";
+        if (QFile::exists(svgPath))
+            m_benchmarkImgLbl->setSvgFile(svgPath);
+        else if (QFile::exists(pngPath))
+            m_benchmarkImgLbl->setPixmap(QPixmap(pngPath));
+    }
     m_benchmarkProc->deleteLater();
     m_benchmarkProc = nullptr;
 }
