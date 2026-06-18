@@ -1,4 +1,6 @@
 #include "main_tools.h"
+#include "widget_solar_calc.h"
+#include "widget_idro.h"
 #include "main_learn.h"
 #include "main_tools_file.h"
 #include "../widgets/proc_helper.h"
@@ -515,6 +517,14 @@ void StrumentiPage::buildLayout()
     /* ── Tab 10: File AI (spostato da tab principale a sub-tab di Strumenti) ── */
     m_tabs->addTab(new StrumentiFilePage(m_ai, m_tabs),
                    "\xf0\x9f\x93\x81  File AI"); /* 📁 */
+
+    /* ── Tab 11: Calcolatore Fotovoltaico ── */
+    m_tabs->addTab(new SolarCalcWidget(m_tabs),
+                   "\xe2\x98\x80  Fotovoltaico"); /* ☀ */
+
+    /* ── Tab 12: Idroponica ── */
+    m_tabs->addTab(new IdroWidget(m_tabs),
+                   "\xf0\x9f\x8c\xbf  Idroponica"); /* 🌿 */
 
     /* rootLay[0] = m_tabs (stretch 0 per tab categoria, 1 per le altre) */
     rootLay->addWidget(m_tabs, 0);

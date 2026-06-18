@@ -49,16 +49,19 @@ const char* kBlenderSys[] = {
     "REGOLA 1: la prima riga DEVE essere 'import bpy'. "
     "REGOLA 2: usa SEMPRE bpy.ops.mesh.primitive_*_add() — VIETATO costruire mesh da vertici. "
     "Primitive: primitive_cube_add, primitive_uv_sphere_add, primitive_cylinder_add, "
-    "primitive_plane_add, primitive_cone_add, primitive_torus_add. "
-    "Parametri tipici: size=2, location=(0,0,0). "
+    "primitive_plane_add, primitive_cone_add, primitive_torus_add, primitive_circle_add, "
+    "primitive_ico_sphere_add, primitive_grid_add, primitive_monkey_add. "
+    "Parametri tipici: size=2, location=(0,0,0), rotation=(0,0,0). "
     "Non aggiungere variabili 'result'. "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
-    /* 1 — Cambia Materiale */
+    /* 1 — Cambia Materiale (base) */
     "Sei un esperto di Blender Python API. Genera SOLO codice Python eseguibile in Blender. "
     "Prima riga OBBLIGATORIA: 'import bpy'. "
     "Crea o modifica un materiale Principled BSDF sull'oggetto attivo (bpy.context.active_object). "
-    "Imposta base_color, metallic, roughness secondo la richiesta. "
+    "Imposta base_color (RGBA tuple), metallic (0-1), roughness (0-1) secondo la richiesta. "
+    "Pattern: mat = bpy.data.materials.new('Mat'); mat.use_nodes = True; "
+    "bsdf = mat.node_tree.nodes['Principled BSDF']; bsdf.inputs['Base Color'].default_value = (r,g,b,1). "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
     /* 2 — Trasla */
@@ -79,22 +82,145 @@ const char* kBlenderSys[] = {
     "Usa bpy.context.active_object.scale = (sx, sy, sz). "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
-    /* 5 — Visibilità */
+    /* 5 — Visibilita */
     "Sei un esperto di Blender Python API. Genera SOLO codice Python eseguibile in Blender. "
     "Prima riga OBBLIGATORIA: 'import bpy'. "
-    "Usa obj.hide_viewport e obj.hide_render. "
+    "Usa obj.hide_viewport e obj.hide_render per visibilita viewport/render. "
+    "Per tutti gli oggetti: [setattr(o,'hide_viewport',True) for o in bpy.data.objects if 'pattern' in o.name]. "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
-    /* 6 — Avvia Render */
+    /* 6 — Render base */
     "Sei un esperto di Blender Python API. Genera SOLO codice Python eseguibile in Blender. "
     "Prima riga OBBLIGATORIA: 'import bpy'. "
     "Usa bpy.context.scene.render per le impostazioni, bpy.ops.render.render(write_still=True) per avviare. "
+    "Imposta scene.render.filepath='/tmp/render_out' e scene.render.image_settings.file_format='PNG'. "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
-    /* 7 — Script libero */
+    /* 7 — Modifica Mesh (Edit Mode + bmesh) */
+    "Sei un esperto di Blender Python API e bmesh. Genera SOLO codice Python eseguibile in Blender. "
+    "Prima riga OBBLIGATORIA: 'import bpy'. "
+    "Importa: import bpy, bmesh, mathutils. "
+    "Entra in edit mode: bpy.ops.object.mode_set(mode='EDIT'). "
+    "Ottieni mesh: bm = bmesh.from_edit_mesh(bpy.context.active_object.data). "
+    "Operazioni mesh: bmesh.ops.extrude_face_region, bmesh.ops.bevel, bmesh.ops.loop_cut, "
+    "bmesh.ops.dissolve_edges, bmesh.ops.subdivide_edges, bmesh.ops.inset_faces. "
+    "Per selezione: usa bm.verts/edges/faces; imposta .select = True/False. "
+    "Aggiorna: bmesh.update_edit_mesh(bpy.context.active_object.data). "
+    "Esci: bpy.ops.object.mode_set(mode='OBJECT'). "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    /* 8 — Modifier (Subdivision / Mirror / Boolean / Array / Solidify / Bevel / Decimate) */
+    "Sei un esperto di Blender Python API e i Modifier. Genera SOLO codice Python eseguibile in Blender. "
+    "Prima riga OBBLIGATORIA: 'import bpy'. "
+    "Pattern: obj = bpy.context.active_object; mod = obj.modifiers.new(name='Nome', type='TIPO'). "
+    "Tipi disponibili e parametri chiave: "
+    "SUBSURF (mod.levels, mod.render_levels, mod.subdivision_type='CATMULL_CLARK'/'SIMPLE'); "
+    "MIRROR (mod.use_axis=(True,False,False), mod.use_clip=True, mod.mirror_object=altro_obj); "
+    "BOOLEAN (mod.operation='UNION'/'DIFFERENCE'/'INTERSECT', mod.object=altro_obj, mod.solver='EXACT'); "
+    "ARRAY (mod.count=3, mod.relative_offset_displace=(1.2,0,0)); "
+    "SOLIDIFY (mod.thickness=0.01, mod.offset=-1.0); "
+    "BEVEL (mod.width=0.05, mod.segments=3, mod.limit_method='ANGLE'); "
+    "DECIMATE (mod.ratio=0.5, mod.decimate_type='COLLAPSE'); "
+    "ARMATURE (mod.object=armature_obj, mod.use_vertex_groups=True); "
+    "SCREW (mod.axis='Z', mod.steps=32, mod.angle=6.283). "
+    "Applica con: bpy.ops.object.modifier_apply(modifier='Nome'). "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    /* 9 — Materiale PBR avanzato (nodi Shader) */
+    "Sei un esperto di Blender Python API e Shader Nodes (PBR). Genera SOLO codice Python eseguibile in Blender. "
+    "Prima riga OBBLIGATORIA: 'import bpy'. "
+    "Crea materiale con nodi: mat = bpy.data.materials.new('PBR_Mat'); mat.use_nodes = True; "
+    "nodes = mat.node_tree.nodes; links = mat.node_tree.links; nodes.clear(). "
+    "Nodi da creare con nodes.new('ShaderNode...'): "
+    "ShaderNodeBsdfPrincipled — inputs: 'Base Color'(RGBA), 'Metallic'(0-1), 'Roughness'(0-1), "
+    "'IOR'(1.45), 'Alpha'(1), 'Emission Color'(RGBA), 'Emission Strength'(float), "
+    "'Subsurface Weight'(0-1), 'Coat Weight'(0-1), 'Sheen Weight'(0-1). "
+    "ShaderNodeTexImage — carica texture: n.image = bpy.data.images.load('/path/tex.png'); "
+    "  collega n.outputs['Color'] a Principled 'Base Color'. "
+    "ShaderNodeTexImage (roughness) — collega a 'Roughness'; usa n.image.colorspace_settings.name='Non-Color'. "
+    "ShaderNodeNormalMap + ShaderNodeTexImage (normal map) — collega NormalMap.outputs['Normal'] a 'Normal'. "
+    "ShaderNodeOutputMaterial — inputs: 'Surface'. "
+    "Aggiungi texture UV: ShaderNodeTexCoord + ShaderNodeMapping per scala/offset. "
+    "Assegna a oggetto: obj = bpy.context.active_object; obj.data.materials.append(mat). "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    /* 10 — HDRI + Luci (illuminazione scena) */
+    "Sei un esperto di Blender Python API. Genera SOLO codice Python eseguibile in Blender. "
+    "Prima riga OBBLIGATORIA: 'import bpy'. "
+    "HDRI World: scene = bpy.context.scene; world = scene.world; world.use_nodes = True; "
+    "nt = world.node_tree; nt.nodes.clear(); "
+    "env = nt.nodes.new('ShaderNodeTexEnvironment'); bg = nt.nodes.new('ShaderNodeBackground'); "
+    "out = nt.nodes.new('ShaderNodeOutputWorld'); "
+    "env.image = bpy.data.images.load('/path/to/hdri.hdr'); "
+    "nt.links.new(env.outputs['Color'], bg.inputs['Color']); "
+    "nt.links.new(bg.outputs['Background'], out.inputs['Surface']); "
+    "bg.inputs['Strength'].default_value = 1.0. "
+    "Luci: bpy.ops.object.light_add(type='POINT'/'SUN'/'AREA'/'SPOT', location=(x,y,z)). "
+    "light = bpy.context.active_object.data; light.energy = 1000.0; light.color = (r,g,b). "
+    "AREA: light.shape='RECTANGLE'; light.size=2.0; light.size_y=1.0. "
+    "SPOT: light.spot_size=0.785; light.spot_blend=0.15. "
+    "SUN: light.angle=0.00872 (0.5 gradi). "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    /* 11 — Impostazioni Render (Cycles / EEVEE) */
+    "Sei un esperto di Blender Python API. Genera SOLO codice Python eseguibile in Blender. "
+    "Prima riga OBBLIGATORIA: 'import bpy'. "
+    "scene = bpy.context.scene. "
+    "Motore: scene.render.engine = 'CYCLES' oppure 'BLENDER_EEVEE_NEXT'. "
+    "Cycles: scene.cycles.samples = 256; scene.cycles.preview_samples = 32; "
+    "scene.cycles.use_denoising = True; scene.cycles.denoiser = 'OPENIMAGEDENOISE'; "
+    "scene.cycles.device = 'GPU'; scene.cycles.max_bounces = 8; "
+    "scene.cycles.diffuse_bounces = 4; scene.cycles.glossy_bounces = 4; "
+    "scene.cycles.transmission_bounces = 12. "
+    "EEVEE: scene.eevee.taa_render_samples = 64; scene.eevee.use_bloom = True; "
+    "scene.eevee.use_ssr = True; scene.eevee.use_ssr_refraction = True; "
+    "scene.eevee.shadow_cube_size = '1024'. "
+    "Output: scene.render.filepath = '/tmp/render_'; "
+    "scene.render.resolution_x = 1920; scene.render.resolution_y = 1080; "
+    "scene.render.resolution_percentage = 100; "
+    "scene.render.image_settings.file_format = 'PNG'/'JPEG'/'OPEN_EXR'; "
+    "scene.render.image_settings.color_mode = 'RGBA'. "
+    "Avvia render: bpy.ops.render.render(write_still=True). "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    /* 12 — Import / Export 3D (OBJ / FBX / GLTF / STL) */
+    "Sei un esperto di Blender Python API. Genera SOLO codice Python eseguibile in Blender. "
+    "Prima riga OBBLIGATORIA: 'import bpy'. "
+    "Import: "
+    "  OBJ: bpy.ops.wm.obj_import(filepath='/path/file.obj'). "
+    "  FBX: bpy.ops.import_scene.fbx(filepath='/path/file.fbx'). "
+    "  GLTF/GLB: bpy.ops.import_scene.gltf(filepath='/path/file.glb'). "
+    "  STL: bpy.ops.import_mesh.stl(filepath='/path/file.stl'). "
+    "  SVG: bpy.ops.import_curve.svg(filepath='/path/file.svg'). "
+    "Export (usa pathlib.Path.home()/'Desktop'/ come cartella default): "
+    "  OBJ: bpy.ops.wm.obj_export(filepath='/tmp/out.obj', export_materials=True). "
+    "  FBX: bpy.ops.export_scene.fbx(filepath='/tmp/out.fbx', use_selection=False). "
+    "  GLTF: bpy.ops.export_scene.gltf(filepath='/tmp/out.glb', export_format='GLB', "
+    "         export_materials='EXPORT'). "
+    "  STL: bpy.ops.export_mesh.stl(filepath='/tmp/out.stl', ascii=False). "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    /* 13 — UV Unwrap */
+    "Sei un esperto di Blender Python API. Genera SOLO codice Python eseguibile in Blender. "
+    "Prima riga OBBLIGATORIA: 'import bpy'. "
+    "Seleziona oggetto e vai in EDIT mode: bpy.ops.object.mode_set(mode='EDIT'). "
+    "Seleziona tutto: bpy.ops.mesh.select_all(action='SELECT'). "
+    "Metodi UV: "
+    "  Unwrap standard (seams): bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.001). "
+    "  Smart UV (auto-seam): bpy.ops.uv.smart_project(angle_limit=66.0, "
+    "    margin_method='FRACTION', island_margin=0.02). "
+    "  Lightmap pack: bpy.ops.uv.lightmap_pack(PREF_MARGIN_DIV=0.1). "
+    "Marca/rimuovi seam su spigoli selezionati: bpy.ops.mesh.mark_seam(clear=False). "
+    "Normalizza UV island: bpy.ops.uv.average_islands_scale(). "
+    "Comprimi UV in 0-1: bpy.ops.uv.pack_islands(margin=0.02). "
+    "Torna in OBJECT: bpy.ops.object.mode_set(mode='OBJECT'). "
+    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    /* 14 — Script libero */
     "Sei un esperto di Blender Python API (bpy). Genera SOLO codice Python eseguibile in Blender. "
     "REGOLA 1: la prima riga DEVE essere 'import bpy' (obbligatorio, altrimenti il codice fallisce). "
     "REGOLA 2: per forme 3D usa bpy.ops.mesh.primitive_*_add() — non costruire mesh da vertici. "
+    "Namespace disponibile: bpy, bmesh, mathutils, pathlib, os, math. "
     "Non aggiungere variabili 'result'. "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
@@ -103,45 +229,202 @@ const char* kBlenderSys[] = {
 
 static const char* kBlenderActions[] = {
     "\xf0\x9f\xa7\x8a Crea Primitiva",
-    "\xf0\x9f\x8e\xa8 Cambia Materiale",
+    "\xf0\x9f\x8e\xa8 Materiale base",
     "\xe2\x86\x94 Trasla",
     "\xf0\x9f\x94\x84 Ruota",
     "\xf0\x9f\x93\x90 Scala",
     "\xf0\x9f\x91\x81 Visibilit\xc3\xa0",
-    "\xf0\x9f\x8e\xac Avvia Render",
+    "\xf0\x9f\x8e\xac Render base",
+    "\xf0\x9f\xa7\xb1 Modifica Mesh",
+    "\xf0\x9f\xaa\x84 Modifier",
+    "\xf0\x9f\x8c\x9f Materiale PBR (nodi)",
+    "\xf0\x9f\x92\xa1 HDRI + Luci",
+    "\xf0\x9f\x96\xa5 Render avanzato",
+    "\xf0\x9f\x93\xa6 Import / Export 3D",
+    "\xf0\x9f\x97\xba UV Unwrap",
     "\xf0\x9f\x90\x8d Script libero",
     nullptr
 };
 
 const char* kFreeCADSys[] = {
+    /* 0 — Crea Primitiva */
     "Sei un esperto di FreeCAD Python API. Genera SOLO codice Python puro eseguibile in FreeCAD. "
-    "Usa: import FreeCAD, Part; doc = FreeCAD.activeDocument() or FreeCAD.newDocument('Doc'); "
-    "aggiungi la primitiva richiesta; doc.recompute(). "
+    "Usa: import FreeCAD, Part; doc = FreeCAD.activeDocument() or FreeCAD.newDocument('Doc'). "
+    "Primitive disponibili: Part.makeBox(l,w,h), Part.makeCylinder(r,h), Part.makeSphere(r), "
+    "Part.makeCone(r1,r2,h), Part.makeTorus(r1,r2), Part.makeWedge(...). "
+    "Aggiungi con: obj = doc.addObject('Part::Feature','Nome'); obj.Shape = primitiva; doc.recompute(). "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
-    "Sei un esperto di FreeCAD Python API. Genera SOLO codice Python puro per creare uno schizzo (Sketcher). "
-    "Usa: import FreeCAD, Sketcher; sketch = doc.addObject('Sketcher::SketchObject','Sketch'); doc.recompute(). "
-    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+    /* 1 — Crea Schizzo (Sketcher) */
+    "Sei un esperto di FreeCAD Python API e Sketcher. Genera SOLO codice Python puro. "
+    "Usa: import FreeCAD, Sketcher; doc = FreeCAD.activeDocument() or FreeCAD.newDocument('Doc'). "
+    "sketch = doc.addObject('Sketcher::SketchObject','Sketch'); sketch.Placement = FreeCAD.Placement(). "
+    "Aggiungi geometria: sketch.addGeometry(Part.LineSegment(v1,v2), False), "
+    "Part.Circle(centro, asse, raggio), Part.ArcOfCircle(...). "
+    "Vincoli: sketch.addConstraint(Sketcher.Constraint('Coincident',0,2,1,1)). "
+    "sketch.addConstraint(Sketcher.Constraint('Horizontal',0)). "
+    "sketch.addConstraint(Sketcher.Constraint('Distance',0,10.0)). "
+    "doc.recompute(). Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
+    /* 2 — Booleana */
     "Sei un esperto di FreeCAD Python API. Genera SOLO codice Python puro per operazioni booleane. "
-    "Usa Part.fuse(), Part.cut(), Part.common(). doc.recompute() alla fine. "
-    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+    "Usa Part.fuse(shape1,shape2) per unione, Part.cut(shape1,shape2) per differenza, "
+    "Part.common(shape1,shape2) per intersezione. "
+    "Accedi alle shape: s1 = doc.getObject('Nome1').Shape. "
+    "Salva risultato: res = doc.addObject('Part::Feature','Risultato'); res.Shape = Part.fuse(s1,s2). "
+    "doc.recompute(). Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
+    /* 3 — Esporta STL / STEP / IGES / OBJ */
     "Sei un esperto di FreeCAD Python API. Genera SOLO codice Python puro per esportare la geometria. "
-    "Per STL: import Mesh; Mesh.export([obj], '/tmp/output.stl'). "
-    "Per STEP: import Import; Import.export([obj], '/tmp/output.step'). "
+    "STL: import Mesh; Mesh.export([doc.getObject('Nome')], '/tmp/output.stl'). "
+    "STEP: import Import; Import.export([doc.getObject('Nome')], '/tmp/output.step'). "
+    "IGES: Import.export([doc.getObject('Nome')], '/tmp/output.iges'). "
+    "OBJ: import importOBJ; importOBJ.export([doc.getObject('Nome')], '/tmp/output.obj'). "
+    "DXF: import importDXF; importDXF.export([doc.getObject('Nome')], '/tmp/output.dxf'). "
+    "Usa pathlib.Path.home()/'Desktop'/ come cartella di default. "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
+    /* 4 — Modifica proprieta */
     "Sei un esperto di FreeCAD Python API. Genera SOLO codice Python puro per modificare proprieta' di oggetti. "
-    "Accedi con FreeCAD.activeDocument().getObject('Nome'); modifica .Length, .Width, .Height, ecc.; doc.recompute(). "
-    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+    "Accedi: obj = FreeCAD.activeDocument().getObject('Nome'). "
+    "Proprieta' tipiche: obj.Length, obj.Width, obj.Height (Box); obj.Radius, obj.Height (Cyl/Sphere). "
+    "PartDesign Pad/Pocket: obj.Length (profondita'); obj.Midplane = True/False; obj.Reversed = True/False. "
+    "Placement: obj.Placement = FreeCAD.Placement(FreeCAD.Vector(x,y,z), FreeCAD.Rotation(yaw,pitch,roll)). "
+    "doc.recompute(). Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
-    "Sei un esperto di FreeCAD Python API. Genera SOLO codice Python puro per aggiungere vincoli e misure. "
-    "Usa sketch.addConstraint(Sketcher.Constraint(...)); per misure 3D usa Draft.makeDimension(). doc.recompute(). "
-    "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+    /* 5 — Vincoli & misure */
+    "Sei un esperto di FreeCAD Python API. Genera SOLO codice Python puro per vincoli e misure. "
+    "Sketcher: sketch.addConstraint(Sketcher.Constraint('Coincident',geo1,pt1,geo2,pt2)). "
+    "Tipi Sketcher.Constraint: 'Horizontal','Vertical','Parallel','Perpendicular','Equal', "
+    "'Distance','DistanceX','DistanceY','Radius','Angle','Symmetric','Block'. "
+    "Misure 3D Draft: import Draft; d = Draft.make_dimension(v1,v2,v_passante). "
+    "Misura angolare: Draft.make_angular_dimension(centro, angoli, vettore). "
+    "doc.recompute(). Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
+    /* 6 — Part Design (Pad / Pocket / Fillet / Chamfer / Pattern) */
+    "Sei un esperto di FreeCAD Python API e PartDesign. Genera SOLO codice Python puro eseguibile in FreeCAD. "
+    "import FreeCAD, Part, PartDesign, Sketcher; doc = FreeCAD.activeDocument() or FreeCAD.newDocument('Doc'). "
+    "Body: body = doc.addObject('PartDesign::Body','Body'). "
+    "Pad (estrusione): pad = body.newObject('PartDesign::Pad','Pad'); "
+    "pad.Profile = sketch; pad.Length = 10.0; pad.Midplane = False; pad.Reversed = False. "
+    "Pocket (tasca): pocket = body.newObject('PartDesign::Pocket','Pocket'); "
+    "pocket.Profile = sketch; pocket.Length = 5.0; pocket.Type = 0. "
+    "Fillet (raccordo): fillet = body.newObject('PartDesign::Fillet','Fillet'); "
+    "fillet.Base = (solido, ['Edge1','Edge2']); fillet.Radius = 2.0. "
+    "Chamfer (smusso): chamfer = body.newObject('PartDesign::Chamfer','Chamfer'); "
+    "chamfer.Base = (solido, ['Edge1']); chamfer.Size = 1.0. "
+    "Hole: hole = body.newObject('PartDesign::Hole','Hole'); hole.Profile = sketch; "
+    "hole.Diameter = 6.0; hole.Depth = 15.0; hole.ThreadType = 1; hole.ModelThread = True. "
+    "Linear Pattern: lp = body.newObject('PartDesign::LinearPattern','LP'); "
+    "lp.Originals = [pad]; lp.Direction = (body, ['H_Axis']); lp.Length = 50.0; lp.Occurrences = 3. "
+    "Polar Pattern: pp = body.newObject('PartDesign::PolarPattern','PP'); "
+    "pp.Originals = [pad]; pp.Axis = (body, ['V_Axis']); pp.Angle = 360.0; pp.Occurrences = 6. "
+    "doc.recompute(). Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    /* 7 — FEM Setup (mesh + vincoli + forze) */
+    "Sei un esperto di FreeCAD Python API e FEM workbench. Genera SOLO codice Python puro. "
+    "import FreeCAD, ObjectsFem; doc = FreeCAD.activeDocument() or FreeCAD.newDocument('FEM'). "
+    "Analysis: analysis = ObjectsFem.makeAnalysis(doc, 'Analysis'). "
+    "Mesh Gmsh: mesh = ObjectsFem.makeMeshGmsh(doc, 'FEMMeshGmsh'); "
+    "mesh.Part = doc.getObject('NomeSolido'); mesh.CharacteristicLengthMax = 5.0; "
+    "mesh.CharacteristicLengthMin = 1.0; mesh.ElementOrder = '2nd'. "
+    "Genera mesh Gmsh: from femmesh.gmshtools import GmshTools; gt = GmshTools(mesh, doc); gt.create_mesh(). "
+    "Fixed constraint: fix = ObjectsFem.makeConstraintFixed(doc, 'ConstraintFixed'); "
+    "fix.References = [(doc.getObject('Solid'), 'Face1')]; analysis.addObject(fix). "
+    "Force constraint: force = ObjectsFem.makeConstraintForce(doc, 'ConstraintForce'); "
+    "force.References = [(doc.getObject('Solid'), 'Face2')]; "
+    "force.Force = 1000.0; force.Reversed = False; analysis.addObject(force). "
+    "Pressure: press = ObjectsFem.makeConstraintPressure(doc, 'ConstraintPressure'); "
+    "press.References = [(doc.getObject('Solid'), 'Face3')]; press.Pressure = 10.0. "
+    "doc.recompute(). Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    /* 8 — FEM Esegui analisi (CalculiX) */
+    "Sei un esperto di FreeCAD Python API e FEM CalculiX. Genera SOLO codice Python puro. "
+    "import FreeCAD, ObjectsFem; from femtools import ccxtools; doc = FreeCAD.activeDocument(). "
+    "Solver CalculiX: solver = ObjectsFem.makeSolverCalculixCcxTools(doc, 'CalculiX'). "
+    "solver.GeometricalNonlinearity = 'linear'; solver.ThermoMechSteadyState = False; "
+    "solver.MatrixSolverType = 'default'; solver.IterationsControlParameterTimeUse = False. "
+    "Aggiungi a analysis: analysis = doc.getObject('Analysis'); analysis.addObject(solver). "
+    "Esegui: fea = ccxtools.FemToolsCcx(analysis=analysis, solver=solver, test_mode=False); "
+    "fea.update_objects(); fea.setup_working_dir(); fea.setup_ccx(); "
+    "message = fea.run(); print('Stato solver:', message if message else 'OK'). "
+    "Errore se CalculiX non installato: sudo apt install calculix-ccx. "
+    "doc.recompute(). Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    /* 9 — FEM Risultati (Von Mises, deformazione, temperatura) */
+    "Sei un esperto di FreeCAD Python API e FEM risultati. Genera SOLO codice Python puro. "
+    "import FreeCAD, FreeCADGui; doc = FreeCAD.activeDocument(). "
+    "Accedi ai risultati: res = doc.getObjectsByLabel('CCX_Results')[0]. "
+    "Von Mises stress: vm = res.vonMises; "
+    "print(f'Max Von Mises: {max(vm):.2f} MPa, Min: {min(vm):.2f} MPa'). "
+    "Deformazione: disp = res.DisplacementVectors; mags = [v.Length for v in disp]; "
+    "print(f'Max spostamento: {max(mags):.4f} mm'). "
+    "Principal stresses: s1 = res.MaxPrincipal; s3 = res.MinPrincipal. "
+    "Visualizza nel viewer: FreeCADGui.ActiveDocument.getObject(res.Name).DisplayMode = 0. "
+    "Esporta CSV: import csv, pathlib; "
+    "out = pathlib.Path.home()/'Desktop'/'fem_results.csv'; "
+    "with open(out,'w',newline='') as f: "
+    "  w = csv.writer(f); w.writerow(['Node','VonMises','DispX','DispY','DispZ']); "
+    "  [w.writerow([i, vm[i], disp[i].x, disp[i].y, disp[i].z]) for i in range(len(vm))]; "
+    "print('Salvato:', out). "
+    "doc.recompute(). Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    /* 10 — Materiale fisico FEM (acciaio, alluminio, titanio, compositi) */
+    "Sei un esperto di FreeCAD Python API e FEM materiali. Genera SOLO codice Python puro. "
+    "import FreeCAD, ObjectsFem; doc = FreeCAD.activeDocument() or FreeCAD.newDocument('Doc'). "
+    "mat = ObjectsFem.makeMaterialSolid(doc, 'Materiale'). "
+    "Materiali predefiniti (assegna a mat.Material): "
+    "Acciaio S235: {'Name':'Steel','YoungsModulus':'210000 MPa','PoissonRatio':'0.30',"
+    "'Density':'7900 kg/m^3','UltimateTensileStrength':'400 MPa','YieldStrength':'235 MPa',"
+    "'ThermalConductivity':'54 W/m/K','ThermalExpansionCoefficient':'12e-6 1/K'}. "
+    "Alluminio 6061-T6: {'Name':'Aluminum_6061','YoungsModulus':'68900 MPa','PoissonRatio':'0.33',"
+    "'Density':'2700 kg/m^3','YieldStrength':'276 MPa','UltimateTensileStrength':'310 MPa'}. "
+    "Acciaio inox 316L: {'Name':'Steel_316L','YoungsModulus':'193000 MPa','PoissonRatio':'0.29',"
+    "'Density':'8000 kg/m^3','YieldStrength':'170 MPa'}. "
+    "Titanio Ti-6Al-4V: {'Name':'Titanium_Ti6Al4V','YoungsModulus':'113800 MPa','PoissonRatio':'0.342',"
+    "'Density':'4430 kg/m^3','YieldStrength':'880 MPa','UltimateTensileStrength':'950 MPa'}. "
+    "CFRP (fibra carbonio): {'Name':'CFRP','YoungsModulus':'70000 MPa','PoissonRatio':'0.10',"
+    "'Density':'1600 kg/m^3'}. "
+    "Aggiungi ad analysis: analysis.addObject(mat). "
+    "doc.recompute(). Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    /* 11 — Rendering FreeCAD (Render workbench / export per Blender) */
+    "Sei un esperto di FreeCAD Python API e Render workbench. Genera SOLO codice Python puro. "
+    "import FreeCAD, FreeCADGui; doc = FreeCAD.activeDocument(). "
+    "Opzione A — Render workbench (se installato): "
+    "  import Render; project = doc.addObject('Render::RenderProject','RenderProject'); "
+    "  project.Renderer = 'Cycles'; "
+    "  camera = doc.addObject('Render::Camera','RenderCamera'); "
+    "  camera.Placement = FreeCAD.Placement(FreeCAD.Vector(0,-500,300), FreeCAD.Rotation(60,0,0)); "
+    "  light = doc.addObject('Render::PointLight','Light1'); "
+    "  light.Location = FreeCAD.Vector(200,200,500); light.Color = (1.0,1.0,1.0); light.Power = 60. "
+    "  project.addObject(camera); project.addObject(light); "
+    "  Render.Renderer.render(project). "
+    "Opzione B — esporta GLTF per rendering in Blender: "
+    "  import importGLTF; importGLTF.export(doc.Objects, '/tmp/freecad_model.gltf'). "
+    "Opzione C — esporta OBJ+MTL: "
+    "  import importOBJ; importOBJ.export(doc.Objects, '/tmp/freecad_model.obj'). "
+    "doc.recompute(). Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    /* 12 — Importa modello (STEP / IGES / DXF / IFC / STL) */
+    "Sei un esperto di FreeCAD Python API. Genera SOLO codice Python puro per importare geometria. "
+    "import FreeCAD; doc = FreeCAD.activeDocument() or FreeCAD.newDocument('Import'). "
+    "STEP: import Import; Import.insert('/path/file.step', doc.Name); doc.recompute(). "
+    "IGES: Import.insert('/path/file.iges', doc.Name); doc.recompute(). "
+    "DXF 2D: import importDXF; importDXF.insert('/path/file.dxf', doc.Name). "
+    "IFC (BIM): import importIFC; importIFC.insert('/path/file.ifc', doc.Name). "
+    "STL (come mesh): import Mesh; Mesh.insert('/path/file.stl', doc.Name). "
+    "STL convertito in solido: import MeshPart; "
+    "  solid = MeshPart.meshToShape(doc.getObject('MeshNome').Mesh, 1.0, True, True). "
+    "SVG (curve 2D): import importSVG; importSVG.insert('/path/file.svg', doc.Name). "
+    "OBJ: import importOBJ; importOBJ.insert('/path/file.obj', doc.Name). "
+    "doc.recompute(). Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
+
+    /* 13 — Script libero */
     "Sei un esperto di FreeCAD Python API. Genera SOLO codice Python puro eseguibile in FreeCAD via exec(). "
-    "Namespace: FreeCAD, FreeCADGui, Part, PartDesign, Sketcher, Draft, Mesh, Import, App, Gui. "
+    "Namespace disponibile: FreeCAD, FreeCADGui, Part, PartDesign, Sketcher, Draft, Mesh, Import, "
+    "App, Gui, ObjectsFem, pathlib, os, math. "
+    "Chiudi ogni script con doc.recompute(). "
     "Rispondi SOLO con il blocco codice Python tra ``` e ```, senza spiegazioni.",
 
     nullptr
@@ -154,6 +437,13 @@ static const char* kFreeCADActions[] = {
     "\xf0\x9f\x93\xa4 Esporta STL/STEP",
     "\xf0\x9f\x94\xa7 Modifica propriet\xc3\xa0",
     "\xf0\x9f\x93\x90 Vincoli & misure",
+    "\xf0\x9f\xa7\xb1 Part Design",
+    "\xf0\x9f\x94\xac FEM Setup",
+    "\xe2\x9a\x99 FEM Esegui",
+    "\xf0\x9f\x93\x8a FEM Risultati",
+    "\xf0\x9f\xa7\xaa Materiale fisico",
+    "\xf0\x9f\x96\xbc Rendering",
+    "\xf0\x9f\x93\xa5 Importa modello",
     "\xf0\x9f\x90\x8d Script libero",
     nullptr
 };
@@ -627,8 +917,13 @@ QWidget* AppControllerPage::buildBlenderTab()
     /* ── Input ── */
     m_blenderInput = new QTextEdit(w);
     m_blenderInput->setPlaceholderText(
-        "Descrivi cosa fare in Blender "
-        "(es. 'Crea un cubo', 'Crea una sfera rossa', 'Sposta il piano a Y=3')...");
+        "Descrivi cosa fare in Blender — es.:\n"
+        "  Crea una sfera rossa metallica con roughness 0.1\n"
+        "  Aggiungi modifier Subdivision level 2 al cubo\n"
+        "  Imposta render Cycles 256 sample, output PNG 1920x1080\n"
+        "  Crea materiale PBR con texture diffuse e normal map\n"
+        "  Aggiungi una HDRI e tre luci area\n"
+        "  Esporta la scena in GLB");
     m_blenderInput->setMaximumHeight(dpiScale(80));
     m_blenderInput->setMinimumHeight(dpiScale(60));
     lay->addWidget(m_blenderInput);
@@ -827,8 +1122,13 @@ QWidget* AppControllerPage::buildFreeCADTab()
     /* ── Input ── */
     m_freecadInput = new QTextEdit(w);
     m_freecadInput->setPlaceholderText(
-        "Descrivi cosa modellare in FreeCAD "
-        "(es. 'Crea un box 20x10x5mm', 'Esporta il modello attivo in STL')...");
+        "Descrivi cosa fare in FreeCAD — es.:\n"
+        "  Crea un box 50x30x10 mm con foro passante da 6 mm\n"
+        "  Analisi FEM statica: vincola Face1, forza 500 N su Face2, acciaio S235\n"
+        "  Esegui CalculiX e mostra max Von Mises e spostamento\n"
+        "  Aggiungi raccordo R2 su tutti gli spigoli verticali\n"
+        "  Importa file STEP e assegna materiale alluminio 6061\n"
+        "  Esporta rendering OBJ per Blender");
     m_freecadInput->setMaximumHeight(dpiScale(80));
     m_freecadInput->setMinimumHeight(dpiScale(60));
     lay->addWidget(m_freecadInput);

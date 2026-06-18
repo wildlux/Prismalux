@@ -1,4 +1,5 @@
 #include "main_lan_wan.h"
+#include "widget_ssh_manager.h"
 #include "../dpi_utils.h"
 #include "../lan_server.h"
 #include "../prismalux_paths.h"
@@ -197,6 +198,7 @@ LanWanPage::LanWanPage(AiClient* ai, QWidget* parent)
     /* onModelsReady rimosso: ModelComboBox gestisce il fetch autonomamente */
 
     tabs->addTab(buildWanComputeTab(), "\xf0\x9f\x96\xa7  WAN Compute");
+    tabs->addTab(new SshManagerWidget(this), "\xf0\x9f\x94\x91  SSH");  /* 🔑 */
 
     lay->addWidget(tabs);
 
