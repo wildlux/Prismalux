@@ -34,7 +34,7 @@
 #include <QTimer>
 #include <QEventLoop>
 #include <QToolButton>
-#include <QButtonGroup>
+#include <QMenu>
 #include <QScrollArea>
 #include <QStackedWidget>
 #include <QApplication>
@@ -3515,39 +3515,38 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     m_a2Canvas->setMinimumWidth(180);
     hSplit2->addWidget(m_a2Canvas);
 
-    /* ── Barra viewport 3D — overlay stile Blender nell'angolo del canvas ── */
+    /* ── Pulsante shading viewport stile Blender — overlay nell'angolo del canvas ── */
     {
-        auto* bar = new QFrame(m_a2Canvas);
-        bar->setObjectName("viewportBar");
-        bar->setFrameShape(QFrame::StyledPanel);
-        auto* bl = new QHBoxLayout(bar);
-        bl->setContentsMargins(2, 2, 2, 2);
-        bl->setSpacing(1);
-        struct VMode { const char* icon; const char* tip; };
-        static const VMode kModes[] = {
-            { "\xe2\x97\x8f", "Punti: scatter colorati per profondita" },
-            { "\xe2\x96\xa1", "Wireframe: griglia di linee (richiede topologia griglia)" },
-            { "\xe2\x96\xb3", "Superficie: heatmap Z su facce (richiede topologia griglia)" },
-            { "\xe2\x96\xa0", "Solido: facce opache con ombreggiatura" },
+        struct VM { const char* icon; const char* label; };
+        static const VM kVM[] = {
+            { "\xe2\x97\x8f", "Punti" },
+            { "\xe2\x96\xa1", "Wireframe" },
+            { "\xe2\x96\xb3", "Superficie" },
+            { "\xe2\x96\xa0", "Solido" },
         };
-        m_a2RenderGrp = new QButtonGroup(bar);
-        m_a2RenderGrp->setExclusive(true);
+        auto* vBtn = new QToolButton(m_a2Canvas);
+        vBtn->setObjectName("viewportShadingBtn");
+        vBtn->setText(QString::fromUtf8(kVM[0].icon));
+        vBtn->setToolTip("Shading viewport");
+        vBtn->setAutoRaise(true);
+        vBtn->setPopupMode(QToolButton::InstantPopup);
+        vBtn->setFixedSize(dpiScale(32), dpiScale(28));
+        auto* vMenu = new QMenu(vBtn);
         for (int i = 0; i < 4; ++i) {
-            auto* btn = new QToolButton(bar);
-            btn->setText(kModes[i].icon);
-            btn->setToolTip(kModes[i].tip);
-            btn->setCheckable(true);
-            btn->setAutoRaise(true);
-            btn->setFixedSize(dpiScale(28), dpiScale(24));
-            if (i == 0) btn->setChecked(true);
-            m_a2RenderGrp->addButton(btn, i);
-            bl->addWidget(btn);
+            auto* act = vMenu->addAction(
+                QString::fromUtf8(kVM[i].icon) + "  " + kVM[i].label);
+            act->setData(i);
+            connect(act, &QAction::triggered, vBtn,
+                    [vBtn, i, this]() {
+                        struct VM2 { const char* icon; };
+                        static const VM2 kI[] = {{"\xe2\x97\x8f"},{"\xe2\x96\xa1"},{"\xe2\x96\xb3"},{"\xe2\x96\xa0"}};
+                        vBtn->setText(QString::fromUtf8(kI[i].icon));
+                        onA2RenderChanged(i);
+                    });
         }
-        connect(m_a2RenderGrp, &QButtonGroup::idClicked,
-                this, &MatematicaPage::onA2RenderChanged);
-        bar->adjustSize();
-        bar->move(dpiScale(6), dpiScale(6));
-        bar->raise();
+        vBtn->setMenu(vMenu);
+        vBtn->move(dpiScale(6), dpiScale(6));
+        vBtn->raise();
     }
 
     hSplit2->setStretchFactor(0, 3);

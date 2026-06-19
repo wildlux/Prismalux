@@ -16,7 +16,7 @@
 #include <QFormLayout>
 #include <QFrame>
 #include <QToolButton>
-#include <QButtonGroup>
+#include <QMenu>
 #include <QFileDialog>
 #include <QDir>
 #include <QFile>
@@ -153,35 +153,36 @@ GraficoPage::GraficoPage(AiClient* ai, QWidget* parent) : QWidget(parent), m_ai(
             m_statusLbl, &QLabel::setText);  // m_statusLbl creato dentro buildLeftPanel
     splitter->addWidget(m_canvas);
 
-    /* ── Barra viewport 3D — overlay stile Blender nell'angolo del canvas ── */
+    /* ── Pulsante shading viewport stile Blender — overlay nell'angolo del canvas ── */
     {
-        m_viewportBar3D = new QFrame(m_canvas);
-        m_viewportBar3D->setObjectName("viewportBar");
-        m_viewportBar3D->setFrameShape(QFrame::StyledPanel);
-        auto* bl = new QHBoxLayout(m_viewportBar3D);
-        bl->setContentsMargins(2, 2, 2, 2);
-        bl->setSpacing(1);
-        struct VMode { const char* icon; const char* tip; };
-        static const VMode kModes[] = {
-            { "\xe2\x97\x8f", "Punti: scatter colorati per profondita" },
-            { "\xe2\x96\xa1", "Wireframe: griglia di linee (richiede topologia griglia)" },
-            { "\xe2\x96\xb3", "Superficie: heatmap Z su facce (richiede topologia griglia)" },
-            { "\xe2\x96\xa0", "Solido: facce opache con ombreggiatura" },
+        struct VM { const char* icon; const char* label; };
+        static const VM kVM[] = {
+            { "\xe2\x97\x8f", "Punti" },
+            { "\xe2\x96\xa1", "Wireframe" },
+            { "\xe2\x96\xb3", "Superficie" },
+            { "\xe2\x96\xa0", "Solido" },
         };
-        m_renderModeGroup = new QButtonGroup(m_viewportBar3D);
-        m_renderModeGroup->setExclusive(true);
+        m_viewportBar3D = new QToolButton(m_canvas);
+        m_viewportBar3D->setObjectName("viewportShadingBtn");
+        m_viewportBar3D->setText(QString::fromUtf8(kVM[0].icon));
+        m_viewportBar3D->setToolTip("Shading viewport");
+        m_viewportBar3D->setAutoRaise(true);
+        m_viewportBar3D->setPopupMode(QToolButton::InstantPopup);
+        m_viewportBar3D->setFixedSize(dpiScale(32), dpiScale(28));
+        auto* vMenu = new QMenu(m_viewportBar3D);
         for (int i = 0; i < 4; ++i) {
-            auto* btn = new QToolButton(m_viewportBar3D);
-            btn->setText(kModes[i].icon);
-            btn->setToolTip(kModes[i].tip);
-            btn->setCheckable(true);
-            btn->setAutoRaise(true);
-            btn->setFixedSize(dpiScale(28), dpiScale(24));
-            if (i == 0) btn->setChecked(true);
-            m_renderModeGroup->addButton(btn, i);
-            bl->addWidget(btn);
+            auto* act = vMenu->addAction(
+                QString::fromUtf8(kVM[i].icon) + "  " + kVM[i].label);
+            act->setData(i);
+            connect(act, &QAction::triggered, m_viewportBar3D,
+                    [this, i]() {
+                        struct VM2 { const char* icon; };
+                        static const VM2 kI[] = {{"\xe2\x97\x8f"},{"\xe2\x96\xa1"},{"\xe2\x96\xb3"},{"\xe2\x96\xa0"}};
+                        m_viewportBar3D->setText(QString::fromUtf8(kI[i].icon));
+                        m_canvas->setRenderMode(i);
+                    });
         }
-        m_viewportBar3D->adjustSize();
+        m_viewportBar3D->setMenu(vMenu);
         m_viewportBar3D->move(dpiScale(6), dpiScale(6));
         m_viewportBar3D->raise();
         m_viewportBar3D->setVisible(false);
@@ -657,9 +658,7 @@ QWidget* GraficoPage::buildLeftPanel() {
             this, &GraficoPage::onTypeComboChanged);
     onTypeComboChanged(0); /* trigger iniziale */
 
-    /* Connetti barra viewport 3D → canvas */
-    connect(m_renderModeGroup, &QButtonGroup::idClicked,
-            m_canvas, &GraficoCanvas::setRenderMode);
+    /* La connect viewport 3D è inline nelle QAction del menu (costruite sopra) */
 
     /* btnPlot e btnReset vengono aggiunti FUORI dalla scrollarea (vedi sotto) */
 
@@ -830,8 +829,9 @@ void GraficoPage::populateTypeCombo(int tab) {
     /* Ripristina il tipo precedente se compatibile, altrimenti primo della lista */
     int idx = m_typeCombo->findData(prevType);
     if (idx < 0) idx = 0;
+    m_typeCombo->setCurrentIndex(idx);  /* dentro blockSignals: no emit */
     m_typeCombo->blockSignals(false);
-    m_typeCombo->setCurrentIndex(idx);  /* fires currentIndexChanged */
+    onTypeComboChanged(0);  /* forza sincronizzazione canvas+pannello (emit potrebbe non sparare se idx==0) */
 }
 
 /* ── plot() ──────────────────────────────────────────────────── */

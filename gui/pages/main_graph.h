@@ -24,7 +24,7 @@
 #include <QCheckBox>
 #include <QPushButton>
 #include <QToolButton>
-#include <QButtonGroup>
+#include <QMenu>
 #include <QLabel>
 #include <QTimer>
 #include <QTabBar>
@@ -494,9 +494,8 @@ private:
     QCheckBox*      m_mathE      = nullptr;
     QCheckBox*      m_mathPrimes = nullptr;
 
-    /* Barra viewport 3D stile Blender — overlay sul canvas, visibile solo per Scatter3D / Grafo3D */
-    QButtonGroup*   m_renderModeGroup  = nullptr;
-    QFrame*         m_viewportBar3D    = nullptr;   ///< overlay angolo in alto a sinistra del canvas
+    /* Pulsante shading viewport stile Blender — overlay sul canvas, visibile solo per Scatter3D / Grafo3D */
+    QToolButton*    m_viewportBar3D    = nullptr;   ///< singolo btn con popup menu nell'angolo del canvas
 
     /* Parametri Polare (pannello idx 4) */
     QLineEdit*      m_polarFormula = nullptr;
