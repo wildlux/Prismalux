@@ -6,12 +6,13 @@ namespace P = PrismaluxPaths;
 #include <QTextCursor>
 
 /* ══════════════════════════════════════════════════════════════
-   extractPythonCode — trova il primo blocco ```python...```
+   extractPythonCode — trova il primo blocco ```python...``` o ```py...```
+   SOLO blocchi esplicitamente marcati python/py; ignora c, cpp, bash, ecc.
    ══════════════════════════════════════════════════════════════ */
 QString AgentiPage::extractPythonCode(const QString& text)
 {
     static QRegularExpression re(
-        "```(?:python|py)?\\s*([\\s\\S]*?)```",
+        "```(?:python|py)\\s*\\n([\\s\\S]*?)```",
         QRegularExpression::CaseInsensitiveOption);
     auto m = re.match(text);
     return m.hasMatch() ? m.captured(1).trimmed() : QString();

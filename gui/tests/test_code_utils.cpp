@@ -11,7 +11,7 @@
      extractPythonCode:
        A. Nessun blocco → QString vuota
        B. Blocco ```python ... ``` → codice estratto
-       C. Blocco ``` ... ``` senza hint linguaggio → estratto ugualmente
+       C. Blocco ``` ... ``` senza hint linguaggio → NON estratto (ignora C/bash/altro)
        D. Blocco vuoto → QString vuota (trimmed)
        E. Blocco non chiuso → nessun match, stringa vuota
        F. Più blocchi → solo il PRIMO (comportamento attuale regex greedy)
@@ -53,11 +53,12 @@ private slots:
         QCOMPARE(result, QString("print('hello')"));
     }
 
-    /* C. Blocco ``` senza hint → estratto ugualmente */
+    /* C. Blocco ``` senza hint linguaggio → NON estratto (fix: non eseguire C/bash/altro come Python) */
     void extract_noHint() {
         const QString input = "```\nx = 42\n```";
         const QString result = AgentiPage::extractPythonCode(input);
-        QCOMPARE(result, QString("x = 42"));
+        QVERIFY2(result.isEmpty(),
+                 "Blocco generico senza hint 'python' non deve essere estratto come Python");
     }
 
     /* D. Blocco vuoto → stringa vuota (trim di whitespace) */
