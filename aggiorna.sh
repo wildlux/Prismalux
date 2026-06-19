@@ -1,29 +1,27 @@
 #!/usr/bin/env bash
-# Build Prismalux_GUI + aggiorna tutti i file .desktop
+# Build Prismalux_GUI + aggiorna file .desktop
+# Unica sorgente di verità: Prismalux/Prismalux.desktop
+# Non crea mai duplicati fuori dalla cartella del progetto.
 set -e
 cd "$(dirname "$0")"
 ROOT="$(pwd)"
 BIN="$ROOT/gui/build_gui/Prismalux_GUI"
+DESKTOP_SRC="$ROOT/Prismalux.desktop"
+DESKTOP_SYS="$HOME/.local/share/applications/prismalux.desktop"
 
 echo "==> Build Prismalux..."
 cmake --build gui/build_gui -j$(nproc)
 
-echo "==> Aggiorno file .desktop..."
-update_desktop() {
-    local f="$1"
-    if [ -f "$f" ]; then
-        sed -i "s|^Exec=.*|Exec=$BIN|" "$f"
-        sed -i "s|^Path=.*|Path=$ROOT|" "$f"
-        echo "    ✓ $f"
-    fi
-}
+echo "==> Aggiorno Prismalux.desktop..."
+sed -i "s|^Exec=.*|Exec=$BIN|"  "$DESKTOP_SRC"
+sed -i "s|^Path=.*|Path=$ROOT|" "$DESKTOP_SRC"
+chmod +x "$DESKTOP_SRC"
+gio set "$DESKTOP_SRC" metadata::trusted true 2>/dev/null || true
+echo "    ✓ $DESKTOP_SRC"
 
-update_desktop "$ROOT/Prismalux.desktop"
-update_desktop "$HOME/.local/share/applications/prismalux.desktop"
-update_desktop "$HOME/.local/share/applications/Prismalux.desktop"
-
-chmod +x "$ROOT/Prismalux.desktop" 2>/dev/null || true
-gio set "$ROOT/Prismalux.desktop" metadata::trusted true 2>/dev/null || true
+echo "==> Sincronizza in ~/.local/share/applications/..."
+cp "$DESKTOP_SRC" "$DESKTOP_SYS"
 update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null || true
+echo "    ✓ $DESKTOP_SYS"
 
 echo "==> Fatto! Binario: $BIN"
