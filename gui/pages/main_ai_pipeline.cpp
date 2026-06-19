@@ -868,7 +868,7 @@ void AgentiPage::_finishedPipeline(const QString& full) {
 
         QString htmlContent = rawResp.isEmpty()
             ? "<p style='color:#6b7280;font-style:italic;margin:0;'>Nessun output.</p>"
-            : markdownToHtml(rawResp);
+            : markdownToHtml(rawResp, &m_codeBlocks, &m_codeBlockCounter);
 
         /* Banner suggerimento quando il modello dichiara di non sapere rispondere */
         if (!rawResp.isEmpty()) {

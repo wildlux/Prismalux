@@ -1859,6 +1859,76 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         return;
     }
 
+    /* ── Copia blocco codice negli appunti ── */
+    if (s.startsWith("code:copy:")) {
+        bool ok3 = false;
+        const int N = s.mid(10).toInt(&ok3);
+        if (!ok3 || !m_codeBlocks.contains(N)) return;
+        QGuiApplication::clipboard()->setText(m_codeBlocks[N].second);
+        /* Feedback visivo: bolla temporanea nel log */
+        m_log->moveCursor(QTextCursor::End);
+        m_log->insertHtml(
+            "<p style='color:#34d399;font-size:11px;margin:2px 0;"
+            "font-style:italic;'>"
+            "\xe2\x9c\x85 Codice copiato negli appunti."   /* ✅ */
+            "</p>");
+        return;
+    }
+
+    /* ── Salva blocco codice su disco ── */
+    if (s.startsWith("code:save:")) {
+        bool ok3 = false;
+        const int N = s.mid(10).toInt(&ok3);
+        if (!ok3 || !m_codeBlocks.contains(N)) return;
+        const QString lang    = m_codeBlocks[N].first;
+        const QString content = m_codeBlocks[N].second;
+
+        /* Estendi al tipo di file corretto */
+        static const QMap<QString,QString> extMap = {
+            {"python","py"},{"py","py"},{"bash","sh"},{"sh","sh"},
+            {"shell","sh"},{"c","c"},{"cpp","cpp"},{"c++","cpp"},
+            {"h","h"},{"hpp","hpp"},{"java","java"},
+            {"javascript","js"},{"js","js"},{"typescript","ts"},{"ts","ts"},
+            {"html","html"},{"css","css"},{"sql","sql"},{"json","json"},
+            {"yaml","yaml"},{"yml","yml"},{"xml","xml"},{"rust","rs"},
+            {"go","go"},{"ruby","rb"},{"rb","rb"},{"php","php"},
+            {"swift","swift"},{"kotlin","kt"},{"r","r"},{"lua","lua"},
+            {"dart","dart"},{"cmake","cmake"},{"dockerfile","Dockerfile"},
+            {"markdown","md"},{"md","md"},{"toml","toml"},{"ini","ini"},
+        };
+        const QString ext = extMap.value(lang, lang.isEmpty() ? "txt" : lang);
+        const QString filter = ext == "Dockerfile"
+            ? "Dockerfile (Dockerfile)"
+            : QString("%1 (*.%2);;Tutti i file (*)").arg(ext.toUpper()).arg(ext);
+
+        const QString path = QFileDialog::getSaveFileName(
+            this,
+            "Salva codice — " + (lang.isEmpty() ? "testo" : lang),
+            QDir::homePath() + "/codice." + ext,
+            filter);
+        if (path.isEmpty()) return;
+
+        QFile f(path);
+        if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            f.write(content.toUtf8());
+            f.close();
+            m_log->moveCursor(QTextCursor::End);
+            m_log->insertHtml(
+                "<p style='color:#34d399;font-size:11px;margin:2px 0;"
+                "font-style:italic;'>"
+                "\xf0\x9f\x92\xbe Salvato: " +     /* 💾 */
+                QFileInfo(path).fileName().toHtmlEscaped() +
+                "</p>");
+        } else {
+            m_log->moveCursor(QTextCursor::End);
+            m_log->insertHtml(
+                "<p style='color:#f87171;font-size:11px;margin:2px 0;'>"
+                "\xe2\x9d\x8c Errore salvataggio: " +   /* ❌ */
+                f.errorString().toHtmlEscaped() + "</p>");
+        }
+        return;
+    }
+
     /* ── Ricerca online → salva in RAG/RICERCA/<slug>.md ── */
     if (s.startsWith("websearch:")) {
         const QString q64  = s.mid(10);

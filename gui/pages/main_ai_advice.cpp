@@ -148,7 +148,7 @@ void AgentiPage::aggregaConsiglio()
         int bestIdx = 0;
         for (int i = 1; i < m_peers.size(); i++)
             if (m_peers[i].weight > m_peers[bestIdx].weight) bestIdx = i;
-        QString html = markdownToHtml(m_peers[bestIdx].accum.trimmed());
+        QString html = markdownToHtml(m_peers[bestIdx].accum.trimmed(), &m_codeBlocks, &m_codeBlockCounter);
         { int idx = m_bubbleIdx++; m_bubbleTexts[idx] = m_peers[bestIdx].accum.trimmed();
           m_log->moveCursor(QTextCursor::End);
           m_log->insertHtml(buildAgentBubble(

@@ -61,7 +61,9 @@ public:
                                     bool thinkOpen = false);
     static QString buildLocalBubble(const QString& result, double ms, int bubbleIdx = -1,
                                     const QString& extraLinks = "");
-    static QString markdownToHtml(const QString& md);
+    static QString markdownToHtml(const QString& md,
+        QMap<int,QPair<QString,QString>>* codeBlocks = nullptr,
+        int* codeCounter = nullptr);
 
     /* ── Utility testabili (pubbliche per unit test e futuro refactor A2) ── */
     /** Estrae il primo blocco ```python...``` dall'output dell'agente */
@@ -111,6 +113,8 @@ private:
     QSet<int>         m_thinkShown;       ///< bolle con reasoning visibile
     bool              m_thinkDefaultOpen = false; ///< ultima preferenza utente (aperto/chiuso)
     QStringList       m_hermesLastSources; ///< etichette nodi Hermes usati nell'ultima risposta
+    QMap<int,QPair<QString,QString>> m_codeBlocks; ///< id → {lang, testo grezzo} per Copia/Salva
+    int               m_codeBlockCounter = 0;      ///< contatore globale blocchi codice
     int           m_bubbleIdx = 0;        ///< contatore bolle corrente
     QTextEdit*    m_input     = nullptr;
     QPushButton*  m_btnRun        = nullptr;  ///< Pulsante unico: run (idle) ↔ stop (busy)

@@ -217,7 +217,7 @@ void AgentiPage::_autoAdvance(const QString& resp)
               "\xf0\x9f\xa4\x96  Agente Autonomo",
               m_ai->model(),
               QString("Step %1/%2").arg(m_autoStep + 1).arg(m_autoMaxSteps),
-              markdownToHtml(answer), idx)); }
+              markdownToHtml(answer, &m_codeBlocks, &m_codeBlockCounter), idx)); }
 
         m_autoHistory.append(QJsonObject{{"role","assistant"},{"content",resp}});
 
