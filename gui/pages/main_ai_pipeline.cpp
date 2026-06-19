@@ -624,15 +624,22 @@ void AgentiPage::runAgent(int idx) {
     static const QString kFmtFull =
         "\n\nUsa Markdown nelle risposte: **grassetto** per concetti chiave, "
         "*corsivo* per termini tecnici, `codice` per valori inline, "
-        "```blocchi``` per codice multi-riga, tabelle Markdown per confronti, "
+        "```lang blocchi``` per codice multi-riga (specifica sempre il linguaggio: "
+        "```python, ```bash, ```cpp, ```java, ```json, ecc.), "
+        "tabelle Markdown per confronti, "
         "> per citazioni/avvisi, elenchi - o 1. per liste. "
+        "Usa emoji per migliorare la leggibilit\xc3\xa0 dove appropriato: "
+        "\xe2\x9c\x85 conferme, \xe2\x9a\xa0 avvisi, \xf0\x9f\x92\xa1 suggerimenti, "
+        "\xf0\x9f\x93\x8c punti chiave, \xe2\x9d\x8c errori, \xf0\x9f\x9a\x80 performance, "
+        "\xf0\x9f\x94\xa7 configurazione, \xf0\x9f\x93\x8a dati, \xf0\x9f\xa7\xa0 concetti teorici, "
+        "\xf0\x9f\x93\x96 documentazione, \xf0\x9f\x94\x8d dettagli, \xe2\xad\x90 importante. "
         "Non usare HTML inline. "
         "Non citare il progetto Prismalux come esempio in risposte a domande generali: "
         "usa solo esempi pertinenti al dominio della domanda. "
         "Rispondi nella stessa lingua dell'utente.";
 
     static const QString kFmtSmall =
-        "\nRispondi in modo chiaro e diretto. "
+        "\nRispondi in modo chiaro e diretto. Usa emoji se utile. "
         "Non citare Prismalux in risposte a domande generali.";
 
     sysFullMut  += kFmtFull;
