@@ -53,6 +53,53 @@ inline const BubClr& bc() {
     return isLight ? kLight : kDark;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   extractInputHtml — converte il QTextEdit in HTML leggero
+   preservando bold/italic/underline/colore/sfondo.
+   Usato al submit per costruire la bolla utente con formattazione.
+   ══════════════════════════════════════════════════════════════ */
+#include <QTextEdit>
+#include <QTextDocument>
+#include <QTextBlock>
+#include <QTextFragment>
+#include <QTextCharFormat>
+#include <QFont>
+
+inline QString extractInputHtml(QTextEdit* edit)
+{
+    if (!edit) return {};
+    const QTextDocument* doc = edit->document();
+    QString html;
+    QTextBlock block = doc->begin();
+    while (block.isValid()) {
+        for (auto it = block.begin(); !it.atEnd(); ++it) {
+            const QTextFragment frag = it.fragment();
+            if (!frag.isValid()) continue;
+            const QTextCharFormat fmt = frag.charFormat();
+            QString text = frag.text().toHtmlEscaped();
+            text.replace(QChar(0x2029), "<br>"); /* Qt paragraph separator */
+
+            /* Applica formattazione in ordine interno→esterno */
+            const QColor fg = fmt.foreground().color();
+            const QColor bg = fmt.background().color();
+            if (bg.isValid() && bg.alpha() > 0)
+                text = QString("<span style='background:%1;'>%2</span>")
+                           .arg(bg.name()).arg(text);
+            if (fg.isValid() && fg.alpha() > 0 &&
+                fg != QColor(Qt::black) && fg != QColor(Qt::white))
+                text = QString("<span style='color:%1;'>%2</span>")
+                           .arg(fg.name()).arg(text);
+            if (fmt.fontUnderline())           text = "<u>" + text + "</u>";
+            if (fmt.fontItalic())              text = "<i>" + text + "</i>";
+            if (fmt.fontWeight() >= QFont::Bold) text = "<b>" + text + "</b>";
+            html += text;
+        }
+        if (block.next().isValid()) html += "<br>";
+        block = block.next();
+    }
+    return html;
+}
+
 // ── Forward declarations per funzioni helper condivise ──────────────────────
 // Definite in agenti_page_math.cpp, usate anche da altri _*.cpp
 QString _sanitize_prompt(const QString& raw);

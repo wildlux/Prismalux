@@ -53,7 +53,8 @@ public:
     explicit AgentiPage(AiClient* ai, QWidget* parent = nullptr);
 
     /* ── Metodi statici pubblici: usati anche da mainwindow (migrazione chat storiche) ── */
-    static QString buildUserBubble(const QString& text, int bubbleIdx = -1);
+    static QString buildUserBubble(const QString& text, int bubbleIdx = -1,
+                                   const QString& displayHtml = "");
     static QString buildAgentBubble(const QString& label, const QString& model,
                                     const QString& time,  const QString& htmlContent,
                                     int bubbleIdx = -1,
@@ -113,6 +114,7 @@ private:
     QSet<int>         m_thinkShown;       ///< bolle con reasoning visibile
     bool              m_thinkDefaultOpen = false; ///< ultima preferenza utente (aperto/chiuso)
     QStringList       m_hermesLastSources; ///< etichette nodi Hermes usati nell'ultima risposta
+    QString           m_taskHtml;          ///< HTML leggero bolla utente (da extractInputHtml)
     QMap<int,QPair<QString,QString>> m_codeBlocks; ///< id → {lang, testo grezzo} per Copia/Salva
     int               m_codeBlockCounter = 0;      ///< contatore globale blocchi codice
     int           m_bubbleIdx = 0;        ///< contatore bolle corrente

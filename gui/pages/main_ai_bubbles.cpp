@@ -13,12 +13,19 @@ namespace P = PrismaluxPaths;
    QTextEdit renderizza HTML4 + CSS2 parziale: usiamo <table> per il
    layout e style inline per colori/bordi/padding.
    ══════════════════════════════════════════════════════════════ */
-QString AgentiPage::buildUserBubble(const QString& text, int bubbleIdx)
+QString AgentiPage::buildUserBubble(const QString& text, int bubbleIdx,
+                                    const QString& displayHtml)
 {
-    QString safe = text;
-    safe.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
-    /* Preserva a capo */
-    safe.replace("\n","<br>");
+    /* displayHtml: HTML leggero con formattazione rich-text (da extractInputHtml).
+       Se presente lo usa per la visualizzazione; altrimenti plain text escapato. */
+    QString safe;
+    if (!displayHtml.isEmpty()) {
+        safe = displayHtml;
+    } else {
+        safe = text;
+        safe.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+        safe.replace("\n","<br>");
+    }
 
     /* Barra azioni dentro la bolla — link semplici (QTextBrowser gestisce solo <a href> piani) */
     const auto& c = bc();

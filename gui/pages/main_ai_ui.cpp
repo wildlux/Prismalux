@@ -3,6 +3,8 @@
 #include "../dpi_utils.h"
 #include "../widgets/latex_view.h"
 #include <QPainter>
+#include <QFont>
+#include <QTextCharFormat>
 #include <QMouseEvent>
 #include <QColorDialog>
 #include "../prismalux_paths.h"
@@ -367,7 +369,7 @@ void AgentiPage::buildInputTextField(QGridLayout* inputGrid, QWidget* inputArea)
     m_input = new QTextEdit(inputArea);
     m_input->setObjectName("chatInput");
     m_input->setPlaceholderText(tr("Scrivi la tua domanda..."));
-    m_input->setAcceptRichText(false);
+    m_input->setAcceptRichText(true);
     m_input->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_input->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_input->setAccessibleName("Campo messaggio chat");
@@ -3409,9 +3411,56 @@ void AgentiPage::buildInputFormatBar()
     };
 
     /* ── Gruppo 1: grassetto / corsivo / sottolineato ── */
-    addTile("Grassetto", "B",  "Grassetto (**testo**)",    "**", "**", "font-weight:bold;");
-    addTile("Corsivo",   "I",  "Corsivo (*testo*)",         "*",  "*",  "font-style:italic;");
-    addTile("Sott.",     "U",  "Sottolineato (__testo__)","__",  "__",  "text-decoration:underline;");
+    /* Grassetto / Corsivo / Sottolineato → QTextCharFormat (rich text nativo) */
+    auto addRichTile = [&](const QString& nome, const QString& sym,
+                           const QString& tip,  const QString& symStyle,
+                           auto applyFmt) {
+        auto* tile = new QWidget(btnRow);
+        auto* tl   = new QVBoxLayout(tile);
+        tl->setContentsMargins(0,0,0,0); tl->setSpacing(1);
+        auto* lbl  = new QLabel(nome, tile);
+        lbl->setAlignment(Qt::AlignCenter);
+        lbl->setStyleSheet("font-size:9px;color:palette(mid);");
+        tl->addWidget(lbl);
+        auto* btn  = new QPushButton(sym, tile);
+        btn->setFixedWidth(lbl->fontMetrics().horizontalAdvance(nome) + 14);
+        btn->setToolTip(tip);
+        btn->setStyleSheet(
+            QString("QPushButton{background:transparent;border:none;border-radius:3px;"
+                    "font-size:14px;%1}"
+                    "QPushButton:hover{background:palette(highlight);"
+                    "color:palette(highlighted-text);}").arg(symStyle));
+        tl->addWidget(btn, 0, Qt::AlignHCenter);
+        lay->addWidget(tile);
+        connect(btn, &QPushButton::clicked, this, [this, applyFmt](){
+            if (!m_input) return;
+            QTextCursor cur = m_input->textCursor();
+            if (!cur.hasSelection()) return;
+            applyFmt(cur);
+            m_input->setTextCursor(cur);
+            if (m_fmtBar) m_fmtBar->hide();
+            m_input->setFocus();
+        });
+    };
+    addRichTile("Grassetto","B","Grassetto","font-weight:bold;",
+        [](QTextCursor& cur){
+            QTextCharFormat f;
+            f.setFontWeight(cur.charFormat().fontWeight() >= QFont::Bold
+                            ? QFont::Normal : QFont::Bold);
+            cur.mergeCharFormat(f);
+        });
+    addRichTile("Corsivo","I","Corsivo","font-style:italic;",
+        [](QTextCursor& cur){
+            QTextCharFormat f;
+            f.setFontItalic(!cur.charFormat().fontItalic());
+            cur.mergeCharFormat(f);
+        });
+    addRichTile("Sott.","U","Sottolineato","text-decoration:underline;",
+        [](QTextCursor& cur){
+            QTextCharFormat f;
+            f.setFontUnderline(!cur.charFormat().fontUnderline());
+            cur.mergeCharFormat(f);
+        });
 
     /* ── Gruppo 2: allineamento ── */
     addSep();
@@ -3461,7 +3510,14 @@ void AgentiPage::buildInputFormatBar()
             if (!c.isValid()) return;
             m_fmtFgColor = c;
             m_btnFmtFg->setStyleSheet(makeFgStyle(c));
-            onFmtBtnClicked(QString("<span style=\"color:%1\">").arg(c.name()), "</span>");
+            if (!m_input) return;
+            QTextCursor cur = m_input->textCursor();
+            if (!cur.hasSelection()) return;
+            QTextCharFormat fmt; fmt.setForeground(c);
+            cur.mergeCharFormat(fmt);
+            m_input->setTextCursor(cur);
+            if (m_fmtBar) m_fmtBar->hide();
+            m_input->setFocus();
         });
     }
     {
@@ -3484,7 +3540,14 @@ void AgentiPage::buildInputFormatBar()
             if (!c.isValid()) return;
             m_fmtBgColor = c;
             m_btnFmtBg->setStyleSheet(makeBgStyle(c));
-            onFmtBtnClicked(QString("<span style=\"background-color:%1\">").arg(c.name()), "</span>");
+            if (!m_input) return;
+            QTextCursor cur = m_input->textCursor();
+            if (!cur.hasSelection()) return;
+            QTextCharFormat fmt; fmt.setBackground(c);
+            cur.mergeCharFormat(fmt);
+            m_input->setTextCursor(cur);
+            if (m_fmtBar) m_fmtBar->hide();
+            m_input->setFocus();
         });
     }
 

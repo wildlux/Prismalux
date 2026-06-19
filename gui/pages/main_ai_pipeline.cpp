@@ -164,7 +164,9 @@ static bool _isChartRequest(const QString& task) {
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::runPipeline() {
     m_userScrolled = false;  /* nuovo task: torna in auto-scroll */
+    m_taskHtml = extractInputHtml(m_input); /* HTML leggero bolla utente — prima di clear() */
     QString task = _sanitize_prompt(m_input->toPlainText().trimmed());
+    const QString& taskHtml = m_taskHtml;
     if (task.isEmpty()) { m_log->append("\xe2\x9a\xa0  Inserisci un task."); return; }
 
     /* Avviso se l'estrazione asincrona del file allegato non è ancora completata */
@@ -184,7 +186,7 @@ void AgentiPage::runPipeline() {
             m_log->clear();
             { int i = m_bubbleIdx++; m_bubbleTexts[i] = task;
               m_log->moveCursor(QTextCursor::End);
-              m_log->insertHtml(buildUserBubble(task, i)); }
+              m_log->insertHtml(buildUserBubble(task, i, taskHtml)); }
             m_log->append("");
             { int i = m_bubbleIdx++; m_bubbleTexts[i] = ris;
               m_log->moveCursor(QTextCursor::End);
@@ -214,7 +216,7 @@ void AgentiPage::runPipeline() {
                     m_taskOriginal = task;
                     { int i = m_bubbleIdx++; m_bubbleTexts[i] = task;
                       m_log->moveCursor(QTextCursor::End);
-                      m_log->insertHtml(buildUserBubble(task, i)); }
+                      m_log->insertHtml(buildUserBubble(task, i, taskHtml)); }
                     m_log->append("");
                     /* Bolla chart: solo pulsante "Mostra grafico" senza testo formula */
                     {
@@ -276,7 +278,7 @@ void AgentiPage::runPipeline() {
             const double ms = tmr.nsecsElapsed() / 1e6;
             { int i = m_bubbleIdx++; m_bubbleTexts[i] = task;
               m_log->moveCursor(QTextCursor::End);
-              m_log->insertHtml(buildUserBubble(task, i)); }
+              m_log->insertHtml(buildUserBubble(task, i, taskHtml)); }
             m_log->append("");
             { int i = m_bubbleIdx++; m_bubbleTexts[i] = calcResult;
               m_log->moveCursor(QTextCursor::End);
@@ -315,7 +317,7 @@ void AgentiPage::runPipeline() {
     /* Bolla utente — mostra il testo originale (senza prefissi inject_science/math) */
     { int i = m_bubbleIdx++; m_bubbleTexts[i] = task;
       m_log->moveCursor(QTextCursor::End);
-      m_log->insertHtml(buildUserBubble(task, i)); }
+      m_log->insertHtml(buildUserBubble(task, i, taskHtml)); }
     m_log->append("");
 
     /* ── Controllo RAM e dimensione modello pre-pipeline ── */

@@ -128,7 +128,7 @@ void AgentiPage::_finishedTranslating(const QString& /*full*/) {
         emit pipelineStatus(0, "Avvio pipeline...");
         { int idx = m_bubbleIdx++; m_bubbleTexts[idx] = m_taskOriginal;
           m_log->moveCursor(QTextCursor::End);
-          m_log->insertHtml(buildUserBubble(m_taskOriginal, idx)); }
+          m_log->insertHtml(buildUserBubble(m_taskOriginal, idx, m_taskHtml)); }
         m_log->append("");
         m_waitLbl->setVisible(true);
         advancePipeline();
