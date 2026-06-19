@@ -1949,6 +1949,88 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         return;
     }
 
+    /* ── Riesegui codice Python annullato in precedenza ── */
+    if (s.startsWith("exec:run:")) {
+        bool ok4 = false;
+        const int execId = s.mid(9).toInt(&ok4);
+        if (!ok4 || !m_pendingExecCodes.contains(execId)) return;
+        const QString pyCode    = m_pendingExecCodes.take(execId);
+        const bool    useSandbox = P::isSandboxReady();
+
+        auto* dlg2 = new QDialog(this);
+        dlg2->setWindowTitle(useSandbox
+            ? "\xf0\x9f\x90\xb3  Esegui codice in sandbox Docker?"
+            : "\xe2\x9a\xa0  Esegui codice generato dall\xe2\x80\x99" "AI?");
+        dlg2->setMinimumSize(660, 460);
+        auto* lay2 = new QVBoxLayout(dlg2);
+        auto* warn2 = new QLabel(useSandbox
+            ? "\xf0\x9f\x90\xb3  Il codice verr\xc3\xa0 eseguito in un container Docker isolato."
+            : "\xe2\x9a\xa0  Codice Python generato dall\xe2\x80\x99" "AI — verifica prima di procedere.",
+            dlg2);
+        warn2->setWordWrap(true);
+        warn2->setStyleSheet(useSandbox
+            ? "color:#86efac;font-weight:bold;padding:6px;background:#052e16;border-radius:4px;"
+            : "color:#facc15;font-weight:bold;padding:6px;background:#292524;border-radius:4px;");
+        lay2->addWidget(warn2);
+        auto* cv2 = new QTextEdit(dlg2);
+        cv2->setReadOnly(true);
+        cv2->setPlainText(pyCode);
+        cv2->setFont(QFont("JetBrains Mono,Fira Code,Consolas,monospace", 10));
+        cv2->setStyleSheet("background:#1e1e2e;color:#cdd6f4;border:1px solid #45475a;padding:4px;");
+        lay2->addWidget(cv2, 1);
+        auto* bb2 = new QDialogButtonBox(dlg2);
+        auto* btnRun2 = bb2->addButton("\xe2\x96\xb6  Esegui", QDialogButtonBox::AcceptRole);
+        bb2->addButton("\xe2\x9c\x96  Annulla", QDialogButtonBox::RejectRole);
+        btnRun2->setStyleSheet(useSandbox
+            ? "background:#16a34a;color:#fff;font-weight:bold;padding:4px 18px;"
+            : "background:#ef4444;color:#fff;font-weight:bold;padding:4px 18px;");
+        connect(bb2, &QDialogButtonBox::accepted, dlg2, &QDialog::accept);
+        connect(bb2, &QDialogButtonBox::rejected, dlg2, &QDialog::reject);
+        lay2->addWidget(bb2);
+        if (dlg2->exec() != QDialog::Accepted) { dlg2->deleteLater(); return; }
+        dlg2->deleteLater();
+
+        /* Rilancia esecuzione — riusa la funzione già in uso per sandbox/locale */
+        m_executorOutput.clear();
+        if (m_execProc) { m_execProc->kill(); m_execProc->deleteLater(); m_execProc = nullptr; }
+        m_execProc = new QProcess(this);
+        m_execProc->setProcessChannelMode(QProcess::MergedChannels);
+        auto tmrR = QSharedPointer<QElapsedTimer>::create();
+        tmrR->start();
+
+        auto onFinishedR = [this, tmrR](int exitCode, QProcess::ExitStatus) {
+            const double ms  = tmrR->elapsed();
+            const QString out = QString::fromUtf8(m_execProc->readAll());
+            m_execProc->deleteLater();
+            m_execProc = nullptr;
+            m_executorOutput = out;
+            const QString od = PrismaluxPaths::sanitizeErrorOutput(out);
+            QTextCursor c(m_log->document());
+            c.movePosition(QTextCursor::End);
+            c.insertHtml(buildToolStrip(QString(), od, exitCode, ms));
+            m_log->moveCursor(QTextCursor::End);
+        };
+
+        if (useSandbox) {
+            const QSettings ss2("Prismalux", "GUI");
+            const QString img = ss2.value(P::SK::kSandboxImage, "python:3.11-slim").toString();
+            const QString mem = QString::number(ss2.value(P::SK::kSandboxMemory, 256).toInt()) + "m";
+            connect(m_execProc,
+                    QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                    this, onFinishedR);
+            m_execProc->start("docker", {"run","--rm","-i","--network","none",
+                "--memory", mem, "--memory-swap", mem,
+                "--cpus","1","--security-opt","no-new-privileges",
+                img, "python3","-c", pyCode});
+        } else {
+            connect(m_execProc,
+                    QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                    this, onFinishedR);
+            m_execProc->start("python3", {"-c", pyCode});
+        }
+        return;
+    }
+
     /* ── Ricerca online → salva in RAG/RICERCA/<slug>.md ── */
     if (s.startsWith("websearch:")) {
         const QString q64  = s.mid(10);

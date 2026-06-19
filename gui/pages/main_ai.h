@@ -117,6 +117,7 @@ private:
     QString           m_taskHtml;          ///< HTML leggero bolla utente (da extractInputHtml)
     QMap<int,QPair<QString,QString>> m_codeBlocks; ///< id → {lang, testo grezzo} per Copia/Salva
     int               m_codeBlockCounter = 0;      ///< contatore globale blocchi codice
+    QMap<int,QString> m_pendingExecCodes;           ///< id → codice Python rifiutato, per Riesegui
     int           m_bubbleIdx = 0;        ///< contatore bolle corrente
     QTextEdit*    m_input     = nullptr;
     QPushButton*  m_btnRun        = nullptr;  ///< Pulsante unico: run (idle) ↔ stop (busy)

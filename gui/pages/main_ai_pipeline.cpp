@@ -638,7 +638,32 @@ void AgentiPage::runAgent(int idx) {
         "Non usare HTML inline. "
         "Non citare il progetto Prismalux come esempio in risposte a domande generali: "
         "usa solo esempi pertinenti al dominio della domanda. "
-        "Rispondi nella stessa lingua dell'utente.";
+        "Rispondi nella stessa lingua dell'utente."
+        /* ── Notazione matematica KaTeX (stile LibreOffice Math) ── */
+        "\n\nPer le formule matematiche usa KaTeX con delimitatori \\(...\\) inline "
+        "e \\[...\\] per display. Scegli sempre i simboli LaTeX appropriati:\n"
+        "- Operatori unari/binari: \\pm \\mp \\times \\cdot \\div \\oplus \\ominus "
+        "\\otimes \\oslash \\odot \\neg \\wedge \\vee\n"
+        "- Relazioni: \\leq \\geq \\neq \\ll \\gg \\approx \\sim \\simeq \\equiv "
+        "\\propto \\parallel \\perp \\rightarrow \\leftarrow \\Rightarrow "
+        "\\Leftarrow \\Leftrightarrow \\leftrightarrow\n"
+        "- Insiemi: \\in \\notin \\ni \\subset \\subseteq \\supset \\supseteq "
+        "\\cap \\cup \\setminus \\emptyset \\mathbb{R} \\mathbb{Z} \\mathbb{N} "
+        "\\mathbb{Q} \\mathbb{C}\n"
+        "- Struttura: \\frac{a}{b} \\sqrt{a} ^{n}\\sqrt{a} \\sum_{i=0}^{n} "
+        "\\prod_{i=1}^{n} \\int_{a}^{b} \\iint \\oint \\lim_{x\\to 0} "
+        "\\binom{n}{k}\n"
+        "- Funzioni: \\sin \\cos \\tan \\cot \\sinh \\cosh \\tanh \\coth "
+        "\\arcsin \\arccos \\arctan \\ln \\log \\exp\n"
+        "- Attributi/decoratori: \\vec{a} \\hat{a} \\bar{a} \\tilde{a} "
+        "\\dot{a} \\ddot{a} \\overrightarrow{AB} \\mathbf{F} \\mathit{x}\n"
+        "- Parentesi scalabili: \\left( \\right) \\left[ \\right] "
+        "\\left\\{ \\right\\} \\left| \\right| \\left\\| \\right\\|\n"
+        "- Altro: \\partial \\nabla \\infty \\hbar \\forall \\exists \\nexists "
+        "\\lambda \\pi \\alpha \\beta \\gamma \\delta \\epsilon \\sigma \\omega "
+        "\\Delta \\Sigma \\Pi \\Omega \\Gamma\n"
+        "Mai usare * per moltiplicazione (usa \\cdot o \\times); "
+        "mai ^ senza {apici} quando l'esponente ha >1 carattere.";
 
     static const QString kFmtSmall =
         "\nRispondi in modo chiaro e diretto. Usa emoji se utile. "
@@ -1078,7 +1103,29 @@ void AgentiPage::_finishedPipeline(const QString& full) {
 
             const bool accepted = (dlg->exec() == QDialog::Accepted);
             dlg->deleteLater();
-            if (!accepted) { advancePipeline(); return; }
+            if (!accepted) {
+                /* Inserisce banner "Riesegui" nel log per poter eseguire dopo */
+                const int execId = m_codeBlockCounter++;
+                m_pendingExecCodes[execId] = pyCode;
+                const QString lnk =
+                    "color:#fbbf24;font-size:12px;text-decoration:none;"
+                    "border:1px solid #92400e;padding:2px 12px;"
+                    "background:#292524;border-radius:4px;";
+                m_log->moveCursor(QTextCursor::End);
+                m_log->insertHtml(
+                    "<p style='margin:4px 0;'>"
+                      "<span style='color:#94a3b8;font-size:11px;'>"
+                        "\xe2\x9a\xa0 Esecuzione annullata. "  /* ⚠ */
+                      "</span>"
+                      "<a href='exec:run:" + QString::number(execId) + "' "
+                         "style='" + lnk + "' "
+                         "title='Esegui il codice ora'>"
+                        "\xe2\x96\xb6 Riesegui in sandbox"    /* ▶ */
+                      "</a>"
+                    "</p>");
+                advancePipeline();
+                return;
+            }
         }
 
         m_executorOutput.clear();
