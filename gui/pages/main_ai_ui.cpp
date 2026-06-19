@@ -3678,14 +3678,34 @@ void AgentiPage::buildInputFormatBar()
     }
 
     /* ── Hint accenti (sotto i pulsanti) ── */
-    auto* hintLbl = new QLabel(
+    static const char* kHintDefault =
         "<span style='font-size:9px;'>"
         "Seleziona una lettera per vedere gli accenti disponibili"
-        "</span>", m_fmtBar);
+        "</span>";
+    auto* hintLbl = new QLabel(kHintDefault, m_fmtBar);
     hintLbl->setTextFormat(Qt::RichText);
     hintLbl->setStyleSheet("color:palette(mid);");
     hintLbl->setAlignment(Qt::AlignLeft);
     vlay->addWidget(hintLbl);
+
+    /* Event filter: hover su pulsante → mostra descrizione, leave → ripristina */
+    struct HintFilter : public QObject {
+        QLabel* lbl;
+        HintFilter(QLabel* l, QObject* p) : QObject(p), lbl(l) {}
+        bool eventFilter(QObject* o, QEvent* e) override {
+            if (auto* b = qobject_cast<QPushButton*>(o)) {
+                if (e->type() == QEvent::Enter && !b->toolTip().isEmpty())
+                    lbl->setText("<span style='font-size:9px;'>" +
+                                 b->toolTip().toHtmlEscaped() + "</span>");
+                else if (e->type() == QEvent::Leave)
+                    lbl->setText(kHintDefault);
+            }
+            return false;
+        }
+    };
+    auto* hf = new HintFilter(hintLbl, m_fmtBar);
+    for (auto* btn : btnRow->findChildren<QPushButton*>())
+        btn->installEventFilter(hf);
 
     connect(btnTbl, &QPushButton::clicked, m_fmtBar, [this, btnTbl](){
         auto* picker = new TablePickerPopup(this,

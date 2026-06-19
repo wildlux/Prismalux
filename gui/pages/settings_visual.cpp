@@ -390,6 +390,61 @@ QWidget* ImpostazioniPage::buildTemaTab() {
         leftCol->addWidget(secEmoji);
     }
 
+    /* ── Sezione: Forma pulsante AI ── */
+    {
+        auto* secShape = new QFrame(leftColW);
+        secShape->setObjectName("cardFrame");
+        auto* shLay = new QVBoxLayout(secShape);
+        shLay->setContentsMargins(16, 10, 16, 10);
+        shLay->setSpacing(8);
+
+        auto* shTitle = new QLabel(
+            "\xf0\x9f\x94\xb3  <b>Forma pulsante AI</b>", secShape);
+        shTitle->setObjectName("cardTitle");
+        shTitle->setTextFormat(Qt::RichText);
+        shLay->addWidget(shTitle);
+
+        auto* shDesc = new QLabel(
+            "Scegli la forma del pulsante Chat / Agentico / Conversa.", secShape);
+        shDesc->setObjectName("cardDesc");
+        shDesc->setWordWrap(true);
+        shLay->addWidget(shDesc);
+
+        struct ShapeMode { const char* label; const char* value; const char* tip; };
+        static const ShapeMode kShapes[] = {
+            { "Ovale",        "oval", "Pulsante circolare a 3 settori (stile predefinito)." },
+            { "Rettangolare", "rect", "Barra piatta con 3 tab + pulsante azione." },
+        };
+
+        QSettings shSett("Prismalux", "GUI");
+        const QString curShape = shSett.value(P::SK::kTriModeShape, "oval").toString();
+
+        auto* shGroup = new QButtonGroup(secShape);
+        auto* shRow   = new QWidget(secShape);
+        auto* shRowL  = new QHBoxLayout(shRow);
+        shRowL->setContentsMargins(0, 0, 0, 0);
+        shRowL->setSpacing(20);
+
+        for (const auto& sh : kShapes) {
+            auto* rb = new QRadioButton(QString::fromUtf8(sh.label), secShape);
+            rb->setObjectName("cardDesc");
+            rb->setToolTip(QString::fromUtf8(sh.tip));
+            rb->setChecked(curShape == sh.value);
+            rb->setProperty("shapeValue", QLatin1String(sh.value));
+            shGroup->addButton(rb);
+            shRowL->addWidget(rb);
+            connect(rb, &QRadioButton::toggled, this, [rb](bool checked) {
+                if (!checked) return;
+                QSettings("Prismalux", "GUI").setValue(
+                    P::SK::kTriModeShape,
+                    rb->property("shapeValue").toString());
+            });
+        }
+        shRowL->addStretch();
+        shLay->addWidget(shRow);
+        leftCol->addWidget(secShape);
+    }
+
     leftCol->addStretch();
 
     /* ═══════════════ COLONNA DESTRA ═══════════════ */

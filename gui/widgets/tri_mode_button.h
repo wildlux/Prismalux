@@ -13,6 +13,7 @@
    ══════════════════════════════════════════════════════════════ */
 #include <QWidget>
 #include <QPainter>
+#include <QPainterPath>
 #include <QMouseEvent>
 #include <QRectF>
 #include <QtMath>
@@ -70,13 +71,21 @@ public:
     QSize sizeHint()        const override { return { dpiScale(170), dpiScale(120) }; }
     QSize minimumSizeHint() const override { return { dpiScale(140), dpiScale(100) }; }
 
+    /* Aggiorna la forma (chiamare dopo aver cambiato la setting) */
+    void refreshShape() { updateGeometry(); update(); }
+
 signals:
     void modeChanged(int mode);   /* 0=Chat, 1=Agentico, 2=Conversa */
     void actionClicked();         /* click hub centrale */
 
 protected:
+    bool isRect() const {
+        return QSettings("Prismalux","GUI").value("ui/triModeShape","oval").toString() == "rect";
+    }
+
     void paintEvent(QPaintEvent*) override
     {
+        if (isRect()) { paintRect(); return; }
         QPainter p(this);
         p.setRenderHints(QPainter::Antialiasing | QPainter::TextAntialiasing);
 
@@ -252,9 +261,147 @@ private:
     bool    m_actionEnabled;
     bool    m_actionDanger;
 
-    /* -1=fuori ellisse  -2=hub  0/1/2=settore */
+    /* ── Disegno forma rettangolare ───────────────────────────────── */
+    void paintRect()
+    {
+        QPainter p(this);
+        p.setRenderHints(QPainter::Antialiasing | QPainter::TextAntialiasing);
+
+        const int w = width(), h = height();
+        const double r = 10.0;
+
+        /* Palette colori identica alla forma ovale */
+        const QColor kBg  = palette().color(QPalette::Active, QPalette::Window);
+        const QColor kHov = palette().color(QPalette::Active, QPalette::Button);
+        const QColor hi   = palette().color(QPalette::Active, QPalette::Highlight);
+        const int    hh   = hi.hsvHue() < 0 ? 220 : hi.hsvHue();
+        const int    hs   = qMax(hi.hsvSaturation(), 160);
+        const int    hv   = qMax(hi.value(), 180);
+        const QColor kAct[3] = {
+            QColor::fromHsv(hh,               hs, hv),
+            QColor::fromHsv((hh + 120) % 360, hs, hv),
+            QColor::fromHsv((hh + 240) % 360, hs, hv),
+        };
+        const QColor divCol    = palette().color(QPalette::Active, QPalette::Mid);
+        const QColor borderCol = palette().color(QPalette::Active, QPalette::Mid);
+
+        /* Clip su rettangolo arrotondato (stesso guscio dell'ovale ma rettangolare) */
+        QPainterPath clip;
+        clip.addRoundedRect(QRectF(0, 0, w, h), r, r);
+        p.setClipPath(clip);
+
+        /* ── 3 settori: top=Chat, basso-sx=Conversa, basso-dx=Agentico ── */
+        /* Come l'ovale ma con bordi retti anziché curvi:
+           - zona 0 (Chat):    rettangolo top, tutta la larghezza, metà altezza
+           - zona 2 (Conversa):rettangolo basso-sinistra
+           - zona 1 (Agentico):rettangolo basso-destra                          */
+        const int halfH = h / 2;
+        const int halfW = w / 2;
+
+        /* Settore top: Chat */
+        {
+            QColor fill = (m_mode == 0) ? kAct[0] : (m_hovered == 0) ? kHov : kBg;
+            p.setBrush(fill); p.setPen(Qt::NoPen);
+            p.drawRect(0, 0, w, halfH);
+        }
+        /* Settore basso-sx: Conversa (modo 2) */
+        {
+            QColor fill = (m_mode == 2) ? kAct[2] : (m_hovered == 2) ? kHov : kBg;
+            p.setBrush(fill); p.setPen(Qt::NoPen);
+            p.drawRect(0, halfH, halfW, h - halfH);
+        }
+        /* Settore basso-dx: Agentico (modo 1) */
+        {
+            QColor fill = (m_mode == 1) ? kAct[1] : (m_hovered == 1) ? kHov : kBg;
+            p.setBrush(fill); p.setPen(Qt::NoPen);
+            p.drawRect(halfW, halfH, w - halfW, h - halfH);
+        }
+
+        /* ── Linee divisorie ── */
+        p.setClipping(false);
+        p.setPen(QPen(divCol, 1.0));
+        p.drawLine(1,     halfH, w - 1, halfH);    /* orizzontale centrale */
+        p.drawLine(halfW, halfH, halfW, h - 1);    /* verticale bassa      */
+
+        /* ── Hub ovale centrale (identico all'originale) ── */
+        const double iA = dpiScale(52);
+        const double iB = dpiScale(25);
+        const QPointF c(w / 2.0, h / 2.0);
+        const QRectF hubRc(c.x()-iA, c.y()-iB, iA*2, iB*2);
+
+        const QColor hubBorder = m_actionDanger
+            ? palette().color(QPalette::Active, QPalette::ToolTipText).darker(130)
+            : kAct[m_mode];
+        const QColor hubBaseBg = palette().color(QPalette::Active, QPalette::Button);
+        const QColor hubBg = (m_hovered == -2 && m_actionEnabled)
+                             ? hubBorder.darker(160) : hubBaseBg;
+        p.setBrush(hubBg);
+        p.setPen(QPen(hubBorder, m_actionEnabled ? 2.0 : 1.0));
+        p.drawEllipse(hubRc);
+
+        /* Testo hub */
+        {
+            QString label = m_actionText;
+            int i2 = 0;
+            while (i2 < label.length() && !label.at(i2).isLetter()) i2++;
+            if (i2 > 0 && i2 < label.length()) label = label.mid(i2).trimmed();
+            QFont hf = font(); hf.setPixelSize(dpiScale(11)); hf.setBold(true);
+            p.setFont(hf);
+            p.setPen(m_actionEnabled
+                ? (m_hovered == -2 ? Qt::white : hubBorder)
+                : QColor(71, 85, 105));
+            p.drawText(hubRc, Qt::AlignCenter | Qt::TextWordWrap, label);
+        }
+
+        /* ── Emoji nei settori: stesse coordinate dell'ovale (angolo parametrico) ── */
+        static const char* kEmoji[3] = {
+            "\xf0\x9f\x92\xac", "\xf0\x9f\x91\x94", "\xf0\x9f\x8e\x99"
+        };
+        static const double kCA[3] = { 90.0, -30.0, -150.0 };
+        /* Punto medio tra bordo hub e bordo rettangolo — stesso calcolo dell'ovale */
+        const double A  = w / 2.0 - 2.0;
+        const double B  = h / 2.0 - 2.0;
+        const double tA = (iA + A) / 2.0;
+        const double tB = (iB + B) / 2.0;
+        const int eSize = dpiScale(20);
+        for (int i = 0; i < 3; ++i) {
+            const double rad = kCA[i] * M_PI / 180.0;
+            const double extraY = (i == 0) ? 0.0 : dpiScale(14);
+            const QPointF tc(c.x() + tA * qCos(rad), c.y() - tB * qSin(rad) + extraY);
+            const QRectF er(tc.x() - eSize, tc.y() - eSize / 2.0, eSize * 2, eSize);
+            const QColor tx = (m_mode == i) ? QColor(Qt::white)
+                : palette().color(QPalette::Active, QPalette::WindowText);
+            const QString es = QString::fromUtf8(kEmoji[i]);
+            QFont ef = font(); ef.setPixelSize(eSize); p.setFont(ef);
+            p.setPen(QColor(0,0,0,140));
+            for (int dx=-1;dx<=1;++dx) for (int dy=-1;dy<=1;++dy)
+                if (dx||dy) p.drawText(er.translated(dx,dy), Qt::AlignCenter, es);
+            p.setPen(tx);
+            p.drawText(er, Qt::AlignCenter, es);
+        }
+
+        /* ── Bordo esterno rettangolare ── */
+        p.setBrush(Qt::NoBrush);
+        p.setPen(QPen(borderCol, 1.5));
+        p.drawRoundedRect(QRectF(0.75, 0.75, w-1.5, h-1.5), r, r);
+    }
+
+    /* -1=fuori widget  -2=hub  0/1/2=settore */
     int zoneAt(QPoint pt) const
     {
+        if (isRect()) {
+            if (pt.x() < 0 || pt.x() >= width() || pt.y() < 0 || pt.y() >= height())
+                return -1;
+            /* Hub ovale al centro */
+            const double cx = width() / 2.0, cy = height() / 2.0;
+            const double dx = pt.x() - cx, dy = pt.y() - cy;
+            const double iA = dpiScale(52), iB = dpiScale(25);
+            if (dx*dx/(iA*iA) + dy*dy/(iB*iB) < 1.0) return -2;
+            /* Settori: top=Chat(0), basso-dx=Agentico(1), basso-sx=Conversa(2) */
+            if (pt.y() < height() / 2) return 0;
+            return (pt.x() >= width() / 2) ? 1 : 2;
+        }
+
         const double cx = width()  / 2.0,  cy = height() / 2.0;
         const double dx = pt.x() - cx,     dy = cy - pt.y();
         const double A  = width()  / 2.0 - 1.5;

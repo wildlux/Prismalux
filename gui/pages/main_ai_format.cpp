@@ -1,5 +1,6 @@
 #include "main_ai.h"
 #include "main_ai_p.h"
+#include "theme_manager.h"
 #include <QRegularExpression>
 #include <QMap>
 #include <QPair>
@@ -24,16 +25,31 @@
 
 namespace SH {
 
-/* Colori GitHub Dark Dimmed */
-static const char* kKw  = "#ff7b72";   /* keywords */
-static const char* kStr = "#a5d6ff";   /* stringhe */
-static const char* kCom = "#8b949e";   /* commenti */
-static const char* kNum = "#79c0ff";   /* numeri */
-static const char* kFn  = "#d2a8ff";   /* funzioni */
-static const char* kTy  = "#ffa657";   /* tipi/classi */
-static const char* kTag = "#7ee787";   /* tag HTML */
-static const char* kAt  = "#79c0ff";   /* attributi HTML / chiavi JSON */
-static const char* kOp  = "#ff7b72";   /* operatori speciali */
+struct Pal {
+    const char* kw;  const char* str; const char* com;
+    const char* num; const char* fn;  const char* ty;
+    const char* tag; const char* at;  const char* op;
+    const char* bg;  const char* fg;  const char* border;
+    const char* hdrBg; const char* link;
+};
+
+/* GitHub Dark Dimmed */
+static const Pal kDark = {
+    "#ff7b72", "#a5d6ff", "#8b949e",
+    "#79c0ff", "#d2a8ff", "#ffa657",
+    "#7ee787", "#79c0ff", "#ff7b72",
+    "#0d1117", "#e6edf3", "#30363d",
+    "#161b22", "#58a6ff"
+};
+
+/* GitHub Light */
+static const Pal kLight = {
+    "#cf222e", "#0a3069", "#6e7781",
+    "#0550ae", "#8250df", "#953800",
+    "#116329", "#0550ae", "#cf222e",
+    "#f6f8fa", "#24292f", "#d0d7de",
+    "#eaeef2", "#0969da"
+};
 
 static QString span(const char* color, const QString& text) {
     return QString("<span style='color:%1;'>%2</span>")
@@ -148,6 +164,7 @@ static const QSet<QString>& kwBash() {
 
 /* ─── Tokenizer generico C-like ──────────────────────────────── */
 static QString highlightClike(const QString& code, const QSet<QString>& kws,
+                               const Pal& p,
                                const QString& lineCommentPrefix = "//",
                                bool hasBlockComment = true,
                                bool tripleStrings = false)
@@ -167,7 +184,7 @@ static QString highlightClike(const QString& code, const QSet<QString>& kws,
             code.mid(i, lineCommentPrefix.size()) == lineCommentPrefix) {
             int end = code.indexOf('\n', i);
             if (end < 0) end = n;
-            out += span(kCom, code.mid(i, end - i));
+            out += span(p.com, code.mid(i, end - i));
             i = end;
             continue;
         }
@@ -176,7 +193,7 @@ static QString highlightClike(const QString& code, const QSet<QString>& kws,
         if (hasBlockComment && peek() == '/' && peek(1) == '*') {
             int end = code.indexOf("*/", i + 2);
             if (end < 0) end = n - 2;
-            out += span(kCom, code.mid(i, end + 2 - i));
+            out += span(p.com, code.mid(i, end + 2 - i));
             i = end + 2;
             continue;
         }
@@ -187,7 +204,7 @@ static QString highlightClike(const QString& code, const QSet<QString>& kws,
                 if (code.mid(i, 3) == q3) {
                     int end = code.indexOf(q3, i + 3);
                     if (end < 0) end = n - 3;
-                    out += span(kStr, code.mid(i, end + 3 - i));
+                    out += span(p.str, code.mid(i, end + 3 - i));
                     i = end + 3;
                     goto next_char;
                 }
@@ -203,7 +220,7 @@ static QString highlightClike(const QString& code, const QSet<QString>& kws,
                 if (code[j] == q)    { j++;    break; }
                 j++;
             }
-            out += span(kStr, code.mid(i, j - i));
+            out += span(p.str, code.mid(i, j - i));
             i = j;
             continue;
         }
@@ -216,7 +233,7 @@ static QString highlightClike(const QString& code, const QSet<QString>& kws,
                 if (code[j] == '`')  { j++;    break; }
                 j++;
             }
-            out += span(kStr, code.mid(i, j - i));
+            out += span(p.str, code.mid(i, j - i));
             i = j;
             continue;
         }
@@ -234,7 +251,7 @@ static QString highlightClike(const QString& code, const QSet<QString>& kws,
                               (code[j] >= 'A' && code[j] <= 'F') ||
                               code[j] == '_' || code[j] == 'e' ||
                               code[j] == 'E' || code[j] == '+')) j++;
-            out += span(kNum, code.mid(i, j - i));
+            out += span(p.num, code.mid(i, j - i));
             i = j;
             continue;
         }
@@ -245,13 +262,11 @@ static QString highlightClike(const QString& code, const QSet<QString>& kws,
             while (j < n && (code[j].isLetterOrNumber() || code[j] == '_')) j++;
             const QString word = code.mid(i, j - i);
             if (kws.contains(word)) {
-                out += span(kKw, word);
+                out += span(p.kw, word);
             } else if (j < n && code[j] == '(') {
-                /* Chiamata funzione: nome prima di ( */
-                out += span(kFn, word);
+                out += span(p.fn, word);
             } else if (!word.isEmpty() && word[0].isUpper()) {
-                /* Identificatore Capitalizzato → tipo/classe */
-                out += span(kTy, word);
+                out += span(p.ty, word);
             } else {
                 out += plain(word);
             }
@@ -268,7 +283,7 @@ static QString highlightClike(const QString& code, const QSet<QString>& kws,
 }
 
 /* ─── Highlighter Bash ─────────────────────────────────────── */
-static QString highlightBash(const QString& code)
+static QString highlightBash(const QString& code, const Pal& p)
 {
     const QSet<QString>& kws = kwBash();
     QString out;
@@ -281,7 +296,7 @@ static QString highlightBash(const QString& code)
         if (code[i] == '#') {
             int end = code.indexOf('\n', i);
             if (end < 0) end = n;
-            out += span(kCom, code.mid(i, end - i));
+            out += span(p.com, code.mid(i, end - i));
             i = end;
             continue;
         }
@@ -296,13 +311,13 @@ static QString highlightBash(const QString& code)
                     else if (code[j] == close) depth--;
                     j++;
                 }
-                out += span(kOp, code.mid(i, j - i));
+                out += span(p.op, code.mid(i, j - i));
                 i = j;
                 continue;
             }
             /* $VAR */
             while (j < n && (code[j].isLetterOrNumber() || code[j] == '_')) j++;
-            out += span(kOp, code.mid(i, j - i));
+            out += span(p.op, code.mid(i, j - i));
             i = j;
             continue;
         }
@@ -315,7 +330,7 @@ static QString highlightBash(const QString& code)
                 if (code[j] == q)    { j++;    break; }
                 j++;
             }
-            out += span(kStr, code.mid(i, j - i));
+            out += span(p.str, code.mid(i, j - i));
             i = j;
             continue;
         }
@@ -324,7 +339,7 @@ static QString highlightBash(const QString& code)
             int j = i;
             while (j < n && (code[j].isLetterOrNumber() || code[j] == '_' || code[j] == '-')) j++;
             const QString word = code.mid(i, j - i);
-            out += kws.contains(word) ? span(kKw, word) : plain(word);
+            out += kws.contains(word) ? span(p.kw, word) : plain(word);
             i = j;
             continue;
         }
@@ -332,7 +347,7 @@ static QString highlightBash(const QString& code)
         if (code[i].isDigit()) {
             int j = i;
             while (j < n && (code[j].isDigit() || code[j] == '.')) j++;
-            out += span(kNum, code.mid(i, j - i));
+            out += span(p.num, code.mid(i, j - i));
             i = j;
             continue;
         }
@@ -343,7 +358,7 @@ static QString highlightBash(const QString& code)
 }
 
 /* ─── Highlighter SQL ──────────────────────────────────────── */
-static QString highlightSql(const QString& code)
+static QString highlightSql(const QString& code, const Pal& p)
 {
     const QSet<QString>& kws = kwSql();
     QString out;
@@ -355,7 +370,7 @@ static QString highlightSql(const QString& code)
         if (i + 1 < n && code[i] == '-' && code[i+1] == '-') {
             int end = code.indexOf('\n', i);
             if (end < 0) end = n;
-            out += span(kCom, code.mid(i, end - i));
+            out += span(p.com, code.mid(i, end - i));
             i = end;
             continue;
         }
@@ -363,7 +378,7 @@ static QString highlightSql(const QString& code)
         if (i + 1 < n && code[i] == '/' && code[i+1] == '*') {
             int end = code.indexOf("*/", i + 2);
             if (end < 0) end = n - 2;
-            out += span(kCom, code.mid(i, end + 2 - i));
+            out += span(p.com, code.mid(i, end + 2 - i));
             i = end + 2;
             continue;
         }
@@ -375,7 +390,7 @@ static QString highlightSql(const QString& code)
                 if (code[j] == '\'') { j++; break; }
                 j++;
             }
-            out += span(kStr, code.mid(i, j - i));
+            out += span(p.str, code.mid(i, j - i));
             i = j;
             continue;
         }
@@ -384,7 +399,7 @@ static QString highlightSql(const QString& code)
             int j = i;
             while (j < n && (code[j].isLetterOrNumber() || code[j] == '_')) j++;
             const QString word = code.mid(i, j - i);
-            out += kws.contains(word.toUpper()) ? span(kKw, word) : plain(word);
+            out += kws.contains(word.toUpper()) ? span(p.kw, word) : plain(word);
             i = j;
             continue;
         }
@@ -392,7 +407,7 @@ static QString highlightSql(const QString& code)
         if (code[i].isDigit()) {
             int j = i;
             while (j < n && (code[j].isDigit() || code[j] == '.')) j++;
-            out += span(kNum, code.mid(i, j - i));
+            out += span(p.num, code.mid(i, j - i));
             i = j;
             continue;
         }
@@ -403,7 +418,7 @@ static QString highlightSql(const QString& code)
 }
 
 /* ─── Highlighter HTML/XML ─────────────────────────────────── */
-static QString highlightHtml(const QString& code)
+static QString highlightHtml(const QString& code, const Pal& p)
 {
     QString out;
     out.reserve(code.size() * 3);
@@ -414,36 +429,33 @@ static QString highlightHtml(const QString& code)
         if (code.mid(i, 4) == "<!--") {
             int end = code.indexOf("-->", i + 4);
             if (end < 0) end = n - 3;
-            out += span(kCom, code.mid(i, end + 3 - i));
+            out += span(p.com, code.mid(i, end + 3 - i));
             i = end + 3;
             continue;
         }
         /* Tag < ... > */
         if (code[i] == '<') {
             int j = i + 1;
-            /* Raccoglie nome tag */
             while (j < n && !code[j].isSpace() && code[j] != '>' && code[j] != '/') j++;
             const QString tagName = code.mid(i + 1, j - i - 1)
                                         .remove('!').remove('/').trimmed();
-            /* Emetti < */
             out += plain("<");
             if (i + 1 < n && code[i+1] == '/') out += plain("/");
-            if (!tagName.isEmpty()) out += span(kTag, tagName);
+            if (!tagName.isEmpty()) out += span(p.tag, tagName);
             i = (i + 1 < n && code[i+1] == '/') ? i + 1 + (int)tagName.size() + 1
                                                   : i + 1 + (int)tagName.size();
-            /* Attributi fino a > */
             while (i < n && code[i] != '>') {
                 if (code[i].isLetter() || code[i] == '_' || code[i] == '-') {
                     int k = i;
                     while (k < n && code[k] != '=' && code[k] != '>' &&
                            code[k] != ' ' && code[k] != '\n') k++;
-                    out += span(kAt, code.mid(i, k - i));
+                    out += span(p.at, code.mid(i, k - i));
                     i = k;
                 } else if (code[i] == '"' || code[i] == '\'') {
                     const QChar q = code[i];
                     int k = i + 1;
                     while (k < n && code[k] != q) k++;
-                    out += span(kStr, code.mid(i, k + 1 - i));
+                    out += span(p.str, code.mid(i, k + 1 - i));
                     i = k + 1;
                 } else {
                     out += plain(QString(code[i]));
@@ -460,28 +472,20 @@ static QString highlightHtml(const QString& code)
 }
 
 /* ─── Highlighter JSON ─────────────────────────────────────── */
-static QString highlightJson(const QString& code)
+static QString highlightJson(const QString& code, const Pal& p)
 {
     QString out;
     out.reserve(code.size() * 3);
     const int n = code.size();
     int i = 0;
-    bool expectKey = false; /* dopo { o , alla stessa profondità */
     while (i < n) {
         if (code[i] == '{' || code[i] == '[') {
-            out += plain(QString(code[i]));
-            expectKey = (code[i] == '{');
-            i++; continue;
+            out += plain(QString(code[i])); i++; continue;
         }
         if (code[i] == '}' || code[i] == ']') {
-            out += plain(QString(code[i]));
-            expectKey = false; i++; continue;
+            out += plain(QString(code[i])); i++; continue;
         }
-        if (code[i] == ',') {
-            out += plain(",");
-            /* dopo virgola ci aspettiamo chiave se siamo in un oggetto */
-            i++; continue;
-        }
+        if (code[i] == ',') { out += plain(","); i++; continue; }
         /* Stringa */
         if (code[i] == '"') {
             int j = i + 1;
@@ -490,11 +494,10 @@ static QString highlightJson(const QString& code)
                 if (code[j] == '"')  { j++;    break; }
                 j++;
             }
-            /* È una chiave se il prossimo non-spazio è ':' */
             int k = j;
             while (k < n && code[k].isSpace()) k++;
             const bool isKey = (k < n && code[k] == ':');
-            out += span(isKey ? kAt : kStr, code.mid(i, j - i));
+            out += span(isKey ? p.at : p.str, code.mid(i, j - i));
             i = j;
             continue;
         }
@@ -504,7 +507,7 @@ static QString highlightJson(const QString& code)
             while (j < n && code[j].isLetter()) j++;
             const QString w = code.mid(i, j - i);
             if (w == "true" || w == "false" || w == "null")
-                out += span(kKw, w);
+                out += span(p.kw, w);
             else
                 out += plain(w);
             i = j; continue;
@@ -516,7 +519,7 @@ static QString highlightJson(const QString& code)
             while (j < n && (code[j].isDigit() || code[j] == '.' ||
                               code[j] == 'e' || code[j] == 'E' ||
                               code[j] == '+' || code[j] == '-')) j++;
-            out += span(kNum, code.mid(i, j - i));
+            out += span(p.num, code.mid(i, j - i));
             i = j; continue;
         }
         out += plain(QString(code[i]));
@@ -526,41 +529,41 @@ static QString highlightJson(const QString& code)
 }
 
 /* ─── Entry point ─────────────────────────────────────────── */
-static QString syntaxHighlight(const QString& rawCode, const QString& lang)
+static QString syntaxHighlight(const QString& rawCode, const QString& lang, const Pal& p)
 {
     const QString lo = lang.toLower();
 
     if (lo == "python" || lo == "py")
-        return highlightClike(rawCode, kwPy(), "#", false, true);
+        return highlightClike(rawCode, kwPy(), p, "#", false, true);
 
     if (lo == "bash" || lo == "sh" || lo == "shell" || lo == "zsh")
-        return highlightBash(rawCode);
+        return highlightBash(rawCode, p);
 
     if (lo == "sql")
-        return highlightSql(rawCode);
+        return highlightSql(rawCode, p);
 
     if (lo == "html" || lo == "xml" || lo == "svg")
-        return highlightHtml(rawCode);
+        return highlightHtml(rawCode, p);
 
     if (lo == "json")
-        return highlightJson(rawCode);
+        return highlightJson(rawCode, p);
 
     if (lo == "rust")
-        return highlightClike(rawCode, kwRust());
+        return highlightClike(rawCode, kwRust(), p);
 
     if (lo == "go")
-        return highlightClike(rawCode, kwGo());
+        return highlightClike(rawCode, kwGo(), p);
 
     if (lo == "java")
-        return highlightClike(rawCode, kwJava());
+        return highlightClike(rawCode, kwJava(), p);
 
     if (lo == "javascript" || lo == "js" ||
         lo == "typescript" || lo == "ts")
-        return highlightClike(rawCode, kwJs(), "//", true, false);
+        return highlightClike(rawCode, kwJs(), p, "//", true, false);
 
     if (lo == "c" || lo == "cpp" || lo == "c++" || lo == "cxx" ||
         lo == "h" || lo == "hpp" || lo == "cuda")
-        return highlightClike(rawCode, kwC());
+        return highlightClike(rawCode, kwC(), p);
 
     /* Fallback: solo escape HTML */
     return rawCode.toHtmlEscaped();
@@ -625,7 +628,7 @@ static const QMap<QString, LangMeta>& langMap()
 }
 
 /* Costruisce l'HTML della barra header del blocco codice */
-static QString codeHeader(const QString& lang, int blockId)
+static QString codeHeader(const QString& lang, int blockId, const SH::Pal& p)
 {
     const auto& lm = langMap();
     const auto it  = lm.constFind(lang.toLower());
@@ -641,7 +644,7 @@ static QString codeHeader(const QString& lang, int blockId)
 
     return
         "<table width='100%' cellpadding='0' cellspacing='0'"
-        " style='background:#161b22;border:1px solid #30363d;"
+        " style='background:" + QString(p.hdrBg) + ";border:1px solid " + p.border + ";"
         "border-radius:6px 6px 0 0;border-bottom:none;margin:8px 0 0 0;'>"
         "<tr>"
         "<td style='padding:5px 14px;'>"
@@ -652,13 +655,13 @@ static QString codeHeader(const QString& lang, int blockId)
         "</td>"
         "<td align='right' style='padding:5px 14px;white-space:nowrap;'>"
           "<a href='code:copy:" + id + "'"
-            " style='color:#58a6ff;font-size:11px;font-weight:bold;"
+            " style='color:" + p.link + ";font-size:11px;font-weight:bold;"
                    "text-decoration:none;'>"
             "\xf0\x9f\x93\x8b Copia"   /* 📋 */
           "</a>"
           "&nbsp;&nbsp;&nbsp;"
           "<a href='code:save:" + id + "'"
-            " style='color:#58a6ff;font-size:11px;font-weight:bold;"
+            " style='color:" + p.link + ";font-size:11px;font-weight:bold;"
                    "text-decoration:none;'>"
             "\xf0\x9f\x92\xbe Salva"   /* 💾 */
           "</a>"
@@ -671,6 +674,10 @@ QString AgentiPage::markdownToHtml(const QString& md,
     QMap<int,QPair<QString,QString>>* codeBlocks,
     int* codeCounter)
 {
+    const QString tid = ThemeManager::instance()->currentId();
+    const bool isDark = !tid.startsWith("light") && tid != "pink";
+    const SH::Pal& pal = isDark ? SH::kDark : SH::kLight;
+
     auto escHtml = [](const QString& s) {
         QString r = s;
         r.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
@@ -734,25 +741,20 @@ QString AgentiPage::markdownToHtml(const QString& md,
     auto flushCode = [&](const QString& buf, const QString& lang) {
         const QString trimmed = buf.trimmed();
         if (trimmed.isEmpty()) return;
-        /* Syntax highlighting o semplice escape */
-        const QString esc = SH::syntaxHighlight(trimmed, lang);
+        const QString esc = SH::syntaxHighlight(trimmed, lang, pal);
 
-        /* Calcola ID per questo blocco */
         int blockId = 0;
         if (codeCounter) blockId = (*codeCounter)++;
         if (codeBlocks)  (*codeBlocks)[blockId] = { lang.toLower(), buf.trimmed() };
 
-        /* Header barra solo se i gestori sono connessi (codeBlocks fornito) */
         if (codeBlocks)
-            html += codeHeader(lang, blockId);
+            html += codeHeader(lang, blockId, pal);
 
-        /* Blocco <pre> */
-        const QString radius = codeBlocks
-            ? "0 0 6px 6px" : "6px";
+        const QString radius   = codeBlocks ? "0 0 6px 6px" : "6px";
         const QString marginTop = codeBlocks ? "0" : "8px";
 
-        html += "<pre style='background:#0d1117;color:#e6edf3;"
-                "border:1px solid #30363d;border-radius:" + radius + ";"
+        html += "<pre style='background:" + QString(pal.bg) + ";color:" + pal.fg + ";"
+                "border:1px solid " + pal.border + ";border-radius:" + radius + ";"
                 "padding:10px 14px;margin:" + marginTop + " 0 8px 0;"
                 "overflow-x:auto;"
                 "font-family:\"JetBrains Mono\",\"Fira Code\",monospace;"

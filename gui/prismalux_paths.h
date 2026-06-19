@@ -901,6 +901,7 @@ constexpr const char* kChatMaxTurns   = "chat/maxRecentTurns";     ///< turni co
 
 /* ── Icone TriModeButton ─────────────────────────────── */
 constexpr const char* kTriModeEmojiStyle = "ui/triModeEmojiStyle"; ///< "system" | "openmoji"
+constexpr const char* kTriModeShape      = "ui/triModeShape";      ///< "oval" | "rect"
 
 }  // namespace SK
 
