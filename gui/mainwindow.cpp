@@ -1673,19 +1673,24 @@ QWidget* MainWindow::buildContent()
         auto* srchWrap = new QWidget(m_mainTabs);
         auto* srchLay  = new QHBoxLayout(srchWrap);
         srchLay->setContentsMargins(4, 2, 6, 2);
-        srchLay->setSpacing(3);
-
-        auto* ico = new QLabel("\xf0\x9f\x94\x8d", srchWrap);
-        ico->setFixedWidth(dpiScale(16));
-        ico->setAlignment(Qt::AlignCenter);
+        srchLay->setSpacing(0);
 
         m_tabSearchEdit = new QLineEdit(srchWrap);
         m_tabSearchEdit->setObjectName("tabSearchEdit");
         m_tabSearchEdit->setPlaceholderText(tr("Scheda..."));
         m_tabSearchEdit->setClearButtonEnabled(true);
-        m_tabSearchEdit->setFixedWidth(dpiScale(130));
+        m_tabSearchEdit->setFixedWidth(dpiScale(150));
 
-        srchLay->addWidget(ico);
+        /* Icona 🔍 dentro il campo, posizione trailing */
+        {
+            QPixmap px(dpiScale(16), dpiScale(16));
+            px.fill(Qt::transparent);
+            QPainter pp(&px);
+            QFont ef; ef.setPixelSize(dpiScale(13)); pp.setFont(ef);
+            pp.drawText(px.rect(), Qt::AlignCenter, "\xf0\x9f\x94\x8d");
+            m_tabSearchEdit->addAction(QIcon(px), QLineEdit::TrailingPosition);
+        }
+
         srchLay->addWidget(m_tabSearchEdit);
         m_mainTabs->setCornerWidget(srchWrap, Qt::TopRightCorner);
 

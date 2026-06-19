@@ -289,11 +289,7 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
         auto* corner = new QWidget(tabs);
         auto* cLay = new QHBoxLayout(corner);
         cLay->setContentsMargins(0, 2, 8, 2);
-        cLay->setSpacing(4);
-
-        auto* ico = new QLabel("\xf0\x9f\x94\x8d", corner);
-        ico->setFixedWidth(dpiScale(18));
-        ico->setAlignment(Qt::AlignCenter);
+        cLay->setSpacing(0);
 
         m_searchEdit = new QLineEdit(corner);
         m_searchEdit->setPlaceholderText(tr("Ricerca..."));
@@ -301,7 +297,16 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
         m_searchEdit->setObjectName("settingsSearch");
         m_searchEdit->setFixedWidth(dpiScale(190));
 
-        cLay->addWidget(ico);
+        /* Icona 🔍 dentro il campo, posizione trailing — stesso stile finestra principale */
+        {
+            QPixmap px(dpiScale(16), dpiScale(16));
+            px.fill(Qt::transparent);
+            QPainter pp(&px);
+            QFont ef; ef.setPixelSize(dpiScale(13)); pp.setFont(ef);
+            pp.drawText(px.rect(), Qt::AlignCenter, "\xf0\x9f\x94\x8d");
+            m_searchEdit->addAction(QIcon(px), QLineEdit::TrailingPosition);
+        }
+
         cLay->addWidget(m_searchEdit);
         tabs->setCornerWidget(corner, Qt::TopRightCorner);
     }
