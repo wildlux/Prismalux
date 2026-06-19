@@ -6,8 +6,38 @@ namespace P = PrismaluxPaths;
 #include <QTextCursor>
 
 /* ══════════════════════════════════════════════════════════════
-   extractPythonCode — trova il primo blocco ```python...``` o ```py...```
-   SOLO blocchi esplicitamente marcati python/py; ignora c, cpp, bash, ecc.
+   extractExecutableCode — trova il primo blocco eseguibile:
+   python/py, c (non cpp), cpp/c++.
+   Priorità: python > c/cpp (per evitare di compilare snippet da appendici).
+   ══════════════════════════════════════════════════════════════ */
+AgentiPage::ExecCode AgentiPage::extractExecutableCode(const QString& text)
+{
+    /* Python ha la precedenza */
+    static QRegularExpression rePy(
+        "```(?:python|py)\\s*\\n([\\s\\S]*?)```",
+        QRegularExpression::CaseInsensitiveOption);
+    auto mpy = rePy.match(text);
+    if (mpy.hasMatch()) return { "python", mpy.captured(1).trimmed() };
+
+    /* C++ prima di C (```c potrebbe matchare ```cpp) */
+    static QRegularExpression reCpp(
+        "```(?:cpp|c\\+\\+|cxx)\\s*\\n([\\s\\S]*?)```",
+        QRegularExpression::CaseInsensitiveOption);
+    auto mcpp = reCpp.match(text);
+    if (mcpp.hasMatch()) return { "cpp", mcpp.captured(1).trimmed() };
+
+    /* C puro — usa word boundary per non catturare ```cmake, ```css, ecc. */
+    static QRegularExpression reC(
+        "```c\\s*\\n([\\s\\S]*?)```",
+        QRegularExpression::CaseInsensitiveOption);
+    auto mc = reC.match(text);
+    if (mc.hasMatch()) return { "c", mc.captured(1).trimmed() };
+
+    return {};
+}
+
+/* ══════════════════════════════════════════════════════════════
+   extractPythonCode — compatibilità con i test esistenti
    ══════════════════════════════════════════════════════════════ */
 QString AgentiPage::extractPythonCode(const QString& text)
 {

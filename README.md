@@ -50,6 +50,11 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 | 🗺️ **Mappa OSM + routing** | Tab "🗺 Mappa OSM" in Multimedia: WorldMapWidget con itinerari multi-tappa (A→B→C), routing OSRM (Auto/Piedi/Bici), polyline colorata, distanza km + tempo stimato |
 | 🤖 **Dev Agent 2 colonne** | AppController [10]: layout QSplitter H — Log+Diff a sinistra, Cronologia+Git a destra; 6 slot git: log, restore, fetch+reset GitHub, stash push/list/pop |
 | 🧪 **Test suite** | 41 suite ctest (38 no-Ollama) — include CAT-E SymPy (15 test reali) + GraphMemory (65 test: nodi/archi/BFS/SQL-injection/`changed()`) |
+| 🖊️ **Rich text nel prompt** | Barra formattazione: grassetto/corsivo/sottolineato/colore/sfondo in `QTextCharFormat`. Bolla utente visualizza HTML leggero. |
+| 💻 **Executor C / C++ / Python** | `extractExecutableCode()` riconosce `python/py`, `cpp/c++/cxx`, `c` — compila C/C++ con gcc/g++ localmente; Python in sandbox Docker o locale |
+| ♻️ **Rifai senza duplicati** | Tronca il log HTML dalla bolla originale (`id='ubbl:N'`) e reinserisce normalmente; nessun doppio bubble |
+| ▶ **Riesegui in sandbox** | Se l'utente rifiuta l'esecuzione, banner "▶ Riesegui" rimane nel log per eseguire in un secondo momento |
+| 📐 **KaTeX stile LibreOffice Math** | System prompt include notazione LaTeX completa (operatori, relazioni, insiemi, funzioni, attributi, parentesi scalabili) |
 | 🎛️ **TriModeButton** | Pulsante ovale a 3 settori (Chat / Agentico / Conversa) nel tab AI: cicla con Shift+Tab, colori dal tema. Supporto emoji SVG OpenMoji (impostabile in Visuale → Aspetto) |
 | ⚡ **Tool Veloci / 🔌 Tool Lenti** | Tool AI separati in due pannelli distinti: Function Tools in-process (⚡, griglia 2 col) e Plugin MCP subprocess (🔌, griglia 4 col). Comportamento radio: un solo pannello aperto alla volta |
 | 🫧 **Arrotondamento bolle live** | Cambio raggio bolle in Visuale → Aspetto si applica immediatamente alle bolle già visibili (regex replace sull'HTML del log) |

@@ -1,4 +1,4 @@
-# CLAUDE.md — Prismalux Qt GUI  v2.9 (agg. 2026-06-15)
+# CLAUDE.md — Prismalux Qt GUI  v2.9 (agg. 2026-06-19)
 
 ## Build
 ```bash
@@ -288,6 +288,34 @@ APK path: `P::root() + "/ANDROID/PrismaluxMobile.apk"` (con `/` iniziale).
 ## RAG e OpenCode
 RAG condiviso: `AgentsConfigDialog::m_sharedRag` — iniettato prima del RAG per-agente.
 OpenCode: porta sempre `P::kOpenCodePort`. SSE events: `message.updated`, `session.idle`, `session.error`.
+
+## Tool Executor (`main_ai_exec.cpp` + `main_ai_pipeline.cpp`)
+
+`ExecCode { QString lang; QString code; }` — struct ritornata da `extractExecutableCode(text)`.
+Lingue supportate (in ordine di priorità): **python/py** → **cpp/c++/cxx** → **c**.
+Regex richiede hint linguaggio esplicito — blocchi ` ``` ` senza hint ignorati.
+
+| Linguaggio | Runner | Flags |
+|------------|--------|-------|
+| python/py | `python3 -c <tmpfile>` | ModuleNotFoundError → auto pip |
+| c | `gcc -o bin src.c -lm -Wall -Wextra && bin` | timeout 10s |
+| cpp/c++ | `g++ -o bin src.cpp -lm -Wall -Wextra && bin` | timeout 10s |
+
+Quando l'utente clicca "No" al dialog → banner ▶ **Riesegui in sandbox** nel log.
+`m_pendingExecCodes` (QMap<int,QString>) conserva `"lang:codice"` per il riesegui.
+
+## Bolla Utente (`main_ai_bubbles.cpp`)
+- `buildUserBubble(text, bubbleIdx, displayHtml)` — `displayHtml` è HTML leggero da `extractInputHtml()`
+- `id='ubbl:N'` sulla `<table>` della bolla utente — usato dal gestore **Rifai**
+- Rifai: `retry:` handler tronca il log HTML da `<table id='ubbl:N'>` (non salta la bolla)
+- **Non** usare `m_skipNextUserBubble` (rimosso) — il troncamento è pulito e reversibile
+
+## Notazione KaTeX nel system prompt
+`kFmtFull` include istruzioni complete per formule matematiche stile LibreOffice Math:
+operatori (`\times \cdot \pm \oplus`), relazioni (`\leq \approx \equiv \rightarrow`),
+insiemi (`\mathbb{R} \mathbb{Z} \in \subset \cap`), funzioni (`\sin \cos \ln \exp`),
+attributi (`\vec{a} \hat{a} \dot{a}`), parentesi scalabili (`\left( \right)`).
+Delimitatori: `\(...\)` inline, `\[...\]` display.
 
 ## Scheda TFR — Codice Fiscale automatico (`pratico_page.cpp`)
 - `calcolaCodiceFiscale(cognome, nome, nascita, maschio, belfiore)` — algoritmo D.M. 23/12/1976

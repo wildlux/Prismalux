@@ -1949,13 +1949,17 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         return;
     }
 
-    /* ── Riesegui codice Python annullato in precedenza ── */
+    /* ── Riesegui codice Python/C/C++ annullato in precedenza ── */
     if (s.startsWith("exec:run:")) {
         bool ok4 = false;
         const int execId = s.mid(9).toInt(&ok4);
         if (!ok4 || !m_pendingExecCodes.contains(execId)) return;
-        const QString pyCode    = m_pendingExecCodes.take(execId);
-        const bool    useSandbox = P::isSandboxReady();
+        const QString stored = m_pendingExecCodes.take(execId);
+        /* formato: "lang:codice" */
+        const int sep  = stored.indexOf(':');
+        const QString execLang = (sep > 0) ? stored.left(sep)  : "python";
+        const QString pyCode   = (sep > 0) ? stored.mid(sep+1) : stored;
+        const bool    useSandbox = P::isSandboxReady() && execLang == "python";
 
         auto* dlg2 = new QDialog(this);
         dlg2->setWindowTitle(useSandbox

@@ -72,6 +72,11 @@ public:
     /** Corregge bug tipici nel codice Python generato dall'AI (__name__ guard, ecc.) */
     static QString _sanitizePyCode(const QString& code);
 
+    /** Risultato di extractExecutableCode: linguaggio + sorgente */
+    struct ExecCode { QString lang; QString code; };
+    /** Estrae il primo blocco eseguibile: python/py, c, cpp/c++ */
+    static ExecCode extractExecutableCode(const QString& text);
+
     /* ── Agente Autonomo — pubbliche per testabilità ── */
     /** System prompt ReAct con lista strumenti e regole di formato */
     static QString _autoSystemPrompt();

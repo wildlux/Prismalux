@@ -520,16 +520,38 @@ void AgentiPage::runAgent(int idx) {
     m_currentAgentModel = selectedModel;
     m_currentAgentTime  = ts;
 
-    /* Indicatore streaming temporaneo (sarà sostituito dalla bolla su onFinished) */
-    if (isSingleChat) {
+    /* Indicatore streaming temporaneo stilizzato (sarà sostituito dalla bolla su onFinished) */
+    {
+        const auto& c = bc();
         const QString backendTag = (m_ai->backend() == AiClient::Ollama)
             ? "Ollama" : "llama-server";
-        const QString modelTag   = selectedModel.isEmpty() ? "?" : selectedModel;
-        m_log->append(QString("\n\xf0\x9f\x93\xa4  [Invia]  \xf0\x9f\xa4\x96 %1 \xc2\xb7 %2  \xf0\x9f\x94\x84 generando...\n")
-                      .arg(backendTag, modelTag));
-    } else
-        m_log->append(QString("\n%1  [Agente %2 \xe2\x80\x94 %3]  \xf0\x9f\x94\x84 generando...\n")
-                      .arg(role.icon).arg(idx + 1).arg(role.name));
+        const QString modelTag = selectedModel.isEmpty() ? "?" : selectedModel;
+        const QString label = isSingleChat
+            ? "\xf0\x9f\x93\xa4 Invia"
+            : (role.icon + QString("  Agente %1 \xe2\x80\x94 %2").arg(idx + 1).arg(role.name));
+        const QString hdr =
+            "<table width='100%' cellpadding='0' cellspacing='0'>"
+            "<tr>"
+              "<td style='"
+                "background:" + QString(c.aBg) + ";"
+                "border:1px solid " + c.aBdr + ";"
+                "border-radius:10px;"
+                "padding:8px 14px;"
+                "color:" + c.aTxt + ";"
+              "'>"
+                "<p style='color:" + QString(c.aHdr) + ";font-size:11px;margin:0 0 4px 0;'>"
+                  + label.toHtmlEscaped() +
+                  "  <span style='color:#64748b;font-weight:normal;'>"
+                    "\xc2\xb7\xc2\xb7  "
+                    + backendTag.toHtmlEscaped() + " \xc2\xb7 "
+                    + modelTag.toHtmlEscaped() +
+                    "  \xf0\x9f\x94\x84 generando..."  /* 🔄 */
+                  "</span>"
+                "</p>"
+            /* Il testo dei token viene aggiunto qui come plain text */;
+        m_log->moveCursor(QTextCursor::End);
+        m_log->insertHtml(hdr);
+    }
     m_agentTextStart = m_log->document()->characterCount() - 1;
 
     QString userPrompt;
@@ -1051,10 +1073,11 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                                          !extractedThink.isEmpty() && m_thinkDefaultOpen)); }
     }
 
-    /* ── Tool Executor: estrae ed esegue codice Python, poi avvia il Controller ── */
-    QString pyCode = extractPythonCode(rawResp);
-    if (!pyCode.isEmpty()) {
-        pyCode = _sanitizePyCode(pyCode);
+    /* ── Tool Executor: estrae ed esegue codice Python/C/C++, poi avvia il Controller ── */
+    ExecCode ec = extractExecutableCode(rawResp);
+    if (ec.lang == "python") ec.code = _sanitizePyCode(ec.code);
+    if (!ec.code.isEmpty()) {
+        const QString pyCode    = ec.code;   /* alias per riuso del codice sotto */
         const bool useSandbox = P::isSandboxReady();
 
         /* [C1] Dialog conferma — testo e colore variano in base alla sandbox */
@@ -1066,13 +1089,16 @@ void AgentiPage::_finishedPipeline(const QString& full) {
             dlg->setMinimumSize(660, 460);
             auto* lay = new QVBoxLayout(dlg);
 
+            const QString langUpper = ec.lang == "cpp" ? "C++" :
+                                      ec.lang == "c"   ? "C"   : "Python";
             auto* warnLbl = new QLabel(useSandbox
-                ? "\xf0\x9f\x90\xb3  Il codice verr\xc3\xa0 eseguito in un container Docker isolato.\n"
-                  "Nessun accesso a file locali, rete disabilitata, max 256\xc2\xa0MB RAM.\n"
-                  "Verifica il codice, poi clicca Esegui."
-                : "\xe2\x9a\xa0  Stai per eseguire codice Python generato dall\xe2\x80\x99"
-                  "AI con i tuoi permessi utente.\n"
-                  "Verifica che non faccia operazioni indesiderate prima di procedere.",
+                ? ("\xf0\x9f\x90\xb3  Il codice " + langUpper +
+                   " verr\xc3\xa0 eseguito in un container Docker isolato.\n"
+                   "Nessun accesso a file locali, rete disabilitata, max 256\xc2\xa0MB RAM.\n"
+                   "Verifica il codice, poi clicca Esegui.")
+                : ("\xe2\x9a\xa0  Stai per eseguire codice " + langUpper +
+                   " generato dall\xe2\x80\x99" "AI con i tuoi permessi utente.\n"
+                   "Verifica che non faccia operazioni indesiderate prima di procedere."),
                 dlg);
             warnLbl->setWordWrap(true);
             warnLbl->setStyleSheet(useSandbox
@@ -1106,7 +1132,7 @@ void AgentiPage::_finishedPipeline(const QString& full) {
             if (!accepted) {
                 /* Inserisce banner "Riesegui" nel log per poter eseguire dopo */
                 const int execId = m_codeBlockCounter++;
-                m_pendingExecCodes[execId] = pyCode;
+                m_pendingExecCodes[execId] = ec.lang + ":" + pyCode;
                 const QString lnk =
                     "color:#fbbf24;font-size:12px;text-decoration:none;"
                     "border:1px solid #92400e;padding:2px 12px;"
@@ -1134,6 +1160,77 @@ void AgentiPage::_finishedPipeline(const QString& full) {
         m_execProc->setProcessChannelMode(QProcess::MergedChannels);
         auto tmr = QSharedPointer<QElapsedTimer>::create();
         tmr->start();
+
+        /* ── C / C++: compilazione locale gcc/g++ ─────────────────────────── */
+        if (ec.lang == "c" || ec.lang == "cpp") {
+            const QString ext = (ec.lang == "cpp") ? ".cpp" : ".c";
+            const QString compiler = (ec.lang == "cpp") ? "g++" : "gcc";
+            QTemporaryFile srcTmp(PrismaluxPaths::safeTempPath() + "/prisma_src_XXXXXX" + ext);
+            srcTmp.setAutoRemove(false);
+            if (!srcTmp.open()) { advancePipeline(); return; }
+            srcTmp.write(pyCode.toUtf8());
+            srcTmp.close();
+            const QString srcPath = srcTmp.fileName();
+            const QString binPath = srcPath.left(srcPath.lastIndexOf('.'));
+
+            connect(m_execProc,
+                    QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                    this, [this, srcPath, binPath, tmr, compiler](int exitCode, QProcess::ExitStatus) {
+                const double ms = tmr->elapsed();
+                const QString out = QString::fromUtf8(m_execProc->readAll());
+                m_execProc->deleteLater();
+                m_execProc = nullptr;
+                QFile::remove(srcPath);
+
+                if (exitCode != 0) {
+                    /* Errore di compilazione */
+                    const QString od = PrismaluxPaths::sanitizeErrorOutput(out);
+                    QTextCursor c(m_log->document());
+                    c.movePosition(QTextCursor::End);
+                    c.insertHtml(buildToolStrip(QString(), od, exitCode, ms));
+                    m_executorOutput = out;
+                    if (m_cfgDlg->controllerEnabled()) runPipelineController();
+                    else advancePipeline();
+                    return;
+                }
+
+                /* Compilazione OK: esegue il binario */
+                QFile::remove(binPath);  /* cleanup esito precedente */
+                auto* runProc = new QProcess(this);
+                runProc->setProcessChannelMode(QProcess::MergedChannels);
+                auto tmr2 = QSharedPointer<QElapsedTimer>::create();
+                tmr2->start();
+                connect(runProc,
+                        QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                        this, [this, runProc, binPath, tmr2](int rc, QProcess::ExitStatus) {
+                    const double ms2 = tmr2->elapsed();
+                    const QString out2 = QString::fromUtf8(runProc->readAll());
+                    runProc->deleteLater();
+                    QFile::remove(binPath);
+                    m_executorOutput = out2;
+                    const QString od2 = PrismaluxPaths::sanitizeErrorOutput(out2);
+                    QTextCursor c(m_log->document());
+                    c.movePosition(QTextCursor::End);
+                    c.insertHtml(buildToolStrip(QString(), od2, rc, ms2));
+                    if (!m_userScrolled) { m_suppressScrollSig = true;
+                        m_log->ensureCursorVisible(); m_suppressScrollSig = false; }
+                    if (m_cfgDlg->controllerEnabled()) runPipelineController();
+                    else advancePipeline();
+                });
+                QTimer::singleShot(10000, this, [this, runProc, binPath]{
+                    if (runProc && runProc->state() != QProcess::NotRunning) {
+                        runProc->kill(); QFile::remove(binPath);
+                        m_executorOutput = "[timeout 10s]";
+                        advancePipeline();
+                    }
+                });
+                runProc->start(binPath, {});
+            });
+
+            m_execProc->start(compiler,
+                { "-o", binPath, srcPath, "-lm", "-Wall", "-Wextra" });
+            return;
+        }
 
         if (useSandbox) {
             /* ── Sandbox Docker: stdin piping, rete/filesystem isolati ─────── */
