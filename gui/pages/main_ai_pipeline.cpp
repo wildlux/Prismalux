@@ -186,7 +186,8 @@ void AgentiPage::runPipeline() {
             m_log->clear();
             { int i = m_bubbleIdx++; m_bubbleTexts[i] = task;
               m_log->moveCursor(QTextCursor::End);
-              m_log->insertHtml(buildUserBubble(task, i, taskHtml)); }
+              if (!m_skipNextUserBubble) m_log->insertHtml(buildUserBubble(task, i, taskHtml));
+              m_skipNextUserBubble = false; }
             m_log->append("");
             { int i = m_bubbleIdx++; m_bubbleTexts[i] = ris;
               m_log->moveCursor(QTextCursor::End);
@@ -216,7 +217,8 @@ void AgentiPage::runPipeline() {
                     m_taskOriginal = task;
                     { int i = m_bubbleIdx++; m_bubbleTexts[i] = task;
                       m_log->moveCursor(QTextCursor::End);
-                      m_log->insertHtml(buildUserBubble(task, i, taskHtml)); }
+                      if (!m_skipNextUserBubble) m_log->insertHtml(buildUserBubble(task, i, taskHtml));
+              m_skipNextUserBubble = false; }
                     m_log->append("");
                     /* Bolla chart: solo pulsante "Mostra grafico" senza testo formula */
                     {
@@ -278,7 +280,8 @@ void AgentiPage::runPipeline() {
             const double ms = tmr.nsecsElapsed() / 1e6;
             { int i = m_bubbleIdx++; m_bubbleTexts[i] = task;
               m_log->moveCursor(QTextCursor::End);
-              m_log->insertHtml(buildUserBubble(task, i, taskHtml)); }
+              if (!m_skipNextUserBubble) m_log->insertHtml(buildUserBubble(task, i, taskHtml));
+              m_skipNextUserBubble = false; }
             m_log->append("");
             { int i = m_bubbleIdx++; m_bubbleTexts[i] = calcResult;
               m_log->moveCursor(QTextCursor::End);

@@ -1737,6 +1737,7 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
             const QString origText = QString::fromUtf8(
                 QByteArray::fromBase64(b64r.toLatin1(), QByteArray::Base64UrlEncoding));
             if (!origText.isEmpty()) {
+                m_skipNextUserBubble = true;   /* la bolla è già nel log */
                 m_input->setPlainText(origText.trimmed());
                 m_input->setFocus();
                 m_input->moveCursor(QTextCursor::End);
