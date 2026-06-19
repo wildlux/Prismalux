@@ -23,6 +23,8 @@
 #include <QSpinBox>
 #include <QCheckBox>
 #include <QPushButton>
+#include <QToolButton>
+#include <QButtonGroup>
 #include <QLabel>
 #include <QTimer>
 #include <QTabBar>
@@ -492,9 +494,9 @@ private:
     QCheckBox*      m_mathE      = nullptr;
     QCheckBox*      m_mathPrimes = nullptr;
 
-    /* Combo modalità rendering 3D — visibile solo per Scatter3D / Grafo3D */
-    QComboBox*      m_renderModeCombo = nullptr;
-    QWidget*        m_renderModeRow   = nullptr;   ///< riga contenitore (mostra/nasconde)
+    /* Barra viewport 3D stile Blender — overlay sul canvas, visibile solo per Scatter3D / Grafo3D */
+    QButtonGroup*   m_renderModeGroup  = nullptr;
+    QFrame*         m_viewportBar3D    = nullptr;   ///< overlay angolo in alto a sinistra del canvas
 
     /* Parametri Polare (pannello idx 4) */
     QLineEdit*      m_polarFormula = nullptr;

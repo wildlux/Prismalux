@@ -34,6 +34,7 @@
 #include <QTimer>
 #include <QEventLoop>
 #include <QToolButton>
+#include <QButtonGroup>
 #include <QScrollArea>
 #include <QStackedWidget>
 #include <QApplication>
@@ -3514,6 +3515,41 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     m_a2Canvas->setMinimumWidth(180);
     hSplit2->addWidget(m_a2Canvas);
 
+    /* ── Barra viewport 3D — overlay stile Blender nell'angolo del canvas ── */
+    {
+        auto* bar = new QFrame(m_a2Canvas);
+        bar->setObjectName("viewportBar");
+        bar->setFrameShape(QFrame::StyledPanel);
+        auto* bl = new QHBoxLayout(bar);
+        bl->setContentsMargins(2, 2, 2, 2);
+        bl->setSpacing(1);
+        struct VMode { const char* icon; const char* tip; };
+        static const VMode kModes[] = {
+            { "\xe2\x97\x8f", "Punti: scatter colorati per profondita" },
+            { "\xe2\x96\xa1", "Wireframe: griglia di linee (richiede topologia griglia)" },
+            { "\xe2\x96\xb3", "Superficie: heatmap Z su facce (richiede topologia griglia)" },
+            { "\xe2\x96\xa0", "Solido: facce opache con ombreggiatura" },
+        };
+        m_a2RenderGrp = new QButtonGroup(bar);
+        m_a2RenderGrp->setExclusive(true);
+        for (int i = 0; i < 4; ++i) {
+            auto* btn = new QToolButton(bar);
+            btn->setText(kModes[i].icon);
+            btn->setToolTip(kModes[i].tip);
+            btn->setCheckable(true);
+            btn->setAutoRaise(true);
+            btn->setFixedSize(dpiScale(28), dpiScale(24));
+            if (i == 0) btn->setChecked(true);
+            m_a2RenderGrp->addButton(btn, i);
+            bl->addWidget(btn);
+        }
+        connect(m_a2RenderGrp, &QButtonGroup::idClicked,
+                this, &MatematicaPage::onA2RenderChanged);
+        bar->adjustSize();
+        bar->move(dpiScale(6), dpiScale(6));
+        bar->raise();
+    }
+
     hSplit2->setStretchFactor(0, 3);
     hSplit2->setStretchFactor(1, 4);
     lay->addWidget(hSplit2, 1);
@@ -3560,16 +3596,7 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     btnPlot2->setToolTip(tr("Traccia f(x) o f(x,y) nel canvas a destra"));
     connect(btnPlot2, &QPushButton::clicked, this, &MatematicaPage::onA2PlotClicked);
     plotRow->addWidget(btnPlot2);
-    m_a2RenderCmb = new QComboBox(w);
-    m_a2RenderCmb->addItem("\xf0\x9f\x94\xb5  Punti",       GraficoCanvas::Points3D);
-    m_a2RenderCmb->addItem("\xf0\x9f\x95\xb8  Wireframe",   GraficoCanvas::Wireframe3D);
-    m_a2RenderCmb->addItem("\xe2\x96\xa0  Superficie",      GraficoCanvas::Surface3D);
-    m_a2RenderCmb->addItem("\xf0\x9f\x9f\xa6  Solido",      GraficoCanvas::Solid3D);
-    m_a2RenderCmb->setToolTip(tr("Stile rendering 3D"));
-    m_a2RenderCmb->setMaximumWidth(130);
-    connect(m_a2RenderCmb, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &MatematicaPage::onA2RenderChanged);
-    plotRow->addWidget(m_a2RenderCmb);
+    /* La barra viewport 3D è un overlay sul canvas (costruita sopra, dopo hSplit2->addWidget) */
     m_btnA2Expand = new QPushButton("\xe2\x86\x97", w);   /* ↗ */
     m_btnA2Expand->setToolTip(tr("Apri grafico in finestra separata"));
     m_btnA2Expand->setFixedWidth(32);
@@ -3922,9 +3949,8 @@ void MatematicaPage::onA2PlotClicked()
 
 void MatematicaPage::onA2RenderChanged(int idx)
 {
-    if (!m_a2Canvas || !m_a2RenderCmb) return;
-    const int mode = m_a2RenderCmb->itemData(idx).toInt();
-    m_a2Canvas->setRenderMode3D(static_cast<GraficoCanvas::RenderMode3D>(mode));
+    if (!m_a2Canvas) return;
+    m_a2Canvas->setRenderMode3D(static_cast<GraficoCanvas::RenderMode3D>(idx));
 }
 
 /* helper — apre il canvas sorgente in un QDialog non-modale */

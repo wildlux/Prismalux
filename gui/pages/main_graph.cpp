@@ -15,6 +15,8 @@
 #include <QHBoxLayout>
 #include <QFormLayout>
 #include <QFrame>
+#include <QToolButton>
+#include <QButtonGroup>
 #include <QFileDialog>
 #include <QDir>
 #include <QFile>
@@ -150,6 +152,41 @@ GraficoPage::GraficoPage(AiClient* ai, QWidget* parent) : QWidget(parent), m_ai(
     connect(m_canvas, &GraficoCanvas::statusMessage,
             m_statusLbl, &QLabel::setText);  // m_statusLbl creato dentro buildLeftPanel
     splitter->addWidget(m_canvas);
+
+    /* ── Barra viewport 3D — overlay stile Blender nell'angolo del canvas ── */
+    {
+        m_viewportBar3D = new QFrame(m_canvas);
+        m_viewportBar3D->setObjectName("viewportBar");
+        m_viewportBar3D->setFrameShape(QFrame::StyledPanel);
+        auto* bl = new QHBoxLayout(m_viewportBar3D);
+        bl->setContentsMargins(2, 2, 2, 2);
+        bl->setSpacing(1);
+        struct VMode { const char* icon; const char* tip; };
+        static const VMode kModes[] = {
+            { "\xe2\x97\x8f", "Punti: scatter colorati per profondita" },
+            { "\xe2\x96\xa1", "Wireframe: griglia di linee (richiede topologia griglia)" },
+            { "\xe2\x96\xb3", "Superficie: heatmap Z su facce (richiede topologia griglia)" },
+            { "\xe2\x96\xa0", "Solido: facce opache con ombreggiatura" },
+        };
+        m_renderModeGroup = new QButtonGroup(m_viewportBar3D);
+        m_renderModeGroup->setExclusive(true);
+        for (int i = 0; i < 4; ++i) {
+            auto* btn = new QToolButton(m_viewportBar3D);
+            btn->setText(kModes[i].icon);
+            btn->setToolTip(kModes[i].tip);
+            btn->setCheckable(true);
+            btn->setAutoRaise(true);
+            btn->setFixedSize(dpiScale(28), dpiScale(24));
+            if (i == 0) btn->setChecked(true);
+            m_renderModeGroup->addButton(btn, i);
+            bl->addWidget(btn);
+        }
+        m_viewportBar3D->adjustSize();
+        m_viewportBar3D->move(dpiScale(6), dpiScale(6));
+        m_viewportBar3D->raise();
+        m_viewportBar3D->setVisible(false);
+    }
+
     splitter->setStretchFactor(0, 0);
     splitter->setStretchFactor(1, 1);
     splitter->setSizes({320, 700});
@@ -409,29 +446,7 @@ QWidget* GraficoPage::buildLeftPanel() {
         m_dataEdit->setMinimumHeight(100);
         vl->addWidget(m_dataEdit, 1);
 
-        /* ── Riga modalità rendering 3D (visibile solo per Scatter3D/Grafo3D) ── */
-        m_renderModeRow = new QWidget(w);
-        {
-            auto* rl = new QHBoxLayout(m_renderModeRow);
-            rl->setContentsMargins(0, 4, 0, 0);
-            rl->setSpacing(6);
-            auto* lbl = new QLabel("Rendering:", m_renderModeRow);
-            lbl->setObjectName("formLabel");
-            m_renderModeCombo = new QComboBox(m_renderModeRow);
-            m_renderModeCombo->setObjectName("inputLine");
-            m_renderModeCombo->addItem("Punti",      0);   /* Points3D */
-            m_renderModeCombo->addItem("Wireframe",  1);   /* Wireframe3D */
-            m_renderModeCombo->addItem("Superficie", 2);   /* Surface3D */
-            m_renderModeCombo->setCurrentIndex(0);
-            m_renderModeCombo->setToolTip(
-                "Punti: punti colorati per profondità\n"
-                "Wireframe: griglia di linee (solo Scatter 3D con dati griglia)\n"
-                "Superficie: facce riempite con heatmap Z (solo Scatter 3D con dati griglia)");
-            rl->addWidget(lbl);
-            rl->addWidget(m_renderModeCombo, 1);
-        }
-        m_renderModeRow->setVisible(false);   /* nascosto di default; mostrato per 3D */
-        vl->addWidget(m_renderModeRow);
+        /* La barra viewport 3D è un overlay sul canvas (vedi costruzione dopo splitter->addWidget) */
 
         m_paramStack->addWidget(w);   /* idx 1 */
     }
@@ -642,8 +657,8 @@ QWidget* GraficoPage::buildLeftPanel() {
             this, &GraficoPage::onTypeComboChanged);
     onTypeComboChanged(0); /* trigger iniziale */
 
-    /* Connetti combo modalità rendering 3D → canvas */
-    connect(m_renderModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+    /* Connetti barra viewport 3D → canvas */
+    connect(m_renderModeGroup, &QButtonGroup::idClicked,
             m_canvas, &GraficoCanvas::setRenderMode);
 
     /* btnPlot e btnReset vengono aggiunti FUORI dalla scrollarea (vedi sotto) */
@@ -1854,8 +1869,8 @@ void GraficoPage::onTypeComboChanged(int)
         m_canvas->setType(static_cast<GraficoCanvas::ChartType>(idx));
 
         /* Mostra la riga "Rendering" solo per Scatter3D (5) e Grafo3D (6) */
-        if (m_renderModeRow)
-            m_renderModeRow->setVisible(idx == 5 || idx == 6);
+        if (m_viewportBar3D)
+            m_viewportBar3D->setVisible(idx == 5 || idx == 6);
         if (idx == 0) {
             m_paramStack->setCurrentIndex(0);
         } else if (idx == 7) {

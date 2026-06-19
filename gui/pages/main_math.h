@@ -108,7 +108,7 @@ private:
     QComboBox*     m_a2TypeCmb   = nullptr;
     QLineEdit*     m_a2PlotInput = nullptr;
     GraficoCanvas* m_a2Canvas    = nullptr;
-    QComboBox*     m_a2RenderCmb = nullptr;  ///< Punti / Wireframe / Superficie
+    QButtonGroup*  m_a2RenderGrp = nullptr;  ///< Punti / Wireframe / Superficie / Solido
     QPushButton*   m_btnA2Expand = nullptr;  ///< apri in finestra separata
 
     /* builder schede */
