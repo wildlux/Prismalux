@@ -1733,11 +1733,28 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         const int c1r = s.indexOf(':');
         const int c2r = s.indexOf(':', c1r + 1);
         if (c2r > 0) {
-            const QString b64r = s.mid(c2r + 1);
+            const int    retryIdx = s.mid(c1r + 1, c2r - c1r - 1).toInt();
+            const QString b64r    = s.mid(c2r + 1);
             const QString origText = QString::fromUtf8(
                 QByteArray::fromBase64(b64r.toLatin1(), QByteArray::Base64UrlEncoding));
             if (!origText.isEmpty()) {
-                m_skipNextUserBubble = true;   /* la bolla è già nel log */
+                /* Tronca il log a partire dall'inizio della bolla utente con id='ubbl:N'
+                   così la nuova bolla (+ risposta) viene inserita al posto giusto
+                   senza duplicati né contenuto orfano. */
+                if (m_log) {
+                    QString html = m_log->toHtml();
+                    const QString anchor = QString("id='ubbl:%1'").arg(retryIdx);
+                    const int anchorPos  = html.indexOf(anchor);
+                    if (anchorPos > 0) {
+                        /* Risali al <table che contiene l'anchor */
+                        const int tablePos = html.lastIndexOf("<table", anchorPos);
+                        if (tablePos > 0) {
+                            html = html.left(tablePos);
+                            m_log->setHtml(html);
+                            m_log->moveCursor(QTextCursor::End);
+                        }
+                    }
+                }
                 m_input->setPlainText(origText.trimmed());
                 m_input->setFocus();
                 m_input->moveCursor(QTextCursor::End);

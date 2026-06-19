@@ -62,8 +62,11 @@ QString AgentiPage::buildUserBubble(const QString& text, int bubbleIdx,
 
     const int br = AppConfig::s().value(P::SK::kBubbleRadius, 10).toInt();
     const QString brs = QString::number(br) + "px";
+    /* id='ubbl:N' usato dal gestore Rifai per troncare il log a partire da questa bolla */
+    const QString tableId = bubbleIdx >= 0
+        ? QString(" id='ubbl:%1'").arg(bubbleIdx) : QString();
     return
-        "<table width='100%' cellpadding='0' cellspacing='0'>"
+        "<table width='100%' cellpadding='0' cellspacing='0'" + tableId + ">"
         "<tr>"
           "<td width='80'>&nbsp;</td>"
           "<td style='"

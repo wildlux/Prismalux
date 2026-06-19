@@ -115,7 +115,6 @@ private:
     bool              m_thinkDefaultOpen = false; ///< ultima preferenza utente (aperto/chiuso)
     QStringList       m_hermesLastSources; ///< etichette nodi Hermes usati nell'ultima risposta
     QString           m_taskHtml;          ///< HTML leggero bolla utente (da extractInputHtml)
-    bool              m_skipNextUserBubble = false; ///< true durante "Rifai": non duplicare la bolla
     QMap<int,QPair<QString,QString>> m_codeBlocks; ///< id → {lang, testo grezzo} per Copia/Salva
     int               m_codeBlockCounter = 0;      ///< contatore globale blocchi codice
     int           m_bubbleIdx = 0;        ///< contatore bolle corrente
