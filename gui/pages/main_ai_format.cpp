@@ -37,12 +37,35 @@ QString AgentiPage::markdownToHtml(const QString& md)
 
     QString html;
     const QStringList lines = md.split('\n');
-    bool    inCodeBlock = false;
+    bool    inCodeBlock   = false;
     bool    inOrderedList = false;
+    bool    inTable       = false;
+    bool    tableHdrDone  = false;
+    bool    tableOddRow   = false;
     QString codeBuf;
 
     auto closeList = [&](){
         if (inOrderedList) { html += "</ol>\n"; inOrderedList = false; }
+    };
+
+    /* Verifica se una riga e' un separatore tabella markdown (| --- | --- |) */
+    auto isTableSep = [](const QString& line) -> bool {
+        const QStringList cells = line.split('|', Qt::SkipEmptyParts);
+        if (cells.isEmpty()) return false;
+        for (const QString& c : cells) {
+            const QString t = c.trimmed();
+            if (t.isEmpty()) continue;
+            for (QChar ch : t)
+                if (ch != '-' && ch != ':' && ch != ' ') return false;
+        }
+        return true;
+    };
+
+    auto flushTable = [&](){
+        if (!inTable) return;
+        if (tableHdrDone) html += "</tbody>\n";
+        html += "</table>\n";
+        inTable = false; tableHdrDone = false; tableOddRow = false;
     };
 
     for (const QString& rawLine : lines) {
@@ -50,6 +73,7 @@ QString AgentiPage::markdownToHtml(const QString& md)
         if (rawLine.startsWith("```")) {
             if (!inCodeBlock) {
                 closeList();
+                flushTable();
                 inCodeBlock = true;
                 codeBuf.clear();
             } else {
@@ -68,6 +92,41 @@ QString AgentiPage::markdownToHtml(const QString& md)
         if (inCodeBlock) { codeBuf += rawLine + '\n'; continue; }
 
         const QString line = rawLine;
+
+        /* ── Tabella Markdown (righe con |) ── */
+        if (line.trimmed().startsWith('|')) {
+            closeList();
+            if (!inTable) {
+                html += "<table style='border-collapse:collapse;width:100%;"
+                        "margin:10px 0;font-size:13px;'>\n";
+                inTable = true; tableHdrDone = false; tableOddRow = false;
+            }
+            if (isTableSep(line)) {
+                tableHdrDone = true;
+                html += "<tbody>\n";
+                continue;
+            }
+            const QStringList cells = line.split('|', Qt::SkipEmptyParts);
+            if (!tableHdrDone) {
+                html += "<thead><tr>\n";
+                for (const QString& cell : cells)
+                    html += "<th style='border:1px solid #30363d;padding:7px 12px;"
+                            "background:#1e293b;color:#79c0ff;font-weight:bold;"
+                            "text-align:left;'>" + inlineFmt(cell.trimmed()) + "</th>\n";
+                html += "</tr></thead>\n";
+            } else {
+                const QString bg = tableOddRow ? "#0d1117" : "#111827";
+                tableOddRow = !tableOddRow;
+                html += "<tr>\n";
+                for (const QString& cell : cells)
+                    html += "<td style='border:1px solid #30363d;padding:6px 12px;"
+                            "color:#e2e8f0;background:" + bg + ";'>"
+                            + inlineFmt(cell.trimmed()) + "</td>\n";
+                html += "</tr>\n";
+            }
+            continue;
+        }
+        if (inTable) flushTable();
 
         /* ── Headings ── */
         if (line.startsWith("### ")) {
@@ -111,20 +170,21 @@ QString AgentiPage::markdownToHtml(const QString& md)
 
         /* ── Riga vuota ── */
         if (line.trimmed().isEmpty()) {
-            html += "<div style='height:6px;'></div>\n";
+            html += "<div style='height:8px;'></div>\n";
             continue;
         }
 
         /* ── Separatore --- ── */
         if (line.trimmed() == "---" || line.trimmed() == "***") {
-            html += "<hr style='border:none;border-top:1px solid #30363d;margin:8px 0;'>\n";
+            html += "<hr style='border:none;border-top:1px solid #30363d;margin:10px 0;'>\n";
             continue;
         }
 
         /* ── Paragrafo normale ── */
-        html += "<p style='margin:1px 0;line-height:1.6;'>" + inlineFmt(line) + "</p>\n";
+        html += "<p style='margin:3px 0 7px 0;line-height:1.75;'>" + inlineFmt(line) + "</p>\n";
     }
     closeList();
+    flushTable();
 
     /* Code block non chiuso (fallback) */
     if (inCodeBlock && !codeBuf.isEmpty()) {

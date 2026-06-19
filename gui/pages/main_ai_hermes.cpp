@@ -37,12 +37,23 @@ void AgentiPage::hermesInjectContext(QString& sysPrompt, const QString& query)
     const auto nodes = m_hermesGm->searchNodes(query, 5);
     if (nodes.isEmpty()) return;
 
-    QString ctx = "\n\n[Memoria da sessioni precedenti — usa se pertinente]\n";
+    /* Raccoglie le etichette per la sezione "Fonti" a fine risposta */
+    m_hermesLastSources.clear();
+    for (const auto& n : nodes)
+        if (!n.content.trimmed().isEmpty())
+            m_hermesLastSources << n.label.left(60);
+
+    /* Prefisso esplicito: il modello deve usare la memoria solo se
+       strettamente pertinente alla domanda, non come fonte di esempi generici. */
+    QString ctx =
+        "\n\n[Contesto opzionale da sessioni precedenti — "
+        "usalo SOLO se direttamente rilevante alla domanda attuale. "
+        "Non citare questi dati come esempi in risposte a domande generali.]\n";
     for (const auto& n : nodes) {
         if (n.content.trimmed().isEmpty()) continue;
-        ctx += QString("- [%1] %2\n").arg(n.label).arg(n.content.left(200));
+        ctx += QString("- [%1] %2\n").arg(n.label).arg(n.content.left(150));
     }
-    ctx += "[fine memoria]\n";
+    ctx += "[fine contesto opzionale]\n";
     sysPrompt += ctx;
 }
 

@@ -368,6 +368,13 @@ SolarCalcWidget::SolarCalcWidget(QWidget* parent)
     auto* rightCol = new QVBoxLayout;
     rightCol->setSpacing(8);
 
+    /* ── Schema 3D impianto ── */
+    auto* schemaBox = new QGroupBox(tr("Schema impianto"), inner);
+    auto* schemaLay = new QVBoxLayout(schemaBox);
+    schemaLay->setContentsMargins(4, 4, 4, 4);
+    schemaLay->addWidget(new IsoSolarView(schemaBox));
+    rightCol->addWidget(schemaBox);
+
     /* ── GroupBox 3: Carichi elettrici ── */
     auto* loadBox = new QGroupBox(tr("Carichi elettrici (Wh / giorno)"), inner);
     auto* loadLay = new QVBoxLayout(loadBox);
@@ -495,13 +502,6 @@ SolarCalcWidget::SolarCalcWidget(QWidget* parent)
     resLay->addLayout(copyRow);
 
     rightCol->addWidget(m_resBox);
-
-    /* ── Schema 3D impianto ── */
-    auto* schemaBox = new QGroupBox(tr("Schema impianto"), inner);
-    auto* schemaLay = new QVBoxLayout(schemaBox);
-    schemaLay->setContentsMargins(4, 4, 4, 4);
-    schemaLay->addWidget(new IsoSolarView(schemaBox));
-    rightCol->addWidget(schemaBox);
 
     rightCol->addStretch();
     colsLay->addLayout(rightCol, 3);

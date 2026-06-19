@@ -333,6 +333,18 @@ QString RagDropWidget::ragContext() const {
     return ctx;
 }
 
+QStringList RagDropWidget::sourceNames() const {
+    QStringList result;
+    for (const auto& fe : m_files) {
+        if (!fe.enabled) continue;
+        if (fe.isWeb)
+            result << QString("Web: %1").arg(fe.name);
+        else
+            result << QString("File: %1").arg(fe.name);
+    }
+    return result;
+}
+
 /* ══════════════════════════════════════════════════════════════
    roles() — lista ruoli disponibili
    (spostata da agenti_page.cpp)

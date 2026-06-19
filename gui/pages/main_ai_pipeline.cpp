@@ -573,6 +573,37 @@ void AgentiPage::runAgent(int idx) {
         : QString(" Task: ") + m_taskOriginal.left(80);
     const QString toolSuffix = (m_toolsEnabled && isSingleChat) ? toolSystemSuffix() : QString();
 
+    /* Modalita' Dizionario Etimologico — attiva se il pulsante Etimo e' premuto */
+    static const char* kEtymoSys =
+        "Sei un dizionario etimologico italiano in stile Wikipedia. "
+        "Quando ti viene chiesta la definizione o l'origine di una parola, rispondi "
+        "sempre con queste sezioni in Markdown:\n"
+        "## [Parola]\n"
+        "### Lingua di origine\n"
+        "Indica se e' latina, greca antica, aramaica, araba, germanica ecc. "
+        "Scrivi la forma originale nell'alfabeto originale "
+        "(es. greco: \xcf\x84\xce\xb5\xcf\x87\xce\xbd\xce\xb7, latino: *domus, -i* f.).\n"
+        "### Morfologia\n"
+        "Classe grammaticale, paradigma (declinazione latina o greca con genitivo e genere), "
+        "analisi prefisso+radice+suffisso con significato di ogni parte.\n"
+        "### Significato letterale\n"
+        "Traduzione diretta, primo significato attestato.\n"
+        "### Evoluzione semantica\n"
+        "Come il significato si e' trasformato attraverso i secoli "
+        "(latino classico → latino tardo → volgare → italiano moderno).\n"
+        "### Prima attestazione\n"
+        "Autore piu' antico noto che usa la parola, opera, secolo.\n"
+        "### Derivati moderni\n"
+        "Derivati in italiano, francese, inglese, spagnolo con il significato.\n"
+        "### Esempio d'uso originale\n"
+        "Una frase nella lingua originale con traduzione interlineare parola per parola.\n"
+        "### Voci correlate\n"
+        "Altre parole della stessa radice indoeuropea o dello stesso campo semantico.\n"
+        "Rispondi sempre in italiano. Usa solo le sezioni pertinenti alla parola chiesta.";
+
+    const QString etymoPfx = (m_btnEtimo && m_btnEtimo->isChecked())
+        ? QString(kEtymoSys) + "\n\n" : QString();
+
     /* Team di agenti: sovrascrive il system prompt con istruzioni multi-ruolo */
     static const QString kTeamSys =
         "Sei un team di esperti multidisciplinari. Rispondi strutturando la risposta "
@@ -581,11 +612,35 @@ void AgentiPage::runAgent(int idx) {
         "Usa solo le sezioni utili per la domanda. "
         "Termina sempre con [Sintesi] concisa. Rispondi in italiano.";
     QString sysFullMut  = isTeamMode ? kTeamSys + toolSuffix
-                                     : role.sysPrompt      + teamGoalFull  + toolSuffix;
+                                     : etymoPfx + role.sysPrompt      + teamGoalFull  + toolSuffix;
     QString sysSmallMut = isTeamMode ? kTeamSys + toolSuffix
-                                     : role.sysPromptSmall + teamGoalSmall + toolSuffix;
+                                     : etymoPfx + role.sysPromptSmall + teamGoalSmall + toolSuffix;
 
-    /* Hermes: inietta memoria da sessioni precedenti (solo chat singola) */
+    /* Convenzione formattazione Markdown.
+       Versione lunga per modelli grandi (≥7B): guida completa.
+       Versione corta per modelli piccoli (<7B): solo l'essenziale — evita
+       che modelli ≤3B producano output strutturati anomali (REFEEZ, PRGET…)
+       invece di rispondere normalmente. */
+    static const QString kFmtFull =
+        "\n\nUsa Markdown nelle risposte: **grassetto** per concetti chiave, "
+        "*corsivo* per termini tecnici, `codice` per valori inline, "
+        "```blocchi``` per codice multi-riga, tabelle Markdown per confronti, "
+        "> per citazioni/avvisi, elenchi - o 1. per liste. "
+        "Non usare HTML inline. "
+        "Non citare il progetto Prismalux come esempio in risposte a domande generali: "
+        "usa solo esempi pertinenti al dominio della domanda. "
+        "Rispondi nella stessa lingua dell'utente.";
+
+    static const QString kFmtSmall =
+        "\nRispondi in modo chiaro e diretto. "
+        "Non citare Prismalux in risposte a domande generali.";
+
+    sysFullMut  += kFmtFull;
+    sysSmallMut += kFmtSmall;
+
+    /* Hermes: inietta memoria da sessioni precedenti (solo chat singola).
+       Il prefisso chiarisce al modello che si tratta di contesto opzionale,
+       non di istruzioni da seguire letteralmente. */
     if (m_hermesEnabled && isSingleChat && !m_taskOriginal.isEmpty())
         hermesInjectContext(sysFullMut, m_taskOriginal);
 
@@ -815,17 +870,151 @@ void AgentiPage::_finishedPipeline(const QString& full) {
             ? "<p style='color:#6b7280;font-style:italic;margin:0;'>Nessun output.</p>"
             : markdownToHtml(rawResp);
 
+        /* Banner suggerimento quando il modello dichiara di non sapere rispondere */
+        if (!rawResp.isEmpty()) {
+            static const QRegularExpression reNonSo(
+                QString::fromUtf8(
+                "non\\s+(?:lo\\s+|ne\\s+|ho\\s+)?s[ao](?!p)|"
+                "non\\s+(?:sono\\s+|riesco\\s+|posso\\s+)?in\\s+grado|"
+                "non\\s+ho\\s+(?:abbastanza\\s+)?informazioni|"
+                "non\\s+(?:posso|riesco)\\s+(?:rispondere|aiutarti)|"
+                "non\\s+conosco|non\\s+ricordo|non\\s+dispongo|"
+                "non\\s+mi\\s+\xc3\xa8\\s+possibile|"
+                "non\\s+ho\\s+(?:accesso|dati)|"
+                "non\\s+sono\\s+a\\s+conoscenza|"
+                "questa\\s+informazione\\s+non|"
+                "fuori\\s+dalla\\s+mia|beyond\\s+my\\s+knowledge|"
+                "i\\s+don.?t\\s+know|i\\s+cannot\\s+(?:answer|provide)|"
+                "i\\s+(?:do\\s+not|don.?t)\\s+have\\s+(?:access|information)"),
+                QRegularExpression::CaseInsensitiveOption);
+            if (reNonSo.match(rawResp).hasMatch()) {
+                htmlContent +=
+                    /* ── Banner viola "non lo so" ── */
+                    "<div style='border:1px solid #7c3aed;border-radius:8px;"
+                    "background:#1e1527;padding:10px 14px;margin:10px 0;'>"
+
+                    /* Titolo */
+                    "<p style='color:#a78bfa;font-size:12px;margin:0 0 8px 0;"
+                    "font-weight:bold;'>"
+                    "\xf0\x9f\x92\xa1  Il modello non riesce a rispondere &mdash; "
+                    "<a href='settings:model' style='color:#c4b5fd;'>"
+                    "apri Impostazioni \xe2\x86\x97</a></p>"
+
+                    /* Sezione 1: modello */
+                    "<p style='color:#c4b5fd;font-size:11px;margin:0 0 6px 0;'>"
+                    "<b style='color:#a78bfa;'>1. Cambia modello</b> &mdash; "
+                    "prova un modello pi\xc3\xb9 capace per la programmazione:</p>"
+                    "<ul style='color:#e2e8f0;font-size:11px;margin:0 0 6px 14px;'>"
+                    "<li><b>qwen3:8b</b> &mdash; ottimo ragionamento, buono per codice</li>"
+                    "<li><b>deepseek-coder:6.7b</b> &mdash; specializzato per programmazione</li>"
+                    "<li><b>deepseek-r1:7b</b> &mdash; ragionamento passo-passo</li>"
+                    "<li><b>codellama:7b</b> &mdash; ottimizzato per generare codice</li>"
+                    "</ul>"
+
+                    /* Sezione 2: parametri consigliati */
+                    "<p style='color:#c4b5fd;font-size:11px;margin:0 0 4px 0;'>"
+                    "<b style='color:#a78bfa;'>2. Parametri consigliati</b> "
+                    "(<a href='settings:model' style='color:#818cf8;font-size:11px;'>"
+                    "Impostazioni \xe2\x86\x92 Modello</a>):</p>"
+                    "<table style='font-size:11px;border-collapse:collapse;width:100%;'>"
+                    "<tr>"
+                    "<th style='text-align:left;color:#818cf8;padding:2px 6px 2px 0;"
+                    "border-bottom:1px solid #4c1d95;'>Parametro</th>"
+                    "<th style='text-align:left;color:#818cf8;padding:2px 6px;"
+                    "border-bottom:1px solid #4c1d95;'>Valore consigliato</th>"
+                    "<th style='text-align:left;color:#818cf8;padding:2px 0;"
+                    "border-bottom:1px solid #4c1d95;'>Perch\xc3\xa9</th>"
+                    "</tr>"
+                    "<tr>"
+                    "<td style='color:#ddd6fe;padding:3px 6px 3px 0;'>"
+                    "\xf0\x9f\x8c\xa1 <b>Temperatura</b></td>"        /* 🌡 */
+                    "<td style='color:#86efac;padding:3px 6px;'>0.2 &mdash; 0.4</td>"
+                    "<td style='color:#94a3b8;'>Risposte pi\xc3\xb9 precise e meno aleatorie</td>"
+                    "</tr>"
+                    "<tr>"
+                    "<td style='color:#ddd6fe;padding:3px 6px 3px 0;'>"
+                    "\xf0\x9f\x93\x96 <b>Context (num_ctx)</b></td>"  /* 📖 */
+                    "<td style='color:#86efac;padding:3px 6px;'>8192 &mdash; 32768</td>"
+                    "<td style='color:#94a3b8;'>Pi\xc3\xb9 contesto = capisce domande pi\xc3\xb9 lunghe</td>"
+                    "</tr>"
+                    "<tr>"
+                    "<td style='color:#ddd6fe;padding:3px 6px 3px 0;'>"
+                    "\xf0\x9f\x8e\xaf <b>Top-P</b></td>"              /* 🎯 */
+                    "<td style='color:#86efac;padding:3px 6px;'>0.9</td>"
+                    "<td style='color:#94a3b8;'>Bilanciamento creativit\xc3\xa0/correttezza</td>"
+                    "</tr>"
+                    "<tr>"
+                    "<td style='color:#ddd6fe;padding:3px 6px 3px 0;'>"
+                    "\xe2\x9c\x8f <b>Max tokens output</b></td>"      /* ✏ */
+                    "<td style='color:#86efac;padding:3px 6px;'>2048 &mdash; 4096</td>"
+                    "<td style='color:#94a3b8;'>Consente risposte e snippet di codice completi</td>"
+                    "</tr>"
+                    "<tr>"
+                    "<td style='color:#ddd6fe;padding:3px 6px 3px 0;'>"
+                    "\xf0\x9f\xa7\xa0 <b>Think Mode</b></td>"         /* 🧠 */
+                    "<td style='color:#86efac;padding:3px 6px;'>Attivo (modelli qwen3/r1)</td>"
+                    "<td style='color:#94a3b8;'>Ragionamento nascosto migliora la qualit\xc3\xa0</td>"
+                    "</tr>"
+                    "</table>"
+
+                    /* Sezione 3: consiglio rapido */
+                    "<p style='color:#94a3b8;font-size:10px;margin:8px 0 0 0;"
+                    "border-top:1px solid #4c1d95;padding-top:6px;'>"
+                    "\xf0\x9f\x93\x8c <b>Consiglio per neofiti:</b> "  /* 📌 */
+                    "inizia con <b style='color:#c4b5fd;'>Temperatura 0.3</b> e "
+                    "<b style='color:#c4b5fd;'>Context 16384</b>. "
+                    "Se il modello risponde in modo confuso, abbassa la temperatura verso 0.1. "
+                    "Se dimentica il contesto delle domande precedenti, aumenta il Context. "
+                    "<a href='settings:model' style='color:#818cf8;'>"
+                    "Vai alle Impostazioni \xe2\x86\x92</a>"
+                    "</p>"
+
+                    "</div>";
+            }
+        }
+
+        /* ── Raccolta fonti: RAG + Hermes ── */
+        {
+            QStringList sources;
+            const int ci = m_currentAgent;
+            if (m_ragInline && m_ragInline->hasContext())
+                sources += m_ragInline->sourceNames();
+            if (m_cfgDlg->sharedRagWidget() && m_cfgDlg->sharedRagWidget()->hasContext())
+                sources += m_cfgDlg->sharedRagWidget()->sourceNames();
+            if (m_cfgDlg->ragWidget(ci) && m_cfgDlg->ragWidget(ci)->hasContext())
+                sources += m_cfgDlg->ragWidget(ci)->sourceNames();
+            for (const auto& s : std::as_const(m_hermesLastSources))
+                sources << "\xf0\x9f\xa7\xa0 Memoria: " + s;  /* 🧠 */
+
+            if (!sources.isEmpty()) {
+                htmlContent +=
+                    "<div style='margin:10px 0 2px 0;border-top:1px solid #334155;"
+                    "padding-top:6px;'>"
+                    "<p style='margin:0;font-size:10px;color:#64748b;'>"
+                    "\xf0\x9f\x93\x96 <b>Fonti:</b>";  /* 📖 */
+                QStringList seen;
+                for (const auto& s : std::as_const(sources)) {
+                    if (seen.contains(s)) continue;
+                    seen << s;
+                    htmlContent += "<br>\xe2\x80\xa2 " + s.toHtmlEscaped();
+                }
+                htmlContent += "</p></div>";
+            }
+        }
+
         QTextCursor sel(m_log->document());
         sel.setPosition(m_agentBlockStart);
         sel.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
         sel.removeSelectedText();
         { int idx = m_bubbleIdx++; m_bubbleTexts[idx] = rawResp;
           if (!extractedThink.isEmpty()) m_thinkTexts[idx] = extractedThink;
+          if (!extractedThink.isEmpty() && m_thinkDefaultOpen) m_thinkShown.insert(idx);
           sel.insertHtml(buildAgentBubble(m_currentAgentLabel,
                                          m_currentAgentModel,
                                          m_currentAgentTime,
                                          htmlContent, idx,
-                                         extractedThink)); }
+                                         extractedThink,
+                                         !extractedThink.isEmpty() && m_thinkDefaultOpen)); }
     }
 
     /* ── Tool Executor: estrae ed esegue codice Python, poi avvia il Controller ── */

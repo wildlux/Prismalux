@@ -40,7 +40,9 @@ public:
 
     /** Testo aggregato da tutti i file/URL caricati (max 32 KB totali).
      *  Le voci web includono citazione [N] e istruzione di riferimento. */
-    QString ragContext() const;
+    QString     ragContext()   const;
+    /** Lista breve di etichette "tipo: nome" per tutte le fonti abilitate. */
+    QStringList sourceNames() const;
     bool    hasContext()    const { return std::any_of(m_files.begin(), m_files.end(), [](const FileEntry& f){ return f.enabled; }); }
     bool    hasWebEntries() const;
 

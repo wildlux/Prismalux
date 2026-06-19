@@ -57,7 +57,8 @@ public:
     static QString buildAgentBubble(const QString& label, const QString& model,
                                     const QString& time,  const QString& htmlContent,
                                     int bubbleIdx = -1,
-                                    const QString& thinkContent = "");
+                                    const QString& thinkContent = "",
+                                    bool thinkOpen = false);
     static QString buildLocalBubble(const QString& result, double ms, int bubbleIdx = -1,
                                     const QString& extraLinks = "");
     static QString markdownToHtml(const QString& md);
@@ -108,6 +109,8 @@ private:
     QMap<int,QString> m_bubbleTexts;      ///< testo plain indicizzato per copia/TTS
     QMap<int,QString> m_thinkTexts;       ///< testo reasoning <think>...</think> per bolla
     QSet<int>         m_thinkShown;       ///< bolle con reasoning visibile
+    bool              m_thinkDefaultOpen = false; ///< ultima preferenza utente (aperto/chiuso)
+    QStringList       m_hermesLastSources; ///< etichette nodi Hermes usati nell'ultima risposta
     int           m_bubbleIdx = 0;        ///< contatore bolle corrente
     QTextEdit*    m_input     = nullptr;
     QPushButton*  m_btnRun        = nullptr;  ///< Pulsante unico: run (idle) ↔ stop (busy)
@@ -115,6 +118,21 @@ private:
     class TriModeButton* m_modeBtn = nullptr;   ///< Cerchio 3 settori: Chat / Agentico / Conversa
     QPushButton*  m_btnTranslate   = nullptr;  ///< mantenuto per compatibilità slot esistenti
     QPushButton*  m_btnKnowledge   = nullptr;  ///< Salva risposta in user_knowledge.md (P4)
+    QPushButton*  m_btnEtimo       = nullptr;  ///< Toggle modalita' dizionario etimologico
+    QFrame*       m_fmtBar        = nullptr;  ///< Toolbar formattazione inline (appare su selezione)
+    QPushButton*  m_btnFmtFg     = nullptr;  ///< Pulsante colore testo
+    QPushButton*  m_btnFmtBg     = nullptr;  ///< Pulsante colore sfondo
+    QColor        m_fmtFgColor   = QColor(220, 38, 38);   ///< Colore testo corrente (rosso default)
+    QColor        m_fmtBgColor   = QColor(250, 204, 21);  ///< Colore sfondo corrente (giallo default)
+    QLineEdit*    m_symbolSearch  = nullptr;  ///< Campo ricerca nel pannello Simboli
+    QWidget*      m_symbolSearchPanel = nullptr; ///< Pannello risultati ricerca simboli
+    QGridLayout*  m_symbolSearchGrid  = nullptr; ///< Grid pulsanti risultati ricerca
+    QVector<QPair<QString,QString>> m_allSymbols; ///< (simbolo, chiave ricerca) per tutti i simboli
+    /* Pannello formule matematiche LaTeX */
+    QPushButton*  m_btnMathToggle  = nullptr;  ///< Toggle pannello formule matematiche
+    QWidget*      m_mathPanel      = nullptr;  ///< Contenitore preview + template
+    QTimer*       m_mathPreviewTimer = nullptr; ///< Debounce 600ms per aggiornare preview
+    /* LatexView forward-declared per evitare dipendenza WebEngine nell'header */
     QWidget*      m_hintWidget     = nullptr;  ///< Footer suggerimenti (nascondibile)
     QFrame*       m_symbolsPanel = nullptr;   ///< Pannello inline caratteri speciali (toggle)
     QComboBox*    m_cmbMode   = nullptr;
@@ -373,9 +391,11 @@ private:
     void buildToolbarModeToggle(QHBoxLayout* toolLay, QWidget* toolbar);
     void buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar);
     void buildInputTextField(QGridLayout* inputGrid, QWidget* inputArea);
+    void buildMathPanel(QVBoxLayout* lay); ///< pannello formule matematiche LaTeX live-preview
     QPushButton* buildInputActionButtons(QGridLayout* inputGrid, QWidget* inputArea);
     void buildInputRagToggle(QGridLayout* inputGrid, QWidget* inputArea);
     void buildInputTabOrder(QPushButton* btnSymbols);
+    void buildInputFormatBar();  ///< crea m_fmtBar come figlio di m_input
     void buildSymbolCategoryRow(QGridLayout* panGrid, int gridRow,
                                 const char* cat, const char* chars,
                                 int btnW, int btnH, int viewportW);
@@ -510,6 +530,10 @@ private slots:
     void onBtnTranslateClicked();   ///< mantenuto — usato internamente da translatePanel
     void onBtnDocClicked();         ///< allega doc + immagini (unificate)
     void onBtnVoiceClicked();
+    void onInputSelectionChanged();           ///< mostra/nasconde m_fmtBar sulla selezione
+    void onFmtBtnClicked(const QString& before, const QString& after); ///< applica marcatori markdown
+    void onSymbolSearchChanged(const QString& query); ///< filtra simboli visibili
+    void updateMathPreview();   ///< aggiorna la LatexView con la conversione del testo corrente
 
     /* ── Pipeline / preset ── */
     void onNumAgentsChanged(int v);

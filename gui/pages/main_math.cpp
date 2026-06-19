@@ -5,6 +5,7 @@
 
 #include "main_graph.h"
 #include "../widgets/formula_parser.h"
+#include <QTextBrowser>
 #include <QBrush>
 #include <QColor>
 #include <QFileDialog>
@@ -91,16 +92,19 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     m_tabs = new QTabWidget(this);
     m_tabs->setObjectName("mainTabs");
     m_tabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_tabs->tabBar()->setUsesScrollButtons(true);
+    m_tabs->tabBar()->setElideMode(Qt::ElideRight);
     connect(m_tabs, &QTabWidget::currentChanged,
             this, [this](int) { onAdjustTabHeight(); });
-    m_tabs->addTab(buildSeqTab(),   "\xf0\x9f\x94\xa2  Sequenza \xe2\x86\x92 Formula");  /* 🔢 */
-    m_tabs->addTab(buildConstTab(), "\xcf\x80  Costanti di precisione");
-    m_tabs->addTab(buildNthTab(),   "#\xe2\x83\xbf  N-esimo");
-    m_tabs->addTab(buildExprTab(),  "\xf0\x9f\xa7\xae  Espressione");                    /* 🧮 */
-    m_tabs->addTab(buildSolveTab(), "\xf0\x9f\x93\x90  Risolvi Passi");                 /* 📐 */
+    m_tabs->addTab(buildSeqTab(),      "\xf0\x9f\x94\xa2  Sequenza");          /* 🔢 */
+    m_tabs->addTab(buildConstTab(),    "\xcf\x80  Costanti");
+    m_tabs->addTab(buildNthTab(),      "#\xe2\x83\xbf  N-esimo");
+    m_tabs->addTab(buildBoolTab(),     "\xe2\x88\xa7  Booleana");              /* ∧ — 4° tab, visibile */
+    m_tabs->addTab(buildExprTab(),     "\xf0\x9f\xa7\xae  Espressione");       /* 🧮 */
+    m_tabs->addTab(buildSolveTab(),    "\xf0\x9f\x93\x90  Risolvi Passi");    /* 📐 */
     m_solveTabIdx = m_tabs->count() - 1;
-    m_tabs->addTab(buildAnalisi1Tab(), "\xf0\x9f\x93\x98  Analisi 1");                  /* 📘 */
-    m_tabs->addTab(buildAnalisi2Tab(), "\xf0\x9f\x93\x99  Analisi 2");                  /* 📙 */
+    m_tabs->addTab(buildAnalisi1Tab(), "\xf0\x9f\x93\x98  Analisi 1");        /* 📘 */
+    m_tabs->addTab(buildAnalisi2Tab(), "\xf0\x9f\x93\x99  Analisi 2");        /* 📙 */
     root->addWidget(m_tabs);   /* stretch=0: prende solo lo spazio che gli serve */
 
     /* ─── Output (prende tutto lo spazio restante) ─── */
@@ -3967,4 +3971,310 @@ void MatematicaPage::onA1ExpandClicked()
 void MatematicaPage::onA2ExpandClicked()
 {
     openCanvasInWindow(m_a2Canvas, "Analisi 2 — Grafico 3D", this);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildBoolTab — Algebra Booleana: operatori, De Morgan, teoremi
+   ══════════════════════════════════════════════════════════════ */
+QWidget* MatematicaPage::buildBoolTab()
+{
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(12, 10, 12, 10);
+    lay->setSpacing(8);
+
+    /* ── Campo espressione booleana ── */
+    lay->addWidget(new QLabel(
+        "<b>Valuta espressioni booleane (SymPy):</b>", w));
+    lay->addWidget(new QLabel(
+        "<small>Sintassi: <code>A & B</code> (AND)  <code>A | B</code> (OR)  "
+        "<code>~A</code> (NOT)  <code>A ^ B</code> (XOR)  "
+        "<code>Implies(A,B)</code>  <code>Equivalent(A,B)</code></small>", w));
+
+    auto* inputRow = new QHBoxLayout;
+    m_boolInput = new QLineEdit(w);
+    m_boolInput->setPlaceholderText(
+        "es.  (A & B) | (~A & C)   oppure   ~(A | B)   oppure   A ^ B");
+    inputRow->addWidget(m_boolInput, 1);
+    lay->addLayout(inputRow);
+
+    /* ── Pulsanti operatori rapidi ── */
+    auto* opGroup = new QGroupBox("Inserisci operatore / funzione", w);
+    auto* opLay   = new QHBoxLayout(opGroup);
+    opLay->setSpacing(4);
+    struct Op { const char* lbl; const char* ins; const char* tip; };
+    const Op ops[] = {
+        { "AND (\xe2\x88\xa7)",  " & ",          "AND logico (Congiunzione)" },
+        { "OR (\xe2\x88\xa8)",   " | ",          "OR logico (Disgiunzione)" },
+        { "NOT (\xc2\xac)",      "~",            "NOT logico (Negazione)" },
+        { "XOR (\xe2\x8a\x95)",  " ^ ",          "XOR — Disgiunzione esclusiva" },
+        { "NAND",                "Nand(,)",      "NAND — NOT(A AND B)" },
+        { "NOR",                 "Nor(,)",       "NOR — NOT(A OR B)" },
+        { "XNOR",                "Xnor(,)",      "XNOR — Equivalenza (A XNOR B = NOT XOR)" },
+        { "IMP (\xe2\x86\x92)",  "Implies(,)",   "Implicazione logica A→B" },
+        { "EQ (\xe2\x86\x94)",   "Equivalent(,)","Equivalenza A↔B" },
+        { "True",                " True ",       "Costante vera" },
+        { "False",               " False ",      "Costante falsa" },
+    };
+    for (const auto& op : ops) {
+        auto* btn = new QPushButton(QString::fromUtf8(op.lbl), opGroup);
+        btn->setObjectName("navBtn");
+        btn->setToolTip(QString::fromUtf8(op.tip));
+        btn->setProperty("boolIns", QString::fromUtf8(op.ins));
+        connect(btn, &QPushButton::clicked, this, [this, btn](){
+            if (!m_boolInput) return;
+            m_boolInput->insert(btn->property("boolIns").toString());
+            m_boolInput->setFocus();
+        });
+        opLay->addWidget(btn);
+    }
+    opLay->addStretch();
+    lay->addWidget(opGroup);
+
+    /* ── Pulsanti azione ── */
+    auto* btnRow = new QHBoxLayout;
+    auto* btnEval = new QPushButton("\xe2\x9c\x94  Valuta", w);  /* ✔ */
+    btnEval->setObjectName("actionBtn");
+    btnEval->setProperty("highlight", "true");
+    connect(btnEval, &QPushButton::clicked, this, &MatematicaPage::onBoolEvalClicked);
+    btnRow->addWidget(btnEval);
+
+    auto* btnTable = new QPushButton("\xf0\x9f\x93\x8b  Tabella di verità", w);  /* 📋 */
+    btnTable->setObjectName("actionBtn");
+    connect(btnTable, &QPushButton::clicked, this, &MatematicaPage::onBoolTruthTableClicked);
+    btnRow->addWidget(btnTable);
+
+    auto* btnSimp = new QPushButton("\xe2\x99\xbe  Semplifica", w);  /* ♾ */
+    btnSimp->setObjectName("actionBtn");
+    connect(btnSimp, &QPushButton::clicked, this, &MatematicaPage::onBoolSimplifyClicked);
+    btnRow->addWidget(btnSimp);
+
+    connect(m_boolInput, &QLineEdit::returnPressed,
+            this, &MatematicaPage::onBoolEvalClicked);
+    btnRow->addStretch();
+    lay->addLayout(btnRow);
+
+    /* ── Output ── */
+    m_boolOutput = new QTextBrowser(w);
+    m_boolOutput->setObjectName("chatLog");
+    m_boolOutput->setMaximumHeight(dpiScale(120));
+    m_boolOutput->setOpenLinks(false);
+    lay->addWidget(m_boolOutput);
+
+    /* ── Separatore ── */
+    auto* sep = new QFrame(w);
+    sep->setFrameShape(QFrame::HLine);
+    lay->addWidget(sep);
+
+    /* ── Sezione Teoremi / Leggi — 2 colonne ── */
+    lay->addWidget(new QLabel("<b>Leggi dell'Algebra Booleana (Boole, De Morgan, Shannon)</b>", w));
+
+    static const char* kStyle =
+        "<style>"
+        "body{font-size:12px}"
+        "h3{color:#1d4ed8;margin:8px 0 3px 0;font-size:12px;font-weight:bold}"
+        "table{border-collapse:collapse;width:100%;margin:3px 0}"
+        "th{background:#dbeafe;color:#1e3a8a;padding:3px 6px;text-align:left;"
+        "border:1px solid #bfdbfe;font-size:11px}"
+        "td{padding:2px 6px;border:1px solid #e2e8f0;font-size:11px;color:#1e293b}"
+        "tr:nth-child(even){background:#f8fafc}"
+        "code{color:#0f766e;font-size:11px;background:#f0fdf4;"
+        "padding:1px 3px;border-radius:3px}"
+        ".law{background:#eff6ff;border-left:3px solid #3b82f6;padding:2px 6px;"
+        "margin:2px 0;border-radius:0 4px 4px 0;font-family:monospace;color:#1e293b;"
+        "font-size:11px}"
+        "</style>";
+
+    /* Colonna sinistra: Operatori, Identità, Proprietà, De Morgan */
+    auto* colLeft = new QTextBrowser(w);
+    colLeft->setObjectName("chatLog");
+    colLeft->setOpenLinks(false);
+    colLeft->setHtml(QString(kStyle) +
+        "<h3>\xf0\x9f\x94\xa2 Operatori fondamentali</h3>"
+        "<table><tr><th>Simbolo</th><th>Nome</th><th>SymPy</th><th>Descrizione</th></tr>"
+        "<tr><td>\xe2\x88\xa7 &amp;</td><td>AND</td><td><code>A &amp; B</code></td><td>Vero se entrambi veri</td></tr>"
+        "<tr><td>\xe2\x88\xa8 |</td><td>OR</td><td><code>A | B</code></td><td>Vero se almeno uno vero</td></tr>"
+        "<tr><td>\xc2\xac ~</td><td>NOT</td><td><code>~A</code></td><td>Negazione</td></tr>"
+        "<tr><td>\xe2\x8a\x95 ^</td><td>XOR</td><td><code>A ^ B</code></td><td>Esattamente uno vero</td></tr>"
+        "<tr><td>\xe2\x86\x91</td><td>NAND</td><td><code>Nand(A,B)</code></td><td>NOT(A AND B)</td></tr>"
+        "<tr><td>\xe2\x86\x93</td><td>NOR</td><td><code>Nor(A,B)</code></td><td>NOT(A OR B)</td></tr>"
+        "<tr><td>\xe2\x86\x94</td><td>XNOR</td><td><code>Xnor(A,B)</code></td><td>NOT(A XOR B)</td></tr>"
+        "<tr><td>\xe2\x86\x92</td><td>Implica</td><td><code>Implies(A,B)</code></td><td>\xc2\xacA OR B</td></tr>"
+        "</table>"
+
+        "<h3>\xf0\x9f\x93\x8b Identit\xc3\xa0 fondamentali</h3>"
+        "<div class='law'>Identit\xc3\xa0: A \xe2\x88\xa7 1 = A &nbsp; A \xe2\x88\xa8 0 = A</div>"
+        "<div class='law'>Dominanza: A \xe2\x88\xa7 0 = 0 &nbsp; A \xe2\x88\xa8 1 = 1</div>"
+        "<div class='law'>Idempotenza: A \xe2\x88\xa7 A = A &nbsp; A \xe2\x88\xa8 A = A</div>"
+        "<div class='law'>Involuzione: \xc2\xac\xc2\xacA = A</div>"
+        "<div class='law'>Complemento: A \xe2\x88\xa7 \xc2\xacA = 0 &nbsp; A \xe2\x88\xa8 \xc2\xacA = 1</div>"
+
+        "<h3>\xf0\x9f\x94\x84 Propriet\xc3\xa0 strutturali</h3>"
+        "<div class='law'>Commutativa AND: A \xe2\x88\xa7 B = B \xe2\x88\xa7 A</div>"
+        "<div class='law'>Commutativa OR: A \xe2\x88\xa8 B = B \xe2\x88\xa8 A</div>"
+        "<div class='law'>Associativa AND: A \xe2\x88\xa7 (B \xe2\x88\xa7 C) = (A \xe2\x88\xa7 B) \xe2\x88\xa7 C</div>"
+        "<div class='law'>Associativa OR: A \xe2\x88\xa8 (B \xe2\x88\xa8 C) = (A \xe2\x88\xa8 B) \xe2\x88\xa8 C</div>"
+        "<div class='law'>Distrib. AND/OR: A \xe2\x88\xa7 (B \xe2\x88\xa8 C) = (A\xe2\x88\xa7B) \xe2\x88\xa8 (A\xe2\x88\xa7C)</div>"
+        "<div class='law'>Distrib. OR/AND: A \xe2\x88\xa8 (B \xe2\x88\xa7 C) = (A\xe2\x88\xa8B) \xe2\x88\xa7 (A\xe2\x88\xa8C)</div>"
+
+        "<h3>\xf0\x9f\x8f\x9b Leggi di De Morgan</h3>"
+        "<div class='law'><b>1\xc2\xaa:</b> \xc2\xac(A \xe2\x88\xa7 B) = \xc2\xacA \xe2\x88\xa8 \xc2\xacB</div>"
+        "<div class='law'><b>2\xc2\xaa:</b> \xc2\xac(A \xe2\x88\xa8 B) = \xc2\xacA \xe2\x88\xa7 \xc2\xacB</div>"
+        "<div class='law'><b>Gen. AND:</b> \xc2\xac(A\xe2\x82\x81\xe2\x88\xa7\xe2\x80\xa6\xe2\x88\xa7A\xe2\x82\x99) = \xc2\xacA\xe2\x82\x81\xe2\x88\xa8\xe2\x80\xa6\xe2\x88\xa8\xc2\xacA\xe2\x82\x99</div>"
+        "<div class='law'><b>Gen. OR:</b> \xc2\xac(A\xe2\x82\x81\xe2\x88\xa8\xe2\x80\xa6\xe2\x88\xa8A\xe2\x82\x99) = \xc2\xacA\xe2\x82\x81\xe2\x88\xa7\xe2\x80\xa6\xe2\x88\xa7\xc2\xacA\xe2\x82\x99</div>"
+    );
+
+    /* Colonna destra: Assorbimento, Consenso, XOR, Shannon, Forme, Implicazione */
+    auto* colRight = new QTextBrowser(w);
+    colRight->setObjectName("chatLog");
+    colRight->setOpenLinks(false);
+    colRight->setHtml(QString(kStyle) +
+        "<h3>\xf0\x9f\x9f\xa3 Assorbimento</h3>"
+        "<div class='law'>A \xe2\x88\xa7 (A \xe2\x88\xa8 B) = A</div>"
+        "<div class='law'>A \xe2\x88\xa8 (A \xe2\x88\xa7 B) = A</div>"
+        "<div class='law'>A \xe2\x88\xa7 (\xc2\xacA \xe2\x88\xa8 B) = A \xe2\x88\xa7 B</div>"
+        "<div class='law'>A \xe2\x88\xa8 (\xc2\xacA \xe2\x88\xa7 B) = A \xe2\x88\xa8 B</div>"
+
+        "<h3>\xf0\x9f\x94\xa2 Teorema di consenso</h3>"
+        "<div class='law'>A\xe2\x88\xa7B \xe2\x88\xa8 \xc2\xacA\xe2\x88\xa7C \xe2\x88\xa8 B\xe2\x88\xa7C = A\xe2\x88\xa7B \xe2\x88\xa8 \xc2\xacA\xe2\x88\xa7C</div>"
+        "<div class='law'>(A\xe2\x88\xa8B)\xe2\x88\xa7(\xc2\xacA\xe2\x88\xa8C)\xe2\x88\xa7(B\xe2\x88\xa8C) = (A\xe2\x88\xa8B)\xe2\x88\xa7(\xc2\xacA\xe2\x88\xa8C)</div>"
+
+        "<h3>\xf0\x9f\xaa\x9e XOR \xe2\x80\x94 Propriet\xc3\xa0</h3>"
+        "<div class='law'>A \xe2\x8a\x95 0 = A &nbsp;&nbsp; A \xe2\x8a\x95 1 = \xc2\xacA</div>"
+        "<div class='law'>A \xe2\x8a\x95 A = 0 &nbsp;&nbsp; A \xe2\x8a\x95 \xc2\xacA = 1</div>"
+        "<div class='law'>Commutativa: A \xe2\x8a\x95 B = B \xe2\x8a\x95 A</div>"
+        "<div class='law'>Associativa: A \xe2\x8a\x95 (B \xe2\x8a\x95 C) = (A \xe2\x8a\x95 B) \xe2\x8a\x95 C</div>"
+        "<div class='law'>Distrib.: A\xe2\x88\xa7(B\xe2\x8a\x95C) = (A\xe2\x88\xa7B)\xe2\x8a\x95(A\xe2\x88\xa7C)</div>"
+        "<div class='law'>De Morgan: \xc2\xac(A\xe2\x8a\x95B) = A\xe2\x8a\x95\xc2\xacB = XNOR</div>"
+
+        "<h3>\xf0\x9f\x94\x84 Shannon (Espansione di Boole)</h3>"
+        "<div class='law'>f(A,...) = A\xe2\x88\xa7f(1,...) \xe2\x88\xa8 \xc2\xacA\xe2\x88\xa7f(0,...)</div>"
+        "<div class='law'>f(A,...) = (A\xe2\x88\xa8f(0,...)) \xe2\x88\xa7 (\xc2\xacA\xe2\x88\xa8f(1,...))</div>"
+
+        "<h3>\xf0\x9f\x93\x8b Forme canoniche</h3>"
+        "<div class='law'><b>SOP</b> (Somma Mintermini): \xe2\x88\x91m — OR di AND</div>"
+        "<div class='law'><b>POS</b> (Prodotto Maxtermini): \xe2\x88\x8fm — AND di OR</div>"
+        "<div class='law'>SOP \xe2\x86\x92 POS: applica De Morgan ai maxtermini</div>"
+
+        "<h3>\xf0\x9f\x9b\xa1 Implicazione e Equivalenza</h3>"
+        "<div class='law'>A \xe2\x86\x92 B = \xc2\xacA \xe2\x88\xa8 B</div>"
+        "<div class='law'>A \xe2\x86\x94 B = (A\xe2\x86\x92B) \xe2\x88\xa7 (B\xe2\x86\x92A)</div>"
+        "<div class='law'>Contrapposizione: A\xe2\x86\x92B = \xc2\xacB\xe2\x86\x92\xc2\xacA</div>"
+        "<div class='law'>Modus Ponens: A, A\xe2\x86\x92B \xe2\x8a\xa2 B</div>"
+        "<div class='law'>Modus Tollens: \xc2\xacB, A\xe2\x86\x92B \xe2\x8a\xa2 \xc2\xacA</div>"
+    );
+
+    /* Layout 2 colonne affiancate con scroll indipendente */
+    auto* colRow = new QWidget(w);
+    auto* colLay = new QHBoxLayout(colRow);
+    colLay->setContentsMargins(0, 0, 0, 0);
+    colLay->setSpacing(6);
+    colLay->addWidget(colLeft,  1);
+    colLay->addWidget(colRight, 1);
+    lay->addWidget(colRow, 1);
+
+    return w;
+}
+
+/* ── Slot: valuta espressione booleana con SymPy ── */
+void MatematicaPage::onBoolEvalClicked()
+{
+    if (!m_boolInput || !m_boolOutput) return;
+    const QString expr = m_boolInput->text().trimmed();
+    if (expr.isEmpty()) return;
+
+    const QString code =
+        "from sympy.logic.boolalg import *\n"
+        "from sympy import symbols\n"
+        "# Definisce automaticamente simboli A-Z\n"
+        "import string\n"
+        "for _c in string.ascii_uppercase:\n"
+        "    exec(f'{_c} = symbols(\"{_c}\")')\n"
+        "try:\n"
+        "    _r = " + expr + "\n"
+        "    print('Risultato:', _r)\n"
+        "    _s = simplify_logic(_r)\n"
+        "    if str(_s) != str(_r): print('Semplificato:', _s)\n"
+        "except Exception as e:\n"
+        "    print('Errore:', e)\n";
+
+    QString err;
+    const QString out = _runPythonSync(code, err);
+    m_boolOutput->setHtml(
+        "<pre style='font-family:monospace;color:#86efac'>" +
+        (err.isEmpty() ? out : out + "\n<span style='color:#f87171'>" + err + "</span>") +
+        "</pre>");
+}
+
+/* ── Slot: genera tabella di verità ── */
+void MatematicaPage::onBoolTruthTableClicked()
+{
+    if (!m_boolInput || !m_boolOutput) return;
+    const QString expr = m_boolInput->text().trimmed();
+    if (expr.isEmpty()) return;
+
+    const QString code =
+        "from sympy.logic.boolalg import *\n"
+        "from sympy import symbols\n"
+        "import string, re\n"
+        "for _c in string.ascii_uppercase:\n"
+        "    exec(f'{_c} = symbols(\"{_c}\")')\n"
+        "try:\n"
+        "    _e = " + expr + "\n"
+        "    _vars = sorted(_e.free_symbols, key=str)\n"
+        "    if not _vars:\n"
+        "        print('Costante:', _e)\n"
+        "    else:\n"
+        "        hdr = ' | '.join(str(v) for v in _vars) + ' | f'\n"
+        "        sep = '-' * len(hdr)\n"
+        "        print(hdr); print(sep)\n"
+        "        for vals in __import__('itertools').product([0,1], repeat=len(_vars)):\n"
+        "            sub = {v:bool(b) for v,b in zip(_vars,vals)}\n"
+        "            res = _e.subs(sub)\n"
+        "            row = ' | '.join(str(int(b)) for b in vals)+' | '+str(int(bool(res)))\n"
+        "            print(row)\n"
+        "except Exception as e:\n"
+        "    print('Errore:', e)\n";
+
+    QString err;
+    const QString out = _runPythonSync(code, err);
+    m_boolOutput->setHtml(
+        "<pre style='font-family:monospace;color:#e2e8f0;line-height:1.5'>" +
+        out.toHtmlEscaped() +
+        (err.isEmpty() ? "" : "\n<span style='color:#f87171'>" + err.toHtmlEscaped() + "</span>") +
+        "</pre>");
+}
+
+/* ── Slot: semplifica espressione booleana ── */
+void MatematicaPage::onBoolSimplifyClicked()
+{
+    if (!m_boolInput || !m_boolOutput) return;
+    const QString expr = m_boolInput->text().trimmed();
+    if (expr.isEmpty()) return;
+
+    const QString code =
+        "from sympy.logic.boolalg import *\n"
+        "from sympy import symbols\n"
+        "import string\n"
+        "for _c in string.ascii_uppercase:\n"
+        "    exec(f'{_c} = symbols(\"{_c}\")')\n"
+        "try:\n"
+        "    _e = " + expr + "\n"
+        "    _s  = simplify_logic(_e, form='dnf')\n"
+        "    _sc = simplify_logic(_e, form='cnf')\n"
+        "    print('Originale: ', _e)\n"
+        "    print('DNF (SOP):  ', _s)\n"
+        "    print('CNF (POS):  ', _sc)\n"
+        "    if str(_s) == 'True':  print('=> La funzione e SEMPRE VERA (tautologia)')\n"
+        "    if str(_s) == 'False': print('=> La funzione e SEMPRE FALSA (contraddizione)')\n"
+        "except Exception as e:\n"
+        "    print('Errore:', e)\n";
+
+    QString err;
+    const QString out = _runPythonSync(code, err);
+    m_boolOutput->setHtml(
+        "<pre style='font-family:monospace;color:#86efac;line-height:1.5'>" +
+        out.toHtmlEscaped() +
+        (err.isEmpty() ? "" : "\n<span style='color:#f87171'>" + err.toHtmlEscaped() + "</span>") +
+        "</pre>");
 }

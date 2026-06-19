@@ -406,6 +406,13 @@ IdroWidget::IdroWidget(QWidget* parent)
     auto* rightCol = new QVBoxLayout;
     rightCol->setSpacing(8);
 
+    /* ── Schema 3D sistema ── */
+    auto* schemaBox = new QGroupBox(tr("Schema impianto DWC"), inner);
+    auto* schemaLay3d = new QVBoxLayout(schemaBox);
+    schemaLay3d->setContentsMargins(4, 4, 4, 4);
+    schemaLay3d->addWidget(new IsoIdroView(schemaBox));
+    rightCol->addWidget(schemaBox);
+
     /* ─── GroupBox 4: Log misurazioni ─── */
     auto* logBox = new QGroupBox(tr("Diario misurazioni"), inner);
     auto* logLay = new QVBoxLayout(logBox);
@@ -471,13 +478,6 @@ IdroWidget::IdroWidget(QWidget* parent)
     noteSaveLbl->setTextFormat(Qt::RichText);
     noteLay->addWidget(noteSaveLbl);
     rightCol->addWidget(noteBox);
-
-    /* ── Schema 3D sistema ── */
-    auto* schemaBox = new QGroupBox(tr("Schema impianto DWC"), inner);
-    auto* schemaLay3d = new QVBoxLayout(schemaBox);
-    schemaLay3d->setContentsMargins(4, 4, 4, 4);
-    schemaLay3d->addWidget(new IsoIdroView(schemaBox));
-    rightCol->addWidget(schemaBox);
 
     rightCol->addStretch();
     colsLay->addLayout(rightCol, 3);

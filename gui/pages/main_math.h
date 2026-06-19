@@ -5,6 +5,7 @@
 #include "../widgets/latex_view.h"
 class QTabWidget;
 class QPlainTextEdit;
+class QTextBrowser;
 class QLineEdit;
 class QSpinBox;
 class QComboBox;
@@ -72,6 +73,10 @@ private:
     QLineEdit*  m_exprInput  = nullptr;   ///< "sqrt(2) + sin(pi/4)"
     QSpinBox*   m_exprPrec   = nullptr;   ///< cifre di precisione (default 50)
 
+    /* ── tab Algebra Booleana ── */
+    QLineEdit*    m_boolInput  = nullptr;  ///< es. "(A & B) | ~A"
+    QTextBrowser* m_boolOutput = nullptr;  ///< risultato valutazione / tabella di verità
+
     /* ── tab Risolvi Passi ── */
     QLineEdit*   m_solveInput   = nullptr;
     QComboBox*   m_solveCmb     = nullptr;
@@ -114,6 +119,7 @@ private:
     QWidget* buildSolveTab();
     QWidget* buildAnalisi1Tab();
     QWidget* buildAnalisi2Tab();
+    QWidget* buildBoolTab();    ///< tab Algebra Booleana (operatori, teoremi, De Morgan)
     QWidget* buildSymbolBar();
 
     /* grafici — usa GraficoCanvas nativo */
@@ -188,6 +194,11 @@ private slots:
     void onExprEvalClicked();
     void onSimplifyClicked();
     void onExprReturnPressed();
+
+    /* tab Algebra Booleana */
+    void onBoolEvalClicked();
+    void onBoolTruthTableClicked();
+    void onBoolSimplifyClicked();
 
     /* AI sequenza (holder one-shot) */
     void onAiSeqToken(const QString& tok);

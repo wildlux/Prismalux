@@ -5,6 +5,7 @@ namespace P = PrismaluxPaths;
 #include "../app_config.h"
 #include <QTextDocument>
 #include <QDateTime>
+#include <QSettings>
 
 /* ══════════════════════════════════════════════════════════════
    buildUserBubble / buildAgentBubble
@@ -82,7 +83,8 @@ QString AgentiPage::buildUserBubble(const QString& text, int bubbleIdx)
 
 QString AgentiPage::buildAgentBubble(const QString& label, const QString& model,
                                      const QString& time,  const QString& htmlContent,
-                                     int bubbleIdx, const QString& thinkContent)
+                                     int bubbleIdx, const QString& thinkContent,
+                                     bool thinkOpen)
 {
     /* Header bolla: "🛸  Agente 1 — Ricercatore  ·  🤖 deepseek-r1:7b  ·  01:55:47" */
     QString esc_model = model;
@@ -155,20 +157,54 @@ QString AgentiPage::buildAgentBubble(const QString& label, const QString& model,
             "</table>";
     }
 
-    /* Toggle reasoning collassabile (solo se il modello ha prodotto <think>…</think>) */
+    /* Toggle reasoning stile "finestra collapsible Linux" — sempre chiuso di default
+       a meno che l'utente non abbia aperto l'ultimo (preferenza persistita in QSettings). */
     QString thinkBar;
     if (!thinkContent.isEmpty() && bubbleIdx >= 0) {
         const int words = thinkContent.split(' ', Qt::SkipEmptyParts).size();
-        const QString id = QString::number(bubbleIdx);
-        /* &#9654; = ▶ (U+25BA, nel BMP — rendering sicuro in QTextBrowser) */
+        const QString id  = QString::number(bubbleIdx);
+
+        const bool openNow = thinkOpen;
+
+        /* Freccia: ▼ aperto · ▶ chiuso */
+        const QString arrow = openNow ? "\xe2\x96\xbc" : "\xe2\x96\xb6";  /* ▼ : ▶ */
+
+        /* ── Header barra collapsible (sempre visibile) ── */
         thinkBar =
-            "<p style='margin:0 0 6px 0;'>"
-              "<a href='think:toggle:" + id + "' "
-                 "style='color:" + QString(c.aHdr) + ";font-size:11px;"
-                 "text-decoration:none;opacity:0.75;'>"
-                "&#9654; Ragionamento (" + QString::number(words) + " par.)"
+            "<table width='100%' cellpadding='0' cellspacing='0'"
+            " style='margin:4px 0 2px 0;'>"
+            "<tr><td bgcolor='#2a2a3e'"
+            " style='padding:5px 12px;border-radius:5px;border:1px solid #4a4a72;'>"
+              "<a href='think:toggle:" + id + "'"
+              " style='color:#a0a0d0;font-size:11px;font-weight:bold;"
+              "text-decoration:none;'>"
+                + arrow + "&nbsp;&nbsp;"
+                "\xe2\x9c\xa8 Ragionamento interno"   /* ✨ */
+                " &nbsp;\xe2\x80\x94&nbsp; " + QString::number(words) + " parole"
+                + QString(openNow ? "" :
+                    " &nbsp;<span style='color:#6060a0;font-size:10px;font-style:italic;'>"
+                    "(clicca per espandere)</span>") +
               "</a>"
-            "</p>";
+            "</td></tr>";
+
+        if (openNow) {
+            /* Corpo già aperto: riga aggiuntiva sotto l'header */
+            QString safeThink = thinkContent;
+            safeThink.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
+            safeThink.replace("\n","<br>");
+            thinkBar +=
+                "<tr><td bgcolor='#1a1a2e'"
+                " style='padding:8px 12px;border:1px solid #4a4a72;border-top:none;"
+                "border-radius:0 0 5px 5px;'>"
+                  "<p style='color:#8888aa;font-size:11px;font-style:italic;"
+                             "margin:0;line-height:1.5;'>"
+                    + safeThink +
+                    "<a href='think-end:" + id + "'></a>"
+                  "</p>"
+                "</td></tr>";
+        }
+
+        thinkBar += "</table>";
     }
 
     const int br = AppConfig::s().value(P::SK::kBubbleRadius, 10).toInt();

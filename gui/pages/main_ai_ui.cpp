@@ -1,6 +1,10 @@
 #include "main_ai.h"
 #include "main_ai_p.h"
 #include "../dpi_utils.h"
+#include "../widgets/latex_view.h"
+#include <QPainter>
+#include <QMouseEvent>
+#include <QColorDialog>
 #include "../prismalux_paths.h"
 #include "../log_bus.h"
 namespace P = PrismaluxPaths;
@@ -62,6 +66,9 @@ namespace P = PrismaluxPaths;
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::setupUI()
 {
+    /* Carica ultima preferenza thinking: aperto o chiuso */
+    m_thinkDefaultOpen = QSettings().value("ui/thinkDefaultOpen", false).toBool();
+
     auto* lay = new QVBoxLayout(this);
     lay->setContentsMargins(16, 12, 16, 12);
     lay->setSpacing(8);
@@ -70,6 +77,7 @@ void AgentiPage::setupUI()
     buildChatLog(lay);
     buildChartPanel(lay);
     QPushButton* btnSymbols = buildInputArea(lay);
+    buildMathPanel(lay);
     buildRagPanel(lay);
     buildHintFooter(lay);
     buildInputConnections(btnSymbols);
@@ -152,6 +160,37 @@ void AgentiPage::buildToolbarExportSection(QHBoxLayout* toolLay, QWidget* toolba
         "Il testo viene iniettato nel context di ogni sessione AI futura.");
     toolLay->addWidget(m_btnKnowledge);
     connect(m_btnKnowledge, &QPushButton::clicked, this, &AgentiPage::onSaveKnowledge);
+
+    m_btnEtimo = new QPushButton("\xf0\x9f\x8f\x9b  Etimo", toolbar);  /* 🏛 */
+    m_btnEtimo->setObjectName("actionBtn");
+    m_btnEtimo->setCheckable(true);
+    m_btnEtimo->setToolTip(
+        "Modalita' Dizionario Etimologico\n"
+        "L'AI risponde in stile Wikipedia: origine greca/latina,\n"
+        "morfologia, evoluzione semantica, derivati moderni.");
+    toolLay->addWidget(m_btnEtimo);
+    connect(m_btnEtimo, &QPushButton::toggled, toolbar, [this](bool on) {
+        m_btnEtimo->setStyleSheet(on
+            ? "QPushButton{background:#7c3aed;color:#fff;border:1px solid #6d28d9;"
+              "border-radius:4px;padding:3px 8px;font-weight:bold;}"
+            : "");
+    });
+
+    m_btnMathToggle = new QPushButton("\xe2\x88\x91  Formule", toolbar);  /* ∑ */
+    m_btnMathToggle->setObjectName("actionBtn");
+    m_btnMathToggle->setCheckable(true);
+    m_btnMathToggle->setToolTip(
+        "Pannello formule matematiche LaTeX\n"
+        "Preview in tempo reale + template per frazioni, limiti,\n"
+        "sommatorie, integrali, radici. Auto-sostituzione mentre si scrive.");
+    toolLay->addWidget(m_btnMathToggle);
+    connect(m_btnMathToggle, &QPushButton::toggled, toolbar, [this](bool on) {
+        m_btnMathToggle->setStyleSheet(on
+            ? "QPushButton{background:#0e7490;color:#fff;border:1px solid #0891b2;"
+              "border-radius:4px;padding:3px 8px;font-weight:bold;}"
+            : "");
+        if (m_mathPanel) m_mathPanel->setVisible(on);
+    });
 
     auto* btnInfo = new QPushButton("\xe2\x84\xb9  Informazioni", toolbar);  /* ℹ */
     btnInfo->setObjectName("actionBtn");
@@ -335,6 +374,7 @@ void AgentiPage::buildInputTextField(QGridLayout* inputGrid, QWidget* inputArea)
     m_input->setAccessibleDescription(
         "Scrivi qui il messaggio da inviare all'AI. Premi Ctrl+Invio per inviare.");
     inputGrid->addWidget(m_input, 0, 0, 3, 1);
+    buildInputFormatBar();
 }
 
 /* ── Pulsanti azione (col 1-3): Avvia/Voce/Simboli/Traduci/Documenti/Immagini ──
@@ -747,6 +787,253 @@ void AgentiPage::buildInputConnections(QPushButton* btnSymbols)
 /* ──────────────────────────────────────────────────────────────
    buildSymbolsPanel — pannello inline caratteri speciali (toggle)
    ────────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   buildMathPanel — pannello formule LaTeX con preview KaTeX in tempo reale
+   + pulsanti template per frazioni, limiti, integrali, ecc.
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::buildMathPanel(QVBoxLayout* lay)
+{
+    m_mathPanel = new QWidget(this);
+    m_mathPanel->setVisible(false);
+    auto* mpLay = new QVBoxLayout(m_mathPanel);
+    mpLay->setContentsMargins(0, 2, 0, 4);
+    mpLay->setSpacing(4);
+
+    /* ── Intestazione con istruzione ── */
+    auto* hint = new QLabel(
+        tr("<small><b>Preview LaTeX</b> in tempo reale — scrivi <code>\\frac{a}{b}</code>, "
+           "<code>1/3</code>, <code>limite</code>, <code>sommatoria</code>, <code>integrale</code>... "
+           "I pulsanti inseriscono template nel campo di testo.</small>"),
+        m_mathPanel);
+    hint->setWordWrap(true);
+    hint->setStyleSheet("color:#94a3b8;padding:2px 4px;");
+    mpLay->addWidget(hint);
+
+    /* ── Preview KaTeX ── */
+    auto* preview = new LatexView(m_mathPanel);
+    preview->setMinimumHeight(dpiScale(90));
+    preview->setMaximumHeight(dpiScale(130));
+    preview->setObjectName("mathPreview");
+    /* Messaggio iniziale */
+    preview->setLatexHtml(
+        "<p style='color:#475569;font-size:12px;padding:8px'>"
+        "Inizia a scrivere una formula nel campo di testo sopra...</p>");
+    mpLay->addWidget(preview);
+
+    /* ── Debounce timer per aggiornare la preview ── */
+    m_mathPreviewTimer = new QTimer(this);
+    m_mathPreviewTimer->setSingleShot(true);
+    m_mathPreviewTimer->setInterval(500);
+
+    /* Salva puntatore alla preview tramite property del timer */
+    m_mathPreviewTimer->setProperty("previewObj",
+        QVariant::fromValue(static_cast<QObject*>(preview)));
+
+    connect(m_mathPreviewTimer, &QTimer::timeout,
+            this, &AgentiPage::updateMathPreview);
+    connect(m_input, &QTextEdit::textChanged,
+            m_mathPreviewTimer, qOverload<>(&QTimer::start));
+
+    /* ── Template matematici ── */
+    static const struct { const char* label; const char* latex; const char* tip; } kTpl[] = {
+        /* Frazioni e radici */
+        { "\xe2\x80\x8b\xc2\xaf\xe2\x95\xb1\xe2\x80\x8b",
+          "\\frac{}{}", "Frazione \\frac{num}{den}" },
+        { "\xe2\x88\x9a",  "\\sqrt{}", "Radice quadrata" },
+        { "\xe2\x81\xbf\xe2\x88\x9a", "\\sqrt[n]{}", "Radice n-esima" },
+        { "x\xe2\x81\xbf",  "x^{}", "Potenza / apice" },
+        { "x\xe2\x82\x99",  "x_{}", "Pedice" },
+        { "x\xe2\x81\xbf\xe2\x82\x99", "x^{}_{}", "Apice + pedice" },
+        /* Operatori */
+        { "lim",           "\\lim_{x \\to }", "Limite" },
+        { "\xe2\x88\x91",  "\\sum_{i=0}^{n}", "Sommatoria Σ" },
+        { "\xe2\x88\x8f",  "\\prod_{i=1}^{n}", "Prodotto Π" },
+        { "\xe2\x88\xab",  "\\int_{a}^{b}", "Integrale definito" },
+        { "\xe2\x88\xac",  "\\oint_{C}", "Integrale di linea" },
+        { "\xe2\x88\xac\xe2\x88\xac", "\\iint_{S}", "Integrale doppio" },
+        /* Funzioni */
+        { "sin",  "\\sin()", "Seno" },
+        { "cos",  "\\cos()", "Coseno" },
+        { "ln",   "\\ln()", "Logaritmo naturale" },
+        { "log",  "\\log_{}", "Logaritmo in base b" },
+        /* Simboli */
+        { "\xe2\x88\x9e",  "\\infty", "Infinito" },
+        { "\xcf\x80",      "\\pi", "Pi greco" },
+        { "\xcf\x95",      "\\phi", "Phi (numero aureo)" },
+        { "\xc2\xb1",      "\\pm", "Piu/meno" },
+        { "\xe2\x88\x82",  "\\partial", "Derivata parziale" },
+        { "\xe2\x88\x87",  "\\nabla", "Nabla (gradiente)" },
+        { "\xe2\x82\x91",  "e^{}", "Esponenziale" },
+        { "\xe2\x86\x92",  "\\to", "Freccia destra (tende a)" },
+        /* Strutture */
+        { "\xe2\x8c\xab",  "\\langle \\rangle", "Angoli ⟨x⟩" },
+        { "|x|",           "\\left| \\right|", "Valore assoluto" },
+        { "\xe2\x80\x96",  "\\left\\| \\right\\|", "Norma ||x||" },
+        { "\\vec",         "\\vec{}", "Vettore con freccia" },
+        { "\xe2\x80\xbe",  "\\overline{}", "Media / coniugato" },
+        { "\xce\x94",      "\\Delta", "Delta (variazione)" },
+        { "\xce\xa3",      "\\Sigma", "Sigma maiuscola" },
+        { "\xce\xa9",      "\\Omega", "Omega" },
+    };
+    constexpr int N_TPL = static_cast<int>(sizeof(kTpl) / sizeof(kTpl[0]));
+
+    auto* tplWidget = new QWidget(m_mathPanel);
+    auto* tplFlow   = new QHBoxLayout(tplWidget);
+    tplFlow->setContentsMargins(0, 0, 0, 0);
+    tplFlow->setSpacing(3);
+
+    /* Raggruppiamo in 4 file da 8 usando un FlowLayout simulato con QGridLayout */
+    auto* tplGrid   = new QGridLayout;
+    tplGrid->setSpacing(2);
+    tplGrid->setContentsMargins(0, 0, 0, 0);
+    const int COLS = 8;
+    for (int i = 0; i < N_TPL; ++i) {
+        auto* b = new QPushButton(QString::fromUtf8(kTpl[i].label), tplWidget);
+        b->setObjectName("symbolBtn");
+        b->setFixedSize(dpiScale(46), dpiScale(26));
+        b->setToolTip(QString::fromUtf8(kTpl[i].tip));
+        /* Salva il LaTeX template come property */
+        b->setProperty("mathTpl", QString::fromUtf8(kTpl[i].latex));
+        connect(b, &QPushButton::clicked, this, [this, b](){
+            if (!m_input) return;
+            const QString tpl = b->property("mathTpl").toString();
+            /* Inserisce il template e posiziona il cursore nel primo {} */
+            QTextCursor cur = m_input->textCursor();
+            cur.insertText(tpl);
+            /* Sposta cursore all'interno del primo {} se presente */
+            const int open = tpl.indexOf('{');
+            if (open >= 0) {
+                int newPos = cur.position() - tpl.size() + open + 1;
+                cur.setPosition(newPos);
+                m_input->setTextCursor(cur);
+            }
+            m_input->setFocus();
+        });
+        tplGrid->addWidget(b, i / COLS, i % COLS);
+    }
+    tplFlow->addLayout(tplGrid);
+    tplFlow->addStretch();
+    mpLay->addWidget(tplWidget);
+
+    /* ── EventFilter: auto-replace abbreviazioni italiane → LaTeX ── */
+    struct MathFilter : public QObject {
+        QTextEdit* ed;
+        MathFilter(QTextEdit* e, QObject* p) : QObject(p), ed(e) {}
+        bool eventFilter(QObject*, QEvent* ev) override {
+            if (ev->type() != QEvent::KeyPress) return false;
+            auto* ke = static_cast<QKeyEvent*>(ev);
+            if (ke->key() != Qt::Key_Space && ke->key() != Qt::Key_Return
+                && ke->key() != Qt::Key_Enter) return false;
+
+            static const QHash<QString, QString> kWords = {
+                {"limite",     "\\lim_{x \\to }"},
+                {"limx",       "\\lim_{x \\to 0}"},
+                {"sommatoria", "\\sum_{i=0}^{n}"},
+                {"integrale",  "\\int_{a}^{b}"},
+                {"radice",     "\\sqrt{}"},
+                {"infinito",   "\\infty "},
+                {"delta",      "\\Delta "},
+                {"nabla",      "\\nabla "},
+                {"vettore",    "\\vec{}"},
+                {"derivata",   "\\frac{d}{dx}"},
+                {"derivataparziale", "\\frac{\\partial}{\\partial x}"},
+                {"taylor",     "\\sum_{n=0}^{\\infty} \\frac{f^{(n)}(a)}{n!}(x-a)^n"},
+                {"pigreco",    "\\pi "},
+                {"epsilon",    "\\varepsilon "},
+                {"sigma",      "\\sigma "},
+                {"lambda",     "\\lambda "},
+                {"alpha",      "\\alpha "},
+                {"beta",       "\\beta "},
+                {"theta",      "\\theta "},
+                {"omega",      "\\omega "},
+                {"phi",        "\\phi "},
+                {"psi",        "\\psi "},
+                {"gamma",      "\\gamma "},
+            };
+
+            QTextCursor cur = ed->textCursor();
+            cur.movePosition(QTextCursor::StartOfWord, QTextCursor::KeepAnchor);
+            const QString word = cur.selectedText().trimmed().toLower()
+                .remove(' ').remove('_');
+
+            /* Auto-replace keyword italiane */
+            if (kWords.contains(word)) {
+                cur.insertText(kWords.value(word));
+                return false;  /* lascia propagare spazio/invio */
+            }
+
+            /* Auto-replace frazioni N/D con numeri interi (es: 1/3) */
+            QTextCursor lineCur = ed->textCursor();
+            lineCur.movePosition(QTextCursor::StartOfLine, QTextCursor::KeepAnchor);
+            const QString lineText = lineCur.selectedText();
+            static const QRegularExpression reFrac(R"((\d+)/(\d+))");
+            const auto m = reFrac.match(lineText, 0,
+                QRegularExpression::PartialPreferCompleteMatch);
+            if (m.hasMatch() && m.capturedStart() + m.capturedLength() == lineText.size()) {
+                /* Seleziona la frazione e sostituisce con \frac{N}{D} */
+                QTextCursor fc = ed->textCursor();
+                fc.movePosition(QTextCursor::StartOfLine);
+                fc.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor,
+                                m.capturedStart());
+                fc.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor,
+                                m.capturedLength());
+                fc.insertText("\\frac{" + m.captured(1) + "}{" + m.captured(2) + "}");
+            }
+            return false;
+        }
+    };
+    m_input->installEventFilter(new MathFilter(m_input, m_input));
+
+    lay->addWidget(m_mathPanel);
+}
+
+/* ── Aggiorna la preview KaTeX con il testo corrente del campo ── */
+void AgentiPage::updateMathPreview()
+{
+    if (!m_mathPreviewTimer || !m_mathPanel || !m_mathPanel->isVisible() || !m_input)
+        return;
+
+    auto* preview = qobject_cast<LatexView*>(
+        m_mathPreviewTimer->property("previewObj").value<QObject*>());
+    if (!preview) return;
+
+    const QString raw = m_input->toPlainText().trimmed();
+    if (raw.isEmpty()) {
+        preview->setLatexHtml(
+            "<p style='color:#475569;font-size:12px;padding:8px'>"
+            "Inizia a scrivere una formula nel campo di testo sopra...</p>");
+        return;
+    }
+
+    /* Conversione testo naturale → LaTeX per la preview */
+    QString ltx = raw;
+    /* 1. Frazioni N/D non ancora convertite */
+    static const QRegularExpression reFrac2(R"((?<![\\{])\b(\d+)/(\d+)\b)");
+    ltx.replace(reFrac2, "\\\\frac{\\1}{\\2}");
+    /* 2. Abbreviazioni italiane — solo se non già in LaTeX */
+    if (!ltx.contains('\\')) {
+        ltx.replace(QRegularExpression(R"(\blimite\b)", QRegularExpression::CaseInsensitiveOption),
+                    "\\lim");
+        ltx.replace(QRegularExpression(R"(\bsommatoria\b)", QRegularExpression::CaseInsensitiveOption),
+                    "\\sum");
+        ltx.replace(QRegularExpression(R"(\bintegrale\b)", QRegularExpression::CaseInsensitiveOption),
+                    "\\int");
+        ltx.replace(QRegularExpression(R"(\bradice\b)", QRegularExpression::CaseInsensitiveOption),
+                    "\\sqrt");
+        ltx.replace(QRegularExpression(R"(\binfinito\b)", QRegularExpression::CaseInsensitiveOption),
+                    "\\infty");
+    }
+
+    /* Wrap in display math se il testo non ha già delimitatori */
+    const bool hasDelim = ltx.contains("\\[") || ltx.contains("\\(")
+                       || ltx.contains("$$") || ltx.startsWith("$");
+    const QString html = hasDelim
+        ? "<div>" + ltx.toHtmlEscaped() + "</div>"
+        : "<p>\\[" + ltx.toHtmlEscaped() + "\\]</p>";
+
+    preview->setLatexHtml(html);
+}
+
 void AgentiPage::buildSymbolsPanel(QVBoxLayout* lay, QPushButton* /*btnSymbols*/)
 {
     static const struct { const char* cat; const char* chars; int btnW; } kGroups[] = {
@@ -858,15 +1145,51 @@ void AgentiPage::buildSymbolsPanel(QVBoxLayout* lay, QPushButton* /*btnSymbols*/
         ++gridRow;
     }
 
+    /* ── Campo ricerca simboli (visibile sopra le categorie) ── */
+    m_symbolSearch = new QLineEdit(this);
+    m_symbolSearch->setPlaceholderText(
+        tr("\xf0\x9f\x94\x8d  Cerca simbolo... "
+           "(es: alpha, freccia, euro, integral, sqrt, copyright)"));
+    m_symbolSearch->setClearButtonEnabled(true);
+    m_symbolSearch->setStyleSheet(
+        "QLineEdit{background:#1e293b;border:1px solid #334155;"
+        "border-radius:5px;padding:5px 10px;color:#e2e8f0;font-size:12px;}"
+        "QLineEdit:focus{border-color:#60a5fa;}");
+    m_symbolSearch->setVisible(false);
+    lay->addWidget(m_symbolSearch);
+
+    /* ── Pannello risultati ricerca ── */
+    m_symbolSearchPanel = new QWidget(this);
+    m_symbolSearchGrid  = new QGridLayout(m_symbolSearchPanel);
+    m_symbolSearchGrid->setContentsMargins(4, 4, 4, 4);
+    m_symbolSearchGrid->setSpacing(2);
+    auto* searchScroll = new QScrollArea(this);
+    searchScroll->setObjectName("symbolSearchScroll");
+    searchScroll->setWidget(m_symbolSearchPanel);
+    searchScroll->setWidgetResizable(true);
+    searchScroll->setMaximumHeight(dpiScale(200));
+    searchScroll->setFrameShape(QFrame::NoFrame);
+    searchScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    searchScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    searchScroll->setVisible(false);
+    lay->addWidget(searchScroll);
+
+    /* ── Pannello categorie (nascosto durante ricerca) ── */
     m_symbolsScrollArea = new QScrollArea(this);
     m_symbolsScrollArea->setWidget(m_symbolsPanel);
     m_symbolsScrollArea->setWidgetResizable(true);
-    m_symbolsScrollArea->setMaximumHeight(dpiScale(260));
+    m_symbolsScrollArea->setMaximumHeight(dpiScale(210));
     m_symbolsScrollArea->setFrameShape(QFrame::NoFrame);
     m_symbolsScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_symbolsScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_symbolsScrollArea->setVisible(false);
     lay->addWidget(m_symbolsScrollArea);
+
+    /* Collega ricerca; usa property per portare il riferimento a searchScroll */
+    m_symbolSearch->setProperty("resultsScroll",
+        QVariant::fromValue(static_cast<QObject*>(searchScroll)));
+    connect(m_symbolSearch, &QLineEdit::textChanged,
+            this, &AgentiPage::onSymbolSearchChanged);
 }
 
 /* ── Una riga categoria nel pannello simboli ── */
@@ -897,6 +1220,38 @@ void AgentiPage::buildSymbolCategoryRow(QGridLayout* panGrid, int gridRow,
 
     const int perRow = std::max(4, viewportW / (fixedW + 1));
 
+    /* Nomi aggiuntivi per ricerca (simbolo → keyword extra in italiano/inglese) */
+    static const QHash<QString,QString> kExtraNames = {
+        {"∑","somma sum sigma"},    {"∫","integrale integral"},
+        {"∂","derivata parziale partial"}, {"∏","prodotto product"},
+        {"√","radice quadrata square root"}, {"∞","infinito infinity"},
+        {"π","pigreco pi"}, {"±","piu meno plus minus"},
+        {"×","per times moltiplicazione multiply"}, {"÷","diviso divide"},
+        {"≠","diverso different not equal"}, {"≤","minore uguale less equal"},
+        {"≥","maggiore uguale greater equal"}, {"≈","circa approximately"},
+        {"∈","appartiene belongs in"}, {"∉","non appartiene not in"},
+        {"⊂","sottoinsieme subset"}, {"∀","per ogni for all"},
+        {"∃","esiste exists"}, {"∇","nabla gradiente gradient"},
+        {"→","freccia destra arrow right"}, {"←","freccia sinistra arrow left"},
+        {"↑","freccia su arrow up"}, {"↓","freccia giu arrow down"},
+        {"↔","freccia doppia double arrow"}, {"⇒","implica implies"},
+        {"α","alpha alfa"}, {"β","beta"},  {"γ","gamma"},
+        {"δ","delta"},      {"ε","epsilon"}, {"θ","theta"},
+        {"λ","lambda"},     {"μ","mu"},    {"ν","nu"},
+        {"π","pi"},         {"σ","sigma"}, {"τ","tau"},
+        {"φ","phi"},        {"ω","omega"}, {"Δ","Delta maiuscola"},
+        {"Σ","Sigma maiuscola"}, {"Ω","Omega maiuscola"},
+        {"€","euro"},       {"£","sterlina pound"}, {"¥","yen"},
+        {"₿","bitcoin"},    {"₽","rublo ruble"},
+        {"©","copyright"},  {"®","registered marchio"},
+        {"™","trademark"},  {"°","gradi degree"},
+        {"²","quadrato square esponente"}, {"³","cubo cube"},
+        {"½","mezzo half"}, {"¼","quarto quarter"},
+        {"…","puntini ellipsis"}, {"—","trattino dash"},
+        {"«","virgolette guillemets"}, {"»","virgolette guillemets"},
+    };
+    const QString catStr = QString::fromUtf8(cat).toLower();
+
     int bCol = 0, bRow = 0;
     for (const QString& ch : tokens) {
         if (ch.isEmpty()) continue;
@@ -908,6 +1263,11 @@ void AgentiPage::buildSymbolCategoryRow(QGridLayout* panGrid, int gridRow,
         connect(b, &QPushButton::clicked, this, &AgentiPage::onSymbolBtnClicked);
         btnGrid->addWidget(b, bRow, bCol);
         ++bCol;
+        /* Popola m_allSymbols: chiave = simbolo + categoria + nome extra */
+        QString key = ch.toLower() + " " + catStr;
+        auto it = kExtraNames.constFind(ch);
+        if (it != kExtraNames.constEnd()) key += " " + it.value();
+        m_allSymbols.append({ch, key});
     }
 
     panGrid->addWidget(btnArea, gridRow, 1);
@@ -1435,52 +1795,62 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
            &#9654; (▶ U+25B6) diventa \xe2\x96\xb6 senza VS-16.
            &#9660; (▼ U+25BC) diventa \xe2\x96\xbc — usiamo ▼ per "aperto" e ▶ per "chiuso". */
         if (m_thinkShown.contains(N)) {
-            /* === NASCONDI === */
+            /* === CHIUDI (arrotola la tenda) === */
             m_thinkShown.remove(N);
-            QRegularExpression reArrowDown(
+            m_thinkDefaultOpen = false;
+            QSettings().setValue("ui/thinkDefaultOpen", false);
+
+            /* ▼ → ▶ */
+            QRegularExpression reArrow(
                 "(think:toggle:" + nStr + "[^>]*>)\xe2\x96\xbc",
                 QRegularExpression::DotMatchesEverythingOption);
-            html.replace(reArrowDown, "\\1\xe2\x96\xb6");
-            QRegularExpression reBox(
-                "<table[^>]*>(?:(?!</table>)[\\s\\S])*?think-end:" + nStr +
-                "[\\s\\S]*?</table>",
+            html.replace(reArrow, "\\1\xe2\x96\xb6");
+            /* Ripristina hint "(clicca per espandere)" dopo la freccia */
+            QRegularExpression reHint(
+                "(think:toggle:" + nStr + "[^>]*>\xe2\x96\xb6[^<]*)"
+                "(?:&nbsp;parole)?",
                 QRegularExpression::DotMatchesEverythingOption);
-            html.remove(reBox);
+            /* Rimuovi la riga corpo (tra il primo </tr> dopo think:toggle:N e think-end:N) */
+            QRegularExpression reBody(
+                "(<tr><td[^>]*>[^<]*<p[^>]*>[\\s\\S]*?think-end:" + nStr +
+                "[\\s\\S]*?</tr>)",
+                QRegularExpression::DotMatchesEverythingOption);
+            html.remove(reBody);
         } else {
-            /* === MOSTRA === */
+            /* === APRI (stendi la tenda) === */
             m_thinkShown.insert(N);
-            QRegularExpression reArrowRight(
-                /* Cerca sia ▶ (senza VS-16) che ▶️ (con VS-16) per compatibilità */
+            m_thinkDefaultOpen = true;
+            QSettings().setValue("ui/thinkDefaultOpen", true);
+
+            /* ▶ → ▼ */
+            QRegularExpression reArrow(
                 "(think:toggle:" + nStr + "[^>]*>)\xe2\x96\xb6(?:\xef\xb8\x8f)?",
                 QRegularExpression::DotMatchesEverythingOption);
-            html.replace(reArrowRight, "\\1\xe2\x96\xbc");
+            html.replace(reArrow, "\\1\xe2\x96\xbc");
 
             const QString rawThink = m_thinkTexts.value(N);
             QString safeThink = rawThink;
             safeThink.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
             safeThink.replace("\n","<br>");
 
-            const QString thinkBox =
-                "<table width='100%' cellpadding='0' cellspacing='0' style='margin:0 0 6px 0;'>"
-                "<tr><td bgcolor='#1a1a2e' style='"
-                    "border-left:3px solid #4a4a6a;"
-                    "padding:6px 10px;"
-                    "border-radius:0 4px 4px 0;'>"
-                  "<p style='color:#7070a0;font-size:10px;font-weight:bold;margin:0 0 4px 0;'>"
-                    "&#129504; Ragionamento interno"
-                  "</p>"
+            /* Corpo da inserire dopo la riga header (</tr> che contiene think:toggle:N) */
+            const QString bodyRow =
+                "<tr><td bgcolor='#1a1a2e'"
+                " style='padding:8px 12px;border:1px solid #4a4a72;border-top:none;"
+                "border-radius:0 0 5px 5px;'>"
                   "<p style='color:#8888aa;font-size:11px;font-style:italic;"
-                            "margin:0;line-height:1.5;'>"
+                             "margin:0;line-height:1.5;'>"
                     + safeThink +
                     "<a href='think-end:" + nStr + "'></a>"
                   "</p>"
-                "</td></tr></table>";
+                "</td></tr>";
 
+            /* Trovare la fine della riga header dell'accordion */
             int anchorPos = html.indexOf("think:toggle:" + nStr);
             if (anchorPos >= 0) {
-                int endP = html.indexOf("</p>", anchorPos);
-                if (endP >= 0)
-                    html.insert(endP + 4, thinkBox);
+                int endTr = html.indexOf("</tr>", anchorPos);
+                if (endTr >= 0)
+                    html.insert(endTr + 5, bodyRow);
             }
         }
 
@@ -1857,6 +2227,10 @@ void AgentiPage::onBtnSymbolsClicked()
         }
     }
     if (m_symbolsScrollArea) m_symbolsScrollArea->setVisible(nowVisible);
+    if (m_symbolSearch) {
+        m_symbolSearch->setVisible(nowVisible);
+        if (!nowVisible) m_symbolSearch->clear();
+    }
 }
 
 void AgentiPage::onBtnTranslateClicked()
@@ -2422,7 +2796,30 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
         connect(btnNone, &QPushButton::clicked, grid, [grid]{
             for (auto* c : grid->findChildren<QCheckBox*>()) c->setChecked(false);
         });
+
+        /* Barra di ricerca — filtra e riorganizza il grid senza buchi */
+        auto* fastSearch = new QLineEdit(m_toolsPanel);
+        fastSearch->setPlaceholderText("\xf0\x9f\x94\x8d  Cerca tool per nome o descrizione\xe2\x80\xa6");
+        fastSearch->setClearButtonEnabled(true);
+        fastSearch->setFixedHeight(dpiScale(26));
+        fastLay->addWidget(fastSearch);
         fastLay->addWidget(grid);
+
+        connect(fastSearch, &QLineEdit::textChanged, grid,
+                [grid, gl](const QString& raw){
+            const QString q = raw.trimmed().toLower();
+            const auto chks = grid->findChildren<QCheckBox*>(
+                QString(), Qt::FindDirectChildrenOnly);
+            for (auto* c : chks) gl->removeWidget(c);
+            int pos = 0;
+            for (auto* c : chks) {
+                const bool match = q.isEmpty()
+                    || c->text().toLower().contains(q)
+                    || c->toolTip().toLower().contains(q);
+                c->setVisible(match);
+                if (match) { gl->addWidget(c, pos / 2, pos % 2); ++pos; }
+            }
+        });
     }
 
     /* Hint modello tool-capable — visibile solo dentro questo pannello */
@@ -2527,6 +2924,13 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
                     mcpNames << d;
         }
 
+        /* Barra di ricerca MCP */
+        auto* mcpSearch = new QLineEdit(m_mcpPanel);
+        mcpSearch->setPlaceholderText("\xf0\x9f\x94\x8d  Cerca MCP per nome o etichetta\xe2\x80\xa6");
+        mcpSearch->setClearButtonEnabled(true);
+        mcpSearch->setFixedHeight(dpiScale(26));
+        slowLay->addWidget(mcpSearch);
+
         /* Scroll area per i ~50 MCP */
         auto* mcpScroll = new QScrollArea(m_mcpPanel);
         mcpScroll->setWidgetResizable(true);
@@ -2581,6 +2985,23 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
             });
             connect(btnNoneMcp, &QPushButton::clicked, grid, [grid]{
                 for (auto* c : grid->findChildren<QCheckBox*>()) c->setChecked(false);
+            });
+
+            /* Filtro ricerca MCP: riorganizza la grid senza buchi */
+            connect(mcpSearch, &QLineEdit::textChanged, grid,
+                    [grid, gl, &mcpNames, mcpLabel](const QString& raw){
+                const QString q = raw.trimmed().toLower();
+                const auto chks = grid->findChildren<QCheckBox*>(
+                    QString(), Qt::FindDirectChildrenOnly);
+                for (auto* c : chks) gl->removeWidget(c);
+                int pos = 0;
+                for (auto* c : chks) {
+                    const bool match = q.isEmpty()
+                        || c->text().toLower().contains(q)
+                        || c->toolTip().toLower().contains(q);
+                    c->setVisible(match);
+                    if (match) { gl->addWidget(c, pos / 4, pos % 4); ++pos; }
+                }
             });
         }
 
@@ -2652,6 +3073,7 @@ void AgentiPage::onToolsPanelToggle()
     if (opening) {
         /* Chiudi Simboli e Tool Lenti */
         if (m_symbolsScrollArea) m_symbolsScrollArea->setVisible(false);
+        if (m_symbolSearch) { m_symbolSearch->setVisible(false); m_symbolSearch->clear(); }
         if (m_btnMcpToggle && m_btnMcpToggle->isChecked()) {
             m_btnMcpToggle->blockSignals(true);
             m_btnMcpToggle->setChecked(false);
@@ -2668,6 +3090,7 @@ void AgentiPage::onMcpPanelToggle()
     if (opening) {
         /* Chiudi Simboli e Tool Veloci */
         if (m_symbolsScrollArea) m_symbolsScrollArea->setVisible(false);
+        if (m_symbolSearch) { m_symbolSearch->setVisible(false); m_symbolSearch->clear(); }
         if (m_btnToolsToggle && m_btnToolsToggle->isChecked()) {
             m_btnToolsToggle->blockSignals(true);
             m_btnToolsToggle->setChecked(false);
@@ -2699,5 +3122,508 @@ void AgentiPage::onBubbleStyleChanged()
 
     m_log->setHtml(html);
     m_log->verticalScrollBar()->setValue(scrollPos);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TablePickerPopup — griglia hover stile LibreOffice/Word
+   Nessun Q_OBJECT: usa std::function come callback.
+   ══════════════════════════════════════════════════════════════ */
+class TablePickerPopup : public QFrame {
+    static constexpr int kRows = 8, kCols = 8, kCell = 24, kPad = 6, kLblH = 20;
+    int m_hr = 0, m_hc = 0;
+    std::function<void(int,int)> m_cb;
+public:
+    TablePickerPopup(QWidget* parent, std::function<void(int,int)> cb)
+        : QFrame(parent, Qt::Popup | Qt::FramelessWindowHint)
+        , m_cb(std::move(cb))
+    {
+        setMouseTracking(true);
+        setFixedSize(kPad*2 + kCols*kCell + 1,
+                     kPad*2 + kRows*kCell + kLblH + 4);
+        /* Stile segue palette sistema */
+        setAutoFillBackground(true);
+    }
+protected:
+    void paintEvent(QPaintEvent*) override {
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing, false);
+        /* Sfondo e bordo */
+        p.fillRect(rect(), palette().window());
+        p.setPen(QPen(palette().mid().color(), 1));
+        p.drawRect(rect().adjusted(0,0,-1,-1));
+        /* Label dimensione */
+        const QString lbl = (m_hr > 0 && m_hc > 0)
+            ? QString("%1 \xc3\x97 %2").arg(m_hc).arg(m_hr)   /* NxM */
+            : tr("Tabella");
+        p.setPen(palette().windowText().color());
+        p.setFont(QFont(font().family(), 9, QFont::Bold));
+        p.drawText(QRect(kPad, kPad, kCols*kCell, kLblH),
+                   Qt::AlignCenter, lbl);
+        /* Griglia */
+        const int top = kPad + kLblH + 2;
+        const QColor hlCol  = palette().highlight().color();
+        const QColor bgCol  = palette().base().color();
+        const QColor midCol = palette().mid().color();
+        for (int r = 0; r < kRows; ++r) {
+            for (int c = 0; c < kCols; ++c) {
+                QRect cell(kPad + c*kCell, top + r*kCell, kCell - 1, kCell - 1);
+                p.fillRect(cell, (r < m_hr && c < m_hc) ? hlCol : bgCol);
+                p.setPen(midCol);
+                p.drawRect(cell);
+            }
+        }
+    }
+    void mouseMoveEvent(QMouseEvent* ev) override {
+        const int top = kPad + kLblH + 2;
+        m_hc = qBound(0, (ev->pos().x() - kPad) / kCell + 1, kCols);
+        m_hr = qBound(0, (ev->pos().y() - top)  / kCell + 1, kRows);
+        update();
+    }
+    void mousePressEvent(QMouseEvent*) override {
+        if (m_hr > 0 && m_hc > 0 && m_cb) m_cb(m_hr, m_hc);
+        close();
+    }
+    void leaveEvent(QEvent*) override { m_hr = m_hc = 0; update(); }
+};
+
+/* ══════════════════════════════════════════════════════════════
+   AccentPickerPopup — popup accenti stile Apple (1 carattere)
+   ══════════════════════════════════════════════════════════════ */
+class AccentPickerPopup : public QFrame {
+    std::function<void(const QString&)> m_cb;
+public:
+    AccentPickerPopup(QWidget* parent,
+                      const QVector<QString>& variants,
+                      std::function<void(const QString&)> cb)
+        : QFrame(parent, Qt::Popup | Qt::FramelessWindowHint)
+        , m_cb(std::move(cb))
+    {
+        setAutoFillBackground(true);
+        setStyleSheet(
+            "QFrame{background:palette(window);border:1px solid palette(mid);"
+            "border-radius:10px;}"
+            "QPushButton{font-size:17px;min-width:42px;min-height:42px;"
+            "max-width:42px;max-height:42px;"
+            "border:none;border-radius:7px;background:transparent;}"
+            "QPushButton:hover{background:palette(highlight);"
+            "color:palette(highlighted-text);}");
+        auto* lay = new QHBoxLayout(this);
+        lay->setContentsMargins(7, 6, 7, 6);
+        lay->setSpacing(2);
+        for (const QString& v : variants) {
+            auto* btn = new QPushButton(v, this);
+            btn->setFont(QFont{});
+            connect(btn, &QPushButton::clicked, this, [this, v](){
+                m_cb(v); close();
+            });
+            lay->addWidget(btn);
+        }
+        adjustSize();
+    }
+};
+
+/* Tabella accenti per lettera — minuscolo + maiuscolo */
+static const QHash<QChar, QVector<QString>>& accentMap()
+{
+    static const QHash<QChar, QVector<QString>> m = {
+        {'a', {"à","á","â","ã","ä","å","æ","ā","ă","ą"}},
+        {'A', {"À","Á","Â","Ã","Ä","Å","Æ","Ā","Ă","Ą"}},
+        {'e', {"è","é","ê","ë","ē","ě","ė","ę"}},
+        {'E', {"È","É","Ê","Ë","Ē","Ě","Ė","Ę"}},
+        {'i', {"ì","í","î","ï","ī","ĭ","į","ĩ"}},
+        {'I', {"Ì","Í","Î","Ï","Ī","Ĭ","Į","Ĩ"}},
+        {'o', {"ò","ó","ô","õ","ö","ø","œ","ō","ŏ"}},
+        {'O', {"Ò","Ó","Ô","Õ","Ö","Ø","Œ","Ō","Ŏ"}},
+        {'u', {"ù","ú","û","ü","ū","ű","ů","ų","ũ"}},
+        {'U', {"Ù","Ú","Û","Ü","Ū","Ű","Ů","Ų","Ũ"}},
+        {'n', {"ñ","ń","ṅ","ň","ŋ"}},
+        {'N', {"Ñ","Ń","Ṅ","Ň","Ŋ"}},
+        {'c', {"ç","ć","č","ĉ"}},
+        {'C', {"Ç","Ć","Č","Ĉ"}},
+        {'s', {"ś","š","ş","ŝ","ß"}},
+        {'S', {"Ś","Š","Ş","Ŝ"}},
+        {'z', {"ź","ž","ż"}},
+        {'Z', {"Ź","Ž","Ż"}},
+        {'y', {"ÿ","ý"}},
+        {'Y', {"Ÿ","Ý"}},
+        {'l', {"ł","ĺ","ľ","ļ"}},
+        {'L', {"Ł","Ĺ","Ľ","Ļ"}},
+        {'d', {"đ","ð","ď"}},
+        {'D', {"Đ","Ð","Ď"}},
+        {'t', {"ț","ţ","ť","þ"}},
+        {'T', {"Ț","Ţ","Ť","Þ"}},
+        {'r', {"ř","ŗ","ŕ"}},
+        {'R', {"Ř","Ŗ","Ŕ"}},
+        {'g', {"ğ","ĝ","ġ","ģ"}},
+        {'G', {"Ğ","Ĝ","Ġ","Ģ"}},
+        {'h', {"ĥ","ħ"}},
+        {'H', {"Ĥ","Ħ"}},
+        {'k', {"ķ","ḳ"}},
+        {'K', {"Ķ","Ḳ"}},
+    };
+    return m;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildInputFormatBar — mini-toolbar formattazione testo
+   Appare sopra la selezione nel campo input come frame flottante.
+   Parent = this per non essere clippato da m_input.
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::buildInputFormatBar()
+{
+    m_fmtBar = new QFrame(this);
+    m_fmtBar->setObjectName("fmtBar");
+    m_fmtBar->setFrameShape(QFrame::StyledPanel);
+    m_fmtBar->setFrameShadow(QFrame::Raised);
+    m_fmtBar->setAutoFillBackground(true);
+    /* Stile minimo: solo bordo arrotondato e hover — il resto segue la palette */
+    m_fmtBar->setStyleSheet(
+        "QFrame#fmtBar{border:1px solid palette(mid);border-radius:6px;"
+        "background:palette(window);}"
+        "QPushButton{background:transparent;border:none;padding:2px 7px;"
+        "border-radius:3px;min-width:20px;font-size:12px;}"
+        "QPushButton:hover{background:palette(highlight);"
+        "color:palette(highlighted-text);}"
+        "QPushButton:pressed{background:palette(dark);}");
+    m_fmtBar->setVisible(false);
+
+    auto* vlay = new QVBoxLayout(m_fmtBar);
+    vlay->setContentsMargins(6, 5, 6, 5);
+    vlay->setSpacing(4);
+
+    /* ── Riga pulsanti con tile verticali (nome sopra, simbolo sotto) ── */
+    auto* btnRow = new QWidget(m_fmtBar);
+    auto* lay    = new QHBoxLayout(btnRow);
+    lay->setContentsMargins(0, 0, 0, 0);
+    lay->setSpacing(3);
+    vlay->addWidget(btnRow);
+
+    /* Separatore verticale adattivo */
+    auto addSep = [&](){
+        auto* sep = new QFrame(btnRow);
+        sep->setFrameShape(QFrame::VLine);
+        sep->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+        lay->addWidget(sep);
+    };
+
+    /* Tile verticale: nome piccolo sopra + pulsante simbolo sotto, entrambi centrati */
+    auto addTile = [&](const QString& nome, const QString& sym, const QString& tip,
+                       const QString& bef, const QString& aft,
+                       const QString& symStyle = {}) -> QPushButton*
+    {
+        auto* tile = new QWidget(btnRow);
+        auto* tl   = new QVBoxLayout(tile);
+        tl->setContentsMargins(0, 0, 0, 0);
+        tl->setSpacing(1);
+
+        auto* lbl = new QLabel(nome, tile);
+        lbl->setAlignment(Qt::AlignCenter);
+        lbl->setStyleSheet("font-size:9px;color:palette(mid);");
+        tl->addWidget(lbl);
+
+        auto* btn = new QPushButton(sym, tile);
+        btn->setToolTip(tip);
+        btn->setFixedWidth(lbl->fontMetrics().horizontalAdvance(nome) + 14);
+        QString ss = "QPushButton{background:transparent;border:none;border-radius:3px;"
+                     "font-size:13px;" + symStyle + "}"
+                     "QPushButton:hover{background:palette(highlight);"
+                     "color:palette(highlighted-text);}"
+                     "QPushButton:pressed{background:palette(dark);}";
+        btn->setStyleSheet(ss);
+        tl->addWidget(btn, 0, Qt::AlignHCenter);
+
+        connect(btn, &QPushButton::clicked, m_fmtBar,
+                [this, bef, aft]{ onFmtBtnClicked(bef, aft); });
+        lay->addWidget(tile);
+        return btn;
+    };
+
+    /* ── Gruppo 1: grassetto / corsivo / sottolineato ── */
+    addTile("Grassetto", "B",  "Grassetto (**testo**)",    "**", "**", "font-weight:bold;");
+    addTile("Corsivo",   "I",  "Corsivo (*testo*)",         "*",  "*",  "font-style:italic;");
+    addTile("Sott.",     "U",  "Sottolineato (__testo__)","__",  "__",  "text-decoration:underline;");
+
+    /* ── Gruppo 2: allineamento ── */
+    addSep();
+    addTile("Sinistra", "\xe2\x86\x90", "Allinea a sinistra",  "<div align=\"left\">",    "</div>");
+    addTile("Centro",   "\xe2\x86\x94", "Centra",               "<div align=\"center\">",  "</div>");
+    addTile("Destra",   "\xe2\x86\x92", "Allinea a destra",     "<div align=\"right\">",   "</div>");
+    addTile("Giustif.", "\xe2\x89\xa1", "Giustifica",            "<div align=\"justify\">", "</div>");
+
+    /* ── Gruppo 3: citazione / codice ── */
+    addSep();
+    addTile("Citazione", "\"\"",  "Citazione (> testo)",  "> ",    "",      "");
+    addTile("Codice",    "`c`",   "Codice inline",         "`",     "`",     "font-family:monospace;font-size:11px;");
+    addTile("Blocco",    "{ }",   "Blocco codice",  "```\n", "\n```", "font-family:monospace;font-size:11px;");
+
+    /* ── Gruppo 4: colore testo / sfondo ── */
+    addSep();
+    auto makeFgStyle = [](const QColor& c) {
+        return QString("QPushButton{background:transparent;border:none;border-radius:3px;"
+                       "font-size:14px;font-weight:bold;border-bottom:3px solid %1;}"
+                       "QPushButton:hover{background:palette(highlight);"
+                       "color:palette(highlighted-text);}").arg(c.name());
+    };
+    auto makeBgStyle = [](const QColor& c) {
+        const QString fg = c.lightness() > 128 ? "#111" : "#eee";
+        return QString("QPushButton{border:1px solid palette(mid);border-radius:3px;"
+                       "font-size:11px;background:%1;color:%2;padding:1px 5px;}"
+                       "QPushButton:hover{background:palette(highlight);"
+                       "color:palette(highlighted-text);}").arg(c.name(), fg);
+    };
+    {
+        /* Tile Colore testo */
+        auto* fgTile = new QWidget(btnRow);
+        auto* ftl    = new QVBoxLayout(fgTile);
+        ftl->setContentsMargins(0,0,0,0); ftl->setSpacing(1);
+        auto* fgLbl = new QLabel("Colore", fgTile);
+        fgLbl->setAlignment(Qt::AlignCenter);
+        fgLbl->setStyleSheet("font-size:9px;color:palette(mid);");
+        ftl->addWidget(fgLbl);
+        m_btnFmtFg = new QPushButton("A", fgTile);
+        m_btnFmtFg->setFixedWidth(fgLbl->fontMetrics().horizontalAdvance("Colore") + 14);
+        m_btnFmtFg->setStyleSheet(makeFgStyle(m_fmtFgColor));
+        m_btnFmtFg->setToolTip("Colore testo (apre selettore colore)");
+        ftl->addWidget(m_btnFmtFg, 0, Qt::AlignHCenter);
+        lay->addWidget(fgTile);
+        connect(m_btnFmtFg, &QPushButton::clicked, this, [this, makeFgStyle](){
+            const QColor c = QColorDialog::getColor(m_fmtFgColor, this, "Colore testo");
+            if (!c.isValid()) return;
+            m_fmtFgColor = c;
+            m_btnFmtFg->setStyleSheet(makeFgStyle(c));
+            onFmtBtnClicked(QString("<span style=\"color:%1\">").arg(c.name()), "</span>");
+        });
+    }
+    {
+        /* Tile Sfondo testo */
+        auto* bgTile = new QWidget(btnRow);
+        auto* btl    = new QVBoxLayout(bgTile);
+        btl->setContentsMargins(0,0,0,0); btl->setSpacing(1);
+        auto* bgLbl = new QLabel("Sfondo", bgTile);
+        bgLbl->setAlignment(Qt::AlignCenter);
+        bgLbl->setStyleSheet("font-size:9px;color:palette(mid);");
+        btl->addWidget(bgLbl);
+        m_btnFmtBg = new QPushButton("A", bgTile);
+        m_btnFmtBg->setFixedWidth(bgLbl->fontMetrics().horizontalAdvance("Sfondo") + 14);
+        m_btnFmtBg->setStyleSheet(makeBgStyle(m_fmtBgColor));
+        m_btnFmtBg->setToolTip("Colore sfondo testo (apre selettore colore)");
+        btl->addWidget(m_btnFmtBg, 0, Qt::AlignHCenter);
+        lay->addWidget(bgTile);
+        connect(m_btnFmtBg, &QPushButton::clicked, this, [this, makeBgStyle](){
+            const QColor c = QColorDialog::getColor(m_fmtBgColor, this, "Colore sfondo");
+            if (!c.isValid()) return;
+            m_fmtBgColor = c;
+            m_btnFmtBg->setStyleSheet(makeBgStyle(c));
+            onFmtBtnClicked(QString("<span style=\"background-color:%1\">").arg(c.name()), "</span>");
+        });
+    }
+
+    /* ── Gruppo 5: tabella ── */
+    addSep();
+    QPushButton* btnTbl = nullptr;
+    {
+        auto* tblTile = new QWidget(btnRow);
+        auto* ttl     = new QVBoxLayout(tblTile);
+        ttl->setContentsMargins(0, 0, 0, 0);
+        ttl->setSpacing(1);
+        auto* tblLbl = new QLabel("Tabella", tblTile);
+        tblLbl->setAlignment(Qt::AlignCenter);
+        tblLbl->setStyleSheet("font-size:9px;color:palette(mid);");
+        ttl->addWidget(tblLbl);
+        btnTbl = new QPushButton("\xe2\x8a\x9e", tblTile);
+        btnTbl->setFixedWidth(tblLbl->fontMetrics().horizontalAdvance("Tabella") + 14);
+        btnTbl->setStyleSheet(
+            "QPushButton{background:transparent;border:none;border-radius:3px;font-size:13px;}"
+            "QPushButton:hover{background:palette(highlight);color:palette(highlighted-text);}");
+        btnTbl->setToolTip("Inserisci tabella — scegli dimensioni con la griglia");
+        ttl->addWidget(btnTbl, 0, Qt::AlignHCenter);
+        lay->addWidget(tblTile);
+    }
+
+    /* ── Hint accenti (sotto i pulsanti) ── */
+    auto* hintLbl = new QLabel(
+        "<span style='font-size:9px;'>"
+        "Seleziona una lettera per vedere gli accenti disponibili"
+        "</span>", m_fmtBar);
+    hintLbl->setTextFormat(Qt::RichText);
+    hintLbl->setStyleSheet("color:palette(mid);");
+    hintLbl->setAlignment(Qt::AlignLeft);
+    vlay->addWidget(hintLbl);
+
+    connect(btnTbl, &QPushButton::clicked, m_fmtBar, [this, btnTbl](){
+        auto* picker = new TablePickerPopup(this,
+            [this](int rows, int cols){
+                /* Genera tabella Markdown rows x cols */
+                QString tbl = "\n";
+                tbl += "|";
+                for (int c = 0; c < cols; ++c)
+                    tbl += QString(" Col%1 |").arg(c + 1);
+                tbl += "\n|";
+                for (int c = 0; c < cols; ++c)
+                    tbl += " --- |";
+                tbl += "\n";
+                for (int r = 0; r < rows - 1; ++r) {
+                    tbl += "|";
+                    for (int c = 0; c < cols; ++c)
+                        tbl += "  |";
+                    tbl += "\n";
+                }
+                if (m_input) {
+                    m_input->insertPlainText(tbl);
+                    m_input->setFocus();
+                }
+            });
+        /* Mostra il picker sotto il pulsante Tabella */
+        picker->move(btnTbl->mapToGlobal(
+            QPoint(0, btnTbl->height() + 2)));
+        picker->show();
+    });
+
+    connect(m_input, &QTextEdit::selectionChanged,
+            this, &AgentiPage::onInputSelectionChanged);
+}
+
+void AgentiPage::onInputSelectionChanged()
+{
+    if (!m_fmtBar || !m_input) return;
+    const QTextCursor cur = m_input->textCursor();
+    if (!cur.hasSelection()) {
+        m_fmtBar->hide();
+        return;
+    }
+
+    /* ── Popup accenti stile Apple: 1 solo carattere ── */
+    const QString selText = cur.selectedText();
+    if (selText.size() == 1) {
+        const auto& am = accentMap();
+        const auto it  = am.constFind(selText[0]);
+        if (it != am.constEnd()) {
+            m_fmtBar->hide();
+            QTextCursor startCur = cur;
+            startCur.setPosition(cur.selectionStart());
+            const QRect cr = m_input->cursorRect(startCur);
+
+            QTextCursor capCur = cur;
+            auto* picker = new AccentPickerPopup(
+                this, it.value(),
+                [this, capCur](const QString& v) mutable {
+                    capCur.insertText(v);
+                    m_input->setTextCursor(capCur);
+                });
+
+            const QSize ps = picker->sizeHint();
+            QPoint gpos    = m_input->mapToGlobal(cr.topLeft());
+            gpos.setY(gpos.y() - ps.height() - 6);
+            gpos.setX(qMax(gpos.x() - ps.width() / 2, 4));
+            picker->move(gpos);
+            picker->show();
+            return;
+        }
+    }
+
+    /* ── Toolbar formattazione: selezione di più caratteri ── */
+    m_fmtBar->adjustSize();
+    const QSize hint = m_fmtBar->sizeHint();
+    const int fh = hint.height();
+    const int fw = hint.width();
+
+    /* Coordinate cursore in m_input → convertite a questo widget (parent della fmtBar) */
+    QTextCursor startCur = cur;
+    startCur.setPosition(cur.selectionStart());
+    const QRect cr      = m_input->cursorRect(startCur);
+    const QPoint origin = m_input->mapTo(this, cr.topLeft());
+
+    int x = origin.x();
+    int y = origin.y() - fh - 6;
+    /* Se non c'è spazio sopra, metti sotto la selezione */
+    if (y < 2)  y = m_input->mapTo(this, cr.bottomLeft()).y() + 4;
+    /* Clampa orizzontalmente entro la pagina */
+    if (x + fw > width() - 4)  x = width() - fw - 4;
+    if (x < 2)                  x = 2;
+
+    m_fmtBar->setGeometry(x, y, fw, fh);
+    m_fmtBar->raise();
+    m_fmtBar->show();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   onSymbolSearchChanged — filtra simboli nel pannello ricerca
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::onSymbolSearchChanged(const QString& query)
+{
+    if (!m_symbolSearch || !m_symbolSearchGrid || !m_symbolSearchPanel) return;
+
+    auto* searchScroll = qobject_cast<QScrollArea*>(
+        m_symbolSearch->property("resultsScroll").value<QObject*>());
+
+    const QString q = query.trimmed().toLower();
+    const bool searching = !q.isEmpty();
+
+    /* Mostra pannello categorie o risultati ricerca */
+    if (m_symbolsScrollArea) m_symbolsScrollArea->setVisible(!searching);
+    if (searchScroll)        searchScroll->setVisible(searching);
+
+    if (!searching) return;
+
+    /* Svuota la grid risultati precedenti */
+    while (QLayoutItem* item = m_symbolSearchGrid->takeAt(0)) {
+        if (item->widget()) item->widget()->deleteLater();
+        delete item;
+    }
+
+    const int BTN_W = dpiScale(38);
+    const int BTN_H = dpiScale(26);
+    const int perRow = std::max(4, 760 / (BTN_W + 2));
+
+    int col = 0, row = 0;
+    int found = 0;
+    for (const auto& pair : std::as_const(m_allSymbols)) {
+        if (!pair.second.contains(q, Qt::CaseInsensitive)
+            && !pair.first.contains(q, Qt::CaseInsensitive))
+            continue;
+        if (col >= perRow) { col = 0; ++row; }
+        auto* b = new QPushButton(pair.first, m_symbolSearchPanel);
+        b->setObjectName("symbolBtn");
+        b->setFixedSize(BTN_W, BTN_H);
+        b->setToolTip(pair.second);
+        b->setProperty("symbol", pair.first);
+        connect(b, &QPushButton::clicked, this, &AgentiPage::onSymbolBtnClicked);
+        m_symbolSearchGrid->addWidget(b, row, col++);
+        if (++found >= 300) break;  /* limite sicurezza */
+    }
+
+    if (found == 0) {
+        auto* lbl = new QLabel(
+            tr("Nessun simbolo trovato per \"") + query.toHtmlEscaped() + "\"",
+            m_symbolSearchPanel);
+        lbl->setStyleSheet("color:#6b7280;font-size:12px;padding:8px;");
+        m_symbolSearchGrid->addWidget(lbl, 0, 0, 1, perRow);
+    }
+
+    m_symbolSearchPanel->adjustSize();
+}
+
+void AgentiPage::onFmtBtnClicked(const QString& before, const QString& after)
+{
+    if (!m_input) return;
+    QTextCursor cur = m_input->textCursor();
+    if (!cur.hasSelection()) return;
+    /* QTextEdit usa U+2029 (paragrafo) come separatore di riga nella selezione */
+    const QString sel = cur.selectedText().replace(QChar(0x2029), '\n');
+    QString result;
+    if (before == "> " && after.isEmpty()) {
+        /* Citazione: prefissa > a ogni riga della selezione */
+        const QStringList lines = sel.split('\n');
+        QStringList quoted;
+        for (const QString& line : lines)
+            quoted += "> " + line;
+        result = quoted.join('\n');
+    } else {
+        result = before + sel + after;
+    }
+    cur.insertText(result);
+    m_input->setTextCursor(cur);
+    if (m_fmtBar) m_fmtBar->hide();
+    m_input->setFocus();
 }
 
