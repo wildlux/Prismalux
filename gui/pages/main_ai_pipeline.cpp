@@ -169,6 +169,10 @@ void AgentiPage::runPipeline() {
     const QString& taskHtml = m_taskHtml;
     if (task.isEmpty()) { m_log->append("\xe2\x9a\xa0  Inserisci un task."); return; }
 
+    /* Reset history se il log e' stato svuotato (es. "Nuova chat") */
+    if (m_log->document()->isEmpty() || m_log->toPlainText().trimmed().isEmpty())
+        m_chatPairs.clear();
+
     /* Avviso se l'estrazione asincrona del file allegato non è ancora completata */
     if (m_docLoading) {
         m_log->append("\xe2\x8f\xb3  Attendi: estrazione del documento in corso...");
@@ -407,6 +411,13 @@ void AgentiPage::advancePipeline() {
             const QString ttsText = words.join(" ");
             if (!ttsText.isEmpty())
                 QTimer::singleShot(200, this, [this, ttsText]{ _ttsPlay(ttsText); });
+        }
+
+        /* Salva turno in history (solo chat singola, non pipeline multi-agente) */
+        if (m_maxShots == 1 && !m_taskOriginal.isEmpty() && !m_agentOutputs.isEmpty()) {
+            m_chatPairs.append({ m_taskOriginal, m_agentOutputs.last() });
+            if (m_chatPairs.size() > kChatHistoryMax)
+                m_chatPairs.removeFirst();
         }
 
         emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
@@ -713,12 +724,27 @@ void AgentiPage::runAgent(int idx) {
     else
         m_ai->clearActiveTools();
 
+    /* Costruisce history JSON per la modalita' chat singola (mantiene contesto tra turni) */
+    QJsonArray histArray;
+    if (isSingleChat && !m_chatPairs.isEmpty()) {
+        const int start = qMax(0, m_chatPairs.size() - kChatHistoryMax);
+        for (int hi = start; hi < m_chatPairs.size(); ++hi) {
+            QJsonObject uMsg; uMsg["role"] = "user";      uMsg["content"] = m_chatPairs[hi].first;
+            QJsonObject aMsg; aMsg["role"] = "assistant"; aMsg["content"] = m_chatPairs[hi].second;
+            histArray.append(uMsg);
+            histArray.append(aMsg);
+        }
+    }
+
+    const QString sys = _buildSys(m_taskOriginal, sysFull, sysSmall, m_ai->model(), m_ai->backend());
+
     /* Usa chatWithImage per il primo agente se c'è un'immagine allegata */
     if (idx == m_currentAgent && !m_imgBase64.isEmpty()) {
-        m_ai->chatWithImage(_buildSys(m_taskOriginal, sysFull, sysSmall, m_ai->model(), m_ai->backend()), userPrompt,
-                            m_imgBase64, m_imgMime);
+        m_ai->chatWithImage(sys, userPrompt, m_imgBase64, m_imgMime);
+    } else if (isSingleChat && !histArray.isEmpty()) {
+        m_ai->chat(sys, userPrompt, histArray, AiClient::QueryAuto);
     } else {
-        m_ai->chat(_buildSys(m_taskOriginal, sysFull, sysSmall, m_ai->model(), m_ai->backend()), userPrompt);
+        m_ai->chat(sys, userPrompt);
     }
 }
 
@@ -1048,6 +1074,14 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                     "\xe2\x80\xa2 <a href='settings:model' style='color:" + QString(_nLnk) + ";'>"
                     "Vai alle Impostazioni \xe2\x86\x92</a>"
                     "</p>"
+                    /* Pulsante auto-imposta parametri consigliati */
+                    "<p style='margin:6px 0 0 0;'>"
+                    "<a href='autoapply-params' "
+                    "style='color:#4ade80;font-size:11px;font-weight:bold;"
+                    "background:#0b1a10;border:1px solid #166534;border-radius:4px;"
+                    "padding:3px 10px;text-decoration:none;'>"
+                    "\xe2\x9a\xa1 Imposta automaticamente i parametri consigliati"
+                    "</a></p>"
 
                     "</div>";
             }

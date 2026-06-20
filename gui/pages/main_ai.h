@@ -183,6 +183,12 @@ private:
     QVector<QString> m_agentOutputs;
     QString          m_taskOriginal;
 
+    /* ── History conversazione (solo modalita' chat singola) ── */
+    /* Ultimi kChatHistoryMax turni {domanda, risposta} passati ad AiClient::chat()
+       come contesto. Svuotato automaticamente a ogni "Nuova chat" (m_log vuoto). */
+    static constexpr int kChatHistoryMax = 10;
+    QVector<QPair<QString,QString>> m_chatPairs;
+
     /* ── Stato motore byzantino ── */
     int     m_byzStep = 0;
     QString m_byzA, m_byzC;

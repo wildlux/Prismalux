@@ -33,6 +33,7 @@ namespace P = PrismaluxPaths;
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QMessageBox>
+#include <QInputDialog>
 #include <QFileDialog>
 #include <QTextStream>
 #include <QPrinter>
@@ -1765,6 +1766,23 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         emit requestOpenSettings(s.mid(9));
         return;
     }
+    if (s == "autoapply-params") {
+        AiChatParams p = AiChatParams::load();
+        p.temperature = 0.3;
+        p.num_ctx     = 16384;
+        p.top_p       = 0.9;
+        p.num_predict = 4096;
+        AiChatParams::save(p);
+        if (m_ai) m_ai->setChatParams(p);
+        m_log->moveCursor(QTextCursor::End);
+        m_log->insertHtml(
+            "<p style='color:#4ade80;font-size:11px;margin:4px 0;"
+            "background:#0b1a10;border-left:3px solid #166534;"
+            "border-radius:4px;padding:4px 10px;'>"
+            "\xe2\x9c\x85 Parametri impostati: Temperatura 0.3 &mdash; "
+            "Context 16384 &mdash; Top-P 0.9 &mdash; Max tokens 4096</p>");
+        return;
+    }
     if (s == "chart:show") {
         if (m_chartPanel) m_chartPanel->setVisible(true);
         return;
@@ -1962,26 +1980,26 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
             QByteArray::fromBase64(q64.toLatin1(), QByteArray::Base64UrlEncoding)).trimmed();
         if (query.isEmpty()) return;
 
+        /* Dialog modifica query: permette di raffinare (es. "conosci X?" → "X") */
+        bool inputOk = false;
+        const QString editedQuery = QInputDialog::getText(
+            this,
+            "\xf0\x9f\x94\x8d  Cerca online",
+            "Modifica la query di ricerca\n"
+            "(usa solo nome/cognome o azienda — non l'intera domanda):",
+            QLineEdit::Normal, query, &inputOk);
+        if (!inputOk || editedQuery.trimmed().isEmpty()) return;
+        const QString finalQuery = editedQuery.trimmed();
+
         /* Cartella destinazione */
         const QString ragDir = P::ragDir() + "/RICERCA";
         QDir().mkpath(ragDir);
         /* Slug filename: primi 40 char, senza caratteri speciali */
-        QString slug = query.left(40);
-        slug.replace(QRegularExpression("[^a-zA-Z0-9_àèìòùÀÈÌÒÙ ]"), "_");
+        QString slug = finalQuery.left(40);
+        slug.replace(QRegularExpression("[^a-zA-Z0-9_\xc3\xa0\xc3\xa8\xc3\xac\xc3\xb2\xc3\xb9 ]"), "_");
         slug = slug.simplified().replace(' ', '_');
         const QString outFile = ragDir + "/" +
             QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss") + "_" + slug + ".md";
-
-        /* Conferma utente */
-        auto reply = QMessageBox::question(
-            this,
-            "\xf0\x9f\x94\x8d  Cerca online",
-            QString("Vuoi cercare online:\n<b>%1</b>\n\n"
-                    "Il risultato sar\xc3\xa0 salvato in:\n%2\n\n"
-                    "e iniettato come contesto RAG.")
-                .arg(query.toHtmlEscaped(), outFile),
-            QMessageBox::Yes | QMessageBox::No);
-        if (reply != QMessageBox::Yes) return;
 
         /* Script Python: usa duckduckgo_search (pip install duckduckgo-search) */
         const QString script = QString(
@@ -2012,7 +2030,7 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
             "except Exception as e:\n"
             "    print(f'ERROR:{e}', flush=True)\n"
             "    sys.exit(1)\n"
-        ).arg(QString("r\"\"\"%1\"\"\"").arg(query))
+        ).arg(QString("r\"\"\"%1\"\"\"").arg(finalQuery))
          .arg(QString("r\"%1\"").arg(outFile));
 
         auto* proc = new QProcess(this);
@@ -2021,10 +2039,10 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         m_log->insertHtml(
             "<p style='color:#60a5fa;font-size:11px;margin:4px 0;'>"
             "\xf0\x9f\x94\x8d  Ricerca in corso: <i>" +
-            query.toHtmlEscaped() + "</i>...</p>");
+            finalQuery.toHtmlEscaped() + "</i>...</p>");
 
         connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, proc, query, outFile](int code, QProcess::ExitStatus) {
+                this, [this, proc, finalQuery, outFile](int code, QProcess::ExitStatus) {
             proc->deleteLater();
             const QString out = proc->readAllStandardOutput().trimmed();
             m_log->moveCursor(QTextCursor::End);
@@ -2034,7 +2052,7 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
                     "\xe2\x9c\x85  Salvato in RAG/RICERCA. "
                     "Fai una nuova domanda per usare il contesto.</p>");
                 /* Inietta nel RAG automaticamente se RagGraph disponibile */
-                emit onlineSearchResultReady(outFile, query);
+                emit onlineSearchResultReady(outFile, finalQuery);
             } else if (out == "NODEPS") {
                 m_log->insertHtml(
                     "<p style='color:#facc15;font-size:11px;margin:4px 0;'>"

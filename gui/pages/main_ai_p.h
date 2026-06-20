@@ -87,8 +87,12 @@ inline QString extractInputHtml(QTextEdit* edit)
             if (bg.isValid() && bg.alpha() > 0)
                 text = QString("<span style='background:%1;'>%2</span>")
                            .arg(bg.name()).arg(text);
+            /* Filtra il colore di default del widget (tema QSS) per non propagarlo
+               nella bolla — causerebbe testo invisibile su sfondo di colore simile. */
+            const QColor defaultTxt = edit->palette().color(QPalette::Text);
             if (fg.isValid() && fg.alpha() > 0 &&
-                fg != QColor(Qt::black) && fg != QColor(Qt::white))
+                fg != QColor(Qt::black) && fg != QColor(Qt::white) &&
+                fg.rgb() != defaultTxt.rgb())
                 text = QString("<span style='color:%1;'>%2</span>")
                            .arg(fg.name()).arg(text);
             if (fmt.fontUnderline())           text = "<u>" + text + "</u>";
