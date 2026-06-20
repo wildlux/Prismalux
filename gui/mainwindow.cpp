@@ -1661,18 +1661,51 @@ QWidget* MainWindow::buildContent()
         m_mainTabs->setCornerWidget(m_cornerContainer, Qt::TopLeftCorner);
     }
 
-    buildAiTab();
-    buildStrumentiTab();
-    buildMultimediaTab();
-    /* File AI è ora sub-tab 10 di StrumentiPage */
-    buildProgrammazioneTab();
-    buildMatematicaTab();
-    buildUtilityTab();
-    buildRicercaTab();
-    buildBioinformaticaTab();
-    buildAppControllerTab();
-    buildLanWanTab();
-    buildMultiAgentTab();
+    /* ── Tab EAGER — costruiti subito (bloccano lo show il meno possibile) ── */
+    buildAiTab();             /* 0 — primo tab visibile */
+    buildStrumentiTab();      /* 1 — container per Ricerca */
+    /* 2 — Media: placeholder, costruito al primo clic */
+    {
+        auto* ph = new QWidget(m_mainTabs);
+        (new QVBoxLayout(ph))->setContentsMargins(0,0,0,0);
+        m_mainTabs->addTab(ph, "\xf0\x9f\x8e\xac  Media");
+    }
+    buildProgrammazioneTab(); /* 3 — container per DevAgent + Security */
+    /* 4 — Matematica: placeholder */
+    {
+        auto* ph = new QWidget(m_mainTabs);
+        (new QVBoxLayout(ph))->setContentsMargins(0,0,0,0);
+        m_mainTabs->addTab(ph, "\xf0\x9f\x93\x90  Matematica");
+    }
+    /* 5 — Utility: placeholder */
+    {
+        auto* ph = new QWidget(m_mainTabs);
+        (new QVBoxLayout(ph))->setContentsMargins(0,0,0,0);
+        m_mainTabs->addTab(ph, "\xf0\x9f\x94\xa7  Utilit\xc3\xa0");
+    }
+    /* 6 — Bioinformatica: placeholder */
+    {
+        auto* ph = new QWidget(m_mainTabs);
+        (new QVBoxLayout(ph))->setContentsMargins(0,0,0,0);
+        m_mainTabs->addTab(ph, "\xf0\x9f\xa7\xac  Bioinformatica");
+    }
+    /* 7 — TeleComanda (AppController): placeholder */
+    {
+        auto* ph = new QWidget(m_mainTabs);
+        (new QVBoxLayout(ph))->setContentsMargins(0,0,0,0);
+        m_mainTabs->addTab(ph, "\xf0\x9f\x95\xb9\xef\xb8\x8f  TeleComanda");
+    }
+
+    /* Inizializza la mappa: 0=AI✓ 1=Strum✓ 2=Media✗ 3=Prog✓ 4=Mat✗ 5=Util✗ 6=Bio✗ 7=Ctrl✗ */
+    m_tabBuilt = {true, true, false, true, false, false, false, false};
+
+    /* ── Deferred (dopo il primo paint) ─────────────────────────────────── */
+    /* Ricerca va aggiunta a StrumentiPage; AppController aggiunge sub-tab a Programmazione */
+    QTimer::singleShot(0, this, [this]{
+        buildRicercaTab();          /* sub-tab di Strumenti */
+        ensureTabBuilt(7);          /* TeleComanda → DevAgent+Security in Programmazione */
+        buildMultiAgentTab();       /* cross-pollination solo se Ricerca già pronta */
+    });
     /* 🔍 Ricerca schede — corner widget destro: hover apre, uscita chiude */
     {
         auto* srchWrap = new QWidget(m_mainTabs);
@@ -1764,29 +1797,45 @@ void MainWindow::buildStrumentiTab()
     m_mainTabs->addTab(m_strumentiPage, "\xf0\x9f\x9b\xa0\xef\xb8\x8f  Strumenti");  /* 1 */
 }
 
-/* ── Livello 2: tab [2] Multimedia ───────────────────────────────── */
-void MainWindow::buildMultimediaTab()
+/* ══════════════════════════════════════════════════════════════
+   Lazy tab loading — ensureTabBuilt + factory create*Widget
+   ══════════════════════════════════════════════════════════════ */
+
+/** Sostituisce il placeholder all'indice idx col widget reale.
+ *  Sicuro da chiamare multiple volte (guard su m_tabBuilt). */
+void MainWindow::ensureTabBuilt(int idx)
 {
-    m_mainTabs->addTab(new MultimediaPage(m_ai, this),
-                       "\xf0\x9f\x8e\xac  Media");  /* 2 */
+    if (idx < 0 || idx >= m_tabBuilt.size() || m_tabBuilt.value(idx)) return;
+    m_tabBuilt[idx] = true;   /* guard anticipato — evita ri-entrata da currentChanged */
+
+    const QString text = m_mainTabs->tabText(idx);
+
+    QWidget* page = nullptr;
+    switch (idx) {
+    case 2: page = createMultimediaWidget();     break;
+    case 4: page = createMatematicaWidget();     break;
+    case 5: page = createUtilityWidget();        break;
+    case 6: page = createBioinformaticaWidget(); break;
+    case 7: page = createAppControllerWidget();  break;
+    default: return;
+    }
+
+    if (!page) return;
+
+    /* Sostituisce il placeholder in-place senza cambiare indice */
+    m_mainTabs->blockSignals(true);
+    m_mainTabs->removeTab(idx);
+    m_mainTabs->insertTab(idx, page, text);
+    m_mainTabs->blockSignals(false);
+    m_mainTabs->setCurrentIndex(idx);
 }
 
-/* ── Livello 2: tab [3] File AI ──────────────────────────────────── */
-void MainWindow::buildFileAiTab()
+QWidget* MainWindow::createMultimediaWidget()
 {
-    m_mainTabs->addTab(new StrumentiFilePage(m_ai, this),
-                       "\xf0\x9f\x93\x81  File AI");  /* 3 */
+    return new MultimediaPage(m_ai, this);
 }
 
-/* ── Livello 2: tab [3] Programmazione ───────────────────────────── */
-void MainWindow::buildProgrammazioneTab()
-{
-    m_progPage = new ProgrammazionePage(m_ai, this);
-    m_mainTabs->addTab(m_progPage, "\xf0\x9f\x92\xbb  Programmazione");  /* 3 */
-}
-
-/* ── Livello 2: tab [4] Matematica + Grafico ─────────────────────── */
-void MainWindow::buildMatematicaTab()
+QWidget* MainWindow::createMatematicaWidget()
 {
     auto* grafPage = new GraficoPage(m_ai, this);
     m_grafCanvas = grafPage->canvas();
@@ -1794,28 +1843,53 @@ void MainWindow::buildMatematicaTab()
     connect(grafPage, &GraficoPage::requestOpenSettings,
             this, &MainWindow::onGraficoRequestSettings);
 
-    auto* mathContainer = new QWidget(m_mainTabs);
-    auto* mcLay = new QVBoxLayout(mathContainer);
-    mcLay->setContentsMargins(0, 0, 0, 0);
-    mcLay->setSpacing(0);
-
-    auto* mathSubTabs = new QTabWidget(mathContainer);
-    mathSubTabs->setObjectName("mathSubTabs");
-    mathSubTabs->setTabPosition(QTabWidget::North);
-    mathSubTabs->addTab(new MatematicaPage(m_ai, mathContainer), "\xf0\x9f\x93\x90  Matematica");
-    mathSubTabs->addTab(grafPage, "\xf0\x9f\x93\x88  Grafico");
-    connect(mathSubTabs, &QTabWidget::currentChanged,
-            this, &MainWindow::onMathSubTabChanged);
-
-    mcLay->addWidget(mathSubTabs);
-    m_mainTabs->addTab(mathContainer, "\xf0\x9f\x93\x90  Matematica");  /* 4 */
+    auto* container = new QWidget;
+    auto* lay = new QVBoxLayout(container);
+    lay->setContentsMargins(0, 0, 0, 0);
+    lay->setSpacing(0);
+    auto* sub = new QTabWidget(container);
+    sub->setObjectName("mathSubTabs");
+    sub->setTabPosition(QTabWidget::North);
+    sub->addTab(new MatematicaPage(m_ai, container), "\xf0\x9f\x93\x90  Matematica");
+    sub->addTab(grafPage, "\xf0\x9f\x93\x88  Grafico");
+    connect(sub, &QTabWidget::currentChanged, this, &MainWindow::onMathSubTabChanged);
+    lay->addWidget(sub);
+    return container;
 }
 
-/* ── Livello 2: tab [5] Utility ──────────────────────────────────── */
-void MainWindow::buildUtilityTab()
+QWidget* MainWindow::createUtilityWidget()
 {
     m_utilityPage = new UtilityPage(m_ai, this);
-    m_mainTabs->addTab(m_utilityPage, "\xf0\x9f\x94\xa7  Utilit\xc3\xa0");  /* 5 */
+    if (!m_ricercaPage) buildRicercaTab();  /* assicura Ricerca per MultiAgent */
+    buildLanWanTab();                        /* sub-tab dentro Utility */
+    buildMultiAgentTab();                    /* cross-pollination */
+    return m_utilityPage;
+}
+
+QWidget* MainWindow::createBioinformaticaWidget()
+{
+    return new BioinformaticaPage(m_ai, this);
+}
+
+QWidget* MainWindow::createAppControllerWidget()
+{
+    auto* appCtrl = new AppControllerPage(m_ai, this);
+    connect(appCtrl, &AppControllerPage::openSettingsDipendenze,
+            this,    &MainWindow::onOpenSettingsDipendenze);
+    if (m_progPage) {
+        m_progPage->addExternalTab(appCtrl->buildDevAgentTab(),
+                                   "\xf0\x9f\xa4\x96  Dev Agent");
+        m_progPage->addExternalTab(new SecurityAnalyzerPage(m_ai, m_progPage),
+                                   "\xf0\x9f\x94\x90  Sicurezza");
+    }
+    return appCtrl;
+}
+
+/* ── Livello 2: tab [3] Programmazione ───────────────────────────── */
+void MainWindow::buildProgrammazioneTab()
+{
+    m_progPage = new ProgrammazionePage(m_ai, this);
+    m_mainTabs->addTab(m_progPage, "\xf0\x9f\x92\xbb  Programmazione");  /* 3 */
 }
 
 /* ── Livello 2: tab [6] Ricerca ──────────────────────────────────── */
@@ -1826,30 +1900,6 @@ void MainWindow::buildRicercaTab()
     if (m_strumentiPage)
         m_strumentiPage->addExternalTab(m_ricercaPage,
                                         "\xf0\x9f\x94\xac  Ricerca");
-}
-
-/* ── Livello 2: tab [7] Bioinformatica ───────────────────────────── */
-void MainWindow::buildBioinformaticaTab()
-{
-    m_mainTabs->addTab(new BioinformaticaPage(m_ai, this),
-                       "\xf0\x9f\xa7\xac  Bioinformatica");  /* 7 */
-}
-
-/* ── Livello 2: tab [8] APP Controller ───────────────────────────── */
-void MainWindow::buildAppControllerTab()
-{
-    auto* appCtrl = new AppControllerPage(m_ai, this);
-    connect(appCtrl, &AppControllerPage::openSettingsDipendenze,
-            this,    &MainWindow::onOpenSettingsDipendenze);
-    m_mainTabs->addTab(appCtrl, "\xf0\x9f\x95\xb9\xef\xb8\x8f  TeleComanda");  /* 8 */
-
-    /* Dev Agent e Sicurezza → spostati in tab Programmazione */
-    if (m_progPage) {
-        m_progPage->addExternalTab(appCtrl->buildDevAgentTab(),
-                                   "\xf0\x9f\xa4\x96  Dev Agent");
-        m_progPage->addExternalTab(new SecurityAnalyzerPage(m_ai, m_progPage),
-                                   "\xf0\x9f\x94\x90  Sicurezza");
-    }
 }
 
 /* ── Livello 2: tab [7] LAN & WAN ────────────────────────────────── */

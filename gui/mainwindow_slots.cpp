@@ -766,6 +766,8 @@ void MainWindow::onMathSubTabChanged(int idx)
 
 void MainWindow::onMainTabChanged(int idx)
 {
+    ensureTabBuilt(idx);   /* no-op se già costruito */
+
     static int prevIdx = 0;
     if (prevIdx != idx) {
         auto* progPage = qobject_cast<ProgrammazionePage*>(m_mainTabs->widget(prevIdx));
@@ -811,6 +813,7 @@ void MainWindow::onApplyExecBtnMode()
 void MainWindow::onRequestShowInGrafico(const QString& formula, double xMin, double xMax,
                                         const QVector<QPointF>& points)
 {
+    ensureTabBuilt(4);   /* costruisce Matematica se non ancora visitata */
     if (!m_grafCanvas) return;
     if (m_mainTabs) {
         m_mainTabs->setCurrentIndex(4);

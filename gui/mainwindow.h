@@ -134,19 +134,24 @@ private:
     void buildActionButtons(QHBoxLayout* lay);     ///< 🚨 + Scarica LLM + backend toggle
 
     /* ── buildContent — livello 2 ───────────────────────────── */
-    void buildAiTab();         ///< [0] 🤖 Intelligenza artificiale
-    void buildStrumentiTab();  ///< [1] 🛠 Strumenti (sub-tab 10: File AI)
-    void buildMultimediaTab(); ///< [2] 🎬 Multimedia
-    void buildFileAiTab();     ///< non più chiamata — File AI è in StrumentiPage tab 10
-    void buildProgrammazioneTab(); ///< [3] 💻 Programmazione
-    void buildMatematicaTab(); ///< [4] π Matematica + Grafico
-    void buildUtilityTab();    ///< [5] 🔧 Utility
-    void buildRicercaTab();    ///< [6] 🔬 Ricerca
-    void buildBioinformaticaTab(); ///< [7] 🧬 Bioinformatica
-    void buildAppControllerTab(); ///< [8] 🕹 APP Controller
-    void buildLanWanTab();     ///< [9] 🌐 LAN & WAN
-    void buildMultiAgentTab();     ///< [10] 🕸️ Multi-Agente + Grafo
-    void buildNavMenuBar(QWidget* wrapper, QVBoxLayout* wLay); ///< Barra menu alternativa + sincronizzazione
+    void buildAiTab();             ///< [0] EAGER — primo tab visibile
+    void buildStrumentiTab();      ///< [1] EAGER — container Ricerca
+    void buildProgrammazioneTab(); ///< [3] EAGER — container DevAgent + Security
+    void buildRicercaTab();        ///< sub-tab Strumenti (singleShot dopo show)
+    void buildLanWanTab();         ///< sub-tab Utility (chiamata da createUtilityWidget)
+    void buildMultiAgentTab();     ///< cross-pollination Ricerca ↔ LanWan
+
+    /** Primo clic su tab lazy → sostituisce il placeholder col widget reale */
+    void ensureTabBuilt(int idx);
+
+    /** Factory widget lazy — non chiamano addTab direttamente */
+    QWidget* createMultimediaWidget();
+    QWidget* createMatematicaWidget();
+    QWidget* createUtilityWidget();
+    QWidget* createBioinformaticaWidget();
+    QWidget* createAppControllerWidget();
+
+    void buildNavMenuBar(QWidget* wrapper, QVBoxLayout* wLay); ///< Barra menu alternativa
     void applyContentSettings();  ///< Applica nav style e exec btn mode da QSettings
 
     /* ── showServerDialog — livello 2 ───────────────────────── */
@@ -226,8 +231,10 @@ private:
     class AgentiMultiPage*    m_agentiMultiPage  = nullptr;
     class ProgrammazionePage* m_progPage         = nullptr;
     class LanWanPage*         m_lanWanPage       = nullptr;
-    /* Strumenti — StrumentiPage riceve il pannello Cron reale via ensureSettingsDialog */
-    class StrumentiPage* m_strumentiPage = nullptr;
+    class StrumentiPage*      m_strumentiPage    = nullptr;
+
+    /** Mappa "tab già costruito" — false = placeholder in attesa di primo clic */
+    QVector<bool>             m_tabBuilt;
 
     /* Canvas del grafico — usato per collegare i controlli in Impostazioni */
     class GraficoCanvas* m_grafCanvas = nullptr;
