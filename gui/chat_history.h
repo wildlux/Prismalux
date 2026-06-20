@@ -10,6 +10,8 @@
 #include <QDateTime>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QMap>
+#include <QPair>
 #include <QDir>
 
 /* Singolo messaggio nella sessione */
@@ -49,6 +51,18 @@ public:
 
     /** Carica la history ReAct — vuota se non presente */
     QJsonArray loadAutoHistory(const QString& sessionId) const;
+
+    /** Salva le mappe bubbleTexts e codeBlocks per la sessione.
+     *  bubbleTexts : indice → testo plain (per TTS/copia legacy)
+     *  codeBlocks  : indice → {lang, codice} (per code:copy/save) */
+    void saveMaps(const QString& sessionId,
+                  const QMap<int,QString>& bubbleTexts,
+                  const QMap<int,QPair<QString,QString>>& codeBlocks);
+
+    /** Carica le mappe — entrambe vuote se non presenti */
+    void loadMaps(const QString& sessionId,
+                  QMap<int,QString>& bubbleTexts,
+                  QMap<int,QPair<QString,QString>>& codeBlocks) const;
 
     /** Elimina sessione */
     void remove(const QString& sessionId);

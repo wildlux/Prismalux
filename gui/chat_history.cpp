@@ -108,6 +108,66 @@ QJsonArray ChatHistory::loadAutoHistory(const QString& sessionId) const
     return doc.object()["auto_history"].toArray();
 }
 
+void ChatHistory::saveMaps(const QString& sessionId,
+                           const QMap<int,QString>& bubbleTexts,
+                           const QMap<int,QPair<QString,QString>>& codeBlocks)
+{
+    const QString path = sessionPath(sessionId);
+    QFile fr(path);
+    QJsonObject obj;
+    if (fr.open(QIODevice::ReadOnly)) {
+        auto doc = QJsonDocument::fromJson(fr.readAll());
+        if (doc.isObject()) obj = doc.object();
+        fr.close();
+    }
+
+    /* bubbleTexts → { "0": "testo...", "1": "..." } */
+    QJsonObject btObj;
+    for (auto it = bubbleTexts.cbegin(); it != bubbleTexts.cend(); ++it)
+        btObj[QString::number(it.key())] = it.value();
+
+    /* codeBlocks → { "0": {"lang":"python","code":"..."}, ... } */
+    QJsonObject cbObj;
+    for (auto it = codeBlocks.cbegin(); it != codeBlocks.cend(); ++it) {
+        QJsonObject entry;
+        entry["lang"] = it.value().first;
+        entry["code"] = it.value().second;
+        cbObj[QString::number(it.key())] = entry;
+    }
+
+    obj["bubble_texts"] = btObj;
+    obj["code_blocks"]  = cbObj;
+
+    QSaveFile fw(path);
+    if (fw.open(QIODevice::WriteOnly))
+        if (fw.write(QJsonDocument(obj).toJson()) >= 0)
+            fw.commit();
+}
+
+void ChatHistory::loadMaps(const QString& sessionId,
+                           QMap<int,QString>& bubbleTexts,
+                           QMap<int,QPair<QString,QString>>& codeBlocks) const
+{
+    bubbleTexts.clear();
+    codeBlocks.clear();
+
+    QFile f(sessionPath(sessionId));
+    if (!f.open(QIODevice::ReadOnly)) return;
+    const auto doc = QJsonDocument::fromJson(f.readAll());
+    if (!doc.isObject()) return;
+    const QJsonObject obj = doc.object();
+
+    const QJsonObject btObj = obj["bubble_texts"].toObject();
+    for (auto it = btObj.constBegin(); it != btObj.constEnd(); ++it)
+        bubbleTexts[it.key().toInt()] = it.value().toString();
+
+    const QJsonObject cbObj = obj["code_blocks"].toObject();
+    for (auto it = cbObj.constBegin(); it != cbObj.constEnd(); ++it) {
+        const QJsonObject e = it.value().toObject();
+        codeBlocks[it.key().toInt()] = { e["lang"].toString(), e["code"].toString() };
+    }
+}
+
 void ChatHistory::remove(const QString& sessionId) {
     QFile::remove(sessionPath(sessionId));
 }

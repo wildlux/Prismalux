@@ -2408,9 +2408,11 @@ void MainWindow::onChatCompleted(const QString& title, const QString& logHtml) {
         m_chatHistory.saveLog(m_currentChatId, logHtml);
     }
 
-    /* Persisti la history ReAct dell'agente autonomo se non vuota */
+    /* Persisti mappe bubble/codice e history ReAct */
     if (auto* ap = qobject_cast<AgentiPage*>(
             m_mainTabs ? m_mainTabs->widget(0) : nullptr)) {
+        m_chatHistory.saveMaps(m_currentChatId,
+                               ap->bubbleTexts(), ap->codeBlocks());
         if (!ap->autoHistory().isEmpty())
             m_chatHistory.saveAutoHistory(m_currentChatId, ap->autoHistory());
     }
@@ -2429,12 +2431,21 @@ void MainWindow::onChatItemClicked(QListWidgetItem* item)
     const QString rawHtml = m_chatHistory.loadLog(id);
     if (rawHtml.isEmpty()) return;
     const QString html = stripBodyBackground(migrateLegacyChat(rawHtml));
-    if (auto* ap = m_mainTabs ? m_mainTabs->widget(0) : nullptr) {
+
+    auto* ap = qobject_cast<AgentiPage*>(m_mainTabs ? m_mainTabs->widget(0) : nullptr);
+
+    if (ap) {
         if (auto* log = ap->findChild<QTextEdit*>()) {
             log->setHtml(html);
             log->moveCursor(QTextCursor::End);
         }
+        /* Ripristina mappe bubble/codice così code:copy, code:save e TTS funzionano */
+        QMap<int,QString> bt;
+        QMap<int,QPair<QString,QString>> cb;
+        m_chatHistory.loadMaps(id, bt, cb);
+        ap->loadSessionMaps(bt, cb);
     }
+
     m_currentChatId = id;
     navigateTo(0);
 }

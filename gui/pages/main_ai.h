@@ -88,6 +88,20 @@ public:
     /** History multi-turno agente autonomo — per persistenza tra sessioni */
     const QJsonArray& autoHistory() const { return m_autoHistory; }
 
+    /** Getter per persistenza sessione */
+    const QMap<int,QString>&                    bubbleTexts() const { return m_bubbleTexts; }
+    const QMap<int,QPair<QString,QString>>&     codeBlocks()  const { return m_codeBlocks;  }
+
+    /** Ripristina mappe da sessione salvata e allinea i contatori */
+    void loadSessionMaps(const QMap<int,QString>& bt,
+                         const QMap<int,QPair<QString,QString>>& cb)
+    {
+        m_bubbleTexts      = bt;
+        m_codeBlocks       = cb;
+        m_bubbleIdx        = bt.isEmpty()  ? 0 : bt.lastKey()  + 1;
+        m_codeBlockCounter = cb.isEmpty()  ? 0 : cb.lastKey()  + 1;
+    }
+
 signals:
     /** Emesso quando una pipeline/Byzantine/MathTheory completa — per salvare la chat */
     void chatCompleted(const QString& title, const QString& logHtml);
