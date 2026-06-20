@@ -2144,28 +2144,28 @@ static QString buildUnitConvertScript(const QString& text)
             return QString(
                 "v = %1\n"
                 "r = v * 9/5 + 32\n"
-                "print(f'{v} \xc2\xb0C  =  {r:.4f} \xc2\xb0F')\n"
+                "print(f'{v} \xc2\xb0" "C  =  {r:.4f} \xc2\xb0" "F')\n"
             ).arg(val);
         }
         if (QString(u.fromU) == "fahrenheit" && QString(u.toU) == "celsius") {
             return QString(
                 "v = %1\n"
                 "r = (v - 32) * 5/9\n"
-                "print(f'{v} \xc2\xb0F  =  {r:.4f} \xc2\xb0C')\n"
+                "print(f'{v} \xc2\xb0" "F  =  {r:.4f} \xc2\xb0" "C')\n"
             ).arg(val);
         }
         if (QString(u.fromU) == "celsius" && QString(u.toU) == "kelvin") {
             return QString(
                 "v = %1\n"
                 "r = v + 273.15\n"
-                "print(f'{v} \xc2\xb0C  =  {r:.4f} K')\n"
+                "print(f'{v} \xc2\xb0" "C  =  {r:.4f} K')\n"
             ).arg(val);
         }
         if (QString(u.fromU) == "kelvin" && QString(u.toU) == "celsius") {
             return QString(
                 "v = %1\n"
                 "r = v - 273.15\n"
-                "print(f'{v} K  =  {r:.4f} \xc2\xb0C')\n"
+                "print(f'{v} K  =  {r:.4f} \xc2\xb0" "C')\n"
             ).arg(val);
         }
 
@@ -4114,39 +4114,41 @@ QWidget* MatematicaPage::buildBoolTab()
     auto* colLeft = new QTextBrowser(w);
     colLeft->setObjectName("chatLog");
     colLeft->setOpenLinks(false);
+    /* Entita' HTML per simboli matematici — evita il parsing greedy di \xNNL
+       dove L e' cifra hex (A-F): "\xacA" verrebbe letto come 0xACA out-of-range. */
     colLeft->setHtml(QString(kStyle) +
         "<h3>\xf0\x9f\x94\xa2 Operatori fondamentali</h3>"
         "<table><tr><th>Simbolo</th><th>Nome</th><th>SymPy</th><th>Descrizione</th></tr>"
-        "<tr><td>\xe2\x88\xa7 &amp;</td><td>AND</td><td><code>A &amp; B</code></td><td>Vero se entrambi veri</td></tr>"
-        "<tr><td>\xe2\x88\xa8 |</td><td>OR</td><td><code>A | B</code></td><td>Vero se almeno uno vero</td></tr>"
-        "<tr><td>\xc2\xac ~</td><td>NOT</td><td><code>~A</code></td><td>Negazione</td></tr>"
-        "<tr><td>\xe2\x8a\x95 ^</td><td>XOR</td><td><code>A ^ B</code></td><td>Esattamente uno vero</td></tr>"
-        "<tr><td>\xe2\x86\x91</td><td>NAND</td><td><code>Nand(A,B)</code></td><td>NOT(A AND B)</td></tr>"
-        "<tr><td>\xe2\x86\x93</td><td>NOR</td><td><code>Nor(A,B)</code></td><td>NOT(A OR B)</td></tr>"
-        "<tr><td>\xe2\x86\x94</td><td>XNOR</td><td><code>Xnor(A,B)</code></td><td>NOT(A XOR B)</td></tr>"
-        "<tr><td>\xe2\x86\x92</td><td>Implica</td><td><code>Implies(A,B)</code></td><td>\xc2\xacA OR B</td></tr>"
+        "<tr><td>&#8743; &amp;</td><td>AND</td><td><code>A &amp; B</code></td><td>Vero se entrambi veri</td></tr>"
+        "<tr><td>&#8744; |</td><td>OR</td><td><code>A | B</code></td><td>Vero se almeno uno vero</td></tr>"
+        "<tr><td>&#172; ~</td><td>NOT</td><td><code>~A</code></td><td>Negazione</td></tr>"
+        "<tr><td>&#8853; ^</td><td>XOR</td><td><code>A ^ B</code></td><td>Esattamente uno vero</td></tr>"
+        "<tr><td>&#8593;</td><td>NAND</td><td><code>Nand(A,B)</code></td><td>NOT(A AND B)</td></tr>"
+        "<tr><td>&#8595;</td><td>NOR</td><td><code>Nor(A,B)</code></td><td>NOT(A OR B)</td></tr>"
+        "<tr><td>&#8596;</td><td>XNOR</td><td><code>Xnor(A,B)</code></td><td>NOT(A XOR B)</td></tr>"
+        "<tr><td>&#8594;</td><td>Implica</td><td><code>Implies(A,B)</code></td><td>&#172;A OR B</td></tr>"
         "</table>"
 
         "<h3>\xf0\x9f\x93\x8b Identit\xc3\xa0 fondamentali</h3>"
-        "<div class='law'>Identit\xc3\xa0: A \xe2\x88\xa7 1 = A &nbsp; A \xe2\x88\xa8 0 = A</div>"
-        "<div class='law'>Dominanza: A \xe2\x88\xa7 0 = 0 &nbsp; A \xe2\x88\xa8 1 = 1</div>"
-        "<div class='law'>Idempotenza: A \xe2\x88\xa7 A = A &nbsp; A \xe2\x88\xa8 A = A</div>"
-        "<div class='law'>Involuzione: \xc2\xac\xc2\xacA = A</div>"
-        "<div class='law'>Complemento: A \xe2\x88\xa7 \xc2\xacA = 0 &nbsp; A \xe2\x88\xa8 \xc2\xacA = 1</div>"
+        "<div class='law'>Identit\xc3\xa0: A &#8743; 1 = A &nbsp; A &#8744; 0 = A</div>"
+        "<div class='law'>Dominanza: A &#8743; 0 = 0 &nbsp; A &#8744; 1 = 1</div>"
+        "<div class='law'>Idempotenza: A &#8743; A = A &nbsp; A &#8744; A = A</div>"
+        "<div class='law'>Involuzione: &#172;&#172;A = A</div>"
+        "<div class='law'>Complemento: A &#8743; &#172;A = 0 &nbsp; A &#8744; &#172;A = 1</div>"
 
         "<h3>\xf0\x9f\x94\x84 Propriet\xc3\xa0 strutturali</h3>"
-        "<div class='law'>Commutativa AND: A \xe2\x88\xa7 B = B \xe2\x88\xa7 A</div>"
-        "<div class='law'>Commutativa OR: A \xe2\x88\xa8 B = B \xe2\x88\xa8 A</div>"
-        "<div class='law'>Associativa AND: A \xe2\x88\xa7 (B \xe2\x88\xa7 C) = (A \xe2\x88\xa7 B) \xe2\x88\xa7 C</div>"
-        "<div class='law'>Associativa OR: A \xe2\x88\xa8 (B \xe2\x88\xa8 C) = (A \xe2\x88\xa8 B) \xe2\x88\xa8 C</div>"
-        "<div class='law'>Distrib. AND/OR: A \xe2\x88\xa7 (B \xe2\x88\xa8 C) = (A\xe2\x88\xa7B) \xe2\x88\xa8 (A\xe2\x88\xa7C)</div>"
-        "<div class='law'>Distrib. OR/AND: A \xe2\x88\xa8 (B \xe2\x88\xa7 C) = (A\xe2\x88\xa8B) \xe2\x88\xa7 (A\xe2\x88\xa8C)</div>"
+        "<div class='law'>Commutativa AND: A &#8743; B = B &#8743; A</div>"
+        "<div class='law'>Commutativa OR: A &#8744; B = B &#8744; A</div>"
+        "<div class='law'>Associativa AND: A &#8743; (B &#8743; C) = (A &#8743; B) &#8743; C</div>"
+        "<div class='law'>Associativa OR: A &#8744; (B &#8744; C) = (A &#8744; B) &#8744; C</div>"
+        "<div class='law'>Distrib. AND/OR: A &#8743; (B &#8744; C) = (A&#8743;B) &#8744; (A&#8743;C)</div>"
+        "<div class='law'>Distrib. OR/AND: A &#8744; (B &#8743; C) = (A&#8744;B) &#8743; (A&#8744;C)</div>"
 
         "<h3>\xf0\x9f\x8f\x9b Leggi di De Morgan</h3>"
-        "<div class='law'><b>1\xc2\xaa:</b> \xc2\xac(A \xe2\x88\xa7 B) = \xc2\xacA \xe2\x88\xa8 \xc2\xacB</div>"
-        "<div class='law'><b>2\xc2\xaa:</b> \xc2\xac(A \xe2\x88\xa8 B) = \xc2\xacA \xe2\x88\xa7 \xc2\xacB</div>"
-        "<div class='law'><b>Gen. AND:</b> \xc2\xac(A\xe2\x82\x81\xe2\x88\xa7\xe2\x80\xa6\xe2\x88\xa7A\xe2\x82\x99) = \xc2\xacA\xe2\x82\x81\xe2\x88\xa8\xe2\x80\xa6\xe2\x88\xa8\xc2\xacA\xe2\x82\x99</div>"
-        "<div class='law'><b>Gen. OR:</b> \xc2\xac(A\xe2\x82\x81\xe2\x88\xa8\xe2\x80\xa6\xe2\x88\xa8A\xe2\x82\x99) = \xc2\xacA\xe2\x82\x81\xe2\x88\xa7\xe2\x80\xa6\xe2\x88\xa7\xc2\xacA\xe2\x82\x99</div>"
+        "<div class='law'><b>1\xc2\xaa:</b> &#172;(A &#8743; B) = &#172;A &#8744; &#172;B</div>"
+        "<div class='law'><b>2\xc2\xaa:</b> &#172;(A &#8744; B) = &#172;A &#8743; &#172;B</div>"
+        "<div class='law'><b>Gen. AND:</b> &#172;(A&#8321;&#8743;&hellip;&#8743;A&#8345;) = &#172;A&#8321;&#8744;&hellip;&#8744;&#172;A&#8345;</div>"
+        "<div class='law'><b>Gen. OR:</b> &#172;(A&#8321;&#8744;&hellip;&#8744;A&#8345;) = &#172;A&#8321;&#8743;&hellip;&#8743;&#172;A&#8345;</div>"
     );
 
     /* Colonna destra: Assorbimento, Consenso, XOR, Shannon, Forme, Implicazione */
@@ -4155,38 +4157,38 @@ QWidget* MatematicaPage::buildBoolTab()
     colRight->setOpenLinks(false);
     colRight->setHtml(QString(kStyle) +
         "<h3>\xf0\x9f\x9f\xa3 Assorbimento</h3>"
-        "<div class='law'>A \xe2\x88\xa7 (A \xe2\x88\xa8 B) = A</div>"
-        "<div class='law'>A \xe2\x88\xa8 (A \xe2\x88\xa7 B) = A</div>"
-        "<div class='law'>A \xe2\x88\xa7 (\xc2\xacA \xe2\x88\xa8 B) = A \xe2\x88\xa7 B</div>"
-        "<div class='law'>A \xe2\x88\xa8 (\xc2\xacA \xe2\x88\xa7 B) = A \xe2\x88\xa8 B</div>"
+        "<div class='law'>A &#8743; (A &#8744; B) = A</div>"
+        "<div class='law'>A &#8744; (A &#8743; B) = A</div>"
+        "<div class='law'>A &#8743; (&#172;A &#8744; B) = A &#8743; B</div>"
+        "<div class='law'>A &#8744; (&#172;A &#8743; B) = A &#8744; B</div>"
 
         "<h3>\xf0\x9f\x94\xa2 Teorema di consenso</h3>"
-        "<div class='law'>A\xe2\x88\xa7B \xe2\x88\xa8 \xc2\xacA\xe2\x88\xa7C \xe2\x88\xa8 B\xe2\x88\xa7C = A\xe2\x88\xa7B \xe2\x88\xa8 \xc2\xacA\xe2\x88\xa7C</div>"
-        "<div class='law'>(A\xe2\x88\xa8B)\xe2\x88\xa7(\xc2\xacA\xe2\x88\xa8C)\xe2\x88\xa7(B\xe2\x88\xa8C) = (A\xe2\x88\xa8B)\xe2\x88\xa7(\xc2\xacA\xe2\x88\xa8C)</div>"
+        "<div class='law'>A&#8743;B &#8744; &#172;A&#8743;C &#8744; B&#8743;C = A&#8743;B &#8744; &#172;A&#8743;C</div>"
+        "<div class='law'>(A&#8744;B)&#8743;(&#172;A&#8744;C)&#8743;(B&#8744;C) = (A&#8744;B)&#8743;(&#172;A&#8744;C)</div>"
 
-        "<h3>\xf0\x9f\xaa\x9e XOR \xe2\x80\x94 Propriet\xc3\xa0</h3>"
-        "<div class='law'>A \xe2\x8a\x95 0 = A &nbsp;&nbsp; A \xe2\x8a\x95 1 = \xc2\xacA</div>"
-        "<div class='law'>A \xe2\x8a\x95 A = 0 &nbsp;&nbsp; A \xe2\x8a\x95 \xc2\xacA = 1</div>"
-        "<div class='law'>Commutativa: A \xe2\x8a\x95 B = B \xe2\x8a\x95 A</div>"
-        "<div class='law'>Associativa: A \xe2\x8a\x95 (B \xe2\x8a\x95 C) = (A \xe2\x8a\x95 B) \xe2\x8a\x95 C</div>"
-        "<div class='law'>Distrib.: A\xe2\x88\xa7(B\xe2\x8a\x95C) = (A\xe2\x88\xa7B)\xe2\x8a\x95(A\xe2\x88\xa7C)</div>"
-        "<div class='law'>De Morgan: \xc2\xac(A\xe2\x8a\x95B) = A\xe2\x8a\x95\xc2\xacB = XNOR</div>"
+        "<h3>\xf0\x9f\xaa\x9e XOR &mdash; Propriet\xc3\xa0</h3>"
+        "<div class='law'>A &#8853; 0 = A &nbsp;&nbsp; A &#8853; 1 = &#172;A</div>"
+        "<div class='law'>A &#8853; A = 0 &nbsp;&nbsp; A &#8853; &#172;A = 1</div>"
+        "<div class='law'>Commutativa: A &#8853; B = B &#8853; A</div>"
+        "<div class='law'>Associativa: A &#8853; (B &#8853; C) = (A &#8853; B) &#8853; C</div>"
+        "<div class='law'>Distrib.: A&#8743;(B&#8853;C) = (A&#8743;B)&#8853;(A&#8743;C)</div>"
+        "<div class='law'>De Morgan: &#172;(A&#8853;B) = A&#8853;&#172;B = XNOR</div>"
 
         "<h3>\xf0\x9f\x94\x84 Shannon (Espansione di Boole)</h3>"
-        "<div class='law'>f(A,...) = A\xe2\x88\xa7f(1,...) \xe2\x88\xa8 \xc2\xacA\xe2\x88\xa7f(0,...)</div>"
-        "<div class='law'>f(A,...) = (A\xe2\x88\xa8f(0,...)) \xe2\x88\xa7 (\xc2\xacA\xe2\x88\xa8f(1,...))</div>"
+        "<div class='law'>f(A,...) = A&#8743;f(1,...) &#8744; &#172;A&#8743;f(0,...)</div>"
+        "<div class='law'>f(A,...) = (A&#8744;f(0,...)) &#8743; (&#172;A&#8744;f(1,...))</div>"
 
         "<h3>\xf0\x9f\x93\x8b Forme canoniche</h3>"
-        "<div class='law'><b>SOP</b> (Somma Mintermini): \xe2\x88\x91m — OR di AND</div>"
-        "<div class='law'><b>POS</b> (Prodotto Maxtermini): \xe2\x88\x8fm — AND di OR</div>"
-        "<div class='law'>SOP \xe2\x86\x92 POS: applica De Morgan ai maxtermini</div>"
+        "<div class='law'><b>SOP</b> (Somma Mintermini): &#8721;m &mdash; OR di AND</div>"
+        "<div class='law'><b>POS</b> (Prodotto Maxtermini): &#8719;m &mdash; AND di OR</div>"
+        "<div class='law'>SOP &#8594; POS: applica De Morgan ai maxtermini</div>"
 
         "<h3>\xf0\x9f\x9b\xa1 Implicazione e Equivalenza</h3>"
-        "<div class='law'>A \xe2\x86\x92 B = \xc2\xacA \xe2\x88\xa8 B</div>"
-        "<div class='law'>A \xe2\x86\x94 B = (A\xe2\x86\x92B) \xe2\x88\xa7 (B\xe2\x86\x92A)</div>"
-        "<div class='law'>Contrapposizione: A\xe2\x86\x92B = \xc2\xacB\xe2\x86\x92\xc2\xacA</div>"
-        "<div class='law'>Modus Ponens: A, A\xe2\x86\x92B \xe2\x8a\xa2 B</div>"
-        "<div class='law'>Modus Tollens: \xc2\xacB, A\xe2\x86\x92B \xe2\x8a\xa2 \xc2\xacA</div>"
+        "<div class='law'>A &#8594; B = &#172;A &#8744; B</div>"
+        "<div class='law'>A &#8596; B = (A&#8594;B) &#8743; (B&#8594;A)</div>"
+        "<div class='law'>Contrapposizione: A&#8594;B = &#172;B&#8594;&#172;A</div>"
+        "<div class='law'>Modus Ponens: A, A&#8594;B &#8866; B</div>"
+        "<div class='law'>Modus Tollens: &#172;B, A&#8594;B &#8866; &#172;A</div>"
     );
 
     /* Altezza minima colonne: garantisce che le tabelle siano visibili */
