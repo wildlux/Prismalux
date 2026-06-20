@@ -15,7 +15,7 @@ cmake --build gui/build_gui -j$(nproc)
 # Test opzionali: esegui con ./aggiorna.sh --test
 if [[ "$*" == *--test* ]]; then
     echo "==> Build + run test suite (gui/build_tests)..."
-    cmake -B gui/build_tests gui/ -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release -Wno-dev -Q
+    cmake -B gui/build_tests gui/ -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release -Wno-dev
     cmake --build gui/build_tests -j$(nproc)
     ctest --test-dir gui/build_tests \
           --exclude-regex "AiIntegration|AiStress|TeamCollab|MultiAgenteLive" \

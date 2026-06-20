@@ -290,6 +290,11 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
        ════════════════════════════════════════════════════════════ */
     tabs->addTab(buildRingraziamentiTab(), "\xf0\x9f\x93\x9c  Ringraziamenti");
 
+    /* ════════════════════════════════════════════════════════════
+       Tab 🔒 Sicurezza WAN — certificato TLS, pin worker, WireGuard
+       ════════════════════════════════════════════════════════════ */
+    tabs->addTab(buildSicurezzaWanTab(), "\xf0\x9f\x94\x92  Sicurezza WAN");
+
     /* ── Campo ricerca — angolo in alto a destra della tab bar ── */
     {
         auto* corner = new QWidget(tabs);

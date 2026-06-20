@@ -211,6 +211,7 @@ private:
     QWidget* buildRingraziamentiTab(); ///< licenza MIT + crediti autore e librerie
     QWidget* buildAiMemoryTab();      ///< AIMemory storia preferenze (gitLog + revertFile)
     QWidget* buildSistemaConsigliTab(); ///< consigli ottimizzazione hardware/temperatura
+    QWidget* buildSicurezzaWanTab();  ///< TLS WAN cert + pin + WireGuard keys
 
     /* helper invocato da populateOllama (slot onOllamaRadioToggled / onAiLocalRefreshClicked) */
     void populateOllamaModels();

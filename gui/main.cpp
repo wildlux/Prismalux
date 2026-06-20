@@ -1,5 +1,7 @@
 #include <QApplication>
 #include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QFontDatabase>
 #include <QSettings>
 #include <QCoreApplication>
@@ -14,6 +16,36 @@
 #include "prismalux_paths.h"
 
 namespace P = PrismaluxPaths;
+
+/* Corregge i permessi dei file sensibili in ~/.prismalux/ e ~/.prismalux_chats/.
+ * Eseguita una volta all'avvio, prima di qualsiasi I/O. */
+static void fixPrismaluxPermissions() {
+    const QString base = QDir::homePath() + "/.prismalux";
+    QDir().mkpath(base);
+
+    /* File di configurazione: 0640 (owner rw, group r, others niente) */
+    static const char* kConfigFiles[] = {
+        "ai_params.json", "cron_jobs.json", "bh_history.json",
+        "prompt_level_results.json", "access.log", nullptr
+    };
+    for (int i = 0; kConfigFiles[i]; ++i) {
+        const QString path = base + "/" + kConfigFiles[i];
+        if (QFile::exists(path))
+            QFile::setPermissions(path,
+                QFileDevice::ReadOwner | QFileDevice::WriteOwner |
+                QFileDevice::ReadGroup);
+    }
+
+    /* Directory chat e tutti i file JSON al suo interno: 0700 / 0600 */
+    const QString chatsDir = QDir::homePath() + "/.prismalux_chats";
+    QDir().mkpath(chatsDir);
+    QFile::setPermissions(chatsDir,
+        QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+    for (const QFileInfo& fi : QDir(chatsDir).entryInfoList({"*.json"}, QDir::Files)) {
+        QFile::setPermissions(fi.absoluteFilePath(),
+            QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+    }
+}
 
 static void loadBundledFonts() {
     const QString fontsDir = QCoreApplication::applicationDirPath() + "/fonts";
@@ -142,6 +174,9 @@ int main(int argc, char* argv[]) {
     }
 
     QApplication app(argc, argv);
+
+    /* ── Corregge permessi file sensibili prima di qualsiasi I/O ── */
+    fixPrismaluxPermissions();
 
     /* ── Metadata applicazione (usato da QSettings in ThemeManager) ── */
     app.setApplicationName("Prismalux");

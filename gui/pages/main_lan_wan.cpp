@@ -30,6 +30,14 @@
 #include <QProcess>
 #include <QTcpSocket>
 #include <QTcpServer>
+#if QT_CONFIG(ssl)
+#  include <QSslServer>
+#  include <QSslSocket>
+#  include <QSslConfiguration>
+#  include <QSslCertificate>
+#  include <QSslKey>
+#endif
+#include <QMessageAuthenticationCode>
 #include <QTimer>
 #include <QPointer>
 #include <QDesktopServices>
@@ -1437,6 +1445,14 @@ void LanWanPage::onAdbProcFinished(int code, QProcess::ExitStatus)
    ══════════════════════════════════════════════════════════════════════════ */
 
 /* ── Helpers ── */
+/* HMAC-SHA256 hex del messaggio — usato per firmare task e risultati WAN.
+ * Definita qui (prima di wanDispatch che la usa) oltre che nel blocco slot server. */
+static QString wanHmac(const QString& token, const QString& data)
+{
+    return QMessageAuthenticationCode::hash(
+        data.toUtf8(), token.toUtf8(), QCryptographicHash::Sha256).toHex();
+}
+
 QString LanWanPage::wanNextId() const
 {
     return QUuid::createUuid().toString(QUuid::WithoutBraces).left(8);
@@ -1487,10 +1503,14 @@ void LanWanPage::wanDispatch()
         best->node      = node.name;
         best->startedAt = QDateTime::currentDateTime();
         node.status     = "working";
-        wanSendJson(node.sock, QJsonObject{
+        const QString srvToken = m_wanTokenEdit ? m_wanTokenEdit->text().trimmed() : QString();
+        QJsonObject taskMsg{
             {"t", "task"}, {"id", best->id},
             {"kind", best->kind}, {"payload", best->payload}
-        });
+        };
+        if (!srvToken.isEmpty())
+            taskMsg["hmac"] = wanHmac(srvToken, best->id + "|" + best->payload);
+        wanSendJson(node.sock, taskMsg);
     }
     wanRefreshTables();
     updateWanStats();
@@ -1759,11 +1779,24 @@ QWidget* LanWanPage::buildWanComputeTab()
         "OFF (default): il server accetta connessioni solo da questo PC (127.0.0.1).\n"
         "ON: bind su 0.0.0.0 — visibile a tutta la rete LAN/WAN.\n"
         "Abilita solo con token auth impostato e su reti fidate.");
+    m_wanTlsCheck = new QCheckBox("\xf0\x9f\x94\x92  TLS");
+#if QT_CONFIG(ssl)
+    m_wanTlsCheck->setChecked(true);
+    m_wanTlsCheck->setToolTip(
+        "Cifra il traffico WAN con TLS (certificato self-signed in ~/.prismalux/).\n"
+        "Obbligatorio per uso su internet. I worker devono avere TLS attivo.\n"
+        "Disattiva solo su LAN locale pienamente fidata.");
+#else
+    m_wanTlsCheck->setChecked(false);
+    m_wanTlsCheck->setEnabled(false);
+    m_wanTlsCheck->setToolTip("TLS non disponibile: Qt compilato senza supporto SSL.");
+#endif
     srvCtrlLay->addWidget(new QLabel("Porta:"));
     srvCtrlLay->addWidget(m_wanPortSpin);
     srvCtrlLay->addWidget(m_wanStartBtn);
     srvCtrlLay->addWidget(m_wanSimBtn);
     srvCtrlLay->addWidget(m_wanExposeAllCheck);
+    srvCtrlLay->addWidget(m_wanTlsCheck);
     srvCtrlLay->addWidget(m_wanSrvStatusLbl, 1);
     connect(m_wanSimBtn, &QPushButton::clicked, this, &LanWanPage::onWanSimBtnClicked);
     srvLay->addWidget(srvCtrlRow);
@@ -2171,12 +2204,25 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanCliTokenEdit->setPlaceholderText(tr("Token server (se impostato)"));
     m_wanCliTokenEdit->setEchoMode(QLineEdit::Password);
     m_wanCliTokenEdit->setToolTip(tr("Deve coincidere con il token impostato sul server."));
+    m_wanCliTlsCheck = new QCheckBox("\xf0\x9f\x94\x92  TLS", cliSecRow);
+#if QT_CONFIG(ssl)
+    m_wanCliTlsCheck->setChecked(true);
+    m_wanCliTlsCheck->setToolTip(
+        "Connetti al server WAN con TLS cifrato.\n"
+        "Deve corrispondere all'impostazione del server.\n"
+        "Obbligatorio per connessioni su internet.");
+#else
+    m_wanCliTlsCheck->setChecked(false);
+    m_wanCliTlsCheck->setEnabled(false);
+    m_wanCliTlsCheck->setToolTip("TLS non disponibile: Qt compilato senza supporto SSL.");
+#endif
     m_wanCliShellCheck = new QCheckBox("\xe2\x9a\xa0\xef\xb8\x8f  Permetti shell (rischio RCE)", cliSecRow);
     m_wanCliShellCheck->setToolTip(
         "Se spuntato, questo nodo eseguirà comandi bash/python ricevuti dal server.\n"
         "Abilita SOLO su reti fidate con token auth impostato.");
     cliSecLay->addWidget(cliTokenLbl);
     cliSecLay->addWidget(m_wanCliTokenEdit, 1);
+    cliSecLay->addWidget(m_wanCliTlsCheck);
     cliSecLay->addWidget(m_wanCliShellCheck);
     cliLay->addWidget(cliSecRow);
 
@@ -2228,6 +2274,30 @@ QWidget* LanWanPage::buildWanComputeTab()
     return root;
 }
 
+/* ──────────────────────────────────────────────────────────────
+   WAN TLS helper — ricicla il certificato self-signed del LAN server
+   (~/.prismalux/server.crt + server.key); lo genera se non esiste. */
+#if QT_CONFIG(ssl)
+static bool wanEnsureCert(QString& certPath, QString& keyPath)
+{
+    const QString dir = QDir::homePath() + "/.prismalux";
+    QDir().mkpath(dir);
+    certPath = dir + "/server.crt";
+    keyPath  = dir + "/server.key";
+    if (QFileInfo::exists(certPath) && QFileInfo::exists(keyPath))
+        return true;
+    const auto r = ProcHelper::run("openssl", {
+        "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+        "-days", "3650",
+        "-keyout", keyPath, "-out", certPath,
+        "-subj", "/CN=Prismalux-WAN"
+    }, 10000);
+    if (!r.ok) return false;
+    QFile::setPermissions(keyPath, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+    return QFileInfo::exists(certPath) && QFileInfo::exists(keyPath);
+}
+#endif
+
 /* ══════════════════════════════════════════════════════════════
    WAN — Slot SERVER
    ══════════════════════════════════════════════════════════════ */
@@ -2242,6 +2312,7 @@ void LanWanPage::onWanStartBtnClicked()
     if (m_wanStartBtn->isChecked()) {
         const int port = m_wanPortSpin->value();
         const bool exposeAll = m_wanExposeAllCheck && m_wanExposeAllCheck->isChecked();
+        const bool wantTls   = m_wanTlsCheck        && m_wanTlsCheck->isChecked();
 
         /* Token obbligatorio — blocca avvio se assente o troppo corto */
         const QString wanTok = m_wanTokenEdit ? m_wanTokenEdit->text().trimmed() : QString();
@@ -2257,14 +2328,67 @@ void LanWanPage::onWanStartBtnClicked()
         }
 
         const QHostAddress bindAddr = exposeAll ? QHostAddress::Any : QHostAddress::LocalHost;
-        if (!m_wanServer->listen(bindAddr, static_cast<quint16>(port))) {
-            m_wanStartBtn->setChecked(false);
-            m_wanSrvStatusLbl->setText(
-                "\xe2\x9d\x8c  Errore: " + m_wanServer->errorString());
-            LogBus::post("\xe2\x9d\x8c LAN WAN: WAN server errore: " + m_wanServer->errorString());
-            m_wanSrvStatusLbl->setStyleSheet("color:#f44336;");
-            return;
+        m_wanUseTls = false;
+
+#if QT_CONFIG(ssl)
+        if (wantTls) {
+            QString certPath, keyPath;
+            if (!wanEnsureCert(certPath, keyPath)) {
+                QMessageBox::warning(this, tr("TLS non disponibile"),
+                    tr("Impossibile generare il certificato TLS (openssl non trovato).\n"
+                       "Il server avvierà in modalità TCP non cifrata."));
+            } else {
+                QSslCertificate cert;
+                { QFile f(certPath); if (f.open(QIODevice::ReadOnly)) cert = QSslCertificate(&f, QSsl::Pem); }
+                QSslKey key;
+                { QFile f(keyPath);  if (f.open(QIODevice::ReadOnly)) key  = QSslKey(&f, QSsl::Rsa, QSsl::Pem); }
+
+                if (!cert.isNull() && !key.isNull()) {
+                    if (!m_wanSslServer) {
+                        m_wanSslServer = new QSslServer(this);
+                        connect(m_wanSslServer, &QTcpServer::newConnection,
+                                this, &LanWanPage::onWanNewConnection);
+                    }
+                    QSslConfiguration cfg = QSslConfiguration::defaultConfiguration();
+                    cfg.setLocalCertificate(cert);
+                    cfg.setPrivateKey(key);
+                    m_wanSslServer->setSslConfiguration(cfg);
+
+                    if (m_wanSslServer->listen(bindAddr, static_cast<quint16>(port))) {
+                        m_wanUseTls = true;
+                        /* Salva fingerprint SHA-256 del cert in ~/.prismalux/wan_cert.pin
+                         * I worker lo usano per verificare l'identità del server (pinning). */
+                        const QString pinPath = QDir::homePath() + "/.prismalux/wan_cert.pin";
+                        const QByteArray fp = cert.digest(QCryptographicHash::Sha256).toHex();
+                        QSaveFile pf(pinPath);
+                        if (pf.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                            pf.write(fp + "\n");
+                            pf.commit();
+                            QFile::setPermissions(pinPath,
+                                QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+                        }
+                        LogBus::post("[WAN] Cert pin: " + QString::fromLatin1(fp) +
+                                     " (condividilo con i worker fuori banda)");
+                    } else {
+                        qWarning() << "[WAN] QSslServer listen fallito:" << m_wanSslServer->errorString()
+                                   << "— fallback TCP";
+                    }
+                }
+            }
         }
+#endif
+
+        if (!m_wanUseTls) {
+            if (!m_wanServer->listen(bindAddr, static_cast<quint16>(port))) {
+                m_wanStartBtn->setChecked(false);
+                m_wanSrvStatusLbl->setText(
+                    "\xe2\x9d\x8c  Errore: " + m_wanServer->errorString());
+                LogBus::post("\xe2\x9d\x8c LAN WAN: WAN server errore: " + m_wanServer->errorString());
+                m_wanSrvStatusLbl->setStyleSheet("color:#f44336;");
+                return;
+            }
+        }
+
         /* Avvia heartbeat 30s */
         if (!m_wanHeartbeatTimer) {
             m_wanHeartbeatTimer = new QTimer(this);
@@ -2272,33 +2396,39 @@ void LanWanPage::onWanStartBtnClicked()
                     this, &LanWanPage::onWanHeartbeatTick);
         }
         m_wanHeartbeatTimer->start(30000);
-        onCheckOllamaExposed();   /* controlla sempre, non solo in exposeAll */
+        onCheckOllamaExposed();
+        const QString tlsTag = m_wanUseTls ? " \xf0\x9f\x94\x92 TLS" : " \xe2\x9a\xa0\xef\xb8\x8f TCP";
         if (exposeAll) {
             m_wanSrvStatusLbl->setText(
                 "\xe2\x9c\x85  In ascolto su " + localLanIp() +
-                ":" + QString::number(port) +
-                "  \xe2\x9a\xa0\xef\xb8\x8f  Attenzione: il server e' visibile a tutta la rete");
+                ":" + QString::number(port) + tlsTag);
         } else {
             m_wanSrvStatusLbl->setText(
-                "\xe2\x9c\x85  In ascolto su 127.0.0.1:" + QString::number(port));
+                "\xe2\x9c\x85  In ascolto su 127.0.0.1:" + QString::number(port) + tlsTag);
         }
-        m_wanSrvStatusLbl->setStyleSheet("color:#4caf50;");
+        m_wanSrvStatusLbl->setStyleSheet(m_wanUseTls ? "color:#4caf50;" : "color:#ff9800;");
         m_wanPortSpin->setEnabled(false);
         m_wanExposeAllCheck->setEnabled(false);
+        if (m_wanTlsCheck) m_wanTlsCheck->setEnabled(false);
     } else {
         /* Stop */
         if (m_wanHeartbeatTimer) m_wanHeartbeatTimer->stop();
         m_wanServer->close();
+#if QT_CONFIG(ssl)
+        if (m_wanSslServer) m_wanSslServer->close();
+#endif
         for (auto& node : m_wanNodes)
             if (node.sock) node.sock->disconnectFromHost();
         m_wanNodes.clear();
         wanRefreshTables();
         updateWanStats();
+        m_wanUseTls = false;
         m_wanStartBtn->setText(tr("\xe2\x96\xb6  Avvia Server"));
         m_wanSrvStatusLbl->setText(tr("\xe2\x9a\xab  Server fermo"));
         m_wanSrvStatusLbl->setStyleSheet("color:gray;");
         m_wanPortSpin->setEnabled(true);
         if (m_wanExposeAllCheck) m_wanExposeAllCheck->setEnabled(true);
+        if (m_wanTlsCheck) m_wanTlsCheck->setEnabled(true);
     }
 }
 
@@ -2337,8 +2467,17 @@ void LanWanPage::onOllamaCheckDone(QProcess* proc)
 
 void LanWanPage::onWanNewConnection()
 {
-    while (m_wanServer && m_wanServer->hasPendingConnections()) {
-        QTcpSocket* sock = m_wanServer->nextPendingConnection();
+    QTcpServer* srv = nullptr;
+#if QT_CONFIG(ssl)
+    if (m_wanUseTls && m_wanSslServer && m_wanSslServer->hasPendingConnections())
+        srv = m_wanSslServer;
+    else
+#endif
+    if (m_wanServer && m_wanServer->hasPendingConnections())
+        srv = m_wanServer;
+
+    while (srv && srv->hasPendingConnections()) {
+        QTcpSocket* sock = srv->nextPendingConnection();
         connect(sock, &QTcpSocket::readyRead,
                 this, &LanWanPage::onWanNodeReadyRead);
         connect(sock, &QTcpSocket::disconnected,
@@ -2360,15 +2499,37 @@ void LanWanPage::onWanNodeReadyRead()
         const QString type    = msg["t"].toString();
 
         if (type == "hello") {
+            /* Rate limiting: blocca IP dopo 5 token errati per 60 secondi */
+            const QString peerIp = sock->peerAddress().toString();
+            {
+                auto& entry = m_wanBadTokens[peerIp];
+                if (entry.blockedUntil.isValid() && QDateTime::currentDateTime() < entry.blockedUntil) {
+                    wanSendJson(sock, QJsonObject{{"t","error"},{"msg","rate_limited"}});
+                    sock->disconnectFromHost();
+                    LogBus::post("[WAN] IP bloccato (rate limit): " + peerIp);
+                    continue;
+                }
+            }
+
             /* Verifica token server — rifiuta nodi non autenticati */
             const QString serverToken = m_wanTokenEdit ? m_wanTokenEdit->text().trimmed() : QString();
             if (!serverToken.isEmpty()) {
                 const QString presented = msg["token"].toString();
                 if (!LanServer::timingSafeEqual(presented, serverToken)) {
+                    auto& entry = m_wanBadTokens[peerIp];
+                    ++entry.count;
+                    if (entry.count >= 5) {
+                        entry.blockedUntil = QDateTime::currentDateTime().addSecs(60);
+                        entry.count = 0;
+                        LogBus::post("[WAN] Rate limit attivato per " + peerIp +
+                                     " (5 token errati consecutivi — blocco 60s)");
+                    }
                     wanSendJson(sock, QJsonObject{{"t","error"},{"msg","auth_failed"}});
                     sock->disconnectFromHost();
                     continue;
                 }
+                /* Token corretto → azzera contatore fallimenti */
+                m_wanBadTokens.remove(peerIp);
             }
 
             /* Registrazione nuovo nodo */
@@ -2409,10 +2570,20 @@ void LanWanPage::onWanNodeReadyRead()
                 wanSendJson(sock, {{"t","idle"}});
 
         } else if (type == "result") {
-            /* Risultato da un nodo */
+            /* Risultato da un nodo — verifica HMAC se token impostato */
             const QString id     = msg["id"].toString();
             const QString status = msg["status"].toString("done");
             const QString result = msg["result"].toString();
+            const QString srvToken2 = m_wanTokenEdit ? m_wanTokenEdit->text().trimmed() : QString();
+            if (!srvToken2.isEmpty() && msg.contains("hmac")) {
+                const QString expected = wanHmac(srvToken2, id + "|" + result);
+                if (!LanServer::timingSafeEqual(msg["hmac"].toString(), expected)) {
+                    LogBus::post("[WAN] HMAC risultato non valido per task " + id +
+                                 " — risultato scartato (possibile manomissione)");
+                    wanSendJson(sock, QJsonObject{{"t","error"},{"msg","hmac_invalid"}});
+                    continue;
+                }
+            }
             auto taskIt = std::find_if(m_wanTasks.begin(), m_wanTasks.end(),
                 [&id](const WanTask& t){ return t.id == id; });
             if (taskIt != m_wanTasks.end()) {
@@ -2786,6 +2957,7 @@ void LanWanPage::onWanCliConBtnClicked()
                              : QSysInfo::machineHostName();
     const QString token    = m_wanCliTokenEdit ? m_wanCliTokenEdit->text().trimmed() : QString();
     const bool    shell    = m_wanCliShellCheck && m_wanCliShellCheck->isChecked();
+    const bool    useTls   = m_wanCliTlsCheck   && m_wanCliTlsCheck->isChecked();
 
     m_wanCliStatusLbl->setText(tr("\xe2\x8f\xb3  Connessione\xe2\x80\xa6"));
     m_wanCliStatusLbl->setStyleSheet("color:#E5C400;");
@@ -2796,8 +2968,19 @@ void LanWanPage::onWanCliConBtnClicked()
     for (int i = 0; i < nWork; ++i) {
         WanWorker& w = m_wanWorkers[i];
 
-        /* Socket */
-        auto* sock = new QTcpSocket(this);
+        /* Socket — TCP plain o TLS secondo impostazione utente */
+        QTcpSocket* sock = nullptr;
+#if QT_CONFIG(ssl)
+        if (useTls) {
+            auto* ssl = new QSslSocket(this);
+            ssl->setPeerVerifyMode(QSslSocket::VerifyNone); /* self-signed OK */
+            sock = ssl;
+        } else {
+            sock = new QTcpSocket(this);
+        }
+#else
+        sock = new QTcpSocket(this);
+#endif
         w.sock = sock;
         connect(sock, &QTcpSocket::readyRead,
                 this, &LanWanPage::onWanWorkerReadyRead);
@@ -2829,7 +3012,46 @@ void LanWanPage::onWanCliConBtnClicked()
         connect(sock, &QTcpSocket::connected,
                 this, &LanWanPage::onWanWorkerConnected);
 
+#if QT_CONFIG(ssl)
+        if (auto* ssl = qobject_cast<QSslSocket*>(sock)) {
+            /* encrypted() è emesso dopo l'handshake TLS — equivale a connected() per TCP */
+            connect(ssl, &QSslSocket::encrypted,
+                    this, &LanWanPage::onWanWorkerConnected);
+
+            /* Certificate pinning: verifica il fingerprint del server se pin file presente */
+            connect(ssl, &QSslSocket::sslErrors, ssl,
+                    [ssl](const QList<QSslError>& errors) {
+                        const QString pinPath = QDir::homePath() + "/.prismalux/wan_server.pin";
+                        QFile pf(pinPath);
+                        if (!pf.open(QIODevice::ReadOnly)) {
+                            /* Nessun pin file: accetta self-signed con avviso */
+                            ssl->ignoreSslErrors();
+                            return;
+                        }
+                        const QByteArray expectedPin = pf.readAll().trimmed();
+                        const QSslCertificate serverCert = ssl->peerCertificate();
+                        const QByteArray actualPin = serverCert.digest(
+                            QCryptographicHash::Sha256).toHex();
+                        if (actualPin == expectedPin) {
+                            ssl->ignoreSslErrors(); /* cert self-signed ma pin corretto */
+                        } else {
+                            /* Pin non corrisponde → disconnetti (possibile MITM) */
+                            LogBus::post(
+                                "[WAN] CERT PIN MISMATCH — connessione rifiutata (possibile MITM)!\n"
+                                "Atteso: " + QString::fromLatin1(expectedPin) + "\n"
+                                "Ricevuto: " + QString::fromLatin1(actualPin));
+                            ssl->abort();
+                        }
+                        Q_UNUSED(errors)
+                    });
+
+            ssl->connectToHostEncrypted(host, static_cast<quint16>(port));
+        } else {
+            sock->connectToHost(host, static_cast<quint16>(port));
+        }
+#else
         sock->connectToHost(host, static_cast<quint16>(port));
+#endif
     }
 
     /* Alias legacy → worker[0] per retrocompatibilità (es. onWanSimBtnClicked) */
@@ -2967,11 +3189,15 @@ void LanWanPage::onWanCliAiFinished(const QString&)
             ? doc.object()["result"].toString(raw)
             : raw;
 
-        // Invia risultato al master
-        wanCliSendJson(QJsonObject{
-            {"t","result"}, {"id", m_wanCliCurrentTask},
-            {"status","done"}, {"result", result}
-        });
+        // Invia risultato al master (con HMAC se token impostato)
+        {
+            const QString cliTok = m_wanCliTokenEdit ? m_wanCliTokenEdit->text().trimmed() : QString();
+            QJsonObject resMsg{{"t","result"}, {"id", m_wanCliCurrentTask},
+                               {"status","done"}, {"result", result}};
+            if (!cliTok.isEmpty())
+                resMsg["hmac"] = wanHmac(cliTok, m_wanCliCurrentTask + "|" + result);
+            wanCliSendJson(resMsg);
+        }
 
         // Se ci sono sub-agenti da spawnare, informa il master
         if (hasSpawn) {
@@ -3256,10 +3482,13 @@ void LanWanPage::onWanWorkerAiFinished(const QString&)
             ? doc.object()["result"].toString(raw)
             : raw;
 
-        wanWorkerSendJson(idx, QJsonObject{
-            {"t","result"}, {"id", w.currentTask},
-            {"status","done"}, {"result", result}
-        });
+        {
+            QJsonObject resMsg{{"t","result"}, {"id", w.currentTask},
+                               {"status","done"}, {"result", result}};
+            if (!w.token.isEmpty())
+                resMsg["hmac"] = wanHmac(w.token, w.currentTask + "|" + result);
+            wanWorkerSendJson(idx, resMsg);
+        }
 
         if (hasSpawn) {
             const QJsonArray spawnArr = doc.object()["spawn"].toArray();
@@ -3296,10 +3525,13 @@ void LanWanPage::onWanWorkerAiFinished(const QString&)
         return;
     }
 
-    wanWorkerSendJson(idx, QJsonObject{
-        {"t","result"}, {"id", w.currentTask},
-        {"status","done"}, {"result", raw}
-    });
+    {
+        QJsonObject resMsg{{"t","result"}, {"id", w.currentTask},
+                           {"status","done"}, {"result", raw}};
+        if (!w.token.isEmpty())
+            resMsg["hmac"] = wanHmac(w.token, w.currentTask + "|" + raw);
+        wanWorkerSendJson(idx, resMsg);
+    }
     wanWorkerAppendLog(idx, "Task " + w.currentTask + " completato (AI).");
     w.currentTask.clear();
     w.aiBuf.clear();

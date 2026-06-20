@@ -1487,7 +1487,8 @@ void LanServer::handleWebChat(Session& s)
        inline; rimuoverlo richiederebbe estrarre tutto lo script in un file servito. */
     resp += "Content-Security-Policy: default-src 'self'; "
             "script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'\r\n";
+            "img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org; "
+            "connect-src 'self'; frame-ancestors 'none'\r\n";
     resp += "Connection: close\r\n";
     resp += "\r\n";
     s.socket->write(resp);
@@ -2308,8 +2309,9 @@ void LanServer::handleReplApi(Session& s)
             if (QDir(d).exists())
                 bwArgs << "--ro-bind" << d << d;
         }
-        /* /etc limitato a sotto-directory safe (locale, DNS, timezone) */
+        /* /etc limitato a sotto-directory safe (locale, DNS, timezone, librerie) */
         for (const char* d : {"/etc/ld.so.cache", "/etc/ld.so.conf", "/etc/ld.so.conf.d",
+                               "/etc/alternatives",
                                "/etc/localtime", "/etc/timezone", "/etc/resolv.conf",
                                "/etc/nsswitch.conf", "/etc/hosts", "/etc/hostname",
                                "/etc/ssl", "/etc/ca-certificates"}) {

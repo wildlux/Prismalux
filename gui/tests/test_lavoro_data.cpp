@@ -13,7 +13,7 @@
    ══════════════════════════════════════════════════════════════ */
 #include <QtTest/QtTest>
 #include <QSet>
-#include "../pages/lavoro_data.h"
+#include "../pages/main_jobs_data.h"
 
 /* ══════════════════════════════════════════════════════════════
    CAT-A — kOfferte(): integrità dataset (8 test)

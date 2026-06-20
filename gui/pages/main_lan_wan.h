@@ -13,6 +13,13 @@
 #include <QTableWidget>
 #include <QTcpServer>
 #include <QTcpSocket>
+#if QT_CONFIG(ssl)
+#  include <QSslServer>
+#  include <QSslSocket>
+#  include <QSslConfiguration>
+#  include <QSslCertificate>
+#  include <QSslKey>
+#endif
 #include <QPointer>
 #include <QTimer>
 #include <QStackedWidget>
@@ -111,7 +118,15 @@ private:
     };
 
     /* --- Server --- */
+    struct WanBadToken { int count = 0; QDateTime blockedUntil; };
+    QHash<QString, WanBadToken> m_wanBadTokens; ///< IP → tentativi falliti (rate limiting)
+
     QTcpServer*   m_wanServer          = nullptr;
+#if QT_CONFIG(ssl)
+    QSslServer*   m_wanSslServer       = nullptr;
+#endif
+    bool          m_wanUseTls          = false;
+    QCheckBox*    m_wanTlsCheck        = nullptr;
     QSpinBox*     m_wanPortSpin        = nullptr;
     QPushButton*  m_wanStartBtn        = nullptr;
     QLabel*       m_wanSrvStatusLbl    = nullptr;
@@ -154,6 +169,7 @@ private:
     QSpinBox*     m_wanCliPort         = nullptr;
     QLineEdit*    m_wanCliName         = nullptr;
     QLineEdit*    m_wanCliTokenEdit    = nullptr;  ///< token per autenticarsi al server
+    QCheckBox*    m_wanCliTlsCheck     = nullptr;  ///< connetti con TLS (auto se server usa TLS)
     QCheckBox*    m_wanCliShellCheck   = nullptr;  ///< abilita esecuzione shell (opt-in esplicito)
     QPushButton*  m_wanCliConBtn       = nullptr;
     QPushButton*  m_wanCliDisconBtn    = nullptr;

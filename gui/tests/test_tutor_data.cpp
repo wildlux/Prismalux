@@ -18,7 +18,7 @@
    ══════════════════════════════════════════════════════════════ */
 #include <QtTest/QtTest>
 #include <QSet>
-#include "../pages/tutor_data.h"
+#include "../pages/main_learn_data.h"
 
 /* Helper: applica i 5 invarianti strutturali su qualsiasi SubjectData */
 static void checkInvarianti(const SubjectData& data, const char* nome)

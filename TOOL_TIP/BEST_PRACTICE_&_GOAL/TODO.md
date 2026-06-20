@@ -1,6 +1,35 @@
 # Prismalux — TODO pendenti
 
-> Aggiornato: 2026-06-16 | Versione: 2.9
+> Aggiornato: 2026-06-20 | Versione: 2.9
+
+---
+
+## 🔒 SICUREZZA WAN — hardening per uso su internet (audit 2026-06-20)
+
+> Dopo aggiunta TLS su porta 11600, restano 3 voci prima che il WAN sia
+> sicuro su internet senza VPN (es. ricerca proteine con nodi remoti).
+
+- [x] **WAN: certificate pinning** — `VerifyNone` lascia aperta la MITM attiva.
+      Il server salva il fingerprint SHA-256 del proprio cert in
+      `~/.prismalux/wan_cert.pin`; ogni worker al primo avvio scarica il pin
+      via canale fuori-banda (file, QR, email cifrata) e lo salva in
+      `~/.prismalux/wan_server.pin`. Ad ogni connessione TLS verifica che il
+      fingerprint del cert ricevuto coincida. Se non coincide → disconnette.
+      File: `gui/pages/main_lan_wan.cpp` (lato server: `onWanStartBtnClicked`,
+      lato client: `onWanCliConBtnClicked` + segnale `QSslSocket::sslErrors`).
+
+- [x] **WAN: rate limiting token** — nessuna protezione brute-force sul token
+      in porta 11600. Dopo 5 token errati dallo stesso IP → blocco 60s.
+      Struttura: `QHash<QString, QPair<int,QDateTime>> m_wanBadTokens` in header.
+      File: `gui/pages/main_lan_wan.cpp` slot `onWanNodeReadyRead` (controlla
+      il campo `token` nell'hello JSON prima di accettare il nodo).
+
+- [x] **WAN: HMAC integrità risultati** — un worker compromesso può restituire
+      dati falsi (pericolo per ricerca proteica). Il server invia ogni task
+      con `hmac = HMAC-SHA256(token, task_id + payload)`; il worker firma il
+      risultato con `HMAC-SHA256(token, task_id + result)`. Il server verifica
+      prima di accettare. Lib: `QMessageAuthenticationCode` (Qt6 Crypto).
+      File: `gui/pages/main_lan_wan.cpp` `wanSendJson` + `onWanNodeReadyRead`.
 
 ---
 

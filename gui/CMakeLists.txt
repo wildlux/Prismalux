@@ -174,6 +174,7 @@ set(CPP_SRCS
     pages/settings_voice.cpp
     pages/settings_system.cpp
     pages/settings_other.cpp
+    pages/settings_security.cpp
     pages/main_simulator.cpp
     pages/main_simulator_algos.cpp
     pages/main_tools.cpp
@@ -389,6 +390,14 @@ if(BUILD_TESTS)
     list(REMOVE_ITEM TEST_SHARED_SRCS main.cpp)
     list(APPEND TEST_SHARED_SRCS ${C_SRCS})
 
+    # Gruppo minimo per target che includono solo ai_client.cpp:
+    # rag_engine e onnx_embedder sono richiesti da ai_client.cpp per il linker.
+    set(AI_CLIENT_SRCS
+        ai_client.cpp
+        rag_engine.cpp
+        widgets/onnx_embedder.cpp
+    )
+
     add_executable(test_signal_lifetime
         tests/test_signal_lifetime.cpp
         tests/mock_ai_client.h
@@ -439,10 +448,10 @@ if(BUILD_TESTS)
         target_link_libraries(test_code_utils PRIVATE pthread m)
     endif()
 
-    # ── test_random_tool: _inject_random da agenti_page_tools.cpp ──
+    # ── test_random_tool: _inject_random da ai_random_inject.cpp (puro, senza dep UI) ──
     add_executable(test_random_tool
         tests/test_random_tool.cpp
-        pages/main_ai_tools.cpp
+        pages/ai_random_inject.cpp
     )
     target_include_directories(test_random_tool PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(test_random_tool PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
@@ -559,11 +568,9 @@ if(BUILD_TESTS)
     endif()
 
     # ── test_thinking_detect: _extractThinkingToken + classifyQuery + key-lock ──
-    # Dipende solo da ai_client.cpp (per classifyQuery) + ai_thinking_detect.h.
-    # NON include TEST_SHARED_SRCS: ai_client.cpp compila senza tutta la UI.
     add_executable(test_thinking_detect
         tests/test_thinking_detect.cpp
-        ai_client.cpp
+        ${AI_CLIENT_SRCS}
     )
     target_include_directories(test_thinking_detect PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(test_thinking_detect PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
@@ -580,7 +587,7 @@ if(BUILD_TESTS)
     # Override modello: PRISMALUX_TEST_MODEL=qwen2.5-coder:7b ./build_tests/test_ai_integration
     add_executable(test_ai_integration
         tests/test_ai_integration.cpp
-        ai_client.cpp
+        ${AI_CLIENT_SRCS}
     )
     target_include_directories(test_ai_integration PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(test_ai_integration PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
@@ -598,7 +605,7 @@ if(BUILD_TESTS)
     # CAT-I: qualità reale con Ollama — caveman, honesty, think, num_predict
     add_executable(test_ai_stress
         tests/test_ai_stress.cpp
-        ai_client.cpp
+        ${AI_CLIENT_SRCS}
     )
     target_include_directories(test_ai_stress PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(test_ai_stress PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
@@ -617,7 +624,7 @@ if(BUILD_TESTS)
     #          PRISMALUX_TEST_MODEL_CODER     (default: qwen2.5-coder)
     add_executable(test_team_collab
         tests/test_team_collab.cpp
-        ai_client.cpp
+        ${AI_CLIENT_SRCS}
     )
     target_include_directories(test_team_collab PRIVATE ${CMAKE_SOURCE_DIR})
     target_link_libraries(test_team_collab PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
@@ -701,7 +708,7 @@ if(BUILD_TESTS)
         tests/mock_ai_client.h
         pages/main_simulator.cpp
         pages/main_simulator_algos.cpp
-        ai_client.cpp
+        ${AI_CLIENT_SRCS}
         ${C_SRCS}
     )
     target_include_directories(test_simulatore_algos PRIVATE
@@ -1244,7 +1251,7 @@ if(BUILD_TESTS)
         tests/mock_ai_client.h
         rag_graph.cpp
         graph_memory.cpp
-        ai_client.cpp
+        ${AI_CLIENT_SRCS}
     )
     target_include_directories(test_rag_graph_pipeline PRIVATE
         ${CMAKE_SOURCE_DIR}
