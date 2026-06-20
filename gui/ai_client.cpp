@@ -532,7 +532,7 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
         m_localBusy  = true;
         m_localAccum.clear();
 
-        QString effectiveSysLocal = systemPrompt;
+        QString effectiveSysLocal = PrismaluxPaths::prependConstitution(systemPrompt);
         if (!dateInject.isEmpty())
             effectiveSysLocal = dateInject + effectiveSysLocal;
         if (m_params.caveman_mode)
@@ -596,7 +596,7 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
     m_accum.clear();
     m_thinkingKey.clear();
 
-    QString effectiveSys = systemPrompt;
+    QString effectiveSys = PrismaluxPaths::prependConstitution(systemPrompt);
     if (!dateInject.isEmpty())
         effectiveSys = dateInject + effectiveSys;
     if (m_params.caveman_mode)
@@ -876,11 +876,10 @@ void AiClient::chatWithImage(const QString& systemPrompt, const QString& userMsg
     body["model"]  = m_model;
     body["stream"] = true;
 
-    /* Prependi il prefisso di onestà anche alle chiamate con immagine */
-    QString effectiveSysImg = systemPrompt;
-    if (m_params.honesty_prefix) {
+    /* Costituzione + prefisso onestà per le chiamate con immagine */
+    QString effectiveSysImg = PrismaluxPaths::prependConstitution(systemPrompt);
+    if (m_params.honesty_prefix)
         effectiveSysImg = QString(kHonestyPrefix) + effectiveSysImg;
-    }
 
     QJsonArray messages;
     if (!effectiveSysImg.isEmpty()) {

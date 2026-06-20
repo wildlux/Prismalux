@@ -331,6 +331,40 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         knLay->addWidget(knHint);
 
         rcL->addWidget(knGroup);
+
+        /* ── Costituzione Prismalux ──────────────────────────────────── */
+        auto* constGroup = new QGroupBox(
+            "\xf0\x9f\x93\x9c  Costituzione Prismalux", rcW);
+        constGroup->setObjectName("cardGroup");
+        auto* constLay = new QVBoxLayout(constGroup);
+        constLay->setSpacing(6);
+
+        auto* constRow = new QHBoxLayout;
+        auto* chkConst = new QCheckBox(
+            "Inietta principi etici in ogni prompt", constGroup);
+        chkConst->setObjectName("cardDesc");
+        chkConst->setChecked(AppConfig::s().value(P::SK::kConstitutionEnabled, true).toBool());
+        constRow->addWidget(chkConst);
+
+        auto* constFileBtn = new QPushButton("Modifica", constGroup);
+        constFileBtn->setObjectName("actionBtn");
+        constFileBtn->setFixedWidth(90);
+        constFileBtn->setToolTip(P::constitutionPath());
+        constRow->addWidget(constFileBtn);
+        constRow->addStretch(1);
+        constLay->addLayout(constRow);
+
+        auto* constHint = new QLabel(
+            "<small>Se attivo, <b>COSTITUZIONE_PRISMALUX.txt</b> viene inserita come primo "
+            "blocco di ogni system prompt — guida il comportamento etico del modello "
+            "indipendentemente dal task. Simile alla Constitutional AI di Anthropic.</small>",
+            constGroup);
+        constHint->setObjectName("hintLabel");
+        constHint->setWordWrap(true);
+        constHint->setTextFormat(Qt::RichText);
+        constLay->addWidget(constHint);
+
+        rcL->addWidget(constGroup);
         rcL->addStretch();
 
         /* Salva la preferenza e invalida la cache di lettura */
@@ -340,6 +374,15 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         /* Apre user_knowledge.md nel text editor di sistema */
         connect(openFileBtn, &QPushButton::clicked,
                 this, &ImpostazioniPage::onOpenKnowledgeFileClicked);
+
+        /* Costituzione: toggle + apri editor */
+        connect(chkConst, &QCheckBox::toggled, this, [chkConst](bool on) {
+            AppConfig::s().setValue(P::SK::kConstitutionEnabled, on);
+        });
+        connect(constFileBtn, &QPushButton::clicked, this, []() {
+            QDesktopServices::openUrl(QUrl::fromLocalFile(P::constitutionPath()));
+            P::invalidateConstitutionCache();
+        });
     }
 
     /* ── Logica: popola la lista in base al gestore selezionato ── */

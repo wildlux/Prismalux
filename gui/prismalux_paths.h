@@ -529,6 +529,77 @@ inline QString prependKnowledge(const QString& systemPrompt)
            + systemPrompt;
 }
 
+/* ─────────────────────────────────────────────────────────────────
+ * Costituzione Prismalux
+ * Principi etici iniettati in OGNI system prompt AI (come primo blocco).
+ * File sorgente: TOOL_TIP/COSTITUZIONE_PRISMALUX.txt (modificabile dall'utente).
+ * Cache 60s (come user_knowledge, ma durata maggiore — cambia raramente).
+ * ───────────────────────────────────────────────────────────────── */
+inline QString constitutionPath()
+{
+    return root() + "/TOOL_TIP/COSTITUZIONE_PRISMALUX.txt";
+}
+
+namespace detail {
+inline qint64& constitCacheMs() { static qint64 v = 0; return v; }
+inline QString& constitCache()  { static QString v;    return v; }
+}
+
+/** Legge la costituzione con cache 60s. Ritorna stringa vuota se il file
+ *  non esiste, è vuoto o inizia con '#' (solo commenti). */
+inline QString readConstitution()
+{
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (!detail::constitCache().isEmpty() && (now - detail::constitCacheMs()) < 60000)
+        return detail::constitCache();
+
+    QFile f(constitutionPath());
+    if (!f.open(QIODevice::ReadOnly)) {
+        detail::constitCache().clear();
+        detail::constitCacheMs() = now;
+        return {};
+    }
+    const QString raw = QString::fromUtf8(f.readAll()).trimmed();
+    /* Filtra le righe di commento (# ...) per ottenere solo il testo dei principi */
+    QStringList lines = raw.split('\n');
+    QStringList kept;
+    bool inPrinciples = false;
+    for (const QString& l : lines) {
+        if (l.startsWith("# ====")) continue;          /* separatori */
+        if (l.startsWith("# ")) { inPrinciples = false; continue; } /* commenti header */
+        if (l.startsWith("#"))  { inPrinciples = false; continue; }
+        inPrinciples = true;
+        kept << l;
+    }
+    detail::constitCache() = kept.join('\n').trimmed();
+    detail::constitCacheMs() = now;
+    return detail::constitCache();
+}
+
+/** Invalida la cache della costituzione (chiamare dopo salvataggio da UI). */
+inline void invalidateConstitutionCache()
+{
+    detail::constitCacheMs() = 0;
+    detail::constitCache().clear();
+}
+
+/** Prepende la costituzione al system prompt se abilitata (kConstitutionEnabled).
+ *  La costituzione viene inserita PRIMA di tutto il resto, inclusa la user knowledge.
+ *  Formato: blocco costituzione → separatore → system prompt originale. */
+inline QString prependConstitution(const QString& systemPrompt)
+{
+    QSettings s("Prismalux", "GUI");
+    if (!s.value("ai/constitutionEnabled", true).toBool())
+        return systemPrompt;
+    const QString text = readConstitution();
+    if (text.trimmed().isEmpty())
+        return systemPrompt;
+    return "# Costituzione Prismalux (principi sempre attivi)\n"
+           + text
+           + "\n\n---\n\n"
+           + systemPrompt;
+}
+
 /** mathKnowledgePath() — Percorso cache conoscenza matematica (estratta da RAG/Matematica.pdf). */
 inline QString mathKnowledgePath()
 {
@@ -867,6 +938,7 @@ constexpr const char* kDefaultTheme    = "dark_ocean";   ///< valore default tem
 constexpr const char* kCavemanMode          = "ai/cavemanMode";          ///< modalità risposte dirette (Caveman)
 constexpr const char* kComputeMode          = "ai/computeMode";          ///< "auto"|"gpu"|"cpu"|"misto"
 constexpr const char* kInjectUserKnowledge  = "ai/injectUserKnowledge";  ///< inietta user_knowledge.md nel system prompt (default: true)
+constexpr const char* kConstitutionEnabled  = "ai/constitutionEnabled";  ///< inietta COSTITUZIONE_PRISMALUX.txt in ogni system prompt (default: true)
 constexpr const char* kMlockModel           = "ai/mlockModel";           ///< --mlock llama-server: blocca pagine modello in RAM (default: false)
 constexpr const char* kAutoZramDoppia       = "ai/autoZramDoppia";       ///< avvia zRAM Doppia (zstd, 75% RAM) all'avvio — Linux (default: true)
 constexpr const char* kAutoOptApplied       = "ai/autoOptApplied";       ///< preset RAM automatico già applicato al primo avvio (default: false)
