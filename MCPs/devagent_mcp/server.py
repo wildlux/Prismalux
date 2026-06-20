@@ -92,12 +92,12 @@ def write_file(path: str, content: str) -> None:
 def bash(cmd: str, timeout: int = 120) -> tuple:
     """
     Esegue un comando shell e restituisce (returncode, output_combinato).
-    stdout e stderr sono unificati.
+    Usa ["bash", "-c", cmd] invece di shell=True per evitare shell injection
+    a livello di subprocess spawn (il comando viene comunque interpretato da bash).
     """
     try:
         result = subprocess.run(
-            cmd,
-            shell=True,
+            ["bash", "-c", cmd],
             capture_output=True,
             text=True,
             timeout=timeout,

@@ -2288,20 +2288,35 @@ void LanServer::handleReplApi(Session& s)
          * --new-session    → nuovo session ID (no SIGINT dall'esterno)
          * --die-with-parent → il child viene killato se il parent muore
          * Secondo strato: ulimit dentro bwrap per CPU/vmem/processi/fd */
-        const QStringList bwArgs = {
-            "--ro-bind",     "/", "/",
-            "--tmpfs",       "/tmp",
-            "--tmpfs",       "/run",
-            "--dev",         "/dev",
-            "--proc",        "/proc",
+        /* Mount selettivo: solo le directory necessarie all'interprete Python.
+         * NON monta /home, /root, /var/lib, /etc/shadow, /run/user.
+         * Questo impedisce la lettura di file privati anche in read-only. */
+        QStringList bwArgs = {
             "--unshare-pid",
             "--unshare-net",
             "--unshare-ipc",
             "--unshare-uts",
             "--new-session",
             "--die-with-parent",
-            "bash", "-c", kLimits + "exec python3 -",
+            "--tmpfs",       "/tmp",
+            "--tmpfs",       "/run",
+            "--dev",         "/dev",
+            "--proc",        "/proc",
         };
+        /* Monta solo le directory necessarie a Python (lib, bin, usr) */
+        for (const char* d : {"/usr", "/lib", "/lib64", "/bin", "/sbin"}) {
+            if (QDir(d).exists())
+                bwArgs << "--ro-bind" << d << d;
+        }
+        /* /etc limitato a sotto-directory safe (locale, DNS, timezone) */
+        for (const char* d : {"/etc/ld.so.cache", "/etc/ld.so.conf", "/etc/ld.so.conf.d",
+                               "/etc/localtime", "/etc/timezone", "/etc/resolv.conf",
+                               "/etc/nsswitch.conf", "/etc/hosts", "/etc/hostname",
+                               "/etc/ssl", "/etc/ca-certificates"}) {
+            if (QFileInfo::exists(d))
+                bwArgs << "--ro-bind" << d << d;
+        }
+        bwArgs << "bash" << "-c" << kLimits + "exec python3 -";
         r = ProcHelper::runWithInput(kBwrap, bwArgs, code.toUtf8(), 15'000);
     } else {
         // Fallback senza bwrap: solo ulimit (meno sicuro)
@@ -2447,6 +2462,15 @@ void LanServer::handleBootstrap(Session& s)
     s.socket->waitForDisconnected(5000);
 }
 
+/* Header di sicurezza comuni a tutte le risposte HTTP */
+static const QByteArray kSecHeaders =
+    "X-Content-Type-Options: nosniff\r\n"
+    "X-Frame-Options: DENY\r\n"
+    "X-XSS-Protection: 1; mode=block\r\n"
+    "Referrer-Policy: no-referrer\r\n"
+    "Permissions-Policy: camera=(), microphone=(), geolocation=(), "
+        "payment=(), usb=(), magnetometer=(), gyroscope=()\r\n";
+
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
 void LanServer::sendJson(QTcpSocket* sock, const QByteArray& json)
@@ -2484,8 +2508,7 @@ void LanServer::sendError(QTcpSocket* sock, int code, const QString& msg)
                           :                 "500 Internal Server Error";
     QByteArray resp = "HTTP/1.1 " + status.toLatin1() + "\r\n";
     resp += "Content-Type: application/json\r\n";
-    resp += "X-Content-Type-Options: nosniff\r\n";
-    resp += "X-Frame-Options: DENY\r\n";
+    resp += kSecHeaders;
     resp += "Content-Length: " + QByteArray::number(body.size()) + "\r\n\r\n";
     resp += body;
     sock->write(resp);
@@ -2544,9 +2567,10 @@ QByteArray LanServer::httpOkHeader(const char* contentType) const
     QByteArray h = "HTTP/1.1 200 OK\r\n";
     h += "Content-Type: ";
     h += contentType;
-    h += "\r\nX-Content-Type-Options: nosniff\r\n";
-    h += "X-Frame-Options: DENY\r\n";
-    h += "Referrer-Policy: no-referrer\r\n";
+    h += "\r\n";
+    h += kSecHeaders;
+    if (m_useTls)
+        h += "Strict-Transport-Security: max-age=31536000\r\n";
     return h;
 }
 
@@ -2556,9 +2580,9 @@ QByteArray LanServer::httpStreamHeader() const
        il client legge via readyRead fino alla chiusura del socket. */
     QByteArray h = "HTTP/1.1 200 OK\r\n";
     h += "Content-Type: application/x-ndjson\r\n";
-    h += "X-Content-Type-Options: nosniff\r\n";
-    h += "X-Frame-Options: DENY\r\n";
-    h += "Referrer-Policy: no-referrer\r\n";
+    h += kSecHeaders;
+    if (m_useTls)
+        h += "Strict-Transport-Security: max-age=31536000\r\n";
     h += "X-Accel-Buffering: no\r\n";
     h += "Connection: close\r\n\r\n";
     return h;
