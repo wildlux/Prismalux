@@ -180,6 +180,9 @@ set(CPP_SRCS
     pages/settings_security.cpp
     pages/main_simulator.cpp
     pages/main_simulator_algos.cpp
+    pages/main_sim_sorting.cpp
+    pages/main_sim_graph.cpp
+    pages/main_sim_misc.cpp
     pages/main_tools.cpp
     pages/main_lan_wan.cpp
     pages/main_lan_gns3.cpp
@@ -722,6 +725,9 @@ if(BUILD_TESTS)
         tests/mock_ai_client.h
         pages/main_simulator.cpp
         pages/main_simulator_algos.cpp
+        pages/main_sim_sorting.cpp
+        pages/main_sim_graph.cpp
+        pages/main_sim_misc.cpp
         ${AI_CLIENT_SRCS}
         ${C_SRCS}
     )

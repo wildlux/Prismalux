@@ -19,10 +19,10 @@ Ogni file sopra ~1500 righe deve essere diviso in unità logiche.
   - `main_wan_server.cpp` (1587 righe) — WAN server + client + workers
   - `main_wan_extra.cpp` (785 righe) — decompose + sim + eventFilter + tools
 
-- [ ] **`main_math.cpp` (4305 righe)** — separare in:
-  - `main_math_ui.cpp` — layout e widget
-  - `main_math_slots.cpp` — slot e calcoli
-  - `main_math_latex.cpp` — rendering KaTeX / Analisi 1&2
+- [x] **`main_math.cpp` (4317 → 2154 righe)** — FATTO 2026-06-21:
+  - `main_math_solve.cpp` (955r) — buildSolveTab + slot Risolvi Passi
+  - `main_math_analisi.cpp` (978r) — buildAnalisi1/2Tab + slot KaTeX
+  - `main_math_bool.cpp` (356r) — buildBoolTab + slot Booleana
 
 - [ ] **`main_ai_ui.cpp` (3906 righe)** — separare in:
   - `main_ai_chat.cpp` — bolle, sessioni, input
@@ -151,7 +151,11 @@ Ogni file sopra ~1500 righe deve essere diviso in unità logiche.
       ma alcune stringhe usano ancora `"~/.prismalux/"` direttamente.
       Grep: `grep -rn '"~/' gui/ --include="*.cpp"` → sostituire con `P::dataDir()`.
 
-- [ ] **`python3` hardcoded** — molti `QProcess::start("python3", ...)`.
+- [x] **`python3` hardcoded** — FATTO 2026-06-21: P::findPython() in 12 file
+      (rag_graph, lan_server_api, main_sci_compute, settings_llm,
+      main_app_controller_slots, main_wan_extra, main_tools,
+      main_programming_git_repl, widget_voice_cloner, settings_ai,
+      main_programming_wiby, main_programming_reverse_usb, widget_coding_lab).
       Usare `P::findPython()` già esistente in `prismalux_paths.h`, che cerca
       venv → python3 → python.
 
