@@ -2681,11 +2681,6 @@ void MainWindow::showOnboardingWizard()
                     QTimer::singleShot(0, qApp, [id]{ ThemeManager::instance()->apply(id); });
             });
 
-    /* X senza confermare → ripristina tema originale */
-    connect(dlg, &QDialog::rejected, dlg, [origTheme]() {
-        ThemeManager::instance()->apply(origTheme);
-    });
-
     tLay->addWidget(themeCombo);
     vlay->addWidget(themeGrp);
 
@@ -2693,6 +2688,14 @@ void MainWindow::showOnboardingWizard()
     auto* noShowChk = new QCheckBox("Non mostrare questo messaggio all'avvio", dlg);
     noShowChk->setChecked(false);
     vlay->addWidget(noShowChk);
+
+    /* X senza confermare → ripristina tema originale;
+       se la checkbox è spuntata salva comunque il flag "non mostrare più" */
+    connect(dlg, &QDialog::rejected, dlg, [origTheme, noShowChk]() {
+        ThemeManager::instance()->apply(origTheme);
+        if (noShowChk && noShowChk->isChecked())
+            QSettings("Prismalux", "GUI").setValue(P::SK::kSetupDone, true);
+    });
 
     /* Bottoni */
     auto* btnBox = new QDialogButtonBox(QDialogButtonBox::Ok, dlg);
