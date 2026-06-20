@@ -2401,21 +2401,15 @@ void MainWindow::onChatCompleted(const QString& title, const QString& logHtml) {
     bool sessionValid = !m_currentChatId.isEmpty()
         && !m_chatHistory.loadLog(m_currentChatId).isEmpty();
 
-    if (sessionValid) {
-        m_chatHistory.saveLog(m_currentChatId, logHtml);
-    } else {
+    if (!sessionValid)
         m_currentChatId = m_chatHistory.newSession(title);
-        m_chatHistory.saveLog(m_currentChatId, logHtml);
-    }
 
-    /* Persisti mappe bubble/codice e history ReAct */
-    if (auto* ap = qobject_cast<AgentiPage*>(
-            m_mainTabs ? m_mainTabs->widget(0) : nullptr)) {
-        m_chatHistory.saveMaps(m_currentChatId,
-                               ap->bubbleTexts(), ap->codeBlocks());
-        if (!ap->autoHistory().isEmpty())
-            m_chatHistory.saveAutoHistory(m_currentChatId, ap->autoHistory());
-    }
+    /* Una sola scrittura atomica: log + mappe + history ReAct */
+    auto* ap = qobject_cast<AgentiPage*>(m_mainTabs ? m_mainTabs->widget(0) : nullptr);
+    m_chatHistory.saveSession(m_currentChatId, logHtml,
+                              ap ? ap->bubbleTexts()  : QMap<int,QString>{},
+                              ap ? ap->codeBlocks()   : QMap<int,QPair<QString,QString>>{},
+                              ap ? ap->autoHistory()  : QJsonArray{});
 
     refreshChatList();
 

@@ -58,8 +58,15 @@ QString ChatHistory::newSession(const QString& firstTask) {
     return s.id;
 }
 
-void ChatHistory::saveLog(const QString& sessionId, const QString& logHtml) {
+void ChatHistory::saveSession(const QString& sessionId,
+                              const QString& logHtml,
+                              const QMap<int,QString>& bubbleTexts,
+                              const QMap<int,QPair<QString,QString>>& codeBlocks,
+                              const QJsonArray& autoHistory)
+{
     const QString path = sessionPath(sessionId);
+
+    /* Una sola lettura per preservare i metadati (id/title/created) */
     QFile fr(path);
     QJsonObject obj;
     if (fr.open(QIODevice::ReadOnly)) {
@@ -67,11 +74,35 @@ void ChatHistory::saveLog(const QString& sessionId, const QString& logHtml) {
         if (doc.isObject()) obj = doc.object();
         fr.close();
     }
+
     obj["log"] = logHtml;
+
+    if (!autoHistory.isEmpty())
+        obj["auto_history"] = autoHistory;
+
+    QJsonObject btObj;
+    for (auto it = bubbleTexts.cbegin(); it != bubbleTexts.cend(); ++it)
+        btObj[QString::number(it.key())] = it.value();
+    obj["bubble_texts"] = btObj;
+
+    QJsonObject cbObj;
+    for (auto it = codeBlocks.cbegin(); it != codeBlocks.cend(); ++it) {
+        QJsonObject entry;
+        entry["lang"] = it.value().first;
+        entry["code"] = it.value().second;
+        cbObj[QString::number(it.key())] = entry;
+    }
+    obj["code_blocks"] = cbObj;
+
+    /* Una sola scrittura atomica */
     QSaveFile fw(path);
     if (fw.open(QIODevice::WriteOnly))
         if (fw.write(QJsonDocument(obj).toJson()) >= 0)
             fw.commit();
+}
+
+void ChatHistory::saveLog(const QString& sessionId, const QString& logHtml) {
+    saveSession(sessionId, logHtml, {}, {}, {});
 }
 
 QString ChatHistory::loadLog(const QString& sessionId) const {
@@ -82,23 +113,6 @@ QString ChatHistory::loadLog(const QString& sessionId) const {
     return doc.object()["log"].toString();
 }
 
-void ChatHistory::saveAutoHistory(const QString& sessionId, const QJsonArray& history)
-{
-    const QString path = sessionPath(sessionId);
-    QFile fr(path);
-    QJsonObject obj;
-    if (fr.open(QIODevice::ReadOnly)) {
-        auto doc = QJsonDocument::fromJson(fr.readAll());
-        if (doc.isObject()) obj = doc.object();
-        fr.close();
-    }
-    obj["auto_history"] = history;
-    QSaveFile fw(path);
-    if (fw.open(QIODevice::WriteOnly))
-        if (fw.write(QJsonDocument(obj).toJson()) >= 0)
-            fw.commit();
-}
-
 QJsonArray ChatHistory::loadAutoHistory(const QString& sessionId) const
 {
     QFile f(sessionPath(sessionId));
@@ -106,42 +120,6 @@ QJsonArray ChatHistory::loadAutoHistory(const QString& sessionId) const
     auto doc = QJsonDocument::fromJson(f.readAll());
     if (!doc.isObject()) return {};
     return doc.object()["auto_history"].toArray();
-}
-
-void ChatHistory::saveMaps(const QString& sessionId,
-                           const QMap<int,QString>& bubbleTexts,
-                           const QMap<int,QPair<QString,QString>>& codeBlocks)
-{
-    const QString path = sessionPath(sessionId);
-    QFile fr(path);
-    QJsonObject obj;
-    if (fr.open(QIODevice::ReadOnly)) {
-        auto doc = QJsonDocument::fromJson(fr.readAll());
-        if (doc.isObject()) obj = doc.object();
-        fr.close();
-    }
-
-    /* bubbleTexts → { "0": "testo...", "1": "..." } */
-    QJsonObject btObj;
-    for (auto it = bubbleTexts.cbegin(); it != bubbleTexts.cend(); ++it)
-        btObj[QString::number(it.key())] = it.value();
-
-    /* codeBlocks → { "0": {"lang":"python","code":"..."}, ... } */
-    QJsonObject cbObj;
-    for (auto it = codeBlocks.cbegin(); it != codeBlocks.cend(); ++it) {
-        QJsonObject entry;
-        entry["lang"] = it.value().first;
-        entry["code"] = it.value().second;
-        cbObj[QString::number(it.key())] = entry;
-    }
-
-    obj["bubble_texts"] = btObj;
-    obj["code_blocks"]  = cbObj;
-
-    QSaveFile fw(path);
-    if (fw.open(QIODevice::WriteOnly))
-        if (fw.write(QJsonDocument(obj).toJson()) >= 0)
-            fw.commit();
 }
 
 void ChatHistory::loadMaps(const QString& sessionId,

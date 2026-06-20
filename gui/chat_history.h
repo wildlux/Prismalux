@@ -40,29 +40,27 @@ public:
     /** Crea nuova sessione vuota; ritorna l'id */
     QString newSession(const QString& firstTask);
 
-    /** Aggiunge/aggiorna il log completo della sessione */
+    /** Salva in un'unica scrittura atomica: log HTML + mappe + history ReAct.
+     *  Elimina i 3 cicli separati di lettura/scrittura precedenti. */
+    void saveSession(const QString& sessionId,
+                     const QString& logHtml,
+                     const QMap<int,QString>& bubbleTexts,
+                     const QMap<int,QPair<QString,QString>>& codeBlocks,
+                     const QJsonArray& autoHistory);
+
+    /** Salva solo il log HTML (usato nei test e negli export) */
     void saveLog(const QString& sessionId, const QString& logHtml);
 
     /** Carica HTML log di una sessione */
     QString loadLog(const QString& sessionId) const;
 
-    /** Salva la history multi-turno dell'agente autonomo (ReAct) */
-    void saveAutoHistory(const QString& sessionId, const QJsonArray& history);
-
-    /** Carica la history ReAct — vuota se non presente */
-    QJsonArray loadAutoHistory(const QString& sessionId) const;
-
-    /** Salva le mappe bubbleTexts e codeBlocks per la sessione.
-     *  bubbleTexts : indice → testo plain (per TTS/copia legacy)
-     *  codeBlocks  : indice → {lang, codice} (per code:copy/save) */
-    void saveMaps(const QString& sessionId,
-                  const QMap<int,QString>& bubbleTexts,
-                  const QMap<int,QPair<QString,QString>>& codeBlocks);
-
     /** Carica le mappe — entrambe vuote se non presenti */
     void loadMaps(const QString& sessionId,
                   QMap<int,QString>& bubbleTexts,
                   QMap<int,QPair<QString,QString>>& codeBlocks) const;
+
+    /** Carica la history ReAct — vuota se non presente */
+    QJsonArray loadAutoHistory(const QString& sessionId) const;
 
     /** Elimina sessione */
     void remove(const QString& sessionId);
