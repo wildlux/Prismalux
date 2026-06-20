@@ -2444,6 +2444,10 @@ void MainWindow::onChatItemClicked(QListWidgetItem* item)
         QMap<int,QPair<QString,QString>> cb;
         m_chatHistory.loadMaps(id, bt, cb);
         ap->loadSessionMaps(bt, cb);
+
+        /* Ripristina history ReAct agente autonomo */
+        const QJsonArray ah = m_chatHistory.loadAutoHistory(id);
+        ap->setAutoHistory(ah);
     }
 
     m_currentChatId = id;

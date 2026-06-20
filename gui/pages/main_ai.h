@@ -87,6 +87,7 @@ public:
 
     /** History multi-turno agente autonomo — per persistenza tra sessioni */
     const QJsonArray& autoHistory() const { return m_autoHistory; }
+    void setAutoHistory(const QJsonArray& h) { m_autoHistory = h; }
 
     /** Getter per persistenza sessione */
     const QMap<int,QString>&                    bubbleTexts() const { return m_bubbleTexts; }
