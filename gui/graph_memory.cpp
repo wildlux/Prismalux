@@ -7,6 +7,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QFile>
+#include <QDir>
 #include <QTextStream>
 #include <QUuid>
 #include <QSet>
@@ -43,6 +44,7 @@ bool GraphMemory::open()
     m_open = true;   /* no-op mode */
     return true;
 #else
+    QDir().mkpath(QFileInfo(m_dbPath).absolutePath());
     QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", m_connName);
     db.setDatabaseName(m_dbPath);
     if (!db.open()) {
@@ -682,4 +684,62 @@ void GraphMemory::clearAll()
     q.exec("DELETE FROM gm_nodes");
     emit changed();
 #endif
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Backup automatico
+   ══════════════════════════════════════════════════════════════ */
+void GraphMemory::enableAutoBackup(int intervalHours, int pruneKeepN, int keepMaxBackups)
+{
+    m_pruneKeepN    = pruneKeepN;
+    m_keepMaxBackups = keepMaxBackups;
+
+    if (!m_backupTimer) {
+        m_backupTimer = new QTimer(this);
+        m_backupTimer->setSingleShot(false);
+        connect(m_backupTimer, &QTimer::timeout, this, &GraphMemory::onBackupTimer);
+    }
+    m_backupTimer->setInterval(intervalHours * 3600 * 1000);
+    m_backupTimer->start();
+}
+
+void GraphMemory::onBackupTimer()
+{
+    runBackupNow();
+}
+
+bool GraphMemory::runBackupNow()
+{
+    if (!m_open || m_dbPath.isEmpty()) {
+        emit backupDone(QString(), false);
+        return false;
+    }
+
+    /* 1. Prune prima del backup — mantiene il file piccolo */
+    pruneByImportance(m_pruneKeepN);
+
+    /* 2. Checkpoint WAL su disco prima della copia */
+#ifdef HAVE_QT_SQL
+    QSqlQuery q(QSqlDatabase::database(m_connName));
+    q.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+#endif
+
+    /* 3. Crea cartella backup */
+    const QString backupDir = QFileInfo(m_dbPath).absolutePath() + "/backups";
+    QDir().mkpath(backupDir);
+
+    /* 4. Copia il file DB */
+    const QString ts   = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+    const QString dest = backupDir + "/graph_memory_" + ts + ".db";
+    const bool ok = QFile::copy(m_dbPath, dest);
+
+    /* 5. Mantieni solo gli ultimi m_keepMaxBackups file */
+    QDir dir(backupDir);
+    QStringList files = dir.entryList({"graph_memory_*.db"}, QDir::Files, QDir::Name);
+    while (files.size() > m_keepMaxBackups) {
+        QFile::remove(backupDir + "/" + files.takeFirst());
+    }
+
+    emit backupDone(dest, ok);
+    return ok;
 }

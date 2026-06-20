@@ -130,7 +130,7 @@ QGroupBox* ManutenzioneePage::buildConnectionModelGroup(QWidget* parent)
     lay->addWidget(new QLabel("Host:", grp));
     lay->addWidget(m_hostEdit);
 
-    m_portEdit = new QLineEdit("11434", grp);
+    m_portEdit = new QLineEdit(QString::number(P::kOllamaPort), grp);
     m_portEdit->setObjectName("chatInput");
     m_portEdit->setPlaceholderText(tr("Porta"));
     m_portEdit->setAccessibleName("Porta del backend AI");
@@ -1209,7 +1209,7 @@ QString ManutenzioneePage::convertConfig(const QString& newFmt)
     struct Cfg {
         QString backend      = "ollama";
         QString ollamaHost   = "127.0.0.1";
-        int     ollamaPort   = 11434;
+        int     ollamaPort   = P::kOllamaPort;
         QString ollamaModel;
         QString lserverHost  = "127.0.0.1";
         int     lserverPort  = P::kLlamaServerPort;
@@ -1261,7 +1261,7 @@ QString ManutenzioneePage::convertConfig(const QString& newFmt)
         cfg.lserverModel = tget("lserver_model");
         cfg.llamaModel   = tget("llama_model");
         cfg.guiPath      = tget("gui_path");
-        if (cfg.ollamaPort  == 0) cfg.ollamaPort  = 11434;
+        if (cfg.ollamaPort  == 0) cfg.ollamaPort  = P::kOllamaPort;
         if (cfg.lserverPort == 0) cfg.lserverPort = P::kLlamaServerPort;
     }
 
@@ -1755,7 +1755,7 @@ void ManutenzioneePage::runRamCmd(const QString& prog, const QStringList& args,
     connect(m_ramCmdProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &ManutenzioneePage::onRamCmdFinished);
     m_ramCmdProc->start(prog, args);
-    if (!m_ramCmdProc->waitForStarted(3000)) {
+    if (!m_ramCmdProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         if (m_ramLog)
             m_ramLog->append(QString("\xe2\x9d\x8c  Impossibile avviare: %1\n").arg(prog));
         m_ramCmdProc->deleteLater();

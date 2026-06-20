@@ -156,7 +156,7 @@ void RagGraph::processNextFile()
 
     } else if (isImg(lower)) {
         /* OCR via tesseract */
-        const QString tmpBase = "/tmp/prismalux_rag_ocr";
+        const QString tmpBase = P::tmpDir() + "rag_ocr";
         const QString tmpTxt  = tmpBase + ".txt";
         QFile::remove(tmpTxt);
         ProcHelper::run("tesseract", {path, tmpBase, "txt"}, 20000);
@@ -167,7 +167,7 @@ void RagGraph::processNextFile()
 
     } else if (isVideo(lower)) {
         /* Estrai audio con ffmpeg → WAV, poi trascrivi con whisper se disponibile */
-        const QString wavTmp = "/tmp/prismalux_rag_audio.wav";
+        const QString wavTmp = P::tmpDir() + "rag_audio.wav";
         QFile::remove(wavTmp);
         ProcHelper::run("ffmpeg",
             {"-y","-i",path,"-ac","1","-ar","16000","-f","wav", wavTmp},
@@ -175,13 +175,13 @@ void RagGraph::processNextFile()
 
         /* Prova whisper CLI, poi python3 -m whisper, poi fallback ffprobe */
         bool transcribed = false;
-        const QString srtTmp = "/tmp/prismalux_rag_audio.txt";
+        const QString srtTmp = P::tmpDir() + "rag_audio.txt";
         QFile::remove(srtTmp);
 
         if (QFileInfo::exists(wavTmp)) {
             auto res = ProcHelper::run("whisper",
                 {wavTmp,"--model","tiny","--output_format","txt",
-                 "--output_dir","/tmp","--language","it"}, 120000);
+                 "--output_dir", P::safeTempPath(),"--language","it"}, 120000);
             if (!res.out.trimmed().isEmpty()) {
                 text = res.out;
                 transcribed = true;

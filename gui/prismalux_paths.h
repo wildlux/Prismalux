@@ -78,6 +78,23 @@ constexpr int kMcpDefaultTimeoutMs = 30'000;
 /** Timeout invocazione MCP per plugin pesanti: Stable Diffusion, Blender, FreeCAD */
 constexpr int kMcpSlowTimeoutMs    = 120'000;
 
+/** Timeout standard per QProcess::waitForStarted() / waitForFinished() — processi normali */
+constexpr int kProcessStartTimeoutMs = 3'000;
+/** Timeout per QProcess::waitForStarted() — processi pesanti: download, compilazione llama.cpp */
+constexpr int kProcessHeavyStartMs   = 5'000;
+/** Grace period breve per kill() su processi audio/TTS (evita freeze UI) */
+constexpr int kProcKillGraceMs       = 300;
+/** Grace period esteso per kill() su processi driver/GNS3 */
+constexpr int kProcKillExtendedMs    = 500;
+/** Timeout per operazioni sincrone lunghe: OCR, script sistema */
+constexpr int kLongOperationMs       = 60'000;
+/** Timeout per cmake configure/build: può essere lento all'avvio su sistemi lenti */
+constexpr int kBuildProcessStartMs   = 8'000;
+/** Timeout per conversioni audio/video con FFmpeg/Whisper su file grandi (3 min) */
+constexpr int kConversionMs          = 180'000;
+/** Debounce standard per input UI (QLineEdit editingFinished, QTimer::singleShot) */
+constexpr int kUiDebounceMs          = 800;
+
 /** Host loopback — unico valore accettato per sicurezza */
 constexpr const char* kLocalHost = "127.0.0.1";
 
@@ -463,6 +480,26 @@ inline QString feedbackPath()
 inline QString lanTokenPath()
 {
     return QDir::homePath() + "/.prismalux/lan_token.key";
+}
+
+/** dataDir() — Cartella dati Prismalux nella home utente (~/.prismalux/). */
+inline QString dataDir()
+{
+    const QString d = QDir::homePath() + "/.prismalux";
+    QDir().mkpath(d);
+    return d;
+}
+
+/** memoryDir() — Cartella memoria AI git-based (~/.ai-memory/). */
+inline QString memoryDir()
+{
+    return QDir::homePath() + "/.ai-memory";
+}
+
+/** tmpDir() — Prefisso path file temporanei Prismalux (/tmp/prismalux_ o equivalente). */
+inline QString tmpDir()
+{
+    return safeTempPath() + "/prismalux_";
 }
 
 /** userKnowledgePath() — Percorso del file memoria persistente utente. */

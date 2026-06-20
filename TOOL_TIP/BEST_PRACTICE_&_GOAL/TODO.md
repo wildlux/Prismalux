@@ -1264,14 +1264,13 @@ START → read_context → generate_patch → apply_patch → compile
 
 ### 🐛 Bug noti nei test esistenti
 
-- [ ] **MultiAgenteLive CAT-C: nodi "result" non salvati in GraphMemory** — 2026-06-17
-  - `nodoResultInGraphMemory` (C-2): dopo esecuzione di un SubTask, il nodo tipo `"result"` non viene
-    aggiunto in GraphMemory. `allNodes("result").count()` rimane invariato anche dopo 60 s di polling.
-  - `nodoResultContenutoNonVuoto` (C-3): i nodi result esistenti hanno `content` vuoto.
-  - I SubTask vengono eseguiti correttamente (C-1 PASS: risultato `'4'` trovato), ma il salvataggio
-    in GraphMemory fallisce. Cercare in `agenti_multi_page.cpp` il punto in cui `runTask()` chiama
-    `m_gm->addNode("result", ...)` e verificare che il `nodeId` sia valido e la transazione SQL vada
-    a buon fine (possibile race condition o connessione DB chiusa prematuramente).
+- [x] **MultiAgenteLive CAT-C: nodi "result" non salvati in GraphMemory** — fix 2026-06-20
+  - Causa radice 1: lambda `token` in `decompose()` catturava `&accumulated` per riferimento su
+    variabile locale → dangling reference → UB che poteva corrompere heap/stack durante lo streaming.
+    Fix: rimossa la lambda `token` (non serviva: `parsePlan(full)` usa già il parametro di `finished`).
+  - Causa radice 2: `GraphMemory::open()` non creava la directory `~/.prismalux/` se mancante.
+    Fix: aggiunto `QDir().mkpath(...)` prima di `db.open()`.
+  - Fix bonus: guard `m_gm->isOpen()` prima di `addNode` + warning se DB non aperto.
 
 ---
 

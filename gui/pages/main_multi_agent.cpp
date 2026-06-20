@@ -357,13 +357,10 @@ void AgentiMultiPage::decompose(const QString& userPrompt)
     delete m_decompHolder;
     m_decompHolder = new QObject(this);
 
-    QString accumulated;
-    connect(m_ai, &AiClient::token, m_decompHolder,
-            [&accumulated](const QString& tok) { accumulated += tok; });
-
+    /* parsePlan usa il parametro 'full' di finished — non serve accumulare
+     * token in una variabile locale (che causerebbe dangling reference). */
     connect(m_ai, &AiClient::finished, m_decompHolder,
-            [this, accumulated](const QString& full) mutable {
-                accumulated = full;
+            [this](const QString& full) {
                 delete m_decompHolder;
                 m_decompHolder = nullptr;
                 m_decomposeBusy = false;
@@ -629,7 +626,7 @@ void AgentiMultiPage::onTaskResultDone(int idx, const QString& full)
     t.result = stripThinkTags(full);
 
     /* Salva risultato in GraphMemory locale (Multi-Agente) */
-    if (m_gm) {
+    if (m_gm && m_gm->isOpen()) {
         const QString nodeId = m_gm->addNode(
             "result",
             QString("SubAgent-%1 (%2)").arg(t.id).arg(t.role),
@@ -638,11 +635,12 @@ void AgentiMultiPage::onTaskResultDone(int idx, const QString& full)
             {{"role", t.role}, {"task_id", t.id}}
         );
         t.resultNodeId = nodeId;
-
         /* Collega al nodo task principale se esiste */
         const auto mainNode = m_gm->searchNodes(m_promptInput->toPlainText().left(60), 1);
         if (!mainNode.isEmpty())
             m_gm->addEdge(nodeId, mainNode.first().id, "task_of");
+    } else {
+        qWarning() << "AgentiMultiPage: GraphMemory non aperta — nodo result non salvato per idx" << idx;
     }
 
     /* Cross-pollination: scrive anche nella GraphMemory del RagGraph */

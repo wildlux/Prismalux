@@ -76,7 +76,7 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
             /* Ollama */
             refreshBtn->setEnabled(false);
             refreshBtn->setText(tr("\xe2\x8f\xb3"));
-            m_ai->setBackend(AiClient::Ollama, "127.0.0.1", 11434, "");
+            m_ai->setBackend(AiClient::Ollama, "127.0.0.1", P::kOllamaPort, "");
             m_ai->fetchModels();
         } else if (idx == 1) {
             /* llama-server */
