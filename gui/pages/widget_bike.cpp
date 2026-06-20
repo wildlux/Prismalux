@@ -120,7 +120,7 @@ void BikeWidget::buildUi()
     m_catCombo->addItem("\xf0\x9f\x94\xa7  Problemi comuni",       0);
     m_catCombo->addItem("\xe2\x9a\x99  Regolazione cambio",        1);
     m_catCombo->addItem("\xf0\x9f\x9b\x91  Regolazione freni",    2);
-    m_catCombo->addItem("\xe2\x9c\x8a  Manopole e attacchi",       3);
+    m_catCombo->addItem("\xf0\x9f\x94\xa9  Manopole e attacchi",    3);
     m_catCombo->addItem("\xf0\x9f\x93\x8b  Manutenzione periodica", 4);
     m_catCombo->setMinimumWidth(dpiScale(220));
 
