@@ -1958,7 +1958,7 @@ void StrumentiPage::onOfficeStartBtnClicked()
 
     m_officeStatusLbl->setText(tr("\xf0\x9f\x94\x84  Avvio bridge..."));
     m_officeBridgeProc->start("python3", {path});
-    if (!m_officeBridgeProc->waitForStarted(3000))
+    if (!m_officeBridgeProc->waitForStarted(P::kProcessStartTimeoutMs))
         m_officeBridgeProc->start("python", {path});
 
     if (m_officeBridgeProc->state() == QProcess::Running) {

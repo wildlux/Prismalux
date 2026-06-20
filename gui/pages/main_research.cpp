@@ -1639,6 +1639,13 @@ QWidget* RicercaPage::buildRagGrafoTab()
     m_ragGm    = new GraphMemory(gmPath, this);
     m_ragGm->open();
     m_ragGm->pruneByImportance(800);   /* tieni top-800 nodi al lancio */
+    connect(m_ragGm, &GraphMemory::backupDone, this, [](const QString& path, bool ok) {
+        if (ok)
+            LogBus::post("\xf0\x9f\x92\xbe RagGraph: backup creato \xe2\x86\x92 " + path);
+        else
+            LogBus::post("\xe2\x9d\x8c RagGraph: backup fallito");
+    });
+    m_ragGm->enableAutoBackup(6, 800, 5);
     m_ragGraph = new RagGraph(m_ai, m_ragGm, this);
 
     connect(m_ragGraph, &RagGraph::progressUpdated,

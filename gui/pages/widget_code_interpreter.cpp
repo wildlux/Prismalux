@@ -504,7 +504,7 @@ void CodeInterpreterWidget::executeStepDocker(const QString& code, int attempt)
     });
 
     m_dockerProc->start();
-    if (m_dockerProc->waitForStarted(3000)) {
+    if (m_dockerProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         m_dockerProc->write(code.toUtf8());
         m_dockerProc->closeWriteChannel();
         timer->start();

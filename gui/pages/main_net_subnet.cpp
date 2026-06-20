@@ -8,6 +8,8 @@
    - Grafo Graphviz dark-theme renderizzato con dot -Tpng
    ====================================================================== */
 #include "main_programming.h"
+#include "prismalux_paths.h"
+namespace P = PrismaluxPaths;
 #include "../log_bus.h"
 #include "../dpi_utils.h"
 
@@ -366,7 +368,7 @@ void ProgrammazionePage::onSubnetRenderGraph()
             this, &ProgrammazionePage::onSubnetDotFinished);
     m_subnetDotProc->start("dot", {"-Tpng", tmpDot, "-o", m_subnetTmpPng});
 
-    if (!m_subnetDotProc->waitForStarted(3000)) {
+    if (!m_subnetDotProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         if (m_subnetStatusLbl)
             m_subnetStatusLbl->setText(
                 tr("\xe2\x9d\x8c  Graphviz non trovato — sudo apt install graphviz"));

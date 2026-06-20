@@ -1527,7 +1527,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
                 proc->deleteLater();
             });
             proc->start("wget", {"-c", "--show-progress", "-O", dest, ggufUrl});
-            if (!proc->waitForStarted(3000)) {
+            if (!proc->waitForStarted(P::kProcessStartTimeoutMs)) {
                 proc->deleteLater();
                 auto* curl = new QProcess(page);
                 curl->setProcessChannelMode(QProcess::MergedChannels);

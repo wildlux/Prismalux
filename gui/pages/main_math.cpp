@@ -1045,7 +1045,7 @@ void MatematicaPage::runPython(const QString& code)
 
     setStatus("\xe2\x8f\xb3  Calcolo in corso...");
     m_proc->start(P::findPython(), QStringList{"-c", code});
-    if (!m_proc->waitForStarted(3000)) {
+    if (!m_proc->waitForStarted(P::kProcessStartTimeoutMs)) {
         setStatus("\xe2\x9d\x8c  Python non trovato nel PATH. Installa Python da python.org");
         LogBus::post("\xe2\x9d\x8c Matematica: Python non trovato nel PATH.");
         m_proc->deleteLater();
@@ -1772,7 +1772,7 @@ QString MatematicaPage::extractNumbersFromFile(const QString& path, QString& err
     if (ext == "doc") {
         QProcess proc;
         proc.start("catdoc", QStringList{path});
-        if (!proc.waitForStarted(3000)) {
+        if (!proc.waitForStarted(P::kProcessStartTimeoutMs)) {
             err = "catdoc non trovato. Installa con: sudo apt install catdoc";
             return {};
         }
@@ -1815,7 +1815,7 @@ QString MatematicaPage::extractNumbersFromFile(const QString& path, QString& err
             /* Fallback: pdftotext */
             QProcess proc;
             proc.start("pdftotext", QStringList{path, "-"});
-            if (!proc.waitForStarted(3000)) {
+            if (!proc.waitForStarted(P::kProcessStartTimeoutMs)) {
                 err = "pypdf non trovato e pdftotext non disponibile.";
                 return {};
             }
@@ -1850,7 +1850,7 @@ QString MatematicaPage::_runPythonSync(const QString& code, QString& err)
     QProcess proc;
     proc.setProcessChannelMode(QProcess::SeparateChannels);
     proc.start(P::findPython(), QStringList{"-c", code});
-    if (!proc.waitForStarted(3000)) {
+    if (!proc.waitForStarted(P::kProcessStartTimeoutMs)) {
         err = "Python non trovato nel PATH. Installa Python da python.org";
         return {};
     }

@@ -576,7 +576,7 @@ void MultimediaPage::_renderDotCode(const QString& dot)
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MultimediaPage::onGraphvizProcFinished);
     m_graphvizProc->start("dot", {"-Tpng", tmpDot, "-o", m_graphvizTmpPng});
-    if (!m_graphvizProc->waitForStarted(3000)) {
+    if (!m_graphvizProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         m_graphvizStatus->setText(
             "\xe2\x9d\x8c  Graphviz non trovato. "
             "Installa con: <b>sudo apt install graphviz</b>");
@@ -1273,7 +1273,7 @@ void MultimediaPage::startOcrDaemon()
     m_ocrStatus->setText(tr("\xe2\x8f\xb3  Avvio daemon OCR (import librerie)..."));
     m_ocrDaemon->start(OpencvUtils::findCvPython(),
                        QStringList{"-c", ocrDaemonScript(previewPath)});
-    if (!m_ocrDaemon->waitForStarted(3000)) {
+    if (!m_ocrDaemon->waitForStarted(P::kProcessStartTimeoutMs)) {
         m_ocrStatus->setText(tr("\xe2\x9d\x8c  Python non trovato nel PATH."));
         LogBus::post("\xe2\x9d\x8c OCR webcam: Python non trovato nel PATH.");
         m_ocrDaemon->deleteLater();
@@ -1576,7 +1576,7 @@ void MultimediaPage::onOcrTranscribeAudioClicked()
             this, &MultimediaPage::onOcrFfmpegFinished);
     m_ocrFfmpegProc->start(FfmpegUtils::findFfmpeg(),
         FfmpegUtils::extractArgs(m_ocrVideoPath, m_ocrAudioWav));
-    if (!m_ocrFfmpegProc->waitForStarted(3000)) {
+    if (!m_ocrFfmpegProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         m_ocrStatus->setText(
             "\xe2\x9d\x8c  ffmpeg non trovato. Installa con: sudo apt install ffmpeg");
         LogBus::post("\xe2\x9d\x8c OCR webcam: ffmpeg non trovato nel PATH.");

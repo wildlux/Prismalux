@@ -897,7 +897,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
                         next(ok);
                     });
                 proc->start(prog, args);
-                if (!proc->waitForStarted(3000)) {
+                if (!proc->waitForStarted(P::kProcessStartTimeoutMs)) {
                     if (log) log->appendPlainText(
                         "\xe2\x9d\x8c  Impossibile avviare: " + prog +
                         "\n  Verifica che git/cmake/gcc siano installati.");

@@ -4,6 +4,7 @@
 #include <QVector>
 #include <QVariantMap>
 #include <QDateTime>
+#include <QTimer>
 #include <optional>
 
 /* ══════════════════════════════════════════════════════════════
@@ -139,9 +140,30 @@ public:
     /** Cancella tutto il grafo (irreversibile). */
     void clearAll();
 
+    /**
+     * enableAutoBackup() — avvia un timer che ogni intervalHours ore:
+     *   1. chiama pruneByImportance(pruneKeepN) per limitare la dimensione
+     *   2. copia il DB in <backupDir>/graph_memory_YYYYMMDD_HHmmss.db
+     *   3. mantiene solo gli ultimi keepMaxBackups file (cancella i più vecchi)
+     * Sicuro: la copia avviene tramite QFile::copy() (WAL flushed da SQLite).
+     * Chiamare dopo open().
+     */
+    void enableAutoBackup(int intervalHours = 6,
+                          int pruneKeepN     = 500,
+                          int keepMaxBackups = 7);
+
+    /** Esegue subito un backup manuale (stesso comportamento del timer). */
+    bool runBackupNow();
+
 signals:
     /** Emesso dopo ogni modifica — per aggiornare la vista. */
     void changed();
+
+    /** Emesso al termine di un backup automatico. path = file creato; ok = esito. */
+    void backupDone(const QString& path, bool ok);
+
+private slots:
+    void onBackupTimer();
 
 private:
     void        initSchema();
@@ -149,8 +171,11 @@ private:
     static GmNode  rowToNode(const QVariantMap& row);
     static GmEdge  rowToEdge(const QVariantMap& row);
 
-    QString m_dbPath;
-    bool    m_open      = false;
-    bool    m_inBatch   = false;  ///< true tra beginBatch() e endBatch()
-    QString m_connName;
+    QString  m_dbPath;
+    bool     m_open         = false;
+    bool     m_inBatch      = false;  ///< true tra beginBatch() e endBatch()
+    QString  m_connName;
+    QTimer*  m_backupTimer  = nullptr;
+    int      m_pruneKeepN   = 500;
+    int      m_keepMaxBackups = 7;
 };

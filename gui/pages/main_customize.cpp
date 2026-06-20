@@ -59,7 +59,7 @@ void PersonalizzaPage::runProcArgs(QProcess* proc,
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PersonalizzaPage::onHelperProcFinished);
     proc->start(program, args);
-    if (!proc->waitForStarted(4000)) {
+    if (!proc->waitForStarted(P::kProcessHeavyStartMs)) {
         log->append("\xe2\x9d\x8c  Impossibile avviare il processo. Controlla il PATH.");
         LogBus::post("\xe2\x9d\x8c Personalizza: Impossibile avviare il processo. Controlla il PATH.");
         if (btn) btn->setEnabled(true);
@@ -87,7 +87,7 @@ void PersonalizzaPage::runProc(QProcess* proc, const QString& cmd,
 #else
     proc->start("sh", {"-c", cmd});
 #endif
-    if (!proc->waitForStarted(4000)) {
+    if (!proc->waitForStarted(P::kProcessHeavyStartMs)) {
         log->append("\xe2\x9d\x8c  Impossibile avviare il processo. Controlla il PATH.");
         LogBus::post("\xe2\x9d\x8c Personalizza: Impossibile avviare il processo. Controlla il PATH.");
         if (btn) btn->setEnabled(true);
@@ -611,7 +611,7 @@ void PersonalizzaPage::onLlamaCompBtnClicked() {
     connect(m_proc1, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PersonalizzaPage::onProc1Finished);
     m_proc1->start("git", gitArgs);
-    if (!m_proc1->waitForStarted(8000)) {
+    if (!m_proc1->waitForStarted(P::kBuildProcessStartMs)) {
         m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare git. Verifica che git sia nel PATH.");
         LogBus::post("\xe2\x9d\x8c Personalizza: Impossibile avviare git. Verifica che git sia nel PATH.");
         m_llamaCompBtn->setEnabled(true);
@@ -657,7 +657,7 @@ void PersonalizzaPage::onProc1Finished(int code, QProcess::ExitStatus) {
     connect(m_proc2, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PersonalizzaPage::onProc2Finished);
     m_proc2->start("cmake", cmakeConfigArgs);
-    if (!m_proc2->waitForStarted(5000)) {
+    if (!m_proc2->waitForStarted(P::kProcessHeavyStartMs)) {
         if (m_llamaLog)
             m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare cmake configure.");
         LogBus::post("\xe2\x9d\x8c Personalizza: Impossibile avviare cmake configure.");
@@ -706,7 +706,7 @@ void PersonalizzaPage::onProc2Finished(int code, QProcess::ExitStatus) {
             connect(m_proc2, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                     this, &PersonalizzaPage::onProc2Finished);
             m_proc2->start("cmake", cmakeConfigArgs);
-            if (!m_proc2->waitForStarted(5000)) {
+            if (!m_proc2->waitForStarted(P::kProcessHeavyStartMs)) {
                 if (m_llamaLog)
                     m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare cmake configure (fallback CPU).");
                 LogBus::post("\xe2\x9d\x8c Personalizza: Impossibile avviare cmake configure (fallback CPU).");
@@ -741,7 +741,7 @@ void PersonalizzaPage::onProc2Finished(int code, QProcess::ExitStatus) {
         "--config", "Release",
         "-j", QString::number(m_buildJobs)
     });
-    if (!m_proc3->waitForStarted(5000)) {
+    if (!m_proc3->waitForStarted(P::kProcessHeavyStartMs)) {
         if (m_llamaLog)
             m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare cmake build.");
         if (m_llamaCompBtn) m_llamaCompBtn->setEnabled(true);
@@ -901,7 +901,7 @@ void PersonalizzaPage::onModDlBtnClicked() {
             this, &PersonalizzaPage::onModDlProcFinished);
 
     m_modDlProc->start("wget", {"-c", "--progress=dot:mega", "-O", dest, url});
-    if (!m_modDlProc->waitForStarted(3000)) {
+    if (!m_modDlProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         m_modDlProc->deleteLater();
         m_modDlProc = nullptr;
         /* Fallback curl */
@@ -1026,7 +1026,7 @@ void PersonalizzaPage::onMathDlBtnClicked() {
 #else
     proc->start("wget", {"-c", "-O", dest, "--show-progress", url});
 #endif
-    if (!proc->waitForStarted(4000)) {
+    if (!proc->waitForStarted(P::kProcessHeavyStartMs)) {
         m_mathDlLog->append("\xe2\x9d\x8c  wget/curl non trovato. Installa wget (Linux) o curl (Windows).");
         btn->setEnabled(true);
         proc->deleteLater();
@@ -1079,7 +1079,7 @@ void PersonalizzaPage::onDlCustomBtnClicked() {
 #else
     m_dlCustomProc->start("wget", {"-c", "-O", dest, "--show-progress", url});
 #endif
-    if (!m_dlCustomProc->waitForStarted(4000)) {
+    if (!m_dlCustomProc->waitForStarted(P::kProcessHeavyStartMs)) {
         m_mathDlLog->append("\xe2\x9d\x8c  wget/curl non trovato.");
         m_dlCustomBtn->setEnabled(true);
         m_dlCustomProc->deleteLater();

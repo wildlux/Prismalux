@@ -164,6 +164,9 @@ set(CPP_SRCS
     pages/main_maintenance_cron.cpp
     pages/main_maintenance_lan.cpp
     lan_server.cpp
+    lan_server_ai.cpp
+    lan_server_compute.cpp
+    lan_server_api.cpp
     lan_web.qrc
     emoji.qrc
     pages/settings_main.cpp
@@ -179,6 +182,10 @@ set(CPP_SRCS
     pages/main_simulator_algos.cpp
     pages/main_tools.cpp
     pages/main_lan_wan.cpp
+    pages/main_lan_gns3.cpp
+    pages/main_wan_persist.cpp
+    pages/main_wan_server.cpp
+    pages/main_wan_extra.cpp
     pages/main_sci_compute.cpp
     pages/main_sci_compute_ui.cpp
     pages/main_sci_protein.cpp
@@ -190,6 +197,9 @@ set(CPP_SRCS
     pages/main_programming_git_repl.cpp
     pages/main_programming_translitter.cpp
     pages/main_programming_slots.cpp
+    pages/main_programming_vpn.cpp
+    pages/main_programming_wiby.cpp
+    pages/main_programming_reverse_usb.cpp
     pages/main_net_policy.cpp
     pages/main_net_subnet.cpp
     pages/main_app_controller_slots.cpp

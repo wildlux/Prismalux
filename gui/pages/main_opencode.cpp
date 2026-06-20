@@ -186,7 +186,7 @@ void OpenCodePage::stopServer() {
     disconnectSseStream();
     if (m_proc && m_proc->state() != QProcess::NotRunning) {
         m_proc->terminate();
-        if (!m_proc->waitForFinished(3000))
+        if (!m_proc->waitForFinished(P::kProcessStartTimeoutMs))
             m_proc->kill();
     }
     setServerState(false);

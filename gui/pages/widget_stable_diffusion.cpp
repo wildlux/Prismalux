@@ -1,5 +1,6 @@
 #include "widget_stable_diffusion.h"
 #include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -410,7 +411,7 @@ void StableDiffusionWidget::generateLocal()
             this, &StableDiffusionWidget::onLocalProcFinished);
 
     m_sdProc->start(PrismaluxPaths::findPython(), args);
-    if (!m_sdProc->waitForStarted(3000)) {
+    if (!m_sdProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         setStatus("\xe2\x9d\x8c  Python non trovato nel PATH.", false);
         m_sdProc->deleteLater();
         m_sdProc = nullptr;

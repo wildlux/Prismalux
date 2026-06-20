@@ -5,6 +5,7 @@
 #include "../prismalux_paths.h"
 #include "../widgets/proc_helper.h"
 #include "../log_bus.h"
+#include "../lan_server.h"
 
 #include <QUuid>
 #include <QDateTime>
@@ -177,11 +178,22 @@ SciComputePage::SciComputePage(QWidget* parent)
     connect(m_heartbeatTimer, &QTimer::timeout, this, &SciComputePage::onHeartbeatTimer);
     m_dispatchTimer->start();
 
-    /* Carica token salvato */
-    QSettings s;
-    m_token = s.value("sci_compute/token",
-                      QUuid::createUuid().toString(QUuid::Id128)).toString();
-    s.setValue("sci_compute/token", m_token);
+    /* Carica token — QKeychain (o file 0600 fallback), mai QSettings in chiaro.
+     * Migrazione: se esiste ancora la voce QSettings (installazione precedente),
+     * la porta nel keyring e la rimuove da QSettings. */
+    {
+        QSettings qs;
+        const QString legacy = qs.value("sci_compute/token").toString();
+        if (!legacy.isEmpty()) {
+            LanServer::saveSecret("sci_compute_token", legacy);
+            qs.remove("sci_compute/token");
+        }
+    }
+    m_token = LanServer::loadSecret("sci_compute_token");
+    if (m_token.isEmpty()) {
+        m_token = QUuid::createUuid().toString(QUuid::Id128);
+        LanServer::saveSecret("sci_compute_token", m_token);
+    }
 
     auto* lay = new QVBoxLayout(this);
     lay->setContentsMargins(0, 0, 0, 0);
@@ -1633,7 +1645,13 @@ void SciComputePage::onConnectClicked()
     const QString host = m_coordHostEdit ? m_coordHostEdit->text().trimmed() : "127.0.0.1";
     if (host.isEmpty()) return;
     m_isCoord = false;
-    if (m_tokenEdit) m_token = m_tokenEdit->text().trimmed();
+    if (m_tokenEdit) {
+        const QString edited = m_tokenEdit->text().trimmed();
+        if (!edited.isEmpty() && edited != m_token) {
+            m_token = edited;
+            LanServer::saveSecret("sci_compute_token", m_token);
+        }
+    }
     connectToCoord(host, P::kSciComputePort);
     appendLog(QString("\xf0\x9f\x94\x97  Connessione a %1:%2...").arg(host).arg(P::kSciComputePort));
 }

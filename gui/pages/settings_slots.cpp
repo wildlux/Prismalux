@@ -618,7 +618,7 @@ static ImpostazioniPage::RagExtractResult extractRagContent(const QString& dir,
         if (!pdfToText.isEmpty()) {
             QProcess p;
             p.start(pdfToText, {pdfPath, "-"});
-            if (p.waitForFinished(60000))
+            if (p.waitForFinished(P::kLongOperationMs))
                 pdfText = QString::fromUtf8(p.readAllStandardOutput());
         }
 
@@ -642,7 +642,7 @@ static ImpostazioniPage::RagExtractResult extractRagContent(const QString& dir,
                 for (const QString& img : std::as_const(imgs)) {
                     QProcess ocr;
                     ocr.start(tesseract, {img, "stdout", "-l", "ita+eng"});
-                    if (ocr.waitForFinished(30000))
+                    if (ocr.waitForFinished(P::kLongOperationMs/2))
                         pdfText += QString::fromUtf8(ocr.readAllStandardOutput()) + "\n";
                     QFile::remove(img);
                 }

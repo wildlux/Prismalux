@@ -531,7 +531,7 @@ void McpManagerPage::onTestClicked()
             this, &McpManagerPage::onTestFinished);
     m_testProc->start(py, {e->serverPy});
 
-    if (m_testProc->waitForStarted(3000)) {
+    if (m_testProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         m_testProc->write(smokeTestRequests());
     } else {
         finishCurrentTest(false, QString::fromUtf8("Impossibile avviare il server (python o file mancante)."));
@@ -763,7 +763,7 @@ void McpManagerPage::onTestMcpCallClicked()
             proc->setArguments({serverPy});
             proc->setProcessChannelMode(QProcess::SeparateChannels);
             proc->start();
-            if (!proc->waitForStarted(3000)) {
+            if (!proc->waitForStarted(P::kProcessStartTimeoutMs)) {
                 proc->deleteLater();
                 page->appendLog(
                     QString::fromUtf8("  \xe2\x9d\x8c [mcp_call] %1 — avvio fallito (%2)")

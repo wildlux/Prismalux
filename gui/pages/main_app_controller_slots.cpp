@@ -1234,7 +1234,7 @@ void AppControllerPage::onTelegramStartClicked()
     /* Se già in esecuzione, ferma prima */
     if (m_telegramProc && m_telegramProc->state() == QProcess::Running) {
         m_telegramProc->terminate();
-        m_telegramProc->waitForFinished(3000);
+        m_telegramProc->waitForFinished(P::kProcessStartTimeoutMs);
     }
 
     /* Usa direttamente il file versionato — non sovrascrivere */
@@ -1275,7 +1275,7 @@ void AppControllerPage::onTelegramStartClicked()
 
     m_telegramProc->start(P::findPython(), {scriptPath});
 
-    if (m_telegramProc->waitForStarted(3000)) {
+    if (m_telegramProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         m_telegramStartBtn->setEnabled(false);
         m_telegramStopBtn->setEnabled(true);
         m_telegramStatusLbl->setText(
@@ -1295,7 +1295,7 @@ void AppControllerPage::onTelegramStopClicked()
     m_telegramIntentionalStop = true;
     if (m_telegramProc && m_telegramProc->state() == QProcess::Running) {
         m_telegramProc->terminate();
-        if (!m_telegramProc->waitForFinished(3000))
+        if (!m_telegramProc->waitForFinished(P::kProcessStartTimeoutMs))
             m_telegramProc->kill();
     }
     /* onTelegramProcFinished aggiornerà lo stato */
@@ -1978,7 +1978,7 @@ void AppControllerPage::onDevAgentRunClicked()
         : QStringLiteral("deepseek-coder:6.7b");
 
     m_devProc->start(P::findPython(), {scriptPath});
-    if (!m_devProc->waitForStarted(3000)) {
+    if (!m_devProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         if (m_devStatusLbl) m_devStatusLbl->setText(
             "\xe2\x9d\x8c  Impossibile avviare il server Dev Agent.");
         return;
@@ -2120,7 +2120,7 @@ void AppControllerPage::onDevAgentStopClicked()
 {
     if (m_devProc && m_devProc->state() != QProcess::NotRunning) {
         m_devProc->terminate();
-        if (!m_devProc->waitForFinished(3000))
+        if (!m_devProc->waitForFinished(P::kProcessStartTimeoutMs))
             m_devProc->kill();
     }
     if (m_devRunBtn)  m_devRunBtn->setEnabled(true);
@@ -2278,7 +2278,7 @@ static QProcess* devGitProc(QWidget* parent, const QString& scriptPath)
     auto* proc = new QProcess(parent);
     proc->setProcessChannelMode(QProcess::SeparateChannels);
     proc->start(PrismaluxPaths::findPython(), {scriptPath});
-    if (!proc->waitForStarted(3000)) {
+    if (!proc->waitForStarted(P::kProcessStartTimeoutMs)) {
         proc->deleteLater();
         return nullptr;
     }

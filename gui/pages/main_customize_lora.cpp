@@ -448,7 +448,7 @@ void PersonalizzaPage::onLoraStartBtnClicked() {
             this, &PersonalizzaPage::onLoraProcFinished);
 
     m_loraProc->start(ftBin, args);
-    if (!m_loraProc->waitForStarted(3000)) {
+    if (!m_loraProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         m_loraLog->append("\xe2\x9d\x8c  Impossibile avviare llama-finetune.");
         m_loraProc->deleteLater();
         m_loraProc = nullptr;
@@ -510,7 +510,7 @@ void PersonalizzaPage::onLoraInstallBtnClicked() {
     m_loraInstallProc->start(P::findPython(),
         {"-m", "pip", "install", "--break-system-packages",
          "unsloth", "trl", "datasets", "transformers"});
-    if (!m_loraInstallProc->waitForStarted(3000)) {
+    if (!m_loraInstallProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         m_loraLog2->append("\xe2\x9d\x8c  pip non trovato.");
         m_loraInstallProc->deleteLater();
         m_loraInstallProc = nullptr;

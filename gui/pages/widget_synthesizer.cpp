@@ -1,4 +1,6 @@
 #include "widget_synthesizer.h"
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -418,7 +420,7 @@ void SintetizzatoreWidget::playWav(const QVector<Tono>& toni, const QString& lab
 {
     if (m_aplay && m_aplay->state() != QProcess::NotRunning) {
         m_aplay->terminate();
-        m_aplay->waitForFinished(500);
+        m_aplay->waitForFinished(P::kProcKillExtendedMs);
     }
 
     QFile f(m_tmpWav);
