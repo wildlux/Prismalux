@@ -261,6 +261,406 @@ Prima di considerare stabile una versione, verificare:
    senza fermarsi a riorganizzare. Dopo 6 mesi → debito tecnico enorme.
    Soluzione: ogni 10 nuove funzionalità, una sessione di solo refactoring.
 
+────────────────────────────────────────────────────────────────────────────────
+  SEZIONE 9 — ESEMPIO COMPLETO: "NoteAI" su 4 piattaforme
+────────────────────────────────────────────────────────────────────────────────
+
+Progetto di esempio: NoteAI — app per note personali con AI locale (Ollama).
+Stesso backend, 4 frontend diversi. Dimostra come applicare il template in
+ogni piattaforma.
+
+FUNZIONALITÀ COMUNI A TUTTE LE PIATTAFORME:
+  - Crea/modifica/cancella note (testo libero)
+  - AI risponde a domande sulle note (RAG locale)
+  - Sincronizzazione via API REST locale (LAN)
+  - Funziona offline — AI locale via Ollama/llama.cpp
+
+────────────────────────────────────────────────────────────────────────────────
+9.1 — DESKTOP (Qt6 C++)
+────────────────────────────────────────────────────────────────────────────────
+
+STRUTTURA CARTELLE:
+  NoteAI_Desktop/
+  ├── gui/
+  │   ├── pages/
+  │   │   ├── main_notes.cpp / .h          ← lista note + editor principale
+  │   │   ├── main_ai_chat.cpp / .h        ← chat con AI sulle note
+  │   │   ├── main_search.cpp / .h         ← ricerca full-text + RAG
+  │   │   ├── settings_general.cpp / .h    ← impostazioni generali
+  │   │   ├── settings_ai.cpp / .h         ← modello AI, URL Ollama, temp.
+  │   │   ├── widget_note_card.cpp / .h    ← card singola nota (riutilizzabile)
+  │   │   ├── widget_markdown_view.cpp / .h← visualizzazione markdown
+  │   │   └── dialog_note_export.cpp / .h  ← dialogo esporta PDF/TXT
+  │   ├── core/
+  │   │   ├── note_store.cpp / .h          ← CRUD note su SQLite
+  │   │   ├── ai_client.cpp / .h           ← chiamate Ollama/llama-server
+  │   │   ├── rag_engine.cpp / .h          ← embedding + ricerca semantica
+  │   │   └── sync_client.cpp / .h         ← sync LAN via REST
+  │   ├── config/
+  │   │   └── app_config.h                 ← costanti: porte, path, chiavi QSettings
+  │   ├── tests/
+  │   │   ├── test_note_store.cpp
+  │   │   ├── test_rag_engine.cpp
+  │   │   └── test_ai_client.cpp
+  │   ├── mainwindow.cpp / .h
+  │   └── CMakeLists.txt
+
+CMakeLists.txt (estratto chiave):
+  cmake_minimum_required(VERSION 3.21)
+  project(NoteAI VERSION 1.0)
+  set(CMAKE_CXX_STANDARD 17)
+  find_package(Qt6 REQUIRED COMPONENTS Widgets Sql Network)
+
+  set(SOURCES
+    mainwindow.cpp
+    pages/main_notes.cpp
+    pages/main_ai_chat.cpp
+    pages/main_search.cpp
+    pages/settings_general.cpp
+    pages/settings_ai.cpp
+    pages/widget_note_card.cpp
+    pages/widget_markdown_view.cpp
+    pages/dialog_note_export.cpp
+    core/note_store.cpp
+    core/ai_client.cpp
+    core/rag_engine.cpp
+    core/sync_client.cpp
+  )
+  qt6_add_executable(NoteAI ${SOURCES})
+  target_link_libraries(NoteAI Qt6::Widgets Qt6::Sql Qt6::Network)
+
+  # Tests separati — non linkano Qt::Widgets
+  enable_testing()
+  qt6_add_executable(test_note_store tests/test_note_store.cpp core/note_store.cpp)
+  target_link_libraries(test_note_store Qt6::Test Qt6::Sql)
+  add_test(NAME NoteStore COMMAND test_note_store)
+
+PROMPT ALL'AI PER GENERARE QUESTO PROGETTO:
+  "Crea NoteAI, un'app Qt6 C++ per note personali con AI locale (Ollama).
+   Regole obbligatorie: [incolla Sezione 3 del template].
+   Inizia da CMakeLists.txt e app_config.h, poi main_notes.cpp, poi core/note_store.cpp.
+   Un file alla volta, con header guard, namespace AppConfig per le costanti.
+   Dopo ogni file chiedo io il prossimo."
+
+PATTERN CONNECT() CORRETTO (da usare in tutto il progetto):
+  // In main_notes.cpp — connect con context e slot nominato
+  connect(m_newBtn, &QPushButton::clicked, this, &NotesPage::onNewNote);
+  connect(m_search, &QLineEdit::textChanged, this, &NotesPage::onSearchChanged);
+
+  // SBAGLIATO — lambda senza context (dangling pointer se widget distrutto):
+  // connect(m_newBtn, &QPushButton::clicked, [this]() { createNote(); });
+
+────────────────────────────────────────────────────────────────────────────────
+9.2 — WEB (Server Qt6 + Frontend HTML/JS puro)
+────────────────────────────────────────────────────────────────────────────────
+
+SCELTA ARCHITETTURA WEB:
+  Backend: Qt6 QTcpServer o QHttpServer (Qt 6.4+) — stesso processo del desktop
+  Frontend: HTML + CSS + JavaScript puro (no framework) servito dal backend
+  Comunicazione: REST JSON + WebSocket per streaming AI
+
+STRUTTURA CARTELLE (aggiunta al progetto desktop):
+  NoteAI_Desktop/
+  ├── server/
+  │   ├── lan_server.cpp / .h     ← QHttpServer, routes, WebSocket
+  │   └── api_handlers.cpp / .h   ← handler per ogni endpoint REST
+  └── web/
+      ├── index.html              ← shell HTML (una sola pagina)
+      ├── app.js                  ← logica JS: fetch, WebSocket, router
+      ├── style.css               ← stile (CSS variabili per temi)
+      └── sw.js                   ← Service Worker per offline (PWA)
+
+ENDPOINTS REST (da definire in api_handlers.cpp):
+  GET    /api/notes               ← lista note (JSON array)
+  POST   /api/notes               ← crea nota { title, body }
+  PUT    /api/notes/:id           ← modifica nota
+  DELETE /api/notes/:id           ← elimina nota
+  POST   /api/chat                ← domanda AI, risposta in streaming (SSE)
+  GET    /api/models              ← lista modelli Ollama disponibili
+  GET    /health                  ← heartbeat (200 OK)
+
+FRONTEND app.js (pattern minimo stabile):
+  // Router hash-based — niente framework, zero dipendenze
+  const routes = { '#/notes': showNotes, '#/chat': showChat, '#/settings': showSettings };
+  window.addEventListener('hashchange', () => (routes[location.hash] || showNotes)());
+
+  // Streaming AI via Server-Sent Events
+  async function askAI(question, onToken, onDone) {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question })
+    });
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) { onDone(); break; }
+      onToken(dec.decode(value));
+    }
+  }
+
+  // Nessun innerHTML con dati utente — sempre textContent o DOMPurify
+  function renderNote(note) {
+    const div = document.createElement('div');
+    div.className = 'note-card';
+    const title = document.createElement('h3');
+    title.textContent = note.title;   // sicuro: no XSS
+    div.appendChild(title);
+    return div;
+  }
+
+PROMPT ALL'AI PER GENERARE IL WEB:
+  "Aggiungi a NoteAI un server web Qt6 (QHttpServer) che serve una PWA.
+   Regole: nessun framework JS, zero dipendenze npm, CSS puro con variabili,
+   router hash-based, streaming AI via SSE. Inizia da lan_server.cpp con le
+   routes, poi i file web/ uno alla volta. Sicurezza: mai innerHTML con dati
+   utente, validare Content-Type su ogni POST."
+
+────────────────────────────────────────────────────────────────────────────────
+9.3 — SMARTPHONE e TABLET (Android Qt6)
+────────────────────────────────────────────────────────────────────────────────
+
+STRUTTURA CARTELLE (progetto Qt separato, condivide core/):
+  NoteAI_Android/
+  ├── android/
+  │   ├── AndroidManifest.xml
+  │   └── res/                    ← icone, splash screen
+  ├── pages/
+  │   ├── main_note_list.cpp / .h ← lista note (touch-friendly, swipe to delete)
+  │   ├── main_note_editor.cpp / .h← editor full-screen con tastiera virtuale
+  │   ├── main_ai_chat.cpp / .h   ← chat AI (identico desktop ma layout verticale)
+  │   ├── main_voice.cpp / .h     ← STT (MediaRecorder) + TTS (QTextToSpeech)
+  │   └── widget_bottom_nav.cpp / .h← barra navigazione bottom (4 tab)
+  ├── core/ → symlink a NoteAI_Desktop/core/  ← STESSA logica, zero duplicazione
+  └── CMakeLists.txt
+
+CMakeLists.txt Android (differenze chiave):
+  find_package(Qt6 REQUIRED COMPONENTS Widgets Sql Network TextToSpeech)
+  # Icone adattive Android
+  set_property(TARGET NoteAI_Android PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
+               "${CMAKE_CURRENT_SOURCE_DIR}/android")
+  # Permessi richiesti
+  set_property(TARGET NoteAI_Android PROPERTY
+    QT_ANDROID_EXTRA_LIBS "${ANDROID_SDK}/extras/android/support/...")
+
+ADATTAMENTI TOUCH (regole per UI mobile):
+  - Tutti i bottoni: altezza minima dpiScale(48) — dimensione minima tocco
+  - Lista note: QListView con delegate personalizzato, swipe gesture per delete
+  - Editor: QTextEdit full-screen con toolbar fluttuante sopra tastiera
+  - Nessuna toolbar fissa in cima (lo spazio è prezioso) — usa bottom navigation
+  - Font size minimo 14sp equivalente per leggibilità
+
+LAYOUT ADATTIVO (stesso file .cpp, layout diverso):
+  void NoteListPage::setupLayout() {
+    const bool isTablet = width() > dpiScale(600);
+    if (isTablet) {
+      // Tablet: lista a sinistra, editor a destra (master-detail)
+      auto* splitter = new QSplitter(Qt::Horizontal, this);
+      splitter->addWidget(m_listWidget);
+      splitter->addWidget(m_editorWidget);
+      splitter->setSizes({dpiScale(300), width() - dpiScale(300)});
+    } else {
+      // Phone: stack navigation (lista → push → editor)
+      m_stack = new QStackedWidget(this);
+      m_stack->addWidget(m_listWidget);
+      m_stack->addWidget(m_editorWidget);
+    }
+  }
+
+VOCE (main_voice.cpp):
+  // STT: registra audio → invia a /api/whisper locale
+  // TTS: QTextToSpeech con voce locale (no cloud)
+  #ifdef HAVE_TTS
+    m_tts = new QTextToSpeech(this);
+    connect(m_tts, &QTextToSpeech::stateChanged, this, &VoicePage::onTtsState);
+  #endif
+
+PROMPT ALL'AI PER GENERARE LA VERSIONE ANDROID:
+  "Crea NoteAI_Android: versione mobile Android Qt6 di NoteAI.
+   Regole extra mobile: bottoni min 48dp, font min 14sp, nessuna toolbar fissa,
+   bottom navigation con 4 tab. Layout adattivo: phone=stack, tablet=master-detail.
+   Il core/ è condiviso con il desktop — non duplicare nessuna logica.
+   Inizia da CMakeLists.txt e widget_bottom_nav.cpp, poi i main_* uno alla volta."
+
+────────────────────────────────────────────────────────────────────────────────
+9.4 — SMARTWATCH (WearOS via Kotlin / watchOS via SwiftUI)
+────────────────────────────────────────────────────────────────────────────────
+
+NOTA IMPORTANTE: Qt6 non supporta WearOS/watchOS nativamente.
+La strategia corretta è un'app nativa leggera che comunica via API REST
+con il backend Qt6 già costruito (stesso server della versione web).
+
+── WearOS (Kotlin + Jetpack Compose for Wear) ──
+
+STRUTTURA:
+  NoteAI_WearOS/
+  ├── app/src/main/java/com/paolo/noteai/
+  │   ├── MainActivity.kt          ← entry point, nav graph
+  │   ├── screens/
+  │   │   ├── HomeScreen.kt        ← lista ultime 5 note (touch + rotary)
+  │   │   ├── QuickNoteScreen.kt   ← dettatura voce → nuova nota
+  │   │   └── AiAnswerScreen.kt    ← risposta AI breve (max 100 parole)
+  │   ├── data/
+  │   │   ├── NoteRepository.kt    ← chiama REST API del backend Qt6
+  │   │   └── WatchSyncService.kt  ← sincronizza ogni 5 minuti via DataLayer
+  │   └── complication/
+  │       └── NoteCountComplication.kt ← numero note sul quadrante orologio
+  └── build.gradle.kts
+
+REGOLE UI SMARTWATCH:
+  - Max 3 elementi per schermata (schermo minuscolo)
+  - Nessuna tastiera — solo voce (SpeechRecognizer) e rotary input
+  - Risposte AI: max 80-100 parole, nessun markdown
+  - Timeout aggressivi: 5 secondi per ogni chiamata REST
+  - Offline: mostra ultime 5 note dalla cache locale (Room DB)
+  - Risparmio batteria: nessun polling — usa WorkManager schedulato
+
+COMUNICAZIONE COL BACKEND Qt6:
+  // NoteRepository.kt — chiama il backend desktop/server sulla LAN
+  class NoteRepository(private val baseUrl: String) {
+    suspend fun getRecentNotes(): List<Note> {
+      return withTimeout(5_000) {
+        httpClient.get("$baseUrl/api/notes?limit=5").body()
+      }
+    }
+    suspend fun askAI(question: String): String {
+      // Richiede risposta breve — aggiungi istruzione nel prompt
+      return withTimeout(30_000) {
+        httpClient.post("$baseUrl/api/chat") {
+          setBody(mapOf("question" to question, "max_words" to 80))
+        }.body<AiResponse>().text
+      }
+    }
+  }
+
+── watchOS (SwiftUI — solo iPhone collegato) ──
+
+STRUTTURA:
+  NoteAI_watchOS/
+  ├── NoteAI Watch App/
+  │   ├── ContentView.swift        ← TabView con 3 tab: Note / Dettatura / AI
+  │   ├── Views/
+  │   │   ├── NoteListView.swift   ← List scrollabile con Digital Crown
+  │   │   ├── DictationView.swift  ← WKInterfaceMic → nuova nota
+  │   │   └── AiView.swift         ← risposta AI breve
+  │   └── Model/
+  │       ├── NoteStore.swift      ← URLSession → REST backend Qt6
+  │       └── WatchConnectivity.swift ← WCSession per sync con iPhone
+  └── NoteAI.xcodeproj
+
+PROMPT ALL'AI PER GENERARE LO SMARTWATCH:
+  "Crea NoteAI_WearOS: app Kotlin Jetpack Compose Wear OS che si connette
+   al backend REST Qt6 già esistente su LAN (porta configurabile).
+   Regole: max 3 elementi per schermata, solo voce + rotary input,
+   risposte AI max 80 parole, timeout 5s per REST, offline con Room DB
+   (ultime 5 note). Inizia da NoteRepository.kt e HomeScreen.kt."
+
+────────────────────────────────────────────────────────────────────────────────
+9.5 — BACKEND CONDIVISO: il collante tra le 4 piattaforme
+────────────────────────────────────────────────────────────────────────────────
+
+Il segreto per un progetto multi-piattaforma stabile è avere UN SOLO backend
+che tutte le piattaforme chiamano via REST. Il desktop Qt6 fa sia da app
+nativa che da server per le altre piattaforme.
+
+SCHEMA ARCHITETTURALE COMPLETO:
+
+  ┌─────────────────────────────────────────────────────┐
+  │              NoteAI Desktop (Qt6 C++)               │
+  │  ┌───────────────┐  ┌──────────────┐  ┌─────────┐  │
+  │  │  UI Qt6 nativa│  │  core/ logic │  │QHttpServ│  │
+  │  │  (main_*.cpp) │  │ note_store   │  │ :8080   │  │
+  │  │               │  │ rag_engine   │  │ REST API│  │
+  │  │               │  │ ai_client    │  │ WebSocket│ │
+  │  └───────────────┘  └──────────────┘  └────┬────┘  │
+  └────────────────────────────────────────────┼────────┘
+                                               │ LAN
+              ┌────────────────┬───────────────┼──────────────┐
+              ▼                ▼               ▼              ▼
+        Browser Web       Android App     WearOS App    watchOS App
+        (PWA offline)    (Qt6 Android)    (Kotlin)      (SwiftUI)
+        /web/index.html  main_*.cpp       Compose Wear  SwiftUI
+
+REGOLA CRITICA: le piattaforme client NON hanno logica di business.
+  Solo: UI + chiamate REST al backend Qt6. Zero duplicazione di logica.
+
+AVVIO DEL SISTEMA COMPLETO:
+  1. Avvia NoteAI Desktop → apre automaticamente il server su :8080
+  2. Tutte le altre piattaforme si connettono a IP-del-desktop:8080
+  3. Se desktop è spento → le app mostrano cache locale (offline mode)
+
+DISCOVERY AUTOMATICO (opzionale, per trovare il server sulla LAN):
+  // Backend Qt6: manda broadcast UDP ogni 5 secondi
+  void LanServer::startBeacon() {
+    m_udp = new QUdpSocket(this);
+    QTimer* t = new QTimer(this);
+    connect(t, &QTimer::timeout, this, &LanServer::sendBeacon);
+    t->start(5000);
+  }
+  void LanServer::sendBeacon() {
+    QJsonObject info{ {"app","NoteAI"}, {"version","1.0"}, {"port", m_port} };
+    m_udp->writeDatagram(QJsonDocument(info).toJson(),
+                         QHostAddress::Broadcast, 45678);
+  }
+  // Client (Android/Watch): ascolta UDP :45678, connette all'IP del beacon
+
+────────────────────────────────────────────────────────────────────────────────
+9.6 — SWARM DI AGENTI PER NoteAI (esempio pratico)
+────────────────────────────────────────────────────────────────────────────────
+
+Caso d'uso: l'utente scrive "analizza le mie note e dimmi cosa devo fare questa settimana"
+
+PIANO JSON DEL COORDINATORE:
+  {
+    "task": "Analisi note settimanale con raccomandazioni",
+    "subtasks": [
+      {
+        "id": 1, "role": "Lettore",
+        "prompt": "Leggi tutte le note degli ultimi 7 giorni e categorizzale per tema.",
+        "depends_on": []
+      },
+      {
+        "id": 2, "role": "Analista Priorità",
+        "prompt": "Dalla categorizzazione, identifica le 3 attività più urgenti.",
+        "depends_on": [1]
+      },
+      {
+        "id": 3, "role": "Analista Rischi",
+        "prompt": "Dalla categorizzazione, identifica cosa è rimasto in sospeso da più di 3 giorni.",
+        "depends_on": [1]
+      },
+      {
+        "id": 4, "role": "Pianificatore",
+        "prompt": "Crea un piano settimanale concreto combinando priorità e rischi.",
+        "depends_on": [2, 3]
+      }
+    ]
+  }
+
+ESECUZIONE:
+  - Agente 1 gira subito (no depends_on)
+  - Agenti 2 e 3 girano in PARALLELO dopo che 1 è completato
+  - Agente 4 gira solo dopo che 2 e 3 sono entrambi completati
+  - Coordinatore sintetizza il risultato di Agente 4 in linguaggio naturale
+
+IMPLEMENTAZIONE IN Qt6 (pseudocodice):
+  void runSwarm(const QJsonArray& subtasks) {
+    // Ordina per dipendenze (topological sort)
+    auto sorted = topoSort(subtasks);
+    for (const auto& group : sorted) {  // group = agenti senza dipendenze pendenti
+      QList<QFuture<QString>> futures;
+      for (const auto& task : group) {
+        futures << QtConcurrent::run([task, this]() {
+          return m_ai->chatSync(buildAgentPrompt(task), buildAgentContext(task));
+        });
+      }
+      // Attendi tutti del gruppo prima di passare al prossimo
+      for (auto& f : futures) { f.waitForFinished(); saveResult(f.result()); }
+    }
+    synthesize();  // Coordinatore legge tutti i risultati e produce la risposta finale
+  }
+
 ================================================================================
   Fine documento — aggiornare questa sezione a ogni refactoring significativo
 ================================================================================
