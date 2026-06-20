@@ -1,15 +1,19 @@
-# CLAUDE.md — Prismalux Qt GUI  v2.9 (agg. 2026-06-19)
+# CLAUDE.md — Prismalux Qt GUI  v2.9 (agg. 2026-06-21)
 
 ## Build
 ```bash
-# Linux (diretto)
-cmake -B gui/build_gui gui/ -DCMAKE_BUILD_TYPE=Release && cmake --build gui/build_gui -j$(nproc)
-./gui/build_gui/Prismalux_GUI
+# Linux (diretto) — build dir = build_gui/ nella root del progetto
+cmake -B build_gui gui/ -DCMAKE_BUILD_TYPE=Release && cmake --build build_gui -j$(nproc)
+./build_gui/Prismalux_GUI
+
+# Oppure con aggiorna.sh (aggiorna anche .desktop)
+./aggiorna.sh
 
 # Tutte le piattaforme (Windows/Linux/macOS)
 python3 build.py
 ```
-Strutturale (nuovo file/CMakeLists) → rifare `cmake -B gui/build_gui gui/`. Solo .cpp/.h → solo `cmake --build gui/build_gui`.
+Strutturale (nuovo file/CMakeLists) → rifare `cmake -B build_gui gui/`. Solo .cpp/.h → solo `cmake --build build_gui`.
+**Nota path**: la build dir canonica è `build_gui/` (nella root `Prismalux/`), **non** `gui/build_gui/`. Il file `.desktop` e `aggiorna.sh` puntano entrambi a `build_gui/Prismalux_GUI`.
 
 `build.py` — motore di build multipiattaforma. Genera `errore.txt` in root se fallisce.
 Windows: `build.bat` trova Python ed esegue `build.py`. Prima volta: `COMPILE_WIN\setup.bat`.
@@ -40,7 +44,7 @@ Header (72px): logo · backend · model · CPU/RAM/GPU · spinner · ⚙️
 [2] 🎬 Multimedia                        Audio AI · Genera Immagini · 🕸 Mappe concettuali · 🗺 Mappa OSM · Sintetizzatore · 🎤 Clona Voce · OCR webcam
 [3] 💻 Programmazione            Alt+3  Editor+AI · Agentica · Translitter · Reverse Eng. · Git · REPL · Interpreter · Rete · Driver
 [4] π  Matematica                Alt+4  Sequenza→Formula · Costanti · N-esimo · Espressione · Risolvi Passi (SymPy+🔀) · Analisi 1&2 (LaTeX KaTeX)
-[5] 🔧 Utility                           Fotovoltaico · Idroponica · Lavoro · Finanza · LAN & WAN
+[5] 🔧 Utility                           Fotovoltaico · Idroponica · Lavoro · Finanza · 🚴 Bici · LAN & WAN
 [6] 🔬 Ricerca                   Alt+5  Paper · Brevetti · Analisi Fenomeni · 🕸️ Grafo RAG · Test RAG · Astrale
 [7] 🧬 Bioinformatica                   Cytoscape · RDKit · Bioconda · Avogadro · RAB₀-L · BLHM
 [8] 🕹 APP Controller            Alt+6  Blender/FreeCAD/Office/CloudCompare/Anki/KiCAD/TinyMCP/OBS/OpenCode/Godot
@@ -48,7 +52,7 @@ ImpostazioniPage: dialog modale (⚙️ header)
 ```
 Note:
 - `LavoroPage` è in UtilityPage [5], NON più in RicercaPage
-- `PraticoPage` (Finanza) e SolarCalcWidget/IdroWidget sono in UtilityPage [5]
+- `PraticoPage` (Finanza), `SolarCalcWidget`, `IdroWidget` e `BikeWidget` sono in UtilityPage [5]
 - `LanWanPage` è sub-tab di UtilityPage [5] — NON più tab principale separata
 - Cytoscape/RDKit/Bioconda/Avogadro/RAB₀-L/BLHM → BioinformaticaPage [7]
 - DevAgent e SecurityAnalyzerPage → ProgrammazionePage (aggiunti via addExternalTab da mainwindow)
@@ -247,6 +251,22 @@ Apertura di un pannello chiude automaticamente gli altri due (Simboli incluso) t
 
 **Bubble radius in tempo reale**: `ImpostazioniPage::bubbleStyleChanged()` → `AgentiPage::onBubbleStyleChanged()` — regex `(border-radius:)(\d+)(px;padding:10px 14px)` su `m_log->toHtml()` per aggiornare solo le celle delle bolle principali (non tool strip che usa `padding:8px 12px`).
 
+## History conversazione singola (`main_ai.h` + `main_ai_pipeline.cpp`)
+`m_chatPairs` (`QVector<QPair<QString,QString>>`) accumula i turni della chat singola (non pipeline).
+- Reset automatico quando il log è vuoto (pulsante "Nuova chat")
+- Limit: `kChatHistoryMax = 10` turni — i più vecchi vengono rimossi
+- Ogni turno completato viene accodato in `_finishedPipeline()` (solo se `m_maxShots == 1`)
+- `runAgent()` costruisce `histArray` (JSON `[{role,content}...]`) e chiama `m_ai->chat(sys, user, histArray, QueryAuto)`
+
+## Ricerca online e inserimento manuale (`main_ai_ui.cpp`)
+Handler link nel log AI:
+- `websearch:<base64url>` → QInputDialog pre-compilato con query originale (l'utente può ridurla al soggetto)
+- `insertinfo:<base64url>` → QInputDialog::getMultiLineText per inserire risposta manuale → salvata in `RAG/RICERCA/<ts>_<slug>.md` + emit `onlineSearchResultReady`
+- `autoapply-params` → applica Temperatura=0.3, Context=16384, Top-P=0.9, MaxTokens=4096 via `AiChatParams::save()` + `m_ai->setChatParams()`
+
+Il link "aggiorna informazioni" compare automaticamente nei casi NORESULT e errore/offline
+della ricerca online, così l'utente può inserire la risposta se la conosce.
+
 ## AiClient — API
 ```cpp
 m_ai->chat(sys, msg);                        // → token + finished | error
@@ -316,6 +336,22 @@ Quando l'utente clicca "No" al dialog → banner ▶ **Riesegui in sandbox** nel
 - `id='ubbl:N'` sulla `<table>` della bolla utente — usato dal gestore **Rifai**
 - Rifai: `retry:` handler tronca il log HTML da `<table id='ubbl:N'>` (non salta la bolla)
 - **Non** usare `m_skipNextUserBubble` (rimosso) — il troncamento è pulito e reversibile
+
+## extractInputHtml (`main_ai_p.h`)
+Converte QTextEdit in HTML leggero per la bolla utente. Regola critica sul colore:
+```cpp
+// ✅ Propaga colore SOLO se impostato esplicitamente dall'utente
+if (fmt.hasProperty(QTextFormat::ForegroundBrush)) {
+    const QColor fg = fmt.foreground().color();
+    if (fg.isValid() && fg.alpha() > 0 &&
+        fg != QColor(Qt::black) && fg != QColor(Qt::white))
+        text = "<span style='color:...'>text</span>";
+}
+```
+**Perché**: il tema QSS imposta il colore del QTextEdit via `QPalette`, ma Qt può propagarlo
+nel `QTextCharFormat`. Senza `hasProperty()`, il colore scuro del tema (es. `#1e293b`)
+veniva iniettato nella bolla utente con sfondo `#162544` → testo invisibile (nero su blu scuro).
+`hasProperty(ForegroundBrush)` distingue colore-utente esplicito da colore-tema ereditato.
 
 ## Notazione KaTeX nel system prompt
 `kFmtFull` include istruzioni complete per formule matematiche stile LibreOffice Math:
@@ -439,6 +475,15 @@ Slot Qt: `onDevAgentGitLogClicked`, `onDevAgentGitRestoreClicked`, `onDevAgentGi
 - Pulsante **"Risolvi nella scheda accanto"** — copia la formula in "Risolvi Passi" e cambia tab
 - Pulsante **"Disegna grafico"** — traccia f(x) / f(x,y) nel GraficoCanvas a destra dello splitter
 - Sezione vision AI ("Grafico → Formula") posizionata SOTTO i pulsanti Traccia/Reset vista (fuori QScrollArea)
+
+## BikeWidget (`pages/widget_bike.h/cpp`)
+Widget in UtilityPage [5] → tab "🚴 Bici". Selettori: tipo bici (5 opzioni) + sezione (5 categorie).
+Categorie:
+- **Problemi comuni** — catena, gomme, freni + sezioni specifiche per tipo bici (pieghevole: snodi; MTB: ammortizzatori; Gravel: tubeless; City: dinamo/cambio interno)
+- **Regolazione cambio** — procedura vite H/L + barrel adjuster, cambio anteriore, trucchi (Loctite ghiera, Di2)
+- **Regolazione freni** — dischi idraulici (spurgo, centraggio pinza) + V-brake/cantilever
+- **Manopole e attacchi** — lock-on/slip-on, stem threadless/filettato, leve che ruotano, sella che scende
+- **Manutenzione periodica** — checklist ogni uscita/settimana/mese/anno + kit base indispensabile
 
 ## Suite di Test
 ```bash

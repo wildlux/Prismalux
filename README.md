@@ -34,14 +34,23 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 - **Matematica simbolica** con SymPy, grafico interattivo, formule LaTeX (KaTeX)
 - **Voce**: TTS (SpeechSynthesis / QTextToSpeech) + STT (Whisper locale/server)
 - **Ricerca scientifica**: paper arXiv, brevetti, Bioconda, Grafo RAG, analisi fenomeni
+- **Assistente Bici**: manutenzione, regolazione cambio/freni, manopole, checklist periodica
 - **App mobile Android** (BLE chat, quiz CCNA, TTS, sincronizzazione LAN)
 
 ---
 
-## Novità v2.9
+## Novità v2.9 *(aggiornato 2026-06-21)*
 
 | Feature | Descrizione |
 |---------|-------------|
+| 💬 **Chat multi-turno con memoria** | Il tab AI ricorda gli ultimi 10 turni della conversazione singola. Storia passata come JSON al modello: risponde nel contesto, non ricomincia da zero ad ogni domanda |
+| 🔍 **Ricerca online raffinabile** | Cliccando "Cerca online", compare un campo editabile pre-compilato con la query — l'utente può ridurla al soggetto (es. "Berlusconi" invece dell'intera domanda) |
+| 📝 **Aggiorna informazioni manualmente** | Se la ricerca online non trova risultati o sei offline, compare il link "aggiorna informazioni": inserisci tu la risposta → salvata in RAG/RICERCA e usata come contesto nelle prossime domande |
+| ⚡ **Imposta parametri automaticamente** | Nel banner consigli per neofiti, pulsante verde "Imposta automaticamente" → applica Temperatura 0.3, Context 16384, Top-P 0.9, MaxTokens 4096 in un click |
+| 🚴 **Assistente Bici** | Nuova scheda in Utilità: problemi comuni per tipo bici (pieghevole/MTB/XC/Gravel/City), regolazione cambio passo-passo (viti H/L, barrel adjuster), freni, manopole che fanno gioco, manutenzione periodica |
+| 🔧 **Fix testo bolla utente** | Il testo della domanda utente non è più invisibile (nero su nero) nei temi scuri: `extractInputHtml()` usa `hasProperty(ForegroundBrush)` per propagare solo i colori esplicitamente scelti dall'utente |
+| 🏠 **Tab AI selezionata di default** | All'avvio Prismalux mostra sempre "Intelligenza artificiale" (tab 0), anche dopo il lazy-load del tab TeleComanda |
+| 🗂️ **Fix .desktop e aggiorna.sh** | Percorso unificato su `build_gui/` (root progetto). Prima il `.desktop` puntava a `gui/build_gui/` (vecchio binario) — le novità non erano visibili all'avvio dall'icona |
 | 🕸️ **Multi-Agente + Memoria a Grafo** | Tab [9]: MasterAgent decompone il compito in sub-task JSON → agenti specializzati in sequenza con `depends_on` → sintesi finale. **GraphMemory** SQLite-backed: nodi+archi, BFS, export DOT/JSON/TXT |
 | 🕸️ **Grafo Conoscenza RAG** | Tab 🕸️ Grafo RAG in Ricerca: LLM estrae entità+relazioni dai tuoi documenti → grafo navigabile con Graphviz, click-nodo dettagli, filtro live |
 | 🎙️ **TTS + STT ovunque** | Web app: tab "Voce" con SpeechSynthesis + MediaRecorder→Whisper. APK Android: QTextToSpeech box + fix STT upload |
@@ -101,9 +110,11 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 | 3 | 📁 **File AI** | — | Analisi file · Wiki & Web · Excel/CSV · PDF · Word/Testo |
 | 4 | 💻 **Programmazione** | `Alt+3` | Editor+AI · Agentica · Translitter · Reverse Eng. · Git MCP · Python REPL · Interpreter · Rete & Network · Driver & Kernel |
 | 5 | π **Matematica** | `Alt+4` | Sequenza→Formula · Costanti · N-esimo · Espressione · **Risolvi Passi** (🔀 52 formule) · Analisi 1&2 (**LaTeX KaTeX**) |
-| 6 | 🔬 **Ricerca** | `Alt+5` | Paper · Brevetto · Cerca arXiv/Brevetti · Lavoro · Cytoscape—Bio · RDKit · Bioconda · RAB₀-L · BLHM · Analisi Fenomeni · **🕸️ Grafo RAG** · Astrale |
-| 7 | 🕹 **APP Controller** | `Alt+6` | Blender · FreeCAD · Office · CloudCompare · Anki · KiCAD · TinyMCP · OBS · OpenCode · Godot · **🤖 Dev Agent** (git restore + LangGraph) |
-| 8 | 🌐 **LAN & WAN** | — | LAN Android (QR APK · ADB USB) · GNS3 MCP · **WAN Compute** (🧠 Solo questo PC \| 🌐 Rete LAN) → MasterAgent → Sub-agenti → **GraphMemory** |
+| 5 | 🔧 **Utility** | — | ☀️ Fotovoltaico · 🌿 Idroponica · 💼 Lavoro · 💰 Finanza · **🚴 Bici** (problemi/cambio/freni/manopole) · 🌐 LAN & WAN |
+| 6 | 🔬 **Ricerca** | `Alt+5` | Paper · Brevetto · Cerca arXiv/Brevetti · Cytoscape—Bio · RDKit · Bioconda · RAB₀-L · BLHM · Analisi Fenomeni · **🕸️ Grafo RAG** · Astrale |
+| 7 | 🧬 **Bioinformatica** | — | Cytoscape · RDKit · Bioconda · Avogadro · RAB₀-L · BLHM |
+| 8 | 🕹 **APP Controller** | `Alt+6` | Blender · FreeCAD · Office · CloudCompare · Anki · KiCAD · TinyMCP · OBS · OpenCode · Godot · **🤖 Dev Agent** (git restore + LangGraph) |
+| 9 | 🌐 **LAN & WAN** | — | LAN Android (QR APK · ADB USB) · GNS3 MCP · **WAN Compute** (🧠 Solo questo PC \| 🌐 Rete LAN) → MasterAgent → Sub-agenti → **GraphMemory** |
 | ⚙️ | **Impostazioni** | header | Backend AI · Modelli · Think Mode · Voce · Visual · Hardware · Memoria · Test |
 
 ### Dettaglio tab Strumenti — Finanza
