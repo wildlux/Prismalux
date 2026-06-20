@@ -7,7 +7,7 @@
 #include <functional>
 #include "../ai_client.h"
 #include "../widgets/ai_error_widget.h"
-#include "main_security.h"
+/* main_security.h rimosso — SecurityAnalyzerPage è in ProgrammazionePage */
 
 class QTabWidget;
 class QLineEdit;
@@ -61,7 +61,7 @@ private:
     int            m_activeTab    = -1;
     AiErrorWidget*        m_aiErrorPanel = nullptr;
     QProgressBar*         m_aiProgress   = nullptr;  ///< progress indeterminata durante AI
-    SecurityAnalyzerPage* m_secPage      = nullptr;
+    /* SecurityAnalyzerPage rimossa — ora in ProgrammazionePage */
 
     /* ── Blender ── */
     QLineEdit*           m_blenderHostEdit  = nullptr;
@@ -173,6 +173,19 @@ private:
     QString      m_godotCode;
     QProcess*    m_godotExecProc  = nullptr;
 
+    /* ── Game Modding (tabIdx logico 15) ── */
+    QComboBox*   m_moddingGameCombo  = nullptr;
+    QComboBox*   m_moddingTypeCombo  = nullptr;
+    QComboBox*   m_moddingModel      = nullptr;
+    QTextEdit*   m_moddingInput      = nullptr;
+    QTextEdit*   m_moddingOutput     = nullptr;
+    QPushButton* m_moddingRunBtn     = nullptr;
+    QPushButton* m_moddingStopBtn    = nullptr;
+    QPushButton* m_moddingSaveBtn    = nullptr;
+    QLineEdit*   m_moddingFolderEdit = nullptr;
+    QLabel*      m_moddingStatusLbl  = nullptr;
+    QString      m_moddingCode;
+
     /* ── runAi session state (saved for named slots) ── */
     QTextEdit*   m_runAiOutput   = nullptr;
     QPushButton* m_runAiRunBtn   = nullptr;
@@ -195,9 +208,12 @@ private:
     QWidget* buildTinyMCPTab();
     QWidget* buildOBSTab();
     QWidget* buildGodotTab();
+    QWidget* buildGameModdingTab();
     QWidget* buildTelegramTab();
     QWidget* buildWhatsAppTab();
+public:
     QWidget* buildDevAgentTab();
+private:
     void execAnkiAction(const QString& action, const QString& payload);
     void execKiCADAction(const QString& code);
     void detectSerialPorts();
@@ -289,6 +305,14 @@ private:
     void onGodotExecClicked();
     void onGodotRunClicked();
     void onGodotStopClicked();
+
+    /* ── Slot Game Modding ── */
+    void onModdingGameChanged(int idx);
+    void onModdingRunClicked();
+    void onModdingStopClicked();
+    void onModdingSaveClicked();
+    void onModdingBrowseClicked();
+    void onModdingOpenFolderClicked();
 
     /* ── Slot estratti da lambda — Telegram Bot ── */
     void onTelegramStartClicked();
@@ -406,4 +430,6 @@ private:
 public:
     /** Estrae il primo blocco ```...``` dall'output AI. Public per testabilità. */
     static QString extractCode(const QString& text);
+    /** Indovina l'estensione file del mod generato dal contenuto del codice. */
+    static QString detectModExtension(const QString& code);
 };

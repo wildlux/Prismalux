@@ -140,10 +140,12 @@ private:
     void buildFileAiTab();     ///< non più chiamata — File AI è in StrumentiPage tab 10
     void buildProgrammazioneTab(); ///< [3] 💻 Programmazione
     void buildMatematicaTab(); ///< [4] π Matematica + Grafico
-    void buildRicercaTab();    ///< [5] 🔬 Ricerca
-    void buildAppControllerTab(); ///< [6] 🕹 APP Controller
-    void buildLanWanTab();     ///< [7] 🌐 LAN & WAN
-    void buildMultiAgentTab();     ///< [8] 🕸️ Multi-Agente + Grafo
+    void buildUtilityTab();    ///< [5] 🔧 Utility
+    void buildRicercaTab();    ///< [6] 🔬 Ricerca
+    void buildBioinformaticaTab(); ///< [7] 🧬 Bioinformatica
+    void buildAppControllerTab(); ///< [8] 🕹 APP Controller
+    void buildLanWanTab();     ///< [9] 🌐 LAN & WAN
+    void buildMultiAgentTab();     ///< [10] 🕸️ Multi-Agente + Grafo
     void buildNavMenuBar(QWidget* wrapper, QVBoxLayout* wLay); ///< Barra menu alternativa + sincronizzazione
     void applyContentSettings();  ///< Applica nav style e exec btn mode da QSettings
 
@@ -219,10 +221,11 @@ private:
     class ImpostazioniPage* m_impPage = nullptr;
 
     /* Pagine con connessioni cross-modulo */
-    class RicercaPage*       m_ricercaPage      = nullptr;
-    class AgentiMultiPage*   m_agentiMultiPage  = nullptr;
-    class ProgrammazionePage* m_progPage        = nullptr;
-    class LanWanPage*         m_lanWanPage      = nullptr;
+    class UtilityPage*        m_utilityPage      = nullptr;
+    class RicercaPage*        m_ricercaPage      = nullptr;
+    class AgentiMultiPage*    m_agentiMultiPage  = nullptr;
+    class ProgrammazionePage* m_progPage         = nullptr;
+    class LanWanPage*         m_lanWanPage       = nullptr;
     /* Strumenti — StrumentiPage riceve il pannello Cron reale via ensureSettingsDialog */
     class StrumentiPage* m_strumentiPage = nullptr;
 

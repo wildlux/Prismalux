@@ -155,6 +155,11 @@ ProgrammazionePage::~ProgrammazionePage()
     }
 }
 
+void ProgrammazionePage::addExternalTab(QWidget* w, const QString& label)
+{
+    if (m_innerTabs && w) m_innerTabs->addTab(w, label);
+}
+
 ProgrammazionePage::ProgrammazionePage(AiClient* ai, QWidget* parent)
     : QWidget(parent), m_ai(ai)
 {

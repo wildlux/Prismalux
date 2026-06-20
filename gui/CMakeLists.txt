@@ -158,6 +158,7 @@ set(CPP_SRCS
     pages/main_customize.cpp
     pages/main_customize_lora.cpp
     pages/main_app_controller_science.cpp
+    pages/main_app_controller_modding.cpp
     pages/main_maintenance.cpp
     pages/main_maintenance_bugs.cpp
     pages/main_maintenance_cron.cpp
@@ -209,6 +210,15 @@ set(CPP_SRCS
     pages/main_research_astrale.cpp
     pages/main_research_rag_tester.cpp
     pages/rab0l_canvas.cpp
+    pages/widget_ai_script_base.cpp
+    pages/widget_cytoscape.cpp
+    pages/widget_rdkit.cpp
+    pages/widget_bioconda.cpp
+    pages/widget_avogadro.cpp
+    pages/widget_rab0l.cpp
+    pages/widget_blhm.cpp
+    pages/main_utility.cpp
+    pages/main_bioinformatica.cpp
     pages/main_app_controller.cpp
     pages/main_mcp_manager.cpp
     pages/main_security.cpp

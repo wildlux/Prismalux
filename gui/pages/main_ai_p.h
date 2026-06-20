@@ -47,10 +47,12 @@ inline const BubClr kLight = {
     "#f0fdf4","#4ade80","#15803d","#fffbeb","#fcd34d","#92400e","#fef2f2","#fca5a5","#991b1b"
 };
 
+inline bool isLightTheme() {
+    return ThemeManager::instance()->currentId().startsWith("light");
+}
+
 inline const BubClr& bc() {
-    const QString tid = ThemeManager::instance()->currentId();
-    const bool isLight = tid.startsWith("light") || tid == "pink";
-    return isLight ? kLight : kDark;
+    return isLightTheme() ? kLight : kDark;
 }
 
 /* ══════════════════════════════════════════════════════════════

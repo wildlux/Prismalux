@@ -1,4 +1,5 @@
 #include "settings_main.h"
+#include "main_mcp_manager.h"
 #include "../dpi_utils.h"
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
@@ -280,7 +281,12 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
     tabs->addTab(buildMcpTab(), "\xf0\x9f\x94\x8c  MCP");
 
     /* ════════════════════════════════════════════════════════════
-       Tab 6: 📜 Ringraziamenti — licenza MIT + crediti
+       Tab 5b: 🔌 Gestione MCP — McpManagerPage spostato da AppController
+       ════════════════════════════════════════════════════════════ */
+    tabs->addTab(new McpManagerPage(tabs), "\xf0\x9f\x94\x8c  Gestione MCP");
+
+    /* ════════════════════════════════════════════════════════════
+       Tab 7: 📜 Ringraziamenti — licenza MIT + crediti
        ════════════════════════════════════════════════════════════ */
     tabs->addTab(buildRingraziamentiTab(), "\xf0\x9f\x93\x9c  Ringraziamenti");
 

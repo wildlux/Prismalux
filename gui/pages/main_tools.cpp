@@ -1,11 +1,8 @@
 #include "main_tools.h"
-#include "widget_solar_calc.h"
-#include "widget_idro.h"
 #include "main_learn.h"
 #include "main_tools_file.h"
 #include "../widgets/proc_helper.h"
 #include "../widgets/model_combo_helper.h"
-#include "main_finance.h"
 #include "main_quiz.h"
 #include "widget_stable_diffusion.h"
 #include "main_maintenance.h"
@@ -498,15 +495,14 @@ void StrumentiPage::buildLayout()
     buildCronPanel();
     m_tabs->addTab(m_cronPanel, "\xe2\x8f\xb1 Cron");
 
-    /* ── Tab 7: Finanza ── */
-    m_tabs->addTab(new PraticoPage(m_ai, m_tabs),
-                   "\xf0\x9f\x92\xb0  Finanza");
+    /* Finanza spostato in tab Utility */
+    /* Fotovoltaico/Idroponica spostati in tab Utility */
 
-    /* ── Tab 8: Impara con AI ── */
+    /* ── Tab 7: Impara con AI ── */
     m_tabs->addTab(new ImparaPage(m_ai, m_tabs),
                    "\xf0\x9f\x8f\x9b  Impara con AI");
 
-    /* ── Tab 9: Sfida — AiClient separato per evitare cross-talk ── */
+    /* ── Tab 8: Sfida — AiClient separato per evitare cross-talk ── */
     m_quizAi = new AiClient(this);
     m_quizAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
     connect(m_ai, &AiClient::modelsReady,
@@ -514,17 +510,9 @@ void StrumentiPage::buildLayout()
     m_tabs->addTab(new QuizPage(m_quizAi, m_tabs),
                    "\xf0\x9f\x8e\xaf  Sfida!");
 
-    /* ── Tab 10: File AI (spostato da tab principale a sub-tab di Strumenti) ── */
+    /* ── Tab 9: File AI (spostato da tab principale a sub-tab di Strumenti) ── */
     m_tabs->addTab(new StrumentiFilePage(m_ai, m_tabs),
                    "\xf0\x9f\x93\x81  File AI"); /* 📁 */
-
-    /* ── Tab 11: Calcolatore Fotovoltaico ── */
-    m_tabs->addTab(new SolarCalcWidget(m_tabs),
-                   "\xe2\x98\x80  Fotovoltaico"); /* ☀ */
-
-    /* ── Tab 12: Idroponica ── */
-    m_tabs->addTab(new IdroWidget(m_tabs),
-                   "\xf0\x9f\x8c\xbf  Idroponica"); /* 🌿 */
 
     /* rootLay[0] = m_tabs (stretch 0 per tab categoria, 1 per le altre) */
     rootLay->addWidget(m_tabs, 0);
@@ -1623,6 +1611,11 @@ void StrumentiPage::installCronPanel(ManutenzioneePage* man)
     auto* lay = new QVBoxLayout(m_cronPanel);
     lay->setContentsMargins(0, 0, 0, 0);
     lay->addWidget(cronWidget);
+}
+
+void StrumentiPage::addExternalTab(QWidget* w, const QString& label)
+{
+    if (m_tabs && w) m_tabs->addTab(w, label);
 }
 
 /* ══════════════════════════════════════════════════════════════

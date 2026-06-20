@@ -7,12 +7,8 @@
 #include <QLabel>
 #include <QProcess>
 #include <QProgressBar>
-#include <QTableWidget>
-#include <QDoubleSpinBox>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
-#include <QAbstractSocket>
-#include <QTcpSocket>
 #include <QButtonGroup>
 #include <QListWidget>
 #include "../ai_client.h"
@@ -20,10 +16,8 @@
 #include "../widgets/natal_chart_widget.h"
 #include "../widgets/astro_calc.h"
 #include "../widgets/world_map_widget.h"
-#include "../blhm_engine.h"
 #include "../graph_memory.h"
 #include "../rag_graph.h"
-#include "rab0l_canvas.h"
 class QDateEdit;
 class QTimeEdit;
 class QTextBrowser;
@@ -32,7 +26,7 @@ class QFileSystemWatcher;
 /* ══════════════════════════════════════════════════════════════
    RicercaPage — "Ricerca e Sviluppo"
    Tab: Paper Scientifico · Brevetto · Doc Tecnico · Cerca Lavoro
-        + Bioinformatica: Cytoscape · RDKit · Bioconda
+   Tab: Paper Scientifico Â· Brevetto Â· Doc Tecnico Â· Cerca Letteratura
    ══════════════════════════════════════════════════════════════ */
 class RicercaPage : public QWidget {
     Q_OBJECT
@@ -52,56 +46,6 @@ private:
     QTextEdit*   m_outCurrent    = nullptr;
     QPushButton* m_btnGenAttivo  = nullptr;
     QPushButton* m_btnStopAttivo = nullptr;
-
-    /* ── Cytoscape MCP ── */
-    QLineEdit*   m_cytoHostEdit  = nullptr;
-    QLabel*      m_cytoStatusLbl = nullptr;
-    QPushButton* m_cytoExecBtn   = nullptr;
-    QComboBox*   m_cytoAction    = nullptr;
-    QComboBox*   m_cytoModel     = nullptr;
-    QTextEdit*   m_cytoInput     = nullptr;
-    QTextEdit*   m_cytoOutput    = nullptr;
-    QPushButton* m_cytoRunBtn    = nullptr;
-    QPushButton* m_cytoStopBtn   = nullptr;
-    QString      m_cytoCode;
-    QProcess*    m_cytoProc      = nullptr;
-    QTcpSocket*  m_cytoSock      = nullptr;
-
-    /* ── RDKit MCP ── */
-    QLabel*      m_rdkitStatusLbl = nullptr;
-    QPushButton* m_rdkitExecBtn   = nullptr;
-    QComboBox*   m_rdkitAction    = nullptr;
-    QComboBox*   m_rdkitModel     = nullptr;
-    QTextEdit*   m_rdkitInput     = nullptr;
-    QTextEdit*   m_rdkitOutput    = nullptr;
-    QPushButton* m_rdkitRunBtn    = nullptr;
-    QPushButton* m_rdkitStopBtn   = nullptr;
-    QString      m_rdkitCode;
-    QProcess*    m_rdkitProc      = nullptr;
-
-    /* ── Bioconda MCP ── */
-    QLabel*      m_bioStatusLbl  = nullptr;
-    QPushButton* m_bioExecBtn    = nullptr;
-    QComboBox*   m_bioAction     = nullptr;
-    QComboBox*   m_bioModel      = nullptr;
-    QTextEdit*   m_bioInput      = nullptr;
-    QTextEdit*   m_bioOutput     = nullptr;
-    QPushButton* m_bioRunBtn     = nullptr;
-    QPushButton* m_bioStopBtn    = nullptr;
-    QString      m_bioCode;
-    QProcess*    m_bioProc       = nullptr;
-
-    /* ── Avogadro MCP ── */
-    QLabel*      m_avoStatusLbl  = nullptr;
-    QPushButton* m_avoExecBtn    = nullptr;
-    QComboBox*   m_avoAction     = nullptr;
-    QComboBox*   m_avoModel      = nullptr;
-    QTextEdit*   m_avoInput      = nullptr;
-    QTextEdit*   m_avoOutput     = nullptr;
-    QPushButton* m_avoRunBtn     = nullptr;
-    QPushButton* m_avoStopBtn    = nullptr;
-    QString      m_avoCode;
-    QProcess*    m_avoProc       = nullptr;
 
     /* ── AI streaming per tab science ── */
     AiErrorWidget* m_sciErrorPanel   = nullptr;
@@ -132,12 +76,6 @@ private:
     QWidget* buildBrevettoTab();
     QWidget* buildDocTecnicoTab();
     QWidget* buildCercaLetteraturaTab();
-    QWidget* buildCytoscapeTab();
-    QWidget* buildRDKitTab();
-    QWidget* buildBiocondaTab();
-    QWidget* buildAvogadroTab();
-    QWidget* buildRab0lTab();
-    QWidget* buildBlhmTab();
     QWidget* buildAnalisiPage();
     QWidget* buildAstraleTab();
     QWidget* buildRagGrafoTab();    ///< 🕸️ Grafo Conoscenza RAG
@@ -214,33 +152,6 @@ private:
     QMetaObject::Connection m_analisiErrorConn;
 
     /* ── RAB₀-L ── */
-    Rab0lCanvas* m_rab0lCanvas  = nullptr;
-    QLineEdit*   m_rab0lSeq1    = nullptr;
-    QLineEdit*   m_rab0lSeq2    = nullptr;
-    QLabel*      m_rab0lSimLbl  = nullptr;
-
-    /* ── BLHM ── */
-    QTableWidget* m_blhmTable   = nullptr;
-    QLineEdit*    m_blhmQuery   = nullptr;
-    QTextEdit*    m_blhmOutput  = nullptr;
-
-    /* ── BLHM Note & DNA ── */
-    QTextEdit*    m_blhmNoteEdit   = nullptr;
-    Rab0lCanvas*  m_blhmDnaCanvas  = nullptr;
-    QLineEdit*    m_blhmDnaSeq1    = nullptr;
-    QLineEdit*    m_blhmDnaSeq2    = nullptr;
-    QLabel*       m_blhmDnaSimLbl  = nullptr;
-
-    /* ── BLHM Engine C (thread pool POSIX, ds4 pattern) ── */
-    BLHMGraph*      m_blhmGraph             = nullptr;
-    QLabel*         m_blhmEngineStatusLbl   = nullptr;
-    QLabel*         m_blhmEngineLatencyLbl  = nullptr;
-    QLabel*         m_blhmEngineFactoryLbl  = nullptr;
-    QLabel*         m_blhmEngineLinkLbl     = nullptr;
-    QLabel*         m_blhmEngineUserLbl     = nullptr;
-    QLabel*         m_blhmEngineCombinedLbl = nullptr;
-    QDoubleSpinBox* m_blhmEngineLrSpin      = nullptr;
-    QTextEdit*      m_blhmEngineAutoftOut   = nullptr;
 
     /* ── Paper / Brevetto model selectors ── */
     QComboBox*            m_paperModel    = nullptr;
@@ -287,39 +198,6 @@ private slots:
     void onLitAiToken(const QString& t);
     void onLitAiFinished(const QString& full);
     void onLitAiError(const QString& e);
-    /* Cytoscape */
-    void onCytoPingClicked();
-    void onCytoPingTimeout();
-    void onCytoSockConnected();
-    void onCytoSockError(QAbstractSocket::SocketError err);
-    void onCytoExecClicked();
-    void onCytoRunClicked();
-    void onCytoStopClicked();
-    /* RDKit */
-    void onRdkitCheckClicked();
-    void onRdkitCheckFinished(int code, QProcess::ExitStatus status);
-    void onRdkitExecClicked();
-    void onRdkitRunClicked();
-    void onRdkitStopClicked();
-    /* Bioconda */
-    void onBioCheckClicked();
-    void onBioCheckFinished(int code, QProcess::ExitStatus status);
-    void onBioExecClicked();
-    void onBioRunClicked();
-    void onBioStopClicked();
-    /* Avogadro */
-    void onAvoCheckClicked();
-    void onAvoCheckFinished(int code, QProcess::ExitStatus status);
-    void onAvoExecClicked();
-    void onAvoRunClicked();
-    void onAvoStopClicked();
-    /* RAB₀-L */
-    void onRab0lAnalyzeClicked();
-    /* BLHM */
-    void onBlhmComputeClicked();
-    void onBlhmNoteLoad();
-    void onBlhmNoteSave();
-    void onBlhmDnaAnalyzeClicked();
     /* Analisi Fenomeni */
     void onAnalisiRunClicked();
     void onAnalisiStopClicked();
@@ -343,19 +221,6 @@ private slots:
     void onKarmicaSaveMd();
     void onKarmicaClear();
     void onSalvaChartPng();
-    /* RAB₀-L */
-    void onRab0lClearClicked();
-    /* BLHM */
-    void onBlhmAddRowClicked();
-    void onBlhmDeleteRowClicked();
-    void onBlhmNotesClearClicked();
-    void onBlhmDnaClearClicked();
-    /* BLHM Engine C */
-    void onBlhmEngineSyncFromCalcClicked();
-    void onBlhmEngineRunClicked();
-    void onBlhmEngineAutoftClicked();
-    void onBlhmEngineSaveClicked();
-    void onBlhmEngineLoadClicked();
 
     /* Grafo RAG */
     void onRagRunClicked();

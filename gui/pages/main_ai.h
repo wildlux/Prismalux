@@ -58,8 +58,7 @@ public:
     static QString buildAgentBubble(const QString& label, const QString& model,
                                     const QString& time,  const QString& htmlContent,
                                     int bubbleIdx = -1,
-                                    const QString& thinkContent = "",
-                                    bool thinkOpen = false);
+                                    const QString& thinkContent = "");
     static QString buildLocalBubble(const QString& result, double ms, int bubbleIdx = -1,
                                     const QString& extraLinks = "");
     static QString markdownToHtml(const QString& md,
@@ -483,6 +482,7 @@ private:
 
 public slots:
     void onBubbleStyleChanged();     ///< aggiorna border-radius bolle esistenti in m_log
+    void recolorLog();               ///< ricolora bolle esistenti al cambio tema (ThemeManager::changed)
 
 private slots:
     void onToken(const QString& t);

@@ -11,7 +11,10 @@
 #include "pages/main_programming.h"
 #include "pages/main_math.h"
 #include "pages/main_research.h"
+#include "pages/main_utility.h"
+#include "pages/main_bioinformatica.h"
 #include "pages/main_app_controller.h"
+#include "pages/main_security.h"
 #include "pages/main_lan_wan.h"
 #include "pages/main_multi_agent.h"
 #include "pages/main_multimedia.h"
@@ -1664,36 +1667,39 @@ QWidget* MainWindow::buildContent()
     /* File AI è ora sub-tab 10 di StrumentiPage */
     buildProgrammazioneTab();
     buildMatematicaTab();
+    buildUtilityTab();
     buildRicercaTab();
+    buildBioinformaticaTab();
     buildAppControllerTab();
     buildLanWanTab();
     buildMultiAgentTab();
-    /* 🔍 Ricerca schede — corner widget destro, a destra di "LAN WAN" */
+    /* 🔍 Ricerca schede — corner widget destro: hover apre, uscita chiude */
     {
         auto* srchWrap = new QWidget(m_mainTabs);
+        srchWrap->setObjectName("tabSearchWrap");
         auto* srchLay  = new QHBoxLayout(srchWrap);
-        srchLay->setContentsMargins(4, 2, 6, 2);
-        srchLay->setSpacing(0);
+        srchLay->setContentsMargins(2, 2, 6, 2);
+        srchLay->setSpacing(4);
+
+        auto* srchBtn = new QPushButton("\xf0\x9f\x94\x8d", srchWrap);
+        srchBtn->setObjectName("tabSearchBtn");
+        srchBtn->setFlat(true);
+        srchBtn->setFixedSize(dpiScale(28), dpiScale(28));
+        srchBtn->setCursor(Qt::PointingHandCursor);
+        srchBtn->setToolTip(tr("Cerca scheda"));
 
         m_tabSearchEdit = new QLineEdit(srchWrap);
         m_tabSearchEdit->setObjectName("tabSearchEdit");
-        m_tabSearchEdit->setPlaceholderText(tr("Scheda..."));
+        m_tabSearchEdit->setPlaceholderText(tr("Cerca scheda..."));
         m_tabSearchEdit->setClearButtonEnabled(true);
-        m_tabSearchEdit->setFixedWidth(dpiScale(150));
+        m_tabSearchEdit->setMaximumWidth(0);   /* collassato all'avvio */
+        m_tabSearchEdit->setFixedHeight(dpiScale(24));
 
-        /* Icona 🔍 dentro il campo, posizione trailing */
-        {
-            QPixmap px(dpiScale(16), dpiScale(16));
-            px.fill(Qt::transparent);
-            QPainter pp(&px);
-            QFont ef; ef.setPixelSize(dpiScale(13)); pp.setFont(ef);
-            pp.drawText(px.rect(), Qt::AlignCenter, "\xf0\x9f\x94\x8d");
-            m_tabSearchEdit->addAction(QIcon(px), QLineEdit::TrailingPosition);
-        }
-
+        srchLay->addWidget(srchBtn);
         srchLay->addWidget(m_tabSearchEdit);
         m_mainTabs->setCornerWidget(srchWrap, Qt::TopRightCorner);
 
+        /* Ricerca live */
         connect(m_tabSearchEdit, &QLineEdit::textChanged, this, [this](const QString& t) {
             if (t.trimmed().isEmpty()) return;
             const QString q = t.trimmed();
@@ -1704,8 +1710,16 @@ QWidget* MainWindow::buildContent()
                 }
             }
         });
-        connect(m_tabSearchEdit, &QLineEdit::returnPressed,
-                this, [this]{ m_tabSearchEdit->clear(); });
+        /* Invio → chiude */
+        connect(m_tabSearchEdit, &QLineEdit::returnPressed, this, [this]{
+            m_tabSearchEdit->clear();
+            m_tabSearchEdit->setMaximumWidth(0);
+        });
+
+        /* Escape e hover gestiti in eventFilter */
+        srchBtn->installEventFilter(this);
+        srchWrap->installEventFilter(this);
+        m_tabSearchEdit->installEventFilter(this);
     }
 
     /* Salva etichette originali e applica modalità da QSettings */
@@ -1754,7 +1768,7 @@ void MainWindow::buildStrumentiTab()
 void MainWindow::buildMultimediaTab()
 {
     m_mainTabs->addTab(new MultimediaPage(m_ai, this),
-                       "\xf0\x9f\x8e\xac  Multimedia");  /* 2 */
+                       "\xf0\x9f\x8e\xac  Media");  /* 2 */
 }
 
 /* ── Livello 2: tab [3] File AI ──────────────────────────────────── */
@@ -1797,34 +1811,62 @@ void MainWindow::buildMatematicaTab()
     m_mainTabs->addTab(mathContainer, "\xf0\x9f\x93\x90  Matematica");  /* 4 */
 }
 
-/* ── Livello 2: tab [5] Ricerca ──────────────────────────────────── */
+/* ── Livello 2: tab [5] Utility ──────────────────────────────────── */
+void MainWindow::buildUtilityTab()
+{
+    m_utilityPage = new UtilityPage(m_ai, this);
+    m_mainTabs->addTab(m_utilityPage, "\xf0\x9f\x94\xa7  Utilit\xc3\xa0");  /* 5 */
+}
+
+/* ── Livello 2: tab [6] Ricerca ──────────────────────────────────── */
 void MainWindow::buildRicercaTab()
 {
     m_ricercaPage = new RicercaPage(m_ai, this);
-    m_mainTabs->addTab(m_ricercaPage, "\xf0\x9f\x94\xac  Ricerca");  /* 5 */
+    /* Ricerca unita a Strumenti come sotto-tab finale */
+    if (m_strumentiPage)
+        m_strumentiPage->addExternalTab(m_ricercaPage,
+                                        "\xf0\x9f\x94\xac  Ricerca");
 }
 
-/* ── Livello 2: tab [6] APP Controller ───────────────────────────── */
+/* ── Livello 2: tab [7] Bioinformatica ───────────────────────────── */
+void MainWindow::buildBioinformaticaTab()
+{
+    m_mainTabs->addTab(new BioinformaticaPage(m_ai, this),
+                       "\xf0\x9f\xa7\xac  Bioinformatica");  /* 7 */
+}
+
+/* ── Livello 2: tab [8] APP Controller ───────────────────────────── */
 void MainWindow::buildAppControllerTab()
 {
     auto* appCtrl = new AppControllerPage(m_ai, this);
     connect(appCtrl, &AppControllerPage::openSettingsDipendenze,
             this,    &MainWindow::onOpenSettingsDipendenze);
-    m_mainTabs->addTab(appCtrl, "\xf0\x9f\x95\xb9\xef\xb8\x8f  APP Controller");  /* 6 */
+    m_mainTabs->addTab(appCtrl, "\xf0\x9f\x95\xb9\xef\xb8\x8f  TeleComanda");  /* 8 */
+
+    /* Dev Agent e Sicurezza → spostati in tab Programmazione */
+    if (m_progPage) {
+        m_progPage->addExternalTab(appCtrl->buildDevAgentTab(),
+                                   "\xf0\x9f\xa4\x96  Dev Agent");
+        m_progPage->addExternalTab(new SecurityAnalyzerPage(m_ai, m_progPage),
+                                   "\xf0\x9f\x94\x90  Sicurezza");
+    }
 }
 
 /* ── Livello 2: tab [7] LAN & WAN ────────────────────────────────── */
 void MainWindow::buildLanWanTab()
 {
     m_lanWanPage = new LanWanPage(m_ai, this);
-    m_mainTabs->addTab(m_lanWanPage, "\xf0\x9f\x8c\x90  LAN & WAN");  /* 7 */
     m_agentiMultiPage = m_lanWanPage->multiAgentTab();
 
     /* Sposta "Rete & Network" da ProgrammazionePage a LanWanPage */
     if (m_progPage)
         m_lanWanPage->addExtraTab(
             m_progPage->buildReteNetworkWidget(m_lanWanPage),
-            "\xf0\x9f\x94\xa1  Rete & Network");  /* 🔡 */
+            "\xf0\x9f\x94\xa1  Rete & Network");
+
+    /* Inserisce LAN & WAN dentro Utility [5] invece di un tab principale separato */
+    if (m_utilityPage)
+        m_utilityPage->addTab(m_lanWanPage, "\xf0\x9f\x8c\x90  LAN & WAN");
 }
 
 /* ── Livello 2: ex tab [9] Multi-Agente — ora embedded in LAN & WAN ── */
@@ -1920,9 +1962,13 @@ void MainWindow::ensureSettingsDialog()
             this,      &MainWindow::applyNavStyle);
     connect(m_impPage, &ImpostazioniPage::execBtnModeChanged,
             this,      &MainWindow::applyExecBtnMode);
-    if (auto* ap = findChild<AgentiPage*>())
+    if (auto* ap = findChild<AgentiPage*>()) {
         connect(m_impPage, &ImpostazioniPage::bubbleStyleChanged,
                 ap, &AgentiPage::onBubbleStyleChanged);
+        /* Ricolora le bolle esistenti ogni volta che l'utente cambia tema */
+        connect(ThemeManager::instance(), &ThemeManager::changed,
+                ap, &AgentiPage::recolorLog);
+    }
 
     /* Feedback indicizzazione RAG nella status bar — visibile anche a dialog chiuso */
     connect(m_impPage, &ImpostazioniPage::indexingProgress,

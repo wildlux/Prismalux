@@ -45,6 +45,9 @@ public:
      *  Chiamato da MainWindow dopo la creazione di ImpostazioniPage. */
     void installCronPanel(ManutenzioneePage* man);
 
+    /** Aggiunge un tab extra alla fine (usato da mainwindow per Ricerca). */
+    void addExternalTab(QWidget* w, const QString& label);
+
     /* Funzioni utilitarie usate anche nei test */
     static QString     ragExtractText(const QString& path);
     static QStringList ragChunkText(const QString& text,

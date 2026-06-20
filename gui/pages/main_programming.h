@@ -62,6 +62,9 @@ public:
     /* Rete & Network widget — creato una volta sola, ceduto a LanWanPage */
     QWidget* buildReteNetworkWidget(QWidget* parent);
 
+    /* Aggiunge tab esterne (es. Dev Agent da AppController, Sicurezza) */
+    void addExternalTab(QWidget* w, const QString& label);
+
 private:
     AiClient*       m_ai        = nullptr;
 

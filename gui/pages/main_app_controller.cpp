@@ -611,8 +611,9 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
     m_tabs->addTab(buildTinyMCPTab(),      "\xf0\x9f\xa4\x96  TinyMCP");
     m_tabs->addTab(buildOBSTab(),          "\xf0\x9f\x94\xb4  OBS MCP");
     m_tabs->addTab(buildGodotTab(),          "\xf0\x9f\x8e\xae  Godot");
+    m_tabs->addTab(buildGameModdingTab(),    "\xf0\x9f\x97\xa1  Game Modding");
     m_tabs->addTab(new OpenCodePage(m_tabs), "\xf0\x9f\x96\xa5  OpenCode");
-    m_tabs->addTab(new McpManagerPage(m_tabs), "\xf0\x9f\x94\x8c  Gestione MCP");
+    /* McpManagerPage → spostato in Impostazioni → Gestione MCP */
     {
         auto* tgTab = buildTelegramTab();
         m_tabs->addTab(tgTab, "\xf0\x9f\x93\xac  Telegram");  /* 📬 */
@@ -637,10 +638,7 @@ AppControllerPage::AppControllerPage(AiClient* ai, QWidget* parent)
             });
     }
     m_tabs->addTab(buildWhatsAppTab(),       "\xf0\x9f\x92\xac  WhatsApp");  /* 💬 */
-    m_tabs->addTab(buildDevAgentTab(),       "\xf0\x9f\xa4\x96  Dev Agent"); /* 🤖 */
-
-    m_secPage = new SecurityAnalyzerPage(m_ai, this);
-    m_tabs->addTab(m_secPage,               "\xf0\x9f\x94\x90  Sicurezza");  /* 🔐 */
+    /* DevAgent e Sicurezza → spostati in Programmazione */
 
     lay->addWidget(m_tabs);
 
@@ -815,6 +813,11 @@ void AppControllerPage::onRunAiFinished(const QString& full)
         m_godotExecBtn->setEnabled(true);
         m_godotStatusLbl->setText(
             "\xf0\x9f\x8e\xae  Codice pronto \xe2\x80\x94 premi Esegui in Godot");
+    } else if (m_activeTab == 15 && hasBlock && !code.isEmpty()) {
+        m_moddingCode = code;
+        m_moddingSaveBtn->setEnabled(true);
+        m_moddingStatusLbl->setText(
+            "\xe2\x9c\x85  Codice pronto \xe2\x80\x94 premi Salva nel gioco");
     }
 }
 

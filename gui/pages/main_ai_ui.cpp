@@ -238,7 +238,8 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
     llmLbl->setObjectName("cardDesc");
     m_cmbLLM = new QComboBox(toolbar);
     m_cmbLLM->setObjectName("settingsCombo");
-    m_cmbLLM->setMinimumWidth(dpiScale(160));
+    m_cmbLLM->setMinimumWidth(dpiScale(240));
+    m_cmbLLM->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     m_cmbLLM->setToolTip(tr("Seleziona il modello AI da usare."));
     m_cmbLLM->setAccessibleName("Selettore modello AI");
     m_cmbLLM->addItem("(caricamento...)");
@@ -3296,6 +3297,106 @@ void AgentiPage::onBubbleStyleChanged()
     static const QRegularExpression reBr("border-radius:\\s*\\d+px");
     html.replace(reBr, QString("border-radius: %1px").arg(newBr));
 
+    m_log->setHtml(html);
+    m_log->verticalScrollBar()->setValue(scrollPos);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   recolorLog — ricolora le bolle esistenti al cambio tema.
+   Sostituisce i colori CSS inline delle bolle (background, testo,
+   bordi) in modo contestuale usando prefissi CSS come discriminante,
+   così non tocca il contenuto dell'utente (codice, testo puro).
+   Chiamata dal segnale ThemeManager::changed.
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::recolorLog()
+{
+    if (!m_log || m_log->toPlainText().trimmed().isEmpty()) return;
+
+    const int scrollPos = m_log->verticalScrollBar()->value();
+    QString html = m_log->toHtml();
+
+    /* Ogni riga: { stringa_sorgente, stringa_destinazione }
+     * Il prefisso CSS (background-color:, color:, border:, …) fa da
+     * disambiguatore: tocca solo attributi style, mai testo libero. */
+    struct Pair { const char* src; const char* dst; };
+
+    /* Direzione: dark→light o light→dark in base al tema attivo */
+    const bool toLight = isLightTheme();
+
+    /* ── Sostituzioni dark→light ── */
+    static const Pair kD2L[] = {
+        /* Background bolle (univoci → sicuri al 100%) */
+        {"background-color:#162544", "background-color:#dbeafe"},   /* user     */
+        {"background-color:#0e1624", "background-color:#f1f5f9"},   /* agent    */
+        {"background-color:#0e1a12", "background-color:#dcfce7"},   /* local    */
+        {"background-color:#0b1a10", "background-color:#f0fdf4"},   /* tool ok  */
+        {"background-color:#1a0a0a", "background-color:#fef2f2"},   /* tool err */
+        {"background-color:#1a1400", "background-color:#fffbeb"},   /* ctrl wrn */
+        {"background-color:#1e1527", "background-color:#f5f3ff"},   /* no-so    */
+        {"background-color:#1e3a5f", "background-color:#bfdbfe"},   /* user btn */
+        {"background-color:#1a2641", "background-color:#ede9fe"},   /* agent btn*/
+        {"background-color:#0e2318", "background-color:#bbf7d0"},   /* local btn*/
+        {"background-color:#2d3a54", "background-color:#e2e8f0"},   /* agent sep*/
+        /* Colori testo principali (prefisso "color:" li distingue dal testo) */
+        {"color:#e2e8f0",  "color:#1e293b"},  /* testo bolla principale  */
+        {"color:#93c5fd",  "color:#1d4ed8"},  /* header bolla user       */
+        {"color:#a78bfa",  "color:#7c3aed"},  /* header/accent agent     */
+        {"color:#c4b5fd",  "color:#5b21b6"},  /* accent secondario agent */
+        {"color:#4ade80",  "color:#15803d"},  /* accent verde local      */
+        {"color:#86efac",  "color:#166534"},  /* verde chiaro local      */
+        {"color:#8b949e",  "color:#374151"},  /* testo muted tool        */
+        {"color:#94a3b8",  "color:#4b5563"},  /* testo muted agent       */
+        {"color:#facc15",  "color:#92400e"},  /* accent warn controller  */
+        {"color:#f87171",  "color:#dc2626"},  /* accento errore          */
+        /* Border bolle */
+        {"border:1px solid #1d4ed8",  "border:1px solid #3b82f6"},
+        {"border:1px solid #1e2d47",  "border:1px solid #94a3b8"},
+        {"border:1px solid #166534",  "border:1px solid #4ade80"},
+        {"border:1px solid #7f1d1d",  "border:1px solid #fca5a5"},
+        {"border:1px solid #7c3aed",  "border:1px solid #a78bfa"},
+        {"border:1px solid #4c1d95",  "border:1px solid #c4b5fd"},
+        {nullptr, nullptr}
+    };
+
+    /* ── Sostituzioni light→dark ── */
+    static const Pair kL2D[] = {
+        {"background-color:#dbeafe", "background-color:#162544"},
+        {"background-color:#f1f5f9", "background-color:#0e1624"},
+        {"background-color:#dcfce7", "background-color:#0e1a12"},
+        {"background-color:#f0fdf4", "background-color:#0b1a10"},
+        {"background-color:#fef2f2", "background-color:#1a0a0a"},
+        {"background-color:#fffbeb", "background-color:#1a1400"},
+        {"background-color:#f5f3ff", "background-color:#1e1527"},
+        {"background-color:#bfdbfe", "background-color:#1e3a5f"},
+        {"background-color:#ede9fe", "background-color:#1a2641"},
+        {"background-color:#bbf7d0", "background-color:#0e2318"},
+        {"background-color:#e2e8f0", "background-color:#2d3a54"},
+        {"color:#1e293b",  "color:#e2e8f0"},
+        {"color:#1d4ed8",  "color:#93c5fd"},
+        {"color:#7c3aed",  "color:#a78bfa"},
+        {"color:#5b21b6",  "color:#c4b5fd"},
+        {"color:#15803d",  "color:#4ade80"},
+        {"color:#166534",  "color:#86efac"},
+        {"color:#374151",  "color:#8b949e"},
+        {"color:#4b5563",  "color:#94a3b8"},
+        {"color:#92400e",  "color:#facc15"},
+        {"color:#dc2626",  "color:#f87171"},
+        {"border:1px solid #3b82f6",  "border:1px solid #1d4ed8"},
+        {"border:1px solid #94a3b8",  "border:1px solid #1e2d47"},
+        {"border:1px solid #4ade80",  "border:1px solid #166534"},
+        {"border:1px solid #fca5a5",  "border:1px solid #7f1d1d"},
+        {"border:1px solid #a78bfa",  "border:1px solid #7c3aed"},
+        {"border:1px solid #c4b5fd",  "border:1px solid #4c1d95"},
+        {nullptr, nullptr}
+    };
+
+    const Pair* map = toLight ? kD2L : kL2D;
+    for (int i = 0; map[i].src; ++i)
+        html.replace(QString::fromLatin1(map[i].src),
+                     QString::fromLatin1(map[i].dst),
+                     Qt::CaseInsensitive);
+
+    /* Mantieni invariato il border-radius (non dipende dal tema) */
     m_log->setHtml(html);
     m_log->verticalScrollBar()->setValue(scrollPos);
 }

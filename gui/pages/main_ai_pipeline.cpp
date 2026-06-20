@@ -944,84 +944,108 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                 "i\\s+(?:do\\s+not|don.?t)\\s+have\\s+(?:access|information)"),
                 QRegularExpression::CaseInsensitiveOption);
             if (reNonSo.match(rawResp).hasMatch()) {
+                /* Colori adattativi al tema corrente */
+                const bool _lt = isLightTheme();
+                const char* _nBg   = _lt ? "#f5f3ff" : "#1e1527";
+                const char* _nBdr  = _lt ? "#a78bfa" : "#7c3aed";
+                const char* _nHdr  = _lt ? "#6d28d9" : "#a78bfa";
+                const char* _nSub  = _lt ? "#5b21b6" : "#c4b5fd";
+                const char* _nTxt  = _lt ? "#1e1b4b" : "#e2e8f0";
+                const char* _nVal  = _lt ? "#059669" : "#86efac";
+                const char* _nMut  = _lt ? "#374151" : "#94a3b8";
+                const char* _nSep  = _lt ? "#c4b5fd" : "#4c1d95";
+                const char* _nLnk  = _lt ? "#7c3aed" : "#818cf8";
+                const char* _nAcc  = _lt ? "#4338ca" : "#c4b5fd";
+
                 htmlContent +=
-                    /* ── Banner viola "non lo so" ── */
-                    "<div style='border:1px solid #7c3aed;border-radius:8px;"
-                    "background:#1e1527;padding:10px 14px;margin:10px 0;'>"
+                    /* ── Banner "non lo so" adattivo al tema ── */
+                    QString("<div style='border:1px solid %1;border-radius:8px;"
+                    "background:%2;padding:10px 14px;margin:10px 0;'>")
+                    .arg(_nBdr).arg(_nBg) +
 
                     /* Titolo */
-                    "<p style='color:#a78bfa;font-size:12px;margin:0 0 8px 0;"
-                    "font-weight:bold;'>"
+                    QString("<p style='color:%1;font-size:12px;margin:0 0 8px 0;"
+                    "font-weight:bold;'>")
+                    .arg(_nHdr) +
                     "\xf0\x9f\x92\xa1  Il modello non riesce a rispondere &mdash; "
-                    "<a href='settings:model' style='color:#c4b5fd;'>"
-                    "apri Impostazioni \xe2\x86\x97</a></p>"
+                    "<a href='settings:model' style='color:" + QString(_nAcc) + ";'>"
+                    "apri Impostazioni \xe2\x86\x97</a></p>" +
 
                     /* Sezione 1: modello */
-                    "<p style='color:#c4b5fd;font-size:11px;margin:0 0 6px 0;'>"
-                    "<b style='color:#a78bfa;'>1. Cambia modello</b> &mdash; "
-                    "prova un modello pi\xc3\xb9 capace per la programmazione:</p>"
-                    "<ul style='color:#e2e8f0;font-size:11px;margin:0 0 6px 14px;'>"
+                    QString("<p style='color:%1;font-size:11px;margin:0 0 6px 0;'>"
+                    "<b style='color:%2;'>1. Cambia modello</b> &mdash; "
+                    "prova un modello pi\xc3\xb9 capace per la programmazione:</p>")
+                    .arg(_nSub).arg(_nHdr) +
+                    QString("<ul style='color:%1;font-size:11px;margin:0 0 6px 14px;'>")
+                    .arg(_nTxt) +
                     "<li><b>qwen3:8b</b> &mdash; ottimo ragionamento, buono per codice</li>"
                     "<li><b>deepseek-coder:6.7b</b> &mdash; specializzato per programmazione</li>"
                     "<li><b>deepseek-r1:7b</b> &mdash; ragionamento passo-passo</li>"
                     "<li><b>codellama:7b</b> &mdash; ottimizzato per generare codice</li>"
-                    "</ul>"
+                    "</ul>" +
 
                     /* Sezione 2: parametri consigliati */
-                    "<p style='color:#c4b5fd;font-size:11px;margin:0 0 4px 0;'>"
-                    "<b style='color:#a78bfa;'>2. Parametri consigliati</b> "
-                    "(<a href='settings:model' style='color:#818cf8;font-size:11px;'>"
-                    "Impostazioni \xe2\x86\x92 Modello</a>):</p>"
+                    QString("<p style='color:%1;font-size:11px;margin:0 0 4px 0;'>"
+                    "<b style='color:%2;'>2. Parametri consigliati</b> "
+                    "(<a href='settings:model' style='color:%3;font-size:11px;'>"
+                    "Impostazioni \xe2\x86\x92 Modello</a>):</p>")
+                    .arg(_nSub).arg(_nHdr).arg(_nLnk) +
                     "<table style='font-size:11px;border-collapse:collapse;width:100%;'>"
-                    "<tr>"
-                    "<th style='text-align:left;color:#818cf8;padding:2px 6px 2px 0;"
-                    "border-bottom:1px solid #4c1d95;'>Parametro</th>"
-                    "<th style='text-align:left;color:#818cf8;padding:2px 6px;"
-                    "border-bottom:1px solid #4c1d95;'>Valore consigliato</th>"
-                    "<th style='text-align:left;color:#818cf8;padding:2px 0;"
-                    "border-bottom:1px solid #4c1d95;'>Perch\xc3\xa9</th>"
-                    "</tr>"
-                    "<tr>"
-                    "<td style='color:#ddd6fe;padding:3px 6px 3px 0;'>"
-                    "\xf0\x9f\x8c\xa1 <b>Temperatura</b></td>"        /* 🌡 */
-                    "<td style='color:#86efac;padding:3px 6px;'>0.2 &mdash; 0.4</td>"
-                    "<td style='color:#94a3b8;'>Risposte pi\xc3\xb9 precise e meno aleatorie</td>"
-                    "</tr>"
-                    "<tr>"
-                    "<td style='color:#ddd6fe;padding:3px 6px 3px 0;'>"
-                    "\xf0\x9f\x93\x96 <b>Context (num_ctx)</b></td>"  /* 📖 */
-                    "<td style='color:#86efac;padding:3px 6px;'>8192 &mdash; 32768</td>"
-                    "<td style='color:#94a3b8;'>Pi\xc3\xb9 contesto = capisce domande pi\xc3\xb9 lunghe</td>"
-                    "</tr>"
-                    "<tr>"
-                    "<td style='color:#ddd6fe;padding:3px 6px 3px 0;'>"
-                    "\xf0\x9f\x8e\xaf <b>Top-P</b></td>"              /* 🎯 */
-                    "<td style='color:#86efac;padding:3px 6px;'>0.9</td>"
-                    "<td style='color:#94a3b8;'>Bilanciamento creativit\xc3\xa0/correttezza</td>"
-                    "</tr>"
-                    "<tr>"
-                    "<td style='color:#ddd6fe;padding:3px 6px 3px 0;'>"
-                    "\xe2\x9c\x8f <b>Max tokens output</b></td>"      /* ✏ */
-                    "<td style='color:#86efac;padding:3px 6px;'>2048 &mdash; 4096</td>"
-                    "<td style='color:#94a3b8;'>Consente risposte e snippet di codice completi</td>"
-                    "</tr>"
-                    "<tr>"
-                    "<td style='color:#ddd6fe;padding:3px 6px 3px 0;'>"
-                    "\xf0\x9f\xa7\xa0 <b>Think Mode</b></td>"         /* 🧠 */
-                    "<td style='color:#86efac;padding:3px 6px;'>Attivo (modelli qwen3/r1)</td>"
-                    "<td style='color:#94a3b8;'>Ragionamento nascosto migliora la qualit\xc3\xa0</td>"
-                    "</tr>"
-                    "</table>"
+                    "<tr>" +
+                    QString("<th style='text-align:left;color:%1;padding:2px 6px 2px 0;"
+                    "border-bottom:1px solid %2;'>Parametro</th>"
+                    "<th style='text-align:left;color:%1;padding:2px 6px;"
+                    "border-bottom:1px solid %2;'>Valore consigliato</th>"
+                    "<th style='text-align:left;color:%1;padding:2px 0;"
+                    "border-bottom:1px solid %2;'>Perch\xc3\xa9</th>")
+                    .arg(_nLnk).arg(_nSep) +
+                    "</tr><tr>" +
+                    QString("<td style='color:%1;padding:3px 6px 3px 0;'>")
+                    .arg(_nTxt) +
+                    "\xf0\x9f\x8c\xa1 <b>Temperatura</b></td>" +        /* 🌡 */
+                    QString("<td style='color:%1;padding:3px 6px;'>0.2 &mdash; 0.4</td>"
+                    "<td style='color:%2;'>Risposte pi\xc3\xb9 precise e meno aleatorie</td>")
+                    .arg(_nVal).arg(_nMut) +
+                    "</tr><tr>" +
+                    QString("<td style='color:%1;padding:3px 6px 3px 0;'>")
+                    .arg(_nTxt) +
+                    "\xf0\x9f\x93\x96 <b>Context (num_ctx)</b></td>" +  /* 📖 */
+                    QString("<td style='color:%1;padding:3px 6px;'>8192 &mdash; 32768</td>"
+                    "<td style='color:%2;'>Pi\xc3\xb9 contesto = capisce domande pi\xc3\xb9 lunghe</td>")
+                    .arg(_nVal).arg(_nMut) +
+                    "</tr><tr>" +
+                    QString("<td style='color:%1;padding:3px 6px 3px 0;'>")
+                    .arg(_nTxt) +
+                    "\xf0\x9f\x8e\xaf <b>Top-P</b></td>" +              /* 🎯 */
+                    QString("<td style='color:%1;padding:3px 6px;'>0.9</td>"
+                    "<td style='color:%2;'>Bilanciamento creativit\xc3\xa0/correttezza</td>")
+                    .arg(_nVal).arg(_nMut) +
+                    "</tr><tr>" +
+                    QString("<td style='color:%1;padding:3px 6px 3px 0;'>")
+                    .arg(_nTxt) +
+                    "\xe2\x9c\x8f <b>Max tokens output</b></td>" +      /* ✏ */
+                    QString("<td style='color:%1;padding:3px 6px;'>2048 &mdash; 4096</td>"
+                    "<td style='color:%2;'>Consente risposte e snippet di codice completi</td>")
+                    .arg(_nVal).arg(_nMut) +
+                    "</tr><tr>" +
+                    QString("<td style='color:%1;padding:3px 6px 3px 0;'>")
+                    .arg(_nTxt) +
+                    "\xf0\x9f\xa7\xa0 <b>Think Mode</b></td>" +         /* 🧠 */
+                    QString("<td style='color:%1;padding:3px 6px;'>Attivo (modelli qwen3/r1)</td>"
+                    "<td style='color:%2;'>Ragionamento nascosto migliora la qualit\xc3\xa0</td>")
+                    .arg(_nVal).arg(_nMut) +
+                    "</tr></table>" +
 
                     /* Sezione 3: consiglio rapido */
-                    "<p style='color:#94a3b8;font-size:10px;margin:8px 0 0 0;"
-                    "border-top:1px solid #4c1d95;padding-top:6px;'>"
-                    "\xf0\x9f\x93\x8c <b>Consiglio per neofiti:</b> "  /* 📌 */
-                    "inizia con <b style='color:#c4b5fd;'>Temperatura 0.3</b> e "
-                    "<b style='color:#c4b5fd;'>Context 16384</b>. "
-                    "Se il modello risponde in modo confuso, abbassa la temperatura verso 0.1. "
-                    "Se dimentica il contesto delle domande precedenti, aumenta il Context. "
-                    "<a href='settings:model' style='color:#818cf8;'>"
+                    QString("<p style='color:%1;font-size:10px;margin:8px 0 0 0;"
+                    "border-top:1px solid %2;padding-top:6px;'>")
+                    .arg(_nMut).arg(_nSep) +
+                    "\xf0\x9f\x93\x8c <b>Consiglio per neofiti:</b><br>"
+                    "\xe2\x80\xa2 Inizia con <b style='color:" + QString(_nAcc) + ";'>Temperatura 0.3</b> e "
+                    "<b style='color:" + QString(_nAcc) + ";'>Context 16384</b>.<br>"
+                    "\xe2\x80\xa2 Se il modello risponde in modo confuso, abbassa la temperatura verso 0.1.<br>"
+                    "\xe2\x80\xa2 Se dimentica il contesto delle domande precedenti, aumenta il Context.<br>"
+                    "\xe2\x80\xa2 <a href='settings:model' style='color:" + QString(_nLnk) + ";'>"
                     "Vai alle Impostazioni \xe2\x86\x92</a>"
                     "</p>"
 
@@ -1064,13 +1088,11 @@ void AgentiPage::_finishedPipeline(const QString& full) {
         sel.removeSelectedText();
         { int idx = m_bubbleIdx++; m_bubbleTexts[idx] = rawResp;
           if (!extractedThink.isEmpty()) m_thinkTexts[idx] = extractedThink;
-          if (!extractedThink.isEmpty() && m_thinkDefaultOpen) m_thinkShown.insert(idx);
           sel.insertHtml(buildAgentBubble(m_currentAgentLabel,
                                          m_currentAgentModel,
                                          m_currentAgentTime,
                                          htmlContent, idx,
-                                         extractedThink,
-                                         !extractedThink.isEmpty() && m_thinkDefaultOpen)); }
+                                         extractedThink)); }
     }
 
     /* ── Tool Executor: estrae ed esegue codice Python/C/C++, poi avvia il Controller ── */

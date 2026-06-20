@@ -595,15 +595,15 @@ void MainWindow::onDeleteSelectedChatsClicked()
     refreshChatList();
 }
 
-/* eventFilter: intercetta tasti su m_chatList */
+/* eventFilter: m_chatList (Delete), m_tabSearchEdit (Escape), hover search */
 bool MainWindow::eventFilter(QObject* obj, QEvent* ev)
 {
+    /* ── Chat list: Delete ── */
     if (obj == m_chatList && ev->type() == QEvent::KeyPress) {
         auto* ke = static_cast<QKeyEvent*>(ev);
         if (ke->key() == Qt::Key_Delete) {
             const auto sel = m_chatList->selectedItems();
             if (sel.size() > 1) {
-                /* Più chat selezionate: usa il nuovo slot multi-cancellazione */
                 onDeleteSelectedChatsClicked();
             } else if (ke->modifiers() & Qt::ShiftModifier) {
                 onChatDeleteShift();
@@ -613,6 +613,29 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* ev)
             return true;
         }
     }
+
+    /* ── Ricerca schede: hover apre, uscita chiude, Escape chiude ── */
+    if (m_tabSearchEdit) {
+        /* Mouse entra sul bottone → espandi campo e metti a fuoco */
+        if (obj->objectName() == "tabSearchBtn" && ev->type() == QEvent::Enter) {
+            m_tabSearchEdit->setMaximumWidth(dpiScale(160));
+            m_tabSearchEdit->setFocus();
+        }
+        /* Mouse lascia il wrapper (bottone + campo) → chiudi */
+        if (obj->objectName() == "tabSearchWrap" && ev->type() == QEvent::Leave) {
+            m_tabSearchEdit->clear();
+            m_tabSearchEdit->setMaximumWidth(0);
+        }
+        /* Escape mentre si digita → chiudi */
+        if (obj == m_tabSearchEdit && ev->type() == QEvent::KeyPress) {
+            if (static_cast<QKeyEvent*>(ev)->key() == Qt::Key_Escape) {
+                m_tabSearchEdit->clear();
+                m_tabSearchEdit->setMaximumWidth(0);
+                return true;
+            }
+        }
+    }
+
     return QMainWindow::eventFilter(obj, ev);
 }
 
