@@ -34,6 +34,10 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QComboBox>
+#include <QStandardItemModel>
+#include <QStandardItem>
+#include <QColor>
+#include <QRegularExpression>
 #include <QLineEdit>
 #include <QDir>
 #include <QFileInfo>
@@ -2634,14 +2638,59 @@ void MainWindow::showOnboardingWizard()
     auto* themeGrp = new QGroupBox("3. Tema", dlg);
     auto* tLay = new QVBoxLayout(themeGrp);
     auto* themeCombo = new QComboBox(themeGrp);
-    const QStringList themes = {
-        "dark_ocean","dark_cyan","dark_purple","dark_green",
-        "light_blue","light_gray","dracula","monokai","solarized_dark"
+
+    /* Estrae il colore accent dalla prima riga "accent #xxxxxx" del QSS */
+    auto accentFromQss = [](const QString& qssPath) -> QColor {
+        QFile f(qssPath);
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return {};
+        while (!f.atEnd()) {
+            const QString line = QString::fromUtf8(f.readLine());
+            if (line.contains("accent", Qt::CaseInsensitive)) {
+                const auto m = QRegularExpression("#([0-9a-fA-F]{6})").match(line);
+                if (m.hasMatch()) return QColor("#" + m.captured(1));
+            }
+        }
+        return {};
     };
-    for (const auto& t : themes) themeCombo->addItem(t, t);
+
+    const auto& allThemes = ThemeManager::instance()->themes();
+    auto* model = new QStandardItemModel(themeCombo);
+    for (const auto& t : allThemes) {
+        auto* item = new QStandardItem(t.label);
+        item->setData(t.id, Qt::UserRole);
+        const QColor accent = accentFromQss(t.resource);
+        if (accent.isValid()) {
+            /* testo colorato con l'accent del tema */
+            item->setForeground(accent);
+            /* sfondo leggermente più scuro dell'accent per contrasto */
+            item->setBackground(accent.darker(400));
+        }
+        model->appendRow(item);
+    }
+    themeCombo->setModel(model);
+
     const QString savedTheme = ss.value(P::SK::kTheme, P::SK::kDefaultTheme).toString();
-    int themeIdx = themeCombo->findData(savedTheme);
-    themeCombo->setCurrentIndex(themeIdx >= 0 ? themeIdx : 0);
+    const int themeIdx = [&]() {
+        for (int i = 0; i < model->rowCount(); ++i)
+            if (model->item(i)->data(Qt::UserRole).toString() == savedTheme) return i;
+        return 0;
+    }();
+    themeCombo->setCurrentIndex(themeIdx);
+
+    /* Anteprima live: applica il tema al cambio selezione */
+    const QString origTheme = ThemeManager::instance()->currentId();
+    connect(themeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            themeCombo, [themeCombo](int idx) {
+                const QString id = themeCombo->model()
+                    ->data(themeCombo->model()->index(idx, 0), Qt::UserRole).toString();
+                if (!id.isEmpty()) ThemeManager::instance()->apply(id);
+            });
+
+    /* Se l'utente chiude con X senza confermare, ripristina il tema originale */
+    connect(dlg, &QDialog::rejected, dlg, [origTheme]() {
+        ThemeManager::instance()->apply(origTheme);
+    });
+
     tLay->addWidget(themeCombo);
     vlay->addWidget(themeGrp);
 
