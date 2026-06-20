@@ -40,19 +40,26 @@ Header (72px): logo · backend · model · CPU/RAM/GPU · spinner · ⚙️
 [2] 🎬 Multimedia                        Audio AI · Genera Immagini · 🕸 Mappe concettuali · 🗺 Mappa OSM · Sintetizzatore · 🎤 Clona Voce · OCR webcam
 [3] 💻 Programmazione            Alt+3  Editor+AI · Agentica · Translitter · Reverse Eng. · Git · REPL · Interpreter · Rete · Driver
 [4] π  Matematica                Alt+4  Sequenza→Formula · Costanti · N-esimo · Espressione · Risolvi Passi (SymPy+🔀) · Analisi 1&2 (LaTeX KaTeX)
-[5] 🔬 Ricerca                   Alt+5  Paper · Brevetti · Lavoro · Cytoscape—Bio · RDKit · Bioconda · RAB₀-L · BLHM · Analisi Fenomeni · 🕸️ Grafo RAG · Astrale
-[6] 🕹 APP Controller            Alt+6  Blender/FreeCAD/Office/CloudCompare/Anki/KiCAD/TinyMCP/OBS/OpenCode/Godot · 🤖 Dev Agent
-[7] 🌐 LAN & WAN                         LAN Android (QR/ADB) · GNS3 MCP · WAN Compute (🧠 Solo PC | 🌐 Rete LAN → Multi-Agente + GraphMemory)
+[5] 🔧 Utility                           Fotovoltaico · Idroponica · Lavoro · Finanza · LAN & WAN
+[6] 🔬 Ricerca                   Alt+5  Paper · Brevetti · Analisi Fenomeni · 🕸️ Grafo RAG · Test RAG · Astrale
+[7] 🧬 Bioinformatica                   Cytoscape · RDKit · Bioconda · Avogadro · RAB₀-L · BLHM
+[8] 🕹 APP Controller            Alt+6  Blender/FreeCAD/Office/CloudCompare/Anki/KiCAD/TinyMCP/OBS/OpenCode/Godot
 ImpostazioniPage: dialog modale (⚙️ header)
 ```
 Note:
-- `LavoroPage` è in StrumentiPage (`m_lavoroPage`), NON in mainwindow
+- `LavoroPage` è in UtilityPage [5], NON più in RicercaPage
+- `PraticoPage` (Finanza) e SolarCalcWidget/IdroWidget sono in UtilityPage [5]
+- `LanWanPage` è sub-tab di UtilityPage [5] — NON più tab principale separata
+- Cytoscape/RDKit/Bioconda/Avogadro/RAB₀-L/BLHM → BioinformaticaPage [7]
+- DevAgent e SecurityAnalyzerPage → ProgrammazionePage (aggiunti via addExternalTab da mainwindow)
+- Gestione MCP → ImpostazioniPage (tab "Gestione MCP" dopo tab "MCP")
 - Cron (`m_cronPanel`) in StrumentiPage via `installCronPanel()` con `QTimer::singleShot(0)`
-- Cytoscape/RDKit/Bioconda/Avogadro → Ricerca [5]; GNS3 → LAN & WAN [7]; Godot → AppController [6]
-- AppController tab indici: 0=Blender 1=FreeCAD 2=Office 3=CloudCompare 4=Anki 5=KiCAD 6=TinyMCP 7=OBS 8=OpenCode 9=Godot 10=Dev Agent
+- AppController tab indici: 0=Blender 1=FreeCAD 2=Office 3=CloudCompare 4=Anki 5=KiCAD 6=TinyMCP 7=OBS 8=Godot 9=GameModding 10=OpenCode 11=Telegram 12=WhatsApp
+- Game Modding tabIdx logico: 9 in AppController (giochi: GTA V, Skyrim SE, Terraria, WoW, Noita, Minecraft, Stardew, RimWorld)
 - Multimedia tab indici: 0=Audio AI 1=Genera Immagini 2=Mappe concettuali 3=Mappa OSM 4=Sintetizzatore 5=Clona Voce 6=OCR webcam
-- Strumenti sub-tab indici: 0-5=categorie assistente 6=Cron 7=Finanza 8=Impara 9=Sfida 10=File AI
+- Strumenti sub-tab indici: 0-5=categorie assistente 6=Cron 7=Impara 8=Sfida 9=File AI
 - Web app (lan_server.cpp) tab 🎙️ Voce: TTS (SpeechSynthesis) + STT (MediaRecorder→/api/whisper)
+- ProgrammazionePage sub-tab extra: Dev Agent (costruito da AppController.buildDevAgentTab()), Sicurezza (SecurityAnalyzerPage)
 
 ## Struttura cartelle repo
 
