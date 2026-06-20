@@ -890,13 +890,16 @@ void MainWindow::onOnboardingAccepted()
         s2.setValue(P::SK::kTheme, theme);
         m_pendingTheme = theme;
     }
-    s2.setValue(P::SK::kSetupDone, true);
+    /* Salva il flag "non mostrare più" solo se la checkbox è spuntata */
+    if (m_onbNoShow && m_onbNoShow->isChecked())
+        s2.setValue(P::SK::kSetupDone, true);
     QMetaObject::invokeMethod(this, &MainWindow::onApplyPendingTheme, Qt::QueuedConnection);
     auto* dlg = m_onbDlg;
-    m_onbDlg = nullptr;
+    m_onbDlg     = nullptr;
     m_onbBackend = nullptr;
     m_onbModel   = nullptr;
     m_onbTheme   = nullptr;
+    m_onbNoShow  = nullptr;
     if (dlg) dlg->accept();
 }
 

@@ -464,5 +464,6 @@ private:
     QComboBox* m_onbBackend = nullptr;
     QComboBox* m_onbModel   = nullptr;
     QComboBox* m_onbTheme   = nullptr;
+    QCheckBox* m_onbNoShow  = nullptr;
     QDialog*   m_onbDlg     = nullptr;
 };

@@ -858,6 +858,28 @@ QWidget* ImpostazioniPage::buildMcpTab()
     colsLay->addLayout(rightL, 48);
     vlay->addLayout(colsLay);
 
+    /* ── Pulsante ripristina messaggio di benvenuto ─────────────── */
+    auto* onbSep = new QFrame(page);
+    onbSep->setFrameShape(QFrame::HLine);
+    onbSep->setFrameShadow(QFrame::Sunken);
+    vlay->addWidget(onbSep);
+
+    auto* onbRow = new QHBoxLayout;
+    auto* onbBtn = new QPushButton(
+        "\xf0\x9f\x8d\xba  Mostra di nuovo il messaggio di benvenuto", page);
+    onbBtn->setToolTip(
+        "Reimposta il flag di primo avvio: alla prossima apertura\n"
+        "di Prismalux apparir\xc3\xa0 di nuovo la schermata di benvenuto.");
+    connect(onbBtn, &QPushButton::clicked, onbBtn, [onbBtn]() {
+        QSettings s("Prismalux", "GUI");
+        s.remove("setup/done");
+        onbBtn->setText("\xe2\x9c\x85  Reimpostato — riavvia Prismalux");
+        onbBtn->setEnabled(false);
+    });
+    onbRow->addWidget(onbBtn);
+    onbRow->addStretch();
+    vlay->addLayout(onbRow);
+
     auto* sc = new QScrollArea;
     sc->setWidgetResizable(true);
     sc->setFrameShape(QFrame::NoFrame);

@@ -2639,54 +2639,49 @@ void MainWindow::showOnboardingWizard()
     auto* tLay = new QVBoxLayout(themeGrp);
     auto* themeCombo = new QComboBox(themeGrp);
 
-    /* Estrae il colore accent dalla prima riga "accent #xxxxxx" del QSS */
-    auto accentFromQss = [](const QString& qssPath) -> QColor {
-        QFile f(qssPath);
-        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return {};
-        while (!f.atEnd()) {
-            const QString line = QString::fromUtf8(f.readLine());
-            if (line.contains("accent", Qt::CaseInsensitive)) {
-                const auto m = QRegularExpression("#([0-9a-fA-F]{6})").match(line);
-                if (m.hasMatch()) return QColor("#" + m.captured(1));
-            }
-        }
-        return {};
+    /* Mappa statica id → accent color (hardcoded, nessuna I/O a runtime) */
+    static const QHash<QString, QString> kAccent = {
+        {"dark_cyan",     "#00b8d9"}, {"dark_amber",   "#ffb300"},
+        {"dark_classic",  "#4a90e2"}, {"dark_purple",  "#9c5ff0"},
+        {"dark_ocean",    "#20c4da"}, {"dark_sunset",  "#fd7e14"},
+        {"dark_green",    "#2ecc71"}, {"dark_lavender","#8b68e8"},
+        {"dark_rainbow",  "#ff6b6b"}, {"hacker",       "#00ff00"},
+        {"neon",          "#00ff9d"}, {"solar",        "#268bd2"},
+        {"pink",          "#ec4899"}, {"military",     "#6b8e23"},
+        {"light",         "#0072c6"}, {"light_mint",   "#00897b"},
+        {"light_rose",    "#c2185b"}, {"light_sand",   "#e65100"},
+        {"light_sky",     "#0277bd"}, {"venom_green",  "#00ff00"},
+        {"venom_blue",    "#00bfff"}, {"venom_orange", "#ff4500"},
+        {"venom_red",     "#ff0000"},
     };
 
     const auto& allThemes = ThemeManager::instance()->themes();
-    auto* model = new QStandardItemModel(themeCombo);
+    /* Popola SENZA emettere currentIndexChanged (bloccato finché non connesso) */
+    themeCombo->blockSignals(true);
     for (const auto& t : allThemes) {
-        auto* item = new QStandardItem(t.label);
-        item->setData(t.id, Qt::UserRole);
-        const QColor accent = accentFromQss(t.resource);
-        if (accent.isValid()) {
-            /* testo colorato con l'accent del tema */
-            item->setForeground(accent);
-            /* sfondo leggermente più scuro dell'accent per contrasto */
-            item->setBackground(accent.darker(400));
-        }
-        model->appendRow(item);
+        themeCombo->addItem(t.label, t.id);
+        const QColor accent(kAccent.value(t.id, "#888888"));
+        /* colora la voce con l'accent del tema */
+        const int last = themeCombo->count() - 1;
+        themeCombo->setItemData(last, accent,          Qt::ForegroundRole);
+        themeCombo->setItemData(last, accent.darker(500), Qt::BackgroundRole);
     }
-    themeCombo->setModel(model);
-
     const QString savedTheme = ss.value(P::SK::kTheme, P::SK::kDefaultTheme).toString();
-    const int themeIdx = [&]() {
-        for (int i = 0; i < model->rowCount(); ++i)
-            if (model->item(i)->data(Qt::UserRole).toString() == savedTheme) return i;
-        return 0;
-    }();
+    const int themeIdx = qMax(0, themeCombo->findData(savedTheme));
     themeCombo->setCurrentIndex(themeIdx);
+    themeCombo->blockSignals(false);
 
-    /* Anteprima live: applica il tema al cambio selezione */
+    /* Anteprima live: QTimer::singleShot(0) evita di bloccare la UI
+       se setStyleSheet è lento su molti widget */
     const QString origTheme = ThemeManager::instance()->currentId();
     connect(themeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             themeCombo, [themeCombo](int idx) {
-                const QString id = themeCombo->model()
-                    ->data(themeCombo->model()->index(idx, 0), Qt::UserRole).toString();
-                if (!id.isEmpty()) ThemeManager::instance()->apply(id);
+                const QString id = themeCombo->itemData(idx).toString();
+                if (!id.isEmpty())
+                    QTimer::singleShot(0, qApp, [id]{ ThemeManager::instance()->apply(id); });
             });
 
-    /* Se l'utente chiude con X senza confermare, ripristina il tema originale */
+    /* X senza confermare → ripristina tema originale */
     connect(dlg, &QDialog::rejected, dlg, [origTheme]() {
         ThemeManager::instance()->apply(origTheme);
     });
@@ -2694,15 +2689,20 @@ void MainWindow::showOnboardingWizard()
     tLay->addWidget(themeCombo);
     vlay->addWidget(themeGrp);
 
+    /* Checkbox "non mostrare più" */
+    auto* noShowChk = new QCheckBox("Non mostrare questo messaggio all'avvio", dlg);
+    noShowChk->setChecked(false);
+    vlay->addWidget(noShowChk);
+
     /* Bottoni */
     auto* btnBox = new QDialogButtonBox(QDialogButtonBox::Ok, dlg);
-    btnBox->button(QDialogButtonBox::Ok)->setText(
-        "\xf0\x9f\x8d\xba  Inizia!");
+    btnBox->button(QDialogButtonBox::Ok)->setText("\xf0\x9f\x8d\xba  Inizia!");
     vlay->addWidget(btnBox);
 
     m_onbBackend = backendCombo;
     m_onbModel   = modelCombo;
     m_onbTheme   = themeCombo;
+    m_onbNoShow  = noShowChk;
     m_onbDlg     = dlg;
     connect(btnBox, &QDialogButtonBox::accepted, this, &MainWindow::onOnboardingAccepted);
 
