@@ -4189,6 +4189,10 @@ QWidget* MatematicaPage::buildBoolTab()
         "<div class='law'>Modus Tollens: \xc2\xacB, A\xe2\x86\x92B \xe2\x8a\xa2 \xc2\xacA</div>"
     );
 
+    /* Altezza minima colonne: garantisce che le tabelle siano visibili */
+    colLeft->setMinimumHeight(dpiScale(380));
+    colRight->setMinimumHeight(dpiScale(380));
+
     /* Layout 2 colonne affiancate con scroll indipendente */
     auto* colRow = new QWidget(w);
     auto* colLay = new QHBoxLayout(colRow);
@@ -4198,7 +4202,13 @@ QWidget* MatematicaPage::buildBoolTab()
     colLay->addWidget(colRight, 1);
     lay->addWidget(colRow, 1);
 
-    return w;
+    /* Scroll area verticale: se la finestra è bassa, tutto il contenuto resta raggiungibile */
+    auto* scroll = new QScrollArea;
+    scroll->setWidget(w);
+    scroll->setWidgetResizable(true);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setFrameShape(QFrame::NoFrame);
+    return scroll;
 }
 
 /* ── Slot: valuta espressione booleana con SymPy ── */
