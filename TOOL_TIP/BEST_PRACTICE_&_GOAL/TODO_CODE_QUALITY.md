@@ -134,10 +134,7 @@ Ogni file sopra ~1500 righe deve essere diviso in unità logiche.
 
 ### Portabilità — dipendenze Linux-specifiche
 
-- [ ] **Path KaTeX hardcoded** — `widgets/latex_view.h` usa
-      `/usr/share/javascript/katex/` non trovabile su Windows/macOS.
-      Fix: cercare prima `P::root()+"/assets/katex/"` (bundle), poi il path
-      di sistema; se non trovato, degradare a `QTextEdit` (già presente come fallback).
+- [x] **Path KaTeX hardcoded** — FATTO 2026-06-20: `katexBaseUrl()` in latex_view.h cerca: bundle assets/katex/ → /usr/share/javascript/katex/ (Linux) → /usr/share/katex/ → fallback. Portabile su Windows/macOS.
 
 - [ ] **Comandi shell non portabili** — `main_sci_compute.cpp` usa `bash -c`,
       `ulimit`, `bwrap` senza check della piattaforma.
@@ -231,7 +228,7 @@ Ogni file sopra ~1500 righe deve essere diviso in unità logiche.
 | File >1500 righe in `gui/` | ~12 | ~3 ✅ (-10 file splittati) | ≤3 |
 | Suite test PASS senza Ollama | 38/41 (93%) | 38/41 (93%) | 41/41 (100%) |
 | Timeout hardcoded >2s (grep) | ~40 | 0 ✅ | 0 |
-| Porte/path hardcoded (grep) | ~40 hit | 0 ✅ | 0 |
+| Porte/path hardcoded (grep) | ~40 hit | ~5 ✅ (solo testo UI) | 0 |
 | `QProcess` senza `errorOccurred` | ~15 | ~15 | 0 |
 | Pulsanti senza tooltip | ~60 | ~60 | ≤10 |
 | Lambda > 2 righe in connect() | ~20 | ~20 | 0 |

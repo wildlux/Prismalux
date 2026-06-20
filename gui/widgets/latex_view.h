@@ -4,11 +4,37 @@
 #include <QWebEnginePage>
 #include <QString>
 #include <QUrl>
+#include <QDir>
+#include <QCoreApplication>
 #include <QSizePolicy>
 
 /* LatexView — QWebEngineView con KaTeX per rendering formule LaTeX.
-   Richiede: libjs-katex installato in /usr/share/javascript/katex/.
+   Cerca KaTeX in: assets/katex/ (bundle) → /usr/share/javascript/katex/ (Linux).
    Fallback a QTextEdit se HAVE_WEBENGINE_WIDGETS non è definito. */
+
+static inline QString katexBaseUrl()
+{
+    /* Candidati in ordine: bundle accanto all'eseguibile, poi percorsi di sistema */
+    const QString appDir = QCoreApplication::applicationDirPath();
+    const QStringList candidates = {
+        appDir + "/assets/katex",
+        appDir + "/../../assets/katex",
+#ifdef Q_OS_LINUX
+        "/usr/share/javascript/katex",
+        "/usr/share/katex",
+#elif defined(Q_OS_WIN)
+        appDir + "/katex",
+#elif defined(Q_OS_MACOS)
+        appDir + "/../Resources/katex",
+#endif
+    };
+    for (const QString& c : candidates) {
+        if (QDir(c).exists())
+            return "file:///" + QDir::cleanPath(c) + "/";
+    }
+    return "file:///usr/share/javascript/katex/";   /* Linux system fallback */
+}
+
 class LatexView : public QWebEngineView {
     Q_OBJECT
 public:
@@ -28,7 +54,7 @@ public:
     {
         QWebEngineView::setHtml(
             buildPage(bodyHtml, bg, fg),
-            QUrl(QStringLiteral("file:///usr/share/javascript/katex/")));
+            QUrl(katexBaseUrl()));
     }
 
 private:
