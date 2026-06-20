@@ -32,6 +32,8 @@
 #include <QProcess>
 #include <QScrollArea>
 #include <QFrame>
+#include <QTextBrowser>
+#include <QSplitter>
 
 namespace P = PrismaluxPaths;
 
@@ -85,6 +87,101 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
     auto* rootLay = new QVBoxLayout(root);
     rootLay->setContentsMargins(12, 12, 12, 12);
     rootLay->setSpacing(16);
+
+    /* ── Sezione 0: Guida rapida ─────────────────────────────── */
+    auto* guideBox = new QGroupBox("\xf0\x9f\x93\x96  Guida rapida — come proteggere la rete WAN");
+    auto* guideLay = new QVBoxLayout(guideBox);
+    guideLay->setContentsMargins(6, 6, 6, 6);
+
+    auto* guide = new QTextBrowser(guideBox);
+    guide->setOpenExternalLinks(false);
+    guide->setFrameShape(QFrame::NoFrame);
+    guide->setMinimumHeight(dpiScale(320));
+    guide->setReadOnly(true);
+    guide->setHtml(
+        "<style>"
+        "body{font-size:13px; margin:4px;}"
+        "h3{margin:10px 0 4px 0; color:#5b9bd5;}"
+        "h4{margin:8px 0 2px 0; color:#7ec87e;}"
+        "ol{margin:0 0 6px 18px; padding:0;}"
+        "li{margin:3px 0;}"
+        "code{background:#2a2a2a; color:#e0c97f; padding:1px 4px; border-radius:3px; font-size:12px;}"
+        ".note{color:#aaa; font-size:12px; margin:4px 0 8px 0;}"
+        ".warn{color:#e08060; font-size:12px;}"
+        ".ok{color:#7ec87e; font-size:12px;}"
+        "hr{border:none; border-top:1px solid #333; margin:10px 0;}"
+        "</style>"
+
+        "<h3>\xf0\x9f\x94\x92 Scenario A \xe2\x80\x94 Solo TLS (minimo consigliato)</h3>"
+        "<p class='note'>Cifra il canale TCP della porta 11600 e impedisce connessioni da worker sconosciuti.</p>"
+
+        "<h4>Sul PC SERVER (quello che avvia il calcolo distribuito):</h4>"
+        "<ol>"
+        "<li>Clicca <b>Rigenera certificato</b> \xe2\x86\x92 viene creato il certificato TLS in <code>~/.prismalux/</code></li>"
+        "<li>Clicca <b>Esporta pin per worker</b> \xe2\x86\x92 salva il file <code>wan_server.pin</code> (es. su chiavetta USB o via SCP)</li>"
+        "<li>Apri <b>Utility \xe2\x86\x92 LAN &amp; WAN \xe2\x86\x92 Server WAN</b>, assicurati che la casella <b>\xf0\x9f\x94\x92 TLS</b> sia attiva, poi clicca <b>Avvia</b></li>"
+        "</ol>"
+
+        "<h4>Su ogni PC WORKER (quelli che eseguono i task):</h4>"
+        "<ol>"
+        "<li>Apri <b>Impostazioni \xe2\x86\x92 Sicurezza WAN</b></li>"
+        "<li>Clicca <b>Importa pin server</b> \xe2\x86\x92 seleziona il file <code>wan_server.pin</code> ricevuto dal server</li>"
+        "<li>Apri <b>Utility \xe2\x86\x92 LAN &amp; WAN \xe2\x86\x92 Connetti al server</b>, attiva <b>\xf0\x9f\x94\x92 TLS</b> e inserisci IP:11600</li>"
+        "</ol>"
+        "<p class='ok'>\xe2\x9c\x94 Da questo momento il canale \xe2\x80\x8b\xc3\xa8 cifrato e il worker verifica l\xe2\x80\x99identit\xc3\xa0 del server.</p>"
+
+        "<hr>"
+
+        "<h3>\xf0\x9f\x9b\xa1 Scenario B \xe2\x80\x94 TLS + VPN WireGuard (consigliato per internet)</h3>"
+        "<p class='note'>WireGuard crea una rete privata cifrata tra tutti i PC. "
+        "Il server Prismalux \xc3\xa8 raggiungibile solo dall\xe2\x80\x99interno della VPN, non da internet diretto.</p>"
+
+        "<h4>Prerequisiti (su OGNI PC coinvolto):</h4>"
+        "<ol>"
+        "<li>Installa WireGuard: <code>sudo apt install wireguard-tools</code></li>"
+        "<li>Il server VPN pu\xc3\xb2 essere il tuo router (se supporta WireGuard), un VPS, "
+        "o uno dei PC del cluster (scelto come hub)</li>"
+        "</ol>"
+
+        "<h4>Su ogni PC WORKER \xe2\x80\x94 genera le chiavi:</h4>"
+        "<ol>"
+        "<li>Apri <b>Impostazioni \xe2\x86\x92 Sicurezza WAN \xe2\x86\x92 sezione WireGuard</b></li>"
+        "<li>Clicca <b>Genera chiavi WireGuard</b> \xe2\x86\x92 crea la coppia privkey/pubkey</li>"
+        "<li>Copia la <b>Chiave pubblica</b> mostrata (pulsante \xf0\x9f\x93\x8b) \xe2\x86\x92 mandala all\xe2\x80\x99amministratore del server VPN</li>"
+        "<li>Clicca <b>Genera wg0.conf</b> \xe2\x86\x92 salva il file e compila i campi mancanti:"
+        "<ul>"
+        "<li><code>PublicKey</code> del server VPN (fornita dall\xe2\x80\x99amministratore)</li>"
+        "<li><code>Endpoint</code> = IP pubblico del server VPN : porta (es. <code>203.0.113.1:51820</code>)</li>"
+        "<li><code>Address</code> = IP privato assegnato a questo worker (es. <code>10.0.0.2/24</code>)</li>"
+        "</ul></li>"
+        "<li>Attiva la VPN: <code>sudo wg-quick up /percorso/wg0.conf</code></li>"
+        "</ol>"
+
+        "<h4>Sul SERVER VPN \xe2\x80\x94 aggiungi ogni worker:</h4>"
+        "<ol>"
+        "<li>Nel file di configurazione del server WireGuard aggiungi un blocco per ogni worker:<br>"
+        "<code>[Peer]<br>PublicKey = &lt;PUBKEY_DEL_WORKER&gt;<br>AllowedIPs = 10.0.0.2/32</code></li>"
+        "<li>Ricarica la config: <code>sudo wg syncconf wg0 &lt;(wg-quick strip wg0)</code></li>"
+        "</ol>"
+
+        "<h4>Sul PC MASTER (server Prismalux):</h4>"
+        "<ol>"
+        "<li>Attiva anche lui la VPN (stesso procedimento worker, con il suo IP, es. <code>10.0.0.1/24</code>)</li>"
+        "<li>Avvia il server WAN sulla porta 11600 \xe2\x80\x94 i worker si connettono usando <code>10.0.0.1:11600</code></li>"
+        "<li>Facoltativo ma consigliato: attiva anche il <b>TLS</b> (Scenario A) per doppia protezione</li>"
+        "</ol>"
+
+        "<p class='ok'>\xe2\x9c\x94 I worker vedono solo la rete VPN privata \xe2\x80\x94 la porta 11600 non \xc3\xa8 mai esposta a internet.</p>"
+        "<p class='warn'>\xe2\x9a\xa0 Se un worker si disconnette dalla VPN, Prismalux mostra il nodo offline e riassegna i task.</p>"
+
+        "<hr>"
+        "<p class='note'><b>Quando serve rigenerare il certificato TLS?</b> "
+        "Solo se sospetti che la chiave privata sia stata compromessa, o ogni 10 anni (il cert dura 3650 giorni). "
+        "Dopo ogni rigenera, ripeti il passaggio \xe2\x80\x9cEsporta pin\xe2\x80\x9d su tutti i worker.</p>"
+    );
+
+    guideLay->addWidget(guide);
+    rootLay->addWidget(guideBox);
 
     /* ── Sezione 1: Certificato TLS WAN ──────────────────────── */
     auto* certBox = new QGroupBox("\xf0\x9f\x94\x92  Certificato TLS WAN (porta 11600)");
