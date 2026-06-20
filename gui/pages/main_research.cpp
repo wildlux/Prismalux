@@ -1638,6 +1638,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
                            + "/.prismalux/rag_graph.db";
     m_ragGm    = new GraphMemory(gmPath, this);
     m_ragGm->open();
+    m_ragGm->pruneByImportance(800);   /* tieni top-800 nodi al lancio */
     m_ragGraph = new RagGraph(m_ai, m_ragGm, this);
 
     connect(m_ragGraph, &RagGraph::progressUpdated,

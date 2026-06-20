@@ -65,6 +65,9 @@ public:
     /** Elimina sessione */
     void remove(const QString& sessionId);
 
+    /** Elimina le sessioni più vecchie mantenendo al massimo maxSessions (default 200) */
+    void pruneOldSessions(int maxSessions = 200);
+
 private:
     QDir    m_dir;
     QString sessionPath(const QString& id) const;

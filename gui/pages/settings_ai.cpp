@@ -499,8 +499,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         m_cloudModelEdit->setPlaceholderText("gpt-4o-mini");
         form->addRow("Modello cloud:", m_cloudModelEdit);
 
-        m_cloudApiKeyEdit = new QLineEdit(
-            s.value(P::SK::kCloudApiKey, "").toString(), srGroup);
+        m_cloudApiKeyEdit = new QLineEdit(P::loadCloudApiKey(), srGroup);
         m_cloudApiKeyEdit->setEchoMode(QLineEdit::Password);
         m_cloudApiKeyEdit->setPlaceholderText("sk-...");
         form->addRow("API key:", m_cloudApiKeyEdit);
@@ -526,7 +525,8 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
             s2.setValue(P::SK::kSmartRouterEnabled, m_smartRouterChk->isChecked());
             s2.setValue(P::SK::kCloudApiUrl,        m_cloudUrlEdit->text().trimmed());
             s2.setValue(P::SK::kCloudApiModel,      m_cloudModelEdit->text().trimmed());
-            s2.setValue(P::SK::kCloudApiKey,        m_cloudApiKeyEdit->text().trimmed());
+            /* API key salvata in file 0600 separato, NON in QSettings */
+            P::saveCloudApiKey(m_cloudApiKeyEdit->text().trimmed());
             m_ai->setSmartRouter(
                 m_smartRouterChk->isChecked(),
                 m_cloudUrlEdit->text().trimmed(),

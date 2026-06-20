@@ -55,7 +55,18 @@ QString ChatHistory::newSession(const QString& firstTask) {
     if (f.open(QIODevice::WriteOnly))
         if (f.write(QJsonDocument(obj).toJson()) >= 0)
             f.commit();
+
+    /* Mantieni al massimo kMaxSessions sessioni — elimina le più vecchie */
+    pruneOldSessions();
     return s.id;
+}
+
+void ChatHistory::pruneOldSessions(int maxSessions) {
+    const auto entries = m_dir.entryInfoList({"*.json"}, QDir::Files, QDir::Time);
+    if (entries.size() <= maxSessions) return;
+    /* entryInfoList(QDir::Time) ordina dalla più recente — elimina le ultime */
+    for (int i = maxSessions; i < entries.size(); ++i)
+        QFile::remove(entries[i].absoluteFilePath());
 }
 
 void ChatHistory::saveSession(const QString& sessionId,

@@ -1746,6 +1746,7 @@ QWidget* LanWanPage::buildWanComputeTab()
     m_wanStartBtn = new QPushButton("\xe2\x96\xb6  Avvia Server");
     m_wanStartBtn->setObjectName("actionBtn");
     m_wanStartBtn->setCheckable(true);
+    m_wanStartBtn->setEnabled(false);   /* abilitato solo dopo token >= 8 char */
     m_wanSrvStatusLbl = new QLabel("\xe2\x9a\xab  Server fermo");
     m_wanSrvStatusLbl->setStyleSheet("color:gray;");
     m_wanSimBtn = new QPushButton("\xe2\x9a\x97\xef\xb8\x8f  Prova in locale");  // ⚗️
@@ -1773,12 +1774,19 @@ QWidget* LanWanPage::buildWanComputeTab()
     srvTokenLay->setContentsMargins(0,0,0,0); srvTokenLay->setSpacing(6);
     auto* srvTokenLbl = new QLabel("\xf0\x9f\x94\x91  Token server:", srvTokenRow);  /* 🔑 */
     m_wanTokenEdit = new QLineEdit(srvTokenRow);
-    m_wanTokenEdit->setPlaceholderText(tr("Lascia vuoto = accetta tutti i nodi (NON sicuro)"));
+    m_wanTokenEdit->setPlaceholderText(tr("Obbligatorio: min 8 caratteri per avviare il server"));
     m_wanTokenEdit->setEchoMode(QLineEdit::Password);
     m_wanTokenEdit->setToolTip(
         "Token segreto condiviso tra server e nodi worker.\n"
-        "Se impostato, ogni nodo deve presentarlo nel messaggio 'hello'.\n"
+        "Obbligatorio: il server non si avvia senza un token di almeno 8 caratteri.\n"
         "Consigliato: 16+ caratteri casuali.");
+    connect(m_wanTokenEdit, &QLineEdit::textChanged, this, [this](const QString& t) {
+        const bool ok = t.trimmed().length() >= 8;
+        if (m_wanStartBtn) m_wanStartBtn->setEnabled(ok);
+        m_wanTokenEdit->setStyleSheet(
+            t.trimmed().isEmpty() ? "" :
+            ok ? "border:1px solid #4caf50;" : "border:1px solid #f44336;");
+    });
     srvTokenLay->addWidget(srvTokenLbl);
     srvTokenLay->addWidget(m_wanTokenEdit, 1);
     srvLay->addWidget(srvTokenRow);
@@ -2235,24 +2243,17 @@ void LanWanPage::onWanStartBtnClicked()
         const int port = m_wanPortSpin->value();
         const bool exposeAll = m_wanExposeAllCheck && m_wanExposeAllCheck->isChecked();
 
-        /* Warn se il server è esposto su tutta la rete senza token */
-        if (exposeAll) {
-            const QString wanTok = m_wanTokenEdit ? m_wanTokenEdit->text().trimmed() : QString();
-            if (wanTok.isEmpty()) {
-                const auto ans = QMessageBox::warning(this,
-                    tr("WAN senza token \xe2\x80\x94 rischio sicurezza"),
-                    tr("Il server WAN sar\xc3\xa0 esposto su tutta la rete "
-                       "senza token di autenticazione.\n"
-                       "Qualsiasi macchina raggiungibile in rete pu\xc3\xb2 "
-                       "connettersi e ricevere task AI.\n\n"
-                       "Imposta un token nella casella \"Token server\" "
-                       "prima di procedere.\n\nContinuare comunque?"),
-                    QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-                if (ans != QMessageBox::Yes) {
-                    m_wanStartBtn->setChecked(false);
-                    return;
-                }
-            }
+        /* Token obbligatorio — blocca avvio se assente o troppo corto */
+        const QString wanTok = m_wanTokenEdit ? m_wanTokenEdit->text().trimmed() : QString();
+        if (wanTok.length() < 8) {
+            QMessageBox::critical(this,
+                tr("Token obbligatorio"),
+                tr("Imposta un token di almeno 8 caratteri prima di avviare il server WAN.\n\n"
+                   "Senza token qualsiasi macchina in rete pu\xc3\xb2 eseguire "
+                   "comandi sul tuo sistema."));
+            m_wanStartBtn->setChecked(false);
+            m_wanTokenEdit->setFocus();
+            return;
         }
 
         const QHostAddress bindAddr = exposeAll ? QHostAddress::Any : QHostAddress::LocalHost;

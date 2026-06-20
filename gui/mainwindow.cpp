@@ -629,12 +629,21 @@ void MainWindow::setupBackend()
         const QString savedModel = s.value(P::SK::kActiveModel, "").toString();
         m_ai->setBackend(AiClient::Ollama, P::kLocalHost, P::kOllamaPort, savedModel);
 
-        /* Carica configurazione Smart Router all'avvio */
+        /* Migrazione una-tantum: se c'è ancora la key in QSettings, spostala
+           nel file 0600 e rimuovila da QSettings. */
+        if (s.contains(P::SK::kCloudApiKey)) {
+            const QString legacyKey = s.value(P::SK::kCloudApiKey).toString();
+            if (!legacyKey.isEmpty() && P::loadCloudApiKey().isEmpty())
+                P::saveCloudApiKey(legacyKey);
+            s.remove(P::SK::kCloudApiKey);
+        }
+        /* Carica configurazione Smart Router all'avvio.
+           API key da file 0600 separato — non da QSettings. */
         m_ai->setSmartRouter(
             s.value(P::SK::kSmartRouterEnabled, false).toBool(),
             s.value(P::SK::kCloudApiUrl, "").toString(),
             s.value(P::SK::kCloudApiModel, "gpt-4o-mini").toString(),
-            s.value(P::SK::kCloudApiKey, "").toString());
+            P::loadCloudApiKey());
     }
     /* Invalida la cache modelli: il primo fetch interroga sempre Ollama live.
        Questo garantisce che su una macchina diversa non venga mai mostrata

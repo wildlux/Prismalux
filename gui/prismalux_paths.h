@@ -24,6 +24,7 @@
 #include <QString>
 #include <QDir>
 #include <QFile>
+#include <QSaveFile>
 #include <QFileInfo>
 #include <QFileInfoList>
 #include <QCoreApplication>
@@ -1009,6 +1010,32 @@ inline int mcpTimeoutMs(const QString& plugin) {
     if (p.contains("diffusion") || p.startsWith("blender") || p.startsWith("freecad"))
         return kMcpSlowTimeoutMs;
     return kMcpDefaultTimeoutMs;
+}
+
+/* ── Cloud API key — file 0600 separato da QSettings ────────────────── *
+ * QSettings su Linux finisce in ~/.config/Prismalux/GUI.conf: leggibile
+ * da qualsiasi processo con lo stesso UID. Il file dedicato ha permessi
+ * 0600 (owner read/write only) e non compare nel config generale.       */
+inline QString cloudApiKeyPath() {
+    return QDir::homePath() + "/.prismalux/cloud_api.key";
+}
+
+inline void saveCloudApiKey(const QString& key) {
+    const QString path = cloudApiKeyPath();
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QSaveFile f(path);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        f.write(key.toUtf8());
+        f.commit();
+    }
+    QFile::setPermissions(path,
+        QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+}
+
+inline QString loadCloudApiKey() {
+    QFile f(cloudApiKeyPath());
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return {};
+    return QString::fromUtf8(f.readAll()).trimmed();
 }
 
 } // namespace PrismaluxPaths

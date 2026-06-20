@@ -197,9 +197,9 @@ bool LanServer::_ensureCert(QString& certPath, QString& keyPath)
 LanServer::LanServer(AiClient* ai, QObject* parent)
     : QObject(parent), m_ai(ai)
 {
-    /* HTTP semplice sulla LAN: il TLS auto-firmato causava handshake lenti,
-     * avvisi "sito non sicuro" nel browser e problemi con i QR code.
-     * La sicurezza è garantita dal Bearer token. */
+    /* TLS self-signed abilitato di default (m_tlsRequested=true). Fallback HTTP
+     * se openssl non è disponibile. Il browser mostrerà un avviso "non sicuro"
+     * che l'utente deve accettare una volta — normale per certificati self-signed. */
     m_server = new QTcpServer(this);
     connect(m_server, &QTcpServer::newConnection, this, &LanServer::onNewConnection);
 }

@@ -23,7 +23,9 @@ void AgentiPage::hermesInit()
     if (!m_hermesGm->open()) {
         delete m_hermesGm;
         m_hermesGm = nullptr;
+        return;
     }
+    m_hermesGm->pruneByImportance(500);   /* tieni top-500 nodi al lancio */
 }
 
 /* ══════════════════════════════════════════════════════════════

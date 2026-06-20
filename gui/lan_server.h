@@ -163,7 +163,7 @@ private:
     QSslServer*                m_sslServer   = nullptr; ///< HTTPS self-signed
 #endif
     bool                       m_useTls      = false;   ///< true = ascolta su m_sslServer
-    bool                       m_tlsRequested = false;  ///< richiesta dalla UI
+    bool                       m_tlsRequested = true;   ///< TLS di default; fallback HTTP se openssl mancante
     AiClient*                  m_ai;
     QMap<QTcpSocket*, Session> m_sessions;
     QSet<QString>              m_appClientIps; /* IP unici che hanno usato le API */
