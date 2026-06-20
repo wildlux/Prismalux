@@ -82,19 +82,19 @@ inline QString extractInputHtml(QTextEdit* edit)
             text.replace(QChar(0x2029), "<br>"); /* Qt paragraph separator */
 
             /* Applica formattazione in ordine interno→esterno */
-            const QColor fg = fmt.foreground().color();
             const QColor bg = fmt.background().color();
             if (bg.isValid() && bg.alpha() > 0)
                 text = QString("<span style='background:%1;'>%2</span>")
                            .arg(bg.name()).arg(text);
-            /* Filtra il colore di default del widget (tema QSS) per non propagarlo
-               nella bolla — causerebbe testo invisibile su sfondo di colore simile. */
-            const QColor defaultTxt = edit->palette().color(QPalette::Text);
-            if (fg.isValid() && fg.alpha() > 0 &&
-                fg != QColor(Qt::black) && fg != QColor(Qt::white) &&
-                fg.rgb() != defaultTxt.rgb())
-                text = QString("<span style='color:%1;'>%2</span>")
-                           .arg(fg.name()).arg(text);
+            /* Propaga il colore SOLO se l'utente lo ha impostato esplicitamente
+               (hasProperty distingue colore-utente da colore-tema/palette). */
+            if (fmt.hasProperty(QTextFormat::ForegroundBrush)) {
+                const QColor fg = fmt.foreground().color();
+                if (fg.isValid() && fg.alpha() > 0 &&
+                    fg != QColor(Qt::black) && fg != QColor(Qt::white))
+                    text = QString("<span style='color:%1;'>%2</span>")
+                               .arg(fg.name()).arg(text);
+            }
             if (fmt.fontUnderline())           text = "<u>" + text + "</u>";
             if (fmt.fontItalic())              text = "<i>" + text + "</i>";
             if (fmt.fontWeight() >= QFont::Bold) text = "<b>" + text + "</b>";
