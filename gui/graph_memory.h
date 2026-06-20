@@ -117,6 +117,19 @@ public:
      *  fallback quando il contesto è troppo grande. */
     bool exportTxt(const QString& path, int maxNodes = 100) const;
 
+    /* ── Transazioni batch ─────────────────────────────────── */
+
+    /** Inizia una transazione esplicita per inserimenti multipli veloci.
+     *  Tutti gli addNode/addEdge successivi fanno parte della transazione.
+     *  Chiamare endBatch() per committare o abortBatch() per annullare. */
+    void beginBatch();
+
+    /** Committa la transazione aperta con beginBatch(). */
+    void endBatch();
+
+    /** Annulla la transazione aperta con beginBatch(). */
+    void abortBatch();
+
     /* ── Manutenzione ───────────────────────────────────────── */
 
     /** Mantiene solo i `keepTopN` nodi con importanza più alta;
@@ -137,7 +150,7 @@ private:
     static GmEdge  rowToEdge(const QVariantMap& row);
 
     QString m_dbPath;
-    bool    m_open = false;
-    /* nome connessione univoco per evitare conflitti tra istanze */
+    bool    m_open      = false;
+    bool    m_inBatch   = false;  ///< true tra beginBatch() e endBatch()
     QString m_connName;
 };

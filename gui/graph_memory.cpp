@@ -636,6 +636,40 @@ void GraphMemory::pruneByImportance(int keepTopN)
 }
 
 /* ══════════════════════════════════════════════════════════════
+   beginBatch / endBatch / abortBatch
+   Transazione esplicita per inserimenti multipli veloci.
+   Senza transazione ogni INSERT è un autocommit separato (lento).
+   Con BEGIN…COMMIT tutti gli INSERT sono un'operazione atomica.
+   ══════════════════════════════════════════════════════════════ */
+void GraphMemory::beginBatch()
+{
+#ifdef HAVE_QT_SQL
+    if (!m_open || m_inBatch) return;
+    QSqlDatabase::database(m_connName).transaction();
+    m_inBatch = true;
+#endif
+}
+
+void GraphMemory::endBatch()
+{
+#ifdef HAVE_QT_SQL
+    if (!m_open || !m_inBatch) return;
+    QSqlDatabase::database(m_connName).commit();
+    m_inBatch = false;
+    emit changed();
+#endif
+}
+
+void GraphMemory::abortBatch()
+{
+#ifdef HAVE_QT_SQL
+    if (!m_open || !m_inBatch) return;
+    QSqlDatabase::database(m_connName).rollback();
+    m_inBatch = false;
+#endif
+}
+
+/* ══════════════════════════════════════════════════════════════
    clearAll
    ══════════════════════════════════════════════════════════════ */
 void GraphMemory::clearAll()

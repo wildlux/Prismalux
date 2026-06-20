@@ -9,6 +9,7 @@
 #include <QVector>
 #include <QDateTime>
 #include <QJsonObject>
+#include <QJsonArray>
 #include <QDir>
 
 /* Singolo messaggio nella sessione */
@@ -42,6 +43,12 @@ public:
 
     /** Carica HTML log di una sessione */
     QString loadLog(const QString& sessionId) const;
+
+    /** Salva la history multi-turno dell'agente autonomo (ReAct) */
+    void saveAutoHistory(const QString& sessionId, const QJsonArray& history);
+
+    /** Carica la history ReAct — vuota se non presente */
+    QJsonArray loadAutoHistory(const QString& sessionId) const;
 
     /** Elimina sessione */
     void remove(const QString& sessionId);

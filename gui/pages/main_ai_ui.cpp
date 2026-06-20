@@ -68,9 +68,6 @@ namespace P = PrismaluxPaths;
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::setupUI()
 {
-    /* Carica ultima preferenza thinking: aperto o chiuso */
-    m_thinkDefaultOpen = QSettings().value("ui/thinkDefaultOpen", false).toBool();
-
     auto* lay = new QVBoxLayout(this);
     lay->setContentsMargins(16, 12, 16, 12);
     lay->setSpacing(8);
@@ -1799,84 +1796,6 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         html.remove(re);
         m_log->setHtml(html);
         m_log->moveCursor(QTextCursor::End);
-        return;
-    }
-
-    /* ── Toggle ragionamento <think> collassabile ── */
-    if (s.startsWith("think:toggle:")) {
-        bool ok2 = false;
-        const int N = s.mid(13).toInt(&ok2);
-        if (!ok2 || !m_thinkTexts.contains(N)) return;
-
-        const int scrollPos = m_log->verticalScrollBar()->value();
-        QString html = m_log->toHtml();
-        const QString nStr = QString::number(N);
-
-        /* Nota: Qt serializza toHtml() sostituendo entity con caratteri Unicode.
-           &#9654; (▶ U+25B6) diventa \xe2\x96\xb6 senza VS-16.
-           &#9660; (▼ U+25BC) diventa \xe2\x96\xbc — usiamo ▼ per "aperto" e ▶ per "chiuso". */
-        if (m_thinkShown.contains(N)) {
-            /* === CHIUDI (arrotola la tenda) === */
-            m_thinkShown.remove(N);
-            m_thinkDefaultOpen = false;
-            QSettings().setValue("ui/thinkDefaultOpen", false);
-
-            /* ▼ → ▶ */
-            QRegularExpression reArrow(
-                "(think:toggle:" + nStr + "[^>]*>)\xe2\x96\xbc",
-                QRegularExpression::DotMatchesEverythingOption);
-            html.replace(reArrow, "\\1\xe2\x96\xb6");
-            /* Ripristina hint "(clicca per espandere)" dopo la freccia */
-            QRegularExpression reHint(
-                "(think:toggle:" + nStr + "[^>]*>\xe2\x96\xb6[^<]*)"
-                "(?:&nbsp;parole)?",
-                QRegularExpression::DotMatchesEverythingOption);
-            /* Rimuovi la riga corpo (tra il primo </tr> dopo think:toggle:N e think-end:N) */
-            QRegularExpression reBody(
-                "(<tr><td[^>]*>[^<]*<p[^>]*>[\\s\\S]*?think-end:" + nStr +
-                "[\\s\\S]*?</tr>)",
-                QRegularExpression::DotMatchesEverythingOption);
-            html.remove(reBody);
-        } else {
-            /* === APRI (stendi la tenda) === */
-            m_thinkShown.insert(N);
-            m_thinkDefaultOpen = true;
-            QSettings().setValue("ui/thinkDefaultOpen", true);
-
-            /* ▶ → ▼ */
-            QRegularExpression reArrow(
-                "(think:toggle:" + nStr + "[^>]*>)\xe2\x96\xb6(?:\xef\xb8\x8f)?",
-                QRegularExpression::DotMatchesEverythingOption);
-            html.replace(reArrow, "\\1\xe2\x96\xbc");
-
-            const QString rawThink = m_thinkTexts.value(N);
-            QString safeThink = rawThink;
-            safeThink.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
-            safeThink.replace("\n","<br>");
-
-            /* Corpo da inserire dopo la riga header (</tr> che contiene think:toggle:N) */
-            const QString bodyRow =
-                "<tr><td bgcolor='#1a1a2e'"
-                " style='padding:8px 12px;border:1px solid #4a4a72;border-top:none;"
-                "border-radius:0 0 5px 5px;'>"
-                  "<p style='color:#8888aa;font-size:11px;font-style:italic;"
-                             "margin:0;line-height:1.5;'>"
-                    + safeThink +
-                    "<a href='think-end:" + nStr + "'></a>"
-                  "</p>"
-                "</td></tr>";
-
-            /* Trovare la fine della riga header dell'accordion */
-            int anchorPos = html.indexOf("think:toggle:" + nStr);
-            if (anchorPos >= 0) {
-                int endTr = html.indexOf("</tr>", anchorPos);
-                if (endTr >= 0)
-                    html.insert(endTr + 5, bodyRow);
-            }
-        }
-
-        m_log->setHtml(html);
-        m_log->verticalScrollBar()->setValue(scrollPos);
         return;
     }
 

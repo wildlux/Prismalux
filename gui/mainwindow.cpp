@@ -2407,6 +2407,14 @@ void MainWindow::onChatCompleted(const QString& title, const QString& logHtml) {
         m_currentChatId = m_chatHistory.newSession(title);
         m_chatHistory.saveLog(m_currentChatId, logHtml);
     }
+
+    /* Persisti la history ReAct dell'agente autonomo se non vuota */
+    if (auto* ap = qobject_cast<AgentiPage*>(
+            m_mainTabs ? m_mainTabs->widget(0) : nullptr)) {
+        if (!ap->autoHistory().isEmpty())
+            m_chatHistory.saveAutoHistory(m_currentChatId, ap->autoHistory());
+    }
+
     refreshChatList();
 
     appendLog(QString("\xe2\x9c\x85 Pipeline completata: <b>%1</b>")

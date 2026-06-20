@@ -361,6 +361,9 @@ void RagGraph::parseAndStore(const QString& jsonText, const QString& source)
     /* Mappa label → nodeId per costruire gli archi */
     QMap<QString, QString> labelToId;
 
+    /* Tutti gli inserimenti di questo documento in una transazione atomica */
+    m_gm->beginBatch();
+
     /* Crea nodo sorgente documento */
     const QString docNodeId = m_gm->addNode(
         "documento", source, "Documento RAG indicizzato", 0.5f,
@@ -432,6 +435,8 @@ void RagGraph::parseAndStore(const QString& jsonText, const QString& source)
             ++m_stats.totalRelations;
         }
     }
+
+    m_gm->endBatch();
 }
 
 /* ══════════════════════════════════════════════════════════════

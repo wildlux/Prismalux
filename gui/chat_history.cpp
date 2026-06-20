@@ -2,6 +2,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QFile>
+#include <QSaveFile>
 #include <QFileInfoList>
 #include <QAtomicInt>
 #include <algorithm>
@@ -50,9 +51,10 @@ QString ChatHistory::newSession(const QString& firstTask) {
     obj["created"] = s.createdAt.toString(Qt::ISODate);
     obj["log"]     = "";
 
-    QFile f(sessionPath(s.id));
+    QSaveFile f(sessionPath(s.id));
     if (f.open(QIODevice::WriteOnly))
-        f.write(QJsonDocument(obj).toJson());
+        if (f.write(QJsonDocument(obj).toJson()) >= 0)
+            f.commit();
     return s.id;
 }
 
@@ -66,9 +68,10 @@ void ChatHistory::saveLog(const QString& sessionId, const QString& logHtml) {
         fr.close();
     }
     obj["log"] = logHtml;
-    QFile fw(path);
-    if (fw.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        fw.write(QJsonDocument(obj).toJson());
+    QSaveFile fw(path);
+    if (fw.open(QIODevice::WriteOnly))
+        if (fw.write(QJsonDocument(obj).toJson()) >= 0)
+            fw.commit();
 }
 
 QString ChatHistory::loadLog(const QString& sessionId) const {
@@ -77,6 +80,32 @@ QString ChatHistory::loadLog(const QString& sessionId) const {
     auto doc = QJsonDocument::fromJson(f.readAll());
     if (!doc.isObject()) return {};
     return doc.object()["log"].toString();
+}
+
+void ChatHistory::saveAutoHistory(const QString& sessionId, const QJsonArray& history)
+{
+    const QString path = sessionPath(sessionId);
+    QFile fr(path);
+    QJsonObject obj;
+    if (fr.open(QIODevice::ReadOnly)) {
+        auto doc = QJsonDocument::fromJson(fr.readAll());
+        if (doc.isObject()) obj = doc.object();
+        fr.close();
+    }
+    obj["auto_history"] = history;
+    QSaveFile fw(path);
+    if (fw.open(QIODevice::WriteOnly))
+        if (fw.write(QJsonDocument(obj).toJson()) >= 0)
+            fw.commit();
+}
+
+QJsonArray ChatHistory::loadAutoHistory(const QString& sessionId) const
+{
+    QFile f(sessionPath(sessionId));
+    if (!f.open(QIODevice::ReadOnly)) return {};
+    auto doc = QJsonDocument::fromJson(f.readAll());
+    if (!doc.isObject()) return {};
+    return doc.object()["auto_history"].toArray();
 }
 
 void ChatHistory::remove(const QString& sessionId) {

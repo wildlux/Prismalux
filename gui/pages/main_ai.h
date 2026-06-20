@@ -85,6 +85,9 @@ public:
     /** Cerca il primo oggetto JSON {tool,input} in una risposta dell'AI */
     static QJsonObject detectFirstToolCall(const QString& text);
 
+    /** History multi-turno agente autonomo — per persistenza tra sessioni */
+    const QJsonArray& autoHistory() const { return m_autoHistory; }
+
 signals:
     /** Emesso quando una pipeline/Byzantine/MathTheory completa — per salvare la chat */
     void chatCompleted(const QString& title, const QString& logHtml);
@@ -114,9 +117,7 @@ private:
     bool          m_userScrolled       = false;  ///< true se l'utente ha scrollato su durante streaming
     bool          m_suppressScrollSig  = false;  ///< sopprime il segnale valueChanged durante auto-scroll
     QMap<int,QString> m_bubbleTexts;      ///< testo plain indicizzato per copia/TTS
-    QMap<int,QString> m_thinkTexts;       ///< testo reasoning <think>...</think> per bolla
-    QSet<int>         m_thinkShown;       ///< bolle con reasoning visibile
-    bool              m_thinkDefaultOpen = false; ///< ultima preferenza utente (aperto/chiuso)
+    QMap<int,QString> m_thinkTexts;       ///< testo reasoning estratto per la bolla (sempre visibile)
     QStringList       m_hermesLastSources; ///< etichette nodi Hermes usati nell'ultima risposta
     QString           m_taskHtml;          ///< HTML leggero bolla utente (da extractInputHtml)
     QMap<int,QPair<QString,QString>> m_codeBlocks; ///< id → {lang, testo grezzo} per Copia/Salva

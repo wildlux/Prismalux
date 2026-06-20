@@ -9,6 +9,11 @@
 
 | # | Stato | Task | File / Contesto |
 |---|-------|------|-----------------|
+| C7 | ✅ | **ChatHistory::saveLog non atomica** — `QSaveFile` + `commit()` in `saveLog()` e `newSession()` — scrittura atomica, no corruzione | `gui/chat_history.cpp` — 2026-06-20 |
+| C8 | ⬜ | **m_codeBlocks + m_bubbleTexts non persistiti** — copia codice e TTS non funzionano su sessioni ricaricate da disco | `gui/pages/main_ai_ui.cpp` · `gui/chat_history.h/cpp` — salvare nel JSON sessione |
+| C9 | ✅ | **Codice morto toggle thinking** — rimossi `m_thinkShown`, `m_thinkDefaultOpen`, handler toggle (~75 righe) e load QSettings | `gui/pages/main_ai_ui.cpp` · `gui/pages/main_ai.h` — 2026-06-20 |
+| C10 | ✅ | **m_autoHistory non persistito** — `saveAutoHistory()`/`loadAutoHistory()` in ChatHistory; chiamato da `onChatCompleted` in MainWindow | `gui/chat_history.h/cpp` · `gui/mainwindow.cpp` — 2026-06-20 |
+| C11 | ✅ | **GraphMemory batch senza transazione** — `beginBatch()`/`endBatch()`/`abortBatch()` in GraphMemory; usati in RagGraph per ogni documento | `gui/graph_memory.h/cpp` · `gui/rag_graph.cpp` — 2026-06-20 |
 | C1 | ✅ | **Push su GitHub** — commit `a317832` pushato su `master` — 2026-06-11 | `git push origin master` |
 | C2 | ✅ | **Unifica Start/Stop** — bottone unico run↔stop via `_setRunBusy/_setSendBusy/_setGenerateBusy` | `agenti_page`, `oracolo_page`, `quiz_page`, `programmazione_page`, `strumenti_page` |
 | C3 | ✅ | **Chat persistente** — `ChatHistory` salva ogni sessione in `~/.prismalux_chats/*.json`; sidebar lista sessioni con caricamento/export/elimina | `gui/chat_history.h/cpp` · `gui/mainwindow.cpp:onChatCompleted` |
