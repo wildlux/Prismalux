@@ -1766,6 +1766,46 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         emit requestOpenSettings(s.mid(9));
         return;
     }
+    if (s.startsWith("insertinfo:")) {
+        const QString topic = QString::fromUtf8(
+            QByteArray::fromBase64(s.mid(11).toLatin1(), QByteArray::Base64UrlEncoding)).trimmed();
+        bool ok = false;
+        const QString answer = QInputDialog::getMultiLineText(
+            this,
+            "\xf0\x9f\x93\x9d  Aggiungi informazione manuale",
+            QString("Inserisci la risposta su: <b>%1</b>\n"
+                    "(Sar\xc3\xa0 salvata nel RAG e usata nelle prossime domande)")
+                .arg(topic),
+            QString(), &ok);
+        if (!ok || answer.trimmed().isEmpty()) return;
+        /* Salva in RAG/RICERCA come file Markdown */
+        const QString ragDir = P::ragDir() + "/RICERCA";
+        QDir().mkpath(ragDir);
+        QString slug = topic.left(40);
+        slug.replace(QRegularExpression("[^a-zA-Z0-9_ ]"), "_");
+        slug = slug.simplified().replace(' ', '_');
+        const QString outFile = ragDir + "/" +
+            QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss") + "_" + slug + ".md";
+        QFile f(outFile);
+        if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QTextStream ts(&f);
+            ts << "# " << topic << "\n\n" << answer.trimmed() << "\n";
+            f.close();
+            m_log->moveCursor(QTextCursor::End);
+            m_log->insertHtml(
+                "<p style='color:#4ade80;font-size:11px;margin:4px 0;'>"
+                "\xe2\x9c\x85  Informazione salvata nel RAG. "
+                "Fai una nuova domanda per usarla come contesto.</p>");
+            emit onlineSearchResultReady(outFile, topic);
+        } else {
+            m_log->moveCursor(QTextCursor::End);
+            m_log->insertHtml(
+                "<p style='color:#f87171;font-size:11px;margin:4px 0;'>"
+                "\xe2\x9d\x8c  Impossibile salvare il file: " +
+                outFile.toHtmlEscaped() + "</p>");
+        }
+        return;
+    }
     if (s == "autoapply-params") {
         AiChatParams p = AiChatParams::load();
         p.temperature = 0.3;
@@ -2059,13 +2099,25 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
                     "\xe2\x9a\xa0  Installa prima: "
                     "<code>pip install duckduckgo-search</code></p>");
             } else if (out == "NORESULT") {
+                const QString q64i = finalQuery.toUtf8()
+                    .toBase64(QByteArray::Base64UrlEncoding);
                 m_log->insertHtml(
                     "<p style='color:#94a3b8;font-size:11px;margin:4px 0;'>"
-                    "\xf0\x9f\x94\x8d  Nessun risultato trovato per questa query.</p>");
+                    "\xf0\x9f\x94\x8d  Nessun risultato trovato per <i>" +
+                    finalQuery.toHtmlEscaped() + "</i>. "
+                    "Se conosci la risposta: "
+                    "<a href='insertinfo:" + q64i + "' style='color:#60a5fa;'>"
+                    "aggiorna informazioni</a></p>");
             } else {
+                const QString q64i = finalQuery.toUtf8()
+                    .toBase64(QByteArray::Base64UrlEncoding);
                 m_log->insertHtml(
                     "<p style='color:#f87171;font-size:11px;margin:4px 0;'>"
-                    "\xe2\x9d\x8c  Errore ricerca (codice " + QString::number(code) + ")</p>");
+                    "\xe2\x9d\x8c  Ricerca non disponibile (offline o errore " +
+                    QString::number(code) + "). "
+                    "Se conosci la risposta: "
+                    "<a href='insertinfo:" + q64i + "' style='color:#60a5fa;'>"
+                    "aggiorna informazioni</a></p>");
             }
         });
         proc->start("python3", {"-c", script});
