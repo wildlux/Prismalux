@@ -12,6 +12,17 @@ DESKTOP_SYS="$HOME/.local/share/applications/prismalux.desktop"
 echo "==> Build Prismalux..."
 cmake --build gui/build_gui -j$(nproc)
 
+# Test opzionali: esegui con ./aggiorna.sh --test
+if [[ "$*" == *--test* ]]; then
+    echo "==> Build + run test suite (gui/build_tests)..."
+    cmake -B gui/build_tests gui/ -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release -Wno-dev -Q
+    cmake --build gui/build_tests -j$(nproc)
+    ctest --test-dir gui/build_tests \
+          --exclude-regex "AiIntegration|AiStress|TeamCollab|MultiAgenteLive" \
+          -j4 --output-on-failure
+    echo "==> Test completati."
+fi
+
 echo "==> Aggiorno Prismalux.desktop..."
 sed -i "s|^Exec=.*|Exec=$BIN|"  "$DESKTOP_SRC"
 sed -i "s|^Path=.*|Path=$ROOT|" "$DESKTOP_SRC"

@@ -196,9 +196,15 @@ def _process_queue():
         try:
             old_out   = sys.stdout
             sys.stdout = buf
-            # Esegue in namespace con bpy, mathutils, Vector accessibili
+            # Esegue in namespace ristretto: nessun accesso a os/open/subprocess/globals
             import mathutils
             ns = {
+                "__builtins__": {"print": print, "range": range, "len": len,
+                                 "int": int, "float": float, "str": str,
+                                 "list": list, "dict": dict, "tuple": tuple,
+                                 "bool": bool, "abs": abs, "round": round,
+                                 "min": min, "max": max, "zip": zip,
+                                 "enumerate": enumerate, "sum": sum},
                 "bpy":       bpy,
                 "mathutils": mathutils,
                 "Vector":    mathutils.Vector,

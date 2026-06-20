@@ -257,9 +257,11 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     connect(sfogliaBtn,  &QPushButton::clicked,
             this, &LavoroPage::onSfogliaBtnClicked);
 
-    // Pre-carica CV se esiste nella home dell'utente corrente
-    const QString defaultCv = QDir::homePath() + "/CURRICULUM/IT_CV_18_05_2025_Paolo_Lo_Bello.pdf";
-    if (QFile::exists(defaultCv)) {
+    // Pre-carica il primo PDF trovato in ~/CURRICULUM/ (se esiste)
+    const QDir cvDir(QDir::homePath() + "/CURRICULUM");
+    const auto pdfList = cvDir.entryInfoList({"*.pdf"}, QDir::Files, QDir::Time);
+    if (!pdfList.isEmpty()) {
+        const QString defaultCv = pdfList.first().absoluteFilePath();
         m_cvPath->setText(defaultCv);
         caricaCV(defaultCv);
     }

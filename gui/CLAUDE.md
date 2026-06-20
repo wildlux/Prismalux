@@ -442,9 +442,13 @@ Slot Qt: `onDevAgentGitLogClicked`, `onDevAgentGitRestoreClicked`, `onDevAgentGi
 
 ## Suite di Test
 ```bash
-cmake -B Test/build_tests gui/ -DBUILD_TESTS=ON && cmake --build Test/build_tests -j$(nproc)
-ctest --test-dir Test/build_tests -j4   # 55 suite (52 no-Ollama, 3 richiedono Ollama reale)
+# Percorso canonico — usa SEMPRE gui/build_tests (non Test/build_tests che è obsoleto)
+cmake -B gui/build_tests gui/ -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release && cmake --build gui/build_tests -j$(nproc)
+ctest --test-dir gui/build_tests --exclude-regex "AiIntegration|AiStress|TeamCollab|MultiAgenteLive" -j4 --output-on-failure
+# Oppure con aggiorna.sh:
+./aggiorna.sh --test
 ```
+**NOTA**: `Test/build_tests/` è deprecato — punta a codice obsoleto. Eliminarlo se presente.
 
 ### Suite per categoria
 
@@ -521,7 +525,7 @@ ctest --test-dir Test/build_tests -j4   # 55 suite (52 no-Ollama, 3 richiedono O
 2. Aggiungere il target in `gui/CMakeLists.txt` (copia struttura da `test_programmazione_page`)
 3. Aggiungere `add_test(NAME <NomePascal> COMMAND test_<nome>)` vicino ai simili
 4. Aggiornare la tabella "Suite per categoria" qui sopra con: Suite | Target | PASS count | Note
-5. Aggiornare il conteggio in `ctest --test-dir Test/build_tests` (riga 291 di questo file)
+5. Aggiornare il conteggio in `ctest --test-dir gui/build_tests` (riga 291 di questo file)
 6. Nel test: usare `QSKIP` in `initTestCase()` per dipendenze esterne (Ollama, Docker, ecc.)
 
 **Priorità categorie test:**

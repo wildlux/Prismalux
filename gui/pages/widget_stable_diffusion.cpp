@@ -105,9 +105,10 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
     copyBtnDiff->setFixedWidth(28);
     copyBtnDiff->setFixedHeight(24);
     copyBtnDiff->setToolTip(tr("Copia comando pip negli appunti"));
-    connect(copyBtnDiff, &QPushButton::clicked, m_installHintRow, [=]() {
+    connect(copyBtnDiff, &QPushButton::clicked, copyBtnDiff, [copyBtnDiff]() {
         QApplication::clipboard()->setText(
             "pip install diffusers transformers accelerate torch");
+        Q_UNUSED(copyBtnDiff)
     });
     installHintLay->addWidget(m_installHint, 1);
     installHintLay->addWidget(copyBtnDiff);
