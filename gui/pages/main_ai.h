@@ -93,6 +93,10 @@ public:
     const QMap<int,QString>&                    bubbleTexts() const { return m_bubbleTexts; }
     const QMap<int,QPair<QString,QString>>&     codeBlocks()  const { return m_codeBlocks;  }
 
+    /** Termina tutti i processi figli (TTS/STT/exec) prima della chiusura.
+     *  Chiamare dal closeEvent di MainWindow prima di ev->accept(). */
+    void prepareClose();
+
     /** Ripristina mappe da sessione salvata e allinea i contatori */
     void loadSessionMaps(const QMap<int,QString>& bt,
                          const QMap<int,QPair<QString,QString>>& cb)

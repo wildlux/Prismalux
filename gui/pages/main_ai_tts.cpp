@@ -25,14 +25,14 @@ void AgentiPage::_ttsPlay(const QString& tts)
     if (m_piperProc) {
         m_piperProc->disconnect();
         m_piperProc->kill();
-        m_piperProc->waitForFinished(300);
+        m_piperProc->waitForFinished(P::kProcKillGraceMs);
         m_piperProc->deleteLater();
         m_piperProc = nullptr;
     }
     if (m_ttsProc) {
         m_ttsProc->disconnect();
         m_ttsProc->kill();
-        m_ttsProc->waitForFinished(300);
+        m_ttsProc->waitForFinished(P::kProcKillGraceMs);
         m_ttsProc->deleteLater();
         m_ttsProc = nullptr;
     }
@@ -115,7 +115,7 @@ void AgentiPage::onTtsProcFinished(int, QProcess::ExitStatus)
     if (m_btnTtsPause) { m_btnTtsPause->setText(tr("\xe2\x8f\xb8  Pausa")); m_btnTtsPause->setVisible(false); }
     if (m_piperProc) {
         m_piperProc->terminate();
-        m_piperProc->waitForFinished(300);
+        m_piperProc->waitForFinished(P::kProcKillGraceMs);
         m_piperProc->deleteLater();
         m_piperProc = nullptr;
     }

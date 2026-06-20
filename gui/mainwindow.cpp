@@ -2412,6 +2412,14 @@ void MainWindow::closeEvent(QCloseEvent* ev) {
         }
     }
 
+    /* Termina i processi della pagina AI (TTS/STT/exec) prima della distruzione
+     * del widget: evita il waitForFinished(-1) implicito nel ~QProcess() che
+     * blocca il thread principale quando un processo non risponde a SIGTERM. */
+    if (m_mainTabs) {
+        if (auto* ap = qobject_cast<AgentiPage*>(m_mainTabs->widget(0)))
+            ap->prepareClose();
+    }
+
     /* Ferma llama-server avviato dalla GUI (se in esecuzione) */
     if (m_serverProc && m_serverProc->state() != QProcess::NotRunning) {
         m_serverProc->terminate();

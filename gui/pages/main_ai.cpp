@@ -84,6 +84,35 @@ AgentiPage::AgentiPage(AiClient* ai, QWidget* parent)
     startMcpDiscovery();
 }
 
+/* ══════════════════════════════════════════════════════════════
+   prepareClose — termina processi figli prima della chiusura
+   ══════════════════════════════════════════════════════════════ */
+void AgentiPage::prepareClose()
+{
+    /* Ferma loop voce e registrazione */
+    m_voiceLoopActive = false;
+    m_sttState = SttState::Idle;
+    if (m_sttTick) { m_sttTick->stop(); m_sttTick->deleteLater(); m_sttTick = nullptr; }
+
+    /* Termina i QProcess: kill() + deleteLater() evita waitForFinished(-1) implicito
+     * nel distruttore di QProcess quando il parent viene distrutto. */
+    auto killProc = [](QProcess*& p) {
+        if (!p) return;
+        p->disconnect();
+        p->kill();
+        p->deleteLater();
+        p = nullptr;
+    };
+    killProc(m_recProc);
+    killProc(m_sttProc);
+    killProc(m_piperProc);
+    killProc(m_ttsProc);
+    killProc(m_execProc);
+
+    /* Abort richieste HTTP pendenti */
+    m_ai->abort();
+}
+
 /* ── slot: aggiorna combo LLM quando il modello cambia da Impostazioni ──────── */
 void AgentiPage::onAiModelChanged(const QString& newModel)
 {

@@ -1296,7 +1296,7 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                 "--pids-limit", "64", "-i",
                 img, "python3", "-"
             });
-            if (m_execProc->waitForStarted(5000)) {
+            if (m_execProc->waitForStarted(P::kProcessHeavyStartMs)) {
                 m_execProc->write(pyCode.toUtf8());
                 m_execProc->closeWriteChannel();
             }

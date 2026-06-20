@@ -55,6 +55,13 @@ AgentiMultiPage::AgentiMultiPage(AiClient* ai, QWidget* parent)
     m_gm = new GraphMemory(gmPath, this);
     m_gm->open();
     connect(m_gm, &GraphMemory::changed, this, &AgentiMultiPage::onGraphMemoryChanged);
+    connect(m_gm, &GraphMemory::backupDone, this, [](const QString& path, bool ok) {
+        if (ok)
+            LogBus::post("\xf0\x9f\x92\xbe GraphMemory: backup creato \xe2\x86\x92 " + path);
+        else
+            LogBus::post("\xe2\x9d\x8c GraphMemory: backup fallito");
+    });
+    m_gm->enableAutoBackup(6, 500, 7);
 
     auto* root = new QVBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
@@ -262,6 +269,16 @@ QWidget* AgentiMultiPage::buildMemoryBar()
     connect(m_btnExportTxt, &QPushButton::clicked,
             this, &AgentiMultiPage::onExportTxtClicked);
     lay->addWidget(m_btnExportTxt);
+
+    auto* btnBackupMem = new QPushButton(
+        "\xf0\x9f\x92\xbe  Backup", bar);  /* 💾 */
+    btnBackupMem->setObjectName("navBtn");
+    btnBackupMem->setFixedHeight(dpiScale(24));
+    btnBackupMem->setToolTip(tr("Esegue subito un backup del DB GraphMemory"));
+    connect(btnBackupMem, &QPushButton::clicked, this, [this] {
+        m_gm->runBackupNow();
+    });
+    lay->addWidget(btnBackupMem);
 
     m_btnClearMem = new QPushButton(
         "\xf0\x9f\x97\x91  Svuota Grafo", bar);  /* 🗑 */

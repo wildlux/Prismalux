@@ -101,7 +101,7 @@ static QProcess* _launchMcpProcess(const QString& pythonExe,
     proc->setArguments({ serverPath });
     proc->setProcessChannelMode(QProcess::SeparateChannels);
     proc->start();
-    if (!proc->waitForStarted(3000)) {
+    if (!proc->waitForStarted(P::kProcessStartTimeoutMs)) {
         proc->deleteLater();
         return nullptr;
     }
@@ -472,7 +472,7 @@ void AgentiPage::runToolCall(const QJsonObject& call,
                 "-i",
                 img, "python3", "-"
             });
-            if (proc->waitForStarted(4000)) {
+            if (proc->waitForStarted(P::kProcessHeavyStartMs)) {
                 proc->write(code.toUtf8());
                 proc->closeWriteChannel();
             }

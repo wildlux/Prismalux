@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QDateTime>
+#include <QClipboard>
 #include <QGridLayout>
 #include <QDir>
 #include <QFile>
@@ -353,8 +354,16 @@ QWidget* SciComputePage::buildUi()
             m_tokenEdit->echoMode() == QLineEdit::Password
             ? QLineEdit::Normal : QLineEdit::Password);
     });
+    auto* btnCopyToken = new QPushButton("\xf0\x9f\x93\x8b", tokenWidget);  /* 📋 */
+    btnCopyToken->setFixedWidth(dpiScale(28));
+    btnCopyToken->setObjectName("actionBtn");
+    btnCopyToken->setToolTip(tr("Copia token negli appunti"));
+    connect(btnCopyToken, &QPushButton::clicked, this, [this] {
+        QApplication::clipboard()->setText(m_token);
+    });
     tokenLay->addWidget(m_tokenEdit);
     tokenLay->addWidget(btnShowToken);
+    tokenLay->addWidget(btnCopyToken);
 
     auto* btnGuida = new QPushButton(
         "\xf0\x9f\x93\x96  Guida", cfgBar);

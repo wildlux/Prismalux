@@ -10,13 +10,13 @@ DESKTOP_SRC="$ROOT/Prismalux.desktop"
 DESKTOP_SYS="$HOME/.local/share/applications/prismalux.desktop"
 
 echo "==> Build Prismalux..."
-cmake --build gui/build_gui -j$(nproc)
+cmake --build gui/build_gui -j$(( $(nproc) > 4 ? 4 : $(nproc) ))
 
 # Test opzionali: esegui con ./aggiorna.sh --test
 if [[ "$*" == *--test* ]]; then
     echo "==> Build + run test suite (gui/build_tests)..."
     cmake -B gui/build_tests gui/ -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release -Wno-dev
-    cmake --build gui/build_tests -j$(nproc)
+    cmake --build gui/build_tests -j$(( $(nproc) > 4 ? 4 : $(nproc) ))
     ctest --test-dir gui/build_tests \
           --exclude-regex "AiIntegration|AiStress|TeamCollab|MultiAgenteLive" \
           -j4 --output-on-failure

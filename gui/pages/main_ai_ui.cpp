@@ -1323,11 +1323,11 @@ void AgentiPage::onTtsStopClicked()
     /* Ferma piper prima di aplay (evita dati residui in pipe) */
     if (m_piperProc) {
         m_piperProc->kill();
-        m_piperProc->waitForFinished(300);
+        m_piperProc->waitForFinished(P::kProcKillGraceMs);
         m_piperProc->deleteLater();
         m_piperProc = nullptr;
     }
-    if (m_ttsProc) { m_ttsProc->kill(); m_ttsProc->waitForFinished(300); }
+    if (m_ttsProc) { m_ttsProc->kill(); m_ttsProc->waitForFinished(P::kProcKillGraceMs); }
 #ifndef Q_OS_WIN
     QProcess::startDetached("pkill", {"-9", "aplay"});
     QProcess::startDetached("pkill", {"-9", "piper"});
@@ -1357,8 +1357,8 @@ void AgentiPage::onTtsPauseClicked()
     }
 #else
     /* Windows: pausa non supportata, simula stop */
-    if (m_ttsProc)   { m_ttsProc->kill(); m_ttsProc->waitForFinished(300); }
-    if (m_piperProc) { m_piperProc->kill(); m_piperProc->waitForFinished(300); }
+    if (m_ttsProc)   { m_ttsProc->kill(); m_ttsProc->waitForFinished(P::kProcKillGraceMs); }
+    if (m_piperProc) { m_piperProc->kill(); m_piperProc->waitForFinished(P::kProcKillGraceMs); }
     if (m_btnTtsPause) m_btnTtsPause->setVisible(false);
     if (m_btnTtsStop)  m_btnTtsStop->setVisible(false);
 #endif
@@ -1468,14 +1468,14 @@ void AgentiPage::onVoiceLoopToggled(bool on)
             QProcess* p = m_piperProc;
             m_piperProc = nullptr;
             p->kill();
-            p->waitForFinished(300);
+            p->waitForFinished(P::kProcKillGraceMs);
             p->deleteLater();
         }
         if (m_ttsProc) {
             QProcess* p = m_ttsProc;
             m_ttsProc = nullptr;
             p->kill();
-            p->waitForFinished(300);
+            p->waitForFinished(P::kProcKillGraceMs);
             p->deleteLater();
         }
         if (m_btnTtsStop)  m_btnTtsStop->setVisible(false);
@@ -1492,7 +1492,7 @@ void AgentiPage::onVoiceLoopToggled(bool on)
                 QProcess* p = m_recProc;
                 m_recProc = nullptr;
                 p->kill();
-                p->waitForFinished(300);
+                p->waitForFinished(P::kProcKillGraceMs);
                 p->deleteLater();
             }
             m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"));
@@ -2497,7 +2497,7 @@ void AgentiPage::onBtnVoiceClicked()
 {
     /* ── Stop durante registrazione ── */
     if (m_sttState == SttState::Recording) {
-        if (m_recProc) { m_recProc->kill(); m_recProc->waitForFinished(300); }
+        if (m_recProc) { m_recProc->kill(); m_recProc->waitForFinished(P::kProcKillGraceMs); }
         m_sttState = SttState::Idle;
         m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"));
         m_btnVoice->setProperty("danger","false");
