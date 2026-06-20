@@ -1,0 +1,266 @@
+================================================================================
+  TEMPLATE STABILE — PRISMALUX / QUALSIASI PROGETTO Qt6 C++ + AGENTI AI
+  Versione: 2026-06-20
+  Autore: Paolo (wildlux) + Claude
+================================================================================
+
+Questo file è il prompt iniziale da dare all'agente AI prima di descrivere
+qualsiasi progetto. Contiene regole architetturali, best practice e template
+per agenti singoli e swarm. Va letto PRIMA di scrivere la prima riga di codice.
+
+────────────────────────────────────────────────────────────────────────────────
+  SEZIONE 1 — ARCHITETTURA FILE (regola zero: un file = una responsabilità)
+────────────────────────────────────────────────────────────────────────────────
+
+NOMI FILE (sempre in snake_case):
+  main_*.cpp / main_*.h       → pagine principali (tab di alto livello)
+  widget_*.cpp / widget_*.h   → widget riutilizzabili autonomi
+  settings_*.cpp / settings_*.h → schermate impostazioni
+  dialog_*.cpp / dialog_*.h   → finestre di dialogo modali
+  MAI due classi nello stesso file. MAI file > 800 righe (segnale di split).
+
+STRUTTURA CARTELLE MINIMA:
+  src/
+  ├── pages/          ← main_*.cpp + widget_*.cpp + settings_*.cpp
+  ├── widgets/        ← widget UI generici condivisi
+  ├── core/           ← logica di business pura (no Qt UI)
+  ├── config/         ← costanti, paths, keys
+  └── tests/          ← un file di test per ogni modulo core
+
+CMakeLists.txt:
+  - Ogni nuovo .cpp va aggiunto immediatamente nella lista sorgenti
+  - Non usare GLOB (nasconde file aggiunti/rimossi al build system)
+  - Sezione sorgenti in ordine alfabetico per trovare duplicati a colpo d'occhio
+
+────────────────────────────────────────────────────────────────────────────────
+  SEZIONE 2 — REGOLE Qt6 C++
+────────────────────────────────────────────────────────────────────────────────
+
+CONNECT():
+  - Sempre sintassi puntatore-a-funzione: connect(src, &Cls::sig, ctx, &Cls::slot)
+  - Context object (4° argomento) SEMPRE presente — evita dangling pointer
+  - Lambda solo se < 2 righe E cattura solo oggetti figli del context
+  - Logica > 2 righe → slot nominato nel .cpp
+
+MEMORIA:
+  - QPointer<T> per puntatori a widget che potrebbero essere distrutti
+  - Mai delete manuale su QObject con parent → il parent lo gestisce
+  - new QObject(this) → ownership automatica al parent
+
+DPI / DIMENSIONI:
+  - Tutte le dimensioni strutturali passano per dpiScale(N)
+  - Mai px hardcoded: width(120) → dpiScale(120)
+  - Font size: scalare con dpiScale o usare unità em in QSS
+
+COSTANTI E PERCORSI:
+  - File centralizzato config/app_config.h con namespace AppConfig
+  - Porte, URL base, chiavi QSettings come constexpr o static const
+  - Mai "localhost:11434" inline nel codice → AppConfig::kOllamaUrl
+
+TEMA / STILE:
+  - ThemeManager singleton con static ThemeManager inst(nullptr) — MAI inst(qApp)
+  - QSS caricato da file .qss esterno, mai inline nel codice C++
+  - objectName() per stili specifici, non puntatori di classe
+
+INTERNAZIONALIZZAZIONE:
+  - Ogni stringa visibile all'utente in tr("...")
+  - Emoji e caratteri speciali: byte UTF-8 diretti (\xf0\x9f...) nei const char*
+    invece di entity HTML per QTextBrowser (non supporta > U+FFFF)
+
+TESTING:
+  - Un file test_*.cpp per ogni modulo core (senza dipendenze UI)
+  - ctest con RESOURCE_LOCK per test pesanti CPU
+  - Test che richiedono servizi esterni: SKIP se servizio non disponibile
+  - Target minimo: 80% copertura su logica core (no test UI automatizzati)
+
+SICUREZZA:
+  - Nessun input utente passa direttamente a QProcess/SQL/shell
+  - Token API: QKeychain o env var — mai hardcoded, mai in git
+  - Endpoint remoti: validare URL prima di fetch (schema https/http only)
+  - Log: mai dati sensibili (token, password, PII)
+
+────────────────────────────────────────────────────────────────────────────────
+  SEZIONE 3 — PROMPT INIZIALE DA DARE ALL'AGENTE AI
+────────────────────────────────────────────────────────────────────────────────
+
+Incolla questo blocco come primo messaggio all'AI, poi descrivi il progetto:
+
+---
+Crea un'applicazione Qt6 C++ seguendo queste regole non negoziabili:
+
+STRUTTURA:
+- Un file .cpp + .h per ogni pagina (main_*), widget (widget_*), dialogo (dialog_*)
+- MAI due classi nello stesso file
+- CMakeLists.txt: aggiungi ogni nuovo .cpp subito, senza GLOB
+- File > 800 righe → segnale che va splittato
+
+CONNESSIONI Qt:
+- connect() sempre con 4 argomenti (incluso context object)
+- Lambda solo se < 2 righe con cattura limitata al context
+- Logica > 2 righe → slot nominato
+
+DIMENSIONI: dpiScale(N) su tutto — mai px hardcoded
+COSTANTI: file config/app_config.h — mai stringhe/porte/URL inline
+MEMORIA: QPointer per widget opzionali, parent ownership per tutto il resto
+STRINGHE UI: sempre tr("...") per i18n
+SICUREZZA: mai input utente → QProcess/SQL senza sanitizzazione
+
+Inizia con la struttura delle cartelle e CMakeLists.txt prima di scrivere codice.
+---
+
+────────────────────────────────────────────────────────────────────────────────
+  SEZIONE 4 — AGENTE SINGOLO: TEMPLATE STABILE
+────────────────────────────────────────────────────────────────────────────────
+
+Un agente stabile ha questi 5 componenti chiari:
+
+1. SYSTEM PROMPT (fisso, caricato da file .txt esterno)
+   - Identità e ruolo preciso (chi è l'agente)
+   - Formato output atteso (JSON / markdown / testo libero)
+   - Limiti espliciti (cosa NON deve fare)
+   - Lingua di risposta
+   - Esempio di input/output se il task è ambiguo
+
+2. CONTESTO DINAMICO (iniettato a runtime)
+   - RAG: chunk rilevanti recuperati prima della chiamata
+   - Memoria: ultimi N turni della sessione
+   - Stato applicazione: dati specifici del task attuale
+   - Limite: non superare 60% della context window con contesto
+
+3. INPUT UTENTE
+   - Validato prima di arrivare all'agente
+   - Lunghezza massima definita (es. 4096 token)
+   - Sanitizzato da prompt injection (cerca pattern "ignora le istruzioni")
+
+4. GESTIONE OUTPUT
+   - Se JSON atteso: validare schema prima di usarlo
+   - Se risposta vuota: retry con messaggio di errore esplicito (max 3 volte)
+   - Strip di tag interni (<think>, <reasoning>) prima di mostrare all'utente
+   - Fallback se il modello non risponde nel formato atteso
+
+5. ERRORI E TIMEOUT
+   - Timeout esplicito su ogni chiamata (es. 120 secondi)
+   - Distinguere: errore rete / errore modello / risposta malformata / abort utente
+   - Log di ogni chiamata con timestamp, modello, token usati
+   - Mai mostrare stack trace all'utente finale
+
+TEMPLATE SYSTEM PROMPT AGENTE:
+   Sei [RUOLO]. Il tuo compito è [OBIETTIVO SPECIFICO].
+   Rispondi SEMPRE in [LINGUA].
+   Formato risposta: [JSON con schema X / markdown / testo libero].
+   Non fare: [lista di comportamenti da evitare].
+   Se non sai rispondere: di' esplicitamente "Non lo so" invece di inventare.
+   Esempio input: [...]
+   Esempio output: [...]
+
+────────────────────────────────────────────────────────────────────────────────
+  SEZIONE 5 — SWARM DI AGENTI: TEMPLATE STABILE
+────────────────────────────────────────────────────────────────────────────────
+
+Uno swarm stabile segue questo schema:
+
+COORDINATORE (Master Agent)
+  - Riceve il task originale dall'utente
+  - Produce un piano JSON con subtask e dipendenze
+  - Schema piano: { "task": "...", "subtasks": [
+      { "id": 1, "role": "...", "prompt": "...", "depends_on": [] },
+      { "id": 2, "role": "...", "prompt": "...", "depends_on": [1] }
+    ]}
+  - Non esegue mai lavoro diretto — solo pianifica e sintetizza
+
+SUB-AGENTI (Workers)
+  - Un ruolo specifico ciascuno (Ricercatore, Critico, Scrittore, ecc.)
+  - Ricevono: prompt del task + output dei predecessori (depends_on)
+  - Restituiscono: testo o JSON strutturato — mai chiamate ad altri agenti
+  - Timeout individuale per agente
+
+ESECUZIONE
+  - Ordine topologico (BFS su depends_on) — rispetta le dipendenze
+  - Agenti senza dipendenze possono girare in parallelo (QFuture/thread pool)
+  - Ogni risultato viene salvato in memoria persistente (GraphMemory o DB)
+  - Se un sub-agente fallisce: registra l'errore, continua con gli altri
+
+SINTESI FINALE
+  - Il Coordinatore riceve tutti i risultati
+  - Produce una risposta coerente citando i contributi di ogni agente
+  - Salva il risultato finale in memoria con importanza alta
+
+ANTI-PATTERN DA EVITARE:
+  - Agenti che chiamano altri agenti in cascata infinita
+  - Nessun limite al numero di subtask (metti un tetto: es. max 10)
+  - Context window che cresce senza limite (tronca i risultati lunghi)
+  - Nessun meccanismo di abort utente durante l'esecuzione
+  - Risultati non salvati (se crasha si riparte da zero)
+
+────────────────────────────────────────────────────────────────────────────────
+  SEZIONE 6 — MEMORIA PERSISTENTE
+────────────────────────────────────────────────────────────────────────────────
+
+Tre livelli di memoria da implementare sempre:
+
+LIVELLO 1 — SESSIONE (in RAM, dura finché l'app è aperta)
+  - Cronologia turni (max N turni configurabile)
+  - Stato agente corrente
+  - Buffer token streaming
+
+LIVELLO 2 — APPLICAZIONE (file locale, dura tra riavvii)
+  - QSettings per preferenze UI e configurazioni
+  - SQLite per dati strutturati (GraphMemory, cronologia chat)
+  - File .txt/.json per snapshot esportabili
+
+LIVELLO 3 — CONOSCENZA (RAG, cresce nel tempo)
+  - Documenti indicizzati con embedding
+  - Grafo di entità e relazioni (nodi + archi)
+  - Aggiornamento incrementale (non ricalcolare tutto ogni volta)
+
+REGOLA CRITICA: ogni scrittura su LIVELLO 2 e 3 deve essere atomica.
+Se l'app crasha a metà scrittura, il file non deve essere corrotto.
+Usa transazioni SQLite o scrittura su file temporaneo + rename atomico.
+
+────────────────────────────────────────────────────────────────────────────────
+  SEZIONE 7 — CHECKLIST PRE-RELEASE
+────────────────────────────────────────────────────────────────────────────────
+
+Prima di considerare stabile una versione, verificare:
+
+  [ ] Tutti i connect() hanno context object
+  [ ] Nessun px hardcoded (tutto passa per dpiScale)
+  [ ] Tutte le stringhe UI in tr()
+  [ ] Nessun token/password nel codice o in git
+  [ ] Timeout su ogni chiamata AI (rete + modello)
+  [ ] Gestione abort utente durante generazione AI
+  [ ] Comportamento corretto se Ollama/backend non è avviato
+  [ ] Comportamento corretto se RAG è vuoto
+  [ ] Test suite passa al 100% in modalità no-network
+  [ ] Nessun memory leak rilevato con valgrind (o AddressSanitizer)
+  [ ] AppImage/installer testato su macchina pulita
+  [ ] CLAUDE.md / README aggiornato con le ultime modifiche
+
+────────────────────────────────────────────────────────────────────────────────
+  SEZIONE 8 — LEZIONI IMPARATE (da non ripetere)
+────────────────────────────────────────────────────────────────────────────────
+
+1. FILE MONOLITICI: main_research.cpp è arrivato a 3764 righe.
+   Soluzione: definire la convenzione one-file-per-page PRIMA di scrivere codice.
+
+2. DEAD CODE NASCOSTO: widget rimossi ma le funzioni build*() restavano nel .cpp
+   e il linker non si lamentava (non chiamate → non linkate).
+   Soluzione: grep regolare per funzioni non chiamate + code review periodica.
+
+3. DESTRUCTOR MANCANTE: rimosso come "codice morto" ma era dichiarato in .h.
+   Soluzione: quando rimuovi un blocco, verifica sempre che il .h sia allineato.
+
+4. CONNECT NULLPTR: widget non inizializzato connesso a slot → warning runtime.
+   Soluzione: inizializza sempre i member pointer a nullptr e controlla in connect.
+
+5. TOGGLE INSTEAD OF ALWAYS-VISIBLE: il ragionamento AI era nascosto dietro click.
+   Soluzione: contenuto rilevante sempre visibile — toggle solo per contenuto lungo
+   e secondario (es. log tecnici).
+
+6. CRESCITA INCREMENTALE SENZA REFACTORING: ogni sessione aggiungeva feature
+   senza fermarsi a riorganizzare. Dopo 6 mesi → debito tecnico enorme.
+   Soluzione: ogni 10 nuove funzionalità, una sessione di solo refactoring.
+
+================================================================================
+  Fine documento — aggiornare questa sezione a ogni refactoring significativo
+================================================================================
