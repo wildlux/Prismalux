@@ -667,7 +667,7 @@ void ProgrammazionePage::replStart()
 #ifdef _WIN32
     m_replProc->start("python", {"-u", "-i"});
 #else
-    m_replProc->start("python3", {"-u", "-i"});
+    m_replProc->start(P::findPython(), {"-u", "-i"});
 #endif
 }
 

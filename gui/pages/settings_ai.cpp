@@ -1074,7 +1074,7 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
 
     /* ── Helper: verifica importabilità modulo Python ── */
     auto checkImport = [](const QString& importN) -> bool {
-        return QProcess::execute("python3", {"-c", "import " + importN}) == 0;
+        return QProcess::execute(P::findPython(), {"-c", "import " + importN}) == 0;
     };
 
     /* ── Helper: aggiorna stile pallino ── */
@@ -1126,7 +1126,7 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
         const QString installTarget = (pipPkg == "python-telegram-bot")
             ? "python-telegram-bot>=20"
             : pipPkg;
-        proc->start("python3", {"-m", "pip", "install", installTarget,
+        proc->start(P::findPython(), {"-m", "pip", "install", installTarget,
                                 "--no-input", "--break-system-packages"});
     };
 
@@ -1217,7 +1217,7 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
                 proc->deleteLater();
             });
 
-        proc->start("python3", args);
+        proc->start(P::findPython(), args);
     });
 
     /* ── Auto-verifica al primo caricamento ── */

@@ -94,7 +94,7 @@ void LanServer::handleFileApi(Session& s)
             "d = docx.Document(sys.argv[1])\n"
             "print('\\n'.join(p.text for p in d.paragraphs))\n";
         const auto r = ProcHelper::runWithInput(
-            "python3", QStringList{"-c", pyCode, tmp}, QByteArray{}, 10'000);
+            P::findPython(), QStringList{"-c", pyCode, tmp}, QByteArray{}, 10'000);
         text = r.ok ? r.out : ("Errore: " + r.err);
     } else {
         QFile f(tmp);

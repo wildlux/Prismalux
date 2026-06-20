@@ -1041,7 +1041,7 @@ void AppControllerPage::onMcuHelpClicked()
 
 void AppControllerPage::onObsPingClicked()
 {
-    if (QProcess::execute("python3", {"-c", "import obsws_python"}) != 0) {
+    if (QProcess::execute(P::findPython(), {"-c", "import obsws_python"}) != 0) {
         m_obsStatusLbl->setText(tr("\xe2\x9d\x8c  obsws-python non installato"));
         m_obsOutput->append(
             "<span style='color:#f87171;'>"
@@ -1211,7 +1211,7 @@ void AppControllerPage::onGodotStopClicked()
 void AppControllerPage::onTelegramStartClicked()
 {
     m_telegramIntentionalStop = false;
-    if (QProcess::execute("python3",
+    if (QProcess::execute(P::findPython(),
             {"-c", "from telegram.ext import Application"}) != 0) {
         m_telegramStatusLbl->setText(
             "\xe2\x9d\x8c  python-telegram-bot v20+ non installato");

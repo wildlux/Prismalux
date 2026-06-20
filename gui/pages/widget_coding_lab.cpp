@@ -1,4 +1,6 @@
 #include "widget_coding_lab.h"
+#include "../prismalux_paths.h"
+namespace P = PrismaluxPaths;
 #include <QScrollBar>
 #include <QTemporaryFile>
 #include <QDir>
@@ -258,7 +260,7 @@ void CodingLabWidget::runCode(const QString& code)
         m_proc->deleteLater();
     }
     m_proc = new QProcess(this);
-    m_proc->setProgram("python3");
+    m_proc->setProgram(P::findPython());
     m_proc->setArguments({ tmpPath });
     m_proc->setProcessChannelMode(QProcess::SeparateChannels);
     m_proc->start();

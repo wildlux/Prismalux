@@ -95,7 +95,7 @@ void ProgrammazionePage::onWibyConnectClicked()
     }
 
     m_wibyReady = false;
-    m_wibyProc->start("python3", {kWibyScript});
+    m_wibyProc->start(P::findPython(), {kWibyScript});
     if (m_wibyStatusLbl)
         m_wibyStatusLbl->setText("Avvio controller...");
 }

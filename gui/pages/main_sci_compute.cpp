@@ -1132,7 +1132,7 @@ void SciComputePage::executeLocally(const QString& wuId, const QString& type,
         const QString script = params["script"].toString();
         if (script.isEmpty()) { errMsg = "script vuoto"; validParams = false; }
         else { needsStdin = true; stdinData = script;
-               proc->start("python3", {"-"}); }
+               proc->start(P::findPython(), {"-"}); }
     } else if (type == "gromacs_min" || type == "gromacs_md") {
         const QString tpr = params["tpr_file"].toString();
         const QString out = params["output_dir"].toString(
@@ -1225,7 +1225,7 @@ void SciComputePage::executeLocally(const QString& wuId, const QString& type,
 
             needsStdin = true;
             stdinData  = script;
-            proc->start("python3", {"-"});
+            proc->start(P::findPython(), {"-"});
         }
 
     } else if (type == "esmfold_api") {
@@ -1265,7 +1265,7 @@ void SciComputePage::executeLocally(const QString& wuId, const QString& type,
                 "    print(f'ERROR: {e}', file=sys.stderr); sys.exit(1)\n";
             needsStdin = true;
             stdinData  = script;
-            proc->start("python3", {"-"});
+            proc->start(P::findPython(), {"-"});
         }
 
     } else if (type == "esmfold_local") {
@@ -1292,7 +1292,7 @@ void SciComputePage::executeLocally(const QString& wuId, const QString& type,
                 "print(pdb)\n";
             needsStdin = true;
             stdinData  = script;
-            proc->start("python3", {"-"});
+            proc->start(P::findPython(), {"-"});
         }
 
     } else if (type == "custom") {

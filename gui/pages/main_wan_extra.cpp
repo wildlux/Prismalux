@@ -640,7 +640,7 @@ void LanWanPage::wanCliHandleTask(const QString& id, const QString& kind, const 
                      "Abilita 'Permetti shell' nelle opzioni nodo WAN.";
             status = "error";
         } else {
-            const auto r = ProcHelper::run("python3", {"-c", payload}, 30000);
+            const auto r = ProcHelper::run(P::findPython(), {"-c", payload}, 30000);
             result = r.out + r.err;
         }
 
@@ -676,7 +676,7 @@ void LanWanPage::wanCliHandleTask(const QString& id, const QString& kind, const 
                      "Abilita 'Permetti shell' nelle opzioni nodo WAN.";
             status = "error";
         } else {
-            const auto r = ProcHelper::run("python3", {"-c", payload}, 30000);
+            const auto r = ProcHelper::run(P::findPython(), {"-c", payload}, 30000);
             result = r.out + r.err;
         }
 

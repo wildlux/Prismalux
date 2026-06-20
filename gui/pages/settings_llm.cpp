@@ -2145,7 +2145,7 @@ void ImpostazioniPage::onBenchmarkRunClicked()
             this, &ImpostazioniPage::onBenchmarkProcReadyRead);
     connect(m_benchmarkProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &ImpostazioniPage::onBenchmarkProcFinished);
-    m_benchmarkProc->start("python3", {script, "--out", P::root() + "/benchmark_out"});
+    m_benchmarkProc->start(P::findPython(), {script, "--out", P::root() + "/benchmark_out"});
 }
 
 void ImpostazioniPage::onBenchmarkProcReadyRead()

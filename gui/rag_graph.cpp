@@ -186,7 +186,7 @@ void RagGraph::processNextFile()
                 text = res.out;
                 transcribed = true;
             } else {
-                auto res2 = ProcHelper::run("python3",
+                auto res2 = ProcHelper::run(P::findPython(),
                     {"-m","whisper", wavTmp,"--model","tiny",
                      "--output_format","txt","--output_dir","/tmp",
                      "--language","it"}, 120000);

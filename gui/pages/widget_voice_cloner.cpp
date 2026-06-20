@@ -321,7 +321,7 @@ void VoiceClonerWidget::onGenerateClicked()
         appendLog("Campione: " + m_samplePath);
     appendLog("Testo: " + testo.left(80) + (testo.length() > 80 ? "..." : ""));
 
-    m_cloneProc->start("python3", {"-c", script});
+    m_cloneProc->start(P::findPython(), {"-c", script});
 }
 
 QString VoiceClonerWidget::buildScript(const QString& testo, const QString& lang) const
@@ -605,7 +605,7 @@ void VoiceClonerWidget::checkTtsInstalled()
                 delete done;
             }
         });
-        proc->start("python3", {"-c",
+        proc->start(P::findPython(), {"-c",
             QString("import %1; print('ok')").arg(checks[i].module)});
     }
 }

@@ -1957,7 +1957,7 @@ void StrumentiPage::onOfficeStartBtnClicked()
     }
 
     m_officeStatusLbl->setText(tr("\xf0\x9f\x94\x84  Avvio bridge..."));
-    m_officeBridgeProc->start("python3", {path});
+    m_officeBridgeProc->start(P::findPython(), {path});
     if (!m_officeBridgeProc->waitForStarted(P::kProcessStartTimeoutMs))
         m_officeBridgeProc->start("python", {path});
 
