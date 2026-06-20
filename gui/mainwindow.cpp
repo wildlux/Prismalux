@@ -1718,6 +1718,7 @@ QWidget* MainWindow::buildContent()
         buildRicercaTab();          /* sub-tab di Strumenti */
         ensureTabBuilt(7);          /* TeleComanda → DevAgent+Security in Programmazione */
         buildMultiAgentTab();       /* cross-pollination solo se Ricerca già pronta */
+        m_mainTabs->setCurrentIndex(0); /* ripristina "Intelligenza artificiale" dopo lazy-load */
     });
     /* 🔍 Ricerca schede — corner widget destro: hover apre, uscita chiude */
     {
