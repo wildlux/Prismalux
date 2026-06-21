@@ -81,6 +81,59 @@ Il roadmap `TODO_ANDROID_ROADMAP.md` segna tutti i task ✅ ma l'APK non è stat
 
 ---
 
+## FEAT-4 — CloudCompare integrazione reale
+**Priorità:** Media — tab visibile nella UI come placeholder  
+**File:** `gui/pages/main_tools.cpp` riga 304, `gui/pages/main_app_controller.cpp` riga 1358  
+**Problema:** Il tab "CloudCompare" in StrumentiPage (indice 9) e in AppController hanno solo stub:
+```cpp
+/* 9 — CloudCompare (prossimamente) — stub */
+{ "/* CloudCompare — funzionalità non ancora disponibile */", nullptr, ... }
+```
+AppController mostra un `QTextEdit` con placeholder "Output CloudCompare apparirà qui (prossimamente)...".
+
+**Piano implementazione:**
+- Rilevare percorso CloudCompare installato (`which cloudcompare` o path manuale in Impostazioni)
+- Pulsante "Apri CloudCompare" → `QProcess::startDetached("cloudcompare")`
+- Pulsante "Apri file .las/.ply/.pcd" → `QFileDialog` → `cloudcompare file.las`
+- Azioni AI: "Descrivi nuvola di punti" (vision se disponibile), "Genera script Python Open3D"
+- Se non installato → banner con link `https://cloudcompare.org/`
+
+---
+
+## SEC-1 — API key cloud salvata in file in chiaro
+**Priorità:** Media — security, non è un crash ma è un rischio  
+**File:** `gui/prismalux_paths.h` riga 989, `gui/pages/settings_ai.cpp` riga 502  
+**Problema:** La API key per servizi cloud (OpenAI, ecc.) viene salvata in
+`~/.prismalux/cloud_api.key` come testo in chiaro. Il commento nel codice
+dice esplicitamente "spostare in keychain in futuro":
+```cpp
+///< API key cloud (in chiaro su QSettings — spostare in keychain in futuro)
+```
+QKeychain è già una dipendenza del progetto (usato per i token LAN in `gui/pages/settings_lan.cpp`).
+
+**Fix:**
+- In `P::saveCloudApiKey(key)`: sostituire `QFile` write con `QKeychain::WritePasswordJob`
+- In `P::loadCloudApiKey()`: usare `QKeychain::ReadPasswordJob`
+- Servizio keychain: `"Prismalux"`, account: `"cloud_api_key"`
+- Cancellare il file `~/.prismalux/cloud_api.key` se esiste dopo la migrazione
+- Aggiungere fallback al file se QKeychain non disponibile (es. build senza keychain)
+
+---
+
+## FEAT-5 — Pipeline DPO/feedback dai 👍/👎
+**Priorità:** Bassa — feature ricerca, nessun impatto immediato  
+**File:** `gui/prismalux_paths.h` riga 473, `gui/pages/main_ai_feedback.cpp`  
+**Problema:** Il sistema raccoglie feedback 👍/👎 per ogni risposta AI e lo salva in JSONL
+(`feedbackPath()` → `~/.prismalux/feedback.jsonl`), ma il dato non viene mai usato.
+Il commento dice "base per DPO futuro".
+
+**Opzioni implementazione (in ordine crescente di complessità):**
+1. **Analytics locali** (semplice): tab in Impostazioni che mostra statistiche — N risposte positive/negative, per modello, per orario
+2. **Filtro qualità** (medio): se una risposta ha feedback negativo, al retry successivo sulla stessa domanda abbassa la temperatura e allunga il contesto
+3. **Export DPO dataset** (avanzato): pulsante "Esporta dataset fine-tuning" → genera `{"prompt":..., "chosen":..., "rejected":...}` in formato Alpaca/ShareGPT per fine-tuning locale con Unsloth/llama.cpp
+
+---
+
 ## Riferimento incrociato
 
 Per la strategia completa sulla gestione "LLM non sa la risposta" vedere:
