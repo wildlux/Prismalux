@@ -128,6 +128,7 @@ set(CPP_SRCS
     rag_engine.cpp
     pages/main_ai.cpp
     pages/main_ai_ui.cpp
+    pages/main_ai_slots.cpp
     pages/main_ai_stt.cpp
     pages/main_ai_tts.cpp
     pages/main_ai_files.cpp
@@ -220,7 +221,7 @@ set(CPP_SRCS
     pages/main_math_analisi.cpp
     pages/main_math_bool.cpp
     pages/main_multi_agent.cpp
-    pages/main_distillazione_page.cpp
+    pages/main_distillazione.cpp
     graph_memory.cpp
     rag_graph.cpp
     log_bus.cpp

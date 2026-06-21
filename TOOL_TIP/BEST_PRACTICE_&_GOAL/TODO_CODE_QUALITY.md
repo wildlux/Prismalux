@@ -24,10 +24,13 @@ Ogni file sopra ~1500 righe deve essere diviso in unità logiche.
   - `main_math_analisi.cpp` (978r) — buildAnalisi1/2Tab + slot KaTeX
   - `main_math_bool.cpp` (356r) — buildBoolTab + slot Booleana
 
-- [ ] **`main_ai_ui.cpp` (3906 righe)** — separare in:
-  - `main_ai_chat.cpp` — bolle, sessioni, input
-  - `main_ai_pipeline.cpp` — già separato; verifica overlap
-  - `main_ai_toolbar.cpp` — header, modello, DPI
+- [ ] **`main_ai_ui.cpp` (3906 → 1513 righe)** — split parziale 2026-06-21:
+  - `main_ai_slots.cpp` (2530r) estratto — buildToolsPanel, buildBottomBar,
+    buildInputFormatBar, onBubbleStyleChanged, recolorLog, onToolsPanelToggle,
+    onMcpPanelToggle, onToolEnabledChanged, onInput*, onFmtBtnClicked, onSymbolSearch
+  - TODO: `main_ai_slots.cpp` (2530r) ancora sopra soglia → dividere in:
+    - `main_ai_toolbar.cpp` — buildToolbar*, buildExportSection, buildTtsSection
+    - `main_ai_input.cpp` — buildInputTextField, buildRagPanel, buildSymbolsPanel
 
 - [x] **`main_simulator_algos.cpp` (3775 → 223 righe)** — FATTO 2026-06-21:
   - `main_sim_sorting.cpp` (1612r) — Sorting, Search, Array tricks
@@ -171,9 +174,9 @@ Security review multi-agente: 4 finding confermati (confidence ≥ 8/10).
       #endif
       ```
 
-- [ ] **`~/` nei path su Windows** — `QDir::homePath()+"/.prismalux/"` è corretto
-      ma alcune stringhe usano ancora `"~/.prismalux/"` direttamente.
-      Grep: `grep -rn '"~/' gui/ --include="*.cpp"` → sostituire con `P::dataDir()`.
+- [x] **`~/` nei path su Windows** — verificato 2026-06-21: tutte le occorrenze
+      `"~/"` sono in stringhe display/placeholder, mai in operazioni `QFile`/`QDir`.
+      Nessuna modifica necessaria.
 
 - [x] **`python3` hardcoded** — FATTO 2026-06-21: P::findPython() in 12 file
       (rag_graph, lan_server_api, main_sci_compute, settings_llm,
@@ -206,9 +209,9 @@ Security review multi-agente: 4 finding confermati (confidence ≥ 8/10).
 
 ### Convenzioni non rispettate ovunque
 
-- [ ] **File con suffisso `_page`** — verificare che nessun file nuovo in `gui/pages/`
-      usi il suffisso vietato `*_page.h/.cpp`.
-      Grep: `find gui/pages -name "*_page.h" -o -name "*_page.cpp"`.
+- [x] **File con suffisso `_page`** — FATTO 2026-06-21: rinominati
+      `main_distillazione_page.h/.cpp` → `main_distillazione.h/.cpp` (git mv).
+      Aggiornati 4 riferimenti: CMakeLists.txt, main_programming.cpp, test_distillazione.cpp.
 
 - [ ] **Lambda con logica > 2 righe** — grep per lambda in `connect()` lunghe:
       ```

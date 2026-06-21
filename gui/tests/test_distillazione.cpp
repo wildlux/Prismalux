@@ -5,7 +5,7 @@
 #include <QPushButton>
 #include <QLineEdit>
 #include <QSpinBox>
-#include "../pages/main_distillazione_page.h"
+#include "../pages/main_distillazione.h"
 #include "../ai_client.h"
 
 /* ══════════════════════════════════════════════════════════════

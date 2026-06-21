@@ -1,4 +1,4 @@
-#include "main_distillazione_page.h"
+#include "main_distillazione.h"
 #include "../prismalux_paths.h"
 #include "../dpi_utils.h"
 #include <QVBoxLayout>
