@@ -248,6 +248,10 @@ void VoiceClonerWidget::onRecordToggled(bool on)
             connect(m_recProc,
                     QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                     this, &VoiceClonerWidget::onRecProcFinished);
+            connect(m_recProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+                if (err == QProcess::FailedToStart)
+                    qWarning() << "[widget_voice_cloner] m_recProc non avviato:" << m_recProc->program();
+            });
         }
         QStringList args;
         if (QProcess::execute("which", {"arecord"}) == 0) {
@@ -306,6 +310,10 @@ void VoiceClonerWidget::onGenerateClicked()
         connect(m_cloneProc,
                 QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &VoiceClonerWidget::onCloneProcFinished);
+        connect(m_cloneProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[widget_voice_cloner] m_cloneProc non avviato:" << m_cloneProc->program();
+        });
     }
 
     m_genBtn->setEnabled(false);
@@ -443,8 +451,13 @@ void VoiceClonerWidget::onCloneProcFinished(int code, QProcess::ExitStatus)
 
 void VoiceClonerWidget::onPlayOutputClicked()
 {
-    if (!m_playProc)
+    if (!m_playProc) {
         m_playProc = new QProcess(this);
+        connect(m_playProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[widget_voice_cloner] m_playProc non avviato:" << m_playProc->program();
+        });
+    }
     if (m_playProc->state() != QProcess::NotRunning)
         m_playProc->kill();
 
@@ -528,6 +541,10 @@ void VoiceClonerWidget::onInstallClicked()
         connect(m_instProc,
                 QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &VoiceClonerWidget::onInstallProcFinished);
+        connect(m_instProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[widget_voice_cloner] m_instProc non avviato:" << m_instProc->program();
+        });
     }
 
     m_installBtn->setEnabled(false);
@@ -583,6 +600,10 @@ void VoiceClonerWidget::checkTtsInstalled()
         const int idx = i;
         const TtsBackend bk = checks[i].backend;
 
+        connect(proc, &QProcess::errorOccurred, this, [proc](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[widget_voice_cloner] checkTtsInstalled proc non avviato:" << proc->program();
+        });
         connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, [this, proc, results, done, total, idx, bk]
                 (int code, QProcess::ExitStatus) {

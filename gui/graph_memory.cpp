@@ -3,6 +3,9 @@
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QSqlRecord>
+
+#define SQL_EXEC(q) do { if (!(q).exec()) \
+    qWarning() << "[GraphMemory SQL]" << (q).lastError().text(); } while(0)
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -312,7 +315,7 @@ QVector<GmNode> GraphMemory::allNodes(const QString& typeFilter) const
     else {
         q.prepare("SELECT * FROM gm_nodes WHERE type=:t ORDER BY importance DESC");
         q.bindValue(":t", typeFilter);
-        q.exec();
+        SQL_EXEC(q);
     }
     while (q.next()) {
         QVariantMap row;
@@ -369,7 +372,7 @@ QVector<GmNode> GraphMemory::neighbours(const QString& nodeId, int depth) const
         );
         q.bindValue(":id",  currId);
         q.bindValue(":id2", currId);
-        q.exec();
+        SQL_EXEC(q);
 
         while (q.next()) {
             const QString nid = q.value("id").toString();
@@ -413,7 +416,7 @@ QVector<GmNode> GraphMemory::searchNodes(const QString& query, int limit) const
     q.bindValue(":q",   like);
     q.bindValue(":q2",  like);
     q.bindValue(":lim", limit);
-    q.exec();
+    SQL_EXEC(q);
     while (q.next()) {
         QVariantMap row;
         for (int i = 0; i < q.record().count(); ++i)

@@ -84,6 +84,10 @@ void AgentiPage::loadDroppedFile(const QString& filePath)
                 /* pdftotext fallito → prova Python */
                 _extractPdfPython(filePath, applyPdfText);
             });
+            connect(proc, &QProcess::errorOccurred, this, [proc](QProcess::ProcessError err) {
+                if (err == QProcess::FailedToStart)
+                    qWarning() << "[main_ai_files] pdftotext non avviato:" << proc->program();
+            });
             return;
         }
 
@@ -131,6 +135,10 @@ void AgentiPage::loadDroppedFile(const QString& filePath)
             }
             auto* proc = new QProcess(this);
             proc->start(tool, args);
+            connect(proc, &QProcess::errorOccurred, this, [proc](QProcess::ProcessError err) {
+                if (err == QProcess::FailedToStart)
+                    qWarning() << "[main_ai_files] ssconvert/libreoffice non avviato:" << proc->program();
+            });
             connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                     this, [this, proc, filePath, outCsv, lo, tmpDir, applyXls]
                     (int code, QProcess::ExitStatus){
@@ -242,6 +250,10 @@ void AgentiPage::_extractPdfPython(
 
     auto* proc = new QProcess(this);
     proc->start(python, {script, filePath});
+    connect(proc, &QProcess::errorOccurred, this, [proc](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[main_ai_files] pypdf Python non avviato:" << proc->program();
+    });
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, [this, proc, tmpScript, onText](int code, QProcess::ExitStatus) {
         const QString text = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
@@ -308,6 +320,10 @@ void AgentiPage::_extractXlsPython(
 
     auto* proc = new QProcess(this);
     proc->start(python, {script, filePath});
+    connect(proc, &QProcess::errorOccurred, this, [proc](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[main_ai_files] openpyxl Python non avviato:" << proc->program();
+    });
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, [this, proc, filePath, tmpScript, onText](int code, QProcess::ExitStatus) {
         const QString text = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
@@ -405,6 +421,10 @@ void AgentiPage::_loadAudioAsText(const QString& filePath)
 
                 auto* notesProc = new QProcess(this);
                 notesProc->start(aubio, { "-i", filePath });
+                connect(notesProc, &QProcess::errorOccurred, this, [notesProc](QProcess::ProcessError err) {
+                    if (err == QProcess::FailedToStart)
+                        qWarning() << "[main_ai_files] aubionotes non avviato:" << notesProc->program();
+                });
                 connect(notesProc,
                     QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                     this, [this, notesProc, fname, midiToNote](int, QProcess::ExitStatus) {
@@ -476,6 +496,10 @@ void AgentiPage::_loadAudioAsText(const QString& filePath)
         QFile::remove(wavTmp);
         auto* convProc = new QProcess(this);
         convProc->start(ffmpeg, FfmpegUtils::whisperArgs(filePath, wavTmp));
+        connect(convProc, &QProcess::errorOccurred, this, [convProc](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[main_ai_files] ffmpeg non avviato:" << convProc->program();
+        });
         connect(convProc,
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, [this, convProc, wavTmp, runTranscription](int code, QProcess::ExitStatus){

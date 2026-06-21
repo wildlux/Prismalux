@@ -410,6 +410,10 @@ void McpManagerPage::onPrepareVenvClicked()
     m_venvProc->setProcessChannelMode(QProcess::MergedChannels);
     connect(m_venvProc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &McpManagerPage::onVenvProcFinished);
+    connect(m_venvProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[main_mcp_manager] m_venvProc non avviato:" << m_venvProc->program();
+    });
     m_venvProc->start(P::findPython(), {"-m", "venv", venvDir()});
 }
 
@@ -468,6 +472,10 @@ void McpManagerPage::onInstallClicked()
     m_installProc->setProcessChannelMode(QProcess::MergedChannels);
     connect(m_installProc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &McpManagerPage::onInstallFinished);
+    connect(m_installProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[main_mcp_manager] m_installProc non avviato:" << m_installProc->program();
+    });
     m_installProc->start(venvPython(),
         {"-m", "pip", "install", "-r", req});
 }
@@ -529,6 +537,10 @@ void McpManagerPage::onTestClicked()
             this, &McpManagerPage::onTestReadyRead);
     connect(m_testProc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &McpManagerPage::onTestFinished);
+    connect(m_testProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[main_mcp_manager] m_testProc non avviato:" << m_testProc->program();
+    });
     m_testProc->start(py, {e->serverPy});
 
     if (m_testProc->waitForStarted(P::kProcessStartTimeoutMs)) {
@@ -763,6 +775,10 @@ void McpManagerPage::onTestMcpCallClicked()
             proc->setArguments({serverPy});
             proc->setProcessChannelMode(QProcess::SeparateChannels);
             proc->start();
+            QObject::connect(proc, &QProcess::errorOccurred, page, [proc](QProcess::ProcessError err) {
+                if (err == QProcess::FailedToStart)
+                    qWarning() << "[main_mcp_manager] Runner proc non avviato:" << proc->program();
+            });
             if (!proc->waitForStarted(P::kProcessStartTimeoutMs)) {
                 proc->deleteLater();
                 page->appendLog(

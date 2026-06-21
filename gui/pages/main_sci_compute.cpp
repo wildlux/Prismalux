@@ -47,6 +47,10 @@
 #  include <QSqlDatabase>
 #  include <QSqlQuery>
 #  include <QSqlError>
+#  define SQL_EXEC(q) do { if (!(q).exec()) \
+       qWarning() << "[SciCompute SQL]" << (q).lastError().text(); } while(0)
+#else
+#  define SQL_EXEC(q) do {} while(0)
 #endif
 
 namespace P = PrismaluxPaths;
@@ -297,7 +301,7 @@ QString SciComputePage::insertWu(const QString& type, const QString& label,
     q.addBindValue(params); q.addBindValue(priority); q.addBindValue(replicas);
     q.addBindValue(dependsOn); q.addBindValue(pipelineId);
     q.addBindValue(QDateTime::currentSecsSinceEpoch());
-    q.exec();
+    SQL_EXEC(q);
     return id;
 #else
     Q_UNUSED(dependsOn) Q_UNUSED(pipelineId)
@@ -491,7 +495,7 @@ void SciComputePage::setWuStatus(const QString& id, const QString& status,
         q.prepare("UPDATE work_units SET status=? WHERE id=?");
         q.addBindValue(status); q.addBindValue(id);
     }
-    q.exec();
+    SQL_EXEC(q);
 #else
     Q_UNUSED(id) Q_UNUSED(status) Q_UNUSED(nodeId) Q_UNUSED(err)
 #endif
@@ -508,7 +512,7 @@ void SciComputePage::saveResult(const QString& wuId, const QString& nodeId,
     q.addBindValue(output.left(65536));
     q.addBindValue(hash);
     q.addBindValue(QDateTime::currentSecsSinceEpoch());
-    q.exec();
+    SQL_EXEC(q);
 #else
     Q_UNUSED(wuId) Q_UNUSED(nodeId) Q_UNUSED(output) Q_UNUSED(hash)
 #endif
@@ -519,7 +523,7 @@ bool SciComputePage::checkQuorum(const QString& wuId, int replicas)
 #ifdef HAVE_QT_SQL
     QSqlQuery q(QSqlDatabase::database(m_connName));
     q.prepare("SELECT output_hash FROM wu_results WHERE wu_id=?");
-    q.addBindValue(wuId); q.exec();
+    q.addBindValue(wuId); SQL_EXEC(q);
     QStringList hashes;
     while (q.next()) hashes << q.value(0).toString();
     if (hashes.size() < replicas) return false;
@@ -549,7 +553,7 @@ void SciComputePage::upsertNode(const QString& id, const QString& name,
                    .toJson(QJsonDocument::Compact));
     q.addBindValue("idle");
     q.addBindValue(QDateTime::currentMSecsSinceEpoch());
-    q.exec();
+    SQL_EXEC(q);
 #else
     Q_UNUSED(id) Q_UNUSED(name) Q_UNUSED(addr) Q_UNUSED(port)
     Q_UNUSED(cpu) Q_UNUSED(ram) Q_UNUSED(gpu) Q_UNUSED(tools)
@@ -564,7 +568,7 @@ void SciComputePage::setNodeStatus(const QString& id, const QString& status)
     q.addBindValue(status);
     q.addBindValue(QDateTime::currentMSecsSinceEpoch());
     q.addBindValue(id);
-    q.exec();
+    SQL_EXEC(q);
 #else
     Q_UNUSED(id) Q_UNUSED(status)
 #endif
@@ -578,7 +582,7 @@ void SciComputePage::markOfflineNodes(qint64 thresholdMs)
     q.prepare("UPDATE sci_nodes SET status='offline'"
               " WHERE status!='offline' AND last_seen < ?");
     q.addBindValue(cutoff);
-    q.exec();
+    SQL_EXEC(q);
 #else
     Q_UNUSED(thresholdMs)
 #endif
@@ -593,7 +597,7 @@ QVector<QVariantMap> SciComputePage::queryWus(const QString& filter)
           " FROM work_units ORDER BY priority DESC,created_at DESC LIMIT 200"
         : "SELECT id,type,label,status,priority,replicas,assigned_node,created_at,error_msg"
           " FROM work_units WHERE status=? ORDER BY priority DESC,created_at DESC LIMIT 200";
-    if (!filter.isEmpty()) { q.prepare(sql); q.addBindValue(filter); q.exec(); }
+    if (!filter.isEmpty()) { q.prepare(sql); q.addBindValue(filter); SQL_EXEC(q); }
     else q.exec(sql);
     QVector<QVariantMap> rows;
     while (q.next()) {
@@ -644,7 +648,7 @@ QVector<QVariantMap> SciComputePage::queryResults(const QString& wuId)
     q.prepare("SELECT r.node_id, n.name, r.output, r.output_hash, r.completed_at"
               " FROM wu_results r LEFT JOIN sci_nodes n ON n.id=r.node_id"
               " WHERE r.wu_id=?");
-    q.addBindValue(wuId); q.exec();
+    q.addBindValue(wuId); SQL_EXEC(q);
     QVector<QVariantMap> rows;
     while (q.next()) {
         QVariantMap m;
@@ -749,7 +753,7 @@ void SciComputePage::onWorkerDisconnected()
         QSqlQuery q(db);
         q.prepare("UPDATE work_units SET status='pending',assigned_node=''"
                   " WHERE status='running' AND assigned_node=?");
-        q.addBindValue(nodeId); q.exec();
+        q.addBindValue(nodeId); SQL_EXEC(q);
         if (q.numRowsAffected() > 0)
             appendLog(QString("  Riassegnate %1 WU dal nodo offline.")
                       .arg(q.numRowsAffected()));
@@ -829,7 +833,7 @@ void SciComputePage::handleWorkerMessage(QTcpSocket* s, const QJsonObject& msg)
         {
             QSqlQuery tq(QSqlDatabase::database(m_connName));
             tq.prepare("SELECT started_at FROM work_units WHERE id=?");
-            tq.addBindValue(wuId); tq.exec();
+            tq.addBindValue(wuId); SQL_EXEC(tq);
             const qint64 startedAt = tq.next() ? tq.value(0).toLongLong() : 0LL;
             const qint64 nowSec    = QDateTime::currentSecsSinceEpoch();
             const int    cpuSecs   = startedAt > 0
@@ -844,12 +848,12 @@ void SciComputePage::handleWorkerMessage(QTcpSocket* s, const QJsonObject& msg)
                 cq.prepare("UPDATE sci_nodes SET wu_error=wu_error+1 WHERE id=?");
                 cq.addBindValue(nodeId);
             }
-            cq.exec();
+            SQL_EXEC(cq);
         }
 
         QSqlQuery rq(QSqlDatabase::database(m_connName));
         rq.prepare("SELECT replicas FROM work_units WHERE id=?");
-        rq.addBindValue(wuId); rq.exec();
+        rq.addBindValue(wuId); SQL_EXEC(rq);
         const int replicas = rq.next() ? rq.value(0).toInt() : 1;
 #else
         const int replicas = 1;
@@ -914,7 +918,7 @@ void SciComputePage::dispatchTo(const QString& wuId, QTcpSocket* sock,
 #ifdef HAVE_QT_SQL
     QSqlQuery q(QSqlDatabase::database(m_connName));
     q.prepare("SELECT type, params FROM work_units WHERE id=?");
-    q.addBindValue(wuId); q.exec();
+    q.addBindValue(wuId); SQL_EXEC(q);
     if (!q.next()) return;
     const QString type   = q.value(0).toString();
     const QString params = q.value(1).toString();
@@ -1376,7 +1380,7 @@ void SciComputePage::handleLocalResult(const QString& wuId, bool ok,
 #ifdef HAVE_QT_SQL
     QSqlQuery rq(QSqlDatabase::database(m_connName));
     rq.prepare("SELECT replicas FROM work_units WHERE id=?");
-    rq.addBindValue(wuId); rq.exec();
+    rq.addBindValue(wuId); SQL_EXEC(rq);
     const int replicas = rq.next() ? rq.value(0).toInt() : 1;
 #else
     const int replicas = 1;
@@ -1394,7 +1398,7 @@ void SciComputePage::handleLocalResult(const QString& wuId, bool ok,
     {
         QSqlQuery tq(QSqlDatabase::database(m_connName));
         tq.prepare("SELECT started_at FROM work_units WHERE id=?");
-        tq.addBindValue(wuId); tq.exec();
+        tq.addBindValue(wuId); SQL_EXEC(tq);
         const qint64 startedAt = tq.next() ? tq.value(0).toLongLong() : 0LL;
         const qint64 nowSec    = QDateTime::currentSecsSinceEpoch();
         const int    cpuSecs   = startedAt > 0
@@ -1409,7 +1413,7 @@ void SciComputePage::handleLocalResult(const QString& wuId, bool ok,
             cq.prepare("UPDATE sci_nodes SET wu_error=wu_error+1 WHERE id=?");
             cq.addBindValue(m_myNodeId);
         }
-        cq.exec();
+        SQL_EXEC(cq);
     }
 #endif
 
@@ -1575,7 +1579,7 @@ void SciComputePage::onDispatchTimer()
             for (const QString& depId : depsRaw.split(',', Qt::SkipEmptyParts)) {
                 QSqlQuery dq(db);
                 dq.prepare("SELECT status FROM work_units WHERE id=?");
-                dq.addBindValue(depId.trimmed()); dq.exec();
+                dq.addBindValue(depId.trimmed()); SQL_EXEC(dq);
                 if (!dq.next()) { allDone = false; break; }
                 const QString st = dq.value(0).toString();
                 if (st != "done" && st != "validated") { allDone = false; break; }
@@ -1598,7 +1602,7 @@ void SciComputePage::onDispatchTimer()
 
             QSqlQuery nodeQ(db);
             nodeQ.prepare("SELECT status,tools FROM sci_nodes WHERE id=?");
-            nodeQ.addBindValue(nodeId); nodeQ.exec();
+            nodeQ.addBindValue(nodeId); SQL_EXEC(nodeQ);
             if (!nodeQ.next()) continue;
             if (nodeQ.value(0).toString() != "idle") continue;
 
@@ -1615,7 +1619,7 @@ void SciComputePage::onDispatchTimer()
         if (!dispatched && m_useLocal) {
             QSqlQuery localQ(db);
             localQ.prepare("SELECT status,tools FROM sci_nodes WHERE id=?");
-            localQ.addBindValue(m_myNodeId); localQ.exec();
+            localQ.addBindValue(m_myNodeId); SQL_EXEC(localQ);
             if (localQ.next() && localQ.value(0).toString() == "idle") {
                 if (tool.isEmpty() || localQ.value(1).toString().contains(tool)) {
                     dispatchTo(wuId, nullptr, m_myNodeId);
@@ -1759,9 +1763,9 @@ void SciComputePage::onDeleteWuClicked()
 #ifdef HAVE_QT_SQL
     QSqlQuery q(QSqlDatabase::database(m_connName));
     q.prepare("DELETE FROM work_units WHERE id=? AND status IN ('pending','done','error','validated','conflict')");
-    q.addBindValue(m_selectedWuId); q.exec();
+    q.addBindValue(m_selectedWuId); SQL_EXEC(q);
     q.prepare("DELETE FROM wu_results WHERE wu_id=?");
-    q.addBindValue(m_selectedWuId); q.exec();
+    q.addBindValue(m_selectedWuId); SQL_EXEC(q);
 #endif
     appendLog("Rimossa WU " + m_selectedWuId.left(8));
     m_selectedWuId.clear();
@@ -1807,10 +1811,10 @@ void SciComputePage::onWuContextMenu(const QPoint& pos)
         q.prepare("UPDATE work_units SET status='pending', node_id=NULL, "
                   "started_at=NULL, finished_at=NULL WHERE id=?");
         q.addBindValue(wuId);
-        q.exec();
+        SQL_EXEC(q);
         q.prepare("DELETE FROM wu_results WHERE wu_id=?");
         q.addBindValue(wuId);
-        q.exec();
+        SQL_EXEC(q);
 #endif
         appendLog("WU " + wuId.left(8) + " rimessa in coda");
         refreshWuTable();
@@ -1865,7 +1869,7 @@ void SciComputePage::onNodeContextMenu(const QPoint& pos)
         QSqlQuery q(QSqlDatabase::database(m_connName));
         q.prepare("DELETE FROM sci_nodes WHERE id=?");
         q.addBindValue(nodeId);
-        q.exec();
+        SQL_EXEC(q);
 #endif
         appendLog("Nodo " + nodeId.left(8) + " rimosso");
         refreshNodeTable();
@@ -2145,14 +2149,14 @@ void SciComputePage::onAggregateResultsClicked()
     {
         QSqlQuery pq(QSqlDatabase::database(m_connName));
         pq.prepare("SELECT pipeline_id FROM work_units WHERE id=?");
-        pq.addBindValue(m_selectedWuId); pq.exec();
+        pq.addBindValue(m_selectedWuId); SQL_EXEC(pq);
         if (pq.next()) pipelineId = pq.value(0).toString();
     }
     if (!pipelineId.isEmpty()) {
         QSqlQuery cq(QSqlDatabase::database(m_connName));
         cq.prepare("SELECT COUNT(*) FROM work_units"
                    " WHERE pipeline_id=? AND status IN ('done','validated')");
-        cq.addBindValue(pipelineId); cq.exec();
+        cq.addBindValue(pipelineId); SQL_EXEC(cq);
         if (cq.next()) wuDoneCount = cq.value(0).toInt();
     } else { wuDoneCount = 1; }
 #endif
@@ -2191,7 +2195,7 @@ void SciComputePage::onAggregateResultsClicked()
                        " WHERE id=?");
             wq.addBindValue(m_selectedWuId);
         }
-        wq.exec();
+        SQL_EXEC(wq);
         while (wq.next()) {
             QVariantMap row;
             row["id"]     = wq.value(0); row["type"]   = wq.value(1);

@@ -101,6 +101,10 @@ static QProcess* _launchMcpProcess(const QString& pythonExe,
     proc->setArguments({ serverPath });
     proc->setProcessChannelMode(QProcess::SeparateChannels);
     proc->start();
+    QObject::connect(proc, &QProcess::errorOccurred, proc, [proc](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[main_ai_tools] processo MCP non avviato:" << proc->program();
+    });
     if (!proc->waitForStarted(P::kProcessStartTimeoutMs)) {
         proc->deleteLater();
         return nullptr;
@@ -251,6 +255,10 @@ void AgentiPage::startMcpDiscovery()
         proc->setArguments({ serverPath });
         proc->setProcessChannelMode(QProcess::SeparateChannels);
         proc->start();
+        connect(proc, &QProcess::errorOccurred, this, [proc](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[main_ai_tools] discovery MCP non avviato:" << proc->program();
+        });
         if (!proc->waitForStarted(2000)) { proc->deleteLater(); (*fn)(); return; }
         proc->write(initMsg);
         proc->write(listMsg);
@@ -323,6 +331,10 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             proc->deleteLater();
             onDone(out.isEmpty() ? "nessun risultato" : out);
         });
+        connect(proc, &QProcess::errorOccurred, this, [proc](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[main_ai_tools] calc non avviato:" << proc->program();
+        });
         proc->start(P::findPython(), {"-c", script});
         QTimer::singleShot(5000, proc, [proc, onDone]{
             if (proc->state() != QProcess::NotRunning) { proc->kill(); onDone("timeout"); }
@@ -382,6 +394,10 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             s_ddgCache[cacheKey] = { result, QDateTime::currentMSecsSinceEpoch() };
             onDone(result);
         });
+        connect(proc, &QProcess::errorOccurred, this, [proc](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[main_ai_tools] ricerca non avviata:" << proc->program();
+        });
         proc->start(P::findPython(), {"-c", script});
         QTimer::singleShot(12000, proc, [proc, onDone]{
             if (proc->state() != QProcess::NotRunning) { proc->kill(); onDone("timeout ricerca"); }
@@ -439,6 +455,10 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             proc->deleteLater();
             onDone(out.isEmpty() ? "nessun contenuto ricevuto" : out);
         });
+        connect(proc, &QProcess::errorOccurred, this, [proc](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[main_ai_tools] fetch_url non avviato:" << proc->program();
+        });
         proc->start(P::findPython(), {"-c", script});
         QTimer::singleShot(15000, proc, [proc, onDone]{
             if (proc->state() != QProcess::NotRunning) { proc->kill(); onDone("timeout fetch_url"); }
@@ -457,6 +477,10 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             const QString out = QString::fromUtf8(proc->readAll()).trimmed();
             proc->deleteLater();
             onDone(out.isEmpty() ? "(nessun output)" : out.left(600));
+        });
+        connect(proc, &QProcess::errorOccurred, this, [proc](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[main_ai_tools] python non avviato:" << proc->program();
         });
 
         if (P::isSandboxReady()) {

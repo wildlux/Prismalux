@@ -149,14 +149,10 @@ Security review multi-agente: 4 finding confermati (confidence ≥ 8/10).
       `grep -n "\.open(" gui/ -r --include="*.cpp" | grep -v "if\s*(.*open\|!.*open"`.
       Ogni `open()` deve avere `if (!f.open(...)) { log errore; return; }`.
 
-- [ ] **SQLite senza check `lastError()`** — query fallite silenziosamente in
-      `graph_memory.cpp`, `wan_tasks.db`, `sci_nodes.db`.
-      Aggiungere macro:
-      ```cpp
-      #define SQL_CHECK(q) if ((q).lastError().isValid()) \
-          qWarning() << "[SQL]" << (q).lastError().text();
-      ```
-      e applicarla a ogni `QSqlQuery::exec()`.
+- [x] **SQLite senza check `lastError()`** — FATTO 2026-06-21: aggiunta macro
+      `SQL_EXEC(q)` (do/while, log qWarning su errore) in:
+      - `graph_memory.cpp`: 3 bare exec() → SQL_EXEC (allNodes filter, BFS, searchNodes)
+      - `main_sci_compute.cpp`: ~25 bare exec() → SQL_EXEC (q/tq/cq/rq/dq/nodeQ/localQ/pq/wq)
 
 ---
 
