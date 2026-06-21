@@ -233,9 +233,11 @@ Security review multi-agente: 4 finding confermati (confidence ≥ 8/10).
       Aggiungere una `QStatusBar` in `MainWindow` con zona sinistra (stato AI)
       + destra (temperatura + stato rete) — già in parte implementato, uniformare.
 
-- [ ] **Messaggio "nessun risultato" mancante** — alcune liste (risultati RAG,
-      nodi GraphMemory, modelli Ollama) rimangono vuote senza spiegazione.
-      Aggiungere `QLabel("Nessun risultato")` come placeholder quando la lista è vuota.
+- [x] **Messaggio "nessun risultato" mancante** — FATTO 2026-06-21: placeholder in
+      `onRagGraphMemChanged()` (`main_research.cpp`): item non-selezionabile con testo
+      "Grafo vuoto — indicizza documenti con Analizza Grafo" (se vuoto) o
+      "Nessun nodo trovato per: X" (se filtro attivo). Modelli Ollama gestiti già
+      via setStatus("❌ Backend non raggiungibile") nei vari fetchModels.
 
 - [x] **Confirm dialog su azioni distruttive** — FATTO 2026-06-21: aggiunti 2 dialog:
       - `onRagClearClicked()` in `main_research.cpp` — "Svuota Grafo RAG"

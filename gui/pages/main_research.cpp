@@ -2057,6 +2057,15 @@ void RicercaPage::onRagGraphMemChanged()
         : m_ragGm->searchNodes(filter, 100);
 
     m_ragNodeList->clear();
+    if (nodes.isEmpty()) {
+        auto* item = new QListWidgetItem(
+            filter.isEmpty()
+                ? tr("Grafo vuoto — indicizza documenti con \"Analizza Grafo\"")
+                : tr("Nessun nodo trovato per: \"%1\"").arg(filter),
+            m_ragNodeList);
+        item->setFlags(Qt::NoItemFlags);
+        return;
+    }
     for (const auto& n : nodes) {
         auto* item = new QListWidgetItem(m_ragNodeList);
         /* Icona per tipo */
