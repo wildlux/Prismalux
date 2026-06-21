@@ -189,6 +189,7 @@ private:
     int              m_currentAgent = 0;
     QVector<QString> m_agentOutputs;
     QString          m_taskOriginal;
+    bool             m_autoRetryActive = false; /* guardia anti-loop incertezza LLM */
 
     /* ── History conversazione (solo modalita' chat singola) ── */
     /* Ultimi kChatHistoryMax turni {domanda, risposta} passati ad AiClient::chat()

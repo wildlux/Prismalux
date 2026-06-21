@@ -379,40 +379,8 @@ void AgentiPage::advancePipeline() {
             }
         }
 
-        /* ── Ricerca online fallback: suggerisci se LLM esprime incertezza ── */
-        if (!m_agentOutputs.isEmpty()) {
-            const QString& lastOut = m_agentOutputs.last();
-            const QString lo = lastOut.toLower();
-            static const QStringList kUncertainPhrases = {
-                "non so ", "non ho informazioni", "non posso rispondere",
-                "non sono sicuro", "non ho conoscenza", "non ho dati",
-                "la mia conoscenza", "il mio limite", "non sono in grado",
-                "non conosco", "non ho dettagli", "non trovo informazioni",
-                "potrebbe essere cambiato", "non ho aggiornamenti",
-                "non ho accesso a", "informazioni aggiornate"
-            };
-            bool uncertain = false;
-            for (const QString& ph : kUncertainPhrases)
-                if (lo.contains(ph)) { uncertain = true; break; }
-
-            if (uncertain && !m_taskOriginal.isEmpty()) {
-                const QString q64 = m_taskOriginal.toUtf8()
-                    .toBase64(QByteArray::Base64UrlEncoding);
-                const QString searchHint =
-                    "<p style='margin:6px 0 2px 0;"
-                    "background:#1e293b;border-radius:6px;"
-                    "border-left:3px solid #3b82f6;"
-                    "padding:6px 10px;'>"
-                    "<span style='color:#94a3b8;font-size:11px;'>"
-                    "\xf0\x9f\x94\x8d  Il modello non conosce la risposta. "
-                    "</span>"
-                    "<a href='websearch:" + q64 + "' "
-                    "style='color:#60a5fa;font-size:11px;text-decoration:none;'>"
-                    "Cerca online e salva nel RAG &rarr;</a></p>";
-                m_log->moveCursor(QTextCursor::End);
-                m_log->insertHtml(searchHint);
-            }
-        }
+        /* rimosso: check kUncertainPhrases ridondante — reNonSo in _finishedPipeline
+           è più preciso e include guardia falsi positivi (TASK-1 LLM) */
 
         /* Conversazione vocale continua: auto-TTS risposta singolo agente */
         if (m_voiceLoopActive && !m_modePipeline && !m_agentOutputs.isEmpty()) {
@@ -782,6 +750,7 @@ void AgentiPage::_finishedPipelineControl() {
    _finishedPipeline — risposta agente pipeline completata
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::_finishedPipeline(const QString& full) {
+    m_autoRetryActive = false;
     if (m_currentAgent < MAX_AGENTS)
         m_cfgDlg->enabledChk(m_currentAgent)->setStyleSheet(
             "QCheckBox { color: #4caf50; font-weight: bold; }"
@@ -963,8 +932,9 @@ void AgentiPage::_finishedPipeline(const QString& full) {
             ? "<p style='color:#6b7280;font-style:italic;margin:0;'>Nessun output.</p>"
             : markdownToHtml(rawResp, &m_codeBlocks, &m_codeBlockCounter);
 
-        /* Banner suggerimento quando il modello dichiara di non sapere rispondere */
-        if (!rawResp.isEmpty()) {
+        /* Banner suggerimento quando il modello dichiara di non sapere rispondere.
+           Non si attiva durante un auto-retry (m_autoRetryActive) per evitare loop. */
+        if (!rawResp.isEmpty() && !m_autoRetryActive) {
             static const QRegularExpression reNonSo(
                 QString::fromUtf8(
                 "non\\s+(?:lo\\s+|ne\\s+|ho\\s+)?s[ao](?!p)|"
@@ -980,7 +950,13 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                 "i\\s+don.?t\\s+know|i\\s+cannot\\s+(?:answer|provide)|"
                 "i\\s+(?:do\\s+not|don.?t)\\s+have\\s+(?:access|information)"),
                 QRegularExpression::CaseInsensitiveOption);
-            if (reNonSo.match(rawResp).hasMatch()) {
+            /* Guardia falsi positivi: "non so se/quale/cosa/come..." non è incertezza */
+            static const QRegularExpression reFalsoPositivo(
+                "non\\s+so\\s+(?:se|quale|cosa|come|quando|dove|chi|bene)\\b",
+                QRegularExpression::CaseInsensitiveOption);
+            const bool uncertain = reNonSo.match(rawResp).hasMatch()
+                                && !reFalsoPositivo.match(rawResp).hasMatch();
+            if (uncertain) {
                 /* Colori adattativi al tema corrente */
                 const bool _lt = isLightTheme();
                 const char* _nBg   = _lt ? "#f5f3ff" : "#1e1527";

@@ -1,4 +1,5 @@
 #include "settings_main.h"
+#include "../lan_server.h"
 #include "../log_bus.h"
 #include "../dpi_utils.h"
 #include "../widgets/toggle_switch.h"
@@ -499,7 +500,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         m_cloudModelEdit->setPlaceholderText("gpt-4o-mini");
         form->addRow("Modello cloud:", m_cloudModelEdit);
 
-        m_cloudApiKeyEdit = new QLineEdit(P::loadCloudApiKey(), srGroup);
+        m_cloudApiKeyEdit = new QLineEdit(LanServer::loadSecret(QStringLiteral("cloud_api_key")), srGroup);
         m_cloudApiKeyEdit->setEchoMode(QLineEdit::Password);
         m_cloudApiKeyEdit->setPlaceholderText("sk-...");
         form->addRow("API key:", m_cloudApiKeyEdit);
@@ -525,8 +526,9 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
             s2.setValue(P::SK::kSmartRouterEnabled, m_smartRouterChk->isChecked());
             s2.setValue(P::SK::kCloudApiUrl,        m_cloudUrlEdit->text().trimmed());
             s2.setValue(P::SK::kCloudApiModel,      m_cloudModelEdit->text().trimmed());
-            /* API key salvata in file 0600 separato, NON in QSettings */
-            P::saveCloudApiKey(m_cloudApiKeyEdit->text().trimmed());
+            /* API key via QKeychain (o file 0600 fallback), NON in QSettings */
+            LanServer::saveSecret(QStringLiteral("cloud_api_key"),
+                                  m_cloudApiKeyEdit->text().trimmed());
             m_ai->setSmartRouter(
                 m_smartRouterChk->isChecked(),
                 m_cloudUrlEdit->text().trimmed(),

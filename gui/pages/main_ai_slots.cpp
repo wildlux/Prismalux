@@ -1291,6 +1291,7 @@ void AgentiPage::onCmbModeMathChanged(int idx)
 
 void AgentiPage::onAiAborted()
 {
+    m_autoRetryActive = false;
     m_waitLbl->setVisible(false);
 
     /* Rimuove il contenuto parziale dello streaming (testo grezzo non ancora

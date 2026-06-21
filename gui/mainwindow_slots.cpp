@@ -981,14 +981,15 @@ void MainWindow::onZoomApplyDebounced()
    ══════════════════════════════════════════════════════════════ */
 void MainWindow::checkForUpdates()
 {
+    const QString curVer = QCoreApplication::applicationVersion();
     auto* nam = new QNetworkAccessManager(this);
     QNetworkRequest req(
         QUrl("https://api.github.com/repos/wildlux/Prismalux/releases/latest"));
-    req.setRawHeader("User-Agent", "Prismalux/2.9");
+    req.setRawHeader("User-Agent", ("Prismalux/" + curVer).toLatin1());
     req.setRawHeader("Accept", "application/vnd.github+json");
     req.setTransferTimeout(8000);
     auto* reply = nam->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, nam]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, nam, curVer]() {
         reply->deleteLater();
         nam->deleteLater();
         if (reply->error() != QNetworkReply::NoError) return;
@@ -997,7 +998,7 @@ void MainWindow::checkForUpdates()
         QString tag = doc.object().value("tag_name").toString().trimmed();
         if (tag.isEmpty()) return;
         if (tag.startsWith('v') || tag.startsWith('V')) tag = tag.mid(1);
-        if (tag == "2.9") return;
+        if (tag == curVer) return;
         auto* lbl = new QLabel(this);
         lbl->setObjectName("updateStatusLbl");
         lbl->setTextFormat(Qt::RichText);

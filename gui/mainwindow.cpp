@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "lan_server.h"
 #include "log_bus.h"
 #include "widgets/onnx_embedder.h"
 #include "widgets/whisper_autosetup.h"
@@ -637,17 +638,17 @@ void MainWindow::setupBackend()
            nel file 0600 e rimuovila da QSettings. */
         if (s.contains(P::SK::kCloudApiKey)) {
             const QString legacyKey = s.value(P::SK::kCloudApiKey).toString();
-            if (!legacyKey.isEmpty() && P::loadCloudApiKey().isEmpty())
-                P::saveCloudApiKey(legacyKey);
+            if (!legacyKey.isEmpty() && LanServer::loadSecret(QStringLiteral("cloud_api_key")).isEmpty())
+                LanServer::saveSecret(QStringLiteral("cloud_api_key"), legacyKey);
             s.remove(P::SK::kCloudApiKey);
         }
         /* Carica configurazione Smart Router all'avvio.
-           API key da file 0600 separato — non da QSettings. */
+           API key via QKeychain (o file 0600 fallback) — non da QSettings. */
         m_ai->setSmartRouter(
             s.value(P::SK::kSmartRouterEnabled, false).toBool(),
             s.value(P::SK::kCloudApiUrl, "").toString(),
             s.value(P::SK::kCloudApiModel, "gpt-4o-mini").toString(),
-            P::loadCloudApiKey());
+            LanServer::loadSecret(QStringLiteral("cloud_api_key")));
     }
     /* Invalida la cache modelli: il primo fetch interroga sempre Ollama live.
        Questo garantisce che su una macchina diversa non venga mai mostrata

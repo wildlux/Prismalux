@@ -39,7 +39,9 @@ namespace P = PrismaluxPaths;
 static QString secretFallbackPath(const QString& key)
 {
     if (key == QLatin1String("lan_token"))
-        return P::lanTokenPath();   /* compatibilità col percorso storico */
+        return P::lanTokenPath();
+    if (key == QLatin1String("cloud_api_key"))
+        return QDir::homePath() + "/.prismalux/cloud_api.key";  /* percorso storico */
     return QDir::homePath() + "/.prismalux/" + key + ".key";
 }
 
