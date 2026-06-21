@@ -750,7 +750,6 @@ void AgentiPage::_finishedPipelineControl() {
    _finishedPipeline — risposta agente pipeline completata
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::_finishedPipeline(const QString& full) {
-    m_autoRetryActive = false;
     if (m_currentAgent < MAX_AGENTS)
         m_cfgDlg->enabledChk(m_currentAgent)->setStyleSheet(
             "QCheckBox { color: #4caf50; font-weight: bold; }"
@@ -766,6 +765,7 @@ void AgentiPage::_finishedPipeline(const QString& full) {
         .arg(done).arg(qMin(total, m_maxShots)).arg(pct));
 
     /* Sostituisce l'indicatore streaming + testo grezzo con la bolla AI completa */
+    bool shouldAutoSearch = false;   /* TASK-2: segnala auto-ricerca web dopo il blocco */
     QString rawResp;
     if (m_currentAgent > 0 && !m_agentOutputs.isEmpty()) {
         rawResp = m_agentOutputs[m_currentAgent - 1];
@@ -932,7 +932,8 @@ void AgentiPage::_finishedPipeline(const QString& full) {
             ? "<p style='color:#6b7280;font-style:italic;margin:0;'>Nessun output.</p>"
             : markdownToHtml(rawResp, &m_codeBlocks, &m_codeBlockCounter);
 
-        /* Banner suggerimento quando il modello dichiara di non sapere rispondere.
+        /* Banner + auto-ricerca web quando il modello dichiara incertezza.
+           In single-shot (m_maxShots==1) lancia anche una ricerca automatica (TASK-2/3).
            Non si attiva durante un auto-retry (m_autoRetryActive) per evitare loop. */
         if (!rawResp.isEmpty() && !m_autoRetryActive) {
             static const QRegularExpression reNonSo(
@@ -1071,6 +1072,9 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                     "</a></p>"
 
                     "</div>";
+            /* TASK-2: in modalità chat singola avvia anche la ricerca web automatica */
+            if (m_maxShots == 1 && !m_taskOriginal.isEmpty())
+                shouldAutoSearch = true;
             }
         }
 
@@ -1114,6 +1118,53 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                                          m_currentAgentTime,
                                          htmlContent, idx,
                                          extractedThink)); }
+    }
+
+    /* ── TASK-2/3: auto-ricerca web quando LLM incerto (solo single-shot) ── */
+    if (shouldAutoSearch) {
+        m_autoRetryActive = true;
+        /* Aggiorna label bolla per la risposta di sintesi */
+        m_currentAgentLabel = "\xf0\x9f\x8c\x90  Ricerca Online";  /* 🌐 */
+        m_currentAgentModel = m_ai->model();
+        m_currentAgentTime  = "";
+        m_agentTimer.restart();
+        /* Segna il punto di inizio streaming sintesi (dopo la prima bolla) */
+        m_log->moveCursor(QTextCursor::End);
+        m_log->append("");
+        { QTextCursor cur(m_log->document()); cur.movePosition(QTextCursor::End);
+          m_agentBlockStart = cur.position(); }
+        m_agentOutputs << QString();   /* slot per i token della sintesi */
+        emit pipelineStatus(20, "\xf0\x9f\x94\x8d  Cerco online...");
+        QJsonObject wsCall;
+        wsCall["tool"]  = "ricerca";
+        wsCall["input"] = m_taskOriginal;
+        runToolCall(wsCall, [this](const QString& sr) {
+            if (sr.trimmed().isEmpty() || sr.startsWith("errore:") ||
+                sr.contains("NORESULT") || sr.contains("nessun risultato")) {
+                /* Ricerca fallita: avanza normalmente */
+                m_autoRetryActive = false;
+                advancePipeline();
+                return;
+            }
+            /* TASK-3: re-interroga l'LLM con il contesto web */
+            const QString now = QDateTime::currentDateTime()
+                                    .toString("dddd d MMMM yyyy, HH:mm");
+            const QString sys = _buildSys(
+                QString("Sei un assistente. Data attuale: %1. "
+                        "Rispondi in italiano, conciso e diretto, "
+                        "usando i risultati di ricerca forniti.").arg(now),
+                QString(), m_ai->model(), m_ai->backend());
+            const QString uMsg = "Domanda: " + m_taskOriginal
+                + "\n\nRisultati ricerca web:\n" + sr
+                + "\n\nRispondi alla domanda originale usando questi risultati.";
+            emit pipelineStatus(50, "\xf0\x9f\xa4\x96  Elaboro risultati ricerca...");
+            m_currentAgentTime = QString::number(m_agentTimer.elapsed()) + " ms";
+            m_ai->chat(sys, uMsg);
+            /* La risposta fluisce via onToken → m_agentOutputs.last()
+               e poi onFinished → _finishedPipeline (seconda chiamata, m_autoRetryActive=true)
+               che chiuderà la pipeline normalmente */
+        });
+        return;  /* non avanzare la pipeline ora */
     }
 
     /* ── Tool Executor: estrae ed esegue codice Python/C/C++, poi avvia il Controller ── */
@@ -1467,6 +1518,7 @@ void AgentiPage::_finishedPipeline(const QString& full) {
         /* Nessun codice trovato: avanza direttamente */
         advancePipeline();
     }
+    m_autoRetryActive = false;  /* reset sempre alla fine (TASK-5) */
 }
 
 /* ══════════════════════════════════════════════════════════════

@@ -53,6 +53,7 @@
 #include <QSlider>
 #include <QSpinBox>
 #include <QStandardPaths>
+#include <QTemporaryFile>
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QTabWidget>
@@ -1628,12 +1629,99 @@ void ProgrammazionePage::showDiff(const QString& before, const QString& after)
 
 void ProgrammazionePage::runLint()
 {
-    /* Placeholder: analisi statica (pyflakes, clang-tidy, eslint) */
-    /* TODO: implementare quando il linting per-lingua sarà definito */
+    if (!m_editor || !m_lang || !m_diffGroup || !m_diffView) return;
+    const QString code = m_editor->toPlainText().trimmed();
+    if (code.isEmpty()) return;
+
+    const QString ext = m_lang->currentData().toString(); /* py c cpp sh js */
+
+    /* Mappa linguaggio → linter + argomento */
+    struct LintCfg { QString prog; QStringList args; bool needFile; };
+    LintCfg cfg;
+    if (ext == "py") {
+        cfg = { PrismaluxPaths::findPython(),
+                {"-m", "pyflakes"}, true };
+    } else if (ext == "cpp" || ext == "c") {
+        if (QStandardPaths::findExecutable("clang-tidy").isEmpty()) {
+            if (m_status) m_status->setText(
+                "\xe2\x9a\xa0  clang-tidy non trovato — installa: sudo apt install clang-tidy");
+            return;
+        }
+        cfg = { "clang-tidy", {"-checks=*,-fuchsia-*"}, true };
+    } else if (ext == "js") {
+        if (QStandardPaths::findExecutable("eslint").isEmpty()) {
+            if (m_status) m_status->setText(
+                "\xe2\x9a\xa0  eslint non trovato — installa: npm install -g eslint");
+            return;
+        }
+        cfg = { "eslint", {"--no-eslintrc", "--rule", "no-unused-vars:warn"}, true };
+    } else {
+        if (m_status) m_status->setText(
+            "\xf0\x9f\x94\x8d  Linting non supportato per " + m_lang->currentText());
+        return;
+    }
+
+    /* Scrive il codice in un file temporaneo */
+    auto* tmp = new QTemporaryFile("prismalux_lint_XXXXXX." + ext, this);
+    tmp->setAutoRemove(true);
+    if (!tmp->open()) { tmp->deleteLater(); return; }
+    tmp->write(code.toUtf8());
+    tmp->flush();
+    const QString tmpPath = tmp->fileName();
+
     if (m_status)
-        m_status->setText(
-            "\xf0\x9f\x94\x8d  Analisi statica non ancora implementata "
-            "per questo linguaggio.");
+        m_status->setText("\xf0\x9f\x94\x8d  Analisi in corso (" + m_lang->currentText() + ")...");
+    m_diffGroup->setVisible(false);
+
+    auto* proc = new QProcess(this);
+    proc->setProcessChannelMode(QProcess::MergedChannels);
+    QStringList args = cfg.args;
+    if (cfg.needFile) args << tmpPath;
+
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc, tmp, ext](int exitCode, QProcess::ExitStatus) {
+        const QString out = QString::fromUtf8(proc->readAll()).trimmed();
+        proc->deleteLater();
+        tmp->deleteLater();
+
+        if (out.isEmpty() && exitCode == 0) {
+            if (m_status) m_status->setText(
+                "\xe2\x9c\x85  Nessun problema trovato (" + m_lang->currentText() + ")");
+            m_diffGroup->setVisible(false);
+            return;
+        }
+
+        /* Mostra output nel diffView con colori */
+        QString html = "<pre style='font-family:monospace;font-size:11px;"
+                       "white-space:pre-wrap;'>";
+        for (const QString& line : out.split('\n')) {
+            const QString lo = line.toLower();
+            if (lo.contains("error") || lo.contains("errore"))
+                html += "<span style='color:#f87171;'>" + line.toHtmlEscaped() + "</span>\n";
+            else if (lo.contains("warning") || lo.contains("warn") || lo.contains("W "))
+                html += "<span style='color:#fbbf24;'>" + line.toHtmlEscaped() + "</span>\n";
+            else
+                html += "<span style='color:#94a3b8;'>" + line.toHtmlEscaped() + "</span>\n";
+        }
+        html += "</pre>";
+        m_diffView->setHtml(html);
+        m_diffGroup->setVisible(true);
+        if (m_status) m_status->setText(
+            (exitCode == 0 ? "\xe2\x9c\x85  " : "\xe2\x9d\x8c  ") +
+            m_lang->currentText() + " lint completato");
+    });
+
+    connect(proc, &QProcess::errorOccurred, this,
+            [this, proc, tmp](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart) {
+            if (m_status) m_status->setText(
+                "\xe2\x9d\x8c  Linter non avviabile — verifica installazione");
+            proc->deleteLater();
+            tmp->deleteLater();
+        }
+    });
+
+    proc->start(cfg.prog, args);
 }
 
 /* ======================================================================
