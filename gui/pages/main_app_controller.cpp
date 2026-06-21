@@ -28,6 +28,7 @@ namespace P = PrismaluxPaths;
 #include <QTimer>
 #include <QDir>
 #include <QFile>
+#include <QStandardPaths>
 #include <QCoreApplication>
 #include <QDialog>
 #include <QVBoxLayout>
@@ -1309,55 +1310,71 @@ QWidget* AppControllerPage::buildCloudCompareTab()
     auto* w   = new QWidget;
     auto* lay = new QVBoxLayout(w);
     lay->setContentsMargins(16, 16, 16, 16);
-    lay->setSpacing(12);
+    lay->setSpacing(10);
 
+    /* Descrizione */
     auto* descLbl = new QLabel(
-        "\xf0\x9f\x94\xb5  <i>CloudCompare \xe2\x80\x94 Software open-source per l\xe2\x80\x99" "elaborazione e l\xe2\x80\x99" "analisi "
-        "di nuvole di punti 3D e mesh poligonali. Usato in rilevamento topografico, archeologia e ingegneria civile.</i>", w);
+        "\xf0\x9f\x94\xb5  <i>CloudCompare \xe2\x80\x94 Software open-source per l\xe2\x80\x99" "elaborazione di "
+        "nuvole di punti 3D e mesh poligonali.</i>", w);
     descLbl->setObjectName("hintLabel");
     descLbl->setTextFormat(Qt::RichText);
     descLbl->setWordWrap(true);
     lay->addWidget(descLbl);
 
-    auto* group = new QGroupBox(
-        "\xf0\x9f\x94\xb5  CloudCompare \xe2\x80\x94 Analisi nuvole di punti", w);
-    auto* glay = new QVBoxLayout(group);
+    /* Rilevamento installazione + percorso manuale */
+    auto* pathGroup = new QGroupBox("\xe2\x9a\x99  Percorso CloudCompare", w);
+    auto* pathLay   = new QHBoxLayout(pathGroup);
+    m_ccPathEdit = new QLineEdit(pathGroup);
+    m_ccPathEdit->setPlaceholderText("cloudcompare  (auto-rilevato se in PATH)");
+    const QString detected = QStandardPaths::findExecutable("cloudcompare");
+    if (!detected.isEmpty()) m_ccPathEdit->setText(detected);
+    m_ccStatusLbl = new QLabel(pathGroup);
+    m_ccStatusLbl->setWordWrap(false);
+    if (detected.isEmpty()) {
+        m_ccStatusLbl->setText(
+            "<span style='color:#f87171;'>"
+            "\xe2\x9d\x8c  Non trovato in PATH  "  /* ❌ */
+            "\xe2\x80\x94 <a href='https://www.danielgm.net/cc/'>Scarica</a>"
+            "</span>");
+        m_ccStatusLbl->setOpenExternalLinks(true);
+    } else {
+        m_ccStatusLbl->setText(
+            "<span style='color:#4ade80;'>\xe2\x9c\x85  " + detected + "</span>");
+    }
+    pathLay->addWidget(m_ccPathEdit, 1);
+    pathLay->addWidget(m_ccStatusLbl);
+    lay->addWidget(pathGroup);
 
-    auto* statusLbl = new QLabel(
-        "\xe2\x8f\xb3  <b>In sviluppo</b><br>"
-        "Il bridge CloudComPy \xc3\xa8 in fase di integrazione.<br><br>"
-        "<b>Funzionalit\xc3\xa0 pianificate:</b><br>"
-        "\xe2\x80\xa2 Caricamento file LAS / PLY / E57<br>"
-        "\xe2\x80\xa2 Calcolo normali e filtraggio statistico<br>"
-        "\xe2\x80\xa2 Registrazione ICP tra nuvole<br>"
-        "\xe2\x80\xa2 Calcolo distanze Hausdorff<br>"
-        "\xe2\x80\xa2 Segmentazione e classificazione AI<br>"
-        "\xe2\x80\xa2 Esportazione PLY / LAS / CSV<br><br>"
-        "<b>Bridge:</b> CloudComPy (Python wrapper di CloudCompare)<br>"
-        "Repository: "
-        "<a href='https://github.com/CloudCompare/CloudComPy'>"
-        "github.com/CloudCompare/CloudComPy</a>",
-        group);
-    statusLbl->setWordWrap(true);
-    statusLbl->setOpenExternalLinks(true);
-    statusLbl->setObjectName("hintLabel");
-    glay->addWidget(statusLbl);
+    /* Azioni principali */
+    auto* actGroup = new QGroupBox("\xf0\x9f\x9a\x80  Azioni", w);
+    auto* actLay   = new QHBoxLayout(actGroup);
+    actLay->setSpacing(8);
 
-    auto* ccHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto — CloudComPy", group);
-    ccHelpBtn->setObjectName("actionBtn");
-    ccHelpBtn->setFixedWidth(dpiScale(200));
-    glay->addWidget(ccHelpBtn, 0, Qt::AlignLeft);
-    glay->addStretch();
+    auto* btnLaunch  = new QPushButton("\xf0\x9f\x94\xb5  Avvia CloudCompare", actGroup);
+    auto* btnOpenFile = new QPushButton("\xf0\x9f\x93\x82  Apri file 3D\xe2\x80\xa6", actGroup);
+    auto* btnAiScript = new QPushButton("\xf0\x9f\xa4\x96  Genera script Open3D", actGroup);
+    auto* btnHelp    = new QPushButton("\xf0\x9f\x9b\x9f  Guida install.", actGroup);
 
-    connect(ccHelpBtn, &QPushButton::clicked,
-            this, &AppControllerPage::onCcHelpClicked);
+    for (auto* b : {btnLaunch, btnOpenFile, btnAiScript, btnHelp})
+        b->setObjectName("actionBtn");
 
+    actLay->addWidget(btnLaunch);
+    actLay->addWidget(btnOpenFile);
+    actLay->addWidget(btnAiScript);
+    actLay->addStretch();
+    actLay->addWidget(btnHelp);
+    lay->addWidget(actGroup);
+
+    connect(btnLaunch,   &QPushButton::clicked, this, &AppControllerPage::onCcLaunchClicked);
+    connect(btnOpenFile, &QPushButton::clicked, this, &AppControllerPage::onCcOpenFileClicked);
+    connect(btnAiScript, &QPushButton::clicked, this, &AppControllerPage::onCcAiScriptClicked);
+    connect(btnHelp,     &QPushButton::clicked, this, &AppControllerPage::onCcHelpClicked);
+
+    /* Output log */
     m_ccOutput = new QTextEdit(w);
     m_ccOutput->setReadOnly(true);
     m_ccOutput->setObjectName("outputView");
-    m_ccOutput->setPlaceholderText(tr("Output CloudCompare apparirà qui (prossimamente)..."));
-
-    lay->addWidget(group, 1);
+    m_ccOutput->setPlaceholderText(tr("Output CloudCompare / script Open3D apparirà qui\xe2\x80\xa6"));
     lay->addWidget(m_ccOutput, 1);
 
     return w;

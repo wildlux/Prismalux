@@ -29,6 +29,9 @@
 #include <QDateTime>
 #include <QDialog>
 #include <QDir>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QStandardPaths>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -725,6 +728,108 @@ void AppControllerPage::onCcHelpClicked()
     dlay->addWidget(browser);
     dlay->addWidget(btnClose);
     dlg->exec();
+}
+
+void AppControllerPage::onCcLaunchClicked()
+{
+    const QString exe = m_ccPathEdit ? m_ccPathEdit->text().trimmed() : "cloudcompare";
+    const QString resolved = exe.isEmpty()
+        ? QStandardPaths::findExecutable("cloudcompare") : exe;
+
+    if (resolved.isEmpty()) {
+        m_ccOutput->append(
+            "\xe2\x9d\x8c  CloudCompare non trovato. "  /* ❌ */
+            "Installa con: sudo apt install cloudcompare");
+        return;
+    }
+    if (!QProcess::startDetached(resolved, {}))
+        m_ccOutput->append("\xe2\x9d\x8c  Impossibile avviare CloudCompare: " + resolved);
+    else
+        m_ccOutput->append("\xf0\x9f\x94\xb5  CloudCompare avviato: " + resolved);
+}
+
+void AppControllerPage::onCcOpenFileClicked()
+{
+    const QString exe = m_ccPathEdit ? m_ccPathEdit->text().trimmed() : "cloudcompare";
+    const QString resolved = exe.isEmpty()
+        ? QStandardPaths::findExecutable("cloudcompare") : exe;
+
+    const QString path = QFileDialog::getOpenFileName(this,
+        tr("Apri file 3D"), QDir::homePath(),
+        tr("Nuvole di punti (*.las *.laz *.ply *.pcd *.e57 *.bin *.xyz *.csv);;Tutti i file (*)"));
+    if (path.isEmpty()) return;
+
+    m_ccOutput->append("\xf0\x9f\x93\x82  Apertura: " + path);
+
+    if (resolved.isEmpty()) {
+        /* CloudCompare non installato — mostra info sul file */
+        QFileInfo fi(path);
+        m_ccOutput->append(QString(
+            "\xe2\x84\xb9  File: %1\n  Formato: %2\n  Dimensione: %3 KB\n\n"
+            "CloudCompare non trovato. Genera uno script Open3D con il pulsante accanto.")
+            .arg(fi.fileName(), fi.suffix().toUpper())
+            .arg(fi.size() / 1024));
+        return;
+    }
+    if (!QProcess::startDetached(resolved, {path}))
+        m_ccOutput->append("\xe2\x9d\x8c  Impossibile aprire il file con CloudCompare.");
+}
+
+void AppControllerPage::onCcAiScriptClicked()
+{
+    const QString path = QFileDialog::getOpenFileName(this,
+        tr("Seleziona file 3D"), QDir::homePath(),
+        tr("Nuvole di punti (*.las *.laz *.ply *.pcd *.e57 *.xyz);;Tutti i file (*)"));
+    if (path.isEmpty()) return;
+
+    QFileInfo fi(path);
+    const QString fmt = fi.suffix().toLower();
+    const QString loadFn = (fmt == "las" || fmt == "laz")
+        ? "o3d.t.io.read_point_cloud"   /* Open3D legacy las non è supportato direttamente */
+        : "o3d.io.read_point_cloud";
+
+    const QString script =
+        "#!/usr/bin/env python3\n"
+        "# Script Open3D generato da Prismalux\n"
+        "# File: " + path + "\n\n"
+        "import open3d as o3d\nimport numpy as np\n\n"
+        "# Carica la nuvola di punti\n"
+        "pcd = " + loadFn + "(\"" + path + "\")\n"
+        "print(f\"Punti totali: {len(pcd.points)}\")\n\n"
+        "# Stima normali\n"
+        "pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(\n"
+        "    radius=0.1, max_nn=30))\n\n"
+        "# Filtraggio statistico outlier\n"
+        "cl, ind = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)\n"
+        "pcd_clean = pcd.select_by_index(ind)\n"
+        "print(f\"Punti dopo pulizia: {len(pcd_clean.points)}\")\n\n"
+        "# Visualizza\n"
+        "o3d.visualization.draw_geometries([pcd_clean],\n"
+        "    window_name=\"" + fi.fileName() + " — Prismalux\",\n"
+        "    width=1024, height=768)\n";
+
+    m_ccOutput->setPlainText(script);
+    m_ccOutput->append(
+        "\n# Esegui con: python3 script.py\n"
+        "# Requisiti: pip install open3d\n");
+}
+
+void AppControllerPage::onCcProcError(QProcess::ProcessError err)
+{
+    if (err == QProcess::FailedToStart)
+        m_ccOutput->append("\xe2\x9d\x8c  CloudCompare non avviabile — verifica percorso.");
+    if (m_ccProc) { m_ccProc->deleteLater(); m_ccProc = nullptr; }
+}
+
+void AppControllerPage::onCcProcFinished(int exitCode, QProcess::ExitStatus)
+{
+    if (m_ccProc) {
+        m_ccOutput->append(m_ccProc->readAllStandardOutput());
+        m_ccProc->deleteLater();
+        m_ccProc = nullptr;
+    }
+    if (exitCode != 0)
+        m_ccOutput->append(QString("\xe2\x9d\x8c  Uscita con codice %1").arg(exitCode));
 }
 
 /* ======================================================================

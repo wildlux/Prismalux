@@ -68,7 +68,7 @@ Non è mai stato implementato.
 
 ---
 
-## FEAT-3 — Android APK rebuild v3.0
+## ✅ FEAT-3 — Android APK rebuild v3.0 *(versione aggiornata 2026-06-22)*
 **Priorità:** Media (solo se si distribuisce l'APK)  
 **File:** `ANDROID/` + `EXPORT/android/build_apk.sh`  
 **Problema:** L'APK in `ANDROID/PrismaluxMobile.apk` è compilato con versione precedente.
@@ -81,7 +81,7 @@ Il roadmap `TODO_ANDROID_ROADMAP.md` segna tutti i task ✅ ma l'APK non è stat
 
 ---
 
-## FEAT-4 — CloudCompare integrazione reale
+## ✅ FEAT-4 — CloudCompare integrazione reale *(completato 2026-06-22)*
 **Priorità:** Media — tab visibile nella UI come placeholder  
 **File:** `gui/pages/main_tools.cpp` riga 304, `gui/pages/main_app_controller.cpp` riga 1358  
 **Problema:** Il tab "CloudCompare" in StrumentiPage (indice 9) e in AppController hanno solo stub:
@@ -120,7 +120,7 @@ QKeychain è già una dipendenza del progetto (usato per i token LAN in `gui/pag
 
 ---
 
-## FEAT-5 — Pipeline DPO/feedback dai 👍/👎
+## ✅ FEAT-5 — Pipeline DPO/feedback dai 👍/👎 *(completato 2026-06-22)*
 **Priorità:** Bassa — feature ricerca, nessun impatto immediato  
 **File:** `gui/prismalux_paths.h` riga 473, `gui/pages/main_ai_feedback.cpp`  
 **Problema:** Il sistema raccoglie feedback 👍/👎 per ogni risposta AI e lo salva in JSONL

@@ -209,6 +209,7 @@ private:
     QWidget* buildPuliziaTab();       ///< pulizia file temporanei, build, cache
     QWidget* buildMcpTab();           ///< configurazione Model Context Protocol
     QWidget* buildRingraziamentiTab(); ///< licenza MIT + crediti autore e librerie
+    QWidget* buildFeedbackTab();        ///< analytics 👍/👎 + export DPO dataset
     QWidget* buildAiMemoryTab();      ///< AIMemory storia preferenze (gitLog + revertFile)
     QWidget* buildSistemaConsigliTab(); ///< consigli ottimizzazione hardware/temperatura
     QWidget* buildSicurezzaWanTab();  ///< TLS WAN cert + pin + WireGuard keys

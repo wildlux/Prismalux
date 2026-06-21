@@ -286,6 +286,11 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
     tabs->addTab(new McpManagerPage(tabs), "\xf0\x9f\x94\x8c  Gestione MCP");
 
     /* ════════════════════════════════════════════════════════════
+       Tab 6: 📊 Feedback — analytics 👍/👎 + export DPO
+       ════════════════════════════════════════════════════════════ */
+    tabs->addTab(buildFeedbackTab(), "\xf0\x9f\x93\x8a  Feedback");
+
+    /* ════════════════════════════════════════════════════════════
        Tab 7: 📜 Ringraziamenti — licenza MIT + crediti
        ════════════════════════════════════════════════════════════ */
     tabs->addTab(buildRingraziamentiTab(), "\xf0\x9f\x93\x9c  Ringraziamenti");

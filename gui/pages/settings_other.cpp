@@ -45,6 +45,7 @@ namespace P = PrismaluxPaths;
 #include <QRadioButton>
 #include <QCheckBox>
 #include <QListWidget>
+#include <QHash>
 #include <QTableWidget>
 #include <QHeaderView>
 #include <QGroupBox>
@@ -977,6 +978,168 @@ QWidget* ImpostazioniPage::buildAiMemoryTab()
     btnRow->addWidget(openBtn);
 
     vbox->addLayout(btnRow);
+    return w;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildFeedbackTab — analytics 👍/👎 + export DPO dataset
+   Legge ~/.prismalux/feedback.jsonl e mostra statistiche aggregate
+   per modello. Pulsante export genera dataset ShareGPT/Alpaca.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildFeedbackTab()
+{
+    auto* w    = new QWidget;
+    auto* vbox = new QVBoxLayout(w);
+    vbox->setContentsMargins(16, 16, 16, 16);
+    vbox->setSpacing(10);
+
+    /* Intestazione */
+    auto* titleLbl = new QLabel(
+        "\xf0\x9f\x93\x8a  <b>Analytics Feedback 👍 / 👎</b><br>"
+        "<small>Il sistema raccoglie il feedback per ogni risposta AI. "
+        "I dati restano solo sul tuo dispositivo.</small>", w);
+    titleLbl->setTextFormat(Qt::RichText);
+    titleLbl->setWordWrap(true);
+    vbox->addWidget(titleLbl);
+
+    /* Tabella statistiche */
+    auto* table = new QTableWidget(0, 4, w);
+    table->setHorizontalHeaderLabels({
+        tr("Modello"), tr("\xf0\x9f\x91\x8d Positivi"), tr("\xf0\x9f\x91\x8e Negativi"), tr("Totale")
+    });
+    table->horizontalHeader()->setStretchLastSection(true);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table->setObjectName("outputView");
+    vbox->addWidget(table, 1);
+
+    /* Riga bassa: pulsanti */
+    auto* btnRow = new QHBoxLayout;
+    auto* btnRefresh = new QPushButton("\xf0\x9f\x94\x84  Aggiorna", w);
+    auto* btnExport  = new QPushButton("\xf0\x9f\x93\xa4  Esporta dataset DPO (ShareGPT)", w);
+    auto* btnClear   = new QPushButton("\xf0\x9f\x97\x91  Cancella dati", w);
+    btnRefresh->setObjectName("actionBtn");
+    btnExport->setObjectName("actionBtn");
+    btnClear->setObjectName("actionBtn");
+    auto* statLbl    = new QLabel(w);
+    statLbl->setWordWrap(true);
+    btnRow->addWidget(btnRefresh);
+    btnRow->addWidget(btnExport);
+    btnRow->addStretch();
+    btnRow->addWidget(btnClear);
+    vbox->addWidget(statLbl);
+    vbox->addLayout(btnRow);
+
+    /* Helper: ricarica tabella da JSONL */
+    auto loadData = [table, statLbl]() {
+        const QString path = PrismaluxPaths::feedbackPath();
+        QFile f(path);
+        table->setRowCount(0);
+        if (!f.exists()) {
+            statLbl->setText(tr("\xe2\x84\xb9  Nessun feedback raccolto ancora."));
+            return;
+        }
+        /* Aggrega per modello */
+        QMap<QString, QPair<int,int>> counts;   /* model → (pos, neg) */
+        if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            while (!f.atEnd()) {
+                const QByteArray line = f.readLine().trimmed();
+                if (line.isEmpty()) continue;
+                QJsonParseError pe;
+                auto doc = QJsonDocument::fromJson(line, &pe);
+                if (pe.error != QJsonParseError::NoError) continue;
+                const QString model  = doc["model"].toString();
+                const int     rating = doc["rating"].toInt();
+                auto& p = counts[model];
+                if (rating > 0) p.first++;
+                else             p.second++;
+            }
+            f.close();
+        }
+        int totalPos = 0, totalNeg = 0;
+        for (auto it = counts.cbegin(); it != counts.cend(); ++it) {
+            const int row = table->rowCount();
+            table->insertRow(row);
+            table->setItem(row, 0, new QTableWidgetItem(it.key()));
+            table->setItem(row, 1, new QTableWidgetItem(
+                QString::number(it.value().first)));
+            table->setItem(row, 2, new QTableWidgetItem(
+                QString::number(it.value().second)));
+            table->setItem(row, 3, new QTableWidgetItem(
+                QString::number(it.value().first + it.value().second)));
+            totalPos += it.value().first;
+            totalNeg += it.value().second;
+        }
+        statLbl->setText(QString(
+            tr("\xf0\x9f\x93\x88  Totale: %1 positivi / %2 negativi su %3 risposte valutate"))
+            .arg(totalPos).arg(totalNeg).arg(totalPos + totalNeg));
+    };
+    loadData();
+
+    connect(btnRefresh, &QPushButton::clicked, w, [loadData]{ loadData(); });
+
+    connect(btnExport, &QPushButton::clicked, w, [w, statLbl]() {
+        const QString src = PrismaluxPaths::feedbackPath();
+        QFile f(src);
+        if (!f.exists() || !f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            statLbl->setText(tr("\xe2\x9d\x8c  Nessun dato da esportare."));
+            return;
+        }
+        /* Costruisce coppie chosen/rejected in formato ShareGPT */
+        /* Strategia semplice: ogni +1 è "chosen", ogni -1 è "rejected".
+           Coppie: prompt ripetuto → abbinato manualmente se stessa domanda. */
+        QJsonArray dataset;
+        QHash<QString, QJsonObject> positives;   /* prompt → entry pos */
+        while (!f.atEnd()) {
+            const QByteArray line = f.readLine().trimmed();
+            if (line.isEmpty()) continue;
+            QJsonParseError pe;
+            auto doc = QJsonDocument::fromJson(line, &pe);
+            if (pe.error != QJsonParseError::NoError) continue;
+            const QString prompt   = doc["prompt"].toString();
+            const QString response = doc["response"].toString();
+            const int     rating   = doc["rating"].toInt();
+            const QString model    = doc["model"].toString();
+            if (rating > 0) {
+                positives[prompt] = doc.object();
+            } else if (rating < 0 && positives.contains(prompt)) {
+                /* Coppia DPO: chosen = risposta positiva, rejected = negativa */
+                QJsonObject pair;
+                pair["instruction"] = prompt;
+                pair["chosen"]      = positives[prompt]["response"].toString();
+                pair["rejected"]    = response;
+                pair["model"]       = model;
+                dataset.append(pair);
+            }
+        }
+        f.close();
+        const QString outPath = QDir::homePath()
+            + "/.prismalux/dpo_dataset_"
+            + QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss")
+            + ".json";
+        QFile out(outPath);
+        if (out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            out.write(QJsonDocument(dataset).toJson(QJsonDocument::Indented));
+            out.close();
+            statLbl->setText(
+                QString(tr("\xe2\x9c\x85  Dataset DPO esportato: %1 coppie in %2"))
+                .arg(dataset.size()).arg(outPath));
+        } else {
+            statLbl->setText(tr("\xe2\x9d\x8c  Impossibile scrivere: ") + outPath);
+        }
+    });
+
+    connect(btnClear, &QPushButton::clicked, w, [w, table, statLbl, loadData]() {
+        const auto ans = QMessageBox::question(w,
+            tr("Cancella feedback"),
+            tr("Eliminare tutti i dati di feedback?\nQuesta azione \xc3\xa8 irreversibile."),
+            QMessageBox::Yes | QMessageBox::No);
+        if (ans != QMessageBox::Yes) return;
+        QFile::remove(PrismaluxPaths::feedbackPath());
+        table->setRowCount(0);
+        statLbl->setText(tr("\xf0\x9f\x97\x91  Dati feedback cancellati."));
+    });
+
     return w;
 }
 

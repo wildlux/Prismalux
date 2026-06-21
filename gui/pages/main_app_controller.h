@@ -106,7 +106,10 @@ private:
     QProcess*              m_officeBridgeProc = nullptr;
 
     /* ── CloudCompare ── */
-    QTextEdit*  m_ccOutput = nullptr;
+    QTextEdit*   m_ccOutput    = nullptr;
+    QLabel*      m_ccStatusLbl = nullptr;   ///< rilevamento installazione
+    QLineEdit*   m_ccPathEdit  = nullptr;   ///< percorso manuale CloudCompare
+    QProcess*    m_ccProc      = nullptr;   ///< processo aperto
 
     /* ── Anki MCP ── */
     QLineEdit*   m_ankiHostEdit  = nullptr;
@@ -267,6 +270,11 @@ private:
 
     /* ── Slot estratti da lambda — CloudCompare ── */
     void onCcHelpClicked();
+    void onCcLaunchClicked();
+    void onCcOpenFileClicked();
+    void onCcAiScriptClicked();
+    void onCcProcError(QProcess::ProcessError err);
+    void onCcProcFinished(int exitCode, QProcess::ExitStatus);
 
     /* ── Slot estratti da lambda — Anki ── */
     void onAnkiPingClicked();
