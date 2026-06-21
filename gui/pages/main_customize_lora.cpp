@@ -9,6 +9,7 @@
    Il dataset deve essere un file JSONL con righe {"text": "..."}
    Il risultato è un file .gguf fine-tunato (adapter + merge).
    ══════════════════════════════════════════════════════════════ */
+#include "../dpi_utils.h"
 #include "main_customize.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
@@ -110,7 +111,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
         m_loraModelEdit = new QLineEdit(grpModel);
         m_loraModelEdit->setPlaceholderText(tr("Path assoluto al modello GGUF base..."));
         auto* modelBtn  = new QPushButton("\xf0\x9f\x93\x82", grpModel);
-        modelBtn->setFixedWidth(32);
+        modelBtn->setFixedWidth(dpiScale(32));
         modelBtn->setToolTip(tr("Seleziona file .gguf"));
         mLay->addWidget(m_loraModelEdit, 1);
         mLay->addWidget(modelBtn);
@@ -125,7 +126,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
         m_loraDataEdit = new QLineEdit(grpData);
         m_loraDataEdit->setPlaceholderText(tr("Path al file JSONL (righe: {\"text\": \"...\"})"));
         auto* dataBtn  = new QPushButton("\xf0\x9f\x93\x82", grpData);
-        dataBtn->setFixedWidth(32);
+        dataBtn->setFixedWidth(dpiScale(32));
         dataBtn->setToolTip(tr("Seleziona dataset JSONL"));
         dLay->addWidget(m_loraDataEdit, 1);
         dLay->addWidget(dataBtn);
@@ -190,7 +191,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
         m_loraOutEdit = new QLineEdit(grpOut);
         m_loraOutEdit->setText(QDir::homePath() + "/lora_output");
         auto* outBtn  = new QPushButton("\xf0\x9f\x93\x82", grpOut);
-        outBtn->setFixedWidth(32);
+        outBtn->setFixedWidth(dpiScale(32));
         oLay->addWidget(m_loraOutEdit, 1);
         oLay->addWidget(outBtn);
         connect(outBtn, &QPushButton::clicked,
@@ -286,7 +287,7 @@ QWidget* PersonalizzaPage::buildLoraTab()
             "\xf0\x9f\x93\xa6  pip install unsloth trl datasets transformers", tab);
         installBtn->setObjectName("actionBtn");
         m_loraLog2 = makeLog("Log installazione...");
-        m_loraLog2->setFixedHeight(100);
+        m_loraLog2->setFixedHeight(dpiScale(100));
 
         connect(installBtn, &QPushButton::clicked,
                 this, &PersonalizzaPage::onLoraInstallBtnClicked);

@@ -1257,6 +1257,17 @@ if(BUILD_TESTS)
         target_link_libraries(test_graph_memory PRIVATE pthread m)
     endif()
 
+    # ── test_graph_memory_concurrent: accesso concorrente a GraphMemory (2 istanze stesso DB) ──
+    add_executable(test_graph_memory_concurrent
+        tests/test_graph_memory_concurrent.cpp
+        graph_memory.cpp
+    )
+    target_include_directories(test_graph_memory_concurrent PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_graph_memory_concurrent PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_graph_memory_concurrent PRIVATE pthread m)
+    endif()
+
     # ── test_pratico_finanza: normalizzaComune, cercaBelfiore, calcolaCodiceFiscale ──
     add_executable(test_pratico_finanza
         tests/test_pratico_finanza.cpp
@@ -1403,6 +1414,7 @@ if(BUILD_TESTS)
 
     enable_testing()
     add_test(NAME GraphMemory           COMMAND test_graph_memory)
+    add_test(NAME GraphMemoryConcurrent COMMAND test_graph_memory_concurrent)
     add_test(NAME PraticoFinanza        COMMAND test_pratico_finanza)
     add_test(NAME SignalLifetime        COMMAND test_signal_lifetime)
     add_test(NAME RagEngine            COMMAND test_rag_engine)
@@ -1473,7 +1485,8 @@ if(BUILD_TESTS)
     # Serializza i test che usano Ollama reale: con -j4 girano in parallelo e saturano RAM/CPU
     set_tests_properties(AiIntegration AiStress TeamCollab MultiAgenteLive
         PROPERTIES RESOURCE_LOCK ollama)
-    set_tests_properties(GraphMemory        PROPERTIES TIMEOUT 30)
+    set_tests_properties(GraphMemory            PROPERTIES TIMEOUT 30)
+    set_tests_properties(GraphMemoryConcurrent  PROPERTIES TIMEOUT 30)
     set_tests_properties(LanServer              PROPERTIES TIMEOUT 30)
     set_tests_properties(LanServerEndpoints     PROPERTIES TIMEOUT 30)
     set_tests_properties(ThemeManagerCrash      PROPERTIES TIMEOUT 30)

@@ -1,4 +1,5 @@
 #include "widget_avogadro.h"
+#include "../dpi_utils.h"
 #include "../prismalux_paths.h"
 #include "../widgets/model_combo_box.h"
 #include <QVBoxLayout>
@@ -60,10 +61,10 @@ AvogadroWidget::AvogadroWidget(AiClient* ai, QWidget* parent)
     m_statusLbl->setObjectName("hintLabel");
     auto* checkBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica avogadro", connRow);
     checkBtn->setObjectName("actionBtn");
-    checkBtn->setFixedWidth(150);
+    checkBtn->setFixedWidth(dpiScale(150));
     m_execBtn = new QPushButton("\xf0\x9f\xa7\xaa  Esegui script", connRow);
     m_execBtn->setObjectName("actionBtn");
-    m_execBtn->setFixedWidth(150);
+    m_execBtn->setFixedWidth(dpiScale(150));
     m_execBtn->setEnabled(false);
     connLay->addWidget(m_statusLbl, 1);
     connLay->addWidget(checkBtn);
@@ -95,7 +96,7 @@ AvogadroWidget::AvogadroWidget(AiClient* ai, QWidget* parent)
     m_input->setPlaceholderText(
         "Descrivi la molecola da modellare...\n"
         "Es: 'Genera la struttura 3D ottimizzata dell'acido acetilsalicilico (aspirina)'");
-    m_input->setFixedHeight(80);
+    m_input->setFixedHeight(dpiScale(80));
     lay->addWidget(m_input);
 
     auto* btnRow = new QWidget(this);
@@ -127,9 +128,14 @@ AvogadroWidget::AvogadroWidget(AiClient* ai, QWidget* parent)
 void AvogadroWidget::onCheckClicked()
 {
     auto* proc = new QProcess(this);
-    proc->start(P::findPython(), {"-c", "import avogadro; print('avogadro OK')"});
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &AvogadroWidget::onCheckFinished);
+    connect(proc, &QProcess::errorOccurred, this,
+        [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                m_statusLbl->setText(tr("\xe2\x9d\x8c  Python non trovato"));
+        });
+    proc->start(P::findPython(), {"-c", "import avogadro; print('avogadro OK')"});
 }
 
 void AvogadroWidget::onCheckFinished(int code, QProcess::ExitStatus)

@@ -1,4 +1,5 @@
 #include "main_maintenance.h"
+#include "../dpi_utils.h"
 #include "../prismalux_paths.h"
 #include "../widgets/model_combo_helper.h"
 #include "../log_bus.h"
@@ -112,7 +113,7 @@ QGroupBox* ManutenzioneePage::buildConnectionModelGroup(QWidget* parent)
 {
     auto* grp = new QGroupBox("\xf0\x9f\x94\x8c  Connessione & Modello", parent);
     grp->setObjectName("cardGroup");
-    grp->setFixedWidth(270);
+    grp->setFixedWidth(dpiScale(270));
     auto* lay = new QVBoxLayout(grp);
     lay->setSpacing(6);
 
@@ -175,7 +176,7 @@ QWidget* ManutenzioneePage::buildModelButtonRow(QGroupBox* parent)
 
     auto* refreshBtn = new QPushButton("\xf0\x9f\x94\x84", parent);
     refreshBtn->setObjectName("actionBtn");
-    refreshBtn->setFixedWidth(36);
+    refreshBtn->setFixedWidth(dpiScale(36));
     refreshBtn->setToolTip(tr("Aggiorna lista modelli"));
     refreshBtn->setAccessibleName("Aggiorna lista modelli AI");
     auto* setModelBtn = new QPushButton("\xe2\x9c\x93  Usa questo", parent);
@@ -274,7 +275,7 @@ void ManutenzioneePage::buildLlamaServerSection(QGroupBox* grp, QVBoxLayout* lay
     m_srvModelPath->setPlaceholderText(tr("percorso/al/modello.gguf"));
     auto* srvBrowse = new QPushButton("\xe2\x80\xa6", m_grpServ);
     srvBrowse->setObjectName("actionBtn");
-    srvBrowse->setFixedWidth(32);
+    srvBrowse->setFixedWidth(dpiScale(32));
     srvModelL->addWidget(new QLabel("Modello:", srvModelRow));
     srvModelL->addWidget(m_srvModelPath, 1);
     srvModelL->addWidget(srvBrowse);
@@ -287,7 +288,7 @@ void ManutenzioneePage::buildLlamaServerSection(QGroupBox* grp, QVBoxLayout* lay
     srvCtrlL->setSpacing(8);
     m_srvPort = new QLineEdit(QString::number(P::kLlamaServerPort), m_grpServ);
     m_srvPort->setObjectName("chatInput");
-    m_srvPort->setFixedWidth(70);
+    m_srvPort->setFixedWidth(dpiScale(70));
     m_srvStartBtn = new QPushButton("\xe2\x96\xb6  Avvia", m_grpServ);
     m_srvStartBtn->setObjectName("actionBtn");
     m_srvStopBtn = new QPushButton("\xe2\x96\xa0  Stop", m_grpServ);
@@ -339,7 +340,7 @@ QGroupBox* ManutenzioneePage::buildUpdateGroup(QWidget* parent)
     verLay->addWidget(m_verLbl, 1);
     auto* verBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica", verRow);
     verBtn->setObjectName("actionBtn");
-    verBtn->setFixedWidth(90);
+    verBtn->setFixedWidth(dpiScale(90));
     verLay->addWidget(verBtn);
     lay->addWidget(verRow);
 
@@ -570,7 +571,7 @@ QGroupBox* ManutenzioneePage::buildInfoHardwareGroup(QWidget* parent)
 {
     auto* grp = new QGroupBox("\xf0\x9f\x96\xa5  Info Hardware", parent);
     grp->setObjectName("cardGroup");
-    grp->setFixedWidth(220);
+    grp->setFixedWidth(dpiScale(220));
     auto* lay = new QVBoxLayout(grp);
 
     m_hwLabel = new QLabel("\xe2\x8f\xb3  Rilevamento hardware in corso...", grp);
@@ -833,8 +834,8 @@ QGroupBox* ManutenzioneePage::buildNpuGroup(QWidget* parent)
     npuHint->setObjectName("hintLabel");
     auto* copyBtnNpu = new QPushButton("\xf0\x9f\x93\x8b", grp);  /* 📋 */
     copyBtnNpu->setObjectName("actionBtn");
-    copyBtnNpu->setFixedWidth(28);
-    copyBtnNpu->setFixedHeight(24);
+    copyBtnNpu->setFixedWidth(dpiScale(28));
+    copyBtnNpu->setFixedHeight(dpiScale(24));
     copyBtnNpu->setToolTip(tr("Copia comando pip negli appunti"));
     connect(copyBtnNpu, &QPushButton::clicked, grp, [=]() {
         QApplication::clipboard()->setText(tr("pip install intel-npu-acceleration-library"));

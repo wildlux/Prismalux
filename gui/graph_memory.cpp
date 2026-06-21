@@ -69,7 +69,14 @@ void GraphMemory::close()
 #ifdef HAVE_QT_SQL
     {
         QSqlDatabase db = QSqlDatabase::database(m_connName);
-        if (db.isOpen()) db.close();
+        if (db.isOpen()) {
+            /* Forza flush WAL→DB principale prima di chiudere.
+               Senza questo, una nuova connessione allo stesso file non
+               vede le scritture finché SQLite non raggiunge il threshold
+               di autocheckpoint (default 1000 pagine). */
+            QSqlQuery(db).exec("PRAGMA wal_checkpoint(FULL)");
+            db.close();
+        }
     }
     QSqlDatabase::removeDatabase(m_connName);
 #endif

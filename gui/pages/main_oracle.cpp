@@ -1,4 +1,5 @@
 #include "main_oracle.h"
+#include "../dpi_utils.h"
 #include "../ai_client.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
@@ -91,7 +92,7 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     m_sysEdit->setObjectName("chatInput");
     m_sysEdit->setPlaceholderText(
         "System prompt — definisce il comportamento dell'AI...");
-    m_sysEdit->setFixedHeight(64);
+    m_sysEdit->setFixedHeight(dpiScale(64));
     m_sysEdit->setVisible(false);
     lay->addWidget(m_sysEdit);
 
@@ -151,7 +152,7 @@ OracoloPage::OracoloPage(AiClient* ai, QWidget* parent)
     m_input->setObjectName("chatInput");
     m_input->setPlaceholderText(
         "Scrivi il tuo messaggio qui... (Enter per inviare, Shift+Enter per andare a capo, \xf0\x9f\x8e\xa4 per parlare)");
-    m_input->setFixedHeight(70);
+    m_input->setFixedHeight(dpiScale(70));
     m_input->setLineWrapMode(QPlainTextEdit::WidgetWidth);
     m_input->installEventFilter(new InputFilter(this));
 

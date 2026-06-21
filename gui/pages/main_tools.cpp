@@ -1,4 +1,5 @@
 #include "main_tools.h"
+#include "../dpi_utils.h"
 #include "main_learn.h"
 #include "main_tools_file.h"
 #include "../widgets/proc_helper.h"
@@ -697,7 +698,7 @@ QWidget* StrumentiPage::buildCatScrollArea()
     catScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     catScroll->setWidget(catBar);
     catScroll->setWidgetResizable(true);
-    catScroll->setFixedHeight(52);
+    catScroll->setFixedHeight(dpiScale(52));
     return catScroll;
 }
 
@@ -764,7 +765,7 @@ QWidget* StrumentiPage::buildCodeModelRow()
     lay->addWidget(m_codeModelCombo);
 
     m_codeModelRefresh = new QPushButton("\xf0\x9f\x94\x84", m_codeModelRow);
-    m_codeModelRefresh->setFixedWidth(32);
+    m_codeModelRefresh->setFixedWidth(dpiScale(32));
     m_codeModelRefresh->setToolTip(tr("Aggiorna lista modelli"));
     lay->addWidget(m_codeModelRefresh);
 
@@ -806,7 +807,7 @@ QWidget* StrumentiPage::buildInputRow()
     m_btnRun->setObjectName("actionBtn");
     m_btnRun->setToolTip(tr("Invia la richiesta al modello AI (Invio+Ctrl)"));
     m_btnRun->setAccessibleName("Esegui richiesta AI");
-    m_btnRun->setFixedWidth(110);
+    m_btnRun->setFixedWidth(dpiScale(110));
 
     m_waitLbl = new QLabel(m_inputRow);
     m_waitLbl->setStyleSheet(
@@ -885,7 +886,7 @@ QWidget* StrumentiPage::buildRagRow()
 
     auto* ragAddBtn = new QPushButton("\xf0\x9f\x93\x82  Aggiungi", row);
     ragAddBtn->setObjectName("actionBtn");
-    ragAddBtn->setFixedWidth(100);
+    ragAddBtn->setFixedWidth(dpiScale(100));
     ragAddBtn->setToolTip(tr("Aggiungi PDF, TXT o Markdown all'indice RAG"));
     lay->addWidget(ragAddBtn);
 
@@ -896,7 +897,7 @@ QWidget* StrumentiPage::buildRagRow()
     auto* ragClearBtn = new QPushButton("\xf0\x9f\x97\x91  Svuota", row);
     ragClearBtn->setObjectName("actionBtn");
     ragClearBtn->setToolTip(tr("Rimuove tutti i documenti dall'indice RAG in-page"));
-    ragClearBtn->setFixedWidth(80);
+    ragClearBtn->setFixedWidth(dpiScale(80));
     lay->addWidget(ragClearBtn);
 
     connect(ragAddBtn,   &QPushButton::clicked,
@@ -922,7 +923,7 @@ QWidget* StrumentiPage::buildPdfRow()
     pdfBtn->setObjectName("actionBtn");
     pdfBtn->setToolTip(
         "Seleziona un file PDF da usare come contesto per la generazione AI");
-    pdfBtn->setFixedWidth(130);
+    pdfBtn->setFixedWidth(dpiScale(130));
 
     m_pdfPathLbl = new QLabel("Nessun PDF caricato", row);
     m_pdfPathLbl->setObjectName("hintLabel");
@@ -953,14 +954,14 @@ QWidget* StrumentiPage::buildBlenderRow()
     lbl->setObjectName("hintLabel");
 
     m_blenderHostEdit = new QLineEdit("localhost:6789", row);
-    m_blenderHostEdit->setFixedWidth(160);
+    m_blenderHostEdit->setFixedWidth(dpiScale(160));
     m_blenderHostEdit->setPlaceholderText(tr("localhost:6789"));
 
     auto* blenderPingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", row);
     blenderPingBtn->setObjectName("actionBtn");
     blenderPingBtn->setToolTip(
         "Testa la connessione TCP al bridge Blender (porta 9001 default)");
-    blenderPingBtn->setFixedWidth(100);
+    blenderPingBtn->setFixedWidth(dpiScale(100));
 
     m_blenderStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", row);
     m_blenderStatusLbl->setObjectName("hintLabel");
@@ -970,13 +971,13 @@ QWidget* StrumentiPage::buildBlenderRow()
     m_blenderExecBtn->setObjectName("actionBtn");
     m_blenderExecBtn->setToolTip(
         "Invia il codice Python generato a Blender via bridge MCP");
-    m_blenderExecBtn->setFixedWidth(160);
+    m_blenderExecBtn->setFixedWidth(dpiScale(160));
     m_blenderExecBtn->setEnabled(false);
 
     auto* blenderHelpBtn = new QPushButton(
         "\xf0\x9f\x9b\x9f \xf0\x9f\x94\xa7  Aiuto", row);
     blenderHelpBtn->setObjectName("actionBtn");
-    blenderHelpBtn->setFixedWidth(90);
+    blenderHelpBtn->setFixedWidth(dpiScale(90));
 
     lay->addWidget(lbl);
     lay->addWidget(m_blenderHostEdit);
@@ -1041,7 +1042,7 @@ QWidget* StrumentiPage::buildOfficeRow()
     m_officeStartBtn->setObjectName("actionBtn");
     m_officeStartBtn->setToolTip(
         "Avvia il bridge Python che si connette a LibreOffice via UNO API");
-    m_officeStartBtn->setFixedWidth(120);
+    m_officeStartBtn->setFixedWidth(dpiScale(120));
 
     m_officeStatusLbl = new QLabel("\xe2\x9a\xaa  Bridge non avviato", row);
     m_officeStatusLbl->setObjectName("hintLabel");
@@ -1050,13 +1051,13 @@ QWidget* StrumentiPage::buildOfficeRow()
     m_officeExecBtn->setObjectName("actionBtn");
     m_officeExecBtn->setToolTip(
         "Invia il codice Python UNO generato a LibreOffice tramite bridge");
-    m_officeExecBtn->setFixedWidth(160);
+    m_officeExecBtn->setFixedWidth(dpiScale(160));
     m_officeExecBtn->setEnabled(false);
 
     auto* officeHelpBtn = new QPushButton(
         "\xf0\x9f\x9b\x9f \xf0\x9f\x94\xa7  Aiuto", row);
     officeHelpBtn->setObjectName("actionBtn");
-    officeHelpBtn->setFixedWidth(90);
+    officeHelpBtn->setFixedWidth(dpiScale(90));
 
     lay->addWidget(lbl);
     lay->addWidget(m_officeStartBtn);
@@ -1116,14 +1117,14 @@ QWidget* StrumentiPage::buildFreecadRow()
     lbl->setObjectName("hintLabel");
 
     m_freecadHostEdit = new QLineEdit("localhost:9876", row);
-    m_freecadHostEdit->setFixedWidth(160);
+    m_freecadHostEdit->setFixedWidth(dpiScale(160));
     m_freecadHostEdit->setPlaceholderText(tr("localhost:9876"));
 
     auto* freecadPingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", row);
     freecadPingBtn->setObjectName("actionBtn");
     freecadPingBtn->setToolTip(
         "Testa la connessione TCP al bridge FreeCAD (porta 9876 default)");
-    freecadPingBtn->setFixedWidth(100);
+    freecadPingBtn->setFixedWidth(dpiScale(100));
 
     m_freecadStatusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", row);
     m_freecadStatusLbl->setObjectName("hintLabel");
@@ -1133,13 +1134,13 @@ QWidget* StrumentiPage::buildFreecadRow()
     m_freecadExecBtn->setObjectName("actionBtn");
     m_freecadExecBtn->setToolTip(
         "Invia il codice Python FreeCAD generato via bridge MCP");
-    m_freecadExecBtn->setFixedWidth(170);
+    m_freecadExecBtn->setFixedWidth(dpiScale(170));
     m_freecadExecBtn->setEnabled(false);
 
     auto* freecadHelpBtn = new QPushButton(
         "\xf0\x9f\x9b\x9f \xf0\x9f\x94\xa7  Aiuto", row);
     freecadHelpBtn->setObjectName("actionBtn");
-    freecadHelpBtn->setFixedWidth(90);
+    freecadHelpBtn->setFixedWidth(dpiScale(90));
 
     lay->addWidget(lbl);
     lay->addWidget(m_freecadHostEdit);
@@ -1203,7 +1204,7 @@ QWidget* StrumentiPage::buildSketchRow()
     auto* sketchFileBtn = new QPushButton(
         "\xf0\x9f\x93\x82  Carica disegno / PDF", row);
     sketchFileBtn->setObjectName("actionBtn");
-    sketchFileBtn->setFixedWidth(190);
+    sketchFileBtn->setFixedWidth(dpiScale(190));
     lay->addWidget(sketchFileBtn);
 
     m_sketchFileLbl = new QLabel("Nessun file", row);
@@ -1218,7 +1219,7 @@ QWidget* StrumentiPage::buildSketchRow()
     m_btnSketchGen = new QPushButton(
         "\xf0\x9f\x8f\x97  Genera modello 3D", row);
     m_btnSketchGen->setObjectName("actionBtn");
-    m_btnSketchGen->setFixedWidth(170);
+    m_btnSketchGen->setFixedWidth(dpiScale(170));
     lay->addWidget(m_btnSketchGen);
 
     row->setVisible(false);

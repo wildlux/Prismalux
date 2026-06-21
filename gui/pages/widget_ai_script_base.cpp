@@ -51,6 +51,13 @@ void AiScriptWidget::runSciScript(const QString& code, bool isBash,
                     : "\xe2\x9d\x8c  Terminato con errore");
                 execBtn->setEnabled(true);
             });
+        QObject::connect(procRef, &QProcess::errorOccurred, parent,
+            [statusLbl, execBtn](QProcess::ProcessError err) {
+                if (err == QProcess::FailedToStart) {
+                    statusLbl->setText(tr("\xe2\x9d\x8c  Interprete non trovato nel PATH"));
+                    execBtn->setEnabled(true);
+                }
+            });
     }
     execBtn->setEnabled(false);
     statusLbl->setText("\xf0\x9f\x94\x84  Esecuzione...");

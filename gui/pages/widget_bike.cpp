@@ -94,7 +94,7 @@ void BikeWidget::buildUi()
         "</span>", this);
     hdr->setTextFormat(Qt::RichText);
     hdr->setObjectName("pageHeader");
-    hdr->setFixedHeight(36);
+    hdr->setFixedHeight(dpiScale(36));
     lay->addWidget(hdr);
 
     /* selettori */

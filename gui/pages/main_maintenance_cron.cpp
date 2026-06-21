@@ -5,6 +5,7 @@
    intervallo fisso o una tantum. I job sono salvati in
    ~/.prismalux/cron_jobs.json e sopravvivono al riavvio.
    ══════════════════════════════════════════════════════════════ */
+#include "../dpi_utils.h"
 #include "main_maintenance.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
@@ -298,7 +299,7 @@ void ManutenzioneePage::cronAddOrEdit(int idx)
     auto* edPrompt = new QTextEdit(dlg);
     edPrompt->setPlainText(src.prompt);
     edPrompt->setPlaceholderText(tr("Prompt inviato all'AI…"));
-    edPrompt->setFixedHeight(90);
+    edPrompt->setFixedHeight(dpiScale(90));
     form->addRow("Prompt:", edPrompt);
 
     auto* cmbModel = new QComboBox(dlg);
@@ -482,7 +483,7 @@ QWidget* ManutenzioneePage::buildCronTab()
     lay->addWidget(logTitle);
 
     m_cronLog = new QTextBrowser(w);
-    m_cronLog->setFixedHeight(120);
+    m_cronLog->setFixedHeight(dpiScale(120));
     m_cronLog->setOpenLinks(false);
     lay->addWidget(m_cronLog);
 

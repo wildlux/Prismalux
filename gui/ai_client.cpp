@@ -578,6 +578,13 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
         connect(m_localProc,
                 QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &AiClient::onLocalFinished);
+        connect(m_localProc, &QProcess::errorOccurred, this,
+            [this](QProcess::ProcessError err) {
+                if (err == QProcess::FailedToStart) {
+                    m_localBusy = false;
+                    emit error(QString("llama-cli non avviato: %1").arg(m_llamaBin));
+                }
+            });
 
         m_localProc->start(m_llamaBin, args);
         if (!m_localProc->waitForStarted(4000)) {

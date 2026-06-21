@@ -1,4 +1,5 @@
 #include "main_finance.h"
+#include "../dpi_utils.h"
 #include "pratico_calcs.h"
 using namespace PraticoCalcs;
 #include <QVBoxLayout>
@@ -90,13 +91,13 @@ QWidget* PraticoPage::buildChat(const QString& title,
     auto* inp = new QLineEdit(inputRow);
     inp->setObjectName("chatInput");
     inp->setPlaceholderText(tr("Scrivi la tua domanda..."));
-    inp->setFixedHeight(38);
+    inp->setFixedHeight(dpiScale(38));
     auto* send = new QPushButton("Invia \xe2\x96\xb6", inputRow);
     send->setObjectName("actionBtn");
     auto* stop = new QPushButton("\xe2\x8f\xb9", inputRow);
     stop->setObjectName("actionBtn");
     stop->setProperty("danger", true);
-    stop->setFixedWidth(40);
+    stop->setFixedWidth(dpiScale(40));
     stop->setEnabled(false);
     inL->addWidget(inp, 1);
     inL->addWidget(send);
@@ -204,7 +205,7 @@ QWidget* PraticoPage::buildMenu() {
         cl->setContentsMargins(16, 14, 16, 14); cl->setSpacing(14);
 
         auto* ico = new QLabel(it.icon, card);
-        ico->setObjectName("cardIcon"); ico->setFixedWidth(32);
+        ico->setObjectName("cardIcon"); ico->setFixedWidth(dpiScale(32));
 
         auto* txt  = new QWidget(card);
         auto* txtL = new QVBoxLayout(txt);
@@ -215,7 +216,7 @@ QWidget* PraticoPage::buildMenu() {
         txtL->addWidget(lt); txtL->addWidget(ld);
 
         auto* goBtn = new QPushButton("Apri \xe2\x86\x92", card);
-        goBtn->setObjectName("actionBtn"); goBtn->setFixedWidth(80);
+        goBtn->setObjectName("actionBtn"); goBtn->setFixedWidth(dpiScale(80));
         goBtn->setProperty("pageIndex", it.page);
         connect(goBtn, &QPushButton::clicked, this, &PraticoPage::onMenuCardClicked);
 
@@ -421,14 +422,14 @@ static QWidget* buildFinanza(QStackedWidget* inner, AiClient* ai) {
     auto mkSpin = [](double min, double max, double val, int dec, const QString& suffix) -> QDoubleSpinBox* {
         auto* s = new QDoubleSpinBox;
         s->setRange(min, max); s->setValue(val); s->setDecimals(dec);
-        s->setSuffix(suffix); s->setFixedWidth(140);
+        s->setSuffix(suffix); s->setFixedWidth(dpiScale(140));
         return s;
     };
 
     auto* capSpin   = mkSpin(1000, 2000000, 150000, 0, " \xe2\x82\xac");
     auto* tassoSpin = mkSpin(0.01, 30.0,    3.5,    2, " %");
     auto* anniSpin  = new QSpinBox; anniSpin->setRange(1, 40); anniSpin->setValue(20);
-    anniSpin->setSuffix(" anni"); anniSpin->setFixedWidth(110);
+    anniSpin->setSuffix(" anni"); anniSpin->setFixedWidth(dpiScale(110));
     auto* calcMut   = new QPushButton("Calcola", mutGroup);
     calcMut->setObjectName("actionBtn");
 
@@ -487,7 +488,7 @@ static QWidget* buildFinanza(QStackedWidget* inner, AiClient* ai) {
     auto* rataPac  = mkSpin(10, 10000, 200, 0, " \xe2\x82\xac/mese");
     auto* rendSpin = mkSpin(0,  30,    5,   2, " %/anno");
     auto* anniPac  = new QSpinBox; anniPac->setRange(1, 50); anniPac->setValue(20);
-    anniPac->setSuffix(" anni"); anniPac->setFixedWidth(110);
+    anniPac->setSuffix(" anni"); anniPac->setFixedWidth(dpiScale(110));
     auto* calcPac  = new QPushButton("Calcola", pacGroup);
     calcPac->setObjectName("actionBtn");
 
@@ -531,7 +532,7 @@ static QWidget* buildFinanza(QStackedWidget* inner, AiClient* ai) {
 
     auto* stipSpin = mkSpin(10000, 500000, 35000, 0, " \xe2\x82\xac/anno");
     auto* anniLav  = new QSpinBox; anniLav->setRange(1, 50); anniLav->setValue(35);
-    anniLav->setSuffix(" anni"); anniLav->setFixedWidth(110);
+    anniLav->setSuffix(" anni"); anniLav->setFixedWidth(dpiScale(110));
     auto* aliqSpin = mkSpin(1, 50, 33, 1, " %");
     auto* calcPen  = new QPushButton("Calcola", penGroup);
     calcPen->setObjectName("actionBtn");
@@ -609,7 +610,7 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
     auto mkSpin = [](double min, double max, double val, int dec, const QString& suffix) -> QDoubleSpinBox* {
         auto* s = new QDoubleSpinBox;
         s->setRange(min, max); s->setValue(val); s->setDecimals(dec);
-        s->setSuffix(suffix); s->setFixedWidth(140);
+        s->setSuffix(suffix); s->setFixedWidth(dpiScale(140));
         return s;
     };
 
@@ -637,7 +638,7 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
     auto* sessoCombo = new QComboBox;
     sessoCombo->addItem("M \xe2\x80\x94 Maschio", false);
     sessoCombo->addItem("F \xe2\x80\x94 Femmina", true);
-    sessoCombo->setFixedWidth(130);
+    sessoCombo->setFixedWidth(dpiScale(130));
     auto* comuneEdit  = new QLineEdit; comuneEdit->setPlaceholderText("Comune di nascita");
     auto* belfioreEdit = new QLineEdit; belfioreEdit->setPlaceholderText("Belfiore");
     belfioreEdit->setMaximumWidth(70);
@@ -659,7 +660,7 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
     auto* cfEditBtn = new QPushButton("\xf0\x9f\x94\x93");  /* 🔓 */
     cfEditBtn->setToolTip("Sblocca per modifica manuale");
     cfEditBtn->setCheckable(true);
-    cfEditBtn->setFixedWidth(32);
+    cfEditBtn->setFixedWidth(dpiScale(32));
     auto* cfStatusLbl = new QLabel;
     cfStatusLbl->setStyleSheet("font-size:11px;");
     arl3->addWidget(new QLabel("C.F.:"));
@@ -766,7 +767,7 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
     auto* calcBtn    = new QPushButton("\xf0\x9f\x94\xa2  Calcola TFR"); calcBtn->setObjectName("actionBtn");
     auto* ragBtn     = new QPushButton("\xe2\x9a\xa1  Compila da RAG"); ragBtn->setObjectName("actionBtn");
     auto* stopRagBtn = new QPushButton("\xe2\x8f\xb9"); stopRagBtn->setObjectName("actionBtn");
-    stopRagBtn->setProperty("danger", true); stopRagBtn->setFixedWidth(40); stopRagBtn->setEnabled(false);
+    stopRagBtn->setProperty("danger", true); stopRagBtn->setFixedWidth(dpiScale(40)); stopRagBtn->setEnabled(false);
     auto* copyBtn    = new QPushButton("\xf0\x9f\x93\x8b  Copia");
     auto* waitLbl    = new QLabel("\xe2\x8f\xb3  Lettura RAG...");
     waitLbl->setStyleSheet("color:#E5C400;font-style:italic;"); waitLbl->setVisible(false);

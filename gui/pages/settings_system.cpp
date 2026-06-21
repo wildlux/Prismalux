@@ -176,7 +176,7 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
         auto* btn = new QPushButton("\xf0\x9f\x97\x91  Pulisci", row);
         btn->setObjectName("actionBtn");
         btn->setProperty("danger", "true");
-        btn->setFixedWidth(110);
+        btn->setFixedWidth(dpiScale(110));
         rl->addWidget(btn);
 
         gl->addWidget(row);
@@ -447,11 +447,11 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
         auto* backupBtn = new QPushButton(
             "\xf0\x9f\x92\xbe  Crea backup ZIP...", grp);
         backupBtn->setObjectName("actionBtn");
-        backupBtn->setFixedWidth(180);
+        backupBtn->setFixedWidth(dpiScale(180));
         auto* openDirBtn = new QPushButton(
             "\xf0\x9f\x93\x82  Apri cartella dati", grp);
         openDirBtn->setObjectName("actionBtn");
-        openDirBtn->setFixedWidth(160);
+        openDirBtn->setFixedWidth(dpiScale(160));
         auto* statusLbl = new QLabel("", grp);
         statusLbl->setObjectName("statusLabel");
         btnRow->addWidget(backupBtn);
@@ -523,10 +523,10 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
         auto* auditBtn = new QPushButton(
             "\xf0\x9f\x94\x8d  Esegui audit ora", grp);
         auditBtn->setObjectName("actionBtn");
-        auditBtn->setFixedWidth(160);
+        auditBtn->setFixedWidth(dpiScale(160));
         auto* auditLog = new QTextEdit(grp);
         auditLog->setReadOnly(true);
-        auditLog->setFixedHeight(150);
+        auditLog->setFixedHeight(dpiScale(150));
         auditLog->setPlaceholderText(tr("Risultati audit..."));
         gl->addWidget(auditBtn);
         gl->addWidget(auditLog);

@@ -255,7 +255,7 @@ QWidget* ProgrammazionePage::buildCodingToolbar(QWidget* parent,
     m_lang->addItem("C++",        QString("cpp"));
     m_lang->addItem("Bash",       QString("sh"));
     m_lang->addItem("JavaScript", QString("js"));
-    m_lang->setFixedWidth(130);
+    m_lang->setFixedWidth(dpiScale(130));
     toolLay->addWidget(m_lang);
     toolLay->addSpacing(8);
 
@@ -311,11 +311,11 @@ QWidget* ProgrammazionePage::buildCodingToolbar(QWidget* parent,
     m_fixSlider = new QSlider(Qt::Horizontal, toolRow);
     m_fixSlider->setRange(1, 10);
     m_fixSlider->setValue(m_loopMax);
-    m_fixSlider->setFixedWidth(80);
+    m_fixSlider->setFixedWidth(dpiScale(80));
     m_fixSlider->setToolTip(tr("Numero massimo di tentativi Loop Fix (10 = illimitati)"));
     m_fixSliderLbl = new QLabel(QString::number(m_loopMax), toolRow);
     m_fixSliderLbl->setObjectName("cardDesc");
-    m_fixSliderLbl->setFixedWidth(22);
+    m_fixSliderLbl->setFixedWidth(dpiScale(22));
     m_fixSliderLbl->setAlignment(Qt::AlignCenter);
     connect(m_fixSlider, &QSlider::valueChanged,
             this, &ProgrammazionePage::onFixSliderChanged);
@@ -449,7 +449,7 @@ QWidget* ProgrammazionePage::buildAiPanel(QWidget* parent,
 
     outBtnRefreshMod = new QPushButton("\xf0\x9f\x94\x84", modelRow);
     outBtnRefreshMod->setObjectName("actionBtn");
-    outBtnRefreshMod->setFixedWidth(32);
+    outBtnRefreshMod->setFixedWidth(dpiScale(32));
     outBtnRefreshMod->setToolTip(tr("Aggiorna lista modelli disponibili"));
     modelLay->addWidget(outBtnRefreshMod);
     aiLay->addWidget(modelRow);
@@ -483,7 +483,7 @@ QWidget* ProgrammazionePage::buildAiPanel(QWidget* parent,
 
     outBtnCloseAi = new QPushButton("\xe2\x9c\x95", aiInputRow);
     outBtnCloseAi->setObjectName("actionBtn");
-    outBtnCloseAi->setFixedWidth(32);
+    outBtnCloseAi->setFixedWidth(dpiScale(32));
     outBtnCloseAi->setToolTip(tr("Chiudi pannello AI"));
 
     aiInputLay->addWidget(m_btnSend);
@@ -1177,7 +1177,7 @@ QWidget* ProgrammazionePage::buildAgenticaModelRow(QWidget* parent)
 
     auto* btnRefAgent = new QPushButton("\xf0\x9f\x94\x84", modelRow);
     btnRefAgent->setObjectName("actionBtn");
-    btnRefAgent->setFixedWidth(32);
+    btnRefAgent->setFixedWidth(dpiScale(32));
     btnRefAgent->setToolTip(tr("Aggiorna lista modelli disponibili"));
     modelLay->addWidget(btnRefAgent);
 
@@ -1466,7 +1466,7 @@ QWidget* ProgrammazionePage::buildRevOptionsRow(QWidget* parent,
     m_revTargetLang->setObjectName("settingCombo");
     m_revTargetLang->addItems({"Auto-rileva", "C", "C++", "Python",
                                 "Assembly x86", "Java", "Rust"});
-    m_revTargetLang->setFixedWidth(140);
+    m_revTargetLang->setFixedWidth(dpiScale(140));
     optLay->addWidget(m_revTargetLang);
 
     optLay->addSpacing(8);
@@ -1476,7 +1476,7 @@ QWidget* ProgrammazionePage::buildRevOptionsRow(QWidget* parent,
     m_revDetail->addItem("Struttura (rapido)",  QString("fast"));
     m_revDetail->addItem("Completo (lento)",    QString("full"));
     m_revDetail->addItem("Con commenti estesi", QString("commented"));
-    m_revDetail->setFixedWidth(180);
+    m_revDetail->setFixedWidth(dpiScale(180));
     optLay->addWidget(m_revDetail);
 
     optLay->addStretch(1);
@@ -1522,7 +1522,7 @@ QWidget* ProgrammazionePage::buildRevOptionsRow(QWidget* parent,
 
     outBtnRefRev = new QPushButton("\xf0\x9f\x94\x84", modelRow);
     outBtnRefRev->setObjectName("actionBtn");
-    outBtnRefRev->setFixedWidth(32);
+    outBtnRefRev->setFixedWidth(dpiScale(32));
     outBtnRefRev->setToolTip(tr("Aggiorna lista modelli disponibili"));
     modelLay->addWidget(outBtnRefRev);
 
@@ -1811,7 +1811,7 @@ void ProgrammazionePage::buildNetToolbar(QVBoxLayout* lay, QWidget* w)
     m_netPort->setRange(0, 65535);
     m_netPort->setValue(0);
     m_netPort->setSpecialValueText("Tutte");
-    m_netPort->setFixedWidth(80);
+    m_netPort->setFixedWidth(dpiScale(80));
     m_netPort->setToolTip(tr("0 = tutte le porte"));
     toolRow->addWidget(m_netPort);
 
@@ -1819,7 +1819,7 @@ void ProgrammazionePage::buildNetToolbar(QVBoxLayout* lay, QWidget* w)
     m_netMaxPkts = new QSpinBox(w);
     m_netMaxPkts->setRange(10, 5000);
     m_netMaxPkts->setValue(200);
-    m_netMaxPkts->setFixedWidth(70);
+    m_netMaxPkts->setFixedWidth(dpiScale(70));
     toolRow->addWidget(m_netMaxPkts);
 
     m_btnNetStart    = new QPushButton("\xe2\x96\xb6  Start",          w);

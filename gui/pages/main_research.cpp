@@ -1,4 +1,5 @@
 #include "main_research.h"
+#include "../dpi_utils.h"
 #include "main_jobs.h"
 #include "../prismalux_paths.h"
 #include "../widgets/astro_calc.h"
@@ -113,7 +114,7 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
         "</span>");
     header->setTextFormat(Qt::RichText);
     header->setObjectName("pageHeader");
-    header->setFixedHeight(36);
+    header->setFixedHeight(dpiScale(36));
     vlay->addWidget(header);
 
     auto* tabs = new QTabWidget(this);
@@ -238,7 +239,7 @@ QWidget* RicercaPage::buildPaperTab()
     editAbstract->setPlaceholderText(
         "Descrivi l'idea, l'approccio e i risultati principali.\n"
         "L'AI espanderà tutto in un paper completo.");
-    editAbstract->setFixedHeight(140);
+    editAbstract->setFixedHeight(dpiScale(140));
 
     form->addRow("Titolo:",    editTitolo);
     form->addRow("Autori:",    editAutori);
@@ -373,7 +374,7 @@ QWidget* RicercaPage::buildBrevettoTab()
         "Descrivi l'invenzione in dettaglio:\n"
         "come funziona, cosa la distingue dallo stato dell'arte,\n"
         "applicazioni pratiche.");
-    editDesc->setFixedHeight(140);
+    editDesc->setFixedHeight(dpiScale(140));
 
     form->addRow("Titolo:", editTitolo);
     form->addRow("Inventori:", editInventori);
@@ -502,7 +503,7 @@ QWidget* RicercaPage::buildDocTecnicoTab()
         "- Cosa fa\n- Come funziona\n"
         "- Dati e risultati misurati\n"
         "- Specifiche tecniche rilevanti");
-    editDesc->setFixedHeight(150);
+    editDesc->setFixedHeight(dpiScale(150));
 
     form->addRow("Nome progetto:", editNome);
     form->addRow("Autore:", editAutore);
@@ -883,11 +884,11 @@ QWidget* RicercaPage::buildCercaLetteraturaTab()
     m_litSource->addItem("\xf0\x9f\x93\x84  arXiv",           "arxiv");
     m_litSource->addItem("\xf0\x9f\x94\xac  Semantic Scholar", "semantic");
     m_litSource->addItem("\xf0\x9f\x94\x8f  USPTO Brevetti",   "uspto");
-    m_litSource->setFixedWidth(180);
+    m_litSource->setFixedWidth(dpiScale(180));
 
     m_litSearchBtn = new QPushButton("\xf0\x9f\x94\x8d  Cerca", w);
     m_litSearchBtn->setObjectName("actionBtn");
-    m_litSearchBtn->setFixedWidth(90);
+    m_litSearchBtn->setFixedWidth(dpiScale(90));
 
     rl->addWidget(m_litQuery, 1);
     rl->addWidget(m_litSource);
@@ -1323,7 +1324,7 @@ QWidget* RicercaPage::buildAnalisiPage()
     fileBtnLay->addWidget(remFileBtn);
     fileBtnLay->addWidget(fileHintLbl, 1);
     m_analisiFileList = new QListWidget;
-    m_analisiFileList->setFixedHeight(72);
+    m_analisiFileList->setFixedHeight(dpiScale(72));
     m_analisiFileList->setSelectionMode(QAbstractItemView::SingleSelection);
     m_analisiFileList->setAlternatingRowColors(true);
     fileLay->addWidget(fileBtnRow);
@@ -1366,7 +1367,7 @@ QWidget* RicercaPage::buildAnalisiPage()
     m_analisiProbBar->setValue(0);
     m_analisiProbBar->setTextVisible(true);
     m_analisiProbBar->setFormat("%p%");
-    m_analisiProbBar->setFixedHeight(22);
+    m_analisiProbBar->setFixedHeight(dpiScale(22));
     probLay->addWidget(m_analisiProbLbl);
     probLay->addWidget(m_analisiProbBar, 1);
     probRow->setVisible(false);
@@ -1782,7 +1783,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
     m_ragProgress->setRange(0, 0);
     m_ragProgress->setVisible(false);
     m_ragProgress->setFixedHeight(8);
-    m_ragProgress->setFixedWidth(120);
+    m_ragProgress->setFixedWidth(dpiScale(120));
     ctrlLay->addWidget(m_ragProgress);
 
     lay->addWidget(ctrlBar);

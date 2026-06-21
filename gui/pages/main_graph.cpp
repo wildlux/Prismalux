@@ -423,7 +423,7 @@ QWidget* GraficoPage::buildLeftPanel() {
             auto* btnGen = new QPushButton(
                 "\xe2\x96\xb6  Genera \xe2\x86\x92 inserisce i valori sotto", m_genSection);
             btnGen->setObjectName("actionBtn");
-            btnGen->setFixedHeight(26);
+            btnGen->setFixedHeight(dpiScale(26));
             connect(btnGen, &QPushButton::clicked, this, &GraficoPage::onGenFormulaClicked);
             gl->addWidget(btnGen);
 
@@ -515,7 +515,7 @@ QWidget* GraficoPage::buildLeftPanel() {
         m_smithCustom = new QTextEdit(w);
         m_smithCustom->setObjectName("inputArea");
         m_smithCustom->setFont(QFont("JetBrains Mono,Fira Code,Consolas", 9));
-        m_smithCustom->setFixedHeight(80);
+        m_smithCustom->setFixedHeight(dpiScale(80));
         m_smithCustom->setPlaceholderText(
             "Inserisci numeri interi \xe2\x89\xa5 2\n"
             "Uno per riga, o separati da spazi/virgole.\n"
@@ -525,7 +525,7 @@ QWidget* GraficoPage::buildLeftPanel() {
         m_btnSmithFile = new QPushButton(
             "\xf0\x9f\x93\x82  Carica sequenza da file (.txt)", w);
         m_btnSmithFile->setObjectName("actionBtn");
-        m_btnSmithFile->setFixedHeight(28);
+        m_btnSmithFile->setFixedHeight(dpiScale(28));
         m_btnSmithFile->setToolTip(
             "Apri un file di testo con numeri interi >= 2.\n"
             "Formati accettati: uno per riga, separati da spazi o virgole.");
@@ -698,7 +698,7 @@ QWidget* GraficoPage::buildLeftPanel() {
         "\xf0\x9f\x93\xa5  Installa modello vision",
         m_imgSection);
     m_btnInstallVision->setObjectName("actionBtn");
-    m_btnInstallVision->setFixedHeight(36);
+    m_btnInstallVision->setFixedHeight(dpiScale(36));
     m_btnInstallVision->setToolTip(
         "Apre Impostazioni \xe2\x86\x92 LLM Consigliati \xe2\x86\x92 sezione Vision\n"
         "per scaricare un modello adatto all'analisi di immagini e grafici.\n"
@@ -714,7 +714,7 @@ QWidget* GraficoPage::buildLeftPanel() {
     m_btnImgFormula = new QPushButton(
         "\xf0\x9f\x93\xb7  Analizza immagine", m_imgSection);
     m_btnImgFormula->setObjectName("actionBtn");
-    m_btnImgFormula->setFixedHeight(30);
+    m_btnImgFormula->setFixedHeight(dpiScale(30));
     m_btnImgFormula->setToolTip(tr("Apri un'immagine PNG/JPG e lascia che l'AI estragga la formula"));
     connect(m_btnImgFormula, &QPushButton::clicked, this, &GraficoPage::analyzeImage);
     imgLay->addWidget(m_btnImgFormula);
@@ -750,13 +750,13 @@ QWidget* GraficoPage::buildLeftPanel() {
     /* Pulsanti fissi SOTTO la scroll area — sempre visibili senza scroll */
     auto* btnPlot = new QPushButton("\xf0\x9f\x93\x88  Traccia", outer);
     btnPlot->setObjectName("primaryBtn");
-    btnPlot->setFixedHeight(36);
+    btnPlot->setFixedHeight(dpiScale(36));
     connect(btnPlot, &QPushButton::clicked, this, &GraficoPage::plot);
     outerLay->addWidget(btnPlot);
 
     auto* btnReset = new QPushButton("\xf0\x9f\x94\x84  Reset vista", outer);
     btnReset->setObjectName("actionBtn");
-    btnReset->setFixedHeight(28);
+    btnReset->setFixedHeight(dpiScale(28));
     connect(btnReset, &QPushButton::clicked, m_canvas, &GraficoCanvas::resetView);
     outerLay->addWidget(btnReset);
 

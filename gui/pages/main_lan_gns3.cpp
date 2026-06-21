@@ -406,8 +406,8 @@ QWidget* LanWanPage::buildGNS3Tab()
     hintLbl->setWordWrap(true);
     auto* copyBtnGns = new QPushButton("\xf0\x9f\x93\x8b", w);  /* 📋 */
     copyBtnGns->setObjectName("actionBtn");
-    copyBtnGns->setFixedWidth(28);
-    copyBtnGns->setFixedHeight(24);
+    copyBtnGns->setFixedWidth(dpiScale(28));
+    copyBtnGns->setFixedHeight(dpiScale(24));
     copyBtnGns->setToolTip(tr("Copia comando pip negli appunti"));
     connect(copyBtnGns, &QPushButton::clicked, w, [=]() {
         QApplication::clipboard()->setText(tr("pip install gns3fy requests"));

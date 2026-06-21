@@ -1,4 +1,5 @@
 #include "widget_rdkit.h"
+#include "../dpi_utils.h"
 #include "../prismalux_paths.h"
 #include "../widgets/model_combo_box.h"
 #include <QVBoxLayout>
@@ -75,10 +76,10 @@ RDKitWidget::RDKitWidget(AiClient* ai, QWidget* parent)
     m_statusLbl->setObjectName("hintLabel");
     auto* checkBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica rdkit", connRow);
     checkBtn->setObjectName("actionBtn");
-    checkBtn->setFixedWidth(130);
+    checkBtn->setFixedWidth(dpiScale(130));
     m_execBtn = new QPushButton("\xf0\x9f\x94\xac  Esegui script RDKit", connRow);
     m_execBtn->setObjectName("actionBtn");
-    m_execBtn->setFixedWidth(170);
+    m_execBtn->setFixedWidth(dpiScale(170));
     m_execBtn->setEnabled(false);
     connLay->addWidget(m_statusLbl, 1);
     connLay->addWidget(checkBtn);
@@ -111,7 +112,7 @@ RDKitWidget::RDKitWidget(AiClient* ai, QWidget* parent)
     m_input->setPlaceholderText(
         "Descrivi la molecola o l'analisi...\n"
         "Es: 'Calcola MW, LogP per la caffeina (SMILES: Cn1cnc2c1c(=O)n(c(=O)n2C)C)'");
-    m_input->setFixedHeight(80);
+    m_input->setFixedHeight(dpiScale(80));
     lay->addWidget(m_input);
 
     auto* btnRow = new QWidget(this);
@@ -143,9 +144,14 @@ RDKitWidget::RDKitWidget(AiClient* ai, QWidget* parent)
 void RDKitWidget::onCheckClicked()
 {
     auto* proc = new QProcess(this);
-    proc->start(P::findPython(), {"-c", "import rdkit; print('rdkit', rdkit.__version__)"});
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &RDKitWidget::onCheckFinished);
+    connect(proc, &QProcess::errorOccurred, this,
+        [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                m_statusLbl->setText(tr("\xe2\x9d\x8c  Python non trovato"));
+        });
+    proc->start(P::findPython(), {"-c", "import rdkit; print('rdkit', rdkit.__version__)"});
 }
 
 void RDKitWidget::onCheckFinished(int code, QProcess::ExitStatus)

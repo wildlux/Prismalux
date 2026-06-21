@@ -1,4 +1,5 @@
 #include "main_utility.h"
+#include "../dpi_utils.h"
 #include "widget_solar_calc.h"
 #include "widget_idro.h"
 #include "widget_bike.h"
@@ -22,7 +23,7 @@ UtilityPage::UtilityPage(AiClient* ai, QWidget* parent)
         "</span>", this);
     hdr->setTextFormat(Qt::RichText);
     hdr->setObjectName("pageHeader");
-    hdr->setFixedHeight(36);
+    hdr->setFixedHeight(dpiScale(36));
     lay->addWidget(hdr);
 
     m_tabs = new QTabWidget(this);

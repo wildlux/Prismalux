@@ -135,12 +135,16 @@ void AgentiPage::onSttTimeout()
     if (m_sttState != SttState::Recording) return;  // utente ha già fermato
 
     if (m_recProc) {
-        /* sox VAD può aver già terminato da solo — terminate() è no-op in quel caso */
-        if (m_recProc->state() != QProcess::NotRunning)
-            m_recProc->terminate();
-        m_recProc->waitForFinished(1000);
-        m_recProc->deleteLater();
+        /* Salva e azzera PRIMA di waitForFinished: se onRecProcFinished viene
+           dispatchato durante l'event-loop interno di waitForFinished, il doppio
+           deleteLater() causerebbe SEGV (crash confermato in test_fatti.txt). */
+        QProcess* proc = m_recProc;
         m_recProc = nullptr;
+        proc->disconnect();
+        if (proc->state() != QProcess::NotRunning)
+            proc->terminate();
+        proc->waitForFinished(1000);
+        proc->deleteLater();
     }
 
     const QString wavPath = m_sttWavPath;

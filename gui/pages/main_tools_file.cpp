@@ -1,4 +1,5 @@
 #include "main_tools_file.h"
+#include "../dpi_utils.h"
 #include "../prismalux_paths.h"
 #include "../log_bus.h"
 #include <QVBoxLayout>
@@ -83,7 +84,7 @@ QWidget* StrumentiFilePage::buildFileSearchTab()
     auto* btnBrowse = new QPushButton(
         "\xf0\x9f\x93\x82  Sfoglia", dirRow);
     btnBrowse->setObjectName("actionBtn");
-    btnBrowse->setFixedWidth(90);
+    btnBrowse->setFixedWidth(dpiScale(90));
     dirLay->addWidget(btnBrowse);
     lay->addWidget(dirRow);
 
@@ -102,13 +103,13 @@ QWidget* StrumentiFilePage::buildFileSearchTab()
     m_fileSearchBtn = new QPushButton(
         "\xf0\x9f\x94\x8d  Cerca", qRow);
     m_fileSearchBtn->setObjectName("actionBtn");
-    m_fileSearchBtn->setFixedWidth(90);
+    m_fileSearchBtn->setFixedWidth(dpiScale(90));
     qLay->addWidget(m_fileSearchBtn);
 
     m_fileSearchAiBtn = new QPushButton(
         "\xf0\x9f\xa4\x96  Analisi AI", qRow);
     m_fileSearchAiBtn->setObjectName("actionBtn");
-    m_fileSearchAiBtn->setFixedWidth(100);
+    m_fileSearchAiBtn->setFixedWidth(dpiScale(100));
     m_fileSearchAiBtn->setEnabled(false);
     m_fileSearchAiBtn->setToolTip(tr("Manda i file trovati al modello AI per analisi"));
     qLay->addWidget(m_fileSearchAiBtn);
@@ -165,7 +166,7 @@ QWidget* StrumentiFilePage::buildWikiTab()
 
     m_wikiLangCombo = new QComboBox(sRow);
     m_wikiLangCombo->setObjectName("settingsCombo");
-    m_wikiLangCombo->setFixedWidth(65);
+    m_wikiLangCombo->setFixedWidth(dpiScale(65));
     m_wikiLangCombo->addItem("it", "it");
     m_wikiLangCombo->addItem("en", "en");
     m_wikiLangCombo->addItem("fr", "fr");
@@ -177,7 +178,7 @@ QWidget* StrumentiFilePage::buildWikiTab()
     auto* btnFetch = new QPushButton(
         "\xf0\x9f\x94\x8d  Cerca", sRow);
     btnFetch->setObjectName("actionBtn");
-    btnFetch->setFixedWidth(80);
+    btnFetch->setFixedWidth(dpiScale(80));
     sLay->addWidget(btnFetch);
 
     m_wikiElaboraBtn = new QPushButton(
@@ -266,7 +267,7 @@ QWidget* StrumentiFilePage::buildDatiTab()
     auto* fileBtn = new QPushButton(
         "\xf0\x9f\x93\x82  Carica dati", fileRow);
     fileBtn->setObjectName("actionBtn");
-    fileBtn->setFixedWidth(140);
+    fileBtn->setFixedWidth(dpiScale(140));
     m_datiFileLbl = new QLabel("Nessun file caricato", fileRow);
     m_datiFileLbl->setObjectName("hintLabel");
     fileLay->addWidget(fileBtn);
@@ -283,8 +284,8 @@ QWidget* StrumentiFilePage::buildDatiTab()
     hintLbl->setWordWrap(true);
     auto* copyBtn0 = new QPushButton("\xf0\x9f\x93\x8b", panel);  /* 📋 */
     copyBtn0->setObjectName("actionBtn");
-    copyBtn0->setFixedWidth(28);
-    copyBtn0->setFixedHeight(24);
+    copyBtn0->setFixedWidth(dpiScale(28));
+    copyBtn0->setFixedHeight(dpiScale(24));
     copyBtn0->setToolTip(tr("Copia comando pip negli appunti"));
     connect(copyBtn0, &QPushButton::clicked, panel, [=]() {
         QApplication::clipboard()->setText(tr("pip install openpyxl"));
@@ -309,7 +310,7 @@ QWidget* StrumentiFilePage::buildDatiTab()
         "\xf0\x9f\x94\x97  Correlazioni tra colonne",
         "\xf0\x9f\x93\x9d  Riassunto esecutivo"
     });
-    m_datiActionCombo->setFixedWidth(230);
+    m_datiActionCombo->setFixedWidth(dpiScale(230));
     actionLay->addWidget(actionLbl);
     actionLay->addWidget(m_datiActionCombo);
     actionLay->addStretch();
@@ -395,7 +396,7 @@ QWidget* StrumentiFilePage::buildPdfTab()
     auto* fileBtn = new QPushButton(
         "\xf0\x9f\x93\x84  Carica PDF", fileRow);
     fileBtn->setObjectName("actionBtn");
-    fileBtn->setFixedWidth(130);
+    fileBtn->setFixedWidth(dpiScale(130));
     m_pdfFileLbl = new QLabel("Nessun PDF caricato", fileRow);
     m_pdfFileLbl->setObjectName("hintLabel");
     fileLay->addWidget(fileBtn);
@@ -414,8 +415,8 @@ QWidget* StrumentiFilePage::buildPdfTab()
     hintLbl->setWordWrap(true);
     auto* copyBtn1 = new QPushButton("\xf0\x9f\x93\x8b", panel);  /* 📋 */
     copyBtn1->setObjectName("actionBtn");
-    copyBtn1->setFixedWidth(28);
-    copyBtn1->setFixedHeight(24);
+    copyBtn1->setFixedWidth(dpiScale(28));
+    copyBtn1->setFixedHeight(dpiScale(24));
     copyBtn1->setToolTip(tr("Copia comando pip negli appunti"));
     connect(copyBtn1, &QPushButton::clicked, panel, [=]() {
         QApplication::clipboard()->setText(tr("pip install pdfplumber"));
@@ -437,7 +438,7 @@ QWidget* StrumentiFilePage::buildPdfTab()
         "\xf0\x9f\x93\x96  Parafrasi",
         "\xf0\x9f\xa7\xaa  Analisi critica"
     });
-    m_pdfActionCombo->setFixedWidth(230);
+    m_pdfActionCombo->setFixedWidth(dpiScale(230));
     actionLay->addWidget(actionLbl);
     actionLay->addWidget(m_pdfActionCombo);
     actionLay->addStretch();
@@ -488,7 +489,7 @@ QWidget* StrumentiFilePage::buildWordTab()
     auto* fileBtn = new QPushButton(
         "\xf0\x9f\x93\x82  Carica file", fileRow);
     fileBtn->setObjectName("actionBtn");
-    fileBtn->setFixedWidth(130);
+    fileBtn->setFixedWidth(dpiScale(130));
     m_wordFileLbl = new QLabel("Nessun file caricato", fileRow);
     m_wordFileLbl->setObjectName("hintLabel");
     fileLay->addWidget(fileBtn);
@@ -506,8 +507,8 @@ QWidget* StrumentiFilePage::buildWordTab()
     hintLbl->setWordWrap(true);
     auto* copyBtn2 = new QPushButton("\xf0\x9f\x93\x8b", panel);  /* 📋 */
     copyBtn2->setObjectName("actionBtn");
-    copyBtn2->setFixedWidth(28);
-    copyBtn2->setFixedHeight(24);
+    copyBtn2->setFixedWidth(dpiScale(28));
+    copyBtn2->setFixedHeight(dpiScale(24));
     copyBtn2->setToolTip(tr("Copia comando pip negli appunti"));
     connect(copyBtn2, &QPushButton::clicked, panel, [=]() {
         QApplication::clipboard()->setText(tr("pip install python-docx odfpy"));
@@ -529,7 +530,7 @@ QWidget* StrumentiFilePage::buildWordTab()
         "\xf0\x9f\x90\x9b  Trova bug (per codice)",
         "\xf0\x9f\x93\x8b  Genera domande"
     });
-    m_wordActionCombo->setFixedWidth(230);
+    m_wordActionCombo->setFixedWidth(dpiScale(230));
     actionLay->addWidget(actionLbl);
     actionLay->addWidget(m_wordActionCombo);
     actionLay->addStretch();

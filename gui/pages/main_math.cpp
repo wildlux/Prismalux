@@ -122,20 +122,20 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
 
     auto* btnCopy = new QPushButton("\xf0\x9f\x93\x8b  Copia", outBox);
     btnCopy->setObjectName("actionBtn");
-    btnCopy->setFixedHeight(26);
+    btnCopy->setFixedHeight(dpiScale(26));
     btnCopy->setToolTip(tr("Copia tutto l'output negli appunti"));
     connect(btnCopy, &QPushButton::clicked, this, &MatematicaPage::onCopyClicked);
     ctrlRow->addWidget(btnCopy);
 
     auto* btnClear = new QPushButton("\xf0\x9f\x97\x91  Cancella", outBox);
     btnClear->setObjectName("actionBtn");
-    btnClear->setFixedHeight(26);
+    btnClear->setFixedHeight(dpiScale(26));
     connect(btnClear, &QPushButton::clicked, this, &MatematicaPage::onClearOutputClicked);
     ctrlRow->addWidget(btnClear);
 
     auto* btnStop = new QPushButton("\xe2\x96\xa0  Stop", outBox);
     btnStop->setObjectName("stopBtn");
-    btnStop->setFixedHeight(26);
+    btnStop->setFixedHeight(dpiScale(26));
     btnStop->setProperty("execFull", btnStop->text());
     btnStop->setProperty("execIcon", QString::fromUtf8("\xe2\x96\xa0"));
     btnStop->setProperty("execText", "Stop");
@@ -144,7 +144,7 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
 
     auto* btnLatex = new QPushButton("\xf0\x9f\x94\xac LaTeX", outBox);  /* 🔬 */
     btnLatex->setObjectName("navBtn");
-    btnLatex->setFixedHeight(26);
+    btnLatex->setFixedHeight(dpiScale(26));
     btnLatex->setCheckable(true);
     btnLatex->setToolTip(tr("Mostra/nascondi il pannello di rendering LaTeX per l'ultima risposta AI"));
     connect(btnLatex, &QPushButton::toggled, outBox, [this](bool on) {
@@ -642,7 +642,7 @@ QWidget* MatematicaPage::buildExprTab()
     for (const auto& ex : examples) {
         auto* btn = new QPushButton(ex.label, exGroup);
         btn->setObjectName("navBtn");
-        btn->setFixedHeight(24);
+        btn->setFixedHeight(dpiScale(24));
         btn->setProperty("mathExpr", QString::fromUtf8(ex.expr));
         connect(btn, &QPushButton::clicked, this, &MatematicaPage::onExampleClicked);
         exGrid->addWidget(btn, r, c);
@@ -1041,6 +1041,11 @@ void MatematicaPage::runPython(const QString& code)
             this, &MatematicaPage::onProcReadyRead);
     connect(m_proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MatematicaPage::onProcFinished);
+    connect(m_proc, &QProcess::errorOccurred, this,
+        [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                setStatus(tr("\xe2\x9d\x8c  Python non trovato nel PATH"));
+        });
 
     setStatus("\xe2\x8f\xb3  Calcolo in corso...");
     m_proc->start(P::findPython(), QStringList{"-c", code});

@@ -366,6 +366,12 @@ void ProgrammazionePage::onSubnetRenderGraph()
     connect(m_subnetDotProc,
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &ProgrammazionePage::onSubnetDotFinished);
+    connect(m_subnetDotProc, &QProcess::errorOccurred, this,
+        [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart && m_subnetStatusLbl)
+                m_subnetStatusLbl->setText(
+                    tr("\xe2\x9d\x8c  Graphviz non trovato \xe2\x80\x94 sudo apt install graphviz"));
+        });
     m_subnetDotProc->start("dot", {"-Tpng", tmpDot, "-o", m_subnetTmpPng});
 
     if (!m_subnetDotProc->waitForStarted(P::kProcessStartTimeoutMs)) {

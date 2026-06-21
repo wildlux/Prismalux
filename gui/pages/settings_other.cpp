@@ -1,4 +1,5 @@
 #include "settings_main.h"
+#include "../dpi_utils.h"
 #include "../ai_memory.h"
 #include "../log_bus.h"
 #include "../widgets/toggle_switch.h"
@@ -583,7 +584,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
             auto* btnAgg = new QPushButton(
                 "\xe2\x9e\x95  Aggiungi a Claude");
             btnAgg->setObjectName("actionBtn");
-            btnAgg->setFixedWidth(165);
+            btnAgg->setFixedWidth(dpiScale(165));
             btns->addWidget(btnAgg);
 
             /* QProcess per MCP HTTP (avviabile da Prismalux) */
@@ -593,7 +594,7 @@ QWidget* ImpostazioniPage::buildMcpTab()
                 auto* btnStart = new QPushButton(
                     "\xe2\x96\xb6  Avvia server");
                 btnStart->setObjectName("actionBtn");
-                btnStart->setFixedWidth(165);
+                btnStart->setFixedWidth(dpiScale(165));
                 btns->addWidget(btnStart);
 
                 const QString scriptPath = root + "/" + c.scriptRel;
@@ -612,6 +613,11 @@ QWidget* ImpostazioniPage::buildMcpTab()
                     if (st == QProcess::NotRunning)
                         btnStart->setText(tr("\xe2\x96\xb6  Avvia server"));
                 });
+                connect(proc, &QProcess::errorOccurred, card,
+                    [btnStart](QProcess::ProcessError err) {
+                        if (err == QProcess::FailedToStart)
+                            btnStart->setText(tr("\xe2\x9d\x8c  Python non trovato"));
+                    });
             }
 
             McpLocal cap = c;

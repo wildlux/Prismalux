@@ -1190,6 +1190,13 @@ void ImpostazioniPage::onSandboxPullBtnClicked()
     proc->setProcessChannelMode(QProcess::MergedChannels);
     connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &ImpostazioniPage::onSandboxPullProcFinished);
+    connect(proc, &QProcess::errorOccurred, this,
+        [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart && m_sandboxPullStatus) {
+                if (m_sandboxPullBtn) m_sandboxPullBtn->setEnabled(true);
+                m_sandboxPullStatus->setText(tr("\xe2\x9d\x8c  Docker non trovato nel PATH"));
+            }
+        });
     proc->start(P::findDocker(), {"pull", img});
 }
 

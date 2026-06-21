@@ -1,4 +1,5 @@
 #include "widget_blhm.h"
+#include "../dpi_utils.h"
 #include "rab0l_canvas.h"
 #include "../prismalux_paths.h"
 #include <QVBoxLayout>
@@ -36,7 +37,7 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         "</span>", this);
     hdr->setTextFormat(Qt::RichText);
     hdr->setObjectName("pageHeader");
-    hdr->setFixedHeight(36);
+    hdr->setFixedHeight(dpiScale(36));
     vlay->addWidget(hdr);
 
     auto* inner = new QTabWidget(this);
@@ -157,7 +158,7 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         auto* btnSave = new QPushButton("\xf0\x9f\x92\xbe  Salva");
         btnSave->setObjectName("primaryBtn");
         auto* btnClr  = new QPushButton("\xf0\x9f\x97\x91");
-        btnClr->setFixedWidth(32);
+        btnClr->setFixedWidth(dpiScale(32));
         blay->addWidget(lbl); blay->addStretch();
         blay->addWidget(btnLoad); blay->addWidget(btnSave); blay->addWidget(btnClr);
         m_noteEdit = new QTextEdit;
@@ -190,7 +191,7 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         auto* btnAn = new QPushButton("\xf0\x9f\xa7\xac  Analizza");
         btnAn->setObjectName("primaryBtn");
         auto* btnCl = new QPushButton("\xf0\x9f\x97\x91");
-        btnCl->setFixedWidth(32);
+        btnCl->setFixedWidth(dpiScale(32));
         m_dnaSimLbl = new QLabel;
         m_dnaSimLbl->setTextFormat(Qt::RichText);
         hlay->addWidget(new QLabel("Seq 1:")); hlay->addWidget(m_dnaSeq1, 3);
@@ -292,7 +293,7 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         m_engineLrSpin->setSingleStep(0.01);
         m_engineLrSpin->setValue(0.05);
         m_engineLrSpin->setDecimals(3);
-        m_engineLrSpin->setFixedWidth(80);
+        m_engineLrSpin->setFixedWidth(dpiScale(80));
         auto* btnAutoft = new QPushButton("Applica Autoft");
         btnAutoft->setObjectName("actionBtn");
         autoftHLay->addWidget(m_engineLrSpin); autoftHLay->addWidget(btnAutoft); autoftHLay->addStretch();

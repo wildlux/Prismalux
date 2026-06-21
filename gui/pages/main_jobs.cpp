@@ -1,4 +1,5 @@
 #include "main_jobs.h"
+#include "../dpi_utils.h"
 #include "main_jobs_data.h"
 #include "../prismalux_paths.h"
 #include "../widgets/proc_helper.h"
@@ -208,7 +209,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
 
     auto* sfogliaBtn = new QPushButton("\xf0\x9f\x93\x82 Sfoglia...", m_cvBox);
     sfogliaBtn->setObjectName("actionBtn");
-    sfogliaBtn->setFixedWidth(90);
+    sfogliaBtn->setFixedWidth(dpiScale(90));
     sfogliaBtn->setAccessibleName("Sfoglia file curriculum");
 
     m_cvStatus = new QLabel("Nessun CV caricato", m_cvBox);
@@ -237,7 +238,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
 
     auto* fetchBtn = new QPushButton("\xf0\x9f\x94\x84", m_llmBox);
     fetchBtn->setObjectName("actionBtn");
-    fetchBtn->setFixedWidth(34);
+    fetchBtn->setFixedWidth(dpiScale(34));
     fetchBtn->setToolTip(tr("Aggiorna lista modelli"));
 
     llmLay->addWidget(m_cmbModello, 1);
@@ -282,7 +283,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_filtroTipo = new QComboBox(m_filtriRow);
     m_filtroTipo->setObjectName("filtroTipo");
     m_filtroTipo->setAccessibleName("Filtro tipo di lavoro");
-    m_filtroTipo->setFixedWidth(185);
+    m_filtroTipo->setFixedWidth(dpiScale(185));
 
     const struct { const char* label; const char* data; } tipi[] = {
         {"Tutti i tipi",                   "tutti"},
@@ -308,7 +309,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     filtriL->addWidget(new QLabel("\xf0\x9f\x8e\x93 Istruzione:", m_filtriRow));
     m_filtroLivello = new QComboBox(m_filtriRow);
     m_filtroLivello->setObjectName("filtroLivello");
-    m_filtroLivello->setFixedWidth(210);
+    m_filtroLivello->setFixedWidth(dpiScale(210));
     m_filtroLivello->setAccessibleName("Filtro livello di istruzione richiesto");
 
     const struct { const char* label; const char* data; } livelli[] = {
@@ -325,7 +326,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
 
     auto* filtriBtn = new QPushButton("\xf0\x9f\x94\x84", m_filtriRow);
     filtriBtn->setObjectName("actionBtn");
-    filtriBtn->setFixedWidth(28);
+    filtriBtn->setFixedWidth(dpiScale(28));
     filtriBtn->setToolTip(tr("Aggiorna filtri"));
     connect(filtriBtn, &QPushButton::clicked, this, &LavoroPage::applicaFiltri);
     connect(m_filtroTipo,    QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -345,7 +346,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_stopAiBtn = new QPushButton("\xe2\x8f\xb9", m_filtriRow);
     m_stopAiBtn->setObjectName("actionBtn");
     m_stopAiBtn->setProperty("danger", true);
-    m_stopAiBtn->setFixedWidth(28);
+    m_stopAiBtn->setFixedWidth(dpiScale(28));
     m_stopAiBtn->setEnabled(false);
     m_stopAiBtn->setToolTip(tr("Interrompi elaborazione AI"));
     m_stopAiBtn->setAccessibleName("Interrompi elaborazione AI");

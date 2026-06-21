@@ -1,4 +1,5 @@
 #include "settings_main.h"
+#include "../dpi_utils.h"
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
 #include "main_customize.h"
@@ -802,7 +803,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     /* Pulsante ricontrolla — aggiorna lo stato senza riaprire le impostazioni */
     auto* btnRescan = new QPushButton("\xf0\x9f\x94\x84  Ricontrolla", secBin);
     btnRescan->setObjectName("actionBtn");
-    btnRescan->setFixedHeight(28);
+    btnRescan->setFixedHeight(dpiScale(28));
     btnRescan->setToolTip(tr("Riscansiona i percorsi noti per whisper-cli."));
     secBinLay->addWidget(btnRescan);
 
@@ -810,7 +811,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     auto* btnCompileWsp = new QPushButton(
         "\xf0\x9f\x94\xa8  Scarica e compila whisper.cpp da sorgente", secBin);
     btnCompileWsp->setObjectName("primaryBtn");
-    btnCompileWsp->setFixedHeight(34);
+    btnCompileWsp->setFixedHeight(dpiScale(34));
     btnCompileWsp->setVisible(SttWhisper::whisperBin().isEmpty());
     btnCompileWsp->setToolTip(
         "Clona il repo whisper.cpp in ~/.prismalux/whisper.cpp/ e lo compila.\n"
@@ -1273,11 +1274,11 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     auto* httpSaveBtn = new QPushButton(
         "\xf0\x9f\x92\xbe  Salva URL", secHttp);
     httpSaveBtn->setObjectName("actionBtn");
-    httpSaveBtn->setFixedWidth(110);
+    httpSaveBtn->setFixedWidth(dpiScale(110));
     auto* httpClearBtn = new QPushButton(
         "\xf0\x9f\x97\x91  Cancella", secHttp);
     httpClearBtn->setObjectName("secondaryBtn");
-    httpClearBtn->setFixedWidth(90);
+    httpClearBtn->setFixedWidth(dpiScale(90));
     httpRow->addWidget(httpEdit, 1);
     httpRow->addWidget(httpSaveBtn);
     httpRow->addWidget(httpClearBtn);
@@ -1376,7 +1377,7 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     m_micLevelBar->setValue(0);
     m_micLevelBar->setTextVisible(true);
     m_micLevelBar->setFormat("%v dB (RMS)");
-    m_micLevelBar->setFixedHeight(20);
+    m_micLevelBar->setFixedHeight(dpiScale(20));
     m_micLevelBar->setObjectName("micLevelBar");
     secMicLay->addWidget(m_micLevelBar);
 

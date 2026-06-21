@@ -1064,7 +1064,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
         int domRow = 0;
         for (const DomainRec& d : kDomains) {
             auto* icoLbl = new QLabel(d.icon, domCard);
-            icoLbl->setFixedWidth(24);
+            icoLbl->setFixedWidth(dpiScale(24));
             icoLbl->setAlignment(Qt::AlignCenter);
 
             auto* domLbl = new QLabel(
@@ -1119,7 +1119,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
        ════════════════════════════════════════════════════════ */
     auto* leftGroup = new QGroupBox("\xf0\x9f\x94\xa7  Filtro", colsRow);
     leftGroup->setObjectName("cardGroup");
-    leftGroup->setFixedWidth(190);
+    leftGroup->setFixedWidth(dpiScale(190));
     auto* leftLay = new QVBoxLayout(leftGroup);
     leftLay->setSpacing(5);
 
@@ -1216,7 +1216,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
 
     auto* installBtn = new QPushButton("\xe2\xac\x87  Installa", rightGroup);
     installBtn->setObjectName("actionBtn");
-    installBtn->setFixedWidth(110);
+    installBtn->setFixedWidth(dpiScale(110));
     installBtn->setEnabled(false);
 
     detLay->addWidget(detailLbl, 1);
@@ -1254,7 +1254,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
         "https://huggingface.co/.../resolve/main/modello.gguf");
     auto* customDlBtn = new QPushButton("\xe2\xac\x87  Scarica", rightGroup);
     customDlBtn->setObjectName("actionBtn");
-    customDlBtn->setFixedWidth(100);
+    customDlBtn->setFixedWidth(dpiScale(100));
     customRowLay->addWidget(customEdit, 1);
     customRowLay->addWidget(customDlBtn);
     rightLay->addWidget(customRow);
@@ -1660,7 +1660,7 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
     filterCombo->addItem("\xe2\x89\xa4 32 GB RAM",   32);
     filterCombo->addItem("\xe2\x89\xa4 64 GB RAM",   64);
     filterCombo->setCurrentIndex(4);   /* default: mostra tutto fino a 64 GB */
-    filterCombo->setFixedWidth(160);
+    filterCombo->setFixedWidth(dpiScale(160));
 
     auto* filterCatCombo = new QComboBox(filterRow);
     filterCatCombo->addItem("Tutte le categorie", "");
@@ -1669,7 +1669,7 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
     filterCatCombo->addItem("Ragionamento",        "Ragionamento");
     filterCatCombo->addItem("Matematica",          "Matematica");
     filterCatCombo->addItem("Vision",              "Vision");
-    filterCatCombo->setFixedWidth(180);
+    filterCatCombo->setFixedWidth(dpiScale(180));
 
     auto* sortLbl = new QLabel("Ordina per:", filterRow);
     sortLbl->setObjectName("cardDesc");
@@ -1677,7 +1677,7 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
     sortCombo->addItem("Score qualit\xc3\xa0 \xe2\x86\x93", 0);
     sortCombo->addItem("RAM richiesta \xe2\x86\x91",         1);
     sortCombo->addItem("Velocit\xc3\xa0 \xe2\x86\x93",       2);
-    sortCombo->setFixedWidth(170);
+    sortCombo->setFixedWidth(dpiScale(170));
 
     filterLay->addWidget(filterLbl);
     filterLay->addWidget(filterCombo);
@@ -1741,7 +1741,7 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
 
     auto* installBtn = new QPushButton("\xe2\xac\x87  Installa (Ollama)", detailGroup);
     installBtn->setObjectName("actionBtn");
-    installBtn->setFixedWidth(160);
+    installBtn->setFixedWidth(dpiScale(160));
     installBtn->setEnabled(false);
 
     detailLay->addWidget(detailLbl, 1);

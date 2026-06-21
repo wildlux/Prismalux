@@ -1,4 +1,5 @@
 #include "main_subjects.h"
+#include "../dpi_utils.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -76,7 +77,7 @@ SubjectTutorWidget::SubjectTutorWidget(AiClient* ai, const QString& subject,
     m_inp = new QLineEdit(inputRow);
     m_inp->setObjectName("chatInput");
     m_inp->setPlaceholderText(tr("Domanda libera..."));
-    m_inp->setFixedHeight(38);
+    m_inp->setFixedHeight(dpiScale(38));
 
     m_send = new QPushButton("Chiedi ▶", inputRow);
     m_send->setObjectName("actionBtn");
@@ -84,7 +85,7 @@ SubjectTutorWidget::SubjectTutorWidget(AiClient* ai, const QString& subject,
     m_stop = new QPushButton("⏹", inputRow);
     m_stop->setObjectName("actionBtn");
     m_stop->setProperty("danger", true);
-    m_stop->setFixedWidth(40);
+    m_stop->setFixedWidth(dpiScale(40));
     m_stop->setEnabled(false);
 
     inL->addWidget(m_inp, 1);
@@ -260,7 +261,7 @@ MateriePage::MateriePage(AiClient* ai, QWidget* parent)
 
         /* Header con tasto "← Materie" */
         auto* hdr = new QWidget(w);
-        hdr->setFixedHeight(52);
+        hdr->setFixedHeight(dpiScale(52));
         hdr->setObjectName("subjectHeader");
         auto* hl = new QHBoxLayout(hdr);
         hl->setContentsMargins(16, 8, 16, 8); hl->setSpacing(12);
@@ -331,7 +332,7 @@ QWidget* MateriePage::buildMenu()
         cl->setContentsMargins(16, 12, 16, 12); cl->setSpacing(14);
 
         auto* ico = new QLabel(c.icon, card); ico->setObjectName("cardIcon");
-        ico->setFixedWidth(38); ico->setAlignment(Qt::AlignCenter);
+        ico->setFixedWidth(dpiScale(38)); ico->setAlignment(Qt::AlignCenter);
 
         auto* txt  = new QWidget(card);
         auto* txtL = new QVBoxLayout(txt); txtL->setContentsMargins(0,0,0,0); txtL->setSpacing(3);
@@ -341,7 +342,7 @@ QWidget* MateriePage::buildMenu()
 
         auto* btn = new QPushButton("Studia →", card);
         btn->setObjectName("subjectBtn");
-        btn->setFixedWidth(88);
+        btn->setFixedWidth(dpiScale(88));
 
         cl->addWidget(ico); cl->addWidget(txt, 1); cl->addWidget(btn);
         gLay->addWidget(card, i / 2, i % 2);

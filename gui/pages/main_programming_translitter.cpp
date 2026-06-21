@@ -6,6 +6,7 @@
 
    Fa parte di ProgrammazionePage (dichiarazioni in programmazione_page.h).
    ══════════════════════════════════════════════════════════════ */
+#include "../dpi_utils.h"
 #include "main_programming.h"
 #include "../prismalux_paths.h"
 #include "../ai_utils.h"
@@ -99,7 +100,7 @@ QWidget* ProgrammazionePage::buildTrControlRow(QWidget* parent,
 
     outBtnSwap = new QPushButton("\xe2\x87\x84", ctrlRow);
     outBtnSwap->setObjectName("actionBtn");
-    outBtnSwap->setFixedWidth(36);
+    outBtnSwap->setFixedWidth(dpiScale(36));
     outBtnSwap->setToolTip(tr("Scambia linguaggio sorgente e destinazione"));
     ctrlLay->addWidget(outBtnSwap);
 

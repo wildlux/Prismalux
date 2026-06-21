@@ -81,3 +81,22 @@ inline QSize dpiSize(int w, int h)
 using DpiUtils::dpiScale;
 using DpiUtils::dpiScaleF;
 using DpiUtils::dpiSize;
+
+/* ── setBtnRunning — helper centralizzato per pulsante Invia↔Stop ──────────
+ * Cambia testo + proprietà "danger" in modo coerente in tutta la GUI.
+ * Il chiamante deve chiamare P::repolish(btn) dopo se il QSS usa [danger].
+ *
+ * Esempio:
+ *   setBtnRunning(m_btnSend, true,  "\xe2\x9c\x88  Invia", "\xe2\x8f\xb9 Stop");
+ *   setBtnRunning(m_btnSend, false, "\xe2\x9c\x88  Invia", "\xe2\x8f\xb9 Stop");
+ */
+#include <QPushButton>
+inline void setBtnRunning(QPushButton* btn, bool running,
+                          const char* idleText, const char* stopText)
+{
+    if (!btn) return;
+    btn->setText(running ? QString::fromUtf8(stopText)
+                         : QString::fromUtf8(idleText));
+    btn->setProperty("danger", running);
+    btn->setEnabled(true);
+}

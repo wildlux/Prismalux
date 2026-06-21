@@ -1,6 +1,150 @@
 # Prismalux — TODO pendenti
 
-> Aggiornato: 2026-06-20 | Versione: 2.9
+> Aggiornato: 2026-06-21 | Versione: 2.9
+
+---
+
+## 🚨 BUG CRITICO — SEGV in produzione (2026-06-21)
+
+> Crash riprodotto in `test_fatti.txt` (PID 8001): SIGSEGV nel timer callback STT.
+> **Priorità ALTA** — crash immediato in produzione quando si usa la voce.
+
+### 🔴 `AgentiPage::onSttTimeout()` — use-after-free in `waitForFinished`
+
+- [x] **Fix SEGV: `m_recProc->deleteLater()` su oggetto già distrutto** — FATTO 2026-06-21: salva ptr in locale, azzera membro, disconnect(), terminate(), waitForFinished, deleteLater — sicuro da rientro
+  - **File:** `gui/pages/main_ai_stt.cpp:126–197`
+  - **Causa radice:** `QProcess::waitForFinished(1000)` (riga 141) **processa gli eventi
+    Qt** durante l'attesa. Se `onRecProcFinished` viene eseguito nel mezzo (il processo
+    termina dopo `terminate()`), quel slot fa già `m_recProc->deleteLater(); m_recProc = nullptr;`.
+    Ma il puntatore locale alla stack frame di `onSttTimeout` è ancora il vecchio valore —
+    la riga successiva `m_recProc->deleteLater()` viene chiamata su un QObject già distrutto
+    → SEGV.
+  - **Trace del crash:**
+    ```
+    #0  QObject::deleteLater()   (libQt6Core.so.6)
+    #1  AgentiPage::onSttTimeout() (Prismalux_GUI + 0x26bce2)
+    #2  Qt timer callback
+    ```
+  - **Fix:** in `onSttTimeout`, salvare il puntatore in una variabile locale PRIMA di
+    `waitForFinished` e ri-controllare `m_recProc` dopo il ritorno, oppure eliminare
+    `waitForFinished` e usare solo `terminate()` + `deleteLater()` (async, senza event loop):
+
+    ```cpp
+    if (m_recProc) {
+        QProcess* proc = m_recProc;
+        m_recProc = nullptr;            // azzera PRIMA del waitForFinished
+        proc->disconnect();             // evita che onRecProcFinished usi m_recProc
+        if (proc->state() != QProcess::NotRunning)
+            proc->terminate();
+        proc->waitForFinished(1000);    // ora safe: m_recProc è già nullptr
+        proc->deleteLater();
+    }
+    ```
+  - **Alternativa più semplice:** rimuovere `waitForFinished` del tutto — il processo
+    viene terminato in background e `deleteLater` lo distrugge dopo che il loop di eventi
+    ha eseguito le callback pendenti. Unico trade-off: il WAV può essere scritto ancora
+    per pochi ms, ma `QFileInfo(wavPath).size()` già gestisce file troppo piccoli.
+
+---
+
+## 🎛️ FEATURE: Pulsante "Ferma Richiesta" — piano d'azione (2026-06-21)
+
+> Richiesta di Paolo [21/06/26 15:36]:
+> *"Manca il tasto ferma richiesta query. Quindi il pulsante 'Avvia agente' oppure
+> 'Dialoga' oppure 'Invia' nel momento in cui sta processando deve cambiare stato
+> e se cliccato deve fermare il processo."*
+
+**Obiettivo:** durante una richiesta AI in corso, il pulsante di invio cambia in
+"⏹ Ferma" (rosso); cliccarlo chiama `m_ai->abort()` e riporta l'UI allo stato idle.
+
+### Stato attuale (verificato nel codice)
+
+`AiClient` ha già `abort()` e il segnale `aborted()`.
+
+| Tab | File | Pulsante | Stop implementato? |
+|---|---|---|---|
+| [0] 🤖 AI (AgentiPage) | `main_ai_slots.cpp:862` | TriModeButton/m_btnRun | ✅ già funziona — `_setRunBusy(true)` mostra "⏹ Stop"; click → `m_ai->abort()` |
+| [0] Dialoga (OracoloPage) | `main_oracle.cpp:843` | m_btnSend | ✅ già funziona — `_setSendBusy(true)` mostra "⏹ Stop"; click → `m_ai->abort()` |
+| [9] Multi-Agente | `main_multi_agent.cpp:159` | m_btnStop (separato) | ✅ pulsante "■ Stop" sempre visibile |
+| [1] Strumenti / Assistente | `main_tools_ai.cpp` | m_btnSend | ❓ da verificare |
+| Web chat | `lan_web/webchat.html` | #snd | ✅ FATTO 2026-06-21 — AbortController, tasto "⏹ Stop" durante stream |
+
+**Problema reale identificato:** il click del pulsante durante l'esecuzione multi-step
+(Agente Autonomo, step 1-8) non interrompe i QTimer::singleShot già schedulati. Il
+processo viene abortito ma lo scheduler degli step continua.
+
+### File coinvolti e modifiche
+
+| File | Classe | Pulsante | Stato attuale |
+|---|---|---|---|
+| `gui/pages/main_ai_ui.cpp` | `AgentiPage` | "Invia" (`m_btnRun`) | si disabilita durante run |
+| `gui/pages/main_oracle.cpp` | `OracoloPage` | "Dialoga" | si disabilita durante run |
+| `gui/pages/main_agente_autonomo.cpp` | `AgentiAutonomiPage` | "Avvia agente" | si disabilita durante run |
+| `gui/pages/agenti_multi_page.cpp` | `AgentiMultiPage` | "Avvia piano" | si disabilita durante run |
+| `gui/pages/main_ai_stt.cpp` | `AgentiPage` | `m_btnVoice` | rimane attivo |
+
+### Piano d'azione (task ordinati)
+
+- [x] **TASK 1 — Stato macchina "Stop" su `AgentiPage` (tab AI principale)** — già implementato: `_setRunBusy(true)` mostra "⏹ Stop", `m_btnRun->setEnabled(true)`, click chiama `m_ai->abort()`
+  - File: `gui/pages/main_ai_ui.cpp`, `gui/pages/main_ai_slots.cpp`
+  - In `onBtnRunClicked()` (già presente): dopo `m_ai->chat(...)`,
+    invece di `m_btnRun->setEnabled(false)`, fare:
+    ```cpp
+    m_btnRun->setText(tr("\xe2\x8f\xb9 Ferma"));
+    m_btnRun->setProperty("danger", "true");
+    P::repolish(m_btnRun);
+    m_btnRun->setEnabled(true);   // deve restare cliccabile!
+    m_btnRun->disconnect();        // rimuove la connessione "Invia"
+    connect(m_btnRun, &QPushButton::clicked, this, &AgentiPage::onBtnStopClicked);
+    ```
+  - Nuovo slot `onBtnStopClicked()`:
+    ```cpp
+    void AgentiPage::onBtnStopClicked() {
+        m_ai->abort();
+        // UI reset avviene già in onAiFinished / onAiAborted
+    }
+    ```
+  - In `onAiFinished()` / `onAiAborted()`: ripristinare pulsante
+    ```cpp
+    m_btnRun->setText(tr("\xe2\x96\xba Invia"));
+    m_btnRun->setProperty("danger", "false");
+    P::repolish(m_btnRun);
+    m_btnRun->disconnect();
+    connect(m_btnRun, &QPushButton::clicked, this, &AgentiPage::onBtnRunClicked);
+    ```
+  - **Nota:** usare `disconnect()` + `connect()` invece di un `m_isRunning` flag
+    perché evita ogni possibilità di doppio invio.
+
+- [x] **TASK 2 — Stato macchina "Stop" su `OracoloPage` (tab Dialoga)** — già implementato: `_setSendBusy(true)` mostra "⏹ Stop", pulsante abilitato, click → `m_ai->abort()`
+
+- [x] **TASK 3 — Agente Autonomo non si ferma dopo abort** — FATTO 2026-06-21
+  - File: `gui/pages/main_ai_auto.cpp:124`
+  - **Bug:** dopo `m_ai->abort()`, la lambda di `runToolCall` chiamava comunque
+    `runAutonomousAgent()` che trovava `m_ai->busy()==false` e riprendeva l'esecuzione.
+  - **Fix:** `if (m_opMode != OpMode::AutonomousAgent) return;` — `onAiAborted()` imposta
+    `m_opMode = OpMode::Idle`, quindi le lambda pendenti escono immediatamente.
+
+- [x] **TASK 4 — Stato macchina "Stop" su `AgentiMultiPage`** — già implementato: `m_btnStop` separato (■ Stop), si abilita al lancio e chiama `abort()` su tutti i pool AI
+
+- [x] **TASK 5 — Helper centralizzato `setBtnRunning(btn, running, idleText, stopText)`** — FATTO 2026-06-21: aggiunto in `gui/dpi_utils.h` (inline, include QPushButton). Tutti i file che includono dpi_utils.h possono usarlo direttamente.
+  - (archivio piano originale):
+    ```cpp
+    // In prismalux_paths.h — ora in dpi_utils.h
+    namespace P {
+      inline void setBtnRunning(QPushButton* btn, bool running,
+                                const char* idleText, const char* stopText)
+      {
+          btn->setText(running ? tr(stopText) : tr(idleText));
+          btn->setProperty("danger", running ? "true" : "false");
+          P::repolish(btn);
+          btn->setEnabled(true);
+      }
+    }
+    ```
+  - Da fare DOPO i task 1-4, per non bloccare il refactoring mentre aspettiamo di
+    raccogliere i pattern reali.
+
+- [x] **TASK 6 — Stile QSS per stato "danger"** — 23/24 temi hanno `[danger]`; `base.qss` è il foglio base condiviso (i temi specifici sovrascrivono)
 
 ---
 

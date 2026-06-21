@@ -6,6 +6,7 @@
    I fix vengono salvati in ~/.prismalux/model_params.json e
    applicati automaticamente da AiClient::chat() alle chiamate successive.
    ══════════════════════════════════════════════════════════════ */
+#include "../dpi_utils.h"
 #include "main_maintenance.h"
 #include "../prismalux_paths.h"
 #include "../widgets/model_combo_helper.h"
@@ -75,7 +76,7 @@ QWidget* ManutenzioneePage::buildBugTracker()
 
     auto* btnRefMod = new QPushButton("\xf0\x9f\x94\x84", searchRow);
     btnRefMod->setObjectName("actionBtn");
-    btnRefMod->setFixedWidth(34);
+    btnRefMod->setFixedWidth(dpiScale(34));
     btnRefMod->setToolTip(tr("Aggiorna lista modelli"));
     searchLay->addWidget(btnRefMod);
 

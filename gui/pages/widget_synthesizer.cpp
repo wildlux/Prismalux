@@ -436,6 +436,11 @@ void SintetizzatoreWidget::playWav(const QVector<Tono>& toni, const QString& lab
     connect(m_aplay,
         QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
         this, &SintetizzatoreWidget::onPlayFinished);
+    connect(m_aplay, &QProcess::errorOccurred, this,
+        [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                m_statusLbl->setText(tr("\xe2\x9d\x8c  aplay non trovato — installa alsa-utils"));
+        });
 
     m_aplay->start("aplay", {m_tmpWav});
     if (!m_aplay->waitForStarted(2000)) {

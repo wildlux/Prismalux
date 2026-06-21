@@ -1,4 +1,5 @@
 #include "main_customize.h"
+#include "../dpi_utils.h"
 #include "../prismalux_paths.h"
 #include "../log_bus.h"
 #include <QVBoxLayout>
@@ -164,14 +165,14 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
         card->setObjectName("actionCard");
         auto* cl = new QHBoxLayout(card);
         cl->setContentsMargins(14, 12, 14, 12); cl->setSpacing(12);
-        auto* ico = new QLabel(s.ico, card); ico->setObjectName("cardIcon"); ico->setFixedWidth(30);
+        auto* ico = new QLabel(s.ico, card); ico->setObjectName("cardIcon"); ico->setFixedWidth(dpiScale(30));
         auto* txt = new QWidget(card);
         auto* tl  = new QVBoxLayout(txt); tl->setContentsMargins(0,0,0,0); tl->setSpacing(3);
         auto* lt  = new QLabel(s.title, txt); lt->setObjectName("cardTitle");
         auto* ld  = new QLabel(s.desc,  txt); ld->setObjectName("cardDesc"); ld->setWordWrap(true);
         tl->addWidget(lt); tl->addWidget(ld);
         auto* btn = new QPushButton("Apri →", card);
-        btn->setObjectName("actionBtn"); btn->setFixedWidth(90);
+        btn->setObjectName("actionBtn"); btn->setFixedWidth(dpiScale(90));
         btn->setProperty("_targetPage", s.pg);
         connect(btn, &QPushButton::clicked, this, &PersonalizzaPage::onSubMenuBtnClicked);
         cl->addWidget(ico); cl->addWidget(txt, 1); cl->addWidget(btn);
@@ -236,7 +237,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     m_modDirLbl = new QLabel("", modPg);
     m_modDirLbl->setObjectName("cardDesc");
     auto* refreshBtn = new QPushButton("\xf0\x9f\x94\x84", modPg);
-    refreshBtn->setObjectName("actionBtn"); refreshBtn->setFixedWidth(32);
+    refreshBtn->setObjectName("actionBtn"); refreshBtn->setFixedWidth(dpiScale(32));
     refreshBtn->setToolTip(tr("Aggiorna lista"));
     modTopL->addWidget(backMod);
     modTopL->addWidget(modTitle, 1);
@@ -424,7 +425,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
         tl->addWidget(nameL); tl->addWidget(descL);
 
         auto* dlBtn = new QPushButton("\xe2\xac\x87 Scarica", card);
-        dlBtn->setObjectName("actionBtn"); dlBtn->setFixedWidth(100);
+        dlBtn->setObjectName("actionBtn"); dlBtn->setFixedWidth(dpiScale(100));
         dlBtn->setProperty("_url",  mm.url);
         dlBtn->setProperty("_name", mm.name);
         connect(dlBtn, &QPushButton::clicked,
@@ -448,7 +449,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
     m_dlCustomUrlEdit = new QLineEdit(customCard);
     m_dlCustomUrlEdit->setPlaceholderText(tr("https://huggingface.co/.../resolve/main/modello.gguf"));
     m_dlCustomBtn = new QPushButton("\xe2\xac\x87 Scarica", customCard);
-    m_dlCustomBtn->setObjectName("actionBtn"); m_dlCustomBtn->setFixedWidth(100);
+    m_dlCustomBtn->setObjectName("actionBtn"); m_dlCustomBtn->setFixedWidth(dpiScale(100));
     urlRowL->addWidget(m_dlCustomUrlEdit, 1); urlRowL->addWidget(m_dlCustomBtn);
     ccL->addWidget(urlRow);
     listL->addWidget(customCard);
@@ -857,9 +858,9 @@ void PersonalizzaPage::refreshModelList() {
         auto* name = new QLabel(f.fileName(), card);
         name->setObjectName("cardTitle");
         auto* size = new QLabel(sizeStr, card);
-        size->setObjectName("cardDesc"); size->setFixedWidth(72);
+        size->setObjectName("cardDesc"); size->setFixedWidth(dpiScale(72));
         auto* delBtn = new QPushButton("\xf0\x9f\x97\x91", card);
-        delBtn->setObjectName("actionBtn"); delBtn->setFixedWidth(32);
+        delBtn->setObjectName("actionBtn"); delBtn->setFixedWidth(dpiScale(32));
         delBtn->setToolTip(tr("Elimina modello"));
         delBtn->setProperty("danger", true);
         delBtn->setProperty("_filePath",  f.absoluteFilePath());

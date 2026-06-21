@@ -1,4 +1,5 @@
 #include "main_maintenance.h"
+#include "../dpi_utils.h"
 #include "../lan_server.h"
 #include "../widgets/qr_code_widget.h"
 #include <QVBoxLayout>
@@ -150,7 +151,7 @@ QWidget* ManutenzioneePage::buildLanServer()
 
     m_tlsLog = new QTextEdit(tlsGroup);
     m_tlsLog->setReadOnly(true);
-    m_tlsLog->setFixedHeight(72);
+    m_tlsLog->setFixedHeight(dpiScale(72));
     m_tlsLog->setPlaceholderText(tr("Output generazione certificato TLS\xe2\x80\xa6"));
     tlsLay->addWidget(m_tlsLog);
 
@@ -379,6 +380,13 @@ void ManutenzioneePage::onTlsGenBtnClicked()
             this, &ManutenzioneePage::onTlsProcReadyRead);
     connect(m_tlsProc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &ManutenzioneePage::onTlsProcFinished);
+    connect(m_tlsProc, &QProcess::errorOccurred, this,
+        [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart && m_tlsLog) {
+                m_tlsLog->append(tr("\xe2\x9d\x8c  openssl non trovato \xe2\x80\x94 sudo apt install openssl"));
+                if (m_tlsGenBtn) m_tlsGenBtn->setEnabled(true);
+            }
+        });
 
     const QStringList args{
         "req", "-x509", "-newkey", "rsa:2048",

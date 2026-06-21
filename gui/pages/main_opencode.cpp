@@ -1,4 +1,5 @@
 #include "main_opencode.h"
+#include "../dpi_utils.h"
 #include "../prismalux_paths.h"
 #include "../log_bus.h"
 namespace P = PrismaluxPaths;
@@ -60,7 +61,7 @@ OpenCodePage::OpenCodePage(QWidget* parent) : QWidget(parent) {
     m_cwdEdit->setMinimumWidth(260);
     cfgRow->addWidget(m_cwdEdit, 1);
     auto* cwdBtn = new QPushButton("\xf0\x9f\x93\x82", this);
-    cwdBtn->setFixedWidth(32);
+    cwdBtn->setFixedWidth(dpiScale(32));
     cwdBtn->setToolTip(tr("Sfoglia directory"));
     cfgRow->addWidget(cwdBtn);
 
@@ -92,7 +93,7 @@ OpenCodePage::OpenCodePage(QWidget* parent) : QWidget(parent) {
     m_input = new QTextEdit(this);
     m_input->setPlaceholderText(
         "Descrivi il task di codice... (Es: \"Aggiungi un metodo toString() alla classe Foo in src/foo.cpp\")");
-    m_input->setFixedHeight(90);
+    m_input->setFixedHeight(dpiScale(90));
 
     auto* btnRow = new QHBoxLayout;
     m_sendBtn  = new QPushButton("\xe2\x96\xb6  Invia", this);

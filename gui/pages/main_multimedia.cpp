@@ -104,10 +104,10 @@ QWidget* MultimediaPage::buildAudioTab()
     auto* fileBtn = new QPushButton(
         "\xf0\x9f\x93\x82  Carica audio", fileRow);
     fileBtn->setObjectName("actionBtn");
-    fileBtn->setFixedWidth(140);
+    fileBtn->setFixedWidth(dpiScale(140));
     m_recBtn = new QPushButton("\xf0\x9f\x8e\x99  Registra", fileRow);
     m_recBtn->setObjectName("actionBtn");
-    m_recBtn->setFixedWidth(120);
+    m_recBtn->setFixedWidth(dpiScale(120));
     m_recBtn->setCheckable(true);
     m_audioFileLbl = new QLabel("Nessun file caricato", fileRow);
     m_audioFileLbl->setObjectName("hintLabel");
@@ -143,7 +143,7 @@ QWidget* MultimediaPage::buildAudioTab()
         "\xf0\x9f\x93\x8a  Estrai dati e statistiche",
         "\xe2\x9c\x8f  Trascrizione pura (solo testo)"
     });
-    m_audioActionCombo->setFixedWidth(230);
+    m_audioActionCombo->setFixedWidth(dpiScale(230));
     actionLay->addWidget(actionLbl);
     actionLay->addWidget(m_audioActionCombo);
     actionLay->addStretch();
@@ -244,7 +244,7 @@ QWidget* MultimediaPage::buildGraphvizTab()
         "oppure incolla direttamente codice DOT:\n"
         "  digraph G { A -> B; B -> C; }");
     m_graphvizInput->setObjectName("chatInput");
-    m_graphvizInput->setFixedHeight(120);
+    m_graphvizInput->setFixedHeight(dpiScale(120));
     vl->addWidget(m_graphvizInput);
 
     auto* btnRow = new QWidget(panel);
@@ -696,7 +696,7 @@ QWidget* MultimediaPage::buildOcrTab()
     auto* btnVenv = new QPushButton(
         "\xf0\x9f\x90\x8d  Installa venv OpenCV", panel);  /* 🐍 */
     btnVenv->setObjectName("navBtn");
-    btnVenv->setFixedHeight(28);
+    btnVenv->setFixedHeight(dpiScale(28));
     btnVenv->setToolTip(
         "Crea Frameworks/opencv/venv/ con cv2 + pytesseract isolati.\n"
         "Consigliato: evita conflitti con i pacchetti di sistema.");
@@ -738,7 +738,7 @@ QWidget* MultimediaPage::buildOcrTab()
     auto* btnCopyCmd = new QPushButton(
         "\xf0\x9f\x93\x8b  Copia comandi", panel);  /* 📋 */
     btnCopyCmd->setObjectName("navBtn");
-    btnCopyCmd->setFixedHeight(28);
+    btnCopyCmd->setFixedHeight(dpiScale(28));
     btnCopyCmd->setToolTip(
         "Copia i comandi di installazione sistema negli appunti:\n"
         "sudo apt install python3-opencv tesseract-ocr tesseract-ocr-ita -y\n"

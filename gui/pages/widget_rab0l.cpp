@@ -1,4 +1,5 @@
 #include "widget_rab0l.h"
+#include "../dpi_utils.h"
 #include "rab0l_canvas.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -28,7 +29,7 @@ Rab0lWidget::Rab0lWidget(QWidget* parent)
     btnAn->setObjectName("primaryBtn");
     auto* btnCl = new QPushButton("\xf0\x9f\x97\x91", this);
     btnCl->setToolTip(tr("Pulisci"));
-    btnCl->setFixedWidth(32);
+    btnCl->setFixedWidth(dpiScale(32));
 
     m_simLbl = new QLabel(this);
     m_simLbl->setTextFormat(Qt::RichText);

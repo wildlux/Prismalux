@@ -199,7 +199,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
         auto* btnOn   = new QPushButton("On",   thinkGroup);
         for (auto* b : {btnOff, btnAuto, btnOn}) {
             b->setCheckable(true);
-            b->setFixedWidth(56);
+            b->setFixedWidth(dpiScale(56));
             b->setObjectName("thinkModeBtn");
         }
         auto* modeGrp = new QButtonGroup(thinkGroup);
@@ -220,14 +220,14 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
 
         auto* budgetSlider = new QSlider(Qt::Horizontal, thinkGroup);
         budgetSlider->setRange(1, 4);
-        budgetSlider->setFixedWidth(120);
+        budgetSlider->setFixedWidth(dpiScale(120));
         budgetSlider->setTickInterval(1);
         budgetSlider->setTickPosition(QSlider::TicksBelow);
         topRow->addWidget(budgetSlider);
 
         auto* budgetValLbl = new QLabel("2\xc3\x97", thinkGroup);  /* 2× */
         budgetValLbl->setObjectName("cardDesc");
-        budgetValLbl->setFixedWidth(28);
+        budgetValLbl->setFixedWidth(dpiScale(28));
         topRow->addWidget(budgetValLbl);
 
         topRow->addStretch(1);
@@ -314,7 +314,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
 
         auto* openFileBtn = new QPushButton("Apri file", knGroup);
         openFileBtn->setObjectName("actionBtn");
-        openFileBtn->setFixedWidth(90);
+        openFileBtn->setFixedWidth(dpiScale(90));
         openFileBtn->setToolTip(P::userKnowledgePath());
         chkRow->addWidget(openFileBtn);
         chkRow->addStretch(1);
@@ -348,7 +348,7 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
 
         auto* constFileBtn = new QPushButton("Modifica", constGroup);
         constFileBtn->setObjectName("actionBtn");
-        constFileBtn->setFixedWidth(90);
+        constFileBtn->setFixedWidth(dpiScale(90));
         constFileBtn->setToolTip(P::constitutionPath());
         constRow->addWidget(constFileBtn);
         constRow->addStretch(1);
@@ -633,7 +633,7 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
     auto* verifyBtn = new QPushButton(
         "\xf0\x9f\x94\x8d  Verifica tutto");
     verifyBtn->setObjectName("actionBtn");
-    verifyBtn->setFixedWidth(160);
+    verifyBtn->setFixedWidth(dpiScale(160));
     outer->addWidget(verifyBtn, 0, Qt::AlignLeft);
 
     /* ── Scroll area ── */
@@ -689,7 +689,7 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
 
         /* Pallino stato */
         auto* dot = new QLabel("\xe2\x97\x8f");   /* ● grigio */
-        dot->setFixedWidth(20);
+        dot->setFixedWidth(dpiScale(20));
         dot->setAlignment(Qt::AlignCenter);
         dot->setStyleSheet("color:#4a5568;font-size:10px;");
 
@@ -700,7 +700,7 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
                         "(opzionale)</span>";
         auto* nameLbl = new QLabel(nameHtml);
         nameLbl->setTextFormat(Qt::RichText);
-        nameLbl->setFixedWidth(160);
+        nameLbl->setFixedWidth(dpiScale(160));
 
         /* Descrizione */
         auto* descLbl = new QLabel(d.desc);
@@ -711,13 +711,13 @@ QWidget* ImpostazioniPage::buildDipendenzeTab()
             QString("<code style='color:#4a5568;font-size:11px;'>%1</code>")
                 .arg(d.install));
         installLbl->setTextFormat(Qt::RichText);
-        installLbl->setFixedWidth(260);
+        installLbl->setFixedWidth(dpiScale(260));
         installLbl->setWordWrap(true);
 
         /* Pulsante Installa — visibile solo dopo verifica se rosso */
         auto* installBtn = new QPushButton(
             "\xf0\x9f\x92\xbe  " "Installa", row);
-        installBtn->setFixedWidth(90);
+        installBtn->setFixedWidth(dpiScale(90));
         installBtn->setToolTip(QString::fromUtf8(d.install));
         installBtn->setObjectName("actionBtn");
         installBtn->setVisible(false);
@@ -1004,28 +1004,28 @@ QWidget* ImpostazioniPage::buildPythonDepsTab()
         row->setObjectName((i % 2 == 0) ? "depRowEven" : "depRowOdd");
 
         auto* dot = new QLabel("\xe2\x97\x8f", row);
-        dot->setFixedWidth(20);
+        dot->setFixedWidth(dpiScale(20));
         dot->setAlignment(Qt::AlignCenter);
         dot->setStyleSheet("color:#4a5568;font-size:10px;");
 
         auto* pkgLbl = new QLabel(
             QString("<b><code>%1</code></b>").arg(QString::fromUtf8(p.pip)), row);
         pkgLbl->setTextFormat(Qt::RichText);
-        pkgLbl->setFixedWidth(155);
+        pkgLbl->setFixedWidth(dpiScale(155));
 
         auto* mcpLbl = new QLabel(QString::fromUtf8(p.mcp), row);
-        mcpLbl->setFixedWidth(110);
+        mcpLbl->setFixedWidth(dpiScale(110));
         mcpLbl->setObjectName("hintLabel");
 
         auto* descL = new QLabel(QString::fromUtf8(p.desc), row);
         descL->setObjectName("hintLabel");
 
         auto* whereL = new QLabel(QString::fromUtf8(p.where), row);
-        whereL->setFixedWidth(195);
+        whereL->setFixedWidth(dpiScale(195));
         whereL->setObjectName("hintLabel");
 
         auto* btn = new QPushButton("\xf0\x9f\x92\xbe  Installa", row);
-        btn->setFixedWidth(90);
+        btn->setFixedWidth(dpiScale(90));
         btn->setObjectName("actionBtn");
 
         rowLay->addWidget(dot);
@@ -1313,12 +1313,12 @@ QWidget* ImpostazioniPage::buildRagTab()
     }
     auto* browseBtn = new QPushButton("Sfoglia...");
     browseBtn->setObjectName("actionBtn");
-    browseBtn->setFixedWidth(90);
+    browseBtn->setFixedWidth(dpiScale(90));
     browseBtn->setToolTip(tr("Scegli la cartella dove metti i tuoi documenti RAG"));
 
     auto* openDirBtn = new QPushButton("\xf0\x9f\x93\x82");   /* 📂 */
     openDirBtn->setObjectName("actionBtn");
-    openDirBtn->setFixedWidth(36);
+    openDirBtn->setFixedWidth(dpiScale(36));
     openDirBtn->setToolTip(tr("Apri la cartella nel file manager"));
     QObject::connect(openDirBtn, &QPushButton::clicked, dirEdit, [dirEdit] {
         const QString d = dirEdit->text().trimmed();
@@ -1467,7 +1467,7 @@ QWidget* ImpostazioniPage::buildRagTab()
     auto* downloadBtn = new QPushButton(
         "\xf0\x9f\x93\xa5  Scarica documenti ufficiali consigliati (AdE 2026)");
     downloadBtn->setObjectName("actionBtn");
-    downloadBtn->setFixedHeight(32);
+    downloadBtn->setFixedHeight(dpiScale(32));
     downloadBtn->setToolTip(
         "Scarica automaticamente da Agenzia delle Entrate:\n"
         "  \xe2\x80\xa2 Istruzioni 730/2026\n"
@@ -1482,7 +1482,7 @@ QWidget* ImpostazioniPage::buildRagTab()
         embedLbl->setObjectName("hintLabel");
 
         m_ragEmbedCombo = new QComboBox;
-        m_ragEmbedCombo->setFixedHeight(28);
+        m_ragEmbedCombo->setFixedHeight(dpiScale(28));
         m_ragEmbedCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         m_ragEmbedCombo->setToolTip(
             "Modello Ollama dedicato per gli embedding (vettorizzazione del testo).\n"
@@ -1559,7 +1559,7 @@ QWidget* ImpostazioniPage::buildRagTab()
             auto* sizeLbl = new QLabel(
                 QString("<span style='color:#a3e635;'>%1</span>").arg(r.size), embedCard);
             sizeLbl->setTextFormat(Qt::RichText);
-            sizeLbl->setFixedWidth(70);
+            sizeLbl->setFixedWidth(dpiScale(70));
             auto* noteLbl = new QLabel(r.note, embedCard);
             noteLbl->setObjectName("cardDesc");
             noteLbl->setWordWrap(true);
@@ -1605,7 +1605,7 @@ QWidget* ImpostazioniPage::buildRagTab()
     m_btnStopIndex = new QPushButton("\xe2\x8f\xb9  Ferma indicizzazione");
     m_btnStopIndex->setObjectName("actionBtn");
     m_btnStopIndex->setProperty("danger", true);
-    m_btnStopIndex->setFixedHeight(32);
+    m_btnStopIndex->setFixedHeight(dpiScale(32));
     m_btnStopIndex->setEnabled(false);   /* abilitato solo durante indexing */
     m_btnStopIndex->setToolTip(
         "Interrompe l'indicizzazione in corso dopo il chunk attuale.\n"
@@ -1615,7 +1615,7 @@ QWidget* ImpostazioniPage::buildRagTab()
     m_ragReindexBtn = new QPushButton("\xf0\x9f\x94\x84  Reindicizza ora");
     auto* reindexBtn = m_ragReindexBtn;  /* alias locale */
     reindexBtn->setObjectName("actionBtn");
-    reindexBtn->setFixedHeight(32);
+    reindexBtn->setFixedHeight(dpiScale(32));
     reindexBtn->setToolTip(
         QString("Indicizza i documenti dalla cartella selezionata.\n"
                 "L'indicizzazione continua in background anche cambiando finestra.\n"
@@ -1846,11 +1846,11 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
 
         const bool cavemanOn = AiChatParams::load().caveman_mode;
         auto* cavemanToggle = new ToggleSwitch({}, this);
-        cavemanToggle->setChecked(cavemanOn); cavemanToggle->setFixedHeight(26);
+        cavemanToggle->setChecked(cavemanOn); cavemanToggle->setFixedHeight(dpiScale(26));
 
         auto* cavemanBadge = new QLabel(cavemanOn ? "  ON " : "  OFF");
         cavemanBadge->setObjectName(cavemanOn ? "badgeActive" : "badgeInactive");
-        cavemanBadge->setFixedWidth(44); cavemanBadge->setAlignment(Qt::AlignCenter);
+        cavemanBadge->setFixedWidth(dpiScale(44)); cavemanBadge->setAlignment(Qt::AlignCenter);
 
         auto* cavemanLbl = new QLabel(
             "\xf0\x9f\xa6\x96  <b>Modalit\xc3\xa0 Caveman</b> \xe2\x80\x94 risposte dirette, zero convenevoli");

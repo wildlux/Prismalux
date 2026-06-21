@@ -264,6 +264,15 @@ QWidget* RicercaPage::buildRagTesterTab()
                 proc->deleteLater();
                 onTextReady(text);
             });
+            connect(proc, &QProcess::errorOccurred, this,
+                [this, proc](QProcess::ProcessError err) {
+                    if (err == QProcess::FailedToStart) {
+                        if (m_ragTesterStatus)
+                            m_ragTesterStatus->setText(
+                                tr("\xe2\x9d\x8c  pdftotext non trovato \xe2\x80\x94 sudo apt install poppler-utils"));
+                        proc->deleteLater();
+                    }
+                });
             proc->start("pdftotext", {path, "-"});
         } else if (ext == "txt" || ext == "md" || ext == "csv" || ext == "log") {
             QFile f(path);

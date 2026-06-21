@@ -4,6 +4,7 @@
    Implementazioni per i sub-tab Git MCP e Python REPL.
    Fanno parte di ProgrammazionePage (dichiarazioni in programmazione_page.h).
    ══════════════════════════════════════════════════════════════ */
+#include "../dpi_utils.h"
 #include "main_programming.h"
 #include "../prismalux_paths.h"
 #include "../log_bus.h"
@@ -133,7 +134,7 @@ QWidget* ProgrammazionePage::buildGitRepoRow(QWidget* parent,
 
     outBtnBrowse = new QPushButton("\xf0\x9f\x93\x82", repoRow);
     outBtnBrowse->setObjectName("actionBtn");
-    outBtnBrowse->setFixedWidth(34);
+    outBtnBrowse->setFixedWidth(dpiScale(34));
     outBtnBrowse->setToolTip(tr("Scegli cartella repository"));
     repoLay->addWidget(outBtnBrowse);
 
@@ -306,12 +307,12 @@ QWidget* ProgrammazionePage::buildGitAiPanel(QWidget* parent,
 
     outBtnRefGit = new QPushButton("\xf0\x9f\x94\x84", aiModRow);
     outBtnRefGit->setObjectName("actionBtn");
-    outBtnRefGit->setFixedWidth(32);
+    outBtnRefGit->setFixedWidth(dpiScale(32));
     aiModLay->addWidget(outBtnRefGit);
 
     outBtnCloseGitAi = new QPushButton("\xe2\x9c\x95", aiModRow);
     outBtnCloseGitAi->setObjectName("actionBtn");
-    outBtnCloseGitAi->setFixedWidth(32);
+    outBtnCloseGitAi->setFixedWidth(dpiScale(32));
     aiModLay->addWidget(outBtnCloseGitAi);
     aiLay->addWidget(aiModRow);
 

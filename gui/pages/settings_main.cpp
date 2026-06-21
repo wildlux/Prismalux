@@ -466,7 +466,7 @@ public:
     explicit ChartPreviewWidget(GraficoCanvas* canvas, QWidget* parent = nullptr)
         : QWidget(parent), m_canvas(canvas)
     {
-        setFixedHeight(140);
+        setFixedHeight(dpiScale(140));
         setMinimumWidth(240);
     }
 

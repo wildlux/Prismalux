@@ -5,6 +5,7 @@
  * e SimulatorePage UI (costruttore, buildSteps, showStep, ...).
  * Le implementazioni degli algoritmi sono in simulatore_algos.cpp.
  */
+#include "../dpi_utils.h"
 #include "main_simulator.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -852,7 +853,7 @@ SimulatorePage::SimulatorePage(AiClient* ai, QWidget* parent)
     navL->addWidget(new QLabel("Velocit\xc3\xa0:", navW));
     m_speedSlider = new QSlider(Qt::Horizontal, navW);
     m_speedSlider->setRange(200, 1500); m_speedSlider->setValue(700);
-    m_speedSlider->setFixedWidth(120);
+    m_speedSlider->setFixedWidth(dpiScale(120));
     m_speedSlider->setToolTip(tr("Sinistra = lento   Destra = veloce"));
     navL->addWidget(m_speedSlider);
     lay->addWidget(navW);
@@ -867,7 +868,7 @@ SimulatorePage::SimulatorePage(AiClient* ai, QWidget* parent)
     m_aiAskBtn->setObjectName("actionBtn");
     m_aiStopBtn = new QPushButton("\u23f9", aiRow);
     m_aiStopBtn->setObjectName("actionBtn"); m_aiStopBtn->setProperty("danger", true);
-    m_aiStopBtn->setFixedWidth(40); m_aiStopBtn->setEnabled(false);
+    m_aiStopBtn->setFixedWidth(dpiScale(40)); m_aiStopBtn->setEnabled(false);
     aiRL->addWidget(m_aiAskBtn); aiRL->addWidget(m_aiStopBtn); aiRL->addStretch(1);
     lay->addWidget(aiRow);
 

@@ -3,6 +3,7 @@
    Tab scientifici per AppControllerPage:
      9  Godot MCP   — game engine (GDScript via godot-mcp)
    ══════════════════════════════════════════════════════════════ */
+#include "../dpi_utils.h"
 #include "main_app_controller.h"
 #include "../prismalux_paths.h"
 #include "../widgets/model_combo_box.h"
@@ -98,7 +99,7 @@ QWidget* AppControllerPage::buildGodotTab()
     m_godotExecBtn = new QPushButton(
         "\xf0\x9f\x8e\xae  Salva script .gd", connRow);
     m_godotExecBtn->setObjectName("actionBtn");
-    m_godotExecBtn->setFixedWidth(160);
+    m_godotExecBtn->setFixedWidth(dpiScale(160));
     m_godotExecBtn->setEnabled(false);
 
     connLay->addWidget(m_godotStatusLbl, 1);
@@ -137,7 +138,7 @@ QWidget* AppControllerPage::buildGodotTab()
         "Descrivi cosa vuoi fare in Godot...\n"
         "Es: 'Crea un personaggio che si muove con WASD e salta con spazio'\n"
         "Es: 'Shader che simula acqua con onde'");
-    m_godotInput->setFixedHeight(80);
+    m_godotInput->setFixedHeight(dpiScale(80));
     lay->addWidget(m_godotInput);
 
     /* Pulsanti */

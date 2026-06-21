@@ -356,6 +356,7 @@ let sysTool='',toolCtxSuffix='';
 const TOOL_CFG={nessuno:{color:null,icon:'',name:'Chat',ph:'Scrivi un messaggio...',extra:null},scrittura:{color:'#a78bfa',icon:'✍️',name:'Scrittura',ph:'Descrivi il testo da scrivere...',extra:{type:'select',lbl:'Stile',opts:['Formale','Informale','Creativo','Narrativo','Email','Report']}},programmazione:{color:'#34d399',icon:'💻',name:'Programmazione',ph:'Descrivi il codice da scrivere...',extra:{type:'select',lbl:'Linguaggio',opts:['Python','JavaScript','TypeScript','C++','Java','Rust','Go','SQL','Bash','C#']}},matematica:{color:'#60a5fa',icon:'π',name:'Matematica',ph:'Inserisci il problema matematico...',extra:{type:'symbols',syms:['π','√','²','³','⁴','⁵','⁶','⁷','⁸','⁹','⁰','Σ','∫','∮','∂','∇','∞','→','⇒','⇔','↔','±','×','÷','≤','≥','≠','≈','≡','∝','α','β','γ','δ','ε','θ','λ','μ','ξ','ρ','σ','τ','φ','ψ','ω','Α','Β','Γ','Δ','Ε','Θ','Λ','Π','Σ','Φ','Ψ','Ω','∀','∃','∈','∉','⊂','⊃','∪','∩','∅','½','⅓','¼','¾','∛','∜','ℝ','ℤ','ℕ','ℚ','ℂ','ℵ']}},ricerca:{color:'#22d3ee',icon:'🔬',name:'Ricerca',ph:'Cosa vuoi ricercare o analizzare?',extra:{type:'select',lbl:'Formato',opts:['Accademico','Divulgativo','Executive Summary','Review sistematica']}},impara:{color:'#fb923c',icon:'📚',name:'Impara',ph:'Cosa vuoi imparare oggi?',extra:{type:'select',lbl:'Livello',opts:['Principiante','Intermedio','Avanzato','Esperto']}},lavoro:{color:'#2dd4bf',icon:'💼',name:'Cerca Lavoro',ph:'Clicca un\'offerta o scrivi una domanda sulla ricerca lavoro...',extra:null}};
 const TOOL_IND=document.getElementById('tool-ind'),TOOL_EX=document.getElementById('tool-extra'),LAV_PANEL=document.getElementById('lavoro-panel');
 const L=document.getElementById('log'),T=document.getElementById('txt'),B=document.getElementById('snd'),H=[];
+let curAbort=null;
 const LAV_LIST=document.getElementById('lav-list'),LAV_TIPO=document.getElementById('lav-tipo'),LAV_LIV=document.getElementById('lav-liv'),LAV_SRCH=document.getElementById('lav-search'),LAV_CVB=document.getElementById('lav-cv-btn');
 function applyTool(key){sysTool='';toolCtxSuffix='';document.querySelectorAll('.tbtn').forEach(function(b){if(b.dataset.t===key){b.classList.add('on');sysTool=b.dataset.sys||'';}else b.classList.remove('on');});localStorage.setItem('plx-tool',key);
 const cfg=TOOL_CFG[key]||TOOL_CFG.nessuno;
@@ -445,8 +446,9 @@ msgs.push(...H);
 const aiD=add('ai','...');let full='';
 const dF=['...','..','.']; let dI=0;
 const dT=setInterval(function(){if(!full){aiD.textContent=dF[dI%3];dI++;}},400);
+const ctrl=new AbortController();curAbort=ctrl;
 try{
-const r=await fetch('/api/chat',{method:'POST',headers:{{{AUTH_HEADERS_JS}}},body:JSON.stringify({model:curModel,messages:msgs,stream:true})});
+const r=await fetch('/api/chat',{method:'POST',headers:{{{AUTH_HEADERS_JS}}},signal:ctrl.signal,body:JSON.stringify({model:curModel,messages:msgs,stream:true})});
 const rd=r.body.getReader(),dc=new TextDecoder();
 while(true){
 const {done,value}=await rd.read();if(done)break;
@@ -458,14 +460,14 @@ if(tk){if(!full)clearInterval(dT);full+=tk;aiD.textContent=full;L.scrollTop=L.sc
 }catch(x){}
 }
 }
-}catch(e){clearInterval(dT);var isDisconn=(e instanceof TypeError&&(e.message.indexOf('fetch')>=0||e.message.indexOf('network')>=0||e.message.indexOf('Failed')>=0||e.message.indexOf('NetworkError')>=0||e.message.indexOf('aborted')>=0));if(!full){aiD.style.color='#ff9944';aiD.textContent=isDisconn?'⚠️ Server disconnesso — il server Prismalux potrebbe essere stato fermato.':'Errore: '+e.message;}else{var warnD=document.createElement('div');warnD.style.cssText='color:#ff9944;font-size:12px;padding:4px 0';warnD.textContent='⚠️ Risposta interrotta (server disconnesso)';L.appendChild(warnD);L.scrollTop=L.scrollHeight;}}
-clearInterval(dT);
+}catch(e){clearInterval(dT);var isAbort=(e.name==='AbortError');var isDisconn=!isAbort&&(e instanceof TypeError&&(e.message.indexOf('fetch')>=0||e.message.indexOf('network')>=0||e.message.indexOf('Failed')>=0||e.message.indexOf('NetworkError')>=0||e.message.indexOf('aborted')>=0));if(isAbort){if(!full){aiD.textContent='⏹ Richiesta fermata.';aiD.style.color='var(--dim)';}else{var warnD=document.createElement('div');warnD.style.cssText='color:var(--dim);font-size:12px;padding:4px 0';warnD.textContent='⏹ Risposta fermata dall\'utente';L.appendChild(warnD);L.scrollTop=L.scrollHeight;}}else if(!full){aiD.style.color='#ff9944';aiD.textContent=isDisconn?'⚠️ Server disconnesso — il server Prismalux potrebbe essere stato fermato.':'Errore: '+e.message;}else{var warnD=document.createElement('div');warnD.style.cssText='color:#ff9944;font-size:12px;padding:4px 0';warnD.textContent='⚠️ Risposta interrotta (server disconnesso)';L.appendChild(warnD);L.scrollTop=L.scrollHeight;}}
+clearInterval(dT);curAbort=null;
 if(full){H.push({role:'assistant',content:full});addActions(aiD,full);}
-B.disabled=false;T.focus();
+B.textContent='Invia';B.removeAttribute('data-streaming');T.focus();
 }
 async function go(){
 const m=T.value.trim();if(!m&&!attFile)return;
-T.value='';T.style.height='';B.disabled=true;
+T.value='';T.style.height='';B.textContent='⏹ Stop';B.dataset.streaming='1';
 let sendTxt=m,dispTxt=m;
 if(attFile){
 dispTxt=(m?m+'\n':'')+'📎 '+attFile.name;
@@ -483,7 +485,7 @@ add('user',dispTxt);H.push({role:'user',content:sendTxt});
 await streamResponse();
 }
 async function doGo(){await go();sesSaveCurrent();}
-B.addEventListener('click',doGo);
+B.addEventListener('click',function(){if(B.dataset.streaming){if(curAbort)curAbort.abort();}else{doGo();}});
 T.addEventListener('keydown',function(e){
 if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();doGo();}
 setTimeout(function(){T.style.height='';T.style.height=Math.min(T.scrollHeight,200)+'px';},0);

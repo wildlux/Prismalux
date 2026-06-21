@@ -1,4 +1,5 @@
 #include "main_quiz.h"
+#include "../dpi_utils.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
@@ -46,7 +47,7 @@ QWidget* buildGeneraTab(QuizPage* self,
     topicRow->setSpacing(8);
     auto* topicLbl = new QLabel("Argomento:", w);
     topicLbl->setObjectName("cardDesc");
-    topicLbl->setFixedWidth(90);
+    topicLbl->setFixedWidth(dpiScale(90));
     topicEdit = new QLineEdit(w);
     topicEdit->setObjectName("chatInput");
     topicEdit->setPlaceholderText(
@@ -196,7 +197,7 @@ QWidget* buildGiocaTab(QuizPage* self,
     openHint->setObjectName("cardDesc");
     openAnswer = new QTextEdit(openWidget);
     openAnswer->setObjectName("chatInput");
-    openAnswer->setFixedHeight(80);
+    openAnswer->setFixedHeight(dpiScale(80));
     openAnswer->setPlaceholderText("Scrivi qui la tua risposta...");
     openLay->addWidget(openHint);
     openLay->addWidget(openAnswer);
@@ -947,13 +948,13 @@ void QuizPage::loadDashboard() {
         double pct = tot > 0 ? cor * 100.0 / tot : 0.0;
         auto* row = new QWidget(subjBox);
         auto* rl  = new QHBoxLayout(row); rl->setContentsMargins(0,2,0,2); rl->setSpacing(10);
-        auto* nm  = new QLabel(it.key(), row); nm->setFixedWidth(110); nm->setObjectName("cardTitle");
+        auto* nm  = new QLabel(it.key(), row); nm->setFixedWidth(dpiScale(110)); nm->setObjectName("cardTitle");
         auto* bar = new QProgressBar(row);
         bar->setRange(0, 100); bar->setValue((int)pct); bar->setTextVisible(false);
-        bar->setFixedHeight(10); bar->setObjectName("resBar");
+        bar->setFixedHeight(dpiScale(10)); bar->setObjectName("resBar");
         auto* pctLbl = new QLabel(
             QString("%1%  (%2/%3)").arg(pct,0,'f',1).arg(cor).arg(tot), row);
-        pctLbl->setObjectName("gaugePct"); pctLbl->setFixedWidth(100);
+        pctLbl->setObjectName("gaugePct"); pctLbl->setFixedWidth(dpiScale(100));
         rl->addWidget(nm); rl->addWidget(bar, 1); rl->addWidget(pctLbl);
         subjL->addWidget(row);
     }
@@ -971,11 +972,11 @@ void QuizPage::loadDashboard() {
                          .toString("dd/MM/yyyy HH:mm");
         auto* row  = new QWidget(recBox);
         auto* rl   = new QHBoxLayout(row); rl->setContentsMargins(0,1,0,1); rl->setSpacing(12);
-        auto* date = new QLabel(dt, row); date->setObjectName("cardDesc"); date->setFixedWidth(130);
+        auto* date = new QLabel(dt, row); date->setObjectName("cardDesc"); date->setFixedWidth(dpiScale(130));
         auto* subj = new QLabel(s["subject"].toString(), row);
-        subj->setObjectName("cardTitle"); subj->setFixedWidth(100);
+        subj->setObjectName("cardTitle"); subj->setFixedWidth(dpiScale(100));
         auto* diff = new QLabel(s["difficulty"].toString(), row);
-        diff->setObjectName("cardDesc"); diff->setFixedWidth(60);
+        diff->setObjectName("cardDesc"); diff->setFixedWidth(dpiScale(60));
         auto* score = new QLabel(
             QString("\xe2\x9c\x85%1/\xe2\x9d\x8c%2 \xe2\x80\x94 %3%")
             .arg(s["correct"].toInt()).arg(s["wrong"].toInt()).arg(pct,0,'f',0), row);

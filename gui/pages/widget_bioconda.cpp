@@ -1,4 +1,5 @@
 #include "widget_bioconda.h"
+#include "../dpi_utils.h"
 #include "../prismalux_paths.h"
 #include "../widgets/model_combo_box.h"
 #include <QVBoxLayout>
@@ -80,10 +81,10 @@ BiocondaWidget::BiocondaWidget(AiClient* ai, QWidget* parent)
     m_statusLbl->setObjectName("hintLabel");
     auto* checkBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica conda", connRow);
     checkBtn->setObjectName("actionBtn");
-    checkBtn->setFixedWidth(130);
+    checkBtn->setFixedWidth(dpiScale(130));
     m_execBtn = new QPushButton("\xf0\x9f\x8c\xbf  Esegui pipeline", connRow);
     m_execBtn->setObjectName("actionBtn");
-    m_execBtn->setFixedWidth(150);
+    m_execBtn->setFixedWidth(dpiScale(150));
     m_execBtn->setEnabled(false);
     connLay->addWidget(m_statusLbl, 1);
     connLay->addWidget(checkBtn);
@@ -116,7 +117,7 @@ BiocondaWidget::BiocondaWidget(AiClient* ai, QWidget* parent)
     m_input->setPlaceholderText(
         "Descrivi la pipeline bioinformatica da creare...\n"
         "Es: 'Pipeline di allineamento WGS: FASTQ input, output BAM sorted e indexed'");
-    m_input->setFixedHeight(80);
+    m_input->setFixedHeight(dpiScale(80));
     lay->addWidget(m_input);
 
     auto* btnRow = new QWidget(this);
@@ -148,9 +149,14 @@ BiocondaWidget::BiocondaWidget(AiClient* ai, QWidget* parent)
 void BiocondaWidget::onCheckClicked()
 {
     auto* proc = new QProcess(this);
-    proc->start("conda", {"--version"});
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &BiocondaWidget::onCheckFinished);
+    connect(proc, &QProcess::errorOccurred, this,
+        [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                m_statusLbl->setText(tr("\xe2\x9d\x8c  conda non trovato \xe2\x80\x94 installa Miniforge"));
+        });
+    proc->start("conda", {"--version"});
 }
 
 void BiocondaWidget::onCheckFinished(int code, QProcess::ExitStatus)

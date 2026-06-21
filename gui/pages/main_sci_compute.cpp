@@ -1341,6 +1341,14 @@ void SciComputePage::executeLocally(const QString& wuId, const QString& type,
 
     /* ── Progress streaming via stderr (throttle 2s verso coordinator) ── */
     auto stderrBuf = QSharedPointer<QByteArray>::create();
+    connect(proc, &QProcess::errorOccurred, this,
+        [this, proc, wuId](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart) {
+                handleLocalResult(wuId, false, QString(), QString(),
+                                  "processo non avviato: " + proc->program());
+                proc->deleteLater();
+            }
+        });
     connect(proc, &QProcess::readyReadStandardError, this,
             [this, proc, wuId, stderrBuf] {
         *stderrBuf += proc->readAllStandardError();

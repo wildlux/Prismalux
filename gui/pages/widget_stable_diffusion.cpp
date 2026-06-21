@@ -1,4 +1,5 @@
 #include "widget_stable_diffusion.h"
+#include "../dpi_utils.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
 #include <QVBoxLayout>
@@ -103,8 +104,8 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
         "border:1px solid #a06000; border-radius:4px; padding:6px;");
     auto* copyBtnDiff = new QPushButton("\xf0\x9f\x93\x8b", m_installHintRow);  /* 📋 */
     copyBtnDiff->setObjectName("actionBtn");
-    copyBtnDiff->setFixedWidth(28);
-    copyBtnDiff->setFixedHeight(24);
+    copyBtnDiff->setFixedWidth(dpiScale(28));
+    copyBtnDiff->setFixedHeight(dpiScale(24));
     copyBtnDiff->setToolTip(tr("Copia comando pip negli appunti"));
     connect(copyBtnDiff, &QPushButton::clicked, copyBtnDiff, [copyBtnDiff]() {
         QApplication::clipboard()->setText(

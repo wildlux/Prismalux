@@ -1,4 +1,5 @@
 #include "widget_cytoscape.h"
+#include "../dpi_utils.h"
 #include "../prismalux_paths.h"
 #include "../widgets/model_combo_box.h"
 #include <QVBoxLayout>
@@ -67,15 +68,15 @@ CytoscapeWidget::CytoscapeWidget(AiClient* ai, QWidget* parent)
     auto* lbl = new QLabel("CyREST:", connRow);
     lbl->setObjectName("hintLabel");
     m_hostEdit = new QLineEdit("localhost:1234", connRow);
-    m_hostEdit->setFixedWidth(150);
+    m_hostEdit->setFixedWidth(dpiScale(150));
     auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
     pingBtn->setObjectName("actionBtn");
-    pingBtn->setFixedWidth(100);
+    pingBtn->setFixedWidth(dpiScale(100));
     m_statusLbl = new QLabel("\xe2\x9a\xaa  Non connesso", connRow);
     m_statusLbl->setObjectName("hintLabel");
     m_execBtn = new QPushButton("\xf0\x9f\x94\xac  Esegui su Cytoscape", connRow);
     m_execBtn->setObjectName("actionBtn");
-    m_execBtn->setFixedWidth(180);
+    m_execBtn->setFixedWidth(dpiScale(180));
     m_execBtn->setEnabled(false);
     connLay->addWidget(lbl);
     connLay->addWidget(m_hostEdit);
@@ -111,7 +112,7 @@ CytoscapeWidget::CytoscapeWidget(AiClient* ai, QWidget* parent)
     m_input->setPlaceholderText(
         "Descrivi la rete da analizzare...\n"
         "Es: 'Crea un grafo di interazione proteica con 10 proteine e mostra i hub'");
-    m_input->setFixedHeight(80);
+    m_input->setFixedHeight(dpiScale(80));
     lay->addWidget(m_input);
 
     auto* btnRow = new QWidget(this);

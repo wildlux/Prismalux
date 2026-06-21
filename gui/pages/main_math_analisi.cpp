@@ -438,7 +438,7 @@ QWidget* MatematicaPage::buildAnalisi1Tab()
     plotRow->addWidget(m_a1RenderCmb);
     m_btnA1Expand = new QPushButton("\xe2\x86\x97", w);   /* ↗ */
     m_btnA1Expand->setToolTip(tr("Apri grafico in finestra separata"));
-    m_btnA1Expand->setFixedWidth(32);
+    m_btnA1Expand->setFixedWidth(dpiScale(32));
     connect(m_btnA1Expand, &QPushButton::clicked, this, &MatematicaPage::onA1ExpandClicked);
     plotRow->addWidget(m_btnA1Expand);
     lay->addLayout(plotRow);
@@ -573,7 +573,7 @@ QWidget* MatematicaPage::buildAnalisi2Tab()
     /* La barra viewport 3D è un overlay sul canvas (costruita sopra, dopo hSplit2->addWidget) */
     m_btnA2Expand = new QPushButton("\xe2\x86\x97", w);   /* ↗ */
     m_btnA2Expand->setToolTip(tr("Apri grafico in finestra separata"));
-    m_btnA2Expand->setFixedWidth(32);
+    m_btnA2Expand->setFixedWidth(dpiScale(32));
     connect(m_btnA2Expand, &QPushButton::clicked, this, &MatematicaPage::onA2ExpandClicked);
     plotRow->addWidget(m_btnA2Expand);
     lay->addLayout(plotRow);

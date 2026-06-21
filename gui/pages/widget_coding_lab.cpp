@@ -271,6 +271,11 @@ void CodingLabWidget::runCode(const QString& code)
             this, &CodingLabWidget::onCodeRunOutput);
     connect(m_proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &CodingLabWidget::onCodeRunFinished);
+    connect(m_proc, &QProcess::errorOccurred, this,
+        [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                m_outputView->append(tr("<span style='color:red;'>Errore: Python non trovato nel PATH</span>"));
+        });
 
     /* Timeout 15s */
     QTimer::singleShot(15000, m_proc, [this, tmpPath]() {

@@ -124,6 +124,7 @@ QString AgentiPage::buildAutoStepHtml(int step, const QString& thought,
 void AgentiPage::runAutonomousAgent()
 {
     if (m_ai->busy()) return;
+    if (m_opMode != OpMode::AutonomousAgent) return;  /* abort ha già resettato opMode */
 
     m_autoBuf.clear();
     m_waitLbl->setVisible(true);
