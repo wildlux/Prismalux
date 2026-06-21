@@ -196,16 +196,6 @@ void AgentiPage::buildToolbarExportSection(QHBoxLayout* toolLay, QWidget* toolba
         if (m_mathPanel) m_mathPanel->setVisible(on);
     });
 
-    m_btnSimplify = new QPushButton("\xe2\x9c\xa8  Semplifica", toolbar);  /* ✨ */
-    m_btnSimplify->setObjectName("actionBtn");
-    m_btnSimplify->setToolTip(
-        tr("Pre-query: chiede all'LLM di riscrivere la domanda\n"
-           "in modo pi\xc3\xb9 chiaro prima di inviarla.\n"
-           "I numeri in lettere (\"cinque\") vengono\n"
-           "sempre convertiti in cifre (\"5\") automaticamente."));
-    toolLay->addWidget(m_btnSimplify);
-    connect(m_btnSimplify, &QPushButton::clicked, this, &AgentiPage::onSimplifyQuery);
-
     auto* btnInfo = new QPushButton("\xe2\x84\xb9  Informazioni", toolbar);  /* ℹ */
     btnInfo->setObjectName("actionBtn");
     btnInfo->setToolTip(tr("Mostra/nascondi suggerimenti"));

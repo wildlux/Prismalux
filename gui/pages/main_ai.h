@@ -166,7 +166,10 @@ private:
     QTimer*               m_mathPreviewTimer = nullptr;
     QWidget*              m_mathPreview      = nullptr;  ///< LatexView* — QWidget* per non include WebEngine nell'header
     FormulaBuilderWidget* m_formulaBuilder   = nullptr;  ///< drag-and-drop formula builder
-    QPushButton*          m_btnSimplify      = nullptr;  ///< pre-query LLM: semplifica domanda
+    /* ── Thunk "query normalizzata" ── */
+    QMap<int, QString>   m_thunkTexts;    ///< testo normalizzato per ogni thunk nel log
+    QSet<int>            m_thunkOpen;     ///< indici thunk attualmente espansi
+    int                  m_thunkIdx = 0; ///< contatore thunk (monotono)
     /* LatexView forward-declared per evitare dipendenza WebEngine nell'header */
     QWidget*      m_hintWidget     = nullptr;  ///< Footer suggerimenti (nascondibile)
     QFrame*       m_symbolsPanel = nullptr;   ///< Pannello inline caratteri speciali (toggle)
@@ -578,7 +581,8 @@ private slots:
     void updateMathPreview();           ///< aggiorna la LatexView con la conversione del testo corrente
     void onInsertBuilderFormula();      ///< inserisce il LaTeX del builder nel campo testo
     void onClearBuilderClicked();       ///< chiede conferma prima di svuotare il builder
-    void onSimplifyQuery();             ///< pre-query LLM: riscrive la domanda nel campo input
+    void onToggleThunk(int idx);        ///< apre/chiude il thunk "query normalizzata" nel log
+    QString buildThunkHtml(int idx, const QString& text, bool open) const;
 
     /* ── Pipeline / preset ── */
     void onNumAgentsChanged(int v);

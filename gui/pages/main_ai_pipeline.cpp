@@ -165,7 +165,8 @@ static bool _isChartRequest(const QString& task) {
 void AgentiPage::runPipeline() {
     m_userScrolled = false;  /* nuovo task: torna in auto-scroll */
     m_taskHtml = extractInputHtml(m_input); /* HTML leggero bolla utente — prima di clear() */
-    QString task = _sanitize_prompt(m_input->toPlainText().trimmed());
+    const QString rawInput = m_input->toPlainText().trimmed();
+    QString task = _sanitize_prompt(rawInput);
     const QString& taskHtml = m_taskHtml;
     if (task.isEmpty()) { m_log->append("\xe2\x9a\xa0  Inserisci un task."); return; }
 
@@ -323,6 +324,16 @@ void AgentiPage::runPipeline() {
       m_log->moveCursor(QTextCursor::End);
       m_log->insertHtml(buildUserBubble(task, i, taskHtml)); }
     m_log->append("");
+
+    /* Thunk collassabile: se la normalizzazione ha modificato il testo, mostra cosa è stato inviato */
+    if (task != rawInput && !task.isEmpty()) {
+        const int tidx = m_thunkIdx++;
+        m_thunkTexts[tidx] = task;
+        m_thunkOpen.remove(tidx);
+        m_log->moveCursor(QTextCursor::End);
+        m_log->insertHtml(buildThunkHtml(tidx, task, false));
+        m_log->append("");
+    }
 
     /* ── Controllo RAM e dimensione modello pre-pipeline ── */
     if (!checkRam()) return;

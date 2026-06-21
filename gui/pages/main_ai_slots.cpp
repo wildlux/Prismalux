@@ -316,6 +316,10 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         }
         return;
     }
+    if (s.startsWith("toggle:simplify:")) {
+        onToggleThunk(s.mid(16).toInt());
+        return;
+    }
     if (s.startsWith("settings:")) {
         emit requestOpenSettings(s.mid(9));
         return;
@@ -994,56 +998,55 @@ void AgentiPage::onBtnTranslateClicked()
      3. Risposta → sostituisce il testo nel campo (cursore in fondo)
      4. L'utente vede il testo riformulato e preme Invia manualmente
    Se l'AI è già occupata, mostra avviso e non fa nulla.             ─────── */
-void AgentiPage::onSimplifyQuery()
+QString AgentiPage::buildThunkHtml(int idx, const QString& text, bool open) const
 {
-    if (!m_input || !m_ai || !m_btnSimplify) return;
-    if (m_ai->busy()) {
-        m_log->moveCursor(QTextCursor::End);
-        m_log->insertHtml(
-            "<p style='color:#f59e0b;font-size:11px;margin:2px 0;'>"
-            "\xe2\x9a\xa0  L'AI \xc3\xa8 occupata. Attendi la risposta in corso.</p>");
-        return;
+    const QString anchor = "simplify" + QString::number(idx);
+    const QString href   = "toggle:simplify:" + QString::number(idx);
+    const QString arrow  = open
+        ? "\xe2\x96\xbc"   /* ▼ */
+        : "\xe2\x96\xb6";  /* ▶ */
+
+    QString html =
+        "<p style='margin:0 8px 2px 8px;'>"
+        "<a name='" + anchor + "'/>"
+        "<a href='" + href + "' style='color:#64748b;font-size:10px;"
+        "text-decoration:none;'>"
+        + arrow + " " + tr("Query normalizzata") +
+        "</a>";
+
+    if (open) {
+        html +=
+            "<br>"
+            "<span style='color:#94a3b8;font-size:10px;font-style:italic;"
+            "padding-left:14px;'>" +
+            text.toHtmlEscaped() +
+            "</span>";
     }
-    const QString orig = m_input->toPlainText().trimmed();
-    if (orig.isEmpty()) return;
 
-    m_btnSimplify->setEnabled(false);
-    m_btnSimplify->setText("\xe2\x8c\x9b  ...");   /* ⌛ */
+    html += "</p>";
+    return html;
+}
 
-    const QString sys =
-        "Sei un assistente che semplifica le domande. "
-        "Riscrivi la domanda dell'utente in modo pi\xc3\xb9 chiaro, "  /* più */
-        "conciso e grammaticalmente corretto in italiano. "
-        "Mantieni il significato originale. "
-        "Rispondi SOLO con la domanda riscritta, senza introduzioni, "
-        "spiegazioni o punteggiatura finale.";
+void AgentiPage::onToggleThunk(int idx)
+{
+    const bool wasOpen = m_thunkOpen.contains(idx);
+    if (wasOpen) m_thunkOpen.remove(idx);
+    else m_thunkOpen.insert(idx);
 
-    /* holder porta il buffer di accumulo token come property — niente dangling ref */
-    auto* holder = new QObject(this);
-    holder->setProperty("buf", QString());
+    const QString anchorName = "simplify" + QString::number(idx);
+    const QString newHtml = buildThunkHtml(idx, m_thunkTexts.value(idx), !wasOpen);
 
-    connect(m_ai, &AiClient::token, holder,
-            [holder](const QString& t) {
-                holder->setProperty("buf", holder->property("buf").toString() + t);
-            });
-
-    connect(m_ai, &AiClient::finished, holder,
-            [this, holder]() {
-                const QString simplified = holder->property("buf").toString().trimmed();
-                if (!simplified.isEmpty()) {
-                    m_input->setPlainText(simplified);
-                    QTextCursor tc = m_input->textCursor();
-                    tc.movePosition(QTextCursor::End);
-                    m_input->setTextCursor(tc);
-                }
-                if (m_btnSimplify) {
-                    m_btnSimplify->setEnabled(true);
-                    m_btnSimplify->setText("\xe2\x9c\xa8  Semplifica");
-                }
-                holder->deleteLater();
-            });
-
-    m_ai->chat(sys, orig);
+    QTextDocument* doc = m_log->document();
+    for (QTextBlock blk = doc->begin(); blk != doc->end(); blk = blk.next()) {
+        for (QTextBlock::iterator it = blk.begin(); !it.atEnd(); ++it) {
+            if (it.fragment().charFormat().anchorNames().contains(anchorName)) {
+                QTextCursor cur(blk);
+                cur.select(QTextCursor::BlockUnderCursor);
+                cur.insertHtml(newHtml);
+                return;
+            }
+        }
+    }
 }
 
 /* ── Dialog selezione lingue/modello per la traduzione.
