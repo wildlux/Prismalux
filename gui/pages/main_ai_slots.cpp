@@ -685,9 +685,9 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
             }
         });
         connect(proc, &QProcess::errorOccurred,
-                this, [this, proc](QProcess::ProcessError err) {
+                this, [this](QProcess::ProcessError err) {
             if (err == QProcess::FailedToStart)
-                qWarning() << "[websearch] processo non avviato:" << proc->program();
+                qWarning() << "[websearch] python3 non avviato (FailedToStart)";
         });
         proc->start("python3", {"-c", script});
         return;
@@ -985,6 +985,65 @@ void AgentiPage::onBtnTranslateClicked()
         return;
 
     _startTranslation(src, dst, model, inputText);
+}
+
+/* ── Pre-query LLM: riscrive la domanda in modo chiaro e conciso ─────────
+   Flusso:
+     1. Legge testo da m_input
+     2. Chiama AI con system prompt di normalizzazione (NO cronologia)
+     3. Risposta → sostituisce il testo nel campo (cursore in fondo)
+     4. L'utente vede il testo riformulato e preme Invia manualmente
+   Se l'AI è già occupata, mostra avviso e non fa nulla.             ─────── */
+void AgentiPage::onSimplifyQuery()
+{
+    if (!m_input || !m_ai || !m_btnSimplify) return;
+    if (m_ai->busy()) {
+        m_log->moveCursor(QTextCursor::End);
+        m_log->insertHtml(
+            "<p style='color:#f59e0b;font-size:11px;margin:2px 0;'>"
+            "\xe2\x9a\xa0  L'AI \xc3\xa8 occupata. Attendi la risposta in corso.</p>");
+        return;
+    }
+    const QString orig = m_input->toPlainText().trimmed();
+    if (orig.isEmpty()) return;
+
+    m_btnSimplify->setEnabled(false);
+    m_btnSimplify->setText("\xe2\x8c\x9b  ...");   /* ⌛ */
+
+    const QString sys =
+        "Sei un assistente che semplifica le domande. "
+        "Riscrivi la domanda dell'utente in modo pi\xc3\xb9 chiaro, "  /* più */
+        "conciso e grammaticalmente corretto in italiano. "
+        "Mantieni il significato originale. "
+        "Rispondi SOLO con la domanda riscritta, senza introduzioni, "
+        "spiegazioni o punteggiatura finale.";
+
+    /* holder porta il buffer di accumulo token come property — niente dangling ref */
+    auto* holder = new QObject(this);
+    holder->setProperty("buf", QString());
+
+    connect(m_ai, &AiClient::token, holder,
+            [holder](const QString& t) {
+                holder->setProperty("buf", holder->property("buf").toString() + t);
+            });
+
+    connect(m_ai, &AiClient::finished, holder,
+            [this, holder]() {
+                const QString simplified = holder->property("buf").toString().trimmed();
+                if (!simplified.isEmpty()) {
+                    m_input->setPlainText(simplified);
+                    QTextCursor tc = m_input->textCursor();
+                    tc.movePosition(QTextCursor::End);
+                    m_input->setTextCursor(tc);
+                }
+                if (m_btnSimplify) {
+                    m_btnSimplify->setEnabled(true);
+                    m_btnSimplify->setText("\xe2\x9c\xa8  Semplifica");
+                }
+                holder->deleteLater();
+            });
+
+    m_ai->chat(sys, orig);
 }
 
 /* ── Dialog selezione lingue/modello per la traduzione.

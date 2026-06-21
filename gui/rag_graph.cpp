@@ -61,15 +61,20 @@ void RagGraph::addFile(const QString& path, const QString& label)
     QString actualPath = path;
     if (!path.startsWith(ragDir) && !path.startsWith(ragDocs)) {
         QDir().mkpath(ragDir);
-        const QString dest = ragDir + "/" + QFileInfo(path).fileName();
-        if (!QFileInfo::exists(dest)) {
-            if (QFile::copy(path, dest)) {
-                actualPath = dest;
-                emit fileCopied(lbl, dest);
+        const QString safeName = QFileInfo(path).fileName();
+        /* blocca path traversal: nome con / \ o punto iniziale non è un filename legittimo */
+        if (!safeName.isEmpty() && !safeName.contains('/') &&
+            !safeName.contains('\\') && !safeName.startsWith('.')) {
+            const QString dest = ragDir + "/" + safeName;
+            if (!QFileInfo::exists(dest)) {
+                if (QFile::copy(path, dest)) {
+                    actualPath = dest;
+                    emit fileCopied(lbl, dest);
+                }
+                /* Se la copia fallisce, indicizza dalla posizione originale */
+            } else {
+                actualPath = dest;  /* usa la copia già presente */
             }
-            /* Se la copia fallisce, indicizza dalla posizione originale */
-        } else {
-            actualPath = dest;  /* usa la copia già presente */
         }
     }
 
@@ -217,11 +222,12 @@ void RagGraph::processNextFile()
 
     } else if (isOffice(lower)) {
         /* Conversione a testo via LibreOffice */
+        const QString tmpDir = P::safeTempPath();
         ProcHelper::run("libreoffice",
-            {"--headless","--convert-to","txt","--outdir","/tmp", path},
+            {"--headless","--convert-to","txt","--outdir", tmpDir, path},
             60000);
         const QString baseName = QFileInfo(path).completeBaseName();
-        const QString outTxt   = "/tmp/" + baseName + ".txt";
+        const QString outTxt   = tmpDir + "/" + baseName + ".txt";
         QFile f(outTxt);
         if (f.open(QIODevice::ReadOnly | QIODevice::Text))
             text = QString::fromUtf8(f.readAll());
@@ -276,8 +282,12 @@ void RagGraph::extractEntities(const QString& text, const QString& source, int c
         "- importance: 0.0 (poco importante) - 1.0 (cruciale)\n"
         "- Restituisci JSON puro, senza ```json e senza testo";
 
+    /* delimitatori espliciti: impediscono che filename o contenuto del file
+       vengano interpretati come istruzioni dal modello */
+    const QString safeSource = QString(source).replace(']', '_');
     const QString user =
-        "Sorgente: " + source + "\n\nTesto da analizzare:\n" + text.left(3000);
+        "Sorgente: [" + safeSource + "]\n\n"
+        "=== INIZIO TESTO ===\n" + text.left(3000) + "\n=== FINE TESTO ===";
 
     m_accumJson.clear();
 

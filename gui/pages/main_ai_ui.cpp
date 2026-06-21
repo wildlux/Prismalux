@@ -3,6 +3,10 @@
 #include "../dpi_utils.h"
 #include "../widgets/latex_view.h"
 #include <QPainter>
+#include <QDrag>
+#include <QMimeData>
+#include <QApplication>
+#include <QMessageBox>
 #include <QFont>
 #include <QTextCharFormat>
 #include <QMouseEvent>
@@ -191,6 +195,16 @@ void AgentiPage::buildToolbarExportSection(QHBoxLayout* toolLay, QWidget* toolba
             : "");
         if (m_mathPanel) m_mathPanel->setVisible(on);
     });
+
+    m_btnSimplify = new QPushButton("\xe2\x9c\xa8  Semplifica", toolbar);  /* ✨ */
+    m_btnSimplify->setObjectName("actionBtn");
+    m_btnSimplify->setToolTip(
+        tr("Pre-query: chiede all'LLM di riscrivere la domanda\n"
+           "in modo pi\xc3\xb9 chiaro prima di inviarla.\n"
+           "I numeri in lettere (\"cinque\") vengono\n"
+           "sempre convertiti in cifre (\"5\") automaticamente."));
+    toolLay->addWidget(m_btnSimplify);
+    connect(m_btnSimplify, &QPushButton::clicked, this, &AgentiPage::onSimplifyQuery);
 
     auto* btnInfo = new QPushButton("\xe2\x84\xb9  Informazioni", toolbar);  /* ℹ */
     btnInfo->setObjectName("actionBtn");
@@ -788,6 +802,35 @@ void AgentiPage::buildInputConnections(QPushButton* btnSymbols)
 /* ──────────────────────────────────────────────────────────────
    buildSymbolsPanel — pannello inline caratteri speciali (toggle)
    ────────────────────────────────────────────────────────────── */
+/* ── Pulsante simbolo matematico che supporta drag verso il builder ─────── */
+class DraggableMathBtn : public QPushButton {
+public:
+    DraggableMathBtn(const QString& label, const QString& tpl, QWidget* p)
+        : QPushButton(label, p), m_tpl(tpl) {}
+
+protected:
+    void mousePressEvent(QMouseEvent* e) override {
+        if (e->button() == Qt::LeftButton) m_dragOrigin = e->pos();
+        QPushButton::mousePressEvent(e);
+    }
+    void mouseMoveEvent(QMouseEvent* e) override {
+        if (!(e->buttons() & Qt::LeftButton)) return;
+        if ((e->pos() - m_dragOrigin).manhattanLength() <
+            QApplication::startDragDistance()) return;
+        auto* drag = new QDrag(this);
+        auto* mime = new QMimeData;
+        mime->setData("application/x-prismalux-math", m_tpl.toUtf8());
+        drag->setMimeData(mime);
+        drag->setPixmap(grab());
+        drag->setHotSpot(QPoint(width() / 2, height() / 2));
+        drag->exec(Qt::CopyAction);
+    }
+
+private:
+    QString m_tpl;
+    QPoint  m_dragOrigin;
+};
+
 /* ══════════════════════════════════════════════════════════════
    buildMathPanel — pannello formule LaTeX con preview KaTeX in tempo reale
    + pulsanti template per frazioni, limiti, integrali, ecc.
@@ -802,33 +845,71 @@ void AgentiPage::buildMathPanel(QVBoxLayout* lay)
 
     /* ── Intestazione con istruzione ── */
     auto* hint = new QLabel(
-        tr("<small><b>Preview LaTeX</b> in tempo reale — scrivi <code>\\frac{a}{b}</code>, "
-           "<code>1/3</code>, <code>limite</code>, <code>sommatoria</code>, <code>integrale</code>... "
-           "I pulsanti inseriscono template nel campo di testo.</small>"),
+        tr("<small><b>Preview LaTeX</b> — scrivi nel testo oppure "
+           "<b>trascina</b> i simboli nel costruttore qui sotto.</small>"),
         m_mathPanel);
     hint->setWordWrap(true);
     hint->setStyleSheet("color:#94a3b8;padding:2px 4px;");
     mpLay->addWidget(hint);
 
+    /* ── Costruttore formula drag & drop ── */
+    m_formulaBuilder = new FormulaBuilderWidget(m_mathPanel);
+    m_formulaBuilder->setMinimumHeight(dpiScale(50));
+    m_formulaBuilder->setMaximumHeight(dpiScale(50));
+    mpLay->addWidget(m_formulaBuilder);
+
+    /* ── Barra: LaTeX risultante + Inserisci + Pulisci ── */
+    {
+        auto* bar = new QHBoxLayout;
+        bar->setSpacing(4);
+        auto* latexLbl = new QLabel(m_mathPanel);
+        latexLbl->setObjectName("builderLatexLbl");
+        latexLbl->setStyleSheet("color:#64748b;font-family:monospace;font-size:10px;"
+                                "padding:0 4px;");
+        latexLbl->setText(tr("(nessuna formula)"));
+        latexLbl->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        bar->addWidget(latexLbl, 1);
+
+        auto* btnInsert = new QPushButton(tr("\xe2\x86\x91 Inserisci"), m_mathPanel);
+        btnInsert->setObjectName("primaryBtn");
+        btnInsert->setFixedHeight(dpiScale(22));
+        btnInsert->setToolTip(tr("Inserisce la formula nel campo di testo"));
+        bar->addWidget(btnInsert);
+
+        auto* btnClear = new QPushButton(tr("Pulisci"), m_mathPanel);
+        btnClear->setFixedHeight(dpiScale(22));
+        btnClear->setToolTip(tr("Svuota il costruttore"));
+        bar->addWidget(btnClear);
+
+        mpLay->addLayout(bar);
+
+        /* aggiorna label LaTeX quando il builder cambia */
+        connect(m_formulaBuilder, &FormulaBuilderWidget::formulaChanged,
+                latexLbl, [latexLbl](const QString& ltx) {
+                    latexLbl->setText(ltx.isEmpty() ? tr("(nessuna formula)") : ltx);
+                });
+
+        connect(btnInsert, &QPushButton::clicked,
+                this, &AgentiPage::onInsertBuilderFormula);
+
+        connect(btnClear, &QPushButton::clicked,
+                this, &AgentiPage::onClearBuilderClicked);
+    }
+
     /* ── Preview KaTeX ── */
     auto* preview = new LatexView(m_mathPanel);
     preview->setMinimumHeight(dpiScale(90));
     preview->setMaximumHeight(dpiScale(130));
-    preview->setObjectName("mathPreview");
-    /* Messaggio iniziale */
     preview->setLatexHtml(
         "<p style='color:#475569;font-size:12px;padding:8px'>"
         "Inizia a scrivere una formula nel campo di testo sopra...</p>");
     mpLay->addWidget(preview);
+    m_mathPreview = preview;   /* membro diretto — niente QVariant/QObject* cast */
 
     /* ── Debounce timer per aggiornare la preview ── */
     m_mathPreviewTimer = new QTimer(this);
     m_mathPreviewTimer->setSingleShot(true);
     m_mathPreviewTimer->setInterval(500);
-
-    /* Salva puntatore alla preview tramite property del timer */
-    m_mathPreviewTimer->setProperty("previewObj",
-        QVariant::fromValue(static_cast<QObject*>(preview)));
 
     connect(m_mathPreviewTimer, &QTimer::timeout,
             this, &AgentiPage::updateMathPreview);
@@ -889,12 +970,14 @@ void AgentiPage::buildMathPanel(QVBoxLayout* lay)
     tplGrid->setContentsMargins(0, 0, 0, 0);
     const int COLS = 8;
     for (int i = 0; i < N_TPL; ++i) {
-        auto* b = new QPushButton(QString::fromUtf8(kTpl[i].label), tplWidget);
+        const QString tplStr = QString::fromUtf8(kTpl[i].latex);
+        auto* b = new DraggableMathBtn(
+            QString::fromUtf8(kTpl[i].label), tplStr, tplWidget);
         b->setObjectName("symbolBtn");
         b->setFixedSize(dpiScale(46), dpiScale(26));
-        b->setToolTip(QString::fromUtf8(kTpl[i].tip));
-        /* Salva il LaTeX template come property */
-        b->setProperty("mathTpl", QString::fromUtf8(kTpl[i].latex));
+        b->setToolTip(QString::fromUtf8(kTpl[i].tip) +
+                      tr("\n(clicca per inserire nel testo, trascina nel costruttore)"));
+        b->setProperty("mathTpl", tplStr);
         connect(b, &QPushButton::clicked, this, [this, b](){
             if (!m_input) return;
             const QString tpl = b->property("mathTpl").toString();
@@ -988,14 +1071,39 @@ void AgentiPage::buildMathPanel(QVBoxLayout* lay)
     lay->addWidget(m_mathPanel);
 }
 
+/* ── Inserisce il LaTeX del builder nel campo testo al cursore corrente ── */
+void AgentiPage::onInsertBuilderFormula()
+{
+    if (!m_formulaBuilder || !m_input) return;
+    const QString ltx = m_formulaBuilder->toLaTeX().trimmed();
+    if (ltx.isEmpty()) return;
+    QTextCursor cur = m_input->textCursor();
+    cur.insertText("\\(" + ltx + "\\)");
+    m_input->setTextCursor(cur);
+    m_input->setFocus();
+}
+
+/* ── Svuota il builder solo dopo conferma se ci sono blocchi ── */
+void AgentiPage::onClearBuilderClicked()
+{
+    if (!m_formulaBuilder) return;
+    if (m_formulaBuilder->blockCount() == 0) return;
+    QMessageBox ask(this);
+    ask.setWindowTitle(tr("Pulisci costruttore"));
+    ask.setText(tr("Cancellare tutti i blocchi della formula?"));
+    ask.setStandardButtons(QMessageBox::Yes | QMessageBox::Cancel);
+    ask.setDefaultButton(QMessageBox::Cancel);
+    if (ask.exec() == QMessageBox::Yes)
+        m_formulaBuilder->clearAll();
+}
+
 /* ── Aggiorna la preview KaTeX con il testo corrente del campo ── */
 void AgentiPage::updateMathPreview()
 {
     if (!m_mathPreviewTimer || !m_mathPanel || !m_mathPanel->isVisible() || !m_input)
         return;
 
-    auto* preview = qobject_cast<LatexView*>(
-        m_mathPreviewTimer->property("previewObj").value<QObject*>());
+    auto* preview = qobject_cast<LatexView*>(m_mathPreview);
     if (!preview) return;
 
     const QString raw = m_input->toPlainText().trimmed();

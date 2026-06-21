@@ -165,7 +165,7 @@ GraficoPage::GraficoPage(AiClient* ai, QWidget* parent) : QWidget(parent), m_ai(
         m_viewportBar3D = new QToolButton(m_canvas);
         m_viewportBar3D->setObjectName("viewportShadingBtn");
         m_viewportBar3D->setText(QString::fromUtf8(kVM[0].icon));
-        m_viewportBar3D->setToolTip("Shading viewport");
+        m_viewportBar3D->setToolTip(tr("Shading / modalit\xc3\xa0 di rendering 3D"));
         m_viewportBar3D->setAutoRaise(true);
         m_viewportBar3D->setPopupMode(QToolButton::InstantPopup);
         m_viewportBar3D->setFixedSize(dpiScale(32), dpiScale(28));
@@ -182,6 +182,12 @@ GraficoPage::GraficoPage(AiClient* ai, QWidget* parent) : QWidget(parent), m_ai(
                         m_canvas->setRenderMode(i);
                     });
         }
+        vMenu->addSeparator();
+        m_connectPtsAct = vMenu->addAction(tr("Collega punti"));
+        m_connectPtsAct->setCheckable(true);
+        m_connectPtsAct->setChecked(false);
+        connect(m_connectPtsAct, &QAction::toggled, m_canvas, &GraficoCanvas::setConnectPts3D);
+
         m_viewportBar3D->setMenu(vMenu);
         m_viewportBar3D->move(dpiScale(6), dpiScale(6));
         m_viewportBar3D->raise();
@@ -190,15 +196,15 @@ GraficoPage::GraficoPage(AiClient* ai, QWidget* parent) : QWidget(parent), m_ai(
 
     splitter->setStretchFactor(0, 0);
     splitter->setStretchFactor(1, 1);
-    splitter->setSizes({320, 700});
+    splitter->setSizes({dpiScale(320), dpiScale(700)});
     mainLay->addWidget(splitter);
 }
 
 /* ── Pannello parametri sinistro ─────────────────────────────── */
 QWidget* GraficoPage::buildLeftPanel() {
     auto* outer = new QWidget(this);
-    outer->setMinimumWidth(300);
-    outer->setMaximumWidth(450);
+    outer->setMinimumWidth(dpiScale(300));
+    outer->setMaximumWidth(dpiScale(450));
     auto* outerLay = new QVBoxLayout(outer);
     outerLay->setContentsMargins(0, 0, 0, 0);
 

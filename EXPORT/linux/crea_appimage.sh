@@ -36,7 +36,8 @@ APPIMAGETOOL="${HOME}/.local/bin/appimagetool"
 [[ -x "$APPIMAGETOOL" ]] || APPIMAGETOOL="$(which appimagetool 2>/dev/null)" \
   || die "appimagetool non trovato. Scaricalo da https://github.com/AppImage/AppImageKit/releases"
 
-GUI_BIN="${ROOT}/gui/build_gui/Prismalux_GUI"
+# Percorso canonico del binario — aggiorna.sh compila sempre qui
+GUI_BIN="${ROOT}/build_gui/Prismalux_GUI"
 ICON_SRC="${ROOT}/EXPORT/assets/prismalux.png"
 APPDIR="${ROOT}/AppDir"
 VERSION=$(grep -m1 'project(Prismalux_GUI VERSION' "${ROOT}/gui/CMakeLists.txt" \
@@ -133,16 +134,17 @@ chmod +x "${APPDIR}/usr/bin/Prismalux_GUI"
 
 # I temi vengono letti da disco a runtime (applicationDirPath()/themes/).
 # Nella AppImage applicationDirPath() = .../usr/bin  →  themes deve stare lì accanto.
-THEMES_SRC="$(dirname "$GUI_BIN")/themes"
+# Temi: dalla build canonica (cmake li copia da gui/themes/ durante la build)
+THEMES_SRC="${ROOT}/build_gui/themes"
 if [[ -d "$THEMES_SRC" ]]; then
   cp -r "$THEMES_SRC" "${APPDIR}/usr/bin/themes"
   ok "Temi copiati → AppDir/usr/bin/themes/ ($(ls "${APPDIR}/usr/bin/themes/"*.qss 2>/dev/null | wc -l) file .qss)"
 else
-  warn "Cartella themes/ non trovata accanto al binario — esegui prima ./aggiorna.sh --gui"
+  warn "Cartella build_gui/themes/ non trovata — esegui prima ./aggiorna.sh"
 fi
 
-# Copia fonts/ (NotoColorEmoji + eventuali font custom)
-FONTS_SRC="$(dirname "$GUI_BIN")/fonts"
+# Font: dalla build canonica (NotoColorEmoji.ttf generato dalla build)
+FONTS_SRC="${ROOT}/build_gui/fonts"
 if [[ -d "$FONTS_SRC" ]]; then
   cp -r "$FONTS_SRC" "${APPDIR}/usr/bin/fonts"
   ok "Font copiati → AppDir/usr/bin/fonts/ ($(ls "${APPDIR}/usr/bin/fonts/" 2>/dev/null | wc -l) file)"

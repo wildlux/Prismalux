@@ -249,7 +249,9 @@ void LanWanPage::onCheckOllamaExposed()
             this, [this, proc](int, QProcess::ExitStatus){
                 onOllamaCheckDone(proc);
             });
-    proc->start("sh", QStringList{"-c", "ss -tlnp 2>/dev/null | grep " + QString::number(P::kOllamaPort)});
+    connect(proc, &QProcess::errorOccurred, proc, &QProcess::deleteLater);
+    /* Niente shell: avvia ss direttamente, il filtro per porta avviene in onOllamaCheckDone */
+    proc->start("ss", {"-tlnp"});
 }
 
 void LanWanPage::onOllamaCheckDone(QProcess* proc)
@@ -257,8 +259,11 @@ void LanWanPage::onOllamaCheckDone(QProcess* proc)
     const QString out = proc->readAllStandardOutput();
     proc->deleteLater();
 
-    /* Check 1: Ollama in ascolto su 0.0.0.0 (da ss -tlnp) */
-    bool exposed = out.contains("0.0.0.0");
+    /* Check 1: Ollama in ascolto su 0.0.0.0 — verifica porta E indirizzo sulla stessa riga */
+    const QString portStr = ":" + QString::number(P::kOllamaPort);
+    bool exposed = false;
+    for (const auto& line : out.split('\n'))
+        if (line.contains(portStr) && line.contains("0.0.0.0")) { exposed = true; break; }
 
     /* Check 2: variabile d'ambiente OLLAMA_HOST pericolosa */
     const QString ollamaHost = qEnvironmentVariable("OLLAMA_HOST");
@@ -418,6 +423,10 @@ void LanWanPage::onWanNodeReadyRead()
             const QString parentId = msg["parent_id"].toString();
             const QString chainId  = msg["chain_id"].toString();
             const QJsonArray tasks = msg["tasks"].toArray();
+            if (tasks.size() > 10) {
+                wanSendJson(sock, QJsonObject{{"t","error"},{"msg","too_many_subtasks"}});
+                continue;
+            }
             int spawned = 0;
             for (const auto& v : tasks) {
                 if (!v.isObject()) continue;

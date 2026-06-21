@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Build Prismalux_GUI + aggiorna file .desktop
-# Unica sorgente di verità: Prismalux/Prismalux.desktop
-# Non crea mai duplicati fuori dalla cartella del progetto.
+# Percorso canonico build: build_gui/ nella root del progetto.
+# Uso:
+#   ./aggiorna.sh            — build + aggiorna .desktop
+#   ./aggiorna.sh --gui      — solo build (nessun aggiornamento .desktop, per crea_appimage.sh)
+#   ./aggiorna.sh --test     — build + test suite
+#   ./aggiorna.sh --install  — build + installa icona nel sistema
 set -e
 cd "$(dirname "$0")"
 ROOT="$(pwd)"
@@ -9,13 +13,22 @@ BIN="$ROOT/build_gui/Prismalux_GUI"
 DESKTOP_SRC="$ROOT/Prismalux.desktop"
 DESKTOP_SYS="$HOME/.local/share/applications/prismalux.desktop"
 
+ONLY_BUILD=false
+[[ "$*" == *--gui* ]] && ONLY_BUILD=true
+
 echo "==> Build Prismalux..."
 cmake -B "$ROOT/build_gui" "$ROOT/gui/" -DCMAKE_BUILD_TYPE=Release -Wno-dev -q 2>/dev/null || true
 cmake --build "$ROOT/build_gui" -j$(( $(nproc) > 4 ? 4 : $(nproc) ))
 
+# Solo build richiesta (es. da crea_appimage.sh)
+if $ONLY_BUILD; then
+    echo "==> Fatto! Binario: $BIN"
+    exit 0
+fi
+
 # Test opzionali: esegui con ./aggiorna.sh --test
 if [[ "$*" == *--test* ]]; then
-    echo "==> Build + run test suite (gui/build_tests)..."
+    echo "==> Build + run test suite (build_tests/)..."
     cmake -B "$ROOT/build_tests" "$ROOT/gui/" -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release -Wno-dev
     cmake --build "$ROOT/build_tests" -j$(( $(nproc) > 4 ? 4 : $(nproc) ))
     ctest --test-dir "$ROOT/build_tests" \

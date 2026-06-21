@@ -134,9 +134,99 @@ static bool _gp_try(const QByteArray& ba, double& out) {
 
    La funzione è conservativa: sostituisce i pattern con spazi per non
    alterare l'allineamento del testo; non rimuove caratteri legittimi.    */
+/* ── Converti numeri italiani scritti in lettere → cifre ──────────────────
+   La lista è ordinata per lunghezza decrescente: i termini più lunghi vengono
+   testati prima così "diciassette" non viene spezzato da "dieci" o "sette".
+   Usa word-boundary \b (Unicode-aware in Qt) per non toccare parti di parole:
+   "cinquecento" non viene alterato da un eventuale match su "cinque" perché
+   il motore processa prima "cinquecento" che è più lungo. ─────────────────── */
+static QString normalizeNumbers(const QString& text)
+{
+    using P = QPair<QString,QString>;
+    static const QVector<P> kMap = {
+        /* ordinali (prima dei cardinali per non tagliare "primo" in "pri" + "mo") */
+        {"decima",        "10\xc2\xb0"}, {"decimo",        "10\xc2\xb0"},
+        {"nona",          "9\xc2\xb0"},  {"nono",          "9\xc2\xb0"},
+        {"ottava",        "8\xc2\xb0"},  {"ottavo",        "8\xc2\xb0"},
+        {"settima",       "7\xc2\xb0"},  {"settimo",       "7\xc2\xb0"},
+        {"sesta",         "6\xc2\xb0"},  {"sesto",         "6\xc2\xb0"},
+        {"quinta",        "5\xc2\xb0"},  {"quinto",        "5\xc2\xb0"},
+        {"quarta",        "4\xc2\xb0"},  {"quarto",        "4\xc2\xb0"},
+        {"terza",         "3\xc2\xb0"},  {"terzo",         "3\xc2\xb0"},
+        {"seconda",       "2\xc2\xb0"},  {"secondo",       "2\xc2\xb0"},
+        {"prima",         "1\xc2\xb0"},  {"primo",         "1\xc2\xb0"},
+        /* grandi (prima delle centinaia/migliaia per evitare match parziali) */
+        {"miliardo",      "1000000000"}, {"miliardi",      "1000000000"},
+        {"milione",       "1000000"},    {"milioni",       "1000000"},
+        /* migliaia composte */
+        {"diecimila",     "10000"},
+        {"novemila",      "9000"},       {"ottomila",      "8000"},
+        {"settemila",     "7000"},       {"seimila",       "6000"},
+        {"cinquemila",    "5000"},       {"quattromiła",   "4000"},
+        {"quattromila",   "4000"},       {"tremila",       "3000"},
+        {"duemila",       "2000"},
+        {"mille",         "1000"},
+        /* centinaia */
+        {"novecento",     "900"},        {"ottocento",     "800"},
+        {"settecento",    "700"},        {"seicento",      "600"},
+        {"cinquecento",   "500"},        {"quattrocento",  "400"},
+        {"trecento",      "300"},        {"duecento",      "200"},
+        {"cento",         "100"},
+        /* composti 11-19 (prima di dieci/sette/ecc.) */
+        {"diciannove",    "19"},         {"diciassette",   "17"},
+        {"diciotto",      "18"},         {"sedici",        "16"},
+        {"quindici",      "15"},         {"quattordici",   "14"},
+        {"tredici",       "13"},         {"dodici",        "12"},
+        {"undici",        "11"},         {"dieci",         "10"},
+        /* composti 21-29 */
+        {"ventinove",     "29"},         {"ventotto",      "28"},
+        {"ventisette",    "27"},         {"ventisei",      "26"},
+        {"venticinque",   "25"},         {"ventiquattro",  "24"},
+        {"ventitré",      "23"},         {"ventitre",      "23"},
+        {"ventidue",      "22"},         {"ventuno",       "21"},
+        {"venti",         "20"},
+        /* composti 31-39 */
+        {"trentanove",    "39"},         {"trentotto",     "38"},
+        {"trentasette",   "37"},         {"trentasei",     "36"},
+        {"trentacinque",  "35"},         {"trentaquattro", "34"},
+        {"trentatré",     "33"},         {"trentatre",     "33"},
+        {"trentadue",     "32"},         {"trentuno",      "31"},
+        {"trenta",        "30"},
+        /* composti 41-49 */
+        {"quarantanove",  "49"},         {"quarantotto",   "48"},
+        {"quarantasette", "47"},         {"quarantasei",   "46"},
+        {"quarantacinque","45"},         {"quarantaquattro","44"},
+        {"quarantatré",   "43"},         {"quarantatre",   "43"},
+        {"quarantadue",   "42"},         {"quarantuno",    "41"},
+        {"quaranta",      "40"},
+        /* decine 50-90 */
+        {"novanta",       "90"},         {"ottanta",       "80"},
+        {"settanta",      "70"},         {"sessanta",      "60"},
+        {"cinquanta",     "50"},
+        /* unità 0-9 */
+        {"zero",          "0"},
+        {"una",           "1"},          {"uno",           "1"},
+        {"due",           "2"},          {"tre",           "3"},
+        {"quattro",       "4"},          {"cinque",        "5"},
+        {"sei",           "6"},          {"sette",         "7"},
+        {"otto",          "8"},          {"nove",          "9"},
+    };
+
+    QString result = text;
+    for (const auto& entry : kMap) {
+        const QRegularExpression re(
+            "\\b" + QRegularExpression::escape(entry.first) + "\\b",
+            QRegularExpression::CaseInsensitiveOption |
+            QRegularExpression::UseUnicodePropertiesOption);
+        result.replace(re, entry.second);
+    }
+    return result;
+}
+
 QString _sanitize_prompt(const QString& raw)
 {
-    QString s = raw;
+    /* converti prima i numeri in lettere → cifre */
+    QString s = normalizeNumbers(raw);
 
     /* 1. Format token — rimpiazza con spazio */
     static const char* const kTokens[] = {

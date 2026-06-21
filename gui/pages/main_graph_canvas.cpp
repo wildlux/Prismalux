@@ -784,6 +784,19 @@ void GraficoCanvas::drawScatter3D(QPainter& p, const QRectF& a) {
 
     } else {
         /* ── Punti (modalità default) ── */
+
+        /* linee di collegamento — disegnate PRIMA dei punti così restano sotto */
+        if (m_connectPts3D && proj.size() >= 2) {
+            for (int i = 0; i < proj.size() - 1; i++) {
+                if (!proj[i].valid || !proj[i+1].valid) continue;
+                const double zAvg = (m_pts3d[i].z + m_pts3d[i+1].z) * 0.5;
+                p.setPen(QPen(heatColor(zAvg).lighter(130), 1.5, Qt::SolidLine,
+                              Qt::RoundCap, Qt::RoundJoin));
+                p.drawLine(QPointF(proj[i].sx,   proj[i].sy),
+                           QPointF(proj[i+1].sx, proj[i+1].sy));
+            }
+        }
+
         /* ordina per profondità (painter's algorithm) */
         QVector<const PP*> sortedPts;
         sortedPts.reserve(proj.size());

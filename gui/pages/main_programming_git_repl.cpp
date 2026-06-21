@@ -393,10 +393,11 @@ void ProgrammazionePage::gitRun(const QString& subcmd, const QStringList& args)
         return;
     }
 
-    /* Abbandona processo precedente */
+    /* Abbandona processo precedente: disconnect prima di kill evita segnali
+       su oggetti già in uscita quando finished() arriva dopo deleteLater */
     if (m_gitProc && m_gitProc->state() != QProcess::NotRunning) {
+        m_gitProc->disconnect();
         m_gitProc->kill();
-        m_gitProc->waitForFinished(2000);
         m_gitProc->deleteLater();
         m_gitProc = nullptr;
     }

@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 #include "../widgets/tri_mode_button.h"
+#include "widget_formula_builder.h"
 #include <QWidget>
 #include <QFrame>
 #include <QTextEdit>
@@ -161,8 +162,11 @@ private:
     QVector<QPair<QString,QString>> m_allSymbols; ///< (simbolo, chiave ricerca) per tutti i simboli
     /* Pannello formule matematiche LaTeX */
     QPushButton*  m_btnMathToggle  = nullptr;  ///< Toggle pannello formule matematiche
-    QWidget*      m_mathPanel      = nullptr;  ///< Contenitore preview + template
-    QTimer*       m_mathPreviewTimer = nullptr; ///< Debounce 600ms per aggiornare preview
+    QWidget*              m_mathPanel        = nullptr;
+    QTimer*               m_mathPreviewTimer = nullptr;
+    QWidget*              m_mathPreview      = nullptr;  ///< LatexView* — QWidget* per non include WebEngine nell'header
+    FormulaBuilderWidget* m_formulaBuilder   = nullptr;  ///< drag-and-drop formula builder
+    QPushButton*          m_btnSimplify      = nullptr;  ///< pre-query LLM: semplifica domanda
     /* LatexView forward-declared per evitare dipendenza WebEngine nell'header */
     QWidget*      m_hintWidget     = nullptr;  ///< Footer suggerimenti (nascondibile)
     QFrame*       m_symbolsPanel = nullptr;   ///< Pannello inline caratteri speciali (toggle)
@@ -571,7 +575,10 @@ private slots:
     void onInputSelectionChanged();           ///< mostra/nasconde m_fmtBar sulla selezione
     void onFmtBtnClicked(const QString& before, const QString& after); ///< applica marcatori markdown
     void onSymbolSearchChanged(const QString& query); ///< filtra simboli visibili
-    void updateMathPreview();   ///< aggiorna la LatexView con la conversione del testo corrente
+    void updateMathPreview();           ///< aggiorna la LatexView con la conversione del testo corrente
+    void onInsertBuilderFormula();      ///< inserisce il LaTeX del builder nel campo testo
+    void onClearBuilderClicked();       ///< chiede conferma prima di svuotare il builder
+    void onSimplifyQuery();             ///< pre-query LLM: riscrive la domanda nel campo input
 
     /* ── Pipeline / preset ── */
     void onNumAgentsChanged(int v);

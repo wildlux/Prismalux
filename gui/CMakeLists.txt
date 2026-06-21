@@ -208,6 +208,7 @@ set(CPP_SRCS
     pages/main_net_policy.cpp
     pages/main_net_subnet.cpp
     pages/main_app_controller_slots.cpp
+    pages/widget_formula_builder.cpp
     pages/widget_code_interpreter.cpp
     pages/widget_coding_lab.cpp
     pages/widget_ssh_manager.cpp

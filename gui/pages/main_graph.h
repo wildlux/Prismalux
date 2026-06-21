@@ -132,6 +132,7 @@ public:
     void setEdges(const QVector<QPair<QString,QString>>& edges);
     void setScatter3D(const QVector<Pt3D>& pts, int gridCols = 0);
     void setRenderMode3D(RenderMode3D m) { m_renderMode3D = m; update(); }
+    void setConnectPts3D(bool on)        { m_connectPts3D = on; update(); }
 
     QVector<QPointF>            scatterPts()  const { return m_scatterPts; }
     QVector<QVector<QPointF>>   lineSeries()  const { return m_lineSeries; }
@@ -305,6 +306,7 @@ private:
     /* ── tipo corrente ── */
     ChartType    m_type          = Cartesian;
     RenderMode3D m_renderMode3D  = Points3D;
+    bool         m_connectPts3D  = false;     ///< collega i punti Scatter3D con linee
     int          m_grid3dCols    = 0;         ///< >0 → i pts3d sono una griglia cols×rows
 
     /* ── cartesiano ── */
@@ -496,6 +498,7 @@ private:
 
     /* Pulsante shading viewport stile Blender — overlay sul canvas, visibile solo per Scatter3D / Grafo3D */
     QToolButton*    m_viewportBar3D    = nullptr;   ///< singolo btn con popup menu nell'angolo del canvas
+    QAction*        m_connectPtsAct    = nullptr;   ///< voce checkable "Collega punti" nel menu viewport
 
     /* Parametri Polare (pannello idx 4) */
     QLineEdit*      m_polarFormula = nullptr;
