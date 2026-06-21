@@ -310,6 +310,13 @@ QWidget* ImpostazioniPage::buildVoceTab()
 #endif
             /* Prima scarica il .json (piccolo), poi .onnx (grande) */
             auto* procJson = new QProcess(btnDl);
+            QObject::connect(procJson, &QProcess::errorOccurred,
+                btnDl, [procJson, lblVoiceStatus](QProcess::ProcessError err) {
+                    if (err == QProcess::FailedToStart) {
+                        qWarning() << "[ImpostazioniPage] curl .json voce non avviato:" << procJson->program();
+                        lblVoiceStatus->setText(tr("\xe2\x9d\x8c curl non trovato"));
+                    }
+                });
             procJson->start(downloader,
                 { "-L", "-o", jsonDest, jsonUrl });
 
@@ -326,6 +333,13 @@ QWidget* ImpostazioniPage::buildVoceTab()
                     }
                     lblVoiceStatus->setText(tr("\xe2\x8f\xb3 Download .onnx..."));
                     auto* procOnnx = new QProcess(btnDl);
+                    QObject::connect(procOnnx, &QProcess::errorOccurred,
+                        btnDl, [procOnnx, lblVoiceStatus](QProcess::ProcessError err) {
+                            if (err == QProcess::FailedToStart) {
+                                qWarning() << "[ImpostazioniPage] curl .onnx voce non avviato:" << procOnnx->program();
+                                lblVoiceStatus->setText(tr("\xe2\x9d\x8c curl non trovato"));
+                            }
+                        });
                     procOnnx->start(downloader,
                         { "-L", "-o", onnxDest, onnxUrl });
                     QObject::connect(procOnnx,
@@ -381,6 +395,13 @@ QWidget* ImpostazioniPage::buildVoceTab()
         const QString downloader = "curl";
 #endif
         auto* proc = new QProcess(btnInstall);
+        QObject::connect(proc, &QProcess::errorOccurred,
+            btnInstall, [proc, lblPiperStatus](QProcess::ProcessError err) {
+                if (err == QProcess::FailedToStart) {
+                    qWarning() << "[ImpostazioniPage] curl piper non avviato:" << proc->program();
+                    lblPiperStatus->setText(tr("\xe2\x9d\x8c curl non trovato"));
+                }
+            });
         proc->start(downloader, { "-L", "-o", archivePath, PIPER_BIN_URL2 });
         QObject::connect(proc,
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
@@ -396,6 +417,11 @@ QWidget* ImpostazioniPage::buildVoceTab()
                 lblPiperStatus->setText(tr("\xe2\x8f\xb3 Estrazione archivio..."));
                 /* Estrai: tar o unzip */
                 auto* procEx = new QProcess(btnInstall);
+                QObject::connect(procEx, &QProcess::errorOccurred,
+                    btnInstall, [procEx, lblPiperStatus](QProcess::ProcessError err) {
+                        if (err == QProcess::FailedToStart)
+                            qWarning() << "[ImpostazioniPage] tar/powershell piper non avviato:" << procEx->program();
+                    });
 #ifdef Q_OS_WIN
                 procEx->setWorkingDirectory(installDir);
                 procEx->start("powershell",
@@ -489,6 +515,14 @@ QWidget* ImpostazioniPage::buildVoceTab()
 #else
             /* Pipeline: piper → aplay (Linux) */
             auto* proc = new QProcess(btnSpeak);
+            QObject::connect(proc, &QProcess::errorOccurred,
+                btnSpeak, [proc, btnSpeak, lblTestStatus](QProcess::ProcessError err) {
+                    if (err == QProcess::FailedToStart) {
+                        qWarning() << "[ImpostazioniPage] piper TTS non avviato:" << proc->program();
+                        lblTestStatus->setText(tr("\xe2\x9d\x8c bash/piper non trovato"));
+                        btnSpeak->setEnabled(true);
+                    }
+                });
             proc->start("bash", { "-c",
                 QString("echo %1 | \"%2\" --model \"%3\" --output_raw | aplay -r 22050 -f S16_LE -t raw -")
                 .arg(QProcess::nullDevice(), piperBin, onnxPath)
@@ -884,6 +918,15 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
                     if (log) log->appendPlainText(
                         QString::fromLocal8Bit(proc->readAllStandardError()));
                 });
+                QObject::connect(proc, &QProcess::errorOccurred,
+                                 log, [proc, next, this](QProcess::ProcessError err) {
+                    if (err == QProcess::FailedToStart) {
+                        qWarning() << "[ImpostazioniPage] whisper build step non avviato:" << proc->program();
+                        if (log) log->appendPlainText(
+                            "\xe2\x9d\x8c  Processo non avviato: " + proc->program());
+                        next(false);
+                    }
+                });
                 QObject::connect(
                     proc,
                     QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
@@ -1138,6 +1181,14 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
 #endif
             auto* proc = new QProcess(btnDl);
             proc->setProcessChannelMode(QProcess::MergedChannels);
+            QObject::connect(proc, &QProcess::errorOccurred,
+                btnDl, [proc, btnDl, lblStatus](QProcess::ProcessError err) {
+                    if (err == QProcess::FailedToStart) {
+                        qWarning() << "[ImpostazioniPage] wget/curl whisper model non avviato:" << proc->program();
+                        lblStatus->setText(tr("\xe2\x9d\x8c wget/curl non trovato"));
+                        btnDl->setEnabled(true);
+                    }
+                });
             proc->start(dl, args);
 
             QObject::connect(proc,

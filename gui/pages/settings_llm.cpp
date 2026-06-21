@@ -545,6 +545,11 @@ QWidget* ImpostazioniPage::buildTestTab()
                 this,    &ImpostazioniPage::onTestProcReadyRead);
         connect(proc,    QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this,    &ImpostazioniPage::onTestProcFinished);
+        connect(proc,    &QProcess::errorOccurred,
+                this,    [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[ImpostazioniPage] test runner non avviato:" << m_testProc->program();
+        });
         connect(btnBuild, &QPushButton::clicked,
                 this,     &ImpostazioniPage::onTestBuildClicked);
         connect(btnRun,   &QPushButton::clicked,
@@ -1285,6 +1290,13 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
             customDlBtn->setEnabled(true);
             proc->deleteLater();
         });
+        connect(proc, &QProcess::errorOccurred, page, [proc, logOut, customDlBtn](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart) {
+                qWarning() << "[ImpostazioniPage] wget/curl GGUF custom non avviato:" << proc->program();
+                logOut->setText(tr("\xe2\x9d\x8c  wget/curl non trovato."));
+                customDlBtn->setEnabled(true);
+            }
+        });
 
         /* wget preferito, poi curl come fallback */
         if (!QStandardPaths::findExecutable("wget").isEmpty())
@@ -1499,6 +1511,14 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
                 }
                 proc->deleteLater();
             });
+            connect(proc, &QProcess::errorOccurred, page, [proc, logOut, installBtn](QProcess::ProcessError err) {
+                if (err == QProcess::FailedToStart) {
+                    qWarning() << "[ImpostazioniPage] ollama pull non avviato:" << proc->program();
+                    logOut->setText(tr("\xe2\x9d\x8c  ollama non trovato nel PATH."));
+                    installBtn->setEnabled(true);
+                    installBtn->setText(tr("\xe2\xac\x87  Installa"));
+                }
+            });
             proc->start("ollama", {"pull", ollamaName});
         } else {
             const auto& m = GGUF[idx];
@@ -1526,6 +1546,10 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
                 }
                 proc->deleteLater();
             });
+            connect(proc, &QProcess::errorOccurred, page, [proc, logOut](QProcess::ProcessError err) {
+                if (err == QProcess::FailedToStart)
+                    qWarning() << "[ImpostazioniPage] wget GGUF non avviato:" << proc->program();
+            });
             proc->start("wget", {"-c", "--show-progress", "-O", dest, ggufUrl});
             if (!proc->waitForStarted(P::kProcessStartTimeoutMs)) {
                 proc->deleteLater();
@@ -1548,6 +1572,14 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
                         LogBus::post("\xe2\x9d\x8c LLM: Download GGUF (curl) fallito: " + ggufFile);
                     }
                     curl->deleteLater();
+                });
+                connect(curl, &QProcess::errorOccurred, page, [curl, logOut, installBtn](QProcess::ProcessError err) {
+                    if (err == QProcess::FailedToStart) {
+                        qWarning() << "[ImpostazioniPage] curl GGUF fallback non avviato:" << curl->program();
+                        logOut->setText(tr("\xe2\x9d\x8c  Installa wget o curl."));
+                        installBtn->setEnabled(true);
+                        installBtn->setText(tr("\xe2\xac\x87  Installa"));
+                    }
                 });
                 curl->start("curl", {"-L", "-C", "-", "--progress-bar",
                                      "-o", dest, ggufUrl});
@@ -1962,6 +1994,13 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
             installBtn->setEnabled(true);
             proc->deleteLater();
         });
+        connect(proc, &QProcess::errorOccurred, page, [proc, logLbl, installBtn](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart) {
+                qWarning() << "[ImpostazioniPage] ollama pull (classifica) non avviato:" << proc->program();
+                logLbl->setText(tr("\xe2\x9d\x8c  ollama non trovato nel PATH."));
+                installBtn->setEnabled(true);
+            }
+        });
         proc->start("ollama", {"pull", QString::fromUtf8(e.ollama)});
     });
 
@@ -2145,6 +2184,17 @@ void ImpostazioniPage::onBenchmarkRunClicked()
             this, &ImpostazioniPage::onBenchmarkProcReadyRead);
     connect(m_benchmarkProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &ImpostazioniPage::onBenchmarkProcFinished);
+    connect(m_benchmarkProc, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart) {
+            qWarning() << "[ImpostazioniPage] benchmark python non avviato:" << m_benchmarkProc->program();
+            if (m_benchmarkStatusLbl)
+                m_benchmarkStatusLbl->setText(
+                    "<span style='color:#f87171;'>\xe2\x9d\x8c Python non trovato nel PATH.</span>");
+            if (m_benchmarkRunBtn)
+                m_benchmarkRunBtn->setText("\xf0\x9f\x94\x84  Riesegui benchmark");
+        }
+    });
     m_benchmarkProc->start(P::findPython(), {script, "--out", P::root() + "/benchmark_out"});
 }
 

@@ -610,6 +610,10 @@ void PersonalizzaPage::onLlamaCompBtnClicked() {
             this, &PersonalizzaPage::onProc1ReadyRead);
     connect(m_proc1, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PersonalizzaPage::onProc1Finished);
+    connect(m_proc1, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[PersonalizzaPage] git non avviato:" << m_proc1->program();
+    });
     m_proc1->start("git", gitArgs);
     if (!m_proc1->waitForStarted(P::kBuildProcessStartMs)) {
         m_llamaLog->append("\xe2\x9d\x8c  Impossibile avviare git. Verifica che git sia nel PATH.");
@@ -656,6 +660,10 @@ void PersonalizzaPage::onProc1Finished(int code, QProcess::ExitStatus) {
             this, &PersonalizzaPage::onProc2ReadyRead);
     connect(m_proc2, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PersonalizzaPage::onProc2Finished);
+    connect(m_proc2, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[PersonalizzaPage] cmake configure non avviato:" << m_proc2->program();
+    });
     m_proc2->start("cmake", cmakeConfigArgs);
     if (!m_proc2->waitForStarted(P::kProcessHeavyStartMs)) {
         if (m_llamaLog)
@@ -705,6 +713,10 @@ void PersonalizzaPage::onProc2Finished(int code, QProcess::ExitStatus) {
                     this, &PersonalizzaPage::onProc2ReadyRead);
             connect(m_proc2, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                     this, &PersonalizzaPage::onProc2Finished);
+            connect(m_proc2, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+                if (err == QProcess::FailedToStart)
+                    qWarning() << "[PersonalizzaPage] cmake configure (fallback CPU) non avviato:" << m_proc2->program();
+            });
             m_proc2->start("cmake", cmakeConfigArgs);
             if (!m_proc2->waitForStarted(P::kProcessHeavyStartMs)) {
                 if (m_llamaLog)
@@ -736,6 +748,10 @@ void PersonalizzaPage::onProc2Finished(int code, QProcess::ExitStatus) {
             this, &PersonalizzaPage::onProc3ReadyRead);
     connect(m_proc3, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PersonalizzaPage::onProc3Finished);
+    connect(m_proc3, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[PersonalizzaPage] cmake build non avviato:" << m_proc3->program();
+    });
     m_proc3->start("cmake", {
         "--build", m_buildDir,
         "--config", "Release",
@@ -899,6 +915,10 @@ void PersonalizzaPage::onModDlBtnClicked() {
             this, &PersonalizzaPage::onModDlProcReadyRead);
     connect(m_modDlProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PersonalizzaPage::onModDlProcFinished);
+    connect(m_modDlProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[PersonalizzaPage] wget download non avviato:" << m_modDlProc->program();
+    });
 
     m_modDlProc->start("wget", {"-c", "--progress=dot:mega", "-O", dest, url});
     if (!m_modDlProc->waitForStarted(P::kProcessStartTimeoutMs)) {
@@ -913,6 +933,10 @@ void PersonalizzaPage::onModDlBtnClicked() {
                 this, &PersonalizzaPage::onCurlReadyRead);
         connect(m_curlProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &PersonalizzaPage::onCurlFinished);
+        connect(m_curlProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[PersonalizzaPage] curl download non avviato:" << m_curlProc->program();
+        });
         m_curlProc->start("curl", {"-L", "-C", "-", "--progress-bar", "-o", dest, url});
     }
 }
@@ -1020,6 +1044,10 @@ void PersonalizzaPage::onMathDlBtnClicked() {
             this, &PersonalizzaPage::onMathDlProcReadyRead);
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PersonalizzaPage::onMathDlProcFinished);
+    connect(proc, &QProcess::errorOccurred, this, [this, proc](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[PersonalizzaPage] wget/curl math model non avviato:" << proc->program();
+    });
 #ifdef _WIN32
     proc->start("cmd", {"/c",
         QString("curl -L -o \"%1\" \"%2\" --progress-bar").arg(dest).arg(url)});
@@ -1073,6 +1101,10 @@ void PersonalizzaPage::onDlCustomBtnClicked() {
             this, &PersonalizzaPage::onDlCustomProcReadyRead);
     connect(m_dlCustomProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PersonalizzaPage::onDlCustomProcFinished);
+    connect(m_dlCustomProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[PersonalizzaPage] download URL personalizzato non avviato:" << m_dlCustomProc->program();
+    });
 #ifdef _WIN32
     m_dlCustomProc->start("cmd", {"/c",
         QString("curl -L -o \"%1\" \"%2\" --progress-bar").arg(dest).arg(url)});

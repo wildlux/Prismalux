@@ -613,6 +613,10 @@ void StrumentiFilePage::onFileSearchSearchClicked()
     connect(m_fileSearchProc,
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &StrumentiFilePage::onFileSearchProcFinished);
+    connect(m_fileSearchProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[StrumentiFilePage] ricerca file non avviata:" << m_fileSearchProc->program();
+    });
     m_fileSearchProc->start(P::findPython(), {"-c", script, root, query});
     QTimer::singleShot(30000, this, &StrumentiFilePage::onFileSearchTimeout);
 }
@@ -984,9 +988,13 @@ void StrumentiFilePage::onDatiFileBtnClicked()
         proc->setProperty("tmpScriptPath", script);
         proc->setProperty("tmpScriptObj",
                           QVariant::fromValue(static_cast<QObject*>(tmpScript)));
-        proc->start(python, {script, path});
         connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &StrumentiFilePage::onDatiXlsProcFinished);
+        connect(proc, &QProcess::errorOccurred, this, [this, proc](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[StrumentiFilePage] python XLS non avviato:" << proc->program();
+        });
+        proc->start(python, {script, path});
     }
 }
 
@@ -1153,9 +1161,13 @@ void StrumentiFilePage::onPdfAnalyzeBtnClicked()
 
     /* Prova pdftotext */
     auto* proc = new QProcess(this);
-    proc->start("pdftotext", {m_pdfPath, "-"});
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &StrumentiFilePage::onPdfPdfttextFinished);
+    connect(proc, &QProcess::errorOccurred, this, [this, proc](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[StrumentiFilePage] pdftotext non avviato:" << proc->program();
+    });
+    proc->start("pdftotext", {m_pdfPath, "-"});
 }
 
 void StrumentiFilePage::onPdfPdfttextFinished(int code, QProcess::ExitStatus)
@@ -1175,9 +1187,13 @@ void StrumentiFilePage::onPdfPdfttextFinished(int code, QProcess::ExitStatus)
         "with pdfplumber.open(sys.argv[1]) as pdf:\n"
         "    print('\\n\\n'.join(p.extract_text() or '' for p in pdf.pages))\n";
     auto* proc2 = new QProcess(this);
-    proc2->start(P::findPython(), {"-c", script, m_pdfPath});
     connect(proc2, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &StrumentiFilePage::onPdfPlumberFinished);
+    connect(proc2, &QProcess::errorOccurred, this, [this, proc2](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[StrumentiFilePage] python pdfplumber non avviato:" << proc2->program();
+    });
+    proc2->start(P::findPython(), {"-c", script, m_pdfPath});
 }
 
 void StrumentiFilePage::onPdfPlumberFinished(int code, QProcess::ExitStatus)
@@ -1241,9 +1257,13 @@ void StrumentiFilePage::onWordFileBtnClicked()
             "print('\\n'.join(p.text for p in doc.paragraphs))\n";
         auto* proc = new QProcess(this);
         proc->setProperty("wordExt", ext);
-        proc->start(P::findPython(), {"-c", script, path});
         connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &StrumentiFilePage::onWordDocxProcFinished);
+        connect(proc, &QProcess::errorOccurred, this, [this, proc](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[StrumentiFilePage] python-docx non avviato:" << proc->program();
+        });
+        proc->start(P::findPython(), {"-c", script, path});
     } else if (ext == "odt") {
         const QString script =
             "import sys\n"
@@ -1255,9 +1275,13 @@ void StrumentiFilePage::onWordFileBtnClicked()
             "print('\\n'.join(''.join(n.data for n in p.childNodes if hasattr(n,'data')) for p in paras))\n";
         auto* proc = new QProcess(this);
         proc->setProperty("wordExt", ext);
-        proc->start(P::findPython(), {"-c", script, path});
         connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &StrumentiFilePage::onWordOdtProcFinished);
+        connect(proc, &QProcess::errorOccurred, this, [this, proc](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[StrumentiFilePage] odfpy non avviato:" << proc->program();
+        });
+        proc->start(P::findPython(), {"-c", script, path});
     } else {
         /* Testo puro */
         QFile f(path);

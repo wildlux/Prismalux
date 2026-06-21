@@ -356,6 +356,10 @@ void MultimediaPage::onRecBtnToggled(bool on)
         connect(m_recProc,
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MultimediaPage::onRecProcFinished);
+        connect(m_recProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[MultimediaPage] arecord non avviato:" << m_recProc->program();
+        });
         /* arecord: S16_LE 16kHz mono — formato diretto per whisper */
         m_recProc->start("arecord",
             {"-f", "S16_LE", "-r", "16000", "-c", "1", m_recPath});
@@ -449,6 +453,10 @@ void MultimediaPage::onTranscribeBtnClicked()
         connect(m_ffmpegProc,
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MultimediaPage::onFfmpegFinished);
+        connect(m_ffmpegProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[MultimediaPage] ffmpeg audio conversion non avviato:" << m_ffmpegProc->program();
+        });
         m_ffmpegProc->start(FfmpegUtils::findFfmpeg(),
             FfmpegUtils::whisperArgs(m_audioFilePath, m_ffmpegWavTmp));
     }
@@ -575,6 +583,10 @@ void MultimediaPage::_renderDotCode(const QString& dot)
     connect(m_graphvizProc,
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MultimediaPage::onGraphvizProcFinished);
+    connect(m_graphvizProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[MultimediaPage] graphviz dot non avviato:" << m_graphvizProc->program();
+    });
     m_graphvizProc->start("dot", {"-Tpng", tmpDot, "-o", m_graphvizTmpPng});
     if (!m_graphvizProc->waitForStarted(P::kProcessStartTimeoutMs)) {
         m_graphvizStatus->setText(
@@ -701,6 +713,14 @@ QWidget* MultimediaPage::buildOcrTab()
         }
         auto* proc = new QProcess(btnVenv);
         proc->setProcessChannelMode(QProcess::MergedChannels);
+        QObject::connect(proc, &QProcess::errorOccurred,
+                btnVenv, [proc, btnVenv](QProcess::ProcessError err) {
+                    if (err == QProcess::FailedToStart) {
+                        qWarning() << "[MultimediaPage] bash venv non avviato:" << proc->program();
+                        btnVenv->setEnabled(true);
+                        btnVenv->setText(tr("\xe2\x9d\x8c  bash non trovato"));
+                    }
+                });
         proc->start("bash", {path});
         btnVenv->setText(tr("\xe2\x8f\xb3  Installazione..."));
         btnVenv->setEnabled(false);
@@ -1269,6 +1289,10 @@ void MultimediaPage::startOcrDaemon()
     connect(m_ocrDaemon,
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MultimediaPage::onOcrDaemonFinished);
+    connect(m_ocrDaemon, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[MultimediaPage] OCR daemon non avviato:" << m_ocrDaemon->program();
+    });
 
     m_ocrStatus->setText(tr("\xe2\x8f\xb3  Avvio daemon OCR (import librerie)..."));
     m_ocrDaemon->start(OpencvUtils::findCvPython(),
@@ -1574,6 +1598,10 @@ void MultimediaPage::onOcrTranscribeAudioClicked()
     connect(m_ocrFfmpegProc,
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MultimediaPage::onOcrFfmpegFinished);
+    connect(m_ocrFfmpegProc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[MultimediaPage] ffmpeg OCR audio non avviato:" << m_ocrFfmpegProc->program();
+    });
     m_ocrFfmpegProc->start(FfmpegUtils::findFfmpeg(),
         FfmpegUtils::extractArgs(m_ocrVideoPath, m_ocrAudioWav));
     if (!m_ocrFfmpegProc->waitForStarted(P::kProcessStartTimeoutMs)) {
