@@ -63,10 +63,11 @@ Ogni file sopra ~1500 righe deve essere diviso in unità logiche.
       usano template HTML simili sparsi in `main_ai_ui.cpp` e `lan_server.cpp`.
       Centralizzare in `utils/chat_bubble_html.h` con funzioni inline.
 
-- [ ] **Fetch modelli Ollama** — `fetchModels()` reimplementata in almeno 4 file
-      (`settings_ai.cpp`, `main_oracle.cpp`, `main_sci_compute.cpp`, `main_wan_compute.cpp`).
-      Centralizzare in `AiClient::fetchModels(callback)` già esistente —
-      verificare che tutti i file usino quello e non versioni locali.
+- [x] **Fetch modelli Ollama** — PARZIALE 2026-06-21: tutti i file aggiornati usano
+      `m_ai->fetchModels()` con il pattern holder. Due eccezioni legittime:
+      - `main_opencode.cpp` — formatta con "ollama/<name>", usa m_nam dedicato a OpenCode SSE
+      - `settings_voice.cpp` — lambda inline con NAM on-the-fly (non ha m_ai)
+      Queste due richiederebbero aggiungere m_ai ai costruttori — refactor non urgente.
 
 ---
 
@@ -236,9 +237,10 @@ Security review multi-agente: 4 finding confermati (confidence ≥ 8/10).
       nodi GraphMemory, modelli Ollama) rimangono vuote senza spiegazione.
       Aggiungere `QLabel("Nessun risultato")` come placeholder quando la lista è vuota.
 
-- [ ] **Confirm dialog su azioni distruttive** — alcune azioni (svuota cronologia,
-      cancella nodo GraphMemory, reset WAN queue) non chiedono conferma.
-      Ogni azione irreversibile deve avere `QMessageBox::question` con Sì/No.
+- [x] **Confirm dialog su azioni distruttive** — FATTO 2026-06-21: aggiunti 2 dialog:
+      - `onRagClearClicked()` in `main_research.cpp` — "Svuota Grafo RAG"
+      - `onClearMemClicked()` in `main_multi_agent.cpp` — "Svuota Memoria Grafo"
+      Altre azioni (reset cron, zoom reset) non sono irreversibili o hanno undo implicito.
 
 ---
 

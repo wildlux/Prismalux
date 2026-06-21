@@ -1963,6 +1963,13 @@ void RicercaPage::onRagStopClicked()
 
 void RicercaPage::onRagClearClicked()
 {
+    const auto ans = QMessageBox::question(
+        this, tr("Svuota Grafo RAG"),
+        tr("Tutti i nodi e le relazioni del grafo RAG verranno cancellati in modo irreversibile.\n"
+           "Continuare?"),
+        QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
+    if (ans != QMessageBox::Yes) return;
+
     onRagStopClicked();
     if (m_ragGm) m_ragGm->clearAll();
     if (m_ragNodeList) m_ragNodeList->clear();

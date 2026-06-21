@@ -19,6 +19,7 @@
 #include <QGroupBox>
 #include <QTimer>
 #include <QFileDialog>
+#include <QMessageBox>
 #include <QApplication>
 #include <QClipboard>
 #include <QJsonDocument>
@@ -894,6 +895,13 @@ void AgentiMultiPage::onExportTxtClicked()
 void AgentiMultiPage::onClearMemClicked()
 {
     if (!m_gm) return;
+    const auto ans = QMessageBox::question(
+        this, tr("Svuota Memoria Grafo"),
+        tr("Tutti i nodi e le relazioni della memoria Multi-Agente verranno cancellati in modo irreversibile.\n"
+           "Continuare?"),
+        QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
+    if (ans != QMessageBox::Yes) return;
+
     m_gm->clearAll();
     refreshMemoryStats();
     if (m_dotView)  m_dotView->clear();
