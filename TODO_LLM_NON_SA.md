@@ -68,7 +68,7 @@ altrimenti accodare e lanciare quando `finished()` è emesso.
 
 ---
 
-### TASK-4 — Check RAG proattivo prima della chiamata LLM
+### ✅ TASK-4 — Check RAG proattivo prima della chiamata LLM *(completato 2026-06-21)*
 **File:** `main_ai_pipeline.cpp` (in `runPipeline()`, prima di `advancePipeline()`)  
 **Cosa fare:**
 - Prima di chiamare l'LLM, fare `m_ragEngine->search(task, 3)` se il RAG è disponibile

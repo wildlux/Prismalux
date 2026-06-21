@@ -1,5 +1,6 @@
 #include "main_ai.h"
 #include "main_ai_p.h"
+#include "dialog_agents_config.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
 #include <QElapsedTimer>
@@ -54,13 +55,20 @@ void AgentiPage::runByzantine() {
     _setRunBusy(true);
     m_waitLbl->setVisible(true);
 
+    /* TASK-4: inietta contesto RAG se disponibile nell'Agente A */
+    QString byzUserMsg = m_taskOriginal;
+    if (m_ragInline && m_ragInline->hasContext())
+        byzUserMsg = m_ragInline->ragContext() + "\n\n" + byzUserMsg;
+    if (m_cfgDlg && m_cfgDlg->sharedRagWidget()
+        && m_cfgDlg->sharedRagWidget()->hasContext())
+        byzUserMsg = m_cfgDlg->sharedRagWidget()->ragContext() + "\n\n" + byzUserMsg;
     m_ai->chat(
         _buildSys(m_taskOriginal, QString(
             "Sei l'Agente A del Motore Byzantino di Prismalux. "
             "Fornisci una risposta diretta e ben argomentata. "
             "Rispondi SEMPRE e SOLO in italiano."),
             m_ai->model(), m_ai->backend()),
-        m_taskOriginal);
+        byzUserMsg);
 }
 
 /* ══════════════════════════════════════════════════════════════

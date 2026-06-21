@@ -22,6 +22,7 @@
    ══════════════════════════════════════════════════════════════ */
 #include "main_ai.h"
 #include "main_ai_p.h"
+#include "dialog_agents_config.h"
 #include "../prismalux_paths.h"
 namespace P = PrismaluxPaths;
 #include <QRegularExpression>
@@ -147,8 +148,20 @@ void AgentiPage::runAutonomousAgent()
     const QString sys = _autoSystemPrompt();
 
     if (m_autoHistory.isEmpty()) {
-        /* Prima chiamata: solo il task dell'utente, nessuna storia */
-        m_ai->chat(sys, m_autoLastUserMsg);
+        /* Prima chiamata: inietta contesto RAG se disponibile (TASK-4) */
+        QString userMsg = m_autoLastUserMsg;
+        auto ragCtx = [this]() -> QString {
+            QString ctx;
+            if (m_ragInline && m_ragInline->hasContext())
+                ctx += m_ragInline->ragContext();
+            if (m_cfgDlg && m_cfgDlg->sharedRagWidget()
+                && m_cfgDlg->sharedRagWidget()->hasContext())
+                ctx += m_cfgDlg->sharedRagWidget()->ragContext();
+            return ctx;
+        }();
+        if (!ragCtx.trimmed().isEmpty())
+            userMsg = ragCtx + "\n\n" + userMsg;
+        m_ai->chat(sys, userMsg);
     } else {
         /* Chiamate successive: invia la history completa.
            L'ultimo elemento è il messaggio "OBSERVATION: ..." dell'utente. */
