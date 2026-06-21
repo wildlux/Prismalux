@@ -144,10 +144,11 @@ void LanServer::handleReplApi(Session& s)
         return;
     }
 
+    ProcResult r;
+
+#ifdef Q_OS_LINUX
     // Ulimit applicato dentro il sandbox (secondo strato di difesa)
     static const QLatin1String kLimits("ulimit -v 262144 -t 10 -u 50 -n 100 2>/dev/null; ");
-
-    ProcResult r;
     static const QString kBwrap = QStandardPaths::findExecutable("bwrap");
 
     if (!kBwrap.isEmpty()) {
@@ -200,6 +201,13 @@ void LanServer::handleReplApi(Session& s)
             "bash", {"-c", kLimits + "exec python3 -"},
             code.toUtf8(), 15'000);
     }
+#else
+    // Non-Linux: avvia python3 senza sandbox (bwrap/ulimit non disponibili)
+    r = ProcHelper::runWithInput(
+        P::findPython(), {"-c", code},
+        code.toUtf8(), 15'000);
+    qWarning("[REPL] sandbox non disponibile su questa piattaforma — esecuzione non sandboxed");
+#endif
 
     QJsonObject obj;
     obj["output"]    = r.out.left(20'000);

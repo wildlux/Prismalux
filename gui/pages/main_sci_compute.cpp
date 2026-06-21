@@ -1121,7 +1121,13 @@ void SciComputePage::executeLocally(const QString& wuId, const QString& type,
         if (query.isEmpty() || db.isEmpty()) { errMsg = "query e db sono obbligatori"; validParams = false; }
         else {
             const QString tmpQ = QDir::tempPath() + "/sci_q_" + wuId.left(8) + ".fa";
-            QFile f(tmpQ); f.open(QIODevice::WriteOnly); f.write(query.toUtf8()); f.close();
+            QFile f(tmpQ);
+            if (!f.open(QIODevice::WriteOnly)) {
+                errMsg = "Impossibile creare file temporaneo: " + f.errorString();
+                validParams = false;
+            } else {
+                f.write(query.toUtf8()); f.close();
+            }
             proc->setProperty("tmpFile", tmpQ);
             proc->start(type, {"-query", tmpQ, "-db", db,
                                "-evalue", evalue, "-outfmt", outfmt,

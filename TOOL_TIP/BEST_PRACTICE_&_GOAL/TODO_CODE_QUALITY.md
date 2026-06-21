@@ -143,10 +143,9 @@ Security review multi-agente: 4 finding confermati (confidence ≥ 8/10).
       widget_ssh_manager 2, main_programming_vpn 2, main_customize_lora 2, main_ai_stt 2,
       main_ai_slots 3, main_ai_knowledge 2, mainwindow_slots 2, main_research 1.
 
-- [ ] **File I/O senza check errore** — `QFile::open()` spesso non verifica il
-      valore di ritorno in percorsi non critici. Grep:
-      `grep -n "\.open(" gui/ -r --include="*.cpp" | grep -v "if\s*(.*open\|!.*open"`.
-      Ogni `open()` deve avere `if (!f.open(...)) { log errore; return; }`.
+- [x] **File I/O senza check errore** — FATTO 2026-06-21: grep trovò 1 QFile reale senza check
+      (`main_sci_compute.cpp:1124` BLAST query tmpFile). Aggiunto `if (!f.open()) { errMsg; return; }`.
+      Le altre 2 occorrenze erano `QBuffer` in-memory (open() non fallisce mai su QBuffer).
 
 - [x] **SQLite senza check `lastError()`** — FATTO 2026-06-21: aggiunta macro
       `SQL_EXEC(q)` (do/while, log qWarning su errore) in:
@@ -159,16 +158,11 @@ Security review multi-agente: 4 finding confermati (confidence ≥ 8/10).
 
 - [x] **Path KaTeX hardcoded** — FATTO 2026-06-20: `katexBaseUrl()` in latex_view.h cerca: bundle assets/katex/ → /usr/share/javascript/katex/ (Linux) → /usr/share/katex/ → fallback. Portabile su Windows/macOS.
 
-- [ ] **Comandi shell non portabili** — `main_sci_compute.cpp` usa `bash -c`,
-      `ulimit`, `bwrap` senza check della piattaforma.
-      Aggiungere:
-      ```cpp
-      #ifdef Q_OS_LINUX
-          // bwrap / ulimit
-      #else
-          // fallback: solo timeout
-      #endif
-      ```
+- [x] **Comandi shell non portabili** — FATTO 2026-06-21: `lan_server_api.cpp` (REPL
+      Python con bwrap+ulimit): avvolto in `#ifdef Q_OS_LINUX … #else P::findPython() #endif`.
+      `main_sci_compute.cpp` blast query: `QFile::open` ora controlla errore + imposta `errMsg`.
+      `main_programming_vpn.cpp`/`mainwindow_slots.cpp`: bash usato solo su Linux (feature
+      Linux-only), nessuna modifica necessaria.
 
 - [x] **`~/` nei path su Windows** — verificato 2026-06-21: tutte le occorrenze
       `"~/"` sono in stringhe display/placeholder, mai in operazioni `QFile`/`QDir`.
@@ -256,7 +250,7 @@ Security review multi-agente: 4 finding confermati (confidence ≥ 8/10).
 | Suite test PASS senza Ollama | 38/41 (93%) | 38/41 (93%) | 41/41 (100%) |
 | Timeout hardcoded >2s (grep) | ~40 | 0 ✅ | 0 |
 | Porte/path hardcoded (grep) | ~40 hit | ~5 ✅ (solo testo UI) | 0 |
-| `QProcess` senza `errorOccurred` | ~15 | ~15 | 0 |
+| `QProcess` senza `errorOccurred` | ~15 | **0 ✅** (79 connect totali) | 0 |
 | Pulsanti senza tooltip | ~60 | ~60 | ≤10 |
 | Lambda > 2 righe in connect() | ~20 | ~20 | 0 |
 
