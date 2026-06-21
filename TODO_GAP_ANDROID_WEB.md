@@ -84,6 +84,97 @@ GPU-dipendente, impraticabile su mobile senza server remoto.
 
 ---
 
+### A-10 🔴 Collaborazione BT + PC Hub — chat di gruppo e progetto condiviso
+
+**Idea:** i telefoni Android possono chattare tra loro via Bluetooth e coordinare
+documenti/argomenti/progetti usando il PC desktop come hub centrale (AI + storage).
+
+**Infrastruttura BLE esistente (`pages/ble_page.h`):**
+- Scanner BLE + chat RFCOMM 1-a-1 con AES-256-GCM già implementata
+- Condivisione chiave simmetrica via QR (`onShareKey()`)
+- `QBluetoothServer` / `QBluetoothSocket` già operative
+
+**Cosa manca:**
+1. **Stanza collaborativa** ("room") — concetto di progetto/argomento condiviso con nome
+2. **Chat multi-party BT** — relay tra più telefoni (uno fa da relay verso il PC)
+3. **Sincronizzazione documenti** — upload/download file verso il PC per tutti i partecipanti
+4. **AI di gruppo** — domande al modello LLM sul PC con contesto RAG dei documenti condivisi
+5. **Fallback BT-only** — se un telefono non ha WiFi, usa BT RFCOMM per connettersi
+   a un altro telefono che fa da ponte verso il PC
+
+---
+
+#### Architettura proposta
+
+```
+Telefono A (WiFi) ──┐
+Telefono B (WiFi) ──┼──► PC LanServer (hub) ──► LLM Ollama
+Telefono C (BT)  ──►A    relay via RFCOMM         RAG condiviso
+```
+
+**PC side — nuovi endpoint in `lan_server.cpp`:**
+```
+POST /api/collab/join?room=X&device=Y   → conferma partecipazione
+GET  /api/collab/members?room=X          → lista dispositivi connessi
+POST /api/collab/msg                     → invia messaggio testo al gruppo
+GET  /api/collab/stream?room=X           → SSE — ricezione messaggi in real-time
+POST /api/collab/doc?room=X              → upload documento condiviso (multipart)
+GET  /api/collab/docs?room=X             → lista file condivisi
+GET  /api/collab/doc?room=X&file=F       → download file F
+POST /api/collab/ai?room=X               → query LLM con RAG dei doc condivisi → SSE
+DELETE /api/collab/room?room=X           → chiude la stanza (solo host)
+```
+
+**Android side — nuovo file `pages/collab_page.h/cpp`:**
+```
+CollabPage : QWidget
+├── m_stack (QStackedWidget)
+│   ├── 0: Crea/Unisciti — campo nome stanza, bottone "Crea" o "Unisciti via QR"
+│   ├── 1: Chat di gruppo — log + input + lista partecipanti
+│   └── 2: Documenti — lista file condivisi, upload, download, "Chiedi all'AI"
+├── m_wsClient (QTcpSocket → SSE /api/collab/stream)
+├── m_btRelay (QBluetoothSocket — attivo se solo BT disponibile)
+└── m_roomId (QString — UUID stanza)
+```
+
+**Flusso utente:**
+1. Host apre "Nuova stanza" → nome argomento/progetto → PC genera UUID e QR
+2. Altri telefoni scansionano QR → si uniscono (WiFi) o chiedono relay BT all'host
+3. Chat testuale in tempo reale via SSE
+4. Chiunque può caricare un documento → PC lo mette in RAG temporaneo della stanza
+5. "Chiedi all'AI" → LLM risponde usando i documenti caricati da tutti
+6. Alla fine: "Chiudi stanza" → PC invia recap AI (riassunto discussione + docs)
+
+**PC side — struttura dati in memoria (nessun DB necessario):**
+```cpp
+struct CollabRoom {
+    QString id;           /* UUID */
+    QString topic;        /* nome/argomento */
+    QStringList members;  /* IP dispositivi */
+    QList<QByteArray> docs; /* documenti uploadati */
+    QStringList msgLog;   /* storico messaggi */
+    QDateTime created;
+};
+QHash<QString, CollabRoom> m_collabRooms; /* in lan_server.h */
+```
+
+**Sicurezza:**
+- La stanza eredita il token Bearer LAN già esistente (stesso meccanismo di `m_lanToken`)
+- Messaggi BT relay: già cifrati AES-256-GCM tramite `BleCrypto::encryptToWire()`
+- Documenti: trasmessi su HTTPS se TLS abilitato, altrimenti solo rete locale trusted
+
+**File da creare/modificare:**
+| File | Azione |
+|------|--------|
+| `ANDROID/.../pages/collab_page.h` | nuovo |
+| `ANDROID/.../pages/collab_page.cpp` | nuovo |
+| `ANDROID/.../mainwindow.cpp` | aggiungere `m_stack->addWidget(m_collabPage)` indice 26 |
+| `gui/lan_server.h` | aggiungere `m_collabRooms`, 5 handler privati |
+| `gui/lan_server.cpp` | 9 nuovi endpoint `/api/collab/*` |
+| `gui/lan_web/webchat.html` | tab `clb` per accedere alla stanza dal browser |
+
+---
+
 ## SEZIONE B — Gap Web (webchat.html + lan_server.cpp)
 
 Fonte: `gui/lan_web/webchat.html` (20 tab) + endpoint `/api/*`
@@ -199,3 +290,4 @@ Cytoscape/RDKit non hanno API REST esposte dal desktop. Impraticabile via web.
 | Impara | ✅ | ✅ | ✅ |
 | Lavoro | ✅ | ✅ | ✅ |
 | Knowledge | ✅ | ✅ | ✅ |
+| **Collab BT+PC** | n/a | ❌ A-10 | ❌ (tab clb) |
