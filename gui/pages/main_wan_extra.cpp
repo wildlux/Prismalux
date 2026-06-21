@@ -685,33 +685,43 @@ void LanWanPage::wanCliHandleTask(const QString& id, const QString& kind, const 
         result = r.out.isEmpty() ? "Errore Graphviz: " + r.err : r.out.left(8000);
 
     } else if (kind == "file_read") {
-        QFile f(payload.trimmed());
-        if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            QTextStream ts(&f);
-            result = ts.readAll().left(12000);
-        } else {
-            result = "File non trovato o non leggibile: " + payload;
+        if (!shellAllowed) {
+            result = "file_read richiede 'Permetti shell' abilitato su questo nodo.";
             status = "error";
+        } else {
+            QFile f(payload.trimmed());
+            if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                QTextStream ts(&f);
+                result = ts.readAll().left(12000);
+            } else {
+                result = "File non trovato o non leggibile: " + payload;
+                status = "error";
+            }
         }
 
     } else if (kind == "file_write") {
         /* payload = JSON {"path":"...","content":"..."} */
-        QJsonParseError jerr;
-        const QJsonDocument doc = QJsonDocument::fromJson(payload.toUtf8(), &jerr);
-        if (doc.isObject()) {
-            const QString path    = doc.object()["path"].toString();
-            const QString content = doc.object()["content"].toString();
-            QFile f(path);
-            if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-                QTextStream ts(&f); ts << content;
-                result = "Scritto: " + path;
+        if (!shellAllowed) {
+            result = "file_write richiede 'Permetti shell' abilitato su questo nodo.";
+            status = "error";
+        } else {
+            QJsonParseError jerr;
+            const QJsonDocument doc = QJsonDocument::fromJson(payload.toUtf8(), &jerr);
+            if (doc.isObject()) {
+                const QString path    = doc.object()["path"].toString();
+                const QString content = doc.object()["content"].toString();
+                QFile f(path);
+                if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                    QTextStream ts(&f); ts << content;
+                    result = "Scritto: " + path;
+                } else {
+                    result = "Impossibile scrivere: " + path;
+                    status = "error";
+                }
             } else {
-                result = "Impossibile scrivere: " + path;
+                result = "Payload non valido: atteso JSON {\"path\":\"...\",\"content\":\"...\"}";
                 status = "error";
             }
-        } else {
-            result = "Payload non valido: atteso JSON {\"path\":\"...\",\"content\":\"...\"}";
-            status = "error";
         }
 
     } else if (kind == "system_info") {

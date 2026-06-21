@@ -1248,10 +1248,14 @@ void SciComputePage::executeLocally(const QString& wuId, const QString& type,
         } else {
             const QString label   = params["label"].toString("protein");
             const QString outPath = QDir::tempPath() + "/esmfold_" + wuId.left(8) + ".pdb";
+            /* Escape per embedding sicuro in stringa Python doppi-apici */
+            const QString seqSafe = QString(seq)
+                .replace("\\", "\\\\").replace("\"", "\\\"")
+                .replace("\n", "\\n").replace("\r", "");
             /* Script Python che chiama l'API via urllib (built-in) */
             const QString script =
                 "import urllib.request, sys\n"
-                "seq = \"" + seq + "\"\n"
+                "seq = \"" + seqSafe + "\"\n"
                 "url = 'https://api.esmatlas.com/foldSequence/v1/pdb/'\n"
                 "req = urllib.request.Request(url, seq.encode(), "
                 "{'Content-Type':'application/x-www-form-urlencoded'})\n"
@@ -1276,17 +1280,21 @@ void SciComputePage::executeLocally(const QString& wuId, const QString& type,
             if (!ln.startsWith('>') && !ln.trimmed().isEmpty())
                 seqLines << ln.trimmed();
         seq = seqLines.join("");
-        const QString outPath = params["output_pdb"].toString(
-            QDir::tempPath() + "/esmfold_local_" + wuId.left(8) + ".pdb");
+        /* outPath sempre generato internamente: ignoriamo params["output_pdb"]
+           per evitare path traversal / single-quote injection nel codice Python. */
+        const QString outPath = QDir::tempPath() + "/esmfold_local_" + wuId.left(8) + ".pdb";
         if (seq.isEmpty()) { errMsg = "sequenza vuota"; validParams = false; }
         else {
+            const QString seqSafe = QString(seq)
+                .replace("\\", "\\\\").replace("\"", "\\\"")
+                .replace("\n", "\\n").replace("\r", "");
             const QString script =
                 "import esm, torch, sys\n"
                 "model = esm.pretrained.esmfold_v1()\n"
                 "model.eval()\n"
                 "if torch.cuda.is_available(): model = model.cuda()\n"
                 "with torch.no_grad():\n"
-                "    pdb = model.infer_pdb(\"" + seq + "\")\n"
+                "    pdb = model.infer_pdb(\"" + seqSafe + "\")\n"
                 "with open('" + outPath + "', 'w') as f:\n"
                 "    f.write(pdb)\n"
                 "print(pdb)\n";

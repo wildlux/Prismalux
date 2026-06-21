@@ -29,10 +29,10 @@ Ogni file sopra ~1500 righe deve essere diviso in unità logiche.
   - `main_ai_pipeline.cpp` — già separato; verifica overlap
   - `main_ai_toolbar.cpp` — header, modello, DPI
 
-- [ ] **`main_simulator_algos.cpp` (3775 righe)** — separare in:
-  - `main_sim_sorting.cpp` — algoritmi ordinamento
-  - `main_sim_graph.cpp` — BFS/DFS/Dijkstra
-  - `main_sim_canvas.cpp` — paint / animazione
+- [x] **`main_simulator_algos.cpp` (3775 → 223 righe)** — FATTO 2026-06-21:
+  - `main_sim_sorting.cpp` (1612r) — Sorting, Search, Array tricks
+  - `main_sim_graph.cpp` (1073r) — BFS/DFS/Dijkstra/Kruskal/Prim/Tarjan + DS
+  - `main_sim_misc.cpp` (899r) — DP, Greedy, Backtracking, String, Math
 
 - [x] **`main_programming_slots.cpp` (3684 → 1875 righe)** — FATTO 2026-06-20:
   - `main_programming_vpn.cpp` (656 righe) — VPN/Tunnel
@@ -76,6 +76,30 @@ Ogni file sopra ~1500 righe deve essere diviso in unità logiche.
 - [x] **Porte non centralizzate** — FATTO 2026-06-20: main_maintenance.cpp (3 occorrenze), main_learn.cpp, main_wan_server.cpp ora usano P::kOllamaPort. Residui solo in testo HTML/tooltip non funzionale.
 
 - [x] **Stringhe path hardcoded** — FATTO 2026-06-20: aggiunto P::tmpDir() in prismalux_paths.h; rag_graph.cpp e main_programming_vpn.cpp ora usano P::tmpDir(). dataDir() e memoryDir() erano già presenti.
+
+---
+
+## 🔴 SICUREZZA — Vulnerabilità confermate (2026-06-21)
+
+Security review multi-agente: 4 finding confermati (confidence ≥ 8/10).
+
+- [x] **VULN-1 · Path traversal `file_read` WAN** — `main_wan_extra.cpp:688`
+      `file_read` apriva qualsiasi file del filesystem senza gate. Fix: gating dietro
+      `shellAllowed` (stesso modello di `shell_cmd`/`python_repl`). Confidence: 9/10.
+
+- [x] **VULN-2 · Arbitrary file write `file_write` WAN** — `main_wan_extra.cpp:697`
+      `file_write` scriveva in qualsiasi path dal payload remoto. Fix: stesso gate
+      `shellAllowed`. Confidence: 9/10.
+
+- [x] **VULN-3 · Python code injection via sequenza FASTA** — `main_sci_compute.cpp:1254,1289`
+      `seq` e `outPath` (esmfold_local) erano interpolati raw in codice Python senza
+      escaping di `"` e `\`. Fix: `escPyStr()` helper + `outPath` hardcoded da
+      `P::tmpDir()` in esmfold_local. Confidence: 9/10.
+
+- [x] **VULN-4 · SSRF/ffmpeg senza validazione schema URL** — `main_programming_wiby.cpp:286`
+      URL da campo editabile passato direttamente a `ffmpeg -i` senza validare lo schema
+      (rischio `file://`, `lavfi:`, `data:`). Fix: whitelist schemi `rtsp/rtp/http/https`.
+      Confidence: 8/10.
 
 ---
 

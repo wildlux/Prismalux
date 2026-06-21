@@ -267,6 +267,16 @@ void ProgrammazionePage::onWibyStartStream()
         return;
     }
 
+    /* Whitelist schemi consentiti: impedisce file://, lavfi:, data:, gopher:// ecc. */
+    const QString scheme = QUrl(url).scheme().toLower();
+    static const QStringList kAllowedSchemes = {"rtsp", "rtp", "http", "https"};
+    if (!kAllowedSchemes.contains(scheme)) {
+        if (m_usbOutput)
+            m_usbOutput->append(
+                "<span style='color:#f87171;'>Schema URL non consentito: solo rtsp/rtp/http/https.</span>");
+        return;
+    }
+
     onWibyStopStream();
     m_wibyFfmpegBuf.clear();
 
