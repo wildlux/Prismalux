@@ -1,7 +1,7 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Prismalux v2.9
+Name=Prismalux v3.0
 GenericName=Piattaforma AI Locale
 Comment=Pipeline Agenti · RAG · Multi-Agente · Distillazione · Matematica LaTeX · MCPs · WAN Compute
 Exec=/home/wildlux/Desktop/Prismalux/build_gui/Prismalux_GUI
