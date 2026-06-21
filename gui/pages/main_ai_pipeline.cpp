@@ -694,6 +694,7 @@ void AgentiPage::runAgent(int idx) {
     const QString sysSmall = sysSmallMut;
 
     m_agentTimer.restart();
+    m_ttftCaptured = false;   /* FEAT-2: reset TTFT per questo agente */
     m_agentOutputs.append("");
 
     /* Tool use nativo Ollama: attiva solo in CHAT singola con tool abilitati

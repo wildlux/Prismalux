@@ -77,6 +77,14 @@ void AgentiPage::onToken(const QString& t) {
     if (m_opMode == OpMode::Pipeline && !m_agentOutputs.isEmpty()) {
         m_agentOutputs.last() += t;
 
+        /* FEAT-2: registra TTFT (⚡Nms) al primo token — mostrato nello status */
+        if (!m_ttftCaptured) {
+            m_ttftCaptured = true;
+            const int ttftMs = static_cast<int>(m_agentTimer.elapsed());
+            emit pipelineStatus(-2,
+                QString("\xe2\x9a\xa1 TTFT: %1 ms").arg(ttftMs));  /* ⚡ — -2 = solo status bar */
+        }
+
         m_tokenCount++;
         int total = 0, done = 0;
         for (int i = 0; i < MAX_AGENTS; i++) if (m_cfgDlg->enabledChk(i)->isChecked()) total++;

@@ -249,6 +249,7 @@ private:
     QString      m_currentAgentModel;
     QString      m_currentAgentTime;
     QElapsedTimer m_agentTimer;       ///< misura il tempo di risposta di ogni agente
+    bool         m_ttftCaptured = false; ///< FEAT-2: TTFT già registrato per l'agente corrente
 
     /* ── Tool executor + Controller LLM ── */
     QString   m_executorOutput;      ///< stdout/stderr dell'esecutore Python

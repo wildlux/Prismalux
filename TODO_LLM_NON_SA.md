@@ -34,7 +34,7 @@ Quando l'LLM non conosce la risposta, il comportamento attuale è:
 
 ---
 
-### TASK-2 — Auto-websearch quando l'LLM esprime incertezza
+### ✅ TASK-2 — Auto-websearch quando l'LLM esprime incertezza *(completato 2026-06-21)*
 **File:** `main_ai_pipeline.cpp` (in `_finishedPipeline()`) + `main_ai_slots.cpp`  
 **Cosa fare:**
 - Quando `reNonSo` scatta, invece di mostrare il link "Cerca online →", lanciare automaticamente `runWebSearchAgent(m_taskOriginal)` in background
@@ -55,7 +55,7 @@ altrimenti accodare e lanciare quando `finished()` è emesso.
 
 ---
 
-### TASK-3 — Re-query LLM con contesto web dopo auto-websearch
+### ✅ TASK-3 — Re-query LLM con contesto web dopo auto-websearch *(completato 2026-06-21)*
 **File:** `main_ai_stream.cpp` (in `runWebSearchAgent()`, callback `runToolCall`)  
 **Cosa fare:**
 - Aggiungere un parametro `bool isAutoRetry = false` a `runWebSearchAgent()`

@@ -29,7 +29,7 @@ if (tag == curVer) return;
 
 ---
 
-## FEAT-1 — `runLint()` da stub a implementazione reale
+## ✅ FEAT-1 — `runLint()` da stub a implementazione reale *(completato 2026-06-21)*
 **Priorità:** Media — funzionalità visibile nella UI ma non operativa  
 **File:** `gui/pages/main_programming_slots.cpp` riga 1629  
 **Problema:** Il pulsante "Lint" nella pagina Programmazione esiste ma il metodo è vuoto:
@@ -53,7 +53,7 @@ void ProgrammazionePage::runLint() {
 
 ---
 
-## FEAT-2 — TTFT (Time to First Token) nell'header
+## ✅ FEAT-2 — TTFT (Time to First Token) nell'header *(completato 2026-06-21)*
 **Priorità:** Bassa — miglioramento UX, nessun impatto funzionale  
 **File:** `gui/pages/main_ai_stream.cpp` + `gui/mainwindow.h/cpp`  
 **Problema:** Il progetto del 2026-06-11 prevedeva `"⚡Nms"` nell'header accanto al nome modello.

@@ -2561,6 +2561,12 @@ void MainWindow::refreshChatList() {
 
 void MainWindow::onPipelineStatus(int pct, const QString& text) {
     if (!m_statusProgress) return;
+    if (pct == -2) {
+        /* FEAT-2: TTFT — aggiorna solo la status bar, senza toccare la progressbar */
+        if (!text.isEmpty())
+            statusBar()->showMessage(text, 5000);
+        return;
+    }
     if (pct < 0) {
         /* Resetta: pipeline terminata — nascondi la barra */
         m_statusProgress->setValue(0);
