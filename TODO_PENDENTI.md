@@ -4,7 +4,7 @@
 
 ---
 
-## BUG-1 — `checkForUpdates()` versione hardcoded a 2.9
+## ✅ BUG-1 — `checkForUpdates()` versione hardcoded a 2.9 *(completato 2026-06-21)*
 **Priorità:** Alta — bug silenzioso immediato  
 **File:** `gui/mainwindow_slots.cpp` righe 987 e 1000  
 **Problema:** Il controllo aggiornamenti confronta il tag GitHub con la stringa `"2.9"` invece di `"3.0"`.
@@ -100,7 +100,7 @@ AppController mostra un `QTextEdit` con placeholder "Output CloudCompare apparir
 
 ---
 
-## SEC-1 — API key cloud salvata in file in chiaro
+## ✅ SEC-1 — API key cloud salvata in file in chiaro *(completato 2026-06-21)*
 **Priorità:** Media — security, non è un crash ma è un rischio  
 **File:** `gui/prismalux_paths.h` riga 989, `gui/pages/settings_ai.cpp` riga 502  
 **Problema:** La API key per servizi cloud (OpenAI, ecc.) viene salvata in

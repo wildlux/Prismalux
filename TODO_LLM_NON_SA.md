@@ -17,7 +17,7 @@ Quando l'LLM non conosce la risposta, il comportamento attuale è:
 
 ## Task
 
-### TASK-1 — Unificare i due check di incertezza
+### ✅ TASK-1 — Unificare i due check di incertezza *(completato 2026-06-21)*
 **File:** `main_ai_pipeline.cpp` righe 382–414 e 966–1080  
 **Cosa fare:**
 - Eliminare il check con `kUncertainPhrases` (riga 382) — è più debole e ridondante
@@ -82,7 +82,7 @@ altrimenti accodare e lanciare quando `finished()` è emesso.
 
 ---
 
-### TASK-5 — Guardia anti-loop e flag stato
+### ✅ TASK-5 — Guardia anti-loop e flag stato *(completato 2026-06-21)*
 **File:** `main_ai.h` + `main_ai_pipeline.cpp`  
 **Cosa fare:**
 - Aggiungere membro `bool m_autoRetryActive = false;`
