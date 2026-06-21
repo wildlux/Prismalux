@@ -331,7 +331,7 @@ void SciProteinWidget::onEsmFoldClicked()
     QNetworkRequest req(QUrl("https://api.esmatlas.com/foldSequence/v1/pdb/"));
     req.setHeader(QNetworkRequest::ContentTypeHeader,
                   "application/x-www-form-urlencoded");
-    req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/2.9");
+    req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/3.0");
     req.setTransferTimeout(180000);
 
     QNetworkReply* reply = m_nam->post(req, seq.toUtf8());
@@ -386,7 +386,7 @@ void SciProteinWidget::onAlphaFoldClicked()
 
     QNetworkRequest req(QUrl(
         "https://alphafold.ebi.ac.uk/api/prediction/" + uid));
-    req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/2.9");
+    req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/3.0");
     req.setTransferTimeout(30000);
 
     QNetworkReply* reply = m_nam->get(req);
@@ -422,7 +422,7 @@ void SciProteinWidget::onAlphaFoldReply(QNetworkReply* reply)
 
     const QUrl afPdbQUrl(pdbUrl);
     QNetworkRequest pdbReq(afPdbQUrl);
-    pdbReq.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/2.9");
+    pdbReq.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/3.0");
     pdbReq.setTransferTimeout(60000);
 
     QNetworkReply* pdbReply = m_nam->get(pdbReq);
@@ -478,7 +478,7 @@ void SciProteinWidget::onPdbSearchClicked()
     QNetworkRequest req(QUrl(
         "https://search.rcsb.org/rcsbsearch/v2/query"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/2.9");
+    req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/3.0");
     req.setTransferTimeout(15000);
 
     QNetworkReply* reply = m_nam->post(req,
@@ -531,7 +531,7 @@ void SciProteinWidget::onUniprotSearchClicked()
     url.setQuery(params);
 
     QNetworkRequest req(url);
-    req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/2.9");
+    req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/3.0");
     req.setTransferTimeout(15000);
 
     QNetworkReply* reply = m_nam->get(req);
@@ -585,7 +585,7 @@ void SciProteinWidget::onSearchItemClicked(int row)
 
         QNetworkRequest req(QUrl(
             "https://files.rcsb.org/download/" + pdbId + ".pdb"));
-        req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/2.9");
+        req.setHeader(QNetworkRequest::UserAgentHeader, "Prismalux/3.0");
         req.setTransferTimeout(30000);
 
         QNetworkReply* reply = m_nam->get(req);

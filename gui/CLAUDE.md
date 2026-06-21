@@ -1,4 +1,4 @@
-# CLAUDE.md — Prismalux Qt GUI  v2.9 (agg. 2026-06-21)
+# CLAUDE.md — Prismalux Qt GUI  v3.0 (agg. 2026-06-21)
 
 ## Build
 ```bash

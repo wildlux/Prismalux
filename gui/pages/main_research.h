@@ -84,7 +84,7 @@ private:
     /* ── Grafo RAG ── */
     GraphMemory*       m_ragGm          = nullptr;
     RagGraph*          m_ragGraph       = nullptr;
-    QFileSystemWatcher* m_ragDirWatcher = nullptr; ///< auto-trigger su nuovi file (TODO #3)
+    QFileSystemWatcher* m_ragDirWatcher = nullptr; ///< auto-trigger su nuovi file RAG
     QTimer*            m_ragAutoDebounce = nullptr; ///< debounce 2s per il watcher
     QListWidget*    m_ragNodeList    = nullptr;   ///< lista nodi
     QTextEdit*      m_ragNodeDetail  = nullptr;   ///< dettaglio nodo selezionato

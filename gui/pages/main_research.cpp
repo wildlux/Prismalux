@@ -1673,7 +1673,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
             });
     connect(m_ragGm, &GraphMemory::changed, this, &RicercaPage::onRagGraphMemChanged);
 
-    /* QFileSystemWatcher — auto-trigger quando vengono aggiunti nuovi file RAG (TODO #3).
+    /* QFileSystemWatcher — auto-trigger quando vengono aggiunti nuovi file RAG.
      * Debounce di 2s per evitare trigger multipli durante copie batch di file. */
     m_ragDirWatcher   = new QFileSystemWatcher(this);
     m_ragAutoDebounce = new QTimer(this);
@@ -1915,7 +1915,7 @@ void RicercaPage::onRagRunClicked()
     if (QDir(ragDocs).exists()) m_ragGraph->addDirectory(ragDocs);
     if (QDir(ragLocal).exists()) m_ragGraph->addDirectory(ragLocal);
 
-    /* Aggiorna watcher con eventuali nuove dir create dopo l'avvio (TODO #3) */
+    /* Aggiorna watcher con eventuali nuove dir create dopo l'avvio */
     if (m_ragDirWatcher) {
         if (QDir(ragDocs).exists()  && !m_ragDirWatcher->directories().contains(ragDocs))
             m_ragDirWatcher->addPath(ragDocs);

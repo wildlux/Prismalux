@@ -6,7 +6,7 @@
 
 ### *"Costruito per i mortali che aspirano alla saggezza."*
 
-[![Version](https://img.shields.io/badge/versione-2.9-blue?style=flat-square)](CHANGELOG)
+[![Version](https://img.shields.io/badge/versione-3.0-blue?style=flat-square)](CHANGELOG)
 [![C++/Qt6](https://img.shields.io/badge/GUI-C%2B%2B%20%2F%20Qt6-41CD52?style=flat-square&logo=qt)](https://www.qt.io/)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20Android-informational?style=flat-square)](https://github.com/wildlux/Prismalux)
@@ -39,7 +39,7 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 
 ---
 
-## Novità v2.9 *(aggiornato 2026-06-21)*
+## Novità v3.0 *(aggiornato 2026-06-21)*
 
 | Feature | Descrizione |
 |---------|-------------|
@@ -576,17 +576,17 @@ Prismalux/
 │   └── CLAUDE.md                 ← Convenzioni di sviluppo
 │
 ├── EXPORT/                       ← Artefatti e script di distribuzione per piattaforma
-│   ├── Prismalux_v2.9_Sorgenti_Linux.zip         ← sorgenti pure Linux
-│   ├── Prismalux_v2.9_Sorgenti_Compila_Linux.zip ← script + sorgenti compilazione
+│   ├── Prismalux_v3.0_Sorgenti_Linux.zip         ← sorgenti pure Linux
+│   ├── Prismalux_v3.0_Sorgenti_Compila_Linux.zip ← script + sorgenti compilazione
 │   ├── linux/
 │   │   ├── crea_appimage.sh      ← Genera AppImage Linux
 │   │   ├── install_launcher.sh   ← Installa shortcut KDE/GNOME
 │   │   ├── Prismalux-x86_64.AppImage
-│   │   └── Prismalux_v2.9_Linux.zip  ← AppImage + script install
+│   │   └── Prismalux_v3.0_Linux.zip  ← AppImage + script install
 │   ├── windows/
 │   │   ├── crea_zip_windows.py   ← Genera ZIP distribuibile Windows
 │   │   ├── build_installer_windows.bat ← Crea Prismalux_Deploy/ con DLL Qt
-│   │   └── Prismalux_v2.9_Windows.zip
+│   │   └── Prismalux_v3.0_Windows.zip
 │   ├── android/
 │   │   ├── build_apk.sh          ← Compila PrismaluxMobile.apk
 │   │   ├── installa_xiaomi.sh    ← Installa via ADB su Xiaomi

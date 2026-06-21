@@ -268,7 +268,7 @@ MKTLLLTLVVVTIVCLDLGAV
 <p class="muted">Scegli il modello nel campo <b>&#129302; LLM</b> nel form &ldquo;Nuova Work Unit&rdquo; prima di aggiungere il task.</p>
 
 <p class="muted" style="margin-top:18px;">
-Prismalux v2.9 &mdash; Calcolo Scientifico Distribuito &mdash;
+Prismalux v3.0 &mdash; Calcolo Scientifico Distribuito &mdash;
 <a href="https://github.com/wildlux/Prismalux">github.com/wildlux/Prismalux</a>
 </p>
 )HTML";

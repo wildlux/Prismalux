@@ -244,7 +244,7 @@ void AgentiPage::startMcpDiscovery()
             {"jsonrpc","2.0"},{"id",1},{"method","initialize"},
             {"params",QJsonObject{{"protocolVersion","2024-11-05"},
                 {"capabilities",QJsonObject{}},
-                {"clientInfo",QJsonObject{{"name","prismalux"},{"version","2.9"}}}}}
+                {"clientInfo",QJsonObject{{"name","prismalux"},{"version","3.0"}}}}}
         }).toJson(QJsonDocument::Compact) + "\n";
         const QByteArray listMsg = QJsonDocument(QJsonObject{
             {"jsonrpc","2.0"},{"id",2},{"method","tools/list"},{"params",QJsonObject{}}
@@ -1076,7 +1076,7 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             {"params", QJsonObject{
                 {"protocolVersion","2024-11-05"},
                 {"capabilities", QJsonObject{}},
-                {"clientInfo", QJsonObject{{"name","prismalux"},{"version","2.9"}}}
+                {"clientInfo", QJsonObject{{"name","prismalux"},{"version","3.0"}}}
             }}
         }).toJson(QJsonDocument::Compact) + "\n";
 

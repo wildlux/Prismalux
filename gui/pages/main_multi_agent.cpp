@@ -512,7 +512,7 @@ void AgentiMultiPage::runTask(int idx, AiClient* client)
     m_taskClients[idx] = client;
     updateTaskItem(idx);
 
-    /* QPromise/QFutureWatcher — tracciamento asincrono del sub-agente */
+    /* QPromise/QFutureWatcher — tracciamento asincrono del sub-agente (completato v3.0) */
     auto promise = QSharedPointer<QPromise<QString>>::create();
     promise->start();
     m_taskPromises[idx] = promise;
@@ -549,7 +549,7 @@ void AgentiMultiPage::runTask(int idx, AiClient* client)
         }
     }
 
-    /* Cross-pollination bidirezionale: legge anche dal RagGraph esterno (TODO #2) */
+    /* Cross-pollination bidirezionale: legge anche dal RagGraph esterno */
     if (m_extRagGm && m_extRagGm->nodeCount() > 0) {
         const auto ragNodes = m_extRagGm->searchNodes(t.prompt.left(60), 4);
         if (!ragNodes.isEmpty()) {
@@ -609,7 +609,7 @@ void AgentiMultiPage::onTaskResultDone(int idx, const QString& full)
     returnPoolClient(m_taskClients.take(idx));
     m_runningTasks.remove(idx);
 
-    /* Risolve il QPromise (TODO #1) */
+    /* Risolve il QPromise del sub-agente completato */
     if (m_taskPromises.contains(idx)) {
         m_taskPromises[idx]->addResult(full);
         m_taskPromises[idx]->finish();
@@ -673,7 +673,7 @@ void AgentiMultiPage::onTaskResultError(int idx, const QString& msg)
     returnPoolClient(m_taskClients.take(idx));
     m_runningTasks.remove(idx);
 
-    /* Chiude il QPromise senza risultato (TODO #1) */
+    /* Chiude il QPromise senza risultato (sub-agente in errore) */
     if (m_taskPromises.contains(idx)) {
         m_taskPromises[idx]->finish();
         m_taskPromises.remove(idx);
@@ -854,7 +854,7 @@ void AgentiMultiPage::onStopClicked()
     for (auto* h : m_taskHolders) delete h;
     m_taskHolders.clear();
 
-    /* Chiude tutti i QPromise aperti (TODO #1) */
+    /* Chiude tutti i QPromise aperti (abort globale) */
     for (auto& p : m_taskPromises) p->finish();
     m_taskPromises.clear();
     for (auto* w : m_taskWatchers) w->deleteLater();

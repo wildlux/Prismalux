@@ -390,7 +390,7 @@ private:
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
-    setWindowTitle("🍺 Prismalux v2.9 — Centro di Controllo");
+    setWindowTitle("🍺 Prismalux v3.0 — Centro di Controllo");
     setWindowIcon(QIcon(P::root() + "/EXPORT/assets/prismalux.png"));
     setMinimumSize(dpiScale(1060), dpiScale(680));
     resize(dpiScale(1200), dpiScale(760));
