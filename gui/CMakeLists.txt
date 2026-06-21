@@ -129,6 +129,7 @@ set(CPP_SRCS
     pages/main_ai.cpp
     pages/main_ai_ui.cpp
     pages/main_ai_slots.cpp
+    pages/main_ai_panels.cpp
     pages/main_ai_stt.cpp
     pages/main_ai_tts.cpp
     pages/main_ai_files.cpp

@@ -24,13 +24,11 @@ Ogni file sopra ~1500 righe deve essere diviso in unità logiche.
   - `main_math_analisi.cpp` (978r) — buildAnalisi1/2Tab + slot KaTeX
   - `main_math_bool.cpp` (356r) — buildBoolTab + slot Booleana
 
-- [ ] **`main_ai_ui.cpp` (3906 → 1513 righe)** — split parziale 2026-06-21:
-  - `main_ai_slots.cpp` (2530r) estratto — buildToolsPanel, buildBottomBar,
-    buildInputFormatBar, onBubbleStyleChanged, recolorLog, onToolsPanelToggle,
-    onMcpPanelToggle, onToolEnabledChanged, onInput*, onFmtBtnClicked, onSymbolSearch
-  - TODO: `main_ai_slots.cpp` (2530r) ancora sopra soglia → dividere in:
-    - `main_ai_toolbar.cpp` — buildToolbar*, buildExportSection, buildTtsSection
-    - `main_ai_input.cpp` — buildInputTextField, buildRagPanel, buildSymbolsPanel
+- [x] **`main_ai_ui.cpp` (3906 → 1513 righe)** — FATTO 2026-06-21:
+  - `main_ai_slots.cpp` (1414r) — slot chat/run/mode/log/translate/RAG
+  - `main_ai_panels.cpp` (1136r) — buildToolsPanel, buildBottomBar, recolorLog,
+    onBubbleStyleChanged, buildInputFormatBar, onInputSelectionChanged,
+    onFmtBtnClicked, onSymbolSearchChanged, AccentPickerPopup
 
 - [x] **`main_simulator_algos.cpp` (3775 → 223 righe)** — FATTO 2026-06-21:
   - `main_sim_sorting.cpp` (1612r) — Sorting, Search, Array tricks
@@ -138,10 +136,13 @@ Security review multi-agente: 4 finding confermati (confidence ≥ 8/10).
 
 ### Gestione errori lacunosa
 
-- [ ] **`QProcess::error()` non connesso** — in molti slot che avviano processi
-      Python/shell manca la connessione a `QProcess::errorOccurred`. Grep:
-      `grep -rn "QProcess" gui/ --include="*.cpp" | grep -v "errorOccurred\|error()"`.
-      Ogni `QProcess` deve connettere `errorOccurred` e mostrare il motivo all'utente.
+- [ ] **`QProcess::error()` non connesso** — PARZIALE 2026-06-21: aggiunti 34 connect
+      in 5 file prioritari (main_customize 8, settings_llm 7, settings_voice 7,
+      main_tools_file 6, main_multimedia 6). Restano 15 file senza errorOccurred:
+      main_ai_tools, main_ai_files, widget_voice_cloner, main_mcp_manager,
+      main_programming_wiby, main_programming_reverse_usb, widget_stable_diffusion,
+      widget_ssh_manager, main_research, main_programming_vpn, main_customize_lora,
+      main_ai_stt, main_ai_slots, main_ai_knowledge, mainwindow_slots.
 
 - [ ] **File I/O senza check errore** — `QFile::open()` spesso non verifica il
       valore di ritorno in percorsi non critici. Grep:
