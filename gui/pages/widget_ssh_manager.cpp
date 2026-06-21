@@ -320,6 +320,11 @@ void SshManagerWidget::onArpClicked()
             this, &SshManagerWidget::onScanReadyRead);
     connect(m_scanProc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &SshManagerWidget::onScanFinished);
+    connect(m_scanProc, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[ssh_manager_arp] processo non avviato:" << m_scanProc->program();
+    });
     m_scanProc->start("arp", {"-a"});
 }
 
@@ -362,6 +367,11 @@ void SshManagerWidget::onNmapClicked()
             this, &SshManagerWidget::onScanReadyRead);
     connect(m_scanProc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &SshManagerWidget::onScanFinished);
+    connect(m_scanProc, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[ssh_manager_nmap] processo non avviato:" << m_scanProc->program();
+    });
 
     if (hasExe("nmap")) {
         m_scanLbl->setText("nmap -sn " + subnet + "  ...");

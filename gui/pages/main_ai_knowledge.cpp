@@ -64,6 +64,11 @@ void AgentiPage::callKnowledgeMcp(const QString& summary, const QString& label)
             this, &AgentiPage::onKnowledgeProcFinished);
     connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             proc, &QProcess::deleteLater);
+    connect(proc, &QProcess::errorOccurred,
+            this, [this, proc](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[knowledge_mcp] processo non avviato:" << proc->program();
+    });
 
     /* Timeout 5s — watchdog figlio di proc: auto-eliminato quando proc termina */
     auto* watchdog = new QTimer(proc);
@@ -302,6 +307,11 @@ void AgentiPage::onKnowledgeSaveBtnClicked()
     proc->setArguments({ serverPy });
     connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             proc, &QProcess::deleteLater);
+    connect(proc, &QProcess::errorOccurred,
+            this, [this, proc](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[knowledge_save] processo non avviato:" << proc->program();
+    });
     proc->start();
     if (proc->waitForStarted(2000)) {
         proc->write(payload);

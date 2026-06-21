@@ -446,6 +446,11 @@ void PersonalizzaPage::onLoraStartBtnClicked() {
             this, &PersonalizzaPage::onLoraProcReadyRead);
     connect(m_loraProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PersonalizzaPage::onLoraProcFinished);
+    connect(m_loraProc, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[lora_finetune] processo non avviato:" << m_loraProc->program();
+    });
 
     m_loraProc->start(ftBin, args);
     if (!m_loraProc->waitForStarted(P::kProcessStartTimeoutMs)) {
@@ -506,6 +511,11 @@ void PersonalizzaPage::onLoraInstallBtnClicked() {
             this, &PersonalizzaPage::onLoraInstallReadyRead);
     connect(m_loraInstallProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PersonalizzaPage::onLoraInstallFinished);
+    connect(m_loraInstallProc, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[lora_install] processo non avviato:" << m_loraInstallProc->program();
+    });
     m_loraLog2->append("\xf0\x9f\x93\xa6  Installazione in corso...\n");
     m_loraInstallProc->start(P::findPython(),
         {"-m", "pip", "install", "--break-system-packages",

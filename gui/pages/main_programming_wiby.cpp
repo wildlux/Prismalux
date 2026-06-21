@@ -92,6 +92,11 @@ void ProgrammazionePage::onWibyConnectClicked()
         connect(m_wibyProc,
                 QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &ProgrammazionePage::onWibyProcFinished);
+        connect(m_wibyProc, &QProcess::errorOccurred,
+                this, [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[main_programming_wiby] processo non avviato:" << m_wibyProc->program();
+        });
     }
 
     m_wibyReady = false;
@@ -302,6 +307,11 @@ void ProgrammazionePage::onWibyStartStream()
         "-q:v",      "5",
         "pipe:1"
     });
+    connect(m_wibyFfmpegProc, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[wiby_ffmpeg] processo non avviato:" << m_wibyFfmpegProc->program();
+    });
 
     if (m_camPreviewLbl)
         m_camPreviewLbl->setText("Connessione stream WIBY...");
@@ -380,6 +390,11 @@ void ProgrammazionePage::onWibyMitmStartClicked()
     }
     const QString script = P::root() + "/Tools/scripts/wiby_mitm.py";
     m_wibyMitmProc->start("pkexec", {"python3", script});
+    connect(m_wibyMitmProc, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[wiby_mitm] processo non avviato:" << m_wibyMitmProc->program();
+    });
 
     if (m_wibyMitmStatus)
         m_wibyMitmStatus->setText(

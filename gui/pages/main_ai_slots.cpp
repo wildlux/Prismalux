@@ -554,6 +554,11 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
             connect(m_execProc,
                     QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                     this, onFinishedR);
+            connect(m_execProc, &QProcess::errorOccurred,
+                    this, [this](QProcess::ProcessError err) {
+                if (err == QProcess::FailedToStart)
+                    qWarning() << "[exec_proc_docker] processo non avviato:" << m_execProc->program();
+            });
             m_execProc->start("docker", {"run","--rm","-i","--network","none",
                 "--memory", mem, "--memory-swap", mem,
                 "--cpus","1","--security-opt","no-new-privileges",
@@ -562,6 +567,11 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
             connect(m_execProc,
                     QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                     this, onFinishedR);
+            connect(m_execProc, &QProcess::errorOccurred,
+                    this, [this](QProcess::ProcessError err) {
+                if (err == QProcess::FailedToStart)
+                    qWarning() << "[exec_proc] processo non avviato:" << m_execProc->program();
+            });
             m_execProc->start("python3", {"-c", pyCode});
         }
         return;
@@ -673,6 +683,11 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
                     "<a href='insertinfo:" + q64i + "' style='color:#60a5fa;'>"
                     "aggiorna informazioni</a></p>");
             }
+        });
+        connect(proc, &QProcess::errorOccurred,
+                this, [this, proc](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[websearch] processo non avviato:" << proc->program();
         });
         proc->start("python3", {"-c", script});
         return;

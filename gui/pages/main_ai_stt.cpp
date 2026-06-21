@@ -84,6 +84,11 @@ void AgentiPage::_sttStartRecording()
        avanza subito alla trascrizione senza aspettare il timeout completo. */
     connect(m_recProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &AgentiPage::onRecProcFinished);
+    connect(m_recProc, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[stt_rec] processo non avviato:" << m_recProc->program();
+    });
 
     /* Countdown nel testo del pulsante — slot esplicito, nessuna lambda con raw pointer */
     m_sttWavPath = wavPath;
@@ -235,6 +240,11 @@ void AgentiPage::downloadWhisperModel()
     connect(m_whisperDlProc,
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &AgentiPage::onWhisperDlProcFinished);
+    connect(m_whisperDlProc, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[whisper_dl] processo non avviato:" << m_whisperDlProc->program();
+    });
 }
 
 /* ── slot: progresso download whisper ──────────────────────────────────────── */

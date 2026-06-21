@@ -332,6 +332,11 @@ void StableDiffusionWidget::checkDiffusers()
     proc->start(PrismaluxPaths::findPython(), {"-c",
         "import diffusers, torch, transformers; "
         "print(f'diffusers {diffusers.__version__}, torch {torch.__version__}')"});
+    connect(proc, &QProcess::errorOccurred,
+            this, [this, proc](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[stable_diffusion_check] processo non avviato:" << proc->program();
+    });
 
     connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &StableDiffusionWidget::onCheckDiffusersFinished);
@@ -409,6 +414,11 @@ void StableDiffusionWidget::generateLocal()
             this, &StableDiffusionWidget::onLocalProcReadyRead);
     connect(m_sdProc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &StableDiffusionWidget::onLocalProcFinished);
+    connect(m_sdProc, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[stable_diffusion_gen] processo non avviato:" << m_sdProc->program();
+    });
 
     m_sdProc->start(PrismaluxPaths::findPython(), args);
     if (!m_sdProc->waitForStarted(P::kProcessStartTimeoutMs)) {

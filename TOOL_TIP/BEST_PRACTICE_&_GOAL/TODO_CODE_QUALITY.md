@@ -136,13 +136,12 @@ Security review multi-agente: 4 finding confermati (confidence ≥ 8/10).
 
 ### Gestione errori lacunosa
 
-- [ ] **`QProcess::error()` non connesso** — PARZIALE 2026-06-21: aggiunti 34 connect
-      in 5 file prioritari (main_customize 8, settings_llm 7, settings_voice 7,
-      main_tools_file 6, main_multimedia 6). Restano 15 file senza errorOccurred:
-      main_ai_tools, main_ai_files, widget_voice_cloner, main_mcp_manager,
-      main_programming_wiby, main_programming_reverse_usb, widget_stable_diffusion,
-      widget_ssh_manager, main_research, main_programming_vpn, main_customize_lora,
-      main_ai_stt, main_ai_slots, main_ai_knowledge, mainwindow_slots.
+- [x] **`QProcess::error()` non connesso** — FATTO 2026-06-21: 79 connect aggiunti in 20 file.
+      Batch 1 (34): main_customize 8, settings_llm 7, settings_voice 7, main_tools_file 6, main_multimedia 6.
+      Batch 2 (21): main_ai_tools 6, main_ai_files 6, widget_voice_cloner 5, main_mcp_manager 4.
+      Batch 3 (24): main_programming_wiby 3, main_programming_reverse_usb 3, widget_stable_diffusion 2,
+      widget_ssh_manager 2, main_programming_vpn 2, main_customize_lora 2, main_ai_stt 2,
+      main_ai_slots 3, main_ai_knowledge 2, mainwindow_slots 2, main_research 1.
 
 - [ ] **File I/O senza check errore** — `QFile::open()` spesso non verifica il
       valore di ritorno in percorsi non critici. Grep:

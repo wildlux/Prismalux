@@ -60,6 +60,11 @@ void ProgrammazionePage::onReRunCmd(const QString& cmd, const QString& header)
     connect(m_reProcess,
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &ProgrammazionePage::onReCmdFinished);
+    connect(m_reProcess, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[reverse_usb] processo non avviato:" << m_reProcess->program();
+    });
     m_reProcess->start("bash", QStringList() << "-c" << cmd);
 }
 
@@ -301,6 +306,11 @@ void ProgrammazionePage::onUsbRunCmd(const QString& cmd)
     connect(m_driverProcess,
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &ProgrammazionePage::onUsbCmdFinished);
+    connect(m_driverProcess, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[usb_driver] processo non avviato:" << m_driverProcess->program();
+    });
     m_driverProcess->start("bash", QStringList() << "-c" << cmd);
 }
 
@@ -603,6 +613,11 @@ void ProgrammazionePage::onCamServerStartClicked()
         QStringList() << m_camStreamScript
                       << QString::number(devIdx)
                       << QString::number(port));
+    connect(m_camStreamProc, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[cam_stream] processo non avviato:" << m_camStreamProc->program();
+    });
 
     if (!m_camStreamProc->waitForStarted(2000)) {
         QMessageBox::critical(this, "Errore avvio",

@@ -287,6 +287,11 @@ void MainWindow::onEmergencyRamClicked()
     connect(m_emergencyStopProc,
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MainWindow::onEmergencyStopFinished);
+    connect(m_emergencyStopProc, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[emergency_stop] processo non avviato:" << m_emergencyStopProc->program();
+    });
 }
 
 void MainWindow::onEmergencyStopFinished(int, QProcess::ExitStatus)
@@ -308,6 +313,11 @@ void MainWindow::onEmergencyStopFinished(int, QProcess::ExitStatus)
     connect(m_emergencyCacheProc,
             QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MainWindow::onEmergencyCacheFinished);
+    connect(m_emergencyCacheProc, &QProcess::errorOccurred,
+            this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart)
+            qWarning() << "[emergency_cache] processo non avviato:" << m_emergencyCacheProc->program();
+    });
 }
 
 void MainWindow::onEmergencyCacheFinished(int code, QProcess::ExitStatus)

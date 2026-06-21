@@ -412,6 +412,11 @@ void ProgrammazionePage::onVpnApplyClicked()
         connect(m_vpnProc,
                 QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &ProgrammazionePage::onVpnProcFinished);
+        connect(m_vpnProc, &QProcess::errorOccurred,
+                this, [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[vpn_apply] processo non avviato:" << m_vpnProc->program();
+        });
     }
 
     QStringList pkArgs = {cmd};
@@ -565,6 +570,11 @@ void ProgrammazionePage::onVpnValidateClicked()
         connect(m_vpnProc,
                 QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &ProgrammazionePage::onVpnProcFinished);
+        connect(m_vpnProc, &QProcess::errorOccurred,
+                this, [this](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[vpn_validate] processo non avviato:" << m_vpnProc->program();
+        });
     }
     m_vpnProc->start(QStringLiteral("bash"), {scriptPath});
 }
