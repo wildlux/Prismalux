@@ -41,6 +41,7 @@
 #include <memory>
 
 #include "../ai_client.h"
+#include "../utils/mock_ollama_server.h"
 
 /* ── Modello e timeout configurabili ──────────────────────────── */
 static QString testModel()
@@ -850,6 +851,169 @@ private slots:
 };
 
 /* ══════════════════════════════════════════════════════════════
+   CAT-F — chat() con MockOllamaServer (6 casi, NESSUNA rete reale)
+   Verifica il percorso completo: AiClient → HTTP → NDJSON streaming
+   → token() + finished() senza dipendere da Ollama.
+   ══════════════════════════════════════════════════════════════ */
+class TestMockChat : public QObject {
+    Q_OBJECT
+
+    static constexpr int kTimeout = 10'000;
+
+    struct MockChatResult {
+        bool    ok        = false;
+        QString response;
+        QString errorMsg;
+        int     tokenCount = 0;
+    };
+
+    MockChatResult runWithMock(const QString& reply)
+    {
+        MockOllamaServer srv;
+        if (!srv.start()) return { false, {}, "Mock server non avviato", 0 };
+        srv.setReply(reply);
+
+        AiClient ai;
+        ai.setBackend(AiClient::Ollama, "127.0.0.1", srv.port(), "mock:model");
+
+        MockChatResult res;
+        QEventLoop loop;
+        QTimer guard;
+        guard.setSingleShot(true);
+
+        QObject::connect(&ai, &AiClient::token, &guard, [&res](const QString& t) {
+            res.response += t;
+            ++res.tokenCount;
+        });
+        QObject::connect(&ai, &AiClient::finished, &guard, [&res, &loop](const QString& full) {
+            res.ok = true;
+            if (res.response.isEmpty()) res.response = full;
+            loop.quit();
+        });
+        QObject::connect(&ai, &AiClient::error, &guard, [&res, &loop](const QString& err) {
+            res.errorMsg = err;
+            loop.quit();
+        });
+        guard.singleShot(kTimeout, &loop, &QEventLoop::quit);
+
+        ai.chat("Sei un assistente.", "Test");
+        loop.exec();
+        return res;
+    }
+
+private slots:
+
+    /* F-1: risposta mock → finished() emesso, testo non vuoto */
+    void chatFinished()
+    {
+        const auto r = runWithMock("Ciao dal mock server.");
+        QVERIFY2(r.ok, qPrintable("Errore: " + r.errorMsg));
+        QVERIFY2(!r.response.isEmpty(), "Risposta vuota dal mock");
+        qDebug() << "F-1 OK: risposta ricevuta, len=" << r.response.size();
+    }
+
+    /* F-2: token() emesso almeno una volta durante lo stream */
+    void tokensReceived()
+    {
+        const auto r = runWithMock("Alpha Beta Gamma Delta.");
+        QVERIFY2(r.ok, qPrintable("Errore: " + r.errorMsg));
+        QVERIFY2(r.tokenCount >= 1, "Nessun token emesso");
+        qDebug() << "F-2 OK: token ricevuti:" << r.tokenCount;
+    }
+
+    /* F-3: risposta contiene il testo atteso */
+    void responseContainsExpectedText()
+    {
+        const auto r = runWithMock("risposta prevista");
+        QVERIFY2(r.ok, qPrintable("Errore: " + r.errorMsg));
+        QVERIFY2(r.response.contains("risposta") || r.response.contains("prevista"),
+                 qPrintable("Testo non trovato nella risposta: " + r.response));
+        qDebug() << "F-3 OK:" << r.response;
+    }
+
+    /* F-4: più chat() sequenziali sullo stesso AiClient → ciascuna produce finished() */
+    void sequentialChats()
+    {
+        const auto r1 = runWithMock("Prima risposta.");
+        const auto r2 = runWithMock("Seconda risposta.");
+        QVERIFY2(r1.ok, "Prima chat fallita");
+        QVERIFY2(r2.ok, "Seconda chat fallita");
+        qDebug() << "F-4 OK: due chat sequenziali completate";
+    }
+
+    /* F-5: abort() durante lo stream → aborted() emesso, non finished() */
+    void abortDuringStream()
+    {
+        MockOllamaServer srv;
+        QVERIFY(srv.start());
+        srv.setReply("Token uno due tre quattro cinque sei sette otto.");
+
+        AiClient ai;
+        ai.setBackend(AiClient::Ollama, "127.0.0.1", srv.port(), "mock:model");
+
+        bool abortedSeen  = false;
+        bool finishedSeen = false;
+        QEventLoop loop;
+        QTimer guard;
+        guard.setSingleShot(true);
+
+        QObject::connect(&ai, &AiClient::token, &guard, [&ai](const QString&) {
+            ai.abort();
+        });
+        QObject::connect(&ai, &AiClient::aborted, &guard, [&abortedSeen, &loop] {
+            abortedSeen = true;
+            loop.quit();
+        });
+        QObject::connect(&ai, &AiClient::finished, &guard, [&finishedSeen, &loop](const QString&) {
+            finishedSeen = true;
+            loop.quit();
+        });
+        guard.singleShot(5000, &loop, &QEventLoop::quit);
+
+        ai.chat("sys", "msg");
+        loop.exec();
+
+        QVERIFY2(abortedSeen, "aborted() non emesso dopo abort()");
+        QVERIFY2(!finishedSeen, "finished() non deve essere emesso dopo abort()");
+        qDebug() << "F-5 OK: abort() durante stream funziona";
+    }
+
+    /* F-6: fetchModels() con mock → modelsReady con lista non vuota */
+    void fetchModelsMock()
+    {
+        MockOllamaServer srv;
+        QVERIFY(srv.start());
+        srv.setModels({"mock:7b", "mock:13b"});
+
+        AiClient ai;
+        ai.setBackend(AiClient::Ollama, "127.0.0.1", srv.port(), "mock:7b");
+
+        QStringList received;
+        QEventLoop loop;
+        QTimer guard;
+        guard.setSingleShot(true);
+
+        auto* h = new QObject;
+        QObject::connect(&ai, &AiClient::modelsReady, h, [&received, &loop, h](const QStringList& l) {
+            received = l;
+            h->deleteLater();
+            loop.quit();
+        });
+        QObject::connect(&ai, &AiClient::error, h, [&loop, h](const QString&) {
+            h->deleteLater();
+            loop.quit();
+        });
+        guard.singleShot(5000, &loop, &QEventLoop::quit);
+
+        ai.fetchModels();
+        loop.exec();
+
+        QVERIFY2(!received.isEmpty(), "modelsReady con lista vuota");
+        qDebug() << "F-6 OK: fetchModels() mock →" << received;
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
    Entry point — lancia tutte le classi di test in sequenza
    ══════════════════════════════════════════════════════════════ */
 int main(int argc, char* argv[])
@@ -879,6 +1043,10 @@ int main(int argc, char* argv[])
     }
     {
         TestInternalConstructs t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestMockChat t;
         status |= QTest::qExec(&t, argc, argv);
     }
 

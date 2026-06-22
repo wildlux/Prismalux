@@ -654,6 +654,7 @@ QWidget* MatematicaPage::buildExprTab()
     auto* btnEval = new QPushButton("\xf0\x9f\xa7\xae  Calcola", w);
     btnEval->setObjectName("actionBtn");
     btnEval->setProperty("highlight", "true");
+    btnEval->setToolTip(tr("Valuta l'espressione matematica (supporta frazioni, potenze, funzioni trigonometriche)"));
     btnEval->setProperty("execFull", btnEval->text());
     btnEval->setProperty("execIcon", QString::fromUtf8("\xf0\x9f\xa7\xae"));
     btnEval->setProperty("execText", "Calcola");
@@ -662,6 +663,7 @@ QWidget* MatematicaPage::buildExprTab()
 
     auto* btnSimplify = new QPushButton("\xe2\x99\xbe  Semplifica (sympy)", w);
     btnSimplify->setObjectName("actionBtn");
+    btnSimplify->setToolTip(tr("Semplifica l'espressione algebrica con SymPy (espande, fattorizza, riduce)"));
     btnSimplify->setProperty("execFull", btnSimplify->text());
     btnSimplify->setProperty("execIcon", QString::fromUtf8("\xe2\x99\xbe"));
     btnSimplify->setProperty("execText", "Semplifica");

@@ -29,6 +29,7 @@
 
 #include "ai_client.h"
 #include "hardware_monitor.h"
+#include "dpi_utils.h"
 
 /* ── PerfChartWidget — bar chart storico sessioni AI ─────────────── */
 class PerfChartWidget : public QWidget {
@@ -70,7 +71,7 @@ protected:
         const int bw  = std::max(6, (pw - gap * (n + 1)) / n);
 
         /* titoli assi */
-        QFont fAx; fAx.setPixelSize(9); p.setFont(fAx);
+        QFont fAx; fAx.setPixelSize(dpiScale(9)); p.setFont(fAx);
         p.setPen(QColor(80, 90, 120));
         p.drawText(2, mt, ml - 4, ph / 2, Qt::AlignRight | Qt::AlignVCenter, "tok/s");
         p.drawText(2, mt + ph / 2, ml - 4, ph / 2, Qt::AlignRight | Qt::AlignVCenter, "score");
@@ -89,7 +90,7 @@ protected:
         double maxTok = 1.0;
         for (auto& b : m_bars) if (b.tokps > maxTok) maxTok = b.tokps;
 
-        QFont fLbl; fLbl.setPixelSize(8); p.setFont(fLbl);
+        QFont fLbl; fLbl.setPixelSize(dpiScale(8)); p.setFont(fLbl);
 
         for (int i = 0; i < n; i++) {
             const auto& b  = m_bars[i];

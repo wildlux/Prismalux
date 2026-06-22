@@ -155,10 +155,13 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         lbl->setTextFormat(Qt::RichText);
         auto* btnLoad = new QPushButton("\xf0\x9f\x93\x82  Carica");
         btnLoad->setObjectName("actionBtn");
+        btnLoad->setToolTip(tr("Carica appunti BLHM da file RAG/BLHM_note.md"));
         auto* btnSave = new QPushButton("\xf0\x9f\x92\xbe  Salva");
         btnSave->setObjectName("primaryBtn");
+        btnSave->setToolTip(tr("Salva appunti in RAG/BLHM_note.md"));
         auto* btnClr  = new QPushButton("\xf0\x9f\x97\x91");
         btnClr->setFixedWidth(dpiScale(32));
+        btnClr->setToolTip(tr("Cancella gli appunti correnti"));
         blay->addWidget(lbl); blay->addStretch();
         blay->addWidget(btnLoad); blay->addWidget(btnSave); blay->addWidget(btnClr);
         m_noteEdit = new QTextEdit;
@@ -190,8 +193,10 @@ BlhmWidget::BlhmWidget(QWidget* parent)
         m_dnaSeq2->setPlaceholderText(tr("Sequenza DNA 2  (opzionale)"));
         auto* btnAn = new QPushButton("\xf0\x9f\xa7\xac  Analizza");
         btnAn->setObjectName("primaryBtn");
+        btnAn->setToolTip(tr("Analizza similitudine e composizione delle sequenze DNA"));
         auto* btnCl = new QPushButton("\xf0\x9f\x97\x91");
         btnCl->setFixedWidth(dpiScale(32));
+        btnCl->setToolTip(tr("Cancella le sequenze inserite"));
         m_dnaSimLbl = new QLabel;
         m_dnaSimLbl->setTextFormat(Qt::RichText);
         hlay->addWidget(new QLabel("Seq 1:")); hlay->addWidget(m_dnaSeq1, 3);

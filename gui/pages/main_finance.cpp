@@ -94,10 +94,12 @@ QWidget* PraticoPage::buildChat(const QString& title,
     inp->setFixedHeight(dpiScale(38));
     auto* send = new QPushButton("Invia \xe2\x96\xb6", inputRow);
     send->setObjectName("actionBtn");
+    send->setToolTip("Invia la domanda all'assistente finanziario AI");
     auto* stop = new QPushButton("\xe2\x8f\xb9", inputRow);
     stop->setObjectName("actionBtn");
     stop->setProperty("danger", true);
     stop->setFixedWidth(dpiScale(40));
+    stop->setToolTip("Interrompi la risposta AI");
     stop->setEnabled(false);
     inL->addWidget(inp, 1);
     inL->addWidget(send);
@@ -765,10 +767,14 @@ static QWidget* buildSchedaTFR(QStackedWidget* inner, AiClient* ai)
     auto* btnLay = new QHBoxLayout(btnRow);
     btnLay->setContentsMargins(0,0,0,0); btnLay->setSpacing(8);
     auto* calcBtn    = new QPushButton("\xf0\x9f\x94\xa2  Calcola TFR"); calcBtn->setObjectName("actionBtn");
+    calcBtn->setToolTip("Calcola il TFR spettante con i dati inseriti");
     auto* ragBtn     = new QPushButton("\xe2\x9a\xa1  Compila da RAG"); ragBtn->setObjectName("actionBtn");
+    ragBtn->setToolTip("Estrae i dati dal RAG per pre-compilare automaticamente il form TFR");
     auto* stopRagBtn = new QPushButton("\xe2\x8f\xb9"); stopRagBtn->setObjectName("actionBtn");
     stopRagBtn->setProperty("danger", true); stopRagBtn->setFixedWidth(dpiScale(40)); stopRagBtn->setEnabled(false);
+    stopRagBtn->setToolTip("Interrompi la lettura del RAG");
     auto* copyBtn    = new QPushButton("\xf0\x9f\x93\x8b  Copia");
+    copyBtn->setToolTip("Copia il risultato TFR negli appunti");
     auto* waitLbl    = new QLabel("\xe2\x8f\xb3  Lettura RAG...");
     waitLbl->setStyleSheet("color:#E5C400;font-style:italic;"); waitLbl->setVisible(false);
     btnLay->addWidget(calcBtn); btnLay->addWidget(ragBtn);

@@ -671,8 +671,10 @@ QWidget* ImpostazioniPage::buildMcpTab()
 
         auto* btnAggOllama = new QPushButton("\xe2\x9e\x95  Aggiungi a Claude");
         btnAggOllama->setObjectName("actionBtn");
+        btnAggOllama->setToolTip(tr("Aggiunge questo endpoint Ollama come MCP in Claude Desktop settings.json"));
         auto* btnCopia = new QPushButton("\xf0\x9f\x93\x8b  Copia comando");
         btnCopia->setObjectName("actionBtn");
+        btnCopia->setToolTip(tr("Copia il comando curl per testare Ollama negli appunti"));
         auto* fbkOllama = new QLabel;
 
         btnL->addWidget(btnAggOllama);
@@ -1019,8 +1021,11 @@ QWidget* ImpostazioniPage::buildFeedbackTab()
     auto* btnExport  = new QPushButton("\xf0\x9f\x93\xa4  Esporta dataset DPO (ShareGPT)", w);
     auto* btnClear   = new QPushButton("\xf0\x9f\x97\x91  Cancella dati", w);
     btnRefresh->setObjectName("actionBtn");
+    btnRefresh->setToolTip(tr("Ricarica la tabella dei feedback da chat_feedback.jsonl"));
     btnExport->setObjectName("actionBtn");
+    btnExport->setToolTip(tr("Esporta le conversazioni con feedback nel formato ShareGPT per il fine-tuning DPO"));
     btnClear->setObjectName("actionBtn");
+    btnClear->setToolTip(tr("Cancella tutti i dati di feedback (chat_feedback.jsonl)"));
     auto* statLbl    = new QLabel(w);
     statLbl->setWordWrap(true);
     btnRow->addWidget(btnRefresh);

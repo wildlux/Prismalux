@@ -426,6 +426,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
 
         auto* dlBtn = new QPushButton("\xe2\xac\x87 Scarica", card);
         dlBtn->setObjectName("actionBtn"); dlBtn->setFixedWidth(dpiScale(100));
+        dlBtn->setToolTip(tr("Scarica il modello GGUF selezionato tramite wget/curl"));
         dlBtn->setProperty("_url",  mm.url);
         dlBtn->setProperty("_name", mm.name);
         connect(dlBtn, &QPushButton::clicked,
@@ -492,6 +493,7 @@ QWidget* PersonalizzaPage::buildLlamaStudio() {
             txt->setWordWrap(true); txt->setTextFormat(Qt::RichText);
             auto* compNowBtn = new QPushButton("\xf0\x9f\x94\xa8  Compila ora", m_firstLaunchBanner);
             compNowBtn->setObjectName("actionBtn");
+            compNowBtn->setToolTip(tr("Compila llama.cpp dal sorgente (richiede git, cmake, gcc — ~5-15 min)"));
             compNowBtn->setStyleSheet(
                 "QPushButton{background:#d97706;color:#fff;border-radius:5px;"
                 "font-weight:bold;padding:5px 12px;}"

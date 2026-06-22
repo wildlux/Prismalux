@@ -276,6 +276,7 @@ void ManutenzioneePage::buildLlamaServerSection(QGroupBox* grp, QVBoxLayout* lay
     auto* srvBrowse = new QPushButton("\xe2\x80\xa6", m_grpServ);
     srvBrowse->setObjectName("actionBtn");
     srvBrowse->setFixedWidth(dpiScale(32));
+    srvBrowse->setToolTip(tr("Scegli file modello .gguf per llama-server"));
     srvModelL->addWidget(new QLabel("Modello:", srvModelRow));
     srvModelL->addWidget(m_srvModelPath, 1);
     srvModelL->addWidget(srvBrowse);

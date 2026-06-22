@@ -1,4 +1,5 @@
 #include "main_research.h"
+#include "../dpi_utils.h"
 #include "../widgets/model_combo_box.h"
 #include "../widgets/astro_calc.h"
 #include "../widgets/natal_chart_widget.h"
@@ -112,6 +113,7 @@ QWidget* RicercaPage::buildAstraleTab()
     mapToggle->setCheckable(true);
     mapToggle->setChecked(true);
     mapToggle->setFlat(true);
+    mapToggle->setToolTip(tr("Espandi/Comprimi la mappa interattiva per il luogo di nascita"));
     mapToggle->setStyleSheet(
         "text-align:left; font-weight:bold; font-size:11px;"
         "padding:2px 4px; color:#333;");
@@ -135,11 +137,11 @@ QWidget* RicercaPage::buildAstraleTab()
     m_astraleCustomCitta->setPlaceholderText(tr("Citt\xc3\xa0 (es. Roma)"));
     m_astraleCustomLat   = new QLineEdit(coordRow);
     m_astraleCustomLat->setPlaceholderText(tr("Lat"));
-    m_astraleCustomLat->setMaximumWidth(62);
+    m_astraleCustomLat->setMaximumWidth(dpiScale(62));
     m_astraleCustomLat->setText(tr("41.90"));
     m_astraleCustomLon   = new QLineEdit(coordRow);
     m_astraleCustomLon->setPlaceholderText(tr("Lon"));
-    m_astraleCustomLon->setMaximumWidth(62);
+    m_astraleCustomLon->setMaximumWidth(dpiScale(62));
     m_astraleCustomLon->setText(tr("12.50"));
     coordLay->addWidget(m_astraleCustomCitta, 1);
     coordLay->addWidget(m_astraleCustomLat);
@@ -303,8 +305,11 @@ QWidget* RicercaPage::buildAstraleTab()
         auto* btnPdf2 = new QPushButton("\xf0\x9f\x96\xa8  Esporta PDF");
         auto* btnClr2 = new QPushButton("\xf0\x9f\x97\x91  Svuota");
         btnMd2->setObjectName("actionBtn");
+        btnMd2->setToolTip(tr("Salva l'interpretazione della carta natale in formato Markdown"));
         btnPdf2->setObjectName("actionBtn");
+        btnPdf2->setToolTip(tr("Esporta l'interpretazione come file PDF"));
         btnClr2->setObjectName("actionBtn");
+        btnClr2->setToolTip(tr("Cancella il testo dell'interpretazione"));
         aLay->addWidget(btnMd2);
         aLay->addWidget(btnPdf2);
         aLay->addWidget(btnClr2);
@@ -390,8 +395,11 @@ QWidget* RicercaPage::buildAstraleTab()
         auto* btnPdfK = new QPushButton("\xf0\x9f\x96\xa8  Esporta PDF");
         auto* btnClrK = new QPushButton("\xf0\x9f\x97\x91  Svuota");
         btnMdK->setObjectName("actionBtn");
+        btnMdK->setToolTip(tr("Salva l'analisi karmica in formato Markdown"));
         btnPdfK->setObjectName("actionBtn");
+        btnPdfK->setToolTip(tr("Esporta l'analisi karmica come file PDF"));
         btnClrK->setObjectName("actionBtn");
+        btnClrK->setToolTip(tr("Cancella il testo dell'analisi karmica"));
         kBarLay->addWidget(btnMdK);
         kBarLay->addWidget(btnPdfK);
         kBarLay->addWidget(btnClrK);

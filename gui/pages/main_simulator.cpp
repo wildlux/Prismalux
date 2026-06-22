@@ -655,17 +655,17 @@ void BigOWidget::paintEvent(QPaintEvent*) {
         lx=px_; ly=py_;
     }
     p.drawPath(hiPath);
-    QFont lf; lf.setPixelSize(10); lf.setBold(true); p.setFont(lf); p.setPen(hiCol);
+    QFont lf; lf.setPixelSize(dpiScale(10)); lf.setBold(true); p.setFont(lf); p.setPen(hiCol);
     double ely = std::max((double)mt+4, std::min(ly-6, (double)(mt+ph-14)));
     p.drawText((int)lx-60,(int)ely,58,14,Qt::AlignRight|Qt::AlignVCenter,QString::fromUtf8(m_label));
-    QFont bf; bf.setPixelSize(9); bf.setBold(true); p.setFont(bf);
+    QFont bf; bf.setPixelSize(dpiScale(9)); bf.setBold(true); p.setFont(bf);
     QRect br(ml+pw-62, mt+ph-16, 60, 14);
     p.fillRect(br, hiCol.darker(180)); p.setPen(hiCol);
     p.drawText(br, Qt::AlignCenter, QString::fromUtf8(m_badge));
     /* Assi */
     p.setPen(QPen(QColor(100,100,130),1));
     p.drawLine(ml,mt,ml,mt+ph); p.drawLine(ml,mt+ph,ml+pw,mt+ph);
-    QFont axF; axF.setPixelSize(9); p.setFont(axF); p.setPen(QColor(110,110,150));
+    QFont axF; axF.setPixelSize(dpiScale(9)); p.setFont(axF); p.setPen(QColor(110,110,150));
     for (int nv : {8,16,32}) {
         int xp=(int)(ml+pw*(nv-1)/(N_MAX-1));
         p.drawLine(xp,mt+ph,xp,mt+ph+3);
@@ -674,7 +674,7 @@ void BigOWidget::paintEvent(QPaintEvent*) {
     p.drawText(ml+pw-8,mt+ph+4,12,11,Qt::AlignCenter,"n");
     p.save(); p.translate(8,mt+ph/2+14); p.rotate(-90);
     p.drawText(0,0,"ops"); p.restore();
-    QFont tF; tF.setPixelSize(9); p.setFont(tF); p.setPen(QColor(80,80,110));
+    QFont tF; tF.setPixelSize(dpiScale(9)); p.setFont(tF); p.setPen(QColor(80,80,110));
     p.drawText(ml+2,mt-1,pw-4,10,Qt::AlignLeft,"Complessit\xc3\xa0 O-grande");
 }
 
@@ -714,8 +714,8 @@ void AlgoBarWidget::paintEvent(QPaintEvent*) {
         return {80, 130, 200};
     };
 
-    QFont fVal; fVal.setPixelSize(10);
-    QFont fIdx; fIdx.setPixelSize(9);
+    QFont fVal; fVal.setPixelSize(dpiScale(10));
+    QFont fIdx; fIdx.setPixelSize(dpiScale(9));
 
     for (int i = 0; i < n; i++) {
         const int x    = xOff + gap + i * (barW + gap);
@@ -747,7 +747,7 @@ void AlgoBarWidget::paintEvent(QPaintEvent*) {
         {{0,210,230},   "trovato"  },
         {{50,50,65},    "eliminato"},
     };
-    QFont fLeg; fLeg.setPixelSize(9);
+    QFont fLeg; fLeg.setPixelSize(dpiScale(9));
     p.setFont(fLeg);
     int lx = 8, ly = height() - 14;
     for (auto& l : leg) {

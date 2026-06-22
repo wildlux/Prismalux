@@ -347,7 +347,13 @@ void LanServer::stop()
     }
 }
 
-bool    LanServer::isRunning()   const { return m_server->isListening(); }
+bool    LanServer::isRunning()   const {
+    if (m_server->isListening()) return true;
+#if QT_CONFIG(ssl)
+    if (m_sslServer && m_sslServer->isListening()) return true;
+#endif
+    return false;
+}
 quint16 LanServer::port() const {
 #if QT_CONFIG(ssl)
     if (m_sslServer && m_sslServer->isListening()) return m_sslServer->serverPort();

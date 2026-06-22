@@ -2374,6 +2374,10 @@ QWidget* ProgrammazionePage::buildDriverKernelTab(QWidget* parent)
             auto* btnV4l2   = new QPushButton("\xf0\x9f\x93\xb9 V4L2",       row2);
             auto* btnDetail = new QPushButton("\xf0\x9f\x93\x8b Dettagli",    row2);
             auto* btnUdev   = new QPushButton("\xf0\x9f\x94\xa7 udevadm",     row2);
+            btnList->setToolTip(tr("Elenca dispositivi USB collegati (lsusb)"));
+            btnV4l2->setToolTip(tr("Elenca dispositivi Video4Linux: webcam, TV tuner (v4l2-ctl)"));
+            btnDetail->setToolTip(tr("Dettagli completi del dispositivo USB selezionato"));
+            btnUdev->setToolTip(tr("Info udevadm sul dispositivo: regole, attributi, path"));
             rl2->addWidget(btnList);
             rl2->addWidget(btnV4l2);
             rl2->addWidget(btnDetail);
@@ -2405,6 +2409,10 @@ QWidget* ProgrammazionePage::buildDriverKernelTab(QWidget* parent)
             auto* btnDfuDump  = new QPushButton("\xf0\x9f\x92\xbe Dump",     row1);
             auto* btnDfuFlash = new QPushButton("\xe2\x9a\xa1 Flash",        row1);
             auto* btnAiGuide  = new QPushButton("\xf0\x9f\x92\xa1 Guida AI", row1);
+            btnDfuList->setToolTip(tr("Elenca dispositivi DFU collegati (dfu-util -l)"));
+            btnDfuDump->setToolTip(tr("Scarica firmware dal dispositivo DFU in un file (dfu-util -U)"));
+            btnDfuFlash->setToolTip(tr("Carica file firmware sul dispositivo DFU (dfu-util -D)"));
+            btnAiGuide->setToolTip(tr("Genera guida AI specifica per il dispositivo selezionato"));
             rl1->addWidget(btnDfuList);
             rl1->addWidget(btnDfuDump);
             rl1->addWidget(btnDfuFlash);
@@ -2429,7 +2437,9 @@ QWidget* ProgrammazionePage::buildDriverKernelTab(QWidget* parent)
             btnRefresh->setFixedWidth(dpiScale(30));
             auto* btnStart = new QPushButton("\xe2\x96\xb6 Avvia", row2);
             btnStart->setObjectName("primaryButton");
+            btnStart->setToolTip(tr("Avvia server MJPEG sulla porta specificata"));
             auto* btnStop = new QPushButton("\xe2\x96\xa0 Ferma", row2);
+            btnStop->setToolTip(tr("Ferma il server MJPEG"));
             rl2->addWidget(m_camDeviceCombo, 1);
             rl2->addWidget(btnRefresh);
             rl2->addWidget(m_camPortSpin);
@@ -2795,6 +2805,12 @@ QWidget* ProgrammazionePage::buildDriverKernelTab(QWidget* parent)
             auto* btnNm      = new QPushButton("\xf0\x9f\x94\xa4  nm",          grp);
             auto* btnStrings = new QPushButton("\xf0\x9f\x94\xa1  strings",     grp);
             auto* btnLdd     = new QPushButton("\xf0\x9f\x94\x97  ldd",         grp);
+            btnFile->setToolTip(tr("Identifica tipo e formato del file binario (file <nome>)"));
+            btnReadelf->setToolTip(tr("Analizza struttura ELF: sezioni, simboli, note, dipendenze (readelf -a)"));
+            btnObjdump->setToolTip(tr("Disassembla le sezioni .text dell'eseguibile (objdump -d)"));
+            btnNm->setToolTip(tr("Elenca simboli definiti e importati nel binario (nm)"));
+            btnStrings->setToolTip(tr("Estrae stringhe leggibili ASCII/UTF-8 dall'eseguibile (strings)"));
+            btnLdd->setToolTip(tr("Mostra le librerie dinamiche richieste dall'eseguibile (ldd)"));
 
             gl->addWidget(btnFile);
             gl->addWidget(btnReadelf);
@@ -2831,6 +2847,12 @@ QWidget* ProgrammazionePage::buildDriverKernelTab(QWidget* parent)
             auto* btnDmesgDrv = new QPushButton("\xf0\x9f\x93\x9d  dmesg driver", grp);
             auto* btnStrace   = new QPushButton("\xf0\x9f\x95\xb5  strace -c",    grp);
             auto* btnKprobes  = new QPushButton("\xe2\x9a\xa1  kprobes",          grp);
+            btnModinfo->setToolTip(tr("Informazioni dettagliate sul modulo kernel (modinfo <nome>)"));
+            btnLsmod->setToolTip(tr("Elenca i moduli kernel caricati attualmente (lsmod)"));
+            btnKallsyms->setToolTip(tr("Cerca simbolo nei simboli del kernel live (/proc/kallsyms)"));
+            btnDmesgDrv->setToolTip(tr("Filtra i messaggi dmesg del driver/modulo selezionato"));
+            btnStrace->setToolTip(tr("Traccia le system call del processo con statistiche (strace -c)"));
+            btnKprobes->setToolTip(tr("Crea kprobe sul simbolo kernel per il tracing dinamico"));
 
             gl->addWidget(btnModinfo);
             gl->addWidget(btnLsmod);
@@ -2866,6 +2888,7 @@ QWidget* ProgrammazionePage::buildDriverKernelTab(QWidget* parent)
                 "\xf0\x9f\xa4\x96  Analisi AI \xe2\x80\x94 spiega output", row);
             btnAiAnalyze->setObjectName("primaryButton");
             auto* btnClear = new QPushButton("\xf0\x9f\x97\x91  Pulisci", row);
+            btnClear->setToolTip(tr("Pulisce l'output del reverse engineering"));
 
             rl->addWidget(btnAiAnalyze);
             rl->addStretch();

@@ -853,6 +853,7 @@ QWidget* AppControllerPage::buildBlenderTab()
     m_blenderHostEdit->setFixedWidth(dpiScale(150));
 
     auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    pingBtn->setToolTip(tr("Verifica che Blender sia in ascolto sulla porta WebSocket specificata"));
     pingBtn->setObjectName("actionBtn");
     pingBtn->setFixedWidth(dpiScale(100));
 
@@ -866,6 +867,7 @@ QWidget* AppControllerPage::buildBlenderTab()
     m_blenderExecBtn->setEnabled(false);
 
     auto* helpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    helpBtn->setToolTip(tr("Apri la documentazione e i comandi AI disponibili per Blender"));
     helpBtn->setObjectName("actionBtn");
     helpBtn->setFixedWidth(dpiScale(80));
 
@@ -1072,6 +1074,7 @@ QWidget* AppControllerPage::buildFreeCADTab()
     m_freecadHostEdit->setFixedWidth(dpiScale(150));
 
     auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    pingBtn->setToolTip(tr("Verifica che FreeCAD sia in ascolto sulla porta specificata"));
     pingBtn->setObjectName("actionBtn");
     pingBtn->setFixedWidth(dpiScale(100));
 
@@ -1088,6 +1091,7 @@ QWidget* AppControllerPage::buildFreeCADTab()
     connLay->addWidget(m_freecadHostEdit);
     connLay->addWidget(pingBtn);
     auto* freecadHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    freecadHelpBtn->setToolTip(tr("Apri la documentazione e i comandi AI disponibili per FreeCAD"));
     freecadHelpBtn->setObjectName("actionBtn");
     freecadHelpBtn->setFixedWidth(dpiScale(80));
     connLay->addWidget(m_freecadStatusLbl, 1);
@@ -1217,6 +1221,7 @@ QWidget* AppControllerPage::buildOfficeTab()
 
     connLay->addWidget(lbl);
     auto* officeHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    officeHelpBtn->setToolTip(tr("Apri la documentazione LibreOffice e guida comandi macro"));
     officeHelpBtn->setObjectName("actionBtn");
     officeHelpBtn->setFixedWidth(dpiScale(80));
     connLay->addWidget(m_officeStartBtn);
@@ -1516,6 +1521,7 @@ QWidget* AppControllerPage::buildAnkiTab()
     m_ankiHostEdit->setFixedWidth(dpiScale(150));
 
     auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    pingBtn->setToolTip(tr("Verifica connessione con AnkiConnect (porta 8765)"));
     pingBtn->setObjectName("actionBtn");
     pingBtn->setFixedWidth(dpiScale(100));
 
@@ -1532,6 +1538,7 @@ QWidget* AppControllerPage::buildAnkiTab()
     connLay->addWidget(m_ankiHostEdit);
     connLay->addWidget(pingBtn);
     auto* ankiHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    ankiHelpBtn->setToolTip(tr("Apri la documentazione AnkiConnect e guida AI per flashcard"));
     ankiHelpBtn->setObjectName("actionBtn");
     ankiHelpBtn->setFixedWidth(dpiScale(80));
     connLay->addWidget(m_ankiStatusLbl, 1);
@@ -1706,6 +1713,7 @@ QWidget* AppControllerPage::buildKiCADTab()
     m_kicadHostEdit->setFixedWidth(dpiScale(150));
 
     auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    pingBtn->setToolTip(tr("Verifica che il server KiCAD MCP sia raggiungibile"));
     pingBtn->setObjectName("actionBtn");
     pingBtn->setFixedWidth(dpiScale(100));
 
@@ -1722,6 +1730,7 @@ QWidget* AppControllerPage::buildKiCADTab()
     connLay->addWidget(m_kicadHostEdit);
     connLay->addWidget(pingBtn);
     auto* kicadHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    kicadHelpBtn->setToolTip(tr("Apri la documentazione KiCAD MCP e guida ai comandi"));
     kicadHelpBtn->setObjectName("actionBtn");
     kicadHelpBtn->setFixedWidth(dpiScale(80));
     connLay->addWidget(m_kicadStatusLbl, 1);
@@ -1864,6 +1873,7 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     auto* detectBtn = new QPushButton("\xf0\x9f\x94\x8d  Rileva", connRow);
     detectBtn->setObjectName("actionBtn");
     detectBtn->setFixedWidth(dpiScale(90));
+    detectBtn->setToolTip(tr("Rileva le porte seriali/USB disponibili per MCU/FPGA"));
 
     m_mcuStatusLbl = new QLabel("\xe2\x9a\xaa  MCU non connesso", connRow);
     m_mcuStatusLbl->setObjectName("hintLabel");
@@ -1878,6 +1888,7 @@ QWidget* AppControllerPage::buildTinyMCPTab()
     connLay->addWidget(m_mcuPort, 1);
     connLay->addWidget(detectBtn);
     auto* mcuHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    mcuHelpBtn->setToolTip(tr("Apri guida al flashing MCU/FPGA: Arduino, STM32, ESP32, AVR"));
     mcuHelpBtn->setObjectName("actionBtn");
     mcuHelpBtn->setFixedWidth(dpiScale(80));
     connLay->addWidget(m_mcuStatusLbl, 1);
@@ -2049,6 +2060,7 @@ QWidget* AppControllerPage::buildOBSTab()
     m_obsHostEdit->setFixedWidth(dpiScale(150));
 
     auto* pingBtn = new QPushButton("\xf0\x9f\x94\x97  Verifica", connRow);
+    pingBtn->setToolTip(tr("Verifica connessione con OBS WebSocket (porta 4455)"));
     pingBtn->setObjectName("actionBtn");
     pingBtn->setFixedWidth(dpiScale(100));
 
@@ -2061,6 +2073,7 @@ QWidget* AppControllerPage::buildOBSTab()
     m_obsExecBtn->setEnabled(false);
 
     auto* obsHelpBtn = new QPushButton("\xf0\x9f\x9b\x9f  Aiuto", connRow);
+    obsHelpBtn->setToolTip(tr("Apri la documentazione OBS WebSocket e guida scene/sorgenti"));
     obsHelpBtn->setObjectName("actionBtn");
     obsHelpBtn->setFixedWidth(dpiScale(80));
 
@@ -2938,6 +2951,7 @@ QWidget* AppControllerPage::buildDevAgentTab()
     auto* histRefreshBtn = new QPushButton("\xf0\x9f\x94\x84", histGroup);
     histRefreshBtn->setObjectName("actionBtn");
     histRefreshBtn->setFixedWidth(dpiScale(32));
+    histRefreshBtn->setToolTip(tr("Aggiorna la lista degli snapshot salvati dal Dev Agent"));
     histCtrlRow->addWidget(m_devRestoreBtn, 1);
     histCtrlRow->addWidget(histRefreshBtn);
     histLay->addLayout(histCtrlRow);

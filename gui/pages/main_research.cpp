@@ -156,7 +156,7 @@ RicercaPage::RicercaPage(AiClient* ai, QWidget* parent)
 
     m_sciProgress = new QProgressBar(this);
     m_sciProgress->setRange(0, 0);
-    m_sciProgress->setFixedHeight(4);
+    m_sciProgress->setFixedHeight(dpiScale(4));
     m_sciProgress->setTextVisible(false);
     m_sciProgress->setVisible(false);
     vlay->addWidget(m_sciProgress);
@@ -1782,7 +1782,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
     m_ragProgress = new QProgressBar(ctrlBar);
     m_ragProgress->setRange(0, 0);
     m_ragProgress->setVisible(false);
-    m_ragProgress->setFixedHeight(8);
+    m_ragProgress->setFixedHeight(dpiScale(8));
     m_ragProgress->setFixedWidth(dpiScale(120));
     ctrlLay->addWidget(m_ragProgress);
 

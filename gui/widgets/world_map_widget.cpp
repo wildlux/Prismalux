@@ -1,4 +1,5 @@
 #include "world_map_widget.h"
+#include "../dpi_utils.h"
 #include <QPainter>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -478,7 +479,7 @@ void WorldMapWidget::drawTiles(QPainter& p)
             } else {
                 p.fillRect(tileRect, QColor(200, 205, 215));
                 p.setPen(QColor(150, 155, 165));
-                QFont f = font(); f.setPixelSize(11); p.setFont(f);
+                QFont f = font(); f.setPixelSize(dpiScale(11)); p.setFont(f);
                 p.drawText(tileRect, Qt::AlignCenter, "\xf0\x9f\x97\xba");
                 requestTile(m_zoom, tx, ty);
             }
@@ -512,7 +513,7 @@ void WorldMapWidget::drawMarker(QPainter& p)
 void WorldMapWidget::drawAttrib(QPainter& p)
 {
     const QString txt = "\xa9 OpenStreetMap contributors";
-    QFont f = font(); f.setPixelSize(9); p.setFont(f);
+    QFont f = font(); f.setPixelSize(dpiScale(9)); p.setFont(f);
     const QFontMetrics fm(f);
     const int tw = fm.horizontalAdvance(txt);
     const QRectF bg(width() - tw - 8, height() - 14, tw + 6, 12);
@@ -654,7 +655,7 @@ void WorldMapWidget::drawWaypoints(QPainter& p)
 
         /* Etichetta */
         const QString lbl = m_waypointLabels.value(i, QString::fromLatin1("%1").arg(QChar('A' + i % 26)));
-        QFont f = font(); f.setPixelSize(10); f.setBold(true); p.setFont(f);
+        QFont f = font(); f.setPixelSize(dpiScale(10)); f.setBold(true); p.setFont(f);
         p.setPen(Qt::white);
         p.drawText(QRectF(sp.x() - 9, sp.y() - 9, 18, 18), Qt::AlignCenter, lbl);
     }

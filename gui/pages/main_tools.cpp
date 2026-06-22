@@ -817,7 +817,7 @@ QWidget* StrumentiPage::buildInputRow()
 
     m_waitBar = new QProgressBar(m_inputRow);
     m_waitBar->setRange(0, 0);
-    m_waitBar->setFixedHeight(4);
+    m_waitBar->setFixedHeight(dpiScale(4));
     m_waitBar->setTextVisible(false);
     m_waitBar->setVisible(false);
 

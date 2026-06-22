@@ -944,6 +944,61 @@ if(BUILD_TESTS)
         target_link_libraries(test_agents_config_dialog PRIVATE pthread m)
     endif()
 
+    # ── test_ai_client: classifyQuery, detectQueryDomain, SmartRouter, abort, mock HTTP 4xx/5xx ──
+    add_executable(test_ai_client
+        tests/test_ai_client.cpp
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_ai_client PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_ai_client PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_ai_client PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_ai_client PRIVATE pthread m)
+    endif()
+
+    # ── test_lan_wan_core: timingSafeEqual, token save/load, rate limiting, lifecycle ──
+    add_executable(test_lan_wan_core
+        tests/test_lan_wan_core.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_lan_wan_core PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_lan_wan_core PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_lan_wan_core PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_lan_wan_core PRIVATE pthread m)
+    endif()
+
+    # ── test_mcp_integration: McpManagerPage struct/scan/JSON-RPC protocol + integrazione reale ──
+    add_executable(test_mcp_integration
+        tests/test_mcp_integration.cpp
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_mcp_integration PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_mcp_integration PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_mcp_integration PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_mcp_integration PRIVATE pthread m)
+    endif()
+
     # ── test_lan_server: lifecycle TCP, porta, segnali, client connessi ──
     add_executable(test_lan_server
         tests/test_lan_server.cpp
@@ -1450,6 +1505,9 @@ if(BUILD_TESTS)
     add_test(NAME KnowledgeInjection      COMMAND test_knowledge_injection)
     add_test(NAME AgentiPipeline          COMMAND test_agenti_pipeline)
     add_test(NAME AgentsConfigDialog      COMMAND test_agents_config_dialog)
+    add_test(NAME AiClient                COMMAND test_ai_client)
+    add_test(NAME LanWanCore              COMMAND test_lan_wan_core)
+    add_test(NAME McpIntegration          COMMAND test_mcp_integration)
     add_test(NAME LanServer               COMMAND test_lan_server)
     add_test(NAME LanServerEndpoints      COMMAND test_lan_server_endpoints)
     add_test(NAME WanComputeTasks         COMMAND test_wan_compute_tasks)
