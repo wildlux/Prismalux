@@ -178,7 +178,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 <div id="drw-bd"></div>
 <div id="drw"><div id="drw-hdr"><h2>&#9776; Menu</h2><button id="cls" aria-label="Chiudi">&#10005;</button></div><div class="dsec"><h3>Modello</h3><select id="mdl-sel" class="form-select form-select-sm" aria-label="Seleziona modello AI"><option>Caricamento...</option></select></div><div class="dsec"><h3>Personalit&#224;</h3><button class="pbtn" data-p="nessuna" data-sys="">&#x1F6AB; Nessuna</button><button class="pbtn" data-p="jarvis" data-sys="Rispondi come JARVIS, l'AI di Tony Stark: professionale, preciso, con sottile ironia britannica. Chiama l'utente 'signore'.">&#x1F916; Jarvis</button><button class="pbtn" data-p="kitt" data-sys="Rispondi come KITT, il sistema di bordo di Knight Rider: sofisticato, calmo, formale, con occasionali riferimenti alla guida e alla sicurezza stradale.">&#x1F697; KITT</button><button class="pbtn" data-p="yoda" data-sys="Rispondi come Yoda di Star Wars. Sintassi invertita (complemento-soggetto-verbo). Breve, saggio, sereno.">&#x1F33F; Yoda</button><button class="pbtn" data-p="snake" data-sys="Rispondi come Solid Snake di Metal Gear Solid: diretto, tattico, cinismo controllato, frasi brevi e incisive.">&#x1F3AE; Snake</button><button class="pbtn" data-p="sonic" data-sys="Rispondi come Sonic the Hedgehog: rapido, energico, spiritoso, leggermente impaziente con le cose lente.">&#x1F4A8; Sonic</button><button class="pbtn" data-p="mario" data-sys="Rispondi come Super Mario: entusiasta, positivo, usa esclamazioni come 'Wahoo!' e 'Mamma mia!', sempre incoraggiante.">&#x1F344; Mario</button></div><div class="dsec"><h3>Strumenti</h3><button class="tbtn" data-t="nessuno" data-sys="">&#x1F4AC; Nessuno</button><button class="tbtn" data-t="scrittura" data-sys="Sei un esperto di scrittura e comunicazione. Aiuta l'utente a scrivere testi chiari, coinvolgenti e grammaticalmente corretti. Proponi miglioramenti stilistici quando utile.">&#x270D; Scrittura</button><button class="tbtn" data-t="programmazione" data-sys="Sei un esperto programmatore. Fornisci codice corretto, sicuro e idiomatico. Spiega le scelte tecniche, segnala bug e vulnerabilit&#224;, suggerisci refactoring quando opportuno.">&#x1F4BB; Programmazione</button><button class="tbtn" data-t="matematica" data-sys="Sei un esperto di matematica e statistica. Risolvi problemi passo per passo, mostra i calcoli intermedi e spiega i concetti in modo rigoroso ma accessibile.">&#x03C0; Matematica</button><button class="tbtn" data-t="ricerca" data-sys="Sei un assistente di ricerca accademica. Analizza fonti, individua metodologie, sintetizza concetti complessi e aiuta a strutturare argomenti in modo rigoroso e citabile.">&#x1F52C; Ricerca</button><button class="tbtn" data-t="impara" data-sys="Sei un tutor paziente e motivante. Adatta il livello di spiegazione all'utente, usa esempi concreti, poni domande di verifica e incoraggia la curiosit&#224; intellettuale.">&#x1F4DA; Impara</button><button class="tbtn" data-t="lavoro" data-sys="Sei un career coach esperto. Aiuta con CV, lettere di presentazione, preparazione colloqui, analisi offerte di lavoro e strategie di ricerca dell'impiego.">&#x1F4BC; Cerca Lavoro</button></div><div class="dsec"><h3>Tema</h3><select id="tsel" class="form-select form-select-sm" aria-label="Seleziona tema visivo"><optgroup label="─ Dark"><option value="dark">&#x1F311; Dark</option><option value="dark_classic">🔵 Classic Blue</option><option value="dark_amber">🟡 Amber</option><option value="dark_cyan">🔷 Cyan</option><option value="dark_green">🟢 Green</option><option value="dark_lavender">💜 Lavender</option><option value="dark_ocean">🌊 Ocean</option><option value="dark_purple">🟣 Purple</option><option value="dark_sunset">🌅 Sunset</option><option value="dark_rainbow">🌈 Rainbow</option></optgroup><optgroup label="─ Speciali"><option value="dracula">🧛 Dracula</option><option value="nord">❄ Nord</option><option value="hacker">💀 Hacker</option><option value="military">🪖 Military</option><option value="neon">✨ Neon</option><option value="pink">🌸 Pink</option><option value="solar">☀ Solar</option></optgroup><optgroup label="─ Venom"><option value="venom_blue">⚡ Venom Blue</option><option value="venom_red">🔴 Venom Red</option><option value="venom_orange">🟠 Venom Orange</option><option value="venom_green">🟩 Venom Green</option></optgroup><optgroup label="─ Light"><option value="light">☀ Chiaro</option><option value="light_mint">🌿 Mint</option><option value="light_rose">🌹 Rose</option><option value="light_sky">🌤 Sky</option><option value="light_sand">🏖 Sand</option></optgroup></select></div><div class="dsec"><h3>&#128190; Sessioni Chat</h3><div id="ses-list"></div><div id="ses-act"><button class="ses-btn" id="ses-new">&#x1F5D1; Nuova chat</button><button class="ses-btn" id="ses-save">✏ Salva</button><button class="ses-btn" id="ses-exp">⬇ Esporta</button></div></div></div>
 <div id="hdr"><button id="ham">&#9776;</button><span style="font-size:22px">&#127866;</span><h1>Prismalux</h1><span id="mdlBadge" class="mdl">{{MODEL}}</span><div id="fz-ctrl"><button class="fz-btn" id="fz-dn" title="Font pi&#249; piccolo">A-</button><span id="fz-lbl">14</span><button class="fz-btn" id="fz-up" title="Font pi&#249; grande">A+</button></div></div>
-<div id="tabbar"><div class="tab-row"><span class="sec-lbl">&#x1F916; AI</span><button class="tab on" data-tab="chat">&#x1F4AC; Chat</button><button class="tab" data-tab="age">&#x1F916; Agenti</button><button class="tab" data-tab="aut">&#x1F916; Autonomo</button><button class="tab" data-tab="rag">&#x1F4DA; RAG</button><button class="tab" data-tab="grf">&#x1F578; Grafo</button><button class="tab" data-tab="knw">&#x1F4D6; Know.</button><span class="sec-lbl">&#x1F6E0; Strumenti</span><button class="tab" data-tab="fin">&#x1F4B0; Finanza</button><button class="tab" data-tab="tfr">&#x1F4CA; TFR</button><button class="tab" data-tab="irp">&#x1F4C5; 730</button><button class="tab" data-tab="piv">&#x1F4CB; P.IVA</button><button class="tab" data-tab="lav">&#x1F4BC; Lavoro</button><button class="tab" data-tab="fil">&#x1F4C1; File AI</button><button class="tab" data-tab="repl">&#x1F40D; REPL</button></div><div class="tab-row"><span class="sec-lbl">&#x1F4DA; Learn</span><button class="tab" data-tab="imp">&#x1F4DA; Impara</button><button class="tab" data-tab="sfd">&#x1F3C6; Sfida!</button><button class="tab" data-tab="mul">&#x1F3AC; Media</button><button class="tab" data-tab="wsp">&#x1F399; Voce</button><button class="tab" data-tab="apps">&#x1F680; App</button><span class="sec-lbl">&#x1F4BB; Dev</span><button class="tab" data-tab="cod">&#x1F4BB; Coding</button><button class="tab" data-tab="mat">&#x03C0; Matema.</button><button class="tab" data-tab="gvz">&#x1F5FA; Graphviz</button><button class="tab" data-tab="git">&#x1F33F; Git</button><button class="tab" data-tab="wik">&#x1F4F0; Wiki</button><button class="tab" data-tab="sys">&#x1F4CA; Sistema</button><button class="tab" data-tab="sec">&#x1F512; Sicurezza</button></div></div>
+<div id="tabbar"><div class="tab-row"><span class="sec-lbl">&#x1F916; AI</span><button class="tab on" data-tab="chat">&#x1F4AC; Chat</button><button class="tab" data-tab="age">&#x1F916; Agenti</button><button class="tab" data-tab="aut">&#x1F916; Autonomo</button><button class="tab" data-tab="rag">&#x1F4DA; RAG</button><button class="tab" data-tab="grf">&#x1F578; Grafo</button><button class="tab" data-tab="knw">&#x1F4D6; Know.</button><span class="sec-lbl">&#x1F6E0; Strumenti</span><button class="tab" data-tab="fin">&#x1F4B0; Finanza</button><button class="tab" data-tab="tfr">&#x1F4CA; TFR</button><button class="tab" data-tab="irp">&#x1F4C5; 730</button><button class="tab" data-tab="piv">&#x1F4CB; P.IVA</button><button class="tab" data-tab="lav">&#x1F4BC; Lavoro</button><button class="tab" data-tab="fil">&#x1F4C1; File AI</button><button class="tab" data-tab="repl">&#x1F40D; REPL</button><button class="tab" data-tab="ric">&#x1F50D; Ricerca</button></div><div class="tab-row"><span class="sec-lbl">&#x1F4DA; Learn</span><button class="tab" data-tab="imp">&#x1F4DA; Impara</button><button class="tab" data-tab="sfd">&#x1F3C6; Sfida!</button><button class="tab" data-tab="mul">&#x1F3AC; Media</button><button class="tab" data-tab="wsp">&#x1F399; Voce</button><button class="tab" data-tab="apps">&#x1F680; App</button><span class="sec-lbl">&#x1F4BB; Dev</span><button class="tab" data-tab="cod">&#x1F4BB; Coding</button><button class="tab" data-tab="mat">&#x03C0; Matema.</button><button class="tab" data-tab="gvz">&#x1F5FA; Graphviz</button><button class="tab" data-tab="git">&#x1F33F; Git</button><button class="tab" data-tab="wik">&#x1F4F0; Wiki</button><button class="tab" data-tab="sys">&#x1F4CA; Sistema</button><button class="tab" data-tab="sec">&#x1F512; Sicurezza</button><button class="tab" data-tab="crn">&#x23F0; Cron</button><button class="tab" data-tab="mag">&#x1F9E0; Multi-AI</button><button class="tab" data-tab="osc">&#x1F3B9; Synth</button></div></div>
 <div id="tab-chat"><div id="tool-ind"></div><div id="lavoro-panel"><div id="lav-filters"><select id="lav-tipo" aria-label="Settore lavorativo"><option value="tutti">Tutti i settori</option><option value="IT">IT / Informatica</option><option value="Retail">Retail</option><option value="Ristorazione">Ristorazione</option><option value="Edilizia">Edilizia</option><option value="Logistica">Logistica</option><option value="Finanza">Finanza</option><option value="Sanitario">Sanitario</option><option value="Produzione">Produzione</option><option value="Tecnico">Tecnico</option><option value="Turismo">Turismo</option><option value="Admin">Admin</option><option value="Commerciale">Commerciale</option><option value="Altro">Altro</option></select><select id="lav-liv" aria-label="Livello istruzione"><option value="tutti">Qualsiasi livello</option><option value="media">Media</option><option value="diploma" selected>Diploma</option><option value="laurea_t">Laurea triennale</option><option value="laurea_m">Laurea magistrale</option></select><button id="lav-search">&#x1F50D; Cerca</button><button id="lav-cv-btn">&#x1F4C4; CV</button></div><div id="lav-list"><div id="lav-empty">Premi Cerca per caricare le offerte</div></div></div><div id="log"></div><div id="bar"><input type="file" id="att-in" style="display:none"><div id="bar-mid"><div id="att-tag"><span id="att-name"></span><button id="att-clr">&#10005;</button></div><div id="tool-extra"></div><textarea id="txt" class="form-control" rows="3" placeholder="Scrivi un messaggio..."></textarea></div><div id="bar-right"><div id="bar-tools"><button id="att-btn">&#x1F4CE;</button><button id="mic-btn">&#x1F3A4;</button></div><button id="snd">Invia</button></div></div></div>
 <div id="tab-apps"><div class="sec-hd">&#x1F579; App Controller</div><div class="app-grid"><button class="app-btn" data-cmd="blender"><span>&#x1F3A8;</span><span>Blender</span><span class="app-st"></span></button><button class="app-btn" data-cmd="freecad"><span>&#x2699;&#xFE0F;</span><span>FreeCAD</span><span class="app-st"></span></button><button class="app-btn" data-cmd="libreoffice"><span>&#x1F4C4;</span><span>LibreOffice</span><span class="app-st"></span></button><button class="app-btn" data-cmd="cloudcompare"><span>&#x2601;&#xFE0F;</span><span>CloudCmp</span><span class="app-st"></span></button><button class="app-btn" data-cmd="anki"><span>&#x1F0CF;</span><span>Anki</span><span class="app-st"></span></button><button class="app-btn" data-cmd="kicad"><span>&#x1F50C;</span><span>KiCAD</span><span class="app-st"></span></button><button class="app-btn" data-cmd="obs"><span>&#x1F3AC;</span><span>OBS</span><span class="app-st"></span></button><button class="app-btn" data-cmd="opencode"><span>&#x1F916;</span><span>OpenCode</span><span class="app-st"></span></button><button class="app-btn" data-cmd="godot"><span>&#x1F3AE;</span><span>Godot</span><span class="app-st"></span></button><button class="app-btn" data-cmd="tinymcp"><span>&#x1F9E9;</span><span>TinyMCP</span><span class="app-st"></span></button></div><div class="sec-hd">&#x1F58C;&#xFE0F; Grafica &amp; Media</div><div class="app-grid"><button class="app-btn" data-cmd="gimp"><span>&#x1F5BC;&#xFE0F;</span><span>GIMP</span><span class="app-st"></span></button><button class="app-btn" data-cmd="inkscape"><span>&#x270F;&#xFE0F;</span><span>Inkscape</span><span class="app-st"></span></button><button class="app-btn" data-cmd="vlc"><span>&#x1F3B5;</span><span>VLC</span><span class="app-st"></span></button><button class="app-btn" data-cmd="vscode"><span>&#x1F4BB;</span><span>VS Code</span><span class="app-st"></span></button></div><div class="sec-hd">&#x1F5A5;&#xFE0F; Sistema</div><div class="app-grid"><button class="app-btn" data-cmd="firefox"><span>&#x1F98A;</span><span>Firefox</span><span class="app-st"></span></button><button class="app-btn" data-cmd="chromium"><span>&#x1F310;</span><span>Chromium</span><span class="app-st"></span></button><button class="app-btn" data-cmd="nautilus"><span>&#x1F4C1;</span><span>File</span><span class="app-st"></span></button><button class="app-btn" data-cmd="konsole"><span>&#x1F5A5;&#xFE0F;</span><span>Terminale</span><span class="app-st"></span></button></div><div class="sec-hd">&#x1F50C; MCP &#x2014; Controllo Diretto</div><div id="mcp-panel"><div id="mcp-top"><select id="mcp-preset" aria-label="Preset MCP"><option value="8765">&#x1F3A8; Blender (8765)</option><option value="8766">&#x2699;&#xFE0F; FreeCAD (8766)</option><option value="8765">&#x1F50C; KiCAD (8765)</option><option value="9001">&#x1F3AE; Godot (9001)</option><option value="8765">&#x1F916; OpenCode (8765)</option><option value="custom">&#x270F;&#xFE0F; Personalizzato...</option></select><input type="number" id="mcp-port" placeholder="Porta" min="1" max="65535"><button id="mcp-conn">&#x1F517; Connetti</button></div><div id="mcp-tools" style="display:none"><select id="mcp-tool-sel" aria-label="Strumento MCP"><option value="">-- seleziona strumento --</option></select><div class="mcp-desc" id="mcp-desc"></div><textarea id="mcp-params" rows="3" placeholder="{}"></textarea><button id="mcp-run">&#x25B6; Esegui</button><div id="mcp-result"></div></div></div></div>
 <div id="tab-sys">
@@ -380,6 +380,94 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 </div>
 </div>
 
+<div id="tab-ric" style="display:none;padding:12px;overflow-y:auto;flex:1">
+<div class="sec-hd">&#x1F50D; Ricerca Strutturata</div>
+<div style="display:flex;gap:6px;margin:10px 0;flex-wrap:wrap">
+<button class="ric-m-btn on" data-rm="paper" style="padding:6px 14px;background:var(--acc);color:#fff;border:none;border-radius:16px;cursor:pointer;font-size:13px">&#x1F4C4; Paper</button>
+<button class="ric-m-btn" data-rm="brev" style="padding:6px 14px;background:var(--aim);border:1px solid var(--brd);border-radius:16px;cursor:pointer;font-size:13px;color:var(--txt)">&#x1F510; Brevetto</button>
+<button class="ric-m-btn" data-rm="astr" style="padding:6px 14px;background:var(--aim);border:1px solid var(--brd);border-radius:16px;cursor:pointer;font-size:13px;color:var(--txt)">&#x2B50; Astrale</button>
+<button class="ric-m-btn" data-rm="fen" style="padding:6px 14px;background:var(--aim);border:1px solid var(--brd);border-radius:16px;cursor:pointer;font-size:13px;color:var(--txt)">&#x1F52C; Fenomeni</button>
+</div>
+<div id="ric-paper-sec">
+<input id="ric-pq" type="text" placeholder="Tema, autore, anno..." style="width:100%;padding:8px;background:var(--aim);border:1px solid var(--brd);border-radius:6px;color:var(--txt);font-size:14px;margin:4px 0;box-sizing:border-box">
+<select id="ric-psrc" style="padding:6px;background:var(--aim);border:1px solid var(--brd);border-radius:6px;color:var(--txt);margin:4px 0">
+<option value="arxiv">arXiv</option><option value="semantic">Semantic Scholar</option><option value="pubmed">PubMed</option><option value="all">Tutti</option></select>
+<button id="ric-pbtn" style="padding:8px 18px;background:var(--acc);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;display:block;margin-top:6px">&#x1F50D; Cerca paper</button>
+</div>
+<div id="ric-brev-sec" style="display:none">
+<textarea id="ric-bq" rows="3" placeholder="Descrivi l'invenzione..." style="width:100%;padding:8px;background:var(--aim);border:1px solid var(--brd);border-radius:6px;color:var(--txt);font-size:14px;margin:4px 0;box-sizing:border-box;resize:vertical"></textarea>
+<select id="ric-bipc" style="padding:6px;background:var(--aim);border:1px solid var(--brd);border-radius:6px;color:var(--txt);margin:4px 0">
+<option value="">Qualsiasi IPC</option><option value="H04">H04 Elettronica/Telecomunicazioni</option><option value="G06">G06 Informatica/Calcolo</option><option value="A61">A61 Medicina/Farmacia</option><option value="B60">B60 Veicoli</option><option value="F03">F03 Macchine/Motori</option></select>
+<button id="ric-bbtn" style="padding:8px 18px;background:var(--acc);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;display:block;margin-top:6px">&#x1F510; Cerca brevetti simili</button>
+</div>
+<div id="ric-astr-sec" style="display:none">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0">
+<div><label style="font-size:12px;color:var(--dim)">Data nascita</label><input type="date" id="ric-adata" style="width:100%;padding:8px;background:var(--aim);border:1px solid var(--brd);border-radius:6px;color:var(--txt);font-size:14px;box-sizing:border-box"></div>
+<div><label style="font-size:12px;color:var(--dim)">Ora (hh:mm)</label><input type="time" id="ric-aora" value="12:00" style="width:100%;padding:8px;background:var(--aim);border:1px solid var(--brd);border-radius:6px;color:var(--txt);font-size:14px;box-sizing:border-box"></div>
+<div style="grid-column:1/-1"><label style="font-size:12px;color:var(--dim)">Luogo</label><input type="text" id="ric-aluogo" placeholder="es: Roma, Italia" style="width:100%;padding:8px;background:var(--aim);border:1px solid var(--brd);border-radius:6px;color:var(--txt);font-size:14px;box-sizing:border-box"></div>
+</div>
+<button id="ric-abtn" style="padding:8px 18px;background:var(--acc);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px">&#x2B50; Calcola carta astrale</button>
+</div>
+<div id="ric-fen-sec" style="display:none">
+<textarea id="ric-fq" rows="5" placeholder="Incolla dati, misure, log, descrizione fenomeno..." style="width:100%;padding:8px;background:var(--aim);border:1px solid var(--brd);border-radius:6px;color:var(--txt);font-size:14px;margin:4px 0;box-sizing:border-box;resize:vertical"></textarea>
+<button id="ric-fbtn" style="padding:8px 18px;background:var(--acc);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px">&#x1F52C; Analizza fenomeno</button>
+</div>
+<div id="ric-status" style="font-size:12px;color:var(--dim);margin:8px 0"></div>
+<div id="ric-out" style="background:var(--aim);border:1px solid var(--brd);border-radius:8px;padding:12px;margin-top:8px;white-space:pre-wrap;font-size:13px;display:none"></div>
+</div>
+
+<div id="tab-crn" style="display:none;padding:12px;overflow-y:auto;flex:1">
+<div class="sec-hd">&#x23F0; Cron Scheduler</div>
+<div style="background:var(--aim);border:1px solid var(--brd);border-radius:8px;padding:12px;margin-bottom:12px">
+<div style="display:grid;grid-template-columns:2fr 80px 1fr;gap:8px;margin-bottom:8px">
+<div><label style="font-size:12px;color:var(--dim)">Nome task</label><input id="crn-name" type="text" placeholder="es: Rebuild RAG" style="width:100%;padding:7px;background:var(--bg);border:1px solid var(--brd);border-radius:6px;color:var(--txt);font-size:13px;box-sizing:border-box"></div>
+<div><label style="font-size:12px;color:var(--dim)">Min</label><input id="crn-min" type="number" min="1" value="60" style="width:100%;padding:7px;background:var(--bg);border:1px solid var(--brd);border-radius:6px;color:var(--txt);font-size:13px;box-sizing:border-box"></div>
+<div><label style="font-size:12px;color:var(--dim)">Tipo</label><select id="crn-type" style="width:100%;padding:7px;background:var(--bg);border:1px solid var(--brd);border-radius:6px;color:var(--txt);font-size:13px;box-sizing:border-box"><option value="chat">Chat AI</option><option value="rag">Rebuild RAG</option><option value="repl">Script Python</option></select></div>
+</div>
+<label style="font-size:12px;color:var(--dim)">Prompt / script</label>
+<input id="crn-cmd" type="text" placeholder="es: 'Analizza log sistema'" style="width:100%;padding:7px;background:var(--bg);border:1px solid var(--brd);border-radius:6px;color:var(--txt);font-size:13px;box-sizing:border-box;margin:4px 0 8px">
+<button id="crn-add" style="padding:8px 16px;background:var(--acc);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">&#x2795; Aggiungi task</button>
+</div>
+<div id="crn-list"></div>
+<div id="crn-log" style="max-height:180px;overflow-y:auto;font-size:12px;margin-top:8px;padding:6px;background:var(--aim);border:1px solid var(--brd);border-radius:6px"></div>
+</div>
+
+<div id="tab-mag" style="display:none;padding:12px;overflow-y:auto;flex:1">
+<div class="sec-hd">&#x1F9E0; Multi-Agente (Piano + Esecuzione)</div>
+<textarea id="mag-task" rows="3" placeholder="Descrivi il task da eseguire con pi&#xF9; agenti specializzati..." style="width:100%;padding:8px;background:var(--aim);border:1px solid var(--brd);border-radius:6px;color:var(--txt);font-size:14px;box-sizing:border-box;margin:8px 0;resize:vertical"></textarea>
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+<label style="font-size:13px">Max subtask:</label>
+<input type="number" id="mag-max" value="4" min="2" max="8" style="width:60px;padding:6px;background:var(--aim);border:1px solid var(--brd);border-radius:6px;color:var(--txt)">
+<button id="mag-run" style="padding:8px 20px;background:var(--acc);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px">&#x1F9E0; Avvia</button>
+<button id="mag-stop" style="display:none;padding:8px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px">&#x23F9; Stop</button>
+</div>
+<div id="mag-status" style="font-size:12px;color:var(--dim);margin:6px 0"></div>
+<div id="mag-plan" style="display:none;margin:8px 0"><div style="font-weight:600;font-size:13px;margin-bottom:6px;color:var(--dim)">Sottotask:</div><div id="mag-subtasks"></div></div>
+<div id="mag-result" style="display:none;background:var(--aim);border:1px solid var(--brd);border-radius:8px;padding:12px;margin-top:8px"><div style="font-weight:600;margin-bottom:8px">&#x2728; Sintesi finale:</div><div id="mag-final" style="font-size:13px;line-height:1.6"></div></div>
+</div>
+
+<div id="tab-osc" style="display:none;padding:12px;overflow-y:auto;flex:1">
+<div class="sec-hd">&#x1F3B9; Sintetizzatore Audio</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+<div><label style="font-size:12px;color:var(--dim)">Forma d&#x27;onda</label>
+<select id="osc-wave" style="width:100%;padding:7px;background:var(--aim);border:1px solid var(--brd);border-radius:6px;color:var(--txt)">
+<option value="sine">&#x223F; Sinusoidale</option><option value="square">&#x25A0; Quadra</option><option value="sawtooth">&#x2F; Dente di sega</option><option value="triangle">&#x25B3; Triangolare</option></select></div>
+<div><label style="font-size:12px;color:var(--dim)">Frequenza: <span id="osc-freq-val">440</span> Hz</label>
+<input type="range" id="osc-freq" min="20" max="4000" value="440" step="1" style="width:100%;accent-color:var(--acc)"></div>
+<div><label style="font-size:12px;color:var(--dim)">Volume: <span id="osc-vol-val">50</span>%</label>
+<input type="range" id="osc-vol" min="0" max="100" value="50" style="width:100%;accent-color:var(--acc)"></div>
+<div><label style="font-size:12px;color:var(--dim)">Detune: <span id="osc-det-val">0</span> cents</label>
+<input type="range" id="osc-det" min="-100" max="100" value="0" style="width:100%;accent-color:var(--acc)"></div>
+</div>
+<div style="display:flex;gap:8px;margin-bottom:12px">
+<button id="osc-start" style="padding:8px 20px;background:var(--acc);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px">&#x25B6; Avvia oscillatore</button>
+<button id="osc-stop" disabled style="padding:8px 16px;background:#374151;color:#9ca3af;border:none;border-radius:6px;cursor:pointer;font-size:14px">&#x23F9; Stop</button>
+</div>
+<canvas id="osc-canvas" width="600" height="100" style="width:100%;height:100px;background:#070f0a;border:1px solid var(--brd);border-radius:8px;margin-bottom:12px"></canvas>
+<div class="sec-hd" style="margin-top:0">Tastiera (C4 — B5)</div>
+<div id="osc-keys" style="display:flex;overflow-x:auto;padding:4px 0 12px;gap:2px"></div>
+</div>
+
 <script>
 const TOKEN='{{TOKEN_VAL}}';
 function bearerHdr(){return TOKEN?{'Authorization':'Bearer '+TOKEN}:{};}
@@ -576,7 +664,8 @@ var TREPL=document.getElementById('tab-repl'),TKNW=document.getElementById('tab-
 var TTFR=document.getElementById('tab-tfr'),TGIT=document.getElementById('tab-git'),TWIK=document.getElementById('tab-wik');
 var TAUT=document.getElementById('tab-aut'),TSFD=document.getElementById('tab-sfd');
 var TIRP=document.getElementById('tab-irp'),TPIV=document.getElementById('tab-piv'),TSEC=document.getElementById('tab-sec');
-function switchTab(n){TABS.forEach(function(t){t.classList.toggle('on',t.dataset.tab===n);});TC.className=n==='chat'?'tab-on-flex':'tab-off';TA.className=n==='apps'?'tab-on-block':'tab-off';TS.className=n==='sys'?'tab-on-block':'tab-off';TM.className=n==='mat'?'tab-on-block':'tab-off';TG.className=n==='age'?'tab-on-block':'tab-off';TI.className=n==='imp'?'tab-on-block':'tab-off';TU.className=n==='mul'?'tab-on-block':'tab-off';TR.className=n==='rag'?'tab-on-block':'tab-off';TCOD.className=n==='cod'?'tab-on-block':'tab-off';TGVZ.className=n==='gvz'?'tab-on-block':'tab-off';TWSP.className=n==='wsp'?'tab-on-block':'tab-off';TLAV.className=n==='lav'?'tab-on-block':'tab-off';TFIL.className=n==='fil'?'tab-on-block':'tab-off';TFIN.className=n==='fin'?'tab-on-block':'tab-off';TGRF.className=n==='grf'?'tab-on-block':'tab-off';TREPL.className=n==='repl'?'tab-on-block':'tab-off';TKNW.className=n==='knw'?'tab-on-block':'tab-off';TTFR.className=n==='tfr'?'tab-on-block':'tab-off';TGIT.className=n==='git'?'tab-on-block':'tab-off';TWIK.className=n==='wik'?'tab-on-block':'tab-off';TAUT.className=n==='aut'?'tab-on-block':'tab-off';TSFD.className=n==='sfd'?'tab-on-block':'tab-off';TIRP.className=n==='irp'?'tab-on-block':'tab-off';TPIV.className=n==='piv'?'tab-on-block':'tab-off';TSEC.className=n==='sec'?'tab-on-block':'tab-off';if(n==='sys'){fetchSys();if(!sysItv)sysItv=setInterval(fetchSys,3000);}else{if(sysItv){clearInterval(sysItv);sysItv=null;}}}
+var TRIC=document.getElementById('tab-ric'),TCRN=document.getElementById('tab-crn'),TMAG=document.getElementById('tab-mag'),TOSC=document.getElementById('tab-osc');
+function switchTab(n){TABS.forEach(function(t){t.classList.toggle('on',t.dataset.tab===n);});TC.className=n==='chat'?'tab-on-flex':'tab-off';TA.className=n==='apps'?'tab-on-block':'tab-off';TS.className=n==='sys'?'tab-on-block':'tab-off';TM.className=n==='mat'?'tab-on-block':'tab-off';TG.className=n==='age'?'tab-on-block':'tab-off';TI.className=n==='imp'?'tab-on-block':'tab-off';TU.className=n==='mul'?'tab-on-block':'tab-off';TR.className=n==='rag'?'tab-on-block':'tab-off';TCOD.className=n==='cod'?'tab-on-block':'tab-off';TGVZ.className=n==='gvz'?'tab-on-block':'tab-off';TWSP.className=n==='wsp'?'tab-on-block':'tab-off';TLAV.className=n==='lav'?'tab-on-block':'tab-off';TFIL.className=n==='fil'?'tab-on-block':'tab-off';TFIN.className=n==='fin'?'tab-on-block':'tab-off';TGRF.className=n==='grf'?'tab-on-block':'tab-off';TREPL.className=n==='repl'?'tab-on-block':'tab-off';TKNW.className=n==='knw'?'tab-on-block':'tab-off';TTFR.className=n==='tfr'?'tab-on-block':'tab-off';TGIT.className=n==='git'?'tab-on-block':'tab-off';TWIK.className=n==='wik'?'tab-on-block':'tab-off';TAUT.className=n==='aut'?'tab-on-block':'tab-off';TSFD.className=n==='sfd'?'tab-on-block':'tab-off';TIRP.className=n==='irp'?'tab-on-block':'tab-off';TPIV.className=n==='piv'?'tab-on-block':'tab-off';TSEC.className=n==='sec'?'tab-on-block':'tab-off';TRIC.className=n==='ric'?'tab-on-block':'tab-off';TCRN.className=n==='crn'?'tab-on-block':'tab-off';TMAG.className=n==='mag'?'tab-on-block':'tab-off';TOSC.className=n==='osc'?'tab-on-block':'tab-off';if(n==='sys'){fetchSys();if(!sysItv)sysItv=setInterval(fetchSys,3000);}else{if(sysItv){clearInterval(sysItv);sysItv=null;}}}
 TABS.forEach(function(t){t.addEventListener('click',function(){switchTab(this.dataset.tab);});});
 switchTab('chat');
 document.querySelectorAll('.app-btn').forEach(function(btn){btn.addEventListener('click',async function(){const cmd=this.dataset.cmd;const st=this.querySelector('.app-st');if(st){st.textContent='...';st.className='app-st';}
@@ -1232,6 +1321,214 @@ wikChat.addEventListener('click',function(){
   switchTab('chat');
   T.value='Analizza questa voce Wikipedia e approfondiscila:\n\n'+lastTitleStr+':\n'+lastExtract.slice(0,6000)+(lastExtract.length>6000?'\n...(troncato)':'');
   T.style.height='';T.style.height=Math.min(T.scrollHeight,200)+'px';T.focus();
+});
+})();
+/* ── B-5 Ricerca strutturata ──────────────────────────────────── */
+(function(){
+var INS='width:100%;padding:8px;background:var(--aim);border:1px solid var(--brd);border-radius:6px;color:var(--txt);font-size:14px;margin:4px 0';
+var BTNS='padding:8px 18px;background:var(--acc);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;margin-top:6px';
+var ricModes=['paper','brev','astr','fen'];
+document.querySelectorAll('.ric-m-btn').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.ric-m-btn').forEach(function(x){x.classList.remove('on');x.style.background='var(--aim)';});
+    b.classList.add('on');b.style.background='var(--acc)';
+    var mode=b.dataset.rm;
+    ricModes.forEach(function(m){document.getElementById('ric-'+m+'-sec').style.display=mode===m.replace('bre','brev').replace('ast','astr').replace('fen','fen').replace('pap','paper')?'':'none';});
+    ricModes.forEach(function(m){var sec=document.getElementById('ric-'+m+'-sec');if(sec)sec.style.display=mode===m?'':'none';});
+  });
+});
+var ricStatus=document.getElementById('ric-status'),ricOut=document.getElementById('ric-out');
+function ricStream(sys,user){
+  ricStatus.textContent='⏳ Ricerca in corso...';ricOut.style.display='none';ricOut.textContent='';
+  fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'',system:sys,message:user,stream:true})})
+  .then(function(r){var rd=r.body.getReader(),dec=new TextDecoder();
+    function pump(){rd.read().then(function(c){if(c.done){ricStatus.textContent='✅ Completato';return;}
+      dec.decode(c.value).split('\n').forEach(function(l){try{var d=JSON.parse(l);if(d.token){ricOut.textContent+=d.token;ricOut.style.display='block';}}catch(e){}});pump();});}
+    pump();}).catch(function(e){ricStatus.textContent='❌ '+e.message;});
+}
+document.getElementById('ric-pbtn').addEventListener('click',function(){
+  var q=document.getElementById('ric-pq').value.trim(),src=document.getElementById('ric-psrc').value;
+  if(!q)return;
+  ricStream('Sei un ricercatore scientifico esperto. Elenca 5-8 paper rilevanti con: titolo, autori (anno), abstract breve, link DOI/arXiv se noti. Formato strutturato.',
+    'Cerca paper su: '+q+'\nFonte: '+src);
+});
+document.getElementById('ric-bbtn').addEventListener('click',function(){
+  var q=document.getElementById('ric-bq').value.trim(),ipc=document.getElementById('ric-bipc').value;
+  if(!q)return;
+  ricStream('Sei un esperto brevetti internazionali (USPTO, EPO, WIPO). Elenca 5-7 brevetti simili/anteriorità con: numero, titolo, titolare, anno, link Espacenet.',
+    'Invenzione: '+q+(ipc?'\nClasse IPC: '+ipc:''));
+});
+document.getElementById('ric-abtn').addEventListener('click',function(){
+  var d=document.getElementById('ric-adata').value,o=document.getElementById('ric-aora').value,l=document.getElementById('ric-aluogo').value.trim();
+  if(!d||!l)return;
+  ricStream('Sei un astrologo esperto. Calcola la carta natale con posizioni planetarie, case astrologiche, aspetti principali, interpretazione dettagliata.',
+    'Data: '+d+'\nOra: '+(o||'12:00')+'\nLuogo: '+l);
+});
+document.getElementById('ric-fbtn').addEventListener('click',function(){
+  var q=document.getElementById('ric-fq').value.trim();if(!q)return;
+  ricStream('Sei un analista scientifico. Analizza il fenomeno, identifica pattern, anomalie, cause possibili, correlazioni e ipotesi verificabili con metodologia rigorosa.',
+    'Fenomeno/dati:\n\n'+q);
+});
+})();
+
+/* ── B-6 Cron scheduler ──────────────────────────────────────── */
+(function(){
+var crnTasks=JSON.parse(localStorage.getItem('prismalux_cron')||'[]');
+var crnTimers={};
+function saveCron(){localStorage.setItem('prismalux_cron',JSON.stringify(crnTasks));}
+function runCronTask(t){
+  var log=document.getElementById('crn-log');
+  var now=new Date().toLocaleTimeString();
+  function addLog(msg,ok){log.innerHTML='<div style="font-size:12px;color:'+(ok?'#4ade80':'#f87171')+'">'+now+' '+msg+'</div>'+log.innerHTML;}
+  if(t.type==='rag'){
+    fetch('/api/rag',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'rebuild'})})
+      .then(function(){addLog('✅ RAG rebuild: '+t.name,true);}).catch(function(e){addLog('❌ '+t.name+': '+e.message,false);});
+  } else if(t.type==='repl'&&t.cmd){
+    fetch('/api/repl',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:t.cmd,lang:'python'})})
+      .then(function(r){return r.json();}).then(function(d){addLog('✅ '+t.name+': '+(d.output||'ok').toString().slice(0,60),true);}).catch(function(e){addLog('❌ '+t.name+': '+e.message,false);});
+  } else {
+    fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'',system:'Esegui il task richiesto in modo conciso.',message:t.cmd||t.name,stream:false})})
+      .then(function(){addLog('✅ Task completato: '+t.name,true);}).catch(function(e){addLog('❌ '+t.name+': '+e.message,false);});
+  }
+}
+function scheduleCron(i){
+  var t=crnTasks[i];if(crnTimers[t.id])clearInterval(crnTimers[t.id]);
+  if(t.enabled===false)return;
+  crnTimers[t.id]=setInterval(function(){runCronTask(t);},t.interval*60000);
+}
+function renderCron(){
+  var list=document.getElementById('crn-list');list.innerHTML='';
+  if(!crnTasks.length){list.innerHTML='<div style="color:var(--dim);font-size:13px;text-align:center;padding:16px">Nessun task pianificato</div>';return;}
+  crnTasks.forEach(function(t,i){
+    var div=document.createElement('div');div.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--aim);border:1px solid var(--brd);border-radius:8px;margin-bottom:6px';
+    var en=document.createElement('input');en.type='checkbox';en.checked=t.enabled!==false;
+    en.addEventListener('change',function(){crnTasks[i].enabled=en.checked;if(en.checked)scheduleCron(i);else{clearInterval(crnTimers[t.id]);delete crnTimers[t.id];}saveCron();});
+    var nm=document.createElement('span');nm.style.cssText='flex:1;font-weight:600;font-size:13px';nm.textContent=t.name;
+    var inf=document.createElement('span');inf.style.cssText='font-size:11px;color:var(--dim)';inf.textContent='ogni '+t.interval+'min \xb7 '+t.type;
+    var run=document.createElement('button');run.textContent='▶';run.title='Esegui ora';run.style.cssText='background:none;border:none;color:#4ade80;cursor:pointer;font-size:16px;padding:2px 6px';
+    run.addEventListener('click',function(){runCronTask(t);});
+    var del=document.createElement('button');del.textContent='🗑';del.title='Elimina';del.style.cssText='background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;padding:2px 6px';
+    del.addEventListener('click',function(){clearInterval(crnTimers[t.id]);delete crnTimers[t.id];crnTasks.splice(i,1);saveCron();renderCron();});
+    div.appendChild(en);div.appendChild(nm);div.appendChild(inf);div.appendChild(run);div.appendChild(del);list.appendChild(div);
+  });
+}
+crnTasks.forEach(function(t,i){scheduleCron(i);});
+renderCron();
+document.getElementById('crn-add').addEventListener('click',function(){
+  var name=document.getElementById('crn-name').value.trim();
+  var min=parseInt(document.getElementById('crn-min').value)||60;
+  var type=document.getElementById('crn-type').value;
+  var cmd=document.getElementById('crn-cmd').value.trim();
+  if(!name)return;
+  var t={id:'c'+Date.now(),name:name,interval:min,type:type,cmd:cmd,enabled:true};
+  crnTasks.push(t);saveCron();scheduleCron(crnTasks.length-1);renderCron();
+  document.getElementById('crn-name').value='';document.getElementById('crn-cmd').value='';
+});
+})();
+
+/* ── B-9 Multi-Agente ────────────────────────────────────────── */
+(function(){
+var magRunning=false,magAbort=false;
+async function magChat(sys,user){
+  var r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'',system:sys,message:user,stream:true})});
+  var text='';var rd=r.body.getReader(),dec=new TextDecoder();
+  while(true){var c=await rd.read();if(c.done)break;dec.decode(c.value).split('\n').forEach(function(l){try{var d=JSON.parse(l);if(d.token)text+=d.token;}catch(e){}});}
+  return text;
+}
+document.getElementById('mag-run').addEventListener('click',async function(){
+  var task=document.getElementById('mag-task').value.trim();if(!task||magRunning)return;
+  var maxSub=parseInt(document.getElementById('mag-max').value)||4;
+  magRunning=true;magAbort=false;
+  document.getElementById('mag-run').style.display='none';document.getElementById('mag-stop').style.display='';
+  document.getElementById('mag-plan').style.display='none';document.getElementById('mag-result').style.display='none';
+  document.getElementById('mag-status').textContent='⏳ MasterAgent sta pianificando...';
+  var planJson='';
+  try{planJson=await magChat('Sei un MasterAgent. Dividi il task in '+maxSub+' subtask. Rispondi SOLO con JSON: {"subtasks":[{"id":1,"role":"nome","prompt":"prompt dettagliato"},...]}',task);}
+  catch(e){document.getElementById('mag-status').textContent='❌ '+e.message;magRunning=false;document.getElementById('mag-run').style.display='';document.getElementById('mag-stop').style.display='none';return;}
+  var m=planJson.match(/\{[\s\S]*\}/);
+  if(!m){document.getElementById('mag-status').textContent='❌ Piano non valido';magRunning=false;document.getElementById('mag-run').style.display='';document.getElementById('mag-stop').style.display='none';return;}
+  var plan;try{plan=JSON.parse(m[0]);}catch(e){document.getElementById('mag-status').textContent='❌ JSON non valido';magRunning=false;document.getElementById('mag-run').style.display='';document.getElementById('mag-stop').style.display='none';return;}
+  var subtasks=plan.subtasks||[];
+  var sub=document.getElementById('mag-subtasks');sub.innerHTML='';
+  document.getElementById('mag-plan').style.display='block';
+  var results=[];
+  for(var i=0;i<subtasks.length;i++){
+    if(magAbort)break;
+    var st=subtasks[i];
+    var card=document.createElement('div');card.style.cssText='background:var(--aim);border:1px solid var(--brd);border-radius:8px;padding:10px 12px;margin-bottom:8px';
+    var hdr=document.createElement('div');hdr.style.cssText='font-weight:bold;margin-bottom:6px;font-size:13px';hdr.textContent='🔄 #'+st.id+' '+st.role;
+    var body=document.createElement('div');body.style.cssText='font-size:12px;white-space:pre-wrap;color:var(--dim)';body.textContent='In esecuzione...';
+    card.appendChild(hdr);card.appendChild(body);sub.appendChild(card);
+    document.getElementById('mag-status').textContent='⏳ Agente '+(i+1)+'/'+subtasks.length+': '+st.role;
+    var ctx=results.length?'Risultati agenti precedenti:\n'+subtasks.slice(0,i).map(function(s,j){return s.role+': '+results[j].slice(0,200);}).join('\n')+'\n\n':'';
+    var res='';
+    try{res=await magChat('Sei '+st.role+'. Esegui il compito con precisione. '+ctx,st.prompt);hdr.textContent='✅ #'+st.id+' '+st.role;}
+    catch(e){res='[Errore: '+e.message+']';hdr.textContent='❌ #'+st.id+' '+st.role;}
+    body.textContent=res.slice(0,400)+(res.length>400?'\n…':'');
+    results.push(res);
+  }
+  if(!magAbort){
+    document.getElementById('mag-status').textContent='⏳ Sintesi finale...';
+    var synth=await magChat('Sei un sintetizzatore. Combina tutti i risultati degli agenti in una risposta finale coerente, completa e ben strutturata.',
+      'Task: '+task+'\n\nRisultati:\n'+subtasks.map(function(s,i){return s.role+': '+results[i];}).join('\n\n'));
+    document.getElementById('mag-final').innerHTML=synth.replace(/\n/g,'<br>');
+    document.getElementById('mag-result').style.display='block';
+    document.getElementById('mag-status').textContent='✅ Completato ('+subtasks.length+' agenti)';
+  } else {document.getElementById('mag-status').textContent='⏹ Interrotto';}
+  magRunning=false;document.getElementById('mag-run').style.display='';document.getElementById('mag-stop').style.display='none';
+});
+document.getElementById('mag-stop').addEventListener('click',function(){magAbort=true;});
+})();
+
+/* ── B-10 Sintetizzatore audio ────────────────────────────────── */
+(function(){
+var actx=null,osc=null,gain=null,analyser=null,animId=null;
+function ensureCtx(){if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();}
+function drawWave(){
+  var cv=document.getElementById('osc-canvas'),cx=cv.getContext('2d');
+  var buf=new Uint8Array(analyser.frequencyBinCount);
+  (function draw(){animId=requestAnimationFrame(draw);analyser.getByteTimeDomainData(buf);
+    cx.fillStyle='#0a0a0a';cx.fillRect(0,0,cv.width,cv.height);
+    cx.strokeStyle='#4ade80';cx.lineWidth=2;cx.beginPath();
+    var sl=cv.width/buf.length;
+    for(var i=0;i<buf.length;i++){var v=buf[i]/128-1,y=(v+1)*cv.height/2;i===0?cx.moveTo(0,y):cx.lineTo(i*sl,y);}
+    cx.stroke();})();
+}
+document.getElementById('osc-start').addEventListener('click',function(){
+  if(osc)return;ensureCtx();
+  analyser=actx.createAnalyser();analyser.fftSize=2048;
+  gain=actx.createGain();gain.gain.value=parseInt(document.getElementById('osc-vol').value)/100;
+  osc=actx.createOscillator();osc.type=document.getElementById('osc-wave').value;
+  osc.frequency.value=parseInt(document.getElementById('osc-freq').value);
+  osc.detune.value=parseInt(document.getElementById('osc-det').value);
+  osc.connect(gain);gain.connect(analyser);analyser.connect(actx.destination);
+  osc.start();drawWave();
+  document.getElementById('osc-start').disabled=true;document.getElementById('osc-stop').disabled=false;
+});
+document.getElementById('osc-stop').addEventListener('click',function(){
+  if(!osc)return;osc.stop();osc.disconnect();osc=null;
+  if(animId)cancelAnimationFrame(animId);animId=null;
+  var cv=document.getElementById('osc-canvas');cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
+  document.getElementById('osc-start').disabled=false;document.getElementById('osc-stop').disabled=true;
+});
+document.getElementById('osc-wave').addEventListener('change',function(){if(osc)osc.type=this.value;});
+document.getElementById('osc-freq').addEventListener('input',function(){document.getElementById('osc-freq-val').textContent=this.value+'Hz';if(osc)osc.frequency.value=+this.value;});
+document.getElementById('osc-vol').addEventListener('input',function(){document.getElementById('osc-vol-val').textContent=this.value+'%';if(gain)gain.gain.value=+this.value/100;});
+document.getElementById('osc-det').addEventListener('input',function(){document.getElementById('osc-det-val').textContent=this.value;if(osc)osc.detune.value=+this.value;});
+var notes=[{n:'C4',f:261.63,s:0},{n:'C#4',f:277.18,s:1},{n:'D4',f:293.66,s:0},{n:'D#4',f:311.13,s:1},{n:'E4',f:329.63,s:0},{n:'F4',f:349.23,s:0},{n:'F#4',f:370.00,s:1},{n:'G4',f:392.00,s:0},{n:'G#4',f:415.30,s:1},{n:'A4',f:440.00,s:0},{n:'A#4',f:466.16,s:1},{n:'B4',f:493.88,s:0},{n:'C5',f:523.25,s:0},{n:'C#5',f:554.37,s:1},{n:'D5',f:587.33,s:0},{n:'D#5',f:622.25,s:1},{n:'E5',f:659.25,s:0},{n:'F5',f:698.46,s:0},{n:'F#5',f:740.00,s:1},{n:'G5',f:784.00,s:0},{n:'G#5',f:830.61,s:1},{n:'A5',f:880.00,s:0},{n:'A#5',f:932.33,s:1},{n:'B5',f:987.77,s:0}];
+var keysDiv=document.getElementById('osc-keys');
+notes.forEach(function(note){
+  var k=document.createElement('button');
+  k.textContent=note.s?'':note.n.replace(/\d/,'');
+  k.style.cssText=note.s?'background:#2d2d2d;color:#fff;height:64px;width:28px;border:1px solid #555;border-radius:0 0 4px 4px;font-size:8px;cursor:pointer;flex-shrink:0;padding:0'
+    :'background:#e8e8e8;color:#111;height:96px;width:36px;border:1px solid #aaa;border-radius:0 0 6px 6px;font-size:8px;cursor:pointer;flex-shrink:0;padding:0';
+  function playNote(){
+    ensureCtx();var g=actx.createGain();g.gain.setValueAtTime(0.4,actx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,actx.currentTime+1.2);
+    var o=actx.createOscillator();o.type=document.getElementById('osc-wave').value;o.frequency.value=note.f;
+    o.connect(g);g.connect(actx.destination);o.start();o.stop(actx.currentTime+1.2);
+  }
+  k.addEventListener('mousedown',playNote);k.addEventListener('touchstart',function(e){e.preventDefault();playNote();},{passive:false});
+  keysDiv.appendChild(k);
 });
 })();
 </script>
