@@ -138,6 +138,7 @@ private:
     bool          m_suppressScrollSig  = false;  ///< sopprime il segnale valueChanged durante auto-scroll
     QMap<int,QString> m_bubbleTexts;      ///< testo plain indicizzato per copia/TTS
     QMap<int,QString> m_thinkTexts;       ///< testo reasoning estratto per la bolla (sempre visibile)
+    AiClient*         m_translateAi = nullptr; ///< client secondario per traduzione LLM post-processing
     QStringList       m_hermesLastSources; ///< etichette nodi Hermes usati nell'ultima risposta
     QString           m_taskHtml;          ///< HTML leggero bolla utente (da extractInputHtml)
     QMap<int,QPair<QString,QString>> m_codeBlocks; ///< id → {lang, testo grezzo} per Copia/Salva
@@ -610,6 +611,9 @@ private slots:
     void onConsiglioPeerToken(const QString& t);
     void onConsiglioPeerFinished(const QString& full);
     void onConsiglioPeerError(const QString& err);
+
+    /* ── Traduzione LLM post-processing ── */
+    void onTranslationFinished(const QString& translated);
 
     /** Salva la sessione corrente */
     void onChatCompletedSave(const QString& title, const QString& logHtml);

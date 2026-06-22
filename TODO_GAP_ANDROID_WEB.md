@@ -179,7 +179,7 @@ QHash<QString, CollabRoom> m_collabRooms; /* in lan_server.h */
 
 Fonte: `gui/lan_web/webchat.html` (20 tab) + endpoint `/api/*`
 
-### B-1 🔴 Byzantino assente nella web
+### B-1 ✅ Byzantino assente nella web *(completato 2026-06-22)*
 **Tab web:** `age` (Agenti) ha solo pipeline base, nessuna opzione per il motore Byzantino.  
 **Manca:** UI per selezionare "Byzantino" + endpoint `/api/byzantine` nel LanServer.  
 **Piano:** aggiungere radio/select nel tab `age` per scegliere modalità (Pipeline / Byzantino).
@@ -188,7 +188,7 @@ in sequenza e restituisce SSE con i turni.
 
 ---
 
-### B-2 🔴 Agente Autonomo assente nella web
+### B-2 ✅ Agente Autonomo assente nella web *(completato 2026-06-22)*
 **Tab web:** assente  
 **Manca:** tab `aut` con input task → loop ReAct → output step-by-step via SSE.  
 **Piano:** aggiungere tab "🤖 Autonomo" in `webchat.html`, endpoint `/api/autonomous` nel
@@ -196,14 +196,14 @@ LanServer che wrappa `AgentiPage::runAutonomousAgent()` logic in un loop SSE.
 
 ---
 
-### B-3 🔴 Sfida! assente nella web
+### B-3 ✅ Sfida! assente nella web *(completato 2026-06-22)*
 **Tab web:** assente — `imp` (Impara) è solo passivo.  
 **Piano:** aggiungere tab `sfd` con quiz a scelta multipla serviti da `/api/quiz?cat=ccna|gen`
 (usa il database domande dal desktop). SSE per timer, punteggio locale in sessionStorage.
 
 ---
 
-### B-4 🟡 Matematica avanzata — solo SymPy base
+### B-4 ✅ Matematica avanzata — KaTeX render *(completato 2026-06-22)*
 **Tab web:** `mat` fa solo espressioni SymPy (endpoint `/api/math`).  
 **Manca:** Sequenza→Formula, Costanti fisiche, N-esimo termine, LaTeX KaTeX render.  
 **Piano:**
@@ -229,7 +229,7 @@ DELETE rimuovi) — il LanServer delega al `CronPanel` già esistente nel deskto
 
 ---
 
-### B-7 🟡 730 / P.IVA assenti
+### B-7 ✅ 730 / P.IVA assenti *(completato 2026-06-22)*
 **Tab web:** `fin` ha solo IVA/detrazioni generiche, `tfr` ha TFR.  
 **Manca:** calcolatore 730 e P.IVA regime forfettario.  
 **Piano:** estendere `fin` con sezioni a tab interno, oppure nuovi endpoint
@@ -237,7 +237,7 @@ DELETE rimuovi) — il LanServer delega al `CronPanel` già esistente nel deskto
 
 ---
 
-### B-8 🟡 Security Analyzer assente
+### B-8 ✅ Security Analyzer assente *(completato 2026-06-22)*
 **Tab web:** assente  
 **Manca:** form "Analizza codice" → 4 agenti paralleli (Injection/Segreti/Memoria/Config)
 → sintesi SSE.  
@@ -268,9 +268,9 @@ Cytoscape/RDKit non hanno API REST esposte dal desktop. Impraticabile via web.
 |----------|---------|---------|-----|
 | Chat singola | ✅ | ✅ | ✅ |
 | Pipeline agenti | ✅ | ❌ A-1 | ✅ parz. |
-| Byzantino | ✅ | ❌ A-1 | ❌ B-1 |
-| Agente Autonomo | ✅ | ❌ A-1 | ❌ B-2 |
-| Sfida! | ✅ | ❌ A-2 | ❌ B-3 |
+| Byzantino | ✅ | ❌ A-1 | ✅ B-1 |
+| Agente Autonomo | ✅ | ❌ A-1 | ✅ B-2 |
+| Sfida! | ✅ | ❌ A-2 | ✅ B-3 |
 | Cron | ✅ | ❌ A-3 | ❌ B-6 |
 | 730 / P.IVA | ✅ | ❌ A-4 | ❌ B-7 |
 | TFR | ✅ | ✅ | ✅ |

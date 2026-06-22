@@ -283,3 +283,28 @@ void AgentiPage::onConsiglioPeerError(const QString& err)
     }
 }
 
+
+/* ── slot: traduzione LLM post-processing completata ───────────────────────── */
+#include <QScrollBar>
+void AgentiPage::onTranslationFinished(const QString& translated)
+{
+    if (translated.trimmed().isEmpty()) return;
+    const bool _lt = isLightTheme();
+    const char* bg  = _lt ? "#f0fdf4" : "#14532d";
+    const char* bdr = _lt ? "#86efac" : "#16a34a";
+    const char* hdr = _lt ? "#15803d" : "#4ade80";
+    const QString html = QString(
+        "<div style='background:%1;border:1px solid %2;border-radius:8px;"
+        "padding:10px 14px;margin:6px 0;'>"
+        "<div style='color:%3;font-weight:bold;font-size:0.85em;margin-bottom:6px;'>"
+        "\xf0\x9f\x8c\x90  Traduzione LLM</div>"
+        "<div style='line-height:1.5;'>%4</div>"
+        "</div>").arg(bg, bdr, hdr,
+                      translated.toHtmlEscaped().replace("\n", "<br>"));
+    m_log->moveCursor(QTextCursor::End);
+    m_log->append("");
+    QTextCursor cur(m_log->document());
+    cur.movePosition(QTextCursor::End);
+    cur.insertHtml(html);
+    m_log->verticalScrollBar()->setValue(m_log->verticalScrollBar()->maximum());
+}

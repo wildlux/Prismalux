@@ -121,6 +121,7 @@ set(CPP_SRCS
     mainwindow.cpp
     mainwindow_slots.cpp
     hardware_monitor.cpp
+    model_processor.cpp
     ai_client.cpp
     ai_memory.cpp
     theme_manager.cpp
@@ -172,6 +173,7 @@ set(CPP_SRCS
     lan_web.qrc
     emoji.qrc
     pages/settings_main.cpp
+    pages/settings_model_profiles.cpp
     pages/settings_ai.cpp
     pages/settings_slots.cpp
     pages/settings_visual.cpp

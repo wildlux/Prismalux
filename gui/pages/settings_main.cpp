@@ -1,4 +1,5 @@
 #include "settings_main.h"
+#include "settings_model_profiles.h"
 #include "main_mcp_manager.h"
 #include "../dpi_utils.h"
 #include "../widgets/toggle_switch.h"
@@ -299,6 +300,11 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
        Tab 🔒 Sicurezza WAN — certificato TLS, pin worker, WireGuard
        ════════════════════════════════════════════════════════════ */
     tabs->addTab(buildSicurezzaWanTab(), "\xf0\x9f\x94\x92  Sicurezza WAN");
+
+    /* ════════════════════════════════════════════════════════════
+       Tab Profili Modello — pre/post processing per-modello
+       ════════════════════════════════════════════════════════════ */
+    tabs->addTab(new ModelProfilesTab(tabs), "\xf0\x9f\x94\xa7  Profili Modello");
 
     /* ── Campo ricerca — angolo in alto a destra della tab bar ── */
     {

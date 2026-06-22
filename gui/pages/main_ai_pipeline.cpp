@@ -1,5 +1,6 @@
 #include "main_ai.h"
 #include "main_ai_p.h"
+#include "../model_processor.h"
 #include "../prismalux_paths.h"
 #include "../log_bus.h"
 namespace P = PrismaluxPaths;
@@ -718,13 +719,16 @@ void AgentiPage::runAgent(int idx) {
 
     const QString sys = _buildSys(m_taskOriginal, sysFull, sysSmall, m_ai->model(), m_ai->backend());
 
+    /* Pre-processing per-modello (lingua, prefissi, system prompt override) */
+    auto [sysFinal, userFinal] = ModelProcessor::instance().preProcess(sys, userPrompt, m_ai->model());
+
     /* Usa chatWithImage per il primo agente se c'è un'immagine allegata */
     if (idx == m_currentAgent && !m_imgBase64.isEmpty()) {
-        m_ai->chatWithImage(sys, userPrompt, m_imgBase64, m_imgMime);
+        m_ai->chatWithImage(sysFinal, userFinal, m_imgBase64, m_imgMime);
     } else if (isSingleChat && !histArray.isEmpty()) {
-        m_ai->chat(sys, userPrompt, histArray, AiClient::QueryAuto);
+        m_ai->chat(sysFinal, userFinal, histArray, AiClient::QueryAuto);
     } else {
-        m_ai->chat(sys, userPrompt);
+        m_ai->chat(sysFinal, userFinal);
     }
 }
 
@@ -869,6 +873,12 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                     m_agentOutputs[m_currentAgent - 1] = rawResp;
                 }
             }
+        }
+
+        /* Post-processing sincrono per-modello (markdown strip, regex, ecc.) */
+        if (!rawResp.isEmpty()) {
+            rawResp = ModelProcessor::instance().postProcess(rawResp, m_ai->model());
+            m_agentOutputs[m_currentAgent - 1] = rawResp;
         }
 
         /* ── Tool Use Nativo: intercetta TOOL_CALL prima di costruire la bolla ── */
@@ -1119,6 +1129,28 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                                          m_currentAgentTime,
                                          htmlContent, idx,
                                          extractedThink)); }
+
+        /* Traduzione LLM post-processing: avvia seconda chiamata se richiesta dal profilo.
+           Usa il modello dedicato configurato nel profilo (tipicamente leggero e veloce,
+           es. aya:8b o qwen2.5:1.5b); fallback al modello principale se non configurato. */
+        if (!rawResp.isEmpty() && ModelProcessor::instance().needsLLMTranslation(m_ai->model())) {
+            if (!m_translateAi) {
+                m_translateAi = new AiClient(this);
+                connect(m_translateAi, &AiClient::finished,
+                        this, &AgentiPage::onTranslationFinished);
+            }
+            const QString transModel = ModelProcessor::instance().llmTranslateModel(m_ai->model());
+            const QString modelToUse = transModel.isEmpty() ? m_ai->model() : transModel;
+            m_translateAi->setBackend(m_ai->backend(), m_ai->host(),
+                                      m_ai->port(), modelToUse);
+            const QString lang = ModelProcessor::instance().llmTranslateLang(m_ai->model());
+            const QString prompt = (lang == "it")
+                ? "Traduci il seguente testo in italiano. Mantieni tutta la formattazione. "
+                  "Non aggiungere commenti o note. Restituisci SOLO il testo tradotto.\n\n" + rawResp
+                : "Translate the following text to English. Keep all formatting. "
+                  "No extra comments or notes. Return ONLY the translated text.\n\n" + rawResp;
+            m_translateAi->chat("Sei un traduttore professionale, preciso e veloce.", prompt);
+        }
     }
 
     /* ── TASK-2/3: auto-ricerca web quando LLM incerto (solo single-shot) ── */
