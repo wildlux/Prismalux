@@ -1304,12 +1304,6 @@ void ImpostazioniPage::onLlmConsModelChanged(QListWidgetItem* cur, QListWidgetIt
     m_llmConsInstallBtn->setEnabled(true);
 }
 
-void ImpostazioniPage::onLlmConsInstallClicked()
-{
-    /* La logica reale di installazione resta nella lambda locale della tab
-       che ha accesso al dataset OLLAMA/GGUF statico.
-       Questo slot è uno stub per soddisfare il linker. */
-}
 
 void ImpostazioniPage::onLlmConsOllamaToggled(bool on)
 {
@@ -1336,11 +1330,6 @@ void ImpostazioniPage::onLlmConsPopulate()
     if (m_consigliatiList) refreshLlmColors();
 }
 
-void ImpostazioniPage::onLlmCustomDlClicked()
-{
-    /* Stub — la logica download URL personalizzato resta nella lambda
-       locale che ha accesso a customEdit, logOut, proc, ecc. */
-}
 
 /* ══════════════════════════════════════════════════════════════
    buildLlmClassificaTab — slot
@@ -1363,11 +1352,6 @@ void ImpostazioniPage::onLlmRankCellChanged(int row, int /*col*/, int, int)
     m_llmRankInstallBtn->setEnabled(true);
 }
 
-void ImpostazioniPage::onLlmRankInstallClicked()
-{
-    /* Stub — la logica ollama pull resta nella lambda locale
-       che ha accesso al dataset RANK statico. */
-}
 
 /* ══════════════════════════════════════════════════════════════
    buildTemaTab (visuale) — slot

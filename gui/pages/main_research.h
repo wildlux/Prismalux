@@ -235,6 +235,11 @@ private slots:
     void onRagDotProcFinished(int code, QProcess::ExitStatus status);
     void onRagRefreshDot();
 
+    /* RAG Tester */
+    void onRagTesterGenClicked();
+    void onRagTesterRunClicked();
+    void onRagTesterEvalClicked();
+
 public:
     static void esportaPdf(QTextEdit* editor,
                            const QString& titolo, QWidget* parent);

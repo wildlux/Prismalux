@@ -127,6 +127,9 @@ private slots:
     void onRagEmbedModelsReady(const QStringList& models);
     void onRagDownloadBtnClicked();
     void onRagJlToggled(bool checked);
+    /* ── buildSmartRouterTab / buildJlTab ── */
+    void onSmartRouterSaveClicked();
+    void onAdeBtnClicked();
     void onStopIndexClicked();
     void onReindexBtnClicked();
     /* ── buildAiParamsTab ── */

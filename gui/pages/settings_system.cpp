@@ -65,6 +65,137 @@ namespace P = PrismaluxPaths;
 #include <QDialog>
 #include <QRegularExpression>
 
+/* ── Free functions: logica backup e audit ───────────────────── */
+static void sysDoBackup(const QStringList& files, QLabel* statusLbl)
+{
+    const QString ts = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
+    const QString defName = QString("prismalux_backup_%1").arg(ts);
+    const QString destDir = QFileDialog::getExistingDirectory(
+        nullptr, "Scegli cartella di destinazione backup", QDir::homePath());
+    if (destDir.isEmpty()) return;
+    int copied = 0;
+    QStringList failed;
+    for (const QString& src : files) {
+        if (!QFile::exists(src)) continue;
+        const QFileInfo fi(src);
+        const QString dst = destDir + "/" + defName + "_" + fi.fileName();
+        if (QFile::copy(src, dst))
+            ++copied;
+        else
+            failed << fi.fileName();
+    }
+    if (copied > 0 && failed.isEmpty())
+        statusLbl->setText(
+            QString("\xe2\x9c\x85  %1 file copiati in %2/")
+                .arg(copied).arg(QDir(destDir).dirName()));
+    else if (!failed.isEmpty())
+        statusLbl->setText(
+            QString("\xe2\x9a\xa0\xef\xb8\x8f  %1 copiati, errori: %2")
+                .arg(copied).arg(failed.join(", ")));
+    else
+        statusLbl->setText("\xe2\x9a\xa0\xef\xb8\x8f  Nessun file trovato da copiare.");
+}
+
+static void sysDoAudit(QTextEdit* auditLog)
+{
+    auditLog->clear();
+    int pass = 0, warn = 0;
+
+    auto ok  = [&](const QString& msg){ auditLog->append("\xe2\x9c\x85 " + msg); ++pass; };
+    auto bad = [&](const QString& msg){ auditLog->append("\xe2\x9d\x8c " + msg); ++warn; };
+    auto info= [&](const QString& msg){ auditLog->append("\xe2\x84\xb9\xef\xb8\x8f " + msg); };
+
+    const QString root = QString(PRISMALUX_ROOT);
+
+    /* 1. .env in .gitignore */
+    const QString gitignore = root + "/.gitignore";
+    if (QFile::exists(gitignore)) {
+        QFile f(gitignore);
+        if (f.open(QIODevice::ReadOnly)) {
+            const QString content = QString::fromUtf8(f.readAll());
+            if (content.contains(".env"))
+                ok(".env presente in .gitignore");
+            else
+                bad(".env NON trovato in .gitignore — aggiungilo!");
+            if (content.contains("*.key") || content.contains("lan_token"))
+                ok("File *.key / token LAN in .gitignore");
+            else
+                bad("*.key non in .gitignore — aggiungere '*.key'");
+        }
+    } else {
+        bad(".gitignore non trovato in " + root);
+    }
+
+    /* 2. Permessi file sensibili (solo Linux) */
+#ifndef Q_OS_WIN
+    const QStringList sensitiveFiles = {
+        QDir::homePath() + "/.prismalux/lan_token.key",
+        QDir::homePath() + "/.prismalux/graph_memory.db",
+        QDir::homePath() + "/.prismalux/rag_graph.db",
+    };
+    for (const QString& path : sensitiveFiles) {
+        if (!QFile::exists(path)) continue;
+        QFileInfo fi(path);
+        const QFile::Permissions p = fi.permissions();
+        const bool groupRead = p & (QFile::ReadGroup | QFile::WriteGroup | QFile::ExeGroup);
+        const bool otherRead = p & (QFile::ReadOther | QFile::WriteOther | QFile::ExeOther);
+        if (!groupRead && !otherRead)
+            ok("Permessi 0600 su " + fi.fileName());
+        else
+            bad("Permessi troppo aperti su " + fi.fileName() + " — esegui: chmod 600 " + path);
+    }
+#else
+    info("Verifica permessi file non disponibile su Windows");
+#endif
+
+    /* 3. Nessun token LAN in QSettings in chiaro */
+    QSettings s("Prismalux", "GUI");
+    if (s.contains("lan/token") || s.contains("lan_token") || s.contains("token")) {
+        const QString val = s.value("lan/token",
+            s.value("lan_token", s.value("token"))).toString();
+        if (!val.isEmpty() && val.length() > 8)
+            bad("Token LAN trovato in QSettings — usa QKeychain per sicurezza");
+        else
+            ok("Nessun token LAN in chiaro in QSettings");
+    } else {
+        ok("Nessun token LAN in chiaro in QSettings");
+    }
+
+    /* 4. KNOWLEDGE_USER non in git */
+    const QString kuDir = root + "/KNOWLEDGE_USER";
+    if (QDir(kuDir).exists()) {
+        if (QFile::exists(gitignore)) {
+            QFile f(gitignore);
+            if (f.open(QIODevice::ReadOnly)) {
+                if (QString::fromUtf8(f.readAll()).contains("KNOWLEDGE_USER"))
+                    ok("KNOWLEDGE_USER in .gitignore");
+                else
+                    bad("KNOWLEDGE_USER NON in .gitignore — dati privati esposti!");
+            }
+        }
+    } else {
+        info("KNOWLEDGE_USER non trovata — skip");
+    }
+
+    /* 5. RAG/ non in git */
+    const QString ragDir = root + "/RAG";
+    if (QDir(ragDir).exists()) {
+        if (QFile::exists(gitignore)) {
+            QFile f(gitignore);
+            if (f.open(QIODevice::ReadOnly)) {
+                if (QString::fromUtf8(f.readAll()).contains("RAG/") ||
+                    QString::fromUtf8(f.readAll()).contains("/RAG"))
+                    ok("RAG/ in .gitignore");
+                else
+                    bad("RAG/ NON in .gitignore — documenti privati esposti!");
+            }
+        }
+    }
+
+    auditLog->append(QString("\n\xe2\x80\x94\xe2\x80\x94 %1 controlli OK, %2 avvisi \xe2\x80\x94\xe2\x80\x94")
+        .arg(pass).arg(warn));
+}
+
 QWidget* ImpostazioniPage::buildPuliziaTab()
 {
     auto* w   = new QWidget(this);
@@ -459,39 +590,8 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
         btnRow->addWidget(statusLbl, 1);
         gl->addLayout(btnRow);
 
-        connect(backupBtn, &QPushButton::clicked, grp, [=]() mutable {
-            const QString ts = QDateTime::currentDateTime()
-                                   .toString("yyyy-MM-dd_HH-mm-ss");
-            const QString defName =
-                QString("prismalux_backup_%1").arg(ts);
-            const QString destDir = QFileDialog::getExistingDirectory(
-                nullptr, "Scegli cartella di destinazione backup",
-                QDir::homePath());
-            if (destDir.isEmpty()) return;
-
-            int copied = 0;
-            QStringList failed;
-            for (const QString& src : backupFiles) {
-                if (!QFile::exists(src)) continue;
-                const QFileInfo fi(src);
-                const QString dst =
-                    destDir + "/" + defName + "_" + fi.fileName();
-                if (QFile::copy(src, dst))
-                    ++copied;
-                else
-                    failed << fi.fileName();
-            }
-            if (copied > 0 && failed.isEmpty())
-                statusLbl->setText(
-                    QString("\xe2\x9c\x85  %1 file copiati in %2/")
-                        .arg(copied).arg(QDir(destDir).dirName()));
-            else if (!failed.isEmpty())
-                statusLbl->setText(
-                    QString("\xe2\x9a\xa0\xef\xb8\x8f  %1 copiati, errori: %2")
-                        .arg(copied)
-                        .arg(failed.join(", ")));
-            else
-                statusLbl->setText(tr("\xe2\x9a\xa0\xef\xb8\x8f  Nessun file trovato da copiare."));
+        connect(backupBtn, &QPushButton::clicked, grp, [backupFiles, statusLbl](){
+            sysDoBackup(backupFiles, statusLbl);
         });
 
         connect(openDirBtn, &QPushButton::clicked, grp, [prismaDir]() {
@@ -531,103 +631,8 @@ QWidget* ImpostazioniPage::buildPuliziaTab()
         gl->addWidget(auditBtn);
         gl->addWidget(auditLog);
 
-        connect(auditBtn, &QPushButton::clicked, grp, [=]() {
-            auditLog->clear();
-            int pass = 0, warn = 0;
-
-            auto ok  = [&](const QString& msg){ auditLog->append("\xe2\x9c\x85 " + msg); ++pass; };
-            auto bad = [&](const QString& msg){ auditLog->append("\xe2\x9d\x8c " + msg); ++warn; };
-            auto info= [&](const QString& msg){ auditLog->append("\xe2\x84\xb9\xef\xb8\x8f " + msg); };
-
-            const QString root = QString(PRISMALUX_ROOT);
-
-            /* 1. .env in .gitignore */
-            const QString gitignore = root + "/.gitignore";
-            if (QFile::exists(gitignore)) {
-                QFile f(gitignore);
-                if (f.open(QIODevice::ReadOnly)) {
-                    const QString content = QString::fromUtf8(f.readAll());
-                    if (content.contains(".env"))
-                        ok(".env presente in .gitignore");
-                    else
-                        bad(".env NON trovato in .gitignore — aggiungilo!");
-                    if (content.contains("*.key") || content.contains("lan_token"))
-                        ok("File *.key / token LAN in .gitignore");
-                    else
-                        bad("*.key non in .gitignore — aggiungere '*.key'");
-                }
-            } else {
-                bad(".gitignore non trovato in " + root);
-            }
-
-            /* 2. Permessi file sensibili (solo Linux) */
-#ifndef Q_OS_WIN
-            const QStringList sensitiveFiles = {
-                QDir::homePath() + "/.prismalux/lan_token.key",
-                QDir::homePath() + "/.prismalux/graph_memory.db",
-                QDir::homePath() + "/.prismalux/rag_graph.db",
-            };
-            for (const QString& path : sensitiveFiles) {
-                if (!QFile::exists(path)) continue;
-                QFileInfo fi(path);
-                const QFile::Permissions p = fi.permissions();
-                const bool groupRead  = p & (QFile::ReadGroup  | QFile::WriteGroup  | QFile::ExeGroup);
-                const bool otherRead  = p & (QFile::ReadOther  | QFile::WriteOther  | QFile::ExeOther);
-                if (!groupRead && !otherRead)
-                    ok("Permessi 0600 su " + fi.fileName());
-                else
-                    bad("Permessi troppo aperti su " + fi.fileName() + " — esegui: chmod 600 " + path);
-            }
-#else
-            info("Verifica permessi file non disponibile su Windows");
-#endif
-
-            /* 3. Nessun token LAN in QSettings in chiaro */
-            QSettings s("Prismalux", "GUI");
-            if (s.contains("lan/token") || s.contains("lan_token") || s.contains("token")) {
-                const QString val = s.value("lan/token",
-                    s.value("lan_token", s.value("token"))).toString();
-                if (!val.isEmpty() && val.length() > 8)
-                    bad("Token LAN trovato in QSettings — usa QKeychain per sicurezza");
-                else
-                    ok("Nessun token LAN in chiaro in QSettings");
-            } else {
-                ok("Nessun token LAN in chiaro in QSettings");
-            }
-
-            /* 4. KNOWLEDGE_USER non in git */
-            const QString kuDir = root + "/KNOWLEDGE_USER";
-            if (QDir(kuDir).exists()) {
-                if (QFile::exists(gitignore)) {
-                    QFile f(gitignore);
-                    if (f.open(QIODevice::ReadOnly)) {
-                        if (QString::fromUtf8(f.readAll()).contains("KNOWLEDGE_USER"))
-                            ok("KNOWLEDGE_USER in .gitignore");
-                        else
-                            bad("KNOWLEDGE_USER NON in .gitignore — dati privati esposti!");
-                    }
-                }
-            } else {
-                info("KNOWLEDGE_USER non trovata — skip");
-            }
-
-            /* 5. RAG/ non in git */
-            const QString ragDir = root + "/RAG";
-            if (QDir(ragDir).exists()) {
-                if (QFile::exists(gitignore)) {
-                    QFile f(gitignore);
-                    if (f.open(QIODevice::ReadOnly)) {
-                        if (QString::fromUtf8(f.readAll()).contains("RAG/") ||
-                            QString::fromUtf8(f.readAll()).contains("/RAG"))
-                            ok("RAG/ in .gitignore");
-                        else
-                            bad("RAG/ NON in .gitignore — documenti privati esposti!");
-                    }
-                }
-            }
-
-            auditLog->append(QString("\n\xe2\x80\x94\xe2\x80\x94 %1 controlli OK, %2 avvisi \xe2\x80\x94\xe2\x80\x94")
-                .arg(pass).arg(warn));
+        connect(auditBtn, &QPushButton::clicked, grp, [auditLog](){
+            sysDoAudit(auditLog);
         });
 
         rightLay->addWidget(grp);

@@ -83,6 +83,9 @@ private slots:
     /* ── Scroll ── */
     void onScrollToBottomTimer();
 
+    /* ── Summarizer ── */
+    void onSummaryReplyFinished();
+
 private:
 
     /* ── Gestione bubble ── */
@@ -130,6 +133,7 @@ private:
 
     /* ── Summarizer asincrono — NAM dedicato, non interferisce con m_ai ── */
     QNetworkAccessManager* m_summaryNam = nullptr;
+    QString m_pendingSummaryFallback;
 
     /* ── AIMemory — memoria versionata Git ─────────────────────── */
     AIMemory     m_aiMemory;

@@ -504,30 +504,34 @@ void OracoloPage::summarizeAsync(const QVector<ConvTurn>& turns) {
     for (const ConvTurn& t : turns)
         fallback += "U: " + t.user.left(200) + "\nA: " + t.assistant.left(300) + "\n";
 
+    m_pendingSummaryFallback = fallback;
     auto* reply = m_summaryNam->post(req, QJsonDocument(body).toJson());
-    connect(reply, &QNetworkReply::finished, this, [this, fallback]() {
-        auto* r = qobject_cast<QNetworkReply*>(sender());
-        if (!r) return;
-        r->deleteLater();
+    connect(reply, &QNetworkReply::finished, this, &OracoloPage::onSummaryReplyFinished);
+}
 
-        QString summary;
-        if (r->error() == QNetworkReply::NoError) {
-            const QJsonObject obj =
-                QJsonDocument::fromJson(r->readAll()).object();
-            /* Ollama → "response", LlamaServer → "content" */
-            summary = obj.contains("response")
-                          ? obj["response"].toString().trimmed()
-                          : obj["content"].toString().trimmed();
-        }
+void OracoloPage::onSummaryReplyFinished()
+{
+    auto* r = qobject_cast<QNetworkReply*>(sender());
+    if (!r) return;
+    r->deleteLater();
 
-        if (summary.isEmpty())
-            summary = fallback;   /* fallback testuale se LLM non risponde */
+    QString summary;
+    if (r->error() == QNetworkReply::NoError) {
+        const QJsonObject obj =
+            QJsonDocument::fromJson(r->readAll()).object();
+        /* Ollama → "response", LlamaServer → "content" */
+        summary = obj.contains("response")
+                      ? obj["response"].toString().trimmed()
+                      : obj["content"].toString().trimmed();
+    }
 
-        if (!m_historySummary.isEmpty())
-            m_historySummary += "\n\n";
-        m_historySummary += summary;
-        saveHistory();
-    });
+    if (summary.isEmpty())
+        summary = m_pendingSummaryFallback;
+
+    if (!m_historySummary.isEmpty())
+        m_historySummary += "\n\n";
+    m_historySummary += summary;
+    saveHistory();
 }
 
 /* ══════════════════════════════════════════════════════════════

@@ -1218,6 +1218,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
     installBtn->setObjectName("actionBtn");
     installBtn->setFixedWidth(dpiScale(110));
     installBtn->setEnabled(false);
+    m_llmConsInstallBtn = installBtn;
 
     detLay->addWidget(detailLbl, 1);
     detLay->addWidget(installBtn);
@@ -1231,6 +1232,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
         "background:#0f172a;color:#86efac;font-family:monospace;"
         "font-size:11px;padding:6px 10px;border-radius:6px;");
     rightLay->addWidget(logOut);
+    m_llmConsLogOut = logOut;
 
     /* ── Download GGUF da URL personalizzato ── */
     auto* customSep = new QFrame(rightGroup);
@@ -1252,58 +1254,17 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
     customEdit->setObjectName("chatInput");
     customEdit->setPlaceholderText(
         "https://huggingface.co/.../resolve/main/modello.gguf");
+    m_llmCustomEdit = customEdit;
     auto* customDlBtn = new QPushButton("\xe2\xac\x87  Scarica", rightGroup);
     customDlBtn->setObjectName("actionBtn");
     customDlBtn->setFixedWidth(dpiScale(100));
+    m_llmCustomDlBtn = customDlBtn;
     customRowLay->addWidget(customEdit, 1);
     customRowLay->addWidget(customDlBtn);
     rightLay->addWidget(customRow);
 
-    connect(customDlBtn, &QPushButton::clicked, page, [=]() {
-        const QString url = customEdit->text().trimmed();
-        if (url.isEmpty()) return;
-        const QString filename = QUrl(url).fileName();
-        if (filename.isEmpty() || !filename.endsWith(".gguf", Qt::CaseInsensitive)) {
-            logOut->setText(tr("\xe2\x9a\xa0  L'URL deve puntare a un file .gguf"));
-            logOut->setVisible(true);
-            return;
-        }
-        const QString dest = PrismaluxPaths::modelsDir() + "/" + filename;
-        logOut->setText(QString("\xf0\x9f\x93\xa5  Scarico %1...").arg(filename));
-        logOut->setVisible(true);
-        customDlBtn->setEnabled(false);
-
-        auto* proc = new QProcess(page);
-        proc->setProcessChannelMode(QProcess::MergedChannels);
-        connect(proc, &QProcess::readyRead, page, [proc, logOut]() {
-            const QString s = QString::fromUtf8(proc->readAll()).trimmed();
-            if (!s.isEmpty()) logOut->setText(s);
-        });
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                page, [proc, logOut, customDlBtn, filename](int code, QProcess::ExitStatus) {
-            if (code == 0)
-                logOut->setText(QString("\xe2\x9c\x85  %1 scaricato.").arg(filename));
-            else {
-                logOut->setText(tr("\xe2\x9d\x8c  Download fallito. Controlla URL e connessione."));
-                LogBus::post("\xe2\x9d\x8c LLM: Download GGUF fallito: " + filename);
-            }
-            customDlBtn->setEnabled(true);
-            proc->deleteLater();
-        });
-        connect(proc, &QProcess::errorOccurred, page, [proc, logOut, customDlBtn](QProcess::ProcessError err) {
-            if (err == QProcess::FailedToStart) {
-                qWarning() << "[ImpostazioniPage] wget/curl GGUF custom non avviato:" << proc->program();
-                logOut->setText(tr("\xe2\x9d\x8c  wget/curl non trovato."));
-                customDlBtn->setEnabled(true);
-            }
-        });
-
-        /* wget preferito, poi curl come fallback */
-        if (!QStandardPaths::findExecutable("wget").isEmpty())
-            proc->start("wget", {"-c", "--show-progress", "-O", dest, url});
-        else
-            proc->start("curl", {"-L", "-C", "-", "--progress-bar", "-o", dest, url});
-    });
+    connect(m_llmCustomDlBtn, &QPushButton::clicked,
+            this, &ImpostazioniPage::onLlmCustomDlClicked);
 
     colsLay->addWidget(rightGroup, 1);
     mainLay->addWidget(colsRow, 1);
@@ -1421,6 +1382,7 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
                 item->setData(Qt::UserRole,     i);
                 item->setData(Qt::UserRole + 1, true);
                 item->setData(Qt::UserRole + 2, parseSizeGb(m.size));
+                item->setData(Qt::UserRole + 3, QString(m.ollama));
                 modelList->addItem(item);
             }
         } else {
@@ -1436,6 +1398,8 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
                 item->setData(Qt::UserRole,     i);
                 item->setData(Qt::UserRole + 1, false);
                 item->setData(Qt::UserRole + 2, parseSizeGb(m.size));
+                item->setData(Qt::UserRole + 3, QString(m.url));
+                item->setData(Qt::UserRole + 4, QString(m.filename));
                 modelList->addItem(item);
             }
         }
@@ -1476,116 +1440,8 @@ QWidget* ImpostazioniPage::buildLlmConsigliatiTab()
         }
     });
 
-    /* Pulsante Installa */
-    connect(installBtn, &QPushButton::clicked, page, [=]() {
-        auto* cur = modelList->currentItem();
-        if (!cur) return;
-        const int  idx   = cur->data(Qt::UserRole).toInt();
-        const bool isOll = cur->data(Qt::UserRole + 1).toBool();
-
-        installBtn->setEnabled(false);
-        installBtn->setText(tr("\xe2\x8f\xb3  ..."));
-        logOut->setVisible(true);
-
-        if (isOll) {
-            const auto& m = OLLAMA[idx];
-            const QString ollamaName(m.ollama);
-            logOut->setText(QString("\xf0\x9f\x93\xa5  ollama pull %1").arg(ollamaName));
-            auto* proc = new QProcess(page);
-            proc->setProcessChannelMode(QProcess::MergedChannels);
-            connect(proc, &QProcess::readyRead, page, [proc, logOut]() {
-                const QString txt = QString::fromUtf8(proc->readAll()).trimmed();
-                if (!txt.isEmpty()) logOut->setText(txt);
-            });
-            connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                    page, [proc, installBtn, logOut, ollamaName](int code, QProcess::ExitStatus) {
-                if (code == 0) {
-                    installBtn->setText(tr("\xe2\x9c\x94  Installato"));
-                    installBtn->setStyleSheet("color:#4ade80;");
-                    logOut->setText(QString("\xe2\x9c\x85  %1 installato.").arg(ollamaName));
-                } else {
-                    installBtn->setEnabled(true);
-                    installBtn->setText(tr("\xe2\xac\x87  Installa"));
-                    logOut->setText(tr("\xe2\x9d\x8c  Errore. Assicurati che ollama sia in esecuzione."));
-                    LogBus::post("\xe2\x9d\x8c LLM: ollama pull fallito: " + ollamaName);
-                }
-                proc->deleteLater();
-            });
-            connect(proc, &QProcess::errorOccurred, page, [proc, logOut, installBtn](QProcess::ProcessError err) {
-                if (err == QProcess::FailedToStart) {
-                    qWarning() << "[ImpostazioniPage] ollama pull non avviato:" << proc->program();
-                    logOut->setText(tr("\xe2\x9d\x8c  ollama non trovato nel PATH."));
-                    installBtn->setEnabled(true);
-                    installBtn->setText(tr("\xe2\xac\x87  Installa"));
-                }
-            });
-            proc->start("ollama", {"pull", ollamaName});
-        } else {
-            const auto& m = GGUF[idx];
-            const QString ggufUrl(m.url);
-            const QString ggufFile(m.filename);
-            const QString dest = PrismaluxPaths::modelsDir() + "/" + ggufFile;
-            logOut->setText(QString("\xf0\x9f\x93\xa5  Scarico %1...").arg(ggufFile));
-            auto* proc = new QProcess(page);
-            proc->setProcessChannelMode(QProcess::MergedChannels);
-            connect(proc, &QProcess::readyRead, page, [proc, logOut]() {
-                const QString txt = QString::fromUtf8(proc->readAll()).trimmed();
-                if (!txt.isEmpty()) logOut->setText(txt);
-            });
-            connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                    page, [proc, installBtn, logOut, ggufFile](int code, QProcess::ExitStatus) {
-                if (code == 0) {
-                    installBtn->setText(tr("\xe2\x9c\x94  Scaricato"));
-                    installBtn->setStyleSheet("color:#4ade80;");
-                    logOut->setText(QString("\xe2\x9c\x85  %1 scaricato.").arg(ggufFile));
-                } else {
-                    installBtn->setEnabled(true);
-                    installBtn->setText(tr("\xe2\xac\x87  Installa"));
-                    logOut->setText(tr("\xe2\x9d\x8c  Errore download. Controlla wget/connessione."));
-                    LogBus::post("\xe2\x9d\x8c LLM: Download GGUF (wget) fallito: " + ggufFile);
-                }
-                proc->deleteLater();
-            });
-            connect(proc, &QProcess::errorOccurred, page, [proc, logOut](QProcess::ProcessError err) {
-                if (err == QProcess::FailedToStart)
-                    qWarning() << "[ImpostazioniPage] wget GGUF non avviato:" << proc->program();
-            });
-            proc->start("wget", {"-c", "--show-progress", "-O", dest, ggufUrl});
-            if (!proc->waitForStarted(P::kProcessStartTimeoutMs)) {
-                proc->deleteLater();
-                auto* curl = new QProcess(page);
-                curl->setProcessChannelMode(QProcess::MergedChannels);
-                connect(curl, &QProcess::readyRead, page, [curl, logOut]() {
-                    const QString txt = QString::fromUtf8(curl->readAll()).trimmed();
-                    if (!txt.isEmpty()) logOut->setText(txt);
-                });
-                connect(curl, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                        page, [curl, installBtn, logOut, ggufFile](int code, QProcess::ExitStatus) {
-                    if (code == 0) {
-                        installBtn->setText(tr("\xe2\x9c\x94  Scaricato"));
-                        installBtn->setStyleSheet("color:#4ade80;");
-                        logOut->setText(QString("\xe2\x9c\x85  %1 scaricato.").arg(ggufFile));
-                    } else {
-                        installBtn->setEnabled(true);
-                        installBtn->setText(tr("\xe2\xac\x87  Installa"));
-                        logOut->setText(tr("\xe2\x9d\x8c  Errore: installa wget o curl."));
-                        LogBus::post("\xe2\x9d\x8c LLM: Download GGUF (curl) fallito: " + ggufFile);
-                    }
-                    curl->deleteLater();
-                });
-                connect(curl, &QProcess::errorOccurred, page, [curl, logOut, installBtn](QProcess::ProcessError err) {
-                    if (err == QProcess::FailedToStart) {
-                        qWarning() << "[ImpostazioniPage] curl GGUF fallback non avviato:" << curl->program();
-                        logOut->setText(tr("\xe2\x9d\x8c  Installa wget o curl."));
-                        installBtn->setEnabled(true);
-                        installBtn->setText(tr("\xe2\xac\x87  Installa"));
-                    }
-                });
-                curl->start("curl", {"-L", "-C", "-", "--progress-bar",
-                                     "-o", dest, ggufUrl});
-            }
-        }
-    });
+    connect(m_llmConsInstallBtn, &QPushButton::clicked,
+            this, &ImpostazioniPage::onLlmConsInstallClicked);
 
     /* Cambi filtro → ripopola */
     connect(btnOllama, &QRadioButton::toggled, page, [=](bool on){ if (on) populate(); });
@@ -1743,6 +1599,7 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
     installBtn->setObjectName("actionBtn");
     installBtn->setFixedWidth(dpiScale(160));
     installBtn->setEnabled(false);
+    m_llmRankInstallBtn = installBtn;
 
     detailLay->addWidget(detailLbl, 1);
     detailLay->addWidget(installBtn);
@@ -1756,6 +1613,7 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
         "background:#0f172a;color:#86efac;font-family:monospace;"
         "font-size:11px;padding:6px 10px;border-radius:6px;");
     mainLay->addWidget(logLbl);
+    m_llmRankLogLbl = logLbl;
 
     /* ══════════════════════════════════════════════════════════
        Dataset modelli — classifica completa open-weight ≤ 64GB
@@ -1868,7 +1726,9 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
 
             /* Colonna 1: nome modello */
             auto* nameItem = new QTableWidgetItem(QString::fromUtf8(e.display));
-            nameItem->setData(Qt::UserRole, idxs[row]);
+            nameItem->setData(Qt::UserRole,     idxs[row]);
+            nameItem->setData(Qt::UserRole + 2, QString::fromUtf8(e.ollama));
+            nameItem->setData(Qt::UserRole + 3, QString::fromUtf8(e.display));
             table->setItem(row, 1, nameItem);
 
             /* Colonna 2: parametri */
@@ -1963,46 +1823,8 @@ QWidget* ImpostazioniPage::buildLlmClassificaTab()
             .arg(QString::fromUtf8(e.notes)));
     });
 
-    /* ── Installa ── */
-    connect(installBtn, &QPushButton::clicked, page, [=]() {
-        const int row = table->currentRow();
-        if (row < 0) return;
-        const int idx = table->item(row, 1)->data(Qt::UserRole).toInt();
-        const auto& e = RANK[idx];
-        if (e.ollama[0] == '\0') return;
-
-        const QString cmd = QString("ollama pull %1").arg(e.ollama);
-        logLbl->setText(QString("\xf0\x9f\x93\xa5  Avvio: <code>%1</code>...").arg(cmd));
-        logLbl->setVisible(true);
-        installBtn->setEnabled(false);
-
-        auto* proc = new QProcess(page);
-        proc->setProcessChannelMode(QProcess::MergedChannels);
-        connect(proc, &QProcess::readyRead, page, [proc, logLbl]() {
-            const QString s = QString::fromUtf8(proc->readAll()).trimmed();
-            if (!s.isEmpty()) logLbl->setText(s);
-        });
-        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
-                page, [proc, logLbl, installBtn, e](int code, QProcess::ExitStatus) {
-            if (code == 0)
-                logLbl->setText(QString("\xe2\x9c\x85  %1 installato con successo.")
-                                 .arg(e.display));
-            else {
-                logLbl->setText(tr("\xe2\x9d\x8c  Installazione fallita. Ollama attivo?"));
-                LogBus::post(QString("\xe2\x9d\x8c LLM: Installazione fallita (Classifica): ") + e.display);
-            }
-            installBtn->setEnabled(true);
-            proc->deleteLater();
-        });
-        connect(proc, &QProcess::errorOccurred, page, [proc, logLbl, installBtn](QProcess::ProcessError err) {
-            if (err == QProcess::FailedToStart) {
-                qWarning() << "[ImpostazioniPage] ollama pull (classifica) non avviato:" << proc->program();
-                logLbl->setText(tr("\xe2\x9d\x8c  ollama non trovato nel PATH."));
-                installBtn->setEnabled(true);
-            }
-        });
-        proc->start("ollama", {"pull", QString::fromUtf8(e.ollama)});
-    });
+    connect(m_llmRankInstallBtn, &QPushButton::clicked,
+            this, &ImpostazioniPage::onLlmRankInstallClicked);
 
     /* ── Filtri → repopulate ── */
     connect(filterCombo,    QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -2229,6 +2051,229 @@ void ImpostazioniPage::onBenchmarkProcFinished(int code, QProcess::ExitStatus)
     }
     m_benchmarkProc->deleteLater();
     m_benchmarkProc = nullptr;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: installa modello dalla lista Consigliati
+   ══════════════════════════════════════════════════════════════ */
+void ImpostazioniPage::onLlmConsInstallClicked()
+{
+    namespace P = PrismaluxPaths;
+    if (!m_consigliatiList || !m_llmConsInstallBtn || !m_llmConsLogOut) return;
+    auto* cur = m_consigliatiList->currentItem();
+    if (!cur) return;
+    const bool isOll   = cur->data(Qt::UserRole + 1).toBool();
+
+    m_llmConsInstallBtn->setEnabled(false);
+    m_llmConsInstallBtn->setText(tr("\xe2\x8f\xb3  ..."));
+    m_llmConsLogOut->setVisible(true);
+
+    if (isOll) {
+        const QString ollamaName = cur->data(Qt::UserRole + 3).toString();
+        m_llmConsLogOut->setText(QString("\xf0\x9f\x93\xa5  ollama pull %1").arg(ollamaName));
+        auto* proc = new QProcess(this);
+        proc->setProcessChannelMode(QProcess::MergedChannels);
+        connect(proc, &QProcess::readyRead, this, [this, proc]() {
+            const QString txt = QString::fromUtf8(proc->readAll()).trimmed();
+            if (!txt.isEmpty() && m_llmConsLogOut) m_llmConsLogOut->setText(txt);
+        });
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, proc, ollamaName](int code, QProcess::ExitStatus) {
+            if (m_llmConsInstallBtn && m_llmConsLogOut) {
+                if (code == 0) {
+                    m_llmConsInstallBtn->setText(tr("\xe2\x9c\x94  Installato"));
+                    m_llmConsInstallBtn->setStyleSheet("color:#4ade80;");
+                    m_llmConsLogOut->setText(QString("\xe2\x9c\x85  %1 installato.").arg(ollamaName));
+                } else {
+                    m_llmConsInstallBtn->setEnabled(true);
+                    m_llmConsInstallBtn->setText(tr("\xe2\xac\x87  Installa"));
+                    m_llmConsLogOut->setText(tr("\xe2\x9d\x8c  Errore. Assicurati che ollama sia in esecuzione."));
+                    LogBus::post("\xe2\x9d\x8c LLM: ollama pull fallito: " + ollamaName);
+                }
+            }
+            proc->deleteLater();
+        });
+        connect(proc, &QProcess::errorOccurred, this, [this, proc](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart) {
+                qWarning() << "[ImpostazioniPage] ollama pull non avviato:" << proc->program();
+                if (m_llmConsLogOut) m_llmConsLogOut->setText(tr("\xe2\x9d\x8c  ollama non trovato nel PATH."));
+                if (m_llmConsInstallBtn) {
+                    m_llmConsInstallBtn->setEnabled(true);
+                    m_llmConsInstallBtn->setText(tr("\xe2\xac\x87  Installa"));
+                }
+            }
+        });
+        proc->start("ollama", {"pull", ollamaName});
+    } else {
+        const QString ggufUrl  = cur->data(Qt::UserRole + 3).toString();
+        const QString ggufFile = cur->data(Qt::UserRole + 4).toString();
+        const QString dest = P::modelsDir() + "/" + ggufFile;
+        m_llmConsLogOut->setText(QString("\xf0\x9f\x93\xa5  Scarico %1...").arg(ggufFile));
+        auto* proc = new QProcess(this);
+        proc->setProcessChannelMode(QProcess::MergedChannels);
+        connect(proc, &QProcess::readyRead, this, [this, proc]() {
+            const QString txt = QString::fromUtf8(proc->readAll()).trimmed();
+            if (!txt.isEmpty() && m_llmConsLogOut) m_llmConsLogOut->setText(txt);
+        });
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, proc, ggufFile](int code, QProcess::ExitStatus) {
+            if (m_llmConsInstallBtn && m_llmConsLogOut) {
+                if (code == 0) {
+                    m_llmConsInstallBtn->setText(tr("\xe2\x9c\x94  Scaricato"));
+                    m_llmConsInstallBtn->setStyleSheet("color:#4ade80;");
+                    m_llmConsLogOut->setText(QString("\xe2\x9c\x85  %1 scaricato.").arg(ggufFile));
+                } else {
+                    m_llmConsInstallBtn->setEnabled(true);
+                    m_llmConsInstallBtn->setText(tr("\xe2\xac\x87  Installa"));
+                    m_llmConsLogOut->setText(tr("\xe2\x9d\x8c  Errore download. Controlla wget/connessione."));
+                    LogBus::post("\xe2\x9d\x8c LLM: Download GGUF (wget) fallito: " + ggufFile);
+                }
+            }
+            proc->deleteLater();
+        });
+        connect(proc, &QProcess::errorOccurred, this, [this, proc](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[ImpostazioniPage] wget GGUF non avviato:" << proc->program();
+        });
+        proc->start("wget", {"-c", "--show-progress", "-O", dest, ggufUrl});
+        if (!proc->waitForStarted(P::kProcessStartTimeoutMs)) {
+            proc->deleteLater();
+            auto* curl = new QProcess(this);
+            curl->setProcessChannelMode(QProcess::MergedChannels);
+            connect(curl, &QProcess::readyRead, this, [this, curl]() {
+                const QString txt = QString::fromUtf8(curl->readAll()).trimmed();
+                if (!txt.isEmpty() && m_llmConsLogOut) m_llmConsLogOut->setText(txt);
+            });
+            connect(curl, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                    this, [this, curl, ggufFile](int code, QProcess::ExitStatus) {
+                if (m_llmConsInstallBtn && m_llmConsLogOut) {
+                    if (code == 0) {
+                        m_llmConsInstallBtn->setText(tr("\xe2\x9c\x94  Scaricato"));
+                        m_llmConsInstallBtn->setStyleSheet("color:#4ade80;");
+                        m_llmConsLogOut->setText(QString("\xe2\x9c\x85  %1 scaricato.").arg(ggufFile));
+                    } else {
+                        m_llmConsInstallBtn->setEnabled(true);
+                        m_llmConsInstallBtn->setText(tr("\xe2\xac\x87  Installa"));
+                        m_llmConsLogOut->setText(tr("\xe2\x9d\x8c  Errore: installa wget o curl."));
+                        LogBus::post("\xe2\x9d\x8c LLM: Download GGUF (curl) fallito: " + ggufFile);
+                    }
+                }
+                curl->deleteLater();
+            });
+            connect(curl, &QProcess::errorOccurred, this, [this, curl](QProcess::ProcessError err) {
+                if (err == QProcess::FailedToStart) {
+                    qWarning() << "[ImpostazioniPage] curl GGUF fallback non avviato:" << curl->program();
+                    if (m_llmConsLogOut) m_llmConsLogOut->setText(tr("\xe2\x9d\x8c  Installa wget o curl."));
+                    if (m_llmConsInstallBtn) {
+                        m_llmConsInstallBtn->setEnabled(true);
+                        m_llmConsInstallBtn->setText(tr("\xe2\xac\x87  Installa"));
+                    }
+                }
+            });
+            curl->start("curl", {"-L", "-C", "-", "--progress-bar", "-o", dest, ggufUrl});
+        }
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: scarica GGUF da URL personalizzato
+   ══════════════════════════════════════════════════════════════ */
+void ImpostazioniPage::onLlmCustomDlClicked()
+{
+    namespace P = PrismaluxPaths;
+    if (!m_llmCustomEdit || !m_llmCustomDlBtn || !m_llmConsLogOut) return;
+    const QString url = m_llmCustomEdit->text().trimmed();
+    if (url.isEmpty()) return;
+    const QString filename = QUrl(url).fileName();
+    if (filename.isEmpty() || !filename.endsWith(".gguf", Qt::CaseInsensitive)) {
+        m_llmConsLogOut->setText(tr("\xe2\x9a\xa0  L'URL deve puntare a un file .gguf"));
+        m_llmConsLogOut->setVisible(true);
+        return;
+    }
+    const QString dest = P::modelsDir() + "/" + filename;
+    m_llmConsLogOut->setText(QString("\xf0\x9f\x93\xa5  Scarico %1...").arg(filename));
+    m_llmConsLogOut->setVisible(true);
+    m_llmCustomDlBtn->setEnabled(false);
+
+    auto* proc = new QProcess(this);
+    proc->setProcessChannelMode(QProcess::MergedChannels);
+    connect(proc, &QProcess::readyRead, this, [this, proc]() {
+        const QString s = QString::fromUtf8(proc->readAll()).trimmed();
+        if (!s.isEmpty() && m_llmConsLogOut) m_llmConsLogOut->setText(s);
+    });
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc, filename](int code, QProcess::ExitStatus) {
+        if (m_llmConsLogOut && m_llmCustomDlBtn) {
+            if (code == 0)
+                m_llmConsLogOut->setText(QString("\xe2\x9c\x85  %1 scaricato.").arg(filename));
+            else {
+                m_llmConsLogOut->setText(tr("\xe2\x9d\x8c  Download fallito. Controlla URL e connessione."));
+                LogBus::post("\xe2\x9d\x8c LLM: Download GGUF fallito: " + filename);
+            }
+            m_llmCustomDlBtn->setEnabled(true);
+        }
+        proc->deleteLater();
+    });
+    connect(proc, &QProcess::errorOccurred, this, [this, proc](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart) {
+            qWarning() << "[ImpostazioniPage] wget/curl GGUF custom non avviato:" << proc->program();
+            if (m_llmConsLogOut) m_llmConsLogOut->setText(tr("\xe2\x9d\x8c  wget/curl non trovato."));
+            if (m_llmCustomDlBtn) m_llmCustomDlBtn->setEnabled(true);
+        }
+    });
+    if (!QStandardPaths::findExecutable("wget").isEmpty())
+        proc->start("wget", {"-c", "--show-progress", "-O", dest, url});
+    else
+        proc->start("curl", {"-L", "-C", "-", "--progress-bar", "-o", dest, url});
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Slot: installa modello dalla classifica LLM
+   ══════════════════════════════════════════════════════════════ */
+void ImpostazioniPage::onLlmRankInstallClicked()
+{
+    if (!m_rankTable || !m_llmRankInstallBtn || !m_llmRankLogLbl) return;
+    const int row = m_rankTable->currentRow();
+    if (row < 0) return;
+    auto* nameItem = m_rankTable->item(row, 1);
+    if (!nameItem) return;
+    const QString ollamaName  = nameItem->data(Qt::UserRole + 2).toString();
+    const QString displayName = nameItem->data(Qt::UserRole + 3).toString();
+    if (ollamaName.isEmpty()) return;
+
+    const QString cmd = QString("ollama pull %1").arg(ollamaName);
+    m_llmRankLogLbl->setText(QString("\xf0\x9f\x93\xa5  Avvio: <code>%1</code>...").arg(cmd));
+    m_llmRankLogLbl->setVisible(true);
+    m_llmRankInstallBtn->setEnabled(false);
+
+    auto* proc = new QProcess(this);
+    proc->setProcessChannelMode(QProcess::MergedChannels);
+    connect(proc, &QProcess::readyRead, this, [this, proc]() {
+        const QString s = QString::fromUtf8(proc->readAll()).trimmed();
+        if (!s.isEmpty() && m_llmRankLogLbl) m_llmRankLogLbl->setText(s);
+    });
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc, ollamaName, displayName](int code, QProcess::ExitStatus) {
+        if (m_llmRankLogLbl && m_llmRankInstallBtn) {
+            if (code == 0)
+                m_llmRankLogLbl->setText(
+                    QString("\xe2\x9c\x85  %1 installato con successo.").arg(displayName));
+            else {
+                m_llmRankLogLbl->setText(tr("\xe2\x9d\x8c  Installazione fallita. Ollama attivo?"));
+                LogBus::post(QString("\xe2\x9d\x8c LLM: Installazione fallita (Classifica): ") + displayName);
+            }
+            m_llmRankInstallBtn->setEnabled(true);
+        }
+        proc->deleteLater();
+    });
+    connect(proc, &QProcess::errorOccurred, this, [this, proc](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart) {
+            qWarning() << "[ImpostazioniPage] ollama pull (classifica) non avviato:" << proc->program();
+            if (m_llmRankLogLbl)   m_llmRankLogLbl->setText(tr("\xe2\x9d\x8c  ollama non trovato nel PATH."));
+            if (m_llmRankInstallBtn) m_llmRankInstallBtn->setEnabled(true);
+        }
+    });
+    proc->start("ollama", {"pull", ollamaName});
 }
 
 /* ══════════════════════════════════════════════════════════════

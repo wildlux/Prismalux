@@ -521,23 +521,8 @@ QWidget* ImpostazioniPage::buildAiLocaleTab()
 
         mainLay->addWidget(srGroup);
 
-        connect(srSaveBtn, &QPushButton::clicked, this, [this]() {
-            QSettings s2;
-            s2.setValue(P::SK::kSmartRouterEnabled, m_smartRouterChk->isChecked());
-            s2.setValue(P::SK::kCloudApiUrl,        m_cloudUrlEdit->text().trimmed());
-            s2.setValue(P::SK::kCloudApiModel,      m_cloudModelEdit->text().trimmed());
-            /* API key via QKeychain (o file 0600 fallback), NON in QSettings */
-            LanServer::saveSecret(QStringLiteral("cloud_api_key"),
-                                  m_cloudApiKeyEdit->text().trimmed());
-            m_ai->setSmartRouter(
-                m_smartRouterChk->isChecked(),
-                m_cloudUrlEdit->text().trimmed(),
-                m_cloudModelEdit->text().trimmed(),
-                m_cloudApiKeyEdit->text().trimmed());
-            m_smartRouterStatusLbl->setText("\xe2\x9c\x85  Salvato");
-            QTimer::singleShot(2000, m_smartRouterStatusLbl,
-                               [this]{ m_smartRouterStatusLbl->setText(""); });
-        });
+        connect(srSaveBtn, &QPushButton::clicked,
+                this, &ImpostazioniPage::onSmartRouterSaveClicked);
     }
 
     mainLay->addStretch(1);
@@ -1408,20 +1393,8 @@ QWidget* ImpostazioniPage::buildRagTab()
         adeBtn->setToolTip(
             "Scarica le circolari e le risoluzioni dell'Agenzia delle Entrate 2026\n"
             "nella cartella RAG per l'indicizzazione automatica.");
-        connect(adeBtn, &QPushButton::clicked, this, [this](){
-            const QString ragDir = P::ragDir() + "/ADE_2026/";
-            QDir().mkpath(ragDir);
-            const QStringList urls = {
-                "https://www.agenziaentrate.gov.it/portale/web/guest/schede/comunicazioni/circolare-1-2026",
-                "https://www.agenziaentrate.gov.it/portale/web/guest/schede/comunicazioni/risoluzione-2026"
-            };
-            const QString info = QString(
-                "\xf0\x9f\x93\xa5  Documenti ADE 2026 — cartella di destinazione:\n%1\n\n"
-                "Per scaricare manualmente i documenti PDF:\n%2")
-                .arg(ragDir)
-                .arg(urls.join("\n"));
-            QMessageBox::information(this, "Documenti ADE 2026", info);
-        });
+        connect(adeBtn, &QPushButton::clicked,
+                this, &ImpostazioniPage::onAdeBtnClicked);
         adeBtnRow->addWidget(adeBtn);
         adeBtnRow->addStretch(1);
         jlLay->addLayout(adeBtnRow);
@@ -2266,5 +2239,40 @@ QWidget* ImpostazioniPage::buildSandboxTab()
 
     lay->addStretch();
     return page;
+}
+
+void ImpostazioniPage::onSmartRouterSaveClicked()
+{
+    QSettings s2;
+    s2.setValue(P::SK::kSmartRouterEnabled, m_smartRouterChk->isChecked());
+    s2.setValue(P::SK::kCloudApiUrl,        m_cloudUrlEdit->text().trimmed());
+    s2.setValue(P::SK::kCloudApiModel,      m_cloudModelEdit->text().trimmed());
+    /* API key via QKeychain (o file 0600 fallback), NON in QSettings */
+    LanServer::saveSecret(QStringLiteral("cloud_api_key"),
+                          m_cloudApiKeyEdit->text().trimmed());
+    m_ai->setSmartRouter(
+        m_smartRouterChk->isChecked(),
+        m_cloudUrlEdit->text().trimmed(),
+        m_cloudModelEdit->text().trimmed(),
+        m_cloudApiKeyEdit->text().trimmed());
+    m_smartRouterStatusLbl->setText("\xe2\x9c\x85  Salvato");
+    QTimer::singleShot(2000, m_smartRouterStatusLbl,
+                       [this]{ m_smartRouterStatusLbl->setText(""); });
+}
+
+void ImpostazioniPage::onAdeBtnClicked()
+{
+    const QString ragDir = P::ragDir() + "/ADE_2026/";
+    QDir().mkpath(ragDir);
+    const QStringList urls = {
+        "https://www.agenziaentrate.gov.it/portale/web/guest/schede/comunicazioni/circolare-1-2026",
+        "https://www.agenziaentrate.gov.it/portale/web/guest/schede/comunicazioni/risoluzione-2026"
+    };
+    const QString info = QString(
+        "\xf0\x9f\x93\xa5  Documenti ADE 2026 — cartella di destinazione:\n%1\n\n"
+        "Per scaricare manualmente i documenti PDF:\n%2")
+        .arg(ragDir)
+        .arg(urls.join("\n"));
+    QMessageBox::information(this, "Documenti ADE 2026", info);
 }
 
