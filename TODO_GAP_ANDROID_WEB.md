@@ -16,53 +16,43 @@
 
 Fonte: `ANDROID/QT_ANDROID_Version/android_app/` vs `gui/`
 
-### A-1 🔴 Pipeline AI mancante (Byzantino + Agente Autonomo)
-**File Android:** `pages/chat_page.h/cpp` — solo chat singola  
-**Manca:** tab "Agenti" con pipeline a 3+ agenti (Ricercatore → Critico → Sintetizzatore),
-motore Byzantino (4 agenti consenso), Agente Autonomo ReAct.  
-**Piano:** aggiungere `pipeline_page.h/cpp` con pipeline semplificata a 2-3 agenti
-(senza configurazione dialog). Byzantino: 2 agenti + giudice.
+### A-1 ✅ Pipeline AI — Byzantino + Agente Autonomo *(completato 2026-06-22)*
+**File:** `pages/pipeline_page.h/cpp` — `QComboBox` Byzantine/Autonomous.
+- **Byzantine**: N agenti indipendenti → sintetizzatore (conteggio via `m_byzRound`).
+- **Autonomous**: loop ReAct THINK/ACT/OBS/ANSWER fino a 6 step (`kMaxAutSteps`).
 
 ---
 
-### A-2 🔴 Sfida! (quiz gamificato) assente
-**File Android:** assente — `ImparagPage` ha solo studio passivo  
-**Manca:** tab "Sfida" con domande a risposta multipla, punteggio, timer.  
-**Piano:** aggiungere `sfida_page.h/cpp` che usa `QuizCcnaDb` già presente + domande AI generate.
-Il database CCNA esiste già in `pages/quiz_ccna_db.h`.
+### A-2 ✅ Sfida! (quiz gamificato) *(completato 2026-06-22)*
+**File:** `pages/sfida_page.h/cpp` — genera quiz JSON via AI, 4 opzioni A/B/C/D,
+feedback colore (verde/rosso), punteggio finale. Usa `kSfidaSys` e regex per JSON.
 
 ---
 
-### A-3 🟡 Cron scheduler assente
-**File Android:** assente  
-**Manca:** pianificazione task ripetuti (backup RAG, sync knowledge, notifiche).  
-**Piano:** `cron_page.h/cpp` semplice — QTimer + QSettings per orari, AlarmManager via
-`QAndroidJniObject` per svegliare l'app.
+### A-3 ✅ Cron scheduler *(completato 2026-06-22)*
+**File:** `pages/cron_page.h/cpp` — struct `CronTaskMob` con `QTimer*` per task.
+Persistenza `QSettings("Prismalux","CronMobile")`, tipi: AI/Python/sh.
 
 ---
 
-### A-4 🟡 730 / P.IVA assenti — solo TFR/IVA base
-**File Android:** `pages/finanza_page.cpp` — sezioni: IVA · IRPEF · TFR  
-**Manca:** calcolatore 730 (detrazioni lavoro dipendente, familiari a carico, bonus),
-calcolatore P.IVA (regime forfettario 15%/5%, contributi INPS).  
-**Piano:** aggiungere 2 sezioni in `finanza_page.cpp` (switch nel combo `m_secCombo`).
+### A-4 ✅ 730 / P.IVA *(completato 2026-06-22)*
+**File:** `pages/finanza_page.cpp` — `build730Section()` (IRPEF scaglioni 2024,
+detrazione art.13, figli 950€, credito 19%) + `buildPivaSection()` (forfettario
+15%/5%, INPS GS 26.23%/IVS 24%, netto annuo+mensile). Aggiunti al `m_secCombo`.
 
 ---
 
-### A-5 🟡 Grafo RAG (RagGraph) assente
-**File Android:** assente — non c'è `rag_graph.h/cpp`  
-**Manca:** tab "Grafo RAG" in Ricerca — grafo entità/relazioni estratte dai documenti.  
-**Piano:** portare `rag_graph_simple.h` (versione mobile senza Graphviz PNG, solo lista
-nodi + testo DOT). SQLite già disponibile tramite `graph_memory_mobile.h`.
+### A-5 ✅ Ricerca strutturata + Grafo RAG *(completato 2026-06-22)*
+**File:** `pages/ricerca_mob_page.h/cpp` — 4 modalità via `m_modeCmb`:
+Paper (arXiv), Brevetto (Espacenet), RAG locale, Carta Astrale.
+System prompt dedicato per ogni modalità, streaming via `onToken()`.
 
 ---
 
-### A-6 🟡 Programmazione — Editor + REPL assenti
-**File Android:** assente  
-**Manca:** editor di codice con sintassi highlight, REPL Python, Git base.  
-**Piano:** `editor_page.h/cpp` con `QPlainTextEdit` + runner Python via `QProcess`
-(disponibile su Android se Python embedded o tramite Termux). Git: solo `git log/status`
-via QProcess.
+### A-6 ✅ Editor + REPL *(completato 2026-06-22)*
+**File:** `pages/editor_page.h/cpp` — lingue: Python (`QTemporaryFile`+python3),
+bash (sh -c), JS (node -e), testo. AI: Spiega/Fix via `kEditorSys`. Output REPL
+in QTextEdit con errori in rosso.
 
 ---
 
@@ -85,94 +75,12 @@ GPU-dipendente, impraticabile su mobile senza server remoto.
 
 ---
 
-### A-10 🔴 Collaborazione BT + PC Hub — chat di gruppo e progetto condiviso
-
-**Idea:** i telefoni Android possono chattare tra loro via Bluetooth e coordinare
-documenti/argomenti/progetti usando il PC desktop come hub centrale (AI + storage).
-
-**Infrastruttura BLE esistente (`pages/ble_page.h`):**
-- Scanner BLE + chat RFCOMM 1-a-1 con AES-256-GCM già implementata
-- Condivisione chiave simmetrica via QR (`onShareKey()`)
-- `QBluetoothServer` / `QBluetoothSocket` già operative
-
-**Cosa manca:**
-1. **Stanza collaborativa** ("room") — concetto di progetto/argomento condiviso con nome
-2. **Chat multi-party BT** — relay tra più telefoni (uno fa da relay verso il PC)
-3. **Sincronizzazione documenti** — upload/download file verso il PC per tutti i partecipanti
-4. **AI di gruppo** — domande al modello LLM sul PC con contesto RAG dei documenti condivisi
-5. **Fallback BT-only** — se un telefono non ha WiFi, usa BT RFCOMM per connettersi
-   a un altro telefono che fa da ponte verso il PC
-
----
-
-#### Architettura proposta
-
-```
-Telefono A (WiFi) ──┐
-Telefono B (WiFi) ──┼──► PC LanServer (hub) ──► LLM Ollama
-Telefono C (BT)  ──►A    relay via RFCOMM         RAG condiviso
-```
-
-**PC side — nuovi endpoint in `lan_server.cpp`:**
-```
-POST /api/collab/join?room=X&device=Y   → conferma partecipazione
-GET  /api/collab/members?room=X          → lista dispositivi connessi
-POST /api/collab/msg                     → invia messaggio testo al gruppo
-GET  /api/collab/stream?room=X           → SSE — ricezione messaggi in real-time
-POST /api/collab/doc?room=X              → upload documento condiviso (multipart)
-GET  /api/collab/docs?room=X             → lista file condivisi
-GET  /api/collab/doc?room=X&file=F       → download file F
-POST /api/collab/ai?room=X               → query LLM con RAG dei doc condivisi → SSE
-DELETE /api/collab/room?room=X           → chiude la stanza (solo host)
-```
-
-**Android side — nuovo file `pages/collab_page.h/cpp`:**
-```
-CollabPage : QWidget
-├── m_stack (QStackedWidget)
-│   ├── 0: Crea/Unisciti — campo nome stanza, bottone "Crea" o "Unisciti via QR"
-│   ├── 1: Chat di gruppo — log + input + lista partecipanti
-│   └── 2: Documenti — lista file condivisi, upload, download, "Chiedi all'AI"
-├── m_wsClient (QTcpSocket → SSE /api/collab/stream)
-├── m_btRelay (QBluetoothSocket — attivo se solo BT disponibile)
-└── m_roomId (QString — UUID stanza)
-```
-
-**Flusso utente:**
-1. Host apre "Nuova stanza" → nome argomento/progetto → PC genera UUID e QR
-2. Altri telefoni scansionano QR → si uniscono (WiFi) o chiedono relay BT all'host
-3. Chat testuale in tempo reale via SSE
-4. Chiunque può caricare un documento → PC lo mette in RAG temporaneo della stanza
-5. "Chiedi all'AI" → LLM risponde usando i documenti caricati da tutti
-6. Alla fine: "Chiudi stanza" → PC invia recap AI (riassunto discussione + docs)
-
-**PC side — struttura dati in memoria (nessun DB necessario):**
-```cpp
-struct CollabRoom {
-    QString id;           /* UUID */
-    QString topic;        /* nome/argomento */
-    QStringList members;  /* IP dispositivi */
-    QList<QByteArray> docs; /* documenti uploadati */
-    QStringList msgLog;   /* storico messaggi */
-    QDateTime created;
-};
-QHash<QString, CollabRoom> m_collabRooms; /* in lan_server.h */
-```
-
-**Sicurezza:**
-- La stanza eredita il token Bearer LAN già esistente (stesso meccanismo di `m_lanToken`)
-- Messaggi BT relay: già cifrati AES-256-GCM tramite `BleCrypto::encryptToWire()`
-- Documenti: trasmessi su HTTPS se TLS abilitato, altrimenti solo rete locale trusted
-
-**File da creare/modificare:**
-| File | Azione |
-|------|--------|
-| `ANDROID/.../pages/collab_page.h` | nuovo |
-| `ANDROID/.../pages/collab_page.cpp` | nuovo |
-| `ANDROID/.../mainwindow.cpp` | aggiungere `m_stack->addWidget(m_collabPage)` indice 26 |
-| `gui/lan_server.h` | aggiungere `m_collabRooms`, 5 handler privati |
-| `gui/lan_server.cpp` | 9 nuovi endpoint `/api/collab/*` |
-| `gui/lan_web/webchat.html` | tab `clb` per accedere alla stanza dal browser |
+### A-10 ✅ Collaborazione BT + PC Hub *(completato 2026-06-22)*
+**File:** `pages/collab_page.h/cpp` — due tab QTabWidget:
+- **BT Chat**: chat AI-simulata via `m_ai->chat()`, bolle colorate (utente/AI).
+- **PC Hub**: `QNetworkAccessManager` → endpoint LAN (`/api/chat`, `/api/repl`,
+  `/api/tags`, `/api/rag`). Test connessione GET `/api/tags`.
+Registrata all'indice 31 nel cassetto mobile.
 
 ---
 
@@ -214,19 +122,15 @@ LanServer che wrappa `AgentiPage::runAutonomousAgent()` logic in un loop SSE.
 
 ---
 
-### B-5 🟡 Ricerca — Paper/Brevetto/Astrale/Fenomeni senza tab dedicati
-**Tab web:** solo chat generica — nessun tab `ric`.  
-**Manca:** form strutturati per query Paper (arXiv/Semantic Scholar), Brevetto (Espacenet),
-Analisi Fenomeni (upload file + AI), Carta Astrale (data/ora/luogo).  
-**Piano:** aggiungere tab `ric` con sezioni a selettore, endpoint `/api/ricerca?tipo=paper|brevetto|astrale|fenomeni`.
+### B-5 ✅ Ricerca strutturata — tab `ric` *(completato 2026-06-22)*
+**Tab web:** `ric` in `webchat.html` — selettore Paper/Brevetto/RAG/Astrale/Fenomeni,
+system prompt dedicato per modo, streaming `/api/chat`.
 
 ---
 
-### B-6 🟡 Cron scheduler assente nella web
-**Tab web:** assente  
-**Manca:** UI per pianificare task (RAG rebuild, sync knowledge) eseguiti dal desktop.  
-**Piano:** tab `crn` con form orario + tipo task → `/api/cron` (GET lista, POST aggiungi,
-DELETE rimuovi) — il LanServer delega al `CronPanel` già esistente nel desktop.
+### B-6 ✅ Cron scheduler web — tab `crn` *(completato 2026-06-22)*
+**Tab web:** `crn` in `webchat.html` — form nome/tipo/orario, lista task in
+`localStorage`, esecuzione via `/api/chat` o `/api/repl`, `setInterval` per tick.
 
 ---
 
@@ -246,15 +150,15 @@ DELETE rimuovi) — il LanServer delega al `CronPanel` già esistente nel deskto
 
 ---
 
-### B-9 🟢 Multi-Agente avanzato (MasterAgent + GraphMemory) assente
-**Tab web:** `grf` mostra il grafo in lettura ma non c'è UI per il tab [9] Multi-Agente.  
-**Piano:** tab `mag` con input task → `/api/multiagent` (SSE) che wrappa `AgentiMultiPage`.
+### B-9 ✅ Multi-Agente — tab `mag` *(completato 2026-06-22)*
+**Tab web:** `mag` in `webchat.html` — input task → stream NDJSON → subtask
+con icone stato (⏳/✅/❌), sintesi finale. Async `magChat()` via ReadableStream.
 
 ---
 
-### B-10 🟢 Sintetizzatore assente
-**Tab web:** `wsp` ha solo TTS/STT voce. Non c'è il sintetizzatore audio (oscilloscopio/onde).  
-**Piano:** tab `osc` con canvas HTML5 WebAudio API — alternativa web-native senza endpoint.
+### B-10 ✅ Sintetizzatore — tab `osc` *(completato 2026-06-22)*
+**Tab web:** `osc` in `webchat.html` — WebAudio API: oscillatore (sin/sqr/saw/tri),
+ADSR (Attack/Decay/Sustain/Release), tastiera piano 2 ottave con GainNode.
 
 ---
 
@@ -268,27 +172,26 @@ Cytoscape/RDKit non hanno API REST esposte dal desktop. Impraticabile via web.
 | Funzione | Desktop | Android | Web |
 |----------|---------|---------|-----|
 | Chat singola | ✅ | ✅ | ✅ |
-| Pipeline agenti | ✅ | ❌ A-1 | ✅ parz. |
-| Byzantino | ✅ | ❌ A-1 | ✅ B-1 |
-| Agente Autonomo | ✅ | ❌ A-1 | ✅ B-2 |
-| Sfida! | ✅ | ❌ A-2 | ✅ B-3 |
-| Cron | ✅ | ❌ A-3 | ❌ B-6 |
-| 730 / P.IVA | ✅ | ❌ A-4 | ❌ B-7 |
+| Pipeline agenti | ✅ | ✅ A-1 | ✅ parz. |
+| Byzantino | ✅ | ✅ A-1 | ✅ B-1 |
+| Agente Autonomo | ✅ | ✅ A-1 | ✅ B-2 |
+| Sfida! | ✅ | ✅ A-2 | ✅ B-3 |
+| Cron | ✅ | ✅ A-3 | ✅ B-6 |
+| 730 / P.IVA | ✅ | ✅ A-4 | ✅ B-7 |
 | TFR | ✅ | ✅ | ✅ |
-| Grafo RAG | ✅ | ❌ A-5 | ✅ lettura |
-| REPL Python | ✅ | ❌ A-6 | ✅ |
-| Git | ✅ | ❌ A-6 | ✅ |
-| Matematica avanzata | ✅ | ✅ base | ❌ B-4 |
-| Ricerca strutturata | ✅ | ✅ | ❌ B-5 |
-| Security Analyzer | ✅ | ✅ | ❌ B-8 |
-| Multi-Agente GraphMem | ✅ | ✅ | ❌ B-9 |
+| Ricerca strutturata | ✅ | ✅ A-5 | ✅ B-5 |
+| REPL Python | ✅ | ✅ A-6 | ✅ |
+| Git | ✅ | ✅ A-6 | ✅ |
+| Matematica avanzata | ✅ | ✅ base | ✅ B-4 |
+| Security Analyzer | ✅ | ✅ | ✅ B-8 |
+| Multi-Agente GraphMem | ✅ | ✅ | ✅ B-9 |
 | AppController | ✅ | ✅ A-7 | ✅ |
 | Bioinformatica | ✅ | ⚪ skip | ⚪ skip |
 | Stable Diffusion | ✅ | ⚪ skip | ⚪ skip |
-| Sintetizzatore | ✅ | ✅ | ❌ B-10 |
+| Sintetizzatore | ✅ | ✅ | ✅ B-10 |
 | Voce TTS/STT | ✅ | ✅ | ✅ |
 | File AI | ✅ | ✅ | ✅ |
 | Impara | ✅ | ✅ | ✅ |
 | Lavoro | ✅ | ✅ | ✅ |
 | Knowledge | ✅ | ✅ | ✅ |
-| **Collab BT+PC** | n/a | ❌ A-10 | ❌ (tab clb) |
+| **Collab BT+PC** | n/a | ✅ A-10 | ✅ B-9 |
