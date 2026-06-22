@@ -964,34 +964,7 @@ void AgentiPage::buildInputFormatBar()
     for (auto* btn : btnRow->findChildren<QPushButton*>())
         btn->installEventFilter(hf);
 
-    connect(btnTbl, &QPushButton::clicked, m_fmtBar, [this, btnTbl](){
-        auto* picker = new TablePickerPopup(this,
-            [this](int rows, int cols){
-                /* Genera tabella Markdown rows x cols */
-                QString tbl = "\n";
-                tbl += "|";
-                for (int c = 0; c < cols; ++c)
-                    tbl += QString(" Col%1 |").arg(c + 1);
-                tbl += "\n|";
-                for (int c = 0; c < cols; ++c)
-                    tbl += " --- |";
-                tbl += "\n";
-                for (int r = 0; r < rows - 1; ++r) {
-                    tbl += "|";
-                    for (int c = 0; c < cols; ++c)
-                        tbl += "  |";
-                    tbl += "\n";
-                }
-                if (m_input) {
-                    m_input->insertPlainText(tbl);
-                    m_input->setFocus();
-                }
-            });
-        /* Mostra il picker sotto il pulsante Tabella */
-        picker->move(btnTbl->mapToGlobal(
-            QPoint(0, btnTbl->height() + 2)));
-        picker->show();
-    });
+    connect(btnTbl, &QPushButton::clicked, this, &AgentiPage::onBtnTblClicked);
 
     connect(m_input, &QTextEdit::selectionChanged,
             this, &AgentiPage::onInputSelectionChanged);
@@ -1141,3 +1114,30 @@ void AgentiPage::onFmtBtnClicked(const QString& before, const QString& after)
     m_input->setFocus();
 }
 
+
+void AgentiPage::onBtnTblClicked()
+{
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn) return;
+    auto* picker = new TablePickerPopup(this, [this](int rows, int cols) {
+        QString tbl = "\n|";
+        for (int c = 0; c < cols; ++c)
+            tbl += QString(" Col%1 |").arg(c + 1);
+        tbl += "\n|";
+        for (int c = 0; c < cols; ++c)
+            tbl += " --- |";
+        tbl += "\n";
+        for (int r = 0; r < rows - 1; ++r) {
+            tbl += "|";
+            for (int c = 0; c < cols; ++c)
+                tbl += "  |";
+            tbl += "\n";
+        }
+        if (m_input) {
+            m_input->insertPlainText(tbl);
+            m_input->setFocus();
+        }
+    });
+    picker->move(btn->mapToGlobal(QPoint(0, btn->height() + 2)));
+    picker->show();
+}

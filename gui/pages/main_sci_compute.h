@@ -27,6 +27,7 @@
 #include <QVariantMap>
 #include <QStringList>
 
+class QNetworkReply;
 class QTableWidget;
 class QTextEdit;
 class QLabel;
@@ -76,6 +77,7 @@ private slots:
     void onWuContextMenu(const QPoint& pos);
     void onNodeContextMenu(const QPoint& pos);
     void onFetchLlmModels();
+    void onFetchLlmModelsFinished(QNetworkReply* r);
 
 private:
     /* ── DB ── */

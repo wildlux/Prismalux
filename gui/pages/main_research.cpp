@@ -1645,12 +1645,8 @@ QWidget* RicercaPage::buildRagGrafoTab()
     m_ragGm    = new GraphMemory(gmPath, this);
     m_ragGm->open();
     m_ragGm->pruneByImportance(800);   /* tieni top-800 nodi al lancio */
-    connect(m_ragGm, &GraphMemory::backupDone, this, [](const QString& path, bool ok) {
-        if (ok)
-            LogBus::post("\xf0\x9f\x92\xbe RagGraph: backup creato \xe2\x86\x92 " + path);
-        else
-            LogBus::post("\xe2\x9d\x8c RagGraph: backup fallito");
-    });
+    connect(m_ragGm, &GraphMemory::backupDone,
+            this, &RicercaPage::onRagGmBackupDone);
     m_ragGm->enableAutoBackup(6, 800, 5);
     m_ragGraph = new RagGraph(m_ai, m_ragGm, this);
 
@@ -1664,13 +1660,7 @@ QWidget* RicercaPage::buildRagGrafoTab()
                     m_ragStatus->setText(QString("\xe2\x9a\xa0\xef\xb8\x8f  %1: %2").arg(f, e.left(60)));
             });
     connect(m_ragGraph, &RagGraph::fileCopied,
-            this, [this](const QString& filename, const QString& dest) {
-                Q_UNUSED(dest)
-                if (m_ragStatus)
-                    m_ragStatus->setText(
-                        QString("\xf0\x9f\x93\x84  Copiato in RAG/ \xe2\x80\x94 %1 ora persistente")
-                        .arg(filename));  /* 📄 */
-            });
+            this, &RicercaPage::onRagGraphFileCopied);
     connect(m_ragGm, &GraphMemory::changed, this, &RicercaPage::onRagGraphMemChanged);
 
     /* QFileSystemWatcher — auto-trigger quando vengono aggiunti nuovi file RAG.
@@ -2189,4 +2179,21 @@ void RicercaPage::onAutoRagTrigger(int nChunks, bool aborted)
 
     /* Ritardo di 800 ms per lasciare che il FS completi la scrittura */
     QTimer::singleShot(800, this, &RicercaPage::onRagRunClicked);
+}
+
+void RicercaPage::onRagGraphFileCopied(const QString& filename, const QString& dest)
+{
+    Q_UNUSED(dest)
+    if (m_ragStatus)
+        m_ragStatus->setText(
+            QString("\xf0\x9f\x93\x84  Copiato in RAG/ \xe2\x80\x94 %1 ora persistente")
+            .arg(filename));
+}
+
+void RicercaPage::onRagGmBackupDone(const QString& path, bool ok)
+{
+    if (ok)
+        LogBus::post("\xf0\x9f\x92\xbe RagGraph: backup creato \xe2\x86\x92 " + path);
+    else
+        LogBus::post("\xe2\x9d\x8c RagGraph: backup fallito");
 }

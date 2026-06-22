@@ -39,6 +39,71 @@ QString ImparaPage::historyPath() const {
     return QDir::homePath() + "/.prismalux_quiz.json";
 }
 
+static void learnDoModelsReady(const QStringList& list, AiClient* ai,
+                               QComboBox* cmbModel, QComboBox* cmbBackend,
+                               QPushButton* refreshBtn)
+{
+    if (cmbBackend->currentIndex() >= 2) return;
+    const QString prev = cmbModel->currentData().toString();
+    cmbModel->blockSignals(true);
+    cmbModel->clear();
+    const qint64 totalRam = P::totalRamBytes();
+    for (const auto& mdl : list) {
+        const qint64 sz = ai->modelSizeBytes(mdl);
+        cmbModel->addItem(P::modelIcon(sz, mdl) + mdl, mdl);
+        const int i = cmbModel->count() - 1;
+        if (totalRam > 0 && sz > 0 && sz * 2 > totalRam) {
+            cmbModel->setItemData(i, QBrush(QColor("#ef4444")), Qt::ForegroundRole);
+            cmbModel->setItemData(i,
+                QString("Attenzione: questo modello richiede ~%1 GB di RAM "
+                        "(regola 2\xc3\x97) ma il sistema ha solo %2 GB totali.")
+                    .arg(sz * 2 / 1e9, 0, 'f', 1)
+                    .arg(totalRam / 1e9, 0, 'f', 1),
+                Qt::ToolTipRole);
+        }
+        if (P::isKnownBrokenModel(mdl)) {
+            cmbModel->setItemData(i, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
+            cmbModel->setItemData(i, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
+            cmbModel->setItemData(i, P::knownBrokenModelTooltip(), Qt::ToolTipRole);
+        }
+    }
+    int idx = prev.isEmpty() ? 0 : cmbModel->findData(prev);
+    if (idx < 0) idx = 0;
+    cmbModel->setCurrentIndex(idx);
+    cmbModel->blockSignals(false);
+    if (idx < cmbModel->count()) {
+        const QString mdl = cmbModel->currentData().toString();
+        const int bk = cmbBackend->currentIndex();
+        if (!mdl.isEmpty() && mdl != ai->model())
+            ai->setBackend(bk == 0 ? AiClient::Ollama : AiClient::LlamaServer,
+                           ai->host(), ai->port(), mdl);
+    }
+    refreshBtn->setEnabled(true);
+    refreshBtn->setText(QObject::tr("\xf0\x9f\x94\x84"));
+}
+
+static void learnDoModelsError(const QString& msg, QComboBox* cmbModel,
+                               QPushButton* refreshBtn)
+{
+    if (!refreshBtn->isEnabled()) return;
+    refreshBtn->setEnabled(true);
+    refreshBtn->setText(QObject::tr("\xf0\x9f\x94\x84"));
+    cmbModel->clear();
+    cmbModel->addItem("\xe2\x9a\xa0  " + msg, "");
+}
+
+static void learnDoCmbModelChanged(int i, AiClient* ai,
+                                   QComboBox* cmbModel, QComboBox* cmbBackend)
+{
+    if (i < 0) return;
+    const int bk = cmbBackend->currentIndex();
+    if (bk == 2)
+        ai->setLocalBackend(P::llamaCliBin(), cmbModel->currentData().toString());
+    else
+        ai->setBackend(bk == 0 ? AiClient::Ollama : AiClient::LlamaServer,
+                       ai->host(), ai->port(), cmbModel->currentData().toString());
+}
+
 /* ══════════════════════════════════════════════════════════════
    Barra selettore backend/modello (condivisa da Tutor e Quiz)
    ══════════════════════════════════════════════════════════════ */
@@ -116,90 +181,16 @@ QWidget* ImparaPage::buildModelBar(QWidget* parent) {
      * IMPORTANTE: salva e ripristina la selezione dell'utente dopo il repopulate.
      * Senza blockSignals(), il clear() triggera currentIndexChanged con idx=0
      * sovrascrivendo il modello scelto dall'utente. */
-    connect(m_ai, &AiClient::modelsReady, bar, [=](const QStringList& list){
-        if (cmbBackend->currentIndex() >= 2) return;
-
-        /* Salva il modello correntemente scelto dall'utente */
-        const QString prev = cmbModel->currentData().toString();
-
-        /* Ripopola senza emettere segnali intermedi */
-        cmbModel->blockSignals(true);
-        cmbModel->clear();
-
-        const qint64 totalRam = P::totalRamBytes();
-        for (const auto& mdl : list) {
-            const qint64 sz = m_ai->modelSizeBytes(mdl);
-            cmbModel->addItem(P::modelIcon(sz, mdl) + mdl, mdl);
-            /* Colora in rosso i modelli che richiedono più RAM del disponibile
-             * (regola Shannon: serve almeno 2× la dimensione del file) */
-            {
-                const int i = cmbModel->count() - 1;
-                if (totalRam > 0) {
-                    const qint64 sz = m_ai->modelSizeBytes(mdl);
-                    if (sz > 0 && sz * 2 > totalRam) {
-                        cmbModel->setItemData(i, QBrush(QColor("#ef4444")), Qt::ForegroundRole);
-                        cmbModel->setItemData(i,
-                            QString("Attenzione: questo modello richiede ~%1 GB di RAM "
-                                    "(regola 2\xc3\x97) ma il sistema ha solo %2 GB totali.")
-                                .arg(sz * 2 / 1e9, 0, 'f', 1)
-                                .arg(totalRam / 1e9, 0, 'f', 1),
-                            Qt::ToolTipRole);
-                    }
-                }
-                if (P::isKnownBrokenModel(mdl)) {
-                    cmbModel->setItemData(i, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
-                    cmbModel->setItemData(i, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
-                    cmbModel->setItemData(i,
-                        P::knownBrokenModelTooltip(),
-                        Qt::ToolTipRole);
-                }
-            }
-        }
-
-        /* Ripristina la selezione precedente (o il primo se non trovata) */
-        int idx = prev.isEmpty() ? 0 : cmbModel->findData(prev);
-        if (idx < 0) idx = 0;
-        cmbModel->setCurrentIndex(idx);
-        cmbModel->blockSignals(false);
-
-        /* Applica all'AiClient solo se il modello è effettivamente cambiato */
-        if (idx < cmbModel->count()) {
-            const QString mdl = cmbModel->currentData().toString();
-            if (!mdl.isEmpty() && mdl != m_ai->model()) {
-                const int bk = cmbBackend->currentIndex();
-                m_ai->setBackend(bk == 0 ? AiClient::Ollama : AiClient::LlamaServer,
-                                 m_ai->host(), m_ai->port(), mdl);
-            }
-        }
-
-        /* Ripristina il pulsante refresh ora che i modelli sono arrivati */
-        refreshBtn->setEnabled(true);
-        refreshBtn->setText(tr("\xf0\x9f\x94\x84"));
+    connect(m_ai, &AiClient::modelsReady, bar,
+            [=](const QStringList& list){
+        learnDoModelsReady(list, m_ai, cmbModel, cmbBackend, refreshBtn);
     });
-    /* Se fetchModels fallisce: ripristina il pulsante e mostra un item di errore */
-    connect(m_ai, &AiClient::error, bar, [=](const QString& msg){
-        if (!refreshBtn->isEnabled()) {          /* solo se è in stato "spinner" */
-            refreshBtn->setEnabled(true);
-            refreshBtn->setText(tr("\xf0\x9f\x94\x84"));
-            cmbModel->clear();
-            cmbModel->addItem("\xe2\x9a\xa0  " + msg, "");   /* ⚠ + messaggio */
-        }
+    connect(m_ai, &AiClient::error, bar,
+            [=](const QString& msg){
+        learnDoModelsError(msg, cmbModel, refreshBtn);
     });
-
-    /* Quando l'utente sceglie un modello → aggiorna m_ai */
-    connect(cmbModel, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            bar, [=](int i){
-        if (i < 0) return;
-        int bk = cmbBackend->currentIndex();
-        if (bk == 2) {
-            /* locale */
-            m_ai->setLocalBackend(P::llamaCliBin(), cmbModel->currentData().toString());
-        } else {
-            m_ai->setBackend(bk == 0 ? AiClient::Ollama : AiClient::LlamaServer,
-                             m_ai->host(), m_ai->port(),
-                             cmbModel->currentData().toString());
-        }
-    });
+    connect(cmbModel, QOverload<int>::of(&QComboBox::currentIndexChanged), bar,
+            [=](int i){ learnDoCmbModelChanged(i, m_ai, cmbModel, cmbBackend); });
 
     /* Carica iniziale */
     refreshModels();

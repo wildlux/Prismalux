@@ -585,6 +585,10 @@ private slots:
     void onInsertBuilderFormula();      ///< inserisce il LaTeX del builder nel campo testo
     void onClearBuilderClicked();       ///< chiede conferma prima di svuotare il builder
     void onToggleThunk(int idx);        ///< apre/chiude il thunk "query normalizzata" nel log
+    void onEtimoToggled(bool on);       ///< stile toggle dizionario etimologico
+    void onMathToggleToggled(bool on);  ///< stile + visibilità pannello formule
+    void onMathTplBtnClicked();         ///< inserisce template LaTeX da sender()->property("mathTpl")
+    void onBtnTblClicked();             ///< apre TablePickerPopup sotto il pulsante Tabella
     QString buildThunkHtml(int idx, const QString& text, bool open) const;
 
     /* ── Pipeline / preset ── */

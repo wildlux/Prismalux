@@ -13,10 +13,10 @@ Legenda: 🔴 Alta · 🟡 Media · 🟢 Bassa | ⬜ Aperto · ✅ Fatto
 
 | # | Priorità | Descrizione | File | Stato |
 |---|----------|-------------|------|-------|
-| D-1 | 🟡 | `runLint()` è uno stub vuoto — pyflakes/clang-tidy/eslint non eseguiti | `main_programming_slots.cpp:1629` | ⬜ |
-| D-2 | 🟡 | TTFT (⚡Nms) nell'header — timer da avviare in `onBtnRunClicked()`, primo token ferma | `mainwindow.cpp` | ⬜ |
-| D-3 | 🟢 | Lambda > 2 righe in `connect()` — ~12 occorrenze residue da estrarre in slot | vari `.cpp` | ⬜ |
-| D-4 | 🟢 | Export dataset DPO dai feedback 👍/👎 in JSONL → formato Alpaca/ShareGPT | `main_ai_feedback.cpp` | ⬜ |
+| D-1 | 🟡 | `runLint()` è uno stub vuoto — pyflakes/clang-tidy/eslint non eseguiti | `main_programming_slots.cpp:1629` | ✅ |
+| D-2 | 🟡 | TTFT (⚡Nms) nell'header — timer da avviare in `onBtnRunClicked()`, primo token ferma | `mainwindow.cpp` | ✅ |
+| D-3 | 🟢 | Lambda > 2 righe in `connect()` — estratte 12 slot/free-func; residue ~6 in main_finance/multimedia | vari `.cpp` | ✅ |
+| D-4 | 🟢 | Export dataset DPO dai feedback 👍/👎 in JSONL → formato Alpaca/ShareGPT | `main_ai_feedback.cpp` | ✅ |
 
 ### Distribuzione
 

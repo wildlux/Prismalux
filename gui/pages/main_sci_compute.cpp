@@ -1728,26 +1728,30 @@ void SciComputePage::onAddWuClicked()
 void SciComputePage::onFetchLlmModels()
 {
     if (!m_wuLlmCombo) return;
-    auto* reply = new QNetworkAccessManager(this);
-    connect(reply, &QNetworkAccessManager::finished, this,
-            [this, reply](QNetworkReply* r) {
-        reply->deleteLater();
-        if (r->error() != QNetworkReply::NoError) {
-            appendLog("\xe2\x9a\xa0  Ollama non raggiungibile (" + r->errorString() + ")");
-            return;
-        }
-        const QJsonArray models =
-            QJsonDocument::fromJson(r->readAll()).object()["models"].toArray();
-        if (models.isEmpty()) return;
-        const QString prev = m_wuLlmCombo->currentText();
-        m_wuLlmCombo->clear();
-        for (const auto& v : models)
-            m_wuLlmCombo->addItem(v.toObject()["name"].toString());
-        const int idx = m_wuLlmCombo->findText(prev);
-        m_wuLlmCombo->setCurrentIndex(idx >= 0 ? idx : 0);
-        appendLog(QString("\xf0\x9f\xa4\x96  %1 modelli Ollama caricati").arg(models.size()));
-    });
-    reply->get(QNetworkRequest(QUrl("http://127.0.0.1:11434/api/tags")));
+    auto* nam = new QNetworkAccessManager(this);
+    connect(nam, &QNetworkAccessManager::finished,
+            this, &SciComputePage::onFetchLlmModelsFinished);
+    nam->get(QNetworkRequest(QUrl("http://127.0.0.1:11434/api/tags")));
+}
+
+void SciComputePage::onFetchLlmModelsFinished(QNetworkReply* r)
+{
+    auto* nam = qobject_cast<QNetworkAccessManager*>(sender());
+    if (nam) nam->deleteLater();
+    if (r->error() != QNetworkReply::NoError) {
+        appendLog("\xe2\x9a\xa0  Ollama non raggiungibile (" + r->errorString() + ")");
+        return;
+    }
+    const QJsonArray models =
+        QJsonDocument::fromJson(r->readAll()).object()["models"].toArray();
+    if (models.isEmpty() || !m_wuLlmCombo) return;
+    const QString prev = m_wuLlmCombo->currentText();
+    m_wuLlmCombo->clear();
+    for (const auto& v : models)
+        m_wuLlmCombo->addItem(v.toObject()["name"].toString());
+    const int idx = m_wuLlmCombo->findText(prev);
+    m_wuLlmCombo->setCurrentIndex(idx >= 0 ? idx : 0);
+    appendLog(QString("\xf0\x9f\xa4\x96  %1 modelli Ollama caricati").arg(models.size()));
 }
 
 void SciComputePage::onTypeComboChanged(int idx)

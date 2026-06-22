@@ -173,12 +173,7 @@ void AgentiPage::buildToolbarExportSection(QHBoxLayout* toolLay, QWidget* toolba
         "L'AI risponde in stile Wikipedia: origine greca/latina,\n"
         "morfologia, evoluzione semantica, derivati moderni.");
     toolLay->addWidget(m_btnEtimo);
-    connect(m_btnEtimo, &QPushButton::toggled, toolbar, [this](bool on) {
-        m_btnEtimo->setStyleSheet(on
-            ? "QPushButton{background:#7c3aed;color:#fff;border:1px solid #6d28d9;"
-              "border-radius:4px;padding:3px 8px;font-weight:bold;}"
-            : "");
-    });
+    connect(m_btnEtimo, &QPushButton::toggled, this, &AgentiPage::onEtimoToggled);
 
     m_btnMathToggle = new QPushButton("\xe2\x88\x91  Formule", toolbar);  /* ∑ */
     m_btnMathToggle->setObjectName("actionBtn");
@@ -188,13 +183,7 @@ void AgentiPage::buildToolbarExportSection(QHBoxLayout* toolLay, QWidget* toolba
         "Preview in tempo reale + template per frazioni, limiti,\n"
         "sommatorie, integrali, radici. Auto-sostituzione mentre si scrive.");
     toolLay->addWidget(m_btnMathToggle);
-    connect(m_btnMathToggle, &QPushButton::toggled, toolbar, [this](bool on) {
-        m_btnMathToggle->setStyleSheet(on
-            ? "QPushButton{background:#0e7490;color:#fff;border:1px solid #0891b2;"
-              "border-radius:4px;padding:3px 8px;font-weight:bold;}"
-            : "");
-        if (m_mathPanel) m_mathPanel->setVisible(on);
-    });
+    connect(m_btnMathToggle, &QPushButton::toggled, this, &AgentiPage::onMathToggleToggled);
 
     auto* btnInfo = new QPushButton("\xe2\x84\xb9  Informazioni", toolbar);  /* ℹ */
     btnInfo->setObjectName("actionBtn");
@@ -968,21 +957,7 @@ void AgentiPage::buildMathPanel(QVBoxLayout* lay)
         b->setToolTip(QString::fromUtf8(kTpl[i].tip) +
                       tr("\n(clicca per inserire nel testo, trascina nel costruttore)"));
         b->setProperty("mathTpl", tplStr);
-        connect(b, &QPushButton::clicked, this, [this, b](){
-            if (!m_input) return;
-            const QString tpl = b->property("mathTpl").toString();
-            /* Inserisce il template e posiziona il cursore nel primo {} */
-            QTextCursor cur = m_input->textCursor();
-            cur.insertText(tpl);
-            /* Sposta cursore all'interno del primo {} se presente */
-            const int open = tpl.indexOf('{');
-            if (open >= 0) {
-                int newPos = cur.position() - tpl.size() + open + 1;
-                cur.setPosition(newPos);
-                m_input->setTextCursor(cur);
-            }
-            m_input->setFocus();
-        });
+        connect(b, &QPushButton::clicked, this, &AgentiPage::onMathTplBtnClicked);
         tplGrid->addWidget(b, i / COLS, i % COLS);
     }
     tplFlow->addLayout(tplGrid);
@@ -1606,6 +1581,42 @@ void AgentiPage::onToolChkToggled(bool on)
 {
     if (!m_autoEnabled)   /* In Agente Autonomo, m_toolsEnabled resta true */
         m_toolsEnabled = on;
+}
+
+void AgentiPage::onEtimoToggled(bool on)
+{
+    if (!m_btnEtimo) return;
+    m_btnEtimo->setStyleSheet(on
+        ? "QPushButton{background:#7c3aed;color:#fff;border:1px solid #6d28d9;"
+          "border-radius:4px;padding:3px 8px;font-weight:bold;}"
+        : "");
+}
+
+void AgentiPage::onMathToggleToggled(bool on)
+{
+    if (!m_btnMathToggle) return;
+    m_btnMathToggle->setStyleSheet(on
+        ? "QPushButton{background:#0e7490;color:#fff;border:1px solid #0891b2;"
+          "border-radius:4px;padding:3px 8px;font-weight:bold;}"
+        : "");
+    if (m_mathPanel) m_mathPanel->setVisible(on);
+}
+
+void AgentiPage::onMathTplBtnClicked()
+{
+    if (!m_input) return;
+    auto* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn) return;
+    const QString tpl = btn->property("mathTpl").toString();
+    QTextCursor cur = m_input->textCursor();
+    cur.insertText(tpl);
+    const int open = tpl.indexOf('{');
+    if (open >= 0) {
+        int newPos = cur.position() - tpl.size() + open + 1;
+        cur.setPosition(newPos);
+        m_input->setTextCursor(cur);
+    }
+    m_input->setFocus();
 }
 
 /* Helper: ritorna true se il modello supporta vision multimodale */

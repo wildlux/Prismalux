@@ -101,6 +101,149 @@ static void extractQssColors(QString& bg, QString& bg2, QString& bg3,
     border = (dark ? bgC.lighter(165) : bgC.darker(128)).name();
 }
 
+static void settingsDoResetOnboarding(QPushButton* btn)
+{
+    QSettings s("Prismalux", "GUI");
+    s.remove("setup/done");
+    btn->setText("\xe2\x9c\x85  Reimpostato \xe2\x80\x94 riavvia Prismalux");
+    btn->setEnabled(false);
+}
+
+static void settingsRefreshAiMemoryLog(AIMemory* mem, QListWidget* logList)
+{
+    logList->clear();
+    for (const QString& entry : mem->gitLog(30))
+        logList->addItem(entry);
+    if (logList->count() == 0)
+        logList->addItem("(nessun commit \xe2\x80\x94 scrivi qualcosa nella chat AI per cominciare)");
+}
+
+static void settingsDoRevertAiMemory(AIMemory* mem, QListWidget* logList, QWidget* w)
+{
+    QListWidgetItem* item = logList->currentItem();
+    if (!item || item->text().startsWith('(')) {
+        QMessageBox::information(w, QObject::tr("Seleziona un commit"),
+            QObject::tr("Seleziona un commit dalla lista per ripristinare le preferenze."));
+        return;
+    }
+    const QString hash = item->text().split(' ').first();
+    if (QMessageBox::question(w, QObject::tr("Ripristina preferenze"),
+            QObject::tr("Ripristinare <code>profile/preferences.yaml</code> al commit <b>")
+            + hash + "</b>?",
+            QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes) {
+        if (mem->revertFile(hash, "profile/preferences.yaml")) {
+            QMessageBox::information(w, QObject::tr("Completato"),
+                QObject::tr("preferences.yaml ripristinato al commit ") + hash + ".");
+            settingsRefreshAiMemoryLog(mem, logList);
+        } else {
+            QMessageBox::warning(w, QObject::tr("Errore"),
+                QObject::tr("Impossibile ripristinare. Verifica che git sia installato e il commit esista."));
+        }
+    }
+}
+
+static void settingsLoadFeedbackData(QTableWidget* table, QLabel* statLbl)
+{
+    const QString path = PrismaluxPaths::feedbackPath();
+    QFile f(path);
+    table->setRowCount(0);
+    if (!f.exists()) {
+        statLbl->setText(QObject::tr("\xe2\x84\xb9  Nessun feedback raccolto ancora."));
+        return;
+    }
+    QMap<QString, QPair<int,int>> counts;
+    if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        while (!f.atEnd()) {
+            const QByteArray line = f.readLine().trimmed();
+            if (line.isEmpty()) continue;
+            QJsonParseError pe;
+            auto doc = QJsonDocument::fromJson(line, &pe);
+            if (pe.error != QJsonParseError::NoError) continue;
+            const QString model  = doc["model"].toString();
+            const int     rating = doc["rating"].toInt();
+            auto& p = counts[model];
+            if (rating > 0) p.first++;
+            else             p.second++;
+        }
+        f.close();
+    }
+    int totalPos = 0, totalNeg = 0;
+    for (auto it = counts.cbegin(); it != counts.cend(); ++it) {
+        const int row = table->rowCount();
+        table->insertRow(row);
+        table->setItem(row, 0, new QTableWidgetItem(it.key()));
+        table->setItem(row, 1, new QTableWidgetItem(QString::number(it.value().first)));
+        table->setItem(row, 2, new QTableWidgetItem(QString::number(it.value().second)));
+        table->setItem(row, 3, new QTableWidgetItem(
+            QString::number(it.value().first + it.value().second)));
+        totalPos += it.value().first;
+        totalNeg += it.value().second;
+    }
+    statLbl->setText(QString(
+        QObject::tr("\xf0\x9f\x93\x88  Totale: %1 positivi / %2 negativi su %3 risposte valutate"))
+        .arg(totalPos).arg(totalNeg).arg(totalPos + totalNeg));
+}
+
+static void settingsDoExportDpo(QWidget* w, QLabel* statLbl)
+{
+    const QString src = PrismaluxPaths::feedbackPath();
+    QFile f(src);
+    if (!f.exists() || !f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        statLbl->setText(QObject::tr("\xe2\x9d\x8c  Nessun dato da esportare."));
+        return;
+    }
+    QJsonArray dataset;
+    QHash<QString, QJsonObject> positives;
+    while (!f.atEnd()) {
+        const QByteArray line = f.readLine().trimmed();
+        if (line.isEmpty()) continue;
+        QJsonParseError pe;
+        auto doc = QJsonDocument::fromJson(line, &pe);
+        if (pe.error != QJsonParseError::NoError) continue;
+        const QString prompt   = doc["prompt"].toString();
+        const QString response = doc["response"].toString();
+        const int     rating   = doc["rating"].toInt();
+        const QString model    = doc["model"].toString();
+        if (rating > 0) {
+            positives[prompt] = doc.object();
+        } else if (rating < 0 && positives.contains(prompt)) {
+            QJsonObject pair;
+            pair["instruction"] = prompt;
+            pair["chosen"]      = positives[prompt]["response"].toString();
+            pair["rejected"]    = response;
+            pair["model"]       = model;
+            dataset.append(pair);
+        }
+    }
+    f.close();
+    const QString outPath = QDir::homePath()
+        + "/.prismalux/dpo_dataset_"
+        + QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss")
+        + ".json";
+    QFile out(outPath);
+    if (out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        out.write(QJsonDocument(dataset).toJson(QJsonDocument::Indented));
+        out.close();
+        statLbl->setText(
+            QString(QObject::tr("\xe2\x9c\x85  Dataset DPO esportato: %1 coppie in %2"))
+            .arg(dataset.size()).arg(outPath));
+    } else {
+        statLbl->setText(QObject::tr("\xe2\x9d\x8c  Impossibile scrivere: ") + outPath);
+    }
+}
+
+static void settingsDoClrFeedback(QWidget* w, QTableWidget* table, QLabel* statLbl)
+{
+    if (QMessageBox::question(w,
+            QObject::tr("Cancella feedback"),
+            QObject::tr("Eliminare tutti i dati di feedback?\nQuesta azione \xc3\xa8 irreversibile."),
+            QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
+        return;
+    QFile::remove(PrismaluxPaths::feedbackPath());
+    table->setRowCount(0);
+    statLbl->setText(QObject::tr("\xf0\x9f\x97\x91  Dati feedback cancellati."));
+}
+
 QWidget* ImpostazioniPage::buildRingraziamentiTab()
 {
     /* ── CSS parametrizzato: %1=bg %2=text %3=accent %4=muted %5=border %6=bg3 %7=bg2 ── */
@@ -879,12 +1022,8 @@ QWidget* ImpostazioniPage::buildMcpTab()
     onbBtn->setToolTip(
         "Reimposta il flag di primo avvio: alla prossima apertura\n"
         "di Prismalux apparir\xc3\xa0 di nuovo la schermata di benvenuto.");
-    connect(onbBtn, &QPushButton::clicked, onbBtn, [onbBtn]() {
-        QSettings s("Prismalux", "GUI");
-        s.remove("setup/done");
-        onbBtn->setText("\xe2\x9c\x85  Reimpostato — riavvia Prismalux");
-        onbBtn->setEnabled(false);
-    });
+    connect(onbBtn, &QPushButton::clicked, onbBtn,
+            [onbBtn](){ settingsDoResetOnboarding(onbBtn); });
     onbRow->addWidget(onbBtn);
     onbRow->addStretch();
     vlay->addLayout(onbRow);
@@ -928,47 +1067,22 @@ QWidget* ImpostazioniPage::buildAiMemoryTab()
     logList->setFont(QFont("monospace", 9));
     vbox->addWidget(logList, 1);
 
-    auto doRefresh = [mem, logList]() {
-        logList->clear();
-        for (const QString& entry : mem->gitLog(30))
-            logList->addItem(entry);
-        if (logList->count() == 0)
-            logList->addItem("(nessun commit — scrivi qualcosa nella chat AI per cominciare)");
-    };
-    doRefresh();
+    settingsRefreshAiMemoryLog(mem, logList);
 
     /* ── pulsanti ── */
     auto* btnRow = new QHBoxLayout;
 
     auto* refreshBtn = new QPushButton("\xf0\x9f\x94\x84  Aggiorna", w);
-    connect(refreshBtn, &QPushButton::clicked, w, doRefresh);
+    connect(refreshBtn, &QPushButton::clicked, w,
+            [mem, logList](){ settingsRefreshAiMemoryLog(mem, logList); });
     btnRow->addWidget(refreshBtn);
 
     auto* revertBtn = new QPushButton("\xe2\x86\xa9  Ripristina preferences.yaml", w);
     revertBtn->setToolTip(
         "Ripristina il file profile/preferences.yaml al commit selezionato.\n"
         "Gli altri file (interactions/, context/) non vengono toccati.");
-    connect(revertBtn, &QPushButton::clicked, w, [mem, logList, w, doRefresh]() {
-        QListWidgetItem* item = logList->currentItem();
-        if (!item || item->text().startsWith('(')) {
-            QMessageBox::information(w, "Seleziona un commit",
-                "Seleziona un commit dalla lista per ripristinare le preferenze.");
-            return;
-        }
-        const QString hash = item->text().split(' ').first();
-        if (QMessageBox::question(w, "Ripristina preferenze",
-                "Ripristinare <code>profile/preferences.yaml</code> al commit <b>" + hash + "</b>?",
-                QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes) {
-            if (mem->revertFile(hash, "profile/preferences.yaml")) {
-                QMessageBox::information(w, "Completato",
-                    "preferences.yaml ripristinato al commit " + hash + ".");
-                doRefresh();
-            } else {
-                QMessageBox::warning(w, "Errore",
-                    "Impossibile ripristinare. Verifica che git sia installato e il commit esista.");
-            }
-        }
-    });
+    connect(revertBtn, &QPushButton::clicked, w,
+            [mem, logList, w](){ settingsDoRevertAiMemory(mem, logList, w); });
     btnRow->addWidget(revertBtn);
 
     auto* openBtn = new QPushButton("\xf0\x9f\x93\x82  Apri cartella", w);
@@ -1035,115 +1149,16 @@ QWidget* ImpostazioniPage::buildFeedbackTab()
     vbox->addWidget(statLbl);
     vbox->addLayout(btnRow);
 
-    /* Helper: ricarica tabella da JSONL */
-    auto loadData = [table, statLbl]() {
-        const QString path = PrismaluxPaths::feedbackPath();
-        QFile f(path);
-        table->setRowCount(0);
-        if (!f.exists()) {
-            statLbl->setText(tr("\xe2\x84\xb9  Nessun feedback raccolto ancora."));
-            return;
-        }
-        /* Aggrega per modello */
-        QMap<QString, QPair<int,int>> counts;   /* model → (pos, neg) */
-        if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            while (!f.atEnd()) {
-                const QByteArray line = f.readLine().trimmed();
-                if (line.isEmpty()) continue;
-                QJsonParseError pe;
-                auto doc = QJsonDocument::fromJson(line, &pe);
-                if (pe.error != QJsonParseError::NoError) continue;
-                const QString model  = doc["model"].toString();
-                const int     rating = doc["rating"].toInt();
-                auto& p = counts[model];
-                if (rating > 0) p.first++;
-                else             p.second++;
-            }
-            f.close();
-        }
-        int totalPos = 0, totalNeg = 0;
-        for (auto it = counts.cbegin(); it != counts.cend(); ++it) {
-            const int row = table->rowCount();
-            table->insertRow(row);
-            table->setItem(row, 0, new QTableWidgetItem(it.key()));
-            table->setItem(row, 1, new QTableWidgetItem(
-                QString::number(it.value().first)));
-            table->setItem(row, 2, new QTableWidgetItem(
-                QString::number(it.value().second)));
-            table->setItem(row, 3, new QTableWidgetItem(
-                QString::number(it.value().first + it.value().second)));
-            totalPos += it.value().first;
-            totalNeg += it.value().second;
-        }
-        statLbl->setText(QString(
-            tr("\xf0\x9f\x93\x88  Totale: %1 positivi / %2 negativi su %3 risposte valutate"))
-            .arg(totalPos).arg(totalNeg).arg(totalPos + totalNeg));
-    };
-    loadData();
+    settingsLoadFeedbackData(table, statLbl);
 
-    connect(btnRefresh, &QPushButton::clicked, w, [loadData]{ loadData(); });
+    connect(btnRefresh, &QPushButton::clicked, w,
+            [table, statLbl](){ settingsLoadFeedbackData(table, statLbl); });
 
-    connect(btnExport, &QPushButton::clicked, w, [w, statLbl]() {
-        const QString src = PrismaluxPaths::feedbackPath();
-        QFile f(src);
-        if (!f.exists() || !f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            statLbl->setText(tr("\xe2\x9d\x8c  Nessun dato da esportare."));
-            return;
-        }
-        /* Costruisce coppie chosen/rejected in formato ShareGPT */
-        /* Strategia semplice: ogni +1 è "chosen", ogni -1 è "rejected".
-           Coppie: prompt ripetuto → abbinato manualmente se stessa domanda. */
-        QJsonArray dataset;
-        QHash<QString, QJsonObject> positives;   /* prompt → entry pos */
-        while (!f.atEnd()) {
-            const QByteArray line = f.readLine().trimmed();
-            if (line.isEmpty()) continue;
-            QJsonParseError pe;
-            auto doc = QJsonDocument::fromJson(line, &pe);
-            if (pe.error != QJsonParseError::NoError) continue;
-            const QString prompt   = doc["prompt"].toString();
-            const QString response = doc["response"].toString();
-            const int     rating   = doc["rating"].toInt();
-            const QString model    = doc["model"].toString();
-            if (rating > 0) {
-                positives[prompt] = doc.object();
-            } else if (rating < 0 && positives.contains(prompt)) {
-                /* Coppia DPO: chosen = risposta positiva, rejected = negativa */
-                QJsonObject pair;
-                pair["instruction"] = prompt;
-                pair["chosen"]      = positives[prompt]["response"].toString();
-                pair["rejected"]    = response;
-                pair["model"]       = model;
-                dataset.append(pair);
-            }
-        }
-        f.close();
-        const QString outPath = QDir::homePath()
-            + "/.prismalux/dpo_dataset_"
-            + QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss")
-            + ".json";
-        QFile out(outPath);
-        if (out.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            out.write(QJsonDocument(dataset).toJson(QJsonDocument::Indented));
-            out.close();
-            statLbl->setText(
-                QString(tr("\xe2\x9c\x85  Dataset DPO esportato: %1 coppie in %2"))
-                .arg(dataset.size()).arg(outPath));
-        } else {
-            statLbl->setText(tr("\xe2\x9d\x8c  Impossibile scrivere: ") + outPath);
-        }
-    });
+    connect(btnExport, &QPushButton::clicked, w,
+            [w, statLbl](){ settingsDoExportDpo(w, statLbl); });
 
-    connect(btnClear, &QPushButton::clicked, w, [w, table, statLbl, loadData]() {
-        const auto ans = QMessageBox::question(w,
-            tr("Cancella feedback"),
-            tr("Eliminare tutti i dati di feedback?\nQuesta azione \xc3\xa8 irreversibile."),
-            QMessageBox::Yes | QMessageBox::No);
-        if (ans != QMessageBox::Yes) return;
-        QFile::remove(PrismaluxPaths::feedbackPath());
-        table->setRowCount(0);
-        statLbl->setText(tr("\xf0\x9f\x97\x91  Dati feedback cancellati."));
-    });
+    connect(btnClear, &QPushButton::clicked, w,
+            [w, table, statLbl](){ settingsDoClrFeedback(w, table, statLbl); });
 
     return w;
 }

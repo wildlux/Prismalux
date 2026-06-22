@@ -232,6 +232,8 @@ private slots:
     void onRagGraphProgress(int cur, int tot, const QString& file);
     void onRagGraphFinished(const RagGraphStats& stats);
     void onRagGraphMemChanged();
+    void onRagGraphFileCopied(const QString& filename, const QString& dest);
+    void onRagGmBackupDone(const QString& path, bool ok);
     void onRagDotProcFinished(int code, QProcess::ExitStatus status);
     void onRagRefreshDot();
 
