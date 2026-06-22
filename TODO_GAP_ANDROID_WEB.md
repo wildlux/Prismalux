@@ -66,10 +66,11 @@ via QProcess.
 
 ---
 
-### A-7 🟢 AppController mobile — solo OBS e OpenCode
-**File Android:** `pages/obs_page.h`, `pages/opencode_page.h`  
-**Manca:** Blender, FreeCAD, Anki, KiCAD (tutti desktop-only — ⚪ skip).  
-**Fattibile:** Anki (tramite AnkiDroid API), TinyMCP (server locale).
+### A-7 ✅ AppController mobile — Anki FlashCard + TinyMCP *(completato 2026-06-22)*
+**File:** `pages/appcontroller_page.h/cpp` — `QComboBox` → due sezioni:
+- **Anki FlashCard**: connessione a AnkiConnect (porta 8765 sul PC); GET decks, aggiungi carta, genera 5 carte AI (JSON) e invia ad Anki, statistiche review.
+- **TinyMCP Client**: connessione all'LAN server Prismalux; lista modelli/tool, test connessione, esecuzione tool (`chat`, `repl`, `rag`, fallback `/api/tool`).
+Registrata in `mainwindow` all'indice 32, voce `"\xf0\x9f\x95\xb9 App Controller"` nel cassetto.
 
 ---
 
@@ -281,7 +282,7 @@ Cytoscape/RDKit non hanno API REST esposte dal desktop. Impraticabile via web.
 | Ricerca strutturata | ✅ | ✅ | ❌ B-5 |
 | Security Analyzer | ✅ | ✅ | ❌ B-8 |
 | Multi-Agente GraphMem | ✅ | ✅ | ❌ B-9 |
-| AppController | ✅ | parz. A-7 | ✅ |
+| AppController | ✅ | ✅ A-7 | ✅ |
 | Bioinformatica | ✅ | ⚪ skip | ⚪ skip |
 | Stable Diffusion | ✅ | ⚪ skip | ⚪ skip |
 | Sintetizzatore | ✅ | ✅ | ❌ B-10 |
