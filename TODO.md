@@ -76,7 +76,7 @@ Legenda: 🔴 Alta · 🟡 Media · 🟢 Bassa | ⬜ Aperto · ✅ Fatto
 
 | # | Priorità | Descrizione | Stato |
 |---|----------|-------------|-------|
-| APK-1 | 🔴 | Rebuild APK v3.0 dopo completamento A-1÷A-7 | ⬜ |
+| APK-1 | 🔴 | Rebuild APK v3.0 dopo completamento A-1÷A-7 | ✅ 2026-06-24 — 33 MB firmato debug, 3 fix clang ARM64 + manifest duplicato + android-34 |
 | APK-2 | 🟡 | Aggiornare `versionName` in `AndroidManifest.xml` da 2.9 a 3.0 | ✅ |
 
 ### Ordine implementazione consigliato
