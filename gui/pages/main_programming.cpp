@@ -2,6 +2,7 @@
 #include "main_distillazione.h"
 #include "widget_code_interpreter.h"
 #include "widget_coding_lab.h"
+#include "widget_webdev.h"
 #include "../prismalux_paths.h"
 #include "../ai_utils.h"
 #include "../widgets/ai_error_widget.h"
@@ -206,6 +207,8 @@ void ProgrammazionePage::buildInnerTabs()
         "\xf0\x9f\xa7\xaa  Lab Coding");
     m_innerTabs->addTab(new DistillazionePage(m_ai, m_innerTabs),
         "\xf0\x9f\xa7\xac  Distillazione");
+    m_innerTabs->addTab(new WebDevWidget(m_ai, m_innerTabs),
+        "\xf0\x9f\x8c\x90  Web Dev");
 }
 
 /* ── Livello 1: tab Coding completo ── */

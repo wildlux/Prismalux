@@ -213,6 +213,7 @@ set(CPP_SRCS
     pages/widget_formula_builder.cpp
     pages/widget_code_interpreter.cpp
     pages/widget_coding_lab.cpp
+    pages/widget_webdev.cpp
     pages/widget_ssh_manager.cpp
     pages/widget_solar_calc.cpp
     pages/widget_idro.cpp
