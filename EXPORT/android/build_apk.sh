@@ -17,7 +17,8 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="$SCRIPT_DIR/android_app"
+ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+APP_DIR="$ROOT_DIR/ANDROID/QT_ANDROID_Version/android_app"
 
 # ── Configurazione ────────────────────────────────────────────
 QT_VERSION="6.7.3"
@@ -28,7 +29,7 @@ ANDROID_SDK="$HOME/Android/Sdk"
 ANDROID_NDK_VER="26.1.10909125"  # r26b — minimo richiesto da Qt 6.7 (std::pmr)
 ANDROID_API="34"
 ANDROID_ABI="arm64-v8a"
-APK_OUTPUT="$SCRIPT_DIR/PrismaluxMobile.apk"
+APK_OUTPUT="$ROOT_DIR/ANDROID/PrismaluxMobile.apk"
 ANDROID_OPENSSL_DIR="$HOME/Android/android_openssl-master/ssl_3/$ANDROID_ABI"
 
 # ── Colori ────────────────────────────────────────────────────
@@ -159,9 +160,11 @@ cmake -S "$APP_DIR" -B "$BUILD_DIR" \
     -DANDROID_SDK_ROOT="$ANDROID_SDK" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_FIND_ROOT_PATH="$QT_ANDROID_DIR" \
-    -DCMAKE_MAKE_PROGRAM="$(which ninja || which make)" \
+    -DCMAKE_MAKE_PROGRAM="$(which make)" \
     -DANDROID_OPENSSL_DIR="$ANDROID_OPENSSL_DIR" \
-    2>&1 | grep -E "(Status|Error|Found|missing|OpenSSL)" | grep -v "Deprecation" | tail -10
+    2>&1 | tee /tmp/prismalux_cmake_android.log | \
+    grep -E "(Status|Error|Found|missing|OpenSSL)" | grep -v "Deprecation" | tail -10
+grep -q "CMake Error" /tmp/prismalux_cmake_android.log && die "CMake configure fallito — vedi /tmp/prismalux_cmake_android.log" || true
 
 ok "CMake configurato"
 
@@ -173,8 +176,9 @@ step "5 — Compilazione + packaging APK"
 _RAW_NPROC="$(nproc 2>/dev/null || echo 2)"
 _JOBS=$(( _RAW_NPROC > 1 ? _RAW_NPROC - 1 : 1 ))
 log "Core disponibili: ${_RAW_NPROC}  →  job paralleli: ${_JOBS} (core-1)"
-cmake --build "$BUILD_DIR" -j"${_JOBS}" 2>&1 | \
+cmake --build "$BUILD_DIR" -j"${_JOBS}" 2>&1 | tee /tmp/prismalux_build_android.log | \
     grep -E "(error:|Error|BUILD SUCCESSFUL|\[)" | tail -20
+grep -q "^.*error:" /tmp/prismalux_build_android.log && die "Build fallita — vedi /tmp/prismalux_build_android.log" || true
 
 ok "Build completata"
 

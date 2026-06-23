@@ -31,6 +31,8 @@ public:
     void setAnimating(bool on);
 protected:
     void paintEvent(QPaintEvent*) override;
+private slots:
+    void onTimerTick();
 private:
     double  m_freq  = 440.0;
     QString m_onda  = "sine";

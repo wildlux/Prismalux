@@ -37,11 +37,14 @@ OscoCanvas::OscoCanvas(QWidget* parent) : QWidget(parent)
     setMinimumHeight(130);
     m_timer = new QTimer(this);
     m_timer->setInterval(33);
-    connect(m_timer, &QTimer::timeout, this, [this]{
-        m_phase += 2.0 * M_PI * m_freq * 0.033 / 8.0;
-        if (m_phase > 2.0 * M_PI * 100) m_phase = 0.0;
-        update();
-    });
+    connect(m_timer, &QTimer::timeout, this, &OscoCanvas::onTimerTick);
+}
+
+void OscoCanvas::onTimerTick()
+{
+    m_phase += 2.0 * M_PI * m_freq * 0.033 / 8.0;
+    if (m_phase > 2.0 * M_PI * 100) m_phase = 0.0;
+    update();
 }
 
 void OscoCanvas::setTono(double freq, const QString& onda, double vol)
