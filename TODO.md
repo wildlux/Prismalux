@@ -22,7 +22,7 @@ Legenda: 🔴 Alta · 🟡 Media · 🟢 Bassa | ⬜ Aperto · ✅ Fatto
 
 | # | Priorità | Descrizione | Stato |
 |---|----------|-------------|-------|
-| D-5 | 🔴 | Rigenerare `EXPORT/linux/Prismalux_v3.0_Linux.zip` — attuale è v2.9 obsoleto | ⬜ |
+| D-5 | 🔴 | Rigenerare `EXPORT/linux/Prismalux_v3.0_Linux.zip` — attuale è v2.9 obsoleto. **Eseguire: `./aggiorna.sh`** (build ok, interrotto manualmente) | ⬜ |
 | D-6 | 🟡 | Scrivere GitHub Release notes v2.9→v3.0 (44 feature nuove, 7 VULN chiuse) | ✅ `EXPORT/RELEASE_NOTES_v3.0.md` |
 
 ---

@@ -1,4 +1,5 @@
 #pragma once
+#include <sstream>  // GCC 15: deve precedere <filesystem>/<QDir> per evitare -Wtemplate-body
 #ifdef HAVE_WEBENGINE_WIDGETS
 #include <QWebEngineView>
 #include <QWebEnginePage>

@@ -865,6 +865,10 @@ if(BUILD_TESTS)
     )
     if(NOT WIN32)
         target_link_libraries(test_matematica_page PRIVATE pthread m)
+        # GCC 15: #define private public nel test altera visibilità in <sstream>
+        # -include forza <sstream> prima di qualsiasi macro — solo per C++, non C
+        target_compile_options(test_matematica_page PRIVATE
+            $<$<COMPILE_LANGUAGE:CXX>:-include sstream>)
     endif()
 
     # ── test_qr_code_widget: QrCodeWidget generazione, rendering, dialog APK ──
