@@ -660,21 +660,9 @@ void MainWindow::setupBackend()
     connect(m_ai, &AiClient::modelChanged,  this, &MainWindow::onModelChanged);
 
     /* TTFT tracking nell'header */
-    connect(m_ai, &AiClient::requestStarted, this, [this](const QString&, const QString&) {
-        m_ttftTimer.restart();
-        m_ttftGotFirst = false;
-    });
-    connect(m_ai, &AiClient::token, this, [this](const QString&) {
-        if (m_ttftGotFirst || !m_ttftLbl) return;
-        m_ttftGotFirst = true;
-        const qint64 ms = m_ttftTimer.elapsed();
-        m_ttftLbl->setText(QString("\xe2\x9a\xa1 %1ms").arg(ms));
-        const char* clr = (ms < 1000) ? "#22c55e" : (ms < 3000) ? "#f59e0b" : "#ef4444";
-        m_ttftLbl->setStyleSheet(
-            QString("QLabel#ttftLabel{color:%1;font-size:11px;padding:0 4px;}").arg(clr));
-        m_ttftLbl->setVisible(true);
-    });
-    connect(m_ai, &AiClient::aborted, this, [this]() {
+    connect(m_ai, &AiClient::requestStarted, this, &MainWindow::onTtftRequestStarted);
+    connect(m_ai, &AiClient::token,          this, &MainWindow::onTtftToken);
+    connect(m_ai, &AiClient::aborted,        this, [this]() {
         if (m_ttftLbl) m_ttftLbl->setVisible(false);
     });
 
@@ -1610,29 +1598,12 @@ QWidget* MainWindow::buildSidebar() {
     /* Filtra la lista in tempo reale */
     connect(m_chatSearch, &QLineEdit::textChanged, this, &MainWindow::onChatSearchChanged);
     connect(m_chatList, &QListWidget::itemClicked, this, &MainWindow::onChatItemClicked);
-    connect(m_chatList, &QListWidget::itemSelectionChanged, this, [this] {
-        if (m_btnDeleteChats)
-            m_btnDeleteChats->setEnabled(!m_chatList->selectedItems().isEmpty());
-        if (m_chkSelectAll) {
-            int visible = 0;
-            for (int i = 0; i < m_chatList->count(); ++i)
-                if (m_chatList->item(i) && !m_chatList->item(i)->isHidden()) visible++;
-            const int sel = m_chatList->selectedItems().size();
-            QSignalBlocker b(m_chkSelectAll);
-            m_chkSelectAll->setCheckState(
-                sel == 0         ? Qt::Unchecked :
-                sel >= visible   ? Qt::Checked   : Qt::PartiallyChecked);
-        }
-    });
+    connect(m_chatList, &QListWidget::itemSelectionChanged,
+            this, &MainWindow::onChatSelectionChanged);
 
     /* Checkbox "Seleziona tutto" */
-    connect(m_chkSelectAll, &QCheckBox::toggled, this, [this](bool checked) {
-        for (int i = 0; i < m_chatList->count(); ++i) {
-            auto* item = m_chatList->item(i);
-            if (item && !item->isHidden())
-                item->setSelected(checked);
-        }
-    });
+    connect(m_chkSelectAll, &QCheckBox::toggled,
+            this, &MainWindow::onSelectAllToggled);
 
     /* ── Context menu tasto destro sulle chat ── */
     m_chatList->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -1748,16 +1719,8 @@ QWidget* MainWindow::buildContent()
         m_mainTabs->setCornerWidget(srchWrap, Qt::TopRightCorner);
 
         /* Ricerca live */
-        connect(m_tabSearchEdit, &QLineEdit::textChanged, this, [this](const QString& t) {
-            if (t.trimmed().isEmpty()) return;
-            const QString q = t.trimmed();
-            for (int i = 0; i < m_mainTabs->count(); ++i) {
-                if (m_mainTabs->tabText(i).contains(q, Qt::CaseInsensitive)) {
-                    m_mainTabs->setCurrentIndex(i);
-                    break;
-                }
-            }
-        });
+        connect(m_tabSearchEdit, &QLineEdit::textChanged,
+                this, &MainWindow::onTabSearchTextChanged);
         /* Invio → chiude */
         connect(m_tabSearchEdit, &QLineEdit::returnPressed, this, [this]{
             m_tabSearchEdit->clear();

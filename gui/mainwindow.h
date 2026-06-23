@@ -392,6 +392,9 @@ private slots:
     /* ── Chat sidebar ───────────────────────────────────────────── */
     void onNewChatClicked();
     void onChatSearchChanged(const QString& q);
+    void onChatSelectionChanged();
+    void onSelectAllToggled(bool checked);
+    void onTabSearchTextChanged(const QString& t);
     void onChatItemClicked(QListWidgetItem* item);
     void onChatContextMenuRequested(const QPoint& pos);
     void onChatActionPdf();
@@ -429,6 +432,11 @@ private slots:
 
     /* ── Auto-update GitHub ─────────────────────────────────────── */
     void checkForUpdates();
+    void onAutoUpdateReply();
+
+    /* ── TTFT tracking ──────────────────────────────────────────── */
+    void onTtftRequestStarted();
+    void onTtftToken();
 
     /* ── Math download button (showServerDialog) ─────────────────── */
     void onMathDlBtnClicked();

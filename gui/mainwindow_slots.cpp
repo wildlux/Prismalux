@@ -41,6 +41,7 @@
 #include <QComboBox>
 #include <QTabWidget>
 #include <QListWidgetItem>
+#include <QSignalBlocker>
 #include <QKeyEvent>
 
 namespace P = PrismaluxPaths;
@@ -989,24 +990,85 @@ void MainWindow::checkForUpdates()
     req.setRawHeader("Accept", "application/vnd.github+json");
     req.setTransferTimeout(8000);
     auto* reply = nam->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, nam, curVer]() {
-        reply->deleteLater();
-        nam->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) return;
-        const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-        if (!doc.isObject()) return;
-        QString tag = doc.object().value("tag_name").toString().trimmed();
-        if (tag.isEmpty()) return;
-        if (tag.startsWith('v') || tag.startsWith('V')) tag = tag.mid(1);
-        if (tag == curVer) return;
-        auto* lbl = new QLabel(this);
-        lbl->setObjectName("updateStatusLbl");
-        lbl->setTextFormat(Qt::RichText);
-        lbl->setOpenExternalLinks(true);
-        lbl->setStyleSheet("QLabel#updateStatusLbl{color:#f59e0b;font-weight:bold;}");
-        lbl->setText(
-            "\xf0\x9f\x86\x95 Prismalux <b>v" + tag + "</b> disponibile &mdash; "
-            "<a href='https://github.com/wildlux/Prismalux/releases'>Scarica</a>");
-        statusBar()->addPermanentWidget(lbl);
-    });
+    connect(reply, &QNetworkReply::finished, this, &MainWindow::onAutoUpdateReply);
+}
+
+void MainWindow::onAutoUpdateReply()
+{
+    auto* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    auto* nam = reply->manager();
+    reply->deleteLater();
+    if (nam) nam->deleteLater();
+    if (reply->error() != QNetworkReply::NoError) return;
+    const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+    if (!doc.isObject()) return;
+    QString tag = doc.object().value("tag_name").toString().trimmed();
+    if (tag.isEmpty()) return;
+    if (tag.startsWith('v') || tag.startsWith('V')) tag = tag.mid(1);
+    const QString curVer = QCoreApplication::applicationVersion();
+    if (tag == curVer) return;
+    auto* lbl = new QLabel(this);
+    lbl->setObjectName("updateStatusLbl");
+    lbl->setTextFormat(Qt::RichText);
+    lbl->setOpenExternalLinks(true);
+    lbl->setStyleSheet("QLabel#updateStatusLbl{color:#f59e0b;font-weight:bold;}");
+    lbl->setText(
+        "\xf0\x9f\x86\x95 Prismalux <b>v" + tag + "</b> disponibile &mdash; "
+        "<a href='https://github.com/wildlux/Prismalux/releases'>Scarica</a>");
+    statusBar()->addPermanentWidget(lbl);
+}
+
+void MainWindow::onTtftRequestStarted()
+{
+    m_ttftTimer.restart();
+    m_ttftGotFirst = false;
+}
+
+void MainWindow::onTtftToken()
+{
+    if (m_ttftGotFirst || !m_ttftLbl) return;
+    m_ttftGotFirst = true;
+    const qint64 ms = m_ttftTimer.elapsed();
+    m_ttftLbl->setText(QString("\xe2\x9a\xa1 %1ms").arg(ms));
+    const char* clr = (ms < 1000) ? "#22c55e" : (ms < 3000) ? "#f59e0b" : "#ef4444";
+    m_ttftLbl->setStyleSheet(
+        QString("QLabel#ttftLabel{color:%1;font-size:11px;padding:0 4px;}").arg(clr));
+    m_ttftLbl->setVisible(true);
+}
+
+void MainWindow::onChatSelectionChanged()
+{
+    if (m_btnDeleteChats)
+        m_btnDeleteChats->setEnabled(!m_chatList->selectedItems().isEmpty());
+    if (!m_chkSelectAll) return;
+    int visible = 0;
+    for (int i = 0; i < m_chatList->count(); ++i)
+        if (m_chatList->item(i) && !m_chatList->item(i)->isHidden()) visible++;
+    const int sel = m_chatList->selectedItems().size();
+    QSignalBlocker b(m_chkSelectAll);
+    m_chkSelectAll->setCheckState(
+        sel == 0       ? Qt::Unchecked :
+        sel >= visible ? Qt::Checked   : Qt::PartiallyChecked);
+}
+
+void MainWindow::onSelectAllToggled(bool checked)
+{
+    for (int i = 0; i < m_chatList->count(); ++i) {
+        auto* item = m_chatList->item(i);
+        if (item && !item->isHidden())
+            item->setSelected(checked);
+    }
+}
+
+void MainWindow::onTabSearchTextChanged(const QString& t)
+{
+    if (t.trimmed().isEmpty()) return;
+    const QString q = t.trimmed();
+    for (int i = 0; i < m_mainTabs->count(); ++i) {
+        if (m_mainTabs->tabText(i).contains(q, Qt::CaseInsensitive)) {
+            m_mainTabs->setCurrentIndex(i);
+            break;
+        }
+    }
 }
