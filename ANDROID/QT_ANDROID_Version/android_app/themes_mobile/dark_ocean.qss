@@ -1,0 +1,57 @@
+/* ── Tema: dark_ocean — accento #0284c7 blu profondo, sfondo oceano ── */
+
+QMainWindow, QWidget { background-color: #0c1628; }
+QDialog               { background-color: #0c1628; }
+QMessageBox           { background-color: #0c1628; }
+
+QWidget#HeaderBar { background-color: #070f1a; border-bottom: 1px solid #1c2c42; }
+QWidget#NavDrawer { background-color: #070f1a; border-right:  1px solid #1c2c42; }
+QGroupBox#SettingsGroup::title { background-color: #0c1628; color: #0284c7; }
+
+QLineEdit { selection-background-color: #0284c7; }
+QLineEdit:focus { border-color: #0284c7; background-color: #152035; }
+QSpinBox:focus  { border-color: #0284c7; }
+QDoubleSpinBox:focus { border-color: #0284c7; }
+QComboBox:focus { border-color: #0284c7; }
+QSpinBox::up-button:hover, QSpinBox::down-button:hover { background-color: #0284c7; }
+QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover { background-color: #0284c7; }
+QLineEdit#SettingsInput:focus,
+QSpinBox#SettingsInput:focus,
+QComboBox#SettingsInput:focus { border-color: #0284c7; }
+QLineEdit#ChatInput { selection-background-color: #0284c7; }
+QLineEdit#ChatInput:focus { border-color: #0284c7; background-color: #152035; }
+
+QCheckBox::indicator:checked { background-color: #0284c7; border-color: #0284c7; }
+QCheckBox::indicator:hover   { border-color: #0284c7; }
+
+QDialogButtonBox QPushButton:hover   { border-color: #0284c7; }
+QDialogButtonBox QPushButton:default { background-color: #0284c7; border-color: #0284c7; }
+QDialogButtonBox QPushButton:default:hover { background-color: #0ea5e9; }
+
+QFrame#AiBubble   { background-color: #071422; border: 1px solid rgba(2,132,199,0.28); }
+QFrame#UserBubble { background-color: #0b1e36; border: 1px solid rgba(2,132,199,0.45); }
+QPushButton#BubbleActionBtn { background-color: #091628; border: 1px solid rgba(2,132,199,0.25); }
+QPushButton#BubbleActionBtn:hover   { background-color: #102030; border-color: #0284c7; }
+QPushButton#BubbleActionBtn:pressed { background-color: #0284c7; }
+
+QPushButton#PrimaryBtn         { background-color: #0284c7; }
+QPushButton#PrimaryBtn:hover   { background-color: #0ea5e9; }
+QPushButton#PrimaryBtn:pressed { background-color: #0369a1; }
+QPushButton#SecondaryBtn { color: #0284c7; border: 1px solid #0284c7; }
+QPushButton#SecondaryBtn:hover   { background-color: rgba(2,132,199,0.12); }
+QPushButton#SecondaryBtn:pressed { background-color: rgba(2,132,199,0.20); }
+QPushButton#SendBtn         { background-color: #0284c7; }
+QPushButton#SendBtn:hover   { background-color: #0ea5e9; }
+QPushButton#SendBtn:pressed { background-color: #0369a1; }
+
+QPushButton#BackendCloudBtn:checked,
+QPushButton#BackendServerBtn:checked { background-color: #0284c7; border-color: #0284c7; }
+QLabel#BackendStatusLbl[backend="server"] {
+    background-color: rgba(2,132,199,0.12);
+    color: #0284c7;
+    border: 1px solid rgba(2,132,199,0.30);
+}
+
+QSlider#TempSlider::handle:horizontal { background-color: #0284c7; border: 2px solid #0c1628; }
+QSlider#TempSlider::sub-page:horizontal { background-color: #0284c7; }
+QListWidget#BleList::item:selected { background-color: rgba(2,132,199,0.15); }

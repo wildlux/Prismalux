@@ -232,8 +232,11 @@ Tools/scripts/wiby_stream_server.py
 # ── ENGINE_LLM/swarfstar — repo clonato da antirez/ds4, binari compilati ────
 ENGINE_LLM/swarfstar/
 
-# ── ANDROID/QT_ANDROID_Version — cartella Android Qt (SDK/NDK inclusi, >4GB) ─
-ANDROID/QT_ANDROID_Version/
+# ── ANDROID/QT_ANDROID_Version — solo build artifacts (sorgenti tracciati) ──
+ANDROID/QT_ANDROID_Version/android_app/build/
+ANDROID/QT_ANDROID_Version/android_app/build-android/
+ANDROID/QT_ANDROID_Version/android_app/build-host/
+ANDROID/QT_ANDROID_Version/android_app/build-desktop/
 
 # ── Kivy buildozer — cache build locale (>3GB) ───────────────────────────────
 ANDROID/kivy_VERSION/.buildozer/

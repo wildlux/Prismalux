@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AndroidManifest.xml — PrismaluxMobile
+     Richiede Android 8.0+ (API 26) per BLE + Camera2 API.
+     Tutti i permessi pericolosi (CAMERA, BT_CONNECT, BT_SCAN)
+     devono essere richiesti a runtime tramite QCoreApplication::requestPermission(). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.prismalux.mobile"
+    android:versionCode="30"
+    android:versionName="3.0">
+
+    <!-- ── SDK range ─────────────────────────────────────────── -->
+    <uses-sdk
+        android:minSdkVersion="26"
+        android:targetSdkVersion="34" />
+
+    <!-- ── Rete LAN (Ollama) ─────────────────────────────────── -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Traffico HTTP in chiaro verso indirizzi LAN (es. 192.168.x.x) -->
+    <!-- Vedi anche: res/xml/network_security_config.xml            -->
+
+    <!-- ── Camera ────────────────────────────────────────────── -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera"         android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+    <!-- ── Bluetooth LE (API 31+: permessi granulari) ────────── -->
+    <!-- API 26-30: permessi legacy -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <!-- Per la geolocalizzazione richiesta da BLE scan su API < 31 -->
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+    <!-- API 31+: permessi granulari obbligatori -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+
+    <!-- ── Storage (per caricare documenti RAG) ──────────────── -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <!-- API 33+: accesso file tramite SAF (Storage Access Framework) — nessun permesso extra necessario -->
+
+    <!-- ── Microfono (registrazione audio — AudioPage) ──────── -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <!-- ── GPS (Carta Astrale — C5) ────────────────────────────── -->
+    <!-- Fine location per GPS (tutte le versioni API; BLE usa la voce maxSdkVersion=30 sopra) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+
+    <!-- ── Vibrazione (feedback tattile) ─────────────────────── -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- ── Applicazione ──────────────────────────────────────── -->
+    <application
+        android:label="PrismaluxMobile"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:theme="@style/AppTheme"
+        android:hardwareAccelerated="true"
+        android:allowBackup="false"
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:requestLegacyExternalStorage="false">
+
+        <!-- Activity principale generata da Qt -->
+        <activity
+            android:name="org.qtproject.qt.android.bindings.QtActivity"
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:exported="true"
+            android:forceDarkAllowed="false"
+            android:theme="@style/AppTheme">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- C4 — Ricevi file condivisi da altre app (Share Intent) -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+
+            <!-- Metadati Qt richiesti dal binding -->
+            <meta-data android:name="android.app.lib_name"        android:value="PrismaluxMobile" />
+            <!-- qt_theme_type=1 → Qt usa dark theme per i componenti nativi -->
+            <meta-data android:name="android.app.qt_theme_type"   android:value="1" />
+        </activity>
+    </application>
+</manifest>

@@ -1,0 +1,2 @@
+set(__QT_DEPLOY_TARGET_test_mobile_logic_FILE /home/wildlux/Desktop/Prismalux/ANDROID/QT_ANDROID_Version/android_app/tests/build_test/test_mobile_logic)
+set(__QT_DEPLOY_TARGET_test_mobile_logic_TYPE EXECUTABLE)
