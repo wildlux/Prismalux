@@ -275,7 +275,8 @@ void AppControllerPage::ankiRequest(const QString& action, const QJsonObject& pa
     if (!params.isEmpty()) body["params"] = params;
 
     auto* nam = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl(url));
+    QUrl ankiUrl(url);
+    QNetworkRequest req(ankiUrl);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     auto* rep = nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
     connect(rep, &QNetworkReply::finished, this, &AppControllerPage::onAnkiNetReply);
@@ -290,7 +291,8 @@ void AppControllerPage::mcpRequest(const QString& endpoint, const QJsonObject& b
     const QString url  = QString("http://%1:%2%3").arg(ip, port, endpoint);
 
     auto* nam = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl(url));
+    QUrl mcpUrl(url);
+    QNetworkRequest req(mcpUrl);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     auto* rep = nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
     connect(rep, &QNetworkReply::finished, this, &AppControllerPage::onMcpNetReply);

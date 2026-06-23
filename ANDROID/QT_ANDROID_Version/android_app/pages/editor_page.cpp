@@ -6,6 +6,7 @@
 #include <QTemporaryFile>
 #include <QTextCursor>
 #include <QScroller>
+#include <QDir>
 
 static constexpr const char* kEditorSys =
     "Sei un esperto programmatore. Analizza il codice e rispondi in modo chiaro e conciso.";

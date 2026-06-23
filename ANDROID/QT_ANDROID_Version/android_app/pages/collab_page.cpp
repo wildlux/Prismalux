@@ -233,7 +233,8 @@ void CollabPage::onSendToPcClicked()
 
     const QString url = QString("http://%1:%2%3").arg(ip, port, endpoint);
     auto* nam = new QNetworkAccessManager(this);
-    QNetworkRequest req(QUrl(url));
+    QUrl qurl(url);
+    QNetworkRequest req(qurl);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     auto* rep = nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
 
