@@ -64,6 +64,7 @@ protected:
 
 private slots:
     void onTileReady(QNetworkReply* reply);
+    void onDlTimerTick();
     void onSearchClicked();
     void onResultActivated(QListWidgetItem* item);
     void onZoomInClicked();

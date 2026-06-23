@@ -15,14 +15,14 @@ Legenda: 🔴 Alta · 🟡 Media · 🟢 Bassa | ⬜ Aperto · ✅ Fatto
 |---|----------|-------------|------|-------|
 | D-1 | 🟡 | `runLint()` è uno stub vuoto — pyflakes/clang-tidy/eslint non eseguiti | `main_programming_slots.cpp:1629` | ✅ |
 | D-2 | 🟡 | TTFT (⚡Nms) nell'header — timer da avviare in `onBtnRunClicked()`, primo token ferma | `mainwindow.cpp` | ✅ |
-| D-3 | 🟢 | Lambda > 2 righe in `connect()` — estratte 12 slot/free-func; residue ~6 in main_finance/multimedia | vari `.cpp` | ✅ |
+| D-3 | 🟢 | Lambda > 2 righe in `connect()` — estratte 12+5 slot/free-func in MainWindow (onAutoUpdateReply, TTFT, ChatSelection, SelectAll, TabSearch) | vari `.cpp` | ✅ |
 | D-4 | 🟢 | Export dataset DPO dai feedback 👍/👎 in JSONL → formato Alpaca/ShareGPT | `main_ai_feedback.cpp` | ✅ |
 
 ### Distribuzione
 
 | # | Priorità | Descrizione | Stato |
 |---|----------|-------------|-------|
-| D-5 | 🔴 | Rigenerare `EXPORT/linux/Prismalux_v3.0_Linux.zip` — attuale è v2.9 obsoleto. **Eseguire: `./aggiorna.sh`** (build ok, interrotto manualmente) | ⬜ |
+| D-5 | 🔴 | Rigenerare `EXPORT/linux/Prismalux_v3.0_Linux.zip` — binario ricompilato + AppImage 204MB + 3 ZIP v3.0 generati | ✅ |
 | D-6 | 🟡 | Scrivere GitHub Release notes v2.9→v3.0 (44 feature nuove, 7 VULN chiuse) | ✅ `EXPORT/RELEASE_NOTES_v3.0.md` |
 
 ---

@@ -98,6 +98,19 @@ void WorldMapWidget::requestTile(int z, int x, int y)
     m_net->get(req);
 }
 
+void WorldMapWidget::onDlTimerTick()
+{
+    if (m_dlQueue.isEmpty()) {
+        m_dlTimer->stop();
+        emit tileDownloadProgress(m_dlDone, m_dlDone);
+        return;
+    }
+    const auto job = m_dlQueue.takeFirst();
+    ++m_dlDone;
+    requestTile(job.z, job.x, job.y);
+    emit tileDownloadProgress(m_dlDone, m_dlDone + m_dlQueue.size());
+}
+
 void WorldMapWidget::onTileReady(QNetworkReply* reply)
 {
     reply->deleteLater();
@@ -168,17 +181,7 @@ WorldMapWidget::WorldMapWidget(QWidget* parent) : QWidget(parent)
     /* Timer download offline (100ms tra un tile e l'altro — rispetta usage policy OSM) */
     m_dlTimer = new QTimer(this);
     m_dlTimer->setInterval(100);
-    connect(m_dlTimer, &QTimer::timeout, this, [this] {
-        if (m_dlQueue.isEmpty()) {
-            m_dlTimer->stop();
-            emit tileDownloadProgress(m_dlDone, m_dlDone);
-            return;
-        }
-        const auto job = m_dlQueue.takeFirst();
-        ++m_dlDone;
-        requestTile(job.z, job.x, job.y);
-        emit tileDownloadProgress(m_dlDone, m_dlDone + m_dlQueue.size());
-    });
+    connect(m_dlTimer, &QTimer::timeout, this, &WorldMapWidget::onDlTimerTick);
 
     /* centra su Roma */
     const QPointF wp = latLonToWorld(41.9, 12.5);
