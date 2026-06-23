@@ -1,6 +1,0 @@
-/home/wildlux/Desktop/Prismalux/ANDROID/QT_ANDROID_Version/android_app/tests/build_test/CMakeFiles/test_mobile_logic.dir
-/home/wildlux/Desktop/Prismalux/ANDROID/QT_ANDROID_Version/android_app/tests/build_test/CMakeFiles/test.dir
-/home/wildlux/Desktop/Prismalux/ANDROID/QT_ANDROID_Version/android_app/tests/build_test/CMakeFiles/edit_cache.dir
-/home/wildlux/Desktop/Prismalux/ANDROID/QT_ANDROID_Version/android_app/tests/build_test/CMakeFiles/rebuild_cache.dir
-/home/wildlux/Desktop/Prismalux/ANDROID/QT_ANDROID_Version/android_app/tests/build_test/CMakeFiles/test_mobile_logic_autogen_timestamp_deps.dir
-/home/wildlux/Desktop/Prismalux/ANDROID/QT_ANDROID_Version/android_app/tests/build_test/CMakeFiles/test_mobile_logic_autogen.dir

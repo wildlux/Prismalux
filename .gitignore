@@ -237,6 +237,7 @@ ANDROID/QT_ANDROID_Version/android_app/build/
 ANDROID/QT_ANDROID_Version/android_app/build-android/
 ANDROID/QT_ANDROID_Version/android_app/build-host/
 ANDROID/QT_ANDROID_Version/android_app/build-desktop/
+ANDROID/QT_ANDROID_Version/android_app/tests/build_test/
 
 # ── Kivy buildozer — cache build locale (>3GB) ───────────────────────────────
 ANDROID/kivy_VERSION/.buildozer/
