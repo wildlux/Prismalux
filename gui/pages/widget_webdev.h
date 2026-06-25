@@ -3,6 +3,7 @@
 #include <QMetaObject>
 #include "../ai_client.h"
 
+class QCheckBox;
 class QComboBox;
 class QLineEdit;
 class QPushButton;
@@ -61,6 +62,9 @@ private:
     QLineEdit*      m_argsEdit     = nullptr;
     QPushButton*    m_btnStart     = nullptr;
     QPushButton*    m_btnStop      = nullptr;
+    QPushButton*    m_btnOpen      = nullptr;
+    QCheckBox*      m_chkDebug     = nullptr;
+    QLabel*         m_debugBadge   = nullptr;
     QLabel*         m_serverStatus = nullptr;
     QProcess*       m_serverProc   = nullptr;
 
@@ -119,6 +123,7 @@ private:
     void onServerReadyReadStderr();
     void onServerFinished(int code, QProcess::ExitStatus status);
     void onServerErrorOccurred(QProcess::ProcessError err);
+    void onOpenBrowser();
     void onAnalyzeClicked();
     void onWhatToDoClicked();
     void onAnalyzeSelClicked();
@@ -126,5 +131,6 @@ private:
     void onAiFinished(const QString& full);
     void onAiError(const QString& msg);
     void onFwComboChanged(int idx);
+    void onDebugToggled(bool checked);
     void onPopulateModels();
 };

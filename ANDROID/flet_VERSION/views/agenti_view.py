@@ -69,6 +69,14 @@ def AgentiView(page: ft.Page, ai: AiClient) -> ft.Column:
         color=TXT,
     )
 
+    stop_btn = ft.IconButton(
+        icon=ft.icons.STOP_CIRCLE_OUTLINED,
+        icon_color="#FF4444",
+        tooltip="Stop AI",
+        visible=False,
+        on_click=lambda _: ai.abort(),
+    )
+
     def log_line(msg: str, color: str = TXT):
         log_col.controls.append(ft.Text(msg, color=color, size=13))
         page.update()
@@ -87,6 +95,7 @@ def AgentiView(page: ft.Page, ai: AiClient) -> ft.Column:
         log_col.controls.clear()
         status_text.value = "Decomposizione in corso..."
         run_btn.disabled = True
+        stop_btn.visible = True
         page.update()
 
         def pipeline():
@@ -118,6 +127,7 @@ def AgentiView(page: ft.Page, ai: AiClient) -> ft.Column:
                 log_line(f"Errore decomposizione: {error[0]}", "#FF6666")
                 status_text.value = "Fallito"
                 run_btn.disabled = False
+                stop_btn.visible = False
                 running[0] = False
                 page.update()
                 return
@@ -133,6 +143,7 @@ def AgentiView(page: ft.Page, ai: AiClient) -> ft.Column:
                 log_line(result[0] or "", DIM)
                 status_text.value = "Fallito"
                 run_btn.disabled = False
+                stop_btn.visible = False
                 running[0] = False
                 page.update()
                 return
@@ -141,6 +152,7 @@ def AgentiView(page: ft.Page, ai: AiClient) -> ft.Column:
                 log_line("Nessun subtask trovato.", "#FF8844")
                 status_text.value = "Completato (vuoto)"
                 run_btn.disabled = False
+                stop_btn.visible = False
                 running[0] = False
                 page.update()
                 return
@@ -212,7 +224,7 @@ def AgentiView(page: ft.Page, ai: AiClient) -> ft.Column:
         [
             ft.Text("🤖 Multi-Agente", size=18, weight=ft.FontWeight.BOLD, color=TXT),
             prompt_field,
-            ft.Row([run_btn, status_text], alignment=ft.MainAxisAlignment.START, spacing=12),
+            ft.Row([run_btn, stop_btn, status_text], alignment=ft.MainAxisAlignment.START, spacing=12),
             ft.Container(
                 content=log_col,
                 bgcolor=BG,

@@ -14,6 +14,8 @@
 #include <QTimer>
 #include <QTextStream>
 #include <QScrollBar>
+#include <QDesktopServices>
+#include <QUrl>
 #include <QLabel>
 #include <QLineEdit>
 #include <QComboBox>
@@ -24,6 +26,8 @@
 #include <QListWidgetItem>
 #include <QFont>
 #include <QFontDatabase>
+#include <QCheckBox>
+#include <QProcessEnvironment>
 #include <QMessageBox>
 #include "../dpi_utils.h"
 
@@ -147,9 +151,30 @@ QGroupBox* WebDevWidget::buildServerGroup(QWidget* parent)
     m_btnStop->setEnabled(false);
     m_btnStop->setStyleSheet("QPushButton{background:#dc2626;color:#fff;font-weight:bold;border-radius:4px;padding:4px 10px;}"
                              "QPushButton:disabled{background:#6b7280;}");
+    m_btnOpen = new QPushButton("\xf0\x9f\x8c\x90  Apri", btnRow);
+    m_btnOpen->setEnabled(false);
+    m_btnOpen->setToolTip("Apri nel browser");
+    m_btnOpen->setStyleSheet("QPushButton{background:#0891b2;color:#fff;font-weight:bold;border-radius:4px;padding:4px 10px;}"
+                             "QPushButton:hover{background:#0e7490;}"
+                             "QPushButton:disabled{background:#6b7280;}");
+    m_chkDebug = new QCheckBox("DEBUG", btnRow);
+    m_chkDebug->setChecked(true);
+    m_chkDebug->setToolTip("Imposta DEBUG=True — abilita la gestione dei file statici e il reloader");
+
+    m_debugBadge = new QLabel(btnRow);
+    m_debugBadge->setFixedHeight(dpiScale(22));
+    m_debugBadge->setAlignment(Qt::AlignCenter);
+    m_debugBadge->setContentsMargins(dpiScale(6), 0, dpiScale(6), 0);
+
     btnLay->addWidget(m_btnStart);
     btnLay->addWidget(m_btnStop);
+    btnLay->addWidget(m_btnOpen);
+    btnLay->addSpacing(dpiScale(8));
+    btnLay->addWidget(m_chkDebug);
+    btnLay->addWidget(m_debugBadge);
     btnLay->addStretch();
+
+    onDebugToggled(true);  // inizializza il badge
     lay->addWidget(btnRow);
 
     m_serverStatus = new QLabel("\xe2\x9a\xab Fermo", grp);
@@ -247,11 +272,14 @@ void WebDevWidget::setupConnections()
 {
     connect(m_btnStart,       &QPushButton::clicked, this, &WebDevWidget::onStartClicked);
     connect(m_btnStop,        &QPushButton::clicked, this, &WebDevWidget::onStopClicked);
+    connect(m_btnOpen,        &QPushButton::clicked, this, &WebDevWidget::onOpenBrowser);
     connect(m_btnAnalyze,     &QPushButton::clicked, this, &WebDevWidget::onAnalyzeClicked);
     connect(m_btnWhatToDo,    &QPushButton::clicked, this, &WebDevWidget::onWhatToDoClicked);
     connect(m_btnAnalyzeSel,  &QPushButton::clicked, this, &WebDevWidget::onAnalyzeSelClicked);
     connect(m_fwCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &WebDevWidget::onFwComboChanged);
+    connect(m_chkDebug, &QCheckBox::toggled,
+            this, &WebDevWidget::onDebugToggled);
 }
 
 /* ─── Slot UI ──────────────────────────────────────────── */
@@ -274,6 +302,26 @@ void WebDevWidget::onFwComboChanged(int /*idx*/)
         m_portEdit->setText("5000");
     else
         m_portEdit->setText("8000");
+}
+
+void WebDevWidget::onDebugToggled(bool checked)
+{
+    if (!m_debugBadge) return;
+    if (checked) {
+        m_debugBadge->setText("DEBUG=True");
+        m_debugBadge->setStyleSheet(
+            "QLabel{background:#166534;color:#bbf7d0;border:1px solid #16a34a;"
+            "border-radius:4px;font-size:11px;font-weight:bold;}");
+        m_debugBadge->setToolTip("Il server parte con DEBUG=True\n"
+                                 "File statici serviti automaticamente, reloader attivo");
+    } else {
+        m_debugBadge->setText("DEBUG=False");
+        m_debugBadge->setStyleSheet(
+            "QLabel{background:#7c2d12;color:#fed7aa;border:1px solid #c2410c;"
+            "border-radius:4px;font-size:11px;font-weight:bold;}");
+        m_debugBadge->setToolTip("Il server parte con DEBUG=False\n"
+                                 "File statici NON serviti — esegui collectstatic");
+    }
 }
 
 void WebDevWidget::onPopulateModels()
@@ -355,9 +403,16 @@ QStringList WebDevWidget::buildRunCommand() const
         const QString entry = d.exists("main.py") ? "main:app" : "app:app";
         cmd << "uvicorn" << entry << "--reload" << "--host" << "0.0.0.0" << "--port" << port;
     } else if (fw == "uvicorn") {
-        cmd << "uvicorn" << "app:app" << "--reload" << "--host" << "0.0.0.0" << "--port" << port;
+        QDir du(m_projectPath->text());
+        const QString uEntry = du.exists("main.py") ? "main:app" : "app:app";
+        cmd << "uvicorn" << uEntry << "--reload" << "--host" << "0.0.0.0" << "--port" << port;
     } else if (fw == "gunicorn") {
-        cmd << "gunicorn" << "-w" << "4" << ("-b" + QString("0.0.0.0:") + port) << "app:app";
+        QDir dg(m_projectPath->text());
+        QString gEntry;
+        if (dg.exists("wsgi.py"))       gEntry = "wsgi:application";
+        else if (dg.exists("main.py"))  gEntry = "main:app";
+        else                            gEntry = "app:app";
+        cmd << "gunicorn" << "-w" << "4" << ("-b" + QString("0.0.0.0:") + port) << gEntry;
     } else if (fw == "bottle") {
         cmd << "python3" << "app.py";
     } else {
@@ -397,6 +452,12 @@ void WebDevWidget::onStartClicked()
             this, &WebDevWidget::onServerErrorOccurred);
 
     m_serverProc->setWorkingDirectory(path);
+
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    if (m_chkDebug->isChecked())
+        env.insert("DEBUG", "True");
+    m_serverProc->setProcessEnvironment(env);
+
     m_serverProc->start(cmd.first(), cmd.mid(1));
 
     appendServerLog(QString("$ ") + cmd.join(' '));
@@ -454,10 +515,17 @@ void WebDevWidget::appendServerLog(const QString& text)
     m_serverLog->verticalScrollBar()->setValue(m_serverLog->verticalScrollBar()->maximum());
 }
 
+void WebDevWidget::onOpenBrowser()
+{
+    const QString port = m_portEdit->text().trimmed().isEmpty() ? "8000" : m_portEdit->text().trimmed();
+    QDesktopServices::openUrl(QUrl("http://localhost:" + port + "/"));
+}
+
 void WebDevWidget::setServerRunning(bool running)
 {
     m_btnStart->setEnabled(!running);
     m_btnStop->setEnabled(running);
+    m_btnOpen->setEnabled(running);
     const QString port = m_portEdit->text().trimmed();
     if (running)
         m_serverStatus->setText("\xf0\x9f\x9f\xa2 Avviato su :" + port

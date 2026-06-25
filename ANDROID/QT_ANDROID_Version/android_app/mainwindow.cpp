@@ -471,17 +471,24 @@ void MainWindow::buildDrawer()
         { "\xe2\x9a\x99\xef\xb8\x8f",     "Impostazioni",        m_idxSettings       },
         { "\xf0\x9f\x8d\xba",             "Informazioni",        m_idxInfo           },
     };
+    m_drawerList = new QListWidget(m_drawer);
+    m_drawerList->setObjectName("DrawerNavList");
+    m_drawerList->setFrameShape(QFrame::NoFrame);
+    m_drawerList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_drawerList->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    m_drawerList->setUniformItemSizes(true);
+    m_drawerList->setSpacing(2);
+
     for (const auto& item : items) {
-        auto* btn = new QPushButton(
-            "  " + QString::fromUtf8(item.icon) + "   " + item.label, m_drawer);
-        btn->setObjectName("DrawerNavBtn");
-        btn->setMinimumHeight(52);
-        btn->setFlat(true);
-        btn->setProperty("pageIndex", item.idx);
-        connect(btn, &QPushButton::clicked, this, &MainWindow::onDrawerNavClicked);
-        vbox->addWidget(btn);
+        auto* li = new QListWidgetItem(
+            QString::fromUtf8(item.icon) + "   " + item.label);
+        li->setData(Qt::UserRole, item.idx);
+        li->setSizeHint(QSize(-1, 60));
+        m_drawerList->addItem(li);
     }
-    vbox->addStretch();
+    connect(m_drawerList, &QListWidget::itemClicked,
+            this, &MainWindow::onDrawerNavListClicked);
+    vbox->addWidget(m_drawerList, 1);
 
     connect(closeBtn, &QToolButton::clicked, this, &MainWindow::onToggleDrawer);
     updateDrawerGeometry();
@@ -705,6 +712,17 @@ void MainWindow::onDrawerNavClicked()
     auto* btn = qobject_cast<QPushButton*>(sender());
     if (!btn) return;
     const int idx = btn->property("pageIndex").toInt();
+    if (m_drawerOpen) onToggleDrawer();
+    onTabChanged(idx);
+#endif
+}
+
+void MainWindow::onDrawerNavListClicked(QListWidgetItem* item)
+{
+#ifndef PRISMALUX_FORM_FACTOR_TABLET
+    if (!item) return;
+    const int idx = item->data(Qt::UserRole).toInt();
+    if (m_drawerList) m_drawerList->clearSelection();
     if (m_drawerOpen) onToggleDrawer();
     onTabChanged(idx);
 #endif

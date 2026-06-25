@@ -14,6 +14,7 @@
 #  include <QJniEnvironment>
 #endif
 #include "thermal_monitor.h"
+#include <QListWidget>
 #ifdef PRISMALUX_FORM_FACTOR_TABLET
 #include <QVBoxLayout>
 #endif
@@ -110,6 +111,7 @@ private slots:
     void onTabChanged(int index);
     void onToggleDrawer();
     void onDrawerNavClicked();
+    void onDrawerNavListClicked(QListWidgetItem* item);
     void onDrawerAnimFinished();
     void onQuizFullscreen(bool on);
     void checkForUpdates();
@@ -145,6 +147,7 @@ private:
     QStackedWidget*     m_stack       = nullptr;
     QWidget*            m_headerBar   = nullptr;
     QWidget*            m_drawer      = nullptr;
+    QListWidget*        m_drawerList  = nullptr;
     QWidget*            m_overlay     = nullptr;
     QLabel*             m_titleLbl    = nullptr;
     QLabel*             m_thermalLbl  = nullptr;
