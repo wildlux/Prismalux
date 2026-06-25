@@ -37,6 +37,7 @@
 #include <QUrl>
 #include <QStatusBar>
 #include <QJsonDocument>
+#include <QVersionNumber>
 #include <QJsonObject>
 #include <QComboBox>
 #include <QTabWidget>
@@ -637,12 +638,32 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* ev)
             m_tabSearchEdit->clear();
             m_tabSearchEdit->setMaximumWidth(0);
         }
-        /* Escape mentre si digita → chiudi */
+        /* Escape / frecce / Invio mentre si digita */
         if (obj == m_tabSearchEdit && ev->type() == QEvent::KeyPress) {
-            if (static_cast<QKeyEvent*>(ev)->key() == Qt::Key_Escape) {
+            auto* ke = static_cast<QKeyEvent*>(ev);
+            if (ke->key() == Qt::Key_Escape) {
                 m_tabSearchEdit->clear();
                 m_tabSearchEdit->setMaximumWidth(0);
+                hideSearchPopup();
                 return true;
+            }
+            if (m_searchList && m_searchPopup && m_searchPopup->isVisible()) {
+                if (ke->key() == Qt::Key_Down) {
+                    const int nr = m_searchList->count();
+                    if (nr > 0)
+                        m_searchList->setCurrentRow((m_searchList->currentRow() + 1) % nr);
+                    return true;
+                }
+                if (ke->key() == Qt::Key_Up) {
+                    const int nr = m_searchList->count();
+                    if (nr > 0)
+                        m_searchList->setCurrentRow((m_searchList->currentRow() - 1 + nr) % nr);
+                    return true;
+                }
+                if (ke->key() == Qt::Key_Return || ke->key() == Qt::Key_Enter) {
+                    onSearchItemActivated(m_searchList->currentItem());
+                    return true;
+                }
             }
         }
     }
@@ -870,7 +891,8 @@ void MainWindow::onIndexingFinished(int n, bool aborted)
 
 void MainWindow::onClearLogClicked()
 {
-    if (m_logView) m_logView->clear();
+    if (m_logViewSis) m_logViewSis->clear();
+    if (m_logViewAI)  m_logViewAI->clear();
 }
 
 // ─── VRAM bench ───────────────────────────────────────────────────────────
@@ -1007,7 +1029,9 @@ void MainWindow::onAutoUpdateReply()
     if (tag.isEmpty()) return;
     if (tag.startsWith('v') || tag.startsWith('V')) tag = tag.mid(1);
     const QString curVer = QCoreApplication::applicationVersion();
-    if (tag == curVer) return;
+    const QVersionNumber remote = QVersionNumber::fromString(tag);
+    const QVersionNumber local  = QVersionNumber::fromString(curVer);
+    if (remote <= local) return;   /* stessa versione o build di sviluppo più recente */
     auto* lbl = new QLabel(this);
     lbl->setObjectName("updateStatusLbl");
     lbl->setTextFormat(Qt::RichText);
@@ -1061,14 +1085,220 @@ void MainWindow::onSelectAllToggled(bool checked)
     }
 }
 
+/* ─── Ricerca schede dinamica ─────────────────────────────────────── */
+
+static QString tabAscii(const QString& s)
+{
+    QString r;
+    for (QChar c : s)
+        if (c.unicode() < 128) r += c;
+    return r.trimmed().toLower();
+}
+
+void MainWindow::buildSearchIndex()
+{
+    struct E { int mi; const char* sub; const char* disp; const char* kw; };
+    static const E kE[] = {
+        // Tab 0 — AI
+        {0,"","Intelligenza artificiale","ai chat agenti pipeline rag autonomo byzantino llm modello"},
+        // Tab 1 — Strumenti
+        {1,"","Strumenti","assistente cron impara sfida file studio scrittura ricerca libri produttivita documenti"},
+        {1,"Studio",      "Strumenti \xe2\x86\x92 Studio",      "studio apprendimento"},
+        {1,"Scrittura",   "Strumenti \xe2\x86\x92 Scrittura",   "scrittura testo"},
+        {1,"Ricerca",     "Strumenti \xe2\x86\x92 Ricerca",     "ricerca cerca"},
+        {1,"Libri",       "Strumenti \xe2\x86\x92 Libri",       "libri epub pdf"},
+        {1,"Produttivit", "Strumenti \xe2\x86\x92 Produttivit\xc3\xa0","produttivita task"},
+        {1,"Documenti",   "Strumenti \xe2\x86\x92 Documenti",   "documenti word"},
+        {1,"Cron",        "Strumenti \xe2\x86\x92 Cron",        "cron schedulatore timer"},
+        {1,"Impara",      "Strumenti \xe2\x86\x92 Impara",      "impara quiz lezione"},
+        {1,"Sfida",       "Strumenti \xe2\x86\x92 Sfida",       "sfida quiz ccna"},
+        {1,"File AI",     "Strumenti \xe2\x86\x92 File AI",     "file analisi pdf csv word"},
+        // Tab 2 — Media
+        {2,"","Media","audio immagini video multimediale"},
+        {2,"Audio AI",        "Media \xe2\x86\x92 Audio AI",          "tts stt voce whisper sintesi"},
+        {2,"Genera Immagini", "Media \xe2\x86\x92 Genera Immagini",   "stable diffusion sd immagini"},
+        {2,"Mappe concettuali","Media \xe2\x86\x92 Mappe concettuali","graphviz dot diagramma"},
+        {2,"Mappa OSM",       "Media \xe2\x86\x92 Mappa OSM",        "mappa openstreetmap percorso"},
+        {2,"Sintetizzatore",  "Media \xe2\x86\x92 Sintetizzatore",    "synth oscillatore tono"},
+        {2,"Clona Voce",      "Media \xe2\x86\x92 Clona Voce",       "xtts voice cloner"},
+        {2,"OCR webcam",      "Media \xe2\x86\x92 OCR webcam",       "ocr testo immagine webcam"},
+        // Tab 3 — Programmazione
+        {3,"","Programmazione","codice sviluppo editor git repl web dev python"},
+        {3,"Codifica",      "Programmazione \xe2\x86\x92 Codifica",    "editor codice ide"},
+        {3,"Agentica",      "Programmazione \xe2\x86\x92 Agentica",    "agente devagent"},
+        {3,"Translitter",   "Programmazione \xe2\x86\x92 Translitter", "traduzione lingua script"},
+        {3,"Reverse",       "Programmazione \xe2\x86\x92 Reverse Eng.","reverse engineering ghidra"},
+        {3,"Git",           "Programmazione \xe2\x86\x92 Git",         "git versione commit push"},
+        {3,"REPL",          "Programmazione \xe2\x86\x92 REPL",        "repl python shell"},
+        {3,"Interpreter",   "Programmazione \xe2\x86\x92 Interpreter", "interprete sandbox docker"},
+        {3,"Driver",        "Programmazione \xe2\x86\x92 Driver",      "driver kernel linux nvidia amd"},
+        {3,"Lab",           "Programmazione \xe2\x86\x92 Lab",         "lab coding esperimento"},
+        {3,"Web Dev",       "Programmazione \xe2\x86\x92 Web Dev",     "django flask fastapi web server uvicorn"},
+        {3,"Sicurezza",     "Programmazione \xe2\x86\x92 Sicurezza",   "sicurezza owasp vulnerabilita"},
+        {3,"Dev Agent",     "Programmazione \xe2\x86\x92 Dev Agent",   "devagent agente sviluppo"},
+        {3,"Rete",          "Programmazione \xe2\x86\x92 Rete & Network","rete network packet vpn tunnel"},
+        // Tab 4 — Matematica
+        {4,"","Matematica","formula calcolo equazione analisi grafico sympy"},
+        {4,"Sequenza",     "Matematica \xe2\x86\x92 Sequenza",     "sequenza formula pattern oeis"},
+        {4,"Costanti",     "Matematica \xe2\x86\x92 Costanti",     "costanti pi greco euler"},
+        {4,"N-esimo",      "Matematica \xe2\x86\x92 N-esimo",      "ennesimo termine successione"},
+        {4,"Booleana",     "Matematica \xe2\x86\x92 Booleana",     "booleana logica and or xor"},
+        {4,"Espressione",  "Matematica \xe2\x86\x92 Espressione",  "espressione calcolo"},
+        {4,"Risolvi",      "Matematica \xe2\x86\x92 Risolvi Passi","risolvi equazione sympy passi"},
+        {4,"Analisi 1",    "Matematica \xe2\x86\x92 Analisi 1",    "analisi limiti derivate integrali katex"},
+        {4,"Analisi 2",    "Matematica \xe2\x86\x92 Analisi 2",    "analisi serie equazioni differenziali"},
+        {4,"Grafico",      "Matematica \xe2\x86\x92 Grafico",      "grafico funzione plot"},
+        // Tab 5 — Utilità
+        {5,"","Utilit\xc3\xa0","utilita fotovoltaico idroponica lavoro finanza bici lan wan"},
+        {5,"Fotovoltaico", "Utilit\xc3\xa0 \xe2\x86\x92 Fotovoltaico","solare pannello energia kwh"},
+        {5,"Idroponica",   "Utilit\xc3\xa0 \xe2\x86\x92 Idroponica",  "piante coltivazione"},
+        {5,"Lavoro",       "Utilit\xc3\xa0 \xe2\x86\x92 Lavoro",      "lavoro offerta indeed cv recruiting"},
+        {5,"Finanza",      "Utilit\xc3\xa0 \xe2\x86\x92 Finanza",     "730 piva irpef tfr codice fiscale"},
+        {5,"Bici",         "Utilit\xc3\xa0 \xe2\x86\x92 Bici",        "bicicletta manutenzione cambio freni"},
+        {5,"LAN",          "Utilit\xc3\xa0 \xe2\x86\x92 LAN & WAN",   "lan wan rete android qr ssh gns3"},
+        // Tab 6 — Bioinformatica
+        {6,"","Bioinformatica","biologia chimica molecola"},
+        {6,"Cytoscape","Bioinformatica \xe2\x86\x92 Cytoscape","reti biologiche proteine"},
+        {6,"RDKit",    "Bioinformatica \xe2\x86\x92 RDKit",    "molecola chimica smiles"},
+        {6,"Bioconda", "Bioinformatica \xe2\x86\x92 Bioconda", "pacchetti conda bioinformatica"},
+        {6,"Avogadro", "Bioinformatica \xe2\x86\x92 Avogadro", "molecola 3d"},
+        {6,"RAB",      "Bioinformatica \xe2\x86\x92 RAB\xe2\x82\x80-L","rab modello"},
+        {6,"BLHM",     "Bioinformatica \xe2\x86\x92 BLHM",     "blhm modello"},
+        // Tab 7 — TeleComanda
+        {7,"","TeleComanda","app launcher blender freecad godot anki telegram"},
+        {7,"Blender",     "TeleComanda \xe2\x86\x92 Blender",    "3d modellazione render"},
+        {7,"FreeCAD",     "TeleComanda \xe2\x86\x92 FreeCAD",    "cad disegno tecnico"},
+        {7,"Office",      "TeleComanda \xe2\x86\x92 Office",     "libreoffice documento"},
+        {7,"CloudCompare","TeleComanda \xe2\x86\x92 CloudCompare","nuvola punti 3d"},
+        {7,"Anki",        "TeleComanda \xe2\x86\x92 Anki",       "flashcard ripetizione spaziata"},
+        {7,"KiCAD",       "TeleComanda \xe2\x86\x92 KiCAD",      "pcb circuito elettronico"},
+        {7,"TinyMCP",     "TeleComanda \xe2\x86\x92 TinyMCP",    "mcp plugin"},
+        {7,"OBS",         "TeleComanda \xe2\x86\x92 OBS",        "streaming registrazione"},
+        {7,"Godot",       "TeleComanda \xe2\x86\x92 Godot",      "gioco game engine"},
+        {7,"Game",        "TeleComanda \xe2\x86\x92 Game Modding","mod skyrim gta minecraft"},
+        {7,"OpenCode",    "TeleComanda \xe2\x86\x92 OpenCode",   "opencode ai coding"},
+        {7,"Telegram",    "TeleComanda \xe2\x86\x92 Telegram",   "bot messaggio"},
+        {7,"WhatsApp",    "TeleComanda \xe2\x86\x92 WhatsApp",   "bot messaggio whatsapp"},
+    };
+
+    m_searchIndex.clear();
+    for (const auto& e : kE) {
+        m_searchIndex.push_back({e.mi,
+                                  QString::fromUtf8(e.sub),
+                                  QString::fromUtf8(e.disp),
+                                  QString::fromUtf8(e.disp).toLower() + " " + QString::fromUtf8(e.kw)});
+    }
+}
+
 void MainWindow::onTabSearchTextChanged(const QString& t)
 {
-    if (t.trimmed().isEmpty()) return;
     const QString q = t.trimmed();
-    for (int i = 0; i < m_mainTabs->count(); ++i) {
-        if (m_mainTabs->tabText(i).contains(q, Qt::CaseInsensitive)) {
-            m_mainTabs->setCurrentIndex(i);
-            break;
-        }
+    if (q.isEmpty()) { hideSearchPopup(); return; }
+    showSearchPopup(q);
+}
+
+void MainWindow::showSearchPopup(const QString& query)
+{
+    if (m_searchIndex.isEmpty()) buildSearchIndex();
+
+    if (!m_searchPopup) {
+        m_searchPopup = new QFrame(this);
+        m_searchPopup->setObjectName("searchPopup");
+        m_searchPopup->setFrameShape(QFrame::StyledPanel);
+        m_searchPopup->setStyleSheet(
+            "QFrame#searchPopup{background:#1e293b;border:1px solid #334155;border-radius:6px;}"
+            "QListWidget{background:transparent;color:#e2e8f0;border:none;outline:none;}"
+            "QListWidget::item{padding:5px 10px;border-radius:4px;}"
+            "QListWidget::item:hover{background:#334155;}"
+            "QListWidget::item:selected{background:#2563eb;color:#fff;}");
+        m_searchPopup->raise();
+
+        auto* lay = new QVBoxLayout(m_searchPopup);
+        lay->setContentsMargins(4, 4, 4, 4);
+        lay->setSpacing(0);
+
+        m_searchList = new QListWidget(m_searchPopup);
+        m_searchList->setObjectName("searchList");
+        m_searchList->setFrameShape(QFrame::NoFrame);
+        m_searchList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_searchList->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        lay->addWidget(m_searchList);
+
+        connect(m_searchList, &QListWidget::itemActivated,
+                this, &MainWindow::onSearchItemActivated);
+        connect(m_searchList, &QListWidget::itemClicked,
+                this, &MainWindow::onSearchItemActivated);
     }
+
+    // Filtra per tutte le parole della query (AND)
+    const QStringList words = query.toLower().split(' ', Qt::SkipEmptyParts);
+    m_searchList->clear();
+    int count = 0;
+    for (int i = 0; i < m_searchIndex.size(); ++i) {
+        const QString& kw = m_searchIndex[i].keywords;
+        bool match = true;
+        for (const QString& w : words)
+            if (!kw.contains(w, Qt::CaseInsensitive)) { match = false; break; }
+        if (!match) continue;
+        auto* item = new QListWidgetItem(m_searchIndex[i].display, m_searchList);
+        item->setData(Qt::UserRole, i);
+        if (++count >= 12) break;
+    }
+
+    if (count == 0) { hideSearchPopup(); return; }
+
+    // Posiziona sotto il campo di ricerca (coordinate relative a mainwindow)
+    const QPoint pos = m_tabSearchEdit->mapTo(this, QPoint(0, m_tabSearchEdit->height() + 2));
+    const int rowH  = qMax(m_searchList->sizeHintForRow(0), 26);
+    const int popW  = qMax(320, m_tabSearchEdit->width() + 80);
+    const int popH  = qMin(count, 8) * rowH + 10;
+    m_searchPopup->setGeometry(pos.x() - popW + m_tabSearchEdit->width(),
+                               pos.y(), popW, popH);
+    m_searchList->setCurrentRow(0);
+    m_searchPopup->show();
+    m_searchPopup->raise();
+}
+
+void MainWindow::hideSearchPopup()
+{
+    if (m_searchPopup) m_searchPopup->hide();
+}
+
+void MainWindow::onSearchItemActivated(QListWidgetItem* item)
+{
+    if (!item) return;
+    const int idx = item->data(Qt::UserRole).toInt();
+    navigateToEntry(idx);
+    m_tabSearchEdit->clear();
+    m_tabSearchEdit->setMaximumWidth(0);
+    hideSearchPopup();
+}
+
+void MainWindow::navigateToEntry(int idx)
+{
+    if (idx < 0 || idx >= m_searchIndex.size()) return;
+    const TabSearchEntry& e = m_searchIndex[idx];
+
+    m_mainTabs->setCurrentIndex(e.mainIdx);
+
+    if (e.subLabel.isEmpty()) return;
+
+    const QString target = e.subLabel.toLower();
+
+    // singleShot(0): lascia che ensureTabBuilt finisca di costruire la pagina
+    QTimer::singleShot(0, this, [this, target, mainIdx = e.mainIdx] {
+        QWidget* page = m_mainTabs->widget(mainIdx);
+        if (!page) return;
+        // Cerca il QTabWidget che contiene la sub-tab con label matching
+        for (auto* tw : page->findChildren<QTabWidget*>()) {
+            for (int j = 0; j < tw->count(); ++j) {
+                const QString lbl = tabAscii(tw->tabText(j));
+                if (lbl.isEmpty()) continue;
+                if (lbl.contains(target) || target.contains(lbl)) {
+                    tw->setCurrentIndex(j);
+                    return;
+                }
+            }
+        }
+    });
 }

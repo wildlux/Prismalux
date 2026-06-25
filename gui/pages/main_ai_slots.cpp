@@ -65,26 +65,8 @@ namespace P = PrismaluxPaths;
 #  include <sys/types.h>
 #endif
 
-static bool isVisionCapable(const QString& mdl)
-{
-    const QString m = mdl.toLower();
-    return m.contains("vision") || m.contains("-vl") || m.contains("llava")
-        || m.contains("minicpm-v") || m.contains("bakllava") || m.contains("cogvlm")
-        || m.contains("moondream") || m.contains("idefics") || m.contains("phi-3-v")
-        || m.contains("phi3-v") || m.contains("internvl") || m.contains("qwen-vl")
-        || m.contains("qwen2-vl") || m.contains("omnivision");
-}
-
-/* Helper: ritorna true se il modello supporta function/tool calling */
-static bool isToolCapable(const QString& mdl)
-{
-    const QString m = mdl.toLower();
-    if (m.contains("deepseek-coder")) return false;
-    if (m.contains("deepseek-r1"))    return false;
-    if (m.contains("codellama"))      return false;
-    if (m.contains("phi-2"))          return false;
-    return true;
-}
+static bool isVisionCapable(const QString& mdl) { return PrismaluxPaths::isVisionModel(mdl); }
+static bool isToolCapable  (const QString& mdl) { return PrismaluxPaths::isToolsModel(mdl); }
 
 void AgentiPage::onCmbLLMIndexChanged(int idx)
 {

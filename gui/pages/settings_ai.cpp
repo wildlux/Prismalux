@@ -1356,7 +1356,15 @@ QWidget* ImpostazioniPage::buildRagTab()
     fl->addRow("Massimi:", maxSpin);
     fl->labelForField(maxSpin)->setToolTip(maxSpin->toolTip());
 
-    outer->addLayout(fl);
+    /* ── Layout a 2 colonne ── */
+    auto* columns   = new QHBoxLayout;
+    auto* leftCol   = new QVBoxLayout;
+    auto* rightCol  = new QVBoxLayout;
+    columns->setSpacing(20);
+    leftCol->setSpacing(12);
+    rightCol->setSpacing(12);
+
+    leftCol->addLayout(fl);
 
     /* ── Trasformata Johnson-Lindenstrauss ── */
     {
@@ -1385,38 +1393,19 @@ QWidget* ImpostazioniPage::buildRagTab()
         jlLay->addWidget(jlChk);
         jlLay->addWidget(jlHint);
 
-        /* Pulsante download documenti ADE 2026 (Agenzia delle Entrate) */
-        auto* adeBtnRow = new QHBoxLayout;
-        auto* adeBtn = new QPushButton(
-            "\xf0\x9f\x93\xa5  Scarica documenti ufficiali ADE 2026", jlFrame);  /* 📥 */
-        adeBtn->setObjectName("navBtn");
-        adeBtn->setToolTip(
-            "Scarica le circolari e le risoluzioni dell'Agenzia delle Entrate 2026\n"
-            "nella cartella RAG per l'indicizzazione automatica.");
-        connect(adeBtn, &QPushButton::clicked,
-                this, &ImpostazioniPage::onAdeBtnClicked);
-        adeBtnRow->addWidget(adeBtn);
-        adeBtnRow->addStretch(1);
-        jlLay->addLayout(adeBtnRow);
-
         connect(jlChk, &QCheckBox::toggled,
                 this, &ImpostazioniPage::onRagJlToggled);
 
-        outer->addWidget(jlFrame);
+        leftCol->addWidget(jlFrame);
     }
+    leftCol->addStretch();
 
-    /* ── Stato indice ── */
-    auto* sep = new QFrame;
-    sep->setFrameShape(QFrame::HLine);
-    sep->setObjectName("sidebarSep");
-    outer->addWidget(sep);
-
+    /* ── Colonna destra: stato + download + embedding ── */
     m_ragStatusLbl = new QLabel;
     m_ragStatusLbl->setObjectName("hintLabel");
     m_ragStatusLbl->setWordWrap(true);
     m_ragStatusLbl->setTextFormat(Qt::RichText);
-    auto* statusLbl = m_ragStatusLbl;  /* alias locale per il codice seguente */
-    /* refreshStatus → ora è il metodo membro refreshRagStatus() */
+    auto* statusLbl = m_ragStatusLbl;
 
     /* Migrazione one-time: se kRagDocCount è 0 ma l'indice su disco esiste
      * (es. indicizzato con versione precedente che non salvava il conteggio,
@@ -1436,7 +1425,7 @@ QWidget* ImpostazioniPage::buildRagTab()
         }
     }
     refreshRagStatus();
-    outer->addWidget(m_ragStatusLbl);
+    rightCol->addWidget(m_ragStatusLbl);
 
     /* ── Pulsante: scarica documenti AdE ufficiali ── */
     auto* downloadBtn = new QPushButton(
@@ -1448,7 +1437,7 @@ QWidget* ImpostazioniPage::buildRagTab()
         "  \xe2\x80\xa2 Istruzioni 730/2026\n"
         "  \xe2\x80\xa2 Fascicolo 2 Persone Fisiche 2026\n"
         "Salvati in ~/prismalux_rag_docs/ e pronti per il RAG.");
-    outer->addWidget(downloadBtn);
+    rightCol->addWidget(downloadBtn);
 
     /* ── Modello embedding ── */
     {
@@ -1466,9 +1455,9 @@ QWidget* ImpostazioniPage::buildRagTab()
         {
             /* Pre-popola con il valore salvato + modelli statici noti */
             const QString saved = AppConfig::s().value(P::SK::kRagEmbedModel, "").toString();
-            const QString cur = saved.isEmpty() ? "nomic-embed-text" : saved;
+            const QString cur = saved.isEmpty() ? "embeddinggemma" : saved;
             static const char* kKnown[] = {
-                "nomic-embed-text", "all-minilm", "mxbai-embed-large",
+                "embeddinggemma", "nomic-embed-text", "all-minilm", "mxbai-embed-large",
                 "bge-large", "bge-base", "bge-small", "e5-large", "e5-base",
                 "e5-small", "jina-embeddings-v2-base-en", "stella-en-1.5b-v5", nullptr
             };
@@ -1498,14 +1487,15 @@ QWidget* ImpostazioniPage::buildRagTab()
         embedRow->addWidget(embedLbl);
         embedRow->addWidget(m_ragEmbedCombo, 1);
         embedRow->addWidget(embedRefreshBtn);
-        outer->addLayout(embedRow);
+        rightCol->addLayout(embedRow);
 
         /* ── Card: modelli embedding consigliati ── */
         struct EmbedRec { const char* name; const char* size; const char* note; };
         static const EmbedRec kEmbed[] = {
-            { "all-minilm",        "~46 MB",  "Ultraleggero. Ideale su PC con poca RAM. Qualità sufficiente per RAG su documenti brevi." },
-            { "nomic-embed-text",  "~274 MB", "Bilanciato. Miglior rapporto qualità/peso. Consigliato per uso quotidiano." },
-            { "mxbai-embed-large", "~670 MB", "Alta qualità. Ottimo per documenti tecnici lunghi e multilingua." },
+            { "embeddinggemma",    "~621 MB", "Consigliato. Google Gemma3 300M, 100+ lingue. SOTA per dimensione, ottimo per RAG multilingua." },
+            { "all-minilm",        "~46 MB",  "Ultraleggero. Ideale su PC con poca RAM. Qualita' sufficiente per RAG su documenti brevi." },
+            { "nomic-embed-text",  "~274 MB", "Bilanciato. Buon rapporto qualita'/peso. Alternativa consolidata." },
+            { "mxbai-embed-large", "~670 MB", "Alta qualita'. Ottimo per documenti tecnici lunghi e multilingua." },
         };
 
         auto* embedCard = new QFrame(page);
@@ -1570,8 +1560,13 @@ QWidget* ImpostazioniPage::buildRagTab()
         embedHint->setStyleSheet("color:#f59e0b;");
         embedCardLay->addWidget(embedHint);
 
-        outer->addWidget(embedCard);
+        rightCol->addWidget(embedCard);
     }
+    rightCol->addStretch();
+
+    columns->addLayout(leftCol, 1);
+    columns->addLayout(rightCol, 1);
+    outer->addLayout(columns);
 
     /* Riga pulsanti: [Ferma indicizzazione]  [Reindicizza ora] */
     auto* btnRow = new QHBoxLayout;
@@ -2260,19 +2255,4 @@ void ImpostazioniPage::onSmartRouterSaveClicked()
                        [this]{ m_smartRouterStatusLbl->setText(""); });
 }
 
-void ImpostazioniPage::onAdeBtnClicked()
-{
-    const QString ragDir = P::ragDir() + "/ADE_2026/";
-    QDir().mkpath(ragDir);
-    const QStringList urls = {
-        "https://www.agenziaentrate.gov.it/portale/web/guest/schede/comunicazioni/circolare-1-2026",
-        "https://www.agenziaentrate.gov.it/portale/web/guest/schede/comunicazioni/risoluzione-2026"
-    };
-    const QString info = QString(
-        "\xf0\x9f\x93\xa5  Documenti ADE 2026 — cartella di destinazione:\n%1\n\n"
-        "Per scaricare manualmente i documenti PDF:\n%2")
-        .arg(ragDir)
-        .arg(urls.join("\n"));
-    QMessageBox::information(this, "Documenti ADE 2026", info);
-}
 

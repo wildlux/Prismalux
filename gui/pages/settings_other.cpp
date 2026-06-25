@@ -291,7 +291,7 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
         { "llama.cpp",        "Inferenza LLM ottimizzata CPU/GPU (GGUF) \xe2\x80\x94 G. Gerganov","MIT",        "github.com/ggerganov/llama.cpp",   "https://github.com/ggerganov/llama.cpp" },
         { "Piper TTS",        "Sintesi vocale locale offline ad alta qualit\xc3\xa0",              "MIT",        "github.com/rhasspy/piper",         "https://github.com/rhasspy/piper" },
         { "Whisper.cpp",      "Trascrizione audio STT locale (Georgi Gerganov)",                  "MIT",        "github.com/ggerganov/whisper.cpp", "https://github.com/ggerganov/whisper.cpp" },
-        { "nomic-embed-text", "Modello embedding per RAG (ricerca semantica documenti)",           "Apache 2.0", "github.com/nomic-ai/contrastors",  "https://github.com/nomic-ai/contrastors" },
+        { "embeddinggemma",   "Modello embedding Google Gemma3 300M, 100+ lingue (RAG semantico)", "CC-BY-4.0",  "ollama.com/library/embeddinggemma", "https://ollama.com/library/embeddinggemma" },
         { "OpenBLAS",         "Algebra lineare ottimizzata per llama.cpp su CPU",                 "BSD 3-Clause","github.com/OpenMathLib/OpenBLAS",  "https://github.com/OpenMathLib/OpenBLAS" },
         { "md4c",             "Parser Markdown C (integrato in Qt6::Gui)",                        "MIT",        "github.com/mity/md4c",             "https://github.com/mity/md4c" },
         { "Poppler",          "Estrazione testo da PDF per indicizzazione RAG",                   "GPL v2/LGPL","gitlab.freedesktop.org/poppler",   "https://gitlab.freedesktop.org/poppler/poppler" },

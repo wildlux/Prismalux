@@ -104,12 +104,15 @@ public:
     AiClient*        aiClient()  { return m_ai; }
     HardwareMonitor* hwMonitor() { return m_hw; }
 
+    enum LogCategory { LogSistema, LogAI };
+
     /**
      * appendLog — Aggiunge una riga al log messaggi con timestamp.
-     * Può essere chiamato da qualsiasi punto del codice (main thread).
+     * cat = LogSistema → tab "Sistema" (backend, server, Qt, errori)
+     * cat = LogAI      → tab "AI"      (pipeline, inferenza, RAG, embedding)
      * Incrementa il badge non-letto se il dialog è chiuso.
      */
-    void appendLog(const QString& msg);
+    void appendLog(const QString& msg, LogCategory cat = LogSistema);
 
 private:
     /* ── Costruzione layout — livello 0 (costruttore) ───────── */
@@ -184,8 +187,18 @@ private:
     QPushButton*    m_logBtn        = nullptr;  ///< Pulsante 📋 header (accanto hamburger) → Messaggi/Log
     QLabel*         m_logBadge      = nullptr;  ///< Badge contatore messaggi non letti
     QLineEdit*      m_tabSearchEdit = nullptr;  ///< Ricerca schede nell'header
+
+    /* ── Ricerca schede dinamica ── */
+    struct TabSearchEntry { int mainIdx; QString subLabel; QString display; QString keywords; };
+    QVector<TabSearchEntry> m_searchIndex;
+    QFrame*      m_searchPopup = nullptr;
+    QListWidget* m_searchList  = nullptr;
+
+    QTimer*         m_modelRefreshTimer = nullptr; ///< Refresh lista modelli ogni 5 min
     QDialog*        m_logDlg        = nullptr;  ///< Dialog log (creato lazy)
-    QTextEdit*      m_logView       = nullptr;  ///< Area testo del log
+    QTabWidget*     m_logTabs       = nullptr;  ///< Tab Sistema / AI
+    QTextEdit*      m_logViewSis    = nullptr;  ///< Log sistema (backend, server, Qt)
+    QTextEdit*      m_logViewAI     = nullptr;  ///< Log AI (pipeline, inferenza, RAG)
     int             m_logUnread     = 0;        ///< Contatore messaggi non letti
     QWidget*        m_sidebarWidget = nullptr;  ///< Sidebar (mostra/nascondi con ☰)
     QPushButton*    m_btnBackend  = nullptr;  ///< Backend AI: Ollama / avvia-ferma llama-server
@@ -325,6 +338,9 @@ protected:
      */
     void closeEvent(QCloseEvent* ev) override;
 
+    /** changeEvent — Invalida la cache modelli quando la finestra torna in primo piano. */
+    void changeEvent(QEvent* ev) override;
+
     /**
      * eventFilter — Intercetta tasti su m_chatList.
      * Canc → conferma QMessageBox; Shift+Canc → elimina con undo 5s.
@@ -341,6 +357,11 @@ private slots:
 
     /* ── Navigazione ─────────────────────────────────────────────── */
     void navigateTo(int idx);
+    void buildSearchIndex();
+    void showSearchPopup(const QString& query);
+    void hideSearchPopup();
+    void navigateToEntry(int idx);
+    void onSearchItemActivated(QListWidgetItem* item);
     void onShortcutAlt1() { navigateTo(0); }  /* AI */
     void onShortcutAlt2() { navigateTo(1); }  /* Strumenti */
     void onShortcutAlt3() { navigateTo(3); }  /* Programmazione (File AI → sub-tab Strumenti) */

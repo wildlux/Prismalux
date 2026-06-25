@@ -36,8 +36,13 @@ inline void populateModelCombo(AiClient* ai, QComboBox* combo, QObject* context)
             const QString cur = combo->currentData().toString();
             combo->blockSignals(true);
             combo->clear();
-            for (const QString& m : models)
-                combo->addItem(P::modelIcon(ai->modelSizeBytes(m), m) + m, m);
+            for (const QString& m : models) {
+                const P::ModelCaps caps = P::modelCapabilities(m);
+                const QString badge = P::modelCapBadge(caps);
+                const QString label = P::modelIcon(ai->modelSizeBytes(m), m) + m
+                                    + (badge.isEmpty() ? QString() : "  " + badge);
+                combo->addItem(label, m);
+            }
             int idx = combo->findData(cur);
             if (idx < 0) idx = 0;
             combo->setCurrentIndex(idx);

@@ -229,11 +229,7 @@ void AiClient::setBackend(Backend b, const QString& host, int port, const QStrin
 }
 
 bool AiClient::isThinkCapable() const {
-    return m_model.startsWith("qwen3")       ||
-           m_model.startsWith("qwen3.5")     ||
-           m_model.startsWith("deepseek-r1") ||
-           m_model.startsWith("qwq")         ||
-           m_model.startsWith("qwen2.5");
+    return PrismaluxPaths::isThinkingModel(m_model);
 }
 
 /* ── Smart Router: 5 regole ordinate per decidere se usare il cloud ── */

@@ -54,11 +54,28 @@ public:
         combo->clear();
 
         for (const QString& m : models) {
-            const qint64 sz = ai->modelSizeBytes(m);
-            combo->addItem(P::modelIcon(sz, m) + m, m);
+            const qint64      sz   = ai->modelSizeBytes(m);
+            const P::ModelCaps caps = P::modelCapabilities(m);
+            const QString badge     = P::modelCapBadge(caps);
+            const QString label     = P::modelIcon(sz, m) + m
+                                    + (badge.isEmpty() ? QString() : "  " + badge);
+            combo->addItem(label, m);
 
-            if (P::isKnownBrokenModel(m)) {
-                const int i = combo->count() - 1;
+            const int i = combo->count() - 1;
+
+            /* Tooltip capability */
+            QStringList tips;
+            if (caps & P::CapEmbedding) tips << "Embedding: vettorizzazione testo (solo RAG, no chat)";
+            if (caps & P::CapVision)    tips << "Vision \xf0\x9f\x91\x81: supporta immagini in input";
+            if (caps & P::CapTools)     tips << "Tools \xf0\x9f\x94\xa7: function/tool calling";
+            if (caps & P::CapThinking)  tips << "Thinking \xf0\x9f\xa7\xa0: chain-of-thought esteso (think:true)";
+            if (!tips.isEmpty())
+                combo->setItemData(i, tips.join("\n"), Qt::ToolTipRole);
+
+            /* Modelli embedding: grigio — non usabili in chat */
+            if (caps & P::CapEmbedding) {
+                combo->setItemData(i, QBrush(QColor("#94a3b8")), Qt::ForegroundRole);
+            } else if (P::isKnownBrokenModel(m)) {
                 combo->setItemData(i, QBrush(QColor("#ea580c")), Qt::ForegroundRole);
                 combo->setItemData(i, QBrush(QColor("#fef08a")), Qt::BackgroundRole);
                 combo->setItemData(i, P::knownBrokenModelTooltip(),   Qt::ToolTipRole);

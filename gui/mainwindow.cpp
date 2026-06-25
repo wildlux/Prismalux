@@ -415,8 +415,18 @@ void MainWindow::setupServices()
     connect(m_hw, &HardwareMonitor::updated,     this, &MainWindow::onHWUpdated);
     connect(m_hw, &HardwareMonitor::hwInfoReady, this, &MainWindow::onHWReady);
 
+    /* Refresh automatico lista modelli ogni 5 minuti */
+    m_modelRefreshTimer = new QTimer(this);
+    m_modelRefreshTimer->setInterval(5 * 60 * 1000);
+    connect(m_modelRefreshTimer, &QTimer::timeout, this, [this] {
+        m_ai->invalidateModelCache();
+        m_ai->fetchModels();
+    });
+    m_modelRefreshTimer->start();
+
     /* LogBus globale — qualsiasi scheda può usare LogBus::post() per inviare qui */
-    connect(LogBus::instance(), &LogBus::event, this, &MainWindow::appendLog);
+    connect(LogBus::instance(), &LogBus::event, this,
+            [this](const QString& msg){ appendLog(msg, LogSistema); });
 
     /* ONNX embedder locale — caricato in background se i file modello esistono */
     m_onnxEmbedder = new OnnxEmbedder(this);
@@ -667,6 +677,7 @@ void MainWindow::setupBackend()
     });
 
     ThemeManager::instance()->loadSaved();
+    buildSearchIndex();
     navigateTo(0);
 }
 
@@ -2073,25 +2084,37 @@ void MainWindow::ensureLogDialog()
     m_logDlg = new QDialog(this);
     m_logDlg->setWindowTitle("\xf0\x9f\x93\x8b  Messaggi \xe2\x80\x94 Prismalux");
     m_logDlg->setAttribute(Qt::WA_DeleteOnClose, false);
-    m_logDlg->resize(dpiScale(700), dpiScale(460));
+    m_logDlg->resize(dpiScale(720), dpiScale(480));
 
     auto* lay = new QVBoxLayout(m_logDlg);
     lay->setContentsMargins(12, 12, 12, 12);
     lay->setSpacing(8);
 
-    /* Intestazione */
     auto* header = new QLabel(
         "\xf0\x9f\x93\x8b  <b>Log eventi</b> \xe2\x80\x94 backend, AI, pipeline, errori");
     header->setTextFormat(Qt::RichText);
     header->setObjectName("sectionTitle");
     lay->addWidget(header);
 
-    /* Area log */
-    m_logView = new QTextEdit(m_logDlg);
-    m_logView->setReadOnly(true);
-    m_logView->setObjectName("chatLog");
-    m_logView->setPlaceholderText("Nessun messaggio. Gli eventi verranno registrati qui.");
-    lay->addWidget(m_logView, 1);
+    /* ── Tab Sistema / AI ── */
+    m_logTabs = new QTabWidget(m_logDlg);
+    m_logTabs->setObjectName("logTabWidget");
+
+    auto makeView = [&](const QString& placeholder) -> QTextEdit* {
+        auto* v = new QTextEdit(m_logDlg);
+        v->setReadOnly(true);
+        v->setObjectName("chatLog");
+        v->setPlaceholderText(placeholder);
+        v->setFont(QFont("Monospace", 9));
+        return v;
+    };
+
+    m_logViewSis = makeView("Nessun evento di sistema. Backend, server, Qt, ONNX.");
+    m_logViewAI  = makeView("Nessun evento AI. Pipeline, inferenza, RAG, embedding.");
+
+    m_logTabs->addTab(m_logViewSis, "\xf0\x9f\x96\xa5  Sistema");   /* 🖥 */
+    m_logTabs->addTab(m_logViewAI,  "\xf0\x9f\xa4\x96  AI");         /* 🤖 */
+    lay->addWidget(m_logTabs, 1);
 
     /* Pulsanti */
     auto* btnRow = new QWidget(m_logDlg);
@@ -2119,15 +2142,17 @@ void MainWindow::ensureLogDialog()
    appendLog — aggiunge una riga al log con timestamp.
    Incrementa il badge se il dialog è nascosto.
    ══════════════════════════════════════════════════════════════ */
-void MainWindow::appendLog(const QString& msg)
+void MainWindow::appendLog(const QString& msg, LogCategory cat)
 {
     ensureLogDialog();
 
-    const QString ts = QDateTime::currentDateTime().toString("HH:mm:ss");
+    const QString ts   = QDateTime::currentDateTime().toString("HH:mm:ss");
     const QString line = QString("<span style='color:#888;'>%1</span> &nbsp;%2")
-                         .arg(ts, msg);   /* msg è già HTML — caller usa toHtmlEscaped() sui dati utente */
-    m_logView->moveCursor(QTextCursor::End);
-    m_logView->insertHtml(line + "<br>");
+                         .arg(ts, msg);
+
+    QTextEdit* view = (cat == LogAI) ? m_logViewAI : m_logViewSis;
+    view->moveCursor(QTextCursor::End);
+    view->insertHtml(line + "<br>");
 
     /* Badge non-letti — visibile solo se il dialog è chiuso */
     if (!m_logDlg->isVisible()) {
@@ -2331,6 +2356,14 @@ void MainWindow::maybeAutoVramBench() {
     }
 }
 
+/* ── Finestra torna in primo piano — invalida cache modelli ── */
+void MainWindow::changeEvent(QEvent* ev)
+{
+    QMainWindow::changeEvent(ev);
+    if (ev->type() == QEvent::ActivationChange && isActiveWindow())
+        m_ai->invalidateModelCache();
+}
+
 /* ── Chiusura finestra — pulizia RAM residua ── */
 void MainWindow::closeEvent(QCloseEvent* ev) {
 
@@ -2450,7 +2483,7 @@ void MainWindow::onChatCompleted(const QString& title, const QString& logHtml) {
     refreshChatList();
 
     appendLog(QString("\xe2\x9c\x85 Pipeline completata: <b>%1</b>")
-              .arg(title.isEmpty() ? "(senza titolo)" : title.toHtmlEscaped()));
+              .arg(title.isEmpty() ? "(senza titolo)" : title.toHtmlEscaped()), LogAI);
 }
 
 /* Slot: usa le funzioni statiche stripBodyBackground/migrateLegacyChat definite sopra */

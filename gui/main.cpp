@@ -106,7 +106,7 @@ static void handleSigInt(int) {
 static int runHeadlessServer(int argc, char** argv) {
     QCoreApplication app(argc, argv);
     app.setApplicationName("Prismalux");
-    app.setApplicationVersion("2.9");
+    app.setApplicationVersion("3.0");
     app.setOrganizationName("Prismalux");
 
     const QStringList args = app.arguments();
@@ -180,7 +180,7 @@ int main(int argc, char* argv[]) {
 
     /* ── Metadata applicazione (usato da QSettings in ThemeManager) ── */
     app.setApplicationName("Prismalux");
-    app.setApplicationVersion("2.9");
+    app.setApplicationVersion("3.0");
     app.setOrganizationName("Prismalux");
 
     /* ── Font professionali dalla cartella fonts/ (facoltativo) ── */

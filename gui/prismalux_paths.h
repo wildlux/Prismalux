@@ -421,6 +421,91 @@ inline QString modelIcon(qint64 sizeBytes, const QString& name)
         : QString::fromUtf8("\xf0\x9f\x8c\x8d\xf0\x9f\x93\x8d  "); /* 🌍📍  */
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+ * ModelCap — Tipologie di modello LLM (bitmask, no moc richiesto)
+ * ───────────────────────────────────────────────────────────────────
+ * Ogni modello può avere zero o più capability.
+ * CapEmbedding è mutualmente esclusivo con gli altri (no chat).
+ *
+ * Uso:
+ *   ModelCaps caps = P::modelCapabilities("qwen3:4b");
+ *   if (caps & P::CapVision)    ...  // supporta immagini
+ *   if (caps & P::CapThinking)  ...  // chain-of-thought (think:true)
+ *   if (caps & P::CapTools)     ...  // function/tool calling
+ *   if (caps & P::CapEmbedding) ...  // solo vettorizzazione, no chat
+ * ═══════════════════════════════════════════════════════════════════ */
+enum ModelCap : quint8 {
+    CapNone      = 0x00,
+    CapEmbedding = 0x01,  ///< /api/embeddings — vettorizzazione testo, no chat
+    CapVision    = 0x02,  ///< input immagini (VL, llava, ecc.)
+    CapTools     = 0x04,  ///< function/tool calling (Ollama tools)
+    CapThinking  = 0x08,  ///< chain-of-thought esteso (think: true)
+};
+using ModelCaps = quint8;
+
+/**
+ * modelCapabilities(name) — Ritorna le capability del modello in base al nome.
+ *
+ * Regole applicate in ordine:
+ *  1. Modelli embedding → CapEmbedding (esclusivo, nessun altro flag)
+ *  2. Modelli vision    → CapVision
+ *  3. Modelli thinking  → CapThinking (deepseek-r1 NON ha CapTools)
+ *  4. Tool calling      → CapTools (default per modelli chat generici)
+ */
+inline ModelCaps modelCapabilities(const QString& name)
+{
+    const QString m = name.toLower().section(':', 0, 0).trimmed();
+
+    /* ── 1. Embedding — mutualmente esclusivo ── */
+    if (m.contains("embed") || m == "embeddinggemma" || m.contains("nomic")
+        || m.contains("all-minilm") || m.contains("mxbai")
+        || m.startsWith("bge-") || m.startsWith("e5-")
+        || m.startsWith("jina-embed") || m.startsWith("stella-en"))
+        return CapEmbedding;
+
+    ModelCaps caps = CapNone;
+
+    /* ── 2. Vision ── */
+    if (m.contains("vision") || m.contains("-vl") || m.contains("llava")
+        || m.contains("minicpm-v") || m.contains("bakllava") || m.contains("cogvlm")
+        || m.contains("moondream") || m.contains("idefics")
+        || m.contains("phi-3-v") || m.contains("phi3-v")
+        || m.contains("internvl") || m.contains("qwen-vl")
+        || m.contains("qwen2-vl") || m.contains("omnivision"))
+        caps |= CapVision;
+
+    /* ── 3. Thinking ── */
+    if (m.startsWith("qwen3") || m.startsWith("qwen3.5")
+        || m.startsWith("deepseek-r1") || m.startsWith("qwq")
+        || m.startsWith("qwen2.5"))
+        caps |= CapThinking;
+
+    /* ── 4. Tools — attivo per default; escludi modelli noti non-compatibili ── */
+    const bool noTools = m.contains("deepseek-coder") || m.startsWith("deepseek-r1")
+                      || m.contains("codellama")       || m.startsWith("phi-2");
+    if (!noTools)
+        caps |= CapTools;
+
+    return caps;
+}
+
+/** Badge testuale compatto per combo/tooltip (es. "👁 🔧 🧠"). */
+inline QString modelCapBadge(ModelCaps caps)
+{
+    if (caps & CapEmbedding) return "[emb]";
+    QString b;
+    if (caps & CapVision)   b += " \xf0\x9f\x91\x81";   /* 👁  */
+    if (caps & CapTools)    b += " \xf0\x9f\x94\xa7";   /* 🔧  */
+    if (caps & CapThinking) b += " \xf0\x9f\xa7\xa0";   /* 🧠  */
+    return b.trimmed();
+}
+
+/** Shorthand — preferire questi nelle chiamate puntuali. */
+inline bool isEmbeddingModel(const QString& n) { return (modelCapabilities(n) & CapEmbedding) != 0; }
+inline bool isVisionModel   (const QString& n) { return (modelCapabilities(n) & CapVision)    != 0; }
+inline bool isToolsModel    (const QString& n) { return (modelCapabilities(n) & CapTools)     != 0; }
+inline bool isThinkingModel (const QString& n) { return (modelCapabilities(n) & CapThinking)  != 0; }
+
 /**
  * totalRamBytes() — Memoria fisica totale del sistema in byte.
  *

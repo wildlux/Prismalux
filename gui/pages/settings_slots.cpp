@@ -376,18 +376,14 @@ void ImpostazioniPage::onRagEmbedModelsReady(const QStringList& models)
 
     /* Helper: è un modello di embedding Ollama conosciuto? */
     auto isEmbedCapable = [](const QString& m) -> bool {
-        const QString lo = m.toLower();
-        return lo.contains("embed") || lo.contains("nomic")
-            || lo.contains("all-minilm") || lo.contains("mxbai")
-            || lo.startsWith("bge-") || lo.startsWith("e5-")
-            || lo.startsWith("jina-embed") || lo.startsWith("stella-en");
+        return PrismaluxPaths::isEmbeddingModel(m);
     };
 
     const QString saved = m_ragEmbedCombo->currentData().toString();
 
     /* Ricostruisce la lista mantenendo il set statico + aggiunge modelli Ollama */
     static const char* kStatic[] = {
-        "nomic-embed-text", "all-minilm", "mxbai-embed-large",
+        "embeddinggemma", "nomic-embed-text", "all-minilm", "mxbai-embed-large",
         "bge-large", "bge-base", "bge-small", "e5-large", "e5-base",
         "e5-small", "jina-embeddings-v2-base-en", "stella-en-1.5b-v5", nullptr
     };
@@ -420,7 +416,7 @@ void ImpostazioniPage::onRagEmbedModelsReady(const QStringList& models)
                 i,
                 QString("Il modello '%1' non e' un modello di embedding e "
                         "non supporta /api/embeddings.\n"
-                        "Usa nomic-embed-text o all-minilm.").arg(name),
+                        "Usa embeddinggemma o all-minilm.").arg(name),
                 Qt::ToolTipRole);
         }
     }
@@ -428,7 +424,7 @@ void ImpostazioniPage::onRagEmbedModelsReady(const QStringList& models)
 
     /* Ripristina selezione */
     int idx = m_ragEmbedCombo->findData(saved);
-    if (idx < 0) idx = m_ragEmbedCombo->findData(QString("nomic-embed-text"));
+    if (idx < 0) idx = m_ragEmbedCombo->findData(QString("embeddinggemma"));
     if (idx < 0) idx = 0;
     m_ragEmbedCombo->setCurrentIndex(idx);
     m_ragEmbedCombo->setEnabled(true);
@@ -448,7 +444,7 @@ void ImpostazioniPage::refreshRagStatus()
                     "&nbsp;&nbsp;&nbsp;Ultima indicizzazione: <b>%1</b>"
                     "&nbsp;&nbsp;&mdash;&nbsp;&nbsp;"
                     "<span style='color:#f87171;'>Embedding falliti &mdash; "
-                    "installa <code>nomic-embed-text</code> e reindicizza.</span>")
+                    "installa <code>embeddinggemma</code> e reindicizza.</span>")
                 .arg(lastIdx));
     } else {
         m_ragStatusLbl->setText(
@@ -827,7 +823,7 @@ void ImpostazioniPage::startEmbeddingPhase(const QString& dir)
                         QString("\xe2\x9d\x8c  <b>Embedding falliti</b> (%1 errori). "
                                 "Il modello <b>%2</b> non supporta <code>/api/embeddings</code>.<br>"
                                 "Installa il modello embedding: "
-                                "<code>ollama pull nomic-embed-text</code><br>"
+                                "<code>ollama pull embeddinggemma</code><br>"
                                 "Poi verifica il campo <b>Modello embedding</b> qui sopra "
                                 "e ripeti l'indicizzazione.")
                             .arg(*errCount)

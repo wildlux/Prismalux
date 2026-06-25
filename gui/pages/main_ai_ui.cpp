@@ -24,6 +24,7 @@ namespace P = PrismaluxPaths;
 #include <QGridLayout>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QPlainTextEdit>
 #include <QComboBox>
 #include <QLabel>
 #include <QFrame>
@@ -225,8 +226,15 @@ void AgentiPage::buildToolbarModeToggle(QHBoxLayout* /*toolLay*/, QWidget* /*too
 /* ── Selettore LLM nella toolbar ── */
 void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
 {
-    auto* llmLbl = new QLabel("LLM:", toolbar);
+    auto* llmLbl = new QPushButton("LLM:", toolbar);
+    llmLbl->setFlat(true);
+    llmLbl->setCursor(Qt::PointingHandCursor);
     llmLbl->setObjectName("cardDesc");
+    llmLbl->setStyleSheet(
+        "QPushButton{border:none;padding:0 2px;text-decoration:underline;}"
+        "QPushButton:hover{color:#60a5fa;}");
+    llmLbl->setToolTip("Clicca per eseguire 'ollama list' e aggiornare i modelli");
+
     m_cmbLLM = new QComboBox(toolbar);
     m_cmbLLM->setObjectName("settingsCombo");
     m_cmbLLM->setMinimumWidth(dpiScale(240));
@@ -236,6 +244,43 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
     m_cmbLLM->addItem("(caricamento...)");
     toolLay->addWidget(llmLbl);
     toolLay->addWidget(m_cmbLLM);
+
+    connect(llmLbl, &QPushButton::clicked, this, [this, toolbar] {
+        /* Esegue ollama list e mostra l'output in un popup */
+        QProcess proc;
+        proc.start("ollama", {"list"});
+        proc.waitForFinished(5000);
+        const QString out = QString::fromLocal8Bit(proc.readAllStandardOutput()).trimmed();
+        const QString err = QString::fromLocal8Bit(proc.readAllStandardError()).trimmed();
+
+        auto* dlg = new QDialog(toolbar->window());
+        dlg->setWindowTitle("\xf0\x9f\xa6\x99  ollama list");
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->resize(dpiScale(620), dpiScale(280));
+        auto* lay = new QVBoxLayout(dlg);
+        lay->setContentsMargins(12, 12, 12, 12);
+        auto* view = new QPlainTextEdit(dlg);
+        view->setReadOnly(true);
+        view->setFont(QFont("Monospace", 9));
+        view->setObjectName("chatLog");
+        view->setPlainText(out.isEmpty() ? (err.isEmpty() ? "(nessun output)" : err) : out);
+        lay->addWidget(view);
+        auto* bb = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
+        connect(bb, &QDialogButtonBox::rejected, dlg, &QDialog::close);
+        auto* refreshBtn = bb->addButton("Aggiorna combo", QDialogButtonBox::ActionRole);
+        refreshBtn->setObjectName("actionBtn");
+        connect(refreshBtn, &QPushButton::clicked, this, [this, dlg] {
+            m_ai->invalidateModelCache();
+            ModelComboHelper::connectFetch(m_ai, this, m_cmbLLM);
+            dlg->close();
+        });
+        lay->addWidget(bb);
+        dlg->show();
+
+        /* Aggiorna sempre il combo in background */
+        m_ai->invalidateModelCache();
+        ModelComboHelper::connectFetch(m_ai, this, m_cmbLLM);
+    });
     connect(m_cmbLLM, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &AgentiPage::onCmbLLMIndexChanged);
 
