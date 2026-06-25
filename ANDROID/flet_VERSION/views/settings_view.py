@@ -1,5 +1,6 @@
 import flet as ft
 from utils.ai_client import AiClient
+from utils.model_caps import DEFAULT_EMBED_MODEL
 import threading
 import json
 import os
@@ -16,6 +17,7 @@ _DEFAULTS = {
     "server_url": "http://192.168.1.100:11500",
     "token": "",
     "default_model": "",
+    "embed_model": DEFAULT_EMBED_MODEL,
 }
 
 
@@ -81,6 +83,19 @@ def SettingsView(page: ft.Page, ai: AiClient, on_save=None) -> ft.Column:
         prefix_icon=ft.icons.MEMORY,
     )
 
+    embed_model_field = ft.TextField(
+        label="Modello embedding (RAG)",
+        label_style=ft.TextStyle(color=DIM),
+        hint_text=f"Es: {DEFAULT_EMBED_MODEL}, nomic-embed-text",
+        hint_style=ft.TextStyle(color=DIM),
+        value=cfg.get("embed_model", DEFAULT_EMBED_MODEL),
+        text_color=TXT,
+        border_color=ACCENT,
+        focused_border_color=ACCENT,
+        bgcolor=BG,
+        prefix_icon=ft.icons.ACCOUNT_TREE,
+    )
+
     status_text = ft.Text("", color=DIM, size=13, italic=True)
 
     def save_settings(_):
@@ -88,6 +103,7 @@ def SettingsView(page: ft.Page, ai: AiClient, on_save=None) -> ft.Column:
             "server_url": url_field.value.strip(),
             "token": token_field.value.strip(),
             "default_model": model_field.value.strip(),
+            "embed_model": embed_model_field.value.strip() or DEFAULT_EMBED_MODEL,
         }
         try:
             _save_settings(new_cfg)
@@ -183,6 +199,8 @@ def SettingsView(page: ft.Page, ai: AiClient, on_save=None) -> ft.Column:
                         token_field,
                         ft.Text("Modello AI", color=DIM, size=12, weight=ft.FontWeight.BOLD),
                         model_field,
+                        ft.Text("Embedding RAG", color=DIM, size=12, weight=ft.FontWeight.BOLD),
+                        embed_model_field,
                     ],
                     spacing=10,
                 ),

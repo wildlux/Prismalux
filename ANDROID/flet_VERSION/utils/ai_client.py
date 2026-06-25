@@ -1,11 +1,12 @@
 """
 Client HTTP asincrono per il server LAN Prismalux (porta 11500).
-Usa threading per non bloccare la UI Kivy.
+Usa threading per non bloccare la UI Flet.
 """
 import json
 import threading
 import requests
 from typing import Callable, Optional
+from utils.log_bus import bus
 
 
 class AiClient:
@@ -28,8 +29,10 @@ class AiClient:
                                  headers=self._headers(), timeout=5)
                 r.raise_for_status()
                 models = [m["name"] for m in r.json().get("models", [])]
+                bus.append(f"[Modelli] {len(models)} trovati da {self.base_url}", "sistema")
                 on_done(models)
             except Exception as e:
+                bus.append(f"[Modelli errore] {e}", "sistema")
                 on_error(str(e))
         threading.Thread(target=_run, daemon=True).start()
 
@@ -64,8 +67,10 @@ class AiClient:
                                 on_token(tok)
                         except json.JSONDecodeError:
                             pass
+                bus.append(f"[Chat] stream completato ({len(full)} char)", "ai")
                 on_done(full)
             except Exception as e:
+                bus.append(f"[Chat errore] {e}", "ai")
                 on_error(str(e))
 
         threading.Thread(target=_run, daemon=True).start()
@@ -85,8 +90,10 @@ class AiClient:
                 r.raise_for_status()
                 j = r.json()
                 text = (j.get("message") or {}).get("content") or j.get("response", "")
+                bus.append(f"[Pipeline] risposta ricevuta ({len(text)} char)", "ai")
                 on_done(text)
             except Exception as e:
+                bus.append(f"[Pipeline errore] {e}", "ai")
                 on_error(str(e))
         threading.Thread(target=_run, daemon=True).start()
 

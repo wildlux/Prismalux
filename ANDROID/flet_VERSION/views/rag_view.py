@@ -1,6 +1,19 @@
 import flet as ft
 from utils.ai_client import AiClient
+from utils.model_caps import DEFAULT_EMBED_MODEL
+import json
+import os
+from pathlib import Path
 import threading
+
+_SETTINGS_PATH = str(Path.home() / ".prismalux" / "flet_settings.json")
+
+def _current_embed_model() -> str:
+    try:
+        with open(_SETTINGS_PATH) as f:
+            return json.load(f).get("embed_model", DEFAULT_EMBED_MODEL)
+    except Exception:
+        return DEFAULT_EMBED_MODEL
 
 ACCENT = "#6B5FFF"
 BG = "#1A1D2E"
@@ -17,6 +30,22 @@ _RAG_SYSTEM = (
 def RagView(page: ft.Page, ai: AiClient) -> ft.Column:
     results_col = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
     searching = [False]
+
+    embed_label = ft.Text(
+        f"Embedding: {_current_embed_model()}",
+        color=DIM, size=12, italic=True,
+    )
+
+    embed_chip = ft.Container(
+        content=ft.Row([
+            ft.Icon(ft.icons.ACCOUNT_TREE, color=ACCENT, size=14),
+            embed_label,
+        ], spacing=6),
+        bgcolor="#161929",
+        border_radius=6,
+        padding=ft.padding.symmetric(horizontal=10, vertical=4),
+        border=ft.border.all(1, "#2A2D40"),
+    )
 
     search_field = ft.TextField(
         label="Ricerca nella knowledge base",
@@ -169,8 +198,20 @@ def RagView(page: ft.Page, ai: AiClient) -> ft.Column:
     col = ft.Column(
         [
             ft.Text("📚 RAG — Ricerca Documenti", size=18, weight=ft.FontWeight.BOLD, color=TXT),
-            ft.Row([search_field, search_btn], alignment=ft.MainAxisAlignment.START, spacing=8),
-            ft.Row([add_doc_btn, selected_file_text], spacing=10, alignment=ft.MainAxisAlignment.START),
+            embed_chip,
+            ft.Container(
+                content=ft.Column([
+                    ft.Text("Ricerca", color=DIM, size=12, weight=ft.FontWeight.BOLD),
+                    ft.Row([search_field, search_btn], alignment=ft.MainAxisAlignment.START, spacing=8),
+                    ft.Divider(height=8, color="#2A2D40"),
+                    ft.Text("Documenti", color=DIM, size=12, weight=ft.FontWeight.BOLD),
+                    ft.Row([add_doc_btn, selected_file_text], spacing=10, alignment=ft.MainAxisAlignment.START),
+                ], spacing=8),
+                bgcolor=BG,
+                border_radius=8,
+                padding=ft.padding.symmetric(horizontal=12, vertical=10),
+                border=ft.border.all(1, "#2A2D40"),
+            ),
             ft.Container(
                 content=results_col,
                 bgcolor=BG,
