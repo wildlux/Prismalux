@@ -177,7 +177,7 @@ QWidget* ManutenzioneePage::buildLanServer()
     {
         const QString tok = LanServer::loadLanToken();
         const QString masked = tok.isEmpty()
-            ? tr("(auto-generato all\xe2\x80\x99avvio server)")
+            ? tr("(auto-generato all\xe2\x80\x99" "avvio server)")
             : tok.left(4) + "\xe2\x80\xa6" + tok.right(4);
         m_tokenLbl = new QLabel("<code>" + masked + "</code>", tokenGroup);
         m_tokenLbl->setTextFormat(Qt::RichText);

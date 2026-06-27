@@ -308,10 +308,10 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
         "<ol>"
         "<li>Apri <b>Impostazioni \xe2\x86\x92 Sicurezza WAN \xe2\x86\x92 sezione WireGuard</b></li>"
         "<li>Clicca <b>Genera chiavi WireGuard</b> \xe2\x86\x92 crea la coppia privkey/pubkey</li>"
-        "<li>Copia la <b>Chiave pubblica</b> mostrata (pulsante \xf0\x9f\x93\x8b) \xe2\x86\x92 mandala all\xe2\x80\x99amministratore del server VPN</li>"
+        "<li>Copia la <b>Chiave pubblica</b> mostrata (pulsante \xf0\x9f\x93\x8b) \xe2\x86\x92 mandala all\xe2\x80\x99" "amministratore del server VPN</li>"
         "<li>Clicca <b>Genera wg0.conf</b> \xe2\x86\x92 salva il file e compila i campi mancanti:"
         "<ul>"
-        "<li><code>PublicKey</code> del server VPN (fornita dall\xe2\x80\x99amministratore)</li>"
+        "<li><code>PublicKey</code> del server VPN (fornita dall\xe2\x80\x99" "amministratore)</li>"
         "<li><code>Endpoint</code> = IP pubblico del server VPN : porta (es. <code>203.0.113.1:51820</code>)</li>"
         "<li><code>Address</code> = IP privato assegnato a questo worker (es. <code>10.0.0.2/24</code>)</li>"
         "</ul></li>"
@@ -338,7 +338,7 @@ QWidget* ImpostazioniPage::buildSicurezzaWanTab()
         "<hr>"
         "<p class='note'><b>Quando serve rigenerare il certificato TLS?</b> "
         "Solo se sospetti che la chiave privata sia stata compromessa, o ogni 10 anni (il cert dura 3650 giorni). "
-        "Dopo ogni rigenera, ripeti il passaggio \xe2\x80\x9cEsporta pin\xe2\x80\x9d su tutti i worker.</p>"
+        "Dopo ogni rigenera, ripeti il passaggio \xe2\x80\x9c" "Esporta pin\xe2\x80\x9d su tutti i worker.</p>"
     );
 
     guideLay->addWidget(guide);

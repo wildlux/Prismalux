@@ -1700,7 +1700,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         fl->addRow("Penalità ripetizioni:", repSpin);
 
         auto* hint = new QLabel(
-            "\xe2\x84\xb9  T 0.0\xe2\x80\x930.1 = risposte fattuali e ripetibili  \xe2\x80\xa2  T 0.3+ = creativo/inventivo");
+            "\xe2\x84\xb9  T 0.0\xe2\x80\x93" "0.1 = risposte fattuali e ripetibili  \xe2\x80\xa2  T 0.3+ = creativo/inventivo");
         hint->setObjectName("hintLabel");
 
         gl->addLayout(fl);
@@ -1770,7 +1770,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
 
         auto* memHint = new QLabel(
             "\xe2\x84\xb9  I turni eccedenti vengono riassunti e iniettati come contesto compatto. "
-            "Aumenta se l'AI \xe2\x80\x9cdimentica\xe2\x80\x9d troppo presto.");
+            "Aumenta se l'AI \xe2\x80\x9c" "dimentica\xe2\x80\x9d troppo presto.");
         memHint->setObjectName("hintLabel"); memHint->setWordWrap(true);
 
         gl->addLayout(fl);
@@ -1831,7 +1831,7 @@ QWidget* ImpostazioniPage::buildAiParamsTab()
         gl->addWidget(cavemanRow);
 
         auto* cavemanDesc = new QLabel(
-            "\xe2\x84\xb9  Elimina \xe2\x80\x9cCertamente!\xe2\x80\x9d e \xe2\x80\x9cSpero di averti aiutato\xe2\x80\x9d. "
+            "\xe2\x84\xb9  Elimina \xe2\x80\x9c" "Certamente!\xe2\x80\x9d e \xe2\x80\x9cSpero di averti aiutato\xe2\x80\x9d. "
             "Meno token sprecati = risposte pi\xc3\xb9 veloci.");
         cavemanDesc->setObjectName("hintLabel"); cavemanDesc->setWordWrap(true);
         gl->addWidget(cavemanDesc);

@@ -679,7 +679,7 @@ QWidget* ImpostazioniPage::buildSistemaConsigliTab()
             "La polvere accumulata nelle griglie e sul dissipatore "
             "\xc3\xa8 la causa pi\xc3\xb9 comune di surriscaldamento sui laptop. "
             "Soffia aria compressa nelle griglie laterali/posteriori. "
-            "Su un laptop con anni di utilizzo si abbassano tipicamente 15\xe2\x80\x9320\xc2\xb0C.",
+            "Su un laptop con anni di utilizzo si abbassano tipicamente 15\xe2\x80\x93" "20\xc2\xb0" "C.",
             nullptr
         },
         {
@@ -703,8 +703,8 @@ QWidget* ImpostazioniPage::buildSistemaConsigliTab()
             "\xf0\x9f\x93\x8a",
             "Controlla le temperature in tempo reale",
             "Mostra le temperature di CPU, GPU e chipset. "
-            "Valori normali a riposo: CPU 40\xe2\x80\x9360\xc2\xb0C. "
-            "Valori preoccupanti: CPU >80\xc2\xb0C costante, ACPI >85\xc2\xb0C.",
+            "Valori normali a riposo: CPU 40\xe2\x80\x93" "60\xc2\xb0" "C. "
+            "Valori preoccupanti: CPU >80\xc2\xb0" "C costante, ACPI >85\xc2\xb0" "C.",
             "watch -n 2 sensors"
         },
         {

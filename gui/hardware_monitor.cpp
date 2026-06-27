@@ -47,7 +47,7 @@ static double read_cpu_pct() {
         FILE* f = fopen("/proc/stat","r");
         if (!f) { *idle=*tot=0; return; }
         unsigned long long u,n,s,id,iow,irq,sirq,st=0;
-        fscanf(f,"cpu %llu %llu %llu %llu %llu %llu %llu %llu",
+        [[maybe_unused]] auto _r = fscanf(f,"cpu %llu %llu %llu %llu %llu %llu %llu %llu",
                &u,&n,&s,&id,&iow,&irq,&sirq,&st);
         fclose(f);
         *idle = id+iow;
@@ -99,10 +99,10 @@ static bool read_igpu_freq(double* freq_pct) {
         }
         if (!fc) continue;
         unsigned int cur = 0, max = 1;
-        fscanf(fc, "%u", &cur);
+        [[maybe_unused]] auto _rc = fscanf(fc, "%u", &cur);
         fclose(fc);
         FILE* fm = fopen(max_p, "r");
-        if (fm) { fscanf(fm, "%u", &max); fclose(fm); }
+        if (fm) { [[maybe_unused]] auto _rm = fscanf(fm, "%u", &max); fclose(fm); }
         if (max > 0) *freq_pct = (double)cur / (double)max * 100.0;
         return true;
     }
@@ -126,7 +126,7 @@ static void read_vram_nvidia(int idx, double* used, double* total, double* util_
     FILE* f = popen(cmd, "r");
     if (!f) return;
     long long u = 0, t = 0, util = 0;
-    fscanf(f, "%lld, %lld, %lld", &u, &t, &util);
+    [[maybe_unused]] auto _r = fscanf(f, "%lld, %lld, %lld", &u, &t, &util);
     pclose(f);
     *used     = u    / 1024.0;
     *total    = t    / 1024.0;
@@ -210,8 +210,8 @@ SysSnapshot HardwareMonitor::readSnapshot() const {
             FILE* ft = fopen("/sys/class/drm/card0/device/mem_info_vram_total", "r");
             if (fu && ft) {
                 unsigned long long vu = 0, vt = 0;
-                fscanf(fu, "%llu", &vu);
-                fscanf(ft, "%llu", &vt);
+                [[maybe_unused]] auto _ru = fscanf(fu, "%llu", &vu);
+                [[maybe_unused]] auto _rt = fscanf(ft, "%llu", &vt);
                 s.vram_used  = vu / 1073741824.0;
                 s.vram_total = vt / 1073741824.0;
                 s.vram_pct   = (vt > 0) ? (double)vu / (double)vt * 100.0 : 0.0;
@@ -247,7 +247,7 @@ SysSnapshot HardwareMonitor::readSnapshot() const {
                 FILE* ft = fopen(typePath, "r");
                 if (!ft) break;
                 char typeBuf[64] = {};
-                fgets(typeBuf, sizeof(typeBuf), ft);
+                [[maybe_unused]] auto _rg = fgets(typeBuf, sizeof(typeBuf), ft);
                 fclose(ft);
                 bool match = false;
                 for (int i = 0; prefer[i] && !match; i++)
@@ -256,7 +256,7 @@ SysSnapshot HardwareMonitor::readSnapshot() const {
                 FILE* fv = fopen(tempPath, "r");
                 if (!fv) continue;
                 long milliC = 0;
-                fscanf(fv, "%ld", &milliC);
+                [[maybe_unused]] auto _rv = fscanf(fv, "%ld", &milliC);
                 fclose(fv);
                 if (milliC > 0) { s.cpu_temp_c = milliC / 1000.0; break; }
             }
@@ -271,7 +271,7 @@ SysSnapshot HardwareMonitor::readSnapshot() const {
             FILE* f = popen("nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader 2>/dev/null", "r");
             if (f) {
                 int t = -1;
-                fscanf(f, "%d", &t);
+                [[maybe_unused]] auto _rn = fscanf(f, "%d", &t);
                 pclose(f);
                 if (t > 0) s.gpu_temp_c = t;
             }
@@ -284,7 +284,7 @@ SysSnapshot HardwareMonitor::readSnapshot() const {
                 FILE* f = fopen(path, "r");
                 if (!f) continue;
                 long milliC = 0;
-                fscanf(f, "%ld", &milliC);
+                [[maybe_unused]] auto _ra = fscanf(f, "%ld", &milliC);
                 fclose(f);
                 if (milliC > 0) s.gpu_temp_c = milliC / 1000.0;
             }

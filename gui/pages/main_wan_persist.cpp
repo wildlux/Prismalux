@@ -479,7 +479,7 @@ QWidget* LanWanPage::buildWanComputeTab()
         "<span style='color:#60a5fa;font-size:11px;'>"
         "\xf0\x9f\x94\x92 <b>Consiglio sicurezza per reti con pi\xc3\xb9 PC</b><br>"
         "Usa <b>WireGuard</b> su tutti i worker: cifra il traffico WAN e "
-        "limita l\xe2\x80\x99accesso ai soli peer autorizzati.<br>"
+        "limita l\xe2\x80\x99" "accesso ai soli peer autorizzati.<br>"
         "Configura il server WAN su <code>10.0.0.1</code> (IP WireGuard) invece di <code>0.0.0.0</code>, "
         "cos\xc3\xac la porta 11600 \xc3\xa8 raggiungibile solo dai PC nella VPN.<br>"
         "Con token WAN + WireGuard la sicurezza \xc3\xa8 doppia: "
