@@ -37,6 +37,16 @@ if [[ "$*" == *--test* ]]; then
     echo "==> Test completati."
 fi
 
+echo "==> Installo icona..."
+ICON_SRC="$ROOT/prismalux.png"
+ICON_DST="$HOME/.local/share/icons/hicolor/256x256/apps/prismalux.png"
+if [ -f "$ICON_SRC" ]; then
+    mkdir -p "$(dirname "$ICON_DST")"
+    cp "$ICON_SRC" "$ICON_DST"
+    gtk-update-icon-cache "$HOME/.local/share/icons/hicolor/" 2>/dev/null || true
+    echo "    ✓ $ICON_DST"
+fi
+
 echo "==> Aggiorno Prismalux.desktop..."
 sed -i "s|^Exec=.*|Exec=$BIN|"  "$DESKTOP_SRC"
 sed -i "s|^Path=.*|Path=$ROOT|" "$DESKTOP_SRC"
