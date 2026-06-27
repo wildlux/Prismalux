@@ -11,6 +11,7 @@ set(CMAKE_AUTORCC ON)
 # ── Qt6 con fallback a Qt5 ────────────────────────────────────────────────
 find_package(Qt6 COMPONENTS Core Widgets Network PrintSupport Concurrent QUIET)
 if(Qt6_FOUND)
+    set(USE_QT6 TRUE)  # salvato prima che find_package opzionali resettino Qt6_FOUND
     set(QT_LIBS Qt6::Core Qt6::Widgets Qt6::Network Qt6::PrintSupport Qt6::Concurrent)
     message(STATUS "Prismalux GUI v${PROJECT_VERSION}: usando Qt6 ${Qt6_VERSION}")
 else()
@@ -400,7 +401,7 @@ endif()
 # Build: cmake -B Test/build_tests gui/ -DBUILD_TESTS=ON && cmake --build Test/build_tests
 # Run:   ./Test/build_tests/test_signal_lifetime
 if(BUILD_TESTS)
-    if(Qt6_FOUND)
+    if(USE_QT6)
         find_package(Qt6 COMPONENTS Test REQUIRED)
         set(QT_TEST_LIB Qt6::Test)
     else()
