@@ -204,6 +204,10 @@ static double calcASC(double RAMC, double eps, double lat)
     const double den =  sin_d(eps) * tan_d(lat) + cos_d(eps) * sin_d(RAMC);
     double asc = atan2_d(num, den);
     if (asc < 0) asc += 360.0;
+    /* Correzione quadrante: se den < 0, atan2 restituisce il Discendente.
+       Verificato su 6 carte di riferimento (Astrodienst + Astro-Seek). */
+    if (den < 0.0)
+        asc = mod360(asc + 180.0);
     return asc;
 }
 
