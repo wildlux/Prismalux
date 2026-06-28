@@ -439,20 +439,28 @@ void NatalChartWidget::drawZodiacRing(QPainter& p, double cx, double cy, double 
    ══════════════════════════════════════════════════════════════════ */
 void NatalChartWidget::drawHouseArea(QPainter& p, double cx, double cy, double R)
 {
-    const double rHO  = R * kRZodIn;  /* bordo esterno area case  */
-    const double rSep = R * kRSep;    /* anello separatore        */
-    const double rHI  = R * kRHub;    /* hub centrale             */
+    const double rHO     = R * kRZodIn;   /* bordo esterno area case  */
+    const double rSep    = R * kRSep;    /* anello separatore        */
+    const double rHI     = R * kRHub;    /* hub centrale             */
+    const double rZodOut = R * kRZodOut; /* bordo esterno anello zodiaco */
 
     /* Sfondo crema uniforme per tutta l'area interna */
     p.setPen(Qt::NoPen);
     p.setBrush(QColor(252, 250, 246));
     p.drawEllipse(QPointF(cx, cy), rHO, rHO);
 
-    /* Linee cuspidi case — dal bordo zodiaco fino all'hub */
+    /* Linee cuspidi case — dal bordo zodiaco fino all'hub.
+       Case principali (1/4/7/10 = ASC/IC/DC/MC) più spesse. */
     p.setBrush(Qt::NoBrush);
-    p.setPen(QPen(QColor(140, 130, 120), 0.8));
     for (int h = 0; h < 12; ++h) {
-        const double lon = m_hasRealCusps ? m_cusps[h] : (m_ascLon + h * 30.0);
+        const double lon    = m_hasRealCusps ? m_cusps[h] : (m_ascLon + h * 30.0);
+        const bool   isMain = (h == 0 || h == 3 || h == 6 || h == 9);
+        /* Tacca nell'anello zodiacale: da bordo esterno a bordo interno zodiaco */
+        p.setPen(QPen(QColor(100, 90, 80), isMain ? 1.6 : 0.9));
+        p.drawLine(toScreen(lon, rZodOut, cx, cy),
+                   toScreen(lon, rHO,     cx, cy));
+        /* Linea nell'area case: da bordo zodiaco all'hub */
+        p.setPen(QPen(QColor(140, 130, 120), isMain ? 1.4 : 0.8));
         p.drawLine(toScreen(lon, rHO, cx, cy),
                    toScreen(lon, rHI, cx, cy));
     }
@@ -570,15 +578,43 @@ void NatalChartWidget::drawPlanets(QPainter& p, double cx, double cy, double R)
     const int n = m_planets.size();
     if (n == 0) return;
 
-    /* Ordina per longitudine per rilevare collisioni */
+    /* Ordina per longitudine */
     QVector<int> idx(n);
     for (int i = 0; i < n; ++i) idx[i] = i;
     std::sort(idx.begin(), idx.end(), [&](int a, int b) {
         return m_planets[a].lon < m_planets[b].lon;
     });
 
-    /* Assegna raggio glifo — alterna se due pianeti sono entro 7°.
-       rDelta piccolo: i pianeti restano nel ring (kRZodIn .. kRSep). */
+    /* ── Anti-collisione angolare ──────────────────────────────────
+       Calcola longitudini "display" separate da quelle reali.
+       La linea radiale punta alla posizione reale; il glifo appare
+       nella posizione display (spread minimo 6° tra glifi adiacenti). */
+    const double MIN_SEP = 6.5;
+    QVector<double> dLon(n);
+    for (int k = 0; k < n; ++k) dLon[k] = m_planets[idx[k]].lon;
+
+    for (int pass = 0; pass < 5; ++pass) {
+        for (int k = 0; k < n - 1; ++k) {
+            double diff = std::fmod(dLon[k + 1] - dLon[k] + 360.0, 360.0);
+            if (diff < MIN_SEP) {
+                const double shift = (MIN_SEP - diff) / 2.0;
+                dLon[k]     -= shift;
+                dLon[k + 1] += shift;
+            }
+        }
+        /* wrap: ultimo vs primo */
+        double diff = std::fmod(dLon[0] + 360.0 - dLon[n - 1], 360.0);
+        if (diff < MIN_SEP) {
+            const double shift = (MIN_SEP - diff) / 2.0;
+            dLon[n - 1] -= shift;
+            dLon[0]     += shift;
+        }
+    }
+    /* ricostruisci: idx[k] → displayLon */
+    QVector<double> displayLon(n);
+    for (int k = 0; k < n; ++k) displayLon[idx[k]] = dLon[k];
+
+    /* ── Raggio glifo: alterna radialmente se necessario ── */
     const double rBase  = R * kRPlanet;
     const double rDelta = R * 0.018;
     QVector<double> rGlyph(n, rBase);
@@ -587,31 +623,34 @@ void NatalChartWidget::drawPlanets(QPainter& p, double cx, double cy, double R)
         for (int k = 1; k < n; ++k) {
             double diff = std::fmod(std::abs(m_planets[idx[k]].lon - m_planets[idx[k-1]].lon), 360.0);
             if (diff > 180.0) diff = 360.0 - diff;
-            if (diff < 7.0) {
-                level = (level % 2) + 1;
-            } else {
-                level = 0;
-            }
+            level = (diff < 7.0) ? ((level % 2) + 1) : 0;
             rGlyph[idx[k]] = rBase - level * rDelta;
         }
     }
 
     const double rZodIn = R * kRZodIn;
     const int    pxGly  = qMax(9,  static_cast<int>(R * 0.072));
-    const int    pxDeg  = qMax(6,  static_cast<int>(R * 0.052));
+    const int    pxDeg  = qMax(6,  static_cast<int>(R * 0.048));
     const double prad   = qMax(7.0, R * 0.036);
 
     QFont pf = font(); pf.setPixelSize(pxGly);
     QFont df = font(); df.setPixelSize(pxDeg);
 
     for (int i = 0; i < n; ++i) {
-        const Planet& pl = m_planets[i];
-        const double  rG = rGlyph[i];
-        const QPointF pt = toScreen(pl.lon, rG, cx, cy);
+        const Planet& pl   = m_planets[i];
+        const double  rG   = rGlyph[i];
+        const double  dL   = displayLon[i];   /* lon display (spread) */
+        const QPointF pt   = toScreen(dL, rG, cx, cy);
+        const QPointF ptR  = toScreen(pl.lon, rZodIn - 1.0, cx, cy); /* punto reale nell'anello */
 
-        /* Linea radiale dal glifo al bordo interno dello zodiaco */
-        p.setPen(QPen(pl.color.darker(160), 0.7));
-        p.drawLine(pt, toScreen(pl.lon, rZodIn - 1.0, cx, cy));
+        /* Linea radiale: dalla posizione reale nell'anello zodiacale al glifo */
+        p.setPen(QPen(pl.color.darker(150), 0.8));
+        p.drawLine(ptR, pt);
+
+        /* Marcatore puntino sulla posizione REALE nell'anello zodiacale */
+        p.setPen(Qt::NoPen);
+        p.setBrush(pl.color);
+        p.drawEllipse(toScreen(pl.lon, rZodIn + 2.0, cx, cy), 2.2, 2.2);
 
         /* Cerchio bianco di sfondo glifo */
         p.setPen(Qt::NoPen);
@@ -624,26 +663,28 @@ void NatalChartWidget::drawPlanets(QPainter& p, double cx, double cy, double R)
         p.drawText(QRectF(pt.x() - prad, pt.y() - prad, prad * 2, prad * 2),
                    Qt::AlignCenter, pl.symbol);
 
-        /* Etichetta grado°min' — verso l'anello zodiacale (Astrodienst style) */
-        const double degInS  = std::fmod(pl.lon < 0 ? pl.lon + 360.0 : pl.lon, 30.0);
+        /* ── Etichetta: ♊ 23°09' (simbolo segno + grado + minuti) ── */
+        const double lon_n   = pl.lon < 0 ? pl.lon + 360.0 : pl.lon;
+        const int    signIdx = static_cast<int>(lon_n / 30.0) % 12;
+        const double degInS  = std::fmod(lon_n, 30.0);
         const int    d       = static_cast<int>(degInS);
         const int    m_val   = static_cast<int>((degInS - d) * 60.0);
-        const QString degLbl = QString("%1\xc2\xb0%2'")
-                               .arg(d)
-                               .arg(m_val, 2, 10, QChar('0'));
+        const QString segSym = QString::fromUtf8(kSigns[signIdx].sym);
+        const QString degLbl = segSym + " " + QString::number(d) + "\xc2\xb0"
+                               + QString::number(m_val).rightJustified(2, QChar('0')) + "'";
 
-        /* Posizione etichetta: outward (verso lo zodiaco) */
-        const double la = screenAngle(pl.lon) * M_PI / 180.0;
-        const double ex = pt.x() + (prad + 2.0) * std::cos(la);
-        const double ey = pt.y() - (prad + 2.0) * std::sin(la);
-        const double dw = qMax(20.0, R * 0.082);
+        /* Posizione etichetta: inward (verso il centro, opposto allo zodiaco) */
+        const double la = screenAngle(dL) * M_PI / 180.0;
+        const double ex = pt.x() - (prad + 2.0) * std::cos(la);
+        const double ey = pt.y() + (prad + 2.0) * std::sin(la);
+        const double dw = qMax(26.0, R * 0.096);
         const double dh = qMax(9.0,  R * 0.044);
-        /* sfondo bianco semitrasparente per leggibilità nell'anello */
+
         p.setPen(Qt::NoPen);
-        p.setBrush(QColor(255, 255, 255, 190));
+        p.setBrush(QColor(255, 255, 255, 195));
         p.drawRoundedRect(QRectF(ex - dw / 2 - 1, ey - dh / 2 - 1, dw + 2, dh + 2), 2, 2);
         p.setFont(df);
-        p.setPen(QColor(45, 45, 65));
+        p.setPen(kElemPen[kSigns[signIdx].element]);
         p.drawText(QRectF(ex - dw / 2, ey - dh / 2, dw, dh),
                    Qt::AlignCenter, degLbl);
     }
