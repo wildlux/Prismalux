@@ -1,4 +1,5 @@
 #include "astro_calc.h"
+#include "vsop87b_data.h"
 #include <cmath>
 
 /* ── Costanti ─────────────────────────────────────────────────── */
@@ -61,7 +62,7 @@ static double solveKepler(double M_deg, double e)
     return E;
 }
 
-/* ── Elementi orbitali JPL J2000.0 (Meeus cap.31) ─────────── */
+/* ── Elementi orbitali JPL J2000.0 — solo Plutone (non coperto da VSOP87B) ─ */
 struct OrbEl {
     double a;
     double e, erate;
@@ -71,38 +72,44 @@ struct OrbEl {
     double L, Lrate;
 };
 
-static const OrbEl kPlanets[] = {
-    /* Mercurio */
-    { 0.38709927, 0.20563593, 0.00001906,  7.00497902,-0.00594749,
-      48.33076593,-0.12534081, 77.45779628, 0.16047689, 252.25032350, 149472.67411175 },
-    /* Venere */
-    { 0.72333566, 0.00677672,-0.00004107,  3.39467605,-0.00078890,
-      76.67984255,-0.27769418,131.60246718, 0.00268329, 181.97909950,  58517.81538729 },
-    /* Terra */
-    { 1.00000261, 0.01671123,-0.00004392, -0.00001531,-0.01294668,
-       0.0,        0.0,       102.93768193, 0.32327364, 100.46457166,  35999.37244981 },
-    /* Marte */
-    { 1.52371034, 0.09339410, 0.00007882,  1.84969142,-0.00813131,
-      49.55953891,-0.29257343,-23.94362959, 0.44441088,  -4.55343205,  19140.30268499 },
-    /* Giove */
-    { 5.20288700, 0.04838624,-0.00013253,  1.30439695,-0.00183714,
-     100.47390909, 0.20469106, 14.72847983, 0.21252668,  34.39644051,   3034.74612775 },
-    /* Saturno */
-    { 9.53667594, 0.05386179,-0.00050991,  2.48599187, 0.00193609,
-     113.66242448,-0.28867794, 92.59887831,-0.41897216,  49.95424423,   1222.49362201 },
-    /* Urano */
-    { 19.18916464, 0.04725744,-0.00004397, 0.77263783,-0.00242939,
-      74.01692503, 0.04240589,170.95427630, 0.40805281, 313.23810451,    428.48202785 },
-    /* Nettuno */
-    { 30.06992276, 0.00859048, 0.00005105, 1.77004347, 0.00035372,
-     131.78422574,-0.00508664, 44.96476227,-0.32241464, -55.12002969,    218.45945325 },
-    /* Plutone */
-    { 39.48211675, 0.24882730, 0.00005170,17.14001206, 0.00004170,
-     110.30393684,-0.01183482,224.06891629,-0.04062942, 238.92903833,    145.20780515 },
+static const OrbEl kOrbElPluto = {
+    39.48211675, 0.24882730, 0.00005170, 17.14001206, 0.00004170,
+   110.30393684,-0.01183482,224.06891629,-0.04062942, 238.92903833, 145.20780515
 };
 
 struct Vec3 { double x, y, z; };
 
+/* ── VSOP87B (Bretagnon & Francou 1988) — precisione < 0.02° ──── */
+static double vsop87b_eval(const VsopSeries (&s)[6], double tau)
+{
+    double total = 0.0, tau_k = 1.0;
+    for (int k = 0; k < 6; ++k, tau_k *= tau) {
+        if (!s[k].terms) continue;
+        double sum = 0.0;
+        for (int i = 0; i < s[k].n; ++i)
+            sum += s[k].terms[i].amp * std::cos(s[k].terms[i].phi + s[k].terms[i].freq * tau);
+        total += sum * tau_k;
+    }
+    return total;
+}
+
+static Vec3 vsop87b_xyz(const VsopPlanet& p, double tau)
+{
+    const double L = vsop87b_eval(p.series[0], tau);
+    const double B = vsop87b_eval(p.series[1], tau);
+    const double R = vsop87b_eval(p.series[2], tau);
+    return { R * std::cos(B) * std::cos(L),
+             R * std::cos(B) * std::sin(L),
+             R * std::sin(B) };
+}
+
+/* Precessione longitudine eclittica J2000→data (Meeus cap.21), T in secoli */
+static double precessionLon(double T)
+{
+    return (5029.0966 * T + 1.5623 * T * T) / 3600.0;
+}
+
+/* ── Elementi orbitali (solo per Plutone, non coperto da VSOP87B) ──────── */
 static Vec3 planetXYZ(const OrbEl& el, double T)
 {
     const double a      = el.a;
@@ -288,20 +295,34 @@ AstroCalc::Result AstroCalc::compute(int year, int month, int day,
     const double ut  = hour + minute / 60.0;
     const double JD  = julianDay(year, month, day, ut);
     const double T   = (JD - 2451545.0) / 36525.0;
+    const double tau = T / 10.0;   /* VSOP87B usa millenni giuliani */
     const double eps = obliquity(T);
+
+    /* VSOP87B e gli elementi JPL sono riferiti all'eclittica fissa J2000.
+       Per ottenere longitudine eclittica tropicale (equinozio della data),
+       si aggiunge la precessione da J2000 alla data (~50.3"/anno). */
+    const double prec = precessionLon(T);
 
     const double LMST_deg = mod360(gmst(JD) + lonDeg);
 
-    const Vec3 earthXYZ = planetXYZ(kPlanets[2], T);
+    const Vec3 earthXYZ = vsop87b_xyz(kVsopEar, tau);
     const Vec3 sunGeo   = { -earthXYZ.x, -earthXYZ.y, -earthXYZ.z };
-    const double sunLon = xyzToEclLon(sunGeo);
+    const double sunLon = mod360(xyzToEclLon(sunGeo) + prec);
+
+    /* Tabella VSOP87B per indice pianeta (0=Mer,1=Ven,3=Mar,4=Jup,5=Sat,6=Ura,7=Nep).
+       Indice 2 (Terra) non usato qui; indice 8 (Plutone) gestito sotto. */
+    static const VsopPlanet* const kVsopByIdx[] = {
+        &kVsopMer, &kVsopVen, nullptr, &kVsopMar,
+        &kVsopJup, &kVsopSat, &kVsopUra, &kVsopNep
+    };
 
     auto geoLon = [&](int idx) -> double {
-        Vec3 pXYZ = planetXYZ(kPlanets[idx], T);
+        Vec3 pXYZ = (idx < 8) ? vsop87b_xyz(*kVsopByIdx[idx], tau)
+                               : planetXYZ(kOrbElPluto, T);
         Vec3 geo  = { pXYZ.x - earthXYZ.x,
                       pXYZ.y - earthXYZ.y,
                       pXYZ.z - earthXYZ.z };
-        return xyzToEclLon(geo);
+        return mod360(xyzToEclLon(geo) + prec);
     };
 
     res.ascLon = calcASC(LMST_deg, eps, latDeg);

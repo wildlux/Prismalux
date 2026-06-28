@@ -68,6 +68,8 @@ namespace P = PrismaluxPaths;
 #include <QDialogButtonBox>
 #include <QDialog>
 #include <QRegularExpression>
+#include <QMouseEvent>
+#include <cmath>
 
 /* ── Helper: estrae i colori chiave dal QSS corrente dell'applicazione ──
    Tutti i QSS Prismalux hanno nella riga di commento:
@@ -244,6 +246,177 @@ static void settingsDoClrFeedback(QWidget* w, QTableWidget* table, QLabel* statL
     statLbl->setText(QObject::tr("\xf0\x9f\x97\x91  Dati feedback cancellati."));
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Easter egg astrale — si attiva con doppio click su "saggezza"
+   ══════════════════════════════════════════════════════════════ */
+static void showAstroEaster(QWidget* parent)
+{
+    auto* dlg = new QDialog(parent, Qt::Dialog);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setWindowTitle("\xe2\x9c\xa8 Segreto delle Stelle");
+    dlg->setFixedSize(dpiScale(460), dpiScale(450));
+    dlg->setStyleSheet("QDialog{background:#080818;} QLabel{color:#e8d5b7;}");
+
+    const int SZ = dpiScale(290);
+    QPixmap px(SZ, SZ);
+    px.fill(QColor(8, 8, 24));
+    {
+        QPainter p(&px);
+        p.setRenderHint(QPainter::Antialiasing);
+
+        const QPointF ctr(SZ / 2.0, SZ / 2.0);
+        const double R1 = SZ * 0.46;
+        const double R2 = SZ * 0.37;
+        const double R3 = SZ * 0.28;
+        const double R4 = SZ * 0.17;
+
+        /* stelle sfondo */
+        p.setPen(QColor(255, 255, 255, 90));
+        for (int i = 0; i < 50; ++i) {
+            double a = i * 137.508 * M_PI / 180.0;
+            double r = SZ * 0.04 + (i % 9) * SZ * 0.045;
+            if (r >= R2 - 2) r = SZ * 0.03 + (i % 4) * SZ * 0.04;
+            p.drawPoint(QPointF(ctr.x() + r * cos(a), ctr.y() + r * sin(a)));
+        }
+
+        /* cerchi */
+        p.setBrush(Qt::NoBrush);
+        p.setPen(QPen(QColor("#4a3f6b"), 1));
+        p.drawEllipse(ctr, R1, R1);
+        p.drawEllipse(ctr, R2, R2);
+        p.drawEllipse(ctr, R3, R3);
+        p.setPen(QPen(QColor("#7060a0"), 1));
+        p.drawEllipse(ctr, R4, R4);
+
+        /* 12 segni zodiacali */
+        static const char* kZ[12] = {
+            "\xe2\x99\x88","\xe2\x99\x89","\xe2\x99\x8a","\xe2\x99\x8b",
+            "\xe2\x99\x8c","\xe2\x99\x8d","\xe2\x99\x8e","\xe2\x99\x8f",
+            "\xe2\x99\x90","\xe2\x99\x91","\xe2\x99\x92","\xe2\x99\x93"
+        };
+        static const QColor kZC[12] = {
+            QColor("#e84040"), QColor("#c27a00"), QColor("#e8c840"),
+            QColor("#40a8e8"), QColor("#e8a000"), QColor("#60b060"),
+            QColor("#e87090"), QColor("#9040b0"), QColor("#e86020"),
+            QColor("#6090b0"), QColor("#40b0d0"), QColor("#8080d0")
+        };
+        QFont zf("DejaVu Sans", qMax(6, int(SZ * 0.045)));
+        p.setFont(zf);
+        for (int i = 0; i < 12; ++i) {
+            double a0 = (-90.0 + i * 30.0) * M_PI / 180.0;
+            double am = (-90.0 + i * 30.0 + 15.0) * M_PI / 180.0;
+            p.setPen(QPen(QColor("#4a3f6b"), 1));
+            p.drawLine(QPointF(ctr.x() + R2 * cos(a0), ctr.y() + R2 * sin(a0)),
+                       QPointF(ctr.x() + R1 * cos(a0), ctr.y() + R1 * sin(a0)));
+            double sr = (R1 + R2) / 2.0;
+            QPointF sp(ctr.x() + sr * cos(am), ctr.y() + sr * sin(am));
+            int fs = qMax(6, int(SZ * 0.045));
+            QRectF sr2(sp.x() - fs, sp.y() - fs, fs * 2, fs * 2);
+            p.setPen(kZC[i]);
+            p.drawText(sr2, Qt::AlignCenter, QString::fromUtf8(kZ[i]));
+        }
+
+        /* aspetti */
+        p.setPen(QPen(QColor(100, 80, 200, 100), 1, Qt::DotLine));
+        int asp[][2] = {{0,6},{1,7},{2,8},{3,9},{4,10},{5,11},{0,4},{1,5}};
+        for (auto& a : asp) {
+            double a1 = (-90.0 + a[0] * 30.0 + 15.0) * M_PI / 180.0;
+            double a2 = (-90.0 + a[1] * 30.0 + 15.0) * M_PI / 180.0;
+            p.drawLine(QPointF(ctr.x() + R3 * cos(a1), ctr.y() + R3 * sin(a1)),
+                       QPointF(ctr.x() + R3 * cos(a2), ctr.y() + R3 * sin(a2)));
+        }
+
+        /* 4 pianeti nascosti */
+        struct PE { double lon; const char* name; QColor col; };
+        static const PE kPE[] = {
+            { 45.0,  "\xf0\x9f\x94\xac Ricerca",       QColor("#40d8c0") },
+            { 135.0, "\xf0\x9f\x9b\xa0 Strumenti",     QColor("#e0c040") },
+            { 225.0, "\xf0\x9f\x8c\x9f Astrologia",    QColor("#e08060") },
+            { 315.0, "\xf0\x9f\x93\x90 Carta Astrale", QColor("#c080e0") },
+        };
+        QFont lf("DejaVu Sans", qMax(5, int(SZ * 0.038)));
+        p.setFont(lf);
+        for (const auto& pe : kPE) {
+            double ar = (pe.lon - 90.0) * M_PI / 180.0;
+            double r  = (R3 + R4) / 2.0;
+            QPointF pt(ctr.x() + r * cos(ar), ctr.y() + r * sin(ar));
+            p.setPen(Qt::NoPen);
+            p.setBrush(pe.col);
+            p.drawEllipse(pt, dpiScale(4), dpiScale(4));
+            p.setPen(pe.col);
+            int fw = qMax(40, int(SZ * 0.36));
+            int fh = qMax(12, int(SZ * 0.075));
+            p.drawText(QRectF(pt.x() - fw/2.0, pt.y() + dpiScale(5), fw, fh),
+                       Qt::AlignCenter, QString::fromUtf8(pe.name));
+        }
+
+        /* logo centrale */
+        QFont cf("DejaVu Sans", qMax(12, int(SZ * 0.07)), QFont::Bold);
+        p.setFont(cf);
+        p.setPen(QColor("#e8d5b7"));
+        p.drawText(QRectF(ctr.x() - 20, ctr.y() - 12, 40, 24),
+                   Qt::AlignCenter, "\xf0\x9f\x8d\xba");
+    }
+
+    auto* lay   = new QVBoxLayout(dlg);
+    auto* title = new QLabel("\xe2\x9c\xa8\xc2\xa0 Segreto delle Stelle \xc2\xa0\xe2\x9c\xa8");
+    title->setAlignment(Qt::AlignCenter);
+    title->setStyleSheet("font-size:15px;font-weight:700;color:#e8d5b7;margin:6px 0 2px;");
+
+    auto* canvas = new QLabel(dlg);
+    canvas->setPixmap(px);
+    canvas->setAlignment(Qt::AlignCenter);
+
+    auto* sub = new QLabel(
+        "<center>"
+        "<span style='color:#9a8fba;font-size:12px;font-style:italic;'>"
+        "\xf0\x9f\x8c\x9f\xc2\xa0"
+        "Astrologia \xc2\xb7 Strumenti \xc2\xb7 Ricerca \xc2\xb7 Carta Astrale"
+        "\xc2\xa0\xf0\x9f\x8c\x9f</span><br>"
+        "<span style='color:#5a506a;font-size:11px;'>"
+        "&ldquo;Le stelle custodiscono i segreti di chi cerca la saggezza.&rdquo;"
+        "</span></center>");
+    sub->setWordWrap(true);
+
+    auto* btn = new QPushButton("Chiudi");
+    btn->setStyleSheet(
+        "QPushButton{background:#1a1232;color:#c8b8e8;border:1px solid #5a4f8a;"
+        "border-radius:6px;padding:5px 22px;font-size:12px;}"
+        "QPushButton:hover{background:#2a2042;}");
+    QObject::connect(btn, &QPushButton::clicked, dlg, &QDialog::accept);
+
+    lay->addWidget(title);
+    lay->addWidget(canvas);
+    lay->addWidget(sub);
+    lay->addStretch();
+    lay->addWidget(btn, 0, Qt::AlignCenter);
+    lay->setContentsMargins(16, 6, 16, 12);
+    lay->setSpacing(6);
+
+    dlg->exec();
+}
+
+/* Filtro eventi: intercetta doppio click su "saggezza" nel QTextBrowser */
+class AstroEggFilter : public QObject {
+public:
+    explicit AstroEggFilter(QObject* parent) : QObject(parent) {}
+protected:
+    bool eventFilter(QObject* obj, QEvent* ev) override {
+        if (ev->type() == QEvent::MouseButtonDblClick) {
+            if (auto* b = qobject_cast<QTextBrowser*>(obj)) {
+                QTextCursor cur = b->cursorForPosition(
+                    static_cast<QMouseEvent*>(ev)->pos());
+                cur.select(QTextCursor::WordUnderCursor);
+                if (cur.selectedText().contains("saggezza", Qt::CaseInsensitive)) {
+                    showAstroEaster(b);
+                    return true;
+                }
+            }
+        }
+        return QObject::eventFilter(obj, ev);
+    }
+};
+
 QWidget* ImpostazioniPage::buildRingraziamentiTab()
 {
     /* ── CSS parametrizzato: %1=bg %2=text %3=accent %4=muted %5=border %6=bg3 %7=bg2 ── */
@@ -327,6 +500,7 @@ QWidget* ImpostazioniPage::buildRingraziamentiTab()
     browser->setOpenExternalLinks(true);
     browser->setFrameShape(QFrame::NoFrame);
     browser->setObjectName("ringraziamentiView");
+    browser->installEventFilter(new AstroEggFilter(browser));
 
     auto updateHtml = [browser]() {
         QString bg, bg2, bg3, text, muted, accent, border;
