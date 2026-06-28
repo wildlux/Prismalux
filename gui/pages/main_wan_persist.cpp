@@ -467,8 +467,34 @@ QWidget* LanWanPage::buildWanComputeTab()
             t.trimmed().isEmpty() ? "" :
             ok ? "border:1px solid #4caf50;" : "border:1px solid #f44336;");
     });
+
+    auto* wanEyeBtn = new QPushButton("\xf0\x9f\x91\x81", srvTokenRow);
+    wanEyeBtn->setFixedWidth(dpiScale(28)); wanEyeBtn->setCheckable(true); wanEyeBtn->setFlat(true);
+    wanEyeBtn->setToolTip(tr("Mostra/nascondi token"));
+    connect(wanEyeBtn, &QPushButton::toggled, m_wanTokenEdit, [this](bool show) {
+        m_wanTokenEdit->setEchoMode(show ? QLineEdit::Normal : QLineEdit::Password);
+    });
+
+    auto* wanCopyBtn = new QPushButton("\xf0\x9f\x93\x8b", srvTokenRow);
+    wanCopyBtn->setFixedWidth(dpiScale(28)); wanCopyBtn->setFlat(true);
+    wanCopyBtn->setToolTip(tr("Copia token negli appunti"));
+    connect(wanCopyBtn, &QPushButton::clicked, m_wanTokenEdit, [this] {
+        QApplication::clipboard()->setText(m_wanTokenEdit->text().trimmed());
+    });
+
+    auto* wanRegenBtn = new QPushButton("\xf0\x9f\x94\x84", srvTokenRow);
+    wanRegenBtn->setFixedWidth(dpiScale(28)); wanRegenBtn->setFlat(true);
+    wanRegenBtn->setToolTip(tr("Genera nuovo token casuale (32 caratteri)"));
+    connect(wanRegenBtn, &QPushButton::clicked, m_wanTokenEdit, [this] {
+        m_wanTokenEdit->setText(
+            QUuid::createUuid().toString(QUuid::WithoutBraces).replace("-", "").left(32));
+    });
+
     srvTokenLay->addWidget(srvTokenLbl);
     srvTokenLay->addWidget(m_wanTokenEdit, 1);
+    srvTokenLay->addWidget(wanEyeBtn);
+    srvTokenLay->addWidget(wanCopyBtn);
+    srvTokenLay->addWidget(wanRegenBtn);
     srvLay->addWidget(srvTokenRow);
 
     /* Nota WireGuard — visibile solo quando exposeAll è ON */
