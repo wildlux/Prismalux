@@ -198,6 +198,14 @@ static double calcMC(double RAMC, double eps)
     return mc;
 }
 
+/* Applica correzione di quadrante: cos(RAMC)<=0 → ASC∈[180°,360°), altrimenti [0°,180°). */
+static double ascQuadrant(double asc, double RAMC)
+{
+    if ((cos_d(RAMC) <= 0.0) != (asc >= 180.0))
+        asc = mod360(asc + 180.0);
+    return asc;
+}
+
 static double calcASC(double RAMC, double eps, double lat)
 {
     const double num = -cos_d(RAMC);
@@ -205,12 +213,37 @@ static double calcASC(double RAMC, double eps, double lat)
     double asc = atan2_d(num, den);
     if (asc < 0) asc += 360.0;
     /* Correzione quadrante: cos(RAMC)<=0 → ASC∈[180°,360°), cos(RAMC)>0 → ASC∈[0°,180°).
-       Verificato su 10 carte (Astrodienst + Astro-Seek): USA 1776, Italia 1946, UE 1993,
-       Sinner, Ariana, Merini, Lennon, Joyce, Celentano, Ariana Grande. */
-    const bool shouldBeAbove180 = (cos_d(RAMC) <= 0.0);
-    const bool isAbove180       = (asc >= 180.0);
-    if (shouldBeAbove180 != isAbove180)
-        asc = mod360(asc + 180.0);
+       Verificato su 10 carte (Astrodienst + Astro-Seek). */
+    asc = ascQuadrant(asc, RAMC);
+
+    /* Zona singolare (|den| < 0.02): atan2 perde precisione quando il denominatore
+       si annulla. Avviene quando RAMC ≈ arcsin(-sin(ε)·tan(φ)/cos(ε)).
+       Esempio: lat=45.5°, eps=23.4° → singolare a RAMC≈205.7° (vicino a Celentano).
+       Rifiniamo con iterazione di Newton sull'equazione dell'orizzonte
+         f(λ) = sin(φ)·sin(δ(λ)) + cos(φ)·cos(δ(λ))·cos(RAMC − α(λ)) = 0
+       dove δ = arcsin(sin(ε)·sin(λ)) e α = atan2(sin(λ)·cos(ε), cos(λ)). */
+    if (std::abs(den) < 0.02) {
+        double lam = asc;
+        for (int i = 0; i < 20; ++i) {
+            const double sinDec  = sin_d(eps) * sin_d(lam);
+            const double cosDec  = std::sqrt(std::max(0.0, 1.0 - sinDec * sinDec));
+            const double ra      = mod360(atan2_d(sin_d(lam) * cos_d(eps), cos_d(lam)));
+            const double H       = mod360(RAMC - ra);
+            const double f       = sin_d(lat)*sinDec + cos_d(lat)*cosDec*cos_d(H);
+            if (std::abs(f) < 1e-9) break;
+            // derivata numerica con passo 0.001°
+            const double dL       = 0.001;
+            const double sinDec2  = sin_d(eps) * sin_d(lam + dL);
+            const double cosDec2  = std::sqrt(std::max(0.0, 1.0 - sinDec2 * sinDec2));
+            const double ra2      = mod360(atan2_d(sin_d(lam+dL)*cos_d(eps), cos_d(lam+dL)));
+            const double H2       = mod360(RAMC - ra2);
+            const double f2       = sin_d(lat)*sinDec2 + cos_d(lat)*cosDec2*cos_d(H2);
+            const double df       = (f2 - f) / dL;
+            if (std::abs(df) < 1e-12) break;
+            lam = mod360(lam - f / df);
+        }
+        asc = ascQuadrant(lam, RAMC);
+    }
     return asc;
 }
 
