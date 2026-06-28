@@ -873,7 +873,7 @@ void AgentiPage::onBtnRunClicked()
         const QString task = m_input->toPlainText().trimmed();
         if (task.isEmpty()) return;
         /* Reset stato ciclo ReAct */
-        m_autoHistory    = QJsonArray();
+        m_ctxAuto->clear();
         m_autoStep       = 0;
         m_autoBuf.clear();
         m_autoLastUserMsg = task;

@@ -173,7 +173,7 @@ void AgentiPage::runPipeline() {
 
     /* Reset history se il log e' stato svuotato (es. "Nuova chat") */
     if (m_log->document()->isEmpty() || m_log->toPlainText().trimmed().isEmpty())
-        m_chatPairs.clear();
+        m_ctxSingle->clear();
 
     /* Avviso se l'estrazione asincrona del file allegato non è ancora completata */
     if (m_docLoading) {
@@ -393,12 +393,9 @@ void AgentiPage::advancePipeline() {
                 QTimer::singleShot(200, this, [this, ttsText]{ _ttsPlay(ttsText); });
         }
 
-        /* Salva turno in history (solo chat singola, non pipeline multi-agente) */
-        if (m_maxShots == 1 && !m_taskOriginal.isEmpty() && !m_agentOutputs.isEmpty()) {
-            m_chatPairs.append({ m_taskOriginal, m_agentOutputs.last() });
-            if (m_chatPairs.size() > kChatHistoryMax)
-                m_chatPairs.removeFirst();
-        }
+        /* Salva turno in history con Headroom (solo chat singola) */
+        if (m_maxShots == 1 && !m_taskOriginal.isEmpty() && !m_agentOutputs.isEmpty())
+            m_ctxSingle->appendPair(m_taskOriginal, m_agentOutputs.last());
 
         emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
         _setRunBusy(false);
@@ -705,17 +702,10 @@ void AgentiPage::runAgent(int idx) {
     else
         m_ai->clearActiveTools();
 
-    /* Costruisce history JSON per la modalita' chat singola (mantiene contesto tra turni) */
+    /* Costruisce history JSON con Headroom: [summary] + ultimi N turni */
     QJsonArray histArray;
-    if (isSingleChat && !m_chatPairs.isEmpty()) {
-        const int start = qMax(0, m_chatPairs.size() - kChatHistoryMax);
-        for (int hi = start; hi < m_chatPairs.size(); ++hi) {
-            QJsonObject uMsg; uMsg["role"] = "user";      uMsg["content"] = m_chatPairs[hi].first;
-            QJsonObject aMsg; aMsg["role"] = "assistant"; aMsg["content"] = m_chatPairs[hi].second;
-            histArray.append(uMsg);
-            histArray.append(aMsg);
-        }
-    }
+    if (isSingleChat && m_ctxSingle->messageCount() > 0)
+        histArray = m_ctxSingle->buildContext();
 
     const QString sys = _buildSys(m_taskOriginal, sysFull, sysSmall, m_ai->model(), m_ai->backend());
 

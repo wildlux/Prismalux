@@ -127,6 +127,7 @@ set(CPP_SRCS
     ai_memory.cpp
     theme_manager.cpp
     chat_history.cpp
+    context_compressor.cpp
     rag_engine.cpp
     pages/main_ai.cpp
     pages/main_ai_ui.cpp

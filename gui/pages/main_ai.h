@@ -31,6 +31,7 @@
 #include <QGroupBox>
 #include "../ai_client.h"
 #include "../chat_history.h"
+#include "../context_compressor.h"
 #include "../graph_memory.h"
 
 class ChartWidget;  /* forward declare — chart_widget.h incluso in .cpp */
@@ -87,8 +88,8 @@ public:
     static QJsonObject detectFirstToolCall(const QString& text);
 
     /** History multi-turno agente autonomo — per persistenza tra sessioni */
-    const QJsonArray& autoHistory() const { return m_autoHistory; }
-    void setAutoHistory(const QJsonArray& h) { m_autoHistory = h; }
+    QJsonArray autoHistory() const { return m_ctxAuto ? m_ctxAuto->buildContext() : QJsonArray{}; }
+    void setAutoHistory(const QJsonArray& h) { if (m_ctxAuto) m_ctxAuto->fromJsonArray(h); }
 
     /** Getter per persistenza sessione */
     const QMap<int,QString>&                    bubbleTexts() const { return m_bubbleTexts; }
@@ -193,10 +194,9 @@ private:
     bool             m_autoRetryActive = false; /* guardia anti-loop incertezza LLM */
 
     /* ── History conversazione (solo modalita' chat singola) ── */
-    /* Ultimi kChatHistoryMax turni {domanda, risposta} passati ad AiClient::chat()
-       come contesto. Svuotato automaticamente a ogni "Nuova chat" (m_log vuoto). */
-    static constexpr int kChatHistoryMax = 10;
-    QVector<QPair<QString,QString>> m_chatPairs;
+    /* ContextCompressor gestisce la finestra scorrevole + summary LLM asincrono
+       (Headroom-style). Sostituisce m_chatPairs + troncamento hard.            */
+    ContextCompressor* m_ctxSingle = nullptr;
 
     /* ── Stato motore byzantino ── */
     int     m_byzStep = 0;
@@ -327,7 +327,7 @@ private:
     /* ── Agente Autonomo (ReAct: Reasoning + Acting loop) ── */
     bool         m_autoEnabled    = false;   ///< true = modalità autonoma attiva
     bool         m_autoMsgShown  = false;   ///< true = banner "attivato" già mostrato
-    QJsonArray   m_autoHistory;              ///< storia multi-turno della sessione ReAct
+    ContextCompressor* m_ctxAuto = nullptr;  ///< Headroom per ReAct: comprime m_autoHistory
     QString      m_autoBuf;                  ///< accumulo token step corrente
     int          m_autoStep       = 0;       ///< step corrente del ciclo (0 = prima chiamata)
     int          m_autoMaxSteps   = 8;       ///< limite step prima di terminare forzatamente

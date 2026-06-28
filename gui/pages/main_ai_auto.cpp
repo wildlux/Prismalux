@@ -147,7 +147,7 @@ void AgentiPage::runAutonomousAgent()
 
     const QString sys = _autoSystemPrompt();
 
-    if (m_autoHistory.isEmpty()) {
+    if (m_ctxAuto->messageCount() == 0) {
         /* Prima chiamata: inietta contesto RAG se disponibile (TASK-4) */
         QString userMsg = m_autoLastUserMsg;
         auto ragCtx = [this]() -> QString {
@@ -163,10 +163,11 @@ void AgentiPage::runAutonomousAgent()
             userMsg = ragCtx + "\n\n" + userMsg;
         m_ai->chat(sys, userMsg);
     } else {
-        /* Chiamate successive: invia la history completa.
+        /* Chiamate successive: invia il contesto compresso (Headroom).
            L'ultimo elemento è il messaggio "OBSERVATION: ..." dell'utente. */
-        const QString lastMsg = m_autoHistory.last()["content"].toString();
-        m_ai->chat(sys, lastMsg, m_autoHistory, AiClient::QueryComplex);
+        const QJsonArray ctx = m_ctxAuto->buildContext();
+        const QString lastMsg = ctx.last()["content"].toString();
+        m_ai->chat(sys, lastMsg, ctx, AiClient::QueryComplex);
     }
 }
 
@@ -233,7 +234,7 @@ void AgentiPage::_autoAdvance(const QString& resp)
               QString("Step %1/%2").arg(m_autoStep + 1).arg(m_autoMaxSteps),
               markdownToHtml(answer, &m_codeBlocks, &m_codeBlockCounter), idx)); }
 
-        m_autoHistory.append(QJsonObject{{"role","assistant"},{"content",resp}});
+        m_ctxAuto->appendMessage("assistant", resp);
 
         emit pipelineStatus(100, "\xe2\x9c\x85  Agente autonomo completato");
         _setRunBusy(false);
@@ -263,7 +264,7 @@ void AgentiPage::_autoAdvance(const QString& resp)
         sel.insertHtml(buildAutoStepHtml(m_autoStep + 1, thought, action, QString()));
 
         /* Aggiunge il turno dell'agente alla history */
-        m_autoHistory.append(QJsonObject{{"role","assistant"},{"content",resp}});
+        m_ctxAuto->appendMessage("assistant", resp);
         m_autoStep++;
 
         /* Verifica limite step */
@@ -286,7 +287,7 @@ void AgentiPage::_autoAdvance(const QString& resp)
         runToolCall(tc, [this, tc, capturedStep](const QString& toolResult) {
             /* Aggiunge OBSERVATION come turno utente nella history */
             const QString obs = QString("OBSERVATION: %1").arg(toolResult);
-            m_autoHistory.append(QJsonObject{{"role","user"},{"content",obs}});
+            m_ctxAuto->appendMessage("user", obs);
 
             /* Aggiorna la card del passo con l'OBSERVATION */
             QTextCursor endCur(m_log->document());

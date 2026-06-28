@@ -308,7 +308,7 @@ void AgentiPage::onError(const QString& msg) {
 
     /* Reset stato agente autonomo */
     if (m_opMode == OpMode::AutonomousAgent) {
-        m_autoHistory = QJsonArray();
+        m_ctxAuto->clear();
         m_autoStep    = 0;
         m_autoBuf.clear();
     }

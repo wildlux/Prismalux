@@ -57,6 +57,10 @@ namespace P = PrismaluxPaths;
 AgentiPage::AgentiPage(AiClient* ai, QWidget* parent)
     : QWidget(parent), m_ai(ai)
 {
+    /* Headroom context compressors */
+    m_ctxSingle = new ContextCompressor(ai, this);
+    m_ctxAuto   = new ContextCompressor(ai, this);
+
     /* Dialog configurazione agenti — non-modal, creato una volta */
     m_cfgDlg = new AgentsConfigDialog(this);
     /* m_cmbMode vive dentro il dialog Configura Agenti */
