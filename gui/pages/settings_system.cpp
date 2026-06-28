@@ -105,7 +105,11 @@ static void sysDoAudit(QTextEdit* auditLog)
     auto bad = [&](const QString& msg){ auditLog->append("\xe2\x9d\x8c " + msg); ++warn; };
     auto info= [&](const QString& msg){ auditLog->append("\xe2\x84\xb9\xef\xb8\x8f " + msg); };
 
+#ifdef PRISMALUX_ROOT
     const QString root = QString(PRISMALUX_ROOT);
+#else
+    const QString root = P::root();
+#endif
 
     /* 1. .env in .gitignore */
     const QString gitignore = root + "/.gitignore";
