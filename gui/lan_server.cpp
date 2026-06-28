@@ -245,7 +245,7 @@ bool LanServer::start(quint16 port)
             if (!cert.isNull() && !key.isNull()) {
                 if (!m_sslServer) {
                     m_sslServer = new QSslServer(this);
-                    connect(m_sslServer, &QTcpServer::newConnection,
+                    connect(m_sslServer, &QSslServer::pendingConnectionAvailable,
                             this, &LanServer::onNewConnection);
                 }
                 QSslConfiguration cfg = QSslConfiguration::defaultConfiguration();
