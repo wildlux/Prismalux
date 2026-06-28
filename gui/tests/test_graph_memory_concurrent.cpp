@@ -23,7 +23,8 @@
 static GraphMemory* openGm(const QString& dbPath)
 {
     auto* gm = new GraphMemory(dbPath);
-    Q_ASSERT(gm->open());
+    const bool ok = gm->open();  // evaluate before Q_ASSERT — in Release Q_ASSERT(expr) short-circuits
+    Q_ASSERT(ok);
     return gm;
 }
 
