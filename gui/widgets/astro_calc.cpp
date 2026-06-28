@@ -105,14 +105,15 @@ struct Vec3 { double x, y, z; };
 
 static Vec3 planetXYZ(const OrbEl& el, double T)
 {
-    const double a  = el.a;
-    const double e  = el.e   + el.erate  * T;
-    const double i  = el.i   + el.irate  * T;
-    const double Om = mod360(el.Om  + el.Omrate * T);
-    const double w  = mod360(el.w   + el.wrate  * T);
-    const double L  = mod360(el.L   + el.Lrate  * T);
+    const double a      = el.a;
+    const double e      = el.e   + el.erate  * T;
+    const double i      = el.i   + el.irate  * T;
+    const double Om     = mod360(el.Om + el.Omrate * T);
+    const double wtilde = mod360(el.w  + el.wrate  * T); /* longitudine del perielio ω̃ */
+    const double w      = mod360(wtilde - Om);            /* argomento del perielio ω = ω̃−Ω */
+    const double L      = mod360(el.L  + el.Lrate  * T);
 
-    const double M = mod360(L - w);
+    const double M = mod360(L - wtilde); /* anomalia media M = L − ω̃ */
     const double E = solveKepler(M, e);
 
     const double xp = a * (std::cos(E) - e);
