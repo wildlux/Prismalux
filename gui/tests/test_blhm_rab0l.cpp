@@ -5,7 +5,7 @@
 
    CAT-A  Rab0lCanvas       — 10 casi: widget puro, no LLM
    CAT-B  BLHM Engine C     — 12 casi: graph, match, gate, infer
-   CAT-C  RicercaPage UI    — 10 casi: costruzione sezioni BLHM/RAB0-L
+   CAT-C  BioinformaticaPage UI — 10 casi: costruzione sezioni BLHM/RAB0-L
 
    COME ESEGUIRE:
      cmake -B build_tests -DBUILD_TESTS=ON
@@ -25,6 +25,7 @@
 #include "../pages/rab0l_canvas.h"
 #include "../blhm_engine.h"
 #include "../pages/main_research.h"
+#include "../pages/main_bioinformatica.h"
 
 /* ══════════════════════════════════════════════════════════════
    CAT-A  Rab0lCanvas (widget puro, no LLM)
@@ -259,19 +260,22 @@ private slots:
 class TestCatC : public QObject {
     Q_OBJECT
 private:
-    MockAiClient* m_ai   = nullptr;
-    RicercaPage*  m_page = nullptr;
+    MockAiClient*       m_ai      = nullptr;
+    RicercaPage*        m_page    = nullptr;   /* per C-01/C-02/C-10 */
+    BioinformaticaPage* m_bioPage = nullptr;   /* per C-03..C-09 (BLHM/RAB0-L) */
 
 private slots:
 
     void init() {
-        m_ai   = new MockAiClient();
-        m_page = new RicercaPage(m_ai);
+        m_ai     = new MockAiClient();
+        m_page   = new RicercaPage(m_ai);
+        m_bioPage = new BioinformaticaPage(m_ai);
     }
 
     void cleanup() {
-        delete m_page; m_page = nullptr;
-        delete m_ai;   m_ai   = nullptr;
+        delete m_page;    m_page    = nullptr;
+        delete m_bioPage; m_bioPage = nullptr;
+        delete m_ai;      m_ai      = nullptr;
     }
 
     /* C-01: RicercaPage si costruisce con MockAiClient senza crash */
@@ -284,51 +288,49 @@ private slots:
         QVERIFY(qobject_cast<QWidget*>(m_page) != nullptr);
     }
 
-    /* C-03: m_rab0lCanvas esiste (findChild) */
+    /* C-03: m_rab0lCanvas esiste in BioinformaticaPage (findChild) */
     void rab0lCanvasExists() {
-        Rab0lCanvas* c = m_page->findChild<Rab0lCanvas*>();
+        Rab0lCanvas* c = m_bioPage->findChild<Rab0lCanvas*>();
         QVERIFY(c != nullptr);
     }
 
-    /* C-04: m_rab0lSeq1 (QLineEdit) esiste nella pagina */
+    /* C-04: m_rab0lSeq1 (QLineEdit) esiste in BioinformaticaPage */
     void rab0lSeq1LineEditExists() {
-        /* La pagina contiene almeno 2 QLineEdit per le sequenze RAB0-L.
-         * Verifichiamo l'esistenza di almeno un QLineEdit figlio. */
-        QList<QLineEdit*> edits = m_page->findChildren<QLineEdit*>();
+        QList<QLineEdit*> edits = m_bioPage->findChildren<QLineEdit*>();
         QVERIFY(!edits.isEmpty());
     }
 
-    /* C-05: m_rab0lSeq2 — almeno 2 QLineEdit nella pagina */
+    /* C-05: m_rab0lSeq2 — almeno 2 QLineEdit in BioinformaticaPage */
     void rab0lSeq2LineEditExists() {
-        QList<QLineEdit*> edits = m_page->findChildren<QLineEdit*>();
+        QList<QLineEdit*> edits = m_bioPage->findChildren<QLineEdit*>();
         QVERIFY(edits.size() >= 2);
     }
 
-    /* C-06: m_blhmTable (QTableWidget) esiste */
+    /* C-06: m_blhmTable (QTableWidget) esiste in BioinformaticaPage */
     void blhmTableExists() {
-        QTableWidget* t = m_page->findChild<QTableWidget*>();
+        QTableWidget* t = m_bioPage->findChild<QTableWidget*>();
         QVERIFY(t != nullptr);
     }
 
-    /* C-07: m_blhmOutput (QTextEdit) esiste */
+    /* C-07: m_blhmOutput (QTextEdit) esiste in BioinformaticaPage */
     void blhmOutputExists() {
-        QTextEdit* te = m_page->findChild<QTextEdit*>();
+        QTextEdit* te = m_bioPage->findChild<QTextEdit*>();
         QVERIFY(te != nullptr);
     }
 
-    /* C-08: m_blhmDnaCanvas (secondo Rab0lCanvas) esiste */
+    /* C-08: m_blhmDnaCanvas (secondo Rab0lCanvas) esiste in BioinformaticaPage */
     void blhmDnaCanvasExists() {
-        QList<Rab0lCanvas*> canvases = m_page->findChildren<Rab0lCanvas*>();
+        QList<Rab0lCanvas*> canvases = m_bioPage->findChildren<Rab0lCanvas*>();
         /* Devono esistere almeno 2 canvas: m_rab0lCanvas + m_blhmDnaCanvas */
         QVERIFY(canvases.size() >= 2);
     }
 
     /* C-09: show() + processEvents non crasha */
     void showNoCrash() {
-        m_page->resize(800, 600);
-        m_page->show();
+        m_bioPage->resize(800, 600);
+        m_bioPage->show();
         QApplication::processEvents();
-        QVERIFY(m_page->isVisible());
+        QVERIFY(m_bioPage->isVisible());
     }
 
     /* C-10: ragGraphMemory() restituisce un puntatore (puo' essere null se

@@ -30,11 +30,11 @@ private slots:
         QVERIFY2(html.contains("Tu"), "manca etichetta utente 'Tu'");
     }
 
-    /* A-2: testo normalizzato in minuscolo */
-    void testoInMinuscolo() {
+    /* A-2: testo preservato nel contenuto della bolla */
+    void testoPreservato() {
         const QString html = AgentiPage::buildUserBubble("HELLO WORLD");
-        QVERIFY2(html.contains("hello world"),
-                 "buildUserBubble deve normalizzare in minuscolo");
+        QVERIFY2(html.contains("HELLO WORLD"),
+                 "buildUserBubble deve includere il testo originale");
     }
 
     /* A-3: XSS escaping — < > & devono essere escaped */
