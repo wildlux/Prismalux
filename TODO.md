@@ -177,14 +177,23 @@ FASE 6:          APK-2 → APK-1                     (release)
 
 ---
 
-## TEST MANCANTI (sessione 2026-07-01)
+## TEST MANCANTI — DA FARE DOMANI (audit 2026-07-01)
 
-> Funzionalità implementate ma senza suite ctest dedicata.
+> Audit completo: **63 suite registrate** in CMakeLists, tutte le .cpp presenti corrispondono.
+> Le feature sotto sono implementate ma senza *nessun* test che le copra.
+> Domani si parte da qui, in ordine di priorità.
 
-| # | Priorità | Cosa testare | File da creare | Stato |
-|---|----------|--------------|----------------|-------|
-| T-1 | 🟡 | **SttWhisper diarization** — `isDiarizeEnabled()`, `diarizeNSpeakers()`, `formatDiarization()` parsing JSON → testo `[SPEAKER_00] ...`, edge case JSON malformato, JSON vuoto | `gui/tests/test_stt_whisper_live.cpp` (aggiungere CAT-D) | ⬜ |
-| T-2 | 🟡 | **DepCheckPanel** (`widget_dep_check.h`) — costruzione senza crash, lista `deps` non vuota, `runAllChecks()` avvia processo, segnali `allOk()`/`someMissing(int)` emessi | `gui/tests/test_dep_check_panel.cpp` | ⬜ |
-| T-3 | 🟢 | **speaker_diarize.py** — script Python: `--speakers 2` su WAV sintetico → JSON con 2 speaker, backend fallback resemblyzer se simple-diarizer assente, CUDA_VISIBLE_DEVICES forzato CPU | `gui/tests/test_perceptor_scripts.cpp` (subprocess CAT-C) | ⬜ |
-| T-4 | 🟢 | **streamlink_mcp** — JSON-RPC 2.0 stdio: `stream_info` ritorna schema valido, `_validate_url()` blocca IP privati (SSRF), tool list non vuota | `gui/tests/test_streamlink_mcp.cpp` (subprocess CAT-C) | ⬜ |
-| T-5 | 🟢 | **fast_whisper_transcribe.py** — file WAV 1s → trascrizione non vuota o SKIP se faster-whisper non installato; `--model` flag accettato | `gui/tests/test_perceptor_scripts.cpp` (aggiungere CAT-D) | ⬜ |
+| # | Priorità | Cosa testare | Dove aggiungere | Stato |
+|---|----------|--------------|-----------------|-------|
+| T-1 | 🔴 | **SttWhisper diarization** — `isDiarizeEnabled()`, `diarizeNSpeakers()` round-trip QSettings; `formatDiarization()` JSON → `"[SPEAKER_00] testo"`, JSON vuoto, JSON malformato, speaker multipli | `gui/tests/test_stt_whisper_live.cpp` → nuova CAT-D | ⬜ |
+| T-2 | 🔴 | **DepCheckPanel** (`widget_dep_check.h`) — costruzione senza crash (CAT-A), `deps` non vuota, `runAllChecks()` avvia QProcess, segnali `allOk()`/`someMissing(int)` emessi | `gui/tests/test_dep_check_panel.cpp` (nuova suite) | ⬜ |
+| T-3 | 🟡 | **LAN rubrica persone** (`main_lan_wan.cpp` `m_accessListTable`) — save/load QSettings `lan/accessList` JSON round-trip, addRow, persistenza tra sessioni | `gui/tests/test_lan_wan_core.cpp` → nuova CAT-E | ⬜ |
+| T-4 | 🟡 | **speaker_diarize.py** — WAV sintetico `--speakers 2` → JSON con 2 speaker e campi `backend/segments/speakers`; CUDA_VISIBLE_DEVICES="" forzato; QSKIP se simple-diarizer assente | `gui/tests/test_perceptor_scripts.cpp` (nuova suite CAT-C) | ⬜ |
+| T-5 | 🟡 | **fast_whisper_transcribe.py** — WAV 1s → trascrizione non vuota o testo breve; `--model tiny` accettato; QSKIP se faster-whisper non installato | `gui/tests/test_perceptor_scripts.cpp` (stessa suite, CAT-D) | ⬜ |
+| T-6 | 🟢 | **streamlink_mcp** (`MCPs/streamlink_mcp/server.py`) — JSON-RPC 2.0: lista tool non vuota, `_validate_url()` blocca IP privati RFC1918, QSKIP se venv assente | `gui/tests/test_streamlink_mcp.cpp` (nuova suite) | ⬜ |
+
+### Note per la sessione di domani
+
+- **Inizio**: T-1 — aggiungere CAT-D a `test_stt_whisper_live.cpp` (è già compilabile, basta aggiungere slot)
+- **Pattern test Python** (T-4/T-5): `QProcess::execute("python3", {script, args})` → parse stdout JSON → `QVERIFY(!segs.isEmpty())`
+- **CLAUDE.md** è in ritardo: 6 suite registrate non documentate (`AiClient`, `AiMemory`, `Distillazione`, `GraphMemoryConcurrent`, `LanWanCore`, `McpIntegration`). Aggiornare dopo i test.
