@@ -21,6 +21,14 @@
 #include <QDir>
 #include <QTimer>
 #include <QEventLoop>
+#include <thread>
+#include <atomic>
+#ifdef Q_OS_UNIX
+#  include <sys/socket.h>
+#  include <netinet/in.h>
+#  include <arpa/inet.h>
+#  include <unistd.h>
+#endif
 
 #include "mock_ai_client.h"
 #include "../lan_server.h"
@@ -31,16 +39,56 @@ namespace P = PrismaluxPaths;
 static constexpr int kTimeout = 3000; /* ms */
 static const QByteArray kToken = "test-token-lan-ep-12345";
 
-/* ── Helper: invia una richiesta HTTP raw e ritorna il body della risposta ── */
+/* Qt 6.10.2: readyRead non emesso su loopback con data+FIN simultanei.
+   Fix: thread POSIX con recv() bloccante, main thread = Qt event loop server.
+   Restituisce l'intera risposta HTTP grezza (header + body). */
+static QByteArray rawHttp(quint16 port, const QByteArray& req, int timeoutMs = kTimeout)
+{
+    QByteArray resp;
+#ifdef Q_OS_UNIX
+    std::atomic<bool> done{false};
+    std::thread t([&]() {
+        int s = ::socket(AF_INET, SOCK_STREAM, 0);
+        if (s < 0) { done.store(true, std::memory_order_release); return; }
+        struct timeval tv { timeoutMs / 1000, (timeoutMs % 1000) * 1000L };
+        ::setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        struct sockaddr_in addr{};
+        addr.sin_family      = AF_INET;
+        addr.sin_port        = htons(port);
+        addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        if (::connect(s, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) == 0) {
+            ::send(s, req.constData(), static_cast<size_t>(req.size()), 0);
+            char tmp[65536]; ssize_t n;
+            while ((n = ::recv(s, tmp, sizeof(tmp), 0)) > 0)
+                resp.append(tmp, static_cast<int>(n));
+        }
+        ::close(s);
+        done.store(true, std::memory_order_release);
+    });
+    {
+        QEventLoop loop;
+        QTimer chk; chk.setInterval(5);
+        QObject::connect(&chk, &QTimer::timeout, &loop, [&]() {
+            if (done.load(std::memory_order_acquire)) loop.quit();
+        });
+        chk.start();
+        QTimer::singleShot(timeoutMs + 200, &loop, &QEventLoop::quit);
+        loop.exec();
+    }
+    done.store(true, std::memory_order_release);
+    t.join();
+#else
+    Q_UNUSED(port) Q_UNUSED(req) Q_UNUSED(timeoutMs)
+#endif
+    return resp;
+}
+
+/* Costruisce una richiesta HTTP e restituisce solo il body (dopo \r\n\r\n). */
 static QByteArray httpRequest(quint16 port, const QByteArray& method,
                               const QByteArray& path,
                               const QByteArray& body = {},
                               bool withToken = true)
 {
-    QTcpSocket sock;
-    sock.connectToHost("127.0.0.1", port);
-    if (!sock.waitForConnected(kTimeout)) return {};
-
     QByteArray req = method + " " + path + " HTTP/1.1\r\n"
                      "Host: 127.0.0.1\r\n"
                      "Connection: close\r\n";
@@ -53,28 +101,17 @@ static QByteArray httpRequest(quint16 port, const QByteArray& method,
     req += "\r\n";
     if (!body.isEmpty()) req += body;
 
-    sock.write(req);
-    sock.flush();
-
-    QByteArray resp;
-    while (sock.waitForReadyRead(kTimeout))
-        resp += sock.readAll();
-
-    /* Estrae solo il body (dopo \r\n\r\n) */
+    const QByteArray resp = rawHttp(port, req);
     const int sep = resp.indexOf("\r\n\r\n");
     return (sep >= 0) ? resp.mid(sep + 4) : resp;
 }
 
-/* ── Helper: estrae status code dall'header HTTP ── */
+/* Estrae lo status code dall'header HTTP della risposta. */
 static int httpStatus(quint16 port, const QByteArray& method,
                       const QByteArray& path,
                       const QByteArray& body = {},
                       bool withToken = true)
 {
-    QTcpSocket sock;
-    sock.connectToHost("127.0.0.1", port);
-    if (!sock.waitForConnected(kTimeout)) return -1;
-
     QByteArray req = method + " " + path + " HTTP/1.1\r\n"
                      "Host: 127.0.0.1\r\n"
                      "Connection: close\r\n";
@@ -87,14 +124,7 @@ static int httpStatus(quint16 port, const QByteArray& method,
     req += "\r\n";
     if (!body.isEmpty()) req += body;
 
-    sock.write(req);
-    sock.flush();
-
-    QByteArray head;
-    while (sock.waitForReadyRead(kTimeout)) {
-        head += sock.readAll();
-        if (head.contains("\r\n\r\n")) break;
-    }
+    const QByteArray head = rawHttp(port, req);
     /* "HTTP/1.1 200 OK\r\n..." → 200 */
     const int sp1 = head.indexOf(' ');
     const int sp2 = head.indexOf(' ', sp1 + 1);

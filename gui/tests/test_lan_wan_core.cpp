@@ -18,6 +18,14 @@
 #include <QTimer>
 #include <QTcpSocket>
 #include <QElapsedTimer>
+#include <thread>
+#include <atomic>
+#ifdef Q_OS_UNIX
+#  include <sys/socket.h>
+#  include <netinet/in.h>
+#  include <arpa/inet.h>
+#  include <unistd.h>
+#endif
 
 #include "../lan_server.h"
 #include "../ai_client.h"
@@ -133,17 +141,46 @@ private:
         return req;
     }
 
-    /* invia una richiesta sincrona e restituisce la risposta HTTP */
+    /* Qt 6.10.2: readyRead non emesso su loopback con data+FIN simultanei.
+       Fix: thread POSIX con recv() bloccante, main thread = Qt event loop server. */
     static QByteArray sendSync(int port, const QByteArray& req, int timeoutMs = 2000)
     {
-        QTcpSocket sock;
-        sock.connectToHost("127.0.0.1", static_cast<quint16>(port));
-        if (!sock.waitForConnected(timeoutMs)) return {};
-        sock.write(req);
-        sock.waitForBytesWritten(timeoutMs);
         QByteArray resp;
-        while (sock.waitForReadyRead(timeoutMs))
-            resp += sock.readAll();
+#ifdef Q_OS_UNIX
+        std::atomic<bool> done{false};
+        std::thread t([&]() {
+            int s = ::socket(AF_INET, SOCK_STREAM, 0);
+            if (s < 0) { done.store(true, std::memory_order_release); return; }
+            struct timeval tv { timeoutMs / 1000, (timeoutMs % 1000) * 1000L };
+            ::setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+            struct sockaddr_in addr{};
+            addr.sin_family      = AF_INET;
+            addr.sin_port        = htons(static_cast<quint16>(port));
+            addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+            if (::connect(s, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) == 0) {
+                ::send(s, req.constData(), static_cast<size_t>(req.size()), 0);
+                char tmp[65536]; ssize_t n;
+                while ((n = ::recv(s, tmp, sizeof(tmp), 0)) > 0)
+                    resp.append(tmp, static_cast<int>(n));
+            }
+            ::close(s);
+            done.store(true, std::memory_order_release);
+        });
+        {
+            QEventLoop loop;
+            QTimer chk; chk.setInterval(5);
+            QObject::connect(&chk, &QTimer::timeout, &loop, [&]() {
+                if (done.load(std::memory_order_acquire)) loop.quit();
+            });
+            chk.start();
+            QTimer::singleShot(timeoutMs + 200, &loop, &QEventLoop::quit);
+            loop.exec();
+        }
+        done.store(true, std::memory_order_release);
+        t.join();
+#else
+        Q_UNUSED(port) Q_UNUSED(req) Q_UNUSED(timeoutMs)
+#endif
         return resp;
     }
 
@@ -199,13 +236,8 @@ private slots:
         if (!srv.start(testPort)) QSKIP("Porta 49203 già in uso — skip");
         const int p = srv.port();
 
-        QTcpSocket sock;
-        sock.connectToHost("127.0.0.1", static_cast<quint16>(p));
-        QVERIFY(sock.waitForConnected(2000));
-        sock.write("GET / HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n");
-        sock.waitForBytesWritten(1000);
-        QByteArray resp;
-        while (sock.waitForReadyRead(2000)) resp += sock.readAll();
+        const QByteArray resp = sendSync(p,
+            "GET / HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n");
         QVERIFY2(resp.contains("200") || resp.contains("301"),
                  "GET / deve dare 200 o redirect");
         srv.stop();
@@ -219,13 +251,8 @@ private slots:
         if (!srv.start(testPort)) QSKIP("Porta 49204 già in uso — skip");
         const int p = srv.port();
 
-        QTcpSocket sock;
-        sock.connectToHost("127.0.0.1", static_cast<quint16>(p));
-        QVERIFY(sock.waitForConnected(2000));
-        sock.write("GET /api/tags HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n");
-        sock.waitForBytesWritten(1000);
-        QByteArray resp;
-        while (sock.waitForReadyRead(3000)) resp += sock.readAll();
+        const QByteArray resp = sendSync(p,
+            "GET /api/tags HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n", 3000);
         QVERIFY2(!resp.isEmpty(), "/api/tags deve rispondere");
         srv.stop();
     }

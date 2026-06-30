@@ -383,6 +383,13 @@ private slots:
     /* ── Idle unload timer ───────────────────────────────────────── */
     void onIdleUnloadTimer();
 
+    /* ── Pre-build tab lazy in background ──────────────────────── */
+    void onPreBuildTab2();
+    void onPreBuildTab4();
+    void onPreBuildTab5();
+    void onPreBuildTab6();
+    void onPreBuildTab7();
+
     /* ── Modelli AI ─────────────────────────────────────────────── */
     void onInitialModelsReady(const QStringList& list);
     void onModelChanged(const QString& model);

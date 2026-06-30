@@ -97,21 +97,56 @@ static void saveLanToken(const QString& token)
 }
 
 /* ── Helpers ── */
-QString LanWanPage::localLanIp() const
+
+/* Range di indirizzi virtuali da escludere (libvirt, VirtualBox, WSL, Docker) */
+static bool isVirtualIp(const QString& s)
 {
-    QString fallback10;
+    static const char* kVirtPfx[] = {
+        "192.168.122.", /* libvirt NAT default */
+        "192.168.56.",  /* VirtualBox host-only */
+        "192.168.49.",  /* minikube/Android USB reverse */
+        "192.168.100.", /* WSL2 virtual */
+        "172.17.",      /* Docker bridge */
+        "172.18.",      /* Docker bridge */
+        "172.19.",      /* Docker bridge */
+        nullptr
+    };
+    for (int i = 0; kVirtPfx[i]; ++i)
+        if (s.startsWith(QLatin1String(kVirtPfx[i]))) return true;
+    return false;
+}
+
+QString LanWanPage::autoDetectIp() const
+{
+    QString fallback192, fallback10;
     for (const QNetworkInterface& iface : QNetworkInterface::allInterfaces()) {
         if (iface.flags().testFlag(QNetworkInterface::IsLoopBack)) continue;
         if (!iface.flags().testFlag(QNetworkInterface::IsUp))      continue;
         for (const QNetworkAddressEntry& e : iface.addressEntries()) {
             if (e.ip().protocol() != QAbstractSocket::IPv4Protocol) continue;
             const QString s = e.ip().toString();
-            if (s.startsWith("192.168.")) return s;
-            if ((s.startsWith("10.") || s.startsWith("172.")) && fallback10.isEmpty())
+            if (s.startsWith("192.168.") && !isVirtualIp(s) && fallback192.isEmpty())
+                fallback192 = s;
+            if ((s.startsWith("10.") || s.startsWith("172.")) && !isVirtualIp(s)
+                && fallback10.isEmpty())
                 fallback10 = s;
         }
     }
-    return fallback10.isEmpty() ? "127.0.0.1" : fallback10;
+    if (!fallback192.isEmpty()) return fallback192;
+    if (!fallback10.isEmpty())  return fallback10;
+    return QStringLiteral("127.0.0.1");
+}
+
+QString LanWanPage::localLanIp() const
+{
+    /* Se gli spinbox sono inizializzati, usa i loro valori */
+    if (m_lanIpOct[0])
+        return QString("%1.%2.%3.%4")
+            .arg(m_lanIpOct[0]->value())
+            .arg(m_lanIpOct[1]->value())
+            .arg(m_lanIpOct[2]->value())
+            .arg(m_lanIpOct[3]->value());
+    return autoDetectIp();
 }
 
 QString LanWanPage::serverScheme() const
@@ -306,6 +341,29 @@ void LanWanPage::onLanPortChanged(int v)
 {
     Q_UNUSED(v)
     onUpdateQrInline();
+}
+
+void LanWanPage::onManualIpChanged()
+{
+    if (!m_lanIpOct[0]) return;
+    const QString ip = QString("%1.%2.%3.%4")
+        .arg(m_lanIpOct[0]->value())
+        .arg(m_lanIpOct[1]->value())
+        .arg(m_lanIpOct[2]->value())
+        .arg(m_lanIpOct[3]->value());
+    QSettings("Prismalux", "GUI").setValue("lan/manualIp", ip);
+    onUpdateQrInline();
+}
+
+void LanWanPage::onManualMaskChanged()
+{
+    if (!m_lanMaskOct[0]) return;
+    const QString mask = QString("%1.%2.%3.%4")
+        .arg(m_lanMaskOct[0]->value())
+        .arg(m_lanMaskOct[1]->value())
+        .arg(m_lanMaskOct[2]->value())
+        .arg(m_lanMaskOct[3]->value());
+    QSettings("Prismalux", "GUI").setValue("lan/manualMask", mask);
 }
 
 void LanWanPage::onUpdateQrInline()
@@ -606,8 +664,89 @@ QWidget* LanWanPage::buildLanAndroidTab()
     m_lanStatusLbl->setStyleSheet("color: #9e9e9e;");
     srvLay->addWidget(m_lanStatusLbl);
 
-    srvLay->addWidget(new QLabel(
-        QString("IP del PC: <b>%1</b>").arg(ip), srvGroup));
+    /* Riga IP: 4 spinbox ottetti + bottone reset auto */
+    {
+        auto* ipRow = new QWidget(srvGroup);
+        auto* ipLay = new QHBoxLayout(ipRow);
+        ipLay->setContentsMargins(0, 0, 0, 0); ipLay->setSpacing(2);
+
+        ipLay->addWidget(new QLabel("IP:", ipRow));
+
+        /* Legge IP salvato; se non c'è usa l'auto-detect */
+        QSettings sets("Prismalux", "GUI");
+        const QString savedIp = sets.value("lan/manualIp", ip).toString();
+        const QStringList parts = savedIp.split('.');
+
+        for (int i = 0; i < 4; ++i) {
+            if (i > 0) {
+                auto* dot = new QLabel(".", ipRow);
+                dot->setFixedWidth(dpiScale(6));
+                dot->setAlignment(Qt::AlignCenter);
+                ipLay->addWidget(dot);
+            }
+            m_lanIpOct[i] = new QSpinBox(ipRow);
+            m_lanIpOct[i]->setRange(0, 255);
+            m_lanIpOct[i]->setValue(parts.size() == 4 ? parts[i].toInt() : 0);
+            m_lanIpOct[i]->setFixedWidth(dpiScale(72));
+            m_lanIpOct[i]->setAlignment(Qt::AlignCenter);
+            m_lanIpOct[i]->setToolTip(tr("Ottetto %1 dell'indirizzo IP (modifica o usa ▲▼)").arg(i + 1));
+            connect(m_lanIpOct[i], QOverload<int>::of(&QSpinBox::valueChanged),
+                    this, &LanWanPage::onManualIpChanged);
+            ipLay->addWidget(m_lanIpOct[i]);
+        }
+
+        /* Bottone reset: torna all'IP auto-rilevato */
+        auto* resetBtn = new QPushButton("\xe2\x86\xba", ipRow);
+        resetBtn->setFixedWidth(dpiScale(28));
+        resetBtn->setFlat(true);
+        resetBtn->setToolTip(tr("Ripristina IP auto-rilevato"));
+        connect(resetBtn, &QPushButton::clicked, this, [this]() {
+            const QString detected = autoDetectIp();
+            const QStringList p = detected.split('.');
+            if (p.size() == 4)
+                for (int i = 0; i < 4; ++i)
+                    m_lanIpOct[i]->setValue(p[i].toInt());
+        });
+
+        ipLay->addSpacing(4);
+        ipLay->addWidget(resetBtn);
+        ipLay->addStretch();
+        srvLay->addWidget(ipRow);
+    }
+
+    /* Riga Netmask: 4 spinbox ottetti */
+    {
+        auto* maskRow = new QWidget(srvGroup);
+        auto* maskLay = new QHBoxLayout(maskRow);
+        maskLay->setContentsMargins(0, 0, 0, 0); maskLay->setSpacing(2);
+
+        maskLay->addWidget(new QLabel("Mask:", maskRow));
+
+        QSettings sets("Prismalux", "GUI");
+        const QString savedMask = sets.value("lan/manualMask", "255.255.255.0").toString();
+        const QStringList mparts = savedMask.split('.');
+
+        for (int i = 0; i < 4; ++i) {
+            if (i > 0) {
+                auto* dot = new QLabel(".", maskRow);
+                dot->setFixedWidth(dpiScale(6));
+                dot->setAlignment(Qt::AlignCenter);
+                maskLay->addWidget(dot);
+            }
+            m_lanMaskOct[i] = new QSpinBox(maskRow);
+            m_lanMaskOct[i]->setRange(0, 255);
+            m_lanMaskOct[i]->setValue(mparts.size() == 4 ? mparts[i].toInt() : (i < 3 ? 255 : 0));
+            m_lanMaskOct[i]->setFixedWidth(dpiScale(72));
+            m_lanMaskOct[i]->setAlignment(Qt::AlignCenter);
+            m_lanMaskOct[i]->setToolTip(tr("Ottetto %1 della netmask (modifica o usa ▲▼)").arg(i + 1));
+            connect(m_lanMaskOct[i], QOverload<int>::of(&QSpinBox::valueChanged),
+                    this, &LanWanPage::onManualMaskChanged);
+            maskLay->addWidget(m_lanMaskOct[i]);
+        }
+
+        maskLay->addStretch();
+        srvLay->addWidget(maskRow);
+    }
 
     connect(m_lanPortSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &LanWanPage::onLanPortChanged);

@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <QWidget>
 #include <QLabel>
 #include <QPushButton>
@@ -58,6 +59,8 @@ private:
     QString       m_lanConnectIp;
     QTimer*       m_ipWatchTimer   = nullptr;  ///< polling IP LAN ogni 30s
     QString       m_lastKnownIp;               ///< IP precedente per rilevare cambi
+    std::array<QSpinBox*, 4> m_lanIpOct     = {};  ///< 4 spinbox ottetti IP (override manuale)
+    std::array<QSpinBox*, 4> m_lanMaskOct  = {};  ///< 4 spinbox ottetti netmask
 
     /* ── Installazione ADB via USB ── */
     QPushButton* m_adbInstallBtn  = nullptr;
@@ -229,6 +232,7 @@ private:
 
     /* --- Helpers --- */
     QString  localLanIp() const;
+    QString  autoDetectIp() const;   ///< IP reale senza override spinbox
     QString  serverScheme() const;
     void     openQrDialog(QPushButton* parent, const QString& url,
                           const QString& title, const QString& subtitle,
@@ -294,6 +298,8 @@ private slots:
     void onCopyTokenBtnClicked();
     void onQrConnectBtnClicked();
     void onLanPortChanged(int v);
+    void onManualIpChanged();
+    void onManualMaskChanged();
     void onUpdateQrInline();
     void onQrApkBtnClicked();
     void onQrPageBtnClicked();

@@ -610,6 +610,14 @@ void MainWindow::setupTimers()
     /* Auto-indicizza RAG (incluso Matematica.pdf via OCR) se l'indice è vuoto */
     QTimer::singleShot(6000, this, &MainWindow::onAutoRagIndex);
 
+    /* Pre-build tab lazy in background: evita freeze al primo clic.
+       Tab [5] (Utility) per ultimo — costruisce 4 pagine + SQLite. */
+    QTimer::singleShot(2500,  this, &MainWindow::onPreBuildTab2);
+    QTimer::singleShot(3700,  this, &MainWindow::onPreBuildTab4);
+    QTimer::singleShot(4900,  this, &MainWindow::onPreBuildTab6);
+    QTimer::singleShot(5500,  this, &MainWindow::onPreBuildTab7);
+    QTimer::singleShot(8000,  this, &MainWindow::onPreBuildTab5);
+
     /* Controlla aggiornamenti GitHub 10s dopo l'avvio */
     QTimer::singleShot(10000, this, &MainWindow::checkForUpdates);
 

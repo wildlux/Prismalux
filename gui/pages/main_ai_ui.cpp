@@ -920,15 +920,18 @@ void AgentiPage::buildMathPanel(QVBoxLayout* lay)
                 this, &AgentiPage::onClearBuilderClicked);
     }
 
-    /* ── Preview KaTeX ── */
-    auto* preview = new LatexView(m_mathPanel);
-    preview->setMinimumHeight(dpiScale(90));
-    preview->setMaximumHeight(dpiScale(130));
-    preview->setLatexHtml(
-        "<p style='color:#475569;font-size:12px;padding:8px'>"
-        "Inizia a scrivere una formula nel campo di testo sopra...</p>");
-    mpLay->addWidget(preview);
-    m_mathPreview = preview;   /* membro diretto — niente QVariant/QObject* cast */
+    /* ── Preview KaTeX — placeholder a startup, LatexView creato on-demand ──
+       QWebEngineView avvia un processo Chromium al momento della costruzione,
+       anche se il widget è nascosto. Il pannello è setVisible(false) di default,
+       quindi usiamo un QFrame vuoto e lo sostituiamo con il vero LatexView
+       solo la prima volta che l'utente apre il pannello (lazy init). */
+    auto* prevPlaceholder = new QFrame(m_mathPanel);
+    prevPlaceholder->setObjectName("mathPreviewPlaceholder");
+    prevPlaceholder->setMinimumHeight(dpiScale(90));
+    prevPlaceholder->setMaximumHeight(dpiScale(130));
+    prevPlaceholder->setFrameShape(QFrame::NoFrame);
+    mpLay->addWidget(prevPlaceholder);
+    m_mathPreview = prevPlaceholder;
 
     /* ── Debounce timer per aggiornare la preview ── */
     m_mathPreviewTimer = new QTimer(this);
@@ -1644,6 +1647,30 @@ void AgentiPage::onMathToggleToggled(bool on)
         ? "QPushButton{background:#0e7490;color:#fff;border:1px solid #0891b2;"
           "border-radius:4px;padding:3px 8px;font-weight:bold;}"
         : "");
+
+    /* Lazy init LatexView: la prima volta che il pannello viene aperto
+       sostituiamo il placeholder QFrame con il vero QWebEngineView. */
+    if (on && m_mathPanel && !qobject_cast<LatexView*>(m_mathPreview)) {
+        auto* lay = qobject_cast<QVBoxLayout*>(m_mathPanel->layout());
+        if (lay && m_mathPreview) {
+            const int idx = lay->indexOf(m_mathPreview);
+            lay->removeWidget(m_mathPreview);
+            m_mathPreview->deleteLater();
+            auto* lv = new LatexView(m_mathPanel);
+            lv->setMinimumHeight(m_mathPanel->minimumHeight() > 0
+                                 ? dpiScale(90) : dpiScale(90));
+            lv->setMaximumHeight(dpiScale(130));
+            lv->setLatexHtml(
+                "<p style='color:#475569;font-size:12px;padding:8px'>"
+                "Inizia a scrivere una formula nel campo di testo sopra...</p>");
+            if (idx >= 0)
+                lay->insertWidget(idx, lv);
+            else
+                lay->addWidget(lv);
+            m_mathPreview = lv;
+        }
+    }
+
     if (m_mathPanel) m_mathPanel->setVisible(on);
 }
 

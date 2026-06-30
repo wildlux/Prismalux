@@ -61,7 +61,7 @@ namespace P = PrismaluxPaths;
 
 /* ── helper: barra azioni output (Esporta PDF / Salva .md) ────────── */
 static QWidget* makeOutputBar(QTextEdit* editor, const QString& titolo,
-                              QWidget* parent)
+                              QWidget* parent, RicercaPage* rp)
 {
     auto* bar  = new QWidget(parent);
     auto* blay = new QHBoxLayout(bar);
@@ -89,10 +89,11 @@ static QWidget* makeOutputBar(QTextEdit* editor, const QString& titolo,
     btnMd->setProperty("outputTitolo",  titolo);
     btnClr->setProperty("outputEditor", QVariant::fromValue<QObject*>(editor));
 
-    auto* rp = qobject_cast<RicercaPage*>(parent);
-    QObject::connect(btnPdf, &QPushButton::clicked, rp, &RicercaPage::onOutputBarPdfClicked);
-    QObject::connect(btnMd,  &QPushButton::clicked, rp, &RicercaPage::onOutputBarMdClicked);
-    QObject::connect(btnClr, &QPushButton::clicked, rp, &RicercaPage::onOutputBarClrClicked);
+    if (rp) {
+        QObject::connect(btnPdf, &QPushButton::clicked, rp, &RicercaPage::onOutputBarPdfClicked);
+        QObject::connect(btnMd,  &QPushButton::clicked, rp, &RicercaPage::onOutputBarMdClicked);
+        QObject::connect(btnClr, &QPushButton::clicked, rp, &RicercaPage::onOutputBarClrClicked);
+    }
     return bar;
 }
 
@@ -278,7 +279,7 @@ QWidget* RicercaPage::buildPaperTab()
         "Puoi modificarlo dopo la generazione.");
     outEdit->setFont(QFont("Monospace", 10));
 
-    outLay->addWidget(makeOutputBar(outEdit, "Paper Scientifico", page));
+    outLay->addWidget(makeOutputBar(outEdit, "Paper Scientifico", page, this));
     outLay->addWidget(outEdit, 1);
 
     hlay->addWidget(formScroll);
@@ -412,7 +413,7 @@ QWidget* RicercaPage::buildBrevettoTab()
         "Descrizione dettagliata, Rivendicazioni, Abstract.");
     outEdit->setFont(QFont("Monospace", 10));
 
-    outLay->addWidget(makeOutputBar(outEdit, "Brevetto", page));
+    outLay->addWidget(makeOutputBar(outEdit, "Brevetto", page, this));
     outLay->addWidget(outEdit, 1);
 
     hlay->addWidget(formScroll);
@@ -540,7 +541,7 @@ QWidget* RicercaPage::buildDocTecnicoTab()
         "Specifiche, Calcoli, Risultati, Limitazioni, Conclusioni.");
     outEdit->setFont(QFont("Monospace", 10));
 
-    outLay->addWidget(makeOutputBar(outEdit, "Documento Tecnico", page));
+    outLay->addWidget(makeOutputBar(outEdit, "Documento Tecnico", page, this));
     outLay->addWidget(outEdit, 1);
 
     hlay->addWidget(formScroll);
@@ -1386,7 +1387,7 @@ QWidget* RicercaPage::buildAnalisiPage()
         "  \xf0\x9f\x94\xac  Spiegazione scientifica pi\xc3\xb9 probabile\n"
         "  \xf0\x9f\x94\x80  Ipotesi alternativa\n"
         "  \xe2\x9a\x96  Verdetto motivato");
-    root->addWidget(makeOutputBar(m_analisiOutput, "Analisi Fenomeni", page));
+    root->addWidget(makeOutputBar(m_analisiOutput, "Analisi Fenomeni", page, this));
     root->addWidget(m_analisiOutput, 1);
 
     /* ── Connessioni bottoni ── */

@@ -126,6 +126,14 @@ void MainWindow::onIdleUnloadTimer()
     }
 }
 
+// ─── Pre-build tab lazy ───────────────────────────────────────────────────
+
+void MainWindow::onPreBuildTab2() { ensureTabBuilt(2); }
+void MainWindow::onPreBuildTab4() { ensureTabBuilt(4); }
+void MainWindow::onPreBuildTab5() { ensureTabBuilt(5); }
+void MainWindow::onPreBuildTab6() { ensureTabBuilt(6); }
+void MainWindow::onPreBuildTab7() { ensureTabBuilt(7); }
+
 // ─── Modelli AI ───────────────────────────────────────────────────────────
 
 void MainWindow::onInitialModelsReady(const QStringList& list)

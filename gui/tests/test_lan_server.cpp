@@ -22,6 +22,14 @@
 #include <QTcpSocket>
 #include <QTimer>
 #include <QEventLoop>
+#include <thread>
+#include <atomic>
+#ifdef Q_OS_UNIX
+#  include <sys/socket.h>
+#  include <netinet/in.h>
+#  include <arpa/inet.h>
+#  include <unistd.h>
+#endif
 
 #include "mock_ai_client.h"
 #include "../lan_server.h"
@@ -290,29 +298,9 @@ private slots:
 class TestParserHardening : public QObject {
     Q_OBJECT
 
-    /* ── helper: aspetta risposta e accumula i byte ricevuti (max 2s) ── */
-    static QByteArray collectResponse(QTcpSocket* sock, int timeoutMs = 2000)
-    {
-        QByteArray buf;
-        const int steps = timeoutMs / 20;
-        for (int i = 0; i < steps; ++i) {
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-            buf += sock->readAll();
-            if (!buf.isEmpty()) return buf;
-            /* Disconnessione pulita (dopo sendError+disconnectFromHost):
-               raccogliamo eventuali ultimi byte prima di uscire */
-            if (sock->state() == QAbstractSocket::UnconnectedState) {
-                buf += sock->readAll();
-                return buf;
-            }
-        }
-        return buf;
-    }
-
     /* ── helper: estrae il codice HTTP da "HTTP/1.1 NNN ..." ─── */
     static int parseStatusCode(const QByteArray& data)
     {
-        /* HTTP/1.1 NNN ... — il codice inizia al byte 9 */
         if (data.size() < 12) return -1;
         bool ok = false;
         const int code = data.mid(9, 3).toInt(&ok);
@@ -325,27 +313,69 @@ class TestParserHardening : public QObject {
         bool gotResponse = false; /* true se il server ha inviato qualcosa */
     };
 
-    TcpResult sendRaw(LanServer& srv, const QByteArray& raw)
+    /* Qt 6.10.2 su Linux non emette readyRead quando data+FIN arrivano
+       insieme su loopback (EPOLLIN|EPOLLRDHUP nella stessa epoll_wait).
+       Fix: thread POSIX con recv() bloccante (bypassa Qt socket layer)
+       mentre il main thread esegue il Qt event loop per il server. */
+    TcpResult sendRaw(LanServer& srv, const QByteArray& raw, int timeoutMs = 2000)
     {
-        QTcpSocket sock;
-        sock.connectToHost(QHostAddress::LocalHost, srv.port());
-
-        /* Attendi connected (max 1s) */
-        const int connSteps = 1000 / 20;
-        for (int i = 0; i < connSteps && sock.state() != QAbstractSocket::ConnectedState; ++i)
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-
-        if (sock.state() != QAbstractSocket::ConnectedState)
-            return {};
-
-        sock.write(raw);
-        sock.flush();
-
+        const quint16 port = srv.port();
         TcpResult res;
-        const QByteArray response = collectResponse(&sock);
-        res.gotResponse = !response.isEmpty();
-        if (res.gotResponse)
-            res.statusCode = parseStatusCode(response);
+        std::atomic<bool> done{false};
+
+#ifdef Q_OS_UNIX
+        std::thread t([&]() {
+            int s = ::socket(AF_INET, SOCK_STREAM, 0);
+            if (s < 0) { done.store(true, std::memory_order_release); return; }
+
+            /* timeout ricezione */
+            struct timeval tv { timeoutMs / 1000, (timeoutMs % 1000) * 1000L };
+            ::setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+            struct sockaddr_in addr{};
+            addr.sin_family      = AF_INET;
+            addr.sin_port        = htons(port);
+            addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+            const int conn = ::connect(s, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
+            qDebug() << "[T] connect=" << conn << "port=" << port << "errno=" << (conn<0?errno:0);
+            if (conn == 0) {
+                const ssize_t sent = ::send(s, raw.constData(), static_cast<size_t>(raw.size()), 0);
+                qDebug() << "[T] sent=" << sent;
+                QByteArray buf;
+                char tmp[65536];
+                ssize_t n;
+                while ((n = ::recv(s, tmp, sizeof(tmp), 0)) > 0) {
+                    qDebug() << "[T] recv n=" << n;
+                    buf.append(tmp, static_cast<int>(n));
+                }
+                qDebug() << "[T] recv loop end n=" << n << "errno=" << (n<0?errno:0) << "buf=" << buf.size();
+                res.gotResponse = !buf.isEmpty();
+                if (res.gotResponse)
+                    res.statusCode = parseStatusCode(buf);
+            }
+            ::close(s);
+            done.store(true, std::memory_order_release);
+        });
+
+        /* Main thread: Qt event loop affinché il server processi le richieste */
+        {
+            QEventLoop loop;
+            QTimer chk;
+            chk.setInterval(5);
+            QObject::connect(&chk, &QTimer::timeout, &loop, [&]() {
+                if (done.load(std::memory_order_acquire)) loop.quit();
+            });
+            chk.start();
+            QTimer::singleShot(timeoutMs + 200, &loop, &QEventLoop::quit);
+            loop.exec();
+        }
+
+        done.store(true, std::memory_order_release); /* sicurezza se timeout */
+        t.join();
+#else
+        Q_UNUSED(port) Q_UNUSED(raw) Q_UNUSED(timeoutMs)
+#endif
         return res;
     }
 
@@ -476,32 +506,10 @@ private slots:
         QByteArray req = "GET / HTTP/1.1\r\nHost: localhost\r\nX-Pad: ";
         req.append(QByteArray(4 * 1024 * 1024 + 64, 'X'));
 
-        QTcpSocket sock;
-        sock.connectToHost(QHostAddress::LocalHost, srv.port());
-
-        const int connSteps = 1000 / 20;
-        for (int i = 0; i < connSteps && sock.state() != QAbstractSocket::ConnectedState; ++i)
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-
-        QVERIFY2(sock.state() == QAbstractSocket::ConnectedState,
-                 "impossibile connettersi al server per F7");
-
-        /* Scrittura in chunk da 64 KB per non bloccare il loop Qt */
-        const int chunkSize = 64 * 1024;
-        int written = 0;
-        while (written < req.size()) {
-            const int toWrite = qMin(chunkSize, req.size() - written);
-            sock.write(req.mid(written, toWrite));
-            sock.flush();
-            written += toWrite;
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
-        }
-
-        const QByteArray response = collectResponse(&sock, 5000);
-
+        const TcpResult res = sendRaw(srv, req, 5000);
         srv.stop();
-        QVERIFY2(!response.isEmpty(), "il server non ha risposto a richiesta enorme");
-        QCOMPARE(parseStatusCode(response), 400);
+        QVERIFY2(res.gotResponse, "il server non ha risposto a richiesta enorme");
+        QCOMPARE(res.statusCode, 400);
     }
 
     /* F8: richiesta GET valida a "/" → risposta HTTP senza crash (200 o redirect) */
@@ -530,23 +538,6 @@ private slots:
 class TestAuthNonRegression : public QObject {
     Q_OBJECT
 
-    /* ── stesso helper di TestParserHardening ── */
-    static QByteArray collectResponse(QTcpSocket* sock, int timeoutMs = 2000)
-    {
-        QByteArray buf;
-        const int steps = timeoutMs / 20;
-        for (int i = 0; i < steps; ++i) {
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-            buf += sock->readAll();
-            if (!buf.isEmpty()) return buf;
-            if (sock->state() == QAbstractSocket::UnconnectedState) {
-                buf += sock->readAll();
-                return buf;
-            }
-        }
-        return buf;
-    }
-
     static int parseStatusCode(const QByteArray& data)
     {
         if (data.size() < 12) return -1;
@@ -555,35 +546,56 @@ class TestAuthNonRegression : public QObject {
         return ok ? code : -1;
     }
 
-    /* Invia una richiesta HTTP senza header Authorization e ritorna lo status code.
-     * Chiude esplicitamente il socket e drena gli eventi prima di restituire il
-     * controllo, così il LanServer processa la disconnessione prima di stop(). */
+    /* Qt 6.10.2: readyRead non emesso su loopback con data+FIN simultanei.
+       Fix: thread POSIX con recv() bloccante, main thread = Qt event loop server. */
+    static QByteArray rawRequest(quint16 port, const QByteArray& req, int timeoutMs = 2000)
+    {
+        QByteArray resp;
+#ifdef Q_OS_UNIX
+        std::atomic<bool> done{false};
+        std::thread t([&]() {
+            int s = ::socket(AF_INET, SOCK_STREAM, 0);
+            if (s < 0) { done.store(true, std::memory_order_release); return; }
+            struct timeval tv { timeoutMs / 1000, (timeoutMs % 1000) * 1000L };
+            ::setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+            struct sockaddr_in addr{};
+            addr.sin_family      = AF_INET;
+            addr.sin_port        = htons(port);
+            addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+            if (::connect(s, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) == 0) {
+                ::send(s, req.constData(), static_cast<size_t>(req.size()), 0);
+                char tmp[65536]; ssize_t n;
+                while ((n = ::recv(s, tmp, sizeof(tmp), 0)) > 0)
+                    resp.append(tmp, static_cast<int>(n));
+            }
+            ::close(s);
+            done.store(true, std::memory_order_release);
+        });
+        {
+            QEventLoop loop;
+            QTimer chk; chk.setInterval(5);
+            QObject::connect(&chk, &QTimer::timeout, &loop, [&]() {
+                if (done.load(std::memory_order_acquire)) loop.quit();
+            });
+            chk.start();
+            QTimer::singleShot(timeoutMs + 200, &loop, &QEventLoop::quit);
+            loop.exec();
+        }
+        done.store(true, std::memory_order_release);
+        t.join();
+#else
+        Q_UNUSED(port) Q_UNUSED(req) Q_UNUSED(timeoutMs)
+#endif
+        return resp;
+    }
+
     int requestWithoutToken(LanServer& srv, const QByteArray& method, const QByteArray& path)
     {
-        QTcpSocket sock;
-        sock.connectToHost(QHostAddress::LocalHost, srv.port());
-        const int connSteps = 1000 / 20;
-        for (int i = 0; i < connSteps && sock.state() != QAbstractSocket::ConnectedState; ++i)
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-        if (sock.state() != QAbstractSocket::ConnectedState) return -1;
-
         const QByteArray req = method + " " + path + " HTTP/1.1\r\n"
                                "Host: localhost\r\n"
                                "Content-Type: application/json\r\n"
                                "Content-Length: 2\r\n\r\n{}";
-        sock.write(req);
-        sock.flush();
-
-        const int code = parseStatusCode(collectResponse(&sock));
-
-        /* Chiudi il socket lato client e lascia che il server elabori la disconnessione
-         * prima che sock vada fuori scope — evita null-deref in onClientDisconnected. */
-        sock.disconnectFromHost();
-        if (sock.state() != QAbstractSocket::UnconnectedState)
-            sock.waitForDisconnected(500);
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
-
-        return code;
+        return parseStatusCode(rawRequest(srv.port(), req));
     }
 
 private slots:
@@ -636,29 +648,14 @@ private slots:
         /* 14a: senza token → 401 */
         const int code401 = requestWithoutToken(srv, "GET", "/web");
 
-        auto connectAndSend = [&](const QByteArray& req) -> QByteArray {
-            QTcpSocket sock;
-            sock.connectToHost(QHostAddress::LocalHost, port);
-            for (int i = 0; i < 50 && sock.state() != QAbstractSocket::ConnectedState; ++i)
-                QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-            if (sock.state() != QAbstractSocket::ConnectedState) return {};
-            sock.write(req);
-            sock.flush();
-            const QByteArray resp = collectResponse(&sock);
-            sock.disconnectFromHost();
-            sock.waitForDisconnected(500);
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
-            return resp;
-        };
-
         /* 14b: ?token=TOKEN valido → 302 + Set-Cookie */
-        const QByteArray resp14b = connectAndSend(
+        const QByteArray resp14b = rawRequest(port,
             "GET /web?token=testtokenXYZ HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n");
         const int code14b = parseStatusCode(resp14b);
         const bool hasCookie = resp14b.contains("Set-Cookie: p_session=");
 
         /* 14c: Cookie p_session=TOKEN → non 401 (200 OK webchat) */
-        const QByteArray resp14c = connectAndSend(
+        const QByteArray resp14c = rawRequest(port,
             "GET /web HTTP/1.1\r\nHost: localhost\r\n"
             "Cookie: p_session=testtokenXYZ\r\nContent-Length: 0\r\n\r\n");
         const int code14c = parseStatusCode(resp14c);

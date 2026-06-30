@@ -164,10 +164,6 @@ static int runHeadlessServer(int argc, char** argv) {
 }
 
 int main(int argc, char* argv[]) {
-    {
-        const QStringList args = QCoreApplication::arguments();
-        (void)args;
-    }
     for (int i = 1; i < argc; ++i) {
         if (QByteArray(argv[i]) == "--server")
             return runHeadlessServer(argc, argv);
