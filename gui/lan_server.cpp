@@ -423,7 +423,6 @@ void LanServer::onNewConnection()
 
         connect(sock, &QTcpSocket::readyRead,    this, &LanServer::onClientReadyRead);
         connect(sock, &QTcpSocket::disconnected, this, &LanServer::onClientDisconnected);
-        emit clientConnected(s.addr);
     }
 }
 
@@ -554,6 +553,8 @@ void LanServer::onClientReadyRead()
                 s.contentLength = cl;
             } else if (key == "authorization") {
                 s.authHeader = val;
+            } else if (key == "user-agent") {
+                s.userAgent = val;
             } else if (key == "cookie") {
                 /* Estrai p_session dal Cookie header (può contenere più cookie) */
                 for (const QStringView kv : QStringView(val).split(';')) {
@@ -700,7 +701,7 @@ void LanServer::processSession(Session& s)
         s.isApiClient = true;
         if (!m_appClientIps.contains(s.addr)) {
             m_appClientIps.insert(s.addr);
-            emit clientConnected(s.addr);
+            emit clientConnected(s.addr, s.userAgent);
         }
     }
 

@@ -58,6 +58,9 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMimeData>
+#include <QInputDialog>
+#include <QToolTip>
+#include <QCursor>
 #include <QRandomGenerator>
 #include <QRadioButton>
 #include <QButtonGroup>
@@ -463,15 +466,19 @@ QString LanWanPage::readMacForIp(const QString& ip)
 }
 
 /* ── Helper: aggiunge una riga alla tabella client ── */
-void LanWanPage::clientTableAddRow(const QString& ip)
+void LanWanPage::clientTableAddRow(const QString& ip, const QString& deviceName)
 {
     if (!m_clientTable) return;
     const int row = m_clientTable->rowCount();
     m_clientTable->insertRow(row);
     m_clientTable->setItem(row, 0, new QTableWidgetItem(ip));
     m_clientTable->setItem(row, 1, new QTableWidgetItem(readMacForIp(ip)));
-    m_clientTable->setItem(row, 2, new QTableWidgetItem(
-        QDateTime::currentDateTime().toString("HH:mm:ss")));
+    /* Estrai nome leggibile dallo User-Agent (es. "Prismalux/3.0 (Android 14)") */
+    QString devLabel = deviceName.trimmed();
+    if (devLabel.isEmpty()) devLabel = tr("Sconosciuto");
+    m_clientTable->setItem(row, 2, new QTableWidgetItem(devLabel));
+    m_clientTable->setItem(row, 3, new QTableWidgetItem(
+        QDateTime::currentDateTime().toString("dd/MM HH:mm:ss")));
 }
 
 /* ── Helper: rimuove la riga con quell'IP dalla tabella ── */
@@ -484,14 +491,80 @@ void LanWanPage::clientTableRemoveRow(const QString& ip)
     }
 }
 
-void LanWanPage::onLanClientConnected(const QString& addr)
+void LanWanPage::onLanClientConnected(const QString& addr, const QString& deviceName)
 {
-    clientTableAddRow(addr);
+    clientTableAddRow(addr, deviceName);
 }
 
 void LanWanPage::onLanClientDisconnected(const QString& addr)
 {
     clientTableRemoveRow(addr);
+}
+
+/* ── Lista persone autorizzate ── */
+void LanWanPage::loadAccessList()
+{
+    if (!m_accessListTable) return;
+    const QJsonArray arr = QJsonDocument::fromJson(
+        QSettings("Prismalux", "GUI").value("lan/accessList").toByteArray()
+    ).array();
+    m_accessListTable->setRowCount(0);
+    for (const QJsonValue& v : arr) {
+        const QJsonObject o = v.toObject();
+        const int row = m_accessListTable->rowCount();
+        m_accessListTable->insertRow(row);
+        m_accessListTable->setItem(row, 0, new QTableWidgetItem(o["name"].toString()));
+        m_accessListTable->setItem(row, 1, new QTableWidgetItem(o["added"].toString()));
+    }
+}
+
+void LanWanPage::saveAccessList()
+{
+    if (!m_accessListTable) return;
+    QJsonArray arr;
+    for (int r = 0; r < m_accessListTable->rowCount(); ++r) {
+        QJsonObject o;
+        o["name"]  = m_accessListTable->item(r, 0) ? m_accessListTable->item(r, 0)->text() : QString();
+        o["added"] = m_accessListTable->item(r, 1) ? m_accessListTable->item(r, 1)->text() : QString();
+        arr.append(o);
+    }
+    QSettings("Prismalux", "GUI").setValue("lan/accessList",
+        QJsonDocument(arr).toJson(QJsonDocument::Compact));
+}
+
+void LanWanPage::onAddPersonClicked()
+{
+    bool ok = false;
+    const QString name = QInputDialog::getText(
+        this, tr("Aggiungi persona autorizzata"),
+        tr("Nome o descrizione (es. \"Mario - telefono\"):"),
+        QLineEdit::Normal, {}, &ok);
+    if (!ok || name.trimmed().isEmpty()) return;
+
+    const int row = m_accessListTable->rowCount();
+    m_accessListTable->insertRow(row);
+    m_accessListTable->setItem(row, 0, new QTableWidgetItem(name.trimmed()));
+    m_accessListTable->setItem(row, 1, new QTableWidgetItem(
+        QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm")));
+    saveAccessList();
+
+    /* Copia il token negli appunti per facilitare la condivisione */
+    const QString token = m_lanTokenEdit ? m_lanTokenEdit->text().trimmed()
+                                         : LanServer::loadLanToken();
+    if (!token.isEmpty()) {
+        QApplication::clipboard()->setText(token);
+        QToolTip::showText(QCursor::pos(),
+            tr("Token copiato negli appunti!\nCondividilo con %1.").arg(name.trimmed()), this);
+    }
+}
+
+void LanWanPage::onRemovePersonClicked()
+{
+    if (!m_accessListTable) return;
+    const int row = m_accessListTable->currentRow();
+    if (row < 0) return;
+    m_accessListTable->removeRow(row);
+    saveAccessList();
 }
 
 void LanWanPage::onKickBtnClicked()
@@ -759,11 +832,12 @@ QWidget* LanWanPage::buildLanAndroidTab()
     auto* clientLay   = new QVBoxLayout(clientGroup);
     clientLay->setSpacing(4);
 
-    m_clientTable = new QTableWidget(0, 3, clientGroup);
-    m_clientTable->setHorizontalHeaderLabels({"Indirizzo IP", "MAC Address", "Connesso alle"});
-    m_clientTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+    m_clientTable = new QTableWidget(0, 4, clientGroup);
+    m_clientTable->setHorizontalHeaderLabels({tr("Indirizzo IP"), tr("MAC"), tr("Dispositivo"), tr("Connesso alle")});
+    m_clientTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     m_clientTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    m_clientTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    m_clientTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+    m_clientTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
     m_clientTable->verticalHeader()->setVisible(false);
     m_clientTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_clientTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -789,6 +863,44 @@ QWidget* LanWanPage::buildLanAndroidTab()
     connect(m_kickAllBtn, &QPushButton::clicked, this, &LanWanPage::onKickAllBtnClicked);
 
     leftLay->addWidget(clientGroup, 1);
+
+    /* ── Persone autorizzate (rubrica chi ha il token) ── */
+    auto* accessGroup = new QGroupBox(tr("\xf0\x9f\x91\xa5  Persone con accesso"), leftW);
+    auto* accessLay   = new QVBoxLayout(accessGroup);
+    accessLay->setSpacing(4);
+
+    m_accessListTable = new QTableWidget(0, 2, accessGroup);
+    m_accessListTable->setHorizontalHeaderLabels({tr("Nome / Dispositivo"), tr("Aggiunto il")});
+    m_accessListTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+    m_accessListTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    m_accessListTable->verticalHeader()->setVisible(false);
+    m_accessListTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_accessListTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_accessListTable->setAlternatingRowColors(true);
+    m_accessListTable->setMaximumHeight(dpiScale(130));
+    accessLay->addWidget(m_accessListTable);
+
+    auto* accessBtnRow = new QWidget(accessGroup);
+    auto* accessBtnLay = new QHBoxLayout(accessBtnRow);
+    accessBtnLay->setContentsMargins(0, 0, 0, 0); accessBtnLay->setSpacing(6);
+
+    auto* addPersonBtn = new QPushButton(tr("\xe2\x9e\x95  Aggiungi persona"), accessBtnRow);
+    addPersonBtn->setObjectName("primaryBtn");
+    addPersonBtn->setToolTip(tr("Registra chi ha il token (copia token negli appunti)"));
+
+    auto* removePersonBtn = new QPushButton(tr("\xe2\x9e\x96  Rimuovi"), accessBtnRow);
+    removePersonBtn->setObjectName("actionBtn");
+    removePersonBtn->setToolTip(tr("Rimuove la persona selezionata dalla lista"));
+
+    accessBtnLay->addWidget(addPersonBtn, 1);
+    accessBtnLay->addWidget(removePersonBtn);
+    accessLay->addWidget(accessBtnRow);
+
+    connect(addPersonBtn,    &QPushButton::clicked, this, &LanWanPage::onAddPersonClicked);
+    connect(removePersonBtn, &QPushButton::clicked, this, &LanWanPage::onRemovePersonClicked);
+
+    loadAccessList();
+    leftLay->addWidget(accessGroup);
 
     /* divisore verticale visibile */
     auto* divider = new QFrame(split);
