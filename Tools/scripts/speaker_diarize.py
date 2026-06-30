@@ -36,6 +36,25 @@ import re
 from pathlib import Path
 
 
+def _trust_torch_repos() -> None:
+    """Pre-accetta i repo PyTorch Hub usati da simple-diarizer (silero-vad)
+    in modo non interattivo, evitando il prompt 'Do you trust...' che blocca
+    gli script headless."""
+    try:
+        import torch.hub as _hub
+        hub_dir = Path(_hub.get_dir())
+        trusted = hub_dir / "trusted_list"
+        repos = ["snakers4_silero-vad", "snakers4/silero-vad"]
+        hub_dir.mkdir(parents=True, exist_ok=True)
+        existing = trusted.read_text() if trusted.exists() else ""
+        additions = [r for r in repos if r not in existing]
+        if additions:
+            with trusted.open("a") as f:
+                f.write("\n".join(additions) + "\n")
+    except Exception:
+        pass
+
+
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Diarizzazione speaker da WAV")
     p.add_argument("wav",           help="File WAV 16kHz mono")
@@ -202,6 +221,10 @@ def _align_transcript(segments: list[dict], transcript_path: str) -> list[dict]:
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    # Forza CPU prima di qualsiasi import torch: evita crash su GPU cc < 7.5
+    import os as _os
+    _os.environ["CUDA_VISIBLE_DEVICES"] = ""
+    _trust_torch_repos()
     args = _parse_args()
 
     wav = str(Path(args.wav).expanduser().resolve())

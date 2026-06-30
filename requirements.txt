@@ -99,6 +99,8 @@ webrtcvad>=2.0.10                  # VAD silenzio/voce — vad_filter.py (P-1, P
 # Alternativa migliore (richiede token HuggingFace): pip install pyannote.audio
 # Fallback minimale (nessun token): pip install resemblyzer scikit-learn
 simple-diarizer>=0.0.13            # diarizzazione speaker offline — speaker_diarize.py (P-5)
+torchcodec>=0.14.0                 # richiesto da torchaudio 2.x per audio loading (dep. di simple-diarizer)
+resemblyzer>=0.1.4                 # fallback CPU offline senza token — backup se simple-diarizer fallisce
 
 # ── Stream live e download video [OPZIONALE] ──────────────────────────────────
 # Esegui: pip install yt-dlp
