@@ -3,6 +3,7 @@
 #include "../prismalux_paths.h"
 #include "../dpi_utils.h"
 #include "../widgets/stt_whisper.h"
+#include "../widgets/widget_dep_check.h"
 #include "../widgets/ffmpeg_utils.h"
 #include "../widgets/opencv_utils.h"
 #include "../widgets/world_map_widget.h"
@@ -2329,13 +2330,19 @@ QWidget* MultimediaPage::buildVideoCaptionTab()
            "Dipendenze: ffmpeg (PATH) + Ollama con un modello vision (llava, moondream...)"));
     lay->addWidget(m_vcResults, 1);
 
-    // ── Note dipendenze ──
-    auto* noteLbl = new QLabel(
-        tr("<small>Richiede: <b>ffmpeg</b> nel PATH · "
-           "<b>Ollama</b> attivo con modello vision · "
-           "Opzionale: <code>pip install Pillow</code> (hash migliore)</small>"));
-    noteLbl->setTextFormat(Qt::RichText);
-    lay->addWidget(noteLbl);
+    // ── Pannello dipendenze video captioning ──
+    {
+        using Dep = DepCheckPanel::Dep;
+        const QList<Dep> vcDeps = {
+            { "ffmpeg",    "",          "",          "ffmpeg",   "Estrazione frame dal video (richiesto)" },
+            { "Pillow",    "PIL",       "Pillow",    "",         "Hashing frame pi\xc3\xb9 preciso (dhash)" },
+            { "yt-dlp",    "yt_dlp",    "yt-dlp",   "",         "Download stream live YouTube/Twitch" },
+            { "webrtcvad", "webrtcvad", "webrtcvad", "",         "VAD audio (filtra silenzio in STT)" },
+        };
+        auto* depPanel = new DepCheckPanel(vcDeps, w);
+        lay->addWidget(depPanel);
+        QTimer::singleShot(300, depPanel, &DepCheckPanel::runAllChecks);
+    }
 
     // ── Connessioni ──
     connect(browseBtn, &QPushButton::clicked, this, &MultimediaPage::onVcBrowseClicked);

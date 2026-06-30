@@ -2,6 +2,7 @@
 #include "../dpi_utils.h"
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
+#include "../widgets/widget_dep_check.h"
 #include "main_customize.h"
 #include "main_maintenance.h"
 #include "main_graph.h"
@@ -1343,7 +1344,24 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     ilay->addWidget(secNote);
 
     /* ══════════════════════════════════════════
-       Sezione 5: livello microfono reale
+       Sezione 5: check dipendenze Python STT
+       ══════════════════════════════════════════ */
+    {
+        using Dep = DepCheckPanel::Dep;
+        const QList<Dep> sttDeps = {
+            { "faster-whisper",  "faster_whisper",  "faster-whisper",  "",        "STT 2-4\xc3\x97 pi\xc3\xb9 veloce di whisper.cpp (CTranslate2)" },
+            { "webrtcvad",       "webrtcvad",        "webrtcvad",       "",        "Rilevamento voce VAD (filtra il silenzio)" },
+            { "simple-diarizer", "simple_diarizer",  "simple-diarizer", "",        "Diarizzazione speaker offline (chi parla)" },
+            { "ffmpeg",          "",                 "",                "ffmpeg",  "Mux/demux audio-video (richiesto da streamlink MCP)" },
+            { "yt-dlp",          "yt_dlp",           "yt-dlp",         "",        "Download stream live YouTube/Twitch (streamlink MCP)" },
+        };
+        auto* depPanel = new DepCheckPanel(sttDeps, inner);
+        ilay->addWidget(depPanel);
+        QTimer::singleShot(200, depPanel, &DepCheckPanel::runAllChecks);
+    }
+
+    /* ══════════════════════════════════════════
+       Sezione 6: livello microfono reale
        Richiede Qt6::Multimedia (QAudioSource).
        Se il modulo non è compilato, mostra solo
        un avviso "non disponibile".
