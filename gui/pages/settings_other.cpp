@@ -4,6 +4,7 @@
 #include "../log_bus.h"
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
+#include "../widgets/widget_dep_check.h"
 #include "main_customize.h"
 #include "main_maintenance.h"
 #include "main_graph.h"
@@ -1183,6 +1184,26 @@ QWidget* ImpostazioniPage::buildMcpTab()
     colsLay->addLayout(leftL,  52);
     colsLay->addLayout(rightL, 48);
     vlay->addLayout(colsLay);
+
+    /* ── Dipendenze Python richieste dagli MCP ──────────────────── */
+    {
+        using Dep = DepCheckPanel::Dep;
+        const QList<Dep> mcpDeps = {
+            { "requests",       "requests",        "requests",        "", "HTTP client (usato da quasi tutti gli MCP)" },
+            { "yt-dlp",         "yt_dlp",          "yt-dlp",          "", "Stream live YouTube/Twitch (streamlink_mcp)" },
+            { "faster-whisper", "faster_whisper",  "faster-whisper",  "", "STT 2-4\xc3\x97 pi\xc3\xb9 veloce (audio MCP)" },
+            { "webrtcvad",      "webrtcvad",        "webrtcvad",       "", "Rilevamento silenzio/voce VAD (audio MCP)" },
+            { "simple-diarizer","simple_diarizer",  "simple-diarizer", "", "Diarizzazione speaker offline" },
+            { "Pillow",         "PIL",              "Pillow",          "", "Elaborazione immagini (video_caption, SD)" },
+            { "graphviz",       "graphviz",         "graphviz",        "", "Rendering grafi DOT (graphviz MCP)" },
+            { "openpyxl",       "openpyxl",         "openpyxl",        "", "Lettura/scrittura Excel (.xlsx)" },
+            { "python-docx",    "docx",             "python-docx",     "", "Lettura/scrittura Word (.docx)" },
+            { "ffmpeg",         "",                 "",                "ffmpeg", "Mux/demux audio-video (richiesto da streamlink_mcp)" },
+        };
+        auto* depPanel = new DepCheckPanel(mcpDeps, page);
+        vlay->addWidget(depPanel);
+        QTimer::singleShot(400, depPanel, &DepCheckPanel::runAllChecks);
+    }
 
     /* ── Pulsante ripristina messaggio di benvenuto ─────────────── */
     auto* onbSep = new QFrame(page);
