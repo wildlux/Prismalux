@@ -1312,6 +1312,123 @@ QWidget* ImpostazioniPage::buildTrascriviTab()
     ilay->addWidget(secHttp);
 
     /* ══════════════════════════════════════════
+       Sezione 4c: diarizzazione speaker
+       ══════════════════════════════════════════ */
+    {
+        auto* secDiar = new QFrame(inner);
+        secDiar->setObjectName("actionCard");
+        auto* secDiarLay = new QVBoxLayout(secDiar);
+        secDiarLay->setContentsMargins(14, 10, 14, 10);
+        secDiarLay->setSpacing(8);
+
+        auto* diarTitle = new QLabel(
+            "\xf0\x9f\x91\xa5  <b>Diarizzazione speaker</b> "
+            "<small style='color:#94a3b8;'>(opzionale)</small>",
+            secDiar);
+        diarTitle->setObjectName("cardTitle");
+        diarTitle->setTextFormat(Qt::RichText);
+        secDiarLay->addWidget(diarTitle);
+
+        auto* diarDesc = new QLabel(
+            "Dopo la trascrizione identifica <b>chi parla</b> e quando, "
+            "aggiungendo tag <code>[SPEAKER_00]</code> al testo.<br>"
+            "Richiede <code>pip install simple-diarizer</code> "
+            "(offline, nessun token). "
+            "Non attivo in Conversa/voice-loop (aggiungerebbe latenza).",
+            secDiar);
+        diarDesc->setObjectName("cardDesc");
+        diarDesc->setTextFormat(Qt::RichText);
+        diarDesc->setWordWrap(true);
+        secDiarLay->addWidget(diarDesc);
+
+        /* Riga: toggle + label stato */
+        auto* row1 = new QWidget(secDiar);
+        auto* row1Lay = new QHBoxLayout(row1);
+        row1Lay->setContentsMargins(0, 0, 0, 0);
+        row1Lay->setSpacing(10);
+
+        auto* chkDiar = new QCheckBox(
+            "Abilita diarizzazione dopo trascrizione", row1);
+        {
+            QSettings hs("Prismalux", "GUI");
+            chkDiar->setChecked(hs.value(P::SK::kSttDiarizeEnabled, false).toBool());
+        }
+        row1Lay->addWidget(chkDiar, 1);
+
+        /* stato simple-diarizer */
+        auto* lblDiarStatus = new QLabel(row1);
+        lblDiarStatus->setObjectName("cardDesc");
+        auto checkDiarDep = [lblDiarStatus]() {
+            auto* proc = new QProcess(lblDiarStatus);
+            proc->setProperty("lbl", QVariant::fromValue(lblDiarStatus));
+            QObject::connect(proc,
+                QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                lblDiarStatus,
+                [proc, lblDiarStatus](int code, QProcess::ExitStatus) {
+                    proc->deleteLater();
+                    if (code == 0)
+                        lblDiarStatus->setText(
+                            "<span style='color:#22c55e;'>\xe2\x9c\x85 simple-diarizer OK</span>");
+                    else
+                        lblDiarStatus->setText(
+                            "<span style='color:#f59e0b;'>\xe2\x9a\xa0 "
+                            "simple-diarizer mancante &mdash; "
+                            "<code>pip install simple-diarizer</code></span>");
+                    lblDiarStatus->setTextFormat(Qt::RichText);
+                });
+            proc->start(PrismaluxPaths::findPython(),
+                        {"-c", "import simple_diarizer"});
+        };
+        checkDiarDep();
+        row1Lay->addWidget(lblDiarStatus);
+        secDiarLay->addWidget(row1);
+
+        /* Riga: numero speaker */
+        auto* row2 = new QWidget(secDiar);
+        auto* row2Lay = new QHBoxLayout(row2);
+        row2Lay->setContentsMargins(0, 0, 0, 0);
+        row2Lay->setSpacing(10);
+
+        row2Lay->addWidget(new QLabel("Numero speaker:", row2));
+        auto* spinNSpeakers = new QSpinBox(row2);
+        spinNSpeakers->setRange(0, 10);
+        spinNSpeakers->setSpecialValueText("Auto");
+        spinNSpeakers->setToolTip(
+            "0 = auto-detect\n"
+            "1-10 = numero fisso di speaker (pi\xc3\xb9 veloce e preciso se noto)");
+        spinNSpeakers->setFixedWidth(dpiScale(80));
+        {
+            QSettings hs("Prismalux", "GUI");
+            spinNSpeakers->setValue(
+                hs.value(P::SK::kSttDiarizeNSpeakers, 0).toInt());
+        }
+        row2Lay->addWidget(spinNSpeakers);
+        row2Lay->addStretch();
+
+        auto* btnSaveDiar = new QPushButton(
+            "\xf0\x9f\x92\xbe  Salva", row2);
+        btnSaveDiar->setObjectName("actionBtn");
+        btnSaveDiar->setFixedWidth(dpiScale(80));
+        row2Lay->addWidget(btnSaveDiar);
+        secDiarLay->addWidget(row2);
+
+        /* Salva toggle + n_speakers insieme */
+        connect(btnSaveDiar, &QPushButton::clicked, secDiar,
+                [chkDiar, spinNSpeakers]() {
+                    QSettings hs("Prismalux", "GUI");
+                    hs.setValue(P::SK::kSttDiarizeEnabled,   chkDiar->isChecked());
+                    hs.setValue(P::SK::kSttDiarizeNSpeakers, spinNSpeakers->value());
+                });
+
+        /* Toggle abilita/disabilita spinbox */
+        connect(chkDiar, &QCheckBox::toggled, spinNSpeakers,
+                &QSpinBox::setEnabled);
+        spinNSpeakers->setEnabled(chkDiar->isChecked());
+
+        ilay->addWidget(secDiar);
+    }
+
+    /* ══════════════════════════════════════════
        Sezione 4: nota lingua + test rapido
        ══════════════════════════════════════════ */
     auto* secNote = new QFrame(inner);

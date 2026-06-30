@@ -339,9 +339,10 @@ private:
     /* ── STT — pulsante + processi tracciati ── */
     QPushButton* m_btnVoice   = nullptr;  ///< pulsante Trascrivi voce (testo cambia in-place)
     QProcess*    m_recProc    = nullptr;  ///< arecord
-    QProcess*    m_sttProc    = nullptr;  ///< whisper-cli
-    QTimer*      m_sttTick    = nullptr;  ///< countdown 1s visibile nel pulsante
-    QString      m_sttWavPath;            ///< path file .wav registrato
+    QProcess*    m_sttProc     = nullptr;  ///< whisper-cli / faster-whisper
+    QProcess*    m_diarizeProc = nullptr;  ///< speaker_diarize.py post-proc
+    QTimer*      m_sttTick     = nullptr;  ///< countdown 1s visibile nel pulsante
+    QString      m_sttWavPath;             ///< path file .wav registrato
     enum class SttState { Idle, Recording, Transcribing, Downloading } m_sttState = SttState::Idle;
 
     /** Scarica ggml-small.bin in ~/.prismalux/whisper/models/ con progress nella chat */

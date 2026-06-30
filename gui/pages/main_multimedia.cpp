@@ -398,14 +398,46 @@ void MultimediaPage::_doTranscribe(const QString& wav)
     m_audioProc = SttWhisper::transcribe(wav, "it", this,
         [this, wav](const QString& text, bool ok) {
             m_audioProc = nullptr;
-            if (wav.contains("prisma_audio_tmp"))
-                QFile::remove(wav);
-            if (ok && !text.trimmed().isEmpty()) {
-                m_audioTranscript->setPlainText(text.trimmed());
-            } else {
+            const bool isTmp = wav.contains("prisma_audio_tmp");
+
+            if (!ok || text.trimmed().isEmpty()) {
+                if (isTmp) QFile::remove(wav);
                 m_audioTranscript->setPlainText(
                     "\xe2\x9a\xa0  Trascrizione vuota o fallita.\n"
                     "Verifica che il file contenga voce udibile.");
+                return;
+            }
+
+            m_audioTranscript->setPlainText(text.trimmed());
+
+            /* Diarizzazione speaker opzionale */
+            if (SttWhisper::isDiarizeEnabled()) {
+                m_audioTranscript->setPlaceholderText(
+                    "\xf0\x9f\x91\xa5 Identifico speaker...");
+
+                const QString tmpTxt =
+                    P::safeTempPath() + "/prisma_mm_transcript.txt";
+                { QFile f(tmpTxt); if (f.open(QIODevice::WriteOnly))
+                      f.write(text.trimmed().toUtf8()); }
+
+                if (m_diarizeProc) { m_diarizeProc->kill(); m_diarizeProc = nullptr; }
+                m_diarizeProc = SttWhisper::diarize(
+                    wav, tmpTxt,
+                    SttWhisper::diarizeNSpeakers(), {},
+                    this,
+                    [this, wav, isTmp, tmpTxt](const QString& json, bool dok) {
+                        m_diarizeProc = nullptr;
+                        m_audioTranscript->setPlaceholderText({});
+                        QFile::remove(tmpTxt);
+                        if (isTmp) QFile::remove(wav);
+                        if (dok) {
+                            const QString d = SttWhisper::formatDiarization(json);
+                            if (!d.isEmpty() && !d.startsWith("{\"error"))
+                                m_audioTranscript->setPlainText(d);
+                        }
+                    });
+            } else {
+                if (isTmp) QFile::remove(wav);
             }
         });
 }

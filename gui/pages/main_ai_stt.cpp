@@ -209,22 +209,55 @@ void AgentiPage::onSttTimeout()
                 m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"));
                 m_btnVoice->setEnabled(true);
 
-                if (ok && !text.isEmpty()) {
-                    m_input->setPlainText(text);   /* sostituisce sempre (loop o conversa) */
-                    m_input->setFocus();
-                    /* Auto-invio se: auto-loop attivo OPPURE Conversa mode (l'utente ha già
-                       cliccato "Inizia Conversazione" → la trascrizione va inviata subito) */
-                    const bool inConversa = m_modeBtn
-                        && m_modeBtn->currentMode() == TriModeButton::Conversa;
-                    if ((m_voiceLoopActive || inConversa) && !m_ai->busy())
-                        QTimer::singleShot(150, this, &AgentiPage::onSttVoiceLoopAutoSend);
-                } else {
+                if (!ok || text.isEmpty()) {
                     m_log->append(
                         "\xe2\x9a\xa0  Trascrizione fallita o audio vuoto.<br>"
                         + QString(text).replace("\n","<br>"));
                     if (m_voiceLoopActive)
                         QTimer::singleShot(1500, this, &AgentiPage::onSttVoiceLoopRetry);
+                    return;
                 }
+
+                /* Diarizzazione speaker — solo in modalità manuale (non in loop/Conversa
+                   dove la latenza aggiuntiva impedirebbe la fluidità del dialogo) */
+                const bool inConversa = m_modeBtn
+                    && m_modeBtn->currentMode() == TriModeButton::Conversa;
+                const bool skipDiarize = m_voiceLoopActive || inConversa;
+
+                if (!skipDiarize && SttWhisper::isDiarizeEnabled()) {
+                    m_btnVoice->setText(tr("\xf0\x9f\x91\xa5 Identifico speaker..."));
+                    m_btnVoice->setEnabled(false);
+                    m_input->setPlainText(text);   /* testo grezzo subito visibile */
+
+                    /* Salva transcript in file temp per allineamento */
+                    const QString tmpTxt = P::safeTempPath() + "/prisma_stt_transcript.txt";
+                    { QFile f(tmpTxt); if (f.open(QIODevice::WriteOnly)) f.write(text.toUtf8()); }
+
+                    if (m_diarizeProc) { m_diarizeProc->kill(); m_diarizeProc = nullptr; }
+                    m_diarizeProc = SttWhisper::diarize(
+                        m_sttWavPath, tmpTxt,
+                        SttWhisper::diarizeNSpeakers(), {},
+                        this,
+                        [this, tmpTxt](const QString& json, bool dok) {
+                            m_diarizeProc = nullptr;
+                            m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"));
+                            m_btnVoice->setEnabled(true);
+                            QFile::remove(tmpTxt);
+                            if (dok) {
+                                const QString diarText = SttWhisper::formatDiarization(json);
+                                if (!diarText.isEmpty() && !diarText.startsWith("{\"error"))
+                                    m_input->setPlainText(diarText);
+                            }
+                            m_input->setFocus();
+                        });
+                    return;
+                }
+
+                m_input->setPlainText(text);
+                m_input->setFocus();
+                /* Auto-invio se: auto-loop attivo OPPURE Conversa mode */
+                if ((m_voiceLoopActive || inConversa) && !m_ai->busy())
+                    QTimer::singleShot(150, this, &AgentiPage::onSttVoiceLoopAutoSend);
             });
 }
 

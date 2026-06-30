@@ -62,6 +62,7 @@ private:
     QTextEdit*   m_audioTranscript  = nullptr;
     QTextEdit*   m_audioOutput      = nullptr;
     QProcess*    m_audioProc        = nullptr;
+    QProcess*    m_diarizeProc     = nullptr;
     QString      m_audioFilePath;
     QPushButton* m_recBtn           = nullptr;
     QProcess*    m_recProc          = nullptr;

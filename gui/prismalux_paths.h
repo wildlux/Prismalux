@@ -1085,6 +1085,8 @@ constexpr const char* kSttModelPath          = "stt/model_path";
 constexpr const char* kSttHttpUrl            = "stt/http_url";             ///< URL server Whisper HTTP (es. http://localhost:9000/v1/audio/transcriptions)
 constexpr const char* kSttFastWhisperModel   = "stt/fast_whisper_model";   ///< modello HuggingFace (default: "large-v3-turbo")
 constexpr const char* kSttFastWhisperEnabled = "stt/fast_whisper_enabled"; ///< abilita faster-whisper in priorità su whisper-cli (default: true)
+constexpr const char* kSttDiarizeEnabled     = "stt/diarize_enabled";      ///< abilita diarizzazione speaker dopo trascrizione (default: false)
+constexpr const char* kSttDiarizeNSpeakers   = "stt/diarize_n_speakers";   ///< numero speaker fisso (0 = auto-detect, default: 0)
 
 /* ── AI — modello/backend preferiti dall'utente ──── */
 constexpr const char* kActiveModel     = "ai/activeModel";    ///< ultimo modello selezionato manualmente

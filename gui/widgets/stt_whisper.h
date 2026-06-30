@@ -88,6 +88,18 @@ inline bool isFastWhisperAvailable()
     return QFileInfo::exists(P::fastWhisperScript()) && !P::findPython().isEmpty();
 }
 
+/* ── true se diarizzazione speaker è abilitata nelle impostazioni ── */
+inline bool isDiarizeEnabled()
+{
+    return AppConfig::s().value(P::SK::kSttDiarizeEnabled, false).toBool();
+}
+
+/* ── Numero speaker fisso per diarizzazione (0 = auto-detect) ── */
+inline int diarizeNSpeakers()
+{
+    return AppConfig::s().value(P::SK::kSttDiarizeNSpeakers, 0).toInt();
+}
+
 /* ── true se faster-whisper è abilitato nelle impostazioni ── */
 inline bool isFastWhisperEnabled()
 {
