@@ -197,6 +197,8 @@ QString AgentiPage::toolSystemSuffix()
             "TOOL_CALL: {\"tool\": \"date_calc\", \"input\": \"quanti secondi sono un anno solare\"}\n"
             "TOOL_CALL: {\"tool\": \"leggi_file\", \"input\": \"PERCORSO_ESPLICITO\"}\n"
             "TOOL_CALL: {\"tool\": \"lista_file\", \"input\": \"PERCORSO_ESPLICITO\"}\n"
+            "TOOL_CALL: {\"tool\": \"leggi_riassunto\", \"input\": \"breve|dettagliato\"}\n"
+            "TOOL_CALL: {\"tool\": \"scrivi_riassunto\", \"input\": \"breve|||testo\"}\n"
             "Scrivi UNA riga TOOL_CALL: {...} e attendi TOOL_RESULT.\n"
             "REGOLA FILE: usa leggi_file/lista_file SOLO con percorsi forniti dall'utente\n"
             "o dentro la cartella del progetto:\n") +
@@ -902,6 +904,63 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             onDone("La Knowledge Base personale è vuota.");
         else
             onDone(kb.left(3000));
+        return;
+    }
+
+    /* ── leggi_riassunto — legge riassunto_breve.md e/o riassunto_dettagliato.md ──
+       input: "breve" | "dettagliato" | "" (entrambi)                              */
+    if (tool == "leggi_riassunto" || tool == "read_summary" || tool == "riassunto") {
+        const QString which = input.toLower().trimmed();
+        const bool wantBrief    = which.isEmpty() || which == "breve"      || which == "tutti";
+        const bool wantDetailed = which.isEmpty() || which == "dettagliato"|| which == "tutti";
+
+        QString out;
+        auto readFile = [](const QString& path, const QString& label) -> QString {
+            QFile f(path);
+            if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+                return QString("### %1\n(nessun riassunto salvato)\n").arg(label);
+            const QString c = QString::fromUtf8(f.readAll()).trimmed();
+            return c.isEmpty()
+                ? QString("### %1\n(vuoto)\n").arg(label)
+                : QString("### %1\n%2\n").arg(label, c);
+        };
+        if (wantBrief)    out += readFile(P::summaryBriefPath(),    "Riassunto Breve");
+        if (wantDetailed) out += readFile(P::summaryDetailedPath(), "Riassunto Dettagliato");
+        onDone(out.trimmed().left(3000));
+        return;
+    }
+
+    /* ── scrivi_riassunto — salva riassunto generato dall'LLM ──────────────────
+       input: "breve|||contenuto"  oppure  "dettagliato|||contenuto"             */
+    if (tool == "scrivi_riassunto" || tool == "write_summary" || tool == "salva_riassunto") {
+        const int sep = input.indexOf("|||");
+        if (sep < 0) {
+            onDone("errore: formato atteso \"breve|||testo\" o \"dettagliato|||testo\"");
+            return;
+        }
+        const QString tipo     = input.left(sep).toLower().trimmed();
+        const QString testo    = input.mid(sep + 3).trimmed();
+        if (testo.isEmpty()) { onDone("errore: contenuto riassunto vuoto"); return; }
+
+        QString path;
+        if (tipo == "breve")
+            path = P::summaryBriefPath();
+        else if (tipo == "dettagliato")
+            path = P::summaryDetailedPath();
+        else {
+            onDone("errore: tipo deve essere \"breve\" o \"dettagliato\"");
+            return;
+        }
+
+        QFile f(path);
+        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+            onDone(QString("errore: impossibile scrivere '%1'").arg(path));
+            return;
+        }
+        f.write(testo.toUtf8());
+        f.close();
+        onDone(QString("Riassunto %1 salvato (%2 caratteri) in %3")
+               .arg(tipo).arg(testo.size()).arg(path));
         return;
     }
 

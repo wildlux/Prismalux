@@ -1,7 +1,9 @@
 #pragma once
 #include <QWidget>
 #include <QLabel>
+#include <QLineEdit>
 #include <QTextEdit>
+#include <QTextBrowser>
 #include <QComboBox>
 #include <QPushButton>
 #include <QProcess>
@@ -34,6 +36,11 @@ private slots:
     void onAudioToken(const QString& t);
     void onAudioAnalyzeFinished(const QString& full);
     void onAudioAnalyzeError(const QString& msg);
+    // Video Captioning slots
+    void onVcBrowseClicked();
+    void onVcStartStopClicked();
+    void onVcProcReadyRead();
+    void onVcProcFinished(int code, QProcess::ExitStatus st);
     // OCR
     void onOcrStartStopClicked(bool on);
     void onOcrTimerTick();
@@ -76,6 +83,17 @@ private:
     QMetaObject::Connection m_audioErrorConn;
     QMetaObject::Connection m_transcriptionReadyConn;
     QMetaObject::Connection m_transcriptionErrorConn;
+    // Video Captioning
+    QLineEdit*   m_vcPathEdit    = nullptr;
+    QComboBox*   m_vcModelCombo  = nullptr;
+    QSpinBox*    m_vcIntervalSpin= nullptr;
+    QSpinBox*    m_vcThreshSpin  = nullptr;
+    QSpinBox*    m_vcMaxFrames   = nullptr;
+    QPushButton* m_vcStartBtn    = nullptr;
+    QTextBrowser*m_vcResults     = nullptr;
+    QLabel*      m_vcStatus      = nullptr;
+    QProcess*    m_vcProc        = nullptr;
+    QByteArray   m_vcLineBuf;
     // OCR continua
     QLabel*      m_ocrPreview    = nullptr;
     QTextEdit*   m_ocrText       = nullptr;
@@ -115,6 +133,7 @@ private:
     QWidget* buildVoiceClonerTab();
     QWidget* buildOcrTab();
     QWidget* buildOsmMapTab();
+    QWidget* buildVideoCaptionTab();
 
     /* ── Mappa OSM ── */
     class WorldMapWidget* m_osmMap         = nullptr;

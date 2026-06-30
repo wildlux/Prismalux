@@ -63,6 +63,7 @@ MultimediaPage::MultimediaPage(AiClient* ai, QWidget* parent)
     tabs->addTab(buildSintetizzatoreTab(), "\xf0\x9f\x94\x8a  Sintetizzatore");    /* 🔊 */
     tabs->addTab(buildVoiceClonerTab(),   "\xf0\x9f\x8e\xa4  Clona Voce");       /* 🎤 */
     tabs->addTab(buildOcrTab(),            "\xf0\x9f\x94\x8d  OCR webcam");     /* 🔍 */
+    tabs->addTab(buildVideoCaptionTab(), "\xf0\x9f\x8e\xac  Analizza Video");  /* 🎬 */
 
     lay->addWidget(tabs);
 }
@@ -2235,4 +2236,266 @@ QWidget* MultimediaPage::buildOsmMapTab()
     });
 
     return w;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   buildVideoCaptionTab — Analisi video con frame hashing + VLM captioning
+   Pipeline: ffmpeg campiona frame → dhash filtra simili → Ollama VLM descrive
+   ══════════════════════════════════════════════════════════════════════════ */
+QWidget* MultimediaPage::buildVideoCaptionTab()
+{
+    auto* w   = new QWidget;
+    auto* lay = new QVBoxLayout(w);
+    lay->setSpacing(8);
+    lay->setContentsMargins(10, 10, 10, 10);
+
+    // ── Riga file ──
+    auto* fileRow = new QHBoxLayout;
+    m_vcPathEdit = new QLineEdit;
+    m_vcPathEdit->setPlaceholderText(tr("Percorso video (MP4, MKV, AVI, MOV...)"));
+    auto* browseBtn = new QPushButton(tr("\xf0\x9f\x93\x82 Sfoglia")); /* 📂 */
+    browseBtn->setFixedWidth(dpiScale(90));
+    fileRow->addWidget(new QLabel(tr("File:")));
+    fileRow->addWidget(m_vcPathEdit, 1);
+    fileRow->addWidget(browseBtn);
+    lay->addLayout(fileRow);
+
+    // ── Parametri ──
+    auto* paramRow = new QHBoxLayout;
+    paramRow->setSpacing(12);
+
+    paramRow->addWidget(new QLabel(tr("Modello VLM:")));
+    m_vcModelCombo = new QComboBox;
+    m_vcModelCombo->setEditable(true);
+    m_vcModelCombo->addItems({"llava:7b", "llava:13b", "moondream:latest",
+                              "qwen2-vl:7b", "minicpm-v:8b"});
+    m_vcModelCombo->setMinimumWidth(dpiScale(140));
+    paramRow->addWidget(m_vcModelCombo);
+
+    paramRow->addSpacing(8);
+    paramRow->addWidget(new QLabel(tr("Ogni (s):")));
+    m_vcIntervalSpin = new QSpinBox;
+    m_vcIntervalSpin->setRange(1, 60);
+    m_vcIntervalSpin->setValue(5);
+    m_vcIntervalSpin->setToolTip(tr("Estrai un frame ogni N secondi"));
+    m_vcIntervalSpin->setFixedWidth(dpiScale(60));
+    paramRow->addWidget(m_vcIntervalSpin);
+
+    paramRow->addSpacing(8);
+    paramRow->addWidget(new QLabel(tr("Novit\xc3\xa0 (0-64):")));
+    m_vcThreshSpin = new QSpinBox;
+    m_vcThreshSpin->setRange(0, 64);
+    m_vcThreshSpin->setValue(10);
+    m_vcThreshSpin->setToolTip(
+        tr("Distanza Hamming minima per considerare un frame 'nuovo'.\n"
+           "0 = analizza tutti, 64 = solo frame radicalmente diversi"));
+    m_vcThreshSpin->setFixedWidth(dpiScale(60));
+    paramRow->addWidget(m_vcThreshSpin);
+
+    paramRow->addSpacing(8);
+    paramRow->addWidget(new QLabel(tr("Max frame:")));
+    m_vcMaxFrames = new QSpinBox;
+    m_vcMaxFrames->setRange(1, 200);
+    m_vcMaxFrames->setValue(40);
+    m_vcMaxFrames->setFixedWidth(dpiScale(60));
+    paramRow->addWidget(m_vcMaxFrames);
+
+    paramRow->addStretch();
+    lay->addLayout(paramRow);
+
+    // ── Pulsante start/stop ──
+    auto* btnRow = new QHBoxLayout;
+    m_vcStartBtn = new QPushButton(tr("\xf0\x9f\x9a\x80 Avvia analisi")); /* 🚀 */
+    m_vcStartBtn->setFixedHeight(dpiScale(34));
+    auto* clearBtn = new QPushButton(tr("\xf0\x9f\x97\x91 Pulisci"));      /* 🗑 */
+    clearBtn->setFixedWidth(dpiScale(80));
+    m_vcStatus = new QLabel(tr("Pronto."));
+    m_vcStatus->setStyleSheet("color:#94a3b8;font-size:11px;");
+    btnRow->addWidget(m_vcStartBtn);
+    btnRow->addWidget(clearBtn);
+    btnRow->addStretch();
+    btnRow->addWidget(m_vcStatus);
+    lay->addLayout(btnRow);
+
+    // ── Area risultati ──
+    m_vcResults = new QTextBrowser;
+    m_vcResults->setOpenLinks(false);
+    m_vcResults->setPlaceholderText(
+        tr("I risultati appariranno qui.\n\n"
+           "Pipeline:\n"
+           "  1. ffmpeg estrae frame ogni N secondi\n"
+           "  2. dhash filtra i frame troppo simili al precedente\n"
+           "  3. Il VLM descrive solo i frame 'nuovi'\n\n"
+           "Dipendenze: ffmpeg (PATH) + Ollama con un modello vision (llava, moondream...)"));
+    lay->addWidget(m_vcResults, 1);
+
+    // ── Note dipendenze ──
+    auto* noteLbl = new QLabel(
+        tr("<small>Richiede: <b>ffmpeg</b> nel PATH · "
+           "<b>Ollama</b> attivo con modello vision · "
+           "Opzionale: <code>pip install Pillow</code> (hash migliore)</small>"));
+    noteLbl->setTextFormat(Qt::RichText);
+    lay->addWidget(noteLbl);
+
+    // ── Connessioni ──
+    connect(browseBtn, &QPushButton::clicked, this, &MultimediaPage::onVcBrowseClicked);
+    connect(m_vcStartBtn, &QPushButton::clicked, this, &MultimediaPage::onVcStartStopClicked);
+    connect(clearBtn, &QPushButton::clicked, m_vcResults, &QTextBrowser::clear);
+
+    return w;
+}
+
+void MultimediaPage::onVcBrowseClicked()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this, tr("Seleziona video"),
+        QDir::homePath(),
+        tr("Video (*.mp4 *.mkv *.avi *.mov *.webm *.flv *.ts *.m4v);;Tutti (*.*)"));
+    if (!path.isEmpty())
+        m_vcPathEdit->setText(path);
+}
+
+void MultimediaPage::onVcStartStopClicked()
+{
+    if (m_vcProc && m_vcProc->state() != QProcess::NotRunning) {
+        /* Stop */
+        m_vcProc->terminate();
+        m_vcProc->waitForFinished(2000);
+        m_vcStartBtn->setText(tr("\xf0\x9f\x9a\x80 Avvia analisi"));
+        m_vcStatus->setText(tr("Interrotto."));
+        return;
+    }
+
+    const QString videoPath = m_vcPathEdit->text().trimmed();
+    if (videoPath.isEmpty()) {
+        m_vcResults->append(
+            "<p style='color:#f87171;'>\xe2\x9d\x8c Seleziona prima un file video.</p>");
+        return;
+    }
+    if (!QFileInfo::exists(videoPath)) {
+        m_vcResults->append(
+            "<p style='color:#f87171;'>\xe2\x9d\x8c File non trovato: "
+            + videoPath.toHtmlEscaped() + "</p>");
+        return;
+    }
+
+    const QString script = P::root() + "/Tools/scripts/video_caption.py";
+    if (!QFileInfo::exists(script)) {
+        m_vcResults->append(
+            "<p style='color:#f87171;'>\xe2\x9d\x8c Script non trovato: "
+            + script.toHtmlEscaped() + "</p>");
+        return;
+    }
+
+    m_vcResults->clear();
+    m_vcLineBuf.clear();
+    m_vcResults->append(
+        "<p style='color:#60a5fa;font-size:11px;'>"
+        "\xf0\x9f\x8e\xac Avvio analisi video...</p>");
+
+    m_vcProc = new QProcess(this);
+    m_vcProc->setProcessChannelMode(QProcess::MergedChannels);
+    connect(m_vcProc, &QProcess::readyReadStandardOutput,
+            this, &MultimediaPage::onVcProcReadyRead);
+    connect(m_vcProc,
+            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &MultimediaPage::onVcProcFinished);
+
+    const QStringList args = {
+        script, videoPath,
+        "--interval", QString::number(m_vcIntervalSpin->value()),
+        "--model",    m_vcModelCombo->currentText().trimmed(),
+        "--threshold",QString::number(m_vcThreshSpin->value()),
+        "--max-frames",QString::number(m_vcMaxFrames->value()),
+        "--port",     QString::number(P::kOllamaPort)
+    };
+    m_vcProc->start(P::findPython(), args);
+
+    if (!m_vcProc->waitForStarted(3000)) {
+        m_vcResults->append(
+            "<p style='color:#f87171;'>\xe2\x9d\x8c Impossibile avviare lo script "
+            "(Python non trovato?).</p>");
+        m_vcProc->deleteLater();
+        m_vcProc = nullptr;
+        return;
+    }
+
+    m_vcStartBtn->setText(tr("\xe2\x8f\xb9 Ferma"));
+    m_vcStatus->setText(tr("Analisi in corso..."));
+}
+
+void MultimediaPage::onVcProcReadyRead()
+{
+    if (!m_vcProc) return;
+    m_vcLineBuf += m_vcProc->readAllStandardOutput();
+    while (true) {
+        const int nl = m_vcLineBuf.indexOf('\n');
+        if (nl < 0) break;
+        const QByteArray line = m_vcLineBuf.left(nl).trimmed();
+        m_vcLineBuf.remove(0, nl + 1);
+        if (line.isEmpty()) continue;
+
+        QJsonParseError pe;
+        const QJsonObject obj =
+            QJsonDocument::fromJson(line, &pe).object();
+        if (pe.error != QJsonParseError::NoError) continue;
+
+        const QString status = obj["status"].toString();
+
+        if (status == "extracting") {
+            m_vcStatus->setText(tr("Estrazione frame..."));
+        } else if (status == "extracted") {
+            const int tot = obj["total"].toInt();
+            m_vcStatus->setText(
+                tr("Estratti %1 frame. Analisi in corso...").arg(tot));
+            m_vcResults->append(
+                QString("<p style='color:#94a3b8;font-size:10px;'>"
+                        "\xf0\x9f\x8e\x9e Estratti %1 frame totali.</p>").arg(tot));
+        } else if (status == "skipped") {
+            const int fr = obj["frame"].toInt();
+            const int dist = obj["dist"].toInt();
+            m_vcStatus->setText(
+                tr("Frame %1 saltato (simile, dist=%2)").arg(fr).arg(dist));
+        } else if (status == "captioning") {
+            const QString ts = obj["ts"].toString();
+            const int fr   = obj["frame"].toInt();
+            const int tot  = obj["total"].toInt();
+            m_vcStatus->setText(
+                tr("[%1] Frame %2/%3 — captioning...").arg(ts).arg(fr).arg(tot));
+        } else if (status == "result") {
+            const QString ts      = obj["ts"].toString();
+            const QString caption = obj["caption"].toString();
+            const int fr          = obj["frame"].toInt();
+            m_vcResults->append(
+                QString("<div style='margin:6px 0;border-left:3px solid #7c3aed;"
+                        "padding:4px 10px;'>"
+                        "<span style='color:#a78bfa;font-size:10px;font-weight:bold;'>"
+                        "\xf0\x9f\x95\x90 %1 &nbsp;[frame %2]</span><br>"
+                        "<span style='color:#e2e8f0;'>%3</span></div>")
+                .arg(ts.toHtmlEscaped())
+                .arg(fr)
+                .arg(caption.toHtmlEscaped()));
+        } else if (!obj["error"].isNull()) {
+            m_vcResults->append(
+                "<p style='color:#f87171;'>\xe2\x9d\x8c "
+                + obj["error"].toString().toHtmlEscaped() + "</p>");
+        }
+    }
+}
+
+void MultimediaPage::onVcProcFinished(int code, QProcess::ExitStatus)
+{
+    onVcProcReadyRead(); /* svuota buffer residuo */
+
+    if (m_vcProc) { m_vcProc->deleteLater(); m_vcProc = nullptr; }
+    m_vcStartBtn->setText(tr("\xf0\x9f\x9a\x80 Avvia analisi"));
+
+    if (code == 0) {
+        m_vcStatus->setText(tr("Analisi completata."));
+        m_vcResults->append(
+            "<p style='color:#4ade80;font-size:11px;'>"
+            "\xe2\x9c\x85 Analisi completata.</p>");
+    } else {
+        m_vcStatus->setText(tr("Terminato (codice %1).").arg(code));
+    }
 }

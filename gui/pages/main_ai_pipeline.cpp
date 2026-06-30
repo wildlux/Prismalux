@@ -972,6 +972,148 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                 const char* _nLnk  = _lt ? "#7c3aed" : "#818cf8";
                 const char* _nAcc  = _lt ? "#4338ca" : "#c4b5fd";
 
+                /* ── Step parametri interattivi: legge i valori correnti e propone
+                   passi pre-calcolati per ogni parametro come badge cliccabili ── */
+                const AiChatParams _cur = AiChatParams::load();
+
+                auto _badge = [&](const QString& href, const QString& vStr,
+                                   const QString& lbl) -> QString {
+                    return QString("<a href='%1' style='color:%2;font-size:10px;"
+                                   "font-weight:bold;background:%3;border:1px solid %4;"
+                                   "border-radius:3px;padding:2px 8px;text-decoration:none;"
+                                   "margin:0 3px 2px 0;white-space:nowrap;'>"
+                                   "&rarr;&nbsp;%5 <span style='font-weight:normal;"
+                                   "font-size:9px;'>%6</span></a>")
+                        .arg(href).arg(_nLnk).arg(_nBg).arg(_nBdr).arg(vStr).arg(lbl);
+                };
+
+                // Temperatura — abbassare rende le risposte più focalizzate
+                QString _tLnks;
+                {
+                    const double T = _cur.temperature;
+                    if (T > 0.55) {
+                        _tLnks += _badge("param-set:temperature:0.50", "0.50", "bilanciato");
+                        _tLnks += _badge("param-set:temperature:0.30", "0.30", "preciso");
+                        _tLnks += _badge("param-set:temperature:0.10", "0.10", "rigido");
+                    } else if (T > 0.35) {
+                        _tLnks += _badge("param-set:temperature:0.30", "0.30", "preciso");
+                        _tLnks += _badge("param-set:temperature:0.10", "0.10", "rigido");
+                    } else if (T > 0.15) {
+                        _tLnks += _badge("param-set:temperature:0.10", "0.10", "rigido");
+                    }
+                    if (T < 0.65)
+                        _tLnks += _badge("param-set:temperature:0.70", "0.70",
+                                          "creativo &uarr;");
+                }
+
+                // num_ctx — alzare dà più contesto al modello
+                QString _cLnks;
+                {
+                    static const int   kCL[] = {8192, 16384, 32768, 65536};
+                    static const char* kCN[] = {"8K", "16K", "32K", "64K"};
+                    int cnt = 0;
+                    for (int i = 0; i < 4 && cnt < 3; ++i) {
+                        if (kCL[i] > _cur.num_ctx) {
+                            const char* lbl = cnt == 0 ? "+contesto" :
+                                               cnt == 1 ? "molto"     : "max";
+                            _cLnks += _badge(
+                                QString("param-set:num_ctx:%1").arg(kCL[i]),
+                                kCN[i], lbl);
+                            ++cnt;
+                        }
+                    }
+                }
+
+                // num_predict — alzare permette risposte e codice più lunghi
+                QString _pLnks;
+                {
+                    static const int   kPL[] = {2048, 4096, 8192};
+                    static const char* kPN[] = {"2K", "4K", "8K"};
+                    int cnt = 0;
+                    for (int i = 0; i < 3 && cnt < 2; ++i) {
+                        if (kPL[i] > _cur.num_predict) {
+                            _pLnks += _badge(
+                                QString("param-set:num_predict:%1").arg(kPL[i]),
+                                kPN[i],
+                                cnt == 0 ? "risposta lunga" : "codice completo");
+                            ++cnt;
+                        }
+                    }
+                }
+
+                // top_p — abbassare rende il campionamento più deterministico
+                QString _tpLnks;
+                {
+                    const double TP = _cur.top_p;
+                    if (TP > 0.85) {
+                        _tpLnks += _badge("param-set:top_p:0.85", "0.85", "bilanciato");
+                        _tpLnks += _badge("param-set:top_p:0.70", "0.70", "deterministico");
+                    } else if (TP > 0.72) {
+                        _tpLnks += _badge("param-set:top_p:0.70", "0.70", "deterministico");
+                    }
+                    if (TP < 0.92)
+                        _tpLnks += _badge("param-set:top_p:0.95", "0.95",
+                                           "pi&ugrave; vario &uarr;");
+                }
+
+                // Riga tabella: icona+nome | valore attuale | step cliccabili | perché
+                auto _pRow = [&](const char* ico, const char* nm, const QString& curV,
+                                  const QString& lnks, const char* why) -> QString {
+                    const QString noStep =
+                        QString("<span style='color:%1;font-size:10px;"
+                                "font-style:italic;'>gi&agrave; ok</span>")
+                        .arg(_nMut);
+                    return
+                        QString("<tr><td style='color:%1;padding:4px 8px 4px 0;"
+                                "white-space:nowrap;'>").arg(_nTxt)
+                        + ico + " <b>" + nm + "</b></td>"
+                        + QString("<td style='color:%1;padding:4px 8px;"
+                                  "white-space:nowrap;font-size:10px;font-style:italic;'>")
+                          .arg(_nMut) + curV + "</td>"
+                        + "<td style='padding:4px 8px 4px 0;'>"
+                        + (lnks.isEmpty() ? noStep : lnks) + "</td>"
+                        + QString("<td style='color:%1;font-size:10px;'>").arg(_nMut)
+                        + why + "</td></tr>";
+                };
+
+                const QString _paramSec =
+                    QString("<p style='color:%1;font-size:11px;margin:6px 0 4px 0;'>"
+                            "<b style='color:%2;'>2. Ritocca parametri</b> "
+                            "(<a href='settings:model' style='color:%3;font-size:11px;'>"
+                            "Impostazioni &rarr; Modello</a>):</p>")
+                    .arg(_nSub).arg(_nHdr).arg(_nLnk)
+                    + "<table style='font-size:11px;border-collapse:collapse;"
+                      "width:100%;margin-bottom:4px;'>"
+                    + QString(
+                        "<tr>"
+                        "<th style='text-align:left;color:%1;padding:2px 8px 2px 0;"
+                        "border-bottom:1px solid %2;'>Parametro</th>"
+                        "<th style='text-align:left;color:%1;padding:2px 8px;"
+                        "border-bottom:1px solid %2;'>Ora</th>"
+                        "<th style='text-align:left;color:%1;padding:2px 8px 2px 0;"
+                        "border-bottom:1px solid %2;'>Step consigliati <span "
+                        "style='font-weight:normal;font-size:9px;'>(clicca)</span></th>"
+                        "<th style='text-align:left;color:%1;padding:2px 0;"
+                        "border-bottom:1px solid %2;'>Effetto</th>"
+                        "</tr>").arg(_nLnk).arg(_nSep)
+                    + _pRow("\xf0\x9f\x8c\xa1", "Temperatura",
+                            QString::number(_cur.temperature, 'f', 2),
+                            _tLnks,
+                            "Abbassa &rarr; pi&ugrave; focalizzate")
+                    + _pRow("\xf0\x9f\x93\x96", "Context (num_ctx)",
+                            QString::number(_cur.num_ctx),
+                            _cLnks,
+                            "Alza se &lsquo;dimentica&rsquo; il contesto")
+                    + _pRow("\xe2\x9c\x8f", "Max tokens",
+                            QString::number(_cur.num_predict),
+                            _pLnks,
+                            "Alza per risposte o codice lunghi")
+                    + _pRow("\xf0\x9f\x8e\xaf", "Top-P",
+                            QString::number(_cur.top_p, 'f', 2),
+                            _tpLnks,
+                            "Abbassa &rarr; pi&ugrave; deterministico")
+                    + "</table>";
+
                 htmlContent +=
                     /* ── Banner "non lo so" adattivo al tema ── */
                     QString("<div style='border:1px solid %1;border-radius:8px;"
@@ -999,57 +1141,8 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                     "<li><b>codellama:7b</b> &mdash; ottimizzato per generare codice</li>"
                     "</ul>" +
 
-                    /* Sezione 2: parametri consigliati */
-                    QString("<p style='color:%1;font-size:11px;margin:0 0 4px 0;'>"
-                    "<b style='color:%2;'>2. Parametri consigliati</b> "
-                    "(<a href='settings:model' style='color:%3;font-size:11px;'>"
-                    "Impostazioni \xe2\x86\x92 Modello</a>):</p>")
-                    .arg(_nSub).arg(_nHdr).arg(_nLnk) +
-                    "<table style='font-size:11px;border-collapse:collapse;width:100%;'>"
-                    "<tr>" +
-                    QString("<th style='text-align:left;color:%1;padding:2px 6px 2px 0;"
-                    "border-bottom:1px solid %2;'>Parametro</th>"
-                    "<th style='text-align:left;color:%1;padding:2px 6px;"
-                    "border-bottom:1px solid %2;'>Valore consigliato</th>"
-                    "<th style='text-align:left;color:%1;padding:2px 0;"
-                    "border-bottom:1px solid %2;'>Perch\xc3\xa9</th>")
-                    .arg(_nLnk).arg(_nSep) +
-                    "</tr><tr>" +
-                    QString("<td style='color:%1;padding:3px 6px 3px 0;'>")
-                    .arg(_nTxt) +
-                    "\xf0\x9f\x8c\xa1 <b>Temperatura</b></td>" +        /* 🌡 */
-                    QString("<td style='color:%1;padding:3px 6px;'>0.2 &mdash; 0.4</td>"
-                    "<td style='color:%2;'>Risposte pi\xc3\xb9 precise e meno aleatorie</td>")
-                    .arg(_nVal).arg(_nMut) +
-                    "</tr><tr>" +
-                    QString("<td style='color:%1;padding:3px 6px 3px 0;'>")
-                    .arg(_nTxt) +
-                    "\xf0\x9f\x93\x96 <b>Context (num_ctx)</b></td>" +  /* 📖 */
-                    QString("<td style='color:%1;padding:3px 6px;'>8192 &mdash; 32768</td>"
-                    "<td style='color:%2;'>Pi\xc3\xb9 contesto = capisce domande pi\xc3\xb9 lunghe</td>")
-                    .arg(_nVal).arg(_nMut) +
-                    "</tr><tr>" +
-                    QString("<td style='color:%1;padding:3px 6px 3px 0;'>")
-                    .arg(_nTxt) +
-                    "\xf0\x9f\x8e\xaf <b>Top-P</b></td>" +              /* 🎯 */
-                    QString("<td style='color:%1;padding:3px 6px;'>0.9</td>"
-                    "<td style='color:%2;'>Bilanciamento creativit\xc3\xa0/correttezza</td>")
-                    .arg(_nVal).arg(_nMut) +
-                    "</tr><tr>" +
-                    QString("<td style='color:%1;padding:3px 6px 3px 0;'>")
-                    .arg(_nTxt) +
-                    "\xe2\x9c\x8f <b>Max tokens output</b></td>" +      /* ✏ */
-                    QString("<td style='color:%1;padding:3px 6px;'>2048 &mdash; 4096</td>"
-                    "<td style='color:%2;'>Consente risposte e snippet di codice completi</td>")
-                    .arg(_nVal).arg(_nMut) +
-                    "</tr><tr>" +
-                    QString("<td style='color:%1;padding:3px 6px 3px 0;'>")
-                    .arg(_nTxt) +
-                    "\xf0\x9f\xa7\xa0 <b>Think Mode</b></td>" +         /* 🧠 */
-                    QString("<td style='color:%1;padding:3px 6px;'>Attivo (modelli qwen3/r1)</td>"
-                    "<td style='color:%2;'>Ragionamento nascosto migliora la qualit\xc3\xa0</td>")
-                    .arg(_nVal).arg(_nMut) +
-                    "</tr></table>" +
+                    /* Sezione 2: step parametri interattivi (valori calcolati da _paramSec) */
+                    _paramSec +
 
                     /* Sezione 3: consiglio rapido */
                     QString("<p style='color:%1;font-size:10px;margin:8px 0 0 0;"
@@ -1063,14 +1156,16 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                     "\xe2\x80\xa2 <a href='settings:model' style='color:" + QString(_nLnk) + ";'>"
                     "Vai alle Impostazioni \xe2\x86\x92</a>"
                     "</p>"
-                    /* Pulsante auto-imposta parametri consigliati */
+                    /* Pulsante reset rapido a valori consigliati (alternativa agli step) */
                     "<p style='margin:6px 0 0 0;'>"
                     "<a href='autoapply-params' "
                     "style='color:#4ade80;font-size:11px;font-weight:bold;"
                     "background:#0b1a10;border:1px solid #166534;border-radius:4px;"
                     "padding:3px 10px;text-decoration:none;'>"
-                    "\xe2\x9a\xa1 Imposta automaticamente i parametri consigliati"
-                    "</a></p>"
+                    "\xe2\x9a\xa1 Reimposta tutto al consigliato"
+                    " <span style='font-weight:normal;font-size:10px;'>"
+                    "(Temp 0.30 &middot; Ctx 16K &middot; Top-P 0.90 &middot; Tok 4K)"
+                    "</span></a></p>"
 
                     "</div>";
             /* TASK-2: in modalità chat singola avvia anche la ricerca web automatica */

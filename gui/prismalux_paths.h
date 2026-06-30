@@ -555,6 +555,18 @@ inline QString cronFile()
     return QDir::homePath() + "/.prismalux/cron_jobs.json";
 }
 
+/** summaryBriefPath() — Riassunto breve nel RAG, cercabile da search_rag e scritto da scrivi_riassunto. */
+inline QString summaryBriefPath()
+{
+    return ragDir() + "/riassunto_breve.md";
+}
+
+/** summaryDetailedPath() — Riassunto dettagliato nel RAG, cercabile da search_rag e scritto da scrivi_riassunto. */
+inline QString summaryDetailedPath()
+{
+    return ragDir() + "/riassunto_dettagliato.md";
+}
+
 /** feedbackPath() — JSONL feedback 👍/👎 per risposta (base per DPO futuro). */
 inline QString feedbackPath()
 {
@@ -842,6 +854,29 @@ inline QString whisperModelsDir()
 }
 
 /**
+ * fastWhisperBin() — Path al CLI `faster-whisper` (v1.x, pip install faster-whisper).
+ * Cerca prima nel venv MCPs/venv/bin/, poi nel PATH di sistema.
+ * Restituisce stringa vuota se non installato.
+ */
+inline QString fastWhisperBin()
+{
+    /* 1. Venv MCPs/venv */
+    const QString venvBin = root() + "/MCPs/venv/bin/faster-whisper";
+    if (QFileInfo::exists(venvBin)) return venvBin;
+    /* 2. PATH di sistema (pip install --user o globale) */
+    return QStandardPaths::findExecutable("faster-whisper");
+}
+
+/**
+ * fastWhisperScript() — Path allo script Python wrapper faster_whisper.
+ * Usato come fallback quando il CLI non è disponibile ma la libreria è importabile.
+ */
+inline QString fastWhisperScript()
+{
+    return root() + "/Tools/scripts/fast_whisper_transcribe.py";
+}
+
+/**
  * opencvDir() — Cartella OpenCV dentro il progetto.
  *   root() = Prismalux/  →  Prismalux/Frameworks/opencv/
  */
@@ -1046,8 +1081,10 @@ constexpr const char* kRagLastIndexed  = "rag/lastIndexed";
 constexpr const char* kRagEmbedModel   = "rag/embedModel";   ///< modello Ollama per embedding (default: nomic-embed-text)
 
 /* ── STT / TTS ───────────────────────────────────── */
-constexpr const char* kSttModelPath    = "stt/model_path";
-constexpr const char* kSttHttpUrl      = "stt/http_url";   ///< URL server Whisper HTTP (es. http://localhost:9000/v1/audio/transcriptions)
+constexpr const char* kSttModelPath          = "stt/model_path";
+constexpr const char* kSttHttpUrl            = "stt/http_url";             ///< URL server Whisper HTTP (es. http://localhost:9000/v1/audio/transcriptions)
+constexpr const char* kSttFastWhisperModel   = "stt/fast_whisper_model";   ///< modello HuggingFace (default: "large-v3-turbo")
+constexpr const char* kSttFastWhisperEnabled = "stt/fast_whisper_enabled"; ///< abilita faster-whisper in priorità su whisper-cli (default: true)
 
 /* ── AI — modello/backend preferiti dall'utente ──── */
 constexpr const char* kActiveModel     = "ai/activeModel";    ///< ultimo modello selezionato manualmente

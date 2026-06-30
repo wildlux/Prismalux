@@ -476,6 +476,30 @@ void LanServer::handleWhisper(const Session& s)
     tmpFile.write(audioData);
     tmpFile.close();
 
+    /* ── VAD: salta Whisper se il WAV non contiene parlato ── */
+    {
+        const QString vadScript = P::root() + "/Tools/scripts/vad_filter.py";
+        if (QFileInfo::exists(vadScript)) {
+            QProcess vad;
+            QString py = P::findPython();
+            vad.start(py, {vadScript, tmpPath});
+            if (vad.waitForFinished(3000)) {
+                const QString out =
+                    QString::fromUtf8(vad.readAllStandardOutput()).trimmed();
+                if (out == "SILENCE") {
+                    QFile::remove(tmpPath);
+                    QJsonObject resp;
+                    resp["text"]    = "";
+                    resp["silence"] = true;
+                    resp["info"]    = "Silenzio: nessun parlato rilevato nel file audio.";
+                    sendJson(s.socket,
+                             QJsonDocument(resp).toJson(QJsonDocument::Compact));
+                    return;
+                }
+            }
+        }
+    }
+
     /* Prova prima whisper-cpp (whisper), poi whisper CLI Python */
     QStringList candidates = {"whisper-cpp", "whisper"};
     QString whisperBin;

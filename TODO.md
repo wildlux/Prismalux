@@ -104,6 +104,24 @@ FASE 6:          APK-2 → APK-1                     (release)
 
 ---
 
+## PERCEPTOR — Pipeline audio/video locale (sessione 2026-07-01)
+
+> Ispirato all'architettura Perceptor (chat+audio+video). Tre componenti già funzionanti:
+> VAD pre-Whisper (evita compute su silenzio), frame hashing (salta frame ridondanti),
+> video captioning (VLM descrive frame nuovi).
+
+| # | Priorità | Descrizione | File | Stato |
+|---|----------|-------------|------|-------|
+| P-1 | 🔴 | **VAD desktop** — `vad_filter.py` (webrtcvad + fallback RMS) integrato in `onSttTimeout()` prima di `SttWhisper::transcribe()` — skip se SILENCE | `main_ai_stt.cpp`, `Tools/scripts/vad_filter.py` | ✅ |
+| P-2 | 🔴 | **VAD web** — stesso script integrato in `handleWhisper()` del LAN server — risponde `{"silence":true}` senza avviare Whisper | `lan_server_compute.cpp` | ✅ |
+| P-3 | 🔴 | **Video captioning tab** — tab "🎬 Analizza Video" in MultimediaPage: ffmpeg campiona frame, dhash filtra simili, VLM Ollama descrive frame nuovi. Slot: `onVcStartStopClicked`, `onVcProcReadyRead`, `onVcProcFinished` | `main_multimedia.cpp/h`, `Tools/scripts/video_caption.py` | ✅ |
+| P-4 | 🟡 | **fast-whisper** — `faster-whisper` (large-v3-turbo) come backend prioritario in `SttWhisper::transcribe()`. Fallback automatico a whisper-cli se il modulo non è installato. CLI via `P::fastWhisperBin()`, Python via `Tools/scripts/fast_whisper_transcribe.py`. QSettings: `stt/fast_whisper_model`, `stt/fast_whisper_enabled` | `widgets/stt_whisper.h`, `prismalux_paths.h`, `Tools/scripts/fast_whisper_transcribe.py` | ✅ |
+| P-7 | 🟡 | **Riassunti RAG** — tool `scrivi_riassunto` (breve\|\|\|testo o dettagliato\|\|\|testo) e `leggi_riassunto` (breve/dettagliato). File in `P::ragDir()`: `riassunto_breve.md` + `riassunto_dettagliato.md`. Cercabili anche via `search_rag`. L'LLM decide autonomamente quando salvare/leggere | `main_ai_tools.cpp`, `prismalux_paths.h` | ✅ |
+| P-5 | 🟢 | **Speaker diarization** — `Tools/scripts/speaker_diarize.py` (3 backend: pyannote.audio, simple-diarizer, resemblyzer). Integrato in `stt_whisper.h` come `SttWhisper::diarize()` + `formatDiarization()`. Output JSON `{backend, segments:[{speaker,start,end,text}], speakers}` | `widgets/stt_whisper.h`, `Tools/scripts/speaker_diarize.py` | ✅ |
+| P-6 | 🟢 | **streamlink MCP** — `MCPs/streamlink_mcp/server.py`: 3 tool JSON-RPC 2.0 (`stream_info`, `stream_capture`, `stream_download`) via yt-dlp+ffmpeg. WAV 16kHz per Whisper STT. Protezione SSRF in `_validate_url()` | `MCPs/streamlink_mcp/` | ✅ |
+
+---
+
 ## WEB (webchat.html + lan_server.cpp)
 
 > **29/29 tab implementate** (sessione 2026-06-22). Tutte le funzionalità desktop sono ora presenti nel web.

@@ -14,6 +14,7 @@
 #include "lan_server.h"
 #include "ai_client.h"
 #include "prismalux_paths.h"
+#include "widgets/log_utils.h"
 
 namespace P = PrismaluxPaths;
 
@@ -170,6 +171,12 @@ int main(int argc, char* argv[]) {
     }
 
     QApplication app(argc, argv);
+
+    /* ── Log centralizzato con prefisso [CAT][LVL] emoji ─────────────────
+     * Intercetta tutti i qWarning/qCritical/qDebug e aggiunge categoria
+     * (QT/PY/LLM/TOOL/MCP/IO/NET/STT/RAG/SYS/SEC) dedotta dal testo.
+     * Debug visibile solo con PRISMALUX_DEBUG=1 nell'ambiente.          */
+    PLog::installMessageHandler();
 
     /* ── Corregge permessi file sensibili prima di qualsiasi I/O ── */
     fixPrismaluxPermissions();

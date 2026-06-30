@@ -359,8 +359,54 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
             "<p style='color:#4ade80;font-size:11px;margin:4px 0;"
             "background:#0b1a10;border-left:3px solid #166534;"
             "border-radius:4px;padding:4px 10px;'>"
-            "\xe2\x9c\x85 Parametri impostati: Temperatura 0.3 &mdash; "
-            "Context 16384 &mdash; Top-P 0.9 &mdash; Max tokens 4096</p>");
+            "\xe2\x9c\x85 Parametri reimpostati: Temperatura 0.30 &mdash; "
+            "Context 16384 &mdash; Top-P 0.90 &mdash; Max tokens 4096</p>");
+        return;
+    }
+    /* Modifica singolo parametro AI con step pre-calcolato da banner "non lo so" */
+    if (s.startsWith("param-set:")) {
+        const QStringList parts = s.split(':');
+        if (parts.size() < 3) return;
+        const QString pName = parts[1];
+        const QString pVal  = parts[2];
+        AiChatParams p = AiChatParams::load();
+        QString displayName, displayVal;
+        if (pName == "temperature") {
+            const double v = pVal.toDouble();
+            if (v < 0.0 || v > 2.0) return;
+            p.temperature = v;
+            displayName = "Temperatura";
+            displayVal  = QString::number(v, 'f', 2);
+        } else if (pName == "num_ctx") {
+            const int v = pVal.toInt();
+            if (v < 512 || v > 131072) return;
+            p.num_ctx = v;
+            displayName = "Context (num_ctx)";
+            displayVal  = QString::number(v);
+        } else if (pName == "num_predict") {
+            const int v = pVal.toInt();
+            if (v < 64 || v > 32768) return;
+            p.num_predict = v;
+            displayName = "Max tokens";
+            displayVal  = QString::number(v);
+        } else if (pName == "top_p") {
+            const double v = pVal.toDouble();
+            if (v < 0.0 || v > 1.0) return;
+            p.top_p = v;
+            displayName = "Top-P";
+            displayVal  = QString::number(v, 'f', 2);
+        } else {
+            return;
+        }
+        AiChatParams::save(p);
+        if (m_ai) m_ai->setChatParams(p);
+        m_log->moveCursor(QTextCursor::End);
+        m_log->insertHtml(
+            "<p style='color:#4ade80;font-size:11px;margin:4px 0;"
+            "background:#0b1a10;border-left:3px solid #166534;"
+            "border-radius:4px;padding:4px 10px;'>"
+            "\xe2\x9c\x85 <b>" + displayName + "</b> impostato a <b>" + displayVal +
+            "</b> &mdash; in effetto dalla prossima richiesta</p>");
         return;
     }
     if (s == "chart:show") {

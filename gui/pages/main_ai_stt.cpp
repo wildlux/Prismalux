@@ -168,6 +168,34 @@ void AgentiPage::onSttTimeout()
         return;
     }
 
+    /* ── VAD: salta Whisper se il WAV non contiene parlato ── */
+    {
+        const QString vadScript = P::root() + "/Tools/scripts/vad_filter.py";
+        if (QFileInfo::exists(vadScript)) {
+            QProcess vad;
+            vad.start(P::findPython(), {vadScript, wavPath});
+            if (vad.waitForFinished(3000)) {
+                const QString out =
+                    QString::fromUtf8(vad.readAllStandardOutput()).trimmed();
+                if (out == "SILENCE") {
+                    m_sttState = SttState::Idle;
+                    m_btnVoice->setText(tr("\xf0\x9f\x8e\xa4 Trascrivi parlato"));
+                    m_btnVoice->setProperty("danger", "false");
+                    P::repolish(m_btnVoice);
+                    m_btnVoice->setEnabled(true);
+                    QFile::remove(wavPath);
+                    if (m_voiceLoopActive)
+                        QTimer::singleShot(500, this, &AgentiPage::onSttVoiceLoopRetry);
+                    else
+                        m_log->append(
+                            "\xf0\x9f\x94\x87 Silenzio rilevato &mdash; "
+                            "nessun parlato nell'audio.");
+                    return;
+                }
+            }
+        }
+    }
+
     m_sttState = SttState::Transcribing;
     m_btnVoice->setText(tr("\xe2\x8c\x9b Trascrivendo..."));
     m_btnVoice->setProperty("danger","false");
