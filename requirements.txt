@@ -79,7 +79,7 @@ PyJWT>=2.8.0                       # JWT encode/decode — autenticazione token 
 # Scegli UNO tra (in ordine di consiglio):
 #
 #   1. faster-whisper (raccomandato — 4× più veloce, meno RAM):
-#        pip install faster-whisper
+#        pip install faster-whisper webrtcvad
 #        Sistema: sudo apt install ffmpeg
 #
 #   2. openai-whisper (ufficiale, più compatibile):
@@ -90,8 +90,20 @@ PyJWT>=2.8.0                       # JWT encode/decode — autenticazione token 
 #        Scarica da: https://github.com/ggerganov/whisper.cpp
 #        Prismalux lo cerca automaticamente (stt_whisper.h → ProcHelper::run("whisper",...))
 #
-# faster-whisper>=1.0.0            # STT Whisper veloce — stt_whisper.h, lan_server.cpp
-# openai-whisper>=20231117         # STT Whisper originale OpenAI
+faster-whisper>=1.0.0              # STT Whisper veloce — stt_whisper.h, lan_server.cpp
+webrtcvad>=2.0.10                  # VAD silenzio/voce — vad_filter.py (P-1, P-2)
+# openai-whisper>=20231117         # STT Whisper originale OpenAI (alternativa a faster-whisper)
+
+# ── Speaker diarization [OPZIONALE] ──────────────────────────────────────────
+# Esegui: pip install simple-diarizer
+# Alternativa migliore (richiede token HuggingFace): pip install pyannote.audio
+# Fallback minimale (nessun token): pip install resemblyzer scikit-learn
+simple-diarizer>=0.0.13            # diarizzazione speaker offline — speaker_diarize.py (P-5)
+
+# ── Stream live e download video [OPZIONALE] ──────────────────────────────────
+# Esegui: pip install yt-dlp
+# Sistema: sudo apt install ffmpeg   (richiesto per mux/demux audio)
+yt-dlp>=2024.1.0                   # download stream YouTube/Twitch — streamlink_mcp (P-6)
 
 # ── LangGraph / LangChain — MCP devagent [OPZIONALE] ────────────────────────
 # Esegui: pip install langgraph langchain-community langchain-ollama unidiff
