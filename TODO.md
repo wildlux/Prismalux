@@ -1,6 +1,6 @@
 # TODO — Prismalux
 
-*Aggiornato: 2026-06-23 | Versione: v3.0*
+*Aggiornato: 2026-07-01 | Versione: v3.0*
 *Unico file TODO del progetto — sostituisce tutti i precedenti.*
 
 Legenda: 🔴 Alta · 🟡 Media · 🟢 Bassa | ⬜ Aperto · ✅ Fatto
@@ -174,3 +174,17 @@ FASE 6:          APK-2 → APK-1                     (release)
 | Sintetizzatore | ✅ | ✅ `sintetizzatore_page` | ✅ W-7 |
 | LavoroPage tracker | ✅ | ✅ B-2 `lavoro_page.cpp` | — |
 | Hermes toggle in Chat | — | ✅ B-3 `chat_page.cpp` | — |
+
+---
+
+## TEST MANCANTI (sessione 2026-07-01)
+
+> Funzionalità implementate ma senza suite ctest dedicata.
+
+| # | Priorità | Cosa testare | File da creare | Stato |
+|---|----------|--------------|----------------|-------|
+| T-1 | 🟡 | **SttWhisper diarization** — `isDiarizeEnabled()`, `diarizeNSpeakers()`, `formatDiarization()` parsing JSON → testo `[SPEAKER_00] ...`, edge case JSON malformato, JSON vuoto | `gui/tests/test_stt_whisper_live.cpp` (aggiungere CAT-D) | ⬜ |
+| T-2 | 🟡 | **DepCheckPanel** (`widget_dep_check.h`) — costruzione senza crash, lista `deps` non vuota, `runAllChecks()` avvia processo, segnali `allOk()`/`someMissing(int)` emessi | `gui/tests/test_dep_check_panel.cpp` | ⬜ |
+| T-3 | 🟢 | **speaker_diarize.py** — script Python: `--speakers 2` su WAV sintetico → JSON con 2 speaker, backend fallback resemblyzer se simple-diarizer assente, CUDA_VISIBLE_DEVICES forzato CPU | `gui/tests/test_perceptor_scripts.cpp` (subprocess CAT-C) | ⬜ |
+| T-4 | 🟢 | **streamlink_mcp** — JSON-RPC 2.0 stdio: `stream_info` ritorna schema valido, `_validate_url()` blocca IP privati (SSRF), tool list non vuota | `gui/tests/test_streamlink_mcp.cpp` (subprocess CAT-C) | ⬜ |
+| T-5 | 🟢 | **fast_whisper_transcribe.py** — file WAV 1s → trascrizione non vuota o SKIP se faster-whisper non installato; `--model` flag accettato | `gui/tests/test_perceptor_scripts.cpp` (aggiungere CAT-D) | ⬜ |
