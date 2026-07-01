@@ -128,7 +128,9 @@ void MainWindow::onIdleUnloadTimer()
 
 // ─── Pre-build tab lazy ───────────────────────────────────────────────────
 
+void MainWindow::onPreBuildTab1() { ensureTabBuilt(1); }
 void MainWindow::onPreBuildTab2() { ensureTabBuilt(2); }
+void MainWindow::onPreBuildTab3() { ensureTabBuilt(3); }
 void MainWindow::onPreBuildTab4() { ensureTabBuilt(4); }
 void MainWindow::onPreBuildTab5() { ensureTabBuilt(5); }
 void MainWindow::onPreBuildTab6() { ensureTabBuilt(6); }

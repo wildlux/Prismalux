@@ -138,17 +138,20 @@ private:
 
     /* ── buildContent — livello 2 ───────────────────────────── */
     void buildAiTab();             ///< [0] EAGER — primo tab visibile
-    void buildStrumentiTab();      ///< [1] EAGER — container Ricerca
-    void buildProgrammazioneTab(); ///< [3] EAGER — container DevAgent + Security
-    void buildRicercaTab();        ///< sub-tab Strumenti (singleShot dopo show)
+    void buildProgrammazioneTab(); ///< costruisce m_progPage (chiamata da createProgrammazioneWidget)
+    void buildRicercaTab();        ///< sub-tab Strumenti (chiamata una sola volta da createStrumentiWidget)
     void buildLanWanTab();         ///< sub-tab Utility (chiamata da createUtilityWidget)
     void buildMultiAgentTab();     ///< cross-pollination Ricerca ↔ LanWan
 
-    /** Primo clic su tab lazy → sostituisce il placeholder col widget reale */
+    /** Primo clic (o pre-build in background) su tab lazy → sostituisce il
+     *  placeholder col widget reale, preservando la tab correntemente
+     *  visibile se la chiamata arriva da un timer in background. */
     void ensureTabBuilt(int idx);
 
     /** Factory widget lazy — non chiamano addTab direttamente */
+    QWidget* createStrumentiWidget();
     QWidget* createMultimediaWidget();
+    QWidget* createProgrammazioneWidget();
     QWidget* createMatematicaWidget();
     QWidget* createUtilityWidget();
     QWidget* createBioinformaticaWidget();
@@ -390,7 +393,9 @@ private slots:
     void onIdleUnloadTimer();
 
     /* ── Pre-build tab lazy in background ──────────────────────── */
+    void onPreBuildTab1();
     void onPreBuildTab2();
+    void onPreBuildTab3();
     void onPreBuildTab4();
     void onPreBuildTab5();
     void onPreBuildTab6();

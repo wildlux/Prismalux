@@ -614,7 +614,20 @@ void MainWindow::setupTimers()
     QTimer::singleShot(6000, this, &MainWindow::onAutoRagIndex);
 
     /* Pre-build tab lazy in background: evita freeze al primo clic.
-       Tab [5] (Utility) per ultimo — costruisce 4 pagine + SQLite. */
+       Strumenti[1]/Programmazione[3] per primi — sono "contenitori" per Ricerca
+       e DevAgent+Security, richiesti dalle tab successive nella coda.
+       Tab [5] (Utility) per ultimo — costruisce 4 pagine + SQLite.
+       Il singleShot(0) esterno fa partire i ritardi 400/700ms solo quando
+       l'event loop è realmente idle (dopo show()): schedulati direttamente
+       qui, a metà costruttore, il tempo di conteggio verrebbe "mangiato"
+       dal lavoro sincrono ancora davanti (setupBackend(), hw->start()...),
+       facendoli scattare quasi subito e competere con la primissima
+       mappatura della finestra — sintomo: la finestra sembra minimizzarsi
+       un istante dopo essere apparsa. */
+    QTimer::singleShot(0, this, [this]{
+        QTimer::singleShot(400, this, &MainWindow::onPreBuildTab1);
+        QTimer::singleShot(700, this, &MainWindow::onPreBuildTab3);
+    });
     QTimer::singleShot(2500,  this, &MainWindow::onPreBuildTab2);
     QTimer::singleShot(3700,  this, &MainWindow::onPreBuildTab4);
     QTimer::singleShot(4900,  this, &MainWindow::onPreBuildTab6);
@@ -1668,52 +1681,33 @@ QWidget* MainWindow::buildContent()
         m_mainTabs->setCornerWidget(m_cornerContainer, Qt::TopLeftCorner);
     }
 
-    /* ── Tab EAGER — costruiti subito (bloccano lo show il meno possibile) ── */
+    /* ── Tab 0: EAGER — unico tab costruito subito (blocca lo show il meno possibile).
+     * Tutti gli altri (incluse Strumenti[1] e Programmazione[3], prima eager) sono
+     * placeholder sostituiti in background da onPreBuildTabN() dopo il primo show():
+     * costruire ~12 sotto-tab di Strumenti + Programmazione prima di mostrare la
+     * finestra costava da solo ~1s di setStyleSheet()/reparenting su widget già
+     * esistenti — vedi ensureTabBuilt() per il meccanismo di sostituzione. ── */
     buildAiTab();             /* 0 — primo tab visibile */
-    buildStrumentiTab();      /* 1 — container per Ricerca */
-    /* 2 — Media: placeholder, costruito al primo clic */
-    {
-        auto* ph = new QWidget(m_mainTabs);
-        (new QVBoxLayout(ph))->setContentsMargins(0,0,0,0);
-        m_mainTabs->addTab(ph, "\xf0\x9f\x8e\xac  Media");
-    }
-    buildProgrammazioneTab(); /* 3 — container per DevAgent + Security */
-    /* 4 — Matematica: placeholder */
-    {
-        auto* ph = new QWidget(m_mainTabs);
-        (new QVBoxLayout(ph))->setContentsMargins(0,0,0,0);
-        m_mainTabs->addTab(ph, "\xf0\x9f\x93\x90  Matematica");
-    }
-    /* 5 — Utility: placeholder */
-    {
-        auto* ph = new QWidget(m_mainTabs);
-        (new QVBoxLayout(ph))->setContentsMargins(0,0,0,0);
-        m_mainTabs->addTab(ph, "\xf0\x9f\x94\xa7  Utilit\xc3\xa0");
-    }
-    /* 6 — Bioinformatica: placeholder */
-    {
-        auto* ph = new QWidget(m_mainTabs);
-        (new QVBoxLayout(ph))->setContentsMargins(0,0,0,0);
-        m_mainTabs->addTab(ph, "\xf0\x9f\xa7\xac  Bioinformatica");
-    }
-    /* 7 — TeleComanda (AppController): placeholder */
-    {
-        auto* ph = new QWidget(m_mainTabs);
-        (new QVBoxLayout(ph))->setContentsMargins(0,0,0,0);
-        m_mainTabs->addTab(ph, "\xf0\x9f\x95\xb9\xef\xb8\x8f  TeleComanda");
+    static const struct { const char* label; } kPlaceholders[] = {
+        { "\xf0\x9f\x9b\xa0\xef\xb8\x8f  Strumenti" },      /* 1 */
+        { "\xf0\x9f\x8e\xac  Media" },                      /* 2 */
+        { "\xf0\x9f\x92\xbb  Programmazione" },             /* 3 */
+        { "\xf0\x9f\x93\x90  Matematica" },                 /* 4 */
+        { "\xf0\x9f\x94\xa7  Utilit\xc3\xa0" },             /* 5 */
+        { "\xf0\x9f\xa7\xac  Bioinformatica" },              /* 6 */
+        { "\xf0\x9f\x95\xb9\xef\xb8\x8f  TeleComanda" },     /* 7 */
+    };
+    for (const auto& ph : kPlaceholders) {
+        auto* w = new QWidget(m_mainTabs);
+        (new QVBoxLayout(w))->setContentsMargins(0,0,0,0);
+        m_mainTabs->addTab(w, QString::fromUtf8(ph.label));
     }
 
-    /* Inizializza la mappa: 0=AI✓ 1=Strum✓ 2=Media✗ 3=Prog✓ 4=Mat✗ 5=Util✗ 6=Bio✗ 7=Ctrl✗ */
-    m_tabBuilt = {true, true, false, true, false, false, false, false};
-
-    /* ── Deferred (dopo il primo paint) ─────────────────────────────────── */
-    /* Ricerca va aggiunta a StrumentiPage; AppController aggiunge sub-tab a Programmazione */
-    QTimer::singleShot(0, this, [this]{
-        buildRicercaTab();          /* sub-tab di Strumenti */
-        ensureTabBuilt(7);          /* TeleComanda → DevAgent+Security in Programmazione */
-        buildMultiAgentTab();       /* cross-pollination solo se Ricerca già pronta */
-        m_mainTabs->setCurrentIndex(0); /* ripristina "Intelligenza artificiale" dopo lazy-load */
-    });
+    /* Inizializza la mappa: solo AI[0] già costruito, tutto il resto è placeholder.
+     * Il pre-build in background di tutte le altre tab è schedulato in
+     * setupTimers() (Strumenti/Programmazione per primi, sono "contenitori"
+     * per Ricerca e DevAgent+Security richiesti dalle tab successive). */
+    m_tabBuilt = {true, false, false, false, false, false, false, false};
     /* 🔍 Ricerca schede — corner widget destro: hover apre, uscita chiude */
     {
         auto* srchWrap = new QWidget(m_mainTabs);
@@ -1788,31 +1782,28 @@ void MainWindow::buildAiTab()
     m_mainTabs->addTab(agentiPage, "\xf0\x9f\xa4\x96  Intelligenza artificiale");  /* 0 */
 }
 
-/* ── Livello 2: tab [1] Strumenti ────────────────────────────────── */
-void MainWindow::buildStrumentiTab()
-{
-    m_strumentiPage = new StrumentiPage(m_ai, this);
-    connect(m_strumentiPage, &StrumentiPage::cronPanelFirstOpen,
-            this, &MainWindow::onCronPanelFirstOpen);
-    m_mainTabs->addTab(m_strumentiPage, "\xf0\x9f\x9b\xa0\xef\xb8\x8f  Strumenti");  /* 1 */
-}
-
 /* ══════════════════════════════════════════════════════════════
    Lazy tab loading — ensureTabBuilt + factory create*Widget
    ══════════════════════════════════════════════════════════════ */
 
 /** Sostituisce il placeholder all'indice idx col widget reale.
- *  Sicuro da chiamare multiple volte (guard su m_tabBuilt). */
+ *  Sicuro da chiamare multiple volte (guard su m_tabBuilt) e sia da un
+ *  clic utente (currentChanged) sia da un timer di pre-build in background:
+ *  in quest'ultimo caso la tab visibile all'utente NON viene toccata —
+ *  solo se idx era già quella corrente (clic esplicito) resta selezionata. */
 void MainWindow::ensureTabBuilt(int idx)
 {
     if (idx < 0 || idx >= m_tabBuilt.size() || m_tabBuilt.value(idx)) return;
     m_tabBuilt[idx] = true;   /* guard anticipato — evita ri-entrata da currentChanged */
 
     const QString text = m_mainTabs->tabText(idx);
+    const int prevCurrent = m_mainTabs->currentIndex();
 
     QWidget* page = nullptr;
     switch (idx) {
+    case 1: page = createStrumentiWidget();      break;
     case 2: page = createMultimediaWidget();     break;
+    case 3: page = createProgrammazioneWidget(); break;
     case 4: page = createMatematicaWidget();     break;
     case 5: page = createUtilityWidget();        break;
     case 6: page = createBioinformaticaWidget(); break;
@@ -1827,7 +1818,25 @@ void MainWindow::ensureTabBuilt(int idx)
     m_mainTabs->removeTab(idx);
     m_mainTabs->insertTab(idx, page, text);
     m_mainTabs->blockSignals(false);
-    m_mainTabs->setCurrentIndex(idx);
+    /* Ripristina la tab visibile prima della sostituzione: un pre-build in
+     * background non deve rubare il focus. Se idx era già quella corrente
+     * (clic esplicito dell'utente), il comportamento resta identico a prima. */
+    m_mainTabs->setCurrentIndex(prevCurrent == idx ? idx : prevCurrent);
+}
+
+QWidget* MainWindow::createStrumentiWidget()
+{
+    m_strumentiPage = new StrumentiPage(m_ai, this);
+    connect(m_strumentiPage, &StrumentiPage::cronPanelFirstOpen,
+            this, &MainWindow::onCronPanelFirstOpen);
+    buildRicercaTab();   /* Ricerca è sotto-tab finale di Strumenti — costruita insieme */
+    return m_strumentiPage;
+}
+
+QWidget* MainWindow::createProgrammazioneWidget()
+{
+    buildProgrammazioneTab();
+    return m_progPage;
 }
 
 QWidget* MainWindow::createMultimediaWidget()
@@ -1860,7 +1869,8 @@ QWidget* MainWindow::createMatematicaWidget()
 QWidget* MainWindow::createUtilityWidget()
 {
     m_utilityPage = new UtilityPage(m_ai, this);
-    if (!m_ricercaPage) buildRicercaTab();  /* assicura Ricerca per MultiAgent */
+    ensureTabBuilt(1);   /* assicura Strumenti+Ricerca per MultiAgent (no-op se già costruita) */
+    ensureTabBuilt(3);   /* assicura Programmazione per "Rete & Network" in LanWanPage */
     buildLanWanTab();                        /* sub-tab dentro Utility */
     buildMultiAgentTab();                    /* cross-pollination */
     return m_utilityPage;
@@ -1876,6 +1886,7 @@ QWidget* MainWindow::createAppControllerWidget()
     auto* appCtrl = new AppControllerPage(m_ai, this);
     connect(appCtrl, &AppControllerPage::openSettingsDipendenze,
             this,    &MainWindow::onOpenSettingsDipendenze);
+    ensureTabBuilt(3);   /* assicura Programmazione prima di agganciare DevAgent+Sicurezza */
     if (m_progPage) {
         m_progPage->addExternalTab(appCtrl->buildDevAgentTab(),
                                    "\xf0\x9f\xa4\x96  Dev Agent");
@@ -1885,11 +1896,10 @@ QWidget* MainWindow::createAppControllerWidget()
     return appCtrl;
 }
 
-/* ── Livello 2: tab [3] Programmazione ───────────────────────────── */
+/* ── Costruisce m_progPage — chiamata da createProgrammazioneWidget() ── */
 void MainWindow::buildProgrammazioneTab()
 {
     m_progPage = new ProgrammazionePage(m_ai, this);
-    m_mainTabs->addTab(m_progPage, "\xf0\x9f\x92\xbb  Programmazione");  /* 3 */
 }
 
 /* ── Livello 2: tab [6] Ricerca ──────────────────────────────────── */

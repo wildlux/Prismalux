@@ -65,6 +65,37 @@ Note:
 - Web app (lan_server.cpp) tab 🎙️ Voce: TTS (SpeechSynthesis) + STT (MediaRecorder→/api/whisper)
 - ProgrammazionePage sub-tab extra: Dev Agent (costruito da AppController.buildDevAgentTab()), Sicurezza (SecurityAnalyzerPage)
 
+## Avvio lazy delle tab principali (`ensureTabBuilt`)
+
+Solo la tab [0] AI è costruita eager nel costruttore di `MainWindow` (blocca `show()`
+il meno possibile). Tutte le altre (incluse Strumenti[1]/Programmazione[3], eager
+fino a prima dell'ottimizzazione avvio) partono come placeholder vuoti e vengono
+sostituite in-place da `ensureTabBuilt(idx)`:
+- al primo clic utente (`onMainTabChanged` → `ensureTabBuilt(idx)`)
+- o da un timer di pre-build in background (`onPreBuildTabN`, schedulati in
+  `setupTimers()`): 1@50ms, 3@250ms, 2@2500ms, 4@3700ms, 6@4900ms, 7@5500ms, 5@8000ms
+  — Strumenti/Programmazione per primi perché "contenitori" di Ricerca e
+  DevAgent+Sicurezza richiesti da altre tab lazy più avanti nella coda.
+
+`ensureTabBuilt()` preserva la tab visibile all'utente durante un pre-build in
+background (`prevCurrent` salvato/ripristinato) — solo un clic esplicito
+sull'indice appena costruito lo rende quello corrente.
+
+**Perché**: costruire Strumenti (11 sotto-tab) + Programmazione prima di
+`w.show()` costava da sola ~250ms di widget, ma soprattutto forzava
+`ThemeManager::apply()`'s `qApp->setStyleSheet()` (~950ms) e il reparenting
+in `QSplitter::addWidget()` (~375ms) a operare su un albero widget già enorme
+— questi due costi scalano con quanti widget esistono già, non con cosa fanno.
+Risultato: costruttore `MainWindow` da ~2000ms a ~850ms.
+
+Dipendenze cross-tab risolte con `ensureTabBuilt()` difensivo invece di
+assumere l'ordine di costruzione:
+- `createStrumentiWidget()` costruisce Ricerca insieme a Strumenti (`buildRicercaTab()`)
+- `createUtilityWidget()` chiama `ensureTabBuilt(1)`/`ensureTabBuilt(3)` prima di
+  agganciare Ricerca/Rete&Network
+- `createAppControllerWidget()` chiama `ensureTabBuilt(3)` prima di agganciare
+  Dev Agent + Sicurezza a `m_progPage`
+
 ## Struttura cartelle repo
 
 ```

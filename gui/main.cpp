@@ -233,6 +233,8 @@ int main(int argc, char* argv[]) {
     /* ── Finestra principale (carica il tema saved via ThemeManager) ── */
     MainWindow w;
     w.show();
+    w.raise();
+    w.activateWindow();
 
     return app.exec();
 }
