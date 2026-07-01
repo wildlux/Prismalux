@@ -391,6 +391,29 @@ insiemi (`\mathbb{R} \mathbb{Z} \in \subset \cap`), funzioni (`\sin \cos \ln \ex
 attributi (`\vec{a} \hat{a} \dot{a}`), parentesi scalabili (`\left( \right)`).
 Delimitatori: `\(...\)` inline, `\[...\]` display.
 
+## Aggiornamenti Sistema (`widgets/widget_docker_update.h` + `widget_python_update.h`)
+
+Tab Impostazioni → AI Locale → "🔄 Aggiornamenti Sistema" (`ManutenzioneePage::buildSystemUpdates()`).
+
+**DockerUpdatePanel**: `docker ps -a` → elenco container, `docker pull <image>` per
+uno o tutti (dedup per immagine). Dopo un pull riuscito, `docker inspect` rileva
+le label `com.docker.compose.project.working_dir`/`.service`: se presenti, offre
+"Ricrea ora" (`docker compose up -d --force-recreate`); altrimenti mostra solo un
+promemoria manuale — **nessuna ricreazione automatica di container non-compose**,
+per non rischiare di perdere dati nei volumi anonimi.
+
+**PythonUpdatePanel**: scope limitato ai 33 pacchetti di `requirements.txt` (non
+l'intero ambiente Python). `pip list --format=json` + `pip list --outdated
+--format=json` (2 chiamate) per popolare installata/disponibile. Campo
+"Versione target" editabile per scegliere anche un downgrade esplicito.
+Flusso update: `pip install pkg==target` → se riesce, `python3 -c "import
+<modulo>"` come check di compatibilità → se l'import fallisce, rollback
+automatico a `pip install pkg==<versione precedente>` (salvata prima
+dell'update) e la coda "Aggiorna tutti" si **ferma lì** (gli altri pacchetti
+restano alla versione già in uso). Mappa pip→import name hardcoded in
+`PythonUpdatePanel::packages()` (es. `opencv-python`→`cv2`, `Pillow`→`PIL`,
+`beautifulsoup4`→`bs4`, `PyJWT`→`jwt`).
+
 ## Scheda TFR — Codice Fiscale automatico (`pratico_page.cpp`)
 - `calcolaCodiceFiscale(cognome, nome, nascita, maschio, belfiore)` — algoritmo D.M. 23/12/1976
 - `cercaBelfiore(comune)` — QHash ~120 comuni IT + ~30 paesi esteri (codici Z)

@@ -274,6 +274,8 @@ set(CPP_SRCS
     widgets/python_exec.h
     widgets/ai_error_widget.h
     widgets/widget_dep_check.h
+    widgets/widget_docker_update.h
+    widgets/widget_python_update.h
     widgets/model_combo_box.h
     widgets/latex_view.h
 )

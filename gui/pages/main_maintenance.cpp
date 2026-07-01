@@ -2,6 +2,8 @@
 #include "../dpi_utils.h"
 #include "../prismalux_paths.h"
 #include "../widgets/model_combo_helper.h"
+#include "../widgets/widget_docker_update.h"
+#include "../widgets/widget_python_update.h"
 #include "../log_bus.h"
 namespace P = PrismaluxPaths;
 #include <QSettings>
@@ -2183,4 +2185,33 @@ void ManutenzioneePage::performKnowledgeBackup()
         .arg(QDateTime::currentDateTime().toString("HH:mm:ss"));
     if (m_backupStatusLbl) m_backupStatusLbl->setText(msg);
     if (m_updLog)          m_updLog->append(msg);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildSystemUpdates — aggiornamento container Docker + librerie
+   Python di Prismalux (requirements.txt). Vedi widget_docker_update.h
+   e widget_python_update.h per la logica di ciascun pannello.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ManutenzioneePage::buildSystemUpdates()
+{
+    auto* scroll = new QScrollArea;
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+
+    auto* page = new QWidget;
+    auto* lay  = new QVBoxLayout(page);
+    lay->setContentsMargins(16, 14, 16, 14);
+    lay->setSpacing(12);
+
+    auto* titleLbl = new QLabel(
+        "\xf0\x9f\x94\x84  Aggiornamenti Sistema", page);
+    titleLbl->setObjectName("sectionTitle");
+    lay->addWidget(titleLbl);
+
+    lay->addWidget(new DockerUpdatePanel(page));
+    lay->addWidget(new PythonUpdatePanel(page));
+    lay->addStretch();
+
+    scroll->setWidget(page);
+    return scroll;
 }

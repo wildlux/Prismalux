@@ -48,6 +48,7 @@ public:
     QWidget* buildHardware();
     QWidget* buildBugTracker();
     QWidget* buildLanServer();
+    QWidget* buildSystemUpdates();  ///< Container Docker + librerie Python (requirements.txt)
 
 private:
     AiClient*        m_ai;

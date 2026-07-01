@@ -172,6 +172,9 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
         t->addTab(buildPythonDepsTab(),
                   "\xf0\x9f\x90\x8d  Moduli Python");
 
+        t->addTab(m_manutenzione->buildSystemUpdates(),
+                  "\xf0\x9f\x94\x84  Aggiornamenti Sistema");
+
         t->addTab(m_personalizza->buildLoraTab(),
                   "\xf0\x9f\xa7\xa0  Fine-tuning");
 
