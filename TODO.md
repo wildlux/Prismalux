@@ -179,11 +179,10 @@ FASE 6:          APK-2 → APK-1                     (release)
 
 ---
 
-## TEST MANCANTI — DA FARE DOMANI (audit 2026-07-01)
+## TEST MANCANTI — audit 2026-07-01 (COMPLETATO)
 
 > Audit completo: **63 suite registrate** in CMakeLists, tutte le .cpp presenti corrispondono.
-> Le feature sotto sono implementate ma senza *nessun* test che le copra.
-> Domani si parte da qui, in ordine di priorità.
+> Tutte le feature individuate senza copertura ora hanno test dedicati (T-1÷T-6, tutte ✅).
 
 | # | Priorità | Cosa testare | Dove aggiungere | Stato |
 |---|----------|--------------|-----------------|-------|
@@ -192,16 +191,20 @@ FASE 6:          APK-2 → APK-1                     (release)
 | T-3 | 🟡 | **LAN rubrica persone** (`main_lan_wan.cpp` `m_accessListTable`) — save/load QSettings `lan/accessList` JSON round-trip, addRow, persistenza tra sessioni | `gui/tests/test_lan_wan_core.cpp` → nuova CAT-E | ✅ 2026-07-01 — 8 test, 100% pass |
 | T-4 | 🟡 | **speaker_diarize.py** — WAV sintetico `--speakers 2` → JSON con 2 speaker e campi `backend/segments/speakers`; CUDA_VISIBLE_DEVICES="" forzato; QSKIP se simple-diarizer assente | `gui/tests/test_perceptor_scripts.cpp` (nuova suite CAT-C) | ✅ 2026-07-01 — 6 test, 100% pass |
 | T-5 | 🟡 | **fast_whisper_transcribe.py** — WAV 1s → trascrizione non vuota o testo breve; `--model tiny` accettato; QSKIP se faster-whisper non installato | `gui/tests/test_perceptor_scripts.cpp` (stessa suite, CAT-D) | ✅ 2026-07-01 — 5 test, 100% pass |
-| T-6 | 🟢 | **streamlink_mcp** (`MCPs/streamlink_mcp/server.py`) — JSON-RPC 2.0: lista tool non vuota, `_validate_url()` blocca IP privati RFC1918, QSKIP se venv assente | `gui/tests/test_streamlink_mcp.cpp` (nuova suite) | ⬜ |
+| T-6 | 🟢 | **streamlink_mcp** (`MCPs/streamlink_mcp/server.py`) — JSON-RPC 2.0: lista tool non vuota, `_validate_url()` blocca IP privati RFC1918, QSKIP se venv assente | `gui/tests/test_streamlink_mcp.cpp` (nuova suite) | ✅ 2026-07-01 — 18 test (CAT-A protocollo + CAT-B SSRF), 100% pass |
 
-### Note per la sessione di domani
+### Note tecniche raccolte durante l'audit (riutilizzabili in futuro)
 
-- **Prossimo**: T-6 — nuova suite `test_streamlink_mcp.cpp` (JSON-RPC 2.0 tool list + `_validate_url()` SSRF)
 - **Pattern test Python**: `QProcess::start(python3, {script, args})` + `waitForFinished()` → parse stdout
 - **`device="auto"` + GPU incompatibile → crash**: `fast_whisper_transcribe.py` (come altri script whisper/torch) tenta CUDA anche se le librerie runtime non sono caricabili (`libcublas.so.12 is not found`) — dal lato test si forza CPU con `QProcessEnvironment` + `CUDA_VISIBLE_DEVICES=""` senza modificare lo script (non espone un flag `--cpu`)
 - **VAD scarta toni puri**: fixture audio "parlata" per script che usano VAD (silero-vad/webrtcvad, incluso `vad_filter=True` di faster-whisper) va generata con `espeak-ng` (voce sintetica reale), non con un tono sinusoidale — vedi `synthSpeech()` in `test_perceptor_scripts.cpp`
 - **Modello "large-v3-turbo" (default) troppo lento su CPU per unit test** (>90s anche se già in cache) — usare sempre `--model tiny` esplicito nei test, ~6s end-to-end
 - **Output script Python misto stdout**: alcune librerie (es. `simple_diarizer`) stampano log di progresso su stdout PRIMA del JSON finale — estrarre solo dal primo `{` in poi prima di fare `QJsonDocument::fromJson()`, vedi `runDiarize()`
+- **Import di uno script come modulo per testare funzioni private** (es. `_validate_url()` in `streamlink_mcp/server.py`): funziona perché il main loop è protetto da `if __name__ == "__main__":` — `sys.path.insert(0, dir); import server` non avvia il loop stdin
+- **Pattern venv MCP di produzione**: `py = venvExists() ? venvPython() : P::findPython()` (da `McpManagerPage`) — replicato senza linkare la pagina intera in `test_streamlink_mcp.cpp::pickPython()`
+- **Widget header-only con Q_OBJECT** (es. `widget_dep_check.h`): vanno aggiunti come source (non solo `#include`) al target ctest per AUTOMOC
+- **Pattern `#define private public`**: per testare metodi privati, includere il header tra `#define private public` / `#undef` PRIMA degli altri include Qt, e aggiungere `-include sstream` al target (GCC 15)
+- **CLAUDE.md** è in ritardo: 9 suite registrate non documentate (`AiClient`, `AiMemory`, `DepCheckPanel`, `Distillazione`, `GraphMemoryConcurrent`, `LanWanCore`, `McpIntegration`, `PerceptorScripts`, `StreamlinkMcp`).
 - **Ordine testuale ≠ ordine di esecuzione**: verificare invarianti runtime (es. "X impostato prima di Y") sul corpo della funzione chiamante (`main()`), non sull'intero file — una funzione richiamata può essere *definita* più in alto nel sorgente
 - **Widget header-only con Q_OBJECT** (es. `widget_dep_check.h`): vanno aggiunti come source (non solo `#include`) al target ctest per AUTOMOC — vedi pattern in `CMakeLists.txt` riga ~275 e il target `test_dep_check_panel`
 - **Pattern `#define private public`**: per testare metodi privati (es. `LanWanPage::loadAccessList()`), includere il header tra `#define private public` / `#undef` PRIMA degli altri include Qt, e aggiungere `-include sstream` al target (GCC 15) — vedi `test_lan_wan_core` CAT-E

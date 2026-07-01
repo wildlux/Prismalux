@@ -559,6 +559,7 @@ ctest --test-dir gui/build_tests --exclude-regex "AiIntegration|AiStress|TeamCol
 | `MultiAgenteLive` | `test_multi_agente_live` | 7 PASS, 6 SKIP — CAT-A costruzione; ⚠️ CAT-B/C/D Ollama |
 | `DepCheckPanel` | `test_dep_check_panel` | 19 PASS — costruzione, righe per dep, `runAllChecks()`/segnali `allOk()`/`someMissing(int)` |
 | `PerceptorScripts` | `test_perceptor_scripts` | 15 PASS — CAT-C `speaker_diarize.py` (8, fixture WAV via `espeak-ng`, JSON, CUDA_VISIBLE_DEVICES, `--transcript`); CAT-D `fast_whisper_transcribe.py` (7, modello tiny, CPU forzata via env, errori) |
+| `StreamlinkMcp` | `test_streamlink_mcp` | 18 PASS — CAT-A protocollo JSON-RPC 2.0 (`MCPs/streamlink_mcp/server.py`: tools/list, errori -32601/-32700); CAT-B `_validate_url()` SSRF (RFC1918, schema non-http, URL pubblico consentito) |
 
 ### Note operative
 - `SimulatoreAlgos`: FLAKY in `-j4`, PASS standalone → `RESOURCE_LOCK cpu_heavy`
