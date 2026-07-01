@@ -987,6 +987,10 @@ if(BUILD_TESTS)
     )
     if(NOT WIN32)
         target_link_libraries(test_lan_wan_core PRIVATE pthread m)
+        # GCC 15: #define private public nel test altera visibilità in <sstream>
+        # -include forza <sstream> prima di qualsiasi macro — solo per C++, non C
+        target_compile_options(test_lan_wan_core PRIVATE
+            $<$<COMPILE_LANGUAGE:CXX>:-include sstream>)
     endif()
 
     # ── test_mcp_integration: McpManagerPage struct/scan/JSON-RPC protocol + integrazione reale ──

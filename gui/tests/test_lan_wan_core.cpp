@@ -6,6 +6,10 @@
      CAT-B  Token LAN — generazione, save/load, confronto
      CAT-C  Rate limiting — chat e heavy endpoint
      CAT-D  Costruzione LanServer, start/stop, clientCount
+     CAT-E  LanWanPage — rubrica persone autorizzate (accessList)
+
+   Tecnica CAT-E: #define private public per accedere a m_accessListTable /
+   loadAccessList() / saveAccessList() (privati in LanWanPage).
 
    Build:
      cmake -B build_tests -DBUILD_TESTS=ON
@@ -18,6 +22,7 @@
 #include <QTimer>
 #include <QTcpSocket>
 #include <QElapsedTimer>
+#include <QSettings>
 #include <thread>
 #include <atomic>
 #ifdef Q_OS_UNIX
@@ -29,6 +34,14 @@
 
 #include "../lan_server.h"
 #include "../ai_client.h"
+#include "mock_ai_client.h"
+
+/* Rende accessibili i metodi private di LanWanPage in questo TU. */
+#define private public
+#define protected public
+#include "../pages/main_lan_wan.h"
+#undef protected
+#undef private
 
 /* ══════════════════════════════════════════════════════════════
    CAT-A — timingSafeEqual
@@ -313,6 +326,146 @@ private slots:
     }
 };
 
+/* ══════════════════════════════════════════════════════════════
+   CAT-E — LanWanPage: rubrica persone autorizzate (accessList)
+   ══════════════════════════════════════════════════════════════ */
+class TestAccessList : public QObject {
+    Q_OBJECT
+private:
+    MockAiClient* m_ai = nullptr;
+    QByteArray    m_savedRaw;   ///< backup del valore reale dell'utente
+
+    static void insertRow(LanWanPage* page, const QString& name, const QString& added) {
+        const int row = page->m_accessListTable->rowCount();
+        page->m_accessListTable->insertRow(row);
+        page->m_accessListTable->setItem(row, 0, new QTableWidgetItem(name));
+        page->m_accessListTable->setItem(row, 1, new QTableWidgetItem(added));
+    }
+
+private slots:
+    void initTestCase() {
+        m_ai = new MockAiClient(this);
+        /* Backup del valore reale prima di sporcare QSettings nei test */
+        m_savedRaw = QSettings("Prismalux", "GUI").value("lan/accessList").toByteArray();
+    }
+
+    void cleanupTestCase() {
+        QSettings("Prismalux", "GUI").setValue("lan/accessList", m_savedRaw);
+    }
+
+    void init() {
+        /* Ogni test parte da rubrica vuota */
+        QSettings("Prismalux", "GUI").setValue("lan/accessList", QByteArray());
+    }
+
+    /* E-1: saveAccessList() poi loadAccessList() sulla stessa istanza — round-trip */
+    void roundTripStessaIstanza() {
+        auto* page = new LanWanPage(m_ai);
+        insertRow(page, "Mario - telefono", "01/07/2026 10:00");
+        page->saveAccessList();
+
+        page->m_accessListTable->setRowCount(0);
+        page->loadAccessList();
+
+        QCOMPARE(page->m_accessListTable->rowCount(), 1);
+        QCOMPARE(page->m_accessListTable->item(0, 0)->text(), QString("Mario - telefono"));
+        QCOMPARE(page->m_accessListTable->item(0, 1)->text(), QString("01/07/2026 10:00"));
+        delete page;
+    }
+
+    /* E-2: loadAccessList() su QSettings vuota → tabella vuota, no crash */
+    void loadVuotoNoCrash() {
+        auto* page = new LanWanPage(m_ai);
+        page->loadAccessList();
+        QCOMPARE(page->m_accessListTable->rowCount(), 0);
+        delete page;
+    }
+
+    /* E-3: saveAccessList() con tabella vuota → array JSON vuoto persistito */
+    void saveVuotoProduceArrayVuoto() {
+        auto* page = new LanWanPage(m_ai);
+        page->saveAccessList();
+        const QJsonDocument doc = QJsonDocument::fromJson(
+            QSettings("Prismalux", "GUI").value("lan/accessList").toByteArray());
+        QVERIFY(doc.isArray());
+        QCOMPARE(doc.array().size(), 0);
+        delete page;
+    }
+
+    /* E-4: più righe (simula addRow di onAddPersonClicked senza il dialog modale) */
+    void multiRigaRoundTrip() {
+        auto* page = new LanWanPage(m_ai);
+        insertRow(page, "Alice", "01/07/2026 09:00");
+        insertRow(page, "Bob",   "01/07/2026 09:05");
+        insertRow(page, "Carla", "01/07/2026 09:10");
+        page->saveAccessList();
+
+        page->m_accessListTable->setRowCount(0);
+        page->loadAccessList();
+        QCOMPARE(page->m_accessListTable->rowCount(), 3);
+        QCOMPARE(page->m_accessListTable->item(1, 0)->text(), QString("Bob"));
+        delete page;
+    }
+
+    /* E-5: onRemovePersonClicked() senza selezione → no crash, nessuna riga rimossa */
+    void removeSenzaSelezioneNoCrash() {
+        auto* page = new LanWanPage(m_ai);
+        insertRow(page, "Solo", "01/07/2026 09:00");
+        page->m_accessListTable->clearSelection();
+        page->m_accessListTable->setCurrentCell(-1, -1);
+        page->onRemovePersonClicked();
+        QCOMPARE(page->m_accessListTable->rowCount(), 1);
+        delete page;
+    }
+
+    /* E-6: onRemovePersonClicked() con riga selezionata → rimuove e persiste */
+    void removeConSelezionePersiste() {
+        auto* page = new LanWanPage(m_ai);
+        insertRow(page, "DaTenere", "01/07/2026 09:00");
+        insertRow(page, "DaRimuovere", "01/07/2026 09:05");
+        page->saveAccessList();
+
+        page->m_accessListTable->setCurrentCell(1, 0);
+        page->onRemovePersonClicked();
+        QCOMPARE(page->m_accessListTable->rowCount(), 1);
+        QCOMPARE(page->m_accessListTable->item(0, 0)->text(), QString("DaTenere"));
+
+        /* Verifica che la rimozione sia stata persistita, non solo in memoria */
+        page->m_accessListTable->setRowCount(0);
+        page->loadAccessList();
+        QCOMPARE(page->m_accessListTable->rowCount(), 1);
+        QCOMPARE(page->m_accessListTable->item(0, 0)->text(), QString("DaTenere"));
+        delete page;
+    }
+
+    /* E-7: persistenza tra "sessioni" — due istanze separate condividono QSettings */
+    void persistenzaTraIstanze() {
+        auto* page1 = new LanWanPage(m_ai);
+        insertRow(page1, "Persistente", "01/07/2026 09:00");
+        page1->saveAccessList();
+        delete page1;
+
+        auto* page2 = new LanWanPage(m_ai);
+        page2->loadAccessList();
+        QCOMPARE(page2->m_accessListTable->rowCount(), 1);
+        QCOMPARE(page2->m_accessListTable->item(0, 0)->text(), QString("Persistente"));
+        delete page2;
+    }
+
+    /* E-8: caratteri speciali/unicode nel nome sopravvivono al round-trip JSON */
+    void caratteriSpecialiRoundTrip() {
+        auto* page = new LanWanPage(m_ai);
+        const QString nome = QString::fromUtf8("Mario \"il telefono\" — 日本語 🍺");
+        insertRow(page, nome, "01/07/2026 09:00");
+        page->saveAccessList();
+
+        page->m_accessListTable->setRowCount(0);
+        page->loadAccessList();
+        QCOMPARE(page->m_accessListTable->item(0, 0)->text(), nome);
+        delete page;
+    }
+};
+
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
@@ -321,6 +474,7 @@ int main(int argc, char* argv[])
     { TestTokenLan          t; ret |= QTest::qExec(&t, argc, argv); }
     { TestRateLimit         t; ret |= QTest::qExec(&t, argc, argv); }
     { TestLanServerLifecycle t; ret |= QTest::qExec(&t, argc, argv); }
+    { TestAccessList        t; ret |= QTest::qExec(&t, argc, argv); }
     return ret;
 }
 #include "test_lan_wan_core.moc"

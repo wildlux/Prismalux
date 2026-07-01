@@ -189,14 +189,15 @@ FASE 6:          APK-2 → APK-1                     (release)
 |---|----------|--------------|-----------------|-------|
 | T-1 | 🔴 | **SttWhisper diarization** — `isDiarizeEnabled()`, `diarizeNSpeakers()` round-trip QSettings; `formatDiarization()` JSON → `"[SPEAKER_00] testo"`, JSON vuoto, JSON malformato, speaker multipli | `gui/tests/test_stt_whisper_live.cpp` → nuova CAT-E, 8 test | ✅ 2026-07-01 — bug reale trovato e fix: `formatDiarization()` non catturava mai `"text"` quando appare dopo `"end"` (ordine reale di `speaker_diarize.py`) |
 | T-2 | 🔴 | **DepCheckPanel** (`widget_dep_check.h`) — costruzione senza crash (CAT-A), `deps` non vuota, `runAllChecks()` avvia QProcess, segnali `allOk()`/`someMissing(int)` emessi | `gui/tests/test_dep_check_panel.cpp` (nuova suite) | ✅ 2026-07-01 — 19 test (CAT-A/B/C), 100% pass |
-| T-3 | 🟡 | **LAN rubrica persone** (`main_lan_wan.cpp` `m_accessListTable`) — save/load QSettings `lan/accessList` JSON round-trip, addRow, persistenza tra sessioni | `gui/tests/test_lan_wan_core.cpp` → nuova CAT-E | ⬜ |
+| T-3 | 🟡 | **LAN rubrica persone** (`main_lan_wan.cpp` `m_accessListTable`) — save/load QSettings `lan/accessList` JSON round-trip, addRow, persistenza tra sessioni | `gui/tests/test_lan_wan_core.cpp` → nuova CAT-E | ✅ 2026-07-01 — 8 test, 100% pass |
 | T-4 | 🟡 | **speaker_diarize.py** — WAV sintetico `--speakers 2` → JSON con 2 speaker e campi `backend/segments/speakers`; CUDA_VISIBLE_DEVICES="" forzato; QSKIP se simple-diarizer assente | `gui/tests/test_perceptor_scripts.cpp` (nuova suite CAT-C) | ⬜ |
 | T-5 | 🟡 | **fast_whisper_transcribe.py** — WAV 1s → trascrizione non vuota o testo breve; `--model tiny` accettato; QSKIP se faster-whisper non installato | `gui/tests/test_perceptor_scripts.cpp` (stessa suite, CAT-D) | ⬜ |
 | T-6 | 🟢 | **streamlink_mcp** (`MCPs/streamlink_mcp/server.py`) — JSON-RPC 2.0: lista tool non vuota, `_validate_url()` blocca IP privati RFC1918, QSKIP se venv assente | `gui/tests/test_streamlink_mcp.cpp` (nuova suite) | ⬜ |
 
 ### Note per la sessione di domani
 
-- **Prossimo**: T-3 — nuova CAT-E in `test_lan_wan_core.cpp` per `m_accessListTable` (round-trip QSettings `lan/accessList`)
+- **Prossimo**: T-4/T-5 — nuova suite `test_perceptor_scripts.cpp` (CAT-C `speaker_diarize.py`, CAT-D `fast_whisper_transcribe.py`)
 - **Pattern test Python** (T-4/T-5): `QProcess::execute("python3", {script, args})` → parse stdout JSON → `QVERIFY(!segs.isEmpty())`
 - **Widget header-only con Q_OBJECT** (es. `widget_dep_check.h`): vanno aggiunti come source (non solo `#include`) al target ctest per AUTOMOC — vedi pattern in `CMakeLists.txt` riga ~275 e il target `test_dep_check_panel`
+- **Pattern `#define private public`**: per testare metodi privati (es. `LanWanPage::loadAccessList()`), includere il header tra `#define private public` / `#undef` PRIMA degli altri include Qt, e aggiungere `-include sstream` al target (GCC 15) — vedi `test_lan_wan_core` CAT-E
 - **CLAUDE.md** è in ritardo: 7 suite registrate non documentate (`AiClient`, `AiMemory`, `DepCheckPanel`, `Distillazione`, `GraphMemoryConcurrent`, `LanWanCore`, `McpIntegration`). Aggiornare dopo i test.

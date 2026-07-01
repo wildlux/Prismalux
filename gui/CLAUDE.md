@@ -523,6 +523,7 @@ ctest --test-dir gui/build_tests --exclude-regex "AiIntegration|AiStress|TeamCol
 | `AgentiByzantine` | `test_agenti_byzantine` | voce combo, num agenti, mock stub |
 | `AgenteAutonomo` | `test_agente_autonomo` | ReAct loop, toggle UI, parsing tool call |
 | `LanServer` | `test_lan_server` | lifecycle TCP, token, rate limit |
+| `LanWanCore` | `test_lan_wan_core` | timingSafeEqual, token LAN, rate limit, lifecycle; CAT-E `LanWanPage` rubrica persone (`m_accessListTable` round-trip QSettings `lan/accessList`, addRow, remove, persistenza tra istanze) |
 | `LanServerEndpoints` | `test_lan_server_endpoints` | /knowledge (GET/POST), /apk, requestHandled signal |
 | `Onboarding` | `test_onboarding` | QSettings, token LAN, rate limiter |
 | `ImpostazioniPage` | `test_impostazioni_page` | AiChatParams round-trip, ThinkMode, preset |
