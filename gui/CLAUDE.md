@@ -558,7 +558,7 @@ ctest --test-dir gui/build_tests --exclude-regex "AiIntegration|AiStress|TeamCol
 | `Gns3Mcp` | `test_gns3_mcp` | 18 PASS, 2 SKIP — costruzione, azioni combo (GNS3 non avviato) |
 | `MultiAgenteLive` | `test_multi_agente_live` | 7 PASS, 6 SKIP — CAT-A costruzione; ⚠️ CAT-B/C/D Ollama |
 | `DepCheckPanel` | `test_dep_check_panel` | 19 PASS — costruzione, righe per dep, `runAllChecks()`/segnali `allOk()`/`someMissing(int)` |
-| `PerceptorScripts` | `test_perceptor_scripts` | 8 PASS — `speaker_diarize.py`: fixture WAV via `espeak-ng` (VAD scarta toni puri), JSON backend/segments/speakers, CUDA_VISIBLE_DEVICES, errori, `--transcript` |
+| `PerceptorScripts` | `test_perceptor_scripts` | 15 PASS — CAT-C `speaker_diarize.py` (8, fixture WAV via `espeak-ng`, JSON, CUDA_VISIBLE_DEVICES, `--transcript`); CAT-D `fast_whisper_transcribe.py` (7, modello tiny, CPU forzata via env, errori) |
 
 ### Note operative
 - `SimulatoreAlgos`: FLAKY in `-j4`, PASS standalone → `RESOURCE_LOCK cpu_heavy`

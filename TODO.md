@@ -191,14 +191,16 @@ FASE 6:          APK-2 → APK-1                     (release)
 | T-2 | 🔴 | **DepCheckPanel** (`widget_dep_check.h`) — costruzione senza crash (CAT-A), `deps` non vuota, `runAllChecks()` avvia QProcess, segnali `allOk()`/`someMissing(int)` emessi | `gui/tests/test_dep_check_panel.cpp` (nuova suite) | ✅ 2026-07-01 — 19 test (CAT-A/B/C), 100% pass |
 | T-3 | 🟡 | **LAN rubrica persone** (`main_lan_wan.cpp` `m_accessListTable`) — save/load QSettings `lan/accessList` JSON round-trip, addRow, persistenza tra sessioni | `gui/tests/test_lan_wan_core.cpp` → nuova CAT-E | ✅ 2026-07-01 — 8 test, 100% pass |
 | T-4 | 🟡 | **speaker_diarize.py** — WAV sintetico `--speakers 2` → JSON con 2 speaker e campi `backend/segments/speakers`; CUDA_VISIBLE_DEVICES="" forzato; QSKIP se simple-diarizer assente | `gui/tests/test_perceptor_scripts.cpp` (nuova suite CAT-C) | ✅ 2026-07-01 — 6 test, 100% pass |
-| T-5 | 🟡 | **fast_whisper_transcribe.py** — WAV 1s → trascrizione non vuota o testo breve; `--model tiny` accettato; QSKIP se faster-whisper non installato | `gui/tests/test_perceptor_scripts.cpp` (stessa suite, CAT-D) | ⬜ |
+| T-5 | 🟡 | **fast_whisper_transcribe.py** — WAV 1s → trascrizione non vuota o testo breve; `--model tiny` accettato; QSKIP se faster-whisper non installato | `gui/tests/test_perceptor_scripts.cpp` (stessa suite, CAT-D) | ✅ 2026-07-01 — 5 test, 100% pass |
 | T-6 | 🟢 | **streamlink_mcp** (`MCPs/streamlink_mcp/server.py`) — JSON-RPC 2.0: lista tool non vuota, `_validate_url()` blocca IP privati RFC1918, QSKIP se venv assente | `gui/tests/test_streamlink_mcp.cpp` (nuova suite) | ⬜ |
 
 ### Note per la sessione di domani
 
-- **Prossimo**: T-5 — nuova CAT-D in `test_perceptor_scripts.cpp` per `fast_whisper_transcribe.py` (WAV 1s → trascrizione)
-- **Pattern test Python** (T-5): `QProcess::start(python3, {script, args})` + `waitForFinished()` → parse stdout
-- **VAD scarta toni puri**: fixture audio "parlata" per script che usano VAD (silero-vad/webrtcvad) va generata con `espeak-ng` (voce sintetica reale), non con un tono sinusoidale — vedi `makeTwoSpeakerWav()` in `test_perceptor_scripts.cpp`
+- **Prossimo**: T-6 — nuova suite `test_streamlink_mcp.cpp` (JSON-RPC 2.0 tool list + `_validate_url()` SSRF)
+- **Pattern test Python**: `QProcess::start(python3, {script, args})` + `waitForFinished()` → parse stdout
+- **`device="auto"` + GPU incompatibile → crash**: `fast_whisper_transcribe.py` (come altri script whisper/torch) tenta CUDA anche se le librerie runtime non sono caricabili (`libcublas.so.12 is not found`) — dal lato test si forza CPU con `QProcessEnvironment` + `CUDA_VISIBLE_DEVICES=""` senza modificare lo script (non espone un flag `--cpu`)
+- **VAD scarta toni puri**: fixture audio "parlata" per script che usano VAD (silero-vad/webrtcvad, incluso `vad_filter=True` di faster-whisper) va generata con `espeak-ng` (voce sintetica reale), non con un tono sinusoidale — vedi `synthSpeech()` in `test_perceptor_scripts.cpp`
+- **Modello "large-v3-turbo" (default) troppo lento su CPU per unit test** (>90s anche se già in cache) — usare sempre `--model tiny` esplicito nei test, ~6s end-to-end
 - **Output script Python misto stdout**: alcune librerie (es. `simple_diarizer`) stampano log di progresso su stdout PRIMA del JSON finale — estrarre solo dal primo `{` in poi prima di fare `QJsonDocument::fromJson()`, vedi `runDiarize()`
 - **Ordine testuale ≠ ordine di esecuzione**: verificare invarianti runtime (es. "X impostato prima di Y") sul corpo della funzione chiamante (`main()`), non sull'intero file — una funzione richiamata può essere *definita* più in alto nel sorgente
 - **Widget header-only con Q_OBJECT** (es. `widget_dep_check.h`): vanno aggiunti come source (non solo `#include`) al target ctest per AUTOMOC — vedi pattern in `CMakeLists.txt` riga ~275 e il target `test_dep_check_panel`

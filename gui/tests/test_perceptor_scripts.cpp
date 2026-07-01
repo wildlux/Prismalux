@@ -3,7 +3,7 @@
 
    Categorie:
      CAT-C  speaker_diarize.py — WAV sintetico 2 speaker, JSON, errori (T-4)
-     CAT-D  fast_whisper_transcribe.py — trascrizione WAV (T-5, futuro)
+     CAT-D  fast_whisper_transcribe.py — trascrizione WAV (T-5)
 
    Fixture audio: genera due frasi italiane con voci diverse via `espeak-ng`
    (VAD/embedding richiedono un segnale simile al parlato — un tono puro
@@ -19,6 +19,7 @@
 #include <QtTest/QtTest>
 #include <QCoreApplication>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QTemporaryDir>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -95,6 +96,29 @@ QPair<QString,int> runDiarize(const QStringList& args, int timeoutMs = 90000)
     const int braceIdx = out.indexOf('{');
     if (braceIdx > 0) out = out.mid(braceIdx);
     return { out, proc.exitCode() };
+}
+
+/* Esegue fast_whisper_transcribe.py e ritorna (stdout, exitCode).
+   CUDA_VISIBLE_DEVICES="" forza CPU: "auto" tenta CUDA anche quando le
+   librerie runtime non sono caricabili nell'ambiente (libcublas mancante/
+   incompatibile), facendo crashare lo script — lo stesso problema già
+   risolto per speaker_diarize.py, qui applicato lato ambiente del processo
+   invece che nel sorgente (lo script non espone un flag --cpu). */
+struct FwResult { QString out; QString err; int code; };
+
+FwResult runFastWhisper(const QStringList& args, int timeoutMs = 60000)
+{
+    const QString script = P::root() + "/Tools/scripts/fast_whisper_transcribe.py";
+    QProcess proc;
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("CUDA_VISIBLE_DEVICES", "");
+    proc.setProcessEnvironment(env);
+    proc.start(g_pythonBin, QStringList{ script } + args);
+    if (!proc.waitForFinished(timeoutMs))
+        return { QString(), QString(), -1 };
+    return { QString::fromUtf8(proc.readAllStandardOutput()),
+             QString::fromUtf8(proc.readAllStandardError()),
+             proc.exitCode() };
 }
 
 } // namespace
@@ -246,6 +270,80 @@ private slots:
 };
 
 /* ══════════════════════════════════════════════════════════════
+   CAT-D — fast_whisper_transcribe.py (T-5)
+   ══════════════════════════════════════════════════════════════ */
+class TestFastWhisperScript : public QObject {
+    Q_OBJECT
+private:
+    QTemporaryDir m_dir;
+    QString       m_wavPath;
+
+private slots:
+    void initTestCase() {
+        g_pythonBin = P::findPython();
+        if (g_pythonBin.isEmpty()) g_pythonBin = "python3";
+
+        g_espeakBin = QStandardPaths::findExecutable("espeak-ng");
+        if (g_espeakBin.isEmpty())
+            QSKIP("espeak-ng non trovato — impossibile generare fixture audio parlato");
+
+        QProcess chk;
+        chk.start(g_pythonBin, { "-c", "import faster_whisper" });
+        chk.waitForFinished(15000);
+        if (chk.exitCode() != 0)
+            QSKIP("faster-whisper non installato (pip install faster-whisper)");
+
+        QVERIFY2(m_dir.isValid(), "QTemporaryDir non valida");
+        m_wavPath = m_dir.path() + "/short_it.wav";
+        /* Frase breve (~1-2s) — un tono puro non basterebbe: faster-whisper
+           con vad_filter=True scarterebbe un segnale senza pattern vocale */
+        if (!synthSpeech("Ciao, come stai oggi?", "it", 50, m_wavPath))
+            QSKIP("impossibile generare la fixture WAV con espeak-ng");
+    }
+
+    /* D-1: lo script esiste nel path atteso */
+    void scriptEsiste() {
+        const QString script = P::root() + "/Tools/scripts/fast_whisper_transcribe.py";
+        QVERIFY2(QFile::exists(script), qPrintable("script non trovato: " + script));
+    }
+
+    /* D-2: nessun argomento → errore su stderr, exit code 1 (path rapido,
+       nessun caricamento modello) */
+    void nessunArgomentoErrore() {
+        const auto r = runFastWhisper({}, 15000);
+        QCOMPARE(r.code, 1);
+        QVERIFY2(!r.err.trimmed().isEmpty(), "stderr deve contenere il messaggio di uso");
+        QVERIFY2(r.err.contains("Uso:"), "messaggio di errore inatteso");
+    }
+
+    /* D-3: WAV inesistente → exit code != 0 (eccezione faster-whisper) */
+    void wavInesistenteErrore() {
+        const auto r = runFastWhisper(
+            { "/tmp/prismalux_test_nonexist_fw_42.wav", "it", "tiny" }, 30000);
+        QVERIFY2(r.code != 0, "exit code deve essere != 0 per file inesistente");
+    }
+
+    /* D-4: WAV ~1-2s + modello "tiny" → trascrizione non vuota su stdout */
+    void wavBreveTrascrizioneNonVuota() {
+        const auto r = runFastWhisper({ m_wavPath, "it", "tiny" }, 60000);
+        QCOMPARE(r.code, 0);
+        const QString text = r.out.trimmed();
+        QVERIFY2(!text.isEmpty(), "la trascrizione non deve essere vuota");
+        /* "testo breve": per ~1-2s di audio non ci si aspettano più di poche parole */
+        QVERIFY2(text.split(' ', Qt::SkipEmptyParts).size() <= 15,
+                 qPrintable("trascrizione sospettosamente lunga: " + text));
+    }
+
+    /* D-5: modello "tiny" accettato come terzo argomento posizionale
+       (nessun crash, nessun fallback silenzioso a un modello diverso) */
+    void modelloTinyAccettato() {
+        const auto r = runFastWhisper({ m_wavPath, "it", "tiny" }, 60000);
+        QCOMPARE(r.code, 0);
+        QVERIFY2(!r.err.contains("Traceback"), "non deve esserci un traceback Python");
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
    Runner
    ══════════════════════════════════════════════════════════════ */
 int main(int argc, char** argv)
@@ -253,6 +351,7 @@ int main(int argc, char** argv)
     QCoreApplication app(argc, argv);
     int status = 0;
     { TestSpeakerDiarizeScript t; status |= QTest::qExec(&t, argc, argv); }
+    { TestFastWhisperScript    t; status |= QTest::qExec(&t, argc, argv); }
     return status;
 }
 
