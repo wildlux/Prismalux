@@ -1478,6 +1478,17 @@ if(BUILD_TESTS)
         target_link_libraries(test_distillazione PRIVATE pthread m)
     endif()
 
+    # ── test_dep_check_panel: DepCheckPanel — costruzione, righe, runAllChecks()/segnali ──
+    add_executable(test_dep_check_panel
+        tests/test_dep_check_panel.cpp
+        widgets/widget_dep_check.h
+    )
+    target_include_directories(test_dep_check_panel PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_dep_check_panel PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_dep_check_panel PRIVATE pthread m)
+    endif()
+
     enable_testing()
     add_test(NAME GraphMemory           COMMAND test_graph_memory)
     add_test(NAME GraphMemoryConcurrent COMMAND test_graph_memory_concurrent)
@@ -1541,6 +1552,7 @@ if(BUILD_TESTS)
     add_test(NAME FileParser              COMMAND test_file_parser)
     add_test(NAME Gns3Mcp                 COMMAND test_gns3_mcp)
     add_test(NAME Distillazione           COMMAND test_distillazione)
+    add_test(NAME DepCheckPanel           COMMAND test_dep_check_panel)
     set_tests_properties(RagGraphPipeline PROPERTIES TIMEOUT 30)
     set_tests_properties(ReplPython       PROPERTIES TIMEOUT 30)
     set_tests_properties(AiIntegration  PROPERTIES TIMEOUT 900)   # 15 min — CPU-only mistral lento
