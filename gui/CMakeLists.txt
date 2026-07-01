@@ -1493,6 +1493,19 @@ if(BUILD_TESTS)
         target_link_libraries(test_dep_check_panel PRIVATE pthread m)
     endif()
 
+    # ── test_perceptor_scripts: speaker_diarize.py (T-4) + fast_whisper_transcribe.py (T-5) ──
+    add_executable(test_perceptor_scripts
+        tests/test_perceptor_scripts.cpp
+    )
+    target_include_directories(test_perceptor_scripts PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_perceptor_scripts PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_perceptor_scripts PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_perceptor_scripts PRIVATE pthread m)
+    endif()
+
     enable_testing()
     add_test(NAME GraphMemory           COMMAND test_graph_memory)
     add_test(NAME GraphMemoryConcurrent COMMAND test_graph_memory_concurrent)
@@ -1557,6 +1570,7 @@ if(BUILD_TESTS)
     add_test(NAME Gns3Mcp                 COMMAND test_gns3_mcp)
     add_test(NAME Distillazione           COMMAND test_distillazione)
     add_test(NAME DepCheckPanel           COMMAND test_dep_check_panel)
+    add_test(NAME PerceptorScripts        COMMAND test_perceptor_scripts)
     set_tests_properties(RagGraphPipeline PROPERTIES TIMEOUT 30)
     set_tests_properties(ReplPython       PROPERTIES TIMEOUT 30)
     set_tests_properties(AiIntegration  PROPERTIES TIMEOUT 900)   # 15 min — CPU-only mistral lento
