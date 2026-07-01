@@ -28,9 +28,11 @@ QVector<ChatSession> ChatHistory::list() const {
         if (!doc.isObject()) continue;
         const auto obj = doc.object();
         ChatSession s;
-        s.id        = obj["id"].toString();
-        s.title     = obj["title"].toString();
-        s.createdAt = QDateTime::fromString(obj["created"].toString(), Qt::ISODate);
+        s.id           = obj["id"].toString();
+        s.title        = obj["title"].toString();
+        s.summaryBrief = obj["summary_brief"].toString();
+        s.summaryLong  = obj["summary_long"].toString();
+        s.createdAt    = QDateTime::fromString(obj["created"].toString(), Qt::ISODate);
         if (s.id.isEmpty()) continue;
         result << s;
     }
@@ -59,6 +61,30 @@ QString ChatHistory::newSession(const QString& firstTask) {
     /* Mantieni al massimo kMaxSessions sessioni — elimina le più vecchie */
     pruneOldSessions();
     return s.id;
+}
+
+void ChatHistory::updateTitleAndSummary(const QString& sessionId, const QString& title,
+                                        const QString& summaryBrief, const QString& summaryLong)
+{
+    const QString path = sessionPath(sessionId);
+
+    QFile fr(path);
+    QJsonObject obj;
+    if (fr.open(QIODevice::ReadOnly)) {
+        const auto doc = QJsonDocument::fromJson(fr.readAll());
+        if (doc.isObject()) obj = doc.object();
+        fr.close();
+    }
+    if (obj.isEmpty()) return;
+
+    obj["title"]         = title;
+    obj["summary_brief"] = summaryBrief;
+    obj["summary_long"]  = summaryLong;
+
+    QSaveFile fw(path);
+    if (fw.open(QIODevice::WriteOnly))
+        if (fw.write(QJsonDocument(obj).toJson()) >= 0)
+            fw.commit();
 }
 
 void ChatHistory::pruneOldSessions(int maxSessions) {

@@ -5,6 +5,7 @@
    CAT-B  saveLog / loadLog (10 test)
    CAT-C  remove (6 test)
    CAT-D  Robustezza e edge case (6 test)
+   CAT-E  updateTitleAndSummary (5 test)
 
    IMPORTANTE: i test usano una QTemporaryDir isolata — nessun file
    viene creato in ~/.prismalux_chats/ (evita contaminazione prod).
@@ -444,6 +445,75 @@ private slots:
 };
 
 /* ══════════════════════════════════════════════════════════════
+   CAT-E — updateTitleAndSummary (5 test)
+   ══════════════════════════════════════════════════════════════ */
+class TestUpdateTitleAndSummary : public QObject {
+    Q_OBJECT
+private slots:
+
+    /* Roundtrip: titolo + riassunti scritti sono rileggibili via list() */
+    void roundtrip() {
+        ChatHistoryFixture f;
+        const QString id = f.newSession("E1 task");
+        f.ch.updateTitleAndSummary(id, "Titolo generato", "Riassunto breve.", "Riassunto lungo con più dettagli.");
+
+        const auto lista = f.ch.list();
+        bool trovato = false;
+        for (const ChatSession& s : lista) {
+            if (s.id == id) {
+                trovato = true;
+                QCOMPARE(s.title, QString("Titolo generato"));
+                QCOMPARE(s.summaryBrief, QString("Riassunto breve."));
+                QCOMPARE(s.summaryLong, QString("Riassunto lungo con più dettagli."));
+            }
+        }
+        QVERIFY2(trovato, "sessione non trovata dopo updateTitleAndSummary");
+    }
+
+    /* updateTitleAndSummary sovrascrive il titolo troncato iniziale */
+    void sovrascriveTitoloIniziale() {
+        ChatHistoryFixture f;
+        const QString id = f.newSession(QString(100, 'X'));
+        f.ch.updateTitleAndSummary(id, "Nuovo titolo breve", "Breve", "Lungo");
+
+        for (const ChatSession& s : f.ch.list())
+            if (s.id == id) QCOMPARE(s.title, QString("Nuovo titolo breve"));
+    }
+
+    /* updateTitleAndSummary su id inesistente: no crash, nessun file creato */
+    void idInesistenteNoCrash() {
+        ChatHistory ch;
+        ch.updateTitleAndSummary("__id_certamente_inesistente_xyz__", "T", "B", "L");
+        /* Nessuna asserzione oltre al no-crash: il metodo deve ignorare id sconosciuti */
+    }
+
+    /* updateTitleAndSummary preserva il log già salvato (read-modify-write) */
+    void preservaLog() {
+        ChatHistoryFixture f;
+        const QString id = f.newSession("E4 task");
+        f.ch.saveLog(id, "<b>log esistente</b>");
+        f.ch.updateTitleAndSummary(id, "Titolo", "Breve", "Lungo");
+        QCOMPARE(f.ch.loadLog(id), QString("<b>log esistente</b>"));
+    }
+
+    /* Chiamate multiple: l'ultima vince */
+    void multiUpdateLastWins() {
+        ChatHistoryFixture f;
+        const QString id = f.newSession("E5 task");
+        f.ch.updateTitleAndSummary(id, "Primo", "B1", "L1");
+        f.ch.updateTitleAndSummary(id, "Secondo", "B2", "L2");
+
+        for (const ChatSession& s : f.ch.list()) {
+            if (s.id == id) {
+                QCOMPARE(s.title, QString("Secondo"));
+                QCOMPARE(s.summaryBrief, QString("B2"));
+                QCOMPARE(s.summaryLong, QString("L2"));
+            }
+        }
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
    Runner
    ══════════════════════════════════════════════════════════════ */
 int main(int argc, char** argv)
@@ -453,6 +523,7 @@ int main(int argc, char** argv)
     { TestSaveLoadLog   t; status |= QTest::qExec(&t, argc, argv); }
     { TestRemove        t; status |= QTest::qExec(&t, argc, argv); }
     { TestRobustezza    t; status |= QTest::qExec(&t, argc, argv); }
+    { TestUpdateTitleAndSummary t; status |= QTest::qExec(&t, argc, argv); }
     return status;
 }
 

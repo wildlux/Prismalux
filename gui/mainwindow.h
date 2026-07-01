@@ -219,6 +219,8 @@ private:
     QPushButton*  m_btnDeleteChats = nullptr;     ///< Cancella chat selezionate
     QCheckBox*    m_chkSelectAll   = nullptr;     ///< Seleziona/deseleziona tutte le chat visibili
     QString       m_currentChatId;               ///< ID sessione chat corrente
+    AiClient*     m_summaryAi              = nullptr; ///< Client dedicato per titolo/riassunto LLM (non collide con m_ai)
+    QString       m_pendingSummarySessionId;         ///< Sessione a cui appartiene la generazione titolo/riassunto in corso
 
     /* ── Gestione llama-server / ds4-server avviati dalla GUI ── */
     QProcess* m_serverProc  = nullptr;  ///< Processo server (nullptr = fermo)
@@ -349,6 +351,10 @@ protected:
 
     /** Popola m_chatList con le sessioni salvate (ordine cronologico inverso). */
     void refreshChatList();
+
+    /** Genera titolo + riassunto breve/lungo via LLM (istanza dedicata m_summaryAi,
+     *  non collide con lo stream della chat visibile) e li salva su sessionId. */
+    void requestSessionSummary(const QString& sessionId, const QString& logHtml);
 
 private slots:
     /* ── HW monitor ─────────────────────────────────────────────── */

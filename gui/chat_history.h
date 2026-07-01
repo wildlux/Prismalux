@@ -23,8 +23,10 @@ struct ChatMessage {
 
 /* Una sessione di chat completa */
 struct ChatSession {
-    QString              id;         ///< timestamp in ms come stringa (chiave univoca)
-    QString              title;      ///< prime 40 lettere del primo task
+    QString              id;           ///< timestamp in ms come stringa (chiave univoca)
+    QString              title;        ///< titolo (generato via LLM dopo il primo scambio, o prime 40 lettere del primo task)
+    QString              summaryBrief; ///< riassunto breve generato via LLM (una frase)
+    QString              summaryLong;  ///< riassunto lungo generato via LLM (2-4 frasi)
     QDateTime            createdAt;
     QVector<ChatMessage> messages;
 };
@@ -39,6 +41,10 @@ public:
 
     /** Crea nuova sessione vuota; ritorna l'id */
     QString newSession(const QString& firstTask);
+
+    /** Aggiorna titolo + riassunti (generati via LLM dopo il primo scambio) */
+    void updateTitleAndSummary(const QString& sessionId, const QString& title,
+                               const QString& summaryBrief, const QString& summaryLong);
 
     /** Salva in un'unica scrittura atomica: log HTML + mappe + history ReAct.
      *  Elimina i 3 cicli separati di lettura/scrittura precedenti. */

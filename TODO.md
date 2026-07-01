@@ -17,6 +17,7 @@ Legenda: 🔴 Alta · 🟡 Media · 🟢 Bassa | ⬜ Aperto · ✅ Fatto
 | D-2 | 🟡 | TTFT (⚡Nms) nell'header — timer da avviare in `onBtnRunClicked()`, primo token ferma | `mainwindow.cpp` | ✅ |
 | D-3 | 🟢 | Lambda > 2 righe in `connect()` — estratte 12+5 slot/free-func in MainWindow (onAutoUpdateReply, TTFT, ChatSelection, SelectAll, TabSearch) | vari `.cpp` | ✅ |
 | D-4 | 🟢 | Export dataset DPO dai feedback 👍/👎 in JSONL → formato Alpaca/ShareGPT | `main_ai_feedback.cpp` | ✅ |
+| D-7 | 🟡 | Titolo + riassunto breve/lungo sessione chat generati via LLM dopo il primo scambio (stile Claude.ai), sostituisce il titolo troncato a 40 char. `AiClient` dedicato (`m_summaryAi`) per non collidere con lo stream visibile | `chat_history.h/.cpp`, `mainwindow.h/.cpp` | ✅ 2026-07-01 |
 
 ### Distribuzione
 
@@ -135,6 +136,7 @@ FASE 6:          APK-2 → APK-1                     (release)
 | W-5 | 🟡 | **730 / P.IVA** — tab `irp` (730 IRPEF con calcolo lorda/netta/bonus) + tab `piv` (regime forfettario L.190/2014) | ✅ |
 | W-6 | 🟡 | **Security Analyzer** — tab `sec` con 4 agenti + sintetizzatore CISO | ✅ |
 | W-7 | 🟢 | **Sintetizzatore** — tab `osc` con WebAudio, 4 forme d'onda, freq/vol/detune, oscilloscopio canvas, tastiera C4-B5 | ✅ |
+| W-8 | 🟡 | Titolo + riassunto sessione auto-generato via LLM dopo il primo scambio (`sesAutoTitle()`, riuso `ageCallAi()`), sostituisce il `prompt()` manuale per il salvataggio | ✅ 2026-07-01 |
 
 ---
 
@@ -185,7 +187,7 @@ FASE 6:          APK-2 → APK-1                     (release)
 
 | # | Priorità | Cosa testare | Dove aggiungere | Stato |
 |---|----------|--------------|-----------------|-------|
-| T-1 | 🔴 | **SttWhisper diarization** — `isDiarizeEnabled()`, `diarizeNSpeakers()` round-trip QSettings; `formatDiarization()` JSON → `"[SPEAKER_00] testo"`, JSON vuoto, JSON malformato, speaker multipli | `gui/tests/test_stt_whisper_live.cpp` → nuova CAT-D | ⬜ |
+| T-1 | 🔴 | **SttWhisper diarization** — `isDiarizeEnabled()`, `diarizeNSpeakers()` round-trip QSettings; `formatDiarization()` JSON → `"[SPEAKER_00] testo"`, JSON vuoto, JSON malformato, speaker multipli | `gui/tests/test_stt_whisper_live.cpp` → nuova CAT-E, 8 test | ✅ 2026-07-01 — bug reale trovato e fix: `formatDiarization()` non catturava mai `"text"` quando appare dopo `"end"` (ordine reale di `speaker_diarize.py`) |
 | T-2 | 🔴 | **DepCheckPanel** (`widget_dep_check.h`) — costruzione senza crash (CAT-A), `deps` non vuota, `runAllChecks()` avvia QProcess, segnali `allOk()`/`someMissing(int)` emessi | `gui/tests/test_dep_check_panel.cpp` (nuova suite) | ⬜ |
 | T-3 | 🟡 | **LAN rubrica persone** (`main_lan_wan.cpp` `m_accessListTable`) — save/load QSettings `lan/accessList` JSON round-trip, addRow, persistenza tra sessioni | `gui/tests/test_lan_wan_core.cpp` → nuova CAT-E | ⬜ |
 | T-4 | 🟡 | **speaker_diarize.py** — WAV sintetico `--speakers 2` → JSON con 2 speaker e campi `backend/segments/speakers`; CUDA_VISIBLE_DEVICES="" forzato; QSKIP se simple-diarizer assente | `gui/tests/test_perceptor_scripts.cpp` (nuova suite CAT-C) | ⬜ |

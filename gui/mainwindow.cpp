@@ -58,6 +58,9 @@
 #include <QTextCursor>
 #include <QFileDialog>
 #include <QTextDocument>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
 #include <QPdfWriter>
 #include <QPageSize>
 #include <QPageLayout>
@@ -2478,8 +2481,12 @@ void MainWindow::onChatCompleted(const QString& title, const QString& logHtml) {
     bool sessionValid = !m_currentChatId.isEmpty()
         && !m_chatHistory.loadLog(m_currentChatId).isEmpty();
 
-    if (!sessionValid)
+    if (!sessionValid) {
         m_currentChatId = m_chatHistory.newSession(title);
+        /* Dopo il primo scambio: genera titolo + riassunti via LLM in background
+           (sostituisce il titolo troncato non appena la generazione termina). */
+        requestSessionSummary(m_currentChatId, logHtml);
+    }
 
     /* Una sola scrittura atomica: log + mappe + history ReAct */
     auto* ap = qobject_cast<AgentiPage*>(m_mainTabs ? m_mainTabs->widget(0) : nullptr);
@@ -2492,6 +2499,77 @@ void MainWindow::onChatCompleted(const QString& title, const QString& logHtml) {
 
     appendLog(QString("\xe2\x9c\x85 Pipeline completata: <b>%1</b>")
               .arg(title.isEmpty() ? "(senza titolo)" : title.toHtmlEscaped()), LogAI);
+}
+
+/* Rimuove blocchi <think>...</think> prodotti da modelli reasoning, stesso pattern
+ * usato in main_multi_agent.cpp (parsePlan). */
+static QString stripThinkTagsMw(const QString& s)
+{
+    static const QRegularExpression re("<think>[\\s\\S]*?</think>",
+                                        QRegularExpression::CaseInsensitiveOption);
+    QString out = s;
+    out.remove(re);
+    return out.trimmed();
+}
+
+void MainWindow::requestSessionSummary(const QString& sessionId, const QString& logHtml)
+{
+    if (!m_ai || sessionId.isEmpty()) return;
+    if (m_summaryAi && m_summaryAi->busy()) return;  /* generazione già in corso: salta */
+
+    QTextDocument doc;
+    doc.setHtml(logHtml);
+    const QString plainText = doc.toPlainText().left(3000);
+    if (plainText.trimmed().isEmpty()) return;
+
+    if (!m_summaryAi) m_summaryAi = new AiClient(this);
+    m_summaryAi->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), m_ai->model());
+    m_pendingSummarySessionId = sessionId;
+
+    const QString sys =
+        "Genera metadati per una conversazione chat. Rispondi SOLO con JSON valido, "
+        "nessun testo fuori dal JSON, nessun blocco di codice. Formato esatto:\n"
+        "{\"titolo\":\"...\",\"riassunto_breve\":\"...\",\"riassunto_lungo\":\"...\"}\n"
+        "Regole: titolo massimo 6 parole, senza punteggiatura finale; "
+        "riassunto_breve una frase di massimo 20 parole; "
+        "riassunto_lungo 2-4 frasi, massimo 400 caratteri. Scrivi in italiano.";
+    const QString user = "Conversazione:\n\n" + plainText;
+
+    auto* holder = new QObject(this);
+    connect(m_summaryAi, &AiClient::finished, holder,
+            [this, holder, sessionId](const QString& full) {
+                holder->deleteLater();
+                if (sessionId != m_pendingSummarySessionId) return;
+
+                QString clean = stripThinkTagsMw(full);
+                static const QRegularExpression reFence(R"(```[a-z]*\n?([\s\S]*?)```)");
+                const auto fence = reFence.match(clean);
+                if (fence.hasMatch()) clean = fence.captured(1).trimmed();
+                static const QRegularExpression reJson(R"(\{[\s\S]*\})");
+                const auto m = reJson.match(clean);
+                if (m.hasMatch()) clean = m.captured(0);
+
+                QJsonParseError err;
+                const QJsonDocument jdoc = QJsonDocument::fromJson(clean.toUtf8(), &err);
+                if (err.error != QJsonParseError::NoError || !jdoc.isObject()) return;
+
+                const QJsonObject obj   = jdoc.object();
+                const QString newTitle  = obj["titolo"].toString().trimmed();
+                const QString brief     = obj["riassunto_breve"].toString().trimmed();
+                const QString longSumm  = obj["riassunto_lungo"].toString().trimmed();
+                if (newTitle.isEmpty()) return;
+
+                m_chatHistory.updateTitleAndSummary(sessionId, newTitle, brief, longSumm);
+                refreshChatList();
+            });
+
+    connect(m_summaryAi, &AiClient::error, holder,
+            [holder](const QString&) {
+                /* Non critico: il titolo troncato resta valido come fallback */
+                holder->deleteLater();
+            });
+
+    m_summaryAi->chat(sys, user);
 }
 
 /* Slot: usa le funzioni statiche stripBodyBackground/migrateLegacyChat definite sopra */
@@ -2558,7 +2636,9 @@ void MainWindow::refreshChatList() {
             display += " \xc2\xb7 " + s.createdAt.toString("HH:mm");
         auto* item = new QListWidgetItem(display);
         item->setData(Qt::UserRole, s.id);
-        item->setToolTip(s.createdAt.toString("dd/MM/yyyy HH:mm:ss"));
+        QString tooltip = s.createdAt.toString("dd/MM/yyyy HH:mm:ss");
+        if (!s.summaryBrief.isEmpty()) tooltip += "\n\n" + s.summaryBrief;
+        item->setToolTip(tooltip);
         m_chatList->addItem(item);
     }
 }

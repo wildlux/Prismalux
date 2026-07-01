@@ -351,14 +351,22 @@ inline QString formatDiarization(const QString& diarJson)
     int segStart = diarJson.indexOf(QStringLiteral("\"segments\""));
     if (segStart < 0) return diarJson;
 
-    /* Estrae tutti gli oggetti segmento dalla lista */
-    static const QRegularExpression reSegment(
-        R"RE(\{\s*"speaker"\s*:\s*"([^"]+)"[^}]*"start"\s*:\s*([\d.]+)[^}]*(?:"text"\s*:\s*"([^"]*)")?[^}]*\})RE");
-    QRegularExpressionMatchIterator it = reSegment.globalMatch(diarJson, segStart);
+    /* Estrae ogni oggetto segmento come blocco flat (nessuna graffa annidata),
+       poi cerca "speaker"/"text" al suo interno indipendentemente dall'ordine
+       dei campi — speaker_diarize.py scrive "text" DOPO "end", quindi un unico
+       regex con [^}]* greedy tra "start" e "text" non lo cattura mai. */
+    static const QRegularExpression reBlock(R"(\{[^{}]*\})");
+    static const QRegularExpression reSpeaker(R"RE("speaker"\s*:\s*"([^"]+)")RE");
+    static const QRegularExpression reText(R"RE("text"\s*:\s*"([^"]*)")RE");
+
+    QRegularExpressionMatchIterator it = reBlock.globalMatch(diarJson, segStart);
     while (it.hasNext()) {
-        const QRegularExpressionMatch m = it.next();
-        const QString speaker = m.captured(1);
-        const QString text    = m.captured(3).trimmed();
+        const QString block = it.next().captured(0);
+        const auto spkMatch = reSpeaker.match(block);
+        if (!spkMatch.hasMatch()) continue;
+        const QString speaker = spkMatch.captured(1);
+        const auto txtMatch = reText.match(block);
+        const QString text = txtMatch.hasMatch() ? txtMatch.captured(1).trimmed() : QString();
         if (!text.isEmpty())
             lines << QStringLiteral("[%1] %2").arg(speaker, text);
         else

@@ -6,6 +6,7 @@
      CAT-B  ImpostazioniPage — costruzione con tab Voce (no crash)
      CAT-C  transcribe() callback contract — no crash su path invalido
      CAT-D  savePreferredModel / preferredModel round-trip via AppConfig
+     CAT-E  Diarization — isDiarizeEnabled/diarizeNSpeakers round-trip, formatDiarization()
 
    Build:
      cmake -B build_tests -DBUILD_TESTS=ON
@@ -28,6 +29,86 @@
 #include "../widgets/stt_whisper.h"
 
 namespace P = PrismaluxPaths;
+
+/* ══════════════════════════════════════════════════════════════
+   CAT-E — SttWhisper diarization: settings round-trip + formatDiarization()
+   ══════════════════════════════════════════════════════════════ */
+class TestSttWhisperDiarization : public QObject {
+    Q_OBJECT
+private:
+    bool m_savedEnabled = false;
+    int  m_savedN       = 0;
+
+private slots:
+    void initTestCase() {
+        m_savedEnabled = SttWhisper::isDiarizeEnabled();
+        m_savedN       = SttWhisper::diarizeNSpeakers();
+    }
+
+    void cleanupTestCase() {
+        AppConfig::s().setValue(P::SK::kSttDiarizeEnabled, m_savedEnabled);
+        AppConfig::s().setValue(P::SK::kSttDiarizeNSpeakers, m_savedN);
+    }
+
+    /* D-1: isDiarizeEnabled() round-trip via QSettings */
+    void diarizeEnabledRoundTrip() {
+        AppConfig::s().setValue(P::SK::kSttDiarizeEnabled, true);
+        QVERIFY(SttWhisper::isDiarizeEnabled());
+        AppConfig::s().setValue(P::SK::kSttDiarizeEnabled, false);
+        QVERIFY(!SttWhisper::isDiarizeEnabled());
+    }
+
+    /* D-2: diarizeNSpeakers() round-trip, 0 = auto-detect di default */
+    void diarizeNSpeakersRoundTrip() {
+        AppConfig::s().setValue(P::SK::kSttDiarizeNSpeakers, 3);
+        QCOMPARE(SttWhisper::diarizeNSpeakers(), 3);
+        AppConfig::s().setValue(P::SK::kSttDiarizeNSpeakers, 0);
+        QCOMPARE(SttWhisper::diarizeNSpeakers(), 0);
+    }
+
+    /* D-3: formatDiarization() converte JSON valido in "[SPEAKER_00] testo" */
+    void formatDiarizationValidJson() {
+        const QString json = R"({"backend":"simple-diarizer","segments":[)"
+                              R"({"speaker":"SPEAKER_00","start":0.0,"end":2.5,"text":"Buongiorno a tutti"}]})";
+        const QString out = SttWhisper::formatDiarization(json);
+        QCOMPARE(out, QString("[SPEAKER_00] Buongiorno a tutti"));
+    }
+
+    /* D-4: formatDiarization() con più speaker produce più righe */
+    void formatDiarizationMultiSpeaker() {
+        const QString json = R"({"segments":[)"
+                              R"({"speaker":"SPEAKER_00","start":0.0,"end":2.0,"text":"Ciao"},)"
+                              R"({"speaker":"SPEAKER_01","start":2.0,"end":4.0,"text":"Come stai"}]})";
+        const QString out = SttWhisper::formatDiarization(json);
+        const QStringList lines = out.split('\n');
+        QCOMPARE(lines.size(), 2);
+        QCOMPARE(lines[0], QString("[SPEAKER_00] Ciao"));
+        QCOMPARE(lines[1], QString("[SPEAKER_01] Come stai"));
+    }
+
+    /* D-5: formatDiarization() con JSON vuoto ritorna l'input invariato */
+    void formatDiarizationEmptyJson() {
+        QCOMPARE(SttWhisper::formatDiarization(QString()), QString());
+    }
+
+    /* D-6: formatDiarization() con JSON malformato (no "segments") ritorna l'input */
+    void formatDiarizationMalformedJson() {
+        const QString malformed = QStringLiteral("{\"foo\":\"bar\"}");
+        QCOMPARE(SttWhisper::formatDiarization(malformed), malformed);
+    }
+
+    /* D-7: formatDiarization() propaga un JSON di errore invariato */
+    void formatDiarizationErrorJson() {
+        const QString err = R"({"error":"speaker_diarize.py non trovato"})";
+        QCOMPARE(SttWhisper::formatDiarization(err), err);
+    }
+
+    /* D-8: segmento senza campo "text" produce solo "[SPEAKER_00]" senza testo */
+    void formatDiarizationNoTextField() {
+        const QString json = R"({"segments":[{"speaker":"SPEAKER_00","start":0.0,"end":1.0}]})";
+        QCOMPARE(SttWhisper::formatDiarization(json), QString("[SPEAKER_00]"));
+    }
+};
 
 /* ══════════════════════════════════════════════════════════════
    CAT-A — SttWhisper paths (nessuna dipendenza esterna richiesta)
@@ -257,6 +338,7 @@ int main(int argc, char* argv[])
         TestSttWhisperImpostazioni    t2; status |= QTest::qExec(&t2, argc, argv);
         TestSttWhisperTranscribeContract t3; status |= QTest::qExec(&t3, argc, argv);
         TestSttWhisperPreferredModel  t4; status |= QTest::qExec(&t4, argc, argv);
+        TestSttWhisperDiarization     t5; status |= QTest::qExec(&t5, argc, argv);
     }
     return status;
 }
