@@ -73,6 +73,7 @@ Prismalux è un'applicazione desktop Qt6 (C++) pensata per chi vuole sfruttare m
 | 🦙 **Ollama MCP** | Cache SQLite modelli, 5 tool (list/info/search/sync/pull), solo stdlib |
 | 🎓 **Quiz CCNA 209 domande** | 15 temi CCNA 200-301 completo |
 | 📐 **DPI/i18n** | `dpiScale()` su tutte le pages; `QTranslator` + stub `.ts` |
+| 🐛 **Fix SIGSEGV registrazione vocale** | Crash confermato da coredump: `AgentiPage::onSttTimeout()` chiamava `deleteLater()` su `m_recProc` due volte se `onRecProcFinished` scattava durante l'event-loop interno di `waitForFinished()`. Fix: salva e azzera `m_recProc` **prima** di `waitForFinished()` (`main_ai_stt.cpp`) |
 
 ---
 
