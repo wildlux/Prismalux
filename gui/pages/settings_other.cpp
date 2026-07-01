@@ -5,6 +5,7 @@
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
 #include "../widgets/widget_dep_check.h"
+#include "../widgets/external_ai_import.h"
 #include "main_customize.h"
 #include "main_maintenance.h"
 #include "main_graph.h"
@@ -245,6 +246,42 @@ static void settingsDoClrFeedback(QWidget* w, QTableWidget* table, QLabel* statL
     QFile::remove(PrismaluxPaths::feedbackPath());
     table->setRowCount(0);
     statLbl->setText(QObject::tr("\xf0\x9f\x97\x91  Dati feedback cancellati."));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   settingsDoImportExternalAi — importa export JSON di ChatGPT/Claude/
+   formato generico OpenAI-compatible (DeepSeek/Qwen/altri, se esportati
+   via strumenti terzi) nello storico chat locale. Vedi
+   widgets/external_ai_import.h per il rilevamento formato.
+   ══════════════════════════════════════════════════════════════ */
+static void settingsDoImportExternalAi(QWidget* w, QLabel* statLbl)
+{
+    const QString path = QFileDialog::getOpenFileName(w,
+        QObject::tr("Importa conversazioni da AI esterne"),
+        QDir::homePath(), QObject::tr("File JSON (*.json)"));
+    if (path.isEmpty()) return;
+
+    statLbl->setText(QObject::tr("\xe2\x8f\xb3  Analisi in corso..."));
+
+    QString detectedFormat, errorMsg;
+    const auto convs = ExternalAiImport::parseFile(path, detectedFormat, errorMsg);
+
+    if (!errorMsg.isEmpty()) {
+        statLbl->setText(QString("\xe2\x9d\x8c  ") + errorMsg);
+        return;
+    }
+    if (convs.isEmpty()) {
+        statLbl->setText(QObject::tr(
+            "\xe2\x9a\xa0  Nessuna conversazione trovata nel file (formato riconosciuto: %1)."
+            ).arg(detectedFormat));
+        return;
+    }
+
+    const int saved = ExternalAiImport::importIntoHistory(convs);
+    statLbl->setText(QString(
+        "\xe2\x9c\x85  Importate %1 conversazioni (formato: %2) nello storico chat "
+        "\xe2\x80\x94 visibili in \xf0\x9f\xa4\x96 Intelligenza Artificiale \xe2\x86\x92 Cronologia.")
+        .arg(saved).arg(detectedFormat));
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1343,6 +1380,35 @@ QWidget* ImpostazioniPage::buildFeedbackTab()
     btnRow->addWidget(btnClear);
     vbox->addWidget(statLbl);
     vbox->addLayout(btnRow);
+
+    /* ── Importa da AI esterne (ChatGPT/Claude/generico) ── */
+    auto* sep = new QFrame(w);
+    sep->setFrameShape(QFrame::HLine);
+    sep->setObjectName("sidebarSep");
+    vbox->addWidget(sep);
+
+    auto* importLbl = new QLabel(
+        "\xf0\x9f\x93\xa5  <b>Importa da AI esterne</b><br>"
+        "<small>Carica un file JSON esportato da ChatGPT o Claude (export dati "
+        "account), oppure un JSON generico {\"role\",\"content\"} (DeepSeek, Qwen "
+        "e altri, se esportato con strumenti terzi \xe2\x80\x94 non hanno un export "
+        "ufficiale proprio). Le conversazioni finiscono nello storico chat locale.</small>", w);
+    importLbl->setTextFormat(Qt::RichText);
+    importLbl->setWordWrap(true);
+    vbox->addWidget(importLbl);
+
+    auto* importRow = new QHBoxLayout;
+    auto* btnImport = new QPushButton("\xf0\x9f\x93\xa5  Importa da AI esterne", w);
+    btnImport->setObjectName("actionBtn");
+    btnImport->setToolTip(tr("Importa un file JSON esportato da OpenAI/Anthropic/altri servizi AI"));
+    auto* importStatLbl = new QLabel(w);
+    importStatLbl->setWordWrap(true);
+    importRow->addWidget(btnImport);
+    importRow->addWidget(importStatLbl, 1);
+    vbox->addLayout(importRow);
+
+    connect(btnImport, &QPushButton::clicked, w,
+            [w, importStatLbl](){ settingsDoImportExternalAi(w, importStatLbl); });
 
     settingsLoadFeedbackData(table, statLbl);
 

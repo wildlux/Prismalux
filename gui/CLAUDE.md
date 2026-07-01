@@ -414,6 +414,33 @@ restano alla versione già in uso). Mappa pip→import name hardcoded in
 `PythonUpdatePanel::packages()` (es. `opencv-python`→`cv2`, `Pillow`→`PIL`,
 `beautifulsoup4`→`bs4`, `PyJWT`→`jwt`).
 
+## Importa da AI esterne (`widgets/external_ai_import.h`)
+
+Tab Impostazioni → AI Locale → Feedback → sezione "📥 Importa da AI esterne"
+(`settingsDoImportExternalAi()` in `settings_other.cpp`).
+
+`ExternalAiImport::parseFile(path, detectedFormat, errorMsg)` rileva ed
+elabora (formati verificati contro fonti pubbliche, non indovinati):
+- **OpenAI ChatGPT** — export dati account: `conversations.json` con
+  `mapping` (albero nodi) + `current_node`; `parseOpenAiConversation()`
+  risale i `parent` da `current_node` alla radice, poi inverte.
+- **Anthropic Claude** — export dati account: `chat_messages: [{sender,
+  text}]`, ordine sequenziale (schema non documentato ufficialmente da
+  Anthropic, dedotto da fonti terze concordanti).
+- **Generico OpenAI-compatible** — `{"messages":[{"role","content"}]}` o
+  array bare. **DeepSeek e Qwen non hanno un export ufficiale proprio**
+  (verificato — nessuna fonte lo documenta): le loro chat, se esportate con
+  estensioni browser terze, tipicamente seguono questo schema.
+- **NON gestito**: Google Takeout (Gemini Apps) — l'export esiste ma i
+  nomi dei campi JSON non sono documentati in modo affidabile da nessuna
+  fonte trovata; niente parser "a intuito".
+
+Ogni conversazione riconosciuta diventa una sessione in `ChatHistory`
+(`newSession()` + `saveSession()` con log HTML generato ad-hoc, non le
+bolle live di `AgentiPage` — import, non serve pixel-identico), visibile
+nella cronologia chat esistente. Ruoli normalizzati: `user`/`human`→`user`,
+`assistant`/`model`/`bot`→`pipeline` (schema `ChatMessage::role` interno).
+
 ## Scheda TFR — Codice Fiscale automatico (`pratico_page.cpp`)
 - `calcolaCodiceFiscale(cognome, nome, nascita, maschio, belfiore)` — algoritmo D.M. 23/12/1976
 - `cercaBelfiore(comune)` — QHash ~120 comuni IT + ~30 paesi esteri (codici Z)
@@ -619,6 +646,7 @@ ctest --test-dir gui/build_tests --exclude-regex "AiIntegration|AiStress|TeamCol
 | `Distillazione` | `test_distillazione` | 6 PASS — costruzione `DistillazionePage`, stato iniziale widget, pulsanti disabilitati all'avvio |
 | `GraphMemoryConcurrent` | `test_graph_memory_concurrent` | 17 PASS — isolamento connessioni SQLite, lettura/scrittura sequenziale 2 istanze, scrittura concorrente 2 thread, lettura cross-istanza |
 | `McpIntegration` | `test_mcp_integration` | 21 PASS, 1 SKIP — struttura `McpManagerPage`, `scanMcpServers`, protocollo JSON-RPC smoke test; ⚠️ CAT-D venv assente in questo ambiente |
+| `ExternalAiImport` | `test_external_ai_import` | 9 PASS — CAT-A parsing OpenAI (mapping/current_node), Anthropic (chat_messages), generico role/content, multi-conversazione; CAT-B JSON non valido/formato ignoto/file assente/content vuoto |
 
 ### Note operative
 - `SimulatoreAlgos`: FLAKY in `-j4`, PASS standalone → `RESOURCE_LOCK cpu_heavy`

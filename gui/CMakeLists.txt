@@ -488,6 +488,17 @@ if(BUILD_TESTS)
         target_link_libraries(test_random_tool PRIVATE pthread m)
     endif()
 
+    # ── test_external_ai_import: parseFile() per formati OpenAI/Claude/generico ──
+    add_executable(test_external_ai_import
+        tests/test_external_ai_import.cpp
+        chat_history.cpp
+    )
+    target_include_directories(test_external_ai_import PRIVATE ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_external_ai_import PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_external_ai_import PRIVATE pthread m)
+    endif()
+
     # ── test_lavoro_page: LavoroPage isolation, filtri, DB integrità ──
     # 5 classi × N test: cross-contamination, filtri, modelli, DB, UI
     add_executable(test_lavoro_page
@@ -1530,6 +1541,7 @@ if(BUILD_TESTS)
     add_test(NAME RagEngine            COMMAND test_rag_engine)
     add_test(NAME CodeUtils            COMMAND test_code_utils)
     add_test(NAME RandomTool           COMMAND test_random_tool)
+    add_test(NAME ExternalAiImport     COMMAND test_external_ai_import)
     add_test(NAME LavoroPage           COMMAND test_lavoro_page)
     add_test(NAME AppController        COMMAND test_app_controller)
     add_test(NAME McpManager           COMMAND test_mcp_manager)
