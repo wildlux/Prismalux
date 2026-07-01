@@ -35,6 +35,7 @@ class QVBoxLayout;
    Tab 7:   💰 Finanza       (PraticoPage)
    Tab 8:   🏛  Impara con AI (ImparaPage)
    Tab 9:   🎯 Sfida!        (QuizPage)
+   Tab 10:  🧮 RAM LLM       (RamCalculatorWidget)
    ══════════════════════════════════════════════════════════════ */
 class StrumentiPage : public QWidget {
     Q_OBJECT

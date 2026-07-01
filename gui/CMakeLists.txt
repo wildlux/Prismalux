@@ -220,6 +220,7 @@ set(CPP_SRCS
     pages/widget_solar_calc.cpp
     pages/widget_idro.cpp
     pages/widget_bike.cpp
+    pages/widget_ram_calculator.cpp
     pages/widget_stable_diffusion.cpp
     pages/widget_synthesizer.cpp
     pages/widget_voice_cloner.cpp

@@ -6,6 +6,7 @@
 #include "../widgets/model_combo_helper.h"
 #include "main_quiz.h"
 #include "widget_stable_diffusion.h"
+#include "widget_ram_calculator.h"
 #include "main_maintenance.h"
 #include "../prismalux_paths.h"
 #include "../lan_server.h"
@@ -514,6 +515,10 @@ void StrumentiPage::buildLayout()
     /* ── Tab 9: File AI (spostato da tab principale a sub-tab di Strumenti) ── */
     m_tabs->addTab(new StrumentiFilePage(m_ai, m_tabs),
                    "\xf0\x9f\x93\x81  File AI"); /* 📁 */
+
+    /* ── Tab 10: Calcolatore RAM per LLM locali ── */
+    m_tabs->addTab(new RamCalculatorWidget(m_tabs),
+                   "\xf0\x9f\xa7\xae  RAM LLM"); /* 🧮 */
 
     /* rootLay[0] = m_tabs (stretch 0 per tab categoria, 1 per le altre) */
     rootLay->addWidget(m_tabs, 0);
