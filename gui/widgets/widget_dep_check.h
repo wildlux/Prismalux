@@ -149,6 +149,22 @@ public:
                 this, &DepCheckPanel::onInstallAllClicked);
     }
 
+    ~DepCheckPanel() override
+    {
+        /* I QProcess di check/install sono figli locali (parent=this), non membri.
+         * Se ancora in esecuzione alla chiusura dell'app, il loro distruttore
+         * chiama waitForFinished() e riemette finished() in modo sincrono
+         * mentre DepCheckPanel è già in fase di distruzione (le QLabel/QPushButton
+         * figlie, create prima nel costruttore, possono già essere deallocate) —
+         * blockSignals+kill evita il use-after-free, come per LanServer::stop(). */
+        const auto procs = findChildren<QProcess*>(QString(), Qt::FindDirectChildrenOnly);
+        for (auto* proc : procs) {
+            proc->blockSignals(true);
+            if (proc->state() != QProcess::NotRunning)
+                proc->kill();
+        }
+    }
+
     void runAllChecks() { onCheckAllClicked(); }
 
 signals:
