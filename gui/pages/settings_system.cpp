@@ -2,6 +2,7 @@
 #include "../dpi_utils.h"
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
+#include "../widgets/lazy_tab_loader.h"
 #include "main_customize.h"
 #include "main_maintenance.h"
 #include "main_graph.h"
@@ -198,6 +199,56 @@ static void sysDoAudit(QTextEdit* auditLog)
 
     auditLog->append(QString("\n\xe2\x80\x94\xe2\x80\x94 %1 controlli OK, %2 avvisi \xe2\x80\x94\xe2\x80\x94")
         .arg(pass).arg(warn));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   buildGroupSistema — Gruppo esterno "🔧 Sistema": Pulizia (eager)
+   · Bug LLMs · Memoria AI · Consigli (lazy — costruite al primo clic).
+   Chiamata da LazyTabLoader al primo clic sulla tab esterna "Sistema".
+   NOTA: buildPuliziaTab() fa una scansione disco sincrona (calcFilesSize,
+   QDirIterator ricorsivo) — non più sul percorso critico dell'apertura
+   di Impostazioni (differita fino al clic su "Sistema"), ma resta un
+   candidato a diventare asincrona in futuro (vedi CLAUDE.md).
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildGroupSistema()
+{
+    auto* t = new QTabWidget;
+    t->setObjectName("settingsInnerTabs");
+    t->setDocumentMode(true);
+    t->setUsesScrollButtons(true);
+    m_tabSistema = t;
+
+    auto* inner = new LazyTabLoader(t, this);
+
+    {
+        auto* sc = new QScrollArea;
+        sc->setWidgetResizable(true);
+        sc->setFrameShape(QFrame::NoFrame);
+        sc->setWidget(buildPuliziaTab());
+        inner->addEager("\xf0\x9f\xa7\xb9  Pulizia", sc);
+    }
+
+    inner->addLazy("\xf0\x9f\x94\x8d  Bug LLMs", [this]{
+        return m_manutenzione->buildBugTracker();
+    });
+
+    inner->addLazy("\xf0\x9f\xa7\xa0  Memoria AI", [this]{
+        auto* sc = new QScrollArea;
+        sc->setWidgetResizable(true);
+        sc->setFrameShape(QFrame::NoFrame);
+        sc->setWidget(buildAiMemoryTab());
+        return sc;
+    });
+
+    inner->addLazy("\xf0\x9f\x8c\xa1\xef\xb8\x8f  Consigli", [this]{
+        auto* sc = new QScrollArea;
+        sc->setWidgetResizable(true);
+        sc->setFrameShape(QFrame::NoFrame);
+        sc->setWidget(buildSistemaConsigliTab());
+        return sc;
+    });
+
+    return t;
 }
 
 QWidget* ImpostazioniPage::buildPuliziaTab()

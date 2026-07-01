@@ -216,6 +216,11 @@ private:
     QWidget* buildSistemaConsigliTab(); ///< consigli ottimizzazione hardware/temperatura
     QWidget* buildSicurezzaWanTab();  ///< TLS WAN cert + pin + WireGuard keys
 
+    /* Gruppi lazy — costruiti solo al primo clic sulla tab esterna
+       corrispondente (vedi LazyTabLoader in settings_main.cpp) */
+    QWidget* buildGroupLlm();
+    QWidget* buildGroupSistema();
+
     /* helper invocato da populateOllama (slot onOllamaRadioToggled / onAiLocalRefreshClicked) */
     void populateOllamaModels();
     /* helper invocato da populateLlama */

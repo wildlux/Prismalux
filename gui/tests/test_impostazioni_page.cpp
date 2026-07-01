@@ -5,6 +5,8 @@
      CAT-A  AiChatParams — save/load round-trip, default sensati
      CAT-B  ImpostazioniPage — costruzione senza crash
      CAT-C  Think mode UI — 3 pulsanti con objectName "thinkModeBtn"
+     CAT-E  Navigazione lazy a due livelli (LazyTabLoader) — tab esterne
+            LLM/Sistema e sotto-tab di AI Locale si costruiscono al clic
      CAT-D  Preset "8 GB RAM" — pulsante presente, objectName corretto
 
    Build:
@@ -15,6 +17,7 @@
 #include <QtTest/QtTest>
 #include <QApplication>
 #include <QPushButton>
+#include <QTabWidget>
 
 #include "mock_ai_client.h"
 #include "../ai_client.h"
@@ -186,6 +189,23 @@ private slots:
         m_ai   = new MockAiClient;
         m_hw   = new HardwareMonitor;
         m_page = new ImpostazioniPage(m_ai, m_hw);
+
+        /* thinkModeBtn vive nella tab "Gestione LLM" (buildAiLocaleTab),
+         * costruita on-demand da LazyTabLoader (vedi widgets/lazy_tab_loader.h).
+         * Più QTabWidget condividono l'objectName "settingsInnerTabs"
+         * (AI Locale, Visuale...) — va cercata in tutti finché non si trova
+         * l'etichetta giusta, selezionarla la fa costruire prima dei test. */
+        for (auto* inner : m_page->findChildren<QTabWidget*>("settingsInnerTabs")) {
+            bool found = false;
+            for (int i = 0; i < inner->count(); ++i) {
+                if (inner->tabText(i).contains("Gestione LLM")) {
+                    inner->setCurrentIndex(i);
+                    found = true;
+                    break;
+                }
+            }
+            if (found) break;
+        }
     }
 
     void cleanupTestCase() {
@@ -220,6 +240,100 @@ private slots:
         const bool hasChecked = std::any_of(btns.begin(), btns.end(),
                                             [](auto* b){ return b->isChecked(); });
         QVERIFY2(hasChecked, "nessun thinkModeBtn checked all'avvio");
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
+   CAT-E — Navigazione lazy a due livelli (LazyTabLoader)
+   Tab esterne LLM/Sistema e sotto-tab di AI Locale restano placeholder
+   vuoti finché non selezionate — verifica che il clic le costruisca
+   davvero (contenuto reale, non più il placeholder) senza perdere/
+   duplicare tab e senza spostare la selezione sul vicino sbagliato.
+   ══════════════════════════════════════════════════════════════ */
+class TestLazyTabsNavigation : public QObject {
+    Q_OBJECT
+private:
+    MockAiClient*      m_ai   = nullptr;
+    HardwareMonitor*   m_hw   = nullptr;
+    ImpostazioniPage*  m_page = nullptr;
+
+    /* Trova la tab esterna il cui testo contiene @p label e ne ritorna
+     * l'indice; -1 se non trovata. */
+    int outerIndexFor(const QString& label) {
+        auto* outer = m_page->findChild<QTabWidget*>("settingsTabs");
+        if (!outer) return -1;
+        for (int i = 0; i < outer->count(); ++i)
+            if (outer->tabText(i).contains(label)) return i;
+        return -1;
+    }
+
+private slots:
+
+    void initTestCase() {
+        m_ai   = new MockAiClient;
+        m_hw   = new HardwareMonitor;
+        m_page = new ImpostazioniPage(m_ai, m_hw);
+    }
+
+    void cleanupTestCase() {
+        delete m_page; m_page = nullptr;
+        delete m_hw;
+        delete m_ai;
+    }
+
+    /* E-1: la tab esterna "LLM" è inizialmente un placeholder (nessun
+     * QTabWidget interno "settingsInnerTabs" con tab "Test" dentro),
+     * poi selezionandola diventa il vero gruppo con le sue sotto-tab. */
+    void tabLlmSiCostruisceAlClic() {
+        auto* outer = m_page->findChild<QTabWidget*>("settingsTabs");
+        QVERIFY(outer);
+        const int idx = outerIndexFor("LLM");
+        QVERIFY2(idx >= 0, "tab esterna 'LLM' non trovata");
+
+        outer->setCurrentIndex(idx);
+
+        auto* llmInner = qobject_cast<QTabWidget*>(outer->widget(idx));
+        QVERIFY2(llmInner, "il placeholder non è stato sostituito da un QTabWidget reale");
+        QVERIFY2(llmInner->count() >= 4,
+                 qPrintable(QString("attese >=4 sotto-tab in LLM, trovate %1").arg(llmInner->count())));
+
+        bool hasTest = false;
+        for (int i = 0; i < llmInner->count(); ++i)
+            if (llmInner->tabText(i).contains("Test")) hasTest = true;
+        QVERIFY2(hasTest, "sotto-tab 'Test' assente dopo la costruzione lazy");
+    }
+
+    /* E-2: la selezione resta sulla tab appena cliccata (removeTab non
+     * deve spostarla su un vicino — vedi setCurrentIndex esplicito in
+     * LazyTabLoader::onCurrentChanged). */
+    void selezioneRestaSullaTabCliccata() {
+        auto* outer = m_page->findChild<QTabWidget*>("settingsTabs");
+        QVERIFY(outer);
+        const int idx = outerIndexFor("Sistema");
+        QVERIFY2(idx >= 0, "tab esterna 'Sistema' non trovata");
+
+        outer->setCurrentIndex(idx);
+        QCOMPARE(outer->currentIndex(), idx);
+
+        auto* sistemaInner = qobject_cast<QTabWidget*>(outer->widget(idx));
+        QVERIFY2(sistemaInner, "il placeholder 'Sistema' non è stato sostituito");
+        QVERIFY2(sistemaInner->count() >= 4,
+                 qPrintable(QString("attese >=4 sotto-tab in Sistema, trovate %1").arg(sistemaInner->count())));
+    }
+
+    /* E-3: ri-selezionare una tab già costruita non la ricostruisce né
+     * cambia il conteggio delle sotto-tab (idempotenza). */
+    void riselezioneNonRicostruisce() {
+        auto* outer = m_page->findChild<QTabWidget*>("settingsTabs");
+        QVERIFY(outer);
+        const int idx = outerIndexFor("LLM");
+        QVERIFY2(idx >= 0, "tab esterna 'LLM' non trovata");
+
+        outer->setCurrentIndex(idx);
+        auto* firstBuild = outer->widget(idx);
+        outer->setCurrentIndex(0);
+        outer->setCurrentIndex(idx);
+        QCOMPARE(outer->widget(idx), firstBuild);
     }
 };
 
@@ -278,6 +392,7 @@ int main(int argc, char* argv[])
         TestAiChatParamsRoundTrip t1; status |= QTest::qExec(&t1, argc, argv);
         TestImpostazioniCostruzione t2; status |= QTest::qExec(&t2, argc, argv);
         TestThinkModeUI           t3; status |= QTest::qExec(&t3, argc, argv);
+        TestLazyTabsNavigation    t5; status |= QTest::qExec(&t5, argc, argv);
         TestPreset                t4; status |= QTest::qExec(&t4, argc, argv);
     }
     return status;

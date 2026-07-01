@@ -391,31 +391,66 @@ insiemi (`\mathbb{R} \mathbb{Z} \in \subset \cap`), funzioni (`\sin \cos \ln \ex
 attributi (`\vec{a} \hat{a} \dot{a}`), parentesi scalabili (`\left( \right)`).
 Delimitatori: `\(...\)` inline, `\[...\]` display.
 
-## Costo apertura Impostazioni (`ImpostazioniPage`, `settings_main.cpp`)
+## Avvio lazy di ImpostazioniPage (`widgets/lazy_tab_loader.h`)
 
-A differenza di `MainWindow` (vedi "Avvio lazy delle tab principali"),
-`ImpostazioniPage` costruisce **tutte** le sue ~30 tab/sotto-tab eager nel
-costruttore — nessun `ensureTabBuilt()` qui. Costo misurato (profiling
-temporaneo con `QElapsedTimer`, poi rimosso): ~1000-1400ms alla prima
-apertura (`ensureSettingsDialog()` in mainwindow.cpp la costruisce una
-sola volta, riusata alle aperture successive — il costo è quindi one-shot
-per sessione, non ripetuto ad ogni click su ⚙️).
+`ImpostazioniPage` costruiva **tutte** le sue ~30 tab/sotto-tab eager nel
+costruttore — nessuna laziness, a differenza di `MainWindow`. Costo
+originale misurato (profiling temporaneo con `QElapsedTimer`, poi rimosso):
+~1000-1400ms alla prima apertura di Impostazioni (`ensureSettingsDialog()`
+in mainwindow.cpp la costruisce una sola volta, riusata alle aperture
+successive — costo one-shot per sessione, non ripetuto ad ogni click su ⚙️).
 
-**Fix applicato**: `buildTestTab()` (Registro Test, tab LLM→Test) costruiva
-eager le 25 pagine di dettaglio in un `QStackedWidget` pur mostrandone una
-sola alla volta (~10 QLabel RichText per pagina, HTML da parsare/layoutare)
-— costo isolato ~465ms. Ora solo un placeholder vuoto occupa ogni slot;
-`buildDetailPage(i)` costruisce la pagina reale alla prima selezione
-(`selectItem()`), sostituendo il placeholder con `removeWidget`+
-`insertWidget` (stesso pattern di `ensureTabBuilt()` in mainwindow.cpp).
-Risultato: ~465ms → ~45ms per quel tab, costruttore totale -25/-30%.
+**`LazyTabLoader`** (`widgets/lazy_tab_loader.h`) generalizza il pattern
+`ensureTabBuilt()` di `MainWindow` per qualunque `QTabWidget`: `addEager()`
+per la prima tab (obbligatoria — `QTabWidget` non emette `currentChanged`
+per lo stato iniziale), `addLazy(label, factory)` per le altre, costruite
+al primo `currentChanged` verso quell'indice (clic utente o ricerca tab)
+sostituendo un placeholder vuoto via `removeTab`+`insertTab`+
+`setCurrentIndex` esplicito (necessario: `removeTab` sulla tab corrente
+può spostare la selezione su un vicino). Nessun `Q_OBJECT`/moc richiesto
+— `onCurrentChanged` è un metodo pubblico normale, il connect per
+puntatore-a-membro non lo richiede.
 
-**Non ancora affrontato**: `buildPuliziaTab()` (tab Sistema→Pulizia) chiama
-`calcFilesSize()` — scansione ricorsiva sincrona (`QDirIterator` +
-`Subdirectories`) su più cartelle (EXPORT/, /tmp, cache) — costo isolato
-~185ms, bloccante nel costruttore. Andrebbe reso asincrono (QtConcurrent o
-timer differito con label "calcolo...") oppure l'intera `ImpostazioniPage`
-andrebbe convertita a lazy-tab come `MainWindow`.
+**Applicato a due livelli**:
+- **Esterno** (`m_tabs`, ~10 tab): solo "AI Locale" (default) e "Visuale"
+  (serve subito a `setGraficoCanvas()`, chiamata da mainwindow.cpp appena
+  dopo il costruttore) restano eager. LLM/Sistema/MCP/Gestione MCP/
+  Feedback/Ringraziamenti/Sicurezza WAN/Profili Modello sono lazy —
+  `buildGroupLlm()` (settings_llm.cpp) e `buildGroupSistema()`
+  (settings_system.cpp) costruiscono i due gruppi con sotto-tab quando
+  richiesti.
+- **Interno** (dentro "AI Locale", 12 sotto-tab): solo "Connessione"
+  resta eager, le altre 11 (Hardware/Gestione LLM/Parametri AI/RAG/
+  Voce&Audio/Sandbox/Moduli Python/Aggiornamenti Sistema/Fine-tuning/
+  llama.cpp Studio/Avanzate) sono lazy. Stesso trattamento per i gruppi
+  LLM (solo "LLM Consigliati" eager) e Sistema (solo "Pulizia" eager) una
+  volta che l'utente li apre.
+
+**Risultato misurato** (profiling temporaneo, poi rimosso): costruttore
+`ImpostazioniPage` da ~1000-1400ms a **~140ms** (prima apertura nel
+processo) / **~50ms** (aperture successive, cache calde) — riduzione
+~90%. Vedi anche il fix precedente di `buildTestTab()` (25 pagine
+`QStackedWidget` da eager a lazy, ~465ms→~45ms), ora reso ridondante
+dal fatto che l'intero gruppo LLM è lazy, ma mantenuto perché comunque
+corretto anche a gruppo già costruito.
+
+**Trappola incontrata**: `findChild<QTabWidget*>("settingsInnerTabs")`
+nei test trova il PRIMO match per objectName — con più `QTabWidget`
+interni che condividono lo stesso objectName (AI Locale, Visuale, ...) va
+usato `findChildren` e cercato esplicitamente per testo della tab, non
+assunto quale istanza si ottenga.
+
+**Non ancora affrontato**: `buildPuliziaTab()` (tab Sistema→Pulizia,
+eager nel gruppo Sistema) chiama `calcFilesSize()` — scansione ricorsiva
+sincrona (`QDirIterator` + `Subdirectories`) su più cartelle (EXPORT/,
+/tmp, cache) — costo isolato ~185ms. Non più sul percorso critico
+dell'apertura di Impostazioni (parte solo al clic su "Sistema"), ma
+resta bloccante per chi visita quella tab. Candidato a diventare
+asincrono (QtConcurrent + label "calcolo...").
+
+Test: `test_impostazioni_page.cpp` CAT-E (`TestLazyTabsNavigation`) — tab
+LLM/Sistema si costruiscono al clic, la selezione resta su quella
+cliccata, ri-selezionare una tab già costruita non la ricostruisce.
 
 ## Aggiornamenti Sistema (`widgets/widget_docker_update.h` + `widget_python_update.h`)
 
@@ -633,7 +668,7 @@ ctest --test-dir gui/build_tests --exclude-regex "AiIntegration|AiStress|TeamCol
 | `LanWanCore` | `test_lan_wan_core` | timingSafeEqual, token LAN, rate limit, lifecycle; CAT-E `LanWanPage` rubrica persone (`m_accessListTable` round-trip QSettings `lan/accessList`, addRow, remove, persistenza tra istanze) |
 | `LanServerEndpoints` | `test_lan_server_endpoints` | /knowledge (GET/POST), /apk, requestHandled signal |
 | `Onboarding` | `test_onboarding` | QSettings, token LAN, rate limiter |
-| `ImpostazioniPage` | `test_impostazioni_page` | AiChatParams round-trip, ThinkMode, preset |
+| `ImpostazioniPage` | `test_impostazioni_page` | AiChatParams round-trip, ThinkMode, preset; CAT-E navigazione lazy a due livelli (LazyTabLoader) |
 | `ThemeManager` | `test_theme_manager` | lista temi, ops |
 | `ThemeManagerCrash` | `test_theme_manager_crash` | fix ABRT Signal 6 (parent=nullptr), lifetime singleton |
 | `Grafico` | `test_grafico` | canvas, formula parser integrazione |

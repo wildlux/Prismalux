@@ -1,6 +1,7 @@
 #include "settings_main.h"
 #include "../log_bus.h"
 #include "../dpi_utils.h"
+#include "../widgets/lazy_tab_loader.h"
 #include <QPixmap>
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
@@ -66,6 +67,48 @@ namespace P = PrismaluxPaths;
 #include <QDialogButtonBox>
 #include <QDialog>
 #include <QRegularExpression>
+
+/* ══════════════════════════════════════════════════════════════
+   buildGroupLlm — Gruppo esterno "🤖 LLM": LLM Consigliati (eager)
+   · Classifica · Benchmark · Test (lazy — costruite al primo clic).
+   Chiamata da LazyTabLoader al primo clic sulla tab esterna "LLM".
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ImpostazioniPage::buildGroupLlm()
+{
+    auto* t = new QTabWidget;
+    t->setObjectName("settingsInnerTabs");
+    t->setDocumentMode(true);
+    t->setUsesScrollButtons(true);
+    m_tabLlm = t;
+
+    auto* inner = new LazyTabLoader(t, this);
+
+    inner->addEager("\xf0\x9f\xa4\x96  LLM", buildLlmConsigliatiTab());
+
+    inner->addLazy("\xf0\x9f\x93\x8a  Classifica", [this]{
+        return buildLlmClassificaTab();
+    });
+
+    inner->addLazy("\xf0\x9f\x93\x88  Benchmark", [this]{
+        return buildBenchmarkLocaleTab();
+    });
+
+    inner->addLazy("\xf0\x9f\xa7\xaa  Test", [this]{
+        auto* sc  = new QScrollArea;
+        sc->setWidgetResizable(true);
+        sc->setFrameShape(QFrame::NoFrame);
+        auto* w   = new QWidget;
+        auto* l   = new QVBoxLayout(w);
+        l->setContentsMargins(0, 0, 0, 0);
+        l->setSpacing(0);
+        l->addWidget(buildTestTab());
+        l->addStretch();
+        sc->setWidget(w);
+        return sc;
+    });
+
+    return t;
+}
 
 QWidget* ImpostazioniPage::buildTestTab()
 {

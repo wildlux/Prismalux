@@ -4,6 +4,7 @@
 #include "../dpi_utils.h"
 #include "../widgets/toggle_switch.h"
 #include "../widgets/stt_whisper.h"
+#include "../widgets/lazy_tab_loader.h"
 #include "main_customize.h"
 #include "main_maintenance.h"
 #include "main_graph.h"
@@ -84,6 +85,7 @@ static QTabWidget* _makeInner(QWidget* parent)
     return t;
 }
 
+
 ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* parent)
     : QWidget(parent), m_ai(ai)
 {
@@ -95,6 +97,12 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
     auto* tabs = m_tabs;
     tabs->setObjectName("settingsTabs");
 
+    /* Gestisce TUTTE le tab esterne fin dalla prima — gli indici del suo
+     * bookkeeping interno devono restare allineati a tabs->widget(i), quindi
+     * anche le tab eager (AI Locale, Visuale) passano da addEager() invece
+     * di un tabs->addTab() diretto. */
+    auto* outer = new LazyTabLoader(tabs, this);
+
     /* Factory widget senza presenza visiva propria — espongono solo buildXxx() */
     m_manutenzione = new ManutenzioneePage(ai, hw, this);
     m_manutenzione->hide();
@@ -102,40 +110,45 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
     m_personalizza->hide();
 
     /* ════════════════════════════════════════════════════════════
-       Gruppo 1: 🦙 AI Locale
-       Connessione · Hardware · AI Locale · Parametri AI · RAG
-       · Voce & Audio · Avanzate
+       Gruppo 1: 🦙 AI Locale (tab esterna EAGER — è quella di default)
+       Connessione (eager) · Hardware · Gestione LLM · Parametri AI · RAG
+       · Voce & Audio · Sandbox · Moduli Python · Aggiornamenti Sistema
+       · Fine-tuning · llama.cpp Studio · Avanzate (lazy — costruite al clic)
        ════════════════════════════════════════════════════════════ */
     {
         m_tabAiLocale = _makeInner(this);
         auto* t = m_tabAiLocale;
+        auto* inner = new LazyTabLoader(t, this);
 
-        t->addTab(m_manutenzione->buildBackend(),
-                  "\xf0\x9f\x94\x8c  Connessione");
+        inner->addEager(
+            "\xf0\x9f\x94\x8c  Connessione",
+            m_manutenzione->buildBackend());
 
-        t->addTab(m_manutenzione->buildHardware(),
-                  "\xf0\x9f\x96\xa5  Hardware");
+        inner->addLazy("\xf0\x9f\x96\xa5  Hardware", [this]{
+            return m_manutenzione->buildHardware();
+        });
 
-        t->addTab(buildAiLocaleTab(),
-                  "\xf0\x9f\xa6\x99  Gestione LLM");
+        inner->addLazy("\xf0\x9f\xa6\x99  Gestione LLM", [this]{
+            return buildAiLocaleTab();
+        });
 
-        {
+        inner->addLazy("\xe2\x9a\x99\xef\xb8\x8f  Parametri AI", [this]{
             auto* sc = new QScrollArea;
             sc->setWidgetResizable(true);
             sc->setFrameShape(QFrame::NoFrame);
             sc->setWidget(buildAiParamsTab());
-            t->addTab(sc, "\xe2\x9a\x99\xef\xb8\x8f  Parametri AI");
-        }
+            return sc;
+        });
 
-        {
+        inner->addLazy("\xf0\x9f\x93\x9a  RAG", [this]{
             auto* sc = new QScrollArea;
             sc->setWidgetResizable(true);
             sc->setFrameShape(QFrame::NoFrame);
             sc->setWidget(buildRagTab());
-            t->addTab(sc, "\xf0\x9f\x93\x9a  RAG");
-        }
+            return sc;
+        });
 
-        {
+        inner->addLazy("\xf0\x9f\x8e\xa4  Voce & Audio", [this]{
             auto* leftScroll = new QScrollArea;
             leftScroll->setWidgetResizable(true);
             leftScroll->setFrameShape(QFrame::NoFrame);
@@ -158,30 +171,34 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
             spl->addWidget(leftScroll);
             spl->addWidget(rightScroll);
             spl->setSizes({ 520, 480 });   /* TTS leggermente più largo */
-            t->addTab(spl, "\xf0\x9f\x8e\xa4  Voce & Audio");
-        }
+            return spl;
+        });
 
-        {
+        inner->addLazy("\xf0\x9f\x90\xb3  Sandbox", [this]{
             auto* sc = new QScrollArea;
             sc->setWidgetResizable(true);
             sc->setFrameShape(QFrame::NoFrame);
             sc->setWidget(buildSandboxTab());
-            t->addTab(sc, "\xf0\x9f\x90\xb3  Sandbox");
-        }
+            return sc;
+        });
 
-        t->addTab(buildPythonDepsTab(),
-                  "\xf0\x9f\x90\x8d  Moduli Python");
+        inner->addLazy("\xf0\x9f\x90\x8d  Moduli Python", [this]{
+            return buildPythonDepsTab();
+        });
 
-        t->addTab(m_manutenzione->buildSystemUpdates(),
-                  "\xf0\x9f\x94\x84  Aggiornamenti Sistema");
+        inner->addLazy("\xf0\x9f\x94\x84  Aggiornamenti Sistema", [this]{
+            return m_manutenzione->buildSystemUpdates();
+        });
 
-        t->addTab(m_personalizza->buildLoraTab(),
-                  "\xf0\x9f\xa7\xa0  Fine-tuning");
+        inner->addLazy("\xf0\x9f\xa7\xa0  Fine-tuning", [this]{
+            return m_personalizza->buildLoraTab();
+        });
 
-        t->addTab(m_personalizza->buildLlamaStudio(),
-                  "\xf0\x9f\xa6\x99  llama.cpp Studio");
+        inner->addLazy("\xf0\x9f\xa6\x99  llama.cpp Studio", [this]{
+            return m_personalizza->buildLlamaStudio();
+        });
 
-        {
+        inner->addLazy("\xf0\x9f\x93\x8a  Avanzate", [this, ai, hw]{
             auto* w = new QWidget;
             auto* l = new QVBoxLayout(w);
             l->setContentsMargins(0, 0, 0, 0);
@@ -190,124 +207,36 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
             mon->setWindowFlags(Qt::Widget);
             mon->setMinimumSize(0, 0);
             l->addWidget(mon, 1);
-            t->addTab(w, "\xf0\x9f\x93\x8a  Avanzate");
-        }
+            return w;
+        });
 
-        tabs->addTab(t, "\xf0\x9f\xa6\x99  AI Locale");
+        outer->addEager("\xf0\x9f\xa6\x99  AI Locale", t);
     }
 
     /* ════════════════════════════════════════════════════════════
-       Gruppo 2: 🤖 LLM
-       LLM Consigliati · Classifica · Test
-       ════════════════════════════════════════════════════════════ */
-    {
-        m_tabLlm = _makeInner(this);
-        auto* t  = m_tabLlm;
-
-        t->addTab(buildLlmConsigliatiTab(),
-                  "\xf0\x9f\xa4\x96  LLM");
-
-        t->addTab(buildLlmClassificaTab(),
-                  "\xf0\x9f\x93\x8a  Classifica");
-
-        t->addTab(buildBenchmarkLocaleTab(),
-                  "\xf0\x9f\x93\x88  Benchmark");
-
-        {
-            auto* sc  = new QScrollArea;
-            sc->setWidgetResizable(true);
-            sc->setFrameShape(QFrame::NoFrame);
-            auto* w   = new QWidget;
-            auto* l   = new QVBoxLayout(w);
-            l->setContentsMargins(0, 0, 0, 0);
-            l->setSpacing(0);
-            l->addWidget(buildTestTab());
-            l->addStretch();
-            sc->setWidget(w);
-            t->addTab(sc, "\xf0\x9f\xa7\xaa  Test");
-        }
-
-        tabs->addTab(t, "\xf0\x9f\xa4\x96  LLM");
-    }
-
-    /* ════════════════════════════════════════════════════════════
-       Gruppo 3: 🎨 Visuale
-       Aspetto (temi) · Grafico (aggiunto dinamicamente via setGraficoCanvas)
+       Gruppo 3: 🎨 Visuale (tab esterna EAGER — setGraficoCanvas() la
+       usa subito dopo il costruttore, m_tabVisuale deve esistere già)
        ════════════════════════════════════════════════════════════ */
     {
         m_tabVisuale = _makeInner(this);
         m_tabVisuale->addTab(buildTemaTab(), "\xf0\x9f\x8e\xa8  Aspetto");
         // Il sub-tab "Grafico" viene aggiunto dopo dalla chiamata setGraficoCanvas()
-        tabs->addTab(m_tabVisuale, "\xf0\x9f\x8e\xa8  Visuale");
+        outer->addEager("\xf0\x9f\x8e\xa8  Visuale", m_tabVisuale);
     }
 
     /* ════════════════════════════════════════════════════════════
-       Gruppo 4: 🔧 Sistema
-       Pulizia · Bug Tracker · Cron
+       Tab esterne LAZY — costruite al primo clic (o dalla ricerca tab).
+       "AI Locale" e "Visuale" restano eager sopra per i motivi già detti;
+       tutte le altre non hanno dipendenze esterne e possono attendere.
        ════════════════════════════════════════════════════════════ */
-    {
-        m_tabSistema = _makeInner(this);
-        auto* t      = m_tabSistema;
-
-        {
-            auto* sc = new QScrollArea;
-            sc->setWidgetResizable(true);
-            sc->setFrameShape(QFrame::NoFrame);
-            sc->setWidget(buildPuliziaTab());
-            t->addTab(sc, "\xf0\x9f\xa7\xb9  Pulizia");
-        }
-
-        t->addTab(m_manutenzione->buildBugTracker(),
-                  "\xf0\x9f\x94\x8d  Bug LLMs");
-
-        {
-            auto* sc = new QScrollArea;
-            sc->setWidgetResizable(true);
-            sc->setFrameShape(QFrame::NoFrame);
-            sc->setWidget(buildAiMemoryTab());
-            t->addTab(sc, "\xf0\x9f\xa7\xa0  Memoria AI");
-        }
-
-        {
-            auto* sc = new QScrollArea;
-            sc->setWidgetResizable(true);
-            sc->setFrameShape(QFrame::NoFrame);
-            sc->setWidget(buildSistemaConsigliTab());
-            t->addTab(sc, "\xf0\x9f\x8c\xa1\xef\xb8\x8f  Consigli");
-        }
-
-        tabs->addTab(t, "\xf0\x9f\x94\xa7  Sistema");
-    }
-
-    /* ════════════════════════════════════════════════════════════
-       Tab 5: 🔌 MCP — configurazione Model Context Protocol
-       ════════════════════════════════════════════════════════════ */
-    tabs->addTab(buildMcpTab(), "\xf0\x9f\x94\x8c  MCP");
-
-    /* ════════════════════════════════════════════════════════════
-       Tab 5b: 🔌 Gestione MCP — McpManagerPage spostato da AppController
-       ════════════════════════════════════════════════════════════ */
-    tabs->addTab(new McpManagerPage(tabs), "\xf0\x9f\x94\x8c  Gestione MCP");
-
-    /* ════════════════════════════════════════════════════════════
-       Tab 6: 📊 Feedback — analytics 👍/👎 + export DPO
-       ════════════════════════════════════════════════════════════ */
-    tabs->addTab(buildFeedbackTab(), "\xf0\x9f\x93\x8a  Feedback");
-
-    /* ════════════════════════════════════════════════════════════
-       Tab 7: 📜 Ringraziamenti — licenza MIT + crediti
-       ════════════════════════════════════════════════════════════ */
-    tabs->addTab(buildRingraziamentiTab(), "\xf0\x9f\x93\x9c  Ringraziamenti");
-
-    /* ════════════════════════════════════════════════════════════
-       Tab 🔒 Sicurezza WAN — certificato TLS, pin worker, WireGuard
-       ════════════════════════════════════════════════════════════ */
-    tabs->addTab(buildSicurezzaWanTab(), "\xf0\x9f\x94\x92  Sicurezza WAN");
-
-    /* ════════════════════════════════════════════════════════════
-       Tab Profili Modello — pre/post processing per-modello
-       ════════════════════════════════════════════════════════════ */
-    tabs->addTab(new ModelProfilesTab(tabs), "\xf0\x9f\x94\xa7  Profili Modello");
+    outer->addLazy("\xf0\x9f\xa4\x96  LLM",            [this]{ return buildGroupLlm(); });
+    outer->addLazy("\xf0\x9f\x94\xa7  Sistema",         [this]{ return buildGroupSistema(); });
+    outer->addLazy("\xf0\x9f\x94\x8c  MCP",             [this]{ return buildMcpTab(); });
+    outer->addLazy("\xf0\x9f\x94\x8c  Gestione MCP",    [tabs]{ return new McpManagerPage(tabs); });
+    outer->addLazy("\xf0\x9f\x93\x8a  Feedback",        [this]{ return buildFeedbackTab(); });
+    outer->addLazy("\xf0\x9f\x93\x9c  Ringraziamenti",  [this]{ return buildRingraziamentiTab(); });
+    outer->addLazy("\xf0\x9f\x94\x92  Sicurezza WAN",   [this]{ return buildSicurezzaWanTab(); });
+    outer->addLazy("\xf0\x9f\x94\xa7  Profili Modello", [tabs]{ return new ModelProfilesTab(tabs); });
 
     /* ── Campo ricerca — angolo in alto a destra della tab bar ── */
     {
