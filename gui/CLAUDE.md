@@ -391,6 +391,32 @@ insiemi (`\mathbb{R} \mathbb{Z} \in \subset \cap`), funzioni (`\sin \cos \ln \ex
 attributi (`\vec{a} \hat{a} \dot{a}`), parentesi scalabili (`\left( \right)`).
 Delimitatori: `\(...\)` inline, `\[...\]` display.
 
+## Costo apertura Impostazioni (`ImpostazioniPage`, `settings_main.cpp`)
+
+A differenza di `MainWindow` (vedi "Avvio lazy delle tab principali"),
+`ImpostazioniPage` costruisce **tutte** le sue ~30 tab/sotto-tab eager nel
+costruttore — nessun `ensureTabBuilt()` qui. Costo misurato (profiling
+temporaneo con `QElapsedTimer`, poi rimosso): ~1000-1400ms alla prima
+apertura (`ensureSettingsDialog()` in mainwindow.cpp la costruisce una
+sola volta, riusata alle aperture successive — il costo è quindi one-shot
+per sessione, non ripetuto ad ogni click su ⚙️).
+
+**Fix applicato**: `buildTestTab()` (Registro Test, tab LLM→Test) costruiva
+eager le 25 pagine di dettaglio in un `QStackedWidget` pur mostrandone una
+sola alla volta (~10 QLabel RichText per pagina, HTML da parsare/layoutare)
+— costo isolato ~465ms. Ora solo un placeholder vuoto occupa ogni slot;
+`buildDetailPage(i)` costruisce la pagina reale alla prima selezione
+(`selectItem()`), sostituendo il placeholder con `removeWidget`+
+`insertWidget` (stesso pattern di `ensureTabBuilt()` in mainwindow.cpp).
+Risultato: ~465ms → ~45ms per quel tab, costruttore totale -25/-30%.
+
+**Non ancora affrontato**: `buildPuliziaTab()` (tab Sistema→Pulizia) chiama
+`calcFilesSize()` — scansione ricorsiva sincrona (`QDirIterator` +
+`Subdirectories`) su più cartelle (EXPORT/, /tmp, cache) — costo isolato
+~185ms, bloccante nel costruttore. Andrebbe reso asincrono (QtConcurrent o
+timer differito con label "calcolo...") oppure l'intera `ImpostazioniPage`
+andrebbe convertita a lazy-tab come `MainWindow`.
+
 ## Aggiornamenti Sistema (`widgets/widget_docker_update.h` + `widget_python_update.h`)
 
 Tab Impostazioni → AI Locale → "🔄 Aggiornamenti Sistema" (`ManutenzioneePage::buildSystemUpdates()`).

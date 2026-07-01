@@ -580,42 +580,17 @@ QWidget* ImpostazioniPage::buildTestTab()
     /* ════════════════════════════════════════════════════════
        Costruisce ogni voce della lista sinistra + pagina destra
        ════════════════════════════════════════════════════════ */
-    QList<QFrame*> itemFrames;
-    for (int i = 0; i < nTests; i++) {
+    /* Pagina dettaglio costruita on-demand (lazy): con 25 suite, costruirle
+     * tutte eager nel QStackedWidget costava ~450ms nel costruttore di
+     * ImpostazioniPage anche se se ne vede una sola alla volta — ogni pagina
+     * ha ~10 QLabel RichText con HTML da parsare/layoutare. Un placeholder
+     * vuoto occupa lo slot i-esimo dello stack finché non viene selezionato. */
+    auto buildDetailPage = [detailStack](int i) {
         const auto& t   = kTests[i];
         const bool allOk  = (t.passed == t.total);
         const QString accentColor = allOk ? "#22c55e" : "#f59e0b";
 
-        /* ── Voce lista sinistra ── */
-        auto* item = new QFrame(listWidget);
-        item->setObjectName("testListItem");
-        item->setCursor(Qt::PointingHandCursor);
-        auto* irow = new QHBoxLayout(item);
-        irow->setContentsMargins(10, 8, 10, 8);
-        irow->setSpacing(8);
-
-        /* pallino colorato pass/fail */
-        auto* dot = new QLabel(item);
-        dot->setFixedSize(10, 10);
-        dot->setStyleSheet(QString(
-            "background:%1; border-radius:5px;").arg(accentColor));
-        irow->addWidget(dot);
-
-        auto* lblName = new QLabel(t.suite, item);
-        lblName->setObjectName("cardDesc");
-        lblName->setWordWrap(false);
-        irow->addWidget(lblName, 1);
-
-        auto* lblBadge = new QLabel(
-            QString("<b>%1/%2</b>").arg(t.passed).arg(t.total), item);
-        lblBadge->setTextFormat(Qt::RichText);
-        lblBadge->setStyleSheet(QString("color:%1; font-size:11px;").arg(accentColor));
-        irow->addWidget(lblBadge);
-
-        listLay->addWidget(item);
-
-        /* ── Pagina destra corrispondente ── */
-        auto* page = new QWidget(detailStack);
+        auto* page = new QWidget;
         auto* play = new QVBoxLayout(page);
         play->setContentsMargins(16, 16, 16, 16);
         play->setSpacing(10);
@@ -693,7 +668,46 @@ QWidget* ImpostazioniPage::buildTestTab()
         }
 
         play->addStretch();
-        detailStack->addWidget(page);
+        return page;
+    };
+
+    QList<QFrame*> itemFrames;
+    QVector<bool>  pageBuilt(nTests, false);
+    for (int i = 0; i < nTests; i++) {
+        const auto& t   = kTests[i];
+        const bool allOk  = (t.passed == t.total);
+        const QString accentColor = allOk ? "#22c55e" : "#f59e0b";
+
+        /* ── Voce lista sinistra ── */
+        auto* item = new QFrame(listWidget);
+        item->setObjectName("testListItem");
+        item->setCursor(Qt::PointingHandCursor);
+        auto* irow = new QHBoxLayout(item);
+        irow->setContentsMargins(10, 8, 10, 8);
+        irow->setSpacing(8);
+
+        /* pallino colorato pass/fail */
+        auto* dot = new QLabel(item);
+        dot->setFixedSize(10, 10);
+        dot->setStyleSheet(QString(
+            "background:%1; border-radius:5px;").arg(accentColor));
+        irow->addWidget(dot);
+
+        auto* lblName = new QLabel(t.suite, item);
+        lblName->setObjectName("cardDesc");
+        lblName->setWordWrap(false);
+        irow->addWidget(lblName, 1);
+
+        auto* lblBadge = new QLabel(
+            QString("<b>%1/%2</b>").arg(t.passed).arg(t.total), item);
+        lblBadge->setTextFormat(Qt::RichText);
+        lblBadge->setStyleSheet(QString("color:%1; font-size:11px;").arg(accentColor));
+        irow->addWidget(lblBadge);
+
+        listLay->addWidget(item);
+
+        /* Placeholder vuoto — sostituito da buildDetailPage(i) alla prima selezione */
+        detailStack->addWidget(new QWidget(detailStack));
 
         item->setProperty("testPageIdx", i);
         item->setProperty("accentColor", accentColor);
@@ -703,7 +717,14 @@ QWidget* ImpostazioniPage::buildTestTab()
     listLay->addStretch();
 
     /* ── Funzione highlight: aggiorna l'aspetto della voce selezionata ── */
-    auto selectItem = [itemFrames, detailStack](int idx) mutable {
+    auto selectItem = [itemFrames, detailStack, pageBuilt, buildDetailPage](int idx) mutable {
+        if (!pageBuilt[idx]) {
+            auto* placeholder = detailStack->widget(idx);
+            detailStack->removeWidget(placeholder);
+            placeholder->deleteLater();
+            detailStack->insertWidget(idx, buildDetailPage(idx));
+            pageBuilt[idx] = true;
+        }
         detailStack->setCurrentIndex(idx);
         for (int k = 0; k < itemFrames.size(); k++) {
             QFrame* fr = itemFrames[k];
