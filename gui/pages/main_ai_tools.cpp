@@ -21,6 +21,7 @@
 #include "../app_config.h"
 #include "../graph_memory.h"
 #include "../widgets/path_guard.h"
+#include "../widgets/qr_code_widget.h"
 namespace P = PrismaluxPaths;
 #include <QRegularExpression>
 #include <QJsonDocument>
@@ -29,10 +30,15 @@ namespace P = PrismaluxPaths;
 #include <QProcess>
 #include <QTimer>
 #include <QDateTime>
+#include <QLocale>
+#include <QMap>
+#include <QVector>
 #include <QTextCursor>
 #include <QFile>
 #include <QDir>
 #include <QFileInfo>
+#include <QUrl>
+#include <QUrlQuery>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QVBoxLayout>
@@ -189,7 +195,15 @@ QString AgentiPage::toolSystemSuffix()
             "\\\"tool_name\\\": \\\"get_knowledge\\\", \\\"args_json\\\": \\\"{}\\\"}\"}\n"
             "Usa mcp_call per accedere a funzionalita' avanzate non coperte dai tool built-in.");
 
+    /* Data odierna iniettata direttamente nel system prompt: i modelli piccoli/
+       locali non invocano sempre il tool get_datetime, quindi senza questa riga
+       tendono a rispondere a memoria (data del training, spesso sbagliata). */
+    const QString dateBlock = QString::fromUtf8("\n[DATA E ORA ATTUALI]: %1\n")
+        .arg(QLocale(QLocale::Italian).toString(
+            QDateTime::currentDateTime(), "dddd d MMMM yyyy, HH:mm"));
+
     return
+        dateBlock +
         QString::fromUtf8(
             "\n\n[STRUMENTI DISPONIBILI - usali solo se necessario]\n"
             "TOOL_CALL: {\"tool\": \"calc\", \"input\": \"sqrt(144)\"}\n"
@@ -203,6 +217,19 @@ QString AgentiPage::toolSystemSuffix()
             "TOOL_CALL: {\"tool\": \"lista_file\", \"input\": \"PERCORSO_ESPLICITO\"}\n"
             "TOOL_CALL: {\"tool\": \"leggi_riassunto\", \"input\": \"breve|dettagliato\"}\n"
             "TOOL_CALL: {\"tool\": \"scrivi_riassunto\", \"input\": \"breve|||testo\"}\n"
+            "TOOL_CALL: {\"tool\": \"crea_evento_calendario\", \"input\": "
+            "\"{\\\"titolo\\\":\\\"...\\\",\\\"data\\\":\\\"YYYY-MM-DD\\\","
+            "\\\"ora_inizio\\\":\\\"HH:MM\\\",\\\"ora_fine\\\":\\\"HH:MM\\\","
+            "\\\"luogo\\\":\\\"...\\\",\\\"descrizione\\\":\\\"...\\\","
+            "\\\"formato\\\":\\\"google|ics|entrambi\\\"}\"}\n"
+            "crea_evento_calendario: genera un QR code per aggiungere un evento al "
+            "calendario del telefono. PRIMA di chiamarlo, fai le domande necessarie "
+            "una alla volta in italiano (titolo, data, orario, luogo — descrizione e "
+            "formato QR sono opzionali, chiedi il formato solo se l'utente non lo "
+            "specifica) — NON inventare mai titolo o data. Chiama il tool solo quando "
+            "hai raccolto almeno titolo e data. Se il tool risponde con un messaggio "
+            "che chiede altri dati, fai la domanda mancante e NON richiamare il tool "
+            "finché l'utente non risponde.\n"
             "Scrivi UNA riga TOOL_CALL: {...} e attendi TOOL_RESULT.\n"
             "REGOLA FILE: usa leggi_file/lista_file SOLO con percorsi forniti dall'utente\n"
             "o dentro la cartella del progetto:\n") +
@@ -706,7 +733,7 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             .arg(utc.toString("yyyy-MM-dd HH:mm:ss"))
             .arg(local.timeZone().abbreviation(local))
             .arg(sign).arg(offsetH, 2, 10, QLatin1Char('0')).arg(offsetM, 2, 10, QLatin1Char('0'))
-            .arg(local.toString("dddd"))
+            .arg(QLocale(QLocale::Italian).toString(local.date(), "dddd"))
             .arg(local.date().weekNumber())
             .arg(local.toSecsSinceEpoch()));
         return;
@@ -819,17 +846,27 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             const double diffSec = static_cast<double>(now.secsTo(targetDt));
             if (diffSec < 0) {
                 onDone(QString("La data %1 e' gia' passata (%2 fa).")
-                    .arg(target.toString("d MMMM yyyy"), fmtVal(-diffSec / uSec, unitWord)));
+                    .arg(QLocale(QLocale::Italian).toString(target, "d MMMM yyyy"),
+                         fmtVal(-diffSec / uSec, unitWord)));
                 return;
             }
 
             // Calcolo "calendario" per mesi/giorni/settimane, secondi per le altre
             QString result;
             if (unitWord == "mesi" || unitWord == "mese") {
-                // monthsTo non esiste in Qt6: calcolo manuale con anno/mese
-                const int months = (target.year() - now.date().year()) * 12
-                                   + (target.month() - now.date().month());
-                const int remD   = now.date().addMonths(months).daysTo(target);
+                // monthsTo non esiste in Qt6: calcolo manuale con anno/mese.
+                // Se il giorno del mese di "target" è precedente a quello di
+                // "oggi" (es. oggi 3 luglio → target 1 dicembre), il conteggio
+                // grezzo (mesi interi) supera il target di qualche giorno:
+                // va scalato di 1 mese e ricalcolato il resto in giorni,
+                // altrimenti si arrotonda per eccesso in modo silenzioso.
+                int months = (target.year() - now.date().year()) * 12
+                             + (target.month() - now.date().month());
+                int remD   = static_cast<int>(now.date().addMonths(months).daysTo(target));
+                if (remD < 0) {
+                    --months;
+                    remD = static_cast<int>(now.date().addMonths(months).daysTo(target));
+                }
                 result = QString("%1 mesi").arg(months);
                 if (remD > 0) result += QString(" e %1 giorni").arg(remD);
             } else if (unitWord == "giorni" || unitWord == "giorno") {
@@ -841,7 +878,8 @@ void AgentiPage::runToolCall(const QJsonObject& call,
                 result = fmtVal(diffSec / uSec, unitWord);
             }
             onDone(QString("Da oggi (%1) al %2: **%3**")
-                .arg(now.toString("d MMMM yyyy"), target.toString("d MMMM yyyy"), result));
+                .arg(QLocale(QLocale::Italian).toString(now.date(), "d MMMM yyyy"),
+                     QLocale(QLocale::Italian).toString(target, "d MMMM yyyy"), result));
             return;
         }
 
@@ -904,6 +942,148 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             "TOOL_CALL: {\"tool\": \"date_calc\", \"input\": \"converti minuti in giorni\"}\n"
             "TOOL_CALL: {\"tool\": \"date_calc\", \"input\": \"quanti secondi sono un anno solare\"}\n"
             "TOOL_CALL: {\"tool\": \"date_calc\", \"input\": \"quanti minuti sono 3 giorni\"}");
+        return;
+    }
+
+    /* ── crea_evento_calendario — genera QR code per aggiungere un evento
+     * al calendario dello smartphone. Input JSON:
+     *   {"titolo","data" (YYYY-MM-DD),"ora_inizio" (HH:MM, opz.),
+     *    "ora_fine" (HH:MM, opz.),"luogo" (opz.),"descrizione" (opz.),
+     *    "formato": "google"|"ics"|"entrambi" (opz., default "google")}
+     * Se mancano titolo/data ritorna un messaggio guida (NON un errore
+     * secco) così l'LLM capisce di dover chiedere il campo mancante
+     * all'utente invece di inventarlo.
+     * Ritorna una stringa con prefisso QR_EVENTO_JSON: intercettata
+     * direttamente da runPipeline() per inserire l'immagine nella bolla
+     * — non si passa dall'LLM per il rendering (stessa logica del motivo
+     * per cui _inject_date_calc bypassa l'LLM: niente affidabilità da
+     * garantire su un output che deve restare byte-per-byte esatto). ── */
+    if (tool == "crea_evento_calendario" || tool == "evento_calendario" || tool == "qr_evento") {
+        const QJsonObject o = QJsonDocument::fromJson(input.toUtf8()).object();
+        const QString titolo = o.value("titolo").toString().trimmed();
+        const QString dataS  = o.value("data").toString().trimmed();
+        if (titolo.isEmpty() || dataS.isEmpty()) {
+            onDone("Mancano dati per creare l'evento: servono almeno 'titolo' e 'data' "
+                   "(formato YYYY-MM-DD). Chiedi all'utente i campi mancanti prima di "
+                   "richiamare questo tool — titolo, data, ora inizio, ora fine (opz.), "
+                   "luogo (opz.), descrizione (opz.), formato QR (google/ics/entrambi).");
+            return;
+        }
+
+        const QDate data = QDate::fromString(dataS, "yyyy-MM-dd");
+        if (!data.isValid()) {
+            onDone("Data non valida: '" + dataS + "'. Usa il formato YYYY-MM-DD (es. 2026-07-15).");
+            return;
+        }
+        QTime oraInizio = QTime::fromString(o.value("ora_inizio").toString(), "HH:mm");
+        if (!oraInizio.isValid()) oraInizio = QTime(9, 0);
+        QTime oraFine = QTime::fromString(o.value("ora_fine").toString(), "HH:mm");
+        if (!oraFine.isValid() || oraFine <= oraInizio) oraFine = oraInizio.addSecs(3600);
+
+        const QString luogo       = o.value("luogo").toString();
+        const QString descrizione = o.value("descrizione").toString();
+        QString formato = o.value("formato").toString().toLower().trimmed();
+        if (formato != "ics" && formato != "entrambi") formato = "google";
+
+        const QDateTime start(data, oraInizio);
+        const QDateTime end(data, oraFine);
+
+        /* Cartella persistente per .ics + PNG generati */
+        const QString dir = QDir::homePath() + "/.prismalux/calendar_events";
+        QDir().mkpath(dir);
+        const QString slug = titolo.toLower()
+            .replace(QRegularExpression("[^a-z0-9]+"), "_")
+            .left(40);
+        const QString stamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+        const QString base  = dir + "/" + slug + "_" + stamp;
+
+        QJsonArray pngs, labels;
+
+        /* ── Formato Google Calendar: URL con parametri, massima compatibilità ── */
+        if (formato == "google" || formato == "entrambi") {
+            QUrlQuery q;
+            q.addQueryItem("action", "TEMPLATE");
+            q.addQueryItem("text", titolo);
+            q.addQueryItem("dates", start.toString("yyyyMMdd'T'HHmmss") + "/"
+                                   + end.toString("yyyyMMdd'T'HHmmss"));
+            if (!descrizione.isEmpty()) q.addQueryItem("details", descrizione);
+            if (!luogo.isEmpty())       q.addQueryItem("location", luogo);
+            QUrl url("https://calendar.google.com/calendar/render");
+            url.setQuery(q);
+
+            const QImage img = QrCodeWidget::renderImage(url.toString());
+            if (!img.isNull()) {
+                const QString path = base + "_google.png";
+                if (img.save(path, "PNG")) {
+                    pngs.append(path);
+                    labels.append("Google Calendar");
+                }
+            }
+        }
+
+        /* ── Formato .ics universale: VEVENT embeddato nel QR (letto da molte
+         * fotocamere native Android/iOS) + file .ics salvato per import
+         * manuale su qualunque calendario (fallback se lo scanner non lo
+         * riconosce). Orari in UTC con 'Z' per portabilità tra fusi. ── */
+        QString icsPath;
+        if (formato == "ics" || formato == "entrambi") {
+            const QString uid = slug + "_" + stamp + "@prismalux";
+            const QString ics = QString(
+                "BEGIN:VCALENDAR\r\n"
+                "VERSION:2.0\r\n"
+                "PRODID:-//Prismalux//Evento//IT\r\n"
+                "BEGIN:VEVENT\r\n"
+                "UID:%1\r\n"
+                "DTSTAMP:%2\r\n"
+                "DTSTART:%3\r\n"
+                "DTEND:%4\r\n"
+                "SUMMARY:%5\r\n"
+                "LOCATION:%6\r\n"
+                "DESCRIPTION:%7\r\n"
+                "END:VEVENT\r\n"
+                "END:VCALENDAR\r\n")
+                .arg(uid,
+                     QDateTime::currentDateTimeUtc().toString("yyyyMMdd'T'HHmmss'Z'"),
+                     start.toUTC().toString("yyyyMMdd'T'HHmmss'Z'"),
+                     end.toUTC().toString("yyyyMMdd'T'HHmmss'Z'"),
+                     titolo, luogo, descrizione);
+
+            icsPath = base + ".ics";
+            QFile f(icsPath);
+            if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                f.write(ics.toUtf8());
+                f.close();
+            }
+
+            const QImage img = QrCodeWidget::renderImage(ics);
+            if (!img.isNull()) {
+                const QString path = base + "_ics.png";
+                if (img.save(path, "PNG")) {
+                    pngs.append(path);
+                    labels.append("Universale (.ics)");
+                }
+            }
+        }
+
+        if (pngs.isEmpty()) {
+            onDone("Errore: non sono riuscito a generare il QR code per l'evento.");
+            return;
+        }
+
+        QJsonObject res;
+        res["pngs"]   = pngs;
+        res["labels"] = labels;
+        if (!icsPath.isEmpty()) res["ics_file"] = icsPath;
+        res["testo"] = QString(
+            "Evento \"%1\" pronto per il %2 dalle %3 alle %4%5. "
+            "Scansiona il QR con la fotocamera del telefono per aggiungerlo al calendario.")
+            .arg(titolo,
+                 QLocale(QLocale::Italian).toString(data, "dddd d MMMM yyyy"),
+                 oraInizio.toString("HH:mm"), oraFine.toString("HH:mm"),
+                 luogo.isEmpty() ? QString() : (" presso " + luogo));
+
+        onDone("QR_EVENTO_JSON:" + QString::fromUtf8(
+            QJsonDocument(res).toJson(QJsonDocument::Compact)));
         return;
     }
 
@@ -1206,6 +1386,120 @@ void AgentiPage::runToolCall(const QJsonObject& call,
     }
 
     onDone(QString("strumento non riconosciuto: %1").arg(tool));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _inject_date_calc — intercetta "quanti X mancano a/al DATA" e calcola
+   localmente con QDate reale, invece di lasciare che l'LLM ci provi da
+   solo: i modelli piccoli/locali sbagliano quasi sempre l'aritmetica di
+   calendario (osservato: "quanti mesi mancano a dicembre" → risposta
+   incoerente "31-28=3 giorni... 3 mesi"). Duplica la logica del Pattern 1
+   del tool date_calc qui sopra (stesso regex) invece di chiamare onDone():
+   ritorna una stringa, per essere usata nella catena _inject_* prima
+   dell'invio all'LLM. Stesso stile di _inject_science/_inject_random.
+   ══════════════════════════════════════════════════════════════ */
+QString _inject_date_calc(const QString& task)
+{
+    const QString ql = task.toLower().trimmed();
+    if (ql.length() > 300) return task;
+
+    static const QRegularExpression reQ1(
+        R"(quanti\s+(\w+)\s+mancano\s+(.+))",
+        QRegularExpression::CaseInsensitiveOption);
+    const auto m1 = reQ1.match(ql);
+    if (!m1.hasMatch()) return task;
+
+    const QString unitWord = m1.captured(1);
+    QString rest = m1.captured(2).trimmed();
+    static const QRegularExpression rePrep(
+        R"(^(?:a|al|alla|allo|agli|alle|all'?|fino\s+a|sino\s+a)(?:\s*evento\s+di|\s*appuntamento\s+di|\s*scadenza\s+di)?\s*)",
+        QRegularExpression::CaseInsensitiveOption);
+    rest.remove(rePrep);
+
+    struct UDef { QStringList n; double s; };
+    static const QVector<UDef> kU = {
+        {{"secondo","secondi","sec"},         1.0},
+        {{"minuto","minuti","min"},           60.0},
+        {{"ora","ore"},                       3600.0},
+        {{"giorno","giorni"},                 86400.0},
+        {{"settimana","settimane"},            7.0*86400.0},
+        {{"mese","mesi"},                      30.4375*86400.0},
+        {{"anno","anni"},                      365.2422*86400.0},
+    };
+    auto unitSec = [&](const QString& w) -> double {
+        for (const auto& u : kU) if (u.n.contains(w)) return u.s;
+        return 0.0;
+    };
+    const double uSec = unitSec(unitWord);
+    if (uSec <= 0) return task;   /* unità non riconosciuta: lascia decidere all'LLM */
+
+    static const QMap<QString,int> kMesi = {
+        {"gennaio",1},{"febbraio",2},{"marzo",3},{"aprile",4},
+        {"maggio",5},{"giugno",6},{"luglio",7},{"agosto",8},
+        {"settembre",9},{"ottobre",10},{"novembre",11},{"dicembre",12},
+        {"gen",1},{"feb",2},{"mar",3},{"apr",4},
+        {"mag",5},{"giu",6},{"lug",7},{"ago",8},
+        {"set",9},{"ott",10},{"nov",11},{"dic",12},
+    };
+    const QDate today = QDate::currentDate();
+    QDate target;
+    static const QRegularExpression reGiorno(
+        R"(giorno\s+(\d{1,2})(?:\s+(?:di\s+)?(\w+))?)",
+        QRegularExpression::CaseInsensitiveOption);
+    const auto mg = reGiorno.match(rest);
+    if (mg.hasMatch()) {
+        const int day = mg.captured(1).toInt();
+        int mon = today.month(), yr = today.year();
+        if (!mg.captured(2).isEmpty()) {
+            const int m2 = kMesi.value(mg.captured(2).toLower(), 0);
+            if (m2 > 0) mon = m2;
+        }
+        target = QDate(yr, mon, day);
+        if (!target.isValid() || target <= today)
+            target = mg.captured(2).isEmpty() ? target.addMonths(1) : QDate(yr + 1, mon, day);
+    }
+    if (!target.isValid()) {
+        for (auto it = kMesi.cbegin(); it != kMesi.cend(); ++it) {
+            if (!rest.contains(it.key())) continue;
+            const int yr = today.year();
+            static const QRegularExpression reDM(R"((\d{1,2})\s+\w+)");
+            const auto dm = reDM.match(rest);
+            const int day = (dm.hasMatch() && dm.captured(1).toInt() >= 1) ? dm.captured(1).toInt() : 1;
+            target = QDate(yr, it.value(), day);
+            if (!target.isValid() || target <= today)
+                target = QDate(yr + 1, it.value(), day);
+            break;
+        }
+    }
+    if (!target.isValid()) return task;   /* data non riconosciuta: lascia decidere all'LLM */
+
+    const qint64 diffDays = today.daysTo(target);
+    if (diffDays < 0) return task;   /* data già passata: caso raro, lascia gestire all'LLM */
+
+    QString result;
+    if (unitWord == "mesi" || unitWord == "mese") {
+        /* Se il conteggio grezzo supera il target di qualche giorno (es. oggi
+           3 luglio → target 1 dicembre: "oggi + 5 mesi" = 3 dicembre, DOPO il
+           target), va scalato di 1 mese e ricalcolato il resto in giorni. */
+        int months = (target.year() - today.year()) * 12 + (target.month() - today.month());
+        int remD   = static_cast<int>(today.addMonths(months).daysTo(target));
+        if (remD < 0) {
+            --months;
+            remD = static_cast<int>(today.addMonths(months).daysTo(target));
+        }
+        result = QString("%1 mesi").arg(months);
+        if (remD > 0) result += QString(" e %1 giorni").arg(remD);
+    } else if (unitWord == "giorni" || unitWord == "giorno") {
+        result = QString("%1 giorni").arg(diffDays);
+    } else if (unitWord == "settimane" || unitWord == "settimana") {
+        result = QString("%1 settimane (%2 giorni)").arg(diffDays / 7.0, 0, 'f', 1).arg(diffDays);
+    } else {
+        result = QString("%1 %2").arg(diffDays * 86400.0 / uSec, 0, 'f', 2).arg(unitWord);
+    }
+
+    return QString("[Calcolo locale: da oggi (%1) al %2 mancano %3]\n\n")
+        .arg(QLocale(QLocale::Italian).toString(today, "d MMMM yyyy"),
+             QLocale(QLocale::Italian).toString(target, "d MMMM yyyy"), result) + task;
 }
 
 /* ══════════════════════════════════════════════════════════════

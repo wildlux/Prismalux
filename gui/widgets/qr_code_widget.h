@@ -1,6 +1,7 @@
 #pragma once
 #include <QWidget>
 #include <QString>
+#include <QImage>
 #include <vector>
 
 /* Widget che disegna un QR code a partire da una stringa URL. */
@@ -12,6 +13,12 @@ public:
     void setText(const QString& text);
     bool isValid() const { return m_size > 0; }
     QSize sizeHint() const override;
+
+    /** Renderizza il QR direttamente in una QImage (nessun widget/finestra
+     *  necessaria) — usata per salvare su file/embeddare in HTML (es. bolle
+     *  chat). moduleSizePx = lato di un modulo QR in pixel. Ritorna
+     *  un'immagine nulla se il testo non è codificabile. */
+    static QImage renderImage(const QString& text, int moduleSizePx = 8);
 
 protected:
     void paintEvent(QPaintEvent*) override;

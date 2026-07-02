@@ -133,3 +133,8 @@ QString _inject_science(const QString& task);
  *  Usa std::random_device + std::mt19937 (= randomize C nativo con seed crittografico).
  *  Definita in agenti_page_tools.cpp. */
 QString _inject_random(const QString& task);
+/** Calcola localmente "quanti X mancano a/al DATA" (QDate reale) invece di
+ *  lasciare che l'LLM indovini l'aritmetica di calendario — i modelli piccoli
+ *  sbagliano quasi sempre. Antepone "[Calcolo locale: ...]" se riconosce la
+ *  domanda, altrimenti ritorna il task invariato. Definita in main_ai_tools.cpp. */
+QString _inject_date_calc(const QString& task);

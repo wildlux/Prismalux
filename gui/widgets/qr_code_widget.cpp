@@ -85,3 +85,41 @@ QSize QrCodeWidget::sizeHint() const
 {
     return QSize(280, 280);
 }
+
+QImage QrCodeWidget::renderImage(const QString& text, int moduleSizePx)
+{
+    if (text.trimmed().isEmpty()) return QImage();
+
+    const QByteArray utf8 = text.toUtf8();
+    const size_t bufLen   = qrcodegen_BUFFER_LEN_MAX;
+    std::vector<uint8_t> buf(bufLen * 2);
+    uint8_t* tempBuf = buf.data();
+    uint8_t* qrcode  = buf.data() + bufLen;
+
+    const bool ok = qrcodegen_encodeText(
+        utf8.constData(), tempBuf, qrcode,
+        qrcodegen_Ecc_MEDIUM,
+        qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX,
+        qrcodegen_Mask_AUTO, true);
+    if (!ok) return QImage();
+
+    const int size   = qrcodegen_getSize(qrcode);
+    const int border = 4;   /* margine silenzioso, spec ISO 18004 */
+    const int total  = (size + border * 2) * moduleSizePx;
+
+    QImage img(total, total, QImage::Format_RGB32);
+    img.fill(Qt::white);
+    QPainter p(&img);
+    p.setRenderHint(QPainter::Antialiasing, false);
+    p.setBrush(Qt::black);
+    p.setPen(Qt::NoPen);
+    for (int y = 0; y < size; y++) {
+        for (int x = 0; x < size; x++) {
+            if (qrcodegen_getModule(qrcode, x, y)) {
+                p.drawRect((border + x) * moduleSizePx, (border + y) * moduleSizePx,
+                           moduleSizePx, moduleSizePx);
+            }
+        }
+    }
+    return img;
+}

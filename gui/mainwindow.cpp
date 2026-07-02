@@ -103,6 +103,20 @@ void MainWindow::setupServices()
 {
     m_hw = new HardwareMonitor(this);
     m_ai = new AiClient(this);
+    /* Applica SUBITO il modello salvato in QSettings, prima che setupLayout()
+     * costruisca la tab AI (eager) — il cui costruttore chiama fetchModels()
+     * con m_model ancora vuoto se non lo facciamo qui prima. In quel caso
+     * onModelsReply() sceglie come default list.first() (il modello più
+     * recente usato in Ollama, non necessariamente quello salvato da
+     * Prismalux), mostrato per un istante prima che setupBackend() lo
+     * corregga più avanti nel costruttore — effetto "carica un modello,
+     * poi lo cambia" percepito dall'utente. setBackend() è idempotente:
+     * la chiamata ripetuta in setupBackend() resta innocua. */
+    {
+        QSettings s("Prismalux", "GUI");
+        const QString savedModel = s.value(P::SK::kActiveModel, "").toString();
+        m_ai->setBackend(AiClient::Ollama, P::kLocalHost, P::kOllamaPort, savedModel);
+    }
     connect(m_hw, &HardwareMonitor::updated,     this, &MainWindow::onHWUpdated);
     connect(m_hw, &HardwareMonitor::hwInfoReady, this, &MainWindow::onHWReady);
 
@@ -313,14 +327,14 @@ void MainWindow::setupTimers()
        mappatura della finestra — sintomo: la finestra sembra minimizzarsi
        un istante dopo essere apparsa. */
     QTimer::singleShot(0, this, [this]{
-        QTimer::singleShot(400, this, &MainWindow::onPreBuildTab1);
-        QTimer::singleShot(700, this, &MainWindow::onPreBuildTab3);
+        QTimer::singleShot(400,  this, &MainWindow::onPreBuildTab1);
+        QTimer::singleShot(700,  this, &MainWindow::onPreBuildTab3);
+        QTimer::singleShot(2500, this, &MainWindow::onPreBuildTab2);
+        QTimer::singleShot(3700, this, &MainWindow::onPreBuildTab4);
+        QTimer::singleShot(4900, this, &MainWindow::onPreBuildTab6);
+        QTimer::singleShot(5500, this, &MainWindow::onPreBuildTab7);
+        QTimer::singleShot(8000, this, &MainWindow::onPreBuildTab5);
     });
-    QTimer::singleShot(2500,  this, &MainWindow::onPreBuildTab2);
-    QTimer::singleShot(3700,  this, &MainWindow::onPreBuildTab4);
-    QTimer::singleShot(4900,  this, &MainWindow::onPreBuildTab6);
-    QTimer::singleShot(5500,  this, &MainWindow::onPreBuildTab7);
-    QTimer::singleShot(8000,  this, &MainWindow::onPreBuildTab5);
 
     /* Controlla aggiornamenti GitHub 10s dopo l'avvio */
     QTimer::singleShot(10000, this, &MainWindow::checkForUpdates);

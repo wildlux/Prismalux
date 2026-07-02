@@ -6,6 +6,7 @@
 namespace P = PrismaluxPaths;
 #include "../app_config.h"
 #include <QElapsedTimer>
+#include <QLocale>
 #include <QTimer>
 #include <QTextCursor>
 #include <QRegularExpression>
@@ -270,11 +271,15 @@ void AgentiPage::runPipeline() {
         }
     }
 
-    /* ── Guardia Calcoli Fisici: _inject_science ha trovato una conversione nota
-       (CV↔W, km↔mi, kg↔lb, Ohm, ecc.) → risposta locale, zero token AI ── */
+    /* ── Guardia Calcoli Fisici/Date: _inject_science o _inject_date_calc hanno
+       trovato una conversione nota (CV↔W, km↔mi, kg↔lb, Ohm, "quanti mesi
+       mancano a...", ecc.) → risposta locale, zero token AI. I modelli piccoli
+       sbagliano quasi sempre l'aritmetica di calendario, quindi per le date
+       la via locale non è solo più veloce ma anche l'unica affidabile. ── */
     {
-        const QString injected = _inject_science(task);
+        QString injected = _inject_science(task);
         static const QString kTag = "[Calcolo locale:";
+        if (!injected.startsWith(kTag)) injected = _inject_date_calc(task);
         if (injected.startsWith(kTag)) {
             const int close = injected.indexOf(']');
             const QString calcResult = close > 0
@@ -307,7 +312,7 @@ void AgentiPage::runPipeline() {
         if (m_input)
             m_input->setPlaceholderText(tr("Scrivi un task o una domanda..."));
     }
-    m_taskOriginal  = _inject_random(_inject_math(_inject_science(task)));
+    m_taskOriginal  = _inject_random(_inject_math(_inject_science(_inject_date_calc(task))));
     m_agentOutputs.clear();
     m_spawnedAgents = 0;
     m_currentAgent  = 0;
@@ -900,6 +905,50 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                     m_agentOutputs.removeLast();
 
                 runToolCall(tc, [this, agentIdx, tc](const QString& result) {
+                    /* crea_evento_calendario: il risultato contiene path a immagini
+                     * PNG (QR code) — vanno inserite come <img> nella bolla, non
+                     * rilanciate all'LLM (che le riscriverebbe come testo,
+                     * perdendo l'immagine o corrompendo il path). Chiude qui la
+                     * pipeline invece di fare un altro giro di generazione. */
+                    static const QString kQrTag = "QR_EVENTO_JSON:";
+                    if (result.startsWith(kQrTag)) {
+                        const QJsonObject o = QJsonDocument::fromJson(
+                            result.mid(kQrTag.length()).toUtf8()).object();
+                        const QJsonArray pngs   = o["pngs"].toArray();
+                        const QJsonArray labels = o["labels"].toArray();
+                        const QString testo     = o["testo"].toString();
+                        const QString icsFile   = o["ics_file"].toString();
+
+                        const auto& c = bc();
+                        QString imgsHtml;
+                        for (int i = 0; i < pngs.size(); ++i) {
+                            const QString path  = pngs[i].toString();
+                            const QString label = i < labels.size() ? labels[i].toString() : QString();
+                            imgsHtml += "<div style='display:inline-block;margin:6px 10px 0 0;text-align:center;'>"
+                                "<img src='" + QUrl::fromLocalFile(path).toString() + "' width='220' height='220'>"
+                                "<div style='font-size:11px;color:" + c.lHdr + ";margin-top:2px;'>" + label.toHtmlEscaped() + "</div>"
+                                "</div>";
+                        }
+                        const int br = AppConfig::s().value(P::SK::kBubbleRadius, 10).toInt();
+                        m_log->moveCursor(QTextCursor::End);
+                        m_log->insertHtml(
+                            "<p style='margin:6px 0;'></p>"
+                            "<table width='100%' cellpadding='0' cellspacing='0'><tr><td style='"
+                                "background-color:" + QString(c.lBg) + ";border:1px solid " + c.lBdr + ";"
+                                "border-radius:" + QString::number(br) + "px;padding:10px 14px;color:" + c.lTxt + ";'>"
+                                "<p style='color:" + c.lHdr + ";font-size:11px;font-weight:bold;margin:0 0 8px 0;'>"
+                                    "\xf0\x9f\x93\x85&nbsp;Evento calendario</p>"
+                                "<div>" + imgsHtml + "</div>"
+                                "<p style='font-size:13px;margin:8px 0 0 0;color:" + c.lRes + ";'>" + testo.toHtmlEscaped() + "</p>"
+                                + (icsFile.isEmpty() ? QString() :
+                                   "<p style='font-size:11px;margin:6px 0 0 0;color:" + QString(c.lHdr) + ";'>File salvato: "
+                                   + icsFile.toHtmlEscaped() + "</p>")
+                            + "</td></tr></table><p style='margin:4px 0;'></p>");
+                        m_input->clear();
+                        emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
+                        return;
+                    }
+
                     /* Aggiorna il log con il risultato del tool */
                     m_log->moveCursor(QTextCursor::End);
                     m_log->insertHtml(
@@ -1266,8 +1315,8 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                 return;
             }
             /* TASK-3: re-interroga l'LLM con il contesto web */
-            const QString now = QDateTime::currentDateTime()
-                                    .toString("dddd d MMMM yyyy, HH:mm");
+            const QString now = QLocale(QLocale::Italian).toString(
+                QDateTime::currentDateTime(), "dddd d MMMM yyyy, HH:mm");
             const QString sys = _buildSys(
                 QString("Sei un assistente. Data attuale: %1. "
                         "Rispondi in italiano, conciso e diretto, "
