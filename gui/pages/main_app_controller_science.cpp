@@ -173,3 +173,38 @@ QWidget* AppControllerPage::buildGodotTab()
 
     return w;
 }
+
+/* ======================================================================
+   Sezione 11 — Godot tab slots
+   ====================================================================== */
+
+void AppControllerPage::onGodotExecClicked()
+{
+    if (m_godotCode.isEmpty()) return;
+    const QString path = QDir::homePath() + "/ai_generated.gd";
+    QFile f(path);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        f.write(m_godotCode.toUtf8());
+        m_godotStatusLbl->setText("\xe2\x9c\x85  Salvato: " + path);
+    } else {
+        m_godotStatusLbl->setText(tr("\xe2\x9d\x8c  Impossibile salvare il file"));
+    }
+}
+
+void AppControllerPage::onGodotRunClicked()
+{
+    const int idx = m_godotAction->currentIndex();
+    if (idx < 0 || !kGodotSys[idx]) return;
+    runAi(9, QString::fromUtf8(kGodotSys[idx]),
+          m_godotInput->toPlainText(),
+          m_godotOutput, m_godotRunBtn, m_godotStopBtn,
+          m_godotModel);
+}
+
+void AppControllerPage::onGodotStopClicked()
+{
+    m_ai->abort();
+    m_godotRunBtn->setEnabled(true);
+    m_godotStopBtn->setEnabled(false);
+    m_godotOutput->append("\n\xe2\x8f\xb9  Fermato.");
+}

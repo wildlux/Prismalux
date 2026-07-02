@@ -336,3 +336,148 @@ void ProgrammazionePage::runTranslitter()
 
     m_ai->chat(P::prependKnowledge(sys), user);
 }
+
+/* ======================================================================
+   Sezione 11 — Translitter slots
+   ====================================================================== */
+
+void ProgrammazionePage::onBtnSwapLangsClicked()
+{
+    if (!m_trSrcLang || !m_trDstLang) return;
+    const QString a = m_trSrcLang->currentText();
+    const QString b = m_trDstLang->currentText();
+    m_trSrcLang->setCurrentText(b);
+    m_trDstLang->setCurrentText(a);
+}
+
+void ProgrammazionePage::onBtnFromEditorClicked()
+{
+    if (!m_editor || !m_trInput) return;
+    const QString code = m_editor->toPlainText();
+    if (!code.trimmed().isEmpty()) {
+        m_trInput->setPlainText(code);
+        /* Aggiorna il combo sorgente in base al linguaggio dell'editor */
+        const QString edLang = m_lang ? m_lang->currentText() : "";
+        if (!edLang.isEmpty() && m_trSrcLang && m_trSrcLang->findText(edLang) >= 0)
+            m_trSrcLang->setCurrentText(edLang);
+    }
+}
+
+void ProgrammazionePage::onBtnTrStopClicked()
+{
+    if (m_ai) m_ai->abort();
+    if (m_btnTrRun)  m_btnTrRun->setEnabled(true);
+    if (m_btnTrStop) m_btnTrStop->setEnabled(false);
+}
+
+void ProgrammazionePage::onBtnTrInsertClicked()
+{
+    if (!m_trOutput || !m_editor) return;
+    const QString text = m_trOutput->toPlainText();
+    /* Estrai primo blocco ``` ... ``` */
+    static const QRegularExpression reBlock(
+        "```(?:\\w+)?\\n([\\s\\S]*?)```",
+        QRegularExpression::MultilineOption);
+    const auto m = reBlock.match(text);
+    const QString code = m.hasMatch() ? m.captured(1).trimmed() : text.trimmed();
+
+    if (!m_editor->toPlainText().trimmed().isEmpty()) {
+        if (QMessageBox::question(this,
+                "Sovrascrivere il codice?",
+                "L'editor contiene codice.\nVuoi sostituirlo con il codice traslitterato?",
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+            return;
+    }
+    m_editor->setPlainText(code);
+    /* Aggiorna il combo linguaggio dell'editor */
+    const QString dst = m_trDstLang ? m_trDstLang->currentText() : "";
+    if (!dst.isEmpty() && m_lang) {
+        int idx = m_lang->findText(dst);
+        if (idx >= 0) m_lang->setCurrentIndex(idx);
+    }
+}
+
+void ProgrammazionePage::onTrOutputTextChanged()
+{
+    if (!m_trOutput || !m_btnTrCopy) return;
+    const bool hasContent = !m_trOutput->toPlainText().trimmed().isEmpty();
+    m_btnTrCopy->setEnabled(hasContent);
+}
+
+void ProgrammazionePage::onTrModelChanged(const QString& newModel)
+{
+    if (!m_trModel) return;
+    int idx = m_trModel->findData(newModel);
+    if (idx < 0) idx = m_trModel->findText(newModel, Qt::MatchContains);
+    if (idx >= 0) {
+        m_trModel->blockSignals(true);
+        m_trModel->setCurrentIndex(idx);
+        m_trModel->blockSignals(false);
+    } else {
+        m_trModel->blockSignals(true);
+        m_trModel->setItemText(0, newModel);
+        m_trModel->setItemData(0, newModel);
+        m_trModel->setCurrentIndex(0);
+        m_trModel->blockSignals(false);
+    }
+}
+
+void ProgrammazionePage::populateTrModels()
+{
+    if (m_ai && m_trModel) AiUtils::populateModelCombo(m_ai, m_trModel, this);
+}
+
+
+void ProgrammazionePage::onBtnTrCopyClicked()
+{
+    if (!m_trOutput || !m_btnTrCopy) return;
+    QApplication::clipboard()->setText(m_trOutput->toPlainText());
+    m_trCopyOrigTxt = m_btnTrCopy->text();
+    m_btnTrCopy->setText(tr("\xe2\x9c\x85  Copiato!"));
+    QTimer::singleShot(1500, this, &ProgrammazionePage::onTrCopyRestoreText);
+}
+
+void ProgrammazionePage::onTrCopyRestoreText()
+{
+    if (m_btnTrCopy) m_btnTrCopy->setText(m_trCopyOrigTxt);
+}
+
+void ProgrammazionePage::onTrModelActivated(int /*idx*/)
+{
+    if (m_trModel && m_trModel->count() <= 1)
+        populateTrModels();
+}
+
+void ProgrammazionePage::onTrToken(const QString& tok)
+{
+    if (!m_trOutput) return;
+    m_trOutput->moveCursor(QTextCursor::End);
+    m_trOutput->insertPlainText(tok);
+    m_trOutput->ensureCursorVisible();
+}
+
+void ProgrammazionePage::onTrFinished(const QString& /*full*/)
+{
+    disconnect(m_trTokenConn);
+    disconnect(m_trFinishedConn);
+    disconnect(m_trErrorConn);
+    if (m_btnTrRun)  m_btnTrRun->setEnabled(true);
+    if (m_btnTrStop) m_btnTrStop->setEnabled(false);
+    const bool hasBlock = m_trOutput && m_trOutput->toPlainText().contains("```");
+    if (m_btnTrInsert) m_btnTrInsert->setEnabled(hasBlock);
+}
+
+void ProgrammazionePage::onTrError(const QString& msg)
+{
+    disconnect(m_trTokenConn);
+    disconnect(m_trFinishedConn);
+    disconnect(m_trErrorConn);
+    if (m_btnTrRun)  m_btnTrRun->setEnabled(true);
+    if (m_btnTrStop) m_btnTrStop->setEnabled(false);
+    if (m_trOutput) {
+        m_trOutput->moveCursor(QTextCursor::End);
+        m_trOutput->insertPlainText(
+            QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
+    }
+}
+

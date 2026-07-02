@@ -8,6 +8,7 @@
 #include "main_programming.h"
 #include "../prismalux_paths.h"
 #include "../log_bus.h"
+#include "../ai_utils.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -28,6 +29,7 @@
 #include <QStandardPaths>
 #include <QKeyEvent>
 #include <QDir>
+#include <QFile>
 #include <QBrush>
 #include <QColor>
 
@@ -694,3 +696,301 @@ void ProgrammazionePage::replSend()
     m_replInput->clear();
     m_replProc->write((line + "\n").toUtf8());
 }
+
+/* ======================================================================
+   Sezione 9 — Git MCP slots
+   ====================================================================== */
+
+void ProgrammazionePage::populateGitModels()
+{
+    if (m_ai && m_gitAiModel) AiUtils::populateModelCombo(m_ai, m_gitAiModel, this);
+}
+
+void ProgrammazionePage::onBtnGitBrowseClicked()
+{
+    const QString d = QFileDialog::getExistingDirectory(
+        this, "Scegli repository git",
+        m_gitRepoPath ? m_gitRepoPath->text() : QDir::homePath());
+    if (!d.isEmpty() && m_gitRepoPath)
+        m_gitRepoPath->setText(d);
+}
+
+void ProgrammazionePage::onBtnGitStopClicked()
+{
+    if (m_gitProc && m_gitProc->state() != QProcess::NotRunning)
+        m_gitProc->kill();
+}
+
+void ProgrammazionePage::onBtnClearGitClicked()
+{
+    if (m_gitOutput) m_gitOutput->clear();
+}
+
+void ProgrammazionePage::onBtnCloseGitAiClicked()
+{
+    if (m_gitAiPanel) m_gitAiPanel->hide();
+}
+
+void ProgrammazionePage::onBtnGitPullClicked()
+{
+    if (QMessageBox::question(this, "git pull",
+            "Eseguire git pull?\n\n"
+            "Le modifiche remote verranno unite al branch corrente.",
+            QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
+        return;
+    gitRun("pull");
+}
+
+void ProgrammazionePage::onBtnAddCommitClicked()
+{
+    const QString msg = m_gitCommitMsg ? m_gitCommitMsg->text().trimmed() : QString();
+    if (msg.isEmpty()) {
+        QMessageBox::warning(this, "Messaggio mancante",
+            "Inserisci un messaggio di commit prima di procedere.");
+        return;
+    }
+    if (QMessageBox::question(this, "Add + Commit",
+            QString("Eseguire:\n  git add -A\n  git commit -m \"%1\"\n\n"
+                    "Tutte le modifiche verranno staged e committate.").arg(msg),
+            QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
+        return;
+
+    m_gitPendingCommit = msg;
+    gitRun("add", {"-A"});
+}
+
+void ProgrammazionePage::onBtnPushClicked()
+{
+    if (QMessageBox::question(this, "git push",
+            "Eseguire git push?\n\n"
+            "I commit locali verranno inviati al repository remoto.",
+            QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
+        return;
+    gitRun("push");
+}
+
+void ProgrammazionePage::onBtnGitAiClicked()
+{
+    if (!m_gitAiPanel) return;
+    m_gitAiPanel->show();
+    const QString context = m_gitOutput ? m_gitOutput->toPlainText() : QString();
+    gitAiRequest(
+        "Analizza l'output git, spiega cosa rappresenta e suggerisci "
+        "le prossime azioni da eseguire.",
+        context);
+}
+
+void ProgrammazionePage::onBtnGenCommitClicked()
+{
+    if (!m_gitAiPanel) return;
+    m_gitAiPanel->show();
+
+    /* Prima esegue diff --staged per avere il contesto completo */
+    const QString context = m_gitOutput ? m_gitOutput->toPlainText() : QString();
+    gitAiRequest(
+        "Genera un messaggio di commit convenzionale (Conventional Commits) "
+        "per le modifiche mostrate nell'output git diff --staged. "
+        "Formato: <tipo>(<scope>): <descrizione breve>\n\n"
+        "Wrap il messaggio tra [COMMIT] e [/COMMIT] in modo che io possa "
+        "estrarlo automaticamente.",
+        context);
+}
+
+void ProgrammazionePage::onBtnGitStatusClicked()     { gitRun("status"); }
+void ProgrammazionePage::onBtnGitDiffClicked()       { gitRun("diff"); }
+void ProgrammazionePage::onBtnGitDiffStagedClicked() { gitRun("diff", {"--cached"}); }
+void ProgrammazionePage::onBtnGitLogClicked()        { gitRun("log", {"--oneline", "-20"}); }
+void ProgrammazionePage::onBtnGitBranchClicked()     { gitRun("branch", {"-a"}); }
+
+void ProgrammazionePage::onGitReadyRead()
+{
+    if (!m_gitProc) return;
+    const QString out = QString::fromLocal8Bit(m_gitProc->readAll());
+    if (m_gitOutput) m_gitOutput->appendPlainText(out);
+}
+
+void ProgrammazionePage::onGitFinished(int exitCode, QProcess::ExitStatus /*status*/)
+{
+    if (m_gitActRow)  m_gitActRow->setEnabled(true);
+    if (m_btnGitStop) m_btnGitStop->setEnabled(false);
+
+    if (m_gitOutput)
+        m_gitOutput->appendPlainText(
+            exitCode == 0
+            ? "\n\xe2\x9c\x85  Operazione completata.\n"
+            : QString("\n\xe2\x9d\x8c  Exit code: %1\n").arg(exitCode));
+
+    /* Auto-commit dopo add -A riuscito */
+    if (!m_gitPendingCommit.isEmpty() && exitCode == 0) {
+        const QString msg = m_gitPendingCommit;
+        m_gitPendingCommit.clear();
+        gitRun("commit", {"-m", msg});
+    }
+}
+
+void ProgrammazionePage::onGitErrorOccurred(QProcess::ProcessError err)
+{
+    Q_UNUSED(err)
+    if (m_gitActRow)  m_gitActRow->setEnabled(true);
+    if (m_btnGitStop) m_btnGitStop->setEnabled(false);
+    if (m_gitOutput)
+        m_gitOutput->appendPlainText(
+            "\xe2\x9d\x8c  Impossibile avviare il processo git. "
+            "Verifica che git sia installato e nel PATH.\n");
+}
+
+void ProgrammazionePage::onGitAiToken(const QString& tok)
+{
+    if (!m_gitAiOutput) return;
+    m_gitAiOutput->moveCursor(QTextCursor::End);
+    m_gitAiOutput->insertPlainText(tok);
+    m_gitAiOutput->ensureCursorVisible();
+}
+
+void ProgrammazionePage::onGitAiFinished(const QString& full)
+{
+    disconnect(m_gitAiTokenConn);
+    disconnect(m_gitAiFinishedConn);
+    disconnect(m_gitAiErrorConn);
+    /* Se la risposta contiene [COMMIT]...[/COMMIT], popola il campo commit msg */
+    static const QRegularExpression reCommit(
+        R"(\[COMMIT\]([\s\S]*?)\[/COMMIT\])");
+    const auto m = reCommit.match(full);
+    if (m.hasMatch() && m_gitCommitMsg) {
+        const QString msg = m.captured(1).trimmed();
+        if (!msg.isEmpty()) m_gitCommitMsg->setText(msg);
+    }
+}
+
+void ProgrammazionePage::onGitAiError(const QString& msg)
+{
+    disconnect(m_gitAiTokenConn);
+    disconnect(m_gitAiFinishedConn);
+    disconnect(m_gitAiErrorConn);
+    if (m_gitAiOutput) {
+        m_gitAiOutput->moveCursor(QTextCursor::End);
+        m_gitAiOutput->insertPlainText(
+            QString("\n\xe2\x9d\x8c  Errore: %1").arg(msg));
+    }
+}
+
+/* ======================================================================
+   Sezione 10 — Python REPL slots
+   ====================================================================== */
+
+void ProgrammazionePage::onReplReadyRead()
+{
+    if (!m_replProc) return;
+    const QString out = QString::fromLocal8Bit(m_replProc->readAll());
+    if (m_replOutput) {
+        m_replOutput->moveCursor(QTextCursor::End);
+        m_replOutput->insertPlainText(out);
+        m_replOutput->ensureCursorVisible();
+    }
+}
+
+void ProgrammazionePage::onReplStarted()
+{
+    if (m_replStatus)
+        m_replStatus->setText(tr("\xe2\x9c\x85  Sessione attiva"));
+    if (m_replInput) {
+        m_replInput->setEnabled(true);
+        m_replInput->setFocus();
+    }
+    if (m_btnSendRepl) m_btnSendRepl->setEnabled(true);
+}
+
+void ProgrammazionePage::onReplFinished(int code, QProcess::ExitStatus /*status*/)
+{
+    if (m_replStatus)
+        m_replStatus->setText(
+            code == 0
+            ? "\xe2\xac\x9c  REPL terminato"
+            : QString("\xe2\x9d\x8c  REPL uscito (code %1)").arg(code));
+    if (m_replInput)   m_replInput->setEnabled(false);
+    if (m_btnSendRepl) m_btnSendRepl->setEnabled(false);
+    if (m_replOutput)
+        m_replOutput->appendPlainText(
+            "\n\xe2\x80\x94\xe2\x80\x94  Python REPL terminato  \xe2\x80\x94\xe2\x80\x94\n");
+    if (auto* p = qobject_cast<QProcess*>(sender())) p->deleteLater();
+    m_replProc = nullptr;
+}
+
+void ProgrammazionePage::onReplErrorOccurred(QProcess::ProcessError err)
+{
+    if (err != QProcess::FailedToStart) return;
+    if (m_replStatus)
+        m_replStatus->setText(tr("\xe2\x9d\x8c  python3 non trovato"));
+    if (m_replOutput)
+        m_replOutput->appendPlainText(
+            "\xe2\x9d\x8c  python3 non trovato nel PATH. "
+            "Installa Python 3.\n");
+    if (m_replInput)   m_replInput->setEnabled(false);
+    if (m_btnSendRepl) m_btnSendRepl->setEnabled(false);
+    if (auto* p = qobject_cast<QProcess*>(sender())) p->deleteLater();
+    m_replProc = nullptr;
+}
+
+void ProgrammazionePage::onReplTabChanged(int idx)
+{
+    /* Controlla se il widget del tab corrente contiene m_replOutput.
+       La gerarchia e': replOutput -> outGroup -> w (QWidget).
+       m_innerTabs->widget(idx) == w */
+    if (!m_replOutput) return;
+    /* Naviga 3 livelli su: m_replOutput->parent = outGroup,
+       outGroup->parent = w, w e' il widget del tab */
+    QWidget* replWidget =
+        m_replOutput->parentWidget()   /* outGroup */
+            ? qobject_cast<QWidget*>(m_replOutput->parentWidget()->parent())  /* w */
+            : nullptr;
+    if (!replWidget) return;
+    if (m_innerTabs->widget(idx) != replWidget) return;
+    if (!m_replProc || m_replProc->state() == QProcess::NotRunning)
+        replStart();
+}
+
+void ProgrammazionePage::onBtnReplRestartClicked()
+{
+    replStart();
+}
+
+void ProgrammazionePage::onBtnReplClearClicked()
+{
+    if (m_replOutput) m_replOutput->clear();
+}
+
+void ProgrammazionePage::onBtnReplImportClicked()
+{
+    if (!m_replProc || m_replProc->state() != QProcess::Running) {
+        if (m_replOutput)
+            m_replOutput->appendPlainText(
+                "\xe2\x9d\x8c  Avvia prima il REPL con "
+                "\xf0\x9f\x94\x84 Riavvia.\n");
+        return;
+    }
+    if (!m_editor) return;
+    const QString code = m_editor->toPlainText().trimmed();
+    if (code.isEmpty()) return;
+
+    /* Scrivi su file temp, poi exec() nel REPL */
+    const QString tmp = QStandardPaths::writableLocation(
+        QStandardPaths::TempLocation) + "/prismalux_repl_import.py";
+    QFile f(tmp);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) return;
+    f.write(code.toUtf8());
+    f.close();
+
+    if (m_replOutput)
+        m_replOutput->appendPlainText("\n# === Importa da editor ===\n");
+    /* exec(open(...).read()) e' piu' robusto di exec() su stringa multiline */
+    const QString cmd = QString("exec(open(r'%1').read())\n")
+                        .arg(QDir::toNativeSeparators(tmp).replace('\\', '/'));
+    m_replProc->write(cmd.toUtf8());
+}
+
+void ProgrammazionePage::sendReplLine()
+{
+    if (!m_replProc || m_replProc->state() != QProcess::Running) return;
+    replSend();
+}
+

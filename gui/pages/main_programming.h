@@ -508,6 +508,11 @@ private:
     QMetaObject::Connection m_driverAiErrorConn;
 
     QWidget* buildDriverKernelTab(QWidget* parent);
+    void     buildDriverNvidiaSubTab(QTabWidget* tabs);
+    void     buildDriverAmdSubTab(QTabWidget* tabs);
+    void     buildDriverKernelSubTab(QTabWidget* tabs);
+    void     buildDriverUsbSubTab(QTabWidget* tabs);
+    void     buildDriverReKernelSubTab(QTabWidget* tabs);
     void     onDriverRunCmd(const QString& cmd);
     void     onDriverCmdFinished(int exitCode, QProcess::ExitStatus status);
     void     onDriverCmdOutput();

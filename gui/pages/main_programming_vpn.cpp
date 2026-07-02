@@ -5,6 +5,7 @@
 #include "main_programming.h"
 #include "../prismalux_paths.h"
 #include "../log_bus.h"
+#include "../dpi_utils.h"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -13,6 +14,9 @@
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -664,3 +668,359 @@ void ProgrammazionePage::onVpnProcFinished(int code, QProcess::ExitStatus /*stat
     }
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   buildVpnTab — sub-tab "🔒 VPN & Tunnel"
+   Configura WireGuard, OpenVPN, SSH tunnel, Wi-Fi Hotspot con
+   template pronti + generazione AI + applicazione via pkexec.
+   ══════════════════════════════════════════════════════════════ */
+QWidget* ProgrammazionePage::buildVpnTab(QWidget* parent)
+{
+    static const struct {
+        const char* label;
+        const char* desc;
+        const char* tmpl;
+    } kVpnTypes[] = {
+        {
+            "WireGuard",
+            "\xf0\x9f\x94\x92 Protocollo VPN moderno — veloce, sicuro, semplice. "
+            "Installa: <code>sudo apt install wireguard</code>",
+            "# WireGuard — configurazione client\n"
+            "# Salva come /etc/wireguard/wg0.conf e usa: sudo wg-quick up wg0\n"
+            "\n"
+            "[Interface]\n"
+            "Address = 10.0.0.2/24\n"
+            "PrivateKey = <CHIAVE_PRIVATA_CLIENT>\n"
+            "DNS = 1.1.1.1\n"
+            "\n"
+            "[Peer]\n"
+            "PublicKey = <CHIAVE_PUBBLICA_SERVER>\n"
+            "AllowedIPs = 0.0.0.0/0, ::/0\n"
+            "Endpoint = <SERVER_IP>:51820\n"
+            "PersistentKeepalive = 25\n"
+            "\n"
+            "# Genera le chiavi con:\n"
+            "#   wg genkey | tee privatekey | wg pubkey > publickey\n"
+        },
+        {
+            "OpenVPN",
+            "\xf0\x9f\x9b\xa1  VPN classica — alta compatibilit\xc3\xa0. "
+            "Installa: <code>sudo apt install openvpn</code>",
+            "# OpenVPN — configurazione client (.ovpn)\n"
+            "# Usa: sudo openvpn --config client.ovpn\n"
+            "\n"
+            "client\n"
+            "dev tun\n"
+            "proto udp\n"
+            "remote <SERVER_IP> 1194\n"
+            "resolv-retry infinite\n"
+            "nobind\n"
+            "persist-key\n"
+            "persist-tun\n"
+            "cipher AES-256-CBC\n"
+            "auth SHA256\n"
+            "verb 3\n"
+            "keepalive 10 120\n"
+            "\n"
+            "<ca>\n"
+            "# Incolla il contenuto di ca.crt\n"
+            "</ca>\n"
+            "<cert>\n"
+            "# Incolla il contenuto di client.crt\n"
+            "</cert>\n"
+            "<key>\n"
+            "# Incolla il contenuto di client.key\n"
+            "</key>\n"
+        },
+        {
+            "SSH Tunnel",
+            "\xf0\x9f\x94\x8c Reindirizzamento porte SSH — senza software extra.",
+            "# SSH Tunnel — esempi pronti all'uso\n"
+            "\n"
+            "# 1. Tunnel LOCALE: porta locale 8080 -> server:80\n"
+            "ssh -N -L 8080:localhost:80 utente@<SERVER>\n"
+            "\n"
+            "# 2. Tunnel REMOTO: porta remota 9090 -> localhost:80\n"
+            "ssh -N -R 9090:localhost:80 utente@<SERVER>\n"
+            "\n"
+            "# 3. SOCKS proxy dinamico (porta 1080)\n"
+            "ssh -N -D 1080 -C utente@<SERVER>\n"
+            "\n"
+            "# 4. Sessione persistente con autossh\n"
+            "#    sudo apt install autossh\n"
+            "autossh -M 20000 -N -L 8080:localhost:80 utente@<SERVER>\n"
+            "\n"
+            "# Configura in /etc/ssh/sshd_config del server:\n"
+            "#   AllowTcpForwarding yes\n"
+            "#   GatewayPorts yes       # solo per tunnel remoti\n"
+        },
+        {
+            "Wi-Fi Hotspot",
+            "\xf0\x9f\x93\xa1 Condividi la connessione via Wi-Fi con nmcli.",
+            "#!/bin/bash\n"
+            "# Wi-Fi Hotspot con NetworkManager\n"
+            "# Adatta SSID, password e interfaccia (wlan0 / wlp3s0)\n"
+            "\n"
+            "IFACE=\"wlan0\"\n"
+            "SSID=\"PrismaluxNet\"\n"
+            "PASSWORD=\"password_sicura\"\n"
+            "CON_NAME=\"PrismaluxAP\"\n"
+            "\n"
+            "# Crea la connessione hotspot\n"
+            "nmcli con add type wifi ifname \"$IFACE\" con-name \"$CON_NAME\" \\\n"
+            "  ssid \"$SSID\" mode ap\n"
+            "\n"
+            "# Configura sicurezza e canale\n"
+            "nmcli con modify \"$CON_NAME\" \\\n"
+            "  wifi.band bg wifi.channel 6 \\\n"
+            "  wifi-sec.key-mgmt wpa-psk wifi-sec.psk \"$PASSWORD\"\n"
+            "\n"
+            "# Condivisione connessione (NAT)\n"
+            "nmcli con modify \"$CON_NAME\" ipv4.method shared\n"
+            "\n"
+            "# Avvia\n"
+            "nmcli con up \"$CON_NAME\"\n"
+            "echo \"Hotspot '$SSID' attivo su $IFACE\"\n"
+            "\n"
+            "# Per fermare:\n"
+            "# nmcli con down \"$CON_NAME\"\n"
+        },
+        {
+            "n2n Supernode",
+            "\xf0\x9f\x8c\x90 Nodo centrale VPN n2n (C puro) per WAN Prismalux. "
+            "Installa: <code>sudo apt install n2n</code>. "
+            "Apri firewall: <code>sudo ufw allow 7654/udp</code>.",
+            "#!/bin/bash\n"
+            "# n2n Supernode — nodo centrale WAN Prismalux (scritto in C)\n"
+            "SUPERNODE_PORT=7654\n"
+            "supernode -p \"$SUPERNODE_PORT\" -v\n"
+        },
+        {
+            "n2n Edge (worker)",
+            "\xf0\x9f\x94\x97 Worker WAN n2n — cifrato AES-256, scritto in C. "
+            "Clicca <b>Genera chiavi n2n</b>, poi <b>Applica</b> per copiare "
+            "lo script da avviare su ogni nodo remoto con <code>sudo bash</code>.",
+            "#!/bin/bash\n"
+            "# n2n Edge — worker WAN Prismalux\n"
+            "SUPERNODE_IP=\"<SERVER_IP>\"\n"
+            "COMMUNITY=\"prismalux_wan\"\n"
+            "PSK=\"<CHIAVE_CONDIVISA_AES256>\"\n"
+            "EDGE_IP=\"10.10.0.2/24\"\n"
+            "edge -c \"$COMMUNITY\" -k \"$PSK\" -a \"$EDGE_IP\" \\\n"
+            "     -l \"$SUPERNODE_IP:7654\" -f\n"
+        },
+    };
+    constexpr int kN = 6;
+
+    auto* w   = new QWidget(parent);
+    auto* lay = new QVBoxLayout(w);
+    lay->setContentsMargins(12, 12, 12, 12);
+    lay->setSpacing(8);
+
+    /* ── Riga tipo ── */
+    auto* typeRow = new QWidget(w);
+    auto* typeHL  = new QHBoxLayout(typeRow);
+    typeHL->setContentsMargins(0, 0, 0, 0);
+    typeHL->setSpacing(8);
+
+    auto* typeLbl = new QLabel("\xf0\x9f\x94\x92  Tipo:", typeRow);
+    m_vpnTypeCombo = new QComboBox(typeRow);
+    m_vpnTypeCombo->setFixedWidth(dpiScale(160));
+    for (int i = 0; i < kN; ++i)
+        m_vpnTypeCombo->addItem(QString::fromUtf8(kVpnTypes[i].label));
+
+    m_vpnStatusLbl = new QLabel(typeRow);
+    m_vpnStatusLbl->setObjectName("hintLabel");
+    m_vpnStatusLbl->setWordWrap(false);
+
+    typeHL->addWidget(typeLbl);
+    typeHL->addWidget(m_vpnTypeCombo);
+    typeHL->addStretch();
+    typeHL->addWidget(m_vpnStatusLbl);
+    lay->addWidget(typeRow);
+
+    /* ── Descrizione tipo ── */
+    auto* descLbl = new QLabel(w);
+    descLbl->setObjectName("hintLabel");
+    descLbl->setTextFormat(Qt::RichText);
+    descLbl->setWordWrap(true);
+    descLbl->setText(QString::fromUtf8(kVpnTypes[0].desc));
+    lay->addWidget(descLbl);
+
+    /* ── Nota: quando serve la VPN ── */
+    auto* vpnHintLbl = new QLabel(w);
+    vpnHintLbl->setObjectName("hintLabel");
+    vpnHintLbl->setTextFormat(Qt::RichText);
+    vpnHintLbl->setWordWrap(true);
+    vpnHintLbl->setText(
+        "<b>" "\xf0\x9f\x92\xa1" " Quando serve la VPN:</b> "
+        "Se i nodi WAN Compute o Sci Compute si trovano su reti diverse "
+        "(internet, ufficio remoto, casa), la VPN crea un tunnel cifrato "
+        "che li fa sembrare sulla stessa LAN. "
+        "In questo modo il WAN Compute (porta 11600) e il Sci Compute (porta 11601) "
+        "restano raggiungibili e sicuri senza aprire porte sul router. "
+        "Per nodi sulla stessa LAN la VPN non \xc3\xa8 necessaria.");
+    lay->addWidget(vpnHintLbl);
+
+    /* ── Editor config / script ── */
+    auto* cfgGroup = new QGroupBox(
+        "\xf0\x9f\x93\x9d  Configurazione (modificabile)", w);
+    auto* cfgLay   = new QVBoxLayout(cfgGroup);
+    m_vpnConfig = new QTextEdit(cfgGroup);
+    m_vpnConfig->setFont(QFont("JetBrains Mono,Fira Code,Consolas,Monospace", 9));
+    m_vpnConfig->setMinimumHeight(dpiScale(180));
+    m_vpnConfig->setPlaceholderText(tr("Template qui..."));
+    m_vpnConfig->setPlainText(QString::fromUtf8(kVpnTypes[0].tmpl));
+    cfgLay->addWidget(m_vpnConfig);
+    lay->addWidget(cfgGroup, 1);
+
+    /* ── Barra azioni ── */
+    auto* actRow = new QWidget(w);
+    auto* actHL  = new QHBoxLayout(actRow);
+    actHL->setContentsMargins(0, 0, 0, 0);
+    actHL->setSpacing(8);
+
+    auto* btnGen   = new QPushButton(
+        "\xf0\x9f\xa4\x96  Migliora con AI", actRow);
+    btnGen->setObjectName("actionBtn");
+    auto* btnApply = new QPushButton(
+        "\xe2\x9a\xa1  Applica / Esegui", actRow);
+    btnApply->setObjectName("actionBtn");
+    auto* btnCopy  = new QPushButton(
+        "\xf0\x9f\x93\x8b  Copia", actRow);
+    auto* btnStop  = new QPushButton(
+        "\xe2\x8f\xb9  Stop", actRow);
+    btnStop->setProperty("danger", true);
+    btnStop->setEnabled(false);
+
+    m_vpnGenKeysBtn = new QPushButton(
+        "\xf0\x9f\x94\x91  Genera chiavi n2n", actRow);
+    m_vpnGenKeysBtn->setToolTip(tr("Genera community name e PSK casuali per n2n"));
+    m_vpnGenKeysBtn->setVisible(false);
+
+    m_vpnValidateBtn = new QPushButton(
+        "\xf0\x9f\x94\x8d  Valida config", actRow);
+    m_vpnValidateBtn->setToolTip(
+        tr("Simula e valida la configurazione senza avviare la VPN\n"
+           "Controlla: placeholder, binari, porte, raggiungibilita' server"));
+
+    auto* btnImport = new QPushButton(
+        "\xf0\x9f\x93\x82  Importa", actRow);
+    btnImport->setToolTip(tr("Carica un file di configurazione VPN esistente"));
+
+    actHL->addWidget(btnGen);
+    actHL->addWidget(m_vpnGenKeysBtn);
+    actHL->addStretch();
+    actHL->addWidget(btnImport);
+    actHL->addWidget(m_vpnValidateBtn);
+    actHL->addWidget(btnCopy);
+    actHL->addWidget(btnApply);
+    actHL->addWidget(btnStop);
+    lay->addWidget(actRow);
+
+    /* ── Stato connessione VPN live ── */
+    auto* statusRow = new QWidget(w);
+    auto* statusHL  = new QHBoxLayout(statusRow);
+    statusHL->setContentsMargins(0, 0, 0, 0);
+    auto* statusCap = new QLabel(tr("Connessione:"), statusRow);
+    m_vpnLiveStatusLbl = new QLabel(tr("\xe2\x9a\xaa  Nessuna VPN attiva"), statusRow);
+    m_vpnTestBtn = new QPushButton("\xf0\x9f\x94\x8d  Verifica stato", statusRow);
+    m_vpnTestBtn->setToolTip(tr("Rileva interfacce VPN attive (wg/tun) e il loro IP, senza root"));
+    statusHL->addWidget(statusCap);
+    statusHL->addWidget(m_vpnLiveStatusLbl, 1);
+    statusHL->addWidget(m_vpnTestBtn);
+    lay->addWidget(statusRow);
+
+    /* ── Log output ── */
+    auto* logGroup = new QGroupBox(
+        "\xf0\x9f\x93\x9f  Output comandi", w);
+    auto* logLay   = new QVBoxLayout(logGroup);
+    m_vpnLog = new QTextEdit(logGroup);
+    m_vpnLog->setReadOnly(true);
+    m_vpnLog->setFont(QFont("JetBrains Mono,Fira Code,Consolas,Monospace", 9));
+    m_vpnLog->setMinimumHeight(dpiScale(100));
+    logLay->addWidget(m_vpnLog);
+    lay->addWidget(logGroup);
+
+    /* ── Connessioni ── */
+    connect(m_vpnTypeCombo,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &ProgrammazionePage::onVpnTypeChanged);
+
+    /* Aggiorna desc al cambio tipo */
+    connect(m_vpnTypeCombo,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            descLbl,
+            [descLbl](int idx) {
+        static const char* descs[] = {
+            "\xf0\x9f\x94\x92 Protocollo VPN moderno — veloce, sicuro, semplice. "
+            "Installa: <code>sudo apt install wireguard</code>",
+            "\xf0\x9f\x9b\xa1  VPN classica — alta compatibilit\xc3\xa0. "
+            "Installa: <code>sudo apt install openvpn</code>",
+            "\xf0\x9f\x94\x8c Reindirizzamento porte SSH — senza software extra.",
+            "\xf0\x9f\x93\xa1 Condividi la connessione via Wi-Fi con nmcli.",
+            "\xf0\x9f\x8c\x90 Nodo centrale VPN n2n (C puro) per WAN Prismalux. "
+            "Installa: <code>sudo apt install n2n</code>. "
+            "Apri firewall: <code>sudo ufw allow 7654/udp</code>.",
+            "\xf0\x9f\x94\x97 Worker WAN n2n — cifrato AES-256, scritto in C. "
+            "Clicca <b>Genera chiavi n2n</b>, poi <b>Applica</b> per copiare "
+            "lo script da avviare su ogni nodo remoto con <code>sudo bash</code>.",
+        };
+        if (idx >= 0 && idx < 6)
+            descLbl->setText(QString::fromUtf8(descs[idx]));
+    });
+
+    connect(btnCopy, &QPushButton::clicked, m_vpnConfig,
+            [this, btnCopy]() {
+        qApp->clipboard()->setText(m_vpnConfig->toPlainText());
+        const QString orig = btnCopy->text();
+        btnCopy->setText(tr("\xe2\x9c\x85  Copiato!"));
+        QTimer::singleShot(1500, btnCopy, [btnCopy, orig]() {
+            btnCopy->setText(orig);
+        });
+    });
+
+    connect(btnGen, &QPushButton::clicked, this,
+            [this, btnGen, btnStop]() {
+        btnGen->setEnabled(false);
+        btnStop->setEnabled(true);
+        onVpnGenerateClicked();
+    });
+
+    connect(btnApply, &QPushButton::clicked,
+            this, &ProgrammazionePage::onVpnApplyClicked);
+
+    connect(btnStop, &QPushButton::clicked, this,
+            [this, btnGen, btnStop]() {
+        m_ai->abort();
+        if (m_vpnProc && m_vpnProc->state() != QProcess::NotRunning)
+            m_vpnProc->terminate();
+        btnGen->setEnabled(true);
+        btnStop->setEnabled(false);
+        if (m_vpnStatusLbl) m_vpnStatusLbl->setText(tr("\xe2\x8f\xb9  Fermato"));
+    });
+
+    connect(m_vpnGenKeysBtn, &QPushButton::clicked,
+            this, &ProgrammazionePage::onVpnGenN2nKeys);
+
+    connect(m_vpnValidateBtn, &QPushButton::clicked,
+            this, &ProgrammazionePage::onVpnValidateClicked);
+
+    connect(btnImport, &QPushButton::clicked,
+            this, &ProgrammazionePage::onVpnImportClicked);
+
+    connect(m_vpnTestBtn, &QPushButton::clicked,
+            this, &ProgrammazionePage::onVpnTestClicked);
+
+    /* Polling leggero dello stato VPN (QNetworkInterface, nessun processo). */
+    if (!m_vpnStatusTimer) {
+        m_vpnStatusTimer = new QTimer(this);
+        m_vpnStatusTimer->setInterval(5000);
+        connect(m_vpnStatusTimer, &QTimer::timeout,
+                this, &ProgrammazionePage::vpnRefreshStatus);
+        m_vpnStatusTimer->start();
+    }
+    vpnRefreshStatus();
+
+    return w;
+}

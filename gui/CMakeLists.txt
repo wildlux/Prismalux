@@ -213,13 +213,16 @@ set(CPP_SRCS
     pages/main_programming.cpp
     pages/main_programming_git_repl.cpp
     pages/main_programming_translitter.cpp
-    pages/main_programming_slots.cpp
     pages/main_programming_vpn.cpp
+    pages/main_programming_agentica.cpp
+    pages/main_programming_reveng.cpp
+    pages/main_programming_network.cpp
+    pages/main_programming_coding.cpp
+    pages/main_programming_driverkernel.cpp
     pages/main_programming_wiby.cpp
     pages/main_programming_reverse_usb.cpp
     pages/main_net_policy.cpp
     pages/main_net_subnet.cpp
-    pages/main_app_controller_slots.cpp
     pages/widget_formula_builder.cpp
     pages/widget_code_interpreter.cpp
     pages/widget_coding_lab.cpp
@@ -255,6 +258,14 @@ set(CPP_SRCS
     pages/main_utility.cpp
     pages/main_bioinformatica.cpp
     pages/main_app_controller.cpp
+    pages/main_app_controller_blender.cpp
+    pages/main_app_controller_freecad.cpp
+    pages/main_app_controller_cloudcompare.cpp
+    pages/main_app_controller_office.cpp
+    pages/main_app_controller_electronics.cpp
+    pages/main_app_controller_telegram.cpp
+    pages/main_app_controller_whatsapp.cpp
+    pages/main_app_controller_devagent.cpp
     pages/main_mcp_manager.cpp
     pages/main_security.cpp
     pages/main_opencode.cpp
@@ -427,6 +438,23 @@ if(BUILD_TESTS)
     list(REMOVE_ITEM TEST_SHARED_SRCS main.cpp)
     list(APPEND TEST_SHARED_SRCS ${C_SRCS})
 
+    # ── OBJECT LIBRARY condivisa: compila UNA SOLA VOLTA i ~150 file di
+    # TEST_SHARED_SRCS, riusata (linkata, non ricompilata) dai target
+    # "pesanti" che oggi la duplicano interamente. Nome con prefisso
+    # "test_" DELIBERATAMENTE, per essere intercettata dal loop ASAN
+    # più sotto (foreach su BUILDSYSTEM_TARGETS filtrato per "^test_") —
+    # non rinominare senza aggiornare anche quel loop.
+    add_library(test_shared_objs OBJECT ${TEST_SHARED_SRCS})
+    target_include_directories(test_shared_objs PUBLIC ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_shared_objs PRIVATE ${QT_LIBS})
+    # PUBLIC: alcuni tests/test_X.cpp includono prismalux_paths.h
+    # direttamente e leggono #ifdef PRISMALUX_ROOT — la define deve
+    # propagarsi anche alla TU del test stesso, non solo ai file
+    # compilati qui dentro.
+    target_compile_definitions(test_shared_objs PUBLIC
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+
     # Gruppo minimo per target che includono solo ai_client.cpp:
     # rag_engine e onnx_embedder sono richiesti da ai_client.cpp per il linker.
     set(AI_CLIENT_SRCS
@@ -435,20 +463,25 @@ if(BUILD_TESTS)
         widgets/onnx_embedder.cpp
     )
 
+    # ── OBJECT LIBRARY leggera per i target "AI_CLIENT_SRCS" (5 target,
+    # priorità più bassa rispetto a test_shared_objs). Nome con prefisso
+    # "test_" per lo stesso motivo del loop ASAN spiegato sopra.
+    add_library(test_ai_client_objs OBJECT ${AI_CLIENT_SRCS})
+    target_include_directories(test_ai_client_objs PUBLIC ${CMAKE_SOURCE_DIR})
+    target_link_libraries(test_ai_client_objs PRIVATE ${QT_LIBS})
+    target_compile_definitions(test_ai_client_objs PUBLIC
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+
     add_executable(test_signal_lifetime
         tests/test_signal_lifetime.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_signal_lifetime PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_signal_lifetime PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_signal_lifetime PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_signal_lifetime PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_signal_lifetime PRIVATE pthread m)
     endif()
@@ -470,17 +503,12 @@ if(BUILD_TESTS)
     add_executable(test_code_utils
         tests/test_code_utils.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_code_utils PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_code_utils PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_code_utils PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_code_utils PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_code_utils PRIVATE pthread m)
     endif()
@@ -512,17 +540,12 @@ if(BUILD_TESTS)
     add_executable(test_lavoro_page
         tests/test_lavoro_page.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_lavoro_page PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_lavoro_page PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_lavoro_page PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_lavoro_page PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_lavoro_page PRIVATE pthread m)
     endif()
@@ -530,17 +553,12 @@ if(BUILD_TESTS)
     # ── test_mcp_manager: McpManagerPage helper + costruzione ──
     add_executable(test_mcp_manager
         tests/test_mcp_manager.cpp
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_mcp_manager PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_mcp_manager PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_mcp_manager PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_mcp_manager PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_mcp_manager PRIVATE pthread m)
     endif()
@@ -549,17 +567,12 @@ if(BUILD_TESTS)
     add_executable(test_app_controller
         tests/test_app_controller.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_app_controller PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_app_controller PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_app_controller PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_app_controller PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_app_controller PRIVATE pthread m)
     endif()
@@ -568,17 +581,12 @@ if(BUILD_TESTS)
     add_executable(test_programmazione_page
         tests/test_programmazione_page.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_programmazione_page PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_programmazione_page PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_programmazione_page PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_programmazione_page PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_programmazione_page PRIVATE pthread m)
     endif()
@@ -600,17 +608,12 @@ if(BUILD_TESTS)
     add_executable(test_translitter
         tests/test_translitter.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_translitter PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_translitter PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_translitter PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_translitter PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_translitter PRIVATE pthread m)
     endif()
@@ -618,13 +621,9 @@ if(BUILD_TESTS)
     # ── test_thinking_detect: _extractThinkingToken + classifyQuery + key-lock ──
     add_executable(test_thinking_detect
         tests/test_thinking_detect.cpp
-        ${AI_CLIENT_SRCS}
     )
     target_include_directories(test_thinking_detect PRIVATE ${CMAKE_SOURCE_DIR})
-    target_link_libraries(test_thinking_detect PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_thinking_detect PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_thinking_detect PRIVATE test_ai_client_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_thinking_detect PRIVATE pthread m)
     endif()
@@ -635,13 +634,9 @@ if(BUILD_TESTS)
     # Override modello: PRISMALUX_TEST_MODEL=qwen2.5-coder:7b ./build_tests/test_ai_integration
     add_executable(test_ai_integration
         tests/test_ai_integration.cpp
-        ${AI_CLIENT_SRCS}
     )
     target_include_directories(test_ai_integration PRIVATE ${CMAKE_SOURCE_DIR})
-    target_link_libraries(test_ai_integration PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_ai_integration PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_ai_integration PRIVATE test_ai_client_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_ai_integration PRIVATE pthread m)
     endif()
@@ -653,13 +648,9 @@ if(BUILD_TESTS)
     # CAT-I: qualità reale con Ollama — caveman, honesty, think, num_predict
     add_executable(test_ai_stress
         tests/test_ai_stress.cpp
-        ${AI_CLIENT_SRCS}
     )
     target_include_directories(test_ai_stress PRIVATE ${CMAKE_SOURCE_DIR})
-    target_link_libraries(test_ai_stress PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_ai_stress PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_ai_stress PRIVATE test_ai_client_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_ai_stress PRIVATE pthread m)
     endif()
@@ -672,13 +663,9 @@ if(BUILD_TESTS)
     #          PRISMALUX_TEST_MODEL_CODER     (default: qwen2.5-coder)
     add_executable(test_team_collab
         tests/test_team_collab.cpp
-        ${AI_CLIENT_SRCS}
     )
     target_include_directories(test_team_collab PRIVATE ${CMAKE_SOURCE_DIR})
-    target_link_libraries(test_team_collab PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_team_collab PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_team_collab PRIVATE test_ai_client_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_team_collab PRIVATE pthread m)
     endif()
@@ -691,17 +678,12 @@ if(BUILD_TESTS)
     add_executable(test_multi_agente_live
         tests/test_multi_agente_live.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_multi_agente_live PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_multi_agente_live PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_multi_agente_live PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_multi_agente_live PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_multi_agente_live PRIVATE pthread m)
     endif()
@@ -789,17 +771,12 @@ if(BUILD_TESTS)
     add_executable(test_strumenti_rag
         tests/test_strumenti_rag.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_strumenti_rag PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_strumenti_rag PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_strumenti_rag PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_strumenti_rag PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_strumenti_rag PRIVATE pthread m)
     endif()
@@ -848,17 +825,12 @@ if(BUILD_TESTS)
     add_executable(test_manutenzione_cron
         tests/test_manutenzione_cron.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_manutenzione_cron PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_manutenzione_cron PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_manutenzione_cron PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_manutenzione_cron PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_manutenzione_cron PRIVATE pthread m)
     endif()
@@ -878,17 +850,12 @@ if(BUILD_TESTS)
     add_executable(test_matematica_page
         tests/test_matematica_page.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_matematica_page PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_matematica_page PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_matematica_page PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_matematica_page PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_matematica_page PRIVATE pthread m)
         # GCC 15: #define private public nel test altera visibilità in <sstream>
@@ -940,17 +907,12 @@ if(BUILD_TESTS)
     add_executable(test_agenti_pipeline
         tests/test_agenti_pipeline.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_agenti_pipeline PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_agenti_pipeline PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_agenti_pipeline PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_agenti_pipeline PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_agenti_pipeline PRIVATE pthread m)
     endif()
@@ -959,17 +921,12 @@ if(BUILD_TESTS)
     add_executable(test_agents_config_dialog
         tests/test_agents_config_dialog.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_agents_config_dialog PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_agents_config_dialog PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_agents_config_dialog PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_agents_config_dialog PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_agents_config_dialog PRIVATE pthread m)
     endif()
@@ -977,17 +934,12 @@ if(BUILD_TESTS)
     # ── test_ai_client: classifyQuery, detectQueryDomain, SmartRouter, abort, mock HTTP 4xx/5xx ──
     add_executable(test_ai_client
         tests/test_ai_client.cpp
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_ai_client PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_ai_client PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_ai_client PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_ai_client PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_ai_client PRIVATE pthread m)
     endif()
@@ -996,17 +948,12 @@ if(BUILD_TESTS)
     add_executable(test_lan_wan_core
         tests/test_lan_wan_core.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_lan_wan_core PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_lan_wan_core PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_lan_wan_core PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_lan_wan_core PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_lan_wan_core PRIVATE pthread m)
         # GCC 15: #define private public nel test altera visibilità in <sstream>
@@ -1018,17 +965,12 @@ if(BUILD_TESTS)
     # ── test_mcp_integration: McpManagerPage struct/scan/JSON-RPC protocol + integrazione reale ──
     add_executable(test_mcp_integration
         tests/test_mcp_integration.cpp
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_mcp_integration PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_mcp_integration PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_mcp_integration PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_mcp_integration PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_mcp_integration PRIVATE pthread m)
     endif()
@@ -1037,17 +979,12 @@ if(BUILD_TESTS)
     add_executable(test_lan_server
         tests/test_lan_server.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_lan_server PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_lan_server PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_lan_server PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_lan_server PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_lan_server PRIVATE pthread m)
     endif()
@@ -1056,17 +993,12 @@ if(BUILD_TESTS)
     add_executable(test_lan_server_endpoints
         tests/test_lan_server_endpoints.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_lan_server_endpoints PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_lan_server_endpoints PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_lan_server_endpoints PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_lan_server_endpoints PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_lan_server_endpoints PRIVATE pthread m)
     endif()
@@ -1075,17 +1007,12 @@ if(BUILD_TESTS)
     add_executable(test_lan_server_queue
         tests/test_lan_server_queue.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_lan_server_queue PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_lan_server_queue PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_lan_server_queue PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_lan_server_queue PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_lan_server_queue PRIVATE pthread m)
     endif()
@@ -1094,17 +1021,12 @@ if(BUILD_TESTS)
     add_executable(test_wan_compute_tasks
         tests/test_wan_compute_tasks.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_wan_compute_tasks PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_wan_compute_tasks PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_wan_compute_tasks PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_wan_compute_tasks PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_wan_compute_tasks PRIVATE pthread m)
     endif()
@@ -1113,17 +1035,12 @@ if(BUILD_TESTS)
     add_executable(test_sci_compute
         tests/test_sci_compute.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_sci_compute PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_sci_compute PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_sci_compute PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_sci_compute PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_sci_compute PRIVATE pthread m)
     endif()
@@ -1131,13 +1048,12 @@ if(BUILD_TESTS)
     # ── test_sintetizzatore: Tono struct, OscoCanvas, SintetizzatoreWidget ──
     add_executable(test_sintetizzatore
         tests/test_sintetizzatore.cpp
-        ${TEST_SHARED_SRCS}
     )
     target_include_directories(test_sintetizzatore PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_sintetizzatore PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_link_libraries(test_sintetizzatore PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_sintetizzatore PRIVATE pthread m)
     endif()
@@ -1145,13 +1061,12 @@ if(BUILD_TESTS)
     # ── test_stt_whisper: SttWhisper paths, availability, transcribe() ──
     add_executable(test_stt_whisper
         tests/test_stt_whisper.cpp
-        ${TEST_SHARED_SRCS}
     )
     target_include_directories(test_stt_whisper PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_stt_whisper PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_link_libraries(test_stt_whisper PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_stt_whisper PRIVATE pthread m)
     endif()
@@ -1160,17 +1075,12 @@ if(BUILD_TESTS)
     add_executable(test_stt_whisper_live
         tests/test_stt_whisper_live.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_stt_whisper_live PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_stt_whisper_live PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_stt_whisper_live PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_stt_whisper_live PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_stt_whisper_live PRIVATE pthread m)
     endif()
@@ -1179,17 +1089,12 @@ if(BUILD_TESTS)
     add_executable(test_onboarding
         tests/test_onboarding.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_onboarding PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_onboarding PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_onboarding PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_onboarding PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_onboarding PRIVATE pthread m)
     endif()
@@ -1197,17 +1102,12 @@ if(BUILD_TESTS)
     add_executable(test_impostazioni_page
         tests/test_impostazioni_page.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_impostazioni_page PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_impostazioni_page PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_impostazioni_page PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_impostazioni_page PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_impostazioni_page PRIVATE pthread m)
     endif()
@@ -1215,17 +1115,12 @@ if(BUILD_TESTS)
     add_executable(test_manutenzione_bugs
         tests/test_manutenzione_bugs.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_manutenzione_bugs PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_manutenzione_bugs PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_manutenzione_bugs PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_manutenzione_bugs PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_manutenzione_bugs PRIVATE pthread m)
     endif()
@@ -1233,17 +1128,12 @@ if(BUILD_TESTS)
     add_executable(test_grafico
         tests/test_grafico.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_grafico PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_grafico PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_grafico PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_grafico PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_grafico PRIVATE pthread m)
     endif()
@@ -1251,17 +1141,12 @@ if(BUILD_TESTS)
     add_executable(test_agenti_byzantine
         tests/test_agenti_byzantine.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_agenti_byzantine PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_agenti_byzantine PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_agenti_byzantine PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_agenti_byzantine PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_agenti_byzantine PRIVATE pthread m)
     endif()
@@ -1270,17 +1155,12 @@ if(BUILD_TESTS)
     add_executable(test_agente_autonomo
         tests/test_agente_autonomo.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_agente_autonomo PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_agente_autonomo PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_agente_autonomo PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_agente_autonomo PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_agente_autonomo PRIVATE pthread m)
     endif()
@@ -1288,17 +1168,12 @@ if(BUILD_TESTS)
     add_executable(test_opencode_page
         tests/test_opencode_page.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_opencode_page PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_opencode_page PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_opencode_page PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_opencode_page PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_opencode_page PRIVATE pthread m)
     endif()
@@ -1306,17 +1181,12 @@ if(BUILD_TESTS)
     add_executable(test_docker_sandbox
         tests/test_docker_sandbox.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_docker_sandbox PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_docker_sandbox PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_docker_sandbox PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_docker_sandbox PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_docker_sandbox PRIVATE pthread m)
     endif()
@@ -1324,17 +1194,12 @@ if(BUILD_TESTS)
     add_executable(test_impara_quiz
         tests/test_impara_quiz.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_impara_quiz PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_impara_quiz PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_impara_quiz PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_impara_quiz PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_impara_quiz PRIVATE pthread m)
     endif()
@@ -1342,17 +1207,12 @@ if(BUILD_TESTS)
     add_executable(test_monitor_panel
         tests/test_monitor_panel.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_monitor_panel PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_monitor_panel PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_monitor_panel PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_monitor_panel PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_monitor_panel PRIVATE pthread m)
     endif()
@@ -1395,16 +1255,12 @@ if(BUILD_TESTS)
         tests/mock_ai_client.h
         rag_graph.cpp
         graph_memory.cpp
-        ${AI_CLIENT_SRCS}
     )
     target_include_directories(test_rag_graph_pipeline PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_rag_graph_pipeline PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_rag_graph_pipeline PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_rag_graph_pipeline PRIVATE test_ai_client_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_rag_graph_pipeline PRIVATE pthread m)
     endif()
@@ -1413,17 +1269,12 @@ if(BUILD_TESTS)
     add_executable(test_astrale
         tests/test_astrale.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_astrale PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_astrale PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_astrale PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_astrale PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_astrale PRIVATE pthread m)
     endif()
@@ -1432,17 +1283,12 @@ if(BUILD_TESTS)
     add_executable(test_repl_python
         tests/test_repl_python.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_repl_python PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_repl_python PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_repl_python PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_repl_python PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_repl_python PRIVATE pthread m)
     endif()
@@ -1451,17 +1297,12 @@ if(BUILD_TESTS)
     add_executable(test_file_parser
         tests/test_file_parser.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_file_parser PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_file_parser PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_file_parser PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_file_parser PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_file_parser PRIVATE pthread m)
     endif()
@@ -1470,17 +1311,12 @@ if(BUILD_TESTS)
     add_executable(test_gns3_mcp
         tests/test_gns3_mcp.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_gns3_mcp PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_gns3_mcp PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_gns3_mcp PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_gns3_mcp PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_gns3_mcp PRIVATE pthread m)
     endif()
@@ -1489,17 +1325,12 @@ if(BUILD_TESTS)
     add_executable(test_blhm_rab0l
         tests/test_blhm_rab0l.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_blhm_rab0l PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_blhm_rab0l PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_blhm_rab0l PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_blhm_rab0l PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_blhm_rab0l PRIVATE pthread m)
     endif()
@@ -1508,17 +1339,12 @@ if(BUILD_TESTS)
     add_executable(test_distillazione
         tests/test_distillazione.cpp
         tests/mock_ai_client.h
-        ${TEST_SHARED_SRCS}
-        ${C_SRCS}
     )
     target_include_directories(test_distillazione PRIVATE
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
     )
-    target_link_libraries(test_distillazione PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
-    target_compile_definitions(test_distillazione PRIVATE
-        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
-    )
+    target_link_libraries(test_distillazione PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_distillazione PRIVATE pthread m)
     endif()
