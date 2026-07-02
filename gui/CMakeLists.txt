@@ -190,6 +190,11 @@ set(CPP_SRCS
     pages/main_sim_graph.cpp
     pages/main_sim_misc.cpp
     pages/main_tools.cpp
+    pages/main_tools_dragdrop.cpp
+    pages/main_tools_rag.cpp
+    pages/main_tools_actions.cpp
+    pages/main_tools_run.cpp
+    pages/main_tools_bridges.cpp
     pages/main_lan_wan.cpp
     pages/main_lan_gns3.cpp
     pages/main_wan_persist.cpp
