@@ -225,6 +225,30 @@ static QString normalizeNumbers(const QString& text)
     return result;
 }
 
+/* ── Converti operatori matematici scritti a parole → simbolo ─────────────
+ * A differenza di normalizeNumbers(), va applicata SOLO a un'espressione già
+ * isolata (mai all'intera frase libera): "più" è anche un avverbio italiano
+ * comune ("voglio sapere di più"), sostituirlo ovunque romperebbe frasi
+ * normali. Usata solo dentro guardiaMath(), dopo aver già isolato
+ * l'espressione da un prefisso matematico o confermato che l'intera frase
+ * è comunque un'espressione valida. ─────────────────────────────────────── */
+static QString normalizeOperatorWords(const QString& expr)
+{
+    QString s = expr;
+    static const QRegularExpression rePiu(
+        "\\bpi\xc3\xb9\\b|\\bpiu\\b", QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression reMeno("\\bmeno\\b", QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression rePer(
+        "\\bmoltiplicato\\s+per\\b|\\bper\\b", QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression reDiv(
+        "\\bdiviso\\s+per\\b|\\bdiviso\\b", QRegularExpression::CaseInsensitiveOption);
+    s.replace(rePiu,  "+");
+    s.replace(reMeno, "-");
+    s.replace(rePer,  "*");
+    s.replace(reDiv,  "/");
+    return s;
+}
+
 QString _sanitize_prompt(const QString& raw)
 {
     /* converti prima i numeri in lettere → cifre */
@@ -485,7 +509,7 @@ QString AgentiPage::guardiaMath(const QString& input)
     };
     for (const QString& pref : prefissi) {
         if (low.startsWith(pref)) {
-            QString expr = low.mid(pref.length()).trimmed();
+            QString expr = normalizeOperatorWords(low.mid(pref.length()).trimmed());
             QByteArray ba = expr.toLatin1(); double v;
             if (_gp_try(ba,v))
                 return QString("%1 = %2").arg(expr).arg(_gp_fmt(v));
@@ -496,11 +520,44 @@ QString AgentiPage::guardiaMath(const QString& input)
     for (const QString& pref : prefissi) {
         int idx = low.indexOf(pref);
         if (idx > 0) {
-            QString expr = low.mid(idx + pref.length()).trimmed();
+            QString expr = normalizeOperatorWords(low.mid(idx + pref.length()).trimmed());
             QByteArray ba = expr.toLatin1(); double v;
             if (_gp_try(ba,v))
                 return QString("%1 = %2").arg(expr).arg(_gp_fmt(v));
         }
+    }
+    /* Forme verbali "sottrai A, B" / "sottrai A e B" / "somma A e B" /
+     * "moltiplica A per B" / "dividi A per B" — due soli operandi. */
+    {
+        struct VerbOp { QString verb; QChar op; };
+        static const QVector<VerbOp> kVerbs = {
+            {"sottrai",    '-'}, {"sottraendo", '-'},
+            {"somma",      '+'}, {"addiziona",  '+'}, {"aggiungi", '+'},
+            {"moltiplica", '*'},
+            {"dividi",     '/'},
+        };
+        static const QRegularExpression reSep(R"(\s*(?:,|\be\b|\bper\b|\ba\b)\s*)");
+        for (const auto& v : kVerbs) {
+            if (!low.startsWith(v.verb + " ")) continue;
+            const QString rest = low.mid(v.verb.length() + 1).trimmed();
+            const QStringList parts = rest.split(reSep, Qt::SkipEmptyParts);
+            if (parts.size() == 2) {
+                const QString expr = parts[0].trimmed() + QString(v.op) + parts[1].trimmed();
+                QByteArray ba = expr.toLatin1(); double val;
+                if (_gp_try(ba, val))
+                    return QString("%1 = %2").arg(expr).arg(_gp_fmt(val));
+            }
+            break;
+        }
+    }
+    /* Espressione matematica pura senza alcun prefisso (es. "5+5", "cinque+5") —
+     * richiede almeno un operatore esplicito, altrimenti un numero isolato
+     * digitato in chat (es. "42") verrebbe trattato come domanda di calcolo. */
+    if (low.length() <= 60 && QRegularExpression(R"([\+\-\*/\^])").match(low).hasMatch()) {
+        const QString expr = normalizeOperatorWords(low);
+        QByteArray ba = expr.toLatin1(); double v;
+        if (_gp_try(ba, v))
+            return QString("%1 = %2").arg(expr).arg(_gp_fmt(v));
     }
 
     {
