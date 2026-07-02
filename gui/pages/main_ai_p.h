@@ -138,3 +138,11 @@ QString _inject_random(const QString& task);
  *  sbagliano quasi sempre. Antepone "[Calcolo locale: ...]" se riconosce la
  *  domanda, altrimenti ritorna il task invariato. Definita in main_ai_tools.cpp. */
 QString _inject_date_calc(const QString& task);
+/** Valida IBAN (mod-97) e Codice Fiscale (D.M.1976, con decodifica data di
+ *  nascita/sesso), calcola sconti/aumenti/IVA. Stesso stile "[Calcolo
+ *  locale: ...]" di _inject_date_calc. Definita in main_ai_tools.cpp. */
+QString _inject_finance(const QString& task);
+/** Genera UUID v4 / hash MD5-SHA1-SHA256-SHA512 / password casuali
+ *  localmente invece di farli "inventare" all'LLM. Definita in
+ *  main_ai_tools.cpp. */
+QString _inject_generator(const QString& task);

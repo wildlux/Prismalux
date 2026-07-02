@@ -9,6 +9,8 @@ namespace P = PrismaluxPaths;
 #include <QMessageBox>
 #include <QFile>
 #include <QSettings>
+#include <QVector>
+#include <QPair>
 
 /* ══════════════════════════════════════════════════════════════
    GUARDIA MATEMATICA LOCALE
@@ -1078,6 +1080,86 @@ QString _inject_science(const QString& task)
     if (!res.ok && lo.contains("fahrenheit") && (lo.contains("celsius") || lo.contains("\xc2\xb0""c"))) {
         double F = matchN(lo);
         if (!std::isnan(F)) res = {true, "\xc2\xb0""C = (\xc2\xb0""F-32)/1.8", _sci((F - 32.0) / 1.8) + " \xc2\xb0""C"};
+    }
+
+    /* ══ CUCINA ══ */
+
+    /* Temperatura forno → °F: qui la sorgente °C è implicita (non serve che
+       l'utente scriva "celsius"), a differenza del blocco generico sopra
+       che richiede entrambe le unità esplicite nel testo. */
+    if (!res.ok && lo.contains("forno") && lo.contains("fahrenheit")) {
+        double C = matchN(lo);
+        if (!std::isnan(C))
+            res = {true, "Forno \xc2\xb0""F = \xc2\xb0""C \xc3\x97 1.8 + 32",
+                   _sci(C * 1.8 + 32.0) + " \xc2\xb0""F"};
+    }
+    /* Temperatura forno → Gas Mark (scala forni UK) */
+    if (!res.ok && lo.contains("forno") && lo.contains("gas mark")) {
+        double C = matchN(lo);
+        if (!std::isnan(C)) {
+            static const QVector<QPair<double,QString>> kGas = {
+                {135,"1"},{149,"2"},{163,"3"},{177,"4"},{190,"5"},
+                {204,"6"},{218,"7"},{232,"8"},{246,"9"}
+            };
+            QString mark = "9+";
+            for (const auto& g : kGas)
+                if (C <= g.first + 7) { mark = g.second; break; }
+            res = {true, "Forno \xc2\xb0""C \xe2\x86\x92 Gas Mark",
+                   _sci(C) + " \xc2\xb0""C \xe2\x89\x88 Gas Mark " + mark};
+        }
+    }
+
+    /* Ingredienti da ricetta: ml \xe2\x86\x94 grammi (densità approssimate).
+       Direzione dedotta dal primo numero+unità che compare nel testo. */
+    if (!res.ok) {
+        struct Ing { QString n; double density; };
+        static const QVector<Ing> kIng = {
+            {"acqua",           1.00}, {"farina",   0.53},
+            {"zucchero a velo", 0.56}, {"zucchero", 0.85},
+            {"burro",           0.95}, {"latte",    1.03},
+            {"olio",            0.92}, {"miele",    1.42},
+            {"panna",           1.01},
+        };
+        QString foundIng; double density = 0.0;
+        for (const auto& ing : kIng)
+            if (lo.contains(ing.n)) { foundIng = ing.n; density = ing.density; break; }
+
+        if (!foundIng.isEmpty() && lo.contains("grammi")
+            && (lo.contains(" ml") || lo.contains("millilitri"))) {
+            static QRegularExpression reNumUnit(
+                R"((\d+(?:[.,]\d+)?)\s*(ml|millilitri|g|gr|grammi))",
+                QRegularExpression::CaseInsensitiveOption);
+            auto mu = reNumUnit.match(lo);
+            if (mu.hasMatch()) {
+                const double v = _num(mu.captured(1));
+                const QString unit = mu.captured(2);
+                if (unit == "ml" || unit == "millilitri") {
+                    res = {true, "ml \xe2\x86\x92 g (" + foundIng + ")",
+                           _sci(v) + " ml \xe2\x89\x88 " + _sci(v * density) + " g"};
+                } else {
+                    res = {true, "g \xe2\x86\x92 ml (" + foundIng + ")",
+                           _sci(v) + " g \xe2\x89\x88 " + _sci(v / density) + " ml"};
+                }
+            }
+        }
+    }
+
+    /* Cucchiaino/cucchiaio/tazza → ml */
+    if (!res.ok && (lo.contains("ml") || lo.contains("millilitri"))) {
+        struct Vol { QString n; double ml; };
+        static const QVector<Vol> kVol = {
+            {"cucchiaino", 5.0}, {"cucchiaini", 5.0},
+            {"cucchiaio",  15.0}, {"cucchiai",   15.0},
+            {"tazza",      240.0}, {"tazze",     240.0},
+        };
+        for (const auto& v : kVol) {
+            if (!lo.contains(v.n)) continue;
+            const double n = matchN(lo);
+            if (!std::isnan(n))
+                res = {true, v.n + " \xe2\x86\x92 ml",
+                       _sci(n) + " " + v.n + " \xe2\x89\x88 " + _sci(n * v.ml) + " ml"};
+            break;
+        }
     }
 
     /* ══ ENERGIA / LAVORO ══ */

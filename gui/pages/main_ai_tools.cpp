@@ -32,6 +32,7 @@ namespace P = PrismaluxPaths;
 #include <QDateTime>
 #include <QLocale>
 #include <QMap>
+#include <QHash>
 #include <QVector>
 #include <QTextCursor>
 #include <QFile>
@@ -39,6 +40,8 @@ namespace P = PrismaluxPaths;
 #include <QFileInfo>
 #include <QUrl>
 #include <QUrlQuery>
+#include <QUuid>
+#include <QCryptographicHash>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QVBoxLayout>
@@ -230,6 +233,13 @@ QString AgentiPage::toolSystemSuffix()
             "hai raccolto almeno titolo e data. Se il tool risponde con un messaggio "
             "che chiede altri dati, fai la domanda mancante e NON richiamare il tool "
             "finché l'utente non risponde.\n"
+            "TOOL_CALL: {\"tool\": \"cambio_valuta\", \"input\": "
+            "\"{\\\"importo\\\":100,\\\"da\\\":\\\"EUR\\\",\\\"a\\\":\\\"USD\\\"}\"}\n"
+            "cambio_valuta: tasso di cambio reale aggiornato (fonte BCE) — usalo SEMPRE per "
+            "conversioni tra valute, non calcolare mai un tasso a memoria (cambia ogni giorno).\n"
+            "NOTA: IBAN, Codice Fiscale, sconti/IVA/percentuali, UUID, password e hash "
+            "vengono riconosciuti e calcolati AUTOMATICAMENTE se il testo dell'utente li "
+            "contiene — non serve nessun TOOL_CALL per questi.\n"
             "Scrivi UNA riga TOOL_CALL: {...} e attendi TOOL_RESULT.\n"
             "REGOLA FILE: usa leggi_file/lista_file SOLO con percorsi forniti dall'utente\n"
             "o dentro la cartella del progetto:\n") +
@@ -439,6 +449,69 @@ void AgentiPage::runToolCall(const QJsonObject& call,
         proc->start(P::findPython(), {"-c", script});
         QTimer::singleShot(12000, proc, [proc, onDone]{
             if (proc->state() != QProcess::NotRunning) { proc->kill(); onDone("timeout ricerca"); }
+        });
+        return;
+    }
+
+    /* ── Cambio valuta — tasso reale via frankfurter.app (ECB, no API key).
+     * Non è calcolabile localmente come date/percentuali: il tasso cambia
+     * ogni giorno, serve una vera chiamata di rete — ma zero LLM comunque,
+     * il modello non deve indovinare il tasso. Input JSON:
+     *   {"importo": 100, "da": "EUR", "a": "USD"}
+     * oppure testo libero tipo "100 EUR in USD" (fallback regex). ── */
+    if (tool == "cambio_valuta" || tool == "currency" || tool == "converti_valuta") {
+        const QJsonObject o = QJsonDocument::fromJson(input.toUtf8()).object();
+        double importo = o.contains("importo") ? o.value("importo").toDouble() : 1.0;
+        QString da = o.value("da").toString().toUpper().trimmed();
+        QString a  = o.value("a").toString().toUpper().trimmed();
+
+        if (da.isEmpty() || a.isEmpty()) {
+            static const QRegularExpression re(
+                R"((\d+(?:[.,]\d+)?)?\s*([A-Za-z]{3})\s*(?:in|to|verso|->|→)\s*([A-Za-z]{3}))",
+                QRegularExpression::CaseInsensitiveOption);
+            const auto m = re.match(input);
+            if (m.hasMatch()) {
+                if (!m.captured(1).isEmpty()) importo = m.captured(1).replace(',', '.').toDouble();
+                da = m.captured(2).toUpper();
+                a  = m.captured(3).toUpper();
+            }
+        }
+        static const QRegularExpression reCode(R"(^[A-Z]{3}$)");
+        if (!reCode.match(da).hasMatch() || !reCode.match(a).hasMatch()) {
+            onDone("Servono valuta di partenza e destinazione come codici ISO a 3 lettere "
+                   "(es. {\"importo\":100,\"da\":\"EUR\",\"a\":\"USD\"}). Chiedi all'utente quali valute.");
+            return;
+        }
+
+        QJsonArray _a2; _a2.append(a);
+        const QString aJson = QString::fromUtf8(
+            QJsonDocument(_a2).toJson(QJsonDocument::Compact)).mid(1).chopped(1);
+        const QString script =
+            "import urllib.request,json\n"
+            "try:\n"
+            "    url='https://api.frankfurter.app/latest?amount=" + QString::number(importo, 'f', 4)
+                + "&from=" + da + "&to=" + a + "'\n"
+            "    req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})\n"
+            "    with urllib.request.urlopen(req,timeout=7) as r: d=json.load(r)\n"
+            "    print(f\"{d['amount']} " + da + " = {d['rates'][" + aJson + "]:.4f} " + a
+                + " (tasso " + QDateTime::currentDateTime().toString("yyyy-MM-dd") + ", fonte BCE/frankfurter.app)\")\n"
+            "except KeyError: print('ERRORE: codice valuta non riconosciuto (frankfurter.app copre le valute BCE)')\n"
+            "except Exception as e: print('ERRORE:',e)\n";
+        auto* proc = new QProcess(this);
+        proc->setProcessChannelMode(QProcess::MergedChannels);
+        connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [proc, onDone](int, QProcess::ExitStatus) {
+            const QString out = QString::fromUtf8(proc->readAll()).trimmed();
+            proc->deleteLater();
+            onDone(out.isEmpty() ? "errore: nessuna risposta dal servizio cambio" : out);
+        });
+        connect(proc, &QProcess::errorOccurred, this, [proc](QProcess::ProcessError err) {
+            if (err == QProcess::FailedToStart)
+                qWarning() << "[main_ai_tools] cambio_valuta non avviato:" << proc->program();
+        });
+        proc->start(P::findPython(), {"-c", script});
+        QTimer::singleShot(10000, proc, [proc, onDone]{
+            if (proc->state() != QProcess::NotRunning) { proc->kill(); onDone("timeout cambio valuta"); }
         });
         return;
     }
@@ -1500,6 +1573,303 @@ QString _inject_date_calc(const QString& task)
     return QString("[Calcolo locale: da oggi (%1) al %2 mancano %3]\n\n")
         .arg(QLocale(QLocale::Italian).toString(today, "d MMMM yyyy"),
              QLocale(QLocale::Italian).toString(target, "d MMMM yyyy"), result) + task;
+}
+
+/* ── Helper puri per _inject_finance: validazione IBAN (mod-97, ISO 7064)
+ * e Codice Fiscale (D.M. 23/12/1976) — nessuna dipendenza UI. ── */
+static bool _ibanValid(const QString& ibanRaw)
+{
+    QString iban = ibanRaw.toUpper();
+    iban.remove(' ');
+    if (iban.length() < 15 || iban.length() > 34) return false;
+    static const QRegularExpression reShape(R"(^[A-Z]{2}\d{2}[A-Z0-9]+$)");
+    if (!reShape.match(iban).hasMatch()) return false;
+
+    const QString rearranged = iban.mid(4) + iban.left(4);
+    qint64 remainder = 0;
+    for (const QChar& ch : rearranged) {
+        int val;
+        if (ch.isDigit())      val = ch.digitValue();
+        else if (ch.isUpper()) val = ch.unicode() - 'A' + 10;
+        else return false;
+        if (val >= 10) {
+            remainder = (remainder * 10 + val / 10) % 97;
+            remainder = (remainder * 10 + val % 10) % 97;
+        } else {
+            remainder = (remainder * 10 + val) % 97;
+        }
+    }
+    return remainder == 1;
+}
+
+static bool _cfChecksumValid(const QString& cfUpper)
+{
+    if (cfUpper.length() != 16) return false;
+    static const QHash<QChar,int> kOdd = {
+        {'0',1},{'1',0},{'2',5},{'3',7},{'4',9},{'5',13},{'6',15},{'7',17},{'8',19},{'9',21},
+        {'A',1},{'B',0},{'C',5},{'D',7},{'E',9},{'F',13},{'G',15},{'H',17},{'I',19},{'J',21},
+        {'K',2},{'L',4},{'M',18},{'N',20},{'O',11},{'P',3},{'Q',6},{'R',8},{'S',12},{'T',14},
+        {'U',16},{'V',10},{'W',22},{'X',25},{'Y',24},{'Z',23}
+    };
+    static const QHash<QChar,int> kEven = {
+        {'0',0},{'1',1},{'2',2},{'3',3},{'4',4},{'5',5},{'6',6},{'7',7},{'8',8},{'9',9},
+        {'A',0},{'B',1},{'C',2},{'D',3},{'E',4},{'F',5},{'G',6},{'H',7},{'I',8},{'J',9},
+        {'K',10},{'L',11},{'M',12},{'N',13},{'O',14},{'P',15},{'Q',16},{'R',17},{'S',18},{'T',19},
+        {'U',20},{'V',21},{'W',22},{'X',23},{'Y',24},{'Z',25}
+    };
+    int sum = 0;
+    for (int i = 0; i < 15; ++i) {
+        const QChar c = cfUpper.at(i);
+        const bool oddPos = (i % 2 == 0);   /* i=0 → posizione 1 (dispari) */
+        if (oddPos) { if (!kOdd.contains(c))  return false; sum += kOdd[c];  }
+        else        { if (!kEven.contains(c)) return false; sum += kEven[c]; }
+    }
+    return cfUpper.at(15) == QChar('A' + (sum % 26));
+}
+
+/* Decodifica data di nascita + sesso dal Codice Fiscale (già validato).
+ * L'anno a 2 cifre è ambiguo tra 19XX/20XX: si sceglie il secolo che rende
+ * la data non futura rispetto a oggi (euristica standard, non certezza). */
+static QString _cfDecode(const QString& cfUpper)
+{
+    static const QHash<QChar,int> kMese = {
+        {'A',1},{'B',2},{'C',3},{'D',4},{'E',5},{'H',6},
+        {'L',7},{'M',8},{'P',9},{'R',10},{'S',11},{'T',12}
+    };
+    const QChar meseC = cfUpper.at(8);
+    if (!kMese.contains(meseC)) return QString();
+    bool ok1, ok2;
+    const int yy  = cfUpper.mid(6, 2).toInt(&ok1);
+    int day       = cfUpper.mid(9, 2).toInt(&ok2);
+    if (!ok1 || !ok2) return QString();
+    const bool femmina = day > 40;
+    if (femmina) day -= 40;
+    const int mese = kMese[meseC];
+    if (day < 1 || day > 31) return QString();
+
+    const int curYY  = QDate::currentDate().year() % 100;
+    const int secolo = (yy > curYY) ? 1900 : 2000;
+    const QDate nascita(secolo + yy, mese, day);
+    const QString belfiore = cfUpper.mid(11, 4);
+
+    return QString("nato/a il %1 (%2), Belfiore luogo di nascita: %3 "
+                    "(anno a 2 cifre ambiguo tra %4 e %5, mostrato quello più probabile)")
+        .arg(nascita.isValid() ? QLocale(QLocale::Italian).toString(nascita, "d MMMM yyyy") : QString("%1/%2/%3xx").arg(day).arg(mese).arg(yy))
+        .arg(femmina ? "sesso femminile" : "sesso maschile")
+        .arg(belfiore)
+        .arg(1900 + yy).arg(2000 + yy);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _inject_finance — valida IBAN/Codice Fiscale e calcola sconti/IVA/
+   percentuali direttamente nel testo dell'utente, senza passare
+   dall'LLM (stesso motivo di _inject_date_calc: sono calcoli
+   deterministici, un modello può sbagliare cifra di controllo o
+   percentuale). Stile identico a _inject_science: "[Calcolo locale:
+   ...]" antepone il task se riconosce un pattern, altrimenti lo
+   ritorna invariato.
+   ══════════════════════════════════════════════════════════════ */
+QString _inject_finance(const QString& task)
+{
+    const QString raw = task.trimmed();
+    if (raw.length() > 300) return task;
+    const QString lo = raw.toLower();
+
+    /* ── IBAN: cerca un token che rispetti la forma IBAN, spazi inclusi
+     * (l'utente spesso lo scrive raggruppato a blocchi di 4) ── */
+    {
+        static const QRegularExpression reIban(
+            R"(\b([A-Za-z]{2}\d{2}(?:[ ]?[A-Za-z0-9]{1,4}){2,7})\b)");
+        const auto m = reIban.match(raw);
+        if (m.hasMatch()) {
+            const QString token = m.captured(1);
+            const QString clean = QString(token).remove(' ').toUpper();
+            if (clean.length() >= 15) {
+                const bool valid = _ibanValid(clean);
+                return QString("[Calcolo locale: IBAN %1 \xe2\x80\x94 %2]\n\n")
+                    .arg(clean, valid ? "VALIDO (cifra di controllo corretta)"
+                                       : "NON VALIDO (cifra di controllo errata o formato non riconosciuto)")
+                    + task;
+            }
+        }
+    }
+
+    /* ── Codice Fiscale: 16 caratteri nella forma esatta prevista ── */
+    {
+        static const QRegularExpression reCf(
+            R"(\b([A-Za-z]{6}\d{2}[A-Za-z]\d{2}[A-Za-z]\d{3}[A-Za-z])\b)");
+        const auto m = reCf.match(raw);
+        if (m.hasMatch()) {
+            const QString cf = m.captured(1).toUpper();
+            const bool valid = _cfChecksumValid(cf);
+            QString msg = QString("[Calcolo locale: Codice Fiscale %1 \xe2\x80\x94 %2")
+                .arg(cf, valid ? "VALIDO" : "NON VALIDO (cifra di controllo errata)");
+            if (valid) {
+                const QString decoded = _cfDecode(cf);
+                if (!decoded.isEmpty()) msg += ", " + decoded;
+            }
+            return msg + "]\n\n" + task;
+        }
+    }
+
+    /* ── Percentuale di un valore: "quanto è il 20% di 150" ── */
+    {
+        static const QRegularExpression re(
+            R"((\d+(?:[.,]\d+)?)\s*%\s+di\s+(\d+(?:[.,]\d+)?))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const double pct = m.captured(1).replace(',', '.').toDouble();
+            const double val = m.captured(2).replace(',', '.').toDouble();
+            const double r = val * pct / 100.0;
+            return QString("[Calcolo locale: il %1% di %2 = %3]\n\n")
+                .arg(QString::number(pct, 'g', 6), QString::number(val, 'g', 6), QString::number(r, 'f', 2))
+                + task;
+        }
+    }
+
+    /* ── Sconto: "sconto del 15% su 80 euro" ── */
+    {
+        static const QRegularExpression re(
+            R"(sconto\w*\s+(?:del\s+)?(\d+(?:[.,]\d+)?)\s*%.{0,15}(?:su|di)\s+(\d+(?:[.,]\d+)?))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const double pct = m.captured(1).replace(',', '.').toDouble();
+            const double val = m.captured(2).replace(',', '.').toDouble();
+            const double risparmio = val * pct / 100.0;
+            return QString("[Calcolo locale: sconto %1% su %2 \xe2\x86\x92 prezzo finale %3, risparmio %4]\n\n")
+                .arg(QString::number(pct, 'g', 6), QString::number(val, 'f', 2),
+                     QString::number(val - risparmio, 'f', 2), QString::number(risparmio, 'f', 2))
+                + task;
+        }
+    }
+
+    /* ── Aumento/maggiorazione: "aumento del 10% su 200" ── */
+    {
+        static const QRegularExpression re(
+            R"((?:aument\w*|maggiorazione)\s+(?:del\s+)?(\d+(?:[.,]\d+)?)\s*%.{0,15}(?:su|di)\s+(\d+(?:[.,]\d+)?))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const double pct = m.captured(1).replace(',', '.').toDouble();
+            const double val = m.captured(2).replace(',', '.').toDouble();
+            const double r = val * (1.0 + pct / 100.0);
+            return QString("[Calcolo locale: aumento %1% su %2 \xe2\x86\x92 %3]\n\n")
+                .arg(QString::number(pct, 'g', 6), QString::number(val, 'f', 2), QString::number(r, 'f', 2))
+                + task;
+        }
+    }
+
+    /* ── Scorporo IVA: "scorporo iva 122 al 22%" / "togli iva 22% da 122" ── */
+    {
+        static const QRegularExpression re(
+            R"((?:scorpor\w*|togli)\s+(?:l['\x27]?)?iva.{0,20}?(\d+(?:[.,]\d+)?).{0,20}?(?:(\d+(?:[.,]\d+)?)\s*%)?)",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch() && !m.captured(1).isEmpty()) {
+            const double totale = m.captured(1).replace(',', '.').toDouble();
+            const double iva    = m.captured(2).isEmpty() ? 22.0 : m.captured(2).replace(',', '.').toDouble();
+            const double imponibile = totale / (1.0 + iva / 100.0);
+            return QString("[Calcolo locale: scorporo IVA %1% da %2 \xe2\x86\x92 imponibile %3, IVA %4]\n\n")
+                .arg(QString::number(iva, 'g', 6), QString::number(totale, 'f', 2),
+                     QString::number(imponibile, 'f', 2), QString::number(totale - imponibile, 'f', 2))
+                + task;
+        }
+    }
+
+    /* ── Aggiunta IVA: "100 + iva al 22%" / "prezzo con iva 22% su 100" ── */
+    {
+        static const QRegularExpression re(
+            R"((\d+(?:[.,]\d+)?)\s*(?:\+|e|con)?\s*iva.{0,15}?(?:(\d+(?:[.,]\d+)?)\s*%)?)",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch() && lo.contains("iva") && !lo.contains("scorpor") && !lo.contains("togli")) {
+            const double imponibile = m.captured(1).replace(',', '.').toDouble();
+            const double iva = m.captured(2).isEmpty() ? 22.0 : m.captured(2).replace(',', '.').toDouble();
+            const double totale = imponibile * (1.0 + iva / 100.0);
+            return QString("[Calcolo locale: %1 + IVA %2% \xe2\x86\x92 totale %3 (IVA %4)]\n\n")
+                .arg(QString::number(imponibile, 'f', 2), QString::number(iva, 'g', 6),
+                     QString::number(totale, 'f', 2), QString::number(totale - imponibile, 'f', 2))
+                + task;
+        }
+    }
+
+    return task;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _inject_generator — UUID/password/hash generati localmente invece
+   che "inventati" dall'LLM (un modello non ha accesso a un generatore
+   crittografico vero, e per un hash deve semplicemente calcolarlo:
+   se glielo chiedi in chat rischia di allucinare cifre plausibili
+   ma sbagliate). Stesso stile "[Calcolo locale: ...]" degli altri
+   _inject_*.
+   ══════════════════════════════════════════════════════════════ */
+QString _inject_generator(const QString& task)
+{
+    const QString raw = task.trimmed();
+    if (raw.length() > 300) return task;
+    const QString lo = raw.toLower();
+
+    /* ── UUID v4 ── */
+    if (lo.contains("uuid")
+        && (lo.contains("genera") || lo.contains("crea") || lo.contains("dammi") || lo.contains("nuovo"))) {
+        const QString uuid = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        return QString("[Calcolo locale: nuovo UUID v4 = %1]\n\n").arg(uuid) + task;
+    }
+
+    /* ── Hash (MD5/SHA-1/SHA-256/SHA-512) di un testo esplicito ── */
+    {
+        static const QRegularExpression re(
+            R"((md5|sha ?1|sha ?256|sha ?512)\s+(?:di|del(?:la)?|hash\s+di)?\s*[:\-]?\s*[\"']?([^\"'\n]{1,200})[\"']?)",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(raw);
+        if (m.hasMatch()) {
+            const QString algo  = m.captured(1).toLower().remove(' ');
+            const QString testo = m.captured(2).trimmed();
+            if (!testo.isEmpty()) {
+                QCryptographicHash::Algorithm alg = QCryptographicHash::Md5;
+                QString algoName = "MD5";
+                if      (algo == "sha1")   { alg = QCryptographicHash::Sha1;   algoName = "SHA-1"; }
+                else if (algo == "sha256") { alg = QCryptographicHash::Sha256; algoName = "SHA-256"; }
+                else if (algo == "sha512") { alg = QCryptographicHash::Sha512; algoName = "SHA-512"; }
+                const QString digest = QCryptographicHash::hash(testo.toUtf8(), alg).toHex();
+                return QString("[Calcolo locale: %1(\"%2\") = %3]\n\n").arg(algoName, testo, digest) + task;
+            }
+        }
+    }
+
+    /* ── Password casuale ── */
+    if ((lo.contains("password") || lo.contains("chiave"))
+        && (lo.contains("genera") || lo.contains("crea") || lo.contains("dammi")
+            || lo.contains("casual") || lo.contains("random"))) {
+        int len = 16;
+        static const QRegularExpression reLen(
+            R"((\d{1,3})\s*(?:caratteri|char|cifre))", QRegularExpression::CaseInsensitiveOption);
+        const auto ml = reLen.match(lo);
+        if (ml.hasMatch()) {
+            const int n = ml.captured(1).toInt();
+            if (n >= 4 && n <= 128) len = n;
+        }
+
+        const bool noSymbols = lo.contains("senza simboli") || lo.contains("solo lettere")
+                             || lo.contains("alfanumerica");
+        /* Esclude caratteri ambigui (0/O, 1/I/l) per facilitare la lettura manuale */
+        QString charset = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+        if (!noSymbols) charset += "!@#$%^&*()-_=+";
+
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<int> dist(0, static_cast<int>(charset.length()) - 1);
+        QString pwd;
+        for (int i = 0; i < len; ++i) pwd += charset.at(dist(gen));
+
+        return QString("[Calcolo locale: password casuale (%1 caratteri, std::random_device) = %2]\n\n")
+            .arg(len).arg(pwd) + task;
+    }
+
+    return task;
 }
 
 /* ══════════════════════════════════════════════════════════════
