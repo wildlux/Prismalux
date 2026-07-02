@@ -583,8 +583,8 @@ const sp=[fullTool,sysPers].filter(Boolean).join('\n');
 if(sp)msgs.push({role:'system',content:sp});
 msgs.push(...H);
 const aiD=add('ai','...');let full='';
-const dF=['...','..','.']; let dI=0;
-const dT=setInterval(function(){if(!full){aiD.textContent=dF[dI%3];dI++;}},400);
+const dF=['...','..','.']; let dI=0;let queueLabel=null;
+const dT=setInterval(function(){if(!full){aiD.textContent=queueLabel||dF[dI%3];dI++;}},400);
 const ctrl=new AbortController();curAbort=ctrl;
 try{
 const r=await fetch('/api/chat',{method:'POST',headers:{{{AUTH_HEADERS_JS}}},signal:ctrl.signal,body:JSON.stringify({model:curModel,messages:msgs,stream:true})});
@@ -594,8 +594,9 @@ const {done,value}=await rd.read();if(done)break;
 for(const ln of dc.decode(value).split('\n')){
 if(!ln.trim())continue;
 try{const o=JSON.parse(ln);
+if(o.status==='queued'){queueLabel='⏳ In coda: '+o.position+'º di '+o.queue_size;aiD.textContent=queueLabel;continue;}
 const tk=(o.message&&o.message.content)||o.response||'';
-if(tk){if(!full)clearInterval(dT);full+=tk;aiD.textContent=full;L.scrollTop=L.scrollHeight;}
+if(tk){if(!full){clearInterval(dT);queueLabel=null;}full+=tk;aiD.textContent=full;L.scrollTop=L.scrollHeight;}
 }catch(x){}
 }
 }

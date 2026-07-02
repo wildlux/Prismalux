@@ -1063,6 +1063,25 @@ if(BUILD_TESTS)
         target_link_libraries(test_lan_server_endpoints PRIVATE pthread m)
     endif()
 
+    # ── test_lan_server_queue: broadcastQueuePositions() coda multi-utente ──
+    add_executable(test_lan_server_queue
+        tests/test_lan_server_queue.cpp
+        tests/mock_ai_client.h
+        ${TEST_SHARED_SRCS}
+        ${C_SRCS}
+    )
+    target_include_directories(test_lan_server_queue PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_lan_server_queue PRIVATE ${QT_LIBS} ${QT_TEST_LIB})
+    target_compile_definitions(test_lan_server_queue PRIVATE
+        PRISMALUX_ROOT="${CMAKE_SOURCE_DIR}/.."
+    )
+    if(NOT WIN32)
+        target_link_libraries(test_lan_server_queue PRIVATE pthread m)
+    endif()
+
     # ── test_wan_compute_tasks: WAN Compute LanWanPage — costruzione, protocollo TCP, sicurezza shell ──
     add_executable(test_wan_compute_tasks
         tests/test_wan_compute_tasks.cpp
@@ -1574,6 +1593,7 @@ if(BUILD_TESTS)
     add_test(NAME McpIntegration          COMMAND test_mcp_integration)
     add_test(NAME LanServer               COMMAND test_lan_server)
     add_test(NAME LanServerEndpoints      COMMAND test_lan_server_endpoints)
+    add_test(NAME LanServerQueue          COMMAND test_lan_server_queue)
     add_test(NAME WanComputeTasks         COMMAND test_wan_compute_tasks)
     add_test(NAME SciCompute              COMMAND test_sci_compute)
     add_test(NAME Sintetizzatore          COMMAND test_sintetizzatore)

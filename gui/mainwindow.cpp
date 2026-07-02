@@ -2794,17 +2794,15 @@ void MainWindow::showOnboardingWizard()
     tLay->addWidget(themeCombo);
     vlay->addWidget(themeGrp);
 
-    /* Checkbox "non mostrare più" */
-    auto* noShowChk = new QCheckBox("Non mostrare questo messaggio all'avvio", dlg);
-    noShowChk->setChecked(false);
-    vlay->addWidget(noShowChk);
-
-    /* X senza confermare → ripristina tema originale;
-       se la checkbox è spuntata salva comunque il flag "non mostrare più" */
-    connect(dlg, &QDialog::rejected, dlg, [origTheme, noShowChk]() {
+    /* X senza confermare → ripristina tema originale. Il wizard è "mostrato
+     * una sola volta" per design (vedi commento in setupTimers()): il flag
+     * kSetupDone va salvato comunque, non solo se l'utente completa il
+     * wizard con OK — altrimenti chi preme X/Esc se lo ritrova a ogni
+     * riavvio (bug: prima dipendeva da una checkbox "non mostrare più"
+     * che l'utente doveva spuntare esplicitamente, facile da non notare). */
+    connect(dlg, &QDialog::rejected, dlg, [origTheme]() {
         ThemeManager::instance()->apply(origTheme);
-        if (noShowChk && noShowChk->isChecked())
-            QSettings("Prismalux", "GUI").setValue(P::SK::kSetupDone, true);
+        QSettings("Prismalux", "GUI").setValue(P::SK::kSetupDone, true);
     });
 
     /* Bottoni */
@@ -2815,7 +2813,6 @@ void MainWindow::showOnboardingWizard()
     m_onbBackend = backendCombo;
     m_onbModel   = modelCombo;
     m_onbTheme   = themeCombo;
-    m_onbNoShow  = noShowChk;
     m_onbDlg     = dlg;
     connect(btnBox, &QDialogButtonBox::accepted, this, &MainWindow::onOnboardingAccepted);
 

@@ -90,7 +90,13 @@ void LanServer::handleChat(Session& s)
             else { p.history.append(m); }
         }
         m_llmQueue.enqueue(p);
-        return;   /* risposta arriverà quando tocca a questa richiesta */
+        /* Header subito, così la connessione non resta muta: la posizione
+         * in coda arriva come prima riga NDJSON, i token veri quando tocca
+         * a questa richiesta (vedi serveLlmQueue()). */
+        s.socket->write(httpStreamHeader());
+        s.socket->flush();
+        broadcastQueuePositions();
+        return;
     }
 
     /* chatDoc già parsato sopra */
@@ -165,6 +171,9 @@ void LanServer::handleGenerate(Session& s)
         p.genSystem  = req["system"].toString();
         p.model      = req["model"].toString(m_ai->model());
         m_llmQueue.enqueue(p);
+        s.socket->write(httpStreamHeader());
+        s.socket->flush();
+        broadcastQueuePositions();
         return;
     }
 

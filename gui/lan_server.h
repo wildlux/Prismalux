@@ -99,6 +99,8 @@ private slots:
     void onRagEmbeddingReady(const QVector<float>& vec);
     void onRagEmbeddingError(const QString& msg);
 
+    friend struct LlmQueueTestAccess;  ///< accesso test suite a m_llmQueue/broadcastQueuePositions()
+
 private:
     struct Session {
         QTcpSocket* socket        = nullptr;
@@ -186,6 +188,13 @@ private:
     };
     static constexpr int kMaxLlmQueue = 10; ///< max richieste in coda (poi 429)
     QQueue<PendingLlmRequest> m_llmQueue;
+
+    /** Notifica ogni socket ancora in coda della propria posizione aggiornata
+     *  (1-based) — scritta come riga NDJSON {"status":"queued","position":N,
+     *  "queue_size":M} sulla stessa connessione che riceverà poi lo stream
+     *  dei token, i cui header sono già stati inviati all'accodamento
+     *  (vedi handleChat/handleGenerate). Chiamata dopo ogni enqueue/dequeue. */
+    void broadcastQueuePositions();
 
     /* Fetch modelli in corso */
     QTcpSocket*             m_tagsSock  = nullptr;

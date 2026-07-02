@@ -1136,14 +1136,20 @@ void LanServer::closeStreamSession()
 
 void LanServer::serveLlmQueue()
 {
-    /* Rimuovi richieste con socket già chiuso */
+    /* Rimuovi richieste con socket già chiuso — anche queste "liberano un
+     * posto" per chi resta, quindi vanno contate nel broadcast finale. */
+    const int sizeBefore = m_llmQueue.size();
     while (!m_llmQueue.isEmpty() && !m_llmQueue.head().sock)
         m_llmQueue.dequeue();
 
-    if (m_llmQueue.isEmpty() || m_streamSock || m_ai->busy()) return;
+    if (m_llmQueue.isEmpty() || m_streamSock || m_ai->busy()) {
+        if (m_llmQueue.size() != sizeBefore) broadcastQueuePositions();
+        return;
+    }
 
     PendingLlmRequest req = m_llmQueue.dequeue();
     if (!req.sock) { serveLlmQueue(); return; } /* socket chiuso nel frattempo */
+    broadcastQueuePositions();  /* chi resta in coda avanza di una posizione */
 
     if (!req.model.isEmpty() && req.model != m_ai->model())
         m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), req.model);
@@ -1157,8 +1163,8 @@ void LanServer::serveLlmQueue()
     connect(m_ai, &AiClient::finished, this, &LanServer::onAiFinished);
     connect(m_ai, &AiClient::error,    this, &LanServer::onAiError);
 
-    req.sock->write(httpStreamHeader());
-    req.sock->flush();
+    /* Header già inviato all'accodamento (handleChat/handleGenerate) — qui
+     * si scrive solo la prima riga NDJSON coi token veri. */
 
     if (req.isGenerate) {
         m_genMode = true;
@@ -1166,6 +1172,22 @@ void LanServer::serveLlmQueue()
     } else {
         m_genMode = false;
         m_ai->chat(req.systemPrompt, req.userMsg, req.history, AiClient::QueryAuto);
+    }
+}
+
+void LanServer::broadcastQueuePositions()
+{
+    const int total = static_cast<int>(m_llmQueue.size());
+    int i = 0;
+    for (const PendingLlmRequest& req : std::as_const(m_llmQueue)) {
+        ++i;
+        if (!req.sock) continue;
+        QJsonObject obj;
+        obj["status"]     = "queued";
+        obj["position"]   = i;
+        obj["queue_size"] = total;
+        req.sock->write(QJsonDocument(obj).toJson(QJsonDocument::Compact) + "\n");
+        req.sock->flush();
     }
 }
 
