@@ -1,6 +1,6 @@
 # TODO — Prismalux
 
-*Aggiornato: 2026-07-01 | Versione: v3.0*
+*Aggiornato: 2026-07-02 | Versione: v3.0*
 *Unico file TODO del progetto — sostituisce tutti i precedenti.*
 
 Legenda: 🔴 Alta · 🟡 Media · 🟢 Bassa | ⬜ Aperto · ✅ Fatto
@@ -18,6 +18,7 @@ Legenda: 🔴 Alta · 🟡 Media · 🟢 Bassa | ⬜ Aperto · ✅ Fatto
 | D-3 | 🟢 | Lambda > 2 righe in `connect()` — estratte 12+5 slot/free-func in MainWindow (onAutoUpdateReply, TTFT, ChatSelection, SelectAll, TabSearch) | vari `.cpp` | ✅ |
 | D-4 | 🟢 | Export dataset DPO dai feedback 👍/👎 in JSONL → formato Alpaca/ShareGPT | `main_ai_feedback.cpp` | ✅ |
 | D-7 | 🟡 | Titolo + riassunto breve/lungo sessione chat generati via LLM dopo il primo scambio (stile Claude.ai), sostituisce il titolo troncato a 40 char. `AiClient` dedicato (`m_summaryAi`) per non collidere con lo stream visibile | `chat_history.h/.cpp`, `mainwindow.h/.cpp` | ✅ 2026-07-01 |
+| D-8 | 🟡 | Refactoring file monolitici: `main_graph_canvas.cpp` (4499 righe), `main_programming.cpp` (3387), `main_app_controller.cpp` (3092), `mainwindow.cpp` (2834), `main_app_controller_slots.cpp` (2691), `main_tools.cpp` (2572) — split in moduli più piccoli seguendo il pattern già usato per `main_ai_*.cpp`/`settings_*.cpp`. Lavoro serio, non "en passant" — pianificare a parte | `gui/pages/main_graph_canvas.cpp` + altri sopra | ⬜ |
 
 ### Distribuzione
 

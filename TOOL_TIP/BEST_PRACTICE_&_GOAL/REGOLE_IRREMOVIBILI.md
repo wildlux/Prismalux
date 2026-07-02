@@ -1,7 +1,7 @@
 ═══════════════════════════════════════════════════════════════════
   PRISMALUX — REGOLE IRREMOVIBILI DEL SOFTWARE
   Queste convenzioni NON si toccano. Mai. Per nessun motivo.
-  Aggiornato: 2026-05-30
+  Aggiornato: 2026-07-02
 ═══════════════════════════════════════════════════════════════════
 
 ────────────────────────────────────────────────
@@ -174,3 +174,16 @@ Usare SEMPRE le costanti di prismalux_paths.h:
   Non aggiungere validation difensiva su codice interno già garantito.
   Rate limiting chat: già implementato in LanServer (HAVE_RATE_LIMIT).
   Token LAN: timing-safe comparison, salvato in keychain (HAVE_QKEYCHAIN).
+
+────────────────────────────────────────────────
+16. SCRIPT DI TEST — Mai nella root del progetto
+────────────────────────────────────────────────
+  Suite ctest C++ (compilate):      gui/tests/*.cpp
+  Script standalone (shell/Python): Test/*.sh, Test/*.py
+
+  VIETATO: creare test_*.sh o test_*.py in /home/wildlux/Desktop/Prismalux/
+           (root del progetto) — solo script di build/distribuzione
+           (aggiorna.sh, build.py) vivono lì.
+
+  Un nuovo script di test va sempre dentro Test/, mai accanto a
+  aggiorna.sh/README.md/CLAUDE.md.
