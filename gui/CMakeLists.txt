@@ -120,6 +120,12 @@ set_source_files_properties(${C_SRCS} PROPERTIES LANGUAGE C)
 set(CPP_SRCS
     main.cpp
     mainwindow.cpp
+    mainwindow_header.cpp
+    mainwindow_monitor.cpp
+    mainwindow_chat.cpp
+    mainwindow_settings.cpp
+    mainwindow_tabs.cpp
+    mainwindow_backend.cpp
     mainwindow_slots.cpp
     hardware_monitor.cpp
     model_processor.cpp
@@ -284,6 +290,7 @@ set(CPP_SRCS
     widgets/world_map_widget.cpp
     widgets/astro_calc.cpp
     widgets/onnx_embedder.cpp
+    widgets/resource_gauge.cpp
     # Widget header-only con Q_OBJECT: vanno elencati per AUTOMOC
     widgets/spinner_widget.h
     widgets/status_badge.h
