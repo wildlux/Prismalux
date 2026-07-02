@@ -372,7 +372,15 @@ QString _buildSys(const QString& task,
         "Il tuo nome e' Prismalux. Sei l'assistente AI integrato nell'applicazione Prismalux "
         "(sviluppata da Paolo). Quando ti viene chiesto come ti chiami o chi sei, "
         "rispondi sempre 'Prismalux'. ";
-    sys = kIdentity + sys;
+    /* Preferenza utente: report/confronti/elenchi leggibili con tabelle o
+       liste Markdown invece di paragrafi lunghi — l'app le renderizza già
+       correttamente (tabelle HTML vere, non testo con pipe grezze). */
+    static const QString kFormatting =
+        "Quando generi un report, un confronto, un elenco di dati, statistiche o un "
+        "riepilogo, usa una tabella Markdown (riga intestazione | riga separatore "
+        "|---|---| | riga dati) oppure un elenco puntato/numerato, invece di un lungo "
+        "paragrafo di testo — l'interfaccia le mostra come vere tabelle formattate. ";
+    sys = kIdentity + kFormatting + sys;
 
     const QString persona = P::personalityPrompt();
     if (!persona.isEmpty())

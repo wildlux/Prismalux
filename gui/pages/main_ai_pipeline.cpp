@@ -271,6 +271,36 @@ void AgentiPage::runPipeline() {
         }
     }
 
+    /* ── Guardia Help: "cosa sai fare?" → tabella Markdown statica delle
+       domande rapide zero-LLM, zero token AI. Contenuto multi-riga con
+       tabella: passa da markdownToHtml() (non buildLocalBubble(), che
+       tratta il testo come plain text ed escaperebbe le pipe). ── */
+    {
+        const QString helpMd = _inject_help(task);
+        static const QString kHelpTag = "HELP_MARKDOWN:";
+        if (helpMd.startsWith(kHelpTag)) {
+            const QString html = markdownToHtml(helpMd.mid(kHelpTag.length()));
+            const auto& c = bc();
+            const int br = AppConfig::s().value(P::SK::kBubbleRadius, 10).toInt();
+            { int i = m_bubbleIdx++; m_bubbleTexts[i] = task;
+              m_log->moveCursor(QTextCursor::End);
+              m_log->insertHtml(buildUserBubble(task, i, taskHtml)); }
+            m_log->append("");
+            m_log->moveCursor(QTextCursor::End);
+            m_log->insertHtml(
+                "<table width='100%' cellpadding='0' cellspacing='0'><tr><td style='"
+                    "background-color:" + QString(c.lBg) + ";border:1px solid " + QString(c.lBdr) + ";"
+                    "border-radius:" + QString::number(br) + "px;padding:10px 14px;color:" + QString(c.lTxt) + ";'>"
+                    "<p style='color:" + QString(c.lHdr) + ";font-size:11px;font-weight:bold;margin:0 0 6px 0;'>"
+                        "\xe2\x9a\xa1&nbsp;Risposta locale &middot;&middot; 0 token</p>"
+                    + html +
+                "</td></tr></table><p style='margin:4px 0;'></p>");
+            m_input->clear();
+            emit chatCompleted(task.left(40), m_log->toHtml());
+            return;
+        }
+    }
+
     /* ── Guardia Calcoli Fisici/Date: _inject_science o _inject_date_calc hanno
        trovato una conversione nota (CV↔W, km↔mi, kg↔lb, Ohm, "quanti mesi
        mancano a...", ecc.) → risposta locale, zero token AI. I modelli piccoli

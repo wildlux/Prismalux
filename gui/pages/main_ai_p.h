@@ -146,3 +146,9 @@ QString _inject_finance(const QString& task);
  *  localmente invece di farli "inventare" all'LLM. Definita in
  *  main_ai_tools.cpp. */
 QString _inject_generator(const QString& task);
+/** Risponde a "cosa sai fare?"/"aiuto"/"comandi" con la tabella Markdown
+ *  di tutte le domande rapide zero-LLM disponibili. Prefisso
+ *  "HELP_MARKDOWN:" (non "[Calcolo locale:") — va convertita con
+ *  markdownToHtml(), non con buildLocalBubble(). Definita in
+ *  main_ai_tools.cpp. */
+QString _inject_help(const QString& task);

@@ -1575,6 +1575,44 @@ QString _inject_date_calc(const QString& task)
              QLocale(QLocale::Italian).toString(target, "d MMMM yyyy"), result) + task;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   _inject_help — risponde a "cosa sai fare?"/"aiuto"/"comandi" con
+   l'elenco (tabella Markdown) di tutte le domande rapide zero-LLM
+   disponibili, invece di lasciare che il modello inventi/dimentichi
+   funzionalità. Marcata con prefisso HELP_MARKDOWN: (non "[Calcolo
+   locale:") perché il contenuto è multi-riga con una tabella — va
+   fatto passare per markdownToHtml(), non per buildLocalBubble()
+   (che tratta il testo come plain text ed escaperebbe le pipe della
+   tabella). Intercettata a parte in runPipeline().
+   ══════════════════════════════════════════════════════════════ */
+QString _inject_help(const QString& task)
+{
+    const QString lo = task.toLower().trimmed();
+    if (lo.length() > 60) return task;   /* frase di aiuto: sempre breve */
+
+    static const QRegularExpression re(
+        R"(^(?:cosa\s+sai\s+fare|cosa\s+puoi\s+fare|che\s+(?:funzioni|cose|comandi)\s+hai|aiuto|help|comandi(?:\s+disponibili)?|guida|elenco\s+(?:comandi|funzioni))\??\.?$)",
+        QRegularExpression::CaseInsensitiveOption);
+    if (!re.match(lo).hasMatch()) return task;
+
+    return QString::fromUtf8(
+        "HELP_MARKDOWN:"
+        "**Ecco le domande che rispondo istantaneamente senza interpellare il modello AI "
+        "(risposta locale, zero token):**\n\n"
+        "| Categoria | Esempio | Cosa calcola |\n"
+        "|---|---|---|\n"
+        "| \xf0\x9f\x94\xa2 Matematica/Fisica | \"quanti watt con 12V e 2A\" | Ohm, RC, chimica, conversioni unit\xc3\xa0 |\n"
+        "| \xf0\x9f\x93\x85 Date | \"quanti mesi mancano a dicembre\" | Calendario reale, gg/mesi/anni |\n"
+        "| \xf0\x9f\x8d\xb3 Cucina | \"quanti grammi sono 200ml di farina\" | ml\xe2\x86\x94grammi, forno, cucchiai/tazze |\n"
+        "| \xf0\x9f\x92\xb3 IBAN | \"\xc3\xa8 valido questo IBAN: IT60...\" | Cifra di controllo (mod-97) |\n"
+        "| \xf0\x9f\x86\x94 Codice Fiscale | \"RSSMRA85M01H501Q \xc3\xa8 valido?\" | Checksum + data nascita/sesso |\n"
+        "| \xf0\x9f\x92\xb0 Sconti/IVA/% | \"sconto del 15% su 80 euro\" | Percentuali, sconti, scorporo IVA |\n"
+        "| \xf0\x9f\x94\x91 Generatori | \"genera una password di 20 caratteri\" | UUID, hash, password casuali |\n"
+        "| \xf0\x9f\x92\xb1 Cambio valuta | \"100 EUR in USD\" | Tasso reale aggiornato (BCE) |\n"
+        "| \xf0\x9f\x93\x86 Evento calendario | \"creami un evento per il compleanno\" | QR code Google Calendar/.ics |\n\n"
+        "Per tutto il resto (spiegazioni, scrittura, codice, ricerca...) rispondo con il modello AI selezionato.");
+}
+
 /* ── Helper puri per _inject_finance: validazione IBAN (mod-97, ISO 7064)
  * e Codice Fiscale (D.M. 23/12/1976) — nessuna dipendenza UI. ── */
 static bool _ibanValid(const QString& ibanRaw)
