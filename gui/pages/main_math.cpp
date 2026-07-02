@@ -104,8 +104,13 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
     m_tabs->addTab(buildExprTab(),     "\xf0\x9f\xa7\xae  Espressione");       /* 🧮 */
     m_tabs->addTab(buildSolveTab(),    "\xf0\x9f\x93\x90  Risolvi Passi");    /* 📐 */
     m_solveTabIdx = m_tabs->count() - 1;
-    m_tabs->addTab(buildAnalisi1Tab(), "\xf0\x9f\x93\x98  Analisi 1");        /* 📘 */
-    m_tabs->addTab(buildAnalisi2Tab(), "\xf0\x9f\x93\x99  Analisi 2");        /* 📙 */
+    /* Analisi 1/2 lazy: placeholder vuoto, costruito al primo accesso da
+       ensureAnalisiTabBuilt() — vedi commento su m_analisi1Idx in main_math.h */
+    m_analisi1Idx = m_tabs->count();
+    m_tabs->addTab(new QWidget(m_tabs), "\xf0\x9f\x93\x98  Analisi 1");       /* 📘 */
+    m_analisi2Idx = m_tabs->count();
+    m_tabs->addTab(new QWidget(m_tabs), "\xf0\x9f\x93\x99  Analisi 2");       /* 📙 */
+    connect(m_tabs, &QTabWidget::currentChanged, this, &MatematicaPage::ensureAnalisiTabBuilt);
     root->addWidget(m_tabs);   /* stretch=0: prende solo lo spazio che gli serve */
 
     /* ─── Output (prende tutto lo spazio restante) ─── */

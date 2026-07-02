@@ -85,7 +85,13 @@ AgentiPage::AgentiPage(AiClient* ai, QWidget* parent)
     connect(this, &AgentiPage::chatCompleted, this, &AgentiPage::onChatCompletedSave);
 
     m_ai->fetchModels();
-    startMcpDiscovery();
+    /* startMcpDiscovery() NON parte qui: lancerebbe un interprete Python in
+     * sequenza per ognuno dei ~50 plugin MCP a ogni avvio, anche se l'utente
+     * non usa mai i tool MCP in quella sessione (causa nota di CPU sostenuta
+     * per diversi secondi dopo l'apertura della finestra). Parte invece on
+     * demand: al primo utilizzo reale, in onMcpPanelToggle() e in
+     * toolSystemSuffix() (main_ai_pipeline.cpp) — è idempotente
+     * (s_mcpDiscoveryDone). */
 }
 
 /* ══════════════════════════════════════════════════════════════

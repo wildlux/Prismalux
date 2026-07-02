@@ -106,6 +106,10 @@ static QProcess* _launchMcpProcess(const QString& pythonExe,
             qWarning() << "[main_ai_tools] processo MCP non avviato:" << proc->program();
     });
     if (!proc->waitForStarted(P::kProcessStartTimeoutMs)) {
+        /* waitForStarted() può restituire false per timeout anche se il
+         * processo è comunque partito (es. sistema sotto carico) — killare
+         * prima di distruggere, altrimenti il figlio resta orfano. */
+        if (proc->state() != QProcess::NotRunning) proc->kill();
         proc->deleteLater();
         return nullptr;
     }
@@ -261,7 +265,12 @@ void AgentiPage::startMcpDiscovery()
             if (err == QProcess::FailedToStart)
                 qWarning() << "[main_ai_tools] discovery MCP non avviato:" << proc->program();
         });
-        if (!proc->waitForStarted(2000)) { proc->deleteLater(); (*fn)(); return; }
+        if (!proc->waitForStarted(2000)) {
+            if (proc->state() != QProcess::NotRunning) proc->kill();
+            proc->deleteLater();
+            (*fn)();
+            return;
+        }
         proc->write(initMsg);
         proc->write(listMsg);
         proc->closeWriteChannel();

@@ -342,6 +342,30 @@ static QComboBox* makeAnalisiTypeCmb(QWidget* parent)
 }
 
 
+/* Costruisce Analisi 1/2 al primo accesso reale (clic utente o setCurrentIndex
+   esterno) invece che nel costruttore — vedi commento su m_analisi1Idx in
+   main_math.h per il motivo (freeze da inizializzazione Chromium/LatexView). */
+void MatematicaPage::ensureAnalisiTabBuilt(int idx)
+{
+    if (idx == m_analisi1Idx && !m_analisi1Built) {
+        m_analisi1Built = true;
+        QWidget* placeholder = m_tabs->widget(idx);
+        QWidget* real = buildAnalisi1Tab();
+        m_tabs->removeTab(idx);
+        m_tabs->insertTab(idx, real, "\xf0\x9f\x93\x98  Analisi 1");
+        m_tabs->setCurrentIndex(idx);
+        placeholder->deleteLater();
+    } else if (idx == m_analisi2Idx && !m_analisi2Built) {
+        m_analisi2Built = true;
+        QWidget* placeholder = m_tabs->widget(idx);
+        QWidget* real = buildAnalisi2Tab();
+        m_tabs->removeTab(idx);
+        m_tabs->insertTab(idx, real, "\xf0\x9f\x93\x99  Analisi 2");
+        m_tabs->setCurrentIndex(idx);
+        placeholder->deleteLater();
+    }
+}
+
 QWidget* MatematicaPage::buildAnalisi1Tab()
 {
     auto* w   = new QWidget;

@@ -146,6 +146,7 @@ void MainWindow::maybeAutoVramBench() {
 
     proc->start(bench, {});
     if (!proc->waitForStarted(3000)) {
+        if (proc->state() != QProcess::NotRunning) proc->kill();
         proc->deleteLater();
         statusBar()->showMessage(
             "\xf0\x9f\x8d\xba  Invocazione riuscita. Gli dei ascoltano.");

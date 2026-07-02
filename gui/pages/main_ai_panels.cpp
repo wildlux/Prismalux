@@ -421,6 +421,10 @@ void AgentiPage::onMcpPanelToggle()
 {
     const bool opening = m_btnMcpToggle && m_btnMcpToggle->isChecked();
     if (opening) {
+        /* Avvia la discovery MCP on-demand (idempotente, no-op se già fatta
+         * o già in corso) — l'utente ha appena mostrato intenzione di usare
+         * i tool MCP. */
+        startMcpDiscovery();
         /* Chiudi Simboli e Tool Veloci */
         if (m_symbolsScrollArea) m_symbolsScrollArea->setVisible(false);
         if (m_symbolSearch) { m_symbolSearch->setVisible(false); m_symbolSearch->clear(); }

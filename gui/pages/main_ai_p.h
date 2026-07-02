@@ -81,11 +81,18 @@ inline QString extractInputHtml(QTextEdit* edit)
             QString text = frag.text().toHtmlEscaped();
             text.replace(QChar(0x2029), "<br>"); /* Qt paragraph separator */
 
-            /* Applica formattazione in ordine interno→esterno */
-            const QColor bg = fmt.background().color();
-            if (bg.isValid() && bg.alpha() > 0)
-                text = QString("<span style='background:%1;'>%2</span>")
-                           .arg(bg.name()).arg(text);
+            /* Applica formattazione in ordine interno→esterno.
+               Propaga lo sfondo SOLO se impostato esplicitamente: senza
+               hasProperty(), l'evidenziatore di selezione di Qt (testo
+               selezionato al momento dell'invio) veniva "cotto" per sempre
+               nella bolla statica come <span style='background:...'> nero,
+               identico al bug già risolto per il colore testo sotto. */
+            if (fmt.hasProperty(QTextFormat::BackgroundBrush)) {
+                const QColor bg = fmt.background().color();
+                if (bg.isValid() && bg.alpha() > 0)
+                    text = QString("<span style='background:%1;'>%2</span>")
+                               .arg(bg.name()).arg(text);
+            }
             /* Propaga il colore SOLO se l'utente lo ha impostato esplicitamente
                (hasProperty distingue colore-utente da colore-tema/palette). */
             if (fmt.hasProperty(QTextFormat::ForegroundBrush)) {

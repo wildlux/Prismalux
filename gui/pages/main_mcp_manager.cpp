@@ -780,6 +780,7 @@ void McpManagerPage::onTestMcpCallClicked()
                     qWarning() << "[main_mcp_manager] Runner proc non avviato:" << proc->program();
             });
             if (!proc->waitForStarted(P::kProcessStartTimeoutMs)) {
+                if (proc->state() != QProcess::NotRunning) proc->kill();
                 proc->deleteLater();
                 page->appendLog(
                     QString::fromUtf8("  \xe2\x9d\x8c [mcp_call] %1 — avvio fallito (%2)")

@@ -922,6 +922,12 @@ inline QString onnxDir()
  */
 inline QString findPython()
 {
+    /* Cachea il risultato: il probe con QProcess::waitForStarted/waitForFinished
+     * è bloccante (fino a 3.5s nel caso peggiore) — con 80+ punti di chiamata
+     * nel codice, senza cache ogni singola chiamata ripete il probe da capo,
+     * anche sul thread UI (es. VoiceClonerWidget::checkTtsInstalled() nel
+     * costruttore chiama findPython() 3 volte di seguito). */
+    static const QString cached = [] {
     const QString appDir = QCoreApplication::applicationDirPath();
 
     /* 0. PRISMALUX_PYTHON: impostato da Avvia_Prismalux.bat / Avvia_Prismalux.sh
@@ -970,7 +976,7 @@ inline QString findPython()
             if (ver.contains("Python", Qt::CaseInsensitive)) return exe;
         }
     }
-    return "python.exe";   /* fallback: almeno .exe, non .bat */
+    return QString("python.exe");   /* fallback: almeno .exe, non .bat */
 #else
     /* 3. Linux/macOS: bare name, nessun problema di .bat routing */
     const QStringList sysCandidates = { "python3", "python" };
@@ -980,8 +986,10 @@ inline QString findPython()
         if (probe.waitForStarted(1500) && probe.waitForFinished(2000))
             return c;
     }
-    return "python3";
+    return QString("python3");
 #endif
+    }();
+    return cached;
 }
 
 /**

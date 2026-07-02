@@ -583,6 +583,7 @@ void AgentiPage::runAgent(int idx) {
         : QString("\n\n\xf0\x9f\x8e\xaf Obiettivo globale del team: ") + m_taskOriginal.left(200);
     const QString teamGoalSmall = isSingleChat ? QString()
         : QString(" Task: ") + m_taskOriginal.left(80);
+    if (m_toolsEnabled && isSingleChat) startMcpDiscovery(); /* on-demand, idempotente */
     const QString toolSuffix = (m_toolsEnabled && isSingleChat) ? toolSystemSuffix() : QString();
 
     /* Modalita' Dizionario Etimologico — attiva se il pulsante Etimo e' premuto */

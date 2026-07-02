@@ -424,7 +424,11 @@ void AppControllerPage::onDevAgentLoadHistory()
     auto* proc = new QProcess(this);
     proc->setProcessChannelMode(QProcess::SeparateChannels);
     proc->start(P::findPython(), {scriptPath});
-    if (!proc->waitForStarted(2000)) { proc->deleteLater(); return; }
+    if (!proc->waitForStarted(2000)) {
+        if (proc->state() != QProcess::NotRunning) proc->kill();
+        proc->deleteLater();
+        return;
+    }
 
     proc->write(QJsonDocument(QJsonObject{
         {"cmd", "list_history"}
@@ -692,6 +696,7 @@ static QProcess* devGitProc(QWidget* parent, const QString& scriptPath)
     proc->setProcessChannelMode(QProcess::SeparateChannels);
     proc->start(PrismaluxPaths::findPython(), {scriptPath});
     if (!proc->waitForStarted(P::kProcessStartTimeoutMs)) {
+        if (proc->state() != QProcess::NotRunning) proc->kill();
         proc->deleteLater();
         return nullptr;
     }

@@ -2201,6 +2201,7 @@ void ImpostazioniPage::onLlmConsInstallClicked()
         });
         proc->start("wget", {"-c", "--show-progress", "-O", dest, ggufUrl});
         if (!proc->waitForStarted(P::kProcessStartTimeoutMs)) {
+            if (proc->state() != QProcess::NotRunning) proc->kill();
             proc->deleteLater();
             auto* curl = new QProcess(this);
             curl->setProcessChannelMode(QProcess::MergedChannels);

@@ -88,6 +88,17 @@ private:
     QString      m_solveFullText;           ///< cattura output SymPy (letto da onSolveAiClicked)
     int          m_solveTabIdx  = -1;
 
+    /* Analisi 1/2 — costruzione lazy: ognuna crea un LatexView (QWebEngineView),
+       la primissima inizializzazione di Chromium in un processo può bloccare
+       il thread UI per diversi secondi a cache disco fredda. Con costruzione
+       eager questo capitava ~3.7s dopo l'avvio anche senza mai aprire
+       Matematica (pre-build in background di mainwindow.cpp), causando un
+       freeze percepito come "Non risponde" in KWin. */
+    int          m_analisi1Idx    = -1;
+    int          m_analisi2Idx    = -1;
+    bool         m_analisi1Built  = false;
+    bool         m_analisi2Built  = false;
+
     /* ── tab Analisi 1 ── */
     QComboBox*     m_a1TopicCmb  = nullptr;
     LatexView*     m_a1Theory    = nullptr;
@@ -177,6 +188,7 @@ private slots:
     void onRefreshModelsClicked();
     void onLoadModelsOnce();
     void onAdjustTabHeight();  ///< adatta setFixedHeight al contenuto del tab corrente
+    void ensureAnalisiTabBuilt(int idx);  ///< costruisce Analisi 1/2 (LatexView) al primo accesso
     void onLocalPatternClicked();
     void onSympyClicked();
     void onAnalyzeAiClicked();
