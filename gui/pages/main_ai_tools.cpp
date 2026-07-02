@@ -42,6 +42,7 @@ namespace P = PrismaluxPaths;
 #include <QUrlQuery>
 #include <QUuid>
 #include <QCryptographicHash>
+#include <QRandomGenerator>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QVBoxLayout>
@@ -1595,6 +1596,22 @@ QString _inject_help(const QString& task)
         QRegularExpression::CaseInsensitiveOption);
     if (!re.match(lo).hasMatch()) return task;
 
+    /* Esempio di grafico scelto a caso ad ogni richiesta — cambia la
+     * formula proposta così l'utente ne vede una diversa ogni volta.
+     * Riconosciute da FormulaParser::tryExtract() nella chat (zero token,
+     * plot Cartesiano istantaneo). Le altre 16 tipologie di ChartType
+     * (Torta, Istogramma, Radar, Candlestick, ecc.) esistono nel canvas
+     * dedicato di Matematica/Grafico ma richiedono dati strutturati dal
+     * form, non una singola riga di chat — non le elenco qui per non
+     * promettere una scorciatoia chat che non esiste ancora (vedi TODO D-13). */
+    static const QStringList kChartExamples = {
+        "grafico di sin(x)", "grafico di x^2 - 4", "grafico di cos(x)*exp(-x/5)",
+        "y = 1/x", "grafico di sqrt(abs(x))", "grafico di tan(x)",
+        "y = x^3 - 3x", "grafico di log(x+10)",
+    };
+    const QString chartExample =
+        kChartExamples.at(QRandomGenerator::global()->bounded(kChartExamples.size()));
+
     return QString::fromUtf8(
         "HELP_MARKDOWN:"
         "**Ecco le domande che rispondo istantaneamente senza interpellare il modello AI "
@@ -1609,7 +1626,13 @@ QString _inject_help(const QString& task)
         "| \xf0\x9f\x92\xb0 Sconti/IVA/% | \"sconto del 15% su 80 euro\" | Percentuali, sconti, scorporo IVA |\n"
         "| \xf0\x9f\x94\x91 Generatori | \"genera una password di 20 caratteri\" | UUID, hash, password casuali |\n"
         "| \xf0\x9f\x92\xb1 Cambio valuta | \"100 EUR in USD\" | Tasso reale aggiornato (BCE) |\n"
-        "| \xf0\x9f\x93\x86 Evento calendario | \"creami un evento per il compleanno\" | QR code Google Calendar/.ics |\n\n"
+        "| \xf0\x9f\x93\x86 Evento calendario | \"creami un evento per il compleanno\" | QR code Google Calendar/.ics |\n"
+        "| \xf0\x9f\x93\x88 Grafico | \"") + chartExample + QString::fromUtf8(
+        "\" | Plot Cartesiano istantaneo (prova questo!) |\n\n"
+        "**Grafici**: scrivendo *\"grafico di FORMULA\"* oppure *\"y = FORMULA\"* disegno subito "
+        "il plot cartesiano nella chat. Per torta, istogramma, radar, candlestick e le altre "
+        "tipologie disponibili, usa il canvas dedicato nella tab Matematica/Grafico (richiedono "
+        "dati strutturati, non una singola riga di chat).\n\n"
         "Per tutto il resto (spiegazioni, scrittura, codice, ricerca...) rispondo con il modello AI selezionato.");
 }
 
