@@ -201,6 +201,14 @@ set(CPP_SRCS
     pages/main_multimedia.cpp
     pages/main_tools_file.cpp
     pages/main_graph_canvas.cpp
+    pages/main_graph_canvas_events.cpp
+    pages/main_graph_canvas_2d.cpp
+    pages/main_graph_canvas_3d.cpp
+    pages/main_graph_canvas_domains.cpp
+    pages/main_graph_canvas_series.cpp
+    pages/main_graph_canvas_bars.cpp
+    pages/main_graph_canvas_stats.cpp
+    pages/main_graph_canvas_relational.cpp
     pages/main_graph.cpp
     pages/main_programming.cpp
     pages/main_programming_git_repl.cpp
