@@ -155,3 +155,8 @@ QString _inject_help(const QString& task);
 /** "quante parole ha: <testo>" — conteggio parole/caratteri/frasi + stima
  *  tempo di lettura, zero LLM. Definita in main_ai_tools.cpp. */
 QString _inject_textstats(const QString& task);
+/** Riusa gli algoritmi (resi static) del Simulatore Algoritmi per MCD/MCM,
+ *  fattorizzazione, Pascal, Fibonacci, Catalan, Collatz, Torre di Hanoi,
+ *  profitto azioni, inversioni, posizione in array, edit distance/LCS,
+ *  ricerca pattern — zero LLM. Definita in main_ai_tools.cpp. */
+QString _inject_algo(const QString& task);

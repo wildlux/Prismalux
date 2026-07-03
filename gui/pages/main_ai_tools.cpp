@@ -22,6 +22,7 @@
 #include "../graph_memory.h"
 #include "../widgets/path_guard.h"
 #include "../widgets/qr_code_widget.h"
+#include "main_simulator.h"
 namespace P = PrismaluxPaths;
 #include <QRegularExpression>
 #include <QJsonDocument>
@@ -1742,6 +1743,9 @@ QString _inject_help(const QString& task)
         "| \xf0\x9f\x92\xb1 Cambio valuta | \"100 EUR in USD\" | Tasso reale aggiornato (BCE) |\n"
         "| \xf0\x9f\x93\x86 Evento calendario | \"creami un evento per il compleanno\" | QR code Google Calendar/.ics |\n"
         "| \xf0\x9f\x93\x9d Statistiche testo | \"quante parole ha: <testo>\" | Parole/caratteri/frasi + tempo lettura |\n"
+        "| \xf0\x9f\xa7\xae Algoritmi classici | \"mcd tra 48 e 18\", \"fattorizzazione di 360\", \"decimo numero di fibonacci\", "
+        "\"torre di hanoi con 8 dischi\", \"profitto massimo con prezzi 7,1,5,3,6,4\" | MCD/MCM, fattori primi, Pascal, Fibonacci, "
+        "Catalan, Collatz, Hanoi, profitto azioni, inversioni, posizione in array, edit distance/LCS, ricerca pattern |\n"
         "| \xf0\x9f\x93\x88 Grafico | \"") + chartExample + QString::fromUtf8(
         "\" | Plot Cartesiano istantaneo (prova questo!) |\n\n"
         "**Grafici**: scrivendo *\"grafico di FORMULA\"* oppure *\"y = FORMULA\"* disegno subito "
@@ -2161,6 +2165,295 @@ QString _inject_textstats(const QString& task)
                     "tempo di lettura stimato ~%5]\n\n")
         .arg(numParole).arg(caratteri).arg(caratteriNoSpazi).arg(numFrasi).arg(tempoStr)
         + task;
+}
+
+/* ── Edit Distance (Levenshtein) e LCS — DP standalone, non riusa
+ * SimulatorePage::genLCS()/genEditDistance() perché quelle prendono
+ * ZERO parametri (operano su stringhe fisse hardcoded per la demo
+ * visiva, non sull'input reale dell'utente). ── */
+static int _editDistance(const QString& a, const QString& b)
+{
+    const int n = a.length(), m = b.length();
+    QVector<QVector<int>> dp(n + 1, QVector<int>(m + 1, 0));
+    for (int i = 0; i <= n; ++i) dp[i][0] = i;
+    for (int j = 0; j <= m; ++j) dp[0][j] = j;
+    for (int i = 1; i <= n; ++i)
+        for (int j = 1; j <= m; ++j)
+            dp[i][j] = (a[i-1] == b[j-1])
+                ? dp[i-1][j-1]
+                : 1 + std::min({dp[i-1][j], dp[i][j-1], dp[i-1][j-1]});
+    return dp[n][m];
+}
+
+static QString _longestCommonSubsequence(const QString& a, const QString& b)
+{
+    const int n = a.length(), m = b.length();
+    QVector<QVector<int>> dp(n + 1, QVector<int>(m + 1, 0));
+    for (int i = 1; i <= n; ++i)
+        for (int j = 1; j <= m; ++j)
+            dp[i][j] = (a[i-1] == b[j-1]) ? dp[i-1][j-1] + 1 : std::max(dp[i-1][j], dp[i][j-1]);
+    QString lcs;
+    int i = n, j = m;
+    while (i > 0 && j > 0) {
+        if (a[i-1] == b[j-1]) { lcs.prepend(a[i-1]); --i; --j; }
+        else if (dp[i-1][j] >= dp[i][j-1]) --i;
+        else --j;
+    }
+    return lcs;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _inject_algo — riusa gli algoritmi già scritti (e testati) del
+   Simulatore Algoritmi (main_simulator.h, resi static perché sono
+   funzioni pure — non toccano mai membri di SimulatorePage) per
+   rispondere a domande matematiche/algoritmiche classiche senza
+   passare dall'LLM. Selezione curata: solo gli algoritmi con una
+   domanda naturale a risposta unica (non le 19 varianti di
+   ordinamento — rispondono tutte alla stessa domanda banale
+   "ordina questa lista", il loro valore è il procedimento
+   passo-passo già mostrato dal Simulatore visivo — né gli
+   algoritmi su grafo, che richiedono un intero grafo come input
+   strutturato). Primalità/somme/potenze/fattoriale sono già
+   coperti da guardiaMath() — non duplicati qui.
+   ══════════════════════════════════════════════════════════════ */
+QString _inject_algo(const QString& task)
+{
+    const QString lo = task.toLower().trimmed();
+    if (lo.length() > 300) return task;
+
+    /* ── MCD / MCM ── */
+    {
+        static const QRegularExpression reMCD(
+            R"((?:mcd|massimo\s+comun\s+divisore)\s+(?:tra|fra|di)\s+(\d+)\s+(?:e|,)\s+(\d+))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = reMCD.match(lo);
+        if (m.hasMatch()) {
+            const int a = m.captured(1).toInt(), b = m.captured(2).toInt();
+            const auto steps = SimulatorePage::genGCD(a, b);
+            if (!steps.isEmpty() && !steps.last().arr.isEmpty())
+                return QString("[Calcolo locale: MCD(%1,%2) = %3]\n\n")
+                    .arg(a).arg(b).arg(steps.last().arr[0]) + task;
+        }
+        static const QRegularExpression reMCM(
+            R"((?:mcm|minimo\s+comune\s+multiplo)\s+(?:tra|fra|di)\s+(\d+)\s+(?:e|,)\s+(\d+))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m2 = reMCM.match(lo);
+        if (m2.hasMatch()) {
+            const int a = m2.captured(1).toInt(), b = m2.captured(2).toInt();
+            const auto steps = SimulatorePage::genGCD(a, b);
+            if (!steps.isEmpty() && !steps.last().arr.isEmpty() && steps.last().arr[0] > 0) {
+                const int g = steps.last().arr[0];
+                const qint64 lcm = static_cast<qint64>(a) / g * b;
+                return QString("[Calcolo locale: MCM(%1,%2) = %3 (via MCD=%4)]\n\n")
+                    .arg(a).arg(b).arg(lcm).arg(g) + task;
+            }
+        }
+    }
+
+    /* ── Fattorizzazione in fattori primi ── */
+    {
+        static const QRegularExpression re(
+            R"((?:fattorizzazione\s+(?:di|del\s+numero)?|scomponi\s+in\s+fattori\s+primi(?:\s+di)?|fattori\s+primi\s+di)\s*(\d+))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const int n = m.captured(1).toInt();
+            if (n >= 2 && n <= 1000000000) {
+                const auto steps = SimulatorePage::genPrimeFactors(n);
+                if (!steps.isEmpty())
+                    return QString("[Calcolo locale: %1]\n\n").arg(steps.last().msg) + task;
+            }
+        }
+    }
+
+    /* ── Triangolo di Pascal, riga N ── */
+    {
+        static const QRegularExpression re(
+            R"(triangolo\s+di\s+pascal.{0,10}?riga\s+(\d+)|riga\s+(\d+).{0,15}?triangolo\s+di\s+pascal)",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const int n = (!m.captured(1).isEmpty() ? m.captured(1) : m.captured(2)).toInt();
+            if (n >= 0 && n <= 7) {
+                const auto steps = SimulatorePage::genPascalTriangle(n + 1);
+                if (!steps.isEmpty()) {
+                    QStringList vals;
+                    for (int v : steps.last().arr) vals << QString::number(v);
+                    return QString("[Calcolo locale: Triangolo di Pascal riga %1 = %2]\n\n")
+                        .arg(n).arg(vals.join(", ")) + task;
+                }
+            }
+        }
+    }
+
+    /* ── N-esimo numero di Fibonacci ── */
+    {
+        static const QRegularExpression re(
+            R"((\d+)\s*\xc2\xb0?\s*numero\s+di\s+fibonacci|fibonacci\s+(?:di|numero)\s+(\d+))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const int n = (!m.captured(1).isEmpty() ? m.captured(1) : m.captured(2)).toInt();
+            if (n >= 1 && n <= 80) {
+                if (n <= 2) {
+                    return QString("[Calcolo locale: F(%1) = 1 (sequenza 1,1,2,3,5,8,13,21,...)]\n\n").arg(n) + task;
+                }
+                const auto steps = SimulatorePage::genFibonacciDP(n);
+                if (!steps.isEmpty())
+                    return QString("[Calcolo locale: %1]\n\n").arg(steps.last().msg) + task;
+            }
+        }
+    }
+
+    /* ── N-esimo numero di Catalan ── */
+    {
+        static const QRegularExpression re(
+            R"((?:numero\s+di\s+catalan|catalan)\s*(?:di|numero)?\s*(\d+))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const int n = m.captured(1).toInt();
+            if (n >= 0 && n <= 10) {
+                const auto steps = SimulatorePage::genCatalan(n);
+                if (!steps.isEmpty())
+                    return QString("[Calcolo locale: %1]\n\n").arg(steps.last().msg) + task;
+            }
+        }
+    }
+
+    /* ── Congettura di Collatz: quanti passi per arrivare a 1 ── */
+    {
+        static const QRegularExpression re(
+            R"(collatz.{0,15}?(\d+)|(\d+).{0,15}?collatz)",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const int n = (!m.captured(1).isEmpty() ? m.captured(1) : m.captured(2)).toInt();
+            if (n >= 1 && n <= 1000000) {
+                const auto steps = SimulatorePage::genCollatz(n);
+                if (!steps.isEmpty())
+                    return QString("[Calcolo locale: Collatz(%1) \xe2\x80\x94 %2]\n\n")
+                        .arg(n).arg(steps.last().msg) + task;
+            }
+        }
+    }
+
+    /* ── Torre di Hanoi: mosse minime (formula chiusa 2^n-1, non usa
+     * SimulatorePage::genTowerOfHanoi() che genera un passo per OGNI
+     * mossa via ricorsione — con n grande esploderebbe in memoria/tempo
+     * solo per estrarne il conteggio finale). ── */
+    {
+        static const QRegularExpression re(
+            R"(torr[ei]\s+di\s+hanoi.{0,25}?(\d+)\s*disch)",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const int n = m.captured(1).toInt();
+            if (n >= 1 && n <= 60) {
+                const qint64 moves = (1LL << n) - 1;
+                return QString("[Calcolo locale: Torre di Hanoi con %1 dischi \xe2\x86\x92 %2 mosse minime (2^%1 - 1)]\n\n")
+                    .arg(n).arg(moves) + task;
+            }
+        }
+    }
+
+    /* ── Profitto massimo comprando/vendendo azioni ── */
+    {
+        static const QRegularExpression re(
+            R"((?:profitto\s+massimo|massimo\s+profitto).{0,30}?((?:\-?\d+[\s,]+)+\-?\d+))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch()) {
+            QVector<int> prezzi;
+            for (const QString& tok : m.captured(1).split(QRegularExpression(R"([,\s]+)"), Qt::SkipEmptyParts))
+                prezzi << tok.toInt();
+            if (prezzi.size() >= 2 && prezzi.size() <= 200) {
+                const auto steps = SimulatorePage::genStockProfit(prezzi);
+                if (!steps.isEmpty())
+                    return QString("[Calcolo locale: %1]\n\n").arg(steps.last().msg) + task;
+            }
+        }
+    }
+
+    /* ── Conteggio inversioni in una lista ── */
+    {
+        static const QRegularExpression re(
+            R"(inversioni.{0,25}?((?:\-?\d+[\s,]+)+\-?\d+))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch()) {
+            QVector<int> arr;
+            for (const QString& tok : m.captured(1).split(QRegularExpression(R"([,\s]+)"), Qt::SkipEmptyParts))
+                arr << tok.toInt();
+            if (arr.size() >= 2 && arr.size() <= 500) {
+                const auto steps = SimulatorePage::genCountInversions(arr);
+                if (!steps.isEmpty())
+                    return QString("[Calcolo locale: %1]\n\n").arg(steps.last().msg) + task;
+            }
+        }
+    }
+
+    /* ── Posizione di un elemento in un array ── */
+    {
+        static const QRegularExpression re(
+            R"((?:in\s+che\s+posizione\s+(?:si\s+trova|\xc3\xa8|e)|trova|indice\s+di)\s+(\-?\d+)\s+(?:in|nell['\xe2\x80\x99a]?\s*array|nella\s+lista)\s*[:\[]?\s*((?:\-?\d+[\s,]+)+\-?\d+)\]?)",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const int target = m.captured(1).toInt();
+            QVector<int> arr;
+            for (const QString& tok : m.captured(2).split(QRegularExpression(R"([,\s]+)"), Qt::SkipEmptyParts))
+                arr << tok.toInt();
+            if (!arr.isEmpty() && arr.size() <= 1000) {
+                const auto steps = SimulatorePage::genLinearSearch(arr, target);
+                if (!steps.isEmpty())
+                    return QString("[Calcolo locale: %1]\n\n").arg(steps.last().msg) + task;
+            }
+        }
+    }
+
+    /* ── Edit distance / sottosequenza comune più lunga tra due stringhe
+     * tra virgolette. Usa `task` (non `lo`) per preservare le maiuscole
+     * nelle stringhe originali. ── */
+    {
+        static const QRegularExpression reStrings(R"(['\"]([^'\"]{1,50})['\"].{0,15}?['\"]([^'\"]{1,50})['\"])");
+        if (lo.contains("edit distance") || lo.contains("distanza di edit") || lo.contains("distanza di modifica")) {
+            const auto m = reStrings.match(task);
+            if (m.hasMatch()) {
+                const QString s1 = m.captured(1), s2 = m.captured(2);
+                return QString("[Calcolo locale: distanza di edit tra \"%1\" e \"%2\" = %3]\n\n")
+                    .arg(s1, s2).arg(_editDistance(s1, s2)) + task;
+            }
+        }
+        if (lo.contains("sottosequenza comune") || lo.contains(" lcs ") || lo.startsWith("lcs")) {
+            const auto m = reStrings.match(task);
+            if (m.hasMatch()) {
+                const QString s1 = m.captured(1), s2 = m.captured(2);
+                const QString lcs = _longestCommonSubsequence(s1, s2);
+                return QString("[Calcolo locale: sottosequenza comune pi\xc3\xb9 lunga tra \"%1\" e \"%2\" = \"%3\" (lunghezza %4)]\n\n")
+                    .arg(s1, s2, lcs).arg(lcs.length()) + task;
+            }
+        }
+    }
+
+    /* ── Ricerca di un pattern testuale in un testo (KMP) ── */
+    {
+        if ((lo.contains("cerca") || lo.contains("trova"))
+            && (lo.contains("pattern") || lo.contains("nel testo") || lo.contains("nella stringa"))) {
+            static const QRegularExpression reStrings(R"(['\"]([^'\"]{1,50})['\"].{0,25}?['\"]([^'\"]{1,300})['\"])");
+            const auto m = reStrings.match(task);
+            if (m.hasMatch()) {
+                const QString pattern = m.captured(1), text = m.captured(2);
+                if (!pattern.isEmpty()) {
+                    const auto steps = SimulatorePage::genKMP(pattern, text);
+                    if (!steps.isEmpty())
+                        return QString("[Calcolo locale: %1]\n\n").arg(steps.last().msg) + task;
+                }
+            }
+        }
+    }
+
+    return task;
 }
 
 /* ══════════════════════════════════════════════════════════════

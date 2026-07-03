@@ -146,6 +146,30 @@ private slots:
     void onVisClicked();
     void onBigOClicked();
 
+public:
+    /* Algoritmi resi static e pubblici: funzioni pure (non toccano mai
+     * membri di SimulatorePage), riusate da _inject_algo() in
+     * main_ai_tools.cpp per rispondere a domande classiche in chat senza
+     * passare dall'LLM — stessa implementazione già testata dal
+     * Simulatore visivo, nessuna duplicazione di logica. */
+    static QVector<AlgoStep> genLinearSearch(QVector<int> a, int t);
+    static QVector<AlgoStep> genKMP(const QString& pattern, const QString& text);
+    static QVector<AlgoStep> genSieve(int limit);
+    static QVector<AlgoStep> genSieveSundaram(int limit);
+    static QVector<AlgoStep> genGCD(int a, int b);
+    static QVector<AlgoStep> genExtGCD(int a, int b);
+    static QVector<AlgoStep> genFastPow(int base, int exp_);
+    static QVector<AlgoStep> genPrimeFactors(int n);
+    static QVector<AlgoStep> genMillerRabin(int n);
+    static QVector<AlgoStep> genPascalTriangle(int n);
+    static QVector<AlgoStep> genFibonacciDP(int n);
+    static QVector<AlgoStep> genCatalan(int n);
+    static QVector<AlgoStep> genMonteCarloPi(int n);
+    static QVector<AlgoStep> genCollatz(int n);
+    static QVector<AlgoStep> genKaratsuba(int a, int b);
+    static QVector<AlgoStep> genStockProfit(QVector<int> a);
+    static QVector<AlgoStep> genCountInversions(QVector<int> a);
+
 private:
     void buildSteps();
     void showStep(int idx);
@@ -175,7 +199,6 @@ private:
     QVector<AlgoStep> genStoogeSort(QVector<int> a);
 
     /* ── Ricerca ── */
-    QVector<AlgoStep> genLinearSearch(QVector<int> a, int t);
     QVector<AlgoStep> genBinarySearch(QVector<int> a, int t);
     QVector<AlgoStep> genJumpSearch(QVector<int> a, int t);
     QVector<AlgoStep> genTernarySearch(QVector<int> a, int t);
@@ -237,26 +260,12 @@ private:
     QVector<AlgoStep> genRatInMaze();
 
     /* ── Stringhe ── */
-    QVector<AlgoStep> genKMP(const QString& pattern, const QString& text);
     QVector<AlgoStep> genRabinKarp(const QString& pattern, const QString& text);
     QVector<AlgoStep> genZAlgorithm(const QString& s);
     QVector<AlgoStep> genLongestCommonPrefix(QVector<int> a);
     QVector<AlgoStep> genManacher(const QString& s);
 
     /* ── Matematica ── */
-    QVector<AlgoStep> genSieve(int limit);
-    QVector<AlgoStep> genSieveSundaram(int limit);
-    QVector<AlgoStep> genGCD(int a, int b);
-    QVector<AlgoStep> genExtGCD(int a, int b);
-    QVector<AlgoStep> genFastPow(int base, int exp_);
-    QVector<AlgoStep> genPrimeFactors(int n);
-    QVector<AlgoStep> genMillerRabin(int n);
-    QVector<AlgoStep> genPascalTriangle(int n);
-    QVector<AlgoStep> genFibonacciDP(int n);
-    QVector<AlgoStep> genCatalan(int n);
-    QVector<AlgoStep> genMonteCarloPi(int n);
-    QVector<AlgoStep> genCollatz(int n);
-    QVector<AlgoStep> genKaratsuba(int a, int b);
     QVector<AlgoStep> genPrefixSum(QVector<int> a);
     QVector<AlgoStep> genKadane(QVector<int> a);
     QVector<AlgoStep> genHorner(QVector<int> coeffs, int x);
@@ -267,9 +276,7 @@ private:
     QVector<AlgoStep> genTrappingRain(QVector<int> a);
     QVector<AlgoStep> genNextGreater(QVector<int> a);
     QVector<AlgoStep> genFisherYates(QVector<int> a);
-    QVector<AlgoStep> genStockProfit(QVector<int> a);
     QVector<AlgoStep> genMaxCircularSubarray(QVector<int> a);
-    QVector<AlgoStep> genCountInversions(QVector<int> a);
 
     /* ── Classici / Storici ── */
     QVector<AlgoStep> genReservoirSampling(QVector<int> a);
