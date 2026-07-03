@@ -43,6 +43,7 @@ namespace P = PrismaluxPaths;
 #include <QUuid>
 #include <QCryptographicHash>
 #include <QRandomGenerator>
+#include <QTimeZone>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QVBoxLayout>
@@ -1476,104 +1477,208 @@ QString _inject_date_calc(const QString& task)
 {
     const QString ql = task.toLower().trimmed();
     if (ql.length() > 300) return task;
-
-    static const QRegularExpression reQ1(
-        R"(quanti\s+(\w+)\s+mancano\s+(.+))",
-        QRegularExpression::CaseInsensitiveOption);
-    const auto m1 = reQ1.match(ql);
-    if (!m1.hasMatch()) return task;
-
-    const QString unitWord = m1.captured(1);
-    QString rest = m1.captured(2).trimmed();
-    static const QRegularExpression rePrep(
-        R"(^(?:a|al|alla|allo|agli|alle|all'?|fino\s+a|sino\s+a)(?:\s*evento\s+di|\s*appuntamento\s+di|\s*scadenza\s+di)?\s*)",
-        QRegularExpression::CaseInsensitiveOption);
-    rest.remove(rePrep);
-
-    struct UDef { QStringList n; double s; };
-    static const QVector<UDef> kU = {
-        {{"secondo","secondi","sec"},         1.0},
-        {{"minuto","minuti","min"},           60.0},
-        {{"ora","ore"},                       3600.0},
-        {{"giorno","giorni"},                 86400.0},
-        {{"settimana","settimane"},            7.0*86400.0},
-        {{"mese","mesi"},                      30.4375*86400.0},
-        {{"anno","anni"},                      365.2422*86400.0},
-    };
-    auto unitSec = [&](const QString& w) -> double {
-        for (const auto& u : kU) if (u.n.contains(w)) return u.s;
-        return 0.0;
-    };
-    const double uSec = unitSec(unitWord);
-    if (uSec <= 0) return task;   /* unità non riconosciuta: lascia decidere all'LLM */
-
-    static const QMap<QString,int> kMesi = {
-        {"gennaio",1},{"febbraio",2},{"marzo",3},{"aprile",4},
-        {"maggio",5},{"giugno",6},{"luglio",7},{"agosto",8},
-        {"settembre",9},{"ottobre",10},{"novembre",11},{"dicembre",12},
-        {"gen",1},{"feb",2},{"mar",3},{"apr",4},
-        {"mag",5},{"giu",6},{"lug",7},{"ago",8},
-        {"set",9},{"ott",10},{"nov",11},{"dic",12},
-    };
     const QDate today = QDate::currentDate();
-    QDate target;
-    static const QRegularExpression reGiorno(
-        R"(giorno\s+(\d{1,2})(?:\s+(?:di\s+)?(\w+))?)",
-        QRegularExpression::CaseInsensitiveOption);
-    const auto mg = reGiorno.match(rest);
-    if (mg.hasMatch()) {
-        const int day = mg.captured(1).toInt();
-        int mon = today.month(), yr = today.year();
-        if (!mg.captured(2).isEmpty()) {
-            const int m2 = kMesi.value(mg.captured(2).toLower(), 0);
-            if (m2 > 0) mon = m2;
-        }
-        target = QDate(yr, mon, day);
-        if (!target.isValid() || target <= today)
-            target = mg.captured(2).isEmpty() ? target.addMonths(1) : QDate(yr + 1, mon, day);
-    }
-    if (!target.isValid()) {
-        for (auto it = kMesi.cbegin(); it != kMesi.cend(); ++it) {
-            if (!rest.contains(it.key())) continue;
-            const int yr = today.year();
-            static const QRegularExpression reDM(R"((\d{1,2})\s+\w+)");
-            const auto dm = reDM.match(rest);
-            const int day = (dm.hasMatch() && dm.captured(1).toInt() >= 1) ? dm.captured(1).toInt() : 1;
-            target = QDate(yr, it.value(), day);
-            if (!target.isValid() || target <= today)
-                target = QDate(yr + 1, it.value(), day);
-            break;
-        }
-    }
-    if (!target.isValid()) return task;   /* data non riconosciuta: lascia decidere all'LLM */
 
-    const qint64 diffDays = today.daysTo(target);
-    if (diffDays < 0) return task;   /* data già passata: caso raro, lascia gestire all'LLM */
+    /* ── "quanti X mancano a/al DATA" ── */
+    {
+        static const QRegularExpression reQ1(
+            R"(quanti\s+(\w+)\s+mancano\s+(.+))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m1 = reQ1.match(ql);
+        if (m1.hasMatch()) {
+            const QString unitWord = m1.captured(1);
+            QString rest = m1.captured(2).trimmed();
+            static const QRegularExpression rePrep(
+                R"(^(?:a|al|alla|allo|agli|alle|all'?|fino\s+a|sino\s+a)(?:\s*evento\s+di|\s*appuntamento\s+di|\s*scadenza\s+di)?\s*)",
+                QRegularExpression::CaseInsensitiveOption);
+            rest.remove(rePrep);
 
-    QString result;
-    if (unitWord == "mesi" || unitWord == "mese") {
-        /* Se il conteggio grezzo supera il target di qualche giorno (es. oggi
-           3 luglio → target 1 dicembre: "oggi + 5 mesi" = 3 dicembre, DOPO il
-           target), va scalato di 1 mese e ricalcolato il resto in giorni. */
-        int months = (target.year() - today.year()) * 12 + (target.month() - today.month());
-        int remD   = static_cast<int>(today.addMonths(months).daysTo(target));
-        if (remD < 0) {
-            --months;
-            remD = static_cast<int>(today.addMonths(months).daysTo(target));
+            struct UDef { QStringList n; double s; };
+            static const QVector<UDef> kU = {
+                {{"secondo","secondi","sec"},         1.0},
+                {{"minuto","minuti","min"},           60.0},
+                {{"ora","ore"},                       3600.0},
+                {{"giorno","giorni"},                 86400.0},
+                {{"settimana","settimane"},            7.0*86400.0},
+                {{"mese","mesi"},                      30.4375*86400.0},
+                {{"anno","anni"},                      365.2422*86400.0},
+            };
+            auto unitSec = [&](const QString& w) -> double {
+                for (const auto& u : kU) if (u.n.contains(w)) return u.s;
+                return 0.0;
+            };
+            const double uSec = unitSec(unitWord);
+            static const QMap<QString,int> kMesi = {
+                {"gennaio",1},{"febbraio",2},{"marzo",3},{"aprile",4},
+                {"maggio",5},{"giugno",6},{"luglio",7},{"agosto",8},
+                {"settembre",9},{"ottobre",10},{"novembre",11},{"dicembre",12},
+                {"gen",1},{"feb",2},{"mar",3},{"apr",4},
+                {"mag",5},{"giu",6},{"lug",7},{"ago",8},
+                {"set",9},{"ott",10},{"nov",11},{"dic",12},
+            };
+            QDate target;
+            if (uSec > 0) {
+                static const QRegularExpression reGiorno(
+                    R"(giorno\s+(\d{1,2})(?:\s+(?:di\s+)?(\w+))?)",
+                    QRegularExpression::CaseInsensitiveOption);
+                const auto mg = reGiorno.match(rest);
+                if (mg.hasMatch()) {
+                    const int day = mg.captured(1).toInt();
+                    int mon = today.month(), yr = today.year();
+                    if (!mg.captured(2).isEmpty()) {
+                        const int m2 = kMesi.value(mg.captured(2).toLower(), 0);
+                        if (m2 > 0) mon = m2;
+                    }
+                    target = QDate(yr, mon, day);
+                    if (!target.isValid() || target <= today)
+                        target = mg.captured(2).isEmpty() ? target.addMonths(1) : QDate(yr + 1, mon, day);
+                }
+                if (!target.isValid()) {
+                    for (auto it = kMesi.cbegin(); it != kMesi.cend(); ++it) {
+                        if (!rest.contains(it.key())) continue;
+                        const int yr = today.year();
+                        static const QRegularExpression reDM(R"((\d{1,2})\s+\w+)");
+                        const auto dm = reDM.match(rest);
+                        const int day = (dm.hasMatch() && dm.captured(1).toInt() >= 1) ? dm.captured(1).toInt() : 1;
+                        target = QDate(yr, it.value(), day);
+                        if (!target.isValid() || target <= today)
+                            target = QDate(yr + 1, it.value(), day);
+                        break;
+                    }
+                }
+            }
+            const qint64 diffDays = target.isValid() ? today.daysTo(target) : -1;
+            if (target.isValid() && diffDays >= 0) {
+                QString result;
+                if (unitWord == "mesi" || unitWord == "mese") {
+                    /* Se il conteggio grezzo supera il target di qualche giorno
+                       (es. oggi 3 luglio → target 1 dicembre: "oggi + 5 mesi" =
+                       3 dicembre, DOPO il target), va scalato di 1 mese e
+                       ricalcolato il resto in giorni. */
+                    int months = (target.year() - today.year()) * 12 + (target.month() - today.month());
+                    int remD   = static_cast<int>(today.addMonths(months).daysTo(target));
+                    if (remD < 0) {
+                        --months;
+                        remD = static_cast<int>(today.addMonths(months).daysTo(target));
+                    }
+                    result = QString("%1 mesi").arg(months);
+                    if (remD > 0) result += QString(" e %1 giorni").arg(remD);
+                } else if (unitWord == "giorni" || unitWord == "giorno") {
+                    result = QString("%1 giorni").arg(diffDays);
+                } else if (unitWord == "settimane" || unitWord == "settimana") {
+                    result = QString("%1 settimane (%2 giorni)").arg(diffDays / 7.0, 0, 'f', 1).arg(diffDays);
+                } else {
+                    result = QString("%1 %2").arg(diffDays * 86400.0 / uSec, 0, 'f', 2).arg(unitWord);
+                }
+                return QString("[Calcolo locale: da oggi (%1) al %2 mancano %3]\n\n")
+                    .arg(QLocale(QLocale::Italian).toString(today, "d MMMM yyyy"),
+                         QLocale(QLocale::Italian).toString(target, "d MMMM yyyy"), result) + task;
+            }
         }
-        result = QString("%1 mesi").arg(months);
-        if (remD > 0) result += QString(" e %1 giorni").arg(remD);
-    } else if (unitWord == "giorni" || unitWord == "giorno") {
-        result = QString("%1 giorni").arg(diffDays);
-    } else if (unitWord == "settimane" || unitWord == "settimana") {
-        result = QString("%1 settimane (%2 giorni)").arg(diffDays / 7.0, 0, 'f', 1).arg(diffDays);
-    } else {
-        result = QString("%1 %2").arg(diffDays * 86400.0 / uSec, 0, 'f', 2).arg(unitWord);
     }
 
-    return QString("[Calcolo locale: da oggi (%1) al %2 mancano %3]\n\n")
-        .arg(QLocale(QLocale::Italian).toString(today, "d MMMM yyyy"),
-             QLocale(QLocale::Italian).toString(target, "d MMMM yyyy"), result) + task;
+    /* ── Età esatta: "quanti anni ho se sono nato il DD/MM/YYYY" ── */
+    {
+        static const QRegularExpression re(
+            R"((?:quanti\s+anni\s+(?:ho|ha|avr[àa])|che\s+et[àa]\s+(?:ho|ha)|et[àa]\s+di\s+chi\s+[èe]\s+nat[oa]).{0,15}nat[oa].{0,10}(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4}))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(ql);
+        if (m.hasMatch()) {
+            int yy = m.captured(3).toInt();
+            if (yy < 100) yy += (yy > (today.year() % 100) ? 1900 : 2000);
+            const QDate nascita(yy, m.captured(2).toInt(), m.captured(1).toInt());
+            if (nascita.isValid() && nascita <= today) {
+                int anni = today.year() - nascita.year();
+                QDate compleanno(today.year(), nascita.month(), nascita.day());
+                if (!compleanno.isValid() || today < compleanno) { --anni; compleanno = compleanno.addYears(-1); }
+                const int giorniAlProssimo = compleanno.isValid()
+                    ? static_cast<int>(today.daysTo(compleanno.addYears(1))) : -1;
+                QString extra = giorniAlProssimo >= 0
+                    ? QString(" (mancano %1 giorni al prossimo compleanno)").arg(giorniAlProssimo) : QString();
+                return QString("[Calcolo locale: nato/a il %1, oggi ha %2 anni%3]\n\n")
+                    .arg(QLocale(QLocale::Italian).toString(nascita, "d MMMM yyyy"))
+                    .arg(anni).arg(extra) + task;
+            }
+        }
+    }
+
+    /* ── Giorno della settimana: "che giorno era/sarà il DD/MM/YYYY" ── */
+    {
+        static const QRegularExpression re(
+            R"(che\s+giorno\s+(?:della\s+settimana\s+)?(?:era|cade|cadeva|sar[àa]|cadr[àa]|[èe])\s+(?:il\s+)?(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4}))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(ql);
+        if (m.hasMatch()) {
+            int yy = m.captured(3).toInt();
+            if (yy < 100) yy += (yy > (today.year() % 100) ? 1900 : 2000);
+            const QDate d(yy, m.captured(2).toInt(), m.captured(1).toInt());
+            if (d.isValid()) {
+                return QString("[Calcolo locale: il %1 \xc3\xa8/era %2]\n\n")
+                    .arg(QLocale(QLocale::Italian).toString(d, "d MMMM yyyy"),
+                         QLocale(QLocale::Italian).toString(d, "dddd")) + task;
+            }
+        }
+    }
+
+    /* ── Fuso orario: "che ora è a CITTÀ" ── */
+    {
+        static const QRegularExpression re(
+            R"(che\s+(?:ora|ore)\s+(?:[èe]|sono|fa)\s+(?:a|in|adesso\s+a)\s+([a-z\xc3\xa0-\xc3\xbf\s]{2,20}?)(?:\?|$|\s+se\s)",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(ql);
+        if (m.hasMatch()) {
+            static const QMap<QString,QString> kTz = {
+                {"new york",       "America/New_York"},   {"los angeles", "America/Los_Angeles"},
+                {"san francisco",  "America/Los_Angeles"},{"chicago",     "America/Chicago"},
+                {"londra",         "Europe/London"},      {"london",      "Europe/London"},
+                {"parigi",         "Europe/Paris"},        {"berlino",     "Europe/Berlin"},
+                {"madrid",         "Europe/Madrid"},       {"mosca",       "Europe/Moscow"},
+                {"tokyo",          "Asia/Tokyo"},          {"pechino",     "Asia/Shanghai"},
+                {"beijing",        "Asia/Shanghai"},       {"shanghai",    "Asia/Shanghai"},
+                {"dubai",          "Asia/Dubai"},          {"sydney",      "Australia/Sydney"},
+                {"hong kong",      "Asia/Hong_Kong"},      {"singapore",   "Asia/Singapore"},
+                {"delhi",          "Asia/Kolkata"},        {"mumbai",      "Asia/Kolkata"},
+                {"san paolo",      "America/Sao_Paulo"},   {"sao paulo",   "America/Sao_Paulo"},
+                {"citt\xc3\xa0 del messico", "America/Mexico_City"},
+            };
+            const QString city = m.captured(1).trimmed();
+            if (kTz.contains(city)) {
+                const QTimeZone tz(kTz.value(city).toUtf8());
+                if (tz.isValid()) {
+                    const QDateTime there = QDateTime::currentDateTime().toTimeZone(tz);
+                    return QString("[Calcolo locale: a %1 sono le %2 (%3, oggi qui sono le %4)]\n\n")
+                        .arg(city, there.toString("HH:mm"), QString::fromUtf8(tz.id()),
+                             QDateTime::currentDateTime().toString("HH:mm")) + task;
+                }
+            }
+        }
+    }
+
+    /* ── Giorni lavorativi tra due date ── */
+    {
+        static const QRegularExpression re(
+            R"(giorni\s+lavorativi.{0,15}(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4}).{0,10}(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4}))",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(ql);
+        if (m.hasMatch()) {
+            auto mkYear = [&](int yy){ return yy < 100 ? yy + (yy > (today.year()%100) ? 1900 : 2000) : yy; };
+            QDate d1(mkYear(m.captured(3).toInt()), m.captured(2).toInt(), m.captured(1).toInt());
+            QDate d2(mkYear(m.captured(6).toInt()), m.captured(5).toInt(), m.captured(4).toInt());
+            if (d1.isValid() && d2.isValid()) {
+                if (d1 > d2) std::swap(d1, d2);
+                int lavorativi = 0;
+                for (QDate d = d1; d <= d2; d = d.addDays(1))
+                    if (d.dayOfWeek() < 6) ++lavorativi;   /* 1=lun..5=ven, 6=sab 7=dom */
+                return QString("[Calcolo locale: dal %1 al %2 ci sono %3 giorni lavorativi "
+                                "(esclusi sabati/domeniche, non conta le festivit\xc3\xa0)]\n\n")
+                    .arg(QLocale(QLocale::Italian).toString(d1, "d MMMM yyyy"),
+                         QLocale(QLocale::Italian).toString(d2, "d MMMM yyyy"))
+                    .arg(lavorativi) + task;
+            }
+        }
+    }
+
+    return task;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1619,14 +1724,24 @@ QString _inject_help(const QString& task)
         "| Categoria | Esempio | Cosa calcola |\n"
         "|---|---|---|\n"
         "| \xf0\x9f\x94\xa2 Matematica/Fisica | \"quanti watt con 12V e 2A\" | Ohm, RC, chimica, conversioni unit\xc3\xa0 |\n"
+        "| \xf0\x9f\x93\x90 Geometria | \"area di un rettangolo con base 5 e altezza 3\" | Triangolo, rettangolo, cubo, cilindro |\n"
+        "| \xe2\x9a\x96\xef\xb8\x8f IMC | \"imc per 70kg e 1.75m\" | Indice di massa corporea + fascia |\n"
+        "| \xf0\x9f\x9b\x90 Numeri romani | \"quanto \xc3\xa8 MCMXCIV\" / \"1994 in romano\" | Conversione bidirezionale |\n"
         "| \xf0\x9f\x93\x85 Date | \"quanti mesi mancano a dicembre\" | Calendario reale, gg/mesi/anni |\n"
+        "| \xf0\x9f\x8e\x82 Et\xc3\xa0 | \"quanti anni ho se sono nato il 15/03/1990\" | Et\xc3\xa0 esatta + giorni al compleanno |\n"
+        "| \xf0\x9f\x93\x86 Giorno settimana | \"che giorno era il 25/12/2020\" | Calendario deterministico |\n"
+        "| \xf0\x9f\x8c\x8d Fuso orario | \"che ora \xc3\xa8 a New York\" | Ora reale in altre citt\xc3\xa0 |\n"
+        "| \xf0\x9f\x92\xbc Giorni lavorativi | \"giorni lavorativi tra 03/07/2026 e 15/08/2026\" | Esclusi sabati/domeniche |\n"
         "| \xf0\x9f\x8d\xb3 Cucina | \"quanti grammi sono 200ml di farina\" | ml\xe2\x86\x94grammi, forno, cucchiai/tazze |\n"
         "| \xf0\x9f\x92\xb3 IBAN | \"\xc3\xa8 valido questo IBAN: IT60...\" | Cifra di controllo (mod-97) |\n"
         "| \xf0\x9f\x86\x94 Codice Fiscale | \"RSSMRA85M01H501Q \xc3\xa8 valido?\" | Checksum + data nascita/sesso |\n"
+        "| \xf0\x9f\x8f\xa2 Partita IVA | \"12345678903 \xc3\xa8 una p.iva valida?\" | Checksum ufficiale |\n"
         "| \xf0\x9f\x92\xb0 Sconti/IVA/% | \"sconto del 15% su 80 euro\" | Percentuali, sconti, scorporo IVA |\n"
+        "| \xf0\x9f\x93\x88 Interesse/Mutuo | \"rata di un mutuo da 100000 euro al 3% in 20 anni\" | Composto, ammortamento francese |\n"
         "| \xf0\x9f\x94\x91 Generatori | \"genera una password di 20 caratteri\" | UUID, hash, password casuali |\n"
         "| \xf0\x9f\x92\xb1 Cambio valuta | \"100 EUR in USD\" | Tasso reale aggiornato (BCE) |\n"
         "| \xf0\x9f\x93\x86 Evento calendario | \"creami un evento per il compleanno\" | QR code Google Calendar/.ics |\n"
+        "| \xf0\x9f\x93\x9d Statistiche testo | \"quante parole ha: <testo>\" | Parole/caratteri/frasi + tempo lettura |\n"
         "| \xf0\x9f\x93\x88 Grafico | \"") + chartExample + QString::fromUtf8(
         "\" | Plot Cartesiano istantaneo (prova questo!) |\n\n"
         "**Grafici**: scrivendo *\"grafico di FORMULA\"* oppure *\"y = FORMULA\"* disegno subito "
@@ -1856,6 +1971,85 @@ QString _inject_finance(const QString& task)
         }
     }
 
+    /* ── Partita IVA: 11 cifre, checksum ufficiale (somma pesata mod 10) ──
+     * Verificato indipendentemente: somma le prime 10 cifre (dispari 1-based
+     * = valore diretto, pari = raddoppiato, -9 se >9), cifra di controllo
+     * attesa = (10 - somma mod 10) mod 10, confrontata con l'11a cifra. */
+    {
+        static const QRegularExpression rePiva(
+            R"(\b(?:p\.?\s?iva|partita\s+iva)\b.{0,15}?(\d{11})\b|\b(\d{11})\b.{0,15}?\b(?:p\.?\s?iva|partita\s+iva)\b)",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = rePiva.match(lo);
+        const QString piva = m.hasMatch() ? (m.captured(1).isEmpty() ? m.captured(2) : m.captured(1)) : QString();
+        if (!piva.isEmpty()) {
+            int sum = 0;
+            for (int i = 0; i < 10; ++i) {
+                int d = piva.at(i).digitValue();
+                if (i % 2 == 1) { d *= 2; if (d > 9) d -= 9; }
+                sum += d;
+            }
+            const int expected = (10 - (sum % 10)) % 10;
+            const bool valid = expected == piva.at(10).digitValue();
+            return QString("[Calcolo locale: Partita IVA %1 \xe2\x80\x94 %2]\n\n")
+                .arg(piva, valid ? "VALIDA (cifra di controllo corretta)"
+                                  : "NON VALIDA (cifra di controllo errata)")
+                + task;
+        }
+    }
+
+    /* ── Interesse composto: "quanto diventano 1000 euro al 5% in 10 anni" ── */
+    {
+        static const QRegularExpression re(
+            R"((\d+(?:[.,]\d+)?)\s*(?:€|euro)?.{0,20}?(\d+(?:[.,]\d+)?)\s*%.{0,20}?(\d+)\s*ann)",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch() && (lo.contains("diventano") || lo.contains("interesse composto")
+                              || lo.contains("capitalizzazione"))) {
+            const double capitale = m.captured(1).replace(',', '.').toDouble();
+            const double tasso    = m.captured(2).replace(',', '.').toDouble();
+            const int    anni     = m.captured(3).toInt();
+            if (capitale > 0 && anni > 0 && anni <= 200) {
+                const double montante = capitale * std::pow(1.0 + tasso / 100.0, anni);
+                return QString("[Calcolo locale: %1 \xe2\x82\xac al %2%% annuo (interesse composto) per %3 anni "
+                                "\xe2\x86\x92 %4 \xe2\x82\xac (interessi maturati: %5 \xe2\x82\xac)]\n\n")
+                    .arg(QString::number(capitale, 'f', 2), QString::number(tasso, 'g', 6))
+                    .arg(anni)
+                    .arg(QString::number(montante, 'f', 2), QString::number(montante - capitale, 'f', 2))
+                    + task;
+            }
+        }
+    }
+
+    /* ── Rata mutuo/prestito (ammortamento francese, rata costante) ──
+     * "rata di un mutuo da 100000 euro al 3% in 20 anni" */
+    {
+        static const QRegularExpression re(
+            R"((?:rata|mutuo|prestito).{0,30}?(\d+(?:[.,]\d+)?)\s*(?:€|euro)?.{0,20}?(\d+(?:[.,]\d+)?)\s*%.{0,20}?(\d+)\s*ann)",
+            QRegularExpression::CaseInsensitiveOption);
+        const auto m = re.match(lo);
+        if (m.hasMatch() && (lo.contains("rata") || lo.contains("mutuo") || lo.contains("prestito"))) {
+            const double capitale  = m.captured(1).replace(',', '.').toDouble();
+            const double tassoAnn  = m.captured(2).replace(',', '.').toDouble();
+            const int    anni      = m.captured(3).toInt();
+            if (capitale > 0 && anni > 0 && anni <= 60) {
+                const double i = tassoAnn / 100.0 / 12.0;
+                const int    n = anni * 12;
+                const double rata = (i > 0)
+                    ? capitale * i / (1.0 - std::pow(1.0 + i, -n))
+                    : capitale / n;   /* tasso 0%: rata = capitale/n */
+                const double totalePagato = rata * n;
+                return QString("[Calcolo locale: mutuo di %1 \xe2\x82\xac al %2%% annuo in %3 anni "
+                                "(ammortamento francese, rata costante) \xe2\x86\x92 rata mensile %4 \xe2\x82\xac, "
+                                "totale pagato %5 \xe2\x82\xac (interessi %6 \xe2\x82\xac)]\n\n")
+                    .arg(QString::number(capitale, 'f', 2), QString::number(tassoAnn, 'g', 6))
+                    .arg(anni)
+                    .arg(QString::number(rata, 'f', 2), QString::number(totalePagato, 'f', 2),
+                         QString::number(totalePagato - capitale, 'f', 2))
+                    + task;
+            }
+        }
+    }
+
     return task;
 }
 
@@ -1931,6 +2125,42 @@ QString _inject_generator(const QString& task)
     }
 
     return task;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _inject_textstats — "quante parole ha: <testo>" / "conta le parole
+   in: <testo>" / "quanto ci vuole a leggere: <testo>" — conteggio
+   parole/caratteri/frasi + stima tempo di lettura (~200 parole/min),
+   zero LLM. Richiede il testo dopo ":" — a differenza degli altri
+   _inject_* non limita la lunghezza a 300 char (qui serve analizzare
+   testo lungo, è proprio lo scopo della funzione).
+   ══════════════════════════════════════════════════════════════ */
+QString _inject_textstats(const QString& task)
+{
+    static const QRegularExpression re(
+        R"(^(?:quante\s+parole\s+ha|conta\s+le\s+parole(?:\s+(?:di|in))?|statistiche\s+(?:di\s+)?(?:questo\s+)?testo|quanto\s+(?:tempo\s+)?ci\s+vuole\s+a\s+leggere)\s*[:\-]\s*(.+)$)",
+        QRegularExpression::CaseInsensitiveOption | QRegularExpression::DotMatchesEverythingOption);
+    const auto m = re.match(task.trimmed());
+    if (!m.hasMatch()) return task;
+
+    const QString testo = m.captured(1).trimmed();
+    if (testo.isEmpty()) return task;
+
+    const int caratteri = testo.length();
+    const int caratteriNoSpazi = QString(testo).remove(QRegularExpression(R"(\s)")).length();
+    const QStringList parole = testo.split(QRegularExpression(R"(\s+)"), Qt::SkipEmptyParts);
+    const int numParole = parole.size();
+    const int numFrasi = qMax(1, static_cast<int>(
+        testo.count(QRegularExpression(R"([.!?]+)"))));
+    const double minutiLettura = numParole / 200.0;   /* ~200 parole/minuto, lettura media */
+    const QString tempoStr = minutiLettura < 1.0
+        ? QString("%1 secondi").arg(qMax(1, qRound(minutiLettura * 60)))
+        : QString("%1 minuti").arg(minutiLettura, 0, 'f', 1);
+
+    return QString("[Calcolo locale: %1 parole, %2 caratteri (%3 senza spazi), circa %4 frasi, "
+                    "tempo di lettura stimato ~%5]\n\n")
+        .arg(numParole).arg(caratteri).arg(caratteriNoSpazi).arg(numFrasi).arg(tempoStr)
+        + task;
 }
 
 /* ══════════════════════════════════════════════════════════════

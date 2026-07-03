@@ -152,3 +152,6 @@ QString _inject_generator(const QString& task);
  *  markdownToHtml(), non con buildLocalBubble(). Definita in
  *  main_ai_tools.cpp. */
 QString _inject_help(const QString& task);
+/** "quante parole ha: <testo>" — conteggio parole/caratteri/frasi + stima
+ *  tempo di lettura, zero LLM. Definita in main_ai_tools.cpp. */
+QString _inject_textstats(const QString& task);

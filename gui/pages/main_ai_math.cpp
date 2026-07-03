@@ -1518,6 +1518,138 @@ QString _inject_science(const QString& task)
         }
     }
 
+    /* ══ NUMERI ROMANI ══ */
+
+    /* Romano → arabo: "quanto è MCMXCIV" / "converti XIV in numero" */
+    if (!res.ok && (lo.contains("roman") || QRegularExpression(R"(\b[MDCLXVI]{2,15}\b)").match(task).hasMatch())
+        && !lo.contains("scrivi") && !lo.contains("in roman")) {
+        static const QRegularExpression reTok(R"(\b([MDCLXVI]{2,15})\b)");
+        const auto mt = reTok.match(task);   /* task (non lo): i romani sono maiuscoli */
+        if (mt.hasMatch()) {
+            static const QMap<QChar,int> kVal = {
+                {'I',1},{'V',5},{'X',10},{'L',50},{'C',100},{'D',500},{'M',1000}
+            };
+            const QString rn = mt.captured(1);
+            int val = 0; bool valid = true;
+            for (int i = 0; i < rn.length(); ++i) {
+                const int v = kVal.value(rn.at(i), 0);
+                const int next = (i + 1 < rn.length()) ? kVal.value(rn.at(i+1), 0) : 0;
+                if (v < next) val -= v; else val += v;
+            }
+            /* Verifica di round-trip: se la ricostruzione non combacia, la
+               stringa non è un numero romano ben formato (evita falsi
+               positivi su parole maiuscole casuali come "MIX" il verbo). */
+            if (val > 0 && val < 4000) {
+                static const QVector<QPair<int,QString>> kToRoman = {
+                    {1000,"M"},{900,"CM"},{500,"D"},{400,"CD"},{100,"C"},{90,"XC"},
+                    {50,"L"},{40,"XL"},{10,"X"},{9,"IX"},{5,"V"},{4,"IV"},{1,"I"}
+                };
+                int n = val; QString rebuilt;
+                for (const auto& kv : kToRoman) while (n >= kv.first) { rebuilt += kv.second; n -= kv.first; }
+                valid = (rebuilt == rn);
+            } else valid = false;
+            if (valid)
+                res = {true, "romano \xe2\x86\x92 arabo", rn + " = " + QString::number(val)};
+        }
+    }
+    /* Arabo → romano: "scrivi 1994 in romano" / "1994 in numeri romani" */
+    if (!res.ok && lo.contains("roman") && (lo.contains("scrivi") || lo.contains("in roman") || lo.contains("converti"))) {
+        double v = matchN(lo);
+        if (!std::isnan(v) && v >= 1 && v < 4000 && v == std::floor(v)) {
+            static const QVector<QPair<int,QString>> kToRoman = {
+                {1000,"M"},{900,"CM"},{500,"D"},{400,"CD"},{100,"C"},{90,"XC"},
+                {50,"L"},{40,"XL"},{10,"X"},{9,"IX"},{5,"V"},{4,"IV"},{1,"I"}
+            };
+            int n = (int)v; QString rn;
+            for (const auto& kv : kToRoman) while (n >= kv.first) { rn += kv.second; n -= kv.first; }
+            res = {true, "arabo \xe2\x86\x92 romano", QString::number((int)v) + " = " + rn};
+        }
+    }
+
+    /* ══ SALUTE ══ */
+
+    /* IMC/BMI: "imc per 70kg e 1.75m" */
+    if (!res.ok && (lo.contains("imc") || lo.contains("bmi") || lo.contains("massa corporea"))) {
+        static const QRegularExpression reKgM(
+            R"((\d+(?:[.,]\d+)?)\s*kg.{0,15}?(\d+(?:[.,]\d+)?)\s*(m|cm)\b)",
+            QRegularExpression::CaseInsensitiveOption);
+        auto m = reKgM.match(lo);
+        if (m.hasMatch()) {
+            const double kg = _num(m.captured(1));
+            double h = _num(m.captured(2));
+            if (m.captured(3) == "cm") h /= 100.0;
+            if (kg > 0 && h > 0 && h < 3.0) {
+                const double imc = kg / (h * h);
+                QString fascia = imc < 18.5 ? "sottopeso" : imc < 25.0 ? "normopeso"
+                                : imc < 30.0 ? "sovrappeso" : "obesit\xc3\xa0";
+                res = {true, "IMC = kg / m\xc2\xb2",
+                       _sci(imc) + " (" + fascia + ")"};
+            }
+        }
+    }
+
+    /* ══ GEOMETRIA ══ */
+
+    /* Triangolo: area = base*altezza/2 */
+    if (!res.ok && lo.contains("triangolo") && lo.contains("area")) {
+        static const QRegularExpression re(
+            R"(base\s+(\d+(?:[.,]\d+)?).{0,15}altezza\s+(\d+(?:[.,]\d+)?)|altezza\s+(\d+(?:[.,]\d+)?).{0,15}base\s+(\d+(?:[.,]\d+)?))",
+            QRegularExpression::CaseInsensitiveOption);
+        auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const double base = !m.captured(1).isEmpty() ? _num(m.captured(1)) : _num(m.captured(4));
+            const double alt  = !m.captured(2).isEmpty() ? _num(m.captured(2)) : _num(m.captured(3));
+            if (base > 0 && alt > 0)
+                res = {true, "Area triangolo = base\xc3\x97""altezza/2", _sci(base * alt / 2.0)};
+        }
+    }
+    /* Rettangolo: area e perimetro da base/lati */
+    if (!res.ok && lo.contains("rettangolo") && (lo.contains("area") || lo.contains("perimetro"))) {
+        static const QRegularExpression re(
+            R"((?:base|lato)\s+(\d+(?:[.,]\d+)?).{0,15}(?:altezza|lato)\s+(\d+(?:[.,]\d+)?))",
+            QRegularExpression::CaseInsensitiveOption);
+        auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const double a = _num(m.captured(1)), b = _num(m.captured(2));
+            if (a > 0 && b > 0) {
+                if (lo.contains("perimetro"))
+                    res = {true, "Perimetro rettangolo = 2\xc3\x97(a+b)", _sci(2.0 * (a + b))};
+                else
+                    res = {true, "Area rettangolo = a\xc3\x97""b", _sci(a * b)};
+            }
+        }
+    }
+    /* Cubo: volume/superficie da lato */
+    if (!res.ok && lo.contains("cubo") && (lo.contains("volume") || lo.contains("superficie"))) {
+        static const QRegularExpression re(R"(lato\s+(\d+(?:[.,]\d+)?))", QRegularExpression::CaseInsensitiveOption);
+        auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const double l = _num(m.captured(1));
+            if (l > 0) {
+                if (lo.contains("superficie"))
+                    res = {true, "Superficie cubo = 6\xc3\x97l\xc2\xb2", _sci(6.0 * l * l)};
+                else
+                    res = {true, "Volume cubo = l\xc2\xb3", _sci(l * l * l)};
+            }
+        }
+    }
+    /* Cilindro: volume/superficie da raggio+altezza */
+    if (!res.ok && lo.contains("cilindro") && (lo.contains("volume") || lo.contains("superficie"))) {
+        static const QRegularExpression re(
+            R"(raggio\s+(\d+(?:[.,]\d+)?).{0,15}altezza\s+(\d+(?:[.,]\d+)?))",
+            QRegularExpression::CaseInsensitiveOption);
+        auto m = re.match(lo);
+        if (m.hasMatch()) {
+            const double r = _num(m.captured(1)), h = _num(m.captured(2));
+            if (r > 0 && h > 0) {
+                if (lo.contains("superficie"))
+                    res = {true, "Superficie cilindro = 2\xcf\x80r(r+h)", _sci(2.0 * M_PI * r * (r + h))};
+                else
+                    res = {true, "Volume cilindro = \xcf\x80r\xc2\xb2h", _sci(M_PI * r * r * h)};
+            }
+        }
+    }
+
     if (!res.ok) return task;
 
     /* Prepende il risultato come contesto per l'AI */

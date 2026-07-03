@@ -312,6 +312,7 @@ void AgentiPage::runPipeline() {
         if (!injected.startsWith(kTag)) injected = _inject_date_calc(task);
         if (!injected.startsWith(kTag)) injected = _inject_finance(task);
         if (!injected.startsWith(kTag)) injected = _inject_generator(task);
+        if (!injected.startsWith(kTag)) injected = _inject_textstats(task);
         if (injected.startsWith(kTag)) {
             const int close = injected.indexOf(']');
             const QString calcResult = close > 0
@@ -344,8 +345,8 @@ void AgentiPage::runPipeline() {
         if (m_input)
             m_input->setPlaceholderText(tr("Scrivi un task o una domanda..."));
     }
-    m_taskOriginal  = _inject_random(_inject_generator(_inject_finance(
-                          _inject_math(_inject_science(_inject_date_calc(task))))));
+    m_taskOriginal  = _inject_random(_inject_textstats(_inject_generator(_inject_finance(
+                          _inject_math(_inject_science(_inject_date_calc(task)))))));
     m_agentOutputs.clear();
     m_spawnedAgents = 0;
     m_currentAgent  = 0;
