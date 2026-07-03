@@ -6,6 +6,7 @@
  * La UI (QListWidget, segnali, AI) è in lavoro_page.cpp.
  */
 #include "main_jobs_data.h"
+#include <QUrl>
 
 const QList<Offerta>& kOfferte() {
     static const QList<Offerta> s = {
@@ -218,4 +219,27 @@ QString livLabel(const QString& l)
     if (l == "laurea_t")  return "  \xf0\x9f\x9f\xa0";
     if (l == "laurea_m")  return "  \xf0\x9f\x94\xb4";
     return "";
+}
+
+/* ── Assistente Candidature — conversioni pure ──────────────────────────── */
+QString macroAzioneToString(MacroAzione a)
+{
+    return a == MacroAzione::Scrivi ? "scrivi" : "click";
+}
+
+MacroAzione macroAzioneFromString(const QString& s)
+{
+    return s == "scrivi" ? MacroAzione::Scrivi : MacroAzione::Click;
+}
+
+QString dominioDaUrl(const QString& url)
+{
+    const QString host = QUrl(url).host();
+    if (host.isEmpty()) return host;
+    /* Riduce "it.indeed.com" / "www.linkedin.com" al dominio registrabile
+       (ultime due etichette) — euristica semplice, sufficiente per
+       raggruppare le macro per sito senza un elenco di TLD pubblici. */
+    const QStringList parts = host.split('.', Qt::SkipEmptyParts);
+    if (parts.size() <= 2) return host;
+    return parts[parts.size() - 2] + "." + parts[parts.size() - 1];
 }

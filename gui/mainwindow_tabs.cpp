@@ -308,6 +308,7 @@ QWidget* MainWindow::buildContent()
     {
         auto* srchWrap = new QWidget(m_mainTabs);
         srchWrap->setObjectName("tabSearchWrap");
+        m_tabSearchWrap = srchWrap;
         auto* srchLay  = new QHBoxLayout(srchWrap);
         srchLay->setContentsMargins(2, 2, 6, 2);
         srchLay->setSpacing(4);
@@ -343,6 +344,9 @@ QWidget* MainWindow::buildContent()
         srchBtn->installEventFilter(this);
         srchWrap->installEventFilter(this);
         m_tabSearchEdit->installEventFilter(this);
+        /* Click ovunque fuori dal popup/campo → chiude (il popup non è
+           Qt::Popup, quindi serve un filtro applicativo per il click-away) */
+        qApp->installEventFilter(this);
     }
 
     /* Salva etichette originali e applica modalità da QSettings */

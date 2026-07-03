@@ -44,6 +44,7 @@
 #include <QListWidgetItem>
 #include <QSignalBlocker>
 #include <QKeyEvent>
+#include <QMouseEvent>
 
 namespace P = PrismaluxPaths;
 
@@ -620,6 +621,22 @@ void MainWindow::onDeleteSelectedChatsClicked()
 /* eventFilter: m_chatList (Delete), m_tabSearchEdit (Escape), hover search */
 bool MainWindow::eventFilter(QObject* obj, QEvent* ev)
 {
+    /* ── Click-away: popup ricerca aperto + click fuori da campo/popup → chiudi ──
+       Filtro applicativo (qApp) perché il popup non usa Qt::Popup: senza
+       questo, cliccare altrove nell'app lascerebbe il popup aperto per sempre
+       una volta rimossa la chiusura "a uscita mouse" (vedi tabSearchWrap sotto). */
+    if (ev->type() == QEvent::MouseButtonPress && m_searchPopup && m_searchPopup->isVisible()) {
+        auto* me = static_cast<QMouseEvent*>(ev);
+        const QPoint gp = me->globalPosition().toPoint();
+        const bool inPopup = m_searchPopup->geometry().contains(m_searchPopup->parentWidget()->mapFromGlobal(gp));
+        const bool inWrap = m_tabSearchWrap && m_tabSearchWrap->rect().contains(m_tabSearchWrap->mapFromGlobal(gp));
+        if (!inPopup && !inWrap) {
+            m_tabSearchEdit->clear();
+            m_tabSearchEdit->setMaximumWidth(0);
+            hideSearchPopup();
+        }
+    }
+
     /* ── Chat list: Delete ── */
     if (obj == m_chatList && ev->type() == QEvent::KeyPress) {
         auto* ke = static_cast<QKeyEvent*>(ev);
@@ -643,10 +660,15 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* ev)
             m_tabSearchEdit->setMaximumWidth(dpiScale(160));
             m_tabSearchEdit->setFocus();
         }
-        /* Mouse lascia il wrapper (bottone + campo) → chiudi */
+        /* Mouse lascia il wrapper (bottone + campo) → chiudi SOLO se il campo
+           è vuoto e non c'è già una ricerca in corso (altrimenti si chiude
+           mentre l'utente sposta il mouse sul popup per cliccare un risultato) */
         if (obj->objectName() == "tabSearchWrap" && ev->type() == QEvent::Leave) {
-            m_tabSearchEdit->clear();
-            m_tabSearchEdit->setMaximumWidth(0);
+            const bool popupOpen = m_searchPopup && m_searchPopup->isVisible();
+            if (m_tabSearchEdit->text().isEmpty() && !popupOpen) {
+                m_tabSearchEdit->clear();
+                m_tabSearchEdit->setMaximumWidth(0);
+            }
         }
         /* Escape / frecce / Invio mentre si digita */
         if (obj == m_tabSearchEdit && ev->type() == QEvent::KeyPress) {
@@ -1215,17 +1237,17 @@ void MainWindow::showSearchPopup(const QString& query)
     if (!m_searchPopup) {
         m_searchPopup = new QFrame(this);
         m_searchPopup->setObjectName("searchPopup");
-        m_searchPopup->setFrameShape(QFrame::StyledPanel);
-        m_searchPopup->setStyleSheet(
-            "QFrame#searchPopup{background:#1e293b;border:1px solid #334155;border-radius:6px;}"
-            "QListWidget{background:transparent;color:#e2e8f0;border:none;outline:none;}"
-            "QListWidget::item{padding:5px 10px;border-radius:4px;}"
-            "QListWidget::item:hover{background:#334155;}"
-            "QListWidget::item:selected{background:#2563eb;color:#fff;}");
+        m_searchPopup->setFrameShape(QFrame::NoFrame);
+        /* Niente stylesheet fisso: il bordo/sfondo del popup lo fornisce
+           già il QListWidget figlio, stilizzato per-tema da ogni
+           themes/*.qss (regola globale "QListWidget, QListView { ... }").
+           Uno stylesheet qui sopra vincerebbe sul tema attivo (bug: popup
+           sempre scuro anche con temi chiari). */
+        m_searchPopup->setStyleSheet("QFrame#searchPopup{background:transparent;border:none;}");
         m_searchPopup->raise();
 
         auto* lay = new QVBoxLayout(m_searchPopup);
-        lay->setContentsMargins(4, 4, 4, 4);
+        lay->setContentsMargins(0, 0, 0, 0);
         lay->setSpacing(0);
 
         m_searchList = new QListWidget(m_searchPopup);

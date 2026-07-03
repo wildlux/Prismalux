@@ -165,6 +165,7 @@ private:
     /* ── Ricerca schede dinamica ── */
     struct TabSearchEntry { int mainIdx; QString subLabel; QString display; QString keywords; };
     QVector<TabSearchEntry> m_searchIndex;
+    QWidget*     m_tabSearchWrap = nullptr;  ///< Wrapper bottone+campo — per click-away
     QFrame*      m_searchPopup = nullptr;
     QListWidget* m_searchList  = nullptr;
 

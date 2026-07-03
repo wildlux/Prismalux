@@ -158,7 +158,11 @@ void LavoroPage::popolaModelli(const QStringList& models) {
 LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     : QWidget(parent), m_ai(ai)
 {
-    auto* lay = new QVBoxLayout(this);
+    /* Contenuto storico (CV/Offerte/Tracker/Calcolatore) in una sotto-tab
+       "Candidature", per lasciare spazio alla nuova sotto-tab "Assistente
+       Candidature" senza toccare il layout esistente. */
+    auto* candidatureTab = new QWidget(this);
+    auto* lay = new QVBoxLayout(candidatureTab);
     lay->setContentsMargins(16, 12, 16, 12);
     lay->setSpacing(4);
 
@@ -596,6 +600,19 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
 
     applicaFiltri();
     loadTracker();
+
+    /* ── La pagina Lavoro È l'Assistente Candidature: browser a sinistra,
+       tutto il contenuto storico (CV/Offerte/Tracker/Calcolatore/Cover
+       Letter, costruito sopra in candidatureTab) in colonna a destra
+       insieme ai controlli di registrazione/riproduzione. Nessuna tab
+       esterna separata. ── */
+    auto* outerLay = new QVBoxLayout(this);
+    outerLay->setContentsMargins(0, 0, 0, 0);
+#ifdef HAVE_JOB_ASSISTANT
+    outerLay->addWidget(buildAssistenteTab(this, candidatureTab));
+#else
+    outerLay->addWidget(candidatureTab);
+#endif
 }
 
 /* ══════════════════════════════════════════════════════════════

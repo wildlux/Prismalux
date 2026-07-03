@@ -56,6 +56,20 @@ if(Qt6_FOUND)
     endif()
 endif()
 
+# ── Qt6::WebChannel — ponte JS↔C++ per l'Assistente Candidature (opzionale,
+#    richiede anche WebEngineWidgets: serve un QWebEngineView da pilotare) ──
+if(Qt6WebEngineWidgets_FOUND)
+    find_package(Qt6 COMPONENTS WebChannel QUIET)
+    if(Qt6WebChannel_FOUND)
+        list(APPEND QT_LIBS Qt6::WebChannel)
+        add_compile_definitions(HAVE_WEBCHANNEL)
+        add_compile_definitions(HAVE_JOB_ASSISTANT)
+        message(STATUS "Prismalux GUI: Qt6::WebChannel trovato — Assistente Candidature (Lavoro) abilitato")
+    else()
+        message(STATUS "Prismalux GUI: Qt6::WebChannel non trovato — Assistente Candidature disabilitato")
+    endif()
+endif()
+
 # ── Qt6::Svg — rendering SVG per emoji OpenMoji nel TriModeButton ────────
 if(Qt6_FOUND)
     find_package(Qt6 COMPONENTS Svg QUIET)
@@ -160,6 +174,7 @@ set(CPP_SRCS
     pages/main_finance.cpp
     pages/main_jobs_data.cpp
     pages/main_jobs.cpp
+    pages/main_jobs_assistant.cpp
     pages/main_learn.cpp
     pages/main_quiz.cpp
     pages/main_quiz_ccna_db.cpp
@@ -304,6 +319,7 @@ set(CPP_SRCS
     widgets/code_highlighter.h
     widgets/python_exec.h
     widgets/ai_error_widget.h
+    widgets/job_recorder_bridge.h
     widgets/widget_dep_check.h
     widgets/widget_docker_update.h
     widgets/widget_python_update.h

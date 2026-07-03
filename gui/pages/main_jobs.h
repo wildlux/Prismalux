@@ -10,6 +10,14 @@
 #include <QNetworkAccessManager>
 #include "../ai_client.h"
 #include "main_jobs_data.h"
+#ifdef HAVE_JOB_ASSISTANT
+#include <QWebEngineView>
+#include <QWebChannel>
+#include <QCheckBox>
+#include <QScrollArea>
+#include <QMap>
+#include "../widgets/job_recorder_bridge.h"
+#endif
 
 class LavoroPage : public QWidget {
     Q_OBJECT
@@ -58,6 +66,27 @@ private slots:
     /* ── Calcolatore euro/ore ── */
     void onCalcChanged();
 
+#ifdef HAVE_JOB_ASSISTANT
+    /* ── Assistente Candidature (browser embedded + macro) ── */
+    void onAsstGoClicked();
+    void onAsstBackClicked();
+    void onAsstFwdClicked();
+    void onAsstReloadClicked();
+    void onAsstLoadFinished(bool ok);
+    void onAsstRegistraToggled(bool on);
+    void onAsstElementClicked(const QString& selettore, const QString& tag, const QString& hint);
+    void onAsstStepDeleteClicked();
+    void onAsstPlayClicked();
+    void onAsstSitoComboChanged(int idx);
+    void onAsstNewSiteClicked();
+    void onAsstProfiloChanged();
+    void onAsstToggleCandColumn(bool on);
+    void onAsstToggleCtrlColumn(bool on);
+    void onAsstProfiloComboChanged(int idx);
+    void onAsstProfiloNewClicked();
+    void onAsstProfiloCvBtnClicked();
+#endif
+
 private:
     /* ── Helper interni (non slot, non lambda) ── */
     void applicaFiltri();
@@ -75,6 +104,23 @@ private:
     /* ── Costanti di testo ── */
     static const QString& cvFallback();
     static const QString& socraticoBase();
+
+#ifdef HAVE_JOB_ASSISTANT
+    /* ── Assistente Candidature: helper interni ── */
+    QWidget* buildAssistenteTab(QWidget* parent, QWidget* candidatureContent);
+    void injectRecorderScript();
+    void eseguiStep(int idx);
+    void logAsst(const QString& msg);
+    void aggiornaListaPassi();
+    QString macroPath(const QString& dominio) const;
+    void salvaMacroCorrente();
+    void caricaMacroPerDominio(const QString& dominio);
+    QString valorePerCampo(const QString& campoDato) const;
+    QString profiliCandidatoPath() const;
+    void salvaProfiliCandidato();
+    void caricaProfiliCandidato();
+    void applicaProfiloAiCampi(const QString& nomeProfilo);
+#endif
 
     /* ── Dati ── */
     AiClient*    m_ai;
@@ -126,4 +172,41 @@ private:
     QLabel*       m_mercatoLbl    = nullptr;
 
     void precompilaStipendioDaOfferta(const Offerta& o);
+
+#ifdef HAVE_JOB_ASSISTANT
+    /* ── Assistente Candidature: widget e stato ── */
+    QWebEngineView*    m_asstView        = nullptr;
+    QLineEdit*         m_asstUrlEdit     = nullptr;
+    QComboBox*         m_asstSitoCombo   = nullptr;
+    QPushButton*       m_asstRegBtn      = nullptr;
+    QListWidget*       m_asstPassiList   = nullptr;
+    QPushButton*       m_asstPlayBtn     = nullptr;
+    QCheckBox*         m_asstConfermaInvio = nullptr;
+    QTextEdit*         m_asstLog         = nullptr;
+    JobRecorderBridge* m_asstBridge      = nullptr;
+    QWebChannel*       m_asstChannel     = nullptr;
+    QLineEdit*         m_asstNomeEdit    = nullptr;
+    QLineEdit*         m_asstCognomeEdit = nullptr;
+    QLineEdit*         m_asstEmailEdit   = nullptr;
+    QLineEdit*         m_asstTelEdit     = nullptr;
+
+    JobMacro           m_asstMacro;
+    bool               m_asstRegistrando = false;
+    CandidatoProfilo   m_asstProfilo;
+
+    /* ── Profili candidato multipli (es. "IT", "Cameriere") — ognuno con
+       il proprio CV, un solo set di campi condiviso alla volta ── */
+    QComboBox*   m_asstProfiloCombo = nullptr;
+    QLabel*      m_asstProfiloCvLbl = nullptr;
+    QMap<QString, CandidatoProfilo> m_asstProfili;
+    QString      m_asstProfiloAttivo;
+
+    /* ── Colonne comprimibili (header sempre visibile + contenuto toggle) ── */
+    QWidget*     m_asstCandPane        = nullptr;
+    QScrollArea* m_asstCandScroll      = nullptr;
+    QPushButton* m_asstCandCollapseBtn = nullptr;
+    QWidget*     m_asstCtrlPane        = nullptr;
+    QWidget*     m_asstCtrlContent     = nullptr;
+    QPushButton* m_asstCtrlCollapseBtn = nullptr;
+#endif
 };

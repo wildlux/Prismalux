@@ -233,10 +233,10 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
     outer->addLazy("\xf0\x9f\x94\xa7  Sistema",         [this]{ return buildGroupSistema(); });
     outer->addLazy("\xf0\x9f\x94\x8c  MCP",             [this]{ return buildMcpTab(); });
     outer->addLazy("\xf0\x9f\x94\x8c  Gestione MCP",    [tabs]{ return new McpManagerPage(tabs); });
-    outer->addLazy("\xf0\x9f\x93\x8a  Feedback",        [this]{ return buildFeedbackTab(); });
-    outer->addLazy("\xf0\x9f\x93\x9c  Ringraziamenti",  [this]{ return buildRingraziamentiTab(); });
-    outer->addLazy("\xf0\x9f\x94\x92  Sicurezza WAN",   [this]{ return buildSicurezzaWanTab(); });
+    outer->addLazy("\xf0\x9f\x93\x8a  Le tue preferenze", [this]{ return buildFeedbackTab(); });
     outer->addLazy("\xf0\x9f\x94\xa7  Profili Modello", [tabs]{ return new ModelProfilesTab(tabs); });
+    outer->addLazy("\xf0\x9f\x94\x92  Sicurezza WAN",   [this]{ return buildSicurezzaWanTab(); });
+    outer->addLazy("\xf0\x9f\x93\x9c  Ringraziamenti",  [this]{ return buildRingraziamentiTab(); });
 
     /* ── Campo ricerca — angolo in alto a destra della tab bar ── */
     {
