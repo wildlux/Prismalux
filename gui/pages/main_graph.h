@@ -438,6 +438,7 @@ private:
 
 private slots:
     void onGenFormulaClicked();
+    void onSolid3DClicked(int shapeId);   ///< 0=Cubo 1=Cilindro 2=Cono 3=Toro 4=Parallelepipedo
     void onSmithFileClicked();
     void onTypeComboChanged(int idx);
     void onImgSectionTypeChanged(int idx);
@@ -469,6 +470,14 @@ private:
     QDoubleSpinBox* m_genFrom    = nullptr;
     QDoubleSpinBox* m_genTo      = nullptr;
     QDoubleSpinBox* m_genStep    = nullptr;
+
+    /* Solidi 3D (panel [1], visibile solo per Scatter3D idx==5) — genera la
+       mesh (griglia continua u,v) di un solido geometrico e la manda
+       direttamente al canvas in modalità Solid3D, mostrando anche la
+       formula dell'area totale nello status label. */
+    QWidget*        m_solid3DSection = nullptr;
+    QDoubleSpinBox* m_solidDim1      = nullptr;  ///< lato/raggio principale
+    QDoubleSpinBox* m_solidDim2      = nullptr;  ///< altezza/raggio secondario (non usato da Cubo)
 
     /* Sezione immagine → formula (solo tipo Cartesiano) */
     QWidget*     m_imgSection       = nullptr;

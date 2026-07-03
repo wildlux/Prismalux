@@ -23,7 +23,99 @@
 #include <QRegularExpression>
 #include <QFont>
 #include <QMessageBox>
+#include <QGroupBox>
+#include <QGridLayout>
 #include <algorithm>
+#include <cmath>
+
+/* ══════════════════════════════════════════════════════════════
+   Generatori mesh Solidi 3D — griglia continua (u,v) → Pt3D,
+   compatibile con GraficoCanvas::setScatter3D(pts, cols) in modalità
+   Solid3D (riusa interamente il rendering/painter's-algorithm/
+   rotazione già esistente per Scatter3D, nessuna nuova logica di
+   disegno). Cubo e Parallelepipedo usano la proiezione "cubemap":
+   un punto di sfera UV normalizzato per la norma-infinito produce
+   spigoli vivi pur restando UNA griglia continua — evita di dover
+   gestire 6 facce separate nel renderer a griglia singola. ══════ */
+struct Solid3DResult {
+    QVector<GraficoCanvas::Pt3D> pts;
+    int     cols  = 0;
+    double  area  = 0.0;
+    QString formula;
+};
+
+static Solid3DResult genCuboidMesh(double a, double b, double c) {
+    const int N = 28, M = 28;
+    Solid3DResult r;
+    r.pts.reserve((N + 1) * (M + 1));
+    for (int i = 0; i <= M; ++i) {
+        const double phi = M_PI * i / M;
+        for (int j = 0; j <= N; ++j) {
+            const double theta = 2.0 * M_PI * j / N;
+            double x = std::sin(phi) * std::cos(theta);
+            double y = std::sin(phi) * std::sin(theta);
+            double z = std::cos(phi);
+            const double m = std::max({std::abs(x), std::abs(y), std::abs(z), 1e-9});
+            x = x / m * a / 2.0; y = y / m * b / 2.0; z = z / m * c / 2.0;
+            r.pts.append({x, y, z, ""});
+        }
+    }
+    r.cols = N + 1;
+    r.area = 2.0 * (a * b + b * c + c * a);
+    return r;
+}
+
+static Solid3DResult genCylinderMesh(double radius, double h) {
+    const int N = 36, M = 12;
+    Solid3DResult r;
+    r.pts.reserve((N + 1) * (M + 1));
+    for (int i = 0; i <= M; ++i) {
+        const double z = -h / 2.0 + h * i / M;
+        for (int j = 0; j <= N; ++j) {
+            const double theta = 2.0 * M_PI * j / N;
+            r.pts.append({radius * std::cos(theta), radius * std::sin(theta), z, ""});
+        }
+    }
+    r.cols = N + 1;
+    r.area = 2.0 * M_PI * radius * h + 2.0 * M_PI * radius * radius;   /* laterale + 2 basi */
+    return r;
+}
+
+static Solid3DResult genConeMesh(double radius, double h) {
+    const int N = 36, M = 18;
+    Solid3DResult r;
+    r.pts.reserve((N + 1) * (M + 1));
+    for (int i = 0; i <= M; ++i) {
+        const double t = static_cast<double>(i) / M;   /* 0 = apice, 1 = base */
+        const double z = -h / 2.0 + h * t;
+        const double rad = radius * t;
+        for (int j = 0; j <= N; ++j) {
+            const double theta = 2.0 * M_PI * j / N;
+            r.pts.append({rad * std::cos(theta), rad * std::sin(theta), z, ""});
+        }
+    }
+    r.cols = N + 1;
+    const double l = std::sqrt(radius * radius + h * h);   /* apotema (slant height) */
+    r.area = M_PI * radius * l + M_PI * radius * radius;   /* laterale + base */
+    return r;
+}
+
+static Solid3DResult genTorusMesh(double bigR, double tubeR) {
+    const int N = 40, M = 24;
+    Solid3DResult r;
+    r.pts.reserve((N + 1) * (M + 1));
+    for (int i = 0; i <= M; ++i) {
+        const double v = 2.0 * M_PI * i / M;   /* angolo attorno al tubo */
+        for (int j = 0; j <= N; ++j) {
+            const double u = 2.0 * M_PI * j / N;   /* angolo attorno al cerchio grande */
+            const double ringR = bigR + tubeR * std::cos(v);
+            r.pts.append({ringR * std::cos(u), ringR * std::sin(u), tubeR * std::sin(v), ""});
+        }
+    }
+    r.cols = N + 1;
+    r.area = 4.0 * M_PI * M_PI * bigR * tubeR;
+    return r;
+}
 
 /* Esempi e hint per tipo grafico — a file scope perché usati da buildLeftPanel()
    e dallo slot onTypeComboChanged() che non può accedere a static locali di funzione. */
@@ -439,6 +531,51 @@ QWidget* GraficoPage::buildLeftPanel() {
             gl->addWidget(sepLine);
         }
         vl->addWidget(m_genSection);
+
+        /* ── Solidi 3D — visibile solo per Scatter3D (idx==5) ─────── */
+        {
+            m_solid3DSection = new QGroupBox(
+                "\xf0\x9f\xa7\x8a  Solidi 3D — un clic genera la mesh e mostra l'area", w);
+            m_solid3DSection->setObjectName("cardGroup");
+            auto* sl = new QVBoxLayout(m_solid3DSection);
+            sl->setSpacing(6);
+
+            auto* dimRow = new QWidget(m_solid3DSection);
+            auto* dimLay = new QHBoxLayout(dimRow);
+            dimLay->setContentsMargins(0, 0, 0, 0);
+            m_solidDim1 = new QDoubleSpinBox(dimRow);
+            m_solidDim1->setRange(0.1, 1000.0);
+            m_solidDim1->setValue(4.0);
+            m_solidDim1->setObjectName("inputLine");
+            m_solidDim2 = new QDoubleSpinBox(dimRow);
+            m_solidDim2->setRange(0.1, 1000.0);
+            m_solidDim2->setValue(6.0);
+            m_solidDim2->setObjectName("inputLine");
+            dimLay->addWidget(new QLabel("dim.1 (lato/raggio):", dimRow));
+            dimLay->addWidget(m_solidDim1, 1);
+            dimLay->addWidget(new QLabel("dim.2 (altezza/raggio tubo):", dimRow));
+            dimLay->addWidget(m_solidDim2, 1);
+            sl->addWidget(dimRow);
+
+            auto* btnRow = new QGridLayout;
+            btnRow->setSpacing(6);
+            static const struct { const char* label; int id; } kShapes[] = {
+                { "\xf0\x9f\x9f\xa5  Cubo",             0 },
+                { "\xf0\x9f\x9b\xa2  Cilindro",          1 },
+                { "\xf0\x9f\x8e\xa6  Cono",              2 },
+                { "\xf0\x9f\x8d\xa9  Toro (ciambella)",  3 },
+                { "\xf0\x9f\x93\xa6  Parallelepipedo",   4 },
+            };
+            for (int i = 0; i < 5; ++i) {
+                auto* btn = new QPushButton(QString::fromUtf8(kShapes[i].label), m_solid3DSection);
+                btn->setObjectName("actionBtn");
+                const int shapeId = kShapes[i].id;
+                connect(btn, &QPushButton::clicked, this, [this, shapeId]{ onSolid3DClicked(shapeId); });
+                btnRow->addWidget(btn, i / 2, i % 2);
+            }
+            sl->addLayout(btnRow);
+        }
+        vl->addWidget(m_solid3DSection);
 
         /* ── Hint formato manuale ───────────────────────────────── */
         m_dataHint = new QLabel("etichetta:valore (una per riga)", w);
@@ -1823,6 +1960,50 @@ void GraficoPage::onGenFormulaClicked()
         QString("\xe2\x9c\x85  %1 valori generati da %2").arg(idx).arg(expr));
 }
 
+/* Genera la mesh del solido scelto e la manda al canvas in Solid3D —
+ * riusa interamente il rendering a griglia già esistente per Scatter3D
+ * (painter's algorithm, rotazione, zoom), qui serve solo produrre i
+ * punti giusti. Mostra anche la formula dell'area totale come somma
+ * delle superfici del solido nello status label. */
+void GraficoPage::onSolid3DClicked(int shapeId)
+{
+    const double d1 = m_solidDim1->value();
+    const double d2 = m_solidDim2->value();
+    Solid3DResult res;
+    QString nome;
+    switch (shapeId) {
+        case 0: res = genCuboidMesh(d1, d1, d1); nome = "Cubo"; break;
+        case 1: res = genCylinderMesh(d1, d2);   nome = "Cilindro"; break;
+        case 2: res = genConeMesh(d1, d2);       nome = "Cono"; break;
+        case 3: res = genTorusMesh(d1, d2);      nome = "Toro (ciambella)"; break;
+        case 4: res = genCuboidMesh(d1, d2, (d1 + d2) / 2.0); nome = "Parallelepipedo"; break;
+        default: return;
+    }
+    if (res.pts.isEmpty()) return;
+
+    /* Aggiorna anche il text edit (coerenza con l'input manuale — l'utente
+       può vedere/modificare i punti generati) */
+    QString txt;
+    txt.reserve(res.pts.size() * 20);
+    for (const auto& pt : res.pts)
+        txt += QString("%1, %2, %3\n").arg(pt.x, 0, 'g', 6).arg(pt.y, 0, 'g', 6).arg(pt.z, 0, 'g', 6);
+    m_dataEdit->setPlainText(txt.trimmed());
+
+    m_canvas->setScatter3D(res.pts, res.cols);
+    m_canvas->setRenderMode3D(GraficoCanvas::Solid3D);
+
+    QString formula;
+    switch (shapeId) {
+        case 0: formula = QString("Area = 6\xc3\x97L\xc2\xb2 (L=%1)").arg(d1, 0, 'f', 2); break;
+        case 1: formula = QString("Area = 2\xcf\x80rh + 2\xcf\x80r\xc2\xb2 (r=%1, h=%2)").arg(d1,0,'f',2).arg(d2,0,'f',2); break;
+        case 2: formula = QString("Area = \xcf\x80rl + \xcf\x80r\xc2\xb2 (r=%1, h=%2)").arg(d1,0,'f',2).arg(d2,0,'f',2); break;
+        case 3: formula = QString("Area = 4\xcf\x80\xc2\xb2Rr (R=%1, r=%2)").arg(d1,0,'f',2).arg(d2,0,'f',2); break;
+        case 4: formula = QString("Area = 2(ab+bc+ca) (a=%1, b=%2)").arg(d1,0,'f',2).arg(d2,0,'f',2); break;
+    }
+    m_statusLbl->setText(QString("\xe2\x9c\x85  %1 \xe2\x80\x94 %2 punti \xe2\x80\x94 %3 \xe2\x86\x92 Area totale = %4")
+        .arg(nome).arg(res.pts.size()).arg(formula).arg(res.area, 0, 'f', 2));
+}
+
 void GraficoPage::onSmithFileClicked()
 {
     QString path = QFileDialog::getOpenFileName(
@@ -2090,5 +2271,7 @@ void GraficoPage::onTypeComboChanged(int)
                                      idx != 13 && idx != 14 && idx != 16 &&
                                      idx < 18 && idx < 40);
             m_genSection->setVisible(hasFormula);
+            /* Solidi 3D: visibile solo per Scatter3D */
+            m_solid3DSection->setVisible(idx == 5);
         }
 }
