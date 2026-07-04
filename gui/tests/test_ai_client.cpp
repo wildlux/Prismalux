@@ -4,6 +4,9 @@
    Categorie:
      CAT-A  classifyQuery — 12 casi (logica pura, no rete)
      CAT-B  detectQueryDomain — 8 casi (logica pura, no rete)
+     CAT-B2 detectQueryIsEnglish (D-28) — 7 casi
+     CAT-B3 dateTimeDirective (D-31) — 8 casi
+     CAT-B4 scrubPii (D-32) — 8 casi
      CAT-C  SmartRouter API — enable/disable, accessor
      CAT-D  abort() segnale — aborted() emesso prima di finished()
      CAT-E  Mock HTTP 4xx/5xx — error() emesso, no crash
@@ -17,6 +20,7 @@
 #include <QApplication>
 #include <QEventLoop>
 #include <QTimer>
+#include <QDate>
 #include <QTcpServer>
 #include <QTcpSocket>
 
@@ -211,6 +215,105 @@ private slots:
 
     void mixedLanguageWithTwoEnglishHitsDetected() {
         QVERIFY(AiClient::detectQueryIsEnglish("please can you help me with this"));
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
+   CAT-B3 — dateTimeDirective (D-31): timestamp condizionale —
+   iniettato solo se la query contiene una keyword temporale
+   ══════════════════════════════════════════════════════════════ */
+class TestDateTimeDirective : public QObject {
+    Q_OBJECT
+private slots:
+
+    void oggiTriggersInjection() {
+        QVERIFY(!AiClient::dateTimeDirective("che giorno è oggi?").isEmpty());
+    }
+
+    void domaniTriggersInjection() {
+        QVERIFY(!AiClient::dateTimeDirective("cosa devo fare domani?").isEmpty());
+    }
+
+    void mancaTriggersInjection() {
+        QVERIFY(!AiClient::dateTimeDirective("quanto manca al mio compleanno?").isEmpty());
+    }
+
+    void fraQuantoTriggersInjection() {
+        QVERIFY(!AiClient::dateTimeDirective("fra quanto parte il treno?").isEmpty());
+    }
+
+    void unrelatedQueryNoInjection() {
+        QVERIFY(AiClient::dateTimeDirective("qual è la capitale della Francia?").isEmpty());
+    }
+
+    void emptyStringNoInjection() {
+        QVERIFY(AiClient::dateTimeDirective("").isEmpty());
+    }
+
+    void injectionContainsRealCurrentYear() {
+        const QString r = AiClient::dateTimeDirective("che ora è adesso?");
+        const QString year = QString::number(QDate::currentDate().year());
+        QVERIFY(r.contains(year));
+    }
+
+    void injectionFormatHasExpectedTag() {
+        const QString r = AiClient::dateTimeDirective("oggi che giorno è");
+        QVERIFY(r.startsWith("[DATA E ORA ATTUALE:"));
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
+   CAT-B4 — scrubPii (D-32): maschera IBAN/CF/email/telefono prima
+   dell'invio a un endpoint cloud esterno
+   ══════════════════════════════════════════════════════════════ */
+class TestScrubPii : public QObject {
+    Q_OBJECT
+private slots:
+
+    void ibanMasked() {
+        const QString r = AiClient::scrubPii("il mio IBAN è IT60X0542811101000000123456, grazie");
+        QVERIFY(!r.contains("IT60X0542811101000000123456"));
+        QVERIFY(r.contains("[IBAN NASCOSTO]"));
+    }
+
+    void codiceFiscaleMasked() {
+        const QString r = AiClient::scrubPii("il CF è RSSMRA85M01H501Z per favore");
+        QVERIFY(!r.contains("RSSMRA85M01H501Z"));
+        QVERIFY(r.contains("[CODICE FISCALE NASCOSTO]"));
+    }
+
+    void emailMasked() {
+        const QString r = AiClient::scrubPii("scrivimi a mario.rossi@example.com domani");
+        QVERIFY(!r.contains("mario.rossi@example.com"));
+        QVERIFY(r.contains("[EMAIL NASCOSTA]"));
+    }
+
+    void phoneMasked() {
+        const QString r = AiClient::scrubPii("chiamami al 3331234567 stasera");
+        QVERIFY(!r.contains("3331234567"));
+        QVERIFY(r.contains("[TELEFONO NASCOSTO]"));
+    }
+
+    void phoneWithPrefixMasked() {
+        const QString r = AiClient::scrubPii("il numero è +39 333 1234567");
+        QVERIFY(!r.contains("1234567"));
+    }
+
+    void multiplePiiInSameTextAllMasked() {
+        const QString r = AiClient::scrubPii(
+            "Sono RSSMRA85M01H501Z, email mario@test.it, iban IT60X0542811101000000123456");
+        QVERIFY(!r.contains("RSSMRA85M01H501Z"));
+        QVERIFY(!r.contains("mario@test.it"));
+        QVERIFY(!r.contains("IT60X0542811101000000123456"));
+    }
+
+    void plainTextWithoutPiiUnchanged() {
+        const QString r = AiClient::scrubPii("che tempo fa oggi a Roma?");
+        QCOMPARE(r, QString("che tempo fa oggi a Roma?"));
+    }
+
+    void emptyStringUnchanged() {
+        QVERIFY(AiClient::scrubPii("").isEmpty());
     }
 };
 
@@ -410,6 +513,8 @@ int main(int argc, char* argv[])
     { TestClassifyQuery    t; ret |= QTest::qExec(&t, argc, argv); }
     { TestDetectQueryDomain t; ret |= QTest::qExec(&t, argc, argv); }
     { TestDetectQueryIsEnglish t; ret |= QTest::qExec(&t, argc, argv); }
+    { TestDateTimeDirective t; ret |= QTest::qExec(&t, argc, argv); }
+    { TestScrubPii t; ret |= QTest::qExec(&t, argc, argv); }
     { TestSmartRouter       t; ret |= QTest::qExec(&t, argc, argv); }
     { TestAbort             t; ret |= QTest::qExec(&t, argc, argv); }
     { TestMockHttp          t; ret |= QTest::qExec(&t, argc, argv); }

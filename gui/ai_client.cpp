@@ -265,6 +265,39 @@ bool AiClient::decideCloud(const QString& userMsg) const
     return false;
 }
 
+/* ── D-32: PII scrubbing verso backend remoti ─────────────────────────────
+ * decideCloud() (Regola 3 sopra) blocca l'invio cloud solo se la frase
+ * contiene la PAROLA "iban"/"codice fiscale" ecc. — non protegge un IBAN o
+ * un CF veri scritti senza quell'etichetta (es. copiati e incollati da un
+ * documento). Qui si maschera il DATO stesso, non l'etichetta: stessi
+ * pattern "candidate finder" già usati da _inject_finance() in
+ * main_ai_tools.cpp (duplicati qui invece di condivisi: ai_client.cpp è un
+ * livello più basso di pages/, non deve dipendere da esso — stesso
+ * ragionamento già applicato a D-33 per gli one-liner riusati). Applicata
+ * SOLO quando la richiesta è già decisa per il cloud (mai su backend
+ * locale, che non lascia la macchina) e a OGNI messaggio inclusa la
+ * history, non solo l'ultimo turno — un IBAN scritto 2 messaggi prima
+ * resterebbe altrimenti esposto. Email/telefono non avevano alcun
+ * detector nel codebase: aggiunti ex novo qui. */
+QString AiClient::scrubPii(const QString& text)
+{
+    QString s = text;
+    static const QRegularExpression reIban(
+        R"(\b([A-Za-z]{2}\d{2}(?:[ ]?[A-Za-z0-9]{1,4}){2,7})\b)");
+    static const QRegularExpression reCf(
+        R"(\b([A-Za-z]{6}\d{2}[A-Za-z]\d{2}[A-Za-z]\d{3}[A-Za-z])\b)",
+        QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression reEmail(
+        R"(\b[\w.+-]+@[\w-]+\.[A-Za-z]{2,}\b)");
+    static const QRegularExpression rePhone(
+        R"(\b(?:\+39[\s.-]?)?(?:3\d{2}|0\d{1,3})[\s.-]?\d{5,7}\b)");
+    s.replace(reIban,  QStringLiteral("[IBAN NASCOSTO]"));
+    s.replace(reCf,    QStringLiteral("[CODICE FISCALE NASCOSTO]"));
+    s.replace(reEmail, QStringLiteral("[EMAIL NASCOSTA]"));
+    s.replace(rePhone, QStringLiteral("[TELEFONO NASCOSTO]"));
+    return s;
+}
+
 void AiClient::setLocalBackend(const QString& llamaBin, const QString& modelPath) {
     m_backend    = LlamaLocal;
     m_llamaBin   = llamaBin;
@@ -510,6 +543,34 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg) {
     return chat(systemPrompt, userMsg, QJsonArray(), classifyQuery(userMsg));  /* FIX T2: era QueryAuto hardcoded */
 }
 
+/* ── D-31: timestamp condizionale ─────────────────────────────────────────
+ * Rileva parole chiave temporali nella query e ritorna un prefisso con
+ * data/ora reale (C++, non "immaginata" dal modello) da anteporre al
+ * system prompt — i modelli locali non sanno che giorno è oggi, e le
+ * guardie zero-LLM sulle date (_inject_date_calc) coprono solo i calcoli
+ * ESPLICITI ("quanti giorni mancano AL 25/12/2026"), non i riferimenti
+ * impliciti ("domani", "quanto manca al mio compleanno" senza data). Stringa
+ * vuota se nessuna keyword trovata — nessun overhead sulle query normali. */
+QString AiClient::dateTimeDirective(const QString& userText)
+{
+    static const char* kDateKw[] = {
+        "oggi", "adesso", "che ora", "che giorno", "data di oggi",
+        "orario attuale", "quando siamo", "che data", "che anno",
+        "domani", "dopodomani", "ieri", "l'altro ieri",
+        "manca", "fra quanto", "tra quanto",
+        nullptr
+    };
+    const QString ml = userText.toLower();
+    for (int i = 0; kDateKw[i]; ++i) {
+        if (ml.contains(QLatin1String(kDateKw[i]))) {
+            const QString now = QDateTime::currentDateTime()
+                .toString("dd/MM/yyyy, HH:mm:ss");
+            return "[DATA E ORA ATTUALE: " + now + "]\n\n";
+        }
+    }
+    return {};
+}
+
 /* ── chat (implementazione completa con storia e tipo query) ─────────── */
 quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
                        const QJsonArray& history, QueryType qt)
@@ -521,26 +582,8 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
     m_throttleTimer.restart();
     ++m_reqId;  /* nuovo ID per questa richiesta — visibile via currentReqId() */
 
-    /* ── Iniezione data/ora reale se l'utente la menziona nel prompt ──────
-       Rileva parole chiave temporali e aggiunge la data/ora corrente (C++)
-       come prefisso del system prompt, evitando risposte AI inventate.    */
-    QString dateInject;
-    {
-        static const char* kDateKw[] = {
-            "oggi", "adesso", "che ora", "che giorno", "data di oggi",
-            "orario attuale", "quando siamo", "che data", "che anno",
-            nullptr
-        };
-        const QString ml = userMsg.toLower();
-        for (int i = 0; kDateKw[i]; ++i) {
-            if (ml.contains(QLatin1String(kDateKw[i]))) {
-                const QString now = QDateTime::currentDateTime()
-                    .toString("dd/MM/yyyy, HH:mm:ss");
-                dateInject = "[DATA E ORA ATTUALE: " + now + "]\n\n";
-                break;
-            }
-        }
-    }
+    /* Iniezione data/ora reale se l'utente la menziona nel prompt (D-31) */
+    const QString dateInject = dateTimeDirective(userMsg);
 
     /* RAM critica */
     if (m_ramFreePct < 10.0) {
@@ -788,6 +831,18 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
         body["model"]       = m_cloudModel;
         body["temperature"] = m_params.temperature;
         body["max_tokens"]  = m_params.num_predict;
+
+        /* D-32: maschera IBAN/CF/email/telefono in OGNI messaggio (history
+         * inclusa) prima dell'invio — solo qui, il backend locale non lascia
+         * mai la macchina quindi non necessita scrubbing. */
+        QJsonArray scrubbed;
+        for (const QJsonValue& v : messages) {
+            QJsonObject m = v.toObject();
+            if (m.contains("content") && m["content"].isString())
+                m["content"] = AiClient::scrubPii(m["content"].toString());
+            scrubbed.append(m);
+        }
+        body["messages"] = scrubbed;
     } else {
         url = (m_backend == Ollama)
             ? QString("http://%1:%2/api/chat").arg(m_host).arg(m_port)
@@ -848,7 +903,7 @@ void AiClient::generate(const QString& systemPrompt, const QString& prompt, Quer
     m_accum.clear();
     m_thinkingKey.clear();
 
-    QString effectiveSys = systemPrompt;
+    QString effectiveSys = dateTimeDirective(prompt) + systemPrompt;
     if (m_params.caveman_mode)
         effectiveSys = QString(kCavemanPrefix) + effectiveSys;
     if (m_params.honesty_prefix)
@@ -930,7 +985,8 @@ void AiClient::chatWithImage(const QString& systemPrompt, const QString& userMsg
     body["stream"] = true;
 
     /* Costituzione + prefisso onestà per le chiamate con immagine */
-    QString effectiveSysImg = PrismaluxPaths::prependConstitution(systemPrompt);
+    QString effectiveSysImg = dateTimeDirective(userMsg)
+        + PrismaluxPaths::prependConstitution(systemPrompt);
     if (m_params.honesty_prefix)
         effectiveSysImg = QString(kHonestyPrefix) + _languageDirective(userMsg) + effectiveSysImg;
 

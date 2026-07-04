@@ -95,6 +95,22 @@ public:
      *  inglese (evita falsi positivi da singole parole ambigue). */
     static bool detectQueryIsEnglish(const QString& text);
 
+    /** D-31: timestamp condizionale — se il testo contiene una parola
+     *  chiave temporale ("oggi", "domani", "che ora", "manca"...), ritorna
+     *  "[DATA E ORA ATTUALE: ...]\n\n" con la data/ora reale (C++, non
+     *  "immaginata" dal modello); stringa vuota altrimenti. Le guardie
+     *  zero-LLM sulle date coprono solo i calcoli espliciti con una data
+     *  indicata, non i riferimenti impliciti come questo. */
+    static QString dateTimeDirective(const QString& text);
+
+    /** D-32: maschera IBAN/Codice Fiscale/email/telefono nel testo — usata
+     *  prima di inviare una richiesta a un endpoint cloud esterno (mai su
+     *  backend locale). decideCloud() blocca già l'invio se la frase
+     *  contiene la PAROLA "iban"/"codice fiscale" ecc., ma non il dato
+     *  reale scritto senza quell'etichetta: questa funzione maschera il
+     *  valore stesso, indipendentemente da come la frase lo introduce. */
+    static QString scrubPii(const QString& text);
+
     /** Restituisce true se il dominio richiede un modello math-capable
      *  (qwen2.5-math, deepseek-r1, qwen3 con thinking). */
     static bool domainNeedsMathModel(QueryDomain d) {
