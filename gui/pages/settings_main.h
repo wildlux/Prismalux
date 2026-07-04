@@ -48,6 +48,7 @@ class ImpostazioniPage : public QWidget {
     Q_OBJECT
 public:
     explicit ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* parent = nullptr);
+    ~ImpostazioniPage() override;
     void onHWReady(HWInfo hw);
 
     /** Porta in primo piano il tab il cui titolo contiene @p name (case-insensitive) */

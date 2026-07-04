@@ -289,6 +289,33 @@ ImpostazioniPage::ImpostazioniPage(AiClient* ai, HardwareMonitor* hw, QWidget* p
     });
 }
 
+ImpostazioniPage::~ImpostazioniPage()
+{
+    /* D-21 (stesso bug di D-20 in VoiceClonerWidget): decine di sotto-tab
+     * (Aggiornamenti Sistema, Moduli Python, Voce & Audio/download voci
+     * Piper, Gestione MCP, ecc. — vedi settings_*.cpp) creano QProcess
+     * figli di bottoni/righe innestate dentro questa pagina, con lambda su
+     * finished()/errorOccurred() che toccano label/bottoni fratelli.
+     * ImpostazioniPage stessa è costruita una sola volta e riusata per
+     * tutta la sessione (ensureSettingsDialog(), WA_DeleteOnClose=false),
+     * quindi la finestra di rischio reale è la chiusura dell'applicazione
+     * mentre un download/probe è ancora attivo — esattamente lo scenario
+     * con cui D-20 è stato scoperto (coredump 2026-07-03). Un solo
+     * findChildren<QProcess*>() qui (ricorsivo su tutta la gerarchia di
+     * tab, incluse le sotto-pagine ManutenzioneePage/PersonalizzaPage)
+     * copre tutti i punti di creazione senza doverli sistemare uno per
+     * uno in ogni settings_*.cpp. */
+    const auto procs = findChildren<QProcess*>();
+    for (QProcess* p : procs) {
+        p->disconnect(this);
+        p->blockSignals(true);
+        if (p->state() != QProcess::NotRunning) {
+            p->kill();
+            p->waitForFinished(1000);
+        }
+    }
+}
+
 /* ══════════════════════════════════════════════════════════════
    buildSearchIndex — costruisce indice piatto di tutti i tab
    ══════════════════════════════════════════════════════════════ */

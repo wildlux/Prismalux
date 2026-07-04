@@ -17,6 +17,29 @@ namespace P = PrismaluxPaths;
 AiScriptWidget::AiScriptWidget(AiClient* ai, QWidget* parent)
     : QWidget(parent), m_ai(ai) {}
 
+AiScriptWidget::~AiScriptWidget()
+{
+    /* D-21 (stesso bug di D-20 in VoiceClonerWidget): runSciScript() crea
+     * m_proc (nelle sottoclassi AvogadroWidget/BiocondaWidget/RDKitWidget)
+     * come figlio del widget stesso, con lambda su finished()/readyRead()
+     * che toccano statusLbl/execBtn/output — anch'essi figli dello stesso
+     * widget. Se il widget viene distrutto mentre lo script è ancora in
+     * esecuzione, deleteChildren() distrugge il QProcess ancora attivo, il
+     * cui ~QProcess emette finished() sincrono via waitForFinished()
+     * interno PRIMA che la lambda possa verificare che i widget UI siano
+     * ancora validi → SEGV. Messa qui (classe base) invece che ripetuta
+     * nelle 3 sottoclassi: un solo fix le copre tutte. */
+    const auto procs = findChildren<QProcess*>();
+    for (QProcess* p : procs) {
+        p->disconnect(this);
+        p->blockSignals(true);
+        if (p->state() != QProcess::NotRunning) {
+            p->kill();
+            p->waitForFinished(1000);
+        }
+    }
+}
+
 /* ══════════════════════════════════════════════════════════════
    runSciScript — scrive lo script su file temporaneo e lo esegue
    ══════════════════════════════════════════════════════════════ */

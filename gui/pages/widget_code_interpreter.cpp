@@ -253,6 +253,30 @@ CodeInterpreterWidget::CodeInterpreterWidget(AiClient* ai, QWidget* parent)
     });
 }
 
+CodeInterpreterWidget::~CodeInterpreterWidget()
+{
+    /* D-21 (stesso bug di D-20 in VoiceClonerWidget): m_dockerProc è figlio
+     * diretto del widget, ma anche PythonExec (usato in executeStep() per
+     * l'esecuzione non-Docker) crea il proprio QProcess come figlio di se
+     * stesso — quindi nipote di questo widget. findChildren<QProcess*>()
+     * è ricorsivo di default: un solo ciclo qui copre sia m_dockerProc sia
+     * il QProcess interno di ogni PythonExec ancora vivo, senza dover
+     * modificare python_exec.h separatamente. Se uno di questi processi è
+     * ancora in esecuzione quando il widget viene distrutto, il suo
+     * ~QProcess emetterebbe altrimenti finished() sincrono (via
+     * waitForFinished() interno) verso lambda/slot che toccano
+     * m_output/m_status/m_imageLabel già in fase di distruzione → SEGV. */
+    const auto procs = findChildren<QProcess*>();
+    for (QProcess* p : procs) {
+        p->disconnect(this);
+        p->blockSignals(true);
+        if (p->state() != QProcess::NotRunning) {
+            p->kill();
+            p->waitForFinished(1000);
+        }
+    }
+}
+
 /* ══════════════════════════════════════════════════════════════
    runGenerate — chiamata al click del pulsante principale
    ══════════════════════════════════════════════════════════════ */

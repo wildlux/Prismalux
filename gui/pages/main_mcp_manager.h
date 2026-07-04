@@ -37,6 +37,7 @@ class McpManagerPage : public QWidget {
     Q_OBJECT
 public:
     explicit McpManagerPage(QWidget* parent = nullptr);
+    ~McpManagerPage() override;
 
     /* ── Helper statici (testabili senza UI) ─────────────────────────────── */
     static QString     venvDir();                 // ~/.prismalux/venv

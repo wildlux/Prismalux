@@ -263,9 +263,23 @@ StableDiffusionWidget::StableDiffusionWidget(QWidget* parent)
 
 StableDiffusionWidget::~StableDiffusionWidget()
 {
-    if (m_sdProc && m_sdProc->state() != QProcess::NotRunning) {
-        m_sdProc->kill();
-        m_sdProc->waitForFinished(1000);
+    /* Copre anche la probe anonima di checkDiffusers() (D-21, stesso bug di
+     * D-20 in VoiceClonerWidget): dentro deleteChildren() il ~QProcess di
+     * una probe ancora attiva (import di torch/diffusers, puo' durare
+     * secondi) emette finished() sincrono via waitForFinished() interno →
+     * onCheckDiffusersFinished() tocca m_btnCheck/m_installHintRow/m_btnGen
+     * già distrutti → SEGV. Il context `this` nel connect non protegge:
+     * la connessione è ancora viva durante la distruzione dei figli.
+     * findChildren<QProcess*>() prende sia m_sdProc sia la probe anonima
+     * senza doverle elencare a mano. */
+    const auto procs = findChildren<QProcess*>();
+    for (QProcess* p : procs) {
+        p->disconnect(this);
+        p->blockSignals(true);
+        if (p->state() != QProcess::NotRunning) {
+            p->kill();
+            p->waitForFinished(1000);
+        }
     }
 }
 

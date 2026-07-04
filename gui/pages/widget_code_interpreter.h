@@ -29,6 +29,7 @@ class CodeInterpreterWidget : public QWidget {
     Q_OBJECT
 public:
     explicit CodeInterpreterWidget(AiClient* ai, QWidget* parent = nullptr);
+    ~CodeInterpreterWidget() override;
 
 private:
     void runGenerate();

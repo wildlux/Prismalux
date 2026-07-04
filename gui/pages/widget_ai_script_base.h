@@ -20,6 +20,7 @@ class AiScriptWidget : public QWidget {
     Q_OBJECT
 public:
     explicit AiScriptWidget(AiClient* ai, QWidget* parent = nullptr);
+    ~AiScriptWidget() override;
 
 protected:
     AiClient*      m_ai;

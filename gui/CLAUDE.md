@@ -233,6 +233,8 @@ Pattern one-shot preferito: `QMetaObject::Connection` come membro, disconnect es
 
 **LanServer shutdown:** `blockSignals(true)` prima di `stop()` — evita SIGSEGV.
 
+**QProcess figli nei distruttori widget:** `~QProcess` di un processo ancora attivo emette `finished()` **sincrono** (via `waitForFinished()` interno) durante `deleteChildren()` — i lambda connessi toccano label/bottoni già distrutti → SEGV. Il context object `this` nel connect NON protegge: la connessione è ancora viva mentre l'oggetto è semi-distrutto. Nel distruttore del widget: `findChildren<QProcess*>()` → `disconnect(this)` + `blockSignals(true)` + `kill()` + `waitForFinished(1000)` (copre anche i QProcess anonimi, non solo i membri m_*). Caso reale: `~VoiceClonerWidget` + probe di `checkTtsInstalled()` (coredump 2026-07-03, fix D-20).
+
 **webchat.html tab bar (v2.9+):** 2 righe per sezione (`#tabbar` → `flex-direction:column`). Riga 1: AI (Chat/Agenti/RAG/Grafo/Know.) + Strumenti (Finanza/TFR/Lavoro/File AI/REPL). Riga 2: Learn (Impara/Media/Voce/App) + Dev (Coding/Matema./Graphviz/Git/Wiki/Sistema). CSS: `.tab-row` wraps; `.sec-lbl` label di sezione con bordo destro.
 
 **webchat.html font size:** CSS var `--fz:14px` su `:root`. Pulsanti `#fz-dn` / `#fz-up` (A-/A+) in `#hdr` aggiornano `--fz` + `localStorage.plx-fz`. `.msg` usa `font-size:var(--fz)`.

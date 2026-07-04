@@ -193,6 +193,30 @@ McpManagerPage::McpManagerPage(QWidget* parent)
     updateVenvLabel();
 }
 
+McpManagerPage::~McpManagerPage()
+{
+    /* D-21 (stesso bug di D-20 in VoiceClonerWidget): m_venvProc/
+     * m_installProc/m_testProc e i QProcess anonimi del test "mcp_call"
+     * (creati con parent=this in onTestMcpCallClicked()) sono tutti figli
+     * di questa pagina, con finished()/errorOccurred() connessi a slot o
+     * lambda che toccano appendLog()/setBusy()/label di stato. Se la
+     * pagina viene distrutta mentre uno di questi è ancora in esecuzione
+     * (probe pip/venv possono durare secondi), il suo ~QProcess emette
+     * finished() sincrono via waitForFinished() interno PRIMA che il
+     * chiamante possa verificare che i widget UI siano ancora validi →
+     * SEGV. findChildren<QProcess*>() è ricorsivo: copre tutti e 4 i
+     * punti di creazione senza doverli elencare singolarmente. */
+    const auto procs = findChildren<QProcess*>();
+    for (QProcess* p : procs) {
+        p->disconnect(this);
+        p->blockSignals(true);
+        if (p->state() != QProcess::NotRunning) {
+            p->kill();
+            p->waitForFinished(1000);
+        }
+    }
+}
+
 void McpManagerPage::buildUi()
 {
     auto* root = new QVBoxLayout(this);
