@@ -131,7 +131,6 @@ QString correctGuardTypos(const QString& text);
 QString normalizeItFormats(const QString& text);
 // Definita in agenti_page_models.cpp
 bool    _isEmbeddingModel(const QString& name);
-bool    _is_likely_english(const QString& text);
 QString _math_sys(const QString& task, const QString& base);
 QString _buildSys(const QString& task, const QString& full,
                   const QString& small, const QString& modelName,

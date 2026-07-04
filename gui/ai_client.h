@@ -87,6 +87,14 @@ public:
     };
     static QueryDomain detectQueryDomain(const QString& text);
 
+    /** D-28: rilevamento lingua della query — conta articoli/parole
+     *  funzionali inglesi comuni. Usata per iniettare l'istruzione di
+     *  lingua corretta nel prompt (vedi kHonestyPrefix in ai_client.cpp):
+     *  senza questo, il vincolo era fisso a "rispondi sempre in italiano",
+     *  sbagliato per una domanda in inglese. Soglia: almeno 2 hit → probabile
+     *  inglese (evita falsi positivi da singole parole ambigue). */
+    static bool detectQueryIsEnglish(const QString& text);
+
     /** Restituisce true se il dominio richiede un modello math-capable
      *  (qwen2.5-math, deepseek-r1, qwen3 con thinking). */
     static bool domainNeedsMathModel(QueryDomain d) {

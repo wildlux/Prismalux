@@ -491,37 +491,6 @@ QString _sanitize_prompt(const QString& raw)
     return s;
 }
 
-/* Rileva inglese contando articoli e parole funzionali comuni.
-   Soglia: almeno 2 hit su testo di qualsiasi lunghezza → probabile inglese. */
-bool _is_likely_english(const QString& text)
-{
-    static const QStringList kWords = {
-        " the ", " a ", " an ", " is ", " are ", " was ", " were ",
-        " it ", " its ", " this ", " that ", " these ", " those ",
-        " in ", " on ", " at ", " of ", " to ", " for ", " with ",
-        " from ", " by ", " as ", " and ", " or ", " not ", " but ",
-        " have ", " has ", " had ", " do ", " does ", " did ",
-        " will ", " would ", " can ", " could ", " should ", " may ",
-        " you ", " he ", " she ", " we ", " they ", " me ", " him ",
-        " your ", " his ", " her ", " our ", " their ", " my ",
-        " write ", " create ", " make ", " build ", " generate ",
-        " explain ", " describe ", " list ", " show ", " find ",
-        " how ", " what ", " why ", " when ", " where ", " who ",
-        " please ", " help ", " using ", " function ", " class ",
-        " code ", " program ", " script ", " file ", " data ",
-        "the "  /* anche a inizio frase — rimosso "a " (falsi positivi con "da ") */
-    };
-    QString low = " " + text.toLower() + " ";
-    int hits = 0;
-    for (const QString& w : kWords) {
-        if (low.contains(w)) {
-            hits++;
-            if (hits >= 2) return true;
-        }
-    }
-    return false;
-}
-
 /* Aggiunge al system prompt la nota "calcoli già fatti" se il task contiene [=N] */
 QString _math_sys(const QString& task, const QString& base) {
     if (task.contains("[="))

@@ -175,6 +175,46 @@ private slots:
 };
 
 /* ══════════════════════════════════════════════════════════════
+   CAT-B2 — detectQueryIsEnglish (D-28): rilevamento lingua query,
+   usata per l'istruzione di lingua dinamica (sostituisce il vecchio
+   vincolo fisso "Rispondi sempre in italiano" in kHonestyPrefix)
+   ══════════════════════════════════════════════════════════════ */
+class TestDetectQueryIsEnglish : public QObject {
+    Q_OBJECT
+private slots:
+
+    void englishSentenceDetected() {
+        QVERIFY(AiClient::detectQueryIsEnglish("What is the capital of France?"));
+    }
+
+    void englishCodeRequestDetected() {
+        QVERIFY(AiClient::detectQueryIsEnglish("Please write a function to sort this array"));
+    }
+
+    void italianSentenceNotEnglish() {
+        QVERIFY(!AiClient::detectQueryIsEnglish("Qual è la capitale della Francia?"));
+    }
+
+    void italianCodeRequestNotEnglish() {
+        QVERIFY(!AiClient::detectQueryIsEnglish("Scrivi una funzione per ordinare questo array"));
+    }
+
+    void emptyStringNotEnglish() {
+        QVERIFY(!AiClient::detectQueryIsEnglish(""));
+    }
+
+    void singleAmbiguousWordNotEnglish() {
+        /* una sola occorrenza (soglia richiede >=2 hit) — evita falsi
+         * positivi su singole parole ambigue tra le due lingue */
+        QVERIFY(!AiClient::detectQueryIsEnglish("la formula è E=mc2"));
+    }
+
+    void mixedLanguageWithTwoEnglishHitsDetected() {
+        QVERIFY(AiClient::detectQueryIsEnglish("please can you help me with this"));
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
    CAT-C — SmartRouter API
    ══════════════════════════════════════════════════════════════ */
 class TestSmartRouter : public QObject {
@@ -369,6 +409,7 @@ int main(int argc, char* argv[])
     int ret = 0;
     { TestClassifyQuery    t; ret |= QTest::qExec(&t, argc, argv); }
     { TestDetectQueryDomain t; ret |= QTest::qExec(&t, argc, argv); }
+    { TestDetectQueryIsEnglish t; ret |= QTest::qExec(&t, argc, argv); }
     { TestSmartRouter       t; ret |= QTest::qExec(&t, argc, argv); }
     { TestAbort             t; ret |= QTest::qExec(&t, argc, argv); }
     { TestMockHttp          t; ret |= QTest::qExec(&t, argc, argv); }

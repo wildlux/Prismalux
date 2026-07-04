@@ -418,8 +418,52 @@ static const char* kHonestyPrefix =
     "Non inventare MAI numeri, date, nomi, citazioni, studi o fonti. "
     "Se un dato manca, dì che manca. Preferisci una risposta incompleta ma vera "
     "a una risposta completa ma inventata. "
-    "Non speculare. Non completare lacune con supposizioni. "
-    "Rispondi SEMPRE e SOLO in italiano.\n\n";
+    "Non speculare. Non completare lacune con supposizioni.\n\n";
+
+/* ── D-28: istruzione di lingua dinamica ──────────────────────────────────
+ * Sostituisce il vecchio vincolo fisso "Rispondi SEMPRE e SOLO in italiano"
+ * (rimosso da kHonestyPrefix sopra): era sbagliato per query in inglese,
+ * un caso reale per un modello locale usato anche per codice/documentazione
+ * tecnica. Applicata negli stessi punti dove kHonestyPrefix viene
+ * prepended (stessa condizione honesty_prefix, per non allargare lo scope
+ * al caso in cui l'utente l'abbia disattivato). ───────────────────────── */
+static QString _languageDirective(const QString& userText)
+{
+    return AiClient::detectQueryIsEnglish(userText)
+        ? QStringLiteral("Answer in English.\n\n")
+        : QStringLiteral("Rispondi in italiano.\n\n");
+}
+
+/* Rileva inglese contando articoli e parole funzionali comuni.
+   Soglia: almeno 2 hit su testo di qualsiasi lunghezza → probabile inglese. */
+bool AiClient::detectQueryIsEnglish(const QString& text)
+{
+    static const QStringList kWords = {
+        " the ", " a ", " an ", " is ", " are ", " was ", " were ",
+        " it ", " its ", " this ", " that ", " these ", " those ",
+        " in ", " on ", " at ", " of ", " to ", " for ", " with ",
+        " from ", " by ", " as ", " and ", " or ", " not ", " but ",
+        " have ", " has ", " had ", " do ", " does ", " did ",
+        " will ", " would ", " can ", " could ", " should ", " may ",
+        " you ", " he ", " she ", " we ", " they ", " me ", " him ",
+        " your ", " his ", " her ", " our ", " their ", " my ",
+        " write ", " create ", " make ", " build ", " generate ",
+        " explain ", " describe ", " list ", " show ", " find ",
+        " how ", " what ", " why ", " when ", " where ", " who ",
+        " please ", " help ", " using ", " function ", " class ",
+        " code ", " program ", " script ", " file ", " data ",
+        "the "  /* anche a inizio frase — niente "a ": falsi positivi con "da " */
+    };
+    QString low = " " + text.toLower() + " ";
+    int hits = 0;
+    for (const QString& w : kWords) {
+        if (low.contains(w)) {
+            hits++;
+            if (hits >= 2) return true;
+        }
+    }
+    return false;
+}
 
 /* ── Prefisso modalità Caveman: risposte dirette senza convenevoli ───────
    Viene preposto a tutti i system prompt quando caveman_mode=true.
@@ -540,7 +584,7 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
         if (m_params.caveman_mode)
             effectiveSysLocal = QString(kCavemanPrefix) + effectiveSysLocal;
         if (m_params.honesty_prefix)
-            effectiveSysLocal = QString(kHonestyPrefix) + effectiveSysLocal;
+            effectiveSysLocal = QString(kHonestyPrefix) + _languageDirective(userMsg) + effectiveSysLocal;
 
         /* Costruisce il prompt ChatML — inserisce la storia come turni precedenti */
         QString prompt;
@@ -611,7 +655,7 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg,
     if (m_params.caveman_mode)
         effectiveSys = QString(kCavemanPrefix) + effectiveSys;
     if (m_params.honesty_prefix)
-        effectiveSys = QString(kHonestyPrefix) + effectiveSys;
+        effectiveSys = QString(kHonestyPrefix) + _languageDirective(userMsg) + effectiveSys;
 
     /* ── Costruzione array messaggi con storia ── */
     QJsonArray messages;
@@ -808,7 +852,7 @@ void AiClient::generate(const QString& systemPrompt, const QString& prompt, Quer
     if (m_params.caveman_mode)
         effectiveSys = QString(kCavemanPrefix) + effectiveSys;
     if (m_params.honesty_prefix)
-        effectiveSys = QString(kHonestyPrefix) + effectiveSys;
+        effectiveSys = QString(kHonestyPrefix) + _languageDirective(prompt) + effectiveSys;
 
     QJsonObject body;
     body["model"]  = m_model;
@@ -888,7 +932,7 @@ void AiClient::chatWithImage(const QString& systemPrompt, const QString& userMsg
     /* Costituzione + prefisso onestà per le chiamate con immagine */
     QString effectiveSysImg = PrismaluxPaths::prependConstitution(systemPrompt);
     if (m_params.honesty_prefix)
-        effectiveSysImg = QString(kHonestyPrefix) + effectiveSysImg;
+        effectiveSysImg = QString(kHonestyPrefix) + _languageDirective(userMsg) + effectiveSysImg;
 
     QJsonArray messages;
     if (!effectiveSysImg.isEmpty()) {
