@@ -166,6 +166,16 @@ QString _inject_knowledge(const QString& task);
  *  user_knowledge.md. Ritorna la riga trovata o stringa vuota se non c'è
  *  un match univoco. Definita in main_ai_tools.cpp. */
 QString _knowledgeLookup(const QString& task, const QString& knowledge);
+/** D-27: nucleo puro del routing automatico dominio→modello — nessuna
+ *  dipendenza da widget/UI (usata dai test senza costruire AgentiPage).
+ *  Se autoRoutingEnabled è false ritorna 'fallback' invariato; altrimenti
+ *  sceglie un modello vision (se hasImage) o coder (se domain è
+ *  DomainCoding) tra 'installedModels', o 'fallback' se nessuno adatto è
+ *  installato. Definita in main_ai_pipeline.cpp. */
+QString _pickRoutedModel(bool autoRoutingEnabled, bool hasImage,
+                          AiClient::QueryDomain domain,
+                          const QStringList& installedModels,
+                          const QString& fallback);
 /** Genera UUID v4 / hash MD5-SHA1-SHA256-SHA512 / password casuali
  *  localmente invece di farli "inventare" all'LLM. Definita in
  *  main_ai_tools.cpp. */

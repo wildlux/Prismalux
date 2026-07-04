@@ -26,6 +26,7 @@ namespace P = PrismaluxPaths;
 #include <QDialogButtonBox>
 #include <QPlainTextEdit>
 #include <QComboBox>
+#include <QCheckBox>
 #include <QLabel>
 #include <QFrame>
 #include <QUrl>
@@ -244,6 +245,23 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
     m_cmbLLM->addItem("(caricamento...)");
     toolLay->addWidget(llmLbl);
     toolLay->addWidget(m_cmbLLM);
+
+    /* D-27: routing automatico dominio→modello — opt-in, default OFF.
+     * Non tocca la selezione visibile nel combo (usa AiClient::setModel(),
+     * non setBackend(): nessun modelChanged() emesso) — instrada solo la
+     * singola richiesta a un modello coder/vision installato quando serve. */
+    m_chkAutoRouting = new QCheckBox(tr("\xf0\x9f\xa7\xad Auto"), toolbar);
+    m_chkAutoRouting->setObjectName("cardDesc");
+    m_chkAutoRouting->setToolTip(tr(
+        "Routing automatico: per domande di codice usa un modello coder installato "
+        "(se presente), per immagini allegate un modello vision — senza cambiare "
+        "la tua selezione nel menu a tendina."));
+    m_chkAutoRouting->setChecked(
+        QSettings("Prismalux", "GUI").value(P::SK::kAutoModelRouting, false).toBool());
+    connect(m_chkAutoRouting, &QCheckBox::toggled, this, [](bool on) {
+        QSettings("Prismalux", "GUI").setValue(P::SK::kAutoModelRouting, on);
+    });
+    toolLay->addWidget(m_chkAutoRouting);
 
     connect(llmLbl, &QPushButton::clicked, this, [this, toolbar] {
         /* Esegue ollama list e mostra l'output in un popup */

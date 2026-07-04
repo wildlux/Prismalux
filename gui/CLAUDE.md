@@ -103,7 +103,7 @@ Prismalux/
 ├── gui/                          ← sorgente C++/Qt6 (questo progetto)
 │   ├── pages/                    ← una pagina = .h + uno o più .cpp
 │   ├── widgets/                  ← componenti header-only e riutilizzabili
-│   ├── tests/                    ← suite ctest (70 suite, BUILD_TESTS=ON)
+│   ├── tests/                    ← suite ctest (71 suite, BUILD_TESTS=ON)
 │   ├── themes/                   ← temi QSS
 │   ├── CMakeLists.txt
 │   └── CLAUDE.md                 ← questo file
@@ -707,6 +707,7 @@ ctest --test-dir gui/build_tests --exclude-regex "AiIntegration|AiStress|TeamCol
 | `AiClient` | `test_ai_client` | 39 PASS — CAT-A classifyQuery, CAT-B detectQueryDomain, CAT-C SmartRouter API, CAT-D abort()/aborted(), CAT-E mock HTTP 4xx/5xx |
 | `AiMath` | `test_ai_math` | 23 PASS — `normalizeItFormats()` (D-24): CAT-A virgola decimale, CAT-B liste non toccate, CAT-C punto migliaia, CAT-D guardia IPv4 (192.168.x.x mai mutilato), CAT-E date con mese in lettere, CAT-F nessuna regressione |
 | `AiKnowledgeLookup` | `test_ai_knowledge_lookup` | 24 PASS — `_knowledgeLookup()` (D-26): CAT-A match univoco, CAT-B nessun trigger di domanda, CAT-C troppo generico, CAT-D match ambiguo→vuoto, CAT-E nessun match/knowledge vuoto, CAT-F intestazioni escluse/`]` protetto/query lunga |
+| `AiRouting` | `test_ai_routing` | 30 PASS — `_pickRoutedModel()`/`isCoderModel()` (D-27): CAT-A routing OFF→mai cambia, CAT-B immagine→vision (priorità su codice), CAT-C dominio codice→coder, CAT-D dominio generale/STEM→nessun cambio, CAT-E riconoscimento nomi modello coder |
 | `AiMemory` | `test_ai_memory` | 12 PASS — costruzione/init, logFeedback/saveInteraction/getRelevantContext/updatePreference/gitLog (richiede `git` in PATH) |
 | `Distillazione` | `test_distillazione` | 6 PASS — costruzione `DistillazionePage`, stato iniziale widget, pulsanti disabilitati all'avvio |
 | `GraphMemoryConcurrent` | `test_graph_memory_concurrent` | 17 PASS — isolamento connessioni SQLite, lettura/scrittura sequenziale 2 istanze, scrittura concorrente 2 thread, lettura cross-istanza |

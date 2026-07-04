@@ -440,6 +440,7 @@ enum ModelCap : quint8 {
     CapVision    = 0x02,  ///< input immagini (VL, llava, ecc.)
     CapTools     = 0x04,  ///< function/tool calling (Ollama tools)
     CapThinking  = 0x08,  ///< chain-of-thought esteso (think: true)
+    CapCoding    = 0x10,  ///< specializzato per codice (D-27: routing dominio→modello)
 };
 using ModelCaps = quint8;
 
@@ -486,6 +487,12 @@ inline ModelCaps modelCapabilities(const QString& name)
     if (!noTools)
         caps |= CapTools;
 
+    /* ── 5. Coding — modelli specializzati per codice (D-27) ── */
+    if (m.contains("coder") || m.contains("codellama") || m.contains("starcoder")
+        || m.contains("codegemma") || m.contains("codeqwen") || m.contains("codestral")
+        || m.contains("granite-code") || m.contains("stable-code"))
+        caps |= CapCoding;
+
     return caps;
 }
 
@@ -505,6 +512,7 @@ inline bool isEmbeddingModel(const QString& n) { return (modelCapabilities(n) & 
 inline bool isVisionModel   (const QString& n) { return (modelCapabilities(n) & CapVision)    != 0; }
 inline bool isToolsModel    (const QString& n) { return (modelCapabilities(n) & CapTools)     != 0; }
 inline bool isThinkingModel (const QString& n) { return (modelCapabilities(n) & CapThinking)  != 0; }
+inline bool isCoderModel    (const QString& n) { return (modelCapabilities(n) & CapCoding)    != 0; }
 
 /**
  * totalRamBytes() — Memoria fisica totale del sistema in byte.
@@ -1113,6 +1121,10 @@ constexpr const char* kMlockModel           = "ai/mlockModel";           ///< --
 constexpr const char* kAutoZramDoppia       = "ai/autoZramDoppia";       ///< avvia zRAM Doppia (zstd, 75% RAM) all'avvio — Linux (default: true)
 constexpr const char* kAutoOptApplied       = "ai/autoOptApplied";       ///< preset RAM automatico già applicato al primo avvio (default: false)
 constexpr const char* kAiPersonality        = "ai/personality";           ///< personalità AI: "nessuna"|"jarvis"|"kitt"|"yoda"|"snake"|"sonic"|"mario"
+
+/* ── D-27: routing automatico dominio→modello (diverso da Smart Router
+   LOCAL/CLOUD sotto: qui si sceglie TRA modelli locali, non locale-vs-cloud) */
+constexpr const char* kAutoModelRouting   = "ai/autoModelRouting";   ///< instrada automaticamente a un modello coder/vision installato in base al dominio (default: false)
 
 /* ── Smart Router LOCAL/CLOUD ────────────────────── */
 constexpr const char* kSmartRouterEnabled = "ai/smartRouterEnabled"; ///< abilita routing automatico LOCAL→CLOUD (default: false)

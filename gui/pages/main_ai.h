@@ -405,6 +405,12 @@ private:
     QString      m_pageModel;               ///< Modello preferito per questa scheda (privato)
     QPushButton* m_btnRegen     = nullptr;  ///< "Rigenera con [modello]" — visibile dopo cambio LLM
     QLabel*      m_modelWarnLbl = nullptr;  ///< avviso capabilities modello (vision/tool)
+    QCheckBox*   m_chkAutoRouting = nullptr;  ///< D-27: routing automatico dominio→modello (opt-in)
+    /** D-27: se "Routing automatico" è attivo, ritorna un modello installato più
+     *  adatto al task (coder per domande di codice, vision se c'è un'immagine
+     *  allegata); altrimenti ritorna 'fallback' invariato (scelta manuale del
+     *  combo, mai scavalcata di default). Definita in main_ai_pipeline.cpp. */
+    QString _routedModel(const QString& task, const QString& fallback) const;
 
     /* ── Pannello grafico (appare quando l'AI restituisce una formula) ── */
     QWidget*     m_chartPanel    = nullptr;

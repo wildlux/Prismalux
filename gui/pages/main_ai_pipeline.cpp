@@ -830,6 +830,55 @@ void AgentiPage::advancePipeline() {
     runAgent(m_currentAgent);
 }
 
+/* ── D-27: routing automatico dominio→modello ─────────────────────────────
+ * Nucleo puro/testabile (nessuna dipendenza da widget/UI): dato un elenco
+ * di modelli installati e il dominio già rilevato, sceglie il modello più
+ * adatto o ritorna 'fallback' invariato. Separata da _routedModel() (che
+ * legge lo stato reale della UI) per poter testare la logica senza dover
+ * costruire un'intera AgentiPage. Priorità: immagine allegata → modello
+ * vision (senza, la richiesta fallirebbe comunque); altrimenti dominio
+ * "codice" → modello coder. Dominio generale/STEM: nessun routing, il
+ * "modello leggero" dell'idea originale è già quello scelto manualmente. */
+QString _pickRoutedModel(bool autoRoutingEnabled, bool hasImage,
+                          AiClient::QueryDomain domain,
+                          const QStringList& installedModels,
+                          const QString& fallback)
+{
+    if (!autoRoutingEnabled) return fallback;
+
+    auto findByCap = [&](bool (*capCheck)(const QString&)) -> QString {
+        for (const QString& name : installedModels)
+            if (!name.isEmpty() && capCheck(name)) return name;
+        return QString();
+    };
+
+    if (hasImage) {
+        const QString v = findByCap(P::isVisionModel);
+        return v.isEmpty() ? fallback : v;
+    }
+    if (domain == AiClient::DomainCoding) {
+        const QString c = findByCap(P::isCoderModel);
+        if (!c.isEmpty()) return c;
+    }
+    return fallback;
+}
+
+/* Wrapper: legge lo stato reale della UI (checkbox, combo, allegato
+ * immagine) e delega la scelta a _pickRoutedModel(). Opt-in, default OFF —
+ * non scavalca MAI la scelta manuale del combo di default. */
+QString AgentiPage::_routedModel(const QString& task, const QString& fallback) const
+{
+    if (!m_chkAutoRouting || !m_cmbLLM) return fallback;
+
+    QStringList installed;
+    installed.reserve(m_cmbLLM->count());
+    for (int i = 0; i < m_cmbLLM->count(); ++i)
+        installed << m_cmbLLM->itemData(i, Qt::UserRole).toString();
+
+    return _pickRoutedModel(m_chkAutoRouting->isChecked(), !m_imgBase64.isEmpty(),
+                             AiClient::detectQueryDomain(task), installed, fallback);
+}
+
 void AgentiPage::runAgent(int idx) {
     auto roleList = AgentsConfigDialog::roles();
     int  roleIdx  = m_cfgDlg->roleCombo(idx)->currentIndex();
@@ -862,6 +911,19 @@ void AgentiPage::runAgent(int idx) {
         && !_isEmbeddingModel(selectedModel))
     {
         m_ai->setBackend(m_ai->backend(), m_ai->host(), m_ai->port(), selectedModel);
+    }
+
+    /* D-27: routing automatico (opt-in) — setModel() invece di setBackend():
+     * non emette modelChanged(), quindi NON risincronizza m_cmbLLM (la
+     * scelta manuale visibile all'utente resta intatta). selectedModel è
+     * aggiornato qui così le label sotto (bolla, header agente) mostrano
+     * il modello davvero usato, non quello nominale del combo. */
+    {
+        const QString routed = _routedModel(m_taskOriginal, selectedModel);
+        if (routed != selectedModel && !routed.isEmpty()) {
+            m_ai->setModel(routed);
+            selectedModel = routed;
+        }
     }
 
     QString ts = QTime::currentTime().toString("HH:mm:ss");
