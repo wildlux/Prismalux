@@ -99,7 +99,12 @@ MatematicaPage::MatematicaPage(AiClient* ai, QWidget* parent)
             this, [this](int) { onAdjustTabHeight(); });
     m_tabs->addTab(buildSeqTab(),      "\xf0\x9f\x94\xa2  Sequenza");          /* 🔢 */
     m_tabs->addTab(buildConstTab(),    "\xcf\x80  Costanti");
-    m_tabs->addTab(buildNthTab(),      "#\xe2\x83\xbf  N-esimo");
+    /* FIX: "#\xe2\x83\xbf" era un byte errato — decodifica a U+20FF, un
+     * codepoint Unicode non assegnato (tofu/box vuoto), segnalato
+     * dall'utente ("dopo il carattere # non si legge"). Sostituito con
+     * un'emoji singola reale (non una sequenza combining), niente rischio
+     * di rendering rotto. */
+    m_tabs->addTab(buildNthTab(),      "\xf0\x9f\x94\x9f  N-esimo");   /* 🔟 */
     m_tabs->addTab(buildBoolTab(),     "\xe2\x88\xa7  Booleana");              /* ∧ — 4° tab, visibile */
     m_tabs->addTab(buildExprTab(),     "\xf0\x9f\xa7\xae  Espressione");       /* 🧮 */
     m_tabs->addTab(buildSolveTab(),    "\xf0\x9f\x93\x90  Risolvi Passi");    /* 📐 */
@@ -583,11 +588,11 @@ QWidget* MatematicaPage::buildNthTab()
     lay->addWidget(m_nthDescLbl);
 
     auto* btnRow = new QHBoxLayout;
-    auto* btnCalc = new QPushButton("#\xe2\x83\xbf  Calcola", w);
+    auto* btnCalc = new QPushButton("\xf0\x9f\x94\x9f  Calcola", w);   /* 🔟 — FIX byte errato, vedi tab N-esimo */
     btnCalc->setObjectName("actionBtn");
     btnCalc->setProperty("highlight", "true");
     btnCalc->setProperty("execFull", btnCalc->text());
-    btnCalc->setProperty("execIcon", QString::fromUtf8("#\xe2\x83\xbf"));
+    btnCalc->setProperty("execIcon", QString::fromUtf8("\xf0\x9f\x94\x9f"));
     btnCalc->setProperty("execText", "Calcola");
     connect(btnCalc, &QPushButton::clicked, this, &MatematicaPage::onNthCalcClicked);
     btnRow->addWidget(btnCalc);
@@ -869,7 +874,7 @@ void MatematicaPage::runNth()
 
     if (py.isEmpty()) return;
     clearOutput();
-    appendOutput(QString("#\xe2\x83\xbf  Calcolo in corso (N=%1)...\n\n").arg(N));
+    appendOutput(QString("\xf0\x9f\x94\x9f  Calcolo in corso (N=%1)...\n\n").arg(N));   /* 🔟 */
     runPython(py);
 }
 

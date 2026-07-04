@@ -31,9 +31,16 @@ void GraficoCanvas::drawScatter3D(QPainter& p, const QRectF& a) {
         if (pt.y < yMn) yMn = pt.y; if (pt.y > yMx) yMx = pt.y;
         if (pt.z < zMn) zMn = pt.z; if (pt.z > zMx) zMx = pt.z;
     }
-    double sX = (xMx > xMn) ? 1.0/(xMx-xMn) : 1;
-    double sY = (yMx > yMn) ? 1.0/(yMx-yMn) : 1;
-    double sZ = (zMx > zMn) ? 1.0/(zMx-zMn) : 1;
+    /* Scala UNICA condivisa dai 3 assi (non indipendente per asse) — quella
+     * indipendente stirava sempre ogni asse per riempire [-0.5,0.5] a
+     * prescindere dalle proporzioni reali della forma: un parallelepipedo
+     * con lati diversi appariva quindi identico a un cubo (bug segnalato
+     * dall'utente dopo verifica a schermo). Ogni asse è centrato sul
+     * proprio punto medio (gestisce correttamente un asse a range zero,
+     * es. dati piatti in z) e scalato con l'UNICO fattore derivato dal
+     * range più grande tra i tre — preserva le proporzioni reali. */
+    const double midX = (xMn + xMx) / 2.0, midY = (yMn + yMx) / 2.0, midZ = (zMn + zMx) / 2.0;
+    const double commonScale = 1.0 / std::max({xMx - xMn, yMx - yMn, zMx - zMn, 1e-9});
 
     double cosY = std::cos(m_rotY), sinY = std::sin(m_rotY);
     double cosX = std::cos(m_rotX), sinX = std::sin(m_rotX);
@@ -111,9 +118,9 @@ void GraficoCanvas::drawScatter3D(QPainter& p, const QRectF& a) {
         const bool valid = !std::isnan(m_pts3d[i].z);
         double sx = 0, sy = 0, dz = 0;
         if (valid) {
-            double nx = (m_pts3d[i].x - xMn) * sX - 0.5;
-            double ny = (m_pts3d[i].y - yMn) * sY - 0.5;
-            double nz = (m_pts3d[i].z - zMn) * sZ - 0.5;
+            double nx = (m_pts3d[i].x - midX) * commonScale;
+            double ny = (m_pts3d[i].y - midY) * commonScale;
+            double nz = (m_pts3d[i].z - midZ) * commonScale;
             project(nx, ny, nz, sx, sy, dz);
         }
         proj[i] = {sx, sy, dz, i, valid};
@@ -284,9 +291,12 @@ void GraficoCanvas::drawGraph3D(QPainter& p, const QRectF& a) {
         if (n.y < yMn) yMn = n.y; if (n.y > yMx) yMx = n.y;
         if (n.z < zMn) zMn = n.z; if (n.z > zMx) zMx = n.z;
     }
-    double sX = (xMx > xMn) ? 1.0/(xMx-xMn) : 1;
-    double sY = (yMx > yMn) ? 1.0/(yMx-yMn) : 1;
-    double sZ = (zMx > zMn) ? 1.0/(zMx-zMn) : 1;
+    /* Scala UNICA condivisa dai 3 assi — stesso fix di drawScatter3D:
+     * la scala indipendente per asse distorceva sempre le proporzioni
+     * reali del grafo (nodi con range diversi su x/y/z apparivano
+     * sempre "stirati" a riempire lo stesso spazio su ogni asse). */
+    const double midX = (xMn + xMx) / 2.0, midY = (yMn + yMx) / 2.0, midZ = (zMn + zMx) / 2.0;
+    const double commonScale = 1.0 / std::max({xMx - xMn, yMx - yMn, zMx - zMn, 1e-9});
 
     double cosY = std::cos(m_rotY), sinY = std::sin(m_rotY);
     double cosX = std::cos(m_rotX), sinX = std::sin(m_rotX);
@@ -309,9 +319,9 @@ void GraficoCanvas::drawGraph3D(QPainter& p, const QRectF& a) {
     struct PN { double sx, sy, depth; int idx; };
     QVector<PN> proj(nn);
     for (int i = 0; i < nn; i++) {
-        double nx = (m_nodes3d[i].x - xMn) * sX - 0.5;
-        double ny = (m_nodes3d[i].y - yMn) * sY - 0.5;
-        double nz = (m_nodes3d[i].z - zMn) * sZ - 0.5;
+        double nx = (m_nodes3d[i].x - midX) * commonScale;
+        double ny = (m_nodes3d[i].y - midY) * commonScale;
+        double nz = (m_nodes3d[i].z - midZ) * commonScale;
         project(nx, ny, nz, proj[i].sx, proj[i].sy, proj[i].depth);
         proj[i].idx = i;
     }

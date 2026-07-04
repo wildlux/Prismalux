@@ -166,14 +166,25 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     lay->setContentsMargins(16, 12, 16, 12);
     lay->setSpacing(4);
 
-    /* ── Riga superiore: CV + Modello LLM ── */
+    /* ── Riga superiore: CV + Modello LLM ──
+       FIX layout (segnalato dall'utente: pulsanti tagliati/sovrapposti):
+       la pagina vive nella colonna centrale dello splitter a 3 colonne
+       dell'Assistente Candidature (~1/3 della finestra, non piena
+       larghezza come in origine). CV box e LLM box affiancati non ci
+       stanno: impilati in verticale. */
     auto* topRow = new QWidget(this);
-    auto* topL   = new QHBoxLayout(topRow);
-    topL->setContentsMargins(0,0,0,0); topL->setSpacing(12);
+    auto* topL   = new QVBoxLayout(topRow);
+    topL->setContentsMargins(0,0,0,0); topL->setSpacing(6);
 
-    /* CV Picker */
+    /* CV Picker — riga controlli + riga stato: lo stato ("✅ CV caricato:
+       nomefile.pdf (N car.)") può essere lungo, sulla stessa riga di
+       path+Sfoglia forzava la larghezza minima del box oltre la colonna. */
     m_cvBox = new QGroupBox("\xf0\x9f\x93\x84  Curriculum Vitae", topRow);
-    auto* cvLay = new QHBoxLayout(m_cvBox);
+    auto* cvVLay = new QVBoxLayout(m_cvBox);
+    cvVLay->setSpacing(4);
+    auto* cvRow = new QWidget(m_cvBox);
+    auto* cvLay = new QHBoxLayout(cvRow);
+    cvLay->setContentsMargins(0, 0, 0, 0);
     cvLay->setSpacing(8);
 
     /* Foto profilo — placeholder 48×48 arrotondato */
@@ -218,14 +229,22 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
 
     m_cvStatus = new QLabel("Nessun CV caricato", m_cvBox);
     m_cvStatus->setObjectName("pageSubtitle");
+    m_cvStatus->setWordWrap(true);
 
     cvLay->addWidget(m_cvPath, 1);
     cvLay->addWidget(sfogliaBtn);
-    cvLay->addWidget(m_cvStatus);
+    cvVLay->addWidget(cvRow);
+    cvVLay->addWidget(m_cvStatus);
 
-    /* LLM Selector */
+    /* LLM Selector — combo+refresh su una riga, nome modello sotto: il
+       nome completo (es. "antconsales/antonio-gemma3-evo-q4:latest") è
+       più largo della colonna, in linea col combo tagliava tutto. */
     m_llmBox = new QGroupBox("\xf0\x9f\xa4\x96  Modello AI", topRow);
-    auto* llmLay = new QHBoxLayout(m_llmBox);
+    auto* llmVLay = new QVBoxLayout(m_llmBox);
+    llmVLay->setSpacing(4);
+    auto* llmRow = new QWidget(m_llmBox);
+    auto* llmLay = new QHBoxLayout(llmRow);
+    llmLay->setContentsMargins(0, 0, 0, 0);
     llmLay->setSpacing(8);
 
     m_cmbModello = new QComboBox(m_llmBox);
@@ -245,18 +264,22 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     fetchBtn->setFixedWidth(dpiScale(34));
     fetchBtn->setToolTip(tr("Aggiorna lista modelli"));
 
-    llmLay->addWidget(m_cmbModello, 1);
-    llmLay->addWidget(fetchBtn);
-    llmLay->addWidget(m_modelloLbl);
-
     m_toggleBtn = new QPushButton("\xe2\x96\xb2", topRow);
     m_toggleBtn->setObjectName("actionBtn");
     m_toggleBtn->setFixedSize(22, 22);
     m_toggleBtn->setToolTip(tr("Comprimi riga filtri"));
 
-    topL->addWidget(m_cvBox, 3);
-    topL->addWidget(m_llmBox, 2);
-    topL->addWidget(m_toggleBtn);
+    llmLay->addWidget(m_cmbModello, 1);
+    llmLay->addWidget(fetchBtn);
+    llmLay->addWidget(m_toggleBtn);
+    /* Il nome modello lungo non deve mai forzare la larghezza minima
+       della colonna: policy Ignored (si tronca invece di allargare). */
+    m_modelloLbl->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    llmVLay->addWidget(llmRow);
+    llmVLay->addWidget(m_modelloLbl);
+
+    topL->addWidget(m_cvBox);
+    topL->addWidget(m_llmBox);
     lay->addWidget(topRow);
 
     connect(sfogliaBtn,  &QPushButton::clicked,
@@ -278,16 +301,25 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
             this, &LavoroPage::onModelloIndexChanged);
     m_ai->fetchModels();
 
-    /* ── Filtri ── */
+    /* ── Filtri ──
+       FIX layout: era un'unica riga orizzontale (~900px minimi con le
+       larghezze fisse dei combo + 3 pulsanti) — nella colonna stretta i
+       pulsanti finali (Analizza URL/CV/stop) sparivano fuori dal bordo.
+       Ora 3 sotto-righe impilate; i combo si allargano/restringono con
+       la colonna invece di avere larghezza fissa. */
     m_filtriRow = new QWidget(this);
-    auto* filtriL   = new QHBoxLayout(m_filtriRow);
+    auto* filtriV = new QVBoxLayout(m_filtriRow);
+    filtriV->setContentsMargins(0,0,0,0); filtriV->setSpacing(4);
+
+    auto* tipoRow = new QWidget(m_filtriRow);
+    auto* filtriL = new QHBoxLayout(tipoRow);
     filtriL->setContentsMargins(0,0,0,0); filtriL->setSpacing(10);
 
     filtriL->addWidget(new QLabel("\xf0\x9f\x94\x8d Tipo:", m_filtriRow));
     m_filtroTipo = new QComboBox(m_filtriRow);
     m_filtroTipo->setObjectName("filtroTipo");
     m_filtroTipo->setAccessibleName("Filtro tipo di lavoro");
-    m_filtroTipo->setFixedWidth(dpiScale(185));
+    m_filtroTipo->setMinimumWidth(dpiScale(120));
 
     const struct { const char* label; const char* data; } tipi[] = {
         {"Tutti i tipi",                   "tutti"},
@@ -307,13 +339,16 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     };
     for (const auto& t : tipi)
         m_filtroTipo->addItem(t.label, QString(t.data));
-    filtriL->addWidget(m_filtroTipo);
+    filtriL->addWidget(m_filtroTipo, 1);
+    filtriV->addWidget(tipoRow);
 
-    filtriL->addSpacing(16);
-    filtriL->addWidget(new QLabel("\xf0\x9f\x8e\x93 Istruzione:", m_filtriRow));
+    auto* livelloRow = new QWidget(m_filtriRow);
+    auto* livelloL = new QHBoxLayout(livelloRow);
+    livelloL->setContentsMargins(0,0,0,0); livelloL->setSpacing(10);
+    livelloL->addWidget(new QLabel("\xf0\x9f\x8e\x93 Istruzione:", m_filtriRow));
     m_filtroLivello = new QComboBox(m_filtriRow);
     m_filtroLivello->setObjectName("filtroLivello");
-    m_filtroLivello->setFixedWidth(dpiScale(210));
+    m_filtroLivello->setMinimumWidth(dpiScale(120));
     m_filtroLivello->setAccessibleName("Filtro livello di istruzione richiesto");
 
     const struct { const char* label; const char* data; } livelli[] = {
@@ -326,7 +361,7 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     for (const auto& l : livelli)
         m_filtroLivello->addItem(l.label, QString(l.data));
     m_filtroLivello->setCurrentIndex(2);  // default: Diploma
-    filtriL->addWidget(m_filtroLivello);
+    livelloL->addWidget(m_filtroLivello, 1);
 
     auto* filtriBtn = new QPushButton("\xf0\x9f\x94\x84", m_filtriRow);
     filtriBtn->setObjectName("actionBtn");
@@ -337,7 +372,8 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
             this, &LavoroPage::applicaFiltri);
     connect(m_filtroLivello, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &LavoroPage::applicaFiltri);
-    filtriL->addWidget(filtriBtn);
+    livelloL->addWidget(filtriBtn);
+    filtriV->addWidget(livelloRow);
 
     m_analizzaUrlBtn = new QPushButton("\xf0\x9f\x94\x97 Analizza URL", m_filtriRow);
     m_analizzaUrlBtn->setObjectName("actionBtn");
@@ -354,10 +390,14 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_stopAiBtn->setEnabled(false);
     m_stopAiBtn->setToolTip(tr("Interrompi elaborazione AI"));
     m_stopAiBtn->setAccessibleName("Interrompi elaborazione AI");
-    filtriL->addWidget(m_analizzaUrlBtn);
-    filtriL->addWidget(m_analizzaCvBtn);
-    filtriL->addWidget(m_stopAiBtn);
-    filtriL->addStretch(1);
+    auto* aiRow = new QWidget(m_filtriRow);
+    auto* aiRowL = new QHBoxLayout(aiRow);
+    aiRowL->setContentsMargins(0,0,0,0); aiRowL->setSpacing(10);
+    aiRowL->addWidget(m_analizzaUrlBtn);
+    aiRowL->addWidget(m_analizzaCvBtn);
+    aiRowL->addWidget(m_stopAiBtn);
+    aiRowL->addStretch(1);
+    filtriV->addWidget(aiRow);
     lay->addWidget(m_filtriRow);
 
     connect(m_toggleBtn, &QPushButton::clicked,
@@ -366,8 +406,12 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     /* ── Splitter: (lista+tracker) | output AI ── */
     auto* splitter = new QSplitter(Qt::Vertical, this);
 
-    /* ── Riquadro superiore: lista offerte (sx) + tracker (dx) ── */
-    auto* topSplitter = new QSplitter(Qt::Horizontal, splitter);
+    /* ── Riquadro superiore: lista offerte sopra + tracker sotto ──
+       FIX layout: era Qt::Horizontal (lista sx | tracker dx), ma nella
+       colonna stretta dell'Assistente ognuno riceveva ~250px — la tabella
+       tracker a 5 colonne risultava illeggibile e i widget si
+       accavallavano. Impilati in verticale. */
+    auto* topSplitter = new QSplitter(Qt::Vertical, splitter);
 
     /* ──── SINISTRA: lista offerte ──── */
     auto* listaPane = new QWidget(topSplitter);
@@ -389,9 +433,18 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_linksLbl->setText("<i>Seleziona un'offerta per vedere i link</i>");
     listaPaneLay->addWidget(m_linksLbl);
 
+    /* FIX layout: 5 pulsanti + etichetta su un'unica riga non ci stanno
+       nella colonna stretta dell'Assistente — 2 righe (genera / copia)
+       + etichetta a capo sotto. */
     auto* azioniRow = new QWidget(listaPane);
-    auto* azioniL   = new QHBoxLayout(azioniRow);
-    azioniL->setContentsMargins(0,4,0,0); azioniL->setSpacing(8);
+    auto* azioniV   = new QVBoxLayout(azioniRow);
+    azioniV->setContentsMargins(0,4,0,0); azioniV->setSpacing(4);
+    auto* genRow = new QWidget(azioniRow);
+    auto* azioniL = new QHBoxLayout(genRow);
+    azioniL->setContentsMargins(0,0,0,0); azioniL->setSpacing(8);
+    auto* copiaRow = new QWidget(azioniRow);
+    auto* copiaL = new QHBoxLayout(copiaRow);
+    copiaL->setContentsMargins(0,0,0,0); copiaL->setSpacing(8);
 
     auto* genBtn   = new QPushButton("\xf0\x9f\xa4\x96 Lettera via AI", azioniRow);
     genBtn->setObjectName("actionBtn");
@@ -413,9 +466,13 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     m_copiaCoverBtn->setToolTip(tr("Copia la cover letter negli appunti"));
     m_selLbl = new QLabel("Seleziona un'offerta (doppio clic = genera subito)", azioniRow);
     m_selLbl->setObjectName("pageSubtitle");
-    azioniL->addWidget(genBtn); azioniL->addWidget(genCoverBtn);
-    azioniL->addWidget(m_emailBtn); azioniL->addWidget(m_copiaBtn); azioniL->addWidget(m_copiaCoverBtn);
-    azioniL->addWidget(m_selLbl, 1);
+    m_selLbl->setWordWrap(true);
+    azioniL->addWidget(genBtn); azioniL->addWidget(genCoverBtn); azioniL->addStretch(1);
+    copiaL->addWidget(m_emailBtn); copiaL->addWidget(m_copiaBtn); copiaL->addWidget(m_copiaCoverBtn);
+    copiaL->addStretch(1);
+    azioniV->addWidget(genRow);
+    azioniV->addWidget(copiaRow);
+    azioniV->addWidget(m_selLbl);
     listaPaneLay->addWidget(azioniRow);
     topSplitter->addWidget(listaPane);
 
@@ -503,8 +560,10 @@ LavoroPage::LavoroPage(AiClient* ai, QWidget* parent)
     auto* botLay  = new QVBoxLayout(botPane);
     botLay->setContentsMargins(0,0,0,0); botLay->setSpacing(6);
 
-    /* ── Layout orizzontale: Email (sx) | Cover Letter (dx) ── */
-    auto* colSplit = new QSplitter(Qt::Horizontal, botPane);
+    /* ── Email sopra | Cover Letter sotto ──
+       FIX layout: era orizzontale — due editor di testo affiancati in
+       ~250px l'uno erano illeggibili nella colonna dell'Assistente. */
+    auto* colSplit = new QSplitter(Qt::Vertical, botPane);
 
     /* Colonna sinistra — lettera email */
     auto* emailCol = new QWidget(colSplit);

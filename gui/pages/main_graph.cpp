@@ -44,31 +44,80 @@ struct Solid3DResult {
     QString formula;
 };
 
+/* FIX (segnalato dall'utente dopo la prima verifica a schermo — mai
+ * possibile prima nell'ambiente sandboxed, vedi TODO T-D15): la vecchia
+ * implementazione proiettava una sfera UV (angoli sferici phi/theta) sul
+ * cubo via normalizzazione a norma-infinito. Ogni vertice cadeva
+ * correttamente sulla superficie del cubo, ma la GRIGLIA che collega i
+ * vertici adiacenti seguiva linee curve (passi uguali in phi/theta non
+ * corrispondono a passi lineari sulla faccia), producendo un aspetto "a
+ * cuscino" arrotondato invece di un cubo con spigoli vivi.
+ * Fix: 6 facce piatte genuine, ognuna una griglia N×N in coordinate
+ * lineari (u,v). Tra una faccia e la successiva si inserisce una riga di
+ * punti con z=NaN — il renderer (drawScatter3D) la salta già per
+ * costruzione (i quad/segmenti con un vertice non valido non vengono
+ * disegnati, meccanismo esistente per la topologia a griglia), così le 6
+ * facce restano visivamente separate senza toccare il renderer. */
 static Solid3DResult genCuboidMesh(double a, double b, double c) {
-    const int N = 28, M = 28;
+    const int N = 8;   /* N+1 punti per lato di ogni faccia */
+    const double hx = a / 2.0, hy = b / 2.0, hz = c / 2.0;
+    const int cols = N + 1;
     Solid3DResult r;
-    r.pts.reserve((N + 1) * (M + 1));
-    for (int i = 0; i <= M; ++i) {
-        const double phi = M_PI * i / M;
-        for (int j = 0; j <= N; ++j) {
-            const double theta = 2.0 * M_PI * j / N;
-            double x = std::sin(phi) * std::cos(theta);
-            double y = std::sin(phi) * std::sin(theta);
-            double z = std::cos(phi);
-            const double m = std::max({std::abs(x), std::abs(y), std::abs(z), 1e-9});
-            x = x / m * a / 2.0; y = y / m * b / 2.0; z = z / m * c / 2.0;
-            r.pts.append({x, y, z, ""});
+    r.pts.reserve(6 * cols * cols + 5 * cols);
+
+    for (int face = 0; face < 6; ++face) {
+        for (int i = 0; i <= N; ++i) {
+            const double v = -1.0 + 2.0 * i / N;
+            for (int j = 0; j <= N; ++j) {
+                const double u = -1.0 + 2.0 * j / N;
+                double x, y, z;
+                switch (face) {
+                    case 0: x = u*hx; y = v*hy; z =  hz; break;  /* +Z sopra */
+                    case 1: x = u*hx; y = v*hy; z = -hz; break;  /* -Z sotto */
+                    case 2: x =  hx;  y = u*hy; z = v*hz; break; /* +X destra */
+                    case 3: x = -hx;  y = u*hy; z = v*hz; break; /* -X sinistra */
+                    case 4: x = u*hx; y =  hy;  z = v*hz; break; /* +Y davanti */
+                    default: x = u*hx; y = -hy; z = v*hz; break; /* -Y dietro */
+                }
+                r.pts.append({x, y, z, ""});
+            }
         }
+        if (face < 5)   /* riga separatrice tra una faccia e la successiva */
+            for (int j = 0; j <= N; ++j)
+                r.pts.append({std::nan(""), std::nan(""), std::nan(""), ""});
     }
-    r.cols = N + 1;
+
+    r.cols = cols;
     r.area = 2.0 * (a * b + b * c + c * a);
     return r;
 }
 
+/* Disco piatto (N+1 colonne, R+1 anelli da bordo a centro) a z fissato —
+ * usato per chiudere le basi di cilindro/cono. Riga separatrice a z=NaN
+ * (stesso meccanismo usato per le facce del cubo): il renderer la salta
+ * già per costruzione, così il disco resta visivamente separato dalla
+ * superficie laterale senza toccare il renderer. */
+static void appendDiskCap(Solid3DResult& r, double radius, double z, int N, int R) {
+    for (int i = 0; i <= R; ++i) {
+        const double frac = 1.0 - static_cast<double>(i) / R;   /* 1=bordo, 0=centro */
+        for (int j = 0; j <= N; ++j) {
+            const double theta = 2.0 * M_PI * j / N;
+            r.pts.append({frac * radius * std::cos(theta), frac * radius * std::sin(theta), z, ""});
+        }
+    }
+}
+static void appendSeparatorRow(Solid3DResult& r, int cols) {
+    for (int j = 0; j < cols; ++j)
+        r.pts.append({std::nan(""), std::nan(""), std::nan(""), ""});
+}
+
+/* FIX (segnalato dall'utente dopo verifica a schermo): mancavano le basi
+ * — la mesh copriva solo la superficie laterale, risultando "cava". */
 static Solid3DResult genCylinderMesh(double radius, double h) {
-    const int N = 36, M = 12;
+    const int N = 36, M = 12, R = 6;
     Solid3DResult r;
-    r.pts.reserve((N + 1) * (M + 1));
+    const int cols = N + 1;
+    r.pts.reserve(cols * (M + 1) + 2 * cols * (R + 1) + 2 * cols);
     for (int i = 0; i <= M; ++i) {
         const double z = -h / 2.0 + h * i / M;
         for (int j = 0; j <= N; ++j) {
@@ -76,15 +125,22 @@ static Solid3DResult genCylinderMesh(double radius, double h) {
             r.pts.append({radius * std::cos(theta), radius * std::sin(theta), z, ""});
         }
     }
-    r.cols = N + 1;
+    appendSeparatorRow(r, cols);
+    appendDiskCap(r, radius, -h / 2.0, N, R);
+    appendSeparatorRow(r, cols);
+    appendDiskCap(r, radius,  h / 2.0, N, R);
+
+    r.cols = cols;
     r.area = 2.0 * M_PI * radius * h + 2.0 * M_PI * radius * radius;   /* laterale + 2 basi */
     return r;
 }
 
+/* FIX: stesso bug del cilindro — mancava la base (l'apice è già chiuso
+ * naturalmente, raggio 0 a t=0). */
 static Solid3DResult genConeMesh(double radius, double h) {
-    const int N = 36, M = 18;
+    const int N = 36, M = 18, R = 6;
     Solid3DResult r;
-    r.pts.reserve((N + 1) * (M + 1));
+    const int cols = N + 1;
     for (int i = 0; i <= M; ++i) {
         const double t = static_cast<double>(i) / M;   /* 0 = apice, 1 = base */
         const double z = -h / 2.0 + h * t;
@@ -94,26 +150,37 @@ static Solid3DResult genConeMesh(double radius, double h) {
             r.pts.append({rad * std::cos(theta), rad * std::sin(theta), z, ""});
         }
     }
+    appendSeparatorRow(r, cols);
+    appendDiskCap(r, radius, h / 2.0, N, R);
     r.cols = N + 1;
     const double l = std::sqrt(radius * radius + h * h);   /* apotema (slant height) */
     r.area = M_PI * radius * l + M_PI * radius * radius;   /* laterale + base */
     return r;
 }
 
+/* FIX (segnalato dall'utente dopo verifica a schermo): con i valori di
+ * default dei due campi condivisi (dim.1=4, dim.2=6) il raggio del tubo
+ * superava quello grande — geometricamente un "toro a fuso" (spindle
+ * torus) auto-intersecante, che appare come un blob deforme invece di
+ * una ciambella con il buco. Il parametro reale di un toro valido
+ * richiede tubeR < bigR: clampato qui (non nella UI, che condivide i
+ * campi dim.1/dim.2 con le altre 4 forme) così la mesh generata è
+ * SEMPRE valida indipendentemente da cosa contengono gli spinbox. */
 static Solid3DResult genTorusMesh(double bigR, double tubeR) {
     const int N = 40, M = 24;
+    const double safeTubeR = std::min(tubeR, bigR * 0.8);
     Solid3DResult r;
     r.pts.reserve((N + 1) * (M + 1));
     for (int i = 0; i <= M; ++i) {
         const double v = 2.0 * M_PI * i / M;   /* angolo attorno al tubo */
         for (int j = 0; j <= N; ++j) {
             const double u = 2.0 * M_PI * j / N;   /* angolo attorno al cerchio grande */
-            const double ringR = bigR + tubeR * std::cos(v);
-            r.pts.append({ringR * std::cos(u), ringR * std::sin(u), tubeR * std::sin(v), ""});
+            const double ringR = bigR + safeTubeR * std::cos(v);
+            r.pts.append({ringR * std::cos(u), ringR * std::sin(u), safeTubeR * std::sin(v), ""});
         }
     }
     r.cols = N + 1;
-    r.area = 4.0 * M_PI * M_PI * bigR * tubeR;
+    r.area = 4.0 * M_PI * M_PI * bigR * safeTubeR;
     return r;
 }
 
@@ -540,24 +607,39 @@ QWidget* GraficoPage::buildLeftPanel() {
             auto* sl = new QVBoxLayout(m_solid3DSection);
             sl->setSpacing(6);
 
+            /* FIX (segnalato dall'utente dopo verifica a schermo): righe
+             * separate invece di un'unica QHBoxLayout — con entrambe le
+             * etichette + spinbox affiancate su una riga sola, il testo
+             * ("dim.2 (altezza/raggio tubo):") veniva tagliato appena il
+             * pannello non era abbastanza largo (max width fissa, scroll
+             * orizzontale disattivato: nessun modo di recuperare lo spazio
+             * mancante). Etichetta sopra, spinbox sotto: si adatta a
+             * qualunque larghezza del pannello. */
             auto* dimRow = new QWidget(m_solid3DSection);
-            auto* dimLay = new QHBoxLayout(dimRow);
+            auto* dimLay = new QVBoxLayout(dimRow);
             dimLay->setContentsMargins(0, 0, 0, 0);
+            dimLay->setSpacing(4);
+            auto* dim1Lbl = new QLabel("dim.1 (lato/raggio):", dimRow);
             m_solidDim1 = new QDoubleSpinBox(dimRow);
             m_solidDim1->setRange(0.1, 1000.0);
             m_solidDim1->setValue(4.0);
             m_solidDim1->setObjectName("inputLine");
+            auto* dim2Lbl = new QLabel("dim.2 (altezza/raggio tubo):", dimRow);
             m_solidDim2 = new QDoubleSpinBox(dimRow);
             m_solidDim2->setRange(0.1, 1000.0);
             m_solidDim2->setValue(6.0);
             m_solidDim2->setObjectName("inputLine");
-            dimLay->addWidget(new QLabel("dim.1 (lato/raggio):", dimRow));
-            dimLay->addWidget(m_solidDim1, 1);
-            dimLay->addWidget(new QLabel("dim.2 (altezza/raggio tubo):", dimRow));
-            dimLay->addWidget(m_solidDim2, 1);
+            dimLay->addWidget(dim1Lbl);
+            dimLay->addWidget(m_solidDim1);
+            dimLay->addWidget(dim2Lbl);
+            dimLay->addWidget(m_solidDim2);
             sl->addWidget(dimRow);
 
-            auto* btnRow = new QGridLayout;
+            /* FIX: colonna singola invece di griglia 2 colonne — con 2
+             * colonne, l'etichetta più lunga ("Toro (ciambella)") veniva
+             * tagliata a metà pannello. Una colonna sola usa sempre tutta
+             * la larghezza disponibile. */
+            auto* btnRow = new QVBoxLayout;
             btnRow->setSpacing(6);
             static const struct { const char* label; int id; } kShapes[] = {
                 { "\xf0\x9f\x9f\xa5  Cubo",             0 },
@@ -571,7 +653,7 @@ QWidget* GraficoPage::buildLeftPanel() {
                 btn->setObjectName("actionBtn");
                 const int shapeId = kShapes[i].id;
                 connect(btn, &QPushButton::clicked, this, [this, shapeId]{ onSolid3DClicked(shapeId); });
-                btnRow->addWidget(btn, i / 2, i % 2);
+                btnRow->addWidget(btn);
             }
             sl->addLayout(btnRow);
         }
@@ -2055,9 +2137,13 @@ void GraficoPage::onTypeComboChanged(int)
         const int idx = m_typeCombo->currentData().toInt();
         m_canvas->setType(static_cast<GraficoCanvas::ChartType>(idx));
 
-        /* Mostra la riga "Rendering" solo per Scatter3D (5) e Grafo3D (6) */
+        /* Mostra la riga "Rendering" SOLO per Scatter3D (5): Grafo3D (6) usa
+         * drawGraph3D(), un percorso di disegno separato che non legge mai
+         * m_renderMode3D — mostrare il dropdown anche lì lo faceva sembrare
+         * "non funzionante" (nessun effetto visibile alla selezione),
+         * segnalato dall'utente dopo verifica a schermo. */
         if (m_viewportBar3D)
-            m_viewportBar3D->setVisible(idx == 5 || idx == 6);
+            m_viewportBar3D->setVisible(idx == 5);
         if (idx == 0) {
             m_paramStack->setCurrentIndex(0);
         } else if (idx == 7) {
