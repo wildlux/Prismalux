@@ -102,7 +102,7 @@ float RagEngine::cosine(const QVector<float>& a, const QVector<float>& b) const 
    search — top-k chunk per coseno nello spazio JLT
    La query viene proiettata inline (matrice già inizializzata).
    ══════════════════════════════════════════════════════════════ */
-QVector<RagChunk> RagEngine::search(const QVector<float>& queryEmb, int k) const {
+QVector<QPair<RagChunk, float>> RagEngine::searchScored(const QVector<float>& queryEmb, int k) const {
     if (m_chunks.isEmpty() || m_R.isEmpty()) return {};
 
     /* Proiezione JLT della query (senza mutare stato: usa m_R già pronta) */
@@ -126,10 +126,19 @@ QVector<RagChunk> RagEngine::search(const QVector<float>& queryEmb, int k) const
     std::partial_sort(sc.begin(), sc.begin() + topK, sc.end(),
         [](const Scored& a, const Scored& b){ return a.score > b.score; });
 
-    QVector<RagChunk> result;
+    QVector<QPair<RagChunk, float>> result;
     result.reserve(topK);
     for (int i = 0; i < topK; ++i)
-        result.append(m_chunks[sc[i].idx]);
+        result.append({ m_chunks[sc[i].idx], sc[i].score });
+    return result;
+}
+
+QVector<RagChunk> RagEngine::search(const QVector<float>& queryEmb, int k) const {
+    const auto scored = searchScored(queryEmb, k);
+    QVector<RagChunk> result;
+    result.reserve(scored.size());
+    for (const auto& p : scored)
+        result.append(p.first);
     return result;
 }
 

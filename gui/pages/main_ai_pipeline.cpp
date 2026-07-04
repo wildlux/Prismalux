@@ -603,6 +603,7 @@ void AgentiPage::runPipeline() {
         static const QString kTag = "[Calcolo locale:";
         if (!injected.startsWith(kTag)) injected = _inject_date_calc(task);
         if (!injected.startsWith(kTag)) injected = _inject_finance(task);
+        if (!injected.startsWith(kTag)) injected = _inject_knowledge(task);
         if (!injected.startsWith(kTag)) injected = _inject_generator(task);
         if (!injected.startsWith(kTag)) injected = _inject_textstats(task);
         if (!injected.startsWith(kTag)) injected = _inject_algo(task);

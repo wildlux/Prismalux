@@ -184,6 +184,7 @@ Tools/compile_win/.venv_tools/
 build_gui/
 build_tests/
 Frameworks/whisper/
+Testing/
 
 # ── DLL Windows bundlate (estratte da MSYS2, non versionare) ─────────────────
 DLL/

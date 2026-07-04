@@ -37,6 +37,7 @@ namespace P = PrismaluxPaths;
 #include <QLocale>
 #include <QMap>
 #include <QHash>
+#include <QSet>
 #include <QVector>
 #include <QTextCursor>
 #include <QFile>
@@ -2381,6 +2382,107 @@ QString _inject_finance(const QString& task)
     }
 
     return task;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _inject_knowledge (D-26) — lookup diretto su user_knowledge.md
+   ──────────────────────────────────────────────────────────────
+   P::prependKnowledge() inietta già l'INTERO file nel system prompt ad
+   ogni richiesta: il modello lo vede sempre. Questa guardia non aggiunge
+   informazione che il modello non abbia già — serve solo a rispondere
+   con zero token/latenza sui lookup diretti e inequivocabili ("qual è
+   l'IP della telecamera?"), lasciando comunque scorrere alla via normale
+   (LLM con memoria intera nel contesto) qualunque domanda più articolata
+   o ambigua. Per questo il trigger è deliberatamente stretto:
+     1. la frase contiene un verbo di domanda esplicito da lookup
+        ("qual è", "dimmi", "ricordami", "cos'è"...) — esclude domande
+        generiche/discorsive, che meritano il modello;
+     2. almeno 2 parole chiave non-stopword nella domanda;
+     3. ESATTAMENTE UNA riga di user_knowledge.md contiene tutte quelle
+        parole chiave — se le righe candidate sono 0 o >1 (ambiguo), non
+        si intercetta: mai nascondere informazione al modello per un
+        match incerto, il fallback sicuro è "lascia decidere all'LLM".
+   ══════════════════════════════════════════════════════════════ */
+/* Nucleo puro/testabile: 'knowledge' passato esplicitamente (nessun I/O),
+ * separato da _inject_knowledge() per poter testare il matching senza
+ * dipendere dal vero user_knowledge.md (dati personali dell'utente, non
+ * deterministico). Ritorna la riga trovata (senza wrapping), o stringa
+ * vuota se non c'è un match univoco e sicuro. */
+QString _knowledgeLookup(const QString& task, const QString& knowledge)
+{
+    if (task.length() > 150) return {}; /* i lookup diretti sono domande brevi */
+
+    /* UseUnicodePropertiesOption è necessaria: senza, PCRE tratta \b come
+     * confine ASCII-only e "è"/"é" non contano come caratteri di parola —
+     * il \b finale dopo "qual è"/"cos'è" non scatterebbe mai (bug trovato
+     * e verificato con test standalone durante lo sviluppo di D-26). */
+    static const QRegularExpression reTrigger(
+        R"(\b(qual\s*è|quale\s*è|quali\s+sono|dimmi|ricorda(mi)?|cos['’]?è|che\s+cos['’]?è|come\s+si\s+chiama)\b)",
+        QRegularExpression::CaseInsensitiveOption | QRegularExpression::UseUnicodePropertiesOption);
+    if (!reTrigger.match(task).hasMatch()) return {};
+
+    if (knowledge.trimmed().isEmpty()) return {};
+
+    /* Stopword italiane comuni — escluse dalle parole chiave della domanda.
+     * Deliberatamente non esaustiva: meglio un falso negativo (non
+     * intercetta, va all'LLM) che un falso positivo. */
+    static const QSet<QString> kStop = {
+        "qual","quale","quali","sono","dimmi","ricorda","ricordami","cos","che",
+        "come","si","chiama","il","lo","la","i","gli","le","un","uno","una",
+        "di","del","dello","della","dei","degli","delle","a","al","allo","alla",
+        "ai","agli","alle","e","è","in","con","su","per","tra","fra","mio","mia",
+        "miei","mie","tuo","tua","questo","questa","questi","queste","dell",
+    };
+    static const QRegularExpression reWord(
+        "[\\p{L}\\p{N}]+", QRegularExpression::UseUnicodePropertiesOption);
+
+    QStringList keywords;
+    auto itW = reWord.globalMatch(task.toLower());
+    while (itW.hasNext()) {
+        const QString w = itW.next().captured(0);
+        if (w.length() >= 2 && !kStop.contains(w)) keywords.append(w);
+    }
+    if (keywords.size() < 2) return {}; /* troppo generico per un lookup sicuro */
+
+    QString bestLine; int matchCount = 0;
+    const QStringList lines = knowledge.split(QLatin1Char('\n'));
+    for (const QString& line : lines) {
+        const QString trimmed = line.trimmed();
+        if (trimmed.isEmpty() || trimmed.startsWith(QLatin1Char('#'))) continue;
+        const QString lineLow = trimmed.toLower();
+        bool allFound = true;
+        for (const QString& kw : keywords)
+            if (!lineLow.contains(kw)) { allFound = false; break; }
+        if (allFound) {
+            ++matchCount;
+            bestLine = trimmed;
+            if (matchCount > 1) break; /* ambiguo — inutile continuare */
+        }
+    }
+    if (matchCount != 1) return {}; /* 0 o ambiguo → lascia decidere al modello */
+
+    QString answer = bestLine;
+    answer.remove(QLatin1Char(']')); /* mai rompere il parsing "[Calcolo locale: ...]" */
+    return answer;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _inject_knowledge (D-26) — lookup diretto su user_knowledge.md
+   ──────────────────────────────────────────────────────────────
+   P::prependKnowledge() inietta già l'INTERO file nel system prompt ad
+   ogni richiesta: il modello lo vede sempre. Questa guardia non aggiunge
+   informazione che il modello non abbia già — serve solo a rispondere
+   con zero token/latenza sui lookup diretti e inequivocabili ("qual è
+   l'IP della telecamera?"), lasciando comunque scorrere alla via normale
+   (LLM con memoria intera nel contesto) qualunque domanda più articolata
+   o ambigua. Logica di matching in _knowledgeLookup() (testabile, nessun
+   I/O) — qui solo il wiring col vero file utente.
+   ══════════════════════════════════════════════════════════════ */
+QString _inject_knowledge(const QString& task)
+{
+    const QString answer = _knowledgeLookup(task, P::readUserKnowledge());
+    if (answer.isEmpty()) return task;
+    return "[Calcolo locale: dalla tua memoria \xe2\x80\x94 " + answer + "]\n\n";
 }
 
 /* ══════════════════════════════════════════════════════════════

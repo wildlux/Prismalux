@@ -226,6 +226,115 @@ static QString normalizeNumbers(const QString& text)
     return result;
 }
 
+/* ── D-24: individua indirizzi IPv4 nel testo — usata per NON confonderli
+ * con numeri a separatore-migliaia in normalizeItFormats() (es. "192.168.100.200"
+ * ha tutti ottetti da 3 cifre e sarebbe altrimenti indistinguibile da un
+ * importo tipo "100.000.000"). Progetto con uso intensivo di IP LAN
+ * (telecamere, scanner rete, WAN compute) — un falso positivo che tronca
+ * i punti di un IP sarebbe un bug subdolo, non solo cosmetico. ─────────── */
+static QVector<QPair<int,int>> _ipv4Spans(const QString& s)
+{
+    static const QRegularExpression reIp(R"(\b\d{1,3}(?:\.\d{1,3}){3}\b)");
+    QVector<QPair<int,int>> spans;
+    auto it = reIp.globalMatch(s);
+    while (it.hasNext()) {
+        const auto m = it.next();
+        bool valid = true;
+        for (const QString& part : m.captured(0).split(QLatin1Char('.')))
+            if (part.toInt() > 255) { valid = false; break; }
+        if (valid) spans.append({ m.capturedStart(0), m.capturedEnd(0) });
+    }
+    return spans;
+}
+
+/* ── D-24: normalizza formati numerici/data italiani in un unico punto,
+ * prima di tutta la catena di guardie zero-LLM (chiamata da _sanitize_prompt,
+ * subito dopo normalizeNumbers). Copre 3 casi non gestiti da normalizeNumbers
+ * (che converte solo numeri scritti in lettere):
+ *  1. Date con mese in lettere ("15 marzo 1990" → "15/03/1990") — solo mesi
+ *     per esteso, non abbreviati ("mar" è troppo ambiguo in prosa libera:
+ *     può essere "martedì" o l'inizio di un'altra parola).
+ *  2. Punto migliaia + virgola decimale opzionale ("100.000,50" →
+ *     "100000.50") — protetto da _ipv4Spans() per non mutilare IP LAN.
+ *  3. Virgola decimale residua ("3,5" → "3.5") — ESCLUSA se il numero
+ *     condivide la virgola con un altro numero adiacente (lista tipo
+ *     "3,5,7,9,2": lasciata intatta, è un caso diverso — vedi D-16 statistica
+ *     su lista, non ancora implementato — così non viene rotta nel frattempo).
+ * `guardiaMath()` oggi usa strtod() grezzo (non converte la virgola): senza
+ * questo fix "quanto fa 3,5 + 2,1" veniva silenziosamente troncato a "3"
+ * dal parser (virgola non è parte del formato numerico C). ──────────────── */
+QString normalizeItFormats(const QString& text)
+{
+    QString s = text;
+
+    /* 1. Date con mese in lettere → numerico dd/mm/yyyy */
+    {
+        static const QMap<QString,int> kMesi = {
+            {"gennaio",1},{"febbraio",2},{"marzo",3},{"aprile",4},
+            {"maggio",5},{"giugno",6},{"luglio",7},{"agosto",8},
+            {"settembre",9},{"ottobre",10},{"novembre",11},{"dicembre",12},
+        };
+        static const QRegularExpression reDateWord(
+            R"(\b(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{2,4})\b)",
+            QRegularExpression::CaseInsensitiveOption);
+        QString out; int last = 0;
+        auto it = reDateWord.globalMatch(s);
+        while (it.hasNext()) {
+            const auto m = it.next();
+            out += s.mid(last, m.capturedStart(0) - last);
+            const int day = m.captured(1).toInt();
+            const int mon = kMesi.value(m.captured(2).toLower(), 0);
+            if (day >= 1 && day <= 31 && mon > 0) {
+                out += QString("%1/%2/%3")
+                    .arg(day, 2, 10, QLatin1Char('0'))
+                    .arg(mon, 2, 10, QLatin1Char('0'))
+                    .arg(m.captured(3));
+            } else {
+                out += m.captured(0);
+            }
+            last = m.capturedEnd(0);
+        }
+        out += s.mid(last);
+        s = out;
+    }
+
+    /* 2. Punto migliaia (+ virgola decimale opzionale), protetto da IP */
+    {
+        const QVector<QPair<int,int>> ipSpans = _ipv4Spans(s);
+        auto overlapsIp = [&](int start, int end) {
+            for (const auto& sp : ipSpans)
+                if (start < sp.second && end > sp.first) return true;
+            return false;
+        };
+        static const QRegularExpression reThousands(
+            R"(\b(\d{1,3}(?:\.\d{3})+)(,\d+)?\b)");
+        QString out; int last = 0;
+        auto it = reThousands.globalMatch(s);
+        while (it.hasNext()) {
+            const auto m = it.next();
+            if (overlapsIp(m.capturedStart(0), m.capturedEnd(0))) continue;
+            out += s.mid(last, m.capturedStart(0) - last);
+            QString intPart = m.captured(1);
+            intPart.remove(QLatin1Char('.'));
+            out += intPart;
+            if (!m.captured(2).isEmpty())
+                out += QLatin1Char('.') + m.captured(2).mid(1);
+            last = m.capturedEnd(0);
+        }
+        out += s.mid(last);
+        s = out;
+    }
+
+    /* 3. Virgola decimale residua, esclusa se parte di una lista */
+    {
+        static const QRegularExpression reDecimal(
+            R"((?<!\d,)\b(\d+),(\d+)\b(?!,\d))");
+        s.replace(reDecimal, "\\1.\\2");
+    }
+
+    return s;
+}
+
 /* ── Converti operatori matematici scritti a parole → simbolo ─────────────
  * A differenza di normalizeNumbers(), va applicata SOLO a un'espressione già
  * isolata (mai all'intera frase libera): "più" è anche un avverbio italiano
@@ -335,6 +444,8 @@ QString _sanitize_prompt(const QString& raw)
 {
     /* converti prima i numeri in lettere → cifre */
     QString s = normalizeNumbers(raw);
+    /* D-24: normalizza virgola decimale/punto migliaia/date con mese in lettere */
+    s = normalizeItFormats(s);
 
     /* 1. Format token — rimpiazza con spazio */
     static const char* const kTokens[] = {

@@ -972,6 +972,32 @@ if(BUILD_TESTS)
         target_link_libraries(test_ai_client PRIVATE pthread m)
     endif()
 
+    # ── test_ai_math: normalizeItFormats (D-24) — virgola/migliaia/date IT, guardia IPv4 ──
+    add_executable(test_ai_math
+        tests/test_ai_math.cpp
+    )
+    target_include_directories(test_ai_math PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_ai_math PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_ai_math PRIVATE pthread m)
+    endif()
+
+    # ── test_ai_knowledge_lookup: _knowledgeLookup (D-26) — lookup zero-LLM su user_knowledge.md ──
+    add_executable(test_ai_knowledge_lookup
+        tests/test_ai_knowledge_lookup.cpp
+    )
+    target_include_directories(test_ai_knowledge_lookup PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_ai_knowledge_lookup PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_ai_knowledge_lookup PRIVATE pthread m)
+    endif()
+
     # ── test_lan_wan_core: timingSafeEqual, token save/load, rate limiting, lifecycle ──
     add_executable(test_lan_wan_core
         tests/test_lan_wan_core.cpp
@@ -1451,6 +1477,8 @@ if(BUILD_TESTS)
     add_test(NAME AgentiPipeline          COMMAND test_agenti_pipeline)
     add_test(NAME AgentsConfigDialog      COMMAND test_agents_config_dialog)
     add_test(NAME AiClient                COMMAND test_ai_client)
+    add_test(NAME AiMath                  COMMAND test_ai_math)
+    add_test(NAME AiKnowledgeLookup        COMMAND test_ai_knowledge_lookup)
     add_test(NAME LanWanCore              COMMAND test_lan_wan_core)
     add_test(NAME McpIntegration          COMMAND test_mcp_integration)
     add_test(NAME LanServer               COMMAND test_lan_server)

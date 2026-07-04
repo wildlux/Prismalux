@@ -5,8 +5,8 @@
 
    CAT-A  Proprietà matematiche JLT (8 test)
      — ortogonalità, determinismo, range, vettore zero
-   CAT-B  Search — edge case e ranking (10 test)
-     — k=0, k<0, dimMismatch, ordinamento, duplicati
+   CAT-B  Search — edge case e ranking (15 test)
+     — k=0, k<0, dimMismatch, ordinamento, duplicati, searchScored (D-30)
    CAT-C  Save/Load avanzato (10 test)
      — file corrotto, dir mancante, 1000 chunk, idempotenza
    CAT-D  Performance (7 test)
@@ -287,6 +287,61 @@ private slots:
         const auto res = rag.search(axis(d, 0), 1);
         QCOMPARE(res.size(), 1);
         QCOMPARE(res.at(0).text, QString("unico"));
+    }
+
+    /* searchScored: chunk identico alla query → coseno ~1.0 (D-30 gating) */
+    void scoredExactMatchNearOne() {
+        const int d = 64;
+        RagEngine rag;
+        QVector<float> target = axis(d, 5, 2.0f);
+        rag.addChunk("esatto", target);
+        rag.addChunk("ortogonale", axis(d, 6));
+
+        const auto res = rag.searchScored(target, 2);
+        QCOMPARE(res.size(), 2);
+        QCOMPARE(res.at(0).first.text, QString("esatto"));
+        QVERIFY(res.at(0).second > 0.99f);
+    }
+
+    /* searchScored: chunk ortogonale alla query → coseno ~0.0, sotto qualunque
+     * soglia di pertinenza ragionevole (comportamento sfruttato dal gating RAG) */
+    void scoredOrthogonalNearZero() {
+        const int d = 64;
+        RagEngine rag;
+        rag.addChunk("ortogonale", axis(d, 1));
+
+        const auto res = rag.searchScored(axis(d, 0), 1);
+        QCOMPARE(res.size(), 1);
+        QVERIFY(res.at(0).second < 0.01f);
+    }
+
+    /* searchScored: ordine decrescente per score reale (non solo per posizione) */
+    void scoredResultsDecreasing() {
+        const int d = 64;
+        RagEngine rag;
+        rag.addChunk("vicino",  axis(d, 0, 1.0f));
+        rag.addChunk("medio",   [&]{ auto v = axis(d, 0, .5f); v[1] = .86f; return v; }());
+        rag.addChunk("lontano", axis(d, 1));
+
+        const auto res = rag.searchScored(axis(d, 0), 3);
+        QCOMPARE(res.size(), 3);
+        for (int i = 0; i + 1 < res.size(); ++i)
+            QVERIFY(res.at(i).second >= res.at(i + 1).second);
+    }
+
+    /* search() e searchScored() concordano sull'ordine dei chunk (stesso motore) */
+    void searchAndScoredAgreeOnOrder() {
+        const int d = 32;
+        RagEngine rag;
+        rag.addChunk("a", axis(d, 0));
+        rag.addChunk("b", axis(d, 1));
+        rag.addChunk("c", axis(d, 2));
+
+        const auto plain  = rag.search(axis(d, 0), 3);
+        const auto scored = rag.searchScored(axis(d, 0), 3);
+        QCOMPARE(plain.size(), scored.size());
+        for (int i = 0; i < plain.size(); ++i)
+            QCOMPARE(plain.at(i).text, scored.at(i).first.text);
     }
 };
 

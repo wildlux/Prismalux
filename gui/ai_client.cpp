@@ -432,6 +432,11 @@ static const char* kCavemanPrefix =
     "Vai subito al contenuto richiesto, senza riempitivi. "
     "Preferisci elenchi puntati a paragrafi verbosi quando il contenuto lo permette.\n\n";
 
+/* Soglia minima di coseno per iniettare un chunk RAG nel prompt (D-30).
+ * Sotto questa soglia il chunk è considerato non pertinente alla query —
+ * evita di sprecare token/rumore su domande che col RAG non c'entrano. */
+static constexpr float kRagRelevanceThreshold = 0.30f;
+
 /* ── chat (wrapper legacy — compatibile con tutto il codice esistente) ─── */
 quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg) {
     /* Global RAG injection — se abilitato e il RAG ha documenti, arricchisce il
@@ -443,10 +448,11 @@ quint64 AiClient::chat(const QString& systemPrompt, const QString& userMsg) {
         _fetchEmbeddingForRag(userMsg,
             [this, systemPrompt, userMsg](const QVector<float>& vec) {
                 m_ragQueryPending = false;
-                const auto hits = m_globalRag->search(vec, 3);
+                const auto hits = m_globalRag->searchScored(vec, 3);
                 QString ctx;
                 for (const auto& h : hits)
-                    ctx += "\n---\n" + h.text.left(600);
+                    if (h.second >= kRagRelevanceThreshold)
+                        ctx += "\n---\n" + h.first.text.left(600);
                 const QString enriched = ctx.isEmpty() ? systemPrompt
                     : systemPrompt + "\n\n[CONTESTO DAI DOCUMENTI]\n" + ctx;
                 chat(enriched, userMsg, QJsonArray(), classifyQuery(userMsg));

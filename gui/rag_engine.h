@@ -1,6 +1,7 @@
 #pragma once
 #include <QVector>
 #include <QString>
+#include <QPair>
 #include <cstdint>
 
 /* ══════════════════════════════════════════════════════════════
@@ -55,6 +56,10 @@ public:
     /** Ritorna i top-k chunk per similarità coseno nello spazio JLT.
      *  queryEmb deve avere la stessa dimensione degli embedding indicizzati. */
     QVector<RagChunk> search(const QVector<float>& queryEmb, int k = 5) const;
+
+    /** Come search(), ma espone anche il coseno di ogni hit — usato per il
+     *  gating a soglia (inietta solo i chunk davvero pertinenti alla query). */
+    QVector<QPair<RagChunk, float>> searchScored(const QVector<float>& queryEmb, int k = 5) const;
 
     /* ── Persistenza ────────────────────────────────────────────── */
 

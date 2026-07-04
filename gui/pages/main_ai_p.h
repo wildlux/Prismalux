@@ -123,6 +123,12 @@ QString _sanitize_prompt(const QString& raw);
  *  Matematico Teorico) — NON sul contenuto documenti/RAG (m_docContext),
  *  che non passa dalla catena guardie. Definita in main_ai_math.cpp. */
 QString correctGuardTypos(const QString& text);
+/** D-24: normalizza virgola decimale ("3,5"→"3.5"), punto migliaia
+ *  ("100.000,50"→"100000.50", protetto da IPv4 tipo "192.168.100.200") e
+ *  date con mese in lettere ("15 marzo 1990"→"15/03/1990") PRIMA della
+ *  catena di guardie. Chiamata da _sanitize_prompt(), non separatamente.
+ *  Definita in main_ai_math.cpp. */
+QString normalizeItFormats(const QString& text);
 // Definita in agenti_page_models.cpp
 bool    _isEmbeddingModel(const QString& name);
 bool    _is_likely_english(const QString& text);
@@ -149,6 +155,17 @@ QString _inject_date_calc(const QString& task);
  *  nascita/sesso), calcola sconti/aumenti/IVA. Stesso stile "[Calcolo
  *  locale: ...]" di _inject_date_calc. Definita in main_ai_tools.cpp. */
 QString _inject_finance(const QString& task);
+/** D-26: lookup diretto e univoco su user_knowledge.md ("qual è l'IP della
+ *  telecamera?") — zero LLM SOLO se esattamente una riga del file contiene
+ *  tutte le parole chiave della domanda; altrimenti ritorna il task
+ *  invariato (il modello vede comunque l'intero file via
+ *  P::prependKnowledge()). Definita in main_ai_tools.cpp. */
+QString _inject_knowledge(const QString& task);
+/** Nucleo puro di _inject_knowledge(): 'knowledge' passato esplicitamente
+ *  (nessun I/O reale) — usata dai test per non dipendere dal vero
+ *  user_knowledge.md. Ritorna la riga trovata o stringa vuota se non c'è
+ *  un match univoco. Definita in main_ai_tools.cpp. */
+QString _knowledgeLookup(const QString& task, const QString& knowledge);
 /** Genera UUID v4 / hash MD5-SHA1-SHA256-SHA512 / password casuali
  *  localmente invece di farli "inventare" all'LLM. Definita in
  *  main_ai_tools.cpp. */
