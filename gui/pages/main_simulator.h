@@ -169,6 +169,13 @@ public:
     static QVector<AlgoStep> genKaratsuba(int a, int b);
     static QVector<AlgoStep> genStockProfit(QVector<int> a);
     static QVector<AlgoStep> genCountInversions(QVector<int> a);
+    /* genTowerOfHanoi è pura (nessun accesso a membri, verificato leggendo
+     * il corpo in main_sim_graph.cpp: solo lambda + variabili locali) —
+     * a differenza di genNQueens (limita N≤5 e tronca dopo 3 soluzioni per
+     * l'animazione, riporta il conteggio totale da tabella hardcoded) NON
+     * ha bisogno di essere riscritta per D-33: qui esposta static+public
+     * per il tool "algoritmo" (nome=hanoi_passi, D-33 punto 8), invariata. */
+    static QVector<AlgoStep> genTowerOfHanoi(int n);
 
 private:
     void buildSteps();
@@ -281,7 +288,7 @@ private:
     /* ── Classici / Storici ── */
     QVector<AlgoStep> genReservoirSampling(QVector<int> a);
     QVector<AlgoStep> genFloydCycle();
-    QVector<AlgoStep> genTowerOfHanoi(int n);
+    /* genTowerOfHanoi spostata static+public sopra (D-33) */
     QVector<AlgoStep> genGameOfLife1D(QVector<int> a);
     QVector<AlgoStep> genRule30(QVector<int> a);
     QVector<AlgoStep> genSpiralMatrix(int n);

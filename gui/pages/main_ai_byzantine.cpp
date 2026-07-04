@@ -11,7 +11,7 @@ namespace P = PrismaluxPaths;
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::runByzantine() {
     m_userScrolled = false;  /* nuovo task: torna in auto-scroll */
-    QString fact = _sanitize_prompt(m_input->toPlainText().trimmed());
+    QString fact = correctGuardTypos(_sanitize_prompt(m_input->toPlainText().trimmed()));
     if (fact.isEmpty()) { m_log->append("\xe2\x9a\xa0  Inserisci una domanda."); return; }
 
     {
@@ -76,7 +76,7 @@ void AgentiPage::runByzantine() {
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::runMathTheory() {
     m_userScrolled = false;  /* nuovo task: torna in auto-scroll */
-    QString problem = _sanitize_prompt(m_input->toPlainText().trimmed());
+    QString problem = correctGuardTypos(_sanitize_prompt(m_input->toPlainText().trimmed()));
     if (problem.isEmpty()) { m_log->append("\xe2\x9a\xa0  Inserisci un problema matematico."); return; }
 
     {

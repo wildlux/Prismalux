@@ -117,6 +117,157 @@ static QJsonArray _buildOllamaTools()
                    p["required"]   = QJsonArray{ QLatin1String("role"), QLatin1String("task") };
                    return p;
                }()),
+        /* ── Algoritmi classici (D-33) ── */
+        mkTool("algoritmo",
+               "Esegue un algoritmo classico con parametri strutturati: MCD/MCM, "
+               "fattorizzazione in fattori primi, riga del triangolo di Pascal, "
+               "N-esimo numero di Fibonacci/Catalan, congettura di Collatz, mosse minime "
+               "Torre di Hanoi (o l'elenco passo-passo delle mosse con hanoi_passi, N<=10), "
+               "N-Regine con conteggio esatto delle soluzioni via backtracking (nqueens, "
+               "N<=12), profitto massimo comprando/vendendo azioni, conteggio inversioni in "
+               "una lista, posizione di un elemento in un array, distanza di edit, "
+               "sottosequenza comune piu' lunga (LCS), ricerca di un pattern in un testo "
+               "(KMP). Usare per formulazioni libere o multi-turno di queste domande "
+               "algoritmiche.",
+               [&]() -> QJsonObject {
+                   QJsonObject p; p["type"] = QLatin1String("object");
+                   QJsonObject props;
+                   auto sp = [](const QString& d) { QJsonObject v; v["type"] = QLatin1String("string"); v["description"] = d; return v; };
+                   auto np = [](const QString& d) { QJsonObject v; v["type"] = QLatin1String("number"); v["description"] = d; return v; };
+                   props["nome"] = sp("Nome algoritmo: mcd, mcm, fattorizzazione, pascal, fibonacci, "
+                                      "catalan, collatz, hanoi, hanoi_passi, nqueens, profitto_azioni, "
+                                      "inversioni, posizione_array, edit_distance, lcs, kmp");
+                   props["a"]      = np("Primo intero (mcd, mcm)");
+                   props["b"]      = np("Secondo intero (mcd, mcm)");
+                   props["n"]      = np("Singolo intero (fattorizzazione, pascal riga, fibonacci N, catalan N, collatz, hanoi/hanoi_passi dischi, nqueens dimensione scacchiera)");
+                   props["array"]  = sp("Lista di interi separati da virgola (profitto_azioni, inversioni, posizione_array)");
+                   props["target"] = np("Elemento da cercare (posizione_array)");
+                   props["s1"]     = sp("Prima stringa (edit_distance, lcs)");
+                   props["s2"]     = sp("Seconda stringa (edit_distance, lcs)");
+                   props["pattern"]= sp("Pattern da cercare (kmp)");
+                   props["testo"]  = sp("Testo in cui cercare il pattern (kmp)");
+                   p["properties"] = props;
+                   p["required"]   = QJsonArray{ QLatin1String("nome") };
+                   return p;
+               }()),
+        /* ── Codice Fiscale (D-33) ── */
+        mkTool("codice_fiscale",
+               "Calcola il Codice Fiscale italiano (D.M. 23/12/1976) da dati anagrafici: "
+               "cognome, nome, data di nascita, sesso, comune di nascita (o codice Belfiore "
+               "direttamente se gia' noto).",
+               [&]() -> QJsonObject {
+                   QJsonObject p; p["type"] = QLatin1String("object");
+                   QJsonObject props;
+                   auto sp = [](const QString& d) { QJsonObject v; v["type"] = QLatin1String("string"); v["description"] = d; return v; };
+                   props["cognome"]         = sp("Cognome");
+                   props["nome"]            = sp("Nome");
+                   props["data_nascita"]    = sp("Data di nascita in formato AAAA-MM-GG (es. 1990-03-15)");
+                   props["sesso"]           = sp("'M' oppure 'F'");
+                   props["comune_nascita"]  = sp("Comune (o stato estero) di nascita, per il lookup automatico del codice Belfiore");
+                   props["codice_belfiore"] = sp("Codice Belfiore a 4 caratteri, se gia' noto (opzionale, ha priorita' su comune_nascita)");
+                   p["properties"] = props;
+                   p["required"]   = QJsonArray{ QLatin1String("cognome"), QLatin1String("nome"),
+                                                  QLatin1String("data_nascita"), QLatin1String("sesso") };
+                   return p;
+               }()),
+        /* ── Calcoli finanziari (D-33) ── */
+        mkTool("finanza_calcola",
+               "Esegue un calcolo finanziario: interesse composto, rata di un mutuo/prestito "
+               "(ammortamento francese) o rivalutazione del TFR (Trattamento di Fine Rapporto, "
+               "calcolo indicativo art. 2120 c.c.). Usare per formulazioni libere o multi-turno "
+               "di queste domande finanziarie.",
+               [&]() -> QJsonObject {
+                   QJsonObject p; p["type"] = QLatin1String("object");
+                   QJsonObject props;
+                   auto sp = [](const QString& d) { QJsonObject v; v["type"] = QLatin1String("string"); v["description"] = d; return v; };
+                   auto np = [](const QString& d) { QJsonObject v; v["type"] = QLatin1String("number"); v["description"] = d; return v; };
+                   props["tipo"] = sp("Tipo di calcolo: interesse_composto, rata_mutuo, tfr_rivalutazione");
+                   props["capitale"]              = np("Capitale iniziale in euro (interesse_composto, rata_mutuo)");
+                   props["tasso_annuo_pct"]        = np("Tasso annuo in percentuale (interesse_composto, rata_mutuo)");
+                   props["anni"]                   = np("Durata in anni (tutti i tipi)");
+                   props["stipendio_lordo_annuo"]  = np("Stipendio lordo annuo in euro (tfr_rivalutazione)");
+                   props["inflazione_pct"]         = np("Inflazione media annua in percentuale (tfr_rivalutazione)");
+                   p["properties"] = props;
+                   p["required"]   = QJsonArray{ QLatin1String("tipo"), QLatin1String("anni") };
+                   return p;
+               }()),
+        /* ── Validazione documenti (D-33) ── */
+        mkTool("valida_documento",
+               "Valida un IBAN (cifra di controllo mod-97), una Partita IVA italiana "
+               "(checksum ufficiale a 11 cifre) o un Codice Fiscale italiano (checksum "
+               "D.M.1976, con decodifica di data di nascita e sesso se valido).",
+               [&]() -> QJsonObject {
+                   QJsonObject p; p["type"] = QLatin1String("object");
+                   QJsonObject props;
+                   auto sp = [](const QString& d) { QJsonObject v; v["type"] = QLatin1String("string"); v["description"] = d; return v; };
+                   props["tipo"]   = sp("Tipo di documento: iban, partita_iva, codice_fiscale");
+                   props["valore"] = sp("Il valore da validare (IBAN, P.IVA a 11 cifre o Codice Fiscale a 16 caratteri)");
+                   p["properties"] = props;
+                   p["required"]   = QJsonArray{ QLatin1String("tipo"), QLatin1String("valore") };
+                   return p;
+               }()),
+        /* ── Carta astrale (D-33) ── */
+        mkTool("carta_astrale",
+               "Calcola le posizioni planetarie astrologiche (carta natale: Sole, Luna, "
+               "pianeti, Ascendente, Medio Cielo) per una data, ora e luogo di nascita, "
+               "con algoritmi astronomici reali (Meeus).",
+               [&]() -> QJsonObject {
+                   QJsonObject p; p["type"] = QLatin1String("object");
+                   QJsonObject props;
+                   auto sp = [](const QString& d) { QJsonObject v; v["type"] = QLatin1String("string"); v["description"] = d; return v; };
+                   auto np = [](const QString& d) { QJsonObject v; v["type"] = QLatin1String("number"); v["description"] = d; return v; };
+                   props["data"] = sp("Data di nascita in formato AAAA-MM-GG (es. 1990-03-15)");
+                   props["ora"]  = sp("Ora di nascita locale in formato HH:MM, 24 ore (es. 14:30)");
+                   props["lat"]  = np("Latitudine del luogo di nascita in gradi decimali (Nord positivo)");
+                   props["lon"]  = np("Longitudine del luogo di nascita in gradi decimali (Est positivo)");
+                   p["properties"] = props;
+                   p["required"]   = QJsonArray{ QLatin1String("data"), QLatin1String("ora"),
+                                                  QLatin1String("lat"), QLatin1String("lon") };
+                   return p;
+               }()),
+        /* ── Conversioni scienza/cucina (D-33) ── */
+        mkTool("converti",
+               "Converte un valore tra unità di misura scientifiche o da cucina: legge di Ohm "
+               "(V/I/R), velocità (km/h, m/s, mph), temperatura del forno (Celsius, Fahrenheit, "
+               "Gas Mark), ingredienti da cucina (ml/grammi per farina/zucchero/acqua/ecc., "
+               "cucchiaino/cucchiaio/tazza), distanze astronomiche (anni luce, unità "
+               "astronomiche, km). Descrivere la conversione in linguaggio naturale con unità "
+               "esplicite nel campo 'richiesta'.",
+               [&]() -> QJsonObject {
+                   QJsonObject p; p["type"] = QLatin1String("object");
+                   QJsonObject props;
+                   QJsonObject r; r["type"] = QLatin1String("string");
+                   r["description"] = QLatin1String(
+                       "Richiesta di conversione in linguaggio naturale con unità esplicite, "
+                       "es. \"200 ml di farina in grammi\", \"180 gradi forno in fahrenheit\", "
+                       "\"100 km/h in mph\", \"2 anni luce in km\"");
+                   props["richiesta"] = r;
+                   p["properties"] = props;
+                   p["required"]   = QJsonArray{ QLatin1String("richiesta") };
+                   return p;
+               }()),
+        /* ── Disegna grafico (D-33) ── */
+        mkTool("disegna_grafico",
+               "Traccia il grafico di una funzione y=f(x) e lo apre nel pannello Grafico "
+               "della chat. Usare quando l'utente chiede esplicitamente un grafico con "
+               "formula e/o intervallo x specificati separatamente (non la formula grezza "
+               "nella frase, gia' intercettata prima da una guardia piu' rapida).",
+               [&]() -> QJsonObject {
+                   QJsonObject p; p["type"] = QLatin1String("object");
+                   QJsonObject props;
+                   QJsonObject formula; formula["type"] = QLatin1String("string");
+                   formula["description"] = QLatin1String("Espressione in x da tracciare, es. \"sin(x)*2\", \"x^2 - 4\"");
+                   QJsonObject xmin; xmin["type"] = QLatin1String("number");
+                   xmin["description"] = QLatin1String("Limite inferiore di x (default -10)");
+                   QJsonObject xmax; xmax["type"] = QLatin1String("number");
+                   xmax["description"] = QLatin1String("Limite superiore di x (default 10)");
+                   props["formula"] = formula;
+                   props["xmin"]    = xmin;
+                   props["xmax"]    = xmax;
+                   p["properties"] = props;
+                   p["required"]   = QJsonArray{ QLatin1String("formula") };
+                   return p;
+               }()),
         /* ── Plugin MCP ── */
         mkTool("mcp_call",
                "Invoca un tool di un plugin MCP attivo in Prismalux. "
@@ -168,7 +319,7 @@ void AgentiPage::runPipeline() {
     m_userScrolled = false;  /* nuovo task: torna in auto-scroll */
     m_taskHtml = extractInputHtml(m_input); /* HTML leggero bolla utente — prima di clear() */
     const QString rawInput = m_input->toPlainText().trimmed();
-    QString task = _sanitize_prompt(rawInput);
+    QString task = correctGuardTypos(_sanitize_prompt(rawInput));
     const QString& taskHtml = m_taskHtml;
     if (task.isEmpty()) { m_log->append("\xe2\x9a\xa0  Inserisci un task."); return; }
 

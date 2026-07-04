@@ -116,6 +116,13 @@ inline QString extractInputHtml(QTextEdit* edit)
 // ── Forward declarations per funzioni helper condivise ──────────────────────
 // Definite in agenti_page_math.cpp, usate anche da altri _*.cpp
 QString _sanitize_prompt(const QString& raw);
+/** D-23: corregge i typo (Levenshtein <=2) sui trigger noti delle guardie
+ *  zero-LLM (fibonacci, catalan, mcd, fattorizzazione, imc, mutuo...) PRIMA
+ *  che la catena di guardie regex veda il testo. Da chiamare subito dopo
+ *  _sanitize_prompt() nei 3 punti d'ingresso query (Pipeline/Byzantino/
+ *  Matematico Teorico) — NON sul contenuto documenti/RAG (m_docContext),
+ *  che non passa dalla catena guardie. Definita in main_ai_math.cpp. */
+QString correctGuardTypos(const QString& text);
 // Definita in agenti_page_models.cpp
 bool    _isEmbeddingModel(const QString& name);
 bool    _is_likely_english(const QString& text);

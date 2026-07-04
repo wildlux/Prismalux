@@ -5,6 +5,7 @@
 namespace P = PrismaluxPaths;
 #include <cmath>
 #include <cstdlib>
+#include <algorithm>
 #include <QRegularExpression>
 #include <QMessageBox>
 #include <QFile>
@@ -247,6 +248,87 @@ static QString normalizeOperatorWords(const QString& expr)
     s.replace(rePer,  "*");
     s.replace(reDiv,  "/");
     return s;
+}
+
+/* ── Distanza di Levenshtein (DP standard) — usata solo da correctGuardTypos ── */
+static int _levenshtein(const QString& a, const QString& b)
+{
+    const int n = a.length(), m = b.length();
+    QVector<QVector<int>> dp(n + 1, QVector<int>(m + 1, 0));
+    for (int i = 0; i <= n; ++i) dp[i][0] = i;
+    for (int j = 0; j <= m; ++j) dp[0][j] = j;
+    for (int i = 1; i <= n; ++i)
+        for (int j = 1; j <= m; ++j)
+            dp[i][j] = (a[i-1] == b[j-1])
+                ? dp[i-1][j-1]
+                : 1 + std::min({dp[i-1][j], dp[i][j-1], dp[i-1][j-1]});
+    return dp[n][m];
+}
+
+/* Soglia di distanza per trigger: le parole corte (<=8) accettano solo 1
+ * refuso — a 2 refusi su parole brevi la superficie di collisione con
+ * parole italiane comuni diventa enorme (vedi sotto). Solo i trigger lunghi
+ * (fibonacci, fattorizzazione, ammortamento) tollerano 2 refusi. */
+static int _triggerMaxDist(const QString& trig) { return trig.length() <= 8 ? 1 : 2; }
+/* Per i trigger <=5 caratteri, richiede la STESSA lunghezza (equivale a
+ * distanza di Hamming, non Levenshtein): un refuso per inserimento/
+ * cancellazione su una parola così corta collide troppo spesso con parole
+ * italiane comuni di lunghezza vicina — scoperto empiricamente: "anni"
+ * (4 lettere) è a distanza di Levenshtein 2 da "hanoi" (inserimento 'h' +
+ * sostituzione), e "muto" è a distanza 1 da "mutuo" (inserimento 'u').
+ * Bloccando il cambio di lunghezza per i trigger corti, entrambe le
+ * collisioni spariscono restando comunque in grado di correggere i refusi
+ * di sostituzione pura (es. "hanoy" → "hanoi"). */
+static bool _requireSameLen(const QString& trig) { return trig.length() <= 5; }
+
+/* ── D-23: matching tollerante ai typo sui trigger noti delle guardie ────────
+ * Le guardie zero-LLM (guardiaMath, _inject_algo, _inject_finance, ecc.)
+ * riconoscono parole esatte in italiano ("fibonacci", "mcd", "mutuo"...).
+ * Un typo singolo ("fibonaci", "fattorizazione") le fa bucare tutte, perché
+ * ogni pattern richiede la parola esatta. Qui si scansiona la frase parola
+ * per parola: se una parola non combacia esattamente con un trigger noto ma
+ * è entro la soglia di distanza (_triggerMaxDist), viene sostituita con la
+ * forma corretta PRIMA che la catena di guardie regex la veda. Sicuro anche
+ * in caso di corrispondenza casuale: ogni guardia a valle richiede comunque
+ * numeri e struttura completa (es. "tra X e Y") per scattare — una
+ * correzione isolata su una parola innocua non produce mai un falso
+ * positivo concreto A VALLE, ma può comunque alterare la parola stessa nel
+ * testo mostrato/inviato all'AI: da qui le soglie strette sopra.
+ * Selezione curata (stile D-17): solo i trigger multisillabici/stranieri
+ * più a rischio typo, non l'intero vocabolario delle guardie. ──────────── */
+QString correctGuardTypos(const QString& text)
+{
+    if (text.length() > 300) return text; /* stesso limite di _inject_algo */
+
+    static const QStringList kTriggers = {
+        "fibonacci", "catalan", "collatz", "hanoi", "fattorizzazione",
+        "pascal", "mcd", "mcm", "imc", "mutuo", "prestito", "ammortamento"
+    };
+    static const QRegularExpression reWord(
+        "\\b[\\p{L}]{3,20}\\b", QRegularExpression::UseUnicodePropertiesOption);
+
+    QString result = text;
+    int offset = 0;
+    auto it = reWord.globalMatch(text);
+    while (it.hasNext()) {
+        const auto m = it.next();
+        const QString word = m.captured(0);
+        const QString wLow = word.toLower();
+        if (kTriggers.contains(wLow)) continue; /* già corretta */
+
+        QString best; int bestDist = 99;
+        for (const QString& trig : kTriggers) {
+            if (_requireSameLen(trig) && wLow.length() != trig.length()) continue;
+            if (qAbs(wLow.length() - trig.length()) > 2) continue; /* pruning */
+            const int d = _levenshtein(wLow, trig);
+            if (d <= _triggerMaxDist(trig) && d < bestDist) { bestDist = d; best = trig; }
+        }
+        if (!best.isEmpty()) {
+            result.replace(offset + m.capturedStart(0), m.capturedLength(0), best);
+            offset += best.length() - m.capturedLength(0);
+        }
+    }
+    return result;
 }
 
 QString _sanitize_prompt(const QString& raw)

@@ -56,8 +56,24 @@ void AgentiPage::buildToolsPanel(QVBoxLayout* lay)
           "Legge la tua Knowledge Base personale (file KNOWLEDGE_USER/)" },
         { "spawn_agent",  "\xf0\x9f\xa4\x96", "Crea agente",
           "Avvia un sub-agente specializzato per un sotto-compito autonomo" },
+        { "algoritmo",    "\xf0\x9f\xa7\xae", "Algoritmi classici",
+          "MCD/MCM, fattorizzazione, Fibonacci, Catalan, Collatz, Hanoi (+ passo-passo), "
+          "N-Regine (backtracking reale), profitto azioni, inversioni, ricerca lineare, "
+          "edit distance/LCS, ricerca pattern (KMP)" },
+        { "codice_fiscale","\xf0\x9f\x86\x94", "Codice Fiscale",
+          "Calcola il Codice Fiscale (D.M.1976) da cognome/nome/nascita/sesso/comune" },
+        { "finanza_calcola","\xf0\x9f\x92\xb0", "Calcoli finanziari",
+          "Interesse composto, rata mutuo (ammortamento francese), rivalutazione TFR" },
+        { "valida_documento","\xf0\x9f\x92\xb3", "Valida documenti",
+          "IBAN (mod-97), Partita IVA (checksum), Codice Fiscale (D.M.1976 + decodifica)" },
+        { "carta_astrale", "\xe2\x99\x8b", "Carta astrale",
+          "Posizioni planetarie (Meeus) da data/ora/luogo di nascita" },
+        { "converti",      "\xf0\x9f\x94\x81", "Conversioni",
+          "Scienza/cucina: Ohm, velocità, temperatura forno, ingredienti, distanze astronomiche" },
+        { "disegna_grafico","\xf0\x9f\x93\x88", "Disegna grafico",
+          "Traccia y=f(x) e apre il pannello Grafico nella chat" },
     };
-    constexpr int kNTools = 10;
+    constexpr int kNTools = 17;
 
     /* ══ PANNELLO 1: ⚡ Tool Veloci (Function Tools, in-process) ══ */
     m_toolsPanel = new QFrame(this);
