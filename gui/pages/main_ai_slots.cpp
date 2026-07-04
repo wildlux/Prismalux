@@ -298,6 +298,43 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         }
         return;
     }
+    /* ── Rigenera bypassando la cache risposte esatte (D-25) ──
+       Stesso schema di troncamento di "retry:" (id='ubbl:IDX' = bolla
+       utente che precede la risposta cachata), ma imposta
+       m_bypassResponseCache prima di ripresentare la domanda: senza
+       quel flag la cache restituirebbe di nuovo la stessa risposta
+       invece di richiamare davvero il modello. */
+    if (s.startsWith("regen:")) {
+        const int c1g = s.indexOf(':');
+        const int c2g = s.indexOf(':', c1g + 1);
+        if (c2g > 0) {
+            const int    userIdx  = s.mid(c1g + 1, c2g - c1g - 1).toInt();
+            const QString b64g    = s.mid(c2g + 1);
+            const QString origText = QString::fromUtf8(
+                QByteArray::fromBase64(b64g.toLatin1(), QByteArray::Base64UrlEncoding));
+            if (!origText.isEmpty()) {
+                if (m_log) {
+                    QString html = m_log->toHtml();
+                    const QString anchor = QString("id='ubbl:%1'").arg(userIdx);
+                    const int anchorPos  = html.indexOf(anchor);
+                    if (anchorPos > 0) {
+                        const int tablePos = html.lastIndexOf("<table", anchorPos);
+                        if (tablePos > 0) {
+                            html = html.left(tablePos);
+                            m_log->setHtml(html);
+                            m_log->moveCursor(QTextCursor::End);
+                        }
+                    }
+                }
+                m_bypassResponseCache = true;
+                m_input->setPlainText(origText.trimmed());
+                m_input->setFocus();
+                m_input->moveCursor(QTextCursor::End);
+                QTimer::singleShot(0, this, &AgentiPage::onBtnRunDelayedClick);
+            }
+        }
+        return;
+    }
     if (s.startsWith("toggle:simplify:")) {
         onToggleThunk(s.mid(16).toInt());
         return;

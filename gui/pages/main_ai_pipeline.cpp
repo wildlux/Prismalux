@@ -22,12 +22,66 @@ namespace P = PrismaluxPaths;
 #include <QTemporaryFile>
 #include <QFile>
 #include <QFileInfo>
+#include <QDir>
+#include <QDateTime>
+#include <QCryptographicHash>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <cmath>
 #include <algorithm>
 #include "../widgets/formula_parser.h"
 #include "../widgets/chart_widget.h"
 #include "../widgets/model_combo_helper.h"
 #include "dialog_agents_config.h"
+
+/* ══════════════════════════════════════════════════════════════
+   D-29 — Pre-selezione function tools per categoria: i 7 tool "pesanti"
+   aggiunti da D-33 (descrizioni lunghe, schema con molte proprietà)
+   vengono inclusi nella chiamata SOLO se la query corrente contiene una
+   keyword della loro categoria — riduce i token fissi delle definizioni
+   tool ad ogni turno, sensibile sui modelli locali. I tool "core" (calc,
+   ricerca, fetch_url, file, RAG, memoria, sub-agente, MCP — quelli
+   precedenti a D-33) restano sempre disponibili se abilitati dall'utente:
+   sono generici/imprevedibili da keyword e le loro descrizioni sono già
+   brevi, quindi filtrarli rischierebbe di rompere funzionalità esistenti
+   per un guadagno minimo.
+   Fallback di sicurezza: se NESSUNA categoria matcha, si includono
+   comunque TUTTI i tool pesanti — evita di negare al modello un tool che
+   gli serve per una formulazione imprevista dalle keyword (meglio
+   qualche token in più che una funzionalità silenziosamente assente).
+   ══════════════════════════════════════════════════════════════ */
+static const QSet<QString> kHeavyTools = {
+    "algoritmo", "codice_fiscale", "finanza_calcola", "valida_documento",
+    "carta_astrale", "converti", "disegna_grafico"
+};
+
+static QSet<QString> _relevantHeavyTools(const QString& query)
+{
+    const QString q = query.toLower();
+    struct Cat { const char* tool; QStringList keywords; };
+    static const QVector<Cat> kCats = {
+        { "algoritmo", {"mcd","mcm","fattorizzazione","fibonacci","catalan",
+            "collatz","hanoi","pascal","nqueens","n-regine","n regine",
+            "backtracking","edit distance","distanza di edit","lcs",
+            "sottosequenza","kmp","inversioni","profitto massimo"} },
+        { "codice_fiscale", {"codice fiscale","c.f."} },
+        { "finanza_calcola", {"mutuo","prestito","rata","interesse composto",
+            "tfr","ammortamento","capitalizzazione"} },
+        { "valida_documento", {"iban","partita iva","p.iva","valida",
+            "checksum"} },
+        { "carta_astrale", {"carta astrale","oroscopo","ascendente","zodiaco",
+            "segno zodiacale","tema natale","astrologia"} },
+        { "converti", {"converti","conversione","grammi","cucchia","tazza",
+            "fahrenheit","gas mark","ohm","km/h","mph","anno luce",
+            "unit\xc3\xa0 astronomica","forno"} },
+        { "disegna_grafico", {"grafico","disegna","traccia","plotta","plot","chart"} },
+    };
+    QSet<QString> out;
+    for (const auto& cat : kCats)
+        for (const QString& kw : cat.keywords)
+            if (q.contains(kw)) { out.insert(QString::fromLatin1(cat.tool)); break; }
+    return out.isEmpty() ? kHeavyTools : out;
+}
 
 /* ══════════════════════════════════════════════════════════════
    _buildOllamaTools — array tools in formato Ollama function calling.
@@ -293,6 +347,93 @@ static QJsonArray _buildOllamaTools()
 }
 
 /* ══════════════════════════════════════════════════════════════
+   Cache risposte esatte (D-25) — hash della query normalizzata →
+   risposta AI precedente. Query ripetute identiche = zero token,
+   con link "🔄 Rigenera" nella bolla per bypassare e richiamare
+   davvero il modello. Solo per chat singola (numAgents<=1): la
+   pipeline multi-agente e il Byzantino non passano da qui.
+   Persistita in ~/.prismalux/response_cache.json, cap a
+   kResponseCacheMax voci (evict le più vecchie per timestamp).
+   ══════════════════════════════════════════════════════════════ */
+static const int kResponseCacheMax = 300;
+
+static QString _responseCachePath()
+{
+    return QDir::homePath() + "/.prismalux/response_cache.json";
+}
+
+/* Normalizzazione minima: solo per il confronto "stessa domanda",
+ * non tocca il testo effettivamente inviato al modello. */
+static QString _normalizeForCache(const QString& text)
+{
+    QString s = text.trimmed().toLower();
+    s.replace(QRegularExpression("\\s+"), " ");
+    return s;
+}
+
+static QString _cacheKeyHash(const QString& task)
+{
+    return QString::fromLatin1(QCryptographicHash::hash(
+        _normalizeForCache(task).toUtf8(), QCryptographicHash::Sha256).toHex());
+}
+
+/* Ritorna la risposta cachata per @p task, o stringa vuota se assente
+ * o se il file di cache non esiste/è corrotto (fallback silenzioso:
+ * un cache-miss è sempre sicuro, si procede normalmente col modello). */
+static QString _lookupResponseCache(const QString& task)
+{
+    QFile f(_responseCachePath());
+    if (!f.open(QIODevice::ReadOnly)) return {};
+    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+    if (!doc.isObject()) return {};
+    const QJsonObject entries = doc.object().value("entries").toObject();
+    return entries.value(_cacheKeyHash(task)).toObject().value("response").toString();
+}
+
+/* Salva/aggiorna la voce di cache per @p task → @p response. Query oltre
+ * i 500 caratteri non vengono cachate: più lunga la domanda, più bassa
+ * la probabilità che si ripeta identica — non vale il costo di lettura/
+ * scrittura del file ad ogni turno. */
+static void _saveResponseCache(const QString& task, const QString& response)
+{
+    if (task.trimmed().isEmpty() || response.trimmed().isEmpty()) return;
+    if (task.length() > 500) return;
+
+    const QString path = _responseCachePath();
+    QDir().mkpath(QDir::homePath() + "/.prismalux");
+    QJsonObject root;
+    {
+        QFile f(path);
+        if (f.open(QIODevice::ReadOnly)) {
+            const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+            if (doc.isObject()) root = doc.object();
+        }
+    }
+    QJsonObject entries = root.value("entries").toObject();
+
+    QJsonObject entry;
+    entry["query"]    = task.left(300);
+    entry["response"] = response;
+    entry["ts"]       = QDateTime::currentSecsSinceEpoch();
+    entries[_cacheKeyHash(task)] = entry;
+
+    /* Evict le voci più vecchie se si supera il limite */
+    if (entries.size() > kResponseCacheMax) {
+        QVector<QPair<qint64, QString>> byAge;
+        for (auto it = entries.begin(); it != entries.end(); ++it)
+            byAge << qMakePair(static_cast<qint64>(it.value().toObject().value("ts").toDouble()), it.key());
+        std::sort(byAge.begin(), byAge.end());
+        const int toRemove = entries.size() - kResponseCacheMax;
+        for (int i = 0; i < toRemove; ++i) entries.remove(byAge[i].second);
+    }
+
+    root["entries"] = entries;
+    QFile out(path);
+    if (out.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        out.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
+}
+
+/* ══════════════════════════════════════════════════════════════
    _isChartRequest — rileva intento grafico nel linguaggio naturale.
    Controlla parole chiave italiane e inglesi comunemente usate quando
    l'utente vuole un grafico, senza richiedere una formula parsabile.
@@ -485,6 +626,47 @@ void AgentiPage::runPipeline() {
         }
     }
 
+    /* ── Guardia Cache risposte esatte (D-25) — solo chat singola:
+       pipeline multi-agente/Byzantino hanno semantiche diverse (più
+       agenti, contesto RAG condiviso) e non passano da questo fast-path.
+       Bypassata una volta dal link "🔄 Rigenera" (vedi onLogAnchorClicked,
+       "regen:") — altrimenti richiederebbe sempre la stessa risposta. ── */
+    if (m_cfgDlg->numAgents() <= 1) {
+        if (m_bypassResponseCache) {
+            m_bypassResponseCache = false;
+        } else {
+            const QString cached = _lookupResponseCache(task);
+            if (!cached.isEmpty()) {
+                QElapsedTimer tmr; tmr.start();
+                m_taskOriginal = task;
+                const int userIdx = m_bubbleIdx++;
+                m_bubbleTexts[userIdx] = task;
+                m_log->moveCursor(QTextCursor::End);
+                m_log->insertHtml(buildUserBubble(task, userIdx, taskHtml));
+                m_log->append("");
+                const double ms = tmr.nsecsElapsed() / 1e6;
+                const int respIdx = m_bubbleIdx++;
+                m_bubbleTexts[respIdx] = cached;
+                const QString b64task = task.left(4096).toUtf8().toBase64(
+                    QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+                const auto& c = bc();
+                const QString linkStyle = QString(
+                    "color:%1;font-size:12px;text-decoration:none;"
+                    "border:1px solid %2;padding:2px 10px;background:%3;")
+                    .arg(c.lBtnC, c.lBtnB, c.lBtn);
+                const QString regenLink =
+                    "<a href='regen:" + QString::number(userIdx) + ":" + b64task + "' style='"
+                    + linkStyle + "' title='Ignora la cache: richiedi una nuova risposta al modello'>"
+                    "&#128260; Rigenera</a>";
+                m_log->moveCursor(QTextCursor::End);
+                m_log->insertHtml(buildLocalBubble(cached, ms, respIdx, regenLink));
+                m_input->clear();
+                emit chatCompleted(task.left(40), m_log->toHtml());
+                return;
+            }
+        }
+    }
+
     int count = 0;
     for (int i = 0; i < MAX_AGENTS; i++)
         if (m_cfgDlg->enabledChk(i)->isChecked()) count++;
@@ -585,8 +767,10 @@ void AgentiPage::advancePipeline() {
         }
 
         /* Salva turno in history con Headroom (solo chat singola) */
-        if (m_maxShots == 1 && !m_taskOriginal.isEmpty() && !m_agentOutputs.isEmpty())
+        if (m_maxShots == 1 && !m_taskOriginal.isEmpty() && !m_agentOutputs.isEmpty()) {
             m_ctxSingle->appendPair(m_taskOriginal, m_agentOutputs.last());
+            _saveResponseCache(m_taskOriginal, m_agentOutputs.last()); /* D-25 */
+        }
 
         emit pipelineStatus(100, "\xe2\x9c\x85  Lavoro completato");
         _setRunBusy(false);
@@ -890,7 +1074,7 @@ void AgentiPage::runAgent(int idx) {
     /* Tool use nativo Ollama: attiva solo in CHAT singola con tool abilitati
        e backend Ollama (llama-server non supporta tool_calls nel formato Ollama). */
     if (m_toolsEnabled && isSingleChat && m_ai->backend() == AiClient::Ollama)
-        m_ai->setActiveTools(buildEnabledTools());
+        m_ai->setActiveTools(buildEnabledTools(m_taskOriginal));
     else
         m_ai->clearActiveTools();
 
@@ -1876,20 +2060,24 @@ void AgentiPage::_finishedPipeline(const QString& full) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   buildEnabledTools — array tools filtrato dalle checkbox del pannello.
+   buildEnabledTools — array tools filtrato dalle checkbox del pannello
+   E (D-29) dalla categoria della query corrente per i tool pesanti.
    Restituisce solo i tool con nome presente in m_enabledTools.
    Se m_enabledTools è vuoto, restituisce array vuoto (tool use disattivato).
    ══════════════════════════════════════════════════════════════ */
-QJsonArray AgentiPage::buildEnabledTools() const
+QJsonArray AgentiPage::buildEnabledTools(const QString& query) const
 {
     const QJsonArray all = _buildOllamaTools();
     if (m_enabledTools.isEmpty()) return QJsonArray{};
 
+    const QSet<QString> relevantHeavy = _relevantHeavyTools(query);
+
     QJsonArray out;
     for (const QJsonValue& v : all) {
         const QString name = v.toObject()["function"].toObject()["name"].toString();
-        if (m_enabledTools.contains(name))
-            out.append(v);
+        if (!m_enabledTools.contains(name)) continue;
+        if (kHeavyTools.contains(name) && !relevantHeavy.contains(name)) continue;
+        out.append(v);
     }
     return out;
 }

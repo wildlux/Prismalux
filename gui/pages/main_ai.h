@@ -284,6 +284,11 @@ private:
     QPushButton* m_btnVoiceLoop    = nullptr;
     bool         m_voiceLoopActive = false;
 
+    /* ── Cache risposte esatte (D-25) — vero per un solo giro dopo il click
+       su "🔄 Rigenera" nella bolla cachata, per bypassare la cache e
+       richiamare davvero il modello invece di riservire la stessa risposta. */
+    bool         m_bypassResponseCache = false;
+
     /* ── Tool Use ── */
     bool         m_toolsEnabled    = false;
     int          m_toolIteration   = 0;
@@ -318,8 +323,9 @@ private:
     QPushButton*   m_btnMcpToggle   = nullptr;  ///< toggle "🔌 Tool Lenti (M)"
     QSet<QString>  m_enabledMcps;               ///< MCP abilitati (tutti di default)
 
-    /** Costruisce l'array tools filtrato per la chat() — sostituisce _buildOllamaTools(). */
-    QJsonArray     buildEnabledTools() const;
+    /** Costruisce l'array tools filtrato per la chat() — sostituisce _buildOllamaTools().
+     *  @p query: usata per la pre-selezione per categoria dei tool pesanti (D-29). */
+    QJsonArray     buildEnabledTools(const QString& query) const;
     void           buildBottomBar(QVBoxLayout* lay);
     void           buildToolsPanel(QVBoxLayout* lay);
     void           updateToolsBtnLabel();
