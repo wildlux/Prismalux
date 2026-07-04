@@ -8,15 +8,87 @@
 #include <QTranslator>
 #include <QLocale>
 #include <QUuid>
+#include <QLocalServer>
+#include <QLocalSocket>
+#include <QSplashScreen>
+#include <QPainter>
+#include <QWindow>
 #include <csignal>
 #include <cstdio>
 #include "mainwindow.h"
 #include "lan_server.h"
 #include "ai_client.h"
 #include "prismalux_paths.h"
+#include "dpi_utils.h"
 #include "widgets/log_utils.h"
 
 namespace P = PrismaluxPaths;
+
+/* ── Single-instance (TODO D-18) ─────────────────────────────────────────────
+ * Socket locale per-utente: la seconda istanza si connette, la prima riceve
+ * newConnection e porta la finestra in primo piano invece di duplicarsi. */
+static QString instanceSocketName() {
+    return QStringLiteral("Prismalux_GUI_")
+         + qEnvironmentVariable("USER", QStringLiteral("default"));
+}
+
+class SingleInstanceGuard : public QObject {
+    Q_OBJECT
+public:
+    SingleInstanceGuard(QLocalServer* srv, QWidget* win)
+        : QObject(win), m_srv(srv), m_win(win) {
+        connect(srv, &QLocalServer::newConnection,
+                this, &SingleInstanceGuard::onNewConnection);
+        /* connessioni arrivate durante il boot (prima del connect) */
+        if (srv->hasPendingConnections())
+            onNewConnection();
+    }
+private slots:
+    void onNewConnection() {
+        while (QLocalSocket* c = m_srv->nextPendingConnection())
+            c->deleteLater();
+        /* NON showNormal(): de-massimizza una finestra già visibile a tutto
+         * schermo → su Wayland appare come scomparsa+ricomparsa (flicker).
+         * Togli solo lo stato minimized, preserva maximized/fullscreen. */
+        m_win->setWindowState(m_win->windowState() & ~Qt::WindowMinimized);
+        m_win->show();
+        m_win->raise();
+        m_win->activateWindow();
+    }
+private:
+    QLocalServer* m_srv;
+    QWidget*      m_win;
+};
+
+/* ── Splash — feedback immediato durante l'init pesante (QtWebEngine ecc.) ── */
+static QPixmap buildSplashPixmap() {
+    const int w = dpiScale(460);
+    const int h = dpiScale(240);
+    QPixmap pm(w, h);
+    pm.fill(QColor("#0f172a"));
+    QPainter p(&pm);
+    p.setRenderHint(QPainter::Antialiasing);
+
+    QFont f = qApp->font();
+    f.setPointSize(26);
+    f.setBold(true);
+    p.setFont(f);
+    p.setPen(QColor("#38bdf8"));
+    p.drawText(QRect(0, dpiScale(55), w, dpiScale(50)), Qt::AlignHCenter,
+               QString::fromUtf8("\xf0\x9f\x8d\xba Prismalux"));
+
+    f.setPointSize(10);
+    f.setBold(false);
+    p.setFont(f);
+    p.setPen(QColor("#94a3b8"));
+    p.drawText(QRect(0, dpiScale(115), w, dpiScale(24)), Qt::AlignHCenter,
+               "v" + QCoreApplication::applicationVersion()
+               + QString::fromUtf8(" \xe2\x80\x94 Costruito per i mortali che aspirano alla saggezza."));
+
+    p.setPen(QColor("#1e293b"));
+    p.drawRect(0, 0, w - 1, h - 1);
+    return pm;
+}
 
 /* Corregge i permessi dei file sensibili in ~/.prismalux/ e ~/.prismalux_chats/.
  * Eseguita una volta all'avvio, prima di qualsiasi I/O. */
@@ -186,6 +258,41 @@ int main(int argc, char* argv[]) {
     app.setApplicationVersion("3.0");
     app.setOrganizationName("Prismalux");
 
+    /* ── Single-instance (D-18): se un'altra istanza è già in ascolto,
+     *    le chiede il raise() e termina subito — niente processi duplicati
+     *    da doppio click impaziente durante il boot lento.              */
+    QLocalServer* instanceServer = nullptr;
+    {
+        QLocalSocket probe;
+        probe.connectToServer(instanceSocketName());
+        if (probe.waitForConnected(300)) {
+            probe.disconnectFromServer();
+            return 0;
+        }
+        /* socket stale da crash precedente → rimuovi e prendi il lock */
+        QLocalServer::removeServer(instanceSocketName());
+        instanceServer = new QLocalServer(&app);
+        if (!instanceServer->listen(instanceSocketName()))
+            qWarning() << "Single-instance: listen fallito —"
+                       << instanceServer->errorString();
+    }
+
+    /* ── Splash subito visibile: l'init di MainWindow (QtWebEngine, tab
+     *    eager, temi) può richiedere decine di secondi a freddo.        */
+    QSplashScreen splash(buildSplashPixmap());
+    splash.show();
+    splash.showMessage(QObject::tr("Caricamento interfaccia\xe2\x80\xa6"),
+                       Qt::AlignBottom | Qt::AlignHCenter, QColor("#e2e8f0"));
+    /* Wayland: la finestra è visibile solo dopo il primo commit del buffer,
+     * che richiede l'evento expose. Un singolo processEvents() non basta:
+     * pompa l'event loop (max ~1.2s) finché lo splash è davvero esposto,
+     * altrimenti resta invisibile durante il ctor bloccante di MainWindow. */
+    for (int i = 0; i < 60; ++i) {
+        app.processEvents(QEventLoop::AllEvents | QEventLoop::WaitForMoreEvents, 20);
+        if (splash.windowHandle() && splash.windowHandle()->isExposed())
+            break;
+    }
+
     /* ── Font professionali dalla cartella fonts/ (facoltativo) ── */
     loadBundledFonts();
 
@@ -235,6 +342,12 @@ int main(int argc, char* argv[]) {
     w.show();
     w.raise();
     w.activateWindow();
+    splash.finish(&w);
+
+    if (instanceServer)
+        new SingleInstanceGuard(instanceServer, &w);   /* parent: w */
 
     return app.exec();
 }
+
+#include "main.moc"

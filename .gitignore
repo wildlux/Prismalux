@@ -228,6 +228,9 @@ Tools/scripts/wiby_controller.py
 Tools/scripts/wiby_mitm.py
 Tools/scripts/wiby_stream_server.py
 
+# ── Macro Assistente Candidature — possono contenere valori "letterale:" ─────
+candidature_macros/
+
 # ── Segreti — prevenzione commit accidentale ─────────────────────────────────
 .env
 *.env

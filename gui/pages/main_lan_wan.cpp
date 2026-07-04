@@ -308,10 +308,11 @@ void LanWanPage::onQrConnectBtnClicked()
     const int     port  = m_lanPortSpin->value();
     const QString token = m_lanTokenEdit ? m_lanTokenEdit->text().trimmed() : QString();
 
-    /* URL formato http://IP:PORT/web?token=TOKEN
+    /* URL formato https://IP:PORT/web?token=TOKEN (schema reale del server:
+       con TLS attivo un link http:// non risponde affatto — connessione rifiutata)
        - È un link reale: si apre nel browser del telefono con la web chat già autenticata
        - L'app Android lo scansiona e compila IP, porta e token automaticamente */
-    QString url = QString("http://%1:%2/web").arg(ip).arg(port);
+    QString url = QString("%1://%2:%3/web").arg(serverScheme()).arg(ip).arg(port);
     if (!token.isEmpty()) {
         const QString enc = QString::fromLatin1(QUrl::toPercentEncoding(token));
         url += "?token=" + enc;
@@ -377,7 +378,7 @@ void LanWanPage::onUpdateQrInline()
     QString token = m_lanTokenEdit ? m_lanTokenEdit->text().trimmed() : QString();
     if (token.isEmpty())
         token = LanServer::loadLanToken();   // fallback diretto al file
-    QString url = QString("http://%1:%2/web").arg(ip).arg(port);
+    QString url = QString("%1://%2:%3/web").arg(serverScheme()).arg(ip).arg(port);
     if (!token.isEmpty())
         url += "?token=" + QString::fromLatin1(QUrl::toPercentEncoding(token));
 
@@ -437,16 +438,30 @@ void LanWanPage::onLanServerStatusChanged(bool running)
     m_qrPageBtn->setEnabled(running);
     m_lanWebBtn->setEnabled(running);
     if (running) {
-        const QString proto = m_lanServer->isTlsEnabled()
+        const bool tlsOn = m_lanServer->isTlsEnabled();
+        const QString proto = tlsOn
             ? "\xf0\x9f\x94\x92 HTTPS" : "\xf0\x9f\x94\x93 HTTP";
-        m_lanStatusLbl->setText(
-            "\xe2\x97\x8f  Attivo — " + proto + " — porta " +
-            QString::number(m_lanServer->port()));
-        m_lanStatusLbl->setStyleSheet("color: #4caf50; font-weight: bold;");
+        if (!tlsOn && m_lanServer->isTlsRequested()) {
+            /* TLS richiesto ma listen/openssl fallito → fallback HTTP silenzioso
+             * in LanServer::start(): il token Bearer viaggia in chiaro sulla LAN */
+            m_lanStatusLbl->setText(
+                "\xe2\x97\x8f  Attivo — " + proto + " — porta " +
+                QString::number(m_lanServer->port()) +
+                " — \xe2\x9a\xa0\xef\xb8\x8f TLS non disponibile: token in chiaro");
+            m_lanStatusLbl->setStyleSheet("color: #f59e0b; font-weight: bold;");
+        } else {
+            m_lanStatusLbl->setText(
+                "\xe2\x97\x8f  Attivo — " + proto + " — porta " +
+                QString::number(m_lanServer->port()));
+            m_lanStatusLbl->setStyleSheet("color: #4caf50; font-weight: bold;");
+        }
     } else {
         m_lanStatusLbl->setText(tr("\xe2\x97\x8b  Fermo"));
         m_lanStatusLbl->setStyleSheet("color: #9e9e9e;");
     }
+    /* Rigenera QR/URL: alla costruzione della pagina il TLS non è ancora
+     * attivo (serverScheme()="http"), diventa https solo dopo start() */
+    onUpdateQrInline();
 }
 
 /* ── Helper: legge MAC da /proc/net/arp dato un IP ── */

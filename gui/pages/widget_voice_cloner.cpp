@@ -73,10 +73,21 @@ VoiceClonerWidget::VoiceClonerWidget(QWidget* parent)
 
 VoiceClonerWidget::~VoiceClonerWidget()
 {
-    if (m_recProc   && m_recProc->state()   != QProcess::NotRunning) m_recProc->kill();
-    if (m_cloneProc && m_cloneProc->state() != QProcess::NotRunning) m_cloneProc->kill();
-    if (m_playProc  && m_playProc->state()  != QProcess::NotRunning) m_playProc->kill();
-    if (m_instProc  && m_instProc->state()  != QProcess::NotRunning) m_instProc->kill();
+    /* Copre TUTTI i QProcess figli, incluse le 3 probe anonime di
+     * checkTtsInstalled(): dentro deleteChildren() il ~QProcess di una probe
+     * ancora attiva emette finished() sincrono via waitForFinished(), il
+     * lambda chiama applyBackend() → setText() su label già distrutte → SEGV
+     * (coredump 2026-07-03). Il context `this` nel connect non protegge:
+     * la connessione è ancora viva durante la distruzione dei figli. */
+    const auto procs = findChildren<QProcess*>();
+    for (QProcess* p : procs) {
+        p->disconnect(this);
+        p->blockSignals(true);
+        if (p->state() != QProcess::NotRunning) {
+            p->kill();
+            p->waitForFinished(1000);
+        }
+    }
 }
 
 /* ──────────────────────────────────────────── costruzione UI ── */

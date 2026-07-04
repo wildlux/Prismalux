@@ -230,7 +230,8 @@ void ManutenzioneePage::onLanQrBtnEnableUpdate(bool on)
 void ManutenzioneePage::onQrBtnClicked()
 {
     if (!m_lanServer || !m_lanServer->isRunning()) return;
-    m_apkUrl = QString("http://%1:%2/apk")
+    m_apkUrl = QString("%1://%2:%3/apk")
+                   .arg(m_lanServer->isTlsEnabled() ? "https" : "http")
                    .arg(localLanIP())
                    .arg(m_lanServer->port());
 

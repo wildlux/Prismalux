@@ -39,6 +39,8 @@ public:
     /** Abilita/disabilita TLS self-signed (effetto al prossimo start()). */
     void setTlsEnabled(bool on) { m_tlsRequested = on; }
     bool isTlsEnabled()   const { return m_useTls; }
+    /** TLS richiesto ma non attivo ⇒ fallback HTTP avvenuto (da segnalare in UI). */
+    bool isTlsRequested() const { return m_tlsRequested; }
 
     /** Imposta l'indirizzo di bind (default AnyIPv4). */
     void setBindAddress(const QHostAddress& addr) { m_bindAddress = addr; }
