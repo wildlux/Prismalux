@@ -19,6 +19,8 @@
 #include <QTableWidgetItem>
 #include <QHeaderView>
 #include <QListWidget>
+#include <QSpinBox>
+#include <QMessageBox>
 #include <QSettings>
 #include <QDir>
 #include <QFile>
@@ -112,6 +114,19 @@ void Vision3DSceneCanvas::clearShots()
     m_shots.clear();
     m_selectedKey.clear();
     update();
+}
+
+bool Vision3DSceneCanvas::setShotPose(const QString& key, int heading, int pitch)
+{
+    for (V3dShotInfo& s : m_shots) {
+        if (s.key != key) continue;
+        s.heading = heading;
+        s.pitch = pitch;
+        s.hasSensors = true;    // posa impostata dall'utente = affidabile (linea piena)
+        update();
+        return true;
+    }
+    return false;
 }
 
 QPointF Vision3DSceneCanvas::project(double x, double y, double z) const
@@ -400,7 +415,7 @@ bool Vision3DWidget::start(quint16 port, const QString& certPath, const QString&
     m_urlLabel->setText(url);
     m_statusDot->setStyleSheet("color:#3fb950;font-size:18px;");
     m_toggleBtn->setText("Ferma server");
-    appendLog("Server attivo: " + url + "  — più telefoni possono connettersi.");
+    appendLog("Server attivo: " + url + "  — connetti i client iOS, Android o Desktop (browser).");
     emit serverStarted(url);
     fetchVlmModels();   // riempi il combo VLM coi modelli Ollama installati
     return true;
@@ -423,6 +438,39 @@ void Vision3DWidget::onToggleServerClicked()
 {
     if (m_running) stop();
     else start(quint16(m_portEdit->text().toUShort()));
+}
+
+/* Guida rapida richiamata dal pulsante "?" nell'intestazione. */
+void Vision3DWidget::onHelpClicked()
+{
+    const QString url = m_running && m_urlLabel ? m_urlLabel->text()
+                                                : QStringLiteral("https://IP-del-PC:8443");
+    QMessageBox box(this);
+    box.setWindowTitle("Vision3D — guida rapida");
+    box.setTextFormat(Qt::RichText);
+    box.setText(QString(
+        "<h3>1. Collegare i client (iOS, Android, Desktop)</h3>"
+        "<ol>"
+        "<li>Premi <b>Avvia server</b> (interfaccia LAN 192.168.x consigliata).</li>"
+        "<li>Sul client, stessa rete WiFi, apri nel browser: <b>%1</b></li>"
+        "<li>Avviso certificato (self-signed, normale): <i>Avanzate → Procedi</i>.</li>"
+        "<li><b>iOS</b>: Safari, poi tocca \xf0\x9f\xa7\xad Sensori e concedi il permesso "
+        "(obbligatorio da iOS 13).</li>"
+        "<li><b>Android</b>: se la bussola resta a 0\xc2\xb0 usa Firefox, oppure dopo gli "
+        "scatti premi <i>\xe2\x86\x94 Distribuisci sul cerchio</i> e correggi le pose a mano.</li>"
+        "<li><b>Desktop client</b>: qualunque browser del PC — utile con una webcam.</li>"
+        "</ol>"
+        "<h3>2. Installare COLMAP (nuvola di punti)</h3>"
+        "<p><code>sudo apt install colmap libposelib</code></p>"
+        "<p>Su alcune versioni di Ubuntu il pacchetto <code>colmap</code> non installa da "
+        "solo <code>libposelib</code> (errore <i>libPoseLib.so</i>): il comando sopra li "
+        "mette entrambi. Dopo l'installazione premi <b>\xe2\x9f\xb3 Ricontrolla</b> nella "
+        "sezione Ricostruzione: la verifica avviene a caldo, senza riavviare Prismalux.</p>"
+        "<h3>3. Consigli per la scansione</h3>"
+        "<p>Stampa i bersagli in <code>Tools/aruco/</code> al 100% (la scala reale del "
+        "modello arriva da l\xc3\xac), fai 15-20+ scatti girando intorno all'oggetto con "
+        "buona sovrapposizione, luce uniforme e sfondo fermo.</p>").arg(url));
+    box.exec();
 }
 
 void Vision3DWidget::onRefreshIfacesClicked()
@@ -462,6 +510,103 @@ void Vision3DWidget::onGalleryItemClicked(QListWidgetItem* item)
             desc.isEmpty() ? QStringLiteral("(nessuna descrizione)") : desc));
     if (m_scene)
         m_scene->setSelectedKey(basePath);   // evidenzia il cono nella scena 3D
+
+    // abilita la posa manuale con i valori correnti dal sidecar
+    m_selectedShotKey = basePath;
+    int heading = 0, pitch = 0;
+    QFile mf(basePath + ".json");
+    if (mf.open(QIODevice::ReadOnly)) {
+        const QJsonObject o = QJsonDocument::fromJson(mf.readAll()).object();
+        heading = o.value("heading_deg").toInt();
+        pitch   = o.value("pitch_deg").toInt();
+    }
+    if (m_poseHeadSpin) {
+        const QSignalBlocker b(m_poseHeadSpin);
+        m_poseHeadSpin->setValue(((heading % 360) + 360) % 360);
+        m_poseHeadSpin->setEnabled(true);
+    }
+    if (m_posePitchSpin) {
+        const QSignalBlocker b(m_posePitchSpin);
+        m_posePitchSpin->setValue(qBound(-90, pitch, 90));
+        m_posePitchSpin->setEnabled(true);
+    }
+}
+
+/* Persiste la posa nel sidecar .json: heading/pitch aggiornati + pose_manual,
+ * così sopravvive al riavvio e resta rieditabile. */
+void Vision3DWidget::writePoseSidecar(const QString& base, int heading, int pitch)
+{
+    QJsonObject o;
+    QFile rf(base + ".json");
+    if (rf.open(QIODevice::ReadOnly)) {
+        o = QJsonDocument::fromJson(rf.readAll()).object();
+        rf.close();
+    }
+    o["heading_deg"] = heading;
+    o["pitch_deg"]   = pitch;
+    o["pose_manual"] = true;
+    QFile wf(base + ".json");
+    if (wf.open(QIODevice::WriteOnly))
+        wf.write(QJsonDocument(o).toJson(QJsonDocument::Indented));
+}
+
+void Vision3DWidget::updateGalleryLabel(const QString& key, int heading)
+{
+    if (!m_gallery) return;
+    for (int i = 0; i < m_gallery->count(); ++i) {
+        QListWidgetItem* it = m_gallery->item(i);
+        if (it->data(Qt::UserRole).toString() != key) continue;
+        it->setText(QString("%1 #%2 %3\xc2\xb0")
+                        .arg(it->data(Qt::UserRole + 2).toString())
+                        .arg(it->data(Qt::UserRole + 3).toInt(), 3, 10, QChar('0'))
+                        .arg(heading));
+        return;
+    }
+}
+
+void Vision3DWidget::onPoseSpinChanged()
+{
+    if (m_selectedShotKey.isEmpty() || !m_poseHeadSpin || !m_posePitchSpin) return;
+    const int heading = m_poseHeadSpin->value();
+    const int pitch   = m_posePitchSpin->value();
+    writePoseSidecar(m_selectedShotKey, heading, pitch);
+    if (m_scene) m_scene->setShotPose(m_selectedShotKey, heading, pitch);
+    updateGalleryLabel(m_selectedShotKey, heading);
+}
+
+/* Angoli equidistanti per TUTTI gli scatti della sessione: il rimedio rapido
+ * quando la bussola ha registrato sempre lo stesso valore. Ogni scatto resta
+ * poi correggibile singolarmente con le caselle della posa manuale. */
+void Vision3DWidget::onDistributeClicked()
+{
+    if (!m_gallery || m_gallery->count() == 0) return;
+    const int n = m_gallery->count();
+    for (int i = 0; i < n; ++i) {
+        QListWidgetItem* it = m_gallery->item(i);
+        const QString key = it->data(Qt::UserRole).toString();
+        const int heading = (i * 360) / n;
+
+        int pitch = 0;                       // preserva l'inclinazione esistente
+        QFile mf(key + ".json");
+        if (mf.open(QIODevice::ReadOnly))
+            pitch = QJsonDocument::fromJson(mf.readAll()).object()
+                        .value("pitch_deg").toInt();
+
+        writePoseSidecar(key, heading, pitch);
+        if (m_scene) m_scene->setShotPose(key, heading, pitch);
+        updateGalleryLabel(key, heading);
+    }
+    // riallinea le caselle allo scatto selezionato, se ce n'è uno
+    if (!m_selectedShotKey.isEmpty() && m_poseHeadSpin) {
+        for (int i = 0; i < n; ++i)
+            if (m_gallery->item(i)->data(Qt::UserRole).toString() == m_selectedShotKey) {
+                const QSignalBlocker b(m_poseHeadSpin);
+                m_poseHeadSpin->setValue((i * 360) / n);
+                break;
+            }
+    }
+    appendLog(QString("Posa distribuita: %1 scatti a %2\xc2\xb0 di distanza l'uno dall'altro.")
+                  .arg(n).arg(360 / n));
 }
 
 /* Scansiona scan_output/ e riempie il combo sessioni (più recente prima). */
@@ -484,6 +629,9 @@ void Vision3DWidget::loadSessionIntoUi(const QString& session)
 {
     if (m_gallery) m_gallery->clear();
     if (m_scene)   m_scene->clearShots();
+    m_selectedShotKey.clear();                       // selezione persa col reload
+    if (m_poseHeadSpin)  m_poseHeadSpin->setEnabled(false);
+    if (m_posePitchSpin) m_posePitchSpin->setEnabled(false);
     if (session.isEmpty() || !m_gallery) return;
 
     const QDir sess(m_outputDir + "/" + session);
@@ -504,7 +652,9 @@ void Vision3DWidget::loadSessionIntoUi(const QString& session)
                 heading    = o.value("heading_deg").toInt();
                 pitch      = o.value("pitch_deg").toInt();
                 index      = o.value("index").toInt();
-                hasSensors = o.value("has_sensors").toBool();
+                // posa impostata a mano dall'utente = affidabile quanto i sensori
+                hasSensors = o.value("has_sensors").toBool()
+                             || o.value("pose_manual").toBool();
             }
 
             /* icona: decodifica direttamente scalata (veloce anche con molte foto) */
@@ -523,6 +673,8 @@ void Vision3DWidget::loadSessionIntoUi(const QString& session)
                     .arg(index, 3, 10, QChar('0')).arg(heading));
             it->setData(Qt::UserRole,     base);
             it->setData(Qt::UserRole + 1, QString());   // descrizione VLM non persistita
+            it->setData(Qt::UserRole + 2, dv.fileName());
+            it->setData(Qt::UserRole + 3, index);
             it->setToolTip(f);
             m_gallery->addItem(it);
             if (m_scene)
@@ -914,6 +1066,8 @@ Vision3DResult Vision3DWidget::analyze(const QString& session, const QString& de
             QString("%1 #%2 %3\xc2\xb0").arg(deviceId).arg(n, 3, 10, QChar('0')).arg(angle));
         it->setData(Qt::UserRole,     folder + "/" + base);   // base path per rivedere
         it->setData(Qt::UserRole + 1, r.description);
+        it->setData(Qt::UserRole + 2, deviceId);
+        it->setData(Qt::UserRole + 3, n);
         it->setToolTip(base + ".jpg");
         m_gallery->addItem(it);
         m_gallery->scrollToItem(it);
@@ -1089,6 +1243,60 @@ QByteArray Vision3DWidget::depthMap(const QByteArray& jpeg)
 static const char* kReconBtnIdle = "\xf0\x9f\xa7\x8a Crea nuvola di punti (COLMAP)"; /* 🧊 */
 static const char* kReconBtnBusy = "\xe2\x8f\xb9 Ferma ricostruzione";               /* ⏹ */
 
+/* Sonda COLMAP A CALDO: non basta trovare l'eseguibile, deve anche partire
+ * (caso reale: colmap installato ma libPoseLib.so assente → exit 127).
+ * ok=true solo se 'colmap help' esce con 0. Nessun riavvio necessario:
+ * si richiama dopo ogni 'sudo apt install' col pulsante Ricontrolla. */
+static QString probeColmap(bool& ok)
+{
+    ok = false;
+    const QString exe = QStandardPaths::findExecutable("colmap");
+    if (exe.isEmpty())
+        return QStringLiteral(
+            "COLMAP non installato: sudo apt install colmap libposelib — poi premi "
+            "\xe2\x9f\xb3 Ricontrolla (senza riavviare Prismalux). In alternativa le "
+            "foto in scan_output/ sono pronte per Meshroom.");
+    QProcess p;
+    p.start(exe, {"help"});
+    if (!p.waitForStarted(3000) || !p.waitForFinished(5000)) {
+        p.kill();
+        return QStringLiteral("COLMAP presente ma non risponde (timeout).");
+    }
+    if (p.exitCode() != 0) {
+        const QString err = QString::fromUtf8(p.readAllStandardError());
+        // "error while loading shared libraries: libPoseLib.so: cannot open…"
+        if (err.contains(QLatin1String("libPoseLib"), Qt::CaseInsensitive))
+            return QStringLiteral(
+                "COLMAP installato ma manca libPoseLib.so: sudo apt install libposelib "
+                "— poi premi \xe2\x9f\xb3 Ricontrolla (senza riavviare).");
+        if (err.contains(QLatin1String("shared libraries"), Qt::CaseInsensitive))
+            return QStringLiteral("COLMAP installato ma manca una libreria: %1")
+                   .arg(err.trimmed().left(160));
+        return QStringLiteral("COLMAP presente ma non parte (exit %1): %2")
+               .arg(p.exitCode()).arg(err.trimmed().left(120));
+    }
+    ok = true;
+    return QStringLiteral(
+        "COLMAP pronto. Nuvola di punti sparsa dalla sessione selezionata; il PLY "
+        "finale si apre con CloudCompare/MeshLab. Servono \xe2\x89\xa5 10-20 foto "
+        "con buona sovrapposizione.");
+}
+
+void Vision3DWidget::updateReconHint()
+{
+    if (!m_reconHint) return;
+    bool ok = false;
+    m_reconHint->setText(probeColmap(ok));
+}
+
+void Vision3DWidget::onReconRecheckClicked()
+{
+    bool ok = false;
+    const QString status = probeColmap(ok);
+    if (m_reconHint) m_reconHint->setText(status);
+    appendLog(QString("Controllo COLMAP: %1").arg(ok ? "pronto \xe2\x9c\x93" : status));
+}
+
 void Vision3DWidget::onReconStartClicked()
 {
     if (m_reconProc) {                      // già in corso → ferma
@@ -1102,12 +1310,14 @@ void Vision3DWidget::onReconStartClicked()
         return;
     }
 
-    const QString colmap = QStandardPaths::findExecutable("colmap");
-    if (colmap.isEmpty()) {
-        appendLog("COLMAP non installato: sudo apt install colmap — poi riprova. "
-                  "In alternativa apri la cartella della sessione con Meshroom.");
+    bool colmapOk = false;
+    const QString status = probeColmap(colmapOk);
+    if (!colmapOk) {                        // sonda a caldo: exe + librerie
+        if (m_reconHint) m_reconHint->setText(status);
+        appendLog(status);
         return;
     }
+    const QString colmap = QStandardPaths::findExecutable("colmap");
     const QString session = m_sessionCombo ? m_sessionCombo->currentText() : QString();
     if (session.isEmpty()) {
         appendLog("Nessuna sessione da ricostruire: scatta prima qualche foto.");
@@ -1226,12 +1436,18 @@ void Vision3DWidget::buildUi()
 
     auto* head = new QHBoxLayout;
     m_statusDot = new QLabel("●"); m_statusDot->setStyleSheet("color:#8b949e;font-size:18px;");
-    auto* title = new QLabel("<b>Prismalux Vision3D</b> — multi-device");
+    auto* title = new QLabel("<b>Prismalux Vision3D</b> — client iOS, Android e Desktop");
     m_urlLabel = new QLabel("(server fermo)");
     m_urlLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     m_urlLabel->setStyleSheet("color:#3fb0ff;");
     head->addWidget(m_statusDot); head->addWidget(title); head->addStretch();
     head->addWidget(new QLabel("URL:")); head->addWidget(m_urlLabel);
+    auto* helpBtn = new QPushButton("?");
+    helpBtn->setObjectName("v3dHelpBtn");
+    helpBtn->setFixedSize(dpiScale(28), dpiScale(28));
+    helpBtn->setToolTip("Guida rapida: installazione COLMAP e collegamento dei client");
+    connect(helpBtn, &QPushButton::clicked, this, &Vision3DWidget::onHelpClicked);
+    head->addWidget(helpBtn);
     root->addLayout(head);
 
     auto* ctrl = new QHBoxLayout;
@@ -1340,6 +1556,42 @@ void Vision3DWidget::buildUi()
     m_scene = new Vision3DSceneCanvas;
     m_scene->setObjectName("v3dScene");
     sceneLay->addWidget(m_scene, 1);
+
+    /* posa manuale: quando la bussola non dà rotazioni diverse (o sbaglia),
+       l'angolo/inclinazione dello scatto selezionato si impostano a mano.
+       Persistite nel sidecar .json → rieditabili anche dopo un riavvio. */
+    auto* poseRow = new QHBoxLayout;
+    poseRow->addWidget(new QLabel("Posa manuale \xe2\x80\x94 Angolo:"));
+    m_poseHeadSpin = new QSpinBox;
+    m_poseHeadSpin->setObjectName("v3dPoseHead");
+    m_poseHeadSpin->setRange(0, 359);
+    m_poseHeadSpin->setWrapping(true);              // 359° + 1 = 0°
+    m_poseHeadSpin->setSuffix("\xc2\xb0");
+    m_poseHeadSpin->setEnabled(false);              // finché nessuno scatto è selezionato
+    m_poseHeadSpin->setToolTip("Posizione sul cerchio (bussola) dello scatto selezionato.\n"
+                               "Seleziona uno scatto in galleria, poi regola qui.");
+    connect(m_poseHeadSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &Vision3DWidget::onPoseSpinChanged);
+    poseRow->addWidget(m_poseHeadSpin);
+    poseRow->addWidget(new QLabel("Inclin.:"));
+    m_posePitchSpin = new QSpinBox;
+    m_posePitchSpin->setObjectName("v3dPosePitch");
+    m_posePitchSpin->setRange(-90, 90);
+    m_posePitchSpin->setSuffix("\xc2\xb0");
+    m_posePitchSpin->setEnabled(false);
+    m_posePitchSpin->setToolTip("Inclinazione del telefono (quota della camera nella scena).");
+    connect(m_posePitchSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &Vision3DWidget::onPoseSpinChanged);
+    poseRow->addWidget(m_posePitchSpin);
+    m_distribBtn = new QPushButton("\xe2\x86\x94 Distribuisci sul cerchio");   /* ↔ */
+    m_distribBtn->setObjectName("v3dDistribBtn");
+    m_distribBtn->setToolTip("Assegna a TUTTI gli scatti della sessione angoli equidistanti\n"
+                             "(utile quando la bussola ha registrato sempre lo stesso valore).\n"
+                             "Poi puoi correggere i singoli scatti con le caselle qui accanto.");
+    connect(m_distribBtn, &QPushButton::clicked, this, &Vision3DWidget::onDistributeClicked);
+    poseRow->addWidget(m_distribBtn);
+    poseRow->addStretch();
+    sceneLay->addLayout(poseRow);
     rightLay->addWidget(sceneBox, 1);
 
     auto* reconBox = new QGroupBox("Ricostruzione 3D (fotogrammetria)");
@@ -1360,18 +1612,23 @@ void Vision3DWidget::buildUi()
     m_qualityCombo->setToolTip("low = veloce (CPU), high = lento ma dettagliato");
     sesRow->addWidget(m_qualityCombo);
     reconLay->addLayout(sesRow);
+    auto* reconBtnRow = new QHBoxLayout;
     m_reconBtn = new QPushButton("\xf0\x9f\xa7\x8a Crea nuvola di punti (COLMAP)");  /* 🧊 */
     m_reconBtn->setObjectName("v3dReconBtn");
     connect(m_reconBtn, &QPushButton::clicked, this, &Vision3DWidget::onReconStartClicked);
-    reconLay->addWidget(m_reconBtn);
-    auto* reconHint = new QLabel(
-        QStandardPaths::findExecutable("colmap").isEmpty()
-            ? "COLMAP non installato: sudo apt install colmap. Le foto restano comunque "
-              "pronte in scan_output/ per Meshroom o altri tool."
-            : "Nuvola di punti sparsa dalla sessione selezionata; il PLY finale si apre "
-              "con CloudCompare/MeshLab. Servono \xe2\x89\xa5 10-20 foto con buona sovrapposizione.");
-    reconHint->setWordWrap(true);
-    reconLay->addWidget(reconHint);
+    reconBtnRow->addWidget(m_reconBtn, 1);
+    auto* recheckBtn = new QPushButton("\xe2\x9f\xb3 Ricontrolla");   /* ⟳ */
+    recheckBtn->setObjectName("v3dRecheckBtn");
+    recheckBtn->setToolTip("Riverifica COLMAP a caldo (eseguibile + librerie), senza\n"
+                           "riavviare Prismalux: premilo dopo un 'sudo apt install'.");
+    connect(recheckBtn, &QPushButton::clicked, this, &Vision3DWidget::onReconRecheckClicked);
+    reconBtnRow->addWidget(recheckBtn);
+    reconLay->addLayout(reconBtnRow);
+    m_reconHint = new QLabel;
+    m_reconHint->setObjectName("v3dReconHint");
+    m_reconHint->setWordWrap(true);
+    reconLay->addWidget(m_reconHint);
+    updateReconHint();          // sonda subito exe + librerie (aggiornabile a caldo)
     rightLay->addWidget(reconBox);
 
     split->addWidget(rightCol);
@@ -1431,7 +1688,7 @@ button:active{transform:scale(.97);}
 .hint{font-size:.76rem;color:var(--mut);line-height:1.5;margin-top:6px;}
 .devbadge{display:inline-block;background:#132a3d;border:1px solid var(--acc);color:var(--acc);padding:3px 10px;border-radius:20px;font-size:.78rem;}
 </style></head><body>
-<header>&#9670; PRISMALUX Vision3D <small>Pi&#249; telefoni, un unico progetto</small></header>
+<header>&#9670; PRISMALUX Vision3D <small>Client iOS, Android e Desktop &#8212; un unico progetto</small></header>
 <div class="wrap">
 <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
 <div><label style="margin:0">Questo dispositivo</label><span class="devbadge" id="devId">assegnazione&#8230;</span></div>

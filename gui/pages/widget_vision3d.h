@@ -44,6 +44,7 @@ class QComboBox;
 class QListWidget;
 class QListWidgetItem;
 class QNetworkReply;
+class QSpinBox;
 
 // Risultato di una singola foto analizzata.
 struct Vision3DResult {
@@ -94,6 +95,8 @@ public:
     void setSelectedKey(const QString& key);
     void clearShots();
     int  shotCount() const { return int(m_shots.size()); }
+    /** Aggiorna la posa di uno scatto (modifica manuale). Ritorna false se key ignota. */
+    bool setShotPose(const QString& key, int heading, int pitch);
 
 protected:
     void paintEvent(QPaintEvent*) override;
@@ -150,6 +153,10 @@ private slots:
     void onVlmModelChanged(const QString& model);
     void onVlmTagsReady();
     void onSessionComboChanged(const QString& session);
+    void onPoseSpinChanged();
+    void onDistributeClicked();
+    void onHelpClicked();
+    void onReconRecheckClicked();
     void onReconStartClicked();
     void onReconProcOutput();
     void onReconProcFinished(int code, QProcess::ExitStatus status);
@@ -193,6 +200,9 @@ private:
     void fetchVlmModels();          // popola il combo VLM da Ollama /api/tags
     void populateSessions(const QString& select = QString());  // scansiona scan_output/
     void loadSessionIntoUi(const QString& session);  // galleria + scena 3D da disco
+    void writePoseSidecar(const QString& base, int heading, int pitch);  // persiste posa
+    void updateGalleryLabel(const QString& key, int heading);
+    void updateReconHint();          // ricontrolla COLMAP a caldo (exe + librerie)
 
 #if QT_CONFIG(ssl)
     QSslServer*       m_server = nullptr;
@@ -233,9 +243,14 @@ private:
 
     // scena 3D + ricostruzione
     Vision3DSceneCanvas* m_scene = nullptr;
+    QSpinBox*       m_poseHeadSpin  = nullptr;  // posa manuale: angolo bussola
+    QSpinBox*       m_posePitchSpin = nullptr;  // posa manuale: inclinazione
+    QPushButton*    m_distribBtn    = nullptr;  // distribuisci scatti sul cerchio
+    QString         m_selectedShotKey;          // basePath dello scatto selezionato
     QComboBox*      m_sessionCombo = nullptr;
     QComboBox*      m_qualityCombo = nullptr;
     QPushButton*    m_reconBtn   = nullptr;
+    QLabel*         m_reconHint  = nullptr;   // stato COLMAP, aggiornabile a caldo
     QProcess*       m_reconProc  = nullptr;
     int             m_reconStep  = 0;         // 0=reconstructor 1=export PLY
     QString         m_reconSessionDir;

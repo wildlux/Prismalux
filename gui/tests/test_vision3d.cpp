@@ -21,6 +21,7 @@
 #include <QTableWidget>
 #include <QComboBox>
 #include <QListWidget>
+#include <QSpinBox>
 #include <QProcess>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -147,6 +148,19 @@ private slots:
         QCOMPARE(scene->shotCount(), 0);
         QVERIFY(w.findChild<QPushButton*>("v3dReconBtn") != nullptr);
         QVERIFY(w.findChild<QComboBox*>("v3dSessionCombo") != nullptr);
+        // posa manuale: spinbox disabilitati finché nessuno scatto è selezionato
+        auto* head = w.findChild<QSpinBox*>("v3dPoseHead");
+        auto* pit  = w.findChild<QSpinBox*>("v3dPosePitch");
+        QVERIFY(head != nullptr && pit != nullptr);
+        QVERIFY(!head->isEnabled() && !pit->isEnabled());
+        QVERIFY(head->wrapping());                          // 359°+1 = 0°
+        QVERIFY(w.findChild<QPushButton*>("v3dDistribBtn") != nullptr);
+        // guida "?" + ricontrollo COLMAP a caldo + hint di stato
+        QVERIFY(w.findChild<QPushButton*>("v3dHelpBtn") != nullptr);
+        QVERIFY(w.findChild<QPushButton*>("v3dRecheckBtn") != nullptr);
+        auto* hint = w.findChild<QLabel*>("v3dReconHint");
+        QVERIFY(hint != nullptr);
+        QVERIFY(!hint->text().isEmpty());   // la sonda ha già scritto lo stato
     }
 };
 
