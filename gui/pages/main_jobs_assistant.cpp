@@ -267,7 +267,10 @@ QWidget* LavoroPage::buildAssistenteTab(QWidget* parent, QWidget* candidatureCon
     splitter->setStretchFactor(0, 5);
     splitter->setStretchFactor(1, 3);
     splitter->setStretchFactor(2, 3);
-    rootLay->addWidget(splitter);
+    /* stretch 1 obbligatorio: QSplitter orizzontale ha politica verticale
+       Preferred, senza stretch lo spazio extra andava spartito con la
+       toolbar che si gonfiava a ~200px di vuoto sopra il browser. */
+    rootLay->addWidget(splitter, 1);
 
     caricaProfiliCandidato();
 

@@ -74,6 +74,11 @@ public:
     static QString loadSecret(const QString& key);
     static void    deleteSecret(const QString& key);
 
+    /** Genera certificato self-signed in ~/.prismalux/ se non esiste. Ritorna false se
+     *  openssl non disponibile. Pubblico: riusato da Vision3DWidget (stesso cert per
+     *  tutta l'app → il telefono accetta l'avviso del browser una volta sola). */
+    [[nodiscard]] static bool _ensureCert(QString& certPath, QString& keyPath);
+
     /** Confronto constant-time — evita timing attack sui token Bearer. */
     [[nodiscard]] static bool timingSafeEqual(const QString& a, const QString& b);
 
@@ -152,8 +157,6 @@ private:
     [[nodiscard]] QByteArray httpOkHeader(const char* contentType) const;
     [[nodiscard]] QByteArray httpStreamHeader() const;
     static void appendAccessLog(const QString& addr, const QString& method, const QString& path);
-    /** Genera certificato self-signed in ~/.prismalux/ se non esiste. Ritorna false se openssl non disponibile. */
-    [[nodiscard]] static bool _ensureCert(QString& certPath, QString& keyPath);
     [[nodiscard]] bool checkChatRateLimit(Session& s);  ///< true = limit exceeded
     [[nodiscard]] bool checkHeavyRateLimit(Session& s); ///< whisper/graphviz/mcp/launch: max 6/min
     void serveLlmQueue();   ///< serve la prossima richiesta dalla coda LLM

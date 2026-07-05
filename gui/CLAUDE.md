@@ -60,7 +60,7 @@ Note:
 - Cron (`m_cronPanel`) in StrumentiPage via `installCronPanel()` con `QTimer::singleShot(0)`
 - AppController tab indici: 0=Blender 1=FreeCAD 2=Office 3=CloudCompare 4=Anki 5=KiCAD 6=TinyMCP 7=OBS 8=Godot 9=GameModding 10=OpenCode 11=Telegram 12=WhatsApp
 - Game Modding tabIdx logico: 9 in AppController (giochi: GTA V, Skyrim SE, Terraria, WoW, Noita, Minecraft, Stardew, RimWorld)
-- Multimedia tab indici: 0=Audio AI 1=Genera Immagini 2=Mappe concettuali 3=Mappa OSM 4=Sintetizzatore 5=Clona Voce 6=OCR webcam
+- Multimedia tab indici: 0=Audio AI 1=Genera Immagini 2=Mappe concettuali 3=Mappa OSM 4=Sintetizzatore 5=Clona Voce 6=OCR webcam 7=Analizza Video 8=Scan 3D (`Vision3DWidget`)
 - Strumenti sub-tab indici: 0-5=categorie assistente 6=Cron 7=Impara 8=Sfida 9=File AI 10=RAM LLM (`RamCalculatorWidget`)
 - Web app (lan_server.cpp) tab 🎙️ Voce: TTS (SpeechSynthesis) + STT (MediaRecorder→/api/whisper)
 - ProgrammazionePage sub-tab extra: Dev Agent (costruito da AppController.buildDevAgentTab()), Sicurezza (SecurityAnalyzerPage)
@@ -150,6 +150,7 @@ Prismalux/
 | `widgets/tri_mode_button.h` | TriModeButton: ovale QPainter 3 settori (Chat/Agentico/Conversa) + hub azione; emoji SVG OpenMoji opzionale; Shift+Tab cicla modalità |
 | `widgets/ai_error_widget.h` | Header-only Q_OBJECT — `showError(msg, onRetry)` — elencato in CPP_SRCS |
 | `widgets/code_interpreter_widget.h/cpp` | Python sandbox: exec, matplotlib PNG, Docker |
+| `pages/widget_vision3d.h/cpp` | Vision3D (Multimedia→Scan 3D): server HTTPS porta `P::kVision3DPort`, foto da telefoni → VLM Ollama + box OpenCV + depth (`Tools/scripts/depth_infer.py`) + scala ArUco (`Tools/aruco/` PDF stampabili); cert condiviso `LanServer::_ensureCert` |
 | `widgets/world_map_widget.h/cpp` | WorldMapWidget OpenStreetMap tiles + Nominatim + routing OSRM (waypoint, polyline, draw) |
 | `MCPs/knowledge_mcp/server.py` | Knowledge Updater MCP (JSON-RPC 2.0 stdio) |
 | `MCPs/ollama_mcp/server.py` | Ollama model cache MCP — SQLite TTL 5min, 5 tool (list/info/search/sync/pull) |
@@ -713,6 +714,7 @@ ctest --test-dir gui/build_tests --exclude-regex "AiIntegration|AiStress|TeamCol
 | `GraphMemoryConcurrent` | `test_graph_memory_concurrent` | 17 PASS — isolamento connessioni SQLite, lettura/scrittura sequenziale 2 istanze, scrittura concorrente 2 thread, lettura cross-istanza |
 | `McpIntegration` | `test_mcp_integration` | 21 PASS, 1 SKIP — struttura `McpManagerPage`, `scanMcpServers`, protocollo JSON-RPC smoke test; ⚠️ CAT-D venv assente in questo ambiente |
 | `ExternalAiImport` | `test_external_ai_import` | 9 PASS — CAT-A parsing OpenAI (mapping/current_node), Anthropic (chat_messages), generico role/content, multi-conversazione; CAT-B JSON non valido/formato ignoto/file assente/content vuoto |
+| `Vision3D` | `test_vision3d` | 19 PASS — CAT-A costruzione, UI, porta default `P::kVision3DPort`, setter, combo interfacce (LAN 192.168 prima, no docker/virbr, loopback in coda), galleria `v3dGallery` + combo VLM `v3dVlmCombo`, scena 3D `v3dScene` (addShot dedup/clear) + ricostruzione `v3dReconBtn`/`v3dSessionCombo`; CAT-B stop idempotente, distruzione pulita, start porta privilegiata; CAT-C e2e server HTTPS reale con curl su bind 127.0.0.1 (GET pagina, 404, POST /upload salva jpg+json) — QSKIP senza curl/openssl |
 
 ### Note operative
 - `SimulatoreAlgos`: FLAKY in `-j4`, PASS standalone → `RESOURCE_LOCK cpu_heavy`

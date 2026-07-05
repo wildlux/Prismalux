@@ -251,3 +251,6 @@ ANDROID/QT_ANDROID_Version/android_app/tests/build_test/
 
 # ── Kivy buildozer — cache build locale (>3GB) ───────────────────────────────
 ANDROID/kivy_VERSION/.buildozer/
+
+# ── Vision3D — foto scansioni 3D ricevute dai telefoni (dati locali) ────────
+scan_output/

@@ -32,6 +32,24 @@ if(Qt6_FOUND)
     endif()
 endif()
 
+# ── OpenCV (opzionale) — Vision3D: box oggetti + scala automatica ArUco ───
+# Se manca OpenCV, box e ArUco si auto-disabilitano (fallback pulito nel widget).
+# Il modulo aruco è in opencv-contrib: senza, restano i box ma non la scala.
+find_package(OpenCV QUIET)
+if(OpenCV_FOUND)
+    include_directories(${OpenCV_INCLUDE_DIRS})
+    list(APPEND QT_LIBS ${OpenCV_LIBS})
+    add_compile_definitions(VISION3D_USE_OPENCV)
+    if(TARGET opencv_aruco OR "${OpenCV_LIBS}" MATCHES "aruco")
+        add_compile_definitions(VISION3D_USE_ARUCO)
+        message(STATUS "Prismalux GUI: OpenCV ${OpenCV_VERSION} + aruco — Vision3D box e scala abilitati")
+    else()
+        message(STATUS "Prismalux GUI: OpenCV ${OpenCV_VERSION} senza aruco — Vision3D solo box (installa opencv-contrib per la scala)")
+    endif()
+else()
+    message(STATUS "Prismalux GUI: OpenCV non trovato — Vision3D box e ArUco disabilitati")
+endif()
+
 # ── Qt6Multimedia — rilevamento microfono reale (QAudioSource) ────────────
 if(Qt6_FOUND)
     find_package(Qt6 COMPONENTS Multimedia QUIET)
@@ -257,6 +275,7 @@ set(CPP_SRCS
     pages/widget_solar_calc.cpp
     pages/widget_idro.cpp
     pages/widget_bike.cpp
+    pages/widget_vision3d.cpp
     pages/widget_ram_calculator.cpp
     pages/widget_stable_diffusion.cpp
     pages/widget_synthesizer.cpp
@@ -617,6 +636,19 @@ if(BUILD_TESTS)
     target_link_libraries(test_programmazione_page PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
     if(NOT WIN32)
         target_link_libraries(test_programmazione_page PRIVATE pthread m)
+    endif()
+
+    # ── test_vision3d: Vision3DWidget costruzione + setters + stop idempotente ──
+    add_executable(test_vision3d
+        tests/test_vision3d.cpp
+    )
+    target_include_directories(test_vision3d PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    target_link_libraries(test_vision3d PRIVATE test_shared_objs ${QT_LIBS} ${QT_TEST_LIB})
+    if(NOT WIN32)
+        target_link_libraries(test_vision3d PRIVATE pthread m)
     endif()
 
     # ── test_ai_memory: AIMemory git-backed (CAT-A costruzione + CAT-B operazioni) ──
@@ -1466,6 +1498,7 @@ if(BUILD_TESTS)
     add_test(NAME AppController        COMMAND test_app_controller)
     add_test(NAME McpManager           COMMAND test_mcp_manager)
     add_test(NAME ProgrammazionePage   COMMAND test_programmazione_page)
+    add_test(NAME Vision3D             COMMAND test_vision3d)
     add_test(NAME ThinkingDetect       COMMAND test_thinking_detect)
     add_test(NAME AiIntegration        COMMAND test_ai_integration)
     add_test(NAME AiStress             COMMAND test_ai_stress)

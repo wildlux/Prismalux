@@ -1,5 +1,6 @@
 #include "main_multimedia.h"
 #include "widget_stable_diffusion.h"
+#include "widget_vision3d.h"
 #include "../prismalux_paths.h"
 #include "../dpi_utils.h"
 #include "../widgets/stt_whisper.h"
@@ -65,6 +66,7 @@ MultimediaPage::MultimediaPage(AiClient* ai, QWidget* parent)
     tabs->addTab(buildVoiceClonerTab(),   "\xf0\x9f\x8e\xa4  Clona Voce");       /* 🎤 */
     tabs->addTab(buildOcrTab(),            "\xf0\x9f\x94\x8d  OCR webcam");     /* 🔍 */
     tabs->addTab(buildVideoCaptionTab(), "\xf0\x9f\x8e\xac  Analizza Video");  /* 🎬 */
+    tabs->addTab(buildVision3DTab(),     "\xf0\x9f\x93\xb7  Scan 3D");         /* 📷 */
 
     lay->addWidget(tabs);
 }
@@ -72,6 +74,13 @@ MultimediaPage::MultimediaPage(AiClient* ai, QWidget* parent)
 QWidget* MultimediaPage::buildSDTab()
 {
     return new StableDiffusionWidget(this);
+}
+
+/* Vision3D — scansione 3D da telefono/tablet: server HTTPS + VLM + box + depth.
+ * Il server NON parte alla costruzione: l'utente lo avvia col pulsante. */
+QWidget* MultimediaPage::buildVision3DTab()
+{
+    return new Vision3DWidget(this);
 }
 
 QWidget* MultimediaPage::buildSintetizzatoreTab()

@@ -135,6 +135,7 @@ private:
     QWidget* buildOcrTab();
     QWidget* buildOsmMapTab();
     QWidget* buildVideoCaptionTab();
+    QWidget* buildVision3DTab();
 
     /* ── Mappa OSM ── */
     class WorldMapWidget* m_osmMap         = nullptr;

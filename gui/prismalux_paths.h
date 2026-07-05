@@ -73,6 +73,9 @@ constexpr int kWanComputePort = 11600;
 /** Porta Calcolo Scientifico Distribuito BOINC-like */
 constexpr int kSciComputePort = 11601;
 
+/** Porta server HTTPS Vision3D (scansione 3D da telefono/tablet, tab Multimedia) */
+constexpr int kVision3DPort = 8443;
+
 /** Timeout invocazione MCP standard (plugin leggeri: Anki, OBS, GNS3, ecc.) */
 constexpr int kMcpDefaultTimeoutMs = 30'000;
 /** Timeout invocazione MCP per plugin pesanti: Stable Diffusion, Blender, FreeCAD */
@@ -1103,6 +1106,9 @@ constexpr const char* kSttFastWhisperModel   = "stt/fast_whisper_model";   ///< 
 constexpr const char* kSttFastWhisperEnabled = "stt/fast_whisper_enabled"; ///< abilita faster-whisper in priorità su whisper-cli (default: true)
 constexpr const char* kSttDiarizeEnabled     = "stt/diarize_enabled";      ///< abilita diarizzazione speaker dopo trascrizione (default: false)
 constexpr const char* kSttDiarizeNSpeakers   = "stt/diarize_n_speakers";   ///< numero speaker fisso (0 = auto-detect, default: 0)
+
+/* ── Vision3D (scansione 3D da telefono) ─────────── */
+constexpr const char* kVision3dVlmModel = "vision3d/vlmModel"; ///< modello vision Ollama (default: "moondream")
 
 /* ── AI — modello/backend preferiti dall'utente ──── */
 constexpr const char* kActiveModel     = "ai/activeModel";    ///< ultimo modello selezionato manualmente
