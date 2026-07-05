@@ -68,6 +68,11 @@ public:
         int* codeCounter = nullptr);
 
     /* ── Utility testabili (pubbliche per unit test e futuro refactor A2) ── */
+    /** Guardia matematica locale — ritorna risultato se gestita, "" altrimenti */
+    static QString guardiaMath(const QString& input);
+    /** Guardia data/ora locale — domanda secca su ora/data → risposta
+     *  dall'orologio di sistema (zero LLM, zero web), "" altrimenti */
+    static QString guardiaDataOra(const QString& input);
     /** Estrae il primo blocco ```python...``` dall'output dell'agente */
     static QString extractPythonCode(const QString& text);
     /** Corregge bug tipici nel codice Python generato dall'AI (__name__ guard, ecc.) */
@@ -405,7 +410,7 @@ private:
     QString      m_pageModel;               ///< Modello preferito per questa scheda (privato)
     QPushButton* m_btnRegen     = nullptr;  ///< "Rigenera con [modello]" — visibile dopo cambio LLM
     QLabel*      m_modelWarnLbl = nullptr;  ///< avviso capabilities modello (vision/tool)
-    QCheckBox*   m_chkAutoRouting = nullptr;  ///< D-27: routing automatico dominio→modello (opt-in)
+    QCheckBox*   m_chkAutoRouting = nullptr;  ///< D-27: routing automatico dominio→modello (default ON)
     /** D-27: se "Routing automatico" è attivo, ritorna un modello installato più
      *  adatto al task (coder per domande di codice, vision se c'è un'immagine
      *  allegata); altrimenti ritorna 'fallback' invariato (scelta manuale del
@@ -467,6 +472,9 @@ private:
                            const QString& model, const QString& inputText);
 
     void runPipeline();
+    /** Bolla QR evento (risultato "QR_EVENTO_JSON:" del tool
+     *  crea_evento_calendario) — true se il risultato è stato gestito */
+    bool _showQrEventoBubble(const QString& result);
     void runByzantine();
     void runMathTheory();
     void runConsiglioScientifico();
@@ -474,9 +482,6 @@ private:
     static double jaccardSim(const QString& a, const QString& b);
     void runAgent(int idx);
     void advancePipeline();
-
-    /** Guardia matematica locale — ritorna risultato se gestita, "" altrimenti */
-    static QString guardiaMath(const QString& input);
 
     /** Bolla risposta locale (0 token — calcolo math) — pubblica sopra */
 
@@ -585,6 +590,7 @@ private slots:
     /** Indica ai file URL droppati nella zona RAG specializzata (PDF/txt/md) */
     void _ingestRagFiles(const QList<QUrl>& urls);
     void onBtnHintHideClicked();
+    void onHintLinkActivated(const QString& link);  ///< link "Cosa sai fare?" nei suggerimenti → esegue la domanda
     void onBtnRunClicked();
     void onSymbolBtnClicked();      ///< inserisce il simbolo da sender()->property("symbol")
     void onBtnSymbolsClicked();     ///< mostra/nasconde m_symbolsScrollArea

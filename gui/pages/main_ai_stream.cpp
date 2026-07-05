@@ -430,10 +430,8 @@ void AgentiPage::onChatCompletedSave(const QString& title, const QString& logHtm
 bool AgentiPage::_detectWebIntent(const QString& msg)
 {
     static const QStringList kPatterns = {
-        /* Orario / data */
-        "che ore sono", "che ora", "ora attuale", "orario attuale",
-        "che giorno", "data di oggi", "data oggi", "giorno oggi",
-        "che giorno \xc3\xa8",   /* è */
+        /* Orario/data: NON qui — il web non conosce l'ora locale del PC.
+           Gestiti da guardiaDataOra() (zero LLM) o dalla direttiva D-31. */
         /* Richiesta esplicita di connessione online */
         "collegati online", "vai online", "cerca online", "cerca su internet",
         "cerca in rete", "cerca sul web", "cerca su google", "cerca su bing",
@@ -516,6 +514,10 @@ void AgentiPage::runWebSearchAgent(const QString& query)
 
         emit pipelineStatus(40, "\xf0\x9f\xa4\x96  Elaboro risultati...");
         m_ai->chat(sys, userWithContext);
+        /* chat() può rifiutare la richiesta (throttle <400ms, RAM critica,
+           già occupato): in quel caso nessun finished()/error() arriverà —
+           senza questo reset il pulsante resterebbe su "Stop" per sempre. */
+        if (!m_ai->busy()) _setRunBusy(false);
     });
 }
 

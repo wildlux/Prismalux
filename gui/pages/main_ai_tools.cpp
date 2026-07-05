@@ -398,9 +398,15 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             proc->deleteLater();
             onDone(out.isEmpty() ? "nessun risultato" : out);
         });
-        connect(proc, &QProcess::errorOccurred, this, [proc](QProcess::ProcessError err) {
-            if (err == QProcess::FailedToStart)
+        connect(proc, &QProcess::errorOccurred, this, [proc, onDone](QProcess::ProcessError err) {
+            /* FailedToStart: finished() non verrà mai emesso e il timeout non
+               scatta (stato già NotRunning) — senza onDone() qui il chiamante
+               resterebbe appeso (es. pulsante bloccato su "Stop"). */
+            if (err == QProcess::FailedToStart) {
                 qWarning() << "[main_ai_tools] calc non avviato:" << proc->program();
+                proc->deleteLater();
+                onDone("errore: interprete Python non avviato");
+            }
         });
         proc->start(P::findPython(), {"-c", script});
         QTimer::singleShot(5000, proc, [proc, onDone]{
@@ -487,7 +493,7 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             if (capitale <= 0) { onDone("errore: 'capitale' deve essere positivo"); return; }
             if (anni > 200) { onDone("errore: 'anni' troppo elevato (max 200)"); return; }
             const double montante = capitale * std::pow(1.0 + tasso / 100.0, anni);
-            onDone(QString("%1 \xe2\x82\xac al %2%% annuo (interesse composto) per %3 anni "
+            onDone(QString("%1 \xe2\x82\xac al %2% annuo (interesse composto) per %3 anni "
                            "\xe2\x86\x92 %4 \xe2\x82\xac (interessi maturati: %5 \xe2\x82\xac)")
                 .arg(QString::number(capitale, 'f', 2), QString::number(tasso, 'g', 6))
                 .arg(anni)
@@ -503,7 +509,7 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             const int n = anni * 12;
             const double rata = (i > 0) ? capitale * i / (1.0 - std::pow(1.0 + i, -n)) : capitale / n;
             const double totalePagato = rata * n;
-            onDone(QString("mutuo di %1 \xe2\x82\xac al %2%% annuo in %3 anni "
+            onDone(QString("mutuo di %1 \xe2\x82\xac al %2% annuo in %3 anni "
                            "(ammortamento francese, rata costante) \xe2\x86\x92 rata mensile %4 \xe2\x82\xac, "
                            "totale pagato %5 \xe2\x82\xac (interessi %6 \xe2\x82\xac)")
                 .arg(QString::number(capitale, 'f', 2), QString::number(tassoAnn, 'g', 6))
@@ -522,11 +528,11 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             double fondo = 0.0;
             for (int y = 1; y <= anni; ++y) { fondo += quotaAnnua; fondo *= (1.0 + tassoRival); }
             const double tfrSemplice = quotaAnnua * anni;
-            onDone(QString("TFR su %1 anni, stipendio lordo annuo %2 \xe2\x82\xac, inflazione %3%% "
-                           "\xe2\x80\x94 quota annua %4 \xe2\x82\xac, tasso rivalutazione %5%% "
+            onDone(QString("TFR su %1 anni, stipendio lordo annuo %2 \xe2\x82\xac, inflazione %3% "
+                           "\xe2\x80\x94 quota annua %4 \xe2\x82\xac, tasso rivalutazione %5% "
                            "\xe2\x86\x92 TFR rivalutato %6 \xe2\x82\xac (senza rivalutazione %7 \xe2\x82\xac). "
-                           "Netto stimato: %8 \xe2\x82\xac in azienda (tassazione separata ~23%%) o "
-                           "%9 \xe2\x82\xac in fondo pensione (imposta sostitutiva 15%%, calcolo indicativo art. 2120 c.c.)")
+                           "Netto stimato: %8 \xe2\x82\xac in azienda (tassazione separata ~23%) o "
+                           "%9 \xe2\x82\xac in fondo pensione (imposta sostitutiva 15%, calcolo indicativo art. 2120 c.c.)")
                 .arg(anni)
                 .arg(QString::number(stip, 'f', 0), QString::number(infl * 100.0, 'f', 1))
                 .arg(QString::number(quotaAnnua, 'f', 2), QString::number(tassoRival * 100.0, 'f', 2))
@@ -772,9 +778,14 @@ void AgentiPage::runToolCall(const QJsonObject& call,
             s_ddgCache[cacheKey] = { result, QDateTime::currentMSecsSinceEpoch() };
             onDone(result);
         });
-        connect(proc, &QProcess::errorOccurred, this, [proc](QProcess::ProcessError err) {
-            if (err == QProcess::FailedToStart)
+        connect(proc, &QProcess::errorOccurred, this, [proc, onDone](QProcess::ProcessError err) {
+            /* FailedToStart: vedi nota nel tool calc — senza onDone() il
+               chiamante (es. runWebSearchAgent) resterebbe su "Stop". */
+            if (err == QProcess::FailedToStart) {
                 qWarning() << "[main_ai_tools] ricerca non avviata:" << proc->program();
+                proc->deleteLater();
+                onDone("errore: interprete Python non avviato");
+            }
         });
         proc->start(P::findPython(), {"-c", script});
         QTimer::singleShot(12000, proc, [proc, onDone]{
@@ -1950,8 +1961,12 @@ QString _inject_date_calc(const QString& task)
 
     /* ── Fuso orario: "che ora è a CITTÀ" ── */
     {
+        /* NB: delimitatore raw string "rx" obbligatorio — con R"(...)" la
+           sequenza finale `\s))` conteneva `)"` e troncava il pattern,
+           rendendo la regex INVALIDA (guardia mai attiva). Il range degli
+           accentati usa \x{..} Unicode (prima erano byte UTF-8 spezzati). */
         static const QRegularExpression re(
-            R"(che\s+(?:ora|ore)\s+(?:[èe]|sono|fa)\s+(?:a|in|adesso\s+a)\s+([a-z\xc3\xa0-\xc3\xbf\s]{2,20}?)(?:\?|$|\s+se\s)",
+            R"rx(che\s+(?:ora|ore)\s+(?:[èe]|sono|fa)\s+(?:a|in|adesso\s+a)\s+([a-z\x{00e0}-\x{00ff}\s]{2,20}?)(?:\?|$|\s+se\s))rx",
             QRegularExpression::CaseInsensitiveOption);
         const auto m = re.match(ql);
         if (m.hasMatch()) {
@@ -2010,6 +2025,135 @@ QString _inject_date_calc(const QString& task)
 }
 
 /* ══════════════════════════════════════════════════════════════
+   _parseEventoRequest — parsing locale (zero LLM) di una richiesta
+   di evento calendario: "creami un evento festa in maschera il
+   31/10/2026 dalle 21 alle 23 presso casa di Anna".
+   Ritorna {} se il testo non è una richiesta di evento; altrimenti
+   un oggetto pronto per il tool crea_evento_calendario. La chiave
+   "data" è ASSENTE se nel testo non c'è una data riconoscibile: il
+   chiamante risponde chiedendo la data (sempre in locale).
+   ══════════════════════════════════════════════════════════════ */
+QJsonObject _parseEventoRequest(const QString& task)
+{
+    const QString lo = task.toLower().trimmed();
+    if (lo.length() > 220) return {};
+
+    /* Intento: verbo di creazione + evento/appuntamento/promemoria */
+    static const QRegularExpression reIntent(
+        R"rx(\b(?:crea(?:mi)?|genera(?:mi)?|fammi|prepara(?:mi)?|salva(?:mi)?|aggiungi(?:mi)?)\s+(?:un[o']?\s+|un'\s*|il\s+|l')?(?:evento|appuntamento|promemoria)\b)rx");
+    const auto mi = reIntent.match(lo);
+    if (!mi.hasMatch()) return {};
+
+    const QDate today = QDate::currentDate();
+    QJsonObject ev;
+    ev["formato"] = "entrambi";
+
+    /* ── Data ── */
+    QDate data;
+    int dateAt = -1;                 /* posizione del marcatore data (per il titolo) */
+    {   /* dd/mm[/yyyy] */
+        static const QRegularExpression reD(
+            R"((\d{1,2})[\/\-\.](\d{1,2})(?:[\/\-\.](\d{2,4}))?)");
+        const auto m = reD.match(lo);
+        if (m.hasMatch()) {
+            int y = today.year(); bool explicitYear = false;
+            if (!m.captured(3).isEmpty()) {
+                y = m.captured(3).toInt();
+                if (y < 100) y += 2000;
+                explicitYear = true;
+            }
+            QDate d(y, m.captured(2).toInt(), m.captured(1).toInt());
+            if (d.isValid()) {
+                if (!explicitYear && d < today) d = d.addYears(1);
+                data = d; dateAt = m.capturedStart();
+            }
+        }
+    }
+    if (!data.isValid()) {   /* "12 agosto [2026]" */
+        static const QRegularExpression reM(
+            R"((\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)(?:\s+(\d{4}))?)");
+        const auto m = reM.match(lo);
+        if (m.hasMatch()) {
+            static const QStringList kMesi = {
+                "gennaio","febbraio","marzo","aprile","maggio","giugno",
+                "luglio","agosto","settembre","ottobre","novembre","dicembre" };
+            int y = today.year(); bool explicitYear = false;
+            if (!m.captured(3).isEmpty()) { y = m.captured(3).toInt(); explicitYear = true; }
+            QDate d(y, kMesi.indexOf(m.captured(2)) + 1, m.captured(1).toInt());
+            if (d.isValid()) {
+                if (!explicitYear && d < today) d = d.addYears(1);
+                data = d; dateAt = m.capturedStart();
+            }
+        }
+    }
+    if (!data.isValid()) {   /* domani / dopodomani */
+        int p = lo.indexOf("dopodomani");
+        if (p >= 0) { data = today.addDays(2); dateAt = p; }
+        else if ((p = lo.indexOf("domani")) >= 0) { data = today.addDays(1); dateAt = p; }
+    }
+    if (data.isValid()) ev["data"] = data.toString("yyyy-MM-dd");
+
+    /* ── Orari: "dalle 21[:30]" + "alle 23[:15]" (o solo "alle 21") ── */
+    static const QRegularExpression reDalle(
+        R"(\bdalle(?:\s+ore)?\s+(\d{1,2})(?:[:.](\d{2}))?)");
+    static const QRegularExpression reAlle(
+        R"(\balle(?:\s+ore)?\s+(\d{1,2})(?:[:.](\d{2}))?)");
+    auto oraDa = [](const QRegularExpressionMatch& m) -> QTime {
+        const int h = m.captured(1).toInt();
+        const int mm = m.captured(2).isEmpty() ? 0 : m.captured(2).toInt();
+        return (h <= 23 && mm <= 59) ? QTime(h, mm) : QTime();
+    };
+    const auto mDa = reDalle.match(lo);
+    const auto mA  = reAlle.match(lo);
+    int oraAt = -1;
+    if (mDa.hasMatch()) {
+        const QTime t = oraDa(mDa);
+        if (t.isValid()) { ev["ora_inizio"] = t.toString("HH:mm"); oraAt = mDa.capturedStart(); }
+        if (mA.hasMatch()) {
+            const QTime tf = oraDa(mA);
+            if (tf.isValid()) ev["ora_fine"] = tf.toString("HH:mm");
+        }
+    } else if (mA.hasMatch()) {
+        const QTime t = oraDa(mA);
+        if (t.isValid()) { ev["ora_inizio"] = t.toString("HH:mm"); oraAt = mA.capturedStart(); }
+    }
+
+    /* ── Luogo: "presso X" (fino a fine frase o alla data/ora) ── */
+    int luogoAt = -1;
+    {
+        static const QRegularExpression reL(
+            R"(\bpresso\s+(.{2,60}?)(?=\s+(?:il|dalle|alle)\b|,|\.|$))");
+        const auto m = reL.match(lo);
+        if (m.hasMatch()) {
+            /* prende il testo con il case originale */
+            ev["luogo"] = task.mid(m.capturedStart(1), m.capturedLength(1)).trimmed();
+            luogoAt = m.capturedStart();
+        }
+    }
+
+    /* ── Titolo: dal termine dell'intento fino al primo marcatore ── */
+    int cut = lo.length();
+    for (int p : { dateAt, oraAt, luogoAt })
+        if (p > mi.capturedEnd() && p < cut) cut = p;
+    QString titolo = task.mid(mi.capturedEnd(), cut - mi.capturedEnd()).trimmed();
+    /* connettivi iniziali e residui finali ("... il", "... in data") */
+    static const QRegularExpression reLead(
+        R"rx(^(?:per\s+(?:il|la|lo|l')?\s*|di\s+|del(?:la|lo)?\s+|dal\s+titolo\s+|chiamato\s+|intitolato\s+|:\s*)+)rx",
+        QRegularExpression::CaseInsensitiveOption);
+    titolo.remove(reLead);
+    static const QRegularExpression reTail(
+        R"rx((?:\s+(?:il|lo|la|in\s+data|data|per|del))+$)rx",
+        QRegularExpression::CaseInsensitiveOption);
+    titolo.remove(reTail);
+    titolo = titolo.trimmed();
+    if (titolo.isEmpty()) titolo = "Evento";
+    else titolo[0] = titolo[0].toUpper();
+    ev["titolo"] = titolo;
+
+    return ev;
+}
+
+/* ══════════════════════════════════════════════════════════════
    _inject_help — risponde a "cosa sai fare?"/"aiuto"/"comandi" con
    l'elenco (tabella Markdown) di tutte le domande rapide zero-LLM
    disponibili, invece di lasciare che il modello inventi/dimentichi
@@ -2025,7 +2169,7 @@ QString _inject_help(const QString& task)
     if (lo.length() > 60) return task;   /* frase di aiuto: sempre breve */
 
     static const QRegularExpression re(
-        R"(^(?:cosa\s+sai\s+fare|cosa\s+puoi\s+fare|che\s+(?:funzioni|cose|comandi)\s+hai|aiuto|help|comandi(?:\s+disponibili)?|guida|elenco\s+(?:comandi|funzioni))\??\.?$)",
+        R"(^(?:ciao[, ]+)?(?:che\s+)?(?:cosa\s+(?:sai|puoi|posso|si\s+pu(?:o'|ò))\s+fare|che\s+(?:funzioni|cose|comandi)\s+hai|quali\s+sono\s+le\s+tue\s+funzioni|aiuto|help|comandi(?:\s+disponibili)?|guida|elenco\s+(?:comandi|funzioni))\??\.?$)",
         QRegularExpression::CaseInsensitiveOption);
     if (!re.match(lo).hasMatch()) return task;
 
@@ -2045,36 +2189,45 @@ QString _inject_help(const QString& task)
     const QString chartExample =
         kChartExamples.at(QRandomGenerator::global()->bounded(kChartExamples.size()));
 
+    /* Colonna "{{PROVA:comando}}": segnaposto sostituito in runPipeline
+     * (DOPO markdownToHtml) con un link <a href='prova:BASE64URL'>▶ Prova</a>
+     * che inserisce il comando nella casella e lo invia. Il comando dentro
+     * il segnaposto deve evitare & < > * ` _ (attraversa escHtml/inlineFmt). */
     return QString::fromUtf8(
         "HELP_MARKDOWN:"
         "**Ecco le domande che rispondo istantaneamente senza interpellare il modello AI "
         "(risposta locale, zero token):**\n\n"
-        "| Categoria | Esempio | Cosa calcola |\n"
-        "|---|---|---|\n"
-        "| \xf0\x9f\x94\xa2 Matematica/Fisica | \"quanti watt con 12V e 2A\" | Ohm, RC, chimica, conversioni unit\xc3\xa0 |\n"
-        "| \xf0\x9f\x93\x90 Geometria | \"area di un rettangolo con base 5 e altezza 3\" | Triangolo, rettangolo, cubo, cilindro |\n"
-        "| \xe2\x9a\x96\xef\xb8\x8f IMC | \"imc per 70kg e 1.75m\" | Indice di massa corporea + fascia |\n"
-        "| \xf0\x9f\x9b\x90 Numeri romani | \"quanto \xc3\xa8 MCMXCIV\" / \"1994 in romano\" | Conversione bidirezionale |\n"
-        "| \xf0\x9f\x93\x85 Date | \"quanti mesi mancano a dicembre\" | Calendario reale, gg/mesi/anni |\n"
-        "| \xf0\x9f\x8e\x82 Et\xc3\xa0 | \"quanti anni ho se sono nato il 15/03/1990\" | Et\xc3\xa0 esatta + giorni al compleanno |\n"
-        "| \xf0\x9f\x93\x86 Giorno settimana | \"che giorno era il 25/12/2020\" | Calendario deterministico |\n"
-        "| \xf0\x9f\x8c\x8d Fuso orario | \"che ora \xc3\xa8 a New York\" | Ora reale in altre citt\xc3\xa0 |\n"
-        "| \xf0\x9f\x92\xbc Giorni lavorativi | \"giorni lavorativi tra 03/07/2026 e 15/08/2026\" | Esclusi sabati/domeniche |\n"
-        "| \xf0\x9f\x8d\xb3 Cucina | \"quanti grammi sono 200ml di farina\" | ml\xe2\x86\x94grammi, forno, cucchiai/tazze |\n"
-        "| \xf0\x9f\x92\xb3 IBAN | \"\xc3\xa8 valido questo IBAN: IT60...\" | Cifra di controllo (mod-97) |\n"
-        "| \xf0\x9f\x86\x94 Codice Fiscale | \"RSSMRA85M01H501Q \xc3\xa8 valido?\" | Checksum + data nascita/sesso |\n"
-        "| \xf0\x9f\x8f\xa2 Partita IVA | \"12345678903 \xc3\xa8 una p.iva valida?\" | Checksum ufficiale |\n"
-        "| \xf0\x9f\x92\xb0 Sconti/IVA/% | \"sconto del 15% su 80 euro\" | Percentuali, sconti, scorporo IVA |\n"
-        "| \xf0\x9f\x93\x88 Interesse/Mutuo | \"rata di un mutuo da 100000 euro al 3% in 20 anni\" | Composto, ammortamento francese |\n"
-        "| \xf0\x9f\x94\x91 Generatori | \"genera una password di 20 caratteri\" | UUID, hash, password casuali |\n"
-        "| \xf0\x9f\x92\xb1 Cambio valuta | \"100 EUR in USD\" | Tasso reale aggiornato (BCE) |\n"
-        "| \xf0\x9f\x93\x86 Evento calendario | \"creami un evento per il compleanno\" | QR code Google Calendar/.ics |\n"
-        "| \xf0\x9f\x93\x9d Statistiche testo | \"quante parole ha: <testo>\" | Parole/caratteri/frasi + tempo lettura |\n"
+        "| Categoria | Esempio | Prova | Cosa calcola |\n"
+        "|---|---|---|---|\n"
+        "| \xf0\x9f\x94\xa2 Matematica/Fisica | \"quanti watt con 12V e 2A\" | {{PROVA:quanti watt con 12V e 2A}} | Ohm, RC, chimica, conversioni unit\xc3\xa0 |\n"
+        "| \xf0\x9f\x93\x90 Geometria | \"area di un rettangolo con base 5 e altezza 3\" | {{PROVA:area di un rettangolo con base 5 e altezza 3}} | Triangolo, rettangolo, cubo, cilindro |\n"
+        "| \xe2\x9a\x96\xef\xb8\x8f IMC | \"imc per 70kg e 1.75m\" | {{PROVA:imc per 70kg e 1.75m}} | Indice di massa corporea + fascia |\n"
+        "| \xf0\x9f\x9b\x90 Numeri romani | \"quanto \xc3\xa8 MCMXCIV\" / \"1994 in romano\" | {{PROVA:quanto \xc3\xa8 MCMXCIV}} | Conversione bidirezionale |\n"
+        "| \xf0\x9f\x93\x85 Date | \"quanti mesi mancano a dicembre\" | {{PROVA:quanti mesi mancano a dicembre}} | Calendario reale, gg/mesi/anni |\n"
+        "| \xf0\x9f\x8e\x82 Et\xc3\xa0 | \"quanti anni ho se sono nato il 15/03/1990\" | {{PROVA:quanti anni ho se sono nato il 15/03/1990}} | Et\xc3\xa0 esatta + giorni al compleanno |\n"
+        "| \xf0\x9f\x93\x86 Giorno settimana | \"che giorno era il 25/12/2020\" | {{PROVA:che giorno era il 25/12/2020}} | Calendario deterministico |\n"
+        "| \xf0\x9f\x8c\x8d Fuso orario | \"che ora \xc3\xa8 a New York\" | {{PROVA:che ora \xc3\xa8 a New York}} | Ora reale in altre citt\xc3\xa0 |\n"
+        "| \xf0\x9f\x92\xbc Giorni lavorativi | \"giorni lavorativi tra 03/07/2026 e 15/08/2026\" | {{PROVA:giorni lavorativi tra 03/07/2026 e 15/08/2026}} | Esclusi sabati/domeniche |\n"
+        "| \xf0\x9f\x8d\xb3 Cucina | \"quanti grammi sono 200ml di farina\" | {{PROVA:quanti grammi sono 200ml di farina}} | ml\xe2\x86\x94grammi, forno, cucchiai/tazze |\n"
+        "| \xf0\x9f\x92\xb3 IBAN | \"\xc3\xa8 valido questo IBAN: IT60...\" | {{PROVA:\xc3\xa8 valido questo IBAN: IT60X0542811101000000123456}} | Cifra di controllo (mod-97) |\n"
+        "| \xf0\x9f\x86\x94 Codice Fiscale | \"RSSMRA85M01H501Q \xc3\xa8 valido?\" | {{PROVA:RSSMRA85M01H501Q \xc3\xa8 valido?}} | Checksum + data nascita/sesso |\n"
+        "| \xf0\x9f\x8f\xa2 Partita IVA | \"12345678903 \xc3\xa8 una p.iva valida?\" | {{PROVA:12345678903 \xc3\xa8 una p.iva valida?}} | Checksum ufficiale |\n"
+        "| \xf0\x9f\x92\xb0 Sconti/IVA/% | \"sconto del 15% su 80 euro\" | {{PROVA:sconto del 15% su 80 euro}} | Percentuali, sconti, scorporo IVA |\n"
+        "| \xf0\x9f\x93\x88 Interesse/Mutuo | \"rata di un mutuo da 100000 euro al 3% in 20 anni\" | {{PROVA:rata di un mutuo da 100000 euro al 3% in 20 anni}} | Composto, ammortamento francese |\n"
+        "| \xf0\x9f\x94\x91 Generatori | \"genera una password di 20 caratteri\" | {{PROVA:genera una password di 20 caratteri}} | UUID, hash, password casuali |\n"
+        "| \xf0\x9f\x93\x86 Evento calendario | \"creami un evento festa in maschera il 31/10/2026 dalle 21 alle 23\" | {{PROVA:creami un evento festa in maschera il 31/10/2026 dalle 21 alle 23}} | QR da scansionare col telefono \xe2\x86\x92 salva l'evento sul calendario |\n"
+        "| \xf0\x9f\x93\x9d Statistiche testo | \"quante parole ha: <testo>\" | {{PROVA:quante parole ha: Nel mezzo del cammin di nostra vita}} | Parole/caratteri/frasi + tempo lettura |\n"
         "| \xf0\x9f\xa7\xae Algoritmi classici | \"mcd tra 48 e 18\", \"fattorizzazione di 360\", \"decimo numero di fibonacci\", "
-        "\"torre di hanoi con 8 dischi\", \"profitto massimo con prezzi 7,1,5,3,6,4\" | MCD/MCM, fattori primi, Pascal, Fibonacci, "
+        "\"torre di hanoi con 8 dischi\", \"profitto massimo con prezzi 7,1,5,3,6,4\" | {{PROVA:mcd tra 48 e 18}} | MCD/MCM, fattori primi, Pascal, Fibonacci, "
         "Catalan, Collatz, Hanoi, profitto azioni, inversioni, posizione in array, edit distance/LCS, ricerca pattern |\n"
         "| \xf0\x9f\x93\x88 Grafico | \"") + chartExample + QString::fromUtf8(
-        "\" | Plot Cartesiano istantaneo (prova questo!) |\n\n"
+        "\" | {{PROVA:") + chartExample + QString::fromUtf8(
+        "}} | Plot Cartesiano istantaneo (prova questo!) |\n\n"
+        "**Con l'aiuto del modello AI** (il modello selezionato chiama un tool \xe2\x80\x94 "
+        "serve un modello tool-capable e, per la valuta, la rete):\n\n"
+        "| Categoria | Esempio | Prova | Cosa fa |\n"
+        "|---|---|---|---|\n"
+        "| \xf0\x9f\x92\xb1 Cambio valuta | \"100 EUR in USD\" | {{PROVA:100 EUR in USD}} | Tasso reale aggiornato (BCE, via tool) |\n\n"
         "**Grafici**: scrivendo *\"grafico di FORMULA\"* oppure *\"y = FORMULA\"* disegno subito "
         "il plot cartesiano nella chat. Per torta, istogramma, radar, candlestick e le altre "
         "tipologie disponibili, usa il canvas dedicato nella tab Matematica/Grafico (richiedono "
@@ -2341,7 +2494,7 @@ QString _inject_finance(const QString& task)
             const int    anni     = m.captured(3).toInt();
             if (capitale > 0 && anni > 0 && anni <= 200) {
                 const double montante = capitale * std::pow(1.0 + tasso / 100.0, anni);
-                return QString("[Calcolo locale: %1 \xe2\x82\xac al %2%% annuo (interesse composto) per %3 anni "
+                return QString("[Calcolo locale: %1 \xe2\x82\xac al %2% annuo (interesse composto) per %3 anni "
                                 "\xe2\x86\x92 %4 \xe2\x82\xac (interessi maturati: %5 \xe2\x82\xac)]\n\n")
                     .arg(QString::number(capitale, 'f', 2), QString::number(tasso, 'g', 6))
                     .arg(anni)
@@ -2369,7 +2522,7 @@ QString _inject_finance(const QString& task)
                     ? capitale * i / (1.0 - std::pow(1.0 + i, -n))
                     : capitale / n;   /* tasso 0%: rata = capitale/n */
                 const double totalePagato = rata * n;
-                return QString("[Calcolo locale: mutuo di %1 \xe2\x82\xac al %2%% annuo in %3 anni "
+                return QString("[Calcolo locale: mutuo di %1 \xe2\x82\xac al %2% annuo in %3 anni "
                                 "(ammortamento francese, rata costante) \xe2\x86\x92 rata mensile %4 \xe2\x82\xac, "
                                 "totale pagato %5 \xe2\x82\xac (interessi %6 \xe2\x82\xac)]\n\n")
                     .arg(QString::number(capitale, 'f', 2), QString::number(tassoAnn, 'g', 6))

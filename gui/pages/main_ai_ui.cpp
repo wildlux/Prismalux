@@ -246,7 +246,8 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
     toolLay->addWidget(llmLbl);
     toolLay->addWidget(m_cmbLLM);
 
-    /* D-27: routing automatico dominio→modello — opt-in, default OFF.
+    /* D-27: routing automatico dominio→modello — default ON: instradare a
+     * un modello specializzato riduce il carico sul modello generale.
      * Non tocca la selezione visibile nel combo (usa AiClient::setModel(),
      * non setBackend(): nessun modelChanged() emesso) — instrada solo la
      * singola richiesta a un modello coder/vision installato quando serve. */
@@ -257,7 +258,7 @@ void AgentiPage::buildToolbarLLMSelector(QHBoxLayout* toolLay, QWidget* toolbar)
         "(se presente), per immagini allegate un modello vision — senza cambiare "
         "la tua selezione nel menu a tendina."));
     m_chkAutoRouting->setChecked(
-        QSettings("Prismalux", "GUI").value(P::SK::kAutoModelRouting, false).toBool());
+        QSettings("Prismalux", "GUI").value(P::SK::kAutoModelRouting, true).toBool());
     connect(m_chkAutoRouting, &QCheckBox::toggled, this, [](bool on) {
         QSettings("Prismalux", "GUI").setValue(P::SK::kAutoModelRouting, on);
     });
@@ -739,16 +740,26 @@ void AgentiPage::buildHintFooter(QVBoxLayout* lay)
     hintLay->setContentsMargins(6, 2, 6, 2);
     hintLay->setSpacing(6);
 
+    /* Link "Cosa sai fare?" — stesso meccanismo "prova:" della tabella help:
+       clic = inserisce la domanda nella casella e la invia (risposta locale
+       con l'elenco completo delle funzioni, zero token). */
+    const QString askB64 = QString::fromLatin1(
+        QByteArray("cosa sai fare?").toBase64(
+            QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
     auto* hintLbl = new QLabel(
-        "\xe2\x8c\xa8  <b>Invio</b> = esegui &nbsp;\xc2\xb7&nbsp; "
+        QString("\xe2\x8c\xa8  <b>Invio</b> = esegui &nbsp;\xc2\xb7&nbsp; "
         "<b>Shift+Invio</b> = a capo &nbsp;\xc2\xb7&nbsp; "
         "<b>Stop da fermo</b> = cambia Chat \xe2\x86\x94 Avvia<br>"
-        "\xf0\x9f\x93\x88  Grafico: es. <i>Grafico di sin(x) per x da -3 a 3</i>",
+        "\xf0\x9f\x92\xa1  Chiedi <a href='prova:%1' style='color:#3b82f6;"
+        "text-decoration:none;'><b>\xc2\xab" "Cosa sai fare?\xc2\xbb</b></a> "
+        "per l'elenco di tutto quello che posso fare").arg(askB64),
         m_hintWidget);
     hintLbl->setObjectName("footerHints");
     hintLbl->setWordWrap(false);
     hintLbl->setTextFormat(Qt::RichText);
     hintLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    connect(hintLbl, &QLabel::linkActivated,
+            this, &AgentiPage::onHintLinkActivated);
     hintLay->addWidget(hintLbl, 1);
 
     auto* btnHide = new QPushButton("\xe2\x9c\x95", m_hintWidget);
@@ -1554,6 +1565,13 @@ void AgentiPage::onBtnInfoClicked()
     const bool now = !m_hintWidget->isVisible();
     m_hintWidget->setVisible(now);
     AppConfig::s().setValue("ui/hintVisible", now);
+}
+
+/* Link "«Cosa sai fare?»" nella barra suggerimenti: riusa l'handler
+   "prova:" del log (inserisce la domanda nella casella e la invia). */
+void AgentiPage::onHintLinkActivated(const QString& link)
+{
+    onLogAnchorClicked(QUrl(link));
 }
 
 void AgentiPage::onVoiceLoopToggled(bool on)

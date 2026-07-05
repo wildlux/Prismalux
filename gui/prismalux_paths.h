@@ -1130,7 +1130,7 @@ constexpr const char* kAiPersonality        = "ai/personality";           ///< p
 
 /* ── D-27: routing automatico dominio→modello (diverso da Smart Router
    LOCAL/CLOUD sotto: qui si sceglie TRA modelli locali, non locale-vs-cloud) */
-constexpr const char* kAutoModelRouting   = "ai/autoModelRouting";   ///< instrada automaticamente a un modello coder/vision installato in base al dominio (default: false)
+constexpr const char* kAutoModelRouting   = "ai/autoModelRouting";   ///< instrada automaticamente a un modello coder/vision installato in base al dominio (default: true)
 
 /* ── Smart Router LOCAL/CLOUD ────────────────────── */
 constexpr const char* kSmartRouterEnabled = "ai/smartRouterEnabled"; ///< abilita routing automatico LOCAL→CLOUD (default: false)

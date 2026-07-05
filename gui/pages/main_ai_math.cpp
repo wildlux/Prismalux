@@ -928,6 +928,49 @@ QString AgentiPage::guardiaMath(const QString& input)
 }
 
 /* ══════════════════════════════════════════════════════════════
+   guardiaDataOra — domanda secca su ora/data corrente → risposta
+   dall'orologio di sistema. Zero LLM, zero web: DuckDuckGo non può
+   conoscere l'ora locale del PC e i modelli locali non sanno che
+   giorno è (D-31 copre solo il prompt LLM, qui si evita del tutto).
+   Regex full-match: frasi più articolate ("che ora conviene
+   partire...") passano all'AI, che riceve comunque la D-31.
+   ══════════════════════════════════════════════════════════════ */
+QString AgentiPage::guardiaDataOra(const QString& input)
+{
+    QString low = input.toLower().trimmed();
+    while (!low.isEmpty() && (low.back()=='?' || low.back()=='!' ||
+                              low.back()=='.' || low.back()==' ')) low.chop(1);
+    if (low.isEmpty()) return {};
+
+    /* Convenevoli iniziali/finali tollerati */
+    static const QRegularExpression reTime(
+        "^(?:ciao[ ,]*)?(?:dimmi )?"
+        "(?:che or[ae] (?:sono|e|e'|\xc3\xa8)|(?:l')?ora attuale|orario attuale|"
+        "mi dici l'ora|dammi l'ora)"
+        "(?: adesso| ora| per favore| grazie)?$");
+    static const QRegularExpression reDate(
+        "^(?:ciao[ ,]*)?(?:dimmi )?"
+        "(?:che giorno (?:e|e'|\xc3\xa8)(?: oggi)?|data (?:di )?oggi|"
+        "che data (?:e|e'|\xc3\xa8)(?: oggi)?|quando siamo|in che data siamo|"
+        "che anno (?:e|e'|\xc3\xa8))"
+        "(?: per favore| grazie)?$");
+
+    const bool isTime = reTime.match(low).hasMatch();
+    const bool isDate = reDate.match(low).hasMatch();
+    if (!isTime && !isDate) return {};
+
+    const QDateTime now = QDateTime::currentDateTime();
+    const QLocale it(QLocale::Italian, QLocale::Italy);
+    if (isTime)
+        return QString("\xf0\x9f\x95\x90 Sono le %1 di %2 (orologio di sistema).")
+               .arg(now.toString("HH:mm:ss"),
+                    it.toString(now.date(), "dddd d MMMM yyyy"));
+    return QString("\xf0\x9f\x93\x85 Oggi \xc3\xa8 %1 \xe2\x80\x94 ore %2 (orologio di sistema).")
+           .arg(it.toString(now.date(), "dddd d MMMM yyyy"),
+                now.toString("HH:mm"));
+}
+
+/* ══════════════════════════════════════════════════════════════
    checkRam — controllo RAM centralizzato pre-pipeline
    Ritorna true se si può procedere, false se bloccato/annullato.
    ══════════════════════════════════════════════════════════════ */
@@ -1109,6 +1152,21 @@ QString _inject_science(const QString& task)
             if (lo.contains("ma")) I /= 1000.0;
             double P = V * I;
             res = {true, "P = V × I", _sci(P * 1000.0) + " mW (" + _sci(P) + " W)"};
+        }
+    }
+    if (!res.ok) {
+        /* "quanti watt con 12V e 2A" — unità DOPO il numero (l'esempio
+           promesso dalla tabella help), oltre alla forma "potenza con V=12 I=2" */
+        static QRegularExpression rePowVA(
+            R"((?:quanti\s+)?(?:watt|potenza).{0,25}?)" + reN.pattern() +
+            R"(\s*v\b.{0,12}?)" + reN.pattern() + R"(\s*(m?a)\b)",
+            QRegularExpression::CaseInsensitiveOption);
+        auto mw = rePowVA.match(lo);
+        if (mw.hasMatch()) {
+            double V = _num(mw.captured(1)), I = _num(mw.captured(2));
+            if (mw.captured(3) == "ma") I /= 1000.0;
+            double P = V * I;
+            res = {true, "P = V × I", _sci(P) + " W"};
         }
     }
 
@@ -1351,8 +1409,11 @@ QString _inject_science(const QString& task)
         for (const auto& ing : kIng)
             if (lo.contains(ing.n)) { foundIng = ing.n; density = ing.density; break; }
 
+        /* "ml" senza spazio prima: copre anche "200ml di farina" — i falsi
+           positivi sono esclusi dal resto della condizione (serve comunque
+           "grammi" + un ingrediente noto + numero con unità nella regex). */
         if (!foundIng.isEmpty() && lo.contains("grammi")
-            && (lo.contains(" ml") || lo.contains("millilitri"))) {
+            && (lo.contains("ml") || lo.contains("millilitri"))) {
             static QRegularExpression reNumUnit(
                 R"((\d+(?:[.,]\d+)?)\s*(ml|millilitri|g|gr|grammi))",
                 QRegularExpression::CaseInsensitiveOption);

@@ -454,6 +454,54 @@ static bool _isChartRequest(const QString& task) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   _showQrEventoBubble — se 'result' è un QR_EVENTO_JSON del tool
+   crea_evento_calendario, inserisce la bolla con le immagini QR e
+   ritorna true; false per qualunque altro risultato. Usata sia dal
+   percorso tool della pipeline sia dalla guardia locale Evento.
+   ══════════════════════════════════════════════════════════════ */
+bool AgentiPage::_showQrEventoBubble(const QString& result)
+{
+    static const QString kQrTag = "QR_EVENTO_JSON:";
+    if (!result.startsWith(kQrTag)) return false;
+
+    const QJsonObject o = QJsonDocument::fromJson(
+        result.mid(kQrTag.length()).toUtf8()).object();
+    const QJsonArray pngs   = o["pngs"].toArray();
+    const QJsonArray labels = o["labels"].toArray();
+    const QString testo     = o["testo"].toString();
+    const QString icsFile   = o["ics_file"].toString();
+
+    const auto& c = bc();
+    QString imgsHtml;
+    for (int i = 0; i < pngs.size(); ++i) {
+        const QString path  = pngs[i].toString();
+        const QString label = i < labels.size() ? labels[i].toString() : QString();
+        imgsHtml += "<div style='display:inline-block;margin:6px 10px 0 0;text-align:center;'>"
+            "<img src='" + QUrl::fromLocalFile(path).toString() + "' width='220' height='220'>"
+            "<div style='font-size:11px;color:" + c.lHdr + ";margin-top:2px;'>" + label.toHtmlEscaped() + "</div>"
+            "</div>";
+    }
+    const int br = AppConfig::s().value(P::SK::kBubbleRadius, 10).toInt();
+    m_log->moveCursor(QTextCursor::End);
+    m_log->insertHtml(
+        "<p style='margin:6px 0;'></p>"
+        "<table width='100%' cellpadding='0' cellspacing='0'><tr><td style='"
+            "background-color:" + QString(c.lBg) + ";border:1px solid " + c.lBdr + ";"
+            "border-radius:" + QString::number(br) + "px;padding:10px 14px;color:" + c.lTxt + ";'>"
+            "<p style='color:" + c.lHdr + ";font-size:11px;font-weight:bold;margin:0 0 8px 0;'>"
+                "\xf0\x9f\x93\x85&nbsp;Evento calendario</p>"
+            "<div>" + imgsHtml + "</div>"
+            "<p style='font-size:13px;margin:8px 0 0 0;color:" + c.lRes + ";'>" + testo.toHtmlEscaped() + "</p>"
+            + (icsFile.isEmpty() ? QString() :
+               "<p style='font-size:11px;margin:6px 0 0 0;color:" + QString(c.lHdr) + ";'>File salvato: "
+               + icsFile.toHtmlEscaped() + "</p>")
+        + "</td></tr></table><p style='margin:4px 0;'></p>");
+    m_input->clear();
+    emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
+    return true;
+}
+
+/* ══════════════════════════════════════════════════════════════
    Pipeline sequenziale
    ══════════════════════════════════════════════════════════════ */
 void AgentiPage::runPipeline() {
@@ -480,6 +528,7 @@ void AgentiPage::runPipeline() {
     {
         QElapsedTimer tmr; tmr.start();
         QString ris = guardiaMath(task);
+        if (ris.isEmpty()) ris = guardiaDataOra(task);
         double ms = tmr.nsecsElapsed() / 1e6;
         if (!ris.isEmpty()) {
             m_log->clear();
@@ -571,7 +620,21 @@ void AgentiPage::runPipeline() {
         const QString helpMd = _inject_help(task);
         static const QString kHelpTag = "HELP_MARKDOWN:";
         if (helpMd.startsWith(kHelpTag)) {
-            const QString html = markdownToHtml(helpMd.mid(kHelpTag.length()));
+            QString html = markdownToHtml(helpMd.mid(kHelpTag.length()));
+            /* Segnaposto {{PROVA:comando}} → link cliccabile che inserisce il
+               comando nella casella e lo invia (handler "prova:" in
+               onLogAnchorClicked). Sostituito qui, DOPO markdownToHtml: un
+               <a> scritto direttamente nel markdown verrebbe escapato. */
+            static const QRegularExpression reProva(R"(\{\{PROVA:([^}]+)\}\})");
+            QRegularExpressionMatch mp;
+            while ((mp = reProva.match(html)).hasMatch()) {
+                const QString b64 = QString::fromLatin1(
+                    mp.captured(1).toUtf8().toBase64(
+                        QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
+                html.replace(mp.capturedStart(), mp.capturedLength(),
+                    "<a href='prova:" + b64 + "' style='color:#3b82f6;"
+                    "text-decoration:none;font-weight:bold;'>\xe2\x96\xb6 Prova</a>");
+            }
             const auto& c = bc();
             const int br = AppConfig::s().value(P::SK::kBubbleRadius, 10).toInt();
             { int i = m_bubbleIdx++; m_bubbleTexts[i] = task;
@@ -589,6 +652,55 @@ void AgentiPage::runPipeline() {
                 "</td></tr></table><p style='margin:4px 0;'></p>");
             m_input->clear();
             emit chatCompleted(task.left(40), m_log->toHtml());
+            return;
+        }
+    }
+
+    /* ── Guardia Evento calendario: "creami un evento X il GG/MM alle HH" →
+       parsing locale + tool crea_evento_calendario (sincrono) → QR in chat,
+       zero LLM. Se manca la data risponde in locale chiedendola, con un
+       esempio pronto da cliccare (stesso link "prova:" della tabella help). ── */
+    {
+        const QJsonObject ev = _parseEventoRequest(task);
+        if (!ev.isEmpty()) {
+            m_taskOriginal = task;
+            { int i = m_bubbleIdx++; m_bubbleTexts[i] = task;
+              m_log->moveCursor(QTextCursor::End);
+              m_log->insertHtml(buildUserBubble(task, i, taskHtml)); }
+            m_log->append("");
+            if (ev.contains("data")) {
+                QJsonObject call;
+                call["tool"]  = QString("crea_evento_calendario");
+                call["input"] = QString::fromUtf8(
+                    QJsonDocument(ev).toJson(QJsonDocument::Compact));
+                runToolCall(call, [this](const QString& result) {
+                    if (_showQrEventoBubble(result)) return;
+                    /* messaggio del tool (es. data non valida) → bolla locale */
+                    int i = m_bubbleIdx++; m_bubbleTexts[i] = result;
+                    m_log->moveCursor(QTextCursor::End);
+                    m_log->insertHtml(buildLocalBubble(result, 0.0, i));
+                    m_input->clear();
+                    emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
+                });
+            } else {
+                const QString esempio = "creami un evento "
+                    + ev["titolo"].toString().toLower() + " il "
+                    + QDate::currentDate().addDays(7).toString("dd/MM/yyyy")
+                    + " dalle 21 alle 23";
+                const QString b64 = QString::fromLatin1(esempio.toUtf8().toBase64(
+                    QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
+                const QString ris =
+                    "Per generare il QR dell'evento \"" + ev["titolo"].toString()
+                    + "\" serve almeno la DATA (e volendo orario e luogo).\n"
+                      "Esempio: \xc2\xab" + esempio + "\xc2\xbb";
+                int i = m_bubbleIdx++; m_bubbleTexts[i] = ris;
+                m_log->moveCursor(QTextCursor::End);
+                m_log->insertHtml(buildLocalBubble(ris, 0.0, i,
+                    "<a href='prova:" + b64 + "' style='color:#3b82f6;"
+                    "text-decoration:none;font-weight:bold;'>\xe2\x96\xb6 Prova con l'esempio</a>"));
+                m_input->clear();
+                emit chatCompleted(task.left(40), m_log->toHtml());
+            }
             return;
         }
     }
@@ -1343,44 +1455,8 @@ void AgentiPage::_finishedPipeline(const QString& full) {
                      * rilanciate all'LLM (che le riscriverebbe come testo,
                      * perdendo l'immagine o corrompendo il path). Chiude qui la
                      * pipeline invece di fare un altro giro di generazione. */
-                    static const QString kQrTag = "QR_EVENTO_JSON:";
-                    if (result.startsWith(kQrTag)) {
-                        const QJsonObject o = QJsonDocument::fromJson(
-                            result.mid(kQrTag.length()).toUtf8()).object();
-                        const QJsonArray pngs   = o["pngs"].toArray();
-                        const QJsonArray labels = o["labels"].toArray();
-                        const QString testo     = o["testo"].toString();
-                        const QString icsFile   = o["ics_file"].toString();
-
-                        const auto& c = bc();
-                        QString imgsHtml;
-                        for (int i = 0; i < pngs.size(); ++i) {
-                            const QString path  = pngs[i].toString();
-                            const QString label = i < labels.size() ? labels[i].toString() : QString();
-                            imgsHtml += "<div style='display:inline-block;margin:6px 10px 0 0;text-align:center;'>"
-                                "<img src='" + QUrl::fromLocalFile(path).toString() + "' width='220' height='220'>"
-                                "<div style='font-size:11px;color:" + c.lHdr + ";margin-top:2px;'>" + label.toHtmlEscaped() + "</div>"
-                                "</div>";
-                        }
-                        const int br = AppConfig::s().value(P::SK::kBubbleRadius, 10).toInt();
-                        m_log->moveCursor(QTextCursor::End);
-                        m_log->insertHtml(
-                            "<p style='margin:6px 0;'></p>"
-                            "<table width='100%' cellpadding='0' cellspacing='0'><tr><td style='"
-                                "background-color:" + QString(c.lBg) + ";border:1px solid " + c.lBdr + ";"
-                                "border-radius:" + QString::number(br) + "px;padding:10px 14px;color:" + c.lTxt + ";'>"
-                                "<p style='color:" + c.lHdr + ";font-size:11px;font-weight:bold;margin:0 0 8px 0;'>"
-                                    "\xf0\x9f\x93\x85&nbsp;Evento calendario</p>"
-                                "<div>" + imgsHtml + "</div>"
-                                "<p style='font-size:13px;margin:8px 0 0 0;color:" + c.lRes + ";'>" + testo.toHtmlEscaped() + "</p>"
-                                + (icsFile.isEmpty() ? QString() :
-                                   "<p style='font-size:11px;margin:6px 0 0 0;color:" + QString(c.lHdr) + ";'>File salvato: "
-                                   + icsFile.toHtmlEscaped() + "</p>")
-                            + "</td></tr></table><p style='margin:4px 0;'></p>");
-                        m_input->clear();
-                        emit chatCompleted(m_taskOriginal.left(40), m_log->toHtml());
+                    if (_showQrEventoBubble(result))
                         return;
-                    }
 
                     /* Aggiorna il log con il risultato del tool */
                     m_log->moveCursor(QTextCursor::End);

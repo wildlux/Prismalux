@@ -146,12 +146,16 @@ protected:
         const double iB = dpiScale(25);   /* semi-asse hub verticale   */
         const QRectF hubRc(c.x()-iA, c.y()-iB, iA*2, iB*2);
 
+        /* Danger (Stop): hub pieno rosso + testo bianco — deve saltare
+           all'occhio che c'è uno stream da interrompere */
         const QColor hubBorder = m_actionDanger
-            ? palette().color(QPalette::Active, QPalette::ToolTipText).darker(130)
+            ? QColor(185, 28, 28)
             : kAct[m_mode];
-        const QColor hubBg = (m_hovered == -2 && m_actionEnabled)
-                             ? hubBorder.darker(160)
-                             : hubBaseBg;
+        const QColor hubBg = m_actionDanger
+            ? ((m_hovered == -2 && m_actionEnabled) ? QColor(153, 27, 27)
+                                                    : QColor(220, 38, 38))
+            : ((m_hovered == -2 && m_actionEnabled) ? hubBorder.darker(160)
+                                                    : hubBaseBg);
         p.setBrush(hubBg);
         p.setPen(QPen(hubBorder, m_actionEnabled ? 2.0 : 1.0));
         p.drawEllipse(hubRc);
@@ -168,7 +172,8 @@ protected:
             hf.setBold(true);
             p.setFont(hf);
             p.setPen(m_actionEnabled
-                ? (m_hovered == -2 ? Qt::white : hubBorder)
+                ? ((m_hovered == -2 || m_actionDanger) ? QColor(Qt::white)
+                                                       : hubBorder)
                 : QColor(71, 85, 105));
             p.drawText(hubRc, Qt::AlignCenter | Qt::TextWordWrap, label);
         }
@@ -329,12 +334,16 @@ private:
         const QPointF c(w / 2.0, h / 2.0);
         const QRectF hubRc(c.x()-iA, c.y()-iB, iA*2, iB*2);
 
+        /* Danger (Stop): hub pieno rosso + testo bianco (come variante ovale) */
         const QColor hubBorder = m_actionDanger
-            ? palette().color(QPalette::Active, QPalette::ToolTipText).darker(130)
+            ? QColor(185, 28, 28)
             : kAct[m_mode];
         const QColor hubBaseBg = palette().color(QPalette::Active, QPalette::Button);
-        const QColor hubBg = (m_hovered == -2 && m_actionEnabled)
-                             ? hubBorder.darker(160) : hubBaseBg;
+        const QColor hubBg = m_actionDanger
+            ? ((m_hovered == -2 && m_actionEnabled) ? QColor(153, 27, 27)
+                                                    : QColor(220, 38, 38))
+            : ((m_hovered == -2 && m_actionEnabled) ? hubBorder.darker(160)
+                                                    : hubBaseBg);
         p.setBrush(hubBg);
         p.setPen(QPen(hubBorder, m_actionEnabled ? 2.0 : 1.0));
         p.drawEllipse(hubRc);
@@ -348,7 +357,8 @@ private:
             QFont hf = font(); hf.setPixelSize(dpiScale(11)); hf.setBold(true);
             p.setFont(hf);
             p.setPen(m_actionEnabled
-                ? (m_hovered == -2 ? Qt::white : hubBorder)
+                ? ((m_hovered == -2 || m_actionDanger) ? QColor(Qt::white)
+                                                       : hubBorder)
                 : QColor(71, 85, 105));
             p.drawText(hubRc, Qt::AlignCenter | Qt::TextWordWrap, label);
         }

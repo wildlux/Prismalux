@@ -16,6 +16,7 @@
 #include <QtTest/QtTest>
 #include <QApplication>
 #include "../pages/main_ai.h"
+#include "../widgets/formula_parser.h"
 
 /* ══════════════════════════════════════════════════════════════
    CAT-A — buildUserBubble
@@ -284,16 +285,246 @@ private slots:
     }
 };
 
+/* ══════════════════════════════════════════════════════════════
+   CAT-E — guardiaDataOra: ora/data dall'orologio di sistema,
+   zero LLM e zero web. Full-match: frasi articolate passano all'AI.
+   ══════════════════════════════════════════════════════════════ */
+class TestGuardiaDataOra : public QObject {
+    Q_OBJECT
+private slots:
+
+    /* E-1: domande secche sull'ora → risposta con HH:mm dall'orologio */
+    void oraSecca() {
+        const QStringList q = { "che ora sono?", "Che ore sono", "che ora e'?",
+                                "che ora \xc3\xa8", "orario attuale", "ora attuale?" };
+        const QString hh = QDateTime::currentDateTime().toString("HH:");
+        for (const QString& s : q) {
+            const QString r = AgentiPage::guardiaDataOra(s);
+            QVERIFY2(!r.isEmpty(), qPrintable("non gestita: " + s));
+            QVERIFY2(r.contains(hh), qPrintable("manca l'ora in: " + r));
+        }
+    }
+
+    /* E-2: domande secche sulla data → risposta con l'anno corrente */
+    void dataSecca() {
+        const QStringList q = { "che giorno \xc3\xa8?", "che giorno e' oggi",
+                                "data di oggi", "quando siamo?", "che anno \xc3\xa8" };
+        const QString anno = QString::number(QDate::currentDate().year());
+        for (const QString& s : q) {
+            const QString r = AgentiPage::guardiaDataOra(s);
+            QVERIFY2(!r.isEmpty(), qPrintable("non gestita: " + s));
+            QVERIFY2(r.contains(anno), qPrintable("manca l'anno in: " + r));
+        }
+    }
+
+    /* E-3: frasi articolate NON intercettate → vanno all'AI (con D-31) */
+    void frasiArticolatePassano() {
+        const QStringList q = {
+            "che ora conviene partire per Roma?",
+            "che giorno \xc3\xa8 meglio per il backup settimanale",
+            "a che ora apre la farmacia",
+            "dimmi che ore sono a New York",
+            "meteo oggi", "quanto fa 5+5" };
+        for (const QString& s : q)
+            QVERIFY2(AgentiPage::guardiaDataOra(s).isEmpty(),
+                     qPrintable("intercettata per errore: " + s));
+    }
+
+    /* E-4: input vuoto o solo punteggiatura → vuoto, nessun crash */
+    void inputDegenere() {
+        QVERIFY(AgentiPage::guardiaDataOra("").isEmpty());
+        QVERIFY(AgentiPage::guardiaDataOra("???").isEmpty());
+        QVERIFY(AgentiPage::guardiaDataOra("   ").isEmpty());
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
+   CAT-F — _inject_help: tabella comandi zero-LLM ("cosa sai fare?")
+   con colonna ▶ Prova ({{PROVA:comando}} sostituito in runPipeline
+   con link "prova:BASE64URL"). Free function di main_ai_tools.cpp.
+   ══════════════════════════════════════════════════════════════ */
+QString _inject_help(const QString& task);
+
+class TestInjectHelp : public QObject {
+    Q_OBJECT
+private slots:
+
+    /* F-1: domande secche sulle capacità → tabella HELP_MARKDOWN */
+    void domandeSecche() {
+        const QStringList q = { "Cosa sai fare?", "cosa posso fare",
+                                "che cosa puoi fare?", "aiuto", "comandi",
+                                "quali sono le tue funzioni",
+                                "ciao, cosa sai fare?" };
+        for (const QString& s : q) {
+            const QString r = _inject_help(s);
+            QVERIFY2(r.startsWith("HELP_MARKDOWN:"),
+                     qPrintable("non gestita: " + s));
+            QVERIFY2(r.contains("Cosa calcola"),
+                     qPrintable("manca tabella in: " + s));
+        }
+    }
+
+    /* F-2: frasi più lunghe NON intercettate → task invariato all'AI */
+    void frasiLunghePassano() {
+        const QStringList q = {
+            "cosa posso fare per convertire un PDF in testo?",
+            "cosa sai fare con i file CSV",
+            "cosa sai della seconda guerra mondiale",
+            "posso fare una domanda?" };
+        for (const QString& s : q)
+            QCOMPARE(_inject_help(s), s);
+    }
+
+    /* F-3: ogni riga della tabella ha il suo segnaposto ▶ Prova,
+       incluso l'esempio citato dall'utente (area rettangolo) */
+    void marcatoriProva() {
+        const QString r = _inject_help("cosa sai fare");
+        QVERIFY(r.contains(
+            "{{PROVA:area di un rettangolo con base 5 e altezza 3}}"));
+        QVERIFY2(r.count("{{PROVA:") >= 20,
+                 qPrintable(QString("solo %1 segnaposto").arg(r.count("{{PROVA:"))));
+        /* Il comando nel segnaposto non deve contenere & < > (attraversa
+           escHtml prima della sostituzione col link) */
+        static const QRegularExpression reBad(R"(\{\{PROVA:[^}]*[&<>][^}]*\}\})");
+        QVERIFY(!reBad.match(r).hasMatch());
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
+   CAT-G — coerenza tabella help: OGNI esempio "▶ Prova" deve essere
+   davvero gestito dalla catena di guardie locali sincrone di
+   runPipeline (la tabella promette "zero token"). Replica la stessa
+   sequenza: guardiaMath → guardiaDataOra → FormulaParser →
+   _inject_science/date/finance/knowledge/generator/textstats/algo.
+   ══════════════════════════════════════════════════════════════ */
+QString _inject_science(const QString& task);
+QString _inject_date_calc(const QString& task);
+QString _inject_finance(const QString& task);
+QString _inject_knowledge(const QString& task);
+QString _inject_generator(const QString& task);
+QString _inject_textstats(const QString& task);
+QString _inject_algo(const QString& task);
+QJsonObject _parseEventoRequest(const QString& task);
+
+class TestHelpExamplesLocal : public QObject {
+    Q_OBJECT
+
+    static QString whichGuard(const QString& cmd) {
+        if (!AgentiPage::guardiaMath(cmd).isEmpty())    return "guardiaMath";
+        if (!AgentiPage::guardiaDataOra(cmd).isEmpty()) return "guardiaDataOra";
+        if (!FormulaParser::tryExtract(cmd).isEmpty())  return "FormulaParser";
+        if (!_parseEventoRequest(cmd).isEmpty())        return "_parseEventoRequest";
+        static const QString kTag = "[Calcolo locale:";
+        if (_inject_science(cmd).startsWith(kTag))   return "_inject_science";
+        if (_inject_date_calc(cmd).startsWith(kTag)) return "_inject_date_calc";
+        if (_inject_finance(cmd).startsWith(kTag))   return "_inject_finance";
+        if (_inject_knowledge(cmd).startsWith(kTag)) return "_inject_knowledge";
+        if (_inject_generator(cmd).startsWith(kTag)) return "_inject_generator";
+        if (_inject_textstats(cmd).startsWith(kTag)) return "_inject_textstats";
+        if (_inject_algo(cmd).startsWith(kTag))      return "_inject_algo";
+        return {};
+    }
+
+private slots:
+
+    /* G-1: ogni {{PROVA:cmd}} della tabella zero-token risponde in locale.
+       La sezione "Con l'aiuto del modello AI" (valuta, evento calendario)
+       è esclusa: quei comandi passano legittimamente dal modello+tool. */
+    void tuttiGliEsempiLocali() {
+        QString md = _inject_help("cosa sai fare");
+        QVERIFY(md.startsWith("HELP_MARKDOWN:"));
+        const int cut = md.indexOf("Con l'aiuto del modello AI");
+        QVERIFY2(cut > 0, "manca la sezione tool nella tabella help");
+        md = md.left(cut);
+        static const QRegularExpression reP(R"(\{\{PROVA:([^}]+)\}\})");
+        auto it = reP.globalMatch(md);
+        int checked = 0;
+        QStringList falliti;
+        while (it.hasNext()) {
+            const QString cmd = it.next().captured(1);
+            ++checked;
+            if (whichGuard(cmd).isEmpty())
+                falliti << cmd;
+        }
+        QVERIFY(checked >= 18);
+        QVERIFY2(falliti.isEmpty(),
+                 qPrintable("esempi NON gestiti in locale:\n  " + falliti.join("\n  ")));
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
+   CAT-H — _parseEventoRequest: parsing locale richiesta evento
+   (titolo/data/orari/luogo) per il QR calendario zero-LLM.
+   ══════════════════════════════════════════════════════════════ */
+class TestParseEvento : public QObject {
+    Q_OBJECT
+private slots:
+
+    /* H-1: richiesta completa → tutti i campi estratti */
+    void richiestaCompleta() {
+        const QJsonObject ev = _parseEventoRequest(
+            "creami un evento festa in maschera il 31/10/2026 dalle 21 alle 23");
+        QVERIFY(!ev.isEmpty());
+        QCOMPARE(ev["titolo"].toString(), QString("Festa in maschera"));
+        QCOMPARE(ev["data"].toString(), QString("2026-10-31"));
+        QCOMPARE(ev["ora_inizio"].toString(), QString("21:00"));
+        QCOMPARE(ev["ora_fine"].toString(), QString("23:00"));
+    }
+
+    /* H-2: compleanno con mese in lettere e luogo */
+    void meseInLettereELuogo() {
+        const QJsonObject ev = _parseEventoRequest(
+            "genera un evento compleanno di Anna il 12 agosto 2026 alle 18:30 presso casa di Anna");
+        QVERIFY(!ev.isEmpty());
+        QCOMPARE(ev["data"].toString(), QString("2026-08-12"));
+        QCOMPARE(ev["ora_inizio"].toString(), QString("18:30"));
+        QCOMPARE(ev["luogo"].toString(), QString("casa di Anna"));
+        QVERIFY(ev["titolo"].toString().startsWith("Compleanno di Anna"));
+    }
+
+    /* H-3: senza data → oggetto valido ma SENZA chiave "data" (si chiede) */
+    void senzaData() {
+        const QJsonObject ev = _parseEventoRequest("creami un evento per il compleanno");
+        QVERIFY(!ev.isEmpty());
+        QVERIFY(!ev.contains("data"));
+        QCOMPARE(ev["titolo"].toString(), QString("Compleanno"));
+    }
+
+    /* H-4: data senza anno già passata quest'anno → anno prossimo */
+    void annoProssimoSePassata() {
+        const QDate ieri = QDate::currentDate().addDays(-1);
+        const QJsonObject ev = _parseEventoRequest(
+            QString("creami un evento test il %1/%2")
+                .arg(ieri.day(), 2, 10, QChar('0'))
+                .arg(ieri.month(), 2, 10, QChar('0')));
+        QVERIFY(ev.contains("data"));
+        const QDate d = QDate::fromString(ev["data"].toString(), "yyyy-MM-dd");
+        QVERIFY2(d > QDate::currentDate(), "data nel passato non spostata avanti");
+    }
+
+    /* H-5: frasi NON evento → oggetto vuoto */
+    void nonEvento() {
+        QVERIFY(_parseEventoRequest("che eventi ci sono domani a Roma?").isEmpty());
+        QVERIFY(_parseEventoRequest("quanto fa 5+5").isEmpty());
+        QVERIFY(_parseEventoRequest("parlami degli eventi storici del 1946").isEmpty());
+        QVERIFY(_parseEventoRequest("").isEmpty());
+    }
+};
+
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
 
     int status = 0;
     {
-        TestUserBubble     t1; status |= QTest::qExec(&t1, argc, argv);
-        TestAgentBubble    t2; status |= QTest::qExec(&t2, argc, argv);
-        TestLocalBubble    t3; status |= QTest::qExec(&t3, argc, argv);
-        TestMarkdownToHtml t4; status |= QTest::qExec(&t4, argc, argv);
+        TestUserBubble          t1; status |= QTest::qExec(&t1, argc, argv);
+        TestAgentBubble         t2; status |= QTest::qExec(&t2, argc, argv);
+        TestLocalBubble         t3; status |= QTest::qExec(&t3, argc, argv);
+        TestMarkdownToHtml      t4; status |= QTest::qExec(&t4, argc, argv);
+        TestGuardiaDataOra      t5; status |= QTest::qExec(&t5, argc, argv);
+        TestInjectHelp          t6; status |= QTest::qExec(&t6, argc, argv);
+        TestHelpExamplesLocal   t7; status |= QTest::qExec(&t7, argc, argv);
+        TestParseEvento         t8; status |= QTest::qExec(&t8, argc, argv);
     }
     return status;
 }

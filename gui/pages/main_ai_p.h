@@ -185,6 +185,14 @@ QString _inject_generator(const QString& task);
  *  markdownToHtml(), non con buildLocalBubble(). Definita in
  *  main_ai_tools.cpp. */
 QString _inject_help(const QString& task);
+/** "creami un evento festa in maschera il 31/10/2026 dalle 21 alle 23" —
+ *  parsing locale (zero LLM) di una richiesta di evento calendario.
+ *  Ritorna oggetto VUOTO se il testo non è una richiesta di evento;
+ *  altrimenti {"titolo","data" (yyyy-MM-dd, ASSENTE se non trovata nel
+ *  testo → il chiamante chiede la data), "ora_inizio"?, "ora_fine"?,
+ *  "luogo"?, "formato":"entrambi"} pronto per il tool
+ *  crea_evento_calendario. Definita in main_ai_tools.cpp. */
+QJsonObject _parseEventoRequest(const QString& task);
 /** "quante parole ha: <testo>" — conteggio parole/caratteri/frasi + stima
  *  tempo di lettura, zero LLM. Definita in main_ai_tools.cpp. */
 QString _inject_textstats(const QString& task);

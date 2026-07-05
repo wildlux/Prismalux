@@ -262,6 +262,28 @@ void AgentiPage::onLogAnchorClicked(const QUrl& url)
         }
         return;
     }
+    /* ── Prova comando dalla tabella help (colonna \xe2\x96\xb6 Prova) ──
+       formato: "prova:BASE64URL" — inserisce il comando d'esempio nella
+       casella e lo invia, come se l'utente l'avesse digitato. */
+    if (s.startsWith("prova:")) {
+        const QString cmd = QString::fromUtf8(QByteArray::fromBase64(
+            s.mid(6).toLatin1(), QByteArray::Base64UrlEncoding)).trimmed();
+        if (!cmd.isEmpty()) {
+            m_input->setPlainText(cmd);
+            m_input->setFocus();
+            m_input->moveCursor(QTextCursor::End);
+            if (m_ai->busy()) {
+                /* Una risposta è in corso: interrompila e invia il comando
+                   dopo che l'abort si è propagato — senza questo il clic
+                   verrebbe interpretato come "Stop" e il comando scartato. */
+                m_ai->abort();
+                QTimer::singleShot(400, this, &AgentiPage::onBtnRunDelayedClick);
+            } else {
+                QTimer::singleShot(0, this, &AgentiPage::onBtnRunDelayedClick);
+            }
+        }
+        return;
+    }
     /* ── Rifai domanda con il modello corrente ── */
     if (s.startsWith("retry:")) {
         /* formato: "retry:IDX:BASE64URL" */

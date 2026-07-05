@@ -663,7 +663,7 @@ ctest --test-dir gui/build_tests --exclude-regex "AiIntegration|AiStress|TeamCol
 | `McpManager` | `test_mcp_manager` | 8 test — venv path, smoke test JSON-RPC parsing, scan MCPs/, costruzione widget |
 | `ProgrammazionePage` | `test_programmazione_page` | isIntentionalError, parseNumbers |
 | `ThinkingDetect` | `test_thinking_detect` | extractName/Size/Prio, classifyQuery, keyLock |
-| `AgentiPipeline` | `test_agenti_pipeline` | buildBubble, markdownToHtml |
+| `AgentiPipeline` | `test_agenti_pipeline` | buildBubble, markdownToHtml; CAT-E `guardiaDataOra`; CAT-F `_inject_help` (segnaposto `{{PROVA:cmd}}` → link `prova:BASE64`); CAT-G ogni esempio della tabella zero-token DEVE rispondere in locale; CAT-H `_parseEventoRequest` (titolo/data/orari/luogo, QR evento zero-LLM) |
 | `AgentsConfigDialog` | `test_agents_config_dialog` | struttura, numAgents, RAG condiviso |
 | `AgentiByzantine` | `test_agenti_byzantine` | voce combo, num agenti, mock stub |
 | `AgenteAutonomo` | `test_agente_autonomo` | ReAct loop, toggle UI, parsing tool call |
