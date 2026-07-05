@@ -69,6 +69,8 @@ Qt_GUI_v3/build_tests/
 # ── Artefatti generati e file personali ───────────────────────────────────────
 Prismalux_Windows_full.zip
 *.pdf
+# eccezione: bersagli ArUco stampabili di Vision3D (consegnabili, ~100KB)
+!Tools/aruco/*.pdf
 ENGINE_LLM/hybrid_llm/
 C_software/C_software/
 C_software/llama_cpp_studio/
