@@ -156,6 +156,7 @@ private slots:
     void onPoseSpinChanged();
     void onDistributeClicked();
     void onHelpClicked();
+    void onQualityComboChanged(const QString& quality);
     void onReconRecheckClicked();
     void onReconStartClicked();
     void onReconProcOutput();
@@ -172,6 +173,7 @@ private:
     void handleRequest(QSslSocket* sock, const ParsedRequest& req);
     void sendHtml(QSslSocket* sock, const QByteArray& html, const QByteArray& setCookie = QByteArray());
     void sendJson(QSslSocket* sock, const QByteArray& json, const QByteArray& setCookie = QByteArray());
+    void sendFile(QSslSocket* sock, const QString& path, const QString& downloadName);
     void send404(QSslSocket* sock);
 #endif
 
@@ -203,6 +205,9 @@ private:
     void writePoseSidecar(const QString& base, int heading, int pitch);  // persiste posa
     void updateGalleryLabel(const QString& key, int heading);
     void updateReconHint();          // ricontrolla COLMAP a caldo (exe + librerie)
+    static int requiredPhotosFor(const QString& quality);  // foto minime per qualità
+    int  countSessionPhotos(const QString& session) const;
+    void updatePhotoRequirement();   // contatore "X/Y foto" accanto alla qualità
 
 #if QT_CONFIG(ssl)
     QSslServer*       m_server = nullptr;
@@ -251,6 +256,7 @@ private:
     QComboBox*      m_qualityCombo = nullptr;
     QPushButton*    m_reconBtn   = nullptr;
     QLabel*         m_reconHint  = nullptr;   // stato COLMAP, aggiornabile a caldo
+    QLabel*         m_photoReqLabel = nullptr; // contatore foto vs requisito qualità
     QProcess*       m_reconProc  = nullptr;
     int             m_reconStep  = 0;         // 0=reconstructor 1=export PLY
     QString         m_reconSessionDir;

@@ -1,11 +1,11 @@
 /* ══════════════════════════════════════════════════════════════
    test_vision3d.cpp  —  Suite di regressione Vision3DWidget
    ──────────────────────────────────────────────────────────────
-   3 categorie — 19 test totali:
+   3 categorie — 20 test totali:
 
    CAT-A  Costruzione / stato iniziale     — 11 casi (no rete, no Ollama)
    CAT-B  Lifecycle stop/distruzione       — 5 casi
-   CAT-C  Server HTTPS end-to-end (curl)   — 3 casi (QSKIP senza curl/openssl)
+   CAT-C  Server HTTPS end-to-end (curl)   — 4 casi (QSKIP senza curl/openssl)
 
    COME ESEGUIRE:
      cmake -B build_tests -DBUILD_TESTS=ON
@@ -161,6 +161,10 @@ private slots:
         auto* hint = w.findChild<QLabel*>("v3dReconHint");
         QVERIFY(hint != nullptr);
         QVERIFY(!hint->text().isEmpty());   // la sonda ha già scritto lo stato
+        // contatore foto/requisito qualità ("X/Y foto")
+        auto* req = w.findChild<QLabel*>("v3dPhotoReq");
+        QVERIFY(req != nullptr);
+        QVERIFY(req->text().contains("foto"));
     }
 };
 
@@ -298,6 +302,26 @@ private slots:
         const QDir d(tmp->path() + "/testscan/" + dev);
         QCOMPARE(d.entryList({"*.jpg"},  QDir::Files).size(), 1);
         QCOMPARE(d.entryList({"*.json"}, QDir::Files).size(), 1);
+    }
+
+    void downloadModelWorks() {
+        // modello mancante → pagina "non ancora pronto"; presente → contenuto file
+        bool ok = false;
+        const QByteArray miss = runCurl(
+            {QString("https://127.0.0.1:%1/download?session=testscan&file=obj")
+                 .arg(kTestPort)}, ok);
+        QVERIFY(ok);
+        QVERIFY(miss.contains("non ancora pronto"));
+
+        QFile f(tmp->path() + "/testscan/modello.obj");
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("v 0 0 0 1 0 0\n");
+        f.close();
+        const QByteArray got = runCurl(
+            {QString("https://127.0.0.1:%1/download?session=testscan&file=obj")
+                 .arg(kTestPort)}, ok);
+        QVERIFY(ok);
+        QCOMPARE(got, QByteArray("v 0 0 0 1 0 0\n"));
     }
 
     void cleanupTestCase() {

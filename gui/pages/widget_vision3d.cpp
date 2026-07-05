@@ -468,8 +468,16 @@ void Vision3DWidget::onHelpClicked()
         "sezione Ricostruzione: la verifica avviene a caldo, senza riavviare Prismalux.</p>"
         "<h3>3. Consigli per la scansione</h3>"
         "<p>Stampa i bersagli in <code>Tools/aruco/</code> al 100% (la scala reale del "
-        "modello arriva da l\xc3\xac), fai 15-20+ scatti girando intorno all'oggetto con "
-        "buona sovrapposizione, luce uniforme e sfondo fermo.</p>").arg(url));
+        "modello arriva da l\xc3\xac), gira intorno all'oggetto con buona sovrapposizione, "
+        "luce uniforme e sfondo fermo. Foto minime per qualit\xc3\xa0: "
+        "<b>low \xe2\x89\xa5 10 &middot; medium \xe2\x89\xa5 20 &middot; high \xe2\x89\xa5 40</b> "
+        "(il contatore accanto alla qualit\xc3\xa0 diventa verde quando bastano).</p>"
+        "<h3>4. Modello 3D (scanner simulato)</h3>"
+        "<p>La ricostruzione produce una <b>nuvola di punti colorata</b>: "
+        "<code>modello.obj + modello.mtl</code> (Blender/MeshLab) e "
+        "<code>nuvola_punti.ply</code> (CloudCompare). I client iOS/Android/Desktop la "
+        "scaricano dai pulsanti \xe2\xac\x87 della card <i>Modello 3D</i>; per una mesh "
+        "con superficie: MeshLab \xe2\x86\x92 Poisson.</p>").arg(url));
     box.exec();
 }
 
@@ -681,6 +689,7 @@ void Vision3DWidget::loadSessionIntoUi(const QString& session)
                 m_scene->addShot({base, dv.fileName(), index, heading, pitch, hasSensors});
         }
     }
+    updatePhotoRequirement();
 }
 
 void Vision3DWidget::onSessionComboChanged(const QString& session)
@@ -920,7 +929,53 @@ void Vision3DWidget::handleRequest(QSslSocket* sock, const ParsedRequest& req)
         return;
     }
 
+    if (req.method == "GET" && req.path.startsWith("/download")) {
+        // /download?session=<nome>&file=obj|mtl|ply — scarica il modello sul client
+        const QString q = QString::fromUtf8(req.path);
+        QString session, fileKey;
+        const int qm = q.indexOf('?');
+        if (qm >= 0) {
+            const QStringList parts = q.mid(qm + 1).split('&');
+            for (const QString& kv : parts) {
+                if (kv.startsWith(QLatin1String("session="))) session = kv.mid(8);
+                else if (kv.startsWith(QLatin1String("file="))) fileKey = kv.mid(5);
+            }
+        }
+        QString safe;                       // stessa sanificazione di analyze()
+        for (QChar c : session)
+            if (c.isLetterOrNumber() || c == '_' || c == '-') safe += c;
+        QString fname;
+        if      (fileKey == QLatin1String("obj")) fname = QStringLiteral("modello.obj");
+        else if (fileKey == QLatin1String("mtl")) fname = QStringLiteral("modello.mtl");
+        else if (fileKey == QLatin1String("ply")) fname = QStringLiteral("nuvola_punti.ply");
+        if (safe.isEmpty() || fname.isEmpty()) { send404(sock); return; }
+
+        const QString path = m_outputDir + "/" + safe + "/" + fname;
+        if (!QFile::exists(path)) {
+            sendHtml(sock, "<html><body style='font-family:sans-serif;padding:2em;'>"
+                           "<h3>Modello non ancora pronto</h3><p>Avvia la ricostruzione "
+                           "dal PC (\xf0\x9f\xa7\x8a Crea nuvola di punti) e riprova.</p>"
+                           "</body></html>");
+            return;
+        }
+        sendFile(sock, path, fname);
+        return;
+    }
+
     send404(sock);
+}
+
+void Vision3DWidget::sendFile(QSslSocket* sock, const QString& path, const QString& downloadName)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) { send404(sock); return; }
+    const QByteArray data = f.readAll();
+    QByteArray resp = "HTTP/1.1 200 OK\r\n"
+                      "Content-Type: application/octet-stream\r\n"
+                      "Content-Disposition: attachment; filename=\"" + downloadName.toUtf8() + "\"\r\n"
+                      "Content-Length: " + QByteArray::number(data.size()) + "\r\n"
+                      "Connection: close\r\n\r\n" + data;
+    sock->write(resp); sock->flush(); sock->disconnectFromHost();
 }
 #endif // QT_CONFIG(ssl)
 
@@ -1076,6 +1131,7 @@ Vision3DResult Vision3DWidget::analyze(const QString& session, const QString& de
             m_scene->setSelectedKey(folder + "/" + base);
         }
     }
+    updatePhotoRequirement();
     appendLog(QString("[%1]  done.").arg(deviceId));
     return r;
 }
@@ -1289,6 +1345,44 @@ void Vision3DWidget::updateReconHint()
     m_reconHint->setText(probeColmap(ok));
 }
 
+/* Foto minime consigliate per livello di qualità COLMAP. */
+int Vision3DWidget::requiredPhotosFor(const QString& quality)
+{
+    if (quality == QLatin1String("low"))  return 10;
+    if (quality == QLatin1String("high")) return 40;
+    return 20;   // medium
+}
+
+/* Conta le foto della sessione su disco (tutti i device, solo originali). */
+int Vision3DWidget::countSessionPhotos(const QString& session) const
+{
+    int count = 0;
+    const QDir sess(m_outputDir + "/" + session);
+    const QFileInfoList devs = sess.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QFileInfo& dv : devs)
+        count += int(QDir(dv.absoluteFilePath())
+                         .entryList({"*_a???.jpg"}, QDir::Files).size());
+    return count;
+}
+
+/* Contatore "X/Y foto" accanto alla qualità: verde se bastano, rosso se no. */
+void Vision3DWidget::updatePhotoRequirement()
+{
+    if (!m_photoReqLabel || !m_sessionCombo || !m_qualityCombo) return;
+    const int have = countSessionPhotos(m_sessionCombo->currentText());
+    const int need = requiredPhotosFor(m_qualityCombo->currentText());
+    m_photoReqLabel->setText(QString("%1/%2 foto").arg(have).arg(need));
+    m_photoReqLabel->setStyleSheet(have >= need
+        ? QStringLiteral("color:#3fb950;font-weight:bold;")
+        : QStringLiteral("color:#d29922;font-weight:bold;"));
+}
+
+void Vision3DWidget::onQualityComboChanged(const QString& quality)
+{
+    Q_UNUSED(quality);
+    updatePhotoRequirement();
+}
+
 void Vision3DWidget::onReconRecheckClicked()
 {
     bool ok = false;
@@ -1322,6 +1416,19 @@ void Vision3DWidget::onReconStartClicked()
     if (session.isEmpty()) {
         appendLog("Nessuna sessione da ricostruire: scatta prima qualche foto.");
         return;
+    }
+
+    // requisito foto per qualità: sotto soglia si può proseguire, ma avvisati
+    const QString quality0 = m_qualityCombo ? m_qualityCombo->currentText()
+                                            : QStringLiteral("medium");
+    const int have = countSessionPhotos(session);
+    const int need = requiredPhotosFor(quality0);
+    if (have < need) {
+        const auto ans = QMessageBox::question(this, tr("Poche foto"),
+            tr("Per la qualit\xc3\xa0 '%1' servono almeno %2 foto: la sessione '%3' "
+               "ne ha %4.\nCon poche foto la nuvola pu\xc3\xb2 uscire vuota o a pezzi.\n\n"
+               "Continuare comunque?").arg(quality0).arg(need).arg(session).arg(have));
+        if (ans != QMessageBox::Yes) return;
     }
 
     m_reconSessionDir = m_outputDir + "/" + session;
@@ -1377,13 +1484,30 @@ void Vision3DWidget::onReconProcFinished(int code, QProcess::ExitStatus status)
         return;
     }
 
+    if (m_reconStep == 1 && ok) {           // passo 3: PLY → OBJ + MTL (punti colorati)
+        m_reconStep = 2;
+        appendLog("PLY pronto — converto in OBJ + MTL (nuvola di punti colorata)…");
+        m_reconProc->start(m_pythonExe,
+                           {P::root() + "/Tools/scripts/ply_to_obj.py",
+                            m_reconSessionDir + "/nuvola_punti.ply",
+                            m_reconSessionDir + "/modello"});
+        return;
+    }
+
     m_reconProc->deleteLater();
     m_reconProc = nullptr;
     if (m_reconBtn) m_reconBtn->setText(kReconBtnIdle);
 
-    if (ok && m_reconStep == 1)
-        appendLog("Nuvola di punti pronta: " + m_reconSessionDir + "/nuvola_punti.ply"
-                  " — aprila con CloudCompare o MeshLab (tab AppController).");
+    if (ok && m_reconStep == 2)
+        appendLog("Modello pronto in " + m_reconSessionDir + ": nuvola_punti.ply + "
+                  "modello.obj + modello.mtl (punti colorati). Dal client iOS/Android/"
+                  "Desktop: pulsanti \xe2\xac\x87 nella card 'Modello 3D'. Sul PC: "
+                  "CloudCompare/MeshLab (l\xc3\xac puoi anche generare la mesh: "
+                  "Filters \xe2\x86\x92 Poisson).");
+    else if (m_reconStep == 2)
+        appendLog(QString("Nuvola PLY pronta (%1/nuvola_punti.ply) ma conversione "
+                          "OBJ fallita (exit %2) — controlla che python3 sia disponibile.")
+                      .arg(m_reconSessionDir).arg(code));
     else
         appendLog(QString("Ricostruzione terminata con errore (exit %1). Servono "
                           "10-20+ foto nitide con buona sovrapposizione tra scatti "
@@ -1609,8 +1733,16 @@ void Vision3DWidget::buildUi()
     m_qualityCombo = new QComboBox;
     m_qualityCombo->addItems({"low", "medium", "high"});
     m_qualityCombo->setCurrentIndex(1);
-    m_qualityCombo->setToolTip("low = veloce (CPU), high = lento ma dettagliato");
+    m_qualityCombo->setToolTip("Foto minime consigliate: low \xe2\x89\xa5 10, medium \xe2\x89\xa5 20, "
+                               "high \xe2\x89\xa5 40.\nPi\xc3\xb9 foto (con sovrapposizione) = "
+                               "nuvola pi\xc3\xb9 densa e completa.");
+    connect(m_qualityCombo, &QComboBox::currentTextChanged,
+            this, &Vision3DWidget::onQualityComboChanged);
     sesRow->addWidget(m_qualityCombo);
+    m_photoReqLabel = new QLabel;
+    m_photoReqLabel->setObjectName("v3dPhotoReq");
+    m_photoReqLabel->setToolTip("Foto nella sessione / minimo consigliato per la qualit\xc3\xa0 scelta");
+    sesRow->addWidget(m_photoReqLabel);
     reconLay->addLayout(sesRow);
     auto* reconBtnRow = new QHBoxLayout;
     m_reconBtn = new QPushButton("\xf0\x9f\xa7\x8a Crea nuvola di punti (COLMAP)");  /* 🧊 */
@@ -1709,6 +1841,12 @@ button:active{transform:scale(.97);}
 <button class="b-alt" id="enableSensor" style="display:none;">&#129517; Sensori</button></div>
 <div id="sensorReadout" class="hint" style="display:none;">Orientamento: <b id="soAngle">--</b>&#176; &nbsp;|&nbsp; inclinazione <b id="soPitch">--</b>&#176;</div>
 <button class="b-shoot" id="shoot" style="display:none;">SCATTA E ANALIZZA</button></div>
+<div class="card"><label>Modello 3D (dopo la ricostruzione sul PC)</label>
+<div class="chips">
+<button class="b-alt" id="dlObj" style="flex:1;">&#11015; OBJ</button>
+<button class="b-alt" id="dlMtl" style="flex:1;">&#11015; MTL</button>
+<button class="b-alt" id="dlPly" style="flex:1;">&#11015; PLY</button></div>
+<div class="hint">Scarica la nuvola di punti colorata della sessione corrente: OBJ+MTL (per Blender/MeshLab) oppure PLY (CloudCompare).</div></div>
 <div class="card" id="resultCard" style="display:none;">
 <div id="status" style="font-size:.85rem;color:var(--mut);margin-bottom:8px;"></div>
 <div class="result" id="descBox" style="display:none;"><h4>Cos'&#232; (VLM)</h4><div class="desc" id="descText"></div></div>
@@ -1750,6 +1888,8 @@ async function startCamera(){if(stream)stream.getTracks().forEach(t=>t.stop());
 try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:2560},height:{ideal:1440}},audio:false});
 video.srcObject=stream;video.style.display='block';$('flipCam').style.display='block';$('shoot').style.display='block';$('enableSensor').style.display='block';$('startCam').textContent='\u{1F4F7} Attiva';}
 catch(e){showToast('Camera: '+e.message,'#f85149');}}
+function dl(k){window.location='/download?session='+encodeURIComponent($('session').value.trim()||'scan1')+'&file='+k;}
+$('dlObj').onclick=()=>dl('obj');$('dlMtl').onclick=()=>dl('mtl');$('dlPly').onclick=()=>dl('ply');
 $('startCam').onclick=startCamera;
 $('enableSensor').onclick=enableSensors;
 $('flipCam').onclick=()=>{facing=facing==='environment'?'user':'environment';startCamera();};
