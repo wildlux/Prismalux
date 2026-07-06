@@ -13,9 +13,10 @@ on:
 
 jobs:
   build:
-    # macos-13 = Intel x86_64 — runner stabile per Qt 6.7 CI.
-    # Per Apple Silicon (M1/M2): cambia in macos-14 e arch: arm64.
-    runs-on: macos-13
+    # macos-14 = Apple Silicon (arm64). macos-13 (Intel) è stato RITIRATO da
+    # GitHub: i job restavano "queued" per sempre. Qt 6.7 mac è binario
+    # universale (arch clang_64 valida anche su arm64).
+    runs-on: macos-14
 
     steps:
       - name: Checkout
@@ -158,11 +159,19 @@ jobs:
           path: Prismalux.app
           retention-days: 14
 
+      # OS-2: checksum per verifica integrità download
+      - name: Compute SHA-256 checksum
+        run: |
+          shasum -a 256 *.dmg > SHA256SUMS-macos.txt
+          cat SHA256SUMS-macos.txt
+
       - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:
           name: Prismalux-macOS-x64-dmg
-          path: "*.dmg"
+          path: |
+            *.dmg
+            SHA256SUMS-macos.txt
           retention-days: 14
 
       # ── Release GitHub solo per tag v* ────────────────────────────────────
@@ -170,7 +179,9 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: "*.dmg"
+          files: |
+            *.dmg
+            SHA256SUMS-macos.txt
           generate_release_notes: true
           name: "Prismalux ${{ github.ref_name }}"
           body: |

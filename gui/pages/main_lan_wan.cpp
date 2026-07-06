@@ -203,6 +203,19 @@ void LanWanPage::openQrDialog(QPushButton* parent, const QString& url,
         vl->addWidget(noteLbl2);
     }
 
+    /* OS-7: certificato self-signed — senza questa riga l'avviso del browser
+       al primo accesso sembra un errore e l'utente abbandona. */
+    if (url.startsWith("https://", Qt::CaseInsensitive)) {
+        auto* tlsLbl = new QLabel(
+            tr("<small>\xf0\x9f\x94\x92 Il browser mostrer\xc3\xa0 un avviso di sicurezza: "
+               "\xc3\xa8 normale (certificato self-signed). "
+               "Tocca <b>Avanzate \xe2\x86\x92 Procedi</b> per continuare.</small>"), dlg);
+        tlsLbl->setTextFormat(Qt::RichText);
+        tlsLbl->setAlignment(Qt::AlignCenter);
+        tlsLbl->setWordWrap(true);
+        vl->addWidget(tlsLbl);
+    }
+
     dlg->resize(320, 460);
     dlg->exec();
 }

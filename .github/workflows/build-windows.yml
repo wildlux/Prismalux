@@ -47,6 +47,16 @@ jobs:
         working-directory: gui/build
         run: cpack -C Release -G NSIS
 
+      # OS-2: checksum per verifica integrità download
+      - name: Compute SHA-256 checksum
+        working-directory: gui/build
+        shell: pwsh
+        run: |
+          Get-FileHash -Algorithm SHA256 *.exe |
+            ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } |
+            Set-Content SHA256SUMS-windows.txt
+          Get-Content SHA256SUMS-windows.txt
+
       - name: Upload portable (zip)
         uses: actions/upload-artifact@v4
         with:
@@ -58,5 +68,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Prismalux-Windows-x64-installer
-          path: gui/build/*.exe
+          path: |
+            gui/build/*.exe
+            gui/build/SHA256SUMS-windows.txt
           retention-days: 14

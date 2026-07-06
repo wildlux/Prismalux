@@ -13,7 +13,9 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    # ubuntu-24.04: Qt 6.4.2 — QSslServer (lan_server.h, widget_vision3d.h)
+    # richiede Qt >= 6.4; la 22.04 (Qt 6.2) non compila più il progetto.
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -25,12 +27,12 @@ jobs:
           sudo apt-get install -y \
             qt6-base-dev \
             qt6-base-private-dev \
-            libqt6network6-dev \
+            qt6-svg-dev \
             cmake \
             ninja-build \
             libgl1-mesa-dev \
             libgles2-mesa-dev \
-            libfuse2 \
+            libfuse2t64 \
             patchelf \
             libxcb-cursor0 \
             libxcb-icccm4 \
@@ -254,11 +256,19 @@ jobs:
             "Prismalux-x86_64.AppImage" 2>&1
           echo "AppImage creata: $(ls -lh Prismalux-x86_64.AppImage | awk '{print $5}')"
 
+      # OS-2: checksum per verifica integrità download
+      - name: Compute SHA-256 checksum
+        run: |
+          sha256sum Prismalux-x86_64.AppImage > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
       - name: Upload AppImage artifact
         uses: actions/upload-artifact@v4
         with:
           name: Prismalux-Linux-x86_64-AppImage
-          path: Prismalux-x86_64.AppImage
+          path: |
+            Prismalux-x86_64.AppImage
+            SHA256SUMS.txt
           retention-days: 7
 
       # ── Crea release su GitHub solo per tag v* ─────────────────────────
@@ -266,7 +276,9 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: Prismalux-x86_64.AppImage
+          files: |
+            Prismalux-x86_64.AppImage
+            SHA256SUMS.txt
           generate_release_notes: true
           name: "Prismalux ${{ github.ref_name }}"
           body: |

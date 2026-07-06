@@ -6,6 +6,7 @@
 
 ### *"Costruito per i mortali che aspirano alla saggezza."*
 
+[![Tests](https://github.com/wildlux/Prismalux/actions/workflows/tests.yml/badge.svg)](https://github.com/wildlux/Prismalux/actions/workflows/tests.yml)
 [![Version](https://img.shields.io/badge/versione-3.0-blue?style=flat-square)](CHANGELOG)
 [![C++/Qt6](https://img.shields.io/badge/GUI-C%2B%2B%20%2F%20Qt6-41CD52?style=flat-square&logo=qt)](https://www.qt.io/)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)

@@ -38,6 +38,7 @@ namespace P = PrismaluxPaths;
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
+#include <QCryptographicHash>
 #include <functional>
 #include <QCoreApplication>
 #include <QTimer>
@@ -367,21 +368,32 @@ QWidget* ImpostazioniPage::buildVoceTab()
     QObject::connect(btnInstall, &QPushButton::clicked, inner,
                      [btnInstall, lblPiperStatus, refreshStatus]()
     {
+        /* SHA-256 pinnati (release 2023.11.14-2, calcolati dagli asset ufficiali):
+           un binario eseguibile scaricato dalla rete va verificato prima
+           dell'estrazione — OS-6. */
 #if defined(Q_OS_WIN)
         static const QString PIPER_BIN_URL2 =
             "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/"
             "piper_windows_amd64.zip";
         static const QString PIPER_ARCHIVE2 = "piper_windows_amd64.zip";
+        static const QString PIPER_SHA256 =
+            "f3c58906402b24f3a96d92145f58acba6d86c9b5db896d207f78dc80811efcea";
 #elif defined(Q_OS_MACOS)
+        /* NB: l'asset upstream si chiama piper_macos_x64 (non x86_64):
+           il vecchio nome scaricava una pagina 404. */
         static const QString PIPER_BIN_URL2 =
             "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/"
-            "piper_macos_x86_64.tar.gz";
-        static const QString PIPER_ARCHIVE2 = "piper_macos_x86_64.tar.gz";
+            "piper_macos_x64.tar.gz";
+        static const QString PIPER_ARCHIVE2 = "piper_macos_x64.tar.gz";
+        static const QString PIPER_SHA256 =
+            "ced85c0a3df13945b1e623b878a48fdc2854d5c485b4b67f62857cf551deaf8b";
 #else
         static const QString PIPER_BIN_URL2 =
             "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/"
             "piper_linux_x86_64.tar.gz";
         static const QString PIPER_ARCHIVE2 = "piper_linux_x86_64.tar.gz";
+        static const QString PIPER_SHA256 =
+            "a50cb45f355b7af1f6d758c1b360717877ba0a398cc8cbe6d2a7a3a26e225992";
 #endif
         const QString installDir = s_piperDir();
         QDir().mkpath(installDir);
@@ -415,6 +427,22 @@ QWidget* ImpostazioniPage::buildVoceTab()
                     btnInstall->setEnabled(true);
                     btnInstall->setText(tr("\xf0\x9f\x93\xa5  Installa Piper"));
                     return;
+                }
+                /* Verifica integrità PRIMA di estrarre/eseguire (OS-6) */
+                {
+                    QFile arch(archivePath);
+                    QCryptographicHash h(QCryptographicHash::Sha256);
+                    const bool okHash = arch.open(QIODevice::ReadOnly)
+                        && h.addData(&arch)
+                        && QString::fromLatin1(h.result().toHex()) == PIPER_SHA256;
+                    if (!okHash) {
+                        arch.close();
+                        QFile::remove(archivePath);
+                        lblPiperStatus->setText(tr("\xe2\x9d\x8c Checksum SHA-256 non valido: archivio scartato."));
+                        btnInstall->setEnabled(true);
+                        btnInstall->setText(tr("\xf0\x9f\x93\xa5  Installa Piper"));
+                        return;
+                    }
                 }
                 lblPiperStatus->setText(tr("\xe2\x8f\xb3 Estrazione archivio..."));
                 /* Estrai: tar o unzip */

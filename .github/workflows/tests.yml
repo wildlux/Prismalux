@@ -1,0 +1,55 @@
+name: Tests
+
+# OS-1: le suite ctest girano in CI su ogni push/PR che tocca gui/.
+# Escluse le suite "live" che richiedono Ollama in esecuzione o fixture
+# locali non presenti nel repo (vedi --exclude-regex sotto).
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "gui/**"
+      - ".github/workflows/tests.yml"
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  ctest:
+    # ubuntu-24.04: Qt 6.4.2 — QSslServer richiede Qt >= 6.4
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt6 dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            qt6-base-dev \
+            qt6-base-private-dev \
+            qt6-svg-dev \
+            cmake \
+            ninja-build \
+            libgl1-mesa-dev \
+            libgles2-mesa-dev
+
+      - name: Configure CMake (BUILD_TESTS=ON)
+        run: cmake -B build_tests -S gui -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build_tests -j$(nproc)
+
+      # Esclusioni:
+      #  - AiIntegration|AiStress|TeamCollab|MultiAgenteLive|AgenteAutonomoLive|ChatLive:
+      #    richiedono Ollama reale con modelli installati (suite live, minuti/ore)
+      #  - AppController: TestLavoroPage::offerteListNotEmpty richiede una fixture
+      #    offerte non inclusa nel repo — riabilitare quando la fixture sarà versionata
+      - name: Run ctest
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          ctest --test-dir build_tests -j3 --output-on-failure \
+            --exclude-regex "AiIntegration|AiStress|TeamCollab|MultiAgenteLive|AgenteAutonomoLive|ChatLive|AppController"
