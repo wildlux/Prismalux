@@ -23,7 +23,7 @@ plotly>=5.20.0                     # grafici interattivi HTML
 
 # ── Computer Vision e Immagini ───────────────────────────────────────────────
 # Esegui: pip install opencv-python Pillow
-opencv-python>=4.9.0               # computer vision — elaborazione immagini
+opencv-python>=5.0.0.93               # computer vision — elaborazione immagini
 Pillow>=10.0.0                     # immagini PIL — MCPs Stable Diffusion, icone
 
 # ── Data Science / ML (CPU) ──────────────────────────────────────────────────
