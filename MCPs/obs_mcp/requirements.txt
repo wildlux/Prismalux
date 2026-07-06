@@ -2,4 +2,4 @@
 # Installazione: pip install -r requirements.txt
 # Richiede OBS Studio con WebSocket abilitato (porta 4455)
 
-obsws-python>=1.7.0
+obsws-python>=1.8.0

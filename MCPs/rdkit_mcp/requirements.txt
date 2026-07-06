@@ -3,5 +3,5 @@
 # Alternativa conda: conda install -c conda-forge rdkit
 # Alternativa apt:   sudo apt install python3-rdkit
 
-rdkit>=2023.9.0
-Pillow>=10.0.0
+rdkit>=2026.3.3
+Pillow>=12.3.0

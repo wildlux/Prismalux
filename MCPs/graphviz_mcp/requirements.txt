@@ -6,4 +6,4 @@
 #   Windows: winget install graphviz
 #   macOS:   brew install graphviz
 
-graphviz>=0.20.0
+graphviz>=0.21

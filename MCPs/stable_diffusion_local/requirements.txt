@@ -7,7 +7,7 @@
 # Versioni testate (2026-05-15)
 
 diffusers>=0.27.0,<1.0
-transformers>=4.40.0,<5.0
+transformers>=4.40.0,<6.0
 accelerate>=0.30.0,<2.0
 torch>=2.2.0,<3.0
-Pillow==12.1.1
+Pillow==12.3.0
