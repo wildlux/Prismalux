@@ -70,6 +70,18 @@ static bool    _ibanValid(const QString& ibanRaw);
 static bool    _cfChecksumValid(const QString& cfUpper);
 static QString _cfDecode(const QString& cfUpper);
 
+/* Escaping testo per campi iCalendar (RFC 5545 §3.3.11) — definita più
+ * sotto vicino a _parseEventoRequest/crea_evento_calendario che la usano.
+ * Linkage esterna (non static, come _parseEventoRequest) per poterla
+ * testare direttamente da test_agenti_pipeline.cpp. */
+QString _icsEscapeText(QString s);
+
+/* URL Android intent:// per aprire l'app Google Calendar direttamente
+ * (con fallback al link https universale se l'app non c'è) — definita più
+ * sotto vicino a crea_evento_calendario che la usa. Linkage esterna per
+ * poterla testare direttamente da test_agenti_pipeline.cpp. */
+QString _buildGoogleCalendarIntentUrl(const QUrlQuery& query, const QUrl& httpsUrl);
+
 /* ── Helper: tronca risultati tool lunghi con suffisso leggibile ── */
 static QString _truncateResult(const QString& s, int maxLen = 2000)
 {
@@ -1413,7 +1425,15 @@ void AgentiPage::runToolCall(const QJsonObject& call,
 
         QJsonArray pngs, labels;
 
-        /* ── Formato Google Calendar: URL con parametri, massima compatibilità ── */
+        /* ── Formato Google Calendar: URL universale (funziona ovunque, ma
+         * su Android il link https semplice quasi sempre apre il BROWSER
+         * invece dell'app, anche con Google Calendar installato — segnalato
+         * da Paolo). Aggiunta una seconda variante SOLO Android con schema
+         * intent:// (S.browser_fallback_url = lo stesso URL https, se
+         * l'app non è installata) che dice esplicitamente al telefono di
+         * aprire com.google.android.calendar — su iPhone intent:// non
+         * significa nulla, per questo resta un QR SEPARATO e non sostituisce
+         * quello universale. ── */
         if (formato == "google" || formato == "entrambi") {
             QUrlQuery q;
             q.addQueryItem("action", "TEMPLATE");
@@ -1433,12 +1453,26 @@ void AgentiPage::runToolCall(const QJsonObject& call,
                     labels.append("Google Calendar");
                 }
             }
+
+            const QImage imgAndroid = QrCodeWidget::renderImage(_buildGoogleCalendarIntentUrl(q, url));
+            if (!imgAndroid.isNull()) {
+                const QString path = base + "_google_android.png";
+                if (imgAndroid.save(path, "PNG")) {
+                    pngs.append(path);
+                    labels.append("Google Calendar (Android)");
+                }
+            }
         }
 
         /* ── Formato .ics universale: VEVENT embeddato nel QR (letto da molte
          * fotocamere native Android/iOS) + file .ics salvato per import
          * manuale su qualunque calendario (fallback se lo scanner non lo
-         * riconosce). Orari in UTC con 'Z' per portabilità tra fusi. ── */
+         * riconosce). Orari in UTC con 'Z' per portabilità tra fusi. Campi
+         * testo escapati con _icsEscapeText() (RFC 5545 §3.3.11): virgola,
+         * punto e virgola e ritorno a capo non escapati rompono il parsing
+         * per un lettore calendario rigoroso (campo troncato o intero
+         * VCALENDAR scartato) — mai stato un problema con titoli semplici,
+         * ma un luogo/descrizione con una virgola bastava a farlo. ── */
         QString icsPath;
         if (formato == "ics" || formato == "entrambi") {
             const QString uid = slug + "_" + stamp + "@prismalux";
@@ -1459,8 +1493,8 @@ void AgentiPage::runToolCall(const QJsonObject& call,
                 .arg(uid,
                      QDateTime::currentDateTimeUtc().toString("yyyyMMdd'T'HHmmss'Z'"),
                      start.toUTC().toString("yyyyMMdd'T'HHmmss'Z'"),
-                     end.toUTC().toString("yyyyMMdd'T'HHmmss'Z'"),
-                     titolo, luogo, descrizione);
+                     end.toUTC().toString("yyyyMMdd'T'HHmmss'Z'"))
+                .arg(_icsEscapeText(titolo), _icsEscapeText(luogo), _icsEscapeText(descrizione));
 
             icsPath = base + ".ics";
             QFile f(icsPath);
@@ -2022,6 +2056,43 @@ QString _inject_date_calc(const QString& task)
     }
 
     return task;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _icsEscapeText — escaping di un campo testo iCalendar (RFC 5545
+   §3.3.11 TEXT value type). Backslash PRIMA di tutto, altrimenti
+   raddoppierebbe gli escape appena inseriti per ; e ,. Senza questo,
+   un titolo/luogo/descrizione con una virgola o un punto e virgola
+   rompe il parsing per un lettore calendario rigoroso (campo
+   troncato al separatore, o l'intero VCALENDAR scartato).
+   ══════════════════════════════════════════════════════════════ */
+QString _icsEscapeText(QString s)
+{
+    s.replace('\\', "\\\\");
+    s.replace(';',  "\\;");
+    s.replace(',',  "\\,");
+    s.replace("\r\n", "\\n");
+    s.replace('\n', "\\n");
+    return s;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   _buildGoogleCalendarIntentUrl — variante Android del link Google
+   Calendar: un https:// semplice quasi sempre apre il BROWSER anche
+   con l'app installata (segnalato da un utente reale). Lo schema
+   intent:// dice esplicitamente ad Android di aprire il pacchetto
+   com.google.android.calendar, con S.browser_fallback_url = lo
+   stesso link https come riserva se l'app non c'è. iOS non capisce
+   intent:// — per questo NON sostituisce il link universale, viene
+   generato come QR separato (vedi crea_evento_calendario).
+   ══════════════════════════════════════════════════════════════ */
+QString _buildGoogleCalendarIntentUrl(const QUrlQuery& query, const QUrl& httpsUrl)
+{
+    return "intent://calendar.google.com/calendar/render?"
+        + query.query(QUrl::FullyEncoded)
+        + "#Intent;scheme=https;package=com.google.android.calendar;"
+          "S.browser_fallback_url=" + QString::fromUtf8(QUrl::toPercentEncoding(httpsUrl.toString()))
+        + ";end";
 }
 
 /* ══════════════════════════════════════════════════════════════

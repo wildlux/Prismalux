@@ -472,15 +472,28 @@ bool AgentiPage::_showQrEventoBubble(const QString& result)
     const QString icsFile   = o["ics_file"].toString();
 
     const auto& c = bc();
-    QString imgsHtml;
+    /* Affiancati (uno a sinistra, uno a destra) con una <table>, non <div
+       style='display:inline-block'>: il motore rich-text di Qt (QTextEdit)
+       non supporta inline-block sui div — li tratta come blocchi con
+       ritorno a capo forzato, mandando i due QR uno sopra l'altro invece
+       che fianco a fianco. Le celle di tabella invece funzionano bene. */
+    // Dimensione per immagine in base a quanti QR ci sono: con 2 (il caso
+    // più comune, Google+ics) 210px resta comodo da scansionare da monitor;
+    // con 3 (Google https + Google Android intent + ics, formato "entrambi"
+    // dopo l'aggiunta della variante Android) 170px evita che la riga
+    // trabocchi restando comunque leggibile.
+    const int qrPx = pngs.size() >= 3 ? 170 : 210;
+    QString imgsHtml = "<table cellpadding='0' cellspacing='0'><tr>";
     for (int i = 0; i < pngs.size(); ++i) {
         const QString path  = pngs[i].toString();
         const QString label = i < labels.size() ? labels[i].toString() : QString();
-        imgsHtml += "<div style='display:inline-block;margin:6px 10px 0 0;text-align:center;'>"
-            "<img src='" + QUrl::fromLocalFile(path).toString() + "' width='220' height='220'>"
+        imgsHtml += "<td style='text-align:center;padding:6px 18px 0 0;'>"
+            "<img src='" + QUrl::fromLocalFile(path).toString() + "' width='" + QString::number(qrPx)
+            + "' height='" + QString::number(qrPx) + "'>"
             "<div style='font-size:11px;color:" + c.lHdr + ";margin-top:2px;'>" + label.toHtmlEscaped() + "</div>"
-            "</div>";
+            "</td>";
     }
+    imgsHtml += "</tr></table>";
     const int br = AppConfig::s().value(P::SK::kBubbleRadius, 10).toInt();
     m_log->moveCursor(QTextCursor::End);
     m_log->insertHtml(

@@ -15,6 +15,8 @@
    ══════════════════════════════════════════════════════════════ */
 #include <QtTest/QtTest>
 #include <QApplication>
+#include <QUrl>
+#include <QUrlQuery>
 #include "../pages/main_ai.h"
 #include "../widgets/formula_parser.h"
 
@@ -405,6 +407,8 @@ QString _inject_generator(const QString& task);
 QString _inject_textstats(const QString& task);
 QString _inject_algo(const QString& task);
 QJsonObject _parseEventoRequest(const QString& task);
+QString _icsEscapeText(QString s);
+QString _buildGoogleCalendarIntentUrl(const QUrlQuery& query, const QUrl& httpsUrl);
 
 class TestHelpExamplesLocal : public QObject {
     Q_OBJECT
@@ -511,6 +515,99 @@ private slots:
     }
 };
 
+/* ══════════════════════════════════════════════════════════════
+   CAT-I — _icsEscapeText: escaping RFC 5545 §3.3.11 per i campi
+   testo del file/QR .ics generato da crea_evento_calendario.
+   ══════════════════════════════════════════════════════════════ */
+class TestIcsEscapeText : public QObject {
+    Q_OBJECT
+private slots:
+
+    /* I-1: caratteri semplici (nessuno dei 4 speciali) → invariati */
+    void testoSemplicePassaInvariato() {
+        QCOMPARE(_icsEscapeText("Compleanno di Marco"), QString("Compleanno di Marco"));
+    }
+
+    /* I-2: virgola e punto e virgola → escapati con backslash */
+    void virgolaEPuntoEVirgola() {
+        QCOMPARE(_icsEscapeText("Milano, sala A; ingresso B"),
+                  QString("Milano\\, sala A\\; ingresso B"));
+    }
+
+    /* I-3: newline (sia \n che \r\n) → sequenza letterale \n */
+    void newlineDiventaSequenzaLetterale() {
+        QCOMPARE(_icsEscapeText("riga1\nriga2"), QString("riga1\\nriga2"));
+        QCOMPARE(_icsEscapeText("riga1\r\nriga2"), QString("riga1\\nriga2"));
+    }
+
+    /* I-4: backslash letterale nel testo utente → raddoppiato, e va
+       fatto PRIMA degli altri escape (altrimenti '\;' inserito per un
+       ';' verrebbe ri-raddoppiato in '\\;' un secondo giro). */
+    void backslashRaddoppiatoPrimaDegliAltri() {
+        QCOMPARE(_icsEscapeText("C:\\Users\\Mario"), QString("C:\\\\Users\\\\Mario"));
+        QCOMPARE(_icsEscapeText("a;b"), QString("a\\;b"));
+    }
+
+    /* I-5: stringa vuota → invariata, nessun crash */
+    void stringaVuota() {
+        QCOMPARE(_icsEscapeText(""), QString(""));
+    }
+};
+
+/* ══════════════════════════════════════════════════════════════
+   CAT-J — _buildGoogleCalendarIntentUrl: URL Android intent:// che apre
+   l'app Google Calendar direttamente (invece del solo link https, che
+   su Android spesso apre il browser anche con l'app installata).
+   ══════════════════════════════════════════════════════════════ */
+class TestGoogleCalendarIntentUrl : public QObject {
+    Q_OBJECT
+private slots:
+
+    /* J-1: struttura base — prefisso intent://, pacchetto Android giusto,
+       suffisso ;end, e la query prima di #Intent combacia con quella https */
+    void strutturaIntentCorretta() {
+        QUrlQuery q;
+        q.addQueryItem("action", "TEMPLATE");
+        q.addQueryItem("text", "Compleanno di Marco");
+        q.addQueryItem("dates", "20270315T200000/20270315T210000");
+        QUrl httpsUrl("https://calendar.google.com/calendar/render");
+        httpsUrl.setQuery(q);
+
+        const QString intent = _buildGoogleCalendarIntentUrl(q, httpsUrl);
+
+        QVERIFY(intent.startsWith("intent://calendar.google.com/calendar/render?"));
+        QVERIFY2(intent.contains("#Intent;scheme=https;package=com.google.android.calendar;"),
+                 qPrintable(intent));
+        QVERIFY(intent.endsWith(";end"));
+
+        const QString query = intent.mid(
+            QString("intent://calendar.google.com/calendar/render?").length(),
+            intent.indexOf("#Intent") - QString("intent://calendar.google.com/calendar/render?").length());
+        QCOMPARE(query, q.query(QUrl::FullyEncoded));
+    }
+
+    /* J-2: il fallback per Android (browser_fallback_url), decodificato,
+       deve tornare ESATTAMENTE l'URL https originale — è la garanzia che
+       chi non ha l'app finisce comunque sulla pagina giusta, non su un
+       link rotto/troncato dall'escaping. */
+    void fallbackDecodificaAllUrlOriginale() {
+        QUrlQuery q;
+        q.addQueryItem("action", "TEMPLATE");
+        q.addQueryItem("text", "Riunione, sala A & B");   // caratteri che vanno percent-encoded
+        QUrl httpsUrl("https://calendar.google.com/calendar/render");
+        httpsUrl.setQuery(q);
+
+        const QString intent = _buildGoogleCalendarIntentUrl(q, httpsUrl);
+        static const QString marker = "S.browser_fallback_url=";
+        const int start = intent.indexOf(marker) + marker.length();
+        const int end   = intent.indexOf(";end");
+        QVERIFY(start > 0 && end > start);
+        const QString fallbackEncoded = intent.mid(start, end - start);
+
+        QCOMPARE(QUrl::fromPercentEncoding(fallbackEncoded.toUtf8()), httpsUrl.toString());
+    }
+};
+
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
@@ -525,6 +622,8 @@ int main(int argc, char* argv[])
         TestInjectHelp          t6; status |= QTest::qExec(&t6, argc, argv);
         TestHelpExamplesLocal   t7; status |= QTest::qExec(&t7, argc, argv);
         TestParseEvento         t8; status |= QTest::qExec(&t8, argc, argv);
+        TestIcsEscapeText       t9; status |= QTest::qExec(&t9, argc, argv);
+        TestGoogleCalendarIntentUrl t10; status |= QTest::qExec(&t10, argc, argv);
     }
     return status;
 }
